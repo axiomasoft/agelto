@@ -1,0 +1,163 @@
+version: "3.9"
+
+services:
+  app:
+    build:
+      context: ./docker/php
+    container_name: agelto_app
+    restart: unless-stopped
+    working_dir: /var/www/html
+    stop_signal: SIGTERM
+    volumes:
+      - ./:/var/www/html
+      - ./docker/nginx/default.conf:/etc/nginx/conf.d/default.conf
+    ports:
+      - "${APP_PORT:-8080}:80"
+      - "${VITE_PORT:-5174}:${VITE_PORT:-5174}"
+    environment:
+      APP_NAME: ${APP_NAME:-Laravel}
+      APP_ENV: ${APP_ENV:-local}
+      APP_KEY: ${APP_KEY:-}
+      APP_DEBUG: ${APP_DEBUG:-true}
+      APP_URL: ${APP_URL:-http://localhost:8080}
+      DB_CONNECTION: ${DB_CONNECTION:-mysql}
+      DB_HOST: ${DB_HOST:-mysql}
+      DB_PORT: ${DB_PORT:-3306}
+      DB_DATABASE: ${DB_DATABASE:-agelto}
+      DB_USERNAME: ${DB_USERNAME:-agelto}
+      DB_PASSWORD: ${DB_PASSWORD:-agelto_password}
+      CACHE_DRIVER: ${CACHE_DRIVER:-file}
+      SESSION_DRIVER: ${SESSION_DRIVER:-file}
+      QUEUE_CONNECTION: ${QUEUE_CONNECTION:-database}
+    depends_on:
+      mysql:
+        condition: service_healthy
+    networks:
+      - agelto_network
+
+  queue:
+    image: serversideup/php:8.4-cli
+    container_name: agelto_queue
+    restart: unless-stopped
+    working_dir: /var/www/html
+    stop_signal: SIGTERM
+    volumes:
+      - ./:/var/www/html
+    command: php artisan queue:work --tries=3 --timeout=90
+    environment:
+      APP_NAME: ${APP_NAME:-Laravel}
+      APP_ENV: ${APP_ENV:-local}
+      APP_KEY: ${APP_KEY:-}
+      APP_DEBUG: ${APP_DEBUG:-true}
+      APP_URL: ${APP_URL:-http://localhost:8080}
+      DB_CONNECTION: ${DB_CONNECTION:-mysql}
+      DB_HOST: ${DB_HOST:-mysql}
+      DB_PORT: ${DB_PORT:-3306}
+      DB_DATABASE: ${DB_DATABASE:-agelto}
+      DB_USERNAME: ${DB_USERNAME:-agelto}
+      DB_PASSWORD: ${DB_PASSWORD:-agelto_password}
+      CACHE_DRIVER: ${CACHE_DRIVER:-file}
+      SESSION_DRIVER: ${SESSION_DRIVER:-file}
+      QUEUE_CONNECTION: ${QUEUE_CONNECTION:-database}
+    depends_on:
+      mysql:
+        condition: service_healthy
+      app:
+        condition: service_started
+    networks:
+      - agelto_network
+
+  scheduler:
+    image: serversideup/php:8.4-cli
+    container_name: agelto_scheduler
+    restart: unless-stopped
+    working_dir: /var/www/html
+    stop_signal: SIGTERM
+    volumes:
+      - ./:/var/www/html
+    command: php artisan schedule:work
+    environment:
+      APP_NAME: ${APP_NAME:-Laravel}
+      APP_ENV: ${APP_ENV:-local}
+      APP_KEY: ${APP_KEY:-}
+      APP_DEBUG: ${APP_DEBUG:-true}
+      APP_URL: ${APP_URL:-http://localhost:8080}
+      DB_CONNECTION: ${DB_CONNECTION:-mysql}
+      DB_HOST: ${DB_HOST:-mysql}
+      DB_PORT: ${DB_PORT:-3306}
+      DB_DATABASE: ${DB_DATABASE:-agelto}
+      DB_USERNAME: ${DB_USERNAME:-agelto}
+      DB_PASSWORD: ${DB_PASSWORD:-agelto_password}
+      CACHE_DRIVER: ${CACHE_DRIVER:-file}
+      SESSION_DRIVER: ${SESSION_DRIVER:-file}
+      QUEUE_CONNECTION: ${QUEUE_CONNECTION:-database}
+    depends_on:
+      mysql:
+        condition: service_healthy
+      app:
+        condition: service_started
+    networks:
+      - agelto_network
+
+  reverb:
+    image: serversideup/php:8.4-cli
+    container_name: agelto_reverb
+    restart: unless-stopped
+    working_dir: /var/www/html
+    stop_signal: SIGTERM
+    volumes:
+      - ./:/var/www/html
+    command: php artisan reverb:start --host=0.0.0.0 --port=8000
+    ports:
+      - "${REVERB_PORT:-8000}:8000"
+    environment:
+      APP_NAME: ${APP_NAME:-Laravel}
+      APP_ENV: ${APP_ENV:-local}
+      APP_KEY: ${APP_KEY:-}
+      APP_DEBUG: ${APP_DEBUG:-true}
+      APP_URL: ${APP_URL:-http://localhost:8080}
+      DB_CONNECTION: ${DB_CONNECTION:-mysql}
+      DB_HOST: ${DB_HOST:-mysql}
+      DB_PORT: ${DB_PORT:-3306}
+      DB_DATABASE: ${DB_DATABASE:-agelto}
+      DB_USERNAME: ${DB_USERNAME:-agelto}
+      DB_PASSWORD: ${DB_PASSWORD:-agelto_password}
+      CACHE_DRIVER: ${CACHE_DRIVER:-file}
+      SESSION_DRIVER: ${SESSION_DRIVER:-file}
+      QUEUE_CONNECTION: ${QUEUE_CONNECTION:-database}
+    depends_on:
+      mysql:
+        condition: service_healthy
+      app:
+        condition: service_started
+    networks:
+      - agelto_network
+
+  mysql:
+    image: mysql:8.4
+    container_name: agelto_mysql
+    restart: unless-stopped
+    ports:
+      - "${MYSQL_PORT:-3306}:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    environment:
+      MYSQL_DATABASE: ${DB_DATABASE:-agelto}
+      MYSQL_USER: ${DB_USERNAME:-agelto}
+      MYSQL_PASSWORD: ${DB_PASSWORD:-agelto_password}
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-root_password}
+    healthcheck:
+      test: [ "CMD-SHELL", "mysqladmin ping -h localhost -u root -p${MYSQL_ROOT_PASSWORD} || exit 1" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - agelto_network
+
+networks:
+  agelto_network:
+    driver: bridge
+
+volumes:
+  mysql_data:
+    driver: local
