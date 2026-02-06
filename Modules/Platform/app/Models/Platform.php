@@ -1,6 +1,6 @@
 <?php
 
-namespace Modules\Platform\Models;
+namespace Platform\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -10,9 +10,8 @@ class Platform extends Model
 {
     use HasFactory;
 
-    /**
-     * The attributes that are mass assignable.
-     */
+    protected $table = 'plt_platforms';
+
     protected $fillable = [
         'name',
         'code',

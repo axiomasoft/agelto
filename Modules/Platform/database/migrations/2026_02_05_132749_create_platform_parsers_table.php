@@ -5,6 +5,7 @@ declare(strict_types=1);
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
+use Platform\Models\Parser\Parser;
 
 return new class extends Migration
 {
@@ -13,10 +14,9 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('platform_parsers', function (Blueprint $table) {
+        Schema::create($this->table(), function (Blueprint $table) {
             $table->id();
-            $table->foreignId('platform_id')->references('id')->on('platforms')->cascadeOnDelete();
-            $table->string('name');
+            $table->foreignId('platform_id')->references('id')->on((new \Platform\Models\Platform())->getTable())->cascadeOnDelete();
             $table->json('filter');
             $table->timestamps();
         });
@@ -27,6 +27,11 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('platform_parsers');
+        Schema::dropIfExists($this->table());
+    }
+
+    private function table(): string
+    {
+        return (new Parser())->getTable();
     }
 };

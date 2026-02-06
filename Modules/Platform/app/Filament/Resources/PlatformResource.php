@@ -2,26 +2,27 @@
 
 declare(strict_types=1);
 
-namespace Modules\Platform\Filament\Resources;
+namespace Platform\Filament\Resources;
 
+use BackedEnum;
 use Filament\Forms;
-use Filament\Forms\Form;
+use Filament\Schemas\Schema;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
-use Modules\Platform\Filament\Resources\PlatformResource\Pages;
-use Modules\Platform\Models\Platform;
+use Platform\Filament\Resources\PlatformResource\Pages;
+use Platform\Models\Platform;
 
-final class PlatformResource extends Resource
+class PlatformResource extends Resource
 {
     protected static ?string $model = Platform::class;
 
-    protected static ?string $navigationIcon = 'heroicon-o-rectangle-stack';
+    protected static string|BackedEnum|null $navigationIcon = 'heroicon-o-rectangle-stack';
 
-    public static function form(Form $form): Form
+    public static function form(Schema $schema): Schema
     {
-        return $form
-            ->schema([
+        return $schema
+            ->components([
                 Forms\Components\TextInput::make('name')
                     ->required()
                     ->maxLength(255),

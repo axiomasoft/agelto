@@ -8,5 +8,5 @@ use Illuminate\Database\Eloquent\Model;
 
 final class Order extends Model
 {
-    //
+    protected $table = 'ord_orders';
 }

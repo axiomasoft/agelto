@@ -4,19 +4,12 @@ namespace Platform\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
-// use \Platform\Database\Factories\PlatformProxyFactory;
 
 class PlatformProxy extends Model
 {
     use HasFactory;
 
-    /**
-     * The attributes that are mass assignable.
-     */
-    protected $fillable = [];
+    protected $table = 'plt_platform_proxies';
 
-    // protected static function newFactory(): PlatformProxyFactory
-    // {
-    //     // return PlatformProxyFactory::new();
-    // }
+    protected $fillable = [];
 }

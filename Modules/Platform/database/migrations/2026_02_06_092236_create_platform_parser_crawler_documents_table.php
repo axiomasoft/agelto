@@ -5,6 +5,7 @@ declare(strict_types=1);
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
+use Platform\Models\Parser\ParserCrawlerDocument;
 
 return new class extends Migration
 {
@@ -13,9 +14,9 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('platform_parser_map_documents', function (Blueprint $table) {
+        Schema::create($this->table(), function (Blueprint $table) {
             $table->id();
-            $table->foreignId('map_url_id')->constrained('platform_parser_map_urls')->cascadeOnDelete();
+            $table->foreignId('crawler_url_id')->constrained((new \Platform\Models\Parser\ParserCrawlerUrl())->getTable())->cascadeOnDelete();
             $table->string('name', 500);
             $table->string('url', 1000);
 
@@ -39,6 +40,11 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('platform_parser_map_documents');
+        Schema::dropIfExists($this->table());
+    }
+
+    private function table(): string
+    {
+        return (new ParserCrawlerDocument())->getTable();
     }
 };

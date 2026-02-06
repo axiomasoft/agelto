@@ -2,6 +2,8 @@
 
 declare(strict_types=1);
 
+use App\Models\Order\Order;
+use App\Models\Order\OrderCustomer;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
@@ -10,7 +12,7 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::create('orders', function (Blueprint $table) {
+        Schema::create($this->table(), function (Blueprint $table) {
             $table->id();
             $table->string('reg_number')->index(); // Номер извещения
             $table->integer('edition_number')->default(1); // Редакция
@@ -18,8 +20,8 @@ return new class extends Migration
             $table->string('status')->nullable();
 
             // Связи
-            $table->foreignId('customer_id')->constrained('order_customers');
-            $table->foreignId('platform_id')->constrained('platforms');
+            $table->foreignId('customer_id')->constrained((new OrderCustomer())->getTable());
+            $table->foreignId('platform_id')->constrained((new \Platform\Models\Platform())->getTable());
 
             // Финансы
             $table->decimal('initial_price', 20, 2)->nullable();
@@ -27,7 +29,7 @@ return new class extends Migration
 
             // Даты из ЕИС
             $table->dateTime('published_at')->nullable();     // Размещено
-            $table->dateTime('updated_at')->nullable();       // Изменено (контроль повторного парсинга)
+            $table->dateTime('eis_updated_at')->nullable();       // Изменено (контроль повторного парсинга)
             $table->dateTime('submission_start_at')->nullable(); // Начало подачи
             $table->dateTime('submission_end_at')->nullable();   // Конец подачи
             $table->dateTime('scoring_at')->nullable();          // Итоги/Рассмотрение
@@ -38,6 +40,11 @@ return new class extends Migration
 
     public function down(): void
     {
-        Schema::dropIfExists('orders');
+        Schema::dropIfExists($this->table());
+    }
+
+    private function table(): string
+    {
+        return (new Order())->getTable();
     }
 };

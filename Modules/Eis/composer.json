@@ -26,5 +26,8 @@
         "psr-4": {
             "Eis\\Tests\\": "tests/"
         }
+    },
+    "require": {
+        "agelto/platform": "*"
     }
 }
