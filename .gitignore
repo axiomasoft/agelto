@@ -26,6 +26,7 @@ yarn-error.log
 /.nova
 /.vscode
 /.zed
+.pnpm-store
 
 # AI Tools
 CLAUDE.md
@@ -37,3 +38,6 @@ AGENTS.md
 .vscode/
 .mcp.json
 boost.json
+
+
+app/Console/Commands/Playground.php

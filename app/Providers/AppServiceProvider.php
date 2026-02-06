@@ -9,6 +9,9 @@ use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Validation\Rules\Password;
+use GuzzleHttp\Client as GuzzleClient;
+use Gemini\Client as GeminiClient;
+use Gemini\Laravel\Facades\Gemini;
 use Override;
 
 final class AppServiceProvider extends ServiceProvider
@@ -19,7 +22,21 @@ final class AppServiceProvider extends ServiceProvider
     #[Override]
     public function register(): void
     {
-        //
+        // Переопределяем Singleton клиента Gemini
+        $this->app->singleton(GeminiClient::class, function () {
+            $httpClient = new GuzzleClient([
+                'proxy'   => env('GEMINI_PROXY'),
+                'verify'  => false,
+                'connect_timeout' => 20,
+                'timeout' => 300, // Увеличиваем до 5 минут для тяжелых смет
+                'debug'   => true, // Включаем VERBOSE режим
+            ]);
+
+            return Gemini::factory()
+                ->withApiKey(config('gemini.api_key'))
+                ->withHttpClient($httpClient)
+                ->make();
+        });
     }
 
     /**
@@ -38,14 +55,15 @@ final class AppServiceProvider extends ServiceProvider
             app()->isProduction(),
         );
 
-        Password::defaults(fn (): ?Password => app()->isProduction()
-            ? Password::min(12)
+        Password::defaults(
+            fn(): ?Password => app()->isProduction()
+                ? Password::min(12)
                 ->mixedCase()
                 ->letters()
                 ->numbers()
                 ->symbols()
                 ->uncompromised()
-            : null
+                : null
         );
     }
 }
