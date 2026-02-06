@@ -1,0 +1,11 @@
+{
+    "name": "Sys",
+    "alias": "sys",
+    "description": "",
+    "keywords": [],
+    "priority": 0,
+    "providers": [
+        "\\Sys\\Providers\\SysServiceProvider"
+    ],
+    "files": []
+}

@@ -1,0 +1,30 @@
+{
+    "name": "agelto/eis",
+    "description": "",
+    "authors": [
+        {
+            "name": "Dmitry Vostrikov",
+            "email": "vostrikovdv@yandex.ru"
+        }
+    ],
+    "extra": {
+        "laravel": {
+            "providers": [],
+            "aliases": {
+
+            }
+        }
+    },
+    "autoload": {
+        "psr-4": {
+            "Eis\\": "app/",
+            "Eis\\Database\\Factories\\": "database/factories/",
+            "Eis\\Database\\Seeders\\": "database/seeders/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Eis\\Tests\\": "tests/"
+        }
+    }
+}

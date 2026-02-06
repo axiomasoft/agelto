@@ -1,0 +1,30 @@
+{
+    "name": "agelto/platform",
+    "description": "",
+    "authors": [
+        {
+            "name": "Dmitry Vostrikov",
+            "email": "vostrikovdv@yandex.ru"
+        }
+    ],
+    "extra": {
+        "laravel": {
+            "providers": [],
+            "aliases": {
+
+            }
+        }
+    },
+    "autoload": {
+        "psr-4": {
+            "Platform\\": "app/",
+            "Platform\\Database\\Factories\\": "database/factories/",
+            "Platform\\Database\\Seeders\\": "database/seeders/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Platform\\Tests\\": "tests/"
+        }
+    }
+}

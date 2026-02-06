@@ -1,0 +1,11 @@
+{
+    "name": "Eis",
+    "alias": "eis",
+    "description": "",
+    "keywords": [],
+    "priority": 0,
+    "providers": [
+        "\\Eis\\Providers\\EisServiceProvider"
+    ],
+    "files": []
+}
