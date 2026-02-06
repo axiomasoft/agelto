@@ -43,7 +43,9 @@ class EisServiceProvider extends ServiceProvider
      */
     protected function registerCommands(): void
     {
-        // $this->commands([]);
+        $this->commands([
+            \Eis\Console\EisMapCommand::class,
+        ]);
     }
 
     /**

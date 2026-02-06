@@ -16,6 +16,7 @@ return new class extends Migration
         Schema::create('platform_parsers', function (Blueprint $table) {
             $table->id();
             $table->foreignId('platform_id')->references('id')->on('platforms')->cascadeOnDelete();
+            $table->string('name');
             $table->json('filter');
             $table->timestamps();
         });

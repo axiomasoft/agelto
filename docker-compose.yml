@@ -40,27 +40,29 @@ services:
     networks:
       - agelto_network
 
-  # --- WORKERS BY STAGES ---
-
+  # Контейнер для ручного запуска парсинга (Stage 1)
   worker-eis-parser-map:
     image: serversideup/php:8.4-cli
     container_name: agelto_worker_eis_map
     restart: unless-stopped
-    stop_signal: SIGTERM
+    working_dir: /var/www/html
     volumes:
       - ./:/var/www/html
-    command: php artisan eis:parse-map
+    # Контейнер спит, чтобы ты мог запускать команду через docker exec
+    command: tail -f /dev/null
     environment: *app_env
     depends_on: [ app ]
     networks:
       - agelto_network
 
+  # Управление очередями (Stage 2, 3, 4)
   horizon:
     image: serversideup/php:8.4-cli
     container_name: agelto_horizon
     restart: unless-stopped
     working_dir: /var/www/html
     stop_signal: SIGTERM
+    stop_grace_period: 610s # Даем время доработать тяжелым Job-ам
     volumes:
       - ./:/var/www/html
     command: php artisan horizon
