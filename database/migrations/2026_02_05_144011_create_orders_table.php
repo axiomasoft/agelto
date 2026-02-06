@@ -1,10 +1,13 @@
 <?php
 
+declare(strict_types=1);
+
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
-return new class extends Migration {
+return new class extends Migration
+{
     public function up(): void
     {
         Schema::create('orders', function (Blueprint $table) {
@@ -15,7 +18,7 @@ return new class extends Migration {
             $table->string('status')->nullable();
 
             // Связи
-            $table->foreignId('customer_id')->constrained('customers');
+            $table->foreignId('customer_id')->constrained('order_customers');
             $table->foreignId('platform_id')->constrained('platforms');
 
             // Финансы
@@ -32,6 +35,7 @@ return new class extends Migration {
             $table->timestamps(); // Внутренние даты Laravel
         });
     }
+
     public function down(): void
     {
         Schema::dropIfExists('orders');

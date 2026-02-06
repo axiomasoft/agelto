@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
@@ -11,12 +13,11 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('platforms', function (Blueprint $table) {
+        Schema::create('platform_regions', function (Blueprint $table) {
             $table->id();
-            $table->string('name');
-            $table->string('code', 32)->index();
-            $table->string('url');
-            $table->timestamps();
+            $table->foreignId('platform_id')->references('id')->on('platforms')->cascadeOnDelete();
+            $table->string('name', 100);
+            $table->string('external_id', 100)->nullable();
         });
     }
 
@@ -25,6 +26,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('platforms');
+        Schema::dropIfExists('platform_regions');
     }
 };

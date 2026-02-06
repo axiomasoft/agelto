@@ -9,111 +9,85 @@ services:
     working_dir: /var/www/html
     ports:
       - "${APP_PORT:-80}:80"
-    environment:
-      # Laravel
-      APP_NAME: ${APP_NAME}
+    environment: &prod_env
       APP_ENV: production
       APP_KEY: ${APP_KEY}
-      APP_DEBUG: "false"
       APP_URL: ${APP_URL}
-
-      # Database
-      DB_CONNECTION: mysql
       DB_HOST: mysql
-      DB_PORT: 3306
       DB_DATABASE: ${DB_DATABASE}
       DB_USERNAME: ${DB_USERNAME}
       DB_PASSWORD: ${DB_PASSWORD}
-
-      # Cache / Session / Queue
-      CACHE_DRIVER: ${CACHE_DRIVER:-redis}
-      SESSION_DRIVER: ${SESSION_DRIVER:-redis}
-      QUEUE_CONNECTION: ${QUEUE_CONNECTION:-redis}
-
+      CACHE_DRIVER: redis
+      SESSION_DRIVER: redis
+      QUEUE_CONNECTION: redis
+      REDIS_HOST: redis
     depends_on:
-      mysql:
-        condition: service_healthy
+      mysql: { condition: service_healthy }
+      redis: { condition: service_started }
     networks:
       - agelto_network
 
-  queue:
+  worker-eis-parser-map:
     image: agelto/app:latest
-    container_name: agelto_queue
+    container_name: agelto_worker_eis_map
+    command: php artisan eis:parse-map
+    environment: *prod_env
+    networks: [ agelto_network ]
+
+  horizon:
+    image: agelto/app:latest
+    container_name: agelto_horizon
     restart: unless-stopped
-    stop_signal: SIGTERM
     working_dir: /var/www/html
-    command: php artisan queue:work --tries=3 --timeout=90
-    environment:
-      APP_ENV: production
-      APP_KEY: ${APP_KEY}
-      DB_HOST: mysql
+    stop_signal: SIGTERM
+    stop_grace_period: 610s
+    command: php artisan horizon
+    environment: *prod_env
     depends_on:
-      mysql:
-        condition: service_healthy
-      app:
-        condition: service_started
-    networks:
-      - agelto_network
+      - app
+      - redis
+    networks: [ agelto_network ]
 
   scheduler:
     image: agelto/app:latest
-    container_name: agelto_scheduler
-    restart: unless-stopped
-    stop_signal: SIGTERM
-    working_dir: /var/www/html
     command: php artisan schedule:work
-    environment:
-      APP_ENV: production
-      APP_KEY: ${APP_KEY}
-      DB_HOST: mysql
-    depends_on:
-      mysql:
-        condition: service_healthy
-      app:
-        condition: service_started
-    networks:
-      - agelto_network
+    environment: *prod_env
+    networks: [ agelto_network ]
 
   reverb:
     image: agelto/app:latest
-    container_name: agelto_reverb
-    restart: unless-stopped
-    stop_signal: SIGTERM
-    working_dir: /var/www/html
     command: php artisan reverb:start --host=0.0.0.0 --port=${REVERB_PORT:-8000}
     ports:
-      - "${REVERB_PORT:-8000}:8000"
-    environment:
-      APP_ENV: production
-      APP_KEY: ${APP_KEY}
-    depends_on:
-      mysql:
-        condition: service_healthy
-      app:
-        condition: service_started
-    networks:
-      - agelto_network
+      - "${REVERB_PORT:-8000}:${REVERB_PORT:-8000}"
+    environment: *prod_env
+    depends_on: [ redis ]
+    networks: [ agelto_network ]
+
+  redis:
+    image: redis:alpine
+    restart: unless-stopped
+    networks: [ agelto_network ]
 
   mysql:
     image: mysql:8.4
     container_name: agelto_mysql
     restart: unless-stopped
-    ports:
-      - "${MYSQL_PORT:-3306}:3306"
-    volumes:
-      - mysql_data:/var/lib/mysql
+    command:
+      - --default-authentication-plugin=mysql_native_password
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+      - --innodb-buffer-pool-size=1G
     environment:
       MYSQL_DATABASE: ${DB_DATABASE}
       MYSQL_USER: ${DB_USERNAME}
       MYSQL_PASSWORD: ${DB_PASSWORD}
       MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
     healthcheck:
-      test: [ "CMD-SHELL", "mysqladmin ping -h localhost -u root -p${MYSQL_ROOT_PASSWORD} || exit 1" ]
+      test: [ "CMD-SHELL", "mysqladmin ping -h localhost -u root -p${DB_ROOT_PASSWORD} || exit 1" ]
       interval: 10s
       timeout: 5s
       retries: 5
-    networks:
-      - agelto_network
+    networks: [ agelto_network ]
 
 networks:
   agelto_network:
