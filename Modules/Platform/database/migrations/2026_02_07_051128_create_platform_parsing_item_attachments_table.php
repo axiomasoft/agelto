@@ -5,7 +5,7 @@ declare(strict_types=1);
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
-use Platform\Models\Parser\ParserCrawlerDocument;
+use Platform\Models\Parsing\ItemAttachment;
 
 return new class extends Migration
 {
@@ -16,7 +16,7 @@ return new class extends Migration
     {
         Schema::create($this->table(), function (Blueprint $table) {
             $table->id();
-            $table->foreignId('crawler_url_id')->constrained((new \Platform\Models\Parser\ParserCrawlerUrl())->getTable())->cascadeOnDelete();
+            $table->foreignId('item_id')->constrained((new Platform\Models\Parsing\Item())->getTable())->cascadeOnDelete();
             $table->string('name', 500);
             $table->string('url', 1000);
 
@@ -45,6 +45,6 @@ return new class extends Migration
 
     private function table(): string
     {
-        return (new ParserCrawlerDocument())->getTable();
+        return (new ItemAttachment())->getTable();
     }
 };

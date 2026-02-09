@@ -8,6 +8,8 @@ use Filament\Http\Middleware\Authenticate;
 use Filament\Http\Middleware\AuthenticateSession;
 use Filament\Http\Middleware\DisableBladeIconComponents;
 use Filament\Http\Middleware\DispatchServingFilamentEvent;
+use Filament\Navigation\NavigationBuilder;
+use Filament\Navigation\NavigationGroup;
 use Filament\Pages\Dashboard;
 use Filament\Panel;
 use Filament\PanelProvider;
@@ -20,6 +22,7 @@ use Illuminate\Foundation\Http\Middleware\VerifyCsrfToken;
 use Illuminate\Routing\Middleware\SubstituteBindings;
 use Illuminate\Session\Middleware\StartSession;
 use Illuminate\View\Middleware\ShareErrorsFromSession;
+use Platform\Filament\Resources\Platform\PlatformResource;
 
 final class AdminPanelProvider extends PanelProvider
 {
@@ -34,7 +37,7 @@ final class AdminPanelProvider extends PanelProvider
                 'primary' => Color::Amber,
             ])
             ->discoverResources(in: app_path('Filament/Resources'), for: 'App\Filament\Resources')
-            ->discoverResources(in: base_path('Modules/Platform/app/Filament/Resources'), for: 'Modules\Platform\Filament\Resources')
+            ->discoverResources(in: base_path('Modules/Platform/app/Filament/Resources'), for: 'Platform\Filament\Resources')
             ->discoverPages(in: app_path('Filament/Pages'), for: 'App\Filament\Pages')
             ->pages([
                 Dashboard::class,
@@ -57,6 +60,15 @@ final class AdminPanelProvider extends PanelProvider
             ])
             ->authMiddleware([
                 Authenticate::class,
-            ]);
+            ])
+            ->navigation(builder: function (NavigationBuilder $builder): NavigationBuilder {
+                return $builder->groups([
+                    NavigationGroup::make(label: 'Платформы')
+                        ->icon(icon: 'heroicon-s-square-3-stack-3d')
+                        ->items(items: [
+                            ...PlatformResource::getNavigationItems()
+                        ]),
+                ]);
+            });
     }
 }

@@ -7,6 +7,7 @@
 /public/css
 /public/js
 /public/fonts
+/public/vendor
 /storage/*.key
 /storage/pail
 /resources/js/actions
@@ -23,6 +24,7 @@ Homestead.json
 Homestead.yaml
 npm-debug.log
 yarn-error.log
+
 /auth.json
 /.fleet
 /.idea
@@ -46,3 +48,4 @@ boost.json
 
 
 app/Console/Commands/Playground.php
+project_context.txt

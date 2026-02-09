@@ -7,7 +7,6 @@ namespace Database\Seeders;
 use App\Models\User;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
-use Illuminate\Support\Facades\Hash;
 
 final class UserSeeder extends Seeder
 {
@@ -18,11 +17,14 @@ final class UserSeeder extends Seeder
      */
     public function run(): void
     {
-        $admin = User::query()->updateOrCreate([
-            'email' => 'admin@agelto.ru',
-            'name' => 'Admin',
-        ], [
-            'password' => Hash::make('123456'),
-        ]);
+        User::query()->firstOrCreate(
+            [
+                'email' => 'admin@agelto.ru',
+            ],
+            [
+                'name' => 'Admin',
+                'password' => '123456', // хешируется через cast модели User
+            ]
+        );
     }
 }

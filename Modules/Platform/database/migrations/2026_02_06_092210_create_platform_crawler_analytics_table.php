@@ -5,7 +5,7 @@ declare(strict_types=1);
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
-use Platform\Models\Parser\ParserAnalytics;
+use Platform\Models\Crawling\Analytics;
 
 return new class extends Migration
 {
@@ -17,7 +17,7 @@ return new class extends Migration
         Schema::create($this->table(), function (Blueprint $table) {
             $table->id();
             $table->date('date');
-            $table->foreignId('parser_id')->constrained((new \Platform\Models\Parser\Parser())->getTable())->cascadeOnDelete();
+            $table->foreignId('crawler_id')->constrained((new Platform\Models\Crawling\Crawler())->getTable())->cascadeOnDelete();
 
             $table->integer('s1_found')->default(0);
             $table->integer('s1_errors')->default(0);
@@ -32,7 +32,7 @@ return new class extends Migration
             $table->integer('s4_parsed_items')->default(0);
             $table->integer('s4_errors')->default(0);
 
-            $table->unique(['date', 'parser_id'], 'parser_date_unique');
+            $table->unique(['date', 'crawler_id'], 'crawler_date_unique');
             $table->timestamps();
         });
     }
@@ -47,6 +47,6 @@ return new class extends Migration
 
     private function table(): string
     {
-        return (new ParserAnalytics())->getTable();
+        return (new Analytics())->getTable();
     }
 };

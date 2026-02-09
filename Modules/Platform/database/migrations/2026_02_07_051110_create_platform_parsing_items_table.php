@@ -5,7 +5,7 @@ declare(strict_types=1);
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
-use Platform\Models\Parser\Parser;
+use Platform\Models\Parsing\Item;
 
 return new class extends Migration
 {
@@ -16,8 +16,9 @@ return new class extends Migration
     {
         Schema::create($this->table(), function (Blueprint $table) {
             $table->id();
-            $table->foreignId('platform_id')->references('id')->on((new \Platform\Models\Platform())->getTable())->cascadeOnDelete();
-            $table->json('filter');
+            $table->foreignId('platform_id')->constrained((new Platform\Models\Platform())->getTable())->cascadeOnDelete();
+            $table->foreignId('crawler_id')->constrained((new Platform\Models\Crawling\Crawler())->getTable())->cascadeOnDelete();
+            $table->string('reg_number')->unique();
             $table->timestamps();
         });
     }
@@ -32,6 +33,6 @@ return new class extends Migration
 
     private function table(): string
     {
-        return (new Parser())->getTable();
+        return (new Item())->getTable();
     }
 };

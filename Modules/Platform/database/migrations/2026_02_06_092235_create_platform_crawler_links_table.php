@@ -5,7 +5,7 @@ declare(strict_types=1);
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
-use Platform\Models\Parser\ParserCrawlerUrl;
+use Platform\Models\Crawling\Link;
 
 return new class extends Migration
 {
@@ -16,7 +16,7 @@ return new class extends Migration
     {
         Schema::create($this->table(), function (Blueprint $table) {
             $table->id();
-            $table->foreignId('parser_id')->constrained((new \Platform\Models\Parser\Parser())->getTable())->cascadeOnDelete();
+            $table->foreignId('crawler_id')->constrained((new Platform\Models\Crawling\Crawler())->getTable())->cascadeOnDelete();
             $table->string('reg_number')->unique();
             $table->string('detail_url', 500);
 
@@ -44,6 +44,6 @@ return new class extends Migration
 
     private function table(): string
     {
-        return (new ParserCrawlerUrl())->getTable();
+        return (new Link())->getTable();
     }
 };

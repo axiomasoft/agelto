@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
-namespace Platform\Enums;
+namespace Platform\Enums\Crawling;
 
 use Filament\Support\Contracts\HasLabel;
 
-enum ProcessStatus: string implements HasLabel
+enum CrawlingStatus: string implements HasLabel
 {
     case PENDING = 'pending';       // Ожидает парсинга документов
     case PROCESSING = 'processing'; // В процессе (DocParse)

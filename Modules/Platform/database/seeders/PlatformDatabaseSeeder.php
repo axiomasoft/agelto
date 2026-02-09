@@ -11,6 +11,8 @@ class PlatformDatabaseSeeder extends Seeder
      */
     public function run(): void
     {
-        // $this->call([]);
+        $this->call([
+            PlatformsSeeder::class,
+        ]);
     }
 }
