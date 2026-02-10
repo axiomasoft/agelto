@@ -19,6 +19,8 @@ final class Proxy extends Model
         'port',
         'targets',
         'is_active',
+        'fails_count',
+        'last_error',
     ];
 
     public function service(): BelongsTo

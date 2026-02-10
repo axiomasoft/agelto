@@ -25,6 +25,7 @@ return new class extends Migration
             $table->dateTime('submission_end_at')->nullable();
 
             $table->string('status', 20)->default('pending');
+            $table->dateTime('completed_at')->nullable();
             $table->integer('attempts')->default(0);
             $table->text('last_error')->nullable();
             $table->timestamp('next_retry_at')->nullable();

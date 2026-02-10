@@ -31,6 +31,8 @@ return new class extends Migration
             $table->string('port', 6);
             $table->json('targets')->nullable();
             $table->boolean('is_active')->default(true);
+            $table->unsignedInteger('fails_count')->default(0);
+            $table->text('last_error')->nullable();
             $table->timestamps();
         });
     }

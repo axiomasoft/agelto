@@ -17,9 +17,10 @@ final class Link extends Model
         'reg_number',
         'detail_url',
         'published_at',
-        'eis_updated_at',
+        'platform_updated_at',
         'submission_end_at',
         'status',
+        'completed_at',
         'attempts',
         'last_error',
         'next_retry_at',
@@ -27,7 +28,7 @@ final class Link extends Model
 
     protected $casts = [
         'published_at' => 'datetime',
-        'eis_updated_at' => 'datetime',
+        'platform_updated_at' => 'datetime',
         'submission_end_at' => 'datetime',
         'next_retry_at' => 'datetime',
     ];
