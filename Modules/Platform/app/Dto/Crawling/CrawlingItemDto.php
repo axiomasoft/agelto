@@ -5,16 +5,19 @@ declare(strict_types=1);
 namespace Platform\Dto\Crawling;
 
 use Carbon\Carbon;
+use Platform\Dto\Attachments\AttachmentDto;
 
-final class CrawlingItemDto
+class CrawlingItemDto
 {
     public function __construct(
         public string $externalId,
+        public string $title,
         public string $url,
-        public ?string $title = null,
         public ?float $price = null,
         public ?Carbon $publishedAt = null,
+        public ?Carbon $updatedAt = null,
         public ?Carbon $submissionEndAt = null,
-        public array $raw = []
+        /** @var AttachmentDto[] */
+        public array $attachments = [], // Теперь вложения сразу здесь
     ) {}
 }

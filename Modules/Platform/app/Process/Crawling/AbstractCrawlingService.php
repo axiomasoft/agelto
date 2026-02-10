@@ -22,6 +22,9 @@ abstract class AbstractCrawlingService implements PlatformCrawling
 {
     protected ?CrawlerModel $crawler = null;
 
+    /**
+     * Основной метод запуска краулера
+     */
     final public function run(CrawlerModel $crawler): void
     {
         $this->crawler = $crawler;
@@ -32,30 +35,53 @@ abstract class AbstractCrawlingService implements PlatformCrawling
         $nextPageParams = [];
 
         do {
-            try {
-                // Вызов общего или переопределенного метода запроса
-                $response = $this->fetchPageResponse($url, $isFirstPage, $nextPageParams);
-                $pageResult = $this->getPageInfo($response->body());
+            // 1. Получаем ответ (GET или POST)
+            $response = $this->fetchPageResponse($url, $isFirstPage, $nextPageParams);
+            dd($response);
 
-                foreach ($pageResult->items as $item) {
-                    $this->processSingleItem($item);
-                }
+            // 2. Парсим страницу (Items + Meta)
+            $pageResult = $this->getPageInfo($response->body());
 
-                if (!$pageResult->meta->has_next_page) break;
+            // 3. Обрабатываем каждый айтем
+            foreach ($pageResult->items as $item) {
+                $this->processSingleItem($item);
+            }
 
-                $isFirstPage = false;
-                $nextPageParams = $pageResult->meta->next_page_params;
-
-                usleep(mt_rand(1000000, 2500000));
-            } catch (Exception $e) {
-                Log::error("Crawling Error [{$this->getPlatform()->code}]: " . $e->getMessage());
+            // 4. Условие выхода
+            if (!$pageResult->meta->has_next_page) {
                 break;
             }
+
+            $isFirstPage = false;
+            $nextPageParams = $pageResult->meta->next_page_params;
+
+            usleep(mt_rand(1500000, 2500000));
         } while (true);
     }
 
     /**
-     * Общий метод запроса: если есть параметры для следующего шага — шлем POST форму, иначе GET.
+     * Полная цепочка обработки одного тендера
+     */
+    protected function processSingleItem(CrawlingItemDto $item): void
+    {
+        // Проверка на дубликаты/игнор
+        if ($this->isAlreadyIgnored($item->externalId)) {
+            return;
+        }
+
+        // Логика фильтрации (например, по слову "питание")
+        $filterResult = $this->filter($item);
+        if ($filterResult !== true) {
+            $this->markAsIgnored($item, is_string($filterResult) ? $filterResult : 'Filtered by logic');
+            return;
+        }
+
+        // Сохранение
+        $this->handle($item);
+    }
+
+    /**
+     * Общий метод запроса (с поддержкой JS-пагинации через POST)
      */
     protected function fetchPageResponse(string $url, bool $isFirstPage, array $params): \Illuminate\Http\Client\Response
     {
@@ -68,23 +94,12 @@ abstract class AbstractCrawlingService implements PlatformCrawling
         return $request->asForm()->post($url, $params)->throw();
     }
 
+    // --- Абстрактные методы для реализации в EisCrawlingService ---
     abstract protected function getPageInfo(string $html): PageResultDto;
     abstract public function getNodes(string $html): array;
     abstract public function crawlingItem(mixed $node): CrawlingItemDto;
 
-    // --- Вспомогательные методы (handle, filter, etc.) остаются прежними ---
-    protected function processSingleItem(CrawlingItemDto $item): void
-    {
-        if ($this->isAlreadyIgnored($item->externalId)) return;
-
-        $filterResult = $this->filter($item);
-        if ($filterResult !== true) {
-            $this->markAsIgnored($item, is_string($filterResult) ? $filterResult : 'Filtered');
-            return;
-        }
-
-        $this->handle($item);
-    }
+    // --- Методы сохранения и фильтрации (функциональность восстановлена) ---
 
     protected function handle(CrawlingItemDto $item): void
     {
@@ -97,28 +112,43 @@ abstract class AbstractCrawlingService implements PlatformCrawling
         $this->crawlingRepository()->storeOrUpdateLink($this->getCrawler(), $linkDto);
     }
 
-    public function getPlatform(): Platform
+    final public function getPlatform(): Platform
     {
         return $this->getCrawler()->platform;
     }
+
     protected function getCrawler(): CrawlerModel
     {
-        return $this->crawler ?? throw new RuntimeException('Crawler not set.');
+        return $this->crawler ?? throw new RuntimeException('Crawler is not set.');
     }
+
     protected function crawlingRepository(): CrawlingRepository
     {
         return app(CrawlingRepository::class);
     }
+
     protected function isAlreadyIgnored(string $externalId): bool
     {
-        return IgnoreLinks::query()->where('platform_id', $this->getPlatform()->id)->where('external_id', $externalId)->exists();
+        return IgnoreLinks::query()
+            ->where('platform_id', $this->getPlatform()->id)
+            ->where('external_id', $externalId)
+            ->exists();
     }
+
     protected function markAsIgnored(CrawlingItemDto $item, string $reason): void
     {
-        IgnoreLinks::create(['platform_id' => $this->getPlatform()->id, 'external_id' => $item->externalId, 'reason' => $reason]);
+        IgnoreLinks::create([
+            'platform_id' => $this->getPlatform()->id,
+            'external_id' => $item->externalId,
+            'reason' => $reason,
+        ]);
     }
+
     protected function filter(CrawlingItemDto $item): bool|string
     {
-        return mb_stripos($item->title, 'питание') !== false ? true : 'Не содержит "питание"';
+        if (mb_stripos($item->title, 'питание') === false) {
+            return 'Не содержит ключевое слово: питание';
+        }
+        return true;
     }
 }
