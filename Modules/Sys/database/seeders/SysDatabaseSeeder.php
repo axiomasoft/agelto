@@ -1,16 +1,20 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Sys\Database\Seeders;
 
 use Illuminate\Database\Seeder;
 
-class SysDatabaseSeeder extends Seeder
+final class SysDatabaseSeeder extends Seeder
 {
     /**
      * Run the database seeds.
      */
     public function run(): void
     {
-        // $this->call([]);
+        $this->call([
+            ProxyServicesSeeder::class,
+        ]);
     }
 }

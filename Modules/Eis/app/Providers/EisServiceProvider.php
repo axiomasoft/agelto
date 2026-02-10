@@ -1,14 +1,18 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Eis\Providers;
 
+use Eis\Crawling\EisCrawlingService;
+use Eis\Facades\EisCrawling;
 use Illuminate\Support\Facades\Blade;
 use Illuminate\Support\ServiceProvider;
 use Nwidart\Modules\Traits\PathNamespace;
 use RecursiveDirectoryIterator;
 use RecursiveIteratorIterator;
 
-class EisServiceProvider extends ServiceProvider
+final class EisServiceProvider extends ServiceProvider
 {
     use PathNamespace;
 
@@ -34,29 +38,14 @@ class EisServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
+        $this->app->singleton(EisCrawlingService::class);
+
+        if (! class_exists('EisCrawling')) {
+            class_alias(EisCrawling::class, 'EisCrawling');
+        }
+
         $this->app->register(EventServiceProvider::class);
         $this->app->register(RouteServiceProvider::class);
-    }
-
-    /**
-     * Register commands in the format of Command::class
-     */
-    protected function registerCommands(): void
-    {
-        $this->commands([
-            \Eis\Console\EisMapCommand::class,
-        ]);
-    }
-
-    /**
-     * Register command Schedules.
-     */
-    protected function registerCommandSchedules(): void
-    {
-        // $this->app->booted(function () {
-        //     $schedule = $this->app->make(Schedule::class);
-        //     $schedule->command('inspire')->hourly();
-        // });
     }
 
     /**
@@ -73,6 +62,51 @@ class EisServiceProvider extends ServiceProvider
             $this->loadTranslationsFrom(module_path($this->name, 'lang'), $this->nameLower);
             $this->loadJsonTranslationsFrom(module_path($this->name, 'lang'));
         }
+    }
+
+    /**
+     * Register views.
+     */
+    public function registerViews(): void
+    {
+        $viewPath = resource_path('views/modules/'.$this->nameLower);
+        $sourcePath = module_path($this->name, 'resources/views');
+
+        $this->publishes([$sourcePath => $viewPath], ['views', $this->nameLower.'-module-views']);
+
+        $this->loadViewsFrom(array_merge($this->getPublishableViewPaths(), [$sourcePath]), $this->nameLower);
+
+        $componentNamespace = mb_trim(config('modules.namespace').'\\'.$this->name.'\\View\\Components', '\\');
+        Blade::componentNamespace($componentNamespace, $this->nameLower);
+    }
+
+    /**
+     * Get the services provided by the provider.
+     */
+    public function provides(): array
+    {
+        return [];
+    }
+
+    /**
+     * Register commands in the format of Command::class
+     */
+    protected function registerCommands(): void
+    {
+        $this->commands([
+            \Eis\Console\EisCrawlingCommand::class,
+        ]);
+    }
+
+    /**
+     * Register command Schedules.
+     */
+    protected function registerCommandSchedules(): void
+    {
+        // $this->app->booted(function () {
+        //     $schedule = $this->app->make(Schedule::class);
+        //     $schedule->command('inspire')->hourly();
+        // });
     }
 
     /**
@@ -117,30 +151,6 @@ class EisServiceProvider extends ServiceProvider
         $module_config = require $path;
 
         config([$key => array_replace_recursive($existing, $module_config)]);
-    }
-
-    /**
-     * Register views.
-     */
-    public function registerViews(): void
-    {
-        $viewPath = resource_path('views/modules/'.$this->nameLower);
-        $sourcePath = module_path($this->name, 'resources/views');
-
-        $this->publishes([$sourcePath => $viewPath], ['views', $this->nameLower.'-module-views']);
-
-        $this->loadViewsFrom(array_merge($this->getPublishableViewPaths(), [$sourcePath]), $this->nameLower);
-
-        $componentNamespace = trim(config('modules.namespace').'\\'.$this->name.'\\View\\Components', '\\');
-        Blade::componentNamespace($componentNamespace, $this->nameLower);
-    }
-
-    /**
-     * Get the services provided by the provider.
-     */
-    public function provides(): array
-    {
-        return [];
     }
 
     private function getPublishableViewPaths(): array

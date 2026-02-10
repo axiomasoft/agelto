@@ -22,7 +22,10 @@ use Illuminate\Foundation\Http\Middleware\VerifyCsrfToken;
 use Illuminate\Routing\Middleware\SubstituteBindings;
 use Illuminate\Session\Middleware\StartSession;
 use Illuminate\View\Middleware\ShareErrorsFromSession;
+use Platform\Filament\Resources\Crawler\CrawlerResource;
 use Platform\Filament\Resources\Platform\PlatformResource;
+use Sys\Filament\Resources\Proxy\ProxyResource;
+use Sys\Filament\Resources\Service\ServiceResource;
 
 final class AdminPanelProvider extends PanelProvider
 {
@@ -38,6 +41,7 @@ final class AdminPanelProvider extends PanelProvider
             ])
             ->discoverResources(in: app_path('Filament/Resources'), for: 'App\Filament\Resources')
             ->discoverResources(in: base_path('Modules/Platform/app/Filament/Resources'), for: 'Platform\Filament\Resources')
+            ->discoverResources(in: base_path('Modules/Sys/app/Filament/Resources'), for: 'Sys\Filament\Resources')
             ->discoverPages(in: app_path('Filament/Pages'), for: 'App\Filament\Pages')
             ->pages([
                 Dashboard::class,
@@ -66,7 +70,14 @@ final class AdminPanelProvider extends PanelProvider
                     NavigationGroup::make(label: 'Платформы')
                         ->icon(icon: 'heroicon-s-square-3-stack-3d')
                         ->items(items: [
-                            ...PlatformResource::getNavigationItems()
+                            ...PlatformResource::getNavigationItems(),
+                            ...CrawlerResource::getNavigationItems(),
+                        ]),
+                    NavigationGroup::make(label: 'Система')
+                        ->icon(icon: 'heroicon-s-cog-6-tooth')
+                        ->items(items: [
+                            ...ServiceResource::getNavigationItems(),
+                            ...ProxyResource::getNavigationItems(),
                         ]),
                 ]);
             });

@@ -1,9 +1,12 @@
 {
     "$schema": "https://getcomposer.org/schema.json",
-    "name": "shipfastlabs/modern-vue-starter-kit-auth",
+    "name": "agelto/agelto",
     "type": "project",
-    "description": "Laravel starter kit with opinionated modern tooling setup.",
-    "keywords": ["laravel", "framework"],
+    "description": "Agelto is a platform for managing and analyzing data from various sources.",
+    "keywords": [
+        "laravel",
+        "framework"
+    ],
     "license": "MIT",
     "require": {
         "php": "^8.4",
@@ -22,7 +25,8 @@
         "nwidart/laravel-modules": "*",
         "phpoffice/phpspreadsheet": "^5.4",
         "spatie/laravel-data": "^4.0",
-        "spatie/laravel-medialibrary": "^11.17"
+        "spatie/laravel-medialibrary": "^11.17",
+        "symfony/dom-crawler": "^8.0"
     },
     "require-dev": {
         "barryvdh/laravel-ide-helper": "^3.6",
@@ -120,6 +124,15 @@
             "wikimedia/composer-merge-plugin": true
         }
     },
+    "repositories": [
+        {
+            "type": "path",
+            "url": "Modules/Platform",
+            "options": {
+                "symlink": true
+            }
+        }
+    ],
     "minimum-stability": "stable",
     "prefer-stable": true
 }

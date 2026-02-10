@@ -16,8 +16,8 @@ return new class extends Migration
     {
         Schema::create($this->table(), function (Blueprint $table) {
             $table->id();
-            $table->foreignId('platform_id')->references('id')->on((new \Platform\Models\Platform())->getTable())->cascadeOnDelete();
-            $table->foreignId('proxy_id')->references('id')->on((new \Sys\Models\SysProxy())->getTable())->cascadeOnDelete();
+            $table->foreignId('platform_id')->references('id')->on((new Platform\Models\Platform())->getTable())->cascadeOnDelete();
+            $table->foreignId('proxy_id')->references('id')->on((new Sys\Models\Proxy\Proxy())->getTable())->cascadeOnDelete();
         });
     }
 

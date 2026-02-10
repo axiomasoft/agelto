@@ -17,7 +17,8 @@ return new class extends Migration
         Schema::create($this->table(), function (Blueprint $table) {
             $table->id();
             $table->foreignId('platform_id')->references('id')->on((new Platform\Models\Platform())->getTable())->cascadeOnDelete();
-            $table->json('filter');
+            $table->string('url', 400)->nullable();
+            $table->json('filter')->nullable();
             $table->timestamps();
         });
     }

@@ -18,6 +18,7 @@ final class Crawler extends Model
 
     protected $fillable = [
         'platform_id',
+        'url',
         'filter',
     ];
 

@@ -1,12 +1,18 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Platform\Models;
 
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Platform\Models\Crawling\Crawler;
+use Platform\Models\Crawling\IgnoreLinks;
+
 // use \Platform\Database\Factories\PlatformFactory;
 
-class Platform extends Model
+final class Platform extends Model
 {
     use HasFactory;
 
@@ -17,6 +23,16 @@ class Platform extends Model
         'code',
         'url',
     ];
+
+    public function crawlers(): HasMany
+    {
+        return $this->hasMany(Crawler::class);
+    }
+
+    public function ignoreLinks(): HasMany
+    {
+        return $this->hasMany(IgnoreLinks::class);
+    }
 
     // protected static function newFactory(): PlatformFactory
     // {

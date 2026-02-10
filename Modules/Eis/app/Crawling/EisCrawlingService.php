@@ -4,27 +4,29 @@ declare(strict_types=1);
 
 namespace Eis\Crawling;
 
-use Platform\Crawling\AbstractCrawlingService;
-use Platform\Models\Crawling\Crawler;
-use Platform\Dto\Crawling\LinkDto;
+use Platform\Dto\Crawling\CrawlingItemDto;
+use Platform\Process\Crawling\AbstractCrawlingService;
+use Symfony\Component\DomCrawler\Crawler;
 
-class EisCrawlingService extends AbstractCrawlingService
+final class EisCrawlingService extends AbstractCrawlingService
 {
-    public function run(Crawler $crawler): void
+    public function getNodes(string $html): array
     {
-        // 1. Получаем данные из API ЕИС (используя настройки из $crawler->settings)
-        // $items = $this->client->fetch($crawler->filters);
+        $crawler = new Crawler($html);
 
-        foreach ($items as $item) {
-            // 2. Создаем типизированный объект данных
-            $dto = new LinkDto(
-                regNumber: $item['regNum'],
-                detailUrl: $item['url'],
-                publishedAt: now(), // или дата из API
-            );
+        return $crawler->filter('.search-registry-entry-block')->each(fn($node) => $node);
+    }
 
-            // 3. Сохраняем через базовый метод
-            $this->storeLink($crawler, $dto);
-        }
+    public function crawlingItem(mixed $node): CrawlingItemDto
+    {
+        $link = $node->filter('.registry-entry__header-mid__number a');
+
+        dd($link);
+
+        return new CrawlingItemDto(
+            externalId: preg_replace('/[^0-9]/', '', $link->text()),
+            url: 'https://zakupki.gov.ru' . $link->attr('href'),
+            title: mb_trim($node->filter('.registry-entry__body-value')->text())
+        );
     }
 }
