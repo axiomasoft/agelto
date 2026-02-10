@@ -27,7 +27,7 @@ class EisCrawlingService extends AbstractCrawlingService
         );
     }
 
-    protected function parseHtmlToDto(string $html): PageResultDto
+    protected function getPageInfo(string $html): PageResultDto
     {
         $nodes = $this->getNodes($html);
         $items = array_map(fn($node) => $this->crawlingItem($node), $nodes);

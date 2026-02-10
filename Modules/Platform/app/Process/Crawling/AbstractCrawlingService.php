@@ -35,7 +35,7 @@ abstract class AbstractCrawlingService implements PlatformCrawling
             try {
                 // Вызов общего или переопределенного метода запроса
                 $response = $this->fetchPageResponse($url, $isFirstPage, $nextPageParams);
-                $pageResult = $this->parseHtmlToDto($response->body());
+                $pageResult = $this->getPageInfo($response->body());
 
                 foreach ($pageResult->items as $item) {
                     $this->processSingleItem($item);
@@ -68,7 +68,7 @@ abstract class AbstractCrawlingService implements PlatformCrawling
         return $request->asForm()->post($url, $params)->throw();
     }
 
-    abstract protected function parseHtmlToDto(string $html): PageResultDto;
+    abstract protected function getPageInfo(string $html): PageResultDto;
     abstract public function getNodes(string $html): array;
     abstract public function crawlingItem(mixed $node): CrawlingItemDto;
 
