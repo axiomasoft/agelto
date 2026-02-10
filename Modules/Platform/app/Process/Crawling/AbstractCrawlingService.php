@@ -7,70 +7,85 @@ namespace Platform\Process\Crawling;
 use Carbon\Carbon;
 use Exception;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Http;
 use Platform\Dto\Crawling\CrawlingItemDto;
 use Platform\Dto\Crawling\LinkDto;
+use Platform\Dto\Crawling\PageResultDto;
 use Platform\Interfaces\Crawling\PlatformCrawling;
-use Platform\Models\Crawling\Crawler;
+use Platform\Models\Crawling\Crawler as CrawlerModel;
 use Platform\Models\Crawling\IgnoreLinks;
 use Platform\Models\Platform;
 use Platform\Repositories\Crawling\CrawlingRepository;
-use Illuminate\Support\Facades\Http;
 use RuntimeException;
 
 abstract class AbstractCrawlingService implements PlatformCrawling
 {
-    protected ?Crawler $crawler = null;
+    protected ?CrawlerModel $crawler = null;
 
-    /**
-     * Основной метод запуска краулера
-     */
-    final public function run(Crawler $crawler): void
+    final public function run(CrawlerModel $crawler): void
     {
-        $crawler->load('platform');
         $this->crawler = $crawler;
-        $html = $this->fetchHtml($crawler->url);
-        $platform = $this->getPlatform();
+        $this->crawler->load('platform');
 
-        foreach ($this->getNodes($html) as $node) {
+        $url = $crawler->url;
+        $isFirstPage = true;
+        $nextPageParams = [];
+
+        do {
             try {
-                $item = $this->crawlingItem($node);
+                // Вызов общего или переопределенного метода запроса
+                $response = $this->fetchPageResponse($url, $isFirstPage, $nextPageParams);
+                $pageResult = $this->parseHtmlToDto($response->body());
 
-                if ($this->isAlreadyIgnored($item->externalId)) {
-                    continue;
+                foreach ($pageResult->items as $item) {
+                    $this->processSingleItem($item);
                 }
 
-                $filterResult = $this->filter($item);
-                if ($filterResult !== true) {
-                    $reason = is_string($filterResult) ? $filterResult : 'Filtered by logic';
-                    $this->markAsIgnored($item, $reason);
+                if (!$pageResult->meta->has_next_page) break;
 
-                    continue;
-                }
+                $isFirstPage = false;
+                $nextPageParams = $pageResult->meta->next_page_params;
 
-                $this->handle($item);
+                usleep(mt_rand(1000000, 2500000));
             } catch (Exception $e) {
-                Log::error("Crawling Error [{$platform->code}]: " . $e->getMessage());
+                Log::error("Crawling Error [{$this->getPlatform()->code}]: " . $e->getMessage());
+                break;
             }
-        }
-    }
-
-    final public function getPlatform(): Platform
-    {
-        return $this->getCrawler()->platform;
-    }
-
-    protected function getCrawler(): Crawler
-    {
-        if ($this->crawler === null) {
-            throw new RuntimeException('Crawler is not set. Call run(Crawler) first.');
-        }
-
-        return $this->crawler;
+        } while (true);
     }
 
     /**
-     * Общее сохранение валидной закупки в plt_crawler_links через репозиторий
+     * Общий метод запроса: если есть параметры для следующего шага — шлем POST форму, иначе GET.
      */
+    protected function fetchPageResponse(string $url, bool $isFirstPage, array $params): \Illuminate\Http\Client\Response
+    {
+        $request = Http::withRandomProxy();
+
+        if ($isFirstPage || empty($params)) {
+            return $request->get($url)->throw();
+        }
+
+        return $request->asForm()->post($url, $params)->throw();
+    }
+
+    abstract protected function parseHtmlToDto(string $html): PageResultDto;
+    abstract public function getNodes(string $html): array;
+    abstract public function crawlingItem(mixed $node): CrawlingItemDto;
+
+    // --- Вспомогательные методы (handle, filter, etc.) остаются прежними ---
+    protected function processSingleItem(CrawlingItemDto $item): void
+    {
+        if ($this->isAlreadyIgnored($item->externalId)) return;
+
+        $filterResult = $this->filter($item);
+        if ($filterResult !== true) {
+            $this->markAsIgnored($item, is_string($filterResult) ? $filterResult : 'Filtered');
+            return;
+        }
+
+        $this->handle($item);
+    }
+
     protected function handle(CrawlingItemDto $item): void
     {
         $linkDto = new LinkDto(
@@ -82,47 +97,28 @@ abstract class AbstractCrawlingService implements PlatformCrawling
         $this->crawlingRepository()->storeOrUpdateLink($this->getCrawler(), $linkDto);
     }
 
+    public function getPlatform(): Platform
+    {
+        return $this->getCrawler()->platform;
+    }
+    protected function getCrawler(): CrawlerModel
+    {
+        return $this->crawler ?? throw new RuntimeException('Crawler not set.');
+    }
     protected function crawlingRepository(): CrawlingRepository
     {
         return app(CrawlingRepository::class);
     }
-
     protected function isAlreadyIgnored(string $externalId): bool
     {
-        return IgnoreLinks::query()
-            ->where('platform_id', $this->getPlatform()->id)
-            ->where('external_id', $externalId)
-            ->exists();
+        return IgnoreLinks::query()->where('platform_id', $this->getPlatform()->id)->where('external_id', $externalId)->exists();
     }
-
     protected function markAsIgnored(CrawlingItemDto $item, string $reason): void
     {
-        IgnoreLinks::create([
-            'platform_id' => $this->getPlatform()->id,
-            'external_id' => $item->externalId,
-            'reason' => $reason,
-        ]);
+        IgnoreLinks::create(['platform_id' => $this->getPlatform()->id, 'external_id' => $item->externalId, 'reason' => $reason]);
     }
-
-
-    protected function fetchHtml(string $url): string
-    {
-        return Http::withRandomProxy()
-            ->withOptions(['debug' => true])
-            ->get($url)
-            ->throw()
-            ->body();
-    }
-
-    /**
-     * Переопределяем фильтр под конкретные нужды (например, поиск по ключевым словам)
-     */
     protected function filter(CrawlingItemDto $item): bool|string
     {
-        if (mb_stripos($item->title, 'питание') === false) {
-            return 'Не содержит ключевое слово: питание';
-        }
-
-        return true;
+        return mb_stripos($item->title, 'питание') !== false ? true : 'Не содержит "питание"';
     }
 }
