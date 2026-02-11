@@ -6,6 +6,8 @@ namespace Platform\Models\Crawling;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Platform\Models\Platform;
 
 final class Link extends Model
 {
@@ -13,7 +15,7 @@ final class Link extends Model
     protected $table = 'plt_crawler_links';
 
     protected $fillable = [
-        'crawler_id',
+        'platform_id',
         'reg_number',
         'detail_url',
         'published_at',
@@ -33,8 +35,13 @@ final class Link extends Model
         'next_retry_at' => 'datetime',
     ];
 
-    public function crawler(): BelongsTo
+    public function platform(): BelongsTo
     {
-        return $this->belongsTo(Crawler::class);
+        return $this->belongsTo(Platform::class);
+    }
+
+    public function attachments(): HasMany
+    {
+        return $this->hasMany(LinkAttachment::class);
     }
 }

@@ -16,12 +16,14 @@ return new class extends Migration
     {
         Schema::create($this->table(), function (Blueprint $table) {
             $table->id();
-            $table->foreignId('crawler_id')->constrained((new Platform\Models\Crawling\Crawler())->getTable())->cascadeOnDelete();
-            $table->string('reg_number')->unique();
+            $table->foreignId('platform_id')->constrained((new Platform\Models\Platform())->getTable())->cascadeOnDelete();
+            $table->string('reg_number', 60);
             $table->string('detail_url', 500);
 
+            $table->unique(['platform_id', 'reg_number']);
+
             $table->dateTime('published_at')->nullable();
-            $table->dateTime('eis_updated_at')->nullable();
+            $table->dateTime('platform_updated_at')->nullable();
             $table->dateTime('submission_end_at')->nullable();
 
             $table->string('status', 20)->default('pending');

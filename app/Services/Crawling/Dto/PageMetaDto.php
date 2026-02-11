@@ -1,8 +1,12 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Services\Crawling\Dto;
 
-final class PageMetaDto
+use Spatie\LaravelData\Data;
+
+final class PageMetaDto extends Data
 {
     public function __construct(
         public int $current_page,

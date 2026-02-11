@@ -4,11 +4,18 @@ declare(strict_types=1);
 
 namespace Platform\Dto\Crawling;
 
-final class PageResultDto
+use Spatie\LaravelData\Attributes\DataCollectionOf;
+use Spatie\LaravelData\Data;
+use Spatie\LaravelData\DataCollection;
+
+final class PageResultDto extends Data
 {
+    /**
+     * @param  DataCollection<int, CrawlingItemDto>  $items
+     */
     public function __construct(
-        /** @var CrawlingItemDto[] */
-        public array $items,
+        #[DataCollectionOf(CrawlingItemDto::class)]
+        public DataCollection $items,
         public PageMetaDto $meta,
     ) {}
 }

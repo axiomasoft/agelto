@@ -5,22 +5,26 @@ declare(strict_types=1);
 namespace Platform\Repositories\Crawling;
 
 use Illuminate\Database\Eloquent\Collection;
+use Platform\Dto\Attachments\AttachmentDto;
 use Platform\Dto\Crawling\LinkDto;
 use Platform\Enums\Crawling\CrawlingStatus;
 use Platform\Models\Crawling\Crawler;
 use Platform\Models\Crawling\Link;
+use Platform\Models\Crawling\LinkAttachment;
+use Spatie\LaravelData\DataCollection;
 
 final class CrawlingRepository
 {
     /**
      * Основной метод сохранения результата краулинга (Stage 1).
      * Сбрасывает статус в PENDING и обнуляет ошибки при обновлении данных.
+     * Сохраняет вложения (attachments) для ссылки.
      */
     public function storeOrUpdateLink(Crawler $crawler, LinkDto $dto): Link
     {
-        return Link::query()->updateOrCreate(
+        $link = Link::query()->updateOrCreate(
             [
-                'crawler_id' => $crawler->id,
+                'platform_id' => $crawler->platform->id,
                 'reg_number' => $dto->regNumber,
             ],
             [
@@ -33,11 +37,16 @@ final class CrawlingRepository
                 'next_retry_at' => null,
             ]
         );
+
+        $this->syncAttachments($link, $dto->attachments);
+
+        return $link;
     }
 
     /**
      * Получение ссылок для обработки парсером документов (Stage 2).
      * Сортировка по дате публикации (старые — первыми).
+     *
      * * @return Collection<int, Link>
      */
     public function getPendingLinksForCrawler(Crawler $crawler, int $limit = 100): Collection
@@ -89,5 +98,46 @@ final class CrawlingRepository
             'last_error' => $errorMessage,
             'next_retry_at' => now()->addMinutes($delayMinutes),
         ]);
+    }
+
+    /**
+     * Синхронизация вложений ссылки: создаёт или обновляет по url, удаляет отсутствующие.
+     *
+     * @param  DataCollection<int, AttachmentDto>  $attachments
+     */
+    private function syncAttachments(Link $link, DataCollection $attachments): void
+    {
+        $urls = [];
+
+        foreach ($attachments as $dto) {
+            $urls[] = $dto->url;
+            $extension = $this->parseExtensionFromName($dto->name);
+            LinkAttachment::query()->updateOrCreate(
+                [
+                    'link_id' => $link->id,
+                    'url' => $dto->url,
+                ],
+                [
+                    'name' => $dto->name,
+                    'extension' => $extension,
+                ]
+            );
+        }
+
+        $link->attachments()->whereNotIn('url', $urls)->delete();
+    }
+
+    /**
+     * Извлекает расширение из имени файла. Не считается расширением, если длина > 12 символов.
+     */
+    private function parseExtensionFromName(string $name): ?string
+    {
+        $extension = pathinfo($name, PATHINFO_EXTENSION);
+
+        if ($extension === '' || mb_strlen($extension) > 12) {
+            return null;
+        }
+
+        return $extension;
     }
 }

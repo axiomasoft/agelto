@@ -1,11 +1,17 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Services\Crawling\Dto;
 
-final class PageResultDto
+use Spatie\LaravelData\Data;
+
+final class PageResultDto extends Data
 {
+    /**
+     * @param  array<int, mixed>  $items
+     */
     public function __construct(
-        /** @var array<int, mixed> */
         public array $items,
         public PageMetaDto $meta,
     ) {}
