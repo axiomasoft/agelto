@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Platform\Filament\Resources\Crawler\Schemas;
 
+use Filament\Forms\Components\Checkbox;
 use Filament\Forms\Components\KeyValue;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
@@ -32,6 +33,10 @@ final class CrawlerForm
                         KeyValue::make('filter')
                             ->label('Фильтр (ключ — значение)')
                             ->nullable(),
+                        Checkbox::make('options.keep_page_on_crash')
+                            ->label('Начинать с последней страницы при сбое.')
+                            ->description('Включать когда сортировка фиксированная. Например по дате создания по возрастанию.')
+                            ->default(false),
                     ]),
             ]);
     }

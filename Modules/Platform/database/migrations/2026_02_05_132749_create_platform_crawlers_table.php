@@ -18,6 +18,7 @@ return new class extends Migration
             $table->id();
             $table->foreignId('platform_id')->references('id')->on((new Platform\Models\Platform())->getTable())->cascadeOnDelete();
             $table->string('url', 500)->nullable();
+            $table->json('options')->nullable();
             $table->json('filter')->nullable();
             $table->timestamps();
         });

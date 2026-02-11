@@ -7,15 +7,14 @@
 Проект поддерживает два режима работы:
 
 - **DEV (разработка)** - использует `docker-compose.yml`
-  - Код монтируется через volumes
-  - Node.js и Vite доступны для разработки
-  - Горячая перезагрузка (HMR)
-  
+    - Код монтируется через volumes
+    - Node.js и Vite доступны для разработки
+    - Горячая перезагрузка (HMR)
 - **PROD (production)** - использует `docker-compose.prod.yml`
-  - Immutable образ (`agelto/app:latest`)
-  - Нет volumes с кодом
-  - Минимальный runtime (без Node.js)
-  - Secrets для безопасного хранения паролей
+    - Immutable образ (`agelto/app:latest`)
+    - Нет volumes с кодом
+    - Минимальный runtime (без Node.js)
+    - Secrets для безопасного хранения паролей
 
 ## Содержание
 
@@ -50,6 +49,7 @@ apt install -y curl wget git ufw
 ```
 
 **Объяснение:**
+
 - `curl`, `wget` - для загрузки файлов
 - `git` - для клонирования репозитория
 - `ufw` - для настройки файрвола
@@ -73,6 +73,7 @@ adduser --disabled-password --gecos "" deploy
 ```
 
 **Объяснение:**
+
 - `--disabled-password` - пользователь не сможет входить по паролю (только по SSH ключу)
 - `--gecos ""` - без дополнительной информации
 - `deploy` - имя пользователя (можно изменить)
@@ -115,12 +116,12 @@ apt install -y ca-certificates curl gnupg lsb-release
 
 # Добавляем официальный GPG ключ Docker
 install -m 0755 -d /etc/apt/keyrings
-curl -fsSL https://download.docker.com/linux/debian/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg
 chmod a+r /etc/apt/keyrings/docker.gpg
 
 # Добавляем репозиторий Docker
 echo \
-  "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/debian \
+  "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu \
   $(lsb_release -cs) stable" | tee /etc/apt/sources.list.d/docker.list > /dev/null
 
 # Обновляем список пакетов
@@ -138,6 +139,7 @@ docker --version
 ```
 
 **Объяснение:**
+
 - Устанавливаем Docker из официального репозитория
 - `docker-compose-plugin` - это Docker Compose V2 (используется как `docker compose`)
 
@@ -169,21 +171,22 @@ docker compose version
 
 ### Выбор директории для проекта
 
-**Рекомендация:** Используем `/var/www/agelto/cms` или `/opt/agelto/cms`
+**Рекомендация:** Используем `/var/www/agelto/agelto` или `/opt/agelto/agelto`
 
 ```bash
 # Создаем директорию
-mkdir -p /var/www/agelto/cms
+mkdir -p /var/www/agelto/agelto
 
 # Устанавливаем владельца
-chown deploy:deploy /var/www/agelto/cms
+chown deploy:deploy /var/www/agelto/agelto
 
 # Переключаемся на пользователя deploy
 su - deploy
-cd /var/www/agelto/cms
+cd /var/www/agelto/agelto
 ```
 
 **Объяснение:**
+
 - `/var/www/` - стандартная директория для веб-приложений
 - Устанавливаем владельца, чтобы пользователь `deploy` мог работать с файлами
 
@@ -206,6 +209,7 @@ git clone <URL_ВАШЕГО_РЕПОЗИТОРИЯ> .
 **Используется:** `docker-compose.yml`
 
 **Особенности:**
+
 - Код монтируется через volumes (изменения видны сразу)
 - Node.js и Vite доступны для разработки
 - Горячая перезагрузка (HMR)
@@ -315,6 +319,7 @@ docker compose exec app chmod -R 775 storage bootstrap/cache
 **Используется:** `docker-compose.prod.yml`
 
 **Особенности:**
+
 - Immutable образ (`agelto/app:latest`)
 - Нет volumes с кодом (код встроен в образ)
 - Минимальный runtime (без Node.js)
@@ -344,6 +349,7 @@ chown deploy:deploy secrets/*.txt
 ```
 
 **Объяснение:**
+
 - Secrets хранятся в отдельных файлах, не в `.env`
 - Файлы secrets должны иметь права 600 (только владелец может читать)
 - Secrets автоматически монтируются в контейнеры через Docker secrets
@@ -420,6 +426,7 @@ RUN chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cac
 ```
 
 **Объяснение:**
+
 - Образ собирается из `docker/php/Dockerfile`
 - В образ должен быть встроен код приложения
 - Node.js не нужен в PROD, поэтому образ минимальный
@@ -449,6 +456,7 @@ docker compose -f docker-compose.prod.yml exec app php artisan migrate --force
 ```
 
 **Объяснение:**
+
 - В PROD обязательно использовать `--force`, чтобы Laravel не блокировал миграции
 - Seeding обычно не выполняется в production
 
@@ -475,6 +483,7 @@ docker compose -f docker-compose.prod.yml exec app composer dump-autoload --opti
 ### Зачем нужен внешний Nginx?
 
 **Важно:** В Docker контейнере Nginx работает на порту 80, но мы не можем напрямую открыть его наружу. Используем внешний Nginx как reverse proxy для:
+
 - Обработки SSL/TLS
 - Маршрутизации на несколько приложений
 - Оптимизации и кэширования
@@ -548,7 +557,7 @@ server {
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
         proxy_cache_bypass $http_upgrade;
-        
+
         # Таймауты
         proxy_connect_timeout 60s;
         proxy_send_timeout 60s;
@@ -580,6 +589,7 @@ server {
 ```
 
 **Объяснение:**
+
 - Первый блок - редирект HTTP на HTTPS
 - Второй блок - основной HTTPS сервер
 - `proxy_pass http://127.0.0.1:8080` - проксирование на Docker контейнер
@@ -602,6 +612,7 @@ systemctl reload nginx
 ```
 
 **Объяснение:**
+
 - Символическая ссылка активирует конфигурацию
 - `nginx -t` - проверка синтаксиса
 
@@ -630,6 +641,7 @@ certbot --nginx -d yourdomain.com -d www.yourdomain.com
 ```
 
 **Объяснение:**
+
 - Certbot автоматически получит сертификат и обновит конфигурацию Nginx
 - Сертификат будет автоматически обновляться
 
@@ -674,6 +686,7 @@ docker compose ps
 ```
 
 **Объяснение:**
+
 - `-d` - запуск в фоновом режиме
 - `--build` - пересборка образов
 - Ждем готовности MySQL перед выполнением миграций
@@ -689,6 +702,7 @@ docker compose exec app php artisan db:seed --force
 ```
 
 **Объяснение:**
+
 - `--force` - обязательно для production
 - Миграции создают структуру базы данных
 
@@ -729,20 +743,21 @@ curl -I http://localhost:8080
 
 ### Сравнение команд DEV vs PROD
 
-| Действие | DEV | PROD |
-|----------|-----|------|
-| Поднять контейнеры | `docker compose up -d` | `docker compose -f docker-compose.prod.yml up -d` |
-| Проверка статуса | `docker compose ps` | `docker compose -f docker-compose.prod.yml ps` |
-| Миграции | `docker compose exec app php artisan migrate` | `docker compose -f docker-compose.prod.yml exec app php artisan migrate --force` |
-| Vite dev server | `docker compose exec app pnpm run dev` | ❌ не нужен |
-| Логи | `docker compose logs -f` | `docker compose -f docker-compose.prod.yml logs -f` |
-| Остановка | `docker compose down` | `docker compose -f docker-compose.prod.yml down` |
-| Перезапуск | `docker compose restart` | `docker compose -f docker-compose.prod.yml restart` |
-| Сборка образа | `docker compose build` | `docker build -t agelto/app:latest ./docker/php` |
+| Действие           | DEV                                           | PROD                                                                             |
+| ------------------ | --------------------------------------------- | -------------------------------------------------------------------------------- |
+| Поднять контейнеры | `docker compose up -d`                        | `docker compose -f docker-compose.prod.yml up -d`                                |
+| Проверка статуса   | `docker compose ps`                           | `docker compose -f docker-compose.prod.yml ps`                                   |
+| Миграции           | `docker compose exec app php artisan migrate` | `docker compose -f docker-compose.prod.yml exec app php artisan migrate --force` |
+| Vite dev server    | `docker compose exec app pnpm run dev`        | ❌ не нужен                                                                      |
+| Логи               | `docker compose logs -f`                      | `docker compose -f docker-compose.prod.yml logs -f`                              |
+| Остановка          | `docker compose down`                         | `docker compose -f docker-compose.prod.yml down`                                 |
+| Перезапуск         | `docker compose restart`                      | `docker compose -f docker-compose.prod.yml restart`                              |
+| Сборка образа      | `docker compose build`                        | `docker build -t agelto/app:latest ./docker/php`                                 |
 
 ### Управление контейнерами
 
 **DEV:**
+
 ```bash
 # Остановка
 docker compose down
@@ -762,6 +777,7 @@ docker compose logs -f reverb
 ```
 
 **PROD:**
+
 ```bash
 # Остановка
 docker compose -f docker-compose.prod.yml down
@@ -796,6 +812,7 @@ docker compose exec -T mysql mysql -u agelto -p agelto < backup.sql
 ### Обновление приложения
 
 **DEV:**
+
 ```bash
 # Переходим в директорию проекта
 cd /var/www/agelto/cms
@@ -819,6 +836,7 @@ docker compose restart
 ```
 
 **PROD:**
+
 ```bash
 # Переходим в директорию проекта
 cd /var/www/agelto/cms
@@ -952,7 +970,8 @@ dpkg-reconfigure -plow unattended-upgrades
 
 ### ⚡ Быстрое решение: Пересоздание MySQL с правильным паролем
 
-**Симптомы:** 
+**Симптомы:**
+
 - Предупреждение `WARN[0000] The "MYSQL_ROOT_PASSWORD" variable is not set`
 - Ошибка `service "app" is not running` при выполнении команд
 - MySQL контейнер был создан без `DB_ROOT_PASSWORD` в `.env`
@@ -1066,6 +1085,7 @@ docker compose exec app composer install --optimize-autoloader --no-dev
 ```
 
 **Объяснение:**
+
 - MySQL инициализируется только при первом запуске контейнера
 - Если контейнер уже создан без пароля, нужно удалить volume и пересоздать контейнер
 - Volume содержит все данные MySQL, поэтому его удаление удаляет базу данных
@@ -1248,7 +1268,8 @@ docker compose ps
 docker compose logs --tail=100 app
 ```
 
-**Объяснение:** 
+**Объяснение:**
+
 - Контейнер перезапускается, если процесс внутри него завершается с ошибкой
 - Логи покажут причину ошибки
 - Часто проблема в конфигурации, правах доступа или подключении к базе данных
@@ -1319,7 +1340,8 @@ DB_ROOT_PASSWORD=$(grep "^DB_ROOT_PASSWORD=" .env | cut -d '=' -f2)
 docker compose exec -T mysql mysql -u root -p"${DB_ROOT_PASSWORD}" agelto < backup_before_password_change_*.sql
 ```
 
-**Объяснение:** 
+**Объяснение:**
+
 - MySQL инициализируется только при первом запуске контейнера
 - Если контейнер уже создан без пароля, нужно пересоздать его
 - Удаление volume удаляет все данные, поэтому важен бэкап
@@ -1380,6 +1402,7 @@ docker compose exec app php artisan config:clear
 ### Очистка проекта (если проект уже установлен)
 
 **DEV:**
+
 ```bash
 # Переходим в директорию проекта (если она существует)
 cd /var/www/agelto/cms
@@ -1392,6 +1415,7 @@ docker compose down -v
 ```
 
 **PROD:**
+
 ```bash
 # Переходим в директорию проекта
 cd /var/www/agelto/cms
@@ -1436,6 +1460,7 @@ docker images
 ```
 
 **Объяснение:**
+
 - `docker compose down` - останавливает и удаляет контейнеры проекта
 - `docker compose down -v` - также удаляет volumes проекта (база данных)
 - `docker compose down --rmi all` - также удаляет образы проекта
@@ -1443,6 +1468,7 @@ docker images
 - Команды с `|| true` не вызовут ошибку, если ресурсов нет
 
 **После очистки:**
+
 - Если проект уже был установлен, можно начать с раздела "Настройка .env файла"
 - Если это пустой сервер, начните с раздела "1. Подготовка сервера"
 
@@ -1453,6 +1479,7 @@ docker images
 После выполнения всех шагов ваше приложение должно быть доступно по адресу `https://yourdomain.com`.
 
 **Важные моменты:**
+
 - ✅ Используйте отдельного пользователя (не root)
 - ✅ Настройте SSL сертификаты
 - ✅ Включите файрвол
@@ -1460,6 +1487,7 @@ docker images
 - ✅ Регулярно обновляйте систему
 
 **Безопасность:**
+
 - Храните `.env` файл в безопасности
 - Используйте сильные пароли для базы данных
 - Регулярно обновляйте зависимости

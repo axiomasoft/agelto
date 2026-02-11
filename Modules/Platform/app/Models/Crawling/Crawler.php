@@ -19,6 +19,7 @@ final class Crawler extends Model
     protected $fillable = [
         'platform_id',
         'url',
+        'options',
         'filter',
     ];
 
@@ -41,6 +42,7 @@ final class Crawler extends Model
     {
         return [
             'filter' => 'array',
+            'options' => 'array',
         ];
     }
 }
