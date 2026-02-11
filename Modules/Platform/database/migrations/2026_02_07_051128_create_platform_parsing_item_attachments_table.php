@@ -19,7 +19,7 @@ return new class extends Migration
             $table->foreignId('item_id')->constrained((new Platform\Models\Parsing\Item())->getTable())->cascadeOnDelete();
             $table->string('name', 500);
             $table->string('external_id', 60);
-            $table->string('extention', 12)->nullable();
+            $table->string('extension', 12)->nullable();
             $table->string('url', 1000);
 
             $table->string('status', 20)->default('pending');

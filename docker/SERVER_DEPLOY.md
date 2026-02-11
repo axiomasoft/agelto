@@ -24,11 +24,12 @@
 4. [Настройка проекта](#4-настройка-проекта)
 5. [DEV: Локальная разработка](#5-dev-локальная-разработка)
 6. [PROD: Production деплой](#6-prod-production-деплой)
-7. [Настройка Nginx как Reverse Proxy](#7-настройка-nginx-как-reverse-proxy)
+7. [Установка и настройка Nginx (Reverse Proxy)](#7-установка-и-настройка-nginx-reverse-proxy)
 8. [Настройка SSL (Let's Encrypt)](#8-настройка-ssl-lets-encrypt)
-9. [Полезные команды](#9-полезные-команды)
-10. [Решение проблем](#10-решение-проблем)
-11. [Полная очистка (начать с нуля)](#11-полная-очистка-начать-с-нуля)
+9. [Запуск приложения](#9-запуск-приложения)
+10. [Полезные команды](#10-полезные-команды)
+11. [Решение проблем](#11-решение-проблем)
+12. [Полная очистка (начать с нуля)](#12-полная-очистка-начать-с-нуля)
 
 ---
 
@@ -478,188 +479,110 @@ docker compose -f docker-compose.prod.yml exec app composer dump-autoload --opti
 
 ---
 
-## 5. Настройка Nginx как Reverse Proxy
+## 7. Установка и настройка Nginx (Reverse Proxy)
 
-### Зачем нужен внешний Nginx?
+На хосте (вне Docker) Nginx принимает трафик на портах 80 и 443 и перенаправляет его в контейнеры. После настройки SSL (п. 8) Certbot сам изменит конфиг, добавив HTTPS.
 
-**Важно:** В Docker контейнере Nginx работает на порту 80, но мы не можем напрямую открыть его наружу. Используем внешний Nginx как reverse proxy для:
-
-- Обработки SSL/TLS
-- Маршрутизации на несколько приложений
-- Оптимизации и кэширования
-
-### Установка Nginx
+**1. Установка Nginx**
 
 ```bash
-# Переключаемся на root
-exit
-
-# Устанавливаем Nginx
-apt install -y nginx
-
-# Запускаем и включаем автозапуск
-systemctl start nginx
-systemctl enable nginx
+sudo apt update
+sudo apt install nginx -y
 ```
 
-### Создание конфигурации сайта
+**2. Создание конфигурации сайта**
 
 ```bash
-# Создаем конфигурацию
-nano /etc/nginx/sites-available/agelto/cms
+sudo nano /etc/nginx/sites-available/agelto
 ```
 
-**Содержимое конфигурации:**
+**3. Содержимое конфигурации**
+
+Вставьте блок ниже, заменив `yourdomain.com` на ваш домен. Порт в `proxy_pass` для `location /` должен совпадать с `APP_PORT` в .env (в примере — 8081):
 
 ```nginx
-# HTTP сервер - редирект на HTTPS
+map $http_upgrade $connection_upgrade {
+    default upgrade;
+    ''      close;
+}
+
 server {
     listen 80;
-    listen [::]:80;
-    server_name yourdomain.com www.yourdomain.com;
+    server_name yourdomain.com; # Укажите ваш домен
 
-    # Редирект на HTTPS
-    return 301 https://$server_name$request_uri;
-}
-
-# HTTPS сервер
-server {
-    listen 443 ssl http2;
-    listen [::]:443 ssl http2;
-    server_name yourdomain.com www.yourdomain.com;
-
-    # SSL сертификаты (будут настроены позже)
-    ssl_certificate /etc/letsencrypt/live/yourdomain.com/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/yourdomain.com/privkey.pem;
-
-    # SSL настройки
-    ssl_protocols TLSv1.2 TLSv1.3;
-    ssl_ciphers HIGH:!aNULL:!MD5;
-    ssl_prefer_server_ciphers on;
-    ssl_session_cache shared:SSL:10m;
-    ssl_session_timeout 10m;
-
-    # Логи
-    access_log /var/log/nginx/agelto/cms-access.log;
-    error_log /var/log/nginx/agelto/cms-error.log;
-
-    # Максимальный размер загружаемого файла
-    client_max_body_size 110M;
-
-    # Проксирование на Docker контейнер
+    # Основное приложение (Laravel)
     location / {
-        proxy_pass http://127.0.0.1:8080;
+        proxy_pass http://127.0.0.1:8081; # APP_PORT из .env
         proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection 'upgrade';
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
-        proxy_cache_bypass $http_upgrade;
-
-        # Таймауты
-        proxy_connect_timeout 60s;
-        proxy_send_timeout 60s;
-        proxy_read_timeout 60s;
     }
 
-    # WebSocket для Reverb (если используется)
-    location /app/ {
-        proxy_pass http://127.0.0.1:8000;
+    # Laravel Reverb (WebSockets)
+    location /app {
+        proxy_pass http://127.0.0.1:8000; # Порт Reverb
         proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection "Upgrade";
         proxy_set_header Host $host;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection $connection_upgrade;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
-        proxy_cache_bypass $http_upgrade;
-        proxy_read_timeout 86400;
-    }
-
-    # Статические файлы (опционально, можно отдавать напрямую)
-    location ~* \.(jpg|jpeg|png|gif|ico|css|js|svg|woff|woff2|ttf|eot)$ {
-        proxy_pass http://127.0.0.1:8080;
-        expires 1y;
-        add_header Cache-Control "public, immutable";
-        access_log off;
     }
 }
 ```
 
-**Объяснение:**
-
-- Первый блок - редирект HTTP на HTTPS
-- Второй блок - основной HTTPS сервер
-- `proxy_pass http://127.0.0.1:8080` - проксирование на Docker контейнер
-- Заголовки `X-Forwarded-*` - передача информации о реальном клиенте
-
-### Активация конфигурации
+**4. Активация сайта**
 
 ```bash
-# Создаем символическую ссылку
-ln -s /etc/nginx/sites-available/agelto/cms /etc/nginx/sites-enabled/
-
-# Удаляем дефолтную конфигурацию (опционально)
-rm /etc/nginx/sites-enabled/default
-
-# Проверяем конфигурацию
-nginx -t
-
-# Перезагружаем Nginx (пока без SSL, будет ошибка, но это нормально)
-systemctl reload nginx
+sudo ln -s /etc/nginx/sites-available/agelto /etc/nginx/sites-enabled/
+sudo nginx -t   # Проверка синтаксиса
+sudo systemctl restart nginx
 ```
 
-**Объяснение:**
-
-- Символическая ссылка активирует конфигурацию
-- `nginx -t` - проверка синтаксиса
+При необходимости отключите конфиг по умолчанию: `sudo rm -f /etc/nginx/sites-enabled/default`.
 
 ---
 
-## 6. Настройка SSL (Let's Encrypt)
+## 8. Настройка SSL (Let's Encrypt)
 
-### Установка Certbot
+Чтобы сайт работал по HTTPS:
 
-```bash
-apt install -y certbot python3-certbot-nginx
-```
-
-**Объяснение:** Certbot - инструмент для автоматического получения SSL сертификатов.
-
-### Получение SSL сертификата
+**1. Установка Certbot**
 
 ```bash
-# Получаем сертификат (Certbot автоматически настроит Nginx)
-certbot --nginx -d yourdomain.com -d www.yourdomain.com
-
-# Следуйте инструкциям:
-# - Введите email
-# - Согласитесь с условиями
-# - Выберите редирект HTTP на HTTPS (рекомендуется: 2)
+sudo apt install certbot python3-certbot-nginx -y
 ```
 
-**Объяснение:**
+**2. Получение сертификата**
 
-- Certbot автоматически получит сертификат и обновит конфигурацию Nginx
-- Сертификат будет автоматически обновляться
+```bash
+sudo certbot --nginx -d yourdomain.com
+```
+
+Следуйте подсказкам: введите email и выберите **Redirect** (автоматическое перенаправление с HTTP на HTTPS).
+
+**Важно:** После установки SSL Certbot сам изменит файл `/etc/nginx/sites-available/agelto`, добавив пути к сертификатам и настройки HTTPS.
+
+Для нескольких доменов: `sudo certbot --nginx -d yourdomain.com -d www.yourdomain.com`
 
 ### Автоматическое обновление сертификата
 
 ```bash
 # Проверяем, что автообновление настроено
-systemctl status certbot.timer
+sudo systemctl status certbot.timer
 
 # Тестируем обновление (dry-run)
-certbot renew --dry-run
+sudo certbot renew --dry-run
 ```
 
 **Объяснение:** Certbot автоматически обновляет сертификаты перед истечением.
 
 ---
 
-## 7. Запуск приложения
+## 9. Запуск приложения
 
 ### Запуск контейнеров
 
@@ -739,7 +662,7 @@ curl -I http://localhost:8080
 
 ---
 
-## 9. Полезные команды
+## 10. Полезные команды
 
 ### Сравнение команд DEV vs PROD
 
@@ -964,7 +887,7 @@ dpkg-reconfigure -plow unattended-upgrades
 
 ---
 
-## 10. Решение проблем
+## 11. Решение проблем
 
 > **Важно:** Если вы столкнулись с проблемой, сначала проверьте раздел ниже - возможно, решение уже описано.
 
@@ -1393,7 +1316,7 @@ docker compose exec app php artisan config:clear
 
 ---
 
-## 11. Полная очистка (начать с нуля)
+## 12. Полная очистка (начать с нуля)
 
 **Когда использовать:** Если нужно полностью удалить все контейнеры, volumes, образы и начать установку заново на пустом сервере или после неудачной установки.
 
