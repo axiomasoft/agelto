@@ -10,72 +10,80 @@ use Throwable;
 class CheckEnvironment extends Command
 {
     protected $signature = 'app:health-check';
-    protected $description = 'Проверка готовности сервера к работе краулера';
+    protected $description = 'Глубокая диагностика доступности ЕИС';
 
     public function handle(BrowserService $browserService)
     {
-        $this->header("1. Проверка файловой системы");
-        $paths = [
-            storage_path('app/browser'),
-            storage_path('logs'),
-            base_path('public'),
-        ];
-
-        foreach ($paths as $path) {
-            if (!File::isDirectory($path)) {
-                File::makeDirectory($path, 0775, true);
-                $this->warn("! Создана папка: $path");
-            }
-            $this->line(is_writable($path) ? "✔ $path доступна" : "✘ $path ОШИБКА ЗАПИСИ");
-        }
+        $this->header("1. Системные ресурсы");
+        $shmSize = rescue(fn() => shell_exec('df -h /dev/shm | awk "NR==2 {print $2}"'), 'unknown');
+        $this->line("✔ Память Chromium (/dev/shm): $shmSize");
 
         $this->header("2. Проверка Chromium");
-        // Пытаемся получить версию бинарника напрямую
         $version = rescue(fn() => shell_exec('chromium --version'), 'не найден');
-        $this->line("✔ Бинарник: " . trim($version));
+        $this->line("✔ " . trim($version));
 
-        $this->header("3. Проверка сети и прокси (через браузер)");
-
-        // Тест 1: Без прокси
-        $this->runTest($browserService, 'https://google.com', 'Прямой доступ');
-
-        // Тест 2: С прокси
         $proxy = \Sys\Models\Proxy\Proxy::where('is_active', true)->first();
-        if ($proxy) {
-            $this->info("Использую прокси: {$proxy->ip_address}");
-            $this->runTest($browserService, 'https://zakupki.gov.ru', 'Доступ к ЕИС', $proxy);
-        } else {
-            $this->warn("! Активные прокси в БД не найдены");
+        if (!$proxy) {
+            $this->error("✘ Активные прокси в БД не найдены. Тесты ЕИС отменены.");
+            return 1;
         }
+
+        $this->info("Использую прокси: {$proxy->ip_address}:{$proxy->port}");
+
+        $this->header("3. Тест: ГЛАВНАЯ ЕИС (Легкий запрос)");
+        $this->runTest($browserService, 'https://zakupki.gov.ru', 'ЕИС Главная', $proxy);
+
+        $this->header("4. Тест: РЕЗУЛЬТАТЫ ПОИСКА (Тяжелый запрос)");
+        // Минимальный URL поиска для проверки рендеринга таблицы
+        $searchUrl = "https://zakupki.gov.ru/epz/order/extendedsearch/results.html?fz44=on&recordsPerPage=_10";
+        $this->runTest($browserService, $searchUrl, 'ЕИС Поиск', $proxy);
 
         return 0;
     }
 
-    protected function runTest(BrowserService $service, string $url, string $label, $proxy = null)
+    protected function runTest(BrowserService $service, string $url, string $label, $proxy)
     {
-        $this->info("Проверка: $label...");
+        $this->comment("Загрузка $url...");
 
         try {
-            // Обязательно закрываем старый инстанс перед новым тестом
             $service->close();
-
             $start = microtime(true);
 
-            $proxyData = $proxy ? [
+            $proxyData = [
                 'ip'   => $proxy->ip_address,
                 'port' => $proxy->port,
                 'user' => $proxy->username,
                 'pass' => $proxy->password,
-            ] : [];
+            ];
 
             $page = $service->setup($proxyData)->openPage($url);
-            $title = $page->evaluate('document.title')->getReturnValue();
+
+            // Небольшая пауза для рендеринга динамических элементов
+            usleep(1500000);
+
+            // Глубокая проверка DOM
+            $check = $page->evaluate("
+                (function() {
+                    const text = document.body.innerText;
+                    return {
+                        title: document.title,
+                        isEis: text.includes('Единая информационная система') || text.includes('zakupki.gov.ru'),
+                        hasLogo: document.querySelector('.logo-title') !== null || document.querySelector('.header__logo') !== null,
+                        hasResults: document.querySelector('.search-registry-entry-block') !== null,
+                        isBlocked: text.includes('Access Denied') || text.includes('заблокировано') || text.includes('403 Forbidden')
+                    };
+                })()
+            ")->getReturnValue();
+
             $time = round(microtime(true) - $start, 2);
 
-            if ($title) {
-                $this->info("✔ $label: УСПЕХ! Title: '$title' ($time сек)");
+            if ($check['isEis'] || $check['hasLogo'] || $check['hasResults']) {
+                $status = $check['hasResults'] ? "Данные найдены" : "Доступ есть";
+                $this->info("✔ $label: УСПЕХ ($time сек) — $status");
+            } elseif ($check['isBlocked']) {
+                $this->error("✘ $label: БЛОКИРОВКА (IP сервера или прокси в бане ЕИС)");
             } else {
-                $this->error("✘ $label: Загружена пустая страница");
+                $this->error("✘ $label: Неизвестный ответ. Title: '{$check['title']}'");
             }
         } catch (Throwable $e) {
             $this->error("✘ $label: ОШИБКА -> " . $e->getMessage());
