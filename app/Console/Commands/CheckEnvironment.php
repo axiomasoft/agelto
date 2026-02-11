@@ -4,19 +4,18 @@ namespace App\Console\Commands;
 
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\File;
-use Illuminate\Support\Facades\Http;
-use Symfony\Component\Process\Process;
+use App\Services\BrowserService;
+use Throwable;
 
 class CheckEnvironment extends Command
 {
     protected $signature = 'app:health-check';
     protected $description = 'Проверка готовности сервера к работе краулера';
 
-    public function handle()
+    public function handle(BrowserService $browserService)
     {
         $this->header("1. Проверка файловой системы");
         $paths = [
-            storage_path('app'),
             storage_path('app/browser'),
             storage_path('logs'),
             base_path('public'),
@@ -24,35 +23,27 @@ class CheckEnvironment extends Command
 
         foreach ($paths as $path) {
             if (!File::isDirectory($path)) {
-                File::makeDirectory($path, 0777, true);
+                File::makeDirectory($path, 0775, true);
                 $this->warn("! Создана папка: $path");
             }
-
-            if (is_writable($path)) {
-                $this->info("✔ $path доступна для записи");
-            } else {
-                $this->error("✘ $path НЕДОСТУПНА для записи");
-            }
+            $this->line(is_writable($path) ? "✔ $path доступна" : "✘ $path ОШИБКА ЗАПИСИ");
         }
 
         $this->header("2. Проверка Chromium");
-        $process = new Process(['/usr/bin/chromium', '--version']);
-        $process->run();
-        if ($process->isSuccessful()) {
-            $this->info("✔ Chromium: " . trim($process->getOutput()));
-        } else {
-            $this->error("✘ Chromium не найден по пути /usr/bin/chromium");
-        }
+        // Пытаемся получить версию бинарника напрямую
+        $version = rescue(fn() => shell_exec('chromium --version'), 'не найден');
+        $this->line("✔ Бинарник: " . trim($version));
 
-        $this->header("3. Проверка сети и прокси");
-        // Проверка прямого соединения
-        $this->checkUrl('https://google.com', 'Прямой доступ в интернет');
+        $this->header("3. Проверка сети и прокси (через браузер)");
 
-        // Проверка прокси из БД
+        // Тест 1: Без прокси
+        $this->runTest($browserService, 'https://google.com', 'Прямой доступ');
+
+        // Тест 2: С прокси
         $proxy = \Sys\Models\Proxy\Proxy::where('is_active', true)->first();
         if ($proxy) {
-            $this->info("Использую прокси для теста: {$proxy->ip_address}");
-            $this->checkUrl('https://zakupki.gov.ru', 'Доступ к ЕИС через прокси', $proxy);
+            $this->info("Использую прокси: {$proxy->ip_address}");
+            $this->runTest($browserService, 'https://zakupki.gov.ru', 'Доступ к ЕИС', $proxy);
         } else {
             $this->warn("! Активные прокси в БД не найдены");
         }
@@ -60,57 +51,36 @@ class CheckEnvironment extends Command
         return 0;
     }
 
-    protected function checkUrl($url, $label, $proxy = null)
+    protected function runTest(BrowserService $service, string $url, string $label, $proxy = null)
     {
-        $this->info("Проверка $label...");
+        $this->info("Проверка: $label...");
 
         try {
-            // Используем твой сервис напрямую
-            $browserService = app(\App\Services\BrowserService::class);
+            // Обязательно закрываем старый инстанс перед новым тестом
+            $service->close();
 
             $start = microtime(true);
 
-            // Настраиваем прокси, если он передан
-            if ($proxy) {
-                $browserService->setup([
-                    'ip'   => $proxy->ip_address,
-                    'port' => $proxy->port,
-                    'user' => $proxy->username,
-                    'pass' => $proxy->password,
-                ]);
-            } else {
-                $browserService->setup();
-            }
+            $proxyData = $proxy ? [
+                'ip'   => $proxy->ip_address,
+                'port' => $proxy->port,
+                'user' => $proxy->username,
+                'pass' => $proxy->password,
+            ] : [];
 
-            $page = $browserService->openPage($url);
+            $page = $service->setup($proxyData)->openPage($url);
             $title = $page->evaluate('document.title')->getReturnValue();
-
             $time = round(microtime(true) - $start, 2);
 
             if ($title) {
                 $this->info("✔ $label: УСПЕХ! Title: '$title' ($time сек)");
             } else {
-                $this->error("✘ $label: Страница загрузилась, но Title пустой");
+                $this->error("✘ $label: Загружена пустая страница");
             }
-        } catch (\Exception $e) {
-            $this->error("✘ $label: ОШИБКА БРАУЗЕРА: " . $e->getMessage());
-
-            // Если упало, проверим — создалась ли папка расширения?
-            $this->checkExtensionDir();
+        } catch (Throwable $e) {
+            $this->error("✘ $label: ОШИБКА -> " . $e->getMessage());
         } finally {
-            if (isset($browserService)) {
-                $browserService->close();
-            }
-        }
-    }
-
-    protected function checkExtensionDir()
-    {
-        $files = glob(storage_path('app/browser/proxy_ext_*'));
-        if (empty($files)) {
-            $this->warn("! Внимание: Папка расширения не была создана в storage/app/browser/");
-        } else {
-            $this->info("i Найдены временные папки расширений: " . count($files));
+            $service->close();
         }
     }
 
