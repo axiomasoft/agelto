@@ -63,10 +63,12 @@ class BrowserService
             'windowSize' => [1920, 1080],
             'customFlags' => array_filter([
                 '--no-sandbox',
+                '--disable-ipv6',
                 '--disable-dev-shm-usage',
                 '--disable-blink-features=AutomationControlled',
                 '--blink-settings=imagesEnabled=false',
                 '--ignore-certificate-errors',
+                "--proxy-server=http://{$proxy['ip']}:{$proxy['port']}",
                 '--lang=ru-RU,ru',
                 $this->extPath ? "--load-extension={$this->extPath}" : null,
                 $this->extPath ? "--disable-extensions-except={$this->extPath}" : null,

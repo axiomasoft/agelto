@@ -39,6 +39,7 @@ services:
         condition: service_started
     networks:
       - agelto_network
+    shm_size: '2gb'
 
   # Контейнер для ручного запуска парсинга (Stage 1)
   worker-eis-parser-map:
