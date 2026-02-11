@@ -175,38 +175,46 @@ class BrowserService
     {
         if (empty($proxy['ip'])) return null;
 
-        $ip   = (string) $proxy['ip'];
-        $port = (int) ($proxy['port'] ?? 80);
-        $user = (string) ($proxy['user'] ?? '');
-        $pass = (string) ($proxy['pass'] ?? '');
-
+        // Гарантируем уникальную ПАПКУ внутри storage
         $path = storage_path('app/browser/proxy_ext_' . uniqid());
-        File::makeDirectory($path, 0777, true, true);
 
-        file_put_contents("$path/manifest.json", json_encode([
+        // Создаем директорию
+        if (!File::makeDirectory($path, 0777, true, true)) {
+            throw new \Exception("Не удалось создать директорию для расширения по пути: $path");
+        }
+
+        $manifest = [
             "version" => "1.0.0",
             "manifest_version" => 2,
             "name" => "ProxyAuth",
             "permissions" => ["proxy", "tabs", "webRequest", "webRequestBlocking", "<all_urls>"],
             "background" => ["scripts" => ["background.js"]]
-        ]));
+        ];
 
-        $js = <<<JS
-            var config = {
-                mode: 'fixed_servers',
-                rules: { singleProxy: { scheme: 'http', host: '$ip', port: $port } }
-            };
-            chrome.proxy.settings.set({value: config, scope: 'regular'}, function() {});
-            chrome.webRequest.onAuthRequired.addListener(
-                function(details) {
-                    return { authCredentials: { username: '$user', password: '$pass' } };
-                },
-                {urls: ['<all_urls>']},
-                ['blocking']
-            );
-        JS;
+        file_put_contents("$path/manifest.json", json_encode($manifest));
+
+        $js = sprintf(
+            "
+        var config = {
+            mode: 'fixed_servers',
+            rules: { singleProxy: { scheme: 'http', host: '%s', port: %d } }
+        };
+        chrome.proxy.settings.set({value: config, scope: 'regular'}, function() {});
+        chrome.webRequest.onAuthRequired.addListener(
+            function(details) {
+                return { authCredentials: { username: '%s', password: '%s' } };
+            },
+            {urls: ['<all_urls>']},
+            ['blocking']
+        );",
+            $proxy['ip'],
+            $proxy['port'],
+            $proxy['user'],
+            $proxy['pass']
+        );
 
         file_put_contents("$path/background.js", $js);
+
         return $path;
     }
 
