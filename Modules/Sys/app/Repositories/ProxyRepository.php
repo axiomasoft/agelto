@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Repositories;
+namespace Sys\Repositories;
 
 use Sys\Models\Proxy\Proxy;
 use Illuminate\Support\Facades\Log;

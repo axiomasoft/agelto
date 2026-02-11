@@ -7,7 +7,7 @@ use HeadlessChromium\Browser;
 use HeadlessChromium\Page;
 use Symfony\Component\Process\Process;
 use Illuminate\Support\Facades\File;
-use App\Repositories\ProxyRepository;
+use Sys\Repositories\ProxyRepository;
 use Sys\Models\Proxy\Proxy;
 use Throwable;
 
@@ -65,6 +65,7 @@ class BrowserService
                 '--no-sandbox',
                 '--disable-dev-shm-usage',
                 '--disable-blink-features=AutomationControlled',
+                '--blink-settings=imagesEnabled=false',
                 '--ignore-certificate-errors',
                 '--lang=ru-RU,ru',
                 $this->extPath ? "--load-extension={$this->extPath}" : null,

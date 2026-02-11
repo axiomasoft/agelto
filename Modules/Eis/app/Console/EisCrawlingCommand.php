@@ -27,6 +27,6 @@ final class EisCrawlingCommand extends Command
     {
         $crawler = Crawler::query()->firstOrFail();
 
-        EisCrawling::run($crawler);
+        EisCrawling::execute($crawler);
     }
 }
