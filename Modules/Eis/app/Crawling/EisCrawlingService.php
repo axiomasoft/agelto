@@ -10,6 +10,7 @@ use Platform\Dto\Attachments\AttachmentDto;
 use Platform\Dto\Crawling\CrawlingItemDto;
 use Platform\Dto\Crawling\PageMetaDto;
 use Platform\Dto\Crawling\PageResultDto;
+use Platform\Models\Crawling\LinkAttachment;
 use Platform\Process\Crawling\AbstractCrawlingService;
 use RuntimeException;
 use Spatie\LaravelData\DataCollection;
@@ -17,11 +18,17 @@ use Symfony\Component\DomCrawler\Crawler as DomCrawler;
 
 final class EisCrawlingService extends AbstractCrawlingService
 {
+    /**
+     * Извлечение узлов закупок из HTML.
+     */
     public function getNodes(string $html): array
     {
         return (new DomCrawler($html))->filter('.search-registry-entry-block')->each(fn(DomCrawler $node) => $node);
     }
 
+    /**
+     * Парсинг конкретной закупки.
+     */
     public function crawlingItem(mixed $node): CrawlingItemDto
     {
         /** @var DomCrawler $node */
@@ -32,9 +39,6 @@ final class EisCrawlingService extends AbstractCrawlingService
         $priceText = $node->filter('.price-block__value')->count() ? $node->filter('.price-block__value')->text() : '0';
         $price = (float) preg_replace('/[^\d.]/', '', str_replace(',', '.', $priceText));
 
-        $this->logger->info("Парсинг вложений для $externalId", LogOutput::Console);
-        $attachments = AttachmentDto::collect($this->parseAttachments($url), DataCollection::class);
-
         return new CrawlingItemDto(
             externalId: $externalId,
             title: $title,
@@ -43,54 +47,47 @@ final class EisCrawlingService extends AbstractCrawlingService
             publishedAt: $this->parseDate($node, 'Размещено'),
             updatedAt: $this->parseDate($node, 'Обновлено'),
             submissionEndAt: $this->parseDate($node, 'Окончание подачи'),
-            attachments: $attachments,
         );
     }
 
-    protected function pageProcessing(string $html): PageResultDto
+    public function getPageMeta(string $html, int $requestedPage = 1): PageMetaDto
     {
-        $nodes = $this->getNodes($html);
-
-        foreach ($nodes as $node) {
-            $item = $this->crawlingItem($node);
-            $this->processSingleItem($item);
-        }
-
         $dom = new DomCrawler($html);
         $formParams = [];
 
-        // Собираем скрытые поля формы поиска для пагинации
-        $dom->filter('form#searchForm input[type="hidden"]')->each(function (DomCrawler $input) use (&$formParams) {
+        $dom->filter('form#searchForm input[type="hidden"]')->each(function (DomCrawler $input) use (&$formParams): void {
             $formParams[$input->attr('name')] = $input->attr('value');
         });
 
-        $currentPage = (int) ($formParams['pageNumber'] ?? 1);
-        $hasNextPage = $dom->filter('.paginator .next')->count() > 0;
+        // Используем переданный номер страницы: в HTML формы ЕИС поле pageNumber часто остаётся 1
+        $currentPage = $requestedPage;
 
-        // Подготавливаем параметры для следующей страницы
+        $hasNextPage = $dom->filter('.paginator .paginator-button-next')->count() > 0;
+
         $nextPageParams = $formParams;
         if ($hasNextPage) {
             $nextPageParams['pageNumber'] = $currentPage + 1;
         }
 
-        return new PageResultDto(
-            items: CrawlingItemDto::collect([], DataCollection::class),
-            meta: new PageMetaDto(
-                current_page: $currentPage,
-                has_next_page: $hasNextPage,
-                total_items: 0, // Можно распарсить "Найдено результатов", если нужно
-                items_per_page: 10,
-                next_page_params: $nextPageParams
-            )
+        return new PageMetaDto(
+            current_page: $currentPage,
+            has_next_page: $hasNextPage,
+            total_items: 0,
+            items_per_page: 10,
+            next_page_params: $nextPageParams
         );
     }
 
+    /**
+     * Сбор документов с вкладки "Документы" закупки.
+     */
     protected function parseAttachments(string $commonInfoUrl): array
     {
+        // Переходим с "Общей информации" на "Документы"
         $docsUrl = str_replace('common-info.html', 'documents.html', $commonInfoUrl);
 
         $page = $this->browser->openPage($docsUrl);
-        // Обязательная задержка для AJAX отрисовки списка файлов
+        // Задержка для подгрузки динамического контента ЕИС
         usleep(2000000);
 
         $html = $page->getHtml();
@@ -105,7 +102,7 @@ final class EisCrawlingService extends AbstractCrawlingService
             $fullUrl = str_starts_with($href, 'http') ? $href : 'https://zakupki.gov.ru' . $href;
             parse_str(parse_url($fullUrl, PHP_URL_QUERY) ?? '', $query);
 
-            // UID — для ссылок filestore (44-ФЗ), id — для старого интерфейса
+            // UID для 44-ФЗ или ID для 223/прочих
             $externalId = $query['uid'] ?? ($query['id'] ?? md5($href));
 
             return new AttachmentDto(
@@ -115,32 +112,23 @@ final class EisCrawlingService extends AbstractCrawlingService
             );
         });
 
+        // Удаляем пустые элементы и дубликаты
         $unique = array_values(array_filter(array_unique($attachments, SORT_REGULAR)));
 
         if (empty($unique)) {
-            // В случае ошибки сохраняем HTML для дебага
             if (app()->environment('local')) {
-                \Illuminate\Support\Facades\Storage::put('debug_eis_empty.html', $html);
+                \Illuminate\Support\Facades\Storage::put('debug_eis_empty_docs.html', $html);
             }
-            throw new RuntimeException("Документы не найдены для $docsUrl");
+            // Если документов нет, это подозрительно для ЕИС, кидаем исключение
+            throw new RuntimeException("Документы не найдены для закупки: $docsUrl");
         }
 
         return $unique;
     }
 
-    protected function filter(CrawlingItemDto $item): bool|string
-    {
-        // Расширенный фильтр (питание + ПО)
-        $keywords = ['питание', 'программное', 'лиценз'];
-        foreach ($keywords as $word) {
-            if (mb_stripos($item->title, $word) !== false) {
-                return true;
-            }
-        }
-
-        return 'Не соответствует ключевым словам';
-    }
-
+    /**
+     * Хелпер для парсинга дат из блоков ЕИС.
+     */
     private function parseDate(DomCrawler $node, string $label): ?Carbon
     {
         $dateNode = $node->filter(".data-block__title:contains('$label') + .data-block__value");

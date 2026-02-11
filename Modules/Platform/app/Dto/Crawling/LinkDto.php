@@ -21,6 +21,8 @@ final class LinkDto extends Data
         public string $regNumber,
         public string $detailUrl,
         #[WithCast(DateTimeInterfaceCast::class)]
+        public ?Carbon $updatedAt,
+        #[WithCast(DateTimeInterfaceCast::class)]
         public Carbon $publishedAt,
         #[WithCast(DateTimeInterfaceCast::class)]
         public ?Carbon $submissionEndAt = null,
@@ -34,6 +36,7 @@ final class LinkDto extends Data
         return self::from([
             'regNumber' => (string) $data['reg_number'],
             'detailUrl' => (string) $data['detail_url'],
+            'updatedAt' => isset($data['updated_at']) ? Carbon::parse($data['updated_at']) : null,
             'publishedAt' => isset($data['published_at']) ? Carbon::parse($data['published_at']) : now(),
             'submissionEndAt' => isset($data['submission_end_at']) ? Carbon::parse($data['submission_end_at']) : null,
             'rawPayload' => $data['raw_payload'] ?? [],

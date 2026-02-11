@@ -18,7 +18,10 @@ return new class extends Migration
             $table->id();
             $table->foreignId('platform_id')->constrained((new Platform\Models\Platform())->getTable())->cascadeOnDelete();
             $table->foreignId('crawler_id')->constrained((new Platform\Models\Crawling\Crawler())->getTable())->cascadeOnDelete();
-            $table->string('reg_number')->unique();
+            $table->string('reg_number', 60);
+
+            $table->unique(['platform_id', 'reg_number']);
+
             $table->timestamps();
         });
     }

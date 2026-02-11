@@ -30,6 +30,7 @@ final class CrawlingRepository
             [
                 'detail_url' => $dto->detailUrl,
                 'published_at' => $dto->publishedAt,
+                'platform_updated_at' => $dto->updatedAt,
                 'submission_end_at' => $dto->submissionEndAt,
                 'status' => CrawlingStatus::PENDING,
                 'attempts' => 0,
@@ -57,6 +58,17 @@ final class CrawlingRepository
             ->orderBy('published_at', 'asc')
             ->limit($limit)
             ->get();
+    }
+
+    /**
+     * Поиск ссылки по платформе и рег. номеру (для проверки актуальности перед подгрузкой документов).
+     */
+    public function findLinkByPlatformAndRegNumber(int $platformId, string $regNumber): ?Link
+    {
+        return Link::query()
+            ->where('platform_id', $platformId)
+            ->where('reg_number', $regNumber)
+            ->first();
     }
 
     /**
@@ -115,9 +127,10 @@ final class CrawlingRepository
             LinkAttachment::query()->updateOrCreate(
                 [
                     'link_id' => $link->id,
-                    'url' => $dto->url,
+                    'external_id' => $dto->externalId,
                 ],
                 [
+                    'url' => $dto->url,
                     'name' => $dto->name,
                     'extension' => $extension,
                 ]

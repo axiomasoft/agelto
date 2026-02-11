@@ -16,6 +16,7 @@ final class LinkAttachment extends Model
 
     protected $fillable = [
         'link_id',
+        'external_id',
         'name',
         'extension',
         'url',

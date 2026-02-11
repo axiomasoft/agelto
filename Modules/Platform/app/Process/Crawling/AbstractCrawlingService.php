@@ -12,6 +12,7 @@ use Illuminate\Support\Facades\App;
 use Illuminate\Support\Facades\Http;
 use Platform\Dto\Crawling\CrawlingItemDto;
 use Platform\Dto\Crawling\LinkDto;
+use Platform\Dto\Crawling\PageMetaDto;
 use Platform\Dto\Crawling\PageResultDto;
 use Platform\Interfaces\Crawling\PlatformCrawling;
 use Platform\Models\Crawling\Crawler as CrawlerModel;
@@ -20,6 +21,8 @@ use Platform\Models\Platform;
 use Platform\Repositories\Crawling\CrawlingRepository;
 use RuntimeException;
 use Throwable;
+use Spatie\LaravelData\DataCollection;
+use Platform\Dto\Attachments\AttachmentDto;
 
 abstract class AbstractCrawlingService implements PlatformCrawling
 {
@@ -30,25 +33,22 @@ abstract class AbstractCrawlingService implements PlatformCrawling
         protected readonly BrowserService $browser,
     ) {}
 
-    abstract protected function pageProcessing(string $html): PageResultDto;
-
     abstract public function getNodes(string $html): array;
 
     abstract public function crawlingItem(mixed $node): CrawlingItemDto;
 
-    /**
-     * Точка входа для запуска.
-     */
+    abstract public function getPageMeta(string $html, int $requestedPage = 1): PageMetaDto;
+
+    abstract protected function parseAttachments(string $commonInfoUrl): array;
+
     final public function execute(CrawlerModel $crawler): void
     {
         try {
-            // 1. Проверка VPN (только для local)
             $this->checkVpnConstraint();
 
             $this->logger->info('Инициализация браузера и прокси...', LogOutput::Console);
             $this->browser->withRandomProxy();
 
-            // 2. Запуск основного цикла
             $this->run($crawler);
 
             $this->browser->reportSuccess();
@@ -66,28 +66,26 @@ abstract class AbstractCrawlingService implements PlatformCrawling
         $this->crawler = $crawler;
         $this->crawler->load('platform');
 
-        $url = $crawler->url;
+        $baseUrl = $crawler->url; // Используем baseUrl, чтобы не накапливать query в цикле
         $isFirstPage = true;
         $nextPageParams = [];
+        $requestedPage = 1;
 
         do {
-            $response = $this->fetchPageResponse($url, $isFirstPage, $nextPageParams);
-            $pageResult = $this->pageProcessing($response->body());
+            $response = $this->fetchPageResponse($baseUrl, $isFirstPage, $nextPageParams);
+            $pageResult = $this->pageProcessing($response->body(), $requestedPage);
 
-            foreach ($pageResult->items as $item) {
-                $this->processSingleItem($item);
-            }
-
-            // Проверяем флаг следующей страницы из DTO
             if (! $pageResult->meta->has_next_page) {
+                $this->logger->info('Пагинация завершена (кнопка "Далее" не найдена).', LogOutput::Console);
                 break;
             }
 
             $isFirstPage = false;
-            // Берем массив параметров из корректного поля DTO
             $nextPageParams = $pageResult->meta->next_page_params;
+            $requestedPage = (int) ($nextPageParams['pageNumber'] ?? 1);
 
-            usleep(mt_rand(1500000, 2500000));
+            $this->logger->info("Готовим переход на страницу {$requestedPage}", LogOutput::Console);
+            usleep(mt_rand(2000000, 4000000));
         } while (true);
     }
 
@@ -96,46 +94,112 @@ abstract class AbstractCrawlingService implements PlatformCrawling
         return $this->getCrawler()->platform;
     }
 
-    /**
-     * Проверка: если LOCAL, то внешний IP должен совпадать с MY_REAL_IP из .env
-     */
     protected function checkVpnConstraint(): void
     {
-        /*if (App::environment('local')) {
+        /* if (App::environment('local')) {
             $this->logger->info("Проверка на отсутствие VPN...", LogOutput::Console);
 
             $realIp = env('MY_REAL_IP');
             if (!$realIp) {
-                $this->logger->info("[WARNING] MY_REAL_IP не задан в .env. Пропуск проверки VPN.", LogOutput::Console);
+                $this->logger->info("[WARNING] MY_REAL_IP не задан. Пропуск проверки.", LogOutput::Console);
                 return;
             }
 
             try {
-                // Прямой запрос без прокси для проверки текущего IP машины
                 $currentIp = trim(Http::timeout(5)->get('https://api.ipify.org')->body());
                 if ($currentIp !== (string)$realIp) {
-                    throw new RuntimeException("VPN активен (IP: $currentIp). Отключите его для local режима.");
+                    throw new RuntimeException("VPN активен ($currentIp). Отключите его.");
                 }
-                $this->logger->info("Проверка пройдена. Работаем без VPN.", LogOutput::Console);
             } catch (Throwable $e) {
                 if ($e instanceof RuntimeException) throw $e;
-                $this->logger->info("[WARNING] Не удалось проверить IP: " . $e->getMessage(), LogOutput::Console);
+                $this->logger->info("[WARNING] Ошибка проверки IP: " . $e->getMessage(), LogOutput::Console);
             }
-        }*/
+        } */
     }
 
     protected function fetchPageResponse(string $url, bool $isFirstPage, array $params): \Illuminate\Http\Client\Response
     {
-        $this->logger->info('Загрузка страницы: ' . $url, LogOutput::Console);
         $requestUrl = $url;
+
         if (! $isFirstPage && ! empty($params)) {
-            $requestUrl .= (str_contains($url, '?') ? '&' : '?') . http_build_query($params);
+            $parsedUrl = parse_url($url);
+            $query = [];
+
+            // 1. Извлекаем существующие параметры из URL (если они есть)
+            if (isset($parsedUrl['query'])) {
+                parse_str($parsedUrl['query'], $query);
+            }
+
+            // 2. Накладываем новые параметры (например, pageNumber) поверх старых
+            $query = array_merge($query, $params);
+
+            // 3. Собираем URL обратно по частям, которые в нем БЫЛИ
+            $scheme = isset($parsedUrl['scheme']) ? $parsedUrl['scheme'] . '://' : '';
+            $host = $parsedUrl['host'] ?? '';
+            $port = isset($parsedUrl['port']) ? ':' . $parsedUrl['port'] : '';
+            $path = $parsedUrl['path'] ?? '';
+            $newQuery = '?' . http_build_query($query);
+
+            $requestUrl = $scheme . $host . $port . $path . $newQuery;
         }
 
+        $this->logger->info('Загрузка страницы: ' . $requestUrl, LogOutput::Console);
         $page = $this->browser->openPage($requestUrl);
 
         return new \Illuminate\Http\Client\Response(
             new \GuzzleHttp\Psr7\Response(200, [], $page->getHtml())
+        );
+    }
+
+    /**
+     * Обработка всей страницы и подготовка данных для пагинации.
+     *
+     * @param  int  $requestedPage  Номер запрошенной страницы (форма в HTML ЕИС часто содержит pageNumber=1, поэтому передаём явно)
+     */
+    protected function pageProcessing(string $html, int $requestedPage = 1): PageResultDto
+    {
+        $nodes = $this->getNodes($html);
+        $items = [];
+
+        foreach ($nodes as $node) {
+            $item = $this->crawlingItem($node);
+
+            $link = $this->crawlingRepository()->findLinkByPlatformAndRegNumber(
+                $this->getPlatform()->id,
+                $item->externalId
+            );
+
+            $needsDocuments = $link === null
+                || $link->platform_updated_at === null
+                || $item->updatedAt === null
+                || $link->platform_updated_at->toDateString() !== $item->updatedAt->toDateString();
+
+            if ($needsDocuments) {
+                $this->logger->info("Парсинг вложений для {$item->externalId}", LogOutput::Console);
+                $attachmentsData = $this->parseAttachments($item->url);
+                $item->attachments = AttachmentDto::collect($attachmentsData, DataCollection::class);
+            } else {
+                /* $link->load('attachments');
+                $item->attachments = AttachmentDto::collect(
+                    $link->attachments->map(fn(LinkAttachment $a): AttachmentDto => new AttachmentDto(
+                        externalId: $a->external_id,
+                        url: $a->url,
+                        name: $a->name
+                    ))->all(),
+                    DataCollection::class
+                ); */
+            }
+
+            $this->processSingleItem($item);
+
+            $items[] = $item;
+        }
+
+        $meta = $this->getPageMeta($html, $requestedPage);
+
+        return new PageResultDto(
+            items: CrawlingItemDto::collect($items, DataCollection::class),
+            meta: $meta,
         );
     }
 
@@ -160,6 +224,7 @@ abstract class AbstractCrawlingService implements PlatformCrawling
         $linkDto = new LinkDto(
             regNumber: $item->externalId,
             detailUrl: $item->url,
+            updatedAt: $item->updatedAt,
             publishedAt: $item->publishedAt ?? Carbon::now(),
             submissionEndAt: $item->submissionEndAt,
             attachments: $item->attachments,
