@@ -51,28 +51,33 @@ class BrowserService
      */
     public function setup(array $proxy = []): self
     {
-        if ($this->browser) {
-            return $this;
-        }
+        if ($this->browser) return $this;
 
         $this->extPath = $this->prepareProxyExtension($proxy);
         $factory = new BrowserFactory($this->browserPath);
 
+        $flags = [
+            '--no-sandbox',
+            '--disable-ipv6', // Критично для серверов
+            '--disable-dev-shm-usage',
+            '--disable-blink-features=AutomationControlled',
+            '--ignore-certificate-errors',
+            '--lang=ru-RU,ru',
+        ];
+
+        // Добавляем прокси только если массив не пустой
+        if (!empty($proxy['ip'])) {
+            $flags[] = "--proxy-server=http://{$proxy['ip']}:{$proxy['port']}";
+            if ($this->extPath) {
+                $flags[] = "--load-extension={$this->extPath}";
+                $flags[] = "--disable-extensions-except={$this->extPath}";
+            }
+        }
+
         $this->browser = $factory->createBrowser([
             'headless' => 'new',
             'windowSize' => [1920, 1080],
-            'customFlags' => array_filter([
-                '--no-sandbox',
-                '--disable-ipv6',
-                '--disable-dev-shm-usage',
-                '--disable-blink-features=AutomationControlled',
-                '--blink-settings=imagesEnabled=false',
-                '--ignore-certificate-errors',
-                "--proxy-server=http://{$proxy['ip']}:{$proxy['port']}",
-                '--lang=ru-RU,ru',
-                $this->extPath ? "--load-extension={$this->extPath}" : null,
-                $this->extPath ? "--disable-extensions-except={$this->extPath}" : null,
-            ])
+            'customFlags' => $flags
         ]);
 
         return $this;
@@ -175,40 +180,31 @@ class BrowserService
      */
     protected function prepareProxyExtension(array $proxy): ?string
     {
+        // Если IP нет, расширение не нужно
         if (empty($proxy['ip'])) return null;
 
-        // Гарантируем уникальную ПАПКУ внутри storage
         $path = storage_path('app/browser/proxy_ext_' . uniqid());
 
-        // Создаем директорию
-        if (!File::makeDirectory($path, 0777, true, true)) {
-            throw new \Exception("Не удалось создать директорию для расширения по пути: $path");
+        // Создаем именно папку
+        if (!File::isDirectory($path)) {
+            File::makeDirectory($path, 0775, true);
         }
 
-        $manifest = [
+        file_put_contents("$path/manifest.json", json_encode([
             "version" => "1.0.0",
             "manifest_version" => 2,
             "name" => "ProxyAuth",
             "permissions" => ["proxy", "tabs", "webRequest", "webRequestBlocking", "<all_urls>"],
             "background" => ["scripts" => ["background.js"]]
-        ];
-
-        file_put_contents("$path/manifest.json", json_encode($manifest));
+        ]));
 
         $js = sprintf(
-            "
-        var config = {
-            mode: 'fixed_servers',
-            rules: { singleProxy: { scheme: 'http', host: '%s', port: %d } }
-        };
-        chrome.proxy.settings.set({value: config, scope: 'regular'}, function() {});
-        chrome.webRequest.onAuthRequired.addListener(
-            function(details) {
-                return { authCredentials: { username: '%s', password: '%s' } };
-            },
-            {urls: ['<all_urls>']},
-            ['blocking']
-        );",
+            "var config = { mode: 'fixed_servers', rules: { singleProxy: { scheme: 'http', host: '%s', port: %d } } };
+            chrome.proxy.settings.set({value: config, scope: 'regular'}, function() {});
+            chrome.webRequest.onAuthRequired.addListener(
+                function(details) { return { authCredentials: { username: '%s', password: '%s' } }; },
+                {urls: ['<all_urls>']}, ['blocking']
+            );",
             $proxy['ip'],
             $proxy['port'],
             $proxy['user'],
