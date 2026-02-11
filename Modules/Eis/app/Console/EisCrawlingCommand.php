@@ -6,6 +6,7 @@ namespace Eis\Console;
 
 use Eis\Facades\EisCrawling;
 use Illuminate\Console\Command;
+use Platform\Enums\Platform as PlatformEnum;
 use Platform\Models\Crawling\Crawler;
 
 final class EisCrawlingCommand extends Command
@@ -23,10 +24,21 @@ final class EisCrawlingCommand extends Command
     /**
      * Execute the console command.
      */
-    public function handle()
+    public function handle(): int
     {
-        $crawler = Crawler::query()->firstOrFail();
+        do {
+            $crawler = Crawler::query()
+                ->whereHas('platform', fn ($q) => $q->where('code', PlatformEnum::EIS->value))
+                ->first();
+
+            if ($crawler === null) {
+                $this->warn('Краулер не найден. Ожидание 30 минут...');
+                sleep(30 * 60);
+            }
+        } while ($crawler === null);
 
         EisCrawling::execute($crawler);
+
+        return self::SUCCESS;
     }
 }
