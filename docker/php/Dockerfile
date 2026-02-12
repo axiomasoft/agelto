@@ -57,24 +57,21 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 WORKDIR /var/www/html
 
-# Переменные для Chromium
+# 1. Копируем ВЕСЬ код сразу (чтобы Composer видел папку Modules/Platform)
+COPY . .
+
+# 2. Ставим зависимости (теперь пути в composer.json будут валидны)
+RUN composer install --no-dev --no-interaction --optimize-autoloader
+
+# 3. Настройка прав (добавил создание папок и рекурсивный chown)
+RUN mkdir -p /var/www/html/storage/app/browser/page_debug \
+    && mkdir -p /var/www/html/storage/framework/sessions \
+    && mkdir -p /var/www/html/storage/framework/views \
+    && mkdir -p /var/www/html/storage/framework/cache \
+    && chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache
+
 ENV CHROME_BIN=/usr/bin/chromium
 ENV CHROME_PATH=/usr/lib/chromium/
 
-# Копируем файлы зависимостей (для кэширования слоев)
-COPY composer.json composer.lock ./
-
-# Устанавливаем PHP зависимости (без dev-пакетов)
-RUN composer install --no-dev --no-interaction --no-autoloader --no-scripts
-
-# Копируем весь остальной код проекта
-COPY . .
-
-# Финальная донастройка Composer (оптимизация автозагрузки)
-RUN composer install --no-dev --optimize-autoloader
-
-# Выставляем права для пользователя www-data (чтобы Laravel мог писать логи и кэш)
-RUN chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache
-
-# Возвращаемся под обычного пользователя, если это требует базовый образ
+# Переключаемся на пользователя www-data для безопасности
 USER www-data
