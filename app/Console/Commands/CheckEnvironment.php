@@ -29,12 +29,17 @@ class CheckEnvironment extends Command
 
         $this->info("Использую прокси: {$proxy->ip_address}:{$proxy->port}");
 
+        // ТЕСТ 0: google
+        $this->header("3. ТЕСТ: google");
+        $this->runTest($browserService, 'https://google.ru', 'google', $proxy);
+
+
         // ТЕСТ 1: ГЛАВНАЯ
-        $this->header("3. ТЕСТ: ГЛАВНАЯ СТРАНИЦА");
+        $this->header("4. ТЕСТ: ГЛАВНАЯ СТРАНИЦА");
         $this->runTest($browserService, 'https://zakupki.gov.ru', 'eis_main_page', $proxy);
 
         // ТЕСТ 2: ПОИСК (КАТАЛОГ)
-        $this->header("4. ТЕСТ: ПОИСК / КАТАЛОГ (Тяжелая таблица)");
+        $this->header("5. ТЕСТ: ПОИСК / КАТАЛОГ (Тяжелая таблица)");
         $searchUrl = "https://zakupki.gov.ru/epz/order/extendedsearch/results.html?fz44=on&recordsPerPage=_10";
         $this->runTest($browserService, $searchUrl, 'eis_search_results', $proxy);
 
