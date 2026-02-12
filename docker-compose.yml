@@ -17,6 +17,8 @@ services:
       - "eis-api.local:192.168.1.10"
       - "host.docker.internal:host-gateway"
     environment: &app_env
+      PUID: ${PUID:-1000}
+      PGID: ${PGID:-1000}
       APP_NAME: ${APP_NAME}
       APP_ENV: ${APP_ENV}
       APP_KEY: ${APP_KEY}
@@ -43,58 +45,70 @@ services:
 
   # Контейнер для ручного запуска парсинга (Stage 1)
   worker-eis-parser-map:
-    image: serversideup/php:8.4-cli
+    build:
+      context: ./docker/php
     container_name: agelto_worker_eis_map
     restart: unless-stopped
     working_dir: /var/www/html
+    entrypoint: ["/usr/local/bin/docker-php-serversideup-entrypoint"]
+    command: ["tail", "-f", "/dev/null"]
     volumes:
       - ./:/var/www/html
-    # Контейнер спит, чтобы ты мог запускать команду через docker exec
-    command: tail -f /dev/null
     environment: *app_env
-    depends_on: [ app ]
+    depends_on:
+      - app
     networks:
       - agelto_network
+    shm_size: '2gb'
 
   # Управление очередями (Stage 2, 3, 4)
   horizon:
-    image: serversideup/php:8.4-cli
+    build:
+      context: ./docker/php
     container_name: agelto_horizon
     restart: unless-stopped
     working_dir: /var/www/html
     stop_signal: SIGTERM
-    stop_grace_period: 610s # Даем время доработать тяжелым Job-ам
+    stop_grace_period: 610s
     volumes:
       - ./:/var/www/html
-    command: php artisan horizon
+    entrypoint: ["/usr/local/bin/docker-php-serversideup-entrypoint"]
+    command: ["php", "artisan", "horizon"]
     environment: *app_env
     depends_on:
       - app
       - redis
     networks:
       - agelto_network
+    shm_size: '2gb'
 
   scheduler:
-    image: serversideup/php:8.4-cli
+    build:
+      context: ./docker/php
     container_name: agelto_scheduler
     restart: unless-stopped
     stop_signal: SIGTERM
+    working_dir: /var/www/html
     volumes:
       - ./:/var/www/html
-    command: php artisan schedule:work
+    entrypoint: ["/usr/local/bin/docker-php-serversideup-entrypoint"]
+    command: ["php", "artisan", "schedule:work"]
     environment: *app_env
     depends_on: [ app ]
     networks:
       - agelto_network
 
   reverb:
-    image: serversideup/php:8.4-cli
+    build:
+      context: ./docker/php
     container_name: agelto_reverb
     restart: unless-stopped
     stop_signal: SIGTERM
+    working_dir: /var/www/html
     volumes:
       - ./:/var/www/html
-    command: php artisan reverb:start --host=0.0.0.0 --port=${REVERB_PORT:-8000}
+    entrypoint: ["/usr/local/bin/docker-php-serversideup-entrypoint"]
+    command: ["php", "artisan", "reverb:start", "--host=0.0.0.0", "--port=${REVERB_PORT:-8000}"]
     ports:
       - "${REVERB_PORT:-8000}:${REVERB_PORT:-8000}"
     environment: *app_env

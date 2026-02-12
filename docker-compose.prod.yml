@@ -7,9 +7,13 @@ services:
     restart: unless-stopped
     stop_signal: SIGTERM
     working_dir: /var/www/html
+    # Добавляем память для Chromium
+    shm_size: '2gb'
     ports:
       - "${APP_PORT:-80}:80"
     environment: &prod_env
+      PUID: ${PUID:-1000}
+      PGID: ${PGID:-1000}
       APP_ENV: production
       APP_KEY: ${APP_KEY}
       APP_URL: ${APP_URL}
@@ -26,13 +30,22 @@ services:
       redis: { condition: service_started }
     networks:
       - agelto_network
+    logging: &default_logging
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   worker-eis-parser-map:
     image: agelto/app:latest
     container_name: agelto_worker_eis_map
+    restart: unless-stopped
+    # Обязательно добавляем память здесь, так как тут работает основной краулер
+    shm_size: '2gb'
     command: php artisan eis:parse-map
     environment: *prod_env
     networks: [ agelto_network ]
+    logging: *default_logging
 
   horizon:
     image: agelto/app:latest
@@ -47,31 +60,45 @@ services:
       - app
       - redis
     networks: [ agelto_network ]
+    logging: *default_logging
 
   scheduler:
     image: agelto/app:latest
+    container_name: agelto_scheduler
+    restart: unless-stopped
     command: php artisan schedule:work
     environment: *prod_env
     networks: [ agelto_network ]
+    logging: *default_logging
 
   reverb:
     image: agelto/app:latest
+    container_name: agelto_reverb
+    restart: unless-stopped
     command: php artisan reverb:start --host=0.0.0.0 --port=${REVERB_PORT:-8000}
     ports:
       - "${REVERB_PORT:-8000}:${REVERB_PORT:-8000}"
     environment: *prod_env
     depends_on: [ redis ]
     networks: [ agelto_network ]
+    logging: *default_logging
 
   redis:
     image: redis:alpine
     restart: unless-stopped
+    # На проде лучше хранить данные Redis на диске, если там сессии
+    volumes:
+      - redis_data:/data
     networks: [ agelto_network ]
+    logging: *default_logging
 
   mysql:
     image: mysql:8.4
     container_name: agelto_mysql
     restart: unless-stopped
+    # ВАЖНО: сохраняем данные!
+    volumes:
+      - mysql_data:/var/lib/mysql
     command:
       - --default-authentication-plugin=mysql_native_password
       - --character-set-server=utf8mb4
@@ -88,6 +115,7 @@ services:
       timeout: 5s
       retries: 5
     networks: [ agelto_network ]
+    logging: *default_logging
 
 networks:
   agelto_network:
@@ -95,4 +123,4 @@ networks:
 
 volumes:
   mysql_data:
-    driver: local
+  redis_data:

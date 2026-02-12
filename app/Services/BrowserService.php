@@ -88,21 +88,26 @@ class BrowserService
      */
     public function openPage(string $url): Page
     {
-        if (!$this->browser) {
-            $this->setup();
-        }
+        if (!$this->browser) $this->setup();
 
         if (!$this->page) {
             $this->page = $this->browser->createPage();
             $this->page->setUserAgent($this->getRealUserAgent());
-
-            // Скрытие признаков автоматизации (Stealth)
-            $this->page->addScriptTag([
-                'content' => "Object.defineProperty(navigator, 'webdriver', {get: () => undefined});"
-            ]);
+            $this->page->addScriptTag(['content' => "Object.defineProperty(navigator, 'webdriver', {get: () => undefined});"]);
         }
 
-        $this->page->navigate($url)->waitForNavigation(Page::DOM_CONTENT_LOADED, 60000);
+        try {
+            // 1. Увеличиваем общий таймаут до 120 секунд
+            // 2. Используем Page::LOAD (более мягкий, чем DOM_CONTENT_LOADED)
+            $this->page->navigate($url)->waitForNavigation(Page::LOAD, 120000);
+        } catch (\HeadlessChromium\Exception\OperationTimedOut $e) {
+            // Если таймаут случился, проверяем: вдруг страница всё же загрузилась частично?
+            $hasContent = $this->page->evaluate("document.querySelector('.search-registry-entry-block') !== null")->getReturnValue();
+            if (!$hasContent) {
+                throw $e;
+            }
+            // Если контент есть (несмотря на таймаут JS-скриптов), продолжаем работу
+        }
 
         return $this->page;
     }
