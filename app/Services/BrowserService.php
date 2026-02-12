@@ -7,6 +7,7 @@ use HeadlessChromium\Browser;
 use HeadlessChromium\Page;
 use Symfony\Component\Process\Process;
 use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\Log;
 use Sys\Repositories\ProxyRepository;
 use Sys\Models\Proxy\Proxy;
 use Throwable;
@@ -17,6 +18,7 @@ class BrowserService
     protected ?Browser $browser = null;
     protected ?Page $page = null;
     protected ?string $extPath = null;
+    protected ?string $userDataDir = null;
     protected ?Proxy $currentProxyModel = null;
 
     protected ProxyRepository $proxyRepo;
@@ -26,9 +28,6 @@ class BrowserService
         $this->proxyRepo = $proxyRepo;
     }
 
-    /**
-     * Инициализирует прокси через репозиторий.
-     */
     public function withRandomProxy(string $driver = 'database'): self
     {
         $this->currentProxyModel = $this->proxyRepo->getRandomActiveProxy($driver);
@@ -52,21 +51,32 @@ class BrowserService
     {
         if ($this->browser) return $this;
 
+        // Изоляция профилей: в консоли используем PID, в вебе ID пользователя.
+        // Это критично для предотвращения ошибки "Profile in use" при работе воркеров.
+        $uniqueId = app()->runningInConsole() ? 'cli_' . getmypid() : ('web_' . (auth()->id() ?? 'guest'));
+        $this->userDataDir = storage_path("app/browser/profiles/{$uniqueId}");
+
+        if (!File::isDirectory($this->userDataDir)) {
+            File::makeDirectory($this->userDataDir, 0775, true);
+        }
+
         $this->extPath = $this->prepareProxyExtension($proxy);
         $factory = new BrowserFactory($this->browserPath);
 
         $flags = [
             '--no-sandbox',
+            '--disable-setuid-sandbox',
             '--disable-ipv6',
             '--disable-blink-features=AutomationControlled',
             '--ignore-certificate-errors',
+            '--user-data-dir=' . $this->userDataDir,
             '--lang=ru-RU,ru',
-
-            // КРИТИЧНО ДЛЯ СЕРВЕРА:
-            '--disable-crash-reporter',      // Отключает тот самый Crashpad
-            '--disable-logging',             // Убирает лишний шум в stderr
-            '--disable-dev-shm-usage',       // Мы используем 2GB SHM, но этот флаг помогает стабильности
-            '--remote-debugging-pipe',       // Более надежный способ общения PHP с Chrome, чем через порт
+            '--disable-crash-reporter',
+            '--disable-logging',
+            '--disable-dev-shm-usage',
+            '--remote-debugging-pipe',
+            '--disable-gpu',
+            '--disable-software-rasterizer',
         ];
 
         if (!empty($proxy['ip'])) {
@@ -80,21 +90,13 @@ class BrowserService
         $this->browser = $factory->createBrowser([
             'headless' => 'new',
             'windowSize' => [1920, 1080],
-            'customFlags' => $flags
+            'customFlags' => $flags,
+            'sendSyncDefaultTimeout' => 60000,
         ]);
 
         return $this;
     }
 
-    /**
-     * Переход на URL с поддержкой дебага и событий.
-     * * @param string $url
-     * @param array $options [
-     * 'onTimeout' => function(Page $page, $exception): bool,
-     * 'onError'   => function(Page $page, $exception): void,
-     * 'debug'     => ['key' => 'unique_folder_name']
-     * ]
-     */
     public function openPage(string $url, array $options = []): Page
     {
         $options = array_merge([
@@ -112,16 +114,7 @@ class BrowserService
 
         try {
             $this->page->navigate($url)->waitForNavigation(Page::LOAD, $options['timeout']);
-
-            // Если все ок — сохраняем success-артефакты, если задан debug key
             $this->saveDebugArtifacts($options, 'success');
-        } catch (\HeadlessChromium\Exception\OperationTimedOut $e) {
-            if (isset($options['onTimeout']) && $options['onTimeout']($this->page, $e)) {
-                $this->saveDebugArtifacts($options, 'success');
-                return $this->page;
-            }
-            $this->handleFailure($e, $options);
-            throw $e;
         } catch (Throwable $e) {
             $this->handleFailure($e, $options);
             throw $e;
@@ -130,9 +123,6 @@ class BrowserService
         return $this->page;
     }
 
-    /**
-     * Обработка сбоев: артефакты, колбеки и отчеты в БД.
-     */
     protected function handleFailure(Throwable $e, array $options): void
     {
         $this->saveDebugArtifacts($options, 'error');
@@ -149,9 +139,16 @@ class BrowserService
      */
     protected function saveDebugArtifacts(array $options, string $type): void
     {
-        $key = $options['debug']['key'] ?? null;
-        if (!$key || !$this->page) return;
+        // Не используем isConnected() для совместимости с IDE, полагаемся на try-catch
+        if (!$this->page || !$this->browser) {
+            return;
+        }
 
+        if (empty($options['debug']) || empty($options['debug']['key'])) {
+            return;
+        }
+
+        $key = $options['debug']['key'];
         $dir = storage_path("app/browser/page_debug/{$key}");
 
         try {
@@ -159,53 +156,58 @@ class BrowserService
                 File::makeDirectory($dir, 0775, true);
             }
 
-            // HTML
-            $html = $this->page->evaluate("document.documentElement.outerHTML")->getReturnValue();
-            File::put("{$dir}/{$type}.html", $html);
+            // Пытаемся получить HTML. Если Chrome завис или упал, вылетит Exception
+            $evaluation = $this->page->evaluate("document.documentElement.outerHTML");
+            $html = $evaluation->getReturnValue();
 
-            // Скриншот
+            if ($html) {
+                File::put("{$dir}/{$type}.html", $html);
+            }
+
             $this->page->screenshot([
                 'format'  => 'jpeg',
-                'quality' => 80,
+                'quality' => 70,
             ])->saveToFile("{$dir}/{$type}_screenshot.jpg");
         } catch (Throwable $e) {
-            // Ошибки дебага не должны прерывать основной цикл
+            Log::warning("BrowserService Debug Artifacts Fail: " . $e->getMessage());
         }
     }
 
-    /**
-     * Закрытие браузера и очистка временных папок.
-     */
     public function close(): void
     {
         if ($this->browser) {
-            $this->browser->close();
+            try {
+                $this->browser->close();
+            } catch (Throwable $e) {
+            }
             $this->browser = null;
             $this->page = null;
         }
 
+        // Удаляем временное расширение прокси
         if ($this->extPath && File::isDirectory($this->extPath)) {
             File::deleteDirectory($this->extPath);
             $this->extPath = null;
         }
+
+        // Папку профиля userDataDir НЕ удаляем здесь, так как Chromium
+        // иногда завершает процессы асинхронно. Чистим ее через Schedule.
     }
 
-    /**
-     * Формирует User-Agent на основе версии Chromium в системе.
-     */
     protected function getRealUserAgent(): string
     {
-        $process = new Process([$this->browserPath, '--version']);
-        $process->run();
-        preg_match('/(\d+\.\d+\.\d+\.\d+)/', $process->getOutput(), $matches);
-        $version = $matches[1] ?? '132.0.0.0';
+        try {
+            $process = new Process([$this->browserPath, '--version']);
+            $process->run();
+            preg_match('/(\d+\.\d+\.\d+\.\d+)/', $process->getOutput(), $matches);
+            $version = $matches[1] ?? '132.0.0.0';
+        } catch (Throwable $e) {
+            $version = '132.0.0.0';
+        }
 
         return "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/{$version} Safari/537.36";
     }
 
-    /**
-     * Создание расширения для базовой авторизации прокси.
-     */
     protected function prepareProxyExtension(array $proxy): ?string
     {
         if (empty($proxy['ip'])) return null;
@@ -235,15 +237,7 @@ class BrowserService
         );
 
         file_put_contents("$path/background.js", $js);
-
         return $path;
-    }
-
-    public function reportSuccess(): void
-    {
-        if ($this->currentProxyModel) {
-            $this->proxyRepo->markSuccess($this->currentProxyModel->id);
-        }
     }
 
     public function reportFail(Throwable $e): void
