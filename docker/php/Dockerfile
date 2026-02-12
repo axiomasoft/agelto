@@ -57,27 +57,26 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 WORKDIR /var/www/html
 
-# 1. Готовим структуру папок (под root)
+# 1. Готовим структуру папок под root, но для www-data
 RUN mkdir -p storage/framework/{sessions,views,cache} \
     storage/app/browser/page_debug \
     bootstrap/cache \
     && chown -R www-data:www-data /var/www/html
 
-# 2. Копируем файлы для установки зависимостей
-# ВАЖНО: Копируем composer.* И папку Modules (она нужна для path-репозиториев)
+# 2. Переходим на пользователя (чтобы composer и файлы были от него)
+USER www-data
+
+# 3. Копируем файлы зависимостей (включая Modules для локальных путей)
 COPY --chown=www-data:www-data composer.json composer.lock ./
 COPY --chown=www-data:www-data Modules ./Modules
 
-# 3. Переходим на пользователя
-USER www-data
-
-# 4. Теперь установка увидит папку Modules/Platform и не упадет
+# 4. Установка зависимостей (без автозагрузки для скорости)
 RUN composer install --no-dev --no-interaction --no-autoloader --no-scripts
 
-# 5. Копируем всё остальное
+# 5. Копируем весь остальной код
 COPY --chown=www-data:www-data . .
 
-# 6. Финальный dump (теперь всё на месте)
+# 6. Финальная оптимизация
 RUN composer install --no-dev --optimize-autoloader
 
 ENV CHROME_BIN=/usr/bin/chromium
