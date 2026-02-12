@@ -145,6 +145,10 @@ services:
       - agelto_network
 
 networks:
+  default:
+    driver: bridge
+    driver_opts:
+      com.docker.network.driver.mtu: 1300
   agelto_network:
     driver: bridge
 

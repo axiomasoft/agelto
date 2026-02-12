@@ -17,7 +17,6 @@ class BrowserService
     protected string $browserPath = '/usr/bin/chromium';
     protected ?Browser $browser = null;
     protected ?Page $page = null;
-    protected ?string $extPath = null;
     protected ?string $userDataDir = null;
     protected ?Proxy $currentProxyModel = null;
 
@@ -51,14 +50,12 @@ class BrowserService
     {
         if ($this->browser) return $this;
 
-        // Фиксированная папка для root
         $this->userDataDir = storage_path("app/browser/profile_root");
 
         if (!File::isDirectory($this->userDataDir)) {
             File::makeDirectory($this->userDataDir, 0777, true, true);
         }
 
-        $this->extPath = $this->prepareProxyExtension($proxy);
         $factory = new BrowserFactory($this->browserPath);
 
         $flags = [
@@ -69,20 +66,21 @@ class BrowserService
             '--disable-software-rasterizer',
             '--user-data-dir=' . $this->userDataDir,
             '--lang=ru-RU,ru',
+            '--disable-blink-features=AutomationControlled', // Скрывает статус бота
+            '--disable-webrtc',                              // Блокирует утечку IP сервера
+            '--disable-features=WebRtcHideLocalIpsWithMdns', // Доп. защита IP
+            '--disable-dbus',
             '--disable-crash-reporter',
             '--no-crash-upload',
             '--disable-breakpad',
             '--noerrdialogs',
-            '--disable-dbus', // Добавим этот флаг, чтобы приглушить ошибки из твоего лога
         ];
 
         if (!empty($proxy['ip'])) {
+            // Устанавливаем прокси сервер
             $flags[] = "--proxy-server=http://{$proxy['ip']}:{$proxy['port']}";
+            // Запрещаем DNS-запросы мимо прокси (Анонимность DNS)
             $flags[] = '--host-resolver-rules=MAP * ~NOTFOUND , EXCLUDE ' . $proxy['ip'];
-            if ($this->extPath) {
-                $flags[] = "--load-extension={$this->extPath}";
-                $flags[] = "--disable-extensions-except={$this->extPath}";
-            }
         }
 
         $this->browser = $factory->createBrowser([
@@ -106,8 +104,23 @@ class BrowserService
 
         if (!$this->page) {
             $this->page = $this->browser->createPage();
+
+            // Нативная авторизация (вместо расширения)
+            if ($this->currentProxyModel) {
+                $this->page->authenticate(
+                    $this->currentProxyModel->username,
+                    $this->currentProxyModel->password
+                );
+            }
+
             $this->page->setUserAgent($this->getRealUserAgent());
-            $this->page->addScriptTag(['content' => "Object.defineProperty(navigator, 'webdriver', {get: () => undefined});"]);
+
+            // Глубокий Stealth: маскируем navigator.webdriver и добавляем объекты Chrome
+            $this->page->addScriptTag(['content' => "
+                Object.defineProperty(navigator, 'webdriver', {get: () => undefined});
+                window.chrome = { runtime: {} };
+                Object.defineProperty(navigator, 'languages', {get: () => ['ru-RU', 'ru']});
+            "]);
         }
 
         try {
@@ -132,19 +145,11 @@ class BrowserService
         $this->reportFail($e);
     }
 
-    /**
-     * Сохранение снимка страницы и HTML для отладки.
-     */
     protected function saveDebugArtifacts(array $options, string $type): void
     {
-        // Не используем isConnected() для совместимости с IDE, полагаемся на try-catch
-        if (!$this->page || !$this->browser) {
-            return;
-        }
+        if (!$this->page || !$this->browser) return;
 
-        if (empty($options['debug']) || empty($options['debug']['key'])) {
-            return;
-        }
+        if (empty($options['debug']) || empty($options['debug']['key'])) return;
 
         $key = $options['debug']['key'];
         $dir = storage_path("app/browser/page_debug/{$key}");
@@ -154,7 +159,6 @@ class BrowserService
                 File::makeDirectory($dir, 0775, true);
             }
 
-            // Пытаемся получить HTML. Если Chrome завис или упал, вылетит Exception
             $evaluation = $this->page->evaluate("document.documentElement.outerHTML");
             $html = $evaluation->getReturnValue();
 
@@ -181,61 +185,12 @@ class BrowserService
             $this->browser = null;
             $this->page = null;
         }
-
-        // Удаляем временное расширение прокси
-        if ($this->extPath && File::isDirectory($this->extPath)) {
-            File::deleteDirectory($this->extPath);
-            $this->extPath = null;
-        }
-
-        // Папку профиля userDataDir НЕ удаляем здесь, так как Chromium
-        // иногда завершает процессы асинхронно. Чистим ее через Schedule.
     }
 
     protected function getRealUserAgent(): string
     {
-        try {
-            $process = new Process([$this->browserPath, '--version']);
-            $process->run();
-            preg_match('/(\d+\.\d+\.\d+\.\d+)/', $process->getOutput(), $matches);
-            $version = $matches[1] ?? '132.0.0.0';
-        } catch (Throwable $e) {
-            $version = '132.0.0.0';
-        }
-
-        return "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/{$version} Safari/537.36";
-    }
-
-    protected function prepareProxyExtension(array $proxy): ?string
-    {
-        if (empty($proxy['ip'])) return null;
-
-        $path = storage_path('app/browser/proxy_ext_' . uniqid());
-        File::makeDirectory($path, 0775, true);
-
-        file_put_contents("$path/manifest.json", json_encode([
-            "version" => "1.0.0",
-            "manifest_version" => 2,
-            "name" => "ProxyAuth",
-            "permissions" => ["proxy", "tabs", "webRequest", "webRequestBlocking", "<all_urls>"],
-            "background" => ["scripts" => ["background.js"]]
-        ]));
-
-        $js = sprintf(
-            "var config = { mode: 'fixed_servers', rules: { singleProxy: { scheme: 'http', host: '%s', port: %d } } };
-            chrome.proxy.settings.set({value: config, scope: 'regular'}, function() {});
-            chrome.webRequest.onAuthRequired.addListener(
-                function(details) { return { authCredentials: { username: '%s', password: '%s' } }; },
-                {urls: ['<all_urls>']}, ['blocking']
-            );",
-            $proxy['ip'],
-            $proxy['port'],
-            $proxy['user'],
-            $proxy['pass']
-        );
-
-        file_put_contents("$path/background.js", $js);
-        return $path;
+        // Имитируем реальный браузер на Windows
+        return "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36";
     }
 
     public function reportFail(Throwable $e): void
