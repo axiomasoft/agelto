@@ -96,11 +96,12 @@ services:
     image: mysql:8.4
     container_name: agelto_mysql
     restart: unless-stopped
+    ports:
+      - "${MYSQL_PORT:-3306}:3306"
     # ВАЖНО: сохраняем данные!
     volumes:
       - mysql_data:/var/lib/mysql
     command:
-      - --default-authentication-plugin=mysql_native_password
       - --character-set-server=utf8mb4
       - --collation-server=utf8mb4_unicode_ci
       - --innodb-buffer-pool-size=1G
