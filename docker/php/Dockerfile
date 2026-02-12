@@ -57,24 +57,26 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 WORKDIR /var/www/html
 
-# 1. Сначала под рутом копируем файлы конфигурации
-COPY --chown=www-data:www-data composer.json composer.lock ./
-
-# 2. Создаем структуру папок (под рутом, но с нужным владельцем)
-RUN mkdir -p storage/framework/sessions \
-    storage/framework/views \
-    storage/framework/cache \
+# [cite_start]1. Сразу готовим папки и выставляем владельца (под root) [cite: 4]
+RUN mkdir -p storage/framework/{sessions,views,cache} \
+    storage/app/browser/page_debug \
     bootstrap/cache \
     && chown -R www-data:www-data /var/www/html
 
-# 3. Переключаемся на www-data ПЕРЕД установкой зависимостей
+# 2. Переходим на пользователя www-data ПЕРЕД установкой зависимостей
 USER www-data
 
-# 4. Копируем остальной код (сразу с нужным владельцем)
+# 3. Копируем файлы composer с правильным владельцем
+COPY --chown=www-data:www-data composer.json composer.lock ./
+
+# 4. Первый этап установки (без автозагрузчика и скриптов - это быстро)
+RUN composer install --no-dev --no-interaction --no-autoloader --no-scripts
+
+# [cite_start]5. Копируем остальной код (благодаря .dockerignore это мгновенно) [cite: 5]
 COPY --chown=www-data:www-data . .
 
-# 5. Composer теперь создаст папку vendor сразу с правами www-data
-RUN composer install --no-dev --no-interaction --optimize-autoloader
+# 6. Финальная оптимизация (уже под www-data, права на vendor будут верными)
+RUN composer install --no-dev --optimize-autoloader
 
 ENV CHROME_BIN=/usr/bin/chromium
 ENV CHROME_PATH=/usr/lib/chromium/
