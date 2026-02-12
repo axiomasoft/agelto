@@ -61,6 +61,7 @@ class BrowserService
             '--disable-blink-features=AutomationControlled',
             '--ignore-certificate-errors',
             '--lang=ru-RU,ru',
+            '--disable-crash-reporter',
             // '--disable-dev-shm-usage', // Убрано: используем shm_size из docker-compose
         ];
 
