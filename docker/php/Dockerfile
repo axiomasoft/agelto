@@ -7,15 +7,14 @@ ENV DEBIAN_FRONTEND=noninteractive
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libicu-dev \
-    # Зависимости для GD
     libpng-dev \
     libjpeg-dev \
     libfreetype6-dev \
-    # Зависимости для Imagick
     libmagickwand-dev \
-    nodejs \
-    npm \
-    # Зависимости для Chromium
+    # Добавляем curl и gnupg для корректной установки node если понадобится
+    curl \
+    gnupg \
+    # Зависимости для Chromium (добавлены недостающие: libgbm1, libdrm2, fonts)
     chromium \
     libnss3 \
     libx11-6 \
@@ -34,17 +33,30 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libatk1.0-0 \
     libatk-bridge2.0-0 \
     libgtk-3-0 \
+    libgbm1 \
+    libdrm2 \
+    fonts-liberation \
+    libappindicator3-1 \
+    xdg-utils \
     # Установка расширений PHP
     && docker-php-ext-configure gd --with-freetype --with-jpeg \
-    && docker-php-ext-install intl bcmath gd exif sockets \
+    && docker-php-ext-install intl bcmath gd exif sockets pcntl \
     # Установка Imagick и Redis через PECL
     && pecl install imagick redis \
     && docker-php-ext-enable imagick redis \
-    # Установка pnpm
+    # Настройка Node.js и pnpm (Node уже есть в базовом образе или ставится из apt)
     && npm install -g pnpm \
-    # Настройка прав для Chrome
-    && mkdir -p /var/www/.local/share/Google/Chrome && chown -R www-data:www-data /var/www/.local \
+    # Настройка прав для Chromium и путей дебага
+    && mkdir -p /var/www/html/storage/app/browser/page_debug \
+    && chown -R www-data:www-data /var/www/html/storage \
     # Очистка
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
+# Указываем переменную окружения для Puppeteer/Chrome если нужно (опционально)
+ENV CHROME_BIN=/usr/bin/chromium
+ENV CHROME_PATH=/usr/lib/chromium/
+
 WORKDIR /var/www/html
+
+# Возвращаемся к пользователю www-data, чтобы не плодить файлы от root
+USER www-data
