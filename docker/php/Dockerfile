@@ -11,10 +11,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libjpeg-dev \
     libfreetype6-dev \
     libmagickwand-dev \
-    # Добавляем curl и gnupg для корректной установки node если понадобится
     curl \
     gnupg \
-    # Зависимости для Chromium (добавлены недостающие: libgbm1, libdrm2, fonts)
+    ca-certificates \
+    # Зависимости для Chromium
     chromium \
     libnss3 \
     libx11-6 \
@@ -38,25 +38,28 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     fonts-liberation \
     libappindicator3-1 \
     xdg-utils \
-    # Установка расширений PHP
+    # 1. Установка Node.js (необходим для npm)
+    && curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
+    && apt-get install -y nodejs \
+    # 2. Установка pnpm
+    && npm install -g pnpm \
+    # 3. Настройка расширений PHP (удален redis из pecl, так как он обычно есть)
     && docker-php-ext-configure gd --with-freetype --with-jpeg \
     && docker-php-ext-install intl bcmath gd exif sockets pcntl \
-    # Установка Imagick и Redis через PECL
-    && pecl install imagick redis \
-    && docker-php-ext-enable imagick redis \
-    # Настройка Node.js и pnpm (Node уже есть в базовом образе или ставится из apt)
-    && npm install -g pnpm \
-    # Настройка прав для Chromium и путей дебага
+    # Установка только Imagick (Redis обычно встроен, если будет ругаться - вернем)
+    && pecl install imagick \
+    && docker-php-ext-enable imagick \
+    # 4. Настройка прав
     && mkdir -p /var/www/html/storage/app/browser/page_debug \
     && chown -R www-data:www-data /var/www/html/storage \
-    # Очистка
+    # 5. Очистка
     && apt-get clean && rm -rf /var/lib/apt/lists/*
-
-# Указываем переменную окружения для Puppeteer/Chrome если нужно (опционально)
-ENV CHROME_BIN=/usr/bin/chromium
-ENV CHROME_PATH=/usr/lib/chromium/
 
 WORKDIR /var/www/html
 
-# Возвращаемся к пользователю www-data, чтобы не плодить файлы от root
+# Переменные для Chromium
+ENV CHROME_BIN=/usr/bin/chromium
+ENV CHROME_PATH=/usr/lib/chromium/
+
+# В образах serversideup по умолчанию используется www-data (ID 1000)
 USER www-data
