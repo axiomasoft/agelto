@@ -61,8 +61,12 @@ class BrowserService
             '--disable-blink-features=AutomationControlled',
             '--ignore-certificate-errors',
             '--lang=ru-RU,ru',
-            '--disable-crash-reporter',
-            // '--disable-dev-shm-usage', // Убрано: используем shm_size из docker-compose
+
+            // КРИТИЧНО ДЛЯ СЕРВЕРА:
+            '--disable-crash-reporter',      // Отключает тот самый Crashpad
+            '--disable-logging',             // Убирает лишний шум в stderr
+            '--disable-dev-shm-usage',       // Мы используем 2GB SHM, но этот флаг помогает стабильности
+            '--remote-debugging-pipe',       // Более надежный способ общения PHP с Chrome, чем через порт
         ];
 
         if (!empty($proxy['ip'])) {
