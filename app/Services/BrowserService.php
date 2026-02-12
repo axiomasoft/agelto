@@ -76,9 +76,11 @@ class BrowserService
             '--disable-backgrounding-occluded-windows',
             '--disable-renderer-backgrounding',
             '--disable-service-worker',
+            '--disable-features=IsolateOrigins,site-per-process',
             '--disable-canvas-aa',
             '--disable-2d-canvas-clip-aa',
             '--disable-notifications',
+            '--single-process',
 
             // Анонимность и сеть
             '--disable-webrtc',
@@ -98,7 +100,7 @@ class BrowserService
         }
 
         $this->browser = $factory->createBrowser([
-            'headless' => 'new',
+            'headless' => true,
             'windowSize' => [1920, 1080],
             'customFlags' => $flags,
             'startupTimeout' => 60,
