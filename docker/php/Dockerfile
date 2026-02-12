@@ -57,18 +57,24 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 WORKDIR /var/www/html
 
-# 1. Сначала копируем всё (сейчас файлы залетают как root)
-COPY . .
+# 1. Сначала под рутом копируем файлы конфигурации
+COPY --chown=www-data:www-data composer.json composer.lock ./
 
-# 2. Ставим зависимости
+# 2. Создаем структуру папок (под рутом, но с нужным владельцем)
+RUN mkdir -p storage/framework/sessions \
+    storage/framework/views \
+    storage/framework/cache \
+    bootstrap/cache \
+    && chown -R www-data:www-data /var/www/html
+
+# 3. Переключаемся на www-data ПЕРЕД установкой зависимостей
+USER www-data
+
+# 4. Копируем остальной код (сразу с нужным владельцем)
+COPY --chown=www-data:www-data . .
+
+# 5. Composer теперь создаст папку vendor сразу с правами www-data
 RUN composer install --no-dev --no-interaction --optimize-autoloader
-
-# 3. ФИНАЛЬНЫЙ ФИКС ПРАВ:
-# Отдаем ВЕСЬ каталог /var/www/html пользователю www-data
-RUN chown -R www-data:www-data /var/www/html
 
 ENV CHROME_BIN=/usr/bin/chromium
 ENV CHROME_PATH=/usr/lib/chromium/
-
-# Переключаемся на пользователя www-data для безопасности
-USER www-data
