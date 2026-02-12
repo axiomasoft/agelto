@@ -10,6 +10,7 @@ use App\Services\BrowserService;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\App;
 use Illuminate\Support\Facades\Http;
+use Platform\Dto\Attachments\AttachmentDto;
 use Platform\Dto\Crawling\CrawlingItemDto;
 use Platform\Dto\Crawling\LinkDto;
 use Platform\Dto\Crawling\PageMetaDto;
@@ -20,9 +21,8 @@ use Platform\Models\Crawling\IgnoreLinks;
 use Platform\Models\Platform;
 use Platform\Repositories\Crawling\CrawlingRepository;
 use RuntimeException;
-use Throwable;
 use Spatie\LaravelData\DataCollection;
-use Platform\Dto\Attachments\AttachmentDto;
+use Throwable;
 
 abstract class AbstractCrawlingService implements PlatformCrawling
 {
@@ -66,14 +66,37 @@ abstract class AbstractCrawlingService implements PlatformCrawling
         $this->crawler = $crawler;
         $this->crawler->load('platform');
 
-        $baseUrl = $crawler->url; // Используем baseUrl, чтобы не накапливать query в цикле
+        $baseUrl = $crawler->url;
+        $options = $crawler->options ?? [];
         $isFirstPage = true;
         $nextPageParams = [];
         $requestedPage = 1;
 
+        $resumeUrl = null;
+        if (! empty($options['keep_page_on_crash']) && ! empty($options['current_url'])) {
+            $resumeUrl = $options['current_url'];
+            $parsed = parse_url($resumeUrl);
+            if (isset($parsed['query'])) {
+                parse_str($parsed['query'], $query);
+                $requestedPage = (int) ($query['pageNumber'] ?? 1);
+            }
+            $isFirstPage = false;
+            $nextPageParams = [];
+        }
+
         do {
-            $response = $this->fetchPageResponse($baseUrl, $isFirstPage, $nextPageParams);
+            $overrideUrl = $resumeUrl;
+            $resumeUrl = null;
+
+            $requestUrl = $this->buildRequestUrl($baseUrl, $isFirstPage, $nextPageParams, $overrideUrl);
+            $response = $this->fetchPageResponse($requestUrl);
+
             $pageResult = $this->pageProcessing($response->body(), $requestedPage);
+
+            if (! empty($options['keep_page_on_crash'])) {
+                $options['current_url'] = $requestUrl;
+                $this->crawler->update(['options' => $options]);
+            }
 
             if (! $pageResult->meta->has_next_page) {
                 $this->logger->info('Пагинация завершена (кнопка "Далее" не найдена).', LogOutput::Console);
@@ -117,32 +140,35 @@ abstract class AbstractCrawlingService implements PlatformCrawling
         } */
     }
 
-    protected function fetchPageResponse(string $url, bool $isFirstPage, array $params): \Illuminate\Http\Client\Response
+    protected function buildRequestUrl(string $url, bool $isFirstPage, array $params, ?string $overrideUrl = null): string
     {
-        $requestUrl = $url;
-
-        if (! $isFirstPage && ! empty($params)) {
-            $parsedUrl = parse_url($url);
-            $query = [];
-
-            // 1. Извлекаем существующие параметры из URL (если они есть)
-            if (isset($parsedUrl['query'])) {
-                parse_str($parsedUrl['query'], $query);
-            }
-
-            // 2. Накладываем новые параметры (например, pageNumber) поверх старых
-            $query = array_merge($query, $params);
-
-            // 3. Собираем URL обратно по частям, которые в нем БЫЛИ
-            $scheme = isset($parsedUrl['scheme']) ? $parsedUrl['scheme'] . '://' : '';
-            $host = $parsedUrl['host'] ?? '';
-            $port = isset($parsedUrl['port']) ? ':' . $parsedUrl['port'] : '';
-            $path = $parsedUrl['path'] ?? '';
-            $newQuery = '?' . http_build_query($query);
-
-            $requestUrl = $scheme . $host . $port . $path . $newQuery;
+        if ($overrideUrl !== null) {
+            return $overrideUrl;
         }
 
+        if ($isFirstPage || empty($params)) {
+            return $url;
+        }
+
+        $parsedUrl = parse_url($url);
+        $query = [];
+
+        if (isset($parsedUrl['query'])) {
+            parse_str($parsedUrl['query'], $query);
+        }
+
+        $query = array_merge($query, $params);
+
+        $scheme = isset($parsedUrl['scheme']) ? $parsedUrl['scheme'] . '://' : '';
+        $host = $parsedUrl['host'] ?? '';
+        $port = isset($parsedUrl['port']) ? ':' . $parsedUrl['port'] : '';
+        $path = $parsedUrl['path'] ?? '';
+
+        return $scheme . $host . $port . $path . '?' . http_build_query($query);
+    }
+
+    protected function fetchPageResponse(string $requestUrl): \Illuminate\Http\Client\Response
+    {
         $this->logger->info('Загрузка страницы: ' . $requestUrl, LogOutput::Console);
         $page = $this->browser->openPage($requestUrl);
 

@@ -39,7 +39,9 @@ final class CrawlingRepository
             ]
         );
 
-        $this->syncAttachments($link, $dto->attachments);
+        if ($dto->attachments->count() > 0) {
+            $this->syncAttachments($link, $dto->attachments);
+        }
 
         return $link;
     }
