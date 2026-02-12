@@ -78,6 +78,7 @@ class BrowserService
 
         if (!empty($proxy['ip'])) {
             $flags[] = "--proxy-server=http://{$proxy['ip']}:{$proxy['port']}";
+            $flags[] = '--host-resolver-rules=MAP * ~NOTFOUND , EXCLUDE ' . $proxy['ip'];
             if ($this->extPath) {
                 $flags[] = "--load-extension={$this->extPath}";
                 $flags[] = "--disable-extensions-except={$this->extPath}";
