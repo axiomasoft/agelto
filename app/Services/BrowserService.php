@@ -28,7 +28,6 @@ class BrowserService
 
     /**
      * Инициализирует прокси через репозиторий.
-     * Возвращает $this для цепочки вызовов: $browser->withRandomProxy()->openPage($url)
      */
     public function withRandomProxy(string $driver = 'database'): self
     {
@@ -58,14 +57,13 @@ class BrowserService
 
         $flags = [
             '--no-sandbox',
-            '--disable-ipv6', // Критично для серверов
-            '--disable-dev-shm-usage',
+            '--disable-ipv6',
             '--disable-blink-features=AutomationControlled',
             '--ignore-certificate-errors',
             '--lang=ru-RU,ru',
+            // '--disable-dev-shm-usage', // Убрано: используем shm_size из docker-compose
         ];
 
-        // Добавляем прокси только если массив не пустой
         if (!empty($proxy['ip'])) {
             $flags[] = "--proxy-server=http://{$proxy['ip']}:{$proxy['port']}";
             if ($this->extPath) {
@@ -84,10 +82,21 @@ class BrowserService
     }
 
     /**
-     * Переход на URL. Создает страницу, если она еще не открыта.
+     * Переход на URL с поддержкой дебага и событий.
+     * * @param string $url
+     * @param array $options [
+     * 'onTimeout' => function(Page $page, $exception): bool,
+     * 'onError'   => function(Page $page, $exception): void,
+     * 'debug'     => ['key' => 'unique_folder_name']
+     * ]
      */
-    public function openPage(string $url): Page
+    public function openPage(string $url, array $options = []): Page
     {
+        $options = array_merge([
+            'timeout' => 90000,
+            'debug' => false,
+        ], $options);
+
         if (!$this->browser) $this->setup();
 
         if (!$this->page) {
@@ -97,61 +106,70 @@ class BrowserService
         }
 
         try {
-            // 1. Увеличиваем общий таймаут до 120 секунд
-            // 2. Используем Page::LOAD (более мягкий, чем DOM_CONTENT_LOADED)
-            $this->page->navigate($url)->waitForNavigation(Page::LOAD, 120000);
+            $this->page->navigate($url)->waitForNavigation(Page::LOAD, $options['timeout']);
+
+            // Если все ок — сохраняем success-артефакты, если задан debug key
+            $this->saveDebugArtifacts($options, 'success');
         } catch (\HeadlessChromium\Exception\OperationTimedOut $e) {
-            // Если таймаут случился, проверяем: вдруг страница всё же загрузилась частично?
-            $hasContent = $this->page->evaluate("document.querySelector('.search-registry-entry-block') !== null")->getReturnValue();
-            if (!$hasContent) {
-                throw $e;
+            if (isset($options['onTimeout']) && $options['onTimeout']($this->page, $e)) {
+                $this->saveDebugArtifacts($options, 'success');
+                return $this->page;
             }
-            // Если контент есть (несмотря на таймаут JS-скриптов), продолжаем работу
+            $this->handleFailure($e, $options);
+            throw $e;
+        } catch (Throwable $e) {
+            $this->handleFailure($e, $options);
+            throw $e;
         }
 
         return $this->page;
     }
 
     /**
-     * Быстрый метод для одиночных задач.
+     * Обработка сбоев: артефакты, колбеки и отчеты в БД.
      */
-    public function run(string $url, callable $callback, array $proxy = [])
+    protected function handleFailure(Throwable $e, array $options): void
     {
+        $this->saveDebugArtifacts($options, 'error');
+
+        if (isset($options['onError'])) {
+            $options['onError']($this->page, $e);
+        }
+
+        $this->reportFail($e);
+    }
+
+    /**
+     * Сохранение снимка страницы и HTML для отладки.
+     */
+    protected function saveDebugArtifacts(array $options, string $type): void
+    {
+        $key = $options['debug']['key'] ?? null;
+        if (!$key || !$this->page) return;
+
+        $dir = storage_path("app/browser/page_debug/{$key}");
+
         try {
-            $page = $this->setup($proxy)->openPage($url);
-            $result = $callback($page, $this->browser);
-            $this->reportSuccess();
-            return $result;
+            if (!File::isDirectory($dir)) {
+                File::makeDirectory($dir, 0775, true);
+            }
+
+            // HTML
+            $html = $this->page->evaluate("document.documentElement.outerHTML")->getReturnValue();
+            File::put("{$dir}/{$type}.html", $html);
+
+            // Скриншот
+            $this->page->screenshot([
+                'format'  => 'jpeg',
+                'quality' => 80,
+            ])->saveToFile("{$dir}/{$type}_screenshot.jpg");
         } catch (Throwable $e) {
-            $this->reportFail($e);
-            throw $e;
-        } finally {
-            $this->close();
+            // Ошибки дебага не должны прерывать основной цикл
         }
     }
 
     /**
-     * Сообщить об успешном выполнении в репозиторий (сброс ошибок).
-     */
-    public function reportSuccess(): void
-    {
-        if ($this->currentProxyModel) {
-            $this->proxyRepo->markSuccess($this->currentProxyModel->id);
-        }
-    }
-
-    /**
-     * Сообщить о сбое в репозиторий (инкремент ошибок + текст ошибки).
-     */
-    public function reportFail(Throwable $e): void
-    {
-        if ($this->currentProxyModel) {
-            $this->proxyRepo->markFailed($this->currentProxyModel->id, $e);
-        }
-    }
-
-    /**
-     * Закрытие браузера и очистка временных файлов расширений.
+     * Закрытие браузера и очистка временных папок.
      */
     public function close(): void
     {
@@ -168,7 +186,7 @@ class BrowserService
     }
 
     /**
-     * Формирует актуальный User-Agent на основе версии Chromium в системе.
+     * Формирует User-Agent на основе версии Chromium в системе.
      */
     protected function getRealUserAgent(): string
     {
@@ -181,19 +199,14 @@ class BrowserService
     }
 
     /**
-     * Подготовка расширения Chrome для авторизации прокси.
+     * Создание расширения для базовой авторизации прокси.
      */
     protected function prepareProxyExtension(array $proxy): ?string
     {
-        // Если IP нет, расширение не нужно
         if (empty($proxy['ip'])) return null;
 
         $path = storage_path('app/browser/proxy_ext_' . uniqid());
-
-        // Создаем именно папку
-        if (!File::isDirectory($path)) {
-            File::makeDirectory($path, 0775, true);
-        }
+        File::makeDirectory($path, 0775, true);
 
         file_put_contents("$path/manifest.json", json_encode([
             "version" => "1.0.0",
@@ -219,6 +232,20 @@ class BrowserService
         file_put_contents("$path/background.js", $js);
 
         return $path;
+    }
+
+    public function reportSuccess(): void
+    {
+        if ($this->currentProxyModel) {
+            $this->proxyRepo->markSuccess($this->currentProxyModel->id);
+        }
+    }
+
+    public function reportFail(Throwable $e): void
+    {
+        if ($this->currentProxyModel) {
+            $this->proxyRepo->markFailed($this->currentProxyModel->id, $e);
+        }
     }
 
     public function __destruct()
