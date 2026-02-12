@@ -61,5 +61,20 @@ WORKDIR /var/www/html
 ENV CHROME_BIN=/usr/bin/chromium
 ENV CHROME_PATH=/usr/lib/chromium/
 
-# В образах serversideup по умолчанию используется www-data (ID 1000)
+# Копируем файлы зависимостей (для кэширования слоев)
+COPY composer.json composer.lock ./
+
+# Устанавливаем PHP зависимости (без dev-пакетов)
+RUN composer install --no-dev --no-interaction --no-autoloader --no-scripts
+
+# Копируем весь остальной код проекта
+COPY . .
+
+# Финальная донастройка Composer (оптимизация автозагрузки)
+RUN composer install --no-dev --optimize-autoloader
+
+# Выставляем права для пользователя www-data (чтобы Laravel мог писать логи и кэш)
+RUN chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache
+
+# Возвращаемся под обычного пользователя, если это требует базовый образ
 USER www-data

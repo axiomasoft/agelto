@@ -5,92 +5,30 @@ services:
     image: agelto/app:latest
     container_name: agelto_app
     restart: unless-stopped
-    stop_signal: SIGTERM
     working_dir: /var/www/html
-    # Добавляем память для Chromium
-    shm_size: '2gb'
     ports:
-      - "${APP_PORT:-80}:80"
+      - "${APP_PORT:-8081}:80"
     environment: &prod_env
-      PUID: ${PUID:-1000}
-      PGID: ${PGID:-1000}
       APP_ENV: production
       APP_KEY: ${APP_KEY}
-      APP_URL: ${APP_URL}
       DB_HOST: mysql
       DB_DATABASE: ${DB_DATABASE}
       DB_USERNAME: ${DB_USERNAME}
       DB_PASSWORD: ${DB_PASSWORD}
-      CACHE_DRIVER: redis
-      SESSION_DRIVER: redis
-      QUEUE_CONNECTION: redis
       REDIS_HOST: redis
     depends_on:
       mysql: { condition: service_healthy }
       redis: { condition: service_started }
-    networks:
-      - agelto_network
-    logging: &default_logging
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
+    networks: [ agelto_network ]
 
   worker-eis-crawling:
     image: agelto/app:latest
     container_name: agelto_worker_eis_crawling
     restart: unless-stopped
-    # Обязательно добавляем память здесь, так как тут работает основной краулер
-    shm_size: '2gb'
-    command: php artisan eis:crawling
+    command: php artisan queue:work redis --queue=default,crawling --sleep=3 --tries=3
     environment: *prod_env
+    depends_on: [ mysql, redis ]
     networks: [ agelto_network ]
-    logging: *default_logging
-
-  horizon:
-    image: agelto/app:latest
-    container_name: agelto_horizon
-    restart: unless-stopped
-    working_dir: /var/www/html
-    stop_signal: SIGTERM
-    stop_grace_period: 610s
-    command: php artisan horizon
-    environment: *prod_env
-    depends_on:
-      - app
-      - redis
-    networks: [ agelto_network ]
-    logging: *default_logging
-
-  scheduler:
-    image: agelto/app:latest
-    container_name: agelto_scheduler
-    restart: unless-stopped
-    command: php artisan schedule:work
-    environment: *prod_env
-    networks: [ agelto_network ]
-    logging: *default_logging
-
-  reverb:
-    image: agelto/app:latest
-    container_name: agelto_reverb
-    restart: unless-stopped
-    command: php artisan reverb:start --host=0.0.0.0 --port=${REVERB_PORT:-8000}
-    ports:
-      - "${REVERB_PORT:-8000}:${REVERB_PORT:-8000}"
-    environment: *prod_env
-    depends_on: [ redis ]
-    networks: [ agelto_network ]
-    logging: *default_logging
-
-  redis:
-    image: redis:alpine
-    restart: unless-stopped
-    # На проде лучше хранить данные Redis на диске, если там сессии
-    volumes:
-      - redis_data:/data
-    networks: [ agelto_network ]
-    logging: *default_logging
 
   mysql:
     image: mysql:8.4
@@ -98,25 +36,25 @@ services:
     restart: unless-stopped
     ports:
       - "${MYSQL_PORT:-3306}:3306"
-    # ВАЖНО: сохраняем данные!
     volumes:
       - mysql_data:/var/lib/mysql
     command:
       - --character-set-server=utf8mb4
       - --collation-server=utf8mb4_unicode_ci
-      - --innodb-buffer-pool-size=1G
     environment:
       MYSQL_DATABASE: ${DB_DATABASE}
       MYSQL_USER: ${DB_USERNAME}
       MYSQL_PASSWORD: ${DB_PASSWORD}
-      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
+      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD}
     healthcheck:
-      test: [ "CMD-SHELL", "mysqladmin ping -h localhost -u root -p${DB_ROOT_PASSWORD} || exit 1" ]
-      interval: 10s
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
       timeout: 5s
-      retries: 5
+      retries: 10
     networks: [ agelto_network ]
-    logging: *default_logging
+
+  redis:
+    image: redis:alpine
+    networks: [ agelto_network ]
 
 networks:
   agelto_network:
@@ -124,4 +62,3 @@ networks:
 
 volumes:
   mysql_data:
-  redis_data:
