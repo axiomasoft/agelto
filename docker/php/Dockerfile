@@ -57,18 +57,15 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 WORKDIR /var/www/html
 
-# 1. Копируем ВЕСЬ код сразу (чтобы Composer видел папку Modules/Platform)
+# 1. Сначала копируем всё (сейчас файлы залетают как root)
 COPY . .
 
-# 2. Ставим зависимости (теперь пути в composer.json будут валидны)
+# 2. Ставим зависимости
 RUN composer install --no-dev --no-interaction --optimize-autoloader
 
-# 3. Настройка прав (добавил создание папок и рекурсивный chown)
-RUN mkdir -p /var/www/html/storage/app/browser/page_debug \
-    && mkdir -p /var/www/html/storage/framework/sessions \
-    && mkdir -p /var/www/html/storage/framework/views \
-    && mkdir -p /var/www/html/storage/framework/cache \
-    && chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache
+# 3. ФИНАЛЬНЫЙ ФИКС ПРАВ:
+# Отдаем ВЕСЬ каталог /var/www/html пользователю www-data
+RUN chown -R www-data:www-data /var/www/html
 
 ENV CHROME_BIN=/usr/bin/chromium
 ENV CHROME_PATH=/usr/lib/chromium/
