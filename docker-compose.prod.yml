@@ -42,7 +42,7 @@ services:
     restart: unless-stopped
     # Обязательно добавляем память здесь, так как тут работает основной краулер
     shm_size: '2gb'
-    command: php artisan eis:parse-crawling
+    command: php artisan eis:crawling
     environment: *prod_env
     networks: [ agelto_network ]
     logging: *default_logging
