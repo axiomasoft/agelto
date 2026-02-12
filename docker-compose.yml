@@ -1,6 +1,5 @@
 services:
   app:
-    user: "0:0"
     build:
       context: ./docker/php
     container_name: agelto_app
