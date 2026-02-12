@@ -31,9 +31,13 @@ services:
     container_name: agelto_worker_eis_crawling
     restart: unless-stopped
     shm_size: '2gb'
-    command: php artisan queue:work redis --queue=default,crawling --sleep=3 --tries=3
+    # Команда запускает консольную команду напрямую
+    command: php artisan eis:crawling
     environment: *prod_env
-    depends_on: [ mysql, redis ]
+    # Зависим только от инфраструктуры
+    depends_on:
+      mysql: { condition: service_healthy }
+      redis: { condition: service_started }
     networks: [ agelto_network ]
 
   mysql:

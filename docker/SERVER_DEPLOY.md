@@ -12,9 +12,33 @@
     - Горячая перезагрузка (HMR)
 - **PROD (production)** - использует `docker-compose.prod.yml`
     - Immutable образ (`agelto/app:latest`)
-    - Нет volumes с кодом
+    - Нет volumes с кодом (код вшит в образ)
     - Минимальный runtime (без Node.js)
     - Secrets для безопасного хранения паролей
+
+## Главные отличия и типичные ошибки (PROD)
+
+### Порты: почему 8081 снаружи, а 8080 внутри?
+
+В PROD используется образ `serversideup`, который работает от пользователя `www-data`. Обычный пользователь в Linux не может слушать порт 80.
+
+- **Внутри контейнера** приложение всегда слушает порт **8080**.
+- В `docker-compose.prod.yml` проброс задаётся как `"${APP_PORT:-8081}:8080"`.
+- Nginx на хосте проксирует на `127.0.0.1:8081` (или ваш `APP_PORT`).
+
+### Обновление кода (immutable)
+
+В PROD изменения файлов в папке проекта на сервере **не попадают** в работающее приложение. Чтобы обновить код, нужно заново выполнить **сборку образа** и перезапуск контейнеров (см. раздел [6. PROD: Production деплой](#6-prod-production-деплой), подраздел «Обновление приложения»).
+
+### HTTPS и Mixed Content
+
+Если сайт открыт по HTTP (например, порт 8081), а CSS/JS не загружаются:
+
+1. В `.env` укажите: `APP_URL=http://127.0.0.1:8081` (или ваш реальный URL до настройки SSL).
+2. Очистите кэш:  
+   `docker compose -f docker-compose.prod.yml exec app php artisan config:clear`
+
+После настройки SSL через Nginx/Certbot задайте `APP_URL=https://yourdomain.com`.
 
 ## Содержание
 
@@ -30,6 +54,7 @@
 10. [Полезные команды](#10-полезные-команды)
 11. [Решение проблем](#11-решение-проблем)
 12. [Полная очистка (начать с нуля)](#12-полная-очистка-начать-с-нуля)
+13. [Советы по безопасности](#советы-по-безопасности)
 
 ---
 
@@ -406,14 +431,14 @@ QUEUE_CONNECTION=redis
 
 **Примечание:** В `docker-compose.prod.yml` переменные из `.env` используются, но пароли должны быть в secrets. Нужно обновить `docker-compose.prod.yml` для использования secrets, или использовать переменные окружения напрямую.
 
-### Сборка PROD образа
+### Сборка PROD образа (первый запуск)
 
 ```bash
 # Переходим в директорию проекта
-cd /var/www/agelto/cms
+cd /var/www/agelto/agelto
 
-# Собираем образ для production
-docker build -t agelto/app:latest ./docker/php
+# Собираем образ для production (контекст — корень проекта, код копируется в образ)
+docker build -t agelto/app:latest -f docker/php/Dockerfile .
 
 # Проверяем, что образ создан
 docker images | grep agelto/app
@@ -461,6 +486,46 @@ sleep 40
 
 # 3. Проверяем статус
 docker compose -f docker-compose.prod.yml ps
+```
+
+### Обновление приложения (при каждом обновлении кода)
+
+При каждом обновлении кода выполняйте по порядку:
+
+**Шаг 1. Получение кода**
+
+```bash
+cd /var/www/agelto/agelto
+git pull origin main
+```
+
+**Шаг 2. Сборка образа (обязательно)**
+
+Текущее состояние кода копируется в образ. Без пересборки работающий сайт не изменится.
+
+```bash
+docker build -t agelto/app:latest -f docker/php/Dockerfile .
+```
+
+**Шаг 3. Перезапуск контейнеров**
+
+`--force-recreate` заставляет применить новый образ.
+
+```bash
+docker compose -f docker-compose.prod.yml up -d --force-recreate
+```
+
+**Шаг 4. Настройка внутри контейнера**
+
+```bash
+# Миграции БД
+docker compose -f docker-compose.prod.yml exec app php artisan migrate --force
+
+# Очистка и оптимизация кэша
+docker compose -f docker-compose.prod.yml exec app php artisan optimize:clear
+
+# Права на storage и bootstrap/cache (логи и кэш)
+docker compose -f docker-compose.prod.yml exec app chown -R www-data:www-data storage bootstrap/cache
 ```
 
 ### Выполнение миграций (PROD)
@@ -606,7 +671,7 @@ sudo certbot renew --dry-run
 ```bash
 # Переключаемся на пользователя deploy
 su - deploy
-cd /var/www/agelto/cms
+cd /var/www/agelto/agelto
 
 # Убедитесь, что .env файл настроен правильно
 # Особенно важно: DB_ROOT_PASSWORD должен быть установлен
@@ -692,7 +757,7 @@ curl -I http://localhost:8080
 | Логи               | `docker compose logs -f`                      | `docker compose -f docker-compose.prod.yml logs -f`                              |
 | Остановка          | `docker compose down`                         | `docker compose -f docker-compose.prod.yml down`                                 |
 | Перезапуск         | `docker compose restart`                      | `docker compose -f docker-compose.prod.yml restart`                              |
-| Сборка образа      | `docker compose build`                        | `docker build -t agelto/app:latest ./docker/php`                                 |
+| Сборка образа      | `docker compose build`                        | `docker build -t agelto/app:latest -f docker/php/Dockerfile .`                   |
 
 ### Управление контейнерами
 
@@ -736,6 +801,19 @@ docker compose -f docker-compose.prod.yml logs -f scheduler
 docker compose -f docker-compose.prod.yml logs -f reverb
 ```
 
+### Отладка PROD
+
+```bash
+# Логи приложения в реальном времени
+docker compose -f docker-compose.prod.yml logs -f app
+
+# Проверка доступности внутри контейнера
+docker compose -f docker-compose.prod.yml exec app curl -I http://localhost:8080
+
+# Проверка прав и файлов в контейнере
+docker compose -f docker-compose.prod.yml exec app ls -la storage bootstrap/cache
+```
+
 ### Работа с базой данных
 
 ```bash
@@ -755,7 +833,7 @@ docker compose exec -T mysql mysql -u agelto -p agelto < backup.sql
 
 ```bash
 # Переходим в директорию проекта
-cd /var/www/agelto/cms
+cd /var/www/agelto/agelto
 
 # Получаем последние изменения
 git pull
@@ -779,7 +857,7 @@ docker compose restart
 
 ```bash
 # Переходим в директорию проекта
-cd /var/www/agelto/cms
+cd /var/www/agelto/agelto
 
 # Получаем последние изменения
 git pull
@@ -853,10 +931,10 @@ DATE=$(date +%Y%m%d_%H%M%S)
 mkdir -p $BACKUP_DIR
 
 # Бэкап базы данных
-docker compose -f /var/www/agelto/cms/docker-compose.yml exec -T mysql mysqldump -u agelto -p'PASSWORD' agelto > $BACKUP_DIR/db_$DATE.sql
+docker compose -f /var/www/agelto/agelto/docker-compose.yml exec -T mysql mysqldump -u agelto -p'PASSWORD' agelto > $BACKUP_DIR/db_$DATE.sql
 
 # Бэкап файлов (опционально)
-tar -czf $BACKUP_DIR/files_$DATE.tar.gz /var/www/agelto/cms/storage
+tar -czf $BACKUP_DIR/files_$DATE.tar.gz /var/www/agelto/agelto/storage
 
 # Удаляем старые бэкапы (старше 30 дней)
 find $BACKUP_DIR -type f -mtime +30 -delete
@@ -882,7 +960,7 @@ nano /etc/logrotate.d/agelto/cms
 ```
 
 ```
-/var/www/agelto/cms/storage/logs/*.log {
+/var/www/agelto/agelto/storage/logs/*.log {
     daily
     rotate 14
     compress
@@ -920,7 +998,7 @@ dpkg-reconfigure -plow unattended-upgrades
 
 ```bash
 # Переходим в директорию проекта
-cd /var/www/agelto/cms
+cd /var/www/agelto/agelto
 
 # 1. Бэкап базы данных (если есть данные)
 docker compose exec mysql mysqldump -u root -p'root_password' agelto > /tmp/mysql_backup_$(date +%Y%m%d_%H%M%S).sql 2>/dev/null
@@ -965,7 +1043,7 @@ docker compose exec app composer install --optimize-autoloader --no-dev
 
 ```bash
 # 1. Переходим в директорию проекта
-cd /var/www/agelto/cms
+cd /var/www/agelto/agelto
 
 # 2. Проверяем, есть ли данные в базе (если есть таблицы - делаем бэкап)
 docker compose exec mysql mysql -u root -p'root_password' agelto -e "SHOW TABLES;" 2>&1 | grep -v "Warning"
@@ -1345,7 +1423,7 @@ docker compose exec app php artisan config:clear
 
 ```bash
 # Переходим в директорию проекта (если она существует)
-cd /var/www/agelto/cms
+cd /var/www/agelto/agelto
 
 # 1. Останавливаем и удаляем все контейнеры проекта
 docker compose down
@@ -1358,7 +1436,7 @@ docker compose down -v
 
 ```bash
 # Переходим в директорию проекта
-cd /var/www/agelto/cms
+cd /var/www/agelto/agelto
 
 # 1. Останавливаем и удаляем все контейнеры проекта
 docker compose -f docker-compose.prod.yml down
@@ -1366,13 +1444,28 @@ docker compose -f docker-compose.prod.yml down
 # 2. Удаляем все volumes (включая базу данных)
 docker compose -f docker-compose.prod.yml down -v
 
-# 4. Удаляем образ (опционально)
+# 3. Удаляем образ проекта
 docker rmi agelto/app:latest
 
-# 5. Проверяем, что все удалено
+# 4. Проверяем, что все удалено
 docker compose -f docker-compose.prod.yml ps
 docker volume ls | grep -E 'cms|agelto'
 docker images | grep -E 'cms|agelto'
+```
+
+### Полная очистка Docker (Hard Reset)
+
+Если нужно удалить всё и начать с нуля (внимание: удалит данные БД проекта и неиспользуемые ресурсы Docker):
+
+```bash
+# 1. Остановка проекта и удаление томов
+docker compose -f docker-compose.prod.yml down -v
+
+# 2. Удаление образа проекта
+docker rmi agelto/app:latest
+
+# 3. Полная очистка неиспользуемых ресурсов Docker
+docker system prune -a --volumes -f
 ```
 
 ### Полная очистка Docker (для пустого сервера или полного сброса)
@@ -1414,6 +1507,15 @@ docker images
 
 ---
 
+## Советы по безопасности
+
+- **APP_DEBUG:** В production всегда указывайте `APP_DEBUG=false` в `.env`.
+- **База данных:** Не открывайте порт MySQL (3306) наружу. Доступ к БД только внутри Docker-сети.
+- **SSL:** Для работы по HTTPS на реальном домене используйте Nginx + Let's Encrypt (см. раздел 8), Nginx Proxy Manager или Cloudflare.
+- Храните `.env` и файлы в `secrets/` в безопасности; используйте сильные пароли; регулярно обновляйте зависимости и систему.
+
+---
+
 ## Заключение
 
 После выполнения всех шагов ваше приложение должно быть доступно по адресу `https://yourdomain.com`.
@@ -1425,10 +1527,4 @@ docker images
 - ✅ Включите файрвол
 - ✅ Настройте резервное копирование
 - ✅ Регулярно обновляйте систему
-
-**Безопасность:**
-
-- Храните `.env` файл в безопасности
-- Используйте сильные пароли для базы данных
-- Регулярно обновляйте зависимости
-- Мониторьте логи на предмет подозрительной активности
+- ✅ В PROD после каждого обновления кода пересобирайте образ и перезапускайте контейнеры
