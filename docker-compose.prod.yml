@@ -36,9 +36,9 @@ services:
         max-size: "10m"
         max-file: "3"
 
-  worker-eis-parser-map:
+  worker-eis-crawling:
     image: agelto/app:latest
-    container_name: agelto_worker_eis_map
+    container_name: agelto_worker_eis_crawling
     restart: unless-stopped
     # Обязательно добавляем память здесь, так как тут работает основной краулер
     shm_size: '2gb'

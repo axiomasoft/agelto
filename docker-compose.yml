@@ -45,10 +45,10 @@ services:
     shm_size: '2gb'
 
   # Контейнер для ручного запуска парсинга (Stage 1)
-  worker-eis-parser-map:
+  worker-eis-crawling:
     build:
       context: ./docker/php
-    container_name: agelto_worker_eis_map
+    container_name: agelto_worker_eis_crawling
     restart: unless-stopped
     working_dir: /var/www/html
     entrypoint: ["/usr/local/bin/docker-php-serversideup-entrypoint"]
