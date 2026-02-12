@@ -51,13 +51,11 @@ class BrowserService
     {
         if ($this->browser) return $this;
 
-        // Изоляция профилей: в консоли используем PID, в вебе ID пользователя.
-        // Это критично для предотвращения ошибки "Profile in use" при работе воркеров.
-        $uniqueId = app()->runningInConsole() ? 'cli_' . getmypid() : ('web_' . (auth()->id() ?? 'guest'));
-        $this->userDataDir = storage_path("app/browser/profiles/{$uniqueId}");
+        // Фиксированная папка для root
+        $this->userDataDir = storage_path("app/browser/profile_root");
 
         if (!File::isDirectory($this->userDataDir)) {
-            File::makeDirectory($this->userDataDir, 0775, true);
+            File::makeDirectory($this->userDataDir, 0777, true, true);
         }
 
         $this->extPath = $this->prepareProxyExtension($proxy);
@@ -66,17 +64,16 @@ class BrowserService
         $flags = [
             '--no-sandbox',
             '--disable-setuid-sandbox',
-            '--disable-ipv6',
-            '--disable-blink-features=AutomationControlled',
-            '--ignore-certificate-errors',
+            '--disable-gpu',
+            '--disable-dev-shm-usage',
+            '--disable-software-rasterizer',
             '--user-data-dir=' . $this->userDataDir,
             '--lang=ru-RU,ru',
             '--disable-crash-reporter',
-            '--disable-logging',
-            '--disable-dev-shm-usage',
-            '--remote-debugging-pipe',
-            '--disable-gpu',
-            '--disable-software-rasterizer',
+            '--no-crash-upload',
+            '--disable-breakpad',
+            '--noerrdialogs',
+            '--disable-dbus', // Добавим этот флаг, чтобы приглушить ошибки из твоего лога
         ];
 
         if (!empty($proxy['ip'])) {
@@ -91,7 +88,7 @@ class BrowserService
             'headless' => 'new',
             'windowSize' => [1920, 1080],
             'customFlags' => $flags,
-            'sendSyncDefaultTimeout' => 60000,
+            'startupTimeout' => 60,
         ]);
 
         return $this;
