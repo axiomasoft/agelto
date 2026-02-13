@@ -230,6 +230,13 @@ class BrowserService
         return "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36";
     }
 
+    public function reportSuccess(): void
+    {
+        if ($this->currentProxyModel) {
+            $this->proxyRepo->markSuccess($this->currentProxyModel->id);
+        }
+    }
+
     public function reportFail(Throwable $e): void
     {
         if ($this->currentProxyModel) {
