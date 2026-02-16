@@ -28,5 +28,5 @@ interface PlatformCrawling
     /**
      * Запуск краулинга для заданного Crawler (получение HTML и обработка узлов)
      */
-    public function run(Crawler $crawler): void;
+    public function crawlingPage(string $url): void;
 }

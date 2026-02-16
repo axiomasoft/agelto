@@ -13,6 +13,5 @@ final class PageMetaDto extends Data
         public bool $has_next_page,
         public int $total_items = 0,
         public int $items_per_page = 10,
-        public array $next_page_params = [],
     ) {}
 }

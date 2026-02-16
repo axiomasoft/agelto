@@ -37,7 +37,7 @@ abstract class AbstractCrawlingService implements PlatformCrawling
 
     abstract public function crawlingItem(mixed $node): CrawlingItemDto;
 
-    abstract public function getPageMeta(string $html, int $requestedPage = 1): PageMetaDto;
+    abstract public function getPageMeta(string $html): PageMetaDto;
 
     abstract public function getCrawlerUrl(CrawlerModel $crawler): string;
 
@@ -45,7 +45,7 @@ abstract class AbstractCrawlingService implements PlatformCrawling
 
     abstract protected function parseAttachments(string $commonInfoUrl): array;
 
-    final public function execute(CrawlerModel $crawler): void
+    final public function start(CrawlerModel $crawler): void
     {
         try {
             $this->checkVpnConstraint();
@@ -53,11 +53,22 @@ abstract class AbstractCrawlingService implements PlatformCrawling
             $this->logger->info('Инициализация браузера и прокси...', LogOutput::Console);
             $this->browser->withRandomProxy();
 
-            $this->run($crawler);
+            $this->crawler = $crawler;
+            $this->crawler->load('platform');
+
+            $url = $this->getCrawlerUrl($crawler);
+            $options = $this->crawler->options ?? [];
+
+            // если браузер падает, то продолжаем с последней страницы (если включен keep_page_on_crash у краулера)
+            if (! empty($options['keep_page_on_crash']) && ! empty($options['current_url'])) {
+                $url = $options['current_url'];
+            }
+
+            $this->startHook($url);
 
             $this->browser->reportSuccess();
         } catch (Throwable $e) {
-            $this->logger->error('Ошибка краулера '.static::class.': '.$e->getMessage());
+            $this->logger->error('Ошибка краулера ' . static::class . ': ' . $e->getMessage());
             $this->browser->reportFail($e);
             throw $e;
         } finally {
@@ -65,54 +76,33 @@ abstract class AbstractCrawlingService implements PlatformCrawling
         }
     }
 
-    final public function run(CrawlerModel $crawler): void
+    public function startHook(string $url): void
     {
-        $this->crawler = $crawler;
-        $this->crawler->load('platform');
+        $this->crawlingPage($url);
+    }
 
-        $baseUrl = $this->getCrawlerUrl($crawler);
-        $pageKey = $this->pageNumberKey($crawler);
-        $options = $crawler->options ?? [];
-        $isFirstPage = true;
-        $nextPageParams = [];
-        $requestedPage = 1;
-
-        $resumeUrl = null;
-        if (! empty($options['keep_page_on_crash']) && ! empty($options['current_url'])) {
-            $resumeUrl = $options['current_url'];
-            $parsed = parse_url($resumeUrl);
-            if (isset($parsed['query'])) {
-                parse_str($parsed['query'], $query);
-                $requestedPage = (int) ($query[$pageKey] ?? 1);
-            }
-            $isFirstPage = false;
-            $nextPageParams = [];
-        }
+    final public function crawlingPage(string $url): void
+    {
+        $pageKey = $this->pageNumberKey($this->crawler);
+        $urlObject = \Spatie\Url\Url::fromString($url);
 
         do {
-            $overrideUrl = $resumeUrl;
-            $resumeUrl = null;
+            $currentPage = (int) $urlObject->getQueryParameter($pageKey, 1);
+            $requestUrl = $urlObject->withQueryParameter($pageKey, ((string) $currentPage + 1))->toString();
 
-            $requestUrl = $this->buildRequestUrl($baseUrl, $isFirstPage, $nextPageParams, $overrideUrl);
             $response = $this->fetchPageResponse($requestUrl);
 
-            $pageResult = $this->pageProcessing($response->body(), $requestedPage);
-
-            if (! empty($options['keep_page_on_crash'])) {
-                $options['current_url'] = $requestUrl;
-                $this->crawler->update(['options' => $options]);
-            }
+            $pageResult = $this->pageProcessing($response->body(), $currentPage);
 
             if (! $pageResult->meta->has_next_page) {
                 $this->logger->info('Пагинация завершена (кнопка "Далее" не найдена).', LogOutput::Console);
                 break;
             }
 
-            $isFirstPage = false;
-            $nextPageParams = $pageResult->meta->next_page_params;
-            $requestedPage = (int) ($nextPageParams[$pageKey] ?? 1);
+            // Обновляем URL объект для следующей итерации
+            $urlObject->setQueryParameter($pageKey, ((string) $currentPage + 1));
 
-            $this->logger->info("Готовим переход на страницу {$requestedPage}", LogOutput::Console);
+            $this->logger->info("Готовим переход на страницу {$currentPage}", LogOutput::Console);
             usleep(mt_rand(2000000, 4000000));
         } while (true);
     }
@@ -145,36 +135,9 @@ abstract class AbstractCrawlingService implements PlatformCrawling
         } */
     }
 
-    protected function buildRequestUrl(string $url, bool $isFirstPage, array $params, ?string $overrideUrl = null): string
-    {
-        if ($overrideUrl !== null) {
-            return $overrideUrl;
-        }
-
-        if ($isFirstPage || empty($params)) {
-            return $url;
-        }
-
-        $parsedUrl = parse_url($url);
-        $query = [];
-
-        if (isset($parsedUrl['query'])) {
-            parse_str($parsedUrl['query'], $query);
-        }
-
-        $query = array_merge($query, $params);
-
-        $scheme = isset($parsedUrl['scheme']) ? $parsedUrl['scheme'].'://' : '';
-        $host = $parsedUrl['host'] ?? '';
-        $port = isset($parsedUrl['port']) ? ':'.$parsedUrl['port'] : '';
-        $path = $parsedUrl['path'] ?? '';
-
-        return $scheme.$host.$port.$path.'?'.http_build_query($query);
-    }
-
     protected function fetchPageResponse(string $requestUrl): \Illuminate\Http\Client\Response
     {
-        $this->logger->info('Загрузка страницы: '.$requestUrl, LogOutput::Console);
+        $this->logger->info('Загрузка страницы: ' . $requestUrl, LogOutput::Console);
         $page = $this->browser->openPage($requestUrl);
 
         return new \Illuminate\Http\Client\Response(
@@ -187,7 +150,7 @@ abstract class AbstractCrawlingService implements PlatformCrawling
      *
      * @param  int  $requestedPage  Номер запрошенной страницы (ключ пагинации задаётся через pageNumberKey())
      */
-    protected function pageProcessing(string $html, int $requestedPage = 1): PageResultDto
+    protected function pageProcessing(string $html): PageResultDto
     {
         $nodes = $this->getNodes($html);
         $items = [];
@@ -225,7 +188,7 @@ abstract class AbstractCrawlingService implements PlatformCrawling
             $items[] = $item;
         }
 
-        $meta = $this->getPageMeta($html, $requestedPage);
+        $meta = $this->getPageMeta($html);
 
         return new PageResultDto(
             items: CrawlingItemDto::collect($items, DataCollection::class),

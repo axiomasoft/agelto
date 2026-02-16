@@ -37,7 +37,7 @@ final class EisCrawlingCommand extends Command
             }
         } while ($crawler === null);
 
-        EisCrawling::execute($crawler);
+        EisCrawling::start($crawler);
 
         return self::SUCCESS;
     }

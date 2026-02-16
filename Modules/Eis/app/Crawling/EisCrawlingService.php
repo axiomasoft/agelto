@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Eis\Crawling;
 
 use Carbon\Carbon;
+use Illuminate\Support\Facades\Storage;
 use Platform\Dto\Attachments\AttachmentDto;
 use Platform\Dto\Crawling\CrawlingItemDto;
 use Platform\Dto\Crawling\PageMetaDto;
@@ -12,10 +13,14 @@ use Platform\Models\Crawling\Crawler as CrawlerModel;
 use Platform\Process\Crawling\AbstractCrawlingService;
 use RuntimeException;
 use Symfony\Component\DomCrawler\Crawler as DomCrawler;
-use Illuminate\Support\Facades\Storage;
 
 final class EisCrawlingService extends AbstractCrawlingService
 {
+    /**
+     * Лимит поисковой выдачи ЕИС (после 1000 результатов записи не отображаются)
+     */
+    private const MAX_RESULTS = 1000;
+
     /**
      * Продвинутый метод входа: запускает рекурсивное дробление по ценам,
      * чтобы обойти ограничение ЕИС в 1000 записей.
@@ -25,24 +30,28 @@ final class EisCrawlingService extends AbstractCrawlingService
         $filters = $manualFilters ?? $crawler->filter ?? [];
         $url = $this->getCrawlerUrl($crawler, $filters);
 
-        $this->logger->info("ЕИС: глубокий сканирование: " . $url);
+        $this->logger->info('ЕИС: глубокое сканирование: ' . $url);
 
         $page = $this->browser->openPage($url);
         $html = $page->getHtml();
 
-        // Получаем макс. страницу для принятия решения о дроблении
+        // Получаем макс. страницу из пагинации HTML
         $maxPage = $this->extractMaxPageFromHtml($html);
 
-        // Если страниц 20 (лимит ЕИС 1000 записей при 50 на стр.), дробим интервал цен
-        if ($maxPage >= 20) {
-            $priceFrom = (float)($filters['priceFromGeneral'] ?? 0);
-            $priceTo = (float)($filters['priceToGeneral'] ?? 1000000000);
+        // Динамический расчет лимита страниц (например, 1000 / 50 = 20 страниц)
+        $perPageValue = (int) str_replace('_', '', (string) ($filters[$this->recordsPerPageKey($crawler)] ?? '50'));
+        $limitPage = (int) ceil(self::MAX_RESULTS / $perPageValue);
+
+        // Если достигнут предел выдачи ЕИС, дробнм интервал цен
+        if ($maxPage >= $limitPage) {
+            $priceFrom = (float) ($filters['priceFromGeneral'] ?? 0);
+            $priceTo = (float) ($filters['priceToGeneral'] ?? 1000000000);
 
             // Если разница в цене больше 1 копейки, дробим
             if (($priceTo - $priceFrom) > 0.01) {
                 $middle = round(($priceFrom + $priceTo) / 2, 2);
 
-                $this->logger->warning("ЕИС: лимит достигнут. Дробление интервала: $priceFrom - $priceTo");
+                $this->logger->warning('ЕИС: лимит результатов (' . self::MAX_RESULTS . ") достигнут на странице $maxPage. Дробление интервала: $priceFrom - $priceTo");
 
                 // Рекурсия влево
                 $this->parseDeep($crawler, array_merge($filters, ['priceToGeneral' => $middle]));
@@ -56,21 +65,6 @@ final class EisCrawlingService extends AbstractCrawlingService
 
         // Если лимит не превышен, запускаем стандартный процесс парсинга страниц
         $this->processAllIntervalPages($crawler, $filters);
-    }
-
-    /**
-     * Синхронизация с AbstractCrawlingService.
-     */
-    private function processAllIntervalPages(CrawlerModel $crawler, array $filters): void
-    {
-        $originalFilters = $crawler->filter;
-        $crawler->filter = $filters;
-
-        try {
-            $this->run($crawler);
-        } finally {
-            $crawler->filter = $originalFilters;
-        }
     }
 
     public function getNodes(string $html): array
@@ -113,7 +107,7 @@ final class EisCrawlingService extends AbstractCrawlingService
         ];
 
         // ФЗ: проставляем fzXX=on
-        if (!empty($filters['fz']) && is_array($filters['fz'])) {
+        if (! empty($filters['fz']) && is_array($filters['fz'])) {
             foreach ($filters['fz'] as $fzKey) {
                 $queryParams[$fzKey] = 'on';
             }
@@ -122,7 +116,7 @@ final class EisCrawlingService extends AbstractCrawlingService
         // Даты: конвертация в d.m.Y для ЕИС
         $dateFields = ['publishDateFrom', 'publishDateTo', 'applSubmissionCloseDateFrom', 'applSubmissionCloseDateTo'];
         foreach ($dateFields as $field) {
-            if (!empty($filters[$field])) {
+            if (! empty($filters[$field])) {
                 $queryParams[$field] = Carbon::parse($filters[$field])->format('d.m.Y');
             }
         }
@@ -171,7 +165,7 @@ final class EisCrawlingService extends AbstractCrawlingService
         return 'recordsPerPage';
     }
 
-    public function getPageMeta(string $html, int $requestedPage = 1): PageMetaDto
+    public function getPageMeta(string $html): PageMetaDto
     {
         $dom = new DomCrawler($html);
         $hasNextPage = $dom->filter('.paginator .paginator-button-next')->count() > 0;
@@ -179,14 +173,13 @@ final class EisCrawlingService extends AbstractCrawlingService
         // Используем recordsPerPageKey для получения значения из фильтра
         $recordsKey = $this->recordsPerPageKey($this->crawler);
         $perPageValue = $this->crawler?->filter[$recordsKey] ?? '50';
-        $perPage = (int) str_replace('_', '', (string)$perPageValue);
+        $perPage = (int) str_replace('_', '', (string) $perPageValue);
 
         return new PageMetaDto(
-            current_page: $requestedPage,
+            current_page: 1,
             has_next_page: $hasNextPage,
             total_items: 0,
             items_per_page: $perPage,
-            next_page_params: [$this->pageNumberKey($this->crawler) => $requestedPage + 1]
         );
     }
 
@@ -204,7 +197,9 @@ final class EisCrawlingService extends AbstractCrawlingService
 
         $attachments = $dom->filter('.attachment a[href*="download"], a[href*="filestore"]')->each(function (DomCrawler $node) {
             $href = $node->attr('href');
-            if (!$href || str_contains($href, 'signview') || str_contains($href, 'javascript')) return null;
+            if (! $href || str_contains($href, 'signview') || str_contains($href, 'javascript')) {
+                return null;
+            }
 
             $fullUrl = str_starts_with($href, 'http') ? $href : 'https://zakupki.gov.ru' . $href;
             parse_str(parse_url($fullUrl, PHP_URL_QUERY) ?? '', $query);
@@ -230,6 +225,21 @@ final class EisCrawlingService extends AbstractCrawlingService
         return $unique;
     }
 
+    /**
+     * Синхронизация с AbstractCrawlingService.
+     */
+    private function processAllIntervalPages(CrawlerModel $crawler, array $filters): void
+    {
+        $originalFilters = $crawler->filter;
+        $crawler->filter = $filters;
+
+        try {
+            $this->crawlingPage($this->getCrawlerUrl($crawler));
+        } finally {
+            $crawler->filter = $originalFilters;
+        }
+    }
+
     private function extractMaxPageFromHtml(string $html): int
     {
         $dom = new DomCrawler($html);
@@ -237,12 +247,14 @@ final class EisCrawlingService extends AbstractCrawlingService
         if ($paginator->count() > 0) {
             return (int) preg_replace('/\D/', '', $paginator->last()->text());
         }
+
         return 1;
     }
 
     private function parseDate(DomCrawler $node, string $label): ?Carbon
     {
         $dateNode = $node->filter(".data-block__title:contains('$label') + .data-block__value");
+
         return $dateNode->count() ? Carbon::parse(mb_trim($dateNode->text())) : null;
     }
 }
