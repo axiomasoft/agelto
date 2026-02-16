@@ -153,7 +153,7 @@ final class EisCrawlingService extends AbstractCrawlingService
             $queryParams[$pageKey] = $filters[$pageKey];
         }
 
-        return (string) Url::fromString('https://zakupki.gov.ru/epz/order/docSearch/results.html')->withQueryParameters($queryParams);
+        return (string) Url::fromString($crawler->url)->withQueryParameters($queryParams);
     }
 
     public function pageNumberKey(CrawlerModel $crawler): string
