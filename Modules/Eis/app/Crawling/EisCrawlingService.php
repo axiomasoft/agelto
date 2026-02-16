@@ -41,6 +41,10 @@ final class EisCrawlingService extends AbstractCrawlingService
             $dateFrom = Carbon::parse($filters['publishDateFrom']);
             $dateTo = Carbon::parse($filters['publishDateTo']);
 
+            if ($this->keepStateOnCrash('current_day')) {
+                $dateFrom = Carbon::parse($this->crawler->options['current_day']);
+            }
+
             // Если даты одинаковые, значит мы уже "внизу" цикла по дням
             if ($dateFrom->isSameDay($dateTo)) {
                 $this->priceSplitHook($url);
@@ -59,6 +63,10 @@ final class EisCrawlingService extends AbstractCrawlingService
                     ->withQueryParameter('publishDateTo', $currentDay);
 
                 $this->priceSplitHook($dayUrl);
+
+                if ($this->keepStateOnCrash('current_day')) {
+                    $this->crawler->update(['options' => array_merge($this->crawler->options, ['current_day' => $date->format('Y-m-d')])]);
+                }
             }
 
             return;

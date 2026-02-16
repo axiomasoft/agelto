@@ -37,7 +37,7 @@ final class CrawlerForm
 
                 Section::make('Параметры сборщика')
                     ->schema([
-                        Checkbox::make('options.keep_page_on_crash')
+                        Checkbox::make('options.keep_state_on_crash')
                             ->label('Начинать с последней страницы при сбое.')
                             ->belowContent('Включать когда сортировка фиксированная. Например по дате создания по возрастанию.')
                             ->default(false),

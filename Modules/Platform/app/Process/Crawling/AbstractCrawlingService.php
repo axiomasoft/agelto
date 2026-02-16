@@ -45,6 +45,13 @@ abstract class AbstractCrawlingService implements PlatformCrawling
 
     abstract protected function parseAttachments(string $commonInfoUrl): array;
 
+    protected function keepStateOnCrash(string|null $storeKey = null): bool
+    {
+        $options = $this->crawler->options ?? [];
+
+        return ! empty($this->crawler->options['keep_state_on_crash']) && (! empty($storeKey) || ! empty($options[$storeKey]));
+    }
+
     final public function start(CrawlerModel $crawler): void
     {
         try {
@@ -57,12 +64,11 @@ abstract class AbstractCrawlingService implements PlatformCrawling
             $this->crawler->load('platform');
 
             $url = $this->getCrawlerUrl($crawler);
-            $options = $this->crawler->options ?? [];
 
-            // если браузер падает, то продолжаем с последней страницы (если включен keep_page_on_crash у краулера)
-            if (! empty($options['keep_page_on_crash']) && ! empty($options['current_url'])) {
-                $url = $options['current_url'];
-            }
+            // если браузер падает, то продолжаем с последней страницы (если включен keep_state_on_crash у краулера)
+            /* if ($this->keepStateOnCrash('current_url')) {
+                $url = $this->crawler->options['current_url'];
+            } */
 
             $this->startHook($url);
 
