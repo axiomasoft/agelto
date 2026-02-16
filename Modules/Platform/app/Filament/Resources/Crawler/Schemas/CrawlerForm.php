@@ -7,6 +7,7 @@ namespace Platform\Filament\Resources\Crawler\Schemas;
 use Eis\Filament\Components\EisCrawlerForm;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
+use Filament\Forms\Components\Checkbox;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Schema;
@@ -34,6 +35,16 @@ final class CrawlerForm
                             ->columnSpanFull(),
                     ])->columns(2),
 
+                Section::make('Параметры сборщика')
+                    ->schema([
+                        Checkbox::make('options.keep_page_on_crash')
+                            ->label('Начинать с последней страницы при сбое.')
+                            ->belowContent('Включать когда сортировка фиксированная. Например по дате создания по возрастанию.')
+                            ->default(false),
+
+
+                    ]),
+
                 Section::make('Параметры фильтрации')
                     ->schema(function (Get $get): array {
                         $platformId = $get('platform_id');
@@ -49,7 +60,7 @@ final class CrawlerForm
                             default => [],
                         };
                     })
-                    ->visible(fn (Get $get) => filled($get('platform_id'))),
+                    ->visible(fn(Get $get) => filled($get('platform_id'))),
             ]);
     }
 }

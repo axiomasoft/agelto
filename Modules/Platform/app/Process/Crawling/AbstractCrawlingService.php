@@ -88,19 +88,18 @@ abstract class AbstractCrawlingService implements PlatformCrawling
 
         do {
             $currentPage = (int) $urlObject->getQueryParameter($pageKey, 1);
-            $requestUrl = $urlObject->withQueryParameter($pageKey, ((string) $currentPage + 1))->toString();
+            $requestUrl = (string) $urlObject;
 
             $response = $this->fetchPageResponse($requestUrl);
 
-            $pageResult = $this->pageProcessing($response->body(), $currentPage);
+            $pageResult = $this->pageProcessing($response->body());
 
             if (! $pageResult->meta->has_next_page) {
                 $this->logger->info('Пагинация завершена (кнопка "Далее" не найдена).', LogOutput::Console);
                 break;
             }
 
-            // Обновляем URL объект для следующей итерации
-            $urlObject->setQueryParameter($pageKey, ((string) $currentPage + 1));
+            $urlObject = $urlObject->withQueryParameter($pageKey, (string) ($currentPage + 1));
 
             $this->logger->info("Готовим переход на страницу {$currentPage}", LogOutput::Console);
             usleep(mt_rand(2000000, 4000000));
