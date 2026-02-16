@@ -11,9 +11,19 @@ echo "Собираю контекст проекта в $OUTPUT_FILE..."
 # Очищаем файл перед записью
 > "$OUTPUT_FILE"
 
-# Запускаем поиск из корня проекта
-find "$PROJECT_ROOT" -maxdepth 3 -not -path '*/.*' -type f \( -name "*.php" -o -name "*.yml" \) | while read -r file; do
-    # Делаем путь относительным для чистоты логов
+# Запускаем поиск из корня проекта БЕЗ ограничения глубины
+# Исключаем служебные, тяжелые и скрытые папки
+find "$PROJECT_ROOT" \
+    -not -path '*/.*' \
+    -not -path '*/stubs/*' \
+    -not -path '*/vendor/*' \
+    -not -path '*/node_modules/*' \
+    -not -path '*/storage/*' \
+    -not -path '*/public/build/*' \
+    -not -path '*/public/storage/*' \
+    -type f \( -name "*.php" -o -name "*.yml" -o -name "*.yaml" \) | while read -r file; do
+
+    # Делаем путь относительным для чистоты логов и удобства AI
     relative_path="${file#$PROJECT_ROOT/}"
 
     echo "FILE: $relative_path" >> "$OUTPUT_FILE"
@@ -21,4 +31,4 @@ find "$PROJECT_ROOT" -maxdepth 3 -not -path '*/.*' -type f \( -name "*.php" -o -
     echo -e "\n---\n" >> "$OUTPUT_FILE"
 done
 
-echo "Готово! Файл сохранен в корне проекта."
+echo "Готово! Файл сохранен в: $OUTPUT_FILE"

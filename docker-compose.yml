@@ -1,7 +1,8 @@
 services:
   app:
     build:
-      context: ./docker/php
+      context: .
+      dockerfile: docker/php/Dockerfile
     container_name: agelto_app
     restart: unless-stopped
     working_dir: /var/www/html
@@ -38,15 +39,14 @@ services:
       mysql:
         condition: service_healthy
       redis:
-        condition: service_started
+        condition: service_healthy
     networks:
       - agelto_network
-    shm_size: '2gb'
 
-  # Контейнер для ручного запуска парсинга (Stage 1)
   worker-eis-crawling:
     build:
-      context: ./docker/php
+      context: .
+      dockerfile: docker/php/Dockerfile
     container_name: agelto_worker_eis_crawling
     restart: unless-stopped
     working_dir: /var/www/html
@@ -56,51 +56,34 @@ services:
       - ./:/var/www/html
     environment: *app_env
     depends_on:
-      - app
-    networks:
-      - agelto_network
-    shm_size: '2gb'
-
-  # Управление очередями (Stage 2, 3, 4)
-  horizon:
-    build:
-      context: ./docker/php
-    container_name: agelto_horizon
-    restart: unless-stopped
-    working_dir: /var/www/html
-    stop_signal: SIGTERM
-    stop_grace_period: 610s
-    volumes:
-      - ./:/var/www/html
-    entrypoint: ["/usr/local/bin/docker-php-serversideup-entrypoint"]
-    command: ["php", "artisan", "horizon"]
-    environment: *app_env
-    depends_on:
-      - app
-      - redis
+      app:
+        condition: service_started
     networks:
       - agelto_network
     shm_size: '2gb'
 
   scheduler:
     build:
-      context: ./docker/php
+      context: .
+      dockerfile: docker/php/Dockerfile
     container_name: agelto_scheduler
     restart: unless-stopped
-    stop_signal: SIGTERM
     working_dir: /var/www/html
     volumes:
       - ./:/var/www/html
     entrypoint: ["/usr/local/bin/docker-php-serversideup-entrypoint"]
     command: ["php", "artisan", "schedule:work"]
     environment: *app_env
-    depends_on: [ app ]
+    depends_on:
+      app:
+        condition: service_started
     networks:
       - agelto_network
 
   reverb:
     build:
-      context: ./docker/php
+      context: .
+      dockerfile: docker/php/Dockerfile
     container_name: agelto_reverb
     restart: unless-stopped
     stop_signal: SIGTERM
@@ -112,13 +95,24 @@ services:
     ports:
       - "${REVERB_PORT:-8000}:${REVERB_PORT:-8000}"
     environment: *app_env
-    depends_on: [ app, redis ]
+    depends_on:
+      app:
+        condition: service_started
+      redis:
+        condition: service_healthy
     networks:
       - agelto_network
 
   redis:
     image: redis:alpine
     container_name: agelto_redis
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
     networks:
       - agelto_network
 
@@ -136,21 +130,16 @@ services:
       MYSQL_PASSWORD: ${DB_PASSWORD}
       MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
     healthcheck:
-      test: [ "CMD-SHELL", "mysqladmin ping -h localhost -u root -p${DB_ROOT_PASSWORD} || exit 1" ]
-      interval: 10s
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "${DB_USERNAME}", "-p${DB_PASSWORD}"]
+      interval: 5s
       timeout: 5s
-      retries: 5
+      retries: 10
     networks:
       - agelto_network
 
 networks:
-  default:
-    driver: bridge
-    driver_opts:
-      com.docker.network.driver.mtu: 1300
   agelto_network:
     driver: bridge
 
 volumes:
   mysql_data:
-    driver: local

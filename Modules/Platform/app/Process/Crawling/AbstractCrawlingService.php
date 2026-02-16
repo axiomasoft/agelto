@@ -39,6 +39,10 @@ abstract class AbstractCrawlingService implements PlatformCrawling
 
     abstract public function getPageMeta(string $html, int $requestedPage = 1): PageMetaDto;
 
+    abstract public function getCrawlerUrl(CrawlerModel $crawler): string;
+
+    abstract public function pageNumberKey(CrawlerModel $crawler): string;
+
     abstract protected function parseAttachments(string $commonInfoUrl): array;
 
     final public function execute(CrawlerModel $crawler): void
@@ -53,7 +57,7 @@ abstract class AbstractCrawlingService implements PlatformCrawling
 
             $this->browser->reportSuccess();
         } catch (Throwable $e) {
-            $this->logger->error('Ошибка краулера ' . static::class . ': ' . $e->getMessage());
+            $this->logger->error('Ошибка краулера '.static::class.': '.$e->getMessage());
             $this->browser->reportFail($e);
             throw $e;
         } finally {
@@ -66,7 +70,8 @@ abstract class AbstractCrawlingService implements PlatformCrawling
         $this->crawler = $crawler;
         $this->crawler->load('platform');
 
-        $baseUrl = $crawler->url;
+        $baseUrl = $this->getCrawlerUrl($crawler);
+        $pageKey = $this->pageNumberKey($crawler);
         $options = $crawler->options ?? [];
         $isFirstPage = true;
         $nextPageParams = [];
@@ -78,7 +83,7 @@ abstract class AbstractCrawlingService implements PlatformCrawling
             $parsed = parse_url($resumeUrl);
             if (isset($parsed['query'])) {
                 parse_str($parsed['query'], $query);
-                $requestedPage = (int) ($query['pageNumber'] ?? 1);
+                $requestedPage = (int) ($query[$pageKey] ?? 1);
             }
             $isFirstPage = false;
             $nextPageParams = [];
@@ -105,7 +110,7 @@ abstract class AbstractCrawlingService implements PlatformCrawling
 
             $isFirstPage = false;
             $nextPageParams = $pageResult->meta->next_page_params;
-            $requestedPage = (int) ($nextPageParams['pageNumber'] ?? 1);
+            $requestedPage = (int) ($nextPageParams[$pageKey] ?? 1);
 
             $this->logger->info("Готовим переход на страницу {$requestedPage}", LogOutput::Console);
             usleep(mt_rand(2000000, 4000000));
@@ -159,17 +164,17 @@ abstract class AbstractCrawlingService implements PlatformCrawling
 
         $query = array_merge($query, $params);
 
-        $scheme = isset($parsedUrl['scheme']) ? $parsedUrl['scheme'] . '://' : '';
+        $scheme = isset($parsedUrl['scheme']) ? $parsedUrl['scheme'].'://' : '';
         $host = $parsedUrl['host'] ?? '';
-        $port = isset($parsedUrl['port']) ? ':' . $parsedUrl['port'] : '';
+        $port = isset($parsedUrl['port']) ? ':'.$parsedUrl['port'] : '';
         $path = $parsedUrl['path'] ?? '';
 
-        return $scheme . $host . $port . $path . '?' . http_build_query($query);
+        return $scheme.$host.$port.$path.'?'.http_build_query($query);
     }
 
     protected function fetchPageResponse(string $requestUrl): \Illuminate\Http\Client\Response
     {
-        $this->logger->info('Загрузка страницы: ' . $requestUrl, LogOutput::Console);
+        $this->logger->info('Загрузка страницы: '.$requestUrl, LogOutput::Console);
         $page = $this->browser->openPage($requestUrl);
 
         return new \Illuminate\Http\Client\Response(
@@ -180,7 +185,7 @@ abstract class AbstractCrawlingService implements PlatformCrawling
     /**
      * Обработка всей страницы и подготовка данных для пагинации.
      *
-     * @param  int  $requestedPage  Номер запрошенной страницы (форма в HTML ЕИС часто содержит pageNumber=1, поэтому передаём явно)
+     * @param  int  $requestedPage  Номер запрошенной страницы (ключ пагинации задаётся через pageNumberKey())
      */
     protected function pageProcessing(string $html, int $requestedPage = 1): PageResultDto
     {
@@ -204,17 +209,16 @@ abstract class AbstractCrawlingService implements PlatformCrawling
                 $this->logger->info("Парсинг вложений для {$item->externalId}", LogOutput::Console);
                 $attachmentsData = $this->parseAttachments($item->url);
                 $item->attachments = AttachmentDto::collect($attachmentsData, DataCollection::class);
-            } else {
-                /* $link->load('attachments');
-                $item->attachments = AttachmentDto::collect(
-                    $link->attachments->map(fn(LinkAttachment $a): AttachmentDto => new AttachmentDto(
-                        externalId: $a->external_id,
-                        url: $a->url,
-                        name: $a->name
-                    ))->all(),
-                    DataCollection::class
-                ); */
             }
+            /* $link->load('attachments');
+            $item->attachments = AttachmentDto::collect(
+                $link->attachments->map(fn(LinkAttachment $a): AttachmentDto => new AttachmentDto(
+                    externalId: $a->external_id,
+                    url: $a->url,
+                    name: $a->name
+                ))->all(),
+                DataCollection::class
+            ); */
 
             $this->processSingleItem($item);
 

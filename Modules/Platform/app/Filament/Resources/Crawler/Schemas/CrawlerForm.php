@@ -4,40 +4,52 @@ declare(strict_types=1);
 
 namespace Platform\Filament\Resources\Crawler\Schemas;
 
-use Filament\Forms\Components\Checkbox;
-use Filament\Forms\Components\KeyValue;
+use Eis\Filament\Components\EisCrawlerForm;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Schemas\Components\Section;
+use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Schema;
+use Platform\Models\Platform;
 
 final class CrawlerForm
 {
     public static function configure(Schema $schema): Schema
     {
         return $schema
-            ->components([
-                Section::make('')
-                    ->columnSpanFull()
+            ->columns(1)
+            ->schema([
+                Section::make('Основная информация')
                     ->schema([
                         Select::make('platform_id')
-                            ->label('Площадка')
-                            ->relationship(name: 'platform', titleAttribute: 'name')
-                            ->required()
-                            ->searchable()
-                            ->preload(),
+                            ->label('Платформа')
+                            ->relationship('platform', 'name')
+                            ->live()
+                            ->required(),
+
                         TextInput::make('url')
-                            ->label('Ссылка для сбора данных')
+                            ->label('Базовая ссылка')
                             ->url()
-                            ->nullable(),
-                        KeyValue::make('filter')
-                            ->label('Фильтр (ключ — значение)')
-                            ->nullable(),
-                        Checkbox::make('options.keep_page_on_crash')
-                            ->label('Начинать с последней страницы при сбое.')
-                            ->belowContent('Включать когда сортировка фиксированная. Например по дате создания по возрастанию.')
-                            ->default(false),
-                    ]),
+                            ->required()
+                            ->columnSpanFull(),
+                    ])->columns(2),
+
+                Section::make('Параметры фильтрации')
+                    ->schema(function (Get $get): array {
+                        $platformId = $get('platform_id');
+                        if (! $platformId) {
+                            return [];
+                        }
+
+                        $platform = Platform::find($platformId);
+
+                        // Проверка по слагу
+                        return match ($platform?->code) {
+                            'eis' => EisCrawlerForm::schema(),
+                            default => [],
+                        };
+                    })
+                    ->visible(fn (Get $get) => filled($get('platform_id'))),
             ]);
     }
 }
