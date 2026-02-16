@@ -108,7 +108,7 @@ abstract class AbstractCrawlingService implements PlatformCrawling
             $urlObject = $urlObject->withQueryParameter($pageKey, (string) ($currentPage + 1));
 
             $this->logger->info("Готовим переход на страницу {$currentPage}", LogOutput::Console);
-            usleep(mt_rand(2000000, 4000000));
+            usleep(mt_rand(3_000_000, 5_000_000));
         } while (true);
     }
 
@@ -178,6 +178,7 @@ abstract class AbstractCrawlingService implements PlatformCrawling
                 $attachmentsData = $this->parseAttachments($item->url);
                 $item->attachments = AttachmentDto::collect($attachmentsData, DataCollection::class);
             }
+
             /* $link->load('attachments');
             $item->attachments = AttachmentDto::collect(
                 $link->attachments->map(fn(LinkAttachment $a): AttachmentDto => new AttachmentDto(
@@ -214,11 +215,6 @@ abstract class AbstractCrawlingService implements PlatformCrawling
             return;
         }
 
-        $this->handle($item);
-    }
-
-    protected function handle(CrawlingItemDto $item): void
-    {
         $linkDto = new LinkDto(
             regNumber: $item->externalId,
             detailUrl: $item->url,
@@ -227,6 +223,7 @@ abstract class AbstractCrawlingService implements PlatformCrawling
             submissionEndAt: $item->submissionEndAt,
             attachments: $item->attachments,
         );
+
         $this->crawlingRepository()->storeOrUpdateLink($this->getCrawler(), $linkDto);
     }
 

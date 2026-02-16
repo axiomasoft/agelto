@@ -212,7 +212,10 @@ final class EisCrawlingService extends AbstractCrawlingService
     {
         $docsUrl = str_replace('common-info.html', 'documents.html', $commonInfoUrl);
         $page = $this->browser->openPage($docsUrl);
-        usleep(2000000);
+
+        // Ожидание для предотвращения блокировки (3 секунды)
+        usleep(3_000_000);
+
         $html = $page->getHtml();
         $dom = new DomCrawler($html);
 
