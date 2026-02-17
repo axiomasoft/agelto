@@ -4,17 +4,18 @@ declare(strict_types=1);
 
 namespace Eis\Crawling;
 
+use App\Enums\LogOutput;
 use Carbon\Carbon;
 use Carbon\CarbonPeriod;
+use Illuminate\Support\Facades\Storage;
 use Platform\Dto\Attachments\AttachmentDto;
 use Platform\Dto\Crawling\CrawlingItemDto;
 use Platform\Dto\Crawling\PageMetaDto;
 use Platform\Models\Crawling\Crawler as CrawlerModel;
 use Platform\Process\Crawling\AbstractCrawlingService;
 use RuntimeException;
-use Symfony\Component\DomCrawler\Crawler as DomCrawler;
-use Illuminate\Support\Facades\Storage;
 use Spatie\Url\Url;
+use Symfony\Component\DomCrawler\Crawler as DomCrawler;
 
 final class EisCrawlingService extends AbstractCrawlingService
 {
@@ -37,7 +38,7 @@ final class EisCrawlingService extends AbstractCrawlingService
 
         $filters = $this->crawler->filter ?? [];
 
-        if (!empty($filters['publishDateFrom']) && !empty($filters['publishDateTo'])) {
+        if (! empty($filters['publishDateFrom']) && ! empty($filters['publishDateTo'])) {
             $dateFrom = Carbon::parse($filters['publishDateFrom']);
             $dateTo = Carbon::parse($filters['publishDateTo']);
 
@@ -48,6 +49,7 @@ final class EisCrawlingService extends AbstractCrawlingService
             // Если даты одинаковые, значит мы уже "внизу" цикла по дням
             if ($dateFrom->isSameDay($dateTo)) {
                 $this->priceSplitHook($url);
+
                 return;
             }
 
@@ -58,76 +60,26 @@ final class EisCrawlingService extends AbstractCrawlingService
                 $currentDay = $date->format('d.m.Y');
                 $this->logger->info("ЕИС: Обработка дня: $currentDay");
 
+                // Сохраняем состояние парсера, если включена фича keep_state_on_crash
+                if ($this->keepStateOnCrash()) {
+                    $this->crawler->updateOptions([
+                        'current_day' => $date->format('Y-m-d')
+                    ]);
+                    $this->logger->info("Сохраняем состояние парсера {$currentDay}", LogOutput::Console);
+                }
+
                 $dayUrl = (string) Url::fromString($url)
                     ->withQueryParameter('publishDateFrom', $currentDay)
                     ->withQueryParameter('publishDateTo', $currentDay);
 
                 $this->priceSplitHook($dayUrl);
-
-                if ($this->keepStateOnCrash('current_day')) {
-                    $this->crawler->update(['options' => array_merge($this->crawler->options, ['current_day' => $date->format('Y-m-d')])]);
-                }
             }
 
             return;
         }
 
-        $this->logger->info("ЕИС [Оперативный режим]: Анализ свежих данных");
+        $this->logger->info('ЕИС [Оперативный режим]: Анализ свежих данных');
         $this->priceSplitHook($url);
-    }
-
-    /**
-     * Рекурсивное дробление по ценам.
-     */
-    private function priceSplitHook(string $url): void
-    {
-        $page = $this->browser->openPage($url);
-        $html = $page->getHtml();
-
-        $maxPage = $this->extractMaxPageFromHtml($html);
-        $urlObject = Url::fromString($url);
-        $filters = $this->crawler->filter ?? [];
-
-        $recordsKey = $this->recordsPerPageKey($this->crawler);
-        $perPageValue = (int) str_replace('_', '', (string)($filters[$recordsKey] ?? '50'));
-        $limitPage = (int) ceil(self::MAX_RESULTS / $perPageValue);
-
-        if ($maxPage >= $limitPage) {
-            $priceFrom = (float)($urlObject->getQueryParameter('priceFromGeneral') ?? 0);
-            $priceTo = (float)($urlObject->getQueryParameter('priceToGeneral') ?? 1000000000);
-
-            if (($priceTo - $priceFrom) > 0.01) {
-                $middle = round(($priceFrom + $priceTo) / 2, 2);
-                $this->logger->warning("ЕИС: лимит достигнут. Дробление цен: $priceFrom - $priceTo");
-
-                $this->priceSplitHook((string) $urlObject->withQueryParameter('priceToGeneral', (string) $middle));
-                $this->priceSplitHook((string) $urlObject->withQueryParameter('priceFromGeneral', (string) ($middle + 0.01)));
-
-                return;
-            }
-        }
-
-        $this->processAllIntervalPages($url);
-    }
-
-    private function processAllIntervalPages(string $url): void
-    {
-        $urlObject = Url::fromString($url);
-        parse_str($urlObject->getQuery() ?? '', $queryFilters);
-
-        $originalFilters = $this->crawler->filter;
-        $this->crawler->filter = array_merge($originalFilters, $queryFilters);
-
-        // Включаем блокировку рекурсии
-        $this->isSplitProcess = true;
-
-        try {
-            $this->crawlingPage($this->getCrawlerUrl($this->crawler));
-        } finally {
-            // Выключаем блокировку и возвращаем фильтры
-            $this->isSplitProcess = false;
-            $this->crawler->filter = $originalFilters;
-        }
     }
 
     public function getCrawlerUrl(CrawlerModel $crawler): string
@@ -135,7 +87,7 @@ final class EisCrawlingService extends AbstractCrawlingService
         $filters = $crawler->filter ?? [];
         $queryParams = ['morphology' => 'on', 'currencyIdGeneral' => '-1'];
 
-        if (!empty($filters['fz']) && is_array($filters['fz'])) {
+        if (! empty($filters['fz']) && is_array($filters['fz'])) {
             foreach ($filters['fz'] as $fzKey) {
                 $queryParams[$fzKey] = 'on';
             }
@@ -143,7 +95,7 @@ final class EisCrawlingService extends AbstractCrawlingService
 
         $dateFields = ['publishDateFrom', 'publishDateTo', 'applSubmissionCloseDateFrom', 'applSubmissionCloseDateTo'];
         foreach ($dateFields as $field) {
-            if (!empty($filters[$field])) {
+            if (! empty($filters[$field])) {
                 $queryParams[$field] = Carbon::parse($filters[$field])->format('d.m.Y');
             }
         }
@@ -168,6 +120,7 @@ final class EisCrawlingService extends AbstractCrawlingService
     {
         return 'pageNumber';
     }
+
     public function recordsPerPageKey(CrawlerModel $crawler): string
     {
         return 'recordsPerPage';
@@ -205,7 +158,7 @@ final class EisCrawlingService extends AbstractCrawlingService
         $perPageValue = $this->crawler?->filter[$recordsKey] ?? '50';
         $perPage = (int) str_replace('_', '', (string) $perPageValue);
 
-        return new PageMetaDto(current_page: 1, has_next_page: $hasNextPage, total_items: 0, items_per_page: $perPage);
+        return new PageMetaDto(current_page: 0, has_next_page: $hasNextPage, total_items: 0, items_per_page: $perPage);
     }
 
     protected function parseAttachments(string $commonInfoUrl): array
@@ -221,10 +174,13 @@ final class EisCrawlingService extends AbstractCrawlingService
 
         $attachments = $dom->filter('.attachment a[href*="download"], a[href*="filestore"]')->each(function (DomCrawler $node) {
             $href = $node->attr('href');
-            if (!$href || str_contains($href, 'signview') || str_contains($href, 'javascript')) return null;
+            if (! $href || str_contains($href, 'signview') || str_contains($href, 'javascript')) {
+                return null;
+            }
             $fullUrl = str_starts_with($href, 'http') ? $href : 'https://zakupki.gov.ru' . $href;
             parse_str(parse_url($fullUrl, PHP_URL_QUERY) ?? '', $query);
             $externalId = $query['uid'] ?? ($query['id'] ?? md5($href));
+
             return new AttachmentDto(externalId: (string) $externalId, url: $fullUrl, name: preg_replace('/\s+/', ' ', mb_trim($node->attr('title') ?: $node->text())));
         });
 
@@ -235,7 +191,62 @@ final class EisCrawlingService extends AbstractCrawlingService
             }
             throw new RuntimeException("Документы не найдены для закупки: $docsUrl");
         }
+
         return $unique;
+    }
+
+    /**
+     * Рекурсивное дробление по ценам.
+     */
+    private function priceSplitHook(string $url): void
+    {
+        $page = $this->browser->openPage($url);
+        $html = $page->getHtml();
+
+        $maxPage = $this->extractMaxPageFromHtml($html);
+        $urlObject = Url::fromString($url);
+        $filters = $this->crawler->filter ?? [];
+
+        $recordsKey = $this->recordsPerPageKey($this->crawler);
+        $perPageValue = (int) str_replace('_', '', (string) ($filters[$recordsKey] ?? '50'));
+        $limitPage = (int) ceil(self::MAX_RESULTS / $perPageValue);
+
+        if ($maxPage >= $limitPage) {
+            $priceFrom = (float) ($urlObject->getQueryParameter('priceFromGeneral') ?? 0);
+            $priceTo = (float) ($urlObject->getQueryParameter('priceToGeneral') ?? 1000000000);
+
+            if (($priceTo - $priceFrom) > 0.01) {
+                $middle = round(($priceFrom + $priceTo) / 2, 2);
+                $this->logger->warning("ЕИС: лимит достигнут. Дробление цен: $priceFrom - $priceTo");
+
+                $this->priceSplitHook((string) $urlObject->withQueryParameter('priceToGeneral', (string) $middle));
+                $this->priceSplitHook((string) $urlObject->withQueryParameter('priceFromGeneral', (string) ($middle + 0.01)));
+
+                return;
+            }
+        }
+
+        $this->processAllIntervalPages($url);
+    }
+
+    private function processAllIntervalPages(string $url): void
+    {
+        $urlObject = Url::fromString($url);
+        parse_str($urlObject->getQuery() ?? '', $queryFilters);
+
+        $originalFilters = $this->crawler->filter;
+        $this->crawler->filter = array_merge($originalFilters, $queryFilters);
+
+        // Включаем блокировку рекурсии
+        $this->isSplitProcess = true;
+
+        try {
+            $this->crawlingPage($this->getCrawlerUrl($this->crawler));
+        } finally {
+            // Выключаем блокировку и возвращаем фильтры
+            $this->isSplitProcess = false;
+            $this->crawler->filter = $originalFilters;
+        }
     }
 
     private function extractMaxPageFromHtml(string $html): int
@@ -252,6 +263,7 @@ final class EisCrawlingService extends AbstractCrawlingService
     private function parseDate(DomCrawler $node, string $label): ?Carbon
     {
         $dateNode = $node->filter(".data-block__title:contains('$label') + .data-block__value");
+
         return $dateNode->count() ? Carbon::parse(mb_trim($dateNode->text())) : null;
     }
 }

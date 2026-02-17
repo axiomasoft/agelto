@@ -45,13 +45,6 @@ abstract class AbstractCrawlingService implements PlatformCrawling
 
     abstract protected function parseAttachments(string $commonInfoUrl): array;
 
-    protected function keepStateOnCrash(string|null $storeKey = null): bool
-    {
-        $options = $this->crawler->options ?? [];
-
-        return ! empty($this->crawler->options['keep_state_on_crash']) && (! empty($storeKey) || ! empty($options[$storeKey]));
-    }
-
     final public function start(CrawlerModel $crawler): void
     {
         try {
@@ -96,7 +89,7 @@ abstract class AbstractCrawlingService implements PlatformCrawling
             $currentPage = (int) $urlObject->getQueryParameter($pageKey, 1);
             $requestUrl = (string) $urlObject;
 
-            $response = $this->fetchPageResponse($requestUrl);
+            $response = $this->fetchPage($requestUrl);
 
             $pageResult = $this->pageProcessing($response->body());
 
@@ -105,9 +98,10 @@ abstract class AbstractCrawlingService implements PlatformCrawling
                 break;
             }
 
-            $urlObject = $urlObject->withQueryParameter($pageKey, (string) ($currentPage + 1));
+            $nextPage = (string) ($currentPage + 1);
+            $urlObject = $urlObject->withQueryParameter($pageKey, $nextPage);
 
-            $this->logger->info("Готовим переход на страницу {$currentPage}", LogOutput::Console);
+            $this->logger->info("Готовим переход на страницу {$nextPage}", LogOutput::Console);
             usleep(mt_rand(3_000_000, 5_000_000));
         } while (true);
     }
@@ -115,6 +109,23 @@ abstract class AbstractCrawlingService implements PlatformCrawling
     final public function getPlatform(): Platform
     {
         return $this->getCrawler()->platform;
+    }
+
+    protected function keepStateOnCrash(?string $storeKey = null): bool
+    {
+        $options = $this->crawler->options ?? [];
+
+        // 1. Проверяем, включена ли сама фича
+        $isEnabled = ! empty($options['keep_state_on_crash']);
+
+        // 2. Если фича включена и storeKey не передан — значит проверяем просто общую готовность
+        if ($storeKey === null) {
+            return $isEnabled;
+        }
+
+        // 3. Если ключ передан, проверяем, есть ли в опциях или в самой модели данные по этому ключу
+        // (Например, проверяем, заполнено ли поле last_url в модели или в options)
+        return $isEnabled && ! empty($options[$storeKey]);
     }
 
     protected function checkVpnConstraint(): void
@@ -140,7 +151,7 @@ abstract class AbstractCrawlingService implements PlatformCrawling
         } */
     }
 
-    protected function fetchPageResponse(string $requestUrl): \Illuminate\Http\Client\Response
+    protected function fetchPage(string $requestUrl): \Illuminate\Http\Client\Response
     {
         $this->logger->info('Загрузка страницы: ' . $requestUrl, LogOutput::Console);
         $page = $this->browser->openPage($requestUrl);
@@ -161,6 +172,7 @@ abstract class AbstractCrawlingService implements PlatformCrawling
         $items = [];
 
         foreach ($nodes as $node) {
+
             $item = $this->crawlingItem($node);
 
             $link = $this->crawlingRepository()->findLinkByPlatformAndRegNumber(
@@ -177,6 +189,8 @@ abstract class AbstractCrawlingService implements PlatformCrawling
                 $this->logger->info("Парсинг вложений для {$item->externalId}", LogOutput::Console);
                 $attachmentsData = $this->parseAttachments($item->url);
                 $item->attachments = AttachmentDto::collect($attachmentsData, DataCollection::class);
+            } else {
+                $this->logger->warning("пропускаем Парсинг вложений для {$item->externalId}", LogOutput::Console);
             }
 
             /* $link->load('attachments');

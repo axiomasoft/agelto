@@ -6,6 +6,8 @@ use HeadlessChromium\BrowserFactory;
 use HeadlessChromium\Browser;
 use HeadlessChromium\Page;
 use HeadlessChromium\Communication\Message;
+use HeadlessChromium\Exception\NavigationExpired;
+use HeadlessChromium\Exception\OperationTimedOut;
 use Symfony\Component\Process\Process;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Log;
@@ -114,63 +116,93 @@ class BrowserService
         $options = array_merge([
             'timeout' => 90000,
             'debug' => false,
+            'retries' => 1,
+            'retry_timeout' => 3,
+            'rotate_proxy_on_fail' => false,
         ], $options);
 
-        if (!$this->browser) $this->setup();
+        $attempt = 0;
 
-        if (!$this->page) {
-            $this->page = $this->browser->createPage();
+        while ($attempt < $options['retries']) {
+            $attempt++;
 
-            // --- БЛОКИРОВКА РЕСУРСОВ ЧЕРЕЗ CDP (ДЛЯ СКОРОСТИ) ---
-            $session = $this->page->getSession();
-            $session->sendMessageSync(new Message('Network.enable'));
-            $session->sendMessageSync(new Message('Network.setBlockedURLs', [
-                'urls' => [
-                    '*.png',
-                    '*.jpg',
-                    '*.jpeg',
-                    '*.gif',
-                    '*.svg',
-                    '*.webp',
-                    '*.woff',
-                    '*.woff2',
-                    '*.ttf',
-                    '*.otf',
-                    '*mc.yandex.ru*',
-                    '*google-analytics.com*',
-                    '*doubleclick.net*',
-                    '*stat.gov.ru*',
-                    '*googletagmanager.com*'
-                ]
-            ]));
+            try {
+                if (!$this->browser) $this->setup();
 
-            if ($this->currentProxyModel) {
-                $this->page->authenticate(
-                    $this->currentProxyModel->username,
-                    $this->currentProxyModel->password
-                );
+                if (!$this->page) {
+                    $this->page = $this->browser->createPage();
+
+                    // --- БЛОКИРОВКА РЕСУРСОВ ЧЕРЕЗ CDP (ДЛЯ СКОРОСТИ) ---
+                    $session = $this->page->getSession();
+                    $session->sendMessageSync(new Message('Network.enable'));
+                    $session->sendMessageSync(new Message('Network.setBlockedURLs', [
+                        'urls' => [
+                            '*.png',
+                            '*.jpg',
+                            '*.jpeg',
+                            '*.gif',
+                            '*.svg',
+                            '*.webp',
+                            '*.woff',
+                            '*.woff2',
+                            '*.ttf',
+                            '*.otf',
+                            '*mc.yandex.ru*',
+                            '*google-analytics.com*',
+                            '*doubleclick.net*',
+                            '*stat.gov.ru*',
+                            '*googletagmanager.com*'
+                        ]
+                    ]));
+
+                    if (
+                        $this->currentProxyModel &&
+                        !empty($this->currentProxyModel->username) &&
+                        !empty($this->currentProxyModel->password)
+                    ) {
+                        /** @disregard P1013 */
+                        $this->page->authenticate(
+                            $this->currentProxyModel->username,
+                            $this->currentProxyModel->password
+                        );
+                    }
+
+                    $this->page->setUserAgent($this->getRealUserAgent());
+
+                    $this->page->addScriptTag(['content' => "
+                        Object.defineProperty(navigator, 'webdriver', {get: () => undefined});
+                        window.chrome = { runtime: {} };
+                        Object.defineProperty(navigator, 'languages', {get: () => ['ru-RU', 'ru']});
+                        Object.defineProperty(navigator, 'platform', {get: () => 'Win32'});
+                    "]);
+                }
+
+                // Используем DOM_CONTENT_LOADED для ускорения парсинга
+                $this->page->navigate($url)->waitForNavigation(Page::DOM_CONTENT_LOADED, $options['timeout']);
+
+                $this->saveDebugArtifacts($options, 'success');
+
+                return $this->page;
+            } catch (Throwable $e) {
+                $isTimeout = $e instanceof OperationTimedOut || $e instanceof NavigationExpired;
+
+                // Если попытки исчерпаны или это не таймаут (при условии что мы ретраим только таймауты)
+                if ($attempt >= $options['retries']) {
+                    $this->handleFailure($e, $options);
+                    throw $e;
+                }
+
+                $this->logger()->warning("BrowserService: Attempt {$attempt} failed. Reason: {$e->getMessage()}. Retry in {$options['retry_timeout']}s...");
+
+                if ($options['rotate_proxy_on_fail']) {
+                    $this->rotateProxy();
+                }
+
+                sleep($options['retry_timeout']);
             }
-
-            $this->page->setUserAgent($this->getRealUserAgent());
-
-            $this->page->addScriptTag(['content' => "
-                Object.defineProperty(navigator, 'webdriver', {get: () => undefined});
-                window.chrome = { runtime: {} };
-                Object.defineProperty(navigator, 'languages', {get: () => ['ru-RU', 'ru']});
-                Object.defineProperty(navigator, 'platform', {get: () => 'Win32'});
-            "]);
         }
 
-        try {
-            // Используем DOM_CONTENT_LOADED для ускорения парсинга
-            $this->page->navigate($url)->waitForNavigation(Page::DOM_CONTENT_LOADED, $options['timeout']);
-            $this->saveDebugArtifacts($options, 'success');
-        } catch (Throwable $e) {
-            $this->handleFailure($e, $options);
-            throw $e;
-        }
-
-        return $this->page;
+        throw new \RuntimeException("BrowserService: Unexpected end of openPage loop.");
     }
 
     protected function handleFailure(Throwable $e, array $options): void
@@ -251,6 +283,11 @@ class BrowserService
 
         // Вызываем уже существующий метод, который выберет новый IP из БД и сделает setup()
         return $this->withRandomProxy();
+    }
+
+    protected function logger()
+    {
+        return Log::channel('stack');
     }
 
     public function __destruct()

@@ -38,6 +38,18 @@ final class Crawler extends Model
         return $this->hasMany(Analytics::class);
     }
 
+    /**
+     * Merge options with existing and persist.
+     *
+     * @param  array<string, mixed>  $options
+     */
+    public function updateOptions(array $options): bool
+    {
+        return $this->update([
+            'options' => array_merge($this->options ?? [], $options),
+        ]);
+    }
+
     protected function casts(): array
     {
         return [
