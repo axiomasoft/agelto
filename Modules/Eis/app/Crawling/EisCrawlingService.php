@@ -30,7 +30,7 @@ final class EisCrawlingService extends AbstractCrawlingService
     /**
      * Точка входа.
      */
-    protected function startHook(string $url): void
+    public function startHook(string $url): void
     {
         // Если мы уже внутри процесса дробления (вызваны из run), выходим
         if ($this->isSplitProcess) {
@@ -205,7 +205,7 @@ final class EisCrawlingService extends AbstractCrawlingService
     private function priceSplitHook(string $url): void
     {
         // Выводим ссылку в консоль для ручной проверки
-        $this->logger->info('ЕИС Ссылка для проверки: ' . $url);
+        $this->logger->info("ЕИС Ссылка для проверки: " . $url);
 
         $page = $this->browser->openPage($url, new BrowserOptions(
             retries: 3,
@@ -213,33 +213,33 @@ final class EisCrawlingService extends AbstractCrawlingService
         ));
 
         $html = $page->getHtml();
-        $maxPage = $this->extractMaxPageFromHtml($html);
+        $totalRecords = $this->extractTotalRecords($html);
+
+        // Если записей 0, сразу выходим
+        if ($totalRecords === 0) {
+            $this->logger->info("ЕИС: Результатов не найдено (0 записей).");
+            return;
+        }
 
         $urlObject = Url::fromString($url);
-        $filters = $this->crawler->filter ?? [];
 
-        $recordsKey = $this->recordsPerPageKey($this->crawler);
-        $perPageValue = (int) str_replace('_', '', (string) ($filters[$recordsKey] ?? '50'));
-        $limitPage = (int) ceil(self::MAX_RESULTS / $perPageValue);
-
-        if ($maxPage >= $limitPage) {
+        // Если записей больше лимита (1000), нужно дробить
+        if ($totalRecords > self::MAX_RESULTS) {
             $priceFrom = (float) ($urlObject->getQueryParameter('priceFromGeneral') ?? 0);
             $priceTo = (float) ($urlObject->getQueryParameter('priceToGeneral') ?? 1000000000);
             $diff = $priceTo - $priceFrom;
 
             if ($diff < 10000) {
                 $this->logger->error("!!! СТОП РЕКУРСИЯ: Дистанция цены слишком мала ($diff руб) !!!");
-                $this->logger->info("ЕИС: Парсим доступные {$maxPage} страниц для диапазона {$priceFrom} - {$priceTo}");
+                $this->logger->info("ЕИС: Забираем доступные 1000 записей из $totalRecords найденных.");
 
-                // Включаем режим принудительного парсинга
                 $this->processAllIntervalPages($url);
-
                 return;
             }
 
             // Логика дробления...
             $middle = round($priceFrom + ($diff / 2), 2);
-            $this->logger->warning("ЕИС: лимит достигнут ({$maxPage} стр). Дробление цен: $priceFrom - $priceTo");
+            $this->logger->warning("ЕИС: лимит превышен ($totalRecords зап.). Дробление цен: $priceFrom - $priceTo");
 
             $this->priceSplitHook((string) $urlObject->withQueryParameter('priceToGeneral', (string) $middle));
             $this->priceSplitHook((string) $urlObject->withQueryParameter('priceFromGeneral', (string) ($middle + 0.01)));
@@ -270,15 +270,24 @@ final class EisCrawlingService extends AbstractCrawlingService
         }
     }
 
-    private function extractMaxPageFromHtml(string $html): int
+    private function extractTotalRecords(string $html): int
     {
         $dom = new DomCrawler($html);
-        $paginator = $dom->filter('.paginator .page');
-        if ($paginator->count() > 0) {
-            return (int) preg_replace('/\D/', '', $paginator->last()->text());
+        $totalNode = $dom->filter('.search-results__total');
+
+        if ($totalNode->count() > 0) {
+            $text = $totalNode->text();
+            // Убираем неразрывные пробелы и лишние символы
+            $cleanText = str_replace('&nbsp;', '', $text);
+            $cleanText = preg_replace('/\s+/', '', $cleanText);
+
+            // Извлекаем все цифры из строки (например, из "более7800записей" получим 7800)
+            if (preg_match_all('/\d+/', $cleanText, $matches)) {
+                return (int) implode('', $matches[0]);
+            }
         }
 
-        return 1;
+        return 0;
     }
 
     private function parseDate(DomCrawler $node, string $label): ?Carbon

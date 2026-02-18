@@ -12,6 +12,7 @@ final readonly class BrowserOptions
         public int $timeout = 90000,
         public bool $debug = false,
         public int $retries = 1,
+        // Время ожидания между попытками в секундах
         public int $retry_timeout = 3,
         public bool $rotate_proxy_on_fail = false,
         /** @var array{key?: string}|null */
