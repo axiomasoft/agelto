@@ -115,6 +115,7 @@ abstract class AbstractCrawlingService implements PlatformCrawling
     protected function keepStateOnCrash(?string $storeKey = null): bool
     {
         $options = $this->crawler->options ?? [];
+        $state = $this->crawler->state ?? [];
 
         // 1. Проверяем, включена ли сама фича
         $isEnabled = ! empty($options['keep_state_on_crash']);
@@ -126,7 +127,7 @@ abstract class AbstractCrawlingService implements PlatformCrawling
 
         // 3. Если ключ передан, проверяем, есть ли в опциях или в самой модели данные по этому ключу
         // (Например, проверяем, заполнено ли поле last_url в модели или в options)
-        return $isEnabled && ! empty($options[$storeKey]);
+        return $isEnabled && ! empty($state[$storeKey]);
     }
 
     protected function checkVpnConstraint(): void

@@ -44,7 +44,7 @@ final class EisCrawlingService extends AbstractCrawlingService
             $dateTo = Carbon::parse($filters['publishDateTo']);
 
             if ($this->keepStateOnCrash('current_day')) {
-                $dateFrom = Carbon::parse($this->crawler->options['current_day']);
+                $dateFrom = Carbon::parse($this->crawler->state['current_day']);
             }
 
             // Если даты одинаковые, значит мы уже "внизу" цикла по дням
@@ -63,7 +63,7 @@ final class EisCrawlingService extends AbstractCrawlingService
 
                 // Сохраняем состояние парсера, если включена фича keep_state_on_crash
                 if ($this->keepStateOnCrash()) {
-                    $this->crawler->updateOptions([
+                    $this->crawler->updateState([
                         'current_day' => $date->format('Y-m-d'),
                     ]);
                     $this->logger->info("Сохраняем состояние парсера {$currentDay}", LogOutput::Console);

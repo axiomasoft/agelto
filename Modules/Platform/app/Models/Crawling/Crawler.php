@@ -42,12 +42,12 @@ final class Crawler extends Model
     /**
      * Merge options with existing and persist.
      *
-     * @param  array<string, mixed>  $options
+     * @param  array<string, mixed>  $state
      */
-    public function updateOptions(array $options): bool
+    public function updateState(array $state): bool
     {
         return $this->update([
-            'options' => array_merge($this->options ?? [], $options),
+            'state' => array_merge($this->state ?? [], $state),
         ]);
     }
 

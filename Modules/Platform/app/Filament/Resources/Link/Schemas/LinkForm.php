@@ -24,7 +24,7 @@ final class LinkForm
                             ->label('Платформа')
                             ->relationship(name: 'platform', titleAttribute: 'name')
                             ->required()
-                            ->searchable(),
+                            ->native(false),
                         TextInput::make('reg_number')
                             ->label('Рег. номер')
                             ->maxLength(255),
