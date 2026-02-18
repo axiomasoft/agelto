@@ -67,9 +67,10 @@ RUN mkdir -p storage/framework/{sessions,views,cache} \
 # 2. Переходим на пользователя (чтобы composer и файлы были от него)
 USER www-data
 
-# 3. Копируем файлы зависимостей (включая Modules для локальных путей)
+# 3. Копируем файлы зависимостей (включая path-репозитории: Modules и packages)
 COPY --chown=www-data:www-data composer.json composer.lock ./
 COPY --chown=www-data:www-data Modules ./Modules
+COPY --chown=www-data:www-data packages ./packages
 
 # 4. Установка зависимостей (без автозагрузки для скорости)
 RUN composer install --no-dev --no-interaction --no-autoloader --no-scripts

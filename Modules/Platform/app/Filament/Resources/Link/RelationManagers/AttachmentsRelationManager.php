@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Platform\Filament\Resources\Link\RelationManagers;
 
+use App\Filament\Components\MediaDownloadLink;
 use Filament\Actions\CreateAction;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\EditAction;
@@ -15,6 +16,7 @@ use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
+use Illuminate\Support\Facades\Storage;
 use Platform\Enums\Crawling\CrawlingStatus;
 use Platform\Enums\Platform as PlatformEnum;
 use Platform\Models\Crawling\LinkAttachment;
@@ -22,6 +24,8 @@ use Platform\Models\Crawling\LinkAttachment;
 final class AttachmentsRelationManager extends RelationManager
 {
     protected static string $relationship = 'attachments';
+
+    protected ?string $pendingDocumentPath = null;
 
     protected static ?string $title = 'Документы';
 
@@ -42,17 +46,17 @@ final class AttachmentsRelationManager extends RelationManager
                         TextInput::make('extension')
                             ->label('Расширение')
                             ->maxLength(32)
-                            ->visible(fn (): bool => ! $this->isPlatformLocal())
-                            ->default(fn (): ?string => $this->isPlatformLocal() ? '-' : null)
-                            ->dehydrateStateUsing(fn (?string $state): string => $this->isPlatformLocal() ? '-' : ($state ?? '')),
+                            ->visible(fn(): bool => ! $this->isPlatformLocal())
+                            ->default(fn(): ?string => $this->isPlatformLocal() ? '-' : null)
+                            ->dehydrateStateUsing(fn(?string $state): string => $this->isPlatformLocal() ? '-' : ($state ?? '')),
                         TextInput::make('url')
                             ->label('URL')
-                            ->url(fn (): bool => ! $this->isPlatformLocal())
+                            ->url(fn(): bool => ! $this->isPlatformLocal())
                             ->maxLength(2048)
                             ->columnSpanFull()
-                            ->visible(fn (): bool => ! $this->isPlatformLocal())
-                            ->default(fn (): ?string => $this->isPlatformLocal() ? '-' : null)
-                            ->dehydrateStateUsing(fn (?string $state): string => $this->isPlatformLocal() ? '-' : ($state ?? '')),
+                            ->visible(fn(): bool => ! $this->isPlatformLocal())
+                            ->default(fn(): ?string => $this->isPlatformLocal() ? '-' : null)
+                            ->dehydrateStateUsing(fn(?string $state): string => $this->isPlatformLocal() ? '-' : ($state ?? '')),
                         TextInput::make('external_id')
                             ->label('Внешний ID')
                             ->maxLength(255),
@@ -70,19 +74,19 @@ final class AttachmentsRelationManager extends RelationManager
                             ->label('Документ')
                             ->maxFiles(1)
                             ->maxSize(204800)
-                            ->directory('link-attachments')
+                            ->disk(config('app.filesystems.private_disk_name'))
                             ->dehydrated(true)
                             ->default(null),
                     ])
                     ->columns(1)
-                    ->visible(fn (): bool => $this->isPlatformLocal()),
+                    ->visible(fn(): bool => $this->isPlatformLocal()),
             ]);
     }
 
     public function table(Table $table): Table
     {
         return $table
-            ->recordTitle(fn (LinkAttachment $record): string => $record->name ?: "Вложение #{$record->id}")
+            ->recordTitle(fn(LinkAttachment $record): string => $record->name ?: "Вложение #{$record->id}")
             ->columns([
                 TextColumn::make('name')
                     ->label('Название')
@@ -90,10 +94,23 @@ final class AttachmentsRelationManager extends RelationManager
                     ->limit(40),
                 TextColumn::make('extension')
                     ->label('Расширение'),
+                TextColumn::make('id')
+                    ->label('Скачать')
+                    ->placeholder('—')
+                    ->formatStateUsing(function (mixed $state, LinkAttachment $record): string {
+                        $file = $record->getFirstMedia('document');
+                        if ($file === null) {
+                            return '';
+                        }
+                        $component = new MediaDownloadLink(file: $file);
+
+                        return $component->resolveView()->with($component->data())->render();
+                    })
+                    ->html(),
                 TextColumn::make('url')
                     ->label('URL')
                     ->limit(50)
-                    ->url(fn ($state) => $state, shouldOpenInNewTab: true)
+                    ->url(fn($state) => $state, shouldOpenInNewTab: true)
                     ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('status')
                     ->label('Статус'),
@@ -113,25 +130,38 @@ final class AttachmentsRelationManager extends RelationManager
                             $data['url'] = '-';
                             $data['extension'] = '-';
                         }
+                        $this->pendingDocumentPath = $this->extractDocumentPath($data['document'] ?? null);
                         unset($data['document']);
 
                         return $data;
+                    })
+                    ->after(function (LinkAttachment $record): void {
+                        $this->attachPendingDocumentToRecord($record);
                     }),
             ])
             ->recordActions([
                 EditAction::make()
-                    ->fillForm(fn (LinkAttachment $record): array => array_merge(
-                        $record->attributesToArray(),
-                        ['document' => null]
-                    ))
+                    ->fillForm(function (LinkAttachment $record): array {
+                        $media = $record->getFirstMedia('document');
+                        $documentPath = $media?->getPathRelativeToRoot();
+
+                        return array_merge(
+                            $record->attributesToArray(),
+                            ['document' => $documentPath]
+                        );
+                    })
                     ->mutateDataUsing(function (array $data): array {
                         if ($this->isPlatformLocal()) {
                             $data['url'] = '-';
                             $data['extension'] = '-';
                         }
+                        $this->pendingDocumentPath = $this->extractDocumentPath($data['document'] ?? null);
                         unset($data['document']);
 
                         return $data;
+                    })
+                    ->after(function (LinkAttachment $record): void {
+                        $this->attachPendingDocumentToRecord($record);
                     }),
                 DeleteAction::make(),
             ]);
@@ -142,5 +172,35 @@ final class AttachmentsRelationManager extends RelationManager
         $code = $this->getOwnerRecord()->platform?->code ?? null;
 
         return $code === PlatformEnum::Local->value;
+    }
+
+    private function extractDocumentPath(mixed $document): ?string
+    {
+        if (empty($document)) {
+            return null;
+        }
+        if (is_array($document)) {
+            $document = $document[0] ?? null;
+        }
+        $path = (string) $document;
+        if ($path === '' || str_starts_with($path, 'http')) {
+            return null;
+        }
+
+        return $path;
+    }
+
+    private function attachPendingDocumentToRecord(LinkAttachment $record): void
+    {
+        if ($this->pendingDocumentPath === null) {
+            return;
+        }
+        $record->clearMediaCollection('document');
+        $disk = config('media-library.disk_name', 'public');
+        $fullPath = Storage::disk($disk)->path($this->pendingDocumentPath);
+        if (is_file($fullPath)) {
+            $record->addMedia($fullPath)->toMediaCollection('document');
+        }
+        $this->pendingDocumentPath = null;
     }
 }

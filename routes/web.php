@@ -21,3 +21,8 @@ Route::get('/', fn () => Inertia::render('Welcome', [
 Route::get('dashboard', fn () => Inertia::render('Dashboard'))->middleware(['auth', 'verified'])->name('dashboard');
 
 require __DIR__.'/settings.php';
+
+// Маршрут для скачивания файлов из MediaLibrary
+Route::get('media-private/{uuid}/{collection_name}', [App\Http\Controllers\MediaLibraryController::class, 'download'])
+    ->middleware('auth')
+    ->name('media.download');

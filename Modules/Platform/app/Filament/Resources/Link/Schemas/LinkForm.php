@@ -36,7 +36,9 @@ final class LinkForm
                         Select::make('status')
                             ->label('Статус')
                             ->options(CrawlingStatus::class)
-                            ->required(),
+                            ->default(CrawlingStatus::PENDING)
+                            ->required()
+                            ->visibleOn('edit'),
                     ])
                     ->columns(2),
                 Section::make('Даты')
@@ -63,7 +65,8 @@ final class LinkForm
                             ->readOnly(),
                     ])
                     ->columns(2)
-                    ->collapsible(),
+                    ->collapsible()
+                    ->visibleOn('edit'),
             ]);
     }
 }
