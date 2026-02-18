@@ -22,19 +22,8 @@ return new class extends Migration
             $table->string('name', 500);
             $table->string('extension', 12)->nullable();
             $table->string('url', 1000);
-
             $table->string('status', 20)->default('pending');
-            $table->integer('attempts')->default(0);
-            $table->text('last_error')->nullable();
-
-            $table->string('process_status', 20)->default('pending');
-            $table->text('process_error')->nullable();
-            $table->json('process_analysis_report')->nullable();
-
-            $table->timestamp('parse_started_at')->nullable();
             $table->timestamps();
-
-            $table->index('process_status');
         });
     }
 

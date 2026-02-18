@@ -46,17 +46,17 @@ final class AttachmentsRelationManager extends RelationManager
                         TextInput::make('extension')
                             ->label('Расширение')
                             ->maxLength(32)
-                            ->visible(fn(): bool => ! $this->isPlatformLocal())
-                            ->default(fn(): ?string => $this->isPlatformLocal() ? '-' : null)
-                            ->dehydrateStateUsing(fn(?string $state): string => $this->isPlatformLocal() ? '-' : ($state ?? '')),
+                            ->visible(fn (): bool => ! $this->isPlatformLocal())
+                            ->default(fn (): ?string => $this->isPlatformLocal() ? '-' : null)
+                            ->dehydrateStateUsing(fn (?string $state): string => $this->isPlatformLocal() ? '-' : ($state ?? '')),
                         TextInput::make('url')
                             ->label('URL')
-                            ->url(fn(): bool => ! $this->isPlatformLocal())
+                            ->url(fn (): bool => ! $this->isPlatformLocal())
                             ->maxLength(2048)
                             ->columnSpanFull()
-                            ->visible(fn(): bool => ! $this->isPlatformLocal())
-                            ->default(fn(): ?string => $this->isPlatformLocal() ? '-' : null)
-                            ->dehydrateStateUsing(fn(?string $state): string => $this->isPlatformLocal() ? '-' : ($state ?? '')),
+                            ->visible(fn (): bool => ! $this->isPlatformLocal())
+                            ->default(fn (): ?string => $this->isPlatformLocal() ? '-' : null)
+                            ->dehydrateStateUsing(fn (?string $state): string => $this->isPlatformLocal() ? '-' : ($state ?? '')),
                         TextInput::make('external_id')
                             ->label('Внешний ID')
                             ->maxLength(255),
@@ -79,14 +79,14 @@ final class AttachmentsRelationManager extends RelationManager
                             ->default(null),
                     ])
                     ->columns(1)
-                    ->visible(fn(): bool => $this->isPlatformLocal()),
+                    ->visible(fn (): bool => $this->isPlatformLocal()),
             ]);
     }
 
     public function table(Table $table): Table
     {
         return $table
-            ->recordTitle(fn(LinkAttachment $record): string => $record->name ?: "Вложение #{$record->id}")
+            ->recordTitle(fn (LinkAttachment $record): string => $record->name ?: "Вложение #{$record->id}")
             ->columns([
                 TextColumn::make('name')
                     ->label('Название')
@@ -97,7 +97,7 @@ final class AttachmentsRelationManager extends RelationManager
                 TextColumn::make('id')
                     ->label('Скачать')
                     ->placeholder('—')
-                    ->url(fn(LinkAttachment $record): ?string => DownloadHelper::url($record->getFirstMedia('document')))
+                    ->url(fn (LinkAttachment $record): ?string => DownloadHelper::url($record->getFirstMedia('document')))
                     ->openUrlInNewTab(true)
                     ->formatStateUsing(function (mixed $state, LinkAttachment $record): string {
                         return $record->getFirstMedia('document') !== null ? 'Скачать' : '';
@@ -105,18 +105,10 @@ final class AttachmentsRelationManager extends RelationManager
                 TextColumn::make('url')
                     ->label('URL')
                     ->limit(50)
-                    ->url(fn($state) => $state, shouldOpenInNewTab: true)
+                    ->url(fn ($state) => $state, shouldOpenInNewTab: true)
                     ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('status')
                     ->label('Статус'),
-                TextColumn::make('attempts')
-                    ->label('Попытки')
-                    ->toggleable(isToggledHiddenByDefault: true),
-                TextColumn::make('parse_started_at')
-                    ->label('Парсинг начат')
-                    ->dateTime()
-                    ->sortable()
-                    ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->headerActions([
                 CreateAction::make()

@@ -23,6 +23,7 @@ use Illuminate\Routing\Middleware\SubstituteBindings;
 use Illuminate\Session\Middleware\StartSession;
 use Illuminate\View\Middleware\ShareErrorsFromSession;
 use Platform\Filament\Resources\Crawler\CrawlerResource;
+use Platform\Filament\Resources\DocumentAnalysis\DocumentAnalysisResource;
 use Platform\Filament\Resources\Link\LinkResource;
 use Platform\Filament\Resources\Platform\PlatformResource;
 use Sys\Filament\Resources\Proxy\ProxyResource;
@@ -74,6 +75,7 @@ final class AdminPanelProvider extends PanelProvider
                             ...PlatformResource::getNavigationItems(),
                             ...CrawlerResource::getNavigationItems(),
                             ...LinkResource::getNavigationItems(),
+                            ...DocumentAnalysisResource::getNavigationItems(),
                         ]),
                     NavigationGroup::make(label: 'Система')
                         ->icon(icon: 'heroicon-s-cog-6-tooth')
