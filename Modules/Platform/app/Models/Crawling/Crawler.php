@@ -21,6 +21,7 @@ final class Crawler extends Model
         'url',
         'options',
         'filter',
+        'state',
     ];
 
     public function platform(): BelongsTo
@@ -55,6 +56,7 @@ final class Crawler extends Model
         return [
             'filter' => 'array',
             'options' => 'array',
+            'state' => 'array',
         ];
     }
 }

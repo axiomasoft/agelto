@@ -18,7 +18,7 @@ final class CrawlerResource extends Resource
 
     protected static string|BackedEnum|null $navigationIcon = null;
 
-    protected static ?string $navigationLabel = 'Сбор ссылок';
+    protected static ?string $navigationLabel = 'Профили сборщиков данных';
 
     protected static ?string $breadcrumb = 'Элементы';
 

@@ -7,6 +7,7 @@ namespace Platform\Models\Crawling;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Platform\Enums\Crawling\CrawlingStatus;
 use Platform\Models\Platform;
 
 final class Link extends Model
@@ -29,9 +30,11 @@ final class Link extends Model
     ];
 
     protected $casts = [
+        'status' => CrawlingStatus::class,
         'published_at' => 'datetime',
         'platform_updated_at' => 'datetime',
         'submission_end_at' => 'datetime',
+        'completed_at' => 'datetime',
         'next_retry_at' => 'datetime',
     ];
 

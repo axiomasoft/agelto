@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Eis\Crawling;
 
+use App\Dto\Browser\BrowserOptions;
 use App\Enums\LogOutput;
 use Carbon\Carbon;
 use Carbon\CarbonPeriod;
@@ -29,7 +30,7 @@ final class EisCrawlingService extends AbstractCrawlingService
     /**
      * Точка входа.
      */
-    public function startHook(string $url): void
+    protected function startHook(string $url): void
     {
         // Если мы уже внутри процесса дробления (вызваны из run), выходим
         if ($this->isSplitProcess) {
@@ -63,7 +64,7 @@ final class EisCrawlingService extends AbstractCrawlingService
                 // Сохраняем состояние парсера, если включена фича keep_state_on_crash
                 if ($this->keepStateOnCrash()) {
                     $this->crawler->updateOptions([
-                        'current_day' => $date->format('Y-m-d')
+                        'current_day' => $date->format('Y-m-d'),
                     ]);
                     $this->logger->info("Сохраняем состояние парсера {$currentDay}", LogOutput::Console);
                 }
@@ -164,7 +165,10 @@ final class EisCrawlingService extends AbstractCrawlingService
     protected function parseAttachments(string $commonInfoUrl): array
     {
         $docsUrl = str_replace('common-info.html', 'documents.html', $commonInfoUrl);
-        $page = $this->browser->openPage($docsUrl);
+        $page = $this->browser->openPage($docsUrl, new BrowserOptions(
+            retries: 3,
+            rotate_proxy_on_fail: true,
+        ));
 
         // Ожидание для предотвращения блокировки (3 секунды)
         usleep(3_000_000);
@@ -200,10 +204,17 @@ final class EisCrawlingService extends AbstractCrawlingService
      */
     private function priceSplitHook(string $url): void
     {
-        $page = $this->browser->openPage($url);
-        $html = $page->getHtml();
+        // Выводим ссылку в консоль для ручной проверки
+        $this->logger->info('ЕИС Ссылка для проверки: ' . $url);
 
+        $page = $this->browser->openPage($url, new BrowserOptions(
+            retries: 3,
+            rotate_proxy_on_fail: true,
+        ));
+
+        $html = $page->getHtml();
         $maxPage = $this->extractMaxPageFromHtml($html);
+
         $urlObject = Url::fromString($url);
         $filters = $this->crawler->filter ?? [];
 
@@ -214,16 +225,26 @@ final class EisCrawlingService extends AbstractCrawlingService
         if ($maxPage >= $limitPage) {
             $priceFrom = (float) ($urlObject->getQueryParameter('priceFromGeneral') ?? 0);
             $priceTo = (float) ($urlObject->getQueryParameter('priceToGeneral') ?? 1000000000);
+            $diff = $priceTo - $priceFrom;
 
-            if (($priceTo - $priceFrom) > 0.01) {
-                $middle = round(($priceFrom + $priceTo) / 2, 2);
-                $this->logger->warning("ЕИС: лимит достигнут. Дробление цен: $priceFrom - $priceTo");
+            if ($diff < 10000) {
+                $this->logger->error("!!! СТОП РЕКУРСИЯ: Дистанция цены слишком мала ($diff руб) !!!");
+                $this->logger->info("ЕИС: Парсим доступные {$maxPage} страниц для диапазона {$priceFrom} - {$priceTo}");
 
-                $this->priceSplitHook((string) $urlObject->withQueryParameter('priceToGeneral', (string) $middle));
-                $this->priceSplitHook((string) $urlObject->withQueryParameter('priceFromGeneral', (string) ($middle + 0.01)));
+                // Включаем режим принудительного парсинга
+                $this->processAllIntervalPages($url);
 
                 return;
             }
+
+            // Логика дробления...
+            $middle = round($priceFrom + ($diff / 2), 2);
+            $this->logger->warning("ЕИС: лимит достигнут ({$maxPage} стр). Дробление цен: $priceFrom - $priceTo");
+
+            $this->priceSplitHook((string) $urlObject->withQueryParameter('priceToGeneral', (string) $middle));
+            $this->priceSplitHook((string) $urlObject->withQueryParameter('priceFromGeneral', (string) ($middle + 0.01)));
+
+            return;
         }
 
         $this->processAllIntervalPages($url);
@@ -237,7 +258,7 @@ final class EisCrawlingService extends AbstractCrawlingService
         $originalFilters = $this->crawler->filter;
         $this->crawler->filter = array_merge($originalFilters, $queryFilters);
 
-        // Включаем блокировку рекурсии
+        // Включаем блокировку рекурсии через startHook
         $this->isSplitProcess = true;
 
         try {

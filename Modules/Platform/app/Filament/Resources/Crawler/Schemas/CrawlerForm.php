@@ -5,9 +5,10 @@ declare(strict_types=1);
 namespace Platform\Filament\Resources\Crawler\Schemas;
 
 use Eis\Filament\Components\EisCrawlerForm;
+use Filament\Forms\Components\Checkbox;
+use Filament\Forms\Components\KeyValue;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
-use Filament\Forms\Components\Checkbox;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Schema;
@@ -41,9 +42,18 @@ final class CrawlerForm
                             ->label('Начинать с последней страницы при сбое.')
                             ->belowContent('Включать когда сортировка фиксированная. Например по дате создания по возрастанию.')
                             ->default(false),
-
-
                     ]),
+
+                Section::make('Состояние')
+                    ->description('Внутреннее состояние сборщика (ключ-значение).')
+                    ->schema([
+                        KeyValue::make('state')
+                            ->label('State')
+                            ->keyLabel('Ключ')
+                            ->valueLabel('Значение')
+                            ->default([]),
+                    ])
+                    ->collapsible(),
 
                 Section::make('Параметры фильтрации')
                     ->schema(function (Get $get): array {

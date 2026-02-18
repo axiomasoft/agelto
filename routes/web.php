@@ -6,6 +6,14 @@ use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 use Laravel\Fortify\Features;
 
+Route::middleware(['web', 'auth'])
+    ->prefix('media-library-pro')
+    ->group(function (): void {
+        Route::post('uploads', Spatie\MediaLibraryPro\Http\Controllers\MediaLibraryUploadController::class)
+            ->name('media-library-uploads')
+            ->middleware('throttle:medialibrary-pro-uploads');
+    });
+
 Route::get('/', fn () => Inertia::render('Welcome', [
     'canRegister' => Features::enabled(Features::registration()),
 ]))->name('home');

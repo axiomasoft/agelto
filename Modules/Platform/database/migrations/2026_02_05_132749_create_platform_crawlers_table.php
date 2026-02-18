@@ -20,6 +20,7 @@ return new class extends Migration
             $table->string('url', 500)->nullable();
             $table->json('options')->nullable();
             $table->json('filter')->nullable();
+            $table->json('state')->nullable();
             $table->timestamps();
         });
     }

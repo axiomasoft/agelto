@@ -1,49 +1,45 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Services;
 
-use HeadlessChromium\BrowserFactory;
+use App\Dto\Browser\BrowserOptions;
 use HeadlessChromium\Browser;
-use HeadlessChromium\Page;
+use HeadlessChromium\BrowserFactory;
 use HeadlessChromium\Communication\Message;
 use HeadlessChromium\Exception\NavigationExpired;
 use HeadlessChromium\Exception\OperationTimedOut;
-use Symfony\Component\Process\Process;
+use HeadlessChromium\Page;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Log;
-use Sys\Repositories\ProxyRepository;
+use RuntimeException;
 use Sys\Models\Proxy\Proxy;
+use Sys\Repositories\ProxyRepository;
 use Throwable;
 
-class BrowserService
+final class BrowserService
 {
-    protected string $browserPath = '/usr/bin/chromium';
-    protected ?Browser $browser = null;
-    protected ?Page $page = null;
-    protected ?string $userDataDir = null;
-    protected ?Proxy $currentProxyModel = null;
+    private string $browserPath = '/usr/bin/chromium';
 
-    protected ProxyRepository $proxyRepo;
+    private ?Browser $browser = null;
+
+    private ?Page $page = null;
+
+    private ?string $userDataDir = null;
+
+    private ?Proxy $currentProxyModel = null;
+
+    private ProxyRepository $proxyRepo;
 
     public function __construct(ProxyRepository $proxyRepo)
     {
         $this->proxyRepo = $proxyRepo;
     }
 
-    public function withRandomProxy(string $driver = 'database'): self
+    public function __destruct()
     {
-        $this->currentProxyModel = $this->proxyRepo->getRandomActiveProxy($driver);
-
-        if (!$this->currentProxyModel) {
-            return $this->setup();
-        }
-
-        return $this->setup([
-            'ip'   => $this->currentProxyModel->ip_address,
-            'port' => $this->currentProxyModel->port,
-            'user' => $this->currentProxyModel->username,
-            'pass' => $this->currentProxyModel->password,
-        ]);
+        $this->close();
     }
 
     /**
@@ -51,11 +47,13 @@ class BrowserService
      */
     public function setup(array $proxy = []): self
     {
-        if ($this->browser) return $this;
+        if ($this->browser) {
+            return $this;
+        }
 
-        $this->userDataDir = storage_path("app/browser/profile_root");
+        $this->userDataDir = storage_path('app/browser/profile_root');
 
-        if (!File::isDirectory($this->userDataDir)) {
+        if (! File::isDirectory($this->userDataDir)) {
             File::makeDirectory($this->userDataDir, 0777, true, true);
         }
 
@@ -68,7 +66,7 @@ class BrowserService
             '--disable-gpu',
             '--disable-dev-shm-usage',
             '--disable-software-rasterizer',
-            '--user-data-dir=' . $this->userDataDir,
+            '--user-data-dir='.$this->userDataDir,
             '--lang=ru-RU,ru',
 
             // Отключаем лишние фоновые процессы
@@ -96,9 +94,9 @@ class BrowserService
             '--disable-remote-fonts',
         ];
 
-        if (!empty($proxy['ip'])) {
+        if (! empty($proxy['ip'])) {
             $flags[] = "--proxy-server=http://{$proxy['ip']}:{$proxy['port']}";
-            $flags[] = '--host-resolver-rules=MAP * ~NOTFOUND , EXCLUDE ' . $proxy['ip'];
+            $flags[] = '--host-resolver-rules=MAP * ~NOTFOUND , EXCLUDE '.$proxy['ip'];
         }
 
         $this->browser = $factory->createBrowser([
@@ -111,25 +109,37 @@ class BrowserService
         return $this;
     }
 
-    public function openPage(string $url, array $options = []): Page
+    public function withRandomProxy(string $driver = 'database'): self
     {
-        $options = array_merge([
-            'timeout' => 90000,
-            'debug' => false,
-            'retries' => 1,
-            'retry_timeout' => 3,
-            'rotate_proxy_on_fail' => false,
-        ], $options);
+        $this->currentProxyModel = $this->proxyRepo->getRandomActiveProxy($driver);
+
+        if (! $this->currentProxyModel) {
+            return $this->setup();
+        }
+
+        return $this->setup([
+            'ip' => $this->currentProxyModel->ip_address,
+            'port' => $this->currentProxyModel->port,
+            'user' => $this->currentProxyModel->username,
+            'pass' => $this->currentProxyModel->password,
+        ]);
+    }
+
+    public function openPage(string $url, ?BrowserOptions $options = null): Page
+    {
+        $opts = $options ?? new BrowserOptions();
 
         $attempt = 0;
 
-        while ($attempt < $options['retries']) {
+        while ($attempt < $opts->retries) {
             $attempt++;
 
             try {
-                if (!$this->browser) $this->setup();
+                if (! $this->browser) {
+                    $this->setup();
+                }
 
-                if (!$this->page) {
+                if (! $this->page) {
                     $this->page = $this->browser->createPage();
 
                     // --- БЛОКИРОВКА РЕСУРСОВ ЧЕРЕЗ CDP (ДЛЯ СКОРОСТИ) ---
@@ -151,14 +161,14 @@ class BrowserService
                             '*google-analytics.com*',
                             '*doubleclick.net*',
                             '*stat.gov.ru*',
-                            '*googletagmanager.com*'
-                        ]
+                            '*googletagmanager.com*',
+                        ],
                     ]));
 
                     if (
                         $this->currentProxyModel &&
-                        !empty($this->currentProxyModel->username) &&
-                        !empty($this->currentProxyModel->password)
+                        ! empty($this->currentProxyModel->username) &&
+                        ! empty($this->currentProxyModel->password)
                     ) {
                         /** @disregard P1013 */
                         $this->page->authenticate(
@@ -178,76 +188,31 @@ class BrowserService
                 }
 
                 // Используем DOM_CONTENT_LOADED для ускорения парсинга
-                $this->page->navigate($url)->waitForNavigation(Page::DOM_CONTENT_LOADED, $options['timeout']);
+                $this->page->navigate($url)->waitForNavigation(Page::DOM_CONTENT_LOADED, $opts->timeout);
 
-                $this->saveDebugArtifacts($options, 'success');
+                $this->saveDebugArtifacts($opts, 'success');
 
                 return $this->page;
             } catch (Throwable $e) {
                 $isTimeout = $e instanceof OperationTimedOut || $e instanceof NavigationExpired;
 
                 // Если попытки исчерпаны или это не таймаут (при условии что мы ретраим только таймауты)
-                if ($attempt >= $options['retries']) {
-                    $this->handleFailure($e, $options);
+                if ($attempt >= $opts->retries) {
+                    $this->handleFailure($e, $opts);
                     throw $e;
                 }
 
-                $this->logger()->warning("BrowserService: Attempt {$attempt} failed. Reason: {$e->getMessage()}. Retry in {$options['retry_timeout']}s...");
+                $this->logger()->warning("BrowserService: Attempt {$attempt} failed. Reason: {$e->getMessage()}. Retry in {$opts->retry_timeout}s...");
 
-                if ($options['rotate_proxy_on_fail']) {
+                if ($opts->rotate_proxy_on_fail) {
                     $this->rotateProxy();
                 }
 
-                sleep($options['retry_timeout']);
+                sleep($opts->retry_timeout);
             }
         }
 
-        throw new \RuntimeException("BrowserService: Unexpected end of openPage loop.");
-    }
-
-    protected function handleFailure(Throwable $e, array $options): void
-    {
-        $this->saveDebugArtifacts($options, 'error');
-
-        if (isset($options['onError'])) {
-            $options['onError']($this->page, $e);
-        }
-
-        $this->reportFail($e);
-    }
-
-    protected function saveDebugArtifacts(array $options, string $type): void
-    {
-        if (!$this->page || !$this->browser) return;
-        if (empty($options['debug']) || empty($options['debug']['key'])) return;
-
-        $key = $options['debug']['key'];
-        $dir = storage_path("app/browser/page_debug/{$key}");
-
-        try {
-            if (!File::isDirectory($dir)) {
-                File::makeDirectory($dir, 0775, true);
-            }
-
-            $evaluation = $this->page->evaluate("document.documentElement.outerHTML");
-            $html = $evaluation->getReturnValue();
-
-            if ($html) {
-                File::put("{$dir}/{$type}.html", $html);
-            }
-
-            $this->page->screenshot([
-                'format'  => 'jpeg',
-                'quality' => 70,
-            ])->saveToFile("{$dir}/{$type}_screenshot.jpg");
-        } catch (Throwable $e) {
-            Log::warning("BrowserService Debug Artifacts Fail: " . $e->getMessage());
-        }
-    }
-
-    protected function getRealUserAgent(): string
-    {
-        return "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36";
+        throw new RuntimeException('BrowserService: Unexpected end of openPage loop.');
     }
 
     public function reportSuccess(): void
@@ -276,7 +241,6 @@ class BrowserService
         }
     }
 
-
     public function rotateProxy(): self
     {
         $this->close();
@@ -285,13 +249,58 @@ class BrowserService
         return $this->withRandomProxy();
     }
 
-    protected function logger()
+    private function handleFailure(Throwable $e, BrowserOptions $options): void
     {
-        return Log::channel('stack');
+        $this->saveDebugArtifacts($options, 'error');
+
+        if (is_callable($options->onError)) {
+            ($options->onError)($this->page, $e);
+        }
+
+        $this->reportFail($e);
     }
 
-    public function __destruct()
+    private function saveDebugArtifacts(BrowserOptions $options, string $type): void
     {
-        $this->close();
+        if (! $this->page || ! $this->browser) {
+            return;
+        }
+
+        $key = $options->getDebugKey();
+        if ($key === null || $key === '') {
+            return;
+        }
+
+        $dir = storage_path("app/browser/page_debug/{$key}");
+
+        try {
+            if (! File::isDirectory($dir)) {
+                File::makeDirectory($dir, 0775, true);
+            }
+
+            $evaluation = $this->page->evaluate('document.documentElement.outerHTML');
+            $html = $evaluation->getReturnValue();
+
+            if ($html) {
+                File::put("{$dir}/{$type}.html", $html);
+            }
+
+            $this->page->screenshot([
+                'format' => 'jpeg',
+                'quality' => 70,
+            ])->saveToFile("{$dir}/{$type}_screenshot.jpg");
+        } catch (Throwable $e) {
+            Log::warning('BrowserService Debug Artifacts Fail: '.$e->getMessage());
+        }
+    }
+
+    private function getRealUserAgent(): string
+    {
+        return 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36';
+    }
+
+    private function logger()
+    {
+        return Log::channel('stack');
     }
 }

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Platform\Process\Crawling;
 
+use App\Dto\Browser\BrowserOptions;
 use App\Enums\LogOutput;
 use App\Services\AppLogger;
 use App\Services\BrowserService;
@@ -75,7 +76,7 @@ abstract class AbstractCrawlingService implements PlatformCrawling
         }
     }
 
-    public function startHook(string $url): void
+    protected function startHook(string $url): void
     {
         $this->crawlingPage($url);
     }
@@ -154,7 +155,10 @@ abstract class AbstractCrawlingService implements PlatformCrawling
     protected function fetchPage(string $requestUrl): \Illuminate\Http\Client\Response
     {
         $this->logger->info('Загрузка страницы: ' . $requestUrl, LogOutput::Console);
-        $page = $this->browser->openPage($requestUrl);
+        $page = $this->browser->openPage($requestUrl, new BrowserOptions(
+            retries: 3,
+            rotate_proxy_on_fail: true,
+        ));
 
         return new \Illuminate\Http\Client\Response(
             new \GuzzleHttp\Psr7\Response(200, [], $page->getHtml())
