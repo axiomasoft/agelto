@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Platform\Filament\Resources\Link\RelationManagers;
 
-use App\Filament\Components\MediaDownloadLink;
+use App\MediaLibrary\DownloadHelper;
 use Filament\Actions\CreateAction;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\EditAction;
@@ -97,16 +97,11 @@ final class AttachmentsRelationManager extends RelationManager
                 TextColumn::make('id')
                     ->label('Скачать')
                     ->placeholder('—')
+                    ->url(fn(LinkAttachment $record): ?string => DownloadHelper::url($record->getFirstMedia('document')))
+                    ->openUrlInNewTab(true)
                     ->formatStateUsing(function (mixed $state, LinkAttachment $record): string {
-                        $file = $record->getFirstMedia('document');
-                        if ($file === null) {
-                            return '';
-                        }
-                        $component = new MediaDownloadLink(file: $file);
-
-                        return $component->resolveView()->with($component->data())->render();
-                    })
-                    ->html(),
+                        return $record->getFirstMedia('document') !== null ? 'Скачать' : '';
+                    }),
                 TextColumn::make('url')
                     ->label('URL')
                     ->limit(50)
@@ -116,7 +111,7 @@ final class AttachmentsRelationManager extends RelationManager
                     ->label('Статус'),
                 TextColumn::make('attempts')
                     ->label('Попытки')
-                    ->sortable(),
+                    ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('parse_started_at')
                     ->label('Парсинг начат')
                     ->dateTime()
@@ -196,10 +191,13 @@ final class AttachmentsRelationManager extends RelationManager
             return;
         }
         $record->clearMediaCollection('document');
-        $disk = config('media-library.disk_name', 'public');
+        $disk = config('app.filesystems.private_disk_name');
         $fullPath = Storage::disk($disk)->path($this->pendingDocumentPath);
         if (is_file($fullPath)) {
-            $record->addMedia($fullPath)->toMediaCollection('document');
+            $record->addMedia($fullPath)->toMediaCollection(
+                'document',
+                config('app.filesystems.private_disk_name')
+            );
         }
         $this->pendingDocumentPath = null;
     }
