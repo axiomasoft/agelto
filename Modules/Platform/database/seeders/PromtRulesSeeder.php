@@ -118,27 +118,29 @@ final class PromtRulesSeeder extends Seeder
                     "  \"value\": float,\n" .
                     "  \"children\": FooterItem[]\n" .
                     "}\n\n" .
-                    "15. Форматы ответов:\n" .
+                    "15. Форматы ответов (Response Schemas):\n" .
                     "- PrimaryAnalysisResponse:\n" .
                     "{\n" .
-                    "  \"has_estimates\": boolean (Наличие хотя бы одного сметного объекта),\n" .
-                    "  \"description\": string (Краткое резюме файла: что это, за какой период, какой объем),\n" .
-                    "  \"tags\": string[] (Массив меток. Обязательно извлекай: Город/Регион, Название ОС (объектной сметы), Шифр проекта, Вид работ (электрика, вентиляция и т.д.), ФИО составителя/проверившего),\n" .
-                    "  \"objects\": DocumentObject[] (Список найденных документов),\n" .
                     "  \"success\": boolean,\n" .
-                    "  \"message\": string | null\n" .
+                    "  \"message\": string | null,\n" .
+                    "  \"data\": {\n" .
+                    "    \"has_estimates\": boolean (Наличие хотя бы одного сметного объекта),\n" .
+                    "    \"description\": string (Краткое резюме файла: что это, за какой период, какой объем),\n" .
+                    "    \"tags\": string[] (Массив меток: Город, ОС, Шифр, Вид работ, ФИО),\n" .
+                    "    \"objects\": DocumentObject[] (Список найденных документов)\n" .
+                    "  }\n" .
                     "}\n\n" .
                     "- EstimateFetchResponse:\n" .
                     "{\n" .
                     "  \"success\": boolean,\n" .
                     "  \"message\": string | null,\n" .
-                    "  \"data\": (EstimateItem | EstimateSection)[] (Массив строк сметы с сохранением вложенности ресурсов)\n" .
+                    "  \"data\": (EstimateItem | EstimateSection)[] (Массив строк сметы)\n" .
                     "}\n\n" .
                     "- EstimateDocumentResponse:\n" .
                     "{\n" .
                     "  \"success\": boolean,\n" .
                     "  \"message\": string | null,\n" .
-                    "  \"data\": DocumentDetailObject (Полный объект документа с шапкой, всеми итогами и метаданными)\n" .
+                    "  \"data\": DocumentDetailObject (Полный объект с метаданными, шапкой и итогами)\n" .
                     "}"
             ],
 

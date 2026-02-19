@@ -5,6 +5,7 @@ declare(strict_types=1);
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
+use Platform\Models\PromptRule;
 
 return new class extends Migration
 {
@@ -13,7 +14,7 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('platform_promt_rules', function (Blueprint $table) {
+        Schema::create($this->table(), function (Blueprint $table) {
             $table->id();
 
             // Уникальный ключ правила (например, 'header_metadata')
@@ -45,6 +46,11 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('platform_promt_rules');
+        Schema::dropIfExists($this->table());
+    }
+
+    private function table(): string
+    {
+        return (new PromptRule())->getTable();
     }
 };

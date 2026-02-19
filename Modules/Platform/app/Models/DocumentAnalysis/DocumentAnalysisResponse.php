@@ -8,13 +8,12 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
-final class Details extends Model
+final class DocumentAnalysisResponse extends Model
 {
-    protected $table = 'plt_document_analysis_details';
+    protected $table = 'plt_document_analysis_responses';
 
     protected $fillable = [
         'document_analysis_id',
-        'parent_id',
         'page_name',
         'page_number',
         'page_meta',

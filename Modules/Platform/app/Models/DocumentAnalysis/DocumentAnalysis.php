@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Platform\Models\Crawling\LinkAttachment;
 use Spatie\MediaLibrary\HasMedia;
 use Spatie\MediaLibrary\InteractsWithMedia;
+use Platform\Models\DocumentAnalysis\DocumentAnalysisResponse;
 
 final class DocumentAnalysis extends Model implements HasMedia
 {
@@ -23,6 +24,7 @@ final class DocumentAnalysis extends Model implements HasMedia
 
     protected $fillable = [
         'link_attachment_id',
+        'parent_id',
         'name',
         'extension',
         'status',
@@ -36,9 +38,9 @@ final class DocumentAnalysis extends Model implements HasMedia
         return $this->belongsTo(LinkAttachment::class);
     }
 
-    public function details(): HasMany
+    public function responses(): HasMany
     {
-        return $this->hasMany(Details::class);
+        return $this->hasMany(DocumentAnalysisResponse::class);
     }
 
     protected function casts(): array

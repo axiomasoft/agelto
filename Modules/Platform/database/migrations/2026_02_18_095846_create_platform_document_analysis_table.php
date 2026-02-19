@@ -18,6 +18,8 @@ return new class extends Migration
         Schema::create($this->table(), function (Blueprint $table) {
             $table->id();
             $table->foreignId('link_attachment_id')->nullable()->constrained((new LinkAttachment())->getTable())->cascadeOnDelete();
+            $table->foreignId('parent_id')->nullable()->constrained($this->table())->cascadeOnDelete();
+
             $table->string('name', 500)->nullable();
             $table->string('extension', 12)->nullable();
 

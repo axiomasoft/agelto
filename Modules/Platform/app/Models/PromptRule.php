@@ -11,7 +11,7 @@ use Illuminate\Support\Collection;
 
 final class PromptRule extends Model
 {
-    protected $table = 'platform_promt_rules';
+    protected $table = 'plt_prompt_rules';
 
     /**
      * Атрибуты, для которых разрешено массовое заполнение.
