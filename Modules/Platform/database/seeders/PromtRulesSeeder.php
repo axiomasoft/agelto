@@ -15,142 +15,142 @@ final class PromtRulesSeeder extends Seeder
     public function run(): void
     {
         $rules = [
-            // --- 1. SYSTEM ROLE & PRE-CHECK ---
+            // --- ГРУППА: SYSTEM (Базовые инструкции) ---
             [
                 'key' => 'system_base_instruction',
                 'group' => 'system',
                 'priority' => 1,
-                'content' => "Ты — мастер-инженер сметного дела с экспертными навыками OCR и анализа данных. Твоя задача: извлечь структуру сметы.\n" .
-                    "ВАЖНО:\n" .
-                    "1. НЕ каждый файл содержит смету. Если в документе нет признаков сметы (таблиц с обоснованием, наименованием работ и ценами), ответь объектом {\"has_estimate\": false}.\n" .
-                    "2. ПРОВЕРЯЙ ПОРЯДОК СТРАНИЦ. Сметы часто разбиты на листы. Следи за сквозной нумерацией позиций, чтобы не разорвать логику разделов.\n" .
-                    "3. ПРИЗНАК ОКОНЧАНИЯ: Признаком окончания таблицы является строка 'Итого', 'Всего по смете' или блоки подписей 'Составил/Проверил'. Всё, что ниже этих строк, игнорируй.",
+                'content' => "Ты — мастер-инженер сметного дела с экспертными навыками OCR. Твоя задача: анализировать документы и извлекать данные.\n" .
+                    "ОСНОВНЫЕ ТРЕБОВАНИЯ:\n" .
+                    "1. ОТВЕТ СТРОГО В JSON. Никакого вводного текста, пояснений или markdown-оберток (```json).\n" .
+                    "2. ПОРЯДОК СТРАНИЦ: Сметы часто разбиты на листы. Следи за сквозной нумерацией позиций.\n" .
+                    "3. ПРИЗНАК ОКОНЧАНИЯ: Таблица завершается строками 'Итого', 'Всего по смете' или блоком подписей. Всё, что ниже — игнорируй.",
             ],
 
-            // --- 2. DOCUMENT PASSPORT SCHEMA ---
+            // --- ГРУППА: PRIMARY_ANALYSIS (Предварительный анализ) ---
             [
-                'key' => 'document_passport',
+                'key' => 'primary_analysis_schema',
                 'group' => 'primary_analysis',
                 'priority' => 10,
-                'content' => "Проанализируй шапку документа. Учти, что она может занимать несколько строк, а ячейки могут быть объединены.\n" .
-                    "Схема Passport:\n" .
-                    "- `document_type`: Тип документа (estimate|act|resource_calculation|defect_list).\n" .
-                    "- `project_title`: Название стройки/объекта.\n" .
-                    "- `estimate_reference`: Номер документа (ЛСР/Акт).\n" .
-                    "- `target`: Назначение (construction|renovation|medical_equipment|engineering).\n" .
-                    "- `object_address`: Адрес из шапки.\n\n" .
-                    "ПРАВИЛО ШАПКИ: Данные о количестве могут занимать 3 столбца (на единицу, коэффициенты, всего). Сопоставляй их с нижними ячейками соответствующей колонки.",
+                'content' => "Проанализируй файл и определи наличие сметной документации. Учти, что смет в одном файле может быть несколько.\n" .
+                    "Ожидаемая схема ответа:\n" .
+                    "{\n" .
+                    "  \"has_estimates\": boolean,\n" .
+                    "  \"description\": \"Краткое описание (до 40 символов)\",\n" .
+                    "  \"tags\": [\"смета\", \"письмо\"], (2-4 тега)\n" .
+                    "  \"objects\": DocumentObject[],\n" .
+                    "  \"success\": boolean,\n" .
+                    "  \"message\": \"заполнять ошибку, если не получается проанализировать файл\"\n" .
+                    "}",
+            ],
+            [
+                'key' => 'document_object_schema',
+                'group' => 'primary_analysis',
+                'priority' => 11,
+                'content' => "Схема DocumentObject:\n" .
+                    "- `passport`: схема ObjectPassport.\n" .
+                    "- `generator`: (например, smeta.ru) — через какое ПО сгенерировано. Может быть пустым.\n" .
+                    "- `header_schema`: HeaderSchema (маппинг колонок).\n" .
+                    "- `items_count`: кол-во элементов в смете (без подэлементов).\n" .
+                    "- `items_count_total`: кол-во элементов с подэлементами.\n" .
+                    "- `has_footer`: boolean (наличие итогов).",
+            ],
+            [
+                'key' => 'object_passport_schema',
+                'group' => 'primary_analysis',
+                'priority' => 12,
+                'content' => "Схема ObjectPassport:\n" .
+                    "- `object_type`: всегда 'estimate'.\n" .
+                    "- `object_id`: \"Смета №123-А\".\n" .
+                    "- `document_type`: Справочник: estimate (смета), act (акт), resource_calculation (ведомость), defect_list (дефектная ведомость). Если нет совпадений — null.\n" .
+                    "- `project_title`: Наименование стройки.\n" .
+                    "- `estimate_reference`: Шифр (ЛСР).\n" .
+                    "- `target`: Справочник: construction (стройка), renovation (ремонт), medical_equipment (мед. оборудование), engineering (инженерия). Если нет совпадений — null.\n" .
+                    "- `object_address`: Адрес объекта.\n\n" .
+                    "ВАЖНО: Поля могут быть пустыми.",
             ],
 
-            // --- 3. HEADER SCHEMA (COLUMN MAPPING) ---
+            // --- ГРУППА: COLUMN_MAPPING ---
             [
-                'key' => 'header_schema',
+                'key' => 'header_schema_definition',
                 'group' => 'column_mapping',
                 'priority' => 20,
-                'content' => "HeaderSchema (схема колонок таблицы). Определи индексы, используя алиасы:\n" .
-                    "- `pos`: (№ п/п, №, поз, n) — порядковый номер.\n" .
-                    "- `code`: (Обоснование, Шифр, Норматив) — код расценки.\n" .
-                    "- `name`: (Наименование работ и затрат, Товар) — описание.\n" .
-                    "- `unit`: (Ед. изм., Измеритель) — единица измерения.\n" .
-                    "- `quantity`: (Кол-во всего, Количество) — объем.\n" .
-                    "- `price`: (Стоимость всего, Итого руб) — общая сумма.\n\n" .
-                    "ВАЖНО: Если в колонке `pos` стоит НЕ число (текст или буквы), записывай это значение в поле `comment` соответствующего элемента.",
+                'content' => "HeaderSchema (Схема шапки):\n" .
+                    "Определи индексы колонок:\n" .
+                    "- `pos`: (№ п/п, поз).\n" .
+                    "- `code`: (Шифр, Обоснование).\n" .
+                    "- `name`: (Наименование).\n" .
+                    "- `unit`: (Ед. изм.).\n" .
+                    "- `quantity`: (Кол-во).\n" .
+                    "- `price`: (Стоимость всего, Итого руб, всего затрат).",
             ],
 
-            // --- 4. ESTIMATE CONTENT HIERARCHY ---
+            // --- ГРУППА: DETAILED_PARSING ---
             [
-                'key' => 'estimate_content_logic',
+                'key' => 'estimate_content_hierarchy',
                 'group' => 'detailed_parsing',
                 'priority' => 30,
-                'content' => "Структура содержимого (EstimateRow). Сметы могут содержать секции или быть плоским списком:\n" .
-                    "1. EstimateSection: Поле `name` (Раздел №...), поле `children` (SubSection[] или Item[]).\n" .
-                    "2. EstimateSubSection: Поле `name` (Кровля...), поле `children` (Item[]).\n" .
-                    "3. EstimateItem (Позиция): `pos` (номер), `comment` (если в № текст), `code`, `name`, `unit`, `quantity`, `price`, `children` (ResourceItem[]), `modifiers` (Коэффициенты).\n\n" .
-                    "НАСЛЕДОВАНИЕ ЗАГОЛОВКОВ: При парсинге порций данных всегда возвращай текущий `section_name` и `sub_section_name` для контекста.",
+                'content' => "Иерархия (Древовидная структура):\n" .
+                    "1. EstimateSection: `name` (Раздел №), `children`.\n" .
+                    "2. EstimateSubSection: `name`, `children`.\n" .
+                    "3. EstimateItem: `pos`, `code`, `name`, `unit`, `quantity`, `price`, `children` (ResourceItem[]), `modifiers`.\n" .
+                    "4. ResourceItem: Подэлемент.",
             ],
-
-            // --- 5. THE NO-NUMBER RULE (HIERARCHY) ---
             [
-                'key' => 'no_number_hierarchy',
+                'key' => 'no_number_and_comments',
                 'group' => 'detailed_parsing',
                 'priority' => 35,
-                'content' => "Правило иерархии (The 'No-Number' Rule): Если у строки пустая колонка №1 (или в ней нет числового индекса), но заполнены колонки «Шифр» и «Наименование» — это ResourceItem (ресурс/под-элемент) для последней найденной выше строки с числовым номером (EstimateItem).",
+                'content' => "Обработка элементов:\n" .
+                    "1. Правило No-Number: Если №1 (pos) пуст, но есть Шифр и Наименование — это ResourceItem для последней строки с номером.\n" .
+                    "2. COMMENT RULE: Если в `pos` НЕ число (текст/буквы) — записывай это в поле `comment` текущего EstimateItem или ResourceItem.",
             ],
-
-            // --- 6. RESOURCE ITEM SCHEMA ---
             [
-                'key' => 'resource_item_schema',
+                'key' => 'resource_classification_logic',
                 'group' => 'detailed_parsing',
                 'priority' => 38,
-                'content' => "Схема ResourceItem (Вложенный ресурс):\n" .
-                    "- `code`: Шифр ресурса.\n" .
-                    "- `name`: Наименование.\n" .
-                    "- `unit`: Единица измерения.\n" .
-                    "- `quantity`: Количество.\n" .
-                    "- `price`: Сумма.\n" .
-                    "- `comment`: Текст из колонки '№', если там не число.\n" .
-                    "- `resource_type`: Классифицируй ресурс по типу:\n" .
-                    "  * МАТ / МЦ -> Материалы\n" .
-                    "  * ЭМ / МАШ -> Машины и механизмы\n" .
-                    "  * ОТ / ЗП -> Оплата труда\n" .
-                    "  * НР / СП -> Накладные расходы и прибыль",
+                'content' => "ResourceItem Классификация:\n" .
+                    "- МАТ/МЦ -> 'Material'\n" .
+                    "- ЭМ/МАШ -> 'Machine'\n" .
+                    "- ОТ/ЗП -> 'Labor'\n" .
+                    "- НР/СП -> 'Overhead'\n" .
+                    "СКЛЕЙКА: Объединяй текст 'Наименования' из нескольких строк (3-5 строк) в одну, пока не встретишь новый код или номер.",
             ],
-
-            // --- 7. STITCHING & MULTI-LINE TEXT ---
             [
-                'key' => 'line_stitching_logic',
-                'group' => 'detailed_parsing',
-                'priority' => 40,
-                'content' => "Обработка длинных описаний (Stitching):\n" .
-                    "1. Часто наименование работы занимает 3-5 строк. ПРАВИЛО: Объединяй текст из колонки 'Наименование' всех строк, относящихся к одной позиции (Item или Resource), в одну строку через пробел.\n" .
-                    "2. Продолжай объединение, пока не встретишь начало следующего ресурса (новый код) или следующей позиции (новый номер).\n" .
-                    "3. Если строка не имеет `code` и `pos`, она должна быть присоединена к полю `name` родителя.",
-            ],
-
-            // --- 8. CONTEXTUAL CONTINUITY (PORTIONS) ---
-            [
-                'key' => 'contextual_continuity',
+                'key' => 'navigation_rules',
                 'group' => 'detailed_parsing',
                 'priority' => 45,
-                'content' => "Правила навигации и разделов: Так как запросы идут порциями (например, позиции с 20 по 30), ты должен помнить контекст.\n" .
-                    "- Разделом считается строка, текст которой начинается со слов 'Раздел №' или выделена как заголовок и проходит через все колонки.\n" .
-                    "- При возврате любой порции данных, даже если заголовок раздела остался на предыдущих страницах, поле `section_name` должно быть заполнено актуальным значением.",
+                'content' => "Контекст (Наследование заголовков):\n" .
+                    "При парсинге порции (например, только позиции 20-30), всегда возвращай в JSON текущие `section_name` и `sub_section_name` родительского раздела, даже если заголовок был на прошлых страницах.",
             ],
 
-            // --- 9. FOOTER ANALYSIS ---
+            // --- ГРУППА: FOOTER & CLEANING ---
             [
                 'key' => 'footer_total_logic',
                 'group' => 'footer_analysis',
                 'priority' => 50,
-                'content' => "Footer (Итоги документа): Найди итоговые начисления.\n" .
-                    "- Выведи массив объектов: { \"label\": \"описание\", \"value\": \"число\" }.\n" .
-                    "- Ищи строки: 'Итого прямые затраты', 'Накладные расходы', 'Сметная прибыль', 'НДС', 'ИТОГО по смете'.",
+                'content' => "Итоги: Найди строки 'Итого', 'НДС', 'Всего по смете'. Выведи массив {label, value}.",
             ],
-
-            // --- 10. DATA HYGIENE & VALIDATION ---
             [
-                'key' => 'cleaning_standard',
+                'key' => 'data_hygiene_standard',
                 'group' => 'data_cleaning',
                 'priority' => 100,
-                'content' => "DATA HYGIENE:\n" .
-                    "1. ЦЕНЫ И ОБЪЕМЫ: Всегда float (точка как разделитель). Удали 'руб.', 'тыс.' и пробелы внутри чисел.\n" .
-                    "2. ФОРМУЛЫ: Если в ячейке формула (напр. '10*1.05' или '20+5'), вычисли финальный результат.\n" .
-                    "3. ОЧИСТКА ТЕКСТА: Удали невидимые символы переноса строк (\\n, \\r) внутри названий.\n" .
-                    "4. СТРОГИЙ JSON: Ответ должен содержать только JSON, без вводных слов и пояснений.",
+                'content' => "Чистка: float для чисел, вычисляй формулы (10*1.15), удаляй переносы строк внутри ячеек.",
             ],
         ];
 
         PromptRule::query()->delete();
 
         foreach ($rules as $rule) {
-            PromptRule::create([
-                'key' => $rule['key'],
-                'group' => $rule['group'],
-                'priority' => $rule['priority'],
-                'content' => $rule['content'],
-                'version' => 1,
-                'is_active' => true,
-            ]);
+            PromptRule::updateOrCreate(
+                ['key' => $rule['key']],
+                [
+                    'group' => $rule['group'],
+                    'priority' => $rule['priority'],
+                    'content' => $rule['content'],
+                    'version' => 1,
+                    'is_active' => true,
+                ]
+            );
         }
     }
 }
