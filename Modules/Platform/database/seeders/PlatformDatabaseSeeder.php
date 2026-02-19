@@ -1,10 +1,12 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Platform\Database\Seeders;
 
 use Illuminate\Database\Seeder;
 
-class PlatformDatabaseSeeder extends Seeder
+final class PlatformDatabaseSeeder extends Seeder
 {
     /**
      * Run the database seeds.
@@ -13,6 +15,7 @@ class PlatformDatabaseSeeder extends Seeder
     {
         $this->call([
             PlatformsSeeder::class,
+            PromtRulesSeeder::class,
         ]);
     }
 }
