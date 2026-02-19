@@ -8,14 +8,14 @@ use Spatie\LaravelData\Attributes\DataCollectionOf;
 use Spatie\LaravelData\Data;
 use Spatie\LaravelData\DataCollection;
 
-final class EstimateSubSectionDto extends Data
+final class EstimateSubSection extends Data
 {
     /**
-     * @param  DataCollection<int, EstimateItemDto>  $children
+     * @param  DataCollection<int, EstimateItem>  $children
      */
     public function __construct(
         public string $name,
-        #[DataCollectionOf(EstimateItemDto::class)]
-        public DataCollection $children = new DataCollection(EstimateItemDto::class, []),
+        #[DataCollectionOf(EstimateItem::class)]
+        public DataCollection $children = new DataCollection(EstimateItem::class, []),
     ) {}
 }

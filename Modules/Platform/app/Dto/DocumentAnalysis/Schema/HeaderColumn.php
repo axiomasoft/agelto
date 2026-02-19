@@ -6,7 +6,7 @@ namespace Platform\Dto\DocumentAnalysis\Schema;
 
 use Spatie\LaravelData\Data;
 
-final class HeaderColumnDto extends Data
+final class HeaderColumn extends Data
 {
     public function __construct(
         public int $index,

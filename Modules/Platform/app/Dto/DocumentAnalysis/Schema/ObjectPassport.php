@@ -6,7 +6,7 @@ namespace Platform\Dto\DocumentAnalysis\Schema;
 
 use Spatie\LaravelData\Data;
 
-final class ObjectPassportDto extends Data
+final class ObjectPassport extends Data
 {
     public function __construct(
         public string $object_id,

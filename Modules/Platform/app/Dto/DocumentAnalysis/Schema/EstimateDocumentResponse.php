@@ -6,14 +6,11 @@ namespace Platform\Dto\DocumentAnalysis\Schema;
 
 use Spatie\LaravelData\Data;
 
-final class EstimateFetchResponseDto extends Data
+final class EstimateDocumentResponse extends Data
 {
-    /**
-     * @param  array<int, EstimateSectionDto|EstimateItemDto>  $data
-     */
     public function __construct(
         public bool $success,
-        public array $data = [],
+        public DocumentDetailObject $data,
         public ?string $message = null,
     ) {}
 }

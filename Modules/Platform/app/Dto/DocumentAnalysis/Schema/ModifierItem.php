@@ -6,14 +6,11 @@ namespace Platform\Dto\DocumentAnalysis\Schema;
 
 use Spatie\LaravelData\Data;
 
-final class FooterItemDto extends Data
+final class ModifierItem extends Data
 {
-    /**
-     * @param  FooterItemDto[]  $children
-     */
     public function __construct(
-        public string $label,
+        public string $name,
+        public string $description,
         public float $value,
-        public array $children = [],
     ) {}
 }

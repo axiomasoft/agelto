@@ -8,11 +8,11 @@ use Spatie\LaravelData\Attributes\DataCollectionOf;
 use Spatie\LaravelData\Data;
 use Spatie\LaravelData\DataCollection;
 
-final class EstimateItemDto extends Data
+final class EstimateItem extends Data
 {
     /**
-     * @param  DataCollection<int, EstimateItemResourceDto>  $children
-     * @param  DataCollection<int, ModifierItemDto>  $modifiers
+     * @param  DataCollection<int, EstimateItemResource>  $children
+     * @param  DataCollection<int, ModifierItem>  $modifiers
      */
     public function __construct(
         public string $name,
@@ -21,9 +21,9 @@ final class EstimateItemDto extends Data
         public ?string $unit = null,
         public ?float $quantity = null,
         public ?float $price = null,
-        #[DataCollectionOf(EstimateItemResourceDto::class)]
-        public DataCollection $children = new DataCollection(EstimateItemResourceDto::class, []),
-        #[DataCollectionOf(ModifierItemDto::class)]
-        public DataCollection $modifiers = new DataCollection(ModifierItemDto::class, []),
+        #[DataCollectionOf(EstimateItemResource::class)]
+        public DataCollection $children = new DataCollection(EstimateItemResource::class, []),
+        #[DataCollectionOf(ModifierItem::class)]
+        public DataCollection $modifiers = new DataCollection(ModifierItem::class, []),
     ) {}
 }

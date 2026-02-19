@@ -6,13 +6,14 @@ namespace Platform\Dto\DocumentAnalysis\Schema;
 
 use Spatie\LaravelData\Data;
 
-final class EstimateSectionDto extends Data
+final class FooterItem extends Data
 {
     /**
-     * @param  array<int, EstimateSubSectionDto|EstimateItemDto>  $children
+     * @param  FooterItem[]  $children
      */
     public function __construct(
-        public string $name,
+        public string $label,
+        public float $value,
         public array $children = [],
     ) {}
 }

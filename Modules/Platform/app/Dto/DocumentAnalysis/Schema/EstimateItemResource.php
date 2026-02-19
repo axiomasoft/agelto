@@ -6,7 +6,7 @@ namespace Platform\Dto\DocumentAnalysis\Schema;
 
 use Spatie\LaravelData\Data;
 
-final class EstimateItemResourceDto extends Data
+final class EstimateItemResource extends Data
 {
     public function __construct(
         public string $name,

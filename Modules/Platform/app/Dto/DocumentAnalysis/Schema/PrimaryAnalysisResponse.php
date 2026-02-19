@@ -8,16 +8,16 @@ use Spatie\LaravelData\Attributes\DataCollectionOf;
 use Spatie\LaravelData\Data;
 use Spatie\LaravelData\DataCollection;
 
-final class PrimaryAnalysisResponseDto extends Data
+final class PrimaryAnalysisResponse extends Data
 {
     /**
-     * @param  DataCollection<int, DocumentObjectDto>  $objects
+     * @param  DataCollection<int, DocumentObject>  $objects
      * @param  string[]  $tags
      */
     public function __construct(
         public bool $success,
         public bool $has_estimates,
-        #[DataCollectionOf(DocumentObjectDto::class)]
+        #[DataCollectionOf(DocumentObject::class)]
         public DataCollection $objects,
         public ?string $message = null,
         public ?string $description = null,
