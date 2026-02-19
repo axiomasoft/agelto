@@ -15,41 +15,77 @@ final class PromtRulesSeeder extends Seeder
     public function run(): void
     {
         $rules = [
-            // --- ГРУППА: SCHEMAS (Единый блок технических контрактов) ---
+            // --- ГРУППА: SCHEMAS (Технические контракты) ---
             [
                 'key' => 'global_json_schemas',
                 'group' => 'schemas',
                 'priority' => 1,
-                'content' => "Ниже описаны все схемы данных, которые должны использоваться в ответах:\n\n" .
-                    "1. PrimaryAnalysisResponse:\n" .
+                'content' => "Ниже описаны все схемы данных для использования в ответах:\n\n" .
+                    "1. DocumentType (Тип документа):\n" .
+                    "- \"estimate\": Смета (ЛСР). Определять по заголовкам 'Локальный сметный расчет', 'Смета'.\n" .
+                    "- \"act\": Акт (КС-2). Определять по заголовкам 'Акт о приемке выполненных работ', 'Форма КС-2'.\n" .
+                    "- \"resource_calculation\": Ресурсная ведомость. Поиск ключевых слов 'Ведомость ресурсов', 'Расчет ресурсов'.\n" .
+                    "- \"defect_list\": Дефектная ведомость. Поиск слов 'Дефектная ведомость', 'Опись работ'.\n" .
+                    "- null: Если тип документа не удалось определить однозначно.\n\n" .
+                    "2. DocumentTarget (Цель документа):\n" .
+                    "- \"construction\": Строительство. Новые объекты, капитальное возведение с нуля.\n" .
+                    "- \"renovation\": Ремонт. Капитальный ремонт, реконструкция, модернизация, демонтаж.\n" .
+                    "- \"medical_equipment\": Медоборудование. Поставка, монтаж или пусконаладка медтехники.\n" .
+                    "- \"engineering\": Инженерия. Вентиляция, электроснабжение, связь, слаботочные системы.\n" .
+                    "- null: Если цель не ясна.\n\n" .
+                    "3. ResourceType (Тип ресурса в строке):\n" .
+                    "- \"Material\": Материалы. Обоснования типа ФССЦ, прайс-листы, ключевые слова 'МАТ', 'Материал'.\n" .
+                    "- \"Machine\": Машины и механизмы. Обоснования типа ФСЭМ, ключевые слова 'ЭМ', 'Маш.'.\n" .
+                    "- \"Labor\": Оплата труда. Ключевые слова 'ЗП', 'ОТ', 'Трудозатраты', 'ТЗ'.\n" .
+                    "- \"Overhead\": Накладные расходы и прибыль. Ключевые слова 'НР', 'СП', 'Накладные', 'Прибыль'.\n\n" .
+                    "4. HeaderSchema:\n" .
                     "{\n" .
-                    "  \"has_estimates\": boolean,\n" .
-                    "  \"description\": string (кратко о чем документ, до 40 символов),\n" .
-                    "  \"tags\": string[] (2-4 тега: смета, письмо, извещение и т.д.),\n" .
-                    "  \"objects\": DocumentObject[],\n" .
-                    "  \"success\": boolean,\n" .
-                    "  \"message\": string | null (заполнять ошибку, если не получается проанализировать)\n" .
+                    "  \"pos\": integer (индекс колонки №),\n" .
+                    "  \"code\": integer (индекс колонки Шифр),\n" .
+                    "  \"name\": integer (индекс колонки Наименование),\n" .
+                    "  \"unit\": integer (индекс колонки Ед.изм.),\n" .
+                    "  \"quantity\": integer (индекс колонки Кол-во),\n" .
+                    "  \"price\": integer (индекс колонки Цена/Сумма)\n" .
                     "}\n\n" .
-                    "2. DocumentObject:\n" .
-                    "{\n" .
-                    "  \"passport\": ObjectPassport,\n" .
-                    "  \"generator\": string | null (напр. 'smeta.ru'),\n" .
-                    "  \"header_schema\": HeaderSchema,\n" .
-                    "  \"items_count\": integer (кол-во элементов без подресурсов),\n" .
-                    "  \"items_count_total\": integer (кол-во элементов с подресурсами),\n" .
-                    "  \"has_footer\": boolean\n" .
-                    "}\n\n" .
-                    "3. ObjectPassport:\n" .
+                    "5. ObjectPassport:\n" .
                     "{\n" .
                     "  \"object_type\": \"estimate\",\n" .
-                    "  \"object_id\": string (напр. 'Смета №123-А'),\n" .
-                    "  \"document_type\": \"estimate\"|\"act\"|\"resource_calculation\"|\"defect_list\"|null,\n" .
+                    "  \"object_id\": string,\n" .
+                    "  \"document_type\": DocumentType,\n" .
                     "  \"project_title\": string | null,\n" .
                     "  \"estimate_reference\": string | null,\n" .
-                    "  \"target\": \"construction\"|\"renovation\"|\"medical_equipment\"|\"engineering\"|null,\n" .
+                    "  \"target\": DocumentTarget,\n" .
                     "  \"object_address\": string | null\n" .
                     "}\n\n" .
-                    "4. EstimateItem (Позиция сметы):\n" .
+                    "6. DocumentObject:\n" .
+                    "{\n" .
+                    "  \"passport\": ObjectPassport,\n" .
+                    "  \"generator\": string | null,\n" .
+                    "  \"items_count\": integer,\n" .
+                    "  \"items_count_total\": integer,\n" .
+                    "  \"has_footer\": boolean\n" .
+                    "}\n\n" .
+                    "7. DocumentDetailObject (extends DocumentObject):\n" .
+                    "{\n" .
+                    "  \"passport\": ObjectPassport,\n" .
+                    "  \"generator\": string | null,\n" .
+                    "  \"items_count\": integer,\n" .
+                    "  \"items_count_total\": integer,\n" .
+                    "  \"has_footer\": boolean,\n" .
+                    "  \"header_schema\": HeaderSchema,\n" .
+                    "  \"footer\": FooterItem[]\n" .
+                    "}\n\n" .
+                    "8. EstimateItemResource:\n" .
+                    "{\n" .
+                    "  \"code\": string | null,\n" .
+                    "  \"name\": string,\n" .
+                    "  \"unit\": string | null,\n" .
+                    "  \"quantity\": float | null,\n" .
+                    "  \"price\": float | null,\n" .
+                    "  \"comment\": string | null,\n" .
+                    "  \"resource_type\": ResourceType\n" .
+                    "}\n\n" .
+                    "9. EstimateItem:\n" .
                     "{\n" .
                     "  \"pos\": integer | null,\n" .
                     "  \"code\": string | null,\n" .
@@ -58,23 +94,35 @@ final class PromtRulesSeeder extends Seeder
                     "  \"quantity\": float | null,\n" .
                     "  \"price\": float | null,\n" .
                     "  \"comment\": string | null,\n" .
-                    "  \"children\": ResourceItem[],\n" .
+                    "  \"children\": EstimateItemResource[],\n" .
                     "  \"modifiers\": object[]\n" .
                     "}\n\n" .
-                    "5. ResourceItem (Подэлемент/Ресурс):\n" .
-                    "{\n" .
-                    "  \"code\": string | null,\n" .
-                    "  \"name\": string,\n" .
-                    "  \"unit\": string | null,\n" .
-                    "  \"quantity\": float | null,\n" .
-                    "  \"price\": float | null,\n" .
-                    "  \"comment\": string | null,\n" .
-                    "  \"resource_type\": \"Material\"|\"Machine\"|\"Labor\"|\"Overhead\"\n" .
-                    "}\n\n" .
-                    "6. FooterItem (Итоги):\n" .
+                    "10. FooterItem:\n" .
                     "{\n" .
                     "  \"label\": string,\n" .
-                    "  \"value\": float\n" .
+                    "  \"value\": float,\n" .
+                    "  \"children\": FooterItem[]\n" .
+                    "}\n\n" .
+                    "11. PrimaryAnalysisResponse:\n" .
+                    "{\n" .
+                    "  \"has_estimates\": boolean,\n" .
+                    "  \"description\": string (max 40 chars),\n" .
+                    "  \"tags\": string[],\n" .
+                    "  \"objects\": DocumentObject[],\n" .
+                    "  \"success\": boolean,\n" .
+                    "  \"message\": string | null\n" .
+                    "}\n\n" .
+                    "12. EstimateFetchResponse:\n" .
+                    "{\n" .
+                    "  \"success\": boolean,\n" .
+                    "  \"message\": string | null,\n" .
+                    "  \"data\": EstimateItem[]\n" .
+                    "}\n\n" .
+                    "13. EstimateDocumentResponse:\n" .
+                    "{\n" .
+                    "  \"success\": boolean,\n" .
+                    "  \"message\": string | null,\n" .
+                    "  \"data\": DocumentDetailObject\n" .
                     "}",
             ],
 
@@ -87,9 +135,9 @@ final class PromtRulesSeeder extends Seeder
                     "Твоя задача: анализировать документы и извлекать структуру данных.\n" .
                     "ОСНОВНЫЕ ТРЕБОВАНИЯ:\n" .
                     "1. ОТВЕТ СТРОГО В JSON. Никакого текста или markdown-оберток.\n" .
-                    "2. МНОЖЕСТВЕННОСТЬ: В одном документе может быть более одной сметы (объекта).\n" .
+                    "2. МНОЖЕСТВЕННОСТЬ: В документе может быть более одной сметы (объекта).\n" .
                     "3. ПОРЯДОК: Следи за нумерацией позиций при разрывах на листы.\n" .
-                    "4. ЗАВЕРШЕНИЕ: Игнорируй всё, что ниже итогов ('Итого', 'Всего') или подписей.",
+                    "4. ЗАВЕРШЕНИЕ: Игнорируй всё, что ниже итогов или подписей.",
             ],
 
             // --- ГРУППА: PRIMARY_ANALYSIS ---
@@ -97,12 +145,11 @@ final class PromtRulesSeeder extends Seeder
                 'key' => 'primary_analysis_logic',
                 'group' => 'primary_analysis',
                 'priority' => 20,
-                'content' => "Выполни предварительный анализ файла, опираясь на схему PrimaryAnalysisResponse.\n" .
-                    "При заполнении ObjectPassport учитывай:\n" .
-                    "- Любое поле может быть null, если данных нет.\n" .
-                    "- Шапка документа может содержать объединенные ячейки.\n" .
-                    "- Колонки количества могут занимать до 3 столбцов (ед. изм, коэф, всего).\n" .
-                    "- Если тип документа или цель не подходят под справочник — ставь null.",
+                'content' => "Выполни анализ, используя схему PrimaryAnalysisResponse.\n" .
+                    "Для каждого объекта заполни DocumentObject.\n" .
+                    "Используй подробную логику определения DocumentType и DocumentTarget из схем.\n" .
+                    "Поля могут быть null, если данных нет.\n" .
+                    "Учитывай объединенные ячейки в шапке документа.",
             ],
 
             // --- ГРУППА: COLUMN_MAPPING ---
@@ -124,22 +171,20 @@ final class PromtRulesSeeder extends Seeder
                 'key' => 'estimate_tree_hierarchy_logic',
                 'group' => 'detailed_parsing',
                 'priority' => 40,
-                'content' => "Сформируй дерево EstimateContent, используя схемы EstimateItem и ResourceItem.\n" .
+                'content' => "Сформируй дерево EstimateContent (схемы EstimateItem и EstimateItemResource).\n" .
                     "Логика вложенности:\n" .
-                    "1. ПРАВИЛО No-Number: Если `pos` пуст, но есть `code` и `name` — это ResourceItem.\n" .
-                    "2. ПРАВИЛО COMMENT: Если в колонке №1 (`pos`) находится НЕ число (текст, буквы),\n" .
-                    "записывай это значение в поле `comment` текущего EstimateItem или ResourceItem.\n" .
-                    "3. НАСЛЕДОВАНИЕ: При парсинге порций данных обязательно возвращай текущие\n" .
-                    "section_name и sub_section_name для сохранения контекста в дереве.",
+                    "1. ПРАВИЛО No-Number: Если `pos` пуст, но есть `code` и `name` — это EstimateItemResource.\n" .
+                    "2. ПРАВИЛО COMMENT: Если в колонке №1 (`pos`) находится НЕ число,\n" .
+                    "записывай это в поле `comment` текущего EstimateItem или EstimateItemResource.\n" .
+                    "3. НАСЛЕДОВАНИЕ: Всегда возвращай section_name и sub_section_name родителя.",
             ],
             [
                 'key' => 'resource_item_processing',
                 'group' => 'detailed_parsing',
                 'priority' => 41,
-                'content' => "Обработка ResourceItem:\n" .
-                    "- Классифицируй `resource_type` (Material, Machine, Labor, Overhead).\n" .
-                    "- СКЛЕЙКА: Объединяй многострочное Наименование работ в одну строку через пробел,\n" .
-                    "пока не встретишь начало следующего кода или номера позиции.",
+                'content' => "Обработка EstimateItemResource:\n" .
+                    "- Классифицируй ResourceType, опираясь на логику определения из схемы.\n" .
+                    "- СКЛЕЙКА: Объединяй многострочное Наименование через пробел.",
             ],
 
             // --- ГРУППА: FOOTER_ANALYSIS & DATA_CLEANING ---
@@ -147,16 +192,17 @@ final class PromtRulesSeeder extends Seeder
                 'key' => 'footer_totals_logic',
                 'group' => 'footer_analysis',
                 'priority' => 50,
-                'content' => "Извлеки итоговые начисления в массив объектов схемы FooterItem.\n" .
-                    "Ищи фразы: 'Итого', 'НДС', 'Сметная прибыль', 'Накладные расходы'.",
+                'content' => "Извлеки итоговые начисления в массив FooterItem.\n" .
+                    "Поддерживай иерархию (children), если итоги сгруппированы.\n" .
+                    "Ищи: 'Итого', 'НДС', 'Сметная прибыль', 'Накладные расходы'.",
             ],
             [
                 'key' => 'data_hygiene_rules',
                 'group' => 'data_cleaning',
                 'priority' => 100,
                 'content' => "Гигиена данных:\n" .
-                    "1. Числа (float): Удаляй валюту, пробелы. Используй точку как разделитель.\n" .
-                    "2. Математика: Вычисляй формулы внутри ячеек (напр. '10*1.05').\n" .
+                    "1. Числа (float): Удаляй валюту, пробелы. Точка — разделитель.\n" .
+                    "2. Математика: Вычисляй формулы внутри ячеек.\n" .
                     "3. Текст: Удаляй \\n и \\r, заменяя их на пробелы.",
             ],
         ];
