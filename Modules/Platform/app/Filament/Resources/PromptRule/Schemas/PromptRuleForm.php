@@ -10,6 +10,7 @@ use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
+use Platform\Dto\PromtRule\Group;
 use Platform\Models\PromptRule;
 
 final class PromptRuleForm
@@ -28,13 +29,7 @@ final class PromptRuleForm
                             ->unique(PromptRule::class, 'key', ignoreRecord: true),
                         Select::make('group')
                             ->label('Группа')
-                            ->options([
-                                'primary_analysis' => 'Первичный анализ',
-                                'column_mapping' => 'Маппинг колонок',
-                                'detailed_parsing' => 'Детальный парсинг',
-                                'footer_analysis' => 'Анализ подвала',
-                                'data_cleaning' => 'Очистка данных',
-                            ])
+                            ->options(Group::options())
                             ->required()
                             ->searchable(),
                         TextInput::make('priority')

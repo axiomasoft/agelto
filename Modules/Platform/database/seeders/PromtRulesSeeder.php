@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Platform\Database\Seeders;
 
 use Illuminate\Database\Seeder;
+use Platform\Dto\PromtRule\Group;
 use Platform\Models\PromptRule;
 
 final class PromtRulesSeeder extends Seeder
@@ -15,10 +16,10 @@ final class PromtRulesSeeder extends Seeder
     public function run(): void
     {
         $rules = [
-            // --- ГРУППА: SCHEMAS (Технические контракты с полными аннотациями) ---
+            // --- ГРУППА: SCHEMAS (Технические контракты) ---
             [
                 'key' => 'global_json_schemas',
-                'group' => 'schemas',
+                'group' => Group::Global->value,
                 'priority' => 1,
                 'content' => "Ниже описаны схемы данных. Каждое поле должно соответствовать аннотации:\n\n" .
                     "1. DocumentType (Тип документа):\n" .
@@ -126,7 +127,7 @@ final class PromtRulesSeeder extends Seeder
             // --- ГРУППА: SYSTEM (Базовые инструкции) ---
             [
                 'key' => 'system_base_instruction',
-                'group' => 'system',
+                'group' => Group::Global->value,
                 'priority' => 10,
                 'content' => "Ты — ведущий инженер-сметчик с экспертными навыками OCR.\n" .
                     "Твоя задача: анализировать документы и извлекать структуру данных.\n" .
@@ -142,7 +143,7 @@ final class PromtRulesSeeder extends Seeder
             // --- ГРУППА: PRIMARY_ANALYSIS ---
             [
                 'key' => 'primary_analysis_logic',
-                'group' => 'primary_analysis',
+                'group' => Group::PrimaryAnalysis->value,
                 'priority' => 20,
                 'content' => "Выполни первичный анализ по схеме PrimaryAnalysisResponse.\n" .
                     "Для каждого объекта заполни DocumentObject.\n" .
@@ -156,7 +157,7 @@ final class PromtRulesSeeder extends Seeder
             // --- ГРУППА: DETAILED_PARSING ---
             [
                 'key' => 'estimate_tree_hierarchy_logic',
-                'group' => 'detailed_parsing',
+                'group' => Group::DetailedParsing->value,
                 'priority' => 40,
                 'content' => "Сформируй дерево данных для EstimateFetchResponse.\n" .
                     "1. ИЕРАРХИЯ: Используй EstimateSection и EstimateSubSection для группировки.\n" .
@@ -168,35 +169,34 @@ final class PromtRulesSeeder extends Seeder
             ],
             [
                 'key' => 'resource_item_processing',
-                'group' => 'detailed_parsing',
+                'group' => Group::DetailedParsing->value,
                 'priority' => 41,
                 'content' => "При обработке EstimateItemResource:\n" .
                     "- ПРАВИЛО COMMENT: Если в колонке `pos` текст/буквы (напр. 'прим.'), пиши это в `comment` ресурса.\n" .
                     "- Определи тип ресурса в поле `resource_type` (Material|Machine|Labor|Overhead).\n" .
                     "- Выделяй коэффициенты в структуру ModifierItem (name, description, value).",
             ],
-
-            // --- ГРУППА: FOOTER_ANALYSIS ---
             [
-                'key' => 'footer_totals_logic',
-                'group' => 'footer_analysis',
-                'priority' => 50,
-                'content' => "Извлеки итоги документа в массив FooterItem.\n" .
+                'key' => 'data_hygiene_and_cleaning',
+                'group' => Group::DetailedParsing->value,
+                'priority' => 45,
+                'content' => "В процессе парсинга применяй стандарты гигиены данных:\n" .
+                    "1. ЧИСЛА: Приводи к float. Точка — разделитель. Удаляй валютные приписки.\n" .
+                    "2. ЕД.ИЗМЕРЕНИЯ: Нормализуй `unit`. Заменяй 'мЗ' на 'м3', 'м²' на 'м2'.\n" .
+                    "3. МАТЕМАТИКА: Вычисляй формулы в ячейках (напр. 10*1.15).\n" .
+                    "4. ТЕКСТ: Удаляй двойные пробелы и технические переносы строк.",
+            ],
+
+            // --- ГРУППА: DOCUMENT_FULL_PARSING (Итоги только здесь) ---
+            [
+                'key' => 'document_footer_analysis_logic',
+                'group' => Group::DocumentFullParsing->value,
+                'priority' => 60,
+                'content' => "Это правило применяется только для формирования EstimateDocumentResponse.\n" .
+                    "Извлеки итоговые начисления документа в массив FooterItem.\n" .
                     "1. ТИПЫ ИТОГОВ: Различай локальные итоги (внутри разделов) и глобальные (в конце документа).\n" .
                     "2. ИЕРАРХИЯ: Строки 'в том числе' должны быть вложены в `children` родителя.\n" .
                     "Ключевые слова: 'Итого', 'НДС', 'Сметная прибыль', 'Накладные расходы'.",
-            ],
-
-            // --- ГРУППА: DATA_CLEANING ---
-            [
-                'key' => 'data_hygiene_rules',
-                'group' => 'data_cleaning',
-                'priority' => 100,
-                'content' => "Стандарты очистки:\n" .
-                    "1. ЧИСЛА: Приводи к float. Точка — разделитель. Удаляй валютные приписки.\n" .
-                    "2. ЕД.ИЗМЕРЕНИЯ: Нормализуй значения в `unit`. Заменяй 'мЗ' на 'м3', 'м²' на 'м2' и т.д.\n" .
-                    "3. МАТЕМАТИКА: Вычисляй формулы в ячейках (напр. 10*1.15).\n" .
-                    "4. ТЕКСТ: Удаляй двойные пробелы и невидимые символы.",
             ],
         ];
 

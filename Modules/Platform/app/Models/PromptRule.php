@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Platform\Models;
 
+use Platform\Dto\PromtRule\Group;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Collection;
@@ -70,5 +71,15 @@ final class PromptRule extends Model
     public function scopeActive(Builder $query): void
     {
         $query->where('is_active', true);
+    }
+
+    protected function casts()
+    {
+        return [
+            'is_active' => 'boolean',
+            'priority' => 'integer',
+            'version' => 'integer',
+            'group' => Group::class,
+        ];
     }
 }

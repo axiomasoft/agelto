@@ -11,6 +11,7 @@ use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
+use Platform\Dto\PromtRule\Group;
 use Platform\Models\PromptRule;
 
 final class PromptRulesTable
@@ -28,14 +29,7 @@ final class PromptRulesTable
                     ->label('Группа')
                     ->searchable()
                     ->sortable()
-                    ->formatStateUsing(fn (string $state): string => match ($state) {
-                        'primary_analysis' => 'Первичный анализ',
-                        'column_mapping' => 'Маппинг колонок',
-                        'detailed_parsing' => 'Детальный парсинг',
-                        'footer_analysis' => 'Анализ подвала',
-                        'data_cleaning' => 'Очистка данных',
-                        default => $state,
-                    }),
+                    ->formatStateUsing(fn (Group|string $state): string => $state instanceof Group ? $state->label() : (Group::tryFrom($state)?->label() ?? $state)),
                 TextColumn::make('priority')
                     ->label('Приоритет')
                     ->sortable(),
@@ -53,13 +47,7 @@ final class PromptRulesTable
             ->filters([
                 SelectFilter::make('group')
                     ->label('Группа')
-                    ->options([
-                        'primary_analysis' => 'Первичный анализ',
-                        'column_mapping' => 'Маппинг колонок',
-                        'detailed_parsing' => 'Детальный парсинг',
-                        'footer_analysis' => 'Анализ подвала',
-                        'data_cleaning' => 'Очистка данных',
-                    ]),
+                    ->options(Group::options()),
                 SelectFilter::make('is_active')
                     ->label('Активно')
                     ->options([
