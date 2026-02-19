@@ -42,103 +42,85 @@ final class PromtRulesSeeder extends Seeder
                     "  \"index\": integer (Порядковый номер ячейки в строке, начиная с 0),\n" .
                     "  \"name\": string (Текст в данной ячейке),\n" .
                     "  \"full_name\": string (Текст с учетом родительской группы ячеек).\n" .
-                    "  Пример: Ячейка 'Всего' под общей шапкой 'Количество' -> full_name: 'Количество Всего'\n" .
                     "}\n\n" .
                     "5. HeaderSchema (Карта колонок):\n" .
                     "{\n" .
-                    "  \"pos\": HeaderColumn (Алиасы: № п/п, №, поз, n),\n" .
-                    "  \"code\": HeaderColumn (Алиасы: Шифр, Обоснование, Код, Артикул, Норматив),\n" .
-                    "  \"name\": HeaderColumn (Алиасы: Наименование работ и затрат, Описание, Товар),\n" .
-                    "  \"unit\": HeaderColumn (Алиасы: Ед. изм., Измеритель, Единица, Ед.),\n" .
-                    "  \"quantity\": HeaderColumn (Алиасы: Количество, Объем, Кол-во всего),\n" .
-                    "  \"price\": HeaderColumn (Алиасы: Стоимость всего, Итого руб, Всего затрат)\n" .
+                    "  \"pos\": HeaderColumn (Алиасы: № п/п, №, поз),\n" .
+                    "  \"code\": HeaderColumn (Алиасы: Шифр, Обоснование, Код),\n" .
+                    "  \"name\": HeaderColumn (Алиасы: Наименование работ, Описание),\n" .
+                    "  \"unit\": HeaderColumn (Алиасы: Ед. изм., Измеритель),\n" .
+                    "  \"quantity\": HeaderColumn (Алиасы: Количество, Объем),\n" .
+                    "  \"price\": HeaderColumn (Алиасы: Стоимость всего, Итого руб)\n" .
                     "}\n\n" .
                     "6. ObjectPassport (Метаданные):\n" .
                     "{\n" .
-                    "  \"object_type\": \"estimate\",\n" .
-                    "  \"object_id\": string (Уникальный номер или индекс сметы в файле),\n" .
-                    "  \"document_type\": DocumentType (Определенный тип документа),\n" .
-                    "  \"reference\": string | null (Внутренняя ссылка, шифр ЛСР или номер договора),\n" .
-                    "  \"target\": DocumentTarget (Целевое назначение работ),\n" .
-                    "  \"object_address\": string | null (Адрес производства работ или объекта)\n" .
+                    "  \"object_id\": string (Уникальный индекс объекта в файле),\n" .
+                    "  \"document_type\": DocumentType (Тип),\n" .
+                    "  \"reference\": string | null (Шифр ЛСР или номер договора),\n" .
+                    "  \"target\": DocumentTarget (Цель),\n" .
+                    "  \"object_address\": string | null (Адрес)\n" .
                     "}\n\n" .
-                    "7. DocumentObject (Базовый объект документа):\n" .
-                    "{\n" .
-                    "  \"passport\": ObjectPassport (Метаданные документа),\n" .
-                    "  \"generator\": string | null (Программа генерации, например 'Гранд-Смета'),\n" .
-                    "  \"items_count\": integer (Количество основных позиций сметы),\n" .
-                    "  \"items_count_total\": integer (Общее количество строк, включая подресурсы),\n" .
-                    "  \"has_footer\": boolean (Наличие блока итогов)\n" .
-                    "}\n\n" .
-                    "8. DocumentDetailObject (Расширенный объект, extends DocumentObject):\n" .
+                    "7. DocumentObject (Базовый объект):\n" .
                     "{\n" .
                     "  \"passport\": ObjectPassport,\n" .
-                    "  \"generator\": string | null,\n" .
-                    "  \"items_count\": integer,\n" .
-                    "  \"items_count_total\": integer,\n" .
-                    "  \"has_footer\": boolean,\n" .
-                    "  \"header_schema\": HeaderSchema (Распознанная структура колонок),\n" .
-                    "  \"footer\": FooterItem[] (Массив итоговых начислений)\n" .
+                    "  \"generator\": string | null (ПО, напр. 'Гранд-Смета'),\n" .
+                    "  \"items_count\": integer (Кол-во позиций),\n" .
+                    "  \"items_count_total\": integer (Всего строк),\n" .
+                    "  \"has_footer\": boolean\n" .
                     "}\n\n" .
-                    "9. EstimateItem (Позиция сметы):\n" .
+                    "8. DocumentDetailObject (Расширенный объект):\n" .
                     "{\n" .
-                    "  \"pos\": integer | null (Номер позиции. Соответствует 'pos' в HeaderSchema),\n" .
-                    "  \"code\": string | null (Шифр. Соответствует 'code' в HeaderSchema),\n" .
-                    "  \"name\": string (Наименование работ. Соответствует 'name' в HeaderSchema),\n" .
-                    "  \"unit\": string | null (Ед. изм. Соответствует 'unit' в HeaderSchema),\n" .
-                    "  \"quantity\": float | null (Объем. Соответствует 'quantity' в HeaderSchema),\n" .
-                    "  \"price\": float | null (Сумма. Соответствует 'price' в HeaderSchema),\n" .
-                    "  \"children\": EstimateItemResource[] (Вложенные материалы/механизмы),\n" .
-                    "  \"modifiers\": object[] (Коэффициенты к позиции)\n" .
+                    "  \"passport\": ObjectPassport,\n" .
+                    "  \"header_schema\": HeaderSchema,\n" .
+                    "  \"footer\": FooterItem[]\n" .
                     "}\n\n" .
-                    "10. EstimateSubSection (Подраздел сметы):\n" .
+                    "9. EstimateItem (Позиция):\n" .
                     "{\n" .
-                    "  \"name\": string (Название подраздела),\n" .
-                    "  \"children\": EstimateItem[] (Позиции внутри подраздела)\n" .
+                    "  \"pos\": integer | null (Соответствует 'pos' в HeaderSchema),\n" .
+                    "  \"code\": string | null (Соответствует 'code' в HeaderSchema),\n" .
+                    "  \"name\": string (Соответствует 'name' в HeaderSchema),\n" .
+                    "  \"unit\": string | null (Соответствует 'unit' в HeaderSchema),\n" .
+                    "  \"quantity\": float | null (Соответствует 'quantity' в HeaderSchema),\n" .
+                    "  \"price\": float | null (Соответствует 'price' в HeaderSchema),\n" .
+                    "  \"children\": EstimateItemResource[],\n" .
+                    "  \"modifiers\": ModifierItem[]\n" .
                     "}\n\n" .
-                    "11. EstimateSection (Раздел сметы):\n" .
+                    "10. ModifierItem (Коэффициент):\n" .
                     "{\n" .
-                    "  \"name\": string (Название раздела),\n" .
-                    "  \"children\": (EstimateSubSection | EstimateItem)[] (Подразделы или прямые позиции)\n" .
+                    "  \"name\": string (Код, напр. 'К=1.15'),\n" .
+                    "  \"description\": string (Обоснование),\n" .
+                    "  \"value\": float (Число)\n" .
                     "}\n\n" .
-                    "12. EstimateItemResource (Ресурс позиции):\n" .
+                    "11. EstimateSection (Раздел):\n" .
+                    "{\n" .
+                    "  \"name\": string,\n" .
+                    "  \"children\": (EstimateSubSection | EstimateItem)[]\n" .
+                    "}\n\n" .
+                    "12. EstimateSubSection (Подраздел):\n" .
+                    "{\n" .
+                    "  \"name\": string,\n" .
+                    "  \"children\": EstimateItem[]\n" .
+                    "}\n\n" .
+                    "13. EstimateItemResource (Ресурс):\n" .
                     "{\n" .
                     "  \"code\": string | null (Шифр ресурса),\n" .
-                    "  \"name\": string (Наименование ресурса),\n" .
+                    "  \"name\": string (Наименование),\n" .
                     "  \"unit\": string | null (Ед. изм.),\n" .
-                    "  \"quantity\": float | null (Количество),\n" .
-                    "  \"price\": float | null (Стоимость),\n" .
-                    "  \"comment\": string | null (Текст из колонки 'pos', если там не число),\n" .
-                    "  \"resource_type\": ResourceType (Тип ресурса)\n" .
+                    "  \"quantity\": float | null,\n" .
+                    "  \"price\": float | null,\n" .
+                    "  \"comment\": string | null (Текст из колонки 'pos'),\n" .
+                    "  \"resource_type\": ResourceType\n" .
                     "}\n\n" .
-                    "13. FooterItem (Строка итогов):\n" .
+                    "14. FooterItem (Итог):\n" .
                     "{\n" .
-                    "  \"label\": string (Название итога),\n" .
-                    "  \"value\": float (Сумма),\n" .
-                    "  \"children\": FooterItem[] (Вложенные уточняющие итоги)\n" .
+                    "  \"label\": string,\n" .
+                    "  \"value\": float,\n" .
+                    "  \"children\": FooterItem[]\n" .
                     "}\n\n" .
-                    "14. Response Schemas (Структуры ответов API):\n\n" .
-                    "- PrimaryAnalysisResponse (Первичное сканирование):\n" .
-                    "  {\n" .
-                    "    \"has_estimates\": boolean (Найдены ли сметы),\n" .
-                    "    \"description\": string (Описание контента, до 40 симв),\n" .
-                    "    \"tags\": string[] (Теги: 'ремонт', 'лср'),\n" .
-                    "    \"objects\": DocumentObject[] (Найденные паспорта документов),\n" .
-                    "    \"success\": boolean,\n" .
-                    "    \"message\": string | null\n" .
-                    "  }\n\n" .
-                    "- EstimateFetchResponse (Извлечение позиций):\n" .
-                    "  {\n" .
-                    "    \"success\": boolean,\n" .
-                    "    \"message\": string | null,\n" .
-                    "    \"data\": (EstimateItem | EstimateSection)[] (Дерево позиций и разделов)\n" .
-                    "  }\n\n" .
-                    "- EstimateDocumentResponse (Полные данные):\n" .
-                    "  {\n" .
-                    "    \"success\": boolean,\n" .
-                    "    \"message\": string | null,\n" .
-                    "    \"data\": DocumentDetailObject (Объект с шапкой и подвалом)\n" .
-                    "  }",
+                    "15. Response Schemas:\n" .
+                    "- PrimaryAnalysisResponse: { has_estimates, description, tags, objects, success, message }\n" .
+                    "- EstimateFetchResponse: { success, message, data: (EstimateItem | EstimateSection)[] }\n" .
+                    "- EstimateDocumentResponse: { success, message, data: DocumentDetailObject }",
             ],
 
             // --- ГРУППА: SYSTEM (Базовые инструкции) ---
@@ -149,9 +131,10 @@ final class PromtRulesSeeder extends Seeder
                 'content' => "Ты — ведущий инженер-сметчик с экспертными навыками OCR.\n" .
                     "Твоя задача: анализировать документы и извлекать структуру данных.\n" .
                     "ОСНОВНЫЕ ТРЕБОВАНИЯ:\n" .
-                    "1. ОТВЕТ СТРОГО В JSON. Никакого текста или markdown-оберток.\n" .
-                    "2. МНОЖЕСТВЕННОСТЬ: В файле может быть более одной сметы. Определяй границы каждой.\n" .
-                    "3. ПОРЯДОК: Сметы часто разбиты на страницы. Сохраняй контекст и нумерацию.\n" .
+                    "1. ОТВЕТ СТРОГО В JSON. Никакого текста или markdown.\n" .
+                    "2. МНОЖЕСТВЕННОСТЬ: В файле может быть более одной сметы.\n" .
+                    "3. ПОРЯДОК: При переходе на новую страницу игнорируй повторение заголовков таблицы\n" .
+                    "и продолжай сборку текущего EstimateItem, если он был разорван.\n" .
                     "4. ТОЧКА ОСТАНОВА: Завершай парсинг ТЕКУЩЕГО объекта при встрече блока подписей,\n" .
                     "но продолжай поиск в файле, так как за ними может следовать новая смета.",
             ],
@@ -179,7 +162,8 @@ final class PromtRulesSeeder extends Seeder
                     "1. ИЕРАРХИЯ: Используй EstimateSection и EstimateSubSection для группировки.\n" .
                     "2. ПРАВИЛО No-Number: Если колонка `pos` пуста, но есть `code` и `name` — это EstimateItemResource.\n" .
                     "   Вкладывай такие строки в `children` последнего найденного EstimateItem.\n" .
-                    "3. СКЛЕЙКА: Если наименование работы разбито на строки, объединяй через пробел.\n" .
+                    "3. СКЛЕЙКА: Если наименование или ШИФР (`code`) разбиты на строки, объединяй через пробел.\n" .
+                    "   Не пытайся сокращать или переформатировать шифр (напр. ТЕР-01...).\n" .
                     "4. КОДЫ: Убедись, что извлеченные `code`, `name` и `unit` соответствуют HeaderSchema.",
             ],
             [
@@ -189,8 +173,7 @@ final class PromtRulesSeeder extends Seeder
                 'content' => "При обработке EstimateItemResource:\n" .
                     "- ПРАВИЛО COMMENT: Если в колонке `pos` текст/буквы (напр. 'прим.'), пиши это в `comment` ресурса.\n" .
                     "- Определи тип ресурса в поле `resource_type` (Material|Machine|Labor|Overhead).\n" .
-                    "- Используй анализ шифров и ключевых слов.\n" .
-                    "- Очищай данные от символов переноса строк внутри ячеек.",
+                    "- Выделяй коэффициенты в структуру ModifierItem (name, description, value).",
             ],
 
             // --- ГРУППА: FOOTER_ANALYSIS ---
@@ -199,7 +182,8 @@ final class PromtRulesSeeder extends Seeder
                 'group' => 'footer_analysis',
                 'priority' => 50,
                 'content' => "Извлеки итоги документа в массив FooterItem.\n" .
-                    "СОБЛЮДАЙ ИЕРАРХИЮ: Строки 'в том числе' должны быть вложены в `children` родителя.\n" .
+                    "1. ТИПЫ ИТОГОВ: Различай локальные итоги (внутри разделов) и глобальные (в конце документа).\n" .
+                    "2. ИЕРАРХИЯ: Строки 'в том числе' должны быть вложены в `children` родителя.\n" .
                     "Ключевые слова: 'Итого', 'НДС', 'Сметная прибыль', 'Накладные расходы'.",
             ],
 
@@ -209,9 +193,10 @@ final class PromtRulesSeeder extends Seeder
                 'group' => 'data_cleaning',
                 'priority' => 100,
                 'content' => "Стандарты очистки:\n" .
-                    "1. ЧИСЛА: Приводи к float. Точка — разделитель. Удаляй валюту.\n" .
-                    "2. МАТЕМАТИКА: Вычисляй формулы в ячейках (напр. 10*1.15).\n" .
-                    "3. ТЕКСТ: Удаляй двойные пробелы и невидимые символы.",
+                    "1. ЧИСЛА: Приводи к float. Точка — разделитель. Удаляй валютные приписки.\n" .
+                    "2. ЕД.ИЗМЕРЕНИЯ: Нормализуй значения в `unit`. Заменяй 'мЗ' на 'м3', 'м²' на 'м2' и т.д.\n" .
+                    "3. МАТЕМАТИКА: Вычисляй формулы в ячейках (напр. 10*1.15).\n" .
+                    "4. ТЕКСТ: Удаляй двойные пробелы и невидимые символы.",
             ],
         ];
 
