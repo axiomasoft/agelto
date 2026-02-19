@@ -6,7 +6,7 @@ namespace Platform\Database\Seeders;
 
 use Illuminate\Database\Seeder;
 use Platform\Dto\PromtRule\Group;
-use Platform\Models\PromptRule;
+use Platform\Models\Promt\PromptRule;
 
 final class PromtRulesSeeder extends Seeder
 {

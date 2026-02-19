@@ -2,17 +2,17 @@
 
 declare(strict_types=1);
 
-namespace Platform\Filament\Resources\PromptRule;
+namespace Platform\Filament\Resources\Promt;
 
 use BackedEnum;
 use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
 use Filament\Tables\Table;
-use Platform\Filament\Resources\PromptRule\Schemas\PromptRuleForm;
-use Platform\Filament\Resources\PromptRule\Tables\PromptRulesTable;
-use Platform\Models\PromptRule;
+use Platform\Filament\Resources\Promt\Schemas\PromtForm;
+use Platform\Filament\Resources\Promt\Tables\PromtsTable;
+use Platform\Models\Promt\PromptRule;
 
-final class PromptRuleResource extends Resource
+final class PromtResource extends Resource
 {
     protected static ?string $model = PromptRule::class;
 
@@ -28,20 +28,20 @@ final class PromptRuleResource extends Resource
 
     public static function form(Schema $schema): Schema
     {
-        return PromptRuleForm::configure($schema);
+        return PromtForm::configure($schema);
     }
 
     public static function table(Table $table): Table
     {
-        return PromptRulesTable::configure($table);
+        return PromtsTable::configure($table);
     }
 
     public static function getPages(): array
     {
         return [
-            'index' => Pages\ListPromptRules::route('/'),
-            'create' => Pages\CreatePromptRule::route('/create'),
-            'edit' => Pages\EditPromptRule::route('/{record}/edit'),
+            'index' => Pages\ListPromts::route('/'),
+            'create' => Pages\CreatePromt::route('/create'),
+            'edit' => Pages\EditPromt::route('/{record}/edit'),
         ];
     }
 }

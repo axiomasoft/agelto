@@ -10,7 +10,6 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Platform\Models\Crawling\LinkAttachment;
 use Spatie\MediaLibrary\HasMedia;
 use Spatie\MediaLibrary\InteractsWithMedia;
-use Platform\Models\DocumentAnalysis\DocumentAnalysisResponse;
 
 final class DocumentAnalysis extends Model implements HasMedia
 {
@@ -32,6 +31,16 @@ final class DocumentAnalysis extends Model implements HasMedia
         'attempts',
         'last_error',
     ];
+
+    public function parent(): BelongsTo
+    {
+        return $this->belongsTo(self::class, 'parent_id');
+    }
+
+    public function children(): HasMany
+    {
+        return $this->hasMany(self::class, 'parent_id');
+    }
 
     public function linkAttachment(): BelongsTo
     {

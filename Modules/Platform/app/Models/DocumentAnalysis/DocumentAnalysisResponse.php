@@ -7,6 +7,7 @@ namespace Platform\Models\DocumentAnalysis;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Platform\Dto\PromtRule\Group;
 
 final class DocumentAnalysisResponse extends Model
 {
@@ -14,15 +15,13 @@ final class DocumentAnalysisResponse extends Model
 
     protected $fillable = [
         'document_analysis_id',
-        'page_name',
-        'page_number',
-        'page_meta',
-        'content',
-        'full_response',
-        'status',
-        'completed_at',
-        'attempts',
-        'last_error',
+        'parent_id',
+        'success',
+        'message',
+        'data',
+        'promt',
+        'stage',
+        'state',
     ];
 
     public function documentAnalysis(): BelongsTo
@@ -43,9 +42,9 @@ final class DocumentAnalysisResponse extends Model
     protected function casts(): array
     {
         return [
-            'page_meta' => 'array',
-            'content' => 'array',
-            'completed_at' => 'datetime',
+            'data' => 'array',
+            'state' => 'array',
+            'stage' => Group::class,
         ];
     }
 }

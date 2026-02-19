@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Platform\Filament\Resources\PromptRule\Tables;
+namespace Platform\Filament\Resources\Promt\Tables;
 
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteBulkAction;
@@ -12,9 +12,9 @@ use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
 use Platform\Dto\PromtRule\Group;
-use Platform\Models\PromptRule;
+use Platform\Models\Promt\PromptRule;
 
-final class PromptRulesTable
+final class PromtsTable
 {
     public static function configure(Table $table): Table
     {

@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Platform\Filament\Resources\PromptRule\Schemas;
+namespace Platform\Filament\Resources\Promt\Schemas;
 
 use Filament\Forms\Components\MarkdownEditor;
 use Filament\Forms\Components\Select;
@@ -11,9 +11,9 @@ use Filament\Forms\Components\Toggle;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
 use Platform\Dto\PromtRule\Group;
-use Platform\Models\PromptRule;
+use Platform\Models\Promt\PromptRule;
 
-final class PromptRuleForm
+final class PromtForm
 {
     public static function configure(Schema $schema): Schema
     {
