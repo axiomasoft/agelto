@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Platform\Filament\Resources\Promt\Tables;
+namespace Platform\Filament\Resources\PromptRule\Tables;
 
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteBulkAction;
@@ -14,7 +14,7 @@ use Filament\Tables\Table;
 use Platform\Dto\PromtRule\Group;
 use Platform\Models\Promt\PromptRule;
 
-final class PromtsTable
+final class PromptRulesTable
 {
     public static function configure(Table $table): Table
     {

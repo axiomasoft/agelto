@@ -2,15 +2,15 @@
 
 declare(strict_types=1);
 
-namespace Platform\Filament\Resources\Promt\Pages;
+namespace Platform\Filament\Resources\PromptRule\Pages;
 
 use Filament\Actions;
 use Filament\Resources\Pages\ListRecords;
-use Platform\Filament\Resources\Promt\PromtResource;
+use Platform\Filament\Resources\PromptRule\PromptRuleResource;
 
-final class ListPromts extends ListRecords
+final class ListPromptRules extends ListRecords
 {
-    protected static string $resource = PromtResource::class;
+    protected static string $resource = PromptRuleResource::class;
 
     protected function getHeaderActions(): array
     {

@@ -26,7 +26,7 @@ use Platform\Filament\Resources\Crawler\CrawlerResource;
 use Platform\Filament\Resources\DocumentAnalysis\DocumentAnalysisResource;
 use Platform\Filament\Resources\Link\LinkResource;
 use Platform\Filament\Resources\Platform\PlatformResource;
-use Platform\Filament\Resources\Promt\PromtResource;
+use Platform\Filament\Resources\PromptRule\PromptRuleResource;
 use Sys\Filament\Resources\Proxy\ProxyResource;
 use Sys\Filament\Resources\Service\ServiceResource;
 
@@ -77,7 +77,7 @@ final class AdminPanelProvider extends PanelProvider
                             ...CrawlerResource::getNavigationItems(),
                             ...LinkResource::getNavigationItems(),
                             ...DocumentAnalysisResource::getNavigationItems(),
-                            ...PromtResource::getNavigationItems(),
+                            ...PromptRuleResource::getNavigationItems(),
                         ]),
                     NavigationGroup::make(label: 'Система')
                         ->icon(icon: 'heroicon-s-cog-6-tooth')
