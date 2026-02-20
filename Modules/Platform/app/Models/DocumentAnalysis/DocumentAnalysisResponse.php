@@ -21,7 +21,7 @@ final class DocumentAnalysisResponse extends Model
         'message',
         'data',
         'promt',
-        'stage',
+        'step',
         'state',
     ];
 
@@ -45,7 +45,7 @@ final class DocumentAnalysisResponse extends Model
         return [
             'data' => 'array',
             'state' => 'array',
-            'stage' => Group::class,
+            'step' => Group::class,
         ];
     }
 }

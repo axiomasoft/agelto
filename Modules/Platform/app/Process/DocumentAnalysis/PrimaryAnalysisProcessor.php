@@ -21,33 +21,42 @@ class PrimaryAnalysisProcessor
     {
         $media = $documentAnalysis->getDocumentForAnalysis();
 
+        // Проверяем, что это PDF (Gemini File API лучше всего работает с ними)
         if (!$media || $media->extension !== 'pdf') {
             return null;
         }
 
-        // 1. Загружаем и ждем URI прямо через GeminiService
-        $fileUri = $this->gemini->uploadFileAndWait(
-            $media->getPath(),
-            $media->file_name
-        );
+        /**
+         * 1. ГАРАНТИРУЕМ НАЛИЧИЕ В ОБЛАКЕ
+         * Даже если файл 200 МБ, мы его грузим в File API.
+         * Метод ensureFileInCloud сам проверит custom_properties и не будет
+         * перезаливать файл, если он там уже есть и активен.
+         */
+        $fileUri = $this->gemini->ensureFileInCloud($media);
 
-        // 2. Получаем инструкции
+        // 2. ПОЛУЧАЕМ ИНСТРУКЦИИ ДЛЯ ФИЛЬТРАЦИИ
         $systemInstructions = $this->promptRepo->getSystemInstructionsForGroup(Group::PrimaryAnalysis);
 
-        // 3. Запрос
+        /**
+         * 3. ЗАПРОС БЕЗ КЭША
+         * Дима, здесь мы передаем $fileUri напрямую.
+         * Gemini 2.0 Flash отлично справляется с длинным контекстом.
+         * Кэширование (cacheId) оставляем null, чтобы не плодить платные сущности
+         * для первичного отсева мусора.
+         */
         $response = $this->gemini->generateJson(
-            prompt: "Проанализируй смету. Если на первых 3 стр пусто — success:false.",
-            data: $fileUri, // Здесь теперь ссылка на файл в Google
-            systemInstruction: $systemInstructions
+            prompt: "Выполни первичный анализ документа согласно инструкциям.",
+            data: $fileUri,
+            systemInstruction: $systemInstructions,
+            cacheId: null
         );
 
-
-        $documentAnalysisResponse = $documentAnalysis->responses()->create([
+        // 4. СОХРАНЯЕМ ОТВЕТ
+        return $documentAnalysis->responses()->create([
             'step' => 'primary_analysis',
-            'payload' => $response['data'] ?? [],
+            'cache_file_id' => null, // Явно фиксируем, что кэш не использовался
+            'payload' => $response['data'] ?? $response,
             'raw_response' => $response
         ]);
-
-        return $documentAnalysisResponse;
     }
 }

@@ -15,6 +15,7 @@ use GuzzleHttp\Client as GuzzleClient;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 use InvalidArgumentException;
+use Spatie\MediaLibrary\MediaCollections\Models\Media;
 
 /**
  * @mixin Client
@@ -22,7 +23,6 @@ use InvalidArgumentException;
 final class GeminiService
 {
     private Client $nativeClient;
-
     private string $model = 'gemini-2.0-flash';
 
     public function __construct()
@@ -36,133 +36,98 @@ final class GeminiService
     }
 
     /**
-     * Загрузка файла и ожидание его готовности (ACTIVE)
+     * ГАРАНТИЯ НАЛИЧИЯ ФАЙЛА В ОБЛАКЕ
+     * Проверяет Media и актуальность в Google File API.
      */
-    public function uploadFileAndWait(string $path, string $displayName, string $mimeType = 'application/pdf'): string
+    public function ensureFileInCloud(Media $media): string
     {
-        $mime = GeminiMimeType::tryFrom($mimeType);
-        if ($mime === null) {
-            throw new InvalidArgumentException("Unsupported MIME type: {$mimeType}");
+        $fileUri = $media->getCustomProperty('google_file_uri');
+
+        if (!$this->isFileActive($fileUri)) {
+            // Если в custom_properties пусто или файл протух (48ч) — грузим
+            $fileUri = $this->uploadFileAndWait($media->getPath(), $media->file_name);
+            $media->setCustomProperty('google_file_uri', $fileUri);
+            $media->save();
         }
 
-        $fileResponse = $this->files()->upload(
-            filename: $path,
-            mimeType: $mime,
-            displayName: $displayName,
-        );
-
-        $start = now();
-        while (true) {
-            $currentFile = $this->files()->metadataGet($fileResponse->name);
-            $state = is_string($currentFile->state) ? $currentFile->state : $currentFile->state->value;
-
-            if ($state === 'ACTIVE') {
-                return $currentFile->uri;
-            }
-
-            if ($state === 'FAILED') {
-                throw new Exception("Gemini File API failed: {$displayName}");
-            }
-
-            if (now()->diffInMinutes($start) > 5) {
-                throw new Exception("Timeout waiting for file: {$displayName}");
-            }
-
-            sleep(3);
-        }
+        return $fileUri;
     }
 
     /**
-     * Проверка: существует ли файл в Google (они живут 48 часов)
+     * ПОЛУЧЕНИЕ ИЛИ СОЗДАНИЕ КЭША КОНТЕКСТА
+     * Вызываем только тогда, когда нужен детальный анализ (бурение).
      */
-    public function isFileActive(?string $fileUri): bool
+    public function getContextCache(Media $media, string $systemInstruction, int $ttlHours = 1): array
     {
-        if (! $fileUri) {
-            return false;
-        }
-        try {
-            $parts = explode('/', $fileUri);
-            $fileName = 'files/' . end($parts);
-            $file = $this->files()->metadataGet($fileName);
-            $state = is_string($file->state) ? $file->state : $file->state->value;
+        $fileUri = $this->ensureFileInCloud($media);
+        $rulesHash = sha1($systemInstruction);
 
-            return $state === 'ACTIVE';
-        } catch (Exception $e) {
-            return false;
-        }
-    }
+        // Ключ для Redis: привязан к конкретному файлу и версии правил
+        $cacheKey = "gemini_context:" . sha1($fileUri . $rulesHash);
 
-    /**
-     * ПОЛУЧЕНИЕ ИЛИ СОЗДАНИЕ КЭША (Для детального парсинга)
-     * Связываем инструкции и файл в один контекст.
-     */
-    public function getContextCache(string $fileUri, string $systemInstruction, int $ttlHours = 1): array
-    {
-        // Хеш от правил + URI файла
-        $hash = sha1($fileUri . $systemInstruction);
-        $cacheKey = "gemini_cache:{$hash}";
-
-        // 1. Проверяем Redis
         $cachedData = Cache::get($cacheKey);
         if ($cachedData) {
             try {
+                // Проверяем, не удален ли кеш на стороне Google
                 $this->cachedContents()->retrieve($cachedData['cache_id']);
-
                 return $cachedData;
             } catch (Exception $e) {
                 Cache::forget($cacheKey);
             }
         }
 
-        // 2. Создаем кэш в Google (обязательно передаем и инструкции, и файл)
         try {
+            // Создаем новый кеш
             $cacheResponse = $this->cachedContents()->create(
-                model: "models/{$this->model}",
+                model: "models/gemini-1.5-flash",
                 systemInstruction: Content::parse($systemInstruction),
-                tools: [],
-                toolConfig: null,
                 ttl: "{$ttlHours}h",
-                displayName: "cache_{$hash}",
-                contents: [
-                    Content::parse(part: "DOC_URI: {$fileUri}"),
-                ],
+                displayName: "cache_" . substr($cacheKey, 0, 10),
+                contents: [Content::parse(part: "DOC: {$fileUri}")],
             );
 
             $data = [
-                'cache_id' => $cacheResponse->cachedContent->name,
+                'cache_id'   => $cacheResponse->cachedContent->name,
                 'expires_at' => now()->addHours($ttlHours)->toDateTimeString(),
+                'rules_hash' => $rulesHash,
             ];
 
+            // Обновляем Media свойствами кеша
+            $media->setCustomProperty('cache_file_id', $data['cache_id']);
+            $media->setCustomProperty('cache_file_expires', $data['expires_at']);
+            $media->save();
+
+            // Кешируем в Redis
             Cache::put($cacheKey, $data, now()->addHours($ttlHours)->subMinutes(5));
 
             return $data;
         } catch (Exception $e) {
-            Log::warning('Context Cache не создан: ' . $e->getMessage());
-
-            return ['cache_id' => null, 'expires_at' => null];
+            Log::warning('Gemini Context Cache failed: ' . $e->getMessage());
+            return ['cache_id' => null, 'rules_hash' => $rulesHash];
         }
     }
 
     /**
-     * УМНАЯ ГЕНЕРАЦИЯ (JSON)
-     * Если передан $cacheId — используем кэш, если нет — обычный запрос.
+     * ГЕНЕРАЦИЯ (JSON)
+     * Если передан cacheId — используется контекстный кеш (для детального парсинга).
+     * Если нет — обычный запрос (для первичного фильтра).
      */
     public function generateJson(string $prompt, string $data, ?string $systemInstruction = null, ?string $cacheId = null): array
     {
         try {
-            $model = $this->nativeClient->generativeModel($this->model);
+            $model = $this->generativeModel($this->model);
             $config = new GenerationConfig(
                 responseMimeType: ResponseMimeType::APPLICATION_JSON,
                 temperature: 0.1,
             );
 
             if ($cacheId) {
-                // Работа через кэш (системные правила и файл уже внутри)
+                // Экономный запрос через существующий кеш
                 $response = $model->withCachedContent($cacheId)
                     ->withGenerationConfig($config)
                     ->generateContent($prompt);
             } else {
-                // Обычный запрос (как было раньше)
+                // Обычный запрос (передаем инструкции и URI файла)
                 if ($systemInstruction) {
                     $model = $model->withSystemInstruction(Content::parse($systemInstruction));
                 }
@@ -175,16 +140,42 @@ final class GeminiService
             return json_decode($response->text(), true) ?? [];
         } catch (Exception $e) {
             Log::error('Gemini Service Error: ' . $e->getMessage());
-
             return ['success' => false, 'error' => $e->getMessage()];
         }
     }
 
-    public function setModel(string $model): self
+    public function uploadFileAndWait(string $path, string $displayName, string $mimeType = 'application/pdf'): string
     {
-        $this->model = $model;
+        $mime = GeminiMimeType::tryFrom($mimeType);
+        if ($mime === null) throw new InvalidArgumentException("Unsupported MIME type: {$mimeType}");
 
-        return $this;
+        $fileResponse = $this->files()->upload(filename: $path, mimeType: $mime, displayName: $displayName);
+
+        $start = now();
+        while (true) {
+            $currentFile = $this->files()->metadataGet($fileResponse->name);
+            $state = is_string($currentFile->state) ? $currentFile->state : $currentFile->state->value;
+
+            if ($state === 'ACTIVE') return $currentFile->uri;
+            if ($state === 'FAILED') throw new Exception("Gemini File API failed: {$displayName}");
+            if (now()->diffInMinutes($start) > 5) throw new Exception("Timeout waiting for file: {$displayName}");
+
+            sleep(3);
+        }
+    }
+
+    public function isFileActive(?string $fileUri): bool
+    {
+        if (!$fileUri) return false;
+        try {
+            $parts = explode('/', $fileUri);
+            $fileName = 'files/' . end($parts);
+            $file = $this->files()->metadataGet($fileName);
+            $state = is_string($file->state) ? $file->state : $file->state->value;
+            return $state === 'ACTIVE';
+        } catch (Exception $e) {
+            return false;
+        }
     }
 
     private function buildClient(): void

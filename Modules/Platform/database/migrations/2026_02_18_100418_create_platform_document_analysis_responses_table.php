@@ -31,7 +31,7 @@ return new class extends Migration
             $table->text('promt');
 
             // Тип действия (primary_analysis, detailed_parsing, etc.)
-            $table->string('stage')->nullable();
+            $table->string('step')->nullable();
 
             // Хранить состояние процесса анализа
             // Например первичный анализ показал, что есть сметы
