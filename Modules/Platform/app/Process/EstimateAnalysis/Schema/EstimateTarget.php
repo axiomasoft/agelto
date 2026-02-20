@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace Platform\Process\DocumentAnalysis\Schema;
+namespace Platform\Process\EstimateAnalysis\Schema;
 
-enum DocumentTarget: string
+enum EstimateTarget: string
 {
     case Construction = 'construction';
     case Renovation = 'renovation';

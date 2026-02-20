@@ -39,8 +39,10 @@ final class PrimaryAnalysisProcessor
         $fileUri = $this->gemini->ensureFileInCloud($documentAnalysis);
         $systemInstructions = $this->promptRepo->getSystemInstructionsForStep($step);
 
+        $promt = "Выполни первичный анализ согласно правилам.";
+
         $response = $this->gemini->generateJson(
-            prompt: "Выполни первичный анализ согласно правилам.",
+            prompt: $promt,
             data: $fileUri,
             systemInstruction: $systemInstructions
         );
@@ -60,7 +62,7 @@ final class PrimaryAnalysisProcessor
             'success' => $responseObject->success,
             'message' => $responseObject->message ?? null,
             'data' => $responseObject->data->toArray(),
-            'promt' => $systemInstructions,
+            'promt' => $promt,
             'rules_hash' => sha1($systemInstructions),
         ]);
     }

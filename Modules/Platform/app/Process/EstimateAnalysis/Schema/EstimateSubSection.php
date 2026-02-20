@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Platform\Process\DocumentAnalysis\Schema\Estimate;
+namespace Platform\Process\EstimateAnalysis\Schema;
 
 use Spatie\LaravelData\Attributes\DataCollectionOf;
 use Spatie\LaravelData\Data;
@@ -14,6 +14,7 @@ final class EstimateSubSection extends Data
      * @param  DataCollection<int, EstimateItem>  $children
      */
     public function __construct(
+        public string $type = 'subsection',
         public string $name,
         #[DataCollectionOf(EstimateItem::class)]
         public DataCollection $children = new DataCollection(EstimateItem::class, []),

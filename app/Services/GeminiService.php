@@ -57,7 +57,7 @@ final class GeminiService
         $fileUri = $media->getCustomProperty('google_file_uri');
 
         if (!$this->isFileActive($fileUri)) {
-            $fileUri = $this->uploadFileAndWait($media->getPath(), $media->file_name);
+            $fileUri = $this->uploadFile($media->getPath(), $media->file_name);
             $media->setCustomProperty('google_file_uri', $fileUri);
             $media->save();
         }
@@ -160,7 +160,7 @@ final class GeminiService
         }
     }
 
-    public function uploadFileAndWait(string $path, string $displayName, string $mimeType = 'application/pdf'): string
+    public function uploadFile(string $path, string $displayName, string $mimeType = 'application/pdf'): string
     {
         $mime = GeminiMimeType::tryFrom($mimeType);
         if ($mime === null) {
