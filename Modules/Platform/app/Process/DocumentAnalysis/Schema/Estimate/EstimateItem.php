@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Platform\Dto\DocumentAnalysis\Schema;
+namespace Platform\Process\DocumentAnalysis\Schema\Estimate;
 
 use Spatie\LaravelData\Attributes\DataCollectionOf;
 use Spatie\LaravelData\Data;
@@ -12,7 +12,7 @@ final class EstimateItem extends Data
 {
     /**
      * @param  DataCollection<int, EstimateItemResource>  $children
-     * @param  DataCollection<int, ModifierItem>  $modifiers
+     * @param  DataCollection<int, EstimateModifierItem>  $modifiers
      */
     public function __construct(
         public string $name,
@@ -23,7 +23,7 @@ final class EstimateItem extends Data
         public ?float $price = null,
         #[DataCollectionOf(EstimateItemResource::class)]
         public DataCollection $children = new DataCollection(EstimateItemResource::class, []),
-        #[DataCollectionOf(ModifierItem::class)]
-        public DataCollection $modifiers = new DataCollection(ModifierItem::class, []),
+        #[DataCollectionOf(EstimateModifierItem::class)]
+        public DataCollection $modifiers = new DataCollection(EstimateModifierItem::class, []),
     ) {}
 }

@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Platform\Dto\DocumentAnalysis\Schema;
+namespace Platform\Process\DocumentAnalysis\Schema\Estimate;
 
 use Spatie\LaravelData\Data;
 
@@ -10,7 +10,7 @@ final class EstimateItemResource extends Data
 {
     public function __construct(
         public string $name,
-        public ResourceType $resource_type,
+        public EstimateResourceType $resource_type,
         public ?string $code = null,
         public ?string $unit = null,
         public ?float $quantity = null,

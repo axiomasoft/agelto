@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Platform\Dto\DocumentAnalysis\Schema;
+namespace Platform\Process\DocumentAnalysis\Schema\Estimate;
 
 use Spatie\LaravelData\Attributes\DataCollectionOf;
 use Spatie\LaravelData\Data;

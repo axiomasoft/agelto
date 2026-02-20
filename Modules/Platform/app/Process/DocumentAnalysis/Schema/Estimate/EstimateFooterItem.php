@@ -2,14 +2,14 @@
 
 declare(strict_types=1);
 
-namespace Platform\Dto\DocumentAnalysis\Schema;
+namespace Platform\Process\DocumentAnalysis\Schema\Estimate;
 
 use Spatie\LaravelData\Data;
 
-final class FooterItem extends Data
+final class EstimateFooterItem extends Data
 {
     /**
-     * @param  FooterItem[]  $children
+     * @param  EstimateFooterItem[]  $children
      */
     public function __construct(
         public string $label,

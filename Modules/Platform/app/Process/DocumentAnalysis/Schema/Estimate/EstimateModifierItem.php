@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
-namespace Platform\Dto\DocumentAnalysis\Schema;
+namespace Platform\Process\DocumentAnalysis\Schema\Estimate;
 
 use Spatie\LaravelData\Data;
 
-final class ModifierItem extends Data
+final class EstimateModifierItem extends Data
 {
     public function __construct(
         public string $name,

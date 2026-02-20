@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Platform\Dto\DocumentAnalysis\Schema;
+namespace Platform\Process\DocumentAnalysis\Schema;
 
 enum DocumentTarget: string
 {

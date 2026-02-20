@@ -2,8 +2,9 @@
 
 declare(strict_types=1);
 
-namespace Platform\Dto\DocumentAnalysis\Schema;
+namespace Platform\Process\DocumentAnalysis\Schema\Responses;
 
+use Platform\Process\DocumentAnalysis\Schema\DocumentDetailObject;
 use Spatie\LaravelData\Data;
 
 final class EstimateDocumentResponse extends Data

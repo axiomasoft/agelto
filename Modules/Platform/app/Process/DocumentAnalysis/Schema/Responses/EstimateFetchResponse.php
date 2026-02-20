@@ -2,8 +2,10 @@
 
 declare(strict_types=1);
 
-namespace Platform\Dto\DocumentAnalysis\Schema;
+namespace Platform\Process\DocumentAnalysis\Schema\Responses;
 
+use Platform\Process\DocumentAnalysis\Schema\Estimate\EstimateItem;
+use Platform\Process\DocumentAnalysis\Schema\Estimate\EstimateSection;
 use Spatie\LaravelData\Data;
 
 final class EstimateFetchResponse extends Data

@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace Platform\Dto\DocumentAnalysis\Schema;
+namespace Platform\Process\DocumentAnalysis\Schema\Estimate;
 
-enum ResourceType: string
+enum EstimateResourceType: string
 {
     case Material = 'Material';
     case Machine = 'Machine';
