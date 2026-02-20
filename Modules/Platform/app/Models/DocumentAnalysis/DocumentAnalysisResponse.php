@@ -16,6 +16,7 @@ final class DocumentAnalysisResponse extends Model
     protected $fillable = [
         'document_analysis_id',
         'parent_id',
+        'file_cache_id',
         'success',
         'message',
         'data',

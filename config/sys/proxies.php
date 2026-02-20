@@ -11,4 +11,6 @@ return [
     'list' => [
         // 'http://user:pass@ip:port',
     ],
+
+    'gemini_proxy' => env('GEMINI_PROXY'),
 ];
