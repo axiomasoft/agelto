@@ -11,17 +11,22 @@ use Platform\Models\DocumentAnalysis\DocumentAnalysisResponse;
 use Platform\Repositories\Promt\PromptRuleRepository;
 use Platform\Process\DocumentAnalysis\Schema\Responses\PrimaryAnalysisResponse;
 use Platform\Process\DocumentPrepare\DocumentProcessor;
+use App\Services\AppLogger;
+use App\Enums\LogOutput;
 
 final class PrimaryAnalysisProcessor
 {
     public function __construct(
         private GeminiService $gemini,
         private PromptRuleRepository $promptRepo,
-        private DocumentProcessor $documentProcessor
+        private DocumentProcessor $documentProcessor,
+        protected readonly AppLogger $logger,
     ) {}
 
     public function run(DocumentAnalysis $documentAnalysis, bool $forcePrepare = false): ?DocumentAnalysisResponse
     {
+        $this->logger->info('Начало первичного анализа ' . $documentAnalysis->id, LogOutput::Console);
+
         $media = $documentAnalysis->getDocumentForAnalysis();
 
         // Подготовка документа
