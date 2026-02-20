@@ -16,12 +16,13 @@ final class DocumentAnalysisResponse extends Model
     protected $fillable = [
         'document_analysis_id',
         'parent_id',
-        'file_cache_id',
+        'promt',
+        'step',
+        'cache_file_id',
+        'rules_hash',
         'success',
         'message',
         'data',
-        'promt',
-        'step',
         'state',
     ];
 
@@ -45,6 +46,7 @@ final class DocumentAnalysisResponse extends Model
         return [
             'data' => 'array',
             'state' => 'array',
+            'success' => 'boolean',
             'step' => Group::class,
         ];
     }

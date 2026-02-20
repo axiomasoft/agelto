@@ -12,9 +12,9 @@ use Gemini\Data\GenerationConfig;
 use Gemini\Enums\MimeType as GeminiMimeType;
 use Gemini\Enums\ResponseMimeType;
 use GuzzleHttp\Client as GuzzleClient;
-use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 use InvalidArgumentException;
+use Platform\Models\DocumentAnalysis\DocumentAnalysis;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
 
 /**
@@ -23,6 +23,7 @@ use Spatie\MediaLibrary\MediaCollections\Models\Media;
 final class GeminiService
 {
     private Client $nativeClient;
+
     private string $model = 'gemini-2.0-flash';
 
     public function __construct()
@@ -43,7 +44,7 @@ final class GeminiService
     {
         $fileUri = $media->getCustomProperty('google_file_uri');
 
-        if (!$this->isFileActive($fileUri)) {
+        if (! $this->isFileActive($fileUri)) {
             // Если в custom_properties пусто или файл протух (48ч) — грузим
             $fileUri = $this->uploadFileAndWait($media->getPath(), $media->file_name);
             $media->setCustomProperty('google_file_uri', $fileUri);
@@ -54,57 +55,67 @@ final class GeminiService
     }
 
     /**
+     * ПРИНУДИТЕЛЬНОЕ УДАЛЕНИЕ КЭША
+     * Вызываем, когда парсинг полностью завершен.
+     */
+    public function deleteCache(DocumentAnalysis $analysis): void
+    {
+        if ($analysis->gemini_cache_id) {
+            try {
+                $this->cachedContents()->delete($analysis->gemini_cache_id);
+            } catch (Exception $e) {
+                Log::warning("Cache already deleted or not found: " . $analysis->gemini_cache_id);
+            }
+
+            $analysis->update([
+                'gemini_cache_id' => null,
+                'gemini_cache_expires_at' => null,
+            ]);
+        }
+    }
+
+    /**
      * ПОЛУЧЕНИЕ ИЛИ СОЗДАНИЕ КЭША КОНТЕКСТА
      * Вызываем только тогда, когда нужен детальный анализ (бурение).
      */
-    public function getContextCache(Media $media, string $systemInstruction, int $ttlHours = 1): array
+    public function getContextCache(DocumentAnalysis $analysis, string $systemInstruction, int $ttlHours = 6): array
     {
+        $media = $analysis->media; // Предполагаем наличие связи
         $fileUri = $this->ensureFileInCloud($media);
+
+        // 1. Генерируем отпечатки
+        $currentFingerprint = $this->getFileFingerprint($media);
         $rulesHash = sha1($systemInstruction);
 
-        // Ключ для Redis: привязан к конкретному файлу и версии правил
-        $cacheKey = "gemini_context:" . sha1($fileUri . $rulesHash);
-
-        $cachedData = Cache::get($cacheKey);
-        if ($cachedData) {
+        // 2. Проверяем кэш прямо в модели анализа
+        if ($analysis->isCacheValid($currentFingerprint, $rulesHash)) {
             try {
-                // Проверяем, не удален ли кеш на стороне Google
-                $this->cachedContents()->retrieve($cachedData['cache_id']);
-                return $cachedData;
+                // Проверка "живости" в Google
+                $this->cachedContents()->retrieve($analysis->gemini_cache_id);
+
+                return ['cache_id' => $analysis->gemini_cache_id];
             } catch (Exception $e) {
-                Cache::forget($cacheKey);
+                // Кэш умер в Google, идем пересоздавать
             }
         }
 
-        try {
-            // Создаем новый кеш
-            $cacheResponse = $this->cachedContents()->create(
-                model: "models/gemini-1.5-flash",
-                systemInstruction: Content::parse($systemInstruction),
-                ttl: "{$ttlHours}h",
-                displayName: "cache_" . substr($cacheKey, 0, 10),
-                contents: [Content::parse(part: "DOC: {$fileUri}")],
-            );
+        // 3. Создаем новый кэш
+        $cacheResponse = $this->cachedContents()->create(
+            model: 'models/gemini-1.5-flash',
+            systemInstruction: Content::parse($systemInstruction),
+            ttl: "{$ttlHours}h",
+            contents: [Content::parse(part: "DOC: {$fileUri}")],
+        );
 
-            $data = [
-                'cache_id'   => $cacheResponse->cachedContent->name,
-                'expires_at' => now()->addHours($ttlHours)->toDateTimeString(),
-                'rules_hash' => $rulesHash,
-            ];
+        // 4. Сохраняем данные в анализ
+        $analysis->update([
+            'file_fingerprint' => $currentFingerprint,
+            'gemini_cache_id' => $cacheResponse->cachedContent->name,
+            'gemini_rules_hash' => $rulesHash,
+            'gemini_cache_expires_at' => now()->addHours($ttlHours),
+        ]);
 
-            // Обновляем Media свойствами кеша
-            $media->setCustomProperty('cache_file_id', $data['cache_id']);
-            $media->setCustomProperty('cache_file_expires', $data['expires_at']);
-            $media->save();
-
-            // Кешируем в Redis
-            Cache::put($cacheKey, $data, now()->addHours($ttlHours)->subMinutes(5));
-
-            return $data;
-        } catch (Exception $e) {
-            Log::warning('Gemini Context Cache failed: ' . $e->getMessage());
-            return ['cache_id' => null, 'rules_hash' => $rulesHash];
-        }
+        return ['cache_id' => $analysis->gemini_cache_id];
     }
 
     /**
@@ -140,6 +151,7 @@ final class GeminiService
             return json_decode($response->text(), true) ?? [];
         } catch (Exception $e) {
             Log::error('Gemini Service Error: ' . $e->getMessage());
+
             return ['success' => false, 'error' => $e->getMessage()];
         }
     }
@@ -147,7 +159,9 @@ final class GeminiService
     public function uploadFileAndWait(string $path, string $displayName, string $mimeType = 'application/pdf'): string
     {
         $mime = GeminiMimeType::tryFrom($mimeType);
-        if ($mime === null) throw new InvalidArgumentException("Unsupported MIME type: {$mimeType}");
+        if ($mime === null) {
+            throw new InvalidArgumentException("Unsupported MIME type: {$mimeType}");
+        }
 
         $fileResponse = $this->files()->upload(filename: $path, mimeType: $mime, displayName: $displayName);
 
@@ -156,9 +170,15 @@ final class GeminiService
             $currentFile = $this->files()->metadataGet($fileResponse->name);
             $state = is_string($currentFile->state) ? $currentFile->state : $currentFile->state->value;
 
-            if ($state === 'ACTIVE') return $currentFile->uri;
-            if ($state === 'FAILED') throw new Exception("Gemini File API failed: {$displayName}");
-            if (now()->diffInMinutes($start) > 5) throw new Exception("Timeout waiting for file: {$displayName}");
+            if ($state === 'ACTIVE') {
+                return $currentFile->uri;
+            }
+            if ($state === 'FAILED') {
+                throw new Exception("Gemini File API failed: {$displayName}");
+            }
+            if (now()->diffInMinutes($start) > 5) {
+                throw new Exception("Timeout waiting for file: {$displayName}");
+            }
 
             sleep(3);
         }
@@ -166,12 +186,15 @@ final class GeminiService
 
     public function isFileActive(?string $fileUri): bool
     {
-        if (!$fileUri) return false;
+        if (! $fileUri) {
+            return false;
+        }
         try {
             $parts = explode('/', $fileUri);
             $fileName = 'files/' . end($parts);
             $file = $this->files()->metadataGet($fileName);
             $state = is_string($file->state) ? $file->state : $file->state->value;
+
             return $state === 'ACTIVE';
         } catch (Exception $e) {
             return false;

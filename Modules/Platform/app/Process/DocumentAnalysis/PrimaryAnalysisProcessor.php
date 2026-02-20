@@ -5,24 +5,26 @@ declare(strict_types=1);
 namespace Platform\Process\DocumentAnalysis\Estimates;
 
 use App\Services\GeminiService;
+use Platform\Dto\PromtRule\Group;
 use Platform\Models\DocumentAnalysis\DocumentAnalysis;
 use Platform\Models\DocumentAnalysis\DocumentAnalysisResponse;
 use Platform\Repositories\Promt\PromptRuleRepository;
-use Platform\Dto\PromtRule\Group;
 
-class PrimaryAnalysisProcessor
+final class PrimaryAnalysisProcessor
 {
     public function __construct(
-        protected GeminiService $gemini,
-        protected PromptRuleRepository $promptRepo
+        private GeminiService $gemini,
+        private PromptRuleRepository $promptRepo
     ) {}
 
     public function run(DocumentAnalysis $documentAnalysis): ?DocumentAnalysisResponse
     {
+        $group = Group::PrimaryAnalysis;
+
         $media = $documentAnalysis->getDocumentForAnalysis();
 
         // Проверяем, что это PDF (Gemini File API лучше всего работает с ними)
-        if (!$media || $media->extension !== 'pdf') {
+        if (! $media || $media->extension !== 'pdf') {
             return null;
         }
 
@@ -35,7 +37,7 @@ class PrimaryAnalysisProcessor
         $fileUri = $this->gemini->ensureFileInCloud($media);
 
         // 2. ПОЛУЧАЕМ ИНСТРУКЦИИ ДЛЯ ФИЛЬТРАЦИИ
-        $systemInstructions = $this->promptRepo->getSystemInstructionsForGroup(Group::PrimaryAnalysis);
+        $systemInstructions = $this->promptRepo->getSystemInstructionsForGroup($group);
 
         /**
          * 3. ЗАПРОС БЕЗ КЭША
@@ -45,7 +47,7 @@ class PrimaryAnalysisProcessor
          * для первичного отсева мусора.
          */
         $response = $this->gemini->generateJson(
-            prompt: "Выполни первичный анализ документа согласно инструкциям.",
+            prompt: 'Выполни первичный анализ документа согласно инструкциям.',
             data: $fileUri,
             systemInstruction: $systemInstructions,
             cacheId: null
@@ -55,8 +57,11 @@ class PrimaryAnalysisProcessor
         return $documentAnalysis->responses()->create([
             'step' => 'primary_analysis',
             'cache_file_id' => null, // Явно фиксируем, что кэш не использовался
-            'payload' => $response['data'] ?? $response,
-            'raw_response' => $response
+            'data' => $response['data'],
+            'success' => $response['success'],
+            'message' => $response['message'],
+            'promt' => $response['promt'],
+            'step' => $group,
         ]);
     }
 }

@@ -37,7 +37,7 @@ final class LinkAttachment extends Model implements HasMedia
 
     public function documentAnalyses(): MorphMany
     {
-        return $this->morphMany(DocumentAnalysis::class, name: 'document_analysable');
+        return $this->morphMany(DocumentAnalysis::class, name: 'model');
     }
 
     protected function casts(): array

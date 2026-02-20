@@ -23,11 +23,15 @@ final class DocumentAnalysis extends Model implements HasMedia
     protected $table = 'plt_document_analysis';
 
     protected $fillable = [
-        'document_analysable_type',
-        'document_analysable_id',
+        'model_type',
+        'model_id',
         'parent_id',
         'name',
         'extension',
+        'file_fingerprint',
+        'gemini_cache_id',
+        'gemini_rules_hash',
+        'gemini_cache_expires_at',
         'status',
         'completed_at',
         'attempts',
@@ -44,9 +48,12 @@ final class DocumentAnalysis extends Model implements HasMedia
         return $this->hasMany(self::class, 'parent_id');
     }
 
+    /**
+     * Владелец анализа (LinkAttachment и др.). Колонки: model_type, model_id.
+     */
     public function documentAnalysable(): MorphTo
     {
-        return $this->morphTo(name: 'document_analysable');
+        return $this->morphTo(name: 'model');
     }
 
     public function responses(): HasMany
@@ -63,10 +70,22 @@ final class DocumentAnalysis extends Model implements HasMedia
             ?? $this->getFirstMedia('document-source');
     }
 
+    /**
+     * Проверяет, можно ли использовать текущий кэш для данного файла и правил
+     */
+    public function isCacheValid(string $fingerprint, string $rulesHash): bool
+    {
+        return $this->gemini_cache_id
+            && $this->file_fingerprint === $fingerprint
+            && $this->gemini_rules_hash === $rulesHash
+            && $this->gemini_cache_expires_at?->isFuture();
+    }
+
     protected function casts(): array
     {
         return [
             'completed_at' => 'datetime',
+            'gemini_cache_expires_at' => 'datetime',
         ];
     }
 }

@@ -22,7 +22,7 @@ final class DocumentAnalysesTable
             ->columns([
                 TextColumn::make('documentAnalysable.name')
                     ->label('Источник')
-                    ->formatStateUsing(fn (?string $state, DocumentAnalysis $record): string => $state ?? $record->document_analysable_type.' #'.$record->document_analysable_id)
+                    ->formatStateUsing(fn (?string $state, DocumentAnalysis $record): string => $state ?? $record->model_type.' #'.$record->model_id)
                     ->searchable()
                     ->sortable()
                     ->limit(40),
@@ -61,7 +61,7 @@ final class DocumentAnalysesTable
                         'completed' => 'Завершён',
                         'failed' => 'Ошибка',
                     ]),
-                SelectFilter::make('document_analysable_type')
+                SelectFilter::make('model_type')
                     ->label('Тип источника')
                     ->options([
                         LinkAttachment::class => 'Вложение ссылки',

@@ -5,8 +5,8 @@ declare(strict_types=1);
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
-use Platform\Models\DocumentAnalysis\DocumentAnalysisResponse;
 use Platform\Models\DocumentAnalysis\DocumentAnalysis;
+use Platform\Models\DocumentAnalysis\DocumentAnalysisResponse;
 
 return new class extends Migration
 {
@@ -22,16 +22,22 @@ return new class extends Migration
             // для учета стадий анализа
             $table->foreignId('parent_id')->nullable()->constrained($this->table())->cascadeOnDelete();
 
-            // ответ от ИИ
-            $table->boolean('success')->default(true);
-            $table->string('message')->nullable();
-            $table->json('data')->nullable();
-
             // что давали на вход
             $table->text('promt');
 
             // Тип действия (primary_analysis, detailed_parsing, etc.)
             $table->string('step')->nullable();
+
+            // СВЯЗКА С КЭШЕМ
+            // Пишем ID кэша, который использовался в момент этого запроса
+            $table->string('cache_file_id')->nullable()->index();
+            // Хеш инструкций, чтобы знать, какие промпты были актуальны для этого ответа
+            $table->string('rules_hash')->nullable();
+
+            // ответ от ИИ
+            $table->boolean('success')->default(true);
+            $table->string('message')->nullable();
+            $table->json('data')->nullable();
 
             // Хранить состояние процесса анализа
             // Например первичный анализ показал, что есть сметы
