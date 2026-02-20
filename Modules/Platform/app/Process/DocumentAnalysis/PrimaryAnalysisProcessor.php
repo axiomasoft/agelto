@@ -9,6 +9,7 @@ use Platform\Dto\PromtRule\Step;
 use Platform\Models\DocumentAnalysis\DocumentAnalysis;
 use Platform\Models\DocumentAnalysis\DocumentAnalysisResponse;
 use Platform\Repositories\Promt\PromptRuleRepository;
+use Platform\Process\DocumentAnalysis\Schema\Responses\PrimaryAnalysisResponse;
 
 final class PrimaryAnalysisProcessor
 {
@@ -22,37 +23,31 @@ final class PrimaryAnalysisProcessor
         $step = Step::PrimaryAnalysis;
 
         $media = $documentAnalysis->getDocumentForAnalysis();
-        if (! $media || $media->extension !== 'pdf') {
-            return null;
-        }
-
-        // 1. Проверяем файл (и отпечаток)
         $fileUri = $this->gemini->ensureFileInCloud($documentAnalysis);
+        $systemInstructions = $this->promptRepo->getSystemInstructionsForStep($step);
 
-        // 2. Инструкции
-        $systemInstructions = $this->promptRepo->getSystemInstructionsForStep(Step::PrimaryAnalysis);
-
-        // 3. Запрос БЕЗ кэша (cacheId: null)
         $response = $this->gemini->generateJson(
-            prompt: 'Выполни первичный анализ согласно правилам.',
+            prompt: "Выполни первичный анализ согласно правилам.",
             data: $fileUri,
-            systemInstruction: $systemInstructions,
-            cacheId: null
+            systemInstruction: $systemInstructions
         );
 
+        // 1. Оборачиваем в схему и валидируем
+        // Если используешь Spatie Laravel Data:
+        $responseObject = PrimaryAnalysisResponse::from($response);
+
+        // 2. Дополнительная проверка бизнес-логики (если нужна)
+        if (!$responseObject->success && empty($responseObject->found_documents)) {
+            // обработка логики "пустого" результата
+        }
+
+        // 3. Сохраняем в базу, используя свойства объекта
         return $documentAnalysis->responses()->create([
             'step' => $step,
-            'success' => $response['success'] ?? true, // У тебя в миграции есть это поле
-            'message' => $response['message'] ?? null, // И это
-
-            // В миграции поле называется 'data'
-            'data' => $response['data'] ?? [],
-
-            // В миграции поле 'promt' (через t) — сохраняем туда инструкции
+            'success' => $responseObject->success,
+            'message' => $responseObject->message ?? null,
+            'data' => $responseObject->data, // сохраняем валидный массив
             'promt' => $systemInstructions,
-
-            // Поля связи с кэшем (добавленные нами)
-            'cache_file_id' => null,
             'rules_hash' => sha1($systemInstructions),
         ]);
     }
