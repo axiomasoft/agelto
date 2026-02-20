@@ -7,7 +7,7 @@ namespace Platform\Models\Crawling;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Platform\Enums\Crawling\CrawlingStatus;
 use Platform\Models\DocumentAnalysis\DocumentAnalysis;
 use Spatie\MediaLibrary\HasMedia;
@@ -35,9 +35,9 @@ final class LinkAttachment extends Model implements HasMedia
         return $this->belongsTo(Link::class);
     }
 
-    public function documentAnalyses(): HasMany
+    public function documentAnalyses(): MorphMany
     {
-        return $this->hasMany(DocumentAnalysis::class);
+        return $this->morphMany(DocumentAnalysis::class, name: 'document_analysable');
     }
 
     protected function casts(): array

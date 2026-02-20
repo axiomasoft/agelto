@@ -10,6 +10,7 @@ use Filament\Actions\EditAction;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
+use Platform\Models\Crawling\LinkAttachment;
 use Platform\Models\DocumentAnalysis\DocumentAnalysis;
 
 final class DocumentAnalysesTable
@@ -19,8 +20,9 @@ final class DocumentAnalysesTable
         return $table
             ->recordTitle(fn (DocumentAnalysis $record): string => $record->name ?: "Анализ #{$record->id}")
             ->columns([
-                TextColumn::make('linkAttachment.name')
-                    ->label('Вложение')
+                TextColumn::make('documentAnalysable.name')
+                    ->label('Источник')
+                    ->formatStateUsing(fn (?string $state, DocumentAnalysis $record): string => $state ?? $record->document_analysable_type.' #'.$record->document_analysable_id)
                     ->searchable()
                     ->sortable()
                     ->limit(40),
@@ -59,11 +61,11 @@ final class DocumentAnalysesTable
                         'completed' => 'Завершён',
                         'failed' => 'Ошибка',
                     ]),
-                SelectFilter::make('link_attachment_id')
-                    ->relationship(name: 'linkAttachment', titleAttribute: 'name')
-                    ->label('Вложение')
-                    ->searchable()
-                    ->preload(),
+                SelectFilter::make('document_analysable_type')
+                    ->label('Тип источника')
+                    ->options([
+                        LinkAttachment::class => 'Вложение ссылки',
+                    ]),
             ])
             ->recordActions([
                 EditAction::make(),

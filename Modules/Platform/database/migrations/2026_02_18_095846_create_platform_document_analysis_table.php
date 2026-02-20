@@ -5,7 +5,6 @@ declare(strict_types=1);
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
-use Platform\Models\Crawling\LinkAttachment;
 use Platform\Models\DocumentAnalysis\DocumentAnalysis;
 
 return new class extends Migration
@@ -17,7 +16,9 @@ return new class extends Migration
     {
         Schema::create($this->table(), function (Blueprint $table) {
             $table->id();
-            $table->foreignId('link_attachment_id')->nullable()->constrained((new LinkAttachment())->getTable())->cascadeOnDelete();
+            $table->string('document_analysable_type')->nullable();
+            $table->unsignedBigInteger('document_analysable_id')->nullable();
+            $table->index(['document_analysable_type', 'document_analysable_id'], 'plt_doc_an_analysable_idx');
             $table->foreignId('parent_id')->nullable()->constrained($this->table())->cascadeOnDelete();
 
             $table->string('name', 500)->nullable();

@@ -4,39 +4,22 @@ declare(strict_types=1);
 
 namespace Platform\Repositories\Promt;
 
-use Illuminate\Support\Collection;
+use Platform\Dto\PromtRule\Group;
 use Platform\Models\Promt\PromptRule;
 
 final class PromptRuleRepository
 {
     /**
-     * Собрать финальный текст промпта для конкретной группы.
-     *
-     * @param  string  $group  Название группы (primary_analysis, detailed_parsing и т.д.)
+     * Собирает полную инструкцию для системы: Global + Конкретная группа
      */
-    public function buildPrompt(string $group): string
+    public function getSystemInstructionsForGroup(Group $group): string
     {
         return PromptRule::query()
-            ->where('group', $group)
-            ->active()
-            ->orderBy('priority', 'asc')
-            ->pluck('content')
-            ->implode("\n\n");
-    }
-
-    /**
-     * Получить все правила, сгруппированные по ключу 'group'.
-     * Полезно для отладки или массовой сборки промпта.
-     *
-     * @return Collection<string, string>
-     */
-    public function getAllGrouped(): Collection
-    {
-        return PromptRule::query()
-            ->active()
+            ->whereIn('group', [Group::Global->value, $group->value])
+            ->where('is_active', true)
+            ->orderBy('group') // Сначала Global (т.к. у него обычно приоритет или алфавитный порядок)
             ->orderBy('priority')
-            ->get()
-            ->groupBy('group')
-            ->map(fn ($items): string => $items->pluck('content')->implode("\n\n"));
+            ->pluck('content')
+            ->implode("\n\n---\n\n"); // Разделитель для ясности
     }
 }

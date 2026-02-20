@@ -7,9 +7,10 @@ namespace Platform\Models\DocumentAnalysis;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Platform\Models\Crawling\LinkAttachment;
+use Illuminate\Database\Eloquent\Relations\MorphTo;
 use Spatie\MediaLibrary\HasMedia;
 use Spatie\MediaLibrary\InteractsWithMedia;
+use Spatie\MediaLibrary\MediaCollections\Models\Media;
 
 final class DocumentAnalysis extends Model implements HasMedia
 {
@@ -22,7 +23,8 @@ final class DocumentAnalysis extends Model implements HasMedia
     protected $table = 'plt_document_analysis';
 
     protected $fillable = [
-        'link_attachment_id',
+        'document_analysable_type',
+        'document_analysable_id',
         'parent_id',
         'name',
         'extension',
@@ -42,14 +44,23 @@ final class DocumentAnalysis extends Model implements HasMedia
         return $this->hasMany(self::class, 'parent_id');
     }
 
-    public function linkAttachment(): BelongsTo
+    public function documentAnalysable(): MorphTo
     {
-        return $this->belongsTo(LinkAttachment::class);
+        return $this->morphTo(name: 'document_analysable');
     }
 
     public function responses(): HasMany
     {
         return $this->hasMany(DocumentAnalysisResponse::class);
+    }
+
+    /**
+     * Документ для анализа: приоритет у подготовленного (document-prepared), иначе исходный (document-source).
+     */
+    public function getDocumentForAnalysis(): ?Media
+    {
+        return $this->getFirstMedia('document-prepared')
+            ?? $this->getFirstMedia('document-source');
     }
 
     protected function casts(): array
