@@ -19,35 +19,31 @@ class EstimateAnalysisProcessor
 
     public function run(DocumentAnalysis $documentAnalysis): ?DocumentAnalysisResponse
     {
-        $media = $documentAnalysis->getDocumentForAnalysis();
+        $systemInstructions = $this->promptRepo->getSystemInstructionsForGroup(Group::DetailedParsing);
 
-        if (!$media || $media->extension !== 'pdf') {
-            return null;
-        }
+        // 1. Получаем ID кэша (создастся или возьмется готовый)
+        $cacheId = $this->gemini->getContextCache($documentAnalysis, $systemInstructions);
 
-        // 1. Загружаем и ждем URI прямо через GeminiService
-        $fileUri = $this->gemini->uploadFileAndWait(
-            $media->getPath(),
-            $media->file_name
-        );
-
-        // 2. Получаем инструкции
-        $systemInstructions = $this->promptRepo->getSystemInstructionsForGroup(Group::PrimaryAnalysis);
-
-        // 3. Запрос
+        // 2. Цикл запросов (пагинация и т.д.)
+        // ... твой код запросов ...
         $response = $this->gemini->generateJson(
-            prompt: "Проанализируй смету. Если на первых 3 стр пусто — success:false.",
-            data: $fileUri, // Здесь теперь ссылка на файл в Google
-            systemInstruction: $systemInstructions
+            prompt: "Извлеки данные сметы...",
+            data: "",
+            cacheId: $cacheId
         );
 
-
-        $documentAnalysisResponse = $documentAnalysis->responses()->create([
-            'step' => 'primary_analysis',
+        $res = $documentAnalysis->responses()->create([
+            'step' => 'detailed_parsing',
+            'cache_file_id' => $cacheId,
+            'rules_hash' => sha1($systemInstructions),
             'payload' => $response['data'] ?? [],
-            'raw_response' => $response
         ]);
 
-        return $documentAnalysisResponse;
+        // 3. ЕСЛИ ЭТО БЫЛ ПОСЛЕДНИЙ ШАГ ПАРСИНГА — УДАЛЯЕМ КЭШ
+        /* if ($this->isParsingFinished($documentAnalysis)) {
+            $this->gemini->deleteCache($documentAnalysis);
+        } */
+
+        return $res;
     }
 }

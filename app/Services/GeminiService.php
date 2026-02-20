@@ -40,12 +40,23 @@ final class GeminiService
      * ГАРАНТИЯ НАЛИЧИЯ ФАЙЛА В ОБЛАКЕ
      * Проверяет Media и актуальность в Google File API.
      */
-    public function ensureFileInCloud(Media $media): string
+    public function ensureFileInCloud(DocumentAnalysis $analysis): string
     {
+        $media = $analysis->getDocumentForAnalysis();
+        $currentFingerprint = $this->getFileFingerprint($media);
+
+        // Если файл изменился — сбрасываем старый кэш в анализе
+        if ($analysis->file_fingerprint !== $currentFingerprint) {
+            $analysis->update([
+                'file_fingerprint' => $currentFingerprint,
+                'gemini_cache_id' => null,
+                'gemini_cache_expires_at' => null
+            ]);
+        }
+
         $fileUri = $media->getCustomProperty('google_file_uri');
 
-        if (! $this->isFileActive($fileUri)) {
-            // Если в custom_properties пусто или файл протух (48ч) — грузим
+        if (!$this->isFileActive($fileUri)) {
             $fileUri = $this->uploadFileAndWait($media->getPath(), $media->file_name);
             $media->setCustomProperty('google_file_uri', $fileUri);
             $media->save();
@@ -54,22 +65,26 @@ final class GeminiService
         return $fileUri;
     }
 
+    private function getFileFingerprint(\Spatie\MediaLibrary\MediaCollections\Models\Media $media): string
+    {
+        $path = $media->getPath();
+        return md5($media->file_name . filesize($path) . filemtime($path));
+    }
+
     /**
-     * ПРИНУДИТЕЛЬНОЕ УДАЛЕНИЕ КЭША
-     * Вызываем, когда парсинг полностью завершен.
+     * Ручное удаление кэша (вызываем в конце Detailed Analysis)
      */
     public function deleteCache(DocumentAnalysis $analysis): void
     {
         if ($analysis->gemini_cache_id) {
             try {
                 $this->cachedContents()->delete($analysis->gemini_cache_id);
-            } catch (Exception $e) {
-                Log::warning("Cache already deleted or not found: " . $analysis->gemini_cache_id);
+            } catch (\Exception $e) {
             }
 
             $analysis->update([
                 'gemini_cache_id' => null,
-                'gemini_cache_expires_at' => null,
+                'gemini_cache_expires_at' => null
             ]);
         }
     }
@@ -78,44 +93,33 @@ final class GeminiService
      * ПОЛУЧЕНИЕ ИЛИ СОЗДАНИЕ КЭША КОНТЕКСТА
      * Вызываем только тогда, когда нужен детальный анализ (бурение).
      */
-    public function getContextCache(DocumentAnalysis $analysis, string $systemInstruction, int $ttlHours = 6): array
+    public function getContextCache(DocumentAnalysis $analysis, string $systemInstruction, int $ttlHours = 6): string
     {
-        $media = $analysis->media; // Предполагаем наличие связи
-        $fileUri = $this->ensureFileInCloud($media);
-
-        // 1. Генерируем отпечатки
-        $currentFingerprint = $this->getFileFingerprint($media);
+        $fileUri = $this->ensureFileInCloud($analysis);
         $rulesHash = sha1($systemInstruction);
+        $fingerprint = $this->getFileFingerprint($analysis->getDocumentForAnalysis());
 
-        // 2. Проверяем кэш прямо в модели анализа
-        if ($analysis->isCacheValid($currentFingerprint, $rulesHash)) {
-            try {
-                // Проверка "живости" в Google
-                $this->cachedContents()->retrieve($analysis->gemini_cache_id);
-
-                return ['cache_id' => $analysis->gemini_cache_id];
-            } catch (Exception $e) {
-                // Кэш умер в Google, идем пересоздавать
-            }
+        if ($analysis->isGeminiCacheValid($fingerprint, $rulesHash)) {
+            return $analysis->gemini_cache_id;
         }
 
-        // 3. Создаем новый кэш
+        // Создаем кэш в Google
         $cacheResponse = $this->cachedContents()->create(
-            model: 'models/gemini-1.5-flash',
-            systemInstruction: Content::parse($systemInstruction),
+            model: "models/gemini-1.5-flash",
+            systemInstruction: \Gemini\Data\Content::parse($systemInstruction),
             ttl: "{$ttlHours}h",
-            contents: [Content::parse(part: "DOC: {$fileUri}")],
+            contents: [\Gemini\Data\Content::parse(part: "DOC_URI: {$fileUri}")],
         );
 
-        // 4. Сохраняем данные в анализ
+        $cacheId = $cacheResponse->cachedContent->name;
+
         $analysis->update([
-            'file_fingerprint' => $currentFingerprint,
-            'gemini_cache_id' => $cacheResponse->cachedContent->name,
+            'gemini_cache_id' => $cacheId,
             'gemini_rules_hash' => $rulesHash,
             'gemini_cache_expires_at' => now()->addHours($ttlHours),
         ]);
 
-        return ['cache_id' => $analysis->gemini_cache_id];
+        return $cacheId;
     }
 
     /**
