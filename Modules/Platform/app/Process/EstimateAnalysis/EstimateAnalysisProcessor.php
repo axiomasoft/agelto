@@ -5,21 +5,21 @@ declare(strict_types=1);
 namespace Platform\Process\EstimateAnalysis;
 
 use App\Services\GeminiService;
+use Platform\Dto\PromtRule\Step;
 use Platform\Models\DocumentAnalysis\DocumentAnalysis;
 use Platform\Models\DocumentAnalysis\DocumentAnalysisResponse;
 use Platform\Repositories\Promt\PromptRuleRepository;
-use Platform\Dto\PromtRule\Group;
 
-class EstimateAnalysisProcessor
+final class EstimateAnalysisProcessor
 {
     public function __construct(
-        protected GeminiService $gemini,
-        protected PromptRuleRepository $promptRepo
+        private GeminiService $gemini,
+        private PromptRuleRepository $promptRepo
     ) {}
 
     public function run(DocumentAnalysis $documentAnalysis): ?DocumentAnalysisResponse
     {
-        $systemInstructions = $this->promptRepo->getSystemInstructionsForGroup(Group::DetailedParsing);
+        $systemInstructions = $this->promptRepo->getSystemInstructionsForStep(Step::DetailedParsing);
 
         // 1. Получаем ID кэша (создастся или возьмется готовый)
         $cacheId = $this->gemini->getContextCache($documentAnalysis, $systemInstructions);
@@ -27,8 +27,8 @@ class EstimateAnalysisProcessor
         // 2. Цикл запросов (пагинация и т.д.)
         // ... твой код запросов ...
         $response = $this->gemini->generateJson(
-            prompt: "Извлеки данные сметы...",
-            data: "",
+            prompt: 'Извлеки данные сметы...',
+            data: '',
             cacheId: $cacheId
         );
 

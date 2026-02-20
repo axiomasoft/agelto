@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Platform\Process\DocumentAnalysis\Estimates;
 
 use App\Services\GeminiService;
-use Platform\Dto\PromtRule\Group;
+use Platform\Dto\PromtRule\Step;
 use Platform\Models\DocumentAnalysis\DocumentAnalysis;
 use Platform\Models\DocumentAnalysis\DocumentAnalysisResponse;
 use Platform\Repositories\Promt\PromptRuleRepository;
@@ -19,27 +19,29 @@ final class PrimaryAnalysisProcessor
 
     public function run(DocumentAnalysis $documentAnalysis): ?DocumentAnalysisResponse
     {
-        $group = Group::PrimaryAnalysis;
+        $step = Step::PrimaryAnalysis;
 
         $media = $documentAnalysis->getDocumentForAnalysis();
-        if (!$media || $media->extension !== 'pdf') return null;
+        if (! $media || $media->extension !== 'pdf') {
+            return null;
+        }
 
         // 1. Проверяем файл (и отпечаток)
         $fileUri = $this->gemini->ensureFileInCloud($documentAnalysis);
 
         // 2. Инструкции
-        $systemInstructions = $this->promptRepo->getSystemInstructionsForGroup(Group::PrimaryAnalysis);
+        $systemInstructions = $this->promptRepo->getSystemInstructionsForStep(Step::PrimaryAnalysis);
 
         // 3. Запрос БЕЗ кэша (cacheId: null)
         $response = $this->gemini->generateJson(
-            prompt: "Выполни первичный анализ согласно правилам.",
+            prompt: 'Выполни первичный анализ согласно правилам.',
             data: $fileUri,
             systemInstruction: $systemInstructions,
             cacheId: null
         );
 
         return $documentAnalysis->responses()->create([
-            'step' => $group,
+            'step' => $step,
             'success' => $response['success'] ?? true, // У тебя в миграции есть это поле
             'message' => $response['message'] ?? null, // И это
 

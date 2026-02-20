@@ -10,7 +10,7 @@ use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
-use Platform\Dto\PromtRule\Group;
+use Platform\Dto\PromtRule\Step;
 use Platform\Models\Promt\PromptRule;
 
 final class PromptRuleForm
@@ -27,9 +27,9 @@ final class PromptRuleForm
                             ->required()
                             ->maxLength(255)
                             ->unique(PromptRule::class, 'key', ignoreRecord: true),
-                        Select::make('group')
-                            ->label('Группа')
-                            ->options(Group::options())
+                        Select::make('step')
+                            ->label('Шаг')
+                            ->options(Step::options())
                             ->required()
                             ->searchable(),
                         TextInput::make('priority')

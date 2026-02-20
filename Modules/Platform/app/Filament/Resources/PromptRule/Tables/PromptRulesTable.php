@@ -11,7 +11,7 @@ use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
-use Platform\Dto\PromtRule\Group;
+use Platform\Dto\PromtRule\Step;
 use Platform\Models\Promt\PromptRule;
 
 final class PromptRulesTable
@@ -25,11 +25,11 @@ final class PromptRulesTable
                     ->label('Ключ')
                     ->searchable()
                     ->sortable(),
-                TextColumn::make('group')
-                    ->label('Группа')
+                TextColumn::make('step')
+                    ->label('Шаг')
                     ->searchable()
                     ->sortable()
-                    ->formatStateUsing(fn (Group|string $state): string => $state instanceof Group ? $state->label() : (Group::tryFrom($state)?->label() ?? $state)),
+                    ->formatStateUsing(fn (Step|string $state): string => $state instanceof Step ? $state->label() : (Step::tryFrom($state)?->label() ?? $state)),
                 TextColumn::make('priority')
                     ->label('Приоритет')
                     ->sortable(),
@@ -45,9 +45,9 @@ final class PromptRulesTable
                     ->sortable(),
             ])
             ->filters([
-                SelectFilter::make('group')
-                    ->label('Группа')
-                    ->options(Group::options()),
+                SelectFilter::make('step')
+                    ->label('Шаг')
+                    ->options(Step::options()),
                 SelectFilter::make('is_active')
                     ->label('Активно')
                     ->options([

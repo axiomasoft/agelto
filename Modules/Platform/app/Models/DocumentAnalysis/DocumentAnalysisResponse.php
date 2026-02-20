@@ -7,7 +7,7 @@ namespace Platform\Models\DocumentAnalysis;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Platform\Dto\PromtRule\Group;
+use Platform\Dto\PromtRule\Step;
 
 final class DocumentAnalysisResponse extends Model
 {
@@ -47,7 +47,7 @@ final class DocumentAnalysisResponse extends Model
             'data' => 'array',
             'state' => 'array',
             'success' => 'boolean',
-            'step' => Group::class,
+            'step' => Step::class,
         ];
     }
 }

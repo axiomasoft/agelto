@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Platform\Dto\PromtRule;
 
-enum Group: string
+enum Step: string
 {
     case Global = 'global';
     case PrimaryAnalysis = 'primary_analysis';

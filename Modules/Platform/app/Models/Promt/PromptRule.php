@@ -6,7 +6,7 @@ namespace Platform\Models\Promt;
 
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
-use Platform\Dto\PromtRule\Group;
+use Platform\Dto\PromtRule\Step;
 
 final class PromptRule extends Model
 {
@@ -17,7 +17,7 @@ final class PromptRule extends Model
      */
     protected $fillable = [
         'key',
-        'group',
+        'step',
         'content',
         'version',
         'priority',
@@ -31,7 +31,7 @@ final class PromptRule extends Model
         'is_active' => 'boolean',
         'priority' => 'integer',
         'version' => 'integer',
-        'group' => Group::class,
+        'step' => Step::class,
     ];
 
     /**

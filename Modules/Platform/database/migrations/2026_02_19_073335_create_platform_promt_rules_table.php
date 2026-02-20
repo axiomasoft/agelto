@@ -20,8 +20,8 @@ return new class extends Migration
             // Уникальный ключ правила (например, 'header_metadata')
             $table->string('key')->index();
 
-            // Группа: первичный анализ, детальный парсинг и т.д.
-            $table->string('group')->index();
+            // Шаг: первичный анализ, детальный парсинг и т.д.
+            $table->string('step')->index();
 
             // Само содержание инструкции
             $table->text('content');
@@ -35,7 +35,7 @@ return new class extends Migration
             // Флаг активности правила
             $table->boolean('is_active')->default(true);
 
-            // Составной индекс для быстрого поиска текущих правил группы
+            // Составной индекс для быстрого поиска правил по шагу
             $table->unique(['key', 'version']);
             $table->timestamps();
         });
