@@ -8,8 +8,9 @@ enum Step: string
 {
     case Global = 'global';
     case PrimaryAnalysis = 'primary_analysis';
-    case DetailedParsing = 'detailed_parsing';
-    case DocumentFullParsing = 'document_full_parsing';
+    case EstimatePreview = 'estimate_preview';
+    case EstimateFetchItems = 'estimate_fetch_items';
+    case EstimateFetchFooter = 'estimate_fetch_footer';
 
     /**
      * @return array<string, string>
@@ -19,8 +20,9 @@ enum Step: string
         return [
             self::Global->value => 'Глобальные',
             self::PrimaryAnalysis->value => 'Первичный анализ',
-            self::DetailedParsing->value => 'Детальный парсинг',
-            self::DocumentFullParsing->value => 'Полный парсинг документа',
+            self::EstimatePreview->value => 'Предварительный анализ сметы',
+            self::EstimateFetchItems->value => 'Парсинг позиций сметы',
+            self::EstimateFetchFooter->value => 'Парсинг итогов сметы',
         ];
     }
 
