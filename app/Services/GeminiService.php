@@ -167,24 +167,44 @@ final class GeminiService
             throw new InvalidArgumentException("Unsupported MIME type: {$mimeType}");
         }
 
-        $fileResponse = $this->files()->upload(filename: $path, mimeType: $mime, displayName: $displayName);
+        // ТВОЙ СИНТАКСИС: передача через позиционные аргументы
+        $fileResponse = $this->nativeClient->files()->upload(
+            filename: $path,
+            mimeType: $mime,
+            displayName: $displayName
+        );
+
+        // Извлекаем чистый ID, чтобы SDK не дублировал префиксы
+        $fileId = last(explode('/', $fileResponse->name));
 
         $start = now();
         while (true) {
-            $currentFile = $this->files()->metadataGet($fileResponse->name);
-            $state = is_string($currentFile->state) ? $currentFile->state : $currentFile->state->value;
+            // Обязательная пауза, чтобы Google успел проиндексировать файл
+            sleep(3);
 
-            if ($state === 'ACTIVE') {
-                return $currentFile->uri;
+            try {
+                // Вызываем метаданные по ID (SDK сам подставит /v1beta/files/)
+                $currentFile = $this->nativeClient->files()->metadataGet($fileId);
+
+                // Используем Enum для надежности (как в твоем дампе)
+                $state = is_string($currentFile->state) ? $currentFile->state : $currentFile->state->value;
+
+                if ($state === 'ACTIVE') {
+                    return $currentFile->uri;
+                }
+
+                if ($state === 'FAILED') {
+                    throw new Exception("Gemini File API failed: {$displayName}");
+                }
+            } catch (\Gemini\Exceptions\UnserializableResponse $e) {
+                // Если прокси вернул пустой ответ или мусор — просто пробуем еще раз
+                if (now()->diffInMinutes($start) > 5) throw $e;
+                continue;
             }
-            if ($state === 'FAILED') {
-                throw new Exception("Gemini File API failed: {$displayName}");
-            }
+
             if (now()->diffInMinutes($start) > 5) {
                 throw new Exception("Timeout waiting for file: {$displayName}");
             }
-
-            sleep(3);
         }
     }
 
@@ -193,14 +213,18 @@ final class GeminiService
         if (! $fileUri) {
             return false;
         }
+
         try {
-            $parts = explode('/', $fileUri);
-            $fileName = 'files/' . end($parts);
-            $file = $this->files()->metadataGet($fileName);
+            // Извлекаем только ID из сохраненного URI
+            $fileId = last(explode('/', $fileUri));
+
+            // Запрашиваем метаданные без ручной склейки 'files/'
+            $file = $this->nativeClient->files()->metadataGet($fileId);
             $state = is_string($file->state) ? $file->state : $file->state->value;
 
             return $state === 'ACTIVE';
         } catch (Exception $e) {
+            Log::warning("File check failed for {$fileUri}: " . $e->getMessage());
             return false;
         }
     }
@@ -209,8 +233,9 @@ final class GeminiService
     {
         $httpClient = new GuzzleClient([
             'proxy' => config('sys.proxies.gemini_proxy'),
-            'verify' => false,
+            'verify' => true,
             'timeout' => 300,
+            'http_errors' => true,
         ]);
 
         $this->nativeClient = Gemini::factory()
