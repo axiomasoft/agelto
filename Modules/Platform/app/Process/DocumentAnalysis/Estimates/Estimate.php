@@ -28,6 +28,14 @@ final class Estimate
         if (in_array($document->extension, ['xls', 'xlsx'])) {
             $document = $this->convertExcelToPdfAndAttach($documentAnalysis, $document->getPath());
         }
+
+        switch ($document->extension) {
+            case 'pdf':
+
+                break;
+            default:
+                throw new Exception('Unsupported document type');
+        }
     }
 
     /**
