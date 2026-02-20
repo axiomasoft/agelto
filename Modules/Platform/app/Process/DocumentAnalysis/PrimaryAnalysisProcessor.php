@@ -17,7 +17,7 @@ class PrimaryAnalysisProcessor
         protected PromptRuleRepository $promptRepo
     ) {}
 
-    public function analysis(DocumentAnalysis $documentAnalysis): ?DocumentAnalysisResponse
+    public function run(DocumentAnalysis $documentAnalysis): ?DocumentAnalysisResponse
     {
         $media = $documentAnalysis->getDocumentForAnalysis();
 
