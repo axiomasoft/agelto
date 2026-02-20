@@ -5,23 +5,19 @@ declare(strict_types=1);
 namespace Platform\Process\DocumentAnalysis\Schema\Responses;
 
 use Platform\Process\DocumentAnalysis\Schema\DocumentObject;
-use Spatie\LaravelData\Attributes\DataCollectionOf;
+use Platform\Process\DocumentAnalysis\Schema\PrimaryAnalysis;
 use Spatie\LaravelData\Data;
 use Spatie\LaravelData\DataCollection;
 
 final class PrimaryAnalysisResponse extends Data
 {
     /**
-     * @param  DataCollection<int, DocumentObject>  $objects
+     * @param  DataCollection<int, DocumentObject>  $data
      * @param  string[]  $tags
      */
     public function __construct(
         public bool $success,
-        public bool $has_estimates,
-        #[DataCollectionOf(DocumentObject::class)]
-        public DataCollection $objects,
         public ?string $message = null,
-        public ?string $description = null,
-        public array $tags = [],
+        public PrimaryAnalysis $data,
     ) {}
 }

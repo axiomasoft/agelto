@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Platform\Process\DocumentAnalysis\Estimates;
+namespace Platform\Process\DocumentAnalysis;
 
 use App\Services\GeminiService;
 use Platform\Dto\PromtRule\Step;
@@ -10,19 +10,27 @@ use Platform\Models\DocumentAnalysis\DocumentAnalysis;
 use Platform\Models\DocumentAnalysis\DocumentAnalysisResponse;
 use Platform\Repositories\Promt\PromptRuleRepository;
 use Platform\Process\DocumentAnalysis\Schema\Responses\PrimaryAnalysisResponse;
+use Platform\Process\DocumentPrepare\DocumentProcessor;
 
 final class PrimaryAnalysisProcessor
 {
     public function __construct(
         private GeminiService $gemini,
-        private PromptRuleRepository $promptRepo
+        private PromptRuleRepository $promptRepo,
+        private DocumentProcessor $documentProcessor
     ) {}
 
-    public function run(DocumentAnalysis $documentAnalysis): ?DocumentAnalysisResponse
+    public function run(DocumentAnalysis $documentAnalysis, bool $forcePrepare = false): ?DocumentAnalysisResponse
     {
+        $media = $documentAnalysis->getDocumentForAnalysis();
+
+        // Подготовка документа
+        if (!$media && $forcePrepare) {
+            $this->documentProcessor->fromModel($documentAnalysis);
+        }
+
         $step = Step::PrimaryAnalysis;
 
-        $media = $documentAnalysis->getDocumentForAnalysis();
         $fileUri = $this->gemini->ensureFileInCloud($documentAnalysis);
         $systemInstructions = $this->promptRepo->getSystemInstructionsForStep($step);
 
@@ -46,7 +54,7 @@ final class PrimaryAnalysisProcessor
             'step' => $step,
             'success' => $responseObject->success,
             'message' => $responseObject->message ?? null,
-            'data' => $responseObject->data, // сохраняем валидный массив
+            'data' => $responseObject->data->toArray(),
             'promt' => $systemInstructions,
             'rules_hash' => sha1($systemInstructions),
         ]);
