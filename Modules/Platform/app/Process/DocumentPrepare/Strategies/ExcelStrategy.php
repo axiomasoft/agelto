@@ -18,7 +18,7 @@ final class ExcelStrategy implements PreparationStrategy
 
     public function process(DocumentAnalysis $analysis, Media $media): void
     {
-        if ($analysis->hasMedia('document-prepared')) {
+        if ($analysis->hasMedia(DocumentAnalysis::COLLECTION_DOCUMENT_PREPARED)) {
             return;
         }
 
@@ -40,7 +40,7 @@ final class ExcelStrategy implements PreparationStrategy
 
             $analysis->addMedia($tempPdf)
                 ->usingFileName(pathinfo($media->file_name, PATHINFO_FILENAME).'.pdf')
-                ->toMediaCollection('document-prepared', config('app.filesystems.private_disk_name'));
+                ->toMediaCollection(DocumentAnalysis::COLLECTION_DOCUMENT_PREPARED, config('app.filesystems.private_disk_name'));
         } finally {
             if (file_exists($tempPdf)) {
                 unlink($tempPdf);

@@ -40,7 +40,7 @@ final class ArchiveStrategy implements PreparationStrategy
                     'model_id' => $analysis->model_id,
                 ]);
 
-                $child->addMedia($filePath)->toMediaCollection('document-source', config('app.filesystems.private_disk_name'));
+                $child->addMedia($filePath)->toMediaCollection(DocumentAnalysis::COLLECTION_DOCUMENT_SOURCE, config('app.filesystems.private_disk_name'));
             }
             $zip->close();
             Storage::deleteDirectory($tempFolder);

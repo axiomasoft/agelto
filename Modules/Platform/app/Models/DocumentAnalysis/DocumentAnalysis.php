@@ -16,6 +16,10 @@ final class DocumentAnalysis extends Model implements HasMedia
 {
     use InteractsWithMedia;
 
+    public const COLLECTION_DOCUMENT_SOURCE = 'document-source';
+
+    public const COLLECTION_DOCUMENT_PREPARED = 'document-prepared';
+
     public string $mediaPath = 'document-analysis';
 
     public $timestamps = false;
@@ -66,8 +70,8 @@ final class DocumentAnalysis extends Model implements HasMedia
      */
     public function getDocumentForAnalysis(): ?Media
     {
-        return $this->getFirstMedia('document-prepared')
-            ?? $this->getFirstMedia('document-source');
+        return $this->getFirstMedia(self::COLLECTION_DOCUMENT_PREPARED)
+            ?? $this->getFirstMedia(self::COLLECTION_DOCUMENT_SOURCE);
     }
 
     /**
