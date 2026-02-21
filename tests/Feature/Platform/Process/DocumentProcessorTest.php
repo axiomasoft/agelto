@@ -4,9 +4,33 @@ declare(strict_types=1);
 
 use Platform\Models\DocumentAnalysis\DocumentAnalysis;
 use Platform\Process\DocumentPrepare\DocumentProcessor;
+use Spatie\MediaLibrary\Downloaders\Downloader;
 
 beforeEach(function () {
     $this->processor = app(DocumentProcessor::class);
+});
+
+test('fromUrl returns same DocumentAnalysis when called twice with same url', function () {
+    $fakeDownloader = new class implements Downloader
+    {
+        public function getTempFile(string $url): string
+        {
+            $path = tempnam(sys_get_temp_dir(), 'media-library');
+            file_put_contents($path, 'test');
+
+            return $path;
+        }
+    };
+
+    config(['media-library.media_downloader' => get_class($fakeDownloader)]);
+
+    $url = 'https://example.com/same-document.pdf';
+
+    $first = $this->processor->fromUrl($url);
+    $second = $this->processor->fromUrl($url);
+
+    expect($first->id)->toBe($second->id)
+        ->and(DocumentAnalysis::count())->toBe(1);
 });
 
 test('fromMedia returns same DocumentAnalysis when called twice with same media', function () {

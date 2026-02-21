@@ -44,17 +44,6 @@ final class CrawlerForm
                             ->default(false),
                     ]),
 
-                Section::make('Состояние')
-                    ->description('Внутреннее состояние сборщика (ключ-значение).')
-                    ->schema([
-                        KeyValue::make('state')
-                            ->label('State')
-                            ->keyLabel('Ключ')
-                            ->valueLabel('Значение')
-                            ->default([]),
-                    ])
-                    ->collapsible(),
-
                 Section::make('Параметры фильтрации')
                     ->schema(function (Get $get): array {
                         $platformId = $get('platform_id');
@@ -70,7 +59,19 @@ final class CrawlerForm
                             default => [],
                         };
                     })
-                    ->visible(fn(Get $get) => filled($get('platform_id'))),
+                    ->visible(fn (Get $get) => filled($get('platform_id'))),
+
+                Section::make('Состояние')
+                    ->description('Внутреннее состояние сборщика (ключ-значение).')
+                    ->schema([
+                        KeyValue::make('state')
+                            ->label('State')
+                            ->keyLabel('Ключ')
+                            ->valueLabel('Значение')
+                            ->default([]),
+                    ])
+                    ->collapsible(),
+
             ]);
     }
 }

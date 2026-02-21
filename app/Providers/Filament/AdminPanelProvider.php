@@ -25,6 +25,7 @@ use Illuminate\View\Middleware\ShareErrorsFromSession;
 use Platform\Filament\Resources\Crawler\CrawlerResource;
 use Platform\Filament\Resources\DocumentAnalysis\DocumentAnalysisResource;
 use Platform\Filament\Resources\Link\LinkResource;
+use Platform\Filament\Resources\LinkAttachment\LinkAttachmentResource;
 use Platform\Filament\Resources\Platform\PlatformResource;
 use Platform\Filament\Resources\PromptRule\PromptRuleResource;
 use Sys\Filament\Resources\Proxy\ProxyResource;
@@ -76,6 +77,7 @@ final class AdminPanelProvider extends PanelProvider
                             ...PlatformResource::getNavigationItems(),
                             ...CrawlerResource::getNavigationItems(),
                             ...LinkResource::getNavigationItems(),
+                            ...LinkAttachmentResource::getNavigationItems(),
                             ...DocumentAnalysisResource::getNavigationItems(),
                             ...PromptRuleResource::getNavigationItems(),
                         ]),
