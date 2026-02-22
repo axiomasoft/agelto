@@ -25,95 +25,42 @@ final class DocumentProcessor
         }
     }
 
-    /**
-     * Создание из существующей модели (напр. LinkAttachment)
-     */
-    public function fromModel(Model $model, ?string $field = null, ?string $collection = null): DocumentAnalysis
+    public function run(DocumentAnalysis $analysis)
     {
-        if ($field && filter_var($model->{$field}, FILTER_VALIDATE_URL)) {
-            $url = (string) $model->{$field};
-            $existing = $this->findExistingByUrl(url: $url);
-            if ($existing !== null) {
-                return $existing;
-            }
-        } elseif ($collection) {
-            $media = $model->getFirstMedia($collection);
-            if ($media !== null) {
-                $existing = $this->findExistingByMedia(media: $media);
-                if ($existing !== null) {
-                    return $existing;
+        $this->loadMedia($analysis);
+        $this->preparation($analysis);
+    }
+
+    public function loadMedia(DocumentAnalysis $analysis)
+    {
+        $model = $analysis->getDocumentAnalysable();
+
+        // Первичный документ (исходный файл)
+        // Цель: в зависимости от типа модели, копируем файл в коллекцию document-source
+        $sourceMedia = $analysis->getFirstMedia(DocumentAnalysis::COLLECTION_DOCUMENT_SOURCE);
+        if ($sourceMedia === null) {
+            if ($model instanceof Media) {
+                $sourceMedia = $model->copy(model: $analysis, collectionName: DocumentAnalysis::COLLECTION_DOCUMENT_SOURCE);
+            } else if ($model instanceof Model) {
+                if (filter_var($model->source, FILTER_VALIDATE_URL)) {
+                    $sourceMedia = $model->addMediaFromUrl(url: $model->source)->toMediaCollection(DocumentAnalysis::COLLECTION_DOCUMENT_SOURCE);
+                } else if (is_string($model->source)) {
+                    $sourceMedia = $model->copy(model: $analysis, collectionName: DocumentAnalysis::COLLECTION_DOCUMENT_SOURCE);;
+                } else {
+                    throw new Exception('Некорректный тип данных для DocumentProcessor');
                 }
+
+                $sourceMedia = $model->getFirstMedia($analysis->source);
+            } else {
+                throw new Exception('Некорректный тип данных для DocumentProcessor');
             }
         }
-
-        $analysis = DocumentAnalysis::create([
-            'model_type' => $model->getMorphClass(),
-            'model_id' => $model->getKey(),
-        ]);
-
-        if ($field && filter_var($model->{$field}, FILTER_VALIDATE_URL)) {
-            $analysis->addMediaFromUrl((string) $model->{$field})->toMediaCollection(DocumentAnalysis::COLLECTION_DOCUMENT_SOURCE);
-        } elseif ($collection) {
-            $media = $model->getFirstMedia($collection);
-            if ($media !== null) {
-                $media->copy(model: $analysis, collectionName: DocumentAnalysis::COLLECTION_DOCUMENT_SOURCE);
-            }
-        }
-
-        return $this->prepare(analysis: $analysis);
-    }
-
-    /**
-     * Создание из прямого Media объекта
-     */
-    public function fromMedia(Media $media): DocumentAnalysis
-    {
-        $existing = $this->findExistingByMedia(media: $media);
-        if ($existing !== null) {
-            return $existing;
-        }
-
-        $analysis = DocumentAnalysis::create();
-        $media->copy(model: $analysis, collectionName: DocumentAnalysis::COLLECTION_DOCUMENT_SOURCE);
-
-        return $this->prepare(analysis: $analysis);
-    }
-
-    /**
-     * Создание из URL
-     */
-    public function fromUrl(string $url): DocumentAnalysis
-    {
-        $existing = $this->findExistingByUrl(url: $url);
-        if ($existing !== null) {
-            return $existing;
-        }
-
-        $analysis = DocumentAnalysis::create();
-        $analysis->addMediaFromUrl(url: $url)->toMediaCollection(DocumentAnalysis::COLLECTION_DOCUMENT_SOURCE);
-
-        return $this->prepare(analysis: $analysis);
-    }
-
-    public function make(mixed $data, mixed ...$args): DocumentAnalysis
-    {
-        if ($data instanceof Media) {
-            return $this->fromMedia($data, ...$args);
-        }
-        if ($data instanceof Model) {
-            return $this->fromModel($data, ...$args);
-        }
-        if (is_string($data) && filter_var($data, FILTER_VALIDATE_URL)) {
-            return $this->fromUrl($data, ...$args);
-        }
-
-        throw new Exception('Некорректный тип данных для DocumentProcessor');
     }
 
     /**
      * Внутренний метод: запуск стратегий подготовки
      */
-    public function prepare(DocumentAnalysis $analysis): DocumentAnalysis
+    public function preparation(DocumentAnalysis $analysis): DocumentAnalysis
     {
         $media = $analysis->getFirstMedia(collectionName: DocumentAnalysis::COLLECTION_DOCUMENT_SOURCE);
 
@@ -133,6 +80,7 @@ final class DocumentProcessor
 
         return $analysis;
     }
+
 
     /**
      * Поиск существующего DocumentAnalysis по URL: скачивает файл во временную папку,

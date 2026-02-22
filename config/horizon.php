@@ -100,9 +100,6 @@ return [
 
     'waits' => [
         'redis:default' => 90,
-        'redis:doc_parse' => 120,
-        'redis:doc_analysis' => 300,
-        'redis:order_parse' => 600,
     ],
 
     /*
@@ -188,7 +185,7 @@ return [
     |
     */
 
-    'memory_limit' => 64,
+    'memory_limit' => 1024,
 
     /*
     |--------------------------------------------------------------------------
@@ -216,9 +213,9 @@ return [
             'timeout' => 90,
             'nice' => 0,
         ],
-        'doc_parse' => [
+        'platform_document_prepare' => [
             'connection' => 'redis',
-            'queue' => ['doc_parse'],
+            'queue' => ['platform_document_prepare'],
             'balance' => 'auto',
             'autoScalingStrategy' => 'time',
             'maxProcesses' => 1,
@@ -230,30 +227,18 @@ return [
             'timeout' => 120,
             'nice' => 0,
         ],
-        'doc_analysis' => [
+        'platform_primary_analysis' => [
             'connection' => 'redis',
-            'queue' => ['doc_analysis'],
+            'queue' => ['platform_primary_analysis'],
             'balance' => 'auto',
             'autoScalingStrategy' => 'time',
             'maxProcesses' => 1,
             'maxTime' => 0,
             'maxJobs' => 0,
-            'memory' => 256,
-            'tries' => 1,
-            'timeout' => 300,
-            'nice' => 0,
-        ],
-        'order_parse' => [
-            'connection' => 'redis',
-            'queue' => ['order_parse'],
-            'balance' => 'auto',
-            'autoScalingStrategy' => 'time',
-            'maxProcesses' => 1,
-            'maxTime' => 0,
-            'maxJobs' => 0,
-            'memory' => 256,
-            'tries' => 1,
-            'timeout' => 600,
+            'memory' => 128,
+            'tries' => 3,
+            'backoff' => 3,
+            'timeout' => 120,
             'nice' => 0,
         ],
     ],
@@ -265,18 +250,13 @@ return [
                 'balanceMaxShift' => 1,
                 'balanceCooldown' => 3,
             ],
-            'doc_parse' => [
+            'platform_document_prepare' => [
+                'maxProcesses' => 10,
+                'balanceMaxShift' => 1,
+                'balanceCooldown' => 3,
+            ],
+            'platform_primary_analysis' => [
                 'maxProcesses' => 5,
-                'balanceMaxShift' => 1,
-                'balanceCooldown' => 3,
-            ],
-            'doc_analysis' => [
-                'maxProcesses' => 3,
-                'balanceMaxShift' => 1,
-                'balanceCooldown' => 3,
-            ],
-            'order_parse' => [
-                'maxProcesses' => 2,
                 'balanceMaxShift' => 1,
                 'balanceCooldown' => 3,
             ],
@@ -286,14 +266,11 @@ return [
             'default' => [
                 'maxProcesses' => 2,
             ],
-            'doc_parse' => [
+            'platform_primary_analysis' => [
                 'maxProcesses' => 2,
             ],
-            'doc_analysis' => [
-                'maxProcesses' => 1,
-            ],
-            'order_parse' => [
-                'maxProcesses' => 1,
+            'platform_document_prepare' => [
+                'maxProcesses' => 5,
             ],
         ],
     ],

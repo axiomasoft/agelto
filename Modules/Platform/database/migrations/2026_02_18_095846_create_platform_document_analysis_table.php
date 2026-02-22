@@ -26,6 +26,7 @@ return new class extends Migration
 
             // Уникальный отпечаток файла (имя + размер + дата изменения)
             $table->string('file_fingerprint')->nullable();
+            $table->string('source', 500)->nullable()->index();
 
             // Данные кэша Gemini
             $table->string('gemini_cache_id')->nullable();

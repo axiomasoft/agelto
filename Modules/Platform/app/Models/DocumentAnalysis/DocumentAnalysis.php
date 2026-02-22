@@ -33,6 +33,7 @@ final class DocumentAnalysis extends Model implements HasMedia
         'name',
         'extension',
         'file_fingerprint',
+        'source',
         'gemini_cache_id',
         'gemini_rules_hash',
         'gemini_cache_expires_at',
@@ -58,6 +59,14 @@ final class DocumentAnalysis extends Model implements HasMedia
     public function documentAnalysable(): MorphTo
     {
         return $this->morphTo(name: 'model');
+    }
+
+    /**
+     * Возвращает владельца анализа (полиморфная связь по model_type, model_id).
+     */
+    public function getDocumentAnalysable(): Model|Media|null
+    {
+        return $this->model;
     }
 
     public function responses(): HasMany
