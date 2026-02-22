@@ -7,6 +7,9 @@ namespace Platform\Process\DocumentAnalysis\Schema\Responses;
 use Platform\Process\DocumentAnalysis\Schema\PrimaryAnalysis;
 use Spatie\LaravelData\Data;
 
+/**
+ * Ответ первичного анализа. success, message, data (PrimaryAnalysis: document_type, description, tags).
+ */
 final class PrimaryAnalysisResponse extends Data
 {
     public function __construct(

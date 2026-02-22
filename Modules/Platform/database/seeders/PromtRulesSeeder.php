@@ -50,102 +50,109 @@ final class PromtRulesSeeder extends Seeder
                 'key' => 'global_estimate_json_schemas',
                 'step' => Step::GlobalEstimate->value,
                 'priority' => 1,
-                'content' => "0. EstimateTarget (Тип документа для поля 'type'):\n" .
+                'content' => "0. EstimateType (Тип документа):\n" .
                     "- \"estimate\": Смета (ЛСР). Определять по заголовкам 'Локальный сметный расчет', 'Локальная смета'.\n" .
-                    "- \"technical_assignment\": Техническое задание (ТЗ). Маркеры: 'Техническое задание', 'Задание на проектирование'.\n" .
-                    "- \"contract\": Договор/Контракт. Маркеры: 'Договор №', 'Муниципальный контракт'.\n" .
                     "- \"act\": Акт (КС-2). Определять по заголовкам 'Акт о приемке выполненных работ', 'Форма № КС-2'.\n" .
                     "- \"resource_calculation\": Ресурсная ведомость. Текст: 'Ведомость ресурсов', 'Расчет ресурсов'.\n" .
-                    "- \"defect_list\": Дефектная ведомость. Текст: 'Дефектная ведомость', 'Опись работ'.\n" .
-                    "- null: Если тип документа не удалось определить.\n\n" .
-                    "1. EstimateResourceType (Классификация ресурса):\n" .
+                    "- \"defect_list\": Дефектная ведомость. Текст: 'Дефектная ведомость', 'Опись работ'.\n\n" .
+                    "1. EstimateTarget (Направление/категория сметы):\n" .
+                    "- \"construction\": Строительство.\n" .
+                    "- \"renovation\": Ремонт.\n" .
+                    "- \"medical_equipment\": Медоборудование.\n" .
+                    "- \"engineering\": Инженерия.\n\n" .
+                    "2. EstimateResourceType (Классификация ресурса):\n" .
                     "- \"Material\": Материалы. Обоснования ФССЦ, прайс-листы, маркеры 'МАТ', 'мат.ресурс'.\n" .
                     "- \"Machine\": Машины. Обоснования ФСЭМ, маркеры 'ЭМ', 'маш.час', 'Машины и механизмы'.\n" .
                     "- \"Labor\": Труд. Маркеры 'ЗП', 'ОТ', 'ЗПМ', 'Трудозатраты', 'чел.час'.\n" .
                     "- \"Overhead\": Накладные/Прибыль. Маркеры 'НР', 'СП', 'Накладные расходы', 'Прибыль'.\n\n" .
-                    "2. EstimateHeaderColumn (Описание колонки):\n" .
+                    "3. EstimateHeaderColumn (Описание колонки):\n" .
                     "{\n" .
                     "  \"index\": integer (Порядковый номер ячейки в строке, начиная с 0),\n" .
                     "  \"name\": string (Текст в данной ячейке),\n" .
                     "  \"full_name\": string (Текст с учетом родительской группы ячеек).\n" .
                     "}\n\n" .
-                    "3. EstimateHeaderSchema (Карта колонок):\n" .
+                    "4. EstimateHeader (Карта колонок):\n" .
                     "{\n" .
-                    "  \"pos\": EstimateHeaderColumn (Алиасы: № п/п, №, поз),\n" .
-                    "  \"code\": EstimateHeaderColumn (Алиасы: Шифр, Обоснование, Код),\n" .
-                    "  \"name\": EstimateHeaderColumn (Алиасы: Наименование работ, Описание),\n" .
-                    "  \"unit\": EstimateHeaderColumn (Алиасы: Ед. изм., Измеритель),\n" .
-                    "  \"quantity\": EstimateHeaderColumn (Алиасы: Количество, Объем),\n" .
-                    "  \"price\": EstimateHeaderColumn (Алиасы: Стоимость всего, Итого руб)\n" .
+                    "  \"pos\": EstimateHeaderColumn | null (Алиасы: № п/п, №, поз),\n" .
+                    "  \"code\": EstimateHeaderColumn | null (Алиасы: Шифр, Обоснование, Код),\n" .
+                    "  \"name\": EstimateHeaderColumn | null (Алиасы: Наименование работ, Описание),\n" .
+                    "  \"unit\": EstimateHeaderColumn | null (Алиасы: Ед. изм., Измеритель),\n" .
+                    "  \"quantity\": EstimateHeaderColumn | null (Алиасы: Количество, Объем),\n" .
+                    "  \"price\": EstimateHeaderColumn | null (Алиасы: Стоимость всего, Итого руб)\n" .
                     "}\n\n" .
-                    "4. EstimateItem (Позиция):\n" .
+                    "5. EstimateItem (Позиция):\n" .
                     "{\n" .
-                    "  \"pos\": integer | null (Соответствует 'pos' в EstimateHeaderSchema),\n" .
-                    "  \"code\": string | null (Соответствует 'code' в EstimateHeaderSchema),\n" .
-                    "  \"name\": string (Соответствует 'name' в EstimateHeaderSchema),\n" .
-                    "  \"unit\": string | null (Соответствует 'unit' в EstimateHeaderSchema),\n" .
-                    "  \"quantity\": float | null (Соответствует 'quantity' в EstimateHeaderSchema),\n" .
-                    "  \"price\": float | null (Соответствует 'price' в EstimateHeaderSchema),\n" .
+                    "  \"name\": string (Соответствует 'name' в EstimateHeader),\n" .
+                    "  \"pos\": integer | null,\n" .
+                    "  \"code\": string | null,\n" .
+                    "  \"unit\": string | null,\n" .
+                    "  \"quantity\": float | null,\n" .
+                    "  \"price\": float | null,\n" .
                     "  \"children\": EstimateItemResource[],\n" .
                     "  \"modifiers\": EstimateModifierItem[]\n" .
                     "}\n\n" .
-                    "5. EstimateModifierItem (Коэффициент):\n" .
+                    "6. EstimateModifierItem (Коэффициент):\n" .
                     "{\n" .
                     "  \"name\": string (Код, напр. 'К=1.15'),\n" .
                     "  \"description\": string (Обоснование),\n" .
                     "  \"value\": float (Число)\n" .
                     "}\n\n" .
-                    "6. EstimateSection (Раздел):\n" .
+                    "7. EstimateSection (Раздел):\n" .
                     "{\n" .
+                    "  \"type\": \"section\",\n" .
                     "  \"name\": string,\n" .
-                    "  \"rows\": (EstimateSubSection | EstimateItem)[]\n" .
+                    "  \"children\": (EstimateSubSection | EstimateItem)[]\n" .
                     "}\n\n" .
-                    "7. EstimateSubSection (Подраздел):\n" .
+                    "8. EstimateSubSection (Подраздел):\n" .
                     "{\n" .
+                    "  \"type\": \"subsection\",\n" .
                     "  \"name\": string,\n" .
                     "  \"children\": EstimateItem[]\n" .
                     "}\n\n" .
-                    "8. EstimateItemResource (Ресурс):\n" .
+                    "9. EstimateItemResource (Ресурс):\n" .
                     "{\n" .
-                    "  \"code\": string | null (Шифр ресурса),\n" .
                     "  \"name\": string (Наименование),\n" .
-                    "  \"unit\": string | null (Ед. изм.),\n" .
+                    "  \"resource_type\": EstimateResourceType,\n" .
+                    "  \"code\": string | null,\n" .
+                    "  \"unit\": string | null,\n" .
                     "  \"quantity\": float | null,\n" .
                     "  \"price\": float | null,\n" .
-                    "  \"comment\": string | null (Текст из колонки 'pos'),\n" .
-                    "  \"resource_type\": EstimateResourceType\n" .
+                    "  \"comment\": string | null (Текст из колонки 'pos')\n" .
                     "}\n\n" .
-                    "9. EstimateFooterItem (Итог):\n" .
+                    "10. EstimateFooterItem (Итог):\n" .
                     "{\n" .
                     "  \"label\": string,\n" .
                     "  \"value\": float,\n" .
                     "  \"children\": EstimateFooterItem[]\n" .
                     "}\n\n" .
-                    "10. Форматы ответов (Responses):\n" .
+                    "11. EstimatePassport (Паспорт сметы):\n" .
+                    "{\n" .
+                    "  \"estimate_id\": string,\n" .
+                    "  \"type\": EstimateType | null,\n" .
+                    "  \"reference\": string | null,\n" .
+                    "  \"target\": EstimateTarget | null,\n" .
+                    "  \"address\": string | null\n" .
+                    "}\n\n" .
+                    "12. Форматы ответов (Responses):\n" .
                     "- EstimatePreviewResponse:\n" .
                     "{\n" .
                     "  \"success\": boolean,\n" .
-                    "  \"data\": {\n" .
-                    "    \"sections\": string[],\n" .
-                    "    \"objects_count\": integer\n" .
-                    "  }\n" .
+                    "  \"message\": string | null,\n" .
+                    "  \"data\": EstimatePreview[]\n" .
+                    "}\n" .
+                    "EstimatePreview: { \"passport\": EstimatePassport, \"items_count\": integer, \"items_count_total\": integer, \"page_start\": integer, \"page_end\": integer }\n\n" .
+                    "- EstimateFetchResponse (дерево позиций):\n" .
+                    "{\n" .
+                    "  \"estimate_id\": string,\n" .
+                    "  \"data\": (EstimateSection | EstimateItem)[]\n" .
                     "}\n\n" .
-                    "- EstimateFetchItemsResponse:\n" .
+                    "- EstimateFetchInfoResponse (шапка и итоги):\n" .
                     "{\n" .
                     "  \"success\": boolean,\n" .
                     "  \"message\": string | null,\n" .
-                    "  \"data\": {\n" .
-                    "    \"header\": EstimateHeaderSchema,\n" .
-                    "    \"rows\": (EstimateItem | EstimateSection)[]\n" .
-                    "  }\n" .
-                    "}\n\n" .
-                    "- EstimateFetchFooterResponse:\n" .
-                    "{\n" .
-                    "  \"success\": boolean,\n" .
-                    "  \"data\": {\n" .
-                    "    \"footer\": EstimateFooterItem[]\n" .
-                    "  }\n" .
-                    "}",
+                    "  \"data\": EstimateFetchInfo\n" .
+                    "}\n" .
+                    "EstimateFetchInfo: { \"estimate_id\": string, \"generator\": string | null, \"header\": EstimateHeader, \"footer\": EstimateFooterItem[] }\n",
             ],
 
             // --- ГРУППА: SYSTEM (Базовые инструкции) ---
@@ -185,9 +192,9 @@ final class PromtRulesSeeder extends Seeder
                 'key' => 'estimate_preview_parse_logic',
                 'step' => Step::EstimatePreview->value,
                 'priority' => 30,
-                'content' => "Для формирования EstimatePreviewResponse:\n" .
-                    "1. Просканируй документ на наличие заголовков разделов.\n" .
-                    "2. Определи количество независимых сметных объектов в файле.",
+                'content' => "Для формирования EstimatePreviewResponse (массив data: EstimatePreview[]):\n" .
+                    "1. Для каждой сметы в файле заполни EstimatePreview: passport (EstimatePassport), items_count, items_count_total, page_start, page_end.\n" .
+                    "2. Просканируй документ на наличие заголовков разделов, определи количество независимых сметных объектов.",
             ],
 
             // --- ГРУППА: DETAILED_PARSING ---
@@ -195,13 +202,13 @@ final class PromtRulesSeeder extends Seeder
                 'key' => 'estimate_fetch_items_tree_hierarchy_logic',
                 'step' => Step::EstimateFetchItems->value,
                 'priority' => 40,
-                'content' => "Сформируй дерево данных для EstimateFetchItemsResponse (массив `rows`).\n" .
-                    "1. ИЕРАРХИЯ: Используй EstimateSection и EstimateSubSection для группировки.\n" .
+                'content' => "Сформируй дерево данных для EstimateFetchResponse (поле `data`: массив EstimateSection | EstimateItem).\n" .
+                    "1. ИЕРАРХИЯ: Используй EstimateSection (type: 'section', name, children) и EstimateSubSection (type: 'subsection', name, children) для группировки.\n" .
                     "2. ПРАВИЛО No-Number: Если колонка `pos` пуста, но есть `code` и `name` — это EstimateItemResource.\n" .
                     "   Вкладывай такие строки в `children` последнего найденного EstimateItem.\n" .
                     "3. СКЛЕЙКА: Если наименование или ШИФР (`code`) разбиты на строки, объединяй через пробел.\n" .
                     "   Не пытайся сокращать или переформатировать шифр (напр. ТЕР-01...).\n" .
-                    "4. КОДЫ: Убедись, что извлеченные `code`, `name` и `unit` соответствуют EstimateHeaderSchema.",
+                    "4. КОДЫ: Убедись, что извлеченные `code`, `name` и `unit` соответствуют EstimateHeader.",
             ],
             [
                 'key' => 'estimate_fetch_items_resource_item_processing',
@@ -225,13 +232,14 @@ final class PromtRulesSeeder extends Seeder
 
             // --- ГРУППА: FOOTER_PARSING (Итоги в отдельный ответ) ---
             [
-                'key' => 'estimate_fetch_footer_logic',
+                'key' => 'estimate_fetch_info_logic',
                 'step' => Step::EstimateFetchInfo->value,
                 'priority' => 60,
-                'content' => "Это правило для формирования EstimateFetchFooterResponse.\n" .
-                    "Извлеки итоговые начисления документа в массив EstimateFooterItem.\n" .
-                    "1. ТИПЫ ИТОГОВ: Различай локальные итоги (внутри разделов) и глобальные (в конце документа).\n" .
-                    "2. ИЕРАРХИЯ: Строки 'в том числе' должны быть вложены в `children` родителя.\n" .
+                'content' => "Это правило для формирования EstimateFetchInfoResponse (data: EstimateFetchInfo).\n" .
+                    "Заполни estimate_id, generator (если есть), header (EstimateHeader — карта колонок), footer (массив EstimateFooterItem).\n" .
+                    "1. HEADER: Определи соответствие колонок (pos, code, name, unit, quantity, price) по алиасам в таблице.\n" .
+                    "2. FOOTER: Извлеки итоговые начисления в массив EstimateFooterItem (label, value, children).\n" .
+                    "   Различай локальные итоги (внутри разделов) и глобальные (в конце документа). Строки 'в том числе' — в `children` родителя.\n" .
                     "Ключевые слова: 'Итого', 'НДС', 'Сметная прибыль', 'Накладные расходы'.",
             ],
         ];

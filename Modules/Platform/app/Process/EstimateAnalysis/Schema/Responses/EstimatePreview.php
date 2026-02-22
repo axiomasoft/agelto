@@ -5,12 +5,12 @@ declare(strict_types=1);
 namespace Platform\Process\EstimateAnalysis\Schema\Responses;
 
 use Platform\Process\EstimateAnalysis\Schema\EstimatePassport;
-use Platform\Process\EstimateAnalysis\Schema\EstimateHeaderSchema;
-use Platform\Process\EstimateAnalysis\Schema\EstimateFooterItem;
-use Spatie\LaravelData\Attributes\DataCollectionOf;
 use Spatie\LaravelData\Data;
-use Spatie\LaravelData\DataCollection;
 
+/**
+ * Элемент превью сметы в ответе EstimatePreviewResponse.
+ * passport, items_count, items_count_total, page_start, page_end.
+ */
 final class EstimatePreview extends Data
 {
     public function __construct(

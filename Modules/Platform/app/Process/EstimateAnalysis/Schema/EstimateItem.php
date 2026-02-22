@@ -8,6 +8,12 @@ use Spatie\LaravelData\Attributes\DataCollectionOf;
 use Spatie\LaravelData\Data;
 use Spatie\LaravelData\DataCollection;
 
+/**
+ * Позиция сметы. Поля соответствуют колонкам EstimateHeader.
+ * - name: наименование (обязательно).
+ * - children: ресурсы строки (EstimateItemResource).
+ * - modifiers: коэффициенты (EstimateModifierItem).
+ */
 final class EstimateItem extends Data
 {
     /**

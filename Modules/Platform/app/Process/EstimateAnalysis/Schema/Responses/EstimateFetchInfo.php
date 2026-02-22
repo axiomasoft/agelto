@@ -4,12 +4,16 @@ declare(strict_types=1);
 
 namespace Platform\Process\EstimateAnalysis\Schema\Responses;
 
+use Platform\Process\EstimateAnalysis\Schema\EstimateFooterItem;
+use Platform\Process\EstimateAnalysis\Schema\EstimateHeader;
 use Spatie\LaravelData\Attributes\DataCollectionOf;
 use Spatie\LaravelData\Data;
 use Spatie\LaravelData\DataCollection;
-use Platform\Process\EstimateAnalysis\Schema\EstimateFooterItem;
-use Platform\Process\EstimateAnalysis\Schema\EstimateHeader;
 
+/**
+ * Шапка и итоги сметы (в ответе EstimateFetchInfoResponse).
+ * estimate_id, generator, header (EstimateHeader), footer (EstimateFooterItem[]).
+ */
 final class EstimateFetchInfo extends Data
 {
     public function __construct(

@@ -8,6 +8,7 @@ use Platform\Process\EstimateAnalysis\Schema\EstimateSection;
 use Platform\Process\EstimateAnalysis\Schema\EstimateItem;
 use Spatie\LaravelData\Data;
 
+/** Дерево позиций сметы. estimate_id, data: (EstimateSection | EstimateItem)[]. */
 final class EstimateFetchResponse extends Data
 {
     public function __construct(

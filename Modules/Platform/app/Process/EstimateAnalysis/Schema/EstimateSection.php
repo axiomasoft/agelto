@@ -6,6 +6,7 @@ namespace Platform\Process\EstimateAnalysis\Schema;
 
 use Spatie\LaravelData\Data;
 
+/** Раздел сметы. type: "section", name, children: (EstimateSubSection | EstimateItem)[]. */
 final class EstimateSection extends Data
 {
     /**

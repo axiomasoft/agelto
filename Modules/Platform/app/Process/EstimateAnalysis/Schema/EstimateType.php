@@ -4,6 +4,13 @@ declare(strict_types=1);
 
 namespace Platform\Process\EstimateAnalysis\Schema;
 
+/**
+ * Тип документа (поле type в EstimatePassport).
+ * - estimate: Смета (ЛСР). По заголовкам «Локальный сметный расчёт», «Локальная смета».
+ * - act: Акт (КС-2). «Акт о приемке выполненных работ», «Форма № КС-2».
+ * - resource_calculation: Ресурсная ведомость. «Ведомость ресурсов», «Расчет ресурсов».
+ * - defect_list: Дефектная ведомость. «Дефектная ведомость», «Опись работ».
+ */
 enum EstimateType: string
 {
     case Estimate = 'estimate';

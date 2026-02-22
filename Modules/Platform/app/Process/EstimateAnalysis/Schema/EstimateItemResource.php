@@ -6,6 +6,11 @@ namespace Platform\Process\EstimateAnalysis\Schema;
 
 use Spatie\LaravelData\Data;
 
+/**
+ * Ресурс позиции (материал, машина, труд, накладные).
+ * - name: наименование, resource_type: EstimateResourceType.
+ * - comment: текст из колонки pos, если там примечание (напр. «прим.»).
+ */
 final class EstimateItemResource extends Data
 {
     public function __construct(

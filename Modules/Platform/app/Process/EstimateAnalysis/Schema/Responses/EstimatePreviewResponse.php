@@ -9,6 +9,7 @@ use Spatie\LaravelData\Data;
 use Spatie\LaravelData\Attributes\DataCollectionOf;
 use Spatie\LaravelData\DataCollection;
 
+/** Ответ: список превью смет (data: EstimatePreview[]). */
 final class EstimatePreviewResponse extends Data
 {
     public function __construct(

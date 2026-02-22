@@ -8,6 +8,7 @@ use Spatie\LaravelData\Attributes\DataCollectionOf;
 use Spatie\LaravelData\Data;
 use Spatie\LaravelData\DataCollection;
 
+/** Подраздел сметы. type: "subsection", name, children: EstimateItem[]. */
 final class EstimateSubSection extends Data
 {
     /**

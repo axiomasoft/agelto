@@ -6,6 +6,7 @@ namespace Platform\Process\EstimateAnalysis\Schema;
 
 use Spatie\LaravelData\Data;
 
+/** Коэффициент (напр. К=1.15). name — код, description — обоснование, value — число. */
 final class EstimateModifierItem extends Data
 {
     public function __construct(

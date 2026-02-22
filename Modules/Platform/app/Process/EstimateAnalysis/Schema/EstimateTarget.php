@@ -4,6 +4,13 @@ declare(strict_types=1);
 
 namespace Platform\Process\EstimateAnalysis\Schema;
 
+/**
+ * Направление/категория сметы (поле target в EstimatePassport).
+ * - construction: Строительство.
+ * - renovation: Ремонт.
+ * - medical_equipment: Медоборудование.
+ * - engineering: Инженерия.
+ */
 enum EstimateTarget: string
 {
     case Construction = 'construction';

@@ -6,6 +6,7 @@ namespace Platform\Process\EstimateAnalysis\Schema;
 
 use Spatie\LaravelData\Data;
 
+/** Итоговая строка. label, value, children — вложенные (напр. «в том числе»). */
 final class EstimateFooterItem extends Data
 {
     /**
