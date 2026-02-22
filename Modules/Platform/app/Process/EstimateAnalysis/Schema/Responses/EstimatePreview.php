@@ -19,10 +19,5 @@ final class EstimatePreview extends Data
         public int $items_count_total,
         public int $page_start,
         public int $page_end,
-        public bool $has_footer,
-        public ?string $generator = null,
-        public EstimateHeaderSchema $header_schema,
-        #[DataCollectionOf(EstimateFooterItem::class)]
-        public DataCollection $footer = new DataCollection(EstimateFooterItem::class, []),
     ) {}
 }

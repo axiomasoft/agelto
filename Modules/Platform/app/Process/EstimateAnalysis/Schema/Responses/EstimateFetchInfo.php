@@ -8,12 +8,15 @@ use Spatie\LaravelData\Attributes\DataCollectionOf;
 use Spatie\LaravelData\Data;
 use Spatie\LaravelData\DataCollection;
 use Platform\Process\EstimateAnalysis\Schema\EstimateFooterItem;
+use Platform\Process\EstimateAnalysis\Schema\EstimateHeader;
 
-final class EstimateFetchFooter extends Data
+final class EstimateFetchInfo extends Data
 {
     public function __construct(
         public string $estimate_id,
+        public ?string $generator = null,
+        public EstimateHeader $header,
         #[DataCollectionOf(EstimateFooterItem::class)]
-        public DataCollection $data = new DataCollection(EstimateFooterItem::class, []),
+        public DataCollection $footer = new DataCollection(EstimateFooterItem::class, []),
     ) {}
 }

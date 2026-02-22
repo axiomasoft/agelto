@@ -6,7 +6,7 @@ namespace Platform\Process\EstimateAnalysis\Schema;
 
 use Spatie\LaravelData\Data;
 
-final class EstimateHeaderSchema extends Data
+final class EstimateHeader extends Data
 {
     public function __construct(
         public ?EstimateHeaderColumn $pos,

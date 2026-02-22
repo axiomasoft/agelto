@@ -16,17 +16,41 @@ final class PromtRulesSeeder extends Seeder
     public function run(): void
     {
         $rules = [
-            // --- ГРУППА: GLOBAL SCHEMAS (Технические контракты системы) ---
+            // --- ГРУППА: GLOBAL SCHEMAS (Общая вводная) ---
             [
                 'key' => 'global_json_schemas',
                 'step' => Step::Global->value,
                 'priority' => 1,
-                'content' => "Ниже описаны схемы данных и перечисления. Каждое поле должно соответствовать аннотации:\n\n" .
-                    "0. DocumentType (Тип документа, поле data.type в PrimaryAnalysisResponse):\n" .
+                'content' => "Ниже описаны схемы данных и перечисления. Каждое поле должно соответствовать аннотации.",
+            ],
+
+            // --- ГРУППА: GLOBAL PRIMARY (Схемы для первичного анализа) ---
+            [
+                'key' => 'global_primary_json_schemas',
+                'step' => Step::GlobalPrimary->value,
+                'priority' => 1,
+                'content' => "0. DocumentType (Тип документа, поле data.document_type в PrimaryAnalysisResponse):\n" .
                     "- \"estimate\": Смета.\n" .
                     "- \"tech_spec\": Техническое задание (ТЗ).\n" .
                     "- \"unknown\": Неизвестный тип.\n\n" .
-                    "1. EstimateTarget (Тип документа для поля 'type'):\n" .
+                    "1. Формат ответа PrimaryAnalysisResponse:\n" .
+                    "{\n" .
+                    "  \"success\": boolean,\n" .
+                    "  \"message\": string | null,\n" .
+                    "  \"data\": {\n" .
+                    "    \"document_type\": DocumentType,\n" .
+                    "    \"description\": string | null (Краткое резюме файла: что это, за какой период, какой объем),\n" .
+                    "    \"tags\": string[] (Массив меток: Город, ОС, Шифр, Вид работ, ФИО)\n" .
+                    "  }\n" .
+                    "}",
+            ],
+
+            // --- ГРУППА: GLOBAL ESTIMATE (Схемы для анализа смет) ---
+            [
+                'key' => 'global_estimate_json_schemas',
+                'step' => Step::GlobalEstimate->value,
+                'priority' => 1,
+                'content' => "0. EstimateTarget (Тип документа для поля 'type'):\n" .
                     "- \"estimate\": Смета (ЛСР). Определять по заголовкам 'Локальный сметный расчет', 'Локальная смета'.\n" .
                     "- \"technical_assignment\": Техническое задание (ТЗ). Маркеры: 'Техническое задание', 'Задание на проектирование'.\n" .
                     "- \"contract\": Договор/Контракт. Маркеры: 'Договор №', 'Муниципальный контракт'.\n" .
@@ -34,18 +58,18 @@ final class PromtRulesSeeder extends Seeder
                     "- \"resource_calculation\": Ресурсная ведомость. Текст: 'Ведомость ресурсов', 'Расчет ресурсов'.\n" .
                     "- \"defect_list\": Дефектная ведомость. Текст: 'Дефектная ведомость', 'Опись работ'.\n" .
                     "- null: Если тип документа не удалось определить.\n\n" .
-                    "2. EstimateResourceType (Классификация ресурса):\n" .
+                    "1. EstimateResourceType (Классификация ресурса):\n" .
                     "- \"Material\": Материалы. Обоснования ФССЦ, прайс-листы, маркеры 'МАТ', 'мат.ресурс'.\n" .
                     "- \"Machine\": Машины. Обоснования ФСЭМ, маркеры 'ЭМ', 'маш.час', 'Машины и механизмы'.\n" .
                     "- \"Labor\": Труд. Маркеры 'ЗП', 'ОТ', 'ЗПМ', 'Трудозатраты', 'чел.час'.\n" .
                     "- \"Overhead\": Накладные/Прибыль. Маркеры 'НР', 'СП', 'Накладные расходы', 'Прибыль'.\n\n" .
-                    "3. EstimateHeaderColumn (Описание колонки):\n" .
+                    "2. EstimateHeaderColumn (Описание колонки):\n" .
                     "{\n" .
                     "  \"index\": integer (Порядковый номер ячейки в строке, начиная с 0),\n" .
                     "  \"name\": string (Текст в данной ячейке),\n" .
                     "  \"full_name\": string (Текст с учетом родительской группы ячеек).\n" .
                     "}\n\n" .
-                    "4. EstimateHeaderSchema (Карта колонок):\n" .
+                    "3. EstimateHeaderSchema (Карта колонок):\n" .
                     "{\n" .
                     "  \"pos\": EstimateHeaderColumn (Алиасы: № п/п, №, поз),\n" .
                     "  \"code\": EstimateHeaderColumn (Алиасы: Шифр, Обоснование, Код),\n" .
@@ -54,7 +78,7 @@ final class PromtRulesSeeder extends Seeder
                     "  \"quantity\": EstimateHeaderColumn (Алиасы: Количество, Объем),\n" .
                     "  \"price\": EstimateHeaderColumn (Алиасы: Стоимость всего, Итого руб)\n" .
                     "}\n\n" .
-                    "5. EstimateItem (Позиция):\n" .
+                    "4. EstimateItem (Позиция):\n" .
                     "{\n" .
                     "  \"pos\": integer | null (Соответствует 'pos' в EstimateHeaderSchema),\n" .
                     "  \"code\": string | null (Соответствует 'code' в EstimateHeaderSchema),\n" .
@@ -65,23 +89,23 @@ final class PromtRulesSeeder extends Seeder
                     "  \"children\": EstimateItemResource[],\n" .
                     "  \"modifiers\": EstimateModifierItem[]\n" .
                     "}\n\n" .
-                    "6. EstimateModifierItem (Коэффициент):\n" .
+                    "5. EstimateModifierItem (Коэффициент):\n" .
                     "{\n" .
                     "  \"name\": string (Код, напр. 'К=1.15'),\n" .
                     "  \"description\": string (Обоснование),\n" .
                     "  \"value\": float (Число)\n" .
                     "}\n\n" .
-                    "7. EstimateSection (Раздел):\n" .
+                    "6. EstimateSection (Раздел):\n" .
                     "{\n" .
                     "  \"name\": string,\n" .
                     "  \"rows\": (EstimateSubSection | EstimateItem)[]\n" .
                     "}\n\n" .
-                    "8. EstimateSubSection (Подраздел):\n" .
+                    "7. EstimateSubSection (Подраздел):\n" .
                     "{\n" .
                     "  \"name\": string,\n" .
                     "  \"children\": EstimateItem[]\n" .
                     "}\n\n" .
-                    "9. EstimateItemResource (Ресурс):\n" .
+                    "8. EstimateItemResource (Ресурс):\n" .
                     "{\n" .
                     "  \"code\": string | null (Шифр ресурса),\n" .
                     "  \"name\": string (Наименование),\n" .
@@ -91,23 +115,13 @@ final class PromtRulesSeeder extends Seeder
                     "  \"comment\": string | null (Текст из колонки 'pos'),\n" .
                     "  \"resource_type\": EstimateResourceType\n" .
                     "}\n\n" .
-                    "10. EstimateFooterItem (Итог):\n" .
+                    "9. EstimateFooterItem (Итог):\n" .
                     "{\n" .
                     "  \"label\": string,\n" .
                     "  \"value\": float,\n" .
                     "  \"children\": EstimateFooterItem[]\n" .
                     "}\n\n" .
-                    "11. Форматы ответов (Responses):\n" .
-                    "- PrimaryAnalysisResponse:\n" .
-                    "{\n" .
-                    "  \"success\": boolean,\n" .
-                    "  \"message\": string | null,\n" .
-                    "  \"data\": {\n" .
-                    "    \"document_type\": DocumentType,\n" .
-                    "    \"description\": string | null (Краткое резюме файла: что это, за какой период, какой объем),\n" .
-                    "    \"tags\": string[] (Массив меток: Город, ОС, Шифр, Вид работ, ФИО)\n" .
-                    "  }\n" .
-                    "}\n\n" .
+                    "10. Форматы ответов (Responses):\n" .
                     "- EstimatePreviewResponse:\n" .
                     "{\n" .
                     "  \"success\": boolean,\n" .
@@ -131,7 +145,7 @@ final class PromtRulesSeeder extends Seeder
                     "  \"data\": {\n" .
                     "    \"footer\": EstimateFooterItem[]\n" .
                     "  }\n" .
-                    "}"
+                    "}",
             ],
 
             // --- ГРУППА: SYSTEM (Базовые инструкции) ---
@@ -156,14 +170,14 @@ final class PromtRulesSeeder extends Seeder
                 'step' => Step::PrimaryAnalysis->value,
                 'priority' => 20,
                 'content' => "Твоя задача — провести экспресс-аудит документа по ПЕРВЫМ ДВУМ СТРАНИЦАМ.\n\n" .
-                    "1. ЛОКАЦИЯ: Если маркеры сметы (ЛСР, КС-2, Расчет ресурсов) не обнаружены на первых 2 страницах, " .
-                    "считай, что документ не содержит сметных данных (has_estimates: false).\n" .
-                    "2. КЛАССИФИКАЦИЯ: \n" .
+                    "1. Ответ должен соответствовать структуре PrimaryAnalysisResponse\n" .
+                    "2. ЛОКАЦИЯ: Если маркеры сметы (ЛСР, КС-2, Расчет ресурсов) не обнаружены на первых 2 страницах, считай, что документ не содержит сметных данных (document_type: 'unknown').\n" .
+                    "3. КЛАССИФИКАЦИЯ: \n" .
                     "   - Если это смета -> document_type: \"estimate\".\n" .
                     "   - Если это ТЗ (описание работ, требования) -> document_type: \"tech_spec\".\n" .
                     "   - Иначе -> document_type: \"unknown\".\n" .
-                    "3. ХАРАКТЕРИСТИКА: В поле `description` кратко опиши суть (напр. 'Проект договора на ПИР' или 'Смета на электромонтаж').\n" .
-                    "4. ТЕГИ: Выдели ключевые сущности (Объект, Город, Сумма, Заказчик).",
+                    "4. ХАРАКТЕРИСТИКА: В поле `description` кратко опиши суть (напр. 'Проект договора на ПИР' или 'Смета на электромонтаж').\n" .
+                    "5. ТЕГИ: Выдели ключевые сущности (Объект, Город, Сумма, Заказчик).",
             ],
 
             // --- ГРУППА: ESTIMATE_PREVIEW ---
@@ -212,7 +226,7 @@ final class PromtRulesSeeder extends Seeder
             // --- ГРУППА: FOOTER_PARSING (Итоги в отдельный ответ) ---
             [
                 'key' => 'estimate_fetch_footer_logic',
-                'step' => Step::EstimateFetchFooter->value,
+                'step' => Step::EstimateFetchInfo->value,
                 'priority' => 60,
                 'content' => "Это правило для формирования EstimateFetchFooterResponse.\n" .
                     "Извлеки итоговые начисления документа в массив EstimateFooterItem.\n" .
