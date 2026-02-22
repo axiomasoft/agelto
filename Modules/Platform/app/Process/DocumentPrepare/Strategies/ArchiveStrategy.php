@@ -21,13 +21,13 @@ final class ArchiveStrategy implements PreparationStrategy
     {
         $zip = new ZipArchive();
         if ($zip->open($media->getPath()) === true) {
-            $tempFolder = 'temp_extract/'.Str::uuid();
-            $storagePath = storage_path('app/'.$tempFolder);
+            $tempFolder = 'temp_extract/' . Str::uuid();
+            $storagePath = storage_path('app/' . $tempFolder);
             $zip->extractTo($storagePath);
 
             for ($i = 0; $i < $zip->numFiles; $i++) {
                 $fileName = $zip->getNameIndex($i);
-                $filePath = $storagePath.'/'.$fileName;
+                $filePath = $storagePath . '/' . $fileName;
 
                 if (is_dir($filePath) || str_starts_with(basename($fileName), '.')) {
                     continue;

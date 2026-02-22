@@ -37,31 +37,28 @@ services:
       QUEUE_CONNECTION: redis
       REDIS_HOST: redis
     depends_on:
-      mysql:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
+      mysql: { condition: service_healthy }
+      redis: { condition: service_healthy }
     networks:
       - agelto_network
 
-  worker-eis-crawling:
+  horizon:
     build:
       context: .
       dockerfile: docker/php/Dockerfile
-    container_name: agelto_worker_eis_crawling
+    container_name: agelto_horizon
     restart: unless-stopped
     working_dir: /var/www/html
-    entrypoint: ["/usr/local/bin/docker-php-serversideup-entrypoint"]
-    command: ["tail", "-f", "/dev/null"]
+    shm_size: '2gb'
+    command: ["php", "artisan", "horizon"]
     volumes:
       - ./:/var/www/html
     environment: *app_env
     depends_on:
-      app:
-        condition: service_started
+      app: { condition: service_started }
+      redis: { condition: service_healthy }
     networks:
       - agelto_network
-    shm_size: '2gb'
 
   scheduler:
     build:
@@ -76,8 +73,7 @@ services:
     command: ["php", "artisan", "schedule:work"]
     environment: *app_env
     depends_on:
-      app:
-        condition: service_started
+      app: { condition: service_started }
     networks:
       - agelto_network
 
@@ -97,16 +93,17 @@ services:
       - "${REVERB_PORT:-8000}:${REVERB_PORT:-8000}"
     environment: *app_env
     depends_on:
-      app:
-        condition: service_started
-      redis:
-        condition: service_healthy
+      app: { condition: service_started }
+      redis: { condition: service_healthy }
     networks:
       - agelto_network
 
   redis:
     image: redis:alpine
     container_name: agelto_redis
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
     ports:
       - "${REDIS_PORT:-6379}:6379"
     healthcheck:
@@ -144,3 +141,4 @@ networks:
 
 volumes:
   mysql_data:
+  redis_data:

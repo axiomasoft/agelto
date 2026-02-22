@@ -43,18 +43,15 @@ final class DocumentProcessor
                 $sourceMedia = $model->copy(model: $analysis, collectionName: DocumentAnalysis::COLLECTION_DOCUMENT_SOURCE);
             } else if ($model instanceof Model) {
                 if (filter_var($model->source, FILTER_VALIDATE_URL)) {
-                    $sourceMedia = $model->addMediaFromUrl(url: $model->source)->toMediaCollection(DocumentAnalysis::COLLECTION_DOCUMENT_SOURCE);
+                    $sourceMedia = $model->addMediaFromUrl(url: $model->source)->toMediaCollection(DocumentAnalysis::COLLECTION_DOCUMENT_SOURCE, disk: config('app.filesystems.private_disk_name'));
                 } else if (is_string($model->source)) {
-                    $sourceMedia = $model->copy(model: $analysis, collectionName: DocumentAnalysis::COLLECTION_DOCUMENT_SOURCE);;
+                    $sourceMedia = $model->copy(model: $analysis, collectionName: DocumentAnalysis::COLLECTION_DOCUMENT_SOURCE, disk: config('app.filesystems.private_disk_name'));
                 } else {
                     throw new Exception('Некорректный тип данных для DocumentProcessor');
                 }
-
-                $sourceMedia = $model->getFirstMedia($analysis->source);
-            } else {
-                throw new Exception('Некорректный тип данных для DocumentProcessor');
             }
         }
+        return $sourceMedia;
     }
 
     /**

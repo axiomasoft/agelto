@@ -20,6 +20,11 @@ final class PrepareDocumentJob implements ShouldQueue
         public int $documentAnalysisId,
     ) {}
 
+    public function tags(): array
+    {
+        return ['analysis:' . $this->documentAnalysisId];
+    }
+
     public function handle(DocumentProcessor $documentProcessor): void
     {
         $documentAnalysis = DocumentAnalysis::findOrFail($this->documentAnalysisId);

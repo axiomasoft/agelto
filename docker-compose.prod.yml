@@ -23,21 +23,42 @@ services:
       REDIS_HOST: redis
     depends_on:
       mysql: { condition: service_healthy }
-      redis: { condition: service_started }
+      redis: { condition: service_healthy }
     networks: [ agelto_network ]
 
-  worker-eis-crawling:
+  horizon:
     image: agelto/app:latest
-    container_name: agelto_worker_eis_crawling
+    container_name: agelto_horizon
     restart: unless-stopped
+    working_dir: /var/www/html
     shm_size: '2gb'
-    # Команда запускает консольную команду напрямую
-    command: php artisan eis:crawling
+    command: ["php", "artisan", "horizon"]
     environment: *prod_env
-    # Зависим только от инфраструктуры
     depends_on:
       mysql: { condition: service_healthy }
-      redis: { condition: service_started }
+      redis: { condition: service_healthy }
+    networks: [ agelto_network ]
+
+  reverb:
+    image: agelto/app:latest
+    container_name: agelto_reverb
+    restart: unless-stopped
+    command: ["php", "artisan", "reverb:start", "--host=0.0.0.0", "--port=8080"]
+    environment: *prod_env
+    depends_on:
+      app: { condition: service_started }
+      redis: { condition: service_healthy }
+    networks: [ agelto_network ]
+
+  # Добавь это в прод-файл, чтобы работали задачи по расписанию
+  scheduler:
+    image: agelto/app:latest
+    container_name: agelto_scheduler
+    restart: unless-stopped
+    command: ["php", "artisan", "schedule:work"]
+    environment: *prod_env
+    depends_on:
+      app: { condition: service_started }
     networks: [ agelto_network ]
 
   mysql:
@@ -51,6 +72,7 @@ services:
     command:
       - --character-set-server=utf8mb4
       - --collation-server=utf8mb4_unicode_ci
+      - --innodb-flush-log-at-trx-commit=2
     environment:
       MYSQL_DATABASE: ${DB_DATABASE}
       MYSQL_USER: ${DB_USERNAME}
@@ -65,6 +87,16 @@ services:
 
   redis:
     image: redis:alpine
+    container_name: agelto_redis
+    command: redis-server --appendonly yes
+    restart: unless-stopped
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
     networks: [ agelto_network ]
 
 networks:
@@ -73,3 +105,4 @@ networks:
 
 volumes:
   mysql_data:
+  redis_data:

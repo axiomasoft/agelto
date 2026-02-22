@@ -252,13 +252,16 @@ return [
             ],
             'platform_document_prepare' => [
                 'maxProcesses' => 10,
-                'balanceMaxShift' => 1,
-                'balanceCooldown' => 3,
+                'memory' => 512, // Увеличиваем лимит памяти для конвертации файлов
+                'timeout' => 300, // Даем 5 минут на тяжелую конвертацию
+                'tries' => 3,
+                'backoff' => [60, 300], // Если упал, пробуем через минуту, потом через 5
             ],
             'platform_primary_analysis' => [
                 'maxProcesses' => 5,
-                'balanceMaxShift' => 1,
-                'balanceCooldown' => 3,
+                'timeout' => 180, // Gemini иногда думает долго
+                'tries' => 5, // Анализу даем больше попыток (сетевые сбои ИИ)
+                'backoff' => [30, 60, 300],
             ],
         ],
 
