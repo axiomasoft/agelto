@@ -10,17 +10,17 @@ use App\Services\GeminiService;
 use Exception;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Bus;
+use Illuminate\Support\Facades\DB;
 use Platform\Dto\PromtRule\Step;
+use Platform\Enums\AnalysisStatus;
 use Platform\Models\DocumentAnalysis\DocumentAnalysis;
 use Platform\Process\DocumentAnalysis\Jobs\PrimaryAnalysisJob;
+use Platform\Process\DocumentAnalysis\Schema\DocumentType;
+use Platform\Process\DocumentAnalysis\Schema\Responses\PrimaryAnalysisResponse;
 use Platform\Process\DocumentPrepare\Jobs\PrepareDocumentJob;
 use Platform\Process\EstimateAnalysis\Jobs\EstimateAnalysisJob;
 use Platform\Repositories\Promt\PromptRuleRepository;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
-use Platform\Process\DocumentAnalysis\Schema\Responses\PrimaryAnalysisResponse;
-use Platform\Enums\AnalysisStatus;
-use Platform\Process\DocumentAnalysis\Schema\DocumentType;
-use Illuminate\Support\Facades\DB;
 
 final class PrimaryAnalysisProcessor
 {
@@ -48,15 +48,15 @@ final class PrimaryAnalysisProcessor
 
     public function analysis(DocumentAnalysis $analysis): void
     {
-        $analysis->update(['status' => AnalysisStatus::PrimaryAnalyzing]);
+        $analysis->transitionStatus(status: AnalysisStatus::PrimaryAnalyzing, message: 'Начало первичного анализа');
 
-        $this->logger->info('Начало первичного анализа ' . $analysis->id, LogOutput::Console);
+        $this->logger->info('Начало первичного анализа '.$analysis->id, LogOutput::Console);
 
         $fileUri = $this->gemini->ensureFileInCloud($analysis);
 
         $systemInstructions = $this->promptRepo->getSystemInstructionsForStep(self::STEP);
 
-        $promt = "Выполни первичный анализ согласно правилам.";
+        $promt = 'Выполни первичный анализ согласно правилам.';
 
         $response = $this->gemini->generateJson(
             prompt: $promt,
@@ -69,11 +69,11 @@ final class PrimaryAnalysisProcessor
         $responseObject = PrimaryAnalysisResponse::from($response);
 
         // 2. Дополнительная проверка бизнес-логики (если нужна)
-        if (!$responseObject->success) {
+        if (! $responseObject->success) {
             // обработка логики "пустого" результата
         }
 
-        $analysis->update(['status' => AnalysisStatus::PrimaryAnalyzed]);
+        $analysis->transitionStatus(status: AnalysisStatus::PrimaryAnalyzed, message: 'Первичный анализ выполнен');
 
         DB::transaction(function () use ($analysis, $responseObject, $promt, $systemInstructions) {
 
@@ -88,14 +88,13 @@ final class PrimaryAnalysisProcessor
             ]);
 
             if ($responseObject->data->document_type === DocumentType::Estimate) {
-                $analysis->update(['status' => AnalysisStatus::EstimateAnalyzing]);
+                $analysis->transitionStatus(status: AnalysisStatus::EstimateAnalyzing, message: 'Постановка в очередь анализа сметы');
                 EstimateAnalysisJob::dispatch(documentAnalysisId: $analysis->id);
             } else {
-                $analysis->update(['status' => AnalysisStatus::PrimaryIgnored]);
+                $analysis->transitionStatus(status: AnalysisStatus::PrimaryIgnored, message: 'Документ не является сметой');
             }
         });
     }
-
 
     public function initial(Media|Model|string $data, $args = []): DocumentAnalysis
     {

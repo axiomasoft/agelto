@@ -9,9 +9,9 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
-use Platform\Process\DocumentAnalysis\PrimaryAnalysisProcessor;
-use Platform\Models\DocumentAnalysis\DocumentAnalysis;
 use Platform\Enums\AnalysisStatus;
+use Platform\Models\DocumentAnalysis\DocumentAnalysis;
+use Platform\Process\DocumentAnalysis\PrimaryAnalysisProcessor;
 use Throwable;
 
 final class PrimaryAnalysisJob implements ShouldQueue
@@ -42,9 +42,11 @@ final class PrimaryAnalysisJob implements ShouldQueue
      */
     public function failed(Throwable $exception): void
     {
-        DocumentAnalysis::where('id', $this->documentAnalysisId)->update([
-            'status' => AnalysisStatus::Error,
-            'last_error' => 'Ошибка первичного анализа: ' . $exception->getMessage()
-        ]);
+        $analysis = DocumentAnalysis::find($this->documentAnalysisId);
+        $analysis?->transitionStatus(
+            status: AnalysisStatus::Error,
+            message: 'Ошибка первичного анализа: ' . $exception->getMessage(),
+            trace: $exception->getTraceAsString(),
+        );
     }
 }

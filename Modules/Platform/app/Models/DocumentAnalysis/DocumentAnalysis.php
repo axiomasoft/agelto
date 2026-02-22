@@ -8,10 +8,10 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
+use Platform\Enums\AnalysisStatus;
 use Spatie\MediaLibrary\HasMedia;
 use Spatie\MediaLibrary\InteractsWithMedia;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
-use Platform\Enums\AnalysisStatus;
 
 final class DocumentAnalysis extends Model implements HasMedia
 {
@@ -100,14 +100,45 @@ final class DocumentAnalysis extends Model implements HasMedia
             && $this->gemini_cache_expires_at?->isFuture();
     }
 
+    /**
+     * Переход в новый статус с записью в лог.
+     *
+     * @param  array<string, mixed>|null  $content
+     */
+    public function transitionStatus(
+        AnalysisStatus $status,
+        ?string $message = null,
+        ?string $trace = null,
+        ?array $content = null,
+    ): void {
+        $attributes = ['status' => $status];
+
+        if (in_array($status, [
+            AnalysisStatus::Error,
+            AnalysisStatus::PrimaryAnalysisFailed,
+            AnalysisStatus::EstimateAnalysisFailed,
+        ], true) && $message !== null) {
+            $attributes['last_error'] = $message;
+        }
+
+        $this->update($attributes);
+
+        $this->logs()->create([
+            'status' => $status,
+            'message' => $message,
+            'trace' => $trace,
+            'content' => $content,
+        ]);
+    }
+
     public function isProcessing(): bool
     {
         return in_array($this->status, [
             AnalysisStatus::Preparing,
-            AnalysisStatus::Analyzing,
+            AnalysisStatus::PrimaryAnalyzing,
             AnalysisStatus::Prepared,
-            AnalysisStatus::Analyzed,
-            AnalysisStatus::AnalysisFailed,
+            AnalysisStatus::PrimaryAnalyzed,
+            AnalysisStatus::PrimaryAnalysisFailed,
             AnalysisStatus::Error,
         ]);
     }
@@ -115,7 +146,7 @@ final class DocumentAnalysis extends Model implements HasMedia
     public function isFinished(): bool
     {
         return in_array($this->status, [
-            AnalysisStatus::Ignored,
+            AnalysisStatus::PrimaryIgnored,
             AnalysisStatus::Completed,
         ]);
     }

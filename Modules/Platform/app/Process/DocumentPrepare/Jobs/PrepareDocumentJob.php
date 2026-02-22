@@ -9,10 +9,10 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
+use Platform\Enums\AnalysisStatus;
 use Platform\Models\DocumentAnalysis\DocumentAnalysis;
 use Platform\Process\DocumentPrepare\DocumentProcessor;
 use Throwable;
-use Platform\Enums\AnalysisStatus;
 
 final class PrepareDocumentJob implements ShouldQueue
 {
@@ -26,7 +26,7 @@ final class PrepareDocumentJob implements ShouldQueue
 
     public function tags(): array
     {
-        return ['analysis:' . $this->documentAnalysisId];
+        return ['analysis:'.$this->documentAnalysisId];
     }
 
     public function handle(DocumentProcessor $documentProcessor): void
@@ -41,9 +41,13 @@ final class PrepareDocumentJob implements ShouldQueue
      */
     public function failed(Throwable $exception): void
     {
-        DocumentAnalysis::where('id', $this->documentAnalysisId)->update([
-            'status' => AnalysisStatus::Error,
-            'last_error' => 'Ошибка подготовки: ' . $exception->getMessage()
-        ]);
+        $analysis = DocumentAnalysis::find($this->documentAnalysisId);
+        if ($analysis !== null) {
+            $analysis->transitionStatus(
+                status: AnalysisStatus::Error,
+                message: 'Ошибка подготовки: '.$exception->getMessage(),
+                trace: $exception->getTraceAsString(),
+            );
+        }
     }
 }

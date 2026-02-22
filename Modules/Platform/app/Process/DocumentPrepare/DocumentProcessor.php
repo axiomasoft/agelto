@@ -7,11 +7,11 @@ namespace Platform\Process\DocumentPrepare;
 use Exception;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Str;
+use Platform\Enums\AnalysisStatus;
 use Platform\Models\DocumentAnalysis\DocumentAnalysis;
 use Platform\Process\DocumentPrepare\Strategies\PreparationStrategy;
 use Spatie\MediaLibrary\Downloaders\DefaultDownloader;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
-use Platform\Enums\AnalysisStatus;
 
 final class DocumentProcessor
 {
@@ -28,13 +28,13 @@ final class DocumentProcessor
 
     public function run(DocumentAnalysis $analysis)
     {
-        $analysis->update(['status' => AnalysisStatus::Preparing]);
+        $analysis->transitionStatus(status: AnalysisStatus::Preparing, message: 'Начало подготовки документа');
 
         $this->loadMedia($analysis);
 
         $this->preparation($analysis);
 
-        $analysis->update(['status' => AnalysisStatus::Prepared]);
+        $analysis->transitionStatus(status: AnalysisStatus::Prepared, message: 'Документ подготовлен');
     }
 
     public function loadMedia(DocumentAnalysis $analysis)
@@ -51,7 +51,7 @@ final class DocumentProcessor
                     collectionName: DocumentAnalysis::COLLECTION_DOCUMENT_SOURCE,
                     diskName: config('app.filesystems.private_disk_name')
                 );
-            } else if ($model instanceof Model) {
+            } elseif ($model instanceof Model) {
                 if (filter_var($model->source, FILTER_VALIDATE_URL)) {
                     $sourceMedia = $model
                         ->addMediaFromUrl(url: $model->source)
@@ -59,7 +59,7 @@ final class DocumentProcessor
                             collectionName: DocumentAnalysis::COLLECTION_DOCUMENT_SOURCE,
                             diskName: config('app.filesystems.private_disk_name')
                         );
-                } else if (is_string($model->source)) {
+                } elseif (is_string($model->source)) {
                     $sourceMedia = $model->copy(
                         model: $analysis,
                         collectionName: DocumentAnalysis::COLLECTION_DOCUMENT_SOURCE,
@@ -70,6 +70,7 @@ final class DocumentProcessor
                 }
             }
         }
+
         return $sourceMedia;
     }
 
@@ -96,7 +97,6 @@ final class DocumentProcessor
 
         return $analysis;
     }
-
 
     /**
      * Поиск существующего DocumentAnalysis по URL: скачивает файл во временную папку,
@@ -147,7 +147,7 @@ final class DocumentProcessor
         return DocumentAnalysis::query()
             ->whereHas(
                 relation: 'media',
-                callback: fn($q) => $q
+                callback: fn ($q) => $q
                     ->where('collection_name', DocumentAnalysis::COLLECTION_DOCUMENT_SOURCE)
                     ->where('file_name', $fileName)
                     ->where('size', $size),
