@@ -8,7 +8,7 @@ use Platform\Process\DocumentAnalysis\Schema\Estimate\EstimateItem;
 use Platform\Process\DocumentAnalysis\Schema\Estimate\EstimateSection;
 use Spatie\LaravelData\Data;
 
-final class EstimateFetchResponse extends Data
+final class EstimateFetchItemsResponse extends Data
 {
     /**
      * @param  array<int, EstimateSection|EstimateItem>  $data

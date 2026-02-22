@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Platform\Process\EstimateAnalysis\Schema;
 
-use Platform\Process\EstimateAnalysis\Schema\Attributes\Alias;
+use Platform\Attributes\Alias;
 use Spatie\LaravelData\Data;
 
 /** Карта колонок таблицы сметы. Каждое поле — соответствие колонки по алиасам заголовка. */

@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Platform\Process\EstimateAnalysis\Schema\Attributes;
+namespace Platform\Attributes;
 
 use Attribute;
 

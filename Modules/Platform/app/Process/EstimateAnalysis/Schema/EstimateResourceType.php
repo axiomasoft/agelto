@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Platform\Process\EstimateAnalysis\Schema;
 
-use Platform\Process\EstimateAnalysis\Schema\Attributes\Alias;
+use Platform\Attributes\Alias;
 
 /** Классификация ресурса. */
 enum EstimateResourceType: string

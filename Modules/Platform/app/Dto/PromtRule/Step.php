@@ -10,14 +10,14 @@ enum Step: string
     case Global = 'global';
 
     // Первичный
-    case GlobalPrimary = 'global_primary';
-    case PrimaryAnalysis = 'primary_analysis';
+    case GlobalPrimary = 'document_analysis:global';
+    case PrimaryAnalysis = 'document_analysis:primary';
 
     // Анализ сметы
-    case GlobalEstimate = 'global_estimate';
-    case EstimatePreview = 'estimate_preview';
-    case EstimateFetchItems = 'estimate_fetch_items';
-    case EstimateFetchInfo = 'estimate_fetch_info';
+    case GlobalEstimate = 'estimate_analysis:global';
+    case EstimatePreview = 'estimate_analysis:preview';
+    case EstimateFetchInfo = 'estimate_analysis:fetch_info';
+    case EstimateFetchItems = 'estimate_analysis:fetch_items';
 
     /**
      * @return array<string, string>
