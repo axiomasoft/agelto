@@ -22,6 +22,10 @@ final class PromtRulesSeeder extends Seeder
                 'step' => Step::Global->value,
                 'priority' => 1,
                 'content' => "Ниже описаны схемы данных и перечисления. Каждое поле должно соответствовать аннотации:\n\n" .
+                    "0. DocumentType (Тип документа, поле data.type в PrimaryAnalysisResponse):\n" .
+                    "- \"estimate\": Смета.\n" .
+                    "- \"tech_spec\": Техническое задание (ТЗ).\n" .
+                    "- \"unknown\": Неизвестный тип.\n\n" .
                     "1. EstimateTarget (Тип документа для поля 'type'):\n" .
                     "- \"estimate\": Смета (ЛСР). Определять по заголовкам 'Локальный сметный расчет', 'Локальная смета'.\n" .
                     "- \"technical_assignment\": Техническое задание (ТЗ). Маркеры: 'Техническое задание', 'Задание на проектирование'.\n" .
@@ -99,8 +103,8 @@ final class PromtRulesSeeder extends Seeder
                     "  \"success\": boolean,\n" .
                     "  \"message\": string | null,\n" .
                     "  \"data\": {\n" .
-                    "    \"type\": EstimateTarget,\n" .
-                    "    \"description\": string (Краткое резюме файла: что это, за какой период, какой объем),\n" .
+                    "    \"document_type\": DocumentType,\n" .
+                    "    \"description\": string | null (Краткое резюме файла: что это, за какой период, какой объем),\n" .
                     "    \"tags\": string[] (Массив меток: Город, ОС, Шифр, Вид работ, ФИО)\n" .
                     "  }\n" .
                     "}\n\n" .
@@ -155,9 +159,9 @@ final class PromtRulesSeeder extends Seeder
                     "1. ЛОКАЦИЯ: Если маркеры сметы (ЛСР, КС-2, Расчет ресурсов) не обнаружены на первых 2 страницах, " .
                     "считай, что документ не содержит сметных данных (has_estimates: false).\n" .
                     "2. КЛАССИФИКАЦИЯ: \n" .
-                    "   - Если это смета -> DocumentType: 'estimate'.\n" .
-                    "   - Если это ТЗ (описание работ, требования) -> DocumentType: 'technical_assignment'.\n" .
-                    "   - Если это договор/контракт -> DocumentType: 'contract'.\n" .
+                    "   - Если это смета -> document_type: \"estimate\".\n" .
+                    "   - Если это ТЗ (описание работ, требования) -> document_type: \"tech_spec\".\n" .
+                    "   - Иначе -> document_type: \"unknown\".\n" .
                     "3. ХАРАКТЕРИСТИКА: В поле `description` кратко опиши суть (напр. 'Проект договора на ПИР' или 'Смета на электромонтаж').\n" .
                     "4. ТЕГИ: Выдели ключевые сущности (Объект, Город, Сумма, Заказчик).",
             ],

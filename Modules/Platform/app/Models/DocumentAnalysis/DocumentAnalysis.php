@@ -100,6 +100,26 @@ final class DocumentAnalysis extends Model implements HasMedia
             && $this->gemini_cache_expires_at?->isFuture();
     }
 
+    public function isProcessing(): bool
+    {
+        return in_array($this->status, [
+            AnalysisStatus::Preparing,
+            AnalysisStatus::Analyzing,
+            AnalysisStatus::Prepared,
+            AnalysisStatus::Analyzed,
+            AnalysisStatus::AnalysisFailed,
+            AnalysisStatus::Error,
+        ]);
+    }
+
+    public function isFinished(): bool
+    {
+        return in_array($this->status, [
+            AnalysisStatus::Ignored,
+            AnalysisStatus::Completed,
+        ]);
+    }
+
     protected function casts(): array
     {
         return [

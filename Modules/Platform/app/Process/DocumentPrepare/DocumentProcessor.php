@@ -11,6 +11,7 @@ use Platform\Models\DocumentAnalysis\DocumentAnalysis;
 use Platform\Process\DocumentPrepare\Strategies\PreparationStrategy;
 use Spatie\MediaLibrary\Downloaders\DefaultDownloader;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
+use Platform\Enums\AnalysisStatus;
 
 final class DocumentProcessor
 {
@@ -27,8 +28,13 @@ final class DocumentProcessor
 
     public function run(DocumentAnalysis $analysis)
     {
+        $analysis->update(['status' => AnalysisStatus::Preparing]);
+
         $this->loadMedia($analysis);
+
         $this->preparation($analysis);
+
+        $analysis->update(['status' => AnalysisStatus::Prepared]);
     }
 
     public function loadMedia(DocumentAnalysis $analysis)

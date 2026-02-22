@@ -241,6 +241,20 @@ return [
             'timeout' => 120,
             'nice' => 0,
         ],
+        'platform_estimate_analysis' => [
+            'connection' => 'redis',
+            'queue' => ['platform_estimate_analysis'],
+            'balance' => 'auto',
+            'autoScalingStrategy' => 'time',
+            'maxProcesses' => 1,
+            'maxTime' => 0,
+            'maxJobs' => 0,
+            'memory' => 128,
+            'tries' => 3,
+            'backoff' => 3,
+            'timeout' => 120,
+            'nice' => 0,
+        ],
     ],
 
     'environments' => [
@@ -263,6 +277,12 @@ return [
                 'tries' => 5, // Анализу даем больше попыток (сетевые сбои ИИ)
                 'backoff' => [30, 60, 300],
             ],
+            'platform_estimate_analysis' => [
+                'maxProcesses' => 5,
+                'timeout' => 300,
+                'tries' => 3,
+                'backoff' => [60, 300],
+            ],
         ],
 
         'local' => [
@@ -274,6 +294,9 @@ return [
             ],
             'platform_document_prepare' => [
                 'maxProcesses' => 5,
+            ],
+            'platform_estimate_analysis' => [
+                'maxProcesses' => 2,
             ],
         ],
     ],

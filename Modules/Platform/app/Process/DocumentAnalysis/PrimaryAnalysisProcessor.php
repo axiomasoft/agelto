@@ -13,11 +13,14 @@ use Illuminate\Support\Facades\Bus;
 use Platform\Dto\PromtRule\Step;
 use Platform\Models\DocumentAnalysis\DocumentAnalysis;
 use Platform\Process\DocumentAnalysis\Jobs\PrimaryAnalysisJob;
-use Platform\Process\DocumentPrepare\DocumentProcessor;
 use Platform\Process\DocumentPrepare\Jobs\PrepareDocumentJob;
+use Platform\Process\EstimateAnalysis\Jobs\EstimateAnalysisJob;
 use Platform\Repositories\Promt\PromptRuleRepository;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
 use Platform\Process\DocumentAnalysis\Schema\Responses\PrimaryAnalysisResponse;
+use Platform\Enums\AnalysisStatus;
+use Platform\Process\DocumentAnalysis\Schema\DocumentType;
+use Illuminate\Support\Facades\DB;
 
 final class PrimaryAnalysisProcessor
 {
@@ -45,6 +48,8 @@ final class PrimaryAnalysisProcessor
 
     public function analysis(DocumentAnalysis $analysis): void
     {
+        $analysis->update(['status' => AnalysisStatus::PrimaryAnalyzing]);
+
         $this->logger->info('Начало первичного анализа ' . $analysis->id, LogOutput::Console);
 
         $fileUri = $this->gemini->ensureFileInCloud($analysis);
@@ -64,19 +69,31 @@ final class PrimaryAnalysisProcessor
         $responseObject = PrimaryAnalysisResponse::from($response);
 
         // 2. Дополнительная проверка бизнес-логики (если нужна)
-        if (!$responseObject->success && empty($responseObject->found_documents)) {
+        if (!$responseObject->success) {
             // обработка логики "пустого" результата
         }
 
-        // 3. Сохраняем в базу, используя свойства объекта
-        $analysis->responses()->create([
-            'step' => self::STEP,
-            'success' => $responseObject->success,
-            'message' => $responseObject->message ?? null,
-            'data' => $responseObject->data->toArray(),
-            'promt' => $promt,
-            'rules_hash' => sha1($systemInstructions),
-        ]);
+        $analysis->update(['status' => AnalysisStatus::PrimaryAnalyzed]);
+
+        DB::transaction(function () use ($analysis, $responseObject, $promt, $systemInstructions) {
+
+            // 3. Сохраняем в базу, используя свойства объекта
+            $analysis->responses()->create([
+                'step' => self::STEP,
+                'success' => $responseObject->success,
+                'message' => $responseObject->message ?? null,
+                'data' => $responseObject->data->toArray(),
+                'promt' => $promt,
+                'rules_hash' => sha1($systemInstructions),
+            ]);
+
+            if ($responseObject->data->document_type === DocumentType::Estimate) {
+                $analysis->update(['status' => AnalysisStatus::EstimateAnalyzing]);
+                EstimateAnalysisJob::dispatch(documentAnalysisId: $analysis->id);
+            } else {
+                $analysis->update(['status' => AnalysisStatus::PrimaryIgnored]);
+            }
+        });
     }
 
 

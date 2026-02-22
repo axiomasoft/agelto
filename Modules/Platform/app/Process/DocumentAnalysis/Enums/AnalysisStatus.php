@@ -12,26 +12,45 @@ enum AnalysisStatus: string implements HasLabel
     case Preparing = 'preparing';
     case Prepared = 'prepared';
 
-        // Статусы анализа
-    case Analyzing = 'analyzing';
-    case Analyzed = 'analyzed';
-    case Ignored = 'ignored';
+        // Первичный анализ
+    case PrimaryAnalyzing = 'primary_analyzing';
+    case PrimaryAnalyzed = 'primary_analyzed';
+    case PrimaryIgnored = 'primary_ignored';
+    case PrimaryAnalysisFailed = 'primary_analysis_failed';
+
+        // Анализ сметы
+    case EstimateAnalyzing = 'estimate_analyzing';
+    case EstimateAnalyzed = 'estimate_analyzed';
+    case EstimateAnalysisFailed = 'estimate_analysis_failed';
+
+        // Статусы завершения анализа
     case Completed = 'completed';
 
         // Статусы ошибок
     case Error = 'error';
-    case AnalysisFailed = 'analysis_failed';
 
     public function getLabel(): ?string
     {
         return match ($this) {
+            // Статусы подготовки файла для анализа
             self::Preparing => 'Подготовка',
             self::Prepared => 'Подготовлен',
-            self::Analyzing => 'Анализ начат',
-            self::Analyzed => 'Анализ завершен',
-            self::Ignored => 'Файл не интересен',
+
+            // Первичный анализ
+            self::PrimaryAnalyzing => 'Анализ начат',
+            self::PrimaryAnalyzed => 'Анализ завершен',
+            self::PrimaryIgnored => 'Файл не интересен',
+            self::PrimaryAnalysisFailed => 'Ошибка первичного анализа',
+
+            // Анализ сметы
+            self::EstimateAnalyzing => 'Анализ сметы начат',
+            self::EstimateAnalyzed => 'Анализ сметы завершен',
+            self::EstimateAnalysisFailed => 'Ошибка анализа сметы',
+
+            // Статусы завершения анализа
             self::Completed => 'Анализ файла завершен',
-            self::AnalysisFailed => 'Ошибка анализа',
+
+            // Статусы ошибок
             self::Error => 'Ошибка',
         };
     }
