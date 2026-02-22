@@ -11,6 +11,7 @@ use Illuminate\Database\Eloquent\Relations\MorphTo;
 use Spatie\MediaLibrary\HasMedia;
 use Spatie\MediaLibrary\InteractsWithMedia;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
+use Platform\Enums\AnalysisStatus;
 
 final class DocumentAnalysis extends Model implements HasMedia
 {
@@ -74,6 +75,11 @@ final class DocumentAnalysis extends Model implements HasMedia
         return $this->hasMany(DocumentAnalysisResponse::class);
     }
 
+    public function logs(): HasMany
+    {
+        return $this->hasMany(DocumentAnalysisLog::class);
+    }
+
     /**
      * Документ для анализа: приоритет у подготовленного (document-prepared), иначе исходный (document-source).
      */
@@ -97,6 +103,7 @@ final class DocumentAnalysis extends Model implements HasMedia
     protected function casts(): array
     {
         return [
+            'status' => AnalysisStatus::class,
             'completed_at' => 'datetime',
             'gemini_cache_expires_at' => 'datetime',
         ];
