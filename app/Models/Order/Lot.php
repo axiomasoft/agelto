@@ -6,7 +6,7 @@ namespace App\Models\Order;
 
 use Illuminate\Database\Eloquent\Model;
 
-final class OrderLot extends Model
+final class Lot extends Model
 {
     protected $table = 'ord_lots';
 }

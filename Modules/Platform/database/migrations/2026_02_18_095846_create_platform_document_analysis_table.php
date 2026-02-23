@@ -33,6 +33,7 @@ return new class extends Migration
             $table->string('gemini_rules_hash')->nullable();
             $table->timestamp('gemini_cache_expires_at')->nullable();
 
+            $table->json('options')->nullable();
             $table->string('status', 20)->default('pending')->index();
             $table->dateTime('completed_at')->nullable();
 

@@ -135,15 +135,15 @@ final class EisCrawlingService extends AbstractCrawlingService
     public function crawlingItem(mixed $node): CrawlingItemDto
     {
         $externalId = mb_trim($node->filter('.registry-entry__header-mid__number')->text());
-        $title = mb_trim($node->filter('.registry-entry__body-value')->text());
+        $subject = mb_trim($node->filter('.registry-entry__body-value')->text());
         $url = 'https://zakupki.gov.ru' . $node->filter('.registry-entry__header-mid__number a')->attr('href');
         $priceText = $node->filter('.price-block__value')->count() ? $node->filter('.price-block__value')->text() : '0';
         $price = (float) preg_replace('/[^\d.]/', '', str_replace(',', '.', $priceText));
 
         return new CrawlingItemDto(
             externalId: $externalId,
-            title: $title,
             url: $url,
+            subject: $subject,
             price: $price,
             publishedAt: $this->parseDate($node, 'Размещено'),
             updatedAt: $this->parseDate($node, 'Обновлено'),

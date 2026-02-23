@@ -19,7 +19,9 @@ final class CrawlingItemDto extends Data
      */
     public function __construct(
         public string $externalId,
-        public string $title,
+        public ?string $subject = null,
+        public ?string $okved = null,
+        public ?string $okvedAdditional = null,
         public string $url,
         public ?float $price = null,
         #[WithCast(DateTimeInterfaceCast::class)]

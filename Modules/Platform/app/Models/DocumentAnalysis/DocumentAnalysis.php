@@ -38,6 +38,7 @@ final class DocumentAnalysis extends Model implements HasMedia
         'gemini_cache_id',
         'gemini_rules_hash',
         'gemini_cache_expires_at',
+        'options',
         'status',
         'completed_at',
         'attempts',
@@ -155,6 +156,7 @@ final class DocumentAnalysis extends Model implements HasMedia
     {
         return [
             'status' => AnalysisStatus::class,
+            'options' => 'array',
             'completed_at' => 'datetime',
             'gemini_cache_expires_at' => 'datetime',
         ];

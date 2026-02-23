@@ -10,7 +10,7 @@ return [
         'ignore_rules' => [
             [
                 'name' => 'Поставка продуктов питания',
-                'field' => 'title',
+                'field' => 'subject',
             ],
         ],
     ],

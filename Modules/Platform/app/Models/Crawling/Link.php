@@ -18,7 +18,10 @@ final class Link extends Model
     protected $fillable = [
         'platform_id',
         'reg_number',
+        'okved',
+        'okved_additional',
         'detail_url',
+        'subject',
         'published_at',
         'platform_updated_at',
         'submission_end_at',

@@ -29,6 +29,9 @@ final class CrawlingRepository
             ],
             [
                 'detail_url' => $dto->detailUrl,
+                'subject' => $dto->subject,
+                'okved' => $dto->okved,
+                'okved_additional' => $dto->okvedAdditional,
                 'published_at' => $dto->publishedAt,
                 'platform_updated_at' => $dto->updatedAt,
                 'submission_end_at' => $dto->submissionEndAt,

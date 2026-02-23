@@ -6,7 +6,7 @@ namespace App\Models\Order;
 
 use Illuminate\Database\Eloquent\Model;
 
-final class OrderCustomer extends Model
+final class PurchaseObject extends Model
 {
-    protected $table = 'ord_customers';
+    protected $table = 'ord_purchase_objects';
 }
