@@ -18,6 +18,8 @@
 .env
 .env.backup
 .env.production
+.env.docker
+/docker-compose.override.yml
 .phpactor.json
 .phpunit.result.cache
 Homestead.json
@@ -31,20 +33,28 @@ yarn-error.log
 /.nova
 /.vscode
 /.zed
-.pnpm-store
+.yarn/cache
 
 # AI Tools
 CLAUDE.md
 AGENTS.md
-.ai/
 .claude/
-.cursor/
 .gemini
 .idea/
 .junie/
 .vscode/
 .mcp.json
 boost.json
+skills-lock.json
+GEMINI.md
+AGENTS.md
+CLAUDE.md
+
+# Boost: other agent configs are generated
+.agents/
+.codex/
+.github/skills/
+opencode.json
 
 
 app/Console/Commands/Playground.php

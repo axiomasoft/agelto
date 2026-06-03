@@ -2,7 +2,23 @@
 
 declare(strict_types=1);
 
-/**
- * Конфиг модуля Platform. Подключается из модуля, здесь — для видимости в IDE и при кэше конфига.
- */
-return require base_path('Modules/Platform/config/config.php');
+use App\Process\DocumentPrepare\Strategies\ArchiveStrategy;
+use App\Process\DocumentPrepare\Strategies\ExcelStrategy;
+
+return [
+    'estimate' => [
+        'ignore_rules' => [
+            [
+                'name' => 'Поставка продуктов питания',
+                'field' => 'subject',
+            ],
+        ],
+    ],
+
+    'document_prepare' => [
+        'strategies' => [
+            'excel' => ExcelStrategy::class,
+            'archive' => ArchiveStrategy::class,
+        ],
+    ],
+];

@@ -6,8 +6,8 @@ namespace Eis\Console;
 
 use Eis\Facades\EisCrawling;
 use Illuminate\Console\Command;
-use Platform\Enums\Platform as PlatformEnum;
-use Platform\Models\Crawling\Crawler;
+use App\Enums\Platform as PlatformEnum;
+use App\Models\Crawler\Crawler;
 
 final class EisCrawlingCommand extends Command
 {

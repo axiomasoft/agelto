@@ -21,7 +21,7 @@ return new class extends Migration
 
             // Связи
             $table->foreignId('customer_id')->constrained((new Customer())->getTable());
-            $table->foreignId('platform_id')->constrained((new \Platform\Models\Platform())->getTable());
+            $table->foreignId('platform_id')->constrained((new \App\Models\Platform())->getTable());
 
             // Финансы
             $table->decimal('initial_price', 20, 2)->nullable();

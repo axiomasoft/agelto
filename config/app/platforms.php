@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-use Platform\Enums\Platform;
+use App\Enums\Platform;
 
 return [
     Platform::EIS->value => [

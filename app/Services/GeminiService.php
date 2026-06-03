@@ -14,7 +14,7 @@ use Gemini\Enums\ResponseMimeType;
 use GuzzleHttp\Client as GuzzleClient;
 use Illuminate\Support\Facades\Log;
 use InvalidArgumentException;
-use Platform\Models\DocumentAnalysis\DocumentAnalysis;
+use App\Models\DocumentAnalysis\DocumentAnalysis;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
 
 /**

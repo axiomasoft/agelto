@@ -8,7 +8,7 @@ use Eis\Crawling\EisCrawlingService;
 use Illuminate\Support\Facades\Facade;
 
 /**
- * @method static void start(\Platform\Models\Crawling\Crawler $crawler)
+ * @method static void start(\App\Models\Crawler\Crawler $crawler)
  *
  * @mixin EisCrawlingService
  */

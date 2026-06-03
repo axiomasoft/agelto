@@ -1,30 +1,89 @@
-version: "3.9"
-
 services:
   app:
     image: agelto/app:latest
     container_name: agelto_app
+    user: "0:0"
     restart: unless-stopped
+    stop_signal: SIGTERM
     working_dir: /var/www/html
-    shm_size: '2gb'
+    volumes:
+      - ./:/var/www/html
+      - frontend_build:/var/www/html/public/build
+      - frontend_filament:/var/www/html/public/filament
+      - vendor_data:/var/www/html/vendor
     ports:
-      - "${APP_PORT:-8081}:8080"
+      - "${APP_PORT:-8080}:8080"
     environment: &prod_env
       APP_ENV: production
+      APP_DEBUG: ${APP_DEBUG:-false}
       APP_KEY: ${APP_KEY}
-      DB_CONNECTION: mysql
-      DB_HOST: mysql
+      APP_URL: ${APP_URL}
+      DB_CONNECTION: pgsql
+      DB_HOST: pgsql
+      DB_PORT: 5432
       DB_DATABASE: ${DB_DATABASE}
       DB_USERNAME: ${DB_USERNAME}
       DB_PASSWORD: ${DB_PASSWORD}
-      CACHE_DRIVER: redis
-      SESSION_DRIVER: redis
-      QUEUE_CONNECTION: redis
       REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-null}
+      CACHE_STORE: ${CACHE_STORE:-redis}
+      SESSION_DRIVER: ${SESSION_DRIVER:-redis}
+      QUEUE_CONNECTION: ${QUEUE_CONNECTION:-redis}
+      LOG_CHANNEL: stack
+      LOG_LEVEL: ${LOG_LEVEL:-warning}
+      REVERB_SERVER_PORT: ${REVERB_SERVER_PORT:-8000}
     depends_on:
-      mysql: { condition: service_healthy }
+      pgsql: { condition: service_healthy }
       redis: { condition: service_healthy }
-    networks: [ agelto_network ]
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:8080/up >/dev/null || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 40s
+    networks:
+      - agelto_network
+
+  vite:
+    image: agelto/app:latest
+    container_name: agelto_vite
+    restart: unless-stopped
+    working_dir: /var/www/html
+    command: ["sh", "-lc", "yarn install && yarn dev -- --host=0.0.0.0 --port=${VITE_PORT:-5173}"]
+    volumes:
+      - ./:/var/www/html
+      - vite_node_modules:/var/www/html/node_modules
+    ports:
+      - "${VITE_PORT:-5173}:${VITE_PORT:-5173}"
+    environment: *prod_env
+    depends_on:
+      app: { condition: service_healthy }
+    networks:
+      - agelto_network
+
+  docs:
+    image: agelto/app:latest
+    container_name: agelto_docs
+    user: "0:0"
+    restart: unless-stopped
+    working_dir: /var/www/html
+    command:
+      [
+        "sh",
+        "-lc",
+        "yarn install --frozen-lockfile && yarn vitepress build docs && php -S 0.0.0.0:${DOCS_PORT:-4173} -t docs/.vitepress/dist",
+      ]
+    volumes:
+      - ./:/var/www/html
+      - vite_node_modules:/var/www/html/node_modules
+    ports:
+      - "${DOCS_PORT:-4173}:${DOCS_PORT:-4173}"
+    environment: *prod_env
+    depends_on:
+      app: { condition: service_healthy }
+    networks:
+      - agelto_network
 
   horizon:
     image: agelto/app:latest
@@ -32,77 +91,121 @@ services:
     restart: unless-stopped
     working_dir: /var/www/html
     shm_size: '2gb'
+    volumes:
+      - ./:/var/www/html
+      - vendor_data:/var/www/html/vendor
     command: ["php", "artisan", "horizon"]
+    healthcheck:
+      test: ["CMD-SHELL", "pgrep -af 'artisan horizon' >/dev/null || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
     environment: *prod_env
     depends_on:
-      mysql: { condition: service_healthy }
+      app: { condition: service_healthy }
+      pgsql: { condition: service_healthy }
       redis: { condition: service_healthy }
-    networks: [ agelto_network ]
+    networks:
+      - agelto_network
+
+  scheduler:
+    image: agelto/app:latest
+    container_name: agelto_scheduler
+    restart: unless-stopped
+    working_dir: /var/www/html
+    volumes:
+      - ./:/var/www/html
+      - vendor_data:/var/www/html/vendor
+    command: ["php", "artisan", "schedule:work"]
+    healthcheck:
+      test: ["CMD-SHELL", "pgrep -af 'artisan schedule:work' >/dev/null || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    environment: *prod_env
+    depends_on:
+      app: { condition: service_healthy }
+      pgsql: { condition: service_healthy }
+      redis: { condition: service_healthy }
+    networks:
+      - agelto_network
 
   reverb:
     image: agelto/app:latest
     container_name: agelto_reverb
     restart: unless-stopped
-    command: ["php", "artisan", "reverb:start", "--host=0.0.0.0", "--port=8080"]
-    environment: *prod_env
-    depends_on:
-      app: { condition: service_started }
-      redis: { condition: service_healthy }
-    networks: [ agelto_network ]
-
-  # Добавь это в прод-файл, чтобы работали задачи по расписанию
-  scheduler:
-    image: agelto/app:latest
-    container_name: agelto_scheduler
-    restart: unless-stopped
-    command: ["php", "artisan", "schedule:work"]
-    environment: *prod_env
-    depends_on:
-      app: { condition: service_started }
-    networks: [ agelto_network ]
-
-  mysql:
-    image: mysql:8.4
-    container_name: agelto_mysql
-    restart: unless-stopped
-    ports:
-      - "${MYSQL_PORT:-3306}:3306"
+    stop_signal: SIGTERM
+    working_dir: /var/www/html
     volumes:
-      - mysql_data:/var/lib/mysql
-    command:
-      - --character-set-server=utf8mb4
-      - --collation-server=utf8mb4_unicode_ci
-      - --innodb-flush-log-at-trx-commit=2
-    environment:
-      MYSQL_DATABASE: ${DB_DATABASE}
-      MYSQL_USER: ${DB_USERNAME}
-      MYSQL_PASSWORD: ${DB_PASSWORD}
-      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD}
+      - ./:/var/www/html
+      - vendor_data:/var/www/html/vendor
+    command: ["php", "artisan", "reverb:start", "--host=0.0.0.0", "--port=${REVERB_SERVER_PORT:-8000}"]
+    ports:
+      - "${REVERB_SERVER_PORT:-8000}:${REVERB_SERVER_PORT:-8000}"
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${DB_PASSWORD}"]
+      test:
+        [
+          "CMD-SHELL",
+          "php -r '$$port=intval(getenv(\"REVERB_SERVER_PORT\")?:8000);$$sock=@stream_socket_client(\"tcp://127.0.0.1:\".$$port,$$errno,$$errstr,1);exit($$sock?0:1);'",
+        ]
       interval: 10s
       timeout: 5s
-      retries: 5
-    networks: [ agelto_network ]
+      retries: 10
+      start_period: 30s
+    environment: *prod_env
+    depends_on:
+      app: { condition: service_healthy }
+      redis: { condition: service_healthy }
+    networks:
+      - agelto_network
+
+  pgsql:
+    image: postgis/postgis:16-3.4-alpine
+    container_name: agelto_pgsql
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:${PGSQL_PORT:-5432}:5432"
+    volumes:
+      - pgsql_data:/var/lib/postgresql/data
+      - ./docker/postgres/init:/docker-entrypoint-initdb.d:ro
+    environment:
+      POSTGRES_DB: ${DB_DATABASE}
+      POSTGRES_USER: ${DB_USERNAME}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - agelto_network
 
   redis:
-    image: redis:alpine
+    image: redis:7-alpine
     container_name: agelto_redis
-    command: redis-server --appendonly yes
     restart: unless-stopped
+    ports:
+      - "127.0.0.1:${REDIS_PORT:-6379}:6379"
     volumes:
       - redis_data:/data
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
-      timeout: 3s
-      retries: 5
-    networks: [ agelto_network ]
+      timeout: 5s
+      retries: 10
+    networks:
+      - agelto_network
 
 networks:
   agelto_network:
     driver: bridge
 
 volumes:
-  mysql_data:
+  pgsql_data:
   redis_data:
+  frontend_build:
+  frontend_filament:
+  vendor_data:
+  vite_node_modules:

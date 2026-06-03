@@ -22,12 +22,12 @@ use Illuminate\Foundation\Http\Middleware\VerifyCsrfToken;
 use Illuminate\Routing\Middleware\SubstituteBindings;
 use Illuminate\Session\Middleware\StartSession;
 use Illuminate\View\Middleware\ShareErrorsFromSession;
-use Platform\Filament\Resources\Crawler\CrawlerResource;
-use Platform\Filament\Resources\DocumentAnalysis\DocumentAnalysisResource;
-use Platform\Filament\Resources\Link\LinkResource;
-use Platform\Filament\Resources\LinkAttachment\LinkAttachmentResource;
-use Platform\Filament\Resources\Platform\PlatformResource;
-use Platform\Filament\Resources\PromptRule\PromptRuleResource;
+use App\Filament\Resources\Crawler\CrawlerResource;
+use App\Filament\Resources\DocumentAnalysis\DocumentAnalysisResource;
+use App\Filament\Resources\Link\LinkResource;
+use App\Filament\Resources\LinkAttachment\LinkAttachmentResource;
+use App\Filament\Resources\Platform\PlatformResource;
+use App\Filament\Resources\PromptRule\PromptRuleResource;
 use Sys\Filament\Resources\Proxy\ProxyResource;
 use Sys\Filament\Resources\Service\ServiceResource;
 
@@ -44,7 +44,6 @@ final class AdminPanelProvider extends PanelProvider
                 'primary' => Color::Amber,
             ])
             ->discoverResources(in: app_path('Filament/Resources'), for: 'App\Filament\Resources')
-            ->discoverResources(in: base_path('Modules/Platform/app/Filament/Resources'), for: 'Platform\Filament\Resources')
             ->discoverResources(in: base_path('Modules/Sys/app/Filament/Resources'), for: 'Sys\Filament\Resources')
             ->discoverPages(in: app_path('Filament/Pages'), for: 'App\Filament\Pages')
             ->pages([

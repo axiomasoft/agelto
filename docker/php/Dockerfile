@@ -1,21 +1,22 @@
-FROM serversideup/php:8.4-fpm-nginx
+FROM serversideup/php:8.5-fpm-nginx
 
 USER root
 
-# Устанавливаем переменную, чтобы apt не задавал вопросов
 ENV DEBIAN_FRONTEND=noninteractive
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     git \
+    curl \
+    gnupg \
+    ca-certificates \
     libicu-dev \
     libpng-dev \
     libjpeg-dev \
     libfreetype6-dev \
     libmagickwand-dev \
-    curl \
-    gnupg \
-    ca-certificates \
-    # Зависимости для Chromium
+    libpq-dev \
+    libzip-dev \
+    libldap2-dev \
     chromium \
     libnss3 \
     libx11-6 \
@@ -39,47 +40,36 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     fonts-liberation \
     libappindicator3-1 \
     xdg-utils \
-    # 1. Установка Node.js (необходим для npm)
-    && curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
+    && curl -fsSL https://deb.nodesource.com/setup_24.x | bash - \
     && apt-get install -y nodejs \
-    # 2. Установка pnpm
-    && npm install -g pnpm \
-    # 3. Настройка расширений PHP (удален redis из pecl, так как он обычно есть)
+    && npm install -g yarn@1.22.22 \
+    && LIBARCH="$(case "$(uname -m)" in x86_64) echo x86_64-linux-gnu ;; aarch64|arm64) echo aarch64-linux-gnu ;; *) echo "unsupported arch: $(uname -m)" >&2; exit 1 ;; esac)" \
+    && docker-php-ext-configure ldap --with-libdir="lib/${LIBARCH}" \
     && docker-php-ext-configure gd --with-freetype --with-jpeg \
-    && docker-php-ext-install intl bcmath gd exif sockets pcntl \
-    # Установка только Imagick (Redis обычно встроен, если будет ругаться - вернем)
+    && docker-php-ext-install intl bcmath gd exif sockets pcntl pdo_pgsql pgsql zip ldap \
     && pecl install imagick \
     && docker-php-ext-enable imagick \
-    # 4. Настройка прав
+    && if ! php -m | grep -qi '^redis$'; then pecl install redis && docker-php-ext-enable redis; fi \
     && mkdir -p /var/www/html/storage/app/browser/page_debug \
     && chown -R www-data:www-data /var/www/html/storage \
-    # 5. Очистка
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /var/www/html
 
-# 1. Готовим структуру папок под root, но для www-data
-RUN mkdir -p storage/framework/{sessions,views,cache} \
+RUN mkdir -p storage/framework/sessions \
+    storage/framework/views \
+    storage/framework/cache \
     storage/app/browser/page_debug \
     bootstrap/cache \
     && chown -R www-data:www-data /var/www/html
 
-# 2. Переходим на пользователя (чтобы composer и файлы были от него)
 USER www-data
 
-# 3. Копируем файлы зависимостей (включая path-репозитории: Modules и packages)
-COPY --chown=www-data:www-data composer.json composer.lock ./
-COPY --chown=www-data:www-data Modules ./Modules
-COPY --chown=www-data:www-data packages ./packages
-
-# 4. Установка зависимостей (без автозагрузки для скорости)
-RUN composer install --no-dev --no-interaction --no-autoloader --no-scripts
-
-# 5. Копируем весь остальной код
-COPY --chown=www-data:www-data . .
-
-# 6. Финальная оптимизация
-RUN composer install --no-dev --optimize-autoloader
+USER root
+COPY docker/nginx/default.conf /etc/nginx/conf.d/default.conf
+COPY docker/php/entrypoint.d/20-init-media-permissions.sh /etc/entrypoint.d/20-init-media-permissions.sh
+RUN chmod +x /etc/entrypoint.d/20-init-media-permissions.sh
+USER www-data
 
 ENV CHROME_BIN=/usr/bin/chromium
 ENV CHROME_PATH=/usr/lib/chromium/
