@@ -39,9 +39,9 @@ final class PrimaryAnalysisProcessor
 
         // 2. Запускаем цепочку: Сначала ТЯЖЕЛАЯ ПОДГОТОВКА, потом АНАЛИЗ
         Bus::chain([
-            new PrepareDocumentJob($analysis->id), // Здесь будет Excel -> PDF и т.д.
-            new PrimaryAnalysisJob($analysis->id),      // Здесь работа с Gemini
-        ])->dispatch();
+            new PrepareDocumentJob($analysis->id),
+            new PrimaryAnalysisJob($analysis->id),
+        ])->afterCommit()->dispatch();
 
         return $analysis;
     }
@@ -89,7 +89,7 @@ final class PrimaryAnalysisProcessor
 
             if ($responseObject->data->document_type === DocumentType::Estimate) {
                 $analysis->transitionStatus(status: AnalysisStatus::EstimateAnalyzing, message: 'Постановка в очередь анализа сметы');
-                EstimateAnalysisJob::dispatch(documentAnalysisId: $analysis->id);
+                EstimateAnalysisJob::dispatch(documentAnalysisId: $analysis->id)->afterCommit();
             } else {
                 $analysis->transitionStatus(status: AnalysisStatus::PrimaryIgnored, message: 'Документ не является сметой');
             }

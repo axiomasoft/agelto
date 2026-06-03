@@ -18,11 +18,17 @@ final class PrepareDocumentJob implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
-    public string $queue = 'platform_document_prepare';
+    public int $tries = 3;
+
+    public int $timeout = 300;
+
+    public array $backoff = [60, 300];
 
     public function __construct(
         public int $documentAnalysisId,
-    ) {}
+    ) {
+        $this->onQueue('platform_document_prepare');
+    }
 
     public function tags(): array
     {

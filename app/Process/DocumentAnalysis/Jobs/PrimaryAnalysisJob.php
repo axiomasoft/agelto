@@ -18,11 +18,17 @@ final class PrimaryAnalysisJob implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
-    public string $queue = 'platform_primary_analysis';
+    public int $tries = 5;
+
+    public int $timeout = 180;
+
+    public array $backoff = [30, 60, 300];
 
     public function __construct(
         public int $documentAnalysisId,
-    ) {}
+    ) {
+        $this->onQueue('platform_primary_analysis');
+    }
 
     public function tags(): array
     {
