@@ -67,8 +67,9 @@ USER www-data
 
 USER root
 COPY docker/nginx/default.conf /etc/nginx/conf.d/default.conf
+COPY docker/php/entrypoint.d/10-secrets.sh /etc/entrypoint.d/10-secrets.sh
 COPY docker/php/entrypoint.d/20-init-media-permissions.sh /etc/entrypoint.d/20-init-media-permissions.sh
-RUN chmod +x /etc/entrypoint.d/20-init-media-permissions.sh
+RUN chmod +x /etc/entrypoint.d/10-secrets.sh /etc/entrypoint.d/20-init-media-permissions.sh
 USER www-data
 
 ENV CHROME_BIN=/usr/bin/chromium

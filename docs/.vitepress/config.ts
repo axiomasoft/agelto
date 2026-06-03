@@ -8,6 +8,7 @@ export default defineConfig({
     themeConfig: {
         nav: [
             { text: 'Разработка', link: '/dev/' },
+            { text: 'Server', link: '/server/setup' },
             { text: 'Workflow', link: '/workflow/' },
             { text: 'AI', link: '/ai/' },
         ],
@@ -23,8 +24,18 @@ export default defineConfig({
                         { text: 'Docker', link: '/dev/docker/' },
                         { text: 'Подготовка окружения', link: '/dev/docker/environment-preparation' },
                         { text: 'Docker: development', link: '/dev/docker/development' },
-                        { text: 'Docker: production', link: '/dev/docker/production' },
+                        { text: 'Docker: production (локально)', link: '/dev/docker/production' },
                         { text: 'Docker: troubleshooting', link: '/dev/docker/troubleshooting' },
+                    ],
+                },
+            ],
+            '/server/': [
+                {
+                    text: 'Production сервер',
+                    items: [
+                        { text: 'Подготовка хоста', link: '/server/setup' },
+                        { text: 'Docker Compose prod', link: '/server/docker-prod' },
+                        { text: 'Процесс деплоя', link: '/server/deploy' },
                     ],
                 },
             ],

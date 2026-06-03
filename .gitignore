@@ -19,6 +19,7 @@
 .env.backup
 .env.production
 .env.docker
+.env.docker.production
 /docker-compose.override.yml
 .phpactor.json
 .phpunit.result.cache
@@ -26,6 +27,7 @@ Homestead.json
 Homestead.yaml
 npm-debug.log
 yarn-error.log
+/.pnpm-store
 
 /auth.json
 /.fleet

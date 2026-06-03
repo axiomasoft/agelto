@@ -1,35 +1,56 @@
-# Production (Docker Compose)
+# Docker: production (локальное тестирование)
 
-Выкладка production через `docker-compose.prod.yml`.
+Этот раздел — для **локального тестирования prod-режима** на рабочей станции.  
+Для развёртывания на сервере — см. [docs/server/](../../server/setup.md).
 
-## Типовой сценарий
+## Конфиги: dev vs prod
+
+| Файл | Режим | Назначение |
+|------|-------|-----------|
+| `.env.docker` | dev | Порты для `docker-compose.yml` (не пересекаются с prod) |
+| `.env.docker.production` | prod | Порты для `docker-compose.prod.yml` |
+
+Dev-порты (из `.env.docker.example`): `APP=8081`, `PGSQL=5434`, `REDIS=6380`.  
+Prod-порты (из `.env.docker.production.example`): `APP=8080`, `PGSQL=5432`, `REDIS=6379`.
+
+Запуск в prod-режиме локально:
 
 ```bash
-make image
-docker compose -f docker-compose.prod.yml up -d --force-recreate
-make prod:release
-make prod:db-migrate
+cp .env.docker.production.example .env.docker.production
+make up ENV=prod
 ```
 
-## После `git pull`
+## Очистка артефактов при переключении dev → prod
 
-- Если менялся код/зависимости: `make prod:deploy:image` (или `make prod:release`).
-- Если только фронт: `make prod:deploy:frontend`.
-- Если только Composer: `make prod:deploy:php-deps`.
-- Если только код без deps/assets: `make prod:deploy:code`.
+При первом переключении могут остаться dev-артефакты (`bootstrap/cache`, `public/build`),
+которые ломают prod-сборку. Для очистки:
 
-Проверка состояния: `make prod:doctor`.
+```bash
+make prod-pre-clean
+```
 
-## Порты
+Что делает: удаляет `bootstrap/cache/config.php`, `public/build`, `public/filament`,
+останавливает контейнеры с volumes.
 
-- Внутри контейнера приложение слушает **8080**.
-- Снаружи проброс: `"${APP_PORT:-8080}:8080"`.
-- Reverb: `"${REVERB_SERVER_PORT:-8000}:${REVERB_SERVER_PORT:-8000}"`.
+## Команды в prod-режиме
+
+```bash
+make ps ENV=prod
+make logs ENV=prod
+make prod:artisan ARGS="route:list"
+make prod:doctor
+```
 
 ## Horizon
 
-В Agelto вместо `queue:work` используется **Laravel Horizon** (`horizon`-сервис). Перезапуск воркеров:
+В Agelto вместо `queue:work` используется Horizon (`horizon`-сервис). Перезапуск:
 
 ```bash
 make prod:workers:restart
 ```
+
+## Подробнее
+
+- Модель развёртывания, volumes, Docker Secrets → [server/docker-prod.md](../../server/docker-prod.md)
+- Сценарии деплоя на сервере → [server/deploy.md](../../server/deploy.md)
+- Подготовка сервера → [server/setup.md](../../server/setup.md)
