@@ -4,15 +4,9 @@ declare(strict_types=1);
 
 namespace App\Process\DocumentAnalysis;
 
-use App\Enums\LogOutput;
-use App\Services\AppLogger;
-use App\Services\GeminiService;
-use Exception;
-use Illuminate\Database\Eloquent\Model;
-use Illuminate\Support\Facades\Bus;
-use Illuminate\Support\Facades\DB;
 use App\Dto\Prompt\Step;
 use App\Enums\AnalysisStatus;
+use App\Enums\LogOutput;
 use App\Models\DocumentAnalysis\DocumentAnalysis;
 use App\Process\DocumentAnalysis\Jobs\PrimaryAnalysisJob;
 use App\Process\DocumentAnalysis\Schema\DocumentType;
@@ -20,6 +14,12 @@ use App\Process\DocumentAnalysis\Schema\Responses\PrimaryAnalysisResponse;
 use App\Process\DocumentPrepare\Jobs\PrepareDocumentJob;
 use App\Process\EstimateAnalysis\Jobs\EstimateAnalysisJob;
 use App\Repositories\Prompt\PromptRuleRepository;
+use App\Services\AppLogger;
+use App\Services\GeminiService;
+use Exception;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Bus;
+use Illuminate\Support\Facades\DB;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
 
 final class PrimaryAnalysisProcessor
@@ -32,16 +32,18 @@ final class PrimaryAnalysisProcessor
         private readonly AppLogger $logger,
     ) {}
 
-    public function run(Media|Model|string $data): ?DocumentAnalysis
+    /**
+     * @param  array<int, mixed>  $args  Доп. аргументы для initial() (например, ['url'] — поле ссылки модели).
+     */
+    public function run(Media|Model|string $data, array $args = []): ?DocumentAnalysis
     {
-        // 1. Мгновенно создаем запись в БД (статус 'initial')
-        $analysis = $this->initial($data);
+        // Сразу создаём запись (статус Preparing), затем цепочка: подготовка → анализ.
+        $analysis = $this->initial($data, $args);
 
-        // 2. Запускаем цепочку: Сначала ТЯЖЕЛАЯ ПОДГОТОВКА, потом АНАЛИЗ
         Bus::chain([
             new PrepareDocumentJob($analysis->id),
             new PrimaryAnalysisJob($analysis->id),
-        ])->afterCommit()->dispatch();
+        ])->dispatch();
 
         return $analysis;
     }
@@ -56,10 +58,10 @@ final class PrimaryAnalysisProcessor
 
         $systemInstructions = $this->promptRepo->getSystemInstructionsForStep(self::STEP);
 
-        $promt = 'Выполни первичный анализ согласно правилам.';
+        $prompt = 'Выполни первичный анализ согласно правилам.';
 
         $response = $this->gemini->generateJson(
-            prompt: $promt,
+            prompt: $prompt,
             data: $fileUri,
             systemInstruction: $systemInstructions
         );
@@ -75,25 +77,25 @@ final class PrimaryAnalysisProcessor
 
         $analysis->transitionStatus(status: AnalysisStatus::PrimaryAnalyzed, message: 'Первичный анализ выполнен');
 
-        DB::transaction(function () use ($analysis, $responseObject, $promt, $systemInstructions) {
-
-            // 3. Сохраняем в базу, используя свойства объекта
+        DB::transaction(function () use ($analysis, $responseObject, $prompt, $systemInstructions): void {
             $analysis->responses()->create([
                 'step' => self::STEP,
                 'success' => $responseObject->success,
                 'message' => $responseObject->message ?? null,
                 'data' => $responseObject->data->toArray(),
-                'promt' => $promt,
+                'prompt' => $prompt,
                 'rules_hash' => sha1($systemInstructions),
             ]);
 
-            if ($responseObject->data->document_type === DocumentType::Estimate) {
-                $analysis->transitionStatus(status: AnalysisStatus::EstimateAnalyzing, message: 'Постановка в очередь анализа сметы');
-                EstimateAnalysisJob::dispatch(documentAnalysisId: $analysis->id)->afterCommit();
-            } else {
+            if ($responseObject->data->document_type !== DocumentType::Estimate) {
                 $analysis->transitionStatus(status: AnalysisStatus::PrimaryIgnored, message: 'Документ не является сметой');
             }
         });
+
+        // Статус EstimateAnalyzing ставит уже сам job в воркере — здесь только диспатч.
+        if ($responseObject->data->document_type === DocumentType::Estimate) {
+            EstimateAnalysisJob::dispatch(documentAnalysisId: $analysis->id)->afterCommit();
+        }
     }
 
     public function initial(Media|Model|string $data, $args = []): DocumentAnalysis
@@ -136,17 +138,21 @@ final class PrimaryAnalysisProcessor
 
     public function fromUrl(string $url): DocumentAnalysis
     {
-        return DocumentAnalysis::query()->firstOrCreate([
-            'source' => $url,
-        ]);
+        return DocumentAnalysis::query()->firstOrCreate(
+            attributes: ['source' => $url],
+            values: ['status' => AnalysisStatus::Preparing->value],
+        );
     }
 
     public function createAnalysis(Model|Media $model, ?string $source = null): DocumentAnalysis
     {
-        return DocumentAnalysis::query()->firstOrCreate([
-            'model_type' => $model->getMorphClass(),
-            'model_id' => $model->getKey(),
-            'source' => $source,
-        ]);
+        return DocumentAnalysis::query()->firstOrCreate(
+            attributes: [
+                'model_type' => $model->getMorphClass(),
+                'model_id' => $model->getKey(),
+                'source' => $source,
+            ],
+            values: ['status' => AnalysisStatus::Preparing->value],
+        );
     }
 }

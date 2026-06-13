@@ -6,8 +6,9 @@ namespace App\Console\Commands;
 
 use App\Enums\AnalysisStatus;
 use App\Enums\Crawling\CrawlingStatus;
+use App\Models\Crawler\Link;
+use App\Models\DocumentAnalysis\DocumentAnalysis;
 use Illuminate\Console\Command;
-use Illuminate\Support\Facades\DB;
 
 final class PipelineStatusCommand extends Command
 {
@@ -31,7 +32,8 @@ final class PipelineStatusCommand extends Command
     {
         $this->line('<fg=yellow>Stage 1 — Crawler Links (plt_crawler_links)</>');
 
-        $rows = DB::table('plt_crawler_links')
+        $rows = Link::query()
+            ->toBase()
             ->selectRaw('status, COUNT(*) as total')
             ->groupBy('status')
             ->orderBy('status')
@@ -53,10 +55,10 @@ final class PipelineStatusCommand extends Command
 
         $this->table(['Статус', 'Количество'], $tableRows);
 
-        $failedWithRetry = DB::table('plt_crawler_links')
-            ->where('status', CrawlingStatus::FAILED->value)
+        $failedWithRetry = Link::query()
+            ->where('status', CrawlingStatus::FAILED)
             ->whereNotNull('next_retry_at')
-            ->where('next_retry_at', '<=', now())
+            ->where(column: 'next_retry_at', operator: '<=', value: now())
             ->count();
 
         if ($failedWithRetry > 0) {
@@ -68,7 +70,8 @@ final class PipelineStatusCommand extends Command
     {
         $this->line('<fg=yellow>Stage 2–4 — Document Analysis (plt_document_analysis)</>');
 
-        $rows = DB::table('plt_document_analysis')
+        $rows = DocumentAnalysis::query()
+            ->toBase()
             ->selectRaw('status, COUNT(*) as total')
             ->groupBy('status')
             ->orderBy('status')

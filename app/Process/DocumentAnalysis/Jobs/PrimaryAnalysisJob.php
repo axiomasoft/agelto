@@ -6,15 +6,13 @@ namespace App\Process\DocumentAnalysis\Jobs;
 
 use App\Enums\AnalysisStatus;
 use App\Models\DocumentAnalysis\DocumentAnalysis;
-use App\Notifications\Channels\TelegramChannel;
-use App\Notifications\PipelineFailedNotification;
+use App\Notifications\PipelineAlert;
 use App\Process\DocumentAnalysis\PrimaryAnalysisProcessor;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
-use Illuminate\Support\Facades\Notification;
 use Throwable;
 
 final class PrimaryAnalysisJob implements ShouldQueue
@@ -50,7 +48,16 @@ final class PrimaryAnalysisJob implements ShouldQueue
             return;
         }
 
-        $primaryAnalysisProcessor->analysis($documentAnalysis);
+        // Лиза против дублирующего запроса к Gemini при крашах/повторах.
+        if (! $documentAnalysis->acquireLease(self::class)) {
+            return;
+        }
+
+        try {
+            $primaryAnalysisProcessor->analysis($documentAnalysis);
+        } finally {
+            $documentAnalysis->releaseLease();
+        }
     }
 
     /**
@@ -59,20 +66,19 @@ final class PrimaryAnalysisJob implements ShouldQueue
     public function failed(Throwable $exception): void
     {
         $analysis = DocumentAnalysis::find($this->documentAnalysisId);
-        $analysis?->transitionStatus(
-            status: AnalysisStatus::Error,
+        $analysis?->recordFailure(
+            status: AnalysisStatus::PrimaryAnalysisFailed,
             message: 'Ошибка первичного анализа: '.$exception->getMessage(),
             trace: $exception->getTraceAsString(),
         );
 
-        Notification::route(TelegramChannel::class, null)
-            ->notify(new PipelineFailedNotification(
-                stage: 'Primary Analysis',
-                jobClass: self::class,
-                jobId: $this->documentAnalysisId,
-                errorMessage: $exception->getMessage(),
-                attempt: $this->attempts(),
-                maxAttempts: $this->tries,
-            ));
+        PipelineAlert::failure(
+            stage: 'Primary Analysis',
+            jobClass: self::class,
+            jobId: $this->documentAnalysisId,
+            message: $exception->getMessage(),
+            attempt: $this->attempts(),
+            maxAttempts: $this->tries,
+        );
     }
 }

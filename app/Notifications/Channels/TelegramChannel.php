@@ -15,12 +15,15 @@ final class TelegramChannel
         $token = config('services.telegram.bot_token');
         $chatId = config('services.telegram.chat_id');
 
-        if (! $token || ! $chatId) {
-            return;
-        }
-
         /** @var \App\Notifications\PipelineFailedNotification $notification */
         $message = $notification->toTelegram($notifiable);
+
+        if (! $token || ! $chatId) {
+            // Не теряем алерт: канал не настроен — пишем в лог, а не молча выходим.
+            Log::warning('TelegramChannel: канал не настроен, алерт отправлен в лог', ['alert' => $message]);
+
+            return;
+        }
 
         Http::timeout(10)
             ->retry(times: 2, sleepMilliseconds: 500)

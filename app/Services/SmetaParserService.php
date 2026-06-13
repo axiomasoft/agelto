@@ -1,25 +1,29 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Services;
 
 use App\Dto\Estimates\Estimate;
 use App\Dto\Estimates\Header;
 use App\Dto\Estimates\Item;
 use App\Enums\Estimates\ItemType;
-use PhpOffice\PhpSpreadsheet\IOFactory;
+use Exception;
 use GuzzleHttp\Client as GuzzleClient;
 use Illuminate\Support\Facades\Log;
+use PhpOffice\PhpSpreadsheet\IOFactory;
 
-class SmetaParserService
+final class SmetaParserService
 {
-    protected GuzzleClient $client;
-    protected string $model = "gemini-2.0-flash";
+    private GuzzleClient $client;
+
+    private string $model = 'gemini-2.0-flash';
 
     public function __construct()
     {
         $this->client = new GuzzleClient([
-            'proxy'   => env('GEMINI_PROXY'),
-            'verify'  => false,
+            'proxy' => config('gemini.proxy'),
+            'verify' => false,
             'timeout' => 120,
         ]);
     }
@@ -29,7 +33,7 @@ class SmetaParserService
      */
     public function parse(string $filePath): Estimate
     {
-        Log::info("--- СТАРТ ПОЛНОГО ПАРСИНГА ---", ['file' => $filePath]);
+        Log::info('--- СТАРТ ПОЛНОГО ПАРСИНГА ---', ['file' => $filePath]);
 
         // 1. Загружаем Excel один раз для всех нужд
         $spreadsheet = IOFactory::load($filePath);
@@ -39,12 +43,13 @@ class SmetaParserService
         // 2. Анализируем только шапку (передаем первые 100 строк)
         $header = $this->parseHeaderFromRows(array_slice($allRows, 0, 100));
 
-        if (!$header) {
-            Log::error("Парсинг прерван: Шапка не распознана ИИ или не найдена в массиве.");
+        if (! $header) {
+            Log::error('Парсинг прерван: Шапка не распознана ИИ или не найдена в массиве.');
+
             return Estimate::from([
                 'is_candidate' => false,
                 'header' => null,
-                'items' => null
+                'items' => null,
             ]);
         }
 
@@ -54,7 +59,7 @@ class SmetaParserService
         $chunks = array_chunk($usefulRows, 80, true);
 
         $items = [];
-        $currentSection = "Начало сметы";
+        $currentSection = 'Начало сметы';
 
         foreach ($chunks as $index => $chunk) {
             $firstRowIndex = key($chunk);
@@ -73,21 +78,21 @@ class SmetaParserService
                 }
 
                 $items[] = Item::from([
-                    'row_index'     => $firstRowIndex + $i + 1,
-                    'type'          => $type,
+                    'row_index' => $firstRowIndex + $i + 1,
+                    'type' => $type,
                     'section_title' => $currentSection,
-                    'fields'        => $type === ItemType::ITEM ? $this->mapFields($rowAi, $header->schema) : []
+                    'fields' => $type === ItemType::ITEM ? $this->mapFields($rowAi, $header->schema) : [],
                 ]);
             }
             usleep(500000);
         }
 
-        Log::info("--- ПАРСИНГ ЗАВЕРШЕН ---", ['total_items' => count($items)]);
+        Log::info('--- ПАРСИНГ ЗАВЕРШЕН ---', ['total_items' => count($items)]);
 
         return Estimate::from([
             'is_candidate' => true,
-            'header'       => $header,
-            'items'        => $items
+            'header' => $header,
+            'items' => $items,
         ]);
     }
 
@@ -96,34 +101,36 @@ class SmetaParserService
      */
     public function parseHeaderFromRows(array $rows): Header|false
     {
-        Log::info("=== Анализ шапки через HTML-представление ===");
+        Log::info('=== Анализ шапки через HTML-представление ===');
 
         $htmlForAi = $this->convertRowsToSimpleHtml($rows);
         $aiAnalysis = $this->getAiHeaderFromHtml($htmlForAi);
 
         // Добавляем проверку на существование ключа после исправления формата
-        if (empty($aiAnalysis) || !isset($aiAnalysis['is_estimate']) || $aiAnalysis['is_estimate'] === false) {
-            Log::warning("ИИ не подтвердил наличие сметы.");
+        if (empty($aiAnalysis) || ! isset($aiAnalysis['is_estimate']) || $aiAnalysis['is_estimate'] === false) {
+            Log::warning('ИИ не подтвердил наличие сметы.');
+
             return false;
         }
 
-        Log::info("Ответ ИИ по структуре (обработан):", ['ai_json' => $aiAnalysis]);
+        Log::info('Ответ ИИ по структуре (обработан):', ['ai_json' => $aiAnalysis]);
 
         $coords = $this->locateHeaderCoords($rows, $aiAnalysis);
-        Log::info("Координаты в Excel:", ['coords' => $coords]);
+        Log::info('Координаты в Excel:', ['coords' => $coords]);
 
-        if (!$coords['found']) {
+        if (! $coords['found']) {
             Log::error("Не удалось найти текстовые якоря. Искали: '{$aiAnalysis['first_anchor']}' и '{$aiAnalysis['last_anchor']}'");
+
             return false;
         }
 
         return Header::from([
-            'columns_count'   => ($coords['end_col'] - $coords['start_col']) + 1,
+            'columns_count' => ($coords['end_col'] - $coords['start_col']) + 1,
             'start_row_index' => $coords['start_row'] + 1,
-            'end_row_index'   => $coords['end_row'] + 1,
+            'end_row_index' => $coords['end_row'] + 1,
             'start_col_index' => $coords['start_col'],
-            'end_col_index'   => $coords['end_col'],
-            'schema'          => $aiAnalysis['mapping']
+            'end_col_index' => $coords['end_col'],
+            'schema' => $aiAnalysis['mapping'],
         ]);
     }
 
@@ -142,7 +149,7 @@ class SmetaParserService
         ВАЖНО: last_anchor должен быть текстом из шапки таблицы, а не из строк с данными!";
 
         $rawResponse = $this->callGemini($prompt, $html);
-        Log::debug("Сырой ответ Gemini (Header):", ['raw' => $rawResponse]);
+        Log::debug('Сырой ответ Gemini (Header):', ['raw' => $rawResponse]);
 
         $data = json_decode($rawResponse, true) ?? [];
 
@@ -158,13 +165,13 @@ class SmetaParserService
     {
         $startRow = $endRow = $startCol = $endCol = 0;
         $foundStart = false;
-        $firstM = mb_strtolower(trim($ai['first_anchor'] ?? ''));
-        $lastM = mb_strtolower(trim($ai['last_anchor'] ?? ''));
+        $firstM = mb_strtolower(mb_trim($ai['first_anchor'] ?? ''));
+        $lastM = mb_strtolower(mb_trim($ai['last_anchor'] ?? ''));
 
         foreach ($rows as $rIdx => $row) {
             foreach ($row as $cIdx => $cell) {
-                $val = mb_strtolower(trim((string)$cell));
-                if (!$foundStart && $val !== '' && str_contains($val, $firstM)) {
+                $val = mb_strtolower(mb_trim((string) $cell));
+                if (! $foundStart && $val !== '' && str_contains($val, $firstM)) {
                     $startRow = $rIdx;
                     $startCol = $cIdx;
                     $foundStart = true;
@@ -179,7 +186,9 @@ class SmetaParserService
         // Захват строки с номерами 1, 2, 3...
         if ($foundStart && isset($rows[$endRow + 1])) {
             $next = array_values(array_filter($rows[$endRow + 1]));
-            if (!empty($next) && (int)$next[0] === 1) $endRow++;
+            if (! empty($next) && (int) $next[0] === 1) {
+                $endRow++;
+            }
         }
 
         return ['found' => $foundStart, 'start_row' => $startRow, 'end_row' => $endRow, 'start_col' => $startCol, 'end_col' => $endCol];
@@ -191,12 +200,13 @@ class SmetaParserService
         foreach ($rows as $row) {
             $html .= '<tr>';
             foreach ($row as $cell) {
-                $val = htmlspecialchars(trim((string)$cell));
+                $val = htmlspecialchars(mb_trim((string) $cell));
                 $html .= "<td>$val</td>";
             }
             $html .= '</tr>';
         }
-        return $html . '</table>';
+
+        return $html.'</table>';
     }
 
     private function askGeminiForData(string $jsonData, string $section, array $schema): array
@@ -207,6 +217,7 @@ class SmetaParserService
         Иначе объект. СТРОГО JSON массив.";
 
         $raw = $this->callGemini($prompt, $jsonData);
+
         return json_decode($raw, true) ?? [];
     }
 
@@ -216,6 +227,7 @@ class SmetaParserService
         foreach ($schema as $col) {
             $res[$col['code']] = $rowAi[$col['code']] ?? null;
         }
+
         return $res;
     }
 
@@ -224,27 +236,30 @@ class SmetaParserService
         $res = [];
         foreach ($rows as $row) {
             $slice = array_slice(array_values($row), 0, $limitCol + 1);
-            if (array_filter($slice, fn($v) => !is_null($v) && $v !== '')) {
-                $res[] = array_map(fn($v) => is_string($v) ? mb_strimwidth(trim($v), 0, 400) : $v, $slice);
+            if (array_filter($slice, fn ($v) => ! is_null($v) && $v !== '')) {
+                $res[] = array_map(fn ($v) => is_string($v) ? mb_strimwidth(mb_trim($v), 0, 400) : $v, $slice);
             }
         }
+
         return json_encode($res, JSON_UNESCAPED_UNICODE);
     }
 
     private function callGemini(string $prompt, string $data): string
     {
-        $url = "https://generativelanguage.googleapis.com/v1beta/models/{$this->model}:generateContent?key=" . config('gemini.api_key');
+        $url = "https://generativelanguage.googleapis.com/v1beta/models/{$this->model}:generateContent?key=".config('gemini.api_key');
         try {
             $response = $this->client->post($url, [
                 'json' => [
-                    'contents' => [['parts' => [['text' => $prompt . "\nDATA:\n" . $data]]]],
-                    'generationConfig' => ['responseMimeType' => 'application/json', 'temperature' => 0]
-                ]
+                    'contents' => [['parts' => [['text' => $prompt."\nDATA:\n".$data]]]],
+                    'generationConfig' => ['responseMimeType' => 'application/json', 'temperature' => 0],
+                ],
             ]);
             $body = json_decode($response->getBody()->getContents(), true);
+
             return $body['candidates'][0]['content']['parts'][0]['text'] ?? '[]';
-        } catch (\Exception $e) {
-            Log::error("Gemini Error: " . $e->getMessage());
+        } catch (Exception $e) {
+            Log::error('Gemini Error: '.$e->getMessage());
+
             return '[]';
         }
     }

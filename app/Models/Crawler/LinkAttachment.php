@@ -4,12 +4,12 @@ declare(strict_types=1);
 
 namespace App\Models\Crawler;
 
+use App\Enums\Crawling\CrawlingStatus;
+use App\Models\DocumentAnalysis\DocumentAnalysis;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
-use App\Enums\Crawling\CrawlingStatus;
-use App\Models\DocumentAnalysis\DocumentAnalysis;
 use Spatie\MediaLibrary\HasMedia;
 use Spatie\MediaLibrary\InteractsWithMedia;
 
@@ -27,7 +27,14 @@ final class LinkAttachment extends Model implements HasMedia
         'name',
         'extension',
         'url',
+        'content_hash',
         'status',
+        'attempts',
+        'last_error',
+        'last_error_at',
+        'next_retry_at',
+        'failed_permanently',
+        'downloaded_at',
     ];
 
     public function link(): BelongsTo
@@ -44,6 +51,11 @@ final class LinkAttachment extends Model implements HasMedia
     {
         return [
             'status' => CrawlingStatus::class,
+            'attempts' => 'integer',
+            'failed_permanently' => 'boolean',
+            'last_error_at' => 'datetime',
+            'next_retry_at' => 'datetime',
+            'downloaded_at' => 'datetime',
         ];
     }
 }

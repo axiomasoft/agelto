@@ -4,12 +4,12 @@ declare(strict_types=1);
 
 namespace App\Process\DocumentPrepare;
 
-use Exception;
-use Illuminate\Database\Eloquent\Model;
-use Illuminate\Support\Str;
 use App\Enums\AnalysisStatus;
 use App\Models\DocumentAnalysis\DocumentAnalysis;
 use App\Process\DocumentPrepare\Strategies\PreparationStrategy;
+use Exception;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Str;
 use Spatie\MediaLibrary\Downloaders\DefaultDownloader;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
 
@@ -148,9 +148,9 @@ final class DocumentProcessor
             ->whereHas(
                 relation: 'media',
                 callback: fn ($q) => $q
-                    ->where('collection_name', DocumentAnalysis::COLLECTION_DOCUMENT_SOURCE)
-                    ->where('file_name', $fileName)
-                    ->where('size', $size),
+                    ->where(column: 'collection_name', operator: DocumentAnalysis::COLLECTION_DOCUMENT_SOURCE)
+                    ->where(column: 'file_name', operator: $fileName)
+                    ->where(column: 'size', operator: $size),
             )
             ->first();
     }
