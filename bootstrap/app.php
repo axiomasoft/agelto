@@ -28,6 +28,8 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withSchedule(function (Schedule $schedule): void {
         $schedule->command('horizon:snapshot')->everyFiveMinutes();
         $schedule->command('media-library:delete-old-temporary-uploads')->daily();
+        $schedule->command('app:pipeline:stuck-check')->everyFifteenMinutes()->withoutOverlapping();
+        $schedule->command('app:pipeline:retry-failed-links')->everyTenMinutes()->withoutOverlapping();
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         //

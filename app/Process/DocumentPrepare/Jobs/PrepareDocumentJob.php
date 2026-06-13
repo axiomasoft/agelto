@@ -4,14 +4,16 @@ declare(strict_types=1);
 
 namespace App\Process\DocumentPrepare\Jobs;
 
+use App\Enums\AnalysisStatus;
+use App\Models\DocumentAnalysis\DocumentAnalysis;
+use App\Notifications\PipelineFailedNotification;
+use App\Process\DocumentPrepare\DocumentProcessor;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
-use App\Enums\AnalysisStatus;
-use App\Models\DocumentAnalysis\DocumentAnalysis;
-use App\Process\DocumentPrepare\DocumentProcessor;
+use Illuminate\Support\Facades\Notification;
 use Throwable;
 
 final class PrepareDocumentJob implements ShouldQueue
@@ -39,6 +41,10 @@ final class PrepareDocumentJob implements ShouldQueue
     {
         $documentAnalysis = DocumentAnalysis::findOrFail($this->documentAnalysisId);
 
+        if ($documentAnalysis->status === AnalysisStatus::Prepared) {
+            return;
+        }
+
         $documentProcessor->run($documentAnalysis);
     }
 
@@ -55,5 +61,15 @@ final class PrepareDocumentJob implements ShouldQueue
                 trace: $exception->getTraceAsString(),
             );
         }
+
+        Notification::route(\App\Notifications\Channels\TelegramChannel::class, null)
+            ->notify(new PipelineFailedNotification(
+                stage: 'Document Prepare',
+                jobClass: self::class,
+                jobId: $this->documentAnalysisId,
+                errorMessage: $exception->getMessage(),
+                attempt: $this->attempts(),
+                maxAttempts: $this->tries,
+            ));
     }
 }

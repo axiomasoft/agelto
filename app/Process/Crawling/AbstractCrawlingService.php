@@ -4,23 +4,23 @@ declare(strict_types=1);
 
 namespace App\Process\Crawling;
 
-use App\Dto\Browser\BrowserOptions;
-use App\Enums\LogOutput;
-use App\Services\AppLogger;
-use App\Services\BrowserService;
-use Carbon\Carbon;
-use Illuminate\Support\Facades\App;
-use Illuminate\Support\Facades\Http;
 use App\Dto\Attachments\AttachmentDto;
+use App\Dto\Browser\BrowserOptions;
 use App\Dto\Crawling\CrawlingItemDto;
 use App\Dto\Crawling\LinkDto;
 use App\Dto\Crawling\PageMetaDto;
 use App\Dto\Crawling\PageResultDto;
+use App\Enums\LogOutput;
 use App\Interfaces\Crawling\PlatformCrawling;
 use App\Models\Crawler\Crawler as CrawlerModel;
 use App\Models\Crawler\IgnoredLink;
 use App\Models\Platform;
 use App\Repositories\Crawling\CrawlingRepository;
+use App\Services\AppLogger;
+use App\Services\BrowserService;
+use Carbon\Carbon;
+use Illuminate\Support\Facades\App;
+use Illuminate\Support\Facades\Http;
 use RuntimeException;
 use Spatie\LaravelData\DataCollection;
 use Throwable;
@@ -60,25 +60,21 @@ abstract class AbstractCrawlingService implements PlatformCrawling
             $url = $this->getCrawlerUrl($crawler);
 
             // если браузер падает, то продолжаем с последней страницы (если включен keep_state_on_crash у краулера)
-            /* if ($this->keepStateOnCrash('current_url')) {
-                $url = $this->crawler->options['current_url'];
-            } */
+            if ($this->keepStateOnCrash('current_url')) {
+                $url = $this->crawler->state['current_url'];
+                $this->logger->info('Восстановление с URL: '.$url, LogOutput::Console);
+            }
 
             $this->startHook($url);
 
             $this->browser->reportSuccess();
         } catch (Throwable $e) {
-            $this->logger->error('Ошибка краулера ' . static::class . ': ' . $e->getMessage());
+            $this->logger->error('Ошибка краулера '.static::class.': '.$e->getMessage());
             $this->browser->reportFail($e);
             throw $e;
         } finally {
             $this->browser->close();
         }
-    }
-
-    protected function startHook(string $url): void
-    {
-        $this->crawlingPage($url);
     }
 
     final public function crawlingPage(string $url): void
@@ -89,6 +85,10 @@ abstract class AbstractCrawlingService implements PlatformCrawling
         do {
             $currentPage = (int) $urlObject->getQueryParameter($pageKey, 1);
             $requestUrl = (string) $urlObject;
+
+            if ($this->keepStateOnCrash()) {
+                $this->crawler->updateState(['current_url' => $requestUrl]);
+            }
 
             $response = $this->fetchPage($requestUrl);
 
@@ -110,6 +110,11 @@ abstract class AbstractCrawlingService implements PlatformCrawling
     final public function getPlatform(): Platform
     {
         return $this->getCrawler()->platform;
+    }
+
+    protected function startHook(string $url): void
+    {
+        $this->crawlingPage($url);
     }
 
     protected function keepStateOnCrash(?string $storeKey = null): bool
@@ -155,7 +160,7 @@ abstract class AbstractCrawlingService implements PlatformCrawling
 
     protected function fetchPage(string $requestUrl): \Illuminate\Http\Client\Response
     {
-        $this->logger->info('Загрузка страницы: ' . $requestUrl, LogOutput::Console);
+        $this->logger->info('Загрузка страницы: '.$requestUrl, LogOutput::Console);
         $page = $this->browser->openPage($requestUrl, new BrowserOptions(
             retries: 3,
             rotate_proxy_on_fail: true,
