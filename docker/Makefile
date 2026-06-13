@@ -210,7 +210,8 @@ test-preflight:
 
 test-php:
 	@$(MK_SELF) test-preflight ENV=$(ENV)
-	$(COMPOSE) exec $(if $(filter prod,$(ENV)),-T,) app php artisan test --compact
+	@$(MK_SELF) db:create-test ENV=$(ENV)
+	$(COMPOSE) exec $(if $(filter prod,$(ENV)),-T,) -e DB_DATABASE=agelto_test app php artisan test --compact
 
 ##@ Dev
 
