@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
+use App\Models\Crawler\Crawler;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
-use App\Models\Platform;
 
 return new class extends Migration
 {
@@ -16,9 +16,11 @@ return new class extends Migration
     {
         Schema::create($this->table(), function (Blueprint $table) {
             $table->id();
-            $table->string('name');
-            $table->string('code', 32)->index();
-            $table->string('url');
+            $table->foreignId('platform_id')->references('id')->on((new App\Models\Platform())->getTable())->cascadeOnDelete();
+            $table->string('url', 500)->nullable();
+            $table->json('options')->nullable();
+            $table->json('filter')->nullable();
+            $table->json('state')->nullable();
             $table->timestamps();
         });
     }
@@ -33,6 +35,6 @@ return new class extends Migration
 
     private function table(): string
     {
-        return (new Platform())->getTable();
+        return (new Crawler())->getTable();
     }
 };

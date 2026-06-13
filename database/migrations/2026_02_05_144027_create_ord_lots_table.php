@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Models\Order\Lot;
+use App\Models\Order\Order;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
@@ -13,7 +14,7 @@ return new class extends Migration
     {
         Schema::create($this->table(), function (Blueprint $table) {
             $table->id();
-            $table->foreignId('order_id')->constrained($this->table())->onDelete('cascade');
+            $table->foreignId('order_id')->constrained(table: (new Order())->getTable())->onDelete('cascade');
             $table->integer('lot_number')->default(1);
             $table->text('subject')->nullable();
             $table->string('okved', 14)->nullable()->index();

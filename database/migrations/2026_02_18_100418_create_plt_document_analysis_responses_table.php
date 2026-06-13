@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
+use App\Models\DocumentAnalysis\DocumentAnalysis;
+use App\Models\DocumentAnalysis\DocumentAnalysisResponse;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
-use App\Models\DocumentAnalysis\DocumentAnalysis;
-use App\Models\DocumentAnalysis\DocumentAnalysisResponse;
 
 return new class extends Migration
 {
@@ -23,7 +23,7 @@ return new class extends Migration
             $table->foreignId('parent_id')->nullable()->constrained($this->table())->cascadeOnDelete();
 
             // что давали на вход
-            $table->text('promt');
+            $table->text('prompt');
 
             // Тип действия (primary_analysis, detailed_parsing, etc.)
             $table->string('step')->nullable();

@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
+use App\Models\Prompt\PromptRule;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
-use App\Models\Promt\PromptRule;
 
 return new class extends Migration
 {

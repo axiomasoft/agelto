@@ -2,8 +2,8 @@
 
 declare(strict_types=1);
 
-use App\Models\Order\Order;
 use App\Models\Order\Customer;
+use App\Models\Order\Order;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
@@ -21,7 +21,7 @@ return new class extends Migration
 
             // Связи
             $table->foreignId('customer_id')->constrained((new Customer())->getTable());
-            $table->foreignId('platform_id')->constrained((new \App\Models\Platform())->getTable());
+            $table->foreignId('platform_id')->constrained((new App\Models\Platform())->getTable());
 
             // Финансы
             $table->decimal('initial_price', 20, 2)->nullable();

@@ -17,7 +17,7 @@ return new class extends Migration
         Schema::create($this->table(), function (Blueprint $table) {
             $table->id();
 
-            $table->foreignId('order_id')->constrained((new \App\Models\Order\Order())->getTable())->onDelete('cascade');
+            $table->foreignId('order_id')->constrained((new App\Models\Order\Order())->getTable())->onDelete('cascade');
 
             // Код ОКПД2 (например, 71.20.19.190)
             $table->string('okpd2', 20)->nullable()->index();

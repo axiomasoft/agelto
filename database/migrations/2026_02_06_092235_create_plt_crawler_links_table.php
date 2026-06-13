@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
+use App\Models\Crawler\Link;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
-use App\Models\Crawling\Link;
 
 return new class extends Migration
 {
@@ -17,6 +17,8 @@ return new class extends Migration
         Schema::create($this->table(), function (Blueprint $table) {
             $table->id();
             $table->foreignId('platform_id')->constrained((new App\Models\Platform())->getTable())->cascadeOnDelete();
+            $table->foreignId('crawler_id')->nullable()->constrained((new App\Models\Crawler\Crawler())->getTable())->nullOnDelete();
+            $table->foreignId('crawler_run_id')->nullable()->constrained((new App\Models\Crawler\CrawlerRun())->getTable())->nullOnDelete();
             $table->string('detail_url', 500);
 
             $table->string('reg_number', 60);
@@ -32,11 +34,15 @@ return new class extends Migration
             $table->dateTime('completed_at')->nullable();
             $table->integer('attempts')->default(0);
             $table->text('last_error')->nullable();
+            $table->timestamp('last_error_at')->nullable();
             $table->timestamp('next_retry_at')->nullable();
+            $table->boolean('failed_permanently')->default(false);
 
             $table->timestamps();
 
             $table->unique(['platform_id', 'reg_number']);
+            // Быстрая выборка готовых к ретраю ссылок
+            $table->index(['status', 'next_retry_at']);
         });
     }
 

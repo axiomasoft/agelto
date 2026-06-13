@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
+use App\Models\PlatformRegion;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
-use App\Models\PlatformRegion;
 
 return new class extends Migration
 {
@@ -16,7 +16,7 @@ return new class extends Migration
     {
         Schema::create($this->table(), function (Blueprint $table) {
             $table->id();
-            $table->foreignId('platform_id')->references('id')->on((new \App\Models\Platform())->getTable())->cascadeOnDelete();
+            $table->foreignId('platform_id')->references('id')->on((new App\Models\Platform())->getTable())->cascadeOnDelete();
             $table->string('name', 100);
             $table->string('external_id', 100)->nullable();
         });

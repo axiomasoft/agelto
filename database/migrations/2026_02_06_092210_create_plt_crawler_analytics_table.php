@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
+use App\Models\Crawler\Analytics;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
-use App\Models\Crawling\Analytics;
 
 return new class extends Migration
 {
@@ -17,7 +17,7 @@ return new class extends Migration
         Schema::create($this->table(), function (Blueprint $table) {
             $table->id();
             $table->date('date');
-            $table->foreignId('crawler_id')->constrained((new App\Models\Crawling\Crawler())->getTable())->cascadeOnDelete();
+            $table->foreignId('crawler_id')->constrained((new App\Models\Crawler\Crawler())->getTable())->cascadeOnDelete();
 
             $table->integer('s1_found')->default(0);
             $table->integer('s1_errors')->default(0);
