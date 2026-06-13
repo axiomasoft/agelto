@@ -7,6 +7,7 @@ namespace App\Notifications;
 use App\Notifications\Channels\TelegramChannel;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Notification;
+use Illuminate\Support\Str;
 
 /**
  * Централизованная отправка алерта о провале стадии с троттлингом —
@@ -19,7 +20,7 @@ final class PipelineAlert
     public static function failure(string $stage, string $jobClass, int $jobId, string $message, int $attempt, int $maxAttempts): void
     {
         // Не чаще одного алерта на стадию в окне троттлинга.
-        if (! Cache::add('pipeline_alert:'.md5($stage), true, now()->addMinutes(self::THROTTLE_MINUTES))) {
+        if (! Cache::add('pipeline_alert:'.Str::slug($stage), true, now()->addMinutes(self::THROTTLE_MINUTES))) {
             return;
         }
 

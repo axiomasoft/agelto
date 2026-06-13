@@ -206,24 +206,16 @@ final class DocumentAnalysis extends Model implements HasMedia
         $this->forceFill(['locked_by' => null, 'locked_until' => null]);
     }
 
+    /** В активной обработке: выполняется или ждёт следующей стадии (не терминал и не провал). */
     public function isProcessing(): bool
     {
-        return in_array($this->status, [
-            AnalysisStatus::Preparing,
-            AnalysisStatus::PrimaryAnalyzing,
-            AnalysisStatus::Prepared,
-            AnalysisStatus::PrimaryAnalyzed,
-            AnalysisStatus::PrimaryAnalysisFailed,
-            AnalysisStatus::Error,
-        ]);
+        return $this->status->isInProgress() || $this->status->isAwaiting();
     }
 
+    /** Терминальный успех. */
     public function isFinished(): bool
     {
-        return in_array($this->status, [
-            AnalysisStatus::PrimaryIgnored,
-            AnalysisStatus::Completed,
-        ]);
+        return $this->status->isTerminal();
     }
 
     protected function casts(): array
