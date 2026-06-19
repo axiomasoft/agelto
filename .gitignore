@@ -63,6 +63,9 @@ opencode.json
 .serena/
 AUDIT.md
 
+# Сборка vitepress — генерируемая статика, не храним в репозитории
+docs/.vitepress/dist/
+
 
 app/Console/Commands/Playground.php
 project_context.txt
