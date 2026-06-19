@@ -58,6 +58,11 @@ CLAUDE.md
 .github/skills/
 opencode.json
 
+# Локальные artifacts инструментов и черновики
+*.bak
+.serena/
+AUDIT.md
+
 
 app/Console/Commands/Playground.php
 project_context.txt
