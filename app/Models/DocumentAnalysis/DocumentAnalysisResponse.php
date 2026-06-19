@@ -24,6 +24,9 @@ final class DocumentAnalysisResponse extends Model
         'message',
         'data',
         'state',
+        'prompt_tokens',
+        'completion_tokens',
+        'total_tokens',
     ];
 
     public function documentAnalysis(): BelongsTo
@@ -48,6 +51,9 @@ final class DocumentAnalysisResponse extends Model
             'state' => 'array',
             'success' => 'boolean',
             'step' => Step::class,
+            'prompt_tokens' => 'integer',
+            'completion_tokens' => 'integer',
+            'total_tokens' => 'integer',
         ];
     }
 }
