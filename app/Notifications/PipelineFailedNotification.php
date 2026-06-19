@@ -26,7 +26,7 @@ final class PipelineFailedNotification extends Notification
     public function toTelegram(mixed $notifiable): string
     {
         $env = config('app.env') !== 'production' ? ' ['.mb_strtoupper((string) config('app.env')).']' : '';
-        $shortError = mb_strimwidth($this->errorMessage, offset: 0, length: 300, trim: '…');
+        $shortError = mb_strimwidth($this->errorMessage, 0, 300, '…');
 
         return implode("\n", [
             "🔴 <b>[AGELTO{$env}] Сбой в пайплайне</b>",

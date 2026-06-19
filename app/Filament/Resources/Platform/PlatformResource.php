@@ -4,13 +4,13 @@ declare(strict_types=1);
 
 namespace App\Filament\Resources\Platform;
 
+use App\Filament\Resources\Platform\Schemas\PlatformForm;
+use App\Filament\Resources\Platform\Tables\PlatformsTable;
+use App\Models\Platform;
 use BackedEnum;
 use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
 use Filament\Tables\Table;
-use App\Filament\Resources\App\Schemas\PlatformForm;
-use App\Filament\Resources\App\Tables\PlatformsTable;
-use App\Models\Platform;
 
 final class PlatformResource extends Resource
 {

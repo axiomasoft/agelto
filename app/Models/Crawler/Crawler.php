@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace App\Models\Crawler;
 
+use App\Models\Platform;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use App\Models\Platform;
 
 final class Crawler extends Model
 {
@@ -37,6 +37,11 @@ final class Crawler extends Model
     public function analytics(): HasMany
     {
         return $this->hasMany(Analytics::class);
+    }
+
+    public function runs(): HasMany
+    {
+        return $this->hasMany(CrawlerRun::class);
     }
 
     /**

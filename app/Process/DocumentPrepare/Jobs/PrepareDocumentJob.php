@@ -6,14 +6,13 @@ namespace App\Process\DocumentPrepare\Jobs;
 
 use App\Enums\AnalysisStatus;
 use App\Models\DocumentAnalysis\DocumentAnalysis;
-use App\Notifications\PipelineFailedNotification;
+use App\Notifications\PipelineAlert;
 use App\Process\DocumentPrepare\DocumentProcessor;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
-use Illuminate\Support\Facades\Notification;
 use Throwable;
 
 final class PrepareDocumentJob implements ShouldQueue
@@ -45,7 +44,16 @@ final class PrepareDocumentJob implements ShouldQueue
             return;
         }
 
-        $documentProcessor->run($documentAnalysis);
+        // Лиза против параллельной/повторной обработки (анти-дубль загрузки медиа).
+        if (! $documentAnalysis->acquireLease(self::class)) {
+            return;
+        }
+
+        try {
+            $documentProcessor->run($documentAnalysis);
+        } finally {
+            $documentAnalysis->releaseLease();
+        }
     }
 
     /**
@@ -54,22 +62,19 @@ final class PrepareDocumentJob implements ShouldQueue
     public function failed(Throwable $exception): void
     {
         $analysis = DocumentAnalysis::find($this->documentAnalysisId);
-        if ($analysis !== null) {
-            $analysis->transitionStatus(
-                status: AnalysisStatus::Error,
-                message: 'Ошибка подготовки: '.$exception->getMessage(),
-                trace: $exception->getTraceAsString(),
-            );
-        }
+        $analysis?->recordFailure(
+            status: AnalysisStatus::Error,
+            message: 'Ошибка подготовки: '.$exception->getMessage(),
+            trace: $exception->getTraceAsString(),
+        );
 
-        Notification::route(\App\Notifications\Channels\TelegramChannel::class, null)
-            ->notify(new PipelineFailedNotification(
-                stage: 'Document Prepare',
-                jobClass: self::class,
-                jobId: $this->documentAnalysisId,
-                errorMessage: $exception->getMessage(),
-                attempt: $this->attempts(),
-                maxAttempts: $this->tries,
-            ));
+        PipelineAlert::failure(
+            stage: 'Document Prepare',
+            jobClass: self::class,
+            jobId: $this->documentAnalysisId,
+            message: $exception->getMessage(),
+            attempt: $this->attempts(),
+            maxAttempts: $this->tries,
+        );
     }
 }

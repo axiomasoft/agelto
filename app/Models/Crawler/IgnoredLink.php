@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace App\Models\Crawler;
 
+use App\Models\Platform;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use App\Models\Platform;
 
 final class IgnoredLink extends Model
 {
@@ -15,6 +15,7 @@ final class IgnoredLink extends Model
     protected $fillable = [
         'platform_id',
         'external_id',
+        'reason_category',
         'reason',
     ];
 

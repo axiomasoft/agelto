@@ -23,10 +23,13 @@ return new class extends Migration
             $table->unsignedBigInteger('entity_id')->nullable();
             $table->text('message');
             $table->json('context')->nullable();
+            $table->text('trace')->nullable();
             $table->string('ip_address', 45)->nullable();
             $table->timestamps();
 
             $table->index(['stage', 'level']);
+            // Журнал по конкретной сущности (Link / CrawlerRun / DocumentAnalysis)
+            $table->index(['entity_type', 'entity_id']);
         });
     }
 

@@ -20,7 +20,6 @@ use App\Services\AppLogger;
 use App\Services\BrowserService;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\App;
-use Illuminate\Support\Facades\Http;
 use RuntimeException;
 use Spatie\LaravelData\DataCollection;
 use Throwable;
@@ -137,25 +136,7 @@ abstract class AbstractCrawlingService implements PlatformCrawling
 
     protected function checkVpnConstraint(): void
     {
-        /* if (App::environment('local')) {
-            $this->logger->info("Проверка на отсутствие VPN...", LogOutput::Console);
-
-            $realIp = env('MY_REAL_IP');
-            if (!$realIp) {
-                $this->logger->info("[WARNING] MY_REAL_IP не задан. Пропуск проверки.", LogOutput::Console);
-                return;
-            }
-
-            try {
-                $currentIp = trim(Http::timeout(5)->get('https://api.ipify.org')->body());
-                if ($currentIp !== (string)$realIp) {
-                    throw new RuntimeException("VPN активен ($currentIp). Отключите его.");
-                }
-            } catch (Throwable $e) {
-                if ($e instanceof RuntimeException) throw $e;
-                $this->logger->info("[WARNING] Ошибка проверки IP: " . $e->getMessage(), LogOutput::Console);
-            }
-        } */
+        // Проверка VPN отключена. Раньше тут сверяли текущий IP с config('app.my_real_ip').
     }
 
     protected function fetchPage(string $requestUrl): \Illuminate\Http\Client\Response

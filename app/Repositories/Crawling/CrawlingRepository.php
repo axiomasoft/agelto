@@ -4,42 +4,58 @@ declare(strict_types=1);
 
 namespace App\Repositories\Crawling;
 
-use Illuminate\Database\Eloquent\Collection;
 use App\Dto\Attachments\AttachmentDto;
 use App\Dto\Crawling\LinkDto;
 use App\Enums\Crawling\CrawlingStatus;
 use App\Models\Crawler\Crawler;
 use App\Models\Crawler\Link;
 use App\Models\Crawler\LinkAttachment;
+use Illuminate\Database\Eloquent\Collection;
 use Spatie\LaravelData\DataCollection;
 
 final class CrawlingRepository
 {
     /**
      * Основной метод сохранения результата краулинга (Stage 1).
-     * Сбрасывает статус в PENDING и обнуляет ошибки при обновлении данных.
+     * Статус/прогресс ретраев сбрасываются только при реально изменившихся данных извещения.
      * Сохраняет вложения (attachments) для ссылки.
      */
     public function storeOrUpdateLink(Crawler $crawler, LinkDto $dto): Link
     {
+        $existing = $this->findLinkByPlatformAndRegNumber($crawler->platform->id, $dto->regNumber);
+
+        // «Данные переехали» = ссылка новая или извещение обновилось на площадке.
+        $isStale = $existing === null
+            || $existing->platform_updated_at?->timestamp !== $dto->updatedAt?->timestamp;
+
+        $values = [
+            'crawler_id' => $crawler->id,
+            'detail_url' => $dto->detailUrl,
+            'subject' => $dto->subject,
+            'okved' => $dto->okved,
+            'okved_additional' => $dto->okvedAdditional,
+            'published_at' => $dto->publishedAt,
+            'platform_updated_at' => $dto->updatedAt,
+            'submission_end_at' => $dto->submissionEndAt,
+        ];
+
+        // Сбрасываем статус и прогресс только если данные изменились — иначе повторный обход
+        // затирал бы накопленные attempts/last_error и зацикливал обработку ссылки (H2).
+        if ($isStale) {
+            $values['status'] = CrawlingStatus::PENDING;
+            $values['attempts'] = 0;
+            $values['last_error'] = null;
+            $values['last_error_at'] = null;
+            $values['next_retry_at'] = null;
+            $values['failed_permanently'] = false;
+        }
+
         $link = Link::query()->updateOrCreate(
-            [
+            attributes: [
                 'platform_id' => $crawler->platform->id,
                 'reg_number' => $dto->regNumber,
             ],
-            [
-                'detail_url' => $dto->detailUrl,
-                'subject' => $dto->subject,
-                'okved' => $dto->okved,
-                'okved_additional' => $dto->okvedAdditional,
-                'published_at' => $dto->publishedAt,
-                'platform_updated_at' => $dto->updatedAt,
-                'submission_end_at' => $dto->submissionEndAt,
-                'status' => CrawlingStatus::PENDING,
-                'attempts' => 0,
-                'last_error' => null,
-                'next_retry_at' => null,
-            ]
+            values: $values,
         );
 
         if ($dto->attachments->count() > 0) {
@@ -60,7 +76,23 @@ final class CrawlingRepository
         return Link::query()
             ->where('crawler_id', $crawler->id)
             ->where('status', CrawlingStatus::PENDING)
-            ->orderBy('published_at', 'asc')
+            ->orderBy(column: 'published_at', direction: 'asc')
+            ->limit($limit)
+            ->get();
+    }
+
+    /**
+     * PENDING-ссылки всех краулеров с предзагруженными вложениями без анализа —
+     * источник конвейера Стадия 1 → 2 (discover & dispatch).
+     *
+     * @return Collection<int, Link>
+     */
+    public function getPendingLinks(int $limit = 100): Collection
+    {
+        return Link::query()
+            ->where('status', CrawlingStatus::PENDING)
+            ->with(['attachments' => fn ($query) => $query->whereDoesntHave('documentAnalyses')])
+            ->orderBy(column: 'published_at', direction: 'asc')
             ->limit($limit)
             ->get();
     }
@@ -130,11 +162,11 @@ final class CrawlingRepository
             $urls[] = $dto->url;
             $extension = $this->parseExtensionFromName($dto->name);
             LinkAttachment::query()->updateOrCreate(
-                [
+                attributes: [
                     'link_id' => $link->id,
                     'external_id' => $dto->externalId,
                 ],
-                [
+                values: [
                     'url' => $dto->url,
                     'name' => $dto->name,
                     'extension' => $extension,
@@ -142,7 +174,11 @@ final class CrawlingRepository
             );
         }
 
-        $link->attachments()->whereNotIn('url', $urls)->delete();
+        // Удаляем только пропавшие вложения без анализа — чтобы не осиротить запущенные DocumentAnalysis.
+        $link->attachments()
+            ->whereNotIn('url', $urls)
+            ->whereDoesntHave('documentAnalyses')
+            ->delete();
     }
 
     /**

@@ -32,7 +32,7 @@ return new class extends Migration
             $table->json('description')->nullable()->comment('Описание');
             $table->string('timezone', 100)->nullable();
             $table->geometry(column: 'geo_point', subtype: 'point')->nullable();
-            $table->geometry(column: 'geo_borders', subtype: 'multiline')->nullable();
+            $table->geometry(column: 'geo_borders', subtype: 'multilinestring')->nullable();
             $table->unsignedBigInteger('kladr_id')->index()->nullable();
             $table->string('fias_code', 38)->index()->nullable();
             $table->string('fias_path')->nullable()->index();

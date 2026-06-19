@@ -4,11 +4,12 @@ declare(strict_types=1);
 
 namespace App\Process\EstimateAnalysis;
 
-use App\Services\GeminiService;
 use App\Dto\Prompt\Step;
+use App\Enums\AnalysisStatus;
 use App\Models\DocumentAnalysis\DocumentAnalysis;
 use App\Models\DocumentAnalysis\DocumentAnalysisResponse;
 use App\Repositories\Prompt\PromptRuleRepository;
+use App\Services\GeminiService;
 
 final class EstimateAnalysisProcessor
 {
@@ -19,7 +20,7 @@ final class EstimateAnalysisProcessor
 
     public function run(DocumentAnalysis $documentAnalysis): ?DocumentAnalysisResponse
     {
-        $systemInstructions = $this->promptRepo->getSystemInstructionsForStep(Step::DetailedParsing);
+        $systemInstructions = $this->promptRepo->getSystemInstructionsForStep(Step::EstimateFetchItems);
 
         // 1. Получаем ID кэша (создастся или возьмется готовый)
         $cacheId = $this->gemini->getContextCache($documentAnalysis, $systemInstructions);
@@ -33,16 +34,18 @@ final class EstimateAnalysisProcessor
         );
 
         $res = $documentAnalysis->responses()->create([
-            'step' => 'detailed_parsing',
+            'step' => Step::EstimateFetchItems->value,
             'cache_file_id' => $cacheId,
             'rules_hash' => sha1($systemInstructions),
             'payload' => $response['data'] ?? [],
         ]);
 
-        // 3. ЕСЛИ ЭТО БЫЛ ПОСЛЕДНИЙ ШАГ ПАРСИНГА — УДАЛЯЕМ КЭШ
-        /* if ($this->isParsingFinished($documentAnalysis)) {
-            $this->gemini->deleteCache($documentAnalysis);
-        } */
+        // Финализируем стадию: иначе документ навсегда остаётся в EstimateAnalyzing
+        // и guard идемпотентности в job не срабатывает.
+        $documentAnalysis->transitionStatus(
+            status: AnalysisStatus::EstimateAnalyzed,
+            message: 'Анализ сметы завершён',
+        );
 
         return $res;
     }

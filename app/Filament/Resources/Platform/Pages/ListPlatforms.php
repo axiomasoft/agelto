@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
-namespace App\Filament\Resources\App\Pages;
+namespace App\Filament\Resources\Platform\Pages;
 
+use App\Filament\Resources\Platform\PlatformResource;
 use Filament\Actions;
 use Filament\Resources\Pages\ListRecords;
-use App\Filament\Resources\App\PlatformResource;
 
 final class ListPlatforms extends ListRecords
 {

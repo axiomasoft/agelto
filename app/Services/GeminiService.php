@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\Models\DocumentAnalysis\DocumentAnalysis;
 use Exception;
 use Gemini;
 use Gemini\Client;
@@ -14,7 +15,6 @@ use Gemini\Enums\ResponseMimeType;
 use GuzzleHttp\Client as GuzzleClient;
 use Illuminate\Support\Facades\Log;
 use InvalidArgumentException;
-use App\Models\DocumentAnalysis\DocumentAnalysis;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
 
 /**
@@ -50,25 +50,19 @@ final class GeminiService
             $analysis->update([
                 'file_fingerprint' => $currentFingerprint,
                 'gemini_cache_id' => null,
-                'gemini_cache_expires_at' => null
+                'gemini_cache_expires_at' => null,
             ]);
         }
 
         $fileUri = $media->getCustomProperty('google_file_uri');
 
-        if (!$this->isFileActive($fileUri)) {
+        if (! $this->isFileActive($fileUri)) {
             $fileUri = $this->uploadFile($media->getPath(), $media->file_name);
             $media->setCustomProperty('google_file_uri', $fileUri);
             $media->save();
         }
 
         return $fileUri;
-    }
-
-    private function getFileFingerprint(\Spatie\MediaLibrary\MediaCollections\Models\Media $media): string
-    {
-        $path = $media->getPath();
-        return md5($media->file_name . filesize($path) . filemtime($path));
     }
 
     /**
@@ -79,12 +73,12 @@ final class GeminiService
         if ($analysis->gemini_cache_id) {
             try {
                 $this->cachedContents()->delete($analysis->gemini_cache_id);
-            } catch (\Exception $e) {
+            } catch (Exception $e) {
             }
 
             $analysis->update([
                 'gemini_cache_id' => null,
-                'gemini_cache_expires_at' => null
+                'gemini_cache_expires_at' => null,
             ]);
         }
     }
@@ -99,16 +93,16 @@ final class GeminiService
         $rulesHash = sha1($systemInstruction);
         $fingerprint = $this->getFileFingerprint($analysis->getDocumentForAnalysis());
 
-        if ($analysis->isGeminiCacheValid($fingerprint, $rulesHash)) {
+        if ($analysis->isCacheValid($fingerprint, $rulesHash)) {
             return $analysis->gemini_cache_id;
         }
 
         // Создаем кэш в Google
         $cacheResponse = $this->cachedContents()->create(
-            model: "models/gemini-1.5-flash",
-            systemInstruction: \Gemini\Data\Content::parse($systemInstruction),
+            model: 'models/gemini-1.5-flash',
+            systemInstruction: Content::parse($systemInstruction),
             ttl: "{$ttlHours}h",
-            contents: [\Gemini\Data\Content::parse(part: "DOC_URI: {$fileUri}")],
+            contents: [Content::parse(part: "DOC_URI: {$fileUri}")],
         );
 
         $cacheId = $cacheResponse->cachedContent->name;
@@ -154,7 +148,7 @@ final class GeminiService
 
             return json_decode($response->text(), true) ?? [];
         } catch (Exception $e) {
-            Log::error('Gemini Service Error: ' . $e->getMessage());
+            Log::error('Gemini Service Error: '.$e->getMessage());
 
             return ['success' => false, 'error' => $e->getMessage()];
         }
@@ -196,9 +190,12 @@ final class GeminiService
                 if ($state === 'FAILED') {
                     throw new Exception("Gemini File API failed: {$displayName}");
                 }
-            } catch (\Gemini\Exceptions\UnserializableResponse $e) {
+            } catch (Gemini\Exceptions\UnserializableResponse $e) {
                 // Если прокси вернул пустой ответ или мусор — просто пробуем еще раз
-                if (now()->diffInMinutes($start) > 5) throw $e;
+                if (now()->diffInMinutes($start) > 5) {
+                    throw $e;
+                }
+
                 continue;
             }
 
@@ -224,9 +221,17 @@ final class GeminiService
 
             return $state === 'ACTIVE';
         } catch (Exception $e) {
-            Log::warning("File check failed for {$fileUri}: " . $e->getMessage());
+            Log::warning("File check failed for {$fileUri}: ".$e->getMessage());
+
             return false;
         }
+    }
+
+    private function getFileFingerprint(Media $media): string
+    {
+        $path = $media->getPath();
+
+        return md5($media->file_name.filesize($path).filemtime($path));
     }
 
     private function buildClient(): void

@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
+use App\Models\Crawler\IgnoredLink;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
-use App\Models\Crawling\IgnoreLinks;
 
 return new class extends Migration
 {
@@ -18,8 +18,12 @@ return new class extends Migration
             $table->id();
             $table->foreignId('platform_id')->constrained((new App\Models\Platform())->getTable())->cascadeOnDelete();
             $table->string('external_id', 70)->index();
+            $table->string('reason_category', 40)->nullable()->index();
             $table->string('reason', 255)->nullable();
             $table->timestamps();
+
+            // Одна закупка игнорируется на площадке не более одного раза
+            $table->unique(['platform_id', 'external_id']);
         });
     }
 
@@ -33,6 +37,6 @@ return new class extends Migration
 
     private function table(): string
     {
-        return (new IgnoreLinks())->getTable();
+        return (new IgnoredLink())->getTable();
     }
 };

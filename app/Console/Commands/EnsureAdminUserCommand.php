@@ -1,10 +1,12 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Console\Commands;
 
 use Illuminate\Console\Command;
 
-class EnsureAdminUserCommand extends Command
+final class EnsureAdminUserCommand extends Command
 {
     /**
      * The name and signature of the console command.
@@ -23,8 +25,8 @@ class EnsureAdminUserCommand extends Command
     /**
      * Execute the console command.
      */
-    public function handle()
+    public function handle(): int
     {
-        //
+        return self::SUCCESS;
     }
 }

@@ -6,15 +6,13 @@ namespace App\Process\EstimateAnalysis\Jobs;
 
 use App\Enums\AnalysisStatus;
 use App\Models\DocumentAnalysis\DocumentAnalysis;
-use App\Notifications\Channels\TelegramChannel;
-use App\Notifications\PipelineFailedNotification;
+use App\Notifications\PipelineAlert;
 use App\Process\EstimateAnalysis\EstimateAnalysisProcessor;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
-use Illuminate\Support\Facades\Notification;
 use Throwable;
 
 final class EstimateAnalysisJob implements ShouldQueue
@@ -49,25 +47,39 @@ final class EstimateAnalysisJob implements ShouldQueue
             return;
         }
 
-        $estimateAnalysisProcessor->run($documentAnalysis);
+        // Лиза против дублирующего запроса к Gemini при крашах/повторах.
+        if (! $documentAnalysis->acquireLease(self::class)) {
+            return;
+        }
+
+        try {
+            // Помечаем «в анализе» здесь, в воркере, а не до commit транзакции в процессоре.
+            $documentAnalysis->transitionStatus(
+                status: AnalysisStatus::EstimateAnalyzing,
+                message: 'Начало анализа сметы',
+            );
+
+            $estimateAnalysisProcessor->run($documentAnalysis);
+        } finally {
+            $documentAnalysis->releaseLease();
+        }
     }
 
     public function failed(Throwable $exception): void
     {
-        DocumentAnalysis::find($this->documentAnalysisId)?->transitionStatus(
-            status: AnalysisStatus::Error,
+        DocumentAnalysis::find($this->documentAnalysisId)?->recordFailure(
+            status: AnalysisStatus::EstimateAnalysisFailed,
             message: 'Ошибка анализа сметы: '.$exception->getMessage(),
             trace: $exception->getTraceAsString(),
         );
 
-        Notification::route(TelegramChannel::class, null)
-            ->notify(new PipelineFailedNotification(
-                stage: 'Estimate Analysis',
-                jobClass: self::class,
-                jobId: $this->documentAnalysisId,
-                errorMessage: $exception->getMessage(),
-                attempt: $this->attempts(),
-                maxAttempts: $this->tries,
-            ));
+        PipelineAlert::failure(
+            stage: 'Estimate Analysis',
+            jobClass: self::class,
+            jobId: $this->documentAnalysisId,
+            message: $exception->getMessage(),
+            attempt: $this->attempts(),
+            maxAttempts: $this->tries,
+        );
     }
 }

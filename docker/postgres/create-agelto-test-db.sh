@@ -13,11 +13,13 @@ fi
 
 "${COMPOSE[@]}" exec -T pgsql sh -lc '
 set -eu
-if psql -U "$POSTGRES_USER" -d postgres -Atq -c "SELECT 1 FROM pg_database WHERE datname = '\''agelto_test'\''" | grep -qx 1; then
-  echo "agelto_test already exists — nothing to do."
-  exit 0
+if ! psql -U "$POSTGRES_USER" -d postgres -Atq -c "SELECT 1 FROM pg_database WHERE datname = '\''agelto_test'\''" | grep -qx 1; then
+  psql -U "$POSTGRES_USER" -d postgres -v ON_ERROR_STOP=1 \
+    -c "CREATE DATABASE agelto_test OWNER \"${POSTGRES_USER}\";"
+  echo "Created database agelto_test."
 fi
-psql -U "$POSTGRES_USER" -d postgres -v ON_ERROR_STOP=1 \
-  -c "CREATE DATABASE agelto_test OWNER \"${POSTGRES_USER}\";"
-echo "Created database agelto_test."
+# PostGIS-паритет с основной БД (нужен для гео-миграций при RefreshDatabase)
+psql -U "$POSTGRES_USER" -d agelto_test -v ON_ERROR_STOP=1 \
+  -c "CREATE EXTENSION IF NOT EXISTS postgis;"
+echo "agelto_test ready (postgis enabled)."
 '

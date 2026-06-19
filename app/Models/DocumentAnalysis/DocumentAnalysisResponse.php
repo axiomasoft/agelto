@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace App\Models\DocumentAnalysis;
 
+use App\Dto\Prompt\Step;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use App\Dto\Prompt\Step;
 
 final class DocumentAnalysisResponse extends Model
 {
@@ -16,7 +16,7 @@ final class DocumentAnalysisResponse extends Model
     protected $fillable = [
         'document_analysis_id',
         'parent_id',
-        'promt',
+        'prompt',
         'step',
         'cache_file_id',
         'rules_hash',

@@ -1,0 +1,140 @@
+{
+  "installed_at": "2026-06-13",
+  "profile": "laravel-project",
+  "agent": "generic",
+  "layout": "flat",
+  "skills": [
+    {
+      "flat_name": "agent-design",
+      "source_path": "skills/architect/agent-design"
+    },
+    {
+      "flat_name": "api-design",
+      "source_path": "skills/architect/api-design"
+    },
+    {
+      "flat_name": "architecture",
+      "source_path": "skills/architect/architecture"
+    },
+    {
+      "flat_name": "data-schema",
+      "source_path": "skills/architect/data-schema"
+    },
+    {
+      "flat_name": "eval-design",
+      "source_path": "skills/architect/eval-design"
+    },
+    {
+      "flat_name": "legal-compliance",
+      "source_path": "skills/architect/legal-compliance"
+    },
+    {
+      "flat_name": "observability-design",
+      "source_path": "skills/architect/observability-design"
+    },
+    {
+      "flat_name": "security-design",
+      "source_path": "skills/architect/security-design"
+    },
+    {
+      "flat_name": "tech-stack-selection",
+      "source_path": "skills/architect/tech-stack-selection"
+    },
+    {
+      "flat_name": "dependency-injection",
+      "source_path": "skills/php/dependency-injection"
+    },
+    {
+      "flat_name": "laravel",
+      "source_path": "skills/php/laravel"
+    },
+    {
+      "flat_name": "laravel-security-audit",
+      "source_path": "skills/php/laravel-security-audit"
+    },
+    {
+      "flat_name": "laravel-structure",
+      "source_path": "skills/php/laravel-structure"
+    },
+    {
+      "flat_name": "laravel-subagents",
+      "source_path": "skills/php/laravel-subagents"
+    },
+    {
+      "flat_name": "laravel-testing",
+      "source_path": "skills/php/laravel-testing"
+    },
+    {
+      "flat_name": "modular-architecture",
+      "source_path": "skills/php/modular-architecture"
+    },
+    {
+      "flat_name": "pennant-development",
+      "source_path": "skills/php/pennant-development"
+    },
+    {
+      "flat_name": "php-patterns",
+      "source_path": "skills/php/php-patterns"
+    },
+    {
+      "flat_name": "repositories",
+      "source_path": "skills/php/repositories"
+    },
+    {
+      "flat_name": "static-analysis",
+      "source_path": "skills/php/static-analysis"
+    },
+    {
+      "flat_name": "ci-cd",
+      "source_path": "skills/devops/ci-cd"
+    },
+    {
+      "flat_name": "docker",
+      "source_path": "skills/devops/docker"
+    },
+    {
+      "flat_name": "docker-dev-prod",
+      "source_path": "skills/devops/docker-dev-prod"
+    },
+    {
+      "flat_name": "docker-php",
+      "source_path": "skills/devops/docker-php"
+    },
+    {
+      "flat_name": "docker-postgres",
+      "source_path": "skills/devops/docker-postgres"
+    },
+    {
+      "flat_name": "docker-services",
+      "source_path": "skills/devops/docker-services"
+    },
+    {
+      "flat_name": "docker-vite",
+      "source_path": "skills/devops/docker-vite"
+    },
+    {
+      "flat_name": "gitops",
+      "source_path": "skills/devops/gitops"
+    },
+    {
+      "flat_name": "makefile",
+      "source_path": "skills/devops/makefile"
+    },
+    {
+      "flat_name": "code-simplifier",
+      "source_path": "skills/quality/code-simplifier"
+    },
+    {
+      "flat_name": "refactoring-plan",
+      "source_path": "skills/quality/refactoring-plan"
+    },
+    {
+      "flat_name": "tech-debt-audit",
+      "source_path": "skills/quality/tech-debt-audit"
+    },
+    {
+      "flat_name": "test-strategy",
+      "source_path": "skills/quality/test-strategy"
+    }
+  ]
+}
