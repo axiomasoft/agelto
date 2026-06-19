@@ -57,3 +57,25 @@ function something()
 {
     // ..
 }
+
+/**
+ * Профиль краулера с платформой — общий хелпер для тестов краулинга.
+ */
+function crawlerProfile(array $attributes = []): App\Models\Crawler\Crawler
+{
+    $platform = App\Models\Platform::query()->create([
+        'name' => 'ЕИС',
+        'code' => 'eis-'.uniqid(),
+        'url' => 'https://zakupki.gov.ru',
+    ]);
+
+    return App\Models\Crawler\Crawler::query()->create(array_merge([
+        'platform_id' => $platform->id,
+        'url' => 'https://zakupki.gov.ru',
+    ], $attributes));
+}
+
+function crawlerRunManager(): App\Process\Crawling\Run\CrawlerRunManager
+{
+    return new App\Process\Crawling\Run\CrawlerRunManager(app(App\Services\AppLogger::class));
+}

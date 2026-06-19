@@ -12,14 +12,16 @@ use const CURLOPT_PROXY_SSL_VERIFYHOST;
 use const CURLOPT_PROXY_SSL_VERIFYPEER;
 use const CURLOPT_SSLVERSION;
 
+use App\Interfaces\Crawling\BrowserClient;
+use App\Services\BrowserService;
 use App\Services\Http\Proxy\ProxyFactory;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\URL;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Validation\Rules\Password;
-use Illuminate\Support\Facades\URL;
 use Override;
 
 final class AppServiceProvider extends ServiceProvider
@@ -28,7 +30,11 @@ final class AppServiceProvider extends ServiceProvider
      * Register any application services.
      */
     #[Override]
-    public function register(): void {}
+    public function register(): void
+    {
+        // DI-шов краулинга: краулеры зависят от контракта, реальный драйвер — BrowserService.
+        $this->app->bind(BrowserClient::class, BrowserService::class);
+    }
 
     /**
      * Bootstrap any application services.

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services;
 
 use App\Dto\Browser\BrowserOptions;
+use App\Interfaces\Crawling\BrowserClient;
 use HeadlessChromium\Browser;
 use HeadlessChromium\BrowserFactory;
 use HeadlessChromium\Communication\Message;
@@ -18,7 +19,7 @@ use Sys\Models\Proxy\Proxy;
 use Sys\Repositories\ProxyRepository;
 use Throwable;
 
-final class BrowserService
+final class BrowserService implements BrowserClient
 {
     private string $browserPath = '/usr/bin/chromium';
 
