@@ -8,7 +8,7 @@ updated: 2026-06-14
 # Жизненный цикл закупки ЕИС и карта мониторинга
 
 > [!info] Связанные документы
-> ← [[Architecture]] | ← [[BRD]] | → [[ADR-002_Winner_Tracking_And_Monitoring]] | → [[Risk_Register]]
+> ← [[Architecture_Agelto]] | ← [[BRD (Agelto)]] | → [[ADR-002_Winner_Tracking_And_Monitoring]] | → [[Risk_Register (Agelto)]]
 >
 > Источник — два анализа Perplexity (2026-06-14), сведённые и сверенные с фактическим кодом (аудит 2026-06-14); исходные файлы после переноса удалены, их содержание полностью отражено здесь и в [[ADR-002_Winner_Tracking_And_Monitoring]]. Раздел §11 отделяет проверенное по коду от внешних гипотез.
 
@@ -28,7 +28,7 @@ Agelto парсит строительные госзакупки ЕИС и из
 2. **Какие статусы означают «работа закончена»** — чтобы не опрашивать мёртвые записи.
 3. **Когда «завершённая» закупка снова становится активной** (уклонение, отмена результата ФАС, расторжение, повтор).
 
-> [!note] Это меняет трактовку «лида», поэтому вынесено в [[ADR-002_Winner_Tracking_And_Monitoring|ADR-002]] как предложение, требующее бизнес-валидации. Официальный scope v1 ([[BRD]]) пока не меняется.
+> [!note] Это меняет трактовку «лида», поэтому вынесено в [[ADR-002_Winner_Tracking_And_Monitoring|ADR-002]] как предложение, требующее бизнес-валидации. Официальный scope v1 ([[BRD (Agelto)]]) пока не меняется.
 
 ---
 
@@ -115,7 +115,7 @@ Agelto парсит строительные госзакупки ЕИС и из
 ## 6. Маппинг: статус ЕИС → текущий код vs предлагаемый мониторинг
 
 > [!important] Главный разрыв
-> Текущие enum'ы `CrawlingStatus` (`Link`) и `AnalysisStatus` (`DocumentAnalysis`) описывают **обработку документов** Agelto, а **не статус самой закупки в ЕИС**. После краулинга статус закупки в ЕИС больше не перечитывается. Поля `OrderMonitoringStatus` и колонок победителя в схеме нет (см. §11, [[Architecture]] §7).
+> Текущие enum'ы `CrawlingStatus` (`Link`) и `AnalysisStatus` (`DocumentAnalysis`) описывают **обработку документов** Agelto, а **не статус самой закупки в ЕИС**. После краулинга статус закупки в ЕИС больше не перечитывается. Поля `OrderMonitoringStatus` и колонок победителя в схеме нет (см. §11, [[Architecture_Agelto]] §7).
 
 | Слой | Что описывает | Где |
 |:---|:---|:---|
@@ -211,7 +211,7 @@ Agelto парсит строительные госзакупки ЕИС и из
 > - enum'ы: `AnalysisStatus` (11), `CrawlingStatus` (4), `ProcessStage` (4), `PipelineStage` (3).
 > - `EisCrawlingService`: рекурсивное дробление по ценам (стоп при разнице <10000 ₽), архивный/оперативный режимы, `keepStateOnCrash`, `parseAttachments` → `documents.html`, дедуп по `reg_number`, задержки ~3 с.
 > - `CrawlingItemDto`: `externalId`, `url`, `subject`, `price`, `publishedAt`, `updatedAt`, `submissionEndAt`, `attachments`.
-> - Схема `ord_orders` / `ord_lots` / `ord_purchase_objects` / `ord_customers` (см. [[Architecture]] §7).
+> - Схема `ord_orders` / `ord_lots` / `ord_purchase_objects` / `ord_customers` (см. [[Architecture_Agelto]] §7).
 > - **Отсутствуют** (подтверждено): поля победителя/контракта, `OrderMonitoringStatus`, таблица `ord_order_winners`, `OrderStatusMonitorJob`, любой парсер протокола. `OrderParsingProcess::run()` — пустая заглушка.
 
 > [!caution] ⚠️ Внешнее, непроверенное (гипотезы Perplexity — проверить на живом ЕИС до реализации)
