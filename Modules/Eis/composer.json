@@ -27,7 +27,5 @@
             "Eis\\Tests\\": "tests/"
         }
     },
-    "require": {
-        "agelto/platform": "*"
-    }
+    "require": {}
 }

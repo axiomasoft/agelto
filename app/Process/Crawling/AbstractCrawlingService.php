@@ -214,7 +214,7 @@ abstract class AbstractCrawlingService implements PlatformCrawling
 
             $item = $this->crawlingItem($node);
 
-            $link = $this->crawlingRepository->findLinkByPlatformAndRegNumber(
+            $link = $this->crawlingRepository->findLink(
                 $this->getPlatform()->id,
                 $item->externalId
             );

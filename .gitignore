@@ -38,19 +38,21 @@ yarn-error.log
 .yarn/cache
 
 # AI Tools
-CLAUDE.md
-AGENTS.md
-.claude/
+# CLAUDE.md / AGENTS.md / GEMINI.md ведём вручную (Boost = только MCP, не композитор контекста)
+.claude/*
+!.claude/skills/
+!.claude/agents/
+!.claude/workflows/
+!.claude/rules/
+!.claude/hooks/
+!.claude/agent-pack.lock.json
+!.claude/review-gate.env.ini
 .gemini
 .idea/
 .junie/
 .vscode/
 .mcp.json
-boost.json
 skills-lock.json
-GEMINI.md
-AGENTS.md
-CLAUDE.md
 
 # Boost: other agent configs are generated
 .agents/
@@ -69,3 +71,4 @@ docs/.vitepress/dist/
 
 app/Console/Commands/Playground.php
 project_context.txt
+.playwright-mcp

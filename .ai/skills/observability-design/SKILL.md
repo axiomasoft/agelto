@@ -2,12 +2,12 @@
 name: observability-design
 bucket: architect
 version: 0.1.0
-description: Logging, metrics, tracing, alerting. SLO/SLI, error budget, runbooks для прод-готовности
+description: Logging, metrics, tracing, alerting. SLO/SLI, error budget, runbooks for prod-readiness
 risk: draft
 persona: architect
-tags: [observability]
+tags: [observability, logging, metrics, tracing, alerting, slo, runbook]
 requires: [architecture]
-produces_for: []
+produces_for: [runbook, incident-response, capacity-planning]
 outputs: ["docs/03_Dev/Observability_Design.md"]
 sha256: ""
 adapters: [claude, cursor, fable]
@@ -15,125 +15,69 @@ adapters: [claude, cursor, fable]
 
 # Skill: Observability Design
 
-Применять когда: архитектура утверждена, нужно спроектировать прод-наблюдаемость **до** деплоя. Не «прикрутим логи когда упадёт» — спроектировать осознанно.
+Apply when: architecture approved, design prod observability **before** deploy. 4 pillars: logs, metrics, traces, alerts + SLO/SLI + runbooks.
 
-Покрывает 4 столпа: **logs, metrics, traces, alerts** + SLO/SLI + runbooks.
+## Do NOT apply when
+- Architecture not approved → refuse, go to `architecture`.
+- Pre-prototype / hello-world (overkill). Apply once there are real users.
+- OSS library without deploy → N/A. OSS service (daemon) → applies.
+- Just "add sentry" → that's a roadmap task, not observability design.
 
----
-
-## Когда НЕ применять
-
-- Архитектура не утверждена → отказать, идти на `architecture`.
-- Pre-prototype / hello-world — overkill. Применять с момента «есть реальные пользователи».
-- OSS-библиотека без deploy (BrainKit как пакет) — не применимо. Для OSS-сервиса (AzGuard как daemon) — применимо.
-- Просто «добавить sentry» — это не observability design, это task в roadmap.
-
----
-
-## 4 столпа observability
-
-### 1. Logs
-**Что:** структурированные события с контекстом.
-**Решения:**
-- Уровни: ERROR / WARN / INFO / DEBUG — когда что писать
-- Формат: JSON со схемой (timestamp, level, service, trace_id, user_id, message, attrs)
-- Где: stdout → агрегатор (Loki / CloudWatch / Datadog / Better Stack)
-- Retention: hot (7d) / warm (30d) / cold (1y по compliance)
-- PII в логах: **запретить** или **обязательная маскировка** (см. `security-design`)
-
-### 2. Metrics
-**Что:** агрегированные числа во времени.
-**Категории:**
-- **RED** (для request-driven): Rate, Errors, Duration — на каждый эндпоинт
-- **USE** (для resources): Utilization, Saturation, Errors — на CPU/RAM/disk/network/DB-pool
-- **Business KPI**: MRR, активные пользователи, конверсия — отдельный dashboard
-- **Custom domain**: для AI-проектов — token usage, latency per model, hallucination rate (см. `eval-design`)
-
-### 3. Traces
-**Что:** путь одного запроса через все компоненты.
-**Решения:**
-- Стандарт: OpenTelemetry (по умолчанию)
-- Sampling: head-based (1–10%) или tail-based (100% ошибок, 1% успехов)
-- Что трейсить обязательно: входящие HTTP, исходящие HTTP, БД-запросы, queue messages, LLM-вызовы
-- Trace_id propagation: через все service-границы (включая background jobs)
-
-### 4. Alerts
-**Что:** автоматические сигналы о деградации.
-**Принципы:**
-- Алерт = action required. Если нет действия — не алерт, это дашборд.
-- Severity tiers: P1 (paging, 24/7) / P2 (рабочее время) / P3 (тикет)
-- Каждому алерту — runbook (см. ниже)
-- Запретить flaky alerts: после 3-го ложного срабатывания — переделать или удалить
-
----
+## 4 pillars
+logs/metrics/traces/events — detail in [references/four-pillars.md](references/four-pillars.md).
 
 ## SLO / SLI / Error budget
+Minimum for prod-readiness — define:
 
-Минимум для прод-готовности — определить:
-
-| Сервис | SLI | SLO target | Error budget (30d) |
+| Service | SLI | SLO target | Error budget (30d) |
 |:---|:---|:---|:---|
-| API gateway | availability | 99.9% | 43.2 мин down |
-| API gateway | latency p95 | < 300ms | < 5% запросов выше |
+| API gateway | availability | 99.9% | 43.2 min down |
+| API gateway | latency p95 | < 300ms | < 5% of requests above |
 | Background jobs | success rate | 99.5% | 0.5% failed |
-| LLM endpoint | success rate | 99% | 1% (модели падают) |
+| LLM endpoint | success rate | 99% | 1% (models fail) |
 
 **Error budget policy:**
-- Burn rate alerts: если за последний час сожгли >2% бюджета — P1
-- Если месячный бюджет исчерпан — стоп фичам, чинить надёжность
+- Burn rate alerts: >2% of budget burned in last hour → P1
+- Monthly budget exhausted → stop features, fix reliability
 
----
+## Cost-tier planning
+State tier explicitly in Output. No tier-2 on pre-seed.
 
-## Cost-tier планирование
-
-Observability не бесплатна. На pre-seed нельзя ставить Datadog full-stack — обанкротится.
-
-**Tier 0 (pre-MVP, $0/мес):**
-- Logs: stdout + cloud-native сборщик (CloudWatch / Vercel logs)
-- Metrics: hand-rolled через prometheus exporter
-- Traces: skip или 1% sampling в OTel-collector
+**Tier 0 (pre-MVP, $0/mo):**
+- Logs: stdout + cloud-native collector (CloudWatch / Vercel logs)
+- Metrics: hand-rolled via prometheus exporter
+- Traces: skip or 1% sampling in OTel-collector
 - Alerts: cron-based health checks
 
-**Tier 1 (MVP в проде, ~$50/мес):**
-- Better Stack / Highlight / Sentry — единая платформа
-- Trace sampling 10%, retention logs 7d
+**Tier 1 (MVP in prod, ~$50/mo):**
+- Better Stack / Highlight / Sentry — single platform
+- Trace sampling 10%, logs retention 7d
 
-**Tier 2 (post-PMF, $200–500/мес):**
-- Полный OTel stack: Tempo + Loki + Prometheus + Grafana (self-host)
-- Или Datadog APM на критичных сервисах
+**Tier 2 (post-PMF, $200–500/mo):**
+- Full OTel stack: Tempo + Loki + Prometheus + Grafana (self-host)
+- Or Datadog APM on critical services
 
-Указать tier явно в Output. Не делать tier-2 на pre-seed.
-
----
-
-## Runbooks (operational playbook)
-
-Для каждого P1-алерта — runbook `docs/03_Dev/Runbooks/<alert_name>.md`:
+## Runbooks
+Per P1-alert → runbook `docs/03_Dev/Runbooks/<alert_name>.md`:
 
 ```
-1. Симптом (что видим)
-2. Возможные причины (топ-3)
-3. Диагностические команды (curl, SQL, logs query)
-4. Mitigation шаги (что сделать сейчас)
-5. Root cause investigation (что проверить после)
-6. Кому эскалировать
+1. Symptom (what we see)
+2. Possible causes (top-3)
+3. Diagnostic commands (curl, SQL, logs query)
+4. Mitigation steps (do now)
+5. Root cause investigation (check after)
+6. Whom to escalate to
 ```
 
-Без runbook алерт = panic. Делать runbook до включения алерта в прод.
+Create runbook before enabling alert in prod.
 
----
+## Agent adds itself
+- **AI/LLM metrics:** token cost, latency per provider, jailbreak attempts, hallucination eval-failures (see `eval-design`).
+- **Privacy-aware logging:** link to `security-design` — no PII in logs, mask email/phone/PAN.
+- **Cost guardrails:** alert on observability budget overrun.
+- **Multi-tenant** (if present): separate logs + metrics per tenant.
 
-## Что агент добавляет сам
-
-- **AI/LLM-specific метрики.** Для Edufy / Memster / Finbrain — token cost, latency per provider, jailbreak attempts, hallucination eval-failures (см. `eval-design`).
-- **Privacy-aware logging.** Связать с `security-design` — PII не должно попадать в логи, маскировать email/phone/PAN.
-- **Cost guardrails.** Логи и трейсы умеют генерировать $$$ — указать alert на превышение бюджета observability.
-- **Multi-tenant**, если есть — отделить логи и метрики per tenant. Без этого debug одного клиента = ад.
-
----
-
-## Структура output-файла
-
+## Output file structure
 `docs/03_Dev/Observability_Design.md`:
 
 ```markdown
@@ -195,15 +139,25 @@ tier: 0 | 1 | 2
 - ...
 ```
 
----
+## Hard prohibitions
+NEVER:
+- Alert without runbook
+- Alert without severity
+- Tier-2 (Datadog full-stack) on pre-seed without justification
+- PII in logs without masking
+- "Logs somehow" — structured JSON required
+- Metrics without named labels / dimensions
+- trace_id not propagated through async / queue — breaks debug
 
-## Жёсткие запреты
+## Related skills
+- `architect/architecture` — approved architecture as precondition.
+- `architect/security-design` — PII-policy in logs, mask email/phone/PAN.
+- `architect/eval-design` — AI/LLM metrics (token cost, hallucination rate) feed prod monitoring (input).
+- `operator/runbook` — detailed operational runbook per P1/P2 alert designed here (output).
+- `operator/incident-response` — response process relying on severity + alerts here (output).
+- `operator/capacity-planning` — what to monitor for scaling, based on USE-metrics here.
+- `laravel-testing/health-checks` — Laravel liveness/readiness (spatie/laravel-health) for design here.
 
-НЕЛЬЗЯ:
-- Алерт без runbook
-- Алерт без severity
-- Tier-2 (Datadog full-stack) на pre-seed без обоснования
-- PII в логах без маскировки
-- "Логи как-нибудь" — структурированный JSON обязателен
-- Метрики без named labels / dimensions
-- Trace_id не пропагируется через async / queue — ломает debug
+<!-- ru-source-sha256: PENDING -->
+
+<!-- ru-source-sha256: 652348b32c37677c634dd0dba0cc63dc9e1843df2c6f5be60e94b91db1b73eda -->

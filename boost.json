@@ -1,0 +1,12 @@
+{
+  "agents": [
+    "claude_code"
+  ],
+  "guidelines": false,
+  "herd_mcp": false,
+  "mcp": true,
+  "nightwatch_mcp": false,
+  "packages": [],
+  "sail": false,
+  "skills": []
+}

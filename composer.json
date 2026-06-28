@@ -12,18 +12,18 @@
         "php": "^8.5",
         "chrome-php/chrome": "^1.15",
         "filament/filament": "^5.0",
-        "google-gemini-php/laravel": "^2.0",
+        "google-gemini-php/laravel": "dev-main",
         "google/cloud-ai-platform": "^1.0",
         "google/cloud-document-ai": "^2.0",
         "inertiajs/inertia-laravel": "^2.0",
         "laravel/fortify": "^1.30",
-        "laravel/framework": "^12.0",
+        "laravel/framework": "^13.0",
         "laravel/horizon": "^5.43",
-        "laravel/tinker": "^2.10.1",
+        "laravel/tinker": "dev-master",
         "laravel/wayfinder": "^0.1.9",
-        "matanyadaev/laravel-eloquent-spatial": "^4.6",
+        "matanyadaev/laravel-eloquent-spatial": "dev-master",
         "mpdf/mpdf": "^8.2",
-        "nunomaduro/essentials": "^1.0",
+        "nunomaduro/essentials": "dev-main",
         "nwidart/laravel-modules": "*",
         "phpoffice/phpspreadsheet": "^5.4",
         "spatie/laravel-data": "^4.0",
@@ -43,8 +43,11 @@
         "mockery/mockery": "^1.6",
         "nunomaduro/collision": "^8.6",
         "pestphp/pest": "^4.3",
-        "pestphp/pest-plugin-laravel": "^4.0",
+        "pestphp/pest-plugin-laravel": "^4.1",
         "rector/rector": "^2.3"
+    },
+    "replace": {
+        "agelto/platform": "*"
     },
     "autoload": {
         "psr-4": {
@@ -62,9 +65,6 @@
         }
     },
     "scripts": {
-        "ai:sync": [
-            "@php artisan boost:update"
-        ],
         "setup": [
             "composer install",
             "@php -r \"file_exists('.env') || copy('.env.example', '.env');\"",
@@ -93,9 +93,6 @@
             "@php artisan config:clear --ansi",
             "@test:lint",
             "@php artisan test"
-        ],
-        "ai:sync": [
-            "@php artisan boost:update --ansi"
         ],
         "post-autoload-dump": [
             "Illuminate\\Foundation\\ComposerScripts::postAutoloadDump",
@@ -148,6 +145,6 @@
             }
         }
     ],
-    "minimum-stability": "stable",
+    "minimum-stability": "dev",
     "prefer-stable": true
 }

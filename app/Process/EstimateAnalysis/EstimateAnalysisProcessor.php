@@ -20,7 +20,7 @@ final class EstimateAnalysisProcessor
 
     public function run(DocumentAnalysis $documentAnalysis): ?DocumentAnalysisResponse
     {
-        $systemInstructions = $this->promptRepo->getSystemInstructionsForStep(Step::EstimateFetchItems);
+        $systemInstructions = $this->promptRepo->systemInstructionsFor(Step::EstimateFetchItems);
 
         // 1. Получаем ID кэша (создастся или возьмется готовый)
         $cacheId = $this->gemini->getContextCache($documentAnalysis, $systemInstructions);

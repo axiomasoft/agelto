@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 use App\Services\GeminiService;
 
-it('извлекает токены из usageMetadata ответа Gemini', function () {
+test('извлекает токены из usageMetadata ответа Gemini', function () {
     $response = (object) [
         'usageMetadata' => (object) [
             'promptTokenCount' => 100,
@@ -20,6 +20,6 @@ it('извлекает токены из usageMetadata ответа Gemini', fun
     ]);
 });
 
-it('возвращает null, если usageMetadata отсутствует', function () {
+test('возвращает null, если usageMetadata отсутствует', function () {
     expect(GeminiService::usageFromResponse((object) []))->toBeNull();
 });

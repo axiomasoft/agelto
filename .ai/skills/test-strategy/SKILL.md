@@ -1,107 +1,119 @@
 ---
 name: test-strategy
 bucket: quality
-version: 0.1.0
-description: Стратегия тестирования: пирамида (unit/integration/e2e), coverage policy, mock vs real, какие фичи требуют какой уровень тестов
+version: 0.2.0
+description: "Test strategy: pyramid (unit/integration/e2e), coverage policy, mock vs real, which features need which test level, test-suite composition (Arch/Feature/Unit) and Pest Arch architecture tests"
 risk: draft
 persona: quality
-tags: [quality, testing]
+tags: [quality, testing, coverage, validation, ci, architecture, pest]
 requires: []
-produces_for: [code-review]
+produces_for: [code-review, mutation-testing, playwright-e2e]
 outputs: ["docs/03_Dev/Test_Strategy.md"]
+snippets: ["test-pyramid.md", "pest-arch-test.php", "phpunit-testsuites.xml"]
 sha256: ""
 adapters: [claude, cursor, fable]
 ---
 
 # Skill: Test Strategy
 
-Применять когда: проект достиг стадии, где количество фич и регрессий делает ad-hoc тестирование непрактичным. Обычно — после первого MVP, когда команда замечает что багфиксы ломают другие места. Также при онбординге нового продукта или при принятии legacy-кодбазы.
+Apply when: feature/regression count makes ad-hoc testing impractical (post first MVP; or onboarding a new product / taking over a legacy codebase).
 
-Не применять: до первого работающего MVP (нечего стабилизировать) или для одноразовых скриптов / PoC.
+## When NOT to apply
+- Prototype / PoC discarded after demo
+- One-off data migration
+- One-person 50-line automation script
+- Before first working MVP / one-off scripts / PoC
+- Before architecture is fixed (`architecture.md`) — else tests get rewritten
 
----
+## Step 1. Test Pyramid — proportions
 
-## Когда НЕ применять
-
-- Прототип / PoC, который выкинут после демо
-- Одноразовая миграция данных
-- Скрипт автоматизации одного человека на 50 строк
-- До того, как зафиксирована архитектура (`architecture.md`) — иначе тесты придётся переписывать
-
----
-
-## Шаг 1. Test Pyramid — пропорции
-
-| Уровень | Доля | Что тестирует | Скорость | Стоимость поддержки |
+| Level | Share | Tests | Speed | Maintenance cost |
 |:---|:---:|:---|:---|:---|
-| **Unit** | ~70% | Чистые функции, бизнес-логика, edge-cases | мс | низкая |
-| **Integration** | ~20% | Слой ↔ слой (репозиторий ↔ БД, сервис ↔ кэш) | сотни мс | средняя |
-| **E2E** | ~10% | Сквозной сценарий пользователя через UI/API | секунды-минуты | высокая |
+| **Unit** | ~70% | Pure functions, business logic, edge-cases | ms | low |
+| **Integration** | ~20% | Layer ↔ layer (repo ↔ DB, service ↔ cache) | hundreds ms | medium |
+| **E2E** | ~10% | End-to-end user scenario via UI/API | seconds-minutes | high |
 
-**Антипаттерн «ice-cream cone»:** много E2E + мало unit = медленный CI, хрупкие тесты, ложные алерты. Если так получилось — записать в `tech-debt-audit`.
+Antipattern "ice-cream cone": many E2E + few unit = slow CI, fragile tests, false alerts. If it happens — record in `tech-debt-audit`.
 
----
+## Step 2. Coverage Policy
 
-## Шаг 2. Coverage Policy
+| Code layer | Min coverage |
+|:---|:---:|
+| Business logic / domain | ≥ 90% |
+| Application / use-cases | ≥ 80% |
+| Adapters (DB, HTTP, external API) | ≥ 60% |
+| UI / presentation | ≥ 40% |
+| Generated / boilerplate | 0% (exclude from coverage report) |
 
-| Слой кода | Минимум coverage | Обоснование |
-|:---|:---:|:---|
-| Бизнес-логика / domain | ≥ 90% | Здесь самые дорогие баги |
-| Application / use-cases | ≥ 80% | Координация — нужны интеграционные |
-| Adapters (БД, HTTP, external API) | ≥ 60% | Часть проверяется integration-тестами |
-| UI / presentation | ≥ 40% | Хрупкие, дорого, низкий ROI |
-| Generated / boilerplate | 0% | Исключить из coverage report |
+Rule: coverage is a lower bound, not a goal. 100% coverage ≠ 100% correctness. Prefer **mutation testing** for critical modules (Stryker, mutmut, infection).
 
-**Правило:** coverage — нижняя граница, не цель. 100% coverage не означает 100% корректности. Важнее — **mutation testing** для критичных модулей (Stryker, mutmut, infection).
+## Step 3. Mock vs Real
 
----
-
-## Шаг 3. Mock vs Real — матрица выбора
-
-| Что тестируем | Зависимость | Mock или Real? |
+| Testing | Dependency | Mock or Real? |
 |:---|:---|:---|
-| Unit-тест чистой функции | — | n/a |
-| Unit-тест с инъекцией зависимости | внутренний сервис | **mock** (или fake/in-memory) |
-| Integration: репозиторий | БД | **real** (testcontainers / SQLite in-memory) |
-| Integration: внешний HTTP API | сторонний сервис | **mock** (wiremock / MSW / VCR) |
-| Integration: очередь | Kafka/RabbitMQ | **real** (testcontainers) |
-| E2E: критичный happy path | весь стек | **real** (или близкое staging) |
-| E2E: платёжный шлюз | Stripe/PayPal | **sandbox** (никогда real) |
+| Unit of pure function | — | n/a |
+| Unit with injected dependency | internal service | **mock** (or fake/in-memory) |
+| Integration: repository | DB | **real** (testcontainers / SQLite in-memory) |
+| Integration: external HTTP API | third-party service | **mock** (wiremock / MSW / VCR) |
+| Integration: queue | Kafka/RabbitMQ | **real** (testcontainers) |
+| E2E: critical happy path | full stack | **real** (or close staging) |
+| E2E: payment gateway | Stripe/PayPal | **sandbox** (never real) |
 
-**Запрет:** мокать собственный код в integration-тестах — это превращает их в недо-unit.
+Forbidden: mocking your own code in integration tests — turns them into sub-unit tests.
 
----
+## Step 4. Which features need which level
 
-## Шаг 4. Какие фичи требуют какой уровень
-
-| Тип фичи | Unit | Integration | E2E |
+| Feature type | Unit | Integration | E2E |
 |:---|:---:|:---:|:---:|
-| Алгоритм / расчёт (биллинг, scoring) | ✅ обязательно | — | — |
-| CRUD entity через слои | ✅ | ✅ | — |
-| Авторизация / RBAC | ✅ | ✅ | ✅ (smoke) |
-| Платёжный flow | ✅ | ✅ | ✅ |
-| Регистрация пользователя | ✅ | ✅ | ✅ |
-| UI-форма с валидацией | ✅ (логика) | — | ✅ (smoke) |
+| Algorithm / calc (billing, scoring) | ✅ required | — | — |
+| CRUD entity through layers | ✅ | ✅ | — |
+| Authorization / RBAC | ✅ | ✅ | ✅ (smoke) |
+| Payment flow | ✅ | ✅ | ✅ |
+| User registration | ✅ | ✅ | ✅ |
+| UI form with validation | ✅ (logic) | — | ✅ (smoke) |
 | Background job / cron | ✅ | ✅ | — |
-| Migration скрипт | — | ✅ (на копии prod-данных) | — |
+| Migration script | — | ✅ (on copy of prod data) | — |
 
----
+## Step 5. Test Data Strategy
 
-## Шаг 5. Test Data Strategy
+Pick one primary approach:
 
-3 подхода — выбрать один основной:
-
-| Подход | Когда | Плюсы | Минусы |
+| Approach | When | Pros | Cons |
 |:---|:---|:---|:---|
-| **Fixtures (статические)** | Простые сценарии | Воспроизводимо, читаемо | Сложно поддерживать при росте |
-| **Factories / Builders** | Средний проект | Гибко, DRY | Скрытая магия, learning curve |
-| **Production replicas (анонимизированные)** | Сложные регрессии | Реалистично | Дорого, GDPR-риски |
+| **Fixtures (static)** | Simple scenarios | Reproducible, readable | Hard to maintain as it grows |
+| **Factories / Builders** | Medium project | Flexible, DRY | Hidden magic, learning curve |
+| **Production replicas (anonymized)** | Complex regressions | Realistic | Expensive, GDPR risks |
 
-Анти-паттерн: shared mutable state между тестами (через общую БД без cleanup) — нарушает изоляцию, делает порядок прогона значимым.
+Antipattern: shared mutable state between tests (shared DB without cleanup) — breaks isolation, makes run order significant.
 
----
+## Step 6. Test-suite composition (PHPUnit/Pest)
 
-## Шаг 6. CI Integration
+Not one flat `tests/` — split into named `<testsuite>` so fast tests fail first, slow ones isolated to a separate job:
+
+| Suite | What | Speed | Run |
+|:---|:---|:---|:---|
+| **Arch** | architecture invariants (Pest Arch) | ms, no DB | first, separate |
+| **Unit** | pure logic, isolation via mock | ms | before Feature |
+| **Feature** | layer↔layer, DB, HTTP | hundreds ms | main |
+| **Context** | end-to-end domain scenarios (opt.) | seconds | after Feature |
+| **UnitFilament** / UI-suite | panel/widgets, separate bootstrap | hundreds ms | separate |
+
+`--testsuite=Arch` runs first CI step (fast fail on boundary breach before DB); each suite parallelized in its own job; `<exclude>` removes overlaps (e.g. `Unit` excludes `Unit/Filament`). See `snippets/phpunit-testsuites.xml`.
+
+Enable run strictness at `<phpunit>` level: `failOnWarning`, `failOnRisky`, `failOnEmptyTestSuite`, `beStrictAboutOutputDuringTests`, `executionOrder="random"`.
+
+## Step 7. Architecture tests (Pest Arch)
+
+Encode boundaries/invariants as executable rules. Don't replace unit; protect architecture from erosion. Typical invariant set for layered backend:
+- `strict_types=1` everywhere in package/app (`->toUseStrictTypes()`).
+- No debug helpers in prod: `dd, dump, ray, var_dump, die` (`->not->toBeUsed()`).
+- **Actions** final (`->toBeFinal()`); **DTO / ValueObjects / Events** — `readonly`.
+- **Contracts** are interfaces (`->toBeInterfaces()`).
+- **Actions and Repositories don't depend on HTTP** (`->not->toUse(Request::class)`).
+
+See `snippets/pest-arch-test.php`. Laravel implementation — `laravel-testing/laravel-testing` and `php-packages/laravel-package-testing`; layer boundaries — `php/laravel-structure`.
+
+## Step 8. CI Integration
 
 ```yaml
 # .github/workflows/test.yml
@@ -113,20 +125,15 @@ stages:
   - coverage       # gate: < min → fail PR
 ```
 
-**Правило:** unit + integration — **обязаны проходить** до merge. E2E можно как nightly или as post-merge smoke.
+Rule: unit + integration **must pass** before merge. E2E can be nightly or post-merge smoke.
 
----
+## What the agent adds itself
+- "Test time budget": % of feature dev time for tests (standard 30-40%, critical modules 50%+)
+- Test framework recommendation per language (see relevant `oss-dev/references/oss-*.md`)
+- Flaky tests warning: "3 strikes — quarantine" rule, flakiness rate metric
+- Test plan template for a large feature (preconditions / scenarios / expected outcomes)
 
-## Что агент добавляет сам
-
-- Расчёт «тестовый бюджет времени»: сколько % времени разработки фичи закладывается на тесты (стандарт — 30-40%, для критичных модулей 50%+)
-- Рекомендация по test framework под язык (см. соответствующий `oss-dev/references/oss-*.md`)
-- Предупреждение о flaky tests: правило «3 strikes — quarantine», метрика flakiness rate
-- Шаблон test plan для крупной фичи (preconditions / scenarios / expected outcomes)
-
----
-
-## Структура output-файла `Test_Strategy.md`
+## Output file `Test_Strategy.md` structure
 
 ```markdown
 # Test Strategy: [ProjectName]
@@ -141,18 +148,27 @@ stages:
 ## 8. Open questions / TODO
 ```
 
----
+## Hard prohibitions
 
-## Жёсткие запреты
+FORBIDDEN:
+- Writing E2E without unit coverage of the same logic
+- Coverage gate < 60% for domain layer (marker "tests aren't written at all")
+- Shared mutable DB between tests without cleanup
+- Mocking the standard library (datetime, fs) instead of injecting an abstraction — makes tests fragile to refactoring
+- Treating coverage as a goal instead of a risk metric
+- Running tests against production environment
 
-НЕЛЬЗЯ:
-- Писать E2E без unit-покрытия той же логики
-- Coverage gate < 60% для domain-слоя (это маркер «тесты вообще не пишутся»)
-- Shared mutable БД между тестами без cleanup
-- Мокать стандартную библиотеку (datetime, fs) вместо инъекции абстракции — делает тесты хрупкими к рефакторингу
-- Считать coverage целью вместо метрики риска
-- Запускать тесты против production-окружения
+## Links
+- Strategy implementations: `laravel-testing/laravel-testing` (app), `php-packages/laravel-package-testing` (packages), `laravel-testing/laravel-dusk` (E2E), `frontend-vue/vitest` (frontend), `quality/playwright-e2e` (native TS E2E)
+- `quality/mutation-testing` — measure test quality (MSI) on top of coverage policy
+- `quality/code-review` — "are there tests on new logic" criterion relies on this strategy
+- `quality/tech-debt-audit` — where ice-cream cone and coverage debt are logged
+- `laravel-testing/test-isolation-guard`, `devops/db-test-preflight` — test DB isolation and preflight
+- `devops/ci-cd` — coverage gate as separate CI job (threshold from this coverage policy), running suites per job
+- `php/laravel-structure` — layer boundaries checked by Arch invariants
+- snippets/pest-arch-test.php — Pest Arch rules set (strict types, no-debug, final actions, readonly DTO/VO/Events, contracts=interfaces, no Request in Actions/Repositories)
+- snippets/phpunit-testsuites.xml — `<testsuites>` Arch/Feature/Context/Unit + strict run flags
 
-## Ссылки
+<!-- ru-source-sha256: PENDING -->
 
-- Реализации стратегии: `php/laravel-testing` (приложение), `php/laravel-package-testing` (пакеты), `php/laravel-dusk` (E2E), `frontend/vitest` (фронтенд)
+<!-- ru-source-sha256: 55764298eae5df06136709b1a3a23b456b312712a1ff9ef209ab00366b21a8bc -->

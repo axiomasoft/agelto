@@ -1,0 +1,36 @@
+{
+  "$schema": "https://raw.githubusercontent.com/academici/swissknifeman/main/packages/skiller/schema/swissknifeman-config.schema.json",
+  "_comment": "vendor-режим: физический перенос скиллов в репо (sync) в .claude/skills (Claude находит нативно), затем зеркалится в .cursor/skills для Cursor. Источник истины набора. Применить: skiller sync. Скиллы помечаются managed в skills-lock.json; чужие/локальные записи синк не трогает.",
+  "version": 1,
+  "mode": "vendor",
+  "agent": "claude",
+  "skills_path": ".claude/skills",
+  "_comment_stack": "Laravel 12 + Filament v5 + Inertia/Vue3 + Tailwind v4 + Wayfinder + spatie/laravel-data + spatie/medialibrary(-pro) + Fortify + Pest (pgsql). Домен: crawling/parsing ЕИС, Gemini-анализ, извлечение смет.",
+  "buckets": [
+    "system",
+    "architect",
+    "php",
+    "laravel-testing",
+    "laravel-auth",
+    "laravel-data-layer",
+    "laravel-architecture",
+    "laravel-filament",
+    "laravel-extras",
+    "devops",
+    "quality",
+    "operator",
+    "general",
+    "frontend",
+    "frontend-vue",
+    "frontend-backend",
+    "frontend-tailwind",
+    "frontend-wayfinder",
+    "frontend-vite",
+    "frontend-linting"
+  ],
+  "_comment_local": "Собственные доменные скиллы Agelto (ai-context-workflow, project-map, node-yarn-preflight, pest-testing, testing-rules) — НЕ managed, лежат в .claude/skills, sync их не трогает.",
+  "_comment_exclude": "general/project-map исключён — у проекта свой богаче project-map (Agelto-специфичный, локальный).",
+  "exclude": [
+    "general/project-map"
+  ]
+}

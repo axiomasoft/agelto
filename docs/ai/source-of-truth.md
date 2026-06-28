@@ -1,32 +1,27 @@
 # Единый источник истины (AI контекст)
 
-В проекте **единый источник истины** для правил и навыков агентов — каталог **`.ai/`** и файл **`boost.json`** в корне репозитория.
+В проекте источник правил/навыков агентов — каталог **`.ai/`** (модульные гайдлайны и скиллы)
+и **agent-файлы в корне** (`CLAUDE.md`, `AGENTS.md`, `GEMINI.md`).
+
+> **Laravel Boost — только MCP-сервер.** Раньше Boost (`boost:update`) собирал `CLAUDE.md`/`AGENTS.md`/
+> `GEMINI.md` из трёх источников (встроенные гайдлайны Boost + пакетные + кастомные `.ai/`). Это
+> убрано: в `boost.json` стоит `"guidelines": false`, `"skills": []`, `"mcp": true`. Boost больше НЕ
+> композитор контекста и НЕ подмешивает свои фреймворк-гайдлайны (laravel/livewire/pest/filament/…).
 
 ## Что правим руками
 
-- `.ai/guidelines/*`
-- `.ai/skills/*/SKILL.md`
-- `boost.json`
-- `skills-lock.json` (если подключаем внешние skills)
+- **`CLAUDE.md` / `AGENTS.md` / `GEMINI.md`** (в корне) — теперь это **ведомые вручную** файлы
+  контекста (трекаются в git). Их читают агенты напрямую.
+- `.ai/guidelines/*.md` — модульные кастомные гайдлайны проекта (источник/референс; на них ссылаются
+  сами agent-файлы по путям).
+- `.ai/skills/*/SKILL.md` — скиллы (vendor swissknifeman + локальные).
 
-После любых правок выполняем:
-
-```bash
-php artisan boost:update
-```
-
-или алиас:
-
-```bash
-composer ai:sync
-```
-
-## Что не правим руками
-
-- сгенерированные файлы `AGENTS.md`, `CLAUDE.md` (если используются)
-- сгенерированное содержимое `.claude/` и части `.cursor/`, которые обновляются Boost
+> Композитора (`boost:update`/`composer ai:sync`) больше нет — синхронизировать `.ai/` → agent-файлы
+> нужно вручную при значимых правках. Скиллы для Claude Code предпочтительно доставлять нативно в
+> `.claude/skills/` (swissknifeman vendor `skiller sync`), тогда Claude грузит их прогрессивно, а не
+> текстом внутри `CLAUDE.md`.
 
 ## MCP Laravel Boost
 
-Для работы агентов включаем MCP сервер Boost через `.cursor/mcp.json`.
-
+Boost остаётся как **MCP-сервер** (database-query/tinker/logs/docs) — подключается через `.mcp.json` /
+`.cursor/mcp.json`. Его guidelines и skills отключены (`boost.json`).

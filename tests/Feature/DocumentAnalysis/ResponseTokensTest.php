@@ -3,14 +3,10 @@
 declare(strict_types=1);
 
 use App\Dto\Prompt\Step;
-use App\Enums\AnalysisStatus;
 use App\Models\DocumentAnalysis\DocumentAnalysis;
 
-it('DocumentAnalysisResponse сохраняет расход токенов Gemini', function () {
-    $analysis = DocumentAnalysis::query()->create([
-        'source' => 'https://example.com/smeta.pdf',
-        'status' => AnalysisStatus::Completed->value,
-    ]);
+test('DocumentAnalysisResponse сохраняет расход токенов Gemini', function () {
+    $analysis = DocumentAnalysis::factory()->completed()->create();
 
     $response = $analysis->responses()->create([
         'step' => Step::PrimaryAnalysis,
