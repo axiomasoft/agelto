@@ -39,7 +39,7 @@ final class DocumentProcessor
 
     public function loadMedia(DocumentAnalysis $analysis)
     {
-        $model = $analysis->getDocumentAnalysable();
+        $model = $analysis->owner();
 
         // Первичный документ (исходный файл)
         // Цель: в зависимости от типа модели, копируем файл в коллекцию document-source

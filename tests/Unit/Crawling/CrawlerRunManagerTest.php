@@ -3,51 +3,47 @@
 declare(strict_types=1);
 
 use App\Enums\Crawler\CrawlerRunStatus;
+use App\Models\Crawler\Crawler;
 use App\Models\Crawler\CrawlerRun;
-use Sys\Models\SysLog;
+use App\Process\Crawling\Run\CrawlerRunManager;
 
-it('создаёт активный прогон и пишет веху старта в журнал', function () {
-    $crawler = crawlerProfile();
+beforeEach(function () {
+    $this->manager = app(CrawlerRunManager::class);
+});
 
-    $run = crawlerRunManager()->startOrResume($crawler);
+test('создаёт активный прогон и пишет веху старта в журнал', function () {
+    $crawler = Crawler::factory()->create();
+
+    $run = $this->manager->startOrResume($crawler);
 
     expect($run)->not->toBeNull()
         ->and($run->status)->toBe(CrawlerRunStatus::Running)
         ->and($run->started_at)->not->toBeNull()
         ->and($run->last_heartbeat_at)->not->toBeNull();
 
-    expect(SysLog::query()
-        ->where('entity_type', CrawlerRun::class)
-        ->where('entity_id', $run->id)
-        ->where('message', 'like', '%Старт прогона%')
-        ->exists())->toBeTrue();
+    expect($run)->toHaveLoggedMessage('%Старт прогона%');
 });
 
-it('не создаёт второй прогон, пока активный жив (свежий heartbeat)', function () {
-    $crawler = crawlerProfile();
+test('не создаёт второй прогон, пока активный жив (свежий heartbeat)', function () {
+    $crawler = Crawler::factory()->create();
 
-    $first = crawlerRunManager()->startOrResume($crawler);
-    $second = crawlerRunManager()->startOrResume($crawler);
+    $first = $this->manager->startOrResume($crawler);
+    $second = $this->manager->startOrResume($crawler);
 
     expect($second)->toBeNull()
         ->and(CrawlerRun::query()->where('crawler_id', $crawler->id)->count())->toBe(1)
         ->and($first->fresh()->status)->toBe(CrawlerRunStatus::Running);
 });
 
-it('возобновляет оборванный прогон (устаревший heartbeat), сохраняя курсор', function () {
-    $crawler = crawlerProfile();
+test('возобновляет оборванный прогон (устаревший heartbeat), сохраняя курсор', function () {
+    $crawler = Crawler::factory()->create();
 
-    $orphan = CrawlerRun::query()->create([
-        'crawler_id' => $crawler->id,
-        'status' => CrawlerRunStatus::Running,
-        'attempts' => 0,
-        'started_at' => now()->subHour(),
-        'last_heartbeat_at' => now()->subHour(),
+    $orphan = CrawlerRun::factory()->for($crawler)->orphaned()->create([
         'day_from' => '2025-03-04',
         'current_page' => 7,
     ]);
 
-    $resumed = crawlerRunManager()->startOrResume($crawler);
+    $resumed = $this->manager->startOrResume($crawler);
 
     expect($resumed->id)->toBe($orphan->id)
         ->and($resumed->status)->toBe(CrawlerRunStatus::Running)
@@ -56,29 +52,26 @@ it('возобновляет оборванный прогон (устаревш
         ->and($resumed->day_from->toDateString())->toBe('2025-03-04')
         ->and(CrawlerRun::query()->where('crawler_id', $crawler->id)->count())->toBe(1);
 
-    expect(SysLog::query()
-        ->where('entity_id', $orphan->id)
-        ->where('message', 'like', '%оборванный прогон%')
-        ->exists())->toBeTrue();
+    expect($orphan)->toHaveLoggedMessage('%оборванный прогон%');
 });
 
-it('двигает heartbeat и чекпойнт курсора', function () {
-    $crawler = crawlerProfile();
-    $run = crawlerRunManager()->startOrResume($crawler);
+test('двигает heartbeat и чекпойнт курсора', function () {
+    $crawler = Crawler::factory()->create();
+    $run = $this->manager->startOrResume($crawler);
 
-    crawlerRunManager()->heartbeat($run, ['cursor_url' => 'https://x/?pageNumber=3', 'current_page' => 3]);
+    $this->manager->heartbeat($run, ['cursor_url' => 'https://x/?pageNumber=3', 'current_page' => 3]);
 
     $run->refresh();
     expect($run->cursor_url)->toBe('https://x/?pageNumber=3')
         ->and($run->current_page)->toBe(3);
 });
 
-it('штатно завершает прогон и очищает курсор', function () {
-    $crawler = crawlerProfile();
-    $run = crawlerRunManager()->startOrResume($crawler);
-    crawlerRunManager()->heartbeat($run, ['cursor_url' => 'https://x/?pageNumber=3', 'current_page' => 3]);
+test('штатно завершает прогон и очищает курсор', function () {
+    $crawler = Crawler::factory()->create();
+    $run = $this->manager->startOrResume($crawler);
+    $this->manager->heartbeat($run, ['cursor_url' => 'https://x/?pageNumber=3', 'current_page' => 3]);
 
-    crawlerRunManager()->complete($run);
+    $this->manager->complete($run);
 
     $run->refresh();
     expect($run->status)->toBe(CrawlerRunStatus::Completed)
@@ -87,12 +80,12 @@ it('штатно завершает прогон и очищает курсор'
         ->and($run->current_page)->toBeNull();
 });
 
-it('фиксирует падение с error-блоком, сохраняя курсор для resume', function () {
-    $crawler = crawlerProfile();
-    $run = crawlerRunManager()->startOrResume($crawler);
-    crawlerRunManager()->heartbeat($run, ['cursor_url' => 'https://x/?pageNumber=5', 'current_page' => 5]);
+test('фиксирует падение с error-блоком, сохраняя курсор для resume', function () {
+    $crawler = Crawler::factory()->create();
+    $run = $this->manager->startOrResume($crawler);
+    $this->manager->heartbeat($run, ['cursor_url' => 'https://x/?pageNumber=5', 'current_page' => 5]);
 
-    crawlerRunManager()->fail($run, new RuntimeException('браузер упал'));
+    $this->manager->fail($run, new RuntimeException('браузер упал'));
 
     $run->refresh();
     expect($run->status)->toBe(CrawlerRunStatus::Failed)
@@ -103,8 +96,5 @@ it('фиксирует падение с error-блоком, сохраняя к
         ->and($run->cursor_url)->toBe('https://x/?pageNumber=5')
         ->and($run->current_page)->toBe(5);
 
-    expect(SysLog::query()
-        ->where('entity_id', $run->id)
-        ->where('message', 'like', '%упал%')
-        ->exists())->toBeTrue();
+    expect($run)->toHaveLoggedMessage('%упал%');
 });

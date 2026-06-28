@@ -23,6 +23,7 @@ When a task requires more detail than what's in the current context, load the re
 ## Fast Term Routing (Minimal Context First)
 
 - Непонятные термины домена (Crawler, Link, Document, стадии 1–4) — сначала `docs/workflow/parsing-process.md`.
+- Имена классов/методов/переменных, канон глаголов (`find/get`), нейминг тестов — `.ai/guidelines/glossary.md` (канон) и `docs/dev/glossary.md` (полный справочник).
 - Изменение пайплайна парсинга / jobs / очередей — `.ai/guidelines/project-development.md`.
 - Большая/неоднозначная задача на несколько слоёв — skill `complex-task-orchestrator`.
 - Первый проход минимальный: 1–2 файла, затем расширять по необходимости.
@@ -42,6 +43,7 @@ When a task requires more detail than what's in the current context, load the re
 |---|---|
 | Crawling, parsing, AI screening, estimate extraction | `docs/workflow/parsing-process.md` |
 | Platform / EIS / модули, терминология | `docs/dev/architecture.md` |
+| Имена сущностей/методов/переменных, канон глаголов, нейминг тестов | `.ai/guidelines/glossary.md`, `docs/dev/glossary.md` |
 | Layer boundaries, where logic lives | `.ai/guidelines/architecture.md` |
 | Cross-layer change in parsing pipeline | `.ai/guidelines/project-development.md` |
 | Docker dev/prod, Makefile deploy targets | `docs/dev/docker/` |

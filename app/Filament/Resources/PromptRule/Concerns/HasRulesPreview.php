@@ -11,6 +11,6 @@ trait HasRulesPreview
 {
     public function getRulesPreviewContentForStep(Step $step): string
     {
-        return app(PromptRuleRepository::class)->getSystemInstructionsForStep(step: $step);
+        return app(PromptRuleRepository::class)->systemInstructionsFor(step: $step);
     }
 }

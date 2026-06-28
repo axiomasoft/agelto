@@ -2,33 +2,14 @@
 
 declare(strict_types=1);
 
-use App\Enums\Crawler\CrawlerRunStatus;
+use App\Enums\LogOutput;
 use App\Models\Crawler\CrawlerRun;
 use App\Services\AppLogger;
 use Sys\Models\SysLog;
 
-function loggerBoundToRun(): array
-{
-    $crawler = crawlerProfile();
-    $run = CrawlerRun::query()->create([
-        'crawler_id' => $crawler->id,
-        'status' => CrawlerRunStatus::Running,
-        'started_at' => now(),
-    ]);
-
-    $logger = app(AppLogger::class);
-    $logger->setContext([
-        'entity_type' => CrawlerRun::class,
-        'entity_id' => $run->id,
-        'stage' => 'Crawling',
-        'source' => 'crawler',
-    ]);
-
-    return [$logger, $run];
-}
-
-it('event() пишет веху в sys_logs с привязкой к сущности', function () {
-    [$logger, $run] = loggerBoundToRun();
+test('event() пишет веху в sys_logs с привязкой к сущности', function () {
+    $run = CrawlerRun::factory()->create();
+    $logger = loggerForRun($run);
 
     $logger->event('веха старта');
 
@@ -40,8 +21,9 @@ it('event() пишет веху в sys_logs с привязкой к сущно�
         ->exists())->toBeTrue();
 });
 
-it('info() не попадает в журнал, а error() — попадает', function () {
-    [$logger, $run] = loggerBoundToRun();
+test('info() не попадает в журнал, а error() — попадает', function () {
+    $run = CrawlerRun::factory()->create();
+    $logger = loggerForRun($run);
 
     $logger->info('просто инфо');
     expect(SysLog::query()->where('entity_id', $run->id)->count())->toBe(0);
@@ -54,7 +36,7 @@ it('info() не попадает в журнал, а error() — попадае�
         ->exists())->toBeTrue();
 });
 
-it('без контекста сущности в журнал ничего не пишет', function () {
+test('без контекста сущности в журнал ничего не пишет', function () {
     $logger = app(AppLogger::class);
     $logger->clearContext();
 
@@ -63,10 +45,19 @@ it('без контекста сущности в журнал ничего не
     expect(SysLog::query()->count())->toBe(0);
 });
 
-it('debug() не пишет в журнал', function () {
-    [$logger, $run] = loggerBoundToRun();
+test('debug() не пишет в журнал', function () {
+    $run = CrawlerRun::factory()->create();
+    $logger = loggerForRun($run);
 
     $logger->debug('детальный трейс');
 
     expect(SysLog::query()->where('entity_id', $run->id)->count())->toBe(0);
+});
+
+test('пишет в канал pipeline — JSON daily', function () {
+    // Запись не должна падать — канал должен быть сконфигурирован.
+    app(AppLogger::class)->info('тест', LogOutput::File, ['stage' => 'crawling']);
+
+    expect(config('logging.channels.pipeline.driver'))->toBe('daily')
+        ->and(config('logging.channels.pipeline.formatter'))->toBe(Monolog\Formatter\JsonFormatter::class);
 });

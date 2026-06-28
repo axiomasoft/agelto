@@ -19,7 +19,7 @@ final class PromptRuleRepository
     /**
      * Сначала правила из БД, в конце — содержимое файлов схем для каждого процесса (Responses в конце).
      */
-    public function getSystemInstructionsForStep(Step $step): string
+    public function systemInstructionsFor(Step $step): string
     {
         $steps = $this->stepsForInstruction(step: $step);
 

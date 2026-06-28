@@ -56,7 +56,7 @@ final class PrimaryAnalysisProcessor
 
         $fileUri = $this->gemini->ensureFileInCloud($analysis);
 
-        $systemInstructions = $this->promptRepo->getSystemInstructionsForStep(self::STEP);
+        $systemInstructions = $this->promptRepo->systemInstructionsFor(self::STEP);
 
         $prompt = 'Выполни первичный анализ согласно правилам.';
 

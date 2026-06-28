@@ -7,6 +7,7 @@ namespace App\Models\DocumentAnalysis;
 use App\Enums\AnalysisStatus;
 use App\Models\Crawler\Link;
 use App\Models\Crawler\LinkAttachment;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -17,7 +18,7 @@ use Spatie\MediaLibrary\MediaCollections\Models\Media;
 
 final class DocumentAnalysis extends Model implements HasMedia
 {
-    use InteractsWithMedia;
+    use HasFactory, InteractsWithMedia;
 
     public const COLLECTION_DOCUMENT_SOURCE = 'document-source';
 
@@ -69,9 +70,9 @@ final class DocumentAnalysis extends Model implements HasMedia
     }
 
     /**
-     * Возвращает владельца анализа (полиморфная связь по model_type, model_id).
+     * Владелец анализа — сущность, к которой он привязан (LinkAttachment и др.).
      */
-    public function getDocumentAnalysable(): Model|Media|null
+    public function owner(): Model|Media|null
     {
         return $this->model;
     }
