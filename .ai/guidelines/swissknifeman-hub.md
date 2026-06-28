@@ -1,17 +1,16 @@
 # Swissknifeman: хаб скиллов
 
-<!-- Изначально сгенерировано из реестра swissknifeman; далее ведётся вручную. -->
-<!-- swissknifeman:registry sha=5d8e1c5befe7 skills=195 -->
+<!-- Сгенерировано scripts/generate-hub.sh из реестра swissknifeman. -->
+<!-- НЕ редактируйте вручную: перегенерация затрёт правки. -->
+<!-- swissknifeman:registry sha=0263718c0183 skills=197 -->
 
 ## Приоритет источников правил
 
 1. Проектные правила и скиллы (`.ai/guidelines/`, `.ai/skills/`, корневые инструкции проекта) — высший приоритет.
-2. Скиллы swissknifeman (индекс ниже) — архитектура, структура, практики, процессы.
+2. Laravel Boost: для версионно-специфичных тем (Laravel, Pest, Inertia, Livewire, Tailwind, Filament) используй встроенные скиллы/гайдлайны Boost — они привязаны к версиям пакетов.
+3. Скиллы swissknifeman (индекс ниже) — архитектура, структура, практики, процессы.
 
-Конфликт правил: побеждает более специфичный источник (проект > реестр swissknifeman).
-
-> Laravel Boost — **только MCP-инструменты** (database-query/tinker/logs/docs), НЕ источник правил/скиллов.
-> Версионно-специфичные темы (Laravel/Pest/Inertia/Livewire/Tailwind/Filament) бери из скиллов реестра.
+Конфликт правил: побеждает более специфичный источник (проект > Boost > реестр swissknifeman).
 
 ## Как найти нужный скилл
 
@@ -31,7 +30,7 @@
 | `agelto-spec-writer` | >- | architecture, api-design, data-schema, task-brief-template |
 | `agelto-test-writer` | >- | laravel-testing, test-isolation-guard, repositories |
 
-## Установленные скиллы (106)
+## Установленные скиллы (124)
 
 ### architect — Architecture, API and data design, security, observability, tech stack selection
 
@@ -83,10 +82,6 @@
 - **js-code-style** — JS/TS style per Spatie: 4 spaces, width 120, single quotes, const-first, strict ===, function for named functions, destructuring, named imports.
 - **ts-library** — Use when authoring TypeScript libraries or npm packages - covers project setup, package.json exports, build tooling (tsdown/unbuild), API design patterns, type inference tricks, testing, and publishing to npm. Use when bundling, configuring dual CJS/ESM output, or setting up release workflows.
 
-### frontend-reka — Reka UI headless primitives + CVA variants
-
-- **reka-ui-cva** — UI component library on Reka UI headless primitives + class-variance-authority (cva) variants. Activate when adding/editing a component in components/ui/, defining cva variants, wrapping a reka-ui primitive in your own component, building composite Root/Trigger/Content (Dialog/Dropdown/Tooltip), merging classes via cn(), or wiring to Tailwind.
-
 ### frontend-tailwind — Tailwind CSS v4 conventions and dark-mode theming
 
 - **dark-mode** — Dark theme light|dark|system on Vue 3: useDarkMode composable (matchMedia prefers-color-scheme, localStorage + cookie for SSR, toggle .dark class on documentElement, change listener for system), pre-mount init without theme flash, mini toggle. Activate when adding theme switching, fighting light-theme flash (FOUC), syncing theme with system, or restoring theme under SSR.
@@ -121,14 +116,26 @@
 
 - **anti-drift** — Discipline against agent rabbit-holing: think before coding, simplicity first, surgical edits, circuit-breaker on dragging iterations.
 - **compact-responses** — Activate ultra-compact response mode: minimal prose, code-only, no explanations unless asked. Use for terse output — quick edits, code reviews, repeated tasks with established context.
+- **complex-task-orchestrator** — Complex-task orchestration: decomposition, context routing, risk management, Definition of Done, minimal verification loop.
 - **context-economy** — Claude Code context economy in a project: CLAUDE.md ≤200 lines, path-scoped .claude/rules/, /compact vs /clear, Plan→Clear→Execute, MCP audit, model routing. Officially-supported mechanisms only — no myths like .claudeignore.
+- **cross-layer-change-checklist** — Universal checklist for changes spanning multiple layers: code, authorization, UI, docs, tests.
+- **git-commit-rules** — Git workflow: commit prep, husky/commitlint, message format, safe action order.
+- **git-safety** — Guard against destructive git commands via a Claude Code PreToolUse hook: blocks push/reset --hard/clean -f/branch -D/checkout ./rebase --onto BEFORE execution. Activate on project init (esp. production/embedded) or when asked to add git guardrails / forbid dangerous git.
+- **grill-with-docs** — Ruthless grilling session that SIMULTANEOUSLY builds a domain model: refines a plan/design one question at a time, cross-checking code AND external docs (API/RFC/banking specs), and writes the glossary (CONTEXT.md) and ADRs as it goes. Invoke EXPLICITLY to turn a vague idea into a strict spec with fixed terminology.
+- **implement** — Implement a chunk of work from a spec/PRD/issue via a minimal chain: tdd-discipline on agreed seams, regular typecheck/tests, a full run at the end, code-review, commit to the current branch. Invoke EXPLICITLY (writes code) — the final step after spec-interview/grill-with-docs/to-issues.
 - **mcp-advisor** — Pick MCP servers for a project at onboarding/sync: which to connect (context7/playwright/github/fetch/sequential-thinking + maind hub), why, when NOT to, and the cost in context/permissions/Node-deps. Activate when adding/onboarding/syncing a project, editing .mcp.json, or choosing MCP — emits a justified connection plan, not a dump of every server.
+- **naming-conventions** — Naming discipline (language-agnostic): name reveals intent, not implementation; fight noise words (Manager/Helper/data/process) and combinatorial method explosion (findByXOrFail/getOrNull). Activate when naming or reviewing names of functions, classes, variables, methods.
+- **packages-stack** — Project external-dependency registry methodology: which packages are used and for what, a per-package rule (when to use, what NOT to do by hand), reliance on OFFICIAL docs. Activate when choosing/adding a dependency or mapping the stack at project init; language-agnostic.
 - **session-handoff** — Cross-session/agent context handoff: compress a session into a structured doc — state, decisions, open items, next steps.
+- **skills-ssot** — Single source of truth for skills across multiple AI agents: .ai/skills + symlinks, gitignore, update cycle
+- **spec-interview** — Pre-code interview: agent asks one question at a time, reads the codebase itself where it can, proposes a recommended answer; output — a filled task brief per task-brief-template.
 - **task-brief-template** — Brief template for complex agent tasks: goal, scope, invariants, explicit assumptions, out of scope, acceptance criteria, definition of done. Plus Plan→Clear→Execute pattern and loop fields for iterative runs: verifier, exit condition, hard-stop.
 - **verify-claims** — Before a decision/verdict that rests on an EXTERNAL fact (library version/API, 'still current', best practice, market, another service's/MCP's capabilities) — verify via RAG, don't assert from memory (knowledge cutoff goes stale). Ladder: context7 (docs) → Perplexity (native MCP if API key, else perplexity-web) → WebSearch → research for deep. Activate on audit/plan review, big planning, library/stack/dependency choice, claiming 'this is standard/modern'. Repo-grounded facts (read the code) and stable knowledge — no check.
+- **writing-style** — Tone & language of code artifacts: Russian by default for comments, commit bodies, test descriptions it()/test(), docstrings, internal docs; live language, no bureaucratese, explain WHY not WHAT. Activate when writing comments, commit bodies, test descriptions, internal docs (git format/mechanics → git-commit-rules).
 
 ### laravel-architecture — Scaling architecture: modular monolith/DDD, enum state machines, enum attributes, subagent orchestration
 
+- **eloquent-accessors** — Activate when writing/refactoring Eloquent accessors and mutators: when you see legacy getXxxAttribute()/setXxxAttribute() and should move to modern Attribute::make() (get/set), or when deciding where to place and how to type a computed model property. Triggers: getFooAttribute, Attribute::make, accessor, mutator, computed attribute, Illuminate\\Database\\Eloquent\\Casts\\Attribute
 - **enum-attributes** — Use for enum metadata: replace label()/color()/description() match-ladders with PHP attributes #[Label]/#[Color]/#[Description] on cases + Concern traits with a reflection resolver; or export an enum as a TS type via #[TypeScript] stack (App.Enums.* union in .d.ts). Triggers: PHP enum, attributes on cases, getLabel()/getColor(), Filament HasLabel, spatie/laravel-typescript-transformer, local enum-concern via path-repository
 - **enum-state-machine** — Activate when a domain status (Order/Document/Subscription) grows into a transition graph: single edge graph as enum method transitionDefinitions() (from→to + guard + action + label), a runtime transition registry (canTransition/allowedFrom) over it, and transition execution in an Action under DB::transaction() with a domain event. Triggers: PHP status enum, allowed transitions, StateMachine/workflow, parallel transition graph to unify into one source, canTransitionTo, allowedTransitions, illegal status transition
 - **laravel-subagents** — Subagent orchestration on large Laravel tasks: activation threshold, delegating research to Explore agents, review via laravel-reviewer, tests via laravel-test-writer, worktree isolation of parallel edits. Do not apply to small/medium tasks.
@@ -164,7 +171,12 @@
 
 ### operator — Incident response, runbooks, postmortems, on-call and capacity planning
 
+- **capacity-planning** — Capacity planning — load forecasting, headroom, autoscaling policy, cost budget, what to monitor, when to scale up/down
+- **incident-response** — Prod incident response process — severity levels, roles (IC/Comms/SME), communication, action log, handoff to postmortem
+- **oncall-rotation** — On-call rotation design — schedule, primary/secondary, handoff, compensation, burnout defusing, paging policy
 - **operations-cx-super-skill** — Broad operations/CX-bucket navigator (composite of external CX skills). For specific work prefer the granular skill — incidents→incident-response, postmortem→postmortem, on-call→oncall-rotation, capacity→capacity-planning, runbooks→runbook. Use only for a cross-cutting overview when no single skill fits.
+- **postmortem** — Blameless postmortem after SEV-1/2 incident — timeline, root cause (5 Whys), contributing factors, action items, knowledge distribution
+- **runbook** — Operational runbook template per P1/P2 alert — symptoms, diagnostics, mitigation steps, escalation, post-actions
 
 ### oss-dev — Open-source development: releases, governance, DX, dependency audits + language references
 
@@ -185,6 +197,11 @@
 - **php-upgrade-checklist** — PHP version upgrade checklist (minor/major): sync image/CI, composer update + clear deprecations, phpstan baseline, full suite, update rector sets, review RFCs for incompatibilities. Activate before bumping PHP version.
 - **repositories** — Laravel repositories: read/store split, model scopes, delta-DTO, facade, VisibilityService
 - **static-analysis** — PHP/Laravel static analysis & linting: Laravel Pint, PHPStan, Rector locally + CI, reference configs
+
+### pm — Product management: BRD, PRD, roadmap, monetization, unit economics
+
+- **brd** — Business Requirements Document: functional requirements, user stories, acceptance criteria
+- **business-process** — Business processes, workflow, FSM, sequence/state diagrams, error handling
 
 ### quality — Code review, refactoring plans, tech debt audits, test strategy
 

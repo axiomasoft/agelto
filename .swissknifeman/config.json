@@ -29,8 +29,17 @@
     "frontend-linting"
   ],
   "_comment_local": "Собственные доменные скиллы Agelto (ai-context-workflow, project-map, node-yarn-preflight, pest-testing, testing-rules) — НЕ managed, лежат в .claude/skills, sync их не трогает.",
-  "_comment_exclude": "general/project-map исключён — у проекта свой богаче project-map (Agelto-специфичный, локальный).",
+  "_comment_exclude": "Урезание набора: исключены тяжёлые/нерелевантные. general/project-map — есть свой локальный. Супер-скиллы-навигаторы (composite) избыточны при гранулярных. vueuse-functions — огромный (~646KB references), опциональная конвенция. ts-library — авторинг npm-библиотек (agelto — приложение). vitepress — авторинг доксайтов, не dev-loop. vue-router-* — Inertia не использует vue-router. vue-testing-best-practices/vitest-vue — тяжёлые, базу даёт vitest. laravel-best-practices — большой composite, покрыт laravel/laravel-structure/php-naming-conventions.",
   "exclude": [
-    "general/project-map"
+    "general/project-map",
+    "dev-engineering-super-skill",
+    "operations-cx-super-skill",
+    "vueuse-functions",
+    "ts-library",
+    "vitepress",
+    "vue-router-best-practices",
+    "vue-testing-best-practices",
+    "vitest-vue",
+    "laravel-best-practices"
   ]
 }

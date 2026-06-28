@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "installed_at": "2026-06-28T15:50:22Z",
+  "installed_at": "2026-06-28T17:06:36Z",
   "profile": "",
   "agent": "claude",
   "layout": "flat",
@@ -104,10 +104,6 @@
     {
       "flat_name": "dependency-injection",
       "source_path": "skills/php/dependency-injection"
-    },
-    {
-      "flat_name": "dev-engineering-super-skill",
-      "source_path": "skills/architect/engineering"
     },
     {
       "flat_name": "diagnosing-bugs",
@@ -222,10 +218,6 @@
       "source_path": "skills/php/laravel"
     },
     {
-      "flat_name": "laravel-best-practices",
-      "source_path": "skills/php/laravel-best-practices"
-    },
-    {
       "flat_name": "laravel-broadcasting",
       "source_path": "skills/laravel-data-layer/laravel-broadcasting"
     },
@@ -308,10 +300,6 @@
     {
       "flat_name": "oncall-rotation",
       "source_path": "skills/operator/oncall-rotation"
-    },
-    {
-      "flat_name": "operations-cx-super-skill",
-      "source_path": "skills/operator/operations-cx"
     },
     {
       "flat_name": "package-contribution-protocol",
@@ -430,10 +418,6 @@
       "source_path": "skills/quality/testing-safety-report"
     },
     {
-      "flat_name": "ts-library",
-      "source_path": "skills/frontend-linting/ts-library"
-    },
-    {
       "flat_name": "verify-claims",
       "source_path": "skills/general/verify-claims"
     },
@@ -450,16 +434,8 @@
       "source_path": "skills/frontend-vite/vite-multi-build"
     },
     {
-      "flat_name": "vitepress",
-      "source_path": "skills/frontend-vite/vitepress"
-    },
-    {
       "flat_name": "vitest",
       "source_path": "skills/frontend-vue/vitest"
-    },
-    {
-      "flat_name": "vitest-vue",
-      "source_path": "skills/frontend-vue/vitest-vue"
     },
     {
       "flat_name": "vue",
@@ -476,18 +452,6 @@
     {
       "flat_name": "vue-dynamic-icons",
       "source_path": "skills/frontend-vue/vue-dynamic-icons"
-    },
-    {
-      "flat_name": "vue-router-best-practices",
-      "source_path": "skills/frontend-vue/vue-router-best-practices"
-    },
-    {
-      "flat_name": "vue-testing-best-practices",
-      "source_path": "skills/frontend-vue/vue-testing-best-practices"
-    },
-    {
-      "flat_name": "vueuse-functions",
-      "source_path": "skills/frontend-vue/vueuse-functions"
     },
     {
       "flat_name": "wayfinder",
