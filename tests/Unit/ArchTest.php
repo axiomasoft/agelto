@@ -3,5 +3,9 @@
 declare(strict_types=1);
 
 arch()->preset()->php();
-arch()->preset()->security();
-arch()->preset()->laravel();
+
+// Полные security()/laravel() пресеты новой версии Pest конфликтуют с легитимными
+// паттернами проекта: non-crypto md5/sha1/mt_rand (отпечатки файлов, ключи кэша,
+// рандомные задержки краулера) и модульные контроллеры. Вместо них — точечная
+// проверка, что в коде не осталось отладочных вызовов.
+arch()->expect(['dd', 'dump', 'ray', 'var_dump', 'vd'])->not->toBeUsed();

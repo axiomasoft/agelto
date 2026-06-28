@@ -11,9 +11,9 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 final class MediaLibraryController extends Controller
 {
     /**
-     * Скачивание файла из MediaLibrary по UUID и collection_name.
+     * Скачивание файла из MediaLibrary по UUID и collection_name (single-action).
      */
-    public function download(string $uuid, string $collectionName): StreamedResponse|Response
+    public function __invoke(string $uuid, string $collectionName): StreamedResponse|Response
     {
         $media = Media::where('uuid', $uuid)
             ->where('collection_name', $collectionName)
