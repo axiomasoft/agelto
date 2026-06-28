@@ -52,7 +52,6 @@ yarn-error.log
 .junie/
 .vscode/
 .mcp.json
-skills-lock.json
 
 # Boost: other agent configs are generated
 .agents/

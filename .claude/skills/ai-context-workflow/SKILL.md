@@ -1,6 +1,6 @@
 ---
 name: ai-context-workflow
-description: "Редактирование AI-контекста проекта: agent-файлы CLAUDE.md/AGENTS.md/GEMINI.md (ведём вручную) + модульные .ai/guidelines, .ai/skills. Laravel Boost — только MCP, НЕ композитор и НЕ источник guidelines/skills. Объяснение цикла для Cursor и Claude Code."
+description: "Редактирование AI-контекста проекта: agent-файлы CLAUDE.md/AGENTS.md/GEMINI.md (ведём вручную) + модульные .ai/guidelines + скиллы в .claude/skills (зеркало .cursor/skills). Laravel Boost — только MCP, НЕ композитор и НЕ источник guidelines/skills. Объяснение цикла для Cursor и Claude Code."
 ---
 
 # AI Context Workflow (Agelto)
@@ -8,7 +8,7 @@ description: "Редактирование AI-контекста проекта:
 ## Когда активировать
 
 - Нужно добавить/переименовать/изменить skill или guideline проекта.
-- Пользователь правит контекст агентов или спрашивает про дубли `.cursor/skills/` vs `.ai/skills/`.
+- Пользователь правит контекст агентов или спрашивает про дубли `.cursor/skills/` vs `.claude/skills/`.
 - Задача — описать другому разработчику, как безопасно обновлять правила для ИИ.
 
 Смена архитектурных договорённостей в коде должна сопровождаться правками в **`docs/dev/*`** (и
@@ -26,21 +26,33 @@ Boost подключён **как MCP-сервер** (`boost.json: mcp:true`, `g
 |---|---|
 | `CLAUDE.md` / `AGENTS.md` / `GEMINI.md` (корень, трекаются — читают агенты) | — |
 | `.ai/guidelines/*.md` (модульные кастомные гайдлайны, источник/референс) | встроенные гайдлайны Boost (отключены) |
-| `.ai/skills/*/SKILL.md` (vendor swissknifeman + локальные) | — |
+| `.claude/skills/*/SKILL.md` (vendor swissknifeman + локальные доменные) | — |
 
 > Автокомпозиции больше нет: при значимых правках `.ai/guidelines/*.md` синхронизируй вручную в
-> agent-файлы. Скиллы для Claude Code предпочтительно доставлять нативно в `.claude/skills/`
-> (swissknifeman vendor `skiller sync`) — Claude грузит их прогрессивно, а не текстом в `CLAUDE.md`.
+> agent-файлы. Скиллы доставляются нативно в **`.claude/skills/`** (Claude грузит их прогрессивно,
+> а не текстом в `CLAUDE.md`) и зеркалятся в `.cursor/skills/` для Cursor.
+
+## Скиллы: канал и раскладка
+
+- **Источник набора** — `.swissknifeman/config.json` (`mode:vendor`, `skills_path:.claude/skills`,
+  `buckets`/`exclude`). Применение: `skiller sync` → физ. копии библиотечных скиллов в `.claude/skills/`
+  + `skills-lock.json` (managed). Зеркало для Cursor: `cp -r .claude/skills/. .cursor/skills/`.
+- **Библиотечные** (managed) обновляются из реестра swissknifeman через `skiller sync` — руками не
+  правим (перетрутся). Нужна правка под проект → подними в библиотеку (`field-feedback-loop`) либо
+  держи как локальный скилл.
+- **Локальные доменные** (НЕ managed) — `ai-context-workflow`, `project-map`, `node-yarn-preflight`,
+  `pest-testing`, `testing-rules`: живут в `.claude/skills/`, `sync` их не трогает; правим в источнике.
 
 ## Порядок
 
-1. Правка в agent-файле и/или `.ai/`.
-2. Коммит: agent-файлы + `.ai/*`. `boost.json`/`skills-lock.json` — локальные (в `.gitignore`).
+1. Правка в agent-файле, `.ai/guidelines/` и/или локальном скилле `.claude/skills/`.
+2. Набор библиотечных скиллов меняется в `.swissknifeman/config.json` → `skiller sync` → зеркало в `.cursor/skills/`.
+3. Коммит: agent-файлы + `.ai/guidelines/*` + `.claude/skills/*` + `.cursor/skills/*` + `.swissknifeman/config.json` + `skills-lock.json`. `boost.json` — локальный (в `.gitignore`).
 
 ## Дублирование
 
-- Кастомные скиллы проекта живут в **`.ai/skills/`** (или `.claude/skills/` для нативной загрузки Claude).
-- `.cursor/skills/` может содержать копии из экосистемы агента; доменные скиллы Agelto правим в источнике, не в копиях.
+- Кастомные доменные скиллы проекта живут в **`.claude/skills/`**; для Cursor зеркалятся в `.cursor/skills/`.
+- `.cursor/skills/` — копии из `.claude/skills/`; доменные скиллы Agelto правим в источнике (`.claude/skills/`), не в копиях.
 
 ## Ссылка для людей
 

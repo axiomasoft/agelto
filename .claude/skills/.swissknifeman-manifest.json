@@ -1,0 +1,505 @@
+{
+  "version": 1,
+  "installed_at": "2026-06-28T15:50:22Z",
+  "profile": "",
+  "agent": "claude",
+  "layout": "flat",
+  "skills": [
+    {
+      "flat_name": "agent-design",
+      "source_path": "skills/architect/agent-design"
+    },
+    {
+      "flat_name": "agent-packs",
+      "source_path": "skills/system/agent-packs"
+    },
+    {
+      "flat_name": "antfu",
+      "source_path": "skills/frontend-linting/antfu"
+    },
+    {
+      "flat_name": "anti-drift",
+      "source_path": "skills/general/anti-drift"
+    },
+    {
+      "flat_name": "api-design",
+      "source_path": "skills/architect/api-design"
+    },
+    {
+      "flat_name": "architecture",
+      "source_path": "skills/architect/architecture"
+    },
+    {
+      "flat_name": "attribute-authorization",
+      "source_path": "skills/laravel-auth/attribute-authorization"
+    },
+    {
+      "flat_name": "backend-type-sync",
+      "source_path": "skills/frontend-backend/backend-type-sync"
+    },
+    {
+      "flat_name": "brd",
+      "source_path": "skills/pm/brd"
+    },
+    {
+      "flat_name": "business-process",
+      "source_path": "skills/pm/business-process"
+    },
+    {
+      "flat_name": "capacity-planning",
+      "source_path": "skills/operator/capacity-planning"
+    },
+    {
+      "flat_name": "ci-cd",
+      "source_path": "skills/devops/ci-cd"
+    },
+    {
+      "flat_name": "code-review",
+      "source_path": "skills/quality/code-review"
+    },
+    {
+      "flat_name": "code-simplifier",
+      "source_path": "skills/quality/code-simplifier"
+    },
+    {
+      "flat_name": "code-style-spatie",
+      "source_path": "skills/php/code-style-spatie"
+    },
+    {
+      "flat_name": "codebase-design",
+      "source_path": "skills/architect/codebase-design"
+    },
+    {
+      "flat_name": "compact-responses",
+      "source_path": "skills/general/compact-responses"
+    },
+    {
+      "flat_name": "complex-task-orchestrator",
+      "source_path": "skills/general/complex-task-orchestrator"
+    },
+    {
+      "flat_name": "context-economy",
+      "source_path": "skills/general/context-economy"
+    },
+    {
+      "flat_name": "cross-layer-change-checklist",
+      "source_path": "skills/general/cross-layer-change-checklist"
+    },
+    {
+      "flat_name": "dark-mode",
+      "source_path": "skills/frontend-tailwind/dark-mode"
+    },
+    {
+      "flat_name": "data-schema",
+      "source_path": "skills/architect/data-schema"
+    },
+    {
+      "flat_name": "database",
+      "source_path": "skills/php/database"
+    },
+    {
+      "flat_name": "db-test-preflight",
+      "source_path": "skills/devops/db-test-preflight"
+    },
+    {
+      "flat_name": "dependency-injection",
+      "source_path": "skills/php/dependency-injection"
+    },
+    {
+      "flat_name": "dev-engineering-super-skill",
+      "source_path": "skills/architect/engineering"
+    },
+    {
+      "flat_name": "diagnosing-bugs",
+      "source_path": "skills/quality/diagnosing-bugs"
+    },
+    {
+      "flat_name": "docker",
+      "source_path": "skills/devops/docker"
+    },
+    {
+      "flat_name": "docker-dev-prod",
+      "source_path": "skills/devops/docker-dev-prod"
+    },
+    {
+      "flat_name": "docker-php",
+      "source_path": "skills/devops/docker-php"
+    },
+    {
+      "flat_name": "docker-postgres",
+      "source_path": "skills/devops/docker-postgres"
+    },
+    {
+      "flat_name": "docker-services",
+      "source_path": "skills/devops/docker-services"
+    },
+    {
+      "flat_name": "docker-vite",
+      "source_path": "skills/devops/docker-vite"
+    },
+    {
+      "flat_name": "document-writer",
+      "source_path": "skills/frontend/document-writer"
+    },
+    {
+      "flat_name": "domain-modeling",
+      "source_path": "skills/architect/domain-modeling"
+    },
+    {
+      "flat_name": "eloquent-accessors",
+      "source_path": "skills/laravel-architecture/eloquent-accessors"
+    },
+    {
+      "flat_name": "enum-attributes",
+      "source_path": "skills/laravel-architecture/enum-attributes"
+    },
+    {
+      "flat_name": "enum-state-machine",
+      "source_path": "skills/laravel-architecture/enum-state-machine"
+    },
+    {
+      "flat_name": "eslint-flat-config",
+      "source_path": "skills/frontend-linting/eslint-flat-config"
+    },
+    {
+      "flat_name": "eval-design",
+      "source_path": "skills/architect/eval-design"
+    },
+    {
+      "flat_name": "figma-mcp-core",
+      "source_path": "skills/architect/figma-mcp-core"
+    },
+    {
+      "flat_name": "filament",
+      "source_path": "skills/laravel-filament/filament"
+    },
+    {
+      "flat_name": "filepond-upload",
+      "source_path": "skills/frontend/filepond-upload"
+    },
+    {
+      "flat_name": "gh-review",
+      "source_path": "skills/oss-dev/gh-review"
+    },
+    {
+      "flat_name": "git-commit-rules",
+      "source_path": "skills/general/git-commit-rules"
+    },
+    {
+      "flat_name": "git-safety",
+      "source_path": "skills/general/git-safety"
+    },
+    {
+      "flat_name": "gitops",
+      "source_path": "skills/devops/gitops"
+    },
+    {
+      "flat_name": "grill-with-docs",
+      "source_path": "skills/general/grill-with-docs"
+    },
+    {
+      "flat_name": "health-checks",
+      "source_path": "skills/laravel-testing/health-checks"
+    },
+    {
+      "flat_name": "implement",
+      "source_path": "skills/general/implement"
+    },
+    {
+      "flat_name": "incident-response",
+      "source_path": "skills/operator/incident-response"
+    },
+    {
+      "flat_name": "inertia-vue",
+      "source_path": "skills/frontend-backend/inertia-vue"
+    },
+    {
+      "flat_name": "js-code-style",
+      "source_path": "skills/frontend-linting/js-code-style"
+    },
+    {
+      "flat_name": "laravel",
+      "source_path": "skills/php/laravel"
+    },
+    {
+      "flat_name": "laravel-best-practices",
+      "source_path": "skills/php/laravel-best-practices"
+    },
+    {
+      "flat_name": "laravel-broadcasting",
+      "source_path": "skills/laravel-data-layer/laravel-broadcasting"
+    },
+    {
+      "flat_name": "laravel-data",
+      "source_path": "skills/laravel-data-layer/laravel-data"
+    },
+    {
+      "flat_name": "laravel-dusk",
+      "source_path": "skills/laravel-testing/laravel-dusk"
+    },
+    {
+      "flat_name": "laravel-echo-client",
+      "source_path": "skills/frontend-backend/laravel-echo-client"
+    },
+    {
+      "flat_name": "laravel-permissions",
+      "source_path": "skills/laravel-auth/laravel-permissions"
+    },
+    {
+      "flat_name": "laravel-security-audit",
+      "source_path": "skills/laravel-auth/laravel-security-audit"
+    },
+    {
+      "flat_name": "laravel-structure",
+      "source_path": "skills/php/laravel-structure"
+    },
+    {
+      "flat_name": "laravel-subagents",
+      "source_path": "skills/laravel-architecture/laravel-subagents"
+    },
+    {
+      "flat_name": "laravel-testing",
+      "source_path": "skills/laravel-testing/laravel-testing"
+    },
+    {
+      "flat_name": "legal-compliance",
+      "source_path": "skills/architect/legal-compliance"
+    },
+    {
+      "flat_name": "local-topology",
+      "source_path": "skills/system/local-topology"
+    },
+    {
+      "flat_name": "makefile",
+      "source_path": "skills/devops/makefile"
+    },
+    {
+      "flat_name": "mcp-advisor",
+      "source_path": "skills/general/mcp-advisor"
+    },
+    {
+      "flat_name": "medialibrary",
+      "source_path": "skills/laravel-extras/medialibrary"
+    },
+    {
+      "flat_name": "modular-architecture",
+      "source_path": "skills/laravel-architecture/modular-architecture"
+    },
+    {
+      "flat_name": "mutation-testing",
+      "source_path": "skills/quality/mutation-testing"
+    },
+    {
+      "flat_name": "named-arguments",
+      "source_path": "skills/php/named-arguments"
+    },
+    {
+      "flat_name": "naming-conventions",
+      "source_path": "skills/general/naming-conventions"
+    },
+    {
+      "flat_name": "node-pnpm-preflight",
+      "source_path": "skills/devops/node-pnpm-preflight"
+    },
+    {
+      "flat_name": "observability-design",
+      "source_path": "skills/architect/observability-design"
+    },
+    {
+      "flat_name": "oncall-rotation",
+      "source_path": "skills/operator/oncall-rotation"
+    },
+    {
+      "flat_name": "operations-cx-super-skill",
+      "source_path": "skills/operator/operations-cx"
+    },
+    {
+      "flat_name": "package-contribution-protocol",
+      "source_path": "skills/architect/package-contribution-protocol"
+    },
+    {
+      "flat_name": "packages-stack",
+      "source_path": "skills/general/packages-stack"
+    },
+    {
+      "flat_name": "pao",
+      "source_path": "skills/php/pao"
+    },
+    {
+      "flat_name": "pennant-development",
+      "source_path": "skills/laravel-extras/pennant-development"
+    },
+    {
+      "flat_name": "php-naming-conventions",
+      "source_path": "skills/php/naming-conventions"
+    },
+    {
+      "flat_name": "php-patterns",
+      "source_path": "skills/php/php-patterns"
+    },
+    {
+      "flat_name": "php-upgrade-checklist",
+      "source_path": "skills/php/php-upgrade-checklist"
+    },
+    {
+      "flat_name": "pinia",
+      "source_path": "skills/frontend-vue/pinia"
+    },
+    {
+      "flat_name": "pinia-stores",
+      "source_path": "skills/frontend-vue/pinia-stores"
+    },
+    {
+      "flat_name": "playwright-e2e",
+      "source_path": "skills/quality/playwright-e2e"
+    },
+    {
+      "flat_name": "postmortem",
+      "source_path": "skills/operator/postmortem"
+    },
+    {
+      "flat_name": "refactoring-plan",
+      "source_path": "skills/quality/refactoring-plan"
+    },
+    {
+      "flat_name": "repositories",
+      "source_path": "skills/php/repositories"
+    },
+    {
+      "flat_name": "runbook",
+      "source_path": "skills/operator/runbook"
+    },
+    {
+      "flat_name": "security-design",
+      "source_path": "skills/architect/security-design"
+    },
+    {
+      "flat_name": "session-handoff",
+      "source_path": "skills/general/session-handoff"
+    },
+    {
+      "flat_name": "session-observer",
+      "source_path": "skills/system/session-observer"
+    },
+    {
+      "flat_name": "skills-ssot",
+      "source_path": "skills/general/skills-ssot"
+    },
+    {
+      "flat_name": "spatie-settings",
+      "source_path": "skills/laravel-extras/spatie-settings"
+    },
+    {
+      "flat_name": "spec-interview",
+      "source_path": "skills/general/spec-interview"
+    },
+    {
+      "flat_name": "static-analysis",
+      "source_path": "skills/php/static-analysis"
+    },
+    {
+      "flat_name": "tailwind-conventions",
+      "source_path": "skills/frontend-tailwind/tailwind-conventions"
+    },
+    {
+      "flat_name": "task-brief-template",
+      "source_path": "skills/general/task-brief-template"
+    },
+    {
+      "flat_name": "tdd-discipline",
+      "source_path": "skills/quality/tdd-discipline"
+    },
+    {
+      "flat_name": "tech-debt-audit",
+      "source_path": "skills/quality/tech-debt-audit"
+    },
+    {
+      "flat_name": "tech-stack-selection",
+      "source_path": "skills/architect/tech-stack-selection"
+    },
+    {
+      "flat_name": "test-isolation-guard",
+      "source_path": "skills/laravel-testing/test-isolation-guard"
+    },
+    {
+      "flat_name": "test-strategy",
+      "source_path": "skills/quality/test-strategy"
+    },
+    {
+      "flat_name": "testing-safety-report",
+      "source_path": "skills/quality/testing-safety-report"
+    },
+    {
+      "flat_name": "ts-library",
+      "source_path": "skills/frontend-linting/ts-library"
+    },
+    {
+      "flat_name": "verify-claims",
+      "source_path": "skills/general/verify-claims"
+    },
+    {
+      "flat_name": "vite",
+      "source_path": "skills/frontend-vite/vite"
+    },
+    {
+      "flat_name": "vite-module-loader",
+      "source_path": "skills/frontend-vite/vite-module-loader"
+    },
+    {
+      "flat_name": "vite-multi-build",
+      "source_path": "skills/frontend-vite/vite-multi-build"
+    },
+    {
+      "flat_name": "vitepress",
+      "source_path": "skills/frontend-vite/vitepress"
+    },
+    {
+      "flat_name": "vitest",
+      "source_path": "skills/frontend-vue/vitest"
+    },
+    {
+      "flat_name": "vitest-vue",
+      "source_path": "skills/frontend-vue/vitest-vue"
+    },
+    {
+      "flat_name": "vue",
+      "source_path": "skills/frontend-vue/vue"
+    },
+    {
+      "flat_name": "vue-best-practices",
+      "source_path": "skills/frontend-vue/vue-best-practices"
+    },
+    {
+      "flat_name": "vue-composition-api",
+      "source_path": "skills/frontend-vue/vue-composition-api"
+    },
+    {
+      "flat_name": "vue-dynamic-icons",
+      "source_path": "skills/frontend-vue/vue-dynamic-icons"
+    },
+    {
+      "flat_name": "vue-router-best-practices",
+      "source_path": "skills/frontend-vue/vue-router-best-practices"
+    },
+    {
+      "flat_name": "vue-testing-best-practices",
+      "source_path": "skills/frontend-vue/vue-testing-best-practices"
+    },
+    {
+      "flat_name": "vueuse-functions",
+      "source_path": "skills/frontend-vue/vueuse-functions"
+    },
+    {
+      "flat_name": "wayfinder",
+      "source_path": "skills/frontend-wayfinder/wayfinder"
+    },
+    {
+      "flat_name": "web-design-guidelines",
+      "source_path": "skills/frontend/web-design-guidelines"
+    },
+    {
+      "flat_name": "writing-style",
+      "source_path": "skills/general/writing-style"
+    }
+  ]
+}
