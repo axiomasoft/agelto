@@ -40,7 +40,14 @@ yarn-error.log
 # AI Tools
 CLAUDE.md
 AGENTS.md
-.claude/
+.claude/*
+!.claude/skills/
+!.claude/agents/
+!.claude/workflows/
+!.claude/rules/
+!.claude/hooks/
+!.claude/agent-pack.lock.json
+!.claude/review-gate.env.ini
 .gemini
 .idea/
 .junie/

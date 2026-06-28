@@ -1,0 +1,115 @@
+{
+  "schema": 1,
+  "packs": {
+    "backend-laravel": {
+      "version": "0.2.0",
+      "source": "harness:configs/claude-code/agent-packs/backend-laravel",
+      "answers": {
+        "PACK_PREFIX": "agelto",
+        "PROJECT_DIR": "/home/vostrikov/projects/agelto/agelto",
+        "PHP_RUNNER": "/usr/bin/php8.4",
+        "TEST_FRAMEWORK": "pest",
+        "TEST_RUNNER_CMD": "/usr/bin/php8.4 artisan test",
+        "TEST_DB": "agelto_testing",
+        "BASE_BRANCH": "main",
+        "CHECK_CMD": "vendor/bin/pint --parallel --test -q",
+        "ACCESS_LAYER": true,
+        "DOCS_DIR": "docs/dev",
+        "MODEL_REVIEWER": "inherit",
+        "MODEL_SLICE_BUILDER": "inherit",
+        "MODEL_TEST_WRITER": "inherit",
+        "MODEL_SPEC_WRITER": "inherit",
+        "GATE_COVERAGE_MIN": "80",
+        "GATE_MAX_CRITICAL": "0",
+        "GATE_MAX_COMPLEXITY": "10"
+      },
+      "files": [
+        {
+          "src": "agents/slice-builder.md",
+          "target": ".claude/agents/agelto-slice-builder.md",
+          "kind": "template",
+          "base_sha256": "2b916659d36076c3ad9be093de90a9c842f8154a52e427999cfa225483110e49",
+          "local_modified": false
+        },
+        {
+          "src": "agents/test-writer.md",
+          "target": ".claude/agents/agelto-test-writer.md",
+          "kind": "template",
+          "base_sha256": "3ad11b157300d05a237526cef12aef886779935bca09a121f8803c6533213acc",
+          "local_modified": false
+        },
+        {
+          "src": "agents/reviewer.md",
+          "target": ".claude/agents/agelto-reviewer.md",
+          "kind": "template",
+          "base_sha256": "8ec2e0ec88e734cb2ea4ececcb89030717e1385ca8521a686def03a5a4589545",
+          "local_modified": false
+        },
+        {
+          "src": "agents/spec-writer.md",
+          "target": ".claude/agents/agelto-spec-writer.md",
+          "kind": "template",
+          "base_sha256": "731b7302086c826169025118507bc83dea1b98686331c624967c7e50b250c866",
+          "local_modified": false
+        },
+        {
+          "src": "workflows/dev-loop.js",
+          "target": ".claude/workflows/agelto-dev-loop.js",
+          "kind": "template",
+          "base_sha256": "ed75d39c440cb6d0e0aa5900ab8aa8816395d8bdbac921f4b3cc59d4c4653582",
+          "local_modified": false
+        },
+        {
+          "src": "hooks/review-gate.sh",
+          "target": ".claude/hooks/review-gate.sh",
+          "kind": "verbatim",
+          "base_sha256": "9fd35cdee822d64b9fd1378022e01e24ce02859bd11756785d89036f7b889d13",
+          "local_modified": false
+        },
+        {
+          "src": "hooks/review-gate.env.ini",
+          "target": ".claude/review-gate.env.ini",
+          "kind": "template",
+          "base_sha256": "2366136b6ba9d929619def646ed240e6dc2829110046aa328ae39e4486446d68",
+          "local_modified": false
+        },
+        {
+          "src": "settings/settings.fragment.json",
+          "target": ".claude/settings.json",
+          "kind": "merge",
+          "base_sha256": "6e5a261a3995c56fe0b222d333d600c2f84432c76a584ed12620a32855d47009",
+          "local_modified": false
+        },
+        {
+          "src": "docs/subagents-and-workflows.md",
+          "target": "docs/dev/subagents-and-workflows.md",
+          "kind": "template",
+          "base_sha256": "9335a4e3e76e9080f800fbd85060b7b0c20cde9f5b38fe1ad57030dacef7aab3",
+          "local_modified": false
+        },
+        {
+          "src": "rules/api-controllers.md",
+          "target": ".claude/rules/api-controllers.md",
+          "kind": "verbatim",
+          "base_sha256": "64bdfd66fc400ee79c30c2f1c6d32538f10b7e02c3f0f73f88a42ace5d7ae7a9",
+          "local_modified": false
+        },
+        {
+          "src": "rules/migrations.md",
+          "target": ".claude/rules/migrations.md",
+          "kind": "verbatim",
+          "base_sha256": "593c834174bef6618308953ebf45b5e7945ddc7657e560a1e2285b07e780cbd2",
+          "local_modified": false
+        },
+        {
+          "src": "rules/tests.md",
+          "target": ".claude/rules/tests.md",
+          "kind": "template",
+          "base_sha256": "3cb866878d156cdcedf4df1e98b83eae774b0c411fdc194ab50bc2912651ab14",
+          "local_modified": false
+        }
+      ],
+      "removed_optional": []
+    }
+  }
+}
