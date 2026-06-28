@@ -5,6 +5,7 @@
   "mode": "vendor",
   "agent": "claude",
   "skills_path": ".claude/skills",
+  "gitignore_managed": true,
   "_comment_stack": "Laravel 12 + Filament v5 + Inertia/Vue3 + Tailwind v4 + Wayfinder + spatie/laravel-data + spatie/medialibrary(-pro) + Fortify + Pest (pgsql). Домен: crawling/parsing ЕИС, Gemini-анализ, извлечение смет.",
   "buckets": [
     "system",
