@@ -134,71 +134,6 @@ prod:deploy:frontend / prod:deploy:runtime / prod:deploy:image. Обоснуй �
 
 Зафиксированные исключения (не трогаем, data-affecting): `UPPER_CASE`-кейсы `CrawlingStatus`; строковые значения enum (`ProcessStage::DocParsing = 'parsing_docs'`).
 
-=== .ai/human-writing-style rules ===
-
-# Human Writing Style
-
-## Цель
-
-Сделать формулировки комментариев и commit message естественными и «человеческими»:
-понятными, предметными, без канцелярита и инфинитивов.
-
-## Комментарии в коде
-
-- Писать только при реальной необходимости, когда без комментария сложно понять «почему».
-- Предпочитать короткие формулировки в прошедшем/настоящем времени: «проверяем», «ограничили», «оставили».
-- Избегать шаблонов «выполняет/осуществляет/производит» и общих фраз, которые дублируют код.
-- Все комментарии в коде — на русском языке.
-
-Пример:
-
-```php
-// Ограничили выборку активными ссылками, чтобы не перезапускать уже обработанные.
-```
-
-## Сообщения коммитов
-
-- Использовать conventional commit + русский язык.
-- Заголовок формулировать как завершенное действие: `добавили`, `исправили`, `убрали`.
-- Не использовать инфинитивы в заголовке: `добавить`, `исправить`, `сделать`.
-- В body писать причину и эффект изменения в 1–2 коротких строках.
-
-Пример:
-
-```text
-fix(platform): исправили повторный dispatch PrimaryAnalysisJob
-
-Добавили guard по статусу документа, чтобы не дублировать вызовы Gemini.
-```
-
-=== .ai/named-arguments rules ===
-
-# Named Arguments
-
-Все вызовы методов и функций в PHP должны использовать именованные аргументы.
-
-```php
-// ✅ Правильно
-$user = User::query()->updateOrCreate(
-    attributes: ['email' => $email],
-    values: ['name' => $name],
-);
-
-$link = Link::query()->firstOrCreate(
-    attributes: ['reg_number' => $regNumber],
-    values: ['status' => LinkStatus::Pending],
-);
-```
-
-```php
-// ❌ Неправильно
-$user = User::query()->updateOrCreate(['email' => $email], ['name' => $name]);
-```
-
-Применяется ко всем вызовам: методы объектов, статические методы, Eloquent, Laravel-хелперы.
-
-Исключения: встроенные PHP-функции с одним аргументом, где именование не добавляет ясности.
-
 === .ai/navigation rules ===
 
 # Navigation Guide
@@ -253,61 +188,18 @@ When a task requires more detail than what's in the current context, load the re
 | Proxy setup for EIS | `docs/dev/proxies.md` |
 | Writing or running tests | skill `testing-rules` |
 | Creating commits | skill `git-commit-rules` |
-| Inertia + Vue pages/forms | skill `inertia-vue-development` |
-| Filament admin panel | skill `filament-development` |
-| Frontend routes from backend | skill `wayfinder-development` |
+| Inertia + Vue pages/forms | skill `inertia-vue` |
+| Filament admin panel | skill `filament` |
+| Frontend routes from backend | skill `wayfinder` |
 | DB schema, migrations | skill `database` |
-| Eloquent Attribute::make() | skill `laravel-attributes` |
-| PHP style (final, named args) | `.ai/guidelines/php-coding-standards.md`, skill `named-arguments` |
+| Eloquent Attribute::make() accessors/mutators | skill `eloquent-accessors` |
+| PHP style (final, strict types, named args) | skills `code-style-spatie`, `named-arguments`, `static-analysis` |
 | Folder map and layer ownership | skill `project-map` |
 | Complex multi-step task | skill `complex-task-orchestrator` |
 | Backend + frontend + auth/tests checklist | skill `cross-layer-change-checklist` |
 | Editing `.ai/`, `boost.json`, agent generation cycle | skill `ai-context-workflow`, `docs/ai/source-of-truth.md` |
-| Natural wording for comments/commits | `.ai/guidelines/human-writing-style.md` |
+| Natural wording for comments/commits | skill `writing-style` |
 | Terse responses | skill `compact-responses` |
-
-=== .ai/php-coding-standards rules ===
-
-# PHP Coding Standards
-
-## Финальные классы
-
-Все классы должны быть `final`, кроме абстрактных базовых классов, которые явно предназначены для наследования.
-
-```php
-// ✅ Правильно
-final class SmetaParserService
-{
-    public function parse(Estimate $estimate): array { ... }
-}
-
-// ❌ Неправильно (не final)
-class SmetaParserService
-{
-    public function parse(Estimate $estimate): array { ... }
-}
-```
-
-## Именованные аргументы
-
-См. `named-arguments.md` — отдельный гайдлайн с примерами.
-
-## Строгая типизация
-
-- `declare(strict_types=1);` в новых PHP-файлах.
-- Явные return types и parameter types.
-- Constructor property promotion где уместно.
-
-## Actions vs Services
-
-- **`Action`** — атомарная бизнес-операция с мутацией (если используется в проекте).
-- **`Service`** — инфраструктура и оркестрация без HTTP (`BrowserService`, `GeminiService`, `SmetaParserService`).
-- **Jobs** — длительные асинхронные стадии пайплайна (crawling, AI, parsing).
-- **HTTP** — Form Request, Policy/Gate, тонкий Controller.
-
-## Modules
-
-- Код домена parsing/crawling — в `Modules/Platform` / `Modules/Eis`, не дублировать в `app/` без причины.
 
 === .ai/project-development rules ===
 
@@ -357,9 +249,7 @@ Master-описание: `docs/workflow/parsing-process.md`.
 ```bash
 make test-preflight
 make test-php
-
 # или точечно:
-
 docker compose exec app php artisan test --compact --filter=ChangedArea
 ```
 
@@ -386,9 +276,8 @@ docker compose exec app php artisan test --compact --filter=ChangedArea
 
 # Swissknifeman: хаб скиллов
 
-<!-- Сгенерировано scripts/generate-hub.sh из реестра swissknifeman. -->
-<!-- НЕ редактируйте вручную: перегенерация затрёт правки. -->
-<!-- swissknifeman:registry sha=4ba73d64b460 skills=195 -->
+<!-- Изначально сгенерировано из реестра swissknifeman; далее ведётся вручную. -->
+<!-- swissknifeman:registry sha=5d8e1c5befe7 skills=195 -->
 
 ## Приоритет источников правил
 
@@ -407,17 +296,28 @@ docker compose exec app php artisan test --compact --filter=ChangedArea
 3. Структурные вопросы нового кода решай в порядке: структура (`laravel-structure`) -> взаимодействие (`dependency-injection`) -> реализация (профильный скилл).
 4. Устройство системы скиллов в проекте (источник истины, симлинки, gitignore) — скилл `skills-ssot`.
 
-## Установленные скиллы (113)
+## Агенты проекта (4)
+
+Роли в `.claude/agents/`. Преднагруженные скиллы — поле `skills:` (⚠ = имя не найдено в реестре, preload молча не сработает).
+
+| Агент | Назначение | Преднагруженные скиллы |
+|---|---|---|
+| `agelto-reviewer` | >- | repositories, laravel-structure, dependency-injection, laravel-security-audit, code-style-spatie |
+| `agelto-slice-builder` | >- | repositories, laravel-structure, dependency-injection, laravel-data, laravel, database, code-style-spatie, named-arguments |
+| `agelto-spec-writer` | >- | architecture, api-design, data-schema, task-brief-template |
+| `agelto-test-writer` | >- | laravel-testing, test-isolation-guard, repositories |
+
+## Установленные скиллы (106)
 
 ### architect — Architecture, API and data design, security, observability, tech stack selection
 
 - **agent-design** — Agent design, agentic loop, tool contracts, harness, permission gates
 - **api-design** — Designing REST/GraphQL APIs, endpoints, contracts, versioning, authentication
 - **architecture** — System architecture, stack choice, ADR, C4 diagrams, deployment, scalability
-- **codebase-design** — Общий словарь и дисциплина проектирования ГЛУБОКИХ модулей (Ousterhout/Feathers): Module/Interface/Depth/Seam/Adapter/Leverage/Locality; deletion-test; интерфейс = тестовая поверхность; «один адаптер — гипотетический seam, два — реальный». Активировать при проектировании/улучшении интерфейса модуля, поиске deepening-возможностей, выборе места seam, повышении тестируемости или AI-навигабельности кода.
+- **codebase-design** — Shared vocabulary and discipline for designing DEEP modules (Ousterhout/Feathers): Module/Interface/Depth/Seam/Adapter/Leverage/Locality; deletion-test; interface = test surface; 'one adapter is a hypothetical seam, two is a real one'. Activate when designing/improving a module interface, finding deepening opportunities, choosing a seam, or raising testability/AI-navigability.
 - **data-schema** — Data schema, entities, attributes, relations. DB-agnostic — markdown tables only
 - **dev-engineering-super-skill** — Broad engineering-bucket navigator (composite of external dev skills). For specific work prefer the granular skill — architecture→architecture, API→api-design, data→data-schema, domain→domain-modeling, agents→agent-design, eval→eval-design, security→security-design, observability→observability-design, stack→tech-stack-selection, codebase→codebase-design. Use only for a cross-cutting overview when no single skill fits.
-- **domain-modeling** — Активная дисциплина доменной модели: бросать вызов терминам, стресс-тестировать сценариями, ФИКСИРОВАТЬ глоссарий (CONTEXT.md — только язык предметной области) и ADR ИНЛАЙН по мере кристаллизации (не батчами). Мульти-контекст — через CONTEXT-MAP.md. Активировать когда уточняют терминологию/ubiquitous language, фиксируют архитектурное решение, или другой скилл строит доменную модель (особенно финтех: банковские API, ОФД, фискалка).
+- **domain-modeling** — Active domain-model discipline: challenge terms, stress-test with scenarios, RECORD the glossary (CONTEXT.md — domain language only) and ADRs INLINE as they crystallize (not in batches). Multi-context via CONTEXT-MAP.md. Activate when clarifying terminology/ubiquitous language, recording an architectural decision, or when another skill builds a domain model (esp. fintech: banking APIs, fiscal).
 - **eval-design** — Evaluate LLM/AI output quality — eval-set, metrics, regression harness, automated + human review
 - **figma-mcp-core** — Discipline for the official Figma Dev Mode MCP: real tools (get_metadata, get_variable_defs, get_code, get_code_connect_map, get_screenshot, search_design_system), no extracting values from screenshots, selection-driven algorithm, design-token extraction to W3C tokens.json, component reuse via Code Connect, design-system audit, antipatterns. Activate for any UI-from-Figma task via a connected MCP server, before mapping to a concrete framework.
 - **legal-compliance** — GDPR, CCPA, AI Act, DMCA, COPPA, DSA — pre-launch regulatory checklist
@@ -456,7 +356,7 @@ docker compose exec app php artisan test --compact --filter=ChangedArea
 
 - **antfu** — Anthony Fu's opinionated tooling and conventions for JavaScript/TypeScript projects. Use when setting up new projects, configuring ESLint/Prettier alternatives, monorepos, library publishing, or when the user mentions Anthony Fu's preferences.
 - **eslint-flat-config** — ESLint flat config (eslint.config.js) for Vue 3 + TypeScript: defineConfigWithVueTs/typescript-eslint + eslint-plugin-vue, @stylistic, import/order and import boundaries, padding-line-between-statements, Prettier chain (eslint-config-prettier + tailwindcss + organize-imports), lint/lint:fix scripts. Triggers: setup/edit eslint or prettier, new Vue/TS project.
-- **js-code-style** — Стиль JS/TS по Spatie: 4 пробела, ширина 120, одинарные кавычки, const-first, строгое ===, function для именованных функций, деструктуризация, именованные импорты.
+- **js-code-style** — JS/TS style per Spatie: 4 spaces, width 120, single quotes, const-first, strict ===, function for named functions, destructuring, named imports.
 - **ts-library** — Use when authoring TypeScript libraries or npm packages - covers project setup, package.json exports, build tooling (tsdown/unbuild), API design patterns, type inference tricks, testing, and publishing to npm. Use when bundling, configuring dual CJS/ESM output, or setting up release workflows.
 
 ### frontend-reka — Reka UI headless primitives + CVA variants
@@ -485,8 +385,8 @@ docker compose exec app php artisan test --compact --filter=ChangedArea
 - **vue-best-practices** — MUST be used for Vue.js tasks. Strongly recommends Composition API with `<script setup>` and TypeScript as the standard approach. Covers Vue 3, SSR, Volar, vue-tsc. Load for any Vue, .vue files, Vue Router, Pinia, or Vite with Vue work. ALWAYS use Composition API unless the project explicitly requires Options API.
 - **vue-composition-api** — Project Composition API conventions: ref-first and composables pattern. NOT an API reference (`<script setup>`, defineProps/Emits, reactivity) — that's in `vue`; NOT general workflow — that's in `vue-best-practices`. Only delta-decisions and pointers.
 - **vue-dynamic-icons** — Vue: one icon component rendering SVG by string name from a set (lucide-vue-next etc.) via <component :is>; activate on dynamic icon, icon by name, component is icon, passing size/strokeWidth/color, type-safe icon name, swapping icon set.
-- **vue-router-best-practices** — Vue Router 4 — маршрутизация и навигация: typed/именованные routes, lazy-loading view-компонентов, route meta, навигационные гварды на ВОЗВРАТ-API (return route/false/path вместо deprecated next()), per-route vs global гварды, beforeEnter, scrollBehavior, обработка NavigationFailure/onError, useRoute/useRouter/useLink. Активировать при создании/правке router/index.ts, маршрутов, гвардов, при вопросах «как защитить роут / редирект в гварде / почему next() висит / lazy-загрузка страницы / восстановить скролл».
-- **vue-testing-best-practices** — Практики тестирования Vue 3-компонентов через Vitest + Vue Test Utils 2: mount vs shallowMount, изоляция композаблов, createTestingPinia, async/flushPromises, устойчивые data-testid, моки детей/слотов/эмитов и что НЕ тестировать.
+- **vue-router-best-practices** — Vue Router 4 routing and navigation: typed/named routes, lazy-loaded views, route meta, RETURN-API navigation guards (return route/false/path instead of deprecated next()), per-route vs global guards, beforeEnter, scrollBehavior, NavigationFailure/onError, useRoute/useRouter/useLink. Activate when editing router/index.ts, routes or guards, or asking how to protect a route / redirect in a guard / why next() hangs / lazy-load a page / restore scroll.
+- **vue-testing-best-practices** — Testing practices for Vue 3 components with Vitest + Vue Test Utils 2: mount vs shallowMount, isolating composables, createTestingPinia, async/flushPromises, resilient data-testid, mocking children/slots/emits, and what NOT to test.
 - **vueuse-functions** — Apply VueUse composables where appropriate to build concise, maintainable Vue.js / Nuxt features.
 
 ### frontend-wayfinder — Laravel Wayfinder: type-safe routes/controller actions in the frontend
@@ -508,7 +408,7 @@ docker compose exec app php artisan test --compact --filter=ChangedArea
 - **enum-attributes** — Use for enum metadata: replace label()/color()/description() match-ladders with PHP attributes #[Label]/#[Color]/#[Description] on cases + Concern traits with a reflection resolver; or export an enum as a TS type via #[TypeScript] stack (App.Enums.* union in .d.ts). Triggers: PHP enum, attributes on cases, getLabel()/getColor(), Filament HasLabel, spatie/laravel-typescript-transformer, local enum-concern via path-repository
 - **enum-state-machine** — Activate when a domain status (Order/Document/Subscription) grows into a transition graph: single edge graph as enum method transitionDefinitions() (from→to + guard + action + label), a runtime transition registry (canTransition/allowedFrom) over it, and transition execution in an Action under DB::transaction() with a domain event. Triggers: PHP status enum, allowed transitions, StateMachine/workflow, parallel transition graph to unify into one source, canTransitionTo, allowedTransitions, illegal status transition
 - **laravel-subagents** — Subagent orchestration on large Laravel tasks: activation threshold, delegating research to Explore agents, review via laravel-reviewer, tests via laravel-test-writer, worktree isolation of parallel edits. Do not apply to small/medium tasks.
-- **modular-architecture** — Scale Laravel code as it grows: organize by business domain, Modular Monolith and DDD patterns; implement with nwidart/laravel-modules (module:make*, module structure, namespace without Modules\, Filament discovery); starting structure — php/laravel-structure
+- **modular-architecture** — Scale Laravel code as it grows: organize by business domain, Modular Monolith and DDD patterns; implement with nwidart/laravel-modules (module:make*, module structure, namespace without Modules\\, Filament discovery); starting structure — php/laravel-structure
 
 ### laravel-auth — Authorization & security: permissions/RBAC, attribute-based gates, security audit
 
@@ -518,18 +418,18 @@ docker compose exec app php artisan test --compact --filter=ChangedArea
 
 ### laravel-data-layer — Typed data + realtime: spatie/laravel-data DTOs (TS export), Echo/Reverb broadcasting
 
-- **laravel-broadcasting** — Laravel Echo + Reverb/Pusher/Ably: broadcast-события, авторизация каналов, presence/whisper, model broadcasting
+- **laravel-broadcasting** — Laravel Echo + Reverb/Pusher/Ably: broadcast events, channel authorization, presence/whisper, model broadcasting.
 - **laravel-data** — DTOs with spatie/laravel-data: typed Data classes, nested DataCollection, casts/transformers, computed properties, mapName/mapInputName, from(request) with validation, API/Inertia output, #[TypeScript] annotation. Activate: need a type-safe DTO instead of array/array-access, parse incoming request into an object, single data shape between back and front, replace ad-hoc JsonResource with Data.
 
 ### laravel-extras — Optional Laravel runtime packages: media library, typed settings, Pennant feature flags
 
 - **medialibrary** — spatie/laravel-medialibrary: attach files to Eloquent models, collections, conversions, get URLs
-- **pennant-development** — Laravel Pennant — feature-флаги: define/active/for-scope, директива @feature, активация/деактивация, A/B и постепенные раскатки. Адаптировано из laravel/boost (strategy=notify)
+- **pennant-development** — Laravel Pennant feature flags: define/active/for-scope, the @feature directive, activation/deactivation, A/B and gradual rollouts. Adapted from laravel/boost (strategy=notify).
 - **spatie-settings** — spatie/laravel-settings: typed settings classes (extends Settings, public properties, group()), settings migrations add/migrate/rename, cache, runtime-settings vs config/ choice, Filament SettingsPage binding, runtime infra-config (websocket/Reverb) from admin to frontend via DTO. Activate when creating/editing a settings class, adding a property, a settings migration, an edit screen, or moving an infra setting to a runtime override.
 
 ### laravel-filament — Filament admin panels: resources, schemas, tables, widgets, actions, tenancy
 
-- **filament** — Filament v5 — Panels, Resources, Schemas, Tables, Widgets, Actions: структура файлов, CLI-справочник make:filament-*, корректные namespaces, авторизация, tenancy, типичные ошибки. Scaffold только через artisan.
+- **filament** — Filament v5 — Panels, Resources, Schemas, Tables, Widgets, Actions: file structure, make:filament-* CLI reference, correct namespaces, authorization, tenancy, common pitfalls. Scaffold only via artisan.
 
 ### laravel-testing — Laravel testing: Pest feature/unit, DB isolation guard, Dusk browser tests, health checks
 
@@ -540,12 +440,7 @@ docker compose exec app php artisan test --compact --filter=ChangedArea
 
 ### operator — Incident response, runbooks, postmortems, on-call and capacity planning
 
-- **capacity-planning** — Capacity planning — load forecasting, headroom, autoscaling policy, cost budget, what to monitor, when to scale up/down
-- **incident-response** — Prod incident response process — severity levels, roles (IC/Comms/SME), communication, action log, handoff to postmortem
-- **oncall-rotation** — On-call rotation design — schedule, primary/secondary, handoff, compensation, burnout defusing, paging policy
 - **operations-cx-super-skill** — Broad operations/CX-bucket navigator (composite of external CX skills). For specific work prefer the granular skill — incidents→incident-response, postmortem→postmortem, on-call→oncall-rotation, capacity→capacity-planning, runbooks→runbook. Use only for a cross-cutting overview when no single skill fits.
-- **postmortem** — Blameless postmortem after SEV-1/2 incident — timeline, root cause (5 Whys), contributing factors, action items, knowledge distribution
-- **runbook** — Operational runbook template per P1/P2 alert — symptoms, diagnostics, mitigation steps, escalation, post-actions
 
 ### oss-dev — Open-source development: releases, governance, DX, dependency audits + language references
 
@@ -553,34 +448,29 @@ docker compose exec app php artisan test --compact --filter=ChangedArea
 
 ### php — PHP and Laravel core: architecture, structure, conventions, DI, database, repositories, patterns, static analysis
 
-- **code-style-spatie** — Стиль кода Laravel/PHP по гайдлайнам Spatie: Laravel-конвенции прежде PSR-12, типизация вместо докблоков, early returns, happy path последним
+- **code-style-spatie** — Laravel/PHP code style per Spatie guidelines: Laravel conventions over PSR-12, typing instead of docblocks, early returns, happy path last.
 - **database** — Database migrations, models, and table naming. Activate when writing migrations, creating models, defining schema, foreign keys, or working in database/migrations/.
 - **dependency-injection** — Layer interaction via constructor injection: final readonly + promotion, injection matrix, Action composition
 - **laravel** — Laravel architecture patterns: actions, repositories, resources
-- **laravel-best-practices** — Лучшие практики Laravel: 20 категорий правил (Eloquent, валидация, кеш, очереди, безопасность) с маршрутизацией по задаче
+- **laravel-best-practices** — Laravel best practices: 20 rule categories (Eloquent, validation, cache, queues, security) with routing by task.
 - **laravel-structure** — Laravel project structure canon for greenfield and adding domains: domain taxonomy, layer-mirror rule, class placement and naming
 - **named-arguments** — PHP rule: method/function calls use named arguments; exceptions; activate when writing/reviewing calls or when readability/parameter order is mentioned
-- **naming-conventions** — Naming Laravel/PHP entities: repository methods by intent (not findByCodeOrFail-explosion), Action/DTO/VO/Enum/Event/Job, tables/columns/routes. Kills junk names AI loves to generate. Activate when creating or reviewing class/method/migration names.
 - **pao** — Laravel PAO — agent-optimized PHP tool output: PHPUnit/Pest/Paratest/PHPStan/Rector/Artisan collapse to compact JSON (~20 tokens vs thousands) when run inside an AI agent. Install, verify, limits.
+- **php-naming-conventions** — Naming Laravel/PHP entities: repository methods by intent (not findByCodeOrFail-explosion), Action/DTO/VO/Enum/Event/Job, tables/columns/routes. Kills junk names AI loves to generate. Activate when creating or reviewing class/method/migration names.
 - **php-patterns** — PHP domain patterns: VO, DTO, pipeline, specification — selection guide
 - **php-upgrade-checklist** — PHP version upgrade checklist (minor/major): sync image/CI, composer update + clear deprecations, phpstan baseline, full suite, update rector sets, review RFCs for incompatibilities. Activate before bumping PHP version.
 - **repositories** — Laravel repositories: read/store split, model scopes, delta-DTO, facade, VisibilityService
 - **static-analysis** — PHP/Laravel static analysis & linting: Laravel Pint, PHPStan, Rector locally + CI, reference configs
 
-### pm — Product management: BRD, PRD, roadmap, monetization, unit economics
-
-- **brd** — Business Requirements Document: functional requirements, user stories, acceptance criteria
-- **business-process** — Business processes, workflow, FSM, sequence/state diagrams, error handling
-
 ### quality — Code review, refactoring plans, tech debt audits, test strategy
 
 - **code-review** — Code review process & checklist: mandatory checks, comment severity grades, async vs sync, PR-comment template
 - **code-simplifier** — Simplify freshly written code without changing behavior: dead code, needless abstractions, dups, align to project patterns; YAGNI ladder before coding + diff delete-list (ponytail discipline). Tests pin behavior.
-- **diagnosing-bugs** — Дисциплина диагностики трудных багов и регрессий производительности: СНАЧАЛА строим тугой воспроизводимый feedback-loop (это и есть скилл), только потом 3–5 ранжированных гипотез, точечная инструментация с тегом [DEBUG-xxxx], регресс-тест на корректном seam, очистка. Активировать при «отладь/почини это», воспроизводимом или плавающем баге, «падает/кидает ошибку/тормозит».
+- **diagnosing-bugs** — Discipline for diagnosing hard bugs and performance regressions: FIRST build a tight reproducible feedback loop (that IS the skill), only then 3–5 ranked hypotheses, targeted instrumentation tagged [DEBUG-xxxx], a regression test on the right seam, cleanup. Activate on 'debug/fix this', a reproducible or flaky bug, 'crashes/throws/is slow'.
 - **mutation-testing** — PHP mutation testing via Infection: infection.json5 (source/excludes, mutators, logs, minMsi/minCoveredMsi gates), run with --threads and --git-diff-lines for CI increment, reading MSI and escaped mutants. Activate when setting up Infection, adding a mutation test-quality gate to CI, reading an MSI report, or investigating surviving mutants.
 - **playwright-e2e** — Browser E2E with Playwright for a web app (frontend-agnostic: Vue/Inertia/Livewire): playwright.config with webServer + projects, single-login auth via storageState, data-testid convention, data/media isolation between runs, CI run. Activate when adding/fixing an end-to-end browser scenario, configuring playwright.config, or storageState login.
 - **refactoring-plan** — Safe refactoring plan: scope, Mikado / strangler pattern, atomic steps, done criteria, rollback
-- **tdd-discipline** — Дисциплина TDD по циклу red-green-refactor ВЕРТИКАЛЬНЫМИ срезами (tracer bullets), а НЕ горизонтально: явный запрет писать все тесты до реализации; тесты проверяют поведение через ПУБЛИЧНЫЙ интерфейс и переживают рефактор. Активировать при разработке фичи/фикса test-first, упоминании red-green-refactor или интеграционных тестов.
+- **tdd-discipline** — TDD discipline via red-green-refactor by VERTICAL slices (tracer bullets), NOT horizontally: explicit ban on writing all tests before implementation; tests verify behavior through the PUBLIC interface and survive refactors. Activate when building a feature/fix test-first, mentioning red-green-refactor, or integration tests.
 - **tech-debt-audit** — Tech-debt inventory, classification (architectural/code/dependency/test/process), prioritization by impact × effort, payback ROI calc
 - **test-strategy** — Test strategy: pyramid (unit/integration/e2e), coverage policy, mock vs real, which features need which test level, test-suite composition (Arch/Feature/Unit) and Pest Arch architecture tests
 - **testing-safety-report** — Safety report after a risky change (migrations, schema/layer refactor, dependency upgrade): what changed structurally, which tests ran and with what result, what risks and control checks remain. Do it after the change to make it auditable.

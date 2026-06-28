@@ -134,71 +134,6 @@ prod:deploy:frontend / prod:deploy:runtime / prod:deploy:image. Обоснуй �
 
 Зафиксированные исключения (не трогаем, data-affecting): `UPPER_CASE`-кейсы `CrawlingStatus`; строковые значения enum (`ProcessStage::DocParsing = 'parsing_docs'`).
 
-=== .ai/human-writing-style rules ===
-
-# Human Writing Style
-
-## Цель
-
-Сделать формулировки комментариев и commit message естественными и «человеческими»:
-понятными, предметными, без канцелярита и инфинитивов.
-
-## Комментарии в коде
-
-- Писать только при реальной необходимости, когда без комментария сложно понять «почему».
-- Предпочитать короткие формулировки в прошедшем/настоящем времени: «проверяем», «ограничили», «оставили».
-- Избегать шаблонов «выполняет/осуществляет/производит» и общих фраз, которые дублируют код.
-- Все комментарии в коде — на русском языке.
-
-Пример:
-
-```php
-// Ограничили выборку активными ссылками, чтобы не перезапускать уже обработанные.
-```
-
-## Сообщения коммитов
-
-- Использовать conventional commit + русский язык.
-- Заголовок формулировать как завершенное действие: `добавили`, `исправили`, `убрали`.
-- Не использовать инфинитивы в заголовке: `добавить`, `исправить`, `сделать`.
-- В body писать причину и эффект изменения в 1–2 коротких строках.
-
-Пример:
-
-```text
-fix(platform): исправили повторный dispatch PrimaryAnalysisJob
-
-Добавили guard по статусу документа, чтобы не дублировать вызовы Gemini.
-```
-
-=== .ai/named-arguments rules ===
-
-# Named Arguments
-
-Все вызовы методов и функций в PHP должны использовать именованные аргументы.
-
-```php
-// ✅ Правильно
-$user = User::query()->updateOrCreate(
-    attributes: ['email' => $email],
-    values: ['name' => $name],
-);
-
-$link = Link::query()->firstOrCreate(
-    attributes: ['reg_number' => $regNumber],
-    values: ['status' => LinkStatus::Pending],
-);
-```
-
-```php
-// ❌ Неправильно
-$user = User::query()->updateOrCreate(['email' => $email], ['name' => $name]);
-```
-
-Применяется ко всем вызовам: методы объектов, статические методы, Eloquent, Laravel-хелперы.
-
-Исключения: встроенные PHP-функции с одним аргументом, где именование не добавляет ясности.
-
 === .ai/navigation rules ===
 
 # Navigation Guide
@@ -253,61 +188,18 @@ When a task requires more detail than what's in the current context, load the re
 | Proxy setup for EIS | `docs/dev/proxies.md` |
 | Writing or running tests | skill `testing-rules` |
 | Creating commits | skill `git-commit-rules` |
-| Inertia + Vue pages/forms | skill `inertia-vue-development` |
-| Filament admin panel | skill `filament-development` |
-| Frontend routes from backend | skill `wayfinder-development` |
+| Inertia + Vue pages/forms | skill `inertia-vue` |
+| Filament admin panel | skill `filament` |
+| Frontend routes from backend | skill `wayfinder` |
 | DB schema, migrations | skill `database` |
-| Eloquent Attribute::make() | skill `laravel-attributes` |
-| PHP style (final, named args) | `.ai/guidelines/php-coding-standards.md`, skill `named-arguments` |
+| Eloquent Attribute::make() accessors/mutators | skill `eloquent-accessors` |
+| PHP style (final, strict types, named args) | skills `code-style-spatie`, `named-arguments`, `static-analysis` |
 | Folder map and layer ownership | skill `project-map` |
 | Complex multi-step task | skill `complex-task-orchestrator` |
 | Backend + frontend + auth/tests checklist | skill `cross-layer-change-checklist` |
 | Editing `.ai/`, `boost.json`, agent generation cycle | skill `ai-context-workflow`, `docs/ai/source-of-truth.md` |
-| Natural wording for comments/commits | `.ai/guidelines/human-writing-style.md` |
+| Natural wording for comments/commits | skill `writing-style` |
 | Terse responses | skill `compact-responses` |
-
-=== .ai/php-coding-standards rules ===
-
-# PHP Coding Standards
-
-## Финальные классы
-
-Все классы должны быть `final`, кроме абстрактных базовых классов, которые явно предназначены для наследования.
-
-```php
-// ✅ Правильно
-final class SmetaParserService
-{
-    public function parse(Estimate $estimate): array { ... }
-}
-
-// ❌ Неправильно (не final)
-class SmetaParserService
-{
-    public function parse(Estimate $estimate): array { ... }
-}
-```
-
-## Именованные аргументы
-
-См. `named-arguments.md` — отдельный гайдлайн с примерами.
-
-## Строгая типизация
-
-- `declare(strict_types=1);` в новых PHP-файлах.
-- Явные return types и parameter types.
-- Constructor property promotion где уместно.
-
-## Actions vs Services
-
-- **`Action`** — атомарная бизнес-операция с мутацией (если используется в проекте).
-- **`Service`** — инфраструктура и оркестрация без HTTP (`BrowserService`, `GeminiService`, `SmetaParserService`).
-- **Jobs** — длительные асинхронные стадии пайплайна (crawling, AI, parsing).
-- **HTTP** — Form Request, Policy/Gate, тонкий Controller.
-
-## Modules
-
-- Код домена parsing/crawling — в `Modules/Platform` / `Modules/Eis`, не дублировать в `app/` без причины.
 
 === .ai/project-development rules ===
 
@@ -357,9 +249,7 @@ Master-описание: `docs/workflow/parsing-process.md`.
 ```bash
 make test-preflight
 make test-php
-
 # или точечно:
-
 docker compose exec app php artisan test --compact --filter=ChangedArea
 ```
 
@@ -518,7 +408,7 @@ docker compose exec app php artisan test --compact --filter=ChangedArea
 - **enum-attributes** — Use for enum metadata: replace label()/color()/description() match-ladders with PHP attributes #[Label]/#[Color]/#[Description] on cases + Concern traits with a reflection resolver; or export an enum as a TS type via #[TypeScript] stack (App.Enums.* union in .d.ts). Triggers: PHP enum, attributes on cases, getLabel()/getColor(), Filament HasLabel, spatie/laravel-typescript-transformer, local enum-concern via path-repository
 - **enum-state-machine** — Activate when a domain status (Order/Document/Subscription) grows into a transition graph: single edge graph as enum method transitionDefinitions() (from→to + guard + action + label), a runtime transition registry (canTransition/allowedFrom) over it, and transition execution in an Action under DB::transaction() with a domain event. Triggers: PHP status enum, allowed transitions, StateMachine/workflow, parallel transition graph to unify into one source, canTransitionTo, allowedTransitions, illegal status transition
 - **laravel-subagents** — Subagent orchestration on large Laravel tasks: activation threshold, delegating research to Explore agents, review via laravel-reviewer, tests via laravel-test-writer, worktree isolation of parallel edits. Do not apply to small/medium tasks.
-- **modular-architecture** — Scale Laravel code as it grows: organize by business domain, Modular Monolith and DDD patterns; implement with nwidart/laravel-modules (module:make*, module structure, namespace without Modules\, Filament discovery); starting structure — php/laravel-structure
+- **modular-architecture** — Scale Laravel code as it grows: organize by business domain, Modular Monolith and DDD patterns; implement with nwidart/laravel-modules (module:make*, module structure, namespace without Modules\\, Filament discovery); starting structure — php/laravel-structure
 
 ### laravel-auth — Authorization & security: permissions/RBAC, attribute-based gates, security audit
 
