@@ -306,7 +306,7 @@ docker compose exec app php artisan test --compact --filter=ChangedArea
 | `agelto-spec-writer` | >- | architecture, api-design, data-schema, task-brief-template |
 | `agelto-test-writer` | >- | laravel-testing, test-isolation-guard, repositories |
 
-## Установленные скиллы (124)
+## Установленные скиллы (115)
 
 ### architect — Architecture, API and data design, security, observability, tech stack selection
 
@@ -315,7 +315,6 @@ docker compose exec app php artisan test --compact --filter=ChangedArea
 - **architecture** — System architecture, stack choice, ADR, C4 diagrams, deployment, scalability
 - **codebase-design** — Shared vocabulary and discipline for designing DEEP modules (Ousterhout/Feathers): Module/Interface/Depth/Seam/Adapter/Leverage/Locality; deletion-test; interface = test surface; 'one adapter is a hypothetical seam, two is a real one'. Activate when designing/improving a module interface, finding deepening opportunities, choosing a seam, or raising testability/AI-navigability.
 - **data-schema** — Data schema, entities, attributes, relations. DB-agnostic — markdown tables only
-- **dev-engineering-super-skill** — Broad engineering-bucket navigator (composite of external dev skills). For specific work prefer the granular skill — architecture→architecture, API→api-design, data→data-schema, domain→domain-modeling, agents→agent-design, eval→eval-design, security→security-design, observability→observability-design, stack→tech-stack-selection, codebase→codebase-design. Use only for a cross-cutting overview when no single skill fits.
 - **domain-modeling** — Active domain-model discipline: challenge terms, stress-test with scenarios, RECORD the glossary (CONTEXT.md — domain language only) and ADRs INLINE as they crystallize (not in batches). Multi-context via CONTEXT-MAP.md. Activate when clarifying terminology/ubiquitous language, recording an architectural decision, or when another skill builds a domain model (esp. fintech: banking APIs, fiscal).
 - **eval-design** — Evaluate LLM/AI output quality — eval-set, metrics, regression harness, automated + human review
 - **figma-mcp-core** — Discipline for the official Figma Dev Mode MCP: real tools (get_metadata, get_variable_defs, get_code, get_code_connect_map, get_screenshot, search_design_system), no extracting values from screenshots, selection-driven algorithm, design-token extraction to W3C tokens.json, component reuse via Code Connect, design-system audit, antipatterns. Activate for any UI-from-Figma task via a connected MCP server, before mapping to a concrete framework.
@@ -356,7 +355,6 @@ docker compose exec app php artisan test --compact --filter=ChangedArea
 - **antfu** — Anthony Fu's opinionated tooling and conventions for JavaScript/TypeScript projects. Use when setting up new projects, configuring ESLint/Prettier alternatives, monorepos, library publishing, or when the user mentions Anthony Fu's preferences.
 - **eslint-flat-config** — ESLint flat config (eslint.config.js) for Vue 3 + TypeScript: defineConfigWithVueTs/typescript-eslint + eslint-plugin-vue, @stylistic, import/order and import boundaries, padding-line-between-statements, Prettier chain (eslint-config-prettier + tailwindcss + organize-imports), lint/lint:fix scripts. Triggers: setup/edit eslint or prettier, new Vue/TS project.
 - **js-code-style** — JS/TS style per Spatie: 4 spaces, width 120, single quotes, const-first, strict ===, function for named functions, destructuring, named imports.
-- **ts-library** — Use when authoring TypeScript libraries or npm packages - covers project setup, package.json exports, build tooling (tsdown/unbuild), API design patterns, type inference tricks, testing, and publishing to npm. Use when bundling, configuring dual CJS/ESM output, or setting up release workflows.
 
 ### frontend-tailwind — Tailwind CSS v4 conventions and dark-mode theming
 
@@ -368,21 +366,16 @@ docker compose exec app php artisan test --compact --filter=ChangedArea
 - **vite** — Vite build tool configuration, plugin API, SSR, and Vite 8 Rolldown migration. Use when working with Vite projects, vite.config.ts, Vite plugins, or building libraries/SSR apps with Vite.
 - **vite-module-loader** — Vite as primary frontend bundler: base config, aliases, build practices
 - **vite-multi-build** — Two independent Vite builds in one Laravel project: main app + Filament admin, with separate Vite/Tailwind configs, hotfiles and build dirs.
-- **vitepress** — VitePress static site generator powered by Vite and Vue. Use when building documentation sites, configuring themes, or writing Markdown with Vue components.
 
 ### frontend-vue — Vue 3 ecosystem: Composition API, best practices, router, VueUse, Pinia state, Vitest testing
 
 - **pinia** — Pinia official Vue state management library, type-safe and extensible. Use when defining stores, working with state/getters/actions, or implementing store patterns in Vue apps.
 - **pinia-stores** — Pinia (Vue 3) global state: setup stores (defineStore with function), ref=state/computed=getters/function=actions, use*Store naming, store composition, store access outside components, hydration from props, persist. Activate on creating/editing files under resources/js/stores/**, defineStore, useXxxStore, or questions 'how to store global state / share data between components / where to move state out of a component'.
 - **vitest** — Vitest for Vue/Inertia-on-Laravel: jsdom, globals, tests in resources/js/tests mirror sources, v8 coverage with mandatory exclude of autogenerated code.
-- **vitest-vue** — Vitest fast unit testing framework powered by Vite with Jest-compatible API. Use when writing tests, mocking, configuring coverage, or working with test filtering and fixtures.
 - **vue** — Vue 3 Composition API, script setup macros, reactivity system, and built-in components. Use when writing Vue SFCs, defineProps/defineEmits/defineModel, watchers, or using Transition/Teleport/Suspense/KeepAlive.
 - **vue-best-practices** — MUST be used for Vue.js tasks. Strongly recommends Composition API with `<script setup>` and TypeScript as the standard approach. Covers Vue 3, SSR, Volar, vue-tsc. Load for any Vue, .vue files, Vue Router, Pinia, or Vite with Vue work. ALWAYS use Composition API unless the project explicitly requires Options API.
 - **vue-composition-api** — Project Composition API conventions: ref-first and composables pattern. NOT an API reference (`<script setup>`, defineProps/Emits, reactivity) — that's in `vue`; NOT general workflow — that's in `vue-best-practices`. Only delta-decisions and pointers.
 - **vue-dynamic-icons** — Vue: one icon component rendering SVG by string name from a set (lucide-vue-next etc.) via <component :is>; activate on dynamic icon, icon by name, component is icon, passing size/strokeWidth/color, type-safe icon name, swapping icon set.
-- **vue-router-best-practices** — Vue Router 4 routing and navigation: typed/named routes, lazy-loaded views, route meta, RETURN-API navigation guards (return route/false/path instead of deprecated next()), per-route vs global guards, beforeEnter, scrollBehavior, NavigationFailure/onError, useRoute/useRouter/useLink. Activate when editing router/index.ts, routes or guards, or asking how to protect a route / redirect in a guard / why next() hangs / lazy-load a page / restore scroll.
-- **vue-testing-best-practices** — Testing practices for Vue 3 components with Vitest + Vue Test Utils 2: mount vs shallowMount, isolating composables, createTestingPinia, async/flushPromises, resilient data-testid, mocking children/slots/emits, and what NOT to test.
-- **vueuse-functions** — Apply VueUse composables where appropriate to build concise, maintainable Vue.js / Nuxt features.
 
 ### frontend-wayfinder — Laravel Wayfinder: type-safe routes/controller actions in the frontend
 
@@ -450,7 +443,6 @@ docker compose exec app php artisan test --compact --filter=ChangedArea
 - **capacity-planning** — Capacity planning — load forecasting, headroom, autoscaling policy, cost budget, what to monitor, when to scale up/down
 - **incident-response** — Prod incident response process — severity levels, roles (IC/Comms/SME), communication, action log, handoff to postmortem
 - **oncall-rotation** — On-call rotation design — schedule, primary/secondary, handoff, compensation, burnout defusing, paging policy
-- **operations-cx-super-skill** — Broad operations/CX-bucket navigator (composite of external CX skills). For specific work prefer the granular skill — incidents→incident-response, postmortem→postmortem, on-call→oncall-rotation, capacity→capacity-planning, runbooks→runbook. Use only for a cross-cutting overview when no single skill fits.
 - **postmortem** — Blameless postmortem after SEV-1/2 incident — timeline, root cause (5 Whys), contributing factors, action items, knowledge distribution
 - **runbook** — Operational runbook template per P1/P2 alert — symptoms, diagnostics, mitigation steps, escalation, post-actions
 
@@ -464,7 +456,6 @@ docker compose exec app php artisan test --compact --filter=ChangedArea
 - **database** — Database migrations, models, and table naming. Activate when writing migrations, creating models, defining schema, foreign keys, or working in database/migrations/.
 - **dependency-injection** — Layer interaction via constructor injection: final readonly + promotion, injection matrix, Action composition
 - **laravel** — Laravel architecture patterns: actions, repositories, resources
-- **laravel-best-practices** — Laravel best practices: 20 rule categories (Eloquent, validation, cache, queues, security) with routing by task.
 - **laravel-structure** — Laravel project structure canon for greenfield and adding domains: domain taxonomy, layer-mirror rule, class placement and naming
 - **named-arguments** — PHP rule: method/function calls use named arguments; exceptions; activate when writing/reviewing calls or when readability/parameter order is mentioned
 - **pao** — Laravel PAO — agent-optimized PHP tool output: PHPUnit/Pest/Paratest/PHPStan/Rector/Artisan collapse to compact JSON (~20 tokens vs thousands) when run inside an AI agent. Install, verify, limits.

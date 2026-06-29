@@ -43,11 +43,18 @@ Boost подключён **как MCP-сервер** (`boost.json: mcp:true`, `g
 - **Локальные доменные** (НЕ managed) — `ai-context-workflow`, `project-map`, `node-yarn-preflight`,
   `pest-testing`, `testing-rules`: живут в `.claude/skills/`, `sync` их не трогает; правим в источнике.
 
+> **Managed-скиллы вне git** (`gitignore_managed: true` в конфиге). `skiller sync` сам генерит
+> `.claude/skills/.gitignore` (+ зеркало в `.cursor/skills/.gitignore`) со списком managed-скиллов —
+> они НЕ коммитятся (воспроизводимы), в репозитории лежат только локальные. **Восстановление после
+> клона:** `skiller sync` (нужен доступ к реестру swissknifeman). Список в `.gitignore`
+> сопровождается автоматически — руками не ведём, корневой `.gitignore` не трогаем.
+
 ## Порядок
 
 1. Правка в agent-файле, `.ai/guidelines/` и/или локальном скилле `.claude/skills/`.
 2. Набор библиотечных скиллов меняется в `.swissknifeman/config.json` → `skiller sync` → зеркало в `.cursor/skills/`.
-3. Коммит: agent-файлы + `.ai/guidelines/*` + `.claude/skills/*` + `.cursor/skills/*` + `.swissknifeman/config.json` + `skills-lock.json`. `boost.json` — локальный (в `.gitignore`).
+3. После клона/смены набора managed-скиллов: `skiller sync` (подтянет managed в рабочее дерево; в git их нет).
+4. Коммит: agent-файлы + `.ai/guidelines/*` + **локальные** `.claude/skills/*` + `.cursor/skills/*` (managed gitignored) + `.swissknifeman/config.json` + `skills-lock.json` + `.claude/skills/.gitignore`. `boost.json` — локальный (в `.gitignore`).
 
 ## Дублирование
 
