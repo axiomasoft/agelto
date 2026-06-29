@@ -4,16 +4,15 @@ declare(strict_types=1);
 
 namespace Eis\Crawling;
 
-use App\Dto\Browser\BrowserOptions;
-use App\Enums\LogOutput;
-use Carbon\Carbon;
-use Carbon\CarbonPeriod;
-use Illuminate\Support\Facades\Storage;
 use App\Dto\Attachments\AttachmentDto;
+use App\Dto\Browser\BrowserOptions;
 use App\Dto\Crawling\CrawlingItemDto;
 use App\Dto\Crawling\PageMetaDto;
 use App\Models\Crawler\Crawler as CrawlerModel;
 use App\Process\Crawling\AbstractCrawlingService;
+use Carbon\Carbon;
+use Carbon\CarbonPeriod;
+use Illuminate\Support\Facades\Storage;
 use RuntimeException;
 use Spatie\Url\Url;
 use Symfony\Component\DomCrawler\Crawler as DomCrawler;
@@ -40,46 +39,18 @@ final class EisCrawlingService extends AbstractCrawlingService
         $filters = $this->crawler->filter ?? [];
 
         if (! empty($filters['publishDateFrom']) && ! empty($filters['publishDateTo'])) {
-            $dateFrom = Carbon::parse($filters['publishDateFrom']);
-            $dateTo = Carbon::parse($filters['publishDateTo']);
-
-            if ($this->keepStateOnCrash('current_day')) {
-                $dateFrom = Carbon::parse($this->crawler->state['current_day']);
-            }
-
-            // Если даты одинаковые, значит мы уже "внизу" цикла по дням
-            if ($dateFrom->isSameDay($dateTo)) {
-                $this->priceSplitHook($url);
-
-                return;
-            }
-
-            $period = CarbonPeriod::create($dateFrom, $dateTo);
-            $this->logger->info("ЕИС [Архивный режим]: Период {$dateFrom->format('d.m.Y')} - {$dateTo->format('d.m.Y')}");
-
-            foreach ($period as $date) {
-                $currentDay = $date->format('d.m.Y');
-                $this->logger->info("ЕИС: Обработка дня: $currentDay");
-
-                // Сохраняем состояние парсера, если включена фича keep_state_on_crash
-                if ($this->keepStateOnCrash()) {
-                    $this->crawler->updateState([
-                        'current_day' => $date->format('Y-m-d'),
-                    ]);
-                    $this->logger->info("Сохраняем состояние парсера {$currentDay}", LogOutput::Console);
-                }
-
-                $dayUrl = (string) Url::fromString($url)
-                    ->withQueryParameter('publishDateFrom', $currentDay)
-                    ->withQueryParameter('publishDateTo', $currentDay);
-
-                $this->priceSplitHook($dayUrl);
-            }
+            $this->archiveCrawl($url, Carbon::parse($filters['publishDateFrom']), Carbon::parse($filters['publishDateTo']));
 
             return;
         }
 
-        $this->logger->info('ЕИС [Оперативный режим]: Анализ свежих данных');
+        // Оперативный режим: свежие данные сортируются по обновлению, страницы быстро «съезжают»,
+        // поэтому сохранённый курсор неактуален — всегда полный проход с нуля.
+        if ($this->run !== null) {
+            $this->runManager->resetCursor($this->run);
+        }
+
+        $this->logger->event('ЕИС [Оперативный режим]: полный проход по свежим данным.');
         $this->priceSplitHook($url);
     }
 
@@ -129,14 +100,14 @@ final class EisCrawlingService extends AbstractCrawlingService
 
     public function getNodes(string $html): array
     {
-        return (new DomCrawler($html))->filter('.search-registry-entry-block')->each(fn(DomCrawler $node) => $node);
+        return (new DomCrawler($html))->filter('.search-registry-entry-block')->each(fn (DomCrawler $node) => $node);
     }
 
     public function crawlingItem(mixed $node): CrawlingItemDto
     {
         $externalId = mb_trim($node->filter('.registry-entry__header-mid__number')->text());
         $subject = mb_trim($node->filter('.registry-entry__body-value')->text());
-        $url = 'https://zakupki.gov.ru' . $node->filter('.registry-entry__header-mid__number a')->attr('href');
+        $url = 'https://zakupki.gov.ru'.$node->filter('.registry-entry__header-mid__number a')->attr('href');
         $priceText = $node->filter('.price-block__value')->count() ? $node->filter('.price-block__value')->text() : '0';
         $price = (float) preg_replace('/[^\d.]/', '', str_replace(',', '.', $priceText));
 
@@ -181,7 +152,7 @@ final class EisCrawlingService extends AbstractCrawlingService
             if (! $href || str_contains($href, 'signview') || str_contains($href, 'javascript')) {
                 return null;
             }
-            $fullUrl = str_starts_with($href, 'http') ? $href : 'https://zakupki.gov.ru' . $href;
+            $fullUrl = str_starts_with($href, 'http') ? $href : 'https://zakupki.gov.ru'.$href;
             parse_str(parse_url($fullUrl, PHP_URL_QUERY) ?? '', $query);
             $externalId = $query['uid'] ?? ($query['id'] ?? md5($href));
 
@@ -200,12 +171,87 @@ final class EisCrawlingService extends AbstractCrawlingService
     }
 
     /**
+     * Архивный режим: обход по дням. Прошедшие дни стабильны, поэтому возобновление с
+     * незавершённого дня дёшево и корректно (страницы внутри дня не «съезжают»).
+     */
+    private function archiveCrawl(string $url, Carbon $dateFrom, Carbon $dateTo): void
+    {
+        $resumeDay = $this->resumeDay($dateFrom, $dateTo);
+        if ($resumeDay !== null) {
+            $dateFrom = $resumeDay;
+            $this->logger->event("ЕИС [Архивный режим]: возобновление с дня {$dateFrom->format('Y-m-d')}.");
+        }
+
+        // Если даты одинаковые, значит мы уже "внизу" цикла по дням
+        if ($dateFrom->isSameDay($dateTo)) {
+            $this->rememberDay($dateFrom, $dateTo);
+            $this->priceSplitHook($url);
+
+            return;
+        }
+
+        $period = CarbonPeriod::create($dateFrom, $dateTo);
+        $this->logger->event("ЕИС [Архивный режим]: период {$dateFrom->format('d.m.Y')} — {$dateTo->format('d.m.Y')}.");
+
+        foreach ($period as $date) {
+            $this->logger->info('ЕИС: обработка дня '.$date->format('d.m.Y'));
+            $this->rememberDay($date, $dateTo);
+
+            $dayUrl = (string) Url::fromString($url)
+                ->withQueryParameter('publishDateFrom', $date->format('d.m.Y'))
+                ->withQueryParameter('publishDateTo', $date->format('d.m.Y'));
+
+            $this->priceSplitHook($dayUrl);
+        }
+    }
+
+    /**
+     * День возобновления: сначала из чекпойнта прогона (plt_crawler_runs.day_from),
+     * затем — из legacy Crawler.state. Null — если возобновлять не с чего или день вне окна.
+     */
+    private function resumeDay(Carbon $dateFrom, Carbon $dateTo): ?Carbon
+    {
+        $candidate = $this->run?->day_from;
+
+        if ($candidate === null && $this->keepStateOnCrash('current_day')) {
+            $candidate = Carbon::parse($this->crawler->state['current_day']);
+        }
+
+        if ($candidate === null) {
+            return null;
+        }
+
+        $candidate = $candidate instanceof Carbon ? $candidate : Carbon::parse($candidate);
+
+        if ($candidate->lt($dateFrom) || $candidate->gt($dateTo)) {
+            return null;
+        }
+
+        return $candidate;
+    }
+
+    /** Фиксирует текущий день и в чекпойнте прогона, и в legacy Crawler.state. */
+    private function rememberDay(Carbon $day, Carbon $dateTo): void
+    {
+        if ($this->run !== null) {
+            $this->runManager->heartbeat($this->run, [
+                'day_from' => $day->toDateString(),
+                'day_to' => $dateTo->toDateString(),
+            ]);
+        }
+
+        if ($this->keepStateOnCrash()) {
+            $this->crawler->updateState(['current_day' => $day->format('Y-m-d')]);
+        }
+    }
+
+    /**
      * Рекурсивное дробление по ценам.
      */
     private function priceSplitHook(string $url): void
     {
         // Выводим ссылку в консоль для ручной проверки
-        $this->logger->info("ЕИС Ссылка для проверки: " . $url);
+        $this->logger->debug('ЕИС Ссылка для проверки: '.$url);
 
         $page = $this->browser->openPage($url, new BrowserOptions(
             retries: 3,
@@ -217,7 +263,8 @@ final class EisCrawlingService extends AbstractCrawlingService
 
         // Если записей 0, сразу выходим
         if ($totalRecords === 0) {
-            $this->logger->info("ЕИС: Результатов не найдено (0 записей).");
+            $this->logger->info('ЕИС: Результатов не найдено (0 записей).');
+
             return;
         }
 
@@ -234,6 +281,7 @@ final class EisCrawlingService extends AbstractCrawlingService
                 $this->logger->info("ЕИС: Забираем доступные 1000 записей из $totalRecords найденных.");
 
                 $this->processAllIntervalPages($url);
+
                 return;
             }
 

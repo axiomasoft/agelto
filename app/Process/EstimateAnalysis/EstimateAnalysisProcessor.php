@@ -20,7 +20,7 @@ final class EstimateAnalysisProcessor
 
     public function run(DocumentAnalysis $documentAnalysis): ?DocumentAnalysisResponse
     {
-        $systemInstructions = $this->promptRepo->getSystemInstructionsForStep(Step::EstimateFetchItems);
+        $systemInstructions = $this->promptRepo->systemInstructionsFor(Step::EstimateFetchItems);
 
         // 1. Получаем ID кэша (создастся или возьмется готовый)
         $cacheId = $this->gemini->getContextCache($documentAnalysis, $systemInstructions);
@@ -33,11 +33,16 @@ final class EstimateAnalysisProcessor
             cacheId: $cacheId
         );
 
+        $usage = $this->gemini->lastUsage();
+
         $res = $documentAnalysis->responses()->create([
             'step' => Step::EstimateFetchItems->value,
             'cache_file_id' => $cacheId,
             'rules_hash' => sha1($systemInstructions),
-            'payload' => $response['data'] ?? [],
+            'data' => $response['data'] ?? [],
+            'prompt_tokens' => $usage['prompt_tokens'] ?? null,
+            'completion_tokens' => $usage['completion_tokens'] ?? null,
+            'total_tokens' => $usage['total_tokens'] ?? null,
         ]);
 
         // Финализируем стадию: иначе документ навсегда остаётся в EstimateAnalyzing

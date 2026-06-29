@@ -22,7 +22,7 @@ final class CrawlingRepository
      */
     public function storeOrUpdateLink(Crawler $crawler, LinkDto $dto): Link
     {
-        $existing = $this->findLinkByPlatformAndRegNumber($crawler->platform->id, $dto->regNumber);
+        $existing = $this->findLink($crawler->platform->id, $dto->regNumber);
 
         // «Данные переехали» = ссылка новая или извещение обновилось на площадке.
         $isStale = $existing === null
@@ -100,7 +100,7 @@ final class CrawlingRepository
     /**
      * Поиск ссылки по платформе и рег. номеру (для проверки актуальности перед подгрузкой документов).
      */
-    public function findLinkByPlatformAndRegNumber(int $platformId, string $regNumber): ?Link
+    public function findLink(int $platformId, string $regNumber): ?Link
     {
         return Link::query()
             ->where('platform_id', $platformId)
@@ -135,7 +135,7 @@ final class CrawlingRepository
     /**
      * Фиксация ошибки обработки ссылки с логикой экспоненциальной задержки.
      */
-    public function markAsFailed(Link $link, string $errorMessage): void
+    public function markFailed(Link $link, string $errorMessage): void
     {
         $link->increment('attempts');
 

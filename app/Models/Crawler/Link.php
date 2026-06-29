@@ -7,12 +7,15 @@ namespace App\Models\Crawler;
 use App\Enums\Crawling\CrawlingStatus;
 use App\Models\DocumentAnalysis\DocumentAnalysis;
 use App\Models\Platform;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 final class Link extends Model
 {
+    use HasFactory;
+
     // Указываем новое короткое имя таблицы
     protected $table = 'plt_crawler_links';
 

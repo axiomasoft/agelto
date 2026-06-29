@@ -1,0 +1,40 @@
+{
+  "mcpServers": {
+    "laravel-boost": {
+      "command": "php",
+      "args": [
+        "artisan",
+        "boost:mcp"
+      ]
+    },
+    "maind": {
+      "command": "<ABS_PATH_TO_SWISSKNIFEMAN>/packages/maind/bin/maind",
+      "args": [
+        "mcp",
+        "--scope",
+        "project:agelto"
+      ]
+    },
+    "serena": {
+      "command": "uvx",
+      "args": [
+        "--from",
+        "git+https://github.com/oraios/serena",
+        "serena",
+        "start-mcp-server",
+        "--context",
+        "ide-assistant",
+        "--project",
+        "<ABS_PATH_TO_PROJECT>",
+        "--enable-web-dashboard",
+        "false"
+      ]
+    },
+    "playwright": {
+      "command": "bash",
+      "args": [
+        "scripts/playwright-mcp.sh"
+      ]
+    }
+  }
+}

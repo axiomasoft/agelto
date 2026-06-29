@@ -71,7 +71,7 @@ return [
 
     'prefix' => env(
         'HORIZON_PREFIX',
-        Str::slug(env('APP_NAME', 'laravel'), '_') . '_horizon:'
+        Str::slug(env('APP_NAME', 'laravel'), '_').'_horizon:'
     ),
 
     /*
@@ -219,8 +219,10 @@ return [
             'balance' => 'auto',
             'autoScalingStrategy' => 'time',
             'maxProcesses' => 1,
-            'maxTime' => 3600,
-            'maxJobs' => 500,
+            // Тяжёлая конвертация файлов (память до 512MB в проде) — чаще перезапускаем
+            // воркер, чтобы вернуть память ОС (memory-recycle, не Chromium — браузер в CLI-краулере).
+            'maxTime' => 1800,
+            'maxJobs' => 100,
             'memory' => 128,
             'tries' => 3,
             'backoff' => 3,

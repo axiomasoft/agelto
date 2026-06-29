@@ -56,7 +56,7 @@ final class PrimaryAnalysisProcessor
 
         $fileUri = $this->gemini->ensureFileInCloud($analysis);
 
-        $systemInstructions = $this->promptRepo->getSystemInstructionsForStep(self::STEP);
+        $systemInstructions = $this->promptRepo->systemInstructionsFor(self::STEP);
 
         $prompt = 'Выполни первичный анализ согласно правилам.';
 
@@ -77,7 +77,9 @@ final class PrimaryAnalysisProcessor
 
         $analysis->transitionStatus(status: AnalysisStatus::PrimaryAnalyzed, message: 'Первичный анализ выполнен');
 
-        DB::transaction(function () use ($analysis, $responseObject, $prompt, $systemInstructions): void {
+        $usage = $this->gemini->lastUsage();
+
+        DB::transaction(function () use ($analysis, $responseObject, $prompt, $systemInstructions, $usage): void {
             $analysis->responses()->create([
                 'step' => self::STEP,
                 'success' => $responseObject->success,
@@ -85,6 +87,9 @@ final class PrimaryAnalysisProcessor
                 'data' => $responseObject->data->toArray(),
                 'prompt' => $prompt,
                 'rules_hash' => sha1($systemInstructions),
+                'prompt_tokens' => $usage['prompt_tokens'] ?? null,
+                'completion_tokens' => $usage['completion_tokens'] ?? null,
+                'total_tokens' => $usage['total_tokens'] ?? null,
             ]);
 
             if ($responseObject->data->document_type !== DocumentType::Estimate) {

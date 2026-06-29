@@ -24,6 +24,6 @@ require __DIR__.'/settings.php';
 require __DIR__.'/platform.php';
 
 // Маршрут для скачивания файлов из MediaLibrary
-Route::get('media-private/{uuid}/{collection_name}', [App\Http\Controllers\MediaLibraryController::class, 'download'])
+Route::get('media-private/{uuid}/{collection_name}', App\Http\Controllers\MediaLibraryController::class)
     ->middleware('auth')
     ->name('media.download');

@@ -11,15 +11,16 @@ use App\Dto\Crawling\LinkDto;
 use App\Dto\Crawling\PageMetaDto;
 use App\Dto\Crawling\PageResultDto;
 use App\Enums\LogOutput;
+use App\Interfaces\Crawling\BrowserClient;
 use App\Interfaces\Crawling\PlatformCrawling;
 use App\Models\Crawler\Crawler as CrawlerModel;
+use App\Models\Crawler\CrawlerRun;
 use App\Models\Crawler\IgnoredLink;
 use App\Models\Platform;
+use App\Process\Crawling\Run\CrawlerRunManager;
 use App\Repositories\Crawling\CrawlingRepository;
 use App\Services\AppLogger;
-use App\Services\BrowserService;
 use Carbon\Carbon;
-use Illuminate\Support\Facades\App;
 use RuntimeException;
 use Spatie\LaravelData\DataCollection;
 use Throwable;
@@ -28,9 +29,13 @@ abstract class AbstractCrawlingService implements PlatformCrawling
 {
     protected ?CrawlerModel $crawler = null;
 
+    protected ?CrawlerRun $run = null;
+
     public function __construct(
         protected readonly AppLogger $logger,
-        protected readonly BrowserService $browser,
+        protected readonly BrowserClient $browser,
+        protected readonly CrawlingRepository $crawlingRepository,
+        protected readonly CrawlerRunManager $runManager,
     ) {}
 
     abstract public function getNodes(string $html): array;
@@ -47,14 +52,23 @@ abstract class AbstractCrawlingService implements PlatformCrawling
 
     final public function start(CrawlerModel $crawler): void
     {
+        $this->crawler = $crawler;
+        $this->crawler->load('platform');
+
+        // Старт/возобновление прогона с учётом инварианта «один активный прогон на профиль».
+        $this->run = $this->runManager->startOrResume($crawler);
+        if ($this->run === null) {
+            // По профилю уже идёт живой прогон — не запускаем второй.
+            return;
+        }
+
+        $this->logger->setContext($this->runContext());
+
         try {
             $this->checkVpnConstraint();
 
             $this->logger->info('Инициализация браузера и прокси...', LogOutput::Console);
             $this->browser->withRandomProxy();
-
-            $this->crawler = $crawler;
-            $this->crawler->load('platform');
 
             $url = $this->getCrawlerUrl($crawler);
 
@@ -67,12 +81,21 @@ abstract class AbstractCrawlingService implements PlatformCrawling
             $this->startHook($url);
 
             $this->browser->reportSuccess();
+            $this->runManager->complete($this->run);
+
+            // Чистим resume-метки профиля при штатном завершении, чтобы следующий прогон стартовал с начала.
+            $this->crawler->updateState(['current_url' => null, 'current_day' => null]);
         } catch (Throwable $e) {
-            $this->logger->error('Ошибка краулера '.static::class.': '.$e->getMessage());
+            $this->logger->error(
+                'Ошибка краулера '.static::class.': '.$e->getMessage(),
+                context: ['trace' => $e->getTraceAsString()],
+            );
             $this->browser->reportFail($e);
+            $this->runManager->fail($this->run, $e);
             throw $e;
         } finally {
             $this->browser->close();
+            $this->logger->clearContext();
         }
     }
 
@@ -84,6 +107,14 @@ abstract class AbstractCrawlingService implements PlatformCrawling
         do {
             $currentPage = (int) $urlObject->getQueryParameter($pageKey, 1);
             $requestUrl = (string) $urlObject;
+
+            // Heartbeat + чекпойнт текущей страницы прогона — для детекта зависания и возобновления.
+            if ($this->run !== null) {
+                $this->runManager->heartbeat($this->run, [
+                    'cursor_url' => $requestUrl,
+                    'current_page' => $currentPage,
+                ]);
+            }
 
             if ($this->keepStateOnCrash()) {
                 $this->crawler->updateState(['current_url' => $requestUrl]);
@@ -101,7 +132,7 @@ abstract class AbstractCrawlingService implements PlatformCrawling
             $nextPage = (string) ($currentPage + 1);
             $urlObject = $urlObject->withQueryParameter($pageKey, $nextPage);
 
-            $this->logger->info("Готовим переход на страницу {$nextPage}", LogOutput::Console);
+            $this->logger->debug("Готовим переход на страницу {$nextPage}", LogOutput::Console);
             usleep(mt_rand(3_000_000, 5_000_000));
         } while (true);
     }
@@ -109,6 +140,23 @@ abstract class AbstractCrawlingService implements PlatformCrawling
     final public function getPlatform(): Platform
     {
         return $this->getCrawler()->platform;
+    }
+
+    /**
+     * Контекст прогона для сквозного логирования (run_id / crawler_id / entity → sys_logs).
+     *
+     * @return array<string, mixed>
+     */
+    protected function runContext(): array
+    {
+        return [
+            'entity_type' => CrawlerRun::class,
+            'entity_id' => $this->run?->id,
+            'stage' => 'Crawling',
+            'source' => 'crawler',
+            'run_id' => $this->run?->id,
+            'crawler_id' => $this->crawler?->id,
+        ];
     }
 
     protected function startHook(string $url): void
@@ -141,7 +189,7 @@ abstract class AbstractCrawlingService implements PlatformCrawling
 
     protected function fetchPage(string $requestUrl): \Illuminate\Http\Client\Response
     {
-        $this->logger->info('Загрузка страницы: '.$requestUrl, LogOutput::Console);
+        $this->logger->debug('Загрузка страницы: '.$requestUrl, LogOutput::Console);
         $page = $this->browser->openPage($requestUrl, new BrowserOptions(
             retries: 3,
             rotate_proxy_on_fail: true,
@@ -166,7 +214,7 @@ abstract class AbstractCrawlingService implements PlatformCrawling
 
             $item = $this->crawlingItem($node);
 
-            $link = $this->crawlingRepository()->findLinkByPlatformAndRegNumber(
+            $link = $this->crawlingRepository->findLink(
                 $this->getPlatform()->id,
                 $item->externalId
             );
@@ -177,11 +225,11 @@ abstract class AbstractCrawlingService implements PlatformCrawling
                 || $link->platform_updated_at->toDateString() !== $item->updatedAt->toDateString();
 
             if ($needsDocuments) {
-                $this->logger->info("Парсинг вложений для {$item->externalId}", LogOutput::Console);
+                $this->logger->debug("Парсинг вложений для {$item->externalId}", LogOutput::Console);
                 $attachmentsData = $this->parseAttachments($item->url);
                 $item->attachments = AttachmentDto::collect($attachmentsData, DataCollection::class);
             } else {
-                $this->logger->warning("пропускаем Парсинг вложений для {$item->externalId}", LogOutput::Console);
+                $this->logger->debug("пропускаем Парсинг вложений для {$item->externalId}", LogOutput::Console);
             }
 
             /* $link->load('attachments');
@@ -229,17 +277,12 @@ abstract class AbstractCrawlingService implements PlatformCrawling
             attachments: $item->attachments,
         );
 
-        $this->crawlingRepository()->storeOrUpdateLink($this->getCrawler(), $linkDto);
+        $this->crawlingRepository->storeOrUpdateLink($this->getCrawler(), $linkDto);
     }
 
     protected function getCrawler(): CrawlerModel
     {
         return $this->crawler ?? throw new RuntimeException('Crawler is not set.');
-    }
-
-    protected function crawlingRepository(): CrawlingRepository
-    {
-        return app(CrawlingRepository::class);
     }
 
     protected function isAlreadyIgnored(string $externalId): bool

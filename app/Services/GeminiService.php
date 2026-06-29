@@ -14,6 +14,7 @@ use Gemini\Enums\MimeType as GeminiMimeType;
 use Gemini\Enums\ResponseMimeType;
 use GuzzleHttp\Client as GuzzleClient;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Redis;
 use InvalidArgumentException;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
 
@@ -26,6 +27,13 @@ final class GeminiService
 
     private string $model = 'gemini-2.0-flash';
 
+    /**
+     * Расход токенов последнего успешного запроса генерации (prompt/completion/total).
+     *
+     * @var array<string, int|null>|null
+     */
+    private ?array $lastUsage = null;
+
     public function __construct()
     {
         $this->buildClient();
@@ -34,6 +42,36 @@ final class GeminiService
     public function __call(string $name, array $arguments)
     {
         return $this->nativeClient->$name(...$arguments);
+    }
+
+    /**
+     * Извлекает расход токенов из ответа Gemini (usageMetadata). Null-устойчиво к версии SDK.
+     *
+     * @return array<string, int|null>|null
+     */
+    public static function usageFromResponse(object $response): ?array
+    {
+        $usage = $response->usageMetadata ?? null;
+
+        if ($usage === null) {
+            return null;
+        }
+
+        return [
+            'prompt_tokens' => $usage->promptTokenCount ?? null,
+            'completion_tokens' => $usage->candidatesTokenCount ?? null,
+            'total_tokens' => $usage->totalTokenCount ?? null,
+        ];
+    }
+
+    /**
+     * Токены последнего успешного generateJson() — для учёта стоимости в DocumentAnalysisResponse.
+     *
+     * @return array<string, int|null>|null
+     */
+    public function lastUsage(): ?array
+    {
+        return $this->lastUsage;
     }
 
     /**
@@ -123,6 +161,8 @@ final class GeminiService
      */
     public function generateJson(string $prompt, string $data, ?string $systemInstruction = null, ?string $cacheId = null): array
     {
+        $this->lastUsage = null;
+
         try {
             $model = $this->generativeModel($this->model);
             $config = new GenerationConfig(
@@ -130,21 +170,27 @@ final class GeminiService
                 temperature: 0.1,
             );
 
-            if ($cacheId) {
-                // Экономный запрос через существующий кеш
-                $response = $model->withCachedContent($cacheId)
-                    ->withGenerationConfig($config)
-                    ->generateContent($prompt);
-            } else {
+            // Троттлинг на уровне ключа: не больше N генераций в окно на всех воркеров (анти-429).
+            $response = $this->withRateLimit(function () use ($model, $config, $cacheId, $systemInstruction, $prompt, $data) {
+                if ($cacheId) {
+                    // Экономный запрос через существующий кеш
+                    return $model->withCachedContent($cacheId)
+                        ->withGenerationConfig($config)
+                        ->generateContent($prompt);
+                }
+
                 // Обычный запрос (передаем инструкции и URI файла)
                 if ($systemInstruction) {
                     $model = $model->withSystemInstruction(Content::parse($systemInstruction));
                 }
-                $response = $model->withGenerationConfig($config)->generateContent([
+
+                return $model->withGenerationConfig($config)->generateContent([
                     "PROMPT:\n{$prompt}",
                     "DATA:\n{$data}",
                 ]);
-            }
+            });
+
+            $this->lastUsage = self::usageFromResponse($response);
 
             return json_decode($response->text(), true) ?? [];
         } catch (Exception $e) {
@@ -225,6 +271,38 @@ final class GeminiService
 
             return false;
         }
+    }
+
+    /**
+     * Оборачивает реальный сетевой вызов троттлингом Redis::throttle.
+     * Выключен (max<=0) и в юнит-тестах (нет redis) — выполняем напрямую.
+     *
+     * @template T
+     *
+     * @param  callable(): T  $callback
+     * @return T
+     */
+    private function withRateLimit(callable $callback)
+    {
+        $max = (int) config('gemini.rate_limit.max', 0);
+
+        if ($max <= 0 || app()->runningUnitTests()) {
+            return $callback();
+        }
+
+        $every = (int) config('gemini.rate_limit.every_seconds', 60);
+        $block = (int) config('gemini.rate_limit.block_seconds', 30);
+
+        return Redis::throttle('gemini:generate')
+            ->allow($max)
+            ->every($every)
+            ->block($block)
+            ->then(
+                $callback,
+                static function (): void {
+                    throw new Exception('Gemini rate limit: слот не получен за отведённое время.');
+                },
+            );
     }
 
     private function getFileFingerprint(Media $media): string

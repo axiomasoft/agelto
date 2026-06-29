@@ -23,6 +23,7 @@ When a task requires more detail than what's in the current context, load the re
 ## Fast Term Routing (Minimal Context First)
 
 - Непонятные термины домена (Crawler, Link, Document, стадии 1–4) — сначала `docs/workflow/parsing-process.md`.
+- Имена классов/методов/переменных, канон глаголов (`find/get`), нейминг тестов — `.ai/guidelines/glossary.md` (канон) и `docs/dev/glossary.md` (полный справочник).
 - Изменение пайплайна парсинга / jobs / очередей — `.ai/guidelines/project-development.md`.
 - Большая/неоднозначная задача на несколько слоёв — skill `complex-task-orchestrator`.
 - Первый проход минимальный: 1–2 файла, затем расширять по необходимости.
@@ -42,21 +43,22 @@ When a task requires more detail than what's in the current context, load the re
 |---|---|
 | Crawling, parsing, AI screening, estimate extraction | `docs/workflow/parsing-process.md` |
 | Platform / EIS / модули, терминология | `docs/dev/architecture.md` |
+| Имена сущностей/методов/переменных, канон глаголов, нейминг тестов | `.ai/guidelines/glossary.md`, `docs/dev/glossary.md` |
 | Layer boundaries, where logic lives | `.ai/guidelines/architecture.md` |
 | Cross-layer change in parsing pipeline | `.ai/guidelines/project-development.md` |
 | Docker dev/prod, Makefile deploy targets | `docs/dev/docker/` |
 | Proxy setup for EIS | `docs/dev/proxies.md` |
 | Writing or running tests | skill `testing-rules` |
 | Creating commits | skill `git-commit-rules` |
-| Inertia + Vue pages/forms | skill `inertia-vue-development` |
-| Filament admin panel | skill `filament-development` |
-| Frontend routes from backend | skill `wayfinder-development` |
+| Inertia + Vue pages/forms | skill `inertia-vue` |
+| Filament admin panel | skill `filament` |
+| Frontend routes from backend | skill `wayfinder` |
 | DB schema, migrations | skill `database` |
-| Eloquent Attribute::make() | skill `laravel-attributes` |
-| PHP style (final, named args) | `.ai/guidelines/php-coding-standards.md`, skill `named-arguments` |
+| Eloquent Attribute::make() accessors/mutators | skill `eloquent-accessors` |
+| PHP style (final, strict types, named args) | skills `code-style-spatie`, `named-arguments`, `static-analysis` |
 | Folder map and layer ownership | skill `project-map` |
 | Complex multi-step task | skill `complex-task-orchestrator` |
 | Backend + frontend + auth/tests checklist | skill `cross-layer-change-checklist` |
 | Editing `.ai/`, `boost.json`, agent generation cycle | skill `ai-context-workflow`, `docs/ai/source-of-truth.md` |
-| Natural wording for comments/commits | `.ai/guidelines/human-writing-style.md` |
+| Natural wording for comments/commits | skill `writing-style` |
 | Terse responses | skill `compact-responses` |

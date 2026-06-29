@@ -5,6 +5,7 @@ services:
     user: "0:0"
     restart: unless-stopped
     stop_signal: SIGTERM
+    stop_grace_period: 30s
     working_dir: /var/www/html
     volumes:
       - ./:/var/www/html
@@ -125,6 +126,8 @@ services:
     image: agelto/app:latest
     container_name: agelto_scheduler
     restart: unless-stopped
+    stop_signal: SIGTERM
+    stop_grace_period: 60s
     working_dir: /var/www/html
     volumes:
       - ./:/var/www/html
@@ -153,6 +156,7 @@ services:
     container_name: agelto_reverb
     restart: unless-stopped
     stop_signal: SIGTERM
+    stop_grace_period: 30s
     working_dir: /var/www/html
     volumes:
       - ./:/var/www/html
