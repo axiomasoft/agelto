@@ -118,6 +118,7 @@ Unique `(procurement_id, organization_id, role)`. Быстрый доступ к
 | detail_url | text nullable | карточка |
 | detail_fetched_at | timestamptz nullable | когда снят детальный слой (`02` §5) |
 | detail_attempts, detail_last_error, detail_next_retry_at, detail_failed | int/text/timestamptz/bool | error-блок стадии детального слоя (v1-канон): ретрай снятия карточки по `detail_fetched_at IS NULL OR detail_next_retry_at <= now`, без реконструкции через логи |
+| source_guid | text nullable index | GUID извещения на площадке (223-ФЗ `noticeGuid` — обязателен для части вкладок карточки, см. `eis-card-recon.md` §10; для 44-ФЗ — `null`, там GUID не требуется) |
 | current_revision_id | bigint nullable | id последнего снапшота |
 | current_revision_detected_at | timestamptz nullable | **partition key снапшота** — обязателен рядом с id: без него lookup по `current_revision_id` не даёт partition pruning. Резолв: `(id=… AND detected_at=…)` или `(procurement_id, detected_at DESC LIMIT 1)` |
 | revision_count | int default 1 | |
@@ -142,7 +143,7 @@ Unique `(procurement_id, organization_id, role)`. Быстрый доступ к
 `event_type`: `discovered`, `revision_published`, `status_changed`, `price_changed`, `dates_changed`, `document_added`/`replaced`/`removed`, `lot_changed`, `protocol_published`, `clarification_published`, `cancelled`, `restored`, `award_made`, `ignored`. Наполняется **тремя источниками**: (1) diff редакций (цена/сроки/поля), (2) типизированные сущности §4 (`prc_protocols`/`prc_clarifications`/`prc_cancellations`/`prc_awards` — при их создании пишется событие), (3) журнал событий ЕИС (`event-journal.html`) как **дополняющий** источник дат переходов этапов. Приоритет — типизированные сущности, не парсинг текстовых строк журнала: `research/tz-v2/events-results-l2.md` §1 предупреждает, что структура вкладки не подтверждена публичной схемой и хрупка; журнал используем для дат/подтверждения, а бизнес-данные строим из документов-протоколов. `prc_events` — тонкий агрегатор-проекция (факт+ссылка). `revision_published` — на каждую ревизию; редакция без изменений ядра, но с новым `source_edition` — только `revision_published`. Индекс `(procurement_id, occurred_at)`, `(event_type, occurred_at)`.
 
 ### prc_lots
-`id PK; procurement_id FK unique(procurement_id,lot_number); lot_number int; subject text; status text(enum §3.1); initial_price numeric(18,2) nullable; currency char(3) nullable; okpd2_code text nullable; attributes jsonb`.
+`id PK; procurement_id FK unique(procurement_id,lot_number); lot_number int; lot_guid text nullable unique(procurement_id,lot_guid) (223-ФЗ — свой GUID лота из `lot-list.html`, см. `eis-card-recon.md` §10; 44-ФЗ — `null`, весь объект закупки = единственный виртуальный лот с `lot_number=1`); subject text; status text(enum §3.1); is_centralized bool default false (223-ФЗ «Централизованная закупка»); initial_price numeric(18,2) nullable; currency char(3) nullable; okpd2_code text nullable; okved_code text nullable; attributes jsonb`.
 
 ### prc_items — позиции объекта закупки (OCDS tender.items)
 | Колонка | Тип | Примечание |
@@ -317,8 +318,9 @@ Unique `(procurement_id, organization_id, role)`. Быстрый доступ к
 
 ## 12. Открытые вопросы / риски
 
-- Многолотовые процедуры (конкурсы) — структуру лотов/позиций снять на реальном примере при реализации адаптера (`eis-card-recon.md` §8).
-- 223-ФЗ карточка — набор полей и URL-схема отличаются от 44-ФЗ; снять отдельно, типы протоколов держать open-ended.
+- ~~Многолотовые процедуры (конкурсы) — структуру лотов/позиций снять на реальном примере~~ — **закрыто** живой разведкой: у 44-ФЗ явных блоков «Лот N» в карточке нет, каждый лот публикуется отдельным `reg_number` (см. `eis-card-recon.md` §9); `prc_lots.lot_number=1` виртуален для 44-ФЗ.
+- ~~223-ФЗ карточка — набор полей и URL-схема отличаются от 44-ФЗ~~ — **закрыто**: отдельная ветка `notice223`, лоты — первичная сущность через `lot-list.html`/`lot-info.html` по `lotGuid`, требует `noticeGuid` (см. `eis-card-recon.md` §10; поля `prc_procurements.source_guid`/`prc_lots.lot_guid` добавлены выше). Типы протоколов 223-ФЗ по-прежнему open-ended.
+- Триггер `lastDateChangeCsv` для разъяснений документации — подтверждён живьём только для протокола/отмены; для разъяснения экстраполяция без прямого наблюдения (`eis-card-recon.md` §11) — перепроверить при первой возможности.
 - Слой контрактов (реестр контрактов, исполнение) — за рамками MVP; `prc_awards.contract_registry_number` — якорь связи на будущее.
 - Адресный слой (ГАР, не КЛАДР/ФИАС) — если понадобится гео-аналитика; пока `region_code` денормализован на организации/закупке.
 - Партиция месяц vs квартал для `prc_events` — стартуем с месяца, пересмотр после замера потока.
