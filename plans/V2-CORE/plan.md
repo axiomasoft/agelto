@@ -70,6 +70,7 @@ Redis/Horizon, MinIO (S3-совместимое), package manager фронта �
 | D2 | 2026-07-03 | v1-код перенесён в `Old/` сразу (git mv), до старта Фазы 0 | Явное решение владельца по вопросу Step 0 |
 | D3 | 2026-07-03 | Правки схемы по итогам разведки (source_guid/lot_guid/is_centralized/okved_code) внесены в `01-database.md` до старта миграций | Явное решение владельца по итогам Step 1 |
 | D4 | 2026-07-03 | Партиционирование — `pg_partman`, помесячно (`prc_events`, `prc_revisions`, `ai_llm_calls`, `crw_fetches`, `sys_operation_logs`); своя scheduled-команда как fallback | Зафиксировано в `01-database.md` §0.4 |
+| D5 | 2026-07-04 | `StatusMappingService` (P1.10) АВТОМАТИЧЕСКИ создаёт строку в `plt_status_mappings` с `canonical_status='unknown'` для нового `source_status`, не только читает | Явное решение владельца — оператор видит и правит неизвестный статус в админке, не роется в логах |
 
 ## 6. Update Log
 
