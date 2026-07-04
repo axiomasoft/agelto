@@ -1,0 +1,212 @@
+name: agelto_v2
+
+services:
+  app:
+    image: agelto/app:latest
+    container_name: agelto_app
+    user: "0:0"
+    restart: unless-stopped
+    stop_signal: SIGTERM
+    stop_grace_period: 30s
+    working_dir: /var/www/html
+    volumes:
+      - ./:/var/www/html
+      - vendor_data:/var/www/html/vendor
+    ports:
+      - "${APP_PORT:-8080}:8080"
+    # Docker Swarm secrets: чувствительные переменные читаются из /run/secrets/*
+    # через entrypoint.d/10-secrets.sh. Работает только с docker stack deploy (Swarm mode).
+    # Создать на сервере: echo "value" | docker secret create app_key -
+    # Без Swarm — переменные берутся из .env как обычно.
+    secrets:
+      - app_key
+      - db_password
+      - redis_password
+      - minio_root_password
+    environment: &prod_env
+      APP_ENV: production
+      APP_DEBUG: ${APP_DEBUG:-false}
+      APP_URL: ${APP_URL}
+      DB_CONNECTION: pgsql
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_DATABASE: ${DB_DATABASE}
+      DB_USERNAME: ${DB_USERNAME}
+      CACHE_STORE: ${CACHE_STORE:-redis}
+      SESSION_DRIVER: ${SESSION_DRIVER:-redis}
+      QUEUE_CONNECTION: ${QUEUE_CONNECTION:-redis}
+      LOG_CHANNEL: stack
+      LOG_LEVEL: ${LOG_LEVEL:-warning}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      FILESYSTEM_DISK: s3
+      AWS_ACCESS_KEY_ID: ${MINIO_ROOT_USER:-agelto}
+      AWS_DEFAULT_REGION: us-east-1
+      AWS_BUCKET: ${MINIO_BUCKET:-agelto}
+      AWS_ENDPOINT: http://minio:9000
+      AWS_USE_PATH_STYLE_ENDPOINT: "true"
+      # Указываем пути к файлам secrets — entrypoint читает их в APP_KEY / DB_PASSWORD / REDIS_PASSWORD / AWS_SECRET_ACCESS_KEY
+      APP_KEY_FILE: /run/secrets/app_key
+      DB_PASSWORD_FILE: /run/secrets/db_password
+      REDIS_PASSWORD_FILE: /run/secrets/redis_password
+      AWS_SECRET_ACCESS_KEY_FILE: /run/secrets/minio_root_password
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+      minio: { condition: service_healthy }
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:8080/up >/dev/null || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 40s
+    networks:
+      - agelto_network
+
+  horizon:
+    image: agelto/app:latest
+    container_name: agelto_horizon
+    restart: unless-stopped
+    stop_grace_period: 600s
+    working_dir: /var/www/html
+    shm_size: '2gb'
+    volumes:
+      - ./:/var/www/html
+      - vendor_data:/var/www/html/vendor
+    command: ["php", "artisan", "horizon"]
+    secrets:
+      - app_key
+      - db_password
+      - redis_password
+      - minio_root_password
+    healthcheck:
+      test: ["CMD-SHELL", "php artisan horizon:status 2>/dev/null | grep -qiE 'running' || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    environment: *prod_env
+    depends_on:
+      app: { condition: service_healthy }
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+    networks:
+      - agelto_network
+
+  scheduler:
+    image: agelto/app:latest
+    container_name: agelto_scheduler
+    restart: unless-stopped
+    stop_signal: SIGTERM
+    stop_grace_period: 60s
+    working_dir: /var/www/html
+    volumes:
+      - ./:/var/www/html
+      - vendor_data:/var/www/html/vendor
+    command: ["php", "artisan", "schedule:work"]
+    secrets:
+      - app_key
+      - db_password
+      - redis_password
+      - minio_root_password
+    healthcheck:
+      test: ["CMD-SHELL", "pgrep -af 'artisan schedule:work' >/dev/null || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    environment: *prod_env
+    depends_on:
+      app: { condition: service_healthy }
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+    networks:
+      - agelto_network
+
+  postgres:
+    image: postgres:17-alpine
+    container_name: agelto_postgres
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:${PGSQL_PORT:-5432}:5432"
+    volumes:
+      - pgsql_data:/var/lib/postgresql/data
+      - ./docker/postgres/init:/docker-entrypoint-initdb.d:ro
+    environment:
+      POSTGRES_DB: ${DB_DATABASE}
+      POSTGRES_USER: ${DB_USERNAME}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - agelto_network
+
+  redis:
+    image: redis:7-alpine
+    container_name: agelto_redis
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:${REDIS_PORT:-6379}:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - agelto_network
+
+  minio:
+    image: minio/minio:latest
+    container_name: agelto_minio
+    restart: unless-stopped
+    command: ["server", "/data", "--console-address", ":9001"]
+    ports:
+      - "127.0.0.1:${MINIO_PORT:-9000}:9000"
+      - "127.0.0.1:${MINIO_CONSOLE_PORT:-9001}:9001"
+    volumes:
+      - minio_data:/data
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-agelto}
+      MINIO_ROOT_PASSWORD_FILE: /run/secrets/minio_root_password
+    secrets:
+      - minio_root_password
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:9000/minio/health/live"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - agelto_network
+
+networks:
+  agelto_network:
+    driver: bridge
+
+volumes:
+  pgsql_data:
+  redis_data:
+  minio_data:
+  vendor_data:
+
+# Docker Swarm secrets. Создать на сервере перед первым запуском:
+#   docker swarm init
+#   echo "base64:YOUR_APP_KEY==" | docker secret create app_key -
+#   echo "your_db_password"      | docker secret create db_password -
+#   echo "your_redis_password"   | docker secret create redis_password -
+#   echo "your_minio_password"   | docker secret create minio_root_password -
+# Без Swarm (make up ENV=prod без stack deploy) — этот блок не активен,
+# переменные берутся из .env как обычно (entrypoint noop если файлов нет).
+secrets:
+  app_key:
+    external: true
+  db_password:
+    external: true
+  redis_password:
+    external: true
+  minio_root_password:
+    external: true
