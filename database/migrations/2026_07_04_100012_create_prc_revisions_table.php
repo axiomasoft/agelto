@@ -33,6 +33,10 @@ return new class extends Migration
             'CREATE UNIQUE INDEX prc_revisions_procurement_revision_detected_unique '
             .'ON prc_revisions (procurement_id, revision_number, detected_at)',
         );
+        DB::statement(
+            'ALTER TABLE prc_revisions ADD CONSTRAINT prc_revisions_procurement_id_foreign '
+            .'FOREIGN KEY (procurement_id) REFERENCES prc_procurements (id)',
+        );
 
         $this->bootstrapPartitions();
     }

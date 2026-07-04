@@ -91,7 +91,7 @@ final class PostgresTextArrayCast implements CastsAttributes
         }
 
         $escaped = array_map(
-            static fn (string $item): string => '"'.str_replace('"', '\\"', $item).'"',
+            static fn (string $item): string => '"'.str_replace(['\\', '"'], ['\\\\', '\\"'], $item).'"',
             $value,
         );
 

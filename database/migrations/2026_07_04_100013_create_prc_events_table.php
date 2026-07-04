@@ -30,6 +30,10 @@ return new class extends Migration
 
         DB::statement('CREATE INDEX prc_events_procurement_occurred_index ON prc_events (procurement_id, occurred_at)');
         DB::statement('CREATE INDEX prc_events_type_occurred_index ON prc_events (event_type, occurred_at)');
+        DB::statement(
+            'ALTER TABLE prc_events ADD CONSTRAINT prc_events_procurement_id_foreign '
+            .'FOREIGN KEY (procurement_id) REFERENCES prc_procurements (id)',
+        );
 
         $this->bootstrapPartitions();
     }
