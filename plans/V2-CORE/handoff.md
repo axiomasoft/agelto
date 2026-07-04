@@ -1,11 +1,11 @@
-# HANDOFF — 2026-07-04 — after P0.2
+# HANDOFF — 2026-07-04 — after P0 (Фаза 0 закрыта)
 
-**Next:** /task:plan-exec V2-CORE P0.3
-**Done:** P0.1 (Laravel 12 скелет) + P0.2 (полный Docker-стек: app/horizon/scheduler/postgres/redis/minio/browser, все healthy, `/up` 200). laravel/horizon добавлен (нужен для контейнера horizon). Старый v1 Docker-стек на этой машине остановлен (`docker compose down`, без `-v` — данные в volume'ах целы).
-**Remaining:** P0.3 (test-gate/test-isolation-guard/healthcheck-тест) — вся Фаза 1 (P1.1-P1.11).
-**Sources of truth:** `plans/V2-CORE/plan.md` · `plans/V2-CORE/phases/P0.md` (Known Deviations в P0.2 — важно прочитать перед P0.3/P1) · `docker-compose.yml`
-**Open risks:** —
+**Next:** /task:plan-exec V2-CORE P1.1
+**Done:** Фаза 0 целиком (P0.1 Laravel 12 + P0.2 Docker-стек + P0.3 test-gate/Pest). 7/7 сервисов healthy, `/up` 200, `make test-preflight`/`make test-php` зелёные (3 теста). См. `phases/P0.md` Phase Handoff и Known Deviations по каждому item — там все локальные особенности хоста (VPN/DNS, volume-неймспейс, PUID/PGID, занятые порты).
+**Remaining:** Фаза 1 целиком (P1.1-P1.11) — полная схема БД, партиционирование, репозитории, инжест-процессор.
+**Sources of truth:** `plans/V2-CORE/plan.md` · `plans/V2-CORE/phases/P0.md` · `plans/V2-CORE/phases/P1.md` · `docs/specs/v2/01-database.md` (актуальная версия — уже с правками по итогам разведки, source_guid/lot_guid) · `docker-compose.yml`
+**Open risks:** `pg_partman` доступность в образе `postgres:17-alpine` не проверена — P1.9 может потребовать смены образа или fallback-only решения (эскалировать, не тихо переключаться, см. P1.9 Implementation Rules).
 **Workarounds/Deferred/Open questions:**
-- workarounds: `name: agelto_v2` в compose (иначе коллизия volume-неймспейса со старым v1-стеком на той же машине); `build.network: host` в Dockerfile-билдах (DNS в контейнерах не резолвился из-за VPN на хосте — подтверждено воспроизводимо и на чужом контейнере, не специфично для проекта); ручной `chown -R www-data:www-data storage` после `docker compose up` вместо PUID/PGID (serversideup/php:8.4-fpm-nginx их не поддерживает); хостовый порт Postgres 5455 (5432/5433 заняты другими локальными сервисами на машине).
+- workarounds: см. `phases/P0.md` Known Deviations (P0.2 п.1-4, P0.3 п.1-2) — все про Docker/хост, не про домен.
 - deferred: —
 - open_questions: —
