@@ -41,6 +41,7 @@ return new class extends Migration
             $table->timestamps();
 
             $table->unique(['document_id', 'content_hash']);
+            $table->index('content_hash');
         });
     }
 
