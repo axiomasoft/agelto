@@ -1,11 +1,11 @@
-# HANDOFF — 2026-07-04 — after P0 (Фаза 0 закрыта)
+# HANDOFF — 2026-07-04 — after P1.7
 
-**Next:** /task:plan-exec V2-CORE P1.1
-**Done:** Фаза 0 целиком (P0.1 Laravel 12 + P0.2 Docker-стек + P0.3 test-gate/Pest). 7/7 сервисов healthy, `/up` 200, `make test-preflight`/`make test-php` зелёные (3 теста). См. `phases/P0.md` Phase Handoff и Known Deviations по каждому item — там все локальные особенности хоста (VPN/DNS, volume-неймспейс, PUID/PGID, занятые порты).
-**Remaining:** Фаза 1 целиком (P1.1-P1.11) — полная схема БД, партиционирование, репозитории, инжест-процессор.
-**Sources of truth:** `plans/V2-CORE/plan.md` · `plans/V2-CORE/phases/P0.md` · `plans/V2-CORE/phases/P1.md` · `docs/specs/v2/01-database.md` (актуальная версия — уже с правками по итогам разведки, source_guid/lot_guid) · `docker-compose.yml`
-**Open risks:** `pg_partman` доступность в образе `postgres:17-alpine` не проверена — P1.9 может потребовать смены образа или fallback-only решения (эскалировать, не тихо переключаться, см. P1.9 Implementation Rules).
+**Next:** /task:plan-exec V2-CORE P1.8
+**Done:** P1.7 — миграции+модели сметного контура (`est_estimates`/`est_sections`/`est_items`/`est_resources`/`est_totals`). `est_estimates` unique `analysis_id` (FK на `ai_analyses`), `raw_result jsonb` + `raw_result_ref text nullable` одновременно. `est_items` unique `(estimate_id, row_index)`. `est_sections`/`est_totals` — self-FK `parent_id` (деревья без ltree). `est_resources.resource_type` — text + `App\Enums\Estimate\ResourceType` backed enum (labor/machine/material/overhead/other). Реализовано agelto-slice-builder. `php artisan migrate:fresh --force` зелёный на 38 миграциях, оба constraint (`ai_analyses_document_version_id_step_unique`, `est_estimates_analysis_id_unique`) подтверждены через psql, tinker smoke — все 5 factory валидны, Pint чист.
+**Remaining:** P1.8-P1.11 (краулинг crw_* → sys/pg_partman → репозитории/ingest → тесты чек-листа §11).
+**Sources of truth:** `plans/V2-CORE/plan.md` · `plans/V2-CORE/phases/P1.md` · `docs/specs/v2/01-database.md` (§7 для P1.8 — читать целиком заново).
+**Open risks:** `pg_partman` доступность в образе `postgres:17-alpine` не проверена — P1.9 может потребовать смены образа или fallback-only решения (эскалировать, не тихо переключаться, см. P1.9 Implementation Rules). P1.6 `ai_llm_calls.analysis_id` реализован С обычным FK на `ai_analyses` (партиционированная→непартиционированная ссылка — допустимо и ожидаемо, не спутать с правилом «без FK НА партиционированные таблицы», которое касается обратного направления).
 **Workarounds/Deferred/Open questions:**
-- workarounds: см. `phases/P0.md` Known Deviations (P0.2 п.1-4, P0.3 п.1-2) — все про Docker/хост, не про домен.
-- deferred: —
-- open_questions: —
+- workarounds: `#[Table(name:...)]` недоступен в Laravel 12.62 — `protected $table` (везде с P1.1); партиционирование только сырой `DB::statement`; кастомный cast `App\Casts\PostgresTextArrayCast` для `text[]`; partial unique index — сырой `DB::statement`; `payload`/`result`/`progress`/`options`/`raw_result`/`passport`/`attributes` и т.п. jsonb-поля — cast `AsCollection`, не голый `array`; класс модели `Resource` коллидирует с PHP pseudo-type `resource` — докблок `@extends Factory<...>` пишется полным FQN с ведущим `\`, иначе Pint (`phpdoc_types`) лоуеркейсит generic-параметр.
+- deferred: тесты доменов P1.1-P1.7 (миграции/модели/factories — только Validation-smoke) — покрытие тестами всего чек-листа §11 целиком в P1.11, зафиксировано как принятый паттерн (гейт покрытия ревьюера формально красный по этой причине на каждом schema-item'е, содержательных находок по коду нет). Репозитории read/store для est_* — отдельный item P1.10, не создавались в P1.7.
+- open_questions: `ai_dataset_examples.verified_by` реализован как строгий FK на `users.id` вместо просто nullable-поля (спека не уточняла constraint) — принято ревьюером как безопасное ужесточение, не блокирует дальнейшие items.
