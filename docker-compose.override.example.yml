@@ -4,10 +4,11 @@
 #   cp docker-compose.override.example.yml docker-compose.override.yml
 #
 # Когда нужен:
-# - Permission denied на storage/app, storage/logs (bind-mount, не именованный volume) —
-#   serversideup/php:8.4-fpm-nginx не ремаппит www-data под host uid (PUID/PGID здесь не
-#   работают, см. комментарий в docker-compose.yml), разовый фикс:
-#     docker compose exec -u root app chown -R www-data:www-data storage
+# - Permission denied на storage/app, storage/logs, vendor (bind-mount, не именованный
+#   volume — особенно после composer install/require с хоста) — serversideup/php:8.4-fpm-nginx
+#   не ремаппит www-data под host uid (PUID/PGID здесь не работают, см. комментарий в
+#   docker-compose.yml), разовый фикс:
+#     docker compose exec -u root app chown -R www-data:www-data storage vendor
 # - WSL2 / Linux + будущий Vite dev-сервис (появится в Фазе 7) — тот же приём для
 #   node_modules/resources/js/wayfinder, если понадобится запуск от uid хоста:
 #     services: { vite: { user: "1000:1000" } }

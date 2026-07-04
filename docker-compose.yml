@@ -11,12 +11,12 @@ services:
     stop_signal: SIGTERM
     stop_grace_period: 30s
     working_dir: /var/www/html
-    # storage/app и storage/logs — bind-mount с хоста (не именованный volume), поэтому при
-    # смене владельца на хосте нужен разовый `docker compose exec -u root app chown -R
-    # www-data:www-data storage`: у serversideup/php:8.4-fpm-nginx НЕТ PUID/PGID-ремаппинга
-    # www-data под хостовой uid (в отличие от some других образов) — проверено, в
-    # entrypoint.d нет PUID-логики, только PHP_FPM_CHILD_PROCESS_USER/_GROUP (задают
-    # FPM-пул, не системного пользователя).
+    # storage/app, storage/logs, vendor — bind-mount с хоста (не именованный volume), поэтому
+    # при смене владельца на хосте (composer install/require с хоста) нужен разовый
+    # `docker compose exec -u root app chown -R www-data:www-data storage vendor`:
+    # у serversideup/php:8.4-fpm-nginx НЕТ PUID/PGID-ремаппинга www-data под хостовой uid
+    # (в отличие от some других образов) — проверено, в entrypoint.d нет PUID-логики,
+    # только PHP_FPM_CHILD_PROCESS_USER/_GROUP (задают FPM-пул, не системного пользователя).
     volumes:
       - ./:/var/www/html
       - app_bootstrap_cache:/var/www/html/bootstrap/cache
