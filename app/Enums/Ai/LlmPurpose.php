@@ -1,0 +1,18 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Enums\Ai;
+
+/**
+ * Назначение вызова LLM — общий словарь для `ai_llm_calls.purpose` и `ai_routes.purpose`.
+ */
+enum LlmPurpose: string
+{
+    case Screening = 'screening';
+    case ExtractPassport = 'extract_passport';
+    case ExtractRows = 'extract_rows';
+    case ExtractTotals = 'extract_totals';
+    case Eval = 'eval';
+    case Shadow = 'shadow';
+}
