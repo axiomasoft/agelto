@@ -59,7 +59,7 @@ Redis/Horizon, MinIO (S3-совместимое), package manager фронта �
 
 | Phase | Title | Items 🟢/всего | Status |
 |:--|:--|:--|:--|
-| P0 | Каркас | 0/3 | ⬜ Not started |
+| P0 | Каркас | 1/3 | 🟡 In progress |
 | P1 | Схема БД и ядро закупок | 0/11 | ⬜ Not started |
 
 ## 5. Decision Log
