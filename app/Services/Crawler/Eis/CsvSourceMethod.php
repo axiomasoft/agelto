@@ -7,17 +7,19 @@ namespace App\Services\Crawler\Eis;
 use App\Dto\Crawler\ListingBatch;
 use App\Dto\Crawler\ListingCursor;
 use App\Dto\Crawler\ProcurementDetails;
+use App\Enums\Procurement\ProcurementStatus;
 use App\Models\Crawler\Crawler;
 use App\Models\Crawler\Proxy;
 use App\Models\Platform\Registry;
+use App\Models\Procurement\Procurement;
 use App\Services\Crawler\Contracts\SourceMethod;
-use App\Services\Crawler\Exceptions\NotImplementedException;
 use App\Services\Crawler\PoliteThrottle;
 use App\Services\Crawler\ProxyPool;
 use Illuminate\Http\Client\RequestException;
 use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
 
 /**
  * Основной метод забора данных ЕИС — CSV-экспорт реестра закупок
@@ -32,8 +34,27 @@ final readonly class CsvSourceMethod implements SourceMethod
      */
     private const string REGISTRY_NUMBER_COLUMN = 'Реестровый номер закупки';
 
+    /**
+     * Вкладка карточки, доступная только у закупок на завершающих этапах
+     * (`02-crawling.md` §5.1) — забор для незавершённых создаёт лишнюю нагрузку на источник.
+     */
+    private const string SUPPLIER_RESULTS_TAB = 'supplier-results';
+
+    /**
+     * Канонические статусы, на которых карточка считается завершающейся
+     * (`02-crawling.md` §5, Implementation Rules P3.1).
+     *
+     * @var list<ProcurementStatus>
+     */
+    private const array FINALIZING_STATUSES = [
+        ProcurementStatus::Evaluation,
+        ProcurementStatus::Awarded,
+        ProcurementStatus::Completed,
+    ];
+
     public function __construct(
         private EisCsvUrlBuilder $urlBuilder,
+        private EisCardUrlBuilder $cardUrlBuilder,
         private ProxyPool $proxyPool,
         private PoliteThrottle $throttle,
     ) {}
@@ -85,12 +106,83 @@ final readonly class CsvSourceMethod implements SourceMethod
 
     public function collectDetails(string $sourceNumber, Registry $registry): ProcurementDetails
     {
-        throw NotImplementedException::forMethod(method: self::class.'::collectDetails');
+        $procurement = Procurement::query()
+            ->where('registry_id', $registry->id)
+            ->where('source_number', $sourceNumber)
+            ->firstOrFail();
+
+        $procedureUrlType = $this->cardUrlBuilder->resolveProcedureUrlType(
+            registry: $registry,
+            procedureType: $procurement->procedure_type,
+        );
+
+        $html = [];
+
+        foreach ((array) config('crawler.eis.card_tabs', []) as $tab) {
+            if ($tab === self::SUPPLIER_RESULTS_TAB && ! in_array($procurement->status, self::FINALIZING_STATUSES, strict: true)) {
+                $html[$tab] = null;
+
+                continue;
+            }
+
+            $html[$tab] = $this->collectTab(
+                registry: $registry,
+                procedureUrlType: $procedureUrlType,
+                tab: $tab,
+                sourceNumber: $sourceNumber,
+            );
+        }
+
+        return new ProcurementDetails(
+            sourceNumber: $sourceNumber,
+            procedureUrlType: $procedureUrlType,
+            commonInfoHtml: $html['common-info'] ?? null,
+            documentsHtml: $html['documents'] ?? null,
+            eventJournalHtml: $html['event-journal'] ?? null,
+            supplierResultsHtml: $html[self::SUPPLIER_RESULTS_TAB] ?? null,
+        );
     }
 
     public function isAvailable(): bool
     {
         return true;
+    }
+
+    private function collectTab(Registry $registry, string $procedureUrlType, string $tab, string $sourceNumber): string
+    {
+        $url = $this->cardUrlBuilder->buildUrl(
+            registry: $registry,
+            procedureUrlType: $procedureUrlType,
+            tab: $tab,
+            sourceNumber: $sourceNumber,
+        );
+
+        $proxy = $this->proxyPool->pick(target: $url);
+
+        $this->throttle->wait();
+        $response = $this->request(endpoint: $url, queryParams: [], proxy: $proxy);
+
+        if ($response->status() === 200 && trim($response->body()) === '') {
+            $this->throttle->wait();
+            $response = $this->request(endpoint: $url, queryParams: [], proxy: $proxy);
+        }
+
+        $html = $response->body();
+
+        if ((bool) config('crawler.raw_html_retention_enabled', false)) {
+            $this->storeRawHtml(registryId: $registry->id, sourceNumber: $sourceNumber, tab: $tab, html: $html);
+        }
+
+        return $html;
+    }
+
+    private function storeRawHtml(int $registryId, string $sourceNumber, string $tab, string $html): void
+    {
+        $disk = config('crawler.raw_html_disk', config('crawler.raw_disk'));
+        $path = "raw/html/{$registryId}/{$sourceNumber}/{$tab}.html.gz";
+        $contents = (bool) config('crawler.raw_html_gzip', true) ? gzencode($html) : $html;
+
+        Storage::disk($disk)->put($path, $contents);
     }
 
     /**

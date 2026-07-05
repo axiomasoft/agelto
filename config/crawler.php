@@ -76,7 +76,27 @@ return [
     'eis' => [
         'csv_endpoint' => 'https://zakupki.gov.ru/epz/order/orderCsvSettings/download.html',
         'block_size' => 500,
+
+        /*
+        | Вкладки детальной карточки (`02-crawling.md` §5.1), опрашиваемые
+        | `CsvSourceMethod::collectDetails()`. URL каждой — из `Registry->settings`
+        | (`EisCardUrlBuilder`), список тут только задаёт порядок обхода.
+        */
+        'card_tabs' => ['common-info', 'documents', 'event-journal', 'supplier-results'],
     ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Raw HTML snapshot storage (детальная карточка)
+    |--------------------------------------------------------------------------
+    |
+    | Сырой HTML вкладок карточки — расходник (`01-database.md` §9): retention
+    | по умолчанию выключен, диск по умолчанию — тот же, что `raw_disk`.
+    |
+    */
+    'raw_html_disk' => 's3',
+    'raw_html_gzip' => true,
+    'raw_html_retention_enabled' => false,
 
     /*
     |--------------------------------------------------------------------------

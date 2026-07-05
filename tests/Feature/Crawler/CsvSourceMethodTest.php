@@ -7,7 +7,6 @@ use App\Dto\Crawler\ListingCursor;
 use App\Models\Crawler\Crawler;
 use App\Models\Platform\Registry;
 use App\Services\Crawler\Eis\CsvSourceMethod;
-use App\Services\Crawler\Exceptions\NotImplementedException;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Sleep;
@@ -159,12 +158,6 @@ test('при отсутствии активных прокси в пуле де
         fn (string $message, array $context = []) => $context['crawler_id'] === $crawler->id,
     );
 });
-
-test('collectDetails кидает NotImplementedException', function () {
-    $registry = Registry::factory()->create(['code' => 'fz44']);
-
-    app(CsvSourceMethod::class)->collectDetails(sourceNumber: '0173200001234000001', registry: $registry);
-})->throws(NotImplementedException::class);
 
 test('isAvailable возвращает true без сетевых запросов', function () {
     Http::fake();
