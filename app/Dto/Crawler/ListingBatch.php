@@ -23,5 +23,6 @@ final readonly class ListingBatch
         public int $httpStatus,
         public int $durationMs,
         public array $requestParams,
+        public ?int $proxyId = null,
     ) {}
 }

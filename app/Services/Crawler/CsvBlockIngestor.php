@@ -92,6 +92,7 @@ final readonly class CsvBlockIngestor
             'rows_new' => $new,
             'rows_updated' => $updated,
             'dedup_signature' => $batch->dedupSignature,
+            'proxy_id' => $batch->proxyId,
             'fetched_at' => Carbon::now(),
         ]);
 

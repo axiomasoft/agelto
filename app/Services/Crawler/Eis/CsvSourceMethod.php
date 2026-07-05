@@ -79,6 +79,7 @@ final readonly class CsvSourceMethod implements SourceMethod
             httpStatus: $response->status(),
             durationMs: $durationMs,
             requestParams: $queryParams,
+            proxyId: $proxy?->id,
         );
     }
 
