@@ -1,3 +1,5 @@
+*.log
+Thumbs.db
 /.phpunit.cache
 /bootstrap/ssr
 /node_modules
@@ -66,6 +68,26 @@ AUDIT.md
 
 # Сборка vitepress — генерируемая статика, не храним в репозитории
 docs/.vitepress/dist/
+
+# Old/ — архив v1 (см. 07-carryover-from-v1.md); те же build-артефакты, что и раньше,
+# но корневые паттерны выше (/vendor, /node_modules и т.д.) на подпуть не распространяются
+Old/vendor
+Old/node_modules
+Old/public/build
+Old/public/hot
+Old/public/storage
+Old/public/css
+Old/public/js
+Old/public/fonts
+Old/public/vendor
+Old/resources/js/actions
+Old/resources/js/routes
+Old/resources/js/wayfinder
+Old/docs/.vitepress/dist/
+Old/.phpunit.cache
+Old/storage/*.key
+Old/storage/pail
+Old/bootstrap/ssr
 
 
 app/Console/Commands/Playground.php

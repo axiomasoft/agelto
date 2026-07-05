@@ -1,36 +1,25 @@
 <?php
 
-declare(strict_types=1);
-
 namespace Database\Seeders;
 
 use App\Models\User;
-// use Illuminate\Database\Console\Seeds\WithoutModelEvents;
+use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
-use Nwidart\Modules\Facades\Module;
-use Illuminate\Support\Facades\Artisan;
 
-final class DatabaseSeeder extends Seeder
+class DatabaseSeeder extends Seeder
 {
+    use WithoutModelEvents;
+
     /**
      * Seed the application's database.
      */
     public function run(): void
     {
-        $this->call([
-            UserSeeder::class,
+        // User::factory(10)->create();
+
+        User::factory()->create([
+            'name' => 'Test User',
+            'email' => 'test@example.com',
         ]);
-
-        $output = isset($this->command) ? $this->command->getOutput() : null;
-
-        foreach (Module::getOrdered() as $module) {
-            $parameters = ['module' => $module->getName()];
-
-            if (app()->environment('production')) {
-                $parameters['--force'] = true;
-            }
-
-            Artisan::call('module:seed', $parameters, $output);
-        }
     }
 }

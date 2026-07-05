@@ -1,0 +1,29 @@
+<?php
+
+declare(strict_types=1);
+
+use Illuminate\Support\Facades\Route;
+use Inertia\Inertia;
+use Laravel\Fortify\Features;
+
+Route::middleware(['web', 'auth'])
+    ->prefix('media-library-pro')
+    ->group(function (): void {
+        Route::post('uploads', Spatie\MediaLibraryPro\Http\Controllers\MediaLibraryUploadController::class)
+            ->name('media-library-uploads')
+            ->middleware('throttle:medialibrary-pro-uploads');
+    });
+
+Route::get('/', fn () => Inertia::render('Welcome', [
+    'canRegister' => Features::enabled(Features::registration()),
+]))->name('home');
+
+Route::get('dashboard', fn () => Inertia::render('Dashboard'))->middleware(['auth', 'verified'])->name('dashboard');
+
+require __DIR__.'/settings.php';
+require __DIR__.'/platform.php';
+
+// Маршрут для скачивания файлов из MediaLibrary
+Route::get('media-private/{uuid}/{collection_name}', App\Http\Controllers\MediaLibraryController::class)
+    ->middleware('auth')
+    ->name('media.download');

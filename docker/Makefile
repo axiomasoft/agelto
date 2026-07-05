@@ -7,7 +7,7 @@ MAKEFILE_PATH := $(abspath $(lastword $(MAKEFILE_LIST)))
 #
 # Примеры:
 #   make up | make up ENV=prod
-#   make prod:deploy:code | make prod:doctor
+#   make prod:deploy:code
 
 ENV ?= dev
 
@@ -33,8 +33,6 @@ MIGRATE_FORCE = $(if $(filter prod,$(ENV)),--force,)
 PROD_EXEC = $(COMPOSE_PROD) exec -T app
 MK_SELF   := $(MAKE) -f $(MAKEFILE_PATH)
 MK_PROD   := $(MAKE) -f $(MAKEFILE_PATH) ENV=prod
-
-DOCS_PORT := $(or $(shell awk -F= '/^DOCS_PORT=/{print $$2}' $(ROOT_DIR)/.env.docker 2>/dev/null),$(shell awk -F= '/^DOCS_PORT=/{print $$2}' $(ROOT_DIR)/.env 2>/dev/null),4173)
 
 # Проверка наличия обязательного конфига
 define require-dev-config
@@ -65,50 +63,34 @@ prod\:artisan: ENV=prod
 prod\:artisan: artisan
 prod\:composer: ENV=prod
 prod\:composer: composer
-prod\:yarn: ENV=prod
-prod\:yarn: yarn
 prod\:db-migrate: ENV=prod
 prod\:db-migrate: db-migrate
 prod\:db-seed: ENV=prod
 prod\:db-seed: db-seed
 prod\:composer-install: prod-composer-install
-prod\:frontend-build: prod-frontend-build
 prod\:clear-cache: prod-clear-cache
 prod\:restart-services: prod-restart-services
 prod\:workers\:restart: prod-workers-restart
 prod\:deploy\:code: prod-deploy-code
 prod\:deploy\:php-deps: prod-deploy-php-deps
-prod\:deploy\:frontend: prod-deploy-frontend
 prod\:deploy\:runtime: prod-deploy-runtime
 prod\:deploy\:image: prod-deploy-image
-prod\:quick-deploy: prod-deploy-runtime
-prod\:full-build: prod-deploy-image
-prod\:release: prod-deploy-image
-prod\:hotfix: prod-deploy-runtime
-prod\:doctor: prod-doctor
-prod\:docs-build: ENV=prod
-prod\:docs-build: docs-build
-prod\:docs-up: ENV=prod
-prod\:docs-up: docs-up
-prod\:docs-down: ENV=prod
-prod\:docs-down: docs-down
 prod\:test-php: ENV=prod
 prod\:test-php: test-php
 prod\:db\:create-test: ENV=prod
 prod\:db\:create-test: db\:create-test
+prod\:doctor: prod-doctor
 
 ##@ Общие
 
-.PHONY: help up down build restart ps logs logs\:core logs\:reverb logs\:scheduler logs\:horizon logs\:queue logs\:vite
-.PHONY: shell artisan composer yarn image
+.PHONY: help up down build restart ps logs logs\:core
+.PHONY: shell artisan composer image
 .PHONY: db-migrate db-fresh db-seed db\:create-test
 .PHONY: test-preflight test-php
-.PHONY: composer-install frontend-dev frontend-dev-reset frontend-fix-wayfinder frontend-stop frontend-build
-.PHONY: docs-build docs-preview docs-up docs-down docs-deploy
-.PHONY: clear-cache reverb-install reverb-restart scheduler-restart horizon-restart schedule-list
-.PHONY: prod-pre-clean prod-image prod-composer-install prod-frontend-build prod-config-cache prod-clear-cache
+.PHONY: composer-install clear-cache
+.PHONY: prod-pre-clean prod-image prod-composer-install prod-config-cache prod-clear-cache
 .PHONY: prod-restart-services prod-workers-restart
-.PHONY: prod-deploy-code prod-deploy-php-deps prod-deploy-frontend prod-deploy-runtime prod-deploy-image
+.PHONY: prod-deploy-code prod-deploy-php-deps prod-deploy-runtime prod-deploy-image
 .PHONY: prod-doctor
 
 help:
@@ -119,26 +101,22 @@ help:
 	@echo "##@ Общие"
 	@echo "  make up | down | build | restart | ps"
 	@echo "  make logs [SERVICE=app] | shell"
-	@echo "  make artisan ARGS=\"migrate\" | composer | yarn"
+	@echo "  make artisan ARGS=\"migrate\" | composer"
 	@echo "  make image — собрать образ agelto/app:latest"
 	@echo "  make db-migrate | db-fresh | db-seed | db:create-test"
 	@echo "  make test-preflight | test-php"
 	@echo ""
 	@echo "##@ Dev (ENV=dev)"
-	@echo "  make install | frontend-dev | frontend-build | clear-cache"
-	@echo "  make docs-dev | docs-build | docs-up | docs-deploy"
-	@echo "  make logs:core | logs:vite | logs:horizon | logs:scheduler | logs:reverb"
+	@echo "  make composer-install | clear-cache"
+	@echo "  make logs:core"
 	@echo ""
 	@echo "##@ Production (ENV=prod или цели prod:*)"
 	@echo "  make up ENV=prod | migrate ENV=prod"
 	@echo "  make prod:deploy:code     — обычное обновление кода"
-	@echo "  make prod:deploy:runtime  — полный деплой (deps + assets + code)"
+	@echo "  make prod:deploy:runtime  — полный деплой (deps + миграции)"
 	@echo "  make prod:deploy:image    — пересборка image + runtime"
 	@echo "  make prod:deploy:php-deps — только Composer"
-	@echo "  make prod:deploy:frontend — только frontend-ассеты"
 	@echo "  make prod:doctor          — health/status-check"
-	@echo ""
-	@echo "  Сброс dev-артефактов перед prod-сборкой: make prod-pre-clean"
 
 up:
 	$(if $(filter prod,$(ENV)),$(call require-prod-config),$(call require-dev-config))
@@ -160,22 +138,7 @@ logs:
 	$(COMPOSE) logs -f $(or $(SERVICE),app)
 
 logs\:core:
-	$(COMPOSE_DEV) logs -f app horizon scheduler reverb
-
-logs\:reverb:
-	$(COMPOSE_DEV) logs -f reverb
-
-logs\:scheduler:
-	$(COMPOSE_DEV) logs -f scheduler
-
-logs\:horizon:
-	$(COMPOSE_DEV) logs -f horizon
-
-logs\:queue:
-	$(COMPOSE_DEV) logs -f horizon
-
-logs\:vite:
-	$(COMPOSE_DEV) logs -f vite
+	$(COMPOSE_DEV) logs -f app horizon scheduler
 
 shell:
 	$(COMPOSE) exec app bash
@@ -185,9 +148,6 @@ artisan:
 
 composer:
 	$(COMPOSE) exec app composer $(ARGS)
-
-yarn:
-	$(COMPOSE_DEV) exec vite yarn $(ARGS)
 
 image:
 	docker build -t agelto/app:latest -f $(ROOT_DIR)/docker/php/Dockerfile $(ROOT_DIR)
@@ -206,7 +166,7 @@ db\:create-test:
 
 test-preflight:
 	$(COMPOSE) ps
-	$(COMPOSE) exec $(if $(filter prod,$(ENV)),-T,) app php -r "new PDO('pgsql:host=pgsql;port=5432;dbname='.getenv('DB_DATABASE'), getenv('DB_USERNAME'), getenv('DB_PASSWORD')); echo 'DB_OK'.PHP_EOL;"
+	$(COMPOSE) exec $(if $(filter prod,$(ENV)),-T,) app php -r "new PDO('pgsql:host=postgres;port=5432;dbname='.getenv('DB_DATABASE'), getenv('DB_USERNAME'), getenv('DB_PASSWORD')); echo 'DB_OK'.PHP_EOL;"
 
 test-php:
 	@$(MK_SELF) test-preflight ENV=$(ENV)
@@ -217,76 +177,9 @@ test-php:
 
 composer-install:
 	$(COMPOSE_DEV) exec app composer install
-	$(COMPOSE_DEV) exec vite yarn install
-
-install: composer-install
-
-frontend-fix-wayfinder:
-	$(COMPOSE_DEV) up -d app
-	$(COMPOSE_DEV) exec -u root app sh -lc '\
-		rm -f /var/www/html/storage/wayfinder-cache/*.cache && \
-		php artisan wayfinder:generate --no-interaction && \
-		chown -R $${PUID:-1000}:$${PGID:-1000} /var/www/html/resources/js/wayfinder'
-
-frontend-dev:
-	$(COMPOSE_DEV) up -d app vite
-	@$(MK_SELF) frontend-fix-wayfinder
-	$(COMPOSE_DEV) restart vite
-	$(COMPOSE_DEV) ps vite
-
-frontend-dev-reset:
-	$(COMPOSE_DEV) stop vite || true
-	$(COMPOSE_DEV) up -d --force-recreate app vite
-	@$(MK_SELF) frontend-fix-wayfinder
-	$(COMPOSE_DEV) restart vite
-	$(COMPOSE_DEV) ps vite
-
-frontend-stop:
-	$(COMPOSE_DEV) stop vite
-
-frontend-build:
-	$(COMPOSE_DEV) up -d app
-	$(COMPOSE_DEV) exec app sh -lc 'yarn install --frozen-lockfile && yarn build'
-
-build-frontend: frontend-build
 
 clear-cache:
 	$(COMPOSE_DEV) exec app php artisan optimize:clear
-
-docs-build:
-	$(COMPOSE_DEV) exec vite yarn vitepress build docs
-
-docs-preview:
-	$(COMPOSE_DEV) exec vite yarn vitepress preview docs --host 0.0.0.0 --port=$(DOCS_PORT)
-
-docs-up:
-	$(COMPOSE_DEV) up -d docs
-	@echo "Docs: http://localhost:$(DOCS_PORT)/"
-
-docs-down:
-	$(COMPOSE_DEV) stop docs
-
-docs-deploy:
-	@$(MK_SELF) docs-build
-	@$(MK_SELF) docs-down
-	@$(MK_SELF) docs-up
-
-reverb-install:
-	$(COMPOSE_DEV) exec app php artisan reverb:install
-
-reverb-restart:
-	$(COMPOSE_DEV) restart reverb
-
-scheduler-restart:
-	$(COMPOSE_DEV) restart scheduler
-
-horizon-restart:
-	$(COMPOSE_DEV) restart horizon
-
-queue-restart: horizon-restart
-
-schedule-list:
-	$(COMPOSE_DEV) exec app php artisan schedule:list
 
 ##@ Production
 
@@ -294,11 +187,6 @@ prod-pre-clean: ENV=prod
 prod-pre-clean:
 	$(call require-prod-config)
 	@echo "prod: очистка dev-артефактов перед prod-сборкой"
-	@rm -f $(ROOT_DIR)/bootstrap/cache/config.php \
-		$(ROOT_DIR)/bootstrap/cache/routes*.php \
-		$(ROOT_DIR)/bootstrap/cache/packages.php \
-		$(ROOT_DIR)/bootstrap/cache/services.php
-	@rm -rf $(ROOT_DIR)/public/build $(ROOT_DIR)/public/filament
 	@$(COMPOSE_PROD) down --volumes --remove-orphans 2>/dev/null || true
 	@echo "prod: артефакты очищены"
 
@@ -310,20 +198,8 @@ prod-composer-install: ENV=prod
 prod-composer-install:
 	$(call require-prod-config)
 	@echo "prod: composer install"
-	$(PROD_EXEC) sh -lc 'rm -f bootstrap/cache/config.php bootstrap/cache/routes*.php bootstrap/cache/packages.php bootstrap/cache/services.php 2>/dev/null || true'
 	$(PROD_EXEC) composer install --no-dev --no-interaction --prefer-dist --optimize-autoloader --no-scripts
 	$(PROD_EXEC) php artisan package:discover --ansi
-
-prod-frontend-build: ENV=prod
-prod-frontend-build:
-	$(call require-prod-config)
-	@echo "prod: yarn build"
-	$(PROD_EXEC) sh -lc '\
-		set -e; \
-		mkdir -p public/build public/filament; \
-		yarn install --frozen-lockfile; \
-		NODE_ENV=production yarn build; \
-	'
 
 prod-config-cache: ENV=prod
 prod-config-cache:
@@ -339,7 +215,7 @@ prod-clear-cache:
 prod-restart-services: ENV=prod
 prod-restart-services:
 	$(call require-prod-config)
-	$(COMPOSE_PROD) restart app horizon scheduler reverb
+	$(COMPOSE_PROD) restart app horizon scheduler
 	@echo "prod: ждём готовности app (до 120s)..."
 	@timeout 120 sh -c 'until docker exec agelto_app curl -fsS http://127.0.0.1:8080/up >/dev/null 2>&1; do sleep 3; done' \
 		|| (echo "prod: app не поднялся за 120s — проверьте docker logs agelto_app" && exit 1)
@@ -348,7 +224,7 @@ prod-restart-services:
 prod-workers-restart: ENV=prod
 prod-workers-restart:
 	$(call require-prod-config)
-	$(COMPOSE_PROD) restart horizon scheduler reverb
+	$(COMPOSE_PROD) restart horizon scheduler
 
 prod-deploy-code: ENV=prod
 prod-deploy-code:
@@ -360,10 +236,8 @@ prod-deploy-code:
 
 prod-deploy-php-deps: prod-composer-install
 
-prod-deploy-frontend: prod-frontend-build
-
 prod-deploy-runtime: ENV=prod
-prod-deploy-runtime: prod-composer-install prod-frontend-build db-migrate prod-config-cache prod-restart-services
+prod-deploy-runtime: prod-composer-install db-migrate prod-config-cache prod-restart-services
 	@echo "prod: deploy runtime готов"
 
 prod-deploy-image: ENV=prod
@@ -372,7 +246,7 @@ prod-deploy-image:
 	@echo "prod: rebuild image"
 	@$(MK_SELF) prod-pre-clean
 	@$(MK_SELF) prod-image
-	$(COMPOSE_PROD) up -d --force-recreate app horizon scheduler reverb
+	$(COMPOSE_PROD) up -d --force-recreate app horizon scheduler
 	@$(MK_PROD) prod-deploy-runtime
 
 prod-doctor: ENV=prod
@@ -384,13 +258,11 @@ prod-doctor:
 	@echo "== app health (/up) =="
 	$(PROD_EXEC) sh -lc 'curl -fsS http://127.0.0.1:8080/up >/dev/null && echo "OK: /up" || echo "FAIL: /up"'
 	@echo ""
-	@echo "== build/vendor dirs =="
-	$(PROD_EXEC) sh -lc '[ -d public/build ] && echo "OK: public/build" || echo "MISSING: public/build"'
-	$(PROD_EXEC) sh -lc '[ -d public/filament ] && echo "OK: public/filament" || echo "MISSING: public/filament"'
+	@echo "== vendor dir =="
 	$(PROD_EXEC) sh -lc '[ -d vendor ] && echo "OK: vendor" || echo "MISSING: vendor"'
 	@echo ""
 	@echo "== services =="
-	@for svc in agelto_app agelto_horizon agelto_scheduler agelto_reverb; do \
+	@for svc in agelto_app agelto_horizon agelto_scheduler; do \
 		status=$$(docker inspect --format='{{.State.Status}}' $$svc 2>/dev/null || echo "not found"); \
 		printf "%-28s %s\n" "$$svc:" "$$status"; \
 	done
@@ -400,6 +272,3 @@ migrate: db-migrate
 fresh: db-fresh
 seed: db-seed
 test: test-php
-logs-reverb: logs\:reverb
-logs-scheduler: logs\:scheduler
-logs-horizon: logs\:horizon

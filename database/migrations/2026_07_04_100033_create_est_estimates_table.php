@@ -1,0 +1,63 @@
+<?php
+
+declare(strict_types=1);
+
+use App\Models\Ai\Analysis;
+use App\Models\Document\DocumentVersion;
+use App\Models\Estimate\Estimate;
+use App\Models\Procurement\Procurement;
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    public function up(): void
+    {
+        Schema::create($this->table(), function (Blueprint $table): void {
+            $table->id();
+            $table->uuid('uuid')->unique();
+
+            $table->foreignId('analysis_id')
+                ->unique()
+                ->constrained(table: (new Analysis)->getTable());
+
+            $table->foreignId('document_version_id')
+                ->index()
+                ->constrained(table: (new DocumentVersion)->getTable());
+
+            $table->foreignId('procurement_id')
+                ->index()
+                ->constrained(table: (new Procurement)->getTable());
+
+            $table->text('title');
+            $table->text('estimate_number')->nullable();
+            $table->decimal('total_amount', total: 18, places: 2)->nullable();
+            $table->char('currency', length: 3)->nullable();
+            $table->integer('base_year')->nullable();
+            $table->text('price_level')->nullable();
+
+            $table->jsonb('passport')->nullable();
+
+            // Сырой ответ LLM целиком — по решению «нормализованные + сырой jsonb», для переобработки/датасета.
+            $table->jsonb('raw_result')->nullable();
+            $table->text('raw_result_ref')->nullable()->comment('object storage только для payload > ~1МБ');
+
+            $table->integer('rows_expected')->nullable();
+            $table->integer('rows_extracted')->nullable();
+            $table->text('validation_status');
+
+            $table->timestamps();
+        });
+    }
+
+    public function down(): void
+    {
+        Schema::dropIfExists($this->table());
+    }
+
+    private function table(): string
+    {
+        return (new Estimate)->getTable();
+    }
+};

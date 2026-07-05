@@ -1,8 +1,5 @@
 <?php
 
-declare(strict_types=1);
-
-use Monolog\Formatter\JsonFormatter;
 use Monolog\Handler\NullHandler;
 use Monolog\Handler\StreamHandler;
 use Monolog\Handler\SyslogUdpHandler;
@@ -76,20 +73,10 @@ return [
             'replace_placeholders' => true,
         ],
 
-        // Структурный JSON-журнал пайплайна (AppLogger пишет сюда с контекстом stage/link_id/run_id).
-        'pipeline' => [
-            'driver' => 'daily',
-            'path' => storage_path('logs/pipeline.log'),
-            'level' => env('LOG_LEVEL', 'info'),
-            'days' => env('LOG_DAILY_DAYS', 14),
-            'formatter' => JsonFormatter::class,
-            'replace_placeholders' => true,
-        ],
-
         'slack' => [
             'driver' => 'slack',
             'url' => env('LOG_SLACK_WEBHOOK_URL'),
-            'username' => env('LOG_SLACK_USERNAME', 'Laravel Log'),
+            'username' => env('LOG_SLACK_USERNAME', env('APP_NAME', 'Laravel')),
             'emoji' => env('LOG_SLACK_EMOJI', ':boom:'),
             'level' => env('LOG_LEVEL', 'critical'),
             'replace_placeholders' => true,

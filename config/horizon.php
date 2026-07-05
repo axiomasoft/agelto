@@ -1,7 +1,5 @@
 <?php
 
-declare(strict_types=1);
-
 use Illuminate\Support\Str;
 
 return [
@@ -99,7 +97,7 @@ return [
     */
 
     'waits' => [
-        'redis:default' => 90,
+        'redis:default' => 60,
     ],
 
     /*
@@ -185,7 +183,7 @@ return [
     |
     */
 
-    'memory_limit' => 1024,
+    'memory_limit' => 64,
 
     /*
     |--------------------------------------------------------------------------
@@ -199,106 +197,33 @@ return [
     */
 
     'defaults' => [
-        'default' => [
+        'supervisor-1' => [
             'connection' => 'redis',
             'queue' => ['default'],
             'balance' => 'auto',
             'autoScalingStrategy' => 'time',
             'maxProcesses' => 1,
-            'maxTime' => 3600,
-            'maxJobs' => 500,
+            'maxTime' => 0,
+            'maxJobs' => 0,
             'memory' => 128,
-            'tries' => 3,
-            'backoff' => 3,
-            'timeout' => 90,
-            'nice' => 0,
-        ],
-        'platform_document_prepare' => [
-            'connection' => 'redis',
-            'queue' => ['platform_document_prepare'],
-            'balance' => 'auto',
-            'autoScalingStrategy' => 'time',
-            'maxProcesses' => 1,
-            // Тяжёлая конвертация файлов (память до 512MB в проде) — чаще перезапускаем
-            // воркер, чтобы вернуть память ОС (memory-recycle, не Chromium — браузер в CLI-краулере).
-            'maxTime' => 1800,
-            'maxJobs' => 100,
-            'memory' => 128,
-            'tries' => 3,
-            'backoff' => 3,
-            'timeout' => 120,
-            'nice' => 0,
-        ],
-        'platform_primary_analysis' => [
-            'connection' => 'redis',
-            'queue' => ['platform_primary_analysis'],
-            'balance' => 'auto',
-            'autoScalingStrategy' => 'time',
-            'maxProcesses' => 1,
-            'maxTime' => 3600,
-            'maxJobs' => 500,
-            'memory' => 128,
-            'tries' => 3,
-            'backoff' => 3,
-            'timeout' => 120,
-            'nice' => 0,
-        ],
-        'platform_estimate_analysis' => [
-            'connection' => 'redis',
-            'queue' => ['platform_estimate_analysis'],
-            'balance' => 'auto',
-            'autoScalingStrategy' => 'time',
-            'maxProcesses' => 1,
-            'maxTime' => 3600,
-            'maxJobs' => 500,
-            'memory' => 128,
-            'tries' => 3,
-            'backoff' => 3,
-            'timeout' => 120,
+            'tries' => 1,
+            'timeout' => 60,
             'nice' => 0,
         ],
     ],
 
     'environments' => [
         'production' => [
-            'default' => [
-                'maxProcesses' => 5,
+            'supervisor-1' => [
+                'maxProcesses' => 10,
                 'balanceMaxShift' => 1,
                 'balanceCooldown' => 3,
-            ],
-            'platform_document_prepare' => [
-                'maxProcesses' => 10,
-                'memory' => 512, // Увеличиваем лимит памяти для конвертации файлов
-                'timeout' => 300, // Даем 5 минут на тяжелую конвертацию
-                'tries' => 3,
-                'backoff' => [60, 300], // Если упал, пробуем через минуту, потом через 5
-            ],
-            'platform_primary_analysis' => [
-                'maxProcesses' => 5,
-                'timeout' => 180, // Gemini иногда думает долго
-                'tries' => 5, // Анализу даем больше попыток (сетевые сбои ИИ)
-                'backoff' => [30, 60, 300],
-            ],
-            'platform_estimate_analysis' => [
-                'maxProcesses' => 5,
-                'timeout' => 300,
-                'tries' => 3,
-                'backoff' => [60, 300],
             ],
         ],
 
         'local' => [
-            'default' => [
-                'maxProcesses' => 2,
-            ],
-            'platform_primary_analysis' => [
-                'maxProcesses' => 2,
-            ],
-            'platform_document_prepare' => [
-                'maxProcesses' => 5,
-            ],
-            'platform_estimate_analysis' => [
-                'maxProcesses' => 2,
+            'supervisor-1' => [
+                'maxProcesses' => 3,
             ],
         ],
     ],

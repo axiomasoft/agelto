@@ -4,64 +4,53 @@ declare(strict_types=1);
 
 namespace App\Models\Crawler;
 
-use App\Models\Platform;
+use App\Enums\Crawler\CrawlerMode;
+use App\Enums\Crawler\SourceMethod;
+use App\Models\Platform\Registry;
+use Database\Factories\Crawler\CrawlerFactory;
+use Illuminate\Database\Eloquent\Casts\AsCollection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\Relations\HasMany;
 
+/**
+ * Профиль обхода площадки: режим, метод забора данных и фильтры.
+ *
+ * @use HasFactory<CrawlerFactory>
+ */
 final class Crawler extends Model
 {
+    /** @use HasFactory<CrawlerFactory> */
     use HasFactory;
 
-    protected $table = 'plt_crawlers';
+    protected $table = 'crw_crawlers';
 
     protected $fillable = [
-        'platform_id',
-        'url',
-        'options',
+        'registry_id',
+        'name',
+        'mode',
+        'source_method',
+        'fallback_method',
         'filter',
-        'state',
+        'schedule',
+        'options',
+        'is_active',
     ];
-
-    public function platform(): BelongsTo
-    {
-        return $this->belongsTo(Platform::class);
-    }
-
-    public function links(): HasMany
-    {
-        return $this->hasMany(Link::class);
-    }
-
-    public function analytics(): HasMany
-    {
-        return $this->hasMany(Analytics::class);
-    }
-
-    public function runs(): HasMany
-    {
-        return $this->hasMany(CrawlerRun::class);
-    }
-
-    /**
-     * Merge options with existing and persist.
-     *
-     * @param  array<string, mixed>  $state
-     */
-    public function updateState(array $state): bool
-    {
-        return $this->update([
-            'state' => array_merge($this->state ?? [], $state),
-        ]);
-    }
 
     protected function casts(): array
     {
         return [
-            'filter' => 'array',
-            'options' => 'array',
-            'state' => 'array',
+            'mode' => CrawlerMode::class,
+            'source_method' => SourceMethod::class,
+            'fallback_method' => SourceMethod::class,
+            'filter' => AsCollection::class,
+            'options' => AsCollection::class,
+            'is_active' => 'boolean',
         ];
+    }
+
+    public function registry(): BelongsTo
+    {
+        return $this->belongsTo(related: Registry::class);
     }
 }

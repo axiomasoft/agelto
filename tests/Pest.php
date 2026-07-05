@@ -1,99 +1,33 @@
 <?php
 
-declare(strict_types=1);
-
-use App\Interfaces\Crawling\BrowserClient;
-use App\Models\Crawler\CrawlerRun;
-use App\Services\AppLogger;
-use Illuminate\Support\Sleep;
-use Sys\Models\SysLog;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Tests\TestCase;
 
 /*
 |--------------------------------------------------------------------------
 | Test Case
 |--------------------------------------------------------------------------
+|
+| The closure you provide to your test functions is always bound to a specific PHPUnit test
+| case class. By default, that class is "PHPUnit\Framework\TestCase". Of course, you may
+| need to change it using the "pest()" function to bind a different classes or traits.
+|
 */
 
-pest()->extend(Tests\TestCase::class)
-    ->use(Illuminate\Foundation\Testing\RefreshDatabase::class)
-    ->beforeEach(function () {
-        Str::createRandomStringsNormally();
-        Str::createUuidsNormally();
-        Http::preventStrayRequests();
-        Sleep::fake();
+pest()->extend(TestCase::class)
+    ->use(RefreshDatabase::class)
+    ->in('Feature');
 
-        $this->freezeTime();
-    })
-    ->in('Browser', 'Feature', 'Unit');
+pest()->extend(TestCase::class)
+    ->in('Unit');
 
 /*
 |--------------------------------------------------------------------------
 | Expectations
 |--------------------------------------------------------------------------
-*/
-
-/**
- * Журнал сущности (sys_logs) содержит веху с сообщением по LIKE-шаблону.
- * Пример: expect($run)->toHaveLoggedMessage('%Старт прогона%').
- */
-expect()->extend('toHaveLoggedMessage', function (string $messageLike) {
-    expect(sysLogExists($messageLike, $this->value->getKey()))->toBeTrue(
-        "Ожидали веху в sys_logs по сущности #{$this->value->getKey()} с сообщением LIKE '{$messageLike}'."
-    );
-
-    return $this;
-});
-
-/*
-|--------------------------------------------------------------------------
-| Functions
-|--------------------------------------------------------------------------
 |
-| Доменные тест-хелперы. Персистентные модели создаём через фабрики
-| (X::factory()), здесь — только сборки моков и точечные проверки журнала.
+| When you're writing tests, you often need to check that values meet certain conditions. The
+| "expect()" function gives you access to a set of "expectations" methods that you can use
+| to assert different things. Of course, you may extend the Expectation API at any time.
 |
 */
-
-/**
- * Есть ли в журнале sys_logs запись по LIKE-шаблону (опционально — по сущности).
- */
-function sysLogExists(string $messageLike, ?int $entityId = null): bool
-{
-    $query = SysLog::query()->where('message', 'like', $messageLike);
-
-    if ($entityId !== null) {
-        $query->where('entity_id', $entityId);
-    }
-
-    return $query->exists();
-}
-
-/**
- * Мок браузера для краулинга: прокси и репорты заглушены, реальной сети нет.
- */
-function fakeBrowserClient(): BrowserClient
-{
-    $browser = Mockery::mock(BrowserClient::class);
-    $browser->shouldReceive('withRandomProxy')->andReturnSelf();
-    $browser->shouldReceive('reportSuccess')->andReturnNull();
-    $browser->shouldReceive('reportFail')->andReturnNull();
-    $browser->shouldReceive('close')->andReturnNull();
-
-    return $browser;
-}
-
-/**
- * Логгер с контекстом конкретного прогона краулера — для проверок журналирования.
- */
-function loggerForRun(CrawlerRun $run): AppLogger
-{
-    $logger = app(AppLogger::class);
-    $logger->setContext([
-        'entity_type' => CrawlerRun::class,
-        'entity_id' => $run->id,
-        'stage' => 'Crawling',
-        'source' => 'crawler',
-    ]);
-
-    return $logger;
-}
