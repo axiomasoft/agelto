@@ -37,7 +37,7 @@ test('collectListing конвертирует win1251-тело в UTF-8 и ст�
 
     $firstRow = $batch->rows[0];
 
-    expect($firstRow['Номер извещения'])->toBe('0173200001234000001')
+    expect($firstRow['Реестровый номер закупки'])->toBe('0173200001234000001')
         ->and($firstRow['Регион'])->toBe('Москва')
         ->and(mb_check_encoding($firstRow['Регион'], 'UTF-8'))->toBeTrue()
         ->and(mb_check_encoding($batch->rawBody, 'UTF-8'))->toBeTrue();
@@ -48,7 +48,7 @@ test('collectListing конвертирует win1251-тело в UTF-8 и ст�
     expect($firstRow['Предмет закупки'])->toBe('Поставка ""офисной"" мебели для нужд учреждения');
 });
 
-test('dedupSignature не вычисляется по реальному русскому заголовку CSV (баг: код ищет ключ reg_number)', function () {
+test('dedupSignature вычисляется по колонке «Реестровый номер закупки» первой строки блока', function () {
     Sleep::fake();
     $endpoint = config('crawler.eis.csv_endpoint');
     Http::fake([
@@ -64,10 +64,7 @@ test('dedupSignature не вычисляется по реальному рус�
 
     $batch = app(CsvSourceMethod::class)->collectListing($crawler, $cursor);
 
-    // Заголовок реального экспорта ЕИС — русский ("Номер извещения"), а не "reg_number".
-    // `CsvSourceMethod::collectListing()` жёстко берёт `$rows[0]['reg_number']`, поэтому
-    // dedupSignature всегда null на реальных данных — см. отчёт по найденным багам.
-    expect($batch->dedupSignature)->toBeNull();
+    expect($batch->dedupSignature)->toBe('0173200001234000001');
 });
 
 test('ретрай на 500 забирает второй ответ фикстуры', function () {
@@ -130,6 +127,7 @@ test('query-параметры запроса содержат from/to, флаг
         ->and($batch->requestParams['fz44'])->toBe('on')
         ->and($batch->requestParams['sortBy'])->toBe('UPDATE_DATE')
         ->and($batch->requestParams['sortDirection'])->toBe('false')
+        ->and($batch->requestParams['registryNumberCsv'])->toBe('on')
         ->and($batch->requestParams['okpd2'])->toBe('86.10');
 
     Http::assertSent(function ($request) {

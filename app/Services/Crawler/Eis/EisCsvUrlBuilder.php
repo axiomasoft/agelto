@@ -14,6 +14,12 @@ use App\Models\Crawler\Crawler;
 final readonly class EisCsvUrlBuilder
 {
     /**
+     * Флаг колонки CSV-экспорта «Реестровый номер закупки» (`research/eis-csv-recon.md`) —
+     * источник `dedupSignature` для cap-детекта, запрашивается всегда.
+     */
+    public const string REGISTRY_NUMBER_COLUMN_FLAG = 'registryNumberCsv';
+
+    /**
      * @return array<string, string>
      */
     public function buildQueryParams(Crawler $crawler, int $from, int $to): array
@@ -34,6 +40,9 @@ final readonly class EisCsvUrlBuilder
         $query[$crawler->registry->code] = 'on';
         $query['sortBy'] = 'UPDATE_DATE';
         $query['sortDirection'] = 'false';
+        // Обязательна для cap-детекта (`CsvSourceMethod::dedupSignature`) — запрашивается
+        // всегда, независимо от `options.columns` профиля.
+        $query[self::REGISTRY_NUMBER_COLUMN_FLAG] = 'on';
 
         return $query;
     }

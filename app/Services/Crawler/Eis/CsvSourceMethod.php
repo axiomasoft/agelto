@@ -26,6 +26,12 @@ use Illuminate\Support\Facades\Log;
  */
 final readonly class CsvSourceMethod implements SourceMethod
 {
+    /**
+     * Заголовок колонки «Реестровый номер закупки» в CSV-экспорте ЕИС
+     * (`research/eis-csv-recon.md`, флаг `registryNumberCsv`) — источник `dedupSignature`.
+     */
+    private const string REGISTRY_NUMBER_COLUMN = 'Реестровый номер закупки';
+
     public function __construct(
         private EisCsvUrlBuilder $urlBuilder,
         private ProxyPool $proxyPool,
@@ -68,7 +74,7 @@ final readonly class CsvSourceMethod implements SourceMethod
         return new ListingBatch(
             rows: $rows,
             rawBody: $utf8Body,
-            dedupSignature: $rows[0]['reg_number'] ?? null,
+            dedupSignature: $rows[0][self::REGISTRY_NUMBER_COLUMN] ?? null,
             rowsTotal: count($rows),
             httpStatus: $response->status(),
             durationMs: $durationMs,

@@ -54,7 +54,7 @@ test('buildQueryParams выставляет флаг реестра fz223=on п�
         ->and($params)->not->toHaveKey('fz44');
 });
 
-test('buildQueryParams без filter и без options.columns собирает только from/to/registry/sort', function () {
+test('buildQueryParams без filter и без options.columns собирает только from/to/registry/sort/registryNumberCsv', function () {
     $crawler = CrawlerWithRegistry::make(registryCode: 'fz44', filter: null, options: null);
 
     $params = app(EisCsvUrlBuilder::class)->buildQueryParams(crawler: $crawler, from: 501, to: 1000);
@@ -65,5 +65,18 @@ test('buildQueryParams без filter и без options.columns собирает 
         'fz44' => 'on',
         'sortBy' => 'UPDATE_DATE',
         'sortDirection' => 'false',
+        'registryNumberCsv' => 'on',
     ]);
+});
+
+test('buildQueryParams всегда запрашивает registryNumberCsv даже если он выключен в options.columns', function () {
+    $crawler = CrawlerWithRegistry::make(
+        registryCode: 'fz44',
+        filter: null,
+        options: ['columns' => ['registryNumberCsv' => false]],
+    );
+
+    $params = app(EisCsvUrlBuilder::class)->buildQueryParams(crawler: $crawler, from: 1, to: 500);
+
+    expect($params['registryNumberCsv'])->toBe('on');
 });
