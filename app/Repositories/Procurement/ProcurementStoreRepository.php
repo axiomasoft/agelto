@@ -117,6 +117,20 @@ final readonly class ProcurementStoreRepository
         ]);
     }
 
+    public function hasEvent(
+        int $procurementId,
+        ProcurementEventType $eventType,
+        Carbon $occurredAt,
+        ?string $newValue = null,
+    ): bool {
+        return ProcurementEvent::query()
+            ->where('procurement_id', $procurementId)
+            ->where('event_type', $eventType)
+            ->where('occurred_at', $occurredAt)
+            ->where('new_value', $newValue)
+            ->exists();
+    }
+
     public function storeEvent(
         int $procurementId,
         ProcurementEventType $eventType,

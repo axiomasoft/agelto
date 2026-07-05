@@ -76,7 +76,33 @@ return [
     'eis' => [
         'csv_endpoint' => 'https://zakupki.gov.ru/epz/order/orderCsvSettings/download.html',
         'block_size' => 500,
+
+        /*
+        | Вкладки детальной карточки (`02-crawling.md` §5.1), опрашиваемые
+        | `CsvSourceMethod::collectDetails()`. URL каждой — из `Registry->settings`
+        | (`EisCardUrlBuilder`), список тут только задаёт порядок обхода.
+        */
+        'card_tabs' => ['common-info', 'documents', 'event-journal', 'supplier-results'],
+
+        /*
+        | Базовый хост ЕИС — вкладка `documents` отдаёт ссылки на файлы (`filestore/...`)
+        | относительными путями, `DocumentsParser` резолвит их в абсолютный URL для скачивания.
+        */
+        'base_url' => 'https://zakupki.gov.ru',
     ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Raw HTML snapshot storage (детальная карточка)
+    |--------------------------------------------------------------------------
+    |
+    | Сырой HTML вкладок карточки — расходник (`01-database.md` §9): retention
+    | по умолчанию выключен, диск по умолчанию — тот же, что `raw_disk`.
+    |
+    */
+    'raw_html_disk' => 's3',
+    'raw_html_gzip' => true,
+    'raw_html_retention_enabled' => false,
 
     /*
     |--------------------------------------------------------------------------
@@ -100,4 +126,17 @@ return [
     |
     */
     'raw_disk' => 's3',
+
+    /*
+    |--------------------------------------------------------------------------
+    | Document storage & retry
+    |--------------------------------------------------------------------------
+    |
+    | Диск для контент-адресованных версий документов (`documents/<hash-prefix>/<sha256>`,
+    | `01-database.md` §5, §9) — по умолчанию тот же, что `raw_disk`. Ретраи скачивания —
+    | error-блок `doc_documents` (`attempts`/`next_retry_at`/`failed_permanently`).
+    */
+    'documents_disk' => 's3',
+    'documents_max_attempts' => 5,
+    'documents_retry_backoff_minutes' => 15,
 ];

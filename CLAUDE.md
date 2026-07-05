@@ -521,7 +521,7 @@ docker compose exec app php artisan test --compact --filter=ChangedArea
 | `agelto-spec-writer` | >- | architecture, api-design, data-schema, task-brief-template |
 | `agelto-test-writer` | >- | laravel-testing, test-isolation-guard, repositories |
 
-## Установленные скиллы (126)
+## Установленные скиллы (129)
 
 ### architect — Architecture, API and data design, security, observability, tech stack selection
 
@@ -611,6 +611,7 @@ docker compose exec app php artisan test --compact --filter=ChangedArea
 - **mcp-advisor** — Pick MCP servers for a project at onboarding/sync: which to connect (context7/playwright/github/fetch/sequential-thinking + maind hub), why, when NOT to, and the cost in context/permissions/Node-deps. Activate when adding/onboarding/syncing a project, editing .mcp.json, or choosing MCP — emits a justified connection plan, not a dump of every server.
 - **naming-conventions** — Naming discipline (language-agnostic): name reveals intent, not implementation; fight noise words (Manager/Helper/data/process) and combinatorial method explosion (findByXOrFail/getOrNull). Activate when naming or reviewing names of functions, classes, variables, methods.
 - **packages-stack** — Project external-dependency registry methodology: which packages are used and for what, a per-package rule (when to use, what NOT to do by hand), reliance on OFFICIAL docs. Activate when choosing/adding a dependency or mapping the stack at project init; language-agnostic.
+- **plan-protocol** — Executable master plans in plans/<ID>: plan/phase/task schemas, 6 statuses, handoff standard, model routing, /task:plan-* commands.
 - **session-handoff** — Cross-session/agent context handoff: compress a session into a structured doc — state, decisions, open items, next steps.
 - **skills-ssot** — Single source of truth for skills across multiple AI agents: .ai/skills + symlinks, gitignore, update cycle
 - **spec-interview** — Pre-code interview: agent asks one question at a time, reads the codebase itself where it can, proposes a recommended answer; output — a filled task brief per task-brief-template.
@@ -620,6 +621,7 @@ docker compose exec app php artisan test --compact --filter=ChangedArea
 
 ### laravel-architecture — Scaling architecture: modular monolith/DDD, enum state machines, enum attributes, subagent orchestration
 
+- **config-driven-abstraction** — Config-driven, cache-safe Registry+Builder for multi-panel/multi-tenant Laravel: immutable registry key→instance, fluent builder w/ feature-flags as methods, config name-maps not closures, per-variant class not runtime $table. Activate when designing multi-panel/multi-tenant resolution or pluggable drivers. Triggers: multi-panel, multi-tenant, registry, builder pattern, config:cache, runtime table, driver resolution, per-panel.
 - **eloquent-accessors** — Activate when writing/refactoring Eloquent accessors and mutators: when you see legacy getXxxAttribute()/setXxxAttribute() and should move to modern Attribute::make() (get/set), or when deciding where to place and how to type a computed model property. Triggers: getFooAttribute, Attribute::make, accessor, mutator, computed attribute, Illuminate\\Database\\Eloquent\\Casts\\Attribute
 - **enum-attributes** — Use for enum metadata: replace label()/color()/description() match-ladders with PHP attributes #[Label]/#[Color]/#[Description] on cases + Concern traits with a reflection resolver; or export an enum as a TS type via #[TypeScript] stack (App.Enums.* union in .d.ts). Triggers: PHP enum, attributes on cases, getLabel()/getColor(), Filament HasLabel, spatie/laravel-typescript-transformer, local enum-concern via path-repository
 - **enum-state-machine** — Activate when a domain status (Order/Document/Subscription) needs transition rules: edge graph via enum transitionDefinitions(), runtime registry (canTransition/allowedFrom), Action-executed transition under DB::transaction() + domain event. Triggers: PHP status enum, allowed transitions, StateMachine/workflow, parallel transition graph to unify into one source, canTransitionTo, allowedTransitions, illegal status transition
@@ -704,6 +706,10 @@ docker compose exec app php artisan test --compact --filter=ChangedArea
 - **tech-debt-audit** — Tech-debt inventory, classification (architectural/code/dependency/test/process), prioritization by impact × effort, payback ROI calc
 - **test-strategy** — Test strategy: pyramid (unit/integration/e2e), coverage policy, mock vs real, which features need which test level, test-suite composition (Arch/Feature/Unit) and Pest Arch architecture tests
 - **testing-safety-report** — Safety report after a risky change (migrations, schema/layer refactor, dependency upgrade): what changed structurally, which tests ran and with what result, what risks and control checks remain. Do it after the change to make it auditable.
+
+### research — Research and knowledge management
+
+- **query-craft** — How to FORMULATE a search/doc-engine query (Perplexity Web · WebSearch · context7): version/stack (e.g. 'min Filament 4'), timeframe, format, limit; pick engine+mode (search/advanced/deep) and sources (web/academic/social). Activate BEFORE any external search, esp. a library/framework (Laravel/Filament/Vue): ban bare 'Laravel how to X?'. Not when-to-verify (verify-claims) nor what-to-connect (mcp-advisor) — only HOW to ask.
 
 ### system — Local environment topology: the three hub nodes (Brain vault, swissknifeman, projects base) and how agents navigate between projects and their docs
 
