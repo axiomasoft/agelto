@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services\Crawler\Modes;
 
 use App\Dto\Crawler\ListingCursor;
+use App\Enums\Crawler\RunStatus;
 use App\Models\Crawler\Crawler;
 use App\Models\Crawler\Run;
 use App\Services\Crawler\CrawlerRunManager;
@@ -100,14 +101,22 @@ final readonly class FreshRunProcessor
 
     private function handleCapHit(Crawler $crawler, Run $run, int $blockFrom): void
     {
-        $run->update([
-            'stats' => array_merge($run->stats?->toArray() ?? [], [
-                'cap_hit' => true,
-                'possible_skip_window' => [
-                    'from' => $run->started_at?->toIso8601String(),
-                    'to' => now()->toIso8601String(),
-                ],
-            ]),
+        $lastSuccessfulRun = Run::query()
+            ->where('crawler_id', $crawler->id)
+            ->where('status', RunStatus::Completed)
+            ->where('id', '!=', $run->id)
+            ->latest('finished_at')
+            ->first();
+
+        $lastSuccessfulScanAt = $lastSuccessfulRun?->finished_at?->toIso8601String();
+
+        $this->runs->flagCapHit(run: $run, possibleSkipWindow: [
+            // Окно простоя — от последнего УСПЕШНОГО скана этого профиля (`02` §4.1), не от
+            // старта текущего прогона (тот совпадает с моментом обнаружения простоя, а не с
+            // моментом, когда профиль в последний раз реально досканил); нет предыдущего
+            // completed-прогона (первый скан профиля) — fallback на старт текущего.
+            'from' => $lastSuccessfulScanAt ?? $run->started_at?->toIso8601String(),
+            'to' => now()->toIso8601String(),
         ]);
 
         Log::warning(
