@@ -10,6 +10,7 @@ use App\Models\Procurement\Procurement;
 use App\Repositories\Procurement\ProcurementDetailStoreRepository;
 use App\Services\Crawler\Eis\Card\CommonInfoParser;
 use App\Services\Reference\ClassifierResolver;
+use Illuminate\Support\Facades\DB;
 
 /**
  * DTO → БД для вкладки `common-info`: `prc_eis_details` (1:1, upsert), `prc_financing`
@@ -27,22 +28,24 @@ final readonly class CommonInfoProcessor
 
     public function process(Procurement $procurement, CommonInfoData $data): void
     {
-        $this->storeRepository->storeEisDetails(
-            procurementId: $procurement->id,
-            attributes: $this->eisDetailsAttributes($data),
-        );
-
-        $this->storeRepository->replaceFinancing(
-            procurementId: $procurement->id,
-            rows: $this->financingRows($data),
-        );
-
-        foreach ($data->items as $item) {
-            $this->storeRepository->upsertItem(
+        DB::transaction(function () use ($procurement, $data): void {
+            $this->storeRepository->storeEisDetails(
                 procurementId: $procurement->id,
-                attributes: $this->itemAttributes($item),
+                attributes: $this->eisDetailsAttributes($data),
             );
-        }
+
+            $this->storeRepository->replaceFinancing(
+                procurementId: $procurement->id,
+                rows: $this->financingRows($data),
+            );
+
+            foreach ($data->items as $item) {
+                $this->storeRepository->upsertItem(
+                    procurementId: $procurement->id,
+                    attributes: $this->itemAttributes($item),
+                );
+            }
+        });
     }
 
     /**

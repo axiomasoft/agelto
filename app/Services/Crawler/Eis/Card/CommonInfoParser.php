@@ -160,6 +160,20 @@ final readonly class CommonInfoParser
     }
 
     /**
+     * Инвариант идемпотентности: `positionNumber` — ключ апдейта в `upsertItem()`
+     * (`updateOrCreate` по `(procurement_id, position_number)`), поэтому он обязан быть
+     * стабилен между повторными прогонами одной и той же карточки. Основной путь — реальный
+     * `№` из вёрстки (не зависит от порядка/фильтрации строк). Fallback `$index + 1`
+     * применяется ТОЛЬКО к строке с пустым/нечисловым `№` — это брак вёрстки источника,
+     * а не штатный случай; `$index` в each() — это порядковый номер строки внутри исходной
+     * `tbody tr` (до фильтрации по `$cells->count() < 7`, которая просто `return`-ит и не
+     * добавляет позицию в `$items`, не сдвигая индексацию последующих строк), то есть
+     * fallback-номер строки НЕ зависит от того, сколько позиций реально распознано —
+     * только от её положения в HTML-таблице. Если у площадки когда-нибудь появится
+     * стабильная перестановка строк без изменения `№` — потребуется отдельный устойчивый
+     * идентификатор позиции (например, по совокупности name+characteristics), это вне
+     * объёма текущего среза.
+     *
      * @return list<PurchaseItemRowData>
      */
     private function parseItems(Crawler $crawler): array
@@ -187,7 +201,7 @@ final readonly class CommonInfoParser
                     positionNumber: $positionNumber !== '' && ctype_digit($positionNumber) ? (int) $positionNumber : $index + 1,
                     name: trim($cells->eq(2)->text()),
                     characteristics: null,
-                    classifierScheme: $okpd2Code !== null ? 'okpd2' : 'ktru',
+                    classifierScheme: $this->classifierScheme(okpd2Code: $okpd2Code, ktruCode: $ktruCode),
                     classifierCodeOkpd2: $okpd2Code,
                     classifierCodeKtru: $ktruCode,
                     unit: trim($cells->eq(3)->text()) ?: null,
@@ -201,6 +215,20 @@ final readonly class CommonInfoParser
         } catch (\Throwable) {
             return [];
         }
+    }
+
+    /**
+     * `classifier_scheme` — `NOT NULL text` (`2026_07_04_100015_create_prc_items_table.php`),
+     * поэтому при отсутствии обоих кодов пишем явное `unknown`, а не вводящее в заблуждение
+     * `ktru` без реального КТРУ-кода.
+     */
+    private function classifierScheme(?string $okpd2Code, ?string $ktruCode): string
+    {
+        return match (true) {
+            $okpd2Code !== null => 'okpd2',
+            $ktruCode !== null => 'ktru',
+            default => 'unknown',
+        };
     }
 
     /**
