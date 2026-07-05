@@ -1,0 +1,11 @@
+# HANDOFF — 2026-07-05 — after P2.1
+
+**Next:** /task:plan-exec V2-CRAWL P2.2
+**Done:** P2.1 — контракт `SourceMethod` (интерфейс + DTO `ListingCursor`/`ListingBatch`/`ProcurementDetails`) + `SourceMethodFactory` (`make`/`makeWithFallback`, config-driven резолв через контейнер) + `SourceMethodUnavailableException` + `config/crawler.php` (`source_methods`, пока только `csv`). Ревью `agelto-reviewer` нашло и (после фикса) закрыло major-баг: незамапленный в конфиге метод теперь кидает доменное `SourceMethodUnavailableException`, а не низкоуровневый `BindingResolutionException`. Unit-тест `tests/Unit/Crawler/SourceMethodFactoryTest.php` (6 сценариев). Инфра: `tests/Pest.php` получил `TestCase`-биндинг для `Unit`-сьюта (в проекте раньше не было Unit-тестов).
+**Remaining:** P2.2–P2.6 (менеджер прогонов → прокси-пул+throttle → CsvSourceMethod → инжест блока → fresh-режим). Фазы **P3** (8 items) и **P4** (2) — ещё скелеты, детализировать перед exec (`/task:plan-design V2-CRAWL P3` / `P4`).
+**Sources of truth:** plans/V2-CRAWL/plan.md · plans/V2-CRAWL/phases/{P2,P3,P4}.md · docs/specs/v2/02-crawling.md · docs/specs/v2/01-database.md · docs/specs/v2/06-roadmap.md · app/Services/Crawler/{Contracts/SourceMethod.php,SourceMethodFactory.php,Exceptions/SourceMethodUnavailableException.php} · app/Dto/Crawler/{ListingCursor,ListingBatch,ProcurementDetails}.php · config/crawler.php · app/Services/Procurement/ProcurementIngestProcessor.php · app/Dto/Procurement/ProcurementSnapshotData.php · app/Models/Crawler/* · app/Enums/Crawler/*
+**Open risks:** Точные лимиты частоты/cap ЕИС не документированы (калибровка в ручном smoke, P2.6 Pending; `02` §9); recon-файлы (`research/eis-csv-recon.md`) в репо отсутствуют — факты вшиты в Phase Context P2, доп. чтения не требуют; стабильность CSV-endpoint между релизами ЕИС (smoke-контроль, `02` §6.2).
+**Workarounds/Deferred/Open questions:**
+- workarounds: —
+- deferred: Мост в пайплайн документов — P3.8; fresh cap-флаг → archive-рескан окна простоя — P4.2 (нужен archive P4.1); `crw_ignore_rules` (правила) — вне P2 (D11); `HtmlSourceMethod`/`ApiSourceMethod` — только контракт, реализация вне V2-CRAWL (их FQCN в `config/crawler.php` намеренно не заведены).
+- open_questions: Точные URL-шаблоны карточек по способам закупки — уточнить при реализации адаптера (P3.1), хранить в `plt_registries.settings`.
