@@ -119,7 +119,10 @@ services:
       - agelto_network
 
   postgres:
-    image: postgres:17-alpine
+    build:
+      context: ./docker/postgres
+      dockerfile: Dockerfile
+    image: agelto_postgres:17-partman
     container_name: agelto_postgres
     restart: unless-stopped
     ports:
