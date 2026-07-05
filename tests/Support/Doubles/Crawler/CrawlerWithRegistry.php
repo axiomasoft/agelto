@@ -1,0 +1,32 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Tests\Support\Doubles\Crawler;
+
+use App\Models\Crawler\Crawler;
+use App\Models\Platform\Registry;
+
+/**
+ * In-memory `Crawler` с привязанным (не сохранённым) `Registry` через `setRelation` —
+ * позволяет юнит-тестировать `EisCsvUrlBuilder` без обращения к БД.
+ */
+final class CrawlerWithRegistry
+{
+    /**
+     * @param  array<string, mixed>|null  $filter
+     * @param  array<string, mixed>|null  $options
+     */
+    public static function make(string $registryCode, ?array $filter, ?array $options): Crawler
+    {
+        $registry = new Registry;
+        $registry->code = $registryCode;
+
+        $crawler = new Crawler;
+        $crawler->filter = $filter;
+        $crawler->options = $options;
+        $crawler->setRelation('registry', $registry);
+
+        return $crawler;
+    }
+}
