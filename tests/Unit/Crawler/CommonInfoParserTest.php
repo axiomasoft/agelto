@@ -54,6 +54,86 @@ test('parse разбирает позицию объекта закупки с �
         ->and($item->totalCost)->toBe('1500000.00');
 });
 
+test('parse проставляет детерминированные fallback-номера позициям с пустым/нечисловым «№»', function () {
+    $html = commonInfoFixtureHtml();
+
+    // Заменяем единственную строку таблицы объекта закупки на 3 строки: первая — с валидным «№»,
+    // вторая — с пустой ячейкой «№», третья — с нечисловым «№» (брак вёрстки источника).
+    $html = preg_replace(
+        '#<tbody>\s*<tr>\s*<td>1</td>.*?</tr>\s*</tbody>(\s*</table>\s*</section>\s*</div>)#s',
+        <<<'HTML'
+        <tbody>
+          <tr>
+            <td>1</td>
+            <td>41.20.40 / 41.20.40.000-00000023</td>
+            <td>Позиция первая</td>
+            <td>усл. ед.</td>
+            <td>1</td>
+            <td>1 500 000,00</td>
+            <td>1 500 000,00</td>
+          </tr>
+          <tr>
+            <td></td>
+            <td>41.20.41 / 41.20.41.000-00000024</td>
+            <td>Позиция вторая (без номера)</td>
+            <td>усл. ед.</td>
+            <td>2</td>
+            <td>200 000,00</td>
+            <td>400 000,00</td>
+          </tr>
+          <tr>
+            <td>—</td>
+            <td>41.20.42 / 41.20.42.000-00000025</td>
+            <td>Позиция третья (нечисловой номер)</td>
+            <td>усл. ед.</td>
+            <td>3</td>
+            <td>300 000,00</td>
+            <td>900 000,00</td>
+          </tr>
+        </tbody>$1
+        HTML,
+        $html,
+    );
+
+    $data = app(CommonInfoParser::class)->parse($html);
+
+    expect($data->items)->toHaveCount(3);
+
+    // Первая строка — реальный «№» из вёрстки.
+    expect($data->items[0]->positionNumber)->toBe(1)
+        ->and($data->items[0]->name)->toBe('Позиция первая');
+
+    // Вторая и третья — fallback $index + 1 по позиции строки в tbody (индексы 1 и 2 → 2 и 3),
+    // без падения и без схлопывания в один и тот же номер.
+    expect($data->items[1]->positionNumber)->toBe(2)
+        ->and($data->items[1]->name)->toBe('Позиция вторая (без номера)')
+        ->and($data->items[2]->positionNumber)->toBe(3)
+        ->and($data->items[2]->name)->toBe('Позиция третья (нечисловой номер)');
+
+    expect($data->items[1]->positionNumber)->not->toBe($data->items[2]->positionNumber);
+});
+
+test('parse возвращает classifierScheme unknown при отсутствии обоих кодов классификатора', function () {
+    $html = commonInfoFixtureHtml();
+
+    // Ячейка «Код ОКПД2/КТРУ» пуста — оба кода отсутствуют, это не «ktru», а именно unknown.
+    $html = preg_replace(
+        '#<td>41\.20\.40 / 41\.20\.40\.000-00000023</td>#',
+        '<td></td>',
+        $html,
+    );
+
+    $data = app(CommonInfoParser::class)->parse($html);
+
+    expect($data->items)->toHaveCount(1);
+
+    $item = $data->items[0];
+
+    expect($item->classifierScheme)->toBe('unknown')
+        ->and($item->classifierCodeOkpd2)->toBeNull()
+        ->and($item->classifierCodeKtru)->toBeNull();
+});
+
 test('parse не падает и возвращает null-поля ИКЗ при отсутствии блока price-info-block', function () {
     $html = commonInfoFixtureHtml();
 
