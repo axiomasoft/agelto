@@ -77,4 +77,16 @@ return [
         'csv_endpoint' => 'https://zakupki.gov.ru/epz/order/orderCsvSettings/download.html',
         'block_size' => 500,
     ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Raw artifact storage
+    |--------------------------------------------------------------------------
+    |
+    | Диск (`config/filesystems.php`), куда `CsvBlockIngestor` кладёт сырой CSV
+    | блока листинга (`raw/csv/{crawlerId}/{runId}/{from}.csv`, `01-database.md` §9).
+    | Decision Log D7 — object storage (S3/MinIO) как источник истины для сырых артефактов.
+    |
+    */
+    'raw_disk' => 's3',
 ];

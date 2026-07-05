@@ -2,6 +2,8 @@
 
 namespace App\Providers;
 
+use App\Services\Crawler\Contracts\ListingRowMapper;
+use App\Services\Crawler\Eis\EisCsvRowMapper;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -11,7 +13,9 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        //
+        // Единственная реализация листинг-маппера в проекте (только ЕИС, `01-database.md`/`02-crawling.md`
+        // не заводят второй источник в этом плане) — прямой bind без config-driven реестра (YAGNI).
+        $this->app->bind(ListingRowMapper::class, EisCsvRowMapper::class);
     }
 
     /**
