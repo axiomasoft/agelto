@@ -83,6 +83,12 @@ return [
         | (`EisCardUrlBuilder`), список тут только задаёт порядок обхода.
         */
         'card_tabs' => ['common-info', 'documents', 'event-journal', 'supplier-results'],
+
+        /*
+        | Базовый хост ЕИС — вкладка `documents` отдаёт ссылки на файлы (`filestore/...`)
+        | относительными путями, `DocumentsParser` резолвит их в абсолютный URL для скачивания.
+        */
+        'base_url' => 'https://zakupki.gov.ru',
     ],
 
     /*
@@ -120,4 +126,17 @@ return [
     |
     */
     'raw_disk' => 's3',
+
+    /*
+    |--------------------------------------------------------------------------
+    | Document storage & retry
+    |--------------------------------------------------------------------------
+    |
+    | Диск для контент-адресованных версий документов (`documents/<hash-prefix>/<sha256>`,
+    | `01-database.md` §5, §9) — по умолчанию тот же, что `raw_disk`. Ретраи скачивания —
+    | error-блок `doc_documents` (`attempts`/`next_retry_at`/`failed_permanently`).
+    */
+    'documents_disk' => 's3',
+    'documents_max_attempts' => 5,
+    'documents_retry_backoff_minutes' => 15,
 ];
