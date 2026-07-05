@@ -7,7 +7,7 @@
 | Plan ID | V2-CORE |
 | Title | Каркас проекта + полная схема БД ядра закупок |
 | Version | 0.1.0 |
-| Status | 🟡 In progress |
+| Status | 🟠 Done with deviations |
 | Document Type | Executable Master Plan |
 | Authoring Model | sonnet |
 | Last Updated | 2026-07-03 |
@@ -60,7 +60,7 @@ Redis/Horizon, MinIO (S3-совместимое), package manager фронта �
 | Phase | Title | Items 🟢/всего | Status |
 |:--|:--|:--|:--|
 | P0 | Каркас | 3/3 | 🟠 Done with deviations |
-| P1 | Схема БД и ядро закупок | 7/11 | 🟡 In progress |
+| P1 | Схема БД и ядро закупок | 11/11 | 🟢 Done |
 
 ## 5. Decision Log
 
@@ -71,9 +71,16 @@ Redis/Horizon, MinIO (S3-совместимое), package manager фронта �
 | D3 | 2026-07-03 | Правки схемы по итогам разведки (source_guid/lot_guid/is_centralized/okved_code) внесены в `01-database.md` до старта миграций | Явное решение владельца по итогам Step 1 |
 | D4 | 2026-07-03 | Партиционирование — `pg_partman`, помесячно (`prc_events`, `prc_revisions`, `ai_llm_calls`, `crw_fetches`, `sys_operation_logs`); своя scheduled-команда как fallback | Зафиксировано в `01-database.md` §0.4 |
 | D5 | 2026-07-04 | `StatusMappingService` (P1.10) АВТОМАТИЧЕСКИ создаёт строку в `plt_status_mappings` с `canonical_status='unknown'` для нового `source_status`, не только читает | Явное решение владельца — оператор видит и правит неизвестный статус в админке, не роется в логах |
+| D6 | 2026-07-04 | Базовый образ Postgres (dev+prod `docker-compose*.yml`) переключён с `postgres:17-alpine` на кастомный `docker/postgres/Dockerfile` (`FROM postgres:17` + `apt-get install postgresql-17-partman`) | Явное решение владельца по эскалации P1.9 — `pg_partman` недоступен в alpine-варианте (нет PGDG-пакета для alpine); debian-вариант `postgres:17` уже несёт настроенный PGDG apt-репозиторий, апт-пакет ставится без доп. настройки |
+| D7 | 2026-07-04 | Неизвестный `source_status` при ингесте пишет `prc_events` с `event_type='status_changed'`, `field='status'`, `new_value='unknown'` — отдельный `event_type='unknown_status'` НЕ добавляется | P1.10 Implementation Rules явно требовал зафиксировать выбор; переиспользование существующего типа проще и не требует правки закрытого codelist `event_type` из `01-database.md` §3, семантически «статус изменился на unknown» точно описывает событие |
 
 ## 6. Update Log
 
 | Дата | Кто (role/model) | Что |
 |:--|:--|:--|
 | 2026-07-03 | issue-planner/sonnet | План создан после Step 0 (Old/ перенос) и Step 1 (живая разведка + правки схемы) |
+| 2026-07-04 | plan-exec/sonnet | P1.9 эскалирован — `pg_partman` недоступен в `postgres:17-alpine`, нужно решение владельца об образе Postgres (см. `phases/P1.md` P1.9, `handoff.md`) |
+| 2026-07-04 | plan-exec/sonnet | Владелец решил в чате (D6): образ Postgres → `postgres:17`+`postgresql-17-partman`. P1.9 реализован кодом (Dockerfile/compose/миграции/модель/команда/тесты); `docker compose build postgres` не прогнан до конца в песочнице агента (сеть без IPv6-маршрута до `apt.postgresql.org`) — нужна ручная валидация владельцем на своей машине |
+| 2026-07-04 | plan-exec/sonnet | Владелец прогнал build+migrate на своей машине и прислал вывод. Найдены и исправлены 2 бага (extension без `SCHEMA partman`; `run_maintenance_proc()` с внутренним COMMIT ломался под `RefreshDatabase`; `migrate:fresh` не идемпотентен против `part_config` — добавлена проверка). Validation зелёная (migrate:fresh ×2, тесты, Pint). P1.9 закрыт 🟢 |
+| 2026-07-04 | plan-exec/sonnet | P1.10 закрыт 🟢 (D7 добавлен в Decision Log — событие для неизвестного статуса переиспользует `status_changed`, отдельный `event_type` не заводится). `ProcurementReadRepository`/`ProcurementStoreRepository`, `ProcurementIngestProcessor`, `StatusMappingService` + DTO `ProcurementSnapshotData`/`StatusResolution`. Validation: migrate:fresh зелёный, tinker-smoke всех сценариев чек-листа §11 (discover/no-op/price-change/unknown-status), Pint чисто, `php artisan test` без регресса |
+| 2026-07-04 | plan-exec/sonnet | P1.11 закрыт 🟢 — 24 Pest-теста в `tests/Feature/Procurement/` (agelto-test-writer, коммит `9c3466e`), покрывают все 17 строк §11 (план указывал устаревшее «14» — расхождение зафиксировано в Known Deviations item'а, не эскалировано) + §11.1. Полный сьют 29 passed, регресса нет; Pint чисто. **Фаза P1 закрыта целиком (11/11 🟢)** |
