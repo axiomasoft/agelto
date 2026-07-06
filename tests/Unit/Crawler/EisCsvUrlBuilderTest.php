@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Dto\Crawler\ListingCursor;
 use App\Services\Crawler\Eis\EisCsvUrlBuilder;
 use Tests\Support\Doubles\Crawler\CrawlerWithRegistry;
 
@@ -79,4 +80,41 @@ test('buildQueryParams всегда запрашивает registryNumberCsv д�
     $params = app(EisCsvUrlBuilder::class)->buildQueryParams(crawler: $crawler, from: 1, to: 500);
 
     expect($params['registryNumberCsv'])->toBe('on');
+});
+
+test('buildQueryParams с cursor->day archive-ветка добавляет publishDateFrom/To+price+sortDirection=true', function () {
+    config(['crawler.archive.date_format' => 'd.m.Y']);
+    $crawler = CrawlerWithRegistry::make(registryCode: 'fz44', filter: null, options: null);
+    $cursor = new ListingCursor(blockFrom: 1, day: '2024-03-15', priceStack: ['0:500000']);
+
+    $params = app(EisCsvUrlBuilder::class)->buildQueryParams(crawler: $crawler, from: 1, to: 500, cursor: $cursor);
+
+    expect($params['publishDateFrom'])->toBe('15.03.2024')
+        ->and($params['publishDateTo'])->toBe('15.03.2024')
+        ->and($params['priceFromGeneral'])->toBe('0')
+        ->and($params['priceToGeneral'])->toBe('500000')
+        ->and($params['sortDirection'])->toBe('true')
+        ->and($params)->not->toHaveKey('updateDateFrom');
+});
+
+test('buildQueryParams с cursor->day и cursor->dateField=update маппится на updateDateFrom/To', function () {
+    $crawler = CrawlerWithRegistry::make(registryCode: 'fz44', filter: null, options: null);
+    $cursor = new ListingCursor(blockFrom: 1, day: '2024-03-15', priceStack: ['100:200'], dateField: 'update');
+
+    $params = app(EisCsvUrlBuilder::class)->buildQueryParams(crawler: $crawler, from: 1, to: 500, cursor: $cursor);
+
+    expect($params['updateDateFrom'])->toBe('15.03.2024')
+        ->and($params['updateDateTo'])->toBe('15.03.2024')
+        ->and($params)->not->toHaveKey('publishDateFrom');
+});
+
+test('buildQueryParams без cursor или с cursor->day=null — прежний fresh-набор без регресса', function () {
+    $crawler = CrawlerWithRegistry::make(registryCode: 'fz44', filter: null, options: null);
+
+    $withoutCursor = app(EisCsvUrlBuilder::class)->buildQueryParams(crawler: $crawler, from: 1, to: 500);
+    $withNullDayCursor = app(EisCsvUrlBuilder::class)->buildQueryParams(crawler: $crawler, from: 1, to: 500, cursor: new ListingCursor);
+
+    expect($withoutCursor)->toBe($withNullDayCursor)
+        ->and($withoutCursor['sortDirection'])->toBe('false')
+        ->and($withoutCursor)->not->toHaveKey('publishDateFrom');
 });

@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace App\Services\Crawler\Eis;
 
+use App\Dto\Crawler\ListingCursor;
 use App\Models\Crawler\Crawler;
+use Illuminate\Support\Carbon;
 
 /**
  * Query-параметры CSV-экспорта ЕИС (`orderCsvSettings/download.html`) из профиля
@@ -22,7 +24,7 @@ final readonly class EisCsvUrlBuilder
     /**
      * @return array<string, string>
      */
-    public function buildQueryParams(Crawler $crawler, int $from, int $to): array
+    public function buildQueryParams(Crawler $crawler, int $from, int $to, ?ListingCursor $cursor = null): array
     {
         $filter = $this->stringValues(values: $crawler->filter?->toArray() ?? []);
         $columns = $crawler->options?->toArray()['columns'] ?? [];
@@ -44,7 +46,49 @@ final readonly class EisCsvUrlBuilder
         // всегда, независимо от `options.columns` профиля.
         $query[self::REGISTRY_NUMBER_COLUMN_FLAG] = 'on';
 
+        if ($cursor?->day !== null) {
+            $query = [...$query, ...$this->archiveOverrides(day: $cursor->day, priceStack: $cursor->priceStack ?? [], dateField: $cursor->dateField ?? 'publish')];
+        }
+
         return $query;
+    }
+
+    /**
+     * Archive-ветка (`02-crawling.md` §4.2, D21): прогон по дням с ценовым дроблением —
+     * ЕИС-специфика (имена параметров, формат даты) живёт только тут, курсор
+     * (`cursor->day`/`priceStack`) остаётся агностиком.
+     *
+     * @param  list<string>  $priceStack
+     * @param  'publish'|'update'  $dateField
+     * @return array<string, string>
+     */
+    private function archiveOverrides(string $day, array $priceStack, string $dateField): array
+    {
+        $formattedDay = Carbon::createFromFormat('Y-m-d', $day)->format((string) config('crawler.archive.date_format', 'd.m.Y'));
+        [$priceFrom, $priceTo] = $this->currentPriceInterval(priceStack: $priceStack);
+
+        $fromKey = $dateField === 'update' ? 'updateDateFrom' : 'publishDateFrom';
+        $toKey = $dateField === 'update' ? 'updateDateTo' : 'publishDateTo';
+
+        return [
+            $fromKey => $formattedDay,
+            $toKey => $formattedDay,
+            'priceFromGeneral' => $priceFrom,
+            'priceToGeneral' => $priceTo,
+            'sortDirection' => 'true',
+        ];
+    }
+
+    /**
+     * @param  list<string>  $priceStack
+     * @return array{0: string, 1: string}
+     */
+    private function currentPriceInterval(array $priceStack): array
+    {
+        $top = $priceStack[array_key_last($priceStack)] ?? '0:0';
+        [$from, $to] = explode(':', $top);
+
+        return [$from, $to];
     }
 
     /**

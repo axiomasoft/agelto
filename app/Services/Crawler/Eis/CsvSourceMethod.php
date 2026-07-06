@@ -66,7 +66,7 @@ final readonly class CsvSourceMethod implements SourceMethod
         $to = $from + $blockSize - 1;
 
         $endpoint = (string) config('crawler.eis.csv_endpoint');
-        $queryParams = $this->urlBuilder->buildQueryParams(crawler: $crawler, from: $from, to: $to);
+        $queryParams = $this->urlBuilder->buildQueryParams(crawler: $crawler, from: $from, to: $to, cursor: $cursor);
 
         $proxy = $this->proxyPool->pick(target: $endpoint);
 
