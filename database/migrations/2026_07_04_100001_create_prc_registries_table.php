@@ -2,7 +2,8 @@
 
 declare(strict_types=1);
 
-use App\Models\Procurement\Provider;
+use App\Models\Procurement\Platform\Platform;
+use App\Models\Procurement\Platform\Registry;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
@@ -13,17 +14,17 @@ return new class extends Migration
     {
         Schema::create($this->table(), function (Blueprint $table): void {
             $table->id();
-
-            $table->text('code')->unique()->comment('gemini/local-vllm/…');
-            $table->text('driver');
-            $table->text('base_url')->nullable();
-            $table->jsonb('options')->nullable();
-            $table->boolean('is_active')->default(true);
-
+            $table->uuid('uuid')->unique();
+            $table->foreignId('platform_id')
+                ->constrained(table: (new Platform)->getTable())
+                ->cascadeOnDelete();
+            $table->string('code');
+            $table->string('name');
+            $table->jsonb('settings')->nullable();
             $table->timestamps();
-        });
 
-        // Ключи API не хранятся в БД — только имя секрета (env/secrets).
+            $table->unique(['platform_id', 'code']);
+        });
     }
 
     public function down(): void
@@ -33,6 +34,6 @@ return new class extends Migration
 
     private function table(): string
     {
-        return (new Provider)->getTable();
+        return (new Registry)->getTable();
     }
 };

@@ -2,8 +2,8 @@
 
 declare(strict_types=1);
 
-use App\Models\Procurement\Platform;
-use App\Models\Procurement\Registry;
+use App\Models\Procurement\Platform\Platform;
+use App\Models\Procurement\Platform\Region;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
@@ -14,16 +14,13 @@ return new class extends Migration
     {
         Schema::create($this->table(), function (Blueprint $table): void {
             $table->id();
-            $table->uuid('uuid')->unique();
             $table->foreignId('platform_id')
                 ->constrained(table: (new Platform)->getTable())
                 ->cascadeOnDelete();
-            $table->string('code');
+            $table->string('external_id');
             $table->string('name');
-            $table->jsonb('settings')->nullable();
+            $table->string('region_code')->nullable();
             $table->timestamps();
-
-            $table->unique(['platform_id', 'code']);
         });
     }
 
@@ -34,6 +31,6 @@ return new class extends Migration
 
     private function table(): string
     {
-        return (new Registry)->getTable();
+        return (new Region)->getTable();
     }
 };

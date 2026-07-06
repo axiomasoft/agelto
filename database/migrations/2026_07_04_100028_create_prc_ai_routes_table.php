@@ -2,8 +2,8 @@
 
 declare(strict_types=1);
 
-use App\Models\Procurement\AiRoute;
-use App\Models\Procurement\Provider;
+use App\Models\Procurement\Ai\AiRoute;
+use App\Models\Procurement\Ai\Provider;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;

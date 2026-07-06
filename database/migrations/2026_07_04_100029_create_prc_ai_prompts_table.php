@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-use App\Models\Procurement\Proxy;
+use App\Models\Procurement\Ai\Prompt;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
@@ -14,17 +14,16 @@ return new class extends Migration
         Schema::create($this->table(), function (Blueprint $table): void {
             $table->id();
 
-            $table->text('service');
-            $table->text('host');
-            $table->integer('port')->nullable();
-            $table->text('username')->nullable();
-            $table->text('password')->nullable();
-            $table->jsonb('targets')->nullable();
-
+            $table->text('key');
+            $table->text('step');
+            $table->text('content');
+            $table->integer('version');
+            $table->integer('priority')->default(0);
             $table->boolean('is_active')->default(true);
-            $table->integer('fails_count')->default(0);
 
             $table->timestamps();
+
+            $table->unique(['key', 'version']);
         });
     }
 
@@ -35,6 +34,6 @@ return new class extends Migration
 
     private function table(): string
     {
-        return (new Proxy)->getTable();
+        return (new Prompt)->getTable();
     }
 };

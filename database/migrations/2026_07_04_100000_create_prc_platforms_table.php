@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-use App\Models\Procurement\DocumentType;
+use App\Models\Procurement\Platform\Platform;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
@@ -13,9 +13,10 @@ return new class extends Migration
     {
         Schema::create($this->table(), function (Blueprint $table): void {
             $table->id();
+            $table->uuid('uuid')->unique();
             $table->string('code')->unique();
             $table->string('name');
-            $table->boolean('has_extractor')->default(false);
+            $table->string('base_url');
             $table->boolean('is_active')->default(true);
             $table->timestamps();
         });
@@ -28,6 +29,6 @@ return new class extends Migration
 
     private function table(): string
     {
-        return (new DocumentType)->getTable();
+        return (new Platform)->getTable();
     }
 };

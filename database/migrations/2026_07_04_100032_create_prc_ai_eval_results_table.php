@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-use App\Models\Procurement\DatasetExample;
-use App\Models\Procurement\EvalResult;
-use App\Models\Procurement\EvalRun;
+use App\Models\Procurement\Ai\DatasetExample;
+use App\Models\Procurement\Ai\EvalResult;
+use App\Models\Procurement\Ai\EvalRun;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;

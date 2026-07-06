@@ -2,8 +2,8 @@
 
 declare(strict_types=1);
 
-use App\Models\Procurement\Estimate;
-use App\Models\Procurement\Total;
+use App\Models\Procurement\Estimate\Estimate;
+use App\Models\Procurement\Estimate\Section;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
@@ -19,7 +19,7 @@ return new class extends Migration
                 ->index()
                 ->constrained(table: (new Estimate)->getTable());
 
-            // Иерархия итогов («Итого» → «в т.ч. НДС»), перенос рекурсии EstimateFooterItem из v1.
+            // Дерево разделов (без ltree на этом шаге, см. 01-database.md §6b «опц. позже»).
             $table->foreignId('parent_id')
                 ->nullable()
                 ->index()
@@ -27,9 +27,8 @@ return new class extends Migration
                 ->nullOnDelete();
 
             $table->integer('position');
-            $table->text('label');
-            $table->text('kind')->nullable()->comment('НР/СП/НДС/…');
-            $table->decimal('amount', total: 18, places: 2);
+            $table->text('title');
+            $table->text('section_number')->nullable();
 
             $table->timestamps();
         });
@@ -42,6 +41,6 @@ return new class extends Migration
 
     private function table(): string
     {
-        return (new Total)->getTable();
+        return (new Section)->getTable();
     }
 };

@@ -2,8 +2,8 @@
 
 declare(strict_types=1);
 
-use App\Models\Procurement\Item;
-use App\Models\Procurement\Resource;
+use App\Models\Procurement\Estimate\Item;
+use App\Models\Procurement\Estimate\Resource;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;

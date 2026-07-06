@@ -2,8 +2,8 @@
 
 declare(strict_types=1);
 
-use App\Models\Procurement\IgnoredItem;
-use App\Models\Procurement\Registry;
+use App\Models\Procurement\Crawler\IgnoreRule;
+use App\Models\Procurement\Platform\Registry;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
@@ -16,16 +16,17 @@ return new class extends Migration
             $table->id();
 
             $table->foreignId('registry_id')
+                ->nullable()
                 ->index()
                 ->constrained(table: (new Registry)->getTable());
 
-            $table->text('source_number');
-            $table->text('reason_category')->index();
-            $table->text('reason')->nullable();
+            $table->text('field');
+            $table->text('operator')->comment('contains/regex');
+            $table->text('value');
+            $table->text('reason_category');
+            $table->boolean('is_active')->default(true);
 
             $table->timestamps();
-
-            $table->unique(['registry_id', 'source_number']);
         });
     }
 
@@ -36,6 +37,6 @@ return new class extends Migration
 
     private function table(): string
     {
-        return (new IgnoredItem)->getTable();
+        return (new IgnoreRule)->getTable();
     }
 };

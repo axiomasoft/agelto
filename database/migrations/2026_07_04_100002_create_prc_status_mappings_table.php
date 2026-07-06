@@ -2,8 +2,8 @@
 
 declare(strict_types=1);
 
-use App\Models\Procurement\Proxy;
-use App\Models\Procurement\ProxyCheck;
+use App\Models\Procurement\Platform\Registry;
+use App\Models\Procurement\Platform\StatusMapping;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
@@ -14,17 +14,14 @@ return new class extends Migration
     {
         Schema::create($this->table(), function (Blueprint $table): void {
             $table->id();
-
-            $table->foreignId('proxy_id')
-                ->index()
-                ->constrained(table: (new Proxy)->getTable());
-
-            $table->timestampTz('checked_at');
-            $table->boolean('success');
-            $table->integer('latency_ms')->nullable();
-            $table->text('error')->nullable();
-
+            $table->foreignId('registry_id')
+                ->constrained(table: (new Registry)->getTable())
+                ->cascadeOnDelete();
+            $table->string('source_status');
+            $table->string('canonical_status');
             $table->timestamps();
+
+            $table->unique(['registry_id', 'source_status']);
         });
     }
 
@@ -35,6 +32,6 @@ return new class extends Migration
 
     private function table(): string
     {
-        return (new ProxyCheck)->getTable();
+        return (new StatusMapping)->getTable();
     }
 };

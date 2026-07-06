@@ -2,8 +2,7 @@
 
 declare(strict_types=1);
 
-use App\Models\Procurement\Platform;
-use App\Models\Procurement\Region;
+use App\Models\Procurement\Crawler\Proxy;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
@@ -14,12 +13,17 @@ return new class extends Migration
     {
         Schema::create($this->table(), function (Blueprint $table): void {
             $table->id();
-            $table->foreignId('platform_id')
-                ->constrained(table: (new Platform)->getTable())
-                ->cascadeOnDelete();
-            $table->string('external_id');
-            $table->string('name');
-            $table->string('region_code')->nullable();
+
+            $table->text('service');
+            $table->text('host');
+            $table->integer('port')->nullable();
+            $table->text('username')->nullable();
+            $table->text('password')->nullable();
+            $table->jsonb('targets')->nullable();
+
+            $table->boolean('is_active')->default(true);
+            $table->integer('fails_count')->default(0);
+
             $table->timestamps();
         });
     }
@@ -31,6 +35,6 @@ return new class extends Migration
 
     private function table(): string
     {
-        return (new Region)->getTable();
+        return (new Proxy)->getTable();
     }
 };
