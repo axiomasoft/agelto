@@ -1,7 +1,7 @@
 <?php
 
-use App\Enums\Crawler\CrawlerMode;
-use App\Models\Crawler\Crawler;
+use App\Enums\Procurement\CrawlerMode;
+use App\Models\Procurement\Crawler;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Schedule;

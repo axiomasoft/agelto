@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-use App\Models\Platform\Platform;
+use App\Models\Procurement\Platform;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;

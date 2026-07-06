@@ -2,8 +2,8 @@
 
 declare(strict_types=1);
 
-use App\Enums\Crawler\SourceMethod;
-use App\Services\Crawler\Eis\CsvSourceMethod;
+use App\Enums\Procurement\SourceMethod;
+use App\Services\Procurement\Eis\CsvSourceMethod;
 
 return [
     /*

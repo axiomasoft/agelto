@@ -2,8 +2,8 @@
 
 declare(strict_types=1);
 
-use App\Models\Ai\DatasetExample;
-use App\Models\Document\DocumentVersion;
+use App\Models\Procurement\DatasetExample;
+use App\Models\Procurement\DocumentVersion;
 use App\Models\User;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;

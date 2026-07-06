@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 use App\Enums\Organization\ProcurementPartyRole;
 use App\Models\Organization\Organization;
-use App\Models\Organization\ProcurementParty;
+use App\Models\Procurement\ProcurementParty;
 use Illuminate\Database\QueryException;
 
 /**

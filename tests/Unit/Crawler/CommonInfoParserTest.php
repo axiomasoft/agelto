@@ -2,8 +2,8 @@
 
 declare(strict_types=1);
 
-use App\Dto\Crawler\Details\CommonInfoData;
-use App\Services\Crawler\Eis\Card\CommonInfoParser;
+use App\Dto\Procurement\Details\CommonInfoData;
+use App\Services\Procurement\Eis\Card\CommonInfoParser;
 
 function commonInfoFixtureHtml(): string
 {

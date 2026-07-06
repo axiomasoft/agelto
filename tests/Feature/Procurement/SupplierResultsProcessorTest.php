@@ -2,19 +2,19 @@
 
 declare(strict_types=1);
 
-use App\Dto\Crawler\Details\SupplierResultsData;
+use App\Dto\Procurement\Details\SupplierResultsData;
 use App\Enums\Organization\ProcurementPartyRole;
 use App\Enums\Procurement\AwardStatus;
 use App\Enums\Procurement\ProcurementEventType;
 use App\Models\Organization\Organization;
-use App\Models\Organization\ProcurementParty;
 use App\Models\Procurement\Award;
 use App\Models\Procurement\Bid;
 use App\Models\Procurement\Procurement;
 use App\Models\Procurement\ProcurementEvent;
+use App\Models\Procurement\ProcurementParty;
 use App\Models\Procurement\Protocol;
-use App\Services\Crawler\Eis\Card\SupplierResultsParser;
 use App\Services\Procurement\Detail\SupplierResultsProcessor;
+use App\Services\Procurement\Eis\Card\SupplierResultsParser;
 
 function supplierResultsDataForProcessorTest(): SupplierResultsData
 {

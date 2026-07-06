@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace App\Repositories\Organization;
 
 use App\Enums\Organization\ProcurementPartyRole;
-use App\Models\Organization\ProcurementParty;
 use App\Models\Procurement\Procurement;
+use App\Models\Procurement\ProcurementParty;
 
 /**
  * Персистентность роли организации в закупке (`prc_procurement_parties`) и денормализации

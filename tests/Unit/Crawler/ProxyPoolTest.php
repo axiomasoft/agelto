@@ -2,8 +2,8 @@
 
 declare(strict_types=1);
 
-use App\Models\Crawler\Proxy;
-use App\Services\Crawler\ProxyPool;
+use App\Models\Procurement\Proxy;
+use App\Services\Procurement\ProxyPool;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 
 uses(RefreshDatabase::class);

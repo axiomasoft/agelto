@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-use App\Services\Crawler\Eis\Card\EventJournalParser;
+use App\Services\Procurement\Eis\Card\EventJournalParser;
 
 function eventJournalFixtureHtml(): string
 {

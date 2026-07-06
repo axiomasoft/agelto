@@ -6,7 +6,6 @@ namespace App\Models\Procurement;
 
 use App\Casts\PostgresTextArrayCast;
 use App\Enums\Procurement\ProcurementStatus;
-use App\Models\Platform\Registry;
 use Database\Factories\Procurement\ProcurementFactory;
 use Illuminate\Database\Eloquent\Casts\AsCollection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;

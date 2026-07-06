@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-use App\Services\Crawler\PoliteThrottle;
+use App\Services\Procurement\PoliteThrottle;
 use Carbon\CarbonInterval;
 use Illuminate\Support\Sleep;
 

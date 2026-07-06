@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\Procurement\Detail;
 
-use App\Dto\Crawler\Details\PartyData;
+use App\Dto\Procurement\Details\PartyData;
 use App\Enums\Organization\ProcurementPartyRole;
 use App\Models\Procurement\Procurement;
 use App\Repositories\Organization\ProcurementPartyStoreRepository;

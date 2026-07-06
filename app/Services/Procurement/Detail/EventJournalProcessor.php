@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\Procurement\Detail;
 
-use App\Dto\Crawler\Details\JournalEntryData;
+use App\Dto\Procurement\Details\JournalEntryData;
 use App\Enums\Procurement\ProcurementEventType;
 use App\Models\Procurement\Procurement;
 use App\Repositories\Procurement\ProcurementStoreRepository;

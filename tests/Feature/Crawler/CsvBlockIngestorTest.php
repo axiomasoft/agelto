@@ -2,17 +2,17 @@
 
 declare(strict_types=1);
 
-use App\Dto\Crawler\ListingBatch;
+use App\Dto\Procurement\ListingBatch;
 use App\Enums\Procurement\ProcurementEventType;
-use App\Models\Crawler\Crawler;
-use App\Models\Crawler\Fetch;
-use App\Models\Crawler\IgnoredItem;
-use App\Models\Crawler\Run;
-use App\Models\Platform\Registry;
+use App\Models\Procurement\Crawler;
+use App\Models\Procurement\Fetch;
+use App\Models\Procurement\IgnoredItem;
 use App\Models\Procurement\Procurement;
 use App\Models\Procurement\ProcurementEvent;
 use App\Models\Procurement\ProcurementRevision;
-use App\Services\Crawler\CsvBlockIngestor;
+use App\Models\Procurement\Registry;
+use App\Models\Procurement\Run;
+use App\Services\Procurement\CsvBlockIngestor;
 use Illuminate\Support\Facades\Storage;
 
 /**

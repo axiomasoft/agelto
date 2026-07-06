@@ -2,15 +2,15 @@
 
 declare(strict_types=1);
 
-use App\Dto\Crawler\ListingBatch;
-use App\Dto\Crawler\ListingCursor;
-use App\Enums\Crawler\CrawlerMode;
-use App\Enums\Crawler\RunStatus;
-use App\Enums\Crawler\SourceMethod as SourceMethodEnum;
-use App\Models\Crawler\Crawler;
-use App\Models\Crawler\Run;
+use App\Dto\Procurement\ListingBatch;
+use App\Dto\Procurement\ListingCursor;
+use App\Enums\Procurement\CrawlerMode;
+use App\Enums\Procurement\RunStatus;
+use App\Enums\Procurement\SourceMethod as SourceMethodEnum;
+use App\Models\Procurement\Crawler;
 use App\Models\Procurement\Procurement;
-use App\Services\Crawler\Modes\ArchiveRunProcessor;
+use App\Models\Procurement\Run;
+use App\Services\Procurement\Modes\ArchiveRunProcessor;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Sleep;

@@ -2,8 +2,8 @@
 
 declare(strict_types=1);
 
-use App\Models\Crawler\IgnoreRule;
-use App\Models\Platform\Registry;
+use App\Models\Procurement\IgnoreRule;
+use App\Models\Procurement\Registry;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;

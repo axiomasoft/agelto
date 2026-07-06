@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-use App\Dto\Crawler\Details\OrganizationData;
+use App\Dto\Procurement\Details\OrganizationData;
 use App\Models\Organization\Organization;
 use App\Services\Organization\OrganizationResolver;
 

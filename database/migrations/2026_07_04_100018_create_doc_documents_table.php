@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-use App\Models\Document\Document;
+use App\Models\Procurement\Document;
 use App\Models\Procurement\Procurement;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;

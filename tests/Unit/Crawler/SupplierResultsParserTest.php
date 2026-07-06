@@ -5,7 +5,7 @@ declare(strict_types=1);
 use App\Enums\Procurement\AwardStatus;
 use App\Enums\Procurement\BidStatus;
 use App\Enums\Procurement\ProtocolType;
-use App\Services\Crawler\Eis\Card\SupplierResultsParser;
+use App\Services\Procurement\Eis\Card\SupplierResultsParser;
 
 function supplierResultsFixtureHtml(): string
 {

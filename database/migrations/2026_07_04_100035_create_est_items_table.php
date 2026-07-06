@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-use App\Models\Estimate\Estimate;
-use App\Models\Estimate\Item;
-use App\Models\Estimate\Section;
+use App\Models\Procurement\Estimate;
+use App\Models\Procurement\Item;
+use App\Models\Procurement\Section;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;

@@ -5,8 +5,8 @@ declare(strict_types=1);
 use App\Enums\Procurement\ProcurementEventType;
 use App\Models\Procurement\Procurement;
 use App\Models\Procurement\ProcurementEvent;
-use App\Services\Crawler\Eis\Card\EventJournalParser;
 use App\Services\Procurement\Detail\EventJournalProcessor;
+use App\Services\Procurement\Eis\Card\EventJournalParser;
 use Illuminate\Support\Facades\Log;
 
 function eventJournalEntriesForProcessorTest(): array

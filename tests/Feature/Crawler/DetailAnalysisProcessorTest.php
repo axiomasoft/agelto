@@ -2,16 +2,16 @@
 
 declare(strict_types=1);
 
-use App\Enums\Document\DocumentStatus;
+use App\Enums\Procurement\DocumentStatus;
 use App\Enums\Procurement\ProcurementStatus;
-use App\Models\Document\Document;
-use App\Models\Organization\ProcurementParty;
-use App\Models\Platform\Registry;
+use App\Models\Procurement\Document;
 use App\Models\Procurement\EisDetails;
 use App\Models\Procurement\Procurement;
 use App\Models\Procurement\ProcurementEvent;
+use App\Models\Procurement\ProcurementParty;
 use App\Models\Procurement\Protocol;
-use App\Services\Crawler\Modes\DetailAnalysisProcessor;
+use App\Models\Procurement\Registry;
+use App\Services\Procurement\Modes\DetailAnalysisProcessor;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Sleep;

@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace Database\Factories\Procurement;
 
 use App\Enums\Procurement\ProcurementStatus;
-use App\Models\Platform\Registry;
 use App\Models\Procurement\Procurement;
+use App\Models\Procurement\Registry;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**

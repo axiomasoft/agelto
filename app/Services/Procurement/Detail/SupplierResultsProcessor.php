@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace App\Services\Procurement\Detail;
 
-use App\Dto\Crawler\Details\AwardData;
-use App\Dto\Crawler\Details\BidData;
-use App\Dto\Crawler\Details\ProtocolData;
-use App\Dto\Crawler\Details\SupplierResultsData;
+use App\Dto\Procurement\Details\AwardData;
+use App\Dto\Procurement\Details\BidData;
+use App\Dto\Procurement\Details\ProtocolData;
+use App\Dto\Procurement\Details\SupplierResultsData;
 use App\Enums\Organization\ProcurementPartyRole;
 use App\Enums\Procurement\ProcurementEventType;
 use App\Models\Procurement\Award;

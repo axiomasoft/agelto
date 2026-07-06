@@ -2,8 +2,8 @@
 
 declare(strict_types=1);
 
-use App\Models\Estimate\Estimate;
-use App\Models\Estimate\Total;
+use App\Models\Procurement\Estimate;
+use App\Models\Procurement\Total;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;

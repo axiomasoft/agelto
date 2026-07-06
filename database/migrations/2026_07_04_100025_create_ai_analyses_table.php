@@ -2,8 +2,8 @@
 
 declare(strict_types=1);
 
-use App\Models\Ai\Analysis;
-use App\Models\Document\DocumentVersion;
+use App\Models\Procurement\Analysis;
+use App\Models\Procurement\DocumentVersion;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;

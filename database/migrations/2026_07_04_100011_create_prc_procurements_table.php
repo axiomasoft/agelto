@@ -3,8 +3,8 @@
 declare(strict_types=1);
 
 use App\Models\Organization\Organization;
-use App\Models\Platform\Registry;
 use App\Models\Procurement\Procurement;
+use App\Models\Procurement\Registry;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;

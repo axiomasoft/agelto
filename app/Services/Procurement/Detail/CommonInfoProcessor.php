@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace App\Services\Procurement\Detail;
 
-use App\Dto\Crawler\Details\CommonInfoData;
-use App\Dto\Crawler\Details\PurchaseItemRowData;
+use App\Dto\Procurement\Details\CommonInfoData;
+use App\Dto\Procurement\Details\PurchaseItemRowData;
 use App\Models\Procurement\Procurement;
 use App\Repositories\Procurement\ProcurementDetailStoreRepository;
-use App\Services\Crawler\Eis\Card\CommonInfoParser;
+use App\Services\Procurement\Eis\Card\CommonInfoParser;
 use App\Services\Reference\ClassifierResolver;
 use Illuminate\Support\Facades\DB;
 

@@ -2,12 +2,12 @@
 
 declare(strict_types=1);
 
-use App\Enums\Ai\AnalysisStatus;
-use App\Enums\Ai\AnalysisStep;
-use App\Models\Ai\Analysis;
-use App\Models\Ai\DatasetExample;
-use App\Models\Ai\EvalRun;
-use App\Models\Estimate\Estimate;
+use App\Enums\Procurement\AnalysisStatus;
+use App\Enums\Procurement\AnalysisStep;
+use App\Models\Procurement\Analysis;
+use App\Models\Procurement\DatasetExample;
+use App\Models\Procurement\Estimate;
+use App\Models\Procurement\EvalRun;
 use Illuminate\Support\Carbon;
 
 /**

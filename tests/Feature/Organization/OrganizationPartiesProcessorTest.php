@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 use App\Enums\Organization\ProcurementPartyRole;
 use App\Models\Organization\Organization;
-use App\Models\Organization\ProcurementParty;
 use App\Models\Procurement\Procurement;
-use App\Services\Crawler\Eis\Card\PartiesParser;
+use App\Models\Procurement\ProcurementParty;
 use App\Services\Procurement\Detail\OrganizationPartiesProcessor;
+use App\Services\Procurement\Eis\Card\PartiesParser;
 
 function partiesFixtureDataForProcessorTest(): array
 {

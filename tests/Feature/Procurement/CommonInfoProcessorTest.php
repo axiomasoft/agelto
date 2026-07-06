@@ -2,14 +2,14 @@
 
 declare(strict_types=1);
 
-use App\Dto\Crawler\Details\CommonInfoData;
+use App\Dto\Procurement\Details\CommonInfoData;
 use App\Models\Procurement\EisDetails;
 use App\Models\Procurement\Financing;
 use App\Models\Procurement\Procurement;
 use App\Models\Procurement\PurchaseItem;
 use App\Models\Reference\Okpd2;
-use App\Services\Crawler\Eis\Card\CommonInfoParser;
 use App\Services\Procurement\Detail\CommonInfoProcessor;
+use App\Services\Procurement\Eis\Card\CommonInfoParser;
 
 function commonInfoFixtureData(): CommonInfoData
 {

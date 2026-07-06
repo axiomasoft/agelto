@@ -3,10 +3,10 @@
 declare(strict_types=1);
 
 use App\Dto\Procurement\ProcurementSnapshotData;
-use App\Enums\Crawler\EisProcedureType;
-use App\Models\Crawler\Crawler;
-use App\Models\Platform\Registry;
-use App\Services\Crawler\Eis\EisCsvRowMapper;
+use App\Enums\Procurement\EisProcedureType;
+use App\Models\Procurement\Crawler;
+use App\Models\Procurement\Registry;
+use App\Services\Procurement\Eis\EisCsvRowMapper;
 
 /**
  * `Crawler` без обращения к БД (Unit-тест, без `RefreshDatabase`) — реестр привязывается
