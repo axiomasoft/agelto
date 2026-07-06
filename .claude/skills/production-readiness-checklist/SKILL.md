@@ -14,6 +14,8 @@ adapters: [claude, cursor, fable]
 sha256: ""
 ---
 
+<!-- swissknifeman:managed — не редактируй, перезапишется/удалится следующим `skiller sync`; правь скилл в реестре swissknifeman -->
+
 # Production-Readiness Checklist
 
 A whole class of defects is invisible to per-unit happy-path tests (they force the needed state). Verify these on risky slices BEFORE merge — by reasoning, not just by green tests.

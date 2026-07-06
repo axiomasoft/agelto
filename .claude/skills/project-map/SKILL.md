@@ -36,6 +36,6 @@ description: "Быстрая карта структуры проекта Agelto
 
 - `.ai/guidelines/architecture.md`
 - `.ai/guidelines/navigation.md`
-- `.ai/guidelines/project-development.md`
+- skill `procurement-pipeline-dev`
 - `docs/02_Workflow/crawling-and-discovery.md`
 - `docs/03_Dev/architecture.md`

@@ -14,6 +14,8 @@ adapters: [claude, cursor, fable]
 sha256: ""
 ---
 
+<!-- swissknifeman:managed — не редактируй, перезапишется/удалится следующим `skiller sync`; правь скилл в реестре swissknifeman -->
+
 # Plan Protocol
 
 Ecosystem SSOT for executable master plans: a strong model writes the plan, a cheap

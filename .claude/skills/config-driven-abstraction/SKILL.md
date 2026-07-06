@@ -14,6 +14,8 @@ adapters: [claude, cursor, fable]
 sha256: ""
 ---
 
+<!-- swissknifeman:managed — не редактируй, перезапишется/удалится следующим `skiller sync`; правь скилл в реестре swissknifeman -->
+
 # Config-Driven Abstraction (Registry + Builder)
 
 Cache-safe pluggable abstractions for multi-panel / multi-tenant / driver resolution.

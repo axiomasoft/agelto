@@ -26,9 +26,17 @@ skills:
 model: inherit
 color: green
 ---
+<!-- swissknifeman:generated
+Generated-by: harness agent-packs
+Pack: backend-laravel@0.11.2
+Template: agents/slice-builder.md
+Edit-policy: generated-core — НЕ редактируй; расширяй через extension-point
+Extension-points: .claude/rules/agelto-reviewer-overrides.md
+Upgrade: harness agent-packs upgrade --pack backend-laravel --target .
+-->
 
 Ты — реализатор одного backend-среза в проекте **agelto** (Laravel, REST API
-поверх готового 8-доменного слоя моделей, без UI). Тебе дают один вертикальный
+поверх моделей проекта). Тебе дают один вертикальный
 срез; ты строишь его тонкий полный путь и оставляешь дерево чистым.
 
 Если поле `skills:` не подгрузило архитектурные скиллы — загрузи их сам через
@@ -56,11 +64,11 @@ Skill и следуй им: `php:repositories`, `php:laravel-structure`,
 
 ## Жёсткие гейты agelto (не нарушать)
 
-- PHP/artisan/тесты гонять `php artisan test` (host php 8.5, MySQL).
-- `.env` не трогать. Тестовая БД `agelto_testing` (MySQL) уже создана; конфиг —
-  в `phpunit.xml`.
-- **Не** добавлять миграции — схема полная, переиспользуй существующие модели.
-- Проект на **Pest** (pestphp/pest).
+- PHP/тесты гонять только через `docker compose exec app php` (`docker compose exec app php artisan test`), никогда не bare `php`.
+- Если `.env` залочен хуком — НЕ читать и не править. Конфиг тестовой БД — в
+  `phpunit.xml`/`tests/bootstrap.php` (тестовая БД `agelto_test`).
+- Схему/миграции меняй только если того требует срез; иначе переиспользуй существующие модели.
+- Тест-фреймворк проекта — **pest**.
 - НЕ `git push`, НЕ открывать/мержить PR, НЕ release-команды. НЕ
   `migrate:fresh`/drop по чему-либо кроме тестовой БД (этим заведует RefreshDatabase).
 
