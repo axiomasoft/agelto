@@ -14,26 +14,12 @@
 - Структура плоская (`app/**`), без модулей: три домена по короткому префиксу таблицы — `Procurement` (`prc_*`, единый домен закупок: заказы, документы, сметы, AI-пайплайн, crawling-инфраструктура, площадки, логи), `Reference` (`ref_*`, общие справочники ОКПД2/КТРУ/ОКВЭД2/КБК), `Organization` (`org_*`, организации).
 - Очереди: Laravel Horizon (`QUEUE_CONNECTION=redis`), тяжёлые jobs — browser/Gemini parsing.
 
-## Layer Responsibilities
+## Layer Responsibilities (short)
 
-**`app/` (плоская структура, без `Modules/`)**
-
-- `Models/{Procurement,Reference,Organization}/` — Eloquent-модели по доменам; внутри `Procurement/` — подпапки по назначению (`Document/`, `Estimate/`, `Crawler/`, `Ai/`, `Platform/`), ядро закупки (Procurement/Lot/Bid/Award/...) и `OperationLog` — плоско в корне.
-- `Services/{Procurement,Reference,Organization}/` — доменные сервисы (crawling, document indexing, AI-анализ, классификаторы), внутри `Procurement/` — подпапки `Eis/`, `Modes/`, `Contracts/`, `Exceptions/`, `Detail/`.
-- `Dto/Procurement/` — DTO для смет, crawling-результатов, browser options.
-- `Enums/{Procurement,Organization}/` — статусы, типы, режимы.
-- `Repositories/{Procurement,Organization}/` — read/store-репозитории.
-- `Console/Commands/{Procurement,Reference}/` — artisan-команды доменов.
-- `Http/Controllers/` — Inertia/Fortify/settings, тонкий HTTP-слой.
-- `Providers/` — Filament, Horizon, Fortify.
-
-**Repositories**
-
-- Read/write доступ к `prc_*`/`org_*` таблицам (crawling, документы, анализ) — `app/Repositories/Procurement/`, `app/Repositories/Organization/`.
-
-**Controllers**
-
-- Только HTTP: auth, validate, delegate to Action/Service/Job dispatch, response.
+Controllers — только HTTP: auth, validate, delegate to Action/Service/Job dispatch, response.
+Repositories — read/write доступ к `prc_*`/`org_*` таблицам. Полная раскладка `app/` по доменным
+папкам (Models/Services/Dto/Enums/Repositories/Console) — `docs/03_Dev/architecture.md` (актуальнее
+и подробнее любой копии здесь — не дублировать).
 
 ## Transaction & Jobs Policy (short)
 

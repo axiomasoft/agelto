@@ -165,8 +165,8 @@
       "source": "swissknifeman",
       "managed": true,
       "bucket": "general",
-      "sha256": "5f58b3a85174952856921036099c8359cb9b80e315effed502fef1022f888a9f",
-      "content_sha256": "1090127c45f7a224bf10ce08d2afc38858b86af58702b94c3ae357dc794edcdb",
+      "sha256": "7a2ebbab258c885f5f998f96b0323ee0a4daef4178ba536ecbd8810f5ed7d8ec",
+      "content_sha256": "a5e55c7834f3ef06a6593244b2aae41936639ae42059ec9f0b4aad5c815009aa",
       "installed_path": ".claude/skills/context-economy"
     },
     "cross-layer-change-checklist": {
@@ -197,16 +197,16 @@
       "source": "swissknifeman",
       "managed": true,
       "bucket": "architect",
-      "sha256": "d6981e2f89d279b3fb3d8249239c549107c9935be17c6edd1ff4b803db60f575",
-      "content_sha256": "86f211f148464823483f05c09c65e13d7062c12d7485b3f4381ca58c7d16bafd",
+      "sha256": "88cd2af7d06cadc9df3a85e3993afa06060d121d8d433a852dca9405198c46bf",
+      "content_sha256": "9e92eeab4690a6694b331f74e072da533fa50c5dd931f01a522f4ce977531be2",
       "installed_path": ".claude/skills/data-schema"
     },
     "database": {
       "source": "swissknifeman",
       "managed": true,
       "bucket": "php",
-      "sha256": "5a8e62474701b9517a5ec647fcddfeec5b797caf0ea6a570da30a6cd77c81a7e",
-      "content_sha256": "99d829978748cab845a189b187f82bb6b3bc76efbfd8197e5879477110869454",
+      "sha256": "c97b6d43923a9427ed2dd1cde2a582fa2eca80c8cfe9dcfe3a190fb13d0ef782",
+      "content_sha256": "c4cba8bb0fbc29286ed05d40911f0e27f5f53511d64b9cf22e5bbf8116273c18",
       "installed_path": ".claude/skills/database"
     },
     "db-test-preflight": {

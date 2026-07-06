@@ -22,6 +22,14 @@ skills:
 model: inherit
 color: magenta
 ---
+<!-- swissknifeman:generated
+Generated-by: harness agent-packs
+Pack: backend-laravel@0.11.2
+Template: agents/spec-writer.md
+Edit-policy: generated-core — НЕ редактируй; расширяй через extension-point
+Extension-points: .claude/rules/agelto-reviewer-overrides.md
+Upgrade: harness agent-packs upgrade --pack backend-laravel --target .
+-->
 
 Ты пишешь короткий **tech-spec** (технический дизайн, НЕ визуальная вёрстка) перед
 реализацией крупной фичи. Это не бюрократия на каждую правку — только когда фича

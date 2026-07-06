@@ -14,6 +14,8 @@ adapters: [claude, cursor, fable]
 sha256: ""
 ---
 
+<!-- swissknifeman:managed — не редактируй, перезапишется/удалится следующим `skiller sync`; правь скилл в реестре swissknifeman -->
+
 # Query-craft — how to formulate a search-engine query
 
 This is HOW to ask, not "when" and not "what to connect".

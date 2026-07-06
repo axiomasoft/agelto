@@ -14,6 +14,8 @@ adapters: [claude, cursor, fable]
 sha256: ""
 ---
 
+<!-- swissknifeman:managed — не редактируй, перезапишется/удалится следующим `skiller sync`; правь скилл в реестре swissknifeman -->
+
 # Skill: Swissknifeman Locator
 
 Use when: an agent in an **external repo** wants to find the ecosystem's control monorepo (**swissknifeman**, node `skills-hub`), learn from its root `config.json` **which projects exist and how they link**, or recognize how the current project is wired to the hub. Drill-down into one node of the `local-topology` map, with path resolution that works without a topology config.

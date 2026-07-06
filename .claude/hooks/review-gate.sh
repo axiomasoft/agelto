@@ -1,4 +1,11 @@
 #!/usr/bin/env bash
+# swissknifeman:generated
+# Generated-by: harness agent-packs
+# Pack: backend-laravel@0.11.2
+# Template: hooks/review-gate.sh
+# Edit-policy: generated-core — НЕ редактируй; расширяй через extension-point
+# Extension-points: .claude/rules/agelto-reviewer-overrides.md
+# Upgrade: harness agent-packs upgrade --pack backend-laravel --target .
 # review-gate — SubagentStop-гейт качества для memster.
 #
 # Когда субагент завершается, гоняем лёгкую статическую проверку (по умолчанию

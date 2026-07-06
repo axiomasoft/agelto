@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "installed_at": "2026-06-28T17:06:36Z",
+  "installed_at": "2026-07-06T11:59:41Z",
   "profile": "",
   "agent": "claude",
   "layout": "flat",
@@ -36,6 +36,10 @@
     {
       "flat_name": "backend-type-sync",
       "source_path": "skills/frontend-backend/backend-type-sync"
+    },
+    {
+      "flat_name": "brain-locator",
+      "source_path": "skills/system/brain-locator"
     },
     {
       "flat_name": "brd",
@@ -78,12 +82,20 @@
       "source_path": "skills/general/complex-task-orchestrator"
     },
     {
+      "flat_name": "config-driven-abstraction",
+      "source_path": "skills/laravel-architecture/config-driven-abstraction"
+    },
+    {
       "flat_name": "context-economy",
       "source_path": "skills/general/context-economy"
     },
     {
       "flat_name": "cross-layer-change-checklist",
       "source_path": "skills/general/cross-layer-change-checklist"
+    },
+    {
+      "flat_name": "cursor-pagination-design",
+      "source_path": "skills/php/cursor-pagination-design"
     },
     {
       "flat_name": "dark-mode",
@@ -286,6 +298,10 @@
       "source_path": "skills/php/named-arguments"
     },
     {
+      "flat_name": "namespace-refactor-safety",
+      "source_path": "skills/php/namespace-refactor-safety"
+    },
+    {
       "flat_name": "naming-conventions",
       "source_path": "skills/general/naming-conventions"
     },
@@ -338,12 +354,24 @@
       "source_path": "skills/frontend-vue/pinia-stores"
     },
     {
+      "flat_name": "plan-protocol",
+      "source_path": "skills/general/plan-protocol"
+    },
+    {
       "flat_name": "playwright-e2e",
       "source_path": "skills/quality/playwright-e2e"
     },
     {
       "flat_name": "postmortem",
       "source_path": "skills/operator/postmortem"
+    },
+    {
+      "flat_name": "production-readiness-checklist",
+      "source_path": "skills/php/production-readiness-checklist"
+    },
+    {
+      "flat_name": "query-craft",
+      "source_path": "skills/research/query-craft"
     },
     {
       "flat_name": "refactoring-plan",
@@ -386,6 +414,10 @@
       "source_path": "skills/php/static-analysis"
     },
     {
+      "flat_name": "swissknifeman-locator",
+      "source_path": "skills/system/swissknifeman-locator"
+    },
+    {
       "flat_name": "tailwind-conventions",
       "source_path": "skills/frontend-tailwind/tailwind-conventions"
     },
@@ -416,6 +448,10 @@
     {
       "flat_name": "testing-safety-report",
       "source_path": "skills/quality/testing-safety-report"
+    },
+    {
+      "flat_name": "transactional-outbox-relay",
+      "source_path": "skills/php/transactional-outbox-relay"
     },
     {
       "flat_name": "verify-claims",

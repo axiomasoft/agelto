@@ -14,6 +14,8 @@ adapters: [claude, cursor, fable]
 sha256: ""
 ---
 
+<!-- swissknifeman:managed — не редактируй, перезапишется/удалится следующим `skiller sync`; правь скилл в реестре swissknifeman -->
+
 # Cursor (keyset / seek) Pagination
 
 Stable pagination for feeds / infinite-scroll, where rows are inserted while users scroll.

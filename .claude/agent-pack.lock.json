@@ -2,23 +2,26 @@
   "schema": 1,
   "packs": {
     "backend-laravel": {
-      "version": "0.2.0",
+      "version": "0.11.2",
       "source": "harness:configs/claude-code/agent-packs/backend-laravel",
       "answers": {
         "PACK_PREFIX": "agelto",
         "PROJECT_DIR": "/home/vostrikov/projects/agelto/agelto",
-        "PHP_RUNNER": "/usr/bin/php8.4",
+        "PHP_RUNNER": "docker compose exec app php",
         "TEST_FRAMEWORK": "pest",
-        "TEST_RUNNER_CMD": "/usr/bin/php8.4 artisan test",
-        "TEST_DB": "agelto_testing",
+        "TEST_RUNNER_CMD": "docker compose exec app php artisan test",
+        "TEST_DB": "agelto_test",
         "BASE_BRANCH": "main",
         "CHECK_CMD": "vendor/bin/pint --parallel --test -q",
         "ACCESS_LAYER": true,
+        "ACCESS_ROOT": "app",
+        "SCAFFOLDS_SCHEMA": false,
         "DOCS_DIR": "docs/dev",
         "MODEL_REVIEWER": "inherit",
         "MODEL_SLICE_BUILDER": "inherit",
         "MODEL_TEST_WRITER": "inherit",
         "MODEL_SPEC_WRITER": "inherit",
+        "MODEL_RECON": "haiku",
         "GATE_COVERAGE_MIN": "80",
         "GATE_MAX_CRITICAL": "0",
         "GATE_MAX_COMPLEXITY": "10"
@@ -28,85 +31,145 @@
           "src": "agents/slice-builder.md",
           "target": ".claude/agents/agelto-slice-builder.md",
           "kind": "template",
-          "base_sha256": "2b916659d36076c3ad9be093de90a9c842f8154a52e427999cfa225483110e49",
-          "local_modified": false
+          "base_sha256": "d91541c752ff901ec9bdd7e8c3d1a3a321586b1759279257af422b9e5a9355bf",
+          "local_modified": false,
+          "user_owned": false
         },
         {
           "src": "agents/test-writer.md",
           "target": ".claude/agents/agelto-test-writer.md",
           "kind": "template",
-          "base_sha256": "3ad11b157300d05a237526cef12aef886779935bca09a121f8803c6533213acc",
-          "local_modified": false
+          "base_sha256": "f91afdc47faec2e229f0b5749cd0629113e727d21505f793cfe3b6eb34f3349d",
+          "local_modified": false,
+          "user_owned": false
         },
         {
           "src": "agents/reviewer.md",
           "target": ".claude/agents/agelto-reviewer.md",
           "kind": "template",
-          "base_sha256": "8ec2e0ec88e734cb2ea4ececcb89030717e1385ca8521a686def03a5a4589545",
-          "local_modified": false
+          "base_sha256": "2c08fd8045f606c6210a0072cf9240e4321a8f700262b5c673e450f365e8b111",
+          "local_modified": false,
+          "user_owned": false
         },
         {
           "src": "agents/spec-writer.md",
           "target": ".claude/agents/agelto-spec-writer.md",
           "kind": "template",
-          "base_sha256": "731b7302086c826169025118507bc83dea1b98686331c624967c7e50b250c866",
-          "local_modified": false
+          "base_sha256": "f6e4579f448564ed825b4b9095d2ccb1d35616b8b95fde93f5d0f211b4282bc2",
+          "local_modified": false,
+          "user_owned": false
+        },
+        {
+          "src": "agents/route-mapper.md",
+          "target": ".claude/agents/agelto-route-mapper.md",
+          "kind": "template",
+          "base_sha256": "35fd072d3762694fa20f0198184b84f21db97e1bfa547ce696d5df3e4b29ec9a",
+          "local_modified": false,
+          "user_owned": false
+        },
+        {
+          "src": "agents/db-impact.md",
+          "target": ".claude/agents/agelto-db-impact.md",
+          "kind": "template",
+          "base_sha256": "66d8e93ecbd97c805826d91ea2329097d823ba98abbba6a37fe9d89987e61822",
+          "local_modified": false,
+          "user_owned": false
+        },
+        {
+          "src": "agents/blade-review.md",
+          "target": ".claude/agents/agelto-blade-review.md",
+          "kind": "template",
+          "base_sha256": "92ada490920d5fec5df63408c0a40deb48968fc58869282de96c3bdf2d52e739",
+          "local_modified": false,
+          "user_owned": false
+        },
+        {
+          "src": "agents/test-verifier.md",
+          "target": ".claude/agents/agelto-test-verifier.md",
+          "kind": "template",
+          "base_sha256": "2ae28dd6283bde804077fcf2854a806f1d7a22aff786a5dcb4662b891b0b6262",
+          "local_modified": false,
+          "user_owned": false
+        },
+        {
+          "src": "agents/security-review.md",
+          "target": ".claude/agents/agelto-security-review.md",
+          "kind": "template",
+          "base_sha256": "9cfa9d33596dc6e051e0b3cc6d120812e30802d5f5efc9abbda48cc1c7eace10",
+          "local_modified": false,
+          "user_owned": false
         },
         {
           "src": "workflows/dev-loop.js",
           "target": ".claude/workflows/agelto-dev-loop.js",
           "kind": "template",
-          "base_sha256": "ed75d39c440cb6d0e0aa5900ab8aa8816395d8bdbac921f4b3cc59d4c4653582",
-          "local_modified": false
+          "base_sha256": "270e7434011c66b98744e6b1d44c1b5ead317ca21f0edc17b4ea5c711b98f84f",
+          "local_modified": false,
+          "user_owned": false
         },
         {
           "src": "hooks/review-gate.sh",
           "target": ".claude/hooks/review-gate.sh",
           "kind": "verbatim",
-          "base_sha256": "9fd35cdee822d64b9fd1378022e01e24ce02859bd11756785d89036f7b889d13",
-          "local_modified": false
+          "base_sha256": "7ce12046993671deb744e8461bc876de47a5d28c984ee95a4e91c52bcf39552f",
+          "local_modified": false,
+          "user_owned": false
         },
         {
           "src": "hooks/review-gate.env.ini",
           "target": ".claude/review-gate.env.ini",
           "kind": "template",
-          "base_sha256": "2366136b6ba9d929619def646ed240e6dc2829110046aa328ae39e4486446d68",
-          "local_modified": false
+          "base_sha256": "b55253d194fa0dcd18e5d7694cbf4e21744cb87675c8cd83ee479827675a73f3",
+          "local_modified": true,
+          "user_owned": true
         },
         {
           "src": "settings/settings.fragment.json",
           "target": ".claude/settings.json",
           "kind": "merge",
           "base_sha256": "6e5a261a3995c56fe0b222d333d600c2f84432c76a584ed12620a32855d47009",
-          "local_modified": false
+          "local_modified": false,
+          "user_owned": false
         },
         {
           "src": "docs/subagents-and-workflows.md",
           "target": "docs/dev/subagents-and-workflows.md",
           "kind": "template",
-          "base_sha256": "9335a4e3e76e9080f800fbd85060b7b0c20cde9f5b38fe1ad57030dacef7aab3",
-          "local_modified": false
+          "base_sha256": "f5a2d26b9b57275d68099b2048a099710d27620d81a1afff34cf713048460041",
+          "local_modified": false,
+          "user_owned": false
         },
         {
           "src": "rules/api-controllers.md",
           "target": ".claude/rules/api-controllers.md",
           "kind": "verbatim",
-          "base_sha256": "64bdfd66fc400ee79c30c2f1c6d32538f10b7e02c3f0f73f88a42ace5d7ae7a9",
-          "local_modified": false
+          "base_sha256": "d4e01f16b56cc2732016ea0cd0ef9262520572fbaa04a2fe53e7ce80bc754e94",
+          "local_modified": false,
+          "user_owned": false
         },
         {
           "src": "rules/migrations.md",
           "target": ".claude/rules/migrations.md",
           "kind": "verbatim",
-          "base_sha256": "593c834174bef6618308953ebf45b5e7945ddc7657e560a1e2285b07e780cbd2",
-          "local_modified": false
+          "base_sha256": "c2be9e5dad572939638febc790902f6978cbd5f12a7e0ee91283eaaf6ee17182",
+          "local_modified": false,
+          "user_owned": false
         },
         {
           "src": "rules/tests.md",
           "target": ".claude/rules/tests.md",
           "kind": "template",
-          "base_sha256": "3cb866878d156cdcedf4df1e98b83eae774b0c411fdc194ab50bc2912651ab14",
-          "local_modified": false
+          "base_sha256": "d534a790c6612a74e874de783ea0d9d8f72cd5b191a9bbdb11b6ef3464124f82",
+          "local_modified": false,
+          "user_owned": false
+        },
+        {
+          "src": "rules/reviewer-overrides.md",
+          "target": ".claude/rules/agelto-reviewer-overrides.md",
+          "kind": "template",
+          "base_sha256": "f6f5757c147422a7f92545e6600e27f2f14be6117373d723800aad97a26ebe61",
+          "local_modified": false,
+          "user_owned": true
         }
       ],
       "removed_optional": []

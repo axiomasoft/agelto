@@ -14,6 +14,8 @@ adapters: [claude, cursor, fable]
 sha256: ""
 ---
 
+<!-- swissknifeman:managed — не редактируй, перезапишется/удалится следующим `skiller sync`; правь скилл в реестре swissknifeman -->
+
 # Skill: Brain Locator
 
 Use when: an agent in **any project** wants to find the ecosystem docs store (**Brain vault**, node `docs-hub`), reach **own** docs or a **linked** project's docs, or check whether the project is synced with Brain. Drill-down into one node of the `local-topology` map, with path resolution that works even without a topology config.

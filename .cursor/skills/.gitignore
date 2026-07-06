@@ -11,6 +11,7 @@
 /architecture/
 /attribute-authorization/
 /backend-type-sync/
+/brain-locator/
 /brd/
 /business-process/
 /capacity-planning/
@@ -21,8 +22,10 @@
 /codebase-design/
 /compact-responses/
 /complex-task-orchestrator/
+/config-driven-abstraction/
 /context-economy/
 /cross-layer-change-checklist/
+/cursor-pagination-design/
 /dark-mode/
 /data-schema/
 /database/
@@ -73,6 +76,7 @@
 /modular-architecture/
 /mutation-testing/
 /named-arguments/
+/namespace-refactor-safety/
 /naming-conventions/
 /node-pnpm-preflight/
 /observability-design/
@@ -86,8 +90,11 @@
 /php-upgrade-checklist/
 /pinia/
 /pinia-stores/
+/plan-protocol/
 /playwright-e2e/
 /postmortem/
+/production-readiness-checklist/
+/query-craft/
 /refactoring-plan/
 /repositories/
 /runbook/
@@ -98,6 +105,7 @@
 /spatie-settings/
 /spec-interview/
 /static-analysis/
+/swissknifeman-locator/
 /tailwind-conventions/
 /task-brief-template/
 /tdd-discipline/
@@ -106,6 +114,7 @@
 /test-isolation-guard/
 /test-strategy/
 /testing-safety-report/
+/transactional-outbox-relay/
 /verify-claims/
 /vite/
 /vite-module-loader/
