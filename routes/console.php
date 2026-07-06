@@ -26,3 +26,8 @@ if (Schema::hasTable('crw_crawlers')) {
 if (Schema::hasTable('prc_procurements')) {
     Schedule::command('crawler:fetch-details')->everyFiveMinutes();
 }
+
+// Тот же schema-guard (см. выше) — sweep читает `crw_runs.stats->cap_hit`.
+if (Schema::hasTable('crw_runs')) {
+    Schedule::command('crawler:rescan-backlog')->everyFifteenMinutes();
+}
