@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Models\Procurement\Crawler;
 
 use Database\Factories\Procurement\Crawler\ProxyFactory;
+use Illuminate\Database\Eloquent\Attributes\UseFactory;
 use Illuminate\Database\Eloquent\Casts\AsCollection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -12,12 +13,10 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 /**
  * Прокси для обхода площадки (креды хранятся только здесь).
- *
- * @use HasFactory<ProxyFactory>
  */
+#[UseFactory(ProxyFactory::class)]
 final class Proxy extends Model
 {
-    /** @use HasFactory<ProxyFactory> */
     use HasFactory;
 
     protected $table = 'prc_proxies';

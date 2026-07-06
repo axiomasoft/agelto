@@ -6,6 +6,7 @@ namespace App\Models\Procurement;
 
 use App\Enums\Organization\ProcurementPartyRole;
 use Database\Factories\Procurement\ProcurementPartyFactory;
+use Illuminate\Database\Eloquent\Attributes\UseFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -14,12 +15,10 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * Участие организации в закупке с ролью (pivot, OCDS parties-подход).
  *
  * `procurement_id` пока без FK — таблица `prc_procurements` появится в другом item.
- *
- * @use HasFactory<ProcurementPartyFactory>
  */
+#[UseFactory(ProcurementPartyFactory::class)]
 final class ProcurementParty extends Model
 {
-    /** @use HasFactory<ProcurementPartyFactory> */
     use HasFactory;
 
     protected $table = 'prc_procurement_parties';

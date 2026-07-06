@@ -5,17 +5,16 @@ declare(strict_types=1);
 namespace App\Models\Procurement;
 
 use Database\Factories\Procurement\ClarificationFactory;
+use Illuminate\Database\Eloquent\Attributes\UseFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 /**
  * Разъяснение документации закупки. Не двигает revision_number закупки.
- *
- * @use HasFactory<ClarificationFactory>
  */
+#[UseFactory(ClarificationFactory::class)]
 final class Clarification extends Model
 {
-    /** @use HasFactory<ClarificationFactory> */
     use HasFactory;
 
     protected $table = 'prc_clarifications';

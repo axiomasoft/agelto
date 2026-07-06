@@ -8,6 +8,7 @@ use App\Models\Procurement\Ai\Analysis;
 use App\Models\Procurement\Document\DocumentVersion;
 use App\Models\Procurement\Procurement;
 use Database\Factories\Procurement\Estimate\EstimateFactory;
+use Illuminate\Database\Eloquent\Attributes\UseFactory;
 use Illuminate\Database\Eloquent\Casts\AsCollection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -17,12 +18,10 @@ use Illuminate\Support\Str;
 
 /**
  * Распарсенная смета (нормализованное хранилище результата AI-извлечения).
- *
- * @use HasFactory<EstimateFactory>
  */
+#[UseFactory(EstimateFactory::class)]
 final class Estimate extends Model
 {
-    /** @use HasFactory<EstimateFactory> */
     use HasFactory;
 
     protected $table = 'prc_estimates';

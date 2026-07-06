@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Models\Organization;
 
 use Database\Factories\Organization\OrganizationFactory;
+use Illuminate\Database\Eloquent\Attributes\UseFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -13,12 +14,10 @@ use Illuminate\Support\Str;
 /**
  * Единый реестр организаций (OCDS parties): одна master-запись поверх всех
  * упоминаний, роли в конкретных закупках — в `prc_procurement_parties`.
- *
- * @use HasFactory<OrganizationFactory>
  */
+#[UseFactory(OrganizationFactory::class)]
 final class Organization extends Model
 {
-    /** @use HasFactory<OrganizationFactory> */
     use HasFactory;
 
     protected $table = 'org_organizations';

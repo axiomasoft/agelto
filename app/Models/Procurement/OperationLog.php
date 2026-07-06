@@ -6,6 +6,7 @@ namespace App\Models\Procurement;
 
 use App\Enums\Procurement\OperationLogLevel;
 use Database\Factories\Procurement\OperationLogFactory;
+use Illuminate\Database\Eloquent\Attributes\UseFactory;
 use Illuminate\Database\Eloquent\Casts\AsCollection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -13,12 +14,10 @@ use Illuminate\Database\Eloquent\Model;
 /**
  * Технический операционный журнал стадий/ошибок (партиция `prc_operation_logs`
  * RANGE by `created_at`) — не доменная история, та в `prc_events`.
- *
- * @use HasFactory<OperationLogFactory>
  */
+#[UseFactory(OperationLogFactory::class)]
 final class OperationLog extends Model
 {
-    /** @use HasFactory<OperationLogFactory> */
     use HasFactory;
 
     public const UPDATED_AT = null;

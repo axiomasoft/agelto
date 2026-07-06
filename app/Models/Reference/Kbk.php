@@ -5,17 +5,16 @@ declare(strict_types=1);
 namespace App\Models\Reference;
 
 use Database\Factories\Reference\KbkFactory;
+use Illuminate\Database\Eloquent\Attributes\UseFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 /**
  * Классификатор КБК (иерархия через parent_code, версионность через valid_from/valid_to).
- *
- * @use HasFactory<KbkFactory>
  */
+#[UseFactory(KbkFactory::class)]
 final class Kbk extends Model
 {
-    /** @use HasFactory<KbkFactory> */
     use HasFactory;
 
     protected $table = 'ref_kbk';

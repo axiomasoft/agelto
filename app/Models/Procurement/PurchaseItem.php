@@ -5,17 +5,16 @@ declare(strict_types=1);
 namespace App\Models\Procurement;
 
 use Database\Factories\Procurement\PurchaseItemFactory;
+use Illuminate\Database\Eloquent\Attributes\UseFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 /**
  * Позиция объекта закупки (OCDS tender.items).
- *
- * @use HasFactory<PurchaseItemFactory>
  */
+#[UseFactory(PurchaseItemFactory::class)]
 final class PurchaseItem extends Model
 {
-    /** @use HasFactory<PurchaseItemFactory> */
     use HasFactory;
 
     protected $table = 'prc_items';

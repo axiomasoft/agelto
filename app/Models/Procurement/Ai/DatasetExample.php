@@ -7,6 +7,7 @@ namespace App\Models\Procurement\Ai;
 use App\Models\Procurement\Document\DocumentVersion;
 use App\Models\User;
 use Database\Factories\Procurement\Ai\DatasetExampleFactory;
+use Illuminate\Database\Eloquent\Attributes\UseFactory;
 use Illuminate\Database\Eloquent\Casts\AsCollection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -14,12 +15,10 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 /**
  * Эталонный пример (gold) для датасета оценки качества AI-анализа.
- *
- * @use HasFactory<DatasetExampleFactory>
  */
+#[UseFactory(DatasetExampleFactory::class)]
 final class DatasetExample extends Model
 {
-    /** @use HasFactory<DatasetExampleFactory> */
     use HasFactory;
 
     protected $table = 'prc_ai_dataset_examples';

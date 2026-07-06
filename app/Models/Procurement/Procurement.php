@@ -8,6 +8,7 @@ use App\Casts\PostgresTextArrayCast;
 use App\Enums\Procurement\ProcurementStatus;
 use App\Models\Procurement\Platform\Registry;
 use Database\Factories\Procurement\ProcurementFactory;
+use Illuminate\Database\Eloquent\Attributes\UseFactory;
 use Illuminate\Database\Eloquent\Casts\AsCollection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -16,12 +17,10 @@ use Illuminate\Support\Str;
 
 /**
  * Текущее состояние закупки (compiledRelease-проекция поверх редакций).
- *
- * @use HasFactory<ProcurementFactory>
  */
+#[UseFactory(ProcurementFactory::class)]
 final class Procurement extends Model
 {
-    /** @use HasFactory<ProcurementFactory> */
     use HasFactory;
 
     protected $table = 'prc_procurements';

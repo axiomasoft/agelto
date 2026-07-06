@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Models\Procurement\Estimate;
 
 use Database\Factories\Procurement\Estimate\SectionFactory;
+use Illuminate\Database\Eloquent\Attributes\UseFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -12,12 +13,10 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 /**
  * Дерево разделов сметы.
- *
- * @use HasFactory<SectionFactory>
  */
+#[UseFactory(SectionFactory::class)]
 final class Section extends Model
 {
-    /** @use HasFactory<SectionFactory> */
     use HasFactory;
 
     protected $table = 'prc_estimate_sections';

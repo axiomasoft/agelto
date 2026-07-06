@@ -5,18 +5,17 @@ declare(strict_types=1);
 namespace App\Models\Procurement;
 
 use Database\Factories\Procurement\EisDetailsFactory;
+use Illuminate\Database\Eloquent\Attributes\UseFactory;
 use Illuminate\Database\Eloquent\Casts\AsCollection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 /**
  * Extension 1:1 к закупке — ЕИС-специфичные поля (ИКЗ, обеспечение, признаки, ЭТП).
- *
- * @use HasFactory<EisDetailsFactory>
  */
+#[UseFactory(EisDetailsFactory::class)]
 final class EisDetails extends Model
 {
-    /** @use HasFactory<EisDetailsFactory> */
     use HasFactory;
 
     protected $table = 'prc_eis_details';

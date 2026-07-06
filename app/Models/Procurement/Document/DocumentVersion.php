@@ -5,17 +5,16 @@ declare(strict_types=1);
 namespace App\Models\Procurement\Document;
 
 use Database\Factories\Procurement\Document\DocumentVersionFactory;
+use Illuminate\Database\Eloquent\Attributes\UseFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 /**
  * Контент-адресованная версия файла документа (дедуп по sha256 в рамках документа).
- *
- * @use HasFactory<DocumentVersionFactory>
  */
+#[UseFactory(DocumentVersionFactory::class)]
 final class DocumentVersion extends Model
 {
-    /** @use HasFactory<DocumentVersionFactory> */
     use HasFactory;
 
     protected $table = 'prc_document_versions';

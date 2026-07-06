@@ -6,18 +6,17 @@ namespace App\Models\Procurement;
 
 use App\Enums\Procurement\ProcurementEventType;
 use Database\Factories\Procurement\ProcurementEventFactory;
+use Illuminate\Database\Eloquent\Attributes\UseFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 /**
  * Типизированное событие в журнале закупки (партиция `prc_events` RANGE by `occurred_at`).
- *
- * @use HasFactory<ProcurementEventFactory>
  */
+#[UseFactory(ProcurementEventFactory::class)]
 final class ProcurementEvent extends Model
 {
-    /** @use HasFactory<ProcurementEventFactory> */
     use HasFactory;
 
     protected $table = 'prc_events';

@@ -8,6 +8,7 @@ use App\Enums\Procurement\AnalysisStatus;
 use App\Enums\Procurement\AnalysisStep;
 use App\Models\Procurement\Document\DocumentVersion;
 use Database\Factories\Procurement\Ai\AnalysisFactory;
+use Illuminate\Database\Eloquent\Attributes\UseFactory;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Casts\AsCollection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -17,12 +18,10 @@ use Illuminate\Support\Str;
 
 /**
  * Сессия AI-анализа версии документа (screening/extraction) с lease-локом и кэшем LLM.
- *
- * @use HasFactory<AnalysisFactory>
  */
+#[UseFactory(AnalysisFactory::class)]
 final class Analysis extends Model
 {
-    /** @use HasFactory<AnalysisFactory> */
     use HasFactory;
 
     protected $table = 'prc_ai_analyses';

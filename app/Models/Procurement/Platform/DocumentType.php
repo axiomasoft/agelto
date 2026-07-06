@@ -5,17 +5,16 @@ declare(strict_types=1);
 namespace App\Models\Procurement\Platform;
 
 use Database\Factories\Procurement\Platform\DocumentTypeFactory;
+use Illuminate\Database\Eloquent\Attributes\UseFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 /**
  * Справочник типов документов (открытый, наполняется без миграций).
- *
- * @use HasFactory<DocumentTypeFactory>
  */
+#[UseFactory(DocumentTypeFactory::class)]
 final class DocumentType extends Model
 {
-    /** @use HasFactory<DocumentTypeFactory> */
     use HasFactory;
 
     protected $table = 'prc_document_types';

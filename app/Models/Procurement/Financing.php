@@ -5,17 +5,16 @@ declare(strict_types=1);
 namespace App\Models\Procurement;
 
 use Database\Factories\Procurement\FinancingFactory;
+use Illuminate\Database\Eloquent\Attributes\UseFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 /**
  * Годовая разбивка источника финансирования закупки.
- *
- * @use HasFactory<FinancingFactory>
  */
+#[UseFactory(FinancingFactory::class)]
 final class Financing extends Model
 {
-    /** @use HasFactory<FinancingFactory> */
     use HasFactory;
 
     protected $table = 'prc_financing';

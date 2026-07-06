@@ -8,6 +8,7 @@ use App\Enums\Procurement\CrawlerMode;
 use App\Enums\Procurement\SourceMethod;
 use App\Models\Procurement\Platform\Registry;
 use Database\Factories\Procurement\Crawler\CrawlerFactory;
+use Illuminate\Database\Eloquent\Attributes\UseFactory;
 use Illuminate\Database\Eloquent\Casts\AsCollection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -15,12 +16,10 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 /**
  * Профиль обхода площадки: режим, метод забора данных и фильтры.
- *
- * @use HasFactory<CrawlerFactory>
  */
+#[UseFactory(CrawlerFactory::class)]
 final class Crawler extends Model
 {
-    /** @use HasFactory<CrawlerFactory> */
     use HasFactory;
 
     protected $table = 'prc_crawlers';

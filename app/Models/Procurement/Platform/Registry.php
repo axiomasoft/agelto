@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Models\Procurement\Platform;
 
 use Database\Factories\Procurement\Platform\RegistryFactory;
+use Illuminate\Database\Eloquent\Attributes\UseFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -12,12 +13,10 @@ use Illuminate\Support\Str;
 
 /**
  * Реестр внутри площадки (у ЕИС — fz44/fz223).
- *
- * @use HasFactory<RegistryFactory>
  */
+#[UseFactory(RegistryFactory::class)]
 final class Registry extends Model
 {
-    /** @use HasFactory<RegistryFactory> */
     use HasFactory;
 
     protected $table = 'prc_registries';
