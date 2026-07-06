@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
-use App\Models\Procurement\Platform;
+use App\Models\Procurement\Platform\Platform;
+use App\Models\Procurement\Platform\Registry;
+use App\Models\Procurement\Platform\StatusMapping;
 use App\Models\Procurement\Procurement;
 use App\Models\Procurement\PurchaseItem;
-use App\Models\Procurement\Registry;
-use App\Models\Procurement\StatusMapping;
 
 /**
  * §11 «Новая площадка» и §11.1 «Валидация универсальности на бумаге» —

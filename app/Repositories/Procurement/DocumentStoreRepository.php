@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Repositories\Procurement;
 
-use App\Models\Procurement\Document;
-use App\Models\Procurement\DocumentVersion;
+use App\Models\Procurement\Document\Document;
+use App\Models\Procurement\Document\DocumentVersion;
 use Illuminate\Database\Eloquent\Collection;
 
 /**

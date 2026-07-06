@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\Procurement\Eis;
 
-use App\Models\Procurement\Registry;
+use App\Models\Procurement\Platform\Registry;
 use App\Services\Procurement\Exceptions\CardUrlTemplateMissingException;
 
 /**

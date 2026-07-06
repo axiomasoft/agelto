@@ -3,8 +3,8 @@
 declare(strict_types=1);
 
 use App\Enums\Procurement\ProcurementStatus;
+use App\Models\Procurement\Platform\Registry;
 use App\Models\Procurement\Procurement;
-use App\Models\Procurement\Registry;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;

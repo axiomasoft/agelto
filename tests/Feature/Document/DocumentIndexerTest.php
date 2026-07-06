@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 use App\Enums\Procurement\DocumentStatus;
 use App\Enums\Procurement\ProcurementEventType;
-use App\Models\Procurement\Document;
+use App\Models\Procurement\Document\Document;
 use App\Models\Procurement\Procurement;
 use App\Models\Procurement\ProcurementEvent;
 use App\Services\Procurement\DocumentIndexer;

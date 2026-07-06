@@ -7,8 +7,8 @@ namespace Tests\Support\Doubles\Crawler;
 use App\Dto\Procurement\ListingBatch;
 use App\Dto\Procurement\ListingCursor;
 use App\Dto\Procurement\ProcurementDetails;
-use App\Models\Procurement\Crawler;
-use App\Models\Procurement\Registry;
+use App\Models\Procurement\Crawler\Crawler;
+use App\Models\Procurement\Platform\Registry;
 use App\Services\Procurement\Contracts\SourceMethod;
 use RuntimeException;
 

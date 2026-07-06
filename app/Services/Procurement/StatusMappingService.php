@@ -6,7 +6,7 @@ namespace App\Services\Procurement;
 
 use App\Dto\Procurement\StatusResolution;
 use App\Enums\Procurement\ProcurementStatus;
-use App\Models\Procurement\StatusMapping;
+use App\Models\Procurement\Platform\StatusMapping;
 
 /**
  * Резолв сырого статуса источника в канонический (`prc_status_mappings` — данные, не код).

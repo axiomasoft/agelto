@@ -6,7 +6,7 @@ namespace App\Services\Procurement\Eis;
 
 use App\Dto\Procurement\ProcurementSnapshotData;
 use App\Enums\Procurement\EisProcedureType;
-use App\Models\Procurement\Crawler;
+use App\Models\Procurement\Crawler\Crawler;
 use App\Services\Procurement\Contracts\ListingRowMapper;
 use Illuminate\Support\Carbon;
 

@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Tests\Support\Doubles\Crawler;
 
-use App\Models\Procurement\Crawler;
-use App\Models\Procurement\Registry;
+use App\Models\Procurement\Crawler\Crawler;
+use App\Models\Procurement\Platform\Registry;
 
 /**
  * In-memory `Crawler` с привязанным (не сохранённым) `Registry` через `setRelation` —

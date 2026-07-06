@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Services\Procurement\Contracts;
 
 use App\Dto\Procurement\ProcurementSnapshotData;
-use App\Models\Procurement\Crawler;
+use App\Models\Procurement\Crawler\Crawler;
 
 /**
  * Строка сырого блока листинга (`ListingBatch->rows`) → нормализованный снапшот закупки.

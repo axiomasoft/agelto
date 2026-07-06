@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 use App\Dto\Procurement\ListingBatch;
 use App\Dto\Procurement\ListingCursor;
-use App\Models\Procurement\Crawler;
-use App\Models\Procurement\Registry;
+use App\Models\Procurement\Crawler\Crawler;
+use App\Models\Procurement\Platform\Registry;
 use App\Services\Procurement\Eis\CsvSourceMethod;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;

@@ -6,8 +6,8 @@ namespace App\Services\Procurement;
 
 use App\Enums\Procurement\DocumentStatus;
 use App\Enums\Procurement\ProcurementEventType;
-use App\Models\Procurement\Document;
-use App\Models\Procurement\DocumentVersion;
+use App\Models\Procurement\Document\Document;
+use App\Models\Procurement\Document\DocumentVersion;
 use App\Repositories\Procurement\DocumentStoreRepository;
 use App\Repositories\Procurement\ProcurementStoreRepository;
 use Illuminate\Http\Client\RequestException;

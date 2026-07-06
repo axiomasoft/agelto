@@ -6,8 +6,8 @@ namespace App\Services\Procurement\Modes;
 
 use App\Dto\Procurement\ListingCursor;
 use App\Enums\Procurement\RunStatus;
-use App\Models\Procurement\Crawler;
-use App\Models\Procurement\Run;
+use App\Models\Procurement\Crawler\Crawler;
+use App\Models\Procurement\Crawler\Run;
 use App\Services\Procurement\CrawlerRunManager;
 use App\Services\Procurement\CsvBlockIngestor;
 use App\Services\Procurement\PoliteThrottle;

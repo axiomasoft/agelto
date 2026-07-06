@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 use App\Dto\Procurement\ProcurementDetails;
 use App\Enums\Procurement\ProcurementStatus;
+use App\Models\Procurement\Platform\Registry;
 use App\Models\Procurement\Procurement;
-use App\Models\Procurement\Registry;
 use App\Services\Procurement\Eis\CsvSourceMethod;
 use App\Services\Procurement\Exceptions\CardUrlTemplateMissingException;
 use Illuminate\Support\Facades\Http;

@@ -6,8 +6,8 @@ namespace App\Services\Procurement\Modes;
 
 use App\Dto\Procurement\ListingCursor;
 use App\Dto\Procurement\WindowFilter;
-use App\Models\Procurement\Crawler;
-use App\Models\Procurement\Run;
+use App\Models\Procurement\Crawler\Crawler;
+use App\Models\Procurement\Crawler\Run;
 use App\Services\Procurement\ArchiveWindowScanner;
 use App\Services\Procurement\CrawlerRunManager;
 use Carbon\CarbonInterface;

@@ -3,9 +3,9 @@
 declare(strict_types=1);
 
 use App\Enums\Procurement\AnalysisStep;
-use App\Models\Procurement\Analysis;
-use App\Models\Procurement\DocumentVersion;
-use App\Models\Procurement\Estimate;
+use App\Models\Procurement\Ai\Analysis;
+use App\Models\Procurement\Document\DocumentVersion;
+use App\Models\Procurement\Estimate\Estimate;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
 

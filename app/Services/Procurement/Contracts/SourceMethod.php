@@ -7,8 +7,8 @@ namespace App\Services\Procurement\Contracts;
 use App\Dto\Procurement\ListingBatch;
 use App\Dto\Procurement\ListingCursor;
 use App\Dto\Procurement\ProcurementDetails;
-use App\Models\Procurement\Crawler;
-use App\Models\Procurement\Registry;
+use App\Models\Procurement\Crawler\Crawler;
+use App\Models\Procurement\Platform\Registry;
 
 /**
  * Метод забора данных с площадки — переключаемый параметр профиля (`02-crawling.md` §1–§2),

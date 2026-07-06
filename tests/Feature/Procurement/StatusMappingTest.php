@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 use App\Enums\Procurement\ProcurementEventType;
 use App\Enums\Procurement\ProcurementStatus;
+use App\Models\Procurement\Platform\Registry;
+use App\Models\Procurement\Platform\StatusMapping;
 use App\Models\Procurement\ProcurementEvent;
-use App\Models\Procurement\Registry;
-use App\Models\Procurement\StatusMapping;
 use App\Services\Procurement\ProcurementIngestProcessor;
 use App\Services\Procurement\StatusMappingService;
 use Tests\Support\Procurement\SnapshotFactory;

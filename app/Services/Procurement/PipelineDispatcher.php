@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Services\Procurement;
 
 use App\Enums\Procurement\DocumentStatus;
-use App\Models\Procurement\Document;
+use App\Models\Procurement\Document\Document;
 use App\Models\Procurement\Procurement;
 use Illuminate\Support\Facades\Log;
 

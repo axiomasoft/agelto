@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Tests\Support\Procurement;
 
 use App\Dto\Procurement\ProcurementSnapshotData;
-use App\Models\Procurement\Registry;
+use App\Models\Procurement\Platform\Registry;
 use Illuminate\Support\Carbon;
 
 /**

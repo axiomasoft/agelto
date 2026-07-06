@@ -18,7 +18,7 @@ use Symfony\Component\DomCrawler\Crawler;
 
 /**
  * Разбор вкладки `supplier-results` карточки закупки ЕИС (`research/eis-card-recon.md` §5,
- * `docs/specs/v2/02-crawling.md` §5.1) в {@see SupplierResultsData}. Только HTML → DTO,
+ * `docs/03_Dev/crawling-pipeline.md` §5.1) в {@see SupplierResultsData}. Только HTML → DTO,
  * без записи в БД (это `SupplierResultsProcessor`) и без entity resolution организаций
  * (это `OrganizationResolver`). Вкладка непуста только для завершающих этапов процедуры —
  * пустой/неопознанный HTML даёт пустой результат, не исключение.

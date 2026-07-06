@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Services\Procurement\Eis;
 
 use App\Dto\Procurement\ListingCursor;
-use App\Models\Procurement\Crawler;
+use App\Models\Procurement\Crawler\Crawler;
 use Illuminate\Support\Carbon;
 
 /**

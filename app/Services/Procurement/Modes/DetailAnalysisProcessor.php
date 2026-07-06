@@ -6,7 +6,7 @@ namespace App\Services\Procurement\Modes;
 
 use App\Enums\Procurement\DocumentStatus;
 use App\Enums\Procurement\SourceMethod as SourceMethodEnum;
-use App\Models\Procurement\Document;
+use App\Models\Procurement\Document\Document;
 use App\Models\Procurement\Procurement;
 use App\Repositories\Procurement\ProcurementStoreRepository;
 use App\Services\Procurement\Detail\CommonInfoProcessor;

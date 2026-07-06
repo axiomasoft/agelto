@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Console\Commands\Procurement;
 
-use App\Models\Procurement\Crawler;
+use App\Models\Procurement\Crawler\Crawler;
 use App\Services\Procurement\Modes\ArchiveRunProcessor;
 use Illuminate\Console\Command;
 use Illuminate\Support\Carbon;

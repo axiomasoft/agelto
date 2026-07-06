@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 use App\Dto\Procurement\ProcurementSnapshotData;
 use App\Enums\Procurement\EisProcedureType;
-use App\Models\Procurement\Crawler;
-use App\Models\Procurement\Registry;
+use App\Models\Procurement\Crawler\Crawler;
+use App\Models\Procurement\Platform\Registry;
 use App\Services\Procurement\Eis\EisCsvRowMapper;
 
 /**

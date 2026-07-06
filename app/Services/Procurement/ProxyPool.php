@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\Procurement;
 
-use App\Models\Procurement\Proxy;
+use App\Models\Procurement\Crawler\Proxy;
 
 /**
  * Выбор узла прокси-пула и учёт отказов. Креды живут только в `prc_proxies`

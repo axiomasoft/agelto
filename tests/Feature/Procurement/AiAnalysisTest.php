@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 use App\Enums\Procurement\AnalysisStatus;
 use App\Enums\Procurement\AnalysisStep;
-use App\Models\Procurement\Analysis;
-use App\Models\Procurement\DatasetExample;
-use App\Models\Procurement\Estimate;
-use App\Models\Procurement\EvalRun;
+use App\Models\Procurement\Ai\Analysis;
+use App\Models\Procurement\Ai\DatasetExample;
+use App\Models\Procurement\Ai\EvalRun;
+use App\Models\Procurement\Estimate\Estimate;
 use Illuminate\Support\Carbon;
 
 /**

@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 use App\Enums\Procurement\AnalysisStatus;
 use App\Enums\Procurement\AnalysisStep;
-use App\Models\Procurement\Analysis;
-use App\Models\Procurement\Document;
-use App\Models\Procurement\DocumentVersion;
+use App\Models\Procurement\Ai\Analysis;
+use App\Models\Procurement\Document\Document;
+use App\Models\Procurement\Document\DocumentVersion;
 
 /**
  * §11 «Документ заменён» и «Архив в документе».

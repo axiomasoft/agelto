@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-use App\Models\Procurement\Registry;
+use App\Models\Procurement\Platform\Registry;
 use App\Services\Procurement\Eis\EisCardUrlBuilder;
 use App\Services\Procurement\Exceptions\CardUrlTemplateMissingException;
 

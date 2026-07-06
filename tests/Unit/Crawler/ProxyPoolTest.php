@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-use App\Models\Procurement\Proxy;
+use App\Models\Procurement\Crawler\Proxy;
 use App\Services\Procurement\ProxyPool;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 
