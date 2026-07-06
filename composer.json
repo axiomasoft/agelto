@@ -2,16 +2,42 @@
     "$schema": "https://getcomposer.org/schema.json",
     "name": "agelto/agelto",
     "type": "project",
-    "description": "Agelto — платформа сбора, отслеживания и AI-разбора закупок.",
+    "description": "Agelto \u2014 \u043f\u043b\u0430\u0442\u0444\u043e\u0440\u043c\u0430 \u0441\u0431\u043e\u0440\u0430, \u043e\u0442\u0441\u043b\u0435\u0436\u0438\u0432\u0430\u043d\u0438\u044f \u0438 AI-\u0440\u0430\u0437\u0431\u043e\u0440\u0430 \u0437\u0430\u043a\u0443\u043f\u043e\u043a.",
     "keywords": ["laravel", "framework"],
     "license": "MIT",
+    "repositories": [
+        {
+            "type": "path",
+            "url": "../../packages/azguard/packages/core",
+            "options": {
+                "symlink": false
+            }
+        },
+        {
+            "type": "path",
+            "url": "../../packages/azguard/packages/filament",
+            "options": {
+                "symlink": false
+            }
+        },
+        {
+            "type": "path",
+            "url": "../../packages/azguard/packages/context",
+            "options": {
+                "symlink": false
+            }
+        }
+    ],
     "require": {
         "php": "^8.4",
         "laravel/framework": "^12.0",
         "laravel/horizon": "^5.47",
         "laravel/tinker": "^2.10.1",
         "symfony/css-selector": "*",
-        "symfony/dom-crawler": "*"
+        "symfony/dom-crawler": "*",
+        "filament/filament": "^5.0",
+        "axioma-studio/azguard-core": "@dev",
+        "axioma-studio/azguard-filament": "@dev"
     },
     "require-dev": {
         "fakerphp/faker": "^1.23",
@@ -55,7 +81,8 @@
         ],
         "post-autoload-dump": [
             "Illuminate\\Foundation\\ComposerScripts::postAutoloadDump",
-            "@php artisan package:discover --ansi"
+            "@php artisan package:discover --ansi",
+            "@php artisan filament:upgrade"
         ],
         "post-update-cmd": [
             "@php artisan vendor:publish --tag=laravel-assets --ansi --force"
