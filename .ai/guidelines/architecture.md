@@ -18,7 +18,7 @@
 
 **`app/` (плоская структура, без `Modules/`)**
 
-- `Models/{Procurement,Reference,Organization}/` — Eloquent-модели по доменам.
+- `Models/{Procurement,Reference,Organization}/` — Eloquent-модели по доменам; внутри `Procurement/` — подпапки по назначению (`Document/`, `Estimate/`, `Crawler/`, `Ai/`, `Platform/`), ядро закупки (Procurement/Lot/Bid/Award/...) и `OperationLog` — плоско в корне.
 - `Services/{Procurement,Reference,Organization}/` — доменные сервисы (crawling, document indexing, AI-анализ, классификаторы), внутри `Procurement/` — подпапки `Eis/`, `Modes/`, `Contracts/`, `Exceptions/`, `Detail/`.
 - `Dto/Procurement/` — DTO для смет, crawling-результатов, browser options.
 - `Enums/{Procurement,Organization}/` — статусы, типы, режимы.

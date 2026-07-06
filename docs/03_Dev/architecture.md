@@ -24,13 +24,16 @@ updated: 2026-07-06
 ```
 app/
   Models/
-    Procurement/     — единственный домен закупок: Procurement, Lot, PurchaseItem, Financing,
-                        EisDetails, Protocol, Bid, Award, Clarification, Cancellation,
-                        ProcurementParty, Document, DocumentVersion, Estimate + Section/Item/
-                        Resource/Total, Analysis, LlmCall, Provider, AiRoute, Prompt,
-                        DatasetExample, EvalRun, EvalResult, Crawler, Run, Proxy, ProxyCheck,
-                        Fetch, IgnoreRule, IgnoredItem, DailyStat, Platform, Registry,
-                        StatusMapping, DocumentType, Region, OperationLog
+    Procurement/     — единственный домен закупок: ядро закупки плоско в корне (Procurement, Lot,
+                        PurchaseItem, Financing, EisDetails, Protocol, Bid, Award, Clarification,
+                        Cancellation, ProcurementParty) + OperationLog; остальное — по подпапкам
+                        назначения (см. ниже)
+      Document/       — Document, DocumentVersion
+      Estimate/       — Estimate, Section, Item, Resource, Total
+      Crawler/        — Crawler, Run, Proxy, ProxyCheck, Fetch, IgnoreRule, IgnoredItem, DailyStat
+      Ai/             — Analysis, LlmCall, Provider, AiRoute, Prompt, DatasetExample, EvalRun,
+                        EvalResult
+      Platform/       — Platform, Registry, StatusMapping, DocumentType, Region
     Reference/        — Kbk, Ktru, Okpd2, Okved2 (общероссийские классификаторы, shared)
     Organization/      — Organization (единый реестр организаций, shared)
   Services/
@@ -51,7 +54,7 @@ app/
     Reference/
 ```
 
-**Правило:** папка = полное доменное имя, соответствующее короткому префиксу таблицы (см. «Табличные префиксы» ниже). Внутри домена подпапки — по смыслу (`Eis/`, `Modes/`, `Contracts/`), не по бывшему типу сущности (`Ai/`, `Crawler/`, `Document/`, `Estimate/` как отдельные папки — устаревший паттерн, давно консолидированы в `Procurement/`).
+**Правило:** папка верхнего уровня = полное доменное имя, соответствующее короткому префиксу таблицы (см. «Табличные префиксы» ниже) — `Ai`/`Crawler`/`Document`/`Estimate`/`Platform` НЕ являются отдельными доменами, это устаревший паттерн (были отдельными папками до консолидации таблиц под единый `prc_`). Внутри одного домена `Procurement` подпапки по смыслу разрешены и нужны для читаемости: в `Services/Procurement/` — по этапу пайплайна (`Eis/`, `Modes/`, `Contracts/`), в `Models/Procurement/` — по назначению сущности (`Document/`, `Estimate/`, `Crawler/`, `Ai/`, `Platform/`); ядро закупки и однофайловые группы (`OperationLog`) остаются плоско в корне домена. Ключевое отличие от старой схемы: тогда `Ai`/`Crawler`/`Document`/`Estimate`/`Platform` были ПАПКАМИ ВЕРХНЕГО УРОВНЯ рядом с `Procurement` (как будто отдельные домены), сейчас — подпапки ВНУТРИ `Procurement`.
 
 `Reference/` (`ref_*`) и `Organization/` (`org_organizations`) — самостоятельные shared-домены, не относятся содержательно к закупкам и переиспользуются любым будущим модулем (документооборот, CRM).
 

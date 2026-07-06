@@ -13,7 +13,7 @@ description: "Быстрая карта структуры проекта Agelto
 
 Структура плоская (`app/**`), без `Modules/` — три домена по короткому префиксу таблицы:
 
-- `app/Models/Procurement/`, `app/Services/Procurement/`, `app/Dto/Procurement/`, `app/Enums/Procurement/`, `app/Repositories/Procurement/`, `app/Console/Commands/Procurement/` — единый домен закупок (`prc_*`): crawling, document prepare, AI analysis, estimate extraction, площадки, логи операций. Внутри `Services/Procurement/` — подпапки `Eis/` (обход ЕИС), `Modes/`, `Contracts/`, `Exceptions/`, `Detail/`.
+- `app/Models/Procurement/`, `app/Services/Procurement/`, `app/Dto/Procurement/`, `app/Enums/Procurement/`, `app/Repositories/Procurement/`, `app/Console/Commands/Procurement/` — единый домен закупок (`prc_*`): crawling, document prepare, AI analysis, estimate extraction, площадки, логи операций. Внутри `Services/Procurement/` — подпапки `Eis/` (обход ЕИС), `Modes/`, `Contracts/`, `Exceptions/`, `Detail/`; внутри `Models/Procurement/` — подпапки по назначению `Document/`, `Estimate/`, `Crawler/`, `Ai/`, `Platform/` (ядро закупки и `OperationLog` — плоско в корне).
 - `app/Models/Reference/`, `app/Services/Reference/` — общие справочники (`ref_*`): ОКПД2, КТРУ, ОКВЭД2, КБК.
 - `app/Models/Organization/`, `app/Services/Organization/`, `app/Repositories/Organization/` — организации (`org_*`).
 - `app/Http/Controllers/` — Inertia, settings, Fortify (тонкий HTTP).
