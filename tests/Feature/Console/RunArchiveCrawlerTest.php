@@ -2,12 +2,12 @@
 
 declare(strict_types=1);
 
-use App\Dto\Crawler\ListingBatch;
-use App\Enums\Crawler\CrawlerMode;
-use App\Enums\Crawler\RunStatus;
-use App\Enums\Crawler\SourceMethod as SourceMethodEnum;
-use App\Models\Crawler\Crawler;
-use App\Models\Crawler\Run;
+use App\Dto\Procurement\ListingBatch;
+use App\Enums\Procurement\CrawlerMode;
+use App\Enums\Procurement\RunStatus;
+use App\Enums\Procurement\SourceMethod as SourceMethodEnum;
+use App\Models\Procurement\Crawler\Crawler;
+use App\Models\Procurement\Crawler\Run;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Sleep;

@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-use App\Enums\Crawler\SourceMethod as SourceMethodEnum;
-use App\Models\Crawler\Crawler;
-use App\Services\Crawler\Exceptions\SourceMethodUnavailableException;
-use App\Services\Crawler\SourceMethodFactory;
+use App\Enums\Procurement\SourceMethod as SourceMethodEnum;
+use App\Models\Procurement\Crawler\Crawler;
+use App\Services\Procurement\Exceptions\SourceMethodUnavailableException;
+use App\Services\Procurement\SourceMethodFactory;
 use Tests\Support\Doubles\Crawler\FakeAvailableSourceMethod;
 use Tests\Support\Doubles\Crawler\FakeUnavailableSourceMethod;
 

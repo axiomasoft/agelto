@@ -2,8 +2,8 @@
 
 declare(strict_types=1);
 
-use App\Dto\Crawler\ListingCursor;
-use App\Services\Crawler\Eis\EisCsvUrlBuilder;
+use App\Dto\Procurement\ListingCursor;
+use App\Services\Procurement\Eis\EisCsvUrlBuilder;
 use Tests\Support\Doubles\Crawler\CrawlerWithRegistry;
 
 test('buildQueryParams переносит filter как строки и добавляет from/to/sort', function () {

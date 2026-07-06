@@ -2,8 +2,8 @@
 
 declare(strict_types=1);
 
-use App\Models\Document\DocumentVersion;
 use App\Models\Procurement\Cancellation;
+use App\Models\Procurement\Document\DocumentVersion;
 use App\Models\Procurement\Procurement;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;

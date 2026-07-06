@@ -2,14 +2,14 @@
 
 declare(strict_types=1);
 
-use App\Dto\Crawler\ListingBatch;
-use App\Dto\Crawler\WindowFilter;
-use App\Enums\Crawler\CrawlerMode;
-use App\Enums\Crawler\SourceMethod as SourceMethodEnum;
-use App\Models\Crawler\Crawler;
-use App\Models\Crawler\Run;
+use App\Dto\Procurement\ListingBatch;
+use App\Dto\Procurement\WindowFilter;
+use App\Enums\Procurement\CrawlerMode;
+use App\Enums\Procurement\SourceMethod as SourceMethodEnum;
+use App\Models\Procurement\Crawler\Crawler;
+use App\Models\Procurement\Crawler\Run;
 use App\Models\Procurement\Procurement;
-use App\Services\Crawler\ArchiveWindowScanner;
+use App\Services\Procurement\ArchiveWindowScanner;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;

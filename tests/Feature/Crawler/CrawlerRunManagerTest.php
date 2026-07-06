@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
-use App\Dto\Crawler\ListingCursor;
-use App\Enums\Crawler\RunStatus;
-use App\Models\Crawler\Crawler;
-use App\Models\Crawler\Run;
-use App\Services\Crawler\CrawlerRunManager;
+use App\Dto\Procurement\ListingCursor;
+use App\Enums\Procurement\RunStatus;
+use App\Models\Procurement\Crawler\Crawler;
+use App\Models\Procurement\Crawler\Run;
+use App\Services\Procurement\CrawlerRunManager;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Carbon;
 

@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace App\Services\Procurement\Detail;
 
-use App\Dto\Crawler\Details\AwardData;
-use App\Dto\Crawler\Details\BidData;
-use App\Dto\Crawler\Details\ProtocolData;
-use App\Dto\Crawler\Details\SupplierResultsData;
+use App\Dto\Procurement\Details\AwardData;
+use App\Dto\Procurement\Details\BidData;
+use App\Dto\Procurement\Details\ProtocolData;
+use App\Dto\Procurement\Details\SupplierResultsData;
 use App\Enums\Organization\ProcurementPartyRole;
 use App\Enums\Procurement\ProcurementEventType;
 use App\Models\Procurement\Award;
@@ -23,11 +23,11 @@ use Illuminate\Support\Facades\DB;
 /**
  * DTO → БД для итогов завершённой закупки, вкладка `supplier-results`: `prc_protocols`
  * (по `source_number`), `prc_bids` построчно, `prc_awards` (итог, победитель через
- * {@see OrganizationResolver} + роль `winner` в `org_procurement_parties`). Персистентность —
+ * {@see OrganizationResolver} + роль `winner` в `prc_procurement_parties`). Персистентность —
  * только через {@see ProcurementDetailStoreRepository}/{@see ProcurementPartyStoreRepository}
  * (аналог P3.3/P3.4/P3.5). Пустая вкладка (незавершённая закупка) → no-op (`01-database.md` §4).
  *
- * Известное ограничение этого слайса: `prc_protocols.document_version_id` (связь с `doc_versions`,
+ * Известное ограничение этого слайса: `prc_protocols.document_version_id` (связь с `prc_document_versions`,
  * P3.5) и таблицы `prc_clarifications`/`prc_cancellations` в этом слайсе не заполняются —
  * вкладка `supplier-results` в разведке не содержит ни ссылки на файл-источник протокола,
  * ни данных о разъяснениях/отменах; открытый вопрос для последующего слайса (см. отчёт).

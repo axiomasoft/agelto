@@ -3,7 +3,7 @@
 declare(strict_types=1);
 
 use App\Enums\Organization\ProcurementPartyRole;
-use App\Services\Crawler\Eis\Card\PartiesParser;
+use App\Services\Procurement\Eis\Card\PartiesParser;
 
 function partiesFixtureHtml(): string
 {

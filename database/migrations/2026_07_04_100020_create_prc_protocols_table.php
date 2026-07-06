@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-use App\Models\Document\DocumentVersion;
+use App\Models\Procurement\Document\DocumentVersion;
 use App\Models\Procurement\Procurement;
 use App\Models\Procurement\Protocol;
 use Illuminate\Database\Migrations\Migration;

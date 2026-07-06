@@ -2,12 +2,12 @@
 
 declare(strict_types=1);
 
-use App\Enums\Document\DocumentStatus;
+use App\Enums\Procurement\DocumentStatus;
 use App\Enums\Procurement\ProcurementEventType;
-use App\Models\Document\Document;
-use App\Models\Document\DocumentVersion;
+use App\Models\Procurement\Document\Document;
+use App\Models\Procurement\Document\DocumentVersion;
 use App\Models\Procurement\ProcurementEvent;
-use App\Services\Document\DocumentDownloader;
+use App\Services\Procurement\DocumentDownloader;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Sleep;

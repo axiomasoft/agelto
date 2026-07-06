@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-use App\Services\Crawler\Eis\Card\DocumentsParser;
+use App\Services\Procurement\Eis\Card\DocumentsParser;
 
 function documentsFixtureHtml(): string
 {

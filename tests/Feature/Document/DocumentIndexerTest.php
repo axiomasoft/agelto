@@ -2,13 +2,13 @@
 
 declare(strict_types=1);
 
-use App\Enums\Document\DocumentStatus;
+use App\Enums\Procurement\DocumentStatus;
 use App\Enums\Procurement\ProcurementEventType;
-use App\Models\Document\Document;
+use App\Models\Procurement\Document\Document;
 use App\Models\Procurement\Procurement;
 use App\Models\Procurement\ProcurementEvent;
-use App\Services\Crawler\Eis\Card\DocumentsParser;
-use App\Services\Document\DocumentIndexer;
+use App\Services\Procurement\DocumentIndexer;
+use App\Services\Procurement\Eis\Card\DocumentsParser;
 
 function documentsFixtureDataForIndexerTest(): array
 {

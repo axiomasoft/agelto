@@ -2,13 +2,13 @@
 
 declare(strict_types=1);
 
-use App\Dto\Crawler\ListingBatch;
-use App\Enums\Crawler\RunStatus;
-use App\Enums\Crawler\SourceMethod as SourceMethodEnum;
-use App\Models\Crawler\Crawler;
-use App\Models\Crawler\Run;
+use App\Dto\Procurement\ListingBatch;
+use App\Enums\Procurement\RunStatus;
+use App\Enums\Procurement\SourceMethod as SourceMethodEnum;
+use App\Models\Procurement\Crawler\Crawler;
+use App\Models\Procurement\Crawler\Run;
 use App\Models\Procurement\Procurement;
-use App\Services\Crawler\Modes\FreshRunProcessor;
+use App\Services\Procurement\Modes\FreshRunProcessor;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Sleep;
 use Tests\Support\Doubles\Crawler\QueueSourceMethod;

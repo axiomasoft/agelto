@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
-use App\Enums\Ai\AnalysisStatus;
-use App\Enums\Ai\AnalysisStep;
-use App\Models\Ai\Analysis;
-use App\Models\Document\Document;
-use App\Models\Document\DocumentVersion;
+use App\Enums\Procurement\AnalysisStatus;
+use App\Enums\Procurement\AnalysisStep;
+use App\Models\Procurement\Ai\Analysis;
+use App\Models\Procurement\Document\Document;
+use App\Models\Procurement\Document\DocumentVersion;
 
 /**
  * §11 «Документ заменён» и «Архив в документе».

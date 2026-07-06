@@ -3,7 +3,7 @@
 declare(strict_types=1);
 
 use App\Enums\Procurement\ProcurementEventType;
-use App\Models\Platform\Registry;
+use App\Models\Procurement\Platform\Registry;
 use App\Models\Procurement\ProcurementEvent;
 use App\Repositories\Procurement\ProcurementReadRepository;
 use App\Services\Procurement\ProcurementIngestProcessor;

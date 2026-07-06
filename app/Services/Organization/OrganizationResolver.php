@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\Organization;
 
-use App\Dto\Crawler\Details\OrganizationData;
+use App\Dto\Procurement\Details\OrganizationData;
 use App\Models\Organization\Organization;
 use App\Repositories\Organization\OrganizationStoreRepository;
 

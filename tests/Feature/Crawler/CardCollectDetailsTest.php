@@ -2,12 +2,12 @@
 
 declare(strict_types=1);
 
-use App\Dto\Crawler\ProcurementDetails;
+use App\Dto\Procurement\ProcurementDetails;
 use App\Enums\Procurement\ProcurementStatus;
-use App\Models\Platform\Registry;
+use App\Models\Procurement\Platform\Registry;
 use App\Models\Procurement\Procurement;
-use App\Services\Crawler\Eis\CsvSourceMethod;
-use App\Services\Crawler\Exceptions\CardUrlTemplateMissingException;
+use App\Services\Procurement\Eis\CsvSourceMethod;
+use App\Services\Procurement\Exceptions\CardUrlTemplateMissingException;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Sleep;

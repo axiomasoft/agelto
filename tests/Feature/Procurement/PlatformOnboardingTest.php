@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-use App\Models\Platform\Platform;
-use App\Models\Platform\Registry;
-use App\Models\Platform\StatusMapping;
+use App\Models\Procurement\Platform\Platform;
+use App\Models\Procurement\Platform\Registry;
+use App\Models\Procurement\Platform\StatusMapping;
 use App\Models\Procurement\Procurement;
 use App\Models\Procurement\PurchaseItem;
 

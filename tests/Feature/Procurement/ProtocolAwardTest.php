@@ -6,10 +6,10 @@ use App\Enums\Organization\ProcurementPartyRole;
 use App\Enums\Procurement\AwardStatus;
 use App\Enums\Procurement\BidStatus;
 use App\Models\Organization\Organization;
-use App\Models\Organization\ProcurementParty;
 use App\Models\Procurement\Award;
 use App\Models\Procurement\Bid;
 use App\Models\Procurement\Procurement;
+use App\Models\Procurement\ProcurementParty;
 use App\Models\Procurement\Protocol;
 
 /**

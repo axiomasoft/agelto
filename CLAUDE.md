@@ -7,8 +7,8 @@
 ## Code review
 
 ```
-Проведи ревью последнего diff: границы Module/Job/Service, влияние на стадии парсинга 1–4,
-соответствие docs/workflow/parsing-process.md. Укажи только блокирующие замечания и конкретные файлы/строки.
+Проведи ревью последнего diff: границы Job/Service, влияние на стадии парсинга 1–4,
+соответствие docs/02_Workflow/crawling-and-discovery.md и docs/03_Dev/crawling-pipeline.md. Укажи только блокирующие замечания и конкретные файлы/строки.
 Не предлагай рефакторинг вне области diff.
 ```
 
@@ -43,34 +43,31 @@ prod:deploy:frontend / prod:deploy:runtime / prod:deploy:image. Обоснуй �
 - AI rules/skills are edited only in `.ai/...` source files.
 - Never edit generated files directly: `CLAUDE.md`, `AGENTS.md`.
 - For quick domain routing and context escalation, use `.ai/guidelines/navigation.md`.
-- Keep this file concise: use it as a hub, escalate details to `docs/dev/*`.
-- Если меняются архитектурные договорённости: синхронно обновить `docs/dev/*`, `docs/workflow/*` и при необходимости `.ai/guidelines/*` / `.ai/skills/*`, затем `composer ai:sync`.
+- Keep this file concise: use it as a hub, escalate details to `docs/03_Dev/*`.
+- Если меняются архитектурные договорённости: синхронно обновить `docs/03_Dev/*`, `docs/02_Workflow/*` и при необходимости `.ai/guidelines/*` / `.ai/skills/*`, затем вручную перенести изменения в `CLAUDE.md`/`AGENTS.md`/`GEMINI.md` (автокомпозиции нет — Boost подключён только как MCP, см. skill `ai-context-workflow`).
 
 ## Domain Hub (short)
 
-- Терминология и схема пайплайна: `docs/dev/architecture.md`, `docs/workflow/parsing-process.md`.
-- Модули: `Modules/Platform` (ядро crawling/parsing), `Modules/Eis` (реализация для ЕИС).
+- Терминология и схема пайплайна: `docs/03_Dev/architecture.md`, `docs/02_Workflow/crawling-and-discovery.md`, `docs/02_Workflow/document-and-estimate-pipeline.md`.
+- Структура плоская (`app/**`), без модулей: три домена по короткому префиксу таблицы — `Procurement` (`prc_*`, единый домен закупок: заказы, документы, сметы, AI-пайплайн, crawling-инфраструктура, площадки, логи), `Reference` (`ref_*`, общие справочники ОКПД2/КТРУ/ОКВЭД2/КБК), `Organization` (`org_*`, организации).
 - Очереди: Laravel Horizon (`QUEUE_CONNECTION=redis`), тяжёлые jobs — browser/Gemini parsing.
 
 ## Layer Responsibilities
 
-**Modules (`Modules/*/app/`)**
+**`app/` (плоская структура, без `Modules/`)**
 
-- Доменная логика crawling, document prepare, AI analysis, estimate extraction.
-- Jobs в `Process/*/Jobs/`, процессоры в `Process/*/*Processor.php`.
-- Filament resources для операторских экранов.
-
-**`app/` (ядро приложения)**
-
-- `Services/` — инфраструктура: `BrowserService`, `GeminiService`, HTTP proxy, парсеры.
-- `Dto/` — DTO для смет и browser options.
+- `Models/{Procurement,Reference,Organization}/` — Eloquent-модели по доменам; внутри `Procurement/` — подпапки по назначению (`Document/`, `Estimate/`, `Crawler/`, `Ai/`, `Platform/`), ядро закупки (Procurement/Lot/Bid/Award/...) и `OperationLog` — плоско в корне.
+- `Services/{Procurement,Reference,Organization}/` — доменные сервисы (crawling, document indexing, AI-анализ, классификаторы), внутри `Procurement/` — подпапки `Eis/`, `Modes/`, `Contracts/`, `Exceptions/`, `Detail/`.
+- `Dto/Procurement/` — DTO для смет, crawling-результатов, browser options.
+- `Enums/{Procurement,Organization}/` — статусы, типы, режимы.
+- `Repositories/{Procurement,Organization}/` — read/store-репозитории.
+- `Console/Commands/{Procurement,Reference}/` — artisan-команды доменов.
 - `Http/Controllers/` — Inertia/Fortify/settings, тонкий HTTP-слой.
-- `Models/Order/` — заказы и лоты после успешного парсинга.
 - `Providers/` — Filament, Horizon, Fortify.
 
-**Repositories (в модулях)**
+**Repositories**
 
-- Read/write доступ к `plt_*` таблицам, crawling links, document analysis.
+- Read/write доступ к `prc_*`/`org_*` таблицам (crawling, документы, анализ) — `app/Repositories/Procurement/`, `app/Repositories/Organization/`.
 
 **Controllers**
 
@@ -89,7 +86,7 @@ prod:deploy:frontend / prod:deploy:runtime / prod:deploy:image. Обоснуй �
 - `vendor` и `public/build` — через volumes + `make prod:composer-install` / `make prod:deploy:frontend`.
 - Package manager: **yarn** (не pnpm).
 
-> For parsing stage details and table names: `docs/workflow/parsing-process.md`.
+> For parsing stage details and table names: `docs/02_Workflow/crawling-and-discovery.md`, `docs/02_Workflow/document-and-estimate-pipeline.md`, `docs/03_Dev/architecture.md`.
 
 === .ai/glossary rules ===
 
@@ -97,7 +94,7 @@ prod:deploy:frontend / prod:deploy:runtime / prod:deploy:image. Обоснуй �
 
 Единый канон имён: доменные сущности, глаголы методов, нейминг тестов. Имя раскрывает намерение, а не реализацию. Грань — простота ↔ техническая точность.
 
-Полный справочник (термины, enum'ы, таблицы, исключения): `docs/dev/glossary.md`. Общие правила сущностей PHP/Laravel: skill `naming-conventions`. Меняем имя в глоссарии → выравниваем код по нему.
+Полный справочник (термины, enum'ы, таблицы, исключения): `docs/02_Workflow/glossary.md`. Общие правила сущностей PHP/Laravel: skill `naming-conventions`. Меняем имя в глоссарии → выравниваем код по нему.
 
 ## Доменные сущности (канон → переменная)
 
@@ -112,6 +109,16 @@ prod:deploy:frontend / prod:deploy:runtime / prod:deploy:image. Обоснуй �
 - `Order` / `Lot` / `PurchaseObject` — заказ / лот / позиция.
 
 В UI и комментариях допустим бизнес-язык («извещение», «вложение», «смета»); в идентификаторах — технический канон.
+
+## Короткий префикс таблицы ↔ полное доменное имя
+
+Правило: папка = полное доменное имя, соответствующее короткому префиксу таблицы. Внутри домена подпапки — по смыслу, не по бывшему префиксу (`Ai`/`Crawler`/`Document`/`Estimate`/`Platform`/`Sys` — устаревшее деление, всё это теперь один домен).
+
+| Префикс таблицы | Домен | Папка (`app/{Models,Services,Dto,Enums,Repositories}/...`) |
+|---|---|---|
+| `prc_` | Procurement (закупки) — единый домен: заказы, документы, сметы, AI-пайплайн, crawling-инфраструктура, площадки, логи операций | `Procurement/` |
+| `ref_` | Reference (справочники) — общие классификаторы ОКПД2/КТРУ/ОКВЭД2/КБК | `Reference/` |
+| `org_` | Organization (организации) — общий домен, не специфичен для закупок | `Organization/` |
 
 ## Глаголы методов
 
@@ -143,8 +150,8 @@ When a task requires more detail than what's in the current context, load the re
 ## Quick Start (3 steps)
 
 1. Start `quick`: read only 1–2 most relevant sources.
-2. If domain term is unclear (`Crawler`, `Link`, `Document`, `Platform`, `EIS`, стадии парсинга) — open `docs/workflow/parsing-process.md` and `docs/dev/architecture.md`.
-3. If task is cross-layer (Platform module + jobs + Filament + frontend) — open `.ai/guidelines/project-development.md`.
+2. If domain term is unclear (`Crawler`, `Link`, `Document`, `Platform`, `EIS`, стадии парсинга) — open `docs/02_Workflow/crawling-and-discovery.md` and `docs/03_Dev/architecture.md`.
+3. If task is cross-layer (Procurement domain + jobs + Filament + frontend) — open `.ai/guidelines/project-development.md`.
 
 ## Agent File Edit Safety (High Priority)
 
@@ -160,8 +167,8 @@ When a task requires more detail than what's in the current context, load the re
 
 ## Fast Term Routing (Minimal Context First)
 
-- Непонятные термины домена (Crawler, Link, Document, стадии 1–4) — сначала `docs/workflow/parsing-process.md`.
-- Имена классов/методов/переменных, канон глаголов (`find/get`), нейминг тестов — `.ai/guidelines/glossary.md` (канон) и `docs/dev/glossary.md` (полный справочник).
+- Непонятные термины домена (Crawler, Link, Document, стадии 1–4) — сначала `docs/02_Workflow/crawling-and-discovery.md`.
+- Имена классов/методов/переменных, канон глаголов (`find/get`), нейминг тестов — `.ai/guidelines/glossary.md` (канон) и `docs/02_Workflow/glossary.md` (полный справочник).
 - Изменение пайплайна парсинга / jobs / очередей — `.ai/guidelines/project-development.md`.
 - Большая/неоднозначная задача на несколько слоёв — skill `complex-task-orchestrator`.
 - Первый проход минимальный: 1–2 файла, затем расширять по необходимости.
@@ -179,13 +186,16 @@ When a task requires more detail than what's in the current context, load the re
 
 | Situation | Load this file |
 |---|---|
-| Crawling, parsing, AI screening, estimate extraction | `docs/workflow/parsing-process.md` |
-| Platform / EIS / модули, терминология | `docs/dev/architecture.md` |
-| Имена сущностей/методов/переменных, канон глаголов, нейминг тестов | `.ai/guidelines/glossary.md`, `docs/dev/glossary.md` |
+| Crawling, parsing, AI screening, estimate extraction | `docs/02_Workflow/crawling-and-discovery.md`, `docs/02_Workflow/document-and-estimate-pipeline.md` |
+| Procurement / Reference / Organization домены, терминология | `docs/03_Dev/architecture.md` |
+| Имена сущностей/методов/переменных, канон глаголов, нейминг тестов | `.ai/guidelines/glossary.md`, `docs/02_Workflow/glossary.md` |
 | Layer boundaries, where logic lives | `.ai/guidelines/architecture.md` |
 | Cross-layer change in parsing pipeline | `.ai/guidelines/project-development.md` |
-| Docker dev/prod, Makefile deploy targets | `docs/dev/docker/` |
-| Proxy setup for EIS | `docs/dev/proxies.md` |
+| DB schema, table prefixes | `docs/03_Dev/database.md` |
+| Crawling pipeline internals | `docs/03_Dev/crawling-pipeline.md` |
+| Document/estimate pipeline internals | `docs/03_Dev/document-pipeline.md` |
+| LLM providers, AI routing | `docs/03_Dev/llm-providers.md` |
+| Admin panel / Filament observability | `docs/03_Dev/admin-panel.md` |
 | Writing or running tests | skill `testing-rules` |
 | Creating commits | skill `git-commit-rules` |
 | Inertia + Vue pages/forms | skill `inertia-vue` |
@@ -197,7 +207,7 @@ When a task requires more detail than what's in the current context, load the re
 | Folder map and layer ownership | skill `project-map` |
 | Complex multi-step task | skill `complex-task-orchestrator` |
 | Backend + frontend + auth/tests checklist | skill `cross-layer-change-checklist` |
-| Editing `.ai/`, `boost.json`, agent generation cycle | skill `ai-context-workflow`, `docs/ai/source-of-truth.md` |
+| Editing `.ai/`, `boost.json`, agent generation cycle | skill `ai-context-workflow` |
 | Natural wording for comments/commits | skill `writing-style` |
 | Terse responses | skill `compact-responses` |
 
@@ -206,42 +216,42 @@ When a task requires more detail than what's in the current context, load the re
 # Project Development (Parsing Pipeline)
 
 Короткий техрегламент для изменений в домене crawling/parsing/AI analysis.  
-Цель: не ломать многостадийный пайплайн и держать согласованность между модулями, jobs, Filament и docs.
+Цель: не ломать многостадийный пайплайн и держать согласованность между слоями домена `Procurement`, jobs, Filament и docs.
 
 Правки AI-правил — только в `.ai/...`; `CLAUDE.md` и `AGENTS.md` не редактируются напрямую.
 
 ## 1) Стадии пайплайна (source of truth)
 
-Master-описание: `docs/workflow/parsing-process.md`.
+Master-описание: `docs/02_Workflow/crawling-and-discovery.md`, `docs/02_Workflow/document-and-estimate-pipeline.md`.
 
 | Стадия | Суть | Типичный код |
 |---|---|---|
-| 1 Collector | сбор ссылок из ЕИС | `Modules/Eis`, `Process/Crawling` |
-| 2 Document Indexer | список вложений | `Process/DocumentPrepare` |
-| 3 AI Screening | быстрая проверка «это смета?» | `Process/DocumentAnalysis` |
-| 4 Full Extraction | полный разбор позиций | `Process/EstimateAnalysis`, `OrderParsing` |
+| 1 Collector | сбор извещений из ЕИС | `app/Services/Procurement/Eis/`, `app/Services/Procurement/CrawlerRunManager.php` |
+| 2 Document Indexer | список вложений | `app/Services/Procurement/DocumentIndexer.php`, `DocumentDownloader.php` |
+| 3 AI Screening | быстрая проверка «это смета?» | `app/Services/Procurement/` (analysis-часть), `app/Models/Procurement/Analysis.php` |
+| 4 Full Extraction | полный разбор позиций | `app/Models/Procurement/Estimate.php` и сателлиты (`Item`, `Resource`, `Section`, `Total`) |
 
 Не переносить логику стадии N в стадию N−1 «для ускорения» без явного решения — это ломает фильтрацию и расход API.
 
 ## 2) Структура и нейминг
 
-- Platform-agnostic код — `Modules/Platform/`.
-- Площадка ЕИС — `Modules/Eis/`.
-- Job: `*Job` в `Process/*/Jobs/`.
-- Processor: `*Processor` — оркестрация одной стадии.
-- DTO: `Modules/Platform/app/Dto/` или `app/Dto/` для cross-cutting.
-- Filament: `Modules/Platform/app/Filament/Resources/`.
+- Единый домен закупок (`prc_*`) — `app/{Models,Services,Dto,Enums,Repositories}/Procurement/`, без разделения по модулям.
+- Реализация обхода ЕИС — `app/Services/Procurement/Eis/`.
+- Job: `*Job` (где есть очереди) — рядом с доменным сервисом.
+- Processor/manager: оркестрация стадии (например, `CrawlerRunManager`, `PipelineDispatcher`).
+- DTO: `app/Dto/Procurement/`.
+- Filament: ресурсы админки (см. `docs/03_Dev/admin-panel.md`).
 
 ## 3) Dependency map (что менять вместе)
 
 При изменении стадии, статуса или модели:
 
-1. **Миграции / модели** — `Modules/Platform/database/migrations`, Eloquent models.
-2. **Enums / DTO** — статусы analysis, crawling, estimate schema.
-3. **Jobs + Processors** — dispatch, retry, failed handling.
+1. **Миграции / модели** — `database/migrations/` (плоско, без папки на модуль), `app/Models/Procurement/`.
+2. **Enums / DTO** — `app/Enums/Procurement/`, `app/Dto/Procurement/` (статусы analysis, crawling, estimate schema).
+3. **Repositories** — `app/Repositories/Procurement/` — dispatch, retry, failed handling завязаны на них.
 4. **Horizon** — queue names, supervisors (если добавляется новая очередь).
 5. **Filament** — ресурсы, если меняется операторский UI.
-6. **Docs** — `docs/workflow/parsing-process.md`, `docs/dev/architecture.md`.
+6. **Docs** — `docs/02_Workflow/crawling-and-discovery.md`, `docs/02_Workflow/document-and-estimate-pipeline.md`, `docs/03_Dev/architecture.md`.
 7. **Tests** — feature/unit для изменённого поведения.
 
 ## 4) Минимальный test-gate (Docker)
@@ -261,7 +271,7 @@ docker compose exec app php artisan test --compact --filter=ChangedArea
 
 ## 6) Proxy / EIS
 
-- Локальная разработка с прокси: `docs/dev/proxies.md`.
+- Локальная разработка с прокси: см. `docs/03_Dev/crawling-pipeline.md` (отдельного doc-файла по proxy-setup сейчас нет).
 - Docker `extra_hosts` для `eis-auth.local`, `eis-api.local` — не удалять без замены.
 
 ## 7) PR checklist

@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\Procurement\Detail;
 
-use App\Dto\Crawler\Details\PartyData;
+use App\Dto\Procurement\Details\PartyData;
 use App\Enums\Organization\ProcurementPartyRole;
 use App\Models\Procurement\Procurement;
 use App\Repositories\Organization\ProcurementPartyStoreRepository;
@@ -14,7 +14,7 @@ use Illuminate\Support\Facades\DB;
 /**
  * DTO → БД для ролей организаций вкладки `common-info`: резолв каждой организации через
  * {@see OrganizationResolver} (единая точка создания/поиска `org_organizations`), запись
- * `org_procurement_parties` и денормализации `prc_procurements.customer_org_id` из роли
+ * `prc_procurement_parties` и денормализации `prc_procurements.customer_org_id` из роли
  * `customer` — через {@see ProcurementPartyStoreRepository} (`01-database.md` §2–§3, D15).
  * Победитель/участники (`winner`/`participant`) — вне этого процессора (P3.7).
  */

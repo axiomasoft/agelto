@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 use App\Enums\Organization\ProcurementPartyRole;
 use App\Models\Organization\Organization;
-use App\Models\Organization\ProcurementParty;
 use App\Models\Procurement\EisDetails;
 use App\Models\Procurement\Financing;
 use App\Models\Procurement\Procurement;
+use App\Models\Procurement\ProcurementParty;
 use App\Models\Procurement\PurchaseItem;
 use Illuminate\Support\Carbon;
 

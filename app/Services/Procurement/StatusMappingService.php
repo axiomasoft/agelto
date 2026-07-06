@@ -6,10 +6,10 @@ namespace App\Services\Procurement;
 
 use App\Dto\Procurement\StatusResolution;
 use App\Enums\Procurement\ProcurementStatus;
-use App\Models\Platform\StatusMapping;
+use App\Models\Procurement\Platform\StatusMapping;
 
 /**
- * Резолв сырого статуса источника в канонический (`plt_status_mappings` — данные, не код).
+ * Резолв сырого статуса источника в канонический (`prc_status_mappings` — данные, не код).
  * Незнакомая пара (registry_id, source_status) АВТОМАТИЧЕСКИ заводит строку с `canonical_status='unknown'`
  * (см. `plans/V2-CORE/plan.md` Decision Log D5) — оператор видит и правит её в админке, не роется в логах.
  */

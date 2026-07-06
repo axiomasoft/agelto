@@ -5,34 +5,31 @@
 - AI rules/skills are edited only in `.ai/...` source files.
 - Never edit generated files directly: `CLAUDE.md`, `AGENTS.md`.
 - For quick domain routing and context escalation, use `.ai/guidelines/navigation.md`.
-- Keep this file concise: use it as a hub, escalate details to `docs/dev/*`.
-- Если меняются архитектурные договорённости: синхронно обновить `docs/dev/*`, `docs/workflow/*` и при необходимости `.ai/guidelines/*` / `.ai/skills/*`, затем `composer ai:sync`.
+- Keep this file concise: use it as a hub, escalate details to `docs/03_Dev/*`.
+- Если меняются архитектурные договорённости: синхронно обновить `docs/03_Dev/*`, `docs/02_Workflow/*` и при необходимости `.ai/guidelines/*` / `.ai/skills/*`, затем вручную перенести изменения в `CLAUDE.md`/`AGENTS.md`/`GEMINI.md` (автокомпозиции нет — Boost подключён только как MCP, см. skill `ai-context-workflow`).
 
 ## Domain Hub (short)
 
-- Терминология и схема пайплайна: `docs/dev/architecture.md`, `docs/workflow/parsing-process.md`.
-- Модули: `Modules/Platform` (ядро crawling/parsing), `Modules/Eis` (реализация для ЕИС).
+- Терминология и схема пайплайна: `docs/03_Dev/architecture.md`, `docs/02_Workflow/crawling-and-discovery.md`, `docs/02_Workflow/document-and-estimate-pipeline.md`.
+- Структура плоская (`app/**`), без модулей: три домена по короткому префиксу таблицы — `Procurement` (`prc_*`, единый домен закупок: заказы, документы, сметы, AI-пайплайн, crawling-инфраструктура, площадки, логи), `Reference` (`ref_*`, общие справочники ОКПД2/КТРУ/ОКВЭД2/КБК), `Organization` (`org_*`, организации).
 - Очереди: Laravel Horizon (`QUEUE_CONNECTION=redis`), тяжёлые jobs — browser/Gemini parsing.
 
 ## Layer Responsibilities
 
-**Modules (`Modules/*/app/`)**
+**`app/` (плоская структура, без `Modules/`)**
 
-- Доменная логика crawling, document prepare, AI analysis, estimate extraction.
-- Jobs в `Process/*/Jobs/`, процессоры в `Process/*/*Processor.php`.
-- Filament resources для операторских экранов.
-
-**`app/` (ядро приложения)**
-
-- `Services/` — инфраструктура: `BrowserService`, `GeminiService`, HTTP proxy, парсеры.
-- `Dto/` — DTO для смет и browser options.
+- `Models/{Procurement,Reference,Organization}/` — Eloquent-модели по доменам; внутри `Procurement/` — подпапки по назначению (`Document/`, `Estimate/`, `Crawler/`, `Ai/`, `Platform/`), ядро закупки (Procurement/Lot/Bid/Award/...) и `OperationLog` — плоско в корне.
+- `Services/{Procurement,Reference,Organization}/` — доменные сервисы (crawling, document indexing, AI-анализ, классификаторы), внутри `Procurement/` — подпапки `Eis/`, `Modes/`, `Contracts/`, `Exceptions/`, `Detail/`.
+- `Dto/Procurement/` — DTO для смет, crawling-результатов, browser options.
+- `Enums/{Procurement,Organization}/` — статусы, типы, режимы.
+- `Repositories/{Procurement,Organization}/` — read/store-репозитории.
+- `Console/Commands/{Procurement,Reference}/` — artisan-команды доменов.
 - `Http/Controllers/` — Inertia/Fortify/settings, тонкий HTTP-слой.
-- `Models/Order/` — заказы и лоты после успешного парсинга.
 - `Providers/` — Filament, Horizon, Fortify.
 
-**Repositories (в модулях)**
+**Repositories**
 
-- Read/write доступ к `plt_*` таблицам, crawling links, document analysis.
+- Read/write доступ к `prc_*`/`org_*` таблицам (crawling, документы, анализ) — `app/Repositories/Procurement/`, `app/Repositories/Organization/`.
 
 **Controllers**
 
@@ -51,4 +48,4 @@
 - `vendor` и `public/build` — через volumes + `make prod:composer-install` / `make prod:deploy:frontend`.
 - Package manager: **yarn** (не pnpm).
 
-> For parsing stage details and table names: `docs/workflow/parsing-process.md`.
+> For parsing stage details and table names: `docs/02_Workflow/crawling-and-discovery.md`, `docs/02_Workflow/document-and-estimate-pipeline.md`, `docs/03_Dev/architecture.md`.

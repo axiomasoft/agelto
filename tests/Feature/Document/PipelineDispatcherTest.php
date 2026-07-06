@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-use App\Enums\Document\DocumentStatus;
-use App\Models\Document\Document;
+use App\Enums\Procurement\DocumentStatus;
+use App\Models\Procurement\Document\Document;
 use App\Models\Procurement\Procurement;
-use App\Services\Document\PipelineDispatcher;
+use App\Services\Procurement\PipelineDispatcher;
 
 test('dispatch отбирает скачанные документы и пропускает недоскачанные/снятые', function () {
     $procurement = Procurement::factory()->create();

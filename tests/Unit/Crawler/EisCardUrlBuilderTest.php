@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-use App\Models\Platform\Registry;
-use App\Services\Crawler\Eis\EisCardUrlBuilder;
-use App\Services\Crawler\Exceptions\CardUrlTemplateMissingException;
+use App\Models\Procurement\Platform\Registry;
+use App\Services\Procurement\Eis\EisCardUrlBuilder;
+use App\Services\Procurement\Exceptions\CardUrlTemplateMissingException;
 
 test('resolveProcedureUrlType резолвит тип процедуры в сегмент URL по settings.procedure_url_types', function () {
     $registry = Registry::factory()->create([

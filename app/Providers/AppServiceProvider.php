@@ -2,8 +2,8 @@
 
 namespace App\Providers;
 
-use App\Services\Crawler\Contracts\ListingRowMapper;
-use App\Services\Crawler\Eis\EisCsvRowMapper;
+use App\Services\Procurement\Contracts\ListingRowMapper;
+use App\Services\Procurement\Eis\EisCsvRowMapper;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
