@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Models\Procurement\Estimate;
 
 use Database\Factories\Procurement\Estimate\TotalFactory;
+use Illuminate\Database\Eloquent\Attributes\UseFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -12,12 +13,10 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 /**
  * Итоговая строка/начисление сметы (иерархия «Итого» → «в т.ч. НДС»).
- *
- * @use HasFactory<TotalFactory>
  */
+#[UseFactory(TotalFactory::class)]
 final class Total extends Model
 {
-    /** @use HasFactory<TotalFactory> */
     use HasFactory;
 
     protected $table = 'prc_estimate_totals';

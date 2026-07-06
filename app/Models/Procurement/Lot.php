@@ -6,18 +6,17 @@ namespace App\Models\Procurement;
 
 use App\Enums\Procurement\ProcurementStatus;
 use Database\Factories\Procurement\LotFactory;
+use Illuminate\Database\Eloquent\Attributes\UseFactory;
 use Illuminate\Database\Eloquent\Casts\AsCollection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 /**
  * Лот закупки (223-ФЗ — реальный лот через lot_guid; 44-ФЗ — виртуальный лот №1).
- *
- * @use HasFactory<LotFactory>
  */
+#[UseFactory(LotFactory::class)]
 final class Lot extends Model
 {
-    /** @use HasFactory<LotFactory> */
     use HasFactory;
 
     protected $table = 'prc_lots';

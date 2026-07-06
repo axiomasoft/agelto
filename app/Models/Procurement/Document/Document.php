@@ -6,6 +6,7 @@ namespace App\Models\Procurement\Document;
 
 use App\Enums\Procurement\DocumentStatus;
 use Database\Factories\Procurement\Document\DocumentFactory;
+use Illuminate\Database\Eloquent\Attributes\UseFactory;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -13,12 +14,10 @@ use Illuminate\Support\Str;
 
 /**
  * Логический документ закупки (извещение/протокол/контракт/…), независимый от конкретной версии файла.
- *
- * @use HasFactory<DocumentFactory>
  */
+#[UseFactory(DocumentFactory::class)]
 final class Document extends Model
 {
-    /** @use HasFactory<DocumentFactory> */
     use HasFactory;
 
     protected $table = 'prc_documents';

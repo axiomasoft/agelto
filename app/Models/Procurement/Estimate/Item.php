@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Models\Procurement\Estimate;
 
 use Database\Factories\Procurement\Estimate\ItemFactory;
+use Illuminate\Database\Eloquent\Attributes\UseFactory;
 use Illuminate\Database\Eloquent\Casts\AsCollection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -13,12 +14,10 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 /**
  * Позиция сметы (строка).
- *
- * @use HasFactory<ItemFactory>
  */
+#[UseFactory(ItemFactory::class)]
 final class Item extends Model
 {
-    /** @use HasFactory<ItemFactory> */
     use HasFactory;
 
     protected $table = 'prc_estimate_items';

@@ -6,6 +6,7 @@ namespace App\Models\Procurement\Ai;
 
 use App\Enums\Procurement\LlmPurpose;
 use Database\Factories\Procurement\Ai\AiRouteFactory;
+use Illuminate\Database\Eloquent\Attributes\UseFactory;
 use Illuminate\Database\Eloquent\Casts\AsCollection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -14,12 +15,10 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 /**
  * Матрица роутинга «тип документа × назначение → провайдер/модель» (без spatie-settings —
  * настройка многострочная, см. docs/03_Dev/database.md §6c).
- *
- * @use HasFactory<AiRouteFactory>
  */
+#[UseFactory(AiRouteFactory::class)]
 final class AiRoute extends Model
 {
-    /** @use HasFactory<AiRouteFactory> */
     use HasFactory;
 
     protected $table = 'prc_ai_routes';

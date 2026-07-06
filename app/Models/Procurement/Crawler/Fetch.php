@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Models\Procurement\Crawler;
 
 use Database\Factories\Procurement\Crawler\FetchFactory;
+use Illuminate\Database\Eloquent\Attributes\UseFactory;
 use Illuminate\Database\Eloquent\Casts\AsCollection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -12,12 +13,10 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 /**
  * Забор одного блока данных площадки (партиция `prc_fetches` RANGE by `fetched_at`).
- *
- * @use HasFactory<FetchFactory>
  */
+#[UseFactory(FetchFactory::class)]
 final class Fetch extends Model
 {
-    /** @use HasFactory<FetchFactory> */
     use HasFactory;
 
     protected $table = 'prc_fetches';

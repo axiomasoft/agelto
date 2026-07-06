@@ -5,18 +5,17 @@ declare(strict_types=1);
 namespace App\Models\Procurement\Crawler;
 
 use Database\Factories\Procurement\Crawler\DailyStatFactory;
+use Illuminate\Database\Eloquent\Attributes\UseFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 /**
  * Посуточная аналитика по стадиям одного краулера — готовый срез для дашборда.
- *
- * @use HasFactory<DailyStatFactory>
  */
+#[UseFactory(DailyStatFactory::class)]
 final class DailyStat extends Model
 {
-    /** @use HasFactory<DailyStatFactory> */
     use HasFactory;
 
     protected $table = 'prc_daily_stats';

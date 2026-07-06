@@ -6,6 +6,7 @@ namespace App\Models\Procurement\Crawler;
 
 use App\Enums\Procurement\RunStatus;
 use Database\Factories\Procurement\Crawler\RunFactory;
+use Illuminate\Database\Eloquent\Attributes\UseFactory;
 use Illuminate\Database\Eloquent\Casts\AsCollection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -13,12 +14,10 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 /**
  * Один прогон краулера: heartbeat, иерархический курсор, ретраи.
- *
- * @use HasFactory<RunFactory>
  */
+#[UseFactory(RunFactory::class)]
 final class Run extends Model
 {
-    /** @use HasFactory<RunFactory> */
     use HasFactory;
 
     protected $table = 'prc_crawler_runs';

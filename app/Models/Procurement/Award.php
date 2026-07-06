@@ -6,6 +6,7 @@ namespace App\Models\Procurement;
 
 use App\Enums\Procurement\AwardStatus;
 use Database\Factories\Procurement\AwardFactory;
+use Illuminate\Database\Eloquent\Attributes\UseFactory;
 use Illuminate\Database\Eloquent\Casts\AsCollection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -13,12 +14,10 @@ use Illuminate\Support\Str;
 
 /**
  * Итог по лоту (OCDS awards) — денормализованная витрина результата закупки.
- *
- * @use HasFactory<AwardFactory>
  */
+#[UseFactory(AwardFactory::class)]
 final class Award extends Model
 {
-    /** @use HasFactory<AwardFactory> */
     use HasFactory;
 
     protected $table = 'prc_awards';

@@ -5,18 +5,17 @@ declare(strict_types=1);
 namespace App\Models\Procurement\Crawler;
 
 use Database\Factories\Procurement\Crawler\ProxyCheckFactory;
+use Illuminate\Database\Eloquent\Attributes\UseFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 /**
  * Журнал проверок доступности прокси.
- *
- * @use HasFactory<ProxyCheckFactory>
  */
+#[UseFactory(ProxyCheckFactory::class)]
 final class ProxyCheck extends Model
 {
-    /** @use HasFactory<ProxyCheckFactory> */
     use HasFactory;
 
     protected $table = 'prc_proxy_checks';

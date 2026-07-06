@@ -6,6 +6,7 @@ namespace App\Models\Procurement\Ai;
 
 use App\Enums\Procurement\LlmPurpose;
 use Database\Factories\Procurement\Ai\LlmCallFactory;
+use Illuminate\Database\Eloquent\Attributes\UseFactory;
 use Illuminate\Database\Eloquent\Casts\AsCollection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -13,12 +14,10 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 /**
  * Каждый вызов LLM (партиция `prc_ai_llm_calls` RANGE by `called_at`).
- *
- * @use HasFactory<LlmCallFactory>
  */
+#[UseFactory(LlmCallFactory::class)]
 final class LlmCall extends Model
 {
-    /** @use HasFactory<LlmCallFactory> */
     use HasFactory;
 
     protected $table = 'prc_ai_llm_calls';

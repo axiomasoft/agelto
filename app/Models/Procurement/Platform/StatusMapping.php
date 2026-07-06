@@ -5,18 +5,17 @@ declare(strict_types=1);
 namespace App\Models\Procurement\Platform;
 
 use Database\Factories\Procurement\Platform\StatusMappingFactory;
+use Illuminate\Database\Eloquent\Attributes\UseFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 /**
  * Маппинг сырого статуса источника на канонический статус ядра.
- *
- * @use HasFactory<StatusMappingFactory>
  */
+#[UseFactory(StatusMappingFactory::class)]
 final class StatusMapping extends Model
 {
-    /** @use HasFactory<StatusMappingFactory> */
     use HasFactory;
 
     protected $table = 'prc_status_mappings';

@@ -5,18 +5,17 @@ declare(strict_types=1);
 namespace App\Models\Procurement\Platform;
 
 use Database\Factories\Procurement\Platform\PlatformFactory;
+use Illuminate\Database\Eloquent\Attributes\UseFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Str;
 
 /**
  * Площадка-источник закупок (ЕИС и т.п.).
- *
- * @use HasFactory<PlatformFactory>
  */
+#[UseFactory(PlatformFactory::class)]
 final class Platform extends Model
 {
-    /** @use HasFactory<PlatformFactory> */
     use HasFactory;
 
     protected $table = 'prc_platforms';

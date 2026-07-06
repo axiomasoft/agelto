@@ -6,17 +6,16 @@ namespace App\Models\Procurement;
 
 use App\Enums\Procurement\BidStatus;
 use Database\Factories\Procurement\BidFactory;
+use Illuminate\Database\Eloquent\Attributes\UseFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 /**
  * Заявка/предложение участника, построчно из протокола или результатов.
- *
- * @use HasFactory<BidFactory>
  */
+#[UseFactory(BidFactory::class)]
 final class Bid extends Model
 {
-    /** @use HasFactory<BidFactory> */
     use HasFactory;
 
     protected $table = 'prc_bids';

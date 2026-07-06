@@ -5,18 +5,17 @@ declare(strict_types=1);
 namespace App\Models\Procurement\Ai;
 
 use Database\Factories\Procurement\Ai\ProviderFactory;
+use Illuminate\Database\Eloquent\Attributes\UseFactory;
 use Illuminate\Database\Eloquent\Casts\AsCollection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 /**
  * Конфигурация LLM-провайдера. Ключи API в БД не хранятся — только имя секрета (env/secrets).
- *
- * @use HasFactory<ProviderFactory>
  */
+#[UseFactory(ProviderFactory::class)]
 final class Provider extends Model
 {
-    /** @use HasFactory<ProviderFactory> */
     use HasFactory;
 
     protected $table = 'prc_ai_providers';

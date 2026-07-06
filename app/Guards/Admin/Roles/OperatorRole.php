@@ -1,0 +1,68 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Guards\Admin\Roles;
+
+use App\Guards\Admin\Permissions\AiRoutePermission;
+use App\Guards\Admin\Permissions\CrawlerPermission;
+use App\Guards\Admin\Permissions\DatasetExamplePermission;
+use App\Guards\Admin\Permissions\IgnoreRulePermission;
+use App\Guards\Admin\Permissions\PlatformPermission;
+use App\Guards\Admin\Permissions\PromptPermission;
+use App\Guards\Admin\Permissions\ProviderPermission;
+use App\Guards\Admin\Permissions\ProxyPermission;
+use App\Guards\Admin\Permissions\RegistryPermission;
+use App\Guards\Admin\Permissions\RunPermission;
+use AzGuard\Roles\BaseRole;
+use UnitEnum;
+
+/**
+ * Оператор: полный CRUD над операторской конфигурацией (площадки/реестры,
+ * краулеры/прокси/ignore-правила, AI-провайдеры/роутинг/промпты/датасет).
+ * Управление прогонами (Run.update) и доступ к ролям/грантам НЕ входят.
+ */
+final class OperatorRole extends BaseRole
+{
+    public function getLevel(): int
+    {
+        return 100;
+    }
+
+    /** @return list<UnitEnum> */
+    public function permissions(): array
+    {
+        return [
+            ...$this->crud(PlatformPermission::class),
+            ...$this->crud(RegistryPermission::class),
+            ...$this->crud(CrawlerPermission::class),
+            ...$this->crud(ProxyPermission::class),
+            ...$this->crud(IgnoreRulePermission::class),
+            ...$this->crud(ProviderPermission::class),
+            ...$this->crud(AiRoutePermission::class),
+            ...$this->crud(PromptPermission::class),
+            ...$this->crud(DatasetExamplePermission::class),
+            // Прогоны: наблюдение + управление (возобновить/сброс), без create/delete.
+            RunPermission::ViewAny,
+            RunPermission::View,
+            RunPermission::Update,
+        ];
+    }
+
+    /**
+     * Стандартный CRUD-набор одного ресурса (без restore/forceDelete/replicate/reorder).
+     *
+     * @param  class-string  $enum
+     * @return list<UnitEnum>
+     */
+    private function crud(string $enum): array
+    {
+        return [
+            $enum::ViewAny,
+            $enum::View,
+            $enum::Create,
+            $enum::Update,
+            $enum::Delete,
+        ];
+    }
+}
