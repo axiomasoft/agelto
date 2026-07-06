@@ -6,23 +6,28 @@ namespace App\Dto\Crawler;
 
 /**
  * Курсор прогона листинга — сериализуется в/из `crw_runs.cursor` (jsonb). Иерархический:
- * `blockFrom` — общий (fresh/archive); `day`/`priceStack` — только archive (ценовое дробление,
- * `02-crawling.md` §4.2, наполняются в P4); `reachedKnown` — fresh достиг известного/cap-блока.
+ * `blockFrom` — общий (fresh/archive); `day`/`priceStack`/`dateField` — только archive
+ * (ценовое дробление, `02-crawling.md` §4.2): `dateField` — агностичная метка, КАКОЕ
+ * date-окно дренируется (`publish`|`update`, зеркалит `WindowFilter->dateField`), площадко-
+ * специфичное имя query-параметра резолвит `EisCsvUrlBuilder`, не курсор (D21); `reachedKnown`
+ * — fresh достиг известного/cap-блока.
  */
 final readonly class ListingCursor
 {
     /**
      * @param  list<string>|null  $priceStack
+     * @param  'publish'|'update'|null  $dateField
      */
     public function __construct(
         public int $blockFrom = 1,
         public ?string $day = null,
         public ?array $priceStack = null,
         public bool $reachedKnown = false,
+        public ?string $dateField = null,
     ) {}
 
     /**
-     * @return array{blockFrom: int, day: string|null, priceStack: list<string>|null, reachedKnown: bool}
+     * @return array{blockFrom: int, day: string|null, priceStack: list<string>|null, reachedKnown: bool, dateField: string|null}
      */
     public function toArray(): array
     {
@@ -31,6 +36,7 @@ final readonly class ListingCursor
             'day' => $this->day,
             'priceStack' => $this->priceStack,
             'reachedKnown' => $this->reachedKnown,
+            'dateField' => $this->dateField,
         ];
     }
 
@@ -44,6 +50,7 @@ final readonly class ListingCursor
             day: $cursor['day'] ?? null,
             priceStack: $cursor['priceStack'] ?? null,
             reachedKnown: (bool) ($cursor['reachedKnown'] ?? false),
+            dateField: $cursor['dateField'] ?? null,
         );
     }
 }

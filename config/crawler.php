@@ -139,4 +139,39 @@ return [
     'documents_disk' => 's3',
     'documents_max_attempts' => 5,
     'documents_retry_backoff_minutes' => 15,
+
+    /*
+    |--------------------------------------------------------------------------
+    | Detail stage (детальная карточка)
+    |--------------------------------------------------------------------------
+    |
+    | `DetailAnalysisProcessor` (`02-crawling.md` §5.2): метод забора карточки (пока
+    | сконфигурирован только `csv`), ретраи снятия карточки (error-блок `prc_procurements.
+    | detail_*`, тот же паттерн, что `documents_*`), периодичность ре-скана закупок на
+    | завершающихся этапах (`evaluation`/`awarded`) до появления итогов.
+    */
+    'detail_source_method' => SourceMethod::Csv->value,
+    'detail_max_attempts' => 5,
+    'detail_retry_backoff_minutes' => 15,
+    'detail_rescan_interval_minutes' => 60,
+
+    /*
+    |--------------------------------------------------------------------------
+    | Archive mode
+    |--------------------------------------------------------------------------
+    |
+    | Archive-режим (`02-crawling.md` §4.2, D20/D21): потолок ценового work-стека
+    | старта окна (`priceFromGeneral`/`priceToGeneral`), минимальный интервал-стоп
+    | рекурсии дробления (допустимая потеря на краях — датасет), safety hard-cap
+    | блоков на один ценовой интервал, формат даты для `publishDateFrom/To`
+    | (`updateDateFrom/To` — экстраполяция, D24). Стартовые значения калибруются
+    | на живых данных (см. handoff Open risks).
+    |
+    */
+    'archive' => [
+        'price_ceiling' => 1_000_000_000,
+        'min_price_interval' => 1000,
+        'max_blocks_per_window' => 100,
+        'date_format' => 'd.m.Y',
+    ],
 ];

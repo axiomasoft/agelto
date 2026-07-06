@@ -21,3 +21,13 @@ if (Schema::hasTable('crw_crawlers')) {
         Schedule::command('crawler:run-fresh', [$crawler->id])->cron($crawler->schedule ?? '*/30 * * * *');
     }
 }
+
+// Тот же schema-guard (см. выше) — детальная стадия читает `prc_procurements`.
+if (Schema::hasTable('prc_procurements')) {
+    Schedule::command('crawler:fetch-details')->everyFiveMinutes();
+}
+
+// Тот же schema-guard (см. выше) — sweep читает `crw_runs.stats->cap_hit`.
+if (Schema::hasTable('crw_runs')) {
+    Schedule::command('crawler:rescan-backlog')->everyFifteenMinutes();
+}

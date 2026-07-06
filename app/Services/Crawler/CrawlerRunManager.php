@@ -85,6 +85,19 @@ final readonly class CrawlerRunManager
         ]);
     }
 
+    /**
+     * Backlog-рескан (`02-crawling.md` §4.1, D22): единственный state-переход,
+     * пометивший flagged fresh-прогон — повторный sweep его больше не отбирает.
+     */
+    public function markBacklogRescanned(Run $run): void
+    {
+        $run->update([
+            'stats' => array_merge($run->stats?->toArray() ?? [], [
+                'backlog_rescanned_at' => now()->toIso8601String(),
+            ]),
+        ]);
+    }
+
     public function complete(Run $run): void
     {
         DB::transaction(function () use ($run): void {
