@@ -139,4 +139,19 @@ return [
     'documents_disk' => 's3',
     'documents_max_attempts' => 5,
     'documents_retry_backoff_minutes' => 15,
+
+    /*
+    |--------------------------------------------------------------------------
+    | Detail stage (детальная карточка)
+    |--------------------------------------------------------------------------
+    |
+    | `DetailAnalysisProcessor` (`02-crawling.md` §5.2): метод забора карточки (пока
+    | сконфигурирован только `csv`), ретраи снятия карточки (error-блок `prc_procurements.
+    | detail_*`, тот же паттерн, что `documents_*`), периодичность ре-скана закупок на
+    | завершающихся этапах (`evaluation`/`awarded`) до появления итогов.
+    */
+    'detail_source_method' => SourceMethod::Csv->value,
+    'detail_max_attempts' => 5,
+    'detail_retry_backoff_minutes' => 15,
+    'detail_rescan_interval_minutes' => 60,
 ];

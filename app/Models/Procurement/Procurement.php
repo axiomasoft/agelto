@@ -6,10 +6,12 @@ namespace App\Models\Procurement;
 
 use App\Casts\PostgresTextArrayCast;
 use App\Enums\Procurement\ProcurementStatus;
+use App\Models\Platform\Registry;
 use Database\Factories\Procurement\ProcurementFactory;
 use Illuminate\Database\Eloquent\Casts\AsCollection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Str;
 
 /**
@@ -96,5 +98,10 @@ final class Procurement extends Model
         self::creating(function (self $procurement): void {
             $procurement->uuid ??= (string) Str::uuid7();
         });
+    }
+
+    public function registry(): BelongsTo
+    {
+        return $this->belongsTo(related: Registry::class);
     }
 }

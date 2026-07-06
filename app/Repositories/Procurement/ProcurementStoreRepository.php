@@ -91,6 +91,35 @@ final readonly class ProcurementStoreRepository
     }
 
     /**
+     * Детальный слой снят успешно (`02-crawling.md` §5.2) — error-блок сбрасывается,
+     * повторный успешный снимок «лечит» ранее накопленные отказы.
+     */
+    public function markDetailFetched(Procurement $procurement, Carbon $fetchedAt): void
+    {
+        $procurement->update([
+            'detail_fetched_at' => $fetchedAt,
+            'detail_attempts' => 0,
+            'detail_last_error' => null,
+            'detail_next_retry_at' => null,
+            'detail_failed' => false,
+        ]);
+    }
+
+    /**
+     * Снятие детального слоя упало (`01-database.md` §11 «Детальная карточка упала») —
+     * error-блок `detail_*`, ретрай по `detail_next_retry_at` без реконструкции из логов.
+     */
+    public function markDetailFailed(Procurement $procurement, string $error, ?Carbon $nextRetryAt, bool $failed): void
+    {
+        $procurement->update([
+            'detail_attempts' => $procurement->detail_attempts + 1,
+            'detail_last_error' => $error,
+            'detail_next_retry_at' => $nextRetryAt,
+            'detail_failed' => $failed,
+        ]);
+    }
+
+    /**
      * @param  array<string, mixed>  $snapshot
      */
     public function storeRevision(
