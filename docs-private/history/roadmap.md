@@ -1,6 +1,6 @@
 # ТЗ v2 · 06 — Дорожная карта реализации
 
-> Порядок срезов и критерии приёмки. Каждая фаза — вертикальный срез, доводимый до зелёных тестов (Docker test-gate). Ссылки на разделы: `01`–`05`.
+> Порядок срезов и критерии приёмки. Каждая фаза — вертикальный срез, доводимый до зелёных тестов (Docker test-gate). Ссылки на разделы: `docs/03_Dev/database.md`–`docs/03_Dev/admin-panel.md`.
 
 ## Принципы дорожной карты
 
@@ -16,9 +16,9 @@
 
 ## Фаза 1 — Схема БД и ядро закупок
 
-- Миграции всей схемы `01-database.md`: справочники, `prc_procurements` + `prc_revisions` + `prc_events`, `plt_status_mappings`, lots/items, документы/версии, сметы, краулинг, LLM-конфиг; партиционирование `*_events`/`*_revisions`/`ai_llm_calls`/`crw_fetches` + premake-команда.
+- Миграции всей схемы `docs/03_Dev/database.md`: справочники, `prc_procurements` + `prc_revisions` + `prc_events`, `plt_status_mappings`, lots/items, документы/версии, сметы, краулинг, LLM-конфиг; партиционирование `*_events`/`*_revisions`/`ai_llm_calls`/`crw_fetches` + premake-команда.
 - Модели, репозитории (read/store split), инжест-процессор (закупка → ревизия + события), сервис статус-маппинга.
-- **Приёмка**: чек-лист сценариев схемы (`01` §11) покрыт тестами — новая закупка, новая редакция, смена статуса/цены, состояние на дату, неизвестный статус → `unknown`+алерт.
+- **Приёмка**: чек-лист сценариев схемы (`docs/03_Dev/database.md` §11) покрыт тестами — новая закупка, новая редакция, смена статуса/цены, состояние на дату, неизвестный статус → `unknown`+алерт.
 
 ## Фаза 2 — Сбор (CSV/HTTP, fresh)
 
@@ -28,7 +28,7 @@
 
 ## Фаза 3 — Детальная карточка + документы
 
-- Стадия детального анализа карточки (HTTP-first, `02` §5): вкладки common-info/documents/event-journal/supplier-results → `prc_procurements`+`prc_eis_details`, `prc_items`, `prc_financing`, `org_organizations`+`org_procurement_parties`, `prc_events` (из журнала ЕИС), `prc_protocols`/`prc_bids`/`prc_awards`/`prc_clarifications`/`prc_cancellations`.
+- Стадия детального анализа карточки (HTTP-first, `docs/03_Dev/crawling-pipeline.md` §5): вкладки common-info/documents/event-journal/supplier-results → `prc_procurements`+`prc_eis_details`, `prc_items`, `prc_financing`, `org_organizations`+`org_procurement_parties`, `prc_events` (из журнала ЕИС), `prc_protocols`/`prc_bids`/`prc_awards`/`prc_clarifications`/`prc_cancellations`.
 - Классификаторы (`ref_*`) — загрузчик справочников; резолв кодов позиций.
 - Индексация вложений в `doc_documents`; скачивание версий с дедупом по `content_hash`; сырьё в object storage.
 - **Приёмка**: по закупке снят полный детальный слой; журнал событий ЕИС наполняет `prc_events`; организация в нескольких ролях резолвится в один `org_organizations`; итоги завершённой закупки → `prc_awards`/`prc_bids`; замена файла → новая версия + событие.
@@ -59,7 +59,7 @@
 
 ## Фаза 7 — Админка и наблюдаемость
 
-- Filament-ресурсы (`05`): краулеры/прогоны, реестр закупок с таймлайном событий и редакциями, документы/сметы, промпты, роутинг, датасет/eval, настройки (spatie-settings).
+- Filament-ресурсы (`docs/03_Dev/admin-panel.md`): краулеры/прогоны, реестр закупок с таймлайном событий и редакциями, документы/сметы, промпты, роутинг, датасет/eval, настройки (spatie-settings).
 - Метрики, дэшборды, алерты; health-checks; операторский аудит.
 - **Приёмка**: оператор управляет краулерами и промптами, видит путь закупки и полноту смет, получает алерты; smoke-контроль источника активен.
 
@@ -74,14 +74,14 @@
 | Решение владельца | Где реализовано |
 |---|---|
 | Greenfield, новый репо | Фаза 0 |
-| Снапшоты редакций + журнал | Фаза 1 (`01` §3) |
-| jsonb + extension-таблицы | Фаза 1 (`01` §0 п.6, §3) |
-| Нормализованные сметы + сырой jsonb | Фазы 1/5 (`01` §6) |
+| Снапшоты редакций + журнал | Фаза 1 (`docs/03_Dev/database.md` §3) |
+| jsonb + extension-таблицы | Фаза 1 (`docs/03_Dev/database.md` §0 п.6, §3) |
+| Нормализованные сметы + сырой jsonb | Фазы 1/5 (`docs/03_Dev/database.md` §6) |
 | 44+223 в ядре | Фазы 1/2 |
 | Пустая БД, перекачка через CSV | Фазы 2/3 |
 | Всё сырьё храним | Фазы 3/5 (object storage) |
-| CSV основной, HTTP-first, браузер fallback | Фазы 2/3/8 (`02`) |
-| Матрица LLM тип×шаг | Фаза 6 (`04` §3) |
-| Локальная LLM: контракт+eval+shadow | Фаза 6 (`04` §5,7) |
+| CSV основной, HTTP-first, браузер fallback | Фазы 2/3/8 (`docs/03_Dev/crawling-pipeline.md`) |
+| Матрица LLM тип×шаг | Фаза 6 (`docs/03_Dev/llm-providers.md` §3) |
+| Локальная LLM: контракт+eval+shadow | Фаза 6 (`docs/03_Dev/llm-providers.md` §5,7) |
 | Смета — единственный полный обработчик | Фазы 4/5 |
 | Filament-админка | Фаза 7 |

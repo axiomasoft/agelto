@@ -68,6 +68,8 @@
 
 Каждый файл пишется сразу после готовности раздела — устойчиво к обрыву токенов.
 
+> **Примечание (2026-07-06):** пакет `docs/specs/v2/` расформирован — v2 больше не в разработке, это текущая система. Живая техническая референс-документация (`01-database.md`…`05-admin-observability.md`) перенесена в `docs/03_Dev/` (`database.md`, `crawling-pipeline.md`, `document-pipeline.md`, `llm-providers.md`, `admin-panel.md`); чисто историческое (`06-roadmap.md`, `07-carryover-from-v1.md`) — в `docs-private/history/` (`roadmap.md`, `carryover-from-v1.md`). См. `plans/rustling-jingling-quiche.md` §B.
+
 ## Верификация
 
 - Каждое внешнее утверждение (параметры CSV, лимиты ЕИС, возможности Playwright/провайдеров) — подтверждено research-источником или живой разведкой, в ТЗ — со ссылками
