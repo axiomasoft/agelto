@@ -21,7 +21,7 @@ final class IgnoredItem extends Model
     /** @use HasFactory<IgnoredItemFactory> */
     use HasFactory;
 
-    protected $table = 'crw_ignored_items';
+    protected $table = 'prc_ignored_items';
 
     protected $fillable = [
         'registry_id',

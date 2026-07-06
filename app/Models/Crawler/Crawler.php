@@ -23,7 +23,7 @@ final class Crawler extends Model
     /** @use HasFactory<CrawlerFactory> */
     use HasFactory;
 
-    protected $table = 'crw_crawlers';
+    protected $table = 'prc_crawlers';
 
     protected $fillable = [
         'registry_id',

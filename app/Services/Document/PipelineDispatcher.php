@@ -16,7 +16,7 @@ use Illuminate\Support\Facades\Log;
  * `discovered` (контент ещё не скачан — сеть недоступна/ретраи не исчерпаны/файл без
  * ссылки) сюда намеренно не попадает: готовить нечего (FSM `03-document-pipeline.md` §2 —
  * `discovered ──download──> downloaded ──prepare──> prepared`). Диспатч не мутирует
- * `doc_documents.status` — нет отдельного поля-маркера «поставлено в очередь» в схеме
+ * `prc_documents.status` — нет отдельного поля-маркера «поставлено в очередь» в схеме
  * (`01-database.md` §5), а следующий переход (`downloaded→prepared`) — вне V2-CRAWL,
  * владеет им будущий consumer Фазы 4; guard от дублей — сам предикат выборки.
  */

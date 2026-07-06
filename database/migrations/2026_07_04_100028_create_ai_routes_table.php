@@ -15,8 +15,8 @@ return new class extends Migration
         Schema::create($this->table(), function (Blueprint $table): void {
             $table->id();
 
-            $table->text('document_type')->comment("code из plt_document_types или зарезервированное 'any' — без строгого FK");
-            $table->text('purpose')->comment('совпадает с ai_llm_calls.purpose');
+            $table->text('document_type')->comment("code из prc_document_types или зарезервированное 'any' — без строгого FK");
+            $table->text('purpose')->comment('совпадает с prc_ai_llm_calls.purpose');
 
             $table->foreignId('provider_id')
                 ->index()

@@ -134,7 +134,7 @@ return [
     |
     | Диск для контент-адресованных версий документов (`documents/<hash-prefix>/<sha256>`,
     | `01-database.md` §5, §9) — по умолчанию тот же, что `raw_disk`. Ретраи скачивания —
-    | error-блок `doc_documents` (`attempts`/`next_retry_at`/`failed_permanently`).
+    | error-блок `prc_documents` (`attempts`/`next_retry_at`/`failed_permanently`).
     */
     'documents_disk' => 's3',
     'documents_max_attempts' => 5,

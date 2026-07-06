@@ -12,7 +12,7 @@ use App\Services\Crawler\Exceptions\CardUrlTemplateMissingException;
  * `research/eis-card-recon.md` §1). `<тип>` (`ea20`/`zk20`/`ezt20`/…) зависит от способа закупки
  * и резолвится по `Registry->settings['procedure_url_types']`; сами URL-шаблоны по типу+вкладке —
  * `Registry->settings['card_url_templates']`. Ничего не хардкодится в коде — площадка настраивает
- * оба справочника через `plt_registries.settings` (D10 — ЕИС-специфика только здесь).
+ * оба справочника через `prc_registries.settings` (D10 — ЕИС-специфика только здесь).
  */
 final readonly class EisCardUrlBuilder
 {

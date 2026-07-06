@@ -20,7 +20,7 @@ final class Total extends Model
     /** @use HasFactory<TotalFactory> */
     use HasFactory;
 
-    protected $table = 'est_totals';
+    protected $table = 'prc_estimate_totals';
 
     protected $fillable = [
         'estimate_id',

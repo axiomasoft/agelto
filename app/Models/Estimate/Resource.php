@@ -20,7 +20,7 @@ final class Resource extends Model
     /** @use HasFactory<ResourceFactory> */
     use HasFactory;
 
-    protected $table = 'est_resources';
+    protected $table = 'prc_estimate_resources';
 
     protected $fillable = [
         'item_id',

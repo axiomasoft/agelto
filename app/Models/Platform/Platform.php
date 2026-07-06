@@ -19,7 +19,7 @@ final class Platform extends Model
     /** @use HasFactory<PlatformFactory> */
     use HasFactory;
 
-    protected $table = 'plt_platforms';
+    protected $table = 'prc_platforms';
 
     protected $fillable = [
         'uuid',

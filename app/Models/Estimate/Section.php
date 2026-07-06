@@ -20,7 +20,7 @@ final class Section extends Model
     /** @use HasFactory<SectionFactory> */
     use HasFactory;
 
-    protected $table = 'est_sections';
+    protected $table = 'prc_estimate_sections';
 
     protected $fillable = [
         'estimate_id',

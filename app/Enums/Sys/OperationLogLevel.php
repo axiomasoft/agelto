@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Enums\Sys;
 
 /**
- * Уровень записи операционного журнала `sys_operation_logs`.
+ * Уровень записи операционного журнала `prc_operation_logs`.
  */
 enum OperationLogLevel: string
 {

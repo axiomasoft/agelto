@@ -13,10 +13,10 @@ use App\Repositories\Procurement\ProcurementStoreRepository;
 use Illuminate\Support\Facades\DB;
 
 /**
- * DTO → `doc_documents` для вкладки `documents`: upsert по `(procurement_id, external_id)`
+ * DTO → `prc_documents` для вкладки `documents`: upsert по `(procurement_id, external_id)`
  * (идемпотентный — статус не сбрасывается на повторном прогоне), документы снятые с карточки
  * (`external_id` больше не встречается) → `removed_at` + событие `document_removed`.
- * Файл (`doc_versions`) — вне этого класса, см. {@see DocumentDownloader}.
+ * Файл (`prc_document_versions`) — вне этого класса, см. {@see DocumentDownloader}.
  */
 final readonly class DocumentIndexer
 {

@@ -18,7 +18,7 @@ final class DocumentType extends Model
     /** @use HasFactory<DocumentTypeFactory> */
     use HasFactory;
 
-    protected $table = 'plt_document_types';
+    protected $table = 'prc_document_types';
 
     protected $fillable = [
         'code',

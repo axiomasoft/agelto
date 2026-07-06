@@ -20,7 +20,7 @@ final class Proxy extends Model
     /** @use HasFactory<ProxyFactory> */
     use HasFactory;
 
-    protected $table = 'crw_proxies';
+    protected $table = 'prc_proxies';
 
     protected $fillable = [
         'service',

@@ -19,7 +19,7 @@ final class EvalRun extends Model
     /** @use HasFactory<EvalRunFactory> */
     use HasFactory;
 
-    protected $table = 'ai_eval_runs';
+    protected $table = 'prc_ai_eval_runs';
 
     protected $fillable = [
         'dataset_version',

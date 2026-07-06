@@ -19,7 +19,7 @@ final class Provider extends Model
     /** @use HasFactory<ProviderFactory> */
     use HasFactory;
 
-    protected $table = 'ai_providers';
+    protected $table = 'prc_ai_providers';
 
     protected $fillable = [
         'code',

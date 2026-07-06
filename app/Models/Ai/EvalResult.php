@@ -20,7 +20,7 @@ final class EvalResult extends Model
     /** @use HasFactory<EvalResultFactory> */
     use HasFactory;
 
-    protected $table = 'ai_eval_results';
+    protected $table = 'prc_ai_eval_results';
 
     protected $fillable = [
         'eval_run_id',

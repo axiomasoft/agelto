@@ -21,7 +21,7 @@ use Illuminate\Support\Facades\Storage;
 /**
  * Агностик-инжест одного блока листинга (`02-crawling.md` §3.4): denylist-фильтр →
  * `ProcurementIngestProcessor` на каждую строку → метрики блока → сырой CSV в storage →
- * запись `crw_fetches`. Площадко-специфичая раскладка колонок — только в инжектированном
+ * запись `prc_fetches`. Площадко-специфичая раскладка колонок — только в инжектированном
  * `ListingRowMapper` (в этом классе нет ЕИС-строк).
  */
 final readonly class CsvBlockIngestor

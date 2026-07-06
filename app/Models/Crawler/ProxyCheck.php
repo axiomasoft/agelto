@@ -19,7 +19,7 @@ final class ProxyCheck extends Model
     /** @use HasFactory<ProxyCheckFactory> */
     use HasFactory;
 
-    protected $table = 'crw_proxy_checks';
+    protected $table = 'prc_proxy_checks';
 
     protected $fillable = [
         'proxy_id',

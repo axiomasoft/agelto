@@ -7,7 +7,7 @@ namespace App\Services\Crawler\Exceptions;
 use RuntimeException;
 
 /**
- * Реестр (`plt_registries.settings`) не содержит данных, нужных `EisCardUrlBuilder`
+ * Реестр (`prc_registries.settings`) не содержит данных, нужных `EisCardUrlBuilder`
  * для построения URL вкладки карточки — резолва типа процедуры или самого
  * URL-шаблона. Молчаливо пропускать закупку нельзя (`02-crawling.md` §5.1):
  * без URL ни одна вкладка карточки не будет собрана.

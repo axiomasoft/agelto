@@ -46,7 +46,7 @@ return new class extends Migration
         // Partial unique index: external_id уникален в рамках закупки только когда не null.
         DB::statement(
             'CREATE UNIQUE INDEX doc_documents_procurement_external_id_unique '
-            .'ON doc_documents (procurement_id, external_id) WHERE external_id IS NOT NULL',
+            .'ON prc_documents (procurement_id, external_id) WHERE external_id IS NOT NULL',
         );
     }
 

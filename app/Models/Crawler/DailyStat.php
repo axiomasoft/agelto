@@ -19,7 +19,7 @@ final class DailyStat extends Model
     /** @use HasFactory<DailyStatFactory> */
     use HasFactory;
 
-    protected $table = 'crw_daily_stats';
+    protected $table = 'prc_daily_stats';
 
     protected $fillable = [
         'date',

@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Dto\Crawler;
 
 /**
- * Метрики одного забора блока (`CsvBlockIngestor::ingest()`) — счётчики для `crw_fetches`
+ * Метрики одного забора блока (`CsvBlockIngestor::ingest()`) — счётчики для `prc_fetches`
  * и наблюдаемости прогона (новые/обновлённые/пропущенные закупки, ошибки одной строки).
  */
 final readonly class FetchResult

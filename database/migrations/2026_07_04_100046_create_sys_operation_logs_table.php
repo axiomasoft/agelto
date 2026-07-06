@@ -11,7 +11,7 @@ return new class extends Migration
     public function up(): void
     {
         DB::statement(<<<'SQL'
-            CREATE TABLE sys_operation_logs (
+            CREATE TABLE prc_operation_logs (
                 id bigint GENERATED ALWAYS AS IDENTITY,
                 level text NOT NULL,
                 stage text NULL,
@@ -26,14 +26,14 @@ return new class extends Migration
             ) PARTITION BY RANGE (created_at)
             SQL);
 
-        DB::statement('CREATE INDEX sys_operation_logs_entity_index ON sys_operation_logs (entity_type, entity_id)');
+        DB::statement('CREATE INDEX sys_operation_logs_entity_index ON prc_operation_logs (entity_type, entity_id)');
 
         $this->bootstrapPartitions();
     }
 
     public function down(): void
     {
-        DB::statement('DROP TABLE IF EXISTS sys_operation_logs CASCADE');
+        DB::statement('DROP TABLE IF EXISTS prc_operation_logs CASCADE');
     }
 
     private function bootstrapPartitions(): void
@@ -43,10 +43,10 @@ return new class extends Migration
         for ($i = 0; $i < 3; $i++) {
             $from = $start->copy()->addMonthsNoOverflow($i);
             $to = $from->copy()->addMonthNoOverflow();
-            $partition = 'sys_operation_logs_'.$from->format('Y_m');
+            $partition = 'prc_operation_logs_'.$from->format('Y_m');
 
             DB::statement(sprintf(
-                "CREATE TABLE IF NOT EXISTS %s PARTITION OF sys_operation_logs FOR VALUES FROM ('%s') TO ('%s')",
+                "CREATE TABLE IF NOT EXISTS %s PARTITION OF prc_operation_logs FOR VALUES FROM ('%s') TO ('%s')",
                 $partition,
                 $from->toDateTimeString(),
                 $to->toDateTimeString(),

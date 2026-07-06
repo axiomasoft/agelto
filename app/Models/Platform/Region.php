@@ -19,7 +19,7 @@ final class Region extends Model
     /** @use HasFactory<RegionFactory> */
     use HasFactory;
 
-    protected $table = 'plt_regions';
+    protected $table = 'prc_regions';
 
     protected $fillable = [
         'platform_id',

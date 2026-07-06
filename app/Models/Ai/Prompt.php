@@ -18,7 +18,7 @@ final class Prompt extends Model
     /** @use HasFactory<PromptFactory> */
     use HasFactory;
 
-    protected $table = 'ai_prompts';
+    protected $table = 'prc_ai_prompts';
 
     protected $fillable = [
         'key',

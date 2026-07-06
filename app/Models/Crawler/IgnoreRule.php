@@ -21,7 +21,7 @@ final class IgnoreRule extends Model
     /** @use HasFactory<IgnoreRuleFactory> */
     use HasFactory;
 
-    protected $table = 'crw_ignore_rules';
+    protected $table = 'prc_ignore_rules';
 
     protected $fillable = [
         'registry_id',

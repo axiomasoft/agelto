@@ -19,7 +19,7 @@ final class StatusMapping extends Model
     /** @use HasFactory<StatusMappingFactory> */
     use HasFactory;
 
-    protected $table = 'plt_status_mappings';
+    protected $table = 'prc_status_mappings';
 
     protected $fillable = [
         'registry_id',

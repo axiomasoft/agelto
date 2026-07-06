@@ -16,9 +16,9 @@ return [
     'tables' => [
         'prc_events' => 'occurred_at',
         'prc_revisions' => 'detected_at',
-        'ai_llm_calls' => 'called_at',
-        'crw_fetches' => 'fetched_at',
-        'sys_operation_logs' => 'created_at',
+        'prc_ai_llm_calls' => 'called_at',
+        'prc_fetches' => 'fetched_at',
+        'prc_operation_logs' => 'created_at',
     ],
 
     'interval' => '1 month',

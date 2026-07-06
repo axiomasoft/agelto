@@ -9,7 +9,7 @@ use App\Models\Document\DocumentVersion;
 use Illuminate\Database\Eloquent\Collection;
 
 /**
- * Единственная точка персистентности `doc_documents`/`doc_versions` для `DocumentIndexer`
+ * Единственная точка персистентности `prc_documents`/`prc_document_versions` для `DocumentIndexer`
  * и `DocumentDownloader` — сервисы решают, когда и с какими атрибутами писать, репозиторий
  * только читает/пишет по уже принятым ключам (аналог `OrganizationStoreRepository`, P3.4).
  */

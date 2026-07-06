@@ -8,7 +8,7 @@ use App\Enums\Organization\ProcurementPartyRole;
 
 /**
  * Одна строка участия организации в закупке (роль + организация как упомянута в
- * источнике + контактное лицо этой роли — контакт живёт в `org_procurement_parties.attributes`,
+ * источнике + контактное лицо этой роли — контакт живёт в `prc_procurement_parties.attributes`,
  * не в `org_organizations`, `01-database.md` §2).
  */
 final readonly class PartyData

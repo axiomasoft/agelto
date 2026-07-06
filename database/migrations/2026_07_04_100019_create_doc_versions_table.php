@@ -33,7 +33,7 @@ return new class extends Migration
             // Дочерние версии из архивов (ZIP/RAR) ссылаются на родителя.
             $table->foreignId('parent_version_id')
                 ->nullable()
-                ->constrained(table: 'doc_versions')
+                ->constrained(table: $this->table())
                 ->nullOnDelete();
 
             $table->text('prepared_storage_path')->nullable()->comment('Excel→PDF и т.п. подготовленное представление');

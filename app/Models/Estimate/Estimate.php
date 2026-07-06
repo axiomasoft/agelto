@@ -25,7 +25,7 @@ final class Estimate extends Model
     /** @use HasFactory<EstimateFactory> */
     use HasFactory;
 
-    protected $table = 'est_estimates';
+    protected $table = 'prc_estimates';
 
     protected $fillable = [
         'uuid',

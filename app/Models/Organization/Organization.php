@@ -12,7 +12,7 @@ use Illuminate\Support\Str;
 
 /**
  * Единый реестр организаций (OCDS parties): одна master-запись поверх всех
- * упоминаний, роли в конкретных закупках — в `org_procurement_parties`.
+ * упоминаний, роли в конкретных закупках — в `prc_procurement_parties`.
  *
  * @use HasFactory<OrganizationFactory>
  */

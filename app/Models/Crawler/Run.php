@@ -21,7 +21,7 @@ final class Run extends Model
     /** @use HasFactory<RunFactory> */
     use HasFactory;
 
-    protected $table = 'crw_runs';
+    protected $table = 'prc_crawler_runs';
 
     protected $fillable = [
         'crawler_id',

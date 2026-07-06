@@ -21,8 +21,8 @@ use Illuminate\Support\Facades\Storage;
  * Скачивание версии файла документа: контент-адресация по `sha256`, дедуп в рамках документа
  * (`unique(document_id, content_hash)`) — совпал хэш → no-op (возврат существующей версии),
  * новый контент → новая версия + storage (immutable) + событие `document_added` (первая
- * версия документа) / `document_replaced` (последующая), `doc_documents.status=downloaded`.
- * Ошибка скачивания → error-блок `doc_documents`, не бросает исключение наружу (стадия
+ * версия документа) / `document_replaced` (последующая), `prc_documents.status=downloaded`.
+ * Ошибка скачивания → error-блок `prc_documents`, не бросает исключение наружу (стадия
  * продолжает обработку остальных документов).
  */
 final readonly class DocumentDownloader

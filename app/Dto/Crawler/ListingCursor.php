@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Dto\Crawler;
 
 /**
- * Курсор прогона листинга — сериализуется в/из `crw_runs.cursor` (jsonb). Иерархический:
+ * Курсор прогона листинга — сериализуется в/из `prc_crawler_runs.cursor` (jsonb). Иерархический:
  * `blockFrom` — общий (fresh/archive); `day`/`priceStack`/`dateField` — только archive
  * (ценовое дробление, `02-crawling.md` §4.2): `dateField` — агностичная метка, КАКОЕ
  * date-окно дренируется (`publish`|`update`, зеркалит `WindowFilter->dateField`), площадко-

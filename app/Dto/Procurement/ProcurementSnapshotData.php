@@ -48,7 +48,7 @@ final readonly class ProcurementSnapshotData
     /**
      * Нормализованный снапшот для `prc_revisions.snapshot`/`snapshot_hash` — все диффуемые поля
      * + резолвленный канонический статус (сырой статус сам по себе недостаточен для диффа, канон
-     * может измениться из-за правки `plt_status_mappings` без изменения source_status).
+     * может измениться из-за правки `prc_status_mappings` без изменения source_status).
      *
      * @return array<string, mixed>
      */

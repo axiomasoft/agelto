@@ -25,7 +25,7 @@ final class Analysis extends Model
     /** @use HasFactory<AnalysisFactory> */
     use HasFactory;
 
-    protected $table = 'ai_analyses';
+    protected $table = 'prc_ai_analyses';
 
     protected $fillable = [
         'uuid',

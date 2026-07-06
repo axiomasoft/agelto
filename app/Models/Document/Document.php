@@ -21,7 +21,7 @@ final class Document extends Model
     /** @use HasFactory<DocumentFactory> */
     use HasFactory;
 
-    protected $table = 'doc_documents';
+    protected $table = 'prc_documents';
 
     protected $fillable = [
         'uuid',

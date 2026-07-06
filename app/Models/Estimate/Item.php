@@ -21,7 +21,7 @@ final class Item extends Model
     /** @use HasFactory<ItemFactory> */
     use HasFactory;
 
-    protected $table = 'est_items';
+    protected $table = 'prc_estimate_items';
 
     protected $fillable = [
         'estimate_id',

@@ -11,7 +11,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 /**
- * Технический операционный журнал стадий/ошибок (партиция `sys_operation_logs`
+ * Технический операционный журнал стадий/ошибок (партиция `prc_operation_logs`
  * RANGE by `created_at`) — не доменная история, та в `prc_events`.
  *
  * @use HasFactory<OperationLogFactory>
@@ -23,7 +23,7 @@ final class OperationLog extends Model
 
     public const UPDATED_AT = null;
 
-    protected $table = 'sys_operation_logs';
+    protected $table = 'prc_operation_logs';
 
     public $incrementing = true;
 

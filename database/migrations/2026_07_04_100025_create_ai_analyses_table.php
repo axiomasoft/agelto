@@ -22,7 +22,7 @@ return new class extends Migration
 
             $table->text('step')->comment('screening/extraction');
             $table->text('status')->comment('pending→running→succeeded/failed/skipped');
-            $table->text('document_type')->nullable()->comment('code из plt_document_types, без строгого FK');
+            $table->text('document_type')->nullable()->comment('code из prc_document_types, без строгого FK');
 
             $table->jsonb('result')->nullable();
             $table->text('provider')->nullable();

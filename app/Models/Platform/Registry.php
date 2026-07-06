@@ -20,7 +20,7 @@ final class Registry extends Model
     /** @use HasFactory<RegistryFactory> */
     use HasFactory;
 
-    protected $table = 'plt_registries';
+    protected $table = 'prc_registries';
 
     protected $fillable = [
         'uuid',

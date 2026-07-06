@@ -41,7 +41,7 @@ return new class extends Migration
         // Partial unique index: только один running-прогон на crawler одновременно.
         DB::statement(
             'CREATE UNIQUE INDEX crw_runs_crawler_id_running_unique '
-            ."ON crw_runs (crawler_id) WHERE status = 'running'",
+            ."ON prc_crawler_runs (crawler_id) WHERE status = 'running'",
         );
     }
 

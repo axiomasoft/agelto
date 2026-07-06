@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Enums\Ai;
 
 /**
- * Назначение вызова LLM — общий словарь для `ai_llm_calls.purpose` и `ai_routes.purpose`.
+ * Назначение вызова LLM — общий словарь для `prc_ai_llm_calls.purpose` и `prc_ai_routes.purpose`.
  */
 enum LlmPurpose: string
 {

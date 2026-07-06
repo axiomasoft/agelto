@@ -10,7 +10,7 @@ use Illuminate\Support\Carbon;
 
 /**
  * Query-параметры CSV-экспорта ЕИС (`orderCsvSettings/download.html`) из профиля
- * обхода (`crw_crawlers.filter`/`options.columns`), блока листинга и реестра
+ * обхода (`prc_crawlers.filter`/`options.columns`), блока листинга и реестра
  * (`fz44`/`fz223`). ЕИС-специфика (имена флагов, сортировка) живёт только здесь.
  */
 final readonly class EisCsvUrlBuilder

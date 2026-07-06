@@ -22,7 +22,7 @@ final class ProcurementParty extends Model
     /** @use HasFactory<ProcurementPartyFactory> */
     use HasFactory;
 
-    protected $table = 'org_procurement_parties';
+    protected $table = 'prc_procurement_parties';
 
     protected $fillable = [
         'procurement_id',

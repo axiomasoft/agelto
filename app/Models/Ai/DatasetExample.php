@@ -22,7 +22,7 @@ final class DatasetExample extends Model
     /** @use HasFactory<DatasetExampleFactory> */
     use HasFactory;
 
-    protected $table = 'ai_dataset_examples';
+    protected $table = 'prc_ai_dataset_examples';
 
     protected $fillable = [
         'document_version_id',

@@ -8,7 +8,7 @@ use Illuminate\Support\Facades\DB;
 
 /**
  * Регистрирует 5 уже существующих партиционированных таблиц (`prc_events`,
- * `prc_revisions`, `ai_llm_calls`, `crw_fetches`, `sys_operation_logs`) в pg_partman
+ * `prc_revisions`, `prc_ai_llm_calls`, `prc_fetches`, `prc_operation_logs`) в pg_partman
  * для автоматического premake партиций на 3 месяца вперёд (см. `01-database.md` §0.4).
  *
  * `p_start_partition` намеренно указан НАЧИНАЯ СО СЛЕДУЮЩЕЙ партиции после уже

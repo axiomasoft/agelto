@@ -15,8 +15,8 @@ Schedule::command('partitions:maintain')->daily();
 
 // Schema-guard: этот файл выполняется на КАЖДЫЙ artisan-вызов (не только schedule:run),
 // в т.ч. до первой миграции (`migrate` на свежем окружении) — без гварда упал бы на
-// отсутствующей таблице `crw_crawlers`.
-if (Schema::hasTable('crw_crawlers')) {
+// отсутствующей таблице `prc_crawlers`.
+if (Schema::hasTable('prc_crawlers')) {
     foreach (Crawler::query()->where('mode', CrawlerMode::Fresh)->where('is_active', true)->get() as $crawler) {
         Schedule::command('crawler:run-fresh', [$crawler->id])->cron($crawler->schedule ?? '*/30 * * * *');
     }
@@ -27,7 +27,7 @@ if (Schema::hasTable('prc_procurements')) {
     Schedule::command('crawler:fetch-details')->everyFiveMinutes();
 }
 
-// Тот же schema-guard (см. выше) — sweep читает `crw_runs.stats->cap_hit`.
-if (Schema::hasTable('crw_runs')) {
+// Тот же schema-guard (см. выше) — sweep читает `prc_crawler_runs.stats->cap_hit`.
+if (Schema::hasTable('prc_crawler_runs')) {
     Schedule::command('crawler:rescan-backlog')->everyFifteenMinutes();
 }

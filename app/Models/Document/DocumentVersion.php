@@ -18,7 +18,7 @@ final class DocumentVersion extends Model
     /** @use HasFactory<DocumentVersionFactory> */
     use HasFactory;
 
-    protected $table = 'doc_versions';
+    protected $table = 'prc_document_versions';
 
     protected $fillable = [
         'document_id',

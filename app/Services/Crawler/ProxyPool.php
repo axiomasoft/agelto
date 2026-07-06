@@ -7,7 +7,7 @@ namespace App\Services\Crawler;
 use App\Models\Crawler\Proxy;
 
 /**
- * Выбор узла прокси-пула и учёт отказов. Креды живут только в `crw_proxies`
+ * Выбор узла прокси-пула и учёт отказов. Креды живут только в `prc_proxies`
  * (модель `Proxy`) — сюда не логируются и не кэшируются.
  */
 final readonly class ProxyPool

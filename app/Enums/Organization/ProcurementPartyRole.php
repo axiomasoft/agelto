@@ -7,7 +7,7 @@ namespace App\Enums\Organization;
 /**
  * Роль организации в закупке (OCDS parties-подход): одна организация может
  * встречаться в разных ролях в разных закупках, поэтому роль хранится в pivot
- * `org_procurement_parties`, а не отдельными FK-колонками на каждую роль.
+ * `prc_procurement_parties`, а не отдельными FK-колонками на каждую роль.
  */
 enum ProcurementPartyRole: string
 {

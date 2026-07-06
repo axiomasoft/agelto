@@ -22,7 +22,7 @@ final class AiRoute extends Model
     /** @use HasFactory<AiRouteFactory> */
     use HasFactory;
 
-    protected $table = 'ai_routes';
+    protected $table = 'prc_ai_routes';
 
     protected $fillable = [
         'document_type',

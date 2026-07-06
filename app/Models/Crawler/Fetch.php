@@ -11,7 +11,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 /**
- * Забор одного блока данных площадки (партиция `crw_fetches` RANGE by `fetched_at`).
+ * Забор одного блока данных площадки (партиция `prc_fetches` RANGE by `fetched_at`).
  *
  * @use HasFactory<FetchFactory>
  */
@@ -20,7 +20,7 @@ final class Fetch extends Model
     /** @use HasFactory<FetchFactory> */
     use HasFactory;
 
-    protected $table = 'crw_fetches';
+    protected $table = 'prc_fetches';
 
     public $incrementing = true;
 

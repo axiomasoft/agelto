@@ -12,7 +12,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 /**
- * Каждый вызов LLM (партиция `ai_llm_calls` RANGE by `called_at`).
+ * Каждый вызов LLM (партиция `prc_ai_llm_calls` RANGE by `called_at`).
  *
  * @use HasFactory<LlmCallFactory>
  */
@@ -21,7 +21,7 @@ final class LlmCall extends Model
     /** @use HasFactory<LlmCallFactory> */
     use HasFactory;
 
-    protected $table = 'ai_llm_calls';
+    protected $table = 'prc_ai_llm_calls';
 
     public $incrementing = true;
 

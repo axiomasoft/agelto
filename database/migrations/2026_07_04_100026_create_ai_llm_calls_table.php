@@ -11,7 +11,7 @@ return new class extends Migration
     public function up(): void
     {
         DB::statement(<<<'SQL'
-            CREATE TABLE ai_llm_calls (
+            CREATE TABLE prc_ai_llm_calls (
                 id bigint GENERATED ALWAYS AS IDENTITY,
                 analysis_id bigint NULL,
                 purpose text NOT NULL,
@@ -36,11 +36,11 @@ return new class extends Migration
             ) PARTITION BY RANGE (called_at)
             SQL);
 
-        DB::statement('CREATE INDEX ai_llm_calls_analysis_id_index ON ai_llm_calls (analysis_id)');
-        DB::statement('CREATE INDEX ai_llm_calls_purpose_called_at_index ON ai_llm_calls (purpose, called_at)');
+        DB::statement('CREATE INDEX ai_llm_calls_analysis_id_index ON prc_ai_llm_calls (analysis_id)');
+        DB::statement('CREATE INDEX ai_llm_calls_purpose_called_at_index ON prc_ai_llm_calls (purpose, called_at)');
         DB::statement(
-            'ALTER TABLE ai_llm_calls ADD CONSTRAINT ai_llm_calls_analysis_id_foreign '
-            .'FOREIGN KEY (analysis_id) REFERENCES ai_analyses (id)',
+            'ALTER TABLE prc_ai_llm_calls ADD CONSTRAINT ai_llm_calls_analysis_id_foreign '
+            .'FOREIGN KEY (analysis_id) REFERENCES prc_ai_analyses (id)',
         );
 
         $this->bootstrapPartitions();
@@ -48,7 +48,7 @@ return new class extends Migration
 
     public function down(): void
     {
-        DB::statement('DROP TABLE IF EXISTS ai_llm_calls CASCADE');
+        DB::statement('DROP TABLE IF EXISTS prc_ai_llm_calls CASCADE');
     }
 
     private function bootstrapPartitions(): void
@@ -58,10 +58,10 @@ return new class extends Migration
         for ($i = 0; $i < 3; $i++) {
             $from = $start->copy()->addMonthsNoOverflow($i);
             $to = $from->copy()->addMonthNoOverflow();
-            $partition = 'ai_llm_calls_'.$from->format('Y_m');
+            $partition = 'prc_ai_llm_calls_'.$from->format('Y_m');
 
             DB::statement(sprintf(
-                "CREATE TABLE IF NOT EXISTS %s PARTITION OF ai_llm_calls FOR VALUES FROM ('%s') TO ('%s')",
+                "CREATE TABLE IF NOT EXISTS %s PARTITION OF prc_ai_llm_calls FOR VALUES FROM ('%s') TO ('%s')",
                 $partition,
                 $from->toDateTimeString(),
                 $to->toDateTimeString(),

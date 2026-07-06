@@ -6,7 +6,7 @@ namespace App\Dto\Crawler;
 
 /**
  * Один блок листинга, как его вернул `SourceMethod::collectListing()` — сырые строки
- * (ассоциативы по заголовку CSV) + метаданные забора для `crw_fetches` и cap-детекта
+ * (ассоциативы по заголовку CSV) + метаданные забора для `prc_fetches` и cap-детекта
  * (`02-crawling.md` §3.3–§3.4). Нормализация в снапшот закупки — вне DTO (`ListingRowMapper`, P2.5).
  */
 final readonly class ListingBatch
