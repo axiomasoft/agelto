@@ -66,6 +66,7 @@ opencode.json
 *.bak
 .serena/
 AUDIT.md
+tmp/
 
 # Сборка vitepress — генерируемая статика, не храним в репозитории
 docs/.vitepress/dist/
