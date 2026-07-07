@@ -20,21 +20,21 @@
 
 ### 0.1 Таксономия префиксов (модуль = префикс)
 
-Изначально каждый под-домен (площадки, документы, сметы, ИИ, краулинг, система) имел свой префикс по ТИПУ данных (`plt_/doc_/est_/ai_/crw_/sys_`) — как в v1 (`plt_`). Ревизия 2026-07-06 (`plans/rustling-jingling-quiche.md`, разбор best practices DDD/модульного монолита + `nwidart/laravel-modules` issue #586/#648 + Perplexity-проверка) показала: префикс-по-типу — это ровно тот паттерн, который коллизирует при росте на новые bounded context'ы (второй, не закупочный модуль тоже естественно захочет `documents`). Правильный канон — префикс по модулю/bounded context, а не по типу сущности. Сейчас весь код (кроме shared-справочников) — один модуль «закупки», поэтому все таблицы этих под-доменов унифицированы под единый префикс **`prc_`**.
-
-Единый префикс `prc_` = «домен закупок». Слово после префикса добавляется, только если без него неоднозначно, к какой сущности ВНУТРИ домена относится таблица (`prc_estimate_items` — уточняет «позиции сметы», не позиции закупки; `prc_ai_analyses`, `prc_crawler_runs` — аналогично), а не когда оно просто повторяет сам факт «это про закупку» (`prc_lots`, а не `prc_procurement_lots`).
-
-Классификаторы и общий реестр организаций остаются отдельными shared-префиксами — они переиспользуются любым будущим модулем (документооборот, CRM), не принадлежат домену закупок содержательно, и коллизий не создают (это master-data, а не тип бизнес-сущности).
+Префикс таблицы = bounded context домена (как `plt_` в v1). Классификаторы и организации — общий shared-слой (`ref_`, `org_`), не принадлежат конкретному домену.
 
 | Префикс | Домен | Таблицы |
 |---|---|---|
+| `plt_` | Площадки и их справочники | platforms, registries, status_mappings, document_types, regions |
 | `ref_` | Классификаторы (shared) | okpd2, ktru, okved2, kbk |
-| `org_` | Организации (shared) | organizations |
-| `prc_` | Закупки: ядро, история, детальная карточка, площадки, документы, сметы, ИИ-анализ, краулинг, система | procurements, revisions, events, lots, items, financing, eis_details, protocols, bids, awards, clarifications, cancellations, search (витрина, §10), platforms, registries, status_mappings, document_types, regions, procurement_parties, documents, document_versions, estimates, estimate_sections, estimate_items, estimate_resources, estimate_totals, ai_analyses, ai_llm_calls, ai_providers, ai_routes, ai_prompts, ai_dataset_examples, ai_eval_runs, ai_eval_results, crawlers, crawler_runs, fetches, proxies, proxy_checks, ignore_rules, ignored_items, daily_stats, operation_logs |
+| `org_` | Организации и роли (shared) | organizations, procurement_parties |
+| `prc_` | Закупки: ядро, история, детальная карточка | procurements, revisions, events, lots, items, financing, eis_details, protocols, bids, awards, clarifications, cancellations, search (витрина, §10) |
+| `doc_` | Документы-вложения | documents, versions |
+| `ai_` | AI-анализ и LLM-конфиг | analyses, llm_calls, providers, routes, prompts, dataset_examples, eval_runs, eval_results |
+| `est_` | Распарсенные сметы | estimates, sections, items, resources, totals |
+| `crw_` | Краулинг | crawlers, runs, fetches, proxies, proxy_checks, ignore_rules, ignored_items, daily_stats |
+| `sys_` | Операционная инфраструктура | operation_logs |
 
-**Осознанный компромисс** (см. `docs-private/risk-register.md`): когда появится второй модуль, инфраструктурные таблицы текущего единого префикса (ИИ-пайплайн, краулинг, системные логи) могут понадобиться как переиспользуемые — тогда единый префикс придётся разбирать на отдельные Postgres-схемы по bounded context (`procurement.*`, `dms.*` и т.п.), а не расширять единым префиксом бесконечно. Полная карта переименования и русский глоссарий каждой таблицы — `plans/rustling-jingling-quiche.md` §A (пока план не удалён/не заархивирован).
-
-> **Примечание об именах ниже по документу:** таблица выше в §0.1 — источник истины по актуальным именам (после переименования 2026-07-06). Секции §1–§9 ниже писались ДО переименования и местами используют старые имена (`plt_*`, `doc_*`, `est_*`, `ai_*`, `crw_*`, `sys_*`) как исторический текст спецификации — код уже переименован, эти секции ещё не актуализированы построчно. При коллизии между §0.1 и телом документа ниже — верить §0.1 и фактическому коду в `app/Models/**`/`database/migrations/**`.
+Внутри префикса имя без повтора домена: `est_items`, а не `est_estimate_items`; `prc_lots`, а не `prc_procurement_lots`.
 
 ## 1. Справочники и классификаторы
 
@@ -116,7 +116,7 @@ Unique `(procurement_id, organization_id, role)`. Быстрый доступ к
 | bidding_starts_at, bidding_ends_at | timestamptz nullable | сроки подачи заявок |
 | summary_at | timestamptz nullable | дата подведения итогов |
 | detail_url | text nullable | карточка |
-| detail_fetched_at | timestamptz nullable | когда снят детальный слой (`crawling-pipeline.md` §5) |
+| detail_fetched_at | timestamptz nullable | когда снят детальный слой (`02` §5) |
 | detail_attempts, detail_last_error, detail_next_retry_at, detail_failed | int/text/timestamptz/bool | error-блок стадии детального слоя (v1-канон): ретрай снятия карточки по `detail_fetched_at IS NULL OR detail_next_retry_at <= now`, без реконструкции через логи |
 | source_guid | text nullable index | GUID извещения на площадке (223-ФЗ `noticeGuid` — обязателен для части вкладок карточки, см. `eis-card-recon.md` §10; для 44-ФЗ — `null`, там GUID не требуется) |
 | current_revision_id | bigint nullable | id последнего снапшота |
@@ -178,7 +178,7 @@ Unique `(procurement_id, organization_id, role)`. Быстрый доступ к
 
 ## 4. Детальная карточка: результаты, протоколы, процессуальные сущности
 
-Наполняются на стадии детального анализа карточки (`crawling-pipeline.md` §5) из вкладок `supplier-results`/`documents`/`event-journal`. Для 44-ФЗ типы закрыты (enum), для 223-ФЗ — open-ended + `payload jsonb` (структура по положению заказчика).
+Наполняются на стадии детального анализа карточки (`02` §5) из вкладок `supplier-results`/`documents`/`event-journal`. Для 44-ФЗ типы закрыты (enum), для 223-ФЗ — open-ended + `payload jsonb` (структура по положению заказчика).
 
 ### prc_protocols — протоколы процедуры
 `id, uuid, procurement_id FK index, type text (рассмотрение_первых/вторых_частей, проведение_аукциона, оценка, подведение_итогов, несостоявшаяся, обоснование_ед_поставщика, прочее_223), stage text nullable, source_number text nullable (№ протокола), signed_at, published_at, document_version_id FK doc_versions nullable (файл-источник), payload jsonb (комиссия, обоснования), created_at`.
@@ -205,11 +205,11 @@ Unique `(procurement_id, organization_id, role)`. Быстрый доступ к
 
 ## 6. AI-анализ
 
-> Сметы — в §6b; LLM-конфигурация — в §6c (детали `llm-providers.md`).
+> Сметы — в §6b; LLM-конфигурация — в §6c (детали `04`).
 
 ### ai_analyses — сессия анализа версии документа
 `id, uuid, document_version_id FK index, step text (screening/extraction) unique(document_version_id,step), status text (pending→running→succeeded/failed/skipped), document_type text nullable (code из plt_document_types), result jsonb nullable, provider text, model text, locked_by, locked_until (lease), + error-блок, started_at, finished_at`.
-Кэш и прогресс (перенос из v1 `plt_document_analysis`): `cache_id text nullable, cache_expires_at timestamptz nullable` (быстрая проверка валидности Gemini-кэша без похода в API), `rules_hash text nullable` (инвалидация кэша при смене версии промптов — если не совпал с текущим, кэш пересоздать), `progress jsonb nullable` (состояние многошаговой экстракции: сколько строк/страниц пройдено и что осталось — резюм прерванного разбора **без полного повтора**, см. `document-pipeline.md` §3.5).
+Кэш и прогресс (перенос из v1 `plt_document_analysis`): `cache_id text nullable, cache_expires_at timestamptz nullable` (быстрая проверка валидности Gemini-кэша без похода в API), `rules_hash text nullable` (инвалидация кэша при смене версии промптов — если не совпал с текущим, кэш пересоздать), `progress jsonb nullable` (состояние многошаговой экстракции: сколько строк/страниц пройдено и что осталось — резюм прерванного разбора **без полного повтора**, см. `03` §3.5).
 
 ### ai_llm_calls — каждый вызов LLM (партиции RANGE by called_at, месяц)
 `id PK (id, called_at); analysis_id bigint nullable index; purpose text (screening/extract_passport/extract_rows/extract_totals/eval/shadow — совпадает с ai_routes.purpose); provider, model; prompt_version_set jsonb; cache_id text nullable (Gemini cachedContent); request_ref, response_ref text (object storage); prompt_tokens, completion_tokens, cached_tokens, total_tokens int; cost_micros bigint nullable; success bool; error text nullable; duration_ms int; called_at timestamptz (partition key)`.
@@ -234,7 +234,7 @@ Unique `(procurement_id, organization_id, role)`. Быстрый доступ к
 ### 6c. LLM-конфигурация (детали — 04)
 
 - **ai_providers**: `id, code (gemini/local-vllm/…), driver, base_url nullable, options jsonb, is_active` (ключи — в env/secrets, в БД только имя секрета).
-- **ai_routes**: матрица — `document_type text, purpose text, provider_id FK, model text, options jsonb, priority int, is_active, shadow bool`; unique `(document_type, purpose, priority)`. `purpose` — из набора `ai_llm_calls.purpose`. `shadow=true` — теневой прогон (флаг, не значение purpose). `document_type` = `code` из `plt_document_types` **или зарезервированное `any`** (wildcard); **точное совпадение приоритетнее `any`** (сначала exact, потом any). Реализована таблицей+Filament, **не spatie-settings** — осознанное отклонение от буквы решения владельца («настройка в админке через spatie-settings»): spatie-settings хранит скалярные настройки, а матрица роутинга многострочная (тип×шаг → строка). Обе цели решения сохранены: *настраивается в админке без деплоя* (Filament-ресурс), а *скалярные* LLM-настройки (провайдер по умолчанию, троттлинг) остаются в spatie-settings (`admin-panel.md` §2.4).
+- **ai_routes**: матрица — `document_type text, purpose text, provider_id FK, model text, options jsonb, priority int, is_active, shadow bool`; unique `(document_type, purpose, priority)`. `purpose` — из набора `ai_llm_calls.purpose`. `shadow=true` — теневой прогон (флаг, не значение purpose). `document_type` = `code` из `plt_document_types` **или зарезервированное `any`** (wildcard); **точное совпадение приоритетнее `any`** (сначала exact, потом any). Реализована таблицей+Filament, **не spatie-settings** — осознанное отклонение от буквы решения владельца («настройка в админке через spatie-settings»): spatie-settings хранит скалярные настройки, а матрица роутинга многострочная (тип×шаг → строка). Обе цели решения сохранены: *настраивается в админке без деплоя* (Filament-ресурс), а *скалярные* LLM-настройки (провайдер по умолчанию, троттлинг) остаются в spatie-settings (`05` §2.4).
 - **ai_prompts**: `key, step, content, version, priority, is_active`, unique `(key, version)`; фиксация `prompt_version_set` в `ai_llm_calls`.
 - **ai_dataset_examples**: `id, document_version_id FK, task (screening/extraction), gold jsonb | gold_ref, source (llm/manual/corrected), verified_by, verified_at, version int`.
 - **ai_eval_runs**: `id, dataset_version, provider, model, prompt_version_set jsonb, metrics jsonb (precision/recall/F1, row_coverage), ci_status (pass/fail), started_at, finished_at`.
@@ -267,7 +267,7 @@ Unique `(procurement_id, organization_id, role)`. Быстрый доступ к
 
 ### sys_operation_logs — операционный журнал (аналог v1 sys_logs; партиции RANGE by created_at, месяц)
 Технический журнал стадий/ошибок (**не** доменная история — та в `prc_events`).
-`id PK (id, created_at); level text (debug/info/warning/error); stage, source text nullable; entity_type text nullable, entity_id bigint nullable (полиморфная привязка); message text; context jsonb nullable; trace text nullable; created_at timestamptz (partition key)`. Индекс `(entity_type, entity_id)`. Операторский аудит действий в админке — отдельно (spatie/activitylog, `admin-panel.md` §5).
+`id PK (id, created_at); level text (debug/info/warning/error); stage, source text nullable; entity_type text nullable, entity_id bigint nullable (полиморфная привязка); message text; context jsonb nullable; trace text nullable; created_at timestamptz (partition key)`. Индекс `(entity_type, entity_id)`. Операторский аудит действий в админке — отдельно (spatie/activitylog, `05` §5).
 
 ## 9. Хранилище (object storage, S3/MinIO)
 

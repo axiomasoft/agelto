@@ -1,6 +1,6 @@
 # ТЗ v2 · 04 — LLM-провайдеры и извлечение
 
-> Схема — `database.md` (§6 AI-анализ и LLM-конфиг). Пайплайн — `document-pipeline.md`. Обоснование выбора пакета — `research/tz-v2/llm-abstraction.md`.
+> Схема — `01-database.md` (§6 AI-анализ и LLM-конфиг). Пайплайн — `03-document-pipeline.md`. Обоснование выбора пакета — `research/tz-v2/llm-abstraction.md`.
 
 ## 1. Принципы
 
@@ -48,7 +48,7 @@ interface SupportsContextCaching
 ### 3.1 Роутинг (`ai_routes`)
 
 - Строка матрицы: `(document_type, purpose) → provider + model + options`, `priority`, `is_active`, `shadow`.
-- `purpose`: `screening`, `extract_passport`, `extract_rows`, `extract_totals`, `eval`, `shadow` (полный набор — `database.md` §6c, совпадает с `ai_llm_calls.purpose`).
+- `purpose`: `screening`, `extract_passport`, `extract_rows`, `extract_totals`, `eval`, `shadow` (полный набор — `01` §6c, совпадает с `ai_llm_calls.purpose`).
 - Пример стартовой матрицы:
   - `(any, screening)` → дешёвая быстрая модель (кандидат на локальную LLM в первую очередь).
   - `(estimate, extract_*)` → Gemini (context caching + vision для сканов).
@@ -63,7 +63,7 @@ interface SupportsContextCaching
 
 ## 4. Извлечение больших таблиц (оркестратор)
 
-Регламент разбора смет на сотни строк — многошаговый (детали пайплайна — `document-pipeline.md` §3.5), здесь — LLM-механика:
+Регламент разбора смет на сотни строк — многошаговый (детали пайплайна — `03` §3.5), здесь — LLM-механика:
 
 1. Системная часть (промпты + схема + документ) → создать context cache, TTL под длительность разбора.
 2. Позиции — построчными диапазонами (`extract_rows`), каждый вызов с `cachedContentName`, строгой JSON-схемой, `temperature=0`, явными `row_index`.
@@ -80,7 +80,7 @@ interface SupportsContextCaching
 ## 6. Учёт стоимости
 
 - Каждый вызов → `ai_llm_calls`: `prompt_tokens`, `completion_tokens`, `cached_tokens`, `total_tokens`, `cost_micros`, `duration_ms`, ссылки на request/response в object storage.
-- Партиционирование `ai_llm_calls` по месяцу (database.md §6) — аналитика расхода по провайдеру/модели/цели, дэшборд в админке (`admin-panel.md`).
+- Партиционирование `ai_llm_calls` по месяцу (01-database §6) — аналитика расхода по провайдеру/модели/цели, дэшборд в админке (`05-admin-observability.md`).
 - Троттлинг вызовов (Redis) — защита от превышения лимитов провайдера; конфигурируемо, отключаемо в тестах.
 
 ## 7. Локальная LLM (задел)
@@ -91,8 +91,8 @@ interface SupportsContextCaching
 
 ## 8. Открытые вопросы / риски
 
-- **Лимит explicit-кэша Gemini — 10 МБ** на кэшируемый blob/текст (официальный лимит). Крупные документы (конвертированные Excel→PDF сметы на сотни строк, сканы для vision-ветки, `document-pipeline.md` §3.3) могут превышать порог → создание `cachedContent` невозможно, деградация тихая. **Fallback**: при превышении порога — идти без explicit-кэша (полагаясь на implicit caching), для сканов — даунскейл/сжатие до порога; оркестратор (§4) обязан ловить ошибку создания кэша и переключаться на путь без него, а не падать. Порог проверять до создания кэша.
+- **Лимит explicit-кэша Gemini — 10 МБ** на кэшируемый blob/текст (официальный лимит). Крупные документы (конвертированные Excel→PDF сметы на сотни строк, сканы для vision-ветки, `03` §3.3) могут превышать порог → создание `cachedContent` невозможно, деградация тихая. **Fallback**: при превышении порога — идти без explicit-кэша (полагаясь на implicit caching), для сканов — даунскейл/сжатие до порога; оркестратор (§4) обязан ловить ошибку создания кэша и переключаться на путь без него, а не падать. Порог проверять до создания кэша.
 - Точная поддержка `cachedContent` в `laravel/ai` — по вторичному источнику; при выборе этого пакета перепроверить по официальному changelog (Prism — подтверждено официально).
 - CRUD жизненного цикла кэшей и кэш в streaming — дописываем сами поверх Prism.
 - Нагрузочное поведение (retry/backoff/rate-limit провайдера на объёме) — PoC до фиксации.
-- Размер row-range и пороги валидации — калибровка на реальных сметах (см. `document-pipeline.md` §7).
+- Размер row-range и пороги валидации — калибровка на реальных сметах (см. `03` §7).
