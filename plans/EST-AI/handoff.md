@@ -1,7 +1,7 @@
 # HANDOFF — 2026-07-07 — after P0.0
 
 **Next:** /task:plan-exec EST-AI P1.1
-**Done:** план создан и прошёл ПЯТЬ итераций владельца + два adversarial-ревью (research/K, research/L): 12 фаз, 40 items; разведки A–L в plans/EST-AI/research/ (Old/-процессы/промты/поля, состояние v2, Gemini-2026, аудит схемы БД, транспорт/обучение локальной LLM, структура доков + SOVA-референс, колоночный диф v1-БД, infra-практики, ревью плана K — 24 находки, pre-exec аудит L с внешней верификацией perplexity-web — 20 находок/4 HIGH, все вшиты); 36 решений в plan.md §5. Routing-отклонение: P12 — только opus/Fable. Закрытых items нет.
+**Done:** план создан и прошёл ШЕСТЬ проектных итераций + три adversarial-ревью (research/K, research/L, plan-audit `## Audit P4/P5/P6/P7`): 12 фаз, 40 items; разведки A–L в plans/EST-AI/research/ (Old/-процессы/промты/поля, состояние v2, Gemini-2026, аудит схемы БД, транспорт/обучение локальной LLM, структура доков + SOVA-референс, колоночный диф v1-БД, infra-практики, ревью плана K — 24 находки, pre-exec аудит L с внешней верификацией perplexity-web — 20 находок/4 HIGH); 41 решение в plan.md §5. Аудит 5-й итерации (6 находок межфазных швов) ЗАКРЫТ 6-й итерацией — D37 (discovery-enum'ы), D38 (Unprocessable-enum в P4.2), D39 (ShouldBeUniqueUntilProcessing), D40 (ChunkSource владеет P6.1), D41 (prc_revisions вне retention); резолюции — в `## Audit P*`-блоках. Routing-отклонение: P12 — только opus/Fable. Закрытых items нет.
 **Remaining:** все фазы P1–P12; закрытых items нет.
 **Sources of truth:** plans/EST-AI/plan.md · plans/EST-AI/phases/P1.md · docs/specs/v2/{01-database,03-document-pipeline,04-llm-providers,06-roadmap}.md · plans/EST-AI/research/*.md (особенно L — лимиты провайдера/EOL/lifecycle)
 **Open risks:**
