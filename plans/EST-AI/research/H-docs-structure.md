@@ -11,7 +11,7 @@
 
 ## КАНОНИЧЕСКИЙ КАРКАС docs/ (SSOT для P10; решение D19)
 
-Верхний уровень — нумерованные категории Brain-канона (vault ждёт `docs/01_Business/_index` и т.д. — см. plans/rustling-jingling-quiche.md §4; имена файлов 02_Workflow/03_Dev — те, на которые УЖЕ ссылается CLAUDE.md reference table). Внутрь вложен audience-first research-скелет. `docs/` зеркалится в Obsidian-vault, `docs-private/` — нет.
+Верхний уровень — нумерованные категории Brain-канона (vault ждёт `docs/01_Business/_index` и т.д. — см. plans/rustling-jingling-quiche.md, раздел Context п.4; имена файлов 02_Workflow/03_Dev — те, на которые УЖЕ ссылается CLAUDE.md reference table). Судьба docs/specs/v2 — D23 plan.md: живёт до конца EST-AI, роспуск отложен. Внутрь вложен audience-first research-скелет. `docs/` зеркалится в Obsidian-vault, `docs-private/` — нет.
 
 ```
 docs/
