@@ -23,12 +23,12 @@ skills:
   - database
   - code-style-spatie
   - named-arguments
-model: inherit
+model: sonnet
 color: green
 ---
 <!-- swissknifeman:generated
 Generated-by: harness agent-packs
-Pack: backend-laravel@0.11.2
+Pack: backend-laravel@0.13.0
 Template: agents/slice-builder.md
 Edit-policy: generated-core — НЕ редактируй; расширяй через extension-point
 Extension-points: .claude/rules/agelto-reviewer-overrides.md
