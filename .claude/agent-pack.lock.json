@@ -2,11 +2,11 @@
   "schema": 1,
   "packs": {
     "backend-laravel": {
-      "version": "0.11.2",
+      "version": "0.13.0",
       "source": "harness:configs/claude-code/agent-packs/backend-laravel",
       "answers": {
         "PACK_PREFIX": "agelto",
-        "PROJECT_DIR": "/home/vostrikov/projects/agelto/agelto",
+        "PROJECT_SUBDIR": "",
         "PHP_RUNNER": "docker compose exec app php",
         "TEST_FRAMEWORK": "pest",
         "TEST_RUNNER_CMD": "docker compose exec app php artisan test",
@@ -17,10 +17,10 @@
         "ACCESS_ROOT": "app",
         "SCAFFOLDS_SCHEMA": false,
         "DOCS_DIR": "docs/dev",
-        "MODEL_REVIEWER": "inherit",
-        "MODEL_SLICE_BUILDER": "inherit",
-        "MODEL_TEST_WRITER": "inherit",
-        "MODEL_SPEC_WRITER": "inherit",
+        "MODEL_REVIEWER": "opus",
+        "MODEL_SLICE_BUILDER": "sonnet",
+        "MODEL_TEST_WRITER": "sonnet",
+        "MODEL_SPEC_WRITER": "opus",
         "MODEL_RECON": "haiku",
         "GATE_COVERAGE_MIN": "80",
         "GATE_MAX_CRITICAL": "0",
@@ -31,97 +31,109 @@
           "src": "agents/slice-builder.md",
           "target": ".claude/agents/agelto-slice-builder.md",
           "kind": "template",
-          "base_sha256": "d91541c752ff901ec9bdd7e8c3d1a3a321586b1759279257af422b9e5a9355bf",
+          "base_sha256": "726382a4bf29acc1b6305bbbc12d6ce18b16437bdcec3b9b829d562dbaf208bd",
           "local_modified": false,
-          "user_owned": false
+          "user_owned": false,
+          "preserve_frontmatter": false
         },
         {
           "src": "agents/test-writer.md",
           "target": ".claude/agents/agelto-test-writer.md",
           "kind": "template",
-          "base_sha256": "f91afdc47faec2e229f0b5749cd0629113e727d21505f793cfe3b6eb34f3349d",
+          "base_sha256": "3c28283e4f23cea3ec6721fd434ddb55d49dd258c25b2c2da833ea152140d370",
           "local_modified": false,
-          "user_owned": false
+          "user_owned": false,
+          "preserve_frontmatter": false
         },
         {
           "src": "agents/reviewer.md",
           "target": ".claude/agents/agelto-reviewer.md",
           "kind": "template",
-          "base_sha256": "2c08fd8045f606c6210a0072cf9240e4321a8f700262b5c673e450f365e8b111",
+          "base_sha256": "9b54e24b38b3ca794b3f9419d0ac10a33d49c9575a2b4f9f50c4052e557177e1",
           "local_modified": false,
-          "user_owned": false
+          "user_owned": false,
+          "preserve_frontmatter": false
         },
         {
           "src": "agents/spec-writer.md",
           "target": ".claude/agents/agelto-spec-writer.md",
           "kind": "template",
-          "base_sha256": "f6e4579f448564ed825b4b9095d2ccb1d35616b8b95fde93f5d0f211b4282bc2",
+          "base_sha256": "d486dca82217c3eb69e09156bec61f4b15269690de40de3cd90dc8c1307bef1b",
           "local_modified": false,
-          "user_owned": false
+          "user_owned": false,
+          "preserve_frontmatter": false
         },
         {
           "src": "agents/route-mapper.md",
           "target": ".claude/agents/agelto-route-mapper.md",
           "kind": "template",
-          "base_sha256": "35fd072d3762694fa20f0198184b84f21db97e1bfa547ce696d5df3e4b29ec9a",
+          "base_sha256": "e110b054663c22da18f8fdf15504c957cff895a12d228cb9631940c4b4547928",
           "local_modified": false,
-          "user_owned": false
+          "user_owned": false,
+          "preserve_frontmatter": false
         },
         {
           "src": "agents/db-impact.md",
           "target": ".claude/agents/agelto-db-impact.md",
           "kind": "template",
-          "base_sha256": "66d8e93ecbd97c805826d91ea2329097d823ba98abbba6a37fe9d89987e61822",
+          "base_sha256": "c6708b543f5a1c5e8a70ced72f6633f7bf1b2f2b76e576388391fdbcc15e79d4",
           "local_modified": false,
-          "user_owned": false
+          "user_owned": false,
+          "preserve_frontmatter": false
         },
         {
           "src": "agents/blade-review.md",
           "target": ".claude/agents/agelto-blade-review.md",
           "kind": "template",
-          "base_sha256": "92ada490920d5fec5df63408c0a40deb48968fc58869282de96c3bdf2d52e739",
+          "base_sha256": "4a15d7464698ee846af27897d5eb45002f1cee298c0c6eb654ab9f77a1907058",
           "local_modified": false,
-          "user_owned": false
+          "user_owned": false,
+          "preserve_frontmatter": false
         },
         {
           "src": "agents/test-verifier.md",
           "target": ".claude/agents/agelto-test-verifier.md",
           "kind": "template",
-          "base_sha256": "2ae28dd6283bde804077fcf2854a806f1d7a22aff786a5dcb4662b891b0b6262",
+          "base_sha256": "7b62f65b1ed9ce7f4a86419d76a486b1cfa6282e314ea7ae32f2c07d398ff4b3",
           "local_modified": false,
-          "user_owned": false
+          "user_owned": false,
+          "preserve_frontmatter": false
         },
         {
           "src": "agents/security-review.md",
           "target": ".claude/agents/agelto-security-review.md",
           "kind": "template",
-          "base_sha256": "9cfa9d33596dc6e051e0b3cc6d120812e30802d5f5efc9abbda48cc1c7eace10",
+          "base_sha256": "e7ff0726deba7ccdad1a47cb6eb8aacf56614f20618b26f51398d9cc7a7a880a",
           "local_modified": false,
-          "user_owned": false
+          "user_owned": false,
+          "preserve_frontmatter": false
         },
         {
           "src": "workflows/dev-loop.js",
           "target": ".claude/workflows/agelto-dev-loop.js",
           "kind": "template",
-          "base_sha256": "270e7434011c66b98744e6b1d44c1b5ead317ca21f0edc17b4ea5c711b98f84f",
+          "base_sha256": "d604fbc5eb7e04b886259789ec3ed3005ae9e4ea6f3f519ad36f69547d971649",
           "local_modified": false,
-          "user_owned": false
+          "user_owned": false,
+          "preserve_frontmatter": false
         },
         {
           "src": "hooks/review-gate.sh",
           "target": ".claude/hooks/review-gate.sh",
           "kind": "verbatim",
-          "base_sha256": "7ce12046993671deb744e8461bc876de47a5d28c984ee95a4e91c52bcf39552f",
+          "base_sha256": "8623cf889beb53be579080ee4cbadb1e029cc60f635176fd651375a12969f742",
           "local_modified": false,
-          "user_owned": false
+          "user_owned": false,
+          "preserve_frontmatter": false
         },
         {
           "src": "hooks/review-gate.env.ini",
           "target": ".claude/review-gate.env.ini",
           "kind": "template",
-          "base_sha256": "b55253d194fa0dcd18e5d7694cbf4e21744cb87675c8cd83ee479827675a73f3",
-          "local_modified": true,
-          "user_owned": true
+          "base_sha256": "256975d9431a6dc2013b3bee4e396dca6f00a65029a61cb23afc850041492877",
+          "local_modified": false,
+          "user_owned": true,
+          "preserve_frontmatter": false
         },
         {
           "src": "settings/settings.fragment.json",
@@ -135,41 +147,73 @@
           "src": "docs/subagents-and-workflows.md",
           "target": "docs/dev/subagents-and-workflows.md",
           "kind": "template",
-          "base_sha256": "f5a2d26b9b57275d68099b2048a099710d27620d81a1afff34cf713048460041",
+          "base_sha256": "4eeb9d14378d18839909d9de94911784ab149e62c4177022db0b227d00ce5425",
           "local_modified": false,
-          "user_owned": false
+          "user_owned": false,
+          "preserve_frontmatter": true
         },
         {
           "src": "rules/api-controllers.md",
           "target": ".claude/rules/api-controllers.md",
           "kind": "verbatim",
-          "base_sha256": "d4e01f16b56cc2732016ea0cd0ef9262520572fbaa04a2fe53e7ce80bc754e94",
+          "base_sha256": "ef757ff5ba045c0d025e28e17fa9d8c38e91dff1b4ebe0f9f19a8d9bf2031fde",
           "local_modified": false,
-          "user_owned": false
+          "user_owned": false,
+          "preserve_frontmatter": false
         },
         {
           "src": "rules/migrations.md",
           "target": ".claude/rules/migrations.md",
           "kind": "verbatim",
-          "base_sha256": "c2be9e5dad572939638febc790902f6978cbd5f12a7e0ee91283eaaf6ee17182",
+          "base_sha256": "e5c4411b21e58a99303952d3e110a98fbc828aad786d5af49b9d693272369e33",
           "local_modified": false,
-          "user_owned": false
+          "user_owned": false,
+          "preserve_frontmatter": false
         },
         {
           "src": "rules/tests.md",
           "target": ".claude/rules/tests.md",
           "kind": "template",
-          "base_sha256": "d534a790c6612a74e874de783ea0d9d8f72cd5b191a9bbdb11b6ef3464124f82",
+          "base_sha256": "ae8046e78130112422bf2a15bc1186f10afe1593a9fde4d9487e311406d16657",
           "local_modified": false,
-          "user_owned": false
+          "user_owned": false,
+          "preserve_frontmatter": false
         },
         {
           "src": "rules/reviewer-overrides.md",
           "target": ".claude/rules/agelto-reviewer-overrides.md",
           "kind": "template",
-          "base_sha256": "f6f5757c147422a7f92545e6600e27f2f14be6117373d723800aad97a26ebe61",
+          "base_sha256": "83e4a71a15be32d3e9d26fbf4b679ca960f34d651f50845af3390adf20e0dceb",
           "local_modified": false,
-          "user_owned": true
+          "user_owned": true,
+          "preserve_frontmatter": false
+        },
+        {
+          "src": "commands/code-review.md",
+          "target": ".claude/commands/code-review.md",
+          "kind": "template",
+          "base_sha256": "41d0f81bcc38105393832edf418b0e3a53bea52c319f7c6204377ba563141a47",
+          "local_modified": false,
+          "user_owned": false,
+          "preserve_frontmatter": false
+        },
+        {
+          "src": "commands/test-gen.md",
+          "target": ".claude/commands/test-gen.md",
+          "kind": "template",
+          "base_sha256": "696fe446cbe7244ab3859dc983a5bdd1b80e6c19e4548b419051dbecb4abb3ce",
+          "local_modified": false,
+          "user_owned": false,
+          "preserve_frontmatter": false
+        },
+        {
+          "src": "commands/security-check.md",
+          "target": ".claude/commands/security-check.md",
+          "kind": "template",
+          "base_sha256": "adde4933d1f488da91a49176d6870d1b1f5aabf33252e25d7a6f2408ab0acd8b",
+          "local_modified": false,
+          "user_owned": false,
+          "preserve_frontmatter": false
         }
       ],
       "removed_optional": []

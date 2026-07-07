@@ -9,6 +9,9 @@ paths:
   - "app/Repositories/Procurement/**"
   - "database/migrations/**"
 ---
+<!-- swissknifeman: перенесено из .ai/guidelines/project-development.md при чистке CLAUDE.md
+(skill context-economy, тест факт-vs-процедура) — проектный файл, swissknifeman им не управляет
+и не перезаписывает, правь свободно. -->
 
 # Procurement Pipeline — dev-раннбук
 

@@ -14,7 +14,7 @@ color: cyan
 ---
 <!-- swissknifeman:generated
 Generated-by: harness agent-packs
-Pack: backend-laravel@0.11.2
+Pack: backend-laravel@0.13.0
 Template: agents/test-verifier.md
 Edit-policy: generated-core — НЕ редактируй; расширяй через extension-point
 Extension-points: .claude/rules/agelto-reviewer-overrides.md
