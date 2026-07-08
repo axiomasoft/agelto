@@ -1,0 +1,223 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Services\Procurement\Extraction;
+
+use App\Dto\Procurement\Ai\Estimate\EstimateRow;
+use App\Dto\Procurement\Ai\Estimate\EstimateTotalsBlock;
+use App\Dto\Procurement\Ai\Estimate\TotalLine;
+use App\Enums\Procurement\EstimateValidationStatus;
+use App\Enums\Procurement\RowType;
+
+/**
+ * Детерминированная (без LLM) арифметическая/структурная валидация извлечённой сметы
+ * (`docs/specs/v2/08-estimate-extraction.md` §4.1 п.6, §6 — валидационный промт v1 переносится
+ * как проверка в коде, дешевле и надёжнее LLM-вызова, research/E §5 «арифметика — основной
+ * сигнал качества»). Чистая функция над DTO (Implementation Rules P6.2) — работает на выходе
+ * `EstimateStitcher` (дедуплицированные, отсортированные строки), decimal-сравнение — bcmath
+ * (Implementation Rules P6.2: конверсия во float запрещена во всём контракте P2.2).
+ *
+ * НЕ выбрасывает строки при аномалиях (Code Guidance P6.2: «validation_status=invalid не
+ * выбрасывает строки — сохраняем всё, помечаем») — только классифицирует и перечисляет row_index
+ * вовлечённых аномалий (кандидаты `RerunRangeAction`, P6.3).
+ */
+final readonly class EstimateValidator
+{
+    private const string TOLERANCE = '0.01';
+
+    private const int SCALE = 2;
+
+    /**
+     * Порог доли расхождения rows_expected/фактически извлечено, после которого неполнота
+     * считается СЕРЬЁЗНОЙ (invalid), а не просто подозрительной — калибровка на реальных сметах
+     * отложена (P6.3/P7.4 Pending Work, тот же класс решений, что row_range_size/checkpoint_*).
+     */
+    private const float SEVERE_COMPLETENESS_RATIO = 0.1;
+
+    /**
+     * @param  list<EstimateRow>  $rows  выход `EstimateStitcher::stitch()->rows` (уже
+     *                                   дедуплицированы, отсортированы по row_index)
+     */
+    public function validate(int $rowsExpected, array $rows, ?EstimateTotalsBlock $totals): ValidationReport
+    {
+        usort($rows, static fn (EstimateRow $a, EstimateRow $b): int => $a->row_index <=> $b->row_index);
+
+        $anomalousRowIndexes = [];
+        $notes = [];
+        $severe = false;
+
+        $this->checkMonotonicity($rows, $anomalousRowIndexes, $notes);
+        $severe = $this->checkCompleteness($rowsExpected, $rows, $notes) || $severe;
+        $this->checkSectionArithmetic($rows, $anomalousRowIndexes, $notes);
+        $this->checkGrandTotal($rows, $totals, $notes);
+
+        $status = match (true) {
+            $severe => EstimateValidationStatus::Invalid,
+            $notes !== [] => EstimateValidationStatus::Suspicious,
+            default => EstimateValidationStatus::Valid,
+        };
+
+        return new ValidationReport(
+            status: $status,
+            anomalousRowIndexes: array_values(array_unique($anomalousRowIndexes)),
+            notes: $notes,
+        );
+    }
+
+    /**
+     * @param  list<EstimateRow>  $rows
+     * @param  list<int>  $anomalousRowIndexes
+     * @param  list<string>  $notes
+     */
+    private function checkMonotonicity(array $rows, array &$anomalousRowIndexes, array &$notes): void
+    {
+        $previousIndex = null;
+        $seen = [];
+
+        foreach ($rows as $row) {
+            if (isset($seen[$row->row_index])) {
+                $anomalousRowIndexes[] = $row->row_index;
+                $notes[] = "дубль row_index={$row->row_index} после стичинга (не должен встречаться, defensive-проверка)";
+
+                continue;
+            }
+
+            $seen[$row->row_index] = true;
+
+            if ($previousIndex !== null && $row->row_index > $previousIndex + 1) {
+                $anomalousRowIndexes[] = $row->row_index;
+                $notes[] = "разрыв нумерации: row_index {$previousIndex} → {$row->row_index}";
+            }
+
+            $previousIndex = $row->row_index;
+        }
+    }
+
+    /**
+     * @param  list<EstimateRow>  $rows
+     * @param  list<string>  $notes
+     * @return bool true — расхождение серьёзное (invalid-кандидат)
+     */
+    private function checkCompleteness(int $rowsExpected, array $rows, array &$notes): bool
+    {
+        if ($rowsExpected <= 0) {
+            // Оконный путь (§4а): rows_expected из паспорта части документа не гарантированно
+            // точен — не строгий гейт, проверка пропускается (Implementation Rules спеки 08 §4а).
+            return false;
+        }
+
+        $extracted = count(array_filter($rows, static fn (EstimateRow $row): bool => $row->row_type === RowType::Item));
+        $diff = abs($extracted - $rowsExpected);
+
+        if ($diff === 0) {
+            return false;
+        }
+
+        $ratio = $diff / $rowsExpected;
+        $notes[] = "полнота: rows_expected={$rowsExpected}, извлечено позиций={$extracted} (расхождение {$diff})";
+
+        return $ratio > self::SEVERE_COMPLETENESS_RATIO;
+    }
+
+    /**
+     * Сумма total_price позиций (row_type=Item) внутри раздела/подраздела сверяется со строкой
+     * row_type=Subtotal того же раздела (±0.01, bcmath) — накопитель сбрасывается на каждом
+     * SectionHeader/SubsectionHeader/Subtotal (граница раздела).
+     *
+     * @param  list<EstimateRow>  $rows
+     * @param  list<int>  $anomalousRowIndexes
+     * @param  list<string>  $notes
+     */
+    private function checkSectionArithmetic(array $rows, array &$anomalousRowIndexes, array &$notes): void
+    {
+        $accumulated = '0';
+        $itemIndexesInSection = [];
+
+        foreach ($rows as $row) {
+            if (in_array($row->row_type, [RowType::SectionHeader, RowType::SubsectionHeader], strict: true)) {
+                $accumulated = '0';
+                $itemIndexesInSection = [];
+
+                continue;
+            }
+
+            if ($row->row_type === RowType::Item) {
+                $accumulated = bcadd($accumulated, $row->total_price ?? '0', self::SCALE);
+                $itemIndexesInSection[] = $row->row_index;
+
+                continue;
+            }
+
+            // row_type === Subtotal
+            if ($row->total_price === null) {
+                continue;
+            }
+
+            if (! $this->withinTolerance($accumulated, $row->total_price)) {
+                $anomalousRowIndexes = [...$anomalousRowIndexes, ...$itemIndexesInSection, $row->row_index];
+                $notes[] = "арифметика раздела: сумма позиций {$accumulated} ≠ subtotal {$row->total_price} (row_index={$row->row_index})";
+            }
+
+            $accumulated = '0';
+            $itemIndexesInSection = [];
+        }
+    }
+
+    /**
+     * Best-effort сверка суммы ВСЕХ позиций с корневой итоговой строкой footer'а (поиск по
+     * `kind`/`label`, содержащему «итого»/«всего» — точная таксономия `kind` не зафиксирована
+     * спекой на момент P6.2, Known Deviation: мягкий сигнал, не влияет на invalid-статус).
+     *
+     * @param  list<EstimateRow>  $rows
+     * @param  list<string>  $notes
+     */
+    private function checkGrandTotal(array $rows, ?EstimateTotalsBlock $totals, array &$notes): void
+    {
+        if ($totals === null) {
+            return;
+        }
+
+        $grandTotalLine = $this->findGrandTotalLine($totals->footer);
+
+        if ($grandTotalLine === null) {
+            return;
+        }
+
+        $sum = '0';
+
+        foreach ($rows as $row) {
+            if ($row->row_type === RowType::Item) {
+                $sum = bcadd($sum, $row->total_price ?? '0', self::SCALE);
+            }
+        }
+
+        if (! $this->withinTolerance($sum, $grandTotalLine->value)) {
+            $notes[] = "итог: сумма позиций {$sum} ≠ «{$grandTotalLine->label}» {$grandTotalLine->value} (best-effort сверка)";
+        }
+    }
+
+    /**
+     * @param  list<TotalLine>  $footer
+     */
+    private function findGrandTotalLine(array $footer): ?TotalLine
+    {
+        foreach ($footer as $line) {
+            $label = mb_strtolower($line->label);
+
+            if ($line->kind === 'total' || str_contains($label, 'итого') || str_contains($label, 'всего')) {
+                return $line;
+            }
+        }
+
+        return null;
+    }
+
+    private function withinTolerance(string $a, string $b): bool
+    {
+        $diff = bcsub($a, $b, self::SCALE);
+        $abs = bccomp($diff, '0', self::SCALE) < 0 ? bcmul($diff, '-1', self::SCALE) : $diff;
+
+        return bccomp($abs, self::TOLERANCE, self::SCALE) <= 0;
+    }
+}
