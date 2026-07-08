@@ -48,6 +48,8 @@ abstract class PipelineJob implements ShouldQueue
         } finally {
             $this->releaseLease();
         }
+
+        $this->afterRelease();
     }
 
     /**
@@ -85,4 +87,15 @@ abstract class PipelineJob implements ShouldQueue
      * в собственном `uniqueId()` при реализации `ShouldBeUnique`/`ShouldBeUniqueUntilProcessing`.
      */
     abstract public function pipelineUniqueId(): string;
+
+    /**
+     * Хук ПОСЛЕ успешного `releaseLease()` (не вызывается, если `process()` бросил исключение —
+     * тогда `handle()` пробрасывает его дальше сразу за `finally`). No-op по умолчанию.
+     * `EstimateExtractionJob` (P6.1, D39) переопределяет для self-dispatch продолжения
+     * checkpoint-requeue СТРОГО после снятия лиза (release-then-dispatch) — диспатч ДО release
+     * создавал гонку: конкурентный воркер, забравший продолжение раньше текущего запуска,
+     * проваливал `acquireLease()` (лиз ещё держит текущий запуск) и становился no-op без
+     * повторного диспатча, молча теряя прогресс.
+     */
+    protected function afterRelease(): void {}
 }

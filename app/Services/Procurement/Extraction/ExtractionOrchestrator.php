@@ -11,7 +11,6 @@ use App\Enums\Procurement\DocumentStatus;
 use App\Enums\Procurement\ExtractionRoute;
 use App\Enums\Procurement\LlmPurpose;
 use App\Enums\Procurement\UnprocessableReason;
-use App\Jobs\Procurement\EstimateExtractionJob;
 use App\Models\Procurement\Ai\Analysis;
 use App\Models\Procurement\Document\Document;
 use App\Models\Procurement\Document\DocumentVersion;
@@ -62,7 +61,13 @@ final readonly class ExtractionOrchestrator
         private EstimatePersister $persister,
     ) {}
 
-    public function run(Document $document, Analysis $analysis): void
+    /**
+     * @return bool true — checkpoint: прогресс персистирован, вызывающий job должен
+     *              self-dispatch-нуть продолжение ПОСЛЕ снятия лиза (release-then-dispatch,
+     *              `EstimateExtractionJob::afterRelease()`); false — прогон завершён терминально
+     *              (успех/unprocessable) либо не начинался (unreadable-формат).
+     */
+    public function run(Document $document, Analysis $analysis): bool
     {
         $this->analyses->update($analysis, [
             'status' => AnalysisStatus::Running,
@@ -75,7 +80,7 @@ final readonly class ExtractionOrchestrator
         if ($effective === null) {
             $this->markUnprocessable($document, $analysis, UnprocessableReason::UnreadableFormat, "формат «{$version->extension}» не поддержан извлечением");
 
-            return;
+            return false;
         }
 
         $disk = Storage::disk((string) config('crawler.documents_disk'));
@@ -100,7 +105,7 @@ final readonly class ExtractionOrchestrator
                     "лимит провайдера: {$decision->unprocessableReason->value}",
                 );
 
-                return;
+                return false;
             }
 
             if ($decision->route === ExtractionRoute::Windowed) {
@@ -110,7 +115,7 @@ final readonly class ExtractionOrchestrator
                 );
             }
 
-            $this->runWholeDocument($document, $analysis, $localPath, $effective, $route);
+            return $this->runWholeDocument($document, $analysis, $localPath, $effective, $route);
         } finally {
             @unlink($localPath);
         }
@@ -119,7 +124,7 @@ final readonly class ExtractionOrchestrator
     /**
      * @param  array{storagePath: string, extension: string, mime: string}  $effective
      */
-    private function runWholeDocument(Document $document, Analysis $analysis, string $localPath, array $effective, ResolvedRoute $route): void
+    private function runWholeDocument(Document $document, Analysis $analysis, string $localPath, array $effective, ResolvedRoute $route): bool
     {
         $session = $this->buildSession($analysis, $localPath, $effective['mime'], $route);
 
@@ -134,9 +139,9 @@ final readonly class ExtractionOrchestrator
 
         while (true) {
             if ($unitsThisRun > 0 && $this->checkpointDue($unitsThisRun, $runStartedAt, $checkpointRanges, $checkpointSeconds)) {
-                $this->checkpoint($document, $analysis, $session);
+                $this->checkpoint($analysis, $session);
 
-                return;
+                return true;
             }
 
             $progress = $session->progress;
@@ -175,6 +180,7 @@ final readonly class ExtractionOrchestrator
                     'row_range_size' => $rowRangeSize,
                     'rows' => [],
                     'incomplete_items' => [],
+                    'failed_ranges' => [],
                     'rows_done' => false,
                     'totals' => $passport->totals?->toArray(),
                     'totals_done' => $passport->totals !== null,
@@ -199,10 +205,24 @@ final readonly class ExtractionOrchestrator
                         $estimate['row_range_size'],
                     );
                 } catch (MaxTokensExceededException) {
-                    $estimates[$currentIndex]['row_range_size'] = max($minRowRangeSize, intdiv($estimate['row_range_size'], 2));
+                    $unitsThisRun++;
+
+                    if ($estimate['row_range_size'] <= $minRowRangeSize) {
+                        // Диапазон непроходим даже минимальным окном — помечаем failed и
+                        // сдвигаемся дальше вместо бесконечного повтора того же row_index
+                        // (Code Guidance P6.1: «LLM упал на диапазоне — остальные не теряются»).
+                        $estimates[$currentIndex]['failed_ranges'][] = [
+                            'row_index' => $estimate['next_row_index'],
+                            'row_range_size' => $estimate['row_range_size'],
+                        ];
+                        $estimates[$currentIndex]['next_row_index'] = $estimate['next_row_index'] + $estimate['row_range_size'];
+                        $estimates[$currentIndex]['row_range_size'] = $rowRangeSize;
+                    } else {
+                        $estimates[$currentIndex]['row_range_size'] = max($minRowRangeSize, intdiv($estimate['row_range_size'], 2));
+                    }
+
                     $progress['estimates'] = $estimates;
                     $session = $session->withProgress($progress);
-                    $unitsThisRun++;
 
                     continue;
                 }
@@ -248,6 +268,8 @@ final readonly class ExtractionOrchestrator
         }
 
         $this->finalizeSuccess($document, $analysis, $session);
+
+        return false;
     }
 
     private function checkpointDue(int $unitsThisRun, float $runStartedAt, int $checkpointRanges, int $checkpointSeconds): bool
@@ -276,12 +298,45 @@ final readonly class ExtractionOrchestrator
 
         $fileHandle = $this->resolveFileHandle($progress, $localPath, $mime, $route);
 
+        // Usage накапливается по всем self-requeue-запускам через `progress['usage']` (не
+        // сбрасывается на каждом прогоне) — иначе `analysis.result.meta.usage` в финале
+        // отражал бы только ПОСЛЕДНИЙ прогон, а не суммарные затраты анализа.
+        $usage = isset($progress['usage']) && is_array($progress['usage'])
+            ? $this->usageFromArray($progress['usage'])
+            : new LlmUsage(promptTokens: 0, completionTokens: 0, cachedTokens: 0, totalTokens: 0);
+
         return new ExtractionSession(
             fileHandle: $fileHandle,
             cacheHandle: null,
-            usage: new LlmUsage(promptTokens: 0, completionTokens: 0, cachedTokens: 0, totalTokens: 0),
+            usage: $usage,
             progress: $progress,
         );
+    }
+
+    /**
+     * @param  array{prompt_tokens: int, completion_tokens: int, cached_tokens: int, total_tokens: int}  $usage
+     */
+    private function usageFromArray(array $usage): LlmUsage
+    {
+        return new LlmUsage(
+            promptTokens: (int) $usage['prompt_tokens'],
+            completionTokens: (int) $usage['completion_tokens'],
+            cachedTokens: (int) $usage['cached_tokens'],
+            totalTokens: (int) $usage['total_tokens'],
+        );
+    }
+
+    /**
+     * @return array{prompt_tokens: int, completion_tokens: int, cached_tokens: int, total_tokens: int}
+     */
+    private function usageToArray(LlmUsage $usage): array
+    {
+        return [
+            'prompt_tokens' => $usage->promptTokens,
+            'completion_tokens' => $usage->completionTokens,
+            'cached_tokens' => $usage->cachedTokens,
+            'total_tokens' => $usage->totalTokens,
+        ];
     }
 
     /**
@@ -322,15 +377,22 @@ final readonly class ExtractionOrchestrator
         return $handle;
     }
 
-    private function checkpoint(Document $document, Analysis $analysis, ExtractionSession $session): void
+    /**
+     * Персистирует прогресс (вкл. суммарный usage) ОДНОЙ транзакцией; self-dispatch продолжения
+     * — задача вызывающего job'а (`EstimateExtractionJob::afterRelease()`), СТРОГО после
+     * снятия лиза (release-then-dispatch, D39, review-фикс P6.1) — здесь лиз ещё держит
+     * ТЕКУЩИЙ запуск, диспатч отсюда создавал бы гонку с конкурентным воркером продолжения.
+     */
+    private function checkpoint(Analysis $analysis, ExtractionSession $session): void
     {
-        DB::transaction(function () use ($analysis, $session): void {
+        $progress = $session->progress;
+        $progress['usage'] = $this->usageToArray($session->usage);
+
+        DB::transaction(function () use ($analysis, $progress): void {
             $this->analyses->update($analysis, [
-                'progress' => $session->progress,
+                'progress' => $progress,
             ]);
         });
-
-        EstimateExtractionJob::dispatch($document->id)->afterCommit();
     }
 
     private function finalizeSuccess(Document $document, Analysis $analysis, ExtractionSession $session): void

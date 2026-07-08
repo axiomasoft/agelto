@@ -19,16 +19,22 @@ use Throwable;
 /**
  * Стадия полного извлечения смет (ТЗ 03 §3.5, P6.1): `screened → extracted` на
  * `Ai\Analysis(step=extraction)`. Checkpoint-requeue (D31/D39) — цепочка коротких запусков:
- * `ShouldBeUniqueUntilProcessing` (НЕ `ShouldBeUnique`), т.к. `ExtractionOrchestrator` сам
- * ре-диспатчит этот job ВНУТРИ `process()` при превышении M диапазонов/T секунд — под обычным
- * `ShouldBeUnique` self-dispatch тихо дедуплицировался бы, пока текущий запуск ещё держит lock
- * (документ навсегда «в extraction», D39). Заменяет P5.2-заглушку (`Log::info`) целиком.
+ * `ShouldBeUniqueUntilProcessing` (НЕ `ShouldBeUnique`), т.к. этот job сам себя ре-диспатчит при
+ * превышении M диапазонов/T секунд (`ExtractionOrchestrator::run()` возвращает признак
+ * «нужно продолжение», `process()` его запоминает) — под обычным `ShouldBeUnique` self-dispatch
+ * тихо дедуплицировался бы, пока текущий запуск ещё держит lock (документ навсегда «в
+ * extraction», D39). Диспатч продолжения — `afterRelease()` (release-then-dispatch, review-фикс
+ * P6.1): СТРОГО после `releaseLease()`, не внутри `process()` — иначе конкурентный воркер,
+ * забравший продолжение раньше снятия лиза, проваливает `acquireLease()` и молча становится
+ * no-op. Заменяет P5.2-заглушку (`Log::info`) целиком.
  */
 final class EstimateExtractionJob extends PipelineJob implements ShouldBeUniqueUntilProcessing
 {
     private ?Document $documentCache = null;
 
     private ?Analysis $analysisCache = null;
+
+    private bool $needsContinuation = false;
 
     public function __construct(
         public readonly int $documentId,
@@ -96,7 +102,21 @@ final class EstimateExtractionJob extends PipelineJob implements ShouldBeUniqueU
 
     protected function process(): void
     {
-        app(ExtractionOrchestrator::class)->run($this->document(), $this->analysis());
+        $this->needsContinuation = app(ExtractionOrchestrator::class)->run($this->document(), $this->analysis());
+    }
+
+    /**
+     * Release-then-dispatch (D39, review-фикс): self-dispatch продолжения — СТРОГО после
+     * `releaseLease()` в `PipelineJob::handle()`, не внутри `process()`. Раньше диспатч уходил,
+     * пока текущий запуск ещё держал лиз `Analysis` — конкурентный воркер, забравший продолжение,
+     * успевал пройти `statusGuardPassed()`, проваливал `acquireLease()` и молча становился no-op
+     * (документ навсегда застревал в extraction).
+     */
+    protected function afterRelease(): void
+    {
+        if ($this->needsContinuation) {
+            self::dispatch($this->documentId)->afterCommit();
+        }
     }
 
     private function document(): Document
