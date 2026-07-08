@@ -6,12 +6,15 @@ namespace Tests\Support\Doubles;
 
 use App\Enums\Procurement\FinishReason;
 use App\Services\Llm\Contracts\LlmProvider;
+use App\Services\Llm\Contracts\SupportsFileUpload;
 use App\Services\Llm\Dto\JsonSchema;
+use App\Services\Llm\Dto\LlmFileHandle;
 use App\Services\Llm\Dto\LlmOptions;
 use App\Services\Llm\Dto\LlmPrompt;
 use App\Services\Llm\Dto\LlmResponse;
 use App\Services\Llm\Dto\LlmStructuredResponse;
 use App\Services\Llm\Dto\LlmUsage;
+use Carbon\CarbonImmutable;
 use RuntimeException;
 use Throwable;
 
@@ -20,11 +23,16 @@ use Throwable;
  * (успех/обрезание/исключение) + запись полученных промтов для ассертов. Состояния выдаются
  * через фабричные методы `succeeding()`/`truncated()`/`throwing()` (канон тестов проекта —
  * без boolean-флагов); `andThen()` докладывает следующий исход для сценариев re-ask (P3.4).
+ * Реализует `SupportsFileUpload` (P5.1 — orchestrator-тесты грузят файл перед классификацией)
+ * заглушкой без реального I/O — `uploadFile()` только фиксирует запрошенные пути/MIME.
  */
-final class FakeLlmProvider implements LlmProvider
+final class FakeLlmProvider implements LlmProvider, SupportsFileUpload
 {
     /** @var list<LlmPrompt> */
     private array $receivedPrompts = [];
+
+    /** @var list<array{path: string, mimeType: string}> */
+    private array $uploadedFiles = [];
 
     /**
      * @param  list<LlmResponse|LlmStructuredResponse|Throwable>  $queue
@@ -81,12 +89,27 @@ final class FakeLlmProvider implements LlmProvider
         return $outcome;
     }
 
+    public function uploadFile(string $path, string $mimeType): LlmFileHandle
+    {
+        $this->uploadedFiles[] = ['path' => $path, 'mimeType' => $mimeType];
+
+        return new LlmFileHandle(uri: 'files/fake-'.md5($path), expiresAt: CarbonImmutable::now()->addHours(48));
+    }
+
     /**
      * @return list<LlmPrompt>
      */
     public function receivedPrompts(): array
     {
         return $this->receivedPrompts;
+    }
+
+    /**
+     * @return list<array{path: string, mimeType: string}>
+     */
+    public function uploadedFiles(): array
+    {
+        return $this->uploadedFiles;
     }
 
     private function dequeue(): LlmResponse|LlmStructuredResponse

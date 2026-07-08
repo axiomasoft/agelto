@@ -4,18 +4,32 @@ declare(strict_types=1);
 
 namespace App\Jobs\Procurement;
 
+use App\Enums\Procurement\AnalysisStatus;
+use App\Enums\Procurement\AnalysisStep;
+use App\Enums\Procurement\DocumentStatus;
+use App\Models\Procurement\Ai\Analysis;
+use App\Models\Procurement\Document\Document;
+use App\Repositories\Procurement\AnalysisStoreRepository;
+use App\Repositories\Procurement\DocumentStoreRepository;
+use App\Services\Procurement\Screening\ScreeningProcessor;
 use Illuminate\Contracts\Queue\ShouldBeUnique;
+use RuntimeException;
 use Throwable;
 
 /**
- * Заглушка стадии скрининга — полноценный `ScreeningProcessor` (создание `Ai\Analysis`,
- * резка первых страниц, LLM-вызов) реализует P5.1/P5.2 (ТЗ 03 §3.4). Диспатчится
- * `PrepareDocumentJob` по успеху подготовки за гейтом `config('ai.screening.enabled', false)`
- * (владелец цепочки стадий — P4.2); за флагом, выключенным по умолчанию, до P5 в бою
- * не исполняется.
+ * Стадия скрининга (ТЗ 03 §3.4, P5.1): `prepared → running → succeeded/skipped` на
+ * `Ai\Analysis(step=screening)` (lease/backoff — на самом `Analysis`, не на `Document`, т.к.
+ * несколько версий документа могут проходить независимый скрининг). Single-shot
+ * (`ShouldBeUnique`, D39 — короткий вызов, не checkpoint-requeue) — защита от двойного диспатча
+ * `PrepareDocumentJob`/retry-командой (P4.3). Ветвление по результату (`estimate` → dispatch
+ * извлечения, `unknown` → ignored) — P5.2, здесь НЕ переводится статус документа.
  */
 final class ScreeningJob extends PipelineJob implements ShouldBeUnique
 {
+    private ?Document $documentCache = null;
+
+    private ?Analysis $analysisCache = null;
+
     public function __construct(
         public readonly int $documentId,
     ) {
@@ -32,28 +46,82 @@ final class ScreeningJob extends PipelineJob implements ShouldBeUnique
         return "{$this->documentId}:screening";
     }
 
+    /**
+     * `Document::status` не меняется скринингом (branching — P5.2), поэтому guard, помимо
+     * `prepared`, обязан заглянуть в саму `Ai\Analysis`: `succeeded`/`skipped` — стадия уже
+     * доведена до терминала (успех или `unprocessable`), повторный диспатч (backlog-поллер,
+     * ручной ретрай) — no-op, не жжёт токены заново; `failed` — попытки исчерпаны
+     * (`failed_permanently`), тоже no-op. Продолжаем только если анализа ещё нет либо он
+     * `pending`/`running` (прерванная попытка).
+     */
     protected function statusGuardPassed(): bool
     {
-        return true;
+        if ($this->document()->status !== DocumentStatus::Prepared) {
+            return false;
+        }
+
+        $version = app(DocumentStoreRepository::class)->latestVersion($this->documentId);
+
+        if ($version === null) {
+            return false;
+        }
+
+        $existing = Analysis::query()
+            ->where('document_version_id', $version->id)
+            ->where('step', AnalysisStep::Screening)
+            ->first();
+
+        return $existing === null || in_array($existing->status, [AnalysisStatus::Pending, AnalysisStatus::Running], true);
     }
 
     protected function acquireLease(): bool
     {
-        return true;
+        return $this->analysis()->acquireLease(owner: self::class);
     }
 
     protected function releaseLease(): void
     {
-        //
+        $this->analysis()->releaseLease();
     }
 
+    /**
+     * `HasErrorBlock::recordFailure()` фиксирует attempts/backoff на `Analysis`; при исчерпании
+     * попыток (`failed_permanently`) дополнительно переводит `status` в `Failed` — единственное
+     * место, доводящее декларируемый в докблоке `Analysis` жизненный цикл
+     * (`pending→running→succeeded/failed/skipped`) до терминала при провале (docblock `Analysis`).
+     */
     protected function recordFailure(Throwable $exception): void
     {
-        //
+        $analysis = $this->analysis();
+        $analysis->recordFailure($exception->getMessage());
+
+        if ($analysis->failed_permanently) {
+            app(AnalysisStoreRepository::class)->update($analysis, ['status' => AnalysisStatus::Failed]);
+        }
     }
 
     protected function process(): void
     {
-        // P5.1 реализует ScreeningProcessor поверх Ai\Analysis (lease/status-guard свои).
+        app(ScreeningProcessor::class)->run($this->document(), $this->analysis());
+    }
+
+    private function document(): Document
+    {
+        return $this->documentCache ??= Document::findOrFail($this->documentId);
+    }
+
+    private function analysis(): Analysis
+    {
+        if ($this->analysisCache !== null) {
+            return $this->analysisCache;
+        }
+
+        $version = app(DocumentStoreRepository::class)->latestVersion($this->documentId);
+
+        if ($version === null) {
+            throw new RuntimeException("У документа #{$this->documentId} нет скачанной версии.");
+        }
+
+        return $this->analysisCache = app(AnalysisStoreRepository::class)->firstOrCreate($version->id, AnalysisStep::Screening);
     }
 }

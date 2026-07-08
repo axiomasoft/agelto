@@ -162,11 +162,15 @@ return [
     |
     | `enabled` — выключен по умолчанию: `ScreeningJob` (полная реализация — P5.1/P5.2) ещё
     | не готов боевым образом; `PrepareDocumentJob` диспатчит его за этим флагом (владелец
-    | цепочки стадий — P4.2, ТЗ 03 §4).
+    | цепочки стадий — P4.2, ТЗ 03 §4). `pages` — сколько первых страниц PDF резать перед
+    | загрузкой (D6); `max_tokens` — маленький потолок ответа скрининга (Code Guidance P5.1,
+    | классификация не требует длинного вывода).
     |
     */
     'screening' => [
         'enabled' => (bool) env('AI_SCREENING_ENABLED', false),
+        'pages' => (int) env('AI_SCREENING_PAGES', 4),
+        'max_tokens' => (int) env('AI_SCREENING_MAX_TOKENS', 1024),
     ],
 
     /*
