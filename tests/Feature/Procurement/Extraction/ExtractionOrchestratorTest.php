@@ -11,9 +11,11 @@ use App\Enums\Procurement\LlmPurpose;
 use App\Jobs\Procurement\EstimateExtractionJob;
 use App\Models\Procurement\Ai\AiRoute;
 use App\Models\Procurement\Ai\Analysis;
+use App\Models\Procurement\Ai\LlmCall;
 use App\Models\Procurement\Ai\Provider;
 use App\Models\Procurement\Document\Document;
 use App\Models\Procurement\Document\DocumentVersion;
+use App\Models\Procurement\Estimate\Estimate;
 use App\Services\Llm\Dto\LlmOptions;
 use App\Services\Llm\Dto\LlmStructuredResponse;
 use App\Services\Llm\Dto\LlmUsage;
@@ -133,6 +135,28 @@ function overrideCapability(string $model, string $key, mixed $value): void
     $capabilities = (array) config('ai.capabilities', []);
     $capabilities[$model][$key] = $value;
     config(['ai.capabilities' => $capabilities]);
+}
+
+/**
+ * Одна item-строка с искусственно раздутым `name` (> 1МБ) — переводит
+ * `EstimatePersister::rawResultAttributes()` на ветку `Storage::disk(raw_disk)->put()`
+ * (иначе `raw_result` пишется inline и `Storage` вообще не вызывается).
+ */
+function extractionHugeRow(int $index): LlmStructuredResponse
+{
+    return extractionStructured(['rows' => [[
+        'row_index' => $index,
+        'row_type' => 'item',
+        'name' => str_repeat('A', 1_100_000),
+        'section_title' => null,
+        'code' => null,
+        'unit' => null,
+        'quantity' => null,
+        'unit_price' => null,
+        'total_price' => null,
+        'resources' => [],
+        'modifiers' => [],
+    ]], 'incomplete_items' => []]);
 }
 
 function extractionMaxTokens(): LlmStructuredResponse
@@ -339,4 +363,76 @@ test('preflight-отказ (сверх лимитов, windowed выключен
         ->and($analysis->result['unprocessable_reason'])->toBe('provider_limit_pages');
 
     expect($fake->uploadedFiles())->toBeEmpty();
+});
+
+test('сбой EstimatePersister::persist() (Storage::put) НЕ переводит analysis/document в терминал — повтор дожимает извлечение (review-фикс P6.3 HIGH)', function (): void {
+    Storage::fake('s3');
+
+    // Сбой ловится ПОСЛЕ полного извлечения (на finalizeSuccess->persist), ДО единственного
+    // checkpoint в этом сценарии — прогресс НЕ был сохранён в БД (progress персистится только
+    // по checkpoint-порогу, D31/D39), поэтому retry начинает извлечение заново «с нуля»: ниже
+    // ДУБЛИРУЕМ полную последовательность ответов на второй прогон.
+    $fake = FakeLlmProvider::succeeding(extractionPassport('1', 1))
+        ->andThen(extractionHugeRow(1))
+        ->andThen(extractionRows([]))
+        ->andThen(extractionTotals())
+        ->andThen(extractionPassport(null, 0))
+        ->andThen(extractionPassport('1', 1))
+        ->andThen(extractionHugeRow(1))
+        ->andThen(extractionRows([]))
+        ->andThen(extractionTotals())
+        ->andThen(extractionPassport(null, 0));
+
+    seedExtractionRoute($fake);
+
+    $document = Document::factory()->create(['status' => DocumentStatus::Screened]);
+    seedExtractionVersion($document);
+
+    // `LlmCallRecorder::storeRaw()` (каждый LLM-вызов) использует ТОТ ЖЕ `crawler.raw_disk`,
+    // что `EstimatePersister::rawResultAttributes()` — портить конфиг С НАЧАЛА рвало бы первый
+    // же вызов извлечения, а не именно persist. Флип диска — ОДНОРАЗОВЫЙ листенер на 5-е
+    // созданное `LlmCall` (ровно столько вызовов даёт один проход извлечения: паспорт → строки
+    // → пустой диапазон → итоги → паспорт-терминатор, СМ. FakeLlmProvider-очередь выше), т.е.
+    // ПОСЛЕ того, как последний LLM-вызов уже успешно записал свой raw через `storeRaw()` —
+    // ломает диск СТРОГО к моменту входа в `EstimatePersister::persist()` (finalizeSuccess),
+    // не раньше. Условие `=== 5` — одноразовое: на retry счётчик уходит за 5 и не срабатывает
+    // повторно, поэтому конфиг для второго прогона восстанавливается явно (см. ниже) один раз.
+    $callsRecorded = 0;
+    LlmCall::created(function () use (&$callsRecorded): void {
+        $callsRecorded++;
+
+        if ($callsRecorded === 5) {
+            config(['crawler.raw_disk' => 'nonexistent-disk-for-test']);
+        }
+    });
+
+    $thrown = null;
+
+    try {
+        (new EstimateExtractionJob($document->id))->handle();
+    } catch (Throwable $exception) {
+        $thrown = $exception;
+    }
+
+    expect($thrown)->not->toBeNull()
+        ->and($thrown->getMessage())->toContain('nonexistent-disk-for-test');
+
+    $analysis = Analysis::query()->where('step', AnalysisStep::Extraction)->firstOrFail();
+
+    // Статусы остались промежуточными — НЕ terminal (было бы document=extracted/analysis=succeeded
+    // ДО фикса, статус-гейт EstimateExtractionJob::statusGuardPassed() навсегда блокировал бы retry).
+    expect($document->refresh()->status)->toBe(DocumentStatus::Screened)
+        ->and($analysis->status)->not->toBe(AnalysisStatus::Succeeded)
+        ->and(Estimate::query()->where('analysis_id', $analysis->id)->exists())->toBeFalse();
+
+    // Повтор (диск снова доступен) — statusGuardPassed пропускает retry, извлечение и персист
+    // дожимаются идемпотентно, без дублей/зависших статусов.
+    config(['crawler.raw_disk' => 's3']);
+
+    (new EstimateExtractionJob($document->id))->handle();
+
+    $analysis->refresh();
+    expect($analysis->status)->toBe(AnalysisStatus::Succeeded);
+    expect($document->refresh()->status)->toBe(DocumentStatus::Extracted);
+    expect(Estimate::query()->where('analysis_id', $analysis->id)->count())->toBe(1);
 });

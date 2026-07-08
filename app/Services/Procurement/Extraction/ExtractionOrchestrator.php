@@ -335,30 +335,34 @@ final readonly class ExtractionOrchestrator
 
     private function finalizeSuccess(Document $document, Analysis $analysis, ExtractionSession $session): void
     {
+        $result = [
+            'estimates' => $session->progress['estimates'],
+            'meta' => ['usage' => $this->usageToArray($session->usage)],
+        ];
+
+        // Персист в prc_estimate_* (P6.3, EstimateStitcher+EstimateValidator, P6.2) — СТРОГО ДО
+        // финализации статусов analysis/document (review-фикс P6.3 HIGH, было наоборот): persist()
+        // читает `analysis.result` из ПЕРЕДАННОГО объекта (атрибут выставлен in-memory, кастуется
+        // на чтение — `AsCollection`), не из БД, поэтому порядок безопасен без промежуточного
+        // save(). Если `persist()` бросит исключение (транзиентный DB-сбой, `Storage::put`,
+        // per-estimate constraint race), analysis/document остаются в промежуточном статусе
+        // (`running`/`screened`) — `recordFailure()` → job retry → `statusGuardPassed()` пропустит
+        // повтор, а не станет молчаливым no-op на уже `extracted` документе без персиста
+        // (недостижимая идемпотентность — Scope Included P6.3 «идемпотентный перезапуск»).
+        $analysis->result = $result;
+        $this->persister->persist($analysis);
+
         $this->analyses->update($analysis, [
             'status' => AnalysisStatus::Succeeded,
             'progress' => $session->progress,
-            'result' => [
-                'estimates' => $session->progress['estimates'],
-                'meta' => ['usage' => [
-                    'prompt_tokens' => $session->usage->promptTokens,
-                    'completion_tokens' => $session->usage->completionTokens,
-                    'cached_tokens' => $session->usage->cachedTokens,
-                    'total_tokens' => $session->usage->totalTokens,
-                ]],
-            ],
+            'result' => $result,
             'finished_at' => now(),
         ]);
 
-        // Документ доводится до extracted здесь (Implementation Rules P6.1 — финализация
-        // статуса анализа/документа обязательна в любом исходе, v1-урок «вечный analyzing»)
-        // ДО нормализации — Persister (P6.3) читает уже сохранённый analysis.result.
+        // Документ доводится до extracted здесь (Implementation Rules P6.1 — финализация статуса
+        // анализа/документа обязательна в любом исходе, v1-урок «вечный analyzing») ПОСЛЕ
+        // успешного персиста — раньше документ мог перейти в extracted, даже если персист упал.
         $this->documents->update($document, ['status' => DocumentStatus::Extracted]);
-
-        // Нормализация в prc_estimate_* (P6.3, EstimateStitcher+EstimateValidator, P6.2):
-        // Stitcher/Validator были чистыми сервисами без потребителя до этого item'а — здесь
-        // они впервые вызываются на боевом analysis.result.estimates.
-        $this->persister->persist($analysis);
     }
 
     private function markUnprocessable(Document $document, Analysis $analysis, UnprocessableReason $reason, string $detail): void

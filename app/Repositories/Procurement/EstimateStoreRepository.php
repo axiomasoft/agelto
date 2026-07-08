@@ -67,6 +67,43 @@ final readonly class EstimateStoreRepository
     }
 
     /**
+     * Точечный поиск позиции по `(estimate_id, row_index)` — read-путь для `RerunRangeAction`
+     * (review-фикс P6.3 LOW: канон repository read/store split, чтение `prc_estimate_items`
+     * шло мимо репозитория напрямую через `Item::query()`).
+     */
+    public function findItemByRowIndex(int $estimateId, int $rowIndex): ?Item
+    {
+        return Item::query()
+            ->where('estimate_id', $estimateId)
+            ->where('row_index', $rowIndex)
+            ->first();
+    }
+
+    /**
+     * Счётчик персистированных позиций сметы — read-путь для пересчёта `rows_extracted`
+     * (`RerunRangeAction`, review-фикс P6.3 LOW, тот же repository read/store split, что
+     * `findItemByRowIndex`).
+     */
+    public function countItems(int $estimateId): int
+    {
+        return Item::query()->where('estimate_id', $estimateId)->count();
+    }
+
+    /**
+     * `section_id` ближайшей по `row_index` предшествующей позиции сметы — best-effort источник
+     * секции для строки без собственной предыдущей записи (`RerunRangeAction`, review-фикс P6.3
+     * MED: без полного стичинга сметы точнее не определить, см. докблок `RerunRangeAction`).
+     */
+    public function findNearestPrecedingSectionId(int $estimateId, int $rowIndex): ?int
+    {
+        return Item::query()
+            ->where('estimate_id', $estimateId)
+            ->where('row_index', '<', $rowIndex)
+            ->orderByDesc('row_index')
+            ->value('section_id');
+    }
+
+    /**
      * Ресурсы позиции не несут собственного стабильного ключа вне `item_id` (P2.2 `RowResource`)
      * — полная замена набора на каждый persist позиции (НЕ диапазон строк, поэтому не подпадает
      * под запрет «deleteWhere+insert» из Implementation Rules — тот запрет про row_index-диапазон).

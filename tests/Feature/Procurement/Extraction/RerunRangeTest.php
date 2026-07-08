@@ -120,7 +120,10 @@ test('re-run заменяет только позиции запрошенног
         ->and($updated5->section_id)->toBe($section->id); // прежняя секция сохранена (Known Deviations P6.3)
 
     $created6 = Item::query()->where('estimate_id', $estimate->id)->where('row_index', 6)->firstOrFail();
-    expect($created6->name)->toBe('Обновлённая позиция 6');
+    expect($created6->name)->toBe('Обновлённая позиция 6')
+        // Новый row_index без предшествующей Item-записи — секция БЛИЖАЙШЕЙ предыдущей позиции
+        // (row_index 5, та же секция $section), не null (review-фикс P6.3 MED).
+        ->and($created6->section_id)->toBe($section->id);
 
     expect($estimate->refresh()->rows_extracted)->toBe(3); // 1 + 5 + 6, дубля нет
 
