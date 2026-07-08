@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Models\Procurement\Document;
 
 use App\Enums\Procurement\DocumentStatus;
+use App\Models\Procurement\Concerns\HasErrorBlock;
+use App\Models\Procurement\Concerns\HasLease;
 use Database\Factories\Procurement\Document\DocumentFactory;
 use Illuminate\Database\Eloquent\Attributes\UseFactory;
 use Illuminate\Database\Eloquent\Builder;
@@ -18,7 +20,7 @@ use Illuminate\Support\Str;
 #[UseFactory(DocumentFactory::class)]
 final class Document extends Model
 {
-    use HasFactory;
+    use HasErrorBlock, HasFactory, HasLease;
 
     protected $table = 'prc_documents';
 
@@ -37,6 +39,8 @@ final class Document extends Model
         'last_error_at',
         'next_retry_at',
         'failed_permanently',
+        'locked_by',
+        'locked_until',
     ];
 
     protected function casts(): array
@@ -48,6 +52,7 @@ final class Document extends Model
             'next_retry_at' => 'datetime',
             'attempts' => 'integer',
             'failed_permanently' => 'boolean',
+            'locked_until' => 'datetime',
         ];
     }
 

@@ -210,6 +210,51 @@ return [
             'timeout' => 60,
             'nice' => 0,
         ],
+
+        // Раздельные очереди пайплайна по стоимости/риску (ТЗ 03 §4, приоритет ↓
+        // скачивание→подготовка→скрининг→извлечение). LLM-очереди — маленький maxProcesses
+        // (провайдерский rate-limit, D-конвенции); doc_prepare — CPU/IO-bound, шире.
+        'supervisor-doc-prepare' => [
+            'connection' => 'redis',
+            'queue' => ['doc_prepare'],
+            'balance' => 'auto',
+            'autoScalingStrategy' => 'time',
+            'maxProcesses' => 3,
+            'maxTime' => 0,
+            'maxJobs' => 0,
+            'memory' => 128,
+            'tries' => 1,
+            'timeout' => 120,
+            'nice' => 0,
+        ],
+
+        'supervisor-ai-screening' => [
+            'connection' => 'redis',
+            'queue' => ['ai_screening'],
+            'balance' => 'auto',
+            'autoScalingStrategy' => 'time',
+            'maxProcesses' => 2,
+            'maxTime' => 0,
+            'maxJobs' => 0,
+            'memory' => 128,
+            'tries' => 1,
+            'timeout' => 60,
+            'nice' => 0,
+        ],
+
+        'supervisor-ai-extraction' => [
+            'connection' => 'redis',
+            'queue' => ['ai_extraction'],
+            'balance' => 'auto',
+            'autoScalingStrategy' => 'time',
+            'maxProcesses' => 2,
+            'maxTime' => 0,
+            'maxJobs' => 0,
+            'memory' => 256,
+            'tries' => 1,
+            'timeout' => 300,
+            'nice' => 0,
+        ],
     ],
 
     'environments' => [
@@ -219,11 +264,35 @@ return [
                 'balanceMaxShift' => 1,
                 'balanceCooldown' => 3,
             ],
+            'supervisor-doc-prepare' => [
+                'maxProcesses' => 6,
+                'balanceMaxShift' => 1,
+                'balanceCooldown' => 3,
+            ],
+            'supervisor-ai-screening' => [
+                'maxProcesses' => 3,
+                'balanceMaxShift' => 1,
+                'balanceCooldown' => 3,
+            ],
+            'supervisor-ai-extraction' => [
+                'maxProcesses' => 3,
+                'balanceMaxShift' => 1,
+                'balanceCooldown' => 3,
+            ],
         ],
 
         'local' => [
             'supervisor-1' => [
                 'maxProcesses' => 3,
+            ],
+            'supervisor-doc-prepare' => [
+                'maxProcesses' => 2,
+            ],
+            'supervisor-ai-screening' => [
+                'maxProcesses' => 1,
+            ],
+            'supervisor-ai-extraction' => [
+                'maxProcesses' => 1,
             ],
         ],
     ],

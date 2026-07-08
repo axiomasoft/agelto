@@ -6,6 +6,8 @@ namespace App\Models\Procurement\Ai;
 
 use App\Enums\Procurement\AnalysisStatus;
 use App\Enums\Procurement\AnalysisStep;
+use App\Models\Procurement\Concerns\HasErrorBlock;
+use App\Models\Procurement\Concerns\HasLease;
 use App\Models\Procurement\Document\DocumentVersion;
 use Database\Factories\Procurement\Ai\AnalysisFactory;
 use Illuminate\Database\Eloquent\Attributes\UseFactory;
@@ -22,7 +24,7 @@ use Illuminate\Support\Str;
 #[UseFactory(AnalysisFactory::class)]
 final class Analysis extends Model
 {
-    use HasFactory;
+    use HasErrorBlock, HasFactory, HasLease;
 
     protected $table = 'prc_ai_analyses';
 
