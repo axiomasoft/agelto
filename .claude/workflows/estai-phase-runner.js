@@ -23,13 +23,19 @@ export const meta = {
 // }
 // ---------------------------------------------------------------------------
 
-const PLAN_ID = (args && args.planId) || 'EST-AI'
-const PHASE = args && args.phase
-const ITEM_COUNT = (args && args.itemCount) || 0
-const RISK = String((args && args.riskLevel) || 'MED').toUpperCase()
-const REVIEWERS = (args && Array.isArray(args.reviewers) && args.reviewers.length) ? args.reviewers : ['agelto-reviewer']
-const NO_DESTRUCTIVE = !!(args && args.noDestructiveOps)
+// Некоторые пути вызова (named-workflow через slash-команду) доставляют args СТРОКОЙ,
+// не объектом — тогда args.phase был бы undefined без явного разбора.
+let ARGS = args
+if (typeof ARGS === 'string') {
+  try { ARGS = JSON.parse(ARGS) } catch (e) { log(`args пришёл строкой и не распарсился как JSON: ${String(e)}`); ARGS = {} }
+}
 
+const PLAN_ID = (ARGS && ARGS.planId) || 'EST-AI'
+const PHASE = ARGS && ARGS.phase
+const ITEM_COUNT = (ARGS && ARGS.itemCount) || 0
+const RISK = String((ARGS && ARGS.riskLevel) || 'MED').toUpperCase()
+const REVIEWERS = (ARGS && Array.isArray(ARGS.reviewers) && ARGS.reviewers.length) ? ARGS.reviewers : ['agelto-reviewer']
+const NO_DESTRUCTIVE = !!(ARGS && ARGS.noDestructiveOps)
 if (!PHASE || !ITEM_COUNT) {
   log('Нужны args.phase и args.itemCount — нечего исполнять.')
   return { note: 'no phase/itemCount provided' }

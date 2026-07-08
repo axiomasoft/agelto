@@ -22,13 +22,19 @@ export const meta = {
 // }
 // ---------------------------------------------------------------------------
 
-const PLAN_ID = (args && args.planId) || 'EST-AI'
-const LABEL = (args && args.label) || 'milestone'
-const COVERED = (args && Array.isArray(args.coveredPhases)) ? args.coveredPhases : []
-const FOCUS = (args && args.focus) || 'общая согласованность реализованных фаз с планом и спеками'
-const GATE = !!(args && args.gate)
-const REVIEWERS = (args && Array.isArray(args.reviewers) && args.reviewers.length)
-  ? args.reviewers
+// Некоторые пути вызова (named-workflow через slash-команду) доставляют args СТРОКОЙ.
+let ARGS = args
+if (typeof ARGS === 'string') {
+  try { ARGS = JSON.parse(ARGS) } catch (e) { log(`args пришёл строкой и не распарсился как JSON: ${String(e)}`); ARGS = {} }
+}
+
+const PLAN_ID = (ARGS && ARGS.planId) || 'EST-AI'
+const LABEL = (ARGS && ARGS.label) || 'milestone'
+const COVERED = (ARGS && Array.isArray(ARGS.coveredPhases)) ? ARGS.coveredPhases : []
+const FOCUS = (ARGS && ARGS.focus) || 'общая согласованность реализованных фаз с планом и спеками'
+const GATE = !!(ARGS && ARGS.gate)
+const REVIEWERS = (ARGS && Array.isArray(ARGS.reviewers) && ARGS.reviewers.length)
+  ? ARGS.reviewers
   : ['agelto-reviewer', 'agelto-security-review', 'agelto-db-impact']
 
 async function safeAgent(prompt, opts) {
