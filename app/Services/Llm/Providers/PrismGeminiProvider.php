@@ -18,6 +18,7 @@ use App\Services\Llm\Dto\LlmPrompt;
 use App\Services\Llm\Dto\LlmResponse;
 use App\Services\Llm\Dto\LlmStructuredResponse;
 use App\Services\Llm\Dto\LlmUsage;
+use App\Services\Llm\Schema\GeminiResponseSchemaAdapter;
 use Carbon\CarbonImmutable;
 use Carbon\CarbonInterval;
 use Illuminate\Http\Client\PendingRequest;
@@ -158,7 +159,7 @@ final readonly class PrismGeminiProvider implements LlmProvider, SupportsContext
     {
         $request = Prism::structured()
             ->using(PrismProvider::Gemini, $options->model)
-            ->withSchema(new RawSchema(name: 'response', schema: $schema->schema))
+            ->withSchema(new RawSchema(name: 'response', schema: (new GeminiResponseSchemaAdapter)->adapt($schema->schema)))
             ->withSystemPrompt($prompt->systemPart)
             ->withPrompt(implode("\n\n", $prompt->userParts), $this->fileMedia($prompt->fileRefs))
             ->usingTemperature($options->temperature)

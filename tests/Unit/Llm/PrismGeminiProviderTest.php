@@ -99,7 +99,7 @@ test('completeStructured() кладёт в raw модельный JSON-текс�
     expect($response->raw)->toBe('{"foo":"bar"}');
 });
 
-test('completeStructured() передаёт canonical JSON Schema как RawSchema без перестройки в DSL', function (): void {
+test('completeStructured() передаёт canonical JSON Schema через GeminiResponseSchemaAdapter как RawSchema', function (): void {
     $fake = Prism::fake([
         new PrismStructuredResponse(
             steps: collect([]),
@@ -112,13 +112,16 @@ test('completeStructured() передаёт canonical JSON Schema как RawSche
         ),
     ]);
 
-    $schema = new JsonSchema(['type' => 'object', 'properties' => ['rowIndex' => ['type' => 'integer']]]);
+    $schema = new JsonSchema(['type' => 'object', 'properties' => ['rowIndex' => ['type' => 'integer', 'nullable' => true]]]);
     $provider = new PrismGeminiProvider;
 
     $provider->completeStructured(new LlmPrompt(systemPart: 's'), $schema, geminiOptions());
 
     $fake->assertRequest(function (array $recorded) use ($schema): void {
-        expect($recorded[0]->schema()->toArray())->toBe($schema->schema);
+        // Gemini `response_schema` не понимает `$ref`/`$defs`/`type`-array-nullable (P3 phase-review,
+        // HIGH) — RawSchema несёт результат GeminiResponseSchemaAdapter::adapt(), не $schema->schema
+        // как есть; для этого плоского входа (нет $ref/type-array) адаптер лишь добавляет 'required'.
+        expect($recorded[0]->schema()->toArray())->toBe([...$schema->schema, 'required' => []]);
     });
 });
 
