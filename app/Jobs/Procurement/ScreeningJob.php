@@ -11,18 +11,19 @@ use App\Models\Procurement\Ai\Analysis;
 use App\Models\Procurement\Document\Document;
 use App\Repositories\Procurement\AnalysisStoreRepository;
 use App\Repositories\Procurement\DocumentStoreRepository;
+use App\Services\Procurement\Screening\ScreeningOutcomeHandler;
 use App\Services\Procurement\Screening\ScreeningProcessor;
 use Illuminate\Contracts\Queue\ShouldBeUnique;
 use RuntimeException;
 use Throwable;
 
 /**
- * Стадия скрининга (ТЗ 03 §3.4, P5.1): `prepared → running → succeeded/skipped` на
+ * Стадия скрининга (ТЗ 03 §3.4, P5.1/P5.2): `prepared → running → succeeded/skipped` на
  * `Ai\Analysis(step=screening)` (lease/backoff — на самом `Analysis`, не на `Document`, т.к.
  * несколько версий документа могут проходить независимый скрининг). Single-shot
  * (`ShouldBeUnique`, D39 — короткий вызов, не checkpoint-requeue) — защита от двойного диспатча
- * `PrepareDocumentJob`/retry-командой (P4.3). Ветвление по результату (`estimate` → dispatch
- * извлечения, `unknown` → ignored) — P5.2, здесь НЕ переводится статус документа.
+ * `PrepareDocumentJob`/retry-командой (P4.3). Ветвление по результату (`ScreeningOutcomeHandler`,
+ * P5.2) выполняется тут же, в том же прогоне `process()`, после успешного `ScreeningProcessor`.
  */
 final class ScreeningJob extends PipelineJob implements ShouldBeUnique
 {
@@ -102,7 +103,15 @@ final class ScreeningJob extends PipelineJob implements ShouldBeUnique
 
     protected function process(): void
     {
-        app(ScreeningProcessor::class)->run($this->document(), $this->analysis());
+        $document = $this->document();
+        $analysis = $this->analysis();
+
+        app(ScreeningProcessor::class)->run($document, $analysis);
+
+        $document->refresh();
+        $analysis->refresh();
+
+        app(ScreeningOutcomeHandler::class)->handle($document, $analysis);
     }
 
     private function document(): Document

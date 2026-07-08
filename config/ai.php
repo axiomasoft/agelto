@@ -166,11 +166,38 @@ return [
     | загрузкой (D6); `max_tokens` — маленький потолок ответа скрининга (Code Guidance P5.1,
     | классификация не требует длинного вывода).
     |
+    | Ветвление (P5.2, `ScreeningOutcomeHandler`, ТЗ 03 §3.4/D36): `ignore_rules` — подстроки
+    | (регистронезависимо) в `Procurement.title`, v1-канон `config('platform.estimate.ignore_rules')`
+    | (пример «Поставка продуктов питания») — категорический `ignored` независимо от классификации
+    | модели. `confidence_low`/`confidence_high` — borderline-зона: ниже low → `unknown`→`ignored`
+    | (не рисковать extraction-токенами), выше high → обычное ветвление по `document_type`, между
+    | ними — `borderline_action` (`escalate`: один повторный скрининг на маршрут классом выше;
+    | `flag`, default: `needs_review=true` в `analysis.result`, статус `screened`, без extraction).
+    |
     */
     'screening' => [
         'enabled' => (bool) env('AI_SCREENING_ENABLED', false),
         'pages' => (int) env('AI_SCREENING_PAGES', 4),
         'max_tokens' => (int) env('AI_SCREENING_MAX_TOKENS', 1024),
+        'ignore_rules' => array_filter(array_map('trim', explode(',', (string) env('AI_SCREENING_IGNORE_RULES', '')))),
+        'confidence_low' => (float) env('AI_SCREENING_CONFIDENCE_LOW', 0.4),
+        'confidence_high' => (float) env('AI_SCREENING_CONFIDENCE_HIGH', 0.6),
+        'borderline_action' => env('AI_SCREENING_BORDERLINE_ACTION', 'flag'),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Извлечение смет (гейт цепочки стадий, P5.2 → P6)
+    |--------------------------------------------------------------------------
+    |
+    | `enabled` — выключен по умолчанию: `EstimateExtractionJob` (P5.2 — заглушка `Log::info`,
+    | боевая реализация — P6.1, checkpoint-requeue) ещё не готов; `ScreeningOutcomeHandler`
+    | диспатчит его для `document_type=estimate` за этим флагом (тот же паттерн, что
+    | `ai.screening.enabled` у `PrepareDocumentJob`, P4.2).
+    |
+    */
+    'extraction' => [
+        'enabled' => (bool) env('AI_EXTRACTION_ENABLED', false),
     ],
 
     /*

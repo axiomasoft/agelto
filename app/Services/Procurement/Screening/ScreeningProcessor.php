@@ -52,7 +52,13 @@ final readonly class ScreeningProcessor
         private PdfPageSlicer $slicer,
     ) {}
 
-    public function run(Document $document, Analysis $analysis): void
+    /**
+     * `$routeIndex` — позиция в `AiRouteResolver::candidatesFor()` (priority ASC): 0 — основной
+     * маршрут; `ScreeningOutcomeHandler` (P5.2, D36) передаёт 1 для одноразовой
+     * borderline-эскалации на маршрут классом выше (тот же документ, тот же `Analysis`,
+     * повторная резка/загрузка — временные файлы предыдущего прогона уже удалены в `finally`).
+     */
+    public function run(Document $document, Analysis $analysis, int $routeIndex = 0): void
     {
         $this->analyses->update($analysis, [
             'status' => AnalysisStatus::Running,
@@ -98,7 +104,7 @@ final readonly class ScreeningProcessor
                 }
             }
 
-            $this->classify($analysis, $uploadPath, $effective['mime']);
+            $this->classify($analysis, $uploadPath, $effective['mime'], $routeIndex);
         } finally {
             if ($slicedPath !== null && $slicedPath !== $localPath) {
                 @unlink($slicedPath);
@@ -129,12 +135,12 @@ final readonly class ScreeningProcessor
         return null;
     }
 
-    private function classify(Analysis $analysis, string $filePath, string $mimeType): void
+    private function classify(Analysis $analysis, string $filePath, string $mimeType, int $routeIndex = 0): void
     {
-        $primary = $this->routes->candidatesFor('any', LlmPurpose::Screening)->first();
+        $primary = $this->routes->candidatesFor('any', LlmPurpose::Screening)->values()->get($routeIndex);
 
         if ($primary === null) {
-            throw new RuntimeException('Нет активного маршрута для document_type=any, purpose=screening.');
+            throw new RuntimeException("Нет активного маршрута для document_type=any, purpose=screening, индекс={$routeIndex}.");
         }
 
         if (! $primary->provider instanceof SupportsFileUpload) {

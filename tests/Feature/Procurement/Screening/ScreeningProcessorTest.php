@@ -78,7 +78,7 @@ function screeningResultResponse(): LlmStructuredResponse
     );
 }
 
-test('успешный скрининг PDF — Analysis succeeded, document_type/result заполнены, Document остаётся prepared', function (): void {
+test('успешный скрининг PDF — Analysis succeeded, document_type/result заполнены, Document доводится до screened (P5.2 branching)', function (): void {
     Storage::fake('s3');
     $fake = FakeLlmProvider::succeeding(screeningResultResponse());
     seedScreeningRoute($fake);
@@ -99,7 +99,11 @@ test('успешный скрининг PDF — Analysis succeeded, document_typ
         ->and($analysis->rules_hash)->not->toBeNull()
         ->and($analysis->finished_at)->not->toBeNull();
 
-    expect($document->refresh()->status)->toBe(DocumentStatus::Prepared);
+    // document_type=estimate, confidence=0.92 (> ai.screening.confidence_high) — обычное
+    // ветвление ScreeningOutcomeHandler (P5.2, D36): Document доводится до screened; dispatch
+    // EstimateExtractionJob — за отдельным гейтом config('ai.extraction.enabled'), выключенным
+    // по умолчанию (не тестируется здесь, см. ScreeningBranchingTest).
+    expect($document->refresh()->status)->toBe(DocumentStatus::Screened);
 
     $uploaded = $fake->uploadedFiles();
     expect($uploaded)->toHaveCount(1)
