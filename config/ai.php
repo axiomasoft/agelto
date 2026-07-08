@@ -187,17 +187,38 @@ return [
 
     /*
     |--------------------------------------------------------------------------
-    | Извлечение смет (гейт цепочки стадий, P5.2 → P6)
+    | Извлечение смет (гейт цепочки стадий, P5.2 → P6.1)
     |--------------------------------------------------------------------------
     |
-    | `enabled` — выключен по умолчанию: `EstimateExtractionJob` (P5.2 — заглушка `Log::info`,
-    | боевая реализация — P6.1, checkpoint-requeue) ещё не готов; `ScreeningOutcomeHandler`
-    | диспатчит его для `document_type=estimate` за этим флагом (тот же паттерн, что
-    | `ai.screening.enabled` у `PrepareDocumentJob`, P4.2).
+    | `enabled` — выключен по умолчанию: `ScreeningOutcomeHandler` диспатчит `EstimateExtractionJob`
+    | для `document_type=estimate` за этим флагом (тот же паттерн, что `ai.screening.enabled` у
+    | `PrepareDocumentJob`, P4.2).
+    |
+    | `windowed_enabled` (D40, default false) — preflight (`ExtractionPreflight`, D29) сверх
+    | лимитов маршрута ИЛИ выбирает оконный путь (при true), ИЛИ терминирует
+    | `unprocessable(provider_limit_*)` (при false — до реализации `WindowedChunkSource`, P6.4);
+    | `ExtractionOrchestrator` (P6.1) исполняет ТОЛЬКО row-range — при `windowed_enabled=true`
+    | без P6.4 бросает исключение (job-retry), не молча деградирует.
+    |
+    | `row_range_size`/`min_row_range_size` — стартовое/минимальное окно `extract_rows`
+    | (калибровка на реальных сметах — Открытый вопрос `03` §7); окно уменьшается вдвое (до
+    | минимума) при MAX_TOKENS (Implementation Rules P6.1). `checkpoint_ranges`/
+    | `checkpoint_seconds` — порог self-requeue (D31): после M единиц прогресса (паспорт/
+    | диапазон/итоги) ИЛИ T секунд — что раньше — `EstimateExtractionJob` персистит progress и
+    | ре-диспатчит себя; `checkpoint_seconds` ОБЯЗАН быть строго меньше `retry_after` очереди
+    | `ai_extraction` (`config/horizon.php`, инвариант D26). `max_estimates_per_document` —
+    | защитный потолок цикла обнаружения смет паспорт-шагом (безопасность от зацикливания на
+    | некорректном ответе модели, не бизнес-лимит).
     |
     */
     'extraction' => [
         'enabled' => (bool) env('AI_EXTRACTION_ENABLED', false),
+        'windowed_enabled' => (bool) env('AI_EXTRACTION_WINDOWED_ENABLED', false),
+        'row_range_size' => (int) env('AI_EXTRACTION_ROW_RANGE_SIZE', 30),
+        'min_row_range_size' => (int) env('AI_EXTRACTION_MIN_ROW_RANGE_SIZE', 5),
+        'checkpoint_ranges' => (int) env('AI_EXTRACTION_CHECKPOINT_RANGES', 20),
+        'checkpoint_seconds' => (int) env('AI_EXTRACTION_CHECKPOINT_SECONDS', 240),
+        'max_estimates_per_document' => (int) env('AI_EXTRACTION_MAX_ESTIMATES_PER_DOCUMENT', 20),
     ],
 
     /*

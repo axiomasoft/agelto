@@ -4,23 +4,31 @@ declare(strict_types=1);
 
 namespace App\Jobs\Procurement;
 
-use Illuminate\Bus\Queueable;
-use Illuminate\Contracts\Queue\ShouldQueue;
-use Illuminate\Foundation\Bus\Dispatchable;
-use Illuminate\Queue\InteractsWithQueue;
-use Illuminate\Queue\SerializesModels;
-use Illuminate\Support\Facades\Log;
+use App\Enums\Procurement\AnalysisStatus;
+use App\Enums\Procurement\AnalysisStep;
+use App\Enums\Procurement\DocumentStatus;
+use App\Models\Procurement\Ai\Analysis;
+use App\Models\Procurement\Document\Document;
+use App\Repositories\Procurement\AnalysisStoreRepository;
+use App\Repositories\Procurement\DocumentStoreRepository;
+use App\Services\Procurement\Extraction\ExtractionOrchestrator;
+use Illuminate\Contracts\Queue\ShouldBeUniqueUntilProcessing;
+use RuntimeException;
+use Throwable;
 
 /**
- * Заглушка полного извлечения смет (ТЗ 03 §3.5, `docs/specs/v2/08-estimate-extraction.md`):
- * `ScreeningOutcomeHandler` (P5.2, Scope Excluded) диспатчит её для `document_type=estimate`
- * за гейтом `config('ai.extraction.enabled', false)` (default выключен — боевая реализация,
- * checkpoint-requeue через `ChunkSource`/`RowRangeChunkSource`, `ShouldBeUniqueUntilProcessing`
- * (D31/D39/D40), появится в P6.1). Здесь — только факт диспатча со стороны скрининга.
+ * Стадия полного извлечения смет (ТЗ 03 §3.5, P6.1): `screened → extracted` на
+ * `Ai\Analysis(step=extraction)`. Checkpoint-requeue (D31/D39) — цепочка коротких запусков:
+ * `ShouldBeUniqueUntilProcessing` (НЕ `ShouldBeUnique`), т.к. `ExtractionOrchestrator` сам
+ * ре-диспатчит этот job ВНУТРИ `process()` при превышении M диапазонов/T секунд — под обычным
+ * `ShouldBeUnique` self-dispatch тихо дедуплицировался бы, пока текущий запуск ещё держит lock
+ * (документ навсегда «в extraction», D39). Заменяет P5.2-заглушку (`Log::info`) целиком.
  */
-final class EstimateExtractionJob implements ShouldQueue
+final class EstimateExtractionJob extends PipelineJob implements ShouldBeUniqueUntilProcessing
 {
-    use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
+    private ?Document $documentCache = null;
+
+    private ?Analysis $analysisCache = null;
 
     public function __construct(
         public readonly int $documentId,
@@ -28,8 +36,86 @@ final class EstimateExtractionJob implements ShouldQueue
         $this->onQueue('ai_extraction');
     }
 
-    public function handle(): void
+    public function uniqueId(): string
     {
-        Log::info('EstimateExtractionJob: заглушка, боевая реализация — P6.1', ['document_id' => $this->documentId]);
+        return $this->pipelineUniqueId();
+    }
+
+    public function pipelineUniqueId(): string
+    {
+        return "{$this->documentId}:extraction";
+    }
+
+    /**
+     * `Document::status` остаётся `screened` на протяжении ВСЕГО многошагового извлечения
+     * (переход в `extracted`/`failed`/`unprocessable` — только в терминале, `ExtractionOrchestrator`)
+     * — guard пропускает повторные запуски (self-requeue, backlog-поллер, ручной ретрай), пока
+     * документ `screened` И анализ ещё не доведён до терминала (`succeeded`/`skipped` — стадия
+     * завершена; `failed` — попытки исчерпаны). Тот же приём, что `ScreeningJob` (P5.1/P5.2).
+     */
+    protected function statusGuardPassed(): bool
+    {
+        if ($this->document()->status !== DocumentStatus::Screened) {
+            return false;
+        }
+
+        $version = app(DocumentStoreRepository::class)->latestVersion($this->documentId);
+
+        if ($version === null) {
+            return false;
+        }
+
+        $existing = Analysis::query()
+            ->where('document_version_id', $version->id)
+            ->where('step', AnalysisStep::Extraction)
+            ->first();
+
+        return $existing === null || in_array($existing->status, [AnalysisStatus::Pending, AnalysisStatus::Running], true);
+    }
+
+    protected function acquireLease(): bool
+    {
+        return $this->analysis()->acquireLease(owner: self::class);
+    }
+
+    protected function releaseLease(): void
+    {
+        $this->analysis()->releaseLease();
+    }
+
+    protected function recordFailure(Throwable $exception): void
+    {
+        $analysis = $this->analysis();
+        $analysis->recordFailure($exception->getMessage());
+
+        if ($analysis->failed_permanently) {
+            app(AnalysisStoreRepository::class)->update($analysis, ['status' => AnalysisStatus::Failed]);
+            app(DocumentStoreRepository::class)->update($this->document(), ['status' => DocumentStatus::Failed]);
+        }
+    }
+
+    protected function process(): void
+    {
+        app(ExtractionOrchestrator::class)->run($this->document(), $this->analysis());
+    }
+
+    private function document(): Document
+    {
+        return $this->documentCache ??= Document::findOrFail($this->documentId);
+    }
+
+    private function analysis(): Analysis
+    {
+        if ($this->analysisCache !== null) {
+            return $this->analysisCache;
+        }
+
+        $version = app(DocumentStoreRepository::class)->latestVersion($this->documentId);
+
+        if ($version === null) {
+            throw new RuntimeException("У документа #{$this->documentId} нет скачанной версии.");
+        }
+
+        return $this->analysisCache = app(AnalysisStoreRepository::class)->firstOrCreate($version->id, AnalysisStep::Extraction);
     }
 }
