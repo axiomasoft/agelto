@@ -20,21 +20,15 @@
 
 ### 0.1 Таксономия префиксов (модуль = префикс)
 
-Префикс таблицы = bounded context домена (как `plt_` в v1). Классификаторы и организации — общий shared-слой (`ref_`, `org_`), не принадлежат конкретному домену.
+Канон (D11, аудит F ось 1): `prc_` — единый мегадомен закупок (площадки и их справочники, ядро, история, детальная карточка, документы, AI-пайплайн, сметы, краулинг, операционная инфраструктура). Классификаторы и организации — общий shared-слой (`ref_`, `org_`), не принадлежат конкретному домену. Девятипрефиксная схема ниже (`plt_`/`doc_`/`ai_`/`est_`/`crw_`/`sys_`) — исходный черновой замысел ТЗ, отклонена в пользу (b) при реализации; не воспроизводить в новом коде.
 
 | Префикс | Домен | Таблицы |
 |---|---|---|
-| `plt_` | Площадки и их справочники | platforms, registries, status_mappings, document_types, regions |
 | `ref_` | Классификаторы (shared) | okpd2, ktru, okved2, kbk |
-| `org_` | Организации и роли (shared) | organizations, procurement_parties |
-| `prc_` | Закупки: ядро, история, детальная карточка | procurements, revisions, events, lots, items, financing, eis_details, protocols, bids, awards, clarifications, cancellations, search (витрина, §10) |
-| `doc_` | Документы-вложения | documents, versions |
-| `ai_` | AI-анализ и LLM-конфиг | analyses, llm_calls, providers, routes, prompts, dataset_examples, eval_runs, eval_results |
-| `est_` | Распарсенные сметы | estimates, sections, items, resources, totals |
-| `crw_` | Краулинг | crawlers, runs, fetches, proxies, proxy_checks, ignore_rules, ignored_items, daily_stats |
-| `sys_` | Операционная инфраструктура | operation_logs |
+| `org_` | Организации (shared) | organizations |
+| `prc_` | Закупки — единый мегадомен | platforms, registries, status_mappings, document_types, regions, procurement_parties, procurements, revisions, events, lots, items, financing, eis_details, protocols, bids, awards, clarifications, cancellations, documents, document_versions, ai_analyses, ai_llm_calls, ai_providers, ai_routes, ai_prompts, ai_dataset_examples, ai_eval_runs, ai_eval_results, estimates, estimate_sections, estimate_items, estimate_resources, estimate_totals, crawlers, crawler_runs, proxies, fetches, proxy_checks, ignore_rules, ignored_items, daily_stats, operation_logs, search (витрина, §10) |
 
-Внутри префикса имя без повтора домена: `est_items`, а не `est_estimate_items`; `prc_lots`, а не `prc_procurement_lots`.
+Внутри `prc_`-мегадомена имя по умолчанию без повтора домена (`prc_lots`, а не `prc_procurement_lots`). Осознанное отклонение — сателлиты уже занятых корней: `prc_estimate_items/sections/resources/totals` (не `prc_items` — коллизия с позициями объекта закупки), `prc_crawler_runs` (не `prc_runs`). Фактические имена индексов/FK везде выровнены под настоящее имя таблицы (raw-DDL в 100018/100026/100033/100039/100041/100046 — правка аудита F).
 
 ## 1. Справочники и классификаторы
 

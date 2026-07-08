@@ -18,6 +18,7 @@ return new class extends Migration
             $table->uuid('uuid')->unique();
 
             $table->foreignId('procurement_id')
+                ->nullable()
                 ->index()
                 ->constrained(table: (new Procurement)->getTable());
 
@@ -45,14 +46,14 @@ return new class extends Migration
 
         // Partial unique index: external_id уникален в рамках закупки только когда не null.
         DB::statement(
-            'CREATE UNIQUE INDEX doc_documents_procurement_external_id_unique '
+            'CREATE UNIQUE INDEX prc_documents_procurement_external_id_unique '
             .'ON prc_documents (procurement_id, external_id) WHERE external_id IS NOT NULL',
         );
     }
 
     public function down(): void
     {
-        DB::statement('DROP INDEX IF EXISTS doc_documents_procurement_external_id_unique');
+        DB::statement('DROP INDEX IF EXISTS prc_documents_procurement_external_id_unique');
         Schema::dropIfExists($this->table());
     }
 

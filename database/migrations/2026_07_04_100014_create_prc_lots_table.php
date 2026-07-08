@@ -17,7 +17,8 @@ return new class extends Migration
             $table->id();
 
             $table->foreignId('procurement_id')
-                ->constrained(table: (new Procurement)->getTable());
+                ->constrained(table: (new Procurement)->getTable())
+                ->cascadeOnDelete();
 
             $table->integer('lot_number');
 

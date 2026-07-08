@@ -17,7 +17,8 @@ return new class extends Migration
 
             $table->foreignId('item_id')
                 ->index()
-                ->constrained(table: (new Item)->getTable());
+                ->constrained(table: (new Item)->getTable())
+                ->cascadeOnDelete();
 
             // text + PHP Backed enum (App\Enums\Procurement\ResourceType), не Postgres native enum.
             $table->text('resource_type')->comment('labor/machine/material/overhead/other');

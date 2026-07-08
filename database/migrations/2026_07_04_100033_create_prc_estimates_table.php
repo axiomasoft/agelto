@@ -19,7 +19,7 @@ return new class extends Migration
             $table->uuid('uuid')->unique();
 
             $table->foreignId('analysis_id')
-                ->unique()
+                ->index()
                 ->constrained(table: (new Analysis)->getTable());
 
             $table->foreignId('document_version_id')
@@ -29,6 +29,9 @@ return new class extends Migration
             $table->foreignId('procurement_id')
                 ->index()
                 ->constrained(table: (new Procurement)->getTable());
+
+            // Порядковый номер сметы внутри одного анализа (в файле может быть несколько смет).
+            $table->smallInteger('ordinal')->default(1);
 
             $table->text('title');
             $table->text('estimate_number')->nullable();
@@ -48,6 +51,8 @@ return new class extends Migration
             $table->text('validation_status');
 
             $table->timestamps();
+
+            $table->unique(['analysis_id', 'ordinal']);
         });
     }
 
