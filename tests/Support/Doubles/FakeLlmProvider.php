@@ -1,0 +1,106 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Tests\Support\Doubles;
+
+use App\Enums\Procurement\FinishReason;
+use App\Services\Llm\Contracts\LlmProvider;
+use App\Services\Llm\Dto\JsonSchema;
+use App\Services\Llm\Dto\LlmOptions;
+use App\Services\Llm\Dto\LlmPrompt;
+use App\Services\Llm\Dto\LlmResponse;
+use App\Services\Llm\Dto\LlmStructuredResponse;
+use App\Services\Llm\Dto\LlmUsage;
+use RuntimeException;
+use Throwable;
+
+/**
+ * Тестовый двойник `LlmProvider` (P3.1, ТЗ 04 §2): очередь заготовленных исходов
+ * (успех/обрезание/исключение) + запись полученных промтов для ассертов. Состояния выдаются
+ * через фабричные методы `succeeding()`/`truncated()`/`throwing()` (канон тестов проекта —
+ * без boolean-флагов); `andThen()` докладывает следующий исход для сценариев re-ask (P3.4).
+ */
+final class FakeLlmProvider implements LlmProvider
+{
+    /** @var list<LlmPrompt> */
+    private array $receivedPrompts = [];
+
+    /**
+     * @param  list<LlmResponse|LlmStructuredResponse|Throwable>  $queue
+     */
+    private function __construct(private array $queue) {}
+
+    public static function succeeding(LlmResponse|LlmStructuredResponse $response): self
+    {
+        return new self([$response]);
+    }
+
+    public static function truncated(LlmUsage $usage = new LlmUsage(promptTokens: 0, completionTokens: 0, cachedTokens: 0, totalTokens: 0)): self
+    {
+        return new self([
+            new LlmStructuredResponse(data: [], usage: $usage, finishReason: FinishReason::MaxTokens, raw: ''),
+        ]);
+    }
+
+    public static function throwing(Throwable $exception): self
+    {
+        return new self([$exception]);
+    }
+
+    public function andThen(LlmResponse|LlmStructuredResponse|Throwable $outcome): self
+    {
+        $this->queue[] = $outcome;
+
+        return $this;
+    }
+
+    public function complete(LlmPrompt $prompt, LlmOptions $options): LlmResponse
+    {
+        $this->receivedPrompts[] = $prompt;
+
+        $outcome = $this->dequeue();
+
+        if (! $outcome instanceof LlmResponse) {
+            throw new RuntimeException('FakeLlmProvider: следующий исход в очереди не LlmResponse (вызван complete()).');
+        }
+
+        return $outcome;
+    }
+
+    public function completeStructured(LlmPrompt $prompt, JsonSchema $schema, LlmOptions $options): LlmStructuredResponse
+    {
+        $this->receivedPrompts[] = $prompt;
+
+        $outcome = $this->dequeue();
+
+        if (! $outcome instanceof LlmStructuredResponse) {
+            throw new RuntimeException('FakeLlmProvider: следующий исход в очереди не LlmStructuredResponse (вызван completeStructured()).');
+        }
+
+        return $outcome;
+    }
+
+    /**
+     * @return list<LlmPrompt>
+     */
+    public function receivedPrompts(): array
+    {
+        return $this->receivedPrompts;
+    }
+
+    private function dequeue(): LlmResponse|LlmStructuredResponse
+    {
+        if ($this->queue === []) {
+            throw new RuntimeException('FakeLlmProvider: очередь заготовленных исходов пуста.');
+        }
+
+        $outcome = array_shift($this->queue);
+
+        if ($outcome instanceof Throwable) {
+            throw $outcome;
+        }
+
+        return $outcome;
+    }
+}
