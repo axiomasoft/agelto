@@ -17,7 +17,8 @@ return new class extends Migration
 
             $table->foreignId('estimate_id')
                 ->index()
-                ->constrained(table: (new Estimate)->getTable());
+                ->constrained(table: (new Estimate)->getTable())
+                ->cascadeOnDelete();
 
             // Дерево разделов (без ltree на этом шаге, см. 01-database.md §6b «опц. позже»).
             $table->foreignId('parent_id')

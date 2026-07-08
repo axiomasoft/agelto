@@ -36,10 +36,10 @@ return new class extends Migration
             ) PARTITION BY RANGE (called_at)
             SQL);
 
-        DB::statement('CREATE INDEX ai_llm_calls_analysis_id_index ON prc_ai_llm_calls (analysis_id)');
-        DB::statement('CREATE INDEX ai_llm_calls_purpose_called_at_index ON prc_ai_llm_calls (purpose, called_at)');
+        DB::statement('CREATE INDEX prc_ai_llm_calls_analysis_id_index ON prc_ai_llm_calls (analysis_id)');
+        DB::statement('CREATE INDEX prc_ai_llm_calls_purpose_called_at_index ON prc_ai_llm_calls (purpose, called_at)');
         DB::statement(
-            'ALTER TABLE prc_ai_llm_calls ADD CONSTRAINT ai_llm_calls_analysis_id_foreign '
+            'ALTER TABLE prc_ai_llm_calls ADD CONSTRAINT prc_ai_llm_calls_analysis_id_foreign '
             .'FOREIGN KEY (analysis_id) REFERENCES prc_ai_analyses (id)',
         );
 

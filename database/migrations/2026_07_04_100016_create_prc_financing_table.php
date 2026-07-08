@@ -19,7 +19,8 @@ return new class extends Migration
 
             $table->foreignId('procurement_id')
                 ->index()
-                ->constrained(table: (new Procurement)->getTable());
+                ->constrained(table: (new Procurement)->getTable())
+                ->cascadeOnDelete();
 
             $table->foreignId('lot_id')
                 ->nullable()

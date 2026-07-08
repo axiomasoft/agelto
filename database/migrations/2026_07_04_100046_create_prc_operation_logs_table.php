@@ -26,7 +26,7 @@ return new class extends Migration
             ) PARTITION BY RANGE (created_at)
             SQL);
 
-        DB::statement('CREATE INDEX sys_operation_logs_entity_index ON prc_operation_logs (entity_type, entity_id)');
+        DB::statement('CREATE INDEX prc_operation_logs_entity_index ON prc_operation_logs (entity_type, entity_id)');
 
         $this->bootstrapPartitions();
     }

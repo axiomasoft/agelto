@@ -19,7 +19,8 @@ return new class extends Migration
 
             $table->foreignId('procurement_id')
                 ->index()
-                ->constrained(table: (new Procurement)->getTable());
+                ->constrained(table: (new Procurement)->getTable())
+                ->cascadeOnDelete();
 
             // Закрытый codelist для 44-ФЗ, для 223-ФЗ — произвольная строка (см. ProtocolType).
             $table->text('type');

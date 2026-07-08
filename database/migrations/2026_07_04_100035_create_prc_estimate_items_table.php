@@ -18,7 +18,8 @@ return new class extends Migration
 
             $table->foreignId('estimate_id')
                 ->index()
-                ->constrained(table: (new Estimate)->getTable());
+                ->constrained(table: (new Estimate)->getTable())
+                ->cascadeOnDelete();
 
             $table->foreignId('section_id')
                 ->nullable()

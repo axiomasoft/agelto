@@ -17,7 +17,8 @@ return new class extends Migration
 
             $table->foreignId('estimate_id')
                 ->index()
-                ->constrained(table: (new Estimate)->getTable());
+                ->constrained(table: (new Estimate)->getTable())
+                ->cascadeOnDelete();
 
             // Иерархия итогов («Итого» → «в т.ч. НДС»), перенос рекурсии EstimateFooterItem из v1.
             $table->foreignId('parent_id')

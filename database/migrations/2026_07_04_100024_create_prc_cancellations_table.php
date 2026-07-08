@@ -18,7 +18,8 @@ return new class extends Migration
 
             $table->foreignId('procurement_id')
                 ->index()
-                ->constrained(table: (new Procurement)->getTable());
+                ->constrained(table: (new Procurement)->getTable())
+                ->cascadeOnDelete();
 
             $table->timestampTz('decision_at');
             $table->text('reason')->nullable();
