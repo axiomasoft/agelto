@@ -1,6 +1,10 @@
 <?php
 
 declare(strict_types=1);
+use App\Services\Procurement\Prepare\ArchiveStrategy;
+use App\Services\Procurement\Prepare\ImageStrategy;
+use App\Services\Procurement\Prepare\PassthroughStrategy;
+use App\Services\Procurement\Prepare\SpreadsheetStrategy;
 
 return [
     /*
@@ -111,5 +115,57 @@ return [
         // 'gemini-3.1-flash-lite' => ['input_per_1m' => 0.25, 'output_per_1m' => 1.50, 'cached_per_1m' => 0.025, ...],
         // 'gemini-3.5-flash'      => ['input_per_1m' => 1.50, 'output_per_1m' => 9.00, 'cached_per_1m' => 0.15, ...],
         // 'gemini-3.1-pro-preview'=> ['input_per_1m' => 2.00, 'output_per_1m' => 12.00, 'cached_per_1m' => 0.20, ...],
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Подготовка документов (P4.2, ТЗ 03 §3.3)
+    |--------------------------------------------------------------------------
+    |
+    | `strategies` — реестр `PreparationStrategy`, порядок важен: первая подошедшая по
+    | `canProcess()` обрабатывает версию; `PassthroughStrategy` — ловит всё, всегда последняя.
+    | xlsx size-gate (D35, research/L finding 5): `xlsx_max_mb`/`xlsx_max_rows` проверяются
+    | ДО полной загрузки файла — сверх лимита `unprocessable(too_large)`, не OOM. Сама конверсия
+    | Excel→PDF — в отдельном PHP-процессе (`procurement:convert-xlsx-to-pdf`) с явным
+    | `xlsx_convert_memory_limit`, чтобы OOM не убивал соседние jobs воркера.
+    |
+    */
+    'prepare' => [
+        'strategies' => [
+            ArchiveStrategy::class,
+            SpreadsheetStrategy::class,
+            ImageStrategy::class,
+            PassthroughStrategy::class,
+        ],
+
+        'xlsx_max_rows' => (int) env('AI_PREPARE_XLSX_MAX_ROWS', 20000),
+        'xlsx_max_mb' => (int) env('AI_PREPARE_XLSX_MAX_MB', 25),
+        'xlsx_convert_memory_limit' => env('AI_PREPARE_XLSX_CONVERT_MEMORY_LIMIT', '512M'),
+        'xlsx_convert_timeout_seconds' => (int) env('AI_PREPARE_XLSX_CONVERT_TIMEOUT_SECONDS', 120),
+
+        /*
+        | Zip-бомба (Code Guidance P4.2): `max_depth` — вложенность архив-в-архиве по цепочке
+        | `parent_version_id`; `max_files`/`max_total_mb` — заявленные ZipArchive-заголовками
+        | (без распаковки) число файлов и суммарный uncompressed-размер.
+        */
+        'archive' => [
+            'max_depth' => (int) env('AI_PREPARE_ARCHIVE_MAX_DEPTH', 2),
+            'max_files' => (int) env('AI_PREPARE_ARCHIVE_MAX_FILES', 200),
+            'max_total_mb' => (int) env('AI_PREPARE_ARCHIVE_MAX_TOTAL_MB', 500),
+        ],
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Скрининг (гейт цепочки стадий, P4.2 → P5)
+    |--------------------------------------------------------------------------
+    |
+    | `enabled` — выключен по умолчанию: `ScreeningJob` (полная реализация — P5.1/P5.2) ещё
+    | не готов боевым образом; `PrepareDocumentJob` диспатчит его за этим флагом (владелец
+    | цепочки стадий — P4.2, ТЗ 03 §4).
+    |
+    */
+    'screening' => [
+        'enabled' => (bool) env('AI_SCREENING_ENABLED', false),
     ],
 ];

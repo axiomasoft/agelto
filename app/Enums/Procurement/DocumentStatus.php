@@ -16,4 +16,11 @@ enum DocumentStatus: string
     case Extracted = 'extracted';
     case Ignored = 'ignored';
     case Failed = 'failed';
+
+    /**
+     * Терминальный исход «не можем обработать» (D32/D38): отдельный от `failed` статус —
+     * констатация лимита/формата, не сбой, не ретраится; причина — `last_error`
+     * (`App\Enums\Procurement\UnprocessableReason`).
+     */
+    case Unprocessable = 'unprocessable';
 }

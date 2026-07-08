@@ -11,6 +11,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libpq-dev \
     && docker-php-ext-install intl bcmath pdo_pgsql pgsql \
     && if ! php -m | grep -qi '^redis$'; then pecl install redis && docker-php-ext-enable redis; fi \
+    && if ! php -m | grep -qi '^gd$'; then install-php-extensions gd; fi \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /var/www/html
