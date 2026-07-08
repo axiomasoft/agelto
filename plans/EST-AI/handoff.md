@@ -1,27 +1,98 @@
-# HANDOFF — 2026-07-09 — after P6.3
+# HANDOFF — 2026-07-09 — after P6.4
 
-**Next:** `/task:plan-exec EST-AI P6.4`
-**Done:** P6.3 (Персист в `prc_estimate_*` + точечный re-run, ТЗ 03 §3.5 п.4-5) — фаза **P6 остаётся 🟡 In progress (3/4)**, следующий (последний) item фазы — P6.4 (детализирован, Scope/Files/Required Reads/Implementation Rules/Code Guidance/Validation заполнены). `EstimateStoreRepository` (`app/Repositories/Procurement/`) — единственная точка персистентности `prc_estimates`/`prc_estimate_sections`/`prc_estimate_items`/`prc_estimate_resources`/`prc_estimate_totals`: `upsertEstimate()` по `(analysis_id, ordinal)` (unique, D12), `findOrCreateSection()` по `(estimate_id, parent_id, title)` — стабильно БЕЗ удаления (items ссылаются на sections `nullOnDelete` — delete осиротил бы уже персистированные позиции), `upsertItem()` — точечный upsert по `(estimate_id, row_index)` (unique), `replaceResources()`/`replaceTotals()` — полная пересборка на persist (безопасно: ни ресурсы, ни итоги не несут внешних FK-зависимостей, в отличие от sections/items). `EstimatePersister::persist(Analysis)` (`app/Services/Procurement/Extraction/`) — читает `analysis.result.estimates[]` (P6.1-формат, сырые чанки), на каждую смету: гидратирует `EstimateRow[]`/`IncompleteRow[]`/`?EstimateTotalsBlock` из массивов → `EstimateStitcher::stitch()` → `EstimateValidator::validate()` (P6.2, ВПЕРВЫЕ получили потребителя) → ОДНА `DB::transaction()` на смету: upsert `Estimate` (title синтезируется — DTO не несёт поля, Known Deviation), обход стичнутых строк — `SectionHeader`/`SubsectionHeader` резолвят/создают `Section` через кэш-карту breadcrumb→id, `Item`-строки апсертятся с `attributes.modifiers` + `replaceResources`, `Subtotal`-строки НЕ персистятся отдельной записью (использованы только валидатором для арифметики — в схеме нет слота под промежуточный итог); `totals.footer` → `replaceTotals` (рекурсивное дерево); `raw_result`/`raw_result_ref` — inline jsonb ≤1МБ, иначе `Storage::disk(config('crawler.raw_disk'))` (D33-канон `*_ref`); событие `ProcurementEventType::EstimateExtracted` (новый кейс). `RerunRangeAction::run(Estimate, rowStart, rowLength)` — точечный re-run: `AiRouteResolver::resolve()` + `ChunkSource::fetchRows()` (тот же контракт, что оркестратор P6.1), Files-хэндл переиспользуется из `analysis.progress` если не истёк, иначе перезаливается; точечный upsert по `row_index` заменяет ТОЛЬКО запрошенный диапазон, секция заменённой строки СОХРАНЯЕТСЯ прежней (не пересчитывает иерархию — нет полного контекста сметы), `rows_extracted` пересчитывается. **Wiring (сверх буквального Files-списка P6.3, необходимая проводка — прецедент P3.3/P4.1–P4.3/P6.1/P6.2):** `ExtractionOrchestrator::finalizeSuccess()` (P6.1) теперь вызывает `EstimatePersister::persist($analysis)` сразу после перевода `Document` в `extracted` — без этого Stitcher/Validator/Persister остались бы БЕЗ ПОТРЕБИТЕЛЯ на боевом пути (тот же риск, что P6.2 handoff предупреждал явно); `Estimate.php` — `ordinal` добавлен в `$fillable`/casts (миграция `100033` уже несла колонку `smallInteger('ordinal')`, модель её не отражала — правка по правилу CLAUDE.md «новые поля — в $fillable/casts», без новой миграции). Новый `ProcurementEventType::EstimateExtracted`. Тесты: `tests/Feature/Procurement/Extraction/{EstimatePersisterTest,RerunRangeTest}.php` (3+1=4, builder-функции вместо JSON-фикстур, тот же приём/обоснование, что P6.1/P6.2): полный persist раздел+2 позиции+subtotal+totals (Section/Item/Total/событие); повторный persist того же анализа — без дублей; несколько смет одного анализа — раздельные записи с ordinal; re-run диапазона — заменяет только запрошенные row_index, остальные позиции не тронуты, секция сохранена, `rows_extracted` пересчитан, Files-хэндл загружен. Прогнано: `--filter=EstimatePersister` → 3 passed (20 assertions); `--filter=RerunRange` → 1 passed (8 assertions); регрессия `--filter=ExtractionOrchestrator` (wiring в finalizeSuccess) → 6 passed (37 assertions, без изменений); полный сьют `php artisan test` → 346 passed (1084 assertions, было 342 — прирост ровно на 4 новых теста, регрессии нет); `pint --test` на явном списке из 8 путей → после 1 автофикса (`fully_qualified_strict_types` — докблок `\App\Dto\...\TotalLine` заменён на `use`-импорт, применён с хоста — контейнер не пишет в bind-mount) 8 files passed.
-**Remaining:** P6.4 (Оконный путь, детализирован) → P7 (экономика/надёжность/observability/деплой/data-lifecycle, 7) → P8 (промт-система, 2) → P9 (обучающий контур, 4) → P10 (документация, 4) → P11 (sweep+удаление Old/, 1) → P12 (AI-контекст, 2, только opus/Fable — Routing §3). Итого 23 items впереди из 40 (закрыто 17: P1 2/4 + P2 3/3 + P3 4/4 + P4 3/3 + P5 2/2 + P6 3/4 — Phase Index & Status Board в plan.md, раздел 4).
-**Sources of truth:** plans/EST-AI/plan.md · plans/EST-AI/phases/P6.md (P6.4 полностью специфицирован — Intent/Scope/Files/Required Reads/Implementation Rules/Code Guidance/Validation заполнены) · docs/specs/v2/08-estimate-extraction.md §fallback (окно+discovery, P6.4 Required Reads) · docs/specs/v2/03-document-pipeline.md §3.5 · plans/EST-AI/research/{E,L}-*.md · `app/Services/Procurement/Extraction/` (P6.1 — оркестратор/ChunkSource/RowRangeChunkSource; P6.2 — EstimateStitcher/EstimateValidator/StitchReport/ValidationReport; P6.3 — EstimatePersister/RerunRangeAction, ВЫЗЫВАЮТСЯ из `ExtractionOrchestrator::finalizeSuccess()`) · `app/Repositories/Procurement/EstimateStoreRepository.php` (P6.3) · `app/Models/Procurement/Estimate/` + `database/migrations/2026_07_04_100033..100037` (целевые таблицы, `Estimate.ordinal` теперь в fillable) · `app/Enums/Procurement/ProcurementEventType.php` (+`EstimateExtracted`) · `app/Dto/Procurement/Ai/Estimate/` (P2.2, контракты) · `app/Services/Llm/` (P3-контракты)
+**Next:** `/task:plan-design EST-AI P6` (пересмотреть item P6.4 — эскалация в `phases/P6.md`)
+**Done:** P6.1–P6.3 (без изменений). P6.4 НЕ реализован — эскалация ДО написания кода/тестов
+(предусловие/чтение выполнены, кодирование не начиналось). Фаза **P6 — 🔴 Blocked (3/4)**.
+**Remaining:** сначала `/task:plan-design EST-AI P6.4` (разрешить архитектурное расхождение ниже),
+затем сам P6.4 → P7 (7) → P8 (2) → P9 (4) → P10 (4) → P11 (1) → P12 (2, только opus/Fable —
+Routing §3). Итого 24 items впереди из 40 (закрыто 17: P1 2/4 + P2 3/3 + P3 4/4 + P4 3/3 + P5 2/2 +
+P6 3/4).
+**Sources of truth:** plans/EST-AI/plan.md · plans/EST-AI/phases/P6.md (P6.4 — blockquote
+`🔴 ESCALATION` целиком, читать перед plan-design) · docs/specs/v2/08-estimate-extraction.md §4.2
+(Fallback: оконный трёхстадийный путь), §3.4 (`extraction:discovery`) · `app/Services/Procurement/
+Extraction/ChunkSource.php` (P6.1, интерфейс — предмет спора) · `app/Services/Procurement/
+Extraction/ExtractionOrchestrator.php` (P6.1, `runWholeDocument()` — checkpoint-цикл, единственное
+место инкремента `unitsThisRun`) · `app/Dto/Procurement/Ai/Estimate/DiscoveryResponse.php` +
+`DiscoveryMarkerLine.php` + `app/Enums/Procurement/DiscoveryMarker.php` (P2.2, контракт готов, но
+без потребителя-метода в ChunkSource) · `app/Enums/Procurement/PromptStep.php` (`ExtractionDiscovery`
+уже добавлен P3.3) · `app/Enums/Procurement/LlmPurpose.php` (кейс `Discovery` — НЕ добавлен, Scope
+Included P6.4, заблокирован тем же архитектурным вопросом) · `app/Services/Procurement/Screening/
+PdfPageSlicer.php` (P5.1, qpdf-резка окон).
 **Open risks:**
+- **Новое, блокирующее P6.4:** интерфейс `ChunkSource` (P6.1/D40, 3 метода, row-index-адресация)
+  не имеет метода/response-типа под `extraction:discovery` (`DiscoveryResponse`), а стадия 2
+  оконного пути (спека 08 §4.2) явно требует чанкинг СТРАНИЦАМИ, а не row-index-диапазонами —
+  два независимых несовпадения контракта, оба блокируют прямую реализацию `WindowedChunkSource`
+  без правки `ChunkSource.php` (владелец — P6.1, не в Files P6.4).
+- **Новое, блокирующее P6.4:** `ExtractionOrchestrator::runWholeDocument()` (P6.1) — единственное
+  место, где чекпоинтится `analysis.progress`/инкрементируется `unitsThisRun`, ПОСЛЕ каждого
+  `ChunkSource`-вызова; discovery гигантского документа (сотни страниц ÷ K=3 = сотни LLM-вызовов)
+  требует стольких же checkpoint-единиц ДО первого валидного `PassportResponse`, но
+  `fetchPassport()` возвращает РОВНО один ответ на вызов — спрятать весь discovery внутри одного
+  вызова нарушает Code Guidance P6.4 («каждое окно — единица прогресса для self-requeue») и прямо
+  противоречит Why этого item'а (документ 2–200 МБ, D31 research/L finding 18). Полный текст — см.
+  blockquote в `phases/P6.md` под P6.4.
 - Прокси для Gemini/LLM-вызовов из РФ не покрыт решением владельца (без изменений).
 - Троттлинг Gemini не откалиброван против реальной квоты провайдера (без изменений).
 - Модели EOL (D27): линейка 2.5 умирает 2026-10-16.
-- `docs/specs/v2/03-document-pipeline.md`/`04-llm-providers.md` местами используют устаревшие имена таблиц (`doc_*`/`est_*`/`ai_*` вместо `prc_*`) — расхождение не устранено.
-- `docker compose exec` требует ДВА `--env-file` (`--env-file .env --env-file .env.docker`); `pint --dirty` внутри контейнера НЕ подхватывает untracked-файлы (только `git diff --name-only`) — на untracked-heavy item'ах гонять `pint --test <явный список путей>`; контейнер `app` не может ЗАПИСАТЬ автофикс в bind-mount — автофикс делать на хосте.
+- `docs/specs/v2/03-document-pipeline.md`/`04-llm-providers.md` местами используют устаревшие
+  имена таблиц (`doc_*`/`est_*`/`ai_*` вместо `prc_*`) — расхождение не устранено.
+- `docker compose exec` требует ДВА `--env-file` (`--env-file .env --env-file .env.docker`);
+  `pint --dirty` внутри контейнера НЕ подхватывает untracked-файлы (только `git diff
+  --name-only`) — на untracked-heavy item'ах гонять `pint --test <явный список путей>`; контейнер
+  `app` не может ЗАПИСАТЬ автофикс в bind-mount — автофикс делать на хосте.
 - `.env`/`.env.example` закрыты от чтения — правки только append вслепую.
-- `php artisan test --filter=X --filter=Y` — второй `--filter` игнорируется, гонять раздельными командами.
-- `ReaskPolicy` НЕ используется оркестраторами (P5.1/P6.1) — не отдаёт usage для `LlmCallRecorder` (без изменений).
-- `config("ai.capabilities.{$model}")` (dot-notation) ломается на реальных именах моделей Gemini (точки в имени) — затрагивает `LlmCallRecorder::costMicros()` (P3.2, тихо `cost_micros=0`); `ExtractionPreflight` (P6.1) НЕ повторяет паттерн. Точечный фикс — вне Scope, рекомендован ближайшему item'у, трогающему cost-учёт (P7.х) или отдельным `/task:fix` (без изменений).
+- `php artisan test --filter=X --filter=Y` — второй `--filter` игнорируется, гонять раздельными
+  командами.
+- `ReaskPolicy` НЕ используется оркестраторами (P5.1/P6.1) — не отдаёт usage для
+  `LlmCallRecorder` (без изменений).
+- `config("ai.capabilities.{$model}")` (dot-notation) ломается на реальных именах моделей Gemini
+  (точки в имени) — затрагивает `LlmCallRecorder::costMicros()` (P3.2, тихо `cost_micros=0`);
+  `ExtractionPreflight` (P6.1) НЕ повторяет паттерн. Точечный фикс — вне Scope, рекомендован
+  ближайшему item'у, трогающему cost-учёт (P7.х) или отдельным `/task:fix` (без изменений).
 - Explicit context cache для extraction НЕ подключён (P6.1) — implicit-only (без изменений).
-- **Новое, P6.3:** `EstimatePersister` пропускает (с `Log::warning`, без падения транзакции) сметы документов без `procurement_id` (manual-импорт вне закупки, D22/P7.4) — `prc_estimates.procurement_id` NOT NULL по миграции `100033`, ренейм схемы вне Scope P6.3. Персист эталонных смет (P7.4, «другая модель будет наполнять промты») упрётся в это, если manual-импорт создаёт документы без `procurement_id`.
-- **Новое, P6.3:** `RerunRangeAction` НЕ пересчитывает `validation_status`/иерархию секций сметы целиком после точечной замены диапазона — только `rows_extracted`. Полный пересчёт требует Stitcher/Validator над ВСЕМИ строками сметы с исходным `row_type`, которого `prc_estimate_items` не хранит (таблица хранит только позиции, не заголовки/subtotal) — после нескольких re-run `validation_status` сметы может отставать от фактического состояния данных.
-- **Новое, P6.3:** `mergedIncompleteItems` (P6.2 StitchReport) по-прежнему НЕ персистятся в `prc_estimate_items` — решение P6.3: нет надёжного `row_index` для синтезированной строки (IncompleteRow контракта P2.2 его не несёт), склеенные пары видны ТОЛЬКО в `raw_result`/`raw_result_ref` каждой сметы, флаг `is_merged_from_split` (упомянутый в Implementation Rules P6.3) фактически не используется ни разу в коде — задел на будущее (операторский UI/P9 датасет читает из raw_result).
-- **Новое, P6.3:** `total_amount`/`EstimateValidator::checkGrandTotal()` используют ОДНУ И ТУ ЖЕ best-effort эвристику поиска грандтотала (`kind='total'`/«итого»/«всего» в label), продублированную в двух местах (validator-метод приватный, общего дома для эвристики не заведено) — при правке одной копии легко забыть вторую.
+- `EstimatePersister` пропускает сметы документов без `procurement_id` (manual-импорт, D22/P7.4)
+  (без изменений, P6.3).
+- `RerunRangeAction` НЕ пересчитывает `validation_status`/иерархию секций целиком (без изменений,
+  P6.3).
+- `mergedIncompleteItems` не персистятся в `prc_estimate_items` (без изменений, P6.3).
+- `total_amount`/`checkGrandTotal()` дублируют одну эвристику в двух местах (без изменений, P6.3).
 **Workarounds/Deferred/Open questions:**
-- workarounds: (без изменений с P6.2) `docker compose exec` — два `--env-file`; composer/pint-автофикс — с хоста при необходимости (bind-mount permissions); `.env.example` — слепой append; `pint --dirty` не видит untracked — явный список путей; `php artisan test` — один `--filter` за прогон; `config('ai.capabilities.<модель-с-точками>.<ключ>')` — НЕ работает (dot-notation), индексировать массив напрямую.
-- deferred: (без изменений с P5.1/P5.2/P6.1/P6.2) боевое наполнение промт-текстов (P8); Batch API (D7); RAR/7z в ArchiveStrategy; OCR/предобработка сканов; LibreOffice-конвертер xlsx (D35); Ghostscript-даунскейл скан-PDF; generic ai_extractions (D13); контакты-сущность под CRM; полный 9-префиксный ренейм (отклонён D11); Prometheus/Grafana (D25); прод-развёртывание GlitchTip (P7.5); прод-хранилище/cron бэкапов и MinIO ILM (P7.7); shadow CI-гейт; калибровка порогов P6.4/P5.2/P6.2 (`confidence_low/high`, `ignore_rules`, `row_range_size`/`checkpoint_ranges`/`checkpoint_seconds`, `SEVERE_COMPLETENESS_RATIO`/допуск ±0.01 EstimateValidator, **новое** — `RAW_RESULT_INLINE_MAX_BYTES`(1МБ) EstimatePersister); переключение сидов на 3.x-модели (D27); Langfuse/registry промтов; правка устаревших имён таблиц в 03/04; Gemini-прокси-для-РФ; калибровка `ai.gemini.rate_limit.*`; тариф gemini-2.5-pro >200k токенов; ренейм `Ai\AiRoute` (P1.4); калибровка `temperature`/`maxTokens` по purpose (P3.3); второй driver для `AiRouteResolver::providerFor()` (P3.3); stuck-check зависших lease (P7.3); `LlmCallRecorder`-интеграция ВНУТРИ `ReaskPolicy` для re-ask-вызовов (P3.4); точечный фикс `LlmCallRecorder::costMicros()` dot-notation; explicit context cache для extraction; per-purpose роутинг в `ExtractionOrchestrator`; runtime-обнаружение провайдерского лимита ПОСЛЕ preflight; **новое** — manual-импорт документов вне закупки и персист их смет (P7.4, блокер найден P6.3); **новое** — полный пересчёт `validation_status`/иерархии после `RerunRangeAction` (требует Stitcher/Validator над строками с сохранённым `row_type` — сейчас теряется при персисте в Items); **новое** — путь для `mergedIncompleteItems` в UI/датасет через `raw_result` (P9/Filament-витрина, вне этого плана).
-- open_questions: подтверждение владельца перед git rm Old/ (P11.1); хост для GlitchTip (P7.5); хост/расписание бэкапов (P7.7); дата переключения на 3.x-модели (D27); нужен ли исходящий прокси для Gemini из среды деплоя; нужен ли структурный reason-столбец на `prc_documents`/`prc_ai_analyses` для unprocessable; guard-фикс `ScreeningJob::statusGuardPassed()` под редкий сценарий «анализ succeeded, ветвление не доведено» (P5.2 Open risk, без изменений); **новое** — стоит ли сузить overlap-дедуп по составному ключу до реальных границ чанков (P6.2, решение по факту реальных смет P7.4/эталонный датасет); **новое** — источник `Estimate.title` (сейчас синтетический «Смета №N») — нужно ли реальное поле в DTO паспорта (P2.2 правка) или синтетика достаточна для UI (Filament-витрина, вне этого плана); **новое** — нужен ли структурный `is_merged_from_split`/якорь `row_index` для склеенных incomplete-строк (потребует либо эвристики позиционирования, либо изменения контракта `IncompleteRow`, P2.2) — решение за P7.4/операторским ревью реальных смет.
+- workarounds: (без изменений с P6.3) `docker compose exec` — два `--env-file`; composer/pint-
+  автофикс — с хоста при необходимости (bind-mount permissions); `.env.example` — слепой append;
+  `pint --dirty` не видит untracked — явный список путей; `php artisan test` — один `--filter` за
+  прогон; `config('ai.capabilities.<модель-с-точками>.<ключ>')` — НЕ работает (dot-notation),
+  индексировать массив напрямую.
+- deferred: (без изменений с P6.3) боевое наполнение промт-текстов (P8); Batch API (D7); RAR/7z в
+  ArchiveStrategy; OCR/предобработка сканов; LibreOffice-конвертер xlsx (D35); Ghostscript-
+  даунскейл скан-PDF; generic ai_extractions (D13); контакты-сущность под CRM; полный
+  9-префиксный ренейм (отклонён D11); Prometheus/Grafana (D25); прод-развёртывание GlitchTip
+  (P7.5); прод-хранилище/cron бэкапов и MinIO ILM (P7.7); shadow CI-гейт; калибровка порогов
+  P6.4/P5.2/P6.2; переключение сидов на 3.x-модели (D27); Langfuse/registry промтов; правка
+  устаревших имён таблиц в 03/04; Gemini-прокси-для-РФ; калибровка `ai.gemini.rate_limit.*`;
+  тариф gemini-2.5-pro >200k токенов; ренейм `Ai\AiRoute` (P1.4); калибровка
+  `temperature`/`maxTokens` по purpose (P3.3); второй driver для `AiRouteResolver::providerFor()`
+  (P3.3); stuck-check зависших lease (P7.3); `LlmCallRecorder`-интеграция ВНУТРИ `ReaskPolicy`
+  (P3.4); точечный фикс `LlmCallRecorder::costMicros()` dot-notation; explicit context cache для
+  extraction; per-purpose роутинг в `ExtractionOrchestrator`; runtime-обнаружение провайдерского
+  лимита ПОСЛЕ preflight; manual-импорт документов вне закупки (P7.4); полный пересчёт
+  `validation_status`/иерархии после `RerunRangeAction`; путь для `mergedIncompleteItems` в
+  UI/датасет через `raw_result` (P9/Filament-витрина).
+- open_questions: подтверждение владельца перед git rm Old/ (P11.1); хост для GlitchTip (P7.5);
+  хост/расписание бэкапов (P7.7); дата переключения на 3.x-модели (D27); нужен ли исходящий прокси
+  для Gemini из среды деплоя; нужен ли структурный reason-столбец на `prc_documents`/
+  `prc_ai_analyses` для unprocessable; guard-фикс `ScreeningJob::statusGuardPassed()` под редкий
+  сценарий (P5.2); overlap-дедуп по составному ключу до реальных границ чанков (P6.2); источник
+  `Estimate.title` (P6.3); структурный `is_merged_from_split`/якорь `row_index` для склеенных
+  incomplete-строк (P6.3). **Новое, P6.4 — требует решения plan-design:** как разрешить конфликт
+  `ChunkSource`-контракта (row-index, 3 response-типа) с page-based discovery/per-estimate
+  чанкингом оконного пути — варианты на выбор владельца/plan-design: (а) расширить `ChunkSource`
+  четвёртым методом под `DiscoveryResponse` + явно допустить, что `fetchRows()` для
+  `WindowedChunkSource` интерпретирует параметры иначе (страницы вместо row-index) с
+  документированным контрактом; (б) вывести discovery/windowed-цикл в ОТДЕЛЬНЫЙ от `ChunkSource`
+  механизм (свой интерфейс + собственная checkpoint-схема в `ExtractionOrchestrator`, не через
+  `runWholeDocument()`); (в) сознательно принять «discovery одного документа — один
+  не-чекпointящийся вызов» (нарушение Code Guidance P6.4, риск таймаута на гигантских документах)
+  с явным решением владельца и правкой Code Guidance. Разрешение — новое `D#` в plan.md.
 
-Context: handoff свежий — рекомендован /clear перед следующим item
+Context: эскалация — свежий handoff, перед `/task:plan-design EST-AI P6.4` рекомендован /clear.
