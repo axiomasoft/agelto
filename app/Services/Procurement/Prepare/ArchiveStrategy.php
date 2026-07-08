@@ -12,6 +12,7 @@ use App\Models\Procurement\Document\DocumentVersion;
 use App\Repositories\Procurement\DocumentStoreRepository;
 use App\Repositories\Procurement\ProcurementStoreRepository;
 use Illuminate\Contracts\Filesystem\Filesystem;
+use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use RuntimeException;
@@ -89,7 +90,7 @@ final readonly class ArchiveStrategy implements PreparationStrategy
             $stat = $zip->statIndex($i);
             $name = (string) $stat['name'];
 
-            if (str_ends_with($name, '/') || str_starts_with(basename($name), '.')) {
+            if (str_ends_with($name, '/') || str_starts_with(basename($name), '.') || ! $this->isSafeEntryName($name)) {
                 continue;
             }
 
@@ -116,8 +117,27 @@ final readonly class ArchiveStrategy implements PreparationStrategy
                 $this->indexChild($document, $version, $relativePath, $extractPath.'/'.$relativePath, $disk);
             }
         } finally {
-            Storage::deleteDirectory($tempFolder);
+            File::deleteDirectory($extractPath);
         }
+    }
+
+    /**
+     * Защита в глубину от path traversal в именах entry архива (не доверяем содержимому
+     * недоверенных ZIP из закупок): отбрасываем абсолютные пути и `..`-сегменты до extractTo().
+     */
+    private function isSafeEntryName(string $name): bool
+    {
+        if ($name === '' || str_starts_with($name, '/') || str_contains($name, "\0")) {
+            return false;
+        }
+
+        foreach (explode('/', $name) as $segment) {
+            if ($segment === '..') {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     private function indexChild(Document $document, DocumentVersion $version, string $relativePath, string $localPath, Filesystem $disk): void
