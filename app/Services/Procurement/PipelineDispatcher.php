@@ -45,13 +45,22 @@ final readonly class PipelineDispatcher
     }
 
     /**
+     * `pendingRetry()` (`HasErrorBlock`-канон, `Document::scopePendingRetry`) не даёт
+     * прямому пути/поллеру обходить backoff и dead-letter (ревью-находка P4.3 HIGH): для
+     * ещё-не-провалившегося документа `next_retry_at` пуст — скоуп пропускает как обычно, а
+     * провалившийся при подготовке (см. `HasErrorBlock::recordFailure` — статус остаётся
+     * `Downloaded`, меняются только `attempts/next_retry_at/failed_permanently`) переотправляется
+     * только когда наступил `next_retry_at`, и никогда — если `failed_permanently` (это зона
+     * `pipeline:retry-failed`, единственной команды, которая умеет claim+dead-letter-гейт).
+     *
      * @return Builder<Document>
      */
     private function downloadedQuery(): Builder
     {
         return Document::query()
             ->where('status', DocumentStatus::Downloaded)
-            ->whereNull('removed_at');
+            ->whereNull('removed_at')
+            ->pendingRetry();
     }
 
     /**

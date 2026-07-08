@@ -70,3 +70,54 @@ test('dispatchBacklog уважает лимит', function () {
     expect($count)->toBe(2);
     Queue::assertPushed(PrepareDocumentJob::class, 2);
 });
+
+test('dispatchBacklog не переотправляет провалившийся документ раньше next_retry_at (backoff) и не трогает dead-letter (ревью-находка HIGH)', function () {
+    Queue::fake();
+    $procurement = Procurement::factory()->create();
+    $inBackoff = Document::factory()->create([
+        'procurement_id' => $procurement->id,
+        'status' => DocumentStatus::Downloaded,
+        'attempts' => 1,
+        'next_retry_at' => now()->addMinutes(30),
+        'failed_permanently' => false,
+    ]);
+    $deadLetter = Document::factory()->create([
+        'procurement_id' => $procurement->id,
+        'status' => DocumentStatus::Downloaded,
+        'attempts' => 5,
+        'next_retry_at' => null,
+        'failed_permanently' => true,
+    ]);
+    $due = Document::factory()->create([
+        'procurement_id' => $procurement->id,
+        'status' => DocumentStatus::Downloaded,
+        'attempts' => 1,
+        'next_retry_at' => now()->subMinute(),
+        'failed_permanently' => false,
+    ]);
+
+    $count = app(PipelineDispatcher::class)->dispatchBacklog(limit: 100);
+
+    expect($count)->toBe(1);
+    Queue::assertPushed(PrepareDocumentJob::class, fn (PrepareDocumentJob $job) => $job->documentId === $due->id);
+    Queue::assertPushed(PrepareDocumentJob::class, 1);
+    expect($inBackoff->refresh()->status)->toBe(DocumentStatus::Downloaded)
+        ->and($deadLetter->refresh()->status)->toBe(DocumentStatus::Downloaded);
+});
+
+test('dispatch (прямой путь) тоже уважает backoff — не переотправляет документ раньше next_retry_at (ревью-находка HIGH)', function () {
+    Queue::fake();
+    $procurement = Procurement::factory()->create();
+    Document::factory()->create([
+        'procurement_id' => $procurement->id,
+        'status' => DocumentStatus::Downloaded,
+        'attempts' => 1,
+        'next_retry_at' => now()->addMinutes(30),
+        'failed_permanently' => false,
+    ]);
+
+    $count = app(PipelineDispatcher::class)->dispatch(procurement: $procurement);
+
+    expect($count)->toBe(0);
+    Queue::assertNotPushed(PrepareDocumentJob::class);
+});
