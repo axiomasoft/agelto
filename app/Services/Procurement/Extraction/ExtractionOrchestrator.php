@@ -59,6 +59,7 @@ final readonly class ExtractionOrchestrator
         private AiRouteResolver $routes,
         private ExtractionPreflight $preflight,
         private ChunkSource $chunkSource,
+        private EstimatePersister $persister,
     ) {}
 
     public function run(Document $document, Analysis $analysis): void
@@ -349,12 +350,15 @@ final readonly class ExtractionOrchestrator
             'finished_at' => now(),
         ]);
 
-        // Нормализация в prc_estimate_* (Stitcher/Persister, P6.2/P6.3) — вне Scope P6.1:
-        // сырой результат каждой сметы лежит в analysis.result.estimates для последующей
-        // обработки; документ доводится до extracted здесь (Implementation Rules P6.1 —
-        // финализация статуса анализа/документа обязательна в любом исходе, v1-урок «вечный
-        // analyzing»), P6.3 читает analysis.result и нормализует в таблицы.
+        // Документ доводится до extracted здесь (Implementation Rules P6.1 — финализация
+        // статуса анализа/документа обязательна в любом исходе, v1-урок «вечный analyzing»)
+        // ДО нормализации — Persister (P6.3) читает уже сохранённый analysis.result.
         $this->documents->update($document, ['status' => DocumentStatus::Extracted]);
+
+        // Нормализация в prc_estimate_* (P6.3, EstimateStitcher+EstimateValidator, P6.2):
+        // Stitcher/Validator были чистыми сервисами без потребителя до этого item'а — здесь
+        // они впервые вызываются на боевом analysis.result.estimates.
+        $this->persister->persist($analysis);
     }
 
     private function markUnprocessable(Document $document, Analysis $analysis, UnprocessableReason $reason, string $detail): void

@@ -31,6 +31,7 @@ final class Estimate extends Model
         'analysis_id',
         'document_version_id',
         'procurement_id',
+        'ordinal',
         'title',
         'estimate_number',
         'total_amount',
@@ -48,6 +49,7 @@ final class Estimate extends Model
     protected function casts(): array
     {
         return [
+            'ordinal' => 'integer',
             'total_amount' => 'decimal:2',
             'base_year' => 'integer',
             'passport' => AsCollection::class,
