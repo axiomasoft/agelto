@@ -5,36 +5,64 @@ declare(strict_types=1);
 namespace App\Services\Procurement;
 
 use App\Enums\Procurement\DocumentStatus;
+use App\Jobs\Procurement\PrepareDocumentJob;
 use App\Models\Procurement\Document\Document;
 use App\Models\Procurement\Procurement;
-use Illuminate\Support\Facades\Log;
+use Illuminate\Database\Eloquent\Builder;
 
 /**
- * Тонкий мост crawling → пайплайн документов (`02-crawling.md` §8): отбирает документы
- * закупки, УЖЕ скачанные `DocumentDownloader` (`downloaded` — есть контент, есть что
- * готовить), и уведомляет будущего consumer'а стадии подготовки (Фаза 4, вне V2-CRAWL).
- * `discovered` (контент ещё не скачан — сеть недоступна/ретраи не исчерпаны/файл без
- * ссылки) сюда намеренно не попадает: готовить нечего (FSM `03-document-pipeline.md` §2 —
- * `discovered ──download──> downloaded ──prepare──> prepared`). Диспатч не мутирует
- * `prc_documents.status` — нет отдельного поля-маркера «поставлено в очередь» в схеме
- * (`01-database.md` §5), а следующий переход (`downloaded→prepared`) — вне V2-CRAWL,
- * владеет им будущий consumer Фазы 4; guard от дублей — сам предикат выборки.
+ * Мост crawling → пайплайн документов (`02-crawling.md` §8, ТЗ 03 §4): реальный dispatch
+ * `PrepareDocumentJob` (не заглушка, P4.3) для документов, УЖЕ скачанных `DocumentDownloader`
+ * (`downloaded` — есть контент, есть что готовить). `discovered` (контент ещё не скачан) сюда
+ * намеренно не попадает (FSM `03-document-pipeline.md` §2 — `discovered ──download──>
+ * downloaded ──prepare──> prepared`).
+ *
+ * Два канала (research/L finding 12 — прямой путь основной, поллер страховка):
+ * - `dispatch()` — немедленный dispatch (`afterCommit()`) сразу после того, как закупка
+ *   получила детальный срез (вызывается из `FetchDetails` тем же тиком, что и раньше —
+ *   латентность v1-моста была только-поллером, здесь так не делаем);
+ * - `dispatchBacklog()` — everyMinute-поллер (`routes/console.php`) по ВСЕМ закупкам,
+ *   добирает пропущенное/несработавшее без привязки к конкретной закупке.
+ *
+ * Диспатч не мутирует `prc_documents.status` — следующий переход (`downloaded→prepared`)
+ * делает сам `PrepareDocumentJob`; защита от дублей — `ShouldBeUnique` на job'е (P4.1 D39) +
+ * status-guard в его `handle()`, а не предикат выборки здесь.
  */
 final readonly class PipelineDispatcher
 {
     public function dispatch(Procurement $procurement): int
     {
-        $documents = Document::query()
-            ->where('procurement_id', $procurement->id)
+        return $this->enqueue(
+            $this->downloadedQuery()
+                ->where('procurement_id', $procurement->id)
+                ->limit((int) config('ai.pipeline.dispatch_batch_limit', 100)),
+        );
+    }
+
+    public function dispatchBacklog(int $limit): int
+    {
+        return $this->enqueue($this->downloadedQuery()->limit($limit));
+    }
+
+    /**
+     * @return Builder<Document>
+     */
+    private function downloadedQuery(): Builder
+    {
+        return Document::query()
             ->where('status', DocumentStatus::Downloaded)
-            ->whereNull('removed_at')
-            ->get();
+            ->whereNull('removed_at');
+    }
+
+    /**
+     * @param  Builder<Document>  $query
+     */
+    private function enqueue(Builder $query): int
+    {
+        $documents = $query->get();
 
         foreach ($documents as $document) {
-            Log::info(message: 'PipelineDispatcher: документ поставлен в очередь стадии подготовки.', context: [
-                'procurement_id' => $procurement->id,
-                'document_id' => $document->id,
-            ]);
+            PrepareDocumentJob::dispatch($document->id)->afterCommit();
         }
 
         return $documents->count();

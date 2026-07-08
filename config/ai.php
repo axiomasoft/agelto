@@ -168,4 +168,21 @@ return [
     'screening' => [
         'enabled' => (bool) env('AI_SCREENING_ENABLED', false),
     ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Мост crawling → пайплайн документов (P4.3, ТЗ 03 §4)
+    |--------------------------------------------------------------------------
+    |
+    | `dispatch_batch_limit` — лимит немедленного dispatch() по одной закупке (прямой путь,
+    | сразу после `FetchDetails`); `backlog_batch_limit` — лимит everyMinute-поллера
+    | (research/L finding 12: страховка на пропущенный/несработавший прямой путь, не основной
+    | канал); `retry_batch_limit` — дефолт `--limit` у `pipeline:retry-failed` за один тик.
+    |
+    */
+    'pipeline' => [
+        'dispatch_batch_limit' => (int) env('AI_PIPELINE_DISPATCH_BATCH_LIMIT', 100),
+        'backlog_batch_limit' => (int) env('AI_PIPELINE_BACKLOG_BATCH_LIMIT', 100),
+        'retry_batch_limit' => (int) env('AI_PIPELINE_RETRY_BATCH_LIMIT', 50),
+    ],
 ];
