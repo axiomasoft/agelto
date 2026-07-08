@@ -76,7 +76,14 @@ final readonly class PrismGeminiProvider implements LlmProvider, SupportsContext
             data: $response->structured ?? [],
             usage: $this->usageFrom($response->raw ?? []),
             finishReason: $this->mapFinishReason($response->finishReason),
-            raw: json_encode($response->raw, JSON_THROW_ON_ERROR),
+            // ВАЖНО: `LlmStructuredResponse.raw` — сырой МОДЕЛЬНЫЙ JSON-текст (`$response->text`,
+            // Prism `Structured\Handlers\Structured::extractTextContent()` — только части ответа
+            // без usageMetadata/candidates), НЕ `$response->raw` (весь envelope Gemini). Контракт
+            // шва: `StructuredResponseValidator::validate()` (P3.4) делает json_validate()/
+            // json_decode()/`$dataClass::validateAndCreate()` именно по этому полю, а
+            // `ReaskPolicy::withReaskMessage()` вставляет его в промпт как «предыдущий ответ» —
+            // envelope с `candidates`/`usageMetadata` сломал бы оба потребителя (P3 phase-review).
+            raw: $response->text,
         );
     }
 

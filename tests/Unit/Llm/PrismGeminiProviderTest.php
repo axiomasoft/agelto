@@ -72,6 +72,33 @@ test('completeStructured() маппит usage из сырого usageMetadata, �
     $fake->assertCallCount(1);
 });
 
+test('completeStructured() кладёт в raw модельный JSON-текст, а не envelope Gemini-ответа', function (): void {
+    // Контрактный шов с StructuredResponseValidator (P3.4): raw обязан быть тем же JSON-текстом,
+    // что и Prism Structured\Response::$text (сам ответ модели), НЕ $response->raw
+    // (candidates/usageMetadata/modelVersion) — иначе json_validate()/validateAndCreate() по raw
+    // всегда падает на envelope (P3 phase-review, HIGH).
+    Prism::fake([
+        new PrismStructuredResponse(
+            steps: collect([]),
+            text: '{"foo":"bar"}',
+            structured: ['foo' => 'bar'],
+            finishReason: PrismFinishReason::Stop,
+            usage: new PrismUsage(promptTokens: 1, completionTokens: 1),
+            meta: new PrismMeta('id-5', 'gemini-2.5-flash'),
+            raw: ['candidates' => [], 'usageMetadata' => [], 'modelVersion' => 'gemini-2.5-flash'],
+        ),
+    ]);
+
+    $provider = new PrismGeminiProvider;
+    $response = $provider->completeStructured(
+        new LlmPrompt(systemPart: 's'),
+        new JsonSchema(['type' => 'object']),
+        geminiOptions(),
+    );
+
+    expect($response->raw)->toBe('{"foo":"bar"}');
+});
+
 test('completeStructured() передаёт canonical JSON Schema как RawSchema без перестройки в DSL', function (): void {
     $fake = Prism::fake([
         new PrismStructuredResponse(
