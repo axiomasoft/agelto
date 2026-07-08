@@ -12,6 +12,7 @@ use App\Models\Procurement\Document\DocumentVersion;
 use App\Repositories\Procurement\DocumentStoreRepository;
 use App\Repositories\Procurement\ProcurementStoreRepository;
 use Illuminate\Contracts\Filesystem\Filesystem;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -140,47 +141,61 @@ final readonly class ArchiveStrategy implements PreparationStrategy
         return true;
     }
 
+    /**
+     * Идемпотентность ключуется на существование `DocumentVersion` (не `Document`) —
+     * ревью-находка P4 HIGH: без DB-транзакции child-`Document` мог закоммититься раньше
+     * версии (например, `$disk->put` в `createVersion()` падал транзиентно на S3/minio),
+     * а гард по `findByExternalId(Document)` находил осиротевший child при ретрае и делал
+     * `return` раньше создания версии — версия не создавалась НИКОГДА, смета внутри архива
+     * терялась без пути восстановления. Fix: сам S3 `put()` (идемпотентен по hash — `store()`
+     * не перезаписывает существующий по пути) остаётся ВНЕ транзакции (внешний I/O не должен
+     * держать DB-транзакцию открытой), а child+version+event — единая DB-транзакция.
+     */
     private function indexChild(Document $document, DocumentVersion $version, string $relativePath, string $localPath, Filesystem $disk): void
     {
         $externalId = $version->id.':'.$relativePath;
 
-        // Идемпотентность: повторный прогон (после ретрая) не плодит дубли детей.
-        if ($this->storeRepository->findByExternalId($document->procurement_id, $externalId) !== null) {
+        $existingChild = $this->storeRepository->findByExternalId($document->procurement_id, $externalId);
+        if ($existingChild !== null && $this->storeRepository->latestVersion($existingChild->id) !== null) {
             return;
         }
 
         $content = file_get_contents($localPath);
         $hash = hash('sha256', $content);
+        $storagePath = $this->store($disk, $hash, $content);
 
-        $child = $this->storeRepository->create([
-            'procurement_id' => $document->procurement_id,
-            'external_id' => $externalId,
-            'title' => basename($relativePath),
-            'kind' => null,
-            'source_url' => null,
-            'status' => DocumentStatus::Downloaded,
-        ]);
+        DB::transaction(function () use ($document, $externalId, $relativePath, $content, $hash, $storagePath, $version): void {
+            $child = $this->storeRepository->findByExternalId($document->procurement_id, $externalId)
+                ?? $this->storeRepository->create([
+                    'procurement_id' => $document->procurement_id,
+                    'external_id' => $externalId,
+                    'title' => basename($relativePath),
+                    'kind' => null,
+                    'source_url' => null,
+                    'status' => DocumentStatus::Downloaded,
+                ]);
 
-        $childVersion = $this->storeRepository->createVersion([
-            'document_id' => $child->id,
-            'content_hash' => $hash,
-            'size_bytes' => strlen($content),
-            'filename' => basename($relativePath),
-            'extension' => pathinfo($relativePath, PATHINFO_EXTENSION),
-            'mime' => $this->mimeOf($content),
-            'storage_path' => $this->store($disk, $hash, $content),
-            'downloaded_at' => now(),
-            'parent_version_id' => $version->id,
-        ]);
+            $childVersion = $this->storeRepository->createVersion([
+                'document_id' => $child->id,
+                'content_hash' => $hash,
+                'size_bytes' => strlen($content),
+                'filename' => basename($relativePath),
+                'extension' => pathinfo($relativePath, PATHINFO_EXTENSION),
+                'mime' => $this->mimeOf($content),
+                'storage_path' => $storagePath,
+                'downloaded_at' => now(),
+                'parent_version_id' => $version->id,
+            ]);
 
-        if ($document->procurement_id !== null) {
-            $this->procurementStore->storeEvent(
-                procurementId: $document->procurement_id,
-                eventType: ProcurementEventType::DocumentAdded,
-                occurredAt: now(),
-                entityRef: ['document_id' => $child->id, 'document_version_id' => $childVersion->id],
-            );
-        }
+            if ($document->procurement_id !== null) {
+                $this->procurementStore->storeEvent(
+                    procurementId: $document->procurement_id,
+                    eventType: ProcurementEventType::DocumentAdded,
+                    occurredAt: now(),
+                    entityRef: ['document_id' => $child->id, 'document_version_id' => $childVersion->id],
+                );
+            }
+        });
     }
 
     private function store(Filesystem $disk, string $hash, string $content): string

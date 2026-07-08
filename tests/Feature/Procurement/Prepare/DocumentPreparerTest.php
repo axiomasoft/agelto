@@ -137,6 +137,41 @@ test('повторный прогон подготовки архива — до
     expect(Document::query()->where('procurement_id', $document->procurement_id)->where('id', '!=', $document->id)->count())->toBe(1);
 });
 
+test('осиротевший дочерний документ архива (child без Version) — ретрай дописывает версию, а не пропускает индексацию', function () {
+    // Регрессия ревью-находки P4 HIGH: до фикса `indexChild()` без DB::transaction мог
+    // закоммитить child Document раньше DocumentVersion (например, при транзиентном сбое
+    // S3-put), а гард идемпотентности по findByExternalId(Document) находил осиротевший
+    // child при ретрае и делал return раньше создания версии — версия не создавалась
+    // никогда. Воспроизводим осиротевшее состояние напрямую и проверяем, что ретрай
+    // backfill'ит версию, а не тихо пропускает индексацию.
+    Storage::fake('s3');
+    $document = Document::factory()->create(['status' => DocumentStatus::Downloaded]);
+    $version = seedVersion($document, 'sample-with-xlsx.zip', 'zip');
+
+    $orphanExternalId = "{$version->id}:estimates/sample.xlsx";
+    $orphan = Document::factory()->create([
+        'procurement_id' => $document->procurement_id,
+        'external_id' => $orphanExternalId,
+        'status' => DocumentStatus::Downloaded,
+    ]);
+
+    (new PrepareDocumentJob($document->id))->handle();
+
+    expect($document->refresh()->status)->toBe(DocumentStatus::Prepared);
+
+    $children = Document::query()
+        ->where('procurement_id', $document->procurement_id)
+        ->where('external_id', $orphanExternalId)
+        ->get();
+
+    expect($children)->toHaveCount(1)
+        ->and($children->first()->id)->toBe($orphan->id);
+
+    $childVersion = DocumentVersion::query()->where('document_id', $orphan->id)->first();
+    expect($childVersion)->not->toBeNull()
+        ->and($childVersion->parent_version_id)->toBe($version->id);
+});
+
 test('архив сверх лимита вложенности (max_depth=0) — unprocessable(zip_bomb), без распаковки', function () {
     config(['ai.prepare.archive.max_depth' => 0]);
     Storage::fake('s3');
