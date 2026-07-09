@@ -25,6 +25,8 @@ discovered ──download──> downloaded ──prepare──> prepared ──
 - Переходы фиксируются доменными событиями и журналом (аналог v1 `transitionStatus()` + `document_analysis_logs`).
 - Каждый терминальный/ошибочный переход идемпотентен; повторный запуск с любой стадии допустим (retry с `PipelineStage`).
 
+> Актуальная FSM по фактическому коду (вкл. терминальный `unprocessable`, D32) — `docs/03_Dev/document-pipeline.md` (Д1, Д2 стадии/очереди, Д4 extraction-сессия); бизнес-версия — `docs/02_Workflow/document-and-estimate-pipeline.md` (Д1-lite).
+
 ## 3. Стадии
 
 ### 3.1 Индексация вложений (из карточки)
