@@ -73,6 +73,10 @@ return [
             // первый ещё легитимно работает (дублирующая обработка). Все supervisor'ы Horizon
             // делят это соединение (config/horizon.php) — потолок задаёт самый длинный,
             // `supervisor-ai-extraction` (timeout=300, `ai.extraction.checkpoint_seconds`=240).
+            // Продолжение цепочки вне PHP-конфига: docker-compose.prod.yml
+            // horizon.stop_grace_period (600s) ОБЯЗАН быть > самого длинного supervisor
+            // timeout — иначе Docker SIGKILL'ит контейнер раньше, чем horizon:terminate
+            // дождётся текущих jobs (research/J §2).
             'retry_after' => (int) env('REDIS_QUEUE_RETRY_AFTER', 360),
             'block_for' => null,
             'after_commit' => false,

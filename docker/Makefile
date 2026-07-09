@@ -71,6 +71,7 @@ prod\:composer-install: prod-composer-install
 prod\:clear-cache: prod-clear-cache
 prod\:restart-services: prod-restart-services
 prod\:workers\:restart: prod-workers-restart
+prod\:deploy: prod-deploy
 prod\:deploy\:code: prod-deploy-code
 prod\:deploy\:php-deps: prod-deploy-php-deps
 prod\:deploy\:runtime: prod-deploy-runtime
@@ -90,7 +91,7 @@ prod\:doctor: prod-doctor
 .PHONY: composer-install clear-cache
 .PHONY: prod-pre-clean prod-image prod-composer-install prod-config-cache prod-clear-cache
 .PHONY: prod-restart-services prod-workers-restart
-.PHONY: prod-deploy-code prod-deploy-php-deps prod-deploy-runtime prod-deploy-image
+.PHONY: prod-deploy prod-deploy-code prod-deploy-php-deps prod-deploy-runtime prod-deploy-image
 .PHONY: prod-doctor
 
 help:
@@ -112,6 +113,7 @@ help:
 	@echo ""
 	@echo "##@ Production (ENV=prod или цели prod:*)"
 	@echo "  make up ENV=prod | migrate ENV=prod"
+	@echo "  make prod:deploy          — канон-деплой с живыми очередями (pull→[COLD=1: pause]→migrate→terminate→up→status)"
 	@echo "  make prod:deploy:code     — обычное обновление кода"
 	@echo "  make prod:deploy:runtime  — полный деплой (deps + миграции)"
 	@echo "  make prod:deploy:image    — пересборка image + runtime"
@@ -225,6 +227,35 @@ prod-workers-restart: ENV=prod
 prod-workers-restart:
 	$(call require-prod-config)
 	$(COMPOSE_PROD) restart horizon scheduler
+
+# --- Деплой-канон с живыми очередями (D26, plans/EST-AI/plan.md; research/J §2) ---
+# pull → [COLD=1: horizon:pause, для рискованных деплоев — пауза → дренаж → накат] →
+# migrate --force (ТОЛЬКО аддитивные миграции; деструктивные — отдельным деплоем,
+# expand/contract) → horizon:terminate (graceful — текущие jobs доделываются, НЕ down) →
+# up -d (пересоздаёт контейнеры на новом коде) → horizon:status (+ horizon:continue при COLD=1).
+# Полный runbook: docs/03_Dev/process/deploy.md (P10.3).
+prod-deploy: ENV=prod
+prod-deploy:
+	$(call require-prod-config)
+	@echo "prod: deploy (COLD=$(COLD))"
+	@echo "prod: pull image"
+	$(COMPOSE_PROD) pull app horizon scheduler
+	@if [ "$(COLD)" = "1" ]; then \
+		echo "prod: COLD — horizon:pause (пауза перед рискованным деплоем)"; \
+		$(PROD_EXEC) php artisan horizon:pause; \
+	fi
+	@echo "prod: migrate --force (только аддитивные миграции!)"
+	$(PROD_EXEC) php artisan migrate --force
+	@echo "prod: horizon:terminate (graceful — текущие jobs доделываются)"
+	$(PROD_EXEC) php artisan horizon:terminate
+	@echo "prod: up -d (пересоздаёт контейнеры на новом коде)"
+	$(COMPOSE_PROD) up -d
+	@if [ "$(COLD)" = "1" ]; then \
+		echo "prod: COLD — horizon:continue"; \
+		$(PROD_EXEC) php artisan horizon:continue; \
+	fi
+	@echo "prod: horizon:status"
+	$(PROD_EXEC) php artisan horizon:status
 
 prod-deploy-code: ENV=prod
 prod-deploy-code:

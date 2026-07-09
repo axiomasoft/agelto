@@ -67,7 +67,15 @@ services:
     image: agelto/app:latest
     container_name: agelto_horizon
     restart: unless-stopped
-    stop_grace_period: 600s
+    # Инвариант D26 (plans/EST-AI/plan.md; research/J §2): job timeout < supervisor timeout
+    # (config/horizon.php; самый длинный — supervisor-ai-extraction=300s, checkpoint-requeue
+    # D31 держит единичный запуск строго короче через ai.extraction.checkpoint_seconds=240s)
+    # < queue.retry_after (config/queue.php, redis.retry_after=360s) — И ОТДЕЛЬНО:
+    # stop_grace_period здесь ОБЯЗАН быть > самого длинного supervisor-таймаута, иначе Docker
+    # SIGKILL'ит контейнер раньше, чем horizon:terminate успевает дождаться текущих jobs
+    # (Docker default 10s убил бы 300+с job — research/J §2). 600s — канон research/J §2
+    # (диапазон 600–3600s); env-параметризуемо под будущую калибровку.
+    stop_grace_period: ${HORIZON_STOP_GRACE_PERIOD:-600s}
     working_dir: /var/www/html
     shm_size: '2gb'
     volumes:
@@ -151,6 +159,12 @@ services:
     image: redis:7-alpine
     container_name: agelto_redis
     restart: unless-stopped
+    # Durability D34 (plans/EST-AI/plan.md; research/L finding 3): дефолтный redis:7-alpine
+    # без конфига живёт только на периодических RDB-снапшотах — crash/OOM Redis теряет
+    # очередь Horizon (до часа работы пайплайна). AOF everysec — канон 2026 (durability/
+    # производительность); noeviction — очередь задач, ключи нельзя вытеснять под
+    # memory-pressure как обычный кэш.
+    command: ["redis-server", "--appendonly", "yes", "--appendfsync", "everysec", "--maxmemory-policy", "noeviction"]
     ports:
       - "127.0.0.1:${REDIS_PORT:-6379}:6379"
     volumes:

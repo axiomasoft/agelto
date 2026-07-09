@@ -242,6 +242,11 @@ return [
             'nice' => 0,
         ],
 
+        // Самый длинный супервизор пайплайна — задаёт потолок инварианта D26
+        // (plans/EST-AI/plan.md; research/J §2): timeout < queue.redis.retry_after
+        // (config/queue.php, 360s) < docker-compose.prod.yml horizon.stop_grace_period (600s).
+        // Checkpoint-requeue (D31, config/ai.php extraction.checkpoint_seconds=240s) держит
+        // единичный запуск EstimateExtractionJob строго короче этого timeout.
         'supervisor-ai-extraction' => [
             'connection' => 'redis',
             'queue' => ['ai_extraction'],
