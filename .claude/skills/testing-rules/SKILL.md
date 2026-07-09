@@ -39,6 +39,15 @@ createdb agelto_test    # один раз; или psql: CREATE DATABASE agelto_t
 - Данные создавай через фабрики: `User::factory()->create()`, не `User::create()`.
 - Не вставляй записи напрямую и не полагайся на сидеры боевых данных в тестах.
 
+## 3а. LLM-вызовы — только через тестовый двойник
+
+Реальные запросы к Gemini/любому провайдеру в тестах ЗАПРЕЩЕНЫ (Execution Rules плана EST-AI).
+Подменяй `App\Services\Llm\Contracts\LlmProvider` двойником `Tests\Support\Doubles\FakeLlmProvider`
+(биндится в `AppServiceProvider`/тесте): фабричные методы `succeeding()`/`truncated()`/
+`throwing()`, `andThen()` — для сценариев re-ask/эскалации (без tuple-возвратов и boolean-флагов,
+канон хелперов). Реализует и `SupportsFileUpload`, и `SupportsContextCaching` заглушками — не
+нужно писать свой двойник под extraction/screening-тесты. Детали LLM-слоя — skill `llm-layer-dev`.
+
 ## 4. Проверка перед запуском
 
 ```bash
@@ -68,3 +77,5 @@ grep -E "DB_(CONNECTION|DATABASE)" phpunit.xml      # ожидаем: pgsql / ag
 
 - `pest-testing` — как писать и запускать тесты Pest.
 - `test-isolation-guard` — библиотечные гарантии изоляции БД.
+- `llm-layer-dev` — контракт `LlmProvider`, что доступно на `FakeLlmProvider`.
+- `estimate-extraction-dev` — extraction-специфичные тестовые сценарии (checkpoint-requeue, preflight, unprocessable).

@@ -7,6 +7,7 @@ When a task requires more detail than what's in the current context, load the re
 1. Start `quick`: read only 1–2 most relevant sources.
 2. If domain term is unclear (`Crawler`, `Link`, `Document`, `Platform`, `EIS`, стадии парсинга) — open `docs/02_Workflow/crawling-and-discovery.md` and `docs/03_Dev/architecture.md`.
 3. If task is cross-layer (Procurement domain + jobs + Filament + frontend) — open skill `procurement-pipeline-dev`.
+4. If task is specifically LLM-транспорт/провайдер-адаптер — skill `llm-layer-dev`; extraction-контракты/discovery/preflight/unprocessable — skill `estimate-extraction-dev`; тексты промтов/композиция/eval — skill `prompt-engineering-agelto`.
 
 ## Agent File Edit Safety (High Priority)
 
@@ -25,6 +26,9 @@ When a task requires more detail than what's in the current context, load the re
 - Непонятные термины домена (Crawler, Link, Document, стадии 1–4) — сначала `docs/02_Workflow/crawling-and-discovery.md`.
 - Имена классов/методов/переменных, канон глаголов (`find/get`), нейминг тестов — `.ai/guidelines/glossary.md` (канон) и `docs/02_Workflow/glossary.md` (полный справочник).
 - Изменение пайплайна парсинга / jobs / очередей — skill `procurement-pipeline-dev`.
+- Извлечение смет (контракты P2, discovery/windowed vs row-range, preflight, checkpoint-requeue, unprocessable) — skill `estimate-extraction-dev`.
+- LLM-транспорт (провайдер-адаптер, кэш-инварианты, capability-матрица/EOL-модели, стоимость) — skill `llm-layer-dev`.
+- Тексты промтов, композиция, protected-промты, eval-цикл — skill `prompt-engineering-agelto`.
 - Большая/неоднозначная задача на несколько слоёв — skill `complex-task-orchestrator`.
 - Первый проход минимальный: 1–2 файла, затем расширять по необходимости.
 
@@ -46,6 +50,9 @@ When a task requires more detail than what's in the current context, load the re
 | Имена сущностей/методов/переменных, канон глаголов, нейминг тестов | `.ai/guidelines/glossary.md`, `docs/02_Workflow/glossary.md` |
 | Layer boundaries, where logic lives | `.ai/guidelines/architecture.md` |
 | Cross-layer change in parsing pipeline (dependency map, test-gate, PR checklist) | skill `procurement-pipeline-dev` |
+| Extraction смет: контракты P2, discovery/windowed vs row-range, preflight, checkpoint-requeue, unprocessable | skill `estimate-extraction-dev` |
+| LLM-транспорт: провайдер-адаптер, кэш-инварианты, capability-матрица/EOL-модели | skill `llm-layer-dev` |
+| Промты: файл→сид→is_protected, композиция/приоритеты, hints, eval-цикл | skill `prompt-engineering-agelto` |
 | PR-чеклист по докам (docs/SOP обновлены?) — для ЛЮБОГО PR | `.ai/guidelines/docs-pr-checklist.md` |
 | Task-starter prompts (review/tests/security/deploy) | `/code-review`, `/test-gen`, `/security-check`, `/docker-deploy` |
 | DB schema, table prefixes | `docs/03_Dev/database.md` |

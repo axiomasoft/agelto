@@ -12,6 +12,7 @@
 
 - Терминология и схема пайплайна: `docs/03_Dev/architecture.md`, `docs/02_Workflow/crawling-and-discovery.md`, `docs/02_Workflow/document-and-estimate-pipeline.md`.
 - Структура плоская (`app/**`), без модулей: три домена по короткому префиксу таблицы — `Procurement` (`prc_*`, единый домен закупок: заказы, документы, сметы, AI-пайплайн, crawling-инфраструктура, площадки, логи), `Reference` (`ref_*`, общие справочники ОКПД2/КТРУ/ОКВЭД2/КБК), `Organization` (`org_*`, организации).
+- AI-подомен внутри Procurement: пайплайн-стадии — `app/Services/Procurement/{Prepare,Screening,Extraction}/` + `app/Jobs/Procurement/*Job`; LLM-транспорт (провайдер-агностичный, домен не знает про Prism/Gemini напрямую) — `app/Services/Llm/**` (`Contracts/LlmProvider`, `Providers/*`, `Schema/*`, `Validation/*`); модели анализа/промтов/датасета — `app/Models/Procurement/Ai/*`. Глубже — скилы `estimate-extraction-dev`, `llm-layer-dev`, `prompt-engineering-agelto`.
 - Очереди: Laravel Horizon (`QUEUE_CONNECTION=redis`), тяжёлые jobs — browser/Gemini parsing.
 
 ## Layer Responsibilities (short)

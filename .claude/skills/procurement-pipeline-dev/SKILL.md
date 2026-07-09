@@ -3,6 +3,7 @@ name: procurement-pipeline-dev
 description: "Dev-раннбук изменений в домене crawling/parsing/AI-анализа закупок: стадии пайплайна, dependency map (что менять вместе), test-gate, PR-чеклист. Активировать при правках в Services/Procurement, Models/Procurement, миграциях, jobs/очередях парсинга."
 paths:
   - "app/Services/Procurement/**"
+  - "app/Jobs/Procurement/**"
   - "app/Models/Procurement/**"
   - "app/Dto/Procurement/**"
   - "app/Enums/Procurement/**"
@@ -23,14 +24,15 @@ paths:
 
 Master-описание: `docs/02_Workflow/crawling-and-discovery.md`, `docs/02_Workflow/document-and-estimate-pipeline.md`.
 
-| Стадия | Суть | Типичный код |
-|---|---|---|
-| 1 Collector | сбор извещений из ЕИС | `app/Services/Procurement/Eis/`, `app/Services/Procurement/CrawlerRunManager.php` |
-| 2 Document Indexer | список вложений | `app/Services/Procurement/DocumentIndexer.php`, `DocumentDownloader.php` |
-| 3 AI Screening | быстрая проверка «это смета?» | `app/Services/Procurement/` (analysis-часть), `app/Models/Procurement/Analysis.php` |
-| 4 Full Extraction | полный разбор позиций | `app/Models/Procurement/Estimate.php` и сателлиты (`Item`, `Resource`, `Section`, `Total`) |
+| Стадия | Суть | `DocumentStatus` переход | Типичный код |
+|---|---|---|---|
+| 1 Collector | сбор извещений из ЕИС | — (`Procurement`/`Crawler\Run`) | `app/Services/Procurement/Eis/`, `CrawlerRunManager.php` |
+| 2 Document Indexer + Download | список вложений, скачивание | `discovered → downloaded` | `DocumentIndexer.php`, `DocumentDownloader.php` |
+| 3 Prepare | нормализация архивов/xlsx/сканов под LLM | `downloaded → prepared` (или `unprocessable`: `too_large`/`zip_bomb`) | `app/Services/Procurement/Prepare/*Strategy`, `PrepareDocumentJob` |
+| 4 Screening | быстрая проверка «это смета?» (первые N страниц, D6) | `prepared → screened` (или `ignored`/`unprocessable`) | `app/Services/Procurement/Screening/*`, `ScreeningJob`, `Ai\Analysis` (шаг `screening`) |
+| 5 Extraction | полный разбор позиций сметы (row-range/windowed, D3/D30) | `screened → extracted` (или `unprocessable`: `provider_limit_*`) | `app/Services/Procurement/Extraction/*`, `EstimateExtractionJob`, `Estimate` + сателлиты (`Item`, `Resource`, `Section`, `Total`) — детали и dependency map стадий 4–5: skill `estimate-extraction-dev` |
 
-Не переносить логику стадии N в стадию N−1 «для ускорения» без явного решения — это ломает фильтрацию и расход API.
+Не переносить логику стадии N в стадию N−1 «для ускорения» без явного решения — это ломает фильтрацию и расход API. `DocumentStatus::Unprocessable` (D32/D38) — терминальный, не-ретраебельный исход «не можем обработать» (лимит провайдера/формат/пароль/zip-бомба), не путать с `failed` (транзиентный сбой, ретраится через `HasErrorBlock`).
 
 ## 2) Структура и нейминг
 
@@ -52,6 +54,11 @@ Master-описание: `docs/02_Workflow/crawling-and-discovery.md`, `docs/02_
 5. **Filament** — ресурсы, если меняется операторский UI.
 6. **Docs** — `docs/02_Workflow/crawling-and-discovery.md`, `docs/02_Workflow/document-and-estimate-pipeline.md`, `docs/03_Dev/architecture.md`.
 7. **Tests** — feature/unit для изменённого поведения.
+
+Extraction-цепочка (стадия 5) — своя, более тонкая dependency map (Data-контракт ↔ JSON-схема ↔
+промт-файл ↔ stitcher/validator ↔ persister): **не дублируется здесь**, см. skill
+`estimate-extraction-dev` §Dependency map. Меняешь `LlmProvider`/кэш/маршрутизацию — skill
+`llm-layer-dev`. Меняешь текст/приоритет промта — skill `prompt-engineering-agelto`.
 
 ## 4) Минимальный test-gate (Docker)
 
@@ -75,7 +82,7 @@ docker compose exec app php artisan test --compact --filter=ChangedArea
 
 ## 7) PR checklist
 
-- Какая стадия пайплайна затронута (1–4).
+- Какая стадия пайплайна затронута (1–5).
 - Новые/изменённые jobs и очереди.
 - Влияние на Gemini/browser (стоимость, timeout, retry).
 - Обновлены ли workflow/dev docs.
