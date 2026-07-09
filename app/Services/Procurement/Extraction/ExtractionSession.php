@@ -18,12 +18,18 @@ use App\Services\Llm\Dto\LlmUsage;
  * Immutable (канон `final readonly`) — `with*()` возвращают новый снимок, оркестратор
  * перепривязывает переменную на каждой итерации цикла.
  *
+ * `fileHandle` — `?LlmFileHandle` (P6.4, D43): row-range путь (`runWholeDocument()`) грузит
+ * документ ЦЕЛИКОМ один раз и держит handle весь прогон (не null); оконный путь
+ * (`runWindowed()`, P6.4) НИКОГДА не грузит документ целиком — каждый вызов `WindowedChunkSource`
+ * грузит СВОЙ маленький срез самостоятельно (см. докблок `WindowedChunkSource`) — здесь всегда
+ * `null`, поле не используется этим путём.
+ *
  * @param  array<string, mixed>  $progress
  */
 final readonly class ExtractionSession
 {
     public function __construct(
-        public LlmFileHandle $fileHandle,
+        public ?LlmFileHandle $fileHandle,
         public ?LlmCacheHandle $cacheHandle,
         public LlmUsage $usage,
         public array $progress,

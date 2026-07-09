@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace App\Services\Procurement\Extraction;
 
+use App\Dto\Procurement\Ai\Estimate\DiscoveryMarkerLine;
+use App\Dto\Procurement\Ai\Estimate\DiscoveryResponse;
+use App\Dto\Procurement\Ai\Estimate\PassportResponse;
 use App\Dto\Procurement\Ai\Estimate\RowsChunkResponse;
 use App\Dto\Procurement\Ai\Estimate\TotalsResponse;
 use App\Enums\Procurement\AnalysisStatus;
@@ -22,6 +25,7 @@ use App\Services\Llm\Dto\LlmFileHandle;
 use App\Services\Llm\Dto\LlmUsage;
 use App\Services\Llm\Dto\ResolvedRoute;
 use App\Services\Procurement\Extraction\Exceptions\MaxTokensExceededException;
+use App\Services\Procurement\Screening\PdfPageSlicer;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -29,11 +33,11 @@ use Illuminate\Support\Facades\Storage;
 use RuntimeException;
 
 /**
- * Оркестратор полного извлечения смет (D3/D29/D30/D31/D40, `docs/specs/v2/
- * 08-estimate-extraction.md` §4). Основной путь (row-range по целому кэшированному документу) —
- * ЕДИНСТВЕННЫЙ исполняемый здесь; оконный путь (D30, P6.4) preflight решает/помечает, но не
- * исполняет (D40) — при выборе `ExtractionRoute::Windowed` бросает исключение (job-level retry,
- * не unprocessable — сознательный выбор оператора включить недостроенный путь раньше времени).
+ * Оркестратор полного извлечения смет (D3/D29/D30/D31/D40/D42/D43, `docs/specs/v2/
+ * 08-estimate-extraction.md` §4). Два top-level пути: `runWholeDocument()` (row-range по целому
+ * кэшированному документу, D3, основной) и `runWindowed()` (трёхстадийный discovery→сегменты→
+ * per-segment разбор, D30, P6.4, для документов сверх лимитов маршрута) — preflight (D29)
+ * выбирает путь ДО загрузки, `run()` делегирует по `PreflightDecision::route`.
  *
  * Explicit context cache (`SupportsContextCaching`, ТЗ 04 §2.1) СОЗНАТЕЛЬНО не подключается
  * здесь (Known Deviations): Gemini `cachedContent` несовместим с повторной отправкой
@@ -44,11 +48,15 @@ use RuntimeException;
  * между вызовами, файл пересылается на каждый вызов (`ExtractionSession::cacheHandle` всегда
  * `null` в этой реализации, поле оставлено в контракте для будущего explicit-подключения).
  *
- * Checkpoint-requeue (D31/D39): «единица прогресса» — один вызов `ChunkSource` (паспорт/строки/
- * итоги). После `config('ai.extraction.checkpoint_ranges')` единиц ИЛИ
- * `config('ai.extraction.checkpoint_seconds')` секунд с начала ТЕКУЩЕГО запуска — прогресс
+ * Checkpoint-requeue (D31/D39): «единица прогресса» — один вызов `ChunkSource`/`WindowedChunkSource`
+ * (паспорт/строки/итоги/discovery-окно). После `config('ai.extraction.checkpoint_ranges')` единиц
+ * ИЛИ `config('ai.extraction.checkpoint_seconds')` секунд с начала ТЕКУЩЕГО запуска — прогресс
  * персистится ОТДЕЛЬНОЙ транзакцией, `EstimateExtractionJob` ре-диспатчится `afterCommit()`,
  * текущий запуск завершается успешно (`return`, не exception).
+ *
+ * Оконный путь (D30/D42/D43, P6.4) — второй top-level метод `runWindowed()`, СВОЯ
+ * progress-схема, ПЕРЕИСПОЛЬЗУЕТ `checkpointDue()`/`checkpoint()` (не завязаны на форму
+ * `estimates`-аккумулятора row-range пути).
  */
 final readonly class ExtractionOrchestrator
 {
@@ -58,6 +66,9 @@ final readonly class ExtractionOrchestrator
         private AiRouteResolver $routes,
         private ExtractionPreflight $preflight,
         private ChunkSource $chunkSource,
+        private WindowedChunkSource $windowedChunkSource,
+        private SegmentAssembler $segmentAssembler,
+        private PdfPageSlicer $pageSlicer,
         private EstimatePersister $persister,
     ) {}
 
@@ -109,10 +120,7 @@ final readonly class ExtractionOrchestrator
             }
 
             if ($decision->route === ExtractionRoute::Windowed) {
-                throw new RuntimeException(
-                    'Оконный путь извлечения (WindowedChunkSource) ещё не реализован — появится в P6.4 '
-                    .'(config: ai.extraction.windowed_enabled).',
-                );
+                return $this->runWindowed($document, $analysis, $localPath, $route);
             }
 
             return $this->runWholeDocument($document, $analysis, $localPath, $effective, $route);
@@ -272,6 +280,231 @@ final readonly class ExtractionOrchestrator
         return false;
     }
 
+    /**
+     * Оконный путь (D30/D42/D43, `docs/specs/v2/08-estimate-extraction.md` §4.2). Три стадии,
+     * КАЖДАЯ страница/окно/сегмент-шаг — своя checkpoint-единица (D31): (1) discovery — весь
+     * документ режется на страничные окна, каждое → `WindowedChunkSource::fetchDiscoveryWindow()`,
+     * маркеры копятся в `progress['discovery']['markers']`; (2) когда все окна пройдены — ОДИН
+     * детерминированный проход `SegmentAssembler::assemble()` (НЕ LLM-вызов, НЕ
+     * checkpoint-единица) строит `progress['segments']`/инициализирует `progress['estimates']`;
+     * (3) на каждый сегмент — паспорт → строки окнами страниц до `next_page > segment_page_end`
+     * (терминатор ЧИСТО страничный, не самоотчёт модели) → итоги по хвосту. Результат кладётся в
+     * ТОТ ЖЕ `progress['estimates']`-shape, что `runWholeDocument()` — `finalizeSuccess()`/
+     * `EstimatePersister` (P6.3) отрабатывают без изменений.
+     */
+    private function runWindowed(Document $document, Analysis $analysis, string $localPath, ResolvedRoute $route): bool
+    {
+        $session = $this->buildWindowedSession($analysis, $localPath);
+
+        $checkpointRanges = (int) config('ai.extraction.checkpoint_ranges', 20);
+        $checkpointSeconds = (int) config('ai.extraction.checkpoint_seconds', 240);
+        $windowPages = (int) config('ai.extraction.window_pages', 3);
+        $windowOverlapPages = (int) config('ai.extraction.window_overlap_pages', 1);
+        $totalsTailPages = (int) config('ai.extraction.totals_tail_pages', 2);
+
+        $discoveryRoute = $this->routes->resolve($analysis->document_type ?? 'estimate', LlmPurpose::Discovery);
+
+        $runStartedAt = microtime(true);
+        $unitsThisRun = 0;
+
+        while (true) {
+            if ($unitsThisRun > 0 && $this->checkpointDue($unitsThisRun, $runStartedAt, $checkpointRanges, $checkpointSeconds)) {
+                $this->checkpoint($analysis, $session);
+
+                return true;
+            }
+
+            $progress = $session->progress;
+
+            if ($progress['discovery']['done'] === false) {
+                $windowIndex = $progress['discovery']['next_window_index'];
+                $pageStart = $windowIndex * ($windowPages - $windowOverlapPages) + 1;
+
+                if ($pageStart > $progress['total_pages']) {
+                    $progress['discovery']['done'] = true;
+                    $session = $session->withProgress($progress);
+
+                    continue;
+                }
+
+                $pageEnd = min($pageStart + $windowPages - 1, $progress['total_pages']);
+
+                $result = $this->windowedChunkSource->fetchDiscoveryWindow(
+                    $analysis->id,
+                    $discoveryRoute,
+                    $localPath,
+                    $windowIndex,
+                    $pageStart,
+                    $pageEnd,
+                );
+                $session = $session->withUsage($result->usage);
+                $unitsThisRun++;
+
+                /** @var DiscoveryResponse $discovery */
+                $discovery = $result->data;
+
+                foreach ($discovery->markers as $marker) {
+                    $progress['discovery']['markers'][] = $marker->toArray();
+                }
+
+                $progress['discovery']['next_window_index'] = $windowIndex + 1;
+
+                if ($pageEnd >= $progress['total_pages']) {
+                    $progress['discovery']['done'] = true;
+                }
+
+                $session = $session->withProgress($progress);
+
+                continue;
+            }
+
+            if ($progress['segments'] === null) {
+                $markers = array_map(
+                    static fn (array $marker): DiscoveryMarkerLine => DiscoveryMarkerLine::from($marker),
+                    $progress['discovery']['markers'],
+                );
+
+                $segments = $this->segmentAssembler->assemble($markers, $progress['total_pages']);
+
+                $progress['segments'] = $segments;
+                $progress['estimates'] = array_map(static fn (array $segment): array => [
+                    'ordinal' => $segment['ordinal'],
+                    'estimate_number' => null,
+                    'passport' => null,
+                    'currency' => 'RUB',
+                    'base_year' => null,
+                    'price_level' => null,
+                    'rows_expected' => 0,
+                    'segment_page_start' => $segment['page_start'],
+                    'segment_page_end' => $segment['page_end'],
+                    'passport_done' => false,
+                    'next_page' => $segment['page_start'],
+                    'rows' => [],
+                    'incomplete_items' => [],
+                    'rows_done' => false,
+                    'totals' => null,
+                    'totals_done' => false,
+                ], $segments);
+
+                $session = $session->withProgress($progress);
+
+                // Сборка сегментов — детерминированная функция, не LLM-вызов, НЕ checkpoint-единица.
+                continue;
+            }
+
+            $estimates = $progress['estimates'];
+            $currentIndex = $this->firstUnfinishedWindowedIndex($estimates);
+
+            if ($currentIndex === null) {
+                break;
+            }
+
+            $estimate = $estimates[$currentIndex];
+            $segmentTitle = $progress['segments'][$currentIndex]['title'] ?? null;
+
+            if ($estimate['passport_done'] === false) {
+                $result = $this->windowedChunkSource->fetchSegmentPassport(
+                    $analysis->id,
+                    $route,
+                    $localPath,
+                    $estimate['ordinal'],
+                    $estimate['segment_page_start'],
+                    $estimate['segment_page_end'],
+                    $segmentTitle,
+                );
+                $session = $session->withUsage($result->usage);
+                $unitsThisRun++;
+
+                /** @var PassportResponse $passport */
+                $passport = $result->data;
+
+                $estimates[$currentIndex]['estimate_number'] = $passport->estimate_number;
+                $estimates[$currentIndex]['passport'] = $passport->passport->toArray();
+                $estimates[$currentIndex]['currency'] = $passport->currency;
+                $estimates[$currentIndex]['base_year'] = $passport->base_year;
+                $estimates[$currentIndex]['price_level'] = $passport->price_level;
+                $estimates[$currentIndex]['rows_expected'] = $passport->rows_expected;
+                $estimates[$currentIndex]['passport_done'] = true;
+
+                if ($passport->totals !== null) {
+                    $estimates[$currentIndex]['totals'] = $passport->totals->toArray();
+                    $estimates[$currentIndex]['totals_done'] = true;
+                }
+
+                $progress['estimates'] = $estimates;
+                $session = $session->withProgress($progress);
+
+                continue;
+            }
+
+            if ($estimate['rows_done'] === false) {
+                $windowPageEnd = min($estimate['next_page'] + $windowPages - 1, $estimate['segment_page_end']);
+
+                $result = $this->windowedChunkSource->fetchSegmentRows(
+                    $analysis->id,
+                    $route,
+                    $localPath,
+                    $estimate['ordinal'],
+                    $estimate['next_page'],
+                    $windowPageEnd,
+                );
+                $session = $session->withUsage($result->usage);
+                $unitsThisRun++;
+
+                /** @var RowsChunkResponse $rows */
+                $rows = $result->data;
+
+                foreach ($rows->rows as $row) {
+                    $estimates[$currentIndex]['rows'][] = $row->toArray();
+                }
+
+                foreach ($rows->incomplete_items as $incomplete) {
+                    $estimates[$currentIndex]['incomplete_items'][] = $incomplete->toArray();
+                }
+
+                // Терминатор ЧИСТО страничный (не самоотчёт модели, Code Guidance P6.4) — модель
+                // окна не знает границ сегмента заранее, в отличие от row-range.
+                $nextPage = $windowPageEnd - $windowOverlapPages + 1;
+                $estimates[$currentIndex]['next_page'] = $nextPage;
+
+                if ($nextPage > $estimate['segment_page_end'] || $windowPageEnd >= $estimate['segment_page_end']) {
+                    $estimates[$currentIndex]['rows_done'] = true;
+                }
+
+                $progress['estimates'] = $estimates;
+                $session = $session->withProgress($progress);
+
+                continue;
+            }
+
+            // rows_done === true, totals_done === false (иначе индекс не считался бы «незавершённым»)
+            $tailStart = max($estimate['segment_page_start'], $estimate['segment_page_end'] - $totalsTailPages + 1);
+
+            $result = $this->windowedChunkSource->fetchSegmentTotals(
+                $analysis->id,
+                $route,
+                $localPath,
+                $estimate['ordinal'],
+                $tailStart,
+                $estimate['segment_page_end'],
+            );
+            $session = $session->withUsage($result->usage);
+            $unitsThisRun++;
+
+            /** @var TotalsResponse $totals */
+            $totals = $result->data;
+            $estimates[$currentIndex]['totals'] = $totals->totals->toArray();
+            $estimates[$currentIndex]['totals_done'] = true;
+
+            $progress['estimates'] = $estimates;
+            $session = $session->withProgress($progress);
+        }
+
+        $this->finalizeSuccess($document, $analysis, $session);
+
+        return false;
+    }
+
     private function checkpointDue(int $unitsThisRun, float $runStartedAt, int $checkpointRanges, int $checkpointSeconds): bool
     {
         return $unitsThisRun >= $checkpointRanges || (microtime(true) - $runStartedAt) >= $checkpointSeconds;
@@ -284,6 +517,20 @@ final readonly class ExtractionOrchestrator
     {
         foreach ($estimates as $index => $estimate) {
             if ($estimate['rows_done'] === false || $estimate['totals_done'] === false) {
+                return $index;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * @param  list<array<string, mixed>>  $estimates
+     */
+    private function firstUnfinishedWindowedIndex(array $estimates): ?int
+    {
+        foreach ($estimates as $index => $estimate) {
+            if ($estimate['passport_done'] === false || $estimate['rows_done'] === false || $estimate['totals_done'] === false) {
                 return $index;
             }
         }
@@ -307,6 +554,37 @@ final readonly class ExtractionOrchestrator
 
         return new ExtractionSession(
             fileHandle: $fileHandle,
+            cacheHandle: null,
+            usage: $usage,
+            progress: $progress,
+        );
+    }
+
+    /**
+     * Оконный путь (D42/D43, P6.4) — `fileHandle` ВСЕГДА `null` (документ целиком никогда не
+     * грузится, каждый `WindowedChunkSource`-вызов грузит свой срез самостоятельно). Дефолтные
+     * ключи progress-схемы инициализируются ОДИН раз (первый прогон, `'route'` ещё не установлен
+     * в persisted-прогрессе) — последующие self-requeue-запуски читают уже сохранённое состояние
+     * из `analysis.progress` как есть (`progressArray()`).
+     */
+    private function buildWindowedSession(Analysis $analysis, string $localPath): ExtractionSession
+    {
+        $progress = $this->progressArray($analysis);
+
+        if (! isset($progress['route'])) {
+            $progress['route'] = 'windowed';
+            $progress['total_pages'] = $this->pageSlicer->pageCount($localPath);
+            $progress['discovery'] = ['next_window_index' => 0, 'markers' => [], 'done' => false];
+            $progress['segments'] = null;
+            $progress['estimates'] = [];
+        }
+
+        $usage = isset($progress['usage']) && is_array($progress['usage'])
+            ? $this->usageFromArray($progress['usage'])
+            : new LlmUsage(promptTokens: 0, completionTokens: 0, cachedTokens: 0, totalTokens: 0);
+
+        return new ExtractionSession(
+            fileHandle: null,
             cacheHandle: null,
             usage: $usage,
             progress: $progress,

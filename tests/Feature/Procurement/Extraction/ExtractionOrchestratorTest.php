@@ -352,6 +352,9 @@ test('preflight-отказ (сверх лимитов, windowed выключен
     seedExtractionVersion($document);
 
     overrideCapability('gemini-2.5-flash', 'max_pages', 1);
+    // Default `ai.extraction.windowed_enabled` — TRUE с P6.4 (WindowedChunkSource реализован) —
+    // этот тест целенаправленно проверяет исход ПРИ ВЫКЛЮЧЕННОМ гейте, форсируем явно.
+    config(['ai.extraction.windowed_enabled' => false]);
 
     (new EstimateExtractionJob($document->id))->handle();
 

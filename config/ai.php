@@ -194,31 +194,38 @@ return [
     | для `document_type=estimate` за этим флагом (тот же паттерн, что `ai.screening.enabled` у
     | `PrepareDocumentJob`, P4.2).
     |
-    | `windowed_enabled` (D40, default false) — preflight (`ExtractionPreflight`, D29) сверх
-    | лимитов маршрута ИЛИ выбирает оконный путь (при true), ИЛИ терминирует
-    | `unprocessable(provider_limit_*)` (при false — до реализации `WindowedChunkSource`, P6.4);
-    | `ExtractionOrchestrator` (P6.1) исполняет ТОЛЬКО row-range — при `windowed_enabled=true`
-    | без P6.4 бросает исключение (job-retry), не молча деградирует.
+    | `windowed_enabled` (D40, default TRUE — `WindowedChunkSource` реализован, P6.4) —
+    | preflight (`ExtractionPreflight`, D29) сверх лимитов маршрута выбирает оконный путь (при
+    | true) ИЛИ терминирует `unprocessable(provider_limit_*)` (при false — ручной откат до
+    | калибровки/инцидента). `ExtractionOrchestrator::runWindowed()` (P6.4) исполняет
+    | трёхстадийный discovery→сегменты→per-segment разбор.
     |
     | `row_range_size`/`min_row_range_size` — стартовое/минимальное окно `extract_rows`
     | (калибровка на реальных сметах — Открытый вопрос `03` §7); окно уменьшается вдвое (до
     | минимума) при MAX_TOKENS (Implementation Rules P6.1). `checkpoint_ranges`/
     | `checkpoint_seconds` — порог self-requeue (D31): после M единиц прогресса (паспорт/
-    | диапазон/итоги) ИЛИ T секунд — что раньше — `EstimateExtractionJob` персистит progress и
-    | ре-диспатчит себя; `checkpoint_seconds` ОБЯЗАН быть строго меньше `retry_after` очереди
-    | `ai_extraction` (`config/horizon.php`, инвариант D26). `max_estimates_per_document` —
-    | защитный потолок цикла обнаружения смет паспорт-шагом (безопасность от зацикливания на
-    | некорректном ответе модели, не бизнес-лимит).
+    | диапазон/итоги/discovery-окно) ИЛИ T секунд — что раньше — `EstimateExtractionJob`
+    | персистит progress и ре-диспатчит себя; `checkpoint_seconds` ОБЯЗАН быть строго меньше
+    | `retry_after` очереди `ai_extraction` (`config/horizon.php`, инвариант D26).
+    | `max_estimates_per_document` — защитный потолок цикла обнаружения смет паспорт-шагом
+    | row-range пути (безопасность от зацикливания на некорректном ответе модели, не
+    | бизнес-лимит). `window_pages`/`window_overlap_pages` — размер/нахлёст страничного окна
+    | оконного пути (D30, P6.4), используется и на стадии discovery, и на per-segment
+    | rows-разбивке (Code Guidance P6.4); `totals_tail_pages` — хвост сегмента, запрашиваемый
+    | под `extract_totals` (§4.2 Стадия 3). Калибровка всех трёх — Pending Work до датасета P7.4.
     |
     */
     'extraction' => [
         'enabled' => (bool) env('AI_EXTRACTION_ENABLED', false),
-        'windowed_enabled' => (bool) env('AI_EXTRACTION_WINDOWED_ENABLED', false),
+        'windowed_enabled' => (bool) env('AI_EXTRACTION_WINDOWED_ENABLED', true),
         'row_range_size' => (int) env('AI_EXTRACTION_ROW_RANGE_SIZE', 30),
         'min_row_range_size' => (int) env('AI_EXTRACTION_MIN_ROW_RANGE_SIZE', 5),
         'checkpoint_ranges' => (int) env('AI_EXTRACTION_CHECKPOINT_RANGES', 20),
         'checkpoint_seconds' => (int) env('AI_EXTRACTION_CHECKPOINT_SECONDS', 240),
         'max_estimates_per_document' => (int) env('AI_EXTRACTION_MAX_ESTIMATES_PER_DOCUMENT', 20),
+        'window_pages' => (int) env('AI_EXTRACTION_WINDOW_PAGES', 3),
+        'window_overlap_pages' => (int) env('AI_EXTRACTION_WINDOW_OVERLAP_PAGES', 1),
+        'totals_tail_pages' => (int) env('AI_EXTRACTION_TOTALS_TAIL_PAGES', 2),
     ],
 
     /*

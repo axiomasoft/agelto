@@ -57,4 +57,25 @@ final readonly class PdfPageSlicer
 
         return (int) trim($result->output());
     }
+
+    /**
+     * Произвольный диапазон страниц `[$pageStart, $pageEnd]` (1-based, включительно) `$inputPath`
+     * во ВСЕГДА НОВЫЙ временный файл (D30, оконный путь §4.2 — в отличие от `slice()`, здесь нет
+     * короткого пути «документ короче диапазона» — вызывающий код, `WindowedChunkSource`, сам
+     * отвечает за удаление среза сразу после использования, `finally`). Страницы среза
+     * нумеруются заново с 1 — глобальную нумерацию исходного документа несёт вызывающий код
+     * через offset-инструкцию в промте (Implementation Rules P6.4), не этот метод.
+     */
+    public function sliceRange(string $inputPath, int $pageStart, int $pageEnd): string
+    {
+        $outputPath = sys_get_temp_dir().'/extraction-window-'.Str::uuid().'.pdf';
+
+        $result = Process::run(['qpdf', $inputPath, '--pages', '.', "{$pageStart}-{$pageEnd}", '--', $outputPath]);
+
+        if ($result->failed()) {
+            throw new RuntimeException("qpdf: не удалось вырезать страницы {$pageStart}-{$pageEnd}: ".trim($result->errorOutput()));
+        }
+
+        return $outputPath;
+    }
 }
