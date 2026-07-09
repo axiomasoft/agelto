@@ -42,11 +42,17 @@ createdb agelto_test    # один раз; или psql: CREATE DATABASE agelto_t
 ## 3а. LLM-вызовы — только через тестовый двойник
 
 Реальные запросы к Gemini/любому провайдеру в тестах ЗАПРЕЩЕНЫ (Execution Rules плана EST-AI).
-Подменяй `App\Services\Llm\Contracts\LlmProvider` двойником `Tests\Support\Doubles\FakeLlmProvider`
-(биндится в `AppServiceProvider`/тесте): фабричные методы `succeeding()`/`truncated()`/
-`throwing()`, `andThen()` — для сценариев re-ask/эскалации (без tuple-возвратов и boolean-флагов,
-канон хелперов). Реализует и `SupportsFileUpload`, и `SupportsContextCaching` заглушками — не
-нужно писать свой двойник под extraction/screening-тесты. Детали LLM-слоя — skill `llm-layer-dev`.
+Подменяй провайдер двойником `Tests\Support\Doubles\FakeLlmProvider`: интерфейс
+`App\Services\Llm\Contracts\LlmProvider` НЕ забинжен в контейнере нигде (`AiRouteResolver::providerFor()`
+резолвит КОНКРЕТНЫЙ класс, `container->make(PrismGeminiProvider::class)`/`container->make(
+OpenAiCompatibleProvider::class)`, намеренно — комментарий в коде объясняет, что это ради подмены в
+тестах) — подменяй в тесте КОНКРЕТНЫЙ класс маршрута, `app()->instance(PrismGeminiProvider::class,
+$fake)` или `app()->instance(OpenAiCompatibleProvider::class, $fake)`, НЕ интерфейс (подмена
+интерфейса тихо не резолвится — двойник никогда не используется). Фабричные методы
+`succeeding()`/`truncated()`/`throwing()`, `andThen()` — для сценариев re-ask/эскалации (без
+tuple-возвратов и boolean-флагов, канон хелперов). Реализует и `SupportsFileUpload`, и
+`SupportsContextCaching` заглушками — не нужно писать свой двойник под extraction/screening-тесты.
+Детали LLM-слоя — skill `llm-layer-dev`.
 
 ## 4. Проверка перед запуском
 

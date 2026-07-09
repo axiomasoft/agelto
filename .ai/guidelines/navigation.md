@@ -13,9 +13,8 @@ When a task requires more detail than what's in the current context, load the re
 
 - Before any file edit, check whether the target path is ignored by Git (`.gitignore`).
 - Do not hand-edit `CLAUDE.md` — assembled manually from `.ai/guidelines/**`; edit the source instead. No `AGENTS.md`/`GEMINI.md`/`.cursor/` — retired (single-provider Claude Code decision), do not recreate.
-- `.claude/skills/*`: vendor/managed skills carry an in-file `swissknifeman:managed` marker and are overwritten by `skiller sync` — don't hand-edit; local domain skills have no marker and ARE edited directly (skill `ai-context-workflow`).
-- Prefer source paths under `.ai/...` when changing AI rules/skills.
-- If a requested file is ignored/generated, stop and use the source file instead.
+- `.claude/skills/*`: vendor/managed skills carry an in-file `swissknifeman:managed` marker and are overwritten by `skiller sync` — don't hand-edit; local domain skills have no marker and ARE edited directly (skill `ai-context-workflow`). There is no `.ai/skills/` — only `.ai/guidelines/**` are source files edited before regenerating `CLAUDE.md`.
+- Prefer source paths under `.ai/guidelines/**` when changing AI RULES (not skills — see above); if a requested guideline-derived file is ignored/generated (`CLAUDE.md`), stop and use the source instead.
 
 ## Fast Term Routing (Minimal Context First)
 

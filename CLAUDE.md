@@ -2,7 +2,7 @@
 
 ## Fast Entry Rules
 
-- AI rules/skills are edited only in `.ai/...` source files.
+- AI rules are edited only in `.ai/guidelines/**` source files; local domain skills (no `swissknifeman:managed` marker) are edited directly in `.claude/skills/**` — there is no `.ai/skills/`.
 - Never hand-edit the generated `CLAUDE.md` (single AI-provider hub — `AGENTS.md`/`GEMINI.md` retired: single-provider Claude Code decision, do not recreate).
 - For quick domain routing and context escalation, use `.ai/guidelines/navigation.md`.
 - Keep this file concise: use it as a hub, escalate details to `docs/03_Dev/*`.

@@ -4,7 +4,6 @@ description: "Dev-раннбук LLM-транспорта: контракт LlmP
 paths:
   - "app/Services/Llm/**"
   - "config/ai.php"
-  - "config/prism.php"
 ---
 
 # LLM Layer — dev-раннбук
