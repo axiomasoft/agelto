@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Procurement\Ai\Prompts\Schemas;
 
+use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
@@ -13,6 +14,10 @@ class PromptForm
     {
         return $schema
             ->components([
+                Placeholder::make('is_protected_hint')
+                    ->label('')
+                    ->content('Канонические промты (is_protected) правятся только через git + db:seed. Здесь создаются только операторские дополняющие записи — они не защищены.')
+                    ->columnSpanFull(),
                 Textarea::make('key')
                     ->required()
                     ->columnSpanFull(),

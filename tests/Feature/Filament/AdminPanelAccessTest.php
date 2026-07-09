@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Filament\Resources\Procurement\Ai\Prompts\PromptResource;
 use App\Filament\Resources\Procurement\Crawler\Runs\RunResource;
 use App\Filament\Resources\Procurement\Procurements\ProcurementResource;
 use App\Guards\Admin\Roles\AnalystRole;
@@ -62,4 +63,19 @@ test('суперадмин проходит любой gate через wildcard'
 test('view-only ресурсы Run и Procurement не имеют create/edit страниц', function () {
     expect(array_keys(RunResource::getPages()))->toBe(['index', 'view'])
         ->and(array_keys(ProcurementResource::getPages()))->toBe(['index', 'view']);
+});
+
+test('PromptResource вне enum-RBAC каталога, остальные ресурсы и коарс-право на промты не задеты', function () {
+    expect(config('az-guard-filament.exclude.resources'))->toContain(PromptResource::class);
+
+    $operator = User::factory()->create();
+    $operator->assignRole(OperatorRole::class);
+
+    // Коарс-право на Prompt по-прежнему каталогизировано и грантуется —
+    // exclude снимает только per-record enum-RBAC короткое замыкание,
+    // не убирает PromptPermission из OperatorRole (D44).
+    expect($operator->can('admin.prompt.update'))->toBeTrue()
+        // Остальные enum-RBAC ресурсы (не исключённые) работают как раньше.
+        ->and($operator->can('admin.platform.create'))->toBeTrue()
+        ->and($operator->can('admin.ai_route.update'))->toBeTrue();
 });

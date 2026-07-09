@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Filament\Resources\Procurement\Ai\Prompts\PromptResource;
 use Filament\Resources\Pages\CreateRecord;
 
 return [
@@ -113,9 +114,20 @@ return [
     | Fully-qualified resource/page/widget class names to skip during
     | discovery and generation.
     |
+    | PromptResource: excluded so ResourceGate::check() defers (returns null)
+    | for the Prompt model — the enum-RBAC Gate::before short-circuit never
+    | fires for it, letting the native Gate::policy() resolve to PromptPolicy
+    | (app/Guards/Admin/Policies/PromptPolicy.php), which enforces the
+    | record-specific `is_protected` read-only rule on top of the coarse
+    | PromptPermission grant. Coarse permissions/Role UI are untouched — that
+    | catalog comes from AdminGuardPanelProvider::discoverPermissionEnums(),
+    | not from this Filament-plugin discovery (see EST-AI plan D44).
+    |
     */
     'exclude' => [
-        'resources' => [],
+        'resources' => [
+            PromptResource::class,
+        ],
         'pages' => [
             CreateRecord::class,
         ],
