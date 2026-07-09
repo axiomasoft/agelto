@@ -9,6 +9,7 @@ use App\Models\Procurement\Ai\LlmCall;
 use App\Repositories\Procurement\AiCallStoreRepository;
 use App\Services\Llm\Dto\LlmUsage;
 use Carbon\CarbonImmutable;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
@@ -45,7 +46,7 @@ final readonly class LlmCallRecorder
         int $durationMs,
         CarbonImmutable $calledAt,
     ): LlmCall {
-        return $this->storeRepository->create([
+        $llmCall = $this->storeRepository->create([
             'analysis_id' => $analysisId,
             'purpose' => $purpose,
             'provider' => $provider,
@@ -64,6 +65,22 @@ final readonly class LlmCallRecorder
             'duration_ms' => $durationMs,
             'called_at' => $calledAt,
         ]);
+
+        // Code Guidance P7.5 (D25): trace_id — без новой колонки, в контексте лога (Context
+        // facade дегидрируется через request/job автоматически, research/J §1); коррелирует
+        // конкретный `prc_ai_llm_calls`-ряд с HTTP-запросом/консольной командой/job'ом, его
+        // породившими, БЕЗ изменения формата уже сохранённого сырого request/response.
+        Log::info('LLM-вызов записан', [
+            'llm_call_id' => $llmCall->id,
+            'analysis_id' => $analysisId,
+            'purpose' => $purpose->value,
+            'provider' => $provider,
+            'model' => $model,
+            'success' => $success,
+            'duration_ms' => $durationMs,
+        ]);
+
+        return $llmCall;
     }
 
     /**

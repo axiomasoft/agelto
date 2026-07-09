@@ -47,6 +47,9 @@ final class PipelineStuckCheck extends Command
             ...$this->unprocessableSpike(),
             ...$this->estimateMismatchSpike(),
             ...$this->eolModels(),
+            ...$this->backlogSpike(),
+            ...$this->failureRateSpike(),
+            ...$this->noCompletions(),
         ];
 
         if ($findings === []) {
@@ -233,5 +236,97 @@ final class PipelineStuckCheck extends Command
         }
 
         return ['model_eol' => 'Модели активных маршрутов близки к EOL: '.implode('; ', $near)];
+    }
+
+    /**
+     * Backlog (P7.5, D25 Intent п.5) — документов одновременно в downloaded/prepared/screened
+     * (ждут следующей стадии) БЕЗ временного порога, в отличие от `stuckDocuments()` (там —
+     * возраст конкретных документов); здесь — суммарный объём очереди.
+     *
+     * @return array<string, string>
+     */
+    private function backlogSpike(): array
+    {
+        $threshold = (int) config('ai.pipeline.backlog_threshold', 200);
+
+        $count = Document::query()
+            ->whereIn('status', [DocumentStatus::Downloaded->value, DocumentStatus::Prepared->value, DocumentStatus::Screened->value])
+            ->where('failed_permanently', false)
+            ->count();
+
+        if ($count <= $threshold) {
+            return [];
+        }
+
+        return ['backlog' => "Backlog документов (downloaded/prepared/screened): {$count} (порог {$threshold})"];
+    }
+
+    /**
+     * Доля failed среди завершённых анализов (оба шага) за короткое окно (P7.5, D25 Intent п.5)
+     * — быстрый сигнал массового провала (например, протухший API-ключ), в отличие от
+     * `spike_window_hours`-счётчиков (сутки).
+     *
+     * @return array<string, string>
+     */
+    private function failureRateSpike(): array
+    {
+        $windowHours = (int) config('ai.pipeline.failure_rate_window_hours', 1);
+        $thresholdPercent = (float) config('ai.pipeline.failure_rate_threshold_percent', 50.0);
+
+        $totals = Analysis::query()
+            ->whereIn('status', [AnalysisStatus::Succeeded->value, AnalysisStatus::Failed->value])
+            ->where('updated_at', '>=', now()->subHours($windowHours))
+            ->toBase()
+            ->selectRaw('status, count(*) as total')
+            ->groupBy('status')
+            ->get()
+            ->pluck('total', 'status');
+
+        $succeeded = (int) ($totals[AnalysisStatus::Succeeded->value] ?? 0);
+        $failed = (int) ($totals[AnalysisStatus::Failed->value] ?? 0);
+        $total = $succeeded + $failed;
+
+        if ($total === 0) {
+            return [];
+        }
+
+        $rate = round($failed / $total * 100, 1);
+
+        if ($rate <= $thresholdPercent) {
+            return [];
+        }
+
+        return ['failure_rate' => "Failure rate анализов за {$windowHours}ч: {$rate}% ({$failed}/{$total}, порог {$thresholdPercent}%)"];
+    }
+
+    /**
+     * «Нет завершений стадии N минут» (P7.5, D25 Intent п.5) — ни одного succeeded-анализа за
+     * окно ПРИ НЕПУСТОМ backlog (иначе «нечего обрабатывать» ложно читалось бы как «встал»).
+     *
+     * @return array<string, string>
+     */
+    private function noCompletions(): array
+    {
+        $minutes = (int) config('ai.pipeline.no_completions_minutes', 120);
+
+        $hasBacklog = Document::query()
+            ->whereIn('status', [DocumentStatus::Downloaded->value, DocumentStatus::Prepared->value, DocumentStatus::Screened->value])
+            ->where('failed_permanently', false)
+            ->exists();
+
+        if (! $hasBacklog) {
+            return [];
+        }
+
+        $recentCompletions = Analysis::query()
+            ->where('status', AnalysisStatus::Succeeded->value)
+            ->where('updated_at', '>=', now()->subMinutes($minutes))
+            ->exists();
+
+        if ($recentCompletions) {
+            return [];
+        }
+
+        return ['no_completions' => "Ни одного завершённого анализа за {$minutes}мин при непустом backlog — пайплайн, похоже, встал"];
     }
 }

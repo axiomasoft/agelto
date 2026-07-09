@@ -291,6 +291,20 @@ return [
         'unprocessable_spike_threshold' => (int) env('AI_PIPELINE_UNPROCESSABLE_SPIKE_THRESHOLD', 5),
         'estimate_mismatch_threshold' => (int) env('AI_PIPELINE_ESTIMATE_MISMATCH_THRESHOLD', 5),
         'alert_antispam_minutes' => (int) env('AI_PIPELINE_ALERT_ANTISPAM_MINUTES', 60),
+
+        /*
+        | SQL-алерты стадий (P7.5, D25 Intent п.5) — подключены к тому же `PipelineAlert`
+        | (P7.3), НЕ второй транспорт. `backlog_threshold` — документов в
+        | downloaded/prepared/screened одновременно (очередь, не возраст — тот класс сигнала,
+        | что уже даёт `stuckDocuments()`, но по количеству, не по времени). `failure_rate_*` —
+        | доля failed среди succeeded+failed анализов (оба шага) за окно. `no_completions_minutes`
+        | — ни одного succeeded-анализа за окно ПРИ НЕПУСТОМ backlog (иначе «пайплайну просто
+        | нечего делать» ложно читалось бы как «пайплайн встал»).
+        */
+        'backlog_threshold' => (int) env('AI_PIPELINE_BACKLOG_THRESHOLD', 200),
+        'failure_rate_window_hours' => (int) env('AI_PIPELINE_FAILURE_RATE_WINDOW_HOURS', 1),
+        'failure_rate_threshold_percent' => (float) env('AI_PIPELINE_FAILURE_RATE_THRESHOLD_PERCENT', 50.0),
+        'no_completions_minutes' => (int) env('AI_PIPELINE_NO_COMPLETIONS_MINUTES', 120),
     ],
 
     /*
