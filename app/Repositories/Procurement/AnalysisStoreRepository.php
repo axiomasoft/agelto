@@ -16,15 +16,24 @@ use App\Models\Procurement\Ai\Analysis;
 final readonly class AnalysisStoreRepository
 {
     /**
-     * Найти-или-создать сессию анализа версии документа на заданном шаге (уникальность —
-     * `(document_version_id, step)`, миграция `2026_07_04_100025`).
+     * Найти активный анализ версии документа на заданном шаге или создать новый (уникальность —
+     * partial unique `(document_version_id, step) WHERE superseded_at IS NULL AND is_shadow = false`,
+     * миграция `2026_07_04_100025`). `Analysis::query()->firstOrCreate()` намеренно НЕ используется:
+     * без ограничения на `active()` он вернул бы superseded-запись той же пары (P9.1, ревью K п.13).
      */
     public function firstOrCreate(int $documentVersionId, AnalysisStep $step): Analysis
     {
-        return Analysis::query()->firstOrCreate(
-            attributes: ['document_version_id' => $documentVersionId, 'step' => $step],
-            values: ['status' => AnalysisStatus::Pending],
-        );
+        $analysis = Analysis::query()
+            ->active()
+            ->where('document_version_id', $documentVersionId)
+            ->where('step', $step)
+            ->first();
+
+        return $analysis ?? Analysis::query()->create([
+            'document_version_id' => $documentVersionId,
+            'step' => $step,
+            'status' => AnalysisStatus::Pending,
+        ]);
     }
 
     /**

@@ -1,136 +1,110 @@
-# HANDOFF — 2026-07-09 — after P8.2
+# HANDOFF — 2026-07-09 — after P9.1
 
-**Next:** `/task:plan-exec EST-AI P9.1` (фаза P9 «Обучающий контур и локальная LLM» ещё не читана
-исполнителем — начинать с Phase Context `plans/EST-AI/phases/P9.md`).
-**Done:** P1–P8 закрыты (P1/P3/P4/P5/P7 — 🟠 Done with deviations; P2/P6/P8 — 🟢 Done). P8.2 закрыт
-🟢: `PromptResource` выведен из-под enum-RBAC короткого замыкания AzGuard
-(`config/az-guard-filament.php` → `exclude.resources`), новая `App\Guards\Admin\Policies\PromptPolicy`
-(`#[GuardPolicy(model: Prompt::class)]`, методы `update`/`delete` с `#[GateAbility]`) делает
-канонические (`is_protected=true`) промты read-only НА УРОВНЕ POLICY (не только UI) — оператор с
-коарс-грантом `PromptPermission::Update/::Delete` не может редактировать/удалять protected-запись, но
-по-прежнему может операторские (`is_protected=false`); `OperatorRole`/`PromptPermission` не тронуты.
-`PromptsTable`/`PromptForm` — badge/фильтр `is_protected`, hint про git+db:seed,
-`DeleteBulkAction::authorizeIndividualRecords('delete')` (bulk не обходит per-record политику).
-Регресс-гвард (`AdminPanelAccessTest`) вручную проверен реальным откатом конфига — без строки
-`exclude.resources` тест ловит регрессию. Итого закрыто 28 item из 40.
-**Remaining:** P9 (4) → P10 (4) → P11 (1) → P12 (2, только opus/Fable — Routing §3). Итого 12 items
-впереди из 40.
-**Sources of truth:** plans/EST-AI/plan.md (Decision Log D1–D44 полный контекст; Status Board — P8
-теперь 🟢 2/2) · plans/EST-AI/phases/P8.md (закрыт, Phase Handoff — что именно сделано) ·
-plans/EST-AI/phases/P9.md (Phase Context + P9.1–P9.4 — читать ПЕРЕД exec, план ещё не тронут
-исполнителем) · `app/Guards/Admin/Policies/PromptPolicy.php` (образец для будущих Policy-item'ов —
-единственная политика в проекте, канон `#[GuardPolicy]`/`#[GateAbility]` подтверждён рабочим кодом) ·
-`config/az-guard-filament.php` (комментарий у `exclude.resources` объясняет механику для следующих
-resource-специфичных исключений) · `resources/ai/prompts/README.md` (инструкция для модели,
-наполняющей промт-тексты — актуальна, P8.1) · `database/seeders/PromptSeeder.php` (парсер
-front-matter + upsert/деактивация, актуален).
+**Next:** `/task:plan-exec EST-AI P9.2` (Phase Context `plans/EST-AI/phases/P9.md` уже прочитан этой
+сессией — исполнителю P9.2 достаточно перечитать сам item + `Required Reads`, Phase Context не
+устарел).
+**Done:** P1–P8 закрыты (P1/P3/P4/P5/P7 — 🟠 Done with deviations; P2/P6/P8 — 🟢 Done). P9.1 закрыт
+🟢 (1/4 фазы P9): миграция `2026_07_04_100025` (env=local, гейт подтверждён `php artisan env`)
+получила 7 feedback-колонок на `prc_ai_analyses` (`review_status`/`reviewed_by`/`reviewed_at`/
+`operator_comment`/`parent_analysis_id`/`superseded_at`/`is_shadow`, D24), старый
+`unique(document_version_id, step)` заменён raw-DDL partial unique
+`prc_ai_analyses_active_version_step_unique` (`WHERE superseded_at IS NULL AND is_shadow = false`);
+новая миграция `2026_07_09_100052_create_prc_ai_corrections_table` (`prc_ai_corrections`,
+`analysis_id` cascadeOnDelete, `estimate_id` nullOnDelete, `created_by` FK users); enum'ы
+`App\Enums\Procurement\{CorrectionReason,ReviewStatus}`; `Analysis` — fillable/casts/связи
+(`reviewedBy()`/`parentAnalysis()`/`corrections()`) + scope `active()` + докблок «DPO-пары
+выводятся запросом, отдельной таблицы нет»; новая модель `Ai\Correction` (uuid7,
+`analysis()`/`estimate()`/`createdBy()`); ретрофит `AnalysisStoreRepository::firstOrCreate()` —
+поиск через `active()`-скоуп вместо `Model::firstOrCreate()` (единственный потребитель
+уникальности — `ScreeningJob`+`EstimateExtractionJob`, оба используют один репозиторий).
+Тесты: `AiCorrectionTest` (9), `--filter=AiCorrection` 9 passed, регрессия `--filter=Screening`
+33 passed, полный сьют 444 passed (1411 assertions, было 434/1384), pint чист. Известных
+отклонений нет.
+**Remaining:** P9.2–P9.4 (3) → P10 (4) → P11 (1) → P12 (2, только opus/Fable — Routing §3). Итого
+11 items впереди из 40.
+**Sources of truth:** plans/EST-AI/plan.md (Decision Log D1–D44 полный контекст; Status Board — P9
+теперь 🟡 1/4) · plans/EST-AI/phases/P9.md (Phase Context + P9.1 Completion Notes — что именно
+сделано; P9.2–P9.4 читать перед exec) · `app/Models/Procurement/Ai/{Analysis,Correction}.php`
+(канон feedback-схемы: scope `active()`, DPO-докблок) ·
+`app/Repositories/Procurement/AnalysisStoreRepository.php` (канон поиска активного анализа —
+образец для будущих repository-методов, тронутых D24) · `database/migrations/2026_07_04_100025_*`
+(правка allowed — данных не было, тот же гейт, что P1.4/P8.1) ·
+`database/migrations/2026_07_09_100052_*` (новая таблица `prc_ai_corrections`) ·
+`tests/Feature/Procurement/AiCorrectionTest.php` (партиция активный/superseded/shadow — образец
+для тестов P9.2 re-run-цикла).
 **Open risks:**
-- exclude одного ресурса из AzGuard-каталога снимает его из ResourceGate enum-RBAC — коарс-право
-  `PromptPermission::Update/::Delete` по-прежнему грантуется (enum сам по себе не удалён,
-  `OperatorRole` его несёт), но если позже кто-то запустит `guard:filament:generate --source=enum`
-  заново для ВСЕХ ресурсов, стоит перепроверить, что `PromptResource` остаётся в `exclude` (иначе
-  регрессия к старому конфликту) — тест `AdminPanelAccessTest` («PromptResource вне enum-RBAC
-  каталога») это ловит (эмпирически подтверждено ручным откатом на P8.2), но только если кто-то его
-  прогонит после будущей регенерации.
-- любой БУДУЩИЙ item, добавляющий Filament-Policy поверх модели, обнаруженной AzGuard при
-  `source=enum`, столкнётся с ТЕМ ЖЕ паттерном — готовое решение: exclude + `#[GuardPolicy]`/
-  `#[GateAbility]`-политика под `app/Guards/Admin/**` (см. `PromptPolicy` как образец) — держать в
-  голове при P9/P10 Filament-правках, если появятся.
-- plan-lint: 5 pre-existing ошибок в `plan.md`/`handoff.md` (Status Board P3/P4/P5/P7 фазовый статус
-  «Done with deviations» при всех items 🟢/🟠 — задокументированное сознательное расхождение
-  конвенции плана с линтером, см. inline-заметки `plan-lint:` в соответствующих `phases/P{3,4,5,7}.md`)
-  — НЕ новые, воспроизводятся с прошлых фаз, не чинились (без изменений).
-- Модели EOL (D27): линейка 2.5 умирает 2026-10-16 — `pipeline:stuck-check` (P7.3) алертит при
-  приближении (`config('ai.model_eol_warn_days', 30)`), само переключение НЕ делает.
-  `AiRoutingSeeder::routes()` уже несёт закомментированные 3.x-строки-преемники.
-- Прокси для Gemini/LLM-вызовов из РФ не покрыт решением владельца (без изменений).
-- Троттлинг Gemini не откалиброван против реальной квоты провайдера (без изменений).
-- `docs/specs/v2/03-document-pipeline.md`/`04-llm-providers.md` местами используют устаревшие имена
-  таблиц (`doc_*`/`est_*`/`ai_*` вместо `prc_*`) — расхождение не устранено.
-- `docker compose exec` требует ДВА `--env-file` (`--env-file .env --env-file .env.docker`);
-  `pint --dirty` внутри контейнера НЕ подхватывает untracked-файлы (только `git diff
-  --name-only`) — на untracked-heavy item'ах гонять `pint --test <явный список путей>` (P8.2 — с
-  ХОСТА, контейнер `app` не может ЗАПИСАТЬ автофикс/`vendor:publish` в bind-mount).
-- `composer require`/`composer update --lock` — тоже только с ХОСТА, не из контейнера (без
-  изменений).
-- `.env`/`.env.example` закрыты от чтения — правки только append вслепую (без изменений).
-- `php artisan test --filter=X --filter=Y` — второй `--filter` игнорируется, гонять раздельными
-  командами.
-- Symfony Console резервирует имя опции `--version` (без изменений).
-- `phpunit.xml` несёт `PULSE_ENABLED=false` (без изменений).
-- `dispatchSync()`/`sync`-очередь не проверяют реальную дегидрацию/гидрацию `Context` (без
-  изменений).
-- `ReaskPolicy` НЕ используется оркестраторами (без изменений).
-- explicit context cache НЕ подключён к `ExtractionOrchestrator`/`RowRangeChunkSource` (без
-  изменений); `LlmCacheManager` (P7.1) — CRUD без production-потребителя (Pending Work P7.1).
-- `EstimatePersister` пропускает сметы документов без `procurement_id` (без изменений).
-- `RerunRangeAction` НЕ пересчитывает `validation_status`/иерархию секций целиком (без изменений).
-- `mergedIncompleteItems` не персистятся в `prc_estimate_items` (без изменений).
-- Пороги `pipeline:stuck-check` НЕ откалиброваны на реальном трафике (без изменений).
-- `TELEGRAM_BOT_TOKEN`/`TELEGRAM_CHAT_ID` не заведены в прод `.env` (без изменений).
-- `ai:caches prune` НЕ добавлен в расписание (без изменений).
-- `ai:eval:run` НЕ прогонялся ни разу на реальных данных (без изменений).
-- Сопоставление многосметных gold-документов — чисто позиционное (без изменений).
-- `SENTRY_LARAVEL_DSN` пуст (без изменений).
-- `json`-канал логов НЕ default (без изменений).
-- `GracefullyStoppable`-трейт готов, но не подключён (без изменений).
-- `stop_grace_period` (600s) не пересчитан (без изменений).
-- `docs/03_Dev/process/deploy.md` — заготовка, ждёт P10.3 (без изменений).
-- `AiRoutingSeeder` может затереть операторские правки маршрутов при ручном `db:seed` (P7.2,
-  documented MED, без изменений).
-- `StorageLifecycleTest` (P7.7) мутирует реальный dev-бакет MinIO `agelto` (documented MED, без
-  изменений).
-- UI корректирующих hints обучающего контура (P9.2) — вне Scope P8.2, ещё не сделано (ожидаемо,
-  следующая фаза).
+- P9.2 (`CorrectionAwareComposer`/`RerunAnalysisAction`/Filament-действия) — единственный
+  потребитель `Ai\Correction`/`ReviewStatus` пока не написан; поля `hint`/`is_reusable`/
+  `applied_at` не проверены на реальном use-case подмешивания в промт (ожидаемо, Scope P9.1
+  явно исключал UI/композицию).
+- `ExtractionOrchestrator`/`EstimateExtractionJob` (P6.1) — ретрофит
+  `AnalysisStoreRepository::firstOrCreate()` покрыт только полным сьютом (444 passed, включая
+  `ExtractionOrchestratorTest`/`EstimatePersisterTest`/`RerunRangeTest`), НЕ отдельным
+  таргетным regression-прогоном именно extraction-веток P9.1-изменения — риск низкий (общий
+  код с screening, который прогонялся явно), но не подтверждён изолированно.
+- partial unique `prc_ai_analyses_active_version_step_unique` — имя длиннее 63 байт лимита
+  Postgres НЕ проверялось явно (индекс создан успешно на `migrate:fresh`, значит уложился;
+  байт-длина не пересчитывалась вручную).
+- `CorrectionReason`/`ReviewStatus` без Filament `#[Label]`-атрибутов (enum-attributes канон
+  проекта) — добавит P9.2 при построении форм действий «Отклонить с коррекцией».
+- (без изменений, унаследовано из P8.2) exclude одного ресурса из AzGuard-каталога снимает его
+  из ResourceGate enum-RBAC — при будущей `guard:filament:generate --source=enum` перепроверить
+  `PromptResource` остаётся в `exclude`.
+- (без изменений) любой будущий item с Filament-Policy поверх AzGuard-enum-модели — паттерн
+  `PromptPolicy` как образец.
+- (без изменений) plan-lint: 5 pre-existing ошибок Status Board P3/P4/P5/P7 «Done with
+  deviations» при всех items 🟢/🟠 — задокументированное расхождение, не новые.
+- (без изменений) Модели EOL (D27): линейка 2.5 умирает 2026-10-16.
+- (без изменений) Прокси для Gemini/LLM-вызовов из РФ не покрыт решением владельца.
+- (без изменений) Троттлинг Gemini не откалиброван против реальной квоты провайдера.
+- (без изменений) `docs/specs/v2/03-document-pipeline.md`/`04-llm-providers.md` местами
+  используют устаревшие имена таблиц.
+- (без изменений) `docker compose exec` требует ДВА `--env-file`; `pint --dirty` не видит
+  untracked — явный список путей.
+- (без изменений) `composer require`/`composer update --lock` — только с ХОСТА.
+- (без изменений) `.env`/`.env.example` закрыты от чтения — правки только append вслепую.
+- (без изменений) `php artisan test --filter=X --filter=Y` — второй `--filter` игнорируется.
+- (без изменений) explicit context cache НЕ подключён к `ExtractionOrchestrator`/
+  `RowRangeChunkSource`; `LlmCacheManager` — CRUD без production-потребителя.
+- (без изменений) `EstimatePersister` пропускает сметы документов без `procurement_id`.
+- (без изменений) `RerunRangeAction` НЕ пересчитывает `validation_status`/иерархию целиком.
+- (без изменений) `mergedIncompleteItems` не персистятся в `prc_estimate_items`.
+- (без изменений) Пороги `pipeline:stuck-check` НЕ откалиброваны на живом трафике.
+- (без изменений) `TELEGRAM_BOT_TOKEN`/`TELEGRAM_CHAT_ID` не заведены в прод `.env`.
+- (без изменений) `ai:eval:run` НЕ прогонялся ни разу на реальных данных.
+- (без изменений) `SENTRY_LARAVEL_DSN` пуст; `json`-канал логов не default;
+  `GracefullyStoppable`-трейт готов, но не подключён; `stop_grace_period` не пересчитан.
 **Workarounds/Deferred/Open questions:**
-- workarounds: (без изменений) `docker compose exec` два `--env-file`; composer/pint-автофикс/
-  `vendor:publish` — с ХОСТА; `.env.example` слепой append; `pint --dirty` не видит untracked —
-  явный список путей; один `--filter` за прогон; `config('ai.capabilities.<модель-с-точками>...')`
-  — dot-notation не работает; Symfony Console `--version` зарезервирован; Pulse-тесты — явный
-  `Pulse::startRecording()`; `mc ilm rule add` не идемпотентен сам по себе; регресс-тест на
-  exclude-строку AzGuard-конфига проверяется ручным temporary-revert + `config:clear` (не
-  автоматизирован в CI сам по себе — тест ловит регрессию логически, ручная проверка была
-  разовой на P8.2).
-- deferred: боевой тюнинг промт-текстов (P8.1 дал ПЕРВУЮ версию); Batch API (D7); RAR/7z в
-  ArchiveStrategy; OCR/предобработка сканов; LibreOffice-конвертер xlsx (D35); Ghostscript-
-  даунскейл скан-PDF; generic ai_extractions (D13); контакты-сущность под CRM; полный 9-префиксный
-  ренейм (отклонён D11); Prometheus/Grafana (D25); прод-развёртывание GlitchTip и боевой
-  SENTRY_LARAVEL_DSN (P7.5); shadow CI-гейт; калибровка порогов P6.4/P5.2/P6.2/P7.3/P7.5/P7.7;
-  переключение сидов на 3.x-модели (D27); Langfuse/registry промтов; правка устаревших имён таблиц
-  в 03/04; Gemini-прокси-для-РФ; калибровка `ai.gemini.rate_limit.*`; тариф gemini-2.5-pro
-  >200k токенов; ренейм `Ai\AiRoute` (P1.4); калибровка `temperature`/`maxTokens` по purpose
-  (P3.3); второй driver для `AiRouteResolver::providerFor()` (P3.3); `LlmCallRecorder`-интеграция
-  ВНУТРИ `ReaskPolicy` (P3.4); per-purpose роутинг в `ExtractionOrchestrator`; runtime-обнаружение
-  провайдерского лимита ПОСЛЕ preflight; полный пересчёт `validation_status`/иерархии после
-  `RerunRangeAction`; путь для `mergedIncompleteItems` в UI/датасет через `raw_result` (P9/Filament-
-  витрина); `image/*` в windowed-пути (P6.4); `max_estimates_per_document`-аналог для
-  `runWindowed()`; живое подключение explicit context cache (P7.1); `ai:caches prune` в
-  расписание; live FX-курс вместо статического `ai.cost_report.rub_per_usd` (P7.2); маршруты
-  `eval`/`shadow` в `AiRoutingSeeder` (D15); v1-инфра-проверки — carry-over; `EstimatePersister`
-  под manual-документы (P7.4); эвристика сопоставления многосметных gold-эталонов (P7.4);
-  `EvalRun.prompt_version_set` не прокинут (P7.4); `gold_ref`/object storage для крупных эталонов
-  (P7.4); Pulse `sample_rate`/retention (P7.5); `PULSE_ENABLED`/`PULSE_PATH` не заведены в прод
-  `.env` (P7.5); `GracefullyStoppable`-трейт не подключён (P7.6); `docs/03_Dev/process/deploy.md`
-  runbook-заготовка (P10.3); `db:backup` на прод-расписание, off-host копирование, MinIO bucket
-  versioning/`mc mirror` (P7.7); `ai:storage:lifecycle` вне scheduler (P7.7); pre-existing
-  plan-lint расхождения Status Board P3/P4/P5/P7 (задокументированы inline); UI корректирующих
-  hints обучающего контура (P9.2, явный next-scope).
-- open_questions: подтверждение владельца перед git rm Old/ (P11.1); хост для GlitchTip и боевой
-  SENTRY_LARAVEL_DSN/SENTRY_ENVIRONMENT (P7.5); дата переключения на 3.x-модели (D27); нужен ли
-  исходящий прокси для Gemini из среды деплоя; нужен ли структурный reason-столбец на
-  `prc_documents`/`prc_ai_analyses` для unprocessable; guard-фикс `ScreeningJob::
-  statusGuardPassed()` под редкий сценарий (P5.2); overlap-дедуп по составному ключу до реальных
-  границ чанков (P6.2); источник `Estimate.title` (P6.3); структурный `is_merged_from_split`/якорь
-  `row_index` для склеенных incomplete-строк (P6.3); как архитектурно развести «стабильную» и
-  «per-purpose схемную» части системного промта extraction для явного контекстного кэша (P7.1);
-  числовой порог «когда explicit cache выгоднее implicit» (P7.1); актуальный курс
-  `AI_COST_REPORT_RUB_PER_USD` в прод `.env` (P7.2); боевой `TELEGRAM_BOT_TOKEN`/`TELEGRAM_CHAT_ID`
-  для `PipelineAlert` (P7.3); реальная калибровка ВСЕХ порогов `pipeline:stuck-check` на живом
-  трафике; когда владелец подготовит папку реальных эталонных смет для `ai:dataset:import` и
-  запустит `ai:eval:run` без `--dry-run` (P7.4); включать ли `LOG_CHANNEL=json` на проде по
-  умолчанию (P7.5); точное числовое значение `HORIZON_STOP_GRACE_PERIOD` (P7.6); когда/нужно ли
-  рефакторить `RunFreshCrawler`/`RunArchiveCrawler` под цикл единиц работы (P7.6); хост и
-  расписание прод-бэкапов (P7.7); реальные окна retention/MinIO ILM `expire_days` (P7.7).
+- workarounds: (без изменений, см. предыдущий handoff) два `--env-file`; composer/pint-автофикс/
+  `vendor:publish` — с ХОСТА; `.env.example` слепой append; `pint --dirty` — явный список путей;
+  один `--filter` за прогон; dot-notation в `config('ai.capabilities.<модель-с-точками>...')`;
+  Symfony Console `--version` зарезервирован; `mc ilm rule add` не идемпотентен сам по себе;
+  регресс-тест на exclude-строку AzGuard — ручной temporary-revert.
+- deferred: (без изменений полный список — см. git-историю handoff.md до P9.1) боевой тюнинг
+  промт-текстов; Batch API; RAR/7z; OCR; LibreOffice-конвертер xlsx; Ghostscript-даунскейл;
+  generic ai_extractions; контакты-сущность CRM; 9-префиксный ренейм (отклонён); Prometheus/
+  Grafana; прод GlitchTip/Sentry; shadow CI-гейт; калибровка порогов; 3.x-модели; Langfuse;
+  устаревшие имена таблиц 03/04; Gemini-прокси; калибровка rate_limit; тариф >200k; ренейм
+  `Ai\AiRoute`; per-purpose роутинг; runtime-обнаружение лимита после preflight; полный
+  пересчёт `validation_status` после `RerunRangeAction`; путь `mergedIncompleteItems` в UI/
+  датасет; `image/*` в windowed-пути; explicit context cache; `ai:caches prune` в расписание;
+  live FX-курс; маршруты `eval`/`shadow` в `AiRoutingSeeder`; v1-carry-over проверки;
+  `EstimatePersister` под manual-документы; эвристика сопоставления многосметных gold;
+  `EvalRun.prompt_version_set`; `gold_ref`/object storage; Pulse `sample_rate`/retention;
+  `PULSE_ENABLED`/`PULSE_PATH` в прод `.env`; `db:backup` расписание/off-host; `ai:storage:
+  lifecycle` вне scheduler; **добавлено P9.1:** Filament `#[Label]`-атрибуты для
+  `CorrectionReason`/`ReviewStatus` (P9.2); таргетный regression-прогон extraction-веток
+  `AnalysisStoreRepository`-ретрофита, если появится изолированный extraction-фильтр теста.
+- open_questions: (без изменений) подтверждение владельца перед git rm Old/; хост GlitchTip/
+  боевой DSN; дата переключения на 3.x-модели; исходящий прокси для Gemini; структурный
+  reason-столбец на `prc_documents`/`prc_ai_analyses`; guard-фикс `ScreeningJob::
+  statusGuardPassed()`; overlap-дедуп по составному ключу; источник `Estimate.title`;
+  структурный `is_merged_from_split`; как развести кэшируемую/per-purpose часть промта (P7.1);
+  порог explicit vs implicit cache; курс `AI_COST_REPORT_RUB_PER_USD` в прод; боевой Telegram-
+  токен/chat; калибровка порогов `pipeline:stuck-check`; когда владелец подготовит эталоны для
+  `ai:dataset:import`; `LOG_CHANNEL=json` на проде по умолчанию; `HORIZON_STOP_GRACE_PERIOD`
+  точное значение; рефактор `RunFreshCrawler`/`RunArchiveCrawler` под `shouldStop()`; хост и
+  расписание прод-бэкапов; окна retention/MinIO ILM `expire_days`.
 
-Context: handoff свежий — рекомендован /clear перед следующим item (P9.1, новая фаза — начать с
-чтения `plans/EST-AI/phases/P9.md` Phase Context).
+Context: handoff свежий — рекомендован /clear перед следующим item (P9.2 — Phase Context P9.md
+уже прочитан этой сессией, начинать с самого item + Required Reads).
