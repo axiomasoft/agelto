@@ -7,10 +7,10 @@
 | Plan ID | EST-AI |
 | Title | AI-пайплайн документов и смет v2 + фиксация знаний v1 перед удалением Old/ |
 | Version | 0.2.1 |
-| Status | 🟡 In progress |
+| Status | 🟠 Done with deviations |
 | Document Type | Executable Master Plan |
 | Authoring Model | opus (Fable 5) |
-| Last Updated | 2026-07-07 |
+| Last Updated | 2026-07-09 |
 | Repository | agelto (branch feat/v2-scaffold) |
 | Related Packages | prism-php/prism (планируется), spatie/laravel-data, laravel/horizon; системные бинари worker-образа: qpdf (резка/инспекция PDF), опц. libreoffice/ghostscript (xlsx→pdf, даунскейл сканов) |
 | Execution Mode | phase-first |
@@ -65,7 +65,7 @@ v2-краулинг доведён ровно до статуса докумен
 | P9 | Обучающий контур и локальная LLM | 4/4 | 🟠 Done with deviations |
 | P10 | Документация: каркас, диаграммы, описания процессов | 4/4 | 🟢 Done |
 | P11 | Финальный sweep и удаление Old/ | 0/1 | ⛔ Skipped by decision |
-| P12 | AI-контекст: скилы, гайдлайны, корневой CLAUDE.md-хаб | 0/2 | 🟡 In progress |
+| P12 | AI-контекст: скилы, гайдлайны, корневой CLAUDE.md-хаб | 0/2 | 🟠 Done with deviations |
 
 ## 5. Decision Log
 

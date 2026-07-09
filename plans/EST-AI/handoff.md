@@ -1,65 +1,70 @@
-# HANDOFF — 2026-07-09 — after P12.1
+# HANDOFF — 2026-07-09 — after P12.2 (EST-AI plan closed)
 
-**Next:** `/task:plan-exec EST-AI P12.2` (Routing §3 plan.md — ТОЛЬКО opus/Fable, effort high,
-D21; sonnet'ом не исполнять). P12.2 — пересобрать корневой `CLAUDE.md`/`AGENTS.md` из
-`.ai/guidelines/**`, правленных этим item'ом (Domain Hub — AI-подомен, Glossary — 7 новых
-сущностей, Navigation — 3 новых скила), и свести туда 3 новых + 2 обновлённых скила P12.1.
-**Done:** P1–P11 закрыты (P1/P3/P4/P5/P7/P9 — 🟠 Done with deviations; P2/P6/P8/P10 — 🟢 Done;
-P11 — ⛔ Skipped by decision, D45). P12.1 — 🟠 Done with deviations (см. Known Deviations ниже).
-Итого 30 item закрыто из 40 (P11.1 не засчитан — skipped, не done).
-P12.1: прочитан весь финальный код AI-подомена (`app/Services/{Llm,Procurement}/**`,
-`app/Enums/Procurement/*`, `app/Dto/Procurement/Ai/**`, `app/Models/Procurement/Ai/*`, ключевые
-докблоки оркестратора/чанк-сорсов/stitcher/validator/persister/composer/провайдеров,
-`config/ai.php`, `resources/ai/prompts/README.md`, `PromptSeeder`, `PromptPolicy`,
-`FakeLlmProvider`). **Гайдлайны** (`.ai/guidelines/**`) актуализированы под финальный код:
-`architecture.md` — Domain Hub получил абзац про AI-подомен (пути `Services/Llm`,
-`Services/Procurement/{Prepare,Screening,Extraction}`, `Models/Procurement/Ai`) с указателем на
-новые скилы; `glossary.md` — секция «AI-подомен» (`Ai\Correction`, `Ai\DatasetExample`,
-`Ai\Prompt`/`is_protected`, `PromptStep` разведён с `AnalysisStep`/`LlmPurpose`,
-`DocumentStatus::Unprocessable`+`UnprocessableReason`, `DiscoveryResponse`/`DiscoveryMarker`,
-`ExtractionRoute`); `navigation.md` — Quick Start п.4 + Fast Term Routing + 3 строки Reference
-Table на новые скилы. **Скилы:** `procurement-pipeline-dev` актуализирован (таблица стадий 4→5,
-колонка `DocumentStatus`-переходов вкл. `unprocessable`, dependency map переадресует на глубокие
-скилы, PR checklist «1–5»). Созданы 3 новых локальных скила в `.claude/skills/`:
-`estimate-extraction-dev` (контракты P2 как SSOT, чек-лист «поменял DTO», таблица
-`Whole`/`Windowed`, preflight, checkpoint-requeue+`ShouldBeUniqueUntilProcessing`, unprocessable-
-таксономия, границы Stitcher/Validator/Persister, калибруемые `config('ai.extraction.*')`),
-`llm-layer-dev` (контракт `LlmProvider`+опциональные интерфейсы, чек-лист адаптера, кэш-
-инварианты, capability-матрица+EOL/successor, стоимость, запреты дословно вкл. indirect prompt
-injection — research L finding 14), `prompt-engineering-agelto` (канон файл→сид→`is_protected`,
-композиция/приоритеты, `CorrectionAwareComposer`-hints, eval-цикл, 5 антипаттернов). Ревизия
-`testing-rules` (секция про `FakeLlmProvider`) и `.claude/rules/agelto-reviewer-overrides.md` (6
-новых блокирующих осей ревью LLM-слоя/промтов/лимитов провайдера). Validation: `skiller status`
-— 0 новых ⚠; grep путей/классов 3 новых скилов против `app/` — 0 расхождений; `python3
-plan-lint.py plans/EST-AI` — те же 5 pre-existing ошибок, новых нет.
-**Remaining:** P12.2 (1 item, только opus/Fable — Routing §3 plan.md). Итого 1 item впереди из 40.
-P11.1 (удаление `Old/`) — вне remaining, но переисполним по решению владельца (Pending Work).
-**Sources of truth:** `plans/EST-AI/plan.md` (Decision Log D1–D45; Status Board — P12 теперь
-🟡 In progress 0/2, P12.1 закрыт с девиацией) · `plans/EST-AI/phases/P12.md` (Phase Context +
-P12.1 Completion Notes целиком, P12.2 — следующий item, читать целиком) ·
-`.ai/guidelines/{architecture,glossary,navigation}.md` (правленные источники) ·
+**Next:** Плана EST-AI больше не имеет open items — все 40 items (P1–P12) закрыты, 39 фактически
+исполнены (30 предыдущими сессиями + P12.1/P12.2 в этой и предыдущей), P11.1 — ⛔ Skipped by decision
+(D45, владелец не подтвердил `git rm Old/`). Следующий шаг — на усмотрение владельца: (а) новый план
+на боевой тюнинг промтов силами другой модели (см. plan.md §1 «Следующий шаг владельца»); (б)
+переисполнение P11.1, если владелец даст подтверждение на удаление `Old/`/`tmp/agelto*.md`; (в) любой
+из открытых Pending Work/open_questions ниже как отдельный follow-up план. Никакого plan-exec
+продолжения внутри EST-AI не требуется.
+**Done:** P1–P10, P12 — закрыты (P1/P3/P4/P5/P7/P9/P12 — 🟠 Done with deviations; P2/P6/P8/P10 —
+🟢 Done). P11 — ⛔ Skipped by decision (D45). Plan Meta Status → 🟠 Done with deviations
+(2026-07-09). P12.2 (эта сессия, opus/Fable, effort high — Routing §3 plan.md): корневой `CLAUDE.md`
+пересобран вручную из трёх правленных P12.1 источников (`.ai/guidelines/{architecture,glossary,
+navigation}.md`); managed-хаб-блок `<!-- swissknifeman:hub:start/end -->` не тронут. Domain Hub
+получил абзац про AI-подомен (пути `Services/{Llm,Procurement/{Prepare,Screening,Extraction}}`,
+`Models/Procurement/Ai`, указатель на 3 скила P12.1); Glossary — компактную секцию «AI-подомен» (7
+сущностей: `Ai\Analysis`, `Ai\Prompt`, `Ai\Correction`/`Ai\DatasetExample`, `PromptStep`≠
+`AnalysisStep`≠`LlmPurpose`, `DocumentStatus::Unprocessable`+`UnprocessableReason`,
+`ExtractionRoute`) с пометкой «полностью: `.ai/guidelines/glossary.md`»; Navigation Guide — Quick
+Start п.4, 3 строки Fast Term Routing, 6 новых строк Reference Table (3 скила P12.1 + PR-чеклист,
+ранее отсутствовавший в CLAUDE.md, + `runbooks/_index.md` + `04_Operators/_index.md` +
+`ai-context/index.md` из каркаса P10/research H). Transaction & Jobs Policy п.4 дополнен LLM-
+инвариантами (lease+status-guard, prefix-stable кэш, checkpoint-requeue). Синхронно поправлены
+источники `.ai/guidelines/architecture.md`/`navigation.md` теми же формулировками (Fast Entry Rules,
+Agent File Edit Safety, Transaction & Jobs Policy п.4, Docker-секция, Reference Table). Line budget:
+189→185 строк (149 ручных + 36 managed), уложились в ≤200 за счёт компрессии «Глаголы методов»/
+«Нейминг тестов» и снятия мёртвых ссылок на `AGENTS.md`/`GEMINI.md`/`.ai/skills/*`/`.cursor/rules/`
+(см. Known Deviations P12.2 в `phases/P12.md`). **Валидация:** линк-чек — все 18 файловых + 19 skill-
+ссылок в CLAUDE.md разрешены (0 расхождений); canary (3 задачи по Code Guidance пункта) —
+«добавь поле в контракт сметы»→`estimate-extraction-dev`, «добавь провайдера Anthropic»→
+`llm-layer-dev`, «оператор жалуется на зависший анализ»→`runbooks/_index.md`/`04_Operators/
+_index.md` — все верно; `wc -l CLAUDE.md` = 185 ≤ 200; `python3 plan-lint.py plans/EST-AI` — те же 5
+pre-existing ошибок (P3/P4/P5/P7/P9), новых нет; `skiller status` — 1 pre-existing warning
+(`session-observer`/`shared-memory` + дубль marketplace/vendor каналов), не связан с этим item'ом.
+**Remaining:** 0 items. P11.1 — вне remaining (Skipped, не Done), переисполнение — по решению
+владельца (см. Next).
+**Sources of truth:** `plans/EST-AI/plan.md` (Meta Status 🟠 Done with deviations; Decision Log
+D1–D45; Status Board — все фазы терминальны) · `plans/EST-AI/phases/P12.md` (P12.1/P12.2 Completion
+Notes/Known Deviations целиком) · `CLAUDE.md` (корень, 185 строк — актуальный хаб) ·
+`.ai/guidelines/{architecture,glossary,navigation,docs-pr-checklist}.md` (источники хаба) ·
 `.claude/skills/{procurement-pipeline-dev,estimate-extraction-dev,llm-layer-dev,
-prompt-engineering-agelto,testing-rules}/SKILL.md` · `.claude/rules/agelto-reviewer-overrides.md`
-· skill `ai-context-workflow` (фактический канон: `.ai/guidelines/**` — единственный источник
-ПРАВИЛ; локальные скилы живут напрямую в `.claude/skills/`, `.ai/skills/` не существует).
+prompt-engineering-agelto,testing-rules,ai-context-workflow}/SKILL.md` ·
+`.claude/rules/agelto-reviewer-overrides.md` · `docs/` (полное дерево P10, каркас research/H).
 **Open risks:**
-- (новое P12.1) `.cursor/skills/` mirror для локальных скилов НЕ существует в репозитории вообще
-  (не заведён ни одной прошлой сессией) — 3 новых + 2 обновлённых скила P12.1 в нём не отражены;
-  решение, заводить ли вручную или ждать `skiller sync`-подобный механизм для локальных скилов, —
-  открытый вопрос вне P12.1 (Scope Excluded: доработка swissknifeman-реестра).
-- (новое P12.1) `docs/03_Dev/ai-context/scenarios.md`/`index.md` (P10.3) НЕ обновлены под 3 новых
-  скила P12.1 — Scope Excluded этого item'а («переписывание docs/» — P10 закрыта); если владелец
-  захочет видеть новые скилы в этой доке, нужен отдельный docs-PR.
+- (новое P12.2) `AGENTS.md`/`GEMINI.md` НЕ пересобраны — удалены отдельным осознанным решением
+  владельца ДО этого плана (коммит `7b9cd004`, 2026-07-06, «single AI provider: Claude Code»); план
+  унаследовал устаревшую формулировку «CLAUDE.md/AGENTS.md» в Intent/Files P12.2 (написано
+  2026-07-07, на день позже коммита) — если владелец захочет второго провайдера обратно, это отдельное
+  решение, не часть EST-AI.
+- (без изменений P12.1) `.cursor/skills/` mirror локальных скилов НЕ существует в репозитории вообще
+  (согласуется с удалением `.cursor/` тем же коммитом `7b9cd004` — вероятно, механизм зеркалирования
+  для Cursor больше не актуален при single-provider Claude Code; решение, заводить ли вручную или
+  считать окончательно отменённым, — открытый вопрос вне этого плана).
+- (без изменений) `docs/03_Dev/ai-context/scenarios.md`/`index.md` (P10.3) не проверялись повторно на
+  актуальность под 3 новых скила P12.1 (Scope Excluded обоих P12-items); если владелец захочет —
+  отдельный docs-PR.
 - (без изменений) `03_Dev/crawling-pipeline.md` — линк-карта краулинга, не полный разбор internals.
 - (без изменений) plan-lint: 5 pre-existing ошибок Status Board P3/P4/P5/P7/P9 «Done with
-  deviations»/расхождение счётчика — задокументированное расхождение, не новое.
+  deviations»/расхождение счётчика — задокументированное расхождение, не новое, не исправлялось
+  повторно (вне Scope P12.2 — правка чужих Status Board записей не по этому item'у).
 - (без изменений) Модели EOL (D27): линейка 2.5 умирает 2026-10-16.
 - (без изменений) Прокси для Gemini/LLM-вызовов из РФ не покрыт решением владельца.
 - (без изменений) Троттлинг Gemini не откалиброван против реальной квоты провайдера.
 - (без изменений) `docs/specs/v2/03-document-pipeline.md`/`04-llm-providers.md` местами используют
-  устаревшие имена таблиц — не в Scope P10/P12.
-- (без изменений) `docker compose exec` требует ДВА `--env-file`; `pint --dirty` не видит
-  untracked — явный список путей; pint auto-fix может упереться в bind-mount permission.
+  устаревшие имена таблиц.
+- (без изменений) `docker compose exec` требует ДВА `--env-file`; `pint --dirty` не видит untracked;
+  pint auto-fix может упереться в bind-mount permission.
 - (без изменений) `composer require`/`composer update --lock` — только с ХОСТА.
 - (без изменений) `.env`/`.env.example` закрыты от чтения — правки только append вслепую.
 - (без изменений) `php artisan test --filter=X --filter=Y` — второй `--filter` игнорируется.
@@ -84,7 +89,7 @@ prompt-engineering-agelto,testing-rules}/SKILL.md` · `.claude/rules/agelto-revi
   требует `Storage::fake('s3')`; `mermaid-cli` (`stateDiagram-v2`) не парсит `Class::method()` в
   некавычечной edge-метке — использовать `Class.method()`; каркас `docker/development.md` ссылался
   на несуществующую make-цель `deploy:frontend` — исправлено P10.3.
-- deferred: (без изменений полный список — см. git-историю handoff.md до P10.4) боевой тюнинг
+- deferred: (без изменений полный список — см. git-историю handoff.md до P10.4/P12.1) боевой тюнинг
   промт-текстов; Batch API; RAR/7z; OCR; LibreOffice-конвертер xlsx; Ghostscript-даунскейл; generic
   ai_extractions; контакты-сущность CRM; 9-префиксный ренейм (отклонён); Prometheus/Grafana; прод
   GlitchTip/Sentry; shadow CI-гейт; калибровка порогов; 3.x-модели; Langfuse; устаревшие имена
@@ -106,23 +111,26 @@ prompt-engineering-agelto,testing-rules}/SKILL.md` · `.claude/rules/agelto-revi
   теневого скрининга; перенос shadow-сравнения в `prc_ai_eval_results`; сверка
   `crawling-pipeline.md`/`admin-panel.md` с фактическим кодом краулинга; паттерн «коарс-право +
   запись-специфичный чек» AzGuard как переиспользуемый trait/base-policy при появлении второго
-  случая. **добавлено P12.1:** `.cursor/skills/` mirror локальных скилов (см. Open risks);
-  обновление `docs/03_Dev/ai-context/scenarios.md`/`index.md` под 3 новых скила (Scope Excluded).
+  случая; `.cursor/skills/` mirror локальных скилов (вероятно отменён вместе с `.cursor/` —
+  решение владельца); обновление `docs/03_Dev/ai-context/scenarios.md`/`index.md` под 3 новых
+  скила. **добавлено P12.2:** возврат `AGENTS.md`/`GEMINI.md`, если владелец захочет второго
+  AI-провайдера — отдельное решение вне EST-AI.
 - open_questions: (без изменений) подтверждение владельца перед `git rm Old/` (актуально, если
-  P11.1 будет переисполнен по Pending Work); хост GlitchTip/боевой DSN; дата переключения на
-  3.x-модели; исходящий прокси для Gemini; структурный reason-столбец на
-  `prc_documents`/`prc_ai_analyses`; overlap-дедуп по составному ключу; источник `Estimate.title`;
-  структурный `is_merged_from_split`; как развести кэшируемую/per-purpose часть промта; порог
-  explicit vs implicit cache; курс `AI_COST_REPORT_RUB_PER_USD` в прод; боевой Telegram-токен/чат;
-  калибровка порогов `pipeline:stuck-check`/`backlog_threshold`/`no_completions_minutes`; когда
-  владелец подготовит эталоны для `ai:dataset:import`; `LOG_CHANNEL=json` на проде по умолчанию;
+  P11.1 будет переисполнен); хост GlitchTip/боевой DSN; дата переключения на 3.x-модели; исходящий
+  прокси для Gemini; структурный reason-столбец на `prc_documents`/`prc_ai_analyses`; overlap-дедуп
+  по составному ключу; источник `Estimate.title`; структурный `is_merged_from_split`; как развести
+  кэшируемую/per-purpose часть промта; порог explicit vs implicit cache; курс
+  `AI_COST_REPORT_RUB_PER_USD` в прод; боевой Telegram-токен/чат; калибровка порогов
+  `pipeline:stuck-check`/`backlog_threshold`/`no_completions_minutes`; когда владелец подготовит
+  эталоны для `ai:dataset:import`; `LOG_CHANNEL=json` на проде по умолчанию;
   `HORIZON_STOP_GRACE_PERIOD` точное значение; рефактор `RunFreshCrawler`/`RunArchiveCrawler` под
   `shouldStop()`; хост и расписание прод-бэкапов; окна retention/MinIO ILM `expire_days`; нужен ли
   `prc_ai_dataset_examples.analysis_id`; нужна ли `league/flysystem-aws-s3-v3` явной зависимостью;
-  нужна ли реальная проводка `ShadowDispatch` в этом же плане или отдельным будущим планом;
-  **добавлено P12.1:** заводить ли `.cursor/skills/` вручную для локальных скилов, или это
-  функция будущей доработки `skiller`/vendor-канала (вне Scope этого плана).
+  нужна ли реальная проводка `ShadowDispatch` в этом же плане или отдельным будущим планом; заводить
+  ли `.cursor/skills/` вручную (или считать отменённым вместе с `.cursor/`); **добавлено P12.2:**
+  нужен ли `AGENTS.md`/`GEMINI.md` обратно (второй AI-провайдер) — если да, отдельный план/задача
+  пересобрать их из тех же `.ai/guidelines/**`-источников по образцу CLAUDE.md.
 
-Context: handoff свежий — рекомендован /clear перед следующим item (P12.2 — новая сессия ОБЯЗАНА
-перечитать `plans/EST-AI/phases/P12.md` целиком по протоколу plan-exec; Routing §3 plan.md —
-только opus/Fable, effort high).
+Context: EST-AI закрыт (Meta Status 🟠 Done with deviations, 2026-07-09). Рекомендован /clear —
+следующая работа в этом репозитории начинается с чтения актуального `CLAUDE.md` (роутинг-хаб, 185
+строк) и, при необходимости нового плана, `.ai/guidelines/**` источников напрямую.

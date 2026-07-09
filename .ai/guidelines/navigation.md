@@ -12,12 +12,8 @@ When a task requires more detail than what's in the current context, load the re
 ## Agent File Edit Safety (High Priority)
 
 - Before any file edit, check whether the target path is ignored by Git (`.gitignore`).
-- Do not edit generated agent files directly:
-  - `CLAUDE.md`
-  - `AGENTS.md`
-  - `.claude/skills/`
-  - `.cursor/rules/`
-- `CLAUDE.md` and `AGENTS.md` are generated artifacts. For AI rules/skills updates, edit only source files under `.ai/...`.
+- Do not hand-edit `CLAUDE.md` — assembled manually from `.ai/guidelines/**`; edit the source instead. No `AGENTS.md`/`GEMINI.md`/`.cursor/` — retired (single-provider Claude Code decision), do not recreate.
+- `.claude/skills/*`: vendor/managed skills carry an in-file `swissknifeman:managed` marker and are overwritten by `skiller sync` — don't hand-edit; local domain skills have no marker and ARE edited directly (skill `ai-context-workflow`).
 - Prefer source paths under `.ai/...` when changing AI rules/skills.
 - If a requested file is ignored/generated, stop and use the source file instead.
 
@@ -50,15 +46,17 @@ When a task requires more detail than what's in the current context, load the re
 | Имена сущностей/методов/переменных, канон глаголов, нейминг тестов | `.ai/guidelines/glossary.md`, `docs/02_Workflow/glossary.md` |
 | Layer boundaries, where logic lives | `.ai/guidelines/architecture.md` |
 | Cross-layer change in parsing pipeline (dependency map, test-gate, PR checklist) | skill `procurement-pipeline-dev` |
-| Extraction смет: контракты P2, discovery/windowed vs row-range, preflight, checkpoint-requeue, unprocessable | skill `estimate-extraction-dev` |
-| LLM-транспорт: провайдер-адаптер, кэш-инварианты, capability-матрица/EOL-модели | skill `llm-layer-dev` |
-| Промты: файл→сид→is_protected, композиция/приоритеты, hints, eval-цикл | skill `prompt-engineering-agelto` |
+| Extraction смет: контракты P2, discovery/windowed vs row-range, preflight, checkpoint-requeue, unprocessable | skill `estimate-extraction-dev`, `docs/specs/v2/08-estimate-extraction.md` |
+| LLM-транспорт: провайдер-адаптер, кэш-инварианты, capability-матрица/EOL-модели | skill `llm-layer-dev`, `docs/03_Dev/llm-providers.md` |
+| Промты: файл→сид→is_protected, композиция/приоритеты, hints, eval-цикл | skill `prompt-engineering-agelto`, `docs/03_Dev/ai/prompts.md` |
 | PR-чеклист по докам (docs/SOP обновлены?) — для ЛЮБОГО PR | `.ai/guidelines/docs-pr-checklist.md` |
 | Task-starter prompts (review/tests/security/deploy) | `/code-review`, `/test-gen`, `/security-check`, `/docker-deploy` |
 | DB schema, table prefixes | `docs/03_Dev/database.md` |
 | Crawling pipeline internals | `docs/03_Dev/crawling-pipeline.md` |
-| Document/estimate pipeline internals | `docs/03_Dev/document-pipeline.md` |
-| LLM providers, AI routing | `docs/03_Dev/llm-providers.md` |
+| Document/estimate pipeline internals (FSM, стадии, очереди, failure modes) | `docs/03_Dev/document-pipeline.md` |
+| Инцидент пайплайна (завис анализ, quota/429, backlog) | `docs/03_Dev/runbooks/_index.md` |
+| Оператор: проверить/скорректировать/перезапустить AI-разбор | `docs/04_Operators/_index.md` |
+| AI-контекст: как устроены `.ai/`/скилы/генерация CLAUDE.md | `docs/03_Dev/ai-context/index.md`, skill `ai-context-workflow` |
 | Admin panel / Filament observability | `docs/03_Dev/admin-panel.md` |
 | Writing or running tests | skill `testing-rules` |
 | Creating commits | skill `git-commit-rules` |
