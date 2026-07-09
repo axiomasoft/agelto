@@ -11,6 +11,7 @@ use App\Repositories\Procurement\AiRouteReadRepository;
 use App\Services\Llm\Contracts\LlmProvider;
 use App\Services\Llm\Dto\LlmOptions;
 use App\Services\Llm\Dto\ResolvedRoute;
+use App\Services\Llm\Providers\OpenAiCompatibleProvider;
 use App\Services\Llm\Providers\PrismGeminiProvider;
 use Illuminate\Contracts\Container\Container;
 use Illuminate\Support\Collection;
@@ -65,11 +66,24 @@ final readonly class AiRouteResolver
             ->map(fn (AiRoute $route): ResolvedRoute => $this->toResolvedRoute($route, $purpose));
     }
 
+    /**
+     * Теневой маршрут (`shadow=true`, P9.4, ТЗ 04 §5) для (document_type, purpose) — первый по
+     * `priority`, если активный теневой маршрут вообще заведён; `null` — shadow-режим для этой
+     * пары выключен (обычное состояние, пока владелец не поднимет локальную LLM).
+     */
+    public function shadowRoute(string $documentType, LlmPurpose $purpose): ?ResolvedRoute
+    {
+        $route = $this->routes->activeShadowRouteFor($documentType, $purpose);
+
+        return $route !== null ? $this->toResolvedRoute($route, $purpose) : null;
+    }
+
     private function toResolvedRoute(AiRoute $route, LlmPurpose $purpose): ResolvedRoute
     {
         $provider = $route->provider;
 
         $options = (array) $route->options;
+        $providerOptions = (array) $provider->options;
 
         return new ResolvedRoute(
             provider: $this->providerFor($provider),
@@ -78,6 +92,8 @@ final readonly class AiRouteResolver
                 model: $route->model,
                 temperature: (float) ($options['temperature'] ?? self::DEFAULT_TEMPERATURE_BY_PURPOSE[$purpose->value] ?? 0.0),
                 maxTokens: (int) ($options['max_tokens'] ?? self::DEFAULT_MAX_TOKENS),
+                baseUrl: $provider->base_url,
+                apiKeyEnv: $providerOptions['api_key_env'] ?? null,
             ),
             route: $route,
         );
@@ -87,6 +103,10 @@ final readonly class AiRouteResolver
     {
         return match ($provider->driver) {
             'gemini' => $this->container->make(PrismGeminiProvider::class),
+            // OpenAI-совместимый транспорт (vLLM/Ollama, P9.4, ТЗ 04 §7) — stateless: base_url/
+            // api_key приходят через `LlmOptions` (см. докблок), не через конструктор, чтобы
+            // `app()->instance(OpenAiCompatibleProvider::class, $fake)` продолжал работать в тестах.
+            'openai_compatible' => $this->container->make(OpenAiCompatibleProvider::class),
             default => throw new RuntimeException("Неизвестный драйвер провайдера: {$provider->driver}."),
         };
     }

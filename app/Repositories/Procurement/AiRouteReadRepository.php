@@ -35,4 +35,25 @@ final readonly class AiRouteReadRepository
             ->orderBy('priority')
             ->get();
     }
+
+    /**
+     * Первый активный теневой маршрут (`shadow=true`, P9.4, ТЗ 04 §5) для (document_type,
+     * purpose) — та же сортировка exact-match/`priority`, что `activeCandidatesFor()`; `shadow`
+     * маршруты — отдельное подмножество (обычный основной маршрут `shadow=false` этим методом
+     * никогда не возвращается).
+     */
+    public function activeShadowRouteFor(string $documentType, LlmPurpose $purpose): ?AiRoute
+    {
+        return AiRoute::query()
+            ->with('provider')
+            ->where('purpose', $purpose->value)
+            ->where('is_active', true)
+            ->where('shadow', true)
+            ->where(function ($query) use ($documentType): void {
+                $query->where('document_type', $documentType)->orWhere('document_type', 'any');
+            })
+            ->orderByRaw('CASE WHEN document_type = ? THEN 0 ELSE 1 END', [$documentType])
+            ->orderBy('priority')
+            ->first();
+    }
 }

@@ -9,6 +9,12 @@ namespace App\Services\Llm\Dto;
  * cache-hint (D14): интерпретация — на адаптере (Gemini → `cachedContentName`, Anthropic →
  * `cache_control`, OpenAI → `prompt_cache_key`, vLLM → no-op). `provider`/`model` — идентификаторы
  * маршрута (`prc_ai_providers`/`prc_ai_routes`), не сами объекты — контракт не зависит от Eloquent.
+ *
+ * `baseUrl`/`apiKeyEnv` (P9.4) — те же самые прозрачные идентификаторы (не объекты), но для
+ * `OpenAiCompatibleProvider`: `prc_ai_providers.base_url`/`options.api_key_env` копируются сюда
+ * `AiRouteResolver`, чтобы адаптер оставался stateless (`container->make()` без параметров —
+ * `app()->instance(OpenAiCompatibleProvider::class, $fake)` продолжает работать в тестах, тот же
+ * приём, что `PrismGeminiProvider` в `ScreeningProcessorTest`). Gemini-адаптер оба поля игнорирует.
  */
 final readonly class LlmOptions
 {
@@ -18,5 +24,7 @@ final readonly class LlmOptions
         public float $temperature,
         public int $maxTokens,
         public ?LlmCacheHandle $cacheHandle = null,
+        public ?string $baseUrl = null,
+        public ?string $apiKeyEnv = null,
     ) {}
 }
