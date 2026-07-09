@@ -6,8 +6,12 @@ namespace Tests\Support\Doubles;
 
 use App\Enums\Procurement\FinishReason;
 use App\Services\Llm\Contracts\LlmProvider;
+use App\Services\Llm\Contracts\SupportsContextCaching;
 use App\Services\Llm\Contracts\SupportsFileUpload;
+use App\Services\Llm\Dto\CacheableContent;
 use App\Services\Llm\Dto\JsonSchema;
+use App\Services\Llm\Dto\LlmCacheHandle;
+use App\Services\Llm\Dto\LlmCacheOptions;
 use App\Services\Llm\Dto\LlmFileHandle;
 use App\Services\Llm\Dto\LlmOptions;
 use App\Services\Llm\Dto\LlmPrompt;
@@ -15,6 +19,7 @@ use App\Services\Llm\Dto\LlmResponse;
 use App\Services\Llm\Dto\LlmStructuredResponse;
 use App\Services\Llm\Dto\LlmUsage;
 use Carbon\CarbonImmutable;
+use Carbon\CarbonInterval;
 use RuntimeException;
 use Throwable;
 
@@ -25,14 +30,25 @@ use Throwable;
  * без boolean-флагов); `andThen()` докладывает следующий исход для сценариев re-ask (P3.4).
  * Реализует `SupportsFileUpload` (P5.1 — orchestrator-тесты грузят файл перед классификацией)
  * заглушкой без реального I/O — `uploadFile()` только фиксирует запрошенные пути/MIME.
+ * Реализует `SupportsContextCaching` (P7.1 — `LlmCacheManagerTest`) той же заглушечной схемой:
+ * `cacheFailing()` переключает `createCache()`/`refreshCache()`/`deleteCache()` в режим исключения
+ * для сценариев «ошибка провайдера → путь без кэша» (Implementation Rules P7.1).
  */
-final class FakeLlmProvider implements LlmProvider, SupportsFileUpload
+final class FakeLlmProvider implements LlmProvider, SupportsContextCaching, SupportsFileUpload
 {
     /** @var list<LlmPrompt> */
     private array $receivedPrompts = [];
 
     /** @var list<array{path: string, mimeType: string}> */
     private array $uploadedFiles = [];
+
+    /** @var list<CacheableContent> */
+    private array $createdCaches = [];
+
+    /** @var list<string> */
+    private array $deletedCacheIds = [];
+
+    private bool $cacheFailing = false;
 
     /**
      * @param  list<LlmResponse|LlmStructuredResponse|Throwable>  $queue
@@ -94,6 +110,63 @@ final class FakeLlmProvider implements LlmProvider, SupportsFileUpload
         $this->uploadedFiles[] = ['path' => $path, 'mimeType' => $mimeType];
 
         return new LlmFileHandle(uri: 'files/fake-'.md5($path), expiresAt: CarbonImmutable::now()->addHours(48));
+    }
+
+    public function createCache(CacheableContent $content, LlmCacheOptions $options): LlmCacheHandle
+    {
+        if ($this->cacheFailing) {
+            throw new RuntimeException('FakeLlmProvider: createCache настроен на исключение.');
+        }
+
+        $this->createdCaches[] = $content;
+
+        return new LlmCacheHandle(
+            id: 'cachedContents/fake-'.md5($content->systemPart),
+            expiresAt: CarbonImmutable::now()->add($options->ttl),
+        );
+    }
+
+    public function refreshCache(LlmCacheHandle $handle, CarbonInterval $ttl): void
+    {
+        if ($this->cacheFailing) {
+            throw new RuntimeException('FakeLlmProvider: refreshCache настроен на исключение.');
+        }
+    }
+
+    public function deleteCache(LlmCacheHandle $handle): void
+    {
+        if ($this->cacheFailing) {
+            throw new RuntimeException('FakeLlmProvider: deleteCache настроен на исключение.');
+        }
+
+        $this->deletedCacheIds[] = $handle->id;
+    }
+
+    /**
+     * Переключает `createCache()`/`refreshCache()`/`deleteCache()` в режим исключения
+     * (сценарий «ошибка провайдера → путь без кэша», Implementation Rules P7.1).
+     */
+    public function cacheFailing(): self
+    {
+        $this->cacheFailing = true;
+
+        return $this;
+    }
+
+    /**
+     * @return list<CacheableContent>
+     */
+    public function createdCaches(): array
+    {
+        return $this->createdCaches;
+    }
+
+    /**
+     * @return list<string>
+     */
+    public function deletedCacheIds(): array
+    {
+        return $this->deletedCacheIds;
     }
 
     /**
