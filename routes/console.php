@@ -42,4 +42,8 @@ if (Schema::hasTable('prc_documents')) {
     })->name('pipeline:dispatch-backlog')->everyMinute()->withoutOverlapping();
 
     Schedule::command('pipeline:retry-failed')->everyTenMinutes()->withoutOverlapping();
+
+    // Наблюдаемость пайплайна (P7.3, ТЗ 03 §5, v1-канон HEARTBEAT 15м) — read-only, только
+    // сигналит (антиспам-агрегация — `PipelineAlert`).
+    Schedule::command('pipeline:stuck-check')->everyFifteenMinutes()->withoutOverlapping();
 }

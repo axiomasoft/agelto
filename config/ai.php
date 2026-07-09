@@ -78,6 +78,18 @@ return [
     | от этого порога, калибровка — если реальная практика это опровергнет (YAGNI).
     |
     */
+    /*
+    |--------------------------------------------------------------------------
+    | EOL-мониторинг моделей (D27, P7.3 `pipeline:stuck-check`)
+    |--------------------------------------------------------------------------
+    |
+    | Сколько дней до `capabilities.<model>.eol_date` считать «пора алертить» для модели
+    | АКТИВНОГО маршрута (`prc_ai_routes.is_active`) — переключение готово заранее
+    | (`AiRoutingSeeder::routes()` уже несёт закомментированные 3.x-строки, P7.2).
+    |
+    */
+    'model_eol_warn_days' => (int) env('AI_MODEL_EOL_WARN_DAYS', 30),
+
     'capabilities' => [
         'gemini-2.5-flash-lite' => [
             'input_per_1m' => 0.10,
@@ -258,5 +270,26 @@ return [
         'dispatch_batch_limit' => (int) env('AI_PIPELINE_DISPATCH_BATCH_LIMIT', 100),
         'backlog_batch_limit' => (int) env('AI_PIPELINE_BACKLOG_BATCH_LIMIT', 100),
         'retry_batch_limit' => (int) env('AI_PIPELINE_RETRY_BATCH_LIMIT', 50),
+
+        /*
+        | Пороги `pipeline:stuck-check` (P7.3, ТЗ 03 §5). `analysis_stuck_minutes` — screening
+        | (single-shot, v1-канон ANALYSIS_STUCK_MINUTES=30); `checkpoint_stuck_minutes` —
+        | extraction ОТДЕЛЬНО (D31): self-requeue-цепочка легитимно проходит через паузы между
+        | checkpoint-прогонами дольше единичного вызова, общий с screening порог давал бы
+        | ложные срабатывания. `document_stuck_minutes` — застревание документа в
+        | downloaded/prepared/screened (мост между стадиями, ревью K п.20). `spike_window_hours`
+        | — общее окно для счётчиков всплесков (unknown/unprocessable/расхождение rows);
+        | `*_spike_threshold`/`estimate_mismatch_threshold` — сами пороги счётчиков.
+        | `alert_antispam_minutes` — не чаще одного Telegram-сообщения на одну и ту же находку
+        | (`PipelineAlert::notify()`, Code Guidance).
+        */
+        'analysis_stuck_minutes' => (int) env('AI_PIPELINE_ANALYSIS_STUCK_MINUTES', 30),
+        'checkpoint_stuck_minutes' => (int) env('AI_PIPELINE_CHECKPOINT_STUCK_MINUTES', 60),
+        'document_stuck_minutes' => (int) env('AI_PIPELINE_DOCUMENT_STUCK_MINUTES', 60),
+        'spike_window_hours' => (int) env('AI_PIPELINE_SPIKE_WINDOW_HOURS', 24),
+        'unknown_spike_threshold' => (int) env('AI_PIPELINE_UNKNOWN_SPIKE_THRESHOLD', 20),
+        'unprocessable_spike_threshold' => (int) env('AI_PIPELINE_UNPROCESSABLE_SPIKE_THRESHOLD', 5),
+        'estimate_mismatch_threshold' => (int) env('AI_PIPELINE_ESTIMATE_MISMATCH_THRESHOLD', 5),
+        'alert_antispam_minutes' => (int) env('AI_PIPELINE_ALERT_ANTISPAM_MINUTES', 60),
     ],
 ];

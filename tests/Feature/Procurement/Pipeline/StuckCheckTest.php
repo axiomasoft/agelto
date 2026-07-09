@@ -1,0 +1,274 @@
+<?php
+
+declare(strict_types=1);
+
+use App\Enums\Procurement\AnalysisStatus;
+use App\Enums\Procurement\AnalysisStep;
+use App\Enums\Procurement\DocumentStatus;
+use App\Enums\Procurement\EstimateValidationStatus;
+use App\Models\Procurement\Ai\AiRoute;
+use App\Models\Procurement\Ai\Analysis;
+use App\Models\Procurement\Document\Document;
+use App\Models\Procurement\Estimate\Estimate;
+use Illuminate\Support\Facades\Http;
+
+beforeEach(function () {
+    config([
+        'services.telegram.bot_token' => 'test-token',
+        'services.telegram.chat_id' => '123456',
+        'ai.pipeline.analysis_stuck_minutes' => 30,
+        'ai.pipeline.checkpoint_stuck_minutes' => 60,
+        'ai.pipeline.document_stuck_minutes' => 60,
+        'ai.pipeline.spike_window_hours' => 24,
+        'ai.pipeline.unknown_spike_threshold' => 2,
+        'ai.pipeline.unprocessable_spike_threshold' => 2,
+        'ai.pipeline.estimate_mismatch_threshold' => 2,
+        'ai.pipeline.alert_antispam_minutes' => 60,
+        'ai.model_eol_warn_days' => 30,
+    ]);
+});
+
+test('без аномалий команда завершается тихо, без Telegram-алерта', function () {
+    Http::fake();
+
+    $this->artisan('pipeline:stuck-check')->assertSuccessful();
+
+    Http::assertNothingSent();
+});
+
+test('зависший screening-анализ (running, лиз истёк, старше порога) — алерт', function () {
+    Http::fake();
+
+    Analysis::factory()->create([
+        'step' => AnalysisStep::Screening,
+        'status' => AnalysisStatus::Running,
+        'locked_until' => now()->subMinute(),
+        'updated_at' => now()->subMinutes(31),
+    ]);
+
+    $this->artisan('pipeline:stuck-check')->assertSuccessful();
+
+    Http::assertSentCount(1);
+});
+
+test('running screening-анализ моложе порога НЕ считается зависшим', function () {
+    Http::fake();
+
+    Analysis::factory()->create([
+        'step' => AnalysisStep::Screening,
+        'status' => AnalysisStatus::Running,
+        'locked_until' => now()->subMinute(),
+        'updated_at' => now()->subMinutes(5),
+    ]);
+
+    $this->artisan('pipeline:stuck-check')->assertSuccessful();
+
+    Http::assertNothingSent();
+});
+
+test('running screening-анализ с ДЕЙСТВУЮЩИМ лизом НЕ считается зависшим', function () {
+    Http::fake();
+
+    Analysis::factory()->create([
+        'step' => AnalysisStep::Screening,
+        'status' => AnalysisStatus::Running,
+        'locked_until' => now()->addMinutes(5),
+        'updated_at' => now()->subMinutes(31),
+    ]);
+
+    $this->artisan('pipeline:stuck-check')->assertSuccessful();
+
+    Http::assertNothingSent();
+});
+
+test('зависший extraction-анализ использует СВОЙ (больший) порог checkpoint_stuck_minutes', function () {
+    Http::fake();
+
+    // 31 минута — зависший screening-порог, НО меньше extraction-порога (60) — не алертит.
+    Analysis::factory()->create([
+        'step' => AnalysisStep::Extraction,
+        'status' => AnalysisStatus::Running,
+        'locked_until' => now()->subMinute(),
+        'updated_at' => now()->subMinutes(31),
+    ]);
+
+    $this->artisan('pipeline:stuck-check')->assertSuccessful();
+    Http::assertNothingSent();
+
+    Analysis::factory()->create([
+        'step' => AnalysisStep::Extraction,
+        'status' => AnalysisStatus::Running,
+        'locked_until' => now()->subMinute(),
+        'updated_at' => now()->subMinutes(61),
+    ]);
+
+    $this->artisan('pipeline:stuck-check')->assertSuccessful();
+    Http::assertSentCount(1);
+});
+
+test('документ, застрявший в prepared сверх порога, — алерт; failed_permanently исключён', function () {
+    Http::fake();
+
+    Document::factory()->create([
+        'status' => DocumentStatus::Prepared,
+        'failed_permanently' => false,
+        'updated_at' => now()->subMinutes(61),
+    ]);
+
+    Document::factory()->create([
+        'status' => DocumentStatus::Prepared,
+        'failed_permanently' => true,
+        'updated_at' => now()->subMinutes(61),
+        'attempts' => 5,
+    ]);
+
+    $this->artisan('pipeline:stuck-check')->assertSuccessful();
+
+    Http::assertSentCount(1);
+});
+
+test('всплеск unknown в скрининге сверх порога — алерт', function () {
+    Http::fake();
+
+    Analysis::factory()->count(3)->create([
+        'step' => AnalysisStep::Screening,
+        'status' => AnalysisStatus::Succeeded,
+        'result' => ['branch_reason' => 'unknown'],
+        'updated_at' => now()->subHour(),
+    ]);
+
+    $this->artisan('pipeline:stuck-check')->assertSuccessful();
+
+    Http::assertSentCount(1);
+});
+
+test('unknown-скрининги ниже порога не алертят', function () {
+    Http::fake();
+
+    Analysis::factory()->count(2)->create([
+        'step' => AnalysisStep::Screening,
+        'status' => AnalysisStatus::Succeeded,
+        'result' => ['branch_reason' => 'unknown'],
+        'updated_at' => now()->subHour(),
+    ]);
+
+    $this->artisan('pipeline:stuck-check')->assertSuccessful();
+
+    Http::assertNothingSent();
+});
+
+test('всплеск unprocessable за окно — алерт', function () {
+    Http::fake();
+
+    Document::factory()->count(3)->create([
+        'status' => DocumentStatus::Unprocessable,
+        'last_error' => 'unprocessable:too_large: 30000 строк',
+        'updated_at' => now()->subHour(),
+    ]);
+
+    $this->artisan('pipeline:stuck-check')->assertSuccessful();
+
+    Http::assertSentCount(1);
+});
+
+test('всплеск suspicious/invalid смет за окно — алерт', function () {
+    Http::fake();
+
+    Estimate::factory()->count(3)->create([
+        'validation_status' => EstimateValidationStatus::Invalid->value,
+        'updated_at' => now()->subHour(),
+    ]);
+
+    $this->artisan('pipeline:stuck-check')->assertSuccessful();
+
+    Http::assertSentCount(1);
+});
+
+test('модель активного маршрута ближе порога к eol_date — алерт с преемником', function () {
+    Http::fake();
+
+    config([
+        'ai.capabilities.eol-soon-model' => [
+            'eol_date' => now()->addDays(10)->toDateString(),
+            'successor' => 'eol-soon-model-v2',
+        ],
+    ]);
+
+    AiRoute::factory()->create([
+        'model' => 'eol-soon-model',
+        'is_active' => true,
+    ]);
+
+    $this->artisan('pipeline:stuck-check')->assertSuccessful();
+
+    Http::assertSent(fn ($request): bool => str_contains((string) $request['text'], 'eol-soon-model')
+        && str_contains((string) $request['text'], 'eol-soon-model-v2'));
+});
+
+test('модель НЕактивного маршрута близко к eol_date не алертит', function () {
+    Http::fake();
+
+    config([
+        'ai.capabilities.eol-soon-model' => [
+            'eol_date' => now()->addDays(10)->toDateString(),
+            'successor' => 'eol-soon-model-v2',
+        ],
+    ]);
+
+    AiRoute::factory()->create([
+        'model' => 'eol-soon-model',
+        'is_active' => false,
+    ]);
+
+    $this->artisan('pipeline:stuck-check')->assertSuccessful();
+
+    Http::assertNothingSent();
+});
+
+test('антиспам: повторный тик в течение окна не дублирует Telegram-сообщение по той же находке', function () {
+    Http::fake();
+
+    Analysis::factory()->create([
+        'step' => AnalysisStep::Screening,
+        'status' => AnalysisStatus::Running,
+        'locked_until' => now()->subMinute(),
+        'updated_at' => now()->subMinutes(31),
+    ]);
+
+    $this->artisan('pipeline:stuck-check')->assertSuccessful();
+    $this->artisan('pipeline:stuck-check')->assertSuccessful();
+
+    Http::assertSentCount(1);
+});
+
+test('без Telegram-конфига алерт не падает, а тихо уходит в лог', function () {
+    config(['services.telegram.bot_token' => null, 'services.telegram.chat_id' => null]);
+    Http::fake();
+
+    Analysis::factory()->create([
+        'step' => AnalysisStep::Screening,
+        'status' => AnalysisStatus::Running,
+        'locked_until' => now()->subMinute(),
+        'updated_at' => now()->subMinutes(31),
+    ]);
+
+    $this->artisan('pipeline:stuck-check')->assertSuccessful();
+
+    Http::assertNothingSent();
+});
+
+test('pipeline:status отрабатывает без ошибок и показывает счётчики документов/анализов', function () {
+    Document::factory()->create(['status' => DocumentStatus::Extracted]);
+    Analysis::factory()->create(['step' => AnalysisStep::Screening, 'status' => AnalysisStatus::Succeeded]);
+    Document::factory()->create([
+        'status' => DocumentStatus::Unprocessable,
+        'last_error' => 'unprocessable:too_large: деталь',
+    ]);
+    Analysis::factory()->create([
+        'step' => AnalysisStep::Screening,
+        'status' => AnalysisStatus::Succeeded,
+        'result' => ['needs_review' => true],
+    ]);
+
+    $this->artisan('pipeline:status')->assertSuccessful();
+});
