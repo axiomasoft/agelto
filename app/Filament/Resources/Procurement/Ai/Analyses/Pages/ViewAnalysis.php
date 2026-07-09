@@ -39,8 +39,13 @@ class ViewAnalysis extends ViewRecord
     }
 
     /**
-     * «Проверено» — доступна только при `status=succeeded` (Code Guidance): анализ, ещё не
-     * доведённый до успеха, оператору проверять нечего.
+     * «Проверено» — доступна только при `status=succeeded` (Code Guidance) И `review_status`
+     * ещё не `approved`: без второго условия кнопка остаётся видимой после одобрения (ревью
+     * P9.3, HIGH) и повторный клик/сабмит дублирует immutable gold-версию
+     * (`GoldExampleRecorder`). `review_status !== Approved` в действии — тот же guard ещё раз,
+     * на случай устаревшего `$record` в момент клика (visible() рендерится раньше, чем
+     * обрабатывается action) — идемпотентность без изменения схемы `prc_ai_dataset_examples`
+     * (в ней нет `analysis_id`, docblock `GoldExampleRecorder`).
      */
     private function approveAction(): Action
     {
@@ -49,8 +54,15 @@ class ViewAnalysis extends ViewRecord
             ->color('success')
             ->authorize('update')
             ->requiresConfirmation()
-            ->visible(fn (Analysis $record): bool => $record->status === AnalysisStatus::Succeeded)
+            ->visible(fn (Analysis $record): bool => $record->status === AnalysisStatus::Succeeded
+                && $record->review_status !== ReviewStatus::Approved)
             ->action(function (Analysis $record): void {
+                if ($record->review_status === ReviewStatus::Approved) {
+                    Notification::make()->title('Анализ уже отмечен проверенным')->warning()->send();
+
+                    return;
+                }
+
                 app(AnalysisStoreRepository::class)->update($record, [
                     'review_status' => ReviewStatus::Approved,
                     'reviewed_by' => Auth::id(),

@@ -37,6 +37,13 @@ final readonly class GoldExampleRecorder
      * Скрининг (`AnalysisStep::Screening`) не производит `estimates[]`-контракт (`ScreeningResult`
      * — другая форма ответа) — gold-петля этого item'а покрывает только извлечение смет (Required
      * Reads/Inputs P9.3 целиком про сметы); no-op для остальных шагов (Pending Work).
+     *
+     * Идемпотентность повторного вызова (ревью P9.3, HIGH) обеспечивается ЕДИНСТВЕННЫМ вызывающим
+     * (`ViewAnalysis::approveAction()`) — action вызывает `record()` только при переходе
+     * `review_status` в `approved` (guard на `!==Approved` и в `visible()`, и в самом action), а не
+     * здесь: `prc_ai_dataset_examples` не хранит `analysis_id` (докблок класса ниже), поэтому
+     * «уже есть gold для ЭТОГО анализа» нечем проверить на уровне этой таблицы без схемной правки
+     * (вне Scope Included P9.3 — Pending Work).
      */
     public function record(Analysis $analysis): void
     {

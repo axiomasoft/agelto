@@ -26,10 +26,22 @@ use Illuminate\Support\Facades\Storage;
  *   ЕЩЁ НЕ РЕАЛИЗОВАННЫЙ этап подготовки корпуса (deferred, см. handoff P9.2/P9.3) — реальный
  *   training-раннер подставляет распознанный текст сам перед обучением.
  * - `--format=dpo` — preference-пары chosen(gold)/rejected(`Analysis.result` предшественника),
- *   только где сырой результат отличался от gold. Известное ограничение: пара строится через
- *   АКТИВНЫЙ анализ документа (`document_version_id`+`step=extraction`) — для СТАРЫХ версий gold
- *   (после нескольких re-run) исходный анализ уже не резолвится без сохранённого `analysis_id`
- *   (`prc_ai_dataset_examples` его не хранит, докблок `Analysis`) — Pending Work P9.3.
+ *   только там, где `example->source === 'corrected'` (P9.3 ревью, MED-фикс): напрямую сравнивать
+ *   `chosen` (нормализованный `EstimateToContractMapper`-контракт — decimal:6, синтезированные
+ *   заголовки, переприсвоенный `row_index`) с `rejected` (сырой `Analysis.result`) на
+ *   строковое равенство НЕЛЬЗЯ — представления структурно различаются ВСЕГДА, даже когда оператор
+ *   одобрил сырой вывод дословно, что делало старый guard мёртвым кодом (ложные DPO-пары для
+ *   verbatim-одобрений). `source` уже хранит именно этот сигнал (`GoldExampleRecorder`: `corrected`
+ *   ⟺ у прямого предшественника есть применённая коррекция), поэтому фильтруем по нему, а не по
+ *   сравнению JSON. Известное ограничение: пара строится через АКТИВНЫЙ анализ документа
+ *   (`document_version_id`+`step=extraction`) — для СТАРЫХ версий gold (после нескольких re-run)
+ *   исходный анализ-предшественник уже не резолвится корректно без сохранённого `analysis_id`
+ *   (`prc_ai_dataset_examples` его не хранит, докблок `Analysis`); при НЕСКОЛЬКИХ gold-версиях
+ *   одной `document_version_id` цикл резолвит один и тот же активный анализ/родителя для КАЖДОЙ
+ *   версии — пары для старых версий могут не соответствовать своему реальному предшественнику.
+ *   Оба ограничения требуют хранить `analysis_id` в `prc_ai_dataset_examples` (схемная правка) —
+ *   вне Scope Included P9.3 (только recorder+export-команда+маппер), зафиксировано как
+ *   Pending Work P9.3, не чинится этим item'ом.
  *
  * Манифест (счётчики/версии/sha) пишется рядом с выходным файлом тем же именем с суффиксом
  * `.manifest.json` — воспроизводимость training-run (D15).
@@ -92,7 +104,7 @@ final class DatasetExportCommand extends Command
         $stream = fopen('php://temp', 'w+');
         $count = 0;
 
-        foreach ($this->goldExamples()->cursor() as $example) {
+        foreach ($this->goldExamples()->with('documentVersion')->cursor() as $example) {
             /** @var DocumentVersion|null $version */
             $version = $example->documentVersion;
             $estimates = (array) ($example->gold?->get('estimates') ?? []);
@@ -143,13 +155,15 @@ final class DatasetExportCommand extends Command
                 continue;
             }
 
-            $chosen = json_encode($example->gold?->get('estimates') ?? [], JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE);
-            $rejected = json_encode($parent->result->get('estimates') ?? [], JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE);
-
-            if ($chosen === $rejected) {
-                // Оператор одобрил сырой вывод без правок — раздвоенной пары не существует.
+            if ($example->source !== 'corrected') {
+                // Оператор одобрил сырой вывод без правок (source=llm) — chosen/rejected
+                // структурно различаются ВСЕГДА (нормализация маппера vs сырой result), поэтому
+                // единственный надёжный сигнал «пары не было» — флаг source, не JSON-сравнение.
                 continue;
             }
+
+            $chosen = json_encode($example->gold?->get('estimates') ?? [], JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE);
+            $rejected = json_encode($parent->result->get('estimates') ?? [], JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE);
 
             fwrite($stream, json_encode([
                 'prompt' => "document_version_id={$example->document_version_id}",
