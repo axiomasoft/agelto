@@ -43,7 +43,12 @@ if (!PHASE || !ITEM_COUNT) {
 
 // Лейны по риску фазы — тот же принцип, что в agelto-dev-loop.js (reviewLane):
 // review глубже, чем impl, дефолт MED уже даёт opus/high, не sonnet.
+// P12.1/P12.2 — жёсткий Routing plan.md §3 (D21): ТОЛЬКО мощная модель, sonnet'ом не исполнять
+// (целостный анализ всего финального проекта) — implLane() тоже обязан это уважать, не только review.
 function implLane() {
+  if (PHASE === 'P12') {
+    return { model: 'opus', effort: 'high' }
+  }
   return RISK === 'HIGH' ? { model: 'sonnet', effort: 'high' }
     : RISK === 'LOW' ? { model: 'sonnet', effort: 'medium' }
     : { model: 'sonnet', effort: 'medium' }
