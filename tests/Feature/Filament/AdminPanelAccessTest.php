@@ -8,9 +8,11 @@ use App\Filament\Resources\Procurement\Procurements\ProcurementResource;
 use App\Guards\Admin\Roles\AnalystRole;
 use App\Guards\Admin\Roles\OperatorRole;
 use App\Guards\Admin\Roles\SuperAdminRole;
+use App\Models\Procurement\Ai\Prompt;
 use App\Models\User;
 use Filament\Facades\Filament;
 
+use function Pest\Laravel\actingAs;
 use function Pest\Laravel\artisan;
 
 // PHP-роли зеркалятся в таблицу roles до назначения (class_name → assignRole).
@@ -78,4 +80,22 @@ test('PromptResource вне enum-RBAC каталога, остальные ре�
         // Остальные enum-RBAC ресурсы (не исключённые) работают как раньше.
         ->and($operator->can('admin.platform.create'))->toBeTrue()
         ->and($operator->can('admin.ai_route.update'))->toBeTrue();
+});
+
+test('PromptResource: без права на промты viewAny/view/create denied несмотря на исключение из enum-каталога', function () {
+    // Регресс-гвард на реальную дыру: exclude.resources снимает enum-RBAC
+    // короткое замыкание для ВСЕХ 9 Filament-абилок Prompt, не только
+    // update/delete. Если PromptPolicy не покрывает viewAny/view/create,
+    // Filament молча дефолтит непокрытую абилку в allow
+    // (`Filament\get_authorization_response()`), и любой аутентифицированный
+    // пользователь без права видит/создаёт промты в обход `hasPermission()`.
+    $analyst = User::factory()->create();
+    $analyst->assignRole(AnalystRole::class);
+    $prompt = Prompt::factory()->create(['is_protected' => false]);
+
+    actingAs($analyst);
+
+    expect(PromptResource::canViewAny())->toBeFalse()
+        ->and(PromptResource::canView($prompt))->toBeFalse()
+        ->and(PromptResource::canCreate())->toBeFalse();
 });
