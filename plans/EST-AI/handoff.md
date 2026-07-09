@@ -1,74 +1,82 @@
-# HANDOFF — 2026-07-09 — after P9.2
+# HANDOFF — 2026-07-09 — after P9.3
 
-**Next:** `/task:plan-exec EST-AI P9.3` (Phase Context `plans/EST-AI/phases/P9.md` уже прочитан
-многократно этой линией сессий — исполнителю P9.3 достаточно перечитать сам item + `Required
+**Next:** `/task:plan-exec EST-AI P9.4` (Phase Context `plans/EST-AI/phases/P9.md` уже прочитан
+многократно этой линией сессий — исполнителю P9.4 достаточно перечитать сам item + `Required
 Reads`, Phase Context не устарел).
 **Done:** P1–P8 закрыты (P1/P3/P4/P5/P7 — 🟠 Done with deviations; P2/P6/P8 — 🟢 Done). P9.1 закрыт
-🟢, P9.2 закрыт 🟠 Done with deviations (2/4 фазы P9). P9.2: `CorrectionAwareComposer`
-(`app/Services/Llm/CorrectionAwareComposer.php`) — блок «Замечания оператора к предыдущему
-разбору» из коррекций `parent_analysis_id`-предшественника + reusable-коррекций того же
-`document_type` (`hint ?? content`), подключён в `RowRangeChunkSource::call()` ДОБАВЛЕНИЕМ
-userPart перед вопросом (systemPart/кэшируемый префикс не тронут). `RerunAnalysisAction`
-(`app/Services/Procurement/Extraction/RerunAnalysisAction.php`) — ОБЯЗАТЕЛЬНЫЙ порядок
-(партиция `prc_ai_analyses_active_version_step_unique` — обычный, не `DEFERRABLE`, индекс):
-(1) старый анализ → `superseded_at`, (2) новый `pending` с `parent_analysis_id`
-(`AnalysisStoreRepository::createRerun()`, новый метод), (3) непогашенные коррекции старого →
-`applied_at`, (4) документ откатывается к pre-stage статусу (`prepared`/`screened` —
-`ScreeningJob`/`EstimateExtractionJob::statusGuardPassed()` требуют именно его), (5) штатный job
-стадии диспатчится заново. `EstimatePersister::persist()` получил `?int $supersededAnalysisId` —
-удаляет сметы заменённого анализа В ТОЙ ЖЕ транзакции, что персист новых
-(`EstimateStoreRepository::deleteByAnalysisId()`, новый метод; каскад БД чистит sections/items/
-resources/totals); `ExtractionOrchestrator::finalizeSuccess()` прокидывает
-`analysis.parent_analysis_id`. Filament: `AnalysisResource`
-(`app/Filament/Resources/Procurement/Ai/Analyses/**`, read-only index+view — create/edit
-убраны) с действиями «Проверено» (только `status=succeeded`), «Отклонить с коррекцией»
-(создаёt `Correction` + `review_status=rejected`), «Перезапустить разбор»
-(`RerunAnalysisAction`); `CorrectionsRelationManager` read-only. Тесты:
-`OperatorFeedbackLoopTest` (2 — домен-цикл rejected+correction→re-run→hint в USER-части второго
-прогона через `FakeLlmProvider::receivedPrompts()`, systemPart БЕЗ hint, старые сметы заменены
-новыми, `correction.applied_at` проставлен; авторизация `can('update', $analysis)`),
-`--filter=OperatorFeedbackLoop` 2 passed, полный сьют 446 passed (1441 assertions, было
-444/1411), pint чист, `migrate:fresh --seed` ок, `guard:sync-roles`/`guard:doctor`/
-`guard:catalog:validate` без НОВЫХ ошибок (только pre-existing «нет `#[GateAbility]`»-шум
-enum-RBAC ресурсов без policy).
-**Remaining:** P9.3–P9.4 (2) → P10 (4) → P11 (1) → P12 (2, только opus/Fable — Routing §3).
-Итого 9 items впереди из 40.
+🟢, P9.2/P9.3 закрыты 🟠 Done with deviations (3/4 фазы P9). P9.3: `EstimateToContractMapper`
+(`app/Services/Procurement/Extraction/EstimateToContractMapper.php`) — обратный маппер
+`prc_estimate_*` (нормализованные `sections`/`items.resources`/`totals`) → DTO-контракт P2.2
+(`PassportResponse`+`rows: EstimateRow[]`) — паспорт через `EstimatePassport::from()`, итоги —
+рекурсивная сборка `TotalLine`-дерева из плоских `Total` по `parent_id`/`position`, строки — обход
+`Item` по `row_index` с breadcrumb-диффом секций (синтез `section_header`/`subsection_header` на
+смене ветки); `row_index` ВСЕХ строк (включая синтезированные заголовки) переприсваивается
+последовательно заново — оригинальные `row_index` заголовков нигде не персистированы (D10,
+докблок класса фиксирует это явно как структурное ограничение); `row_type=subtotal` не
+реконструируется вовсе (нет персистентной записи). `GoldExampleRecorder`
+(`app/Services/Procurement/Extraction/GoldExampleRecorder.php`) — единственный потребитель
+`review_status=approved`, вызывается из `ViewAnalysis::approveAction()` (P9.2, СРАЗУ после
+`AnalysisStoreRepository::update()`); no-op для `step=Screening` и для анализа без персистированных
+смет; `source=corrected`, если у ПРЯМОГО `parent_analysis_id` есть хотя бы одна коррекция с
+`applied_at IS NOT NULL`, иначе `llm`; `version` — инкремент максимума по
+`(document_version_id, task=extraction)`; `gold` несёт `tier:1` + `estimates[]` из маппера;
+`gold_ref` всегда `null` (object-storage overflow для gold — deferred). `DatasetExportCommand`
+(`ai:dataset:export --format=sft|dpo`, `app/Console/Commands/Ai/DatasetExportCommand.php`) — sft:
+JSONL chat-format, `system`=`PromptComposer::compose(ExtractionRows, [RowsChunkResponse])` (боевая
+композиция буквально), `assistant`={rows, incomplete_items:[]}, `user`=воспроизводимая ссылка на
+`document_version_id`+`storage_path` (НЕ текст документа — OCR/vision-транскрипция ещё не
+реализована, явно задокументировано); dpo: пары chosen(gold)/rejected(`Analysis.result`
+предшественника) через АКТИВНЫЙ анализ документа, пропускает пары где raw==gold; экспорт —
+`php://temp`-поток через `cursor()`, манифест `<path>.manifest.json` рядом (format/task/examples/
+generated_at/sha256). Тесты: `EstimateToContractMapperTest` (1, round-trip 2 раздела+подраздел+
+ресурс+дерево итогов), `GoldExampleRecorderTest` (4 — llm/no estimates/screening no-op/
+corrected+immutable v1), `DatasetExportTest` (2 — sft roles+assistant+manifest, dpo chosen≠rejected
+фильтр+manifest), `--filter=EstimateToContractMapper`/`--filter=GoldExampleRecorder`/
+`--filter=DatasetExport` зелёные, полный сьют 453 passed (1508 assertions, было 446/1441), pint
+чист (ручная правка `Builder<DatasetExample>`-докблока — pint auto-fix упёрся в bind-mount
+permission, тот же workaround, что вся сессия P9), `migrate:fresh --seed` ок.
+**Remaining:** P9.4 (1) → P10 (4) → P11 (1) → P12 (2, только opus/Fable — Routing §3). Итого 8
+items впереди из 40.
 **Sources of truth:** plans/EST-AI/plan.md (Decision Log D1–D44 полный контекст; Status Board —
-P9 теперь 🟡 2/4) · plans/EST-AI/phases/P9.md (Phase Context + P9.1/P9.2 Completion Notes — что
-именно сделано; P9.3–P9.4 читать перед exec) ·
-`app/Services/Procurement/Extraction/RerunAnalysisAction.php` (канон порядка операций re-run —
-partial unique не DEFERRABLE, порядок supersede→create→dispatch обязателен) ·
-`app/Services/Llm/CorrectionAwareComposer.php` (канон USER-part-only коррекций, systemPart
-неприкосновенен) · `app/Repositories/Procurement/{AnalysisStoreRepository,
-EstimateStoreRepository}.php` (`createRerun()`/`deleteByAnalysisId()` — новые методы) ·
-`app/Filament/Resources/Procurement/Ai/Analyses/**` (образец read-only ресурса с
-action-триггерами домена + `->authorize('update')` через enum-RBAC) ·
-`tests/Feature/Procurement/Ai/OperatorFeedbackLoopTest.php` (образец теста re-run-цикла + приём
-`Queue::fake()` вокруг `->afterCommit()`-диспатча под RefreshDatabase).
+P9 теперь 🟡 3/4) · plans/EST-AI/phases/P9.md (Phase Context + P9.1/P9.2/P9.3 Completion Notes —
+что именно сделано; P9.4 читать перед exec) ·
+`app/Services/Procurement/Extraction/EstimateToContractMapper.php` (канон обратного маппинга DTO↔
+таблицы, ограничение реконструкции row_index заголовков/subtotal) ·
+`app/Services/Procurement/Extraction/GoldExampleRecorder.php` (канон source=corrected/llm,
+версионирование immutable-снапшотов) ·
+`app/Console/Commands/Ai/DatasetExportCommand.php` (канон sft/dpo JSONL-формата, манифест) ·
+`app/Filament/Resources/Procurement/Ai/Analyses/Pages/ViewAnalysis.php` (точка вызова
+`GoldExampleRecorder` из `approveAction()`) ·
+`tests/Feature/Ai/{GoldExampleRecorderTest,DatasetExportTest}.php` +
+`tests/Feature/Procurement/Extraction/EstimateToContractMapperTest.php` (образцы тестов round-trip
+и петли approve→gold→export).
 **Open risks:**
-- P9.3 (`GoldExampleRecorder`/`ai:dataset:export`/`EstimateToContractMapper`) — единственный
-  потребитель `review_status=approved` пока не написан (P9.2 даёт кнопку «Проверено», но
-  подписки на approve → gold-снапшот нет); Scope P9.2 явно исключал auto-конверсию в gold.
-- `CorrectionAwareComposer` подключён ТОЛЬКО в `RowRangeChunkSource` (row-range путь, P6.1) — не
-  в `ScreeningProcessor`/`WindowedChunkSource` (P6.4); если появится реальный кейс коррекции на
-  screening-шаге или windowed-извлечении, hints туда не попадут без доп. проводки.
-- `RerunAnalysisAction` покрыт тестом только для extraction-шага (основной сценарий владельца
-  «перезапустить парсинг сметы»); screening-ветка (`Prepared`-откат) не имеет отдельного теста —
-  код симметричен extraction-ветке, но не подтверждён изолированно.
-- (новое, P9.2) RBAC-плюмбинг сверх заявленного Scope Excluded «RBAC»: `AnalysisPermission`
-  (enum-RBAC catalog) + `AnalystRole`/`OperatorRole` получили минимальный набор (ViewAny/View/
-  Update) — тонкая грануляция прав (кто approve vs reject vs rerun отдельно) не разведена; при
-  ревью RBAC-политики проекта учесть, что это добавление сделано exec-сессией, не design-сессией.
-- (новое, P9.2) `ScreeningJob`/`EstimateExtractionJob::statusGuardPassed()` — правка `active()`
-  скоупа (review-фикс латентного P9.1-дефекта) затрагивает КАЖДЫЙ повторный диспатч этих jobs
-  (backlog-поллер, ручной ретрай, не только re-run) — регрессия покрыта только полным сьютом
-  (446 passed), не изолированным regression-фильтром именно этой правки.
-- (без изменений, унаследовано из P9.1) partial unique `prc_ai_analyses_active_version_step_unique`
-  — имя длиннее 63 байт лимита Postgres НЕ проверялось явно вручную (индекс успешно создаётся на
-  `migrate:fresh`, значит уложился).
+- (новое, P9.3) `--format=dpo` резолвит пару ТОЛЬКО через АКТИВНЫЙ анализ документа — для
+  СТАРЫХ версий gold (после ≥2 re-run) исходный анализ-предшественник больше не резолвится
+  (`prc_ai_dataset_examples` не хранит `analysis_id` — докблок `Analysis` закрепил «не хранится
+  отдельной таблицей», связь только через `document_version_id`, которая после нескольких циклов
+  теряет однозначность).
+- (новое, P9.3) `sft`-экспорт использует ТОЛЬКО шаг `extraction:rows` (`RowsChunkResponse`) для
+  system-композиции — паспорт/итоги-шаги (`extract_passport`/`extract_totals`) не получают
+  собственных SFT-примеров; design-решение exec-сессии, не разведено отдельно design-сессией.
+- (новое, P9.3) `GoldExampleRecorder` покрывает только `step=Extraction` — скрининг не подписан
+  на gold-петлю (Required Reads/Inputs P9.3 целиком про сметы).
+- (новое, P9.3) tier-gate в экспорте не применяется — `DatasetImportCommand` (P7.4) не пишет
+  `tier` в gold, `GoldExampleRecorder` пишет `tier:1`; оба сейчас экспортируются без разбора,
+  различие проявится только когда появится tier≠1 producer.
+- (без изменений, P9.2) `ScreeningJob`-путь `RerunAnalysisAction` не покрыт отдельным тестом.
+- (без изменений, P9.2) `CorrectionAwareComposer` подключён только в `RowRangeChunkSource` — не
+  в `ScreeningProcessor`/`WindowedChunkSource`.
+- (без изменений, P9.2) RBAC-плюмбинг сверх заявленного Scope Excluded «RBAC» —
+  `AnalysisPermission`/`AnalystRole`/`OperatorRole` минимальная схема, тонкая грануляция
+  (approve/reject/rerun отдельными правами) не разведена.
+- (без изменений, P9.2) `ScreeningJob`/`EstimateExtractionJob::statusGuardPassed()` — правка
+  `active()`-скоупа затрагивает КАЖДЫЙ повторный диспатч этих jobs, покрыта только полным сьютом.
+- (без изменений, унаследовано из P9.1) partial unique
+  `prc_ai_analyses_active_version_step_unique` — имя длиннее 63 байт лимита Postgres НЕ
+  проверялось явно вручную (индекс успешно создаётся, значит уложился).
 - (без изменений) exclude одного ресурса (`PromptResource`) из AzGuard-каталога снимает его из
-  ResourceGate enum-RBAC — при будущей `guard:filament:generate --source=enum` перепроверить,
-  что `PromptResource` остаётся в `exclude`.
+  ResourceGate enum-RBAC — перепроверить при будущей `guard:filament:generate --source=enum`.
 - (без изменений) plan-lint: 5 pre-existing ошибок Status Board P3/P4/P5/P7 «Done with
   deviations» при всех items 🟢/🟠 — задокументированное расхождение, не новые.
 - (без изменений) Модели EOL (D27): линейка 2.5 умирает 2026-10-16.
@@ -77,16 +85,15 @@ action-триггерами домена + `->authorize('update')` через en
 - (без изменений) `docs/specs/v2/03-document-pipeline.md`/`04-llm-providers.md` местами
   используют устаревшие имена таблиц.
 - (без изменений) `docker compose exec` требует ДВА `--env-file`; `pint --dirty` не видит
-  untracked — явный список путей.
+  untracked — явный список путей; pint auto-fix может упереться в bind-mount permission (ручная
+  правка вместо автофикса — см. P9.3).
 - (без изменений) `composer require`/`composer update --lock` — только с ХОСТА.
 - (без изменений) `.env`/`.env.example` закрыты от чтения — правки только append вслепую.
 - (без изменений) `php artisan test --filter=X --filter=Y` — второй `--filter` игнорируется.
 - (без изменений) explicit context cache НЕ подключён к `ExtractionOrchestrator`/
   `RowRangeChunkSource`; `LlmCacheManager` — CRUD без production-потребителя.
 - (без изменений) `EstimatePersister` пропускает сметы документов без `procurement_id`.
-- (без изменений) `RerunRangeAction` (P6.3, точечный re-run диапазона строк — НЕ путать с
-  P9.2 `RerunAnalysisAction`, повторный прогон анализа целиком) НЕ пересчитывает
-  `validation_status`/иерархию целиком.
+- (без изменений) `RerunRangeAction` (P6.3) НЕ пересчитывает `validation_status`/иерархию целиком.
 - (без изменений) `mergedIncompleteItems` не персистятся в `prc_estimate_items`.
 - (без изменений) Пороги `pipeline:stuck-check` НЕ откалиброваны на живом трафике.
 - (без изменений) `TELEGRAM_BOT_TOKEN`/`TELEGRAM_CHAT_ID` не заведены в прод `.env`.
@@ -97,15 +104,14 @@ action-триггерами домена + `->authorize('update')` через en
 - workarounds: (без изменений, см. предыдущий handoff) два `--env-file`; composer/pint-автофикс/
   `vendor:publish`/`guard:filament:generate` — с ХОСТА (bind-mount permission denied для
   www-data — файлы правились через `setfacl`/`chown --user root` внутри контейнера, см.
-  git-историю); `.env.example` слепой append; `pint --dirty` — явный список путей; один
-  `--filter` за прогон; dot-notation в `config('ai.capabilities.<модель-с-точками>...')`;
-  Symfony Console `--version` зарезервирован; `mc ilm rule add` не идемпотентен сам по себе;
-  регресс-тест на exclude-строку AzGuard — ручной temporary-revert; **добавлено P9.2:**
-  `dispatch(...)->afterCommit()` под `RefreshDatabase` исполняется НЕМЕДЛЕННО, если на момент
-  диспатча активна только обёртывающая транзакция теста
-  (`Illuminate\Foundation\Testing\DatabaseTransactionsManager::addCallback()`) — тесты
-  промежуточного состояния перед реальным async-прогоном ОБЯЗАНЫ `Queue::fake()` (приём уже был
-  в `ExtractionOrchestratorTest`, P9.2 подтвердил и задокументировал причину).
+  git-историю; **добавлено P9.3:** аналогичный upstream-докблок с полным FQCN правился вручную
+  напрямую с хоста, когда pint отказал писать в файл внутри контейнера); `.env.example` слепой
+  append; `pint --dirty` — явный список путей; один `--filter` за прогон; dot-notation в
+  `config('ai.capabilities.<модель-с-точками>...')`; Symfony Console `--version` зарезервирован;
+  `mc ilm rule add` не идемпотентен сам по себе; регресс-тест на exclude-строку AzGuard — ручной
+  temporary-revert; `dispatch(...)->afterCommit()` под `RefreshDatabase` исполняется НЕМЕДЛЕННО,
+  если на момент диспатча активна только обёртывающая транзакция теста — тесты промежуточного
+  состояния ОБЯЗАНЫ `Queue::fake()`.
 - deferred: (без изменений полный список — см. git-историю handoff.md до P9.1/P9.2) боевой
   тюнинг промт-текстов; Batch API; RAR/7z; OCR; LibreOffice-конвертер xlsx; Ghostscript-
   даунскейл; generic ai_extractions; контакты-сущность CRM; 9-префиксный ренейм (отклонён);
@@ -118,26 +124,29 @@ action-триггерами домена + `->authorize('update')` через en
   `EstimatePersister` под manual-документы; эвристика сопоставления многосметных gold;
   `EvalRun.prompt_version_set`; `gold_ref`/object storage; Pulse `sample_rate`/retention;
   `PULSE_ENABLED`/`PULSE_PATH` в прод `.env`; `db:backup` расписание/off-host; `ai:storage:
-  lifecycle` вне scheduler; Filament `#[Label]`-атрибуты для `CorrectionReason`/`ReviewStatus`
-  (P9.1-хвост, всё ещё не сделано); таргетный regression-прогон extraction-веток
-  `AnalysisStoreRepository`-ретрофита; **добавлено P9.2:** hints в `ScreeningProcessor`/
-  `WindowedChunkSource`; отдельный тест screening-ветки `RerunAnalysisAction`; тонкая RBAC-
-  грануляция действий карточки анализа (approve/reject/rerun отдельными правами); `Estimate`
-  как самостоятельный Filament-ресурс (Фаза 7 роадмапа, Scope Included P9.2 явно отложил).
+  lifecycle` вне scheduler; Filament `#[Label]`-атрибуты для `CorrectionReason`/`ReviewStatus`;
+  таргетный regression-прогон extraction-веток `AnalysisStoreRepository`-ретрофита; hints в
+  `ScreeningProcessor`/`WindowedChunkSource`; отдельный тест screening-ветки
+  `RerunAnalysisAction`; тонкая RBAC-грануляция действий карточки анализа; `Estimate` как
+  самостоятельный Filament-ресурс (Фаза 7 роадмапа); **добавлено P9.3:** screening-gold (recorder
+  покрывает только extraction); SFT-примеры для `extract_passport`/`extract_totals` шагов;
+  tier-gate в экспорте (нет tier≠1 producer пока); OCR/vision-транскрипция для реального текста
+  документа в `user`-части SFT (сейчас — воспроизводимая ссылка-плейсхолдер); `analysis_id` на
+  `prc_ai_dataset_examples` для точного DPO-резолва старых версий gold.
 - open_questions: (без изменений) подтверждение владельца перед git rm Old/; хост GlitchTip/
   боевой DSN; дата переключения на 3.x-модели; исходящий прокси для Gemini; структурный
   reason-столбец на `prc_documents`/`prc_ai_analyses`; guard-фикс `ScreeningJob::
-  statusGuardPassed()` (ЧАСТИЧНО закрыт P9.2 — `active()`-скоуп добавлен, но исходный вопрос
-  «нужен ли структурный флаг вместо статус-угадывания» открыт); overlap-дедуп по составному
-  ключу; источник `Estimate.title`; структурный `is_merged_from_split`; как развести
-  кэшируемую/per-purpose часть промта (P7.1); порог explicit vs implicit cache; курс
-  `AI_COST_REPORT_RUB_PER_USD` в прод; боевой Telegram-токен/chat; калибровка порогов
-  `pipeline:stuck-check`; когда владелец подготовит эталоны для `ai:dataset:import`;
-  `LOG_CHANNEL=json` на проде по умолчанию; `HORIZON_STOP_GRACE_PERIOD` точное значение;
-  рефактор `RunFreshCrawler`/`RunArchiveCrawler` под `shouldStop()`; хост и расписание
-  прод-бэкапов; окна retention/MinIO ILM `expire_days`; **добавлено P9.2:** нужна ли
-  P9.3-подписка на `review_status=approved` автоматической (event-driven) или командной
-  (`ai:dataset:record-gold`)?
+  statusGuardPassed()` (ЧАСТИЧНО закрыт P9.2); overlap-дедуп по составному ключу; источник
+  `Estimate.title`; структурный `is_merged_from_split`; как развести кэшируемую/per-purpose часть
+  промта (P7.1); порог explicit vs implicit cache; курс `AI_COST_REPORT_RUB_PER_USD` в прод;
+  боевой Telegram-токен/chat; калибровка порогов `pipeline:stuck-check`; когда владелец
+  подготовит эталоны для `ai:dataset:import`; `LOG_CHANNEL=json` на проде по умолчанию;
+  `HORIZON_STOP_GRACE_PERIOD` точное значение; рефактор `RunFreshCrawler`/`RunArchiveCrawler`
+  под `shouldStop()`; хост и расписание прод-бэкапов; окна retention/MinIO ILM `expire_days`;
+  нужна ли P9.3-подписка на `review_status=approved` (РЕШЕНО P9.3: прямой вызов из Filament-
+  действия, не событийная подписка — см. Known Deviations P9.3); **добавлено P9.3:** нужен ли
+  `prc_ai_dataset_examples.analysis_id` (или аналог) для точного DPO-резолва по НЕ-последней
+  версии gold — сейчас работает только для активного анализа документа.
 
-Context: handoff свежий — рекомендован /clear перед следующим item (P9.3 — Phase Context P9.md
+Context: handoff свежий — рекомендован /clear перед следующим item (P9.4 — Phase Context P9.md
 актуален этой сессией; исполнителю достаточно перечитать сам item + Required Reads).

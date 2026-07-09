@@ -9,6 +9,7 @@ use App\Filament\Resources\Procurement\Ai\Analyses\AnalysisResource;
 use App\Models\Procurement\Ai\Analysis;
 use App\Models\Procurement\Ai\Correction;
 use App\Repositories\Procurement\AnalysisStoreRepository;
+use App\Services\Procurement\Extraction\GoldExampleRecorder;
 use App\Services\Procurement\Extraction\RerunAnalysisAction;
 use Filament\Actions\Action;
 use Filament\Forms\Components\Select;
@@ -55,6 +56,10 @@ class ViewAnalysis extends ViewRecord
                     'reviewed_by' => Auth::id(),
                     'reviewed_at' => now(),
                 ]);
+
+                // P9.3: approve — единственная точка входа gold-петли (`GoldExampleRecorder`
+                // читает уже обновлённые `reviewed_by`/`reviewed_at` того же объекта `$record`).
+                app(GoldExampleRecorder::class)->record($record);
 
                 Notification::make()->title('Анализ отмечен проверенным')->success()->send();
             });
