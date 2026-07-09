@@ -68,7 +68,12 @@ return [
             'driver' => 'redis',
             'connection' => env('REDIS_QUEUE_CONNECTION', 'default'),
             'queue' => env('REDIS_QUEUE', 'default'),
-            'retry_after' => (int) env('REDIS_QUEUE_RETRY_AFTER', 90),
+            // Инвариант D26 (plans/EST-AI/plan.md): job timeout < supervisor timeout < retry_after,
+            // иначе Redis считает job осиротевшим и передиспатчит его ДРУГОМУ воркеру, пока
+            // первый ещё легитимно работает (дублирующая обработка). Все supervisor'ы Horizon
+            // делят это соединение (config/horizon.php) — потолок задаёт самый длинный,
+            // `supervisor-ai-extraction` (timeout=300, `ai.extraction.checkpoint_seconds`=240).
+            'retry_after' => (int) env('REDIS_QUEUE_RETRY_AFTER', 360),
             'block_for' => null,
             'after_commit' => false,
         ],
