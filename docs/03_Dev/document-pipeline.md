@@ -6,8 +6,10 @@ status: draft
 
 # Document & Estimate Pipeline: internals
 
-Здесь будет: мост → подготовка → скрининг → извлечение; jobs/очереди/lease/retry; инварианты
-идемпотентности; статусы (включая `unprocessable`, D32); failure modes со ссылками на runbooks.
+Цикл документа: мост из краулинга (`crawling-pipeline.md`) → подготовка (`Prepare/`) → скрининг
+(`Screening/`) → извлечение (`Extraction/`). Каждая стадия — отдельный queued job на Horizon
+(`Jobs/Procurement/`), статус документа/анализа — единственный источник истины о прогрессе (не
+локальное состояние job'а). Диаграммы ниже — по фактическому коду P4–P9, обновляются вместе с ним.
 
 ## Д1 — FSM документа
 
@@ -114,4 +116,43 @@ sequenceDiagram
 `ChunkSource::fetchRows()` и файловый handle из `analysis.progress`, не участвует в
 checkpoint-цикле, не пересчитывает `validation_status`/иерархию целиком (Known Deviations P6.3).
 
-Наполняется в P10.3 (развёрнутый текст: инварианты идемпотентности, failure modes → runbooks).
+## Инварианты идемпотентности
+
+- **Lease + status-guard, не только `ShouldBeUnique`.** Каждый `PipelineJob::handle()` — status-guard
+  (документ/анализ уже не в ожидаемом статусе → no-op) → `acquireLease()` (TTL-лизинг по модели, канон
+  v1 `acquireLease`) → `process()` → `finally releaseLease()`. Двойной диспатч job'а безопасен: либо
+  дедуплицируется на уровне очереди (`ShouldBeUnique`), либо гасится guard'ом/lease (для
+  `EstimateExtractionJob`, где `ShouldBeUniqueUntilProcessing` снимает lock ДО обработки — D31/D39).
+- **Checkpoint-requeue — не повторный запуск с нуля.** `EstimateExtractionJob` ограничен по времени
+  константой строго меньше job timeout (`config('ai.extraction.checkpoint_seconds')`); при
+  `checkpointDue()` — `checkpoint()` персистит `analysis.progress` и `handle()` завершается успешно
+  (без исключения), `afterRelease()` сам передиспатчит job. Следующий запуск читает `progress` и
+  продолжает с места остановки — НЕ повторяет уже подтверждённые passport/rows/totals.
+- **Повтор job не дублирует Document/Analysis.** Гарантируется constraint-уровнем (D24 — partial
+  unique `(document_version_id, step)`) плюс transactional persist: `EstimatePersister` пишет новые
+  сметы и удаляет superseded-сметы предыдущего анализа той же версии документа в одной транзакции.
+
+## Статусы
+
+`DocumentStatus` (см. Д1) — терминальные исходы: `Extracted` (успех), `Ignored` (скрининг отсеял —
+`unknown`/`low_confidence`/`ignore_rule`), `Failed` (исчерпаны `attempts` — временный/технический
+сбой, ретраится `pipeline:retry-failed` до исчерпания), **`Unprocessable`** (D32 — отдельный
+терминальный исход, НЕ generic `Failed`: константация факта «не можем обработать», не сбой —
+`attempts` не жжём, ретраи не назначаются). Причина — `App\Enums\Procurement\UnprocessableReason`
+(`unreadable_format`/`password_protected`/`provider_limit_size`/`provider_limit_pages`/`zip_bomb`/
+`too_large`/`other`), пишется в `analysis.result`. Владельцы enum-кейсов по порядку исполнения
+(D38): `too_large`/`zip_bomb` — P4.2 (`SpreadsheetStrategy`/`ArchiveStrategy`-гейты),
+`unreadable_format`/`password_protected` — P5.1 (`PdfPageSlicer`), `provider_limit_size`/
+`provider_limit_pages` — P6.1 (`ExtractionPreflight`).
+
+## Failure modes → runbooks
+
+| Симптом | Runbook |
+|:--|:--|
+| Документ/анализ не двигается по статусам (lease не освобождается, `next_retry_at` в прошлом без ретрая) | [`runbooks/stuck-analysis.md`](runbooks/stuck-analysis.md) |
+| Ошибки/квоты/таймауты со стороны Gemini (429, региональные блокировки, EOL-модель) | [`runbooks/gemini-errors.md`](runbooks/gemini-errors.md) |
+| Растёт очередь `doc_prepare`/`ai_screening`/`ai_extraction`, supervisor'ы Horizon не успевают | [`runbooks/horizon-backlog.md`](runbooks/horizon-backlog.md) |
+
+Диагностика на уровне пайплайна в целом — `pipeline:status` (`PipelineStatus`, срез по статусам) и
+`pipeline:stuck-check` (`PipelineStuckCheck`, пороги «висит дольше N» не откалиброваны на живом
+трафике — открытый вопрос плана EST-AI).

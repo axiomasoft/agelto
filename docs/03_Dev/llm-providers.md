@@ -6,8 +6,10 @@ status: draft
 
 # LLM-провайдеры
 
-Здесь будет: контракт `LlmProvider`, адаптеры (Gemini/OpenAI-совместимый), роутинг `prc_ai_routes`,
-capability-based кэширование по провайдерам (D14), модели EOL/successor (D27).
+Транспортный LLM-слой — `App\Services\Llm\**`. Контракт `LlmProvider` не завязан на конкретного
+вендора (D14): сегодня Gemini через Prism (`PrismGeminiProvider`), OpenAI-совместимый адаптер
+(`OpenAiCompatibleProvider`) — задел под vLLM/Ollama (локальная LLM, `docs/03_Dev/ai/training-loop.md`)
+и любой OpenAI-протокольный провайдер без изменения домена.
 
 ## Д6 — LLM-слой: роутинг и адаптеры
 
@@ -43,4 +45,45 @@ cache-hint интерпретируется адаптером — Gemini → `c
 `shadowRoute()` (`app/Services/Llm/AiRouteResolver.php:74`) — теневой маршрут для сравнения
 с локальной LLM (P9.4, `ShadowDispatch`).
 
-Наполняется в P10.3 (развёрнутый текст: контракт, учёт стоимости, модели EOL D27).
+## Роутинг
+
+`prc_ai_routes` хранит кандидатов `(document_type, purpose) → model`, `priority ASC` внутри группы —
+`AiRouteResolver::resolve()` берёт первый активный. Стартовый роутинг (D4, сиды `AiRoutingSeeder`):
+скрининг → `gemini-2.5-flash-lite`, извлечение → `gemini-2.5-flash`, эскалация по флагу сложности
+или провалу валидации → `gemini-2.5-pro`. Discovery-путь (windowed fallback, D30/D37) — отдельный
+`LlmPurpose::Discovery`, свой маршрут, свой промт-шаг (`PromptStep::ExtractionDiscovery`) — НЕ
+переиспользует screening-маршрут (разные роли: «что за документ» vs «где границы смет»).
+
+## Транспорт: Prism за фасадом
+
+Прямых вызовов `prism-php/prism` за пределами `Providers/` нет (D8/D14) — домен зависит только от
+`LlmProvider`. Причина выбора Prism вместо first-party `laravel/ai` — устоявшийся typed API Gemini
+(files + context caching) против 0.x/preview статуса `laravel/ai` на момент решения (research/G §1);
+контракт держится адаптер-совместимым с обоими на будущее.
+
+## Capability-матрица моделей и лимиты (D27, D29)
+
+`config('ai.capabilities.<model>')` — не только цены и параметры кэша, но и ТРАНСПОРТНЫЕ лимиты:
+`max_request_file_mb` (Gemini=50), `max_pages` (Gemini=1000), `supports_files_api`, `eol_date`,
+`successor`. `ExtractionOrchestrator` делает **preflight ДО upload** (`ExtractionPreflight::decide()`)
+— размер файла + число страниц (`qpdf --show-npages`) против лимитов активного маршрута → решение
+целиком/окнами/`unprocessable(provider_limit_*)`. EOL-мониторинг: каждая активная модель маршрута
+несёт `eol_date`; `config('ai.model_eol_warn_days')` (default 30) — порог алерта «модель маршрута
+приближается к EOL» (линия 2.5 умирает 2026-10-16, преемники 3.x уже прописаны в конфиге
+закомментированной строкой рядом).
+
+## Учёт стоимости
+
+`prc_ai_llm_calls` пишет usage (prompt/completion/cached tokens) на КАЖДЫЙ физический вызов —
+`LlmCallRecorder`. `ai:cost-report {--days=7}` (`CostReportCommand`) агрегирует расход по
+провайдеру/маршруту/шагу за окно; конвертация в рубли — по конфигурируемому курсу (боевой курс не
+заведён — открытый вопрос плана). `ai:caches {list|prune} [--hits] [--window=]` (`CachesCommand`) —
+живые/осиротевшие explicit-кэши и доля implicit cache-хитов по purpose (usage-based, не отдельная
+таблица).
+
+## Смежное
+
+- Как строится промт, который уходит в вызов — [`ai/prompts.md`](ai/prompts.md) (Д3).
+- Feature-карточки конкретных AI-шагов — [`ai/feature-card-screening.md`](ai/feature-card-screening.md),
+  [`ai/feature-card-estimate-extraction.md`](ai/feature-card-estimate-extraction.md).
+- Диагностика ошибок Gemini — [`runbooks/gemini-errors.md`](runbooks/gemini-errors.md).

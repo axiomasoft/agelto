@@ -1,69 +1,58 @@
-# HANDOFF — 2026-07-09 — after P10.2
+# HANDOFF — 2026-07-09 — after P10.3
 
-**Next:** `/task:plan-exec EST-AI P10.3` — фаза P10 в работе (2/4), следующий item — наполнение
-`03_Dev` развёрнутым текстом (pipelines, AI-карточки, runbooks, ADR, recipes, troubleshooting)
-поверх диаграмм, добавленных P10.2. Phase Context `plans/EST-AI/phases/P10.md` и текст P10.3 уже
-существуют в файле — исполнителю P10.3 всё равно нужно перечитать их целиком по протоколу
-plan-exec (новая сессия/линия — обязательно, повторное чтение в РАМКАХ этой же линии не требуется).
-**Done:** P1–P9 закрыты (P1/P3/P4/P5/P7/P9 — 🟠 Done with deviations; P2/P6/P8 — 🟢 Done). P10.1
-закрыт 🟢 Done (скелет `docs/**`, 44 файла). P10.2 закрыт 🟢 Done — фаза P10 теперь 🟡 In progress
-(2/4). P10.2: 6 mermaid-диаграмм по фактическому коду (P4–P9) размещены строго по H §Диаграммы:
-Д1 `stateDiagram-v2` FSM документа (`DocumentStatus`, переходы подписаны
-`PrepareDocumentJob.process()`/`DocumentPreparer`/`ScreeningJob`/
-`ScreeningOutcomeHandler.markScreened()/ignore()`/`EstimateExtractionJob`/
-`ExtractionOrchestrator.finalizeSuccess()/markUnprocessable()`) + легенда класс→файл:строка →
-`docs/03_Dev/document-pipeline.md`; Д1-lite (бизнес-языком, без job'ов/error-блока) →
-`docs/02_Workflow/document-and-estimate-pipeline.md`; Д2 `flowchart` стадий+очередей
-(`PipelineDispatcher` → `PrepareDocumentJob`(`doc_prepare`) → `ScreeningJob`(`ai_screening`) →
-`EstimateExtractionJob`(`ai_extraction`, checkpoint-requeue self-loop) + backoff-петля
-`pipeline:retry-failed`, шаблонный `PipelineJob.handle()`) → `docs/03_Dev/document-pipeline.md`;
-Д3 `sequenceDiagram` композиции промта (`PromptComposer.compose()` →
-`PromptReadRepository.activeForSteps()` global→step-global→step priority ASC →
-`PromptContextGenerator.generate()` → `ComposedPrompt`, явная граница кэшируемого префикса
-rect-блоком + опциональный `CorrectionAwareComposer.correctionsBlock()` вне префикса) →
-`docs/03_Dev/ai/prompts.md`; Д4 `sequenceDiagram` extraction-сессии (`ExtractionOrchestrator.run()`
-→ `ExtractionPreflight.decide()` → WholeDocument(D3, `ChunkSource`+checkpoint) /
-Windowed(D30, `WindowedChunkSource`→`SegmentAssembler.assemble()`→per-segment) →
-`EstimatePersister.persist()` → `finalizeSuccess()`, + заметка `RerunRangeAction`) →
-`docs/03_Dev/document-pipeline.md`; Д5 `flowchart` обучающего контура (Analysis→ревью→
-approved/rejected+Correction→`RerunAnalysisAction`→…→`GoldExampleRecorder`→
-`DatasetExportCommand` sft/dpo) → `docs/03_Dev/ai/training-loop.md`; Д6 `flowchart` LLM-слоя
-(`AiRouteResolver.resolve()`→`prc_ai_routes`→`ResolvedRoute`→`PrismGeminiProvider`/
-`OpenAiCompatibleProvider` implements `LlmProvider`, `SupportsFileUpload`/`SupportsContextCaching`
-Gemini-only, `LlmUsage.cachedTokens` обязателен) → `docs/03_Dev/llm-providers.md`. Перекрёстные
-ссылки (blockquote, без дублирования текста) добавлены в `docs/specs/v2/03-document-pipeline.md`
-§2, `docs/specs/v2/04-llm-providers.md` §2.1, `docs/specs/v2/08-estimate-extraction.md` §4.
-Найдено и исправлено на этапе Validation: `stateDiagram-v2` (Д1) не парсит `::` в некавычечной
-edge-метке (`mermaid-cli` 11.16.0 parse error) — заменено на `Class.method()` только в Д1;
-остальные 5 диаграмм `::` не содержат либо используют его внутри кавычечных меток (не ломается).
-Валидация: `npx -y @mermaid-js/mermaid-cli` (v11.16.0) рендерит все 7 mermaid-блоков без ошибок;
-все 21 упомянутый класс существует по указанным путям (grep/find); `git diff` — новых
-`[text](path)`-ссылок не введено; `plan-lint.py plans/EST-AI` — те же 5 pre-existing ошибок, новых
-нет.
-**Remaining:** P10.3–P10.4 (наполнение текстом) → P11 (1, удаление Old/) → P12 (2, только
-opus/Fable — Routing §3). Итого 5 items впереди из 40 (было 6 до P10.2).
-**Sources of truth:** plans/EST-AI/plan.md (Decision Log D1–D44; Status Board — P10 теперь 🟡 2/4)
-· plans/EST-AI/phases/P10.md (Phase Context + P10.1/P10.2 Completion Notes; P10.3–P10.4 тексты
-items уже там же) · plans/EST-AI/research/H-docs-structure.md (SSOT дерева `docs/` + §Диаграммы —
-нумерация/размещение Д1–Д6, использовано P10.2) · docs/03_Dev/document-pipeline.md (Д1, Д2, Д4) ·
-docs/02_Workflow/document-and-estimate-pipeline.md (Д1-lite) · docs/03_Dev/ai/prompts.md (Д3) ·
-docs/03_Dev/ai/training-loop.md (Д5) · docs/03_Dev/llm-providers.md (Д6) — все шесть incl. легенды
-класс→файл — канон диаграмм для P10.3 (текст пишется ВОКРУГ уже вставленных диаграмм, не дублируя
-их).
+**Next:** `/task:plan-exec EST-AI P10.4` — фаза P10 в работе (3/4), последний item фазы — наполнение
+`04_Operators`/`01_Business`/`02_Workflow` (менеджерская основная часть доки, D20) + остаточный
+`docs-private`. Phase Context и текст P10.4 уже существуют в `plans/EST-AI/phases/P10.md` —
+исполнителю всё равно нужно перечитать их целиком по протоколу plan-exec (новая сессия/линия —
+обязательно, повторное чтение в РАМКАХ этой же линии не требуется).
+**Done:** P1–P9 закрыты (P1/P3/P4/P5/P7/P9 — 🟠 Done with deviations; P2/P6/P8 — 🟢 Done). P10.1/
+P10.2 закрыты 🟢 Done. P10.3 закрыт 🟢 Done — фаза P10 теперь 🟡 In progress (3/4). P10.3: наполнены
+развёрнутым текстом ВСЕ 22 файла `docs/03_Dev/**` из Scope Included (кроме `_index.md` — уже
+`status: living` по факту P10.1): `getting-started.md`, `architecture.md`, `database.md`,
+`crawling-pipeline.md` (был фактически пуст несмотря на пометку P10.1 «наполнен вне плана» —
+заполнен линк-картой краулинга), `document-pipeline.md` (§Инварианты идемпотентности, §Статусы вкл.
+`Unprocessable`, §Failure modes → runbooks — текст вокруг уже вставленных P10.2 диаграмм Д1/Д2/Д4,
+без их переписывания), `llm-providers.md` (§Роутинг, §Транспорт, §Capability-матрица, §Учёт
+стоимости — вокруг Д6), `admin-panel.md` (ресурсы Filament, AzGuard-исключение `PromptResource`
+D44), `commands.md` (полная шпаргалка make/artisan по факту сигнатур), `ai/prompts.md` (§Файлы→сид→
+админка, §Composite versioning — вокруг Д3, ссылка на `resources/ai/prompts/README.md` как источник
+«как писать промт»), `ai/feature-card-screening.md` и `ai/feature-card-estimate-extraction.md`
+(модель/промты/схема/why-решения/failure modes/eval), `ai/training-loop.md` (§Раздельное хранение
+raw/gold, §Корректирующие промты, §Экспорт — вокруг Д5), `ai-context/index.md` (новый mermaid
+source→generation→consumers) и `ai-context/scenarios.md` (маршруты скилов по задачам), 3 runbook'а
+(Symptoms→Triage→Fix→Rollback→Escalation с реальными `config('ai.pipeline.*')`-ключами), `adr/0001`
+дописан по MADR-формату + 4 НОВЫХ ADR (`0002` Prism-фасад D8/D14, `0003` row-range+windowed
+D3/D30/D40/D42, `0004` jsonb для не-смет D13, `0005` protected-промты D17/D44), `process/{deploy,
+testing}.md` (ссылки на `docker/Makefile`/skill `testing-rules`, без копий), `recipes.md` (3
+рецепта), `troubleshooting.md` (8 известных workaround'ов плана), `docker/{index,development,
+production,troubleshooting}.md` (по факту `docker-compose*.yml`/`docker/Makefile`). Обнаружена и
+исправлена мелкая неточность исходного каркаса P10.1: стаб `docker/development.md` ссылался на
+несуществующую цель `make prod:deploy:frontend` — заменено на фактическое описание (не расхождение
+плана с кодом, эскалации не требовало). Валидация: python-скрипт резолвит все markdown-ссылки
+`docs/**` — 0 битых; `grep` frontmatter (`audience:`/`type:`) — 0 файлов без обеих меток; выборочный
+grep 16 классов/сидеров и ключевых `config('ai.*')`-ключей — 0 расхождений с кодом;
+`python3 plan-lint.py plans/EST-AI` — те же 5 pre-existing ошибок (Status Board P3/P4/P5/P7/P9),
+новых нет; изменения docs-only, `docker compose exec app php artisan test` не запускался (не
+требовался).
+**Remaining:** P10.4 (1, операторские SOP + бизнес-разделы) → P11 (1, удаление Old/) → P12 (2,
+только opus/Fable — Routing §3). Итого 4 items впереди из 40.
+**Sources of truth:** plans/EST-AI/plan.md (Decision Log D1–D44; Status Board — P10 теперь 🟡 3/4) ·
+plans/EST-AI/phases/P10.md (Phase Context + P10.1–P10.3 Completion Notes; текст P10.4 уже там же) ·
+plans/EST-AI/research/H-docs-structure.md (SSOT дерева `docs/` + §Диаграммы + §Дополнение) ·
+docs/03_Dev/** (весь раздел теперь наполнен — канон для сверки при P10.4, если понадобятся
+перекрёстные ссылки) · resources/ai/prompts/README.md (единственный источник «как писать промт»,
+не дублируется нигде в docs/).
 **Open risks:**
-- (новое, P10.2) Диаграммы вставлены, развёрнутого текста разделов пока нет (кроме легенд/
-  однострочных пояснений под каждой диаграммой) — P10.3/P10.4 обязаны наполнить содержимое,
-  frontmatter файлов остаётся `status: draft` до этого момента.
-- (без изменений) `03_Dev/crawling-pipeline.md` и `03_Dev/admin-panel.md` требуют явной сверки с
-  фактическим кодом краулинга/Filament — P10.3.
+- (без изменений) `03_Dev/crawling-pipeline.md` теперь содержит линк-карту краулинга, но НЕ полный
+  разбор internals (Scope P10.3 не требовал переписывания краулинга с нуля) — если краулинг
+  когда-нибудь будет ревизован отдельным планом, этот файл стоит расширить.
 - (без изменений) plan-lint: 5 pre-existing ошибок Status Board P3/P4/P5/P7/P9 «Done with
   deviations»/расхождение счётчика при всех items 🟢/🟠 — задокументированное расхождение, не новое.
 - (без изменений) Модели EOL (D27): линейка 2.5 умирает 2026-10-16.
 - (без изменений) Прокси для Gemini/LLM-вызовов из РФ не покрыт решением владельца.
 - (без изменений) Троттлинг Gemini не откалиброван против реальной квоты провайдера.
 - (без изменений) `docs/specs/v2/03-document-pipeline.md`/`04-llm-providers.md` местами используют
-  устаревшие имена таблиц (P10.3 может заодно поправить перекрёстные ссылки таблиц, НЕ диаграмм —
-  те актуализированы P10.2).
+  устаревшие имена таблиц — не тронуто P10.3 (Scope Included ограничивал перекрёстные ссылки P10.2).
 - (без изменений) `docker compose exec` требует ДВА `--env-file`; `pint --dirty` не видит
   untracked — явный список путей; pint auto-fix может упереться в bind-mount permission.
 - (без изменений) `composer require`/`composer update --lock` — только с ХОСТА.
@@ -74,22 +63,24 @@ docs/03_Dev/ai/training-loop.md (Д5) · docs/03_Dev/llm-providers.md (Д6) — 
 - (без изменений) `EstimatePersister` пропускает сметы документов без `procurement_id`.
 - (без изменений) `RerunRangeAction` (P6.3) НЕ пересчитывает `validation_status`/иерархию целиком.
 - (без изменений) `mergedIncompleteItems` не персистятся в `prc_estimate_items`.
-- (без изменений) Пороги `pipeline:stuck-check` НЕ откалиброваны на живом трафике.
+- (без изменений) Пороги `pipeline:stuck-check`/`backlog_threshold`/`no_completions_minutes` НЕ
+  откалиброваны на живом трафике.
 - (без изменений) `TELEGRAM_BOT_TOKEN`/`TELEGRAM_CHAT_ID` не заведены в прод `.env`.
-- (без изменений) `ai:eval:run` НЕ прогонялся ни разу на реальных данных.
+- (без изменений) `ai:eval:run` НЕ прогонялся ни разу на реальных данных (ни screening, ни
+  extraction).
 - (без изменений) `SENTRY_LARAVEL_DSN` пуст; `json`-канал логов не default;
   `GracefullyStoppable`-трейт готов, но не подключён; `stop_grace_period` не пересчитан.
-- (без изменений) `ShadowDispatch` НЕ подключён ни к одному боевому call-сайту (P9.4 Open risk) —
-  вне Scope P10.
+- (без изменений) `ShadowDispatch` НЕ подключён ни к одному боевому call-сайту (P9.4 Open risk).
 **Workarounds/Deferred/Open questions:**
 - workarounds: (без изменений, см. git-историю handoff.md) два `--env-file`; composer/pint-автофикс/
   `vendor:publish`/`guard:filament:generate` — с ХОСТА; один `--filter` за прогон; dot-notation в
   `config('ai.capabilities.<модель-с-точками>...')`; `dispatch(...)->afterCommit()` под
   `RefreshDatabase` исполняется немедленно в определённых условиях; `Storage::disk('s3')` в тестах
-  требует `Storage::fake('s3')`. **добавлено P10.2:** `mermaid-cli` (`stateDiagram-v2`) не парсит
-  `Class::method()` в некавычечной edge-метке — использовать `Class.method()` в state-диаграммах;
-  в flowchart/sequence с кавычечными метками `::` безопасен.
-- deferred: (без изменений полный список — см. git-историю handoff.md до P9.4/P10.1) боевой тюнинг
+  требует `Storage::fake('s3')`; `mermaid-cli` (`stateDiagram-v2`) не парсит `Class::method()` в
+  некавычечной edge-метке — использовать `Class.method()`. **добавлено P10.3:** каркас `docker/
+  development.md` ссылался на несуществующую make-цель `deploy:frontend` — фронтенд-сборка (yarn)
+  идёт вне `make`, целей под неё в `docker/Makefile` нет.
+- deferred: (без изменений полный список — см. git-историю handoff.md до P9.4/P10.2) боевой тюнинг
   промт-текстов; Batch API; RAR/7z; OCR; LibreOffice-конвертер xlsx; Ghostscript-даунскейл; generic
   ai_extractions; контакты-сущность CRM; 9-префиксный ренейм (отклонён); Prometheus/Grafana; прод
   GlitchTip/Sentry; shadow CI-гейт; калибровка порогов; 3.x-модели; Langfuse; устаревшие имена
@@ -109,20 +100,23 @@ docs/03_Dev/ai/training-loop.md (Д5) · docs/03_Dev/llm-providers.md (Д6) — 
   транскрипция для `user`-части SFT; `analysis_id` на `prc_ai_dataset_examples`; производственная
   проводка `ShadowDispatch`; расширение `LlmCallRecorder::record()`; инлайн-кодирование скана/PDF
   для теневого скрининга; перенос shadow-сравнения в `prc_ai_eval_results`; наполнение содержимого
-  всех разделов `docs/` — P10.3 (dev-разделы) → P10.4 (операторские/бизнес-разделы); сверка
-  `crawling-pipeline.md`/`admin-panel.md` с фактическим кодом (P10.3).
+  операторских/бизнес-разделов `docs/` — P10.4; сверка `crawling-pipeline.md`/`admin-panel.md` с
+  фактическим кодом краулинга — частично сделано P10.3 (admin-panel — линк-ревизия по факту P8.2/
+  P9.2; crawling-pipeline — карта, не полный разбор internals); паттерн «коарс-право +
+  запись-специфичный чек» AzGuard как переиспользуемый trait/base-policy при появлении второго
+  случая (ADR 0005 Consequences).
 - open_questions: (без изменений) подтверждение владельца перед git rm Old/; хост GlitchTip/
   боевой DSN; дата переключения на 3.x-модели; исходящий прокси для Gemini; структурный
   reason-столбец на `prc_documents`/`prc_ai_analyses`; overlap-дедуп по составному ключу; источник
   `Estimate.title`; структурный `is_merged_from_split`; как развести кэшируемую/per-purpose часть
   промта (P7.1); порог explicit vs implicit cache; курс `AI_COST_REPORT_RUB_PER_USD` в прод;
-  боевой Telegram-токен/chat; калибровка порогов `pipeline:stuck-check`; когда владелец подготовит
-  эталоны для `ai:dataset:import`; `LOG_CHANNEL=json` на проде по умолчанию;
-  `HORIZON_STOP_GRACE_PERIOD` точное значение; рефактор `RunFreshCrawler`/`RunArchiveCrawler` под
-  `shouldStop()`; хост и расписание прод-бэкапов; окна retention/MinIO ILM `expire_days`; нужен ли
-  `prc_ai_dataset_examples.analysis_id`; нужна ли `league/flysystem-aws-s3-v3` в `composer.json`
-  явной зависимостью; нужна ли реальная проводка `ShadowDispatch` в этом же плане или отдельным
-  будущим планом.
+  боевой Telegram-токен/chat; калибровка порогов `pipeline:stuck-check`/`backlog_threshold`/
+  `no_completions_minutes`; когда владелец подготовит эталоны для `ai:dataset:import`;
+  `LOG_CHANNEL=json` на проде по умолчанию; `HORIZON_STOP_GRACE_PERIOD` точное значение; рефактор
+  `RunFreshCrawler`/`RunArchiveCrawler` под `shouldStop()`; хост и расписание прод-бэкапов; окна
+  retention/MinIO ILM `expire_days`; нужен ли `prc_ai_dataset_examples.analysis_id`; нужна ли
+  `league/flysystem-aws-s3-v3` в `composer.json` явной зависимостью; нужна ли реальная проводка
+  `ShadowDispatch` в этом же плане или отдельным будущим планом.
 
-Context: handoff свежий — рекомендован /clear перед следующим item (P10.3 — Phase Context уже
+Context: handoff свежий — рекомендован /clear перед следующим item (P10.4 — Phase Context уже
 прочитан этой линией сессий; свежая сессия обязана перечитать его заново по протоколу plan-exec).
