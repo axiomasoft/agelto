@@ -2,6 +2,7 @@
 
 namespace App\Providers;
 
+use App\Models\User;
 use App\Pulse\Cards\LlmSpendCard;
 use App\Pulse\Cards\PipelineStagesCard;
 use App\Services\Procurement\Contracts\ListingRowMapper;
@@ -42,9 +43,12 @@ class AppServiceProvider extends ServiceProvider
         Livewire::component('pulse.pipeline-stages', PipelineStagesCard::class);
         Livewire::component('pulse.llm-spend', LlmSpendCard::class);
 
-        // Pulse — отдельная страница за auth (Implementation Rules P7.5): любой аутентифицированный
-        // пользователь панели (тот же guard, что Filament admin), не публичный дефолт "только local".
-        Gate::define('viewPulse', fn ($user = null): bool => $user !== null);
+        // Pulse — отдельная страница за auth (Implementation Rules P7.5): ТОТ ЖЕ предикат, что
+        // `User::canAccessPanel()` (super-admin или есть роль), а не «любой аутентифицированный» —
+        // Pulse отдаёт SQL-текст медленных запросов, стектрейсы исключений и LLM-расход/стоимость,
+        // это не менее чувствительно, чем сама Filament-панель (P7 phase-review, MED: предыдущая
+        // версия открывала эти данные ЛЮБОМУ пользователю с аккаунтом, не только персоналу).
+        Gate::define('viewPulse', fn (?User $user = null): bool => $user !== null && ($user->isSuperAdmin() || $user->getRoleNames()->isNotEmpty()));
 
         // Сквозной trace_id для КАЖДОЙ artisan-команды (P7.5, D25, Code Guidance: `cmd:<name>:
         // <uuid>`) — единый `CommandStarting`-листенер вместо правки каждой Procurement-команды
