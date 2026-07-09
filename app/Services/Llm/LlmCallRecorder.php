@@ -72,10 +72,18 @@ final readonly class LlmCallRecorder
      * включает кэш-хиты, см. докблок DTO), кэш-токены — по отдельному `cached_per_1m`-тарифу.
      * Модель отсутствует в `config('ai.capabilities')` (например, тестовый фейк-провайдер) —
      * cost_micros=0, не бросаем: учёт стоимости не должен ронять запись самого факта вызова.
+     *
+     * Индекс по модели БЕЗ dot-notation `config("ai.capabilities.{$model}")` (P7.2-фикс,
+     * см. handoff.md/phases/P7.md Pending Work P6.1/Open risks P7.1) — имена моделей Gemini
+     * содержат точки (`gemini-2.5-flash-lite`), `Arr::get()` дот-нотации трактует их как
+     * разделители вложенности и НЕ находит запись → cost_micros молча оставался 0 для ЛЮБОЙ
+     * реальной модели. `ExtractionPreflight` (P6.1) уже использует правильный индекс — тот же
+     * приём здесь.
      */
     private function costMicros(string $model, LlmUsage $usage): int
     {
-        $pricing = config("ai.capabilities.{$model}");
+        $capabilities = (array) config('ai.capabilities', []);
+        $pricing = $capabilities[$model] ?? null;
 
         if (! is_array($pricing)) {
             return 0;

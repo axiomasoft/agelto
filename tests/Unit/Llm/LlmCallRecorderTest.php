@@ -21,13 +21,20 @@ function llmCallRecorder(): LlmCallRecorder
 
 test('record() пишет успешный вызов: usage, cost_micros по капе config/ai.php, refs в object storage', function (): void {
     Storage::fake('s3');
+    // Значение — ЦЕЛЫЙ вложенный массив под ключом 'ai.capabilities' (реальная форма
+    // config/ai.php: capabilities['gemini-2.5-flash'] = [...], БЕЗ дот-нотации в имени модели).
+    // Дотовый вариант `config(['ai.capabilities.gemini-2.5-flash' => [...]])` маскировал бы
+    // P7.2-баг costMicros() — Laravel Arr::set() тем же образом дробит точки в 'gemini-2.5-flash'
+    // на вложенность, искусственно совпадая с прежним багованным dot-notation чтением.
     config([
         'crawler.raw_disk' => 's3',
-        'ai.capabilities.gemini-2.5-flash' => [
-            'input_per_1m' => 0.30,
-            'output_per_1m' => 2.50,
-            'cached_per_1m' => 0.03,
-        ],
+        'ai.capabilities' => array_merge((array) config('ai.capabilities', []), [
+            'gemini-2.5-flash' => [
+                'input_per_1m' => 0.30,
+                'output_per_1m' => 2.50,
+                'cached_per_1m' => 0.03,
+            ],
+        ]),
     ]);
 
     $usage = new LlmUsage(promptTokens: 1_000_000, completionTokens: 1_000_000, cachedTokens: 1_000_000, totalTokens: 3_000_000);
