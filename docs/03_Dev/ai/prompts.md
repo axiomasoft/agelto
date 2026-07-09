@@ -77,3 +77,4 @@ sequenceDiagram
 - Как менеджеры и операторы читают промт-систему бизнес-языком — `docs/02_Workflow/prompts-and-quality.md` (P10.4).
 - Feature-карточки конкретных AI-шагов — [`feature-card-screening.md`](feature-card-screening.md),
   [`feature-card-estimate-extraction.md`](feature-card-estimate-extraction.md).
+- Наследие v1, антипаттерны и глубокая формулировка правок промта — `docs-private/prompt-engineering-notes.md` (не зеркалится в Brain).
