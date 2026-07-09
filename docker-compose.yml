@@ -130,6 +130,8 @@ services:
     volumes:
       - pgsql_data:/var/lib/postgresql/data
       - ./docker/postgres/init:/docker-entrypoint-initdb.d:ro
+      # P7.7 (D33) — тот же bind-mount, что prod, для локального прогона `make db:backup`.
+      - ./storage/backups:/backups
     environment:
       POSTGRES_DB: ${DB_DATABASE}
       POSTGRES_USER: ${DB_USERNAME}

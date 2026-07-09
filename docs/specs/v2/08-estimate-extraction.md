@@ -377,6 +377,37 @@ EOL всей линейки 2.5 — **2026-10-16** (ai.google.dev/gemini-api/doc
 - **CI-гейт и shadow-режим** — Scope Excluded этого item'а (Фаза 6 роадмапа, появляется вместе с реальным голденом): `ci_status` пишется информационно (`pass`), без порогового сравнения между прогонами.
 - В CI/тестах реальные LLM-вызовы НЕ делаются (`--dry-run` либо пустой датасет — оба пишут EvalRun-заглушку без единого вызова); `FakeLlmProvider` для реального прогона НЕ допускается (Implementation Rules) — команда предназначена для ручного запуска владельцем с боевым провайдером.
 
+## 9. Data lifecycle: retention, MinIO ILM, бэкапы (P7.7, D33/D41)
+
+### 9.1 Матрица «таблица → окно хранения → где → почему»
+
+| Таблица/данные | Окно | Где (механизм) | Почему |
+|:--|:--|:--|:--|
+| `prc_ai_llm_calls` (метаданные строки) | 12 мес. (`AI_RETENTION_LLM_CALLS_MONTHS`) | Postgres, `partman.part_config.retention` (DROP партиции) | Метаданные (usage/cost/purpose) ценны дольше блобов — cost-report/аудит расхода продолжают работать по строке уже БЕЗ `request_ref`/`response_ref`-файлов (блобы expire раньше, см. ниже) |
+| `prc_ai_llm_calls.request_ref`/`response_ref` (блобы, префикс `ai/llm-calls/`) | 90 дней (`AI_STORAGE_LLM_BLOBS_EXPIRE_DAYS`) | MinIO ILM (`ai:storage:lifecycle`, `config('partitioning.minio_lifecycle')`) | Блоб на КАЖДЫЙ LLM-вызов (вкл. re-ask/shadow) — без политики миллионы файлов без ценности после разбора завершён |
+| `prc_fetches` | 6 мес. (`AI_RETENTION_FETCHES_MONTHS`) | Postgres, `partman.part_config.retention` (DROP) | Краулинг-лог попыток скачивания — расходник, ценность падает после успешного `Document.status` |
+| `prc_operation_logs` | 6 мес. (`AI_RETENTION_OPERATION_LOGS_MONTHS`) | Postgres, `partman.part_config.retention` (DROP) | Операционный лог обработки — расходник (`01-database.md` §9) |
+| `prc_events` | 6 мес. (`AI_RETENTION_EVENTS_MONTHS`) | Postgres, `partman.part_config.retention` (DROP) | Доменные события — трасса пайплайна, не единственный источник состояния (state — в самих `prc_documents`/`prc_ai_analyses`/`prc_estimates`) |
+| `prc_revisions` | БЕЗ retention (D41) | Postgres, `part_config.retention IS NULL` (НЕ зарегистрирована в `config('partitioning.retention')`) | История редакций закупок — доменный аудит «что менялось», не эфемерный лог; DROP стирал бы аудиторский след без возможности восстановления |
+| `prc_estimates` (вкл. `raw_result`/`raw_result_ref`) | Вечно | Postgres (обычная таблица, НЕ партиционирована) + MinIO (`ai/estimates/` — вне ILM-правила выше, отдельный префикс) | Распарсенные сметы — целевой продукт пайплайна, не расходник |
+| `prc_ai_dataset_examples` (gold-эталоны) | Вечно | Postgres (обычная таблица) + `documents/`-префикс MinIO (вне ILM-правила выше) | Обучающий датасет (D15/D16) — фундамент локальной LLM, безвозвратная потеря недопустима |
+
+### 9.2 Postgres: retention партиций
+
+`partman.part_config.retention`/`retention_keep_table` — выставляется миграцией `2026_07_09_100050_set_pg_partman_retention.php` (raw SQL, идемпотентно) ТОЛЬКО для 4 таблиц из `config('partitioning.retention')`. Основной путь (`pg_partman` установлен) — `partman.run_maintenance()` (вызывается `partitions:maintain`, уже в scheduler) DROP-ит партиции сам по достижении retention-окна — никакого нового кода в команде не требуется. Fallback-путь (managed Postgres без pg_partman) — `MaintainPartitions::dropExpiredFallback()` дублирует эту логику сырым `DROP TABLE IF EXISTS` по тому же конфигу через `pg_inherits`.
+
+### 9.3 Postgres: autovacuum hot-партиций
+
+`prc_ai_llm_calls`/`prc_fetches` — наибольший объём вставок среди партиционированных таблиц. Миграция `2026_07_09_100051_set_hot_partition_autovacuum.php` понижает `autovacuum_vacuum_scale_factor`/`autovacuum_analyze_scale_factor`/`autovacuum_vacuum_insert_scale_factor` (default 0.2/0.1/0.2 → 0.01) двумя путями: (1) pg_partman template-таблица (`partman.template_public_<table>`, авто-создана `create_parent()`, 100047) — reloptions отсюда подхватываются ЛЮБОЙ НОВОЙ партицией (declarative-партиционирование само НЕ наследует reloptions родителя — задокументированное ограничение Postgres, ради которого pg_partman вообще ведёт template-таблицы); (2) уже существующие партиции альтерятся явно (template не применяется ретроактивно).
+
+### 9.4 MinIO: ILM для LLM-блобов
+
+`ai:storage:lifecycle` (идемпотентная artisan-команда, `mc` CLI) применяет `config('partitioning.minio_lifecycle')`-правила на бакет `s3`-диска. `mc ilm rule add` САМ по себе не идемпотентен (повтор с теми же параметрами создаёт второе правило) — команда сверяет текущие правила (`mc ilm rule ls --json`) по `Filter.Prefix` перед добавлением. Правило `llm_call_blobs` (`ai/llm-calls/`, expire 90 дней по умолчанию) — единственное на старте; `ai/estimates/`(raw_result) и `documents/`(эталоны/обычные документы) под него НЕ попадают (разные префиксы).
+
+### 9.5 Бэкапы
+
+`make db:backup [ENV=prod]` (`docker/postgres/backup-and-verify.sh`) — `pg_dump -Fc` в bind-mount `storage/backups` (виден на хосте) + ОБЯЗАТЕЛЬНЫЙ restore в одноразовую scratch-БД (создаётся/дропается в рамках прогона, проверяется непустой `information_schema.tables`) — бэкап без проверенного restore не считается сделанным. Off-host копирование дампа, ротация старых файлов и cron-расписание на прод-хосте — Scope Excluded (инфра-решение владельца, `plans/EST-AI/handoff.md` open_questions). MinIO — версионирование бакета/`mc mirror` для офф-сайт копии не реализованы этим item'ом (та же категория, Pending Work).
+
 ## Приложение: первоисточники (актуальны до P11.1)
 
 `Old/app/Repositories/Prompt/PromptRuleRepository.php`, `Old/app/Services/{PromptService,GeminiService}.php`, `Old/app/Models/Prompt/PromptRule.php`, `Old/app/Dto/Prompt/Step.php`, `Old/app/Process/{DocumentAnalysis,EstimateAnalysis/Schema,DocumentPrepare}/**`, `Old/app/Attributes/Alias.php`, `Old/app/Models/DocumentAnalysis/DocumentAnalysis.php`, `Old/docs/03_Dev/LLM_Strategy.md`, `tmp/agelto2.md`. Разведка: `plans/EST-AI/research/{B,C,E,L}-*.md`.

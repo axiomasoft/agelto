@@ -80,13 +80,15 @@ prod\:test-php: ENV=prod
 prod\:test-php: test-php
 prod\:db\:create-test: ENV=prod
 prod\:db\:create-test: db\:create-test
+prod\:db\:backup: ENV=prod
+prod\:db\:backup: db\:backup
 prod\:doctor: prod-doctor
 
 ##@ Общие
 
 .PHONY: help up down build restart ps logs logs\:core
 .PHONY: shell artisan composer image
-.PHONY: db-migrate db-fresh db-seed db\:create-test
+.PHONY: db-migrate db-fresh db-seed db\:create-test db\:backup
 .PHONY: test-preflight test-php
 .PHONY: composer-install clear-cache
 .PHONY: prod-pre-clean prod-image prod-composer-install prod-config-cache prod-clear-cache
@@ -105,6 +107,7 @@ help:
 	@echo "  make artisan ARGS=\"migrate\" | composer"
 	@echo "  make image — собрать образ agelto/app:latest"
 	@echo "  make db-migrate | db-fresh | db-seed | db:create-test"
+	@echo "  make db:backup [ENV=prod] — pg_dump + restore-check на scratch-БД (P7.7)"
 	@echo "  make test-preflight | test-php"
 	@echo ""
 	@echo "##@ Dev (ENV=dev)"
@@ -165,6 +168,13 @@ db-seed:
 
 db\:create-test:
 	bash $(ROOT_DIR)/docker/postgres/create-agelto-test-db.sh $(if $(filter prod,$(ENV)),prod,dev)
+
+# pg_dump + ОБЯЗАТЕЛЬНАЯ проверка restore на одноразовую scratch-БД (P7.7, D33) — бэкап
+# без проверенного restore не считается сделанным (Implementation Rules). Дамп остаётся
+# на bind-mount `storage/backups` (виден на хосте); off-host копирование/ротация/cron-
+# расписание — Scope Excluded (инфра-решение владельца).
+db\:backup:
+	bash $(ROOT_DIR)/docker/postgres/backup-and-verify.sh $(if $(filter prod,$(ENV)),prod,dev)
 
 test-preflight:
 	$(COMPOSE) ps
