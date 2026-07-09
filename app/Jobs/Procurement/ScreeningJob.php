@@ -67,7 +67,11 @@ final class ScreeningJob extends PipelineJob implements ShouldBeUnique
             return false;
         }
 
+        // `active()` (P9.1/P9.2, review-фикс): БЕЗ этого скоупа `->first()` без `ORDER BY` мог
+        // вернуть superseded-запись после `RerunAnalysisAction` (P9.2) — терминальный статус
+        // старого прогона молча блокировал бы передиспатч job'а для нового `pending`-анализа.
         $existing = Analysis::query()
+            ->active()
             ->where('document_version_id', $version->id)
             ->where('step', AnalysisStep::Screening)
             ->first();

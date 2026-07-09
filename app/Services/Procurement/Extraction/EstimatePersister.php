@@ -46,13 +46,31 @@ final readonly class EstimatePersister
         private EstimateValidator $validator,
     ) {}
 
-    public function persist(Analysis $analysis): void
+    /**
+     * `$supersededAnalysisId` (P9.2, D24) — сметы этого (заменённого повторным прогоном) анализа
+     * удаляются В ТОЙ ЖЕ транзакции, что персист новых: история прогона остаётся в
+     * `prc_ai_analyses`/`prc_ai_llm_calls`, дублей витрины смет на документ нет. `null` —
+     * обычный (не re-run) прогон, поведение не меняется.
+     */
+    public function persist(Analysis $analysis, ?int $supersededAnalysisId = null): void
     {
         $version = $analysis->documentVersion;
         $document = Document::query()->findOrFail($version->document_id);
 
         /** @var list<array<string, mixed>> $estimatesData */
         $estimatesData = (array) ($analysis->result['estimates'] ?? []);
+
+        if ($supersededAnalysisId !== null) {
+            DB::transaction(function () use ($supersededAnalysisId, $analysis, $document, $version, $estimatesData): void {
+                $this->estimates->deleteByAnalysisId($supersededAnalysisId);
+
+                foreach ($estimatesData as $data) {
+                    $this->persistEstimate($analysis, $document, $version, (array) $data);
+                }
+            });
+
+            return;
+        }
 
         foreach ($estimatesData as $data) {
             $this->persistEstimate($analysis, $document, $version, (array) $data);

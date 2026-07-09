@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Guards\Admin\Roles;
 
 use App\Guards\Admin\Permissions\AiRoutePermission;
+use App\Guards\Admin\Permissions\AnalysisPermission;
 use App\Guards\Admin\Permissions\CrawlerPermission;
 use App\Guards\Admin\Permissions\DatasetExamplePermission;
 use App\Guards\Admin\Permissions\IgnoreRulePermission;
@@ -46,6 +47,12 @@ final class OperatorRole extends BaseRole
             RunPermission::ViewAny,
             RunPermission::View,
             RunPermission::Update,
+            // AI-анализы (P9.2): операторский цикл (проверено/коррекция/re-run) — наблюдение +
+            // Update (действия карточки авторизуются через `update`, ResourceGate-конвенция),
+            // без create/delete (пайплайн создаёт/не удаляет анализы сам).
+            AnalysisPermission::ViewAny,
+            AnalysisPermission::View,
+            AnalysisPermission::Update,
         ];
     }
 

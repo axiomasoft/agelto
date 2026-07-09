@@ -33,6 +33,17 @@ final readonly class EstimateStoreRepository
     }
 
     /**
+     * Сметы анализа, заменённого повторным прогоном (`RerunAnalysisAction`, P9.2, D24) — удаляются
+     * ПОСЛЕ успешного персиста нового прогона (`EstimatePersister::persist()`), в той же
+     * транзакции. Каскад БД (`prc_estimate_sections`/`items`/`resources`/`totals`
+     * `cascadeOnDelete` на `estimate_id`, D12) убирает дочерние записи сам.
+     */
+    public function deleteByAnalysisId(int $analysisId): void
+    {
+        Estimate::query()->where('analysis_id', $analysisId)->delete();
+    }
+
+    /**
      * Стабильный (без удаления) резолв раздела по `(estimate_id, parent_id, title)` — идемпотентно
      * между повторными persist одного и того же анализа: сохраняет `Section.id` (Items ссылаются
      * на него `nullOnDelete`), не плодит дублей при том же названии на том же уровне иерархии.

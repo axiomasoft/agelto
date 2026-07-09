@@ -10,6 +10,7 @@ use App\Enums\Procurement\ReviewStatus;
 use App\Models\Procurement\Concerns\HasErrorBlock;
 use App\Models\Procurement\Concerns\HasLease;
 use App\Models\Procurement\Document\DocumentVersion;
+use App\Models\Procurement\Estimate\Estimate;
 use App\Models\User;
 use Database\Factories\Procurement\Ai\AnalysisFactory;
 use Illuminate\Database\Eloquent\Attributes\UseFactory;
@@ -106,6 +107,15 @@ final class Analysis extends Model
     public function corrections(): HasMany
     {
         return $this->hasMany(related: Correction::class);
+    }
+
+    /**
+     * Сметы, персистированные из результата ИМЕННО этого прогона (`EstimatePersister`, P6.3) —
+     * read-путь для Filament (P9.2, «просмотр result/validation_status»).
+     */
+    public function estimates(): HasMany
+    {
+        return $this->hasMany(related: Estimate::class);
     }
 
     /**

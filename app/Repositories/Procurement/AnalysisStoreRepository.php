@@ -43,4 +43,24 @@ final readonly class AnalysisStoreRepository
     {
         $analysis->update($attributes);
     }
+
+    /**
+     * Новый `pending`-анализ повторного прогона (`RerunAnalysisAction`, P9.2): та же версия
+     * документа и тот же шаг, что у `$analysis`, `parent_analysis_id` — связь с прогоном,
+     * который заменяет (D24). Старый `$analysis` в `superseded_at` НЕ переводит — вызывающий код
+     * ОБЯЗАН пометить старый анализ `superseded_at` ДО вызова этого метода: partial unique
+     * `prc_ai_analyses_active_version_step_unique` — обычный (не `DEFERRABLE`) индекс, проверяется
+     * немедленно на `INSERT`, а не в конце транзакции — при обратном порядке два активных анализа
+     * на одну пару `(document_version_id, step)` существовали бы одновременно и `INSERT` упал бы.
+     */
+    public function createRerun(Analysis $analysis): Analysis
+    {
+        return Analysis::query()->create([
+            'document_version_id' => $analysis->document_version_id,
+            'step' => $analysis->step,
+            'status' => AnalysisStatus::Pending,
+            'document_type' => $analysis->document_type,
+            'parent_analysis_id' => $analysis->id,
+        ]);
+    }
 }

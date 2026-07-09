@@ -689,8 +689,12 @@ final readonly class ExtractionOrchestrator
         // (`running`/`screened`) — `recordFailure()` → job retry → `statusGuardPassed()` пропустит
         // повтор, а не станет молчаливым no-op на уже `extracted` документе без персиста
         // (недостижимая идемпотентность — Scope Included P6.3 «идемпотентный перезапуск»).
+        // `parent_analysis_id` (P9.2, D24) — установлен ТОЛЬКО на re-run-анализах
+        // (`RerunAnalysisAction`); persist() удаляет сметы заменённого прогона в той же
+        // транзакции, что персист новых — обычный (первый) прогон передаёт `null`, поведение
+        // не меняется.
         $analysis->result = $result;
-        $this->persister->persist($analysis);
+        $this->persister->persist($analysis, supersededAnalysisId: $analysis->parent_analysis_id);
 
         $this->analyses->update($analysis, [
             'status' => AnalysisStatus::Succeeded,

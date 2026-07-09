@@ -10,6 +10,8 @@ use App\Dto\Procurement\Ai\Estimate\TotalsResponse;
 use App\Enums\Procurement\FinishReason;
 use App\Enums\Procurement\LlmPurpose;
 use App\Enums\Procurement\PromptStep;
+use App\Models\Procurement\Ai\Analysis;
+use App\Services\Llm\CorrectionAwareComposer;
 use App\Services\Llm\Dto\JsonSchema;
 use App\Services\Llm\Dto\LlmOptions;
 use App\Services\Llm\Dto\LlmPrompt;
@@ -47,6 +49,7 @@ final readonly class RowRangeChunkSource implements ChunkSource
         private JsonSchemaGenerator $schemas,
         private StructuredResponseValidator $validator,
         private LlmCallRecorder $recorder,
+        private CorrectionAwareComposer $corrections,
     ) {}
 
     public function fetchPassport(
@@ -141,10 +144,11 @@ final readonly class RowRangeChunkSource implements ChunkSource
     ): array {
         $composed = $this->prompts->compose($step, [$dataClass]);
         $schema = new JsonSchema($this->schemas->generate($dataClass));
+        $hint = $this->correctionsHint($analysisId);
 
         $prompt = new LlmPrompt(
             systemPart: $composed->systemPart,
-            userParts: [$userPart],
+            userParts: $hint === null ? [$userPart] : [$hint, $userPart],
             fileRefs: $session->cacheHandle !== null ? [] : [$session->fileHandle],
         );
 
@@ -225,5 +229,17 @@ final readonly class RowRangeChunkSource implements ChunkSource
         }
 
         return [$outcome->data, $response->usage];
+    }
+
+    /**
+     * `CorrectionAwareComposer` (P9.2) принимает модель `Analysis`, а этот класс работает по
+     * `analysisId` (контракт `ChunkSource`) — единственный источник для загрузки нужной записи.
+     * `null` — обычный (не re-run) прогон без коррекций, вызывающий код НЕ добавляет userPart.
+     */
+    private function correctionsHint(int $analysisId): ?string
+    {
+        $analysis = Analysis::query()->find($analysisId);
+
+        return $analysis === null ? null : $this->corrections->correctionsBlock($analysis);
     }
 }
