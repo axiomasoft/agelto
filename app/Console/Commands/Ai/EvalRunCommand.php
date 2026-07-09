@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Console\Commands\Ai;
 
+use App\Enums\Procurement\AnalysisStatus;
 use App\Enums\Procurement\AnalysisStep;
 use App\Enums\Procurement\LlmPurpose;
 use App\Models\Procurement\Ai\DatasetExample;
@@ -27,6 +28,10 @@ use Throwable;
  * Каждый пример — отдельный `Ai\Analysis(step=extraction)` на `document_version_id` эталона;
  * `run()` вызывается в цикле до терминального исхода (checkpoint-requeue D31 здесь не
  * self-dispatch, а прямой повтор В ТОМ ЖЕ процессе — команда синхронна, очереди не участвуют).
+ * Уникальность `(document_version_id, step)` не даёт завести НОВУЮ строку на повторный прогон —
+ * `evaluateExample()` явно СБРАСЫВАЕТ найденный `Analysis` (status/result/progress/usage и т.д.)
+ * ПЕРЕД каждым вызовом оркестратора (ревью-фикс P7.4, HIGH), иначе повторный `ai:eval:run` на том
+ * же датасете молча отдавал бы результат ПЕРВОГО прогона без единого нового LLM-вызова.
  * Метрики (`EvalMetrics`) сравнивают `analysis.result.estimates[]` (сырой выход оркестратора,
  * ДО `EstimatePersister`) с `gold.estimates[]` — сознательно НЕ через `prc_estimates`
  * (`EstimatePersister` пропускает документы без `procurement_id`, D22/P6.3 Known Deviations;
@@ -56,7 +61,7 @@ final class EvalRunCommand extends Command
         $task = (string) $this->option('task');
         $datasetVersion = (string) ($this->option('dataset-version') ?: config('ai.eval.dataset_version', 'v1'));
 
-        $query = DatasetExample::query()->where('task', $task);
+        $query = DatasetExample::query()->where('task', $task)->with('documentVersion');
 
         if ($this->option('limit') !== null) {
             $query->limit((int) $this->option('limit'));
@@ -136,10 +141,34 @@ final class EvalRunCommand extends Command
             $document = Document::query()->findOrFail($documentVersion->document_id);
             $analysis = $this->analyses->firstOrCreate($documentVersion->id, AnalysisStep::Extraction);
 
-            if ($analysis->document_type === null) {
-                $this->analyses->update($analysis, ['document_type' => 'estimate']);
-                $analysis->refresh();
-            }
+            // Уникальность `(document_version_id, step)` (миграция `2026_07_04_100025`) не
+            // допускает второй строки на повторный прогон — `firstOrCreate()` выше возвращает
+            // ТУ ЖЕ Analysis, что и на предыдущем `ai:eval:run`. Без явного сброса
+            // `ExtractionOrchestrator::buildSession()` резюмирует persisted `progress` прошлого
+            // прогона: все сметы уже `rows_done=true`/`totals_done=true`, `firstUnfinishedIndex()`
+            // сразу `null` → цикл завершается БЕЗ единого нового LLM-вызова, повторно отдавая
+            // СТАРЫЙ результат (HIGH, ревью P7.4) — владелец правит промты/модель, перезапускает
+            // eval и молча получает нулевое изменение метрик. Сброс до состояния «свежий анализ»
+            // делает каждый прогон полноценным пересчётом, как того требует Intent item'а
+            // (объективная обратная связь для итеративной настройки промтов).
+            $this->analyses->update($analysis, [
+                'status' => AnalysisStatus::Pending,
+                'document_type' => 'estimate',
+                'result' => null,
+                'progress' => null,
+                'provider' => null,
+                'model' => null,
+                'attempts' => 0,
+                'last_error' => null,
+                'last_error_at' => null,
+                'next_retry_at' => null,
+                'failed_permanently' => false,
+                'started_at' => null,
+                'finished_at' => null,
+                'cache_id' => null,
+                'cache_expires_at' => null,
+            ]);
+            $analysis->refresh();
 
             $maxIterations = (int) config('ai.eval.max_orchestrator_iterations', 200);
             $iterations = 0;
