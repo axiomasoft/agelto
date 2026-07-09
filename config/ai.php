@@ -292,4 +292,21 @@ return [
         'estimate_mismatch_threshold' => (int) env('AI_PIPELINE_ESTIMATE_MISMATCH_THRESHOLD', 5),
         'alert_antispam_minutes' => (int) env('AI_PIPELINE_ALERT_ANTISPAM_MINUTES', 60),
     ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Датасет эталонов и eval-раннер (P7.4, ТЗ 04 §5)
+    |--------------------------------------------------------------------------
+    |
+    | `dataset_version` — дефолтная метка `prc_ai_eval_runs.dataset_version`, когда `ai:eval:run`
+    | вызван без `--dataset-version` (владелец меняет по факту снапшота golden-датасета).
+    | `max_orchestrator_iterations` — защитный потолок цикла синхронных повторов
+    | `ExtractionOrchestrator::run()` внутри `ai:eval:run` (checkpoint-requeue D31 здесь БЕЗ
+    | self-dispatch через очередь — команда синхронна, повторяет вызов в том же процессе).
+    |
+    */
+    'eval' => [
+        'dataset_version' => env('AI_EVAL_DATASET_VERSION', 'v1'),
+        'max_orchestrator_iterations' => (int) env('AI_EVAL_MAX_ORCHESTRATOR_ITERATIONS', 200),
+    ],
 ];

@@ -333,6 +333,50 @@ EOL всей линейки 2.5 — **2026-10-16** (ai.google.dev/gemini-api/doc
 - Системные правила (это ТЗ, §6) не переопределяются текстом документа ни при каких обстоятельствах — системная инструкция всегда синтаксически отделена от содержимого документа (`system_instruction` vs `contents`, не конкатенация в одном текстовом блоке).
 - Подозрительные инструкции, обнаруженные внутри документа (нехарактерный для сметы императивный текст, попытки переопределить формат ответа) — НЕ исполняются, а флагируются: попадают в `parse_warnings`-подобное поле ответа (конкретное имя поля — за P2.2) для последующего операторского ревью, наравне с прочими аномалиями качества разбора.
 
+## 8. Датасет эталонов и eval-контур (P7.4)
+
+### 8.1 Формат папки эталонов
+
+`ai:dataset:import {path}` читает папку с ПАРАМИ файлов: `<name>.<ext>` (исходный файл — pdf/xlsx/скан, тот же тип, что реальный документ закупки) + `<name>.gold.json` (эталонный разбор). Имя `<name>` произвольное (без точек внутри, кроме `.gold.json`-суффикса), `<ext>` — любое расширение, поддерживаемое подготовкой (`03-document-pipeline.md` §3.3). Пара без файла-источника (сирота `*.gold.json`) или без `*.gold.json` рядом с источником — отклоняется индивидуально (не валит импорт остальных пар).
+
+### 8.2 Контракт `<name>.gold.json`
+
+Верхний уровень — **та же форма**, что `prc_ai_analyses.result` реального прогона (`estimates: [...]`, `ExtractionOrchestrator`, §4.1/§4.2) — эталон и предсказание сравниваются без отдельного маппера:
+
+```json
+{
+  "estimates": [
+    {
+      "estimate_number": "string|null",
+      "passport": { "type": null, "reference": null, "target": null, "address": null, "generator": null },
+      "currency": "RUB",
+      "base_year": 2001,
+      "price_level": null,
+      "rows_expected": 0,
+      "totals": { "footer": [] },
+      "rows": [ /* EstimateRow — §3.2, включая section_header/subtotal */ ]
+    }
+  ]
+}
+```
+
+Каждый элемент `estimates[]` — прямое соответствие `PassportResponse` (§3.1, поля `estimate_number`/`passport`/`currency`/`base_year`/`price_level`/`rows_expected`/`totals`) ПЛЮС ключ `rows` (`EstimateRow[]`, §3.2). Импорт валидирует КАЖДЫЙ элемент этим же PHP-контрактом (`PassportResponse::validateAndCreate()` + `EstimateRow::validateAndCreate()` на каждую строку, `Data::validateAndCreate()`, тот же приём, что `StructuredResponseValidator`, P3.4) — битый эталон отклоняется с перечнем ошибок по индексу сметы/строки/поля, ничего не пишется в `prc_ai_dataset_examples` для этой пары. `estimates[]` сортируется по возрастанию `ordinal` (индекс в массиве = `ordinal-1`), для многосметных документов — сметы должны идти в том же порядке, в котором их находит `ExtractionOrchestrator` (паспорт-цикл row-range пути/discovery-сегментация оконного пути, §4).
+
+### 8.3 Персистентность и идемпотентность
+
+`ai:dataset:import` создаёт `Document`+`DocumentVersion` вне закупки (`procurement_id=null`, D22) — `external_id="gold:<name>"`, `status=Downloaded`, контент — в `crawler.documents_disk` (тот же путь-конвенция, что `DocumentDownloader::store()`); повторный импорт того же файла дедуплицируется по `content_hash` (та же гарантия, что у краулинга). `prc_ai_dataset_examples` — `updateOrCreate` по `(document_version_id, task, version)` (Code Guidance): повторный импорт с той же тройкой ключей ОБНОВЛЯЕТ `gold` на месте (эталон скорректировали — переимпортировали), не плодит дублей.
+
+### 8.4 Eval-раннер и метрики
+
+`ai:eval:run` прогоняет `ExtractionOrchestrator` (§4, ТЕКУЩИЙ extraction-пайплайн — БЕЗ стадии скрининга, эталоны заведомо сметы) по каждому `prc_ai_dataset_examples(task=extraction)`, сравнивает `analysis.result.estimates[]` (сырой выход оркестратора, ДО `EstimatePersister` — эталонные документы вне закупки, `EstimatePersister` их сознательно пропускает, D22/P6.3) с `gold.estimates[]` (`App\Services\Procurement\Extraction\EvalMetrics`):
+
+- **Сопоставление**: сметы — позиционно по индексу в `estimates[]` (совпадающий `ordinal`); строки внутри сметы — по `row_index` (уникален в рамках сметы, §4а).
+- **Field-level precision/recall/F1** — на паре (строка, поле) для `code`/`name`/`unit`/`quantity`/`price`(=`total_price`)/`row_type`; текстовые поля — нестрогое сравнение (trim + схлопывание пробелов + регистронезависимо), числовые (`quantity`/`price`) — bcmath ±0.01 (тот же допуск, что `EstimateValidator`, §4.1 п.6).
+- **Row coverage** — доля строк эталона, для которых нашлась строка предсказания с тем же `(индекс сметы, row_index)`, независимо от совпадения полей.
+- Результат — `prc_ai_eval_runs.metrics` (агрегат по всем эталонам прогона) + по одной `prc_ai_eval_results` записи (`metric=f1`, `details` — полный отчёт по примеру) на эталон; консольный отчёт — сводная строка + топ-10 худших примеров по F1.
+- **CI-гейт и shadow-режим** — Scope Excluded этого item'а (Фаза 6 роадмапа, появляется вместе с реальным голденом): `ci_status` пишется информационно (`pass`), без порогового сравнения между прогонами.
+- В CI/тестах реальные LLM-вызовы НЕ делаются (`--dry-run` либо пустой датасет — оба пишут EvalRun-заглушку без единого вызова); `FakeLlmProvider` для реального прогона НЕ допускается (Implementation Rules) — команда предназначена для ручного запуска владельцем с боевым провайдером.
+
 ## Приложение: первоисточники (актуальны до P11.1)
 
 `Old/app/Repositories/Prompt/PromptRuleRepository.php`, `Old/app/Services/{PromptService,GeminiService}.php`, `Old/app/Models/Prompt/PromptRule.php`, `Old/app/Dto/Prompt/Step.php`, `Old/app/Process/{DocumentAnalysis,EstimateAnalysis/Schema,DocumentPrepare}/**`, `Old/app/Attributes/Alias.php`, `Old/app/Models/DocumentAnalysis/DocumentAnalysis.php`, `Old/docs/03_Dev/LLM_Strategy.md`, `tmp/agelto2.md`. Разведка: `plans/EST-AI/research/{B,C,E,L}-*.md`.
