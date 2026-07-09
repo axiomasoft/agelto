@@ -1,13 +1,13 @@
-# HANDOFF — 2026-07-09 — after P10.4
+# HANDOFF — 2026-07-09 — after P11.1
 
-**Next:** `/task:plan-exec EST-AI P11.1` — удаление `Old/`. Единственный item фазы P11
-(терминальная перед P12). Читать `plans/EST-AI/phases/P11.md` целиком по протоколу plan-exec
-(Phase Context + текст P11.1) — новая сессия обязана перечитать, повторное чтение в рамках той же
-линии не требуется. **Важно:** P11.1 — гейты удаления (research/I: нетрекаемый
-`Old/database/database.sqlite` и `locations.zip`) + open_question «подтверждение владельца перед
-`git rm Old/`» (см. ниже) — уточнить/подтвердить перед физическим удалением, не импровизировать.
-**Done:** P1–P10 закрыты (P1/P3/P4/P5/P7/P9 — 🟠 Done with deviations; P2/P6/P8/P10 — 🟢 Done).
-P10.4 закрыт 🟢 Done — фаза P10 теперь 🟢 Done (4/4), Status Board в `plan.md` синхронизирован.
+**Next:** `/task:plan-exec EST-AI P12.1` (Routing §3 — ТОЛЬКО opus/Fable, effort high, D21;
+sonnet'ом не исполнять). Фаза P11 закрыта ⛔ Skipped by decision (D45) — владелец явно отказал в
+подтверждении на `git rm Old/` при исполнении цепочки P1→P12, `Old/` остаётся в дереве. P12 от
+P11 функционально не зависит (AI-контекст: скилы/гайдлайны/корневой CLAUDE.md-хаб) — цепочка
+продолжена без переисполнения P11.1.
+**Done:** P1–P11 закрыты (P1/P3/P4/P5/P7/P9 — 🟠 Done with deviations; P2/P6/P8/P10 — 🟢 Done;
+P11 — ⛔ Skipped by decision, D45). P10.4/фаза P10 — 🟢 Done (4/4), без изменений с прошлого
+handoff. Итого 29 item закрыто из 40 (P11.1 не засчитан — skipped, не done).
 P10.4: наполнены все Scope Included файлы. `01_Business`: `overview.md` (продукт/проблема/
 аудитории/границы), `roadmap.md` (выжимка `docs/specs/v2/06-roadmap.md` — сделано/в работе/
 отложено, без цен/рисков). `02_Workflow`: `glossary.md` (перенос `.ai/guidelines/glossary.md`
@@ -30,8 +30,8 @@ grep'ом), 5 SOP (`check-ai-analysis.md`, `review-estimate.md`, `restart-failed
 публичной части (БЕЗ `docs-private`) — 0 утечек; (5) `python3 plan-lint.py plans/EST-AI` — те же 5
 pre-existing ошибок (см. ниже), новых нет; (6) docs-only изменения, тесты не запускались/не
 требовались.
-**Remaining:** P11 (1, удаление `Old/`) → P12 (2, только opus/Fable — Routing §3 plan.md). Итого 3
-items впереди из 40.
+**Remaining:** P12 (2, только opus/Fable — Routing §3 plan.md). Итого 2 items впереди из 40.
+P11.1 (удаление `Old/`) — вне remaining, но переисполним по решению владельца (Pending Work).
 **Sources of truth:** `plans/EST-AI/plan.md` (Decision Log D1–D44; Status Board — P10 теперь
 🟢 Done 4/4) · `plans/EST-AI/phases/P10.md` (Phase Context + P10.1–P10.4 Completion Notes, Phase
 Handoff) · `plans/EST-AI/phases/P11.md` (следующий item, читать целиком) ·
