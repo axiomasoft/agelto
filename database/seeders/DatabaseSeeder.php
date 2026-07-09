@@ -29,6 +29,11 @@ class DatabaseSeeder extends Seeder
         // AiRouteResolver кидает RuntimeException), поэтому вызов — ДО local/testing-гейта.
         $this->call(AiRoutingSeeder::class);
 
+        // Файловые промты (P8.1, D5/D17) — резолверу/оркестраторам НУЖЕН непустой
+        // `prc_ai_prompts` в prod так же, как маршрутам выше (PromptComposer иначе собирает
+        // пустую системную часть) — та же логика «до local/testing-гейта», что AiRoutingSeeder.
+        $this->call(PromptSeeder::class);
+
         // Демо-аккаунты (в т.ч. суперадмин с wildcard) — ТОЛЬКО в local/testing.
         // На prod бутстрап суперадмина — через `php artisan guard:super-admin --user=`,
         // иначе db:seed на деплое создал бы бэкдор с предсказуемым паролем.

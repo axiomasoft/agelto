@@ -20,6 +20,7 @@ return new class extends Migration
             $table->integer('version');
             $table->integer('priority')->default(0);
             $table->boolean('is_active')->default(true);
+            $table->boolean('is_protected')->default(false);
 
             $table->timestamps();
 
