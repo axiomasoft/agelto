@@ -18,7 +18,7 @@ test('новая площадка заводится вставкой plt_platfo
     $mapping = StatusMapping::factory()->create([
         'registry_id' => $registry->id,
         'source_status' => 'Опубликовано',
-        'canonical_status' => 'announced',
+        'canonical_status' => 'bidding',
     ]);
 
     expect($platform->code)->toBe('commercial-x')
