@@ -1,52 +1,51 @@
-# HANDOFF — 2026-07-10 — after P7.2
+# HANDOFF — 2026-07-10 — after P8.1
 
-**Next:** `P8` — фаза «Lifecycle-map и state machines единым документом» ещё скелет (0/2, Status
-Board), детализации (Required Reads/Implementation Rules/Validation по items) нет — прямой exec
-упадёт на предусловии. Следующий шаг — plan-design фазы P8.
+**Next:** P8.2 (`docs/03_Dev/entity-lifecycle-map.md`) — детализирован (DoR пройден), исполняется
+поитемно. Можно продолжить runner'ом фазы (P8.2 impl+review → phase-review веером) либо напрямую:
 
 | Параметр | Значение |
 |:--|:--|
-| Model | opus/high |
-| Thinking | high — детализация фазы (Scope/Required Reads/Validation по items), несущие решения по объёму lifecycle-map, `plan.md` §Routing (P8 без явного отклонения — по умолчанию design = opus/high) |
-| Context | fresh session — handoff свежий, рекомендован /clear |
-| Суть | Детализировать P8: скелеты items lifecycle-map/state machines единым документом (объединение FSM `ProcurementStatus`/`DocumentStatus`/`AnalysisStatus`/… + связей между ними) |
+| Model | sonnet/medium (impl) + opus/high (review) — plan.md §3 |
+| Thinking | medium — docs-only транскрипция по пред-анкорам (`findings/P8-status-writers.md` §5), не расследование |
+| Context | fresh session — handoff свежий; findings несёт все код-анкоры сущностей |
+| Суть | Создать `docs/03_Dev/entity-lifecycle-map.md`: таблица «сущность → таблица → создатель → мутатор» для `Procurement`/`ProcurementRevision`/`ProcurementEvent`/`Document`/`DocumentVersion` + раздел «повтор / новая ревизия / новая версия документа» (`snapshot_hash` ⟂ `content_hash`) |
 
 ```
-/task:plan-design DOMLANG P8
+/task:plan-exec DOMLANG P8.2
 ```
 
-**Done:** P1 терминальна (3/3: 2🟢 + 1🟠). P2 (2/2 🟢). P3 (3/3 🟢). P4 (1/2 🟠 — `P4.2` ⛔).
-P5 (4/4 🟢). P6 терминальна (2/2 🟢) — spec drift убит. **P7 терминальна (2/2 🟢)** — оба
-глоссария дополнены 8 терминами D33 (P7.1); `docs/03_Dev/ocds-mapping.md` создан (P7.2) —
-mapping-таблица `prc_procurements`/`prc_revisions`/`prc_events` ↔ OCDS
-`compiledRelease`/`versionedRelease`/`releases` + секции `tender`/`award`/`parties`/`documents`,
-явно объявляющая OCDS экспортным слоем (ADR-0007) с триггером пересмотра; некрытые секции
-(`planning`/`contract`/`implementation`) помечены явно, не пропущены молча. Все 5 команд Validation
-P7.2 passed; поля таблицы анкорены напрямую на миграции `prc_procurements`/`prc_revisions`/
-`prc_events`/`prc_lots`/`prc_procurement_parties`/`prc_awards`/`prc_documents` (`docs/03_Dev/
-database.md` не несёт полевого канона этих 7 таблиц — только AI-пайплайн).
+**Done:** P1–P7 терминальны (см. предыдущие handoff-снапшоты и Update Log). P8.1 🟢 Done — создан
+`docs/03_Dev/state-machines.md` (5 осей: 2 новых `stateDiagram-v2` для `AnalysisStatus`/`RunStatus`
+с рёбрами, анкорёнными на код-сайты; классификация `ProcurementStatus` без transition-графа, D35;
+cross-ref на Д1 для `DocumentStatus`, не дублирован, D34; раздел «не FSM» для
+`PipelineStage`/`AnalysisStep`) + однострочная обратная ссылка из `document-pipeline.md`. Все 7
+команд Validation — passed. Находка сверх findings: `RunStatus::Cancelled` не имеет писателя в коде
+(`grep -rn 'RunStatus::Cancelled' app/` = 0) — ребро НЕ нарисовано, кейс помечен недостижимым без
+продюсера (тот же класс, что forward-provision `ProcurementStatus::Awarded`/`Unsuccessful`, но без
+предшествующей D-декларации).
 
-**Remaining:** P8 (lifecycle-map/FSM, скелет — 0/2), P9 (финальный cross-phase review, включая
-owner-item `/code-review ultra` P9.3, D9) — скелеты.
+**Remaining:** P8.2 (0/1 в рамках фазы, детализирован), P9 (финальный cross-phase review, включая
+owner-item `/code-review ultra` P9.3, D9) — скелет.
 
 **Sources of truth:**
-- `plans/DOMLANG/plan.md` §4 Phase Index & Status Board (P7 2/2 🟢), §5 D33 (маппинг 8 терминов),
-  §6 Update Log (P7.1/P7.2 записи).
-- `plans/DOMLANG/phases/P7.md` — P7.1/P7.2 Completion Notes, Phase Handoff (фаза терминальна).
-- `docs/03_Dev/ocds-mapping.md` — новый файл, сам является source of truth для будущего экспортёра.
-- `docs/03_Dev/adr/0007-ocds-as-exchange-layer.md`, `docs/03_Dev/adr/0008-thin-provenance-slice.md`.
-- `.ai/guidelines/glossary.md`, `docs/02_Workflow/glossary.md` — актуальное состояние после P7.1.
+- `plans/DOMLANG/plan.md` §3 Routing (P8), §4 Status Board (P8 1/2 🟡), §5 D34/D35, §6 Update Log.
+- `plans/DOMLANG/phases/P8.md` — P8.1 Completion Notes; P8.2 полное ТЗ, Phase Context, DoR.
+- `plans/DOMLANG/findings/P8-status-writers.md` — код-анкоры писателей статусов/сущностей + природа
+  каждой оси (§0 неоднородность, §1 ProcurementStatus внешне-маппируется, §5 lifecycle для P8.2).
+- `docs/03_Dev/state-machines.md` — новый деливерабл P8.1, канон представления пяти осей.
+- `docs/03_Dev/document-pipeline.md` — Д1 (единственная существующая stateDiagram, `DocumentStatus`),
+  получил обратную ссылку на `state-machines.md`.
 
 **Open risks:**
-- `plans/DOMLANG/workflow-P6.js` — untracked файл из более раннего (P6) design-сеанса, всё ещё не
-  закоммичен (не задет и этим item'ом — вне Scope P7, относится к уже терминальной фазе P6).
-  Следующая сессия, работающая с git-деревом DOMLANG, не должна принять его за дефект своего шага;
-  коммитить его стоит той сессии, что явно возьмётся за P6-хвосты (их сейчас нет открытых).
-- Остаток грепа спек-дрейфа P6 (42 строки KEEP-v1/N-A) — заморожённый легитимный residue, сверяться
-  с `findings/P6-drift-map.md`, не считать дефектом заново.
+- `plans/DOMLANG/workflow-P6.js` — untracked из P6-сеанса, всё ещё не закоммичен (вне Scope P8,
+  относится к терминальной P6). Не принимать за дефект своего шага.
+- Остаток грепа спек-дрейфа P6 (42 строки KEEP-v1/N-A) — замороженный легитимный residue
+  (`findings/P6-drift-map.md`), не дефект.
 
 **Workarounds/Deferred/Open questions:**
+- Workaround mermaid: `stateDiagram-v2` ломается на `Class::method()` — использовать `Class.method()`
+  (прецедент — Д1; применено и в `state-machines.md`).
 - Deferred: `docs-private/history/carryover-from-v1.md` §3/8 — вне Scope P6 (не rename).
 - Deferred (из P5): unique-индексы под естественные ключи `prc_financing`/`prc_items`/
   `prc_protocols`/`prc_awards` (класс D26, вне DOMLANG).
-- Open questions (`open-questions.md`): Q7/Q8 — `Exploration`, без изменений.
+- Open questions (`open-questions.md`): Q7/Q8 — `Exploration`, без изменений (P8.1 не задел).
