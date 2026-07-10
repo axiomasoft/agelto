@@ -100,7 +100,7 @@ Review-гейты (субагенты, read-only, вне матрицы моде
 
 | Phase | Title | Items 🟢/всего | Status |
 |:--|:--|:--|:--|
-| P1 | Решения, ADR, карта фактических имён | 1/3 | 🟡 In progress |
+| P1 | Решения, ADR, карта фактических имён | 2/3 | 🟡 In progress |
 | P2 | Сиды `prc_status_mappings` + аудит `ProcurementStatus` | 0/2 | ⬜ Not started |
 | P3 | Точечный семантический ренейм БД и кода | 0/3 | ⬜ Not started |
 | P4 | Provenance: тонкий срез по конфликтным полям | 0/2 | ⬜ Not started |
@@ -132,3 +132,4 @@ Review-гейты (субагенты, read-only, вне матрицы моде
 | 2026-07-10 | issue-planner/opus | План создан из черновика `plans/domlang-draft.md`; ACTIVE переключён EST-AI → DOMLANG (EST-AI терминален, `🟠 Done with deviations`) |
 | 2026-07-10 | issue-planner/opus | Добавлен `plans/DOMLANG/workflow.js` — per-plan runner с поимённым routing и phase-review веером; общий `estai-phase-runner.js` не переиспользован (хардкод `EST-AI`, лейны из `riskLevel`) |
 | 2026-07-10 | issue-planner/opus | D10: гейты пересобраны — owner-гейты P1.3/P2.1 сняты (Q3 противоречил D5; `Announced` → правило решения), единственный phase-гейт перенесён на границу после P3 |
+| 2026-07-10 | plan-exec/opus | P1.2 🟢 Done — ADR-0006/0007/0008 приняты, `architecture.md` получил ADR-индекс. Изоморфизм `prc_events`≈OCDS `releases` (immutable) верифицирован кодом до написания 0007 — эскалация не потребовалась. Все 4 Validation-проверки passed |

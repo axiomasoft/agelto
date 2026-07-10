@@ -52,6 +52,19 @@ status: draft
 worker-контейнере `horizon`; повтор job не должен дублировать Document/Analysis (idempotency-guard
 по статусу + lease, см. [`document-pipeline.md`](document-pipeline.md)).
 
+## Архитектурные решения (ADR)
+
+Несущие решения зафиксированы в [`adr/`](adr/); меняем договорённость — обновляем ADR, не код молча.
+
+- [`0001-prc-megadomain.md`](adr/0001-prc-megadomain.md) — таксономия `prc_`-мегадомена.
+- [`0002-prism-transport-facade.md`](adr/0002-prism-transport-facade.md) — Prism за фасадом `LlmProvider`.
+- [`0003-row-range-plus-windowed-fallback.md`](adr/0003-row-range-plus-windowed-fallback.md) — row-range + windowed fallback.
+- [`0004-jsonb-for-non-estimate-results.md`](adr/0004-jsonb-for-non-estimate-results.md) — результат не-смет в jsonb.
+- [`0005-protected-prompts.md`](adr/0005-protected-prompts.md) — `is_protected` промты read-only в админке.
+- [`0006-bounded-contexts-as-folders.md`](adr/0006-bounded-contexts-as-folders.md) — подомены выражаются папками, namespace-ренейм в bounded contexts отклонён.
+- [`0007-ocds-as-exchange-layer.md`](adr/0007-ocds-as-exchange-layer.md) — OCDS как exchange layer, не внутренняя схема.
+- [`0008-thin-provenance-slice.md`](adr/0008-thin-provenance-slice.md) — provenance тонким срезом по оспариваемым полям, не 5 уровней.
+
 ## Смежное
 
 - [`database.md`](database.md) — схема, FK, unique-инварианты.
