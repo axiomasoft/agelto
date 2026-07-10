@@ -35,4 +35,11 @@ return [
         ],
     ],
 
+    // Транспорт `App\Notifications\PipelineAlert` (P7.3) — v1-канон
+    // (`Old/app/Notifications/Channels/TelegramChannel.php`): не задано — алерт уходит в лог.
+    'telegram' => [
+        'bot_token' => env('TELEGRAM_BOT_TOKEN'),
+        'chat_id' => env('TELEGRAM_CHAT_ID'),
+    ],
+
 ];

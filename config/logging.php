@@ -1,5 +1,6 @@
 <?php
 
+use Monolog\Formatter\JsonFormatter;
 use Monolog\Handler\NullHandler;
 use Monolog\Handler\StreamHandler;
 use Monolog\Handler\SyslogUdpHandler;
@@ -102,6 +103,45 @@ return [
                 'stream' => 'php://stderr',
             ],
             'formatter' => env('LOG_STDERR_FORMATTER'),
+            'processors' => [PsrLogMessageProcessor::class],
+        ],
+
+        /*
+        |----------------------------------------------------------------------
+        | JSON-каналы (P7.5, D25, research/J §1: "monolog-канал + JsonFormatter")
+        |----------------------------------------------------------------------
+        |
+        | 'json' — стек file+stderr в JSON (Context::add()-поля вроде trace_id едут в extra
+        | автоматически через Laravel's ContextProcessor, без правки формата вручную).
+        | Не default-канал (LOG_CHANNEL не тронут) — включается явно `LOG_CHANNEL=json`
+        | (прод-Docker: stdout/stderr — 12-factor) без изменения текущего dev-поведения.
+        */
+
+        'json' => [
+            'driver' => 'stack',
+            'channels' => ['json_file', 'json_stderr'],
+            'ignore_exceptions' => false,
+        ],
+
+        'json_file' => [
+            'driver' => 'monolog',
+            'level' => env('LOG_LEVEL', 'debug'),
+            'handler' => StreamHandler::class,
+            'handler_with' => [
+                'stream' => storage_path('logs/laravel-json.log'),
+            ],
+            'formatter' => JsonFormatter::class,
+            'processors' => [PsrLogMessageProcessor::class],
+        ],
+
+        'json_stderr' => [
+            'driver' => 'monolog',
+            'level' => env('LOG_LEVEL', 'debug'),
+            'handler' => StreamHandler::class,
+            'handler_with' => [
+                'stream' => 'php://stderr',
+            ],
+            'formatter' => JsonFormatter::class,
             'processors' => [PsrLogMessageProcessor::class],
         ],
 

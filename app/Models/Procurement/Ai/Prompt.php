@@ -26,6 +26,7 @@ final class Prompt extends Model
         'version',
         'priority',
         'is_active',
+        'is_protected',
     ];
 
     protected function casts(): array
@@ -34,6 +35,7 @@ final class Prompt extends Model
             'version' => 'integer',
             'priority' => 'integer',
             'is_active' => 'boolean',
+            'is_protected' => 'boolean',
         ];
     }
 }

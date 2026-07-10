@@ -6,6 +6,7 @@ namespace Database\Factories\Procurement\Ai;
 
 use App\Enums\Procurement\AnalysisStatus;
 use App\Enums\Procurement\AnalysisStep;
+use App\Enums\Procurement\ReviewStatus;
 use App\Models\Procurement\Ai\Analysis;
 use App\Models\Procurement\Document\DocumentVersion;
 use Illuminate\Database\Eloquent\Factories\Factory;
@@ -40,6 +41,13 @@ final class AnalysisFactory extends Factory
             'cache_expires_at' => null,
             'rules_hash' => null,
             'progress' => null,
+            'review_status' => ReviewStatus::Unreviewed,
+            'reviewed_by' => null,
+            'reviewed_at' => null,
+            'operator_comment' => null,
+            'parent_analysis_id' => null,
+            'superseded_at' => null,
+            'is_shadow' => false,
         ];
     }
 }

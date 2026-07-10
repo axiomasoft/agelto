@@ -2,11 +2,11 @@
   "schema": 1,
   "packs": {
     "backend-laravel": {
-      "version": "0.13.0",
+      "version": "0.12.0",
       "source": "harness:configs/claude-code/agent-packs/backend-laravel",
       "answers": {
         "PACK_PREFIX": "agelto",
-        "PROJECT_SUBDIR": "",
+        "PROJECT_DIR": "/home/vostrikov/projects/agelto/agelto",
         "PHP_RUNNER": "docker compose exec app php",
         "TEST_FRAMEWORK": "pest",
         "TEST_RUNNER_CMD": "docker compose exec app php artisan test",
@@ -31,109 +31,97 @@
           "src": "agents/slice-builder.md",
           "target": ".claude/agents/agelto-slice-builder.md",
           "kind": "template",
-          "base_sha256": "726382a4bf29acc1b6305bbbc12d6ce18b16437bdcec3b9b829d562dbaf208bd",
+          "base_sha256": "e69dfe9eb2fee0351ca7507a2c1f552ed5f25ce7b4244e54678e8124a19bafe0",
           "local_modified": false,
-          "user_owned": false,
-          "preserve_frontmatter": false
+          "user_owned": false
         },
         {
           "src": "agents/test-writer.md",
           "target": ".claude/agents/agelto-test-writer.md",
           "kind": "template",
-          "base_sha256": "3c28283e4f23cea3ec6721fd434ddb55d49dd258c25b2c2da833ea152140d370",
+          "base_sha256": "8f4cbc9a32502455c19304d4598095204cf05e5aabd80d002540ae778227456c",
           "local_modified": false,
-          "user_owned": false,
-          "preserve_frontmatter": false
+          "user_owned": false
         },
         {
           "src": "agents/reviewer.md",
           "target": ".claude/agents/agelto-reviewer.md",
           "kind": "template",
-          "base_sha256": "9b54e24b38b3ca794b3f9419d0ac10a33d49c9575a2b4f9f50c4052e557177e1",
+          "base_sha256": "4ba4e6d27a5595d218d86354e4d9bd1d0318d4b582605bf90cb2d9ccfe11697b",
           "local_modified": false,
-          "user_owned": false,
-          "preserve_frontmatter": false
+          "user_owned": false
         },
         {
           "src": "agents/spec-writer.md",
           "target": ".claude/agents/agelto-spec-writer.md",
           "kind": "template",
-          "base_sha256": "d486dca82217c3eb69e09156bec61f4b15269690de40de3cd90dc8c1307bef1b",
+          "base_sha256": "6d0be4db52aa7543371fec1fc9384bd4b26a3cbb4ebf27b81326d6e25ffb6e5e",
           "local_modified": false,
-          "user_owned": false,
-          "preserve_frontmatter": false
+          "user_owned": false
         },
         {
           "src": "agents/route-mapper.md",
           "target": ".claude/agents/agelto-route-mapper.md",
           "kind": "template",
-          "base_sha256": "e110b054663c22da18f8fdf15504c957cff895a12d228cb9631940c4b4547928",
+          "base_sha256": "4e94a5bd1fb325e90365b5c96a8a5cb0696528fad180c326f7dc160536e58ea0",
           "local_modified": false,
-          "user_owned": false,
-          "preserve_frontmatter": false
+          "user_owned": false
         },
         {
           "src": "agents/db-impact.md",
           "target": ".claude/agents/agelto-db-impact.md",
           "kind": "template",
-          "base_sha256": "c6708b543f5a1c5e8a70ced72f6633f7bf1b2f2b76e576388391fdbcc15e79d4",
+          "base_sha256": "f5932e09b2fd5e16a6118d5f75f320117368938713691908680324cc30db5e17",
           "local_modified": false,
-          "user_owned": false,
-          "preserve_frontmatter": false
+          "user_owned": false
         },
         {
           "src": "agents/blade-review.md",
           "target": ".claude/agents/agelto-blade-review.md",
           "kind": "template",
-          "base_sha256": "4a15d7464698ee846af27897d5eb45002f1cee298c0c6eb654ab9f77a1907058",
+          "base_sha256": "f8d693016334deed28887e669d7f7b17c458bd940e272563c8f2bb149501edac",
           "local_modified": false,
-          "user_owned": false,
-          "preserve_frontmatter": false
+          "user_owned": false
         },
         {
           "src": "agents/test-verifier.md",
           "target": ".claude/agents/agelto-test-verifier.md",
           "kind": "template",
-          "base_sha256": "7b62f65b1ed9ce7f4a86419d76a486b1cfa6282e314ea7ae32f2c07d398ff4b3",
+          "base_sha256": "fb2c57ed42ffc18fe57c18fc721a5f31d678a1248c9b21f409f8c7669aa4382f",
           "local_modified": false,
-          "user_owned": false,
-          "preserve_frontmatter": false
+          "user_owned": false
         },
         {
           "src": "agents/security-review.md",
           "target": ".claude/agents/agelto-security-review.md",
           "kind": "template",
-          "base_sha256": "e7ff0726deba7ccdad1a47cb6eb8aacf56614f20618b26f51398d9cc7a7a880a",
+          "base_sha256": "dcdd56755530d1c7bc24e497517dfaa0462c9709b8e34d859d85a72c8aa3955a",
           "local_modified": false,
-          "user_owned": false,
-          "preserve_frontmatter": false
+          "user_owned": false
         },
         {
           "src": "workflows/dev-loop.js",
           "target": ".claude/workflows/agelto-dev-loop.js",
           "kind": "template",
-          "base_sha256": "d604fbc5eb7e04b886259789ec3ed3005ae9e4ea6f3f519ad36f69547d971649",
+          "base_sha256": "9aca0a820fa9b20ad90979bf958281992f30bdd5478f9c3bde43b0e06fe5ddc7",
           "local_modified": false,
-          "user_owned": false,
-          "preserve_frontmatter": false
+          "user_owned": false
         },
         {
           "src": "hooks/review-gate.sh",
           "target": ".claude/hooks/review-gate.sh",
           "kind": "verbatim",
-          "base_sha256": "8623cf889beb53be579080ee4cbadb1e029cc60f635176fd651375a12969f742",
+          "base_sha256": "cf24320512d7d6ed20a34e167c6464f30d7ce83a9200f8f8a58ecc16d9a323ec",
           "local_modified": false,
-          "user_owned": false,
-          "preserve_frontmatter": false
+          "user_owned": false
         },
         {
           "src": "hooks/review-gate.env.ini",
           "target": ".claude/review-gate.env.ini",
           "kind": "template",
-          "base_sha256": "256975d9431a6dc2013b3bee4e396dca6f00a65029a61cb23afc850041492877",
+          "base_sha256": "dde364e4d5c946b8b759b904148f80950bde08acbc5bb54ce3a63b316f3603ae",
           "local_modified": false,
-          "user_owned": true,
-          "preserve_frontmatter": false
+          "user_owned": true
         },
         {
           "src": "settings/settings.fragment.json",
@@ -147,73 +135,68 @@
           "src": "docs/subagents-and-workflows.md",
           "target": "docs/dev/subagents-and-workflows.md",
           "kind": "template",
-          "base_sha256": "4eeb9d14378d18839909d9de94911784ab149e62c4177022db0b227d00ce5425",
+          "base_sha256": "7fe14983dba504e98cb8b0ceec8c601db62f0838296fb749a3f3e0609d704518",
           "local_modified": false,
-          "user_owned": false,
-          "preserve_frontmatter": true
+          "user_owned": false
         },
         {
           "src": "rules/api-controllers.md",
           "target": ".claude/rules/api-controllers.md",
           "kind": "verbatim",
-          "base_sha256": "ef757ff5ba045c0d025e28e17fa9d8c38e91dff1b4ebe0f9f19a8d9bf2031fde",
+          "base_sha256": "f4f3bc4330f01f2933e7832b47bd8a146410e5c43bd503004be146c3e19953e7",
           "local_modified": false,
-          "user_owned": false,
-          "preserve_frontmatter": false
+          "user_owned": false
         },
         {
           "src": "rules/migrations.md",
           "target": ".claude/rules/migrations.md",
           "kind": "verbatim",
-          "base_sha256": "e5c4411b21e58a99303952d3e110a98fbc828aad786d5af49b9d693272369e33",
+          "base_sha256": "fa5191f15288611f09753f62f4131be15fa831fab7a9e53267e24840c659dad3",
           "local_modified": false,
-          "user_owned": false,
-          "preserve_frontmatter": false
+          "user_owned": false
         },
         {
           "src": "rules/tests.md",
           "target": ".claude/rules/tests.md",
           "kind": "template",
-          "base_sha256": "ae8046e78130112422bf2a15bc1186f10afe1593a9fde4d9487e311406d16657",
+          "base_sha256": "0a3dc845eac048532b4ee30380e1885afc81e0e603085db4eb08af2cadadb4c0",
           "local_modified": false,
-          "user_owned": false,
-          "preserve_frontmatter": false
+          "user_owned": false
         },
         {
           "src": "rules/reviewer-overrides.md",
           "target": ".claude/rules/agelto-reviewer-overrides.md",
           "kind": "template",
-          "base_sha256": "83e4a71a15be32d3e9d26fbf4b679ca960f34d651f50845af3390adf20e0dceb",
+          "base_sha256": "4bfc818f6e7c3d39f329de9a9eea073a67d730925ec5aa3ee396c9acd4bbaa18",
           "local_modified": false,
-          "user_owned": true,
-          "preserve_frontmatter": false
+          "user_owned": true
+        }
+      ],
+      "removed_optional": []
+    },
+    "_common": {
+      "version": "0.4.0",
+      "source": "harness:configs/claude-code/agent-packs/_common",
+      "answers": {
+        "PACK_PREFIX": "agelto",
+        "MODEL_ORCHESTRATOR": "opus"
+      },
+      "files": [
+        {
+          "src": "agents/orchestrator.md",
+          "target": ".claude/agents/agelto-orchestrator.md",
+          "kind": "template",
+          "base_sha256": "1c2e373354d36eaa516bdd17b327b08b48a376da041a469502fbae2d03e07754",
+          "local_modified": false,
+          "user_owned": false
         },
         {
-          "src": "commands/code-review.md",
-          "target": ".claude/commands/code-review.md",
-          "kind": "template",
-          "base_sha256": "41d0f81bcc38105393832edf418b0e3a53bea52c319f7c6204377ba563141a47",
+          "src": "rules/generated-assets.md",
+          "target": ".claude/rules/generated-assets.md",
+          "kind": "verbatim",
+          "base_sha256": "cd0db4f3c999e659a179a770d98e8a26693c00701dee4b74dfd47520870eaca2",
           "local_modified": false,
-          "user_owned": false,
-          "preserve_frontmatter": false
-        },
-        {
-          "src": "commands/test-gen.md",
-          "target": ".claude/commands/test-gen.md",
-          "kind": "template",
-          "base_sha256": "696fe446cbe7244ab3859dc983a5bdd1b80e6c19e4548b419051dbecb4abb3ce",
-          "local_modified": false,
-          "user_owned": false,
-          "preserve_frontmatter": false
-        },
-        {
-          "src": "commands/security-check.md",
-          "target": ".claude/commands/security-check.md",
-          "kind": "template",
-          "base_sha256": "adde4933d1f488da91a49176d6870d1b1f5aabf33252e25d7a6f2408ab0acd8b",
-          "local_modified": false,
-          "user_owned": false,
-          "preserve_frontmatter": false
+          "user_owned": false
         }
       ],
       "removed_optional": []

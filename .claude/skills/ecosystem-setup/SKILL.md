@@ -48,5 +48,5 @@ description: Как настраивать/перенастраивать ЭТО
 
 ## Связи проекта
 
-- namespaces: `axioma` · scope: `project:agelto` · связан с: tcenzor.
+- namespaces: `axioma` · scope: `project:agelto` · связан с: azguard, pickstat, tcenzor.
 - актуальные связи: `maind graph --project agelto`.

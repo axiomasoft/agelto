@@ -29,12 +29,13 @@ skills:
   - dependency-injection
   - laravel-security-audit
   - code-style-spatie
+  - laravel
 model: opus
 color: yellow
 ---
 <!-- swissknifeman:generated
 Generated-by: harness agent-packs
-Pack: backend-laravel@0.13.0
+Pack: backend-laravel@0.12.0
 Template: agents/reviewer.md
 Edit-policy: generated-core — НЕ редактируй; расширяй через extension-point
 Extension-points: .claude/rules/agelto-reviewer-overrides.md
@@ -47,7 +48,7 @@ Upgrade: harness agent-packs upgrade --pack backend-laravel --target .
 git diff/log).
 
 Если поле `skills:` не подгрузило скиллы — загрузи сам: `php:repositories`,
-`php:laravel-structure`, `php:laravel-security-audit`.
+`php:laravel-structure`, `php:laravel-security-audit`, `php:laravel`.
 
 <!-- shared:risk-adaptive -->
 ## Risk-адаптивность и принцип репорта
@@ -88,7 +89,10 @@ git diff/log).
 - **Валидация**: вход через FormRequest/DTO, нет доверия сырому `request()->input()`.
 - **Авторизация**: на новые действия есть policy/gate и она реально вызывается;
   маршруты под нужным middleware.
-- **Миграции vs модели**: новое поле в `$fillable`/casts БЕЗ сопровождающей миграции — подозрительно (established-схема эволюционирует обычными миграциями, «established» ≠ «схема заморожена»); проверь, что миграция для нового поля реально есть.
+- **Миграции vs модели**: новые поля в `$fillable`/casts (новые миграции в agelto не предполагаются — проверь, что их и нет).
+- **Модели — конвенции реестра**: `#[Table(name: '...')]` — явное имя таблицы (не свойство
+  `$table`), `#[ObservedBy]` при наличии Observer, `$fillable` — явный protected-список;
+  канон — скилл `php:laravel` → `snippets/eloquent-model.md`.
 - **Транзакции**: множественные записи под транзакцией; события/джобы ПОСЛЕ коммита
   (after-commit listener / `dispatchAfterCommit`), не внутри транзакции.
 <!-- shared:config-honesty -->

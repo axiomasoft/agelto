@@ -71,6 +71,7 @@ prod\:composer-install: prod-composer-install
 prod\:clear-cache: prod-clear-cache
 prod\:restart-services: prod-restart-services
 prod\:workers\:restart: prod-workers-restart
+prod\:deploy: prod-deploy
 prod\:deploy\:code: prod-deploy-code
 prod\:deploy\:php-deps: prod-deploy-php-deps
 prod\:deploy\:runtime: prod-deploy-runtime
@@ -79,18 +80,20 @@ prod\:test-php: ENV=prod
 prod\:test-php: test-php
 prod\:db\:create-test: ENV=prod
 prod\:db\:create-test: db\:create-test
+prod\:db\:backup: ENV=prod
+prod\:db\:backup: db\:backup
 prod\:doctor: prod-doctor
 
 ##@ Общие
 
 .PHONY: help up down build restart ps logs logs\:core
 .PHONY: shell artisan composer image
-.PHONY: db-migrate db-fresh db-seed db\:create-test
+.PHONY: db-migrate db-fresh db-seed db\:create-test db\:backup
 .PHONY: test-preflight test-php
 .PHONY: composer-install clear-cache
 .PHONY: prod-pre-clean prod-image prod-composer-install prod-config-cache prod-clear-cache
 .PHONY: prod-restart-services prod-workers-restart
-.PHONY: prod-deploy-code prod-deploy-php-deps prod-deploy-runtime prod-deploy-image
+.PHONY: prod-deploy prod-deploy-code prod-deploy-php-deps prod-deploy-runtime prod-deploy-image
 .PHONY: prod-doctor
 
 help:
@@ -104,6 +107,7 @@ help:
 	@echo "  make artisan ARGS=\"migrate\" | composer"
 	@echo "  make image — собрать образ agelto/app:latest"
 	@echo "  make db-migrate | db-fresh | db-seed | db:create-test"
+	@echo "  make db:backup [ENV=prod] — pg_dump + restore-check на scratch-БД (P7.7)"
 	@echo "  make test-preflight | test-php"
 	@echo ""
 	@echo "##@ Dev (ENV=dev)"
@@ -112,6 +116,7 @@ help:
 	@echo ""
 	@echo "##@ Production (ENV=prod или цели prod:*)"
 	@echo "  make up ENV=prod | migrate ENV=prod"
+	@echo "  make prod:deploy          — канон-деплой с живыми очередями (pull→[COLD=1: pause]→migrate→terminate→up→status)"
 	@echo "  make prod:deploy:code     — обычное обновление кода"
 	@echo "  make prod:deploy:runtime  — полный деплой (deps + миграции)"
 	@echo "  make prod:deploy:image    — пересборка image + runtime"
@@ -163,6 +168,13 @@ db-seed:
 
 db\:create-test:
 	bash $(ROOT_DIR)/docker/postgres/create-agelto-test-db.sh $(if $(filter prod,$(ENV)),prod,dev)
+
+# pg_dump + ОБЯЗАТЕЛЬНАЯ проверка restore на одноразовую scratch-БД (P7.7, D33) — бэкап
+# без проверенного restore не считается сделанным (Implementation Rules). Дамп остаётся
+# на bind-mount `storage/backups` (виден на хосте); off-host копирование/ротация/cron-
+# расписание — Scope Excluded (инфра-решение владельца).
+db\:backup:
+	bash $(ROOT_DIR)/docker/postgres/backup-and-verify.sh $(if $(filter prod,$(ENV)),prod,dev)
 
 test-preflight:
 	$(COMPOSE) ps
@@ -225,6 +237,35 @@ prod-workers-restart: ENV=prod
 prod-workers-restart:
 	$(call require-prod-config)
 	$(COMPOSE_PROD) restart horizon scheduler
+
+# --- Деплой-канон с живыми очередями (D26, plans/EST-AI/plan.md; research/J §2) ---
+# pull → [COLD=1: horizon:pause, для рискованных деплоев — пауза → дренаж → накат] →
+# migrate --force (ТОЛЬКО аддитивные миграции; деструктивные — отдельным деплоем,
+# expand/contract) → horizon:terminate (graceful — текущие jobs доделываются, НЕ down) →
+# up -d (пересоздаёт контейнеры на новом коде) → horizon:status (+ horizon:continue при COLD=1).
+# Полный runbook: docs/03_Dev/process/deploy.md (P10.3).
+prod-deploy: ENV=prod
+prod-deploy:
+	$(call require-prod-config)
+	@echo "prod: deploy (COLD=$(COLD))"
+	@echo "prod: pull image"
+	$(COMPOSE_PROD) pull app horizon scheduler
+	@if [ "$(COLD)" = "1" ]; then \
+		echo "prod: COLD — horizon:pause (пауза перед рискованным деплоем)"; \
+		$(PROD_EXEC) php artisan horizon:pause; \
+	fi
+	@echo "prod: migrate --force (только аддитивные миграции!)"
+	$(PROD_EXEC) php artisan migrate --force
+	@echo "prod: horizon:terminate (graceful — текущие jobs доделываются)"
+	$(PROD_EXEC) php artisan horizon:terminate
+	@echo "prod: up -d (пересоздаёт контейнеры на новом коде)"
+	$(COMPOSE_PROD) up -d
+	@if [ "$(COLD)" = "1" ]; then \
+		echo "prod: COLD — horizon:continue"; \
+		$(PROD_EXEC) php artisan horizon:continue; \
+	fi
+	@echo "prod: horizon:status"
+	$(PROD_EXEC) php artisan horizon:status
 
 prod-deploy-code: ENV=prod
 prod-deploy-code:

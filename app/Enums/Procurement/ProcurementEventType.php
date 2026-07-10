@@ -24,4 +24,18 @@ enum ProcurementEventType: string
     case Restored = 'restored';
     case AwardMade = 'award_made';
     case Ignored = 'ignored';
+
+    /**
+     * Скрининг документа доведён до ветвления (P5.2, ТЗ 03 §3.4/D36): `entityRef` содержит
+     * `document_id`+`analysis_id`, `newValue` — исход (`estimate`/`screened`/`ignored`/
+     * `needs_review`), `payload` — `document_type`/`confidence`/причина.
+     */
+    case DocumentScreened = 'document_screened';
+
+    /**
+     * Смета персистирована в `prc_estimate_*` (P6.3, ТЗ 03 §3.5 п.5): `entityRef` содержит
+     * `document_id`+`estimate_id`, `newValue` — `validation_status`, `payload` — `ordinal`/
+     * `rows_extracted`.
+     */
+    case EstimateExtracted = 'estimate_extracted';
 }

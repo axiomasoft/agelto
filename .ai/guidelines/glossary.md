@@ -18,6 +18,17 @@
 - `Estimate` → `$estimate` — распарсенная смета (DTO); `Smeta`/«Смета» в идентификаторах не используем.
 - `Lot` / `PurchaseItem` (`prc_items`, не путать с `Estimate\Item`/`prc_estimate_items` — позицией сметы) — лот / позиция объекта закупки.
 
+### AI-подомен (`App\Models\Procurement\Ai\*`, `App\Services\Llm\*`)
+
+- `Ai\Analysis` → `$analysis` — сессия AI-анализа версии документа (`AnalysisStep::Screening|Extraction`); повторный прогон — `parent_analysis_id`, shadow-прогон — `is_shadow` (D24).
+- `Ai\Prompt` → `$prompt` — версия системной инструкции (`prc_ai_prompts`, `key`+`version` unique). Канон — файл `resources/ai/prompts/**` → `ai:prompts:sync` (сид/upsert). `is_protected` — сидовые записи read-only в админке (D17/D44); операторские правки — только новые не-protected записи.
+- `Ai\Correction` → `$correction` — операторская правка результата анализа: JSONPath + `CorrectionReason` + свободный комментарий; `is_reusable=true` — применяется ко ВСЕМ документам того же `document_type` при повторном прогоне (`CorrectionAwareComposer`, D15).
+- `Ai\DatasetExample` → `$example` — immutable gold-снапшот обучающего контура (`prc_ai_dataset_examples`); единственный автор новых строк — `GoldExampleRecorder` при `review_status=approved` (D15/P9.2).
+- `PromptStep` (enum) — шаг композиции системной инструкции (`global`/`screening:*`/`extraction:*`, включая `extraction:discovery`, D37) — не путать с `AnalysisStep` (шаг АНАЛИЗА, screening/extraction) или `LlmPurpose` (назначение конкретного вызова: `screening`/`discovery`/`extract_passport`/`extract_rows`/`extract_totals`/`eval`/`shadow`).
+- `DocumentStatus::Unprocessable` + `UnprocessableReason` → терминальный исход «не можем обработать» (лимит провайдера/формат/пароль/zip-бомба) — константация, не сбой, не ретраится (D32/D38).
+- `DiscoveryResponse`/`DiscoveryMarker` (`App\Dto\Procurement\Ai\Estimate\*`) — паспорт границ смет оконного пути извлечения: LLM размечает страницы окна маркерами (`estimate_start`/`continuation`/`estimate_end`), бэкенд ДЕТЕРМИНИРОВАННО (не LLM) склеивает их в сегменты `{estimate_ordinal, page_start, page_end}` (D30/D37).
+- `ExtractionRoute` (не backed enum, `Whole`/`Windowed`) — путь извлечения, выбранный `ExtractionPreflight` до первого upload по capability-матрице маршрута (D29).
+
 В UI и комментариях допустим бизнес-язык («извещение», «вложение», «смета»); в идентификаторах — технический канон.
 
 ## Глаголы методов

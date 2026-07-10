@@ -1,3 +1,5 @@
+FROM minio/mc:latest AS mc
+
 FROM serversideup/php:8.4-fpm-nginx
 
 USER root
@@ -9,9 +11,19 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
     libicu-dev \
     libpq-dev \
+    qpdf \
     && docker-php-ext-install intl bcmath pdo_pgsql pgsql \
     && if ! php -m | grep -qi '^redis$'; then pecl install redis && docker-php-ext-enable redis; fi \
+    && if ! php -m | grep -qi '^gd$'; then install-php-extensions gd; fi \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
+
+# MinIO Client (mc) — S3/MinIO ILM bucket lifecycle rules (P7.7, `ai:storage:lifecycle`);
+# нет composer-пакета в проекте под S3 API (aws-sdk-php не установлен) — Code Guidance
+# item'а прямо допускает "mc в отдельном init-контейнере" как альтернативу S3 SDK.
+# Копируем бинарник из официального образа вместо `curl`-скачивания релиза с GitHub —
+# в некоторых сетевых окружениях (в т.ч. sandboxed CI) `objects.githubusercontent.com`
+# недоступен, тогда как обычный `docker pull minio/mc` проходит через реестр Docker Hub.
+COPY --from=mc /usr/bin/mc /usr/local/bin/mc
 
 WORKDIR /var/www/html
 

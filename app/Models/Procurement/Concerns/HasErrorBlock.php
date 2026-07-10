@@ -1,0 +1,33 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Models\Procurement\Concerns;
+
+/**
+ * Единая формула backoff/попыток error-блока (`attempts`/`last_error`/`last_error_at`/
+ * `next_retry_at`/`failed_permanently`) — единственная реализация, переиспользуемая
+ * `Document` и `Ai\Analysis`, чтобы не плодить разнобой формул по job'ам (v1-урок,
+ * research/A §Слабые). Экспоненциальный backoff с потолком (P4.1 Code Guidance):
+ * `min(2 ** attempts, config('ai.retry.max_backoff_minutes'))` минут; окончательный провал —
+ * `attempts >= config('ai.retry.max_attempts')`. Смена доменного статуса (`failed`/…) —
+ * ответственность вызывающего job'а, эта черта только про счётчик попыток и retry-окно.
+ */
+trait HasErrorBlock
+{
+    public function recordFailure(string $message): void
+    {
+        $attempts = $this->attempts + 1;
+        $maxAttempts = (int) config('ai.retry.max_attempts', 5);
+        $isPermanent = $attempts >= $maxAttempts;
+        $backoffMinutes = min(2 ** $attempts, (int) config('ai.retry.max_backoff_minutes', 240));
+
+        $this->forceFill([
+            'attempts' => $attempts,
+            'last_error' => $message,
+            'last_error_at' => now(),
+            'next_retry_at' => $isPermanent ? null : now()->addMinutes($backoffMinutes),
+            'failed_permanently' => $isPermanent,
+        ])->save();
+    }
+}

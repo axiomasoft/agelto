@@ -1,0 +1,159 @@
+<?php
+
+declare(strict_types=1);
+
+use App\Enums\Procurement\AnalysisStatus;
+use App\Enums\Procurement\AnalysisStep;
+use App\Enums\Procurement\FinishReason;
+use App\Enums\Procurement\LlmPurpose;
+use App\Jobs\Procurement\ShadowAnalysisJob;
+use App\Models\Procurement\Ai\AiRoute;
+use App\Models\Procurement\Ai\Analysis;
+use App\Models\Procurement\Ai\LlmCall;
+use App\Models\Procurement\Ai\Provider;
+use App\Repositories\Procurement\AnalysisStoreRepository;
+use App\Services\Llm\AiRouteResolver;
+use App\Services\Llm\Dto\JsonSchema;
+use App\Services\Llm\Dto\LlmFileHandle;
+use App\Services\Llm\Dto\LlmPrompt;
+use App\Services\Llm\Dto\LlmStructuredResponse;
+use App\Services\Llm\Dto\LlmUsage;
+use App\Services\Llm\LlmCallRecorder;
+use App\Services\Llm\Providers\OpenAiCompatibleProvider;
+use App\Services\Llm\ShadowDispatch;
+use App\Services\Procurement\Extraction\EvalMetrics;
+use Carbon\CarbonImmutable;
+use Illuminate\Support\Facades\Queue;
+use Illuminate\Support\Facades\Storage;
+use Tests\Support\Doubles\FakeLlmProvider;
+
+function runShadowJob(ShadowAnalysisJob $job): void
+{
+    $job->handle(app(AiRouteResolver::class), app(AnalysisStoreRepository::class), app(LlmCallRecorder::class), app(EvalMetrics::class));
+}
+
+function seedShadowRoute(string $documentType, LlmPurpose $purpose): AiRoute
+{
+    $provider = Provider::factory()->create(['driver' => 'openai_compatible', 'base_url' => 'http://vllm.internal:8000/v1']);
+
+    return AiRoute::factory()->create([
+        'document_type' => $documentType,
+        'purpose' => $purpose,
+        'provider_id' => $provider->id,
+        'model' => 'Qwen3-4B-Instruct',
+        'priority' => 0,
+        'shadow' => true,
+    ]);
+}
+
+test('afterCall() диспатчит ShadowAnalysisJob на очередь ai_shadow, когда есть активный теневой маршрут', function (): void {
+    Queue::fake();
+    seedShadowRoute('estimate', LlmPurpose::ExtractRows);
+
+    $analysis = Analysis::factory()->create(['step' => AnalysisStep::Extraction, 'document_type' => 'estimate']);
+    $prompt = new LlmPrompt(systemPart: 'система', userParts: ['строки 1-40']);
+    $schema = new JsonSchema(['type' => 'object']);
+
+    app(ShadowDispatch::class)->afterCall($analysis, LlmPurpose::ExtractRows, 'estimate', $prompt, $schema);
+
+    Queue::assertPushedOn('ai_shadow', ShadowAnalysisJob::class, function (ShadowAnalysisJob $job) use ($analysis): bool {
+        return $job->primaryAnalysisId === $analysis->id
+            && $job->purpose === LlmPurpose::ExtractRows->value
+            && $job->documentType === 'estimate'
+            && $job->systemPart === 'система';
+    });
+});
+
+test('afterCall() ничего не диспатчит, если для (document_type, purpose) нет теневого маршрута', function (): void {
+    Queue::fake();
+
+    $analysis = Analysis::factory()->create();
+
+    app(ShadowDispatch::class)->afterCall($analysis, LlmPurpose::Screening, 'any', new LlmPrompt(systemPart: 's'), null);
+
+    Queue::assertNothingPushed();
+});
+
+test('afterCall() пропускает вызовы с fileRefs — Files API не дублируется', function (): void {
+    Queue::fake();
+    seedShadowRoute('any', LlmPurpose::Screening);
+
+    $analysis = Analysis::factory()->create();
+    $prompt = new LlmPrompt(
+        systemPart: 's',
+        fileRefs: [new LlmFileHandle(uri: 'files/x', expiresAt: CarbonImmutable::now()->addDay())],
+    );
+
+    app(ShadowDispatch::class)->afterCall($analysis, LlmPurpose::Screening, 'any', $prompt, null);
+
+    Queue::assertNothingPushed();
+});
+
+test('ShadowAnalysisJob создаёт is_shadow-анализ, пишет LlmCall(purpose=shadow) и считает сравнение с основным', function (): void {
+    Storage::fake('s3'); // LlmCallRecorder пишет сырой request/response на config('crawler.raw_disk')='s3'.
+    $route = seedShadowRoute('estimate', LlmPurpose::ExtractRows);
+
+    $primary = Analysis::factory()->create([
+        'step' => AnalysisStep::Extraction,
+        'document_type' => 'estimate',
+        'status' => AnalysisStatus::Succeeded,
+        'result' => ['estimates' => [['rows' => [['row_index' => 1, 'row_type' => 'line_item', 'name' => 'Кирпич', 'quantity' => '10', 'total_price' => '100.00']]]]],
+    ]);
+
+    $shadowOutput = ['estimates' => [['rows' => [['row_index' => 1, 'row_type' => 'line_item', 'name' => 'Кирпич', 'quantity' => '10', 'total_price' => '100.00']]]]];
+
+    $fake = FakeLlmProvider::succeeding(new LlmStructuredResponse(
+        data: $shadowOutput,
+        usage: new LlmUsage(promptTokens: 50, completionTokens: 10, cachedTokens: 0, totalTokens: 60),
+        finishReason: FinishReason::Stop,
+        raw: json_encode($shadowOutput, JSON_THROW_ON_ERROR),
+    ));
+    app()->instance(OpenAiCompatibleProvider::class, $fake);
+
+    $job = new ShadowAnalysisJob(
+        primaryAnalysisId: $primary->id,
+        purpose: LlmPurpose::ExtractRows->value,
+        documentType: 'estimate',
+        systemPart: 'система',
+        userParts: ['строки 1-40'],
+        schema: ['type' => 'object'],
+    );
+
+    runShadowJob($job);
+
+    $shadow = Analysis::query()->where('is_shadow', true)->where('document_version_id', $primary->document_version_id)->sole();
+
+    expect($shadow->status)->toBe(AnalysisStatus::Succeeded)
+        ->and($shadow->provider)->toBe($route->provider->code)
+        ->and((float) $shadow->result['comparison']['overall']['f1'])->toBe(1.0);
+
+    $call = LlmCall::query()->where('analysis_id', $shadow->id)->sole();
+    expect($call->purpose)->toBe(LlmPurpose::Shadow)
+        ->and($call->success)->toBeTrue();
+});
+
+test('ShadowAnalysisJob глотает исключение провайдера — боевой путь не затронут, ошибка только в shadow-анализе', function (): void {
+    Storage::fake('s3');
+    seedShadowRoute('any', LlmPurpose::Screening);
+
+    $primary = Analysis::factory()->create(['step' => AnalysisStep::Screening]);
+
+    $fake = FakeLlmProvider::throwing(new RuntimeException('vLLM недоступен'));
+    app()->instance(OpenAiCompatibleProvider::class, $fake);
+
+    $job = new ShadowAnalysisJob(
+        primaryAnalysisId: $primary->id,
+        purpose: LlmPurpose::Screening->value,
+        documentType: 'any',
+        systemPart: 'система',
+        userParts: [],
+        schema: null,
+    );
+
+    // handle() не должен пробрасывать исключение — Implementation Rules P9.4.
+    runShadowJob($job);
+
+    $shadow = Analysis::query()->where('is_shadow', true)->sole();
+    expect($shadow->status)->toBe(AnalysisStatus::Failed)
+        ->and($shadow->last_error)->toContain('vLLM недоступен');
+});

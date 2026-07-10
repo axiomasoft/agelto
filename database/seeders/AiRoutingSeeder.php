@@ -1,0 +1,103 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Database\Seeders;
+
+use App\Enums\Procurement\AiDocumentType;
+use App\Enums\Procurement\LlmPurpose;
+use App\Models\Procurement\Ai\AiRoute;
+use App\Models\Procurement\Ai\Provider;
+use Illuminate\Database\Seeder;
+
+/**
+ * Стартовая матрица роутинга (ТЗ 04 §3.1, D4/D27/D37): провайдер `gemini` + 10 строк
+ * `prc_ai_routes` — 5 основных (`priority=0`, дешёвая 2.5-модель на каждый purpose) + 5
+ * эскалационных (`priority=1`, `gemini-2.5-pro`, D4 «эскалация по флагу сложности/провалу
+ * валидации»).
+ *
+ * Driver провайдера — `gemini` (не буквальное «prism-gemini» из прозы Intent этого item'а):
+ * `AiRouteResolver::providerFor()`/`AiRouteFactory` уже закрепили `driver === 'gemini'` как
+ * код-контракт (P3.3) — сид с «prism-gemini» ломал бы резолв (`RuntimeException` «Неизвестный
+ * драйвер провайдера»). Prism — библиотека ТРАНСПОРТА за адаптером, не значение поля `driver`.
+ *
+ * Идемпотентен: `updateOrCreate` по `code` (провайдер) и по `(document_type, purpose, priority)`
+ * (маршрут — тот же составной ключ, что `unique()` в миграции `2026_07_04_100028`) — повторный
+ * `db:seed` не плодит дублей, только освежает `provider_id`/`model`/`is_active`/`shadow`.
+ *
+ * Миграция на 3.x-преемников (D27, EOL линейки 2.5 = 2026-10-16): раскомментировать `model`
+ * у нужной строки ниже (значение из `config('ai.capabilities')`, где преемники уже
+ * задокументированы закомментированными записями) — резолвер/схема не меняются, меняются
+ * только данные строк.
+ */
+final class AiRoutingSeeder extends Seeder
+{
+    public function run(): void
+    {
+        $provider = Provider::query()->updateOrCreate(
+            ['code' => 'gemini'],
+            [
+                'driver' => 'gemini',
+                'base_url' => null,
+                'options' => null,
+                'is_active' => true,
+            ],
+        );
+
+        foreach ($this->routes() as $route) {
+            AiRoute::query()->updateOrCreate(
+                [
+                    'document_type' => $route['document_type'],
+                    'purpose' => $route['purpose'],
+                    'priority' => $route['priority'],
+                ],
+                [
+                    'provider_id' => $provider->id,
+                    'model' => $route['model'],
+                    'options' => null,
+                    'is_active' => true,
+                    'shadow' => false,
+                ],
+            );
+        }
+    }
+
+    /**
+     * @return list<array{document_type: string, purpose: string, priority: int, model: string}>
+     */
+    private function routes(): array
+    {
+        $any = 'any';
+        $estimate = AiDocumentType::Estimate->value;
+
+        return [
+            // (any, screening) — общий дешёвый гейт пайплайна для ЛЮБОГО типа документа (D4).
+            ['document_type' => $any, 'purpose' => LlmPurpose::Screening->value, 'priority' => 0, 'model' => 'gemini-2.5-flash-lite'],
+            // 'model' => 'gemini-3.1-flash-lite', // D27: раскомментировать при переключении на 3.x.
+            ['document_type' => $any, 'purpose' => LlmPurpose::Screening->value, 'priority' => 1, 'model' => 'gemini-2.5-pro'],
+            // 'model' => 'gemini-3.1-pro-preview', // D27.
+
+            // (estimate, discovery) — маркеры границ смет оконного пути P6.4 (D30/D37), дёшево.
+            ['document_type' => $estimate, 'purpose' => LlmPurpose::Discovery->value, 'priority' => 0, 'model' => 'gemini-2.5-flash-lite'],
+            // 'model' => 'gemini-3.1-flash-lite', // D27.
+            ['document_type' => $estimate, 'purpose' => LlmPurpose::Discovery->value, 'priority' => 1, 'model' => 'gemini-2.5-pro'],
+            // 'model' => 'gemini-3.1-pro-preview', // D27.
+
+            // (estimate, extract_passport|extract_rows|extract_totals) — рабочая лошадка (D4).
+            ['document_type' => $estimate, 'purpose' => LlmPurpose::ExtractPassport->value, 'priority' => 0, 'model' => 'gemini-2.5-flash'],
+            // 'model' => 'gemini-3.5-flash', // D27.
+            ['document_type' => $estimate, 'purpose' => LlmPurpose::ExtractPassport->value, 'priority' => 1, 'model' => 'gemini-2.5-pro'],
+            // 'model' => 'gemini-3.1-pro-preview', // D27.
+
+            ['document_type' => $estimate, 'purpose' => LlmPurpose::ExtractRows->value, 'priority' => 0, 'model' => 'gemini-2.5-flash'],
+            // 'model' => 'gemini-3.5-flash', // D27.
+            ['document_type' => $estimate, 'purpose' => LlmPurpose::ExtractRows->value, 'priority' => 1, 'model' => 'gemini-2.5-pro'],
+            // 'model' => 'gemini-3.1-pro-preview', // D27.
+
+            ['document_type' => $estimate, 'purpose' => LlmPurpose::ExtractTotals->value, 'priority' => 0, 'model' => 'gemini-2.5-flash'],
+            // 'model' => 'gemini-3.5-flash', // D27.
+            ['document_type' => $estimate, 'purpose' => LlmPurpose::ExtractTotals->value, 'priority' => 1, 'model' => 'gemini-2.5-pro'],
+            // 'model' => 'gemini-3.1-pro-preview', // D27.
+        ];
+    }
+}

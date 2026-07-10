@@ -8,6 +8,7 @@ use Database\Factories\Procurement\Document\DocumentVersionFactory;
 use Illuminate\Database\Eloquent\Attributes\UseFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 /**
  * Контент-адресованная версия файла документа (дедуп по sha256 в рамках документа).
@@ -38,5 +39,14 @@ final class DocumentVersion extends Model
             'size_bytes' => 'integer',
             'downloaded_at' => 'datetime',
         ];
+    }
+
+    /**
+     * Родительский документ (P9.2, `AnalysesTable` — колонка «Документ»); read-путь, репозитории
+     * этой связью не пользуются (прямые запросы по `document_id`).
+     */
+    public function document(): BelongsTo
+    {
+        return $this->belongsTo(related: Document::class);
     }
 }

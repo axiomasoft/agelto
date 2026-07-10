@@ -20,6 +20,13 @@ use Illuminate\Support\Facades\DB;
  * `RefreshDatabase`); при 5 партиционированных таблицах на суточном расписании
  * "низкая contention" `run_maintenance_proc` не даёт выигрыша, который окупал бы это
  * ограничение.
+ *
+ * Retention (P7.7, D33): на пути pg_partman DROP старых партиций — встроенная часть
+ * `run_maintenance()`, ничего не делаем сами — она читает `partman.part_config.retention`,
+ * выставленный миграцией `2026_07_09_100050_set_pg_partman_retention.php` только для
+ * `config('partitioning.retention')`-таблиц. Fallback-путь (нет pg_partman) сам НЕ дропает
+ * партиции по расписанию — эту логику дублирует `dropExpiredFallback()` по тому же конфигу,
+ * иначе managed-Postgres окружения без pg_partman копили бы партиции вечно (research/L finding 4).
  */
 final class MaintainPartitions extends Command
 {
@@ -31,7 +38,7 @@ final class MaintainPartitions extends Command
     {
         if ($this->pgPartmanIsAvailable()) {
             DB::statement('SELECT partman.run_maintenance()');
-            $this->info('Партиции обновлены через pg_partman (run_maintenance).');
+            $this->info('Партиции обновлены через pg_partman (run_maintenance, вкл. retention-DROP по part_config).');
 
             return self::SUCCESS;
         }
@@ -40,7 +47,7 @@ final class MaintainPartitions extends Command
             $this->maintainFallback($table);
         }
 
-        $this->info('pg_partman недоступен — партиции досозданы fallback-командой.');
+        $this->info('pg_partman недоступен — партиции досозданы и просрочённые дропнуты fallback-командой.');
 
         return self::SUCCESS;
     }
@@ -67,6 +74,47 @@ final class MaintainPartitions extends Command
                 $from->toDateTimeString(),
                 $to->toDateTimeString(),
             ));
+        }
+
+        $this->dropExpiredFallback($table);
+    }
+
+    /**
+     * Fallback-эквивалент pg_partman retention: дропает партиции `$table`, чей верхний
+     * рубеж диапазона старше `config('partitioning.retention')[$table]['months']`.
+     * `keep_table=true` (зарезервировано, P7.7) — партиции не дропаем; таблиц вне
+     * `partitioning.retention` (в т.ч. `prc_revisions`, D41) эта функция не касается.
+     */
+    private function dropExpiredFallback(string $table): void
+    {
+        $rule = config("partitioning.retention.{$table}");
+
+        if ($rule === null || $rule['keep_table']) {
+            return;
+        }
+
+        $cutoff = Carbon::now()->startOfMonth()->subMonths((int) $rule['months']);
+
+        $partitions = DB::select(
+            'SELECT c.relname AS name FROM pg_inherits i
+                JOIN pg_class c ON c.oid = i.inhrelid
+                JOIN pg_class p ON p.oid = i.inhparent
+                WHERE p.relname = ?',
+            [$table],
+        );
+
+        foreach ($partitions as $partition) {
+            $matched = preg_match('/_(\d{4})_(\d{2})$/', (string) $partition->name, $groups);
+
+            if ($matched !== 1) {
+                continue;
+            }
+
+            $partitionStart = Carbon::createFromDate((int) $groups[1], (int) $groups[2], 1)->startOfMonth();
+
+            if ($partitionStart->lt($cutoff)) {
+                DB::statement('DROP TABLE IF EXISTS '.$partition->name);
+            }
         }
     }
 }

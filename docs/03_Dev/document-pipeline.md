@@ -1,0 +1,158 @@
+---
+audience: dev
+type: explanation
+status: draft
+---
+
+# Document & Estimate Pipeline: internals
+
+Цикл документа: мост из краулинга (`crawling-pipeline.md`) → подготовка (`Prepare/`) → скрининг
+(`Screening/`) → извлечение (`Extraction/`). Каждая стадия — отдельный queued job на Horizon
+(`Jobs/Procurement/`), статус документа/анализа — единственный источник истины о прогрессе (не
+локальное состояние job'а). Диаграммы ниже — по фактическому коду P4–P9, обновляются вместе с ним.
+
+## Д1 — FSM документа
+
+```mermaid
+stateDiagram-v2
+    [*] --> Discovered
+    Discovered --> Downloaded: DocumentDownloader (краулинг)
+    Downloaded --> Prepared: PrepareDocumentJob.process()
+    Downloaded --> Unprocessable: DocumentPreparer-стратегия (D32/D38, напр. RAR/7z)
+    Downloaded --> Failed: PrepareDocumentJob.recordFailure() (attempts исчерпаны)
+    Prepared --> Screened: ScreeningJob → ScreeningOutcomeHandler.markScreened()
+    Prepared --> Ignored: ScreeningOutcomeHandler.ignore() (unknown/low_confidence/ignore_rule)
+    Prepared --> Failed: ScreeningJob.recordFailure()
+    Screened --> Extracted: EstimateExtractionJob → ExtractionOrchestrator.finalizeSuccess()
+    Screened --> Unprocessable: ExtractionOrchestrator.markUnprocessable() (D29 лимит провайдера, D38 unreadable/password)
+    Screened --> Failed: EstimateExtractionJob.recordFailure()
+    Extracted --> [*]
+    Ignored --> [*]
+    Failed --> [*]
+    Unprocessable --> [*]
+```
+
+Узлы = `App\Enums\Procurement\DocumentStatus` (`app/Enums/Procurement/DocumentStatus.php`);
+переходы подписаны job/методом-триггером:
+
+| Класс | Файл |
+|:--|:--|
+| `DocumentStatus` | `app/Enums/Procurement/DocumentStatus.php` |
+| `PrepareDocumentJob` | `app/Jobs/Procurement/PrepareDocumentJob.php` |
+| `DocumentPreparer` | `app/Services/Procurement/Prepare/DocumentPreparer.php:26` |
+| `ScreeningJob` | `app/Jobs/Procurement/ScreeningJob.php` |
+| `ScreeningOutcomeHandler` | `app/Services/Procurement/Screening/ScreeningOutcomeHandler.php:42` |
+| `EstimateExtractionJob` | `app/Jobs/Procurement/EstimateExtractionJob.php` |
+| `ExtractionOrchestrator` | `app/Services/Procurement/Extraction/ExtractionOrchestrator.php:81` |
+
+Упрощённая версия без job'ов/ошибок (бизнес-язык) — `docs/02_Workflow/document-and-estimate-pipeline.md` (Д1-lite).
+
+## Д2 — стадии, очереди, lease/retry
+
+```mermaid
+flowchart LR
+    Bridge["PipelineDispatcher (app/Services/Procurement/PipelineDispatcher.php)<br/>dispatch() — сразу после FetchDetails<br/>dispatchBacklog() — everyMinute поллер"]
+    Bridge -->|"PrepareDocumentJob::dispatch()->afterCommit()<br/>queue: doc_prepare"| Prepare["PrepareDocumentJob<br/>lease: Document"]
+    Prepare -->|"config('ai.screening.enabled')<br/>ScreeningJob::dispatch()->afterCommit()<br/>queue: ai_screening"| Screen["ScreeningJob<br/>lease: Analysis(step=screening)"]
+    Screen -->|"config('ai.extraction.enabled')<br/>EstimateExtractionJob::dispatch()->afterCommit()<br/>queue: ai_extraction"| Extract["EstimateExtractionJob<br/>lease: Analysis(step=extraction)"]
+    Extract -->|"needsContinuation=true<br/>afterRelease(): self::dispatch()->afterCommit()<br/>(checkpoint-requeue, release-then-dispatch)"| Extract
+    Prepare -.->|"recordFailure() → HasErrorBlock backoff<br/>next_retry_at"| Retry1["pipeline:retry-failed<br/>(app/Console/Commands/Procurement/PipelineRetryFailed.php)"]
+    Screen -.->|recordFailure backoff| Retry1
+    Extract -.->|recordFailure backoff| Retry1
+    Retry1 -.->|переотправка при next_retry_at| Prepare
+```
+
+Все три job'а наследуют `App\Jobs\Procurement\PipelineJob` (`app/Jobs/Procurement/PipelineJob.php`) —
+шаблонный метод `handle()`: status-guard → `acquireLease()` → `process()` → (при исключении)
+`recordFailure()` + rethrow → `finally releaseLease()` → `afterRelease()`. Уникальность диспатча:
+`PrepareDocumentJob`/`ScreeningJob` — `ShouldBeUnique` (короткий single-shot); `EstimateExtractionJob`
+— `ShouldBeUniqueUntilProcessing` (checkpoint-requeue, D31/D39) — lock снимается ДО обработки,
+чтобы self-dispatch продолжения не дедуплицировался.
+
+## Д4 — extraction-сессия
+
+```mermaid
+sequenceDiagram
+    participant Job as EstimateExtractionJob
+    participant Orch as ExtractionOrchestrator
+    participant Pre as ExtractionPreflight
+    participant Chunk as ChunkSource
+    participant WChunk as WindowedChunkSource
+    participant Seg as SegmentAssembler
+    participant Persist as EstimatePersister
+
+    Job->>Orch: run(document, analysis)
+    Orch->>Pre: decide(localPath, extension, route)
+    alt unprocessable (лимит провайдера, D29)
+        Pre-->>Orch: PreflightDecision::isUnprocessable()
+        Orch->>Orch: markUnprocessable() → Document::Unprocessable
+    else route = WholeDocument (D3, канон)
+        loop до passport_done && все estimates rows_done && totals_done
+            Orch->>Chunk: fetchPassport()/fetchRows()/fetchTotals()
+            Chunk-->>Orch: ChunkFetchResult(data, usage)
+            alt checkpointDue() (D31)
+                Orch->>Orch: checkpoint() — persist progress
+                Orch-->>Job: return true (needsContinuation)
+                Job->>Job: afterRelease(): self::dispatch()->afterCommit()
+            end
+        end
+    else route = Windowed (D30, fallback сверх лимита)
+        loop discovery-окна до total_pages
+            Orch->>WChunk: fetchDiscoveryWindow(pageStart, pageEnd)
+            WChunk-->>Orch: DiscoveryResponse(markers)
+        end
+        Orch->>Seg: assemble(markers, total_pages)
+        Seg-->>Orch: segments (детерминированно, НЕ LLM-вызов)
+        loop per-segment: passport → rows-окна (overlap) → totals(tail)
+            Orch->>WChunk: fetchSegmentPassport()/fetchSegmentRows()/fetchSegmentTotals()
+        end
+    end
+    Orch->>Persist: persist(analysis, supersededAnalysisId)
+    Orch->>Orch: finalizeSuccess() → Analysis::Succeeded, Document::Extracted
+```
+
+Точечное переизвлечение диапазона (не всей сметы) — `RerunRangeAction`
+(`app/Services/Procurement/Extraction/RerunRangeAction.php`, Scope Included P6.3): переиспользует
+`ChunkSource::fetchRows()` и файловый handle из `analysis.progress`, не участвует в
+checkpoint-цикле, не пересчитывает `validation_status`/иерархию целиком (Known Deviations P6.3).
+
+## Инварианты идемпотентности
+
+- **Lease + status-guard, не только `ShouldBeUnique`.** Каждый `PipelineJob::handle()` — status-guard
+  (документ/анализ уже не в ожидаемом статусе → no-op) → `acquireLease()` (TTL-лизинг по модели, канон
+  v1 `acquireLease`) → `process()` → `finally releaseLease()`. Двойной диспатч job'а безопасен: либо
+  дедуплицируется на уровне очереди (`ShouldBeUnique`), либо гасится guard'ом/lease (для
+  `EstimateExtractionJob`, где `ShouldBeUniqueUntilProcessing` снимает lock ДО обработки — D31/D39).
+- **Checkpoint-requeue — не повторный запуск с нуля.** `EstimateExtractionJob` ограничен по времени
+  константой строго меньше job timeout (`config('ai.extraction.checkpoint_seconds')`); при
+  `checkpointDue()` — `checkpoint()` персистит `analysis.progress` и `handle()` завершается успешно
+  (без исключения), `afterRelease()` сам передиспатчит job. Следующий запуск читает `progress` и
+  продолжает с места остановки — НЕ повторяет уже подтверждённые passport/rows/totals.
+- **Повтор job не дублирует Document/Analysis.** Гарантируется constraint-уровнем (D24 — partial
+  unique `(document_version_id, step)`) плюс transactional persist: `EstimatePersister` пишет новые
+  сметы и удаляет superseded-сметы предыдущего анализа той же версии документа в одной транзакции.
+
+## Статусы
+
+`DocumentStatus` (см. Д1) — терминальные исходы: `Extracted` (успех), `Ignored` (скрининг отсеял —
+`unknown`/`low_confidence`/`ignore_rule`), `Failed` (исчерпаны `attempts` — временный/технический
+сбой, ретраится `pipeline:retry-failed` до исчерпания), **`Unprocessable`** (D32 — отдельный
+терминальный исход, НЕ generic `Failed`: константация факта «не можем обработать», не сбой —
+`attempts` не жжём, ретраи не назначаются). Причина — `App\Enums\Procurement\UnprocessableReason`
+(`unreadable_format`/`password_protected`/`provider_limit_size`/`provider_limit_pages`/`zip_bomb`/
+`too_large`/`other`), пишется в `analysis.result`. Владельцы enum-кейсов по порядку исполнения
+(D38): `too_large`/`zip_bomb` — P4.2 (`SpreadsheetStrategy`/`ArchiveStrategy`-гейты),
+`unreadable_format`/`password_protected` — P5.1 (`PdfPageSlicer`), `provider_limit_size`/
+`provider_limit_pages` — P6.1 (`ExtractionPreflight`).
+
+## Failure modes → runbooks
+
+| Симптом | Runbook |
+|:--|:--|
+| Документ/анализ не двигается по статусам (lease не освобождается, `next_retry_at` в прошлом без ретрая) | [`runbooks/stuck-analysis.md`](runbooks/stuck-analysis.md) |
+| Ошибки/квоты/таймауты со стороны Gemini (429, региональные блокировки, EOL-модель) | [`runbooks/gemini-errors.md`](runbooks/gemini-errors.md) |
+| Растёт очередь `doc_prepare`/`ai_screening`/`ai_extraction`, supervisor'ы Horizon не успевают | [`runbooks/horizon-backlog.md`](runbooks/horizon-backlog.md) |
+
+Диагностика на уровне пайплайна в целом — `pipeline:status` (`PipelineStatus`, срез по статусам) и
+`pipeline:stuck-check` (`PipelineStuckCheck`, пороги «висит дольше N» не откалиброваны на живом
+трафике — открытый вопрос плана EST-AI).

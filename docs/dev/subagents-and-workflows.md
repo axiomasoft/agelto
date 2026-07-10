@@ -1,6 +1,6 @@
 <!-- swissknifeman:generated
 Generated-by: harness agent-packs
-Pack: backend-laravel@0.13.0
+Pack: backend-laravel@0.12.0
 Template: docs/subagents-and-workflows.md
 Edit-policy: generated-core — НЕ редактируй; расширяй через extension-point
 Extension-points: .claude/rules/agelto-reviewer-overrides.md

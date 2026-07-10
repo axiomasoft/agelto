@@ -15,10 +15,16 @@ use Illuminate\Database\Eloquent\Collection;
  */
 final readonly class DocumentStoreRepository
 {
-    public function findByExternalId(int $procurementId, string $externalId): ?Document
+    /**
+     * `$procurementId` nullable — дочерние документы архива (P4.2) и manual-импорт (P7.4, D22)
+     * могут существовать вне закупки.
+     */
+    public function findByExternalId(?int $procurementId, string $externalId): ?Document
     {
         return Document::query()
-            ->where('procurement_id', $procurementId)
+            ->where(fn ($query) => $procurementId !== null
+                ? $query->where('procurement_id', $procurementId)
+                : $query->whereNull('procurement_id'))
             ->where('external_id', $externalId)
             ->first();
     }
@@ -75,5 +81,24 @@ final readonly class DocumentStoreRepository
     public function createVersion(array $attributes): DocumentVersion
     {
         return DocumentVersion::query()->create($attributes);
+    }
+
+    /**
+     * @param  array<string, mixed>  $attributes
+     */
+    public function updateVersion(DocumentVersion $version, array $attributes): void
+    {
+        $version->update($attributes);
+    }
+
+    /**
+     * Последняя (по времени скачивания) версия документа — источник для стадии подготовки.
+     */
+    public function latestVersion(int $documentId): ?DocumentVersion
+    {
+        return DocumentVersion::query()
+            ->where('document_id', $documentId)
+            ->latest('downloaded_at')
+            ->first();
     }
 }

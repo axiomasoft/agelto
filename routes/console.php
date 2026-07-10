@@ -2,6 +2,7 @@
 
 use App\Enums\Procurement\CrawlerMode;
 use App\Models\Procurement\Crawler\Crawler;
+use App\Services\Procurement\PipelineDispatcher;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Schedule;
@@ -30,4 +31,19 @@ if (Schema::hasTable('prc_procurements')) {
 // Тот же schema-guard (см. выше) — sweep читает `prc_crawler_runs.stats->cap_hit`.
 if (Schema::hasTable('prc_crawler_runs')) {
     Schedule::command('crawler:rescan-backlog')->everyFifteenMinutes();
+}
+
+// Тот же schema-guard (см. выше) — мост подготовки документов (P4.3, ТЗ 03 §4). Поллер —
+// страховка (research/L finding 12): прямой dispatch() уже происходит сразу после downloaded
+// из `crawler:fetch-details`; этот тик добирает пропущенное/несработавшее по ВСЕМ закупкам.
+if (Schema::hasTable('prc_documents')) {
+    Schedule::call(function (PipelineDispatcher $dispatcher): void {
+        $dispatcher->dispatchBacklog(limit: (int) config('ai.pipeline.backlog_batch_limit', 100));
+    })->name('pipeline:dispatch-backlog')->everyMinute()->withoutOverlapping();
+
+    Schedule::command('pipeline:retry-failed')->everyTenMinutes()->withoutOverlapping();
+
+    // Наблюдаемость пайплайна (P7.3, ТЗ 03 §5, v1-канон HEARTBEAT 15м) — read-only, только
+    // сигналит (антиспам-агрегация — `PipelineAlert`).
+    Schedule::command('pipeline:stuck-check')->everyFifteenMinutes()->withoutOverlapping();
 }

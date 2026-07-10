@@ -2,14 +2,17 @@
 
 declare(strict_types=1);
 
+use App\Filament\Resources\Procurement\Ai\Prompts\PromptResource;
 use App\Filament\Resources\Procurement\Crawler\Runs\RunResource;
 use App\Filament\Resources\Procurement\Procurements\ProcurementResource;
 use App\Guards\Admin\Roles\AnalystRole;
 use App\Guards\Admin\Roles\OperatorRole;
 use App\Guards\Admin\Roles\SuperAdminRole;
+use App\Models\Procurement\Ai\Prompt;
 use App\Models\User;
 use Filament\Facades\Filament;
 
+use function Pest\Laravel\actingAs;
 use function Pest\Laravel\artisan;
 
 // PHP-роли зеркалятся в таблицу roles до назначения (class_name → assignRole).
@@ -62,4 +65,37 @@ test('суперадмин проходит любой gate через wildcard'
 test('view-only ресурсы Run и Procurement не имеют create/edit страниц', function () {
     expect(array_keys(RunResource::getPages()))->toBe(['index', 'view'])
         ->and(array_keys(ProcurementResource::getPages()))->toBe(['index', 'view']);
+});
+
+test('PromptResource вне enum-RBAC каталога, остальные ресурсы и коарс-право на промты не задеты', function () {
+    expect(config('az-guard-filament.exclude.resources'))->toContain(PromptResource::class);
+
+    $operator = User::factory()->create();
+    $operator->assignRole(OperatorRole::class);
+
+    // Коарс-право на Prompt по-прежнему каталогизировано и грантуется —
+    // exclude снимает только per-record enum-RBAC короткое замыкание,
+    // не убирает PromptPermission из OperatorRole (D44).
+    expect($operator->can('admin.prompt.update'))->toBeTrue()
+        // Остальные enum-RBAC ресурсы (не исключённые) работают как раньше.
+        ->and($operator->can('admin.platform.create'))->toBeTrue()
+        ->and($operator->can('admin.ai_route.update'))->toBeTrue();
+});
+
+test('PromptResource: без права на промты viewAny/view/create denied несмотря на исключение из enum-каталога', function () {
+    // Регресс-гвард на реальную дыру: exclude.resources снимает enum-RBAC
+    // короткое замыкание для ВСЕХ 9 Filament-абилок Prompt, не только
+    // update/delete. Если PromptPolicy не покрывает viewAny/view/create,
+    // Filament молча дефолтит непокрытую абилку в allow
+    // (`Filament\get_authorization_response()`), и любой аутентифицированный
+    // пользователь без права видит/создаёт промты в обход `hasPermission()`.
+    $analyst = User::factory()->create();
+    $analyst->assignRole(AnalystRole::class);
+    $prompt = Prompt::factory()->create(['is_protected' => false]);
+
+    actingAs($analyst);
+
+    expect(PromptResource::canViewAny())->toBeFalse()
+        ->and(PromptResource::canView($prompt))->toBeFalse()
+        ->and(PromptResource::canCreate())->toBeFalse();
 });

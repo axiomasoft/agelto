@@ -10,6 +10,7 @@ namespace App\Enums\Procurement;
 enum LlmPurpose: string
 {
     case Screening = 'screening';
+    case Discovery = 'discovery';
     case ExtractPassport = 'extract_passport';
     case ExtractRows = 'extract_rows';
     case ExtractTotals = 'extract_totals';

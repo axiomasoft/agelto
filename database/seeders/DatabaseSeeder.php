@@ -23,6 +23,17 @@ class DatabaseSeeder extends Seeder
         // PHP-роли зеркалятся в таблицу roles до назначения (idempotent, безопасно всегда).
         Artisan::call('guard:sync-roles');
 
+        // Стартовая матрица роутинга LLM (P7.2, ТЗ 04 §3.1) — идемпотентный updateOrCreate, без
+        // секретов (ключи только env, Implementation Rules P7.2). В ОТЛИЧИЕ от демо-аккаунтов
+        // ниже — инфраструктурные данные пайплайна нужны и в prod (без активных маршрутов
+        // AiRouteResolver кидает RuntimeException), поэтому вызов — ДО local/testing-гейта.
+        $this->call(AiRoutingSeeder::class);
+
+        // Файловые промты (P8.1, D5/D17) — резолверу/оркестраторам НУЖЕН непустой
+        // `prc_ai_prompts` в prod так же, как маршрутам выше (PromptComposer иначе собирает
+        // пустую системную часть) — та же логика «до local/testing-гейта», что AiRoutingSeeder.
+        $this->call(PromptSeeder::class);
+
         // Демо-аккаунты (в т.ч. суперадмин с wildcard) — ТОЛЬКО в local/testing.
         // На prod бутстрап суперадмина — через `php artisan guard:super-admin --user=`,
         // иначе db:seed на деплое создал бы бэкдор с предсказуемым паролем.
