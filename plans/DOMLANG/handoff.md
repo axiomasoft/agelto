@@ -1,56 +1,61 @@
-# HANDOFF — 2026-07-10 — after P8.2
+# HANDOFF — 2026-07-11 — after P9.1
 
-**Next:** Фаза P8 терминальна (2/2 🟢 Done). Следующий шаг — фаза P9 (финальный cross-phase
-review), но `phases/P9.md` — **скелет** (все три item'а с пустыми 16 полями, Phase Context
-помечен «СКЕЛЕТ — не детализирован»). Прямой `/task:plan-exec DOMLANG P9.1` упадёт на
-предусловии DoR — сначала нужен `/task:plan-design DOMLANG P9`.
+**Next:** P9.1 закрыт (🟢, вердикт **ATTENTION**: gate=PASS, 0 HIGH/CRITICAL, reopen-тикетов нет).
+Фаза P9 — 1/3, детализирована. Следующий исполняемый item — **P9.2** (`plan-audit` по каждой
+закрытой фазе P1–P8: сверка 🟢/🟠 с git-фактами, no-op-детект, scope drift, routing-adherence;
+append-блоки `## Audit Pn`). Порядок: P9.2 → P9.3 (owner).
 
 | Параметр | Значение |
 |:--|:--|
-| Model | opus/high |
-| Thinking | high — детализация терминальной cross-phase review фазы (не механика), нужен план fan-out + verification харнесса |
+| Model | opus/xhigh |
+| Thinking | xhigh — plan-integrity аудит (Routing §3: `P9.2 \| opus/xhigh`); НЕ sonnet/medium-дефолт |
 | Context | fresh session — handoff свежий, рекомендован `/clear` |
-| Суть | Детализировать P9: P9.1 (cross-phase adversarial review, opus/xhigh, образец — `estai-milestone-review`), P9.2 (`plan-audit` по каждой закрытой фазе), P9.3 (owner-item `/code-review ultra`, D9) |
+| Суть | P9.2: профиль `plan-audit` (`commands/plan-audit.md` пакета task) по P1–P8 — суди по git/коду, воспроизводи Validation каждого item'а; в конец каждого `phases/Pn.md` дописать `## Audit Pn — <дата>` (единственная разрешённая мутация); роллап-вердикт GREEN/ATTENTION/RED; Blocker/Major → reopen-тикет по D37, не чинить на месте |
 
 ```
-/task:plan-design DOMLANG P9
+/task:plan-exec DOMLANG P9.2
 ```
 
-**Done:** P1–P8 терминальны (см. предыдущие handoff-снапшоты и Update Log `plan.md` §6). P8.2 🟢
-Done — создан `docs/03_Dev/entity-lifecycle-map.md`: таблица писателей пяти сущностей
-(`Procurement`/`ProcurementRevision`/`ProcurementEvent`/`Document`/`DocumentVersion`) по §5
-`findings/P8-status-writers.md`, каждый анкор (`file:line`) перепроверен чтением файла без
-расхождений; раздел «повтор / новая ревизия / новая версия документа» с тремя критериями
-(no-op при совпадении хэша; `snapshot_hash` → ревизия; `content_hash` → версия), обе оси названы
-независимыми; раздел immutable-сущностей; ссылки на `ocds-mapping.md`, ADR-0007,
-`document-pipeline.md` (Д1, не пересказан), `state-machines.md` (P8.1) — без дублирования. Все 6
-команд Validation — passed. Правок `app/`/`database/`/`tests/` не вносилось (docs-only гарантия
-фазы P8 выполнена целиком).
+**Done:** P1–P8 терминальны (Update Log `plan.md` §6). **P9.1 🟢 Done** (2026-07-11): прогнан
+milestone-харнесс `estai-milestone-review.js` (scriptPath+args, D36) по P1–P8, `gate:true`, 3 ревьюера
+— 19 агентов, 0 ошибок; fan-out 15 → verify 14/15 → synthesis `verdict:PASS, blocking_findings:[]`.
+Вердикт P9.1 = **ATTENTION** (PASS + непустые surviving, максимум MED). `findings/P9-milestone-review.md`
+создан. F1 (MED, `ai_shadow` без Horizon-супервайзера) независимо CONFIRMED, но вне scope DOMLANG
+(pre-existing EST-AI) → owner-disposition, не reopen. Прикладной код не трогался (review-only).
+Дизайн-дифф `/task:plan-design DOMLANG P9` (был незакоммичен) вошёл в коммит закрытия P9.1.
 
-**Remaining:** P9 (0/3, скелет) — детализация → исполнение трёх items, включая owner-item P9.3
-(`/code-review ultra`, D9, запускает владелец, не агент).
+**Remaining:** P9 (1/3, детализирована) — исполнение:
+- **P9.2** (opus/xhigh) — `plan-audit` по P1–P8, append-блоки `## Audit Pn`, роллап-вердикт.
+- **P9.3** (owner) — `/code-review ultra` запускает **владелец** (D9); агент готовит вход (чистое
+  закоммиченное дерево + owner-инструкция) и СТОПает на 🟡; закрытие 🟢 только после подтверждённого
+  прогона + разбора находок. `Escalation Needed: yes`.
 
 **Sources of truth:**
-- `plans/DOMLANG/plan.md` §4 Status Board (P8 2/2 🟢, P9 0/3 ⬜), §5 D34/D35, §6 Update Log.
-- `plans/DOMLANG/phases/P8.md` — терминальна, P8.1/P8.2 Completion Notes, Phase Handoff.
-- `plans/DOMLANG/phases/P9.md` — скелет, три пустых item'а, ждёт `/task:plan-design`.
-- `docs/03_Dev/state-machines.md` (P8.1) и `docs/03_Dev/entity-lifecycle-map.md` (P8.2) — оба
-  деливерабла фазы P8, канон представления состояний и жизненного цикла сущностей.
-- `docs/03_Dev/document-pipeline.md` — Д1, `docs/03_Dev/ocds-mapping.md` — P7.2,
-  `docs/03_Dev/adr/0007-ocds-as-exchange-layer.md` — все три переиспользованы ссылкой, не
-  продублированы.
+- `plans/DOMLANG/plan.md` §3 Routing (P9.2 → opus/xhigh), §4 Status Board (P9 1/3 🟡), §5 D9/D36/D37,
+  §6 Update Log.
+- `plans/DOMLANG/phases/P9.md` — P9.1 🟢 (Completion Notes заполнены), P9.2/P9.3 ⬜; Phase Handoff
+  пуст (ждёт закрытия фазы).
+- `plans/DOMLANG/findings/P9-milestone-review.md` — вердикт ATTENTION + 6 уникальных находок +
+  реконсиляция + reopen-маршрутизация (пусто: 0 HIGH/CRITICAL).
+- `commands/plan-audit.md` (пакет task) — чеклист профиля P9.2:
+  `/home/vostrikov/projects/packages/swissknifeman/packages/task/commands/plan-audit.md`.
 
 **Open risks:**
-- `plans/DOMLANG/workflow-P6.js`, `plans/DOMLANG/workflow-P8.js` — untracked, не закоммичены
-  (вне Scope P8.2, относятся к предыдущим сеансам P6/P8-дизайна). Не принимать за дефект этого
-  шага; решение об их судьбе (закоммитить/удалить) — за P9 или отдельным итемом.
-- Остаток грепа спек-дрейфа P6 (42 строки KEEP-v1/N-A) — замороженный легитимный residue
-  (`findings/P6-drift-map.md`), не дефект.
+- **F1 (MED, owner-disposition):** `ShadowAnalysisJob::onQueue('ai_shadow')` + `ShadowDispatch` пушат
+  в очередь без супервайзера в `config/horizon.php` (есть только `default`/`doc_prepare`/`ai_screening`/
+  `ai_extraction`) → shadow-job'ы молча копятся в Redis. Вне scope DOMLANG (pre-existing EST-AI, ни одна
+  фаза P1–P8 не трогала). Судьба (супервайзер `ai_shadow` ИЛИ config-honesty-гейт shadow-route) — за
+  владельцем, наравне с deferred D26.
+- **Untracked plan-tooling residue:** `plans/DOMLANG/workflow-P6.js` (и, если появятся, `workflow-P7.js`/
+  `P8.js`) — runner'ы прошлых фаз. НЕ code-defect: дифф приложения от них не зависит. Судьба (commit/
+  gitignore) — за владельцем на plan-close, вне Scope P9 (P9.2 фиксирует как known plan-hygiene).
+- Остаток дедпрефикс-грепа в коде/тестах (F2 `CrawlerRunManager.php:16`, F3 test-descriptions) —
+  pre-existing residue вне scope всех фаз (P3=ренейм колонок, P6=docs-only D29); LOW-follow-up, не дефект.
 
 **Workarounds/Deferred/Open questions:**
-- Workaround mermaid: `stateDiagram-v2` ломается на `Class::method()` — использовать
-  `Class.method()` (прецедент — Д1, применено в `state-machines.md`; P8.2 диаграмм не рисует).
-- Deferred: `docs-private/history/carryover-from-v1.md` §3/8 — вне Scope P6 (не rename).
-- Deferred (из P5): unique-индексы под естественные ключи `prc_financing`/`prc_items`/
-  `prc_protocols`/`prc_awards` (класс D26, вне DOMLANG).
-- Open questions (`open-questions.md`): Q7/Q8 — `Exploration`, без изменений (P8 не задел).
+- workarounds: запуск харнесса P9.1 — только `scriptPath` + args-объект, НЕ named-workflow (D36;
+  named доставляет args строкой). Дизайн-дифф P9 был незакоммичен предыдущим шагом — сфолжен в коммит
+  закрытия P9.1 (traceability-нота в Completion Notes).
+- deferred: unique-индексы под естественные ключи `prc_financing`/`prc_items`/`prc_protocols`/
+  `prc_awards` (класс D26, вне DOMLANG); F1 `ai_shadow`-очередь (вне DOMLANG, owner).
+- open_questions: `open-questions.md` Q1–Q8 без изменений; P9 — review-фаза, новых не порождает.
