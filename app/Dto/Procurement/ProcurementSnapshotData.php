@@ -10,6 +10,7 @@ use Illuminate\Support\Carbon;
  * Нормализованный снапшот закупки — вход инжест-процессора.
  * Поля 1:1 диффуемым колонкам `prc_procurements` (без служебных: id/uuid/revision-мета/timestamps).
  * Нормализацию из сырого CSV/HTML источника выполняет вызывающий код (вне Scope P1.10).
+ * `customer_org_id` — не поле листинга, владелец detail-слой (`setCustomerOrg()`).
  */
 final readonly class ProcurementSnapshotData
 {
@@ -28,7 +29,6 @@ final readonly class ProcurementSnapshotData
         public ?string $ikz = null,
         public ?string $procedureType = null,
         public ?string $procedureTypeRaw = null,
-        public ?int $customerOrgId = null,
         public ?string $initialPrice = null,
         public ?string $currency = null,
         public ?string $advancePercent = null,
@@ -64,7 +64,6 @@ final readonly class ProcurementSnapshotData
             'ikz' => $this->ikz,
             'procedure_type' => $this->procedureType,
             'procedure_type_raw' => $this->procedureTypeRaw,
-            'customer_org_id' => $this->customerOrgId,
             'initial_price' => $this->initialPrice,
             'currency' => $this->currency,
             'advance_percent' => $this->advancePercent,

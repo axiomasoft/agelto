@@ -73,7 +73,6 @@ final readonly class EisCsvRowMapper implements ListingRowMapper
             ikz: $this->nullableString(value: $row[self::IKZ_COLUMN] ?? null),
             procedureType: $procedureType,
             procedureTypeRaw: $procedureTypeRaw,
-            customerOrgId: null,
             initialPrice: $this->mapPrice(value: $row[self::INITIAL_PRICE_COLUMN] ?? null),
             currency: $this->nullableString(value: $row[self::CURRENCY_COLUMN] ?? null),
             okpd2Code: $okpd2Code,
