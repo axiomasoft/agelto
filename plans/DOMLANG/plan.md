@@ -111,7 +111,7 @@ Review-гейты (субагенты, read-only, вне матрицы моде
 | P2 | Сиды `prc_status_mappings` + аудит `ProcurementStatus` | 2/2 | 🟢 Done |
 | P3 | Точечный семантический ренейм БД и кода | 3/3 | 🟢 Done |
 | P4 | Provenance: тонкий срез по конфликтным полям | 1/2 | 🟠 Done with deviations |
-| P5 | Закрытие реальных дефектов пайплайна | 2/4 | 🟡 In progress |
+| P5 | Закрытие реальных дефектов пайплайна | 3/4 | 🟡 In progress |
 | P6 | Убить spec drift | 0/2 | ⬜ Not started |
 | P7 | Глоссарий v2 + OCDS mapping | 0/2 | ⬜ Not started |
 | P8 | Lifecycle-map и state machines единым документом | 0/2 | ⬜ Not started |
@@ -175,3 +175,4 @@ Review-гейты (субагенты, read-only, вне матрицы моде
 | 2026-07-10 | plan-design/opus | P5 детализирована (4 items, DoR пройден); разведка → `findings/P5-pipeline-defects.md`. Решения — §5 D25–D28; Q8 заведён, `workflow.js` получил `DECISION_RULES['P5.1']` |
 | 2026-07-10 | plan-exec/sonnet | P5.1 🟢 Done — `PipelineJob::uniqueFor()` + `ai.pipeline.unique_lock_minutes`, ADR-0009 принят (owner перехода — job, не мост, `Queued` не вводится), `docs-private/{risk-register,crawler-gotchas}.md` актуализированы, 2 регресс-теста — детали см. phases/P5.md P5.1 Completion Notes |
 | 2026-07-10 | plan-exec/sonnet | P5.2 🟢 Done — два частичных unique-индекса `prc_bids` (`NULLS NOT DISTINCT`, edit-in-place `…100021`, D26), `BidNaturalKeyTest` (4 теста), `crawler-gotchas.md` §3 актуализирован — детали см. phases/P5.md P5.2 Completion Notes |
+| 2026-07-10 | plan-exec/sonnet | P5.3 🟢 Done — `syncWinnerRoles()` (D27), вызов из `storeAward()` в существующей транзакции, 2 новых теста `ProtocolAwardTest`, §6 `open-follow-ups.md` закрыт и имя таблицы исправлено — детали см. phases/P5.md P5.3 Completion Notes |
