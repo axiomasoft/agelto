@@ -63,7 +63,7 @@ final readonly class DetailAnalysisProcessor
                 method: SourceMethodEnum::from((string) config('crawler.detail_source_method', SourceMethodEnum::Csv->value)),
             );
 
-            $details = $sourceMethod->collectDetails(sourceNumber: $procurement->source_number, registry: $registry);
+            $details = $sourceMethod->collectDetails(registryNumber: $procurement->registry_number, registry: $registry);
 
             if ($details->commonInfoHtml !== null) {
                 $this->commonInfoProcessor->process($procurement, $this->commonInfoParser->parse($details->commonInfoHtml));

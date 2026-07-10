@@ -24,7 +24,7 @@ final class IgnoredItem extends Model
 
     protected $fillable = [
         'registry_id',
-        'source_number',
+        'registry_number',
         'reason_category',
         'reason',
     ];

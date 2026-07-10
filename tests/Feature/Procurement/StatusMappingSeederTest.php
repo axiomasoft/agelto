@@ -18,7 +18,7 @@ test('сид заводит ровно 4 маппинга для реестра 
 
     $mappings = StatusMapping::query()
         ->where('registry_id', $registry->id)
-        ->pluck('canonical_status', 'source_status');
+        ->pluck('canonical_status', 'source_stage');
 
     expect($mappings)->toHaveCount(4)
         ->and($mappings['Подача заявок'])->toBe(ProcurementStatus::Bidding->value)
@@ -40,7 +40,7 @@ test('после сида резолв Работа комиссии даёт Ev
     $registry = Registry::factory()->create(['code' => 'fz44']);
     $this->seed(StatusMappingSeeder::class);
 
-    $resolution = app(StatusMappingService::class)->resolve(registryId: $registry->id, sourceStatus: 'Работа комиссии');
+    $resolution = app(StatusMappingService::class)->resolve(registryId: $registry->id, sourceStage: 'Работа комиссии');
 
     expect($resolution->status)->toBe(ProcurementStatus::Evaluation)
         ->and($resolution->isNewlyMapped)->toBeFalse();
@@ -50,7 +50,7 @@ test('после сида незнакомое значение по-прежн�
     $registry = Registry::factory()->create(['code' => 'fz44']);
     $this->seed(StatusMappingSeeder::class);
 
-    $resolution = app(StatusMappingService::class)->resolve(registryId: $registry->id, sourceStatus: 'Пятое значение');
+    $resolution = app(StatusMappingService::class)->resolve(registryId: $registry->id, sourceStage: 'Пятое значение');
 
     expect($resolution->status)->toBe(ProcurementStatus::Unknown)
         ->and($resolution->isNewlyMapped)->toBeTrue();

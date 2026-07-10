@@ -16,7 +16,7 @@ class ProcurementInfolist
                     ->label('UUID'),
                 TextEntry::make('registry.name')
                     ->label('Registry'),
-                TextEntry::make('source_number')
+                TextEntry::make('registry_number')
                     ->columnSpanFull(),
                 TextEntry::make('etp_number')
                     ->placeholder('-')
@@ -29,7 +29,7 @@ class ProcurementInfolist
                 TextEntry::make('status')
                     ->badge()
                     ->columnSpanFull(),
-                TextEntry::make('source_status')
+                TextEntry::make('source_stage')
                     ->columnSpanFull(),
                 TextEntry::make('procedure_type')
                     ->placeholder('-')
@@ -89,7 +89,7 @@ class ProcurementInfolist
                     ->placeholder('-'),
                 IconEntry::make('detail_failed')
                     ->boolean(),
-                TextEntry::make('source_guid')
+                TextEntry::make('registry_guid')
                     ->placeholder('-')
                     ->columnSpanFull(),
                 TextEntry::make('current_revision_id')

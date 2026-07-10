@@ -20,12 +20,12 @@ final class ProcurementFactory extends Factory
     {
         return [
             'registry_id' => Registry::factory(),
-            'source_number' => fake()->unique()->numerify('0000000000000000####'),
+            'registry_number' => fake()->unique()->numerify('0000000000000000####'),
             'etp_number' => null,
             'ikz' => null,
             'title' => fake()->sentence(),
             'status' => ProcurementStatus::Bidding,
-            'source_status' => 'Подача заявок',
+            'source_stage' => 'Подача заявок',
             'procedure_type' => null,
             'procedure_type_raw' => null,
             'customer_org_id' => null,
@@ -48,7 +48,7 @@ final class ProcurementFactory extends Factory
             'detail_last_error' => null,
             'detail_next_retry_at' => null,
             'detail_failed' => false,
-            'source_guid' => null,
+            'registry_guid' => null,
             'current_revision_id' => null,
             'current_revision_detected_at' => null,
             'revision_count' => 1,

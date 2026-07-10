@@ -19,7 +19,7 @@ final class IgnoredItemFactory extends Factory
     {
         return [
             'registry_id' => Registry::factory(),
-            'source_number' => fake()->unique()->numerify('##########-#######-##'),
+            'registry_number' => fake()->unique()->numerify('##########-#######-##'),
             'reason_category' => 'duplicate',
             'reason' => null,
         ];

@@ -56,7 +56,7 @@ test('buildUrl строит полный URL вкладки из card_url_templa
         registry: $registry,
         procedureUrlType: 'ea20',
         tab: 'common-info',
-        sourceNumber: '0173200001234000001',
+        registryNumber: '0173200001234000001',
     );
 
     expect($url)->toBe(
@@ -74,6 +74,6 @@ test('buildUrl бросает исключение при отсутствии �
         registry: $registry,
         procedureUrlType: 'ea20',
         tab: 'common-info',
-        sourceNumber: '0173200001234000001',
+        registryNumber: '0173200001234000001',
     );
 })->throws(CardUrlTemplateMissingException::class);

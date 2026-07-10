@@ -41,7 +41,7 @@ final readonly class CsvBlockIngestor
             try {
                 $snapshot = $this->rowMapper->map(row: $row, crawler: $crawler);
             } catch (\Throwable $exception) {
-                $this->logRowFailure(crawler: $crawler, exception: $exception, sourceNumber: null);
+                $this->logRowFailure(crawler: $crawler, exception: $exception, registryNumber: null);
                 $errors++;
 
                 continue;
@@ -56,13 +56,13 @@ final readonly class CsvBlockIngestor
             $snapshots[] = $snapshot;
         }
 
-        $ignoredNumbers = $this->ignoredSourceNumbers(crawler: $crawler, snapshots: $snapshots);
+        $ignoredNumbers = $this->ignoredRegistryNumbers(crawler: $crawler, snapshots: $snapshots);
 
         $new = 0;
         $updated = 0;
 
         foreach ($snapshots as $snapshot) {
-            if (in_array($snapshot->sourceNumber, $ignoredNumbers, strict: true)) {
+            if (in_array($snapshot->registryNumber, $ignoredNumbers, strict: true)) {
                 $skipped++;
 
                 continue;
@@ -73,7 +73,7 @@ final readonly class CsvBlockIngestor
                 $new += $isNew ? 1 : 0;
                 $updated += $isUpdated ? 1 : 0;
             } catch (\Throwable $exception) {
-                $this->logRowFailure(crawler: $crawler, exception: $exception, sourceNumber: $snapshot->sourceNumber);
+                $this->logRowFailure(crawler: $crawler, exception: $exception, registryNumber: $snapshot->registryNumber);
                 $errors++;
             }
         }
@@ -109,7 +109,7 @@ final readonly class CsvBlockIngestor
      */
     private function ingestSnapshot(ProcurementSnapshotData $snapshot, Run $run): array
     {
-        $existing = $this->procurements->findProcurement(registryId: $snapshot->registryId, sourceNumber: $snapshot->sourceNumber);
+        $existing = $this->procurements->findProcurement(registryId: $snapshot->registryId, registryNumber: $snapshot->registryNumber);
         $revisionCountBefore = $existing?->revision_count ?? 0;
 
         $procurement = $this->ingestProcessor->ingest(data: $snapshot, crawlerRunId: $run->id);
@@ -125,18 +125,18 @@ final readonly class CsvBlockIngestor
      * @param  list<ProcurementSnapshotData>  $snapshots
      * @return list<string>
      */
-    private function ignoredSourceNumbers(Crawler $crawler, array $snapshots): array
+    private function ignoredRegistryNumbers(Crawler $crawler, array $snapshots): array
     {
         if ($snapshots === []) {
             return [];
         }
 
-        $sourceNumbers = array_map(static fn (ProcurementSnapshotData $snapshot): string => $snapshot->sourceNumber, $snapshots);
+        $registryNumbers = array_map(static fn (ProcurementSnapshotData $snapshot): string => $snapshot->registryNumber, $snapshots);
 
         return IgnoredItem::query()
             ->where('registry_id', $crawler->registry_id)
-            ->whereIn('source_number', $sourceNumbers)
-            ->pluck('source_number')
+            ->whereIn('registry_number', $registryNumbers)
+            ->pluck('registry_number')
             ->all();
     }
 
@@ -150,14 +150,14 @@ final readonly class CsvBlockIngestor
         return $path;
     }
 
-    private function logRowFailure(Crawler $crawler, \Throwable $exception, ?string $sourceNumber): void
+    private function logRowFailure(Crawler $crawler, \Throwable $exception, ?string $registryNumber): void
     {
         Log::error(
             message: 'CsvBlockIngestor: row processing failed.',
             context: [
                 'crawler_id' => $crawler->id,
                 'registry_id' => $crawler->registry_id,
-                'source_number' => $sourceNumber,
+                'registry_number' => $registryNumber,
                 'exception' => $exception->getMessage(),
             ],
         );

@@ -8,7 +8,7 @@ use App\Enums\Procurement\ProcurementStatus;
 
 /**
  * Результат резолва сырого статуса: канон + признак, что маппинг для этой пары
- * (registry_id, source_status) заведён только что (см. `StatusMappingService::resolve()`).
+ * (registry_id, source_stage) заведён только что (см. `StatusMappingService::resolve()`).
  */
 final readonly class StatusResolution
 {

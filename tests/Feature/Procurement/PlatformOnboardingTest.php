@@ -17,7 +17,7 @@ test('новая площадка заводится вставкой plt_platfo
     $registry = Registry::factory()->create(['platform_id' => $platform->id, 'code' => 'main']);
     $mapping = StatusMapping::factory()->create([
         'registry_id' => $registry->id,
-        'source_status' => 'Опубликовано',
+        'source_stage' => 'Опубликовано',
         'canonical_status' => 'bidding',
     ]);
 

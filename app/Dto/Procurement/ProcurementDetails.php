@@ -12,7 +12,7 @@ namespace App\Dto\Procurement;
 final readonly class ProcurementDetails
 {
     public function __construct(
-        public string $sourceNumber,
+        public string $registryNumber,
         public string $procedureUrlType,
         public ?string $commonInfoHtml = null,
         public ?string $documentsHtml = null,

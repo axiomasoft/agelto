@@ -13,7 +13,7 @@ use Illuminate\Support\Carbon;
 /**
  * Строка CSV-экспорта ЕИС (заголовки — русские названия колонок, `research/eis-csv-recon.md`)
  * → нормализованный `ProcurementSnapshotData`. Вся раскладка колонок — здесь; статус НЕ
- * резолвится (сырой `source_status` резолвит `StatusMappingService` внутри `ProcurementIngestProcessor`).
+ * резолвится (сырой `source_stage` резолвит `StatusMappingService` внутри `ProcurementIngestProcessor`).
  */
 final readonly class EisCsvRowMapper implements ListingRowMapper
 {
@@ -47,9 +47,9 @@ final readonly class EisCsvRowMapper implements ListingRowMapper
 
     public function map(array $row, Crawler $crawler): ?ProcurementSnapshotData
     {
-        $sourceNumber = trim($row[self::REGISTRY_NUMBER_COLUMN] ?? '');
+        $registryNumber = trim($row[self::REGISTRY_NUMBER_COLUMN] ?? '');
 
-        if ($sourceNumber === '') {
+        if ($registryNumber === '') {
             return null;
         }
 
@@ -65,9 +65,9 @@ final readonly class EisCsvRowMapper implements ListingRowMapper
 
         return new ProcurementSnapshotData(
             registryId: $crawler->registry_id,
-            sourceNumber: $sourceNumber,
+            registryNumber: $registryNumber,
             title: trim($row[self::TITLE_COLUMN] ?? ''),
-            sourceStatus: trim($row[self::STAGE_COLUMN] ?? ''),
+            sourceStage: trim($row[self::STAGE_COLUMN] ?? ''),
             publishedAt: $publishedAt,
             sourceUpdatedAt: $sourceUpdatedAt,
             ikz: $this->nullableString(value: $row[self::IKZ_COLUMN] ?? null),

@@ -21,12 +21,12 @@ return new class extends Migration
             $table->foreignId('registry_id')
                 ->constrained(table: (new Registry)->getTable());
 
-            $table->text('source_number');
+            $table->text('registry_number');
             $table->text('etp_number')->nullable();
             $table->text('ikz')->nullable()->index();
             $table->text('title');
             $table->text('status');
-            $table->text('source_status');
+            $table->text('source_stage');
             $table->text('procedure_type')->nullable();
             $table->text('procedure_type_raw')->nullable();
 
@@ -58,7 +58,7 @@ return new class extends Migration
             $table->timestampTz('detail_next_retry_at')->nullable();
             $table->boolean('detail_failed')->default(false);
 
-            $table->text('source_guid')->nullable()->index();
+            $table->text('registry_guid')->nullable()->index();
 
             // Без constrained() — prc_revisions партиционирована, FK на неё не строится.
             $table->unsignedBigInteger('current_revision_id')->nullable();
@@ -75,7 +75,7 @@ return new class extends Migration
 
             $table->timestamps();
 
-            $table->unique(['registry_id', 'source_number']);
+            $table->unique(['registry_id', 'registry_number']);
             $table->index(['registry_id', 'status', 'published_at']);
             $table->index(['status', 'bidding_ends_at']);
         });

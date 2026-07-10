@@ -10,17 +10,17 @@ use App\Models\Procurement\Platform\StatusMapping;
 
 /**
  * Резолв сырого статуса источника в канонический (`prc_status_mappings` — данные, не код).
- * Незнакомая пара (registry_id, source_status) АВТОМАТИЧЕСКИ заводит строку с `canonical_status='unknown'`
+ * Незнакомая пара (registry_id, source_stage) АВТОМАТИЧЕСКИ заводит строку с `canonical_status='unknown'`
  * (см. `plans/V2-CORE/plan.md` Decision Log D5) — оператор видит и правит её в админке, не роется в логах.
  */
 final readonly class StatusMappingService
 {
-    public function resolve(int $registryId, string $sourceStatus): StatusResolution
+    public function resolve(int $registryId, string $sourceStage): StatusResolution
     {
         $mapping = StatusMapping::query()->firstOrCreate(
             attributes: [
                 'registry_id' => $registryId,
-                'source_status' => $sourceStatus,
+                'source_stage' => $sourceStage,
             ],
             values: [
                 'canonical_status' => ProcurementStatus::Unknown->value,

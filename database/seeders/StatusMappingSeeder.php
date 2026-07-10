@@ -18,7 +18,7 @@ use Illuminate\Database\Seeder;
  * отменяет её. Инфраструктурные данные нужны и в prod, поэтому вызывается в `DatabaseSeeder`
  * ДО local/testing-гейта, как `AiRoutingSeeder`/`PromptSeeder`.
  *
- * Идемпотентен: `updateOrCreate` по натуральному ключу `(registry_id, source_status)` — тот же
+ * Идемпотентен: `updateOrCreate` по натуральному ключу `(registry_id, source_stage)` — тот же
  * `unique`-индекс, что в миграции `2026_07_04_100002`. Реестров `fz44` нет → no-op + `warn`,
  * не исключение (площадка может быть заведена позже — Q7, `open-questions.md`).
  */
@@ -39,7 +39,7 @@ final class StatusMappingSeeder extends Seeder
                 StatusMapping::query()->updateOrCreate(
                     [
                         'registry_id' => $registry->id,
-                        'source_status' => $mapping['source_status'],
+                        'source_stage' => $mapping['source_stage'],
                     ],
                     [
                         'canonical_status' => $mapping['canonical_status'],
@@ -50,15 +50,15 @@ final class StatusMappingSeeder extends Seeder
     }
 
     /**
-     * @return list<array{source_status: string, canonical_status: string}>
+     * @return list<array{source_stage: string, canonical_status: string}>
      */
     private function mappings(): array
     {
         return [
-            ['source_status' => 'Подача заявок', 'canonical_status' => ProcurementStatus::Bidding->value],
-            ['source_status' => 'Работа комиссии', 'canonical_status' => ProcurementStatus::Evaluation->value],
-            ['source_status' => 'Закупка завершена', 'canonical_status' => ProcurementStatus::Completed->value],
-            ['source_status' => 'Закупка отменена', 'canonical_status' => ProcurementStatus::Cancelled->value],
+            ['source_stage' => 'Подача заявок', 'canonical_status' => ProcurementStatus::Bidding->value],
+            ['source_stage' => 'Работа комиссии', 'canonical_status' => ProcurementStatus::Evaluation->value],
+            ['source_stage' => 'Закупка завершена', 'canonical_status' => ProcurementStatus::Completed->value],
+            ['source_stage' => 'Закупка отменена', 'canonical_status' => ProcurementStatus::Cancelled->value],
         ];
     }
 }

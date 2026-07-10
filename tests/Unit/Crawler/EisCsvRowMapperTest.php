@@ -110,7 +110,7 @@ test('ОКПД2 разбирается на первый код и полный 
         ->and($snapshot->okpd2Codes)->toBe(['26.20.11.110', '26.20.15.000']);
 });
 
-test('пустой source_number приводит к skip (map возвращает null)', function () {
+test('пустой registry_number приводит к skip (map возвращает null)', function () {
     $crawler = eisCrawlerForRegistryCode('fz44');
 
     $snapshot = app(EisCsvRowMapper::class)->map(row: eisCsvRow(['Реестровый номер закупки' => '']), crawler: $crawler);
@@ -118,7 +118,7 @@ test('пустой source_number приводит к skip (map возвраща�
     expect($snapshot)->toBeNull();
 });
 
-test('отсутствующий source_number приводит к skip (map возвращает null)', function () {
+test('отсутствующий registry_number приводит к skip (map возвращает null)', function () {
     $crawler = eisCrawlerForRegistryCode('fz44');
 
     $row = eisCsvRow();

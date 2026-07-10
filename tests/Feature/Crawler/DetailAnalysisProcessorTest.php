@@ -62,7 +62,7 @@ test('run наполняет все вкладки-таблицы и стави�
     $registry = detailAnalysisRegistry();
     $procurement = Procurement::factory()->create([
         'registry_id' => $registry->id,
-        'source_number' => '0173200001234000001',
+        'registry_number' => '0173200001234000001',
         'procedure_type' => 'electronic_auction',
         'status' => ProcurementStatus::Awarded,
     ]);
@@ -89,7 +89,7 @@ test('run скачивает документы, снятые с вкладки 
     $registry = detailAnalysisRegistry();
     $procurement = Procurement::factory()->create([
         'registry_id' => $registry->id,
-        'source_number' => '0173200001234000001',
+        'registry_number' => '0173200001234000001',
         'procedure_type' => 'electronic_auction',
         'status' => ProcurementStatus::Bidding,
     ]);
@@ -106,13 +106,13 @@ test('падение снятия карточки уходит в error-бло�
     $registry = detailAnalysisRegistry();
     $healthy = Procurement::factory()->create([
         'registry_id' => $registry->id,
-        'source_number' => '0173200001234000001',
+        'registry_number' => '0173200001234000001',
         'procedure_type' => 'electronic_auction',
         'status' => ProcurementStatus::Bidding,
     ]);
     $broken = Procurement::factory()->create([
         'registry_id' => $registry->id,
-        'source_number' => '0173200009999000009',
+        'registry_number' => '0173200009999000009',
         'procedure_type' => 'unmapped_procedure_type',
         'status' => ProcurementStatus::Bidding,
     ]);
@@ -140,7 +140,7 @@ test('исчерпание попыток ставит detail_failed', function 
     $registry = detailAnalysisRegistry();
     $procurement = Procurement::factory()->create([
         'registry_id' => $registry->id,
-        'source_number' => '0173200009999000009',
+        'registry_number' => '0173200009999000009',
         'procedure_type' => 'unmapped_procedure_type',
         'status' => ProcurementStatus::Bidding,
         'detail_attempts' => (int) config('crawler.detail_max_attempts', 5) - 1,

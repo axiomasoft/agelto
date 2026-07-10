@@ -24,7 +24,7 @@ test('новая закупка находит insert prc_procurements + пер�
     $registry = Registry::factory()->create();
     StatusMapping::factory()->create([
         'registry_id' => $registry->id,
-        'source_status' => 'Размещение извещения',
+        'source_stage' => 'Размещение извещения',
         'canonical_status' => 'bidding',
     ]);
     $data = SnapshotFactory::make($registry);
@@ -33,7 +33,7 @@ test('новая закупка находит insert prc_procurements + пер�
 
     expect($procurement)->toBeInstanceOf(Procurement::class)
         ->and($procurement->registry_id)->toBe($registry->id)
-        ->and($procurement->source_number)->toBe('0173100000123000001')
+        ->and($procurement->registry_number)->toBe('0173100000123000001')
         ->and($procurement->revision_count)->toBe(1);
 
     $revision = ProcurementRevision::query()->where('procurement_id', $procurement->id)->sole();
@@ -48,7 +48,7 @@ test('редакция без изменений ядра трогает тол�
     $registry = Registry::factory()->create();
     StatusMapping::factory()->create([
         'registry_id' => $registry->id,
-        'source_status' => 'Размещение извещения',
+        'source_stage' => 'Размещение извещения',
         'canonical_status' => 'bidding',
     ]);
     $data = SnapshotFactory::make($registry);

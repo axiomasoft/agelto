@@ -21,9 +21,9 @@ final class SnapshotFactory
     {
         return new ProcurementSnapshotData(
             registryId: $registry->id,
-            sourceNumber: $overrides['sourceNumber'] ?? '0173100000123000001',
+            registryNumber: $overrides['registryNumber'] ?? '0173100000123000001',
             title: $overrides['title'] ?? 'Поставка бумаги офисной',
-            sourceStatus: $overrides['sourceStatus'] ?? 'Размещение извещения',
+            sourceStage: $overrides['sourceStage'] ?? 'Размещение извещения',
             publishedAt: $overrides['publishedAt'] ?? Carbon::parse('2026-01-10 10:00:00'),
             sourceUpdatedAt: $overrides['sourceUpdatedAt'] ?? Carbon::parse('2026-01-10 10:00:00'),
             initialPrice: $overrides['initialPrice'] ?? '150000.00',

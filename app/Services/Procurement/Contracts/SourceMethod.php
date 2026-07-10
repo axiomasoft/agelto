@@ -19,7 +19,7 @@ interface SourceMethod
 {
     public function collectListing(Crawler $crawler, ListingCursor $cursor): ListingBatch;
 
-    public function collectDetails(string $sourceNumber, Registry $registry): ProcurementDetails;
+    public function collectDetails(string $registryNumber, Registry $registry): ProcurementDetails;
 
     public function isAvailable(): bool;
 }

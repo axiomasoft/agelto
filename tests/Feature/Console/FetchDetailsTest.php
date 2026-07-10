@@ -57,7 +57,7 @@ test('снимает детальный слой по явному id закуп
     $registry = fetchDetailsRegistry();
     $procurement = Procurement::factory()->create([
         'registry_id' => $registry->id,
-        'source_number' => '0173200001234000001',
+        'registry_number' => '0173200001234000001',
         'procedure_type' => 'electronic_auction',
         'status' => ProcurementStatus::Bidding,
     ]);
@@ -79,14 +79,14 @@ test('без аргумента обрабатывает все due-закупк
     $registry = fetchDetailsRegistry();
     $due = Procurement::factory()->create([
         'registry_id' => $registry->id,
-        'source_number' => '0173200001234000001',
+        'registry_number' => '0173200001234000001',
         'procedure_type' => 'electronic_auction',
         'status' => ProcurementStatus::Bidding,
         'detail_fetched_at' => null,
     ]);
     $fresh = Procurement::factory()->create([
         'registry_id' => $registry->id,
-        'source_number' => '0173200001234000002',
+        'registry_number' => '0173200001234000002',
         'procedure_type' => 'electronic_auction',
         'status' => ProcurementStatus::Bidding,
         'detail_fetched_at' => now(),
@@ -107,14 +107,14 @@ test('падение одной закупки не прерывает обра�
     $registry = fetchDetailsRegistry();
     $healthy = Procurement::factory()->create([
         'registry_id' => $registry->id,
-        'source_number' => '0173200001234000001',
+        'registry_number' => '0173200001234000001',
         'procedure_type' => 'electronic_auction',
         'status' => ProcurementStatus::Bidding,
         'detail_fetched_at' => null,
     ]);
     $broken = Procurement::factory()->create([
         'registry_id' => $registry->id,
-        'source_number' => '0173200009999000009',
+        'registry_number' => '0173200009999000009',
         'procedure_type' => 'unmapped_procedure_type',
         'status' => ProcurementStatus::Bidding,
         'detail_fetched_at' => null,

@@ -19,10 +19,10 @@ use Tests\Support\Doubles\Crawler\QueueSourceMethod;
 /**
  * @return array<string, string>
  */
-function archiveScannerCsvRow(string $sourceNumber): array
+function archiveScannerCsvRow(string $registryNumber): array
 {
     return [
-        'Реестровый номер закупки' => $sourceNumber,
+        'Реестровый номер закупки' => $registryNumber,
         'Способ определения поставщика' => 'Электронный аукцион',
         'Наименование закупки' => 'Поставка оргтехники',
         'Этап закупки' => 'Размещение извещения',
@@ -39,11 +39,11 @@ function archiveScannerCsvRow(string $sourceNumber): array
 }
 
 /**
- * @param  list<string>  $sourceNumbers
+ * @param  list<string>  $registryNumbers
  */
-function archiveScannerBatch(array $sourceNumbers, ?string $dedupSignature): ListingBatch
+function archiveScannerBatch(array $registryNumbers, ?string $dedupSignature): ListingBatch
 {
-    $rows = array_map(archiveScannerCsvRow(...), $sourceNumbers);
+    $rows = array_map(archiveScannerCsvRow(...), $registryNumbers);
 
     return new ListingBatch(
         rows: $rows,
