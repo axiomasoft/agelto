@@ -108,7 +108,7 @@ Review-гейты (субагенты, read-only, вне матрицы моде
 | Phase | Title | Items 🟢/всего | Status |
 |:--|:--|:--|:--|
 | P1 | Решения, ADR, карта фактических имён | 2/3 | 🟠 Done with deviations |
-| P2 | Сиды `prc_status_mappings` + аудит `ProcurementStatus` | 1/2 | 🟡 In progress |
+| P2 | Сиды `prc_status_mappings` + аудит `ProcurementStatus` | 2/2 | 🟢 Done |
 | P3 | Точечный семантический ренейм БД и кода | 0/3 | ⬜ Not started |
 | P4 | Provenance: тонкий срез по конфликтным полям | 0/2 | ⬜ Not started |
 | P5 | Закрытие реальных дефектов пайплайна | 0/3 | ⬜ Not started |
@@ -151,3 +151,4 @@ Review-гейты (субагенты, read-only, вне матрицы моде
 | 2026-07-10 | владелец + main/opus | Q5 `Resolved → D14` (edit-in-place + `migrate:fresh`), Q6 `Resolved → D15` (§4 карты имён вычищен). Детали — §5 D14/D15 |
 | 2026-07-10 | plan-design/opus | P2 детализирована (2 items, DoR пройден); RAG → `findings/P2-eis-stages.md`. Решения — §5 D16/D17; Q2 `Resolved → D16`, Q7 заведён |
 | 2026-07-10 | plan-exec/sonnet | P2.1 🟢 Done — предпосылка D16 подтверждена (grep=3, 2 в фабриках), `case Announced` удалён + PHPDoc-матрица достижимости; фабрики → `Bidding`, `source_status` → `'Подача заявок'`. Затронут `DiscoveryTest` (произвольная фикстура `'announced'` → `'bidding'`, анти-подгонка Code Guidance). Все 5 Validation passed (462 теста зелёные) |
+| 2026-07-10 | plan-exec/sonnet | P2.2 🟢 Done, фаза P2 терминальна (2/2) — `StatusMappingSeeder` (4 пары `fz44`, D17) + вызов в `DatabaseSeeder` до local-гейта — детали см. phases/P2.md P2.2 Completion Notes |
