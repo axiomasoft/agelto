@@ -18,7 +18,7 @@ test('изменение цены и статуса создаёт новую р
     $processor = app(ProcurementIngestProcessor::class);
 
     $procurement = $processor->ingest(SnapshotFactory::make($registry, [
-        'sourceStage' => 'Размещение извещения',
+        'sourceStage' => 'Подача заявок',
         'initialPrice' => '150000.00',
     ]));
 

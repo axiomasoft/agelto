@@ -12,14 +12,14 @@
 
 | Таблица | Назначение | Ключевые колонки | Миграция |
 |:--|:--|:--|:--|
-| `prc_procurements` | Основная сущность закупки (compiledRelease в OCDS терминологии) | `id`, `uuid`, `registry_id`, `source_number`, `etp_number`, `title`, `status`, `source_status` | `2026_07_04_100011_create_prc_procurements_table.php:17` |
+| `prc_procurements` | Основная сущность закупки (compiledRelease в OCDS терминологии) | `id`, `uuid`, `registry_id`, `registry_number`, `registry_guid`, `etp_number`, `title`, `status`, `source_stage` | `2026_07_04_100011_create_prc_procurements_table.php:17` |
 | `prc_revisions` | История редакций закупки, партиционирована по `detected_at` (versionedRelease в OCDS) | `id`, `procurement_id`, `revision_number`, `source_edition`, `snapshot` | `2026_07_04_100012_create_prc_revisions_table.php:14` |
 | `prc_events` | События в жизни закупки, партиционирована по `occurred_at` (releases в OCDS) | `id`, `procurement_id`, `event_type`, `field`, `old_value`, `new_value` | `2026_07_04_100013_create_prc_events_table.php:14` |
 | `prc_documents` | Документы, привязанные к закупке (извещение, протоколы, контракты) | `id`, `uuid`, `procurement_id`, `title`, `kind`, `source_url`, `status` | `2026_07_04_100018_create_prc_documents_table.php:16` |
 | `prc_document_versions` | Скачанные версии документов, одна версия ≈ один файл | `id`, `document_id`, `content_hash`, `storage_path`, `downloaded_at` | `2026_07_04_100019_create_prc_document_versions_table.php:15` |
 | `prc_lots` | Лоты закупки (один лот — одна позиция объекта) | `id`, `procurement_id`, `lot_number`, `title`, `status` | `2026_07_04_100014_create_prc_lots_table.php:16` |
 | `prc_items` | Позиции лота / товары/услуги | `id`, `lot_id`, `title`, `quantity`, `unit` | `2026_07_04_100015_create_prc_items_table.php:18` |
-| `prc_status_mappings` | **НЕНСИДИРОВАНА В П2.1** Маппинг `(registry_id, source_status)` → `canonical_status` | `id`, `registry_id`, `source_status`, `canonical_status` | `2026_07_04_100002_create_prc_status_mappings_table.php:15` |
+| `prc_status_mappings` | Маппинг `(registry_id, source_stage)` → `canonical_status`, сидируется `StatusMappingSeeder` (D17, с P2.2) | `id`, `registry_id`, `source_stage`, `canonical_status` | `2026_07_04_100002_create_prc_status_mappings_table.php:15` |
 
 ### Документы и анализ
 
@@ -92,7 +92,7 @@
 | `prc_financing` | Источники финансирования закупок | `id`, `procurement_id`, `source_code`, `amount` | `2026_07_04_100016_create_prc_financing_table.php:17` |
 | `prc_eis_details` | Расширенные данные из ЕИС (1:1 extension-шов) | `id`, `procurement_id`, `nmc_data`, `budget_data`, `details` | `2026_07_04_100017_create_prc_eis_details_table.php:15` |
 | `prc_ignore_rules` | Правила исключения закупок из обработки | `id`, `registry_id`, `rule_type`, `pattern` | `2026_07_04_100043_create_prc_ignore_rules_table.php:15` |
-| `prc_ignored_items` | Закупки, исключённые по правилам | `id`, `procurement_id`, `ignore_rule_id` | `2026_07_04_100044_create_prc_ignored_items_table.php:15` |
+| `prc_ignored_items` | Закупки, исключённые по правилам | `id`, `registry_id`, `registry_number`, `reason_category`, `reason` | `2026_07_04_100044_create_prc_ignored_items_table.php:15` |
 | `prc_daily_stats` | Ежедневная статистика обхода | `id`, `crawler_id`, `date`, `count_fetched` | `2026_07_04_100045_create_prc_daily_stats_table.php:15` |
 | `prc_operation_logs` | Логирование операций (для audit trail) | `id`, `operation_type`, `entity_id`, `user_id`, `created_at` | `2026_07_04_100046_create_prc_operation_logs_table.php:14` |
 
@@ -119,15 +119,17 @@
 
 ---
 
-## 3. Ключевые колонки для переименования (P3)
+## 3. Ключевые колонки, переименованные в P3
 
-### Главные ренеймы (D5 плана)
+### Главные ренеймы (D5 плана) — выполнены в P3.2
 
-| Текущее имя | Новое имя | Таблица(ы) | Причина | Миграция P3 |
-|:--|:--|:--|:--|:--|
-| `source_number` | `registry_number` | `prc_procurements` | 44-ФЗ: канон — «реестровый номер извещения» | P3.1 |
-| `source_guid` | `registry_guid` | `prc_procurements` | Консистентность с `registry_number` | P3.1 |
-| `source_status` | `source_stage` | `prc_procurements` (+ `prc_status_mappings`) | Хранит **этап** ЕИС, не канонический статус | P3.1 |
+| Было | Стало | Таблица(ы) | Причина | Статус | Миграция P3 |
+|:--|:--|:--|:--|:--|:--|
+| `source_number` | `registry_number` | `prc_procurements` | 44-ФЗ: канон — «реестровый номер извещения» | ✅ выполнено в P3.2 | P3.2 |
+| `source_guid` | `registry_guid` | `prc_procurements` | Консистентность с `registry_number` | ✅ выполнено в P3.2 | P3.2 |
+| `source_status` | `source_stage` | `prc_procurements` (+ `prc_status_mappings`, D18) | Хранит **этап** ЕИС, не канонический статус | ✅ выполнено в P3.2 | P3.2 |
+| `source_number` | `registry_number` | `prc_ignored_items` (D19) | Тот же концепт «реестровый номер закупки» (denylist), скоуп D5 расширен владельцем | ✅ выполнено в P3.2 | P3.2 |
+| `source_status` | `source_stage` | `prc_status_mappings` (D18) | Ключ резолва этапа, симметрично `prc_procurements` | ✅ выполнено в P3.2 | P3.2 |
 
 ### Существующие колонки, не входящие в P3 ренейм (D6)
 

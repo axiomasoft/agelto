@@ -13,7 +13,7 @@ use Tests\Support\Procurement\SnapshotFactory;
 
 /**
  * §11 «Неизвестный статус 223-ФЗ» — резолв в `unknown` + алерт-событие,
- * оператор дополняет `plt_status_mappings`.
+ * оператор дополняет `prc_status_mappings`.
  */
 test('незнакомый сырой статус резолвится в unknown и заводит строку маппинга для оператора', function () {
     $registry = Registry::factory()->create();
