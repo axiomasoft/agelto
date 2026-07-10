@@ -109,7 +109,7 @@ Review-гейты (субагенты, read-only, вне матрицы моде
 |:--|:--|:--|:--|
 | P1 | Решения, ADR, карта фактических имён | 2/3 | 🟠 Done with deviations |
 | P2 | Сиды `prc_status_mappings` + аудит `ProcurementStatus` | 2/2 | 🟢 Done |
-| P3 | Точечный семантический ренейм БД и кода | 1/3 | 🟡 In progress |
+| P3 | Точечный семантический ренейм БД и кода | 2/3 | 🟡 In progress |
 | P4 | Provenance: тонкий срез по конфликтным полям | 0/2 | ⬜ Not started |
 | P5 | Закрытие реальных дефектов пайплайна | 0/3 | ⬜ Not started |
 | P6 | Убить spec drift | 0/2 | ⬜ Not started |
@@ -157,3 +157,4 @@ Review-гейты (субагенты, read-only, вне матрицы моде
 | 2026-07-10 | plan-exec/sonnet | P2.2 🟢 Done, фаза P2 терминальна (2/2) — `StatusMappingSeeder` (4 пары `fz44`, D17) + вызов в `DatabaseSeeder` до local-гейта — детали см. phases/P2.md P2.2 Completion Notes |
 | 2026-07-10 | plan-design/opus | P3 детализирована (3 items, DoR пройден); impact-карта → `findings/P3-rename-impact.md` (40 файлов, не 341). Решения владельца — §5 D18/D19/D20 |
 | 2026-07-10 | plan-exec/sonnet | P3.1 🟢 Done — preflight: все 6 gate-счётчиков сошлись с картой, 4 миграции `PRESENT` на `origin/main` (диагностика, не блокер, D14), drift не найден — детали см. phases/P3.md P3.1 Completion Notes |
+| 2026-07-10 | plan-exec/sonnet | P3.2 🟢 Done — атомарный ренейм source_number/source_guid/source_status по §3.1, `migrate:fresh --seed`+467 тестов зелёные — детали см. phases/P3.md P3.2 Completion Notes |
