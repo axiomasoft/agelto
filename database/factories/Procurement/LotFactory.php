@@ -23,7 +23,7 @@ final class LotFactory extends Factory
             'lot_number' => fake()->unique()->numberBetween(int1: 1, int2: 1000),
             'lot_guid' => null,
             'subject' => fake()->sentence(),
-            'status' => ProcurementStatus::Announced,
+            'status' => ProcurementStatus::Bidding,
             'is_centralized' => false,
             'initial_price' => fake()->randomFloat(nbMaxDecimals: 2, min: 10000, max: 1000000),
             'currency' => 'RUB',

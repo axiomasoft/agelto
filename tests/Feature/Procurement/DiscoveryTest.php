@@ -25,7 +25,7 @@ test('новая закупка находит insert prc_procurements + пер�
     StatusMapping::factory()->create([
         'registry_id' => $registry->id,
         'source_status' => 'Размещение извещения',
-        'canonical_status' => 'announced',
+        'canonical_status' => 'bidding',
     ]);
     $data = SnapshotFactory::make($registry);
 
@@ -49,7 +49,7 @@ test('редакция без изменений ядра трогает тол�
     StatusMapping::factory()->create([
         'registry_id' => $registry->id,
         'source_status' => 'Размещение извещения',
-        'canonical_status' => 'announced',
+        'canonical_status' => 'bidding',
     ]);
     $data = SnapshotFactory::make($registry);
 
