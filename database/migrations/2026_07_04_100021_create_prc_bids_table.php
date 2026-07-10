@@ -9,6 +9,7 @@ use App\Models\Procurement\Procurement;
 use App\Models\Procurement\Protocol;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
@@ -50,6 +51,18 @@ return new class extends Migration
 
             $table->timestamps();
         });
+
+        // Прикладной ключ upsertBid() ветвится: резолвленный участник — (procurement_id,
+        // protocol_id, organization_id), анонимный — (procurement_id, protocol_id,
+        // participant_ordinal). NULLS NOT DISTINCT обязателен из-за nullable protocol_id —
+        // Postgres 17, Schema Builder такие индексы не умеет строить.
+        DB::statement(
+            "CREATE UNIQUE INDEX prc_bids_identified_participant_unique ON {$this->table()} (procurement_id, protocol_id, organization_id) NULLS NOT DISTINCT WHERE organization_id IS NOT NULL",
+        );
+
+        DB::statement(
+            "CREATE UNIQUE INDEX prc_bids_anonymous_participant_unique ON {$this->table()} (procurement_id, protocol_id, participant_ordinal) NULLS NOT DISTINCT WHERE organization_id IS NULL",
+        );
     }
 
     public function down(): void
