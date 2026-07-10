@@ -116,7 +116,7 @@ Review-гейты (субагенты, read-only, вне матрицы моде
 | P4 | Provenance: тонкий срез по конфликтным полям | 1/2 | 🟠 Done with deviations |
 | P5 | Закрытие реальных дефектов пайплайна | 4/4 | 🟢 Done |
 | P6 | Убить spec drift | 2/2 | 🟢 Done |
-| P7 | Глоссарий v2 + OCDS mapping | 1/2 | 🟡 In progress |
+| P7 | Глоссарий v2 + OCDS mapping | 2/2 | 🟢 Done |
 | P8 | Lifecycle-map и state machines единым документом | 0/2 | ⬜ Not started |
 | P9 | Финальный cross-phase review | 0/3 | ⬜ Not started |
 
@@ -191,3 +191,4 @@ Review-гейты (субагенты, read-only, вне матрицы моде
 | 2026-07-10 | plan-exec/sonnet | P6.2 🟢 Done, фаза P6 терминальна (2/2) — карта применена механически (29 RENAME-токенов, column-drift, долг `02-crawling.md:159` по ADR-0009), оба греп-гейта + column-гейт зелёные — детали см. phases/P6.md P6.2 Completion Notes |
 | 2026-07-10 | plan-design/opus | P7 детализирована (2 items, DoR пройден) — 8 терминов глоссария анкорены на код (D33: `revision`/`event`/`projection`/`provenance`/`quality flag`/`notice`/`registry number`/`ETP number`), Routing добавлен (`P7.1`/`P7.2` sonnet impl + opus review). Добавлен runner `workflow-P7.js` |
 | 2026-07-10 | plan-exec/sonnet | P7.1 🟢 Done — оба глоссария дополнены 8 терминами D33 (2 сущности + 6 OCDS/оспариваемых терминов) — детали см. phases/P7.md P7.1 Completion Notes |
+| 2026-07-10 | plan-exec/sonnet | P7.2 🟢 Done, фаза P7 терминальна (2/2) — создан `docs/03_Dev/ocds-mapping.md`, mapping `prc_procurements`/`prc_revisions`/`prc_events` ↔ OCDS, поля анкорены на реальные миграции — детали см. phases/P7.md P7.2 Completion Notes |
