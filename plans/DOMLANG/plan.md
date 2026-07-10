@@ -110,7 +110,7 @@ Review-гейты (субагенты, read-only, вне матрицы моде
 | P1 | Решения, ADR, карта фактических имён | 2/3 | 🟠 Done with deviations |
 | P2 | Сиды `prc_status_mappings` + аудит `ProcurementStatus` | 2/2 | 🟢 Done |
 | P3 | Точечный семантический ренейм БД и кода | 3/3 | 🟢 Done |
-| P4 | Provenance: тонкий срез по конфликтным полям | 1/2 | 🟡 In progress |
+| P4 | Provenance: тонкий срез по конфликтным полям | 1/2 | 🟠 Done with deviations |
 | P5 | Закрытие реальных дефектов пайплайна | 0/4 | ⬜ Not started |
 | P6 | Убить spec drift | 0/2 | ⬜ Not started |
 | P7 | Глоссарий v2 + OCDS mapping | 0/2 | ⬜ Not started |
@@ -167,3 +167,4 @@ Review-гейты (субагенты, read-only, вне матрицы моде
 | 2026-07-10 | plan-exec/sonnet | P3.3 🟢 Done, фаза P3 терминальна (3/3) — zero-residue подтверждён (7/7 Validation зелёные, 469 тестов), фикстуры ЕИС и `plt_*` приведены к реальности, `etp_number` пинён round-trip-тестом, карта имён актуализирована — детали см. phases/P3.md P3.3 Completion Notes |
 | 2026-07-10 | plan-design/opus | P4 детализирована (2 items, DoR пройден); дизайн-разведка → `findings/P4-write-site-map.md`. Решения — §5 D23 (правило R1/R2/R3), D24 (клоббер `customer_org_id` → новый item P5.4, доска P5 = 0/4); `workflow.js` получил `DECISION_RULES['P4.1']` |
 | 2026-07-10 | plan-exec/sonnet | P4.1 🟢 Done — вердикт `0 полей класса R1`: `customer_org_id` подтверждён R2 (клоббер, D24), `status` классифицирован R3 (журнал пишет `prc_events`, не колонку); карта write-site'ов подтверждена без расхождений — детали см. phases/P4.md P4.1 Completion Notes |
+| 2026-07-10 | plan-exec/sonnet | P4.2 ⛔ Skipped by decision, фаза P4 терминальна (1/2, 🟠) — вердикт `N = 0` (P4.1), ADR-0008 дописан — детали см. phases/P4.md P4.2 Completion Notes |
