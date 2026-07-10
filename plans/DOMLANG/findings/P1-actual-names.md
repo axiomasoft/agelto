@@ -143,17 +143,28 @@
 
 ## 4. Новые колонки (P4 — Provenance)
 
-### Thin Slice Provenance (D4, D8)
+**Их здесь нет и не должно быть.** Ни одна колонка provenance не спроектирована, потому что
+проектировать пока нечего: ADR-0008 (`docs/03_Dev/adr/0008-thin-provenance-slice.md`) делает
+наличие оспариваемых полей **предметом доказательства**, а не предпосылкой.
 
-Per Decision D4, materializes only fields from ≥2 layers with discrepancy:
+Порядок обратный привычному — сначала proof, потом схема:
 
-| Таблица | Новая колонка | Тип | Назначение | Миграция P4 |
-|:--|:--|:--|:--|:--|
-| `prc_procurements` | `provenance_source` | text[] | Слои происхождения (regs, fetches, ai) | P4.1 |
-| `prc_documents` | `provenance_level` | enum/text | Уровень доверия (raw, validated, derived) | P4.1 |
-| `prc_estimates` | `analysis_confidence` | decimal(3,2) | Уровень доверия LLM-извлечения | P4.1 |
+1. `P4.1` (research) обязан выдать proof-таблицу: поле → ≥2 code-write-site → конкретный пример
+   расхождения значений → **названный потребитель** (кто именно читает происхождение и зачем).
+2. `P4.2` материализует колонки **только** для полей, прошедших шаг 1 целиком.
+3. Нет доказательства ИЛИ нет потребителя → фаза `P4` закрывается `⛔ Skipped by decision`.
+   Это **легальный исход**, а не пропуск работы (ADR-0008, D13).
 
-**Обязательно:** проверка P4.1 конфликтных полей. Если нет конфликтов — фаза P4 закрывается `⛔ Skipped by decision` (ADR-0008).
+Ранее в этом разделе стояла таблица из трёх колонок (`provenance_source`, `provenance_level`,
+`analysis_confidence`). Она удалена (D15): у них нет ни продюсера, ни потребителя в коде
+(`grep` = 0), `provenance_level(raw/validated/derived)` воспроизводил отклонённую ADR-0008
+`*-derived`-схему, `provenance_source` дублировал существующий coarse-lineage
+(`prc_revisions.crawler_run_id`, `prc_fetches.artifact_ref`), а `analysis_confidence` — это score
+модели, а не происхождение факта. Документ объявлен каноном имён для P2–P5 (`plan.md` §2), поэтому
+гипотеза в нём неотличима от спеки — её место в `plan.md` D-логе, не здесь.
+
+> Исполнителю P4: имя колонки, которого нет в этом разделе, — не «забытое», а **незаслуженное**.
+> Заводи его через P4.1, а не по памяти из старых редакций карты.
 
 ---
 
@@ -197,7 +208,7 @@ $ grep -E '^[[:space:]]*(CREATE TABLE|Schema::create)\s+(doc_|est_|crw_|sys_|plt
 **Проверка 2: Все таблицы домена присутствуют в документе**
 ```bash
 $ ls database/migrations/*_create_{prc_,ref_,org_}*.php | sed 's/.*_create_//' | sed 's/_table.php//' | wc -l
-# Результат: 48 таблиц (42 prc_* + 4 ref_* + 1 org_*)
+# Результат: 48 таблиц (43 prc_* + 4 ref_* + 1 org_*)
 $ grep -c '^\| `(prc_|ref_|org_)' plans/DOMLANG/findings/P1-actual-names.md
 # Результат: 48 строк в документе
 # ✅ Совпадает

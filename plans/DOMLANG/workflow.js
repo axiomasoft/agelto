@@ -12,7 +12,8 @@
 //      Общий runner дал бы P1.1 sonnet/medium вместо haiku/low, а P1.2/P9 — вместо opus/xhigh.
 //   2. commitScope = DOMLANG (общий runner хардкодит 'EST-AI' в сообщениях коммитов).
 //   3. Гейты стоят там, где дифф НЕОБРАТИМ по объёму, а не там, где «страшно»:
-//      - hard-гейт P3.1 (машинная проверка: миграции не в main);
+//      - (снят D14) hard-гейт P3.1 «миграции не в main» -> теперь preflight-диагностика:
+//        владелец подтвердил, что применённых сред нет, edit-in-place безопасен;
 //      - phase-гейт ПОСЛЕ P3 (ренейм колонок в 341 файле — глаза человека на git diff,
 //        прежде чем P4-P8 начнут на него опираться, а P6 зафиксирует его в доках как канон);
 //      - эскалация исполнителя (план разошёлся с кодом).
@@ -95,7 +96,12 @@ const PHASES = {
     items: [
       {
         id: 'P3.1', impl: SONNET_MED, review: OPUS_HIGH,
-        hardGate: "git log origin/main -- database/migrations/ должен быть ПУСТ. Непустой вывод = миграции в main, правка на месте запрещена, фаза останавливается (mitigation pre-mortem P1.3).",
+        // D14 (владелец, 2026-07-10): edit-in-place разрешён — проект не развёрнут, применённых сред нет.
+        // Прежний hard-гейт («миграции не в main») снят: он защищал от рассинхрона схема↔файл на средах,
+        // применивших старую версию файла; таких сред не существует. Проверка осталась ДИАГНОСТИКОЙ.
+        // Гейт возвращается, как только появится первая persistent-среда, применившая миграции.
+        hardGate: null,
+        preflight: "Диагностика (НЕ блокирует): прогони `git cat-file -e origin/main:<файл>` по каждому целевому файлу миграции и зафиксируй результат в Completion Notes. Стратегия — edit-in-place правка create-table-миграций (D14), forward alter-миграции (renameColumn) НЕ заводить. Верификация фазы обязана включать полный `migrate:fresh` + прогон сюита, а не только grep.",
       },
       { id: 'P3.2', impl: SONNET_MED, review: OPUS_XHIGH },
       { id: 'P3.3', impl: SONNET_MED, review: OPUS_HIGH },
@@ -230,6 +236,7 @@ function implementPrompt(item, phaseKey) {
   const gate = item.hardGate
     ? `\n\nЖЁСТКИЙ ГЕЙТ ПУНКТА (выполни ПЕРВЫМ делом, до любых правок): ${item.hardGate}\nГейт не пройден -> НИЧЕГО не меняй, статус пункта 🔴 Blocked, escalated=true, escalationReason с фактическим выводом команды. Обходить гейт заглушкой/«проверю потом»/ослаблением Validation ЗАПРЕЩЕНО.`
     : ''
+  const pre = item.preflight ? `\n\nPREFLIGHT ПУНКТА (выполни первым делом; НЕ блокирует): ${item.preflight}` : ''
   const moot = item.mayZeroOutRest
     ? `\n\nОТРИЦАТЕЛЬНЫЙ РЕЗУЛЬТАТ ЛЕГАЛЕН: если доказано, что конфликтных полей НЕТ — это успех пункта, а не провал. Тогда verdict фиксируется, remainingItemsMoot=true, а следующий пункт фазы закрывается '⛔ Skipped by decision' со ссылкой на ADR-0008. Не выдумывай конфликт, чтобы «было что делать».\nАСИММЕТРИЯ ОШИБКИ (open-questions.md Q4): ложное «конфликты есть» -> provenance материализуется без потребителя, прямое нарушение ADR-0008. Ложное «конфликтов нет» -> дёшево, триггер возврата записан в ADR. При неуверенности склоняйся к «нет» и зафиксируй сомнение в Completion Notes.`
     : ''
@@ -243,7 +250,7 @@ function implementPrompt(item, phaseKey) {
 
 Исполнение СТРОГО в рамках Scope Included. Идея «улучшить бы заодно» -> Pending Work, не делай.
 План разошёлся с кодом (файла нет / сигнатура другая) -> НЕ чини план сам, эскалируй: blockquote '> 🔴 ESCALATION ${item.id}: …' в пункте, Status 🔴 Blocked, обнови handoff, верни escalated=true.
-${PLAN_CANON}${gate}${rule}${moot}
+${PLAN_CANON}${gate}${pre}${rule}${moot}
 
 Прогони КАЖДУЮ команду из Validation пункта, зафиксируй passed/failed. Ослаблять Validation ради зелёного — запрещено; расхождение разбирай до корня и пиши вывод в Completion Notes.
 
