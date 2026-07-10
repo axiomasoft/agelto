@@ -121,3 +121,27 @@ test('dispatch (прямой путь) тоже уважает backoff — не 
     expect($count)->toBe(0);
     Queue::assertNotPushed(PrepareDocumentJob::class);
 });
+
+test('uniqueFor pipeline-job задаёт TTL unique-лока больше TTL лиза (600с) — защита от вечного лока на Redis (ADR-0009)', function () {
+    expect(app(PrepareDocumentJob::class, ['documentId' => 1])->uniqueFor())->toBeGreaterThan(600);
+});
+
+test('unique-лок PrepareDocumentJob протухает по истечении uniqueFor — следующий dispatch пушит job (D25)', function () {
+    Queue::fake();
+    $procurement = Procurement::factory()->create();
+    $document = Document::factory()->create(['procurement_id' => $procurement->id, 'status' => DocumentStatus::Downloaded]);
+
+    $dispatcher = app(PipelineDispatcher::class);
+    $dispatcher->dispatch(procurement: $procurement);
+    Queue::assertPushed(PrepareDocumentJob::class, 1);
+
+    // лок ещё держится (uniqueFor = час по умолчанию) — повторный dispatch не пушит доп. job
+    $dispatcher->dispatch(procurement: $procurement);
+    Queue::assertPushed(PrepareDocumentJob::class, 1);
+
+    $this->travel(config('ai.pipeline.unique_lock_minutes') + 1)->minutes();
+    $dispatcher->dispatch(procurement: $procurement);
+
+    Queue::assertPushed(PrepareDocumentJob::class, fn (PrepareDocumentJob $job) => $job->documentId === $document->id);
+    Queue::assertPushed(PrepareDocumentJob::class, 2);
+});

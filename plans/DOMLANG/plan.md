@@ -111,7 +111,7 @@ Review-гейты (субагенты, read-only, вне матрицы моде
 | P2 | Сиды `prc_status_mappings` + аудит `ProcurementStatus` | 2/2 | 🟢 Done |
 | P3 | Точечный семантический ренейм БД и кода | 3/3 | 🟢 Done |
 | P4 | Provenance: тонкий срез по конфликтным полям | 1/2 | 🟠 Done with deviations |
-| P5 | Закрытие реальных дефектов пайплайна | 0/4 | 🟡 In progress |
+| P5 | Закрытие реальных дефектов пайплайна | 1/4 | 🟡 In progress |
 | P6 | Убить spec drift | 0/2 | ⬜ Not started |
 | P7 | Глоссарий v2 + OCDS mapping | 0/2 | ⬜ Not started |
 | P8 | Lifecycle-map и state machines единым документом | 0/2 | ⬜ Not started |
@@ -173,3 +173,4 @@ Review-гейты (субагенты, read-only, вне матрицы моде
 | 2026-07-10 | plan-exec/sonnet | P4.1 🟢 Done — вердикт `0 полей класса R1`: `customer_org_id` подтверждён R2 (клоббер, D24), `status` классифицирован R3 (журнал пишет `prc_events`, не колонку); карта write-site'ов подтверждена без расхождений — детали см. phases/P4.md P4.1 Completion Notes |
 | 2026-07-10 | plan-exec/sonnet | P4.2 ⛔ Skipped by decision, фаза P4 терминальна (1/2, 🟠) — вердикт `N = 0` (P4.1), ADR-0008 дописан — детали см. phases/P4.md P4.2 Completion Notes |
 | 2026-07-10 | plan-design/opus | P5 детализирована (4 items, DoR пройден); разведка → `findings/P5-pipeline-defects.md`. Решения — §5 D25–D28; Q8 заведён, `workflow.js` получил `DECISION_RULES['P5.1']` |
+| 2026-07-10 | plan-exec/sonnet | P5.1 🟢 Done — `PipelineJob::uniqueFor()` + `ai.pipeline.unique_lock_minutes`, ADR-0009 принят (owner перехода — job, не мост, `Queued` не вводится), `docs-private/{risk-register,crawler-gotchas}.md` актуализированы, 2 регресс-теста — детали см. phases/P5.md P5.1 Completion Notes |

@@ -89,6 +89,18 @@ abstract class PipelineJob implements ShouldQueue
     abstract public function pipelineUniqueId(): string;
 
     /**
+     * TTL unique-лока в секундах (`Illuminate\Bus\UniqueLock::acquire()` проверяет
+     * `method_exists($job, 'uniqueFor')` раньше свойства `$uniqueFor`). Без объявления `$uniqueFor`
+     * пропадает в `0`: на Redis (прод) `SETNX` без `EXPIRE` — лок вечен, убитый воркер (SIGKILL/OOM/
+     * рестарт) навсегда запирает документ (ADR-0009). Общий для всех pipeline-job'ов — единственный
+     * owner перехода статуса снимает лок штатно, TTL страхует только случай убитого воркера.
+     */
+    public function uniqueFor(): int
+    {
+        return (int) config('ai.pipeline.unique_lock_minutes', 60) * 60;
+    }
+
+    /**
      * Хук ПОСЛЕ успешного `releaseLease()` (не вызывается, если `process()` бросил исключение —
      * тогда `handle()` пробрасывает его дальше сразу за `finally`). No-op по умолчанию.
      * `EstimateExtractionJob` (P6.1, D39) переопределяет для self-dispatch продолжения
