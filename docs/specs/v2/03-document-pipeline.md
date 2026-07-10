@@ -12,7 +12,7 @@
 
 ## 2. Статусная машина документа
 
-`doc_documents.status`:
+`prc_documents.status`:
 
 ```
 discovered ──download──> downloaded ──prepare──> prepared ──screen──> screened ──(если смета)──> extracted
@@ -32,21 +32,21 @@ discovered ──download──> downloaded ──prepare──> prepared ──
 ### 3.1 Индексация вложений (из карточки)
 
 - Источник — стадия крауlinga (`02-crawling.md` §5): список файлов карточки.
-- Для каждого — `doc_documents` (по `external_id`), без скачивания. Кэш по `source_updated_at` карточки: не переиндексируем, если дата обновления не менялась.
+- Для каждого — `prc_documents` (по `external_id`), без скачивания. Кэш по `source_updated_at` карточки: не переиндексируем, если дата обновления не менялась.
 - Событие `document_added` / `document_removed` / `document_replaced` относительно предыдущей редакции.
 
 ### 3.2 Скачивание и версионирование
 
 - Скачать файл (HTTP-first; браузерный сервис — только если ссылка требует рендеринга).
 - Посчитать `content_hash` (sha256). Если версия с таким хэшем уже есть у документа — no-op (контент не изменился).
-- Иначе — новый `doc_versions` (оригинал в object storage, immutable), при отличии от прошлой версии того же документа — событие `document_replaced`.
+- Иначе — новый `prc_document_versions` (оригинал в object storage, immutable), при отличии от прошлой версии того же документа — событие `document_replaced`.
 - Job: `DownloadDocumentVersionJob` (очередь скачивания), lease, error-блок, backoff.
 
 ### 3.3 Подготовка
 
 Стратегии подготовки (аналог v1 `PreparationStrategy`), выбор по расширению/сигнатуре:
 
-- **Архив** (ZIP/RAR/7z): распаковать → на каждый вложенный файл создать **дочерний** `doc_documents` + `doc_versions` с `parent_version_id`; дети идут по пайплайну с самого начала (индексация→…). Защита от zip-бомб (лимит глубины/размера/числа файлов).
+- **Архив** (ZIP/RAR/7z): распаковать → на каждый вложенный файл создать **дочерний** `prc_documents` + `prc_document_versions` с `parent_version_id`; дети идут по пайплайну с самого начала (индексация→…). Защита от zip-бомб (лимит глубины/размера/числа файлов).
 - **Excel/таблицы** → конвертация в PDF (или нормализованный вид) в `prepared_storage_path`, чтобы LLM работал с единым представлением.
 - **Изображения** (в т.ч. смета сканом): пометить для vision-ветки скрининга/извлечения; при необходимости — предобработка (dpi, ориентация).
 - **PDF/текст** — пропустить дальше как есть.
@@ -55,7 +55,7 @@ discovered ──download──> downloaded ──prepare──> prepared ──
 ### 3.4 Скрининг (первичный анализ)
 
 - Дешёвый вызов LLM (провайдер по матрице `screening`, `04-llm-providers.md`): классифицировать тип и дать минимальный ответ.
-- Результат — `ai_analyses(step=screening)`: `document_type` (`estimate`, `tech_spec`, `contract_draft`, `protocol`, `unknown`, …), краткое описание, теги.
+- Результат — `prc_ai_analyses(step=screening)`: `document_type` (`estimate`, `tech_spec`, `contract_draft`, `protocol`, `unknown`, …), краткое описание, теги.
 - Ветвление:
   - `estimate` → в очередь полного извлечения (§3.5).
   - иной известный тип → сохранить тип, статус `screened` (обработчик подключится позже), не тратить токены на полный разбор.
@@ -74,9 +74,9 @@ discovered ──download──> downloaded ──prepare──> prepared ──
 4. **Merge + детерминированная валидация в коде** (не LLM): сверка `rows_expected` vs `rows_extracted`, типов, дублей `row_index`, сходимости сумм.
 5. **Точечный re-run** только по подозрительному диапазону (аномалии, пропуски), не по всему документу.
 
-- Результат маппится в нормализованные таблицы (`est_estimates` + `est_sections` + `est_items` + `est_resources` + `est_totals`), сырой ответ LLM — в `est_estimates.raw_result` (inline jsonb; крупные payload'ы > порога — в object storage через `raw_result_ref`).
+- Результат маппится в нормализованные таблицы (`prc_estimates` + `prc_estimate_sections` + `prc_estimate_items` + `prc_estimate_resources` + `prc_estimate_totals`), сырой ответ LLM — в `prc_estimates.raw_result` (inline jsonb; крупные payload'ы > порога — в object storage через `raw_result_ref`).
 - `quality`: `rows_expected`, `rows_extracted`, `validation_status` — контроль полноты; расхождение → статус на ревью/переизвлечение.
-- Job: `EstimateExtractionJob`, lease, `ai_analyses(step=extraction)`.
+- Job: `EstimateExtractionJob`, lease, `prc_ai_analyses(step=extraction)`.
 
 ## 4. Оркестрация очередей (Horizon)
 
@@ -86,7 +86,7 @@ Idempotency: диспатч по guard'у статуса; повторный job
 
 ## 5. Ошибки и наблюдаемость
 
-- Единый error-блок на `doc_documents`/`ai_analyses` (`attempts`, `last_error`, `next_retry_at`, `failed_permanently`) — канон v1.
+- Единый error-блок на `prc_documents`/`prc_ai_analyses` (`attempts`, `last_error`, `next_retry_at`, `failed_permanently`) — канон v1.
 - Каждая смена статуса → событие + запись в журнал стадий; verbose-контент (trace) — в журнал, не в основную таблицу.
 - Алерты: рост доли `failed` на стадии, всплеск `unknown` в скрининге (возможен дрейф классификатора/новый тип документа), расхождение `rows_expected/extracted` выше порога.
 
@@ -95,7 +95,7 @@ Idempotency: диспатч по guard'у статуса; повторный job
 | Сценарий | Поведение |
 |---|---|
 | Один и тот же файл повторно | no-op по `content_hash` |
-| Файл заменён на площадке | новая `doc_versions`, событие `document_replaced`, анализы старой версии сохранены |
+| Файл заменён на площадке | новая `prc_document_versions`, событие `document_replaced`, анализы старой версии сохранены |
 | Архив со сметой внутри | распаковка → дочерние documents с `parent_version_id`, смета найдена скринингом ребёнка |
 | Не-смета (протокол) | скрининг сохраняет тип, полный разбор не запускается |
 | Смета сканом (картинка) | vision-ветка скрининга/извлечения |
@@ -106,5 +106,5 @@ Idempotency: диспатч по guard'у статуса; повторный job
 ## 7. Открытые вопросы / риски
 
 - Размер row-range диапазона — калибровать под реальные сметы и `max_tokens` модели.
-- Набор типов документов сверх сметы — расширяется по мере появления обработчиков; справочник `plt_document_types` открыт.
+- Набор типов документов сверх сметы — расширяется по мере появления обработчиков; справочник `prc_document_types` открыт.
 - Vision-качество на плохих сканах — заложить порог уверенности и ручную проверку.

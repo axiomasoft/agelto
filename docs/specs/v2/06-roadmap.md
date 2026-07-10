@@ -16,13 +16,13 @@
 
 ## Фаза 1 — Схема БД и ядро закупок
 
-- Миграции всей схемы `01-database.md`: справочники, `prc_procurements` + `prc_revisions` + `prc_events`, `plt_status_mappings`, lots/items, документы/версии, сметы, краулинг, LLM-конфиг; партиционирование `*_events`/`*_revisions`/`ai_llm_calls`/`crw_fetches` + premake-команда.
+- Миграции всей схемы `01-database.md`: справочники, `prc_procurements` + `prc_revisions` + `prc_events`, `prc_status_mappings`, lots/items, документы/версии, сметы, краулинг, LLM-конфиг; партиционирование `*_events`/`*_revisions`/`prc_ai_llm_calls`/`prc_fetches` + premake-команда.
 - Модели, репозитории (read/store split), инжест-процессор (закупка → ревизия + события), сервис статус-маппинга.
 - **Приёмка**: чек-лист сценариев схемы (`01` §11) покрыт тестами — новая закупка, новая редакция, смена статуса/цены, состояние на дату, неизвестный статус → `unknown`+алерт.
 
 ## Фаза 2 — Сбор (CSV/HTTP, fresh)
 
-- Source-абстракция + `CsvSourceMethod`; профили/прогоны (heartbeat, курсор, one-active); `crw_fetches`; детект «тихого cap»; вежливый темп + прокси-пул.
+- Source-абстракция + `CsvSourceMethod`; профили/прогоны (heartbeat, курсор, one-active); `prc_fetches`; детект «тихого cap»; вежливый темп + прокси-пул.
 - Fresh-режим по расписанию (44-ФЗ + 223-ФЗ): скан по убыванию обновления до известного блока; инжест в ядро; нормализация способа закупки и статусов.
 - **Приёмка**: реальный fresh-скан двух реестров наполняет `prc_procurements`/ревизии/события; повтор идемпотентен (нет дублей); дедуп и стоп-детект работают.
 
@@ -30,7 +30,7 @@
 
 - Стадия детального анализа карточки (HTTP-first, `02` §5): вкладки common-info/documents/event-journal/supplier-results → `prc_procurements`+`prc_eis_details`, `prc_items`, `prc_financing`, `org_organizations`+`org_procurement_parties`, `prc_events` (из журнала ЕИС), `prc_protocols`/`prc_bids`/`prc_awards`/`prc_clarifications`/`prc_cancellations`.
 - Классификаторы (`ref_*`) — загрузчик справочников; резолв кодов позиций.
-- Индексация вложений в `doc_documents`; скачивание версий с дедупом по `content_hash`; сырьё в object storage.
+- Индексация вложений в `prc_documents`; скачивание версий с дедупом по `content_hash`; сырьё в object storage.
 - **Приёмка**: по закупке снят полный детальный слой; журнал событий ЕИС наполняет `prc_events`; организация в нескольких ролях резолвится в один `org_organizations`; итоги завершённой закупки → `prc_awards`/`prc_bids`; замена файла → новая версия + событие.
 
 ## Фаза 3b — Архив (перекачка истории)
@@ -47,12 +47,12 @@
 ## Фаза 5 — Полное извлечение смет
 
 - Оркестратор многошагового разбора (паспорт → построчные диапазоны → итоги), context caching, structured output, `temperature=0`.
-- Merge + детерминированная валидация полноты в коде; маппинг в нормализованные `est_estimates`/sections/items/resources/totals; сырой ответ в object storage.
+- Merge + детерминированная валидация полноты в коде; маппинг в нормализованные `prc_estimates`/sections/items/resources/totals; сырой ответ в object storage.
 - **Приёмка**: смета на сотни строк извлекается с контролем полноты; расхождение → ревизия/re-run диапазона; повтор не плодит дублей (unique `(version, step)`).
 
 ## Фаза 6 — Провайдеры, eval, shadow
 
-- Матрица роутинга (`ai_routes`) + резолвер с fallback; CRUD context-кэшей; учёт стоимости.
+- Матрица роутинга (`prc_ai_routes`) + резолвер с fallback; CRUD context-кэшей; учёт стоимости.
 - Golden-датасет + eval-раннер (field/row-метрики) + CI-гейт; shadow-режим для сравнения провайдеров.
 - Контракт локальной LLM (OpenAI-совместимый адаптер) — подключаемость без правки домена.
 - **Приёмка**: смена провайдера шага через админку без деплоя; eval-отчёт по голдену; shadow-прогон пишет сравнительные метрики.

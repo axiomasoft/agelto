@@ -34,7 +34,7 @@
 
 ## 4. N+1 на `registry` при пакетной обработке
 
-`DetailRefetchSelector::due()` / `DetailAnalysisProcessor::run()` при батч-обработке через `crawler:fetch-details` без аргумента делает по одному `SELECT plt_registries` **на каждую закупку** вместо одного batched-запроса. Признан низким impact (справочник `plt_registries` — единицы строк на реестр), сознательно не оптимизирован (Known Deviations P3.8). Если объём закупок в батче вырастет на порядки — стоит вернуться и заэagerload'ить `registry`.
+`DetailRefetchSelector::due()` / `DetailAnalysisProcessor::run()` при батч-обработке через `crawler:fetch-details` без аргумента делает по одному `SELECT prc_registries` **на каждую закупку** вместо одного batched-запроса. Признан низким impact (справочник `prc_registries` — единицы строк на реестр), сознательно не оптимизирован (Known Deviations P3.8). Если объём закупок в батче вырастет на порядки — стоит вернуться и заэagerload'ить `registry`.
 
 ## 5. `PipelineDispatcher` НЕ мутирует статус документов — по решению ADR-0009, не «по факту реализации»
 
@@ -44,7 +44,7 @@
 (`plans/DOMLANG` P5.1, 2026-07-10): owner перехода `downloaded → prepared` — сам
 `PrepareDocumentJob::process()` (`app/Jobs/Procurement/PrepareDocumentJob.php:79`), не мост.
 
-Мост только отбирает и диспатчит `doc_documents.status = downloaded` — не переводит их в
+Мост только отбирает и диспатчит `prc_documents.status = downloaded` — не переводит их в
 промежуточный статус, и это не пробел, а решение: `DocumentStatus::Queued` намеренно не вводится
 (сломал бы `scopePendingRetry`/`PipelineStuckCheck::stuckDocuments()`/`PipelineRetryFailed`, весь
 recovery которых опирается на то, что застрявший документ **остаётся** `downloaded`). Инвариант

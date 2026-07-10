@@ -7,12 +7,12 @@
 1. **OCDS 1.1 — словарь и референс-модель, не буквальная схема.** Декомпозиция (parties, tender/lots/items, documents, awards, amendments-как-релизы) и паттерн `releases → compiledRelease`: текущее состояние закупки — материализованная проекция, история — append-only.
 2. **Три слоя истории**: `prc_procurements` (текущее состояние) + `prc_revisions` (полные снапшоты редакций, jsonb) + `prc_events` (типизированный журнал). Без temporal-расширений (maintenance-mode, несовместимы с managed PG).
 3. **Идентификаторы**: везде `bigint GENERATED ALWAYS AS IDENTITY` как PK; на внешних сущностях (закупки, документы, сметы, организации) — дополнительно `uuid` (UUIDv7, генерация в приложении на PG17; unique) для API/ссылок/идемпотентности. Тип PK менять постфактум на больших таблицах = full rewrite → фиксируем bigint сразу.
-4. **Партиционирование с первого дня** там, где рост линеен от событий: `prc_events`, `prc_revisions`, `ai_llm_calls`, `crw_fetches`, `sys_operation_logs` — RANGE по времени, помесячно. «Шапки» (`prc_procurements`, `doc_documents`) не партиционируем.
+4. **Партиционирование с первого дня** там, где рост линеен от событий: `prc_events`, `prc_revisions`, `prc_ai_llm_calls`, `prc_fetches`, `prc_operation_logs` — RANGE по времени, помесячно. «Шапки» (`prc_procurements`, `prc_documents`) не партиционируем.
    - Правило PG: UNIQUE/PK на партиционированной таблице обязан включать partition key → PK `(id, <time>)`; глобальная уникальность — на непартиционированных шапках.
    - Обслуживание: **pg_partman** (premake на 3 мес вперёд, поддержка UUIDv7-ключей); своя scheduled-команда — fallback, если расширение недоступно.
 5. **jsonb**: `default_toast_compression = lz4`. Никаких generic GIN «на всякий случай» — фильтруемое выносим в типизированные колонки; GIN (`jsonb_path_ops`) — только под конкретный containment-запрос.
 6. **Спец-поля площадок**: гибрид — ядро в колонках; редкое — `attributes jsonb`; богатая площадка — extension-таблица 1:1 (`prc_eis_details`).
-7. **Статусы**: канонический закрытый enum ядра + сырой статус источника (`source_status`). Маппинг сырой→канон — данные (таблица `plt_status_mappings`), не хардкод.
+7. **Статусы**: канонический закрытый enum ядра + сырой статус источника (`source_stage`). Маппинг сырой→канон — данные (таблица `prc_status_mappings`), не хардкод.
 8. **Money**: `numeric(18,2)` + `currency char(3)`. Даты источника — `date`/`timestamptz` в колонках, наши метки — `*_at timestamptz`.
 9. **Три разных «version»** держим раздельно, не сводим в одно поле: `source_edition` (редакция извещения на площадке), `document_version` (версия файла), внутренние ревизии `prc_revisions.revision_number`.
 10. **Классификаторы (ОКПД2/КТРУ/ОКВЭД2/КБК) — справочниками** (`ref_*`) с историей версий; в позициях/закупках хранить **и сырой код как в источнике, и FK** на справочник (регуляторный аудит требует зафиксировать код на момент публикации, даже если справочник потом изменится).
@@ -26,25 +26,25 @@
 |---|---|---|
 | `ref_` | Классификаторы (shared) | okpd2, ktru, okved2, kbk |
 | `org_` | Организации (shared) | organizations |
-| `prc_` | Закупки — единый мегадомен | platforms, registries, status_mappings, document_types, regions, procurement_parties, procurements, revisions, events, lots, items, financing, eis_details, protocols, bids, awards, clarifications, cancellations, documents, document_versions, ai_analyses, ai_llm_calls, ai_providers, ai_routes, ai_prompts, ai_dataset_examples, ai_eval_runs, ai_eval_results, estimates, estimate_sections, estimate_items, estimate_resources, estimate_totals, crawlers, crawler_runs, proxies, fetches, proxy_checks, ignore_rules, ignored_items, daily_stats, operation_logs, search (витрина, §10) |
+| `prc_` | Закупки — единый мегадомен | platforms, registries, status_mappings, document_types, regions, procurement_parties, procurements, revisions, events, lots, items, financing, eis_details, protocols, bids, awards, clarifications, cancellations, documents, document_versions, prc_ai_analyses, prc_ai_llm_calls, prc_ai_providers, prc_ai_routes, prc_ai_prompts, prc_ai_dataset_examples, prc_ai_eval_runs, prc_ai_eval_results, estimates, estimate_sections, estimate_items, estimate_resources, estimate_totals, crawlers, crawler_runs, proxies, fetches, proxy_checks, ignore_rules, ignored_items, daily_stats, operation_logs, search (витрина, §10) |
 
 Внутри `prc_`-мегадомена имя по умолчанию без повтора домена (`prc_lots`, а не `prc_procurement_lots`). Осознанное отклонение — сателлиты уже занятых корней: `prc_estimate_items/sections/resources/totals` (не `prc_items` — коллизия с позициями объекта закупки), `prc_crawler_runs` (не `prc_runs`). Фактические имена индексов/FK везде выровнены под настоящее имя таблицы (raw-DDL в 100018/100026/100033/100039/100041/100046 — правка аудита F).
 
 ## 1. Справочники и классификаторы
 
-### plt_platforms
+### prc_platforms
 `id, code text unique (eis), name, base_url, is_active`.
 
-### plt_registries — реестр внутри площадки (у ЕИС — два)
+### prc_registries — реестр внутри площадки (у ЕИС — два)
 `id, platform_id FK, code text (fz44/fz223) unique(platform_id,code), name, settings jsonb (лимиты выдачи, шаблоны URL карточек по типам процедур ea20/ok20/zk20/ezt20)`.
 
-### plt_status_mappings — маппинг сырых статусов (данные, не код)
-`id, registry_id FK, source_status text unique(registry_id,source_status), canonical_status text (enum)`. Неизвестный сырой статус → `unknown` + событие + алерт; оператор дополняет в админке (закрывает конфигурируемость 223-ФЗ).
+### prc_status_mappings — маппинг сырых статусов (данные, не код)
+`id, registry_id FK, source_stage text unique(registry_id,source_stage), canonical_status text (enum)`. Неизвестный сырой статус → `unknown` + событие + алерт; оператор дополняет в админке (закрывает конфигурируемость 223-ФЗ).
 
-### plt_document_types — справочник типов документов (открытый)
-`id, code text unique (estimate/tech_spec/contract_draft/protocol/notice/clarification/unknown…), name, has_extractor bool (на старте true только у estimate), is_active`. Скрининг проставляет `ai_analyses.document_type` = `code`; новый тип — строкой, без миграции.
+### prc_document_types — справочник типов документов (открытый)
+`id, code text unique (estimate/tech_spec/contract_draft/protocol/notice/clarification/unknown…), name, has_extractor bool (на старте true только у estimate), is_active`. Скрининг проставляет `prc_ai_analyses.document_type` = `code`; новый тип — строкой, без миграции.
 
-### plt_regions — справочник регионов площадки
+### prc_regions — справочник регионов площадки
 `id, platform_id FK, external_id text (код региона на площадке), name text, region_code text nullable (наш внутренний код)`. Перенос v1 `plt_platform_regions`: словарь «код региона площадки → имя/внутренний код» для фильтра краулера по региону.
 
 ### ref_okpd2 / ref_ktru / ref_okved2 / ref_kbk — классификаторы
@@ -87,13 +87,13 @@ Unique `(procurement_id, organization_id, role)`. Быстрый доступ к
 |---|---|---|
 | id | bigint PK | |
 | uuid | uuid unique | UUIDv7 |
-| registry_id | FK plt_registries | |
-| source_number | text | reg_number ЕИС; **unique `(registry_id, source_number)`** — глобальный дедуп |
+| registry_id | FK prc_registries | |
+| registry_number | text | reg_number ЕИС; **unique `(registry_id, registry_number)`** — глобальный дедуп |
 | etp_number | text nullable | номер на ЭТП (для 223-ФЗ часто ≠ номеру ЕИС) — держим отдельно |
 | ikz | text nullable index | ИКЗ 44-ФЗ (разбор — в `prc_eis_details`) |
 | title | text | наименование объекта закупки |
 | status | text (enum) | канонический, §3.1 |
-| source_status | text | сырой статус (этап закупки) как есть |
+| source_stage | text | сырой статус (этап закупки) как есть |
 | procedure_type | text nullable | нормализованный код способа закупки |
 | procedure_type_raw | text nullable | как в источнике (223-ФЗ — свободный текст по положению) |
 | customer_org_id | FK org_organizations nullable index | заказчик (денормализация; все роли — в `org_procurement_parties`) |
@@ -112,7 +112,7 @@ Unique `(procurement_id, organization_id, role)`. Быстрый доступ к
 | detail_url | text nullable | карточка |
 | detail_fetched_at | timestamptz nullable | когда снят детальный слой (`02` §5) |
 | detail_attempts, detail_last_error, detail_next_retry_at, detail_failed | int/text/timestamptz/bool | error-блок стадии детального слоя (v1-канон): ретрай снятия карточки по `detail_fetched_at IS NULL OR detail_next_retry_at <= now`, без реконструкции через логи |
-| source_guid | text nullable index | GUID извещения на площадке (223-ФЗ `noticeGuid` — обязателен для части вкладок карточки, см. `eis-card-recon.md` §10; для 44-ФЗ — `null`, там GUID не требуется) |
+| registry_guid | text nullable index | GUID извещения на площадке (223-ФЗ `noticeGuid` — обязателен для части вкладок карточки, см. `eis-card-recon.md` §10; для 44-ФЗ — `null`, там GUID не требуется) |
 | current_revision_id | bigint nullable | id последнего снапшота |
 | current_revision_detected_at | timestamptz nullable | **partition key снапшота** — обязателен рядом с id: без него lookup по `current_revision_id` не даёт partition pruning. Резолв: `(id=… AND detected_at=…)` или `(procurement_id, detected_at DESC LIMIT 1)` |
 | revision_count | int default 1 | |
@@ -175,7 +175,7 @@ Unique `(procurement_id, organization_id, role)`. Быстрый доступ к
 Наполняются на стадии детального анализа карточки (`02` §5) из вкладок `supplier-results`/`documents`/`event-journal`. Для 44-ФЗ типы закрыты (enum), для 223-ФЗ — open-ended + `payload jsonb` (структура по положению заказчика).
 
 ### prc_protocols — протоколы процедуры
-`id, uuid, procurement_id FK index, type text (рассмотрение_первых/вторых_частей, проведение_аукциона, оценка, подведение_итогов, несостоявшаяся, обоснование_ед_поставщика, прочее_223), stage text nullable, source_number text nullable (№ протокола), signed_at, published_at, document_version_id FK doc_versions nullable (файл-источник), payload jsonb (комиссия, обоснования), created_at`.
+`id, uuid, procurement_id FK index, type text (рассмотрение_первых/вторых_частей, проведение_аукциона, оценка, подведение_итогов, несостоявшаяся, обоснование_ед_поставщика, прочее_223), stage text nullable, source_number text nullable (№ протокола), signed_at, published_at, document_version_id FK prc_document_versions nullable (файл-источник), payload jsonb (комиссия, обоснования), created_at`.
 
 ### prc_bids — заявки/предложения участников (построчно из протокола/результатов)
 `id, procurement_id FK index, lot_id FK nullable, protocol_id FK prc_protocols nullable, organization_id FK org_organizations nullable, bid_number text nullable (ID заявки на площадке), participant_ordinal int nullable (порядковый по рассмотрению), price numeric(18,2) nullable, status text (admitted/rejected/winner), reject_reason text nullable, final_rank int nullable`.
@@ -191,87 +191,87 @@ Unique `(procurement_id, organization_id, role)`. Быстрый доступ к
 
 ## 5. Документы
 
-### doc_documents — логический документ закупки
+### prc_documents — логический документ закупки
 `id, uuid, procurement_id FK index, external_id text nullable (uid filestore ЕИС) unique(procurement_id,external_id), title, kind text nullable (извещение/протокол/…), source_url, status text(enum: discovered→downloaded→prepared→screened→extracted / ignored / failed), first_seen_revision_id bigint nullable, removed_at timestamptz nullable`, + error-блок (`attempts, last_error, last_error_at, next_retry_at, failed_permanently`).
 
-### doc_versions — контент-адресованные версии файла
+### prc_document_versions — контент-адресованные версии файла
 `id, document_id FK index, content_hash text (sha256) unique(document_id,content_hash) + index (глобальный дедуп), size_bytes bigint, filename, extension, mime, storage_path text (object storage, immutable), downloaded_at, parent_version_id FK nullable (дочерние из архивов ZIP/RAR), prepared_storage_path text nullable (Excel→PDF)`. Замена файла = новая версия + событие `document_replaced`; повторное скачивание того же контента — no-op по хэшу.
 
 ## 6. AI-анализ
 
 > Сметы — в §6b; LLM-конфигурация — в §6c (детали `04`).
 
-### ai_analyses — сессия анализа версии документа
-`id, uuid, document_version_id FK index, step text (screening/extraction) unique(document_version_id,step), status text (pending→running→succeeded/failed/skipped), document_type text nullable (code из plt_document_types), result jsonb nullable, provider text, model text, locked_by, locked_until (lease), + error-блок, started_at, finished_at`.
+### prc_ai_analyses — сессия анализа версии документа
+`id, uuid, document_version_id FK index, step text (screening/extraction) unique(document_version_id,step), status text (pending→running→succeeded/failed/skipped), document_type text nullable (code из prc_document_types), result jsonb nullable, provider text, model text, locked_by, locked_until (lease), + error-блок, started_at, finished_at`.
 Кэш и прогресс (перенос из v1 `plt_document_analysis`): `cache_id text nullable, cache_expires_at timestamptz nullable` (быстрая проверка валидности Gemini-кэша без похода в API), `rules_hash text nullable` (инвалидация кэша при смене версии промптов — если не совпал с текущим, кэш пересоздать), `progress jsonb nullable` (состояние многошаговой экстракции: сколько строк/страниц пройдено и что осталось — резюм прерванного разбора **без полного повтора**, см. `03` §3.5).
 
-### ai_llm_calls — каждый вызов LLM (партиции RANGE by called_at, месяц)
-`id PK (id, called_at); analysis_id bigint nullable index; purpose text (screening/extract_passport/extract_rows/extract_totals/eval/shadow — совпадает с ai_routes.purpose); provider, model; prompt_version_set jsonb; cache_id text nullable (Gemini cachedContent); request_ref, response_ref text (object storage); prompt_tokens, completion_tokens, cached_tokens, total_tokens int; cost_micros bigint nullable; success bool; error text nullable; duration_ms int; called_at timestamptz (partition key)`.
+### prc_ai_llm_calls — каждый вызов LLM (партиции RANGE by called_at, месяц)
+`id PK (id, called_at); analysis_id bigint nullable index; purpose text (screening/extract_passport/extract_rows/extract_totals/eval/shadow — совпадает с prc_ai_routes.purpose); provider, model; prompt_version_set jsonb; cache_id text nullable (Gemini cachedContent); request_ref, response_ref text (object storage); prompt_tokens, completion_tokens, cached_tokens, total_tokens int; cost_micros bigint nullable; success bool; error text nullable; duration_ms int; called_at timestamptz (partition key)`.
 
 ### 6b. Сметы (est_*)
 
-### est_estimates — распарсенная смета (нормализованная)
+### prc_estimates — распарсенная смета (нормализованная)
 `id, uuid unique, analysis_id FK unique, document_version_id FK index, procurement_id FK index, title, estimate_number text nullable, total_amount numeric(18,2) nullable, currency char(3), base_year, price_level text nullable, passport jsonb, raw_result jsonb (сырой ответ LLM целиком — по решению «нормализованные + сырой jsonb»; для переобработки/датасета), raw_result_ref text nullable (object storage только для payload > ~1 МБ), rows_expected int, rows_extracted int, validation_status text`.
 
-### est_sections — дерево разделов
+### prc_estimate_sections — дерево разделов
 `id, estimate_id FK index, parent_id FK nullable, position int, title, section_number text nullable` (+ `path ltree` опц. позже).
 
-### est_items — позиции
+### prc_estimate_items — позиции
 `id, estimate_id FK index, section_id FK nullable, row_index int unique(estimate_id,row_index), code text nullable (шифр ФЕР/ТЕР), name, unit text nullable, quantity numeric(18,6) nullable, unit_price/total_price numeric(18,2) nullable, attributes jsonb (коэффициенты/индексы)`.
 
-### est_resources — ресурсы позиции
+### prc_estimate_resources — ресурсы позиции
 `id, item_id FK index, resource_type enum(labor/machine/material/overhead/other), code, name, unit, quantity, price`. `overhead` (НР/СП/накладные/прибыль) — отдельная категория (перенос из v1 `EstimateResourceType`), чтобы маркировать накладные прямо на ресурсе, не только в итогах.
 
-### est_totals — итоговые строки/начисления (иерархия)
+### prc_estimate_totals — итоговые строки/начисления (иерархия)
 `id, estimate_id FK index, parent_id FK nullable (self), position int, label text, kind text nullable (НР/СП/НДС/…), amount numeric(18,2)`. `parent_id` — вложенные итоги («Итого» → «в т.ч. НДС»), перенос рекурсии `EstimateFooterItem` из v1.
 
 ### 6c. LLM-конфигурация (детали — 04)
 
-- **ai_providers**: `id, code (gemini/local-vllm/…), driver, base_url nullable, options jsonb, is_active` (ключи — в env/secrets, в БД только имя секрета).
-- **ai_routes**: матрица — `document_type text, purpose text, provider_id FK, model text, options jsonb, priority int, is_active, shadow bool`; unique `(document_type, purpose, priority)`. `purpose` — из набора `ai_llm_calls.purpose`. `shadow=true` — теневой прогон (флаг, не значение purpose). `document_type` = `code` из `plt_document_types` **или зарезервированное `any`** (wildcard); **точное совпадение приоритетнее `any`** (сначала exact, потом any). Реализована таблицей+Filament, **не spatie-settings** — осознанное отклонение от буквы решения владельца («настройка в админке через spatie-settings»): spatie-settings хранит скалярные настройки, а матрица роутинга многострочная (тип×шаг → строка). Обе цели решения сохранены: *настраивается в админке без деплоя* (Filament-ресурс), а *скалярные* LLM-настройки (провайдер по умолчанию, троттлинг) остаются в spatie-settings (`05` §2.4).
-- **ai_prompts**: `key, step, content, version, priority, is_active`, unique `(key, version)`; фиксация `prompt_version_set` в `ai_llm_calls`.
-- **ai_dataset_examples**: `id, document_version_id FK, task (screening/extraction), gold jsonb | gold_ref, source (llm/manual/corrected), verified_by, verified_at, version int`.
-- **ai_eval_runs**: `id, dataset_version, provider, model, prompt_version_set jsonb, metrics jsonb (precision/recall/F1, row_coverage), ci_status (pass/fail), started_at, finished_at`.
-- **ai_eval_results**: `id, eval_run_id FK index, dataset_example_id FK, metric text, value numeric, details jsonb nullable`.
+- **prc_ai_providers**: `id, code (gemini/local-vllm/…), driver, base_url nullable, options jsonb, is_active` (ключи — в env/secrets, в БД только имя секрета).
+- **prc_ai_routes**: матрица — `document_type text, purpose text, provider_id FK, model text, options jsonb, priority int, is_active, shadow bool`; unique `(document_type, purpose, priority)`. `purpose` — из набора `prc_ai_llm_calls.purpose`. `shadow=true` — теневой прогон (флаг, не значение purpose). `document_type` = `code` из `prc_document_types` **или зарезервированное `any`** (wildcard); **точное совпадение приоритетнее `any`** (сначала exact, потом any). Реализована таблицей+Filament, **не spatie-settings** — осознанное отклонение от буквы решения владельца («настройка в админке через spatie-settings»): spatie-settings хранит скалярные настройки, а матрица роутинга многострочная (тип×шаг → строка). Обе цели решения сохранены: *настраивается в админке без деплоя* (Filament-ресурс), а *скалярные* LLM-настройки (провайдер по умолчанию, троттлинг) остаются в spatie-settings (`05` §2.4).
+- **prc_ai_prompts**: `key, step, content, version, priority, is_active`, unique `(key, version)`; фиксация `prompt_version_set` в `prc_ai_llm_calls`.
+- **prc_ai_dataset_examples**: `id, document_version_id FK, task (screening/extraction), gold jsonb | gold_ref, source (llm/manual/corrected), verified_by, verified_at, version int`.
+- **prc_ai_eval_runs**: `id, dataset_version, provider, model, prompt_version_set jsonb, metrics jsonb (precision/recall/F1, row_coverage), ci_status (pass/fail), started_at, finished_at`.
+- **prc_ai_eval_results**: `id, eval_run_id FK index, dataset_example_id FK, metric text, value numeric, details jsonb nullable`.
 
 ## 7. Краулинг (crw_*)
 
-### crw_crawlers — профиль обхода
+### prc_crawlers — профиль обхода
 `id, registry_id FK, name, mode enum(fresh/archive), source_method enum(csv/html/api), fallback_method nullable, filter jsonb (даты/цены/ОКПД2/этапы), schedule text nullable (cron), options jsonb (recordsPerPage, лимиты дробления, колонки CSV), is_active`.
 
-### crw_runs — прогон (heartbeat + курсор + one-active)
+### prc_crawler_runs — прогон (heartbeat + курсор + one-active)
 `id, crawler_id FK (частичный unique: один running на crawler), status enum(running/paused/completed/failed/cancelled), cursor jsonb (день/ценовой стек/блок from/признак «дошли до известного»), stats jsonb, started_at/finished_at/last_heartbeat_at, + error-блок`.
 
-### crw_fetches — забор блока (партиции RANGE by fetched_at, месяц)
+### prc_fetches — забор блока (партиции RANGE by fetched_at, месяц)
 `id PK (id, fetched_at); crawler_run_id index; method text; request_params jsonb (без секретов); artifact_ref text nullable (сырой CSV/HTML в storage); http_status, duration_ms int; rows_total/rows_new/rows_updated int; dedup_signature text nullable (первый reg_number блока — детект «тихого cap»); proxy_id bigint nullable; fetched_at timestamptz (partition key)`.
 
-### crw_proxies / crw_proxy_checks
+### prc_proxies / prc_proxy_checks
 Как v1 `sys_proxies` (service, creds, targets, is_active, fails_count) + журнал проверок. Креды — только здесь.
 
-### crw_ignore_rules
+### prc_ignore_rules
 `id, registry_id nullable, field text, operator text (contains/regex), value text, reason_category, is_active` → попадание = `prc_procurements.ignored_at` + событие `ignored`.
 
-### crw_ignored_items — denylist конкретных закупок (перенос v1 `plt_crawler_ignore_links`)
-`id, registry_id FK, source_number text unique(registry_id,source_number), reason_category text index, reason text` — осознанный skip конкретной закупки **до** создания `prc_procurements` (не ошибка, а решение «не берём»); отделено от `crw_ignore_rules` (правила) и от failed (ошибки). Полезно для анализа «почему теряем закупки».
+### prc_ignored_items — denylist конкретных закупок (перенос v1 `plt_crawler_ignore_links`)
+`id, registry_id FK, registry_number text unique(registry_id,registry_number), reason_category text index, reason text` — осознанный skip конкретной закупки **до** создания `prc_procurements` (не ошибка, а решение «не берём»); отделено от `prc_ignore_rules` (правила) и от failed (ошибки). Полезно для анализа «почему теряем закупки».
 
-### crw_daily_stats — посуточная аналитика по стадиям (перенос v1 `plt_crawler_analytics`)
-`id, date, crawler_id FK, unique(date, crawler_id)`; счётчики по стадиям: `listing_found/listing_errors`, `detail_fetched/detail_errors`, `docs_indexed/docs_errors`, `screened/estimates_found/screen_errors`, `extracted_items/extract_errors`. Готовый посуточный срез для дашборда — дешевле, чем агрегировать партиционированные `crw_fetches`/`ai_llm_calls` на каждый запрос; наполняется инкрементально процессорами стадий.
+### prc_daily_stats — посуточная аналитика по стадиям (перенос v1 `plt_crawler_analytics`)
+`id, date, crawler_id FK, unique(date, crawler_id)`; счётчики по стадиям: `listing_found/listing_errors`, `detail_fetched/detail_errors`, `docs_indexed/docs_errors`, `screened/estimates_found/screen_errors`, `extracted_items/extract_errors`. Готовый посуточный срез для дашборда — дешевле, чем агрегировать партиционированные `prc_fetches`/`prc_ai_llm_calls` на каждый запрос; наполняется инкрементально процессорами стадий.
 
 ## 8. Операционная инфраструктура
 
-### sys_operation_logs — операционный журнал (аналог v1 sys_logs; партиции RANGE by created_at, месяц)
+### prc_operation_logs — операционный журнал (аналог v1 sys_logs; партиции RANGE by created_at, месяц)
 Технический журнал стадий/ошибок (**не** доменная история — та в `prc_events`).
 `id PK (id, created_at); level text (debug/info/warning/error); stage, source text nullable; entity_type text nullable, entity_id bigint nullable (полиморфная привязка); message text; context jsonb nullable; trace text nullable; created_at timestamptz (partition key)`. Индекс `(entity_type, entity_id)`. Операторский аудит действий в админке — отдельно (spatie/activitylog, `05` §5).
 
 ## 9. Хранилище (object storage, S3/MinIO)
 
-- `raw/csv/…` — CSV-артефакты (`crw_fetches.artifact_ref`), retention по умолчанию — хранить;
+- `raw/csv/…` — CSV-артефакты (`prc_fetches.artifact_ref`), retention по умолчанию — хранить;
 - `raw/html/…` — HTML-снапшоты карточек: **gzip, retention по умолчанию выключен (opt-in)** — расходник;
 - `documents/<hash-prefix>/<sha256>` — оригиналы версий, immutable, дедуп по хэшу;
 - `prepared/…` — конвертированные (PDF);
 - `llm/requests|responses/…` — сырые payload'ы вызовов.
 
-БД хранит только ссылки (`*_ref`, `storage_path`), кроме `est_estimates.raw_result` (inline jsonb). spatie/medialibrary не используем для пайплайна (контент-адресация своя).
+БД хранит только ссылки (`*_ref`, `storage_path`), кроме `prc_estimates.raw_result` (inline jsonb). spatie/medialibrary не используем для пайплайна (контент-адресация своя).
 
 ## 10. Полнотекстовый поиск
 
@@ -281,28 +281,28 @@ Unique `(procurement_id, organization_id, role)`. Быстрый доступ к
 
 | Сценарий | Путь по схеме |
 |---|---|
-| Новая закупка найдена (листинг) | insert `prc_procurements` + `prc_revisions` (rev 1) + событие `discovered` + rows `doc_documents` |
+| Новая закупка найдена (листинг) | insert `prc_procurements` + `prc_revisions` (rev 1) + событие `discovered` + rows `prc_documents` |
 | Детальный слой карточки снят | `prc_procurements.detail_fetched_at`; заполнение `prc_items`/`prc_financing`/`prc_eis_details`/`org_procurement_parties`; события из журнала ЕИС в `prc_events` |
 | Изменилась цена/статус/даты | `snapshot_hash` отличается → новая ревизия + события `price_changed`/`status_changed` + update шапки |
 | Редакция без изменений ядра | `snapshot_hash` совпал → только `last_seen_at` |
 | Размещён протокол / определён победитель | `prc_protocols` + `prc_bids` + `prc_awards` (+ события `protocol_published`/`award_made`), победитель → роль `winner` в `org_procurement_parties` |
 | Разъяснение / отмена | `prc_clarifications` / `prc_cancellations` + событие; отмена отмены → `reverted_at` |
-| Документ заменён | тот же `doc_documents.external_id`, новый `doc_versions` + событие `document_replaced`; анализы старой версии остаются |
-| Архив в документе | распаковка → новые `doc_documents` + `doc_versions` с `parent_version_id` |
+| Документ заменён | тот же `prc_documents.external_id`, новый `prc_document_versions` + событие `document_replaced`; анализы старой версии остаются |
+| Архив в документе | распаковка → новые `prc_documents` + `prc_document_versions` с `parent_version_id` |
 | Повторный парсинг сметы | unique `(document_version_id, step)` не даёт дублей; новая смета по `analysis_id` unique |
 | Состояние на дату X | последняя `prc_revisions` с `detected_at <= X`; таймлайн — `prc_events` |
-| Новая площадка | insert `plt_platforms`+`plt_registries`+`plt_status_mappings`, адаптер в коде; ядро без миграций |
-| Неизвестный статус 223-ФЗ | `unknown` + алерт → оператор дополняет `plt_status_mappings` |
+| Новая площадка | insert `prc_platforms`+`prc_registries`+`prc_status_mappings`, адаптер в коде; ядро без миграций |
+| Неизвестный статус 223-ФЗ | `unknown` + алерт → оператор дополняет `prc_status_mappings` |
 | Организация в нескольких ролях | одна `org_organizations` (резолв по ИНН) + N строк `org_procurement_parties` с разными `role` |
-| Обучение локальной LLM | `ai_dataset_examples` (gold) + `est_estimates.raw_result` (сырьё) + `ai_eval_runs` (метрики) |
-| Смена версии промптов | `ai_analyses.rules_hash` не совпал с текущим → Gemini-кэш невалиден, пересоздать; `cache_expires_at` в прошлом → тоже пересоздать |
-| Прерванная многошаговая экстракция | `ai_analyses.progress` хранит пройденные строки/страницы → резюм с точки обрыва, не с нуля |
+| Обучение локальной LLM | `prc_ai_dataset_examples` (gold) + `prc_estimates.raw_result` (сырьё) + `prc_ai_eval_runs` (метрики) |
+| Смена версии промптов | `prc_ai_analyses.rules_hash` не совпал с текущим → Gemini-кэш невалиден, пересоздать; `cache_expires_at` в прошлом → тоже пересоздать |
+| Прерванная многошаговая экстракция | `prc_ai_analyses.progress` хранит пройденные строки/страницы → резюм с точки обрыва, не с нуля |
 | Детальная карточка упала | `detail_next_retry_at`/`detail_failed` на `prc_procurements` → ретрай по `detail_fetched_at IS NULL` без реконструкции из логов |
 
 ### 11.1 Валидация универсальности «на бумаге» — коммерческая площадка
 
 Гипотетическая площадка без ИКЗ/ОКПД2, иной классификатор, свои статусы:
-- `plt_platforms` (`code='commercial-x'`) + `plt_registries` + `plt_status_mappings`; адаптер в коде. **Миграций ядра нет.**
+- `prc_platforms` (`code='commercial-x'`) + `prc_registries` + `prc_status_mappings`; адаптер в коде. **Миграций ядра нет.**
 - Ядро `prc_procurements` заполняется как есть; `ikz`/`okpd2_code` — `null`; классификатор позиций → `prc_items.classifier_scheme` (OCDS: схема заменяема).
 - Специфика → `prc_procurements.attributes` или своя `<platform>_details` extension-таблица (как `prc_eis_details`).
 - Организации/роли — тот же `org_organizations` + `org_procurement_parties` (роли открыты enum'ом).
@@ -313,7 +313,7 @@ Unique `(procurement_id, organization_id, role)`. Быстрый доступ к
 ## 12. Открытые вопросы / риски
 
 - ~~Многолотовые процедуры (конкурсы) — структуру лотов/позиций снять на реальном примере~~ — **закрыто** живой разведкой: у 44-ФЗ явных блоков «Лот N» в карточке нет, каждый лот публикуется отдельным `reg_number` (см. `eis-card-recon.md` §9); `prc_lots.lot_number=1` виртуален для 44-ФЗ.
-- ~~223-ФЗ карточка — набор полей и URL-схема отличаются от 44-ФЗ~~ — **закрыто**: отдельная ветка `notice223`, лоты — первичная сущность через `lot-list.html`/`lot-info.html` по `lotGuid`, требует `noticeGuid` (см. `eis-card-recon.md` §10; поля `prc_procurements.source_guid`/`prc_lots.lot_guid` добавлены выше). Типы протоколов 223-ФЗ по-прежнему open-ended.
+- ~~223-ФЗ карточка — набор полей и URL-схема отличаются от 44-ФЗ~~ — **закрыто**: отдельная ветка `notice223`, лоты — первичная сущность через `lot-list.html`/`lot-info.html` по `lotGuid`, требует `noticeGuid` (см. `eis-card-recon.md` §10; поля `prc_procurements.registry_guid`/`prc_lots.lot_guid` добавлены выше). Типы протоколов 223-ФЗ по-прежнему open-ended.
 - Триггер `lastDateChangeCsv` для разъяснений документации — подтверждён живьём только для протокола/отмены; для разъяснения экстраполяция без прямого наблюдения (`eis-card-recon.md` §11) — перепроверить при первой возможности.
 - Слой контрактов (реестр контрактов, исполнение) — за рамками MVP; `prc_awards.contract_registry_number` — якорь связи на будущее.
 - Адресный слой (ГАР, не КЛАДР/ФИАС) — если понадобится гео-аналитика; пока `region_code` денормализован на организации/закупке.

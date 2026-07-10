@@ -112,7 +112,7 @@ Review-гейты (субагенты, read-only, вне матрицы моде
 | P3 | Точечный семантический ренейм БД и кода | 3/3 | 🟢 Done |
 | P4 | Provenance: тонкий срез по конфликтным полям | 1/2 | 🟠 Done with deviations |
 | P5 | Закрытие реальных дефектов пайплайна | 4/4 | 🟢 Done |
-| P6 | Убить spec drift | 1/2 | 🟡 In progress |
+| P6 | Убить spec drift | 2/2 | 🟢 Done |
 | P7 | Глоссарий v2 + OCDS mapping | 0/2 | ⬜ Not started |
 | P8 | Lifecycle-map и state machines единым документом | 0/2 | ⬜ Not started |
 | P9 | Финальный cross-phase review | 0/3 | ⬜ Not started |
@@ -183,3 +183,5 @@ Review-гейты (субагенты, read-only, вне матрицы моде
 | 2026-07-10 | plan-exec/sonnet | P5.4 🟢 Done, фаза P5 терминальна (4/4) — мёртвый write-path `customer_org_id` удалён из листинга (DTO+оба write-site'а+маппер), `CustomerOrgOwnershipTest` зафиксирован red→green — детали см. phases/P5.md P5.4 Completion Notes |
 | 2026-07-10 | plan-design/opus | P6 детализирована (2 items, DoR пройден) — карту создаёт P6.1. Owner расширил scope на весь `docs/03_Dev/**` + column-drift (D29); правило — D30, долг `:159` — D31 |
 | 2026-07-10 | plan-design/opus | Эскалация P6.1 снята (`🔴 Blocked` → `⬜ Not started`) — D32: 14 non-table вхождений → 3-я категория `N/A`, G-under P6.2 под residue-set. Добавлен runner `workflow-P6.js` с код-ревью-гейтом |
+| 2026-07-10 | plan-exec/sonnet | P6.1 🟢 Done — карта `findings/P6-drift-map.md` пересобрана под D32 (R166/K28/N14) — детали см. phases/P6.md P6.1 Completion Notes |
+| 2026-07-10 | plan-exec/sonnet | P6.2 🟢 Done, фаза P6 терминальна (2/2) — карта применена механически (29 RENAME-токенов, column-drift, долг `02-crawling.md:159` по ADR-0009), оба греп-гейта + column-гейт зелёные — детали см. phases/P6.md P6.2 Completion Notes |
