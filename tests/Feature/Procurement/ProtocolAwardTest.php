@@ -2,6 +2,9 @@
 
 declare(strict_types=1);
 
+use App\Dto\Procurement\Details\AwardData;
+use App\Dto\Procurement\Details\OrganizationData;
+use App\Dto\Procurement\Details\SupplierResultsData;
 use App\Enums\Organization\ProcurementPartyRole;
 use App\Enums\Procurement\AwardStatus;
 use App\Enums\Procurement\BidStatus;
@@ -11,6 +14,7 @@ use App\Models\Procurement\Bid;
 use App\Models\Procurement\Procurement;
 use App\Models\Procurement\ProcurementParty;
 use App\Models\Procurement\Protocol;
+use App\Services\Procurement\Detail\SupplierResultsProcessor;
 
 /**
  * §11 «Размещён протокол / определён победитель» — prc_protocols + prc_bids + prc_awards,
@@ -59,4 +63,86 @@ test('размещение протокола и определение побе
         ->and($award->status)->toBe(AwardStatus::Awarded)
         ->and($winnerParty->role)->toBe(ProcurementPartyRole::Winner)
         ->and($winnerParty->organization_id)->toBe($winnerOrganization->id);
+});
+
+test('пересмотр итогов снимает роль winner со старой организации и оставляет её у новой', function () {
+    $procurement = Procurement::factory()->create();
+    $oldWinner = Organization::factory()->create();
+    $newWinner = Organization::factory()->create();
+
+    $processor = app(SupplierResultsProcessor::class);
+
+    $processor->process($procurement, new SupplierResultsData(
+        protocol: null,
+        bids: [],
+        award: new AwardData(
+            winner: new OrganizationData(fullName: $oldWinner->full_name, inn: $oldWinner->inn, kpp: $oldWinner->kpp),
+            finalPrice: 100.00,
+            status: AwardStatus::Awarded,
+            awardedAt: now(),
+        ),
+    ));
+
+    $processor->process($procurement, new SupplierResultsData(
+        protocol: null,
+        bids: [],
+        award: new AwardData(
+            winner: new OrganizationData(fullName: $newWinner->full_name, inn: $newWinner->inn, kpp: $newWinner->kpp),
+            finalPrice: 90.00,
+            status: AwardStatus::Awarded,
+            awardedAt: now(),
+        ),
+    ));
+
+    $winnerRoles = ProcurementParty::query()
+        ->where('procurement_id', $procurement->id)
+        ->where('role', ProcurementPartyRole::Winner)
+        ->get();
+
+    expect($winnerRoles)->toHaveCount(1)
+        ->and($winnerRoles->first()->organization_id)->toBe($newWinner->id);
+});
+
+test('снятие роли winner не задевает другие роли той же организации', function () {
+    $procurement = Procurement::factory()->create();
+    $oldWinner = Organization::factory()->create();
+    $newWinner = Organization::factory()->create();
+
+    ProcurementParty::factory()->create([
+        'procurement_id' => $procurement->id,
+        'organization_id' => $oldWinner->id,
+        'role' => ProcurementPartyRole::Participant,
+    ]);
+
+    $processor = app(SupplierResultsProcessor::class);
+
+    $processor->process($procurement, new SupplierResultsData(
+        protocol: null,
+        bids: [],
+        award: new AwardData(
+            winner: new OrganizationData(fullName: $oldWinner->full_name, inn: $oldWinner->inn, kpp: $oldWinner->kpp),
+            finalPrice: 100.00,
+            status: AwardStatus::Awarded,
+            awardedAt: now(),
+        ),
+    ));
+
+    $processor->process($procurement, new SupplierResultsData(
+        protocol: null,
+        bids: [],
+        award: new AwardData(
+            winner: new OrganizationData(fullName: $newWinner->full_name, inn: $newWinner->inn, kpp: $newWinner->kpp),
+            finalPrice: 90.00,
+            status: AwardStatus::Awarded,
+            awardedAt: now(),
+        ),
+    ));
+
+    $oldWinnerRoles = ProcurementParty::query()
+        ->where('procurement_id', $procurement->id)
+        ->where('organization_id', $oldWinner->id)
+        ->pluck('role');
+
+    expect($oldWinnerRoles)->toHaveCount(1)
+        ->and($oldWinnerRoles->first())->toBe(ProcurementPartyRole::Participant);
 });
