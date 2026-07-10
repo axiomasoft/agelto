@@ -121,7 +121,7 @@ Review-гейты (субагенты, read-only, вне матрицы моде
 | P5 | Закрытие реальных дефектов пайплайна | 4/4 | 🟢 Done |
 | P6 | Убить spec drift | 2/2 | 🟢 Done |
 | P7 | Глоссарий v2 + OCDS mapping | 2/2 | 🟢 Done |
-| P8 | Lifecycle-map и state machines единым документом | 1/2 | 🟡 In progress |
+| P8 | Lifecycle-map и state machines единым документом | 2/2 | 🟢 Done |
 | P9 | Финальный cross-phase review | 0/3 | ⬜ Not started |
 
 ## 5. Decision Log
@@ -200,3 +200,4 @@ Review-гейты (субагенты, read-only, вне матрицы моде
 | 2026-07-10 | plan-exec/sonnet | P7.2 🟢 Done, фаза P7 терминальна (2/2) — создан `docs/03_Dev/ocds-mapping.md`, mapping `prc_procurements`/`prc_revisions`/`prc_events` ↔ OCDS, поля анкорены на реальные миграции — детали см. phases/P7.md P7.2 Completion Notes |
 | 2026-07-10 | plan-design/opus | P8 детализирована (2 items, DoR пройден) — разведка `findings/P8-status-writers.md`, решения D34 (Д1 не дублируется) / D35 (`ProcurementStatus` — не guarded-FSM), Routing + runner `workflow-P8.js` — детали см. phases/P8.md |
 | 2026-07-10 | plan-exec/sonnet | P8.1 🟢 Done — создан `docs/03_Dev/state-machines.md` (5 осей: 2 stateDiagram Analysis/Run + классификация Procurement + cross-ref Д1 + раздел «не FSM») — детали см. phases/P8.md P8.1 Completion Notes |
+| 2026-07-10 | plan-exec/sonnet | P8.2 🟢 Done, фаза P8 терминальна (2/2) — создан `docs/03_Dev/entity-lifecycle-map.md` (карта писателей 5 сущностей + граница повтор/ревизия/версия) — детали см. phases/P8.md P8.2 Completion Notes |
