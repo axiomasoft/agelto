@@ -9,6 +9,7 @@
 /anti-drift/
 /api-design/
 /architecture/
+/artifact-review/
 /attribute-authorization/
 /backend-type-sync/
 /brain-locator/
@@ -40,6 +41,7 @@
 /docker-vite/
 /document-writer/
 /domain-modeling/
+/ecosystem-reuse-gate/
 /eloquent-accessors/
 /enum-attributes/
 /enum-state-machine/

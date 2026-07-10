@@ -1,14 +1,18 @@
 {
   "mcpServers": {
     "laravel-boost": {
-      "command": "php",
+      "command": "docker",
       "args": [
+        "exec",
+        "-i",
+        "agelto_app",
+        "php",
         "artisan",
         "boost:mcp"
       ]
     },
     "maind": {
-      "command": "<ABS_PATH_TO_SWISSKNIFEMAN>/packages/maind/bin/maind",
+      "command": "${MAIND_BIN:-maind}",
       "args": [
         "mcp",
         "--scope",
@@ -35,6 +39,16 @@
       "args": [
         "scripts/playwright-mcp.sh"
       ]
+    },
+    "perplexity-web": {
+      "command": "${PERPLEXITY_WEB_MCP_BIN:-<HOME>/projects/packages/perplexity-web-mcp/start.sh}",
+      "args": [
+        "--pool=default"
+      ]
+    },
+    "context7": {
+      "type": "http",
+      "url": "https://mcp.context7.com/mcp"
     }
   }
 }

@@ -1,6 +1,6 @@
 // swissknifeman:generated
 // Generated-by: harness agent-packs
-// Pack: backend-laravel@0.13.0
+// Pack: backend-laravel@0.12.0
 // Template: workflows/dev-loop.js
 // Edit-policy: generated-core — НЕ редактируй; расширяй через extension-point
 // Extension-points: .claude/rules/agelto-reviewer-overrides.md
@@ -23,10 +23,7 @@ export const meta = {
 // исполняет, а не придумывает продуктовый объём.
 // ---------------------------------------------------------------------------
 
-// Портируемо между машинами: не абсолютный путь (детект `pwd` тёк бы машинно-локальным
-// хомяком в коммит), а путь пакета от корня git-репозитория ('' = пакет в корне).
-const PROJECT_SUBDIR = ''.replace(/\/$/, '')
-const PROJECT_WHERE = PROJECT_SUBDIR ? `текущем репозитории (поддиректория ${PROJECT_SUBDIR})` : 'текущем репозитории'
+const PROJECT_DIR = '/home/vostrikov/projects/agelto/agelto'
 
 // Урок overnight-прогона: хард-кап ДОЛЖЕН пережить resume. args на resume может не
 // долететь → дефолт держим литералом В СКРИПТЕ, а не только в args.
@@ -50,7 +47,7 @@ const HARD_GATES = `ЖЁСТКИЕ ГЕЙТЫ agelto (не нарушать):
 - НЕ git push, НЕ открывать/мержить PR, НЕ release. НЕ migrate:fresh/drop по чему-либо кроме тестовой БД.
 - .claude/agents|workflows|hooks с generated-header НЕ редактировать — оверрайды в .claude/rules/*-overrides.md.
 - Все срезы строятся на ОДНОЙ ветке ${BRANCH}. Агенты НЕ создают и не переключают ветки — коммитят в текущую и оставляют дерево чистым.
-- Работать строго в ${PROJECT_WHERE}.`
+- Работать строго внутри ${PROJECT_DIR}.`
 
 if (SLICES.length === 0) {
   log('Нет срезов на вход (args.slices пуст) — нечего строить. Передай { branch, base, max_slices, slices: [...] }.')
@@ -78,7 +75,7 @@ phase('Setup')
 // Один агент устанавливает ветку: чистое дерево → ветка от base (создать или
 // переключиться). Дальше НИКТО ветки не трогает.
 await safeAgent(
-  `В ${PROJECT_WHERE} подготовь рабочую ветку и проверь окружение ДО раздачи срезов.
+  `В ${PROJECT_DIR} подготовь рабочую ветку и проверь окружение ДО раздачи срезов.
 1. 'git status' — если дерево грязное, останови и отчитайся (НЕ затирай чужие правки).
 2. ENV-PREFLIGHT (блокер окружения ≠ баг кода): 'docker compose exec app php -v' (версия); 'docker compose exec app php -r "print_r(PDO::getAvailableDrivers());"' — нужный драйвер БД присутствует; пробный 'docker compose exec app php artisan test --filter=__preflight_nonexistent__' не падает фаталом окружения. Драйвер/версия/конфиг сломаны → ОСТАНОВИ прогон и отчитайся (chatom F3: php без рабочего pdo_sqlite всплывал лишь на первом DB-тесте).
 3. Ветка: если ${BRANCH} существует — 'git checkout ${BRANCH}'. Иначе 'git checkout ${BASE}' затем 'git checkout -b ${BRANCH}'.
@@ -165,7 +162,7 @@ ${HARD_GATES}`,
 
   // 2) Тесты до зелёного (или чистая отсрочка). Test-writer ОЦЕНИВАЕТ риск и ЧЕСТНО репортит обходки.
   const result = await safeAgent(
-    `Ты в текущей ветке ${BRANCH} в ${PROJECT_WHERE}; срез уже реализован:
+    `Ты в текущей ветке ${BRANCH} в ${PROJECT_DIR}; срез уже реализован:
 ${JSON.stringify(slice, null, 2)}
 
 Напиши тесты (pest), доказывающие acceptance_criteria, и итерируй 'docker compose exec app php artisan test' до ЗЕЛЁНОГО.
@@ -196,7 +193,7 @@ ${HARD_GATES}`,
       ? 'РЕЖИМ MED: контракты, авторизация, целостность; conditional-чек-листы соответствующего слоя.'
       : 'РЕЖИМ LOW: style + N+1 + очевидная корректность (spot-check).'
     review = await safeAgent(
-      `Read-only ревью среза "${slice.title}" в ${PROJECT_WHERE}, ветка ${BRANCH}. Diff против ${BASE} ('git diff ${BASE}...${BRANCH}').
+      `Read-only ревью среза "${slice.title}" в ${PROJECT_DIR}, ветка ${BRANCH}. Diff против ${BASE} ('git diff ${BASE}...${BRANCH}').
 RISK=${risk}; risk_markers: ${markers}. ${depth}
 ${workarounds}
 Проверь канон access-layer (grep ::query/::create/::where/::all/::find по контроллерам домена — пусто), корректность, авторизацию и acceptance_criteria: ${JSON.stringify(slice.acceptance_criteria)}.
@@ -224,7 +221,7 @@ ${HARD_GATES}`,
 phase('Verify')
 
 const verify = await safeAgent(
-  `Финальная проверка прогона в ${PROJECT_WHERE}, ветка ${BRANCH}:
+  `Финальная проверка прогона в ${PROJECT_DIR}, ветка ${BRANCH}:
 1. 'git status' — дерево чистое, текущая ветка ${BRANCH}.
 2. grep -rnE '::query\\(|::create\\(|::where\\(|::all\\(|::find\\(' по app/Http/Controllers и app/Actions — перечисли оставшиеся попадания (в контроллерах должно быть 0).
 3. Полный 'docker compose exec app php artisan test' — число/статус.
