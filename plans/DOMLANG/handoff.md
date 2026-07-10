@@ -1,48 +1,53 @@
 # HANDOFF — 2026-07-10 — after P4.2
 
-**Next:** Фаза P4 терминальна (`P4.1` 🟢 Done + `P4.2` ⛔ Skipped by decision — легальный исход
-ADR-0008, вердикт `N = 0`). Следующий шаг — фаза P5 (**4** items: 3 исходных + `P5.4` из D24,
-клоббер `customer_org_id`). P5 ещё скелет (0/4, Status Board `plan.md` не несёт заполненных 16
-полей) → следующая команда обязана быть `/task:plan-design`, не `plan-exec`.
+**Next:** Фаза P5 детализирована (4 items, DoR пройден). Дизайн-разведка опровергла предпосылку
+скелета P5.1 (защита от двойного диспатча уже есть) и нашла обратный дефект — вечный `UniqueLock`
+(`uniqueFor` = 0), который в проде запирает документ в `downloaded` навсегда (D25). Следующий шаг —
+исполнение `P5.1` строго по ТЗ; правило решения продублировано в `workflow.js`
+`DECISION_RULES['P5.1']`.
 
 | Параметр | Значение |
 |:--|:--|
-| Model | opus |
-| Thinking | high — детализация фазы P5: 4 item'а, один из них (`P5.4`) заводится design-time находкой D24, не из черновика |
+| Model | sonnet |
+| Thinking | medium — item полностью специфицирован (16 полей, готовые сигнатуры и факты в findings), решение принято дизайном |
 | Context | fresh session — handoff свежий, рекомендован /clear |
-| Суть | Детализировать фазу P5 (Scope/DoR/Implementation Rules/Validation по 16 полям на item), особое внимание — `P5.4` (клоббер `customer_org_id`: приоритет слоя в `updateProcurementHead()`, не просто фильтр непустых) |
+| Суть | `PipelineJob::uniqueFor()` + ключ `ai.pipeline.unique_lock_minutes`, ADR-0009 (owner перехода — job, не мост), 2 регресс-теста, актуализация `docs-private/{risk-register,crawler-gotchas}.md` |
 
 ```
-/task:plan-design DOMLANG P5
+/task:plan-exec DOMLANG P5.1
 ```
 
 **Done:** P1 терминальна (3/3: 2🟢 + 1🟠). P2 терминальна (2/2 🟢). P3 терминальна (3/3 🟢).
-**P4 терминальна (1/2, 🟠 Done with deviations)** — `P4.1` 🟢 Done (proof-таблица нашла 2
-кандидата, оба НЕ-R1), `P4.2` ⛔ Skipped by decision (вердикт `N = 0` → provenance не
-материализуется, кода не написано). ADR-0008 `Consequences` дописан фактом отсутствия конфликтов.
+P4 терминальна (1/2, 🟠 Done with deviations) — `P4.1` 🟢, `P4.2` ⛔ Skipped by decision (вердикт
+`N = 0`, provenance не материализуется). P5 спроектирована, кода ещё не написано (0/4).
 
-**Remaining:** P5 (4 items, скелет) → P6–P9 (скелеты; каждая фаза перед exec требует
+**Remaining:** P5 (4 items, готовы к exec) → P6–P9 (скелеты; каждая фаза перед exec требует
 `/task:plan-design DOMLANG Pn`).
 
 **Sources of truth:**
-- `plans/DOMLANG/plan.md` §4 Status Board (P4 = 1/2, 🟠 Done with deviations) · §5 D-лог (D23 —
-  правило R1/R2/R3; D24 — клоббер `customer_org_id` → P5.4) · §6 Update Log.
-- `plans/DOMLANG/phases/P4.md` — Phase Handoff, P4.1/P4.2 Completion Notes.
-- `plans/DOMLANG/findings/P4-provenance-proof.md` — вердикт `ВЕРДИКТ: 0 полей класса R1`.
-- `docs/03_Dev/adr/0008-thin-provenance-slice.md` — `Consequences` несёт факт «P4.1 конфликтов не
-  нашёл (2026-07-10, ссылка на proof)».
-- `plans/DOMLANG/open-questions.md` Q4 — `Resolved → нет (P4.1)`.
+- `plans/DOMLANG/plan.md` §4 Status Board · §5 D-лог (D25 — вечный лок и запрет `Queued`; D26 —
+  два частичных unique-индекса `prc_bids`; D27 — sync роли `winner`; D28 — удаление `customerOrgId`
+  из write-path листинга) · §6 Update Log.
+- `plans/DOMLANG/phases/P5.md` — 4 item'а с полными 16 полями.
+- `plans/DOMLANG/findings/P5-pipeline-defects.md` — карта всех четырёх дефектов, готовый DDL
+  индексов, механика `UniqueLock`/`RedisLock`/`ArrayLock`.
+- `plans/DOMLANG/workflow.js` — `DECISION_RULES['P5.1']` (правило решения, не усмотрение).
 
 **Open risks:**
-- `customer_org_id` затирается в `null` на каждой новой ревизии листинга (D24, подтверждено P4.1
-  как R2) — **живой дефект в коде**, чинится в `P5.4`, ещё не задет.
-- До закрытия P6 спеки `docs/specs/v2/**` и `docs/03_Dev/database.md` — ненадёжный источник имён.
+- `customer_org_id` затирается в `null` на каждой новой ревизии листинга (D24/D28) — **живой дефект
+  в коде**, чинится в `P5.4`, ещё не задет.
+- Вечный `UniqueLock` в проде (D25) — **живой дефект**, чинится в `P5.1`. В тестах не
+  воспроизводится (`ArrayLock` протухает за секунду) — не пытаться «доказать» его array-драйвером.
+- До закрытия P6 спеки `docs/specs/v2/**` и `docs/03_Dev/database.md` — ненадёжный источник имён;
+  `02-crawling.md:159` вдобавок противоречит ADR-0009 (долг P5.1 → правит P6).
 - `prc_protocols.source_number` (18 вхождений, 8 файлов) намеренно не переименован (D20).
 - Окружение: `docker compose` падает на `MINIO_ROOT_PASSWORD` → используй `docker exec agelto_app`;
   `pint --dirty` в контейнере видит 0 файлов → явный список.
 
 **Workarounds/Deferred/Open questions:**
 - Workarounds: `docker exec agelto_app` вместо `docker compose exec` (env-интерполяция падает в shell).
-- Deferred: —.
+- Deferred: unique-индексы под естественные ключи `prc_financing`/`prc_items`/`prc_protocols`/
+  `prc_awards` — тот же класс, что D26, но вне скоупа P5 (Scope Excluded фазы).
 - Open questions (`open-questions.md`): Q7 (`Exploration`) — автопровижининг маппингов при создании
-  реестра, решается при онбординге второй площадки. Q1–Q6 — `Resolved`.
+  реестра; Q8 (`Exploration`) — мультилотовые закупки (`lot_id` всегда `null`), влияет на D26/D27
+  при появлении источника лотов. Q1–Q6 — `Resolved`.

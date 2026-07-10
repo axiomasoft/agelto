@@ -79,6 +79,17 @@ const DECISION_RULES = {
 customer_org_id УЖЕ классифицирован R2 (plan.md D24, дефект уехал в P5.4) — перепроверь предпосылку грепом, но не переклассифицируй в R1 на основании «два слоя пишут колонку».
 Кандидат R1 без НАЗВАННОГО потребителя деградирует до «не R1»: обучающий контур — возможный потребитель (ADR-0008), а не действующий.
 Правило не покрывает найденный факт (два непустых различающихся значения, но класс неоднозначен) -> статус 🔴 Blocked, escalated=true, trigger «конфликт правил». Ни одной правки в app/ database/ tests/.`,
+
+  // Скелет P5 просил защитить от того, что уже защищено. Правило не даёт исполнителю
+  // «дочинить» несуществующий дефект введением нового статуса (plan.md D25).
+  'P5.1': `ПРЕДПОСЫЛКА СКЕЛЕТА ОПРОВЕРГНУТА (plan.md D25, обоснование — findings/P5-pipeline-defects.md §1). Защита от двойного диспатча УЖЕ ЕСТЬ: три гарда — ShouldBeUnique (PendingDispatch:208 берёт лок до пуша), status-guard (PipelineJob:36-38), атомарный лиз (HasLease:24-42). G1 запинен тестом PipelineDispatcherTest:26.
+Твоя задача — проверить предпосылку и починить ОБРАТНЫЙ дефект, НЕ выводить решение заново.
+Проверка: 'grep -rn "uniqueFor" app/Jobs/' должен дать 0 вхождений -> UniqueLock:32-34 берёт \`\$cache->lock(\$key, 0)\` -> в Redis лок вечен (SETNX без EXPIRE), крашнувшийся воркер запирает документ в downloaded навсегда.
+Совпало -> применяй D25: PipelineJob::uniqueFor() = config('ai.pipeline.unique_lock_minutes', 60) * 60; ключ конфига; ADR-0009; регресс-тест на истечение лока; перепиши риск #1 risk-register.md и §5 crawler-gotchas.md.
+НЕ совпало (uniqueFor уже объявлен) -> предпосылка D25 опровергнута фактом: 🔴 Blocked, escalated=true, вывод grep'а в escalationReason.
+ЗАПРЕЩЕНО вводить DocumentStatus::Queued: scopePendingRetry / PipelineStuckCheck::stuckDocuments() / PipelineRetryFailed опираются на то, что застрявший документ ОСТАЁТСЯ downloaded (PipelineRetryFailed:24-26 — «новый промежуточный статус НЕ вводить»). Показалось, что без нового статуса не доказать -> это сигнал ошибки, а не основание: 🔴 Blocked, trigger «неясная архитектура».
+ЗАПРЕЩЕНО менять ShouldBeUniqueUntilProcessing -> ShouldBeUnique на EstimateExtractionJob (.claude/rules/agelto-reviewer-overrides.md, D39).
+Тест НЕ доказывает вечность лока array-драйвером — там она не воспроизводится (ArrayLock:38, expiresAt=null вырождается в «сейчас+1с»). Пинь НАЛИЧИЕ TTL: uniqueFor() > 600 и сценарий «лок держит -> travel() за границу TTL -> пушит».`,
 }
 
 const PHASES = {
@@ -135,7 +146,7 @@ const PHASES = {
     title: 'Закрытие реальных дефектов пайплайна',
     phaseReviewers: ['agelto-security-review', 'agelto-reviewer'],
     items: [
-      { id: 'P5.1', impl: SONNET_MED, review: OPUS_XHIGH }, // идемпотентность, двойной dispatch
+      { id: 'P5.1', impl: SONNET_MED, review: OPUS_XHIGH, decisionRule: DECISION_RULES['P5.1'] }, // вечный unique-lock, не двойной dispatch (D25)
       { id: 'P5.2', impl: SONNET_MED, review: OPUS_HIGH },
       { id: 'P5.3', impl: SONNET_MED, review: OPUS_HIGH },
       { id: 'P5.4', impl: SONNET_MED, review: OPUS_XHIGH }, // клоббер customer_org_id (D24, найден дизайном P4)
