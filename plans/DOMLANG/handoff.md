@@ -1,57 +1,53 @@
-# HANDOFF — 2026-07-10 — after P5.4
+# HANDOFF — 2026-07-10 — after P6.1
 
-**Next:** Фаза P5 терминальна (4/4 🟢). Следующая фаза — **P6** («Убить spec drift»), скелет
-(0/2, Items 🟢/всего = 0/2 без заполненных полей) — требует детализации, не прямого exec.
+**Done:** `P6.1` `🟢 Done` — карта вхождений пересобрана под D32. Категория `N/A` введена: 14 вхождений 4 токенов (3 живые очереди Horizon `doc_prepare`/`ai_screening`/`ai_extraction`, 1 гипотетика ADR-0004 `ai_extractions`) классифицированы как non-table literal, входят в residue-set гейта P6.2 наравне с KEEP-v1. Все валидации Implementation Rules пройдены (grep-count=208, 0 маркеров, R/K/N верны).
+
+**Next:** `P6.2` `⬜ Not started` — применить карту из P6.1.
 
 | Параметр | Значение |
 |:--|:--|
-| Model | opus |
-| Thinking | high — детализация фазы, правка `docs/specs/v2/**` под фактические имена + ADR-0009 |
-| Context | fresh session — handoff свежий, рекомендован /clear |
-| Суть | Детализировать P6: убить spec drift (166 вхождений мёртвых префиксов, `02-crawling.md:159` vs ADR-0009) |
+| Model | sonnet/medium (exec штатный; recon-item — haiku/low по §3, но переисполнение поверх готовой карты дешевле сверить sonnet'ом) |
+| Thinking | medium — механическая пересборка карты по frozen-правилу, судьбоносная классификация уже заморожена (D32) |
+| Context | fresh session — рекомендован /clear |
+| Суть | Пересобрать карту с категорией N/A, снять маркеры, проверить R/K/N + residue-set, закрыть P6.1 |
 
 ```
-/task:plan-design DOMLANG P6
+/task:plan-exec DOMLANG P6.1
 ```
 
-**Done:** P1 терминальна (3/3: 2🟢 + 1🟠). P2 терминальна (2/2 🟢). P3 терминальна (3/3 🟢).
-P4 терминальна (1/2, 🟠 Done with deviations) — `P4.1` 🟢, `P4.2` ⛔ Skipped by decision (вердикт
-`N = 0`, provenance не материализуется). **P5 терминальна (4/4 🟢)** — `P5.1` 🟢 (TTL unique-лока,
-ADR-0009), `P5.2` 🟢 (два частичных unique-индекса `prc_bids`, `NULLS NOT DISTINCT`, D26), `P5.3` 🟢
-(`syncWinnerRoles()`, D27), `P5.4` 🟢 — мёртвый write-path листинга для `customer_org_id` удалён:
-`ProcurementSnapshotData::$customerOrgId` (свойство + ключ `toSnapshotArray()`),
-`ProcurementStoreRepository::storeProcurement()`/`updateProcurementHead()`,
-`EisCsvRowMapper::map()` — единственный писатель колонки теперь `ProcurementPartyStoreRepository::
-setCustomerOrg()` (detail-слой). `tests/Feature/Procurement/CustomerOrgOwnershipTest.php` — новый
-regression-тест, зафиксирован red (клоббер воспроизведён) → green (после правки). `grep -rn
-'customerOrgId' app/` = 0. `--filter=Revision`/`--filter=Discovery` зелёные, `pint --test` зелёный,
-`migrate:fresh --seed` + полный сюит — 478 passed. Коммит `74666b2`.
+Либо фазой целиком с код-ревью-гейтом (запрос владельца):
 
-**Remaining:** P6–P9 (скелеты; каждая фаза перед exec требует `/task:plan-design DOMLANG Pn`).
+```
+Workflow({ scriptPath: 'plans/DOMLANG/workflow-P6.js' })
+```
+
+**Done:** P1 терминальна (3/3: 2🟢 + 1🟠). P2 (2/2 🟢). P3 (3/3 🟢). P4 (1/2 🟠 — `P4.2` ⛔).
+P5 (4/4 🟢). **Эскалация P6.1 разрешена** (`🔴 Blocked` → `⬜ Not started`, D32): категория `N/A`
+введена, G-under P6.2 переформулирован под residue-set (KEEP-v1 ∪ N/A). Карта `P6-drift-map.md`
+существует с прошлого прогона (207/221 строк верны, 14 помечены NC — их exec переклассифицирует
+в N/A). Добавлен per-phase runner `plans/DOMLANG/workflow-P6.js` с код-ревью-гейтом.
+
+**Remaining:** P6.1 → `/task:plan-exec` (или `workflow-P6.js`). P6.2 стартует после закрытия P6.1.
+P7 (глоссарий v2 + OCDS mapping), P8 (lifecycle-map/FSM), P9 (финальный cross-phase review) — скелеты.
 
 **Sources of truth:**
-- `plans/DOMLANG/plan.md` §4 Status Board (P5 = 4/4 🟢) · §5 D-лог (D28 — удаление `customerOrgId`
-  из write-path листинга, закрыт P5.4) · §6 Update Log.
-- `plans/DOMLANG/phases/P5.md` — 4 item'а, все закрыты с Completion Notes; Phase Handoff заполнен.
-- `plans/DOMLANG/findings/P5-pipeline-defects.md` §4 — исходная карта клоббера `customer_org_id`.
+- `plans/DOMLANG/plan.md` §5 **D32** (категория N/A + переформулировка G-under), D30 (базовое правило),
+  D29 (scope), D31 (долг `:159`).
+- `plans/DOMLANG/phases/P6.md` — P6.1/P6.2 обновлены под D32; Phase Context (вторая ловушка — non-table).
+- `plans/DOMLANG/findings/P6-drift-map.md` — карта прошлого прогона (§0 находка, §1 префиксы, §2 колонки,
+  §3 gate-числа [NC→N в переисполнении], §4 реконсиляция P1 §5, §5 arrow-rule).
+- `plans/DOMLANG/workflow-P6.js` — per-phase runner: recon → item-review → edit → phase-review fan (gate-verify + doc-conformance).
 
 **Open risks:**
-- До закрытия P6 спеки `docs/specs/v2/**` и `docs/03_Dev/database.md` — ненадёжный источник имён;
-  `02-crawling.md:159` противоречит ADR-0009 (правку спеки делает P6, D7).
-- `prc_protocols.source_number` (18 вхождений, 8 файлов) намеренно не переименован (D20).
-- Окружение: `docker compose` падает на `MINIO_ROOT_PASSWORD` → используй `docker exec agelto_app`;
-  `pint --dirty` в контейнере видит 0 файлов → явный список; `.env.example`/директория репо на хосте
-  закрыты Read/Edit-permission харнесса (не docker) — правки через `docker exec -u root agelto_app
-  php -r '...'` + `chown 1000:1000` на изменённый файл.
-- Модели `Bid`/`Protocol`/`ProcurementParty` не имеют Eloquent relations (`procurement()` и т.п.) —
-  фабрики/тесты связывают через явные FK-поля, `->for()` в тестах на этих моделях недоступен.
+- Гейт G-under P6.2 теперь ждёт остаток РОВНО = K(28)+N(14) = 42 строки префиксов. Остаток вне
+  residue-set → незатёртый дрейф (доправить, не расширять множество); пропажа строки residue-set →
+  затёрт v1-ref или queue-имя (откатить правку). Двусторонний контракт.
+- Категория N/A frozen ровно на 4 токенах (D32). Новый non-table токен вне списка → эскалация,
+  не самостоятельное расширение N/A.
 
 **Workarounds/Deferred/Open questions:**
-- Workarounds: `docker exec agelto_app` вместо `docker compose exec` (env-интерполяция падает в
-  shell); правка `.env.example` — через `docker exec -u root` (Read/Edit-тулы харнесса блокируют
-  путь напрямую), с обязательным `chown 1000:1000` после записи.
-- Deferred: unique-индексы под естественные ключи `prc_financing`/`prc_items`/`prc_protocols`/
-  `prc_awards` — тот же класс, что D26, но вне скоупа P5 (Scope Excluded фазы).
-- Open questions (`open-questions.md`): Q7 (`Exploration`) — автопровижининг маппингов при создании
-  реестра; Q8 (`Exploration`) — мультилотовые закупки (`lot_id` всегда `null`), влияет на D26/D27
-  при появлении источника лотов. Q1–Q6 — `Resolved`.
+- Deferred: `docs/03_Dev/crawling-pipeline.md` §8 «исходная формулировка D17» — вне Scope P6.
+- Deferred (из P5): unique-индексы под естественные ключи `prc_financing`/`prc_items`/
+  `prc_protocols`/`prc_awards` (класс D26, вне DOMLANG).
+- Open questions (`open-questions.md`): Q7/Q8 — `Exploration`, без изменений. Эскалация P6.1
+  разрешена через plan-design (D32), не через `open-questions.md`.
