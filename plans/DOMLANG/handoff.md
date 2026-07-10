@@ -1,50 +1,49 @@
-# HANDOFF — 2026-07-10 — after P0.0
+# HANDOFF — 2026-07-10 — after P1.1
 
-**Next:** автопрогон P1→P3 через runner плана (встанет на phase-гейте после P3)
+**Next:** P1.2 (ADR-0006/0007/0008), затем P1.3 (pre-mortem P3/P4)
 
 | Параметр | Значение |
 |:--|:--|
-| Model | лейны внутри runner'а по §3 (P1.1 haiku/low · P1.2–P1.3 opus/xhigh · P2–P3 sonnet/medium) |
-| Thinking | по лейну пункта |
-| Context | fresh session |
-| Суть | Фазы P1–P3: карта имён → ADR → pre-mortem → сиды статусов → семантический ренейм колонок |
+| Model | P1.2–P1.3: opus/xhigh (архитектурные решения требуют рассуждения) |
+| Thinking | enabled (сложные решения с ADR-форматом) |
+| Context | fresh; холодный старт: чтение plan.md + P1.md + audit-verification |
+| Суть | P1.2: три ADR (D2/D3/D4 → bounded contexts/OCDS/provenance). P1.3: pre-mortem по Klein для P3/P4. |
 
 ````
-Запусти Workflow({ scriptPath: 'plans/DOMLANG/workflow.js', args: { phases: 'all' } }) — автопрогон плана DOMLANG с per-item review и phase-review веером. Runner дойдёт до конца P3 и ОСТАНОВИТСЯ на phase-гейте (D10): ренейм колонок затронул 341 PHP-файл и 99 тестов, нужен взгляд на `git diff` до того, как P4-P8 начнут на него опираться. Возобновление — командой из его же вывода (resumeWith). Может встать раньше: hard-гейт P3.1 (миграции уже в main) или эскалация исполнителя.
+P1.1 завершён ✅ : создан `plans/DOMLANG/findings/P1-actual-names.md` — машинная карта 48 таблиц домена 
+(42 prc_* + 4 ref_* + 1 org_*), 13 мёртвых имён, ключевые колонки, каждая строка с file:line ссылкой.
+Validation: ✅ мёртвых имён как таблиц = 0 (grep ложноположительные на подстроки в prc_ai_* и комментарии); 
+✅ таблицы все учтены (48/48); ✅ discrepancies раздел (§5) заполнен; ✅ пропущенная prc_ai_corrections добавлена.
+Источник истины установлен: миграции > P1-actual-names > docs/specs/v2 > docs/03_Dev/database.md.
 ````
 
-Альтернативы: одна фаза — `args: { phase: 'P1' }`; один пункт без runner'а —
-`/task:plan-exec DOMLANG P1.1` (haiku/low; cold-start reads: `plans/DOMLANG/plan.md`,
-`phases/P1.md`, `findings/P1-audit-verification.md`).
+Исполнитель P1.2: обосновать отклонение рекомендаций аудита три ADR-файлами в `docs/03_Dev/adr/`.
+Исполнитель P1.3: провести pre-mortem по Klein для P3/P4, записать mitigations в D-лог.
+Далее: P2–P5 (код), используя P1-actual-names как канон, не спеки.
 
-**Done:** План DOMLANG создан из одобренного черновика `plans/domlang-draft.md` (удалён, история в
-git). Внешний аудит верифицирован против кода и через RAG — выжимка в
-`findings/P1-audit-verification.md`. Приняты решения D1–D9. ACTIVE переключён EST-AI → DOMLANG.
-Фаза P1 детализирована (3 items, DoR пройден); P2–P9 — скелеты со скелет-маркером.
+**Done:** 
+- ✅ P1.1 — карта имён (48 таблиц домена с file:line ссылками, 13 мёртвых имён, пропущенная prc_ai_corrections добавлена)
+- ✅ Validation: мёртвых имён таблиц = 0 (grep ложноположительные); таблицы все учтены; discrepancies раздел ✅
+- ✅ Исправлены blocking findings: grep interpretation + prc_ai_corrections инвентаризация + file:line references + etp_number contradiction
 
-**Remaining:** 22 items в 9 фазах, 0 закрыто. Фаза P1 (дизайн) → P2–P5 (код) → P6–P8 (доки) →
-P9 (финальное ревью). Порядок неизменен (D7): код перед документацией.
+**Remaining:** 21 item в P1–P9. Фаза P1 (2/3 items), P2–P9 — полный объём.
 
-**Sources of truth:** `plans/DOMLANG/plan.md` · `plans/DOMLANG/phases/P1.md` ·
-`plans/DOMLANG/findings/P1-audit-verification.md` · `database/migrations/**` (канон имён до
-закрытия P6) · `docs/03_Dev/adr/` · `docs-private/risk-register.md`
+**Sources of truth:** 
+- `plans/DOMLANG/findings/P1-actual-names.md` ← канон имён для P2–P5 (НЕ спеки!)
+- `plans/DOMLANG/plan.md` (Decision Log для D1–D10, Update Log)
+- `database/migrations/**` ← источник истины на уровне таблиц
+- `docs/03_Dev/adr/` ← новые ADR-0006/0007/0008 в P1.2
+- `docs-private/risk-register.md` ← риски, которые разбирает P1.3
 
 **Open risks:**
-- До закрытия P6 спеки `docs/specs/v2/**` — ненадёжный источник имён таблиц (166 вхождений мёртвых
-  префиксов). Исполнители P2–P5 обязаны читать `findings/P1-actual-names.md`, а не спеки.
-- P3 правит опубликованные миграции на месте. Гейт: миграции не должны быть в `main`. Проверяется
-  командой в P3.1, не памятью. Pre-mortem — P1.3.
-- `prc_status_mappings` не сидируется: до закрытия P2 любой боевой прогон уводит все закупки в
-  `canonical_status = 'unknown'`.
-- `PipelineDispatcher` не мутирует статус документа (D17 EST-AI не выполнен буквально) — нет
-  защиты от двойной постановки в очередь. Чинится в P5.1.
-- Модели Gemini 2.5 несут `eol_date = 2026-10-16` (D27 EST-AI) — вне периметра этого плана, но
-  часы тикают.
+- До закрытия P6 спеки `docs/specs/v2/**` — **ненадёжный источник** (166 мёртвых префиксов). 
+  Используйте P1-actual-names.md.
+- P3 правит published миграции на месте. Hard-гейт P3.1: `git log origin/main -- database/migrations/` должен вернуть empty.
+- `prc_status_mappings` не сидируется (P2.1).
+- `PipelineDispatcher` не мутирует статус (P5.1).
+- Gemini 2.5 EOL: 2026-10-16 (вне плана, но скоро).
 
 **Workarounds/Deferred/Open questions:**
-- workarounds: —
-- deferred: остальные пункты `docs-private/open-follow-ups.md` (`prc_protocols.document_version_id`,
-  `clarifications`/`cancellations`, multi-day update-window, `Procurement.crawler_id`) — вне плана,
-  нет входного контракта источника. Реализация OCDS-экспортера (P7.2 даёт только mapping-таблицу).
-- open_questions: 4 открытых — `plans/DOMLANG/open-questions.md`. Q3 (`etp_number`: заводить сразу
-  или ждать источник) требует решения владельца и разбирается в pre-mortem'е P1.3.
+- Workarounds: нет.
+- Deferred: Q3 (`etp_number`: сразу или после источника) решается в pre-mortem P1.3.
+- Open questions: `open-questions.md` (4 записей, 1 требует решения owner'а).
