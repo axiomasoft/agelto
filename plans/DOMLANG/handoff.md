@@ -1,22 +1,23 @@
 # HANDOFF — 2026-07-11 — after P9.3
 
-**Next:** P9.3 закрыт `⛔ Skipped by decision` (D38, владелец): `/code-review ultra` понижен с
-обязательного гейта до опционального on-demand — P9.1 (milestone) + P9.2 (plan-audit), оба
-ATTENTION/0-Blocker, признаны достаточными. Фаза P9 терминальна (2/3 🟢 + 1 ⛔ → 🟠). **Все 9 фаз
-DOMLANG терминальны — план закрыт по фазам, готов к архивации** через `/task:plan-close DOMLANG`
-(финализирует Meta Status + перенос в архив). Опциональный on-demand `/code-review ultra` перед
-merge в `main` остаётся за владельцем (Blocker → reopen по D37), не блокирует.
+**Next:** план закрыт. Все 9 фаз DOMLANG терминальны (`🟢`×6 — P2/P3/P5/P6/P7/P8; `🟠`×3 — P1/P4/P9
+с задокументированными Known Deviations/D38). `Meta Status` → `🟠 Done with deviations`,
+`plans/ACTIVE.md` сброшен на `—`. Следующий шаг вне протокола exec/design — архивация:
 
 | Параметр | Значение |
 |:--|:--|
 | Model | sonnet |
-| Thinking | low — plan-close механический (сверка git-фактов, архивация) |
+| Thinking | low — механический перенос план→архив, root/→docs |
 | Context | fresh session — handoff свежий, рекомендован `/clear` |
-| Суть | Архивировать терминальный план DOMLANG: сверить 🟢/🟠/⛔ с git, финализировать Meta Status, перенести в архив, обновить docs-конвейер |
+| Суть | Перенести терминальный план DOMLANG в `plans/archive/DOMLANG`, мигрировать долгоживущий материал `root/` (если есть) в docs проекта, обновить реестры |
 
 ```
-/task:plan-close DOMLANG
+/task:plan-close archive DOMLANG
 ```
+
+Опциональный on-demand `/code-review ultra` перед merge в `main` остаётся за владельцем
+(Blocker → reopen по D37, соответствующая фаза уже в архиве — reopen через `plan-audit`
+после разархивации), не блокирует.
 
 **Done:** P1–P8 терминальны. **P9 терминальна (2/3 🟢 + 1 ⛔ → 🟠 Done with deviations):**
 - **P9.1 🟢** — milestone adversarial review (харнесс `estai-milestone-review.js`): gate=PASS,

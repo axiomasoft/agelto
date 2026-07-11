@@ -7,7 +7,7 @@
 | Plan ID | DOMLANG |
 | Title | Доменный язык, provenance и закрытие дефектов, найденных при верификации внешнего аудита |
 | Version | 0.1.0 |
-| Status | 🟡 In progress |
+| Status | 🟠 Done with deviations |
 | Document Type | Executable Master Plan |
 | Authoring Model | opus |
 | Last Updated | 2026-07-10 |
@@ -209,3 +209,4 @@ Review-гейты (субагенты, read-only, вне матрицы моде
 | 2026-07-11 | plan-exec/opus | P9.2 🟢 Done (P9 2/3) — fan-out 8 plan-audit-агентов по P1–P8, роллап **ATTENTION** (0 Blocker/RED → 0 reopen); 2 Major процессных + 3 PROMOTE-CANDIDATE + инцидент целостности P9.md (устранён restore из HEAD) — детали см. phases/P9.md P9.2 Completion Notes |
 | 2026-07-11 | plan-exec/opus | P9.3 🟡 In progress (owner-gate) — вход подготовлен (owner launch-block в handoff.md, предпосылки P9.1/P9.2 проверены терминальными), агент СТОПнул без запуска `/code-review ultra` (D9) — детали см. phases/P9.md P9.3 Completion Notes |
 | 2026-07-11 | владелец + plan-exec/opus | P9.3 ⛔ Skipped by decision (D38) — ultra понижен до опционального on-demand (P9.1+P9.2 достаточны); P9 терминальна (2/3 🟠), план готов к plan-close — детали см. phases/P9.md P9.3 CN + D38 |
+| 2026-07-11 | plan-close/sonnet | Все 9 фаз терминальны (`🟢`×6, `🟠`×3) — план DOMLANG закрыт целиком, Meta Status → `🟠 Done with deviations`, `plans/ACTIVE.md` сброшен на `—`. Следующий шаг — `/task:plan-close archive DOMLANG` |
