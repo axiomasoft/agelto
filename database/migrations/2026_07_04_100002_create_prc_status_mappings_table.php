@@ -17,11 +17,11 @@ return new class extends Migration
             $table->foreignId('registry_id')
                 ->constrained(table: (new Registry)->getTable())
                 ->cascadeOnDelete();
-            $table->string('source_status');
+            $table->string('source_stage');
             $table->string('canonical_status');
             $table->timestamps();
 
-            $table->unique(['registry_id', 'source_status']);
+            $table->unique(['registry_id', 'source_stage']);
         });
     }
 

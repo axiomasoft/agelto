@@ -30,13 +30,13 @@ final readonly class ProcurementIngestProcessor
     {
         return DB::transaction(function () use ($data, $crawlerRunId): Procurement {
             $now = Carbon::now();
-            $resolution = $this->statusMapping->resolve(registryId: $data->registryId, sourceStatus: $data->sourceStatus);
+            $resolution = $this->statusMapping->resolve(registryId: $data->registryId, sourceStage: $data->sourceStage);
             $snapshot = $data->toSnapshotArray(canonicalStatus: $resolution->status->value);
             $snapshotHash = hash('sha256', json_encode($snapshot, JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR));
 
             $procurement = $this->procurements->findProcurement(
                 registryId: $data->registryId,
-                sourceNumber: $data->sourceNumber,
+                registryNumber: $data->registryNumber,
             );
 
             if ($procurement === null) {
@@ -215,7 +215,7 @@ final readonly class ProcurementIngestProcessor
     }
 
     /**
-     * Незнакомая пара (registry_id, source_status), заведённая `StatusMappingService` только что
+     * Незнакомая пара (registry_id, source_stage), заведённая `StatusMappingService` только что
      * (см. Decision Log D7) — переиспользуем `status_changed`, отдельный `event_type` не заводим.
      */
     private function storeUnknownStatusEvent(int $procurementId, int $revisionId, Carbon $occurredAt, ?string $oldStatus, string $newStatus): void

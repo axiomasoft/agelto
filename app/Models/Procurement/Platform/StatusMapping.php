@@ -22,7 +22,7 @@ final class StatusMapping extends Model
 
     protected $fillable = [
         'registry_id',
-        'source_status',
+        'source_stage',
         'canonical_status',
     ];
 

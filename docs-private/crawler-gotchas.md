@@ -30,19 +30,29 @@
 
 Если ЕИС когда-нибудь начнёт перевыдавать `supplier-results` с изменённой нумерацией участников между снимками — `participant_ordinal` перестанет однозначно идентифицировать участника, и upsert может создать дубль или перезаписать не ту заявку. Известный, принятый риск (Known Deviations P3.7), не блокирующий MVP.
 
-Родственная деталь: и `prc_financing`/`prc_items`/`prc_protocols`/`prc_bids`/`prc_awards` держат идемпотентность на прикладном `updateOrCreate` по естественному ключу **без подкрепляющего DB unique-индекса** — приемлемо при `параллелизм=1` (D8 из плана V2-CRAWL, синхронная однопоточная стадия), станет реальным риском гонки при выносе detail-стадии в очереди.
+Родственная деталь: `prc_financing`/`prc_items`/`prc_protocols`/`prc_awards` всё ещё держат идемпотентность на прикладном `updateOrCreate` по естественному ключу **без подкрепляющего DB unique-индекса** — приемлемо при `параллелизм=1` (D8 из плана V2-CRAWL, синхронная однопоточная стадия), станет реальным риском гонки при выносе detail-стадии в очереди. `prc_bids` из этого списка выведен (DOMLANG P5.2, D26): ветвящийся прикладной ключ `upsertBid()` теперь подкреплён двумя частичными unique-индексами `prc_bids_identified_participant_unique`/`prc_bids_anonymous_participant_unique` (`NULLS NOT DISTINCT`, миграция `2026_07_04_100021`) — риск отсутствия DB-подкрепления для `prc_bids` закрыт, остаётся только риск перенумерации участников источником (см. выше).
 
 ## 4. N+1 на `registry` при пакетной обработке
 
-`DetailRefetchSelector::due()` / `DetailAnalysisProcessor::run()` при батч-обработке через `crawler:fetch-details` без аргумента делает по одному `SELECT plt_registries` **на каждую закупку** вместо одного batched-запроса. Признан низким impact (справочник `plt_registries` — единицы строк на реестр), сознательно не оптимизирован (Known Deviations P3.8). Если объём закупок в батче вырастет на порядки — стоит вернуться и заэagerload'ить `registry`.
+`DetailRefetchSelector::due()` / `DetailAnalysisProcessor::run()` при батч-обработке через `crawler:fetch-details` без аргумента делает по одному `SELECT prc_registries` **на каждую закупку** вместо одного batched-запроса. Признан низким impact (справочник `prc_registries` — единицы строк на реестр), сознательно не оптимизирован (Known Deviations P3.8). Если объём закупок в батче вырастет на порядки — стоит вернуться и заэagerload'ить `registry`.
 
-## 5. `PipelineDispatcher` НЕ мутирует статус документов — сознательное расхождение (D17)
+## 5. `PipelineDispatcher` НЕ мутирует статус документов — по решению ADR-0009, не «по факту реализации»
 
-Изначально `PipelineDispatcher::dispatch()` должен был быть «единственным owner'ом перехода статуса» моста в пайплайн документов (`docs/03_Dev/crawling-pipeline.md` §8, решение **D17**). По факту реализации (P3.8):
+`PipelineDispatcher::dispatch()` **не** является owner'ом перехода статуса моста в пайплайн
+документов — это было исходной формулировкой D17 плана EST-AI (`docs/03_Dev/crawling-pipeline.md`
+§8), но она текстуально superseded `docs/03_Dev/adr/0009-job-owns-document-transition.md`
+(`plans/archive/DOMLANG` P5.1, 2026-07-10): owner перехода `downloaded → prepared` — сам
+`PrepareDocumentJob::process()` (`app/Jobs/Procurement/PrepareDocumentJob.php:79`), не мост.
 
-> в схеме (`docs/03_Dev/database.md` §5) нет отдельного поля-маркера «поставлено в очередь», а миграция не входила в Files-скоуп этого item'а; следующий переход (`downloaded→prepared`) владеет будущий consumer Фазы 4, не этот мост.
-
-Мост сейчас **только отбирает и логирует** `doc_documents.status = downloaded` — не переводит их дальше. Это согласовано ревьюером как обоснованный компромисс при текущих ограничениях схемы, но **фактически отменяет часть D17 текстуально** — сам D17 не был переформулирован в спеке. Важно помнить при реализации Фазы 4 (consumer подготовки документов): именно она должна стать единственным owner'ом перехода `downloaded → prepared`, а не мост.
+Мост только отбирает и диспатчит `prc_documents.status = downloaded` — не переводит их в
+промежуточный статус, и это не пробел, а решение: `DocumentStatus::Queued` намеренно не вводится
+(сломал бы `scopePendingRetry`/`PipelineStuckCheck::stuckDocuments()`/`PipelineRetryFailed`, весь
+recovery которых опирается на то, что застрявший документ **остаётся** `downloaded`). Инвариант
+«один job на документ» держат три независимых гарда: `ShouldBeUnique` (`PrepareDocumentJob:24,35`),
+status-guard (`PipelineJob:34-36`), атомарный лиз (`HasLease:24-42`); TTL unique-лока
+(`PipelineJob::uniqueFor()`, `config('ai.pipeline.unique_lock_minutes')`) страхует от вечного лока
+при убитом воркере. `docs/specs/v2/02-crawling.md` §8 всё ещё пишет старую формулировку — правку
+спеки выполняет фаза P6 плана DOMLANG (D7).
 
 Также рядом (не сам D17, но соседнее сознательное отклонение): `DetailAnalysisProcessor` резолвит источник строго через `config('crawler.detail_source_method')` (единственный сконфигурированный `csv`), **без fallback** на альтернативный метод при деградации источника (в отличие от `FreshRunProcessor::makeWithFallback`). Причина — `Procurement` не хранит `crawler_id`, резолв «через какой именно `Crawler`-профиль» неоднозначен при нескольких профилях на реестр (см. `docs-private/open-follow-ups.md`).
 

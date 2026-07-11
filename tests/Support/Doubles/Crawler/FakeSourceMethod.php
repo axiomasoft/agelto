@@ -26,7 +26,7 @@ abstract class FakeSourceMethod implements SourceMethod
         );
     }
 
-    public function collectDetails(string $sourceNumber, Registry $registry): ProcurementDetails
+    public function collectDetails(string $registryNumber, Registry $registry): ProcurementDetails
     {
         return new ProcurementDetails;
     }

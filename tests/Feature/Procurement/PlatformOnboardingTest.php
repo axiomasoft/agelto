@@ -10,15 +10,15 @@ use App\Models\Procurement\PurchaseItem;
 
 /**
  * §11 «Новая площадка» и §11.1 «Валидация универсальности на бумаге» —
- * заведение площадки чистыми данными (`plt_*`), без миграций ядра.
+ * заведение площадки чистыми данными (`prc_*`), без миграций ядра.
  */
-test('новая площадка заводится вставкой plt_platforms/plt_registries/plt_status_mappings, ядро не меняется', function () {
+test('новая площадка заводится вставкой prc_platforms/prc_registries/prc_status_mappings, ядро не меняется', function () {
     $platform = Platform::factory()->create(['code' => 'commercial-x', 'name' => 'Коммерческая площадка X']);
     $registry = Registry::factory()->create(['platform_id' => $platform->id, 'code' => 'main']);
     $mapping = StatusMapping::factory()->create([
         'registry_id' => $registry->id,
-        'source_status' => 'Опубликовано',
-        'canonical_status' => 'announced',
+        'source_stage' => 'Опубликовано',
+        'canonical_status' => 'bidding',
     ]);
 
     expect($platform->code)->toBe('commercial-x')

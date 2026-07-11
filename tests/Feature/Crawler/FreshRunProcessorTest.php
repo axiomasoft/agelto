@@ -19,13 +19,13 @@ use Tests\Support\Doubles\Crawler\QueueSourceMethod;
  *
  * @return array<string, string>
  */
-function freshRunCsvRow(string $sourceNumber, array $overrides = []): array
+function freshRunCsvRow(string $registryNumber, array $overrides = []): array
 {
     return array_merge([
-        'Реестровый номер закупки' => $sourceNumber,
+        'Реестровый номер закупки' => $registryNumber,
         'Способ определения поставщика' => 'Электронный аукцион',
         'Наименование закупки' => 'Поставка оргтехники',
-        'Этап закупки' => 'Размещение извещения',
+        'Этап закупки' => 'Подача заявок',
         'Идентификационный код закупки (ИКЗ)' => '243773601234512345100100001',
         'НМЦК' => '1 250 000,50',
         'Валюта' => 'RUB',

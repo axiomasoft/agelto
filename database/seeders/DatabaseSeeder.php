@@ -34,6 +34,11 @@ class DatabaseSeeder extends Seeder
         // пустую системную часть) — та же логика «до local/testing-гейта», что AiRoutingSeeder.
         $this->call(PromptSeeder::class);
 
+        // Стартовая матрица `prc_status_mappings` для реестра fz44 (DOMLANG P2.2, D17) — без неё
+        // первый боевой прогон ЕИС отправит все закупки в unknown (`StatusMappingService::resolve()`
+        // на незнакомой паре). Инфраструктурные данные, поэтому ДО local/testing-гейта, как выше.
+        $this->call(StatusMappingSeeder::class);
+
         // Демо-аккаунты (в т.ч. суперадмин с wildcard) — ТОЛЬКО в local/testing.
         // На prod бутстрап суперадмина — через `php artisan guard:super-admin --user=`,
         // иначе db:seed на деплое создал бы бэкдор с предсказуемым паролем.

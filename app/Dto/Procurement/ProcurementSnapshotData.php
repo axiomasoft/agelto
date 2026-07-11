@@ -10,6 +10,7 @@ use Illuminate\Support\Carbon;
  * Нормализованный снапшот закупки — вход инжест-процессора.
  * Поля 1:1 диффуемым колонкам `prc_procurements` (без служебных: id/uuid/revision-мета/timestamps).
  * Нормализацию из сырого CSV/HTML источника выполняет вызывающий код (вне Scope P1.10).
+ * `customer_org_id` — не поле листинга, владелец detail-слой (`setCustomerOrg()`).
  */
 final readonly class ProcurementSnapshotData
 {
@@ -19,16 +20,15 @@ final readonly class ProcurementSnapshotData
      */
     public function __construct(
         public int $registryId,
-        public string $sourceNumber,
+        public string $registryNumber,
         public string $title,
-        public string $sourceStatus,
+        public string $sourceStage,
         public Carbon $publishedAt,
         public Carbon $sourceUpdatedAt,
         public ?string $etpNumber = null,
         public ?string $ikz = null,
         public ?string $procedureType = null,
         public ?string $procedureTypeRaw = null,
-        public ?int $customerOrgId = null,
         public ?string $initialPrice = null,
         public ?string $currency = null,
         public ?string $advancePercent = null,
@@ -41,14 +41,14 @@ final readonly class ProcurementSnapshotData
         public ?Carbon $biddingEndsAt = null,
         public ?Carbon $summaryAt = null,
         public ?string $detailUrl = null,
-        public ?string $sourceGuid = null,
+        public ?string $registryGuid = null,
         public ?array $attributes = null,
     ) {}
 
     /**
      * Нормализованный снапшот для `prc_revisions.snapshot`/`snapshot_hash` — все диффуемые поля
      * + резолвленный канонический статус (сырой статус сам по себе недостаточен для диффа, канон
-     * может измениться из-за правки `prc_status_mappings` без изменения source_status).
+     * может измениться из-за правки `prc_status_mappings` без изменения source_stage).
      *
      * @return array<string, mixed>
      */
@@ -56,15 +56,14 @@ final readonly class ProcurementSnapshotData
     {
         $snapshot = [
             'registry_id' => $this->registryId,
-            'source_number' => $this->sourceNumber,
+            'registry_number' => $this->registryNumber,
             'title' => $this->title,
             'status' => $canonicalStatus,
-            'source_status' => $this->sourceStatus,
+            'source_stage' => $this->sourceStage,
             'etp_number' => $this->etpNumber,
             'ikz' => $this->ikz,
             'procedure_type' => $this->procedureType,
             'procedure_type_raw' => $this->procedureTypeRaw,
-            'customer_org_id' => $this->customerOrgId,
             'initial_price' => $this->initialPrice,
             'currency' => $this->currency,
             'advance_percent' => $this->advancePercent,
@@ -79,7 +78,7 @@ final readonly class ProcurementSnapshotData
             'bidding_ends_at' => $this->biddingEndsAt?->toIso8601String(),
             'summary_at' => $this->summaryAt?->toIso8601String(),
             'detail_url' => $this->detailUrl,
-            'source_guid' => $this->sourceGuid,
+            'registry_guid' => $this->registryGuid,
             'attributes' => $this->attributes,
         ];
 

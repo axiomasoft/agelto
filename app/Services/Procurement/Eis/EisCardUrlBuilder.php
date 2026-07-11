@@ -37,7 +37,7 @@ final readonly class EisCardUrlBuilder
         return $procedureUrlType;
     }
 
-    public function buildUrl(Registry $registry, string $procedureUrlType, string $tab, string $sourceNumber): string
+    public function buildUrl(Registry $registry, string $procedureUrlType, string $tab, string $registryNumber): string
     {
         /** @var array<string, array<string, string>> $templates */
         $templates = $registry->settings['card_url_templates'] ?? [];
@@ -51,6 +51,6 @@ final readonly class EisCardUrlBuilder
             );
         }
 
-        return str_replace(self::REG_NUMBER_PLACEHOLDER, $sourceNumber, $template);
+        return str_replace(self::REG_NUMBER_PLACEHOLDER, $registryNumber, $template);
     }
 }

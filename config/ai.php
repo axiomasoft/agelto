@@ -272,6 +272,16 @@ return [
         'retry_batch_limit' => (int) env('AI_PIPELINE_RETRY_BATCH_LIMIT', 50),
 
         /*
+        | TTL unique-лока pipeline-job'ов (`PipelineJob::uniqueFor()`, ADR-0009). На Redis (прод)
+        | лок без `EXPIRE` вечен — убитый воркер (SIGKILL/OOM/рестарт) навсегда запирает документ;
+        | на array-store (тесты) `seconds === 0` протухает за секунду, поэтому дефект там не виден.
+        | Значение обязано быть больше TTL лиза (600 c, `HasLease`) и не больше
+        | `document_stuck_minutes` (60), чтобы протухший лок самовосстанавливался не позже, чем
+        | `pipeline:stuck-check` о нём просигналит.
+        */
+        'unique_lock_minutes' => (int) env('AI_PIPELINE_UNIQUE_LOCK_MINUTES', 60),
+
+        /*
         | Пороги `pipeline:stuck-check` (P7.3, ТЗ 03 §5). `analysis_stuck_minutes` — screening
         | (single-shot, v1-канон ANALYSIS_STUCK_MINUTES=30); `checkpoint_stuck_minutes` —
         | extraction ОТДЕЛЬНО (D31): self-requeue-цепочка легитимно проходит через паузы между

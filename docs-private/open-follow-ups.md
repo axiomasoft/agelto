@@ -4,9 +4,9 @@
 
 ## 1. `prc_protocols.document_version_id` не заполняется
 
-Схема (`docs/03_Dev/database.md` §4) предполагает связь протокола с файлом-источником: `document_version_id FK doc_versions nullable (файл-источник)`. Но `SupplierResultsProcessor` (P3.7) её не проставляет — Pending Work P3.7 прямо фиксирует:
+Схема (`docs/03_Dev/database.md` §4) предполагает связь протокола с файлом-источником: `document_version_id FK prc_document_versions nullable (файл-источник)`. Но `SupplierResultsProcessor` (P3.7) её не проставляет — Pending Work P3.7 прямо фиксирует:
 
-> `prc_protocols.document_version_id` — не заполняется: на вкладке `supplier-results` (ни в разведке, ни во фикстуре) нет ссылки на файл-источник протокола; связывание с `doc_versions` по номеру/дате — вероятно задача P3.8-оркестратора, имеющего доступ к обоим источникам.
+> `prc_protocols.document_version_id` — не заполняется: на вкладке `supplier-results` (ни в разведке, ни во фикстуре) нет ссылки на файл-источник протокола; связывание с `prc_document_versions` по номеру/дате — вероятно задача P3.8-оркестратора, имеющего доступ к обоим источникам.
 
 P3.8 (оркестратор) эту задачу тоже не решил — Pending Work P3.8 повторяет тот же пункт как deferred за пределы V2-CRAWL. **Открытый вопрос:** как связать протокол (из `supplier-results`) с конкретной версией документа (из `documents`) — по номеру, по дате, по эвристике совпадения текста? Ни ТЗ, ни разведка `research/eis-card-recon.md` не дают ответа.
 
@@ -38,7 +38,7 @@ P4.2 это решил **не расширением курсора диапаз
 
 > `DetailAnalysisProcessor` не имеет fallback-метода забора (в отличие от `FreshRunProcessor::makeWithFallback`) — `Procurement` не хранит `crawler_id` (только `registry_id`), резолв «через какой именно `Crawler`-профиль» неоднозначен при нескольких профилях на реестр при необходимости — эвристика `Crawler::where('registry_id',...)->where('mode', Fresh)->first()` или явная привязка reestr→detail-method в конфиге.
 
-Практическое следствие: `DetailAnalysisProcessor` сейчас резолвит источник **только** через `config('crawler.detail_source_method')` (единственный сконфигурированный `csv`) — без возможности переключиться на альтернативный `SourceMethod` при деградации источника, в отличие от fresh-стадии. Если на реестр когда-нибудь заведут второй активный `crw_crawlers`-профиль (например, HTML-фоллбек рядом с CSV) — сегодняшний код не сможет однозначно выбрать, какой из них использовать для детального забора конкретной закупки. Два варианта решения на будущее (оба предложены в самом плане, ни один не выбран):
+Практическое следствие: `DetailAnalysisProcessor` сейчас резолвит источник **только** через `config('crawler.detail_source_method')` (единственный сконфигурированный `csv`) — без возможности переключиться на альтернативный `SourceMethod` при деградации источника, в отличие от fresh-стадии. Если на реестр когда-нибудь заведут второй активный `prc_crawlers`-профиль (например, HTML-фоллбек рядом с CSV) — сегодняшний код не сможет однозначно выбрать, какой из них использовать для детального забора конкретной закупки. Два варианта решения на будущее (оба предложены в самом плане, ни один не выбран):
 - добавить `Procurement.crawler_id` (материализовать связь явно, миграция);
 - явную привязку `registry → detail-method` в конфиге (без изменения схемы).
 
@@ -46,6 +46,8 @@ P4.2 это решил **не расширением курсора диапаз
 
 Не дублируем здесь описание (это technical gotcha, не unresolved item), но важно держать в уме при доработке `prc_bids`: если естественный ключ понадобится ужесточить — в схеме до сих пор нет DB unique-индекса под него (см. `crawler-gotchas.md` п.3 про `updateOrCreate` без подкрепляющего unique).
 
-## 6. Роль `winner` в `org_procurement_parties` не снимается при пересмотре итогов
+## 6. Роль `winner` в `prc_procurement_parties` не снимается при пересмотре итогов — закрыто (DOMLANG D27, P5.3)
 
-Найдено точечным ревью P3.7–P4.2 (agelto-reviewer, 2026-07-06): `SupplierResultsProcessor::storeAward()` денормализует победителя в `org_procurement_parties` через `upsertParty` по ключу `(procurement_id, organization_id, role)`. `prc_awards.winner_org_id` корректно перезаписывается при повторном прогоне (upsert по `(procurement_id, lot_id)`), но если победитель ИЗМЕНИЛСЯ (пересмотр итогов/протест) — старая организация остаётся с ролью `winner` навсегда, новая просто добавляет вторую `winner`-запись. Не критично (редкий кейс, вне текущего Known Deviations списка P3.7), но если пересмотр итогов ожидается в проде — нужно либо снимать старую роль явно при записи нового `winner_org_id`, либо считать `org_procurement_parties.role=winner` неавторитетным источником (авторитетен только `prc_awards.winner_org_id`) и задокументировать это явно в коде/схеме.
+Найдено точечным ревью P3.7–P4.2 (agelto-reviewer, 2026-07-06; исходная формулировка ошибочно называла таблицу): `SupplierResultsProcessor::storeAward()` денормализует победителя в `prc_procurement_parties` через `upsertParty` по ключу `(procurement_id, organization_id, role)`. `prc_awards.winner_org_id` корректно перезаписывается при повторном прогоне (upsert по `(procurement_id, lot_id)`), но если победитель ИЗМЕНИЛСЯ (пересмотр итогов/протест) — старая организация оставалась с ролью `winner` навсегда, новая просто добавляла вторую `winner`-запись.
+
+Закрыто планом DOMLANG (D27, item P5.3): `ProcurementPartyStoreRepository::syncWinnerRoles(int $procurementId, array $winnerOrgIds)` удаляет строки `role = winner`, чьих `organization_id` нет в списке переданных победителей; вызывается из `SupplierResultsProcessor::storeAward()` сразу после `upsertParty(Winner)`, внутри уже открытой транзакции. Денормализация `role = winner` теперь авторитетна.

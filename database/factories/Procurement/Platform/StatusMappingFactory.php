@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Database\Factories\Procurement\Platform;
 
+use App\Enums\Procurement\ProcurementStatus;
 use App\Models\Procurement\Platform\Registry;
 use App\Models\Procurement\Platform\StatusMapping;
 use Illuminate\Database\Eloquent\Factories\Factory;
@@ -19,8 +20,10 @@ final class StatusMappingFactory extends Factory
     {
         return [
             'registry_id' => Registry::factory(),
-            'source_status' => fake()->unique()->word(),
-            'canonical_status' => fake()->randomElement(['announced', 'bidding', 'evaluation', 'awarded', 'completed', 'cancelled', 'unsuccessful', 'unknown']),
+            'source_stage' => fake()->unique()->word(),
+            // Пул тянем из enum, а не из литералов: иначе удалённый кейс переживает рефакторинг
+            // и всплывает как ValueError в StatusMappingService::resolve().
+            'canonical_status' => fake()->randomElement(array_column(ProcurementStatus::cases(), 'value')),
         ];
     }
 }

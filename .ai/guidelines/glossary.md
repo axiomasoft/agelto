@@ -17,6 +17,8 @@
 - `Ai\Analysis` → `$analysis` — сессия AI-анализа (в v1 — `DocumentAnalysis`).
 - `Estimate` → `$estimate` — распарсенная смета (DTO); `Smeta`/«Смета» в идентификаторах не используем.
 - `Lot` / `PurchaseItem` (`prc_items`, не путать с `Estimate\Item`/`prc_estimate_items` — позицией сметы) — лот / позиция объекта закупки.
+- `ProcurementRevision` → `$revision` — снапшот редакции закупки (`prc_revisions`, партиция RANGE by `detected_at`).
+- `ProcurementEvent` → `$event` — immutable типизированное событие в журнале закупки (`prc_events`, партиция RANGE by `occurred_at`, `ProcurementEventType`).
 
 ### AI-подомен (`App\Models\Procurement\Ai\*`, `App\Services\Llm\*`)
 
@@ -51,3 +53,26 @@
 - Повторяющиеся проверки — кастомные expectations, не копипаста запросов.
 
 Зафиксированные исключения (не трогаем, data-affecting): `UPPER_CASE`-кейсы `CrawlingStatus`; строковые значения enum (`ProcessStage::DocParsing = 'parsing_docs'`).
+
+## OCDS/оспариваемые термины
+
+Термины из внешнего OCDS-аудита, которые не являются отдельными PHP-классами — описываются здесь
+ссылкой на решение, без строки «канон → `$переменная`».
+
+- `projection` — `prc_procurements` хранит свёрнутое ТЕКУЩЕЕ состояние закупки; `prc_revisions` +
+  `prc_events` хранят историю (редакции и события), из которой это состояние проецируется. Не
+  отдельная сущность и не отдельная таблица — отношение, объясняющее изоморф OCDS
+  `compiledRelease`/`versionedRelease`/`releases` (см. ADR-0007, `docs/03_Dev/adr/0007-ocds-as-exchange-layer.md`).
+- `provenance` — тонкий срез coarse-lineage колонок (`crawler_run_id`, `artifact_ref`,
+  `provider`/`model`/`rules_hash`/`cache_id`, `source_url`), не fact-level схема на 5 уровней (см.
+  ADR-0008, `docs/03_Dev/adr/0008-thin-provenance-slice.md`).
+- `quality flag` → `App\Enums\Procurement\EstimateValidationStatus` (`prc_estimates.validation_status`:
+  `Valid`/`Suspicious`/`Invalid`) — детерминированный вывод пайплайна ДО оператора. **Не путать** с
+  `ReviewStatus` (`prc_ai_analyses.review_status`: операторское ревью AI-анализа) — это два разных
+  статуса про разные вещи, смешение запрещено.
+- `notice` (извещение) — не отдельная сущность; регуляторный/OCDS-синоним `Procurement` (44-ФЗ
+  «извещение о закупке»).
+- `registry number` → `prc_procurements.registry_number` — реестровый номер извещения ЕИС по 44-ФЗ
+  (D5, `plans/archive/DOMLANG/plan.md` §5).
+- `ETP number` → `prc_procurements.etp_number` — второй номер закупки на площадке по 223-ФЗ;
+  forward-provision без продюсера на 2026-07-10 (D13, `plans/archive/DOMLANG/plan.md` §5) — не баг.

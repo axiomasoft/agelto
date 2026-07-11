@@ -39,4 +39,16 @@ final readonly class ProcurementPartyStoreRepository
 
         $procurement->update(['customer_org_id' => $organizationId]);
     }
+
+    /**
+     * @param  list<int>  $winnerOrgIds
+     */
+    public function syncWinnerRoles(int $procurementId, array $winnerOrgIds): void
+    {
+        ProcurementParty::query()
+            ->where('procurement_id', $procurementId)
+            ->where('role', ProcurementPartyRole::Winner->value)
+            ->whereNotIn('organization_id', $winnerOrgIds)
+            ->delete();
+    }
 }

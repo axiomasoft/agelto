@@ -47,6 +47,9 @@ stateDiagram-v2
 
 Упрощённая версия без job'ов/ошибок (бизнес-язык) — `docs/02_Workflow/document-and-estimate-pipeline.md` (Д1-lite).
 
+Место Д1 среди остальных осей состояния домена (`AnalysisStatus`, `RunStatus`, `ProcurementStatus`,
+`PipelineStage`/`AnalysisStep`) — `docs/03_Dev/state-machines.md`.
+
 ## Д2 — стадии, очереди, lease/retry
 
 ```mermaid

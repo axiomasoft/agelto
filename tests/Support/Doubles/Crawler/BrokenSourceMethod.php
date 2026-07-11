@@ -24,7 +24,7 @@ final class BrokenSourceMethod implements SourceMethod
         throw new RuntimeException('BrokenSourceMethod: смоделированный сбой сбора листинга.');
     }
 
-    public function collectDetails(string $sourceNumber, Registry $registry): ProcurementDetails
+    public function collectDetails(string $registryNumber, Registry $registry): ProcurementDetails
     {
         return new ProcurementDetails;
     }

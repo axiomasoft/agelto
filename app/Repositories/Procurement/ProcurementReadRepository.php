@@ -10,11 +10,11 @@ use Illuminate\Support\Carbon;
 
 final readonly class ProcurementReadRepository
 {
-    public function findProcurement(int $registryId, string $sourceNumber): ?Procurement
+    public function findProcurement(int $registryId, string $registryNumber): ?Procurement
     {
         return Procurement::query()
             ->where('registry_id', $registryId)
-            ->where('source_number', $sourceNumber)
+            ->where('registry_number', $registryNumber)
             ->first();
     }
 

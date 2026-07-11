@@ -19,13 +19,13 @@ use Tests\Support\Doubles\Crawler\QueueSourceMethod;
 /**
  * @return array<string, string>
  */
-function archiveRunCsvRow(string $sourceNumber): array
+function archiveRunCsvRow(string $registryNumber): array
 {
     return [
-        'Реестровый номер закупки' => $sourceNumber,
+        'Реестровый номер закупки' => $registryNumber,
         'Способ определения поставщика' => 'Электронный аукцион',
         'Наименование закупки' => 'Поставка оргтехники',
-        'Этап закупки' => 'Размещение извещения',
+        'Этап закупки' => 'Подача заявок',
         'Идентификационный код закупки (ИКЗ)' => '243773601234512345100100001',
         'НМЦК' => '1 250 000,50',
         'Валюта' => 'RUB',
@@ -38,10 +38,10 @@ function archiveRunCsvRow(string $sourceNumber): array
     ];
 }
 
-function archiveRunBatch(string $sourceNumber, string $dedupSignature): ListingBatch
+function archiveRunBatch(string $registryNumber, string $dedupSignature): ListingBatch
 {
     return new ListingBatch(
-        rows: [archiveRunCsvRow($sourceNumber)],
+        rows: [archiveRunCsvRow($registryNumber)],
         rawBody: 'raw csv body',
         dedupSignature: $dedupSignature,
         rowsTotal: 1,

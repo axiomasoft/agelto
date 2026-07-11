@@ -129,6 +129,11 @@ final readonly class SupplierResultsProcessor
             attributes: null,
         );
 
+        $this->partyStoreRepository->syncWinnerRoles(
+            procurementId: $procurement->id,
+            winnerOrgIds: [$winner->id],
+        );
+
         if ($award->wasRecentlyCreated) {
             $this->procurementStoreRepository->storeEvent(
                 procurementId: $procurement->id,

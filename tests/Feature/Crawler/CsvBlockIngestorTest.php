@@ -21,13 +21,13 @@ use Illuminate\Support\Facades\Storage;
  *
  * @return array<string, string>
  */
-function ingestorCsvRow(string $sourceNumber, array $overrides = []): array
+function ingestorCsvRow(string $registryNumber, array $overrides = []): array
 {
     return array_merge([
-        'Реестровый номер закупки' => $sourceNumber,
+        'Реестровый номер закупки' => $registryNumber,
         'Способ определения поставщика' => 'Электронный аукцион',
         'Наименование закупки' => 'Поставка оргтехники',
-        'Этап закупки' => 'Размещение извещения',
+        'Этап закупки' => 'Подача заявок',
         'Идентификационный код закупки (ИКЗ)' => '243773601234512345100100001',
         'НМЦК' => '1 250 000,50',
         'Валюта' => 'RUB',
@@ -77,7 +77,7 @@ test('фикстурный блок создаёт закупки, ревизи�
 
     expect(Procurement::query()->count())->toBe(2);
 
-    $procurement = Procurement::query()->where('source_number', '0173200001234000001')->first();
+    $procurement = Procurement::query()->where('registry_number', '0173200001234000001')->first();
     expect($procurement)->not->toBeNull()
         ->and(ProcurementRevision::query()->where('procurement_id', $procurement->id)->count())->toBe(1)
         ->and(ProcurementEvent::query()->where('procurement_id', $procurement->id)->where('event_type', ProcurementEventType::Discovered)->count())->toBe(1);
@@ -147,7 +147,7 @@ test('строка из crw_ignored_items пропускается и не со�
     $crawler = Crawler::factory()->for($registry)->create();
     $run = Run::factory()->for($crawler)->create();
 
-    IgnoredItem::factory()->for($registry)->create(['source_number' => '0173200001234000099']);
+    IgnoredItem::factory()->for($registry)->create(['registry_number' => '0173200001234000099']);
 
     $batch = ingestorBatch([
         ingestorCsvRow('0173200001234000099'),
@@ -158,8 +158,8 @@ test('строка из crw_ignored_items пропускается и не со�
 
     expect($result->rowsSkipped)->toBe(1)
         ->and($result->rowsNew)->toBe(1)
-        ->and(Procurement::query()->where('source_number', '0173200001234000099')->exists())->toBeFalse()
-        ->and(Procurement::query()->where('source_number', '0173200001234000001')->exists())->toBeTrue();
+        ->and(Procurement::query()->where('registry_number', '0173200001234000099')->exists())->toBeFalse()
+        ->and(Procurement::query()->where('registry_number', '0173200001234000001')->exists())->toBeTrue();
 });
 
 test('битая строка без источника номера не рушит блок — остальные строки обрабатываются', function () {
@@ -177,7 +177,7 @@ test('битая строка без источника номера не руш
 
     expect($result->rowsNew)->toBe(1)
         ->and(Procurement::query()->count())->toBe(1)
-        ->and(Procurement::query()->where('source_number', '0173200001234000001')->exists())->toBeTrue();
+        ->and(Procurement::query()->where('registry_number', '0173200001234000001')->exists())->toBeTrue();
 });
 
 test('битая строка с непарсящейся датой размещения не рушит блок', function () {
@@ -195,5 +195,5 @@ test('битая строка с непарсящейся датой разме�
 
     expect($result->rowsNew)->toBe(1)
         ->and(Procurement::query()->count())->toBe(1)
-        ->and(Procurement::query()->where('source_number', '0173200001234000001')->exists())->toBeTrue();
+        ->and(Procurement::query()->where('registry_number', '0173200001234000001')->exists())->toBeTrue();
 });

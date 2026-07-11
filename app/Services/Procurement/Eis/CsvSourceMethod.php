@@ -104,11 +104,11 @@ final readonly class CsvSourceMethod implements SourceMethod
         );
     }
 
-    public function collectDetails(string $sourceNumber, Registry $registry): ProcurementDetails
+    public function collectDetails(string $registryNumber, Registry $registry): ProcurementDetails
     {
         $procurement = Procurement::query()
             ->where('registry_id', $registry->id)
-            ->where('source_number', $sourceNumber)
+            ->where('registry_number', $registryNumber)
             ->firstOrFail();
 
         $procedureUrlType = $this->cardUrlBuilder->resolveProcedureUrlType(
@@ -129,12 +129,12 @@ final readonly class CsvSourceMethod implements SourceMethod
                 registry: $registry,
                 procedureUrlType: $procedureUrlType,
                 tab: $tab,
-                sourceNumber: $sourceNumber,
+                registryNumber: $registryNumber,
             );
         }
 
         return new ProcurementDetails(
-            sourceNumber: $sourceNumber,
+            registryNumber: $registryNumber,
             procedureUrlType: $procedureUrlType,
             commonInfoHtml: $html['common-info'] ?? null,
             documentsHtml: $html['documents'] ?? null,
@@ -148,13 +148,13 @@ final readonly class CsvSourceMethod implements SourceMethod
         return true;
     }
 
-    private function collectTab(Registry $registry, string $procedureUrlType, string $tab, string $sourceNumber): string
+    private function collectTab(Registry $registry, string $procedureUrlType, string $tab, string $registryNumber): string
     {
         $url = $this->cardUrlBuilder->buildUrl(
             registry: $registry,
             procedureUrlType: $procedureUrlType,
             tab: $tab,
-            sourceNumber: $sourceNumber,
+            registryNumber: $registryNumber,
         );
 
         $proxy = $this->proxyPool->pick(target: $url);
@@ -170,16 +170,16 @@ final readonly class CsvSourceMethod implements SourceMethod
         $html = $response->body();
 
         if ((bool) config('crawler.raw_html_retention_enabled', false)) {
-            $this->storeRawHtml(registryId: $registry->id, sourceNumber: $sourceNumber, tab: $tab, html: $html);
+            $this->storeRawHtml(registryId: $registry->id, registryNumber: $registryNumber, tab: $tab, html: $html);
         }
 
         return $html;
     }
 
-    private function storeRawHtml(int $registryId, string $sourceNumber, string $tab, string $html): void
+    private function storeRawHtml(int $registryId, string $registryNumber, string $tab, string $html): void
     {
         $disk = config('crawler.raw_html_disk', config('crawler.raw_disk'));
-        $path = "raw/html/{$registryId}/{$sourceNumber}/{$tab}.html.gz";
+        $path = "raw/html/{$registryId}/{$registryNumber}/{$tab}.html.gz";
         $contents = (bool) config('crawler.raw_html_gzip', true) ? gzencode($html) : $html;
 
         Storage::disk($disk)->put($path, $contents);

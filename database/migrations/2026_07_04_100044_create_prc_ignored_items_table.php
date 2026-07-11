@@ -19,13 +19,13 @@ return new class extends Migration
                 ->index()
                 ->constrained(table: (new Registry)->getTable());
 
-            $table->text('source_number');
+            $table->text('registry_number');
             $table->text('reason_category')->index();
             $table->text('reason')->nullable();
 
             $table->timestamps();
 
-            $table->unique(['registry_id', 'source_number']);
+            $table->unique(['registry_id', 'registry_number']);
         });
     }
 
