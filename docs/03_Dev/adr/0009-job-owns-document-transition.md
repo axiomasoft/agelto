@@ -8,7 +8,7 @@ status: draft
 
 - Status: Accepted
 - Date: 2026-07-10
-- Источник: `plans/DOMLANG/plan.md` §5 Decision Log, D25; `findings/P5-pipeline-defects.md` §1
+- Источник: `plans/archive/DOMLANG/plan.md` §5 Decision Log, D25; `findings/P5-pipeline-defects.md` §1
 
 ## Context
 
@@ -93,4 +93,4 @@ G1 запинен тестом `tests/Feature/Document/PipelineDispatcherTest.ph
 - `../crawling-pipeline.md` §8 — исходная формулировка D17 (плана EST-AI).
 - `docs/specs/v2/02-crawling.md` §8 — спека, которую этот ADR супersedes текстуально; правка
   выполняется фазой P6 плана DOMLANG.
-- `plans/DOMLANG/findings/P5-pipeline-defects.md` §1 — полная карта гардов и механики `UniqueLock`.
+- `plans/archive/DOMLANG/findings/P5-pipeline-defects.md` §1 — полная карта гардов и механики `UniqueLock`.

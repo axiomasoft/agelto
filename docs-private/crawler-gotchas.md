@@ -41,7 +41,7 @@
 `PipelineDispatcher::dispatch()` **не** является owner'ом перехода статуса моста в пайплайн
 документов — это было исходной формулировкой D17 плана EST-AI (`docs/03_Dev/crawling-pipeline.md`
 §8), но она текстуально superseded `docs/03_Dev/adr/0009-job-owns-document-transition.md`
-(`plans/DOMLANG` P5.1, 2026-07-10): owner перехода `downloaded → prepared` — сам
+(`plans/archive/DOMLANG` P5.1, 2026-07-10): owner перехода `downloaded → prepared` — сам
 `PrepareDocumentJob::process()` (`app/Jobs/Procurement/PrepareDocumentJob.php:79`), не мост.
 
 Мост только отбирает и диспатчит `prc_documents.status = downloaded` — не переводит их в

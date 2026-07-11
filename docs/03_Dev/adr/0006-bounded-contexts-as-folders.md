@@ -8,7 +8,7 @@ status: draft
 
 - Status: Accepted
 - Date: 2026-07-10
-- Источник: `plans/DOMLANG/plan.md` §5 Decision Log, D2; `findings/P1-audit-verification.md` §3, §1
+- Источник: `plans/archive/DOMLANG/plan.md` §5 Decision Log, D2; `findings/P1-audit-verification.md` §3, §1
 
 ## Context
 
@@ -76,4 +76,4 @@ maps, policy mapping, Filament Resource discovery, route-model binding и factor
 - [`0001-prc-megadomain.md`](0001-prc-megadomain.md) — таксономия `prc_`-мегадомена, поверх которой
   живут папки-подомены.
 - `../architecture.md` — раскладка `app/**` по слоям и три домена.
-- `../../../plans/DOMLANG/findings/P1-audit-verification.md` §3 — RAG-свод по порогу окупаемости.
+- `../../../plans/archive/DOMLANG/findings/P1-audit-verification.md` §3 — RAG-свод по порогу окупаемости.

@@ -8,7 +8,7 @@ status: draft
 
 - Status: Accepted
 - Date: 2026-07-10
-- Источник: `plans/DOMLANG/plan.md` §5 Decision Log, D3; `findings/P1-audit-verification.md` §4.1
+- Источник: `plans/archive/DOMLANG/plan.md` §5 Decision Log, D3; `findings/P1-audit-verification.md` §4.1
 
 ## Context
 
@@ -79,4 +79,4 @@ OCDS фиксируется как **экспортный контракт (exch
 - [`0001-prc-megadomain.md`](0001-prc-megadomain.md) — внутренняя `prc_`-схема, которую OCDS
   экспортирует, а не заменяет.
 - `../database.md` — карта `prc_procurements`/`prc_revisions`/`prc_events`.
-- Mapping-таблица OCDS ↔ `prc_*` создаётся в `plans/DOMLANG` фазе P7 (item P7.2).
+- Mapping-таблица OCDS ↔ `prc_*` создаётся в `plans/archive/DOMLANG` фазе P7 (item P7.2).

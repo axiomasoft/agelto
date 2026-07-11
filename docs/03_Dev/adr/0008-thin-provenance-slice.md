@@ -8,7 +8,7 @@ status: draft
 
 - Status: Accepted
 - Date: 2026-07-10
-- Источник: `plans/DOMLANG/plan.md` §5 Decision Log, D4; `findings/P1-audit-verification.md` §2.3
+- Источник: `plans/archive/DOMLANG/plan.md` §5 Decision Log, D4; `findings/P1-audit-verification.md` §2.3
 
 ## Context
 
@@ -59,7 +59,7 @@ decision`), и это легальный исход, а не пропуск ра
 - Минус (принят осознанно): если позже появится поле, оспариваемое между слоями, но не пойманное в
   P4.1, ему придётся достроить fact-level provenance отдельным срезом — тонкий срез не закрывает
   проблему навсегда, он закрывает её по факту доказанного конфликта.
-- Факт: P4.1 конфликтов не нашёл (2026-07-10, `plans/DOMLANG/findings/P4-provenance-proof.md`,
+- Факт: P4.1 конфликтов не нашёл (2026-07-10, `plans/archive/DOMLANG/findings/P4-provenance-proof.md`,
   `ВЕРДИКТ: 0 полей класса R1`). Оба кандидата с write-site'ами в разных слоях отклонены:
   `customer_org_id` — R2 (клоббер-дефект, маршрутизирован в `P5.4`), `status` — R3 (рассинхрон
   материализации, второй слой пишет `prc_events`, не колонку). `P4.2` закрыт `⛔ Skipped by
@@ -78,4 +78,4 @@ gold-снапшота (нужно знать, из какого слоя при�
 - `../database.md` — существующие coarse-lineage колонки (`crawler_run_id`, `artifact_ref`,
   `provider`/`model`/`rules_hash`/`cache_id`).
 - `../ai/training-loop.md` — обучающий контур, второй возможный потребитель fact-level provenance.
-- Research-item, доказывающий наличие конфликтных полей, — `plans/DOMLANG` фаза P4 (item P4.1).
+- Research-item, доказывающий наличие конфликтных полей, — `plans/archive/DOMLANG` фаза P4 (item P4.1).

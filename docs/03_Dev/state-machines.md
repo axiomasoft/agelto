@@ -11,7 +11,7 @@ status: draft
 `allowedTransitions()`/`canTransitionTo()`/`transitions()` (`grep` по `app/Enums/Procurement/*.php`
 = 0) — переходы нигде не декларируются на enum'е, они выполняются присваиваниями в job'ах/сервисах.
 Каждое ребро диаграмм ниже подтверждено конкретным `file:line`, перепроверенным чтением файла
-(`plans/DOMLANG` P8.1, `verified:✅ 2026-07-10`, разведка — `plans/DOMLANG/findings/P8-status-writers.md`).
+(`plans/archive/DOMLANG` P8.1, `verified:✅ 2026-07-10`, разведка — `plans/archive/DOMLANG/findings/P8-status-writers.md`).
 
 | Ось | Класс | Как представлена здесь |
 |:--|:--|:--|
@@ -136,7 +136,7 @@ Evaluation` означало бы приписать enum'у transition-гард
   `Unsuccessful`) и `isFailed()` (`Cancelled`/`Unsuccessful`).
 - **Порядок этапов ЕИС** — прозой, не enforced приложением: «Подача заявок» (`Bidding`) → «Работа
   комиссии» (`Evaluation`) → «Закупка завершена» (`Completed`) / «Закупка отменена» (`Cancelled`);
-  это процедура источника (`RAG:✅ 2026-07-10`, `plans/DOMLANG/findings/P2-eis-stages.md`), не
+  это процедура источника (`RAG:✅ 2026-07-10`, `plans/archive/DOMLANG/findings/P2-eis-stages.md`), не
   transition-граф приложения. `DetailRefetchSelector.php:23` читает `{Evaluation, Awarded}` как
   критерий рескана — чтение, не переход.
 - **Forward-provision** (`ProcurementStatus.php` docblock, DOMLANG D5/D13): `Awarded` и

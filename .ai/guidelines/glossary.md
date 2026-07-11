@@ -73,6 +73,6 @@
 - `notice` (извещение) — не отдельная сущность; регуляторный/OCDS-синоним `Procurement` (44-ФЗ
   «извещение о закупке»).
 - `registry number` → `prc_procurements.registry_number` — реестровый номер извещения ЕИС по 44-ФЗ
-  (D5, `plans/DOMLANG/plan.md` §5).
+  (D5, `plans/archive/DOMLANG/plan.md` §5).
 - `ETP number` → `prc_procurements.etp_number` — второй номер закупки на площадке по 223-ФЗ;
-  forward-provision без продюсера на 2026-07-10 (D13, `plans/DOMLANG/plan.md` §5) — не баг.
+  forward-provision без продюсера на 2026-07-10 (D13, `plans/archive/DOMLANG/plan.md` §5) — не баг.
