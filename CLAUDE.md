@@ -153,7 +153,7 @@ When a task requires more detail than what's in the current context, load the re
 
 <!-- Сгенерировано scripts/generate-hub.sh из реестра swissknifeman. -->
 <!-- НЕ редактируйте вручную: перегенерация затрёт правки. -->
-<!-- swissknifeman:registry sha=0bbfe4530271 skills=215 -->
+<!-- swissknifeman:registry sha=f8176958025c skills=229 -->
 
 ## Приоритет источников правил
 
@@ -186,7 +186,7 @@ When a task requires more detail than what's in the current context, load the re
 | `agelto-test-verifier` | >- | — |
 | `agelto-test-writer` | >- | laravel-testing, test-isolation-guard, repositories |
 
-## Установленные скиллы (132)
+## Установленные скиллы (133)
 
 ### architect — Architecture, API and data design, security, observability, tech stack selection
 
@@ -277,8 +277,9 @@ When a task requires more detail than what's in the current context, load the re
 - **mcp-advisor** — Pick MCP servers for a project at onboarding/sync: which to connect (context7/playwright/github/fetch/sequential-thinking + maind hub), why, when NOT to, and the cost in context/permissions/Node-deps. Activate when adding/onboarding/syncing a project, editing .mcp.json, or choosing MCP — emits a justified connection plan, not a dump of every server.
 - **naming-conventions** — Naming discipline (language-agnostic): name reveals intent, not implementation; fight noise words (Manager/Helper/data/process) and combinatorial method explosion (findByXOrFail/getOrNull). Activate when naming or reviewing names of functions, classes, variables, methods.
 - **packages-stack** — Project external-dependency registry methodology: which packages are used and for what, a per-package rule (when to use, what NOT to do by hand), reliance on OFFICIAL docs. Activate when choosing/adding a dependency or mapping the stack at project init; language-agnostic.
-- **plan-protocol** — Executable master plans in plans/<ID>: plan/phase/task schemas, 6 statuses, refine loop and DoR gate, canonical plan root, repo home by default + visibility/supersedes fields, two homes and archive, handoff with launch-block, model routing, /task:plan-* commands.
+- **plan-protocol** — Executable plans in plans/<ID>: schemas, 6 statuses, DoR, neutral class/effort/capability routing, semantic Next with provider renderers, handoff and archive.
 - **session-handoff** — Cross-session/agent context handoff: compress a session into a structured doc — state, decisions, open items, next steps.
+- **shell** — Growing cookbook of shell constructs compatible with this environment's hooks (currently rm/rmdir vs the safe-dirs auto-approve hook; more patterns get added over time). Activate on a hard-deny-hook block and before writing rm/rmdir commands.
 - **skills-ssot** — Single source of truth for skills across multiple AI agents: .ai/skills + symlinks, gitignore, update cycle
 - **spec-interview** — Pre-code interview: agent asks one question at a time, reads the codebase itself where it can, proposes a recommended answer; output — a filled task brief per task-brief-template.
 - **task-brief-template** — Brief template for complex agent tasks: goal, scope, invariants, explicit assumptions, out of scope, acceptance criteria, definition of done. Plus Plan→Clear→Execute pattern and loop fields for iterative runs: verifier, exit condition, hard-stop.
@@ -389,3 +390,18 @@ When a task requires more detail than what's in the current context, load the re
 - **shared-memory** — Constellation shared brain via hook ~/.claude/hooks/memory/ + mAInd daemon. Recall before work, remember after. Project canon = MODE=maind (daemon :4111, scope isolation maind-side): private project:<id> + tag-shared ns:<namespace> + global; recall unions them; SessionStart auto-injects digest (native memory off). Routing rule: one fact in one store. Swappable backend: maind|native|file|federation|off.
 - **swissknifeman-locator** — Reach swissknifeman (skills node) from an external repo — non-hardcoded path resolution, root config.json as registry of linked projects, project↔hub link scheme
 <!-- swissknifeman:hub:end -->
+<!-- maind:healthcheck hash=f269dd753069 (managed by maind — не редактировать вручную) -->
+## ⚠ ПРИОРИТЕТ №1 — связь с mAInd (общая память + граф)
+
+Перед началом работы убедись, что проект подключён к хабу **mAInd**. Это критично:
+без связи изменения этой сессии **не попадут** в общую память и граф — в истории
+разработки появятся невосстановимые пробелы, и дальнейшие связи будет не вывести.
+
+1. Проверь связь: `maind health --cwd`
+2. Если статус `partial` / `standalone` — почини: `maind health --cwd --fix`
+   (поднимет демон памяти и допишет MCP-серверы хаба в этот проект).
+3. Приступай к задаче только при статусе `connected`.
+
+Память **общая** (демон mAInd), scope этого проекта — `project:agelto`; факты всей экосистемы — в
+scope `global`. Связи проекта с остальными: `maind graph --project agelto`.
+<!-- /maind:healthcheck -->

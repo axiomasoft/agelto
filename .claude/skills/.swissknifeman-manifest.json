@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "installed_at": "2026-07-12T10:29:44Z",
+  "installed_at": "2026-07-26T20:05:35Z",
   "profile": "",
   "agent": "claude",
   "layout": "flat",
@@ -404,6 +404,10 @@
     {
       "flat_name": "session-observer",
       "source_path": "skills/system/session-observer"
+    },
+    {
+      "flat_name": "shell",
+      "source_path": "skills/general/shell"
     },
     {
       "flat_name": "skills-ssot",

@@ -29,8 +29,8 @@
       "source": "swissknifeman",
       "managed": true,
       "bucket": "general",
-      "sha256": "6eadd6e5ca344d7ab19a8b2ff1019dc28522a61e3be6ebc62ea6cbfc3419fbfb",
-      "content_sha256": "ea1325cfa54b69ed8566d7d28046e21e836374be4f53f58b85a94c184ee670a7",
+      "sha256": "30d386711671315d8d974759456d04565a28ad979aec85cc17e93dbef9e28004",
+      "content_sha256": "eb33bf557e2250534e63e5f43f8153b89859f62e0f1c1447d4504d5ceba321ad",
       "installed_path": ".claude/skills/anti-drift"
     },
     "api-design": {
@@ -565,8 +565,8 @@
       "source": "swissknifeman",
       "managed": true,
       "bucket": "general",
-      "sha256": "ada6b91805c70edac09eba2f3ff2f0c8545a2495fcde6767bc49c1595d6cc2d4",
-      "content_sha256": "d6c767c7227a7b1542aa5b140b4986fb6f0906a6f6e3dc03a9d9e081e5af6de9",
+      "sha256": "cfa7c70cd7183323d6611d140d73f460c8a57a574dd7b09d2d2c628d4d1e0f69",
+      "content_sha256": "93cc3340ba5ccdd17f75d5224e4dd07fef9f8b774c547aabd3eef82f52108971",
       "installed_path": ".claude/skills/mcp-advisor"
     },
     "medialibrary": {
@@ -717,8 +717,8 @@
       "source": "swissknifeman",
       "managed": true,
       "bucket": "general",
-      "sha256": "f8a20287d3127b20051b5f2f23537cad68ff4fb1176309e9b276e6d4c1e168b2",
-      "content_sha256": "048207ed9d67e19175feb0973a2a26148bf913dc69328b2232ef4b1224c6dc53",
+      "sha256": "7121859c60e26913b37bb65a69021a3c758ce1dd7b97cef693a41be769af0f71",
+      "content_sha256": "cd80235032c1086054853673bdc5846aec310ebdb62dd8c803795d8a44c8e9f8",
       "installed_path": ".claude/skills/plan-protocol"
     },
     "playwright-e2e": {
@@ -800,6 +800,14 @@
       "sha256": "bee8be5b7fd3803e222f3d3cf3231c70dfa58dbbea1d0b8d1e41814a6a813fbd",
       "content_sha256": "bf871e47b0be2df3e5b2f89dfe1ad52e7fcaeb7cecdf872ab7c18af167f9ce1e",
       "installed_path": ".claude/skills/session-observer"
+    },
+    "shell": {
+      "source": "swissknifeman",
+      "managed": true,
+      "bucket": "general",
+      "sha256": "ad4023eb06dc89e4432ab947e41641122fd5adccc5f56971caf14d740d35509d",
+      "content_sha256": "cbbce42f8672d35a3469facff42d9ee02743f2cd3062ef2776e6e67a7b7f2399",
+      "installed_path": ".claude/skills/shell"
     },
     "skills-ssot": {
       "source": "swissknifeman",
@@ -1005,8 +1013,8 @@
       "source": "swissknifeman",
       "managed": true,
       "bucket": "general",
-      "sha256": "80e7b284d509cbb38cd8d99d2b6a322ac7192adcdb39adf55d636685b9b5b870",
-      "content_sha256": "efd3e38024ce1793e0084a1ee8ec9fd9e8f279eaf0078a333d012964f90aed0f",
+      "sha256": "a0d26c8d3fd174ab72de0333377b25e6040d1eecbac5ed9d04a3a4ccd9756586",
+      "content_sha256": "3ba75f1a555994c12295a3ed0cf802b2801607c1347e57761400cba1c057b9bc",
       "installed_path": ".claude/skills/workflow-craft"
     },
     "writing-style": {
