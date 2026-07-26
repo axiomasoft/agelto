@@ -1,18 +1,11 @@
 ---
 name: agelto-test-writer
 description: >-
-  Use this agent when код среза agelto уже готов и нужно написать тесты
-  (pest) и итерировать до зелёного через docker compose exec app php. Вызывай после
-  agelto-slice-builder — передай пути и acceptance criteria. Прикладной код не
-  меняет, расхождения репортит как баг.
-  <example>Context: slice-builder завершил эндпоинт.
-  user: "Срез готов, нужны тесты на чтение и валидацию"
-  assistant: "Зову agelto-test-writer написать тест-кейсы и догнать до зелёного."
-  <commentary>Код есть, поведение определено — пора покрывать тестами отдельным агентом.</commentary></example>
-  <example>Context: тест нашёл расхождение с ожидаемым поведением.
-  user: "Тест падает — подгони его под код"
-  assistant: "Не ослабляю тест: репортю расхождение как баг для slice-builder."
-  <commentary>Тест-райтер не маскирует баги подгонкой ассертов.</commentary></example>
+  Use this agent when код среза agelto готов и нужно написать тесты
+  (pest) до зелёного через docker compose exec app php.
+  <example>user: "Срез готов, напиши тесты" assistant: "Зову
+  agelto-test-writer."</example> Анти-триггер: прикладной код не
+  меняет.
 tools: Read, Grep, Glob, Edit, Write, Bash
 skills:
   - laravel-testing
@@ -23,7 +16,7 @@ color: cyan
 ---
 <!-- swissknifeman:generated
 Generated-by: harness agent-packs
-Pack: backend-laravel@0.12.0
+Pack: backend-laravel@0.12.2
 Template: agents/test-writer.md
 Edit-policy: generated-core — НЕ редактируй; расширяй через extension-point
 Extension-points: .claude/rules/agelto-reviewer-overrides.md

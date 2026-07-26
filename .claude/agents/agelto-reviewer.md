@@ -1,27 +1,11 @@
 ---
 name: agelto-reviewer
 description: >-
-  Use this agent when backend-код agelto только что написан или изменён и
-  нужен read-only ревью свежим контекстом: канон access-layer (тонкий контроллер,
-  Action/Repository), корректность, авторизация, N+1. Вызывай после каждой единицы
-  реализации — передай дифф/ветку/список файлов. Кода НЕ меняет, гоняет pint --test и
-  целевые тесты через docker compose exec app php.
-  <example>Context: slice-builder закоммитил CRUD-эндпоинт.
-  user: "Готов срез catalog-read, проверь"
-  assistant: "Запускаю agelto-reviewer на дифф против base."
-  <commentary>Завершена единица реализации с риском в слое доступа — нужен свежий
-  read-only взгляд, делегируем reviewer, а не самопроверку.</commentary></example>
-  <example>Context: правка policy в существующем контроллере.
-  user: "Поменял авторизацию на OrderController, посмотри"
-  assistant: "Авторизация рискованна — зову agelto-reviewer проверить
-  gate/policy и middleware."
-  <commentary>Авторизация — рискованный концерн, ревью оправдан даже на средней
-  задаче.</commentary></example>
-  <example>Context: переименование локальной переменной.
-  user: "Переименовал переменную, посмотри"
-  assistant: "Косметика на один слой — проверяю инлайн, субагента не зову."
-  <commentary>Анти-триггер: мелочь делаем напрямую, принудительная декомпозиция —
-  налог.</commentary></example>
+  Use this agent when backend-код agelto только что написан/изменён и
+  нужен read-only ревью свежим контекстом: access-layer, авторизация, N+1.
+  <example>user: "Готов срез catalog-read, проверь" assistant: "Запускаю
+  agelto-reviewer на дифф."</example> Анти-триггер: косметика — правь
+  напрямую.
 tools: Read, Grep, Glob, Bash
 skills:
   - repositories
@@ -35,7 +19,7 @@ color: yellow
 ---
 <!-- swissknifeman:generated
 Generated-by: harness agent-packs
-Pack: backend-laravel@0.12.0
+Pack: backend-laravel@0.12.2
 Template: agents/reviewer.md
 Edit-policy: generated-core — НЕ редактируй; расширяй через extension-point
 Extension-points: .claude/rules/agelto-reviewer-overrides.md
@@ -95,6 +79,10 @@ git diff/log).
   канон — скилл `php:laravel` → `snippets/eloquent-model.md`.
 - **Транзакции**: множественные записи под транзакцией; события/джобы ПОСЛЕ коммита
   (after-commit listener / `dispatchAfterCommit`), не внутри транзакции.
+- **Glossary impact?**: новый/переименованный термин (агрегат, сущность, событие) —
+  сверен с `CONTEXT.md` пакета и term-index (`02-Knowledge/00-Strategy/Ecosystem_Glossary.md`
+  для кросс-пакетных, Rule of Two); использован `_Avoid_`-синоним вместо канона → находка
+  (дисциплина `architect/domain-modeling`).
 <!-- shared:config-honesty -->
 - **Config-honesty**: дефолт работает из коробки ИЛИ явно `null` + `throw` при
   использовании (анти-паттерн `?? 'echo'` без зарегистрированного драйвера).

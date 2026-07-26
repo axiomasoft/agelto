@@ -1,20 +1,18 @@
 ---
 name: agelto-blade-review
 description: >-
-  Use this agent for READ-ONLY review of agelto Blade/view changes in an ISOLATED
-  context: escaping (`{{ }}` vs `{!! !!}`), N+1 in views, components/slots, accessibility basics
-  — returns only findings. Delegate view-diff reading here.
-  <example>Context: правка вьюх.
-  user: "Глянь изменения в resources/views домена"
-  assistant: "Зову agelto-blade-review на дифф вьюх."
-  <commentary>Чтение вьюх — в субагент; вернёт только находки.</commentary></example>
+  Use this agent for READ-ONLY review of agelto Blade/view diffs in
+  ISOLATED context: escaping, N+1 in views, components/slots, a11y — only
+  findings.
+  <example>user: "Проверь вьюху заказа на XSS и N+1" assistant: "Зову
+  agelto-blade-review — вернёт только находки."</example>
 tools: Read, Grep, Glob, Bash
 model: haiku
 color: blue
 ---
 <!-- swissknifeman:generated
 Generated-by: harness agent-packs
-Pack: backend-laravel@0.12.0
+Pack: backend-laravel@0.12.2
 Template: agents/blade-review.md
 Edit-policy: generated-core — НЕ редактируй; расширяй через extension-point
 Extension-points: .claude/rules/agelto-reviewer-overrides.md

@@ -153,7 +153,7 @@ When a task requires more detail than what's in the current context, load the re
 
 <!-- Сгенерировано scripts/generate-hub.sh из реестра swissknifeman. -->
 <!-- НЕ редактируйте вручную: перегенерация затрёт правки. -->
-<!-- swissknifeman:registry sha=0ae4a4cca720 skills=211 -->
+<!-- swissknifeman:registry sha=0bbfe4530271 skills=215 -->
 
 ## Приоритет источников правил
 
@@ -169,7 +169,7 @@ When a task requires more detail than what's in the current context, load the re
 3. Структурные вопросы нового кода решай в порядке: структура (`laravel-structure`) -> взаимодействие (`dependency-injection`) -> реализация (профильный скилл).
 4. Устройство системы скиллов в проекте (источник истины, симлинки, gitignore) — скилл `skills-ssot`.
 
-## Агенты проекта (9)
+## Агенты проекта (10)
 
 Роли в `.claude/agents/`. Преднагруженные скиллы — поле `skills:` (⚠ = имя не найдено в реестре, preload молча не сработает).
 
@@ -177,7 +177,8 @@ When a task requires more detail than what's in the current context, load the re
 |---|---|---|
 | `agelto-blade-review` | >- | — |
 | `agelto-db-impact` | >- | — |
-| `agelto-reviewer` | >- | repositories, laravel-structure, dependency-injection, laravel-security-audit, code-style-spatie |
+| `agelto-orchestrator` | >- | — |
+| `agelto-reviewer` | >- | repositories, laravel-structure, dependency-injection, laravel-security-audit, code-style-spatie, laravel |
 | `agelto-route-mapper` | >- | — |
 | `agelto-security-review` | >- | — |
 | `agelto-slice-builder` | >- | repositories, laravel-structure, dependency-injection, laravel-data, laravel, database, code-style-spatie, named-arguments |
@@ -185,7 +186,7 @@ When a task requires more detail than what's in the current context, load the re
 | `agelto-test-verifier` | >- | — |
 | `agelto-test-writer` | >- | laravel-testing, test-isolation-guard, repositories |
 
-## Установленные скиллы (131)
+## Установленные скиллы (132)
 
 ### architect — Architecture, API and data design, security, observability, tech stack selection
 
@@ -195,10 +196,10 @@ When a task requires more detail than what's in the current context, load the re
 - **codebase-design** — Shared vocabulary and discipline for designing DEEP modules (Ousterhout/Feathers): Module/Interface/Depth/Seam/Adapter/Leverage/Locality; deletion-test; interface = test surface; 'one adapter is a hypothetical seam, two is a real one'. Activate when designing/improving a module interface, finding deepening opportunities, choosing a seam, or raising testability/AI-navigability.
 - **data-schema** — Data schema, entities, attributes, relations. DB-agnostic — markdown tables only
 - **dev-engineering-super-skill** — Broad engineering-bucket navigator (composite of external dev skills). For specific work prefer the granular skill — architecture→architecture, API→api-design, data→data-schema, domain→domain-modeling, agents→agent-design, eval→eval-design, security→security-design, observability→observability-design, stack→tech-stack-selection, codebase→codebase-design. Use only for a cross-cutting overview when no single skill fits.
-- **domain-modeling** — Active domain-model discipline: challenge terms, stress-test with scenarios, RECORD the glossary (CONTEXT.md — domain language only) and ADRs INLINE as they crystallize (not in batches). Multi-context via CONTEXT-MAP.md. Activate when clarifying terminology/ubiquitous language, recording an architectural decision, or when another skill builds a domain model (esp. fintech: banking APIs, fiscal).
+- **domain-modeling** — Active domain-model discipline: challenge terms, stress-test with scenarios, RECORD the glossary (CONTEXT.md) and ADRs INLINE as they crystallize (not in batches). Multi-context via CONTEXT-MAP.md; Rule of Two entry into the shared term-index; term steward model. Activate when clarifying terminology/ubiquitous language, recording an architectural decision, or when another skill builds a domain model (esp. fintech).
 - **ecosystem-reuse-gate** — Gate against reinventing functionality when designing a new project/feature: before build-new, force a check against the ecosystem registry (radar) and run universal vendor-vs-build if-then rules. Default is reuse; build-new only when a rule explicitly fires. Activate when designing a new project, a large reusable feature, or picking a stack.
 - **eval-design** — Evaluate LLM/AI output quality — eval-set, metrics, regression harness, automated + human review
-- **figma-mcp-core** — Discipline for the official Figma Dev Mode MCP: real tools (get_metadata, get_variable_defs, get_code, get_code_connect_map, get_screenshot, search_design_system), no extracting values from screenshots, selection-driven algorithm, design-token extraction to W3C tokens.json, component reuse via Code Connect, design-system audit, antipatterns. Activate for any UI-from-Figma task via a connected MCP server, before mapping to a concrete framework.
+- **figma-mcp-core** — Figma Dev Mode MCP discipline: real tools (get_metadata, get_variable_defs, get_code, get_code_connect_map, get_screenshot, search_design_system), no reading values off screenshots, selection-driven algorithm, W3C tokens.json extraction, Code Connect reuse. Activate for any UI-from-Figma task via connected MCP, before mapping to a framework.
 - **legal-compliance** — GDPR, CCPA, AI Act, DMCA, COPPA, DSA — pre-launch regulatory checklist
 - **observability-design** — Logging, metrics, tracing, alerting. SLO/SLI, error budget, runbooks for prod-readiness
 - **package-contribution-protocol** — Gate against bloating a depended-on package from a consumer project: Rule of Three, proposal→ADR, minimal contract, dependency direction, SemVer, read-only boundary. Activate when a project task needs editing a shared package, on 'extract common', and when adding a class/provider/interface/abstraction to a depended-on package.
@@ -222,14 +223,14 @@ When a task requires more detail than what's in the current context, load the re
 ### frontend — Frontend core: общие фронт-скиллы (web design guidelines, document writer, file upload)
 
 - **document-writer** — Use when writing blog posts or documentation markdown files - provides writing style guide (active voice, present tense), content structure patterns, and MDC component usage. Overrides brevity rules for proper grammar. Use nuxt-content for MDC syntax, nuxt-ui for component props.
-- **filepond-upload** — File upload via FilePond in Vue + Laravel: register vue-filepond + plugins (validate-type/size, image-preview, file-poster), server-side via rahulhaque/laravel-filepond (process/revert on /filepond), bind uploaded file serverId to form, previews and posters. Activate when adding/editing file upload, drag-and-drop upload, FilePond field, image preview in form, on words filepond/vue-filepond/laravel-filepond/file upload/process/revert/serverId.
+- **filepond-upload** — File upload via FilePond in Vue + Laravel: register vue-filepond + plugins (validate-type/size, image-preview, file-poster), server via rahulhaque/laravel-filepond (process/revert on /filepond), bind serverId to form, previews/posters. Activate on file upload, drag-and-drop, FilePond field, image preview, filepond/vue-filepond/laravel-filepond/process/revert/serverId.
 - **web-design-guidelines** — Review UI code for Web Interface Guidelines compliance. Use when asked to "review my UI", "check accessibility", "audit design", "review UX", or "check my site against best practices".
 
 ### frontend-backend — Backend integration layer: Inertia+Vue, Laravel Echo realtime client, backend→frontend type sync
 
 - **backend-type-sync** — Backend→frontend type sync via spatie/laravel-typescript-transformer: #[TypeScript] on enum/DTO/Spatie-Data, php artisan typescript:transform → generated.d.ts, use App.Enums.* / App.Data.* in Vue/TS. Activate: new enum/DTO needed on frontend, type drift FE↔BE, type-sync setup. Boundary with wayfinder (routes ≠ types).
 - **inertia-vue** — Inertia + Vue in Laravel: pages, forms, navigation and layered resources/js organization (pages, layouts, components, composables, stores, features, events, types, actions/wayfinder).
-- **laravel-echo-client** — Frontend realtime client Laravel Echo (Reverb/Pusher) in Vue 3: configure Echo from runtime-config/env, subscribe to private/presence channels, listen on broadcastAs events, unsubscribe in onUnmounted, inject X-Socket-ID into axios. Activate when: wiring websockets on frontend, writing useEcho/useChannel composable, listening to .broadcastAs event, seeing window.echo / Echo / laravel-echo / reactive realtime in Vue.
+- **laravel-echo-client** — Frontend realtime client Laravel Echo (Reverb/Pusher) in Vue 3: configure Echo from runtime-config/env, subscribe to private/presence channels, listen on broadcastAs events, unsubscribe in onUnmounted, inject X-Socket-ID into axios. Activate wiring websockets on frontend, useEcho/useChannel composable, .broadcastAs event, window.echo/laravel-echo in Vue.
 
 ### frontend-linting — JS/TS tooling and style: antfu config, ESLint flat config, Spatie JS style, TS library authoring
 
@@ -240,7 +241,7 @@ When a task requires more detail than what's in the current context, load the re
 ### frontend-tailwind — Tailwind CSS v4 conventions and dark-mode theming
 
 - **dark-mode** — Dark theme light|dark|system on Vue 3: useDarkMode composable (matchMedia prefers-color-scheme, localStorage + cookie for SSR, toggle .dark class on documentElement, change listener for system), pre-mount init without theme flash, mini toggle. Activate when adding theme switching, fighting light-theme flash (FOUC), syncing theme with system, or restoring theme under SSR.
-- **tailwind-conventions** — Tailwind CSS v4 conventions for Laravel/Vue: CSS-first config (@import tailwindcss, @theme tokens instead of tailwind.config.js), design tokens, dark mode (.dark + dark:* + useAppearance), cn() (clsx+tailwind-merge), prettier-plugin-tailwindcss + tailwindFunctions, spacing discipline. Activate when editing *.vue/*.css with Tailwind, configuring tailwind/postcss/prettier for Tailwind, working with dark mode.
+- **tailwind-conventions** — Tailwind CSS v4 conventions for Laravel/Vue: CSS-first config (@import tailwindcss, @theme tokens instead of tailwind.config.js), dark mode (.dark + dark:* + useAppearance), cn() (clsx+tailwind-merge), prettier-plugin-tailwindcss. Activate editing *.vue/*.css with Tailwind, configuring tailwind/postcss/prettier, dark mode work.
 
 ### frontend-vite — Vite build tooling: config/plugins/SSR, project module loader, multi-build, VitePress
 
@@ -251,7 +252,7 @@ When a task requires more detail than what's in the current context, load the re
 ### frontend-vue — Vue 3 ecosystem: Composition API, best practices, router, VueUse, Pinia state, Vitest testing
 
 - **pinia** — Pinia official Vue state management library, type-safe and extensible. Use when defining stores, working with state/getters/actions, or implementing store patterns in Vue apps.
-- **pinia-stores** — Pinia (Vue 3) global state: setup stores (defineStore with function), ref=state/computed=getters/function=actions, use*Store naming, store composition, store access outside components, hydration from props, persist. Activate on creating/editing files under resources/js/stores/**, defineStore, useXxxStore, or questions 'how to store global state / share data between components / where to move state out of a component'.
+- **pinia-stores** — Pinia (Vue 3) global state: setup stores (defineStore with function), ref=state/computed=getters/function=actions, use*Store naming, store composition, access outside components, hydration, persist. Activate creating/editing resources/js/stores/**, defineStore, useXxxStore, or 'how to store global state / share data between components'.
 - **vitest** — Vitest for Vue/Inertia-on-Laravel: jsdom, globals, tests in resources/js/tests mirror sources, v8 coverage with mandatory exclude of autogenerated code.
 - **vue** — Vue 3 Composition API, script setup macros, reactivity system, and built-in components. Use when writing Vue SFCs, defineProps/defineEmits/defineModel, watchers, or using Transition/Teleport/Suspense/KeepAlive.
 - **vue-best-practices** — MUST be used for Vue.js tasks. Strongly recommends Composition API with `<script setup>` and TypeScript as the standard approach. Covers Vue 3, SSR, Volar, vue-tsc. Load for any Vue, .vue files, Vue Router, Pinia, or Vite with Vue work. ALWAYS use Composition API unless the project explicitly requires Options API.
@@ -276,20 +277,21 @@ When a task requires more detail than what's in the current context, load the re
 - **mcp-advisor** — Pick MCP servers for a project at onboarding/sync: which to connect (context7/playwright/github/fetch/sequential-thinking + maind hub), why, when NOT to, and the cost in context/permissions/Node-deps. Activate when adding/onboarding/syncing a project, editing .mcp.json, or choosing MCP — emits a justified connection plan, not a dump of every server.
 - **naming-conventions** — Naming discipline (language-agnostic): name reveals intent, not implementation; fight noise words (Manager/Helper/data/process) and combinatorial method explosion (findByXOrFail/getOrNull). Activate when naming or reviewing names of functions, classes, variables, methods.
 - **packages-stack** — Project external-dependency registry methodology: which packages are used and for what, a per-package rule (when to use, what NOT to do by hand), reliance on OFFICIAL docs. Activate when choosing/adding a dependency or mapping the stack at project init; language-agnostic.
-- **plan-protocol** — Executable master plans in plans/<ID>: plan/phase/task schemas, 6 statuses, refine loop and DoR gate, canonical plan root, two homes and archive, handoff with launch-block, model routing, /task:plan-* commands.
+- **plan-protocol** — Executable master plans in plans/<ID>: plan/phase/task schemas, 6 statuses, refine loop and DoR gate, canonical plan root, repo home by default + visibility/supersedes fields, two homes and archive, handoff with launch-block, model routing, /task:plan-* commands.
 - **session-handoff** — Cross-session/agent context handoff: compress a session into a structured doc — state, decisions, open items, next steps.
 - **skills-ssot** — Single source of truth for skills across multiple AI agents: .ai/skills + symlinks, gitignore, update cycle
 - **spec-interview** — Pre-code interview: agent asks one question at a time, reads the codebase itself where it can, proposes a recommended answer; output — a filled task brief per task-brief-template.
 - **task-brief-template** — Brief template for complex agent tasks: goal, scope, invariants, explicit assumptions, out of scope, acceptance criteria, definition of done. Plus Plan→Clear→Execute pattern and loop fields for iterative runs: verifier, exit condition, hard-stop.
-- **verify-claims** — Before a decision/verdict on an EXTERNAL fact (library version/API, 'still current', best practice, market, service/MCP capabilities) — verify via RAG, not from memory. Ladder: context7 → Perplexity (native MCP if key, else perplexity-web) → WebSearch → research for deep/high-stakes. Activate on audit/plan review, big planning, library/stack/dependency choice, claiming 'this is standard/modern'. Repo-grounded/stable knowledge — skip.
+- **verify-claims** — Before a verdict on an EXTERNAL fact (library version/API, 'still current', best practice, market, service/MCP capability) — verify via RAG, not memory. Ladder: context7 → Perplexity → WebSearch → research for high-stakes. Activate on audit/plan review, big planning, library/stack choice, claiming 'this is standard'. Repo-grounded/stable knowledge — skip.
+- **workflow-craft** — Activate on \"write a workflow\"/multi-agent orchestration: match 4 canonical templates first, then design-vs-dev stage matrix; slots per README.
 - **writing-style** — Tone & language of code artifacts: Russian by default for comments, commit bodies, test descriptions it()/test(), docstrings, internal docs; live language, no bureaucratese, explain WHY not WHAT. Activate when writing comments, commit bodies, test descriptions, internal docs (git format/mechanics → git-commit-rules).
 
 ### laravel-architecture — Scaling architecture: modular monolith/DDD, enum state machines, enum attributes, subagent orchestration
 
-- **config-driven-abstraction** — Config-driven, cache-safe Registry+Builder for multi-panel/multi-tenant Laravel: immutable registry key→instance, fluent builder w/ feature-flags as methods, config name-maps not closures, per-variant class not runtime $table. Activate when designing multi-panel/multi-tenant resolution or pluggable drivers. Triggers: multi-panel, multi-tenant, registry, builder pattern, config:cache, runtime table, driver resolution, per-panel.
+- **config-driven-abstraction** — Config-driven cache-safe Registry+Builder for multi-panel/multi-tenant Laravel: immutable registry key→instance, fluent builder w/ feature-flags, config name-maps not closures, per-variant class not runtime $table. Activate designing multi-panel/multi-tenant resolution, pluggable drivers. Triggers: registry, builder pattern, config:cache, driver resolution.
 - **eloquent-accessors** — Activate when writing/refactoring Eloquent accessors and mutators: when you see legacy getXxxAttribute()/setXxxAttribute() and should move to modern Attribute::make() (get/set), or when deciding where to place and how to type a computed model property. Triggers: getFooAttribute, Attribute::make, accessor, mutator, computed attribute, Illuminate\\Database\\Eloquent\\Casts\\Attribute
-- **enum-attributes** — Use for enum metadata: replace label()/color()/description() match-ladders with PHP attributes #[Label]/#[Color]/#[Description] on cases + Concern traits with a reflection resolver; or export an enum as a TS type via #[TypeScript] stack (App.Enums.* union in .d.ts). Triggers: PHP enum, attributes on cases, getLabel()/getColor(), Filament HasLabel, spatie/laravel-typescript-transformer, local enum-concern via path-repository
-- **enum-state-machine** — Activate when a domain status (Order/Document/Subscription) needs transition rules: edge graph via enum transitionDefinitions(), runtime registry (canTransition/allowedFrom), Action-executed transition under DB::transaction() + domain event. Triggers: PHP status enum, allowed transitions, StateMachine/workflow, parallel transition graph to unify into one source, canTransitionTo, allowedTransitions, illegal status transition
+- **enum-attributes** — Use for enum metadata: replace label()/color()/description() match-ladders with PHP attributes #[Label]/#[Color]/#[Description] on cases + reflection resolver; or export enum as TS type via #[TypeScript]. Triggers: PHP enum, attributes on cases, getLabel()/getColor(), Filament HasLabel, laravel-typescript-transformer.
+- **enum-state-machine** — Activate when a domain status (Order/Document/Subscription) needs transition rules: edge graph via enum transitionDefinitions(), runtime registry (canTransition/allowedFrom), Action-executed transition under DB::transaction(). Triggers: PHP status enum, allowed transitions, StateMachine, canTransitionTo, illegal status transition.
 - **laravel-subagents** — Subagent orchestration on large Laravel tasks: activation threshold, delegating research to Explore agents, review via laravel-reviewer, tests via laravel-test-writer, worktree isolation of parallel edits. Do not apply to small/medium tasks.
 - **modular-architecture** — Scale Laravel code as it grows: organize by business domain, Modular Monolith and DDD patterns; implement with nwidart/laravel-modules (module:make*, module structure, namespace without Modules\\, Filament discovery); starting structure — php/laravel-structure
 
@@ -308,7 +310,7 @@ When a task requires more detail than what's in the current context, load the re
 
 - **medialibrary** — spatie/laravel-medialibrary: attach files to Eloquent models, collections, conversions, get URLs
 - **pennant-development** — Laravel Pennant feature flags: define/active/for-scope, the @feature directive, activation/deactivation, A/B and gradual rollouts. Adapted from laravel/boost (strategy=notify).
-- **spatie-settings** — spatie/laravel-settings: typed settings classes (extends Settings, public properties, group()), settings migrations add/migrate/rename, cache, runtime-settings vs config/ choice, Filament SettingsPage binding, runtime infra-config (websocket/Reverb) from admin to frontend via DTO. Activate when creating/editing a settings class, adding a property, a settings migration, an edit screen, or moving an infra setting to a runtime override.
+- **spatie-settings** — spatie/laravel-settings: typed settings classes (extends Settings, group()), migrations add/migrate/rename, cache, runtime vs config/ choice, Filament SettingsPage binding, infra-config (websocket/Reverb) admin→frontend via DTO. Activate creating/editing a settings class/property/migration, an edit screen, or moving infra setting to runtime override.
 
 ### laravel-filament — Filament admin panels: resources, schemas, tables, widgets, actions, tenancy
 
@@ -316,7 +318,7 @@ When a task requires more detail than what's in the current context, load the re
 
 ### laravel-testing — Laravel testing: Pest feature/unit, DB isolation guard, Dusk browser tests, health checks
 
-- **health-checks** — spatie/laravel-health in Laravel: custom Check classes (disk, queue, scheduler heartbeat, TCP port, cache, DB) via Health::checks() in config/health; /health endpoint (live/ready, JSON/Filament); scheduled runs, failure notifications. Activate on: health check, healthcheck, liveness/readiness, /health, spatie health, availability monitoring, disk/queue/cache/heartbeat checks, editing app/Health/** or config/health.php.
+- **health-checks** — spatie/laravel-health in Laravel: custom Check classes (disk, queue, scheduler heartbeat, TCP port, cache, DB) via Health::checks(); /health endpoint (live/ready, JSON/Filament); scheduled runs, failure notifications. Activate on: health check, liveness/readiness, /health, spatie health, disk/queue/cache/heartbeat checks.
 - **laravel-dusk** — Laravel Dusk: browser E2E tests, isolated test DB, run from Docker via host ChromeDriver, Page Objects
 - **laravel-testing** — Feature/unit/pest testing patterns: test DB isolation, Docker/local env detection, coverage gate, Pest composition (setUp traits, fixtures, beforeEach fake/freeze, datasets)
 - **test-isolation-guard** — Guard Laravel tests against running on prod/dev DB and prod media disk: bootstrap.php sets DB_DATABASE=*_test and media-test before autoload, TestEnvironmentGuard aborts createApplication() on isolation breach, safe RefreshDatabase. Activate when setting up the test environment, protecting CI, or suspecting tests hit dev/prod DB.
@@ -337,14 +339,14 @@ When a task requires more detail than what's in the current context, load the re
 ### php — PHP and Laravel core: architecture, structure, conventions, DI, database, repositories, patterns, static analysis
 
 - **code-style-spatie** — Laravel/PHP code style per Spatie guidelines: Laravel conventions over PSR-12, typing instead of docblocks, early returns, happy path last.
-- **cursor-pagination-design** — Stable keyset (seek) pagination for infinite scroll / feeds: pick a sortable non-nullable key, composite index, handle ties and concurrent inserts, avoid offset drift. Activate when building infinite-scroll, cursor/seek pagination, message/feed lists, or fixing 'duplicates/skips while scrolling'. Triggers: cursor pagination, keyset, seek pagination, infinite scroll, paginate after, nullable order key, offset drift, last_message_at.
+- **cursor-pagination-design** — Stable keyset (seek) pagination for infinite scroll/feeds: sortable non-nullable key, composite index, handle ties/concurrent inserts, avoid offset drift. Activate building infinite-scroll, cursor/seek pagination, feed lists, or fixing 'duplicates/skips while scrolling'. Triggers: keyset, seek pagination, paginate after, offset drift.
 - **database** — Database migrations, models, and table naming. Activate when writing migrations, creating models, defining schema, foreign keys, or working in database/migrations/.
 - **dependency-injection** — Layer interaction via constructor injection: final readonly + promotion, injection matrix, Action composition
 - **laravel** — Laravel architecture patterns: actions, repositories, resources
 - **laravel-best-practices** — Laravel best practices: 20 rule categories (Eloquent, validation, cache, queues, security) with routing by task.
 - **laravel-structure** — Laravel project structure canon for greenfield and adding domains: domain taxonomy, layer-mirror rule, class placement and naming
 - **named-arguments** — PHP rule: method/function calls use named arguments; exceptions; activate when writing/reviewing calls or when readability/parameter order is mentioned
-- **namespace-refactor-safety** — Discipline for large PHP/Laravel namespace or class-move refactors: three-phase alias → update use-statements → hard rename; anchor find-replace on FQN (not bare token) to dodge prefix collisions; keep a contract at the seam for phpstan; arch-tests for layer parity; breaking moves bump major. Activate on: namespace refactor, move class, rename namespace, domain restructure, mass rename, breaking change, arch test.
+- **namespace-refactor-safety** — Discipline for large PHP/Laravel namespace or class-move refactors: three-phase alias → update use-statements → hard rename; anchor find-replace on FQN to dodge prefix collisions; keep a contract at the seam for phpstan; arch-tests for layer parity. Activate on: namespace refactor, move class, rename namespace, domain restructure, mass rename.
 - **pao** — Laravel PAO — agent-optimized PHP tool output: PHPUnit/Pest/Paratest/PHPStan/Rector/Artisan collapse to compact JSON (~20 tokens vs thousands) when run inside an AI agent. Install, verify, limits.
 - **php-naming-conventions** — Naming Laravel/PHP entities: repository methods by intent (not findByCodeOrFail-explosion), Action/DTO/VO/Enum/Event/Job, tables/columns/routes. Kills junk names AI loves to generate. Activate when creating or reviewing class/method/migration names.
 - **php-patterns** — PHP domain patterns: VO, DTO, pipeline, specification — selection guide
@@ -352,7 +354,7 @@ When a task requires more detail than what's in the current context, load the re
 - **production-readiness-checklist** — Verify production-readiness invariants happy-path tests miss: transaction atomicity, race-condition-safe idempotency, config defaults, non-nullable cursor keys, after-commit side-effects, soft-delete, id-strategy compatibility, single queue-retry owner, atomic state transitions. Activate before/at review of risky Laravel slices (services, queues, drivers, migrations), queue semantics, or before merge.
 - **repositories** — Laravel repositories: read/store split, model scopes, delta-DTO, facade, VisibilityService
 - **static-analysis** — PHP/Laravel static analysis & linting: Laravel Pint, PHPStan, Rector locally + CI, reference configs
-- **transactional-outbox-relay** — At-least-once delivery of async events via transactional outbox: write+outbox in one transaction, relay-sweep is sole retry owner, idempotent consumers, backoff+DLQ, after-commit effects. Activate when wiring webhook/event delivery, an outbox, or async jobs that must not be lost or double-fired. Triggers: outbox, at-least-once, webhook delivery, ShouldQueue reliability, duplicate events, lost jobs, relay sweep, double retry.
+- **transactional-outbox-relay** — At-least-once async event delivery via transactional outbox: write+outbox in one transaction, relay-sweep sole retry owner, idempotent consumers, backoff+DLQ, after-commit effects. Activate wiring webhook/event delivery, an outbox, or async jobs that must not be lost/double-fired. Triggers: outbox, at-least-once, duplicate events, relay sweep.
 
 ### pm — Product management: BRD, PRD, roadmap, monetization, unit economics
 
@@ -375,7 +377,7 @@ When a task requires more detail than what's in the current context, load the re
 
 ### research — Research and knowledge management
 
-- **query-craft** — How to FORMULATE a search/doc-engine query (Perplexity Web · WebSearch · context7): version/stack (e.g. 'min Filament 4'), timeframe, format, limit; pick engine+mode (search/advanced/deep) and sources (web/academic/social). Activate BEFORE any external search, esp. a library/framework (Laravel/Filament/Vue): ban bare 'Laravel how to X?'. Not when-to-verify (verify-claims) nor what-to-connect (mcp-advisor) — only HOW to ask.
+- **query-craft** — How to FORMULATE a search/doc-engine query (Perplexity Web · WebSearch · context7): version/stack, timeframe, format, limit; pick engine+mode and sources. Activate BEFORE any external search, esp. a library/framework: ban bare 'Laravel how to X?'. Not when-to-verify (verify-claims) nor what-to-connect (mcp-advisor) — only HOW to ask.
 
 ### system — Local environment topology: the three hub nodes (Brain vault, swissknifeman, projects base) and how agents navigate between projects and their docs
 

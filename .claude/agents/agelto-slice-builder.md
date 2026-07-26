@@ -1,18 +1,12 @@
 ---
 name: agelto-slice-builder
 description: >-
-  Use this agent when нужно реализовать один вертикальный backend-срез agelto
-  (route → controller → Action/Repository → DTO/Resource → policy) поверх готовых
-  моделей. Пишет код по канону access-layer, коммитит в ТЕКУЩУЮ ветку; тесты не пишет
-  (это agelto-test-writer).
-  <example>Context: модели готовы, нужен read-эндпоинт.
-  user: "Сделай API-срез выдачи каталога"
-  assistant: "Делегирую agelto-slice-builder: route→controller→Repository→Resource."
-  <commentary>Цельный вертикальный срез по готовым моделям — ровно его задача.</commentary></example>
-  <example>Context: однострочный фикс в существующем методе.
-  user: "Поправь опечатку в сообщении ошибки"
-  assistant: "Однострочник — правлю инлайн, субагента не зову."
-  <commentary>Анти-триггер: микроправка не требует изолированного среза.</commentary></example>
+  Use this agent when нужно реализовать вертикальный backend-срез
+  agelto (route→controller→Action/Repository→DTO→policy) поверх
+  моделей.
+  <example>user: "Сделай API-срез выдачи каталога" assistant: "Делегирую
+  agelto-slice-builder: route→controller→Repository."</example>
+  Анти-триггер: тесты не пишет.
 tools: Read, Grep, Glob, Edit, Write, Bash
 skills:
   - repositories
@@ -28,7 +22,7 @@ color: green
 ---
 <!-- swissknifeman:generated
 Generated-by: harness agent-packs
-Pack: backend-laravel@0.12.0
+Pack: backend-laravel@0.12.2
 Template: agents/slice-builder.md
 Edit-policy: generated-core — НЕ редактируй; расширяй через extension-point
 Extension-points: .claude/rules/agelto-reviewer-overrides.md

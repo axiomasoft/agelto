@@ -165,8 +165,8 @@
       "source": "swissknifeman",
       "managed": true,
       "bucket": "laravel-architecture",
-      "sha256": "5281895618ce2022fff50d5bd67bce660b4d9c71626decf126297138e243527e",
-      "content_sha256": "f130141c24b8b42ee3d33f63ffcaad401960e2b22374388e2cc7b8b4179a5d4e",
+      "sha256": "df00de573a3b4ad9da153986ab4c5fa2f2a0dc24936010d48177778eb16c1040",
+      "content_sha256": "cb8a8db55e653801fc9fd11dd7ead709a82d4643e8a906c254f46e713a1e7d90",
       "installed_path": ".claude/skills/config-driven-abstraction"
     },
     "context-economy": {
@@ -189,8 +189,8 @@
       "source": "swissknifeman",
       "managed": true,
       "bucket": "php",
-      "sha256": "b734aec60638b7437c193e5b2cfe906d6116a511f83ed037e976c0d7727922c7",
-      "content_sha256": "9bd1f83e114c5a649a02189d204de5662d650b6f379a2fb0961e24a411dbb6e5",
+      "sha256": "a1c1ceec0b8a50b59a49642ebb9c7973ce7fa0ee850f2a9d62fc853a079315c8",
+      "content_sha256": "6e995f8f5f34c4030df85643bbff4a0985be9c71f27d2ab07a047da389dea272",
       "installed_path": ".claude/skills/cursor-pagination-design"
     },
     "dark-mode": {
@@ -301,8 +301,8 @@
       "source": "swissknifeman",
       "managed": true,
       "bucket": "architect",
-      "sha256": "50fb28af6e02d2850f64f5f99f3fb74c7084ffe51f28e383a90c762bc2458afe",
-      "content_sha256": "c2adfde84323915a18e81f8ed68463f2a79bed1757673d6170c65462273fb715",
+      "sha256": "12e6e285b1e714a0f0d0746d2d6b2d9434aba3fb8a50879cc2c7ceee212905dd",
+      "content_sha256": "7387c3a210f15ce15a18a2c3e691ed7dbe8d8058cadbf062c7ffdd89d73534cd",
       "installed_path": ".claude/skills/domain-modeling"
     },
     "ecosystem-reuse-gate": {
@@ -325,16 +325,16 @@
       "source": "swissknifeman",
       "managed": true,
       "bucket": "laravel-architecture",
-      "sha256": "b36bd31e2e9be38dbd2f50fc90b8da976ade387c0fc6e8762aa1f57e86f3662d",
-      "content_sha256": "e07a25e1aea444520ae1029ccbf4c004ad572bf01d20786166aac7f839727a57",
+      "sha256": "64d35006c2c761ee060c86df7ea9eac605fe4d1e6f72e6b651616572312dcfa7",
+      "content_sha256": "74f37a7e0c25d5af63775493f25cc3adf8333f356d725c64364ba2a9b57b2d7d",
       "installed_path": ".claude/skills/enum-attributes"
     },
     "enum-state-machine": {
       "source": "swissknifeman",
       "managed": true,
       "bucket": "laravel-architecture",
-      "sha256": "a54fb685ad248b5bd0c01eb9f7e070712e9b236e0455c987d6c86f834d295771",
-      "content_sha256": "698d58c3cf552c61173f665231bd7ab25eac2a42024d09a42ee7857845c3e885",
+      "sha256": "20d13011a27317e329d72973c32c9d75bdcdc8b28b18d46d2c1447f3525fed3a",
+      "content_sha256": "2ab3ba0b6bfcc634386ae6c705791ce4933471c932b5c776d619bcca17da43e2",
       "installed_path": ".claude/skills/enum-state-machine"
     },
     "eslint-flat-config": {
@@ -357,8 +357,8 @@
       "source": "swissknifeman",
       "managed": true,
       "bucket": "architect",
-      "sha256": "b9fcb1524704ff840393296968968d1371409a0a75d2d437fca9751724e30b8b",
-      "content_sha256": "ece3c8937e191f2f06924b40594e51e960a75df7603af578dd62d50ad45188d4",
+      "sha256": "c5a92464b24828c234860efda824cf304457fe052147b4d906a475efab1b14b4",
+      "content_sha256": "1d534c30298cb09612dab0c919912a79ca4d6dd0a765b0baed444fbfc88c93b1",
       "installed_path": ".claude/skills/figma-mcp-core"
     },
     "filament": {
@@ -373,8 +373,8 @@
       "source": "swissknifeman",
       "managed": true,
       "bucket": "frontend",
-      "sha256": "69ba5fc10de6a9c79df03f8b8f6edbaf50ff5e7c2884ac6c43109c1da1d22ec1",
-      "content_sha256": "2764bd1477d439876eaa78e9960b1fef8e7caa769569e533634509690af53549",
+      "sha256": "246d7f210f71bcc577ddebabaf4657cbadbf0d4f613ec7521bf444f7ee02ebd3",
+      "content_sha256": "8ef106b3900bd5deb5976220d19e5de32c0affd782ef3a6c3ce66403f336f0a6",
       "installed_path": ".claude/skills/filepond-upload"
     },
     "gh-review": {
@@ -421,8 +421,8 @@
       "source": "swissknifeman",
       "managed": true,
       "bucket": "laravel-testing",
-      "sha256": "8d876747559edd9ba9f73e2328be6e7f2a68624bd5cbffd48f6ddff440007e22",
-      "content_sha256": "bc0e93f3aa027cef98fc11d50e8c94db18122ad373cf3da3c40fa9fd778f94aa",
+      "sha256": "6d884ace479c33cfa7bd59e40948f8232f989dfa8c27a613e4851ece413a39c4",
+      "content_sha256": "b229b74eaaf51b6dd15a329213e256c1422a13667760768ca7fc21513bdce1ae",
       "installed_path": ".claude/skills/health-checks"
     },
     "implement": {
@@ -493,8 +493,8 @@
       "source": "swissknifeman",
       "managed": true,
       "bucket": "frontend-backend",
-      "sha256": "8e072683dc328ffc600e9140cab01a472030e90248706d12188cace4f9a60a38",
-      "content_sha256": "3d9bab7a26d394660feab7846bb49a48a920abd7c0ab931c07d227f65cc57d92",
+      "sha256": "6183e53b1bd6e64c8da6faee10412dd1d48ad0a023a7910af74110298c92e55b",
+      "content_sha256": "d492502084f2fc6c0e851cb06994c401b89ac729313d3b6717b4bcceb7a322d1",
       "installed_path": ".claude/skills/laravel-echo-client"
     },
     "laravel-permissions": {
@@ -605,8 +605,8 @@
       "source": "swissknifeman",
       "managed": true,
       "bucket": "php",
-      "sha256": "9d9e1ca86e07287a356e066cf911bc5f3cd20d001907ba64d7fb26ce3ba1ee5c",
-      "content_sha256": "05d471e195780d5f85392d794353ffcf21699f066d7ff36454a1c3de7445149c",
+      "sha256": "18a2b51e9419c13170a3ae3b9a09bed670cc4e68aa5d8a01924390e0984f51cf",
+      "content_sha256": "eeda21827e158ed562b136fb088ff144048edb7ec1cbf48e210b5a5f0c358b38",
       "installed_path": ".claude/skills/namespace-refactor-safety"
     },
     "naming-conventions": {
@@ -709,16 +709,16 @@
       "source": "swissknifeman",
       "managed": true,
       "bucket": "frontend-vue",
-      "sha256": "8f8a6e925acae2fc565a8a918c45426b2d7734fef6e2dfbf5a6c1f2c14617946",
-      "content_sha256": "b20072e61bb7342047cf3b3972c0a8fecd61d6e43e0441a68b61b5a9d4d95ae7",
+      "sha256": "2acd9fb2de6f7add162938e94828d444ebb0a33a60f5cf291cb0749bc9ec9916",
+      "content_sha256": "fdd604f437e50d4d9a474e4c73106d2b305033cd5d905450810209e2836558cc",
       "installed_path": ".claude/skills/pinia-stores"
     },
     "plan-protocol": {
       "source": "swissknifeman",
       "managed": true,
       "bucket": "general",
-      "sha256": "1e31832d2e283d8cb5cc108b00c7933ec18a990e2d9d6ff5ceded86c49099511",
-      "content_sha256": "be8b841994dfc80fe1f943b60bf6d9cd2e1c6946d4c44cb895c25aa87a384017",
+      "sha256": "f8a20287d3127b20051b5f2f23537cad68ff4fb1176309e9b276e6d4c1e168b2",
+      "content_sha256": "048207ed9d67e19175feb0973a2a26148bf913dc69328b2232ef4b1224c6dc53",
       "installed_path": ".claude/skills/plan-protocol"
     },
     "playwright-e2e": {
@@ -749,8 +749,8 @@
       "source": "swissknifeman",
       "managed": true,
       "bucket": "research",
-      "sha256": "f5bd45ab05c5da463fe8bb1bbbcf089de700a1a1d103ed8259aa06934e776f0f",
-      "content_sha256": "5b4d453bd63edc9637b3a59eae3abab91bdb4c3bdbe36ee7fbc541a67ce8520c",
+      "sha256": "6e72140a9d7fc3b403450f1e4b420cd053a5bb81282bc1d0e3f2d8bfe3c97af6",
+      "content_sha256": "b7292a124e453b42cfa59ea8c93c8ceb717d35f7e2df5f162b4871ab86610034",
       "installed_path": ".claude/skills/query-craft"
     },
     "refactoring-plan": {
@@ -813,8 +813,8 @@
       "source": "swissknifeman",
       "managed": true,
       "bucket": "laravel-extras",
-      "sha256": "07b659221e86a82c5af75b9515997d3f5f5595b5df734f23a1ee6a14a23ac9c2",
-      "content_sha256": "b54c54c4d98c6c0626d198c34ce7f9e4bfcdfb889ccbafd5c4bc650aa173864b",
+      "sha256": "610070e24793a78c908791169795e7401a519ecb9087aca4749c53e9016004a9",
+      "content_sha256": "e33a88fc4b1f45d45db7a714bfd8f7a51cbcb85e3cd46b137ac1cadb3ccb0a85",
       "installed_path": ".claude/skills/spatie-settings"
     },
     "spec-interview": {
@@ -845,8 +845,8 @@
       "source": "swissknifeman",
       "managed": true,
       "bucket": "frontend-tailwind",
-      "sha256": "31ed872bb4eab2b69346e6595d57fc08c1a6fddd44d9932609cfe8d0a731644c",
-      "content_sha256": "d09a4b295e565ae8efa3bdf9d049c2622557ef4d14766898d83c97589adb0fec",
+      "sha256": "a746c086d94545d0f629d6d46eaf8d641305659157d4a8489bc0798e7b489dec",
+      "content_sha256": "5b5880093d5e9df1210925c0b3161b5b5f45add2e36e9b1c448009bcdbf2c08c",
       "installed_path": ".claude/skills/tailwind-conventions"
     },
     "task-brief-template": {
@@ -909,16 +909,16 @@
       "source": "swissknifeman",
       "managed": true,
       "bucket": "php",
-      "sha256": "deff95e7f72855089ebe52c6619cb530cf06e4813d83f16b1d0819a3e463455a",
-      "content_sha256": "5f516a9f8e6cddd900fcf54ef841fb791b9010efa7baa1b6f7b9d4ce0b625dca",
+      "sha256": "72a685dbd811599f4f0eccad50879123c42971969d0dd81ef74b4fd097aac6cb",
+      "content_sha256": "eb469b32609d1285575fbc0ef695ab3ce2add21bde6a685df7bf413787a161e4",
       "installed_path": ".claude/skills/transactional-outbox-relay"
     },
     "verify-claims": {
       "source": "swissknifeman",
       "managed": true,
       "bucket": "general",
-      "sha256": "31c7983155cb1a45a031ce3c16b4e792ae53ae8c0deb610c0a6d105427feb915",
-      "content_sha256": "b38fbeb448010be2aef9a0ec85bc1271e383784c5b79d6e5335f42758b895fb7",
+      "sha256": "ccb328f74903a8beb922c3619579922743bcb3ddd6f8934a0ba5f9ab434d85ba",
+      "content_sha256": "644ecb9d01a08f6991044603e56be85e43eba47f1164b2ebd1c7bfc80dc0716a",
       "installed_path": ".claude/skills/verify-claims"
     },
     "vite": {
@@ -1000,6 +1000,14 @@
       "sha256": "f4647ca866a3accf763777f83e7682954f0187cd6bea7eea0399796652414e8f",
       "content_sha256": "f3d59f38e691787a34d02ad9a1e27aca7c644d9dd2ec16c98587b80110c12ef5",
       "installed_path": ".claude/skills/web-design-guidelines"
+    },
+    "workflow-craft": {
+      "source": "swissknifeman",
+      "managed": true,
+      "bucket": "general",
+      "sha256": "80e7b284d509cbb38cd8d99d2b6a322ac7192adcdb39adf55d636685b9b5b870",
+      "content_sha256": "efd3e38024ce1793e0084a1ee8ec9fd9e8f279eaf0078a333d012964f90aed0f",
+      "installed_path": ".claude/skills/workflow-craft"
     },
     "writing-style": {
       "source": "swissknifeman",

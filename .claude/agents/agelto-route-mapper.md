@@ -1,20 +1,18 @@
 ---
 name: agelto-route-mapper
 description: >-
-  Use this agent for READ-ONLY reconnaissance of agelto routing: map routes →
-  controllers → Actions/Repositories for a domain in an ISOLATED context, returning only a
-  compact map. Delegate heavy route exploration here so the main agent stays lean.
-  <example>Context: нужно понять, как устроен домен перед правкой.
-  user: "Покажи роуты и контроллеры домена orders"
-  assistant: "Зову agelto-route-mapper — карта роутов в изолированном контексте."
-  <commentary>Тяжёлое чтение роутинга — в субагент, чтобы не раздувать main-контекст.</commentary></example>
+  Use this agent for READ-ONLY recon of agelto routing:
+  маршруты→контроллеры→Actions/Repositories домена, ISOLATED-контекст — только
+  компактная карта.
+  <example>user: "Какие роуты у домена orders?" assistant: "Зову
+  agelto-route-mapper — вернёт карту маршрутов."</example>
 tools: Read, Grep, Glob, Bash
 model: haiku
 color: blue
 ---
 <!-- swissknifeman:generated
 Generated-by: harness agent-packs
-Pack: backend-laravel@0.12.0
+Pack: backend-laravel@0.12.2
 Template: agents/route-mapper.md
 Edit-policy: generated-core — НЕ редактируй; расширяй через extension-point
 Extension-points: .claude/rules/agelto-reviewer-overrides.md

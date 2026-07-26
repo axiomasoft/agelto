@@ -1,20 +1,18 @@
 ---
 name: agelto-security-review
 description: >-
-  Use this agent for a READ-ONLY security pass over a agelto change in an ISOLATED
-  context: authorization (policy/gate actually enforced), mass-assignment, SQL/`LIKE` injection,
-  secrets in code/logs, IDOR — returns only findings. Delegate the security sweep here.
-  <example>Context: рискованный access-layer срез.
-  user: "Проверь безопасность среза orders-write"
-  assistant: "Зову agelto-security-review — auth/инъекции/секреты, read-only."
-  <commentary>Security-проход — изолированный субагент, наверх только находки.</commentary></example>
+  Use this agent for a READ-ONLY security pass over agelto change:
+  авторизация, mass-assignment, SQL/LIKE-инъекции, секреты, IDOR — только
+  находки.
+  <example>user: "Проверь эндпоинт на security перед мержем" assistant: "Зову
+  agelto-security-review."</example>
 tools: Read, Grep, Glob, Bash
 model: haiku
 color: red
 ---
 <!-- swissknifeman:generated
 Generated-by: harness agent-packs
-Pack: backend-laravel@0.12.0
+Pack: backend-laravel@0.12.2
 Template: agents/security-review.md
 Edit-policy: generated-core — НЕ редактируй; расширяй через extension-point
 Extension-points: .claude/rules/agelto-reviewer-overrides.md

@@ -2,7 +2,7 @@
   "schema": 1,
   "packs": {
     "backend-laravel": {
-      "version": "0.12.0",
+      "version": "0.12.2",
       "source": "harness:configs/claude-code/agent-packs/backend-laravel",
       "answers": {
         "PACK_PREFIX": "agelto",
@@ -31,7 +31,7 @@
           "src": "agents/slice-builder.md",
           "target": ".claude/agents/agelto-slice-builder.md",
           "kind": "template",
-          "base_sha256": "e69dfe9eb2fee0351ca7507a2c1f552ed5f25ce7b4244e54678e8124a19bafe0",
+          "base_sha256": "96c513ade9ed6b3d5275c008e938724031396edb373fce8305e2344783871da7",
           "local_modified": false,
           "user_owned": false
         },
@@ -39,7 +39,7 @@
           "src": "agents/test-writer.md",
           "target": ".claude/agents/agelto-test-writer.md",
           "kind": "template",
-          "base_sha256": "8f4cbc9a32502455c19304d4598095204cf05e5aabd80d002540ae778227456c",
+          "base_sha256": "7a7e11b40b7c3eddb578b3538858970da334f7f23f9e7104659464ebb35ffdf3",
           "local_modified": false,
           "user_owned": false
         },
@@ -47,7 +47,7 @@
           "src": "agents/reviewer.md",
           "target": ".claude/agents/agelto-reviewer.md",
           "kind": "template",
-          "base_sha256": "4ba4e6d27a5595d218d86354e4d9bd1d0318d4b582605bf90cb2d9ccfe11697b",
+          "base_sha256": "102a5bd7dd0e07c31d89baafe618ce2cc2ca689464070c541eedae7e2a893e1c",
           "local_modified": false,
           "user_owned": false
         },
@@ -55,7 +55,7 @@
           "src": "agents/spec-writer.md",
           "target": ".claude/agents/agelto-spec-writer.md",
           "kind": "template",
-          "base_sha256": "6d0be4db52aa7543371fec1fc9384bd4b26a3cbb4ebf27b81326d6e25ffb6e5e",
+          "base_sha256": "d97cd54106510f6012249c86eda6e58b5f886e387df5d4b6ca3729f71b823763",
           "local_modified": false,
           "user_owned": false
         },
@@ -63,7 +63,7 @@
           "src": "agents/route-mapper.md",
           "target": ".claude/agents/agelto-route-mapper.md",
           "kind": "template",
-          "base_sha256": "4e94a5bd1fb325e90365b5c96a8a5cb0696528fad180c326f7dc160536e58ea0",
+          "base_sha256": "07eacd4743158ced4e5bd576242b0d756f25d05572fa7f365f47493052ba6828",
           "local_modified": false,
           "user_owned": false
         },
@@ -71,7 +71,7 @@
           "src": "agents/db-impact.md",
           "target": ".claude/agents/agelto-db-impact.md",
           "kind": "template",
-          "base_sha256": "f5932e09b2fd5e16a6118d5f75f320117368938713691908680324cc30db5e17",
+          "base_sha256": "1f9adb5fd651c2f450a8754b40a341838c7d56178f7a352588a6d38ea3fad5fd",
           "local_modified": false,
           "user_owned": false
         },
@@ -79,7 +79,7 @@
           "src": "agents/blade-review.md",
           "target": ".claude/agents/agelto-blade-review.md",
           "kind": "template",
-          "base_sha256": "f8d693016334deed28887e669d7f7b17c458bd940e272563c8f2bb149501edac",
+          "base_sha256": "5745c4841cec43d80a12450e2100ece4d5a6f3e61595193d49b345d5e0ae1913",
           "local_modified": false,
           "user_owned": false
         },
@@ -87,7 +87,7 @@
           "src": "agents/test-verifier.md",
           "target": ".claude/agents/agelto-test-verifier.md",
           "kind": "template",
-          "base_sha256": "fb2c57ed42ffc18fe57c18fc721a5f31d678a1248c9b21f409f8c7669aa4382f",
+          "base_sha256": "bd57b80c6304dc7c00bb9b018366a6a852256e1e2d2b302ef1a39a3eac08eb91",
           "local_modified": false,
           "user_owned": false
         },
@@ -95,7 +95,7 @@
           "src": "agents/security-review.md",
           "target": ".claude/agents/agelto-security-review.md",
           "kind": "template",
-          "base_sha256": "dcdd56755530d1c7bc24e497517dfaa0462c9709b8e34d859d85a72c8aa3955a",
+          "base_sha256": "8b0d84dc471557f0d63f26b78c21a88db046039cedd1b684ca6b75b7b2c339eb",
           "local_modified": false,
           "user_owned": false
         },
@@ -103,7 +103,7 @@
           "src": "workflows/dev-loop.js",
           "target": ".claude/workflows/agelto-dev-loop.js",
           "kind": "template",
-          "base_sha256": "9aca0a820fa9b20ad90979bf958281992f30bdd5478f9c3bde43b0e06fe5ddc7",
+          "base_sha256": "b5fb36155138df3f8e423880d19ae8461c8a0c11a5ec7755b4ac851b97afaa2b",
           "local_modified": false,
           "user_owned": false
         },
@@ -111,7 +111,7 @@
           "src": "hooks/review-gate.sh",
           "target": ".claude/hooks/review-gate.sh",
           "kind": "verbatim",
-          "base_sha256": "cf24320512d7d6ed20a34e167c6464f30d7ce83a9200f8f8a58ecc16d9a323ec",
+          "base_sha256": "888ba6979049fb6171d1e60a5d17de5b503b5ce0936c8b7ac8b3db191d4dbf8e",
           "local_modified": false,
           "user_owned": false
         },
@@ -119,7 +119,7 @@
           "src": "hooks/review-gate.env.ini",
           "target": ".claude/review-gate.env.ini",
           "kind": "template",
-          "base_sha256": "dde364e4d5c946b8b759b904148f80950bde08acbc5bb54ce3a63b316f3603ae",
+          "base_sha256": "e5a7160fc7e681ed996636274502e6e12d2f1382fbfafc221b3fd288888f5388",
           "local_modified": false,
           "user_owned": true
         },
@@ -135,7 +135,7 @@
           "src": "docs/subagents-and-workflows.md",
           "target": "docs/dev/subagents-and-workflows.md",
           "kind": "template",
-          "base_sha256": "7fe14983dba504e98cb8b0ceec8c601db62f0838296fb749a3f3e0609d704518",
+          "base_sha256": "58a2ab76cb3909a5d0e147863a86aa3adc45202f95925890a7578d485ddf6a61",
           "local_modified": false,
           "user_owned": false
         },
@@ -143,7 +143,7 @@
           "src": "rules/api-controllers.md",
           "target": ".claude/rules/api-controllers.md",
           "kind": "verbatim",
-          "base_sha256": "f4f3bc4330f01f2933e7832b47bd8a146410e5c43bd503004be146c3e19953e7",
+          "base_sha256": "68985eb97c01e8b8b8b328dbd7728f2f3870c10b9374cfac3a9fb6a959464ba6",
           "local_modified": false,
           "user_owned": false
         },
@@ -151,7 +151,7 @@
           "src": "rules/migrations.md",
           "target": ".claude/rules/migrations.md",
           "kind": "verbatim",
-          "base_sha256": "fa5191f15288611f09753f62f4131be15fa831fab7a9e53267e24840c659dad3",
+          "base_sha256": "f8b5ed6fe2901231d33fa26c5a12e18e7bd438eed2e48736b9384c1b9f4d9816",
           "local_modified": false,
           "user_owned": false
         },
@@ -159,7 +159,7 @@
           "src": "rules/tests.md",
           "target": ".claude/rules/tests.md",
           "kind": "template",
-          "base_sha256": "0a3dc845eac048532b4ee30380e1885afc81e0e603085db4eb08af2cadadb4c0",
+          "base_sha256": "fcd805107cb0e57dbe402e59c4c1b388320f105aebe70a1501abee3b30ace29f",
           "local_modified": false,
           "user_owned": false
         },
@@ -167,7 +167,7 @@
           "src": "rules/reviewer-overrides.md",
           "target": ".claude/rules/agelto-reviewer-overrides.md",
           "kind": "template",
-          "base_sha256": "4bfc818f6e7c3d39f329de9a9eea073a67d730925ec5aa3ee396c9acd4bbaa18",
+          "base_sha256": "0db3673f635c241150148f68a8b90c96c9b4541eaa49096e94a403a5771e2f22",
           "local_modified": false,
           "user_owned": true
         }
@@ -175,7 +175,7 @@
       "removed_optional": []
     },
     "_common": {
-      "version": "0.4.0",
+      "version": "0.4.1",
       "source": "harness:configs/claude-code/agent-packs/_common",
       "answers": {
         "PACK_PREFIX": "agelto",
@@ -186,7 +186,7 @@
           "src": "agents/orchestrator.md",
           "target": ".claude/agents/agelto-orchestrator.md",
           "kind": "template",
-          "base_sha256": "1c2e373354d36eaa516bdd17b327b08b48a376da041a469502fbae2d03e07754",
+          "base_sha256": "d59e60175d9224a965c83572a20ad63f13cb0a6241205cad5f654646d90e0d27",
           "local_modified": false,
           "user_owned": false
         },
@@ -194,7 +194,7 @@
           "src": "rules/generated-assets.md",
           "target": ".claude/rules/generated-assets.md",
           "kind": "verbatim",
-          "base_sha256": "cd0db4f3c999e659a179a770d98e8a26693c00701dee4b74dfd47520870eaca2",
+          "base_sha256": "71d61af8bb3e897870f17921997dc3b1e824ee8e69b5752f330bbd3f08f5e201",
           "local_modified": false,
           "user_owned": false
         }

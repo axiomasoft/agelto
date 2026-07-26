@@ -1,20 +1,18 @@
 ---
 name: agelto-db-impact
 description: >-
-  Use this agent for READ-ONLY analysis of a agelto change's DATABASE impact: which
-  models / migrations / relations / scopes are affected, in an ISOLATED context, returning only
-  a compact impact summary. Delegate heavy schema exploration here.
-  <example>Context: добавляем поле, нужно понять охват.
-  user: "Что заденет добавление status в orders?"
-  assistant: "Зову agelto-db-impact — карта затронутых моделей/миграций/связей."
-  <commentary>Импакт по схеме — read-heavy разведка в субагенте.</commentary></example>
+  Use this agent for READ-ONLY analysis of a agelto change's DATABASE
+  impact (models/migrations/relations/scopes) in ISOLATED context — compact
+  summary only.
+  <example>user: "Что затронет эта миграция по связям?" assistant: "Зову
+  agelto-db-impact — вернёт компактную сводку."</example>
 tools: Read, Grep, Glob, Bash
 model: haiku
 color: blue
 ---
 <!-- swissknifeman:generated
 Generated-by: harness agent-packs
-Pack: backend-laravel@0.12.0
+Pack: backend-laravel@0.12.2
 Template: agents/db-impact.md
 Edit-policy: generated-core — НЕ редактируй; расширяй через extension-point
 Extension-points: .claude/rules/agelto-reviewer-overrides.md
