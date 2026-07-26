@@ -186,7 +186,7 @@ When a task requires more detail than what's in the current context, load the re
 | `agelto-test-verifier` | >- | — |
 | `agelto-test-writer` | >- | laravel-testing, test-isolation-guard, repositories |
 
-## Установленные скиллы (133)
+## Установленные скиллы (128)
 
 ### architect — Architecture, API and data design, security, observability, tech stack selection
 
@@ -195,7 +195,6 @@ When a task requires more detail than what's in the current context, load the re
 - **architecture** — System architecture, stack choice, ADR, C4 diagrams, deployment, scalability
 - **codebase-design** — Shared vocabulary and discipline for designing DEEP modules (Ousterhout/Feathers): Module/Interface/Depth/Seam/Adapter/Leverage/Locality; deletion-test; interface = test surface; 'one adapter is a hypothetical seam, two is a real one'. Activate when designing/improving a module interface, finding deepening opportunities, choosing a seam, or raising testability/AI-navigability.
 - **data-schema** — Data schema, entities, attributes, relations. DB-agnostic — markdown tables only
-- **dev-engineering-super-skill** — Broad engineering-bucket navigator (composite of external dev skills). For specific work prefer the granular skill — architecture→architecture, API→api-design, data→data-schema, domain→domain-modeling, agents→agent-design, eval→eval-design, security→security-design, observability→observability-design, stack→tech-stack-selection, codebase→codebase-design. Use only for a cross-cutting overview when no single skill fits.
 - **domain-modeling** — Active domain-model discipline: challenge terms, stress-test with scenarios, RECORD the glossary (CONTEXT.md) and ADRs INLINE as they crystallize (not in batches). Multi-context via CONTEXT-MAP.md; Rule of Two entry into the shared term-index; term steward model. Activate when clarifying terminology/ubiquitous language, recording an architectural decision, or when another skill builds a domain model (esp. fintech).
 - **ecosystem-reuse-gate** — Gate against reinventing functionality when designing a new project/feature: before build-new, force a check against the ecosystem registry (radar) and run universal vendor-vs-build if-then rules. Default is reuse; build-new only when a rule explicitly fires. Activate when designing a new project, a large reusable feature, or picking a stack.
 - **eval-design** — Evaluate LLM/AI output quality — eval-set, metrics, regression harness, automated + human review
@@ -329,7 +328,6 @@ When a task requires more detail than what's in the current context, load the re
 - **capacity-planning** — Capacity planning — load forecasting, headroom, autoscaling policy, cost budget, what to monitor, when to scale up/down
 - **incident-response** — Prod incident response process — severity levels, roles (IC/Comms/SME), communication, action log, handoff to postmortem
 - **oncall-rotation** — On-call rotation design — schedule, primary/secondary, handoff, compensation, burnout defusing, paging policy
-- **operations-cx-super-skill** — Broad operations/CX-bucket navigator (composite of external CX skills). For specific work prefer the granular skill — incidents→incident-response, postmortem→postmortem, on-call→oncall-rotation, capacity→capacity-planning, runbooks→runbook. Use only for a cross-cutting overview when no single skill fits.
 - **postmortem** — Blameless postmortem after SEV-1/2 incident — timeline, root cause (5 Whys), contributing factors, action items, knowledge distribution
 - **runbook** — Operational runbook template per P1/P2 alert — symptoms, diagnostics, mitigation steps, escalation, post-actions
 
@@ -344,7 +342,6 @@ When a task requires more detail than what's in the current context, load the re
 - **database** — Database migrations, models, and table naming. Activate when writing migrations, creating models, defining schema, foreign keys, or working in database/migrations/.
 - **dependency-injection** — Layer interaction via constructor injection: final readonly + promotion, injection matrix, Action composition
 - **laravel** — Laravel architecture patterns: actions, repositories, resources
-- **laravel-best-practices** — Laravel best practices: 20 rule categories (Eloquent, validation, cache, queues, security) with routing by task.
 - **laravel-structure** — Laravel project structure canon for greenfield and adding domains: domain taxonomy, layer-mirror rule, class placement and naming
 - **named-arguments** — PHP rule: method/function calls use named arguments; exceptions; activate when writing/reviewing calls or when readability/parameter order is mentioned
 - **namespace-refactor-safety** — Discipline for large PHP/Laravel namespace or class-move refactors: three-phase alias → update use-statements → hard rename; anchor find-replace on FQN to dodge prefix collisions; keep a contract at the seam for phpstan; arch-tests for layer parity. Activate on: namespace refactor, move class, rename namespace, domain restructure, mass rename.
@@ -384,10 +381,8 @@ When a task requires more detail than what's in the current context, load the re
 
 - **agent-packs** — Install and VERSIONED upgrade of agent-packs (Claude Code agents/workflows/hooks) from harness into a consumer project: stack detect -> interview -> render+copy -> lock; upgrade via CHANGELOG delta with 3-way reasoning over sha256 in lock, no diff engine. Activate on: install/upgrade agent-pack, add roles+dev-loop+review-gate to project, versioned upgrade of agent templates, agent-pack.lock.
 - **brain-locator** — Reach the Brain vault (ecosystem Obsidian docs) from a project — non-hardcoded path resolution (maind/$HOME), own and linked-project docs, sync
-- **cross-project-coordinator** — Orchestrate cross-project code analysis: walk linked projects (via topology), find dups/divergence/shared-package candidates, emit prioritized unification recommendations. Read-only — no edits, no PRs. Run for broad cross-project work, not a single repo.
 - **local-topology** — Root map of the local dev environment — three hub nodes (Brain vault, swissknifeman, projects base) and navigation between projects, their code and docs. Read from ~/.swissknifeman/topology.json
 - **session-observer** — EXPERIMENTAL (enable per-project). Post-hoc Claude Code session analysis from JSONL logs — finds weak spots on 3 axes: agents (skill-skip, drift, loops), skills (gaps, dead weight, thin), settings (hooks, permissions). Findings → learnings via memory-hook, human promotes. Activate AFTER a work cycle / at session end / on request «analyze session» — only if enabled in project.
-- **shared-memory** — Constellation shared brain via hook ~/.claude/hooks/memory/ + mAInd daemon. Recall before work, remember after. Project canon = MODE=maind (daemon :4111, scope isolation maind-side): private project:<id> + tag-shared ns:<namespace> + global; recall unions them; SessionStart auto-injects digest (native memory off). Routing rule: one fact in one store. Swappable backend: maind|native|file|federation|off.
 - **swissknifeman-locator** — Reach swissknifeman (skills node) from an external repo — non-hardcoded path resolution, root config.json as registry of linked projects, project↔hub link scheme
 <!-- swissknifeman:hub:end -->
 <!-- maind:healthcheck hash=f269dd753069 (managed by maind — не редактировать вручную) -->
