@@ -12,6 +12,7 @@ use App\Models\Procurement\Document\DocumentVersion;
 use App\Models\Procurement\ProcurementEvent;
 use App\Repositories\Procurement\RepresentationStoreRepository;
 use App\Services\Procurement\Prepare\SpreadsheetStrategy;
+use Illuminate\Support\Facades\Process;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
 
@@ -81,7 +82,7 @@ test('подготовка XLSX — конвертация в PDF записан
     Storage::disk('s3')->assertExists($representation->storage_path);
 })->skip(fn () => ! extension_loaded('gd'), 'требует gd (Mpdf) — см. docker/php/Dockerfile');
 
-test('XLSX сверх лимита строк — стратегия отказывается, цепочка доводит документ до prepared без представления (D26)', function () {
+test('XLSX сверх лимита строк — ветка LibreOffice производит представление, документ prepared (D26/P3.4)', function () {
     config(['ai.prepare.xlsx_max_rows' => 1]);
     Storage::fake('s3');
     $document = Document::factory()->create(['status' => DocumentStatus::Downloaded]);
@@ -89,13 +90,16 @@ test('XLSX сверх лимита строк — стратегия отказ�
 
     (new PrepareDocumentJob($document->id))->handle();
 
-    // Лимит ИНСТРУМЕНТА подготовки ≠ приговор документу (D26/D28): xlsx уходит дальше оригиналом
-    // через PassthroughStrategy, а не становится unprocessable(too_large), как до P3.1.
+    // Лимит ИНСТРУМЕНТА подготовки ≠ приговор документу (D26/D28): с P3.4 xlsx сверх лимита
+    // идёт через LibreOffice-фолбэк `SpreadsheetStrategy`, а не оригиналом через Passthrough.
+    $representation = app(RepresentationStoreRepository::class)->find($version, RepresentationKind::Pdf);
+
     expect($document->refresh()->status)->toBe(DocumentStatus::Prepared)
-        ->and(app(RepresentationStoreRepository::class)->allFor($version))->toHaveCount(0);
+        ->and($representation)->not->toBeNull()
+        ->and($representation->meta['tool'])->toBe('libreoffice');
 });
 
-test('XLSX сверх лимита размера — отказ стратегии до любого чтения файла, документ не терминален (D26)', function () {
+test('XLSX сверх лимита размера — ветка LibreOffice производит представление, документ не терминален (D26/P3.4)', function () {
     config(['ai.prepare.xlsx_max_mb' => 0]);
     Storage::fake('s3');
     $document = Document::factory()->create(['status' => DocumentStatus::Downloaded]);
@@ -103,14 +107,20 @@ test('XLSX сверх лимита размера — отказ стратег�
 
     (new PrepareDocumentJob($document->id))->handle();
 
+    $representation = app(RepresentationStoreRepository::class)->find($version, RepresentationKind::Pdf);
+
     expect($document->refresh()->status)->toBe(DocumentStatus::Prepared)
-        ->and(app(RepresentationStoreRepository::class)->allFor($version))->toHaveCount(0);
+        ->and($representation)->not->toBeNull()
+        ->and($representation->meta['tool'])->toBe('libreoffice');
 });
 
-test('XLSX сверх лимита размера при единственной стратегии в цепочке — unprocessable(conversion_failed)', function () {
+test('XLSX — обе ветки SpreadsheetStrategy упали — unprocessable(conversion_failed) (P3.4)', function () {
     config([
         'ai.prepare.xlsx_max_mb' => 0,
         'ai.prepare.strategies' => [SpreadsheetStrategy::class],
+    ]);
+    Process::fake([
+        '*soffice*' => Process::result(errorOutput: 'soffice: crashed on convert', exitCode: 1),
     ]);
     Storage::fake('s3');
     $document = Document::factory()->create(['status' => DocumentStatus::Downloaded]);
@@ -120,8 +130,7 @@ test('XLSX сверх лимита размера при единственно�
 
     $document->refresh();
     expect($document->status)->toBe(DocumentStatus::Unprocessable)
-        ->and($document->last_error)->toContain('conversion_failed')
-        ->and($document->last_error)->toContain('SpreadsheetStrategy');
+        ->and($document->last_error)->toContain('conversion_failed');
 });
 
 test('архив с xlsx внутри — создаёт дочерний Document+Version с parent_version_id и событием document_added', function () {
@@ -251,6 +260,9 @@ test('unprocessable-исход не диспатчит ScreeningJob даже з�
         'ai.screening.enabled' => true,
         'ai.prepare.xlsx_max_mb' => 0,
         'ai.prepare.strategies' => [SpreadsheetStrategy::class],
+    ]);
+    Process::fake([
+        '*soffice*' => Process::result(errorOutput: 'soffice: crashed on convert', exitCode: 1),
     ]);
     Storage::fake('s3');
     Queue::fake();

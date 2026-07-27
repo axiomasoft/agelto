@@ -6,6 +6,7 @@ use App\Services\Procurement\Prepare\GsfxStrategy;
 use App\Services\Procurement\Prepare\ImageStrategy;
 use App\Services\Procurement\Prepare\PassthroughStrategy;
 use App\Services\Procurement\Prepare\SpreadsheetStrategy;
+use App\Services\Procurement\Prepare\WordStrategy;
 
 return [
     /*
@@ -163,6 +164,7 @@ return [
             ArchiveStrategy::class,
             GsfxStrategy::class,
             SpreadsheetStrategy::class,
+            WordStrategy::class,
             ImageStrategy::class,
             PassthroughStrategy::class,
         ],

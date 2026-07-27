@@ -5,13 +5,19 @@ declare(strict_types=1);
 namespace App\Services\Procurement\Prepare;
 
 use App\Console\Commands\Procurement\ConvertXlsxToPdfCommand;
+use App\Enums\Procurement\DocumentStatus;
 use App\Enums\Procurement\RepresentationKind;
+use App\Enums\Procurement\UnprocessableReason;
 use App\Models\Procurement\Document\Document;
 use App\Models\Procurement\Document\DocumentVersion;
+use App\Repositories\Procurement\DocumentStoreRepository;
 use App\Repositories\Procurement\RepresentationStoreRepository;
 use Composer\InstalledVersions;
+use Illuminate\Contracts\Filesystem\Filesystem;
+use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Process;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use PhpOffice\PhpSpreadsheet\Reader\Xls as XlsReader;
 use PhpOffice\PhpSpreadsheet\Reader\Xlsx as XlsxReader;
 use RuntimeException;
@@ -24,15 +30,19 @@ use RuntimeException;
  * PHP-процессе с явным `memory_limit` ({@see ConvertXlsxToPdfCommand}), чтобы OOM не убивал
  * соседние jobs воркера.
  *
- * Превышение любого из порогов `config('ai.prepare.xlsx_*')` — это лимит ИНСТРУМЕНТА, а не
- * приговор документу (D26/D28): стратегия возвращает `false` и цепочка идёт дальше (в P3.4
- * следующим номером встанет LibreOffice, сегодня — `PassthroughStrategy` с оригиналом).
- * Результат конверсии кладётся представлением `pdf` в `prc_document_representations` (D25).
+ * Превышение любого из порогов `config('ai.prepare.xlsx_*')` ЛИБО падение самой конверсии —
+ * лимит ИНСТРУМЕНТА, а не приговор документу (D26/D28, P3.4): вторая ветка пробует
+ * `LibreOfficeConverter` (fidelity-конвертер, сохраняет print-setup и merged cells, D7). Обе
+ * ветки пишут ОДИН kind `pdf` (различаются `meta.tool`) — выбор представления для LLM
+ * принадлежит P6 (D3), заводить второй kind здесь запрещено. Обе ветки упали →
+ * `unprocessable(conversion_failed)`.
  */
 final readonly class SpreadsheetStrategy implements PreparationStrategy
 {
     public function __construct(
         private RepresentationStoreRepository $representations,
+        private DocumentStoreRepository $storeRepository,
+        private LibreOfficeConverter $converter,
     ) {}
 
     public function canProcess(DocumentVersion $version): bool
@@ -46,52 +56,103 @@ final readonly class SpreadsheetStrategy implements PreparationStrategy
             return true;
         }
 
+        $disk = Storage::disk((string) config('crawler.documents_disk'));
+        $localInput = tempnam(sys_get_temp_dir(), 'xlsx_').'.'.$version->extension;
+
+        try {
+            file_put_contents($localInput, $disk->get($version->storage_path));
+
+            if ($this->withinToolLimits($version, $localInput) && $this->tryPhpSpreadsheet($version, $disk, $localInput)) {
+                return true;
+            }
+
+            if ($this->tryLibreOffice($version, $disk, $localInput)) {
+                return true;
+            }
+
+            $this->markUnprocessable($document, 'PhpSpreadsheet и LibreOffice не смогли сконвертировать файл в PDF');
+
+            return true;
+        } finally {
+            @unlink($localInput);
+        }
+    }
+
+    private function withinToolLimits(DocumentVersion $version, string $localInput): bool
+    {
         $maxMb = (float) config('ai.prepare.xlsx_max_mb', 25);
         if ($version->size_bytes > $maxMb * 1024 * 1024) {
             return false;
         }
 
-        $disk = Storage::disk((string) config('crawler.documents_disk'));
-        $localInput = tempnam(sys_get_temp_dir(), 'xlsx_').'.'.$version->extension;
+        $maxRows = (int) config('ai.prepare.xlsx_max_rows', 20000);
+
+        return $this->countRows($localInput, $version->extension) <= $maxRows;
+    }
+
+    private function tryPhpSpreadsheet(DocumentVersion $version, Filesystem $disk, string $localInput): bool
+    {
         $localOutput = tempnam(sys_get_temp_dir(), 'xlsx_pdf_').'.pdf';
 
         try {
-            file_put_contents($localInput, $disk->get($version->storage_path));
-
-            $maxRows = (int) config('ai.prepare.xlsx_max_rows', 20000);
-            $rows = $this->countRows($localInput, $version->extension);
-
-            if ($rows > $maxRows) {
-                return false;
-            }
-
             $startedAt = microtime(as_float: true);
             $this->convert($localInput, $localOutput);
             $durationMs = (int) round((microtime(as_float: true) - $startedAt) * 1000);
 
-            $preparedPath = $this->preparedPath($version);
             $pdf = (string) file_get_contents($localOutput);
-            $disk->put($preparedPath, $pdf);
-
-            $this->representations->storeOrUpdate($version, RepresentationKind::Pdf, [
-                'storage_path' => $preparedPath,
-                'disk' => null,
-                'size_bytes' => strlen($pdf),
-                'mime' => 'application/pdf',
-                'meta' => [
-                    'tool' => 'phpspreadsheet+mpdf',
-                    'tool_version' => InstalledVersions::getPrettyVersion('phpoffice/phpspreadsheet'),
-                    'duration_ms' => $durationMs,
-                    'source_kind' => $version->extension,
-                ],
-                'generated_at' => now(),
+            $this->storePdfRepresentation($version, $disk, $pdf, [
+                'tool' => 'phpspreadsheet+mpdf',
+                'tool_version' => InstalledVersions::getPrettyVersion('phpoffice/phpspreadsheet'),
+                'duration_ms' => $durationMs,
+                'source_kind' => $version->extension,
             ]);
 
             return true;
+        } catch (RuntimeException) {
+            return false;
         } finally {
-            @unlink($localInput);
             @unlink($localOutput);
         }
+    }
+
+    private function tryLibreOffice(DocumentVersion $version, Filesystem $disk, string $localInput): bool
+    {
+        $outputDir = sys_get_temp_dir().'/xlsx_pdf_'.Str::uuid();
+
+        try {
+            File::ensureDirectoryExists($outputDir);
+            $localOutput = $this->converter->toPdf($localInput, $outputDir);
+
+            $pdf = (string) file_get_contents($localOutput);
+            $this->storePdfRepresentation($version, $disk, $pdf, [
+                'tool' => 'libreoffice',
+                'tool_version' => $this->converter->version(),
+            ]);
+
+            return true;
+        } catch (RuntimeException) {
+            return false;
+        } finally {
+            File::deleteDirectory($outputDir);
+        }
+    }
+
+    /**
+     * @param  array<string, mixed>  $meta
+     */
+    private function storePdfRepresentation(DocumentVersion $version, Filesystem $disk, string $pdf, array $meta): void
+    {
+        $preparedPath = $this->preparedPath($version);
+        $disk->put($preparedPath, $pdf);
+
+        $this->representations->storeOrUpdate($version, RepresentationKind::Pdf, [
+            'storage_path' => $preparedPath,
+            'disk' => null,
+            'size_bytes' => strlen($pdf),
+            'mime' => 'application/pdf',
+            'meta' => $meta,
+            'generated_at' => now(),
+        ]);
     }
 
     private function countRows(string $path, string $extension): int
@@ -119,5 +180,13 @@ final readonly class SpreadsheetStrategy implements PreparationStrategy
     private function preparedPath(DocumentVersion $version): string
     {
         return 'documents/'.substr($version->content_hash, 0, 2)."/{$version->content_hash}.prepared.pdf";
+    }
+
+    private function markUnprocessable(Document $document, string $detail): void
+    {
+        $this->storeRepository->update($document, [
+            'status' => DocumentStatus::Unprocessable,
+            'last_error' => 'unprocessable:'.UnprocessableReason::ConversionFailed->value.": {$detail}",
+        ]);
     }
 }

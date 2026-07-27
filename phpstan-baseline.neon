@@ -1255,6 +1255,24 @@ parameters:
 			path: /var/www/html/app/Services/Procurement/Prepare/SpreadsheetStrategy.php
 
 		-
+			message: '#^Access to an undefined property App\\Models\\Procurement\\Document\\DocumentVersion\:\:\$content_hash\.$#'
+			identifier: property.notFound
+			count: 2
+			path: /var/www/html/app/Services/Procurement/Prepare/WordStrategy.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Procurement\\Document\\DocumentVersion\:\:\$extension\.$#'
+			identifier: property.notFound
+			count: 2
+			path: /var/www/html/app/Services/Procurement/Prepare/WordStrategy.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Procurement\\Document\\DocumentVersion\:\:\$storage_path\.$#'
+			identifier: property.notFound
+			count: 1
+			path: /var/www/html/app/Services/Procurement/Prepare/WordStrategy.php
+
+		-
 			message: '#^Access to an undefined property App\\Models\\Procurement\\Procurement\:\:\$revision_count\.$#'
 			identifier: property.notFound
 			count: 1
