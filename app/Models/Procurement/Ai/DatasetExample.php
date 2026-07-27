@@ -25,6 +25,7 @@ final class DatasetExample extends Model
 
     protected $fillable = [
         'document_version_id',
+        'fixture_id',
         'task',
         'gold',
         'gold_ref',
@@ -51,5 +52,10 @@ final class DatasetExample extends Model
     public function verifiedBy(): BelongsTo
     {
         return $this->belongsTo(related: User::class, foreignKey: 'verified_by');
+    }
+
+    public function fixture(): BelongsTo
+    {
+        return $this->belongsTo(related: Fixture::class);
     }
 }
