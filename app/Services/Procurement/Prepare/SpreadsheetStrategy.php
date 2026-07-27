@@ -36,6 +36,12 @@ use RuntimeException;
  * ветки пишут ОДИН kind `pdf` (различаются `meta.tool`) — выбор представления для LLM
  * принадлежит P6 (D3), заводить второй kind здесь запрещено. Обе ветки упали →
  * `unprocessable(conversion_failed)`.
+ *
+ * Второй проход того же вызова (P3.5, D3) пишет ВТОРОЕ представление `text_grid`
+ * ({@see TextGridRenderer}) — третий кандидат входа в LLM наряду с PDF и OCR-текстом; тот же
+ * size-gate, что у PDF-ветки, но БЕЗ фолбэка (у текстовой сетки нет второго инструмента):
+ * превышение лимита просто не производит `text_grid`, документ при этом НЕ становится
+ * unprocessable, если PDF получился хотя бы одной из веток.
  */
 final readonly class SpreadsheetStrategy implements PreparationStrategy
 {
@@ -43,6 +49,7 @@ final readonly class SpreadsheetStrategy implements PreparationStrategy
         private RepresentationStoreRepository $representations,
         private DocumentStoreRepository $storeRepository,
         private LibreOfficeConverter $converter,
+        private TextGridRenderer $textGridRenderer,
     ) {}
 
     public function canProcess(DocumentVersion $version): bool
@@ -52,7 +59,10 @@ final readonly class SpreadsheetStrategy implements PreparationStrategy
 
     public function process(Document $document, DocumentVersion $version): bool
     {
-        if ($this->representations->find($version, RepresentationKind::Pdf) !== null) {
+        $hasPdf = $this->representations->find($version, RepresentationKind::Pdf) !== null;
+        $hasTextGrid = $this->representations->find($version, RepresentationKind::TextGrid) !== null;
+
+        if ($hasPdf && $hasTextGrid) {
             return true;
         }
 
@@ -62,15 +72,20 @@ final readonly class SpreadsheetStrategy implements PreparationStrategy
         try {
             file_put_contents($localInput, $disk->get($version->storage_path));
 
-            if ($this->withinToolLimits($version, $localInput) && $this->tryPhpSpreadsheet($version, $disk, $localInput)) {
-                return true;
+            $withinToolLimits = $this->withinToolLimits($version, $localInput);
+
+            if (! $hasPdf) {
+                $hasPdf = ($withinToolLimits && $this->tryPhpSpreadsheet($version, $disk, $localInput))
+                    || $this->tryLibreOffice($version, $disk, $localInput);
             }
 
-            if ($this->tryLibreOffice($version, $disk, $localInput)) {
-                return true;
+            if (! $hasTextGrid) {
+                $this->storeTextGrid($version, $disk, $localInput);
             }
 
-            $this->markUnprocessable($document, 'PhpSpreadsheet и LibreOffice не смогли сконвертировать файл в PDF');
+            if (! $hasPdf) {
+                $this->markUnprocessable($document, 'PhpSpreadsheet и LibreOffice не смогли сконвертировать файл в PDF');
+            }
 
             return true;
         } finally {
@@ -155,6 +170,32 @@ final readonly class SpreadsheetStrategy implements PreparationStrategy
         ]);
     }
 
+    private function storeTextGrid(DocumentVersion $version, Filesystem $disk, string $localInput): void
+    {
+        $rendered = $this->textGridRenderer->render($localInput, $version->extension);
+
+        if ($rendered === false) {
+            return;
+        }
+
+        $preparedPath = $this->preparedTextGridPath($version);
+        $disk->put($preparedPath, $rendered['text']);
+
+        $this->representations->storeOrUpdate($version, RepresentationKind::TextGrid, [
+            'storage_path' => $preparedPath,
+            'disk' => null,
+            'size_bytes' => strlen($rendered['text']),
+            'token_estimate' => (int) ceil(strlen($rendered['text']) / 4),
+            'mime' => 'text/tab-separated-values',
+            'meta' => [
+                'tool' => 'phpspreadsheet',
+                'sheets' => $rendered['sheets'],
+                'rows' => $rendered['rows'],
+            ],
+            'generated_at' => now(),
+        ]);
+    }
+
     private function countRows(string $path, string $extension): int
     {
         $reader = $extension === 'xls' ? new XlsReader : new XlsxReader;
@@ -180,6 +221,11 @@ final readonly class SpreadsheetStrategy implements PreparationStrategy
     private function preparedPath(DocumentVersion $version): string
     {
         return 'documents/'.substr($version->content_hash, 0, 2)."/{$version->content_hash}.prepared.pdf";
+    }
+
+    private function preparedTextGridPath(DocumentVersion $version): string
+    {
+        return 'documents/'.substr($version->content_hash, 0, 2)."/{$version->content_hash}.prepared.text_grid.txt";
     }
 
     private function markUnprocessable(Document $document, string $detail): void

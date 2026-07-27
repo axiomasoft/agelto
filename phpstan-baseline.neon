@@ -1233,13 +1233,13 @@ parameters:
 		-
 			message: '#^Access to an undefined property App\\Models\\Procurement\\Document\\DocumentVersion\:\:\$content_hash\.$#'
 			identifier: property.notFound
-			count: 2
+			count: 4
 			path: /var/www/html/app/Services/Procurement/Prepare/SpreadsheetStrategy.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Procurement\\Document\\DocumentVersion\:\:\$extension\.$#'
 			identifier: property.notFound
-			count: 4
+			count: 5
 			path: /var/www/html/app/Services/Procurement/Prepare/SpreadsheetStrategy.php
 
 		-
