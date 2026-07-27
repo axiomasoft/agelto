@@ -118,6 +118,13 @@ P4.1 — 🟢 (`a72fa22` + фикс `6c74e92`): `research/05-schema-audit.md`, �
   монорепо swissknifeman: гейты P4.2 прогнаны реально —
   `PYTHONPATH=/home/vostrikov/projects/packages/swissknifeman/packages/task/lib` →
   `pre_mutation: allow · pre_final: allow` (оба). Следующим шагам использовать тот же PYTHONPATH.
+- **`git add plans/<PLAN-ID>` затягивает эфемерные логи тулинга.** В каталоге плана живут
+  `.claude/` и `.swissknife/` (feature-log, `audit`/`events` ndjson, ephemeral-снимки сессий), и
+  буквальный шаг 6 топологии закрытия версионирует их вместе с бухгалтерией: у P4.2 это шесть
+  файлов в `77029b4`, убраны `820215e`. **Повторится у каждого следующего item'а**, пока в
+  корневой `.gitignore` не добавлены `plans/**/.claude/` и `plans/**/.swissknife/` — правка
+  принадлежит владельцу (файл правится им параллельно). До этого исполнителю следует проверять
+  `git status --porcelain` перед bookkeeping-коммитом.
 - **Бухгалтерия P4.1 была не закоммичена** и уехала в item-коммит P4.2 `381afa4` вместе с `plan.md`
   (Known Deviations P4.2 п.1). Для чистоты истории: закрывающий item ОБЯЗАН делать
   bookkeeping-коммит, иначе следующий исполнитель публикует чужую бухгалтерию своим коммитом.
