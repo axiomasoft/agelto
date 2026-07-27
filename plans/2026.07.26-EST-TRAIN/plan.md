@@ -11,7 +11,7 @@
 | Document Type | Executable Master Plan |
 | Authoring Model | frontier |
 | Design Passes | 3/3 — 9 фаз / 46 items + высокая неопределённость брифа (владелец: «мысли сумбурные»); pass 1 — скелеты и контракты, pass 2 — детализация всех девяти фаз (завершён 2026-07-27), pass 3 — `finish`: сквозной reconcile контрактов, DoR-свип, пересборка roadmap (завершён 2026-07-27, D82–D85). Дизайн-бюджет исчерпан. Три захода ремедиации находок аудита (2026-07-27: D86 по F1–F8, D87 по A1–A7, D88 по C1–C7) прогонами НЕ считаются: новых решений по существу задачи не принято, состав и статусы 46 items не изменились — правились формулировки ТЗ по названным аудитом адресам. Заход `plan-design <ID> P4.2` 2026-07-27 (D89–D90 — решения владельца по OQ-5/OQ-6) прогоном ТОЖЕ не считается: режим design-item, состав и статусы 46 items не изменились, правились ТЗ одного item'а (P4.2) и адреса его потребителей. Новый прогон дизайна — только по явной D-записи владельца |
-| Last Updated | 2026-07-27 (P3.8 закрыт 🟢 — видимость непрочитанных атрибутов + каталог `<Indexes>` в `GsfxReader`; P3.9 остаётся ⬜) |
+| Last Updated | 2026-07-27 (P3.9 закрыт 🟢 — коэффициенты/`Tzm2022`/нормативы НР-СП/`Vr2001` в `GsfxReader`; фаза P3 терминальна 2/9 🟢 + 7/9 🟠, ждёт `plan-close`) |
 | Repository | agelto (branch main) |
 | Related Packages | prism-php/prism, spatie/laravel-data, laravel/horizon, phpoffice/phpspreadsheet, filament/filament; системные бинари единого образа (P3.2, D23): qpdf (есть), libreoffice-calc/writer + fonts-dejavu-core/liberation, 7zip (`7zz`), unar, poppler-utils, tesseract-ocr + rus/eng, ocrmypdf, ghostscript |
 | Execution Mode | phase-first |
@@ -113,7 +113,7 @@ EST-AI (закрыт 2026-07-09, 🟠) построил пайплайн раз�
 |:--|:--|:--|:--|
 | P1 | Разведка корпуса, таксономия и отбор эталонов | 4/4 | 🟢 Done |
 | P2 | Хранилище эталонов и реестр в БД | 2/4 | 🟠 Done with deviations |
-| P3 | Фабрика представлений документа (gsfx, LibreOffice, архивы, OCR) | 1/9 | 🟡 In progress |
+| P3 | Фабрика представлений документа (gsfx, LibreOffice, архивы, OCR) | 2/9 | 🟡 In progress |
 | P4 | Аудит и правка схемы смет по фактам корпуса | 3/5 | 🟠 Done with deviations |
 | P5 | Детерминированный gold-парсер и наполнение эталонов | 0/6 | 🔴 Blocked |
 | P6 | Бенчмарк представлений и ADR по формату входа | 0/3 | ⬜ Not started |
@@ -291,6 +291,7 @@ EST-AI (закрыт 2026-07-09, 🟠) построил пайплайн раз�
 | 2026-07-27 | plan-run/implementation·high (sonnet) | P5.1 эскалирован 🔴: реопен P3.3 — `GsfxReader`/`GsfxDocument` молча теряют `Position@IndexCode` (64/110 позиций реального эталона) и не разбирают каталог `<Indexes>` вовсе, `index_value` не восстановим ни для одной позиции/ресурса; предсказано заранее (`handoff.md`, `research/06` §7, `research/08` §6), подтверждено первым фактическим столкновением — детали см. phases/P5.md P5.1 |
 | 2026-07-27 | plan-design/frontier·high (opus) | Фаза P3 реопенена (D110): заведены P3.8/P3.9 — ридер долистывает `Data.xml` до пяти величин с готовыми носителями; D111 — талль атрибутов, D112 — границы — детали см. phases/P3.md P3.8/P3.9 |
 | 2026-07-27 | plan-run/implementation·high (sonnet) | P3.8 закрыт 🟢: атрибутный талль `unmapped` (ключ `Тег@Атрибут`) + `GsfxPosition::$index_code` + `GsfxIndex`/`GsfxIndexCatalog`/`GsfxDocument::$index_catalog` из `Document/Indexes`, реальный эталон совпал дословно (64/47/79) — детали см. phases/P3.md P3.8 Completion Notes |
+| 2026-07-27 | plan-run/implementation·high (sonnet) | P3.9 закрыт 🟢: `GsfxCoefficient`/`GsfxTzm2022` + нормативы НР/СП + `work_type_id` из `Position@Vr2001`, обход ВСЕХ блоков `Vids_Rab`; реальный эталон совпал дословно (3/2/81/15/7/110 из 110); фаза P3 терминальна (9/9 items 🟢/🟠) — детали см. phases/P3.md P3.9 Completion Notes |
 
 ## Обсуждение
 
