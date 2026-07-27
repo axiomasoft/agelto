@@ -18,6 +18,9 @@ use Spatie\LaravelData\Data;
  *   `GsfxDocument::$index_catalog->positions`; значение переносится КАК ЕСТЬ, разыменование в
  *   `@MT`/`@EM` — работа маппера P5.1 (D94). На эталоне непуст ровно у тех 64 из 110 позиций, что
  *   не несут дочернего `<Resources>` (`findings/P3-gsfx-reader-gaps-2026-07-27.md` §3).
+ * - work_type_id: ссылка позиции на вид работ (`Position@Vr2001`), значение КАК ЕСТЬ — резолвится
+ *   в `GsfxWorkType::$id` 110 из 110 на эталоне (findings §7); резолв в дерево `EstimateWorkType` —
+ *   работа маппера P5.1 (P3.9, `research/16-gsfx-reader-reopen.md` §1).
  * - price_base: базовая цена позиции (`PriceBase/@Value`, при отсутствии — `@MT`, затем `@PZ`).
  * - price_curr: текущая цена позиции (`PriceCurr/@Value`, при отсутствии — `@MT`).
  * - indices: коды индексов пересчёта, СОБРАННЫЕ из `index_code` дочерних ресурсов (уникальные,
@@ -25,21 +28,22 @@ use Spatie\LaravelData\Data;
  *   `index_code` самой позиции: `Data.xml` хранит код индекса на разных носителях в зависимости от
  *   того, есть ли у позиции собственные ресурсы (позиция без `<Resources>` несёт `IndexCode` сама,
  *   позиция с `<Resources>` — на каждом ресурсе отдельно).
- * - coefficients: коэффициенты позиции — поле контракта DTO; в разобранном корпусе `<Koefficients>`
- *   существует ГЛОБАЛЬНЫМ каталогом без атрибута, однозначно связывающего запись с конкретной
- *   позицией (`Options="InPos …"` — флаг применимости, не ссылка на ID) — остаётся пустым списком,
- *   не додумываем связь; каталог целиком уходит в `GsfxDocument::$unmapped['Koefficients']`.
+ * - coefficients: коэффициенты ПОЗИЦИИ из `Position/Koefficients/K` — связь с позицией выражена
+ *   ВЛОЖЕННОСТЬЮ (P3.9, `research/16-gsfx-reader-reopen.md` §2), додумывать её не нужно. Документные
+ *   `Document/Koefficients/K` — ОТДЕЛЬНЫЙ список без ссылки на конкретную позицию (`Options="InPos …"`
+ *   — флаг применимости, не ID) — уходят в `GsfxDocument::$coefficients`, по позициям не раскладываются.
  * - resources: ресурсы позиции. «Трудозатраты» из ТЗ фазы — это записи `resources` с
  *   `resource_type` `Tzr`/`Tzm` (затраты труда рабочих/машинистов, разведка §3), отдельного поля
  *   не заводим — дублировало бы те же данные вторым носителем.
  *
  * @property list<GsfxResource> $resources
+ * @property list<GsfxCoefficient> $coefficients
  */
 final class GsfxPosition extends Data
 {
     /**
      * @param  list<string>  $indices
-     * @param  list<string>  $coefficients
+     * @param  list<GsfxCoefficient>  $coefficients
      * @param  list<GsfxResource>  $resources
      */
     public function __construct(
@@ -49,6 +53,7 @@ final class GsfxPosition extends Data
         public ?string $unit = null,
         public ?string $quantity = null,
         public ?string $index_code = null,
+        public ?string $work_type_id = null,
         public ?string $price_base = null,
         public ?string $price_curr = null,
         public array $indices = [],

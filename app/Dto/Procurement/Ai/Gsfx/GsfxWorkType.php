@@ -13,8 +13,12 @@ use Spatie\LaravelData\Data;
  * - id: внутренний ID программы (`ID`).
  * - category: категория (`Category`, напр. `Construction`).
  * - nr_code / sp_code: ссылки на приказы, которыми утверждены нормативы НР/СП (`NrCode`/`SpCode`)
- *   — переносятся как есть, дальнейшие атрибуты (`Nacl`/`Plan`/маски/коэффициенты пересчёта) не
- *   документированы фазой и не додумываются здесь — вход в `P4`/`P5` по факту, если понадобится.
+ *   — переносятся как есть.
+ * - nacl / nacl_curr / plan / plan_curr: ставки НР/СП, базисный и текущий уровень (`@Nacl`/
+ *   `@NaclCurr`/`@Plan`/`@PlanCurr`, P3.9) — носитель `EstimateWorkType::$overhead_rate`/
+ *   `$overhead_rate_curr`/`$profit_rate`/`$profit_rate_curr` (SR-08). Маски (`NaclMask`/`PlanMask`)
+ *   и шифры КФС (`NrKfsCode`/`NKB`/`PNB`/…) носителя в `EstimateWorkType` не имеют (D33) — остаются
+ *   видимы атрибутным тальём `unmapped`, «про запас» не заводятся.
  */
 final class GsfxWorkType extends Data
 {
@@ -24,5 +28,9 @@ final class GsfxWorkType extends Data
         public ?string $category = null,
         public ?string $nr_code = null,
         public ?string $sp_code = null,
+        public ?string $nacl = null,
+        public ?string $nacl_curr = null,
+        public ?string $plan = null,
+        public ?string $plan_curr = null,
     ) {}
 }

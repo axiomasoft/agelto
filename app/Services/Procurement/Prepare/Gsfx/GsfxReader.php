@@ -7,12 +7,14 @@ namespace App\Services\Procurement\Prepare\Gsfx;
 use App\Dto\Procurement\Ai\Gsfx\GsfxAddZatr;
 use App\Dto\Procurement\Ai\Gsfx\GsfxAddZatrGlava;
 use App\Dto\Procurement\Ai\Gsfx\GsfxChapter;
+use App\Dto\Procurement\Ai\Gsfx\GsfxCoefficient;
 use App\Dto\Procurement\Ai\Gsfx\GsfxDocument;
 use App\Dto\Procurement\Ai\Gsfx\GsfxIndex;
 use App\Dto\Procurement\Ai\Gsfx\GsfxIndexCatalog;
 use App\Dto\Procurement\Ai\Gsfx\GsfxPassport;
 use App\Dto\Procurement\Ai\Gsfx\GsfxPosition;
 use App\Dto\Procurement\Ai\Gsfx\GsfxResource;
+use App\Dto\Procurement\Ai\Gsfx\GsfxTzm2022;
 use App\Dto\Procurement\Ai\Gsfx\GsfxWorkType;
 use App\Dto\Procurement\Ai\Gsfx\GsfxWorkTypeGroup;
 use SimpleXMLElement;
@@ -49,6 +51,7 @@ final readonly class GsfxReader
         $workTypeGroups = $this->parseWorkTypeGroups($xml, $unmapped);
         $addZatrGlavas = $this->parseAddZatrGlavas($xml, $unmapped);
         $indexCatalog = $this->parseIndexCatalog($xml, $unmapped);
+        $coefficients = isset($xml->Koefficients) ? $this->parseCoefficients($xml->Koefficients, $unmapped) : [];
         $this->tallyUnmappedTopLevel($xml, $unmapped);
 
         return new GsfxDocument(
@@ -57,6 +60,7 @@ final readonly class GsfxReader
             work_type_groups: $workTypeGroups,
             add_zatr_glavas: $addZatrGlavas,
             index_catalog: $indexCatalog,
+            coefficients: $coefficients,
             unmapped: $unmapped,
         );
     }
@@ -167,11 +171,12 @@ final readonly class GsfxReader
         $this->tallyUnreadAttributes(
             $positionNode,
             'Position',
-            ['Caption', 'Number', 'Code', 'Units', 'Quantity', 'IndexCode'],
+            ['Caption', 'Number', 'Code', 'Units', 'Quantity', 'IndexCode', 'Vr2001'],
             $unmapped,
         );
 
         $resources = [];
+        $coefficients = [];
         $priceBase = null;
         $priceCurr = null;
         $quantity = $this->attr($positionNode, 'Quantity');
@@ -181,6 +186,7 @@ final readonly class GsfxReader
 
             match ($name) {
                 'Resources' => $resources = $this->parseResources($child, $unmapped),
+                'Koefficients' => $coefficients = $this->parseCoefficients($child, $unmapped),
                 'Quantity' => $quantity = $this->readQuantityResult($child, $quantity, $unmapped),
                 'PriceBase' => $priceBase = $this->priceValue($child, $unmapped),
                 'PriceCurr' => $priceCurr = $this->priceValue($child, $unmapped),
@@ -202,12 +208,48 @@ final readonly class GsfxReader
             unit: $this->attr($positionNode, 'Units'),
             quantity: $quantity,
             index_code: $this->attr($positionNode, 'IndexCode'),
+            work_type_id: $this->attr($positionNode, 'Vr2001'),
             price_base: $priceBase,
             price_curr: $priceCurr,
             indices: $indices,
-            coefficients: [],
+            coefficients: $coefficients,
             resources: $resources,
         );
+    }
+
+    /**
+     * @param  array<string, int>  $unmapped
+     * @return list<GsfxCoefficient>
+     */
+    private function parseCoefficients(SimpleXMLElement $koefficientsNode, array &$unmapped): array
+    {
+        $this->tallyUnreadAttributes($koefficientsNode, 'Koefficients', [], $unmapped);
+
+        $coefficients = [];
+
+        foreach ($koefficientsNode->K ?? [] as $kNode) {
+            $this->tallyUnreadAttributes(
+                $kNode,
+                'K',
+                ['Caption', 'Code', 'Options', 'Value_OZ', 'Value_EM', 'Value_ZM', 'Value_MT', 'Level', 'AllVidRabs', 'VrGroupsLinks'],
+                $unmapped,
+            );
+
+            $coefficients[] = new GsfxCoefficient(
+                caption: (string) $kNode['Caption'],
+                code: $this->attr($kNode, 'Code'),
+                options: $this->attr($kNode, 'Options'),
+                value_oz: $this->attr($kNode, 'Value_OZ'),
+                value_em: $this->attr($kNode, 'Value_EM'),
+                value_zm: $this->attr($kNode, 'Value_ZM'),
+                value_mt: $this->attr($kNode, 'Value_MT'),
+                level: $this->attr($kNode, 'Level'),
+                all_vid_rabs: $this->attr($kNode, 'AllVidRabs'),
+                vr_groups_links: $this->attr($kNode, 'VrGroupsLinks'),
+            );
+        }
+
+        return $coefficients;
     }
 
     /**
@@ -249,11 +291,13 @@ final readonly class GsfxReader
 
             $priceBase = null;
             $priceCurr = null;
-            foreach ($child->children() as $priceNode) {
-                match ($priceNode->getName()) {
-                    'PriceBase' => $priceBase = $this->priceValue($priceNode, $unmapped),
-                    'PriceCurr' => $priceCurr = $this->priceValue($priceNode, $unmapped),
-                    default => $this->tally($unmapped, $priceNode->getName()),
+            $tzm2022 = null;
+            foreach ($child->children() as $subNode) {
+                match ($subNode->getName()) {
+                    'PriceBase' => $priceBase = $this->priceValue($subNode, $unmapped),
+                    'PriceCurr' => $priceCurr = $this->priceValue($subNode, $unmapped),
+                    'Tzm2022' => $tzm2022 = $this->parseTzm2022($subNode, $unmapped),
+                    default => $this->tally($unmapped, $subNode->getName()),
                 };
             }
 
@@ -266,10 +310,25 @@ final readonly class GsfxReader
                 price_base: $priceBase,
                 price_curr: $priceCurr,
                 index_code: $this->attr($child, 'IndexCode'),
+                tzm2022: $tzm2022,
             );
         }
 
         return $resources;
+    }
+
+    /**
+     * @param  array<string, int>  $unmapped
+     */
+    private function parseTzm2022(SimpleXMLElement $node, array &$unmapped): GsfxTzm2022
+    {
+        $this->tallyUnreadAttributes($node, 'Tzm2022', ['WorkClass', 'Quantity', 'Price'], $unmapped);
+
+        return new GsfxTzm2022(
+            work_class: $this->attr($node, 'WorkClass'),
+            quantity: $this->attr($node, 'Quantity'),
+            price: $this->attr($node, 'Price'),
+        );
     }
 
     /**
@@ -284,37 +343,44 @@ final readonly class GsfxReader
             $this->tallyUnreadAttributes($xml->VidRab_Catalog, 'VidRab_Catalog', [], $unmapped);
         }
 
-        if (isset($xml->VidRab_Catalog->Vids_Rab)) {
-            $this->tallyUnreadAttributes($xml->VidRab_Catalog->Vids_Rab, 'Vids_Rab', [], $unmapped);
-        }
+        foreach ($xml->VidRab_Catalog->Vids_Rab ?? [] as $blockNode) {
+            $this->tallyUnreadAttributes($blockNode, 'Vids_Rab', ['Type'], $unmapped);
 
-        foreach ($xml->VidRab_Catalog->Vids_Rab->VidRab_Group ?? [] as $groupNode) {
-            $this->tallyUnreadAttributes($groupNode, 'VidRab_Group', ['Caption', 'ID'], $unmapped);
+            $catalogType = $this->attr($blockNode, 'Type');
 
-            $workTypes = [];
+            foreach ($blockNode->VidRab_Group ?? [] as $groupNode) {
+                $this->tallyUnreadAttributes($groupNode, 'VidRab_Group', ['Caption', 'ID'], $unmapped);
 
-            foreach ($groupNode->Vid_Rab ?? [] as $vidRabNode) {
-                $this->tallyUnreadAttributes(
-                    $vidRabNode,
-                    'Vid_Rab',
-                    ['Caption', 'ID', 'Category', 'NrCode', 'SpCode'],
-                    $unmapped,
-                );
+                $workTypes = [];
 
-                $workTypes[] = new GsfxWorkType(
-                    caption: (string) $vidRabNode['Caption'],
-                    id: $this->attr($vidRabNode, 'ID'),
-                    category: $this->attr($vidRabNode, 'Category'),
-                    nr_code: $this->attr($vidRabNode, 'NrCode'),
-                    sp_code: $this->attr($vidRabNode, 'SpCode'),
+                foreach ($groupNode->Vid_Rab ?? [] as $vidRabNode) {
+                    $this->tallyUnreadAttributes(
+                        $vidRabNode,
+                        'Vid_Rab',
+                        ['Caption', 'ID', 'Category', 'NrCode', 'SpCode', 'Nacl', 'NaclCurr', 'Plan', 'PlanCurr'],
+                        $unmapped,
+                    );
+
+                    $workTypes[] = new GsfxWorkType(
+                        caption: (string) $vidRabNode['Caption'],
+                        id: $this->attr($vidRabNode, 'ID'),
+                        category: $this->attr($vidRabNode, 'Category'),
+                        nr_code: $this->attr($vidRabNode, 'NrCode'),
+                        sp_code: $this->attr($vidRabNode, 'SpCode'),
+                        nacl: $this->attr($vidRabNode, 'Nacl'),
+                        nacl_curr: $this->attr($vidRabNode, 'NaclCurr'),
+                        plan: $this->attr($vidRabNode, 'Plan'),
+                        plan_curr: $this->attr($vidRabNode, 'PlanCurr'),
+                    );
+                }
+
+                $groups[] = new GsfxWorkTypeGroup(
+                    caption: (string) $groupNode['Caption'],
+                    id: $this->attr($groupNode, 'ID'),
+                    catalog_type: $catalogType,
+                    work_types: $workTypes,
                 );
             }
-
-            $groups[] = new GsfxWorkTypeGroup(
-                caption: (string) $groupNode['Caption'],
-                id: $this->attr($groupNode, 'ID'),
-                work_types: $workTypes,
-            );
         }
 
         return $groups;
@@ -429,7 +495,7 @@ final readonly class GsfxReader
         // `Properties` дублирует паспорт из Properties.txt (тем же смыслом) — не теряем данные,
         // не считаем unmapped. `Attachments` — идёт в дочерние документы отдельным механизмом
         // (GsfxStrategy), тоже не пропажа.
-        $handled = ['Properties', 'Attachments', 'VidRab_Catalog', 'AddZatrats', 'Chapters', 'Indexes'];
+        $handled = ['Properties', 'Attachments', 'VidRab_Catalog', 'AddZatrats', 'Chapters', 'Indexes', 'Koefficients'];
 
         foreach ($xml->children() as $child) {
             $name = $child->getName();

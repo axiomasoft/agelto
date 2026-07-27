@@ -143,7 +143,7 @@ test('unmapped заполняется элементами и атрибутам
         'Quantity@Precision' => 2,
         'Indexes@IndexesMode' => 1,
         'Indexes@IndexesLinkMode' => 1,
-        'Vids_Rab@Type' => 1,
+        'Vid_Rab@NaclMask' => 1,
     ]);
 });
 
@@ -239,6 +239,165 @@ test('Indexes больше не числится элементным ключо
 
     expect($representation->meta['unmapped'])->not->toHaveKey('Indexes')
         ->and($representation->meta['unmapped'])->toHaveKey('Indexes@IndexesMode');
+});
+
+test('позиционный K попал в свою позицию со всеми четырьмя родами значений и level', function () {
+    [$document, $version] = makeGsfxVersion(buildGsfxZip());
+
+    app(GsfxStrategy::class)->process($document, $version);
+
+    $representation = DocumentRepresentation::query()
+        ->where('document_version_id', $version->id)
+        ->where('kind', RepresentationKind::StructuredXml)
+        ->first();
+
+    $disk = Storage::disk((string) config('crawler.documents_disk'));
+    $decoded = json_decode($disk->get($representation->storage_path), true);
+
+    $positions = $decoded['chapters'][0]['positions'];
+    expect($positions[0]['coefficients'])->toHaveCount(1)
+        ->and($positions[0]['coefficients'][0])->toMatchArray([
+            'caption' => 'Зимнее удорожание',
+            'value_oz' => '1,15',
+            'value_em' => '1,10',
+            'value_zm' => '1,05',
+            'value_mt' => '1,02',
+            'level' => '1',
+        ])
+        ->and($positions[1]['coefficients'])->toBe([]);
+});
+
+test('документный K попал в GsfxDocument::coefficients и не попал ни в одну позицию', function () {
+    [$document, $version] = makeGsfxVersion(buildGsfxZip());
+
+    app(GsfxStrategy::class)->process($document, $version);
+
+    $representation = DocumentRepresentation::query()
+        ->where('document_version_id', $version->id)
+        ->where('kind', RepresentationKind::StructuredXml)
+        ->first();
+
+    $disk = Storage::disk((string) config('crawler.documents_disk'));
+    $decoded = json_decode($disk->get($representation->storage_path), true);
+
+    expect($decoded['coefficients'])->toHaveCount(1)
+        ->and($decoded['coefficients'][0])->toMatchArray([
+            'caption' => 'К СМР в целом',
+            'code' => 'К-1',
+            'value_oz' => '1,08',
+            'value_em' => '1,03',
+            'level' => '2',
+            'all_vid_rabs' => 'Yes',
+        ])
+        ->and($decoded['chapters'][0]['positions'][0]['coefficients'])->toHaveCount(1)
+        ->and($decoded['chapters'][0]['positions'][1]['coefficients'])->toBe([]);
+});
+
+test('Tzm2022 привязан к своему ресурсу и не появился отдельной записью в resources', function () {
+    [$document, $version] = makeGsfxVersion(buildGsfxZip());
+
+    app(GsfxStrategy::class)->process($document, $version);
+
+    $representation = DocumentRepresentation::query()
+        ->where('document_version_id', $version->id)
+        ->where('kind', RepresentationKind::StructuredXml)
+        ->first();
+
+    $disk = Storage::disk((string) config('crawler.documents_disk'));
+    $decoded = json_decode($disk->get($representation->storage_path), true);
+
+    $resources = $decoded['chapters'][0]['positions'][0]['resources'];
+    expect($resources)->toHaveCount(2)
+        ->and($resources[0]['tzm2022'])->toBeNull()
+        ->and($resources[1]['tzm2022'])->toMatchArray([
+            'work_class' => '4',
+            'quantity' => '1',
+            'price' => '826,22',
+        ]);
+});
+
+test('вид работ несёт четыре норматива, а вид без Nacl даёт null', function () {
+    [$document, $version] = makeGsfxVersion(buildGsfxZip());
+
+    app(GsfxStrategy::class)->process($document, $version);
+
+    $representation = DocumentRepresentation::query()
+        ->where('document_version_id', $version->id)
+        ->where('kind', RepresentationKind::StructuredXml)
+        ->first();
+
+    $disk = Storage::disk((string) config('crawler.documents_disk'));
+    $decoded = json_decode($disk->get($representation->storage_path), true);
+
+    $groups = $decoded['work_type_groups'];
+    expect($groups[0]['work_types'][0])->toMatchArray([
+        'nacl' => '90',
+        'plan' => '47',
+        'nacl_curr' => '90',
+        'plan_curr' => '47',
+    ])
+        ->and($groups[1]['work_types'][0]['nacl'])->toBeNull()
+        ->and($groups[1]['work_types'][0]['plan'])->toBeNull();
+});
+
+test('группы видов работ читаются из ОБОИХ блоков Vids_Rab и несут catalog_type', function () {
+    [$document, $version] = makeGsfxVersion(buildGsfxZip());
+
+    app(GsfxStrategy::class)->process($document, $version);
+
+    $representation = DocumentRepresentation::query()
+        ->where('document_version_id', $version->id)
+        ->where('kind', RepresentationKind::StructuredXml)
+        ->first();
+
+    $disk = Storage::disk((string) config('crawler.documents_disk'));
+    $decoded = json_decode($disk->get($representation->storage_path), true);
+
+    $groups = $decoded['work_type_groups'];
+    expect($groups)->toHaveCount(2)
+        ->and($groups[0]['catalog_type'])->toBe('Виды работ 2001г')
+        ->and($groups[1]['catalog_type'])->toBe('Виды работ 1984г');
+});
+
+test('позиция несёт work_type_id, и его значение совпадает с id вида работ фикстуры', function () {
+    [$document, $version] = makeGsfxVersion(buildGsfxZip());
+
+    app(GsfxStrategy::class)->process($document, $version);
+
+    $representation = DocumentRepresentation::query()
+        ->where('document_version_id', $version->id)
+        ->where('kind', RepresentationKind::StructuredXml)
+        ->first();
+
+    $disk = Storage::disk((string) config('crawler.documents_disk'));
+    $decoded = json_decode($disk->get($representation->storage_path), true);
+
+    $positions = $decoded['chapters'][0]['positions'];
+    $groups = $decoded['work_type_groups'];
+    expect($positions[0]['work_type_id'])->toBe($groups[0]['work_types'][0]['id'])
+        ->and($positions[1]['work_type_id'])->toBe($groups[1]['work_types'][0]['id']);
+});
+
+test('прочитанные теперь атрибуты исчезли из unmapped, непрочитанный остался', function () {
+    [$document, $version] = makeGsfxVersion(buildGsfxZip());
+
+    app(GsfxStrategy::class)->process($document, $version);
+
+    $representation = DocumentRepresentation::query()
+        ->where('document_version_id', $version->id)
+        ->where('kind', RepresentationKind::StructuredXml)
+        ->first();
+
+    $unmapped = $representation->meta['unmapped'];
+    expect($unmapped)->not->toHaveKey('Koefficients')
+        ->not->toHaveKey('Tzm2022')
+        ->not->toHaveKey('Position@Vr2001')
+        ->not->toHaveKey('Vid_Rab@Nacl')
+        ->not->toHaveKey('Vid_Rab@Plan')
+        ->not->toHaveKey('Vid_Rab@NaclCurr')
+        ->not->toHaveKey('Vid_Rab@PlanCurr')
+        ->not->toHaveKey('Vids_Rab@Type')
+        ->toHaveKey('Vid_Rab@NaclMask');
 });
 
 test('повторный разбор GsfxReader идемпотентен для index_code и каталога индексов', function () {

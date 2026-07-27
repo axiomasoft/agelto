@@ -19,6 +19,9 @@ use Spatie\LaravelData\Data;
  * - price_curr: текущая цена (`PriceCurr/@Value`), decimal-строка.
  * - index_code: код индекса пересчёта (`IndexCode`), ссылка на глобальный каталог `<Indexes>`
  *   документа (в модель самого каталога не переносится — см. `GsfxDocument::$unmapped`).
+ * - tzm2022: трудозатраты машинистов по методике 2022 г. (`<Tzm2022>`, P3.9) — встречается на
+ *   ЛЮБОМ известном ресурсном теге (на эталоне — только внутри `Mch`, 81 из 95); толкование против
+ *   прямого `Tzm` — работа маппера P5.1 (`research/16-gsfx-reader-reopen.md` §2 п.1).
  */
 final class GsfxResource extends Data
 {
@@ -31,5 +34,6 @@ final class GsfxResource extends Data
         public ?string $price_base = null,
         public ?string $price_curr = null,
         public ?string $index_code = null,
+        public ?GsfxTzm2022 $tzm2022 = null,
     ) {}
 }
