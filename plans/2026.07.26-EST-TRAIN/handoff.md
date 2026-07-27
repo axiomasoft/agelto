@@ -1,18 +1,24 @@
-# HANDOFF — 2026-07-27 — after P4.5
+# HANDOFF — 2026-07-27 — after P4
 
-**Next:** P4.5 закрыт 🟠 — фаза P4 терминальна (3/5 🟢, 2/5 🟠 Done with deviations, ВСЕ items
-закрыты). Следующий шаг — закрытие фазы: Phase Handoff в `phases/P4.md`, сверка docs-sync,
-таблицы, `plan-lint`. Solo, не item, пин команды — Sonnet/low.
+**Next:** Фаза P4 закрыта (2026-07-27) — терминальна: 3/5 🟢, 2/5 🟠 Done with deviations,
+материальных отклонений нет (все — процессные, см. `phases/P4.md` → `## Phase Handoff`).
+Docs-sync подтверждён (`docs/03_Dev/database.md`, `docs/specs/v2/08-estimate-extraction.md`
+обновлены внутри P4.4/P4.5). Следующий шаг — первый item фазы P5 (уже детализирована до DoR):
+P5.1, маппер `.gsfx` → gold. `Exec = manual` — запуск через `/model`+`/effort`+`/task:plan-run`.
 
 | Параметр | Значение |
 |:--|:--|
 | Model | sonnet |
-| Thinking | low — механическая сверка фактов фазы, не design-решение |
-| Context | NEW SESSION — шаг-не-item |
-| Суть | Закрыть фазу P4 целиком: Phase Handoff блок, сверка docs-sync, таблицы Phase Status/Phase Index, `plan-lint` |
+| Thinking | high — открытых решений нет, но цена ошибки необратима (эталон уезжает в датасет/eval/SFT-экспорт) |
+| Context | continue (/clear) — ручной item |
+| Суть | P5.1: маппер `GsfxDocument` → gold §8.2 — якорь обучающего контура (D2) |
+
+ЗАПУСК ВРУЧНУЮ: `sonnet/high`
 
 ```
-/task:plan-close 2026.07.26-EST-TRAIN P4
+/model sonnet
+/effort high
+/task:plan-run 2026.07.26-EST-TRAIN P5.1
 ```
 
 **Done:** P1 — 🟢 4/4. P2 — терминальна (2/4 🟢, 2/4 🟠). P3 — терминальна (0/7 🟢, 7/7 🟠).

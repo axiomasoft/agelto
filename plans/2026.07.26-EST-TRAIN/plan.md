@@ -282,6 +282,7 @@ EST-AI (закрыт 2026-07-09, 🟠) построил пайплайн раз�
 | 2026-07-27 | plan-run/frontier·high (opus) | P4.3 закрыт 🟢: адрес сметы в многосметном документе — 5 колонок `prc_estimates.source_*` с производным `EstimateSourceKind`, `ordinal` без устойчивого ключа, `row_index` по смете; утверждено владельцем, D106–D109 — детали см. phases/P4.md P4.3 Completion Notes |
 | 2026-07-27 | plan-run/implementation·high (sonnet) | P4.4 закрыт 🟠: миграции/модели/фабрики `prc_estimate*` по утверждённому списку (30 колонок, 3 переименования, 3 смены типа, 2 удаления, новая `prc_estimate_work_types`), эскалация по гейту непустоты снята решением владельца в той же сессии — детали см. phases/P4.md P4.4 Completion Notes |
 | 2026-07-27 | plan-run/implementation·high (sonnet) | P4.5 закрыт 🟠: DTO-контракты ответа LLM расширены под утверждённый список P4.2/P4.3, спека и карта следствий синхронизированы; фаза P4 терминальна — детали см. phases/P4.md P4.5 Completion Notes |
+| 2026-07-27 | plan-close/sonnet·low | Фаза P4 закрыта: Phase Handoff в phases/P4.md перезаписан (был устаревший design-блок), docs-sync подтверждён (database.md + спека §08 обновлены P4.4/P4.5), Status Board уже сходился |
 
 ## Обсуждение
 
