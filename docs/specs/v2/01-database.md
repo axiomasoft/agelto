@@ -195,7 +195,10 @@ Unique `(procurement_id, organization_id, role)`. Быстрый доступ к
 `id, uuid, procurement_id FK index, external_id text nullable (uid filestore ЕИС) unique(procurement_id,external_id), title, kind text nullable (извещение/протокол/…), source_url, status text(enum: discovered→downloaded→prepared→screened→extracted / ignored / failed), first_seen_revision_id bigint nullable, removed_at timestamptz nullable`, + error-блок (`attempts, last_error, last_error_at, next_retry_at, failed_permanently`).
 
 ### prc_document_versions — контент-адресованные версии файла
-`id, document_id FK index, content_hash text (sha256) unique(document_id,content_hash) + index (глобальный дедуп), size_bytes bigint, filename, extension, mime, storage_path text (object storage, immutable), downloaded_at, parent_version_id FK nullable (дочерние из архивов ZIP/RAR), prepared_storage_path text nullable (Excel→PDF)`. Замена файла = новая версия + событие `document_replaced`; повторное скачивание того же контента — no-op по хэшу.
+`id, document_id FK index, content_hash text (sha256) unique(document_id,content_hash) + index (глобальный дедуп), size_bytes bigint, filename, extension, mime, storage_path text (object storage, immutable), downloaded_at, parent_version_id FK nullable (дочерние из архивов ZIP/RAR)`. Замена файла = новая версия + событие `document_replaced`; повторное скачивание того же контента — no-op по хэшу.
+
+### prc_document_representations — подготовленные представления версии
+`id, document_version_id FK index cascade, kind text (pdf/pdf_ocr/text/text_grid/structured_xml — значение RepresentationKind, ТЕКСТОМ: новый вид не требует миграции), storage_path text, disk text nullable (null = диск документов), size_bytes bigint nullable, page_count int nullable, token_estimate int nullable, mime text, meta jsonb (инструмент, версия инструмента, длительность генерации, исходный kind), generated_at, unique(document_version_id, kind)`. Оригинал представлением НЕ дублируется — это `prc_document_versions.storage_path`. Признаки годности измеримые; пороги потребителя живут в capability-матрице модели, не в схеме.
 
 ## 6. AI-анализ
 

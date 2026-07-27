@@ -17,6 +17,7 @@ use App\Services\Llm\Contracts\SupportsFileUpload;
 use App\Services\Llm\Dto\LlmFileHandle;
 use App\Services\Llm\Dto\LlmUsage;
 use App\Services\Llm\Dto\ResolvedRoute;
+use App\Services\Procurement\Prepare\RepresentationResolver;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -49,6 +50,7 @@ final readonly class RerunRangeAction
         private AiRouteResolver $routes,
         private ChunkSource $chunkSource,
         private EstimateStoreRepository $estimates,
+        private RepresentationResolver $representations,
     ) {}
 
     public function run(Estimate $estimate, int $rowStart, int $rowLength): void
@@ -137,8 +139,8 @@ final readonly class RerunRangeAction
             throw new RuntimeException('Провайдер маршрута точечного re-run не поддерживает Files API.');
         }
 
-        $effective = $this->resolveEffectiveFile($version);
-        $disk = Storage::disk((string) config('crawler.documents_disk'));
+        $effective = $this->representations->forLlm($version);
+        $disk = Storage::disk($effective['disk']);
         $localPath = tempnam(sys_get_temp_dir(), 'rerun_').'.'.$effective['extension'];
         file_put_contents($localPath, $disk->get($effective['storagePath']));
 
@@ -147,18 +149,6 @@ final readonly class RerunRangeAction
         } finally {
             @unlink($localPath);
         }
-    }
-
-    /**
-     * @return array{storagePath: string, extension: string, mime: string}
-     */
-    private function resolveEffectiveFile(DocumentVersion $version): array
-    {
-        if ($version->prepared_storage_path !== null) {
-            return ['storagePath' => $version->prepared_storage_path, 'extension' => 'pdf', 'mime' => 'application/pdf'];
-        }
-
-        return ['storagePath' => $version->storage_path, 'extension' => $version->extension, 'mime' => (string) $version->mime];
     }
 
     /**

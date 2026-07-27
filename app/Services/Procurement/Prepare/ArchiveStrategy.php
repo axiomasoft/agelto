@@ -41,12 +41,18 @@ final readonly class ArchiveStrategy implements PreparationStrategy
         return $version->extension === 'zip';
     }
 
-    public function process(Document $document, DocumentVersion $version): void
+    /**
+     * Представления версии-архива не производит (файлы уезжают в ДОЧЕРНИЕ документы), но исход
+     * терминален по существу: `true` = архив обработан, цепочка дальше не идёт. Zip-бомба —
+     * `unprocessable` ставится здесь же (D28: терминальный по существу исход), возврат `false`
+     * при этом только сигнализирует «представления нет».
+     */
+    public function process(Document $document, DocumentVersion $version): bool
     {
         if ($this->nestingDepth($version) >= (int) config('ai.prepare.archive.max_depth', 2)) {
             $this->markUnprocessable($document, 'превышена допустимая глубина вложенности архивов');
 
-            return;
+            return false;
         }
 
         $disk = Storage::disk((string) config('crawler.documents_disk'));
@@ -67,7 +73,7 @@ final readonly class ArchiveStrategy implements PreparationStrategy
                 $zip->close();
                 $this->markUnprocessable($document, "файлов={$fileCount}, суммарно={$totalBytes} байт");
 
-                return;
+                return false;
             }
 
             $this->extractChildren($document, $version, $zip, $entries, $disk);
@@ -76,6 +82,8 @@ final readonly class ArchiveStrategy implements PreparationStrategy
         } finally {
             @unlink($localZip);
         }
+
+        return true;
     }
 
     /**

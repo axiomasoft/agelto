@@ -19,8 +19,10 @@ final readonly class PassthroughStrategy implements PreparationStrategy
         return true;
     }
 
-    public function process(Document $document, DocumentVersion $version): void
+    public function process(Document $document, DocumentVersion $version): bool
     {
         // Нет представления, отличного от оригинала — downstream использует storage_path как есть.
+        // `true` — оригинал сам по себе валидный вход, цепочка на этом заканчивается (D28).
+        return true;
     }
 }

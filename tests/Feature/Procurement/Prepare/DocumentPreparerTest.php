@@ -4,11 +4,14 @@ declare(strict_types=1);
 
 use App\Enums\Procurement\DocumentStatus;
 use App\Enums\Procurement\ProcurementEventType;
+use App\Enums\Procurement\RepresentationKind;
 use App\Jobs\Procurement\PrepareDocumentJob;
 use App\Jobs\Procurement\ScreeningJob;
 use App\Models\Procurement\Document\Document;
 use App\Models\Procurement\Document\DocumentVersion;
 use App\Models\Procurement\ProcurementEvent;
+use App\Repositories\Procurement\RepresentationStoreRepository;
+use App\Services\Procurement\Prepare\SpreadsheetStrategy;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
 
@@ -59,7 +62,7 @@ test('подготовка PNG — ImageStrategy без конвертации, 
     expect($document->refresh()->status)->toBe(DocumentStatus::Prepared);
 });
 
-test('подготовка XLSX — конвертация в PDF, prepared_storage_path заполнен, документ prepared', function () {
+test('подготовка XLSX — конвертация в PDF записана представлением kind=pdf, документ prepared', function () {
     Storage::fake('s3');
     $document = Document::factory()->create(['status' => DocumentStatus::Downloaded]);
     $version = seedVersion($document, 'sample.xlsx', 'xlsx');
@@ -68,12 +71,17 @@ test('подготовка XLSX — конвертация в PDF, prepared_stor
 
     expect($document->refresh()->status)->toBe(DocumentStatus::Prepared);
 
-    $version->refresh();
-    expect($version->prepared_storage_path)->not->toBeNull();
-    Storage::disk('s3')->assertExists($version->prepared_storage_path);
+    $representation = app(RepresentationStoreRepository::class)->find($version, RepresentationKind::Pdf);
+
+    expect($representation)->not->toBeNull()
+        ->and($representation->mime)->toBe('application/pdf')
+        ->and($representation->size_bytes)->toBeGreaterThan(0)
+        ->and($representation->meta['tool'])->toBe('phpspreadsheet+mpdf');
+
+    Storage::disk('s3')->assertExists($representation->storage_path);
 })->skip(fn () => ! extension_loaded('gd'), 'требует gd (Mpdf) — см. docker/php/Dockerfile');
 
-test('XLSX сверх лимита строк — unprocessable(too_large), конвертация не запускается', function () {
+test('XLSX сверх лимита строк — стратегия отказывается, цепочка доводит документ до prepared без представления (D26)', function () {
     config(['ai.prepare.xlsx_max_rows' => 1]);
     Storage::fake('s3');
     $document = Document::factory()->create(['status' => DocumentStatus::Downloaded]);
@@ -81,22 +89,39 @@ test('XLSX сверх лимита строк — unprocessable(too_large), ко
 
     (new PrepareDocumentJob($document->id))->handle();
 
-    $document->refresh();
-    expect($document->status)->toBe(DocumentStatus::Unprocessable)
-        ->and($document->last_error)->toContain('too_large');
-
-    expect($version->refresh()->prepared_storage_path)->toBeNull();
+    // Лимит ИНСТРУМЕНТА подготовки ≠ приговор документу (D26/D28): xlsx уходит дальше оригиналом
+    // через PassthroughStrategy, а не становится unprocessable(too_large), как до P3.1.
+    expect($document->refresh()->status)->toBe(DocumentStatus::Prepared)
+        ->and(app(RepresentationStoreRepository::class)->allFor($version))->toHaveCount(0);
 });
 
-test('XLSX сверх лимита размера — unprocessable(too_large) до любого чтения файла', function () {
+test('XLSX сверх лимита размера — отказ стратегии до любого чтения файла, документ не терминален (D26)', function () {
     config(['ai.prepare.xlsx_max_mb' => 0]);
+    Storage::fake('s3');
+    $document = Document::factory()->create(['status' => DocumentStatus::Downloaded]);
+    $version = seedVersion($document, 'sample.xlsx', 'xlsx');
+
+    (new PrepareDocumentJob($document->id))->handle();
+
+    expect($document->refresh()->status)->toBe(DocumentStatus::Prepared)
+        ->and(app(RepresentationStoreRepository::class)->allFor($version))->toHaveCount(0);
+});
+
+test('XLSX сверх лимита размера при единственной стратегии в цепочке — unprocessable(conversion_failed)', function () {
+    config([
+        'ai.prepare.xlsx_max_mb' => 0,
+        'ai.prepare.strategies' => [SpreadsheetStrategy::class],
+    ]);
     Storage::fake('s3');
     $document = Document::factory()->create(['status' => DocumentStatus::Downloaded]);
     seedVersion($document, 'sample.xlsx', 'xlsx');
 
     (new PrepareDocumentJob($document->id))->handle();
 
-    expect($document->refresh()->status)->toBe(DocumentStatus::Unprocessable);
+    $document->refresh();
+    expect($document->status)->toBe(DocumentStatus::Unprocessable)
+        ->and($document->last_error)->toContain('conversion_failed')
+        ->and($document->last_error)->toContain('SpreadsheetStrategy');
 });
 
 test('архив с xlsx внутри — создаёт дочерний Document+Version с parent_version_id и событием document_added', function () {
@@ -222,7 +247,11 @@ test('успешная подготовка диспатчит ScreeningJob за
 });
 
 test('unprocessable-исход не диспатчит ScreeningJob даже за включённым гейтом', function () {
-    config(['ai.screening.enabled' => true, 'ai.prepare.xlsx_max_mb' => 0]);
+    config([
+        'ai.screening.enabled' => true,
+        'ai.prepare.xlsx_max_mb' => 0,
+        'ai.prepare.strategies' => [SpreadsheetStrategy::class],
+    ]);
     Storage::fake('s3');
     Queue::fake();
     $document = Document::factory()->create(['status' => DocumentStatus::Downloaded]);

@@ -24,6 +24,7 @@ use App\Services\Llm\LlmCallRecorder;
 use App\Services\Llm\PromptComposer;
 use App\Services\Llm\Schema\JsonSchemaGenerator;
 use App\Services\Llm\Validation\StructuredResponseValidator;
+use App\Services\Procurement\Prepare\RepresentationResolver;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Storage;
 use RuntimeException;
@@ -50,6 +51,7 @@ final readonly class ScreeningProcessor
         private StructuredResponseValidator $validator,
         private LlmCallRecorder $recorder,
         private PdfPageSlicer $slicer,
+        private RepresentationResolver $representations,
     ) {}
 
     /**
@@ -79,7 +81,7 @@ final readonly class ScreeningProcessor
             return;
         }
 
-        $disk = Storage::disk((string) config('crawler.documents_disk'));
+        $disk = Storage::disk($effective['disk']);
         $localPath = tempnam(sys_get_temp_dir(), 'screening_').'.'.$effective['extension'];
         file_put_contents($localPath, $disk->get($effective['storagePath']));
 
@@ -115,21 +117,17 @@ final readonly class ScreeningProcessor
     }
 
     /**
-     * @return array{storagePath: string, extension: string, mime: string}|null
+     * Какое представление версии уходит в LLM, решает {@see RepresentationResolver} (D25, P3.1);
+     * здесь остаётся ТОЛЬКО правило скрининга «что мы вообще умеем отправить»: PDF и изображения.
+     *
+     * @return array{storagePath: string, disk: string, extension: string, mime: string}|null
      */
     private function resolveEffectiveFile(DocumentVersion $version): ?array
     {
-        // Конвертированный xlsx (SpreadsheetStrategy, P4.2) — всегда PDF, оригинал игнорируем.
-        if ($version->prepared_storage_path !== null) {
-            return ['storagePath' => $version->prepared_storage_path, 'extension' => 'pdf', 'mime' => 'application/pdf'];
-        }
+        $effective = $this->representations->forLlm($version);
 
-        if ($version->extension === 'pdf') {
-            return ['storagePath' => $version->storage_path, 'extension' => 'pdf', 'mime' => (string) $version->mime];
-        }
-
-        if (str_starts_with((string) $version->mime, 'image/')) {
-            return ['storagePath' => $version->storage_path, 'extension' => $version->extension, 'mime' => (string) $version->mime];
+        if ($effective['extension'] === 'pdf' || str_starts_with($effective['mime'], 'image/')) {
+            return $effective;
         }
 
         return null;

@@ -5,11 +5,11 @@ declare(strict_types=1);
 namespace App\Services\Procurement\Prepare;
 
 use App\Console\Commands\Procurement\ConvertXlsxToPdfCommand;
-use App\Enums\Procurement\DocumentStatus;
-use App\Enums\Procurement\UnprocessableReason;
+use App\Enums\Procurement\RepresentationKind;
 use App\Models\Procurement\Document\Document;
 use App\Models\Procurement\Document\DocumentVersion;
-use App\Repositories\Procurement\DocumentStoreRepository;
+use App\Repositories\Procurement\RepresentationStoreRepository;
+use Composer\InstalledVersions;
 use Illuminate\Support\Facades\Process;
 use Illuminate\Support\Facades\Storage;
 use PhpOffice\PhpSpreadsheet\Reader\Xls as XlsReader;
@@ -20,15 +20,19 @@ use RuntimeException;
  * Excel → PDF (landscape + fitToWidth(1)/fitToHeight(0), v1-урок против обрезки по столбцам,
  * `Old/.../Strategies/ExcelStrategy.php`) — xlsx size-gate (D35, research/L finding 5):
  * строки/размер проверяются ДЁШЕВО (`size_bytes` из БД + `listWorksheetInfo()` — метаданные
- * листа без загрузки данных в память) ДО полной загрузки; сверх лимита — `unprocessable(too_large)`,
- * не OOM. Сама конверсия — в ИЗОЛИРОВАННОМ PHP-процессе с явным `memory_limit`
- * ({@see ConvertXlsxToPdfCommand}), чтобы OOM не убивал
+ * листа без загрузки данных в память) ДО полной загрузки. Сама конверсия — в ИЗОЛИРОВАННОМ
+ * PHP-процессе с явным `memory_limit` ({@see ConvertXlsxToPdfCommand}), чтобы OOM не убивал
  * соседние jobs воркера.
+ *
+ * Превышение любого из порогов `config('ai.prepare.xlsx_*')` — это лимит ИНСТРУМЕНТА, а не
+ * приговор документу (D26/D28): стратегия возвращает `false` и цепочка идёт дальше (в P3.4
+ * следующим номером встанет LibreOffice, сегодня — `PassthroughStrategy` с оригиналом).
+ * Результат конверсии кладётся представлением `pdf` в `prc_document_representations` (D25).
  */
 final readonly class SpreadsheetStrategy implements PreparationStrategy
 {
     public function __construct(
-        private DocumentStoreRepository $storeRepository,
+        private RepresentationStoreRepository $representations,
     ) {}
 
     public function canProcess(DocumentVersion $version): bool
@@ -36,17 +40,15 @@ final readonly class SpreadsheetStrategy implements PreparationStrategy
         return in_array($version->extension, ['xls', 'xlsx'], true);
     }
 
-    public function process(Document $document, DocumentVersion $version): void
+    public function process(Document $document, DocumentVersion $version): bool
     {
-        if ($version->prepared_storage_path !== null) {
-            return;
+        if ($this->representations->find($version, RepresentationKind::Pdf) !== null) {
+            return true;
         }
 
         $maxMb = (float) config('ai.prepare.xlsx_max_mb', 25);
         if ($version->size_bytes > $maxMb * 1024 * 1024) {
-            $this->markUnprocessable($document, "размер {$version->size_bytes} байт превышает лимит {$maxMb} МБ");
-
-            return;
+            return false;
         }
 
         $disk = Storage::disk((string) config('crawler.documents_disk'));
@@ -60,17 +62,32 @@ final readonly class SpreadsheetStrategy implements PreparationStrategy
             $rows = $this->countRows($localInput, $version->extension);
 
             if ($rows > $maxRows) {
-                $this->markUnprocessable($document, "строк {$rows} превышает лимит {$maxRows}");
-
-                return;
+                return false;
             }
 
+            $startedAt = microtime(as_float: true);
             $this->convert($localInput, $localOutput);
+            $durationMs = (int) round((microtime(as_float: true) - $startedAt) * 1000);
 
             $preparedPath = $this->preparedPath($version);
-            $disk->put($preparedPath, file_get_contents($localOutput));
+            $pdf = (string) file_get_contents($localOutput);
+            $disk->put($preparedPath, $pdf);
 
-            $this->storeRepository->updateVersion($version, ['prepared_storage_path' => $preparedPath]);
+            $this->representations->storeOrUpdate($version, RepresentationKind::Pdf, [
+                'storage_path' => $preparedPath,
+                'disk' => null,
+                'size_bytes' => strlen($pdf),
+                'mime' => 'application/pdf',
+                'meta' => [
+                    'tool' => 'phpspreadsheet+mpdf',
+                    'tool_version' => InstalledVersions::getPrettyVersion('phpoffice/phpspreadsheet'),
+                    'duration_ms' => $durationMs,
+                    'source_kind' => $version->extension,
+                ],
+                'generated_at' => now(),
+            ]);
+
+            return true;
         } finally {
             @unlink($localInput);
             @unlink($localOutput);
@@ -102,13 +119,5 @@ final readonly class SpreadsheetStrategy implements PreparationStrategy
     private function preparedPath(DocumentVersion $version): string
     {
         return 'documents/'.substr($version->content_hash, 0, 2)."/{$version->content_hash}.prepared.pdf";
-    }
-
-    private function markUnprocessable(Document $document, string $detail): void
-    {
-        $this->storeRepository->update($document, [
-            'status' => DocumentStatus::Unprocessable,
-            'last_error' => 'unprocessable:'.UnprocessableReason::TooLarge->value.": {$detail}",
-        ]);
     }
 }

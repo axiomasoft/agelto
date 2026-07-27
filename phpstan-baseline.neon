@@ -1003,30 +1003,6 @@ parameters:
 			path: /var/www/html/app/Services/Procurement/Extraction/ExtractionOrchestrator.php
 
 		-
-			message: '#^Access to an undefined property App\\Models\\Procurement\\Document\\DocumentVersion\:\:\$extension\.$#'
-			identifier: property.notFound
-			count: 1
-			path: /var/www/html/app/Services/Procurement/Extraction/ExtractionOrchestrator.php
-
-		-
-			message: '#^Access to an undefined property App\\Models\\Procurement\\Document\\DocumentVersion\:\:\$mime\.$#'
-			identifier: property.notFound
-			count: 3
-			path: /var/www/html/app/Services/Procurement/Extraction/ExtractionOrchestrator.php
-
-		-
-			message: '#^Access to an undefined property App\\Models\\Procurement\\Document\\DocumentVersion\:\:\$prepared_storage_path\.$#'
-			identifier: property.notFound
-			count: 1
-			path: /var/www/html/app/Services/Procurement/Extraction/ExtractionOrchestrator.php
-
-		-
-			message: '#^Access to an undefined property App\\Models\\Procurement\\Document\\DocumentVersion\:\:\$storage_path\.$#'
-			identifier: property.notFound
-			count: 2
-			path: /var/www/html/app/Services/Procurement/Extraction/ExtractionOrchestrator.php
-
-		-
 			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$extension\.$#'
 			identifier: property.notFound
 			count: 1
@@ -1094,30 +1070,6 @@ parameters:
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Procurement\\Ai\\Analysis\:\:\$progress\.$#'
-			identifier: property.notFound
-			count: 1
-			path: /var/www/html/app/Services/Procurement/Extraction/RerunRangeAction.php
-
-		-
-			message: '#^Access to an undefined property App\\Models\\Procurement\\Document\\DocumentVersion\:\:\$extension\.$#'
-			identifier: property.notFound
-			count: 1
-			path: /var/www/html/app/Services/Procurement/Extraction/RerunRangeAction.php
-
-		-
-			message: '#^Access to an undefined property App\\Models\\Procurement\\Document\\DocumentVersion\:\:\$mime\.$#'
-			identifier: property.notFound
-			count: 1
-			path: /var/www/html/app/Services/Procurement/Extraction/RerunRangeAction.php
-
-		-
-			message: '#^Access to an undefined property App\\Models\\Procurement\\Document\\DocumentVersion\:\:\$prepared_storage_path\.$#'
-			identifier: property.notFound
-			count: 1
-			path: /var/www/html/app/Services/Procurement/Extraction/RerunRangeAction.php
-
-		-
-			message: '#^Access to an undefined property App\\Models\\Procurement\\Document\\DocumentVersion\:\:\$storage_path\.$#'
 			identifier: property.notFound
 			count: 1
 			path: /var/www/html/app/Services/Procurement/Extraction/RerunRangeAction.php
@@ -1225,9 +1177,9 @@ parameters:
 			path: /var/www/html/app/Services/Procurement/Prepare/ArchiveStrategy.php
 
 		-
-			message: '#^Access to an undefined property App\\Models\\Procurement\\Document\\DocumentVersion\:\:\$extension\.$#'
+			message: '#^Access to an undefined property App\\Models\\Procurement\\Document\\Document\:\:\$status\.$#'
 			identifier: property.notFound
-			count: 1
+			count: 2
 			path: /var/www/html/app/Services/Procurement/Prepare/DocumentPreparer.php
 
 		-
@@ -1235,6 +1187,24 @@ parameters:
 			identifier: property.notFound
 			count: 1
 			path: /var/www/html/app/Services/Procurement/Prepare/ImageStrategy.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Procurement\\Document\\DocumentVersion\:\:\$extension\.$#'
+			identifier: property.notFound
+			count: 1
+			path: /var/www/html/app/Services/Procurement/Prepare/RepresentationResolver.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Procurement\\Document\\DocumentVersion\:\:\$mime\.$#'
+			identifier: property.notFound
+			count: 1
+			path: /var/www/html/app/Services/Procurement/Prepare/RepresentationResolver.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Procurement\\Document\\DocumentVersion\:\:\$storage_path\.$#'
+			identifier: property.notFound
+			count: 1
+			path: /var/www/html/app/Services/Procurement/Prepare/RepresentationResolver.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Procurement\\Document\\DocumentVersion\:\:\$content_hash\.$#'
@@ -1245,13 +1215,7 @@ parameters:
 		-
 			message: '#^Access to an undefined property App\\Models\\Procurement\\Document\\DocumentVersion\:\:\$extension\.$#'
 			identifier: property.notFound
-			count: 3
-			path: /var/www/html/app/Services/Procurement/Prepare/SpreadsheetStrategy.php
-
-		-
-			message: '#^Access to an undefined property App\\Models\\Procurement\\Document\\DocumentVersion\:\:\$prepared_storage_path\.$#'
-			identifier: property.notFound
-			count: 1
+			count: 4
 			path: /var/www/html/app/Services/Procurement/Prepare/SpreadsheetStrategy.php
 
 		-
@@ -1355,30 +1319,6 @@ parameters:
 			identifier: property.notFound
 			count: 1
 			path: /var/www/html/app/Services/Procurement/Screening/ScreeningOutcomeHandler.php
-
-		-
-			message: '#^Access to an undefined property App\\Models\\Procurement\\Document\\DocumentVersion\:\:\$extension\.$#'
-			identifier: property.notFound
-			count: 1
-			path: /var/www/html/app/Services/Procurement/Screening/ScreeningProcessor.php
-
-		-
-			message: '#^Access to an undefined property App\\Models\\Procurement\\Document\\DocumentVersion\:\:\$mime\.$#'
-			identifier: property.notFound
-			count: 3
-			path: /var/www/html/app/Services/Procurement/Screening/ScreeningProcessor.php
-
-		-
-			message: '#^Access to an undefined property App\\Models\\Procurement\\Document\\DocumentVersion\:\:\$prepared_storage_path\.$#'
-			identifier: property.notFound
-			count: 1
-			path: /var/www/html/app/Services/Procurement/Screening/ScreeningProcessor.php
-
-		-
-			message: '#^Access to an undefined property App\\Models\\Procurement\\Document\\DocumentVersion\:\:\$storage_path\.$#'
-			identifier: property.notFound
-			count: 2
-			path: /var/www/html/app/Services/Procurement/Screening/ScreeningProcessor.php
 
 		-
 			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$extension\.$#'

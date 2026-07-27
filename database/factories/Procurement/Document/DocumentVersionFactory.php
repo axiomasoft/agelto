@@ -27,7 +27,6 @@ final class DocumentVersionFactory extends Factory
             'storage_path' => 'documents/'.fake()->uuid().'.pdf',
             'downloaded_at' => now(),
             'parent_version_id' => null,
-            'prepared_storage_path' => null,
         ];
     }
 }

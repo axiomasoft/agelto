@@ -12,6 +12,9 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 /**
  * Контент-адресованная версия файла документа (дедуп по sha256 в рамках документа).
+ *
+ * Подготовленные представления версии живут в `prc_document_representations`
+ * ({@see DocumentRepresentation}, D25) — отдельной колонки под подготовленный путь у версии нет.
  */
 #[UseFactory(DocumentVersionFactory::class)]
 final class DocumentVersion extends Model
@@ -30,7 +33,6 @@ final class DocumentVersion extends Model
         'storage_path',
         'downloaded_at',
         'parent_version_id',
-        'prepared_storage_path',
     ];
 
     protected function casts(): array

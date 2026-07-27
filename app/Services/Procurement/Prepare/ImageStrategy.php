@@ -21,8 +21,10 @@ final readonly class ImageStrategy implements PreparationStrategy
         return in_array($version->extension, self::IMAGE_EXTENSIONS, true);
     }
 
-    public function process(Document $document, DocumentVersion $version): void
+    public function process(Document $document, DocumentVersion $version): bool
     {
         // Пометка vision-ветки — по extension/mime версии на стадии скрининга/извлечения.
+        // `true` — изображение уходит в vision как есть, следующая стратегия не нужна (D28).
+        return true;
     }
 }

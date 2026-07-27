@@ -25,6 +25,7 @@ use App\Services\Llm\Dto\LlmFileHandle;
 use App\Services\Llm\Dto\LlmUsage;
 use App\Services\Llm\Dto\ResolvedRoute;
 use App\Services\Procurement\Extraction\Exceptions\MaxTokensExceededException;
+use App\Services\Procurement\Prepare\RepresentationResolver;
 use App\Services\Procurement\Screening\PdfPageSlicer;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Collection;
@@ -70,6 +71,7 @@ final readonly class ExtractionOrchestrator
         private SegmentAssembler $segmentAssembler,
         private PdfPageSlicer $pageSlicer,
         private EstimatePersister $persister,
+        private RepresentationResolver $representations,
     ) {}
 
     /**
@@ -94,7 +96,7 @@ final readonly class ExtractionOrchestrator
             return false;
         }
 
-        $disk = Storage::disk((string) config('crawler.documents_disk'));
+        $disk = Storage::disk($effective['disk']);
         $localPath = tempnam(sys_get_temp_dir(), 'extraction_').'.'.$effective['extension'];
         file_put_contents($localPath, $disk->get($effective['storagePath']));
 
@@ -724,22 +726,18 @@ final readonly class ExtractionOrchestrator
     }
 
     /**
-     * @return array{storagePath: string, extension: string, mime: string}|null
+     * Какое представление версии уходит в LLM, решает {@see RepresentationResolver} (D25, P3.1);
+     * здесь остаётся ТОЛЬКО правило извлечения «что мы вообще умеем отправить»: PDF и изображения
+     * (тот же приём, что `ScreeningProcessor::resolveEffectiveFile`).
+     *
+     * @return array{storagePath: string, disk: string, extension: string, mime: string}|null
      */
     private function resolveEffectiveFile(DocumentVersion $version): ?array
     {
-        // Конвертированный xlsx (SpreadsheetStrategy, P4.2) — всегда PDF, оригинал игнорируем
-        // (тот же приём, что ScreeningProcessor::resolveEffectiveFile, P5.1).
-        if ($version->prepared_storage_path !== null) {
-            return ['storagePath' => $version->prepared_storage_path, 'extension' => 'pdf', 'mime' => 'application/pdf'];
-        }
+        $effective = $this->representations->forLlm($version);
 
-        if ($version->extension === 'pdf') {
-            return ['storagePath' => $version->storage_path, 'extension' => 'pdf', 'mime' => (string) $version->mime];
-        }
-
-        if (str_starts_with((string) $version->mime, 'image/')) {
-            return ['storagePath' => $version->storage_path, 'extension' => $version->extension, 'mime' => (string) $version->mime];
+        if ($effective['extension'] === 'pdf' || str_starts_with($effective['mime'], 'image/')) {
+            return $effective;
         }
 
         return null;
