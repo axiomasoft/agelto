@@ -14,6 +14,7 @@ use App\Enums\Procurement\EstimateType;
 use App\Enums\Procurement\IncompleteReason;
 use App\Enums\Procurement\ResourceType;
 use App\Enums\Procurement\RowType;
+use App\Enums\Procurement\TotalKind;
 
 test('гидрирует паспорт сметы из спеки 08 §1.1', function (): void {
     $passport = EstimatePassport::from([
@@ -48,7 +49,7 @@ test('гидрирует полный ответ extract_passport из спек�
         'totals' => [
             'footer' => [
                 ['label' => 'Итого', 'value' => '150000.00', 'kind' => null, 'children' => [
-                    ['label' => 'в т.ч. НДС 20%', 'value' => '25000.00', 'kind' => 'ндс', 'children' => []],
+                    ['label' => 'в т.ч. НДС 20%', 'value' => '25000.00', 'kind' => 'vat', 'children' => []],
                 ]],
             ],
         ],
@@ -62,7 +63,7 @@ test('гидрирует полный ответ extract_passport из спек�
         ->and($response->totals?->footer[0]->label)->toBe('Итого')
         ->and($response->totals?->footer[0]->value)->toBe('150000.00')
         ->and($response->totals?->footer[0]->children)->toHaveCount(1)
-        ->and($response->totals?->footer[0]->children[0]->kind)->toBe('ндс');
+        ->and($response->totals?->footer[0]->children[0]->kind)->toBe(TotalKind::Vat);
 });
 
 test('гидрирует минимальный ответ extract_passport без итогов', function (): void {
@@ -93,8 +94,8 @@ test('гидрирует чанк extract_rows с ресурсами, модиф
                 'name' => 'Разработка грунта',
                 'unit' => 'м3',
                 'quantity' => '120.500000',
-                'unit_price' => '350.00',
-                'total_price' => '42175.00',
+                'unit_price_curr' => '350.00',
+                'total_price_curr' => '42175.00',
                 'resources' => [
                     [
                         'resource_type' => 'labor',
@@ -102,18 +103,20 @@ test('гидрирует чанк extract_rows с ресурсами, модиф
                         'code' => null,
                         'unit' => 'чел.час',
                         'quantity' => '18.400000',
-                        'price' => '210.50',
+                        'price_curr' => '210.50',
                     ],
                 ],
-                'modifiers' => [
-                    ['name' => 'К=1.15', 'description' => 'Зимнее удорожание', 'value' => '1.15'],
+                'attributes' => [
+                    'modifiers' => [
+                        ['name' => 'К=1.15', 'kind' => 'winter', 'value' => '1.15'],
+                    ],
                 ],
             ],
             [
                 'row_index' => 3,
                 'row_type' => 'subtotal',
                 'name' => 'Итого по разделу 1',
-                'total_price' => '42175.00',
+                'total_price_curr' => '42175.00',
             ],
         ],
         'incomplete_items' => [
@@ -130,7 +133,7 @@ test('гидрирует чанк extract_rows с ресурсами, модиф
         ->and($response->rows[0]->row_type)->toBe(RowType::SectionHeader)
         ->and($response->rows[1]->row_type)->toBe(RowType::Item)
         ->and($response->rows[1]->resources[0]->resource_type)->toBe(ResourceType::Labor)
-        ->and($response->rows[1]->modifiers[0]->value)->toBe('1.15')
+        ->and($response->rows[1]->attributes?->modifiers[0]->value)->toBe('1.15')
         ->and($response->rows[2]->row_type)->toBe(RowType::Subtotal)
         ->and($response->incomplete_items)->toHaveCount(1)
         ->and($response->incomplete_items[0]->reason)->toBe(IncompleteReason::SplitByPageEnd)

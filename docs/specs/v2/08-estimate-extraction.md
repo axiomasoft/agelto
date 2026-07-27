@@ -49,10 +49,10 @@
 | `EstimateItem.code` | переносится | `prc_estimate_items.code` (докблок в миграции: «шифр ФЕР/ТЕР») |
 | `EstimateItem.unit` | переносится | `prc_estimate_items.unit` |
 | `EstimateItem.quantity` | переносится | `prc_estimate_items.quantity` |
-| `EstimateItem.price` | переносится (переименовано) | `prc_estimate_items.total_price` (v1 `price` семантически «стоимость всего», см. Alias `price←Стоимость всего,Итого руб` — это НЕ цена за единицу; `unit_price`, которого в v1-схеме не было явно, вычисляется/извлекается отдельно, см. §3.1) |
+| `EstimateItem.price` | переносится (переименовано, вторично переименовано P4.5) | `prc_estimate_items.total_price_curr` (v1 `price` семантически «стоимость всего», см. Alias `price←Стоимость всего,Итого руб» — это НЕ цена за единицу; P4.5 развела два уровня цены — `total_price_curr`/`total_price_base`, `unit_price_curr`/`unit_price_base`, см. §3.1/§3.2 и `plans/2026.07.26-EST-TRAIN/research/06-schema-decision.md` §5.1) |
 | `EstimateItem.children` (`EstimateItemResource[]`) | переносится 1:1 | `prc_estimate_resources` (FK `item_id`) |
-| `EstimateItem.modifiers` (`EstimateModifierItem[]`: код-коэффициент, обоснование, значение) | переносится в jsonb (низкая частота, не оправдывает отдельную таблицу — YAGNI, ревизия после первых реальных смет) | `prc_estimate_items.attributes->'modifiers'` (колонка `attributes` уже задокументирована в миграции как «коэффициенты/индексы» — назначение совпадает) |
-| `EstimateItemResource.name`/`.resource_type`/`.code`/`.unit`/`.quantity`/`.price` | переносится 1:1 | `prc_estimate_resources.{name,resource_type,code,unit,quantity,price}` |
+| `EstimateItem.modifiers` (`EstimateModifierItem[]`: код-коэффициент, обоснование, значение) | переносится в jsonb (низкая частота, не оправдывает отдельную таблицу — YAGNI, ревизия после первых реальных смет); P4.5 зафиксировала схему элемента (9 ключей, §4.2) и убрала свободный `description` в пользу машиночитаемого `kind` | `prc_estimate_items.attributes->'modifiers'` (колонка `attributes` уже задокументирована в миграции как «коэффициенты/индексы» — назначение совпадает; фиксированная схема ключей — P4.5) |
+| `EstimateItemResource.name`/`.resource_type`/`.code`/`.unit`/`.quantity`/`.price` | переносится 1:1 (P4.5 переименовала `price`→`price_curr`, добавила `price_base`) | `prc_estimate_resources.{name,resource_type,code,unit,quantity,price_base,price_curr}` |
 | `EstimateItemResource.comment` (текст из колонки pos, если там примечание, напр. «прим.») | переносится в jsonb (редкий кейс, нет отдельной колонки) | `prc_estimate_resources` не имеет `comment`-колонки → **осознанно отброшено на уровне ресурса** (пометка ниже); если появится частый кейс — alter-миграция добавит `comment` text nullable |
 
 Раздельная сущность `EstimateSubSection` **не переносится как отдельный тип** — v2 использует единую таблицу `prc_estimate_sections` с self-referencing `parent_id`/`position` (миграция `2026_07_04_100034`), где подраздел — это просто раздел с непустым `parent_id`. Различие «section vs subsection» из v1 было чисто структурным (глубина дерева), не семантическим полем — плоская модель с self-FK строже и проще одновременно (можно углублять дерево дальше 2 уровней без новой сущности).
@@ -116,17 +116,27 @@
   "target": "construction|renovation|medical_equipment|engineering|null",
   "address": "string|null",
   "generator": "string|null",
+  "contract_number": "string|null",
+  "contract_date": "string|null",
   "currency": "RUB",
   "base_year": 2001,
   "price_level": "string|null",
   "rows_expected": 0,
+  "calc_method": "base_index|resource|null",
+  "labor_hours_workers": "string|null",
+  "labor_hours_machinists": "string|null",
+  "document_number": "string|null",
+  "document_date": "string|null",
+  "period_start": "string|null",
+  "period_end": "string|null",
   "footer": [
-    {"label": "string", "value": 0.0, "kind": "string|null", "children": []}
-  ]
+    {"label": "string", "value": "string|null", "kind": "overhead|profit|vat|total|additional|other|null", "chapter_number": "int|null", "rate": "string|null", "children": []}
+  ],
+  "work_types": []
 }
 ```
 
-`rows_expected` — оценка числа позиций (не разделов) во всей смете, ключ для контроля полноты (§3.4 doc-pipeline, п.4 Merge). `footer` — рекурсивная структура 1:1 с `EstimateFooterItem` (§1.3), `kind` — новое поле (не было в v1) для машиночитаемой пометки типа начисления (`НР`/`СП`/`НДС`/…), опционально заполняется LLM или детерминированно на бэкенде по `label`.
+`rows_expected` — оценка числа позиций (не разделов) во всей смете, ключ для контроля полноты (§3.4 doc-pipeline, п.4 Merge). `footer` — рекурсивная структура 1:1 с `EstimateFooterItem` (§1.3), `kind` — машиночитаемая пометка типа начисления, замкнутое множество `TotalKind` (P4.5), опционально заполняется LLM или детерминированно на бэкенде по `label`; `value` — nullable (P4.5): начисление, заданное процентом (`rate`), может не иметь собственной суммы в документе; `chapter_number`/`rate` — номер главы сводного расчёта и ставка процента (SR-11, P4.5). `contract_number`/`contract_date` — реквизиты договора подряда (SR-12, P4.5). `calc_method`/`labor_hours_workers`/`labor_hours_machinists`/`document_number`/`document_date`/`period_start`/`period_end` — поля, добавленные P4.5 по утверждённому распределению величин (`plans/2026.07.26-EST-TRAIN/research/06-schema-decision.md` §3.1/§8, SR-17/SR-07/SR-12); документ не называет метод расчёта или сводные трудозатраты явно — соответствующее поле `null`, бэкенд не подставляет значение по умолчанию. `work_types` — виды работ и их иерархия (SR-08/SR-09, P4.5): заполняет ТОЛЬКО детерминированный маппер `.gsfx` (нормативы НР/СП, `parent_id`) — боевой LLM-ответ всегда несёт пустой список (исключение из D33).
 
 ### 3.2 `extract_rows` (построчный диапазон; сменяет v1 `fetch_items`)
 
@@ -137,27 +147,38 @@
   "rows": [
     {
       "row_index": 1,
-      "row_type": "section_header|subsection_header|item|subtotal",
+      "row_type": "section_header|subsection_header|item|subtotal|summary_row",
       "section_title": "string|null",
       "code": "string|null",
       "name": "string",
       "unit": "string|null",
-      "quantity": 0.0,
-      "unit_price": 0.0,
-      "total_price": 0.0,
+      "quantity": "string|null",
+      "unit_price_base": "string|null",
+      "unit_price_curr": "string|null",
+      "total_price_base": "string|null",
+      "total_price_curr": "string|null",
+      "index_code": "string|null",
+      "index_value": "string|null",
+      "source_position_number": "string|null",
+      "work_type_name": "string|null",
       "resources": [
-        {"resource_type": "material|machine|labor|overhead|other", "code": "string|null", "name": "string", "unit": "string|null", "quantity": 0.0, "price": 0.0}
+        {"resource_type": "material|machine|labor|overhead|other", "code": "string|null", "name": "string", "unit": "string|null", "quantity": "string|null", "price_base": "string|null", "price_curr": "string|null", "index_code": "string|null", "index_value": "string|null"}
       ],
-      "modifiers": [
-        {"name": "string", "description": "string", "value": 0.0}
-      ]
+      "attributes": {
+        "modifiers": [
+          {"name": "string", "kind": "qty|price|correction|winter|recalculation|other|null", "code": "string|null", "value": "string|null", "value_labor": "string|null", "value_machines": "string|null", "value_machinists_wage": "string|null", "value_materials": "string|null", "level": "int|null"}
+        ],
+        "amount_since_start": "string|null",
+        "amount_since_year_start": "string|null",
+        "amount_reporting_period": "string|null"
+      }
     }
   ],
   "incomplete_items": []
 }
 ```
 
-`row_type=section_header`/`subtotal` — тоже строки, участвуют в нумерации `row_index` (D10, детали — §4а). `incomplete_items` — буфер незавершённых строк на границах ЗАПРОШЕННОГО диапазона (детали и различие семантики row-range/windowed — §4б).
+`row_type=section_header`/`subtotal`/`summary_row` — тоже строки, участвуют в нумерации `row_index` (D10, детали — §4а; счёт ведётся ПО СМЕТЕ — P4.3). Decimal-величины (`quantity`, `unit_price_*`, `total_price_*`, `index_value`, значения `attributes`) — строками, конверсия во float запрещена (P4.5). `unit_price_curr`/`total_price_curr` — переименованы из v1 `unit_price`/`total_price` (D93), рядом добавлены `*_base` (базисный уровень, SR-01, P4.5) — у ресурсной сметы (`calc_method=resource`) `*_base` законно пуст. `index_code`/`index_value` — индекс пересчёта позиции/ресурса (SR-03, P4.5). `source_position_number` — собственный номер позиции, напечатанный в документе (может быть дробным, «9.1»), если он есть — область ЛЮБАЯ смета, не только акт (SR-13, расширено P4.3 §5.1); отличается от `row_index` — синтетического якоря, существующего и для строк без напечатанного номера. `work_type_name` — подпись вида работ (SR-08, P4.5); нормативы НР/СП и иерархия видов работ контракт СТРОК не несёт — они уровня сметы, см. §3.1 `work_types`. `attributes` — фиксированная схема ключей (P4.5, `plans/2026.07.26-EST-TRAIN/research/06-schema-decision.md` §4): ключ, не перечисленный здесь, отклоняется валидацией (`RowAttributes`, D32). `modifiers[].description` (v1) убран в пользу машиночитаемого `kind` — замкнутое множество (SR-04/SR-05); `value_labor`/`value_machines`/`value_machinists_wage`/`value_materials`/`level` — составляющие коэффициента формы `.gsfx` (SR-06), в форме книг не заполняются. `amount_since_start`/`amount_since_year_start`/`amount_reporting_period` — КС-3, три временных разреза стоимости (SR-14), заполняются только строкой `row_type=summary_row`. `incomplete_items` — буфер незавершённых строк на границах ЗАПРОШЕННОГО диапазона (детали и различие семантики row-range/windowed — §4б).
 
 ### 3.3 `extract_totals` (итоги/начисления; при большой смете может дублировать/уточнять `footer` из паспорта на последних страницах)
 
@@ -184,7 +205,10 @@
 - `EstimateType` (`type` в §3.1): `estimate` (ЛСР — «Локальный сметный расчёт», «Локальная смета»), `act` (КС-2 — «Акт о приемке выполненных работ», «Форма № КС-2»), `resource_calculation` («Ведомость ресурсов», «Расчет ресурсов»), `defect_list` («Дефектная ведомость», «Опись работ»).
 - `EstimateTarget` (`target` в §3.1): `construction`, `renovation`, `medical_equipment`, `engineering`.
 - `ResourceType` (`resource_type` в §3.2): `material`, `machine`, `labor`, `overhead`, `other` (см. §1.5).
-- `row_type` (`row_type` в §3.2): `section_header`, `subsection_header`, `item`, `subtotal` (расширяет v1 `ItemType`: section/item → плоский список с явным подразделом и промежуточным итогом, D10).
+- `row_type` (`row_type` в §3.2): `section_header`, `subsection_header`, `item`, `subtotal`, `summary_row` (расширяет v1 `ItemType`: section/item → плоский список с явным подразделом и промежуточным итогом, D10; `summary_row` — строка свода КС-3, P4.5, SR-14).
+- `CalcMethod` (`calc_method` в §3.1): `base_index` (базисно-индексный), `resource` (ресурсный) — SR-17, P4.5.
+- `TotalKind` (`kind` в `footer`, §3.1/§3.3): `overhead`, `profit`, `vat`, `total`, `additional`, `other` — P4.5, D101; детерминированное доопределение по `label` этим планом не строится (долг).
+- `ModifierKind` (`kind` в `attributes.modifiers[]`, §3.2): `qty`, `price`, `correction`, `winter`, `recalculation`, `other` — P4.5, SR-04/SR-05.
 - Скрининговый `DocumentType` (не сметный контракт, но соседний енум из v1 — `Old/app/Process/DocumentAnalysis/Schema/DocumentType.php`, применяется на шаге `screening`, `03-document-pipeline.md` §3.4): `estimate`, `tech_spec`, `unknown` — переносится как `document_type` (text) в `prc_ai_analyses`/`prc_document_types`, справочник открыт (`03` §7).
 
 ## 4. Алгоритм извлечения
@@ -208,7 +232,7 @@
 
 Транскрипция алгоритма из `tmp/agelto2.md` («Context Window Stitching with Orphan Lines Buffer»), адаптированная под требование мульти-сметного документа без целого документа в контексте (research/L finding 17, D30):
 
-**Стадия 1 — Discovery.** Документ режется на страничные окна (sliding window, overlap 1 страница — тот же принцип, что «Чанк 1: 1,2,3 / Чанк 2: 3,4,5»). Каждое окно → дешёвый вызов `extraction:discovery` (flash-lite-класс, покрытие §3.4). Бэкенд ДЕТЕРМИНИРОВАННО (не LLM) склеивает маркеры всех окон в сегменты `{estimate_ordinal, page_start, page_end}` — если два окна дают противоречивые маркеры на общей (overlap) странице, приоритет у более раннего окна для `estimate_start` и более позднего для `estimate_end` (сегмент не должен схлопнуться в 0 страниц).
+**Стадия 1 — Discovery.** Документ режется на страничные окна (sliding window, overlap 1 страница — тот же принцип, что «Чанк 1: 1,2,3 / Чанк 2: 3,4,5»). Каждое окно → дешёвый вызов `extraction:discovery` (flash-lite-класс, покрытие §3.4). Бэкенд ДЕТЕРМИНИРОВАННО (не LLM) склеивает маркеры всех окон в сегменты `{estimate_ordinal, page_start, page_end}` — если два окна дают противоречивые маркеры на общей (overlap) странице, приоритет у более раннего окна для `estimate_start` и более позднего для `estimate_end` (сегмент не должен схлопнуться в 0 страниц). Границы сегмента переживают прогон в колонках `prc_estimates.source_page_start`/`.source_page_end` (P4.5, `plans/2026.07.26-EST-TRAIN/research/07-multi-estimate-anchoring.md` §3.1) — исключение из D33 (бэкенд заполняет из детерминированной сегментации, LLM эти колонки не порождает и в контракт ответа они не входят).
 
 **Стадия 2 — Per-estimate извлечение.** Для каждого сегмента (=будущая строка `prc_estimates`, `ordinal` = порядковый номер сегмента, D12) — независимый прогон **того же** row-range контракта (§3.2/§4.1), но окнами СТРАНИЦ внутри сегмента (не диапазонами строк — модель не знает общего числа строк заранее без целого документа), с overlap 1 страница и буфером `incomplete_items` (постраничная семантика, §4б).
 
@@ -228,6 +252,7 @@
 - **Строки без «№ п/п» в исходнике.** Если в документе у строки физически нет номера (частый случай для заголовков разделов, иногда — для позиций без явной нумерации в исходной таблице), `row_index` всё равно присваивается ПОСЛЕДОВАТЕЛЬНО в порядке появления строки в документе (не переносится «пусто» и не дублируется соседний номер) — правило одинаково для основного и оконного пути.
 - **Идентичность нумерации между вызовами.** Паспорт-вызов (§3.1, поле `rows_expected`) и вызовы `extract_rows` ОБЯЗАНЫ считать строки одинаково (те же правила выше) — иначе `rows_expected` не сопоставим с фактическим количеством извлечённых строк, и детерминированная проверка полноты (§4.1 п.6) даёт ложные расхождения. Если паспорт получен из части документа (оконный путь, где паспорт не видит документ целиком) — `rows_expected` на этом пути не гарантированно точен и НЕ используется как строгий гейт валидации, только как ориентир (уточняется по факту извлечённых `row_index` внутри сегмента).
 - Уникальность в БД: `prc_estimate_items` уже имеет `unique(estimate_id, row_index)` (миграция `2026_07_04_100035`) — правило выше обеспечивает, что LLM не порождает дублей/дыр внутри одной сметы по построению, а не только по факту БД-констрейнта.
+- **Область счёта — ПО СМЕТЕ, не по документу** (P4.5, `plans/2026.07.26-EST-TRAIN/research/07-multi-estimate-anchoring.md` §5): в многосметном документе нумерация `row_index` начинается заново с 1 у КАЖДОЙ сметы — это не новое поведение (код и БД-констрейнт уже считают по смете), а явная формулировка уже существующего правила: буквальное чтение «нумерует любую строку таблицы позиций подряд» без этого уточнения допускало бы сквозной счёт по документу.
 
 ### 4б. Семантика `incomplete_items`
 
@@ -350,19 +375,27 @@ EOL всей линейки 2.5 — **2026-10-16** (ai.google.dev/gemini-api/doc
   "estimates": [
     {
       "estimate_number": "string|null",
-      "passport": { "type": null, "reference": null, "target": null, "address": null, "generator": null },
+      "passport": { "type": null, "reference": null, "target": null, "address": null, "generator": null, "contract_number": null, "contract_date": null },
       "currency": "RUB",
       "base_year": 2001,
       "price_level": null,
       "rows_expected": 0,
+      "calc_method": null,
+      "labor_hours_workers": null,
+      "labor_hours_machinists": null,
+      "document_number": null,
+      "document_date": null,
+      "period_start": null,
+      "period_end": null,
       "totals": { "footer": [] },
-      "rows": [ /* EstimateRow — §3.2, включая section_header/subtotal */ ]
+      "work_types": [],
+      "rows": [ /* EstimateRow — §3.2, включая section_header/subtotal/summary_row */ ]
     }
   ]
 }
 ```
 
-Каждый элемент `estimates[]` — прямое соответствие `PassportResponse` (§3.1, поля `estimate_number`/`passport`/`currency`/`base_year`/`price_level`/`rows_expected`/`totals`) ПЛЮС ключ `rows` (`EstimateRow[]`, §3.2). Импорт валидирует КАЖДЫЙ элемент этим же PHP-контрактом (`PassportResponse::validateAndCreate()` + `EstimateRow::validateAndCreate()` на каждую строку, `Data::validateAndCreate()`, тот же приём, что `StructuredResponseValidator`, P3.4) — битый эталон отклоняется с перечнем ошибок по индексу сметы/строки/поля, ничего не пишется в `prc_ai_dataset_examples` для этой пары. `estimates[]` сортируется по возрастанию `ordinal` (индекс в массиве = `ordinal-1`), для многосметных документов — сметы должны идти в том же порядке, в котором их находит `ExtractionOrchestrator` (паспорт-цикл row-range пути/discovery-сегментация оконного пути, §4).
+Каждый элемент `estimates[]` — прямое соответствие `PassportResponse` (§3.1, поля `estimate_number`/`passport`/`currency`/`base_year`/`price_level`/`rows_expected`/`totals`/`calc_method`/`labor_hours_workers`/`labor_hours_machinists`/`document_number`/`document_date`/`period_start`/`period_end`/`work_types`, P4.5) ПЛЮС ключ `rows` (`EstimateRow[]`, §3.2). Импорт валидирует КАЖДЫЙ элемент этим же PHP-контрактом (`PassportResponse::validateAndCreate()` + `EstimateRow::validateAndCreate()` на каждую строку, `Data::validateAndCreate()`, тот же приём, что `StructuredResponseValidator`, P3.4) — битый эталон отклоняется с перечнем ошибок по индексу сметы/строки/поля, ничего не пишется в `prc_ai_dataset_examples` для этой пары; неизвестный ключ внутри `rows[].attributes` отклоняется ЭТИМ ЖЕ вызовом (`RowAttributes`, фиксированная схема, P4.5, D32) — «эталон, несущий поле вне утверждённого списка» тоже битый эталон. `estimates[]` сортируется по возрастанию `ordinal` (индекс в массиве = `ordinal-1`), для многосметных документов — сметы должны идти в том же порядке, в котором их находит `ExtractionOrchestrator` (паспорт-цикл row-range пути/discovery-сегментация оконного пути, §4). Пять колонок адреса сметы в источнике (`source_sheet_name`/`source_row_start`/`source_row_end`/`source_page_start`/`source_page_end`, P4.3) и ось `verified_at`/`verified_by` (D89) в этом контракте НЕ участвуют (исключение из D33, `plans/2026.07.26-EST-TRAIN/research/06-schema-decision.md` §6/§11, `research/07-multi-estimate-anchoring.md` §3.1) — обе группы заполняет бэкенд/оператор, а не разбор, поэтому эталон на вопрос «откуда прогон её взял» не отвечает и отвечать не обязан.
 
 ### 8.3 Персистентность и идемпотентность
 

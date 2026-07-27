@@ -38,8 +38,8 @@ test('маппер восстанавливает паспорт/итоги/ие
         'name' => 'Позиция A',
         'unit' => 'м3',
         'quantity' => '10.5',
-        'unit_price' => '100.00',
-        'total_price' => '1050.00',
+        'unit_price_curr' => '100.00',
+        'total_price_curr' => '1050.00',
         'attributes' => null,
     ]);
     Resource::factory()->create([
@@ -49,7 +49,7 @@ test('маппер восстанавливает паспорт/итоги/ие
         'code' => 'РЕС-0001',
         'unit' => 'т',
         'quantity' => '2.5',
-        'price' => '3000.00',
+        'price_curr' => '3000.00',
     ]);
 
     Item::factory()->create([
@@ -60,8 +60,8 @@ test('маппер восстанавливает паспорт/итоги/ие
         'name' => 'Позиция B',
         'unit' => 'шт',
         'quantity' => '4',
-        'unit_price' => '250.00',
-        'total_price' => '1000.00',
+        'unit_price_curr' => '250.00',
+        'total_price_curr' => '1000.00',
         'attributes' => null,
     ]);
 

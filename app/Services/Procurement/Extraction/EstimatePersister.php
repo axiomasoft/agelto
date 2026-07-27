@@ -11,6 +11,7 @@ use App\Dto\Procurement\Ai\Estimate\RowModifier;
 use App\Dto\Procurement\Ai\Estimate\RowResource;
 use App\Enums\Procurement\ProcurementEventType;
 use App\Enums\Procurement\RowType;
+use App\Enums\Procurement\TotalKind;
 use App\Models\Procurement\Ai\Analysis;
 use App\Models\Procurement\Document\Document;
 use App\Models\Procurement\Document\DocumentVersion;
@@ -158,10 +159,10 @@ final readonly class EstimatePersister
                     'name' => $row->name,
                     'unit' => $row->unit,
                     'quantity' => $row->quantity,
-                    'unit_price' => $row->unit_price,
-                    'total_price' => $row->total_price,
-                    'attributes' => $row->modifiers !== []
-                        ? ['modifiers' => array_map(static fn (RowModifier $modifier): array => $modifier->toArray(), $row->modifiers)]
+                    'unit_price_curr' => $row->unit_price_curr,
+                    'total_price_curr' => $row->total_price_curr,
+                    'attributes' => $row->attributes !== null && $row->attributes->modifiers !== []
+                        ? ['modifiers' => array_map(static fn (RowModifier $modifier): array => $modifier->toArray(), $row->attributes->modifiers)]
                         : null,
                 ],
             );
@@ -174,7 +175,7 @@ final readonly class EstimatePersister
                     'name' => $resource->name,
                     'unit' => $resource->unit,
                     'quantity' => $resource->quantity,
-                    'price' => $resource->price,
+                    'price_curr' => $resource->price_curr,
                 ], $row->resources),
             );
         }
@@ -234,7 +235,7 @@ final readonly class EstimatePersister
         foreach ($totals->footer as $line) {
             $label = mb_strtolower($line->label);
 
-            if ($line->kind === 'total' || str_contains($label, 'итого') || str_contains($label, 'всего')) {
+            if ($line->kind === TotalKind::Total || str_contains($label, 'итого') || str_contains($label, 'всего')) {
                 return $line->value;
             }
         }

@@ -38,7 +38,7 @@ test('схема RowsChunkResponse раскладывает вложенные D
         ->and($schema['$defs'])->toHaveKeys(['EstimateRow', 'RowResource', 'RowModifier', 'IncompleteRow'])
         ->and($schema['$defs']['EstimateRow']['properties']['row_type'])->toBe([
             'type' => 'string',
-            'enum' => ['section_header', 'subsection_header', 'item', 'subtotal'],
+            'enum' => ['section_header', 'subsection_header', 'item', 'subtotal', 'summary_row'],
         ])
         ->and($schema['$defs']['EstimateRow']['properties']['resources'])->toBe(['type' => 'array', 'items' => ['$ref' => '#/$defs/RowResource']]);
 });
@@ -50,7 +50,7 @@ test('рекурсивный TotalLine.children резолвится через 
 
     expect($schema['$defs'])->toHaveKeys(['EstimateTotalsBlock', 'TotalLine'])
         ->and($schema['$defs']['TotalLine']['properties']['children'])->toBe(['type' => 'array', 'items' => ['$ref' => '#/$defs/TotalLine']])
-        ->and($schema['$defs']['TotalLine']['required'])->toBe(['label', 'value']);
+        ->and($schema['$defs']['TotalLine']['required'])->toBe(['label']);
 
     // Сериализация не должна зацикливаться — само выполнение теста является гарантией.
     json_encode($schema, JSON_THROW_ON_ERROR);

@@ -76,7 +76,7 @@ final readonly class EstimateStitcher
     }
 
     /**
-     * Overlap-дедуп по составному ключу (code+name+quantity+total_price) на СОСЕДНИХ позициях
+     * Overlap-дедуп по составному ключу (code+name+quantity+total_price_curr) на СОСЕДНИХ позициях
      * после сортировки (research/E §5 «dedup по составному ключу на швах»). Флат-вход не несёт
      * границ чанков (P6.1 накапливает rows одним списком) — сравнение идёт по ВСЕМ соседним
      * парам, не только по фактическим швам (Known Deviation, задокументировано в StitchReport).
@@ -112,7 +112,7 @@ final readonly class EstimateStitcher
 
     private function compositeKey(EstimateRow $row): string
     {
-        return implode('|', [$row->code, $row->name, $row->quantity, $row->total_price]);
+        return implode('|', [$row->code, $row->name, $row->quantity, $row->total_price_curr]);
     }
 
     /**

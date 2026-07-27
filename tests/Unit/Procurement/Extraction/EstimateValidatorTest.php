@@ -18,7 +18,7 @@ function validatorRow(
         row_index: $index,
         row_type: $type,
         name: "Строка {$index}",
-        total_price: $totalPrice,
+        total_price_curr: $totalPrice,
     );
 }
 

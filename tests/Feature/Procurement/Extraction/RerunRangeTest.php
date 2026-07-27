@@ -53,10 +53,9 @@ function rerunRow(int $index, string $name, ?string $totalPrice = null): array
         'code' => null,
         'unit' => null,
         'quantity' => null,
-        'unit_price' => null,
-        'total_price' => $totalPrice,
+        'unit_price_curr' => null,
+        'total_price_curr' => $totalPrice,
         'resources' => [],
-        'modifiers' => [],
     ];
 }
 
@@ -116,7 +115,7 @@ test('re-run заменяет только позиции запрошенног
     $updated5 = Item::query()->where('estimate_id', $estimate->id)->where('row_index', 5)->firstOrFail();
     expect($updated5->id)->toBe($original5->id)
         ->and($updated5->name)->toBe('Обновлённая позиция 5')
-        ->and((string) $updated5->total_price)->toBe('1500.00')
+        ->and((string) $updated5->total_price_curr)->toBe('1500.00')
         ->and($updated5->section_id)->toBe($section->id); // прежняя секция сохранена (Known Deviations P6.3)
 
     $created6 = Item::query()->where('estimate_id', $estimate->id)->where('row_index', 6)->firstOrFail();

@@ -9,6 +9,7 @@ use App\Dto\Procurement\Ai\Estimate\EstimateTotalsBlock;
 use App\Dto\Procurement\Ai\Estimate\TotalLine;
 use App\Enums\Procurement\EstimateValidationStatus;
 use App\Enums\Procurement\RowType;
+use App\Enums\Procurement\TotalKind;
 
 /**
  * Детерминированная (без LLM) арифметическая/структурная валидация извлечённой сметы
@@ -143,20 +144,20 @@ final readonly class EstimateValidator
             }
 
             if ($row->row_type === RowType::Item) {
-                $accumulated = bcadd($accumulated, $row->total_price ?? '0', self::SCALE);
+                $accumulated = bcadd($accumulated, $row->total_price_curr ?? '0', self::SCALE);
                 $itemIndexesInSection[] = $row->row_index;
 
                 continue;
             }
 
             // row_type === Subtotal
-            if ($row->total_price === null) {
+            if ($row->total_price_curr === null) {
                 continue;
             }
 
-            if (! $this->withinTolerance($accumulated, $row->total_price)) {
+            if (! $this->withinTolerance($accumulated, $row->total_price_curr)) {
                 $anomalousRowIndexes = [...$anomalousRowIndexes, ...$itemIndexesInSection, $row->row_index];
-                $notes[] = "арифметика раздела: сумма позиций {$accumulated} ≠ subtotal {$row->total_price} (row_index={$row->row_index})";
+                $notes[] = "арифметика раздела: сумма позиций {$accumulated} ≠ subtotal {$row->total_price_curr} (row_index={$row->row_index})";
             }
 
             $accumulated = '0';
@@ -188,8 +189,12 @@ final readonly class EstimateValidator
 
         foreach ($rows as $row) {
             if ($row->row_type === RowType::Item) {
-                $sum = bcadd($sum, $row->total_price ?? '0', self::SCALE);
+                $sum = bcadd($sum, $row->total_price_curr ?? '0', self::SCALE);
             }
+        }
+
+        if ($grandTotalLine->value === null) {
+            return;
         }
 
         if (! $this->withinTolerance($sum, $grandTotalLine->value)) {
@@ -205,7 +210,7 @@ final readonly class EstimateValidator
         foreach ($footer as $line) {
             $label = mb_strtolower($line->label);
 
-            if ($line->kind === 'total' || str_contains($label, 'итого') || str_contains($label, 'всего')) {
+            if ($line->kind === TotalKind::Total || str_contains($label, 'итого') || str_contains($label, 'всего')) {
                 return $line;
             }
         }

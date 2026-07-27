@@ -6,6 +6,7 @@ namespace App\Services\Procurement\Extraction;
 
 use App\Dto\Procurement\Ai\Estimate\EstimateRow;
 use App\Dto\Procurement\Ai\Estimate\PassportResponse;
+use App\Dto\Procurement\Ai\Estimate\RowAttributes;
 use App\Dto\Procurement\Ai\Estimate\RowModifier;
 use App\Dto\Procurement\Ai\Estimate\RowResource;
 use App\Dto\Procurement\Ai\Estimate\TotalLine;
@@ -51,6 +52,13 @@ final readonly class EstimateToContractMapper
             'price_level' => $estimate->price_level,
             'rows_expected' => $estimate->rows_expected ?? 0,
             'totals' => ['footer' => $this->totalsTree($estimate->totals)],
+            'calc_method' => $estimate->calc_method,
+            'labor_hours_workers' => $estimate->labor_hours_workers === null ? null : (string) $estimate->labor_hours_workers,
+            'labor_hours_machinists' => $estimate->labor_hours_machinists === null ? null : (string) $estimate->labor_hours_machinists,
+            'document_number' => $estimate->document_number,
+            'document_date' => $estimate->document_date?->toDateString(),
+            'period_start' => $estimate->period_start?->toDateString(),
+            'period_end' => $estimate->period_end?->toDateString(),
         ]);
 
         return [
@@ -74,8 +82,10 @@ final readonly class EstimateToContractMapper
             ->sortBy('position')
             ->map(fn (Total $total): TotalLine => new TotalLine(
                 label: $total->label,
-                value: (string) $total->amount,
+                value: $total->amount === null ? null : (string) $total->amount,
                 kind: $total->kind,
+                chapter_number: $total->chapter_number,
+                rate: $total->rate === null ? null : (string) $total->rate,
                 children: $this->totalsTree($totals, $total->id),
             ))
             ->values()
@@ -111,6 +121,8 @@ final readonly class EstimateToContractMapper
                 );
             }
 
+            $modifiers = $this->modifiers($item);
+
             $rows[] = new EstimateRow(
                 row_index: $rowIndex++,
                 row_type: RowType::Item,
@@ -119,8 +131,13 @@ final readonly class EstimateToContractMapper
                 code: $item->code,
                 unit: $item->unit,
                 quantity: $item->quantity === null ? null : (string) $item->quantity,
-                unit_price: $item->unit_price === null ? null : (string) $item->unit_price,
-                total_price: $item->total_price === null ? null : (string) $item->total_price,
+                unit_price_base: $item->unit_price_base === null ? null : (string) $item->unit_price_base,
+                unit_price_curr: $item->unit_price_curr === null ? null : (string) $item->unit_price_curr,
+                total_price_base: $item->total_price_base === null ? null : (string) $item->total_price_base,
+                total_price_curr: $item->total_price_curr === null ? null : (string) $item->total_price_curr,
+                index_code: $item->index_code,
+                index_value: $item->index_value === null ? null : (string) $item->index_value,
+                source_position_number: $item->source_position_number,
                 resources: $item->resources
                     ->map(fn (Resource $resource): RowResource => new RowResource(
                         resource_type: $resource->resource_type,
@@ -128,10 +145,13 @@ final readonly class EstimateToContractMapper
                         code: $resource->code,
                         unit: $resource->unit,
                         quantity: $resource->quantity === null ? null : (string) $resource->quantity,
-                        price: $resource->price === null ? null : (string) $resource->price,
+                        price_base: $resource->price_base === null ? null : (string) $resource->price_base,
+                        price_curr: $resource->price_curr === null ? null : (string) $resource->price_curr,
+                        index_code: $resource->index_code,
+                        index_value: $resource->index_value === null ? null : (string) $resource->index_value,
                     ))
                     ->all(),
-                modifiers: $this->modifiers($item),
+                attributes: $modifiers === [] ? null : new RowAttributes(modifiers: $modifiers),
             );
 
             $previousBreadcrumb = $breadcrumb;

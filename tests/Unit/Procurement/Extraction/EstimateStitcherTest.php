@@ -29,7 +29,7 @@ function row(
         name: $name,
         section_title: $sectionTitle,
         code: $code,
-        total_price: $totalPrice,
+        total_price_curr: $totalPrice,
     );
 }
 

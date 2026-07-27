@@ -41,10 +41,9 @@ function estimateRowData(
         'code' => $code,
         'unit' => $quantity !== null ? 'м3' : null,
         'quantity' => $quantity,
-        'unit_price' => $unitPrice,
-        'total_price' => $totalPrice,
+        'unit_price_curr' => $unitPrice,
+        'total_price_curr' => $totalPrice,
         'resources' => [],
-        'modifiers' => [],
     ];
 }
 

@@ -817,7 +817,25 @@ parameters:
 			path: /var/www/html/app/Services/Procurement/Extraction/EstimateToContractMapper.php
 
 		-
+			message: '#^Access to an undefined property App\\Models\\Procurement\\Estimate\\Estimate\:\:\$calc_method\.$#'
+			identifier: property.notFound
+			count: 1
+			path: /var/www/html/app/Services/Procurement/Extraction/EstimateToContractMapper.php
+
+		-
 			message: '#^Access to an undefined property App\\Models\\Procurement\\Estimate\\Estimate\:\:\$currency\.$#'
+			identifier: property.notFound
+			count: 1
+			path: /var/www/html/app/Services/Procurement/Extraction/EstimateToContractMapper.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Procurement\\Estimate\\Estimate\:\:\$document_date\.$#'
+			identifier: property.notFound
+			count: 1
+			path: /var/www/html/app/Services/Procurement/Extraction/EstimateToContractMapper.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Procurement\\Estimate\\Estimate\:\:\$document_number\.$#'
 			identifier: property.notFound
 			count: 1
 			path: /var/www/html/app/Services/Procurement/Extraction/EstimateToContractMapper.php
@@ -829,7 +847,31 @@ parameters:
 			path: /var/www/html/app/Services/Procurement/Extraction/EstimateToContractMapper.php
 
 		-
+			message: '#^Access to an undefined property App\\Models\\Procurement\\Estimate\\Estimate\:\:\$labor_hours_machinists\.$#'
+			identifier: property.notFound
+			count: 1
+			path: /var/www/html/app/Services/Procurement/Extraction/EstimateToContractMapper.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Procurement\\Estimate\\Estimate\:\:\$labor_hours_workers\.$#'
+			identifier: property.notFound
+			count: 1
+			path: /var/www/html/app/Services/Procurement/Extraction/EstimateToContractMapper.php
+
+		-
 			message: '#^Access to an undefined property App\\Models\\Procurement\\Estimate\\Estimate\:\:\$ordinal\.$#'
+			identifier: property.notFound
+			count: 1
+			path: /var/www/html/app/Services/Procurement/Extraction/EstimateToContractMapper.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Procurement\\Estimate\\Estimate\:\:\$period_end\.$#'
+			identifier: property.notFound
+			count: 1
+			path: /var/www/html/app/Services/Procurement/Extraction/EstimateToContractMapper.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Procurement\\Estimate\\Estimate\:\:\$period_start\.$#'
 			identifier: property.notFound
 			count: 1
 			path: /var/www/html/app/Services/Procurement/Extraction/EstimateToContractMapper.php
@@ -865,7 +907,31 @@ parameters:
 			path: /var/www/html/app/Services/Procurement/Extraction/EstimateToContractMapper.php
 
 		-
-			message: '#^Access to an undefined property App\\Models\\Procurement\\Estimate\\Item\:\:\$total_price\.$#'
+			message: '#^Access to an undefined property App\\Models\\Procurement\\Estimate\\Item\:\:\$index_code\.$#'
+			identifier: property.notFound
+			count: 1
+			path: /var/www/html/app/Services/Procurement/Extraction/EstimateToContractMapper.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Procurement\\Estimate\\Item\:\:\$index_value\.$#'
+			identifier: property.notFound
+			count: 1
+			path: /var/www/html/app/Services/Procurement/Extraction/EstimateToContractMapper.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Procurement\\Estimate\\Item\:\:\$source_position_number\.$#'
+			identifier: property.notFound
+			count: 1
+			path: /var/www/html/app/Services/Procurement/Extraction/EstimateToContractMapper.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Procurement\\Estimate\\Item\:\:\$total_price_base\.$#'
+			identifier: property.notFound
+			count: 1
+			path: /var/www/html/app/Services/Procurement/Extraction/EstimateToContractMapper.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Procurement\\Estimate\\Item\:\:\$total_price_curr\.$#'
 			identifier: property.notFound
 			count: 1
 			path: /var/www/html/app/Services/Procurement/Extraction/EstimateToContractMapper.php
@@ -877,7 +943,13 @@ parameters:
 			path: /var/www/html/app/Services/Procurement/Extraction/EstimateToContractMapper.php
 
 		-
-			message: '#^Access to an undefined property App\\Models\\Procurement\\Estimate\\Item\:\:\$unit_price\.$#'
+			message: '#^Access to an undefined property App\\Models\\Procurement\\Estimate\\Item\:\:\$unit_price_base\.$#'
+			identifier: property.notFound
+			count: 1
+			path: /var/www/html/app/Services/Procurement/Extraction/EstimateToContractMapper.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Procurement\\Estimate\\Item\:\:\$unit_price_curr\.$#'
 			identifier: property.notFound
 			count: 1
 			path: /var/www/html/app/Services/Procurement/Extraction/EstimateToContractMapper.php
@@ -889,13 +961,31 @@ parameters:
 			path: /var/www/html/app/Services/Procurement/Extraction/EstimateToContractMapper.php
 
 		-
+			message: '#^Access to an undefined property App\\Models\\Procurement\\Estimate\\Resource\:\:\$index_code\.$#'
+			identifier: property.notFound
+			count: 1
+			path: /var/www/html/app/Services/Procurement/Extraction/EstimateToContractMapper.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Procurement\\Estimate\\Resource\:\:\$index_value\.$#'
+			identifier: property.notFound
+			count: 1
+			path: /var/www/html/app/Services/Procurement/Extraction/EstimateToContractMapper.php
+
+		-
 			message: '#^Access to an undefined property App\\Models\\Procurement\\Estimate\\Resource\:\:\$name\.$#'
 			identifier: property.notFound
 			count: 1
 			path: /var/www/html/app/Services/Procurement/Extraction/EstimateToContractMapper.php
 
 		-
-			message: '#^Access to an undefined property App\\Models\\Procurement\\Estimate\\Resource\:\:\$price\.$#'
+			message: '#^Access to an undefined property App\\Models\\Procurement\\Estimate\\Resource\:\:\$price_base\.$#'
+			identifier: property.notFound
+			count: 1
+			path: /var/www/html/app/Services/Procurement/Extraction/EstimateToContractMapper.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Procurement\\Estimate\\Resource\:\:\$price_curr\.$#'
 			identifier: property.notFound
 			count: 1
 			path: /var/www/html/app/Services/Procurement/Extraction/EstimateToContractMapper.php
@@ -937,6 +1027,12 @@ parameters:
 			path: /var/www/html/app/Services/Procurement/Extraction/EstimateToContractMapper.php
 
 		-
+			message: '#^Access to an undefined property App\\Models\\Procurement\\Estimate\\Total\:\:\$chapter_number\.$#'
+			identifier: property.notFound
+			count: 1
+			path: /var/www/html/app/Services/Procurement/Extraction/EstimateToContractMapper.php
+
+		-
 			message: '#^Access to an undefined property App\\Models\\Procurement\\Estimate\\Total\:\:\$kind\.$#'
 			identifier: property.notFound
 			count: 1
@@ -944,6 +1040,12 @@ parameters:
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Procurement\\Estimate\\Total\:\:\$label\.$#'
+			identifier: property.notFound
+			count: 1
+			path: /var/www/html/app/Services/Procurement/Extraction/EstimateToContractMapper.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Procurement\\Estimate\\Total\:\:\$rate\.$#'
 			identifier: property.notFound
 			count: 1
 			path: /var/www/html/app/Services/Procurement/Extraction/EstimateToContractMapper.php

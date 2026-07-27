@@ -13,6 +13,9 @@ namespace App\Enums\Procurement;
  * - SubsectionHeader: заголовок подраздела.
  * - Item: позиция с расценкой.
  * - Subtotal: промежуточный итог раздела.
+ * - SummaryRow: строка свода КС-3 (стоимость с начала года/периода, §5.8, P4.5) — три временных
+ *   разреза строки лежат в `attributes.amount_*` (§4.1/§4.2 DTO `RowAttributes`), не в отдельных
+ *   полях самой строки.
  */
 enum RowType: string
 {
@@ -20,4 +23,5 @@ enum RowType: string
     case SubsectionHeader = 'subsection_header';
     case Item = 'item';
     case Subtotal = 'subtotal';
+    case SummaryRow = 'summary_row';
 }

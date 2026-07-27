@@ -18,6 +18,9 @@ use Spatie\LaravelData\Data;
  * - address: адрес объекта, если указан.
  * - generator: сметная программа, которой сформирован документ (напр. «Гранд-Смета», «1С:Смета») —
  *   диагностическое поле, не участвует в бизнес-логике.
+ * - contract_number: номер договора подряда, если документ его называет (SR-12, P4.5).
+ * - contract_date: дата договора подряда, ISO-строка (SR-12, P4.5) — цитата документа, не
+ *   парсится в дату на бэкенде.
  */
 final class EstimatePassport extends Data
 {
@@ -27,5 +30,7 @@ final class EstimatePassport extends Data
         public ?EstimateTarget $target = null,
         public ?string $address = null,
         public ?string $generator = null,
+        public ?string $contract_number = null,
+        public ?string $contract_date = null,
     ) {}
 }

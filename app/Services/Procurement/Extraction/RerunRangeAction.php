@@ -101,10 +101,10 @@ final readonly class RerunRangeAction
                         'name' => $row->name,
                         'unit' => $row->unit,
                         'quantity' => $row->quantity,
-                        'unit_price' => $row->unit_price,
-                        'total_price' => $row->total_price,
-                        'attributes' => $row->modifiers !== []
-                            ? ['modifiers' => array_map(static fn (RowModifier $modifier): array => $modifier->toArray(), $row->modifiers)]
+                        'unit_price_curr' => $row->unit_price_curr,
+                        'total_price_curr' => $row->total_price_curr,
+                        'attributes' => $row->attributes !== null && $row->attributes->modifiers !== []
+                            ? ['modifiers' => array_map(static fn (RowModifier $modifier): array => $modifier->toArray(), $row->attributes->modifiers)]
                             : null,
                     ],
                 );
