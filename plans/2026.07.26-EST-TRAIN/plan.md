@@ -11,7 +11,7 @@
 | Document Type | Executable Master Plan |
 | Authoring Model | frontier |
 | Design Passes | 3/3 — 9 фаз / 46 items + высокая неопределённость брифа (владелец: «мысли сумбурные»); pass 1 — скелеты и контракты, pass 2 — детализация всех девяти фаз (завершён 2026-07-27), pass 3 — `finish`: сквозной reconcile контрактов, DoR-свип, пересборка roadmap (завершён 2026-07-27, D82–D85). Дизайн-бюджет исчерпан. Три захода ремедиации находок аудита (2026-07-27: D86 по F1–F8, D87 по A1–A7, D88 по C1–C7) прогонами НЕ считаются: новых решений по существу задачи не принято, состав и статусы 46 items не изменились — правились формулировки ТЗ по названным аудитом адресам. Заход `plan-design <ID> P4.2` 2026-07-27 (D89–D90 — решения владельца по OQ-5/OQ-6) прогоном ТОЖЕ не считается: режим design-item, состав и статусы 46 items не изменились, правились ТЗ одного item'а (P4.2) и адреса его потребителей. Новый прогон дизайна — только по явной D-записи владельца |
-| Last Updated | 2026-07-27 (P4.5 закрыт 🟠 — фаза P4 терминальна) |
+| Last Updated | 2026-07-27 (P5.1 эскалирован 🔴 — реопен P3.3 по `Position@IndexCode`/`<Indexes>`) |
 | Repository | agelto (branch main) |
 | Related Packages | prism-php/prism, spatie/laravel-data, laravel/horizon, phpoffice/phpspreadsheet, filament/filament; системные бинари единого образа (P3.2, D23): qpdf (есть), libreoffice-calc/writer + fonts-dejavu-core/liberation, 7zip (`7zz`), unar, poppler-utils, tesseract-ocr + rus/eng, ocrmypdf, ghostscript |
 | Execution Mode | phase-first |
@@ -114,7 +114,7 @@ EST-AI (закрыт 2026-07-09, 🟠) построил пайплайн раз�
 | P2 | Хранилище эталонов и реестр в БД | 2/4 | 🟠 Done with deviations |
 | P3 | Фабрика представлений документа (gsfx, LibreOffice, архивы, OCR) | 0/7 | 🟠 Done with deviations |
 | P4 | Аудит и правка схемы смет по фактам корпуса | 3/5 | 🟠 Done with deviations |
-| P5 | Детерминированный gold-парсер и наполнение эталонов | 0/6 | ⬜ Not started |
+| P5 | Детерминированный gold-парсер и наполнение эталонов | 0/6 | 🔴 Blocked |
 | P6 | Бенчмарк представлений и ADR по формату входа | 0/3 | ⬜ Not started |
 | P7 | Боевые промты, diff-отчёт и петля тюнинга | 0/6 | ⬜ Not started |
 | P8 | Обучалка в Filament: загрузить → прогнать → сравнить → апрувить | 0/5 | ⬜ Not started |
@@ -283,6 +283,7 @@ EST-AI (закрыт 2026-07-09, 🟠) построил пайплайн раз�
 | 2026-07-27 | plan-run/implementation·high (sonnet) | P4.4 закрыт 🟠: миграции/модели/фабрики `prc_estimate*` по утверждённому списку (30 колонок, 3 переименования, 3 смены типа, 2 удаления, новая `prc_estimate_work_types`), эскалация по гейту непустоты снята решением владельца в той же сессии — детали см. phases/P4.md P4.4 Completion Notes |
 | 2026-07-27 | plan-run/implementation·high (sonnet) | P4.5 закрыт 🟠: DTO-контракты ответа LLM расширены под утверждённый список P4.2/P4.3, спека и карта следствий синхронизированы; фаза P4 терминальна — детали см. phases/P4.md P4.5 Completion Notes |
 | 2026-07-27 | plan-close/sonnet·low | Фаза P4 закрыта: Phase Handoff в phases/P4.md перезаписан (был устаревший design-блок), docs-sync подтверждён (database.md + спека §08 обновлены P4.4/P4.5), Status Board уже сходился |
+| 2026-07-27 | plan-run/implementation·high (sonnet) | P5.1 эскалирован 🔴: реопен P3.3 — `GsfxReader`/`GsfxDocument` молча теряют `Position@IndexCode` (64/110 позиций реального эталона) и не разбирают каталог `<Indexes>` вовсе, `index_value` не восстановим ни для одной позиции/ресурса; предсказано заранее (`handoff.md`, `research/06` §7, `research/08` §6), подтверждено первым фактическим столкновением — детали см. phases/P5.md P5.1 |
 
 ## Обсуждение
 
