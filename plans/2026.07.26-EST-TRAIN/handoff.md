@@ -1,19 +1,20 @@
-# HANDOFF — 2026-07-27 — after P3.7
+# HANDOFF — 2026-07-27 — after P3
 
-**Next:** P3.7 закрыт 🟠 — **фаза P3 терминальна** (все 7 items 🟠 Done with deviations).
-Следующий шаг — не item, а закрытие фазы: `/task:plan-close 2026.07.26-EST-TRAIN P3`
-(Phase Handoff в `phases/P3.md`, сверка таблиц, docs-sync, перезапись handoff). Первый item
-следующей фазы (P4.1, `Exec = manual`, `implementation/high`) запускается уже ПОСЛЕ закрытия P3.
+**Next:** Фаза P3 закрыта (`plan-close P3`) — терминальна: 0/7 🟢, 7/7 🟠 Done with deviations.
+Docs-sync — follow-up к P4 (сведение доков по фактам P3 принадлежит тому же аудиту). Следующий
+шаг — первый item фазы P4: P4.1 (solo, `Exec = manual`, `implementation/high`).
 
 | Параметр | Значение |
 |:--|:--|
-| Model | sonnet |
-| Thinking | low — сверка таблиц и Phase Handoff по фактам, решений нет |
-| Context | NEW SESSION — шаг-не-item |
-| Суть | Закрыть фазу P3: Phase Handoff, счётчики Status Board, docs-sync, handoff под P4 |
+| Model | opus |
+| Thinking | high — двусторонняя матрица по пяти таблицам и трём источникам, решения запрещены явно |
+| Context | continue (/clear) — ручной item |
+| Суть | Колоночный аудит схемы: сверка P1.4/P3.3/миграций — вход P4 |
 
 ```
-/task:plan-close 2026.07.26-EST-TRAIN P3
+/model opus
+/effort high
+/task:plan-run 2026.07.26-EST-TRAIN P4.1
 ```
 
 **Done:** P1 — 🟢 4/4. P2 — терминальна (2/4 🟢, 2/4 🟠). **P3 — терминальна: P3.1–P3.7 все 🟠
@@ -27,8 +28,8 @@ P3.7 дал ЧИСЛО потолка локального OCR: **23 корре�
 локальный OCR годится как ВХОД для LLM-извлечения и НЕ годится как источник эталона — gold по
 сканам остаётся за HITL (P8.3); вход в возможное решение о table-structure движке — это число.
 
-**Remaining:** закрыть фазу P3 (`plan-close`), затем P4 (аудит и правка схемы смет, 5 items,
-первый — P4.1 `manual`/`implementation·high`). Фазы P4–P9 не начаты.
+**Remaining:** P4 (аудит и правка схемы смет, 5 items, первый — P4.1 `manual`/`implementation·high`).
+Фазы P4–P9 не начаты.
 
 **Sources of truth:** `plans/2026.07.26-EST-TRAIN/plan.md` (Meta, §3 Routing, D1–D91) ·
 `plans/2026.07.26-EST-TRAIN/phases/P3.md` (ТЗ и Completion Notes P3.1–P3.7) ·
