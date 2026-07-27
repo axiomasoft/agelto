@@ -24,6 +24,8 @@ final class TotalFactory extends Factory
             'label' => 'Итого',
             'kind' => null,
             'amount' => $this->faker->randomFloat(2, 1_000, 1_000_000),
+            'chapter_number' => null,
+            'rate' => null,
         ];
     }
 }

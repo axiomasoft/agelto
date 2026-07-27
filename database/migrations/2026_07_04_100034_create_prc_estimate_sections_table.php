@@ -29,7 +29,9 @@ return new class extends Migration
 
             $table->integer('position');
             $table->text('title');
-            $table->text('section_number')->nullable();
+
+            // `section_number` — УДАЛЕНА (D100): боевой путь всегда писал null, ни одно SR-NN
+            // на неё не ссылается, контракт ответа её не отдаёт.
 
             $table->timestamps();
         });

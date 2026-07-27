@@ -21,7 +21,9 @@ status: draft
 | `prc_ai_corrections` | Field-level коррекции оператора (JSONPath + reason-enum) — обучающий контур |
 | `prc_ai_dataset_examples` | Immutable gold-снапшоты (SFT/DPO источник) — `ai/training-loop.md` |
 | `prc_ai_eval_runs` / `prc_ai_eval_results` | Прогоны `ai:eval:run` по golden-датасету и их метрики |
-| `prc_estimates` / `prc_estimate_items` | Распарсенная смета (`$estimate`) и её позиции (не путать: `prc_items` — позиция объекта закупки/лота) |
+| `prc_estimates` / `prc_estimate_items` | Распарсенная смета (`$estimate`) и её позиции (не путать: `prc_items` — позиция объекта закупки/лота); `procurement_id` **nullable** (D98 — обучающий контур работает с документами вне закупки, тот же довод, что и у `prc_documents`); ось «оператор проверил боевой разбор» — `verified_at`/`verified_by` (D89, без писателя внутри плана) |
+| `prc_estimate_sections` / `prc_estimate_resources` / `prc_estimate_totals` | Иерархия разделов, ресурсы позиции (труд/машины/материалы/накладные) и дерево итогов сметы (P4.4) |
+| `prc_estimate_work_types` | Вид работ и его иерархия (`parent_id`, per-estimate область), носитель нормативов НР/СП (D34/D90, P4.4) — полноценно заполняется только gsfx-веткой |
 
 ## Ключевые инварианты
 

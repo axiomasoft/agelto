@@ -4,12 +4,16 @@ declare(strict_types=1);
 
 namespace App\Models\Procurement\Estimate;
 
+use App\Enums\Procurement\CalcMethod;
+use App\Enums\Procurement\EstimateSourceKind;
 use App\Models\Procurement\Ai\Analysis;
 use App\Models\Procurement\Document\DocumentVersion;
 use App\Models\Procurement\Procurement;
+use App\Models\User;
 use Database\Factories\Procurement\Estimate\EstimateFactory;
 use Illuminate\Database\Eloquent\Attributes\UseFactory;
 use Illuminate\Database\Eloquent\Casts\AsCollection;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -32,18 +36,31 @@ final class Estimate extends Model
         'document_version_id',
         'procurement_id',
         'ordinal',
-        'title',
         'estimate_number',
         'total_amount',
         'currency',
         'base_year',
         'price_level',
+        'calc_method',
+        'labor_hours_workers',
+        'labor_hours_machinists',
+        'document_number',
+        'document_date',
+        'period_start',
+        'period_end',
         'passport',
         'raw_result',
         'raw_result_ref',
         'rows_expected',
         'rows_extracted',
         'validation_status',
+        'verified_at',
+        'verified_by',
+        'source_sheet_name',
+        'source_row_start',
+        'source_row_end',
+        'source_page_start',
+        'source_page_end',
     ];
 
     protected function casts(): array
@@ -52,11 +69,50 @@ final class Estimate extends Model
             'ordinal' => 'integer',
             'total_amount' => 'decimal:2',
             'base_year' => 'integer',
+            'calc_method' => CalcMethod::class,
+            'labor_hours_workers' => 'decimal:6',
+            'labor_hours_machinists' => 'decimal:6',
+            'document_date' => 'date',
+            'period_start' => 'date',
+            'period_end' => 'date',
             'passport' => AsCollection::class,
             'raw_result' => AsCollection::class,
             'rows_expected' => 'integer',
             'rows_extracted' => 'integer',
+            'verified_at' => 'datetime',
+            'source_row_start' => 'integer',
+            'source_row_end' => 'integer',
+            'source_page_start' => 'integer',
+            'source_page_end' => 'integer',
         ];
+    }
+
+    /**
+     * Подпись сметы для витрины — вычислима из `estimate_number`/`ordinal`, колонки не имеет
+     * (D100: хранимое производное значение расходилось с источником при правке номера оператором).
+     */
+    protected function title(): Attribute
+    {
+        return Attribute::make(
+            get: fn (): string => $this->estimate_number !== null && $this->estimate_number !== ''
+                ? "Смета №{$this->estimate_number}"
+                : "Смета №{$this->ordinal}",
+        );
+    }
+
+    /**
+     * Система координат адреса сметы в многосметном документе — производная, колонки не имеет
+     * (D106): лист книги → `Sheet`, страничный сегмент → `Pages`, ни то ни другое → `WholeDocument`.
+     */
+    protected function sourceKind(): Attribute
+    {
+        return Attribute::make(
+            get: fn (): EstimateSourceKind => match (true) {
+                $this->source_sheet_name !== null => EstimateSourceKind::Sheet,
+                $this->source_page_start !== null => EstimateSourceKind::Pages,
+                default => EstimateSourceKind::WholeDocument,
+            },
+        );
     }
 
     public function analysis(): BelongsTo
@@ -74,6 +130,11 @@ final class Estimate extends Model
         return $this->belongsTo(related: Procurement::class);
     }
 
+    public function verifiedBy(): BelongsTo
+    {
+        return $this->belongsTo(related: User::class, foreignKey: 'verified_by');
+    }
+
     public function sections(): HasMany
     {
         return $this->hasMany(related: Section::class);
@@ -87,6 +148,11 @@ final class Estimate extends Model
     public function totals(): HasMany
     {
         return $this->hasMany(related: Total::class);
+    }
+
+    public function workTypes(): HasMany
+    {
+        return $this->hasMany(related: WorkType::class);
     }
 
     protected static function booted(): void

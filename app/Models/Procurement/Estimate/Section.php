@@ -26,7 +26,6 @@ final class Section extends Model
         'parent_id',
         'position',
         'title',
-        'section_number',
     ];
 
     protected function casts(): array

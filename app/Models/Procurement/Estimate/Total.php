@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models\Procurement\Estimate;
 
+use App\Enums\Procurement\TotalKind;
 use Database\Factories\Procurement\Estimate\TotalFactory;
 use Illuminate\Database\Eloquent\Attributes\UseFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -28,13 +29,18 @@ final class Total extends Model
         'label',
         'kind',
         'amount',
+        'chapter_number',
+        'rate',
     ];
 
     protected function casts(): array
     {
         return [
             'position' => 'integer',
+            'kind' => TotalKind::class,
             'amount' => 'decimal:2',
+            'chapter_number' => 'integer',
+            'rate' => 'decimal:6',
         ];
     }
 

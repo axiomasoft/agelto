@@ -24,8 +24,13 @@ final class ResourceFactory extends Factory
             'code' => $this->faker->bothify('РЕС-####'),
             'name' => $this->faker->words(3, true),
             'unit' => 'т',
+            'unit_base' => 'т',
+            'unit_multiplier' => '1.000000',
             'quantity' => $this->faker->randomFloat(6, 1, 500),
-            'price' => $this->faker->randomFloat(2, 10, 50_000),
+            'price_base' => $this->faker->randomFloat(2, 10, 50_000),
+            'price_curr' => $this->faker->randomFloat(2, 10, 50_000),
+            'index_code' => $this->faker->bothify('ИПР-##'),
+            'index_value' => $this->faker->randomFloat(6, 1, 10),
         ];
     }
 }

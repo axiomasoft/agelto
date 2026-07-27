@@ -1409,3 +1409,27 @@ parameters:
 			identifier: property.notFound
 			count: 1
 			path: /var/www/html/app/Services/Procurement/StatusMappingService.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Procurement\\Estimate\\Estimate\:\:\$estimate_number\.$#'
+			identifier: property.notFound
+			count: 1
+			path: /var/www/html/app/Models/Procurement/Estimate/Estimate.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Procurement\\Estimate\\Estimate\:\:\$ordinal\.$#'
+			identifier: property.notFound
+			count: 1
+			path: /var/www/html/app/Models/Procurement/Estimate/Estimate.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Procurement\\Estimate\\Estimate\:\:\$source_sheet_name\.$#'
+			identifier: property.notFound
+			count: 1
+			path: /var/www/html/app/Models/Procurement/Estimate/Estimate.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Procurement\\Estimate\\Estimate\:\:\$source_page_start\.$#'
+			identifier: property.notFound
+			count: 1
+			path: /var/www/html/app/Models/Procurement/Estimate/Estimate.php

@@ -27,16 +27,24 @@ final class Resource extends Model
         'code',
         'name',
         'unit',
+        'unit_base',
+        'unit_multiplier',
         'quantity',
-        'price',
+        'price_base',
+        'price_curr',
+        'index_code',
+        'index_value',
     ];
 
     protected function casts(): array
     {
         return [
             'resource_type' => ResourceType::class,
+            'unit_multiplier' => 'decimal:6',
             'quantity' => 'decimal:6',
-            'price' => 'decimal:2',
+            'price_base' => 'decimal:2',
+            'price_curr' => 'decimal:2',
+            'index_value' => 'decimal:6',
         ];
     }
 

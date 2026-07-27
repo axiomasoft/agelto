@@ -29,9 +29,17 @@ final class Item extends Model
         'code',
         'name',
         'unit',
+        'unit_base',
+        'unit_multiplier',
         'quantity',
-        'unit_price',
-        'total_price',
+        'unit_price_base',
+        'unit_price_curr',
+        'total_price_base',
+        'total_price_curr',
+        'index_code',
+        'index_value',
+        'source_position_number',
+        'work_type_id',
         'attributes',
     ];
 
@@ -39,9 +47,13 @@ final class Item extends Model
     {
         return [
             'row_index' => 'integer',
+            'unit_multiplier' => 'decimal:6',
             'quantity' => 'decimal:6',
-            'unit_price' => 'decimal:2',
-            'total_price' => 'decimal:2',
+            'unit_price_base' => 'decimal:2',
+            'unit_price_curr' => 'decimal:2',
+            'total_price_base' => 'decimal:2',
+            'total_price_curr' => 'decimal:2',
+            'index_value' => 'decimal:6',
             'attributes' => AsCollection::class,
         ];
     }
@@ -54,6 +66,11 @@ final class Item extends Model
     public function section(): BelongsTo
     {
         return $this->belongsTo(related: Section::class);
+    }
+
+    public function workType(): BelongsTo
+    {
+        return $this->belongsTo(related: WorkType::class);
     }
 
     public function resources(): HasMany

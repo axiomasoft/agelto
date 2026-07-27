@@ -22,7 +22,6 @@ final class SectionFactory extends Factory
             'parent_id' => null,
             'position' => $this->faker->numberBetween(1, 20),
             'title' => $this->faker->sentence(3),
-            'section_number' => $this->faker->bothify('Раздел ##'),
         ];
     }
 }

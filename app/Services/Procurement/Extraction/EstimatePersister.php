@@ -18,7 +18,6 @@ use App\Models\Procurement\Estimate\Estimate;
 use App\Repositories\Procurement\EstimateStoreRepository;
 use App\Repositories\Procurement\ProcurementStoreRepository;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
@@ -82,17 +81,6 @@ final readonly class EstimatePersister
      */
     private function persistEstimate(Analysis $analysis, Document $document, DocumentVersion $version, array $data): void
     {
-        if ($document->procurement_id === null) {
-            // `prc_estimates.procurement_id` — NOT NULL (migration 100033); manual-импорт вне
-            // закупки (D22, P7.4) сюда не персистится — не Scope P6.3, см. Pending Work.
-            Log::warning('EstimatePersister: пропуск сметы — документ вне закупки (procurement_id=null).', [
-                'document_id' => $document->id,
-                'analysis_id' => $analysis->id,
-            ]);
-
-            return;
-        }
-
         $rows = array_map(static fn (array $row): EstimateRow => EstimateRow::from($row), (array) ($data['rows'] ?? []));
         $incompleteItems = array_map(static fn (array $row): IncompleteRow => IncompleteRow::from($row), (array) ($data['incomplete_items'] ?? []));
         $totals = isset($data['totals']) && $data['totals'] !== null ? EstimateTotalsBlock::from($data['totals']) : null;
@@ -111,9 +99,7 @@ final readonly class EstimatePersister
                 attributes: [
                     'document_version_id' => $version->id,
                     'procurement_id' => $document->procurement_id,
-                    'title' => $estimateNumber !== null && $estimateNumber !== ''
-                        ? "Смета №{$estimateNumber}"
-                        : "Смета №{$ordinal}",
+                    // `title` — вычисляется аксессором Estimate::title() на чтении (D100), сюда не пишется.
                     'estimate_number' => $estimateNumber,
                     'total_amount' => $this->grandTotal($totals),
                     'currency' => $data['currency'] ?? 'RUB',
