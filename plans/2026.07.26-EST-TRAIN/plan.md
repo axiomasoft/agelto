@@ -11,7 +11,7 @@
 | Document Type | Executable Master Plan |
 | Authoring Model | frontier |
 | Design Passes | 3/3 — 9 фаз / 46 items + высокая неопределённость брифа (владелец: «мысли сумбурные»); pass 1 — скелеты и контракты, pass 2 — детализация всех девяти фаз (завершён 2026-07-27), pass 3 — `finish`: сквозной reconcile контрактов, DoR-свип, пересборка roadmap (завершён 2026-07-27, D82–D85). Дизайн-бюджет исчерпан. Три захода ремедиации находок аудита (2026-07-27: D86 по F1–F8, D87 по A1–A7, D88 по C1–C7) прогонами НЕ считаются: новых решений по существу задачи не принято, состав и статусы 46 items не изменились — правились формулировки ТЗ по названным аудитом адресам. Заход `plan-design <ID> P4.2` 2026-07-27 (D89–D90 — решения владельца по OQ-5/OQ-6) прогоном ТОЖЕ не считается: режим design-item, состав и статусы 46 items не изменились, правились ТЗ одного item'а (P4.2) и адреса его потребителей. Новый прогон дизайна — только по явной D-записи владельца |
-| Last Updated | 2026-07-27 (P2.4 закрыт) |
+| Last Updated | 2026-07-27 (P3.1 закрыт) |
 | Repository | agelto (branch main) |
 | Related Packages | prism-php/prism, spatie/laravel-data, laravel/horizon, phpoffice/phpspreadsheet, filament/filament; системные бинари единого образа (P3.2, D23): qpdf (есть), libreoffice-calc/writer + fonts-dejavu-core/liberation, 7zip (`7zz`), unar, poppler-utils, tesseract-ocr + rus/eng, ocrmypdf, ghostscript |
 | Execution Mode | phase-first |
@@ -112,7 +112,7 @@ EST-AI (закрыт 2026-07-09, 🟠) построил пайплайн раз�
 |:--|:--|:--|:--|
 | P1 | Разведка корпуса, таксономия и отбор эталонов | 4/4 | 🟢 Done |
 | P2 | Хранилище эталонов и реестр в БД | 2/4 | 🟠 Done with deviations |
-| P3 | Фабрика представлений документа (gsfx, LibreOffice, архивы, OCR) | 0/7 | ⬜ Not started |
+| P3 | Фабрика представлений документа (gsfx, LibreOffice, архивы, OCR) | 0/7 | 🟡 In progress |
 | P4 | Аудит и правка схемы смет по фактам корпуса | 0/5 | ⬜ Not started |
 | P5 | Детерминированный gold-парсер и наполнение эталонов | 0/6 | ⬜ Not started |
 | P6 | Бенчмарк представлений и ADR по формату входа | 0/3 | ⬜ Not started |
@@ -251,6 +251,7 @@ EST-AI (закрыт 2026-07-09, 🟠) построил пайплайн раз�
 | 2026-07-27 | plan-design/frontier·high (opus) | P2.4 — эскалация снята D91: `gold_path` в манифесте пишет производитель файла gold (P5.3), генератор P2.4 всегда `null`; правило (4) verify не смягчено, item 🔴→🟡 — детали см. phases/P2.md P2.4 и research/15-gold-path-ownership.md |
 | 2026-07-27 | plan-exec/implementation·medium (sonnet) | P2.4 закрыт 🟢: манифест перегенерирован по D91 (`gold_path` всегда `null`), `manifest → import → verify` на реальном корпусе — `ok: 24 · расхождений: 0 · лишних: 0`; фаза P2 терминальна (все 4 items 🟢/🟠) — детали см. phases/P2.md P2.4 Completion Notes |
 | 2026-07-27 | plan-close/economy·low (sonnet) | Фаза P2 закрыта (2/4 🟢, 2/4 🟠 Done with deviations): Phase Handoff в phases/P2.md, docs-sync — не требуется (follow-up SOP в P9), таблицы сверены, handoff.md перезаписан на Next `plan-exec P3.1` |
+| 2026-07-27 | plan-run/frontier·high (opus) | P3.1 закрыт 🟠: контракт представлений + цепочка стратегий, колонка `prepared_storage_path` удалена, три читателя переведены на резолвер; два отклонения (недостижимый acceptance grep и baseline вне `Files`) — детали см. phases/P3.md P3.1 Completion Notes |
 
 ## Обсуждение
 
