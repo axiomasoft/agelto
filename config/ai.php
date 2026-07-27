@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 use App\Services\Procurement\Prepare\ArchiveStrategy;
+use App\Services\Procurement\Prepare\GsfxStrategy;
 use App\Services\Procurement\Prepare\ImageStrategy;
 use App\Services\Procurement\Prepare\PassthroughStrategy;
 use App\Services\Procurement\Prepare\SpreadsheetStrategy;
@@ -160,6 +161,7 @@ return [
     'prepare' => [
         'strategies' => [
             ArchiveStrategy::class,
+            GsfxStrategy::class,
             SpreadsheetStrategy::class,
             ImageStrategy::class,
             PassthroughStrategy::class,

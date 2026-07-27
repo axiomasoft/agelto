@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="windows-1251"?>
+<Document ProgramVersion="15.3.5.55343" Generator="GrandSmeta">
+  <SimilarResGroups>
+    <Folder Caption="Тестовая группа"/>
+  </SimilarResGroups>
+  <VidRab_Catalog>
+    <Vids_Rab Type="Виды работ 2001г">
+      <VidRab_Group Caption="Общестроительные работы" ID="0">
+        <Vid_Rab Caption="Отделочные работы" ID="10025" Category="Construction" NrCode="Пр/812-015.0-1" SpCode="Пр/774-015.0"/>
+      </VidRab_Group>
+    </Vids_Rab>
+  </VidRab_Catalog>
+  <AddZatrats>
+    <AddZatrGlava Glava="8">
+      <AddZatr Caption="Временные здания и сооружения" Value="0,2" Options="Percent InSmr HideZero"/>
+    </AddZatrGlava>
+  </AddZatrats>
+  <Chapters>
+    <Chapter Caption="Раздел 1. Полы" SysID="1">
+      <Header Caption="Заголовок"/>
+      <Position Caption="Устройство стяжек цементных" SysID="1" Number="1" Code="ГЭСН11-01-011-01" Units="100 м2" Quantity="ОКР(10; 2)">
+        <Quantity Fx="10" Precision="2" Result="10"/>
+        <Resources>
+          <Mat Caption="Вода" Code="01.7.03.01-0001" Units="м3" Quantity="3,5" IndexCode="2">
+            <PriceBase Value="35,71"/>
+            <PriceCurr Value="62,49"/>
+          </Mat>
+          <Mch Caption="Подъемники одномачтовые" Code="91.06.06-048" Units="маш.-ч" Quantity="1,27" IndexCode="1133">
+            <PriceBase Value="37,32"/>
+            <PriceCurr Value="66,43"/>
+          </Mch>
+        </Resources>
+        <WorksList>
+          <Work Caption="Подготовка основания."/>
+        </WorksList>
+      </Position>
+      <Position Caption="Раствор готовый кладочный" SysID="2" Number="2" Code="ФСБЦ-04.3.01.09-0054" Units="м3" Quantity="ОКР(4,1514; 7)">
+        <Quantity Fx="4,1514" Precision="7" Result="4,1514"/>
+        <PriceBase PZ="3404,62" MT="3404,62"/>
+        <PriceCurr MT="6741,15"/>
+      </Position>
+    </Chapter>
+  </Chapters>
+</Document>

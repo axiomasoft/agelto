@@ -1,0 +1,234 @@
+<?php
+
+declare(strict_types=1);
+
+use App\Enums\Procurement\DocumentStatus;
+use App\Enums\Procurement\RepresentationKind;
+use App\Models\Procurement\Document\Document;
+use App\Models\Procurement\Document\DocumentRepresentation;
+use App\Models\Procurement\Document\DocumentVersion;
+use App\Services\Procurement\Prepare\GsfxStrategy;
+use Illuminate\Support\Facades\Storage;
+
+/**
+ * `.gsfx` → структурная модель и текст (P3.3, D2). Синтетический контейнер собирается в тесте
+ * из `tests/Fixtures/gsfx/{Properties.txt,Data.xml}` (реальный 6.2-МБ эталон в git не коммитится,
+ * D1) — те же файлы, перекодированные в cp1251, что и настоящий контейнер ГрандСметы.
+ */
+function buildGsfxZip(array $extraEntries = []): string
+{
+    $zipPath = tempnam(sys_get_temp_dir(), 'gsfx_test_').'.gsfx';
+    $zip = new ZipArchive;
+    $zip->open($zipPath, ZipArchive::CREATE);
+    $zip->addFile(base_path('tests/Fixtures/gsfx/Properties.txt'), 'Properties.txt');
+    $zip->addFile(base_path('tests/Fixtures/gsfx/Data.xml'), 'Data.xml');
+
+    foreach ($extraEntries as $name => $content) {
+        $zip->addFromString($name, $content);
+    }
+
+    $zip->close();
+
+    return $zipPath;
+}
+
+function makeGsfxVersion(string $zipPath): array
+{
+    $document = Document::factory()->create(['status' => DocumentStatus::Downloaded]);
+    $disk = Storage::fake((string) config('crawler.documents_disk'));
+    $storagePath = 'documents/gsfx-test.gsfx';
+    $disk->put($storagePath, file_get_contents($zipPath));
+
+    $version = DocumentVersion::factory()->create([
+        'document_id' => $document->id,
+        'extension' => 'gsfx',
+        'storage_path' => $storagePath,
+        'content_hash' => hash('sha256', $storagePath),
+    ]);
+
+    return [$document, $version];
+}
+
+test('паспорт разобран из cp1251 без мусора', function () {
+    [$document, $version] = makeGsfxVersion(buildGsfxZip());
+
+    app(GsfxStrategy::class)->process($document, $version);
+
+    $representation = DocumentRepresentation::query()
+        ->where('document_version_id', $version->id)
+        ->where('kind', RepresentationKind::StructuredXml)
+        ->first();
+
+    $disk = Storage::disk((string) config('crawler.documents_disk'));
+    $decoded = json_decode($disk->get($representation->storage_path), true);
+
+    expect($decoded['passport'])->toBe([
+        'doc_type' => 'sdtSmeta',
+        'loc_num' => 'ЛСР-ТЕСТ-01',
+        'object_name' => 'Тестовый объект — ремонт помещения',
+        'total' => '12345.67',
+        'calc_method' => 'Res',
+        'normative_base' => 'ФСНБ-2022 (с Изм. 1-13)',
+        'program_version' => '15.3.5.55343',
+        'modified_at' => '05.02.2026 19:17:02',
+    ]);
+});
+
+test('позиция несёт обе цены', function () {
+    [$document, $version] = makeGsfxVersion(buildGsfxZip());
+
+    app(GsfxStrategy::class)->process($document, $version);
+
+    $representation = DocumentRepresentation::query()
+        ->where('document_version_id', $version->id)
+        ->where('kind', RepresentationKind::StructuredXml)
+        ->first();
+
+    $disk = Storage::disk((string) config('crawler.documents_disk'));
+    $decoded = json_decode($disk->get($representation->storage_path), true);
+
+    $position = $decoded['chapters'][0]['positions'][1];
+    expect($position['name'])->toBe('Раствор готовый кладочный')
+        ->and($position['price_base'])->toBe('3404,62')
+        ->and($position['price_curr'])->toBe('6741,15');
+});
+
+test('ресурсы привязаны к позиции', function () {
+    [$document, $version] = makeGsfxVersion(buildGsfxZip());
+
+    app(GsfxStrategy::class)->process($document, $version);
+
+    $representation = DocumentRepresentation::query()
+        ->where('document_version_id', $version->id)
+        ->where('kind', RepresentationKind::StructuredXml)
+        ->first();
+
+    $disk = Storage::disk((string) config('crawler.documents_disk'));
+    $decoded = json_decode($disk->get($representation->storage_path), true);
+
+    $resources = $decoded['chapters'][0]['positions'][0]['resources'];
+    expect($resources)->toHaveCount(2)
+        ->and($resources[0])->toMatchArray([
+            'resource_type' => 'Mat',
+            'name' => 'Вода',
+            'code' => '01.7.03.01-0001',
+            'unit' => 'м3',
+            'quantity' => '3,5',
+            'price_base' => '35,71',
+            'price_curr' => '62,49',
+            'index_code' => '2',
+        ])
+        ->and($decoded['chapters'][0]['positions'][0]['indices'])->toBe(['2', '1133']);
+});
+
+test('unmapped заполняется элементами, не попавшими в модель', function () {
+    [$document, $version] = makeGsfxVersion(buildGsfxZip());
+
+    app(GsfxStrategy::class)->process($document, $version);
+
+    $representation = DocumentRepresentation::query()
+        ->where('document_version_id', $version->id)
+        ->where('kind', RepresentationKind::StructuredXml)
+        ->first();
+
+    expect($representation->meta['unmapped'])->toMatchArray([
+        'SimilarResGroups' => 1,
+        'Header' => 1,
+        'WorksList' => 1,
+    ]);
+});
+
+test('битый контейнер — отсутствующий Data.xml → unprocessable(unreadable_format)', function () {
+    $zipPath = tempnam(sys_get_temp_dir(), 'gsfx_test_').'.gsfx';
+    $zip = new ZipArchive;
+    $zip->open($zipPath, ZipArchive::CREATE);
+    $zip->addFile(base_path('tests/Fixtures/gsfx/Properties.txt'), 'Properties.txt');
+    $zip->close();
+
+    [$document, $version] = makeGsfxVersion($zipPath);
+
+    $result = app(GsfxStrategy::class)->process($document, $version);
+
+    expect($result)->toBeFalse()
+        ->and($document->refresh()->status)->toBe(DocumentStatus::Unprocessable)
+        ->and($document->last_error)->toContain('unreadable_format');
+});
+
+test('XXE в Data.xml отклоняется до парсинга — unprocessable(unreadable_format)', function () {
+    $maliciousXml = <<<'XML'
+    <?xml version="1.0" encoding="windows-1251"?>
+    <!DOCTYPE Document [<!ENTITY xxe SYSTEM "file:///etc/passwd">]>
+    <Document>&xxe;</Document>
+    XML;
+
+    [$document, $version] = makeGsfxVersion(buildGsfxZip(['Data.xml' => $maliciousXml]));
+
+    $result = app(GsfxStrategy::class)->process($document, $version);
+
+    expect($result)->toBeFalse()
+        ->and($document->refresh()->status)->toBe(DocumentStatus::Unprocessable)
+        ->and($document->last_error)->toContain('unreadable_format');
+});
+
+test('вложение стало дочерним документом', function () {
+    [$document, $version] = makeGsfxVersion(buildGsfxZip([
+        'Attachments/photo.png' => 'fake-png-bytes',
+    ]));
+
+    app(GsfxStrategy::class)->process($document, $version);
+
+    $child = Document::query()
+        ->where('external_id', $version->id.':Attachments/photo.png')
+        ->first();
+
+    expect($child)->not->toBeNull();
+
+    $childVersion = DocumentVersion::query()->where('document_id', $child->id)->first();
+    expect($childVersion->parent_version_id)->toBe($version->id)
+        ->and($childVersion->filename)->toBe('photo.png');
+});
+
+test('вредоносное имя entry (zip-slip) не извлекается дочерним документом', function () {
+    [$document, $version] = makeGsfxVersion(buildGsfxZip([
+        'Attachments/../../../evil.txt' => 'payload',
+    ]));
+
+    $result = app(GsfxStrategy::class)->process($document, $version);
+
+    expect($result)->toBeTrue()
+        ->and(Document::query()->where('external_id', 'like', '%evil.txt')->exists())->toBeFalse();
+});
+
+test('повторный прогон идемпотентен — одно представление каждого kind', function () {
+    [$document, $version] = makeGsfxVersion(buildGsfxZip());
+
+    app(GsfxStrategy::class)->process($document, $version);
+    app(GsfxStrategy::class)->process($document, $version);
+
+    expect(DocumentRepresentation::query()->where('document_version_id', $version->id)->count())->toBe(2)
+        ->and(DocumentRepresentation::query()->where('document_version_id', $version->id)->where('kind', RepresentationKind::StructuredXml)->count())->toBe(1)
+        ->and(DocumentRepresentation::query()->where('document_version_id', $version->id)->where('kind', RepresentationKind::Text)->count())->toBe(1);
+});
+
+test('canProcess распознаёт расширение и сигнатуру ZIP', function () {
+    [$document, $version] = makeGsfxVersion(buildGsfxZip());
+
+    expect(app(GsfxStrategy::class)->canProcess($version))->toBeTrue();
+
+    $version->extension = 'xlsx';
+    expect(app(GsfxStrategy::class)->canProcess($version))->toBeFalse();
+});
+
+test('canProcess отклоняет gsfx-расширение без ZIP-сигнатуры', function () {
+    $document = Document::factory()->create(['status' => DocumentStatus::Downloaded]);
+    $disk = Storage::fake((string) config('crawler.documents_disk'));
+    $disk->put('documents/not-a-zip.gsfx', 'not a zip at all');
+
+    $version = DocumentVersion::factory()->create([
+        'document_id' => $document->id,
+        'extension' => 'gsfx',
+        'storage_path' => 'documents/not-a-zip.gsfx',
+    ]);
+
+    expect(app(GsfxStrategy::class)->canProcess($version))->toBeFalse();
+});
