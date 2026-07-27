@@ -111,7 +111,7 @@ EST-AI (закрыт 2026-07-09, 🟠) построил пайплайн раз�
 | Phase | Title | Items 🟢/всего | Status |
 |:--|:--|:--|:--|
 | P1 | Разведка корпуса, таксономия и отбор эталонов | 4/4 | 🟢 Done |
-| P2 | Хранилище эталонов и реестр в БД | 1/4 | 🟡 In progress |
+| P2 | Хранилище эталонов и реестр в БД | 1/4 | 🔴 Blocked |
 | P3 | Фабрика представлений документа (gsfx, LibreOffice, архивы, OCR) | 0/7 | ⬜ Not started |
 | P4 | Аудит и правка схемы смет по фактам корпуса | 0/5 | ⬜ Not started |
 | P5 | Детерминированный gold-парсер и наполнение эталонов | 0/6 | ⬜ Not started |
@@ -246,6 +246,7 @@ EST-AI (закрыт 2026-07-09, 🟠) построил пайплайн раз�
 | 2026-07-27 | владелец | Установлен `phpstan`/`larastan` (level 5, baseline 290 предсуществующих ошибок) отдельным коммитом `7485520` — инструмент требовался Validation-шагами плана, но в проекте не был подключён вовсе; решение принято владельцем на паузе P2.2 |
 | 2026-07-27 | plan-exec/implementation·medium (sonnet) | P2.2 закрыт 🟠: реестр `prc_ai_fixtures` (модель `Fixture`, enum'ы, репозиторий, фабрика) — деталь отклонения см. phases/P2.md P2.2 Completion Notes |
 | 2026-07-27 | plan-exec/implementation·medium (sonnet) | P2.3 закрыт 🟢: `FixtureManifest`/`FixtureManifestEntry` (DTO) + `ai:fixtures:import` идемпотентный по sha256, шесть кейсов — детали см. phases/P2.md P2.3 Completion Notes |
+| 2026-07-27 | plan-exec/implementation·medium (sonnet) | P2.4 эскалирован 🔴: Validation-4 (`verify` → 0 расхождений) противоречит Scope Excluded («gold — P5») — реальный прогон дал 11/24 расхождений (отсутствующий `gold_path`), владелец выбрал эскалацию — детали см. phases/P2.md P2.4 и handoff.md |
 
 ## Обсуждение
 
