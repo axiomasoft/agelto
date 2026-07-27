@@ -1,0 +1,228 @@
+<?php
+
+declare(strict_types=1);
+
+use App\Enums\Procurement\DocumentStatus;
+use App\Enums\Procurement\RepresentationKind;
+use App\Models\Procurement\Document\Document;
+use App\Models\Procurement\Document\DocumentRepresentation;
+use App\Models\Procurement\Document\DocumentVersion;
+use App\Services\Procurement\Prepare\ScanStrategy;
+use Illuminate\Support\Facades\Process;
+use Illuminate\Support\Facades\Storage;
+
+/**
+ * OCR сканов (P3.7, D22). Реальный `ocrmypdf` в тестах не вызывается (Code Guidance): фейковый
+ * обработчик отвечает за `pdftotext` (текстовый слой), `pdfinfo` (страницы), `tesseract --version`
+ * и сам подкладывает результат OCR — PDF по пути из аргументов и sidecar по `--sidecar`.
+ * Потолок движка меряется ОТДЕЛЬНО, ручным прогоном на реальных сканах — `research/04-ocr-ceiling.md`.
+ */
+function makeScanVersion(string $extension = 'pdf', string $content = '%PDF-скан'): array
+{
+    $document = Document::factory()->create(['status' => DocumentStatus::Downloaded]);
+    $disk = Storage::fake((string) config('crawler.documents_disk'));
+    $storagePath = "documents/scan.{$extension}";
+    $disk->put($storagePath, $content);
+
+    $version = DocumentVersion::factory()->create([
+        'document_id' => $document->id,
+        'extension' => $extension,
+        'storage_path' => $storagePath,
+        'content_hash' => hash('sha256', $storagePath),
+        'size_bytes' => strlen($content),
+    ]);
+
+    return [$document, $version];
+}
+
+/**
+ * @param  float  $charsPerPage  сколько символов текстового слоя «увидит» pdftotext на страницу
+ */
+function fakeOcrTools(float $charsPerPage = 0.0, bool $ocrSucceeds = true, string $sidecarText = "Наименование работ\nМонтаж двери\n"): void
+{
+    Process::fake([
+        '*pdftotext*' => Process::result(output: str_repeat('a', (int) round($charsPerPage * 3))),
+        '*pdfinfo*' => Process::result(output: "Title:\nPages:          2\nEncrypted:      no\n"),
+        '*tesseract*' => Process::result(output: "tesseract 5.5.0\n leptonica-1.85.0"),
+        '*ocrmypdf*' => function ($process) use ($ocrSucceeds, $sidecarText) {
+            if (! $ocrSucceeds) {
+                return Process::result(errorOutput: 'ocrmypdf: TaggedPDFError', exitCode: 4);
+            }
+
+            $command = $process->command;
+            $sidecarIndex = array_search('--sidecar', $command, true);
+            file_put_contents($command[$sidecarIndex + 1], $sidecarText);
+            file_put_contents(end($command), '%PDF-с-текстовым-слоем');
+
+            return Process::result();
+        },
+    ]);
+}
+
+test('canProcess распознаёт pdf и изображения, отклоняет табличные форматы', function () {
+    [, $version] = makeScanVersion();
+    $strategy = app(ScanStrategy::class);
+
+    expect($strategy->canProcess($version))->toBeTrue();
+
+    foreach (['jpg', 'jpeg', 'png', 'tiff'] as $extension) {
+        $version->extension = $extension;
+        expect($strategy->canProcess($version))->toBeTrue();
+    }
+
+    foreach (['xlsx', 'docx', 'gsfx', 'zip'] as $extension) {
+        $version->extension = $extension;
+        expect($strategy->canProcess($version))->toBeFalse();
+    }
+});
+
+test('PDF с текстовым слоем — стратегия вернула false, OCR не запускался', function () {
+    fakeOcrTools(charsPerPage: 900.0);
+    [$document, $version] = makeScanVersion();
+
+    $result = app(ScanStrategy::class)->process($document, $version);
+
+    expect($result)->toBeFalse()
+        ->and($document->refresh()->status)->not->toBe(DocumentStatus::Unprocessable)
+        ->and(DocumentRepresentation::query()->where('document_version_id', $version->id)->count())->toBe(0);
+
+    Process::assertNotRan(fn ($process) => str_contains((string) implode(' ', (array) $process->command), 'ocrmypdf'));
+});
+
+test('зонд не прочитал файл как PDF — стратегия вернула false, OCR не запускался', function () {
+    fakeOcrTools();
+    Process::fake([
+        '*pdftotext*' => Process::result(errorOutput: 'Syntax Error: Couldn\'t find trailer dictionary', exitCode: 1),
+        '*ocrmypdf*' => Process::result(),
+    ]);
+    [$document, $version] = makeScanVersion('pdf', 'битые байты, не PDF');
+
+    $result = app(ScanStrategy::class)->process($document, $version);
+
+    expect($result)->toBeFalse()
+        ->and($document->refresh()->status)->not->toBe(DocumentStatus::Unprocessable)
+        ->and(DocumentRepresentation::query()->where('document_version_id', $version->id)->count())->toBe(0);
+
+    Process::assertNotRan(fn ($process) => str_contains((string) ($process->command[0] ?? ''), 'ocrmypdf'));
+});
+
+test('PDF без текстового слоя — созданы два представления, pdf_ocr и text', function () {
+    fakeOcrTools(sidecarText: "Наименование работ\nМонтаж дверного блока\n");
+    [$document, $version] = makeScanVersion();
+
+    $result = app(ScanStrategy::class)->process($document, $version);
+
+    expect($result)->toBeTrue()
+        ->and($document->refresh()->status)->not->toBe(DocumentStatus::Unprocessable);
+
+    $pdfOcr = DocumentRepresentation::query()
+        ->where('document_version_id', $version->id)
+        ->where('kind', RepresentationKind::PdfOcr)
+        ->first();
+
+    $text = DocumentRepresentation::query()
+        ->where('document_version_id', $version->id)
+        ->where('kind', RepresentationKind::Text)
+        ->first();
+
+    expect($pdfOcr)->not->toBeNull()
+        ->and($pdfOcr->mime)->toBe('application/pdf')
+        ->and($pdfOcr->page_count)->toBe(2)
+        ->and($pdfOcr->meta['tool'])->toBe('ocrmypdf')
+        ->and($pdfOcr->meta['languages'])->toBe('rus+eng')
+        ->and($pdfOcr->meta['tesseract_version'])->toBe('tesseract 5.5.0')
+        ->and($pdfOcr->meta['duration_ms'])->toBeInt()
+        ->and($text)->not->toBeNull()
+        ->and($text->mime)->toBe('text/plain')
+        ->and($text->token_estimate)->toBeGreaterThan(0);
+
+    $disk = Storage::disk((string) config('crawler.documents_disk'));
+    $disk->assertExists($pdfOcr->storage_path);
+    expect($disk->get($text->storage_path))->toContain('Монтаж дверного блока');
+});
+
+test('состав аргументов ocrmypdf несёт --language rus+eng, --sidecar и --skip-text', function () {
+    fakeOcrTools();
+    [$document, $version] = makeScanVersion();
+
+    app(ScanStrategy::class)->process($document, $version);
+
+    Process::assertRan(function ($process) {
+        $command = (array) $process->command;
+
+        if (! str_contains((string) ($command[0] ?? ''), 'ocrmypdf')) {
+            return false;
+        }
+
+        $languageIndex = array_search('--language', $command, true);
+        $sidecarIndex = array_search('--sidecar', $command, true);
+
+        return $languageIndex !== false
+            && $command[$languageIndex + 1] === 'rus+eng'
+            && $sidecarIndex !== false
+            && str_ends_with($command[$sidecarIndex + 1], '.txt')
+            && in_array('--skip-text', $command, true)
+            && in_array('--output-type', $command, true);
+    });
+});
+
+test('падение ocrmypdf — unprocessable(ocr_failed), представлений нет', function () {
+    fakeOcrTools(ocrSucceeds: false);
+    [$document, $version] = makeScanVersion();
+
+    $result = app(ScanStrategy::class)->process($document, $version);
+
+    expect($result)->toBeTrue()
+        ->and($document->refresh()->status)->toBe(DocumentStatus::Unprocessable)
+        ->and($document->last_error)->toContain('ocr_failed')
+        ->and($document->last_error)->toContain('TaggedPDFError')
+        ->and(DocumentRepresentation::query()->where('document_version_id', $version->id)->count())->toBe(0);
+});
+
+test('пустой sidecar — unprocessable(ocr_failed), представлений нет', function () {
+    fakeOcrTools(sidecarText: "  \n\n");
+    [$document, $version] = makeScanVersion();
+
+    $result = app(ScanStrategy::class)->process($document, $version);
+
+    expect($result)->toBeTrue()
+        ->and($document->refresh()->status)->toBe(DocumentStatus::Unprocessable)
+        ->and($document->last_error)->toContain('ocr_failed')
+        ->and(DocumentRepresentation::query()->where('document_version_id', $version->id)->count())->toBe(0);
+});
+
+test('повторный прогон идемпотентен — ocrmypdf не вызывается второй раз, представлений остаётся два', function () {
+    fakeOcrTools();
+    [$document, $version] = makeScanVersion();
+
+    app(ScanStrategy::class)->process($document, $version);
+    $result = app(ScanStrategy::class)->process($document, $version);
+
+    expect($result)->toBeTrue()
+        ->and(DocumentRepresentation::query()->where('document_version_id', $version->id)->count())->toBe(2);
+
+    Process::assertRanTimes(fn ($process) => str_contains((string) ($process->command[0] ?? ''), 'ocrmypdf'), 1);
+});
+
+test('изображение — OCR запускается без зонда текстового слоя, представления созданы', function () {
+    fakeOcrTools(sidecarText: "Ведомость дверей\n");
+    [$document, $version] = makeScanVersion('jpg', 'jpeg-байты');
+
+    $result = app(ScanStrategy::class)->process($document, $version);
+
+    expect($result)->toBeTrue()
+        ->and(DocumentRepresentation::query()->where('document_version_id', $version->id)->count())->toBe(2);
+
+    Process::assertNotRan(fn ($process) => str_contains((string) ($process->command[0] ?? ''), 'pdftotext'));
+});
+
+test('падение OCR на изображении НЕ терминально — false, документ уходит в vision-ветку', function () {
+    fakeOcrTools(ocrSucceeds: false);
+    [$document, $version] = makeScanVersion('jpg', 'jpeg-байты');
+
+    $result = app(ScanStrategy::class)->process($document, $version);
+
+    expect($result)->toBeFalse()
+        ->and($document->refresh()->status)->not->toBe(DocumentStatus::Unprocessable)
+        ->and(DocumentRepresentation::query()->where('document_version_id', $version->id)->count())->toBe(0);
+});

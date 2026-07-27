@@ -5,6 +5,7 @@ use App\Services\Procurement\Prepare\ArchiveStrategy;
 use App\Services\Procurement\Prepare\GsfxStrategy;
 use App\Services\Procurement\Prepare\ImageStrategy;
 use App\Services\Procurement\Prepare\PassthroughStrategy;
+use App\Services\Procurement\Prepare\ScanStrategy;
 use App\Services\Procurement\Prepare\SpreadsheetStrategy;
 use App\Services\Procurement\Prepare\WordStrategy;
 
@@ -165,6 +166,10 @@ return [
             GsfxStrategy::class,
             SpreadsheetStrategy::class,
             WordStrategy::class,
+            // ScanStrategy — ПЕРЕД ImageStrategy (и, значит, перед PassthroughStrategy, D88):
+            // иначе картинка останавливалась бы на ImageStrategy и OCR-текст скана не производился
+            // бы вовсе; PDF с текстовым слоем стратегия пропускает сама (возвращает false).
+            ScanStrategy::class,
             ImageStrategy::class,
             PassthroughStrategy::class,
         ],
@@ -206,6 +211,15 @@ return [
         'pdfinfo_bin' => env('AI_TOOLS_PDFINFO_BIN', 'pdfinfo'),
         'gs_bin' => env('AI_TOOLS_GS_BIN', 'gs'),
         'default_timeout_seconds' => (int) env('AI_TOOLS_DEFAULT_TIMEOUT_SECONDS', 180),
+
+        /*
+        | OCR сканов (P3.7, D22). Языки — `rus+eng` (сметы русские, но штампы и единицы часто
+        | латиницей). Таймаут ОТДЕЛЬНЫЙ от `default_timeout_seconds`: 86-страничный скан-эталон
+        | корпуса распознаётся минутами, а не секундами (замер — `research/04-ocr-ceiling.md`),
+        | и общий 180-секундный потолок инструментов сюда не годится.
+        */
+        'ocr_languages' => env('AI_TOOLS_OCR_LANGUAGES', 'rus+eng'),
+        'ocr_timeout_seconds' => (int) env('AI_TOOLS_OCR_TIMEOUT_SECONDS', 1800),
     ],
 
     /*

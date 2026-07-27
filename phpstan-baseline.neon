@@ -1233,6 +1233,24 @@ parameters:
 		-
 			message: '#^Access to an undefined property App\\Models\\Procurement\\Document\\DocumentVersion\:\:\$content_hash\.$#'
 			identifier: property.notFound
+			count: 2
+			path: /var/www/html/app/Services/Procurement/Prepare/ScanStrategy.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Procurement\\Document\\DocumentVersion\:\:\$extension\.$#'
+			identifier: property.notFound
+			count: 3
+			path: /var/www/html/app/Services/Procurement/Prepare/ScanStrategy.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Procurement\\Document\\DocumentVersion\:\:\$storage_path\.$#'
+			identifier: property.notFound
+			count: 1
+			path: /var/www/html/app/Services/Procurement/Prepare/ScanStrategy.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Procurement\\Document\\DocumentVersion\:\:\$content_hash\.$#'
+			identifier: property.notFound
 			count: 4
 			path: /var/www/html/app/Services/Procurement/Prepare/SpreadsheetStrategy.php
 
