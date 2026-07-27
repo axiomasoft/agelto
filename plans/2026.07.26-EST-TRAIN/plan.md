@@ -250,6 +250,7 @@ EST-AI (закрыт 2026-07-09, 🟠) построил пайплайн раз�
 | 2026-07-27 | plan-exec/implementation·medium (sonnet) | P2.4 эскалирован 🔴: Validation-4 (`verify` → 0 расхождений) противоречит Scope Excluded («gold — P5») — реальный прогон дал 11/24 расхождений (отсутствующий `gold_path`), владелец выбрал эскалацию — детали см. phases/P2.md P2.4 и handoff.md |
 | 2026-07-27 | plan-design/frontier·high (opus) | P2.4 — эскалация снята D91: `gold_path` в манифесте пишет производитель файла gold (P5.3), генератор P2.4 всегда `null`; правило (4) verify не смягчено, item 🔴→🟡 — детали см. phases/P2.md P2.4 и research/15-gold-path-ownership.md |
 | 2026-07-27 | plan-exec/implementation·medium (sonnet) | P2.4 закрыт 🟢: манифест перегенерирован по D91 (`gold_path` всегда `null`), `manifest → import → verify` на реальном корпусе — `ok: 24 · расхождений: 0 · лишних: 0`; фаза P2 терминальна (все 4 items 🟢/🟠) — детали см. phases/P2.md P2.4 Completion Notes |
+| 2026-07-27 | plan-close/economy·low (sonnet) | Фаза P2 закрыта (2/4 🟢, 2/4 🟠 Done with deviations): Phase Handoff в phases/P2.md, docs-sync — не требуется (follow-up SOP в P9), таблицы сверены, handoff.md перезаписан на Next `plan-exec P3.1` |
 
 ## Обсуждение
 

@@ -1,17 +1,17 @@
-# HANDOFF — 2026-07-27 — after P2.4
+# HANDOFF — 2026-07-27 — after P2
 
-**Next:** фаза P2 терминальна (все 4 items 🟢/🟠) — закрыть фазу перед P3.
+**Next:** фаза P2 закрыта (2/4 🟢, 2/4 🟠) — начать исполнение P3 (фабрика представлений
+документа), design уже завершён (`finish`, 2026-07-27).
 
 | Параметр | Значение |
 |:--|:--|
-| Model class | economy |
-| Effort | low |
-| Capabilities | — |
-| Context | NEW SESSION — шаг-не-item |
-| Суть | Закрыть фазу P2: свести таблицы, написать Phase Handoff, прогнать `plan-lint` |
+| Model | sonnet |
+| Thinking | medium — прописанная реализация против зафиксированных решений, риск-класс implementation |
+| Context | continue (/clear) — ручной item |
+| Суть | Исполнить P3.1 по ТЗ фазы P3 (`phases/P3.md`) |
 
 ```
-/task:plan-close 2026.07.26-EST-TRAIN P2
+/task:plan-exec 2026.07.26-EST-TRAIN P3.1
 ```
 
 **Done:** P2.1 — 🟠 (диски `estimates`/`estimates_s3` + `ai.fixtures`, посторонний дифф —
@@ -22,13 +22,14 @@
 `gold_path` в манифесте пишет ПРОИЗВОДИТЕЛЬ файла gold — `ai:gold:build --update-manifest`, P5.3;
 генератор P2.4 всегда пишет `null`; манифест перегенерирован, `ai:fixtures:verify` на реальном
 24-записном корпусе — `ok: 24 · расхождений: 0 · лишних: 0`; правило (4) не смягчено). Item-коммит
-`0071b86`. Детали каждого item'а — `phases/P2.md` соответствующие Completion Notes.
+`0071b86`. Фаза P2 закрыта Phase Handoff'ом в `phases/P2.md`.
 
-**Remaining:** фаза P2 терминальна, все items закрыты — осталось только формальное закрытие фазы
-(`task:plan-close P2`: свести таблицы, Phase Handoff, `plan-lint`). Фазы P3–P9 не начаты.
+**Remaining:** фаза P2 терминальна целиком. Фазы P3–P9 не начаты (design завершён, `finish`
+2026-07-27) — исполнение начинается с P3.1.
 
 **Sources of truth:** `plans/2026.07.26-EST-TRAIN/plan.md` (Meta v0.16.0, §3 Routing, D1–D91) ·
-`plans/2026.07.26-EST-TRAIN/phases/P2.md` (ТЗ P2.1–P2.4, все Completion Notes заполнены) ·
+`plans/2026.07.26-EST-TRAIN/phases/P2.md` (ТЗ P2.1–P2.4, Completion Notes, Phase Handoff) ·
+`plans/2026.07.26-EST-TRAIN/phases/P3.md` (ТЗ фазы P3) ·
 `plans/2026.07.26-EST-TRAIN/research/15-gold-path-ownership.md` (владение `gold_path`, разбор
 отклонённых вариантов) · `plans/2026.07.26-EST-TRAIN/artifacts/fixture-shortlist.json` (24 записи,
 `gold_source`: 13 `none` / 10 `deterministic` / 1 `llm_assisted`) · `estimates/manifest.json`
@@ -45,18 +46,22 @@
 - `phpstan`/`larastan` подключены НЕ по плану, а по решению владельца в ходе P2.2 (коммит
   `7485520`, level 5, baseline 290 предсуществующих ошибок) — последующие items плана используют
   уже подключённый инструмент.
-- Модуль `task.task_contract`/`task.route_evidence` (P2.7/P2.2/P2.11) недоступен в этом
-  standalone-развёртывании (`packages/task/lib` в репозитории нет) — Pre-mutation/Pre-final гейты
-  P2.1–P2.4 прошли по факту работы без машинной проверки, `write-site` строки — placeholder
-  `allow · allow` по установленному этой сессией прецеденту, не результат реального прогона
-  компилятора. Материальный процессный риск для будущего аудита плана.
-- Посторонний дифф в рабочем дереве, унаследованный от прошлых заходов/окружения (НЕ трогался P2.4):
-  `.gitignore` (M), `app/Models/Procurement/Ai/Fixture.php` (M), `estimates/gemini-analys.md`
-  (untracked, не входит ни в один `Files`).
+- Модуль `task.task_contract`/`task.route_evidence` недоступен в этом standalone-развёртывании
+  (`packages/task/lib` в репозитории нет) — Pre-mutation/Pre-final гейты P2.1–P2.4 прошли по факту
+  работы без машинной проверки, `write-site` строки — placeholder `allow · allow` по установленному
+  этой сессией прецеденту, не результат реального прогона компилятора. Материальный процессный риск
+  для будущего аудита плана.
+- Посторонний дифф в рабочем дереве, унаследованный от прошлых заходов/окружения (в коммит
+  закрытия P2 не входит): `.gitignore` (M), `app/Models/Procurement/Ai/Fixture.php` (M),
+  `estimates/gemini-analys.md` (untracked), `.swissknife/`,
+  `plans/2026.07.26-EST-TRAIN/.claude/`, `plans/2026.07.26-EST-TRAIN/phases/.claude/` — ни один не
+  входит ни в один `Files` фазы P2.
 - `phases/P1.md` несёт тот же `plan-lint`-ложноположительный WARN (буквальное вхождение
   `[NEEDS CLARIFICATION]` в текст DoR-пункта «маркеры сняты»), что был на `phases/P2.md:68` до
   правки этим заходом (переформулировано без литеральных скобок — `plan-lint` теперь 0 новых). P1
   не трогался (вне `Files` P2.4) — если аудит потребует, тот же textual fix применим к P1.
+- Docs-sync фазы P2: конвенция хранилища эталонов документируется операторским SOP в P9 (follow-up,
+  не тихая отсрочка — см. Phase Handoff `phases/P2.md`).
 
 **Workarounds/Deferred/Open questions:**
 - workarounds: `REDIS_PORT` переопределён на хосте (порт 6379 занят другим проектом `sova_redis`) —
