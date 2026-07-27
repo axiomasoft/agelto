@@ -19,7 +19,9 @@ use Spatie\LaravelData\Support\Validation\ValidationContext;
  * - storage_path: путь на диске эталонов, обязан совпадать с `Fixture::storagePathFor($code,
  *   $source_format)` — иначе конвенция раскладки (D17) нарушена.
  * - source_path: относительный путь в корпусе-источнике — провенанс, НЕ путь на диске эталонов.
- * - gold_path: путь к `*.gold.json` в git, null если `gold_source = none`.
+ * - gold_path: путь к `*.gold.json` в git; `null`, пока файл не построен — пишет `ai:gold:build
+ *   --update-manifest` (P5.3) вместе с самим файлом (D91: указатель и файл появляются одним актом,
+ *   владелец поля — производитель файла gold, не генератор манифеста).
  */
 final class FixtureManifestEntry extends Data
 {
