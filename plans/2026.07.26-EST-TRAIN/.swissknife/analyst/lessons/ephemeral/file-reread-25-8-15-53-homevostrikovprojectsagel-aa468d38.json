@@ -1,0 +1,53 @@
+{
+  "id": "file-reread-25-8-15-53-homevostrikovprojectsagel-aa468d38",
+  "kind": "gotcha",
+  "trigger": "рецидив патологии прогона «file-reread» (2/5 последних прогонов): повторные чтения: 8 из 15 (53%); топ: /home/vostrikov/projects/agelto/agelto/plans/2026.07.26-EST-TRAIN/plan.md×5, /home/vostrikov/projects/agelto/agelto/plans/2026.07.26-EST-TRAIN/phases/P1.md×3, /home/vostrikov/projects/agelto/agelto/plans/2026.07.26-EST-TRAIN/phases/P4.md×2",
+  "action": "держи карту прочитанного; для повторного обращения используй заметки/план, не re-read",
+  "evidence": [
+    "session:59f491fb-8458-4626-8665-5ff53d4bb267",
+    "recurred:2/5",
+    "metric:0.533",
+    "threshold:0.4"
+  ],
+  "meta": {
+    "severity": "attention",
+    "data": {
+      "total": 15,
+      "unique": 7,
+      "top_rereads": [
+        {
+          "path": "/home/vostrikov/projects/agelto/agelto/plans/2026.07.26-EST-TRAIN/plan.md",
+          "count": 5
+        },
+        {
+          "path": "/home/vostrikov/projects/agelto/agelto/plans/2026.07.26-EST-TRAIN/phases/P1.md",
+          "count": 3
+        },
+        {
+          "path": "/home/vostrikov/projects/agelto/agelto/plans/2026.07.26-EST-TRAIN/phases/P4.md",
+          "count": 2
+        },
+        {
+          "path": "/home/vostrikov/projects/agelto/agelto/plans/2026.07.26-EST-TRAIN/phases/P9.md",
+          "count": 2
+        }
+      ]
+    }
+  },
+  "review_hint": "",
+  "created_at": "2026-07-27T06:05:48Z",
+  "last_used_at": "2026-07-27T06:05:48Z",
+  "sessions_total": 1,
+  "sessions_success": 0,
+  "tests_total": 0,
+  "tests_passed": 0,
+  "state": "ephemeral",
+  "scope": "project:2026.07.26-EST-TRAIN",
+  "source": "digest",
+  "supersedes": null,
+  "provenance": {
+    "session_id": "59f491fb-8458-4626-8665-5ff53d4bb267",
+    "project": "2026.07.26-EST-TRAIN",
+    "detector": "file-reread"
+  }
+}
