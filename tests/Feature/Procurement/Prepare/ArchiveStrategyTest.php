@@ -1,0 +1,174 @@
+<?php
+
+declare(strict_types=1);
+
+use App\Enums\Procurement\DocumentStatus;
+use App\Models\Procurement\Document\Document;
+use App\Models\Procurement\Document\DocumentVersion;
+use App\Services\Procurement\Prepare\ArchiveStrategy;
+use Illuminate\Support\Facades\Process;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
+
+/**
+ * `ArchiveStrategy` расширена с ZIP до трёх форматов (P3.6, D24) — `7z`/`rar` через реальные
+ * `7z`/`unar` (не мокаются, Code Guidance). RAR-кейсы, требующие СБОРКИ архива (дочерние
+ * документы, path traversal, пароль), пропущены явно — в окружении нет свободного RAR-энкодера
+ * (D24 запрещает non-free `unrar`/`rar`), `unar` умеет только распаковывать. Кейс
+ * `archive_unsupported` для rar покрыт без сборки — достаточно НЕ-rar байтов с расширением `rar`.
+ */
+function build7z(array $files, array $extraArgs = []): string
+{
+    $workDir = sys_get_temp_dir().'/archive_test_'.Str::uuid();
+    mkdir($workDir, recursive: true);
+
+    foreach ($files as $relativePath => $content) {
+        $fullPath = $workDir.'/'.$relativePath;
+        @mkdir(dirname($fullPath), recursive: true);
+        file_put_contents($fullPath, $content);
+    }
+
+    $archivePath = sys_get_temp_dir().'/archive_test_'.Str::uuid().'.7z';
+
+    $result = Process::path($workDir)
+        ->timeout(30)
+        ->run(['7z', 'a', ...$extraArgs, $archivePath, '.']);
+
+    expect($result->successful())->toBeTrue($result->errorOutput());
+
+    return $archivePath;
+}
+
+function makeArchiveVersion(string $localArchivePath, string $extension): array
+{
+    $document = Document::factory()->create(['status' => DocumentStatus::Downloaded]);
+    $disk = Storage::fake((string) config('crawler.documents_disk'));
+    $content = file_get_contents($localArchivePath);
+    $storagePath = "documents/archive-test.{$extension}";
+    $disk->put($storagePath, $content);
+
+    $version = DocumentVersion::factory()->create([
+        'document_id' => $document->id,
+        'extension' => $extension,
+        'storage_path' => $storagePath,
+        'content_hash' => hash('sha256', $storagePath),
+        'size_bytes' => strlen($content),
+    ]);
+
+    return [$document, $version];
+}
+
+test('canProcess распознаёт zip/7z/rar и отклоняет прочие расширения', function () {
+    [, $version] = makeArchiveVersion(build7z(['a.txt' => 'x']), '7z');
+    $strategy = app(ArchiveStrategy::class);
+
+    expect($strategy->canProcess($version))->toBeTrue();
+
+    foreach (['zip', 'rar'] as $extension) {
+        $version->extension = $extension;
+        expect($strategy->canProcess($version))->toBeTrue();
+    }
+
+    $version->extension = 'xlsx';
+    expect($strategy->canProcess($version))->toBeFalse();
+});
+
+test('7z → дочерние документы созданы', function () {
+    $archive = build7z(['estimates/sample.txt' => 'содержимое сметы']);
+    [$document, $version] = makeArchiveVersion($archive, '7z');
+
+    $result = app(ArchiveStrategy::class)->process($document, $version);
+
+    expect($result)->toBeTrue()
+        ->and($document->refresh()->status)->not->toBe(DocumentStatus::Unprocessable);
+
+    $child = Document::query()
+        ->where('external_id', "{$version->id}:estimates/sample.txt")
+        ->first();
+
+    expect($child)->not->toBeNull();
+
+    $childVersion = DocumentVersion::query()->where('document_id', $child->id)->first();
+    expect($childVersion->parent_version_id)->toBe($version->id)
+        ->and($childVersion->filename)->toBe('sample.txt');
+});
+
+test('7z-архив с path traversal в имени entry — entry отброшена', function () {
+    // 7z-CLI сам блокирует запись '../' при упаковке относительным путём — синтетический архив
+    // с вредоносным именем entry собирается через ZipArchive-обёртку `7z rn`, переименовывающую
+    // entry ПОСЛЕ упаковки (не через файловую систему, где '../' невозможен как имя внутри workDir).
+    $archive = build7z(['evil.txt' => 'payload']);
+
+    $rename = Process::timeout(30)->run(['7z', 'rn', $archive, 'evil.txt', '../../../evil.txt']);
+    expect($rename->successful())->toBeTrue($rename->errorOutput());
+
+    [$document, $version] = makeArchiveVersion($archive, '7z');
+
+    $result = app(ArchiveStrategy::class)->process($document, $version);
+
+    expect($result)->toBeTrue()
+        ->and(Document::query()->where('external_id', 'like', '%evil.txt')->exists())->toBeFalse();
+});
+
+test('7z-листинг сверх лимита числа файлов — unprocessable(zip_bomb) без распаковки', function () {
+    config(['ai.prepare.archive.max_files' => 0]);
+    $archive = build7z(['a.txt' => 'x']);
+    [$document, $version] = makeArchiveVersion($archive, '7z');
+
+    $result = app(ArchiveStrategy::class)->process($document, $version);
+
+    expect($result)->toBeFalse()
+        ->and($document->refresh()->status)->toBe(DocumentStatus::Unprocessable)
+        ->and($document->last_error)->toContain('zip_bomb');
+});
+
+test('запароленный 7z (шифрование содержимого) — unprocessable(password_protected)', function () {
+    $archive = build7z(['a.txt' => 'секрет'], ['-pSecret123']);
+    [$document, $version] = makeArchiveVersion($archive, '7z');
+
+    $result = app(ArchiveStrategy::class)->process($document, $version);
+
+    expect($result)->toBeFalse()
+        ->and($document->refresh()->status)->toBe(DocumentStatus::Unprocessable)
+        ->and($document->last_error)->toContain('password_protected');
+});
+
+test('битый 7z — unprocessable(archive_unsupported)', function () {
+    $path = tempnam(sys_get_temp_dir(), 'broken_').'.7z';
+    file_put_contents($path, 'это не архив вообще');
+    [$document, $version] = makeArchiveVersion($path, '7z');
+
+    $result = app(ArchiveStrategy::class)->process($document, $version);
+
+    expect($result)->toBeFalse()
+        ->and($document->refresh()->status)->toBe(DocumentStatus::Unprocessable)
+        ->and($document->last_error)->toContain('archive_unsupported');
+});
+
+test('битый rar (не распознан unar) — unprocessable(archive_unsupported)', function () {
+    $path = tempnam(sys_get_temp_dir(), 'broken_').'.rar';
+    file_put_contents($path, 'это не rar вообще');
+    [$document, $version] = makeArchiveVersion($path, 'rar');
+
+    $result = app(ArchiveStrategy::class)->process($document, $version);
+
+    expect($result)->toBeFalse()
+        ->and($document->refresh()->status)->toBe(DocumentStatus::Unprocessable)
+        ->and($document->last_error)->toContain('archive_unsupported');
+});
+
+test('rar → дочерние документы', function () {
+    // нет свободного RAR-энкодера в окружении (D24 запрещает non-free rar/unrar) — unar умеет
+    // только распаковывать, не создавать; покрытие через реальный .rar невозможно без него.
+})->skip(true, 'нет свободного RAR-энкодера в окружении (D24) — сборка тестового .rar невозможна');
+
+test('повторный прогон 7z — дочерний документ не дублируется', function () {
+    $archive = build7z(['estimates/sample.txt' => 'содержимое сметы']);
+    [$document, $version] = makeArchiveVersion($archive, '7z');
+
+    app(ArchiveStrategy::class)->process($document, $version);
+    $countAfterFirst = Document::query()->count();
+    app(ArchiveStrategy::class)->process($document, $version);
+
+    expect(Document::query()->count())->toBe($countAfterFirst);
+});

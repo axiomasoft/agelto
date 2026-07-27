@@ -11,100 +11,108 @@ use App\Models\Procurement\Document\Document;
 use App\Models\Procurement\Document\DocumentVersion;
 use App\Repositories\Procurement\DocumentStoreRepository;
 use App\Repositories\Procurement\ProcurementStoreRepository;
+use App\Services\Procurement\Prepare\Archive\ArchiveExtractor;
+use App\Services\Procurement\Prepare\Archive\ArchivePasswordProtectedException;
+use App\Services\Procurement\Prepare\Archive\ArchiveUnsupportedException;
 use Illuminate\Contracts\Filesystem\Filesystem;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
-use RuntimeException;
-use ZipArchive;
 
 /**
- * Распаковка ZIP (RAR/7z — Pending Work, нужен бинарный тул, ТЗ 03 §3.3 Scope Excluded) →
+ * Распаковка ZIP/7z/RAR (P3.6, D24 — `unar`, `unrar` из non-free не подключается) →
  * дочерние `Document`+`DocumentVersion` с `parent_version_id`; дети создаются сразу
  * `downloaded` (контент уже на диске, `source_url` NULL) и идут по пайплайну с prepare
- * (Code Guidance P4.2, канон v1 `Old/.../Strategies/ArchiveStrategy.php`).
+ * (Code Guidance P4.2, канон v1 `Old/.../Strategies/ArchiveStrategy.php`). Формат-специфика —
+ * в {@see ArchiveExtractor}; здесь — guard'ы бомбы, фильтр безопасных имён и ОДИН путь индексации
+ * дочерних документов для всех трёх форматов.
  *
  * Zip-бомба (Code Guidance P4.2) проверяется ДО распаковки по двум осям: вложенность
- * архив-в-архиве по цепочке `parent_version_id` версии (`max_depth`) и заявленные заголовками
- * ZipArchive (без decompress) число файлов/суммарный uncompressed-размер (`max_files`/`max_total_mb`).
+ * архив-в-архиве по цепочке `parent_version_id` версии (`max_depth`) и заявленный ЛИСТИНГОМ
+ * (без распаковки) число файлов/суммарный uncompressed-размер (`max_files`/`max_total_mb`).
  */
 final readonly class ArchiveStrategy implements PreparationStrategy
 {
     public function __construct(
         private DocumentStoreRepository $storeRepository,
         private ProcurementStoreRepository $procurementStore,
+        private ArchiveExtractor $extractor,
     ) {}
 
     public function canProcess(DocumentVersion $version): bool
     {
-        return $version->extension === 'zip';
+        return in_array($version->extension, ['zip', '7z', 'rar'], true);
     }
 
     /**
      * Представления версии-архива не производит (файлы уезжают в ДОЧЕРНИЕ документы), но исход
-     * терминален по существу: `true` = архив обработан, цепочка дальше не идёт. Zip-бомба —
-     * `unprocessable` ставится здесь же (D28: терминальный по существу исход), возврат `false`
-     * при этом только сигнализирует «представления нет».
+     * терминален по существу: `true` = архив обработан, цепочка дальше не идёт. Терминальные
+     * исходы (бомба/пароль/неподдержанный формат) — `unprocessable` ставится здесь же (D28),
+     * возврат `false` при этом только сигнализирует «представления нет».
      */
     public function process(Document $document, DocumentVersion $version): bool
     {
         if ($this->nestingDepth($version) >= (int) config('ai.prepare.archive.max_depth', 2)) {
-            $this->markUnprocessable($document, 'превышена допустимая глубина вложенности архивов');
+            $this->markUnprocessable($document, UnprocessableReason::ZipBomb, 'превышена допустимая глубина вложенности архивов');
 
             return false;
         }
 
         $disk = Storage::disk((string) config('crawler.documents_disk'));
-        $localZip = tempnam(sys_get_temp_dir(), 'zip_');
+        $localArchive = tempnam(sys_get_temp_dir(), 'archive_');
 
         try {
-            file_put_contents($localZip, $disk->get($version->storage_path));
+            file_put_contents($localArchive, $disk->get($version->storage_path));
 
-            $zip = new ZipArchive;
-            if ($zip->open($localZip) !== true) {
-                throw new RuntimeException("Не удалось открыть архив: {$version->storage_path}");
-            }
+            try {
+                $listing = $this->extractor->listEntries($localArchive, $version->extension);
+            } catch (ArchivePasswordProtectedException $e) {
+                $this->markUnprocessable($document, UnprocessableReason::PasswordProtected, $e->getMessage());
 
-            [$fileCount, $totalBytes, $entries] = $this->inspect($zip);
-
-            if ($fileCount > (int) config('ai.prepare.archive.max_files', 200)
-                || $totalBytes > (int) config('ai.prepare.archive.max_total_mb', 500) * 1024 * 1024) {
-                $zip->close();
-                $this->markUnprocessable($document, "файлов={$fileCount}, суммарно={$totalBytes} байт");
+                return false;
+            } catch (ArchiveUnsupportedException $e) {
+                $this->markUnprocessable($document, UnprocessableReason::ArchiveUnsupported, $e->getMessage());
 
                 return false;
             }
 
-            $this->extractChildren($document, $version, $zip, $entries, $disk);
+            [$fileCount, $totalBytes, $entries] = $this->safeEntries($listing);
 
-            $zip->close();
+            if ($fileCount > (int) config('ai.prepare.archive.max_files', 200)
+                || $totalBytes > (int) config('ai.prepare.archive.max_total_mb', 500) * 1024 * 1024) {
+                $this->markUnprocessable($document, UnprocessableReason::ZipBomb, "файлов={$fileCount}, суммарно={$totalBytes} байт");
+
+                return false;
+            }
+
+            $this->extractChildren($document, $version, $localArchive, $entries, $disk);
         } finally {
-            @unlink($localZip);
+            @unlink($localArchive);
         }
 
         return true;
     }
 
     /**
+     * @param  list<array{name: string, size: int}>  $listing
      * @return array{0: int, 1: int, 2: list<string>}
      */
-    private function inspect(ZipArchive $zip): array
+    private function safeEntries(array $listing): array
     {
         $fileCount = 0;
         $totalBytes = 0;
         $entries = [];
 
-        for ($i = 0; $i < $zip->numFiles; $i++) {
-            $stat = $zip->statIndex($i);
-            $name = (string) $stat['name'];
+        foreach ($listing as $entry) {
+            $name = $entry['name'];
 
             if (str_ends_with($name, '/') || str_starts_with(basename($name), '.') || ! $this->isSafeEntryName($name)) {
                 continue;
             }
 
             $fileCount++;
-            $totalBytes += (int) $stat['size'];
+            $totalBytes += $entry['size'];
             $entries[] = $name;
         }
 
@@ -114,13 +122,13 @@ final readonly class ArchiveStrategy implements PreparationStrategy
     /**
      * @param  list<string>  $entries
      */
-    private function extractChildren(Document $document, DocumentVersion $version, ZipArchive $zip, array $entries, Filesystem $disk): void
+    private function extractChildren(Document $document, DocumentVersion $version, string $localArchive, array $entries, Filesystem $disk): void
     {
         $tempFolder = 'tmp_extract/'.Str::uuid();
         $extractPath = storage_path('app/'.$tempFolder);
 
         try {
-            $zip->extractTo($extractPath, $entries);
+            $this->extractor->extract($localArchive, $version->extension, $extractPath, $entries);
 
             foreach ($entries as $relativePath) {
                 $this->indexChild($document, $version, $relativePath, $extractPath.'/'.$relativePath, $disk);
@@ -132,7 +140,8 @@ final readonly class ArchiveStrategy implements PreparationStrategy
 
     /**
      * Защита в глубину от path traversal в именах entry архива (не доверяем содержимому
-     * недоверенных ZIP из закупок): отбрасываем абсолютные пути и `..`-сегменты до extractTo().
+     * недоверенных архивов из закупок) — для ВСЕХ трёх форматов: отбрасываем абсолютные пути
+     * и `..`-сегменты до распаковки.
      */
     private function isSafeEntryName(string $name): bool
     {
@@ -239,11 +248,11 @@ final readonly class ArchiveStrategy implements PreparationStrategy
         return $depth;
     }
 
-    private function markUnprocessable(Document $document, string $detail): void
+    private function markUnprocessable(Document $document, UnprocessableReason $reason, string $detail): void
     {
         $this->storeRepository->update($document, [
             'status' => DocumentStatus::Unprocessable,
-            'last_error' => 'unprocessable:'.UnprocessableReason::ZipBomb->value.": {$detail}",
+            'last_error' => 'unprocessable:'.$reason->value.": {$detail}",
         ]);
     }
 }
