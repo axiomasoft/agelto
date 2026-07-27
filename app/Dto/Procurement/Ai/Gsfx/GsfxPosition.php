@@ -14,11 +14,17 @@ use Spatie\LaravelData\Data;
  * - unit: единица измерения (`Units`).
  * - quantity: количество — `<Quantity Result="…">`, если есть, иначе атрибут `Quantity` самой
  *   позиции (формула как строка); decimal-строка как в XML, конверсия во float запрещена.
+ * - index_code: собственный код индекса позиции (`Position@IndexCode`) — ссылка в каталог
+ *   `GsfxDocument::$index_catalog->positions`; значение переносится КАК ЕСТЬ, разыменование в
+ *   `@MT`/`@EM` — работа маппера P5.1 (D94). На эталоне непуст ровно у тех 64 из 110 позиций, что
+ *   не несут дочернего `<Resources>` (`findings/P3-gsfx-reader-gaps-2026-07-27.md` §3).
  * - price_base: базовая цена позиции (`PriceBase/@Value`, при отсутствии — `@MT`, затем `@PZ`).
  * - price_curr: текущая цена позиции (`PriceCurr/@Value`, при отсутствии — `@MT`).
  * - indices: коды индексов пересчёта, СОБРАННЫЕ из `index_code` дочерних ресурсов (уникальные,
- *   в порядке первого появления) — в самом `Data.xml` индекс не хранится на позиции напрямую,
- *   только на ресурсе (`IndexCode`), это агрегация, не отдельный XML-элемент.
+ *   в порядке первого появления) — агрегация ресурсных `Mat|Mch@IndexCode`, отдельная величина от
+ *   `index_code` самой позиции: `Data.xml` хранит код индекса на разных носителях в зависимости от
+ *   того, есть ли у позиции собственные ресурсы (позиция без `<Resources>` несёт `IndexCode` сама,
+ *   позиция с `<Resources>` — на каждом ресурсе отдельно).
  * - coefficients: коэффициенты позиции — поле контракта DTO; в разобранном корпусе `<Koefficients>`
  *   существует ГЛОБАЛЬНЫМ каталогом без атрибута, однозначно связывающего запись с конкретной
  *   позицией (`Options="InPos …"` — флаг применимости, не ссылка на ID) — остаётся пустым списком,
@@ -42,6 +48,7 @@ final class GsfxPosition extends Data
         public ?string $code = null,
         public ?string $unit = null,
         public ?string $quantity = null,
+        public ?string $index_code = null,
         public ?string $price_base = null,
         public ?string $price_curr = null,
         public array $indices = [],

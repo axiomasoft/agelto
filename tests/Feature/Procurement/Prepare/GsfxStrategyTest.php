@@ -7,6 +7,7 @@ use App\Enums\Procurement\RepresentationKind;
 use App\Models\Procurement\Document\Document;
 use App\Models\Procurement\Document\DocumentRepresentation;
 use App\Models\Procurement\Document\DocumentVersion;
+use App\Services\Procurement\Prepare\Gsfx\GsfxReader;
 use App\Services\Procurement\Prepare\GsfxStrategy;
 use Illuminate\Support\Facades\Storage;
 
@@ -121,7 +122,7 @@ test('ресурсы привязаны к позиции', function () {
         ->and($decoded['chapters'][0]['positions'][0]['indices'])->toBe(['2', '1133']);
 });
 
-test('unmapped заполняется элементами, не попавшими в модель', function () {
+test('unmapped заполняется элементами и атрибутами, не попавшими в модель', function () {
     [$document, $version] = makeGsfxVersion(buildGsfxZip());
 
     app(GsfxStrategy::class)->process($document, $version);
@@ -135,7 +136,121 @@ test('unmapped заполняется элементами, не попавши�
         'SimilarResGroups' => 1,
         'Header' => 1,
         'WorksList' => 1,
+        'Document@ProgramVersion' => 1,
+        'Document@Generator' => 1,
+        'Position@SysID' => 2,
+        'Quantity@Fx' => 2,
+        'Quantity@Precision' => 2,
+        'Indexes@IndexesMode' => 1,
+        'Indexes@IndexesLinkMode' => 1,
+        'Vids_Rab@Type' => 1,
     ]);
+});
+
+test('позиция с IndexCode несёт index_code, позиция без него — null', function () {
+    [$document, $version] = makeGsfxVersion(buildGsfxZip());
+
+    app(GsfxStrategy::class)->process($document, $version);
+
+    $representation = DocumentRepresentation::query()
+        ->where('document_version_id', $version->id)
+        ->where('kind', RepresentationKind::StructuredXml)
+        ->first();
+
+    $disk = Storage::disk((string) config('crawler.documents_disk'));
+    $decoded = json_decode($disk->get($representation->storage_path), true);
+
+    $positions = $decoded['chapters'][0]['positions'];
+    expect($positions[0]['index_code'])->toBeNull()
+        ->and($positions[1]['index_code'])->toBe('5');
+});
+
+test('каталог индексов разобран в две раздельные карты, одинаковый Code в разных подкаталогах даёт разные записи', function () {
+    [$document, $version] = makeGsfxVersion(buildGsfxZip());
+
+    app(GsfxStrategy::class)->process($document, $version);
+
+    $representation = DocumentRepresentation::query()
+        ->where('document_version_id', $version->id)
+        ->where('kind', RepresentationKind::StructuredXml)
+        ->first();
+
+    $disk = Storage::disk((string) config('crawler.documents_disk'));
+    $decoded = json_decode($disk->get($representation->storage_path), true);
+
+    $catalog = $decoded['index_catalog'];
+    expect($catalog['positions']['9'])->toMatchArray(['code' => '9', 'mt' => '1,50', 'em' => null])
+        ->and($catalog['resources']['9'])->toMatchArray(['code' => '9', 'mt' => null, 'em' => '3,10']);
+});
+
+test('запись каталога индексов без MT и EM несёт оба поля null', function () {
+    [$document, $version] = makeGsfxVersion(buildGsfxZip());
+
+    app(GsfxStrategy::class)->process($document, $version);
+
+    $representation = DocumentRepresentation::query()
+        ->where('document_version_id', $version->id)
+        ->where('kind', RepresentationKind::StructuredXml)
+        ->first();
+
+    $disk = Storage::disk((string) config('crawler.documents_disk'));
+    $decoded = json_decode($disk->get($representation->storage_path), true);
+
+    expect($decoded['index_catalog']['positions']['7'])->toMatchArray(['mt' => null, 'em' => null]);
+});
+
+test('непрочитанный атрибут открытого узла попал в unmapped ключом Тег@Атрибут с частотой', function () {
+    [$document, $version] = makeGsfxVersion(buildGsfxZip());
+
+    app(GsfxStrategy::class)->process($document, $version);
+
+    $representation = DocumentRepresentation::query()
+        ->where('document_version_id', $version->id)
+        ->where('kind', RepresentationKind::StructuredXml)
+        ->first();
+
+    expect($representation->meta['unmapped']['Position@SysID'])->toBe(2)
+        ->and($representation->meta['unmapped']['Quantity@Fx'])->toBe(2);
+});
+
+test('атрибуты неоткрываемого элемента в unmapped не разворачиваются', function () {
+    [$document, $version] = makeGsfxVersion(buildGsfxZip());
+
+    app(GsfxStrategy::class)->process($document, $version);
+
+    $representation = DocumentRepresentation::query()
+        ->where('document_version_id', $version->id)
+        ->where('kind', RepresentationKind::StructuredXml)
+        ->first();
+
+    expect($representation->meta['unmapped'])->toHaveKey('Header')
+        ->and($representation->meta['unmapped'])->not->toHaveKey('Header@Caption');
+});
+
+test('Indexes больше не числится элементным ключом unmapped', function () {
+    [$document, $version] = makeGsfxVersion(buildGsfxZip());
+
+    app(GsfxStrategy::class)->process($document, $version);
+
+    $representation = DocumentRepresentation::query()
+        ->where('document_version_id', $version->id)
+        ->where('kind', RepresentationKind::StructuredXml)
+        ->first();
+
+    expect($representation->meta['unmapped'])->not->toHaveKey('Indexes')
+        ->and($representation->meta['unmapped'])->toHaveKey('Indexes@IndexesMode');
+});
+
+test('повторный разбор GsfxReader идемпотентен для index_code и каталога индексов', function () {
+    $properties = file_get_contents(base_path('tests/Fixtures/gsfx/Properties.txt'));
+    $data = file_get_contents(base_path('tests/Fixtures/gsfx/Data.xml'));
+
+    $reader = app(GsfxReader::class);
+
+    $first = $reader->parse($properties, $data)->toArray();
+    $second = $reader->parse($properties, $data)->toArray();
+
+    expect($second)->toBe($first);
 });
 
 test('битый контейнер — отсутствующий Data.xml → unprocessable(unreadable_format)', function () {

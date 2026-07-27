@@ -10,6 +10,18 @@
       </VidRab_Group>
     </Vids_Rab>
   </VidRab_Catalog>
+  <Indexes IndexesMode="None" IndexesLinkMode="Default">
+    <IndexesPos>
+      <Index Code="5" Caption="Индекс СМР" MT="1,98"/>
+      <Index Code="7" Caption="Индекс без значений"/>
+      <Index Code="9" Caption="Индекс пересечение (позиция)" MT="1,50"/>
+    </IndexesPos>
+    <IndexesRes>
+      <Index Code="2" Caption="Индекс воды" MT="1,75"/>
+      <Index Code="1133" Caption="Индекс механизмов" EM="2,05"/>
+      <Index Code="9" Caption="Индекс пересечение (ресурс)" EM="3,10"/>
+    </IndexesRes>
+  </Indexes>
   <AddZatrats>
     <AddZatrGlava Glava="8">
       <AddZatr Caption="Временные здания и сооружения" Value="0,2" Options="Percent InSmr HideZero"/>
@@ -34,7 +46,7 @@
           <Work Caption="Подготовка основания."/>
         </WorksList>
       </Position>
-      <Position Caption="Раствор готовый кладочный" SysID="2" Number="2" Code="ФСБЦ-04.3.01.09-0054" Units="м3" Quantity="ОКР(4,1514; 7)">
+      <Position Caption="Раствор готовый кладочный" SysID="2" Number="2" Code="ФСБЦ-04.3.01.09-0054" Units="м3" Quantity="ОКР(4,1514; 7)" IndexCode="5">
         <Quantity Fx="4,1514" Precision="7" Result="4,1514"/>
         <PriceBase PZ="3404,62" MT="3404,62"/>
         <PriceCurr MT="6741,15"/>
