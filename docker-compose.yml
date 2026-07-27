@@ -48,6 +48,8 @@ services:
       AWS_BUCKET: ${MINIO_BUCKET:-agelto}
       AWS_ENDPOINT: http://minio:9000
       AWS_USE_PATH_STYLE_ENDPOINT: "true"
+      AI_FIXTURES_DISK: estimates
+      AWS_ESTIMATES_BUCKET: ${MINIO_ESTIMATES_BUCKET:-agelto-estimates}
     depends_on:
       postgres: { condition: service_healthy }
       redis: { condition: service_healthy }

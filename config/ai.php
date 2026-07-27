@@ -333,4 +333,27 @@ return [
         'dataset_version' => env('AI_EVAL_DATASET_VERSION', 'v1'),
         'max_orchestrator_iterations' => (int) env('AI_EVAL_MAX_ORCHESTRATOR_ITERATIONS', 200),
     ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Эталонный корпус смет (EST-TRAIN, D1/D17/D18)
+    |--------------------------------------------------------------------------
+    |
+    | Реестр `prc_ai_fixtures` (D6) — справочник эталонных ФАЙЛОВ; `disk` — где они физически
+    | лежат (`estimates` локально/в тестах, `estimates_s3` на проде). Раскладка внутри диска —
+    | конвенция `<CODE>/source.<ext>` для исходного файла и `<CODE>/derived/<представление>`
+    | для производных представлений P3/P6 (единственный построитель путей —
+    | `Fixture::storagePathFor()`/`derivedPathFor()`). `manifest_path` — SSOT корпуса в git
+    | (D1/D20): единственный вход `ai:fixtures:import`, единственный выход `ai:fixtures:manifest`.
+    | `gold_dir` — где живут `*.gold.json` (наполняет P5), тоже в git. `source_dir` — папка-источник
+    | НЕ в git (155 МБ реального корпуса), откуда `ai:fixtures:import` берёт файлы, которых ещё нет
+    | в хранилище. Бакет прода создаётся оператором (SOP — P9), этот блок его не заводит.
+    |
+    */
+    'fixtures' => [
+        'disk' => env('AI_FIXTURES_DISK', 'estimates'),
+        'manifest_path' => base_path('estimates/manifest.json'),
+        'gold_dir' => base_path('estimates/gold'),
+        'source_dir' => base_path('estimates/files'),
+    ],
 ];

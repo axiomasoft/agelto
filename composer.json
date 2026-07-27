@@ -37,6 +37,7 @@
         "laravel/horizon": "^5.47",
         "laravel/pulse": "^1.7",
         "laravel/tinker": "^2.10.1",
+        "league/flysystem-aws-s3-v3": "*",
         "mpdf/mpdf": "^8.2",
         "phpoffice/phpspreadsheet": "^5.4",
         "prism-php/prism": "^0.100.1",

@@ -45,6 +45,8 @@ services:
       AWS_BUCKET: ${MINIO_BUCKET:-agelto}
       AWS_ENDPOINT: http://minio:9000
       AWS_USE_PATH_STYLE_ENDPOINT: "true"
+      AI_FIXTURES_DISK: estimates_s3
+      AWS_ESTIMATES_BUCKET: ${MINIO_ESTIMATES_BUCKET:-agelto-estimates}
       # Указываем пути к файлам secrets — entrypoint читает их в APP_KEY / DB_PASSWORD / REDIS_PASSWORD / AWS_SECRET_ACCESS_KEY
       APP_KEY_FILE: /run/secrets/app_key
       DB_PASSWORD_FILE: /run/secrets/db_password

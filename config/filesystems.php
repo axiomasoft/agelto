@@ -60,6 +60,30 @@ return [
             'report' => false,
         ],
 
+        // Эталонный корпус смет (EST-TRAIN, D18): курируемые файлы живут на СВОЁМ диске/бакете,
+        // отдельно от рабочих документов закупок (`crawler.documents_disk`), чтобы retention/ILM
+        // и чистки прод-документов не задевали корпус. Локально — обычная папка, на проде — свой
+        // бакет MinIO (те же креды, что у `s3`).
+        'estimates' => [
+            'driver' => 'local',
+            'root' => storage_path('app/private/estimates'),
+            'throw' => false,
+            'report' => false,
+        ],
+
+        'estimates_s3' => [
+            'driver' => 's3',
+            'key' => env('AWS_ACCESS_KEY_ID'),
+            'secret' => env('AWS_SECRET_ACCESS_KEY'),
+            'region' => env('AWS_DEFAULT_REGION'),
+            'bucket' => env('AWS_ESTIMATES_BUCKET', 'agelto-estimates'),
+            'url' => env('AWS_URL'),
+            'endpoint' => env('AWS_ENDPOINT'),
+            'use_path_style_endpoint' => env('AWS_USE_PATH_STYLE_ENDPOINT', false),
+            'throw' => false,
+            'report' => false,
+        ],
+
     ],
 
     /*
