@@ -11,7 +11,7 @@
 | Document Type | Executable Master Plan |
 | Authoring Model | frontier |
 | Design Passes | 3/3 — 9 фаз / 46 items + высокая неопределённость брифа (владелец: «мысли сумбурные»); pass 1 — скелеты и контракты, pass 2 — детализация всех девяти фаз (завершён 2026-07-27), pass 3 — `finish`: сквозной reconcile контрактов, DoR-свип, пересборка roadmap (завершён 2026-07-27, D82–D85). Дизайн-бюджет исчерпан. Три захода ремедиации находок аудита (2026-07-27: D86 по F1–F8, D87 по A1–A7, D88 по C1–C7) прогонами НЕ считаются: новых решений по существу задачи не принято, состав и статусы 46 items не изменились — правились формулировки ТЗ по названным аудитом адресам. Заход `plan-design <ID> P4.2` 2026-07-27 (D89–D90 — решения владельца по OQ-5/OQ-6) прогоном ТОЖЕ не считается: режим design-item, состав и статусы 46 items не изменились, правились ТЗ одного item'а (P4.2) и адреса его потребителей. Новый прогон дизайна — только по явной D-записи владельца |
-| Last Updated | 2026-07-27 (P3.9 закрыт 🟢 — коэффициенты/`Tzm2022`/нормативы НР-СП/`Vr2001` в `GsfxReader`; фаза P3 терминальна 2/9 🟢 + 7/9 🟠, ждёт `plan-close`) |
+| Last Updated | 2026-07-27 (`plan-close P4` реконсиляция: фаза P4 уже закрыта `7b32d2d`, регресс handoff.Next на P4.1 от коммита реклоуза P3 `4813b70` починен, Next → `plan-audit P4`; фаза P3 терминальна 2/9 🟢 + 7/9 🟠, фаза P4 терминальна 3/5 🟢 + 2/5 🟠) |
 | Repository | agelto (branch main) |
 | Related Packages | prism-php/prism, spatie/laravel-data, laravel/horizon, phpoffice/phpspreadsheet, filament/filament; системные бинари единого образа (P3.2, D23): qpdf (есть), libreoffice-calc/writer + fonts-dejavu-core/liberation, 7zip (`7zz`), unar, poppler-utils, tesseract-ocr + rus/eng, ocrmypdf, ghostscript |
 | Execution Mode | phase-first |
@@ -292,6 +292,7 @@ EST-AI (закрыт 2026-07-09, 🟠) построил пайплайн раз�
 | 2026-07-27 | plan-design/frontier·high (opus) | Фаза P3 реопенена (D110): заведены P3.8/P3.9 — ридер долистывает `Data.xml` до пяти величин с готовыми носителями; D111 — талль атрибутов, D112 — границы — детали см. phases/P3.md P3.8/P3.9 |
 | 2026-07-27 | plan-run/implementation·high (sonnet) | P3.8 закрыт 🟢: атрибутный талль `unmapped` (ключ `Тег@Атрибут`) + `GsfxPosition::$index_code` + `GsfxIndex`/`GsfxIndexCatalog`/`GsfxDocument::$index_catalog` из `Document/Indexes`, реальный эталон совпал дословно (64/47/79) — детали см. phases/P3.md P3.8 Completion Notes |
 | 2026-07-27 | plan-run/implementation·high (sonnet) | P3.9 закрыт 🟢: `GsfxCoefficient`/`GsfxTzm2022` + нормативы НР/СП + `work_type_id` из `Position@Vr2001`, обход ВСЕХ блоков `Vids_Rab`; реальный эталон совпал дословно (3/2/81/15/7/110 из 110); фаза P3 терминальна (9/9 items 🟢/🟠) — детали см. phases/P3.md P3.9 Completion Notes |
+| 2026-07-27 | plan-close/sonnet·low | Реконсиляция `plan-close P4`: фаза уже закрыта (`7b32d2d`), но реклоуз P3 (`4813b70`) откатил `handoff.Next` на `P4.1` — регресс указателя. `handoff.md` переписан на канон `Next/Done/Remaining/Sources of truth` (было 4 ERROR), `Next` → `plan-audit P4` — детали см. handoff.md |
 
 ## Обсуждение
 
