@@ -184,6 +184,28 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Системные бинари фабрики представлений (P3.2, D23/D24)
+    |--------------------------------------------------------------------------
+    |
+    | Пути/имена — env-переопределяемые (`ai:tools:doctor` их и проверяет). `default_timeout_seconds`
+    | — таймаут по умолчанию для Process-вызовов конвертеров P3.4–P3.7, если стратегия не
+    | переопределяет его точечно.
+    |
+    */
+    'tools' => [
+        'soffice_bin' => env('AI_TOOLS_SOFFICE_BIN', 'soffice'),
+        'sevenzip_bin' => env('AI_TOOLS_SEVENZIP_BIN', '7z'),
+        'unar_bin' => env('AI_TOOLS_UNAR_BIN', 'unar'),
+        'tesseract_bin' => env('AI_TOOLS_TESSERACT_BIN', 'tesseract'),
+        'ocrmypdf_bin' => env('AI_TOOLS_OCRMYPDF_BIN', 'ocrmypdf'),
+        'pdftotext_bin' => env('AI_TOOLS_PDFTOTEXT_BIN', 'pdftotext'),
+        'pdfinfo_bin' => env('AI_TOOLS_PDFINFO_BIN', 'pdfinfo'),
+        'gs_bin' => env('AI_TOOLS_GS_BIN', 'gs'),
+        'default_timeout_seconds' => (int) env('AI_TOOLS_DEFAULT_TIMEOUT_SECONDS', 180),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Скрининг (гейт цепочки стадий, P4.2 → P5)
     |--------------------------------------------------------------------------
     |
