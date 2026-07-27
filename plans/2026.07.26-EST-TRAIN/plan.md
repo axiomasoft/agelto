@@ -243,6 +243,8 @@ EST-AI (закрыт 2026-07-09, 🟠) построил пайплайн раз�
 | 2026-07-27 | plan-run/frontier·high (opus) | P1.3 закрыт: первая волна эталонов — 24 фикстуры (11 EST / 13 NEG), 23/23 кластера, 7/7 крайних случаев, схема кодов и состав утверждены владельцем — детали см. phases/P1.md P1.3 Completion Notes |
 | 2026-07-27 | plan-run/frontier·high (opus) | P1.4 закрыт: 17 строк `SR-NN` по девяти обязательным темам, счётчик `0` только у SR-16, решений о схеме не принято; все items P1 терминальны, фаза закрывается `plan-close P1` — детали см. phases/P1.md P1.4 Completion Notes |
 | 2026-07-27 | plan-exec/implementation·medium (sonnet) | P2.1 закрыт 🟠: диски `estimates`/`estimates_s3` + блок `ai.fixtures` заведены, env прокинут в dev/prod, `.gitignore` сверен фактом (правки не потребовалось) — отсутствующий `league/flysystem-aws-s3-v3` доставлен с хоста (посторонний дифф composer.*, деталь — phases/P2.md P2.1 Completion Notes) |
+| 2026-07-27 | владелец | Установлен `phpstan`/`larastan` (level 5, baseline 290 предсуществующих ошибок) отдельным коммитом `7485520` — инструмент требовался Validation-шагами плана, но в проекте не был подключён вовсе; решение принято владельцем на паузе P2.2 |
+| 2026-07-27 | plan-exec/implementation·medium (sonnet) | P2.2 закрыт 🟠: реестр `prc_ai_fixtures` (модель `Fixture`, enum'ы, репозиторий, фабрика) — деталь отклонения см. phases/P2.md P2.2 Completion Notes |
 
 ## Обсуждение
 
