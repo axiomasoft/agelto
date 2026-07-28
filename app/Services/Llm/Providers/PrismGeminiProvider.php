@@ -276,6 +276,7 @@ final readonly class PrismGeminiProvider implements LlmProvider, SupportsContext
     private function startResumableUpload(string $path, string $mimeType, int $size): string
     {
         $response = Http::withHeaders([
+            'x-goog-api-key' => $this->apiKey(),
             'X-Goog-Upload-Protocol' => 'resumable',
             'X-Goog-Upload-Command' => 'start',
             'X-Goog-Upload-Header-Content-Length' => (string) $size,
@@ -309,6 +310,7 @@ final readonly class PrismGeminiProvider implements LlmProvider, SupportsContext
         }
 
         $response = Http::withHeaders([
+            'x-goog-api-key' => $this->apiKey(),
             'Content-Length' => (string) $size,
             'X-Goog-Upload-Offset' => '0',
             'X-Goog-Upload-Command' => 'upload, finalize',
