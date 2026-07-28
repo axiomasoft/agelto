@@ -11,7 +11,7 @@
 | Document Type | Executable Master Plan |
 | Authoring Model | frontier |
 | Design Passes | 3/3 — 9 фаз / 46 items + высокая неопределённость брифа (владелец: «мысли сумбурные»); pass 1 — скелеты и контракты, pass 2 — детализация всех девяти фаз (завершён 2026-07-27), pass 3 — `finish`: сквозной reconcile контрактов, DoR-свип, пересборка roadmap (завершён 2026-07-27, D82–D85). Дизайн-бюджет исчерпан. Три захода ремедиации находок аудита (2026-07-27: D86 по F1–F8, D87 по A1–A7, D88 по C1–C7) прогонами НЕ считаются: новых решений по существу задачи не принято, состав и статусы 46 items не изменились — правились формулировки ТЗ по названным аудитом адресам. Заход `plan-design <ID> P4.2` 2026-07-27 (D89–D90 — решения владельца по OQ-5/OQ-6) прогоном ТОЖЕ не считается: режим design-item, состав и статусы 46 items не изменились, правились ТЗ одного item'а (P4.2) и адреса его потребителей. Новый прогон дизайна — только по явной D-записи владельца |
-| Last Updated | 2026-07-28 (P6.1 закрыт 🟢 Done — harness `ai:bench:formats`, методика research/11 зафиксирована ДО данных) |
+| Last Updated | 2026-07-28 (P7.1 закрыт 🟠 Done with deviations — сквозные промты v2, +14 синонимов словарей, research/13) |
 | Repository | agelto (branch main) |
 | Related Packages | prism-php/prism, spatie/laravel-data, laravel/horizon, phpoffice/phpspreadsheet, filament/filament; системные бинари единого образа (P3.2, D23): qpdf (есть), libreoffice-calc/writer + fonts-dejavu-core/liberation, 7zip (`7zz`), unar, poppler-utils, tesseract-ocr + rus/eng, ocrmypdf, ghostscript |
 | Execution Mode | phase-first |
@@ -118,7 +118,7 @@ EST-AI (закрыт 2026-07-09, 🟠) построил пайплайн раз�
 | P4 | Аудит и правка схемы смет по фактам корпуса | 3/5 | 🟠 Done with deviations |
 | P5 | Детерминированный gold-парсер и наполнение эталонов | 5/7 | 🟠 Done with deviations |
 | P6 | Бенчмарк представлений и ADR по формату входа | 1/3 | 🟡 In progress |
-| P7 | Боевые промты, diff-отчёт и петля тюнинга | 0/6 | ⬜ Not started |
+| P7 | Боевые промты, diff-отчёт и петля тюнинга | 0/6 | 🟡 In progress |
 | P8 | Обучалка в Filament: загрузить → прогнать → сравнить → апрувить | 0/5 | ⬜ Not started |
 | P9 | Экспорт под локальную LLM, документация и SOP | 0/6 | ⬜ Not started |
 
@@ -251,6 +251,7 @@ EST-AI (закрыт 2026-07-09, 🟠) построил пайплайн раз�
 
 | Дата | Кто (role/model) | Что |
 |:--|:--|:--|
+| 2026-07-28 | plan-run/fable·high | P7.1 закрыт 🟠: сквозные промты v2 + 14 синонимов словарей + research/13 — детали см. phases/P7.md P7.1 Completion Notes |
 | 2026-07-26 | issue-planner/frontier | Design pass 1/3: план создан — Context, D1–D12, Routing, 9 скелет-фаз с контракт-блоками, brief/ (слой 0), findings/ (разведка корпуса + RAG по лимитам Gemini). Не достигнуто: детализация items ни одной фазы. Фокус pass 2 — детализация P1→P9 по одной фазе за проход |
 | 2026-07-26 | issue-planner/frontier | Design pass 2/3, заход 1: фаза P1 детализирована до DoR (4 items), скелет-маркер снят; D13–D15; §3 Routing построчно; brief/01-refinements.md. Не достигнуто: P2–P9 — скелеты. Фокус следующего захода — P2 |
 | 2026-07-27 | plan-close/sonnet·low | Фаза P3 закрыта: 9/9 items терминальны (2/9 🟢: P3.8, P3.9; 7/9 🟠 Done with deviations); процессные отклонения (перебор тира, запись журнала); материальных нет. Docs-sync: follow-up к P4 (аудит схемы сводит доки за один заход). Next: `plan-exec P4.1` |
