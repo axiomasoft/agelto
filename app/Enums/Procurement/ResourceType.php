@@ -15,13 +15,13 @@ use App\Attributes\Ai\Alias;
  */
 enum ResourceType: string
 {
-    #[Alias(aliases: ['ЗП', 'ОТ', 'ЗПМ', 'Трудозатраты', 'чел.час'])]
+    #[Alias(aliases: ['ЗП', 'ОТ', 'ЗПМ', 'Трудозатраты', 'чел.час', 'ОТ(ЗТ)', 'ОТм(ЗТм)'])]
     case Labor = 'labor';
 
     #[Alias(aliases: ['ЭМ', 'маш.час', 'Машины и механизмы', 'ФСЭМ'])]
     case Machine = 'machine';
 
-    #[Alias(aliases: ['МАТ', 'мат.ресурс', 'ФССЦ', 'прайс-листы'])]
+    #[Alias(aliases: ['МАТ', 'мат.ресурс', 'ФССЦ', 'прайс-листы', 'М'])]
     case Material = 'material';
 
     #[Alias(aliases: ['НР', 'СП', 'Накладные расходы', 'Прибыль'])]

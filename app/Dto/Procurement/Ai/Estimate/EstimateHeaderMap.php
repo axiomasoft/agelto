@@ -19,17 +19,17 @@ use Spatie\LaravelData\Data;
 final class EstimateHeaderMap extends Data
 {
     public function __construct(
-        #[Alias(aliases: ['№ п/п', '№', 'поз'])]
+        #[Alias(aliases: ['№ п/п', '№', 'поз', 'Номер', 'по порядку', 'Номер п/п', '№№ п/п'])]
         public ?HeaderColumn $row_index,
-        #[Alias(aliases: ['Шифр', 'Обоснование', 'Код'])]
+        #[Alias(aliases: ['Шифр', 'Обоснование', 'Код', 'Шифр расценки и коды ресурсов', 'Шифр стоимостного норматива и коды ресурсов'])]
         public ?HeaderColumn $code,
-        #[Alias(aliases: ['Наименование работ', 'Описание'])]
+        #[Alias(aliases: ['Наименование работ', 'Описание', 'Наименование работ и затрат', 'Наименование пусковых комплексов, этапов, объектов, видов выполненных работ, оборудования, затрат'])]
         public ?HeaderColumn $name,
-        #[Alias(aliases: ['Ед. изм.', 'Измеритель'])]
+        #[Alias(aliases: ['Ед. изм.', 'Измеритель', 'Единица измерения'])]
         public ?HeaderColumn $unit,
-        #[Alias(aliases: ['Количество', 'Объем'])]
+        #[Alias(aliases: ['Количество', 'Объем', 'Кол-во единиц', 'всего с учетом коэффициентов'])]
         public ?HeaderColumn $quantity,
-        #[Alias(aliases: ['Стоимость всего', 'Итого руб'])]
+        #[Alias(aliases: ['Стоимость всего', 'Итого руб', 'всего в текущем уровне цен'])]
         public ?HeaderColumn $total_price,
     ) {}
 }

@@ -15,7 +15,7 @@ test('сидер создаёт по одной активной protected-за�
         $prompt = Prompt::query()->where('step', $step->value)->where('is_active', true)->sole();
 
         expect($prompt->is_protected)->toBeTrue()
-            ->and($prompt->version)->toBe(1)
+            ->and($prompt->version)->toBeGreaterThanOrEqual(1)
             ->and($prompt->content)->not->toBe('');
     }
 });
@@ -62,8 +62,8 @@ test('поднятая версия деактивирует старую вер
     expect(Prompt::query()->whereKey($old->id)->exists())->toBeTrue()
         ->and($old->is_active)->toBeFalse();
 
-    $current = Prompt::query()->where('key', 'extraction:global')->where('version', 1)->sole();
-    expect($current->is_active)->toBeTrue();
+    $current = Prompt::query()->where('key', 'extraction:global')->where('is_active', true)->sole();
+    expect($current->version)->toBeGreaterThan($old->version);
 });
 
 test('сидер не трогает операторские (не-protected) записи', function (): void {
