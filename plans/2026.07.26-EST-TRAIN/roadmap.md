@@ -81,7 +81,7 @@
 | P7.2 | solo | plan-run (manual) | frontier/high | — | то же; отдельная сессия — пять пошаговых промтов |
 | P7.3 | solo | plan-run (manual) | implementation/high | — | владеет метрикой, на которой стоят вердикты P6, P7.5 и P8.3 |
 | P7.4 | solo | plan-run (manual) | implementation/high | — | пишет в КАНОН промтов и держит границу indirect prompt injection |
-| P7.5 | solo | plan-exec | implementation/medium | — | splits и критерий по ТЗ; боевых вызовов нет |
+| P7.5 | solo | plan-exec | implementation/medium | — | splits и критерий по ТЗ (правило отбора переписано D119–D121 после эскалации 2026-07-28; состав `holdout`/`tune` закреплён Implementation Rules — расхождение генератора с ним = эскалация); боевых вызовов нет |
 | P7.6 | solo | plan-run (manual) | implementation/medium | ✅ OQ-3 + апрув цены + апрув конкретного патча (D8) | два гейта владельца внутри одного item'а |
 | P8.1 | solo | plan-exec | implementation/medium | — | принимает файл от человека и заводит новые права панели — solo, не в батче с P8.2 (сцеплен по карточке) |
 | P8.2 | solo | plan-run (manual) | implementation/high | — | правит код закрытой фазы (вынос сервиса из `ai:gold:import`) — доказательство неизменности через чужие тесты |
