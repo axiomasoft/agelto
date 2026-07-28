@@ -11,7 +11,7 @@
 | Document Type | Executable Master Plan |
 | Authoring Model | frontier |
 | Design Passes | 3/3 — 9 фаз / 46 items + высокая неопределённость брифа (владелец: «мысли сумбурные»); pass 1 — скелеты и контракты, pass 2 — детализация всех девяти фаз (завершён 2026-07-27), pass 3 — `finish`: сквозной reconcile контрактов, DoR-свип, пересборка roadmap (завершён 2026-07-27, D82–D85). Дизайн-бюджет исчерпан. Три захода ремедиации находок аудита (2026-07-27: D86 по F1–F8, D87 по A1–A7, D88 по C1–C7) прогонами НЕ считаются: новых решений по существу задачи не принято, состав и статусы 46 items не изменились — правились формулировки ТЗ по названным аудитом адресам. Заход `plan-design <ID> P4.2` 2026-07-27 (D89–D90 — решения владельца по OQ-5/OQ-6) прогоном ТОЖЕ не считается: режим design-item, состав и статусы 46 items не изменились, правились ТЗ одного item'а (P4.2) и адреса его потребителей. Новый прогон дизайна — только по явной D-записи владельца |
-| Last Updated | 2026-07-28 (P5.3 закрыт 🟢 — `ai:gold:build`, сводный отчёт, gold-факты манифеста) |
+| Last Updated | 2026-07-28 (P5.4 закрыт 🟠 — ветка `--screening`, §8.5; блокер `doc_type` негативов) |
 | Repository | agelto (branch main) |
 | Related Packages | prism-php/prism, spatie/laravel-data, laravel/horizon, phpoffice/phpspreadsheet, filament/filament; системные бинари единого образа (P3.2, D23): qpdf (есть), libreoffice-calc/writer + fonts-dejavu-core/liberation, 7zip (`7zz`), unar, poppler-utils, tesseract-ocr + rus/eng, ocrmypdf, ghostscript |
 | Execution Mode | phase-first |
@@ -308,6 +308,7 @@ EST-AI (закрыт 2026-07-09, 🟠) построил пайплайн раз�
 | 2026-07-28 | plan-run/implementation·high (sonnet) | P5.2 закрыт 🟢: профиль формы (7 DTO) + `FormProfileReader`, `GridRecognitionGate` (условия 100%/0.98/0.95/3) и дословный `SheetGoldMapper` по D117; 25 Pest-тестов зелены, реальные эталоны не тронуты (D35) — детали см. phases/P5.md P5.2 Completion Notes |
 | 2026-07-28 | plan-run/implementation·high (sonnet) | P5.7 закрыт 🟢: девять профилей размечены прямым зондом, 5 pass by profile / 4 честных downgrade (SUMMARY_ONLY/NO_RESOURCE_ROWS/итоги в колонке номера позиции — физический предел правил, не дефект кода) — детали см. phases/P5.md P5.7 Completion Notes и research/09 §6–8 |
 | 2026-07-28 | plan-exec/implementation·medium (sonnet) | P5.3 закрыт 🟢: `GoldBuilder` + `ai:gold:build`, реальный прогон корпуса — 6 построено/4 понижено/14 пропущено/0 отклонено, байт-идентичность повтора, `--update-manifest` меняет ровно 4 поля, `ai:fixtures:verify` 24/24 — детали см. phases/P5.md P5.3 Completion Notes |
+| 2026-07-28 | plan-exec/implementation·medium (sonnet) | P5.4 закрыт 🟠: ветка `--screening` + `ScreeningGoldBuilder` + §8.5 спеки; реальный прогон — 11 построено (все `class=est`) / 13 отклонено (все негативы — `doc_type IS NULL` в реестре, вне Scope, решение владельца) — детали см. phases/P5.md P5.4 Completion Notes/Pending Work |
 
 ## Обсуждение
 
