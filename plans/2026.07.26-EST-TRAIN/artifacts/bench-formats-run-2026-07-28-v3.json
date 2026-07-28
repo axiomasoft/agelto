@@ -1,0 +1,3515 @@
+{
+    "mode": "run",
+    "generated_at": "2026-07-28T18:28:05+00:00",
+    "route": {
+        "provider": "gemini",
+        "model": "gemini-3.5-flash"
+    },
+    "prompt_version_set": {
+        "global": 2,
+        "extraction:global": 2,
+        "extraction:rows": 2
+    },
+    "cells": [
+        {
+            "fixture_code": "EST-GSFX-LSR-001",
+            "variant": "default",
+            "applicable": true,
+            "prompt_version_set": {
+                "global": 2,
+                "extraction:global": 2,
+                "extraction:rows": 2
+            },
+            "representation": {
+                "kind": null,
+                "tool": null,
+                "size_bytes": 6240192,
+                "page_count": null,
+                "token_estimate": 1560048
+            },
+            "preflight": {
+                "route": "whole",
+                "reason": null
+            },
+            "predicted": {
+                "input_tokens": 1560048,
+                "input_cost_micros": 2340072
+            },
+            "actual": {
+                "prompt_tokens": 0,
+                "cached_tokens": 0,
+                "completion_tokens": 0,
+                "total_tokens": 0,
+                "cost_micros": 0,
+                "calls": 0,
+                "failed_calls": 0,
+                "duration_ms": 0
+            },
+            "quality": null,
+            "outcome": {
+                "status": "unprocessable",
+                "last_error": "формат «gsfx» не поддержан извлечением"
+            }
+        },
+        {
+            "fixture_code": "EST-GSFX-LSR-001",
+            "variant": "pdf",
+            "applicable": false,
+            "prompt_version_set": null,
+            "representation": null,
+            "preflight": null,
+            "predicted": null,
+            "actual": null,
+            "quality": null,
+            "outcome": null
+        },
+        {
+            "fixture_code": "EST-GSFX-LSR-001",
+            "variant": "pdf_alt",
+            "applicable": false,
+            "prompt_version_set": null,
+            "representation": null,
+            "preflight": null,
+            "predicted": null,
+            "actual": null,
+            "quality": null,
+            "outcome": null
+        },
+        {
+            "fixture_code": "EST-GSFX-LSR-001",
+            "variant": "pdf_ocr",
+            "applicable": false,
+            "prompt_version_set": null,
+            "representation": null,
+            "preflight": null,
+            "predicted": null,
+            "actual": null,
+            "quality": null,
+            "outcome": null
+        },
+        {
+            "fixture_code": "EST-GSFX-LSR-001",
+            "variant": "structured_xml",
+            "applicable": true,
+            "prompt_version_set": {
+                "global": 2,
+                "extraction:global": 2,
+                "extraction:rows": 2
+            },
+            "representation": {
+                "kind": "structured_xml",
+                "tool": "gsfx-reader",
+                "size_bytes": 370235,
+                "page_count": null,
+                "token_estimate": 92559
+            },
+            "preflight": {
+                "route": "whole",
+                "reason": null
+            },
+            "predicted": {
+                "input_tokens": 92559,
+                "input_cost_micros": 138839
+            },
+            "actual": {
+                "prompt_tokens": 0,
+                "cached_tokens": 0,
+                "completion_tokens": 0,
+                "total_tokens": 0,
+                "cost_micros": 0,
+                "calls": 0,
+                "failed_calls": 0,
+                "duration_ms": 0
+            },
+            "quality": null,
+            "outcome": {
+                "status": "unprocessable",
+                "last_error": "формат «gsfx» не поддержан извлечением"
+            }
+        },
+        {
+            "fixture_code": "EST-GSFX-LSR-001",
+            "variant": "text",
+            "applicable": true,
+            "prompt_version_set": {
+                "global": 2,
+                "extraction:global": 2,
+                "extraction:rows": 2
+            },
+            "representation": {
+                "kind": "text",
+                "tool": "gsfx-reader",
+                "size_bytes": 26754,
+                "page_count": null,
+                "token_estimate": 6689
+            },
+            "preflight": {
+                "route": "whole",
+                "reason": null
+            },
+            "predicted": {
+                "input_tokens": 6689,
+                "input_cost_micros": 10034
+            },
+            "actual": {
+                "prompt_tokens": 0,
+                "cached_tokens": 0,
+                "completion_tokens": 0,
+                "total_tokens": 0,
+                "cost_micros": 0,
+                "calls": 0,
+                "failed_calls": 0,
+                "duration_ms": 0
+            },
+            "quality": null,
+            "outcome": {
+                "status": "unprocessable",
+                "last_error": "формат «gsfx» не поддержан извлечением"
+            }
+        },
+        {
+            "fixture_code": "EST-GSFX-LSR-001",
+            "variant": "text_grid",
+            "applicable": false,
+            "prompt_version_set": null,
+            "representation": null,
+            "preflight": null,
+            "predicted": null,
+            "actual": null,
+            "quality": null,
+            "outcome": null
+        },
+        {
+            "fixture_code": "EST-XLS-KS2-001",
+            "variant": "default",
+            "applicable": true,
+            "prompt_version_set": {
+                "global": 2,
+                "extraction:global": 2,
+                "extraction:rows": 2
+            },
+            "representation": {
+                "kind": "pdf",
+                "tool": "libreoffice",
+                "size_bytes": 166434,
+                "page_count": 2,
+                "token_estimate": null
+            },
+            "preflight": {
+                "route": "whole",
+                "reason": null
+            },
+            "predicted": {
+                "input_tokens": 516,
+                "input_cost_micros": 774
+            },
+            "actual": {
+                "prompt_tokens": 11210,
+                "cached_tokens": 4306,
+                "completion_tokens": 2525,
+                "total_tokens": 33299,
+                "cost_micros": 40187,
+                "calls": 4,
+                "failed_calls": 0,
+                "duration_ms": 72363
+            },
+            "quality": {
+                "per_field": {
+                    "row_type": {
+                        "precision": 0.4375,
+                        "recall": 1,
+                        "f1": 0.6087
+                    },
+                    "code": {
+                        "precision": 0.6667,
+                        "recall": 0.6667,
+                        "f1": 0.6667
+                    },
+                    "name": {
+                        "precision": 0.4375,
+                        "recall": 1,
+                        "f1": 0.6087
+                    },
+                    "unit": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "quantity": {
+                        "precision": 1,
+                        "recall": 0,
+                        "f1": 0
+                    },
+                    "price": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "unit_price_base": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "total_price_base": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "index_code": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "index_value": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "source_position_number": {
+                        "precision": 1,
+                        "recall": 0,
+                        "f1": 0
+                    },
+                    "work_type_name": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    }
+                },
+                "overall": {
+                    "precision": 0.5455,
+                    "recall": 0.6154,
+                    "f1": 0.5783
+                },
+                "row_coverage": 1,
+                "passport": {
+                    "estimate_number": {
+                        "precision": 0,
+                        "recall": 1,
+                        "f1": 0
+                    },
+                    "currency": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "base_year": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "price_level": {
+                        "precision": 0,
+                        "recall": 1,
+                        "f1": 0
+                    },
+                    "calc_method": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "labor_hours_workers": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "labor_hours_machinists": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "document_number": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "document_date": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "period_start": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "period_end": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "passport.type": {
+                        "precision": 0,
+                        "recall": 1,
+                        "f1": 0
+                    },
+                    "passport.reference": {
+                        "precision": 0,
+                        "recall": 1,
+                        "f1": 0
+                    },
+                    "passport.target": {
+                        "precision": 0,
+                        "recall": 1,
+                        "f1": 0
+                    },
+                    "passport.address": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "passport.generator": {
+                        "precision": 0,
+                        "recall": 1,
+                        "f1": 0
+                    },
+                    "passport.contract_number": {
+                        "precision": 0,
+                        "recall": 1,
+                        "f1": 0
+                    },
+                    "passport.contract_date": {
+                        "precision": 0,
+                        "recall": 1,
+                        "f1": 0
+                    }
+                },
+                "totals": {
+                    "value": {
+                        "precision": 0,
+                        "recall": 1,
+                        "f1": 0
+                    },
+                    "kind": {
+                        "precision": 0,
+                        "recall": 1,
+                        "f1": 0
+                    },
+                    "chapter_number": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "rate": {
+                        "precision": 0,
+                        "recall": 1,
+                        "f1": 0
+                    }
+                }
+            },
+            "outcome": {
+                "status": "succeeded",
+                "last_error": null
+            }
+        },
+        {
+            "fixture_code": "EST-XLS-KS2-001",
+            "variant": "pdf",
+            "applicable": true,
+            "prompt_version_set": {
+                "global": 2,
+                "extraction:global": 2,
+                "extraction:rows": 2
+            },
+            "representation": {
+                "kind": "pdf",
+                "tool": "libreoffice",
+                "size_bytes": 166434,
+                "page_count": 2,
+                "token_estimate": null
+            },
+            "preflight": {
+                "route": "whole",
+                "reason": null
+            },
+            "predicted": {
+                "input_tokens": 516,
+                "input_cost_micros": 774
+            },
+            "actual": {
+                "prompt_tokens": 6907,
+                "cached_tokens": 8609,
+                "completion_tokens": 2485,
+                "total_tokens": 34454,
+                "cost_micros": 34018,
+                "calls": 4,
+                "failed_calls": 0,
+                "duration_ms": 71018
+            },
+            "quality": {
+                "per_field": {
+                    "row_type": {
+                        "precision": 0.4375,
+                        "recall": 1,
+                        "f1": 0.6087
+                    },
+                    "code": {
+                        "precision": 0.6667,
+                        "recall": 0.6667,
+                        "f1": 0.6667
+                    },
+                    "name": {
+                        "precision": 0.4375,
+                        "recall": 1,
+                        "f1": 0.6087
+                    },
+                    "unit": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "quantity": {
+                        "precision": 1,
+                        "recall": 0,
+                        "f1": 0
+                    },
+                    "price": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "unit_price_base": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "total_price_base": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "index_code": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "index_value": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "source_position_number": {
+                        "precision": 1,
+                        "recall": 0,
+                        "f1": 0
+                    },
+                    "work_type_name": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    }
+                },
+                "overall": {
+                    "precision": 0.5455,
+                    "recall": 0.6154,
+                    "f1": 0.5783
+                },
+                "row_coverage": 1,
+                "passport": {
+                    "estimate_number": {
+                        "precision": 0,
+                        "recall": 1,
+                        "f1": 0
+                    },
+                    "currency": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "base_year": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "price_level": {
+                        "precision": 0,
+                        "recall": 1,
+                        "f1": 0
+                    },
+                    "calc_method": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "labor_hours_workers": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "labor_hours_machinists": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "document_number": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "document_date": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "period_start": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "period_end": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "passport.type": {
+                        "precision": 0,
+                        "recall": 1,
+                        "f1": 0
+                    },
+                    "passport.reference": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "passport.target": {
+                        "precision": 0,
+                        "recall": 1,
+                        "f1": 0
+                    },
+                    "passport.address": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "passport.generator": {
+                        "precision": 0,
+                        "recall": 1,
+                        "f1": 0
+                    },
+                    "passport.contract_number": {
+                        "precision": 0,
+                        "recall": 1,
+                        "f1": 0
+                    },
+                    "passport.contract_date": {
+                        "precision": 0,
+                        "recall": 1,
+                        "f1": 0
+                    }
+                },
+                "totals": {
+                    "value": {
+                        "precision": 0,
+                        "recall": 1,
+                        "f1": 0
+                    },
+                    "kind": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "chapter_number": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "rate": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    }
+                }
+            },
+            "outcome": {
+                "status": "succeeded",
+                "last_error": null
+            }
+        },
+        {
+            "fixture_code": "EST-XLS-KS2-001",
+            "variant": "pdf_alt",
+            "applicable": true,
+            "prompt_version_set": {
+                "global": 2,
+                "extraction:global": 2,
+                "extraction:rows": 2
+            },
+            "representation": {
+                "kind": "pdf_alt",
+                "tool": "libreoffice",
+                "size_bytes": 166434,
+                "page_count": 2,
+                "token_estimate": null
+            },
+            "preflight": {
+                "route": "whole",
+                "reason": null
+            },
+            "predicted": {
+                "input_tokens": 516,
+                "input_cost_micros": 774
+            },
+            "actual": {
+                "prompt_tokens": 9063,
+                "cached_tokens": 6453,
+                "completion_tokens": 2355,
+                "total_tokens": 27039,
+                "cost_micros": 35759,
+                "calls": 4,
+                "failed_calls": 0,
+                "duration_ms": 54496
+            },
+            "quality": {
+                "per_field": {
+                    "row_type": {
+                        "precision": 0.4667,
+                        "recall": 1,
+                        "f1": 0.6364
+                    },
+                    "code": {
+                        "precision": 0.6667,
+                        "recall": 0.6667,
+                        "f1": 0.6667
+                    },
+                    "name": {
+                        "precision": 0.4667,
+                        "recall": 1,
+                        "f1": 0.6364
+                    },
+                    "unit": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "quantity": {
+                        "precision": 1,
+                        "recall": 0,
+                        "f1": 0
+                    },
+                    "price": {
+                        "precision": 0,
+                        "recall": 1,
+                        "f1": 0
+                    },
+                    "unit_price_base": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "total_price_base": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "index_code": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "index_value": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "source_position_number": {
+                        "precision": 1,
+                        "recall": 0.8571,
+                        "f1": 0.9231
+                    },
+                    "work_type_name": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    }
+                },
+                "overall": {
+                    "precision": 0.5357,
+                    "recall": 0.7692,
+                    "f1": 0.6316
+                },
+                "row_coverage": 1,
+                "passport": {
+                    "estimate_number": {
+                        "precision": 0,
+                        "recall": 1,
+                        "f1": 0
+                    },
+                    "currency": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "base_year": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "price_level": {
+                        "precision": 0,
+                        "recall": 1,
+                        "f1": 0
+                    },
+                    "calc_method": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "labor_hours_workers": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "labor_hours_machinists": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "document_number": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "document_date": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "period_start": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "period_end": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "passport.type": {
+                        "precision": 0,
+                        "recall": 1,
+                        "f1": 0
+                    },
+                    "passport.reference": {
+                        "precision": 0,
+                        "recall": 1,
+                        "f1": 0
+                    },
+                    "passport.target": {
+                        "precision": 0,
+                        "recall": 1,
+                        "f1": 0
+                    },
+                    "passport.address": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "passport.generator": {
+                        "precision": 0,
+                        "recall": 1,
+                        "f1": 0
+                    },
+                    "passport.contract_number": {
+                        "precision": 0,
+                        "recall": 1,
+                        "f1": 0
+                    },
+                    "passport.contract_date": {
+                        "precision": 0,
+                        "recall": 1,
+                        "f1": 0
+                    }
+                },
+                "totals": {
+                    "value": {
+                        "precision": 0,
+                        "recall": 1,
+                        "f1": 0
+                    },
+                    "kind": {
+                        "precision": 0,
+                        "recall": 1,
+                        "f1": 0
+                    },
+                    "chapter_number": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "rate": {
+                        "precision": 0,
+                        "recall": 1,
+                        "f1": 0
+                    }
+                }
+            },
+            "outcome": {
+                "status": "succeeded",
+                "last_error": null
+            }
+        },
+        {
+            "fixture_code": "EST-XLS-KS2-001",
+            "variant": "pdf_ocr",
+            "applicable": false,
+            "prompt_version_set": null,
+            "representation": null,
+            "preflight": null,
+            "predicted": null,
+            "actual": null,
+            "quality": null,
+            "outcome": null
+        },
+        {
+            "fixture_code": "EST-XLS-KS2-001",
+            "variant": "structured_xml",
+            "applicable": false,
+            "prompt_version_set": null,
+            "representation": null,
+            "preflight": null,
+            "predicted": null,
+            "actual": null,
+            "quality": null,
+            "outcome": null
+        },
+        {
+            "fixture_code": "EST-XLS-KS2-001",
+            "variant": "text",
+            "applicable": false,
+            "prompt_version_set": null,
+            "representation": null,
+            "preflight": null,
+            "predicted": null,
+            "actual": null,
+            "quality": null,
+            "outcome": null
+        },
+        {
+            "fixture_code": "EST-XLS-KS2-001",
+            "variant": "text_grid",
+            "applicable": false,
+            "prompt_version_set": null,
+            "representation": null,
+            "preflight": null,
+            "predicted": null,
+            "actual": null,
+            "quality": null,
+            "outcome": null
+        },
+        {
+            "fixture_code": "EST-XLSX-KS2-001",
+            "variant": "default",
+            "applicable": true,
+            "prompt_version_set": {
+                "global": 2,
+                "extraction:global": 2,
+                "extraction:rows": 2
+            },
+            "representation": {
+                "kind": "pdf",
+                "tool": "phpspreadsheet+mpdf",
+                "size_bytes": 96608,
+                "page_count": 8,
+                "token_estimate": null
+            },
+            "preflight": {
+                "route": "whole",
+                "reason": null
+            },
+            "predicted": {
+                "input_tokens": 2064,
+                "input_cost_micros": 3096
+            },
+            "actual": {
+                "prompt_tokens": 52791,
+                "cached_tokens": 30162,
+                "completion_tokens": 14071,
+                "total_tokens": 230053,
+                "cost_micros": 210355,
+                "calls": 12,
+                "failed_calls": 0,
+                "duration_ms": 718094
+            },
+            "quality": {
+                "per_field": {
+                    "row_type": {
+                        "precision": 0.4638,
+                        "recall": 1,
+                        "f1": 0.6337
+                    },
+                    "code": {
+                        "precision": 0.3409,
+                        "recall": 0.5172,
+                        "f1": 0.411
+                    },
+                    "name": {
+                        "precision": 0.3623,
+                        "recall": 0.7813,
+                        "f1": 0.495
+                    },
+                    "unit": {
+                        "precision": 0.3333,
+                        "recall": 0.5172,
+                        "f1": 0.4054
+                    },
+                    "quantity": {
+                        "precision": 0,
+                        "recall": 0,
+                        "f1": 0
+                    },
+                    "price": {
+                        "precision": 0.5823,
+                        "recall": 0.8519,
+                        "f1": 0.6917
+                    },
+                    "unit_price_base": {
+                        "precision": 0.2963,
+                        "recall": 1,
+                        "f1": 0.4571
+                    },
+                    "total_price_base": {
+                        "precision": 0,
+                        "recall": 1,
+                        "f1": 0
+                    },
+                    "index_code": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "index_value": {
+                        "precision": 1,
+                        "recall": 0,
+                        "f1": 0
+                    },
+                    "source_position_number": {
+                        "precision": 0.05,
+                        "recall": 0.0556,
+                        "f1": 0.0526
+                    },
+                    "work_type_name": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    }
+                },
+                "overall": {
+                    "precision": 0.3972,
+                    "recall": 0.6568,
+                    "f1": 0.495
+                },
+                "row_coverage": 1,
+                "passport": {
+                    "estimate_number": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "currency": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "base_year": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "price_level": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "calc_method": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "labor_hours_workers": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "labor_hours_machinists": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "document_number": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "document_date": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "period_start": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "period_end": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "passport.type": {
+                        "precision": 0,
+                        "recall": 1,
+                        "f1": 0
+                    },
+                    "passport.reference": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "passport.target": {
+                        "precision": 0,
+                        "recall": 1,
+                        "f1": 0
+                    },
+                    "passport.address": {
+                        "precision": 0,
+                        "recall": 1,
+                        "f1": 0
+                    },
+                    "passport.generator": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "passport.contract_number": {
+                        "precision": 0,
+                        "recall": 1,
+                        "f1": 0
+                    },
+                    "passport.contract_date": {
+                        "precision": 0,
+                        "recall": 1,
+                        "f1": 0
+                    }
+                },
+                "totals": {
+                    "value": {
+                        "precision": 0,
+                        "recall": 1,
+                        "f1": 0
+                    },
+                    "kind": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "chapter_number": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "rate": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    }
+                }
+            },
+            "outcome": {
+                "status": "succeeded",
+                "last_error": null
+            }
+        },
+        {
+            "fixture_code": "EST-XLSX-KS2-001",
+            "variant": "pdf",
+            "applicable": true,
+            "prompt_version_set": {
+                "global": 2,
+                "extraction:global": 2,
+                "extraction:rows": 2
+            },
+            "representation": {
+                "kind": "pdf",
+                "tool": "phpspreadsheet+mpdf",
+                "size_bytes": 96608,
+                "page_count": 8,
+                "token_estimate": null
+            },
+            "preflight": {
+                "route": "whole",
+                "reason": null
+            },
+            "predicted": {
+                "input_tokens": 2064,
+                "input_cost_micros": 3096
+            },
+            "actual": {
+                "prompt_tokens": 25269,
+                "cached_tokens": 23511,
+                "completion_tokens": 10071,
+                "total_tokens": 109970,
+                "cost_micros": 132072,
+                "calls": 7,
+                "failed_calls": 0,
+                "duration_ms": 312542
+            },
+            "quality": {
+                "per_field": {
+                    "row_type": {
+                        "precision": 0.6818,
+                        "recall": 0.9375,
+                        "f1": 0.7895
+                    },
+                    "code": {
+                        "precision": 1,
+                        "recall": 0.4828,
+                        "f1": 0.6512
+                    },
+                    "name": {
+                        "precision": 0.5227,
+                        "recall": 0.7188,
+                        "f1": 0.6053
+                    },
+                    "unit": {
+                        "precision": 1,
+                        "recall": 0.7586,
+                        "f1": 0.8627
+                    },
+                    "quantity": {
+                        "precision": 0,
+                        "recall": 0,
+                        "f1": 0
+                    },
+                    "price": {
+                        "precision": 0.6481,
+                        "recall": 0.6481,
+                        "f1": 0.6481
+                    },
+                    "unit_price_base": {
+                        "precision": 1,
+                        "recall": 0.875,
+                        "f1": 0.9333
+                    },
+                    "total_price_base": {
+                        "precision": 0,
+                        "recall": 1,
+                        "f1": 0
+                    },
+                    "index_code": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "index_value": {
+                        "precision": 1,
+                        "recall": 0,
+                        "f1": 0
+                    },
+                    "source_position_number": {
+                        "precision": 0.0714,
+                        "recall": 0.0556,
+                        "f1": 0.0625
+                    },
+                    "work_type_name": {
+                        "precision": 0,
+                        "recall": 1,
+                        "f1": 0
+                    }
+                },
+                "overall": {
+                    "precision": 0.5911,
+                    "recall": 0.6106,
+                    "f1": 0.6006
+                },
+                "row_coverage": 1,
+                "passport": {
+                    "estimate_number": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "currency": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "base_year": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "price_level": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "calc_method": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "labor_hours_workers": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "labor_hours_machinists": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "document_number": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "document_date": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "period_start": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "period_end": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "passport.type": {
+                        "precision": 0,
+                        "recall": 1,
+                        "f1": 0
+                    },
+                    "passport.reference": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "passport.target": {
+                        "precision": 0,
+                        "recall": 1,
+                        "f1": 0
+                    },
+                    "passport.address": {
+                        "precision": 0,
+                        "recall": 1,
+                        "f1": 0
+                    },
+                    "passport.generator": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "passport.contract_number": {
+                        "precision": 0,
+                        "recall": 1,
+                        "f1": 0
+                    },
+                    "passport.contract_date": {
+                        "precision": 0,
+                        "recall": 1,
+                        "f1": 0
+                    }
+                },
+                "totals": {
+                    "value": {
+                        "precision": 0,
+                        "recall": 1,
+                        "f1": 0
+                    },
+                    "kind": {
+                        "precision": 0,
+                        "recall": 1,
+                        "f1": 0
+                    },
+                    "chapter_number": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "rate": {
+                        "precision": 0,
+                        "recall": 1,
+                        "f1": 0
+                    }
+                }
+            },
+            "outcome": {
+                "status": "succeeded",
+                "last_error": null
+            }
+        },
+        {
+            "fixture_code": "EST-XLSX-KS2-001",
+            "variant": "pdf_alt",
+            "applicable": true,
+            "prompt_version_set": {
+                "global": 2,
+                "extraction:global": 2,
+                "extraction:rows": 2
+            },
+            "representation": {
+                "kind": "pdf_alt",
+                "tool": "libreoffice",
+                "size_bytes": 710351,
+                "page_count": 6,
+                "token_estimate": null
+            },
+            "preflight": {
+                "route": "whole",
+                "reason": null
+            },
+            "predicted": {
+                "input_tokens": 1548,
+                "input_cost_micros": 2322
+            },
+            "actual": {
+                "prompt_tokens": 6243,
+                "cached_tokens": 0,
+                "completion_tokens": 548,
+                "total_tokens": 9750,
+                "cost_micros": 14297,
+                "calls": 2,
+                "failed_calls": 1,
+                "duration_ms": 166424
+            },
+            "quality": null,
+            "outcome": {
+                "status": "failed",
+                "last_error": "Gemini hit token limit with high thinking token usage. Token usage: 5768 prompt + 23873 thinking + -14994 output = 38520 total. The output was truncated at 41025 characters resulting in invalid JSON. Try increasing maxTokens to at least 39520 (suggested: 77040 for comfortable margin)."
+            }
+        },
+        {
+            "fixture_code": "EST-XLSX-KS2-001",
+            "variant": "pdf_ocr",
+            "applicable": false,
+            "prompt_version_set": null,
+            "representation": null,
+            "preflight": null,
+            "predicted": null,
+            "actual": null,
+            "quality": null,
+            "outcome": null
+        },
+        {
+            "fixture_code": "EST-XLSX-KS2-001",
+            "variant": "structured_xml",
+            "applicable": false,
+            "prompt_version_set": null,
+            "representation": null,
+            "preflight": null,
+            "predicted": null,
+            "actual": null,
+            "quality": null,
+            "outcome": null
+        },
+        {
+            "fixture_code": "EST-XLSX-KS2-001",
+            "variant": "text",
+            "applicable": false,
+            "prompt_version_set": null,
+            "representation": null,
+            "preflight": null,
+            "predicted": null,
+            "actual": null,
+            "quality": null,
+            "outcome": null
+        },
+        {
+            "fixture_code": "EST-XLSX-KS2-001",
+            "variant": "text_grid",
+            "applicable": true,
+            "prompt_version_set": {
+                "global": 2,
+                "extraction:global": 2,
+                "extraction:rows": 2
+            },
+            "representation": {
+                "kind": "text_grid",
+                "tool": "phpspreadsheet",
+                "size_bytes": 86756,
+                "page_count": null,
+                "token_estimate": 21689
+            },
+            "preflight": {
+                "route": "whole",
+                "reason": null
+            },
+            "predicted": {
+                "input_tokens": 21689,
+                "input_cost_micros": 32534
+            },
+            "actual": {
+                "prompt_tokens": 0,
+                "cached_tokens": 0,
+                "completion_tokens": 0,
+                "total_tokens": 0,
+                "cost_micros": 0,
+                "calls": 0,
+                "failed_calls": 0,
+                "duration_ms": 0
+            },
+            "quality": null,
+            "outcome": {
+                "status": "unprocessable",
+                "last_error": "формат «xlsx» не поддержан извлечением"
+            }
+        },
+        {
+            "fixture_code": "EST-XLSX-KS2-003",
+            "variant": "default",
+            "applicable": true,
+            "prompt_version_set": {
+                "global": 2,
+                "extraction:global": 2,
+                "extraction:rows": 2
+            },
+            "representation": {
+                "kind": "pdf",
+                "tool": "phpspreadsheet+mpdf",
+                "size_bytes": 63446,
+                "page_count": 2,
+                "token_estimate": null
+            },
+            "preflight": {
+                "route": "whole",
+                "reason": null
+            },
+            "predicted": {
+                "input_tokens": 516,
+                "input_cost_micros": 774
+            },
+            "actual": {
+                "prompt_tokens": 14083,
+                "cached_tokens": 8710,
+                "completion_tokens": 6219,
+                "total_tokens": 47837,
+                "cost_micros": 78404,
+                "calls": 6,
+                "failed_calls": 0,
+                "duration_ms": 92091
+            },
+            "quality": {
+                "per_field": {
+                    "row_type": {
+                        "precision": 0.3962,
+                        "recall": 0.84,
+                        "f1": 0.5385
+                    },
+                    "code": {
+                        "precision": 0,
+                        "recall": 0,
+                        "f1": 0
+                    },
+                    "name": {
+                        "precision": 0.0189,
+                        "recall": 0.04,
+                        "f1": 0.0256
+                    },
+                    "unit": {
+                        "precision": 0.15,
+                        "recall": 0.15,
+                        "f1": 0.15
+                    },
+                    "quantity": {
+                        "precision": 1,
+                        "recall": 0,
+                        "f1": 0
+                    },
+                    "price": {
+                        "precision": 0.0385,
+                        "recall": 0.0769,
+                        "f1": 0.0513
+                    },
+                    "unit_price_base": {
+                        "precision": 0,
+                        "recall": 0,
+                        "f1": 0
+                    },
+                    "total_price_base": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "index_code": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "index_value": {
+                        "precision": 1,
+                        "recall": 0,
+                        "f1": 0
+                    },
+                    "source_position_number": {
+                        "precision": 0,
+                        "recall": 0,
+                        "f1": 0
+                    },
+                    "work_type_name": {
+                        "precision": 0,
+                        "recall": 1,
+                        "f1": 0
+                    }
+                },
+                "overall": {
+                    "precision": 0.1204,
+                    "recall": 0.1566,
+                    "f1": 0.1361
+                },
+                "row_coverage": 1,
+                "passport": {
+                    "estimate_number": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "currency": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "base_year": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "price_level": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "calc_method": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "labor_hours_workers": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "labor_hours_machinists": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "document_number": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "document_date": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "period_start": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "period_end": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "passport.type": {
+                        "precision": 0,
+                        "recall": 1,
+                        "f1": 0
+                    },
+                    "passport.reference": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "passport.target": {
+                        "precision": 0,
+                        "recall": 1,
+                        "f1": 0
+                    },
+                    "passport.address": {
+                        "precision": 0,
+                        "recall": 1,
+                        "f1": 0
+                    },
+                    "passport.generator": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "passport.contract_number": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "passport.contract_date": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    }
+                },
+                "totals": {
+                    "value": {
+                        "precision": 0,
+                        "recall": 1,
+                        "f1": 0
+                    },
+                    "kind": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "chapter_number": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "rate": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    }
+                }
+            },
+            "outcome": {
+                "status": "succeeded",
+                "last_error": null
+            }
+        },
+        {
+            "fixture_code": "EST-XLSX-KS2-003",
+            "variant": "pdf",
+            "applicable": true,
+            "prompt_version_set": {
+                "global": 2,
+                "extraction:global": 2,
+                "extraction:rows": 2
+            },
+            "representation": {
+                "kind": "pdf",
+                "tool": "phpspreadsheet+mpdf",
+                "size_bytes": 63446,
+                "page_count": 2,
+                "token_estimate": null
+            },
+            "preflight": {
+                "route": "whole",
+                "reason": null
+            },
+            "predicted": {
+                "input_tokens": 516,
+                "input_cost_micros": 774
+            },
+            "actual": {
+                "prompt_tokens": 11193,
+                "cached_tokens": 15240,
+                "completion_tokens": 7131,
+                "total_tokens": 63262,
+                "cost_micros": 83256,
+                "calls": 7,
+                "failed_calls": 0,
+                "duration_ms": 128602
+            },
+            "quality": {
+                "per_field": {
+                    "row_type": {
+                        "precision": 0.3962,
+                        "recall": 0.84,
+                        "f1": 0.5385
+                    },
+                    "code": {
+                        "precision": 0,
+                        "recall": 0,
+                        "f1": 0
+                    },
+                    "name": {
+                        "precision": 0.0189,
+                        "recall": 0.04,
+                        "f1": 0.0256
+                    },
+                    "unit": {
+                        "precision": 0.15,
+                        "recall": 0.15,
+                        "f1": 0.15
+                    },
+                    "quantity": {
+                        "precision": 0,
+                        "recall": 0,
+                        "f1": 0
+                    },
+                    "price": {
+                        "precision": 0,
+                        "recall": 0,
+                        "f1": 0
+                    },
+                    "unit_price_base": {
+                        "precision": 0,
+                        "recall": 0,
+                        "f1": 0
+                    },
+                    "total_price_base": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "index_code": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "index_value": {
+                        "precision": 1,
+                        "recall": 0,
+                        "f1": 0
+                    },
+                    "source_position_number": {
+                        "precision": 0,
+                        "recall": 0,
+                        "f1": 0
+                    },
+                    "work_type_name": {
+                        "precision": 0,
+                        "recall": 1,
+                        "f1": 0
+                    }
+                },
+                "overall": {
+                    "precision": 0.1269,
+                    "recall": 0.1506,
+                    "f1": 0.1377
+                },
+                "row_coverage": 1,
+                "passport": {
+                    "estimate_number": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "currency": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "base_year": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "price_level": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "calc_method": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "labor_hours_workers": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "labor_hours_machinists": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "document_number": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "document_date": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "period_start": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "period_end": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "passport.type": {
+                        "precision": 0,
+                        "recall": 1,
+                        "f1": 0
+                    },
+                    "passport.reference": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "passport.target": {
+                        "precision": 0,
+                        "recall": 1,
+                        "f1": 0
+                    },
+                    "passport.address": {
+                        "precision": 0,
+                        "recall": 1,
+                        "f1": 0
+                    },
+                    "passport.generator": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "passport.contract_number": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "passport.contract_date": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    }
+                },
+                "totals": {
+                    "value": {
+                        "precision": 0,
+                        "recall": 1,
+                        "f1": 0
+                    },
+                    "kind": {
+                        "precision": 0,
+                        "recall": 1,
+                        "f1": 0
+                    },
+                    "chapter_number": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "rate": {
+                        "precision": 0,
+                        "recall": 1,
+                        "f1": 0
+                    }
+                }
+            },
+            "outcome": {
+                "status": "succeeded",
+                "last_error": null
+            }
+        },
+        {
+            "fixture_code": "EST-XLSX-KS2-003",
+            "variant": "pdf_alt",
+            "applicable": true,
+            "prompt_version_set": {
+                "global": 2,
+                "extraction:global": 2,
+                "extraction:rows": 2
+            },
+            "representation": {
+                "kind": "pdf_alt",
+                "tool": "libreoffice",
+                "size_bytes": 228163,
+                "page_count": 2,
+                "token_estimate": null
+            },
+            "preflight": {
+                "route": "whole",
+                "reason": null
+            },
+            "predicted": {
+                "input_tokens": 516,
+                "input_cost_micros": 774
+            },
+            "actual": {
+                "prompt_tokens": 15366,
+                "cached_tokens": 3786,
+                "completion_tokens": 6519,
+                "total_tokens": 41788,
+                "cost_micros": 82289,
+                "calls": 5,
+                "failed_calls": 0,
+                "duration_ms": 97290
+            },
+            "quality": {
+                "per_field": {
+                    "row_type": {
+                        "precision": 0.4717,
+                        "recall": 1,
+                        "f1": 0.641
+                    },
+                    "code": {
+                        "precision": 0.95,
+                        "recall": 0.95,
+                        "f1": 0.95
+                    },
+                    "name": {
+                        "precision": 0.4717,
+                        "recall": 1,
+                        "f1": 0.641
+                    },
+                    "unit": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "quantity": {
+                        "precision": 0,
+                        "recall": 0,
+                        "f1": 0
+                    },
+                    "price": {
+                        "precision": 0.08,
+                        "recall": 0.1538,
+                        "f1": 0.1053
+                    },
+                    "unit_price_base": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "total_price_base": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "index_code": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "index_value": {
+                        "precision": 1,
+                        "recall": 0,
+                        "f1": 0
+                    },
+                    "source_position_number": {
+                        "precision": 0,
+                        "recall": 0,
+                        "f1": 0
+                    },
+                    "work_type_name": {
+                        "precision": 0,
+                        "recall": 1,
+                        "f1": 0
+                    }
+                },
+                "overall": {
+                    "precision": 0.4654,
+                    "recall": 0.6084,
+                    "f1": 0.5274
+                },
+                "row_coverage": 1,
+                "passport": {
+                    "estimate_number": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "currency": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "base_year": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "price_level": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "calc_method": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "labor_hours_workers": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "labor_hours_machinists": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "document_number": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "document_date": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "period_start": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "period_end": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "passport.type": {
+                        "precision": 0,
+                        "recall": 1,
+                        "f1": 0
+                    },
+                    "passport.reference": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "passport.target": {
+                        "precision": 0,
+                        "recall": 1,
+                        "f1": 0
+                    },
+                    "passport.address": {
+                        "precision": 0,
+                        "recall": 1,
+                        "f1": 0
+                    },
+                    "passport.generator": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "passport.contract_number": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "passport.contract_date": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    }
+                },
+                "totals": {
+                    "value": {
+                        "precision": 0,
+                        "recall": 1,
+                        "f1": 0
+                    },
+                    "kind": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "chapter_number": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "rate": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    }
+                }
+            },
+            "outcome": {
+                "status": "succeeded",
+                "last_error": null
+            }
+        },
+        {
+            "fixture_code": "EST-XLSX-KS2-003",
+            "variant": "pdf_ocr",
+            "applicable": false,
+            "prompt_version_set": null,
+            "representation": null,
+            "preflight": null,
+            "predicted": null,
+            "actual": null,
+            "quality": null,
+            "outcome": null
+        },
+        {
+            "fixture_code": "EST-XLSX-KS2-003",
+            "variant": "structured_xml",
+            "applicable": false,
+            "prompt_version_set": null,
+            "representation": null,
+            "preflight": null,
+            "predicted": null,
+            "actual": null,
+            "quality": null,
+            "outcome": null
+        },
+        {
+            "fixture_code": "EST-XLSX-KS2-003",
+            "variant": "text",
+            "applicable": false,
+            "prompt_version_set": null,
+            "representation": null,
+            "preflight": null,
+            "predicted": null,
+            "actual": null,
+            "quality": null,
+            "outcome": null
+        },
+        {
+            "fixture_code": "EST-XLSX-KS2-003",
+            "variant": "text_grid",
+            "applicable": true,
+            "prompt_version_set": {
+                "global": 2,
+                "extraction:global": 2,
+                "extraction:rows": 2
+            },
+            "representation": {
+                "kind": "text_grid",
+                "tool": "phpspreadsheet",
+                "size_bytes": 39845,
+                "page_count": null,
+                "token_estimate": 9962
+            },
+            "preflight": {
+                "route": "whole",
+                "reason": null
+            },
+            "predicted": {
+                "input_tokens": 9962,
+                "input_cost_micros": 14943
+            },
+            "actual": {
+                "prompt_tokens": 0,
+                "cached_tokens": 0,
+                "completion_tokens": 0,
+                "total_tokens": 0,
+                "cost_micros": 0,
+                "calls": 0,
+                "failed_calls": 0,
+                "duration_ms": 0
+            },
+            "quality": null,
+            "outcome": {
+                "status": "unprocessable",
+                "last_error": "формат «xlsx» не поддержан извлечением"
+            }
+        },
+        {
+            "fixture_code": "EST-XLSX-LSR-001",
+            "variant": "default",
+            "applicable": true,
+            "prompt_version_set": {
+                "global": 2,
+                "extraction:global": 2,
+                "extraction:rows": 2
+            },
+            "representation": {
+                "kind": "pdf",
+                "tool": "libreoffice",
+                "size_bytes": 1265468,
+                "page_count": 8,
+                "token_estimate": null
+            },
+            "preflight": {
+                "route": "whole",
+                "reason": null
+            },
+            "predicted": {
+                "input_tokens": 2064,
+                "input_cost_micros": 3096
+            },
+            "actual": {
+                "prompt_tokens": 16264,
+                "cached_tokens": 18854,
+                "completion_tokens": 7179,
+                "total_tokens": 70431,
+                "cost_micros": 91836,
+                "calls": 5,
+                "failed_calls": 0,
+                "duration_ms": 167914
+            },
+            "quality": {
+                "per_field": {
+                    "row_type": {
+                        "precision": 0.3061,
+                        "recall": 0.0968,
+                        "f1": 0.1471
+                    },
+                    "code": {
+                        "precision": 0.0244,
+                        "recall": 0.0133,
+                        "f1": 0.0172
+                    },
+                    "name": {
+                        "precision": 0.0612,
+                        "recall": 0.0194,
+                        "f1": 0.0294
+                    },
+                    "unit": {
+                        "precision": 0.0488,
+                        "recall": 0.0267,
+                        "f1": 0.0345
+                    },
+                    "quantity": {
+                        "precision": 1,
+                        "recall": 0,
+                        "f1": 0
+                    },
+                    "price": {
+                        "precision": 1,
+                        "recall": 0,
+                        "f1": 0
+                    },
+                    "unit_price_base": {
+                        "precision": 1,
+                        "recall": 0,
+                        "f1": 0
+                    },
+                    "total_price_base": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "index_code": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "index_value": {
+                        "precision": 1,
+                        "recall": 0,
+                        "f1": 0
+                    },
+                    "source_position_number": {
+                        "precision": 0.0244,
+                        "recall": 0.0217,
+                        "f1": 0.023
+                    },
+                    "work_type_name": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    }
+                },
+                "overall": {
+                    "precision": 0.0995,
+                    "recall": 0.0296,
+                    "f1": 0.0456
+                },
+                "row_coverage": 0.3161,
+                "passport": {
+                    "estimate_number": {
+                        "precision": 0,
+                        "recall": 1,
+                        "f1": 0
+                    },
+                    "currency": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "base_year": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "price_level": {
+                        "precision": 0,
+                        "recall": 1,
+                        "f1": 0
+                    },
+                    "calc_method": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "labor_hours_workers": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "labor_hours_machinists": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "document_number": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "document_date": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "period_start": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "period_end": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "passport.type": {
+                        "precision": 0,
+                        "recall": 1,
+                        "f1": 0
+                    },
+                    "passport.reference": {
+                        "precision": 0,
+                        "recall": 1,
+                        "f1": 0
+                    },
+                    "passport.target": {
+                        "precision": 0,
+                        "recall": 1,
+                        "f1": 0
+                    },
+                    "passport.address": {
+                        "precision": 0,
+                        "recall": 1,
+                        "f1": 0
+                    },
+                    "passport.generator": {
+                        "precision": 0,
+                        "recall": 1,
+                        "f1": 0
+                    },
+                    "passport.contract_number": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "passport.contract_date": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    }
+                },
+                "totals": {
+                    "value": {
+                        "precision": 0,
+                        "recall": 1,
+                        "f1": 0
+                    },
+                    "kind": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "chapter_number": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "rate": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    }
+                }
+            },
+            "outcome": {
+                "status": "succeeded",
+                "last_error": null
+            }
+        },
+        {
+            "fixture_code": "EST-XLSX-LSR-001",
+            "variant": "pdf",
+            "applicable": true,
+            "prompt_version_set": {
+                "global": 2,
+                "extraction:global": 2,
+                "extraction:rows": 2
+            },
+            "representation": {
+                "kind": "pdf",
+                "tool": "libreoffice",
+                "size_bytes": 1265468,
+                "page_count": 8,
+                "token_estimate": null
+            },
+            "preflight": {
+                "route": "whole",
+                "reason": null
+            },
+            "predicted": {
+                "input_tokens": 2064,
+                "input_cost_micros": 3096
+            },
+            "actual": {
+                "prompt_tokens": 2123,
+                "cached_tokens": 18849,
+                "completion_tokens": 7332,
+                "total_tokens": 57840,
+                "cost_micros": 72001,
+                "calls": 4,
+                "failed_calls": 1,
+                "duration_ms": 319187
+            },
+            "quality": null,
+            "outcome": {
+                "status": "failed",
+                "last_error": "Gemini hit token limit with high thinking token usage. Token usage: 6833 prompt + 17797 thinking + -2842 output = 39585 total. The output was truncated at 135226 characters resulting in invalid JSON. Try increasing maxTokens to at least 40585 (suggested: 79170 for comfortable margin)."
+            }
+        },
+        {
+            "fixture_code": "EST-XLSX-LSR-001",
+            "variant": "pdf_alt",
+            "applicable": true,
+            "prompt_version_set": {
+                "global": 2,
+                "extraction:global": 2,
+                "extraction:rows": 2
+            },
+            "representation": {
+                "kind": "pdf_alt",
+                "tool": "libreoffice",
+                "size_bytes": 1265468,
+                "page_count": 8,
+                "token_estimate": null
+            },
+            "preflight": {
+                "route": "whole",
+                "reason": null
+            },
+            "predicted": {
+                "input_tokens": 2064,
+                "input_cost_micros": 3096
+            },
+            "actual": {
+                "prompt_tokens": 3628,
+                "cached_tokens": 31490,
+                "completion_tokens": 7193,
+                "total_tokens": 79357,
+                "cost_micros": 74904,
+                "calls": 5,
+                "failed_calls": 0,
+                "duration_ms": 239243
+            },
+            "quality": {
+                "per_field": {
+                    "row_type": {
+                        "precision": 0.3061,
+                        "recall": 0.0968,
+                        "f1": 0.1471
+                    },
+                    "code": {
+                        "precision": 0.0244,
+                        "recall": 0.0133,
+                        "f1": 0.0172
+                    },
+                    "name": {
+                        "precision": 0.0612,
+                        "recall": 0.0194,
+                        "f1": 0.0294
+                    },
+                    "unit": {
+                        "precision": 0.0488,
+                        "recall": 0.0267,
+                        "f1": 0.0345
+                    },
+                    "quantity": {
+                        "precision": 1,
+                        "recall": 0,
+                        "f1": 0
+                    },
+                    "price": {
+                        "precision": 1,
+                        "recall": 0,
+                        "f1": 0
+                    },
+                    "unit_price_base": {
+                        "precision": 0,
+                        "recall": 0,
+                        "f1": 0
+                    },
+                    "total_price_base": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "index_code": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "index_value": {
+                        "precision": 1,
+                        "recall": 0,
+                        "f1": 0
+                    },
+                    "source_position_number": {
+                        "precision": 0.0244,
+                        "recall": 0.0217,
+                        "f1": 0.023
+                    },
+                    "work_type_name": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    }
+                },
+                "overall": {
+                    "precision": 0.0969,
+                    "recall": 0.0296,
+                    "f1": 0.0453
+                },
+                "row_coverage": 0.3161,
+                "passport": {
+                    "estimate_number": {
+                        "precision": 0,
+                        "recall": 1,
+                        "f1": 0
+                    },
+                    "currency": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "base_year": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "price_level": {
+                        "precision": 0,
+                        "recall": 1,
+                        "f1": 0
+                    },
+                    "calc_method": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "labor_hours_workers": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "labor_hours_machinists": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "document_number": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "document_date": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "period_start": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "period_end": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "passport.type": {
+                        "precision": 0,
+                        "recall": 1,
+                        "f1": 0
+                    },
+                    "passport.reference": {
+                        "precision": 0,
+                        "recall": 1,
+                        "f1": 0
+                    },
+                    "passport.target": {
+                        "precision": 0,
+                        "recall": 1,
+                        "f1": 0
+                    },
+                    "passport.address": {
+                        "precision": 0,
+                        "recall": 1,
+                        "f1": 0
+                    },
+                    "passport.generator": {
+                        "precision": 0,
+                        "recall": 1,
+                        "f1": 0
+                    },
+                    "passport.contract_number": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "passport.contract_date": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    }
+                },
+                "totals": {
+                    "value": {
+                        "precision": 0,
+                        "recall": 1,
+                        "f1": 0
+                    },
+                    "kind": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "chapter_number": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "rate": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    }
+                }
+            },
+            "outcome": {
+                "status": "succeeded",
+                "last_error": null
+            }
+        },
+        {
+            "fixture_code": "EST-XLSX-LSR-001",
+            "variant": "pdf_ocr",
+            "applicable": false,
+            "prompt_version_set": null,
+            "representation": null,
+            "preflight": null,
+            "predicted": null,
+            "actual": null,
+            "quality": null,
+            "outcome": null
+        },
+        {
+            "fixture_code": "EST-XLSX-LSR-001",
+            "variant": "structured_xml",
+            "applicable": false,
+            "prompt_version_set": null,
+            "representation": null,
+            "preflight": null,
+            "predicted": null,
+            "actual": null,
+            "quality": null,
+            "outcome": null
+        },
+        {
+            "fixture_code": "EST-XLSX-LSR-001",
+            "variant": "text",
+            "applicable": false,
+            "prompt_version_set": null,
+            "representation": null,
+            "preflight": null,
+            "predicted": null,
+            "actual": null,
+            "quality": null,
+            "outcome": null
+        },
+        {
+            "fixture_code": "EST-XLSX-LSR-001",
+            "variant": "text_grid",
+            "applicable": true,
+            "prompt_version_set": {
+                "global": 2,
+                "extraction:global": 2,
+                "extraction:rows": 2
+            },
+            "representation": {
+                "kind": "text_grid",
+                "tool": "phpspreadsheet",
+                "size_bytes": 275519,
+                "page_count": null,
+                "token_estimate": 68880
+            },
+            "preflight": {
+                "route": "whole",
+                "reason": null
+            },
+            "predicted": {
+                "input_tokens": 68880,
+                "input_cost_micros": 103320
+            },
+            "actual": {
+                "prompt_tokens": 0,
+                "cached_tokens": 0,
+                "completion_tokens": 0,
+                "total_tokens": 0,
+                "cost_micros": 0,
+                "calls": 0,
+                "failed_calls": 0,
+                "duration_ms": 0
+            },
+            "quality": null,
+            "outcome": {
+                "status": "unprocessable",
+                "last_error": "формат «xlsx» не поддержан извлечением"
+            }
+        },
+        {
+            "fixture_code": "EST-XLSX-VOR-001",
+            "variant": "default",
+            "applicable": true,
+            "prompt_version_set": {
+                "global": 2,
+                "extraction:global": 2,
+                "extraction:rows": 2
+            },
+            "representation": {
+                "kind": "pdf",
+                "tool": "phpspreadsheet+mpdf",
+                "size_bytes": 62027,
+                "page_count": 4,
+                "token_estimate": null
+            },
+            "preflight": {
+                "route": "whole",
+                "reason": null
+            },
+            "predicted": {
+                "input_tokens": 1032,
+                "input_cost_micros": 1548
+            },
+            "actual": {
+                "prompt_tokens": 19576,
+                "cached_tokens": 4896,
+                "completion_tokens": 6467,
+                "total_tokens": 49969,
+                "cost_micros": 88303,
+                "calls": 5,
+                "failed_calls": 0,
+                "duration_ms": 90400
+            },
+            "quality": {
+                "per_field": {
+                    "row_type": {
+                        "precision": 0.6939,
+                        "recall": 0.6939,
+                        "f1": 0.6939
+                    },
+                    "code": {
+                        "precision": 0.2188,
+                        "recall": 0.3182,
+                        "f1": 0.2593
+                    },
+                    "name": {
+                        "precision": 0.5102,
+                        "recall": 0.5102,
+                        "f1": 0.5102
+                    },
+                    "unit": {
+                        "precision": 0.4688,
+                        "recall": 0.6818,
+                        "f1": 0.5556
+                    },
+                    "quantity": {
+                        "precision": 1,
+                        "recall": 0,
+                        "f1": 0
+                    },
+                    "price": {
+                        "precision": 1,
+                        "recall": 0.3143,
+                        "f1": 0.4783
+                    },
+                    "unit_price_base": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "total_price_base": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "index_code": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "index_value": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "source_position_number": {
+                        "precision": 0.0313,
+                        "recall": 0.0385,
+                        "f1": 0.0345
+                    },
+                    "work_type_name": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    }
+                },
+                "overall": {
+                    "precision": 0.4537,
+                    "recall": 0.4133,
+                    "f1": 0.4326
+                },
+                "row_coverage": 1,
+                "passport": {
+                    "estimate_number": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "currency": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "base_year": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "price_level": {
+                        "precision": 0,
+                        "recall": 1,
+                        "f1": 0
+                    },
+                    "calc_method": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "labor_hours_workers": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "labor_hours_machinists": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "document_number": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "document_date": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "period_start": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "period_end": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "passport.type": {
+                        "precision": 0,
+                        "recall": 1,
+                        "f1": 0
+                    },
+                    "passport.reference": {
+                        "precision": 0,
+                        "recall": 1,
+                        "f1": 0
+                    },
+                    "passport.target": {
+                        "precision": 0,
+                        "recall": 1,
+                        "f1": 0
+                    },
+                    "passport.address": {
+                        "precision": 0,
+                        "recall": 1,
+                        "f1": 0
+                    },
+                    "passport.generator": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "passport.contract_number": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "passport.contract_date": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    }
+                },
+                "totals": {
+                    "value": {
+                        "precision": 0,
+                        "recall": 1,
+                        "f1": 0
+                    },
+                    "kind": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "chapter_number": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "rate": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    }
+                }
+            },
+            "outcome": {
+                "status": "succeeded",
+                "last_error": null
+            }
+        },
+        {
+            "fixture_code": "EST-XLSX-VOR-001",
+            "variant": "pdf",
+            "applicable": true,
+            "prompt_version_set": {
+                "global": 2,
+                "extraction:global": 2,
+                "extraction:rows": 2
+            },
+            "representation": {
+                "kind": "pdf",
+                "tool": "phpspreadsheet+mpdf",
+                "size_bytes": 62027,
+                "page_count": 4,
+                "token_estimate": null
+            },
+            "preflight": {
+                "route": "whole",
+                "reason": null
+            },
+            "predicted": {
+                "input_tokens": 1032,
+                "input_cost_micros": 1548
+            },
+            "actual": {
+                "prompt_tokens": 17129,
+                "cached_tokens": 7343,
+                "completion_tokens": 6467,
+                "total_tokens": 49826,
+                "cost_micros": 85000,
+                "calls": 5,
+                "failed_calls": 0,
+                "duration_ms": 91903
+            },
+            "quality": {
+                "per_field": {
+                    "row_type": {
+                        "precision": 0.6939,
+                        "recall": 0.6939,
+                        "f1": 0.6939
+                    },
+                    "code": {
+                        "precision": 0.2188,
+                        "recall": 0.3182,
+                        "f1": 0.2593
+                    },
+                    "name": {
+                        "precision": 0.5102,
+                        "recall": 0.5102,
+                        "f1": 0.5102
+                    },
+                    "unit": {
+                        "precision": 0.4688,
+                        "recall": 0.6818,
+                        "f1": 0.5556
+                    },
+                    "quantity": {
+                        "precision": 1,
+                        "recall": 0,
+                        "f1": 0
+                    },
+                    "price": {
+                        "precision": 1,
+                        "recall": 0.3143,
+                        "f1": 0.4783
+                    },
+                    "unit_price_base": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "total_price_base": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "index_code": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "index_value": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "source_position_number": {
+                        "precision": 0.0313,
+                        "recall": 0.0385,
+                        "f1": 0.0345
+                    },
+                    "work_type_name": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    }
+                },
+                "overall": {
+                    "precision": 0.4537,
+                    "recall": 0.4133,
+                    "f1": 0.4326
+                },
+                "row_coverage": 1,
+                "passport": {
+                    "estimate_number": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "currency": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "base_year": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "price_level": {
+                        "precision": 0,
+                        "recall": 1,
+                        "f1": 0
+                    },
+                    "calc_method": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "labor_hours_workers": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "labor_hours_machinists": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "document_number": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "document_date": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "period_start": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "period_end": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "passport.type": {
+                        "precision": 0,
+                        "recall": 1,
+                        "f1": 0
+                    },
+                    "passport.reference": {
+                        "precision": 0,
+                        "recall": 1,
+                        "f1": 0
+                    },
+                    "passport.target": {
+                        "precision": 0,
+                        "recall": 1,
+                        "f1": 0
+                    },
+                    "passport.address": {
+                        "precision": 0,
+                        "recall": 1,
+                        "f1": 0
+                    },
+                    "passport.generator": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "passport.contract_number": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "passport.contract_date": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    }
+                },
+                "totals": {
+                    "value": {
+                        "precision": 0,
+                        "recall": 1,
+                        "f1": 0
+                    },
+                    "kind": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "chapter_number": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "rate": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    }
+                }
+            },
+            "outcome": {
+                "status": "succeeded",
+                "last_error": null
+            }
+        },
+        {
+            "fixture_code": "EST-XLSX-VOR-001",
+            "variant": "pdf_alt",
+            "applicable": true,
+            "prompt_version_set": {
+                "global": 2,
+                "extraction:global": 2,
+                "extraction:rows": 2
+            },
+            "representation": {
+                "kind": "pdf_alt",
+                "tool": "libreoffice",
+                "size_bytes": 151630,
+                "page_count": 3,
+                "token_estimate": null
+            },
+            "preflight": {
+                "route": "whole",
+                "reason": null
+            },
+            "predicted": {
+                "input_tokens": 774,
+                "input_cost_micros": 1161
+            },
+            "actual": {
+                "prompt_tokens": 17596,
+                "cached_tokens": 4216,
+                "completion_tokens": 6493,
+                "total_tokens": 45950,
+                "cost_micros": 85465,
+                "calls": 5,
+                "failed_calls": 0,
+                "duration_ms": 85747
+            },
+            "quality": {
+                "per_field": {
+                    "row_type": {
+                        "precision": 0.7143,
+                        "recall": 0.7143,
+                        "f1": 0.7143
+                    },
+                    "code": {
+                        "precision": 0.2188,
+                        "recall": 0.3182,
+                        "f1": 0.2593
+                    },
+                    "name": {
+                        "precision": 0.5102,
+                        "recall": 0.5102,
+                        "f1": 0.5102
+                    },
+                    "unit": {
+                        "precision": 0.4688,
+                        "recall": 0.6818,
+                        "f1": 0.5556
+                    },
+                    "quantity": {
+                        "precision": 1,
+                        "recall": 0,
+                        "f1": 0
+                    },
+                    "price": {
+                        "precision": 1,
+                        "recall": 0.3143,
+                        "f1": 0.4783
+                    },
+                    "unit_price_base": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "total_price_base": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "index_code": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "index_value": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "source_position_number": {
+                        "precision": 0.0313,
+                        "recall": 0.0385,
+                        "f1": 0.0345
+                    },
+                    "work_type_name": {
+                        "precision": 0,
+                        "recall": 1,
+                        "f1": 0
+                    }
+                },
+                "overall": {
+                    "precision": 0.4141,
+                    "recall": 0.4178,
+                    "f1": 0.4159
+                },
+                "row_coverage": 1,
+                "passport": {
+                    "estimate_number": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "currency": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "base_year": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "price_level": {
+                        "precision": 0,
+                        "recall": 1,
+                        "f1": 0
+                    },
+                    "calc_method": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "labor_hours_workers": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "labor_hours_machinists": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "document_number": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "document_date": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "period_start": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "period_end": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "passport.type": {
+                        "precision": 0,
+                        "recall": 1,
+                        "f1": 0
+                    },
+                    "passport.reference": {
+                        "precision": 0,
+                        "recall": 1,
+                        "f1": 0
+                    },
+                    "passport.target": {
+                        "precision": 0,
+                        "recall": 1,
+                        "f1": 0
+                    },
+                    "passport.address": {
+                        "precision": 0,
+                        "recall": 1,
+                        "f1": 0
+                    },
+                    "passport.generator": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "passport.contract_number": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "passport.contract_date": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    }
+                },
+                "totals": {
+                    "value": {
+                        "precision": 0,
+                        "recall": 1,
+                        "f1": 0
+                    },
+                    "kind": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "chapter_number": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "rate": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    }
+                }
+            },
+            "outcome": {
+                "status": "succeeded",
+                "last_error": null
+            }
+        },
+        {
+            "fixture_code": "EST-XLSX-VOR-001",
+            "variant": "pdf_ocr",
+            "applicable": false,
+            "prompt_version_set": null,
+            "representation": null,
+            "preflight": null,
+            "predicted": null,
+            "actual": null,
+            "quality": null,
+            "outcome": null
+        },
+        {
+            "fixture_code": "EST-XLSX-VOR-001",
+            "variant": "structured_xml",
+            "applicable": false,
+            "prompt_version_set": null,
+            "representation": null,
+            "preflight": null,
+            "predicted": null,
+            "actual": null,
+            "quality": null,
+            "outcome": null
+        },
+        {
+            "fixture_code": "EST-XLSX-VOR-001",
+            "variant": "text",
+            "applicable": false,
+            "prompt_version_set": null,
+            "representation": null,
+            "preflight": null,
+            "predicted": null,
+            "actual": null,
+            "quality": null,
+            "outcome": null
+        },
+        {
+            "fixture_code": "EST-XLSX-VOR-001",
+            "variant": "text_grid",
+            "applicable": true,
+            "prompt_version_set": {
+                "global": 2,
+                "extraction:global": 2,
+                "extraction:rows": 2
+            },
+            "representation": {
+                "kind": "text_grid",
+                "tool": "phpspreadsheet",
+                "size_bytes": 10926,
+                "page_count": null,
+                "token_estimate": 2732
+            },
+            "preflight": {
+                "route": "whole",
+                "reason": null
+            },
+            "predicted": {
+                "input_tokens": 2732,
+                "input_cost_micros": 4098
+            },
+            "actual": {
+                "prompt_tokens": 0,
+                "cached_tokens": 0,
+                "completion_tokens": 0,
+                "total_tokens": 0,
+                "cost_micros": 0,
+                "calls": 0,
+                "failed_calls": 0,
+                "duration_ms": 0
+            },
+            "quality": null,
+            "outcome": {
+                "status": "unprocessable",
+                "last_error": "формат «xlsx» не поддержан извлечением"
+            }
+        }
+    ],
+    "rejected": []
+}

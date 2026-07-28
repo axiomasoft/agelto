@@ -1,0 +1,1502 @@
+{
+    "mode": "run",
+    "generated_at": "2026-07-28T16:15:09+00:00",
+    "route": {
+        "provider": "gemini",
+        "model": "gemini-3.5-flash"
+    },
+    "prompt_version_set": {
+        "global": 2,
+        "extraction:global": 2,
+        "extraction:rows": 2
+    },
+    "cells": [
+        {
+            "fixture_code": "EST-GSFX-LSR-001",
+            "variant": "default",
+            "applicable": true,
+            "prompt_version_set": {
+                "global": 2,
+                "extraction:global": 2,
+                "extraction:rows": 2
+            },
+            "representation": {
+                "kind": null,
+                "tool": null,
+                "size_bytes": 6240192,
+                "page_count": null,
+                "token_estimate": 1560048
+            },
+            "preflight": {
+                "route": "whole",
+                "reason": null
+            },
+            "predicted": {
+                "input_tokens": 1560048,
+                "input_cost_micros": 2340072
+            },
+            "actual": {
+                "prompt_tokens": 0,
+                "cached_tokens": 0,
+                "completion_tokens": 0,
+                "total_tokens": 0,
+                "cost_micros": 0,
+                "calls": 0,
+                "failed_calls": 0,
+                "duration_ms": 0
+            },
+            "quality": null,
+            "outcome": {
+                "status": "unprocessable",
+                "last_error": "формат «gsfx» не поддержан извлечением"
+            }
+        },
+        {
+            "fixture_code": "EST-GSFX-LSR-001",
+            "variant": "pdf",
+            "applicable": false,
+            "prompt_version_set": null,
+            "representation": null,
+            "preflight": null,
+            "predicted": null,
+            "actual": null,
+            "quality": null,
+            "outcome": null
+        },
+        {
+            "fixture_code": "EST-GSFX-LSR-001",
+            "variant": "pdf_alt",
+            "applicable": false,
+            "prompt_version_set": null,
+            "representation": null,
+            "preflight": null,
+            "predicted": null,
+            "actual": null,
+            "quality": null,
+            "outcome": null
+        },
+        {
+            "fixture_code": "EST-GSFX-LSR-001",
+            "variant": "pdf_ocr",
+            "applicable": false,
+            "prompt_version_set": null,
+            "representation": null,
+            "preflight": null,
+            "predicted": null,
+            "actual": null,
+            "quality": null,
+            "outcome": null
+        },
+        {
+            "fixture_code": "EST-GSFX-LSR-001",
+            "variant": "structured_xml",
+            "applicable": true,
+            "prompt_version_set": {
+                "global": 2,
+                "extraction:global": 2,
+                "extraction:rows": 2
+            },
+            "representation": {
+                "kind": "structured_xml",
+                "tool": "gsfx-reader",
+                "size_bytes": 370235,
+                "page_count": null,
+                "token_estimate": 92559
+            },
+            "preflight": {
+                "route": "whole",
+                "reason": null
+            },
+            "predicted": {
+                "input_tokens": 92559,
+                "input_cost_micros": 138839
+            },
+            "actual": {
+                "prompt_tokens": 0,
+                "cached_tokens": 0,
+                "completion_tokens": 0,
+                "total_tokens": 0,
+                "cost_micros": 0,
+                "calls": 0,
+                "failed_calls": 0,
+                "duration_ms": 0
+            },
+            "quality": null,
+            "outcome": {
+                "status": "unprocessable",
+                "last_error": "формат «gsfx» не поддержан извлечением"
+            }
+        },
+        {
+            "fixture_code": "EST-GSFX-LSR-001",
+            "variant": "text",
+            "applicable": true,
+            "prompt_version_set": {
+                "global": 2,
+                "extraction:global": 2,
+                "extraction:rows": 2
+            },
+            "representation": {
+                "kind": "text",
+                "tool": "gsfx-reader",
+                "size_bytes": 26754,
+                "page_count": null,
+                "token_estimate": 6689
+            },
+            "preflight": {
+                "route": "whole",
+                "reason": null
+            },
+            "predicted": {
+                "input_tokens": 6689,
+                "input_cost_micros": 10034
+            },
+            "actual": {
+                "prompt_tokens": 0,
+                "cached_tokens": 0,
+                "completion_tokens": 0,
+                "total_tokens": 0,
+                "cost_micros": 0,
+                "calls": 0,
+                "failed_calls": 0,
+                "duration_ms": 0
+            },
+            "quality": null,
+            "outcome": {
+                "status": "unprocessable",
+                "last_error": "формат «gsfx» не поддержан извлечением"
+            }
+        },
+        {
+            "fixture_code": "EST-GSFX-LSR-001",
+            "variant": "text_grid",
+            "applicable": false,
+            "prompt_version_set": null,
+            "representation": null,
+            "preflight": null,
+            "predicted": null,
+            "actual": null,
+            "quality": null,
+            "outcome": null
+        },
+        {
+            "fixture_code": "EST-XLS-KS2-001",
+            "variant": "default",
+            "applicable": true,
+            "prompt_version_set": {
+                "global": 2,
+                "extraction:global": 2,
+                "extraction:rows": 2
+            },
+            "representation": {
+                "kind": "pdf",
+                "tool": "libreoffice",
+                "size_bytes": 166434,
+                "page_count": 2,
+                "token_estimate": null
+            },
+            "preflight": {
+                "route": "whole",
+                "reason": null
+            },
+            "predicted": {
+                "input_tokens": 516,
+                "input_cost_micros": 774
+            },
+            "actual": {
+                "prompt_tokens": 4115,
+                "cached_tokens": 0,
+                "completion_tokens": 718,
+                "total_tokens": 6935,
+                "cost_micros": 12635,
+                "calls": 2,
+                "failed_calls": 1,
+                "duration_ms": 40871
+            },
+            "quality": null,
+            "outcome": {
+                "status": "failed",
+                "last_error": "Gemini hit token limit with high thinking token usage. Token usage: 3640 prompt + 7865 thinking + -7553 output = 11817 total. The output was truncated at 1139 characters resulting in invalid JSON. Try increasing maxTokens to at least 12817 (suggested: 23634 for comfortable margin)."
+            }
+        },
+        {
+            "fixture_code": "EST-XLS-KS2-001",
+            "variant": "pdf",
+            "applicable": true,
+            "prompt_version_set": {
+                "global": 2,
+                "extraction:global": 2,
+                "extraction:rows": 2
+            },
+            "representation": {
+                "kind": "pdf",
+                "tool": "libreoffice",
+                "size_bytes": 166434,
+                "page_count": 2,
+                "token_estimate": null
+            },
+            "preflight": {
+                "route": "whole",
+                "reason": null
+            },
+            "predicted": {
+                "input_tokens": 516,
+                "input_cost_micros": 774
+            },
+            "actual": {
+                "prompt_tokens": 9062,
+                "cached_tokens": 6454,
+                "completion_tokens": 2355,
+                "total_tokens": 27039,
+                "cost_micros": 35757,
+                "calls": 4,
+                "failed_calls": 0,
+                "duration_ms": 46854
+            },
+            "quality": {
+                "per_field": {
+                    "row_type": {
+                        "precision": 0.4667,
+                        "recall": 1,
+                        "f1": 0.6364
+                    },
+                    "code": {
+                        "precision": 0.6667,
+                        "recall": 0.6667,
+                        "f1": 0.6667
+                    },
+                    "name": {
+                        "precision": 0.4667,
+                        "recall": 1,
+                        "f1": 0.6364
+                    },
+                    "unit": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "quantity": {
+                        "precision": 1,
+                        "recall": 0,
+                        "f1": 0
+                    },
+                    "price": {
+                        "precision": 0,
+                        "recall": 1,
+                        "f1": 0
+                    },
+                    "unit_price_base": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "total_price_base": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "index_code": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "index_value": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "source_position_number": {
+                        "precision": 1,
+                        "recall": 0.8571,
+                        "f1": 0.9231
+                    },
+                    "work_type_name": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    }
+                },
+                "overall": {
+                    "precision": 0.5357,
+                    "recall": 0.7692,
+                    "f1": 0.6316
+                },
+                "row_coverage": 1,
+                "passport": {
+                    "estimate_number": {
+                        "precision": 0,
+                        "recall": 1,
+                        "f1": 0
+                    },
+                    "currency": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "base_year": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "price_level": {
+                        "precision": 0,
+                        "recall": 1,
+                        "f1": 0
+                    },
+                    "calc_method": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "labor_hours_workers": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "labor_hours_machinists": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "document_number": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "document_date": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "period_start": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "period_end": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "passport.type": {
+                        "precision": 0,
+                        "recall": 1,
+                        "f1": 0
+                    },
+                    "passport.reference": {
+                        "precision": 0,
+                        "recall": 1,
+                        "f1": 0
+                    },
+                    "passport.target": {
+                        "precision": 0,
+                        "recall": 1,
+                        "f1": 0
+                    },
+                    "passport.address": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "passport.generator": {
+                        "precision": 0,
+                        "recall": 1,
+                        "f1": 0
+                    },
+                    "passport.contract_number": {
+                        "precision": 0,
+                        "recall": 1,
+                        "f1": 0
+                    },
+                    "passport.contract_date": {
+                        "precision": 0,
+                        "recall": 1,
+                        "f1": 0
+                    }
+                },
+                "totals": {
+                    "value": {
+                        "precision": 0,
+                        "recall": 1,
+                        "f1": 0
+                    },
+                    "kind": {
+                        "precision": 0,
+                        "recall": 1,
+                        "f1": 0
+                    },
+                    "chapter_number": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "rate": {
+                        "precision": 0,
+                        "recall": 1,
+                        "f1": 0
+                    }
+                }
+            },
+            "outcome": {
+                "status": "succeeded",
+                "last_error": null
+            }
+        },
+        {
+            "fixture_code": "EST-XLS-KS2-001",
+            "variant": "pdf_alt",
+            "applicable": true,
+            "prompt_version_set": {
+                "global": 2,
+                "extraction:global": 2,
+                "extraction:rows": 2
+            },
+            "representation": {
+                "kind": "pdf_alt",
+                "tool": "libreoffice",
+                "size_bytes": 166434,
+                "page_count": 2,
+                "token_estimate": null
+            },
+            "preflight": {
+                "route": "whole",
+                "reason": null
+            },
+            "predicted": {
+                "input_tokens": 516,
+                "input_cost_micros": 774
+            },
+            "actual": {
+                "prompt_tokens": 1967,
+                "cached_tokens": 2148,
+                "completion_tokens": 678,
+                "total_tokens": 8028,
+                "cost_micros": 9375,
+                "calls": 2,
+                "failed_calls": 1,
+                "duration_ms": 43539
+            },
+            "quality": null,
+            "outcome": {
+                "status": "failed",
+                "last_error": "Gemini hit token limit with high thinking token usage. Token usage: 3640 prompt + 7865 thinking + -7553 output = 11817 total. The output was truncated at 1139 characters resulting in invalid JSON. Try increasing maxTokens to at least 12817 (suggested: 23634 for comfortable margin)."
+            }
+        },
+        {
+            "fixture_code": "EST-XLS-KS2-001",
+            "variant": "pdf_ocr",
+            "applicable": false,
+            "prompt_version_set": null,
+            "representation": null,
+            "preflight": null,
+            "predicted": null,
+            "actual": null,
+            "quality": null,
+            "outcome": null
+        },
+        {
+            "fixture_code": "EST-XLS-KS2-001",
+            "variant": "structured_xml",
+            "applicable": false,
+            "prompt_version_set": null,
+            "representation": null,
+            "preflight": null,
+            "predicted": null,
+            "actual": null,
+            "quality": null,
+            "outcome": null
+        },
+        {
+            "fixture_code": "EST-XLS-KS2-001",
+            "variant": "text",
+            "applicable": false,
+            "prompt_version_set": null,
+            "representation": null,
+            "preflight": null,
+            "predicted": null,
+            "actual": null,
+            "quality": null,
+            "outcome": null
+        },
+        {
+            "fixture_code": "EST-XLS-KS2-001",
+            "variant": "text_grid",
+            "applicable": false,
+            "prompt_version_set": null,
+            "representation": null,
+            "preflight": null,
+            "predicted": null,
+            "actual": null,
+            "quality": null,
+            "outcome": null
+        },
+        {
+            "fixture_code": "EST-XLSX-KS2-001",
+            "variant": "default",
+            "applicable": true,
+            "prompt_version_set": {
+                "global": 2,
+                "extraction:global": 2,
+                "extraction:rows": 2
+            },
+            "representation": {
+                "kind": "pdf",
+                "tool": "phpspreadsheet+mpdf",
+                "size_bytes": 96608,
+                "page_count": 8,
+                "token_estimate": null
+            },
+            "preflight": {
+                "route": "whole",
+                "reason": null
+            },
+            "predicted": {
+                "input_tokens": 2064,
+                "input_cost_micros": 3096
+            },
+            "actual": {
+                "prompt_tokens": 7307,
+                "cached_tokens": 0,
+                "completion_tokens": 783,
+                "total_tokens": 11565,
+                "cost_micros": 18008,
+                "calls": 2,
+                "failed_calls": 1,
+                "duration_ms": 53170
+            },
+            "quality": null,
+            "outcome": {
+                "status": "failed",
+                "last_error": "cURL error 28: Operation timed out after 30001 milliseconds with 0 bytes received (see https://curl.se/libcurl/c/libcurl-errors.html) for https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent"
+            }
+        },
+        {
+            "fixture_code": "EST-XLSX-KS2-001",
+            "variant": "pdf",
+            "applicable": true,
+            "prompt_version_set": {
+                "global": 2,
+                "extraction:global": 2,
+                "extraction:rows": 2
+            },
+            "representation": {
+                "kind": "pdf",
+                "tool": "phpspreadsheet+mpdf",
+                "size_bytes": 96608,
+                "page_count": 8,
+                "token_estimate": null
+            },
+            "preflight": {
+                "route": "whole",
+                "reason": null
+            },
+            "predicted": {
+                "input_tokens": 2064,
+                "input_cost_micros": 3096
+            },
+            "actual": {
+                "prompt_tokens": 3916,
+                "cached_tokens": 3391,
+                "completion_tokens": 548,
+                "total_tokens": 11341,
+                "cost_micros": 11315,
+                "calls": 2,
+                "failed_calls": 1,
+                "duration_ms": 51292
+            },
+            "quality": null,
+            "outcome": {
+                "status": "failed",
+                "last_error": "cURL error 28: Operation timed out after 30001 milliseconds with 0 bytes received (see https://curl.se/libcurl/c/libcurl-errors.html) for https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent"
+            }
+        },
+        {
+            "fixture_code": "EST-XLSX-KS2-001",
+            "variant": "pdf_alt",
+            "applicable": true,
+            "prompt_version_set": {
+                "global": 2,
+                "extraction:global": 2,
+                "extraction:rows": 2
+            },
+            "representation": {
+                "kind": "pdf_alt",
+                "tool": "libreoffice",
+                "size_bytes": 710351,
+                "page_count": 6,
+                "token_estimate": null
+            },
+            "preflight": {
+                "route": "whole",
+                "reason": null
+            },
+            "predicted": {
+                "input_tokens": 1548,
+                "input_cost_micros": 2322
+            },
+            "actual": {
+                "prompt_tokens": 6243,
+                "cached_tokens": 0,
+                "completion_tokens": 577,
+                "total_tokens": 10429,
+                "cost_micros": 14558,
+                "calls": 2,
+                "failed_calls": 1,
+                "duration_ms": 53469
+            },
+            "quality": null,
+            "outcome": {
+                "status": "failed",
+                "last_error": "cURL error 28: Operation timed out after 30000 milliseconds with 0 bytes received (see https://curl.se/libcurl/c/libcurl-errors.html) for https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent"
+            }
+        },
+        {
+            "fixture_code": "EST-XLSX-KS2-001",
+            "variant": "pdf_ocr",
+            "applicable": false,
+            "prompt_version_set": null,
+            "representation": null,
+            "preflight": null,
+            "predicted": null,
+            "actual": null,
+            "quality": null,
+            "outcome": null
+        },
+        {
+            "fixture_code": "EST-XLSX-KS2-001",
+            "variant": "structured_xml",
+            "applicable": false,
+            "prompt_version_set": null,
+            "representation": null,
+            "preflight": null,
+            "predicted": null,
+            "actual": null,
+            "quality": null,
+            "outcome": null
+        },
+        {
+            "fixture_code": "EST-XLSX-KS2-001",
+            "variant": "text",
+            "applicable": false,
+            "prompt_version_set": null,
+            "representation": null,
+            "preflight": null,
+            "predicted": null,
+            "actual": null,
+            "quality": null,
+            "outcome": null
+        },
+        {
+            "fixture_code": "EST-XLSX-KS2-001",
+            "variant": "text_grid",
+            "applicable": true,
+            "prompt_version_set": {
+                "global": 2,
+                "extraction:global": 2,
+                "extraction:rows": 2
+            },
+            "representation": {
+                "kind": "text_grid",
+                "tool": "phpspreadsheet",
+                "size_bytes": 86756,
+                "page_count": null,
+                "token_estimate": 21689
+            },
+            "preflight": {
+                "route": "whole",
+                "reason": null
+            },
+            "predicted": {
+                "input_tokens": 21689,
+                "input_cost_micros": 32534
+            },
+            "actual": {
+                "prompt_tokens": 0,
+                "cached_tokens": 0,
+                "completion_tokens": 0,
+                "total_tokens": 0,
+                "cost_micros": 0,
+                "calls": 0,
+                "failed_calls": 0,
+                "duration_ms": 0
+            },
+            "quality": null,
+            "outcome": {
+                "status": "unprocessable",
+                "last_error": "формат «xlsx» не поддержан извлечением"
+            }
+        },
+        {
+            "fixture_code": "EST-XLSX-KS2-003",
+            "variant": "default",
+            "applicable": true,
+            "prompt_version_set": {
+                "global": 2,
+                "extraction:global": 2,
+                "extraction:rows": 2
+            },
+            "representation": {
+                "kind": "pdf",
+                "tool": "phpspreadsheet+mpdf",
+                "size_bytes": 63446,
+                "page_count": 2,
+                "token_estimate": null
+            },
+            "preflight": {
+                "route": "whole",
+                "reason": null
+            },
+            "predicted": {
+                "input_tokens": 516,
+                "input_cost_micros": 774
+            },
+            "actual": {
+                "prompt_tokens": 5585,
+                "cached_tokens": 2170,
+                "completion_tokens": 1567,
+                "total_tokens": 16536,
+                "cost_micros": 22806,
+                "calls": 3,
+                "failed_calls": 1,
+                "duration_ms": 58367
+            },
+            "quality": null,
+            "outcome": {
+                "status": "failed",
+                "last_error": "Gemini hit token limit with high thinking token usage. Token usage: 3640 prompt + 7046 thinking + -5916 output = 11816 total. The output was truncated at 3205 characters resulting in invalid JSON. Try increasing maxTokens to at least 12816 (suggested: 23632 for comfortable margin)."
+            }
+        },
+        {
+            "fixture_code": "EST-XLSX-KS2-003",
+            "variant": "pdf",
+            "applicable": true,
+            "prompt_version_set": {
+                "global": 2,
+                "extraction:global": 2,
+                "extraction:rows": 2
+            },
+            "representation": {
+                "kind": "pdf",
+                "tool": "phpspreadsheet+mpdf",
+                "size_bytes": 63446,
+                "page_count": 2,
+                "token_estimate": null
+            },
+            "preflight": {
+                "route": "whole",
+                "reason": null
+            },
+            "predicted": {
+                "input_tokens": 516,
+                "input_cost_micros": 774
+            },
+            "actual": {
+                "prompt_tokens": 3405,
+                "cached_tokens": 4350,
+                "completion_tokens": 1827,
+                "total_tokens": 17494,
+                "cost_micros": 22203,
+                "calls": 3,
+                "failed_calls": 1,
+                "duration_ms": 60780
+            },
+            "quality": null,
+            "outcome": {
+                "status": "failed",
+                "last_error": "Gemini hit token limit with high thinking token usage. Token usage: 3640 prompt + 7046 thinking + -5916 output = 11816 total. The output was truncated at 3205 characters resulting in invalid JSON. Try increasing maxTokens to at least 12816 (suggested: 23632 for comfortable margin)."
+            }
+        },
+        {
+            "fixture_code": "EST-XLSX-KS2-003",
+            "variant": "pdf_alt",
+            "applicable": true,
+            "prompt_version_set": {
+                "global": 2,
+                "extraction:global": 2,
+                "extraction:rows": 2
+            },
+            "representation": {
+                "kind": "pdf_alt",
+                "tool": "libreoffice",
+                "size_bytes": 228163,
+                "page_count": 2,
+                "token_estimate": null
+            },
+            "preflight": {
+                "route": "whole",
+                "reason": null
+            },
+            "predicted": {
+                "input_tokens": 516,
+                "input_cost_micros": 774
+            },
+            "actual": {
+                "prompt_tokens": 15366,
+                "cached_tokens": 3786,
+                "completion_tokens": 6519,
+                "total_tokens": 42416,
+                "cost_micros": 82289,
+                "calls": 5,
+                "failed_calls": 0,
+                "duration_ms": 87570
+            },
+            "quality": {
+                "per_field": {
+                    "row_type": {
+                        "precision": 0.4717,
+                        "recall": 1,
+                        "f1": 0.641
+                    },
+                    "code": {
+                        "precision": 0.95,
+                        "recall": 0.95,
+                        "f1": 0.95
+                    },
+                    "name": {
+                        "precision": 0.4717,
+                        "recall": 1,
+                        "f1": 0.641
+                    },
+                    "unit": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "quantity": {
+                        "precision": 0,
+                        "recall": 0,
+                        "f1": 0
+                    },
+                    "price": {
+                        "precision": 0.08,
+                        "recall": 0.1538,
+                        "f1": 0.1053
+                    },
+                    "unit_price_base": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "total_price_base": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "index_code": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "index_value": {
+                        "precision": 1,
+                        "recall": 0,
+                        "f1": 0
+                    },
+                    "source_position_number": {
+                        "precision": 0,
+                        "recall": 0,
+                        "f1": 0
+                    },
+                    "work_type_name": {
+                        "precision": 0,
+                        "recall": 1,
+                        "f1": 0
+                    }
+                },
+                "overall": {
+                    "precision": 0.4654,
+                    "recall": 0.6084,
+                    "f1": 0.5274
+                },
+                "row_coverage": 1,
+                "passport": {
+                    "estimate_number": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "currency": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "base_year": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "price_level": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "calc_method": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "labor_hours_workers": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "labor_hours_machinists": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "document_number": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "document_date": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "period_start": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "period_end": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "passport.type": {
+                        "precision": 0,
+                        "recall": 1,
+                        "f1": 0
+                    },
+                    "passport.reference": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "passport.target": {
+                        "precision": 0,
+                        "recall": 1,
+                        "f1": 0
+                    },
+                    "passport.address": {
+                        "precision": 0,
+                        "recall": 1,
+                        "f1": 0
+                    },
+                    "passport.generator": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "passport.contract_number": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "passport.contract_date": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    }
+                },
+                "totals": {
+                    "value": {
+                        "precision": 0,
+                        "recall": 1,
+                        "f1": 0
+                    },
+                    "kind": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "chapter_number": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    },
+                    "rate": {
+                        "precision": 1,
+                        "recall": 1,
+                        "f1": 1
+                    }
+                }
+            },
+            "outcome": {
+                "status": "succeeded",
+                "last_error": null
+            }
+        },
+        {
+            "fixture_code": "EST-XLSX-KS2-003",
+            "variant": "pdf_ocr",
+            "applicable": false,
+            "prompt_version_set": null,
+            "representation": null,
+            "preflight": null,
+            "predicted": null,
+            "actual": null,
+            "quality": null,
+            "outcome": null
+        },
+        {
+            "fixture_code": "EST-XLSX-KS2-003",
+            "variant": "structured_xml",
+            "applicable": false,
+            "prompt_version_set": null,
+            "representation": null,
+            "preflight": null,
+            "predicted": null,
+            "actual": null,
+            "quality": null,
+            "outcome": null
+        },
+        {
+            "fixture_code": "EST-XLSX-KS2-003",
+            "variant": "text",
+            "applicable": false,
+            "prompt_version_set": null,
+            "representation": null,
+            "preflight": null,
+            "predicted": null,
+            "actual": null,
+            "quality": null,
+            "outcome": null
+        },
+        {
+            "fixture_code": "EST-XLSX-KS2-003",
+            "variant": "text_grid",
+            "applicable": true,
+            "prompt_version_set": {
+                "global": 2,
+                "extraction:global": 2,
+                "extraction:rows": 2
+            },
+            "representation": {
+                "kind": "text_grid",
+                "tool": "phpspreadsheet",
+                "size_bytes": 39845,
+                "page_count": null,
+                "token_estimate": 9962
+            },
+            "preflight": {
+                "route": "whole",
+                "reason": null
+            },
+            "predicted": {
+                "input_tokens": 9962,
+                "input_cost_micros": 14943
+            },
+            "actual": {
+                "prompt_tokens": 0,
+                "cached_tokens": 0,
+                "completion_tokens": 0,
+                "total_tokens": 0,
+                "cost_micros": 0,
+                "calls": 0,
+                "failed_calls": 0,
+                "duration_ms": 0
+            },
+            "quality": null,
+            "outcome": {
+                "status": "unprocessable",
+                "last_error": "формат «xlsx» не поддержан извлечением"
+            }
+        },
+        {
+            "fixture_code": "EST-XLSX-LSR-001",
+            "variant": "default",
+            "applicable": true,
+            "prompt_version_set": {
+                "global": 2,
+                "extraction:global": 2,
+                "extraction:rows": 2
+            },
+            "representation": {
+                "kind": "pdf",
+                "tool": "libreoffice",
+                "size_bytes": 1265468,
+                "page_count": 8,
+                "token_estimate": null
+            },
+            "preflight": {
+                "route": "whole",
+                "reason": null
+            },
+            "predicted": {
+                "input_tokens": 2064,
+                "input_cost_micros": 3096
+            },
+            "actual": {
+                "prompt_tokens": 7307,
+                "cached_tokens": 0,
+                "completion_tokens": 636,
+                "total_tokens": 10304,
+                "cost_micros": 16685,
+                "calls": 2,
+                "failed_calls": 1,
+                "duration_ms": 47467
+            },
+            "quality": null,
+            "outcome": {
+                "status": "failed",
+                "last_error": "cURL error 28: Operation timed out after 30001 milliseconds with 0 bytes received (see https://curl.se/libcurl/c/libcurl-errors.html) for https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent"
+            }
+        },
+        {
+            "fixture_code": "EST-XLSX-LSR-001",
+            "variant": "pdf",
+            "applicable": true,
+            "prompt_version_set": {
+                "global": 2,
+                "extraction:global": 2,
+                "extraction:rows": 2
+            },
+            "representation": {
+                "kind": "pdf",
+                "tool": "libreoffice",
+                "size_bytes": 1265468,
+                "page_count": 8,
+                "token_estimate": null
+            },
+            "preflight": {
+                "route": "whole",
+                "reason": null
+            },
+            "predicted": {
+                "input_tokens": 2064,
+                "input_cost_micros": 3096
+            },
+            "actual": {
+                "prompt_tokens": 883,
+                "cached_tokens": 6424,
+                "completion_tokens": 792,
+                "total_tokens": 11843,
+                "cost_micros": 9417,
+                "calls": 2,
+                "failed_calls": 1,
+                "duration_ms": 52292
+            },
+            "quality": null,
+            "outcome": {
+                "status": "failed",
+                "last_error": "cURL error 28: Operation timed out after 30001 milliseconds with 0 bytes received (see https://curl.se/libcurl/c/libcurl-errors.html) for https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent"
+            }
+        },
+        {
+            "fixture_code": "EST-XLSX-LSR-001",
+            "variant": "pdf_alt",
+            "applicable": true,
+            "prompt_version_set": {
+                "global": 2,
+                "extraction:global": 2,
+                "extraction:rows": 2
+            },
+            "representation": {
+                "kind": "pdf_alt",
+                "tool": "libreoffice",
+                "size_bytes": 1265468,
+                "page_count": 8,
+                "token_estimate": null
+            },
+            "preflight": {
+                "route": "whole",
+                "reason": null
+            },
+            "predicted": {
+                "input_tokens": 2064,
+                "input_cost_micros": 3096
+            },
+            "actual": {
+                "prompt_tokens": 883,
+                "cached_tokens": 6424,
+                "completion_tokens": 448,
+                "total_tokens": 11011,
+                "cost_micros": 6321,
+                "calls": 2,
+                "failed_calls": 1,
+                "duration_ms": 50866
+            },
+            "quality": null,
+            "outcome": {
+                "status": "failed",
+                "last_error": "cURL error 28: Operation timed out after 30002 milliseconds with 0 bytes received (see https://curl.se/libcurl/c/libcurl-errors.html) for https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent"
+            }
+        },
+        {
+            "fixture_code": "EST-XLSX-LSR-001",
+            "variant": "pdf_ocr",
+            "applicable": false,
+            "prompt_version_set": null,
+            "representation": null,
+            "preflight": null,
+            "predicted": null,
+            "actual": null,
+            "quality": null,
+            "outcome": null
+        },
+        {
+            "fixture_code": "EST-XLSX-LSR-001",
+            "variant": "structured_xml",
+            "applicable": false,
+            "prompt_version_set": null,
+            "representation": null,
+            "preflight": null,
+            "predicted": null,
+            "actual": null,
+            "quality": null,
+            "outcome": null
+        },
+        {
+            "fixture_code": "EST-XLSX-LSR-001",
+            "variant": "text",
+            "applicable": false,
+            "prompt_version_set": null,
+            "representation": null,
+            "preflight": null,
+            "predicted": null,
+            "actual": null,
+            "quality": null,
+            "outcome": null
+        },
+        {
+            "fixture_code": "EST-XLSX-LSR-001",
+            "variant": "text_grid",
+            "applicable": true,
+            "prompt_version_set": {
+                "global": 2,
+                "extraction:global": 2,
+                "extraction:rows": 2
+            },
+            "representation": {
+                "kind": "text_grid",
+                "tool": "phpspreadsheet",
+                "size_bytes": 275519,
+                "page_count": null,
+                "token_estimate": 68880
+            },
+            "preflight": {
+                "route": "whole",
+                "reason": null
+            },
+            "predicted": {
+                "input_tokens": 68880,
+                "input_cost_micros": 103320
+            },
+            "actual": {
+                "prompt_tokens": 0,
+                "cached_tokens": 0,
+                "completion_tokens": 0,
+                "total_tokens": 0,
+                "cost_micros": 0,
+                "calls": 0,
+                "failed_calls": 0,
+                "duration_ms": 0
+            },
+            "quality": null,
+            "outcome": {
+                "status": "unprocessable",
+                "last_error": "формат «xlsx» не поддержан извлечением"
+            }
+        },
+        {
+            "fixture_code": "EST-XLSX-VOR-001",
+            "variant": "default",
+            "applicable": true,
+            "prompt_version_set": {
+                "global": 2,
+                "extraction:global": 2,
+                "extraction:rows": 2
+            },
+            "representation": {
+                "kind": "pdf",
+                "tool": "phpspreadsheet+mpdf",
+                "size_bytes": 62027,
+                "page_count": 4,
+                "token_estimate": null
+            },
+            "preflight": {
+                "route": "whole",
+                "reason": null
+            },
+            "predicted": {
+                "input_tokens": 1032,
+                "input_cost_micros": 1548
+            },
+            "actual": {
+                "prompt_tokens": 5179,
+                "cached_tokens": 0,
+                "completion_tokens": 296,
+                "total_tokens": 6921,
+                "cost_micros": 10433,
+                "calls": 2,
+                "failed_calls": 1,
+                "duration_ms": 37706
+            },
+            "quality": null,
+            "outcome": {
+                "status": "failed",
+                "last_error": "Gemini hit token limit with high thinking token usage. Token usage: 4704 prompt + 7862 thinking + -7548 output = 12880 total. The output was truncated at 864 characters resulting in invalid JSON. Try increasing maxTokens to at least 13880 (suggested: 25760 for comfortable margin)."
+            }
+        },
+        {
+            "fixture_code": "EST-XLSX-VOR-001",
+            "variant": "pdf",
+            "applicable": true,
+            "prompt_version_set": {
+                "global": 2,
+                "extraction:global": 2,
+                "extraction:rows": 2
+            },
+            "representation": {
+                "kind": "pdf",
+                "tool": "phpspreadsheet+mpdf",
+                "size_bytes": 62027,
+                "page_count": 4,
+                "token_estimate": null
+            },
+            "preflight": {
+                "route": "whole",
+                "reason": null
+            },
+            "predicted": {
+                "input_tokens": 1032,
+                "input_cost_micros": 1548
+            },
+            "actual": {
+                "prompt_tokens": 5179,
+                "cached_tokens": 0,
+                "completion_tokens": 296,
+                "total_tokens": 6921,
+                "cost_micros": 10433,
+                "calls": 2,
+                "failed_calls": 1,
+                "duration_ms": 36564
+            },
+            "quality": null,
+            "outcome": {
+                "status": "failed",
+                "last_error": "Gemini hit token limit with high thinking token usage. Token usage: 4704 prompt + 7862 thinking + -7548 output = 12880 total. The output was truncated at 864 characters resulting in invalid JSON. Try increasing maxTokens to at least 13880 (suggested: 25760 for comfortable margin)."
+            }
+        },
+        {
+            "fixture_code": "EST-XLSX-VOR-001",
+            "variant": "pdf_alt",
+            "applicable": true,
+            "prompt_version_set": {
+                "global": 2,
+                "extraction:global": 2,
+                "extraction:rows": 2
+            },
+            "representation": {
+                "kind": "pdf_alt",
+                "tool": "libreoffice",
+                "size_bytes": 151630,
+                "page_count": 3,
+                "token_estimate": null
+            },
+            "preflight": {
+                "route": "whole",
+                "reason": null
+            },
+            "predicted": {
+                "input_tokens": 774,
+                "input_cost_micros": 1161
+            },
+            "actual": {
+                "prompt_tokens": 4647,
+                "cached_tokens": 0,
+                "completion_tokens": 290,
+                "total_tokens": 6126,
+                "cost_micros": 9581,
+                "calls": 2,
+                "failed_calls": 1,
+                "duration_ms": 35915
+            },
+            "quality": null,
+            "outcome": {
+                "status": "failed",
+                "last_error": "Gemini hit token limit with high thinking token usage. Token usage: 4172 prompt + 7279 thinking + -6382 output = 12348 total. The output was truncated at 2716 characters resulting in invalid JSON. Try increasing maxTokens to at least 13348 (suggested: 24696 for comfortable margin)."
+            }
+        },
+        {
+            "fixture_code": "EST-XLSX-VOR-001",
+            "variant": "pdf_ocr",
+            "applicable": false,
+            "prompt_version_set": null,
+            "representation": null,
+            "preflight": null,
+            "predicted": null,
+            "actual": null,
+            "quality": null,
+            "outcome": null
+        },
+        {
+            "fixture_code": "EST-XLSX-VOR-001",
+            "variant": "structured_xml",
+            "applicable": false,
+            "prompt_version_set": null,
+            "representation": null,
+            "preflight": null,
+            "predicted": null,
+            "actual": null,
+            "quality": null,
+            "outcome": null
+        },
+        {
+            "fixture_code": "EST-XLSX-VOR-001",
+            "variant": "text",
+            "applicable": false,
+            "prompt_version_set": null,
+            "representation": null,
+            "preflight": null,
+            "predicted": null,
+            "actual": null,
+            "quality": null,
+            "outcome": null
+        },
+        {
+            "fixture_code": "EST-XLSX-VOR-001",
+            "variant": "text_grid",
+            "applicable": true,
+            "prompt_version_set": {
+                "global": 2,
+                "extraction:global": 2,
+                "extraction:rows": 2
+            },
+            "representation": {
+                "kind": "text_grid",
+                "tool": "phpspreadsheet",
+                "size_bytes": 10926,
+                "page_count": null,
+                "token_estimate": 2732
+            },
+            "preflight": {
+                "route": "whole",
+                "reason": null
+            },
+            "predicted": {
+                "input_tokens": 2732,
+                "input_cost_micros": 4098
+            },
+            "actual": {
+                "prompt_tokens": 0,
+                "cached_tokens": 0,
+                "completion_tokens": 0,
+                "total_tokens": 0,
+                "cost_micros": 0,
+                "calls": 0,
+                "failed_calls": 0,
+                "duration_ms": 0
+            },
+            "quality": null,
+            "outcome": {
+                "status": "unprocessable",
+                "last_error": "формат «xlsx» не поддержан извлечением"
+            }
+        }
+    ],
+    "rejected": []
+}
