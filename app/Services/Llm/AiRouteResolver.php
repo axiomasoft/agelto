@@ -32,7 +32,10 @@ final readonly class AiRouteResolver
         'extract_totals' => 0.0,
     ];
 
-    private const int DEFAULT_MAX_TOKENS = 8192;
+    // 8192 достаточно 2.5-линейке (нет/низкий `thinking`-бюджет); `gemini-3.x` тратит на reasoning
+    // ДО ответа 5900-7900+ токенов сверх этого (боевой прогон P6.2 2026-07-28, модель сама называет
+    // требуемый порог 12-14k/комфортный запас 23-26k — research/12-format-benchmark.md §5).
+    private const int DEFAULT_MAX_TOKENS = 32768;
 
     public function __construct(
         private AiRouteReadRepository $routes,

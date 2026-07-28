@@ -25,6 +25,12 @@ return [
     'gemini' => [
         'proxy' => env('AI_GEMINI_PROXY'),
 
+        // Prism-default (`PRISM_REQUEST_TIMEOUT`, config/prism.php) — 30с, посчитан под 2.5-линейку
+        // без `thinking`-бюджета; `gemini-3.x` тратит время на reasoning ДО generateContent-ответа
+        // (боевой прогон P6.2 2026-07-28: систематические cURL timeout 30с на части эталонов,
+        // research/12-format-benchmark.md §5) — таймаут этого запроса переопределён отдельно.
+        'request_timeout_seconds' => (int) env('AI_GEMINI_REQUEST_TIMEOUT_SECONDS', 150),
+
         'files' => [
             'base_url' => 'https://generativelanguage.googleapis.com',
             'poll_interval_ms' => (int) env('AI_GEMINI_FILE_POLL_INTERVAL_MS', 500),

@@ -179,7 +179,13 @@ final readonly class PrismGeminiProvider implements LlmProvider, SupportsContext
     {
         $proxy = $this->proxy();
 
-        return $proxy !== null ? $request->withClientOptions(['proxy' => $proxy]) : $request;
+        $clientOptions = ['timeout' => (int) config('ai.gemini.request_timeout_seconds', 90)];
+
+        if ($proxy !== null) {
+            $clientOptions['proxy'] = $proxy;
+        }
+
+        return $request->withClientOptions($clientOptions);
     }
 
     /**
