@@ -25,11 +25,32 @@ final readonly class RepresentationResolver
     ) {}
 
     /**
-     * @return array{storagePath: string, disk: string, extension: string, mime: string}
+     * `$forceKind` — сейм принуждения представления (P6.1, D50): бенчмарк обязан подать в
+     * пайплайн ИМЕННО измеряемый вариант, а не тот, что выбрала бы дефолтная политика. Приоритет
+     * (P6.3, D52): `$forceKind` > политика > оригинал версии. При переданном kind отдаём РОВНО
+     * его — нет такого представления, значит ячейка бенчмарка `not_applicable`, не оригинал.
+     * Дефолт `null` сохраняет сегодняшнее поведение байт-в-байт (всегда non-null).
+     *
+     * @return array{storagePath: string, disk: string, extension: string, mime: string}|null
      */
-    public function forLlm(DocumentVersion $version): array
+    public function forLlm(DocumentVersion $version, ?RepresentationKind $forceKind = null): ?array
     {
         $documentsDisk = (string) config('crawler.documents_disk');
+
+        if ($forceKind !== null) {
+            $representation = $this->representations->find($version, $forceKind);
+
+            if ($representation === null) {
+                return null;
+            }
+
+            return [
+                'storagePath' => $representation->storage_path,
+                'disk' => $representation->disk ?? $documentsDisk,
+                'extension' => $forceKind->extension(),
+                'mime' => $representation->mime,
+            ];
+        }
 
         foreach (self::DEFAULT_PRIORITY as $kind) {
             $representation = $this->representations->find($version, $kind);

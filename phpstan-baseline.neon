@@ -1565,3 +1565,63 @@ parameters:
 			identifier: property.notFound
 			count: 1
 			path: /var/www/html/app/Models/Procurement/Estimate/Estimate.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Procurement\\Ai\\AiRoute\:\:\$model\.$#'
+			identifier: property.notFound
+			count: 1
+			path: /var/www/html/app/Services/Procurement/Bench/FormatBenchRunner.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Procurement\\Ai\\Analysis\:\:\$status\.$#'
+			identifier: property.notFound
+			count: 1
+			path: /var/www/html/app/Services/Procurement/Bench/FormatBenchRunner.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Procurement\\Document\\DocumentVersion\:\:\$extension\.$#'
+			identifier: property.notFound
+			count: 2
+			path: /var/www/html/app/Services/Procurement/Bench/FormatBenchRunner.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Procurement\\Document\\DocumentVersion\:\:\$size_bytes\.$#'
+			identifier: property.notFound
+			count: 1
+			path: /var/www/html/app/Services/Procurement/Bench/FormatBenchRunner.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Procurement\\Document\\DocumentVersion\:\:\$storage_path\.$#'
+			identifier: property.notFound
+			count: 1
+			path: /var/www/html/app/Services/Procurement/Bench/FormatBenchRunner.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Procurement\\Document\\Document\|Illuminate\\Database\\Eloquent\\Collection\<int, App\\Models\\Procurement\\Document\\Document\>\:\:\$procurement_id\.$#'
+			identifier: property.notFound
+			count: 1
+			path: /var/www/html/app/Services/Procurement/Bench/FormatBenchRunner.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$code\.$#'
+			identifier: property.notFound
+			count: 3
+			path: /var/www/html/app/Services/Procurement/Bench/FormatBenchRunner.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$document_id\.$#'
+			identifier: property.notFound
+			count: 2
+			path: /var/www/html/app/Services/Procurement/Bench/FormatBenchRunner.php
+
+		-
+			message: '#^Parameter \$fixture of method App\\Services\\Procurement\\Bench\\FormatBenchRunner\:\:buildCell\(\) expects App\\Models\\Procurement\\Ai\\Fixture, Illuminate\\Database\\Eloquent\\Model given\.$#'
+			identifier: argument.type
+			count: 1
+			path: /var/www/html/app/Services/Procurement/Bench/FormatBenchRunner.php
+
+		-
+			message: '#^Parameter \$version of method App\\Services\\Procurement\\Bench\\FormatBenchRunner\:\:buildCell\(\) expects App\\Models\\Procurement\\Document\\DocumentVersion, Illuminate\\Database\\Eloquent\\Model given\.$#'
+			identifier: argument.type
+			count: 1
+			path: /var/www/html/app/Services/Procurement/Bench/FormatBenchRunner.php

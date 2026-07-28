@@ -30,13 +30,20 @@ enum RepresentationKind: string
     case StructuredXml = 'structured_xml';
 
     /**
+     * PDF альтернативного конвертера (`LibreOfficeConverter`), производится САМИМ бенчмарком
+     * (P6.1, D49) — отдельный kind, а не второй `pdf`: `unique(version_id, kind)` не даёт хранить
+     * два PDF одного kind, а различие инструмента несёт `meta.tool`, не kind.
+     */
+    case PdfAlt = 'pdf_alt';
+
+    /**
      * Расширение файла представления — нужно потребителю, который кладёт его во временный файл
      * перед upload'ом (`RepresentationResolver::forLlm()`).
      */
     public function extension(): string
     {
         return match ($this) {
-            self::Pdf, self::PdfOcr => 'pdf',
+            self::Pdf, self::PdfOcr, self::PdfAlt => 'pdf',
             self::Text, self::TextGrid => 'txt',
             self::StructuredXml => 'xml',
         };

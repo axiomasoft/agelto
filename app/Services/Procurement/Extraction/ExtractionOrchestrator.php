@@ -13,6 +13,7 @@ use App\Enums\Procurement\AnalysisStatus;
 use App\Enums\Procurement\DocumentStatus;
 use App\Enums\Procurement\ExtractionRoute;
 use App\Enums\Procurement\LlmPurpose;
+use App\Enums\Procurement\RepresentationKind;
 use App\Enums\Procurement\UnprocessableReason;
 use App\Models\Procurement\Ai\Analysis;
 use App\Models\Procurement\Document\Document;
@@ -79,8 +80,12 @@ final readonly class ExtractionOrchestrator
      *              self-dispatch-нуть продолжение ПОСЛЕ снятия лиза (release-then-dispatch,
      *              `EstimateExtractionJob::afterRelease()`); false — прогон завершён терминально
      *              (успех/unprocessable) либо не начинался (unreadable-формат).
+     *
+     * `$forceKind` — сейм принуждения представления (P6.1, D50): `FormatBenchRunner` подаёт им
+     * ИМЕННО измеряемый вариант входа. Дефолт `null` сохраняет сегодняшнее поведение байт-в-байт —
+     * ничего в логике `run()` кроме прокидывания параметра в резолвер не меняется.
      */
-    public function run(Document $document, Analysis $analysis): bool
+    public function run(Document $document, Analysis $analysis, ?RepresentationKind $forceKind = null): bool
     {
         $this->analyses->update($analysis, [
             'status' => AnalysisStatus::Running,
@@ -88,7 +93,7 @@ final readonly class ExtractionOrchestrator
         ]);
 
         $version = $analysis->documentVersion;
-        $effective = $this->resolveEffectiveFile($version);
+        $effective = $this->resolveEffectiveFile($version, $forceKind);
 
         if ($effective === null) {
             $this->markUnprocessable($document, $analysis, UnprocessableReason::UnreadableFormat, "формат «{$version->extension}» не поддержан извлечением");
@@ -728,13 +733,22 @@ final readonly class ExtractionOrchestrator
     /**
      * Какое представление версии уходит в LLM, решает {@see RepresentationResolver} (D25, P3.1);
      * здесь остаётся ТОЛЬКО правило извлечения «что мы вообще умеем отправить»: PDF и изображения
-     * (тот же приём, что `ScreeningProcessor::resolveEffectiveFile`).
+     * (тот же приём, что `ScreeningProcessor::resolveEffectiveFile`). Текстовые/XML-варианты
+     * (форсированные бенчмарком P6.1) этот фильтр СОЗНАТЕЛЬНО не пропускает — сегодняшний
+     * пайплайн умеет отправлять в LLM только PDF/изображение, и принуждение не расширяет эту
+     * способность (Implementation Rules P6.1: «ничего больше в своей логике не меняет»); реальный
+     * прогон такого варианта честно завершается `unprocessable(unreadable_format)` — это само по
+     * себе измеримый исход ячейки, а не дефект.
      *
      * @return array{storagePath: string, disk: string, extension: string, mime: string}|null
      */
-    private function resolveEffectiveFile(DocumentVersion $version): ?array
+    private function resolveEffectiveFile(DocumentVersion $version, ?RepresentationKind $forceKind = null): ?array
     {
-        $effective = $this->representations->forLlm($version);
+        $effective = $this->representations->forLlm($version, $forceKind);
+
+        if ($effective === null) {
+            return null;
+        }
 
         if ($effective['extension'] === 'pdf' || str_starts_with($effective['mime'], 'image/')) {
             return $effective;
