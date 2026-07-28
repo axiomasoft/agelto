@@ -1,6 +1,18 @@
 parameters:
 	ignoreErrors:
 		-
+			message: '#^Access to an undefined property App\\Models\\Procurement\\Document\\Document\:\:\$last_error\.$#'
+			identifier: property.notFound
+			count: 1
+			path: /var/www/html/app/Console/Commands/Ai/GoldImportCommand.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Procurement\\Document\\Document\:\:\$status\.$#'
+			identifier: property.notFound
+			count: 1
+			path: /var/www/html/app/Console/Commands/Ai/GoldImportCommand.php
+
+		-
 			message: '#^Access to an undefined property App\\Models\\Procurement\\Ai\\Analysis\:\:\$cache_expires_at\.$#'
 			identifier: property.notFound
 			count: 1
