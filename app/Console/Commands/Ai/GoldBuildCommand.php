@@ -9,7 +9,9 @@ use App\Enums\Procurement\GoldSource;
 use App\Models\Procurement\Ai\Fixture;
 use App\Repositories\Procurement\FixtureStoreRepository;
 use App\Services\Procurement\Gold\GoldBuilder;
+use App\Services\Procurement\Gold\ScreeningGoldBuilder;
 use Illuminate\Console\Command;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Storage;
 use JsonException;
 
@@ -19,6 +21,10 @@ use JsonException;
  * пишет `<CODE>.gold.json`, собирает сводный отчёт `research/10-gold-corpus-report.md` и, под
  * `--update-manifest`, дописывает в `estimates/manifest.json` РОВНО четыре gold-производных поля.
  * Команда — сборщик, а не редактор истины (Code Guidance): манифест остаётся SSOT корпуса (D20).
+ *
+ * Ветка `--screening` (P5.4, D5, §8.5) — ОТДЕЛЬНЫЙ проход по ВСЕМ эталонам корпуса (не только
+ * `gold_source=deterministic`) через {@see ScreeningGoldBuilder}: пишет `<CODE>.screening.json`
+ * РЯДОМ с extraction-gold, манифест НЕ трогает (screening-gold в манифест не заводится, §8.5).
  */
 final class GoldBuildCommand extends Command
 {
@@ -27,13 +33,15 @@ final class GoldBuildCommand extends Command
         {--gold-dir= : куда писать (дефолт config(ai.fixtures.gold_dir))}
         {--manifest= : путь к manifest.json}
         {--update-manifest : дописать gold-производные факты в манифест}
-        {--dry-run : ничего не писать, только отчёт}';
+        {--dry-run : ничего не писать, только отчёт}
+        {--screening : собрать gold/<CODE>.screening.json по всему корпусу вместо extraction-gold}';
 
     protected $description = 'Собрать estimates/gold/** по реестру prc_ai_fixtures и обновить gold-факты манифеста';
 
     public function __construct(
         private readonly FixtureStoreRepository $fixtures,
         private readonly GoldBuilder $builder,
+        private readonly ScreeningGoldBuilder $screeningBuilder,
     ) {
         parent::__construct();
     }
@@ -46,12 +54,17 @@ final class GoldBuildCommand extends Command
         ini_set('memory_limit', (string) config('ai.prepare.xlsx_convert_memory_limit', '512M'));
 
         $goldDir = (string) ($this->option('gold-dir') ?: config('ai.fixtures.gold_dir'));
-        $manifestPath = (string) ($this->option('manifest') ?: config('ai.fixtures.manifest_path'));
-        $disk = (string) config('ai.fixtures.disk');
-        $updateManifest = (bool) $this->option('update-manifest');
         $dryRun = (bool) $this->option('dry-run');
         /** @var list<string> $onlyCodes */
         $onlyCodes = (array) $this->option('code');
+
+        if ((bool) $this->option('screening')) {
+            return $this->handleScreening($goldDir, $onlyCodes, $dryRun);
+        }
+
+        $manifestPath = (string) ($this->option('manifest') ?: config('ai.fixtures.manifest_path'));
+        $disk = (string) config('ai.fixtures.disk');
+        $updateManifest = (bool) $this->option('update-manifest');
 
         if (! is_file($manifestPath)) {
             $this->error("Манифест не найден: {$manifestPath}");
@@ -73,13 +86,7 @@ final class GoldBuildCommand extends Command
             return self::FAILURE;
         }
 
-        $fixtures = $this->fixtures->all()
-            ->sortBy(fn (Fixture $fixture): string => $fixture->code)
-            ->values();
-
-        if ($onlyCodes !== []) {
-            $fixtures = $fixtures->filter(fn (Fixture $fixture): bool => in_array($fixture->code, $onlyCodes, strict: true))->values();
-        }
+        $fixtures = $this->fixturesInCodeOrder($onlyCodes);
 
         $built = 0;
         $skipped = 0;
@@ -123,6 +130,61 @@ final class GoldBuildCommand extends Command
         $this->info("Готово: построено {$built} · пропущено {$skipped} · понижено {$downgraded} · отклонено {$rejected}.");
 
         return $rejected > 0 ? self::FAILURE : self::SUCCESS;
+    }
+
+    /**
+     * @param  list<string>  $onlyCodes
+     */
+    private function handleScreening(string $goldDir, array $onlyCodes, bool $dryRun): int
+    {
+        $fixtures = $this->fixturesInCodeOrder($onlyCodes);
+
+        $built = 0;
+        $rejected = 0;
+
+        foreach ($fixtures as $fixture) {
+            $result = $this->screeningBuilder->build($fixture);
+
+            if ($result['action'] === 'rejected') {
+                $rejected++;
+                $this->error("{$fixture->code}: {$result['reason']}");
+
+                continue;
+            }
+
+            $built++;
+
+            if (! $dryRun) {
+                file_put_contents(
+                    "{$goldDir}/{$fixture->code}.screening.json",
+                    // `JSON_PRESERVE_ZERO_FRACTION` — `confidence` эталона всегда `1.0` (float,
+                    // §8.5), без флага PHP печатает целое `1` и `ScreeningResult::
+                    // validateAndCreate()` на повторном чтении расходится по типу.
+                    json_encode($result['screening'], JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_PRESERVE_ZERO_FRACTION)."\n",
+                );
+            }
+        }
+
+        $this->info("Готово: построено {$built} · отклонено {$rejected}.");
+
+        return $rejected > 0 ? self::FAILURE : self::SUCCESS;
+    }
+
+    /**
+     * @param  list<string>  $onlyCodes
+     * @return Collection<int, Fixture>
+     */
+    private function fixturesInCodeOrder(array $onlyCodes): Collection
+    {
+        $fixtures = $this->fixtures->all()
+            ->sortBy(fn (Fixture $fixture): string => $fixture->code)
+            ->values();
+
+        if ($onlyCodes !== []) {
+            $fixtures = $fixtures->filter(fn (Fixture $fixture): bool => in_array($fixture->code, $onlyCodes, strict: true))->values();
+        }
+
+        return $fixtures;
     }
 
     /**
