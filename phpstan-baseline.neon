@@ -135,43 +135,55 @@ parameters:
 		-
 			message: '#^Access to an undefined property App\\Models\\Procurement\\Ai\\AiRoute\:\:\$model\.$#'
 			identifier: property.notFound
+			count: 2
+			path: /var/www/html/app/Console/Commands/Ai/EvalRunCommand.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Procurement\\Ai\\Analysis\:\:\$document_type\.$#'
+			identifier: property.notFound
+			count: 1
+			path: /var/www/html/app/Console/Commands/Ai/EvalRunCommand.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Procurement\\Ai\\Analysis\:\:\$result\.$#'
+			identifier: property.notFound
 			count: 1
 			path: /var/www/html/app/Console/Commands/Ai/EvalRunCommand.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Procurement\\Ai\\EvalRun\:\:\$dataset_version\.$#'
 			identifier: property.notFound
-			count: 1
+			count: 2
 			path: /var/www/html/app/Console/Commands/Ai/EvalRunCommand.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Procurement\\Ai\\EvalRun\:\:\$model\.$#'
 			identifier: property.notFound
-			count: 1
+			count: 2
 			path: /var/www/html/app/Console/Commands/Ai/EvalRunCommand.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Procurement\\Ai\\EvalRun\:\:\$provider\.$#'
 			identifier: property.notFound
-			count: 1
+			count: 2
 			path: /var/www/html/app/Console/Commands/Ai/EvalRunCommand.php
 
 		-
 			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$code\.$#'
 			identifier: property.notFound
-			count: 1
+			count: 3
 			path: /var/www/html/app/Console/Commands/Ai/EvalRunCommand.php
 
 		-
 			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$document_id\.$#'
 			identifier: property.notFound
-			count: 1
+			count: 2
 			path: /var/www/html/app/Console/Commands/Ai/EvalRunCommand.php
 
 		-
 			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$id\.$#'
 			identifier: property.notFound
-			count: 1
+			count: 2
 			path: /var/www/html/app/Console/Commands/Ai/EvalRunCommand.php
 
 		-
@@ -182,6 +194,12 @@ parameters:
 
 		-
 			message: '#^Parameter \#3 \$rows of method App\\Console\\Commands\\Ai\\EvalRunCommand\:\:renderReport\(\) expects Illuminate\\Support\\Collection\<int, array\{example\: App\\Models\\Procurement\\Ai\\DatasetExample, metrics\: array\<string, mixed\>\}\>, Illuminate\\Support\\Collection\<int, array\{example\: App\\Models\\Procurement\\Ai\\DatasetExample, metrics\: array\{error\: string\}\|array\{overall\: array\{precision\: float, recall\: float, f1\: float\}, row_coverage\: float\}\}\> given\.$#'
+			identifier: argument.type
+			count: 1
+			path: /var/www/html/app/Console/Commands/Ai/EvalRunCommand.php
+
+		-
+			message: '#^Parameter \#3 \$rows of method App\\Console\\Commands\\Ai\\EvalRunCommand\:\:renderScreeningReport\(\) expects Illuminate\\Support\\Collection\<int, array\{example\: App\\Models\\Procurement\\Ai\\DatasetExample, comparison\: array\<string, mixed\>\}\>, Illuminate\\Support\\Collection\<int, array\{example\: App\\Models\\Procurement\\Ai\\DatasetExample, comparison\: array\{error\: string\}\|array\{gold\: string, predicted\: string, match\: bool, gold_is_estimate\: bool, predicted_is_estimate\: bool, code\: string\|null, confidence\: float, ignore_reason\: string\|null\}\}\> given\.$#'
 			identifier: argument.type
 			count: 1
 			path: /var/www/html/app/Console/Commands/Ai/EvalRunCommand.php

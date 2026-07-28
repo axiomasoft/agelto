@@ -435,7 +435,7 @@ EOL всей линейки 2.5 — **2026-10-16** (ai.google.dev/gemini-api/doc
 
 **Почему негативы — главная метрика, не позитивы** (D5): ложное срабатывание скрининга («не смета» размечена как `estimate») дороже пропуска — документ уходит в дорогое извлечение впустую. Позитивы дают долю пропущенных смет, но именно доля ложных срабатываний по негативам — число, ради которого ветка вообще существует.
 
-**Раннер** — `ai:eval:run --task=screening` (P5.6, D44): дописывается тем item'ом.
+**Раннер** — `ai:eval:run --task=screening` (P5.6, D44): прогоняет `ScreeningProcessor` (боевой маршрут скрининга через `AiRouteResolver`, реальный LLM-вызов — `FakeLlmProvider` в тестах недопустим, Implementation Rules) по каждому `prc_ai_dataset_examples(task=screening)` и сравнивает `document_type` предсказания с `gold.document_type` через `App\Services\Procurement\Screening\ScreeningEvalMetrics` — независимый от `App\Services\Procurement\Extraction\EvalMetrics` (§8.4) класс: `accuracy`, `confusion` (ожидаемый × фактический по `AiDocumentType`), `false_positive_rate` (доля НЕ-смет, помеченных `estimate` — главное число, D5) и `false_negative_rate` (доля смет, помеченных не-`estimate`). Результат пишется в те же task-агностичные `prc_ai_eval_runs`/`prc_ai_eval_results` (`metric=screening_accuracy`), CI-гейт и пороговое сравнение — вне скоупа (как и §8.4).
 
 ## 9. Data lifecycle: retention, MinIO ILM, бэкапы (P7.7, D33/D41)
 

@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Console\Commands\Ai;
 
+use App\Dto\Procurement\Ai\Screening\ScreeningResult;
+use App\Enums\Procurement\AiDocumentType;
 use App\Enums\Procurement\AnalysisStatus;
 use App\Enums\Procurement\AnalysisStep;
 use App\Enums\Procurement\LlmPurpose;
@@ -15,6 +17,8 @@ use App\Repositories\Procurement\AnalysisStoreRepository;
 use App\Services\Llm\AiRouteResolver;
 use App\Services\Procurement\Extraction\EvalMetrics;
 use App\Services\Procurement\Extraction\ExtractionOrchestrator;
+use App\Services\Procurement\Screening\ScreeningEvalMetrics;
+use App\Services\Procurement\Screening\ScreeningProcessor;
 use Illuminate\Console\Command;
 use Illuminate\Support\Collection;
 use Throwable;
@@ -52,6 +56,8 @@ final class EvalRunCommand extends Command
         private readonly AiRouteResolver $routes,
         private readonly ExtractionOrchestrator $orchestrator,
         private readonly EvalMetrics $metrics,
+        private readonly ScreeningProcessor $screeningProcessor,
+        private readonly ScreeningEvalMetrics $screeningMetrics,
     ) {
         parent::__construct();
     }
@@ -59,6 +65,13 @@ final class EvalRunCommand extends Command
     public function handle(): int
     {
         $task = (string) $this->option('task');
+
+        if (! in_array($task, ['extraction', 'screening'], true)) {
+            $this->error("Неизвестный --task={$task} (ожидается extraction|screening).");
+
+            return self::FAILURE;
+        }
+
         $datasetVersion = (string) ($this->option('dataset-version') ?: config('ai.eval.dataset_version', 'v1'));
 
         $query = DatasetExample::query()->where('task', $task)->with('documentVersion');
@@ -90,6 +103,16 @@ final class EvalRunCommand extends Command
             return self::SUCCESS;
         }
 
+        return $task === 'screening'
+            ? $this->runScreening($examples, $datasetVersion)
+            : $this->runExtraction($examples, $datasetVersion);
+    }
+
+    /**
+     * @param  Collection<int, DatasetExample>  $examples
+     */
+    private function runExtraction(Collection $examples, string $datasetVersion): int
+    {
         $route = $this->routes->resolve('estimate', LlmPurpose::ExtractRows);
 
         $run = EvalRun::query()->create([
@@ -122,6 +145,52 @@ final class EvalRunCommand extends Command
         $run->update(['metrics' => $aggregate, 'finished_at' => now()]);
 
         $this->renderReport($run, $aggregate, collect($rows));
+
+        return self::SUCCESS;
+    }
+
+    /**
+     * @param  Collection<int, DatasetExample>  $examples
+     */
+    private function runScreening(Collection $examples, string $datasetVersion): int
+    {
+        $route = $this->routes->resolve('any', LlmPurpose::Screening);
+
+        $run = EvalRun::query()->create([
+            'dataset_version' => $datasetVersion,
+            'provider' => $route->route->provider->code,
+            'model' => $route->route->model,
+            'prompt_version_set' => null,
+            'metrics' => null,
+            'ci_status' => 'pass',
+            'started_at' => now(),
+            'finished_at' => null,
+        ]);
+
+        $comparisons = [];
+
+        foreach ($examples as $example) {
+            $comparison = $this->evaluateScreeningExample($example);
+            $comparisons[] = ['example' => $example, 'comparison' => $comparison];
+
+            EvalResult::query()->create([
+                'eval_run_id' => $run->id,
+                'dataset_example_id' => $example->id,
+                'metric' => 'screening_accuracy',
+                'value' => ($comparison['match'] ?? false) ? 1.0 : 0.0,
+                'details' => $comparison,
+            ]);
+        }
+
+        $validComparisons = array_values(array_filter(
+            array_column($comparisons, 'comparison'),
+            static fn (array $c): bool => ! isset($c['error']),
+        ));
+
+        $aggregate = $this->screeningMetrics->aggregate($validComparisons);
+        $run->update(['metrics' => $aggregate, 'finished_at' => now()]);
+
+        $this->renderScreeningReport($run, $aggregate, collect($comparisons));
 
         return self::SUCCESS;
     }
@@ -191,6 +260,76 @@ final class EvalRunCommand extends Command
     }
 
     /**
+     * @return array{gold: string, predicted: string, match: bool, gold_is_estimate: bool,
+     *     predicted_is_estimate: bool, code: string|null, confidence: float, ignore_reason: string|null}|array{error: string}
+     */
+    private function evaluateScreeningExample(DatasetExample $example): array
+    {
+        $documentVersion = $example->documentVersion;
+
+        if ($documentVersion === null) {
+            return ['error' => 'document_version отсутствует'];
+        }
+
+        try {
+            $document = Document::query()->findOrFail($documentVersion->document_id);
+            $analysis = $this->analyses->firstOrCreate($documentVersion->id, AnalysisStep::Screening);
+
+            // Тот же приём, что `evaluateExample()` (extraction): без сброса `firstOrCreate()`
+            // вернул бы терминальный `Analysis` прошлого прогона, и повторный `ai:eval:run`
+            // отдавал бы старый вердикт без единого нового вызова `ScreeningProcessor`.
+            $this->analyses->update($analysis, [
+                'status' => AnalysisStatus::Pending,
+                'document_type' => null,
+                'result' => null,
+                'provider' => null,
+                'model' => null,
+                'attempts' => 0,
+                'last_error' => null,
+                'last_error_at' => null,
+                'next_retry_at' => null,
+                'failed_permanently' => false,
+                'started_at' => null,
+                'finished_at' => null,
+            ]);
+            $analysis->refresh();
+
+            $this->screeningProcessor->run($document, $analysis);
+            $analysis->refresh();
+
+            $documentType = AiDocumentType::tryFrom((string) $analysis->document_type);
+
+            if ($documentType === null) {
+                $detail = json_encode($analysis->result, JSON_UNESCAPED_UNICODE);
+
+                return ['error' => "скрининг не вернул document_type (Analysis.result: {$detail})"];
+            }
+
+            $prediction = new ScreeningResult(
+                document_type: $documentType,
+                confidence: (float) ($analysis->result['confidence'] ?? 0.0),
+                description: $analysis->result['description'] ?? null,
+                tags: (array) ($analysis->result['tags'] ?? []),
+                page_count_estimate: $analysis->result['page_count_estimate'] ?? null,
+                ignore_reason: $analysis->result['ignore_reason'] ?? null,
+            );
+
+            $comparison = $this->screeningMetrics->compare($example->gold?->toArray() ?? [], $prediction);
+
+            return [
+                ...$comparison,
+                'code' => $example->fixture?->code,
+                'confidence' => $prediction->confidence,
+                'ignore_reason' => $prediction->ignore_reason,
+            ];
+        } catch (Throwable $e) {
+            $this->error("dataset_example #{$example->id}: {$e->getMessage()}");
+
+            return ['error' => $e->getMessage()];
+        }
+    }
+
+    /**
      * @param  Collection<int, array{example: DatasetExample, metrics: array<string, mixed>}>  $rows
      * @return array<string, mixed>
      */
@@ -249,6 +388,55 @@ final class EvalRunCommand extends Command
                 $row['metrics']['overall']['precision'],
                 $row['metrics']['overall']['recall'],
                 $row['metrics']['row_coverage'],
+            ])->all(),
+        );
+    }
+
+    /**
+     * @param  array{total: int, accuracy: float|null, confusion: array<string, array<string, int>>,
+     *     false_positive_rate: float|null, false_negative_rate: float|null}  $aggregate
+     * @param  Collection<int, array{example: DatasetExample, comparison: array<string, mixed>}>  $rows
+     */
+    private function renderScreeningReport(EvalRun $run, array $aggregate, Collection $rows): void
+    {
+        $this->info("EvalRun #{$run->id} (dataset_version={$run->dataset_version}, {$run->provider}/{$run->model}): screening — {$aggregate['total']} эталонов.");
+
+        if ($aggregate['accuracy'] !== null) {
+            $this->line(sprintf(
+                'Итого: accuracy=%.4f · false_positive_rate=%s · false_negative_rate=%s · всего=%d',
+                $aggregate['accuracy'],
+                $aggregate['false_positive_rate'] === null ? 'n/a' : sprintf('%.4f', $aggregate['false_positive_rate']),
+                $aggregate['false_negative_rate'] === null ? 'n/a' : sprintf('%.4f', $aggregate['false_negative_rate']),
+                $aggregate['total'],
+            ));
+        }
+
+        if ($aggregate['confusion'] !== []) {
+            $confusionRows = [];
+
+            foreach ($aggregate['confusion'] as $gold => $predictedCounts) {
+                foreach ($predictedCounts as $predicted => $count) {
+                    $confusionRows[] = [$gold, $predicted, $count];
+                }
+            }
+
+            $this->table(['ожидали', 'получили', 'кол-во'], $confusionRows);
+        }
+
+        $mismatches = $rows->filter(fn (array $row): bool => isset($row['comparison']['match']) && ! $row['comparison']['match']);
+
+        if ($mismatches->isEmpty()) {
+            return;
+        }
+
+        $this->table(
+            ['код эталона', 'ожидали', 'получили', 'confidence', 'ignore_reason'],
+            $mismatches->map(fn (array $row): array => [
+                $row['comparison']['code'] ?? "#{$row['example']->id}",
+                $row['comparison']['gold'],
+                $row['comparison']['predicted'],
+                $row['comparison']['confidence'],
+                $row['comparison']['ignore_reason'] ?? '—',
             ])->all(),
         );
     }
