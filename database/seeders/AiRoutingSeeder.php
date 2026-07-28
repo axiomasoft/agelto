@@ -12,10 +12,10 @@ use Illuminate\Database\Seeder;
 
 /**
  * Стартовая матрица роутинга (ТЗ 04 §3.1, D4/D27/D37/D61): провайдер `gemini` + 11 строк
- * `prc_ai_routes` — 5 основных (`priority=0`, дешёвая 2.5-модель на каждый purpose) + 5
- * эскалационных (`priority=1`, `gemini-2.5-pro`, D4 «эскалация по флагу сложности/провалу
- * валидации») + 1 строка `prompt_critic` (`priority=0` без эскалации, P7.4, D61) — критик промтов
- * не re-ask'ается на маршруте выше, повтор — на уровне job-retry, как у остальных шагов.
+ * `prc_ai_routes` — 5 основных (`priority=0`, дешёвая модель на каждый purpose) + 5
+ * эскалационных (`priority=1`, D4 «эскалация по флагу сложности/провалу валидации») + 1 строка
+ * `prompt_critic` (`priority=0` без эскалации, P7.4, D61) — критик промтов не re-ask'ается на
+ * маршруте выше, повтор — на уровне job-retry, как у остальных шагов.
  *
  * Driver провайдера — `gemini` (не буквальное «prism-gemini» из прозы Intent этого item'а):
  * `AiRouteResolver::providerFor()`/`AiRouteFactory` уже закрепили `driver === 'gemini'` как
@@ -26,10 +26,13 @@ use Illuminate\Database\Seeder;
  * (маршрут — тот же составной ключ, что `unique()` в миграции `2026_07_04_100028`) — повторный
  * `db:seed` не плодит дублей, только освежает `provider_id`/`model`/`is_active`/`shadow`.
  *
- * Миграция на 3.x-преемников (D27, EOL линейки 2.5 = 2026-10-16): раскомментировать `model`
- * у нужной строки ниже (значение из `config('ai.capabilities')`, где преемники уже
- * задокументированы закомментированными записями) — резолвер/схема не меняются, меняются
- * только данные строк.
+ * Миграция на 3.x-преемников (D27 план EST-AI + D123 план 2026.07.26-EST-TRAIN, 2026-07-28):
+ * линейка 2.5 (`flash`/`flash-lite`/`pro`) недоступна активному ключу владельца ЦЕЛИКОМ
+ * («404 NOT_FOUND — no longer available to new users», боевой вызов подтвердил на всех трёх
+ * моделях; известный, признанный Google баг/ограничение для новых GCP-проектов, июль 2026,
+ * RAG:✅ Perplexity 2026-07-28) — раньше официального EOL (2026-10-16). Активные модели ниже
+ * переключены на преемников из `config('ai.capabilities')` (D123); строки 2.5-линейки оставлены
+ * закомментированными как историческая точка отката, если Google откатит баг.
  */
 final class AiRoutingSeeder extends Seeder
 {
@@ -73,36 +76,36 @@ final class AiRoutingSeeder extends Seeder
 
         return [
             // (any, screening) — общий дешёвый гейт пайплайна для ЛЮБОГО типа документа (D4).
-            ['document_type' => $any, 'purpose' => LlmPurpose::Screening->value, 'priority' => 0, 'model' => 'gemini-2.5-flash-lite'],
-            // 'model' => 'gemini-3.1-flash-lite', // D27: раскомментировать при переключении на 3.x.
-            ['document_type' => $any, 'purpose' => LlmPurpose::Screening->value, 'priority' => 1, 'model' => 'gemini-2.5-pro'],
-            // 'model' => 'gemini-3.1-pro-preview', // D27.
+            ['document_type' => $any, 'purpose' => LlmPurpose::Screening->value, 'priority' => 0, 'model' => 'gemini-3.1-flash-lite'],
+            // 'model' => 'gemini-2.5-flash-lite', // D27 исходная — недоступна ключу (D123), не откатывать без проверки доступа.
+            ['document_type' => $any, 'purpose' => LlmPurpose::Screening->value, 'priority' => 1, 'model' => 'gemini-3.1-pro-preview'],
+            // 'model' => 'gemini-2.5-pro', // D27 исходная — недоступна ключу (D123).
 
             // (estimate, discovery) — маркеры границ смет оконного пути P6.4 (D30/D37), дёшево.
-            ['document_type' => $estimate, 'purpose' => LlmPurpose::Discovery->value, 'priority' => 0, 'model' => 'gemini-2.5-flash-lite'],
-            // 'model' => 'gemini-3.1-flash-lite', // D27.
-            ['document_type' => $estimate, 'purpose' => LlmPurpose::Discovery->value, 'priority' => 1, 'model' => 'gemini-2.5-pro'],
-            // 'model' => 'gemini-3.1-pro-preview', // D27.
+            ['document_type' => $estimate, 'purpose' => LlmPurpose::Discovery->value, 'priority' => 0, 'model' => 'gemini-3.1-flash-lite'],
+            // 'model' => 'gemini-2.5-flash-lite', // D27 исходная — недоступна ключу (D123).
+            ['document_type' => $estimate, 'purpose' => LlmPurpose::Discovery->value, 'priority' => 1, 'model' => 'gemini-3.1-pro-preview'],
+            // 'model' => 'gemini-2.5-pro', // D27 исходная — недоступна ключу (D123).
 
             // (estimate, extract_passport|extract_rows|extract_totals) — рабочая лошадка (D4).
-            ['document_type' => $estimate, 'purpose' => LlmPurpose::ExtractPassport->value, 'priority' => 0, 'model' => 'gemini-2.5-flash'],
-            // 'model' => 'gemini-3.5-flash', // D27.
-            ['document_type' => $estimate, 'purpose' => LlmPurpose::ExtractPassport->value, 'priority' => 1, 'model' => 'gemini-2.5-pro'],
-            // 'model' => 'gemini-3.1-pro-preview', // D27.
+            ['document_type' => $estimate, 'purpose' => LlmPurpose::ExtractPassport->value, 'priority' => 0, 'model' => 'gemini-3.5-flash'],
+            // 'model' => 'gemini-2.5-flash', // D27 исходная — недоступна ключу (D123).
+            ['document_type' => $estimate, 'purpose' => LlmPurpose::ExtractPassport->value, 'priority' => 1, 'model' => 'gemini-3.1-pro-preview'],
+            // 'model' => 'gemini-2.5-pro', // D27 исходная — недоступна ключу (D123).
 
-            ['document_type' => $estimate, 'purpose' => LlmPurpose::ExtractRows->value, 'priority' => 0, 'model' => 'gemini-2.5-flash'],
-            // 'model' => 'gemini-3.5-flash', // D27.
-            ['document_type' => $estimate, 'purpose' => LlmPurpose::ExtractRows->value, 'priority' => 1, 'model' => 'gemini-2.5-pro'],
-            // 'model' => 'gemini-3.1-pro-preview', // D27.
+            ['document_type' => $estimate, 'purpose' => LlmPurpose::ExtractRows->value, 'priority' => 0, 'model' => 'gemini-3.5-flash'],
+            // 'model' => 'gemini-2.5-flash', // D27 исходная — недоступна ключу (D123).
+            ['document_type' => $estimate, 'purpose' => LlmPurpose::ExtractRows->value, 'priority' => 1, 'model' => 'gemini-3.1-pro-preview'],
+            // 'model' => 'gemini-2.5-pro', // D27 исходная — недоступна ключу (D123).
 
-            ['document_type' => $estimate, 'purpose' => LlmPurpose::ExtractTotals->value, 'priority' => 0, 'model' => 'gemini-2.5-flash'],
-            // 'model' => 'gemini-3.5-flash', // D27.
-            ['document_type' => $estimate, 'purpose' => LlmPurpose::ExtractTotals->value, 'priority' => 1, 'model' => 'gemini-2.5-pro'],
-            // 'model' => 'gemini-3.1-pro-preview', // D27.
+            ['document_type' => $estimate, 'purpose' => LlmPurpose::ExtractTotals->value, 'priority' => 0, 'model' => 'gemini-3.5-flash'],
+            // 'model' => 'gemini-2.5-flash', // D27 исходная — недоступна ключу (D123).
+            ['document_type' => $estimate, 'purpose' => LlmPurpose::ExtractTotals->value, 'priority' => 1, 'model' => 'gemini-3.1-pro-preview'],
+            // 'model' => 'gemini-2.5-pro', // D27 исходная — недоступна ключу (D123).
 
             // (any, prompt_critic) — критик патчей промтов (P7.4, D61), на дешёвой модели.
-            ['document_type' => $any, 'purpose' => LlmPurpose::PromptCritic->value, 'priority' => 0, 'model' => 'gemini-2.5-flash-lite'],
-            // 'model' => 'gemini-3.1-flash-lite', // D27: раскомментировать при переключении на 3.x.
+            ['document_type' => $any, 'purpose' => LlmPurpose::PromptCritic->value, 'priority' => 0, 'model' => 'gemini-3.1-flash-lite'],
+            // 'model' => 'gemini-2.5-flash-lite', // D27 исходная — недоступна ключу (D123).
         ];
     }
 }

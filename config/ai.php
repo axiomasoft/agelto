@@ -125,11 +125,43 @@ return [
             'successor' => 'gemini-3.1-pro-preview',
         ],
 
-        // Преемники (D27) — не маршрутизируются ни одним сидом P7.2 до решения владельца
-        // о дате переключения (handoff open_questions); цены — research/E §4, справочно.
-        // 'gemini-3.1-flash-lite' => ['input_per_1m' => 0.25, 'output_per_1m' => 1.50, 'cached_per_1m' => 0.025, ...],
-        // 'gemini-3.5-flash'      => ['input_per_1m' => 1.50, 'output_per_1m' => 9.00, 'cached_per_1m' => 0.15, ...],
-        // 'gemini-3.1-pro-preview'=> ['input_per_1m' => 2.00, 'output_per_1m' => 12.00, 'cached_per_1m' => 0.20, ...],
+        // Преемники (D27) — активны с D123 (2026-07-28): линейка 2.5 недоступна ключу владельца
+        // целиком («404 no longer available to new users», признанный Google-баг для новых
+        // GCP-проектов, RAG:✅ Perplexity 2026-07-28), маршрутизированы AiRoutingSeeder раньше
+        // официального EOL 2.5 (2026-10-16). Цены сверены ai.google.dev/gemini-api/docs/pricing
+        // 2026-07-28 (RAG:✅). Транспортные лимиты (50 МБ/1000 стр., Files API) не документированы
+        // отдельно под 3.x на дату сверки — унаследованы от 2.5-линейки как рабочее допущение
+        // (тот же провайдер/API-семейство); расхождение, если найдётся, — предмет отдельной D#.
+        'gemini-3.1-flash-lite' => [
+            'input_per_1m' => 0.25,
+            'output_per_1m' => 1.50,
+            'cached_per_1m' => 0.025,
+            'max_request_file_mb' => 50,
+            'max_pages' => 1000,
+            'supports_files_api' => true,
+            'eol_date' => '2027-05-07',
+            'successor' => 'gemini-3.5-flash-lite',
+        ],
+        'gemini-3.5-flash' => [
+            'input_per_1m' => 1.50,
+            'output_per_1m' => 9.00,
+            'cached_per_1m' => 0.15,
+            'max_request_file_mb' => 50,
+            'max_pages' => 1000,
+            'supports_files_api' => true,
+            'eol_date' => null,
+            'successor' => null,
+        ],
+        'gemini-3.1-pro-preview' => [
+            'input_per_1m' => 2.00,
+            'output_per_1m' => 12.00,
+            'cached_per_1m' => 0.20,
+            'max_request_file_mb' => 50,
+            'max_pages' => 1000,
+            'supports_files_api' => true,
+            'eol_date' => null,
+            'successor' => null,
+        ],
     ],
 
     /*
