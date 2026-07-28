@@ -19,4 +19,5 @@ enum PromptStep: string
     case ExtractionPassport = 'extraction:passport';
     case ExtractionRows = 'extraction:rows';
     case ExtractionTotals = 'extraction:totals';
+    case PromptCritic = 'prompt:critic';
 }

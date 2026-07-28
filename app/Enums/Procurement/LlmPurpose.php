@@ -16,4 +16,5 @@ enum LlmPurpose: string
     case ExtractTotals = 'extract_totals';
     case Eval = 'eval';
     case Shadow = 'shadow';
+    case PromptCritic = 'prompt_critic';
 }

@@ -15,7 +15,7 @@ test('сидер создаёт провайдера gemini и стартову�
     expect($provider->driver)->toBe('gemini')
         ->and($provider->is_active)->toBeTrue();
 
-    expect(AiRoute::query()->count())->toBe(10);
+    expect(AiRoute::query()->count())->toBe(11);
 
     $screening = AiRoute::query()
         ->where('document_type', 'any')
@@ -47,6 +47,14 @@ test('сидер создаёт провайдера gemini и стартову�
         ->where('priority', 1)
         ->sole();
     expect($escalation->model)->toBe('gemini-2.5-pro');
+
+    $promptCritic = AiRoute::query()
+        ->where('document_type', 'any')
+        ->where('purpose', LlmPurpose::PromptCritic->value)
+        ->where('priority', 0)
+        ->sole();
+    expect($promptCritic->model)->toBe('gemini-2.5-flash-lite')
+        ->and($promptCritic->provider_id)->toBe($provider->id);
 });
 
 test('сидер идемпотентен — повторный запуск не плодит дублей и не создаёт второго провайдера', function (): void {
@@ -54,7 +62,7 @@ test('сидер идемпотентен — повторный запуск н
     (new AiRoutingSeeder)->run();
 
     expect(Provider::query()->count())->toBe(1)
-        ->and(AiRoute::query()->count())->toBe(10);
+        ->and(AiRoute::query()->count())->toBe(11);
 });
 
 test('после сидирования AiRouteResolver находит активный маршрут для каждого purpose стартовой матрицы', function (): void {

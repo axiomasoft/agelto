@@ -350,6 +350,54 @@ EOL всей линейки 2.5 — **2026-10-16** (ai.google.dev/gemini-api/doc
 
 Экономный промт первичного анализа v1 (§10.2 LLM_Strategy) — прообраз шага `screening` (`03-document-pipeline.md` §3.4), не сметный контракт этой спеки; сохраняется как reference для P8-наполнения промта скрининга.
 
+### 6.1 Очередь кандидат-патчей и LLM-критик промтов (P7.4, D8/D59–D61/D64)
+
+Носитель — таблица `prc_ai_prompt_suggestions` (`App\Models\Procurement\Ai\PromptSuggestion`), НЕ
+`prc_ai_corrections`: коррекция — структурированная правка КОНКРЕТНОГО разбора, подмешиваемая
+USER-частью повторного вызова (`CorrectionAwareComposer`); предложение — про ТЕКСТ системной
+инструкции, живущий файлом в git (`resources/ai/prompts/**`), и проходит через статус/аудит
+очереди, прежде чем стать файлом. Смешение обоих смыслов в одну таблицу теряет оба (D59).
+
+**Два вида предложения** (`PromptSuggestionKind`, D60):
+
+- `prompt_patch` — ПОЛНЫЙ новый текст тела файла промта (`proposed_content`), целится в
+  конкретный `prompt_key`/`base_version` (версия, поверх которой предложен патч).
+- `correction_hint` — переиспользуемая подсказка (`hint`/`document_type`) для СУЩЕСТВУЮЩЕГО
+  носителя `prc_ai_corrections(is_reusable=true)` — третьей сущности не заводится.
+
+**Статусы** (`PromptSuggestionStatus`): `pending` → `approved`/`rejected` → `applied`/`reverted`.
+Решение принимает ТОЛЬКО человек (D8) — ни одна команда не переводит запись в `approved`
+автоматически; экранная форма апрува — P8.4.
+
+**Критик** — `PromptStep::PromptCritic` (`resources/ai/prompts/prompt-critic/0-prompt-critic.md`),
+обычный шаг системы промтов (D61): версионируемый, `is_protected`, сидится `PromptSeeder` наравне с
+остальными восемью. Назначение вызова — `LlmPurpose::PromptCritic`, маршрут — одна строка
+`(document_type=any, purpose=prompt_critic, priority=0)` на дешёвой модели в `AiRoutingSeeder`, без
+эскалационной строки (повтор — на уровне job-retry, не re-ask внутри шага).
+
+`ai:prompts:suggest {--code=*} {--analysis=} {--step=*} {--dry-run} {--limit=}` — по коду эталона
+(или `--analysis`, тот же резолв `Analysis(step=extraction)` + `estimates/gold/<CODE>.gold.json`,
+что `ai:eval:diff`) строит `EstimateDiffReport` (§8.6) и для каждого запрошенного `--step` вызывает
+`App\Services\Procurement\Tuning\PromptCritic`: собирает ТЕКУЩУЮ композицию промта шага
+(`PromptComposer::compose()`), вызывает критика структурированным запросом и создаёт запись
+`pending` со статусом `evidence`/`rationale`. Предложение, дублирующее уже существующее
+`pending`/`rejected` по паре (`prompt_key`, нормализованный текст —
+`PromptSuggestion::normalizeText()`), НЕ создаётся повторно.
+
+`ai:prompts:apply {id} {--dry-run}` — работает ТОЛЬКО со `status=approved` (любой другой статус —
+отказ, ни файл, ни БД не тронуты). Для `prompt_patch` `App\Services\Procurement\Tuning\
+PromptPatchApplier` читает целевой файл, поднимает `version` во front-matter на 1, заменяет тело на
+`proposed_content`, СОХРАНЯЯ остальные поля front-matter (`key`/`step`/`priority`/`is_active`) —
+файл пишется в рабочую копию, коммит и `ai:prompts:sync` делает человек. Для `correction_hint`
+создаётся `prc_ai_corrections(is_reusable=true, hint, document_type, analysis_id, created_by=
+decided_by)` существующим носителем, без правок его схемы.
+
+**Безопасность петли (D64).** Diff-отчёт и текущая композиция промта шага подаются вызову критика
+ТОЛЬКО USER-частью — системная часть вызова состоит ИСКЛЮЧИТЕЛЬНО из промта критика. Вызов идёт без
+tools/function-calling (контракт `LlmProvider` их не предоставляет в принципе). Текст, предложенный
+критиком, никогда не попадает в системную инструкцию автоматически — единственный путь: явный апрув
+человека (`status=approved`) и `ai:prompts:apply`.
+
 ## 7. Безопасность: indirect prompt injection
 
 Содержимое документа (PDF/Excel/скан, приходящий с площадки закупки) — **untrusted input** (research/L finding 14): извещения и вложения загружает третья сторона (заказчик/оператор площадки), контент не проверяется до отправки в LLM.
