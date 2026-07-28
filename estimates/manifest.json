@@ -20,9 +20,9 @@
                 "RESOURCE_METHOD"
             ],
             "expected_estimates": 1,
-            "expected_rows": null,
+            "expected_rows": 118,
             "gold_source": "deterministic",
-            "gold_path": null,
+            "gold_path": "estimates/gold/EST-GSFX-LSR-001.gold.json",
             "is_verified": false,
             "notes": "Единственный источник машинно-точного gold (D2) и единственная смета РЕСУРСНЫМ методом: контейнер ГрандСметы с Data.xml и паспортом в windows-1251"
         },
@@ -72,9 +72,9 @@
                 "NR_SP_PERCENT_ROWS"
             ],
             "expected_estimates": 1,
-            "expected_rows": null,
+            "expected_rows": 7,
             "gold_source": "deterministic",
-            "gold_path": null,
+            "gold_path": "estimates/gold/EST-XLS-KS2-001.gold.json",
             "is_verified": false,
             "notes": "Единственный документ старше Методики 2020 и единственная смета в бинарном .xls: ФЕР-2001, одноуровневая цена, поправочные коэффициенты вместо индекса — проверка, что схема не выродилась в «две цены обязательны»"
         },
@@ -100,7 +100,7 @@
             ],
             "expected_estimates": 1,
             "expected_rows": null,
-            "gold_source": "deterministic",
+            "gold_source": "llm_assisted",
             "gold_path": null,
             "is_verified": false,
             "notes": "Единственная форма корпуса без строк-позиций вовсе (21 файл): свод по объектам со стоимостью в трёх разрезах — граница между «смета» и «сводный документ» для скрининга и для итогов"
@@ -131,9 +131,9 @@
                 "WORKING_ITERATION"
             ],
             "expected_estimates": 1,
-            "expected_rows": null,
+            "expected_rows": 64,
             "gold_source": "deterministic",
-            "gold_path": null,
+            "gold_path": "estimates/gold/EST-XLSX-KS2-001.gold.json",
             "is_verified": false,
             "notes": "Самая массовая форма корпуса (51 файл): акт по Методике 2020 на бланке КС-2 с полной ресурсной детализацией, двухуровневой ценой и строками НР/СП — на нём калибруется основной путь извлечения"
         },
@@ -163,7 +163,7 @@
             ],
             "expected_estimates": 1,
             "expected_rows": null,
-            "gold_source": "deterministic",
+            "gold_source": "llm_assisted",
             "gold_path": null,
             "is_verified": false,
             "notes": "Тот же бланк, но три внутрикластерные вариации сразу: шапка смещена на строку (25/28 против 25/27), ресурсные строки свёрнуты до «Итого прямые затраты», дробных номеров материалов нет — страховка от резолвера сетки, зашитого на номер строки представителя"
@@ -191,9 +191,9 @@
                 "WORKING_ITERATION"
             ],
             "expected_estimates": 1,
-            "expected_rows": null,
+            "expected_rows": 25,
             "gold_source": "deterministic",
-            "gold_path": null,
+            "gold_path": "estimates/gold/EST-XLSX-KS2-003.gold.json",
             "is_verified": false,
             "notes": "Единственный акт того же генератора БЕЗ титульного блока КС-2: таблица начинается с 6-й строки, то есть тот же набор колонок при смещении шапки на 19 строк"
         },
@@ -220,9 +220,9 @@
                 "WIDE_SHEET_RANGE"
             ],
             "expected_estimates": 1,
-            "expected_rows": null,
+            "expected_rows": 155,
             "gold_source": "deterministic",
-            "gold_path": null,
+            "gold_path": "estimates/gold/EST-XLSX-LSR-001.gold.json",
             "is_verified": false,
             "notes": "Базовый ЛСР по Методике 421/пр (10 файлов), одна смета в книге: 12 колонок без «номера позиции по смете» и блок сметной стоимости с раскладкой трудозатрат над таблицей"
         },
@@ -252,7 +252,7 @@
             ],
             "expected_estimates": 6,
             "expected_rows": null,
-            "gold_source": "deterministic",
+            "gold_source": "llm_assisted",
             "gold_path": null,
             "is_verified": false,
             "notes": "Единственная многосметная книга корпуса: шесть смет по листу на смету — эталон для паспорт-цикла и для порядка estimates[] в §8.2"
@@ -282,7 +282,7 @@
             ],
             "expected_estimates": 1,
             "expected_rows": null,
-            "gold_source": "deterministic",
+            "gold_source": "llm_assisted",
             "gold_path": null,
             "is_verified": false,
             "notes": "Третий генератор корпуса (Smeta.RU, СН-2012): один уровень цены и три коэффициента вместо пары «базис/текущий», восемь служебных листов рядом со сметой"
@@ -310,9 +310,9 @@
                 "WORKING_ITERATION"
             ],
             "expected_estimates": 1,
-            "expected_rows": null,
+            "expected_rows": 49,
             "gold_source": "deterministic",
-            "gold_path": null,
+            "gold_path": "estimates/gold/EST-XLSX-VOR-001.gold.json",
             "is_verified": false,
             "notes": "Пограничный случай скрининга: бланк акта и обоснования расценок есть, стоимостного блока нет вовсе — документ, который по форме смета, а по содержанию ведомость объёмов"
         },
