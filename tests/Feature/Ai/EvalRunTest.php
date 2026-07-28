@@ -3,12 +3,16 @@
 declare(strict_types=1);
 
 use App\Enums\Procurement\FinishReason;
+use App\Enums\Procurement\GoldSource;
 use App\Enums\Procurement\LlmPurpose;
+use App\Enums\Procurement\PromptStep;
 use App\Models\Procurement\Ai\AiRoute;
 use App\Models\Procurement\Ai\Analysis;
 use App\Models\Procurement\Ai\DatasetExample;
 use App\Models\Procurement\Ai\EvalResult;
 use App\Models\Procurement\Ai\EvalRun;
+use App\Models\Procurement\Ai\Fixture;
+use App\Models\Procurement\Ai\Prompt;
 use App\Models\Procurement\Ai\Provider;
 use App\Models\Procurement\Document\Document;
 use App\Models\Procurement\Document\DocumentVersion;
@@ -162,6 +166,51 @@ function queueEvalRunSequence(FakeLlmProvider $fake, ?array $outcomes = null): F
 }
 
 /**
+ * Заводит эталон (реестр `prc_ai_fixtures`) + пример датасета extraction, привязанный к нему через
+ * `fixture_id` (P7.5, D119/D120 — фильтр `--split` резолвит подвыборку по коду ЭТОГО эталона).
+ */
+function evalRunSeedFixtureExample(string $code, string $form = 'KS2', string $sourceFormat = 'xlsx', GoldSource $goldSource = GoldSource::Deterministic): DatasetExample
+{
+    $fixture = Fixture::factory()->create([
+        'code' => $code,
+        'form' => $form,
+        'source_format' => $sourceFormat,
+        'gold_source' => $goldSource,
+    ]);
+
+    $document = Document::factory()->create(['procurement_id' => null]);
+    $documentVersion = seedEvalRunDocumentVersion($document);
+
+    return DatasetExample::factory()->create([
+        'document_version_id' => $documentVersion->id,
+        'fixture_id' => $fixture->id,
+        'task' => 'extraction',
+        'gold' => evalRunGold(),
+    ]);
+}
+
+/**
+ * Файл разбиения `estimates/eval-splits.json` в ИЗОЛИРОВАННОМ временном пути (config-override,
+ * D119/D120) — тесты не трогают committed-файл корпуса.
+ *
+ * @param  list<string>  $holdout
+ * @param  list<string>  $tune
+ */
+function evalRunWriteSplitsFile(array $holdout, array $tune = []): void
+{
+    $path = storage_path('framework/testing/eval-splits-'.uniqid().'.json');
+
+    file_put_contents($path, json_encode([
+        'generated_at' => '2026-07-28T00:00:00+00:00',
+        'rule' => 'test-fixture',
+        'holdout' => $holdout,
+        'tune' => $tune,
+    ], JSON_UNESCAPED_UNICODE));
+
+    config(['ai.fixtures.splits_path' => $path]);
+}
+
+/**
  * @return array<string, mixed>
  */
 function evalRunGold(): array
@@ -274,4 +323,120 @@ test('повторный прогон на том же датасете дела
 
     $secondRun = EvalRun::query()->orderByDesc('id')->firstOrFail();
     expect((float) $secondRun->metrics['overall']['f1'])->toBe(1.0);
+});
+
+test('--split=all не меняет сегодняшнее поведение прогона (дефолт, D120)', function () {
+    Storage::fake('s3');
+
+    $fake = newEvalRunFake();
+    seedEvalRunRoute($fake);
+
+    evalRunSeedFixtureExample('EST-XLSX-ALL-001');
+
+    $this->artisan('ai:eval:run', ['--task' => 'extraction', '--split' => 'all'])->assertExitCode(0);
+
+    $run = EvalRun::query()->firstOrFail();
+
+    expect($run->metrics['succeeded'])->toBe(1)
+        ->and((float) $run->metrics['overall']['f1'])->toBe(1.0)
+        ->and(EvalResult::query()->count())->toBe(1);
+});
+
+test('--split=holdout берёт ровно коды из файла разбиения', function () {
+    Storage::fake('s3');
+
+    $fake = newEvalRunFake();
+    seedEvalRunRoute($fake);
+
+    evalRunWriteSplitsFile(holdout: ['EST-XLSX-HOLD-001'], tune: ['EST-XLSX-TUNE-001']);
+
+    $holdExample = evalRunSeedFixtureExample('EST-XLSX-HOLD-001');
+    evalRunSeedFixtureExample('EST-XLSX-TUNE-001');
+
+    $this->artisan('ai:eval:run', ['--task' => 'extraction', '--split' => 'holdout'])->assertExitCode(0);
+
+    expect(EvalResult::query()->count())->toBe(1)
+        ->and(EvalResult::query()->firstOrFail()->dataset_example_id)->toBe($holdExample->id);
+});
+
+test('--split=tune берёт коды датасета, которых НЕТ в holdout, включая код, отсутствующий в ключе tune файла (D120)', function () {
+    Storage::fake('s3');
+
+    $fake = newEvalRunFake();
+    queueEvalRunSequence($fake); // второй tune-пример — ещё одна полная последовательность исходов
+    seedEvalRunRoute($fake);
+
+    // Ключ `tune` файла называет только один код — второй tune-код появился в датасете уже ПОСЛЕ
+    // генерации файла и в ключе `tune` не значится, но обязан попасть в `--split=tune` по семантике
+    // дополнения (D120), а не по буквальному списку.
+    evalRunWriteSplitsFile(holdout: ['EST-XLSX-HOLD-002'], tune: ['EST-XLSX-TUNE-002']);
+
+    evalRunSeedFixtureExample('EST-XLSX-HOLD-002');
+    evalRunSeedFixtureExample('EST-XLSX-TUNE-002');
+    evalRunSeedFixtureExample('EST-XLSX-EXTRA-002');
+
+    $this->artisan('ai:eval:run', ['--task' => 'extraction', '--split' => 'tune'])->assertExitCode(0);
+
+    $processedCodes = EvalResult::query()
+        ->with('datasetExample.fixture')
+        ->get()
+        ->map(fn (EvalResult $result): ?string => $result->datasetExample?->fixture?->code)
+        ->sort()
+        ->values()
+        ->all();
+
+    expect($processedCodes)->toBe(['EST-XLSX-EXTRA-002', 'EST-XLSX-TUNE-002']);
+});
+
+test('--write-splits: единственный носитель формата уходит в tune, следующий кандидат — в holdout (инвариант source_format, D119)', function () {
+    evalRunWriteSplitsFile(holdout: [], tune: []); // задаёт временный splits_path для этого теста
+
+    Fixture::factory()->create([
+        'code' => 'EST-GSFX-AAA-001',
+        'form' => 'AAA',
+        'source_format' => 'gsfx',
+        'gold_source' => GoldSource::Deterministic,
+    ]);
+    Fixture::factory()->create([
+        'code' => 'EST-XLSX-AAA-002',
+        'form' => 'AAA',
+        'source_format' => 'xlsx',
+        'gold_source' => GoldSource::Deterministic,
+    ]);
+    Fixture::factory()->create([
+        'code' => 'EST-XLSX-BBB-001',
+        'form' => 'BBB',
+        'source_format' => 'xlsx',
+        'gold_source' => GoldSource::Deterministic,
+    ]);
+
+    $this->artisan('ai:eval:run', ['--write-splits' => true])->assertExitCode(0);
+
+    $written = json_decode((string) file_get_contents((string) config('ai.fixtures.splits_path')), associative: true);
+
+    expect($written['holdout'])->toBe(['EST-XLSX-AAA-002'])
+        ->and($written['tune'])->toBe(['EST-GSFX-AAA-001', 'EST-XLSX-BBB-001']);
+});
+
+test('prompt_version_set прогона собран из фактических вызовов и непуст', function () {
+    Storage::fake('s3');
+
+    Prompt::factory()->create([
+        'key' => 'global-rule',
+        'step' => PromptStep::Global->value,
+        'version' => 2,
+        'is_active' => true,
+    ]);
+
+    $fake = newEvalRunFake();
+    seedEvalRunRoute($fake);
+
+    evalRunSeedFixtureExample('EST-XLSX-PVS-001');
+
+    $this->artisan('ai:eval:run', ['--task' => 'extraction'])->assertExitCode(0);
+
+    $run = EvalRun::query()->firstOrFail();
+
+    expect($run->prompt_version_set)->not->toBeNull()
+        ->and($run->prompt_version_set->toArray())->toBe(['global-rule' => 2]);
 });

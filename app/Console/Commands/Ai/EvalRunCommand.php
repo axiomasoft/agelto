@@ -8,10 +8,13 @@ use App\Dto\Procurement\Ai\Screening\ScreeningResult;
 use App\Enums\Procurement\AiDocumentType;
 use App\Enums\Procurement\AnalysisStatus;
 use App\Enums\Procurement\AnalysisStep;
+use App\Enums\Procurement\GoldSource;
 use App\Enums\Procurement\LlmPurpose;
 use App\Models\Procurement\Ai\DatasetExample;
 use App\Models\Procurement\Ai\EvalResult;
 use App\Models\Procurement\Ai\EvalRun;
+use App\Models\Procurement\Ai\Fixture;
+use App\Models\Procurement\Ai\LlmCall;
 use App\Models\Procurement\Document\Document;
 use App\Repositories\Procurement\AnalysisStoreRepository;
 use App\Services\Llm\AiRouteResolver;
@@ -20,7 +23,9 @@ use App\Services\Procurement\Extraction\ExtractionOrchestrator;
 use App\Services\Procurement\Screening\ScreeningEvalMetrics;
 use App\Services\Procurement\Screening\ScreeningProcessor;
 use Illuminate\Console\Command;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
+use RuntimeException;
 use Throwable;
 
 /**
@@ -47,7 +52,9 @@ final class EvalRunCommand extends Command
         {--task=extraction : task датасета для прогона}
         {--dataset-version= : метка версии датасета для EvalRun (default — config(ai.eval.dataset_version))}
         {--limit= : ограничить число эталонов}
-        {--dry-run : не делать реальных LLM-вызовов — только зафиксировать пустой прогон}';
+        {--dry-run : не делать реальных LLM-вызовов — только зафиксировать пустой прогон}
+        {--split=all : подвыборка датасета tune|holdout|all — членство в holdout авторитетно (D120)}
+        {--write-splits : пересобрать estimates/eval-splits.json по правилу отбора (D119) и выйти, без прогона}';
 
     protected $description = 'Прогон extraction-пайплайна по golden-датасету, метрики precision/recall/F1 + row coverage';
 
@@ -64,6 +71,10 @@ final class EvalRunCommand extends Command
 
     public function handle(): int
     {
+        if ($this->option('write-splits')) {
+            return $this->writeSplits();
+        }
+
         $task = (string) $this->option('task');
 
         if (! in_array($task, ['extraction', 'screening'], true)) {
@@ -72,9 +83,27 @@ final class EvalRunCommand extends Command
             return self::FAILURE;
         }
 
+        $split = (string) $this->option('split');
+
+        if (! in_array($split, ['tune', 'holdout', 'all'], true)) {
+            $this->error("Неизвестный --split={$split} (ожидается tune|holdout|all).");
+
+            return self::FAILURE;
+        }
+
         $datasetVersion = (string) ($this->option('dataset-version') ?: config('ai.eval.dataset_version', 'v1'));
 
         $query = DatasetExample::query()->where('task', $task)->with('documentVersion');
+
+        if ($split !== 'all') {
+            $holdoutCodes = $this->loadHoldoutCodes();
+
+            $query->whereHas('fixture', function ($fixtureQuery) use ($holdoutCodes, $split): void {
+                $split === 'holdout'
+                    ? $fixtureQuery->whereIn('code', $holdoutCodes)
+                    : $fixtureQuery->whereNotIn('code', $holdoutCodes);
+            });
+        }
 
         if ($this->option('limit') !== null) {
             $query->limit((int) $this->option('limit'));
@@ -127,10 +156,16 @@ final class EvalRunCommand extends Command
         ]);
 
         $rows = [];
+        $analysisIds = [];
 
         foreach ($examples as $example) {
-            $metrics = $this->evaluateExample($example);
+            $analysisId = null;
+            $metrics = $this->evaluateExample($example, $analysisId);
             $rows[] = ['example' => $example, 'metrics' => $metrics];
+
+            if ($analysisId !== null) {
+                $analysisIds[] = $analysisId;
+            }
 
             EvalResult::query()->create([
                 'eval_run_id' => $run->id,
@@ -142,7 +177,11 @@ final class EvalRunCommand extends Command
         }
 
         $aggregate = $this->aggregate(collect($rows));
-        $run->update(['metrics' => $aggregate, 'finished_at' => now()]);
+        $run->update([
+            'metrics' => $aggregate,
+            'finished_at' => now(),
+            'prompt_version_set' => $this->resolvePromptVersionSet($analysisIds, $run->started_at),
+        ]);
 
         $this->renderReport($run, $aggregate, collect($rows));
 
@@ -168,10 +207,16 @@ final class EvalRunCommand extends Command
         ]);
 
         $comparisons = [];
+        $analysisIds = [];
 
         foreach ($examples as $example) {
-            $comparison = $this->evaluateScreeningExample($example);
+            $analysisId = null;
+            $comparison = $this->evaluateScreeningExample($example, $analysisId);
             $comparisons[] = ['example' => $example, 'comparison' => $comparison];
+
+            if ($analysisId !== null) {
+                $analysisIds[] = $analysisId;
+            }
 
             EvalResult::query()->create([
                 'eval_run_id' => $run->id,
@@ -188,7 +233,11 @@ final class EvalRunCommand extends Command
         ));
 
         $aggregate = $this->screeningMetrics->aggregate($validComparisons);
-        $run->update(['metrics' => $aggregate, 'finished_at' => now()]);
+        $run->update([
+            'metrics' => $aggregate,
+            'finished_at' => now(),
+            'prompt_version_set' => $this->resolvePromptVersionSet($analysisIds, $run->started_at),
+        ]);
 
         $this->renderScreeningReport($run, $aggregate, collect($comparisons));
 
@@ -196,9 +245,12 @@ final class EvalRunCommand extends Command
     }
 
     /**
+     * @param  int|null  $analysisId  by-ref: id обработанного `Analysis` (для сборки
+     *                                `prompt_version_set` прогона) — остаётся `null`, если пример
+     *                                упал раньше создания `Analysis`.
      * @return array{overall: array{precision: float, recall: float, f1: float}, row_coverage: float}|array{error: string}
      */
-    private function evaluateExample(DatasetExample $example): array
+    private function evaluateExample(DatasetExample $example, ?int &$analysisId = null): array
     {
         $documentVersion = $example->documentVersion;
 
@@ -209,6 +261,7 @@ final class EvalRunCommand extends Command
         try {
             $document = Document::query()->findOrFail($documentVersion->document_id);
             $analysis = $this->analyses->firstOrCreate($documentVersion->id, AnalysisStep::Extraction);
+            $analysisId = $analysis->id;
 
             // Уникальность `(document_version_id, step)` (миграция `2026_07_04_100025`) не
             // допускает второй строки на повторный прогон — `firstOrCreate()` выше возвращает
@@ -260,10 +313,11 @@ final class EvalRunCommand extends Command
     }
 
     /**
+     * @param  int|null  $analysisId  by-ref, см. {@see evaluateExample()}.
      * @return array{gold: string, predicted: string, match: bool, gold_is_estimate: bool,
      *     predicted_is_estimate: bool, code: string|null, confidence: float, ignore_reason: string|null}|array{error: string}
      */
-    private function evaluateScreeningExample(DatasetExample $example): array
+    private function evaluateScreeningExample(DatasetExample $example, ?int &$analysisId = null): array
     {
         $documentVersion = $example->documentVersion;
 
@@ -274,6 +328,7 @@ final class EvalRunCommand extends Command
         try {
             $document = Document::query()->findOrFail($documentVersion->document_id);
             $analysis = $this->analyses->firstOrCreate($documentVersion->id, AnalysisStep::Screening);
+            $analysisId = $analysis->id;
 
             // Тот же приём, что `evaluateExample()` (extraction): без сброса `firstOrCreate()`
             // вернул бы терминальный `Analysis` прошлого прогона, и повторный `ai:eval:run`
@@ -439,5 +494,129 @@ final class EvalRunCommand extends Command
                 $row['comparison']['ignore_reason'] ?? '—',
             ])->all(),
         );
+    }
+
+    /**
+     * Пересобирает `estimates/eval-splits.json` по правилу отбора D119 (детерминированное,
+     * `research/18-holdout-split-rule.md` §6): пул — `gold_source=deterministic`, группировка по
+     * `form` (возрастание), группа из одного эталона остаётся в `tune` целиком, в группе ≥2 берётся
+     * ПЕРВЫЙ по возрастанию кода кандидат, чей уход в `holdout` не оставляет `tune` без единого
+     * эталона его `source_format`. `tune` в файле — снимок дополнения пула на момент генерации
+     * (D120), не определение фильтра.
+     */
+    private function writeSplits(): int
+    {
+        $pool = Fixture::query()
+            ->where('gold_source', GoldSource::Deterministic)
+            ->orderBy('form')
+            ->orderBy('code')
+            ->get(['code', 'form', 'source_format']);
+
+        if ($pool->isEmpty()) {
+            $this->error('Пул детерминированного gold пуст (prc_ai_fixtures.gold_source=deterministic) — нечего разбивать.');
+
+            return self::FAILURE;
+        }
+
+        $holdout = [];
+
+        foreach ($pool->groupBy('form') as $group) {
+            if ($group->count() < 2) {
+                continue;
+            }
+
+            foreach ($group->sortBy('code') as $candidate) {
+                $remaining = $pool->reject(
+                    fn (Fixture $fixture): bool => in_array($fixture->code, $holdout, true) || $fixture->code === $candidate->code,
+                );
+
+                if ($remaining->contains(fn (Fixture $fixture): bool => $fixture->source_format === $candidate->source_format)) {
+                    $holdout[] = $candidate->code;
+
+                    break;
+                }
+            }
+        }
+
+        $tune = $pool->pluck('code')
+            ->reject(fn (string $code): bool => in_array($code, $holdout, true))
+            ->values()
+            ->all();
+
+        $payload = [
+            'generated_at' => now()->toIso8601String(),
+            'rule' => 'holdout: form-stratified (D119) — группы по form (возрастание), в группе ≥2 '
+                .'первый по коду кандидат, чей уход не оставляет tune без эталона его source_format; '
+                .'форма с единственным эталоном остаётся в tune целиком. tune — дополнение пула, не '
+                .'определение фильтра (D120).',
+            'holdout' => $holdout,
+            'tune' => $tune,
+        ];
+
+        file_put_contents(
+            (string) config('ai.fixtures.splits_path'),
+            json_encode($payload, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)."\n",
+        );
+
+        $this->info('estimates/eval-splits.json переписан: holdout=['.implode(', ', $holdout).'] tune=['.implode(', ', $tune).']');
+
+        return self::SUCCESS;
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function loadHoldoutCodes(): array
+    {
+        $path = (string) config('ai.fixtures.splits_path');
+
+        if (! is_file($path)) {
+            throw new RuntimeException("Файл разбиения не найден: {$path}. Прогони `ai:eval:run --write-splits`.");
+        }
+
+        $decoded = json_decode((string) file_get_contents($path), associative: true, flags: JSON_THROW_ON_ERROR);
+
+        return array_values((array) ($decoded['holdout'] ?? []));
+    }
+
+    /**
+     * Версии промтов, реально участвовавших в вызовах ЭТОГО прогона (`prc_ai_llm_calls`,
+     * отфильтрованные по `analysis_id` из обработанных примеров И `called_at >= $since` — тот же
+     * `Analysis` мог обслужить предыдущий `ai:eval:run`, старые вызовы не в счёт). Расхождение
+     * версии одного ключа МЕЖДУ вызовами прогона делает прогон непригодным для сравнения —
+     * `null` здесь читается `ai:eval:compare` как отказ, неотличимый от «вызовов не было» (оба
+     * исхода одинаково непригодны для критерия приёмки).
+     *
+     * @param  list<int>  $analysisIds
+     * @return array<string, int>|null
+     */
+    private function resolvePromptVersionSet(array $analysisIds, Carbon $since): ?array
+    {
+        if ($analysisIds === []) {
+            return null;
+        }
+
+        $calls = LlmCall::query()
+            ->whereIn('analysis_id', $analysisIds)
+            ->where('called_at', '>=', $since)
+            ->get();
+
+        if ($calls->isEmpty()) {
+            return null;
+        }
+
+        $merged = [];
+
+        foreach ($calls as $call) {
+            foreach ($call->prompt_version_set?->all() ?? [] as $key => $version) {
+                if (array_key_exists($key, $merged) && $merged[$key] !== $version) {
+                    return null;
+                }
+
+                $merged[$key] = $version;
+            }
+        }
+
+        return $merged;
     }
 }

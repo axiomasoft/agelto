@@ -395,5 +395,8 @@ return [
         'manifest_path' => base_path('estimates/manifest.json'),
         'gold_dir' => base_path('estimates/gold'),
         'source_dir' => base_path('estimates/files'),
+        // Разбиение `tune`/`holdout` петли тюнинга промтов (P7.5, D119/D120) — в git рядом с gold,
+        // манифест (`manifest_path`) не расширяется.
+        'splits_path' => base_path('estimates/eval-splits.json'),
     ],
 ];

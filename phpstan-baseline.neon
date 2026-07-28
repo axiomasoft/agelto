@@ -1637,3 +1637,45 @@ parameters:
 			identifier: argument.type
 			count: 1
 			path: /var/www/html/app/Services/Procurement/Bench/FormatBenchRunner.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Procurement\\Ai\\EvalRun\:\:\$started_at\.$#'
+			identifier: property.notFound
+			count: 2
+			path: /var/www/html/app/Console/Commands/Ai/EvalRunCommand.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Procurement\\Ai\\EvalResult\:\:\$value\.$#'
+			identifier: property.notFound
+			count: 1
+			path: /var/www/html/app/Services/Procurement/Tuning/EvalRunComparator.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Procurement\\Ai\\EvalRun\:\:\$model\.$#'
+			identifier: property.notFound
+			count: 4
+			path: /var/www/html/app/Services/Procurement/Tuning/EvalRunComparator.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Procurement\\Ai\\EvalRun\:\:\$prompt_version_set\.$#'
+			identifier: property.notFound
+			count: 2
+			path: /var/www/html/app/Services/Procurement/Tuning/EvalRunComparator.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Procurement\\Ai\\EvalRun\:\:\$provider\.$#'
+			identifier: property.notFound
+			count: 4
+			path: /var/www/html/app/Services/Procurement/Tuning/EvalRunComparator.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$fixture\.$#'
+			identifier: property.notFound
+			count: 1
+			path: /var/www/html/app/Services/Procurement/Tuning/EvalRunComparator.php
+
+		-
+			message: '#^Method App\\Services\\Procurement\\Tuning\\EvalRunComparator\:\:loadResults\(\) should return Illuminate\\Support\\Collection\<int, array\<string, mixed\>\> but returns Illuminate\\Support\\Collection\<int, array\{code\: mixed, f1\: float, row_coverage\: float, per_field\: array\}\>\.$#'
+			identifier: return.type
+			count: 1
+			path: /var/www/html/app/Services/Procurement/Tuning/EvalRunComparator.php

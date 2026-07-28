@@ -1,0 +1,14 @@
+{
+    "generated_at": "2026-07-28T14:05:14+00:00",
+    "rule": "holdout: form-stratified (D119) — группы по form (возрастание), в группе ≥2 первый по коду кандидат, чей уход не оставляет tune без эталона его source_format; форма с единственным эталоном остаётся в tune целиком. tune — дополнение пула, не определение фильтра (D120).",
+    "holdout": [
+        "EST-XLSX-KS2-001",
+        "EST-XLSX-LSR-001"
+    ],
+    "tune": [
+        "EST-XLS-KS2-001",
+        "EST-XLSX-KS2-003",
+        "EST-GSFX-LSR-001",
+        "EST-XLSX-VOR-001"
+    ]
+}
