@@ -118,7 +118,7 @@ EST-AI (закрыт 2026-07-09, 🟠) построил пайплайн раз�
 | P4 | Аудит и правка схемы смет по фактам корпуса | 3/5 | 🟠 Done with deviations |
 | P5 | Детерминированный gold-парсер и наполнение эталонов | 5/7 | 🟠 Done with deviations |
 | P6 | Бенчмарк представлений и ADR по формату входа | 1/3 | 🟠 Done with deviations |
-| P7 | Боевые промты, diff-отчёт и петля тюнинга | 0/6 | 🟡 In progress |
+| P7 | Боевые промты, diff-отчёт и петля тюнинга | 0/6 | 🟠 Done with deviations |
 | P8 | Обучалка в Filament: загрузить → прогнать → сравнить → апрувить | 0/5 | ⬜ Not started |
 | P9 | Экспорт под локальную LLM, документация и SOP | 0/6 | ⬜ Not started |
 
@@ -262,6 +262,7 @@ EST-AI (закрыт 2026-07-09, 🟠) построил пайплайн раз�
 |:--|:--|:--|
 | 2026-07-28 | владелец + plan-run/sonnet·high | P6.3 закрыт 🟢 (D127): ADR `root/adr-input-representation.md` + `config('ai.representations')` — владелец утвердил `pdf_alt` (фолбэк `pdf`) для `xlsx`/`xls` из трёх альтернатив; `RepresentationResolver` переведён на конфиг, `DEFAULT_PRIORITY` удалена; спека §5.4 добавлена. **Фаза P6 терминальна (3/3)** — детали см. `phases/P6.md` P6.3 Completion Notes/Phase Handoff |
 | 2026-07-28 | владелец (через plan-exec/sonnet·medium) | OQ-3 разрешён — D122: `GEMINI_API_KEY` в `.env`, прокси не нужен. Гейт снят с P6.2/P6.3/P7.6 (апрув цены прогона остаётся отдельным гейтом) — детали см. `open-questions.md` (закрытый блок) и D122 |
+| 2026-07-28 | владелец + plan-close/sonnet·low | **Фаза P7 закрыта (5/6, D53/D57)**: P7.1–P7.5 терминальны 🟠, P7.6 легально `⬜` (апрув цены есть, запуск отложен владельцем) — детали см. `phases/P7.md` Phase Handoff |
 | 2026-07-28 | plan-exec/sonnet·medium | P7.5 закрыт 🟠 (по обновлённому ТЗ D119–D121): `estimates/eval-splits.json` (правило `form`, состав совпал байт-в-байт), `--split=tune\|holdout\|all` у `ai:eval:run`, `prompt_version_set` из фактических `prc_ai_llm_calls`, `ai:eval:compare`+`EvalRunComparator` по критерию D63 — детали см. phases/P7.md P7.5 Completion Notes |
 | 2026-07-28 | plan-run/sonnet·medium → эскалация P6.2 | P6.2 боевым вызовом вскрыл недоступность линейки `gemini-2.5-*` ключу владельца — item эскалирован 🔴, деньги не потрачены — детали см. phases/P6.md P6.2 blockquote, D123 |
 | 2026-07-28 | plan-design/opus·high (реопен P6.1, D123) | Маршрут переключён на `gemini-3.x`, `research/11` пересчитан под новую модель — детали см. phases/P6.md P6.1 Completion Notes, D123 |
