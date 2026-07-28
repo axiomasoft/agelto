@@ -9,17 +9,12 @@ use App\Models\Procurement\Document\DocumentVersion;
 use App\Repositories\Procurement\RepresentationStoreRepository;
 
 /**
- * Какой файл версии уходит в LLM (D25). Дефолтная политика повторяет поведение до P3.1
- * байт-в-байт: есть представление `pdf` — отдаём его, иначе оригинал версии.
+ * Какой файл версии уходит в LLM (D25). Политика по расширению исходника читается из
+ * `config('ai.representations')` (P6.3, D3/D52, ADR `adr-input-representation.md`) — правило
+ * живёт как ДАННЫЕ, ветка выбора легальна только здесь.
  */
 final readonly class RepresentationResolver
 {
-    /**
-     * Правило выбора представления по типу источника и модели — P6, D3. Здесь ТОЛЬКО
-     * сегодняшнее поведение: ветки «если модель такая — берём text_grid» тут запрещены.
-     */
-    private const array DEFAULT_PRIORITY = [RepresentationKind::Pdf];
-
     public function __construct(
         private RepresentationStoreRepository $representations,
     ) {}
@@ -52,7 +47,7 @@ final readonly class RepresentationResolver
             ];
         }
 
-        foreach (self::DEFAULT_PRIORITY as $kind) {
+        foreach ($this->policyFor($version) as $kind) {
             $representation = $this->representations->find($version, $kind);
 
             if ($representation !== null) {
@@ -65,11 +60,31 @@ final readonly class RepresentationResolver
             }
         }
 
+        if ((bool) config('ai.representations.fallback_to_source') === false) {
+            return null;
+        }
+
         return [
             'storagePath' => $version->storage_path,
             'disk' => $documentsDisk,
             'extension' => (string) $version->extension,
             'mime' => (string) $version->mime,
         ];
+    }
+
+    /**
+     * @return list<RepresentationKind>
+     */
+    private function policyFor(DocumentVersion $version): array
+    {
+        $policy = (array) config('ai.representations.policy');
+        $extension = strtolower((string) $version->extension);
+
+        $kinds = $policy[$extension] ?? $policy['default'] ?? [];
+
+        return array_values(array_filter(array_map(
+            static fn (string $kind): ?RepresentationKind => RepresentationKind::tryFrom($kind),
+            $kinds,
+        )));
     }
 }

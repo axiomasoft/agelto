@@ -1359,7 +1359,7 @@ parameters:
 		-
 			message: '#^Access to an undefined property App\\Models\\Procurement\\Document\\DocumentVersion\:\:\$extension\.$#'
 			identifier: property.notFound
-			count: 1
+			count: 2
 			path: /var/www/html/app/Services/Procurement/Prepare/RepresentationResolver.php
 
 		-
