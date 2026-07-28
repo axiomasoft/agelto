@@ -11,7 +11,7 @@
 | Document Type | Executable Master Plan |
 | Authoring Model | frontier |
 | Design Passes | 3/3 — 9 фаз / 46 items + высокая неопределённость брифа (владелец: «мысли сумбурные»); pass 1 — скелеты и контракты, pass 2 — детализация всех девяти фаз (завершён 2026-07-27), pass 3 — `finish`: сквозной reconcile контрактов, DoR-свип, пересборка roadmap (завершён 2026-07-27, D82–D85). Дизайн-бюджет исчерпан. Три захода ремедиации находок аудита (2026-07-27: D86 по F1–F8, D87 по A1–A7, D88 по C1–C7) прогонами НЕ считаются: новых решений по существу задачи не принято, состав и статусы 46 items не изменились — правились формулировки ТЗ по названным аудитом адресам. Заход `plan-design <ID> P4.2` 2026-07-27 (D89–D90 — решения владельца по OQ-5/OQ-6) прогоном ТОЖЕ не считается: режим design-item, состав и статусы 46 items не изменились, правились ТЗ одного item'а (P4.2) и адреса его потребителей. Новый прогон дизайна — только по явной D-записи владельца |
-| Last Updated | 2026-07-28 (P7.3 закрыт 🟠 Done with deviations — расширение `EvalMetrics` (passport/totals) + `EstimateDiffReport`/`ai:eval:diff`, спека §8.6) |
+| Last Updated | 2026-07-28 (P7.4 закрыт 🟠 Done with deviations — очередь `prc_ai_prompt_suggestions`, `PromptCritic`/`PromptPatchApplier`, `ai:prompts:suggest`/`apply`, спека §6.1) |
 | Repository | agelto (branch main) |
 | Related Packages | prism-php/prism, spatie/laravel-data, laravel/horizon, phpoffice/phpspreadsheet, filament/filament; системные бинари единого образа (P3.2, D23): qpdf (есть), libreoffice-calc/writer + fonts-dejavu-core/liberation, 7zip (`7zz`), unar, poppler-utils, tesseract-ocr + rus/eng, ocrmypdf, ghostscript |
 | Execution Mode | phase-first |
@@ -251,6 +251,7 @@ EST-AI (закрыт 2026-07-09, 🟠) построил пайплайн раз�
 
 | Дата | Кто (role/model) | Что |
 |:--|:--|:--|
+| 2026-07-28 | plan-run/sonnet·high | P7.4 закрыт 🟠: очередь `prc_ai_prompt_suggestions` + `PromptCritic`/`PromptPatchApplier` + `ai:prompts:suggest`/`apply`, девятый промт-шаг критика, спека §6.1 — детали см. phases/P7.md P7.4 Completion Notes |
 | 2026-07-28 | plan-run/sonnet·high | P7.3 закрыт 🟠: `EvalMetrics` passport/totals + `EstimateDiffReport`/`ai:eval:diff`, спека §8.6 — детали см. phases/P7.md P7.3 Completion Notes |
 | 2026-07-28 | plan-run/fable·high | P7.2 закрыт 🟠: пять пошаговых промтов v2 + research/13 «Пошаговые правила» (24 свидетеля) — детали см. phases/P7.md P7.2 Completion Notes |
 | 2026-07-28 | plan-run/fable·high | P7.1 закрыт 🟠: сквозные промты v2 + 14 синонимов словарей + research/13 — детали см. phases/P7.md P7.1 Completion Notes |
