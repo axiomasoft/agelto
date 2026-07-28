@@ -1,6 +1,12 @@
 parameters:
 	ignoreErrors:
 		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$document\.$#'
+			identifier: property.notFound
+			count: 1
+			path: /var/www/html/app/Console/Commands/Ai/EvalDiffCommand.php
+
+		-
 			message: '#^Access to an undefined property App\\Models\\Procurement\\Document\\Document\:\:\$last_error\.$#'
 			identifier: property.notFound
 			count: 1
