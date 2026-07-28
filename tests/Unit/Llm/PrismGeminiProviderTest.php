@@ -72,6 +72,39 @@ test('completeStructured() маппит usage из сырого usageMetadata, �
     $fake->assertCallCount(1);
 });
 
+test('completeStructured() складывает thoughtsTokenCount в completionTokens — Google билluет reasoning по ставке output', function (): void {
+    $raw = [
+        'usageMetadata' => [
+            'promptTokenCount' => 100,
+            'cachedContentTokenCount' => 0,
+            'candidatesTokenCount' => 20,
+            'thoughtsTokenCount' => 7000,
+            'totalTokenCount' => 7120,
+        ],
+    ];
+
+    $fake = Prism::fake([
+        new PrismStructuredResponse(
+            steps: collect([]),
+            text: '{"foo":"bar"}',
+            structured: ['foo' => 'bar'],
+            finishReason: PrismFinishReason::Stop,
+            usage: new PrismUsage(promptTokens: 0, completionTokens: 0),
+            meta: new PrismMeta('id-1', 'gemini-3.5-flash'),
+            raw: $raw,
+        ),
+    ]);
+
+    $provider = new PrismGeminiProvider;
+    $prompt = new LlmPrompt(systemPart: 'система: правило A', userParts: ['извлеки строки 1-40']);
+
+    $response = $provider->completeStructured($prompt, new JsonSchema(['type' => 'object']), geminiOptions());
+
+    expect($response->usage->completionTokens)->toBe(20 + 7000);
+
+    $fake->assertCallCount(1);
+});
+
 test('completeStructured() кладёт в raw модельный JSON-текст, а не envelope Gemini-ответа', function (): void {
     // Контрактный шов с StructuredResponseValidator (P3.4): raw обязан быть тем же JSON-текстом,
     // что и Prism Structured\Response::$text (сам ответ модели), НЕ $response->raw

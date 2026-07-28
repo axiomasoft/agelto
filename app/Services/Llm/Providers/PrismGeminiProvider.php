@@ -231,10 +231,15 @@ final readonly class PrismGeminiProvider implements LlmProvider, SupportsContext
     {
         $promptTokenCount = (int) data_get($raw, 'usageMetadata.promptTokenCount', 0);
         $cachedTokenCount = (int) data_get($raw, 'usageMetadata.cachedContentTokenCount', 0);
+        // `thoughtsTokenCount` (reasoning-модели, gemini-3.x) билluется провайдером по ТОЙ ЖЕ
+        // ставке, что `candidatesTokenCount` (output) — Google не разводит их по цене, только по
+        // назначению. Без сложения `cost_micros`/`ai:cost-report` молча занижают реальный счёт
+        // (найдено P6.2 2026-07-28: расхождение трекинга с фактическим биллингом владельца).
+        $thoughtsTokenCount = (int) data_get($raw, 'usageMetadata.thoughtsTokenCount', 0);
 
         return new LlmUsage(
             promptTokens: max($promptTokenCount - $cachedTokenCount, 0),
-            completionTokens: (int) data_get($raw, 'usageMetadata.candidatesTokenCount', 0),
+            completionTokens: (int) data_get($raw, 'usageMetadata.candidatesTokenCount', 0) + $thoughtsTokenCount,
             cachedTokens: $cachedTokenCount,
             totalTokens: (int) data_get($raw, 'usageMetadata.totalTokenCount', 0),
         );
