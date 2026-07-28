@@ -11,7 +11,7 @@
 | Document Type | Executable Master Plan |
 | Authoring Model | frontier |
 | Design Passes | 3/3 — 9 фаз / 46 items + высокая неопределённость брифа (владелец: «мысли сумбурные»); pass 1 — скелеты и контракты, pass 2 — детализация всех девяти фаз (завершён 2026-07-27), pass 3 — `finish`: сквозной reconcile контрактов, DoR-свип, пересборка roadmap (завершён 2026-07-27, D82–D85). Дизайн-бюджет исчерпан. Три захода ремедиации находок аудита (2026-07-27: D86 по F1–F8, D87 по A1–A7, D88 по C1–C7) прогонами НЕ считаются: новых решений по существу задачи не принято, состав и статусы 46 items не изменились — правились формулировки ТЗ по названным аудитом адресам. Заход `plan-design <ID> P4.2` 2026-07-27 (D89–D90 — решения владельца по OQ-5/OQ-6) прогоном ТОЖЕ не считается: режим design-item, состав и статусы 46 items не изменились, правились ТЗ одного item'а (P4.2) и адреса его потребителей. Новый прогон дизайна — только по явной D-записи владельца |
-| Last Updated | 2026-07-28 (P7.1 закрыт 🟠 Done with deviations — сквозные промты v2, +14 синонимов словарей, research/13) |
+| Last Updated | 2026-07-28 (P7.2 закрыт 🟠 Done with deviations — пять пошаговых промтов v2, research/13 «Пошаговые правила») |
 | Repository | agelto (branch main) |
 | Related Packages | prism-php/prism, spatie/laravel-data, laravel/horizon, phpoffice/phpspreadsheet, filament/filament; системные бинари единого образа (P3.2, D23): qpdf (есть), libreoffice-calc/writer + fonts-dejavu-core/liberation, 7zip (`7zz`), unar, poppler-utils, tesseract-ocr + rus/eng, ocrmypdf, ghostscript |
 | Execution Mode | phase-first |
@@ -251,6 +251,7 @@ EST-AI (закрыт 2026-07-09, 🟠) построил пайплайн раз�
 
 | Дата | Кто (role/model) | Что |
 |:--|:--|:--|
+| 2026-07-28 | plan-run/fable·high | P7.2 закрыт 🟠: пять пошаговых промтов v2 + research/13 «Пошаговые правила» (24 свидетеля) — детали см. phases/P7.md P7.2 Completion Notes |
 | 2026-07-28 | plan-run/fable·high | P7.1 закрыт 🟠: сквозные промты v2 + 14 синонимов словарей + research/13 — детали см. phases/P7.md P7.1 Completion Notes |
 | 2026-07-26 | issue-planner/frontier | Design pass 1/3: план создан — Context, D1–D12, Routing, 9 скелет-фаз с контракт-блоками, brief/ (слой 0), findings/ (разведка корпуса + RAG по лимитам Gemini). Не достигнуто: детализация items ни одной фазы. Фокус pass 2 — детализация P1→P9 по одной фазе за проход |
 | 2026-07-26 | issue-planner/frontier | Design pass 2/3, заход 1: фаза P1 детализирована до DoR (4 items), скелет-маркер снят; D13–D15; §3 Routing построчно; brief/01-refinements.md. Не достигнуто: P2–P9 — скелеты. Фокус следующего захода — P2 |
