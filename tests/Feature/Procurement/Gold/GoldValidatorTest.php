@@ -11,7 +11,7 @@ function validGoldPayload(): array
         'estimates' => [
             [
                 'estimate_number' => 'ЛСР-01',
-                'passport' => ['type' => 'estimate'],
+                'passport' => ['type' => 'local_estimate'],
                 'currency' => 'RUB',
                 'rows_expected' => 1,
                 'rows' => [

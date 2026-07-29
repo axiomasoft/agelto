@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\Models\Procurement\Concerns;
+namespace App\Models\Concerns;
 
 /**
  * Атомарный лиз-лок на время обработки стадии пайплайна (`locked_by`/`locked_until`) —

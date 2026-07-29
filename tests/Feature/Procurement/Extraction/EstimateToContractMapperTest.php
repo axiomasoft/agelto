@@ -22,7 +22,7 @@ test('маппер восстанавливает паспорт/итоги/ие
         'currency' => 'RUB',
         'base_year' => 2001,
         'price_level' => 'ФЕР-2001',
-        'passport' => ['type' => 'estimate', 'reference' => null, 'target' => 'construction', 'address' => null, 'generator' => 'Гранд-Смета'],
+        'passport' => ['type' => 'local_estimate', 'reference' => null, 'target' => 'construction', 'address' => null, 'generator' => 'Гранд-Смета'],
         'rows_expected' => 2,
     ]);
 
@@ -76,7 +76,7 @@ test('маппер восстанавливает паспорт/итоги/ие
         ->and($contract['price_level'])->toBe('ФЕР-2001')
         ->and($contract['rows_expected'])->toBe(2)
         ->and($contract['ordinal'])->toBe(1)
-        ->and($contract['passport']['type'])->toBe('estimate')
+        ->and($contract['passport']['type'])->toBe('local_estimate')
         ->and($contract['passport']['generator'])->toBe('Гранд-Смета');
 
     $rows = $contract['rows'];

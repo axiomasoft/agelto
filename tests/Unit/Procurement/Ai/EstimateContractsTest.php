@@ -18,14 +18,14 @@ use App\Enums\Procurement\TotalKind;
 
 test('гидрирует паспорт сметы из спеки 08 §1.1', function (): void {
     $passport = EstimatePassport::from([
-        'type' => 'estimate',
+        'type' => 'local_estimate',
         'reference' => 'МДС 81-35.2004',
         'target' => 'construction',
         'address' => 'г. Москва, ул. Ленина, д. 1',
         'generator' => 'Гранд-Смета',
     ]);
 
-    expect($passport->type)->toBe(EstimateType::Estimate)
+    expect($passport->type)->toBe(EstimateType::LocalEstimate)
         ->and($passport->reference)->toBe('МДС 81-35.2004')
         ->and($passport->target)->toBe(EstimateTarget::Construction)
         ->and($passport->address)->toBe('г. Москва, ул. Ленина, д. 1')

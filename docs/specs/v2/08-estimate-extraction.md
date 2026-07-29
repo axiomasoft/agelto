@@ -13,7 +13,7 @@
 | v1-поле | Тип v1 | Судьба | v2-адрес |
 |---|---|---|---|
 | `estimate_id` | string | переносится (семантически) | `prc_estimates.estimate_number` (текст сметы, не суррогатный id — id теперь `prc_estimates.id`/`uuid`) |
-| `type` | `EstimateType?` (estimate/act/resource_calculation/defect_list) | переносится в jsonb | `prc_estimates.passport->>'type'` |
+| `type` | `EstimateType?` (local_estimate/act/resource_calculation/defect_list) | переносится в jsonb | `prc_estimates.passport->>'type'` |
 | `reference` | string? | переносится в jsonb | `prc_estimates.passport->>'reference'` |
 | `target` | `EstimateTarget?` (construction/renovation/medical_equipment/engineering) | переносится в jsonb | `prc_estimates.passport->>'target'` |
 | `address` | string? | переносится в jsonb | `prc_estimates.passport->>'address'` |
@@ -111,7 +111,7 @@
 ```json
 {
   "estimate_number": "string|null",
-  "type": "estimate|act|resource_calculation|defect_list|null",
+  "type": "local_estimate|act|resource_calculation|defect_list|null",
   "reference": "string|null",
   "target": "construction|renovation|medical_equipment|engineering|null",
   "address": "string|null",
@@ -202,7 +202,7 @@
 
 ### 3.5 Enum-словарь допустимых значений (для валидации ответов на бэкенде)
 
-- `EstimateType` (`type` в §3.1): `estimate` (ЛСР — «Локальный сметный расчёт», «Локальная смета»), `act` (КС-2 — «Акт о приемке выполненных работ», «Форма № КС-2»), `resource_calculation` («Ведомость ресурсов», «Расчет ресурсов»), `defect_list` («Дефектная ведомость», «Опись работ»).
+- `EstimateType` (`type` в §3.1): `local_estimate` (ЛСР — «Локальный сметный расчёт», «Локальная смета»), `act` (КС-2 — «Акт о приемке выполненных работ», «Форма № КС-2»), `resource_calculation` («Ведомость ресурсов», «Расчет ресурсов»), `defect_list` («Дефектная ведомость», «Опись работ»).
 - `EstimateTarget` (`target` в §3.1): `construction`, `renovation`, `medical_equipment`, `engineering`.
 - `ResourceType` (`resource_type` в §3.2): `material`, `machine`, `labor`, `overhead`, `other` (см. §1.5).
 - `row_type` (`row_type` в §3.2): `section_header`, `subsection_header`, `item`, `subtotal`, `summary_row` (расширяет v1 `ItemType`: section/item → плоский список с явным подразделом и промежуточным итогом, D10; `summary_row` — строка свода КС-3, P4.5, SR-14).

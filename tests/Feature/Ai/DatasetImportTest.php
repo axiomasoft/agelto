@@ -31,7 +31,7 @@ function validGoldJson(string $estimateNumber = '1'): string
         'estimates' => [
             [
                 'estimate_number' => $estimateNumber,
-                'passport' => ['type' => 'estimate'],
+                'passport' => ['type' => 'local_estimate'],
                 'currency' => 'RUB',
                 'base_year' => 2001,
                 'price_level' => null,
@@ -107,7 +107,7 @@ test('битый gold-эталон (строка без обязательног
     file_put_contents("{$folder}/broken.gold.json", json_encode([
         'estimates' => [
             [
-                'passport' => ['type' => 'estimate'],
+                'passport' => ['type' => 'local_estimate'],
                 'rows' => [
                     ['row_index' => 1, 'row_type' => 'item'], // нет обязательного "name"
                 ],

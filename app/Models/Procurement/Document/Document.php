@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace App\Models\Procurement\Document;
 
 use App\Enums\Procurement\DocumentStatus;
-use App\Models\Procurement\Concerns\HasErrorBlock;
-use App\Models\Procurement\Concerns\HasLease;
+use App\Models\Concerns\HasErrorBlock;
+use App\Models\Concerns\HasLease;
 use App\Models\Procurement\Platform\Platform;
 use App\Models\Scopes\PublicPlatformScope;
 use Database\Factories\Procurement\Document\DocumentFactory;

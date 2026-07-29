@@ -26,7 +26,7 @@ status: draft
 |:--|:--|:--|:--|
 | G1 | `ShouldBeUnique` + `uniqueId() = "{documentId}:prepare"` | `app/Jobs/Procurement/PrepareDocumentJob.php:24,35` | второй `dispatch()` не доходит до очереди — `PendingDispatch` берёт `UniqueLock` ДО пуша |
 | G2 | status-guard первым выражением `handle()` | `app/Jobs/Procurement/PipelineJob.php:34-36` + `PrepareDocumentJob::statusGuardPassed()` | job, доехавший вторым, молча выходит |
-| G3 | атомарный лиз | `app/Models/Procurement/Concerns/HasLease.php:24-42` | параллельная обработка одной записи двумя воркерами |
+| G3 | атомарный лиз | `app/Models/Concerns/HasLease.php:24-42` | параллельная обработка одной записи двумя воркерами |
 
 G1 запинен тестом `tests/Feature/Document/PipelineDispatcherTest.php:26`.
 

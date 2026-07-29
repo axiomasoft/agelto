@@ -84,7 +84,7 @@ test('пример §8.2 проходит validateAndCreate() целиком (п
     $passport = PassportResponse::validateAndCreate([
         'estimate_number' => 'ЛСР-01-01',
         'passport' => [
-            'type' => 'estimate',
+            'type' => 'local_estimate',
             'reference' => null,
             'target' => 'construction',
             'address' => null,

@@ -12,7 +12,7 @@ use Spatie\LaravelData\Data;
  * Паспорт сметы — прямое соответствие jsonb-колонке prc_estimates.passport (docs/specs/v2/
  * 08-estimate-extraction.md §1.1/§1.3). Не участвует в фильтрах напрямую — поэтому храним объектом,
  * а не отдельными колонками.
- * - type: тип сметного документа — estimate/act/resource_calculation/defect_list, если не уверена — null.
+ * - type: тип сметного документа — local_estimate/act/resource_calculation/defect_list, если не уверена — null.
  * - reference: обоснование/ссылка на нормативный документ, если есть в тексте.
  * - target: направление объекта — construction/renovation/medical_equipment/engineering.
  * - address: адрес объекта, если указан.

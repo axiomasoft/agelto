@@ -3,7 +3,7 @@
 declare(strict_types=1);
 
 use App\Enums\Procurement\LlmPurpose;
-use App\Repositories\Llm\AiCallStoreRepository;
+use App\Repositories\Llm\LlmCallStoreRepository;
 use App\Services\Llm\Dto\LlmUsage;
 use App\Services\Llm\LlmCallRecorder;
 use Carbon\CarbonImmutable;
@@ -16,7 +16,7 @@ uses(RefreshDatabase::class);
 
 function llmCallRecorder(): LlmCallRecorder
 {
-    return new LlmCallRecorder(new AiCallStoreRepository);
+    return new LlmCallRecorder(new LlmCallStoreRepository);
 }
 
 test('record() пишет успешный вызов: usage, cost_micros по капе config/ai.php, refs в object storage', function (): void {

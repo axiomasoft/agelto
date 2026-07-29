@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\Models\Procurement\Concerns;
+namespace App\Models\Concerns;
 
 /**
  * Единая формула backoff/попыток error-блока (`attempts`/`last_error`/`last_error_at`/

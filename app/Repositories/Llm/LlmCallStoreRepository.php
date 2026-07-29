@@ -11,7 +11,7 @@ use App\Models\Llm\LlmCall;
  * атрибуты писать (usage, cost_micros, request/response refs), репозиторий только пишет
  * (аналог `DocumentStoreRepository`).
  */
-final readonly class AiCallStoreRepository
+final readonly class LlmCallStoreRepository
 {
     /**
      * @param  array<string, mixed>  $attributes

@@ -6,7 +6,7 @@ namespace App\Services\Llm;
 
 use App\Enums\Procurement\LlmPurpose;
 use App\Models\Llm\LlmCall;
-use App\Repositories\Llm\AiCallStoreRepository;
+use App\Repositories\Llm\LlmCallStoreRepository;
 use App\Services\Llm\Dto\LlmUsage;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Log;
@@ -25,7 +25,7 @@ use Illuminate\Support\Str;
 final readonly class LlmCallRecorder
 {
     public function __construct(
-        private AiCallStoreRepository $storeRepository,
+        private LlmCallStoreRepository $storeRepository,
     ) {}
 
     /**

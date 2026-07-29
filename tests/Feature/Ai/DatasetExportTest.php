@@ -18,7 +18,7 @@ function exportGoldRow(string $name = 'Позиция 1'): array
         'estimates' => [
             [
                 'estimate_number' => '1',
-                'passport' => ['type' => 'estimate'],
+                'passport' => ['type' => 'local_estimate'],
                 'currency' => 'RUB',
                 'base_year' => null,
                 'price_level' => null,

@@ -13,8 +13,8 @@ use Throwable;
 
 /**
  * Шаблонный метод для jobs пайплайна документов (P4.2+/P5/P6): status-guard первым
- * выражением `handle()`, lease на время обработки (`App\Models\Procurement\Concerns\HasLease`),
- * единый error-блок при провале (`App\Models\Procurement\Concerns\HasErrorBlock` — backoff-формула
+ * выражением `handle()`, lease на время обработки (`App\Models\Concerns\HasLease`),
+ * единый error-блок при провале (`App\Models\Concerns\HasErrorBlock` — backoff-формула
  * живёт ТОЛЬКО там, этот абстракт её не дублирует), release ВСЕГДА в `finally`. Исключение из
  * `process()` не глотается: `recordFailure()` фиксирует попытку, затем исключение пробрасывается
  * дальше (Laravel retry/backoff механика job'а срабатывает как обычно).
