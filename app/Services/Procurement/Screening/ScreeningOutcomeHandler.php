@@ -10,7 +10,6 @@ use App\Enums\Procurement\AnalysisStatus;
 use App\Enums\Procurement\DocumentStatus;
 use App\Enums\Procurement\LlmPurpose;
 use App\Enums\Procurement\ProcurementEventType;
-use App\Jobs\Procurement\EstimateExtractionJob;
 use App\Models\Procurement\Ai\Analysis;
 use App\Models\Procurement\Document\Document;
 use App\Models\Procurement\Procurement;
@@ -19,11 +18,14 @@ use App\Repositories\Procurement\AnalysisStoreRepository;
 use App\Repositories\Procurement\DocumentStoreRepository;
 use App\Repositories\Procurement\ProcurementStoreRepository;
 use App\Services\Llm\AiRouteResolver;
+use App\Services\Procurement\Contracts\DocumentAnalyzer;
+use App\Services\Procurement\Contracts\DocumentAnalyzerRegistry;
 
 /**
- * Ветвление скрининга (ТЗ 03 §3.4/§6, D36): `estimate` → `screened` + dispatch извлечения
- * (заглушка до P6.1, гейт `config('ai.extraction.enabled')`); иной известный тип → `screened`
- * без разбора; `unknown` или совпадение с `ai.screening.ignore_rules` (подстрока в
+ * Ветвление скрининга (ТЗ 03 §3.4/§6, D36): тип, у которого РЕЕСТР знает анализатор со стадией
+ * извлечения, → `screened` + dispatch этого извлечения (гейт `config('ai.extraction.enabled')`);
+ * иной известный тип → `screened` без разбора; `unknown` или совпадение с
+ * `ai.screening.ignore_rules` (подстрока в
  * `Procurement.title`, v1-канон) → `ignored`. Borderline-зона confidence (D36) НЕ уходит молча
  * в `ignored`: `ai.screening.borderline_action` = `escalate` (один повторный скрининг на маршрут
  * классом выше, `AiRouteResolver`-индекс 1, флаг `escalated` в `analysis.result` защищает от
@@ -40,6 +42,7 @@ final readonly class ScreeningOutcomeHandler
         private ProcurementStoreRepository $procurements,
         private ScreeningProcessor $processor,
         private AiRouteResolver $routes,
+        private DocumentAnalyzerRegistry $analyzers,
     ) {}
 
     public function handle(Document $document, Analysis $analysis): void
@@ -84,6 +87,11 @@ final readonly class ScreeningOutcomeHandler
             return;
         }
 
+        // `tryFrom`, а не `from`, СОЗНАТЕЛЬНО (решение P2.3, поднято в handoff после P2.2): строку
+        // сюда пишет `ScreeningProcessor` из уже типизированного результата, поэтому незнакомое
+        // значение означает ручную правку БД, а не опечатку в коде — и ветка «не понимаю тип →
+        // ignored» для неё ровно так же верна, как для `unknown`. Громкая ошибка тут поменяла бы
+        // поведение ветвления, которое item обязан сохранить байт-в-байт.
         $documentType = $analysis->document_type !== null ? AiDocumentType::tryFrom($analysis->document_type) : null;
 
         $this->branchByType($document, $analysis, $documentType);
@@ -115,33 +123,58 @@ final readonly class ScreeningOutcomeHandler
         $this->flagNeedsReview($document, $analysis);
     }
 
+    /**
+     * Единственная точка переключения по типу документа: ядро не называет ни одного типа
+     * поимённо, кроме `Unknown` (см. ниже) — «есть ли извлечение» и «что диспатчить» решает
+     * анализатор, найденный реестром.
+     *
+     * `unknown`/отсутствующий тип уходит в `ignored` ЗДЕСЬ, а не в реестре: причина ветки
+     * пишется в `analysis.result.branch_reason` и является фактом ветвления скрининга, а не
+     * фактом реестра. Заводить «анализатор неизвестного типа» ради единообразия запрещено
+     * контрактом — это вернуло бы ветвление по типу в ядро через чёрный ход.
+     */
     private function branchByType(Document $document, Analysis $analysis, ?AiDocumentType $documentType): void
     {
-        match ($documentType) {
-            AiDocumentType::Estimate => $this->markScreened($document, $analysis, dispatchExtraction: true),
-            AiDocumentType::Unknown, null => $this->ignore($document, $analysis, reason: 'unknown'),
-            default => $this->markScreened($document, $analysis, dispatchExtraction: false),
-        };
+        if ($documentType === null || $documentType === AiDocumentType::Unknown) {
+            $this->ignore($document, $analysis, reason: 'unknown');
+
+            return;
+        }
+
+        $analyzer = $this->analyzers->for($documentType);
+
+        // Тип без анализатора и тип с анализатором без извлечения дают ОДНУ ветку `screened` без
+        // диспатча — ровно прежний `default` match'а по типу.
+        $this->markScreened(
+            $document,
+            $analysis,
+            documentType: $documentType,
+            analyzer: $analyzer?->hasExtraction() === true ? $analyzer : null,
+        );
     }
 
-    private function markScreened(Document $document, Analysis $analysis, bool $dispatchExtraction): void
+    private function markScreened(Document $document, Analysis $analysis, AiDocumentType $documentType, ?DocumentAnalyzer $analyzer): void
     {
         $this->documents->update($document, ['status' => DocumentStatus::Screened]);
 
-        $this->storeEvent($document, $analysis, outcome: $dispatchExtraction ? 'estimate' : 'screened');
+        $this->storeEvent($document, $analysis, outcome: $analyzer !== null ? $documentType->value : 'screened');
 
-        $extractionDispatched = $dispatchExtraction && config('ai.extraction.enabled', false);
+        // Рубильник `ai.extraction.enabled` остаётся ГЛОБАЛЬНЫМ и ЯДЕРНЫМ (§2 контракта): это
+        // аварийный стоп-кран всего контура извлечения (деньги, квоты провайдера), его смысл
+        // «выключить извлечение целиком» от типа документа не зависит.
+        $extractionDispatched = $analyzer !== null && config('ai.extraction.enabled', false);
 
         if ($extractionDispatched) {
-            EstimateExtractionJob::dispatch($document->id)->afterCommit();
+            $analyzer->dispatchExtraction($document->id);
 
             return;
         }
 
         // Прогон терминируется ЗДЕСЬ (не автохуком `AnalysisStoreRepository::update()`, D93
         // §3.2): анализ уже `Succeeded` до вызова этого хендлера, и статус screening'а НЕ
-        // определяет исход прогона — тип «не смета» либо гейт `ai.extraction.enabled` выключен,
-        // извлечение не следует, контур прогона заканчивается на этой ветке.
+        // определяет исход прогона — у типа нет стадии извлечения либо гейт
+        // `ai.extraction.enabled` выключен, извлечение не следует, контур прогона заканчивается
+        // на этой ветке.
         $this->runs->markSucceeded($analysis->analysisRun);
     }
 

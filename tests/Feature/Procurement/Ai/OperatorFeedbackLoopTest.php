@@ -162,7 +162,19 @@ test('отклонённый анализ с коррекцией → re-run п�
     seedFeedbackRoute($fake);
 
     $document = Document::factory()->create(['status' => DocumentStatus::Screened]);
-    seedFeedbackVersion($document);
+    $version = seedFeedbackVersion($document);
+
+    // Вердикт скрининга — ЕДИНСТВЕННЫЙ носитель типа документа в контуре: анализ извлечения
+    // собственный `document_type` не несёт (`AnalysisStoreRepository::firstOrCreate()` его не
+    // пишет). Боевой путь без этой записи недостижим — статус `screened` документу ставит только
+    // `ScreeningOutcomeHandler`, — и без неё операторский re-run (P2.3) не знает, чей job
+    // перезапускать.
+    Analysis::factory()->create([
+        'document_version_id' => $version->id,
+        'step' => AnalysisStep::Screening,
+        'status' => AnalysisStatus::Succeeded,
+        'document_type' => AiDocumentType::Estimate->value,
+    ]);
 
     (new EstimateExtractionJob($document->id))->handle();
 
@@ -251,6 +263,56 @@ test('отклонённый анализ с коррекцией → re-run п�
     foreach ($firstRunPrompts as $prompt) {
         expect($prompt->userParts)->toHaveCount(1);
     }
+});
+
+/**
+ * Пара «версия документа + активный анализ извлечения», на которой оператор жмёт «перезапустить»:
+ * ось типа несёт вердикт скрининга, как в боевом контуре.
+ */
+function seedRerunnableExtraction(?string $documentType = null): Analysis
+{
+    $document = Document::factory()->create(['status' => DocumentStatus::Extracted]);
+    $version = seedFeedbackVersion($document);
+
+    Analysis::factory()->create([
+        'document_version_id' => $version->id,
+        'step' => AnalysisStep::Screening,
+        'status' => AnalysisStatus::Succeeded,
+        'document_type' => $documentType ?? AiDocumentType::Estimate->value,
+    ]);
+
+    return Analysis::factory()->create([
+        'document_version_id' => $version->id,
+        'step' => AnalysisStep::Extraction,
+        'status' => AnalysisStatus::Succeeded,
+    ]);
+}
+
+test('re-run стадии извлечения диспатчит job через реестр — ядро имени job’а не знает', function (): void {
+    Storage::fake('s3');
+    Queue::fake();
+
+    $analysis = seedRerunnableExtraction();
+
+    app(RerunAnalysisAction::class)->run($analysis);
+
+    Queue::assertPushed(EstimateExtractionJob::class);
+});
+
+test('re-run извлечения при типе без анализатора не мутирует анализ и падает громко', function (): void {
+    Storage::fake('s3');
+    Queue::fake();
+    config(['ai.analyzers' => []]);
+
+    $analysis = seedRerunnableExtraction();
+
+    // Гейт фальсифицируемости item'а: при ЖЁСТКОМ `EstimateExtractionJob::dispatch()` (состояние
+    // до P2.3) перезапуск прошёл бы молча — реестр здесь единственный источник «чей это job».
+    expect(fn () => app(RerunAnalysisAction::class)->run($analysis))->toThrow(RuntimeException::class);
+
+    expect($analysis->refresh()->superseded_at)->toBeNull();
+
+    Queue::assertNotPushed(EstimateExtractionJob::class);
 });
 
 // PHP-роли зеркалятся в таблицу roles до назначения (class_name → assignRole, тот же приём,

@@ -1,6 +1,8 @@
 <?php
 
 declare(strict_types=1);
+use App\Enums\Procurement\AiDocumentType;
+use App\Services\Procurement\Analyzers\Estimate\EstimateAnalyzer;
 use App\Services\Procurement\Prepare\ArchiveStrategy;
 use App\Services\Procurement\Prepare\GsfxStrategy;
 use App\Services\Procurement\Prepare\ImageStrategy;
@@ -331,6 +333,23 @@ return [
         'window_pages' => (int) env('AI_EXTRACTION_WINDOW_PAGES', 3),
         'window_overlap_pages' => (int) env('AI_EXTRACTION_WINDOW_OVERLAP_PAGES', 1),
         'totals_tail_pages' => (int) env('AI_EXTRACTION_TOTALS_TAIL_PAGES', 2),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Анализаторы типов документа (P2.3, §5.1 контракта document-analyzer-contract)
+    |--------------------------------------------------------------------------
+    |
+    | Единственный носитель реестра «тип → анализатор» (D14): добавление типа документа = ОДНА
+    | строка здесь + каталог типа по конвенции `**\Analyzers\<Type>\**`. Значения — ИМЕНА КЛАССОВ
+    | строками, а не замыкания: массив обязан переживать `php artisan config:cache`. Инстанс
+    | резолвит контейнер (`DocumentAnalyzerRegistry`), поэтому конструкторная инъекция анализатора
+    | работает как у любого сервиса. `AiDocumentType::Unknown` здесь запрещён — сборка реестра
+    | падает на такой строке (решение «неизвестный тип → ignored» живёт в ядре скрининга).
+    |
+    */
+    'analyzers' => [
+        AiDocumentType::Estimate->value => EstimateAnalyzer::class,
     ],
 
     /*

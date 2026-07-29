@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Enums\Procurement\AiDocumentType;
 use App\Enums\Procurement\AnalysisStep;
 use App\Enums\Procurement\DocumentStatus;
 use App\Enums\Procurement\FinishReason;
@@ -24,6 +25,7 @@ use App\Services\Llm\Dto\LlmUsage;
 use App\Services\Llm\Providers\PrismGeminiProvider;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
+use Tests\Support\Doubles\ExtractionlessAnalyzer;
 use Tests\Support\Doubles\FakeLlmProvider;
 
 /*
@@ -111,6 +113,76 @@ test('не-смета (протокол) сохраняет тип без раз
 
     $analysis = Analysis::query()->where('step', AnalysisStep::Screening)->firstOrFail();
     expect($analysis->document_type)->toBe('protocol');
+
+    Queue::assertNotPushed(EstimateExtractionJob::class);
+});
+
+test('тип с зарегистрированным анализатором БЕЗ извлечения — screened без диспатча', function (): void {
+    Storage::fake('s3');
+    Queue::fake();
+    config([
+        'ai.extraction.enabled' => true,
+        'ai.analyzers' => [AiDocumentType::TechSpec->value => ExtractionlessAnalyzer::class],
+    ]);
+    $fake = FakeLlmProvider::succeeding(branchingResponse('tech_spec', 0.9));
+    seedBranchingRoute($fake);
+
+    $document = Document::factory()->create(['status' => DocumentStatus::Prepared]);
+    seedBranchingVersion($document, 'sample-multi-page.pdf', 'pdf', 'application/pdf');
+
+    (new ScreeningJob($document->id))->handle();
+
+    expect($document->refresh()->status)->toBe(DocumentStatus::Screened);
+
+    // Ветка «анализатор есть, извлечения нет» ≠ ветка «анализатора нет»: у первой реестр вернул
+    // объект, и молчаливый `dispatchExtraction()` на нём был бы `LogicException`.
+    Queue::assertNotPushed(EstimateExtractionJob::class);
+});
+
+test('outcome события выводится из ТИПА документа, а не из литерала', function (): void {
+    Storage::fake('s3');
+    Queue::fake();
+    config(['ai.extraction.enabled' => true]);
+    $fake = FakeLlmProvider::succeeding(branchingResponse('estimate', 0.95));
+    seedBranchingRoute($fake);
+
+    $procurement = Procurement::factory()->create();
+    $document = Document::factory()->create(['status' => DocumentStatus::Prepared, 'procurement_id' => $procurement->id]);
+    seedBranchingVersion($document, 'sample-multi-page.pdf', 'pdf', 'application/pdf');
+
+    (new ScreeningJob($document->id))->handle();
+
+    $event = ProcurementEvent::query()
+        ->where('procurement_id', $procurement->id)
+        ->where('event_type', ProcurementEventType::DocumentScreened)
+        ->firstOrFail();
+
+    // Значение прежнее (`estimate`) — иначе поехало бы содержимое `prc_procurement_events`,
+    // — но получено из `AiDocumentType::Estimate->value`, а не из строки в ядре.
+    expect($event->new_value)->toBe(AiDocumentType::Estimate->value);
+});
+
+test('тип БЕЗ анализатора — screened без диспатча, outcome не несёт типа', function (): void {
+    Storage::fake('s3');
+    Queue::fake();
+    config(['ai.extraction.enabled' => true, 'ai.analyzers' => []]);
+    $fake = FakeLlmProvider::succeeding(branchingResponse('estimate', 0.95));
+    seedBranchingRoute($fake);
+
+    $procurement = Procurement::factory()->create();
+    $document = Document::factory()->create(['status' => DocumentStatus::Prepared, 'procurement_id' => $procurement->id]);
+    seedBranchingVersion($document, 'sample-multi-page.pdf', 'pdf', 'application/pdf');
+
+    (new ScreeningJob($document->id))->handle();
+
+    expect($document->refresh()->status)->toBe(DocumentStatus::Screened);
+
+    $event = ProcurementEvent::query()
+        ->where('procurement_id', $procurement->id)
+        ->where('event_type', ProcurementEventType::DocumentScreened)
+        ->firstOrFail();
+
+    expect($event->new_value)->toBe('screened');
 
     Queue::assertNotPushed(EstimateExtractionJob::class);
 });

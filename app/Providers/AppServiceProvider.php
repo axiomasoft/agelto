@@ -5,6 +5,7 @@ namespace App\Providers;
 use App\Models\User;
 use App\Pulse\Cards\LlmSpendCard;
 use App\Pulse\Cards\PipelineStagesCard;
+use App\Services\Procurement\Contracts\DocumentAnalyzerRegistry;
 use App\Services\Procurement\Contracts\ListingRowMapper;
 use App\Services\Procurement\Eis\EisCsvRowMapper;
 use App\Services\Procurement\Extraction\ChunkSource;
@@ -31,6 +32,11 @@ class AppServiceProvider extends ServiceProvider
         // Основной путь извлечения смет (D3/D40) — единственная реализация ChunkSource до P6.4
         // (`WindowedChunkSource` добавит оконный путь за отдельным гейтом, не сменой этого bind).
         $this->app->bind(ChunkSource::class, RowRangeChunkSource::class);
+
+        // Реестр анализаторов типов документа (P2.3, §5.2 контракта): собирается из
+        // `config('ai.analyzers')` при ПЕРВОМ резолве и дальше неизменен — отсюда singleton,
+        // а не bind (иначе инварианты сборки проверялись бы на каждом резолве).
+        $this->app->singleton(DocumentAnalyzerRegistry::class);
     }
 
     /**
