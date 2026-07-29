@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Enums\Procurement\AiDocumentType;
 use App\Enums\Procurement\AnalysisStatus;
 use App\Enums\Procurement\AnalysisStep;
 use App\Enums\Procurement\CorrectionReason;
@@ -167,7 +168,9 @@ test('отклонённый анализ с коррекцией → re-run п�
     $operator = User::factory()->create();
     $correction = Correction::factory()->create([
         'analysis_id' => $analysis->id,
-        'document_type' => $analysis->document_type,
+        // Прогон извлечения этого теста не проходил скрининг — $analysis->document_type пуст;
+        // тот же fallback, что ExtractionOrchestrator/GoldExampleRecorder уже применяют (D14).
+        'document_type' => $analysis->document_type ?? AiDocumentType::Estimate->value,
         'reason' => CorrectionReason::WrongValue,
         'content' => 'Количество в строке 1 указано неверно',
         'hint' => 'Перепроверяй количество строки 1 по спецификации',

@@ -14,7 +14,9 @@
             "form": "LSR",
             "generator": "ГрандСмета 15.3.5.55343 (Data.xml, Generator=\"GrandSmeta\")",
             "cluster_id": "CL-15",
-            "doc_type": null,
+            "document_type": "estimate",
+            "owner_document_type": "estimate",
+            "title": "Администрация культуры и спорта 3",
             "quirks": [
                 "CP1251_XML_CONTAINER",
                 "RESOURCE_METHOD"
@@ -39,7 +41,9 @@
             "form": "SCAN",
             "generator": "PDF24 (сканирование бумаги)",
             "cluster_id": "CL-16",
-            "doc_type": null,
+            "document_type": "estimate",
+            "owner_document_type": "estimate",
+            "title": "Смета картинками",
             "quirks": [
                 "MULTI_ESTIMATE_SCAN",
                 "OVERSIZE_REQUEST",
@@ -65,7 +69,9 @@
             "form": "KS2",
             "generator": "неизвестная сметная программа 2019 года; унифицированная форма № КС-2 (ОКУД 322005)",
             "cluster_id": "CL-13",
-            "doc_type": null,
+            "document_type": "estimate",
+            "owner_document_type": "estimate",
+            "title": "Выполнение 2019.04 АКТ КС-2 01-01-001",
             "quirks": [
                 "HEADER_NUMBER_ROW",
                 "LEGACY_BIFF_XLS",
@@ -91,7 +97,9 @@
             "form": "KS3",
             "generator": "унифицированная форма № КС-3 (ОКУД 322001), выгрузка в .xls",
             "cluster_id": "CL-03",
-            "doc_type": null,
+            "document_type": "estimate",
+            "owner_document_type": "estimate",
+            "title": "КС№3 _№1",
             "quirks": [
                 "HEADER_NUMBER_ROW",
                 "HEADER_TWO_ROW",
@@ -118,7 +126,9 @@
             "form": "KS2",
             "generator": "ГРАНД-Смета; титульный блок унифицированной формы КС-2 (ОКУД 0322005)",
             "cluster_id": "CL-01",
-            "doc_type": null,
+            "document_type": "estimate",
+            "owner_document_type": "estimate",
+            "title": "! ВКЛ_ Фасад, отмостка, крыльца - Акт по Методике 2020 (PИМ)",
             "quirks": [
                 "HEADER_NUMBER_ROW",
                 "HEADER_TWO_ROW",
@@ -150,7 +160,9 @@
             "form": "KS2",
             "generator": "ГРАНД-Смета; титульный блок унифицированной формы КС-2 (ОКУД 0322005)",
             "cluster_id": "CL-01",
-            "doc_type": null,
+            "document_type": "estimate",
+            "owner_document_type": "estimate",
+            "title": "02-01-01 Кровля - Акт по Методике 2020 (PИМ) с титулом КС-2+",
             "quirks": [
                 "HEADER_NUMBER_ROW",
                 "HEADER_TWO_ROW",
@@ -181,7 +193,9 @@
             "form": "KS2",
             "generator": "ГРАНД-Смета; титульного блока унифицированной формы нет",
             "cluster_id": "CL-11",
-            "doc_type": null,
+            "document_type": "estimate",
+            "owner_document_type": "estimate",
+            "title": "02-01-04 Водоснабжение. Водоотведение - Акт по Методике 2020 (PИМ) !!!",
             "quirks": [
                 "HEADER_NUMBER_ROW",
                 "HEADER_TWO_ROW",
@@ -210,7 +224,9 @@
             "form": "LSR",
             "generator": "ГРАНД-Смета, версия 2024.3",
             "cluster_id": "CL-05",
-            "doc_type": null,
+            "document_type": "estimate",
+            "owner_document_type": "estimate",
+            "title": "ЛСР 02-01-01 (Ремонт кровли)",
             "quirks": [
                 "HEADER_NUMBER_ROW",
                 "HEADER_TWO_ROW",
@@ -239,7 +255,9 @@
             "form": "LSR",
             "generator": "ГРАНД-Смета, версия 2024.3",
             "cluster_id": "CL-10",
-            "doc_type": null,
+            "document_type": "estimate",
+            "owner_document_type": "estimate",
+            "title": "ЛСР",
             "quirks": [
                 "HEADER_NUMBER_ROW",
                 "HEADER_TWO_ROW",
@@ -270,7 +288,9 @@
             "form": "LSR",
             "generator": "Smeta.RU; нормативы СН-2012 (© ГБУ «Аналитический центр», Москва)",
             "cluster_id": "CL-14",
-            "doc_type": null,
+            "document_type": "estimate",
+            "owner_document_type": "estimate",
+            "title": "СМЕТА",
             "quirks": [
                 "HEADER_NUMBER_ROW",
                 "HEADER_TWO_ROW",
@@ -300,7 +320,9 @@
             "form": "VOR",
             "generator": "ГРАНД-Смета",
             "cluster_id": "CL-12",
-            "doc_type": null,
+            "document_type": "estimate",
+            "owner_document_type": "estimate",
+            "title": "02-01-06 Электроснабжение - ВОР !!!",
             "quirks": [
                 "HEADER_NUMBER_ROW",
                 "HEADER_TWO_ROW",
@@ -329,7 +351,9 @@
             "form": "CONTRACT",
             "generator": "ручной Word",
             "cluster_id": "CL-23",
-            "doc_type": null,
+            "document_type": "contract_draft",
+            "owner_document_type": "estimate",
+            "title": "Проект контракта по Услугам_",
             "quirks": [],
             "expected_estimates": 0,
             "expected_rows": null,
@@ -351,7 +375,9 @@
             "form": "SPEC",
             "generator": "ручной Word",
             "cluster_id": "CL-07",
-            "doc_type": null,
+            "document_type": "tech_spec",
+            "owner_document_type": "estimate",
+            "title": "Размеры сантехники Лиман",
             "quirks": [],
             "expected_estimates": 0,
             "expected_rows": null,
@@ -373,7 +399,9 @@
             "form": "PHOTO",
             "generator": "камера смартфона",
             "cluster_id": "CL-09",
-            "doc_type": null,
+            "document_type": "unknown",
+            "owner_document_type": "estimate",
+            "title": "Изображение WhatsApp 2025-10-18 в 16.59.14_22a89ee0",
             "quirks": [
                 "NO_PARSE_BRANCH"
             ],
@@ -397,7 +425,9 @@
             "form": "AOSR",
             "generator": "Acrobat PDFMaker 11 для Excel",
             "cluster_id": "CL-17",
-            "doc_type": null,
+            "document_type": "unknown",
+            "owner_document_type": "estimate",
+            "title": "Акты_скрытых_работ_Лесное(1)",
             "quirks": [
                 "WORKING_ITERATION"
             ],
@@ -421,7 +451,9 @@
             "form": "DRAWING",
             "generator": "AutoCAD 2024 → pdfplot16.hdi",
             "cluster_id": "CL-02",
-            "doc_type": null,
+            "document_type": "unknown",
+            "owner_document_type": "estimate",
+            "title": "Лесное-ИС- МСтены Покраска Акрил 1 этаж",
             "quirks": [
                 "VECTOR_TEXT_DRAWING"
             ],
@@ -445,7 +477,9 @@
             "form": "DRAWING",
             "generator": "неизвестен (в PDF нет Producer/Creator)",
             "cluster_id": "CL-22",
-            "doc_type": null,
+            "document_type": "unknown",
+            "owner_document_type": "estimate",
+            "title": "Двери",
             "quirks": [
                 "SCAN_NO_TEXT"
             ],
@@ -469,7 +503,9 @@
             "form": "JOURNAL",
             "generator": "Acrobat PDFMaker 11 для Excel",
             "cluster_id": "CL-08",
-            "doc_type": null,
+            "document_type": "unknown",
+            "owner_document_type": "estimate",
+            "title": "Кабельный журнал Лесное",
             "quirks": [],
             "expected_estimates": 0,
             "expected_rows": null,
@@ -491,7 +527,9 @@
             "form": "VOLUME",
             "generator": "Acrobat PDFMaker 11 для Excel → Adobe PDF Library 11.0",
             "cluster_id": "CL-04",
-            "doc_type": null,
+            "document_type": "unknown",
+            "owner_document_type": "estimate",
+            "title": "М Кровли",
             "quirks": [],
             "expected_estimates": 0,
             "expected_rows": null,
@@ -513,7 +551,9 @@
             "form": "AOSR",
             "generator": "ручной Excel по форме приказа Ростехнадзора",
             "cluster_id": "CL-06",
-            "doc_type": null,
+            "document_type": "unknown",
+            "owner_document_type": "estimate",
+            "title": "Акты скрытых работ Лесное 2 закрытие",
             "quirks": [
                 "LEGACY_BIFF_XLS"
             ],
@@ -537,7 +577,9 @@
             "form": "NMCK",
             "generator": "ручной Excel по приказу Минздрава 450н",
             "cluster_id": "CL-20",
-            "doc_type": null,
+            "document_type": "unknown",
+            "owner_document_type": "estimate",
+            "title": "2. Обоснование НМЦК медизделия",
             "quirks": [
                 "WIDE_SHEET_RANGE"
             ],
@@ -561,7 +603,9 @@
             "form": "NMCK",
             "generator": "ручной Excel",
             "cluster_id": "CL-21",
-            "doc_type": null,
+            "document_type": "unknown",
+            "owner_document_type": "estimate",
+            "title": "Расчет начальной суммы цен единиц работ",
             "quirks": [
                 "MULTI_SHEET_BOOK"
             ],
@@ -585,7 +629,9 @@
             "form": "VOLUME",
             "generator": "ручной Excel",
             "cluster_id": "CL-18",
-            "doc_type": null,
+            "document_type": "unknown",
+            "owner_document_type": "estimate",
+            "title": "крылечко_облицовка",
             "quirks": [
                 "MULTI_SHEET_BOOK"
             ],
@@ -609,7 +655,9 @@
             "form": "VOLUME",
             "generator": "ручной Excel",
             "cluster_id": "CL-19",
-            "doc_type": null,
+            "document_type": "unknown",
+            "owner_document_type": "estimate",
+            "title": "двери",
             "quirks": [
                 "MULTI_SHEET_BOOK"
             ],

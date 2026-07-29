@@ -21,6 +21,8 @@ final class EvalRun extends Model
     protected $table = 'prc_ai_eval_runs';
 
     protected $fillable = [
+        'document_type',
+        'task',
         'dataset_version',
         'provider',
         'model',

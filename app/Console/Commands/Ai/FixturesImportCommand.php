@@ -150,9 +150,7 @@ final class FixturesImportCommand extends Command
         }
 
         $this->fixtures->storeOrUpdate($entry->code, [
-            'class' => $entry->class,
             'source_format' => $entry->source_format,
-            'form' => $entry->form,
             'storage_path' => $entry->storage_path,
             'sha256' => $entry->sha256,
             'size_bytes' => $entry->size_bytes,
@@ -161,11 +159,17 @@ final class FixturesImportCommand extends Command
             'source_path' => (string) $entry->source_path,
             'generator' => $entry->generator,
             'cluster_id' => $entry->cluster_id,
-            'doc_type' => $entry->doc_type,
+            'document_type' => $entry->document_type,
+            'owner_document_type' => $entry->owner_document_type,
+            'title' => $entry->title,
             'quirks' => $entry->quirks,
-            'expected_estimates' => $entry->expected_estimates,
-            'expected_rows' => $entry->expected_rows,
-            'gold_source' => $entry->gold_source,
+            'type_profile' => [
+                'class' => $entry->class->value,
+                'form' => $entry->form,
+                'expected_estimates' => $entry->expected_estimates,
+                'expected_rows' => $entry->expected_rows,
+                'gold_source' => $entry->gold_source->value,
+            ],
             'is_verified' => $entry->is_verified,
             'notes' => $entry->notes,
         ]);

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Database\Factories\Procurement\Ai;
 
+use App\Enums\Procurement\AiDocumentType;
 use App\Models\Procurement\Ai\DatasetExample;
 use App\Models\Procurement\Document\DocumentVersion;
 use Illuminate\Database\Eloquent\Factories\Factory;
@@ -19,6 +20,7 @@ final class DatasetExampleFactory extends Factory
     {
         return [
             'document_version_id' => DocumentVersion::factory(),
+            'document_type' => AiDocumentType::Estimate->value,
             'task' => 'screening',
             'gold' => ['is_estimate' => true],
             'gold_ref' => null,

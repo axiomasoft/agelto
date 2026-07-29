@@ -1,4 +1,5 @@
 ---
+document_type: any
 key: prompt:critic
 step: prompt:critic
 version: 1

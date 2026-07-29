@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Database\Factories\Procurement\Ai;
 
+use App\Enums\Procurement\AiDocumentType;
 use App\Enums\Procurement\CorrectionReason;
 use App\Models\Procurement\Ai\Analysis;
 use App\Models\Procurement\Ai\Correction;
@@ -22,7 +23,7 @@ final class CorrectionFactory extends Factory
         return [
             'analysis_id' => Analysis::factory(),
             'estimate_id' => null,
-            'document_type' => null,
+            'document_type' => AiDocumentType::Estimate->value,
             'field_path' => null,
             'reason' => CorrectionReason::WrongValue,
             'content' => $this->faker->sentence(),

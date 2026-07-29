@@ -13,8 +13,8 @@ use Spatie\LaravelData\Support\Validation\ValidationContext;
 
 /**
  * Единственный носитель контракта одной записи `estimates/manifest.json` (D1/D20). Обязательные
- * поля — `code`/`storage_path`/`sha256`/`size_bytes`/`class`/`source_format`/`form`/`gold_source`;
- * остальные nullable/дефолтные.
+ * поля — `code`/`storage_path`/`sha256`/`size_bytes`/`class`/`source_format`/`form`/`gold_source`/
+ * `document_type`/`owner_document_type`/`title`; остальные nullable/дефолтные.
  * - code: код эталона, единственный контракт — `Fixture::CODE_PATTERN` (D13).
  * - storage_path: путь на диске эталонов, обязан совпадать с `Fixture::storagePathFor($code,
  *   $source_format)` — иначе конвенция раскладки (D17) нарушена.
@@ -22,6 +22,11 @@ use Spatie\LaravelData\Support\Validation\ValidationContext;
  * - gold_path: путь к `*.gold.json` в git; `null`, пока файл не построен — пишет `ai:gold:build
  *   --update-manifest` (P5.3) вместе с самим файлом (D91: указатель и файл появляются одним актом,
  *   владелец поля — производитель файла gold, не генератор манифеста).
+ * - document_type: фактический тип файла = ожидаемый вердикт скрининга (§6.1 document-type-axis.md,
+ *   D90) — `class`/`form`/`expected_*`/`gold_source` остаются ФЛОСКИМИ полями манифеста и уезжают в
+ *   `type_profile` только на границе импорта (`FixturesImportCommand`), не в самом файле.
+ * - owner_document_type: тип, чей анализатор владеет корпусом и валидирует `type_profile` (§6.1).
+ * - title: человекочитаемое название эталона, чисто читательское (D90, §6.3).
  */
 final class FixtureManifestEntry extends Data
 {
@@ -37,12 +42,14 @@ final class FixtureManifestEntry extends Data
         public string $source_format,
         public string $form,
         public GoldSource $gold_source,
+        public AiDocumentType $document_type,
+        public AiDocumentType $owner_document_type,
+        public string $title,
         public ?string $source_path = null,
         public ?string $original_filename = null,
         public ?string $mime = null,
         public ?string $generator = null,
         public ?string $cluster_id = null,
-        public ?AiDocumentType $doc_type = null,
         public array $quirks = [],
         public ?int $expected_estimates = null,
         public ?int $expected_rows = null,

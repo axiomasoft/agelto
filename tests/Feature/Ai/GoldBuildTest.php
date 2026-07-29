@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Dto\Procurement\Ai\Gold\GoldFormProfile;
+use App\Enums\Procurement\AiDocumentType;
 use App\Enums\Procurement\FixtureClass;
 use App\Enums\Procurement\GoldSource;
 use App\Models\Procurement\Ai\Fixture;
@@ -45,16 +46,18 @@ function buildGoldManifestEntry(Fixture $fixture): array
         'sha256' => $fixture->sha256,
         'size_bytes' => $fixture->size_bytes,
         'mime' => $fixture->mime,
-        'class' => $fixture->class->value,
+        'class' => $fixture->profileClass()->value,
         'source_format' => $fixture->source_format,
-        'form' => $fixture->form,
+        'form' => $fixture->profileForm(),
         'generator' => $fixture->generator,
         'cluster_id' => $fixture->cluster_id,
-        'doc_type' => $fixture->doc_type?->value,
+        'document_type' => $fixture->document_type->value,
+        'owner_document_type' => $fixture->owner_document_type->value,
+        'title' => $fixture->title,
         'quirks' => $fixture->quirks->all(),
-        'expected_estimates' => $fixture->expected_estimates,
-        'expected_rows' => $fixture->expected_rows,
-        'gold_source' => $fixture->gold_source->value,
+        'expected_estimates' => $fixture->profileExpectedEstimates(),
+        'expected_rows' => $fixture->profileExpectedRows(),
+        'gold_source' => $fixture->profileGoldSource()->value,
         'gold_path' => null,
         'is_verified' => $fixture->is_verified,
         'notes' => $fixture->notes,
@@ -161,12 +164,20 @@ function seedGoldFixture(string $disk, string $folder, string $code, string $byt
 
     $fixture = Fixture::factory()->create([
         'code' => $code,
-        'class' => FixtureClass::Estimate,
+        'document_type' => AiDocumentType::Estimate,
+        'owner_document_type' => AiDocumentType::Estimate,
+        'title' => "Эталон {$code}",
         'source_format' => 'xlsx',
         'storage_path' => Fixture::storagePathFor($code, 'xlsx'),
         'sha256' => hash('sha256', $bytes),
         'size_bytes' => strlen($bytes),
-        'gold_source' => $goldSource,
+        'type_profile' => [
+            'class' => FixtureClass::Estimate->value,
+            'form' => 'KS2',
+            'expected_estimates' => 1,
+            'expected_rows' => null,
+            'gold_source' => $goldSource->value,
+        ],
     ]);
 
     if ($profileJson !== null) {
@@ -193,12 +204,20 @@ test('gsfx-эталон → файл gold на месте и валиден', fu
     Storage::disk($disk)->put(Fixture::storagePathFor('EST-GSFX-TEST-001', 'gsfx'), $bytes);
     $fixture = Fixture::factory()->create([
         'code' => 'EST-GSFX-TEST-001',
-        'class' => FixtureClass::Estimate,
+        'document_type' => AiDocumentType::Estimate,
+        'owner_document_type' => AiDocumentType::Estimate,
+        'title' => 'Эталон EST-GSFX-TEST-001',
         'source_format' => 'gsfx',
         'storage_path' => Fixture::storagePathFor('EST-GSFX-TEST-001', 'gsfx'),
         'sha256' => hash('sha256', $bytes),
         'size_bytes' => strlen($bytes),
-        'gold_source' => GoldSource::Deterministic,
+        'type_profile' => [
+            'class' => FixtureClass::Estimate->value,
+            'form' => 'KS2',
+            'expected_estimates' => 1,
+            'expected_rows' => null,
+            'gold_source' => GoldSource::Deterministic->value,
+        ],
     ]);
 
     $manifestPath = buildGoldManifest($folder, [buildGoldManifestEntry($fixture)]);
@@ -325,12 +344,20 @@ test('невалидный gold отклонён индивидуально, о�
     Storage::disk($disk)->put(Fixture::storagePathFor('EST-XLSX-BROKEN-001', 'xlsx'), $brokenBytes);
     $broken = Fixture::factory()->create([
         'code' => 'EST-XLSX-BROKEN-001',
-        'class' => FixtureClass::Estimate,
+        'document_type' => AiDocumentType::Estimate,
+        'owner_document_type' => AiDocumentType::Estimate,
+        'title' => 'Эталон EST-XLSX-BROKEN-001',
         'source_format' => 'xlsx',
         'storage_path' => Fixture::storagePathFor('EST-XLSX-BROKEN-001', 'xlsx'),
         'sha256' => hash('sha256', $brokenBytes),
         'size_bytes' => strlen($brokenBytes),
-        'gold_source' => GoldSource::Deterministic,
+        'type_profile' => [
+            'class' => FixtureClass::Estimate->value,
+            'form' => 'KS2',
+            'expected_estimates' => 1,
+            'expected_rows' => null,
+            'gold_source' => GoldSource::Deterministic->value,
+        ],
     ]);
     $brokenProfile = passingWorkbookProfileJson('EST-XLSX-BROKEN-001');
     $brokenProfile['unknown_top_level_key'] = 'boom';

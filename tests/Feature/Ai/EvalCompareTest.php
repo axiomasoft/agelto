@@ -36,7 +36,13 @@ function evalCompareSeedExample(string $code): array
 {
     $fixture = Fixture::factory()->create([
         'code' => $code,
-        'gold_source' => GoldSource::Deterministic,
+        'type_profile' => [
+            'class' => 'est',
+            'form' => 'KS2',
+            'expected_estimates' => 1,
+            'expected_rows' => null,
+            'gold_source' => GoldSource::Deterministic->value,
+        ],
     ]);
 
     $example = DatasetExample::factory()->create([

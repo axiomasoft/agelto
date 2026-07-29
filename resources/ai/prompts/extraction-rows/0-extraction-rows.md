@@ -1,4 +1,5 @@
 ---
+document_type: estimate
 key: extraction:rows
 step: extraction:rows
 version: 2

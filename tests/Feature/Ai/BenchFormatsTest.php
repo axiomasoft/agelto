@@ -276,7 +276,16 @@ test('документ с procurement_id != null — отказ, прогон н
 });
 
 test('эталон без детерминированного gold пропущен — не входит в матрицу', function (): void {
-    $fixture = Fixture::factory()->create(['code' => 'NEG-XLSX-OTHER-001', 'gold_source' => GoldSource::None]);
+    $fixture = Fixture::factory()->create([
+        'code' => 'NEG-XLSX-OTHER-001',
+        'type_profile' => [
+            'class' => 'est',
+            'form' => 'KS2',
+            'expected_estimates' => 1,
+            'expected_rows' => null,
+            'gold_source' => GoldSource::None->value,
+        ],
+    ]);
     [, $version] = benchDocumentAndVersion();
     benchDatasetExample($fixture, $version);
 

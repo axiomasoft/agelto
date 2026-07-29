@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Enums\Procurement\AiDocumentType;
 use App\Models\Procurement\Ai\Analysis;
 use App\Models\Procurement\Document\DocumentVersion;
 use App\Models\User;
@@ -24,11 +25,18 @@ return new class extends Migration
 
             $table->text('step')->comment('screening/extraction');
             $table->text('status')->comment('pending→running→succeeded/failed/skipped');
-            $table->text('document_type')->nullable()->comment('code из prc_document_types, без строгого FK');
+            $table->text('document_type')->nullable()->comment('вердикт скрининга; значения — AiDocumentType, целостность — check-constraint (D16/D17)');
 
             $table->jsonb('result')->nullable();
             $table->text('provider')->nullable();
             $table->text('model')->nullable();
+
+            // Слепок расхода вызова — заполняется P4, здесь только схема (D20).
+            $table->integer('prompt_tokens')->nullable();
+            $table->integer('completion_tokens')->nullable();
+            $table->integer('cached_tokens')->nullable();
+            $table->integer('total_tokens')->nullable();
+            $table->bigInteger('cost_micros')->nullable();
 
             $table->text('locked_by')->nullable();
             $table->timestampTz('locked_until')->nullable();
@@ -74,6 +82,14 @@ return new class extends Migration
             .'ON prc_ai_analyses (document_version_id, step) '
             .'WHERE superseded_at IS NULL AND is_shadow = false',
         );
+
+        // Ось типа документа (D16/D17, §1.3 root/document-type-axis.md): единственный носитель
+        // списка значений — AiDocumentType::values(), колонка остаётся nullable (§3.1 контракта).
+        DB::statement(
+            'ALTER TABLE prc_ai_analyses '
+            .'ADD CONSTRAINT prc_ai_analyses_document_type_check '
+            ."CHECK (document_type IS NULL OR document_type IN ({$this->documentTypeValues()}))",
+        );
     }
 
     public function down(): void
@@ -85,5 +101,12 @@ return new class extends Migration
     private function table(): string
     {
         return (new Analysis)->getTable();
+    }
+
+    private function documentTypeValues(): string
+    {
+        return collect(AiDocumentType::values())
+            ->map(static fn (string $value): string => "'{$value}'")
+            ->implode(', ');
     }
 };

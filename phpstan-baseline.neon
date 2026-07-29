@@ -151,12 +151,6 @@ parameters:
 			path: /var/www/html/app/Console/Commands/Ai/EvalRunCommand.php
 
 		-
-			message: '#^Access to an undefined property App\\Models\\Procurement\\Ai\\Analysis\:\:\$document_type\.$#'
-			identifier: property.notFound
-			count: 1
-			path: /var/www/html/app/Console/Commands/Ai/EvalRunCommand.php
-
-		-
 			message: '#^Access to an undefined property App\\Models\\Procurement\\Ai\\Analysis\:\:\$result\.$#'
 			identifier: property.notFound
 			count: 1
@@ -317,12 +311,6 @@ parameters:
 			identifier: trait.unused
 			count: 1
 			path: /var/www/html/app/Console/Concerns/GracefullyStoppable.php
-
-		-
-			message: '#^Access to an undefined property App\\Models\\Procurement\\Ai\\Analysis\:\:\$document_type\.$#'
-			identifier: property.notFound
-			count: 1
-			path: /var/www/html/app/Filament/Resources/Procurement/Ai/Analyses/Pages/ViewAnalysis.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Procurement\\Ai\\Analysis\:\:\$review_status\.$#'
@@ -505,12 +493,6 @@ parameters:
 			path: /var/www/html/app/Repositories/Organization/ProcurementPartyStoreRepository.php
 
 		-
-			message: '#^Access to an undefined property App\\Models\\Procurement\\Ai\\Analysis\:\:\$document_type\.$#'
-			identifier: property.notFound
-			count: 2
-			path: /var/www/html/app/Repositories/Procurement/AnalysisStoreRepository.php
-
-		-
 			message: '#^Access to an undefined property App\\Models\\Procurement\\Ai\\Analysis\:\:\$document_version_id\.$#'
 			identifier: property.notFound
 			count: 2
@@ -599,12 +581,6 @@ parameters:
 			identifier: argument.type
 			count: 1
 			path: /var/www/html/app/Services/Llm/AiRouteResolver.php
-
-		-
-			message: '#^Access to an undefined property App\\Models\\Procurement\\Ai\\Analysis\:\:\$document_type\.$#'
-			identifier: property.notFound
-			count: 2
-			path: /var/www/html/app/Services/Llm/CorrectionAwareComposer.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Procurement\\Ai\\Analysis\:\:\$parent_analysis_id\.$#'
@@ -1487,12 +1463,6 @@ parameters:
 			identifier: property.notFound
 			count: 1
 			path: /var/www/html/app/Services/Procurement/ProxyPool.php
-
-		-
-			message: '#^Access to an undefined property App\\Models\\Procurement\\Ai\\Analysis\:\:\$document_type\.$#'
-			identifier: property.notFound
-			count: 2
-			path: /var/www/html/app/Services/Procurement/Screening/ScreeningOutcomeHandler.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Procurement\\Ai\\Analysis\:\:\$result\.$#'

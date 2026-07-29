@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Enums\Procurement\AiDocumentType;
 use App\Enums\Procurement\FixtureClass;
 use App\Enums\Procurement\GoldSource;
 use App\Models\Procurement\Ai\DatasetExample;
@@ -12,20 +13,28 @@ use Illuminate\Database\QueryException;
 test('сохраняет и читает все типизированные поля эталона', function (): void {
     $fixture = Fixture::factory()->create([
         'code' => 'EST-XLSX-KS2-001',
-        'class' => FixtureClass::Estimate,
-        'gold_source' => GoldSource::Deterministic,
+        'document_type' => AiDocumentType::Estimate,
+        'owner_document_type' => AiDocumentType::Estimate,
+        'type_profile' => [
+            'class' => FixtureClass::Estimate->value,
+            'form' => 'KS2',
+            'expected_estimates' => 1,
+            'expected_rows' => null,
+            'gold_source' => GoldSource::Deterministic->value,
+        ],
         'quirks' => ['TWO_LEVEL_PRICE', 'HEADER_TWO_ROW'],
-        'expected_estimates' => 1,
         'is_verified' => true,
         'verified_at' => now(),
     ]);
 
     $fresh = $fixture->fresh();
 
-    expect($fresh->class)->toBe(FixtureClass::Estimate)
-        ->and($fresh->gold_source)->toBe(GoldSource::Deterministic)
+    expect($fresh->document_type)->toBe(AiDocumentType::Estimate)
+        ->and($fresh->owner_document_type)->toBe(AiDocumentType::Estimate)
+        ->and($fresh->profileClass())->toBe(FixtureClass::Estimate)
+        ->and($fresh->profileGoldSource())->toBe(GoldSource::Deterministic)
         ->and($fresh->quirks->all())->toBe(['TWO_LEVEL_PRICE', 'HEADER_TWO_ROW'])
-        ->and($fresh->expected_estimates)->toBe(1)
+        ->and($fresh->profileExpectedEstimates())->toBe(1)
         ->and($fresh->is_verified)->toBeTrue()
         ->and($fresh->verified_at)->not->toBeNull();
 });

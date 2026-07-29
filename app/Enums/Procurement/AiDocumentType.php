@@ -19,4 +19,16 @@ enum AiDocumentType: string
     case ContractDraft = 'contract_draft';
     case Protocol = 'protocol';
     case Unknown = 'unknown';
+
+    /**
+     * Единственный носитель списка значений для check-constraint'ов оси типа документа
+     * (§1.3 правило 1, root/document-type-axis.md) — миграции складывают IN(...) отсюда,
+     * не восемью копиями литералов.
+     *
+     * @return list<string>
+     */
+    public static function values(): array
+    {
+        return array_map(static fn (self $case): string => $case->value, self::cases());
+    }
 }

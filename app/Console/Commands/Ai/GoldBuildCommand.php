@@ -197,11 +197,11 @@ final class GoldBuildCommand extends Command
      */
     private function processFixture(Fixture $fixture, string $goldDir, string $disk, bool $dryRun): array
     {
-        if ($fixture->class === FixtureClass::Negative || $fixture->gold_source === GoldSource::None) {
+        if ($fixture->profileClass() === FixtureClass::Negative || $fixture->profileGoldSource() === GoldSource::None) {
             return $this->reportRow($fixture, 'skipped', 'негатив, extraction-gold не предусмотрен');
         }
 
-        if ($fixture->gold_source === GoldSource::LlmAssisted) {
+        if ($fixture->profileGoldSource() === GoldSource::LlmAssisted) {
             return $this->reportRow($fixture, 'skipped', 'gold строится в P8');
         }
 
@@ -260,7 +260,7 @@ final class GoldBuildCommand extends Command
         $row['manifest_fact'] = [
             'gold_path' => null,
             'expected_rows' => null,
-            'expected_estimates' => $fixture->expected_estimates,
+            'expected_estimates' => $fixture->profileExpectedEstimates(),
             'gold_source' => GoldSource::LlmAssisted->value,
         ];
 

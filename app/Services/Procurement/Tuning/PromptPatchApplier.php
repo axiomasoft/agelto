@@ -108,7 +108,7 @@ final readonly class PromptPatchApplier
 
     /**
      * Поднимает `version` во front-matter на 1 и заменяет тело файла, СОХРАНЯЯ остальные поля
-     * front-matter (`key`/`step`/`priority`/`is_active`) — формат, который читает `PromptSeeder`
+     * front-matter (`document_type`/`key`/`step`/`priority`/`is_active`) — формат, который читает `PromptSeeder`
      * (Code Guidance P7.4: не изобретать формат файла промта).
      */
     private function rewriteFile(string $path, string $newContent, int $newVersion): void
@@ -117,7 +117,7 @@ final readonly class PromptPatchApplier
         $front['version'] = (string) $newVersion;
 
         $frontLines = [];
-        foreach (['key', 'step', 'version', 'priority', 'is_active'] as $field) {
+        foreach (['document_type', 'key', 'step', 'version', 'priority', 'is_active'] as $field) {
             if (! array_key_exists($field, $front)) {
                 throw new RuntimeException("Файл промта без обязательного поля front-matter «{$field}»: {$path}");
             }

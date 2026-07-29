@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Enums\Procurement\AiDocumentType;
 use App\Enums\Procurement\FixtureClass;
 use App\Enums\Procurement\GoldSource;
 use App\Models\Procurement\Ai\Fixture;
@@ -36,7 +37,9 @@ function verifyManifestEntry(string $code, string $content): array
         'form' => 'KS2',
         'generator' => null,
         'cluster_id' => 'CL-01',
-        'doc_type' => null,
+        'document_type' => 'estimate',
+        'owner_document_type' => 'estimate',
+        'title' => "Эталон {$code}",
         'quirks' => ['TWO_LEVEL_PRICE'],
         'expected_estimates' => 1,
         'expected_rows' => null,
@@ -55,9 +58,16 @@ function seedConsistentFixture(string $disk, string $code, string $content): voi
         'storage_path' => "{$code}/source.xlsx",
         'sha256' => hash('sha256', $content),
         'size_bytes' => strlen($content),
-        'class' => FixtureClass::Estimate,
-        'form' => 'KS2',
-        'gold_source' => GoldSource::None,
+        'document_type' => AiDocumentType::Estimate,
+        'owner_document_type' => AiDocumentType::Estimate,
+        'title' => "Эталон {$code}",
+        'type_profile' => [
+            'class' => FixtureClass::Estimate->value,
+            'form' => 'KS2',
+            'expected_estimates' => 1,
+            'expected_rows' => null,
+            'gold_source' => GoldSource::None->value,
+        ],
         'quirks' => ['TWO_LEVEL_PRICE'],
     ]);
 }

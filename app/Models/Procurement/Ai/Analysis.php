@@ -28,6 +28,8 @@ use Illuminate\Support\Str;
  * Preference-пары для DPO (P9.3) НЕ хранятся отдельной таблицей: chosen выводится из
  * `prc_ai_dataset_examples` (gold), rejected — из `result`/`raw_result` анализа, который
  * этот gold заменил (`parent_analysis_id`) — пара собирается запросом на экспорте.
+ *
+ * @property string|null $document_type
  */
 #[UseFactory(AnalysisFactory::class)]
 final class Analysis extends Model
@@ -45,6 +47,11 @@ final class Analysis extends Model
         'result',
         'provider',
         'model',
+        'prompt_tokens',
+        'completion_tokens',
+        'cached_tokens',
+        'total_tokens',
+        'cost_micros',
         'locked_by',
         'locked_until',
         'attempts',
@@ -73,6 +80,11 @@ final class Analysis extends Model
             'step' => AnalysisStep::class,
             'status' => AnalysisStatus::class,
             'result' => AsCollection::class,
+            'prompt_tokens' => 'integer',
+            'completion_tokens' => 'integer',
+            'cached_tokens' => 'integer',
+            'total_tokens' => 'integer',
+            'cost_micros' => 'integer',
             'locked_until' => 'datetime',
             'last_error_at' => 'datetime',
             'next_retry_at' => 'datetime',

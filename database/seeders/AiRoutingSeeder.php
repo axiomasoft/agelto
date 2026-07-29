@@ -54,13 +54,13 @@ final class AiRoutingSeeder extends Seeder
                     'document_type' => $route['document_type'],
                     'purpose' => $route['purpose'],
                     'priority' => $route['priority'],
+                    'shadow' => false,
                 ],
                 [
                     'provider_id' => $provider->id,
                     'model' => $route['model'],
                     'options' => null,
                     'is_active' => true,
-                    'shadow' => false,
                 ],
             );
         }

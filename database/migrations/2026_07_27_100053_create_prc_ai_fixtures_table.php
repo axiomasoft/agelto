@@ -2,10 +2,12 @@
 
 declare(strict_types=1);
 
+use App\Enums\Procurement\AiDocumentType;
 use App\Models\Procurement\Ai\Fixture;
 use App\Models\User;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
@@ -16,9 +18,7 @@ return new class extends Migration
             $table->id();
 
             $table->text('code')->unique();
-            $table->text('class');
             $table->text('source_format');
-            $table->text('form');
             $table->text('storage_path');
             $table->text('sha256')->unique();
             $table->bigInteger('size_bytes');
@@ -27,11 +27,11 @@ return new class extends Migration
             $table->text('source_path')->comment('относительный путь в корпусе-источнике — провенанс');
             $table->text('generator')->nullable();
             $table->text('cluster_id')->nullable()->index();
-            $table->text('doc_type')->nullable()->comment('ожидаемый вердикт скрининга, для негативов D5');
+            $table->text('document_type')->comment('фактический тип файла = ожидаемый вердикт скрининга; значения — AiDocumentType, целостность — check-constraint (D16/D17, §6.1 document-type-axis.md)');
+            $table->text('owner_document_type')->comment('тип, чей анализатор владеет корпусом и валидирует type_profile (§6.1 document-type-axis.md)');
+            $table->text('title')->comment('человекочитаемое название эталона — для поиска и понимания, чисто читательское (D90, §6.3)');
             $table->jsonb('quirks')->default('[]');
-            $table->integer('expected_estimates')->nullable();
-            $table->integer('expected_rows')->nullable();
-            $table->text('gold_source');
+            $table->jsonb('type_profile')->default('{}')->comment('поля профиля анализатора типа — class/form/expected_estimates/expected_rows/gold_source (§6.2 document-type-axis.md), без индексов (§6.4)');
             $table->boolean('is_verified')->default(false);
 
             $table->foreignId('verified_by')
@@ -44,6 +44,17 @@ return new class extends Migration
 
             $table->timestamps();
         });
+
+        DB::statement(
+            'ALTER TABLE prc_ai_fixtures '
+            .'ADD CONSTRAINT prc_ai_fixtures_document_type_check '
+            ."CHECK (document_type IN ({$this->documentTypeValues()}))",
+        );
+        DB::statement(
+            'ALTER TABLE prc_ai_fixtures '
+            .'ADD CONSTRAINT prc_ai_fixtures_owner_document_type_check '
+            ."CHECK (owner_document_type IN ({$this->documentTypeValues()}))",
+        );
     }
 
     public function down(): void
@@ -54,5 +65,12 @@ return new class extends Migration
     private function table(): string
     {
         return (new Fixture)->getTable();
+    }
+
+    private function documentTypeValues(): string
+    {
+        return collect(AiDocumentType::values())
+            ->map(static fn (string $value): string => "'{$value}'")
+            ->implode(', ');
     }
 };

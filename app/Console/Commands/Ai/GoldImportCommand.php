@@ -226,6 +226,7 @@ final class GoldImportCommand extends Command
             ],
             [
                 'fixture_id' => $fixture->id,
+                'document_type' => $fixture->document_type->value,
                 'gold' => $decoded,
                 'source' => 'deterministic',
             ],

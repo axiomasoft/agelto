@@ -10,9 +10,14 @@ use Illuminate\Support\Str;
 
 /**
  * P5.4 — ветка `ai:gold:build --screening` строит `gold/<CODE>.screening.json` по реестру
- * (§8.5): `class=neg` → вердикт из `Fixture.doc_type` (D5), `class=est` → `estimate`. Реестр —
+ * (§8.5): вердикт — `Fixture.document_type` для ЛЮБОГО класса (§6.1 document-type-axis.md, D90 —
+ * колонка `NOT NULL`, заполнена и для позитивов); `ignore_reason` — только у негативов. Реестр —
  * единственный источник вердикта, команда его не толкует (Code Guidance) — фабрика заменяет
  * реальный корпус, реальный прогон — предмет Completion Notes.
+ *
+ * Тест «негатив без определённого типа → отклонение» (P5.4) снят P1.4: ось стала `NOT NULL`
+ * (§6.1), сценарий структурно недостижим — БД отклоняет саму запись реестра до появления
+ * скрининг-gold'а (покрыто негативным тестом check-constraint'а, Validation 5 item'а).
  */
 function screeningGoldDir(): string
 {
@@ -22,11 +27,11 @@ function screeningGoldDir(): string
     return $folder;
 }
 
-test('негатив с doc_type → файл с этим вердиктом и непустым ignore_reason', function (): void {
+test('негатив с document_type → файл с этим вердиктом и непустым ignore_reason', function (): void {
     $folder = screeningGoldDir();
     Fixture::factory()->neg()->create([
         'code' => 'NEG-PDF-DRAWING-901',
-        'doc_type' => AiDocumentType::Unknown,
+        'document_type' => AiDocumentType::Unknown,
         'notes' => 'Чертёж с полным текстовым слоем — самый опасный негатив корпуса',
     ]);
 
@@ -38,22 +43,6 @@ test('негатив с doc_type → файл с этим вердиктом и 
     expect($screening['document_type'])->toBe('unknown')
         ->and($screening['ignore_reason'])->not->toBeNull()
         ->and($screening['confidence'])->toBe(1.0);
-
-    File::deleteDirectory($folder);
-});
-
-test('негатив без doc_type → отклонение с названием кода', function (): void {
-    $folder = screeningGoldDir();
-    Fixture::factory()->neg()->create([
-        'code' => 'NEG-PDF-DRAWING-902',
-        'doc_type' => null,
-    ]);
-
-    $this->artisan('ai:gold:build', ['--screening' => true, '--gold-dir' => $folder, '--code' => ['NEG-PDF-DRAWING-902']])
-        ->expectsOutputToContain('NEG-PDF-DRAWING-902')
-        ->assertExitCode(1);
-
-    expect(is_file("{$folder}/NEG-PDF-DRAWING-902.screening.json"))->toBeFalse();
 
     File::deleteDirectory($folder);
 });

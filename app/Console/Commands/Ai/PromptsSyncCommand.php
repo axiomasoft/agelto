@@ -42,12 +42,13 @@ final class PromptsSyncCommand extends Command
         foreach ($records as $record) {
             /** @var Prompt|null $existing */
             $existing = Prompt::query()
+                ->where('document_type', $record['document_type'])
                 ->where('key', $record['key'])
                 ->where('version', $record['version'])
                 ->first();
 
             if ($existing === null) {
-                $drift[] = "новый: {$record['key']} v{$record['version']} (нет в БД)";
+                $drift[] = "новый: {$record['document_type']}/{$record['key']} v{$record['version']} (нет в БД)";
 
                 continue;
             }
@@ -59,24 +60,25 @@ final class PromptsSyncCommand extends Command
                 || ! $existing->is_protected;
 
             if ($mismatched) {
-                $drift[] = "изменён: {$record['key']} v{$record['version']} (файл ≠ БД)";
+                $drift[] = "изменён: {$record['document_type']}/{$record['key']} v{$record['version']} (файл ≠ БД)";
             }
         }
 
-        $latestVersionByKey = $records->groupBy('key')
+        $latestVersionByPair = $records->groupBy(fn (array $record): string => "{$record['document_type']}\0{$record['key']}")
             ->map(fn (Collection $group): int => (int) $group->max('version'));
 
         Prompt::query()
             ->where('is_protected', true)
             ->where('is_active', true)
             ->get()
-            ->each(function (Prompt $prompt) use ($latestVersionByKey, &$drift): void {
-                $latest = $latestVersionByKey->get($prompt->key);
+            ->each(function (Prompt $prompt) use ($latestVersionByPair, &$drift): void {
+                $pairKey = "{$prompt->document_type}\0{$prompt->key}";
+                $latest = $latestVersionByPair->get($pairKey);
 
                 if ($latest === null) {
-                    $drift[] = "удалён из файлов, но активен в БД: {$prompt->key} v{$prompt->version}";
+                    $drift[] = "удалён из файлов, но активен в БД: {$prompt->document_type}/{$prompt->key} v{$prompt->version}";
                 } elseif ($prompt->version < $latest) {
-                    $drift[] = "устаревшая версия ещё активна в БД: {$prompt->key} v{$prompt->version} (файл v{$latest})";
+                    $drift[] = "устаревшая версия ещё активна в БД: {$prompt->document_type}/{$prompt->key} v{$prompt->version} (файл v{$latest})";
                 }
             });
 

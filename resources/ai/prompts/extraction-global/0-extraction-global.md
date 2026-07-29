@@ -1,4 +1,5 @@
 ---
+document_type: estimate
 key: extraction:global
 step: extraction:global
 version: 2

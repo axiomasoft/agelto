@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\Procurement\Extraction;
 
+use App\Enums\Procurement\AiDocumentType;
 use App\Enums\Procurement\AnalysisStep;
 use App\Models\Procurement\Ai\Analysis;
 use App\Models\Procurement\Ai\Correction;
@@ -62,6 +63,10 @@ final readonly class GoldExampleRecorder
 
         DatasetExample::query()->create([
             'document_version_id' => $analysis->document_version_id,
+            // Извлечение сегодня — исключительно про сметы (D14, второй тип не реализован);
+            // тот же fallback, что `ExtractionOrchestrator`/`RerunRangeAction` уже применяют
+            // к `$analysis->document_type` при разборе смет вне явного скрининга.
+            'document_type' => $analysis->document_type ?? AiDocumentType::Estimate->value,
             'task' => AnalysisStep::Extraction->value,
             'gold' => [
                 'tier' => 1,

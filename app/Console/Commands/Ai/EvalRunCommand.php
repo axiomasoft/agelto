@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Console\Commands\Ai;
 
 use App\Dto\Procurement\Ai\Screening\ScreeningResult;
+use App\Enums\Llm\DocumentTypeScope;
 use App\Enums\Procurement\AiDocumentType;
 use App\Enums\Procurement\AnalysisStatus;
 use App\Enums\Procurement\AnalysisStep;
@@ -25,6 +26,7 @@ use App\Services\Procurement\Screening\ScreeningProcessor;
 use Illuminate\Console\Command;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 use RuntimeException;
 use Throwable;
 
@@ -117,6 +119,8 @@ final class EvalRunCommand extends Command
                 : 'Dry-run: реальные LLM-вызовы пропущены по флагу --dry-run.');
 
             $run = EvalRun::query()->create([
+                'document_type' => $task === 'screening' ? DocumentTypeScope::Any->value : AiDocumentType::Estimate->value,
+                'task' => $task,
                 'dataset_version' => $datasetVersion,
                 'provider' => 'dry-run',
                 'model' => 'dry-run',
@@ -145,6 +149,8 @@ final class EvalRunCommand extends Command
         $route = $this->routes->resolve('estimate', LlmPurpose::ExtractRows);
 
         $run = EvalRun::query()->create([
+            'document_type' => AiDocumentType::Estimate->value,
+            'task' => AnalysisStep::Extraction->value,
             'dataset_version' => $datasetVersion,
             'provider' => $route->route->provider->code,
             'model' => $route->route->model,
@@ -196,6 +202,8 @@ final class EvalRunCommand extends Command
         $route = $this->routes->resolve('any', LlmPurpose::Screening);
 
         $run = EvalRun::query()->create([
+            'document_type' => DocumentTypeScope::Any->value,
+            'task' => AnalysisStep::Screening->value,
             'dataset_version' => $datasetVersion,
             'provider' => $route->route->provider->code,
             'model' => $route->route->model,
@@ -506,11 +514,14 @@ final class EvalRunCommand extends Command
      */
     private function writeSplits(): int
     {
+        // Пять профильных полей (§6.2 document-type-axis.md) живут в jsonb `type_profile` без
+        // индексов (§6.4) — предикат/сортировка/выборка `form`/`gold_source` идут через jsonb-путь
+        // (Implementation Rules P1.4 п. 11), не через top-level колонку.
         $pool = Fixture::query()
-            ->where('gold_source', GoldSource::Deterministic)
-            ->orderBy('form')
+            ->where('type_profile->gold_source', GoldSource::Deterministic->value)
+            ->orderByRaw("type_profile->>'form'")
             ->orderBy('code')
-            ->get(['code', 'form', 'source_format']);
+            ->get(['code', 'source_format', DB::raw("type_profile->>'form' as form")]);
 
         if ($pool->isEmpty()) {
             $this->error('Пул детерминированного gold пуст (prc_ai_fixtures.gold_source=deterministic) — нечего разбивать.');

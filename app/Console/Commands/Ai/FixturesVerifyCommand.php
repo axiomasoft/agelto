@@ -136,9 +136,11 @@ final class FixturesVerifyCommand extends Command
         $registryOk = $registryFixture !== null
             && $registryFixture->sha256 === $entry->sha256
             && $registryFixture->storage_path === $entry->storage_path
-            && $registryFixture->class === $entry->class
-            && $registryFixture->form === $entry->form
-            && $registryFixture->gold_source === $entry->gold_source
+            && $registryFixture->document_type === $entry->document_type
+            && $registryFixture->owner_document_type === $entry->owner_document_type
+            && $registryFixture->profileClass() === $entry->class
+            && $registryFixture->profileForm() === $entry->form
+            && $registryFixture->profileGoldSource() === $entry->gold_source
             && $registryFixture->quirks->all() === $entry->quirks;
 
         $goldOk = $entry->gold_path === null || is_file(base_path($entry->gold_path));

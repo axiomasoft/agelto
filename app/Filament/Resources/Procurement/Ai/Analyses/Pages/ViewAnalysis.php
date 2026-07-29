@@ -81,6 +81,11 @@ class ViewAnalysis extends ViewRecord
      * Форма фиксирует структурированную коррекцию (`prc_ai_corrections`, P9.1) — `field_path`
      * необязателен (весь документ, если не указан конкретный JSONPath); `hint` заполняется
      * позже (переформулировка для промта — вне этого action'а, `hint ?? content` на композиции).
+     *
+     * `prc_ai_corrections.document_type` — `NOT NULL` (§3.2 root/document-type-axis.md), а
+     * `prc_ai_analyses.document_type` остаётся nullable (§3.1: скрининг ещё не отработал) —
+     * коррекция над анализом без вердикта скрининга недоступна: молчаливая подстановка
+     * `unknown` соврала бы про вердикт (Implementation Rules P1.4 п. 12).
      */
     private function rejectWithCorrectionAction(): Action
     {
@@ -88,6 +93,7 @@ class ViewAnalysis extends ViewRecord
             ->label('Отклонить с коррекцией')
             ->color('danger')
             ->authorize('update')
+            ->visible(fn (Analysis $record): bool => $record->document_type !== null)
             ->form([
                 TextInput::make('field_path')
                     ->label('Поле (JSONPath)')
@@ -107,6 +113,12 @@ class ViewAnalysis extends ViewRecord
                     ->label('Применять ко всем документам этого типа'),
             ])
             ->action(function (Analysis $record, array $data): void {
+                if ($record->document_type === null) {
+                    Notification::make()->title('Нельзя создать коррекцию: скрининг ещё не определил тип документа')->danger()->send();
+
+                    return;
+                }
+
                 Correction::query()->create([
                     'analysis_id' => $record->id,
                     'document_type' => $record->document_type,

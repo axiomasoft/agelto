@@ -1,4 +1,5 @@
 ---
+document_type: any
 key: screening:classify
 step: screening:classify
 version: 2

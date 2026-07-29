@@ -106,6 +106,13 @@ final class FixturesManifestCommand extends Command
             }
 
             $goldSource = (string) ($row['gold_source'] ?? 'none');
+            // Ось типа документа (D16/D17, §6.1 document-type-axis.md): шорт-лист несёт её ключом
+            // document_type; «владелец корпуса» без явного значения в строке равен фактическому
+            // типу (запись без document_type отклоняется валидацией FixtureManifestEntry, а не
+            // тихо подставляется).
+            $documentType = (string) ($row['document_type'] ?? '');
+            $ownerDocumentType = (string) ($row['owner_document_type'] ?? $documentType);
+            $title = (string) ($row['title'] ?? pathinfo($sourcePath, PATHINFO_FILENAME));
 
             $existing[$code] = [
                 'code' => $code,
@@ -120,7 +127,9 @@ final class FixturesManifestCommand extends Command
                 'form' => (string) ($row['form'] ?? ''),
                 'generator' => $row['generator'] ?? null,
                 'cluster_id' => $row['cluster_id'] ?? null,
-                'doc_type' => $row['doc_type'] ?? null,
+                'document_type' => $documentType,
+                'owner_document_type' => $ownerDocumentType,
+                'title' => $title,
                 'quirks' => array_values((array) ($row['quirks'] ?? [])),
                 'expected_estimates' => $row['expected_estimates'] ?? null,
                 'expected_rows' => null,

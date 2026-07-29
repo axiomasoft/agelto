@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Database\Factories\Procurement\Ai;
 
+use App\Enums\Llm\DocumentTypeScope;
 use App\Enums\Procurement\AnalysisStep;
 use App\Models\Procurement\Ai\Prompt;
 use Illuminate\Database\Eloquent\Factories\Factory;
@@ -18,6 +19,7 @@ final class PromptFactory extends Factory
     public function definition(): array
     {
         return [
+            'document_type' => DocumentTypeScope::Any->value,
             'key' => fake()->unique()->slug(2),
             'step' => AnalysisStep::Screening->value,
             'content' => fake()->paragraph(),

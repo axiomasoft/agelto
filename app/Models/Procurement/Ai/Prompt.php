@@ -11,6 +11,8 @@ use Illuminate\Database\Eloquent\Model;
 
 /**
  * Версионированный промпт для шага AI-анализа.
+ *
+ * @property string $document_type
  */
 #[UseFactory(PromptFactory::class)]
 final class Prompt extends Model
@@ -20,6 +22,7 @@ final class Prompt extends Model
     protected $table = 'prc_ai_prompts';
 
     protected $fillable = [
+        'document_type',
         'key',
         'step',
         'content',

@@ -2,10 +2,13 @@
 
 declare(strict_types=1);
 
+use App\Enums\Llm\DocumentTypeScope;
+use App\Enums\Procurement\AiDocumentType;
 use App\Models\Procurement\Ai\AiRoute;
 use App\Models\Procurement\Ai\Provider;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
@@ -15,7 +18,7 @@ return new class extends Migration
         Schema::create($this->table(), function (Blueprint $table): void {
             $table->id();
 
-            $table->text('document_type')->comment("code из prc_document_types или зарезервированное 'any' — без строгого FK");
+            $table->text('document_type')->comment('ключ маршрутизации: значение AiDocumentType либо сентинел any (кросс-документный маршрут), целостность — check-constraint (D16/D17)');
             $table->text('purpose')->comment('совпадает с prc_ai_llm_calls.purpose');
 
             $table->foreignId('provider_id')
@@ -30,8 +33,14 @@ return new class extends Migration
 
             $table->timestamps();
 
-            $table->unique(['document_type', 'purpose', 'priority']);
+            $table->unique(['document_type', 'purpose', 'priority', 'shadow']);
         });
+
+        DB::statement(
+            'ALTER TABLE prc_ai_routes '
+            .'ADD CONSTRAINT prc_ai_routes_document_type_check '
+            ."CHECK (document_type IN ({$this->documentTypeOrSentinelValues()}))",
+        );
     }
 
     public function down(): void
@@ -42,5 +51,12 @@ return new class extends Migration
     private function table(): string
     {
         return (new AiRoute)->getTable();
+    }
+
+    private function documentTypeOrSentinelValues(): string
+    {
+        return collect([...AiDocumentType::values(), DocumentTypeScope::Any->value])
+            ->map(static fn (string $value): string => "'{$value}'")
+            ->implode(', ');
     }
 };

@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Database\Seeders;
 
+use App\Enums\Llm\DocumentTypeScope;
+use App\Enums\Procurement\AiDocumentType;
 use App\Enums\Procurement\PromptStep;
 use App\Models\Procurement\Ai\Prompt;
 use Illuminate\Database\Seeder;
@@ -31,7 +33,7 @@ final class PromptSeeder extends Seeder
 
         foreach ($records as $record) {
             Prompt::query()->updateOrCreate(
-                ['key' => $record['key'], 'version' => $record['version']],
+                ['document_type' => $record['document_type'], 'key' => $record['key'], 'version' => $record['version']],
                 [
                     'step' => $record['step'],
                     'content' => $record['content'],
@@ -42,17 +44,18 @@ final class PromptSeeder extends Seeder
             );
         }
 
-        $latestVersionByKey = $records->groupBy('key')
+        $latestVersionByPair = $records->groupBy(fn (array $record): string => "{$record['document_type']}\0{$record['key']}")
             ->map(fn (Collection $group): int => (int) $group->max('version'));
 
-        // Протухшие версии того же key (front-matter version подняли — старая остаётся в БД,
-        // но неактивна) + protected-записи, чей key вообще исчез из файлов (delete файла).
+        // Протухшие версии той же пары (document_type, key) (front-matter version подняли —
+        // старая остаётся в БД, но неактивна) + protected-записи, чья пара вообще исчезла из
+        // файлов (delete файла) — ключ D7: составной ключ теперь (document_type, key, version).
         Prompt::query()
             ->where('is_protected', true)
             ->where('is_active', true)
             ->get()
-            ->each(function (Prompt $prompt) use ($latestVersionByKey): void {
-                $latest = $latestVersionByKey->get($prompt->key);
+            ->each(function (Prompt $prompt) use ($latestVersionByPair): void {
+                $latest = $latestVersionByPair->get("{$prompt->document_type}\0{$prompt->key}");
 
                 if ($latest === null || $prompt->version < $latest) {
                     $prompt->update(['is_active' => false]);
@@ -64,7 +67,7 @@ final class PromptSeeder extends Seeder
      * Разбор всех файлов `resources/ai/prompts/**\/*.md` — переиспользуется `ai:prompts:sync`
      * (`PromptsSyncCommand`) для дрейф-проверки БЕЗ записи в БД.
      *
-     * @return Collection<int, array{key: string, step: string, content: string, version: int, priority: int, is_active: bool}>
+     * @return Collection<int, array{document_type: string, key: string, step: string, content: string, version: int, priority: int, is_active: bool}>
      */
     public static function loadFiles(): Collection
     {
@@ -77,7 +80,7 @@ final class PromptSeeder extends Seeder
     }
 
     /**
-     * @return array{key: string, step: string, content: string, version: int, priority: int, is_active: bool}
+     * @return array{document_type: string, key: string, step: string, content: string, version: int, priority: int, is_active: bool}
      */
     private static function parseFile(string $path): array
     {
@@ -101,7 +104,7 @@ final class PromptSeeder extends Seeder
             $front[trim($name)] = trim($value);
         }
 
-        foreach (['key', 'step', 'version', 'priority', 'is_active'] as $required) {
+        foreach (['document_type', 'key', 'step', 'version', 'priority', 'is_active'] as $required) {
             if (! array_key_exists($required, $front)) {
                 throw new RuntimeException("Файл промта без обязательного поля front-matter «{$required}»: {$path}");
             }
@@ -110,6 +113,13 @@ final class PromptSeeder extends Seeder
         // Fail fast на опечатку в step — обязана совпадать с одним из 8 значений PromptStep.
         PromptStep::from($front['step']);
 
+        // Fail fast на опечатку в document_type — AiDocumentType либо сентинел any (§1.2/§4.1
+        // root/document-type-axis.md).
+        if (AiDocumentType::tryFrom($front['document_type']) === null
+            && $front['document_type'] !== DocumentTypeScope::Any->value) {
+            throw new RuntimeException("Файл промта с неизвестным document_type «{$front['document_type']}»: {$path}");
+        }
+
         $content = trim($matches['content']);
 
         if ($content === '') {
@@ -117,6 +127,7 @@ final class PromptSeeder extends Seeder
         }
 
         return [
+            'document_type' => $front['document_type'],
             'key' => $front['key'],
             'step' => $front['step'],
             'content' => $content,

@@ -1,4 +1,5 @@
 ---
+document_type: any
 key: global
 step: global
 version: 2

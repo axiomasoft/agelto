@@ -26,6 +26,7 @@ final class DatasetExample extends Model
     protected $fillable = [
         'document_version_id',
         'fixture_id',
+        'document_type',
         'task',
         'gold',
         'gold_ref',

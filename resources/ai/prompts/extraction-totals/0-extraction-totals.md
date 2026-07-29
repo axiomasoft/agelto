@@ -1,4 +1,5 @@
 ---
+document_type: estimate
 key: extraction:totals
 step: extraction:totals
 version: 2

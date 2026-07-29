@@ -6,6 +6,7 @@ namespace App\Console\Commands\Ai;
 
 use App\Dto\Procurement\Ai\Estimate\EstimateRow;
 use App\Dto\Procurement\Ai\Estimate\PassportResponse;
+use App\Enums\Procurement\AiDocumentType;
 use App\Enums\Procurement\DocumentStatus;
 use App\Models\Procurement\Ai\DatasetExample;
 use App\Repositories\Procurement\DocumentStoreRepository;
@@ -30,6 +31,7 @@ final class DatasetImportCommand extends Command
         {path : путь к папке с парами <name>.<ext> + <name>.gold.json}
         {--task=extraction : значение prc_ai_dataset_examples.task}
         {--source=manual : значение prc_ai_dataset_examples.source}
+        {--document-type=estimate : значение prc_ai_dataset_examples.document_type (AiDocumentType, D16/D17) — папка вне реестра prc_ai_fixtures не несёт собственного носителя оси}
         {--gold-version=1 : версия эталона (upsert-ключ вместе с document_version_id+task; `--version` зарезервирован Symfony Console)}';
 
     protected $description = 'Импорт папки эталонных смет в prc_ai_dataset_examples (gold, P2.2-контракт)';
@@ -55,6 +57,14 @@ final class DatasetImportCommand extends Command
             $this->warn("В {$folder} не найдено ни одного *.gold.json — импортировать нечего.");
 
             return self::SUCCESS;
+        }
+
+        $documentType = AiDocumentType::tryFrom((string) $this->option('document-type'));
+
+        if ($documentType === null) {
+            $this->error("Неизвестный --document-type={$this->option('document-type')}.");
+
+            return self::FAILURE;
         }
 
         $imported = 0;
@@ -83,7 +93,7 @@ final class DatasetImportCommand extends Command
                 continue;
             }
 
-            $this->importPair($baseName, $sourceFile, $validation['normalized']);
+            $this->importPair($baseName, $sourceFile, $validation['normalized'], $documentType);
             $this->info("{$baseName}: импортирован.");
             $imported++;
         }
@@ -176,7 +186,7 @@ final class DatasetImportCommand extends Command
     /**
      * @param  array<string, mixed>  $normalizedGold
      */
-    private function importPair(string $baseName, string $sourceFile, array $normalizedGold): void
+    private function importPair(string $baseName, string $sourceFile, array $normalizedGold, AiDocumentType $documentType): void
     {
         $content = (string) file_get_contents($sourceFile);
         $hash = hash('sha256', $content);
@@ -211,6 +221,7 @@ final class DatasetImportCommand extends Command
                 'version' => (int) $this->option('gold-version'),
             ],
             [
+                'document_type' => $documentType->value,
                 'gold' => $normalizedGold,
                 'source' => (string) $this->option('source'),
             ],

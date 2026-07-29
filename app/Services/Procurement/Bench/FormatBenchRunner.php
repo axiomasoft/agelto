@@ -153,7 +153,7 @@ final readonly class FormatBenchRunner
     private function eligibleExamples(array $onlyCodes, ?int $limit): Collection
     {
         $fixtures = $this->fixtures->all()
-            ->filter(fn (Fixture $fixture): bool => $fixture->gold_source === GoldSource::Deterministic)
+            ->filter(fn (Fixture $fixture): bool => $fixture->profileGoldSource() === GoldSource::Deterministic)
             ->when($onlyCodes !== [], fn ($collection) => $collection->filter(
                 fn (Fixture $fixture): bool => in_array($fixture->code, $onlyCodes, strict: true),
             ))

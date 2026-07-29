@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Enums\Procurement\AiDocumentType;
 use App\Enums\Procurement\FixtureClass;
 use App\Enums\Procurement\GoldSource;
 use App\Models\Procurement\Ai\DatasetExample;
@@ -33,12 +34,20 @@ function goldImportFixture(string $fixturesDisk, string $code, string $content):
 
     return Fixture::factory()->create([
         'code' => $code,
-        'class' => FixtureClass::Estimate,
+        'document_type' => AiDocumentType::Estimate,
+        'owner_document_type' => AiDocumentType::Estimate,
+        'title' => "Эталон {$code}",
         'source_format' => 'xlsx',
         'storage_path' => Fixture::storagePathFor($code, 'xlsx'),
         'sha256' => hash('sha256', $content),
         'size_bytes' => strlen($content),
-        'gold_source' => GoldSource::Deterministic,
+        'type_profile' => [
+            'class' => FixtureClass::Estimate->value,
+            'form' => 'KS2',
+            'expected_estimates' => 1,
+            'expected_rows' => null,
+            'gold_source' => GoldSource::Deterministic->value,
+        ],
     ]);
 }
 

@@ -1,4 +1,5 @@
 ---
+document_type: estimate
 key: extraction:passport
 step: extraction:passport
 version: 2

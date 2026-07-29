@@ -2,7 +2,10 @@
 
 namespace App\Filament\Resources\Procurement\Ai\Prompts\Schemas;
 
+use App\Enums\Llm\DocumentTypeScope;
+use App\Enums\Procurement\AiDocumentType;
 use Filament\Forms\Components\Placeholder;
+use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
@@ -18,6 +21,14 @@ class PromptForm
                     ->label('')
                     ->content('Канонические промты (is_protected) правятся только через git + db:seed. Здесь создаются только операторские дополняющие записи — они не защищены.')
                     ->columnSpanFull(),
+                Select::make('document_type')
+                    ->options([
+                        ...collect(AiDocumentType::cases())->mapWithKeys(
+                            static fn (AiDocumentType $case): array => [$case->value => $case->value],
+                        )->all(),
+                        DocumentTypeScope::Any->value => DocumentTypeScope::Any->value,
+                    ])
+                    ->required(),
                 Textarea::make('key')
                     ->required()
                     ->columnSpanFull(),

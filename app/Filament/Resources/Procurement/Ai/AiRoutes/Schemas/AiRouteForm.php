@@ -2,6 +2,8 @@
 
 namespace App\Filament\Resources\Procurement\Ai\AiRoutes\Schemas;
 
+use App\Enums\Llm\DocumentTypeScope;
+use App\Enums\Procurement\AiDocumentType;
 use App\Enums\Procurement\LlmPurpose;
 use Filament\Forms\Components\KeyValue;
 use Filament\Forms\Components\Select;
@@ -16,9 +18,14 @@ class AiRouteForm
     {
         return $schema
             ->components([
-                Textarea::make('document_type')
-                    ->required()
-                    ->columnSpanFull(),
+                Select::make('document_type')
+                    ->options([
+                        ...collect(AiDocumentType::cases())->mapWithKeys(
+                            static fn (AiDocumentType $case): array => [$case->value => $case->value],
+                        )->all(),
+                        DocumentTypeScope::Any->value => DocumentTypeScope::Any->value,
+                    ])
+                    ->required(),
                 Select::make('purpose')
                     ->options(LlmPurpose::class)
                     ->required(),

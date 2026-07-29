@@ -20,12 +20,13 @@ use Illuminate\Support\Collection;
 
 /**
  * Реестр эталонного ФАЙЛА (D6) — справочник корпуса EST-TRAIN с метаданными и квирками, отдельный
- * от версий эталонных ОТВЕТОВ `DatasetExample`.
+ * от версий эталонных ОТВЕТОВ `DatasetExample`. Поля профиля анализатора типа (`class`/`form`/
+ * `expected_estimates`/`expected_rows`/`gold_source`, §6.2 root/document-type-axis.md) живут в
+ * `type_profile` — читаются типизированными `profile*()` (не top-level property), без индексов
+ * (§6.4 контракта).
  *
  * @property string $code
- * @property FixtureClass $class
  * @property string $source_format
- * @property string $form
  * @property string $storage_path
  * @property string $sha256
  * @property int $size_bytes
@@ -34,11 +35,11 @@ use Illuminate\Support\Collection;
  * @property string $source_path
  * @property string|null $generator
  * @property string|null $cluster_id
- * @property AiDocumentType|null $doc_type
+ * @property AiDocumentType $document_type
+ * @property AiDocumentType $owner_document_type
+ * @property string $title
  * @property Collection<int, string> $quirks
- * @property int|null $expected_estimates
- * @property int|null $expected_rows
- * @property GoldSource $gold_source
+ * @property Collection<string, mixed> $type_profile
  * @property bool $is_verified
  * @property int|null $verified_by
  * @property Carbon|null $verified_at
@@ -58,9 +59,7 @@ final class Fixture extends Model
 
     protected $fillable = [
         'code',
-        'class',
         'source_format',
-        'form',
         'storage_path',
         'sha256',
         'size_bytes',
@@ -69,11 +68,11 @@ final class Fixture extends Model
         'source_path',
         'generator',
         'cluster_id',
-        'doc_type',
+        'document_type',
+        'owner_document_type',
+        'title',
         'quirks',
-        'expected_estimates',
-        'expected_rows',
-        'gold_source',
+        'type_profile',
         'is_verified',
         'verified_by',
         'verified_at',
@@ -83,16 +82,52 @@ final class Fixture extends Model
     protected function casts(): array
     {
         return [
-            'class' => FixtureClass::class,
-            'gold_source' => GoldSource::class,
-            'doc_type' => AiDocumentType::class,
+            'document_type' => AiDocumentType::class,
+            'owner_document_type' => AiDocumentType::class,
             'quirks' => AsCollection::class,
+            'type_profile' => AsCollection::class,
             'is_verified' => 'bool',
             'verified_at' => 'datetime',
             'size_bytes' => 'integer',
-            'expected_estimates' => 'integer',
-            'expected_rows' => 'integer',
         ];
+    }
+
+    /**
+     * Класс эталона (позитив/негатив) — `type_profile->>'class'` (§6.2 контракта).
+     */
+    public function profileClass(): FixtureClass
+    {
+        return FixtureClass::from((string) $this->type_profile->get('class'));
+    }
+
+    /**
+     * Форма документа (KS2, …) — `type_profile->>'form'` (§6.2 контракта).
+     */
+    public function profileForm(): string
+    {
+        return (string) $this->type_profile->get('form');
+    }
+
+    /**
+     * Источник gold-эталона — `type_profile->>'gold_source'` (§6.2 контракта).
+     */
+    public function profileGoldSource(): GoldSource
+    {
+        return GoldSource::from((string) $this->type_profile->get('gold_source'));
+    }
+
+    public function profileExpectedEstimates(): ?int
+    {
+        $value = $this->type_profile->get('expected_estimates');
+
+        return $value === null ? null : (int) $value;
+    }
+
+    public function profileExpectedRows(): ?int
+    {
+        $value = $this->type_profile->get('expected_rows');
+
+        return $value === null ? null : (int) $value;
     }
 
     /**

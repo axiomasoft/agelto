@@ -1,4 +1,5 @@
 ---
+document_type: any
 key: screening:global
 step: screening:global
 version: 2

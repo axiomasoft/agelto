@@ -1,4 +1,5 @@
 ---
+document_type: estimate
 key: extraction:discovery
 step: extraction:discovery
 version: 2

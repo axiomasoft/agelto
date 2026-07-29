@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Database\Factories\Procurement\Ai;
 
+use App\Enums\Procurement\AiDocumentType;
+use App\Enums\Procurement\AnalysisStep;
 use App\Models\Procurement\Ai\EvalRun;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
@@ -17,6 +19,8 @@ final class EvalRunFactory extends Factory
     public function definition(): array
     {
         return [
+            'document_type' => AiDocumentType::Estimate->value,
+            'task' => AnalysisStep::Extraction->value,
             'dataset_version' => fake()->semver(),
             'provider' => 'gemini',
             'model' => 'gemini-2.5-flash',

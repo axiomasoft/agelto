@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Enums\Procurement\FinishReason;
+use App\Enums\Procurement\FixtureClass;
 use App\Enums\Procurement\GoldSource;
 use App\Enums\Procurement\LlmPurpose;
 use App\Enums\Procurement\PromptStep;
@@ -173,9 +174,14 @@ function evalRunSeedFixtureExample(string $code, string $form = 'KS2', string $s
 {
     $fixture = Fixture::factory()->create([
         'code' => $code,
-        'form' => $form,
         'source_format' => $sourceFormat,
-        'gold_source' => $goldSource,
+        'type_profile' => [
+            'class' => FixtureClass::Estimate->value,
+            'form' => $form,
+            'expected_estimates' => 1,
+            'expected_rows' => null,
+            'gold_source' => $goldSource->value,
+        ],
     ]);
 
     $document = Document::factory()->create(['procurement_id' => null]);
@@ -393,21 +399,36 @@ test('--write-splits: единственный носитель формата �
 
     Fixture::factory()->create([
         'code' => 'EST-GSFX-AAA-001',
-        'form' => 'AAA',
         'source_format' => 'gsfx',
-        'gold_source' => GoldSource::Deterministic,
+        'type_profile' => [
+            'class' => FixtureClass::Estimate->value,
+            'form' => 'AAA',
+            'expected_estimates' => 1,
+            'expected_rows' => null,
+            'gold_source' => GoldSource::Deterministic->value,
+        ],
     ]);
     Fixture::factory()->create([
         'code' => 'EST-XLSX-AAA-002',
-        'form' => 'AAA',
         'source_format' => 'xlsx',
-        'gold_source' => GoldSource::Deterministic,
+        'type_profile' => [
+            'class' => FixtureClass::Estimate->value,
+            'form' => 'AAA',
+            'expected_estimates' => 1,
+            'expected_rows' => null,
+            'gold_source' => GoldSource::Deterministic->value,
+        ],
     ]);
     Fixture::factory()->create([
         'code' => 'EST-XLSX-BBB-001',
-        'form' => 'BBB',
         'source_format' => 'xlsx',
-        'gold_source' => GoldSource::Deterministic,
+        'type_profile' => [
+            'class' => FixtureClass::Estimate->value,
+            'form' => 'BBB',
+            'expected_estimates' => 1,
+            'expected_rows' => null,
+            'gold_source' => GoldSource::Deterministic->value,
+        ],
     ]);
 
     $this->artisan('ai:eval:run', ['--write-splits' => true])->assertExitCode(0);
