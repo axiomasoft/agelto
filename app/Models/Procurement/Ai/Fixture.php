@@ -15,10 +15,34 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
 
 /**
  * Реестр эталонного ФАЙЛА (D6) — справочник корпуса EST-TRAIN с метаданными и квирками, отдельный
  * от версий эталонных ОТВЕТОВ `DatasetExample`.
+ *
+ * @property string $code
+ * @property FixtureClass $class
+ * @property string $source_format
+ * @property string $form
+ * @property string $storage_path
+ * @property string $sha256
+ * @property int $size_bytes
+ * @property string $mime
+ * @property string $original_filename
+ * @property string $source_path
+ * @property string|null $generator
+ * @property string|null $cluster_id
+ * @property AiDocumentType|null $doc_type
+ * @property Collection<int, string> $quirks
+ * @property int|null $expected_estimates
+ * @property int|null $expected_rows
+ * @property GoldSource $gold_source
+ * @property bool $is_verified
+ * @property int|null $verified_by
+ * @property Carbon|null $verified_at
+ * @property string|null $notes
  */
 #[UseFactory(FixtureFactory::class)]
 final class Fixture extends Model
