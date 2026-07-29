@@ -1,64 +1,69 @@
-# HANDOFF — 2026-07-29 — after P2.1
+# HANDOFF — 2026-07-29 — after P2.2
 
-**Next:** `/task:plan-run 2026.07.28-EST-ARCH P2.2` — типизация маршрутизации на `AiDocumentType`
-и снятие литералов по ЗАМОРОЖЕННЫМ контрактам P1.2 и P2.1. `Exec = plan-exec` по §3 Routing
-(`implementation/medium`), но `Review = full` — семантика отказа меняется с молчаливого фолбэка на
-исключение.
+**Next:** «ЗАПУСК ВРУЧНУЮ: implementation/high» — P2.3 «Развязка скрининга и операторского re-run
+через реестр». `Exec = manual` по §3 Routing (переписывается ЕДИНСТВЕННАЯ точка ветвления
+пайплайна — ошибка означает, что документы молча перестают уходить в извлечение; задевается
+семантика диспатча job'а, D39 проекта). `/task:plan-exec` этот item отклонит гейтом п. 2
+(`ROUTING-BLOCKED`) — не пытаться.
 
 | Параметр | Значение |
 |:--|:--|
 | Model class | implementation |
-| Effort | medium |
+| Effort | high |
 | Capabilities | — |
 | Context | continue (/clear) — ручной item |
-| Суть | P2.2 — `resolve/candidatesFor/shadowRoute` со `string` на `AiDocumentType\|DocumentTypeScope`, снятие 6 литералов `'estimate'` и 4 литералов `'any'`, громкая ошибка вместо фолбэка |
+| Суть | P2.3 — интерфейс `DocumentAnalyzer` + реестр по контракту P2.1, анализатор сметы как первая реализация, перевод `ScreeningOutcomeHandler::branchByType()` и `RerunAnalysisAction` на реестр, `outcome` события выводится из типа |
 
 ```
-/task:plan-exec 2026.07.28-EST-ARCH P2.2
+/model opus
+/effort high
+/task:plan-run 2026.07.28-EST-ARCH P2.3
 ```
 
 **Done:** фаза P1 закрыта 🟠 (4/8 🟢, детали — `phases/P1.md` → `## Phase Handoff`). **P2.1 закрыт
-🟢 (`fcc0259` item + bookkeeping):** `root/document-analyzer-contract.md` ЗАМОРОЖЕН гейтом владельца
-2026-07-29. Семь решений: интерфейс `DocumentAnalyzer` (5 методов, каждый с call-site'ом ядра) ·
-замена `has_extractor` реестром · DTO сводки результата (D27) · носитель шага и назначения
-ИНТЕРФЕЙСОМ поверх пары enum'ов, цепочку композиции задаёт сам шаг · регистрация строкой
-`config('ai.analyzers')` · каталог типа сегментом пути `Analyzers\<Type>` в каждом слое + восемь
-неймспейсов ядра для arch-теста P2.6 · место валидации `step`/`purpose` — реестр. Полные факты —
-`phases/P2.md` → P2.1 Completion Notes.
+🟢:** контракт `DocumentAnalyzer` заморожен (`fcc0259` + bookkeeping). **P2.2 закрыт 🟢
+(`c485dab` item + bookkeeping):** `AiRouteResolver::{resolve,candidatesFor,shadowRoute}` и
+`LlmRouteReadRepository::{activeCandidatesFor,activeShadowRouteFor}` типизированы на
+`AiDocumentType|DocumentTypeScope`; 12 call-site'ов сняли литералы `'estimate'`/`'any'`
+(`ScreeningProcessor`, `ScreeningOutcomeHandler` — только вызов резолвера, `PromptCritic`,
+`EvalRunCommand` ×2, `FormatBenchRunner`, `ExtractionOrchestrator` ×2, `RerunRangeAction`,
+`AiRoutingSeeder`, `LlmRouteFactory`); неизвестный `document_type` теперь рвётся
+`AiDocumentType::from()` (`ValueError`) вместо молчаливого резолва в кросс-документный маршрут;
+негативный тест на типизацию сигнатуры (`TypeError`). Полные факты — `phases/P2.md` → P2.2
+Completion Notes.
 
-**Remaining:** 29 items ⬜. Порядок: P2 (5 из 6) → P3 (6) → P4 (4) → P5 (6) → P6 (3) → P7 (4).
-Батчи B1/B2 и два оставшихся гейта владельца (P3.1, P4.2) — `roadmap.md`.
+**Remaining:** 28 items ⬜. Порядок: P2 (4 из 6: P2.3–P2.6) → P3 (6) → P4 (4) → P5 (6) → P6 (3) →
+P7 (4). Батчи B1/B2 и два оставшихся гейта владельца (P3.1, P4.2) — `roadmap.md`.
 
 **Sources of truth:** скилл `plan-protocol` · `plan.md` §2 (правила исполнения) и §5 (**D1–D99**) ·
 **ЗАМОРОЖЕНЫ: `root/naming-canon.md`, `root/document-type-axis.md`, `root/document-contour.md`,
 `root/document-analyzer-contract.md`** — правятся ТОЛЬКО новой D-записью со `supersedes` ·
 `findings/extraction-boundary-2026-07-29.md` · `research/01-target-architecture.md` · `roadmap.md` ·
-`phases/P1.md` (`## Phase Handoff`) · `phases/P2.md` (P2.1 Completion Notes).
+`phases/P1.md` (`## Phase Handoff`) · `phases/P2.md` (P2.1/P2.2 Completion Notes).
 
 **Lint (`python3 <узел>/packages/task/scripts/plan-lint.py plans/2026.07.28-EST-ARCH --baseline
-HEAD`, узел — из `~/.swissknifeman/topology.json`):** **0 ERROR / 0 WARN — новых от диффа P2.1: 0**
+HEAD`, узел — из `~/.swissknifeman/topology.json`):** **0 ERROR / 0 WARN — новых от диффа P2.2: 0**
 (на итоговом дереве, после перезаписи handoff).
 
 **Open risks:**
-- **Две находки P2.1 сверх плана, обе с назначенным закрывателем — P2.5.**
-  (1) `PromptCritic.php:57` — ТРЕТИЙ call-site сейма носителя шага, в `findings` §5 названы были
-  два; без интерфейса-носителя метод расщепление enum'а не пережил бы.
-  (2) `AiRouteResolver.php:28-33` (`DEFAULT_TEMPERATURE_BY_PURPOSE`) — ВОСЬМАЯ точка протечки
-  предмета в ядро: три сметных назначения литералами. Не попала ни в семь литералов `'estimate'`,
-  ни в `findings`. Перенос на `LlmPurpose::defaultTemperature()` ОБЯЗАН сохранить паритет: четыре
-  сегодня неперечисленных назначения объявляют ровно `0.0`, иначе температура боевых вызовов
-  тихо сдвинется.
-- **Инвариант сборки реестра (§5.4 контракта) обязан быть реализован, а не забыт:** анализатор,
-  объявивший шаг со значением ядерного, затенил бы ядерный промт МОЛЧА (`groupBy('key')` в
-  `PromptReadRepository.php:33`). Исполнители — P2.3 (реестр) и P2.5 (расщепление); прогон
-  фиктивного типа P2.6 проходит через ту же сборку.
+- **`ScreeningOutcomeHandler.php:86`** (`AiDocumentType::tryFrom($analysis->document_type)`) —
+  остаётся МЯГКИМ (`tryFrom`, не `from`) НАМЕРЕННО: эта строка вне `Files` P2.2 (только строка
+  вызова резолвера, ~97, была в периметре), её развязка — предмет **P2.3** («перевод
+  `ScreeningOutcomeHandler::branchByType()` на реестр»). P2.3 должен решить, остаётся ли
+  `tryFrom`+`null→ignored` окончательной семантикой или тоже требует громкой ошибки — НЕ считать
+  автоматически закрытым фактом P2.2.
+- **Три места кастуют `$analysis->document_type` инлайн** (`ExtractionOrchestrator::run()`,
+  `::runWindowed()`, `RerunRangeAction::run()`) вместо одной точки на модели/репозитории (буквальное
+  чтение Rule 2 P2.2) — сознательное сужение до границ `Files` item'а (Analysis-модель вне периметра);
+  если P2.4/P3.5 при переезде этих классов решат централизовать кастование на `Analysis`-модели —
+  это НЕ реопен P2.2, а естественное продолжение по мере переезда владения.
+- **Форма кастования `AiDocumentType::from($x ?? Y::value)` вместо `$x !== null ? … : …`** — выбрана
+  специально, чтобы не завести НОВУЮ ошибку PHPStan `property.notFound` на `$estimate->analysis`
+  (relation-property без `@property-read` на `Estimate`, Larastan не резолвит тип вне `??`-контекста).
+  Если фаза P3/иная добавит `@property-read Analysis $analysis` на `Estimate`, обе формы станут
+  эквивалентны — трогать `RerunRangeAction` ради этого отдельно не нужно.
 - **`root/document-type-axis.md` §5 цитирует УСТАРЕВШИЕ номера строк Filament-форм** (писался на
-  `dc0815c`): `AiRouteForm.document_type` уже `Select`, не `Textarea`; свободным `Textarea` остался
-  `PromptForm` `step` (`:34`). Выводы контракта P1.2 не меняются, но номера строк оттуда не
-  цитировать — брать из `document-analyzer-contract.md` §7.
-- **P2.2 задевает 12 call-site'ов резолвера** (`grep -rn "routes->resolve\|routes->candidatesFor\|
-  routes->shadowRoute" app/ --include=*.php` — 11 на `fcc0259`, плюс `ShadowAnalysisJob:103`
-  прокидывает `documentType` строкой): периметр `Files` собирается и от них, и от тестов.
+  `dc0815c`) — наследуется из P2.1, не переоткрывалось.
 - **Предпросмотр склеенного промта ДО прогона** — требование владельца, в план сознательно НЕ
   введено (решение 2026-07-29: «делается быстро, сообщу отдельно»). P5.5 покрывает промт,
   реально УШЕДШИЙ в провайдера. Кандидат в scope P5.5 либо item P5.7 — поднимается по требованию
@@ -74,7 +79,7 @@ HEAD`, узел — из `~/.swissknifeman/topology.json`):** **0 ERROR / 0 WARN
 - workarounds: доказательство фальсифицируемости гейта МУТАЦИЕЙ вместо прогона на `<base>` — для
   гейтов над создаваемым артефактом (решение владельца 2026-07-29); применено в P1.1–P1.6 и P2.1,
   впредь требуется у P3.1 и P4.2 · `docker exec agelto_app` вместо `docker compose exec app` —
-  интерполяция `.env` падает на `MINIO_ROOT_PASSWORD` (воспроизвелось на P2.1) · `pint --dirty`
+  интерполяция `.env` падает на `MINIO_ROOT_PASSWORD` (воспроизвелось на P2.2) · `pint --dirty`
   автофикс — точечными Edit-правками (host-запуск заблокирован permission-гейтом сессии)
 - deferred: BigQuery-адаптер биллинга (D34) · HITL-правка эталона (D48) · пере-замер F1 боевым
   прогоном (D52) · остаточная дупликация `estimate:dataset:import` (D57) · перенос дрейфа в
@@ -85,6 +90,8 @@ HEAD`, узел — из `~/.swissknifeman/topology.json`):** **0 ERROR / 0 WARN
   `document_type` · `config/ai.php` докблочные упоминания старых имён таблиц · канонизация
   D89-исхода для гейтов-сторожей инварианта · правка escape-hatch `plan-exec.md` под
   `topology.json` (D98) — репозиторий `swissknifeman`, вне этого плана · раскладка DTO сметы под
-  сегмент `Analyzers\Estimate` — решает P3.5, контракт P2.1 её НЕ предписывает
+  сегмент `Analyzers\Estimate` — решает P3.5, контракт P2.1 её НЕ предписывает · централизация
+  кастования `document_type` на модели `Analysis` (см. Open risks выше) — не входит в P2.2, может
+  всплыть при переезде P2.4/P3.5
 - open_questions: в границах плана — НЕТ. Остаются два гейта владельца впереди (P3.1, P4.2). Вне
   плана: P7.6 плана `2026.07.26-EST-TRAIN` (боевое замыкание петли тюнинга)
