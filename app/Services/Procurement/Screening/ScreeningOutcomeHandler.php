@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\Procurement\Screening;
 
+use App\Enums\Llm\DocumentTypeScope;
 use App\Enums\Procurement\AiDocumentType;
 use App\Enums\Procurement\AnalysisStatus;
 use App\Enums\Procurement\DocumentStatus;
@@ -94,7 +95,7 @@ final readonly class ScreeningOutcomeHandler
         $alreadyEscalated = (bool) ($analysis->result['escalated'] ?? false);
 
         if ($action === 'escalate' && ! $alreadyEscalated) {
-            $escalationRoute = $this->routes->candidatesFor('any', LlmPurpose::Screening)->values()->get(1);
+            $escalationRoute = $this->routes->candidatesFor(DocumentTypeScope::Any, LlmPurpose::Screening)->values()->get(1);
 
             if ($escalationRoute !== null) {
                 $this->processor->run($document, $analysis, routeIndex: 1);

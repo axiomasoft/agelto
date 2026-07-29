@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Enums\Procurement\AiDocumentType;
 use App\Enums\Procurement\LlmPurpose;
 use App\Models\Llm\LlmRoute;
 use App\Models\Llm\Provider;
@@ -31,7 +32,7 @@ test('resolve() выбирает активный маршрут с минима
         'priority' => 0,
     ]);
 
-    $resolved = aiRouteResolver()->resolve('estimate', LlmPurpose::ExtractRows);
+    $resolved = aiRouteResolver()->resolve(AiDocumentType::Estimate, LlmPurpose::ExtractRows);
 
     expect($resolved->options->model)->toBe('gemini-2.5-flash')
         ->and($resolved->options->provider)->toBe($provider->code)
@@ -52,7 +53,7 @@ test('candidatesFor() отдаёт весь список priority ASC для э�
     ]);
 
     $priorities = aiRouteResolver()
-        ->candidatesFor('estimate', LlmPurpose::Screening)
+        ->candidatesFor(AiDocumentType::Estimate, LlmPurpose::Screening)
         ->map(fn ($resolved) => $resolved->route->priority)
         ->values()
         ->all();
@@ -72,7 +73,7 @@ test('точный document_type предпочитается зарезерви
         'provider_id' => $provider->id, 'model' => 'estimate-specific-model', 'priority' => 0,
     ]);
 
-    $resolved = aiRouteResolver()->resolve('estimate', LlmPurpose::Screening);
+    $resolved = aiRouteResolver()->resolve(AiDocumentType::Estimate, LlmPurpose::Screening);
 
     expect($resolved->options->model)->toBe('estimate-specific-model');
 });
@@ -85,11 +86,11 @@ test('неактивные маршруты не участвуют в резо�
         'provider_id' => $provider->id, 'is_active' => false, 'priority' => 0,
     ]);
 
-    expect(aiRouteResolver()->candidatesFor('estimate', LlmPurpose::Screening))->toBeEmpty();
+    expect(aiRouteResolver()->candidatesFor(AiDocumentType::Estimate, LlmPurpose::Screening))->toBeEmpty();
 });
 
 test('resolve() бросает исключение, если нет ни одного активного маршрута', function (): void {
-    aiRouteResolver()->resolve('estimate', LlmPurpose::ExtractTotals);
+    aiRouteResolver()->resolve(AiDocumentType::Estimate, LlmPurpose::ExtractTotals);
 })->throws(RuntimeException::class);
 
 test('неизвестный driver провайдера бросает исключение', function (): void {
@@ -99,5 +100,10 @@ test('неизвестный driver провайдера бросает искл
         'provider_id' => $provider->id, 'priority' => 0,
     ]);
 
-    aiRouteResolver()->resolve('estimate', LlmPurpose::Screening);
+    aiRouteResolver()->resolve(AiDocumentType::Estimate, LlmPurpose::Screening);
 })->throws(RuntimeException::class);
+
+test('resolve() не принимает произвольную строку — неизвестный document_type не резолвится в кросс-документный маршрут, а рвётся типом', function (): void {
+    /** @phpstan-ignore-next-line намеренно нарушаем типизацию — негативный тест на семантику отказа */
+    aiRouteResolver()->resolve('not-a-real-type', LlmPurpose::Screening);
+})->throws(TypeError::class);

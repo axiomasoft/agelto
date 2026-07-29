@@ -149,7 +149,7 @@ final class EvalRunCommand extends Command
      */
     private function runExtraction(Collection $examples, string $datasetVersion): int
     {
-        $route = $this->routes->resolve('estimate', LlmPurpose::ExtractRows);
+        $route = $this->routes->resolve(AiDocumentType::Estimate, LlmPurpose::ExtractRows);
 
         $run = EvalRun::query()->create([
             'document_type' => AiDocumentType::Estimate->value,
@@ -202,7 +202,7 @@ final class EvalRunCommand extends Command
      */
     private function runScreening(Collection $examples, string $datasetVersion): int
     {
-        $route = $this->routes->resolve('any', LlmPurpose::Screening);
+        $route = $this->routes->resolve(DocumentTypeScope::Any, LlmPurpose::Screening);
 
         $run = EvalRun::query()->create([
             'document_type' => DocumentTypeScope::Any->value,
@@ -293,7 +293,7 @@ final class EvalRunCommand extends Command
             $this->analyses->update($analysis, [
                 'status' => AnalysisStatus::Pending,
                 'analysis_run_id' => $run->id,
-                'document_type' => 'estimate',
+                'document_type' => AiDocumentType::Estimate->value,
                 'result' => null,
                 'progress' => null,
                 'provider' => null,

@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Services\Llm;
 
+use App\Enums\Llm\DocumentTypeScope;
+use App\Enums\Procurement\AiDocumentType;
 use App\Enums\Procurement\LlmPurpose;
 use App\Jobs\Procurement\ShadowAnalysisJob;
 use App\Models\Procurement\Ai\Analysis;
@@ -42,7 +44,7 @@ final readonly class ShadowDispatch
     public function afterCall(
         Analysis $analysis,
         LlmPurpose $purpose,
-        string $documentType,
+        AiDocumentType|DocumentTypeScope $documentType,
         LlmPrompt $prompt,
         ?JsonSchema $schema,
     ): void {
@@ -71,7 +73,7 @@ final readonly class ShadowDispatch
             Log::warning('Shadow-диспатч пропущен из-за ошибки резолва маршрута', [
                 'analysis_id' => $analysis->id,
                 'purpose' => $purpose->value,
-                'document_type' => $documentType,
+                'document_type' => $documentType->value,
                 'error' => $exception->getMessage(),
             ]);
         }

@@ -2,6 +2,8 @@
 
 declare(strict_types=1);
 
+use App\Enums\Llm\DocumentTypeScope;
+use App\Enums\Procurement\AiDocumentType;
 use App\Enums\Procurement\AnalysisStatus;
 use App\Enums\Procurement\AnalysisStep;
 use App\Enums\Procurement\FinishReason;
@@ -48,18 +50,18 @@ function seedShadowRoute(string $documentType, LlmPurpose $purpose): LlmRoute
 
 test('afterCall() диспатчит ShadowAnalysisJob на очередь ai_shadow, когда есть активный теневой маршрут', function (): void {
     Queue::fake();
-    seedShadowRoute('estimate', LlmPurpose::ExtractRows);
+    seedShadowRoute(AiDocumentType::Estimate->value, LlmPurpose::ExtractRows);
 
     $analysis = Analysis::factory()->create(['step' => AnalysisStep::Extraction, 'document_type' => 'estimate']);
     $prompt = new LlmPrompt(systemPart: 'система', userParts: ['строки 1-40']);
     $schema = new JsonSchema(['type' => 'object']);
 
-    app(ShadowDispatch::class)->afterCall($analysis, LlmPurpose::ExtractRows, 'estimate', $prompt, $schema);
+    app(ShadowDispatch::class)->afterCall($analysis, LlmPurpose::ExtractRows, AiDocumentType::Estimate, $prompt, $schema);
 
     Queue::assertPushedOn('ai_shadow', ShadowAnalysisJob::class, function (ShadowAnalysisJob $job) use ($analysis): bool {
         return $job->primaryAnalysisId === $analysis->id
             && $job->purpose === LlmPurpose::ExtractRows->value
-            && $job->documentType === 'estimate'
+            && $job->documentType === AiDocumentType::Estimate
             && $job->systemPart === 'система';
     });
 });
@@ -69,14 +71,14 @@ test('afterCall() ничего не диспатчит, если для (documen
 
     $analysis = Analysis::factory()->create();
 
-    app(ShadowDispatch::class)->afterCall($analysis, LlmPurpose::Screening, 'any', new LlmPrompt(systemPart: 's'), null);
+    app(ShadowDispatch::class)->afterCall($analysis, LlmPurpose::Screening, DocumentTypeScope::Any, new LlmPrompt(systemPart: 's'), null);
 
     Queue::assertNothingPushed();
 });
 
 test('afterCall() пропускает вызовы с fileRefs — Files API не дублируется', function (): void {
     Queue::fake();
-    seedShadowRoute('any', LlmPurpose::Screening);
+    seedShadowRoute(DocumentTypeScope::Any->value, LlmPurpose::Screening);
 
     $analysis = Analysis::factory()->create();
     $prompt = new LlmPrompt(
@@ -84,14 +86,14 @@ test('afterCall() пропускает вызовы с fileRefs — Files API н
         fileRefs: [new LlmFileHandle(uri: 'files/x', expiresAt: CarbonImmutable::now()->addDay())],
     );
 
-    app(ShadowDispatch::class)->afterCall($analysis, LlmPurpose::Screening, 'any', $prompt, null);
+    app(ShadowDispatch::class)->afterCall($analysis, LlmPurpose::Screening, DocumentTypeScope::Any, $prompt, null);
 
     Queue::assertNothingPushed();
 });
 
 test('ShadowAnalysisJob создаёт is_shadow-анализ, пишет LlmCall(purpose=shadow) и считает сравнение с основным', function (): void {
     Storage::fake('s3'); // LlmCallRecorder пишет сырой request/response на config('crawler.raw_disk')='s3'.
-    $route = seedShadowRoute('estimate', LlmPurpose::ExtractRows);
+    $route = seedShadowRoute(AiDocumentType::Estimate->value, LlmPurpose::ExtractRows);
 
     $primary = Analysis::factory()->create([
         'step' => AnalysisStep::Extraction,
@@ -113,7 +115,7 @@ test('ShadowAnalysisJob создаёт is_shadow-анализ, пишет LlmCal
     $job = new ShadowAnalysisJob(
         primaryAnalysisId: $primary->id,
         purpose: LlmPurpose::ExtractRows->value,
-        documentType: 'estimate',
+        documentType: AiDocumentType::Estimate,
         systemPart: 'система',
         userParts: ['строки 1-40'],
         schema: ['type' => 'object'],
@@ -134,7 +136,7 @@ test('ShadowAnalysisJob создаёт is_shadow-анализ, пишет LlmCal
 
 test('ShadowAnalysisJob глотает исключение провайдера — боевой путь не затронут, ошибка только в shadow-анализе', function (): void {
     Storage::fake('s3');
-    seedShadowRoute('any', LlmPurpose::Screening);
+    seedShadowRoute(DocumentTypeScope::Any->value, LlmPurpose::Screening);
 
     $primary = Analysis::factory()->create(['step' => AnalysisStep::Screening]);
 
@@ -144,7 +146,7 @@ test('ShadowAnalysisJob глотает исключение провайдера
     $job = new ShadowAnalysisJob(
         primaryAnalysisId: $primary->id,
         purpose: LlmPurpose::Screening->value,
-        documentType: 'any',
+        documentType: DocumentTypeScope::Any,
         systemPart: 'система',
         userParts: [],
         schema: null,

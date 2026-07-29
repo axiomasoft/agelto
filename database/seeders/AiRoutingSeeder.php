@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Database\Seeders;
 
+use App\Enums\Llm\DocumentTypeScope;
 use App\Enums\Procurement\AiDocumentType;
 use App\Enums\Procurement\LlmPurpose;
 use App\Models\Llm\LlmRoute;
@@ -71,7 +72,7 @@ final class AiRoutingSeeder extends Seeder
      */
     private function routes(): array
     {
-        $any = 'any';
+        $any = DocumentTypeScope::Any->value;
         $estimate = AiDocumentType::Estimate->value;
 
         return [

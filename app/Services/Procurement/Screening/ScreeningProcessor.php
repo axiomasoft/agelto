@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services\Procurement\Screening;
 
 use App\Dto\Procurement\Ai\Screening\ScreeningResult;
+use App\Enums\Llm\DocumentTypeScope;
 use App\Enums\Procurement\AnalysisStatus;
 use App\Enums\Procurement\DocumentStatus;
 use App\Enums\Procurement\LlmPurpose;
@@ -135,7 +136,7 @@ final readonly class ScreeningProcessor
 
     private function classify(Analysis $analysis, string $filePath, string $mimeType, int $routeIndex = 0): void
     {
-        $primary = $this->routes->candidatesFor('any', LlmPurpose::Screening)->values()->get($routeIndex);
+        $primary = $this->routes->candidatesFor(DocumentTypeScope::Any, LlmPurpose::Screening)->values()->get($routeIndex);
 
         if ($primary === null) {
             throw new RuntimeException("Нет активного маршрута для document_type=any, purpose=screening, индекс={$routeIndex}.");

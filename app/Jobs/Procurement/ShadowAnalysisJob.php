@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Jobs\Procurement;
 
+use App\Enums\Llm\DocumentTypeScope;
+use App\Enums\Procurement\AiDocumentType;
 use App\Enums\Procurement\AnalysisStatus;
 use App\Enums\Procurement\LlmPurpose;
 use App\Models\Procurement\Ai\Analysis;
@@ -60,7 +62,7 @@ final class ShadowAnalysisJob implements ShouldQueue
     public function __construct(
         public readonly int $primaryAnalysisId,
         public readonly string $purpose,
-        public readonly string $documentType,
+        public readonly AiDocumentType|DocumentTypeScope $documentType,
         public readonly string $systemPart,
         public readonly array $userParts,
         public readonly ?array $schema,

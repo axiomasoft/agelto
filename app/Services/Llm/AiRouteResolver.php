@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Services\Llm;
 
+use App\Enums\Llm\DocumentTypeScope;
+use App\Enums\Procurement\AiDocumentType;
 use App\Enums\Procurement\LlmPurpose;
 use App\Models\Llm\LlmRoute;
 use App\Models\Llm\Provider;
@@ -45,12 +47,12 @@ final readonly class AiRouteResolver
     /**
      * Основной маршрут (минимальный `priority`) или исключение, если ни одной активной строки нет.
      */
-    public function resolve(string $documentType, LlmPurpose $purpose): ResolvedRoute
+    public function resolve(AiDocumentType|DocumentTypeScope $documentType, LlmPurpose $purpose): ResolvedRoute
     {
         $primary = $this->candidatesFor($documentType, $purpose)->first();
 
         if ($primary === null) {
-            throw new RuntimeException("Нет активного маршрута для document_type={$documentType}, purpose={$purpose->value}.");
+            throw new RuntimeException("Нет активного маршрута для document_type={$documentType->value}, purpose={$purpose->value}.");
         }
 
         return $primary;
@@ -62,7 +64,7 @@ final readonly class AiRouteResolver
      *
      * @return Collection<int, ResolvedRoute>
      */
-    public function candidatesFor(string $documentType, LlmPurpose $purpose): Collection
+    public function candidatesFor(AiDocumentType|DocumentTypeScope $documentType, LlmPurpose $purpose): Collection
     {
         return $this->routes
             ->activeCandidatesFor($documentType, $purpose)
@@ -74,7 +76,7 @@ final readonly class AiRouteResolver
      * `priority`, если активный теневой маршрут вообще заведён; `null` — shadow-режим для этой
      * пары выключен (обычное состояние, пока владелец не поднимет локальную LLM).
      */
-    public function shadowRoute(string $documentType, LlmPurpose $purpose): ?ResolvedRoute
+    public function shadowRoute(AiDocumentType|DocumentTypeScope $documentType, LlmPurpose $purpose): ?ResolvedRoute
     {
         $route = $this->routes->activeShadowRouteFor($documentType, $purpose);
 

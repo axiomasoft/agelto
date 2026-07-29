@@ -70,7 +70,7 @@ final readonly class PromptCritic
             ],
         );
 
-        $route = $this->routes->resolve('any', LlmPurpose::PromptCritic);
+        $route = $this->routes->resolve(DocumentTypeScope::Any, LlmPurpose::PromptCritic);
 
         $calledAt = CarbonImmutable::now();
         $startedAt = microtime(true);

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services\Procurement\Bench;
 
 use App\Dto\Procurement\Ai\Bench\BenchCellResult;
+use App\Enums\Procurement\AiDocumentType;
 use App\Enums\Procurement\AnalysisStatus;
 use App\Enums\Procurement\AnalysisStep;
 use App\Enums\Procurement\DocumentStatus;
@@ -94,7 +95,7 @@ final readonly class FormatBenchRunner
      */
     public function run(array $onlyCodes, array $onlyVariants, bool $dryRun, ?int $limit): array
     {
-        $route = $this->routes->resolve('estimate', LlmPurpose::ExtractRows);
+        $route = $this->routes->resolve(AiDocumentType::Estimate, LlmPurpose::ExtractRows);
         $promptVersionSet = $this->prompts->compose(PromptStep::ExtractionRows)->promptVersionSet;
         $libreOfficeAvailable = $this->libreOffice->version() !== null;
 
@@ -269,7 +270,7 @@ final readonly class FormatBenchRunner
         $this->analyses->update($analysis, [
             'status' => AnalysisStatus::Pending,
             'analysis_run_id' => $run->id,
-            'document_type' => 'estimate',
+            'document_type' => AiDocumentType::Estimate->value,
             'result' => null,
             'progress' => null,
             'provider' => null,

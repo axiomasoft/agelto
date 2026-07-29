@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Database\Factories\Llm;
 
+use App\Enums\Llm\DocumentTypeScope;
 use App\Enums\Procurement\LlmPurpose;
 use App\Models\Llm\LlmRoute;
 use App\Models\Llm\Provider;
@@ -19,7 +20,7 @@ final class LlmRouteFactory extends Factory
     public function definition(): array
     {
         return [
-            'document_type' => 'any',
+            'document_type' => DocumentTypeScope::Any->value,
             'purpose' => LlmPurpose::Screening,
             'provider_id' => Provider::factory(),
             'model' => 'gemini-2.5-flash',

@@ -9,6 +9,7 @@ use App\Dto\Procurement\Ai\Estimate\DiscoveryResponse;
 use App\Dto\Procurement\Ai\Estimate\PassportResponse;
 use App\Dto\Procurement\Ai\Estimate\RowsChunkResponse;
 use App\Dto\Procurement\Ai\Estimate\TotalsResponse;
+use App\Enums\Procurement\AiDocumentType;
 use App\Enums\Procurement\AnalysisStatus;
 use App\Enums\Procurement\DocumentStatus;
 use App\Enums\Procurement\ExtractionRoute;
@@ -111,7 +112,10 @@ final readonly class ExtractionOrchestrator
             // explicit-cache handle провайдер-специфичны — резолвить 3 отдельных маршрута под
             // один и тот же документ добавило бы риск смешать handle разных провайдеров без
             // реальной сегодняшней потребности (YAGNI, единственный driver — gemini).
-            $route = $this->routes->resolve($analysis->document_type ?? 'estimate', LlmPurpose::ExtractRows);
+            $route = $this->routes->resolve(
+                AiDocumentType::from($analysis->document_type ?? AiDocumentType::Estimate->value),
+                LlmPurpose::ExtractRows,
+            );
 
             $decision = $this->preflight->decide($localPath, $effective['extension'], $route);
 
@@ -309,7 +313,10 @@ final readonly class ExtractionOrchestrator
         $windowOverlapPages = (int) config('ai.extraction.window_overlap_pages', 1);
         $totalsTailPages = (int) config('ai.extraction.totals_tail_pages', 2);
 
-        $discoveryRoute = $this->routes->resolve($analysis->document_type ?? 'estimate', LlmPurpose::Discovery);
+        $discoveryRoute = $this->routes->resolve(
+            AiDocumentType::from($analysis->document_type ?? AiDocumentType::Estimate->value),
+            LlmPurpose::Discovery,
+        );
 
         $runStartedAt = microtime(true);
         $unitsThisRun = 0;
