@@ -2,6 +2,9 @@
 
 declare(strict_types=1);
 
+use App\Enums\Llm\DocumentTypeScope;
+use App\Enums\Procurement\AiDocumentType;
+use App\Enums\Procurement\AnalysisStep;
 use App\Models\Procurement\Ai\Analysis;
 use App\Models\Procurement\Ai\EvalRun;
 use App\Models\Procurement\Ai\Fixture;
@@ -9,6 +12,7 @@ use App\Models\Procurement\Ai\PromptSuggestion;
 use App\Models\User;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
@@ -49,7 +53,8 @@ return new class extends Migration
             $table->integer('base_version')->nullable()->comment('версия, поверх которой предложен патч');
             $table->text('proposed_content')->nullable()->comment('полный текст нового тела промта — для prompt_patch');
             $table->text('hint')->nullable()->comment('переформулировка для correction_hint');
-            $table->text('document_type')->nullable()->comment('для correction_hint');
+            $table->text('document_type')->comment('предмет предложения (D21): значение AiDocumentType либо сентинел any (кросс-документный промт), заполняется для ВСЕХ форм kind — целостность check-constraint (D16/D17)');
+            $table->text('analysis_step')->nullable()->comment('стадия AnalysisStep, к которой относится предложение (D21); NULL — предложение не привязано к одной стадии (патч кросс-стадийного промта global)');
             $table->text('rationale')->comment('чем критик обосновал предложение');
             $table->jsonb('evidence')->default('[]')->comment('выжимка diff: адреса расхождений');
 
@@ -69,6 +74,17 @@ return new class extends Migration
             $table->index('status');
             $table->index('prompt_key');
         });
+
+        DB::statement(
+            'ALTER TABLE prc_ai_prompt_suggestions '
+            .'ADD CONSTRAINT prc_ai_prompt_suggestions_document_type_check '
+            ."CHECK (document_type IN ({$this->documentTypeOrSentinelValues()}))",
+        );
+        DB::statement(
+            'ALTER TABLE prc_ai_prompt_suggestions '
+            .'ADD CONSTRAINT prc_ai_prompt_suggestions_analysis_step_check '
+            ."CHECK (analysis_step IS NULL OR analysis_step IN ({$this->analysisStepValues()}))",
+        );
     }
 
     public function down(): void
@@ -79,5 +95,19 @@ return new class extends Migration
     private function table(): string
     {
         return (new PromptSuggestion)->getTable();
+    }
+
+    private function documentTypeOrSentinelValues(): string
+    {
+        return collect([...AiDocumentType::values(), DocumentTypeScope::Any->value])
+            ->map(static fn (string $value): string => "'{$value}'")
+            ->implode(', ');
+    }
+
+    private function analysisStepValues(): string
+    {
+        return collect(AnalysisStep::cases())
+            ->map(static fn (AnalysisStep $case): string => "'{$case->value}'")
+            ->implode(', ');
     }
 };

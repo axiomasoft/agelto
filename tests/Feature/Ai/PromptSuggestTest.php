@@ -19,6 +19,8 @@ use App\Services\Llm\Dto\LlmUsage;
 use App\Services\Llm\Providers\PrismGeminiProvider;
 use App\Services\Procurement\Tuning\PromptCritic;
 use Database\Seeders\PromptSeeder;
+use Illuminate\Database\QueryException;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -93,9 +95,44 @@ test('критик кладёт предложение pending с заполне
         ->and($suggestion->rationale)->not->toBe('')
         ->and($suggestion->evidence->all())->toBe(['rows[0].code', 'rows[2].code'])
         ->and($suggestion->prompt_key)->toBe(PromptStep::ExtractionRows->value)
+        ->and($suggestion->document_type)->toBe('estimate')
+        ->and($suggestion->analysis_step)->toBe(AnalysisStep::Extraction)
         ->and($suggestion->analysis_id)->toBe($analysis->id)
         ->and($suggestion->fixture_id)->toBe($fixture->id)
         ->and($suggestion->llm_call_id)->not->toBeNull();
+});
+
+test('патч кросс-документного промта получает сентинел any и analysis_step=null', function (): void {
+    $fake = FakeLlmProvider::succeeding(promptSuggestResponse());
+    promptSuggestRoute($fake);
+
+    $suggestion = app(PromptCritic::class)->critique(PromptStep::Global, ['rows' => []], null, null);
+
+    expect($suggestion)->not->toBeNull()
+        ->and($suggestion->document_type)->toBe('any')
+        ->and($suggestion->analysis_step)->toBeNull();
+});
+
+test('битое значение document_type отвергается БД', function (): void {
+    expect(fn () => PromptSuggestion::factory()->create(['document_type' => 'not-a-real-type']))
+        ->toThrow(QueryException::class);
+});
+
+test('битое значение analysis_step отвергается БД', function (): void {
+    // `analysis_step` кастуется в AnalysisStep на границе Eloquent (ValueError раньше запроса),
+    // поэтому нарушение check-constraint проверяется мимо модели — сырой insert построителем.
+    expect(fn () => DB::table((new PromptSuggestion)->getTable())->insert([
+        'uuid' => (string) Str::uuid7(),
+        'kind' => PromptSuggestionKind::PromptPatch->value,
+        'status' => 'pending',
+        'prompt_key' => PromptStep::ExtractionRows->value,
+        'prompt_step' => PromptStep::ExtractionRows->value,
+        'proposed_content' => 'text',
+        'document_type' => 'estimate',
+        'analysis_step' => 'not-a-real-step',
+        'rationale' => 'rationale',
+        'evidence' => json_encode([], JSON_THROW_ON_ERROR),
+    ]))->toThrow(QueryException::class);
 });
 
 test('повторный прогон на том же diff не плодит дубль', function (): void {

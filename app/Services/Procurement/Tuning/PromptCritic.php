@@ -5,6 +5,9 @@ declare(strict_types=1);
 namespace App\Services\Procurement\Tuning;
 
 use App\Dto\Procurement\Ai\Tuning\PromptSuggestionResponse;
+use App\Enums\Llm\DocumentTypeScope;
+use App\Enums\Procurement\AiDocumentType;
+use App\Enums\Procurement\AnalysisStep;
 use App\Enums\Procurement\LlmPurpose;
 use App\Enums\Procurement\PromptStep;
 use App\Enums\Procurement\PromptSuggestionKind;
@@ -148,9 +151,45 @@ final readonly class PromptCritic
             'base_version' => $isPatch ? ($target->promptVersionSet[$step->value] ?? null) : null,
             'proposed_content' => $isPatch ? $result->proposed_content : null,
             'hint' => $isPatch ? null : $result->hint,
-            'document_type' => $isPatch ? null : $result->document_type,
+            'document_type' => $isPatch ? $this->subjectDocumentType($step) : $result->document_type,
+            'analysis_step' => $this->subjectAnalysisStep($step)?->value,
             'rationale' => $result->rationale,
             'evidence' => $result->evidence,
         ]);
+    }
+
+    /**
+     * Предмет патча (D21, §3.3 `root/document-type-axis.md`): шаги `Global`/`ScreeningGlobal`/
+     * `ScreeningClassify`/`PromptCritic` кросс-документные (сентинел `any`), шаги `Extraction*`
+     * сегодня владеет ровно один тип документа — смета (D16, второй тип этот план не реализует).
+     */
+    private function subjectDocumentType(PromptStep $step): string
+    {
+        return $this->isCrossDocumentStep($step) ? DocumentTypeScope::Any->value : AiDocumentType::Estimate->value;
+    }
+
+    /**
+     * Стадия предложения (D21): выводится из того же `$step`, чей текст критикуется/патчится —
+     * `null` для `Global`/`PromptCritic`, которые не привязаны ни к одной стадии.
+     */
+    private function subjectAnalysisStep(PromptStep $step): ?AnalysisStep
+    {
+        return match ($step) {
+            PromptStep::ScreeningGlobal, PromptStep::ScreeningClassify => AnalysisStep::Screening,
+            PromptStep::ExtractionGlobal,
+            PromptStep::ExtractionDiscovery,
+            PromptStep::ExtractionPassport,
+            PromptStep::ExtractionRows,
+            PromptStep::ExtractionTotals => AnalysisStep::Extraction,
+            PromptStep::Global, PromptStep::PromptCritic => null,
+        };
+    }
+
+    private function isCrossDocumentStep(PromptStep $step): bool
+    {
+        return match ($step) {
+            PromptStep::Global, PromptStep::ScreeningGlobal, PromptStep::ScreeningClassify, PromptStep::PromptCritic => true,
+            default => false,
+        };
     }
 }

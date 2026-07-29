@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Database\Factories\Procurement\Ai;
 
+use App\Enums\Procurement\AiDocumentType;
+use App\Enums\Procurement\AnalysisStep;
 use App\Enums\Procurement\PromptStep;
 use App\Enums\Procurement\PromptSuggestionKind;
 use App\Enums\Procurement\PromptSuggestionStatus;
@@ -32,7 +34,8 @@ final class PromptSuggestionFactory extends Factory
             'base_version' => 1,
             'proposed_content' => $this->faker->paragraph(),
             'hint' => null,
-            'document_type' => null,
+            'document_type' => AiDocumentType::Estimate->value,
+            'analysis_step' => AnalysisStep::Extraction,
             'rationale' => $this->faker->sentence(),
             'evidence' => ['rows[0].code'],
             'decided_by' => null,

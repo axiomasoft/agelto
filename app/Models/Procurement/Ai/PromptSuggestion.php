@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models\Procurement\Ai;
 
+use App\Enums\Procurement\AnalysisStep;
 use App\Enums\Procurement\PromptSuggestionKind;
 use App\Enums\Procurement\PromptSuggestionStatus;
 use App\Models\Llm\LlmCall;
@@ -37,7 +38,8 @@ use Illuminate\Support\Str;
  * @property int|null $base_version
  * @property string|null $proposed_content
  * @property string|null $hint
- * @property string|null $document_type
+ * @property string $document_type
+ * @property AnalysisStep|null $analysis_step
  * @property string $rationale
  * @property Collection<int, string> $evidence
  * @property int|null $decided_by
@@ -68,6 +70,7 @@ final class PromptSuggestion extends Model
         'proposed_content',
         'hint',
         'document_type',
+        'analysis_step',
         'rationale',
         'evidence',
         'decided_by',
@@ -83,6 +86,7 @@ final class PromptSuggestion extends Model
         return [
             'kind' => PromptSuggestionKind::class,
             'status' => PromptSuggestionStatus::class,
+            'analysis_step' => AnalysisStep::class,
             'base_version' => 'integer',
             'evidence' => AsCollection::class,
             'decided_at' => 'datetime',
