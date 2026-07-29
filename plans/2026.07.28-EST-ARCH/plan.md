@@ -170,7 +170,7 @@ LLM-транспорт за фасадом `LlmProvider`, промты как ф
 
 | Phase | Title | Items 🟢/всего | Status |
 |:--|:--|:--|:--|
-| P1 | Канон домена: имена, домен транспорта, единый контур документа и схема БД | 8/8 | 🟡 In progress |
+| P1 | Канон домена: имена, домен транспорта, единый контур документа и схема БД | 5/8 | 🟠 Done with deviations |
 | P2 | Сейм типа документа: реестр анализаторов и расщепление слоёв | 0/6 | ⬜ Not started |
 | P3 | Сервисный слой, доменная раскладка и переименование команд | 0/6 | ⬜ Not started |
 | P4 | Учёт расхода: слепок на анализе, сейм источника и дашборд | 0/4 | ⬜ Not started |
@@ -317,6 +317,7 @@ LLM-транспорт за фасадом `LlmProvider`, промты как ф
 | 2026-07-29 | plan-run/sonnet-high | P1.6 закрыт 🟠 (Known Deviations): единый контур обучение↔боевой разбор по `document-contour.md` — ось площадки (D91, служебная «Обучалка»), связь `prc_ai_fixtures.document_id` (§2), сущность прогона `AnalysisRun` с терминацией на едином choke point `AnalysisStoreRepository::update()` (D93), `PublicPlatformScope`; четыре докблок-фикса вне `Files` (DatasetExample/DocumentVersion/Registry — пре-существующий пробел документирования свойств, вычитающий эффект на baseline; LlmCacheManagerTest DI) — детали см. phases/P1.md P1.6 Completion Notes |
 | 2026-07-29 | plan-run/sonnet-high | P1.7 закрыт 🟠 (Known Deviations): триада `LlmCallStoreRepository`, разведение `EstimateType::LocalEstimate`/`AiDocumentType::Estimate`, переезд `HasErrorBlock`/`HasLease` в `App\Models\Concerns` (D23); пять тестов вне `Files`, ломавшихся строковым значением `'estimate'` вне грепа-Validation 2 — детали см. phases/P1.md P1.7 Completion Notes |
 | 2026-07-29 | plan-exec/sonnet-medium | P1.8 закрыт 🟢: оси предмета `prc_ai_prompt_suggestions` по D21 — `document_type` NOT NULL для ВСЕХ форм `kind` (сентинел `any` для кросс-документных промтов), новая `analysis_step` на существующем `AnalysisStep`, два check-constraint'а; `PromptCritic` выводит обе оси из `PromptStep`; фаза P1 терминальна (8/8) — детали см. phases/P1.md P1.8 Completion Notes |
+| 2026-07-29 | plan-close/sonnet-low | Фаза P1 закрыта 🟠 Done with deviations (8/8: 4×🟢+3×🟠+P1.8🟢) — Phase Handoff в phases/P1.md, докс-синк не требуется (материал в root/*.md плана) |
 
 ## Обсуждение
 

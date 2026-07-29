@@ -1,22 +1,39 @@
-# HANDOFF — 2026-07-29 — after P1.8
+# HANDOFF — 2026-07-29 — after P1
 
-**Next:** `/task:plan-close 2026.07.28-EST-ARCH P1` — фаза P1 терминальна (8/8: 4×🟢 + 3×🟠 + P1.8
-🟢), следующий шаг — закрытие фазы (таблицы, Phase Handoff, lint), не `plan-exec`/`plan-run`.
+**Next:** `/task:plan-audit 2026.07.28-EST-ARCH P1` — фаза P1 закрыта 🟠 Done with deviations (три
+item'а P1.5/P1.6/P1.7 несли material-отклонения — дифф вне `Files`), аудит перед стартом P2.
 
 | Параметр | Значение |
 |:--|:--|
-| Model class | implementation (`sonnet`) |
-| Effort | low |
+| Model class | verification (`opus`) |
+| Effort | xhigh |
 | Capabilities | — |
-| Context | NEW SESSION — шаг-не-item (`plan-close` читает план с диска заново) |
-| Суть | Закрыть фазу P1: сверить таблицы `Phase Status`/`Phase Index`, написать Phase Handoff, прогнать `plan-lint` (если доступен в среде) |
+| Context | NEW SESSION — шаг-не-item (`plan-audit` читает план с диска заново) |
+| Суть | Adversarial-аудит закрытой фазы P1: сверка 🟢/🟠 с git-фактами, no-op-детект, scope drift по трём 🟠-items, консистентность `root/naming-canon.md`/`document-type-axis.md`/`document-contour.md` |
 
 ```
-/task:plan-close 2026.07.28-EST-ARCH P1
+/task:plan-audit 2026.07.28-EST-ARCH P1
 ```
 
-После закрытия фазы P1 следующий шаг — P2 (6 items), первый — **P2.1**, design-item с гейтом
-владельца (`Exec = manual`, frontier/high) — см. `roadmap.md`.
+После аудита (при зелёном вердикте) следующий шаг — P2 (6 items), первый — **P2.1**, design-item с
+гейтом владельца (`Exec = manual`, frontier/high) — см. `roadmap.md`.
+
+**Итог реконсиляции фазы P1 (`plan-close`, 2026-07-29):** 8/8 items терминальны — 5×🟢 (P1.1,
+P1.2, P1.3, P1.4, P1.8) + 3×🟠 (P1.5, P1.6, P1.7). Таблицы `Phase Status`
+(`phases/P1.md`) и `## 4. Phase Index & Status Board` (`plan.md`) сведены без расхождений; строка
+фазы в `plan.md` обновлена на `🟠 Done with deviations`. Полный Phase Handoff (агрегат Known
+Deviations по всем 8 items) — `phases/P1.md` → `## Phase Handoff`.
+
+**Docs-sync:** не требуется — предмет фазы (схема, домен `Llm`, канон имён) закреплён в
+`root/naming-canon.md`, `root/document-type-axis.md`, `root/document-contour.md` этого плана;
+мигрирует в `docs/` при архивации плана целиком (§12 skill `plan-protocol`), не раньше.
+
+**Pre-final гейт (Task Contract) на этой сессии `plan-close`:** `packages/task/lib` отсутствует в
+раскладке репозитория `agelto` — модуль `task.task_contract`/`task.route_evidence` НЕ
+импортируется. Зафиксировано fail-closed текстом (как на P1.5–P1.8), машинного `pre_mutation`/
+`pre_final` в этой сессии нет. Вердикт фазы дан по публично воспроизводимым фактам items
+(git-история, Validation-числа в Completion Notes каждого item'а), не по машинному гейту —
+ограничение среды, не решение исполнителя.
 
 **Правило исполнения гейтов (D89 + трактовка владельца 2026-07-29) — читать ДО первого коммита
 ЛЮБОГО item'а.** Каждая строка `Validation`, являющаяся греп/`git`-командой, прогоняется на
@@ -41,55 +58,49 @@
 «прогон за владельцем» и неисполненным не считается. Прямо касается P5.2 и любых
 `estimate:bench:*`/`estimate:eval:*` на живом провайдере.
 
-**Инфраструктурное ограничение ЭТОЙ раскладки репозитория (найдено на P1.5, актуально и для P1.8):**
-`packages/task/lib` (`task.task_contract`/`task.route_evidence`) и
+**Инфраструктурное ограничение ЭТОЙ раскладки репозитория (найдено на P1.5, актуально и на
+`plan-close`):** `packages/task/lib` (`task.task_contract`/`task.route_evidence`) и
 `${CLAUDE_PLUGIN_ROOT}/scripts/plan-lint.py` НЕ доступны из `agelto` (репозиторий не несёт их,
-`CLAUDE_PLUGIN_ROOT` не задан в среде исполнения) — Pre-mutation/Pre-final гейт `plan-exec.md`
-п.2/п.7 и `plan-lint` фиксируются как «недоступен» (fail-closed текстом, не молчаливым `allow`),
-закрытие опирается на публично воспроизводимые факты самой `Validation` item'а (D77). Это
-ограничение среды, не решение исполнителя — называть его в Completion Notes каждого следующего
-item'а/шага, пока раскладка не изменится (актуально и для `plan-close`).
+`CLAUDE_PLUGIN_ROOT` не задан в среде исполнения) — Pre-mutation/Pre-final гейт и `plan-lint`
+фиксируются как «недоступен» (fail-closed текстом, не молчаливым `allow`), закрытие опирается на
+публично воспроизводимые факты самой `Validation` item'а (D77). Это ограничение среды, не решение
+исполнителя — называть его в Completion Notes/handoff каждого следующего item'а/шага, пока
+раскладка не изменится.
 
-**Инфраструктурная деталь среды исполнения (найдено на P1.7, воспроизведено на P1.8):**
-`docker compose exec` в некоторых сессиях падал на интерполяции переменной `MINIO_ROOT_PASSWORD`
-(`.env`-переменная не резолвилась в среде `Bash`-инструмента), хотя стек уже поднят (`docker ps`
-показывает все контейнеры `agelto_*` healthy). На P1.8 `docker compose exec` отработал штатно — эта
-деталь специфична для КОНКРЕТНОЙ сессии, не для репозитория; при повторном сбое — обходной путь
-`docker exec agelto_app <команда>` вместо `docker compose exec app <команда>`.
+**Done:** Фаза P1 закрыта 🟠 Done with deviations (8/8 items терминальны: 5×🟢 — P1.1, P1.2, P1.3,
+P1.4, P1.8; 3×🟠 — P1.5, P1.6, P1.7). Канон имён AI-контура (`root/naming-canon.md`), контракт оси
+типа документа (`root/document-type-axis.md`), контракт единого контура обучение↔боевой разбор
+(`root/document-contour.md`), схема восьми AI-таблиц по контракту, домен `Llm` (`llm_*`) вынесен из
+`Procurement`, оси предмета `prc_ai_prompt_suggestions`. Агрегат Known Deviations по всем items —
+`phases/P1.md` → `## Phase Handoff`. Полные факты по каждому item'у — Completion Notes P1.1–P1.8 в
+`phases/P1.md`.
 
-**Done:** P1.8 закрыт (🟢 Done) — item-коммит `eeedaa6`, `<base>=db12f81`. Оси предмета
-`prc_ai_prompt_suggestions` (D21):
-
-- Миграция (правка на месте, D20): `document_type` → `NOT NULL`, заполняется для ВСЕХ форм `kind`
-  (сентинел `any` для кросс-документных промтов); новая `analysis_step text nullable` на носителе
-  `AnalysisStep`; два именованных check-constraint'а (тот же паттерн, что `llm_routes`/`llm_prompts`/
-  `prc_ai_eval_runs`).
-- `PromptSuggestion`: `analysis_step` в `$fillable`/`casts()`; `document_type` НЕ кастуется в enum
-  (сентинел вне `AiDocumentType`, паттерн `LlmRoute`/`Prompt`).
-- `PromptCritic`: обе оси выводятся из `PromptStep $step` (кросс-документные шаги → сентинел `any`/
-  `null`, `Extraction*` → `AiDocumentType::Estimate`/`AnalysisStep::Extraction`, `Screening*` →
-  `AnalysisStep::Screening`); DTO ответа критика и текст промта `prompt-critic` НЕ менялись
-  (деривация в коде, не через LLM — Implementation Rule 6 не сработало).
-- Фабрика: база — `estimate`/`Extraction`, согласовано с базовым `ExtractionRows`.
-- Тесты: +3 (кросс-документный патч → `any`/`null`; два негативных теста на check-constraint —
-  `document_type` через фабрику, `analysis_step` сырым `DB::table()->insert()` в обход
-  Eloquent-каста, который иначе кинул бы `ValueError` раньше запроса).
-- Validation 1–5, 7 — зелёные (числа и команды — `phases/P1.md` P1.8 Completion Notes); Validation 6
-  — процесс-отклонение (гейт-сторож инварианта уже зелёный на `<base>`, см. блок выше); Validation 8
-  (`plan-lint`) — недоступен инфраструктурно.
-- Полные факты — `phases/P1.md` P1.8 Completion Notes.
-
-**Remaining:** 29 item ⬜ Not started, 8 🟢/🟠 (фаза P1 — 8/8, терминальна). Порядок: P1 →
-`plan-close` → P2 (6) → P3 (6) → P4 (4) → P5 (6) → P6 (3) → P7 (4). Батчи B1/B2 и три оставшихся
-гейта владельца (P2.1, P3.1, P4.2) — `roadmap.md`.
+**Remaining:** 29 item ⬜ Not started, 8 🟢/🟠 (фаза P1 — 8/8, терминальна). Порядок: P1 (закрыта) →
+`plan-audit` (этот handoff) → P2 (6) → P3 (6) → P4 (4) → P5 (6) → P6 (3) → P7 (4). Батчи B1/B2 и три
+оставшихся гейта владельца (P2.1, P3.1, P4.2) — `roadmap.md`.
 
 **Sources of truth:** скилл `plan-protocol` (схемы, статусы, DoR) ·
 `plans/2026.07.28-EST-ARCH/plan.md` §2 (правила исполнения) и §5 (**D1–D96**) ·
 **`root/naming-canon.md`, `root/document-type-axis.md`, `root/document-contour.md` — ЗАМОРОЖЕНЫ** ·
-`research/02-schema-impact-map.md` · `roadmap.md` · `phases/P1.md` (P1.8 Completion Notes) ·
-`brief/{00-brief,01-refinements}.md` · `open-questions.md`.
+`research/02-schema-impact-map.md` · `roadmap.md` · `phases/P1.md` (`## Phase Handoff` + Completion
+Notes P1.1–P1.8) · `brief/{00-brief,01-refinements}.md` · `open-questions.md`.
+
+**Lint (`plan-lint.py --baseline HEAD`, на дереве после перезаписи этого handoff):** 6 ERROR / 4
+WARN — новых от закрытия фазы: 0 (все 6 ошибок и 4 предупреждения — пре-существующие дефекты
+items P1.5–P1.8, не внесённые этой сессией). Остаточные ERROR вне Scope этой реконсиляции: (1)
+P1.6 несёт заголовок `**Known Deviations (🟠, материальные — дифф вне \`Files\` item'а):**` вместо
+канонического `**Known Deviations:**` — линтер не матчит параметризованный заголовок (латентный
+дефект формата, содержание поля присутствует и непусто, см. `## Phase Handoff`); (2) P1.5/P1.6/
+P1.7/P1.8 не несут строку `write-site: pre_mutation: <код> · pre_final: <код>` в Completion Notes —
+правило D88/P10.1 введено ПОСЛЕ закрытия этих items прошлыми сессиями, ретроактивная простановка
+кодов границ вне Scope этой phase-close реконсиляции (per-item мутация Completion Notes закрытых
+items — предмет `plan-design`/явного решения владельца, не механической сверки). Обе группы —
+находки для `plan-audit`, не блокеры закрытия фазы.
 
 **Open risks:**
+- **Три material-отклонения фазы (P1.5/P1.6/P1.7 — дифф вне `Files`)** — каждое разобрано и
+  обосновано в Known Deviations item'а и агрегировано в `phases/P1.md` → `## Phase Handoff`; предмет
+  первой проверки `plan-audit`.
 - **Инфраструктурный разрыв task_contract/plan-lint** (см. блок выше) — сохраняется для ВСЕХ
   следующих items/шагов; называть явно, не молчать.
 - **Практика D89-исхода для гейтов-сторожей инварианта, использованная дважды (P1.6/P1.8) без
