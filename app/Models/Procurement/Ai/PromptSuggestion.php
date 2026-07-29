@@ -6,6 +6,7 @@ namespace App\Models\Procurement\Ai;
 
 use App\Enums\Procurement\PromptSuggestionKind;
 use App\Enums\Procurement\PromptSuggestionStatus;
+use App\Models\Llm\LlmCall;
 use App\Models\User;
 use Database\Factories\Procurement\Ai\PromptSuggestionFactory;
 use Illuminate\Database\Eloquent\Attributes\UseFactory;

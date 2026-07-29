@@ -3,13 +3,13 @@
 declare(strict_types=1);
 
 use App\Enums\Procurement\LlmPurpose;
-use App\Models\Procurement\Ai\AiRoute;
+use App\Models\Llm\LlmRoute;
+use App\Models\Llm\Prompt;
 use App\Models\Procurement\Ai\Analysis;
 use App\Models\Procurement\Ai\Correction;
 use App\Models\Procurement\Ai\DatasetExample;
 use App\Models\Procurement\Ai\EvalRun;
 use App\Models\Procurement\Ai\Fixture;
-use App\Models\Procurement\Ai\Prompt;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
 
@@ -61,12 +61,12 @@ test('битый task отвергается БД на prc_ai_eval_runs', functi
         ->toThrow(QueryException::class);
 });
 
-test('битый document_type отвергается БД на prc_ai_routes', function (): void {
-    expect(fn () => AiRoute::factory()->create(['document_type' => 'not-a-real-type']))
+test('битый document_type отвергается БД на llm_routes', function (): void {
+    expect(fn () => LlmRoute::factory()->create(['document_type' => 'not-a-real-type']))
         ->toThrow(QueryException::class);
 });
 
-test('битый document_type отвергается БД на prc_ai_prompts', function (): void {
+test('битый document_type отвергается БД на llm_prompts', function (): void {
     expect(fn () => Prompt::factory()->create(['document_type' => 'not-a-real-type']))
         ->toThrow(QueryException::class);
 });
@@ -121,14 +121,14 @@ test('битый owner_document_type отвергается БД на prc_ai_fix
 });
 
 test('дубль кросс-документного маршрута — единый ключ (document_type, purpose, priority, shadow) отвергает повтор', function (): void {
-    AiRoute::factory()->create([
+    LlmRoute::factory()->create([
         'document_type' => 'any',
         'purpose' => LlmPurpose::Screening,
         'priority' => 0,
         'shadow' => false,
     ]);
 
-    expect(fn () => AiRoute::factory()->create([
+    expect(fn () => LlmRoute::factory()->create([
         'document_type' => 'any',
         'purpose' => LlmPurpose::Screening,
         'priority' => 0,

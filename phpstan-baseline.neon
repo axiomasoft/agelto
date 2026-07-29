@@ -61,49 +61,49 @@ parameters:
 			path: /var/www/html/app/Console/Commands/Ai/CachesCommand.php
 
 		-
-			message: '#^Access to an undefined property App\\Models\\Procurement\\Ai\\LlmCall\:\:\$cached_tokens\.$#'
+			message: '#^Access to an undefined property App\\Models\\Llm\\LlmCall\:\:\$cached_tokens\.$#'
 			identifier: property.notFound
 			count: 1
 			path: /var/www/html/app/Console/Commands/Ai/CostReportCommand.php
 
 		-
-			message: '#^Access to an undefined property App\\Models\\Procurement\\Ai\\LlmCall\:\:\$calls\.$#'
+			message: '#^Access to an undefined property App\\Models\\Llm\\LlmCall\:\:\$calls\.$#'
 			identifier: property.notFound
 			count: 1
 			path: /var/www/html/app/Console/Commands/Ai/CostReportCommand.php
 
 		-
-			message: '#^Access to an undefined property App\\Models\\Procurement\\Ai\\LlmCall\:\:\$completion_tokens\.$#'
+			message: '#^Access to an undefined property App\\Models\\Llm\\LlmCall\:\:\$completion_tokens\.$#'
 			identifier: property.notFound
 			count: 1
 			path: /var/www/html/app/Console/Commands/Ai/CostReportCommand.php
 
 		-
-			message: '#^Access to an undefined property App\\Models\\Procurement\\Ai\\LlmCall\:\:\$cost_micros\.$#'
+			message: '#^Access to an undefined property App\\Models\\Llm\\LlmCall\:\:\$cost_micros\.$#'
 			identifier: property.notFound
 			count: 1
 			path: /var/www/html/app/Console/Commands/Ai/CostReportCommand.php
 
 		-
-			message: '#^Access to an undefined property App\\Models\\Procurement\\Ai\\LlmCall\:\:\$model\.$#'
+			message: '#^Access to an undefined property App\\Models\\Llm\\LlmCall\:\:\$model\.$#'
 			identifier: property.notFound
 			count: 1
 			path: /var/www/html/app/Console/Commands/Ai/CostReportCommand.php
 
 		-
-			message: '#^Access to an undefined property App\\Models\\Procurement\\Ai\\LlmCall\:\:\$prompt_tokens\.$#'
+			message: '#^Access to an undefined property App\\Models\\Llm\\LlmCall\:\:\$prompt_tokens\.$#'
 			identifier: property.notFound
 			count: 1
 			path: /var/www/html/app/Console/Commands/Ai/CostReportCommand.php
 
 		-
-			message: '#^Access to an undefined property App\\Models\\Procurement\\Ai\\LlmCall\:\:\$provider\.$#'
+			message: '#^Access to an undefined property App\\Models\\Llm\\LlmCall\:\:\$provider\.$#'
 			identifier: property.notFound
 			count: 1
 			path: /var/www/html/app/Console/Commands/Ai/CostReportCommand.php
 
 		-
-			message: '#^Access to an undefined property App\\Models\\Procurement\\Ai\\LlmCall\:\:\$purpose\.$#'
+			message: '#^Access to an undefined property App\\Models\\Llm\\LlmCall\:\:\$purpose\.$#'
 			identifier: property.notFound
 			count: 1
 			path: /var/www/html/app/Console/Commands/Ai/CostReportCommand.php
@@ -145,7 +145,7 @@ parameters:
 			path: /var/www/html/app/Console/Commands/Ai/DatasetExportCommand.php
 
 		-
-			message: '#^Access to an undefined property App\\Models\\Procurement\\Ai\\AiRoute\:\:\$model\.$#'
+			message: '#^Access to an undefined property App\\Models\\Llm\\LlmRoute\:\:\$model\.$#'
 			identifier: property.notFound
 			count: 2
 			path: /var/www/html/app/Console/Commands/Ai/EvalRunCommand.php
@@ -211,43 +211,43 @@ parameters:
 			path: /var/www/html/app/Console/Commands/Ai/EvalRunCommand.php
 
 		-
-			message: '#^Access to an undefined property App\\Models\\Procurement\\Ai\\Prompt\:\:\$content\.$#'
+			message: '#^Access to an undefined property App\\Models\\Llm\\Prompt\:\:\$content\.$#'
 			identifier: property.notFound
 			count: 1
 			path: /var/www/html/app/Console/Commands/Ai/PromptsSyncCommand.php
 
 		-
-			message: '#^Access to an undefined property App\\Models\\Procurement\\Ai\\Prompt\:\:\$is_active\.$#'
+			message: '#^Access to an undefined property App\\Models\\Llm\\Prompt\:\:\$is_active\.$#'
 			identifier: property.notFound
 			count: 1
 			path: /var/www/html/app/Console/Commands/Ai/PromptsSyncCommand.php
 
 		-
-			message: '#^Access to an undefined property App\\Models\\Procurement\\Ai\\Prompt\:\:\$is_protected\.$#'
+			message: '#^Access to an undefined property App\\Models\\Llm\\Prompt\:\:\$is_protected\.$#'
 			identifier: property.notFound
 			count: 1
 			path: /var/www/html/app/Console/Commands/Ai/PromptsSyncCommand.php
 
 		-
-			message: '#^Access to an undefined property App\\Models\\Procurement\\Ai\\Prompt\:\:\$key\.$#'
+			message: '#^Access to an undefined property App\\Models\\Llm\\Prompt\:\:\$key\.$#'
 			identifier: property.notFound
 			count: 3
 			path: /var/www/html/app/Console/Commands/Ai/PromptsSyncCommand.php
 
 		-
-			message: '#^Access to an undefined property App\\Models\\Procurement\\Ai\\Prompt\:\:\$priority\.$#'
+			message: '#^Access to an undefined property App\\Models\\Llm\\Prompt\:\:\$priority\.$#'
 			identifier: property.notFound
 			count: 1
 			path: /var/www/html/app/Console/Commands/Ai/PromptsSyncCommand.php
 
 		-
-			message: '#^Access to an undefined property App\\Models\\Procurement\\Ai\\Prompt\:\:\$step\.$#'
+			message: '#^Access to an undefined property App\\Models\\Llm\\Prompt\:\:\$step\.$#'
 			identifier: property.notFound
 			count: 1
 			path: /var/www/html/app/Console/Commands/Ai/PromptsSyncCommand.php
 
 		-
-			message: '#^Access to an undefined property App\\Models\\Procurement\\Ai\\Prompt\:\:\$version\.$#'
+			message: '#^Access to an undefined property App\\Models\\Llm\\Prompt\:\:\$version\.$#'
 			identifier: property.notFound
 			count: 2
 			path: /var/www/html/app/Console/Commands/Ai/PromptsSyncCommand.php
@@ -337,7 +337,7 @@ parameters:
 			path: /var/www/html/app/Filament/Resources/Procurement/Ai/Analyses/Schemas/AnalysisInfolist.php
 
 		-
-			message: '#^Access to an undefined property App\\Models\\Procurement\\Ai\\Prompt\:\:\$is_protected\.$#'
+			message: '#^Access to an undefined property App\\Models\\Llm\\Prompt\:\:\$is_protected\.$#'
 			identifier: property.notFound
 			count: 5
 			path: /var/www/html/app/Guards/Admin/Policies/PromptPolicy.php
@@ -529,31 +529,31 @@ parameters:
 			path: /var/www/html/app/Repositories/Procurement/ProcurementStoreRepository.php
 
 		-
-			message: '#^Access to an undefined property App\\Models\\Procurement\\Ai\\Prompt\:\:\$priority\.$#'
+			message: '#^Access to an undefined property App\\Models\\Llm\\Prompt\:\:\$priority\.$#'
 			identifier: property.notFound
 			count: 2
-			path: /var/www/html/app/Repositories/Procurement/PromptReadRepository.php
+			path: /var/www/html/app/Repositories/Llm/PromptReadRepository.php
 
 		-
-			message: '#^Access to an undefined property App\\Models\\Procurement\\Ai\\Prompt\:\:\$step\.$#'
+			message: '#^Access to an undefined property App\\Models\\Llm\\Prompt\:\:\$step\.$#'
 			identifier: property.notFound
 			count: 2
-			path: /var/www/html/app/Repositories/Procurement/PromptReadRepository.php
+			path: /var/www/html/app/Repositories/Llm/PromptReadRepository.php
 
 		-
-			message: '#^Access to an undefined property App\\Models\\Procurement\\Ai\\AiRoute\:\:\$model\.$#'
+			message: '#^Access to an undefined property App\\Models\\Llm\\LlmRoute\:\:\$model\.$#'
 			identifier: property.notFound
 			count: 1
 			path: /var/www/html/app/Services/Llm/AiRouteResolver.php
 
 		-
-			message: '#^Access to an undefined property App\\Models\\Procurement\\Ai\\AiRoute\:\:\$options\.$#'
+			message: '#^Access to an undefined property App\\Models\\Llm\\LlmRoute\:\:\$options\.$#'
 			identifier: property.notFound
 			count: 1
 			path: /var/www/html/app/Services/Llm/AiRouteResolver.php
 
 		-
-			message: '#^Access to an undefined property App\\Models\\Procurement\\Ai\\Provider\:\:\$driver\.$#'
+			message: '#^Access to an undefined property App\\Models\\Llm\\Provider\:\:\$driver\.$#'
 			identifier: property.notFound
 			count: 1
 			path: /var/www/html/app/Services/Llm/AiRouteResolver.php
@@ -577,7 +577,7 @@ parameters:
 			path: /var/www/html/app/Services/Llm/AiRouteResolver.php
 
 		-
-			message: '#^Parameter \#1 \$provider of method App\\Services\\Llm\\AiRouteResolver\:\:providerFor\(\) expects App\\Models\\Procurement\\Ai\\Provider, Illuminate\\Database\\Eloquent\\Model\|null given\.$#'
+			message: '#^Parameter \#1 \$provider of method App\\Services\\Llm\\AiRouteResolver\:\:providerFor\(\) expects App\\Models\\Llm\\Provider, Illuminate\\Database\\Eloquent\\Model\|null given\.$#'
 			identifier: argument.type
 			count: 1
 			path: /var/www/html/app/Services/Llm/AiRouteResolver.php
@@ -619,25 +619,25 @@ parameters:
 			path: /var/www/html/app/Services/Llm/LlmCacheManager.php
 
 		-
-			message: '#^Access to an undefined property App\\Models\\Procurement\\Ai\\LlmCall\:\:\$cached_tokens\.$#'
+			message: '#^Access to an undefined property App\\Models\\Llm\\LlmCall\:\:\$cached_tokens\.$#'
 			identifier: property.notFound
 			count: 3
 			path: /var/www/html/app/Services/Llm/LlmCacheManager.php
 
 		-
-			message: '#^Access to an undefined property App\\Models\\Procurement\\Ai\\LlmCall\:\:\$calls\.$#'
+			message: '#^Access to an undefined property App\\Models\\Llm\\LlmCall\:\:\$calls\.$#'
 			identifier: property.notFound
 			count: 1
 			path: /var/www/html/app/Services/Llm/LlmCacheManager.php
 
 		-
-			message: '#^Access to an undefined property App\\Models\\Procurement\\Ai\\LlmCall\:\:\$prompt_tokens\.$#'
+			message: '#^Access to an undefined property App\\Models\\Llm\\LlmCall\:\:\$prompt_tokens\.$#'
 			identifier: property.notFound
 			count: 2
 			path: /var/www/html/app/Services/Llm/LlmCacheManager.php
 
 		-
-			message: '#^Access to an undefined property App\\Models\\Procurement\\Ai\\LlmCall\:\:\$purpose\.$#'
+			message: '#^Access to an undefined property App\\Models\\Llm\\LlmCall\:\:\$purpose\.$#'
 			identifier: property.notFound
 			count: 1
 			path: /var/www/html/app/Services/Llm/LlmCacheManager.php
@@ -649,13 +649,13 @@ parameters:
 			path: /var/www/html/app/Services/Llm/LlmCacheManager.php
 
 		-
-			message: '#^Access to an undefined property App\\Models\\Procurement\\Ai\\Prompt\:\:\$key\.$#'
+			message: '#^Access to an undefined property App\\Models\\Llm\\Prompt\:\:\$key\.$#'
 			identifier: property.notFound
 			count: 1
 			path: /var/www/html/app/Services/Llm/PromptComposer.php
 
 		-
-			message: '#^Access to an undefined property App\\Models\\Procurement\\Ai\\Prompt\:\:\$version\.$#'
+			message: '#^Access to an undefined property App\\Models\\Llm\\Prompt\:\:\$version\.$#'
 			identifier: property.notFound
 			count: 1
 			path: /var/www/html/app/Services/Llm/PromptComposer.php
@@ -1549,7 +1549,7 @@ parameters:
 			path: /var/www/html/app/Models/Procurement/Estimate/Estimate.php
 
 		-
-			message: '#^Access to an undefined property App\\Models\\Procurement\\Ai\\AiRoute\:\:\$model\.$#'
+			message: '#^Access to an undefined property App\\Models\\Llm\\LlmRoute\:\:\$model\.$#'
 			identifier: property.notFound
 			count: 1
 			path: /var/www/html/app/Services/Procurement/Bench/FormatBenchRunner.php

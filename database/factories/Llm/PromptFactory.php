@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
-namespace Database\Factories\Procurement\Ai;
+namespace Database\Factories\Llm;
 
 use App\Enums\Llm\DocumentTypeScope;
 use App\Enums\Procurement\AnalysisStep;
-use App\Models\Procurement\Ai\Prompt;
+use App\Models\Llm\Prompt;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**

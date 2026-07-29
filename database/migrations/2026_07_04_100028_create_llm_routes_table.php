@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 use App\Enums\Llm\DocumentTypeScope;
 use App\Enums\Procurement\AiDocumentType;
-use App\Models\Procurement\Ai\AiRoute;
-use App\Models\Procurement\Ai\Provider;
+use App\Models\Llm\LlmRoute;
+use App\Models\Llm\Provider;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
@@ -19,7 +19,7 @@ return new class extends Migration
             $table->id();
 
             $table->text('document_type')->comment('ключ маршрутизации: значение AiDocumentType либо сентинел any (кросс-документный маршрут), целостность — check-constraint (D16/D17)');
-            $table->text('purpose')->comment('совпадает с prc_ai_llm_calls.purpose');
+            $table->text('purpose')->comment('совпадает с llm_calls.purpose');
 
             $table->foreignId('provider_id')
                 ->index()
@@ -37,8 +37,8 @@ return new class extends Migration
         });
 
         DB::statement(
-            'ALTER TABLE prc_ai_routes '
-            .'ADD CONSTRAINT prc_ai_routes_document_type_check '
+            'ALTER TABLE llm_routes '
+            .'ADD CONSTRAINT llm_routes_document_type_check '
             ."CHECK (document_type IN ({$this->documentTypeOrSentinelValues()}))",
         );
     }
@@ -50,7 +50,7 @@ return new class extends Migration
 
     private function table(): string
     {
-        return (new AiRoute)->getTable();
+        return (new LlmRoute)->getTable();
     }
 
     private function documentTypeOrSentinelValues(): string

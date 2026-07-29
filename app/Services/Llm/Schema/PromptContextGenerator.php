@@ -35,7 +35,7 @@ final readonly class PromptContextGenerator
     }
 
     /**
-     * sha1 системной части промта — фиксирует версию контракта (`prc_ai_prompts.rules_hash`).
+     * sha1 системной части промта — фиксирует версию контракта (`llm_prompts.rules_hash`).
      */
     public function rulesHash(string $systemPart): string
     {

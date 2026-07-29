@@ -6,19 +6,19 @@ namespace Database\Seeders;
 
 use App\Enums\Procurement\AiDocumentType;
 use App\Enums\Procurement\LlmPurpose;
-use App\Models\Procurement\Ai\AiRoute;
-use App\Models\Procurement\Ai\Provider;
+use App\Models\Llm\LlmRoute;
+use App\Models\Llm\Provider;
 use Illuminate\Database\Seeder;
 
 /**
  * Стартовая матрица роутинга (ТЗ 04 §3.1, D4/D27/D37/D61): провайдер `gemini` + 11 строк
- * `prc_ai_routes` — 5 основных (`priority=0`, дешёвая модель на каждый purpose) + 5
+ * `llm_routes` — 5 основных (`priority=0`, дешёвая модель на каждый purpose) + 5
  * эскалационных (`priority=1`, D4 «эскалация по флагу сложности/провалу валидации») + 1 строка
  * `prompt_critic` (`priority=0` без эскалации, P7.4, D61) — критик промтов не re-ask'ается на
  * маршруте выше, повтор — на уровне job-retry, как у остальных шагов.
  *
  * Driver провайдера — `gemini` (не буквальное «prism-gemini» из прозы Intent этого item'а):
- * `AiRouteResolver::providerFor()`/`AiRouteFactory` уже закрепили `driver === 'gemini'` как
+ * `AiRouteResolver::providerFor()`/`LlmRouteFactory` уже закрепили `driver === 'gemini'` как
  * код-контракт (P3.3) — сид с «prism-gemini» ломал бы резолв (`RuntimeException` «Неизвестный
  * драйвер провайдера»). Prism — библиотека ТРАНСПОРТА за адаптером, не значение поля `driver`.
  *
@@ -49,7 +49,7 @@ final class AiRoutingSeeder extends Seeder
         );
 
         foreach ($this->routes() as $route) {
-            AiRoute::query()->updateOrCreate(
+            LlmRoute::query()->updateOrCreate(
                 [
                     'document_type' => $route['document_type'],
                     'purpose' => $route['purpose'],

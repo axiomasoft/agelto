@@ -2,19 +2,19 @@
 
 declare(strict_types=1);
 
-namespace Database\Factories\Procurement\Ai;
+namespace Database\Factories\Llm;
 
 use App\Enums\Procurement\LlmPurpose;
-use App\Models\Procurement\Ai\AiRoute;
-use App\Models\Procurement\Ai\Provider;
+use App\Models\Llm\LlmRoute;
+use App\Models\Llm\Provider;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
- * @extends Factory<AiRoute>
+ * @extends Factory<LlmRoute>
  */
-final class AiRouteFactory extends Factory
+final class LlmRouteFactory extends Factory
 {
-    protected $model = AiRoute::class;
+    protected $model = LlmRoute::class;
 
     public function definition(): array
     {

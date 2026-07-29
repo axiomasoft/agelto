@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Guards\Admin\Policies;
 
 use App\Guards\Admin\Permissions\PromptPermission;
-use App\Models\Procurement\Ai\Prompt;
+use App\Models\Llm\Prompt;
 use App\Models\User;
 use AzGuard\Attributes\GateAbility;
 use AzGuard\Attributes\GuardPolicy;

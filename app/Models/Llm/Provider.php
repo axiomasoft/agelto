@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace App\Models\Procurement\Ai;
+namespace App\Models\Llm;
 
-use Database\Factories\Procurement\Ai\ProviderFactory;
+use Database\Factories\Llm\ProviderFactory;
 use Illuminate\Database\Eloquent\Attributes\UseFactory;
 use Illuminate\Database\Eloquent\Casts\AsCollection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -18,7 +18,7 @@ final class Provider extends Model
 {
     use HasFactory;
 
-    protected $table = 'prc_ai_providers';
+    protected $table = 'llm_providers';
 
     protected $fillable = [
         'code',

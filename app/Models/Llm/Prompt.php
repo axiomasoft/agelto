@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace App\Models\Procurement\Ai;
+namespace App\Models\Llm;
 
-use Database\Factories\Procurement\Ai\PromptFactory;
+use Database\Factories\Llm\PromptFactory;
 use Illuminate\Database\Eloquent\Attributes\UseFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -19,7 +19,7 @@ final class Prompt extends Model
 {
     use HasFactory;
 
-    protected $table = 'prc_ai_prompts';
+    protected $table = 'llm_prompts';
 
     protected $fillable = [
         'document_type',

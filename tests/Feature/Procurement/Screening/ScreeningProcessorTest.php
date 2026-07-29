@@ -8,9 +8,9 @@ use App\Enums\Procurement\DocumentStatus;
 use App\Enums\Procurement\FinishReason;
 use App\Enums\Procurement\LlmPurpose;
 use App\Jobs\Procurement\ScreeningJob;
-use App\Models\Procurement\Ai\AiRoute;
+use App\Models\Llm\LlmRoute;
+use App\Models\Llm\Provider;
 use App\Models\Procurement\Ai\Analysis;
-use App\Models\Procurement\Ai\Provider;
 use App\Models\Procurement\Document\Document;
 use App\Models\Procurement\Document\DocumentVersion;
 use App\Services\Llm\Dto\LlmStructuredResponse;
@@ -50,7 +50,7 @@ function seedScreeningRoute(FakeLlmProvider $fake): void
 
     $provider = Provider::factory()->create(['driver' => 'gemini']);
 
-    AiRoute::factory()->create([
+    LlmRoute::factory()->create([
         'document_type' => 'any',
         'purpose' => LlmPurpose::Screening,
         'provider_id' => $provider->id,

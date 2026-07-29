@@ -2,12 +2,12 @@
 
 declare(strict_types=1);
 
-namespace App\Repositories\Procurement;
+namespace App\Repositories\Llm;
 
-use App\Models\Procurement\Ai\LlmCall;
+use App\Models\Llm\LlmCall;
 
 /**
- * Единственная точка персистентности `prc_ai_llm_calls` — `LlmCallRecorder` решает, какие
+ * Единственная точка персистентности `llm_calls` — `LlmCallRecorder` решает, какие
  * атрибуты писать (usage, cost_micros, request/response refs), репозиторий только пишет
  * (аналог `DocumentStoreRepository`).
  */

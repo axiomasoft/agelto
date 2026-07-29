@@ -14,7 +14,7 @@ use RuntimeException;
 /**
  * Применение УЖЕ одобренного предложения из очереди (P7.4, D8): работает ТОЛЬКО со
  * `status=approved` — {@see PromptPatchApplier} отказывает на любом другом статусе, ничего не
- * трогая (ни файл, ни БД). Команда САМА не пишет `prc_ai_prompts` — файл коммитит и
+ * трогая (ни файл, ни БД). Команда САМА не пишет `llm_prompts` — файл коммитит и
  * `ai:prompts:sync` гоняет человек (D59).
  */
 final class PromptsApplyCommand extends Command

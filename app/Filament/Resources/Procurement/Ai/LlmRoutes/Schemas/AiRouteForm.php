@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Filament\Resources\Procurement\Ai\AiRoutes\Schemas;
+namespace App\Filament\Resources\Procurement\Ai\LlmRoutes\Schemas;
 
 use App\Enums\Llm\DocumentTypeScope;
 use App\Enums\Procurement\AiDocumentType;

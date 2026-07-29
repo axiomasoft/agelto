@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-namespace App\Repositories\Procurement;
+namespace App\Repositories\Llm;
 
 use App\Enums\Procurement\PromptStep;
-use App\Models\Procurement\Ai\Prompt;
+use App\Models\Llm\Prompt;
 use Illuminate\Support\Collection;
 
 /**

@@ -4,13 +4,13 @@ declare(strict_types=1);
 
 namespace App\Console\Commands\Ai;
 
-use App\Models\Procurement\Ai\Prompt;
+use App\Models\Llm\Prompt;
 use Database\Seeders\PromptSeeder;
 use Illuminate\Console\Command;
 use Illuminate\Support\Collection;
 
 /**
- * Синхронизация `resources/ai/prompts/**\/*.md` → `prc_ai_prompts` (P8.1, D5/D17). Без `--check`
+ * Синхронизация `resources/ai/prompts/**\/*.md` → `llm_prompts` (P8.1, D5/D17). Без `--check`
  * делает ровно то же самое, что `PromptSeeder` внутри `db:seed` — прямой путь для деплоя промтов
  * без прогона остального `DatabaseSeeder`. С `--check` НИЧЕГО не пишет — только сверяет файлы с
  * текущим состоянием БД и завершает CI-джобу ошибкой при найденном дрейфе.
@@ -19,7 +19,7 @@ final class PromptsSyncCommand extends Command
 {
     protected $signature = 'ai:prompts:sync {--check : только сверить дрейф файлы↔БД, ничего не писать}';
 
-    protected $description = 'Синхронизация файловых промтов resources/ai/prompts/** в prc_ai_prompts';
+    protected $description = 'Синхронизация файловых промтов resources/ai/prompts/** в llm_prompts';
 
     public function handle(): int
     {

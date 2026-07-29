@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-namespace Database\Factories\Procurement\Ai;
+namespace Database\Factories\Llm;
 
 use App\Enums\Procurement\LlmPurpose;
-use App\Models\Procurement\Ai\LlmCall;
+use App\Models\Llm\LlmCall;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**

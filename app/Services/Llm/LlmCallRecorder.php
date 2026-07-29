@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace App\Services\Llm;
 
 use App\Enums\Procurement\LlmPurpose;
-use App\Models\Procurement\Ai\LlmCall;
-use App\Repositories\Procurement\AiCallStoreRepository;
+use App\Models\Llm\LlmCall;
+use App\Repositories\Llm\AiCallStoreRepository;
 use App\Services\Llm\Dto\LlmUsage;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Log;
@@ -14,7 +14,7 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
 /**
- * Запись КАЖДОГО вызова LLM в `prc_ai_llm_calls` (ТЗ 04 §6) — включая неуспех
+ * Запись КАЖДОГО вызова LLM в `llm_calls` (ТЗ 04 §6) — включая неуспех
  * (`success=false`, `error` заполнен, `usage=null` допустим для отказов до получения ответа).
  * Сырые request/response — НЕ inline, ссылки на object storage (`config('crawler.raw_disk')`,
  * тот же диск, что документы/сырой HTML — единый канон `*_ref`). Вызывается оркестрирующим
@@ -68,7 +68,7 @@ final readonly class LlmCallRecorder
 
         // Code Guidance P7.5 (D25): trace_id — без новой колонки, в контексте лога (Context
         // facade дегидрируется через request/job автоматически, research/J §1); коррелирует
-        // конкретный `prc_ai_llm_calls`-ряд с HTTP-запросом/консольной командой/job'ом, его
+        // конкретный `llm_calls`-ряд с HTTP-запросом/консольной командой/job'ом, его
         // породившими, БЕЗ изменения формата уже сохранённого сырого request/response.
         Log::info('LLM-вызов записан', [
             'llm_call_id' => $llmCall->id,

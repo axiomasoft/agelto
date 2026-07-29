@@ -2,29 +2,29 @@
 
 declare(strict_types=1);
 
-namespace App\Repositories\Procurement;
+namespace App\Repositories\Llm;
 
 use App\Enums\Procurement\LlmPurpose;
-use App\Models\Procurement\Ai\AiRoute;
+use App\Models\Llm\LlmRoute;
 use Illuminate\Database\Eloquent\Collection;
 
 /**
- * Чтение матрицы роутинга `prc_ai_routes` (ТЗ 04 §3.1). Точное совпадение `document_type`
+ * Чтение матрицы роутинга `llm_routes` (ТЗ 04 §3.1). Точное совпадение `document_type`
  * предпочитается зарезервированному `'any'` (пример матрицы: `(any, screening)` → общий
  * дешёвый маршрут, конкретный тип документа может переопределить его отдельной строкой).
  */
-final readonly class AiRouteReadRepository
+final readonly class LlmRouteReadRepository
 {
     /**
      * Активные маршруты для (document_type, purpose), отсортированы: точное совпадение
      * `document_type` раньше `'any'`, внутри группы — `priority` ASC (меньше = основной
      * маршрут, следующие по возрастанию — fallback/эскалация, ТЗ 04 §3.1).
      *
-     * @return Collection<int, AiRoute>
+     * @return Collection<int, LlmRoute>
      */
     public function activeCandidatesFor(string $documentType, LlmPurpose $purpose): Collection
     {
-        return AiRoute::query()
+        return LlmRoute::query()
             ->with('provider')
             ->where('purpose', $purpose->value)
             ->where('is_active', true)
@@ -42,9 +42,9 @@ final readonly class AiRouteReadRepository
      * маршруты — отдельное подмножество (обычный основной маршрут `shadow=false` этим методом
      * никогда не возвращается).
      */
-    public function activeShadowRouteFor(string $documentType, LlmPurpose $purpose): ?AiRoute
+    public function activeShadowRouteFor(string $documentType, LlmPurpose $purpose): ?LlmRoute
     {
-        return AiRoute::query()
+        return LlmRoute::query()
             ->with('provider')
             ->where('purpose', $purpose->value)
             ->where('is_active', true)

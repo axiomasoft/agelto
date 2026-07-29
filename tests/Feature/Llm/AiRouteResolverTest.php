@@ -3,8 +3,8 @@
 declare(strict_types=1);
 
 use App\Enums\Procurement\LlmPurpose;
-use App\Models\Procurement\Ai\AiRoute;
-use App\Models\Procurement\Ai\Provider;
+use App\Models\Llm\LlmRoute;
+use App\Models\Llm\Provider;
 use App\Services\Llm\AiRouteResolver;
 use App\Services\Llm\Providers\PrismGeminiProvider;
 
@@ -16,14 +16,14 @@ function aiRouteResolver(): AiRouteResolver
 test('resolve() выбирает активный маршрут с минимальным priority', function (): void {
     $provider = Provider::factory()->create(['driver' => 'gemini']);
 
-    AiRoute::factory()->create([
+    LlmRoute::factory()->create([
         'document_type' => 'estimate',
         'purpose' => LlmPurpose::ExtractRows,
         'provider_id' => $provider->id,
         'model' => 'gemini-2.5-pro',
         'priority' => 5,
     ]);
-    $primary = AiRoute::factory()->create([
+    $primary = LlmRoute::factory()->create([
         'document_type' => 'estimate',
         'purpose' => LlmPurpose::ExtractRows,
         'provider_id' => $provider->id,
@@ -42,11 +42,11 @@ test('resolve() выбирает активный маршрут с минима
 test('candidatesFor() отдаёт весь список priority ASC для эскалации', function (): void {
     $provider = Provider::factory()->create(['driver' => 'gemini']);
 
-    AiRoute::factory()->create([
+    LlmRoute::factory()->create([
         'document_type' => 'estimate', 'purpose' => LlmPurpose::Screening,
         'provider_id' => $provider->id, 'priority' => 10,
     ]);
-    AiRoute::factory()->create([
+    LlmRoute::factory()->create([
         'document_type' => 'estimate', 'purpose' => LlmPurpose::Screening,
         'provider_id' => $provider->id, 'priority' => 1,
     ]);
@@ -63,11 +63,11 @@ test('candidatesFor() отдаёт весь список priority ASC для э�
 test('точный document_type предпочитается зарезервированному any при равном priority', function (): void {
     $provider = Provider::factory()->create(['driver' => 'gemini']);
 
-    AiRoute::factory()->create([
+    LlmRoute::factory()->create([
         'document_type' => 'any', 'purpose' => LlmPurpose::Screening,
         'provider_id' => $provider->id, 'model' => 'generic-model', 'priority' => 0,
     ]);
-    AiRoute::factory()->create([
+    LlmRoute::factory()->create([
         'document_type' => 'estimate', 'purpose' => LlmPurpose::Screening,
         'provider_id' => $provider->id, 'model' => 'estimate-specific-model', 'priority' => 0,
     ]);
@@ -80,7 +80,7 @@ test('точный document_type предпочитается зарезерви
 test('неактивные маршруты не участвуют в резолве', function (): void {
     $provider = Provider::factory()->create(['driver' => 'gemini']);
 
-    AiRoute::factory()->create([
+    LlmRoute::factory()->create([
         'document_type' => 'estimate', 'purpose' => LlmPurpose::Screening,
         'provider_id' => $provider->id, 'is_active' => false, 'priority' => 0,
     ]);
@@ -94,7 +94,7 @@ test('resolve() бросает исключение, если нет ни одн
 
 test('неизвестный driver провайдера бросает исключение', function (): void {
     $provider = Provider::factory()->create(['driver' => 'unknown-driver']);
-    AiRoute::factory()->create([
+    LlmRoute::factory()->create([
         'document_type' => 'estimate', 'purpose' => LlmPurpose::Screening,
         'provider_id' => $provider->id, 'priority' => 0,
     ]);

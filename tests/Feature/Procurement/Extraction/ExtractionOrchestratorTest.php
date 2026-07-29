@@ -9,10 +9,10 @@ use App\Enums\Procurement\ExtractionRoute;
 use App\Enums\Procurement\FinishReason;
 use App\Enums\Procurement\LlmPurpose;
 use App\Jobs\Procurement\EstimateExtractionJob;
-use App\Models\Procurement\Ai\AiRoute;
+use App\Models\Llm\LlmCall;
+use App\Models\Llm\LlmRoute;
+use App\Models\Llm\Provider;
 use App\Models\Procurement\Ai\Analysis;
-use App\Models\Procurement\Ai\LlmCall;
-use App\Models\Procurement\Ai\Provider;
 use App\Models\Procurement\Document\Document;
 use App\Models\Procurement\Document\DocumentVersion;
 use App\Models\Procurement\Estimate\Estimate;
@@ -61,7 +61,7 @@ function seedExtractionRoute(FakeLlmProvider $fake): void
 
     $provider = Provider::factory()->create(['driver' => 'gemini']);
 
-    AiRoute::factory()->create([
+    LlmRoute::factory()->create([
         'document_type' => 'estimate',
         'purpose' => LlmPurpose::ExtractRows,
         'provider_id' => $provider->id,
@@ -318,7 +318,7 @@ test('preflight сверх лимитов маршрута: windowed_enabled=tru
     $route = new ResolvedRoute(
         provider: $fake,
         options: new LlmOptions(provider: 'gemini', model: 'gemini-2.5-flash', temperature: 0.0, maxTokens: 8192),
-        route: AiRoute::factory()->make(['provider_id' => $provider->id]),
+        route: LlmRoute::factory()->make(['provider_id' => $provider->id]),
     );
 
     $document = Document::factory()->create(['status' => DocumentStatus::Screened]);

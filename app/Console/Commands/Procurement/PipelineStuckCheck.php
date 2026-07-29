@@ -8,7 +8,7 @@ use App\Enums\Procurement\AnalysisStatus;
 use App\Enums\Procurement\AnalysisStep;
 use App\Enums\Procurement\DocumentStatus;
 use App\Enums\Procurement\EstimateValidationStatus;
-use App\Models\Procurement\Ai\AiRoute;
+use App\Models\Llm\LlmRoute;
 use App\Models\Procurement\Ai\Analysis;
 use App\Models\Procurement\Document\Document;
 use App\Models\Procurement\Estimate\Estimate;
@@ -207,7 +207,7 @@ final class PipelineStuckCheck extends Command
         $now = CarbonImmutable::now();
         $capabilities = (array) config('ai.capabilities', []);
 
-        $models = AiRoute::query()->where('is_active', true)->pluck('model')->unique()->filter();
+        $models = LlmRoute::query()->where('is_active', true)->pluck('model')->unique()->filter();
 
         $near = [];
 

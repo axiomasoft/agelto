@@ -6,8 +6,8 @@ use App\Enums\Procurement\AnalysisStatus;
 use App\Enums\Procurement\AnalysisStep;
 use App\Enums\Procurement\DocumentStatus;
 use App\Enums\Procurement\LlmPurpose;
+use App\Models\Llm\LlmCall;
 use App\Models\Procurement\Ai\Analysis;
-use App\Models\Procurement\Ai\LlmCall;
 use App\Models\Procurement\Document\Document;
 use App\Pulse\Cards\LlmSpendCard;
 use App\Pulse\Cards\PipelineStagesCard;
@@ -36,7 +36,7 @@ test('PipelineStagesCard считает succeeded/failed по стадиям pre
         ->and($stages['extraction']['failed'])->toBe(0);
 });
 
-test('LlmSpendCard группирует токены/стоимость prc_ai_llm_calls по purpose за 24ч', function () {
+test('LlmSpendCard группирует токены/стоимость llm_calls по purpose за 24ч', function () {
     LlmCall::factory()->create([
         'purpose' => LlmPurpose::Screening,
         'prompt_tokens' => 1000,

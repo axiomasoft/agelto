@@ -26,7 +26,7 @@ use RuntimeException;
  * Транспорт локальной/сторонней LLM через OpenAI-совместимый REST-протокол (vLLM/Ollama/…,
  * P9.4, ТЗ 04 §7) — путь подключения без правки домена (D16). Stateless: `base_url`/`api_key`
  * НЕ хранятся в конструкторе (в отличие от `PrismGeminiProvider`, у которого один провайдер на
- * всё приложение) — маршруты с разными `prc_ai_providers` резолвятся к ОДНОМУ инстансу этого
+ * всё приложение) — маршруты с разными `llm_providers` резолвятся к ОДНОМУ инстансу этого
  * класса из контейнера (`AiRouteResolver::providerFor()`), поэтому конфигурация приходит per-call
  * через `LlmOptions::$baseUrl`/`$apiKeyEnv` (см. докблок DTO) — `Prism::using(..., $providerConfig)`
  * принимает override без глобального `config/prism.php`.
@@ -102,7 +102,7 @@ final readonly class OpenAiCompatibleProvider implements LlmProvider
     private function providerConfig(LlmOptions $options): array
     {
         if ($options->baseUrl === null || $options->baseUrl === '') {
-            throw new RuntimeException('OpenAiCompatibleProvider: у маршрута не задан base_url (prc_ai_providers.base_url).');
+            throw new RuntimeException('OpenAiCompatibleProvider: у маршрута не задан base_url (llm_providers.base_url).');
         }
 
         return array_filter(
@@ -115,7 +115,7 @@ final readonly class OpenAiCompatibleProvider implements LlmProvider
     }
 
     /**
-     * Ключ API — только имя env-переменной хранится в БД (`prc_ai_providers.options.api_key_env`,
+     * Ключ API — только имя env-переменной хранится в БД (`llm_providers.options.api_key_env`,
      * докблок модели `Provider`), сам секрет читается тут. `null` — локальный сервер без
      * аутентификации (типичный случай для vLLM/Ollama за внутренним сетевым периметром).
      */

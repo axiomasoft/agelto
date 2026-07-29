@@ -37,7 +37,7 @@ return new class extends Migration
                 ->constrained(table: (new EvalRun)->getTable())
                 ->nullOnDelete();
 
-            // Без constrained(): prc_ai_llm_calls партиционирован по called_at (составной PK
+            // Без constrained(): llm_calls партиционирован по called_at (составной PK
             // (id, called_at)) — Postgres не примет FK на одиночный id без отдельного unique-
             // индекса, а строки-партиции ротируются retention'ом (§9.1 спеки), так что жёсткая
             // ссылка всё равно бы протухала. Поле — происхождение предложения (какой вызов его

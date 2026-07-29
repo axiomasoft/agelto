@@ -7,7 +7,7 @@ use Illuminate\Support\Facades\DB;
 
 /**
  * Понижает `autovacuum_*_scale_factor` (P7.7, Intent п.4, research/L §PG17) для hot-таблиц
- * с наибольшим объёмом вставок среди партиционированных — `prc_ai_llm_calls` (КАЖДЫЙ
+ * с наибольшим объёмом вставок среди партиционированных — `llm_calls` (КАЖДЫЙ
  * LLM-вызов) и `prc_fetches` (краулинг). Дефолты Postgres (`autovacuum_vacuum_scale_factor`
  * 0.2, `autovacuum_analyze_scale_factor` 0.1) требуют десятки/сотни тысяч изменённых строк
  * на партицию до срабатывания — для append-only лога это означает устаревшую статистику
@@ -28,7 +28,7 @@ use Illuminate\Support\Facades\DB;
  */
 return new class extends Migration
 {
-    private const array HOT_TABLES = ['prc_ai_llm_calls', 'prc_fetches'];
+    private const array HOT_TABLES = ['llm_calls', 'prc_fetches'];
 
     private const array RELOPTIONS = [
         'autovacuum_vacuum_scale_factor' => '0.01',

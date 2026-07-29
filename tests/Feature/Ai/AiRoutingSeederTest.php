@@ -3,8 +3,8 @@
 declare(strict_types=1);
 
 use App\Enums\Procurement\LlmPurpose;
-use App\Models\Procurement\Ai\AiRoute;
-use App\Models\Procurement\Ai\Provider;
+use App\Models\Llm\LlmRoute;
+use App\Models\Llm\Provider;
 use App\Services\Llm\AiRouteResolver;
 use Database\Seeders\AiRoutingSeeder;
 
@@ -15,9 +15,9 @@ test('сидер создаёт провайдера gemini и стартову�
     expect($provider->driver)->toBe('gemini')
         ->and($provider->is_active)->toBeTrue();
 
-    expect(AiRoute::query()->count())->toBe(11);
+    expect(LlmRoute::query()->count())->toBe(11);
 
-    $screening = AiRoute::query()
+    $screening = LlmRoute::query()
         ->where('document_type', 'any')
         ->where('purpose', LlmPurpose::Screening->value)
         ->where('priority', 0)
@@ -27,28 +27,28 @@ test('сидер создаёт провайдера gemini и стартову�
         ->and($screening->is_active)->toBeTrue()
         ->and($screening->shadow)->toBeFalse();
 
-    $discovery = AiRoute::query()
+    $discovery = LlmRoute::query()
         ->where('document_type', 'estimate')
         ->where('purpose', LlmPurpose::Discovery->value)
         ->where('priority', 0)
         ->sole();
     expect($discovery->model)->toBe('gemini-3.1-flash-lite');
 
-    $extractRows = AiRoute::query()
+    $extractRows = LlmRoute::query()
         ->where('document_type', 'estimate')
         ->where('purpose', LlmPurpose::ExtractRows->value)
         ->where('priority', 0)
         ->sole();
     expect($extractRows->model)->toBe('gemini-3.5-flash');
 
-    $escalation = AiRoute::query()
+    $escalation = LlmRoute::query()
         ->where('document_type', 'estimate')
         ->where('purpose', LlmPurpose::ExtractRows->value)
         ->where('priority', 1)
         ->sole();
     expect($escalation->model)->toBe('gemini-3.1-pro-preview');
 
-    $promptCritic = AiRoute::query()
+    $promptCritic = LlmRoute::query()
         ->where('document_type', 'any')
         ->where('purpose', LlmPurpose::PromptCritic->value)
         ->where('priority', 0)
@@ -62,7 +62,7 @@ test('сидер идемпотентен — повторный запуск н
     (new AiRoutingSeeder)->run();
 
     expect(Provider::query()->count())->toBe(1)
-        ->and(AiRoute::query()->count())->toBe(11);
+        ->and(LlmRoute::query()->count())->toBe(11);
 });
 
 test('после сидирования AiRouteResolver находит активный маршрут для каждого purpose стартовой матрицы', function (): void {

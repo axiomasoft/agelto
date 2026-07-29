@@ -30,7 +30,7 @@ class DatabaseSeeder extends Seeder
         $this->call(AiRoutingSeeder::class);
 
         // Файловые промты (P8.1, D5/D17) — резолверу/оркестраторам НУЖЕН непустой
-        // `prc_ai_prompts` в prod так же, как маршрутам выше (PromptComposer иначе собирает
+        // `llm_prompts` в prod так же, как маршрутам выше (PromptComposer иначе собирает
         // пустую системную часть) — та же логика «до local/testing-гейта», что AiRoutingSeeder.
         $this->call(PromptSeeder::class);
 

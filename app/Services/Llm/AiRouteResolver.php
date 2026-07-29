@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace App\Services\Llm;
 
 use App\Enums\Procurement\LlmPurpose;
-use App\Models\Procurement\Ai\AiRoute;
-use App\Models\Procurement\Ai\Provider;
-use App\Repositories\Procurement\AiRouteReadRepository;
+use App\Models\Llm\LlmRoute;
+use App\Models\Llm\Provider;
+use App\Repositories\Llm\LlmRouteReadRepository;
 use App\Services\Llm\Contracts\LlmProvider;
 use App\Services\Llm\Dto\LlmOptions;
 use App\Services\Llm\Dto\ResolvedRoute;
@@ -18,8 +18,8 @@ use Illuminate\Support\Collection;
 use RuntimeException;
 
 /**
- * Резолвер матрицы роутинга `prc_ai_routes` (ТЗ 04 §3.1): `(document_type, purpose)` → активная
- * строка с МИНИМАЛЬНЫМ `priority` (основной маршрут) + инстанс `LlmProvider` из `prc_ai_providers`.
+ * Резолвер матрицы роутинга `llm_routes` (ТЗ 04 §3.1): `(document_type, purpose)` → активная
+ * строка с МИНИМАЛЬНЫМ `priority` (основной маршрут) + инстанс `LlmProvider` из `llm_providers`.
  * `candidatesFor()` отдаёт весь упорядоченный список — следующие по `priority` строки нужны
  * `ReaskPolicy` (P3.4) для эскалации при недоступности провайдера/провале валидации.
  */
@@ -38,7 +38,7 @@ final readonly class AiRouteResolver
     private const int DEFAULT_MAX_TOKENS = 32768;
 
     public function __construct(
-        private AiRouteReadRepository $routes,
+        private LlmRouteReadRepository $routes,
         private Container $container,
     ) {}
 
@@ -66,7 +66,7 @@ final readonly class AiRouteResolver
     {
         return $this->routes
             ->activeCandidatesFor($documentType, $purpose)
-            ->map(fn (AiRoute $route): ResolvedRoute => $this->toResolvedRoute($route, $purpose));
+            ->map(fn (LlmRoute $route): ResolvedRoute => $this->toResolvedRoute($route, $purpose));
     }
 
     /**
@@ -81,7 +81,7 @@ final readonly class AiRouteResolver
         return $route !== null ? $this->toResolvedRoute($route, $purpose) : null;
     }
 
-    private function toResolvedRoute(AiRoute $route, LlmPurpose $purpose): ResolvedRoute
+    private function toResolvedRoute(LlmRoute $route, LlmPurpose $purpose): ResolvedRoute
     {
         $provider = $route->provider;
 

@@ -5,7 +5,7 @@ declare(strict_types=1);
 use App\Dto\Procurement\Ai\Screening\ScreeningResult;
 use App\Enums\Procurement\FinishReason;
 use App\Enums\Procurement\LlmPurpose;
-use App\Models\Procurement\Ai\AiRoute;
+use App\Models\Llm\LlmRoute;
 use App\Services\Llm\Dto\JsonSchema;
 use App\Services\Llm\Dto\LlmOptions;
 use App\Services\Llm\Dto\LlmPrompt;
@@ -19,7 +19,7 @@ use Illuminate\Support\Collection;
 use Tests\Support\Doubles\FakeLlmProvider;
 
 // Директория tests/Unit не подключает RefreshDatabase по умолчанию (tests/Pest.php); routeWith()
-// материализует AiRoute::factory()->make() с belongsTo-фабрикой Provider::factory(), которая
+// материализует LlmRoute::factory()->make() с belongsTo-фабрикой Provider::factory(), которая
 // персистит связанного провайдера даже при make() — нужна тестовая БД, подключаем трейт точечно.
 uses(RefreshDatabase::class);
 
@@ -48,7 +48,7 @@ function routeWith(FakeLlmProvider $provider, int $priority = 0): ResolvedRoute
     return new ResolvedRoute(
         provider: $provider,
         options: new LlmOptions(provider: 'gemini', model: 'gemini-2.5-flash', temperature: 0.0, maxTokens: 8192),
-        route: AiRoute::factory()->make(['priority' => $priority, 'purpose' => LlmPurpose::Screening]),
+        route: LlmRoute::factory()->make(['priority' => $priority, 'purpose' => LlmPurpose::Screening]),
     );
 }
 

@@ -11,11 +11,11 @@ use App\Enums\Procurement\AnalysisStatus;
 use App\Enums\Procurement\AnalysisStep;
 use App\Enums\Procurement\GoldSource;
 use App\Enums\Procurement\LlmPurpose;
+use App\Models\Llm\LlmCall;
 use App\Models\Procurement\Ai\DatasetExample;
 use App\Models\Procurement\Ai\EvalResult;
 use App\Models\Procurement\Ai\EvalRun;
 use App\Models\Procurement\Ai\Fixture;
-use App\Models\Procurement\Ai\LlmCall;
 use App\Models\Procurement\Document\Document;
 use App\Repositories\Procurement\AnalysisStoreRepository;
 use App\Services\Llm\AiRouteResolver;
@@ -591,7 +591,7 @@ final class EvalRunCommand extends Command
     }
 
     /**
-     * Версии промтов, реально участвовавших в вызовах ЭТОГО прогона (`prc_ai_llm_calls`,
+     * Версии промтов, реально участвовавших в вызовах ЭТОГО прогона (`llm_calls`,
      * отфильтрованные по `analysis_id` из обработанных примеров И `called_at >= $since` — тот же
      * `Analysis` мог обслужить предыдущий `ai:eval:run`, старые вызовы не в счёт). Расхождение
      * версии одного ключа МЕЖДУ вызовами прогона делает прогон непригодным для сравнения —

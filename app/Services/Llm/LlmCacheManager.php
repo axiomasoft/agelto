@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Services\Llm;
 
+use App\Models\Llm\LlmCall;
 use App\Models\Procurement\Ai\Analysis;
-use App\Models\Procurement\Ai\LlmCall;
 use App\Repositories\Procurement\AnalysisStoreRepository;
 use App\Services\Llm\Contracts\LlmProvider;
 use App\Services\Llm\Contracts\SupportsContextCaching;

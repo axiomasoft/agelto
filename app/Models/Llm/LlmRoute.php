@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-namespace App\Models\Procurement\Ai;
+namespace App\Models\Llm;
 
 use App\Enums\Procurement\LlmPurpose;
-use Database\Factories\Procurement\Ai\AiRouteFactory;
+use Database\Factories\Llm\LlmRouteFactory;
 use Illuminate\Database\Eloquent\Attributes\UseFactory;
 use Illuminate\Database\Eloquent\Casts\AsCollection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -16,12 +16,12 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * Матрица роутинга «тип документа × назначение → провайдер/модель» (без spatie-settings —
  * настройка многострочная, см. docs/03_Dev/database.md §6c).
  */
-#[UseFactory(AiRouteFactory::class)]
-final class AiRoute extends Model
+#[UseFactory(LlmRouteFactory::class)]
+final class LlmRoute extends Model
 {
     use HasFactory;
 
-    protected $table = 'prc_ai_routes';
+    protected $table = 'llm_routes';
 
     protected $fillable = [
         'document_type',

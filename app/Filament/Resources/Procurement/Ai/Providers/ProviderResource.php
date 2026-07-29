@@ -7,7 +7,7 @@ use App\Filament\Resources\Procurement\Ai\Providers\Pages\EditProvider;
 use App\Filament\Resources\Procurement\Ai\Providers\Pages\ListProviders;
 use App\Filament\Resources\Procurement\Ai\Providers\Schemas\ProviderForm;
 use App\Filament\Resources\Procurement\Ai\Providers\Tables\ProvidersTable;
-use App\Models\Procurement\Ai\Provider;
+use App\Models\Llm\Provider;
 use BackedEnum;
 use Filament\Resources\Resource;
 use Filament\Schemas\Schema;

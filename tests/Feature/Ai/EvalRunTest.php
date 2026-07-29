@@ -7,14 +7,14 @@ use App\Enums\Procurement\FixtureClass;
 use App\Enums\Procurement\GoldSource;
 use App\Enums\Procurement\LlmPurpose;
 use App\Enums\Procurement\PromptStep;
-use App\Models\Procurement\Ai\AiRoute;
+use App\Models\Llm\LlmRoute;
+use App\Models\Llm\Prompt;
+use App\Models\Llm\Provider;
 use App\Models\Procurement\Ai\Analysis;
 use App\Models\Procurement\Ai\DatasetExample;
 use App\Models\Procurement\Ai\EvalResult;
 use App\Models\Procurement\Ai\EvalRun;
 use App\Models\Procurement\Ai\Fixture;
-use App\Models\Procurement\Ai\Prompt;
-use App\Models\Procurement\Ai\Provider;
 use App\Models\Procurement\Document\Document;
 use App\Models\Procurement\Document\DocumentVersion;
 use App\Services\Llm\Dto\LlmStructuredResponse;
@@ -61,7 +61,7 @@ function seedEvalRunRoute(FakeLlmProvider $fake): void
 
     $provider = Provider::factory()->create(['driver' => 'gemini']);
 
-    AiRoute::factory()->create([
+    LlmRoute::factory()->create([
         'document_type' => 'estimate',
         'purpose' => LlmPurpose::ExtractRows,
         'provider_id' => $provider->id,
@@ -255,7 +255,7 @@ test('пустой датасет без --dry-run пишет EvalRun-заглу
 });
 
 test('--dry-run пропускает реальные LLM-вызовы даже с непустым датасетом', function () {
-    // Ни один AiRoute/провайдер не заведён — если бы `--dry-run` НЕ прервал команду ДО
+    // Ни один LlmRoute/провайдер не заведён — если бы `--dry-run` НЕ прервал команду ДО
     // `AiRouteResolver::resolve()`, артизан-вызов упал бы `RuntimeException` («нет активного
     // маршрута»), и тест сам провалился бы. «Exit 0» здесь и есть доказательство «ни одного
     // обращения к LLM-инфраструктуре».

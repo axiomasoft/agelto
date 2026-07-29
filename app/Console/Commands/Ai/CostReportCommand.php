@@ -4,12 +4,12 @@ declare(strict_types=1);
 
 namespace App\Console\Commands\Ai;
 
-use App\Models\Procurement\Ai\LlmCall;
+use App\Models\Llm\LlmCall;
 use Carbon\CarbonImmutable;
 use Illuminate\Console\Command;
 
 /**
- * Отчёт расхода LLM за окно (ТЗ 04 §6, Code Guidance P7.2): группировка `prc_ai_llm_calls` по
+ * Отчёт расхода LLM за окно (ТЗ 04 §6, Code Guidance P7.2): группировка `llm_calls` по
  * `(provider, model, purpose)` — tokens/cached_tokens/cost_micros → $ и ₽ (`config('ai.cost_report.
  * rub_per_usd')`); отдельная строка «экономия кэша» = `cached_tokens × (input_per_1m −
  * cached_per_1m)` по `config('ai.capabilities')` (индекс по модели БЕЗ dot-notation — тот же
@@ -20,7 +20,7 @@ final class CostReportCommand extends Command
 {
     protected $signature = 'ai:cost-report {--days=7 : окно отчёта в днях}';
 
-    protected $description = 'Расход LLM по provider/model/purpose за окно из prc_ai_llm_calls';
+    protected $description = 'Расход LLM по provider/model/purpose за окно из llm_calls';
 
     public function handle(): int
     {

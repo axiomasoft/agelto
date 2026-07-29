@@ -7,10 +7,10 @@ use App\Enums\Procurement\AnalysisStep;
 use App\Enums\Procurement\FinishReason;
 use App\Enums\Procurement\LlmPurpose;
 use App\Jobs\Procurement\ShadowAnalysisJob;
-use App\Models\Procurement\Ai\AiRoute;
+use App\Models\Llm\LlmCall;
+use App\Models\Llm\LlmRoute;
+use App\Models\Llm\Provider;
 use App\Models\Procurement\Ai\Analysis;
-use App\Models\Procurement\Ai\LlmCall;
-use App\Models\Procurement\Ai\Provider;
 use App\Repositories\Procurement\AnalysisStoreRepository;
 use App\Services\Llm\AiRouteResolver;
 use App\Services\Llm\Dto\JsonSchema;
@@ -32,11 +32,11 @@ function runShadowJob(ShadowAnalysisJob $job): void
     $job->handle(app(AiRouteResolver::class), app(AnalysisStoreRepository::class), app(LlmCallRecorder::class), app(EvalMetrics::class));
 }
 
-function seedShadowRoute(string $documentType, LlmPurpose $purpose): AiRoute
+function seedShadowRoute(string $documentType, LlmPurpose $purpose): LlmRoute
 {
     $provider = Provider::factory()->create(['driver' => 'openai_compatible', 'base_url' => 'http://vllm.internal:8000/v1']);
 
-    return AiRoute::factory()->create([
+    return LlmRoute::factory()->create([
         'document_type' => $documentType,
         'purpose' => $purpose,
         'provider_id' => $provider->id,

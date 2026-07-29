@@ -7,7 +7,7 @@ use App\Filament\Resources\Procurement\Ai\Prompts\Pages\EditPrompt;
 use App\Filament\Resources\Procurement\Ai\Prompts\Pages\ListPrompts;
 use App\Filament\Resources\Procurement\Ai\Prompts\Schemas\PromptForm;
 use App\Filament\Resources\Procurement\Ai\Prompts\Tables\PromptsTable;
-use App\Models\Procurement\Ai\Prompt;
+use App\Models\Llm\Prompt;
 use BackedEnum;
 use Filament\Resources\Resource;
 use Filament\Schemas\Schema;

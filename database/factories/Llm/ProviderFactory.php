@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace Database\Factories\Procurement\Ai;
+namespace Database\Factories\Llm;
 
-use App\Models\Procurement\Ai\Provider;
+use App\Models\Llm\Provider;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**

@@ -27,7 +27,7 @@ use Throwable;
  * Теневой прогон одного LLM-вызова против маршрута `shadow=true` (P9.4, ТЗ 04 §5) — дублирует
  * ровно ТОТ ЖЕ промт (система+user-части+схема), что ушёл на боевой провайдер (`ShadowDispatch`),
  * на кандидата (локальная LLM/другой провайдер). Результат — отдельный `Ai\Analysis(is_shadow=
- * true)`, LLM-вызов пишется в `prc_ai_llm_calls` с `purpose=shadow` (видно в `ai:cost-report`,
+ * true)`, LLM-вызов пишется в `llm_calls` с `purpose=shadow` (видно в `ai:cost-report`,
  * P7.2). НЕ наследует `PipelineJob` — не часть status-guard/lease жизненного цикла боевой
  * стадии (`Implementation Rules P9.4`: shadow не влияет на боевой путь), поэтому `handle()`
  * целиком в `try/catch` — исключение НИКОГДА не пробрасывается наружу (не создаёт Horizon-алерт

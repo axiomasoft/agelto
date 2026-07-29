@@ -49,7 +49,7 @@ final readonly class EstimatePersister
     /**
      * `$supersededAnalysisId` (P9.2, D24) — сметы этого (заменённого повторным прогоном) анализа
      * удаляются В ТОЙ ЖЕ транзакции, что персист новых: история прогона остаётся в
-     * `prc_ai_analyses`/`prc_ai_llm_calls`, дублей витрины смет на документ нет. `null` —
+     * `prc_ai_analyses`/`llm_calls`, дублей витрины смет на документ нет. `null` —
      * обычный (не re-run) прогон, поведение не меняется.
      */
     public function persist(Analysis $analysis, ?int $supersededAnalysisId = null): void

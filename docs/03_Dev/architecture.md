@@ -8,13 +8,14 @@ status: draft
 
 ## Домены
 
-Структура `app/**` плоская, без модулей: три домена по короткому префиксу таблицы.
+Структура `app/**` плоская, без модулей: четыре домена по короткому префиксу таблицы.
 
 | Домен | Префикс | Что покрывает |
 |:--|:--|:--|
-| `Procurement` | `prc_*` | Единый домен закупок: заказы, документы, сметы, AI-пайплайн (промты/маршруты/анализы/датасет), crawling-инфраструктура, площадки, логи |
+| `Procurement` | `prc_*` | Единый домен закупок: заказы, документы, сметы, AI-подомен предметки (анализы/датасет), crawling-инфраструктура, площадки, логи |
 | `Reference` | `ref_*` | Общие справочники: ОКПД2, КТРУ, ОКВЭД2, КБК |
 | `Organization` | `org_*` | Организации |
+| `Llm` | `llm_*` | Провайдер-агностичный LLM-транспорт: провайдеры, маршруты, промты, вызовы (D22, P1.5) |
 
 Таксономия `prc_`-мегадомена — осознанное решение (D11, `plans/EST-AI/plan.md` §5), не 9-префиксная
 схема из раннего ТЗ; закреплена ADR [`adr/0001-prc-megadomain.md`](adr/0001-prc-megadomain.md).
@@ -25,16 +26,18 @@ status: draft
 сохраняется на уровне подпапок сервиса, не корневого слоя:
 
 - `Controllers/` — только HTTP: auth, validate, delegate to Action/Service/Job dispatch, response.
-- `Repositories/` — read/write доступ к `prc_*`/`org_*`; `*ReadRepository`/`*StoreRepository` (см.
-  skill `repositories`). Персистентность — ТОЛЬКО через них (не сквозной Eloquent из сервисов).
+- `Repositories/` — read/write доступ к `prc_*`/`org_*`/`llm_*`; `*ReadRepository`/`*StoreRepository`
+  (см. skill `repositories`). Персистентность — ТОЛЬКО через них (не сквозной Eloquent из сервисов).
 - `Services/Procurement/{Prepare,Screening,Extraction}/` — стадии пайплайна документа/сметы
   (`app/Services/Procurement/`: `PipelineDispatcher`, `DocumentDownloader`, `Prepare/`, `Screening/`,
   `Extraction/`, `Eis/`, `Detail/`).
-- `Services/Llm/` — транспортный LLM-слой: `AiRouteResolver`, `PromptComposer`,
+- `Services/Llm/` — транспортный слой домена `Llm`: `AiRouteResolver`, `PromptComposer`,
   `CorrectionAwareComposer`, `LlmCacheManager`, `LlmCallRecorder`, `ShadowDispatch`, `Providers/`
   (`PrismGeminiProvider`, `OpenAiCompatibleProvider`), `Contracts/` (`LlmProvider` и capability-
   интерфейсы), `Schema/` (генерация промт-контекста и `responseJsonSchema` из Data-классов), `Dto/`,
-  `Validation/`. Подробнее — [`llm-providers.md`](llm-providers.md).
+  `Validation/`; модели/фабрики/репозитории транспорта — `app/Models/Llm/**`,
+  `database/factories/Llm/**`, `app/Repositories/Llm/**` (D22, P1.5). Подробнее —
+  [`llm-providers.md`](llm-providers.md).
 - `Dto/` / `Enums/` — доменные контракты и enum'ы (`App\Enums\Procurement\*`: `DocumentStatus`,
   `AnalysisStatus`, `AnalysisStep`, `ExtractionRoute`, `UnprocessableReason`, `RowType`,
   `ReviewStatus`, `CorrectionReason` и др.).

@@ -3,7 +3,7 @@
 declare(strict_types=1);
 
 use App\Enums\Procurement\LlmPurpose;
-use App\Models\Procurement\Ai\LlmCall;
+use App\Models\Llm\LlmCall;
 use Carbon\CarbonImmutable;
 
 test('отчёт группирует расход по (provider, model, purpose) и считает итого за окно', function (): void {
@@ -28,7 +28,7 @@ test('отчёт группирует расход по (provider, model, purpos
         'called_at' => CarbonImmutable::now()->subDay(),
     ]);
     // За пределами окна --days=7 — не должен попасть в отчёт. Смещение НЕБОЛЬШОЕ (не через
-    // границу месяца) — `prc_ai_llm_calls` партиционирована RANGE(called_at), премейк-партиции
+    // границу месяца) — `llm_calls` партиционирована RANGE(called_at), премейк-партиции
     // (миграция 2026_07_04_100026) покрывают только текущий+2 месяца вперёд от даты миграции.
     LlmCall::factory()->create([
         'provider' => 'gemini',

@@ -16,7 +16,7 @@ use RuntimeException;
  * `--hits` — доля implicit cache-хитов по `purpose` за окно); `prune` — снимает осиротевшие/
  * просроченные регистрации (провайдер резолвится по `analysis.provider`, единственный driver
  * `gemini` — тот же YAGNI-приём, что `AiRouteResolver::providerFor()`, второй driver появится
- * вместе со вторым провайдером в `prc_ai_providers`).
+ * вместе со вторым провайдером в `llm_providers`).
  */
 final class CachesCommand extends Command
 {

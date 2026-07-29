@@ -1,22 +1,22 @@
 <?php
 
-namespace App\Filament\Resources\Procurement\Ai\AiRoutes;
+namespace App\Filament\Resources\Procurement\Ai\LlmRoutes;
 
-use App\Filament\Resources\Procurement\Ai\AiRoutes\Pages\CreateAiRoute;
-use App\Filament\Resources\Procurement\Ai\AiRoutes\Pages\EditAiRoute;
-use App\Filament\Resources\Procurement\Ai\AiRoutes\Pages\ListAiRoutes;
-use App\Filament\Resources\Procurement\Ai\AiRoutes\Schemas\AiRouteForm;
-use App\Filament\Resources\Procurement\Ai\AiRoutes\Tables\AiRoutesTable;
-use App\Models\Procurement\Ai\AiRoute;
+use App\Filament\Resources\Procurement\Ai\LlmRoutes\Pages\CreateAiRoute;
+use App\Filament\Resources\Procurement\Ai\LlmRoutes\Pages\EditAiRoute;
+use App\Filament\Resources\Procurement\Ai\LlmRoutes\Pages\ListAiRoutes;
+use App\Filament\Resources\Procurement\Ai\LlmRoutes\Schemas\AiRouteForm;
+use App\Filament\Resources\Procurement\Ai\LlmRoutes\Tables\AiRoutesTable;
+use App\Models\Llm\LlmRoute;
 use BackedEnum;
 use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Table;
 
-class AiRouteResource extends Resource
+class LlmRouteResource extends Resource
 {
-    protected static ?string $model = AiRoute::class;
+    protected static ?string $model = LlmRoute::class;
 
     protected static string|\UnitEnum|null $navigationGroup = 'AI-анализ';
 

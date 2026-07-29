@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Pulse\Cards;
 
-use App\Models\Procurement\Ai\LlmCall;
+use App\Models\Llm\LlmCall;
 use Carbon\CarbonImmutable;
 use Illuminate\View\View;
 use Laravel\Pulse\Livewire\Card;
@@ -12,7 +12,7 @@ use Livewire\Attributes\Lazy;
 
 /**
  * Кастомная Pulse-карточка «LLM-расход» (D25, P7.5 Intent п.2, phases/P7.md): токены/стоимость
- * по `prc_ai_llm_calls` за фиксированное окно 24ч, группировка по `purpose` — прямой SQL-агрегат
+ * по `llm_calls` за фиксированное окно 24ч, группировка по `purpose` — прямой SQL-агрегат
  * (Code Guidance: НЕ дублировать в pulse-таблицы). Прайсинг переиспользует ту же формулу, что
  * `App\Console\Commands\Ai\CostReportCommand` (P7.2, `config('ai.cost_report.rub_per_usd')`).
  */

@@ -11,7 +11,7 @@ test('retention-конфиг покрывает ровно 4 эфемерные 
     $retentionTables = array_keys(config('partitioning.retention'));
 
     expect($retentionTables)->toEqualCanonicalizing([
-        'prc_ai_llm_calls',
+        'llm_calls',
         'prc_fetches',
         'prc_operation_logs',
         'prc_events',
@@ -59,7 +59,7 @@ test('миграция part_config.retention идемпотентна — пов
 
     $row = DB::selectOne(
         'SELECT retention, retention_keep_table FROM partman.part_config WHERE parent_table = ?',
-        ['public.prc_ai_llm_calls'],
+        ['public.llm_calls'],
     );
 
     expect($row->retention)->toBe('12 months');

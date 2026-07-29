@@ -14,7 +14,7 @@ use Throwable;
 
 /**
  * Перехват основного LLM-вызова для shadow-режима (P9.4, ТЗ 04 §5): если для
- * `(document_type, purpose)` заведён активный `prc_ai_routes.shadow=true` маршрут, дублирует
+ * `(document_type, purpose)` заведён активный `llm_routes.shadow=true` маршрут, дублирует
  * вызов на очередь низкого приоритета (`ShadowAnalysisJob`) — сравнение качества/стоимости с
  * основным провайдером ДО переключения. Вызывается СРАЗУ ПОСЛЕ успешного основного вызова
  * (`ScreeningProcessor`/extraction-цепочка), уже имеющего под рукой `LlmPrompt`/`JsonSchema` этого

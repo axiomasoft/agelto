@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 use App\Enums\Llm\DocumentTypeScope;
 use App\Enums\Procurement\AiDocumentType;
-use App\Models\Procurement\Ai\Prompt;
+use App\Models\Llm\Prompt;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
@@ -32,8 +32,8 @@ return new class extends Migration
         });
 
         DB::statement(
-            'ALTER TABLE prc_ai_prompts '
-            .'ADD CONSTRAINT prc_ai_prompts_document_type_check '
+            'ALTER TABLE llm_prompts '
+            .'ADD CONSTRAINT llm_prompts_document_type_check '
             ."CHECK (document_type IN ({$this->documentTypeOrSentinelValues()}))",
         );
     }

@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 use App\Guards\Admin\Roles\AnalystRole;
 use App\Guards\Admin\Roles\OperatorRole;
-use App\Models\Procurement\Ai\Prompt;
+use App\Models\Llm\Prompt;
 use App\Models\User;
 
 use function Pest\Laravel\artisan;

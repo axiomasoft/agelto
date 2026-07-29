@@ -6,7 +6,7 @@ use App\Enums\Procurement\AnalysisStatus;
 use App\Enums\Procurement\AnalysisStep;
 use App\Enums\Procurement\DocumentStatus;
 use App\Enums\Procurement\EstimateValidationStatus;
-use App\Models\Procurement\Ai\AiRoute;
+use App\Models\Llm\LlmRoute;
 use App\Models\Procurement\Ai\Analysis;
 use App\Models\Procurement\Document\Document;
 use App\Models\Procurement\Estimate\Estimate;
@@ -194,7 +194,7 @@ test('модель активного маршрута ближе порога �
         ],
     ]);
 
-    AiRoute::factory()->create([
+    LlmRoute::factory()->create([
         'model' => 'eol-soon-model',
         'is_active' => true,
     ]);
@@ -215,7 +215,7 @@ test('модель НЕактивного маршрута близко к eol_d
         ],
     ]);
 
-    AiRoute::factory()->create([
+    LlmRoute::factory()->create([
         'model' => 'eol-soon-model',
         'is_active' => false,
     ]);

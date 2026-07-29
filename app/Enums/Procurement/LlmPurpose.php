@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Enums\Procurement;
 
 /**
- * Назначение вызова LLM — общий словарь для `prc_ai_llm_calls.purpose` и `prc_ai_routes.purpose`.
+ * Назначение вызова LLM — общий словарь для `llm_calls.purpose` и `llm_routes.purpose`.
  */
 enum LlmPurpose: string
 {

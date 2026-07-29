@@ -10,9 +10,9 @@ use App\Enums\Procurement\ProcurementEventType;
 use App\Jobs\Procurement\EstimateExtractionJob;
 use App\Jobs\Procurement\PrepareDocumentJob;
 use App\Jobs\Procurement\ScreeningJob;
-use App\Models\Procurement\Ai\AiRoute;
+use App\Models\Llm\LlmRoute;
+use App\Models\Llm\Provider;
 use App\Models\Procurement\Ai\Analysis;
-use App\Models\Procurement\Ai\Provider;
 use App\Models\Procurement\Document\Document;
 use App\Models\Procurement\Document\DocumentVersion;
 use App\Models\Procurement\Procurement;
@@ -61,7 +61,7 @@ function seedBranchingRoute(FakeLlmProvider $fake, int $priority = 0, string $mo
 
     $provider = Provider::factory()->create(['driver' => 'gemini']);
 
-    AiRoute::factory()->create([
+    LlmRoute::factory()->create([
         'document_type' => 'any',
         'purpose' => LlmPurpose::Screening,
         'provider_id' => $provider->id,

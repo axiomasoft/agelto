@@ -8,7 +8,7 @@ use App\Filament\Resources\Procurement\Procurements\ProcurementResource;
 use App\Guards\Admin\Roles\AnalystRole;
 use App\Guards\Admin\Roles\OperatorRole;
 use App\Guards\Admin\Roles\SuperAdminRole;
-use App\Models\Procurement\Ai\Prompt;
+use App\Models\Llm\Prompt;
 use App\Models\User;
 use Filament\Facades\Filament;
 

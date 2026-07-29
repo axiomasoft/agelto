@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 use App\Dto\Procurement\Ai\Screening\ScreeningResult;
 use App\Enums\Procurement\PromptStep;
-use App\Models\Procurement\Ai\Prompt;
+use App\Models\Llm\Prompt;
 use App\Services\Llm\PromptComposer;
 
 function promptComposer(): PromptComposer

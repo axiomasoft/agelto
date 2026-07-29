@@ -7,14 +7,14 @@ namespace Database\Seeders;
 use App\Enums\Llm\DocumentTypeScope;
 use App\Enums\Procurement\AiDocumentType;
 use App\Enums\Procurement\PromptStep;
-use App\Models\Procurement\Ai\Prompt;
+use App\Models\Llm\Prompt;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Collection;
 use RuntimeException;
 
 /**
  * Читает `resources/ai/prompts/**\/*.md` (front-matter: key/step/version/priority/is_active) и
- * upsert'ит в `prc_ai_prompts` по `(key, version)` — файлы под git являются каноном, БД — их
+ * upsert'ит в `llm_prompts` по `(key, version)` — файлы под git являются каноном, БД — их
  * рантайм-копия (D5/D17, `docs/specs/v2/08-estimate-extraction.md` §промты). Все строки,
  * записанные этим сидером, получают `is_protected=true` — редактируются только через файл + повтор
  * `db:seed`/`ai:prompts:sync`, никогда напрямую в БД (P8.2 закрепляет это на уровне Policy).

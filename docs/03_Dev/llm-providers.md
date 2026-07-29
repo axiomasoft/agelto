@@ -17,7 +17,7 @@ status: draft
 flowchart TB
     Caller["ScreeningProcessor / ExtractionOrchestrator"]
     Resolver["AiRouteResolver::resolve(documentType, purpose)<br/>(app/Services/Llm/AiRouteResolver.php:45)"]
-    Routes[("prc_ai_routes<br/>priority ASC, activeCandidatesFor()")]
+    Routes[("llm_routes<br/>priority ASC, activeCandidatesFor()")]
     Resolved["ResolvedRoute(provider, LlmOptions, route)"]
     Gemini["PrismGeminiProvider<br/>(app/Services/Llm/Providers/PrismGeminiProvider.php)"]
     OpenAiCompat["OpenAiCompatibleProvider<br/>(app/Services/Llm/Providers/OpenAiCompatibleProvider.php)<br/>vLLM/Ollama, stateless base_url/api_key"]
@@ -47,7 +47,7 @@ cache-hint интерпретируется адаптером — Gemini → `c
 
 ## Роутинг
 
-`prc_ai_routes` хранит кандидатов `(document_type, purpose) → model`, `priority ASC` внутри группы —
+`llm_routes` хранит кандидатов `(document_type, purpose) → model`, `priority ASC` внутри группы —
 `AiRouteResolver::resolve()` берёт первый активный. Стартовый роутинг (D4, сиды `AiRoutingSeeder`):
 скрининг → `gemini-2.5-flash-lite`, извлечение → `gemini-2.5-flash`, эскалация по флагу сложности
 или провалу валидации → `gemini-2.5-pro`. Discovery-путь (windowed fallback, D30/D37) — отдельный
@@ -74,7 +74,7 @@ cache-hint интерпретируется адаптером — Gemini → `c
 
 ## Учёт стоимости
 
-`prc_ai_llm_calls` пишет usage (prompt/completion/cached tokens) на КАЖДЫЙ физический вызов —
+`llm_calls` пишет usage (prompt/completion/cached tokens) на КАЖДЫЙ физический вызов —
 `LlmCallRecorder`. `ai:cost-report {--days=7}` (`CostReportCommand`) агрегирует расход по
 провайдеру/маршруту/шагу за окно; конвертация в рубли — по конфигурируемому курсу (боевой курс не
 заведён — открытый вопрос плана). `ai:caches {list|prune} [--hits] [--window=]` (`CachesCommand`) —

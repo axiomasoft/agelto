@@ -3,7 +3,7 @@
 declare(strict_types=1);
 
 use App\Enums\Procurement\LlmPurpose;
-use App\Repositories\Procurement\AiCallStoreRepository;
+use App\Repositories\Llm\AiCallStoreRepository;
 use App\Services\Llm\Dto\LlmUsage;
 use App\Services\Llm\LlmCallRecorder;
 use Carbon\CarbonImmutable;
@@ -11,7 +11,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Storage;
 
 // Директория tests/Unit не подключает RefreshDatabase по умолчанию (tests/Pest.php) — этому файлу
-// нужна тестовая БД (`prc_ai_llm_calls`), подключаем трейт точечно, не трогая остальной Unit-сьют.
+// нужна тестовая БД (`llm_calls`), подключаем трейт точечно, не трогая остальной Unit-сьют.
 uses(RefreshDatabase::class);
 
 function llmCallRecorder(): LlmCallRecorder

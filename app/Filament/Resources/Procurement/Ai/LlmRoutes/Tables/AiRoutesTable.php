@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Filament\Resources\Procurement\Ai\AiRoutes\Tables;
+namespace App\Filament\Resources\Procurement\Ai\LlmRoutes\Tables;
 
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteBulkAction;

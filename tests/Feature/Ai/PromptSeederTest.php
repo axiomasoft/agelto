@@ -3,7 +3,7 @@
 declare(strict_types=1);
 
 use App\Enums\Procurement\PromptStep;
-use App\Models\Procurement\Ai\Prompt;
+use App\Models\Llm\Prompt;
 use Database\Seeders\PromptSeeder;
 
 test('сидер создаёт по одной активной protected-записи на каждое значение PromptStep', function (): void {

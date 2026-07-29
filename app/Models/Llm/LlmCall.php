@@ -2,10 +2,11 @@
 
 declare(strict_types=1);
 
-namespace App\Models\Procurement\Ai;
+namespace App\Models\Llm;
 
 use App\Enums\Procurement\LlmPurpose;
-use Database\Factories\Procurement\Ai\LlmCallFactory;
+use App\Models\Procurement\Ai\Analysis;
+use Database\Factories\Llm\LlmCallFactory;
 use Illuminate\Database\Eloquent\Attributes\UseFactory;
 use Illuminate\Database\Eloquent\Casts\AsCollection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -13,14 +14,14 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 /**
- * Каждый вызов LLM (партиция `prc_ai_llm_calls` RANGE by `called_at`).
+ * Каждый вызов LLM (партиция `llm_calls` RANGE by `called_at`).
  */
 #[UseFactory(LlmCallFactory::class)]
 final class LlmCall extends Model
 {
     use HasFactory;
 
-    protected $table = 'prc_ai_llm_calls';
+    protected $table = 'llm_calls';
 
     public $incrementing = true;
 
