@@ -1,121 +1,119 @@
-# HANDOFF — 2026-07-29 — after P1.3
+# HANDOFF — 2026-07-29 — after P1.4
 
-**Next:** `/task:plan-design 2026.07.28-EST-ARCH P1.4` — **не** исполнение, а закрытие дыр в ТЗ.
-Три контракта фазы заморожены (P1.1/P1.2/P1.3), но `Files` исполнительских items их не покрывают, а
-после решений владельца D91/D92 ТЗ P1.6 прямо противоречит контракту. Стартовать P1.4 с неполными
-`Files` значит уйти в дифф вне `Files` — материальное отклонение по построению.
+**Next:** `run-items: task:plan-run 2026.07.28-EST-ARCH P1.5` — вынос LLM-транспорта в домен `Llm`
+(переименование четырёх таблиц + файлов миграций, перенос моделей/фабрик/репозиториев, D96).
 
 | Параметр | Значение |
 |:--|:--|
-| Model class | frontier (`opus`) |
+| Model class | implementation (`sonnet`) |
 | Effort | high |
 | Capabilities | — |
-| Context | NEW SESSION — шаг-не-item |
-| Суть | Достроить `Files`/Scope/Validation items P1.4 и P1.6 под три замороженных контракта и под D91–D94; поправить Execution Rules §2 (crawling-контур) |
+| Context | continue (`/clear`) — ручной item |
+| Суть | Переезд `prc_ai_providers`/`prc_ai_routes`/`prc_ai_prompts`/`prc_ai_llm_calls` → `llm_*` (таблицы, файлы миграций, модели, фабрики, репозитории, call-site'ы) |
 
 ````
-/task:plan-design 2026.07.28-EST-ARCH P1.4
+/model sonnet
+/effort high
+/task:plan-run 2026.07.28-EST-ARCH P1.5
 ````
 
-После него — P1.4 (`Exec = manual`, `implementation/high`, solo): `/model sonnet` + `/effort high`
-+ `/task:plan-run 2026.07.28-EST-ARCH P1.4` (D18). Гейта владельца у P1.4 нет.
+`Exec = manual` (§3 Routing: `implementation/high`), поэтому модель и effort ставятся СЕССИЕЙ, а
+`plan-run` сверяет фактический маршрут инвертированным гейтом (§9) и обязан напечатать фактическую
+пару «класс/effort» в отчёте и в Update Log. Гейта владельца у P1.5 нет — три гейта владельца,
+оставшиеся в плане, стоят на P2.1, P3.1 и P4.2 (`roadmap.md`).
 
 **Правило исполнения гейтов (D89 + трактовка владельца 2026-07-29) — читать ДО первого коммита
 ЛЮБОГО item'а.** Каждая строка `Validation`, являющаяся греп/`git`-командой, прогоняется на
 `<base>` и печатается в Completion Notes рядом с выводом «после». Исходы: на `<base>` красный →
 норма; на `<base>` уже зелёный → эскалация §10 до написания кода; зелёный недостижим в границах
-`Scope` → эскалация §10. **Третий случай** (решение владельца, применён в P1.1–P1.3): если гейт
-стоит над СОЗДАВАЕМЫМ артефактом (`root/**`), на `<base>` он не может дать красного вовсе — файла
-нет, команда падает с exit 2; тогда фальсифицируемость доказывается мутацией (копия артефакта вне
-репо + инъекция нарушения + красный вывод в Completion Notes). Касается ещё P2.1, P3.1, P4.2.
-**Практика P1.2/P1.3:** отдельно убедиться, что гейт ловит РОВНО заявленное — в P1.3 шаблон карты
-`^\| [1-8] \| \`` проверялся построчно, чтобы под него не попали ряды соседних таблиц.
+`Scope` → эскалация §10. Гейт над СОЗДАВАЕМЫМ артефактом (на `<base>` красного не бывает вовсе) —
+фальсифицируемость мутацией (копия артефакта вне репо + инъекция нарушения + красный вывод в
+Completion Notes), решение владельца 2026-07-29, применено в P1.1–P1.4. У P1.6 такие гейты названы
+поимённо (Validation 6б); Validation 5 там же помечен СРАВНИТЕЛЬНЫМ (сверяет «до»/«после», красный
+исход тоже доказывается мутацией).
 
-**НОВОЕ правило исполнения (D94):** боевые LLM-прогоны запускает ВЛАДЕЛЕЦ. Агент пишет код и тесты
-(LLM в тестах — только `FakeLlmProvider`); item, чья Validation требует боевого вызова, закрывается
-с записью «прогон за владельцем» и неисполненным не считается. Прямо касается P5.2 и любых
+**Правило D94:** боевые LLM-прогоны запускает ВЛАДЕЛЕЦ. Агент пишет код и тесты (LLM в тестах —
+только `FakeLlmProvider`); item, чья Validation требует боевого вызова, закрывается с записью
+«прогон за владельцем» и неисполненным не считается. Прямо касается P5.2 и любых
 `estimate:bench:*`/`estimate:eval:*` на живом провайдере.
 
-**Done:** **P1.1 🟢** (`a17e1ab`) — `root/naming-canon.md`, 42 строки-данных, семь классов
-расхождений. Ключевое: `AiCallStoreRepository` → `App\Repositories\Llm\LlmCallStoreRepository`;
-`prc_ai_fixtures.doc_type` → `document_type`; `EstimateType::Estimate` → `LocalEstimate`; 7 команд
-остаются `ai:*`, 11 уезжают в `estimate:*`; домен транспорта — `Provider`, `LlmRoute`, `Prompt`,
-`LlmCall` в `App\Models\Llm\**` с таблицами `llm_*`; сущность прогона — `AnalysisRun` /
-`prc_ai_analysis_runs`; трейты — `App\Models\Concerns`.
+**Done:** P1.4 закрыт (🟢) — item-коммит `1a86401` (плюс предваряющий `35b9748`, см. Known
+Deviations phases/P1.md), `<base>=4094d37`. Схема восьми AI-таблиц под контракт
+`document-type-axis.md`:
 
-**P1.2 🟢** (`56d2a10`) — `root/document-type-axis.md`, 464 строки, замороженный контракт на ВОСЕМЬ
-таблиц. Ключевое: носитель кросс-документного назначения — ненулевой сентинел `'any'`
-(`App\Enums\Llm\DocumentTypeScope`); check-constraint по `AiDocumentType` на всех восьми колонках;
-ключ промта `(document_type, key, version)`, ключ маршрута `(document_type, purpose, priority,
-shadow)`; реестр эталонов несёт ДВЕ оси (`document_type` + `owner_document_type`); пять полей D18 →
-`type_profile jsonb` без индексов; заводится `title text NOT NULL` (D90).
+- **Ось типа документа** — check-constraint из единственного носителя `AiDocumentType::values()` на
+  всех восьми таблицах; сентинел кросс-документного назначения — новый `App\Enums\Llm\DocumentTypeScope::Any`.
+  Составные ключи D7: `llm_prompts`(`prc_ai_prompts`) → `(document_type, key, version)`,
+  `llm_routes`(`prc_ai_routes`) → `+ shadow`.
+- **`prc_ai_fixtures`** — `doc_type`→`document_type NOT NULL`, `+owner_document_type NOT NULL`,
+  `+title NOT NULL`; пять профильных полей (`class`/`form`/`expected_estimates`/`expected_rows`/
+  `gold_source`) уехали в `type_profile jsonb` — читаются типизированными `Fixture::profile*()`
+  read-методами (не top-level property), без индексов (§6.4).
+- **`prc_document_types`** снесён (D16) — миграция/модель/фабрика удалены, три комментария-ссылки
+  переписаны дословно.
+- **Расход на `prc_ai_analyses`** — 5 nullable-колонок (значения пишет P4).
+- **Вынужденная синхронизация** — ~60 файлов: модели/фабрики (профильные поля собираются в
+  `type_profile`, не плоско), сидеры + front-matter 9 файлов промтов (`document_type` обязателен),
+  `PromptPatchApplier`/`PromptsSyncCommand` (тот же канон), `GoldBuildCommand`/`EvalRunCommand`/
+  `FormatBenchRunner`/`FixturesVerifyCommand` (типизированные read-методы вместо top-level полей),
+  три писателя `prc_ai_dataset_examples` (`document_type` явно — `DatasetImportCommand` получил
+  новую опцию `--document-type=estimate`), `PromptForm`/`AiRouteForm` (`Select` вместо `Textarea`),
+  `ViewAnalysis` (коррекция недоступна без `document_type` анализа — Rule 12), `estimates/manifest.json`
+  (24 записи регенерированы разовым скриптом).
+- **Тесты** — 12 новых негативных (check-constraint на 8 колонок + NULL + дубль маршрута,
+  `DocumentTypeAxisTest`) + сентинел-тест (`DocumentTypeScopeTest`, Validation 18); синхронизировано
+  10 существующих файлов; 1 тест снят (сценарий структурно недостижим после `NOT NULL`).
+- **`phpstan-baseline.neon` (D71)** — вычитающая дельта: 5 записей `Analysis::$document_type`
+  осиротели после `@property` на модели (пред-существующий долг в 4 файлах ВНЕ `Files` этого item'а
+  — снят как побочный эффект докблока, не как самостоятельная правка тех файлов); messages 280→275,
+  сумма `count:` 366→358, `property.notFound` 236→231 — все три величины уменьшились.
+- Полные факты, числа «до/после» на `4094d37`, обоснование негативной классификации 13 фикстур
+  корпуса — `phases/P1.md` P1.4 Completion Notes / Known Deviations.
 
-**P1.3 🟢** (`b1b7c68`) — `root/document-contour.md`, 534 строки. **Владелец отверг первую редакцию
-по трём несущим решениям и переопределил их:**
-- **D91** (`supersedes D24` в части носителя): ось контура — **ПЛОЩАДКА**, а не enum происхождения.
-  `prc_documents.platform_id bigint NOT NULL` FK → `prc_platforms`; служебная площадка
-  `code='training'`/`name='Обучалка'`/`is_active=false`/`is_public=false`; новая колонка
-  `prc_platforms.is_public boolean NOT NULL DEFAULT true`, `base_url` → nullable. Новая служебная
-  площадка впредь заводится СТРОКОЙ, без миграции (`PlatformOnboardingTest` это уже фиксирует).
-- **D92** (`supersedes D25` в части объёма): **лимита прогона НЕТ** — «пропускать мы ничего не
-  должны». Колонок `max_llm_calls`/`truncated_reason` не будет; риск переплаты закрывают partial
-  unique `(document_version_id) WHERE finished_at IS NULL`, видимая цена запуска и D94.
-- **D93**: вызовы LLM ссылаются на прогон НАПРЯМУЮ — `llm_calls.analysis_run_id NULL` + index.
-
-Остальное контракта: связь `prc_ai_fixtures.document_id NULL UNIQUE` `ON DELETE SET NULL` (1 эталон
-→ ≤1 документ → N версий, ссылку держит реестр); `prc_ai_analysis_runs` (`mode` auto/manual,
-`status` 4 кейса, слепок расхода именами как в `prc_ai_llm_calls`, `initiated_by`);
-`prc_ai_analyses.analysis_run_id NOT NULL` с привязкой внутри `AnalysisStoreRepository`
-(исключение вместо nullable); правило показа — `is_public` + один именованный
-`PublicPlatformScope` + `prc_estimates.platform_id NOT NULL`; **построчная карта восьми строк
-грепа**: шесть остаются структурными, две уходят (`FormatBenchRunner:114` и его докблок `:45`) —
-переводятся на связь с эталоном, а не на площадку. Инварианты `prc_ai_analyses` не тронуты.
-
-**Remaining:** 34 items ⬜ Not started. Фаза P1 — 3/8. Порядок: P1.4–P1.8 (исполнение по трём
-контрактам) → P2 (6) → P3 (6) → P4 (4) → P5 (6) → P6 (3) → P7 (4). Батчи B1/B2 и оставшиеся три
-гейта владельца (P2.1, P3.1, P4.2) — `roadmap.md`.
+**Remaining:** 33 items ⬜ Not started, 4 🟢 (P1.1–P1.4). Фаза P1 — 4/8. Порядок: P1.5–P1.8 →
+P2 (6) → P3 (6) → P4 (4) → P5 (6) → P6 (3) → P7 (4). Батчи B1/B2 и три оставшихся гейта владельца
+(P2.1, P3.1, P4.2) — `roadmap.md`.
 
 **Sources of truth:** скилл `plan-protocol` (схемы, статусы, DoR) ·
-`plans/2026.07.28-EST-ARCH/plan.md` §2 (правила исполнения) и §5 (**D1–D94**) ·
-**`root/naming-canon.md`, `root/document-type-axis.md`, `root/document-contour.md` — ЗАМОРОЖЕНЫ,
-имена и схема берутся только оттуда** · `roadmap.md` · `phases/P1.md` — четыре блока аудита в конце
-файла · `brief/{00-brief,01-refinements}.md` и `research/00-user-intent.md` ·
-`findings/structure-review-2026-07-29.md`.
+`plans/2026.07.28-EST-ARCH/plan.md` §2 (правила исполнения, включая исключение D91) и §5
+(**D1–D96**) · **`root/naming-canon.md`, `root/document-type-axis.md` (§6.3 в редакции D95),
+`root/document-contour.md` — ЗАМОРОЖЕНЫ, имена и схема берутся ТОЛЬКО оттуда** ·
+`research/02-schema-impact-map.md` — почему в `Files` P1.4/P1.6 стоит именно этот список ·
+`roadmap.md` · `phases/P1.md` (P1.4 Completion Notes + четыре блока аудита в конце файла) ·
+`brief/{00-brief,01-refinements}.md` · `open-questions.md`.
 
 **Open risks:**
-- **Дыры в `Files` последующих items — главный блокер, поэтому Next = `plan-design`.** P1.4 не
-  несёт `estimates/manifest.json`, `FixtureManifestEntry`, `FixturesManifestCommand`,
-  `ScreeningGoldBuilder`, девять файлов `resources/ai/prompts/*/*.md`, `PromptSeeder`,
-  `PromptForm`/`AiRouteForm`. P1.5 несёт только старый путь Filament-ресурса маршрута и не несёт
-  миграцию вызовов под `analysis_run_id` (D93). P1.6 не несёт: миграцию `prc_platforms` и модель
-  `Platform`, сидер служебной площадки, миграцию таблицы вызовов, `DocumentIndexer`,
-  `EvalDiffCommand`/`PromptsSuggestCommand`, `GoldExampleRecorder`, `PipelineStuckCheck`, шесть
-  точек создания прогона и точки его терминации. P3.5 не несёт `AiRouteResolver` и его 22
-  файла-потребителя.
-- **ТЗ P1.6 прямо противоречит контракту после D91/D92:** говорит про «ось происхождения», «enum
-  происхождения», «признак усечения» и требует теста «усечённый лимитом прогон помечен усечённым».
-  Исполнение по нему как есть даст артефакт, которого контракт не заказывал.
-- **Execution Rules §2 плана** объявляют crawling-контур (`Crawler`, `Platform`, `Eis`)
-  неприкосновенным — D91 это переопределил в границах двух колонок `prc_platforms`. Текст правила
-  надо привести в соответствие, иначе следующий исполнитель эскалирует на ровном месте.
-- Implementation Rule 5 самого P1.2 описывает несуществующий сейм («репозитории промтов/маршрутов»)
-  — факт зафиксирован в контракте P1.2 §5, текст правила стоит поправить тем же `plan-design`.
-- Переход фазы в 🟡 зажёг 2 WARN `plan-lint` на тексте DoR-чеклиста — ложные срабатывания на
-  формулировках, повторятся у P2–P7, лечатся переформулировкой DoR во всех семи фазах.
-- Гейты C5–C10 и неизвестный хвост того же класса покраснеют на прогоне `<base>` — ожидаемо (D89).
-- Три строки Pending Work про `CLAUDE.md` живут шесть фаз (D60/D64). Рычаг `@property` может не
-  сработать (D63/D53). Три гейта владельца (P2.1, P3.1, P4.2) и боевой прогон P5.2 не закрыты.
+- **Гейты P1.5/P1.6 против дерева, которого ещё нет.** Числа «до» в ТЗ P1.5 (Validation 10а/10б)
+  и P1.6 (6 строк `procurement_id`, одна запись baseline) сняты на `4094d37` — P1.4 уже landed
+  (item-коммит `1a86401`), поэтому P1.5's `<base>` — это `1a86401`, не `4094d37`. Числа по самим
+  файлам миграций/ресурса P1.5 не должны были сдвинуться (P1.4 их не трогал структурно), но
+  исполнитель ОБЯЗАН перепроверить на своём `<base>`, а не принять на веру (D66). Расхождение =
+  находка, не помеха.
+- **Столкновение двух решений контракта на `prc_ai_corrections`** (анализ может не знать тип, а
+  правка обязана) — разрешено на границе записи (`ViewAnalysis` недоступна/отклоняется без
+  `document_type`), покрыто тестом НА ГРАНИЦЕ СХЕМЫ (NOT NULL/QueryException), не на границе UI —
+  в сюите нет прецедента Livewire/Filament action-теста (Known Deviations P1.4 п. 2).
+- **11 из 13 негативов корпуса эталонов получили `document_type=unknown`** при регенерации
+  манифеста (два — `contract_draft`/`tech_spec` по прямому свидетельству имени файла) — заметно
+  владельцу при следующей сверке корпуса, не влияет на схему/поведение (D14).
+- Три строки Pending Work про `CLAUDE.md` живут до P7.4 (D60/D64). Рычаг `@property` может не
+  сработать на будущих items (D63/D53) — на P1.4 сработал, включая для пред-существующего долга.
+  Боевой прогон P5.2 — за владельцем (D94). `resources/ai/prompts/README.md` не обновлён под новое
+  обязательное поле `document_type` (Pending Work P1.4, тривиальная правка).
 
 **Workarounds/Deferred/Open questions:**
-- workarounds: доказательство фальсифицируемости гейта мутацией вместо прогона на `<base>` — для
-  items, создающих `root/**` (решение владельца 2026-07-29); применено в P1.1, P1.2 и P1.3
+- workarounds: доказательство фальсифицируемости гейда МУТАЦИЕЙ вместо прогона на `<base>` — для
+  гейтов над создаваемым артефактом (решение владельца 2026-07-29); применено в P1.1–P1.4, впредь
+  требуется у P1.6 (Validation 5, 6б), P2.1, P3.1, P4.2
 - deferred: ревизия формы оставшихся гейтов на этапе дизайна — снята D89 · BigQuery-адаптер
   биллинга (D34) · HITL-правка эталона (D48) · пере-замер F1 боевым прогоном (D52) · остаточная
-  дупликация `estimate:dataset:import` (D57) · перенос дрейфа в `CLAUDE.md` отложен в P7.4
-  (D60/D64) · общий инвариант «во всём сервисном слое нет прямых обращений к `LlmCall`» в план НЕ
-  вводится (D70/D79) · переезд экранов транспорта из `app/Filament/Resources/Procurement/Ai/**` —
-  вне D22 · expression-индексы по `type_profile` — не заводятся до 10 000 строк реестра ·
-  эксплуатационный отбор «какие документы пускать в дорогой разбор» — вне схемы (D92)
-- open_questions: в границах плана — НЕТ. OQ-12 → D91, OQ-13 → D92, OQ-14 → D93 закрыты 2026-07-29
-  на гейте P1.3. Вне плана: P7.6 плана `2026.07.26-EST-TRAIN` (боевое замыкание петли тюнинга) —
-  тратит реальные деньги, несёт два гейта владельца
+  дупликация `estimate:dataset:import` (D57) · перенос дрейфа в `CLAUDE.md` — P7.4 (D60/D64) ·
+  общий инвариант «во всём сервисном слое нет прямых обращений к `LlmCall`» в план НЕ вводится
+  (D70/D79) · переезд экранов транспорта из `app/Filament/Resources/Procurement/Ai/**` — вне D22
+  (переименовывается только ресурс маршрута, D96) · expression-индексы по `type_profile` — не
+  заводятся до 10 000 строк реестра (§6.4) · эксплуатационный отбор «какие документы пускать в
+  дорогой разбор» — вне схемы (D92) · `resources/ai/prompts/README.md` пример front-matter без
+  `document_type` — правится при следующем касании промтов
+- open_questions: в границах плана — НЕТ. OQ-1…OQ-14 закрыты. Вне плана: P7.6 плана
+  `2026.07.26-EST-TRAIN` (боевое замыкание петли тюнинга) — тратит реальные деньги, несёт два
+  гейта владельца
