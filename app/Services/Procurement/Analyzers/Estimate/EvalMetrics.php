@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\Services\Procurement\Extraction;
+namespace App\Services\Procurement\Analyzers\Estimate;
 
 /**
  * Метрики офлайн-оценки качества извлечения (P7.4, ТЗ 04 §5): field-level precision/recall/F1

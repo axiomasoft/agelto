@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\Services\Procurement\Extraction;
+namespace App\Services\Procurement\Analyzers\Estimate;
 
 use App\Dto\Procurement\Ai\Estimate\RowModifier;
 use App\Dto\Procurement\Ai\Estimate\RowsChunkResponse;
@@ -18,6 +18,7 @@ use App\Services\Llm\Contracts\SupportsFileUpload;
 use App\Services\Llm\Dto\LlmFileHandle;
 use App\Services\Llm\Dto\LlmUsage;
 use App\Services\Llm\Dto\ResolvedRoute;
+use App\Services\Procurement\Extraction\ExtractionSession;
 use App\Services\Procurement\Prepare\RepresentationResolver;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Collection;

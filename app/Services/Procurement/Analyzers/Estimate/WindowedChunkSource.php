@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\Services\Procurement\Extraction;
+namespace App\Services\Procurement\Analyzers\Estimate;
 
 use App\Dto\Procurement\Ai\Estimate\DiscoveryResponse;
 use App\Dto\Procurement\Ai\Estimate\PassportResponse;
@@ -19,7 +19,7 @@ use App\Services\Llm\LlmCallRecorder;
 use App\Services\Llm\PromptComposer;
 use App\Services\Llm\Schema\JsonSchemaGenerator;
 use App\Services\Llm\Validation\StructuredResponseValidator;
-use App\Services\Procurement\Extraction\Dto\ChunkFetchResult;
+use App\Services\Procurement\Analyzers\Estimate\Dto\ChunkFetchResult;
 use App\Services\Procurement\Screening\PdfPageSlicer;
 use Carbon\CarbonImmutable;
 use RuntimeException;

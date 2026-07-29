@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\Services\Procurement\Extraction;
+namespace App\Services\Procurement\Analyzers\Estimate;
 
 use App\Dto\Procurement\Ai\Diff\DiffEntry;
 use App\Dto\Procurement\Ai\Diff\DiffReport;

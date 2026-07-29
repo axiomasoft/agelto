@@ -2,16 +2,17 @@
 
 declare(strict_types=1);
 
-namespace App\Jobs\Procurement;
+namespace App\Jobs\Procurement\Analyzers\Estimate;
 
 use App\Enums\Procurement\AnalysisStatus;
 use App\Enums\Procurement\AnalysisStep;
 use App\Enums\Procurement\DocumentStatus;
+use App\Jobs\Procurement\PipelineJob;
 use App\Models\Procurement\Ai\Analysis;
 use App\Models\Procurement\Document\Document;
 use App\Repositories\Procurement\AnalysisStoreRepository;
 use App\Repositories\Procurement\DocumentStoreRepository;
-use App\Services\Procurement\Extraction\ExtractionOrchestrator;
+use App\Services\Procurement\Analyzers\Estimate\ExtractionOrchestrator;
 use Illuminate\Contracts\Queue\ShouldBeUniqueUntilProcessing;
 use RuntimeException;
 use Throwable;

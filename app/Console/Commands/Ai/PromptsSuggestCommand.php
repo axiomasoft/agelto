@@ -10,7 +10,7 @@ use App\Models\Procurement\Ai\Analysis;
 use App\Models\Procurement\Ai\Fixture;
 use App\Repositories\Procurement\DocumentStoreRepository;
 use App\Repositories\Procurement\FixtureStoreRepository;
-use App\Services\Procurement\Extraction\EstimateDiffReport;
+use App\Services\Procurement\Analyzers\Estimate\EstimateDiffReport;
 use App\Services\Procurement\Tuning\PromptCritic;
 use Illuminate\Console\Command;
 use JsonException;

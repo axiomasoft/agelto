@@ -6,7 +6,7 @@ namespace App\Services\Procurement\Analyzers\Estimate;
 
 use App\Enums\Procurement\LlmPurpose;
 use App\Enums\Procurement\PromptStep;
-use App\Jobs\Procurement\EstimateExtractionJob;
+use App\Jobs\Procurement\Analyzers\Estimate\EstimateExtractionJob;
 use App\Models\Procurement\Ai\Analysis;
 use App\Services\Procurement\Contracts\DocumentAnalyzer;
 use App\Services\Procurement\Contracts\Dto\AnalysisSummary;

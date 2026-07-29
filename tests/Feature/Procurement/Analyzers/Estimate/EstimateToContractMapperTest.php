@@ -8,7 +8,7 @@ use App\Models\Procurement\Estimate\Item;
 use App\Models\Procurement\Estimate\Resource;
 use App\Models\Procurement\Estimate\Section;
 use App\Models\Procurement\Estimate\Total;
-use App\Services\Procurement\Extraction\EstimateToContractMapper;
+use App\Services\Procurement\Analyzers\Estimate\EstimateToContractMapper;
 
 // Обратный маппер P9.3 (ревью K п.23) — реконструирует DTO-контракт P2.2 из НОРМАЛИЗОВАННЫХ
 // `prc_estimate_*` (P6.3). `row_index` заголовков разделов НЕ персистируется нигде (D10) —

@@ -11,7 +11,7 @@ use App\Models\Procurement\Document\DocumentVersion;
 use App\Models\Procurement\Estimate\Estimate;
 use App\Models\Procurement\Estimate\Item;
 use App\Models\User;
-use App\Services\Procurement\Extraction\GoldExampleRecorder;
+use App\Services\Procurement\Analyzers\Estimate\GoldExampleRecorder;
 
 // Единственный потребитель `review_status=approved` (P9.2 → P9.3, D15) — снимает immutable gold-
 // снапшот из НОРМАЛИЗОВАННЫХ смет анализа.

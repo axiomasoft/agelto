@@ -52,13 +52,13 @@ stateDiagram-v2
 | `[*] → Pending` | `AnalysisStoreRepository::firstOrCreate()` | `app/Repositories/Procurement/AnalysisStoreRepository.php:35` |
 | `[*] → Pending` (re-run, `parent_analysis_id`) | `AnalysisStoreRepository::createRerun()` | `app/Repositories/Procurement/AnalysisStoreRepository.php:61` |
 | `Pending → Running` (screening) | `ScreeningProcessor::run()` | `app/Services/Procurement/Screening/ScreeningProcessor.php:64` |
-| `Pending → Running` (extraction) | `ExtractionOrchestrator::run()` | `app/Services/Procurement/Extraction/ExtractionOrchestrator.php:84` |
+| `Pending → Running` (extraction) | `ExtractionOrchestrator::run()` | `app/Services/Procurement/Analyzers/Estimate/ExtractionOrchestrator.php:84` |
 | `Running → Succeeded` (screening) | `ScreeningProcessor::classify()` | `app/Services/Procurement/Screening/ScreeningProcessor.php:222` |
-| `Running → Succeeded` (extraction) | `ExtractionOrchestrator::finalizeSuccess()` | `app/Services/Procurement/Extraction/ExtractionOrchestrator.php:700` |
+| `Running → Succeeded` (extraction) | `ExtractionOrchestrator::finalizeSuccess()` | `app/Services/Procurement/Analyzers/Estimate/ExtractionOrchestrator.php:700` |
 | `Running → Skipped` (unprocessable, screening) | `ScreeningProcessor::markUnprocessable()` | `app/Services/Procurement/Screening/ScreeningProcessor.php:255` |
-| `Running → Skipped` (unprocessable, extraction) | `ExtractionOrchestrator::markUnprocessable()` | `app/Services/Procurement/Extraction/ExtractionOrchestrator.php:720` |
+| `Running → Skipped` (unprocessable, extraction) | `ExtractionOrchestrator::markUnprocessable()` | `app/Services/Procurement/Analyzers/Estimate/ExtractionOrchestrator.php:720` |
 | `Running → Failed` (screening, attempts исчерпаны) | `ScreeningJob::recordFailure()` | `app/Jobs/Procurement/ScreeningJob.php:104` |
-| `Running → Failed` (extraction, attempts исчерпаны) | `EstimateExtractionJob::recordFailure()` | `app/Jobs/Procurement/EstimateExtractionJob.php:102` |
+| `Running → Failed` (extraction, attempts исчерпаны) | `EstimateExtractionJob::recordFailure()` | `app/Jobs/Procurement/Analyzers/Estimate/EstimateExtractionJob.php:102` |
 
 `Skipped` в обоих случаях выше пишется **вместе** с переводом `DocumentStatus` в `Unprocessable`
 (`markUnprocessable()` пишет оба статуса — см. Д1) — это не отдельная неудача анализа, а

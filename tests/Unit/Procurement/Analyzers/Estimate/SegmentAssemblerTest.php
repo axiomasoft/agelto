@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 use App\Dto\Procurement\Ai\Estimate\DiscoveryMarkerLine;
 use App\Enums\Procurement\DiscoveryMarker;
-use App\Services\Procurement\Extraction\SegmentAssembler;
+use App\Services\Procurement\Analyzers\Estimate\SegmentAssembler;
 
 // Юнит-тесты SegmentAssembler (Scope Included P6.4, сценарии (а)-(г) из phases/P6.md): чистая
 // детерминированная функция БЕЗ LLM, вход — плоский список маркеров В ПОРЯДКЕ ПРИХОДА ОКОН.

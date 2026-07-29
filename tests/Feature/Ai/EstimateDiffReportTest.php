@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-use App\Services\Procurement\Extraction\EstimateDiffReport;
-use App\Services\Procurement\Extraction\EstimateValidator;
-use App\Services\Procurement\Extraction\EvalMetrics;
+use App\Services\Procurement\Analyzers\Estimate\EstimateDiffReport;
+use App\Services\Procurement\Analyzers\Estimate\EstimateValidator;
+use App\Services\Procurement\Analyzers\Estimate\EvalMetrics;
 
 /**
  * §8.6 `docs/specs/v2/08-estimate-extraction.md` — детерминированный diff-отчёт «gold vs

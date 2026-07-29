@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\Services\Procurement\Extraction;
+namespace App\Services\Procurement\Analyzers\Estimate;
 
 use App\Dto\Procurement\Ai\Estimate\DiscoveryMarkerLine;
 use App\Dto\Procurement\Ai\Estimate\DiscoveryResponse;
@@ -27,6 +27,8 @@ use App\Services\Llm\Dto\LlmFileHandle;
 use App\Services\Llm\Dto\LlmUsage;
 use App\Services\Llm\Dto\ResolvedRoute;
 use App\Services\Procurement\Extraction\Exceptions\MaxTokensExceededException;
+use App\Services\Procurement\Extraction\ExtractionPreflight;
+use App\Services\Procurement\Extraction\ExtractionSession;
 use App\Services\Procurement\Prepare\RepresentationResolver;
 use App\Services\Procurement\Screening\PdfPageSlicer;
 use Carbon\CarbonImmutable;

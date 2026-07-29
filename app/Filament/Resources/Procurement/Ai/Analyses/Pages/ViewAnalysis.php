@@ -9,7 +9,7 @@ use App\Filament\Resources\Procurement\Ai\Analyses\AnalysisResource;
 use App\Models\Procurement\Ai\Analysis;
 use App\Models\Procurement\Ai\Correction;
 use App\Repositories\Procurement\AnalysisStoreRepository;
-use App\Services\Procurement\Extraction\GoldExampleRecorder;
+use App\Services\Procurement\Analyzers\Estimate\GoldExampleRecorder;
 use App\Services\Procurement\Extraction\RerunAnalysisAction;
 use Filament\Actions\Action;
 use Filament\Forms\Components\Select;

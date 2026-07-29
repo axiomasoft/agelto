@@ -316,13 +316,13 @@ parameters:
 			message: '#^Access to an undefined property App\\Models\\Procurement\\Ai\\Analysis\:\:\$failed_permanently\.$#'
 			identifier: property.notFound
 			count: 1
-			path: /var/www/html/app/Jobs/Procurement/EstimateExtractionJob.php
+			path: /var/www/html/app/Jobs/Procurement/Analyzers/Estimate/EstimateExtractionJob.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Procurement\\Document\\Document\:\:\$status\.$#'
 			identifier: property.notFound
 			count: 1
-			path: /var/www/html/app/Jobs/Procurement/EstimateExtractionJob.php
+			path: /var/www/html/app/Jobs/Procurement/Analyzers/Estimate/EstimateExtractionJob.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Procurement\\Document\\Document\:\:\$status\.$#'
@@ -736,373 +736,373 @@ parameters:
 			message: '#^Access to an undefined property App\\Models\\Procurement\\Document\\Document\:\:\$procurement_id\.$#'
 			identifier: property.notFound
 			count: 2
-			path: /var/www/html/app/Services/Procurement/Extraction/EstimatePersister.php
+			path: /var/www/html/app/Services/Procurement/Analyzers/Estimate/EstimatePersister.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Procurement\\Estimate\\Estimate\:\:\$ordinal\.$#'
 			identifier: property.notFound
 			count: 1
-			path: /var/www/html/app/Services/Procurement/Extraction/EstimatePersister.php
+			path: /var/www/html/app/Services/Procurement/Analyzers/Estimate/EstimatePersister.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Procurement\\Estimate\\Estimate\:\:\$rows_extracted\.$#'
 			identifier: property.notFound
 			count: 1
-			path: /var/www/html/app/Services/Procurement/Extraction/EstimatePersister.php
+			path: /var/www/html/app/Services/Procurement/Analyzers/Estimate/EstimatePersister.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Procurement\\Estimate\\Estimate\:\:\$validation_status\.$#'
 			identifier: property.notFound
 			count: 1
-			path: /var/www/html/app/Services/Procurement/Extraction/EstimatePersister.php
+			path: /var/www/html/app/Services/Procurement/Analyzers/Estimate/EstimatePersister.php
 
 		-
 			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$document_id\.$#'
 			identifier: property.notFound
 			count: 1
-			path: /var/www/html/app/Services/Procurement/Extraction/EstimatePersister.php
+			path: /var/www/html/app/Services/Procurement/Analyzers/Estimate/EstimatePersister.php
 
 		-
-			message: '#^Parameter \#3 \$version of method App\\Services\\Procurement\\Extraction\\EstimatePersister\:\:persistEstimate\(\) expects App\\Models\\Procurement\\Document\\DocumentVersion, Illuminate\\Database\\Eloquent\\Model\|null given\.$#'
+			message: '#^Parameter \#3 \$version of method App\\Services\\Procurement\\Analyzers\\Estimate\\EstimatePersister\:\:persistEstimate\(\) expects App\\Models\\Procurement\\Document\\DocumentVersion, Illuminate\\Database\\Eloquent\\Model\|null given\.$#'
 			identifier: argument.type
 			count: 2
-			path: /var/www/html/app/Services/Procurement/Extraction/EstimatePersister.php
+			path: /var/www/html/app/Services/Procurement/Analyzers/Estimate/EstimatePersister.php
 
 		-
 			message: '#^Strict comparison using \!\=\= between mixed and null will always evaluate to true\.$#'
 			identifier: notIdentical.alwaysTrue
 			count: 1
-			path: /var/www/html/app/Services/Procurement/Extraction/EstimatePersister.php
+			path: /var/www/html/app/Services/Procurement/Analyzers/Estimate/EstimatePersister.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Procurement\\Estimate\\Estimate\:\:\$base_year\.$#'
 			identifier: property.notFound
 			count: 1
-			path: /var/www/html/app/Services/Procurement/Extraction/EstimateToContractMapper.php
+			path: /var/www/html/app/Services/Procurement/Analyzers/Estimate/EstimateToContractMapper.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Procurement\\Estimate\\Estimate\:\:\$calc_method\.$#'
 			identifier: property.notFound
 			count: 1
-			path: /var/www/html/app/Services/Procurement/Extraction/EstimateToContractMapper.php
+			path: /var/www/html/app/Services/Procurement/Analyzers/Estimate/EstimateToContractMapper.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Procurement\\Estimate\\Estimate\:\:\$currency\.$#'
 			identifier: property.notFound
 			count: 1
-			path: /var/www/html/app/Services/Procurement/Extraction/EstimateToContractMapper.php
+			path: /var/www/html/app/Services/Procurement/Analyzers/Estimate/EstimateToContractMapper.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Procurement\\Estimate\\Estimate\:\:\$document_date\.$#'
 			identifier: property.notFound
 			count: 1
-			path: /var/www/html/app/Services/Procurement/Extraction/EstimateToContractMapper.php
+			path: /var/www/html/app/Services/Procurement/Analyzers/Estimate/EstimateToContractMapper.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Procurement\\Estimate\\Estimate\:\:\$document_number\.$#'
 			identifier: property.notFound
 			count: 1
-			path: /var/www/html/app/Services/Procurement/Extraction/EstimateToContractMapper.php
+			path: /var/www/html/app/Services/Procurement/Analyzers/Estimate/EstimateToContractMapper.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Procurement\\Estimate\\Estimate\:\:\$estimate_number\.$#'
 			identifier: property.notFound
 			count: 1
-			path: /var/www/html/app/Services/Procurement/Extraction/EstimateToContractMapper.php
+			path: /var/www/html/app/Services/Procurement/Analyzers/Estimate/EstimateToContractMapper.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Procurement\\Estimate\\Estimate\:\:\$labor_hours_machinists\.$#'
 			identifier: property.notFound
 			count: 1
-			path: /var/www/html/app/Services/Procurement/Extraction/EstimateToContractMapper.php
+			path: /var/www/html/app/Services/Procurement/Analyzers/Estimate/EstimateToContractMapper.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Procurement\\Estimate\\Estimate\:\:\$labor_hours_workers\.$#'
 			identifier: property.notFound
 			count: 1
-			path: /var/www/html/app/Services/Procurement/Extraction/EstimateToContractMapper.php
+			path: /var/www/html/app/Services/Procurement/Analyzers/Estimate/EstimateToContractMapper.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Procurement\\Estimate\\Estimate\:\:\$ordinal\.$#'
 			identifier: property.notFound
 			count: 1
-			path: /var/www/html/app/Services/Procurement/Extraction/EstimateToContractMapper.php
+			path: /var/www/html/app/Services/Procurement/Analyzers/Estimate/EstimateToContractMapper.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Procurement\\Estimate\\Estimate\:\:\$period_end\.$#'
 			identifier: property.notFound
 			count: 1
-			path: /var/www/html/app/Services/Procurement/Extraction/EstimateToContractMapper.php
+			path: /var/www/html/app/Services/Procurement/Analyzers/Estimate/EstimateToContractMapper.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Procurement\\Estimate\\Estimate\:\:\$period_start\.$#'
 			identifier: property.notFound
 			count: 1
-			path: /var/www/html/app/Services/Procurement/Extraction/EstimateToContractMapper.php
+			path: /var/www/html/app/Services/Procurement/Analyzers/Estimate/EstimateToContractMapper.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Procurement\\Estimate\\Estimate\:\:\$price_level\.$#'
 			identifier: property.notFound
 			count: 1
-			path: /var/www/html/app/Services/Procurement/Extraction/EstimateToContractMapper.php
+			path: /var/www/html/app/Services/Procurement/Analyzers/Estimate/EstimateToContractMapper.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Procurement\\Estimate\\Item\:\:\$code\.$#'
 			identifier: property.notFound
 			count: 1
-			path: /var/www/html/app/Services/Procurement/Extraction/EstimateToContractMapper.php
+			path: /var/www/html/app/Services/Procurement/Analyzers/Estimate/EstimateToContractMapper.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Procurement\\Estimate\\Item\:\:\$name\.$#'
 			identifier: property.notFound
 			count: 1
-			path: /var/www/html/app/Services/Procurement/Extraction/EstimateToContractMapper.php
+			path: /var/www/html/app/Services/Procurement/Analyzers/Estimate/EstimateToContractMapper.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Procurement\\Estimate\\Item\:\:\$quantity\.$#'
 			identifier: property.notFound
 			count: 1
-			path: /var/www/html/app/Services/Procurement/Extraction/EstimateToContractMapper.php
+			path: /var/www/html/app/Services/Procurement/Analyzers/Estimate/EstimateToContractMapper.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Procurement\\Estimate\\Item\:\:\$section_id\.$#'
 			identifier: property.notFound
 			count: 1
-			path: /var/www/html/app/Services/Procurement/Extraction/EstimateToContractMapper.php
+			path: /var/www/html/app/Services/Procurement/Analyzers/Estimate/EstimateToContractMapper.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Procurement\\Estimate\\Item\:\:\$index_code\.$#'
 			identifier: property.notFound
 			count: 1
-			path: /var/www/html/app/Services/Procurement/Extraction/EstimateToContractMapper.php
+			path: /var/www/html/app/Services/Procurement/Analyzers/Estimate/EstimateToContractMapper.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Procurement\\Estimate\\Item\:\:\$index_value\.$#'
 			identifier: property.notFound
 			count: 1
-			path: /var/www/html/app/Services/Procurement/Extraction/EstimateToContractMapper.php
+			path: /var/www/html/app/Services/Procurement/Analyzers/Estimate/EstimateToContractMapper.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Procurement\\Estimate\\Item\:\:\$source_position_number\.$#'
 			identifier: property.notFound
 			count: 1
-			path: /var/www/html/app/Services/Procurement/Extraction/EstimateToContractMapper.php
+			path: /var/www/html/app/Services/Procurement/Analyzers/Estimate/EstimateToContractMapper.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Procurement\\Estimate\\Item\:\:\$total_price_base\.$#'
 			identifier: property.notFound
 			count: 1
-			path: /var/www/html/app/Services/Procurement/Extraction/EstimateToContractMapper.php
+			path: /var/www/html/app/Services/Procurement/Analyzers/Estimate/EstimateToContractMapper.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Procurement\\Estimate\\Item\:\:\$total_price_curr\.$#'
 			identifier: property.notFound
 			count: 1
-			path: /var/www/html/app/Services/Procurement/Extraction/EstimateToContractMapper.php
+			path: /var/www/html/app/Services/Procurement/Analyzers/Estimate/EstimateToContractMapper.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Procurement\\Estimate\\Item\:\:\$unit\.$#'
 			identifier: property.notFound
 			count: 1
-			path: /var/www/html/app/Services/Procurement/Extraction/EstimateToContractMapper.php
+			path: /var/www/html/app/Services/Procurement/Analyzers/Estimate/EstimateToContractMapper.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Procurement\\Estimate\\Item\:\:\$unit_price_base\.$#'
 			identifier: property.notFound
 			count: 1
-			path: /var/www/html/app/Services/Procurement/Extraction/EstimateToContractMapper.php
+			path: /var/www/html/app/Services/Procurement/Analyzers/Estimate/EstimateToContractMapper.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Procurement\\Estimate\\Item\:\:\$unit_price_curr\.$#'
 			identifier: property.notFound
 			count: 1
-			path: /var/www/html/app/Services/Procurement/Extraction/EstimateToContractMapper.php
+			path: /var/www/html/app/Services/Procurement/Analyzers/Estimate/EstimateToContractMapper.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Procurement\\Estimate\\Resource\:\:\$code\.$#'
 			identifier: property.notFound
 			count: 1
-			path: /var/www/html/app/Services/Procurement/Extraction/EstimateToContractMapper.php
+			path: /var/www/html/app/Services/Procurement/Analyzers/Estimate/EstimateToContractMapper.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Procurement\\Estimate\\Resource\:\:\$index_code\.$#'
 			identifier: property.notFound
 			count: 1
-			path: /var/www/html/app/Services/Procurement/Extraction/EstimateToContractMapper.php
+			path: /var/www/html/app/Services/Procurement/Analyzers/Estimate/EstimateToContractMapper.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Procurement\\Estimate\\Resource\:\:\$index_value\.$#'
 			identifier: property.notFound
 			count: 1
-			path: /var/www/html/app/Services/Procurement/Extraction/EstimateToContractMapper.php
+			path: /var/www/html/app/Services/Procurement/Analyzers/Estimate/EstimateToContractMapper.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Procurement\\Estimate\\Resource\:\:\$name\.$#'
 			identifier: property.notFound
 			count: 1
-			path: /var/www/html/app/Services/Procurement/Extraction/EstimateToContractMapper.php
+			path: /var/www/html/app/Services/Procurement/Analyzers/Estimate/EstimateToContractMapper.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Procurement\\Estimate\\Resource\:\:\$price_base\.$#'
 			identifier: property.notFound
 			count: 1
-			path: /var/www/html/app/Services/Procurement/Extraction/EstimateToContractMapper.php
+			path: /var/www/html/app/Services/Procurement/Analyzers/Estimate/EstimateToContractMapper.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Procurement\\Estimate\\Resource\:\:\$price_curr\.$#'
 			identifier: property.notFound
 			count: 1
-			path: /var/www/html/app/Services/Procurement/Extraction/EstimateToContractMapper.php
+			path: /var/www/html/app/Services/Procurement/Analyzers/Estimate/EstimateToContractMapper.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Procurement\\Estimate\\Resource\:\:\$quantity\.$#'
 			identifier: property.notFound
 			count: 1
-			path: /var/www/html/app/Services/Procurement/Extraction/EstimateToContractMapper.php
+			path: /var/www/html/app/Services/Procurement/Analyzers/Estimate/EstimateToContractMapper.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Procurement\\Estimate\\Resource\:\:\$resource_type\.$#'
 			identifier: property.notFound
 			count: 1
-			path: /var/www/html/app/Services/Procurement/Extraction/EstimateToContractMapper.php
+			path: /var/www/html/app/Services/Procurement/Analyzers/Estimate/EstimateToContractMapper.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Procurement\\Estimate\\Resource\:\:\$unit\.$#'
 			identifier: property.notFound
 			count: 1
-			path: /var/www/html/app/Services/Procurement/Extraction/EstimateToContractMapper.php
+			path: /var/www/html/app/Services/Procurement/Analyzers/Estimate/EstimateToContractMapper.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Procurement\\Estimate\\Section\:\:\$parent_id\.$#'
 			identifier: property.notFound
 			count: 1
-			path: /var/www/html/app/Services/Procurement/Extraction/EstimateToContractMapper.php
+			path: /var/www/html/app/Services/Procurement/Analyzers/Estimate/EstimateToContractMapper.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Procurement\\Estimate\\Section\:\:\$title\.$#'
 			identifier: property.notFound
 			count: 1
-			path: /var/www/html/app/Services/Procurement/Extraction/EstimateToContractMapper.php
+			path: /var/www/html/app/Services/Procurement/Analyzers/Estimate/EstimateToContractMapper.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Procurement\\Estimate\\Total\:\:\$amount\.$#'
 			identifier: property.notFound
 			count: 1
-			path: /var/www/html/app/Services/Procurement/Extraction/EstimateToContractMapper.php
+			path: /var/www/html/app/Services/Procurement/Analyzers/Estimate/EstimateToContractMapper.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Procurement\\Estimate\\Total\:\:\$chapter_number\.$#'
 			identifier: property.notFound
 			count: 1
-			path: /var/www/html/app/Services/Procurement/Extraction/EstimateToContractMapper.php
+			path: /var/www/html/app/Services/Procurement/Analyzers/Estimate/EstimateToContractMapper.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Procurement\\Estimate\\Total\:\:\$kind\.$#'
 			identifier: property.notFound
 			count: 1
-			path: /var/www/html/app/Services/Procurement/Extraction/EstimateToContractMapper.php
+			path: /var/www/html/app/Services/Procurement/Analyzers/Estimate/EstimateToContractMapper.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Procurement\\Estimate\\Total\:\:\$label\.$#'
 			identifier: property.notFound
 			count: 1
-			path: /var/www/html/app/Services/Procurement/Extraction/EstimateToContractMapper.php
+			path: /var/www/html/app/Services/Procurement/Analyzers/Estimate/EstimateToContractMapper.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Procurement\\Estimate\\Total\:\:\$rate\.$#'
 			identifier: property.notFound
 			count: 1
-			path: /var/www/html/app/Services/Procurement/Extraction/EstimateToContractMapper.php
+			path: /var/www/html/app/Services/Procurement/Analyzers/Estimate/EstimateToContractMapper.php
 
 		-
 			message: '#^Cannot call method get\(\) on array\<string, mixed\>\.$#'
 			identifier: method.nonObject
 			count: 1
-			path: /var/www/html/app/Services/Procurement/Extraction/EstimateToContractMapper.php
+			path: /var/www/html/app/Services/Procurement/Analyzers/Estimate/EstimateToContractMapper.php
 
 		-
 			message: '#^Parameter \#1 \$callback of method Illuminate\\Database\\Eloquent\\Collection\<int,Illuminate\\Database\\Eloquent\\Model\>\:\:map\(\) expects callable\(Illuminate\\Database\\Eloquent\\Model, int\)\: App\\Dto\\Procurement\\Ai\\Estimate\\RowResource, Closure\(App\\Models\\Procurement\\Estimate\\Resource\)\: App\\Dto\\Procurement\\Ai\\Estimate\\RowResource given\.$#'
 			identifier: argument.type
 			count: 1
-			path: /var/www/html/app/Services/Procurement/Extraction/EstimateToContractMapper.php
+			path: /var/www/html/app/Services/Procurement/Analyzers/Estimate/EstimateToContractMapper.php
 
 		-
-			message: '#^Parameter \#1 \$totals of method App\\Services\\Procurement\\Extraction\\EstimateToContractMapper\:\:totalsTree\(\) expects Illuminate\\Support\\Collection\<int, App\\Models\\Procurement\\Estimate\\Total\>, Illuminate\\Database\\Eloquent\\Collection\<int, Illuminate\\Database\\Eloquent\\Model\> given\.$#'
+			message: '#^Parameter \#1 \$totals of method App\\Services\\Procurement\\Analyzers\\Estimate\\EstimateToContractMapper\:\:totalsTree\(\) expects Illuminate\\Support\\Collection\<int, App\\Models\\Procurement\\Estimate\\Total\>, Illuminate\\Database\\Eloquent\\Collection\<int, Illuminate\\Database\\Eloquent\\Model\> given\.$#'
 			identifier: argument.type
 			count: 1
-			path: /var/www/html/app/Services/Procurement/Extraction/EstimateToContractMapper.php
+			path: /var/www/html/app/Services/Procurement/Analyzers/Estimate/EstimateToContractMapper.php
 
 		-
 			message: '#^Using nullsafe method call on non\-nullable type array\<string, mixed\>\. Use \-\> instead\.$#'
 			identifier: nullsafe.neverNull
 			count: 1
-			path: /var/www/html/app/Services/Procurement/Extraction/EstimateToContractMapper.php
+			path: /var/www/html/app/Services/Procurement/Analyzers/Estimate/EstimateToContractMapper.php
 
 		-
 			message: '#^Right side of \|\| is always false\.$#'
 			identifier: booleanOr.rightAlwaysFalse
 			count: 1
-			path: /var/www/html/app/Services/Procurement/Extraction/EstimateValidator.php
+			path: /var/www/html/app/Services/Procurement/Analyzers/Estimate/EstimateValidator.php
 
 		-
 			message: '#^Parameter \#1 \$array \(list\<array\<string, mixed\>\>\) of array_values is already a list, call has no effect\.$#'
 			identifier: arrayValues.list
 			count: 1
-			path: /var/www/html/app/Services/Procurement/Extraction/EvalMetrics.php
+			path: /var/www/html/app/Services/Procurement/Analyzers/Estimate/EvalMetrics.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Procurement\\Ai\\Analysis\:\:\$parent_analysis_id\.$#'
 			identifier: property.notFound
 			count: 1
-			path: /var/www/html/app/Services/Procurement/Extraction/ExtractionOrchestrator.php
+			path: /var/www/html/app/Services/Procurement/Analyzers/Estimate/ExtractionOrchestrator.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Procurement\\Ai\\Analysis\:\:\$progress\.$#'
 			identifier: property.notFound
 			count: 1
-			path: /var/www/html/app/Services/Procurement/Extraction/ExtractionOrchestrator.php
+			path: /var/www/html/app/Services/Procurement/Analyzers/Estimate/ExtractionOrchestrator.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Procurement\\Ai\\Analysis\:\:\$result\.$#'
 			identifier: property.notFound
 			count: 1
-			path: /var/www/html/app/Services/Procurement/Extraction/ExtractionOrchestrator.php
+			path: /var/www/html/app/Services/Procurement/Analyzers/Estimate/ExtractionOrchestrator.php
 
 		-
 			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$extension\.$#'
 			identifier: property.notFound
 			count: 1
-			path: /var/www/html/app/Services/Procurement/Extraction/ExtractionOrchestrator.php
+			path: /var/www/html/app/Services/Procurement/Analyzers/Estimate/ExtractionOrchestrator.php
 
 		-
-			message: '#^Parameter \#1 \$version of method App\\Services\\Procurement\\Extraction\\ExtractionOrchestrator\:\:resolveEffectiveFile\(\) expects App\\Models\\Procurement\\Document\\DocumentVersion, Illuminate\\Database\\Eloquent\\Model\|null given\.$#'
+			message: '#^Parameter \#1 \$version of method App\\Services\\Procurement\\Analyzers\\Estimate\\ExtractionOrchestrator\:\:resolveEffectiveFile\(\) expects App\\Models\\Procurement\\Document\\DocumentVersion, Illuminate\\Database\\Eloquent\\Model\|null given\.$#'
 			identifier: argument.type
 			count: 1
-			path: /var/www/html/app/Services/Procurement/Extraction/ExtractionOrchestrator.php
+			path: /var/www/html/app/Services/Procurement/Analyzers/Estimate/ExtractionOrchestrator.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Procurement\\Ai\\Analysis\:\:\$parent_analysis_id\.$#'
 			identifier: property.notFound
 			count: 1
-			path: /var/www/html/app/Services/Procurement/Extraction/GoldExampleRecorder.php
+			path: /var/www/html/app/Services/Procurement/Analyzers/Estimate/GoldExampleRecorder.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Procurement\\Ai\\Analysis\:\:\$reviewed_at\.$#'
 			identifier: property.notFound
 			count: 1
-			path: /var/www/html/app/Services/Procurement/Extraction/GoldExampleRecorder.php
+			path: /var/www/html/app/Services/Procurement/Analyzers/Estimate/GoldExampleRecorder.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Procurement\\Ai\\Analysis\:\:\$reviewed_by\.$#'
 			identifier: property.notFound
 			count: 1
-			path: /var/www/html/app/Services/Procurement/Extraction/GoldExampleRecorder.php
+			path: /var/www/html/app/Services/Procurement/Analyzers/Estimate/GoldExampleRecorder.php
 
 		-
 			message: '#^Parameter \#1 \$callback of method Illuminate\\Database\\Eloquent\\Collection\<int,Illuminate\\Database\\Eloquent\\Model\>\:\:map\(\) expects callable\(Illuminate\\Database\\Eloquent\\Model, int\)\: array\<string, mixed\>, Closure\(App\\Models\\Procurement\\Estimate\\Estimate\)\: array\<string, mixed\> given\.$#'
 			identifier: argument.type
 			count: 1
-			path: /var/www/html/app/Services/Procurement/Extraction/GoldExampleRecorder.php
+			path: /var/www/html/app/Services/Procurement/Analyzers/Estimate/GoldExampleRecorder.php
 
 		-
 			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$document_id\.$#'
@@ -1114,43 +1114,43 @@ parameters:
 			message: '#^Access to an undefined property App\\Models\\Procurement\\Ai\\Analysis\:\:\$progress\.$#'
 			identifier: property.notFound
 			count: 1
-			path: /var/www/html/app/Services/Procurement/Extraction/RerunRangeAction.php
+			path: /var/www/html/app/Services/Procurement/Analyzers/Estimate/RerunRangeAction.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Procurement\\Estimate\\Estimate\:\:\$ordinal\.$#'
 			identifier: property.notFound
 			count: 1
-			path: /var/www/html/app/Services/Procurement/Extraction/RerunRangeAction.php
+			path: /var/www/html/app/Services/Procurement/Analyzers/Estimate/RerunRangeAction.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Procurement\\Estimate\\Item\:\:\$section_id\.$#'
 			identifier: property.notFound
 			count: 1
-			path: /var/www/html/app/Services/Procurement/Extraction/RerunRangeAction.php
+			path: /var/www/html/app/Services/Procurement/Analyzers/Estimate/RerunRangeAction.php
 
 		-
 			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$id\.$#'
 			identifier: property.notFound
 			count: 1
-			path: /var/www/html/app/Services/Procurement/Extraction/RerunRangeAction.php
+			path: /var/www/html/app/Services/Procurement/Analyzers/Estimate/RerunRangeAction.php
 
 		-
-			message: '#^Parameter \#1 \$analysis of method App\\Services\\Procurement\\Extraction\\RerunRangeAction\:\:buildSession\(\) expects App\\Models\\Procurement\\Ai\\Analysis, Illuminate\\Database\\Eloquent\\Model\|null given\.$#'
+			message: '#^Parameter \#1 \$analysis of method App\\Services\\Procurement\\Analyzers\\Estimate\\RerunRangeAction\:\:buildSession\(\) expects App\\Models\\Procurement\\Ai\\Analysis, Illuminate\\Database\\Eloquent\\Model\|null given\.$#'
 			identifier: argument.type
 			count: 1
-			path: /var/www/html/app/Services/Procurement/Extraction/RerunRangeAction.php
+			path: /var/www/html/app/Services/Procurement/Analyzers/Estimate/RerunRangeAction.php
 
 		-
-			message: '#^Parameter \#2 \$version of method App\\Services\\Procurement\\Extraction\\RerunRangeAction\:\:buildSession\(\) expects App\\Models\\Procurement\\Document\\DocumentVersion, Illuminate\\Database\\Eloquent\\Model\|null given\.$#'
+			message: '#^Parameter \#2 \$version of method App\\Services\\Procurement\\Analyzers\\Estimate\\RerunRangeAction\:\:buildSession\(\) expects App\\Models\\Procurement\\Document\\DocumentVersion, Illuminate\\Database\\Eloquent\\Model\|null given\.$#'
 			identifier: argument.type
 			count: 1
-			path: /var/www/html/app/Services/Procurement/Extraction/RerunRangeAction.php
+			path: /var/www/html/app/Services/Procurement/Analyzers/Estimate/RerunRangeAction.php
 
 		-
 			message: '#^Parameter \#1 \$array \(list\<array\{ordinal\: int\<1, max\>, page_start\: int, page_end\: int, title\: string\|null, suspicious\: bool\}\>\) of array_values is already a list, call has no effect\.$#'
 			identifier: arrayValues.list
 			count: 1
-			path: /var/www/html/app/Services/Procurement/Extraction/SegmentAssembler.php
+			path: /var/www/html/app/Services/Procurement/Analyzers/Estimate/SegmentAssembler.php
 
 		-
 			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$registry_id\.$#'

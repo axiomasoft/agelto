@@ -7,7 +7,7 @@ use App\Dto\Procurement\Ai\Estimate\EstimateTotalsBlock;
 use App\Dto\Procurement\Ai\Estimate\TotalLine;
 use App\Enums\Procurement\EstimateValidationStatus;
 use App\Enums\Procurement\RowType;
-use App\Services\Procurement\Extraction\EstimateValidator;
+use App\Services\Procurement\Analyzers\Estimate\EstimateValidator;
 
 function validatorRow(
     int $index,

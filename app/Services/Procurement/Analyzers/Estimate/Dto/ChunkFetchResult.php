@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\Services\Procurement\Extraction\Dto;
+namespace App\Services\Procurement\Analyzers\Estimate\Dto;
 
 use App\Dto\Procurement\Ai\Estimate\DiscoveryResponse;
 use App\Dto\Procurement\Ai\Estimate\PassportResponse;

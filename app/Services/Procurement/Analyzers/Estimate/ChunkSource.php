@@ -2,11 +2,12 @@
 
 declare(strict_types=1);
 
-namespace App\Services\Procurement\Extraction;
+namespace App\Services\Procurement\Analyzers\Estimate;
 
 use App\Services\Llm\Dto\ResolvedRoute;
-use App\Services\Procurement\Extraction\Dto\ChunkFetchResult;
+use App\Services\Procurement\Analyzers\Estimate\Dto\ChunkFetchResult;
 use App\Services\Procurement\Extraction\Exceptions\MaxTokensExceededException;
+use App\Services\Procurement\Extraction\ExtractionSession;
 
 /**
  * Источник чанков извлечения (D40, введён здесь вместе с `RowRangeChunkSource` — основной

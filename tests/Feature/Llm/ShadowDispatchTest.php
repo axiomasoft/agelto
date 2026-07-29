@@ -23,7 +23,7 @@ use App\Services\Llm\Dto\LlmUsage;
 use App\Services\Llm\LlmCallRecorder;
 use App\Services\Llm\Providers\OpenAiCompatibleProvider;
 use App\Services\Llm\ShadowDispatch;
-use App\Services\Procurement\Extraction\EvalMetrics;
+use App\Services\Procurement\Analyzers\Estimate\EvalMetrics;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;

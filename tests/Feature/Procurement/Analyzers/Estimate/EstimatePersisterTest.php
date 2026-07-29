@@ -14,7 +14,7 @@ use App\Models\Procurement\Estimate\Item;
 use App\Models\Procurement\Estimate\Section;
 use App\Models\Procurement\Estimate\Total;
 use App\Models\Procurement\ProcurementEvent;
-use App\Services\Procurement\Extraction\EstimatePersister;
+use App\Services\Procurement\Analyzers\Estimate\EstimatePersister;
 
 // Feature-тесты персиста P6.1-формата (analysis.result.estimates[]) в prc_estimate_* через
 // EstimateStitcher/EstimateValidator (P6.2) — те же builder-соглашения, что ExtractionOrchestratorTest

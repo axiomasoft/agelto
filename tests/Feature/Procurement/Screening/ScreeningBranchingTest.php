@@ -9,7 +9,7 @@ use App\Enums\Procurement\FinishReason;
 use App\Enums\Procurement\LlmPurpose;
 use App\Enums\Procurement\ProcurementEventType;
 use App\Enums\Procurement\RunMode;
-use App\Jobs\Procurement\EstimateExtractionJob;
+use App\Jobs\Procurement\Analyzers\Estimate\EstimateExtractionJob;
 use App\Jobs\Procurement\PrepareDocumentJob;
 use App\Jobs\Procurement\ScreeningJob;
 use App\Models\Llm\LlmRoute;

@@ -42,8 +42,8 @@ stateDiagram-v2
 | `DocumentPreparer` | `app/Services/Procurement/Prepare/DocumentPreparer.php:26` |
 | `ScreeningJob` | `app/Jobs/Procurement/ScreeningJob.php` |
 | `ScreeningOutcomeHandler` | `app/Services/Procurement/Screening/ScreeningOutcomeHandler.php:42` |
-| `EstimateExtractionJob` | `app/Jobs/Procurement/EstimateExtractionJob.php` |
-| `ExtractionOrchestrator` | `app/Services/Procurement/Extraction/ExtractionOrchestrator.php:81` |
+| `EstimateExtractionJob` | `app/Jobs/Procurement/Analyzers/Estimate/EstimateExtractionJob.php` |
+| `ExtractionOrchestrator` | `app/Services/Procurement/Analyzers/Estimate/ExtractionOrchestrator.php:81` |
 
 Упрощённая версия без job'ов/ошибок (бизнес-язык) — `docs/02_Workflow/document-and-estimate-pipeline.md` (Д1-lite).
 
@@ -115,7 +115,7 @@ sequenceDiagram
 ```
 
 Точечное переизвлечение диапазона (не всей сметы) — `RerunRangeAction`
-(`app/Services/Procurement/Extraction/RerunRangeAction.php`, Scope Included P6.3): переиспользует
+(`app/Services/Procurement/Analyzers/Estimate/RerunRangeAction.php`, Scope Included P6.3): переиспользует
 `ChunkSource::fetchRows()` и файловый handle из `analysis.progress`, не участвует в
 checkpoint-цикле, не пересчитывает `validation_status`/иерархию целиком (Known Deviations P6.3).
 

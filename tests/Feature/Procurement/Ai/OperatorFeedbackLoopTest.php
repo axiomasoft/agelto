@@ -13,7 +13,7 @@ use App\Enums\Procurement\ReviewStatus;
 use App\Enums\Procurement\RunMode;
 use App\Guards\Admin\Roles\AnalystRole;
 use App\Guards\Admin\Roles\OperatorRole;
-use App\Jobs\Procurement\EstimateExtractionJob;
+use App\Jobs\Procurement\Analyzers\Estimate\EstimateExtractionJob;
 use App\Models\Llm\LlmRoute;
 use App\Models\Llm\Provider;
 use App\Models\Procurement\Ai\Analysis;

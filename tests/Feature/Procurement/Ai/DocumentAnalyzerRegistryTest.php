@@ -7,7 +7,7 @@ use App\Enums\Procurement\AnalysisStatus;
 use App\Enums\Procurement\AnalysisStep;
 use App\Enums\Procurement\LlmPurpose;
 use App\Enums\Procurement\PromptStep;
-use App\Jobs\Procurement\EstimateExtractionJob;
+use App\Jobs\Procurement\Analyzers\Estimate\EstimateExtractionJob;
 use App\Models\Procurement\Ai\Analysis;
 use App\Models\Procurement\Estimate\Estimate;
 use App\Services\Procurement\Analyzers\Estimate\EstimateAnalyzer;

@@ -15,7 +15,7 @@ use App\Services\Llm\Dto\JsonSchema;
 use App\Services\Llm\Dto\LlmPrompt;
 use App\Services\Llm\Dto\LlmStructuredResponse;
 use App\Services\Llm\LlmCallRecorder;
-use App\Services\Procurement\Extraction\EvalMetrics;
+use App\Services\Procurement\Analyzers\Estimate\EvalMetrics;
 use Carbon\CarbonImmutable;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;

@@ -17,7 +17,7 @@ use App\Models\Procurement\Estimate\Section;
 use App\Services\Llm\Dto\LlmStructuredResponse;
 use App\Services\Llm\Dto\LlmUsage;
 use App\Services\Llm\Providers\PrismGeminiProvider;
-use App\Services\Procurement\Extraction\RerunRangeAction;
+use App\Services\Procurement\Analyzers\Estimate\RerunRangeAction;
 use Illuminate\Support\Facades\Storage;
 use Tests\Support\Doubles\FakeLlmProvider;
 
