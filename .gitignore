@@ -95,3 +95,7 @@ Old/bootstrap/ssr
 app/Console/Commands/Playground.php
 project_context.txt
 .playwright-mcp
+
+# Эталонный корпус смет: файлы живут в хранилище (диск estimates), в git — только
+# манифест и *.gold.json (план 2026.07.26-EST-TRAIN, D1). 155 МБ бинарей в историю не пускаем.
+/estimates/files/
