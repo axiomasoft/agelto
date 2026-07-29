@@ -14,6 +14,7 @@ return new class extends Migration
             CREATE TABLE llm_calls (
                 id bigint GENERATED ALWAYS AS IDENTITY,
                 analysis_id bigint NULL,
+                analysis_run_id bigint NULL,
                 purpose text NOT NULL,
                 provider text NOT NULL,
                 model text NOT NULL,
@@ -37,6 +38,7 @@ return new class extends Migration
             SQL);
 
         DB::statement('CREATE INDEX llm_calls_analysis_id_index ON llm_calls (analysis_id)');
+        DB::statement('CREATE INDEX llm_calls_analysis_run_id_index ON llm_calls (analysis_run_id)');
         DB::statement('CREATE INDEX llm_calls_purpose_called_at_index ON llm_calls (purpose, called_at)');
         DB::statement(
             'ALTER TABLE llm_calls ADD CONSTRAINT llm_calls_analysis_id_foreign '

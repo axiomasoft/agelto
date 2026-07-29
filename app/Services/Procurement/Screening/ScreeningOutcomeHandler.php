@@ -13,6 +13,7 @@ use App\Jobs\Procurement\EstimateExtractionJob;
 use App\Models\Procurement\Ai\Analysis;
 use App\Models\Procurement\Document\Document;
 use App\Models\Procurement\Procurement;
+use App\Repositories\Procurement\AnalysisRunStoreRepository;
 use App\Repositories\Procurement\AnalysisStoreRepository;
 use App\Repositories\Procurement\DocumentStoreRepository;
 use App\Repositories\Procurement\ProcurementStoreRepository;
@@ -34,6 +35,7 @@ final readonly class ScreeningOutcomeHandler
     public function __construct(
         private DocumentStoreRepository $documents,
         private AnalysisStoreRepository $analyses,
+        private AnalysisRunStoreRepository $runs,
         private ProcurementStoreRepository $procurements,
         private ScreeningProcessor $processor,
         private AiRouteResolver $routes,
@@ -127,9 +129,19 @@ final readonly class ScreeningOutcomeHandler
 
         $this->storeEvent($document, $analysis, outcome: $dispatchExtraction ? 'estimate' : 'screened');
 
-        if ($dispatchExtraction && config('ai.extraction.enabled', false)) {
+        $extractionDispatched = $dispatchExtraction && config('ai.extraction.enabled', false);
+
+        if ($extractionDispatched) {
             EstimateExtractionJob::dispatch($document->id)->afterCommit();
+
+            return;
         }
+
+        // Прогон терминируется ЗДЕСЬ (не автохуком `AnalysisStoreRepository::update()`, D93
+        // §3.2): анализ уже `Succeeded` до вызова этого хендлера, и статус screening'а НЕ
+        // определяет исход прогона — тип «не смета» либо гейт `ai.extraction.enabled` выключен,
+        // извлечение не следует, контур прогона заканчивается на этой ветке.
+        $this->runs->markSucceeded($analysis->analysisRun);
     }
 
     private function flagNeedsReview(Document $document, Analysis $analysis): void
@@ -141,6 +153,8 @@ final readonly class ScreeningOutcomeHandler
         ]);
 
         $this->storeEvent($document, $analysis, outcome: 'needs_review');
+
+        $this->runs->markSucceeded($analysis->analysisRun);
     }
 
     private function ignore(Document $document, Analysis $analysis, string $reason): void
@@ -152,6 +166,8 @@ final readonly class ScreeningOutcomeHandler
         ]);
 
         $this->storeEvent($document, $analysis, outcome: 'ignored');
+
+        $this->runs->markSucceeded($analysis->analysisRun);
     }
 
     private function storeEvent(Document $document, Analysis $analysis, string $outcome): void

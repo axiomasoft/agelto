@@ -9,6 +9,7 @@ use App\Models\Procurement\Ai\DatasetExample;
 use App\Models\Procurement\Ai\Fixture;
 use App\Models\Procurement\Document\Document;
 use App\Models\Procurement\Document\DocumentVersion;
+use App\Models\Procurement\Platform\Platform;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -19,6 +20,8 @@ use Illuminate\Support\Str;
  * `estimates/gold/<CODE>.{gold,screening}.json`. `--prepare` не покрывается здесь глубоко —
  * реальный прогон фабрики представлений по корпусу (P3) — предмет Completion Notes, не синтетики.
  */
+beforeEach(fn () => Platform::factory()->training()->create());
+
 function goldImportGoldDir(): string
 {
     $folder = sys_get_temp_dir().'/gold-import-'.Str::uuid();

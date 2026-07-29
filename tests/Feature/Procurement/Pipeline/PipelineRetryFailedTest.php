@@ -10,6 +10,7 @@ use App\Jobs\Procurement\ScreeningJob;
 use App\Models\Procurement\Ai\Analysis;
 use App\Models\Procurement\Document\Document;
 use App\Models\Procurement\Document\DocumentVersion;
+use App\Repositories\Procurement\AnalysisRunStoreRepository;
 use Illuminate\Support\Facades\Queue;
 
 test('ретраит документ, у которого наступил next_retry_at, и не трогает документы без попыток/в ожидании backoff', function () {
@@ -77,6 +78,12 @@ test('ретраит анализ на стадии screening по next_retry_at
         'next_retry_at' => now()->subMinute(),
         'failed_permanently' => false,
     ]);
+    // Прогон исходного (провалившегося) анализа в реальном пайплайне терминируется тем же
+    // вызовом AnalysisStoreRepository::update(), что ставит status=Failed (D93, §3.6
+    // root/document-contour.md) — фабрика пишет статус напрямую, минуя репозиторий, поэтому
+    // здесь это явно: иначе launch-точка ретрая (PipelineRetryFailed:131) не сможет завести
+    // новый прогон — partial unique отклонит его при ещё «открытом» прогоне фабрики.
+    app(AnalysisRunStoreRepository::class)->markFailed($analysis->analysisRun);
 
     $this->artisan('pipeline:retry-failed')->assertSuccessful();
 

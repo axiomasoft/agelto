@@ -10,6 +10,7 @@ use App\Enums\Procurement\DocumentStatus;
 use App\Enums\Procurement\EstimateValidationStatus;
 use App\Models\Llm\LlmRoute;
 use App\Models\Procurement\Ai\Analysis;
+use App\Models\Procurement\Ai\AnalysisRun;
 use App\Models\Procurement\Document\Document;
 use App\Models\Procurement\Estimate\Estimate;
 use App\Notifications\PipelineAlert;
@@ -42,6 +43,7 @@ final class PipelineStuckCheck extends Command
         $findings = [
             ...$this->stuckAnalyses(step: AnalysisStep::Screening, configKey: 'analysis_stuck_minutes', findingKey: 'stuck_screening'),
             ...$this->stuckAnalyses(step: AnalysisStep::Extraction, configKey: 'checkpoint_stuck_minutes', findingKey: 'stuck_extraction'),
+            ...$this->stuckRuns(),
             ...$this->stuckDocuments(),
             ...$this->unknownSpike(),
             ...$this->unprocessableSpike(),
@@ -92,6 +94,31 @@ final class PipelineStuckCheck extends Command
         }
 
         return [$findingKey => "Зависших анализов ({$step->value}, running >{$minutes}мин, лиз истёк): {$count}"];
+    }
+
+    /**
+     * Незакрытый прогон (`AnalysisRun`, §3.6 root/document-contour.md) — без терминации второй
+     * прогон той же версии НАВСЕГДА запрещён partial unique `prc_ai_analysis_runs_active_version_unique`,
+     * поэтому забытая терминация обнаруживается не тестом, а зависшим документом на второй
+     * попытке. Порог — тот же `document_stuck_minutes`, что `stuckDocuments()` (мост между
+     * стадиями пайплайна): отдельного config-ключа P1.6 не заводит (не в Files).
+     *
+     * @return array<string, string>
+     */
+    private function stuckRuns(): array
+    {
+        $minutes = (int) config('ai.pipeline.document_stuck_minutes', 60);
+
+        $count = AnalysisRun::query()
+            ->whereNull('finished_at')
+            ->where('updated_at', '<=', now()->subMinutes($minutes))
+            ->count();
+
+        if ($count === 0) {
+            return [];
+        }
+
+        return ['stuck_runs' => "Незакрытых прогонов (>{$minutes}мин): {$count}"];
     }
 
     /**

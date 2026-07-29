@@ -124,7 +124,7 @@ final class EvalDiffCommand extends Command
             return null;
         }
 
-        $document = $this->documents->findByExternalId(null, "fixture:{$code}");
+        $document = $fixture->document;
 
         if ($document === null) {
             return null;

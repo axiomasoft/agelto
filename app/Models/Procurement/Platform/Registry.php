@@ -13,6 +13,8 @@ use Illuminate\Support\Str;
 
 /**
  * Реестр внутри площадки (у ЕИС — fz44/fz223).
+ *
+ * @property int $platform_id
  */
 #[UseFactory(RegistryFactory::class)]
 final class Registry extends Model

@@ -20,7 +20,7 @@ use Tests\Support\Doubles\FakeLlmProvider;
 
 function llmCacheManager(): LlmCacheManager
 {
-    return new LlmCacheManager(new AnalysisStoreRepository);
+    return new LlmCacheManager(app(AnalysisStoreRepository::class));
 }
 
 function fakeCachingProvider(): FakeLlmProvider

@@ -7,12 +7,14 @@ use App\Enums\Procurement\AnalysisStep;
 use App\Enums\Procurement\DocumentStatus;
 use App\Enums\Procurement\FinishReason;
 use App\Enums\Procurement\LlmPurpose;
+use App\Enums\Procurement\RunMode;
 use App\Jobs\Procurement\ScreeningJob;
 use App\Models\Llm\LlmRoute;
 use App\Models\Llm\Provider;
 use App\Models\Procurement\Ai\Analysis;
 use App\Models\Procurement\Document\Document;
 use App\Models\Procurement\Document\DocumentVersion;
+use App\Repositories\Procurement\AnalysisRunStoreRepository;
 use App\Services\Llm\Dto\LlmStructuredResponse;
 use App\Services\Llm\Dto\LlmUsage;
 use App\Services\Llm\Providers\PrismGeminiProvider;
@@ -32,7 +34,7 @@ function seedScreeningVersion(Document $document, string $fixture, string $exten
 
     Storage::disk('s3')->put($storagePath, $content);
 
-    return DocumentVersion::factory()->create([
+    $version = DocumentVersion::factory()->create([
         'document_id' => $document->id,
         'content_hash' => $hash,
         'size_bytes' => strlen($content),
@@ -42,6 +44,13 @@ function seedScreeningVersion(Document $document, string $fixture, string $exten
         'storage_path' => $storagePath,
         'downloaded_at' => now(),
     ]);
+
+    // Launch-точка боевого конвейера (§3.5 root/document-contour.md) — здесь эмулируется
+    // `PrepareDocumentJob:82`: `ScreeningJob::handle()` резолвит `Analysis` через
+    // `AnalysisStoreRepository::firstOrCreate()`, требующий активный прогон (D93).
+    app(AnalysisRunStoreRepository::class)->start($version->id, RunMode::Auto);
+
+    return $version;
 }
 
 function seedScreeningRoute(FakeLlmProvider $fake): void
@@ -221,6 +230,7 @@ test('битый PDF — qpdf проваливается, unprocessable(unreadab
         'downloaded_at' => now(),
     ]);
     Storage::disk('s3')->put($version->storage_path, 'не является PDF-файлом');
+    app(AnalysisRunStoreRepository::class)->start($version->id, RunMode::Auto);
 
     (new ScreeningJob($document->id))->handle();
 

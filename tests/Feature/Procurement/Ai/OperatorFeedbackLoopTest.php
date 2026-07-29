@@ -10,6 +10,7 @@ use App\Enums\Procurement\DocumentStatus;
 use App\Enums\Procurement\FinishReason;
 use App\Enums\Procurement\LlmPurpose;
 use App\Enums\Procurement\ReviewStatus;
+use App\Enums\Procurement\RunMode;
 use App\Guards\Admin\Roles\AnalystRole;
 use App\Guards\Admin\Roles\OperatorRole;
 use App\Jobs\Procurement\EstimateExtractionJob;
@@ -21,6 +22,7 @@ use App\Models\Procurement\Document\Document;
 use App\Models\Procurement\Document\DocumentVersion;
 use App\Models\Procurement\Estimate\Estimate;
 use App\Models\User;
+use App\Repositories\Procurement\AnalysisRunStoreRepository;
 use App\Repositories\Procurement\AnalysisStoreRepository;
 use App\Services\Llm\Dto\LlmStructuredResponse;
 use App\Services\Llm\Dto\LlmUsage;
@@ -50,7 +52,7 @@ function seedFeedbackVersion(Document $document, string $fixture = 'sample-multi
 
     Storage::disk('s3')->put($storagePath, $content);
 
-    return DocumentVersion::factory()->create([
+    $version = DocumentVersion::factory()->create([
         'document_id' => $document->id,
         'content_hash' => $hash,
         'size_bytes' => strlen($content),
@@ -60,6 +62,11 @@ function seedFeedbackVersion(Document $document, string $fixture = 'sample-multi
         'storage_path' => $storagePath,
         'downloaded_at' => now(),
     ]);
+
+    // Launch-точка боевого конвейера (§3.5 root/document-contour.md), см. ScreeningProcessorTest.
+    app(AnalysisRunStoreRepository::class)->start($version->id, RunMode::Auto);
+
+    return $version;
 }
 
 function seedFeedbackRoute(FakeLlmProvider $fake): void

@@ -6,6 +6,7 @@ use App\Enums\Procurement\DocumentStatus;
 use App\Models\Procurement\Ai\DatasetExample;
 use App\Models\Procurement\Document\Document;
 use App\Models\Procurement\Document\DocumentVersion;
+use App\Models\Procurement\Platform\Platform;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -14,6 +15,8 @@ use Illuminate\Support\Str;
  * §8 `docs/specs/v2/08-estimate-extraction.md` — формат папки эталонов (`<name>.<ext>` +
  * `<name>.gold.json`), валидация контрактом P2.2, персистентность вне закупки (D22).
  */
+beforeEach(fn () => Platform::factory()->training()->create());
+
 function datasetFixtureFolder(): string
 {
     $folder = sys_get_temp_dir().'/dataset-import-'.Str::uuid();

@@ -140,6 +140,7 @@ test('--dry-run показывает вход критика и не делае�
     file_put_contents("{$goldDir}/EST-XLSX-SUGGEST-001.gold.json", json_encode(['estimates' => []], JSON_THROW_ON_ERROR));
 
     $document = Document::factory()->create(['procurement_id' => null, 'external_id' => 'fixture:EST-XLSX-SUGGEST-001']);
+    $fixture->update(['document_id' => $document->id]);
     $version = DocumentVersion::factory()->create(['document_id' => $document->id, 'content_hash' => $fixture->sha256]);
     Analysis::factory()->create([
         'document_version_id' => $version->id,

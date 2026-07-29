@@ -7,6 +7,7 @@ namespace App\Models\Procurement\Ai;
 use App\Enums\Procurement\AiDocumentType;
 use App\Enums\Procurement\FixtureClass;
 use App\Enums\Procurement\GoldSource;
+use App\Models\Procurement\Document\Document;
 use App\Models\User;
 use Database\Factories\Procurement\Ai\FixtureFactory;
 use Illuminate\Database\Eloquent\Attributes\UseFactory;
@@ -43,7 +44,9 @@ use Illuminate\Support\Collection;
  * @property bool $is_verified
  * @property int|null $verified_by
  * @property Carbon|null $verified_at
+ * @property int|null $document_id
  * @property string|null $notes
+ * @property-read Document|null $document
  */
 #[UseFactory(FixtureFactory::class)]
 final class Fixture extends Model
@@ -77,6 +80,7 @@ final class Fixture extends Model
         'verified_by',
         'verified_at',
         'notes',
+        'document_id',
     ];
 
     protected function casts(): array
@@ -154,5 +158,14 @@ final class Fixture extends Model
     public function verifiedBy(): BelongsTo
     {
         return $this->belongsTo(related: User::class, foreignKey: 'verified_by');
+    }
+
+    /**
+     * Прямая связь «эталон ↔ рабочая копия» (§2 root/document-contour.md) — единственный
+     * писатель: `resolveWorkingCopy()` (`GoldImportCommand`).
+     */
+    public function document(): BelongsTo
+    {
+        return $this->belongsTo(related: Document::class);
     }
 }

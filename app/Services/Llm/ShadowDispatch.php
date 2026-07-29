@@ -28,6 +28,10 @@ use Throwable;
  * `LlmPrompt::$fileRefs` (Files API, `ScreeningProcessor`) НЕ дублируются — OpenAI-совместимый
  * адаптер не поддерживает Files API, инлайновая передача файла (vision-сообщение) — вне Scope
  * этого item'а (Pending Work P9.4: инлайн-кодирование скана/PDF для теневого скрининга).
+ *
+ * Тень наследует прогон (`AnalysisRun`) основного (§3.5 root/document-contour.md, P1.6) — деньги
+ * тени входят в цену того же запуска, а не заводят второй; связь пишет
+ * `AnalysisStoreRepository::createShadow()` (`ShadowAnalysisJob::run()`), этот класс её не решает.
  */
 final readonly class ShadowDispatch
 {

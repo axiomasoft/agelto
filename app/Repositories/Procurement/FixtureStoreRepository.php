@@ -31,6 +31,14 @@ final readonly class FixtureStoreRepository
     }
 
     /**
+     * @param  array<string, mixed>  $attributes
+     */
+    public function update(Fixture $fixture, array $attributes): void
+    {
+        $fixture->update($attributes);
+    }
+
+    /**
      * @return Collection<int, Fixture>
      */
     public function all(): Collection

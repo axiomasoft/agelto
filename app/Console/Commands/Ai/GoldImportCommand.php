@@ -10,6 +10,7 @@ use App\Models\Procurement\Ai\DatasetExample;
 use App\Models\Procurement\Ai\Fixture;
 use App\Models\Procurement\Document\Document;
 use App\Models\Procurement\Document\DocumentVersion;
+use App\Models\Procurement\Platform\Platform;
 use App\Repositories\Procurement\DocumentStoreRepository;
 use App\Repositories\Procurement\FixtureStoreRepository;
 use App\Services\Procurement\Gold\GoldValidator;
@@ -140,7 +141,7 @@ final class GoldImportCommand extends Command
     private function resolveWorkingCopy(Fixture $fixture, string $fixturesDisk, string $documentsDisk, bool $dryRun): array
     {
         $externalId = "fixture:{$fixture->code}";
-        $existingDocument = $this->documents->findByExternalId(null, $externalId);
+        $existingDocument = $fixture->document;
         $isNewDocument = $existingDocument === null;
 
         if ($dryRun) {
@@ -151,12 +152,17 @@ final class GoldImportCommand extends Command
 
         $document = $existingDocument ?? $this->documents->create([
             'procurement_id' => null,
+            'platform_id' => Platform::training()->id,
             'external_id' => $externalId,
             'title' => $fixture->original_filename,
             'kind' => null,
             'source_url' => null,
             'status' => DocumentStatus::Downloaded,
         ]);
+
+        if ($isNewDocument) {
+            $this->fixtures->update($fixture, ['document_id' => $document->id]);
+        }
 
         $existingVersion = $this->documents->findVersionByHash($document->id, $fixture->sha256);
         $isNewVersion = $existingVersion === null;

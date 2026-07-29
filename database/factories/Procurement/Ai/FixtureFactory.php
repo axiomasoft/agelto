@@ -47,6 +47,7 @@ final class FixtureFactory extends Factory
             'verified_by' => null,
             'verified_at' => null,
             'notes' => null,
+            'document_id' => null,
         ];
     }
 

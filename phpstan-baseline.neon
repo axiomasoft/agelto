@@ -37,12 +37,6 @@ parameters:
 			path: /var/www/html/app/Console/Commands/Ai/CachesCommand.php
 
 		-
-			message: '#^Access to an undefined property App\\Models\\Procurement\\Ai\\Analysis\:\:\$document_version_id\.$#'
-			identifier: property.notFound
-			count: 1
-			path: /var/www/html/app/Console/Commands/Ai/CachesCommand.php
-
-		-
 			message: '#^Access to an undefined property App\\Models\\Procurement\\Ai\\Analysis\:\:\$model\.$#'
 			identifier: property.notFound
 			count: 1
@@ -177,18 +171,6 @@ parameters:
 		-
 			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$code\.$#'
 			identifier: property.notFound
-			count: 3
-			path: /var/www/html/app/Console/Commands/Ai/EvalRunCommand.php
-
-		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$document_id\.$#'
-			identifier: property.notFound
-			count: 2
-			path: /var/www/html/app/Console/Commands/Ai/EvalRunCommand.php
-
-		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$id\.$#'
-			identifier: property.notFound
 			count: 2
 			path: /var/www/html/app/Console/Commands/Ai/EvalRunCommand.php
 
@@ -253,12 +235,6 @@ parameters:
 			path: /var/www/html/app/Console/Commands/Ai/PromptsSyncCommand.php
 
 		-
-			message: '#^Access to an undefined property App\\Models\\Procurement\\Ai\\Analysis\:\:\$step\.$#'
-			identifier: property.notFound
-			count: 1
-			path: /var/www/html/app/Console/Commands/Procurement/PipelineRetryFailed.php
-
-		-
 			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$document_id\.$#'
 			identifier: property.notFound
 			count: 1
@@ -319,12 +295,6 @@ parameters:
 			path: /var/www/html/app/Filament/Resources/Procurement/Ai/Analyses/Pages/ViewAnalysis.php
 
 		-
-			message: '#^Access to an undefined property App\\Models\\Procurement\\Ai\\Analysis\:\:\$status\.$#'
-			identifier: property.notFound
-			count: 2
-			path: /var/www/html/app/Filament/Resources/Procurement/Ai/Analyses/Pages/ViewAnalysis.php
-
-		-
 			message: '#^Unknown parameter \$state in call to method Filament\\Tables\\Columns\\IconColumn\:\:boolean\(\)\.$#'
 			identifier: argument.unknown
 			count: 1
@@ -349,12 +319,6 @@ parameters:
 			path: /var/www/html/app/Jobs/Procurement/EstimateExtractionJob.php
 
 		-
-			message: '#^Access to an undefined property App\\Models\\Procurement\\Ai\\Analysis\:\:\$status\.$#'
-			identifier: property.notFound
-			count: 1
-			path: /var/www/html/app/Jobs/Procurement/EstimateExtractionJob.php
-
-		-
 			message: '#^Access to an undefined property App\\Models\\Procurement\\Document\\Document\:\:\$status\.$#'
 			identifier: property.notFound
 			count: 1
@@ -368,12 +332,6 @@ parameters:
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Procurement\\Ai\\Analysis\:\:\$failed_permanently\.$#'
-			identifier: property.notFound
-			count: 1
-			path: /var/www/html/app/Jobs/Procurement/ScreeningJob.php
-
-		-
-			message: '#^Access to an undefined property App\\Models\\Procurement\\Ai\\Analysis\:\:\$status\.$#'
 			identifier: property.notFound
 			count: 1
 			path: /var/www/html/app/Jobs/Procurement/ScreeningJob.php
@@ -491,18 +449,6 @@ parameters:
 			identifier: property.notFound
 			count: 1
 			path: /var/www/html/app/Repositories/Organization/ProcurementPartyStoreRepository.php
-
-		-
-			message: '#^Access to an undefined property App\\Models\\Procurement\\Ai\\Analysis\:\:\$document_version_id\.$#'
-			identifier: property.notFound
-			count: 2
-			path: /var/www/html/app/Repositories/Procurement/AnalysisStoreRepository.php
-
-		-
-			message: '#^Access to an undefined property App\\Models\\Procurement\\Ai\\Analysis\:\:\$step\.$#'
-			identifier: property.notFound
-			count: 2
-			path: /var/www/html/app/Repositories/Procurement/AnalysisStoreRepository.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Procurement\\Estimate\\Section\:\:\$position\.$#'
@@ -1135,12 +1081,6 @@ parameters:
 			path: /var/www/html/app/Services/Procurement/Extraction/ExtractionOrchestrator.php
 
 		-
-			message: '#^Access to an undefined property App\\Models\\Procurement\\Ai\\Analysis\:\:\$document_version_id\.$#'
-			identifier: property.notFound
-			count: 2
-			path: /var/www/html/app/Services/Procurement/Extraction/GoldExampleRecorder.php
-
-		-
 			message: '#^Access to an undefined property App\\Models\\Procurement\\Ai\\Analysis\:\:\$parent_analysis_id\.$#'
 			identifier: property.notFound
 			count: 1
@@ -1159,32 +1099,14 @@ parameters:
 			path: /var/www/html/app/Services/Procurement/Extraction/GoldExampleRecorder.php
 
 		-
-			message: '#^Access to an undefined property App\\Models\\Procurement\\Ai\\Analysis\:\:\$step\.$#'
-			identifier: property.notFound
-			count: 1
-			path: /var/www/html/app/Services/Procurement/Extraction/GoldExampleRecorder.php
-
-		-
 			message: '#^Parameter \#1 \$callback of method Illuminate\\Database\\Eloquent\\Collection\<int,Illuminate\\Database\\Eloquent\\Model\>\:\:map\(\) expects callable\(Illuminate\\Database\\Eloquent\\Model, int\)\: array\<string, mixed\>, Closure\(App\\Models\\Procurement\\Estimate\\Estimate\)\: array\<string, mixed\> given\.$#'
 			identifier: argument.type
 			count: 1
 			path: /var/www/html/app/Services/Procurement/Extraction/GoldExampleRecorder.php
 
 		-
-			message: '#^Access to an undefined property App\\Models\\Procurement\\Ai\\Analysis\:\:\$step\.$#'
-			identifier: property.notFound
-			count: 2
-			path: /var/www/html/app/Services/Procurement/Extraction/RerunAnalysisAction.php
-
-		-
 			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$document_id\.$#'
 			identifier: property.notFound
-			count: 1
-			path: /var/www/html/app/Services/Procurement/Extraction/RerunAnalysisAction.php
-
-		-
-			message: '#^Match expression does not handle remaining value\: mixed$#'
-			identifier: match.unhandled
 			count: 1
 			path: /var/www/html/app/Services/Procurement/Extraction/RerunAnalysisAction.php
 
@@ -1245,12 +1167,6 @@ parameters:
 		-
 			message: '#^Access to an undefined property App\\Models\\Procurement\\Procurement\:\:\$registry_number\.$#'
 			identifier: property.notFound
-			count: 1
-			path: /var/www/html/app/Services/Procurement/Modes/DetailAnalysisProcessor.php
-
-		-
-			message: '#^Parameter \$registry of method App\\Services\\Procurement\\Contracts\\SourceMethod\:\:collectDetails\(\) expects App\\Models\\Procurement\\Platform\\Registry, Illuminate\\Database\\Eloquent\\Model given\.$#'
-			identifier: argument.type
 			count: 1
 			path: /var/www/html/app/Services/Procurement/Modes/DetailAnalysisProcessor.php
 
@@ -1471,12 +1387,6 @@ parameters:
 			path: /var/www/html/app/Services/Procurement/Screening/ScreeningOutcomeHandler.php
 
 		-
-			message: '#^Access to an undefined property App\\Models\\Procurement\\Ai\\Analysis\:\:\$status\.$#'
-			identifier: property.notFound
-			count: 1
-			path: /var/www/html/app/Services/Procurement/Screening/ScreeningOutcomeHandler.php
-
-		-
 			message: '#^Access to an undefined property App\\Models\\Procurement\\Document\\Document\:\:\$procurement_id\.$#'
 			identifier: property.notFound
 			count: 2
@@ -1555,12 +1465,6 @@ parameters:
 			path: /var/www/html/app/Services/Procurement/Bench/FormatBenchRunner.php
 
 		-
-			message: '#^Access to an undefined property App\\Models\\Procurement\\Ai\\Analysis\:\:\$status\.$#'
-			identifier: property.notFound
-			count: 1
-			path: /var/www/html/app/Services/Procurement/Bench/FormatBenchRunner.php
-
-		-
 			message: '#^Access to an undefined property App\\Models\\Procurement\\Document\\DocumentVersion\:\:\$extension\.$#'
 			identifier: property.notFound
 			count: 2
@@ -1579,32 +1483,8 @@ parameters:
 			path: /var/www/html/app/Services/Procurement/Bench/FormatBenchRunner.php
 
 		-
-			message: '#^Access to an undefined property App\\Models\\Procurement\\Document\\Document\|Illuminate\\Database\\Eloquent\\Collection\<int, App\\Models\\Procurement\\Document\\Document\>\:\:\$procurement_id\.$#'
-			identifier: property.notFound
-			count: 1
-			path: /var/www/html/app/Services/Procurement/Bench/FormatBenchRunner.php
-
-		-
 			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$code\.$#'
 			identifier: property.notFound
-			count: 3
-			path: /var/www/html/app/Services/Procurement/Bench/FormatBenchRunner.php
-
-		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$document_id\.$#'
-			identifier: property.notFound
-			count: 2
-			path: /var/www/html/app/Services/Procurement/Bench/FormatBenchRunner.php
-
-		-
-			message: '#^Parameter \$fixture of method App\\Services\\Procurement\\Bench\\FormatBenchRunner\:\:buildCell\(\) expects App\\Models\\Procurement\\Ai\\Fixture, Illuminate\\Database\\Eloquent\\Model given\.$#'
-			identifier: argument.type
-			count: 1
-			path: /var/www/html/app/Services/Procurement/Bench/FormatBenchRunner.php
-
-		-
-			message: '#^Parameter \$version of method App\\Services\\Procurement\\Bench\\FormatBenchRunner\:\:buildCell\(\) expects App\\Models\\Procurement\\Document\\DocumentVersion, Illuminate\\Database\\Eloquent\\Model given\.$#'
-			identifier: argument.type
 			count: 1
 			path: /var/www/html/app/Services/Procurement/Bench/FormatBenchRunner.php
 

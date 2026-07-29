@@ -14,7 +14,6 @@ use App\Models\Procurement\Ai\Fixture;
 use App\Models\Procurement\Document\Document;
 use App\Models\Procurement\Document\DocumentRepresentation;
 use App\Models\Procurement\Document\DocumentVersion;
-use App\Models\Procurement\Procurement;
 use App\Services\Llm\Dto\LlmStructuredResponse;
 use App\Services\Llm\Dto\LlmUsage;
 use App\Services\Llm\Providers\PrismGeminiProvider;
@@ -54,6 +53,11 @@ function benchDocumentAndVersion(?int $procurementId = null, string $extension =
 
 function benchDatasetExample(Fixture $fixture, DocumentVersion $version): DatasetExample
 {
+    // Связь «эталон ↔ рабочая копия» (§2 root/document-contour.md) — в проде её пишет
+    // GoldImportCommand::resolveWorkingCopy(), здесь эквивалент для синтетики теста: гвард
+    // FormatBenchRunner (Implementation Rule 1 P1.6) требует $fixture->document_id === $document->id.
+    $fixture->update(['document_id' => $version->document_id]);
+
     return DatasetExample::factory()->create([
         'fixture_id' => $fixture->id,
         'document_version_id' => $version->id,
@@ -259,10 +263,14 @@ test('вызовы двух ячеек подряд отделены грани�
     expect(LlmCall::query()->count())->toBe(6);
 });
 
-test('документ с procurement_id != null — отказ, прогон не падает', function (): void {
+test('документ — НЕ рабочая копия этого эталона (fixture->document_id не совпадает) — отказ, прогон не падает', function (): void {
+    // Implementation Rule 1 P1.6 (root/document-contour.md §5): гвард переведён со структурного
+    // procurement_id на прямую связь с эталоном — отказ теперь по несовпадению
+    // $fixture->document_id/$version->document_id, а не по наличию закупки у документа.
     $fixture = benchFixture();
-    [$document, $version] = benchDocumentAndVersion(procurementId: Procurement::factory()->create()->id);
+    [, $version] = benchDocumentAndVersion();
     benchDatasetExample($fixture, $version);
+    $fixture->update(['document_id' => Document::factory()->create()->id]);
 
     seedBenchRoute(FakeLlmProvider::succeeding(benchStructured(['rows' => [], 'incomplete_items' => []])));
 
@@ -271,8 +279,6 @@ test('документ с procurement_id != null — отказ, прогон н
     expect($artifact['cells'])->toBeEmpty()
         ->and($artifact['rejected'])->toHaveCount(1)
         ->and($artifact['rejected'][0])->toContain($fixture->code);
-
-    expect($document->refresh()->procurement_id)->not->toBeNull();
 });
 
 test('эталон без детерминированного gold пропущен — не входит в матрицу', function (): void {

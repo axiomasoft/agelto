@@ -13,12 +13,14 @@ use App\Enums\Procurement\GoldSource;
 use App\Enums\Procurement\LlmPurpose;
 use App\Enums\Procurement\PromptStep;
 use App\Enums\Procurement\RepresentationKind;
+use App\Enums\Procurement\RunMode;
 use App\Models\Llm\LlmCall;
 use App\Models\Procurement\Ai\DatasetExample;
 use App\Models\Procurement\Ai\Fixture;
 use App\Models\Procurement\Document\Document;
 use App\Models\Procurement\Document\DocumentRepresentation;
 use App\Models\Procurement\Document\DocumentVersion;
+use App\Repositories\Procurement\AnalysisRunStoreRepository;
 use App\Repositories\Procurement\AnalysisStoreRepository;
 use App\Repositories\Procurement\DocumentStoreRepository;
 use App\Repositories\Procurement\FixtureStoreRepository;
@@ -42,10 +44,11 @@ use Throwable;
  * (детерминированно, БЕЗ LLM-вызова) и, вне `--dry-run`, качество/поведение реального прогона
  * `ExtractionOrchestrator` через сейм принуждения `$forceKind` (D50).
  *
- * Guard `procurement_id === null` (Code Guidance P6.1) — бенчмарк сбрасывает статусы
- * документа/анализа перед прогоном ячейки, поэтому запуск по боевой закупке уничтожил бы её
- * разбор; отказ по фикстуре НЕ прерывает остальной прогон (падение одной ячейки не отменяет
- * остальные), причина копится в `rejected` итогового массива.
+ * Guard связи с эталоном (§5 root/document-contour.md, Implementation Rule 1 P1.6: документ
+ * обязан быть рабочей копией ИМЕННО этого эталона, `$fixture->document_id === $document->id`) —
+ * бенчмарк сбрасывает статусы документа/анализа перед прогоном ячейки, поэтому прогон по чужому
+ * документу уничтожил бы его разбор; отказ по фикстуре НЕ прерывает остальной прогон (падение
+ * одной ячейки не отменяет остальные), причина копится в `rejected` итогового массива.
  */
 final readonly class FormatBenchRunner
 {
@@ -73,6 +76,7 @@ final readonly class FormatBenchRunner
         private RepresentationStoreRepository $representations,
         private RepresentationResolver $resolver,
         private AnalysisStoreRepository $analyses,
+        private AnalysisRunStoreRepository $runs,
         private DocumentStoreRepository $documents,
         private AiRouteResolver $routes,
         private ExtractionPreflight $preflight,
@@ -109,10 +113,10 @@ final readonly class FormatBenchRunner
                 continue;
             }
 
-            $document = Document::query()->find($version->document_id);
+            $document = $fixture->document;
 
-            if ($document === null || $document->procurement_id !== null) {
-                $rejected[] = "{$fixture->code}: документ #{$version->document_id} принадлежит закупке (или отсутствует) — бенчмарк работает только по документам эталонов";
+            if ($document === null || $document->id !== $version->document_id) {
+                $rejected[] = "{$fixture->code}: документ #{$version->document_id} не является рабочей копией этого эталона (или отсутствует) — бенчмарк работает только по документам эталонов";
 
                 continue;
             }
@@ -253,9 +257,18 @@ final readonly class FormatBenchRunner
         $forceKind = $variant === 'default' ? null : RepresentationKind::from($variant);
         $maxLlmCallId = (int) (LlmCall::query()->max('id') ?? 0);
 
+        // Launch-точка (§3.5 root/document-contour.md) — КАЖДАЯ ячейка это отдельный прогон:
+        // `Analysis` ниже сбрасывается и переиспользуется той же строкой (partial unique
+        // `(document_version_id, step)`), поэтому `analysis_run_id` переставляется явно на
+        // свежий прогон при сбросе — здесь это не «переиспользование через checkpoint-requeue»
+        // (Implementation Rule 9), а полноценный новый запуск, harness управляет жизненным
+        // циклом сам.
+        $run = $this->runs->start($version->id, RunMode::Manual);
+
         $analysis = $this->analyses->firstOrCreate($version->id, AnalysisStep::Extraction);
         $this->analyses->update($analysis, [
             'status' => AnalysisStatus::Pending,
+            'analysis_run_id' => $run->id,
             'document_type' => 'estimate',
             'result' => null,
             'progress' => null,
@@ -294,6 +307,15 @@ final readonly class FormatBenchRunner
         } catch (Throwable $e) {
             $outcome = ['status' => 'failed', 'last_error' => $e->getMessage()];
         }
+
+        // Подстраховка терминации (§3.6): исход `orchestrator->run()` бросил ДО терминального
+        // `analyses->update()` (catch-ветка) либо цикл упёрся в `$maxIterations` — прогон не
+        // терминировался автохуком `AnalysisStoreRepository::update()`. Идемпотентно: если
+        // терминал уже проставлен автохуком, `markSucceeded()`/`markFailed()` — no-op.
+        match ($outcome['status']) {
+            'succeeded', 'unprocessable' => $this->runs->markSucceeded($run),
+            default => $this->runs->markFailed($run),
+        };
 
         $calls = LlmCall::query()
             ->where('id', '>', $maxLlmCallId)

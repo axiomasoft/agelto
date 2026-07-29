@@ -6,6 +6,7 @@ namespace App\Models\Llm;
 
 use App\Enums\Procurement\LlmPurpose;
 use App\Models\Procurement\Ai\Analysis;
+use App\Models\Procurement\Ai\AnalysisRun;
 use Database\Factories\Llm\LlmCallFactory;
 use Illuminate\Database\Eloquent\Attributes\UseFactory;
 use Illuminate\Database\Eloquent\Casts\AsCollection;
@@ -15,6 +16,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 /**
  * Каждый вызов LLM (партиция `llm_calls` RANGE by `called_at`).
+ *
+ * @property int|null $analysis_run_id
  */
 #[UseFactory(LlmCallFactory::class)]
 final class LlmCall extends Model
@@ -29,6 +32,7 @@ final class LlmCall extends Model
 
     protected $fillable = [
         'analysis_id',
+        'analysis_run_id',
         'purpose',
         'provider',
         'model',
@@ -66,5 +70,10 @@ final class LlmCall extends Model
     public function analysis(): BelongsTo
     {
         return $this->belongsTo(related: Analysis::class);
+    }
+
+    public function analysisRun(): BelongsTo
+    {
+        return $this->belongsTo(related: AnalysisRun::class);
     }
 }

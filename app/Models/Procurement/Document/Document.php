@@ -7,15 +7,20 @@ namespace App\Models\Procurement\Document;
 use App\Enums\Procurement\DocumentStatus;
 use App\Models\Procurement\Concerns\HasErrorBlock;
 use App\Models\Procurement\Concerns\HasLease;
+use App\Models\Procurement\Platform\Platform;
+use App\Models\Scopes\PublicPlatformScope;
 use Database\Factories\Procurement\Document\DocumentFactory;
 use Illuminate\Database\Eloquent\Attributes\UseFactory;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Str;
 
 /**
  * Логический документ закупки (извещение/протокол/контракт/…), независимый от конкретной версии файла.
+ *
+ * @property int $platform_id
  */
 #[UseFactory(DocumentFactory::class)]
 final class Document extends Model
@@ -27,6 +32,7 @@ final class Document extends Model
     protected $fillable = [
         'uuid',
         'procurement_id',
+        'platform_id',
         'external_id',
         'title',
         'kind',
@@ -71,6 +77,23 @@ final class Document extends Model
                     ->orWhere('next_retry_at', '<=', now());
             })
             ->where('failed_permanently', false);
+    }
+
+    /**
+     * Единственный носитель правила показа (§4 root/document-contour.md, D91) — вырезает
+     * документы служебных площадок (`is_public=false`, «Обучалка») из публичной витрины.
+     *
+     * @param  Builder<Document>  $query
+     * @return Builder<Document>
+     */
+    public function scopePublicPlatform(Builder $query): Builder
+    {
+        return PublicPlatformScope::apply($query, 'platform');
+    }
+
+    public function platform(): BelongsTo
+    {
+        return $this->belongsTo(related: Platform::class);
     }
 
     protected static function booted(): void

@@ -8,6 +8,7 @@ use App\Enums\Procurement\AnalysisStatus;
 use App\Enums\Procurement\AnalysisStep;
 use App\Enums\Procurement\ReviewStatus;
 use App\Models\Procurement\Ai\Analysis;
+use App\Models\Procurement\Ai\AnalysisRun;
 use App\Models\Procurement\Document\DocumentVersion;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
@@ -54,5 +55,33 @@ final class AnalysisFactory extends Factory
             'superseded_at' => null,
             'is_shadow' => false,
         ];
+    }
+
+    /**
+     * `analysis_run_id` (NOT NULL, D93) не выражается независимым `AnalysisRun::factory()` в
+     * `definition()` — он завёл бы прогон над ЧУЖОЙ версией документа (нестыковка с
+     * `document_version_id` выше). Хук резолвит `document_version_id` УЖЕ созданным вложенным
+     * фабрикам и заводит прогон над ТОЙ ЖЕ версией; явный `->state(['analysis_run_id' => …])`
+     * вызывающего теста хук не перебивает. Переиспользует уже АКТИВНЫЙ прогон той же версии, если
+     * такой есть (partial unique `prc_ai_analysis_runs_active_version_unique`) — тесты, заводящие
+     * НЕСКОЛЬКО `Analysis` на одну версию (extraction+screening, shadow, rerun), не должны знать
+     * про эту связь и не обязаны сами передавать `analysis_run_id`.
+     */
+    public function configure(): static
+    {
+        return $this->afterMaking(function (Analysis $analysis): void {
+            if ($analysis->analysis_run_id !== null) {
+                return;
+            }
+
+            $active = AnalysisRun::query()
+                ->where('document_version_id', $analysis->document_version_id)
+                ->whereNull('finished_at')
+                ->first();
+
+            $analysis->analysis_run_id = $active?->id ?? AnalysisRun::factory()->create([
+                'document_version_id' => $analysis->document_version_id,
+            ])->id;
+        });
     }
 }

@@ -199,7 +199,7 @@ final class PromptsSuggestCommand extends Command
             return null;
         }
 
-        $document = $this->documents->findByExternalId(null, "fixture:{$code}");
+        $document = $fixture->document;
 
         if ($document === null) {
             return null;

@@ -100,6 +100,7 @@ final readonly class EstimatePersister
                 attributes: [
                     'document_version_id' => $version->id,
                     'procurement_id' => $document->procurement_id,
+                    'platform_id' => $document->platform_id,
                     // `title` — вычисляется аксессором Estimate::title() на чтении (D100), сюда не пишется.
                     'estimate_number' => $estimateNumber,
                     'total_amount' => $this->grandTotal($totals),

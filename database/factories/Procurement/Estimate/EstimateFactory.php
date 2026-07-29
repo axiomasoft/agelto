@@ -8,6 +8,7 @@ use App\Enums\Procurement\CalcMethod;
 use App\Models\Procurement\Ai\Analysis;
 use App\Models\Procurement\Document\DocumentVersion;
 use App\Models\Procurement\Estimate\Estimate;
+use App\Models\Procurement\Platform\Platform;
 use App\Models\Procurement\Procurement;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
@@ -25,6 +26,7 @@ final class EstimateFactory extends Factory
             'analysis_id' => Analysis::factory(),
             'document_version_id' => DocumentVersion::factory(),
             'procurement_id' => Procurement::factory(),
+            'platform_id' => Platform::factory(),
             'estimate_number' => $this->faker->bothify('##-СМ-####'),
             'total_amount' => $this->faker->randomFloat(2, 10_000, 5_000_000),
             'currency' => 'RUB',

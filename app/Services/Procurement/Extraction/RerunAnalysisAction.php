@@ -6,10 +6,12 @@ namespace App\Services\Procurement\Extraction;
 
 use App\Enums\Procurement\AnalysisStep;
 use App\Enums\Procurement\DocumentStatus;
+use App\Enums\Procurement\RunMode;
 use App\Jobs\Procurement\EstimateExtractionJob;
 use App\Jobs\Procurement\ScreeningJob;
 use App\Models\Procurement\Ai\Analysis;
 use App\Models\Procurement\Document\Document;
+use App\Repositories\Procurement\AnalysisRunStoreRepository;
 use App\Repositories\Procurement\AnalysisStoreRepository;
 use App\Repositories\Procurement\DocumentStoreRepository;
 
@@ -34,6 +36,7 @@ final readonly class RerunAnalysisAction
 {
     public function __construct(
         private AnalysisStoreRepository $analyses,
+        private AnalysisRunStoreRepository $runs,
         private DocumentStoreRepository $documents,
     ) {}
 
@@ -42,6 +45,11 @@ final readonly class RerunAnalysisAction
         $document = Document::query()->findOrFail($analysis->documentVersion->document_id);
 
         $this->analyses->update($analysis, ['superseded_at' => now()]);
+
+        // Launch-точка (§3.5 root/document-contour.md): перезапуск — НОВЫЙ прогон, а не
+        // продолжение старого; заводится ДО `createRerun()`, которая резолвит его как активный
+        // для нового анализа (Implementation Rule 9 P1.6).
+        $this->runs->start($analysis->document_version_id, RunMode::Manual);
 
         $newAnalysis = $this->analyses->createRerun($analysis);
 

@@ -8,10 +8,13 @@ use App\Enums\Procurement\CalcMethod;
 use App\Enums\Procurement\EstimateSourceKind;
 use App\Models\Procurement\Ai\Analysis;
 use App\Models\Procurement\Document\DocumentVersion;
+use App\Models\Procurement\Platform\Platform;
 use App\Models\Procurement\Procurement;
+use App\Models\Scopes\PublicPlatformScope;
 use App\Models\User;
 use Database\Factories\Procurement\Estimate\EstimateFactory;
 use Illuminate\Database\Eloquent\Attributes\UseFactory;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Casts\AsCollection;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -22,6 +25,8 @@ use Illuminate\Support\Str;
 
 /**
  * Распарсенная смета (нормализованное хранилище результата AI-извлечения).
+ *
+ * @property int $platform_id
  */
 #[UseFactory(EstimateFactory::class)]
 final class Estimate extends Model
@@ -35,6 +40,7 @@ final class Estimate extends Model
         'analysis_id',
         'document_version_id',
         'procurement_id',
+        'platform_id',
         'ordinal',
         'estimate_number',
         'total_amount',
@@ -130,6 +136,11 @@ final class Estimate extends Model
         return $this->belongsTo(related: Procurement::class);
     }
 
+    public function platform(): BelongsTo
+    {
+        return $this->belongsTo(related: Platform::class);
+    }
+
     public function verifiedBy(): BelongsTo
     {
         return $this->belongsTo(related: User::class, foreignKey: 'verified_by');
@@ -153,6 +164,18 @@ final class Estimate extends Model
     public function workTypes(): HasMany
     {
         return $this->hasMany(related: WorkType::class);
+    }
+
+    /**
+     * Единственный носитель правила показа (§4 root/document-contour.md, D91) — вырезает сметы
+     * служебных площадок (`is_public=false`, «Обучалка») из публичной витрины.
+     *
+     * @param  Builder<Estimate>  $query
+     * @return Builder<Estimate>
+     */
+    public function scopePublicPlatform(Builder $query): Builder
+    {
+        return PublicPlatformScope::apply($query, 'platform');
     }
 
     protected static function booted(): void

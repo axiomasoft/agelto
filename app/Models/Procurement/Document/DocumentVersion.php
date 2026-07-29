@@ -15,6 +15,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  *
  * Подготовленные представления версии живут в `prc_document_representations`
  * ({@see DocumentRepresentation}, D25) — отдельной колонки под подготовленный путь у версии нет.
+ *
+ * @property int $document_id
  */
 #[UseFactory(DocumentVersionFactory::class)]
 final class DocumentVersion extends Model

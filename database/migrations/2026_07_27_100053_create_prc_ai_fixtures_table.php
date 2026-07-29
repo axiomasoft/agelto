@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Enums\Procurement\AiDocumentType;
 use App\Models\Procurement\Ai\Fixture;
+use App\Models\Procurement\Document\Document;
 use App\Models\User;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
@@ -33,6 +34,15 @@ return new class extends Migration
             $table->jsonb('quirks')->default('[]');
             $table->jsonb('type_profile')->default('{}')->comment('поля профиля анализатора типа — class/form/expected_estimates/expected_rows/gold_source (§6.2 document-type-axis.md), без индексов (§6.4)');
             $table->boolean('is_verified')->default(false);
+
+            // Прямая связь «эталон ↔ рабочая копия» (§2 root/document-contour.md): один эталон →
+            // не более одной рабочей копии-документа. Удаление документа — эталон переживает
+            // копию (ON DELETE SET NULL); удаление эталона документ НЕ трогает (FK смотрит сюда).
+            $table->foreignId('document_id')
+                ->nullable()
+                ->unique()
+                ->constrained(table: (new Document)->getTable())
+                ->nullOnDelete();
 
             $table->foreignId('verified_by')
                 ->nullable()

@@ -5,6 +5,7 @@ declare(strict_types=1);
 use App\Models\Procurement\Ai\Analysis;
 use App\Models\Procurement\Document\DocumentVersion;
 use App\Models\Procurement\Estimate\Estimate;
+use App\Models\Procurement\Platform\Platform;
 use App\Models\Procurement\Procurement;
 use App\Models\User;
 use Illuminate\Database\Migrations\Migration;
@@ -33,6 +34,13 @@ return new class extends Migration
                 ->nullable()
                 ->index()
                 ->constrained(table: (new Procurement)->getTable());
+
+            // Денормализация с документа прогона (§4.2 root/document-contour.md, D91, тот же
+            // приём, что procurement_id выше, D98) — ответ на вопрос «с какой площадки эта смета»
+            // без джойна через закупку и единственный носитель правила показа (§4).
+            $table->foreignId('platform_id')
+                ->index()
+                ->constrained(table: (new Platform)->getTable());
 
             // Порядковый номер сметы внутри одного анализа (в файле может быть несколько смет).
             $table->smallInteger('ordinal')->default(1);

@@ -8,6 +8,7 @@ use App\Enums\Procurement\DocumentStatus;
 use App\Enums\Procurement\ExtractionRoute;
 use App\Enums\Procurement\FinishReason;
 use App\Enums\Procurement\LlmPurpose;
+use App\Enums\Procurement\RunMode;
 use App\Jobs\Procurement\EstimateExtractionJob;
 use App\Models\Llm\LlmCall;
 use App\Models\Llm\LlmRoute;
@@ -16,6 +17,7 @@ use App\Models\Procurement\Ai\Analysis;
 use App\Models\Procurement\Document\Document;
 use App\Models\Procurement\Document\DocumentVersion;
 use App\Models\Procurement\Estimate\Estimate;
+use App\Repositories\Procurement\AnalysisRunStoreRepository;
 use App\Services\Llm\Dto\LlmOptions;
 use App\Services\Llm\Dto\LlmStructuredResponse;
 use App\Services\Llm\Dto\LlmUsage;
@@ -43,7 +45,7 @@ function seedExtractionVersion(Document $document, string $fixture = 'sample-mul
 
     Storage::disk('s3')->put($storagePath, $content);
 
-    return DocumentVersion::factory()->create([
+    $version = DocumentVersion::factory()->create([
         'document_id' => $document->id,
         'content_hash' => $hash,
         'size_bytes' => strlen($content),
@@ -53,6 +55,11 @@ function seedExtractionVersion(Document $document, string $fixture = 'sample-mul
         'storage_path' => $storagePath,
         'downloaded_at' => now(),
     ]);
+
+    // Launch-точка боевого конвейера (§3.5 root/document-contour.md), см. ScreeningProcessorTest.
+    app(AnalysisRunStoreRepository::class)->start($version->id, RunMode::Auto);
+
+    return $version;
 }
 
 function seedExtractionRoute(FakeLlmProvider $fake): void

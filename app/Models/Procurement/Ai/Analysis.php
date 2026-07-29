@@ -29,7 +29,13 @@ use Illuminate\Support\Str;
  * `prc_ai_dataset_examples` (gold), rejected — из `result`/`raw_result` анализа, который
  * этот gold заменил (`parent_analysis_id`) — пара собирается запросом на экспорте.
  *
+ * @property int $document_version_id
+ * @property AnalysisStep $step
+ * @property AnalysisStatus $status
+ * @property bool $is_shadow
  * @property string|null $document_type
+ * @property int $analysis_run_id
+ * @property-read AnalysisRun $analysisRun
  */
 #[UseFactory(AnalysisFactory::class)]
 final class Analysis extends Model
@@ -41,6 +47,7 @@ final class Analysis extends Model
     protected $fillable = [
         'uuid',
         'document_version_id',
+        'analysis_run_id',
         'step',
         'status',
         'document_type',
@@ -104,6 +111,11 @@ final class Analysis extends Model
     public function documentVersion(): BelongsTo
     {
         return $this->belongsTo(related: DocumentVersion::class);
+    }
+
+    public function analysisRun(): BelongsTo
+    {
+        return $this->belongsTo(related: AnalysisRun::class);
     }
 
     public function reviewedBy(): BelongsTo

@@ -23,6 +23,11 @@ class DatabaseSeeder extends Seeder
         // PHP-роли зеркалятся в таблицу roles до назначения (idempotent, безопасно всегда).
         Artisan::call('guard:sync-roles');
 
+        // Служебная площадка «Обучалка» (§1.3 root/document-contour.md, D91) — единственный
+        // способ, которым площадка появляется в чистой БД; нужна и в prod (обучающий импорт
+        // пишет platform_id этой строки), поэтому ДО local/testing-гейта, как AiRoutingSeeder.
+        $this->call(PlatformSeeder::class);
+
         // Стартовая матрица роутинга LLM (P7.2, ТЗ 04 §3.1) — идемпотентный updateOrCreate, без
         // секретов (ключи только env, Implementation Rules P7.2). В ОТЛИЧИЕ от демо-аккаунтов
         // ниже — инфраструктурные данные пайплайна нужны и в prod (без активных маршрутов

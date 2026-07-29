@@ -6,15 +6,25 @@ namespace App\Repositories\Procurement;
 
 use App\Enums\Procurement\AnalysisStatus;
 use App\Enums\Procurement\AnalysisStep;
+use App\Exceptions\Procurement\NoActiveAnalysisRun;
 use App\Models\Procurement\Ai\Analysis;
 
 /**
  * Единственная точка персистентности `prc_ai_analyses` для стадийных процессоров
  * (`ScreeningProcessor`, P5.1; будущие extraction-процессоры, P6) — аналог
  * `DocumentStoreRepository`: сервисы решают, какие атрибуты писать, репозиторий только пишет.
+ *
+ * Владеет ТАКЖЕ терминацией `AnalysisRun` (§3.6 root/document-contour.md, Implementation Rule 10
+ * P1.6) — единственная точка, через которую проходит КАЖДАЯ запись статуса анализа, поэтому
+ * терминальный переход прогона живёт здесь же, а не размазан по `ScreeningJob`/
+ * `EstimateExtractionJob`/`ExtractionOrchestrator` (см. `maybeTerminateRun()`).
  */
 final readonly class AnalysisStoreRepository
 {
+    public function __construct(
+        private AnalysisRunStoreRepository $runs,
+    ) {}
+
     /**
      * Найти активный анализ версии документа на заданном шаге или создать новый (уникальность —
      * partial unique `(document_version_id, step) WHERE superseded_at IS NULL AND is_shadow = false`,
@@ -29,8 +39,13 @@ final readonly class AnalysisStoreRepository
             ->where('step', $step)
             ->first();
 
-        return $analysis ?? Analysis::query()->create([
+        if ($analysis !== null) {
+            return $analysis;
+        }
+
+        return Analysis::query()->create([
             'document_version_id' => $documentVersionId,
+            'analysis_run_id' => $this->resolveActiveRunId($documentVersionId),
             'step' => $step,
             'status' => AnalysisStatus::Pending,
         ]);
@@ -42,6 +57,52 @@ final readonly class AnalysisStoreRepository
     public function update(Analysis $analysis, array $attributes): void
     {
         $analysis->update($attributes);
+
+        $this->maybeTerminateRun($analysis);
+    }
+
+    private function resolveActiveRunId(int $documentVersionId): int
+    {
+        $run = $this->runs->findActive($documentVersionId);
+
+        if ($run === null) {
+            throw new NoActiveAnalysisRun($documentVersionId);
+        }
+
+        return $run->id;
+    }
+
+    /**
+     * `Failed`/`Skipped` (любой шаг) — прогон терминируется всегда: `Failed` — провал,
+     * `Skipped` — unprocessable-шаг, но прогон отработал штатно (§3.2, обязан быть `succeeded`).
+     * `Succeeded` терминирует прогон ТОЛЬКО на шаге `Extraction` (последняя стадия контура сегодня):
+     * на `Screening` успех неоднозначен — ветвление (`ScreeningOutcomeHandler`) ещё не решило,
+     * продолжится ли прогон извлечением, поэтому терминацию несущих screening-исходов несёт САМ
+     * `ScreeningOutcomeHandler` явно. Теневые анализы (`is_shadow`) прогон НЕ терминируют — они
+     * делят его с основным (`createShadow()`), и их независимый терминал не значит, что основной
+     * прогон завершён.
+     */
+    private function maybeTerminateRun(Analysis $analysis): void
+    {
+        if ($analysis->is_shadow) {
+            return;
+        }
+
+        if ($analysis->status === AnalysisStatus::Failed) {
+            $this->runs->markFailed($analysis->analysisRun);
+
+            return;
+        }
+
+        if ($analysis->status === AnalysisStatus::Skipped) {
+            $this->runs->markSucceeded($analysis->analysisRun);
+
+            return;
+        }
+
+        if ($analysis->status === AnalysisStatus::Succeeded && $analysis->step === AnalysisStep::Extraction) {
+            $this->runs->markSucceeded($analysis->analysisRun);
+        }
     }
 
     /**
@@ -57,6 +118,7 @@ final readonly class AnalysisStoreRepository
     {
         return Analysis::query()->create([
             'document_version_id' => $analysis->document_version_id,
+            'analysis_run_id' => $this->resolveActiveRunId($analysis->document_version_id),
             'step' => $analysis->step,
             'status' => AnalysisStatus::Pending,
             'document_type' => $analysis->document_type,
@@ -76,6 +138,7 @@ final readonly class AnalysisStoreRepository
     {
         return Analysis::query()->create([
             'document_version_id' => $primary->document_version_id,
+            'analysis_run_id' => $primary->analysis_run_id,
             'step' => $primary->step,
             'status' => AnalysisStatus::Running,
             'document_type' => $primary->document_type,

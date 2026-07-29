@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace App\Jobs\Procurement;
 
 use App\Enums\Procurement\DocumentStatus;
+use App\Enums\Procurement\RunMode;
 use App\Models\Procurement\Document\Document;
+use App\Repositories\Procurement\AnalysisRunStoreRepository;
 use App\Repositories\Procurement\DocumentStoreRepository;
 use App\Services\Procurement\Prepare\DocumentPreparer;
 use Illuminate\Contracts\Queue\ShouldBeUnique;
@@ -79,6 +81,9 @@ final class PrepareDocumentJob extends PipelineJob implements ShouldBeUnique
         app(DocumentStoreRepository::class)->update($document, ['status' => DocumentStatus::Prepared]);
 
         if (config('ai.screening.enabled', false)) {
+            // Launch-точка (§3.5 root/document-contour.md) — боевой конвейер, mode=auto.
+            app(AnalysisRunStoreRepository::class)->start($version->id, RunMode::Auto);
+
             ScreeningJob::dispatch($document->id)->afterCommit();
         }
     }

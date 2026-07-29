@@ -283,6 +283,7 @@ final readonly class GsfxStrategy implements PreparationStrategy
             $child = $this->storeRepository->findByExternalId($document->procurement_id, $externalId)
                 ?? $this->storeRepository->create([
                     'procurement_id' => $document->procurement_id,
+                    'platform_id' => $document->platform_id,
                     'external_id' => $externalId,
                     'title' => basename($relativePath),
                     'kind' => null,

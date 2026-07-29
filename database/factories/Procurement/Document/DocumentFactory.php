@@ -6,6 +6,7 @@ namespace Database\Factories\Procurement\Document;
 
 use App\Enums\Procurement\DocumentStatus;
 use App\Models\Procurement\Document\Document;
+use App\Models\Procurement\Platform\Platform;
 use App\Models\Procurement\Procurement;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
@@ -20,6 +21,7 @@ final class DocumentFactory extends Factory
     {
         return [
             'procurement_id' => Procurement::factory(),
+            'platform_id' => Platform::factory(),
             'external_id' => fake()->unique()->uuid(),
             'title' => fake()->sentence(),
             'kind' => 'извещение',

@@ -7,8 +7,10 @@ namespace App\Models\Procurement;
 use App\Casts\PostgresTextArrayCast;
 use App\Enums\Procurement\ProcurementStatus;
 use App\Models\Procurement\Platform\Registry;
+use App\Models\Scopes\PublicPlatformScope;
 use Database\Factories\Procurement\ProcurementFactory;
 use Illuminate\Database\Eloquent\Attributes\UseFactory;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Casts\AsCollection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -17,6 +19,8 @@ use Illuminate\Support\Str;
 
 /**
  * Текущее состояние закупки (compiledRelease-проекция поверх редакций).
+ *
+ * @property-read Registry|null $registry
  */
 #[UseFactory(ProcurementFactory::class)]
 final class Procurement extends Model
@@ -102,5 +106,19 @@ final class Procurement extends Model
     public function registry(): BelongsTo
     {
         return $this->belongsTo(related: Registry::class);
+    }
+
+    /**
+     * Единственный носитель правила показа (§4 root/document-contour.md, D91) — вырезает закупки
+     * служебных площадок (`is_public=false`) из публичной витрины. `Procurement` не несёт
+     * `platform_id` напрямую (площадка достижима только цепочкой `registry.platform_id`, §1.2
+     * контракта) — путь до `Platform` вложенный, в отличие от `Document`/`Estimate`.
+     *
+     * @param  Builder<Procurement>  $query
+     * @return Builder<Procurement>
+     */
+    public function scopePublicPlatform(Builder $query): Builder
+    {
+        return PublicPlatformScope::apply($query, 'registry.platform');
     }
 }

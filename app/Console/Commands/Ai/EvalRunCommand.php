@@ -11,12 +11,14 @@ use App\Enums\Procurement\AnalysisStatus;
 use App\Enums\Procurement\AnalysisStep;
 use App\Enums\Procurement\GoldSource;
 use App\Enums\Procurement\LlmPurpose;
+use App\Enums\Procurement\RunMode;
 use App\Models\Llm\LlmCall;
 use App\Models\Procurement\Ai\DatasetExample;
 use App\Models\Procurement\Ai\EvalResult;
 use App\Models\Procurement\Ai\EvalRun;
 use App\Models\Procurement\Ai\Fixture;
 use App\Models\Procurement\Document\Document;
+use App\Repositories\Procurement\AnalysisRunStoreRepository;
 use App\Repositories\Procurement\AnalysisStoreRepository;
 use App\Services\Llm\AiRouteResolver;
 use App\Services\Procurement\Extraction\EvalMetrics;
@@ -62,6 +64,7 @@ final class EvalRunCommand extends Command
 
     public function __construct(
         private readonly AnalysisStoreRepository $analyses,
+        private readonly AnalysisRunStoreRepository $runs,
         private readonly AiRouteResolver $routes,
         private readonly ExtractionOrchestrator $orchestrator,
         private readonly EvalMetrics $metrics,
@@ -266,6 +269,12 @@ final class EvalRunCommand extends Command
             return ['error' => 'document_version отсутствует'];
         }
 
+        // Launch-точка (§3.5 root/document-contour.md) — КАЖДЫЙ пример это отдельный прогон
+        // (mode=manual, ручной harness); `Analysis` ниже переиспользуется той же строкой между
+        // прогонами `ai:eval:run` (partial unique), `analysis_run_id` переставляется явно при
+        // сбросе — тот же приём, что `FormatBenchRunner::runCell()`.
+        $run = $this->runs->start($documentVersion->id, RunMode::Manual);
+
         try {
             $document = Document::query()->findOrFail($documentVersion->document_id);
             $analysis = $this->analyses->firstOrCreate($documentVersion->id, AnalysisStep::Extraction);
@@ -283,6 +292,7 @@ final class EvalRunCommand extends Command
             // (объективная обратная связь для итеративной настройки промтов).
             $this->analyses->update($analysis, [
                 'status' => AnalysisStatus::Pending,
+                'analysis_run_id' => $run->id,
                 'document_type' => 'estimate',
                 'result' => null,
                 'progress' => null,
@@ -312,9 +322,19 @@ final class EvalRunCommand extends Command
             $predicted = (array) ($analysis->result['estimates'] ?? []);
             $gold = (array) ($example->gold['estimates'] ?? []);
 
+            // Подстраховка терминации (§3.6, идемпотентно): `Succeeded`/`Skipped` уже
+            // терминировали прогон автохуком `AnalysisStoreRepository::maybeTerminateRun()`
+            // (шаг `Extraction`) — этот вызов no-op. `$maxIterations` исчерпан без терминала
+            // (`analysis.status` остался `Running`) автохук НЕ сработал — прогон завершается
+            // `failed` явно, а не остаётся открытым (см. `FormatBenchRunner::runCell()`).
+            in_array($analysis->status, [AnalysisStatus::Succeeded, AnalysisStatus::Skipped], true)
+                ? $this->runs->markSucceeded($run)
+                : $this->runs->markFailed($run);
+
             return $this->metrics->compare(goldEstimates: $gold, predictedEstimates: $predicted);
         } catch (Throwable $e) {
             $this->error("dataset_example #{$example->id}: {$e->getMessage()}");
+            $this->runs->markFailed($run);
 
             return ['error' => $e->getMessage()];
         }
@@ -333,6 +353,12 @@ final class EvalRunCommand extends Command
             return ['error' => 'document_version отсутствует'];
         }
 
+        // Launch-точка (§3.5 root/document-contour.md) — mode=manual; в отличие от extraction
+        // (`evaluateExample()`), автохук `AnalysisStoreRepository::maybeTerminateRun()` НЕ
+        // терминирует прогон на шаге `Screening` (ветвление принадлежит `ScreeningOutcomeHandler`,
+        // которого этот standalone-eval не вызывает) — терминация здесь ЯВНАЯ.
+        $run = $this->runs->start($documentVersion->id, RunMode::Manual);
+
         try {
             $document = Document::query()->findOrFail($documentVersion->document_id);
             $analysis = $this->analyses->firstOrCreate($documentVersion->id, AnalysisStep::Screening);
@@ -343,6 +369,7 @@ final class EvalRunCommand extends Command
             // отдавал бы старый вердикт без единого нового вызова `ScreeningProcessor`.
             $this->analyses->update($analysis, [
                 'status' => AnalysisStatus::Pending,
+                'analysis_run_id' => $run->id,
                 'document_type' => null,
                 'result' => null,
                 'provider' => null,
@@ -359,6 +386,7 @@ final class EvalRunCommand extends Command
 
             $this->screeningProcessor->run($document, $analysis);
             $analysis->refresh();
+            $this->runs->markSucceeded($run);
 
             $documentType = AiDocumentType::tryFrom((string) $analysis->document_type);
 
@@ -387,6 +415,7 @@ final class EvalRunCommand extends Command
             ];
         } catch (Throwable $e) {
             $this->error("dataset_example #{$example->id}: {$e->getMessage()}");
+            $this->runs->markFailed($run);
 
             return ['error' => $e->getMessage()];
         }

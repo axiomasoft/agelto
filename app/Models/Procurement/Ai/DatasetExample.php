@@ -15,6 +15,9 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 /**
  * Эталонный пример (gold) для датасета оценки качества AI-анализа.
+ *
+ * @property-read DocumentVersion|null $documentVersion
+ * @property-read Fixture|null $fixture
  */
 #[UseFactory(DatasetExampleFactory::class)]
 final class DatasetExample extends Model

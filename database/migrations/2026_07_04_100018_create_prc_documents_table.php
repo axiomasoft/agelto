@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Models\Procurement\Document\Document;
+use App\Models\Procurement\Platform\Platform;
 use App\Models\Procurement\Procurement;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
@@ -21,6 +22,10 @@ return new class extends Migration
                 ->nullable()
                 ->index()
                 ->constrained(table: (new Procurement)->getTable());
+
+            $table->foreignId('platform_id')
+                ->index()
+                ->constrained(table: (new Platform)->getTable());
 
             // uid вложения в filestore ЕИС.
             $table->text('external_id')->nullable();

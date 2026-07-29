@@ -16,8 +16,9 @@ return new class extends Migration
             $table->uuid('uuid')->unique();
             $table->string('code')->unique();
             $table->string('name');
-            $table->string('base_url');
+            $table->string('base_url')->nullable();
             $table->boolean('is_active')->default(true);
+            $table->boolean('is_public')->default(true);
             $table->timestamps();
         });
     }

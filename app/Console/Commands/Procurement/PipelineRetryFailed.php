@@ -7,10 +7,12 @@ namespace App\Console\Commands\Procurement;
 use App\Enums\Procurement\AnalysisStatus;
 use App\Enums\Procurement\DocumentStatus;
 use App\Enums\Procurement\PipelineStage;
+use App\Enums\Procurement\RunMode;
 use App\Jobs\Procurement\PrepareDocumentJob;
 use App\Jobs\Procurement\ScreeningJob;
 use App\Models\Procurement\Ai\Analysis;
 use App\Models\Procurement\Document\Document;
+use App\Repositories\Procurement\AnalysisRunStoreRepository;
 use Illuminate\Console\Command;
 use LogicException;
 
@@ -41,6 +43,11 @@ final class PipelineRetryFailed extends Command
     protected $signature = 'pipeline:retry-failed {--limit= : Максимум записей за секцию (документы/анализы); по умолчанию config(ai.pipeline.retry_batch_limit)}';
 
     protected $description = 'Повторно запускает провалившиеся стадии пайплайна (документы/анализы) с нужной стадии по next_retry_at';
+
+    public function __construct(private readonly AnalysisRunStoreRepository $runs)
+    {
+        parent::__construct();
+    }
 
     public function handle(): int
     {
@@ -128,7 +135,10 @@ final class PipelineRetryFailed extends Command
         $stage = PipelineStage::fromAnalysisStep($analysis->step);
 
         match ($stage) {
-            PipelineStage::Screening => ScreeningJob::dispatch($documentId)->afterCommit(),
+            // Launch-точка (§3.5 root/document-contour.md, D93) — плановый ретрай очереди,
+            // mode=auto: старый прогон завершён (иначе status=Failed не проставился бы,
+            // AnalysisStoreRepository::maybeTerminateRun), новый заводится перед передиспатчем.
+            PipelineStage::Screening => $this->retryScreening($analysis, $documentId),
             PipelineStage::Extraction => throw new LogicException(
                 "Анализ #{$analysis->id}: стадия extraction ещё не реализована (P6) — ретрай отложен.",
             ),
@@ -136,5 +146,12 @@ final class PipelineRetryFailed extends Command
                 "Анализ #{$analysis->id}: недостижимо — PipelineStage::fromAnalysisStep никогда не возвращает Prepare.",
             ),
         };
+    }
+
+    private function retryScreening(Analysis $analysis, int $documentId): void
+    {
+        $this->runs->start($analysis->document_version_id, RunMode::Auto);
+
+        ScreeningJob::dispatch($documentId)->afterCommit();
     }
 }

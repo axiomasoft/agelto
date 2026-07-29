@@ -9,6 +9,7 @@ use App\Dto\Procurement\Ai\Estimate\PassportResponse;
 use App\Enums\Procurement\AiDocumentType;
 use App\Enums\Procurement\DocumentStatus;
 use App\Models\Procurement\Ai\DatasetExample;
+use App\Models\Procurement\Platform\Platform;
 use App\Repositories\Procurement\DocumentStoreRepository;
 use Illuminate\Console\Command;
 use Illuminate\Support\Arr;
@@ -195,6 +196,7 @@ final class DatasetImportCommand extends Command
         $document = $this->documents->findByExternalId(null, $externalId)
             ?? $this->documents->create([
                 'procurement_id' => null,
+                'platform_id' => Platform::training()->id,
                 'external_id' => $externalId,
                 'title' => basename($sourceFile),
                 'kind' => null,

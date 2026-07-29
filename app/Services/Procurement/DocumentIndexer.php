@@ -64,6 +64,7 @@ final readonly class DocumentIndexer
 
         $this->storeRepository->create([
             'procurement_id' => $procurement->id,
+            'platform_id' => $procurement->registry->platform_id,
             'external_id' => $document->externalId,
             'title' => $document->title,
             'kind' => $document->kind,

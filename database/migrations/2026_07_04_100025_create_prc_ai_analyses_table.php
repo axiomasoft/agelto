@@ -23,6 +23,11 @@ return new class extends Migration
                 ->index()
                 ->constrained(table: (new DocumentVersion)->getTable());
 
+            // Без constrained() — prc_ai_analysis_runs заводится позже (2026_07_29_100059,
+            // D91/D93 root/document-contour.md §3.3), FK связывается там же (тот же приём, что
+            // prc_procurement_parties.procurement_id → 2026_07_04_100048).
+            $table->unsignedBigInteger('analysis_run_id')->index();
+
             $table->text('step')->comment('screening/extraction');
             $table->text('status')->comment('pending→running→succeeded/failed/skipped');
             $table->text('document_type')->nullable()->comment('вердикт скрининга; значения — AiDocumentType, целостность — check-constraint (D16/D17)');
