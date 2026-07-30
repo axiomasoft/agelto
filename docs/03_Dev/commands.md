@@ -64,6 +64,7 @@ status: draft
 | `estimate:dataset:import {path} [--task=] [--source=manual] [--gold-version=1]` | Импорт папки эталонов в `prc_ai_dataset_examples` |
 | `estimate:dataset:export [--format=sft\|dpo] [--task=extraction] [--disk=] [--path=]` | Экспорт gold-датасета в JSONL |
 | `ai:storage:lifecycle` | MinIO ILM-обслуживание блобов (P7.7) |
+| `ai:cost-reconcile --from= --to= --file= [--fail-on-breach]` | Сверка нашего трекинга с ручной выгрузкой биллинга провайдера (CSV `date,cost[,currency,service,sku]`), runbook `docs/03_Dev/runbooks/billing-reconcile.md` |
 
 ## Docker: полезные комбинации
 
