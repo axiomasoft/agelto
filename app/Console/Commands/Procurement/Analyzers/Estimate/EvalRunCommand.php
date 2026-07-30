@@ -165,7 +165,6 @@ final class EvalRunCommand extends Command
     /**
      * @param  array{total: int, accuracy: float|null, confusion: array<string, array<string, int>>,
      *     false_positive_rate: float|null, false_negative_rate: float|null}  $aggregate
-     * @param  Collection  $rows
      */
     private function renderScreeningReport(EvalRun $run, array $aggregate, Collection $rows): void
     {
