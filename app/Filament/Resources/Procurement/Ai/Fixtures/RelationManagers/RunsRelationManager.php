@@ -5,11 +5,13 @@ declare(strict_types=1);
 namespace App\Filament\Resources\Procurement\Ai\Fixtures\RelationManagers;
 
 use App\Filament\Resources\Procurement\Ai\Analyses\AnalysisResource;
+use App\Filament\Resources\Procurement\Ai\Fixtures\Schemas\RunResultSchema;
 use App\Models\Procurement\Ai\AnalysisRun;
 use App\Models\Procurement\Ai\Fixture;
 use Carbon\CarbonInterface;
 use Filament\Actions\Action;
 use Filament\Resources\RelationManagers\RelationManager;
+use Filament\Schemas\Schema;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
@@ -76,7 +78,9 @@ class RunsRelationManager extends RelationManager
             ])
             ->defaultSort('started_at', 'desc')
             ->poll(fn (): ?string => $this->ownerFixture()->runs()->whereNull('finished_at')->exists() ? '5s' : null)
+            ->recordAction('result')
             ->recordActions([
+                $this->resultAction(),
                 Action::make('viewAnalysis')
                     ->label('Анализ')
                     ->visible(fn (AnalysisRun $record): bool => $record->analyses->isNotEmpty())
@@ -88,6 +92,26 @@ class RunsRelationManager extends RelationManager
             ->toolbarActions([
                 //
             ]);
+    }
+
+    /**
+     * Модалка результата прогона (P5.4, D27/D48): содержимое собирает `RunResultSchema` — вердикт
+     * первичного анализа, сводка ОТ АНАЛИЗАТОРА типа и эталон рядом. Клик по строке открывает её
+     * же (`recordAction('result')`). Форма — показ: submit-действия у модалки нет (эталон из
+     * админки не правится, D48).
+     */
+    private function resultAction(): Action
+    {
+        return Action::make('result')
+            ->label('Результат')
+            ->modalHeading('Результат прогона')
+            ->modalSubmitAction(false)
+            ->modalCancelActionLabel('Закрыть')
+            ->schema(fn (Schema $schema, AnalysisRun $record): Schema => RunResultSchema::configure(
+                $schema,
+                $this->ownerFixture(),
+                $record,
+            ));
     }
 
     /**
