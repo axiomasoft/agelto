@@ -1,71 +1,79 @@
-# HANDOFF — 2026-07-30 — after P5.3
+# HANDOFF — 2026-07-30 — after P5.4
 
 **Next:**
 
 | Параметр | Значение |
 |:--|:--|
-| Model | opus |
-| Thinking | high — Routing §3 (предписано `implementation/high` + `Exec = manual`) |
+| Model | sonnet |
+| Thinking | medium — Routing §3 (`implementation/medium` + `Exec = plan-exec`) |
 | Context | continue (/clear) — ручной item |
-| Суть | Модалка результата прогона: сводка от анализатора типа и эталон рядом (P5.4) — единственное место, где витрина может вернуть в проект знание о сметах (D27), поэтому `Exec = manual` |
+| Суть | Экран финального объединённого промта по `request_ref` с различением «ссылки нет» и «блоб истёк по lifecycle» (P5.5) |
 
-Следующий item **P5.4** предписан `Exec = manual` (§3 Routing) — команда `/task:plan-exec` пинит
-sonnet/medium и по гейту п.2 обязана его отклонить. Запуск вручную:
+Следующий item **P5.5** идёт штатной командой (roadmap: solo, не батчится с P5.6 — у них
+расходится `Exec`):
 
 ```
-/model opus
-/effort high
-/task:plan-run 2026.07.28-EST-ARCH P5.4
+/task:plan-exec 2026.07.28-EST-ARCH P5.5
 ```
 
-**Done:** фазы P1 (🟠, 4/8 🟢), P2 (🟠, 5/7 🟢), P3 (🟠, 3/6 🟢), P4 (🟠, 4/6 🟢, терминальна) закрыты
-как в предыдущем handoff'е. P5.1 закрыт 🟠 (`9f394eb`), P5.2 закрыт 🟠 (`bc2e241`).
+**Done:** фазы P1 (🟠, 4/8 🟢), P2 (🟠, 5/7 🟢), P3 (🟠, 3/6 🟢), P4 (🟠, 4/6 🟢, терминальна)
+закрыты как в предыдущем handoff'е. P5.1 закрыт 🟠 (`9f394eb`), P5.2 — 🟠 (`bc2e241`), P5.3 — 🟠
+(`cdabf3d`).
 
-**Эта сессия (`plan-exec P5.3`, sonnet/medium):** item P5.3 исполнен и закрыт 🟠
-`Done with deviations`, item-коммит `cdabf3d`.
+**Эта сессия (`plan-run P5.4`, opus/high):** item P5.4 исполнен и закрыт 🟢 `Done`, item-коммит
+`bc2bf45` (5 файлов, 864 вставки, все из `Files`).
 
-1. **`RunsRelationManager`** (`app/Filament/Resources/Procurement/Ai/Fixtures/RelationManagers/RunsRelationManager.php`,
-   новый) — история прогонов на карточке эталона: `status`/`mode` через `->badge()` БЕЗ
-   переформулировки (канон `AnalysesTable` — enum-значения показываются как есть); `started_at`/
-   `finished_at`/computed `duration`; токены (`prompt`/`cached`/`completion`/`total`) и `cost_micros`
-   читаются НАПРЯМУЮ из колонок слепка прогона, каждый с `placeholder('нет данных')`
-   (Implementation Rule 1 — никакой агрегации/джойна к вызовам); `->poll()` замыканием, интервал
-   `5s` только пока есть незавершённый прогон, иначе `null` (Implementation Rule 4); row-action
-   «Анализ» на последний связанный `Analysis` данного прогона, с eager-load против N+1.
-2. **`FixtureResource::getRelations()`** — зарегистрирован `RunsRelationManager`.
-3. **`Fixture::runs()`** (`HasManyThrough` на `AnalysisRun` через `DocumentVersion`, сопоставление
-   по `document_id` напрямую) — read-путь для витрины, добавлен ВНЕ `Files` item'а: ни `Fixture`,
-   ни `Document`/`DocumentVersion` не несли связи, годной для построения relation manager'а (обе
-   модели навигацию «вниз» не заводят, раскладка идёт репозиторием). Прецедент того же класса —
-   `DocumentVersion::document()`, чей докблок сам называет себя read-путём для Filament.
-4. **Тесты** — `tests/Feature/Filament/FixtureRunHistoryTest.php` (5 тестов): слепок совпадает
-   построчно, прогон без слепка → честное «нет данных» (не ноль), режим виден, статус различает
-   `running`/`succeeded`, доступ без права `fixture.view` закрыт (403 по прямой ссылке).
-5. **Отклонение (Known Deviations, детали — `phases/P5.md` P5.3):** item-коммит несёт правку ВНЕ
-   `Files` — `app/Models/Procurement/Ai/Fixture.php` (новый метод `runs()`), причина и прецедент — в
-   Completion Notes item'а. Материальных отклонений нет: Scope Included выполнен полностью,
-   Validation вся зелёная, `phpstan-baseline.neon` не тронут.
+1. **`RunResultSchema`** (`app/Filament/Resources/Procurement/Ai/Fixtures/Schemas/`, новый) — три
+   секции модалки: вердикт первичного анализа (статус, тип, уверенность, ветка, заметки, теги,
+   ошибка); разбор — сводка ЧЕРЕЗ реестр (`DocumentAnalyzerRegistry::for()->summarize()`), витрина
+   предметных таблиц не знает (D27); эталон — последняя версия записи датасета по эталону и задаче,
+   показом без правки (D48).
+2. **Честные состояния вместо пустых блоков** (Implementation Rule 5): «прогон ещё идёт», «шаг
+   разбора не выполнялся — вердикт не допустил», «разбор не завершён (статус) + ошибка», «анализатор
+   типа не зарегистрирован», «эталона нет — заводится `estimate:gold:import`». Большая сводка (20
+   строк) и большое тело эталона (40 строк) обрезаются с явным указанием факта обрезания.
+3. **`run-result.blade.php`** (`resources/views/filament/resources/fixtures/`, новый) —
+   generic-рендер: знает ТОЛЬКО форму `AnalysisSummary`, ссылка строится из `detailRoute` уже
+   презентационным слоем.
+4. **`RunsRelationManager`** — действие «Результат» + `recordAction('result')` (клик по строке),
+   submit-действия у модалки нет. Токенов и цены в модалке нет (они в строке, P5.3) — проверено
+   положительной проверкой ключа перед отрицательными.
+5. **Arch-тест витрины** (`tests/Feature/Architecture/TrainingUiIndependenceTest.php`, новый, D49):
+   периметр — 10 классов ресурса эталонов (Finder, не перечень) плюс blade витрины; таргеты
+   `toUse()` поодиночке; список неймспейсов ядра P2.6 не тронут. Фальсифицируемость доказана двумя
+   мутациями (импорт сметной модели → 2 failed; `prc_estimate_` в blade → 1 failed), обе откачены.
+6. **Тесты** — `tests/Feature/Filament/FixtureRunResultTest.php` (13 тестов). Содержимое модалки
+   проверяется по СХЕМЕ смонтированного действия, а не по HTML: модалки Filament рендерит
+   страница-хост, в изолированном рендере relation-менеджера их разметки нет вовсе (`grep -c
+   "fi-modal"` по дампу → 0), поэтому HTML-ассерт был бы ложно-красным, а `assertDontSee` —
+   ложно-зелёным. Вёрстка generic-рендера проверяется отдельным прогоном самой вьюхи.
+7. **9 ошибок `phpstan`** класса `property.notFound`/`return.type` в новом файле вычинены КОДОМ
+   (форма `?? null`, сужение `instanceof`), не записью в baseline — `phpstan-baseline.neon` не
+   тронут.
 
-**Remaining:** 9 items ⬜ — фаза P5 (P5.4…P5.6), P6 (3), P7 (4, B2 = P7.1+P7.2). Фаза P4
+**Remaining:** 8 items ⬜ — фаза P5 (P5.5, P5.6), P6 (3), P7 (4, B2 = P7.1+P7.2). Фаза P4
 терминальна, реконсилирующее закрытие (`plan-close`) не выполнено (наследуется).
 
 **Sources of truth:** скилл `plan-protocol` · `plan.md` §2 (Execution Rules), §3 Routing, §5
 (D1–D136) · ЗАМОРОЖЕНЫ: `root/document-type-axis.md`, `root/document-contour.md`
 (§3.2/§3.5/§3.7/§3.8), `root/document-analyzer-contract.md`, `root/service-layer-map.md`,
-`root/usage-source-contract.md` · `phases/P5.md` P5.1/P5.2/P5.3 (Completion Notes) ·
+`root/usage-source-contract.md` · `phases/P5.md` P5.1–P5.4 (Completion Notes) ·
 `open-questions.md` (OQ-15).
 
 **Open risks:**
-- **`Fixture::runs()` — read-путь мимо репозиторного канона, узко.** Прецедент (`DocumentVersion::document()`)
-  уже существовал, но если следующий item добавит ЕЩЁ одну такую связь без соответствующего
-  прецедента — стоит проверить, не пора ли завести общий репозиторий чтения для витрины обучалки
-  вместо накопления relation-методов на моделях; сейчас это не блокер (одна связь, документированная).
-- Row-action «Анализ» ведёт на ПОСЛЕДНИЙ связанный `Analysis` прогона (extraction, если есть, иначе
-  screening) — не на список ОБОИХ шагов; Validation P5.3 это не проверяла, риск низкий (P5.4
-  модалка результата — более полное решение той же потребности).
-- **Кнопка требует включённого `AI_SCREENING_ENABLED`** (дефолт `false`) — наследуется с P5.2, не
-  относится к P5.3.
-- Боевой прогон кнопки на реальном провайдере — гейт владельца (D94), не относится к P5.3.
+- **ACL каталога `app/Filament/.../Fixtures/Schemas/`** — маска `r-x` (у соседнего
+  `RelationManagers/` — `rwx`), поэтому пользователь-владелец репозитория в него писать не может;
+  новый файл записан через контейнер (`docker exec -i agelto_app sh -c 'cat > …'`), права итогового
+  файла штатные (`www-data:www-data 664`). Следующий item, правящий `Schemas/**`, упрётся в то же —
+  либо чинить маску, либо писать через контейнер.
+- **Систематический пробел `larastan` на свойствах моделей** (`Analysis::$result`/`$last_error`,
+  `DatasetExample::$task/$version/$source`) — наследуется с P5.2: любой БУДУЩИЙ item, читающий их
+  вне `??`-контекста, упрётся в тот же выбор «форма `?? null` либо `@property` на модели вне своих
+  `Files`».
+- Модалка показывает ПОСЛЕДНИЙ анализ шага в прогоне; истории перезапусков шага внутри одного
+  прогона в ней нет — не требовалось ТЗ, риск низкий.
+- **Кнопка требует включённого `AI_SCREENING_ENABLED`** (дефолт `false`) — наследуется с P5.2.
+- Боевой прогон кнопки на реальном провайдере — гейт владельца (D94).
 - Две точки проверки формы профиля (витрина через анализатор + `FixtureManifestEntry` импорта) —
   принятый долг D132, адресат OQ-15.
 - Расхождение `AiRoutePermission`↔`LlmRouteResource` — вне P5, всплывёт при следующей полной
@@ -74,24 +82,20 @@ sonnet/medium и по гейту п.2 обязана его отклонить. 
 - Фаза P4 не прошла реконсилирующее закрытие (`plan-close`) — наследуется, не блокирует P5.
 - Дефект компилятора Task Contract (OQ-14) — наследуется, workaround: резолв узла
   `~/.claude/plugins/cache/swissknifeman/task/0.9.0/lib` (D98).
-- **Систематический пробел `larastan` на `Document::$status`** (наследуется с P5.2, не задет P5.3) —
-  любой БУДУЩИЙ item, читающий это свойство внутри замыкания/новой конструкции, упрётся в тот же
-  выбор «безусловная запись вместо чтения» либо баселин-запись, если рычаг не сработает.
-- **Посторонний дифф в дереве, замеченный этой сессией (не мой, не тронут):** массовое удаление
-  файлов каталога `Old/` (легаси v1-приложение, коммит `d5226fb`) присутствует в рабочем дереве как
-  unstaged `D`-статус по `git status`, но НЕ входит ни в item-коммит `cdabf3d`, ни в
-  bookkeeping-коммит этого закрытия — оба собраны по явным путям (`git add <файл>`, не `-A`).
-  Происхождение неизвестно (не действие этой сессии — ни один вызов инструмента не трогал `Old/`);
-  требует внимания владельца ДО следующего коммита в этом дереве, иначе следующая сессия рискует
-  унести это удаление в свой коммит незамеченным.
+- **Посторонний дифф в дереве (не мой, не тронут):** массовое удаление файлов каталога `Old/`
+  (легаси v1-приложение) — 978 путей в `git status` как unstaged `D`; плюс неотслеживаемые
+  `.swissknife/` и `estimates/gemini-analys.md`. Ни один из них не входит ни в item-коммит
+  `bc2bf45`, ни в bookkeeping-коммит этого закрытия — оба собраны по явным путям. Замечено ещё
+  сессией P5.3; требует решения владельца ДО следующего коммита в этом дереве.
 - Прочие наследуемые риски — без изменений, см. `git log -p -- handoff.md`.
 
 **Workarounds/Deferred/Open questions:**
-- workarounds: резолв `task.task_contract`/`task.route_evidence`/`plan-lint.py` через плагин-кэш
-  `~/.claude/plugins/cache/swissknifeman/task/0.9.0/lib` (репо `agelto` не вендорит
-  `packages/task/lib`, D98) — наследуется.
+- workarounds: `docker exec agelto_app` вместо `docker compose exec app`; резолв
+  `task.task_contract`/`task.route_evidence`/`plan-lint.py` через плагин-кэш
+  `~/.claude/plugins/cache/swissknifeman/task/0.9.0/lib` (D98); запись в `Schemas/**` через
+  контейнер (ACL, см. Open risks) — наследуется.
 - deferred: сведение двух точек валидации профиля к одной (OQ-15); чистка
   `AiRoutePermission`↔`LlmRouteResource`; Policy-покрытие каталога прав под `--strict`;
   предсуществующий `plan-lint` ERROR на `phases/P4.md:481` (P4.5 без строки `write-site:`);
-  докблок `@property DocumentStatus $status` на модели `Document` — остальное наследуется.
+  докблоки `@property` на `Analysis`/`DatasetExample` — остальное наследуется.
 - open_questions: без изменений — OQ-15 (`Decision pending`), вне плана OQ-14.
