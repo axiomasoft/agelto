@@ -1,11 +1,11 @@
 ---
 name: estimate-extraction-dev
-description: "Dev-раннбук извлечения смет (стадия 5 пайплайна): PHP Data-контракты как SSOT промта/схемы, два пути (row-range vs windowed-discovery), preflight по capability-лимитам провайдера, checkpoint-requeue, unprocessable-таксономия, границы stitcher/validator/persister. Активировать при правках в Services/Procurement/Extraction, Dto/Procurement/Ai/Estimate, EstimateExtractionJob, config('ai.extraction.*')."
+description: "Dev-раннбук извлечения смет (стадия 5 пайплайна): PHP Data-контракты как SSOT промта/схемы, два пути (row-range vs windowed-discovery), preflight по capability-лимитам провайдера, checkpoint-requeue, unprocessable-таксономия, границы stitcher/validator/persister. Активировать при правках в Services/Procurement/Extraction, Dto/Procurement/Analyzers/Estimate, EstimateExtractionJob, config('ai.extraction.*')."
 paths:
   - "app/Services/Procurement/Extraction/**"
-  - "app/Dto/Procurement/Ai/Estimate/**"
+  - "app/Dto/Procurement/Analyzers/Estimate/**"
   - "app/Jobs/Procurement/EstimateExtractionJob.php"
-  - "resources/ai/prompts/extraction-*/**"
+  - "resources/estimates/ai/prompts/extraction-*/**"
 ---
 
 # Estimate Extraction — dev-раннбук
@@ -16,7 +16,7 @@ paths:
 
 ## 1) Контракты — единственный источник истины (D2)
 
-`app/Dto/Procurement/Ai/Estimate/*.php` (`EstimatePassport`, `EstimateRow`, `EstimateTotalsBlock`,
+`app/Dto/Procurement/Analyzers/Estimate/*.php` (`EstimatePassport`, `EstimateRow`, `EstimateTotalsBlock`,
 `DiscoveryResponse`+`DiscoveryMarkerLine`, `*Response`-обёртки) — PHP Data-класс одновременно
 определяет: (1) JSON Schema для structured output (`Llm\Schema\JsonSchemaGenerator` →
 `GeminiResponseSchemaAdapter`), (2) текст-в-промте (`Llm\Schema\PromptContextGenerator` — очищенный
@@ -31,11 +31,11 @@ paths:
    (`RowRangeChunkSource`/`WindowedChunkSource`/`ScreeningProcessor`) — `$schemaClasses` передаётся
    явным списком на call-сайте, не выводится автоматически; забытый класс в списке — новое поле
    молча не попадёт в промт/схему конкретного вызова.
-3. `rules_hash` (`prc_ai_prompts`-независимый sha1 системной части, `PromptComposer::compose()`)
+3. `rules_hash` (`llm_prompts`-независимый sha1 системной части, `PromptComposer::compose()`)
    пересчитывается САМ на следующий вызов — ничего вручную не генерировать. Если используется
    explicit context cache (`Analysis.cache_id`) — старый кэш с прежним `rules_hash` инвалидируется
    логически, `LlmCacheManager` пересоздаст по несовпадению хэша.
-4. Прогони `php artisan ai:eval:run` на gold-датасете (`prc_ai_dataset_examples`, task=extraction) —
+4. Прогони `php artisan estimate:eval:run` на gold-датасете (`prc_ai_dataset_examples`, task=extraction) —
    регресс контракта ловится сравнением `analysis.result.estimates[]` с эталоном (`EvalMetrics`).
 5. Смысл контракта изменился (не только формулировка) — синхронно правь
    `docs/specs/v2/08-estimate-extraction.md`.
@@ -98,7 +98,7 @@ checkpoint_ranges')` единиц ИЛИ `checkpoint_seconds` секунд — �
   классифицирует и перечисляет вовлечённые `row_index` (кандидаты `RerunRangeAction`).
 - `EstimatePersister` — нормализация `analysis.result.estimates[]` → `prc_estimate_*`, ОДНА
   транзакция на смету. Не переключает `DocumentStatus` (это делает `ExtractionOrchestrator`) и
-  сознательно пропускает документы без `procurement_id` (эталоны P7.4/`ai:dataset:import`).
+  сознательно пропускает документы без `procurement_id` (эталоны P7.4/`estimate:dataset:import`).
 
 Если меняешь формат `analysis.result.estimates[]` — обнови ВСЕ три класса синхронно, они читают
 один и тот же промежуточный формат позиционно, не через общий DTO-контракт между собой.
@@ -119,5 +119,5 @@ checkpoint_ranges')` единиц ИЛИ `checkpoint_seconds` секунд — �
 
 ```bash
 docker compose exec app php artisan test --compact --filter=Extraction
-docker compose exec app php artisan ai:eval:run   # регресс на gold-датасете, если менялся контракт
+docker compose exec app php artisan estimate:eval:run   # регресс на gold-датасете, если менялся контракт
 ```

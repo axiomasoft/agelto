@@ -29,7 +29,8 @@ Upgrade: harness agent-packs upgrade --pack backend-laravel --target .
 - Новая/изменённая модель маршрута без записи в `config('ai.capabilities.<model>')`
   (`max_request_file_mb`/`max_pages`/`eol_date`/`successor`) — блокирующее: `ExtractionPreflight`
   не сможет решить путь, EOL-мониторинг не увидит модель.
-- Правка `is_protected`-промта напрямую в БД/сидере в обход `resources/ai/prompts/**` — блокирующее
+- Правка `is_protected`-промта напрямую в БД/сидере в обход обоих корней канона (`resources/ai/prompts/**` +
+  `resources/<домен>/ai/prompts/**`, D32) — блокирующее
   (нарушает D5/D17: канон — файл, БД — рантайм-копия).
 - Extraction-вызов (`extract_*`/`extraction:discovery`) с `tools`/function-calling или где
   содержимое документа могло бы попасть в `system_instruction` — блокирующее (indirect prompt

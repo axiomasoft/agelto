@@ -13,7 +13,7 @@ status: draft
 | `app` | PHP-FPM+Nginx (serversideup/php), HTTP + `/up` healthcheck |
 | `horizon` | Queue worker (`php artisan horizon`) — тяжёлые jobs пайплайна (`doc_prepare`/`ai_screening`/`ai_extraction`), в prod несёт `shm_size: 2gb` под будущий Chromium (browser automation — канон CLAUDE.md §Docker/Runtime: только worker-контейнер) |
 | `scheduler` | `php artisan schedule:work` — крон-задачи (`pipeline:*`, `ai:*` по расписанию) |
-| `postgres` | `agelto_postgres:17-partman` — Postgres 17 + `pg_partman` (партиционирование `prc_ai_llm_calls`/`fetches`/`operation_logs`/`events`) |
+| `postgres` | `agelto_postgres:17-partman` — Postgres 17 + `pg_partman` (партиционирование `llm_calls`/`fetches`/`operation_logs`/`events`) |
 | `redis` | Cache/session/queue (`QUEUE_CONNECTION=redis`); prod — AOF durability (D34, см. `production.md`) |
 | `minio` | S3-совместимое хранилище (`FILESYSTEM_DISK=s3`) — документы, LLM-блобы |
 | `browser` | Задел под будущий Node+Playwright рендер-сервис площадок с клиентским рендерингом (не на критическом пути сегодня — ЕИС HTTP-first) |

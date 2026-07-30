@@ -6,7 +6,8 @@ status: draft
 
 # Промт-система
 
-Здесь будет: файлы `resources/ai/prompts/**` → сид `PromptSeeder` → `is_protected` (D17),
+Здесь будет: файлы обоих корней канона (`resources/ai/prompts/**` + `resources/<домен>/ai/prompts/**`,
+D32) → сид `PromptSeeder` → `is_protected` (D17),
 composite versioning (промт + модель + схема, `rules_hash`), как писать промты (выжимка правил v1,
 research/B §4).
 
@@ -47,13 +48,14 @@ sequenceDiagram
 
 ## Файлы → сид → админка
 
-Источник истины — `resources/ai/prompts/**` (git); `App\Enums\Llm\PromptStep` — интерфейс, шаги
+Источник истины — оба корня канона (`resources/ai/prompts/**` + `resources/<домен>/ai/prompts/**`,
+D32) (git); `App\Enums\Llm\PromptStep` — интерфейс, шаги
 разбиты на ядерный `CorePromptStep` (кросс-документные) и типовые enum'ы анализаторов
 (`App\Enums\Procurement\Analyzers\Estimate\EstimatePromptStep` — 9 значений вместе, включая
 `extraction:discovery` для windowed-пути, D37; P2.5). Каждый файл — front-matter
 (`key`/`step`/`version`/`priority`/`is_active`) + markdown-текст. `php artisan ai:prompts:sync`
 (`PromptsSyncCommand`, есть `--check` для сухой сверки дрейфа) читает дерево и upsert'ит в
-`prc_ai_prompts` по `(key, version)`; `php artisan db:seed` (`PromptSeeder`) достаточно для полного
+`llm_prompts` по `(key, version)`; `php artisan db:seed` (`PromptSeeder`) достаточно для полного
 развёртывания. **Как именно писать промт-текст** (структура файла, `key`/`step`/`priority`, когда
 заводить дополнительный промт того же шага) — единственный источник инструкции —
 `resources/ai/prompts/README.md`, не дублируется здесь.
@@ -67,10 +69,10 @@ sequenceDiagram
 
 Поведение LLM-вызова определяется ТРОЙКОЙ (не только текстом промта): промт-версия + модель + схема
 ответа. `rulesHash = sha1(systemPart)` (см. Д3) фиксирует итоговый системный текст ПОСЛЕ композиции
-и подмешивания схем — сохраняется на каждый `LlmCall` (`prc_ai_llm_calls`) вместе с идентификатором
+и подмешивания схем — сохраняется на каждый `LlmCall` (`llm_calls`) вместе с идентификатором
 модели маршрута. Это даёт воспроизводимость: любой сохранённый вывод можно однозначно связать с
 ТОЧНОЙ комбинацией, которая его породила — критично для gold-датасета (`ai/training-loop.md`) и
-`EvalRun.prompt_version_set` (`ai:eval:run`).
+`EvalRun.prompt_version_set` (`estimate:eval:run`).
 
 ## Смежное
 

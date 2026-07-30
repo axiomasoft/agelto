@@ -43,7 +43,7 @@ createdb agelto_test    # один раз; или psql: CREATE DATABASE agelto_t
 
 Реальные запросы к Gemini/любому провайдеру в тестах ЗАПРЕЩЕНЫ (Execution Rules плана EST-AI).
 Подменяй провайдер двойником `Tests\Support\Doubles\FakeLlmProvider`: интерфейс
-`App\Services\Llm\Contracts\LlmProvider` НЕ забинжен в контейнере нигде (`AiRouteResolver::providerFor()`
+`App\Services\Llm\Contracts\LlmProvider` НЕ забинжен в контейнере нигде (`LlmRouteResolver::providerFor()`
 резолвит КОНКРЕТНЫЙ класс, `container->make(PrismGeminiProvider::class)`/`container->make(
 OpenAiCompatibleProvider::class)`, намеренно — комментарий в коде объясняет, что это ради подмены в
 тестах) — подменяй в тесте КОНКРЕТНЫЙ класс маршрута, `app()->instance(PrismGeminiProvider::class,

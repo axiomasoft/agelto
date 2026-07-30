@@ -22,7 +22,7 @@ cp .env.docker.example .env.docker   # опционально: dev-специф�
 make up                              # docker-compose.yml: app/horizon/scheduler/postgres/redis/minio/browser
 make composer-install                # vendor как bind-mount, устанавливается ИЗ контейнера
 make db-migrate                      # либо make db-fresh — migrate:fresh на dev
-make db-seed                         # PromptSeeder + сиды prc_ai_routes/ролей — идемпотентно
+make db-seed                         # PromptSeeder + сиды llm_routes/ролей — идемпотентно
 yarn install && yarn dev             # фронтенд (Vite HMR)
 ```
 

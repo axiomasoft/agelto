@@ -46,7 +46,7 @@ Files API — ограничение честно бросает исключе�
    внутри себя — сверься с докблоком `PrismGeminiProvider` про расхождение Prism-хендлеров).
 4. Structured output — через `JsonSchema`/`responseJsonSchema` (P2.3), без ручной пересборки
    в DSL конкретного SDK, если пакет-транспорт поддерживает raw-schema режим.
-5. Заведи маршрут в `config('ai.capabilities.<model>')` (§4) и `prc_ai_providers`/`prc_ai_routes`
+5. Заведи маршрут в `config('ai.capabilities.<model>')` (§4) и `llm_providers`/`llm_routes`
    (сид, см. `AiRoutingSeeder`) — без capability-записи preflight извлечения (`ExtractionPreflight`)
    не сможет выбрать путь.
 6. Тестовый двойник — не пиши свой, используй/расширяй `Tests\Support\Doubles\FakeLlmProvider`.
@@ -78,7 +78,7 @@ upload, D29): без `max_request_file_mb`/`max_pages` на новой моде�
 
 ## 5) Стоимость
 
-`LlmCallRecorder` пишет КАЖДЫЙ вызов (успех и неуспех) в `prc_ai_llm_calls`, `cost_micros` считает
+`LlmCallRecorder` пишет КАЖДЫЙ вызов (успех и неуспех) в `llm_calls`, `cost_micros` считает
 из `capabilities.*` (доллары × 1e6). `ai:cost-report` — отчёт по окну; `AI_COST_REPORT_RUB_PER_USD`
 — статический курс env, не live-котировка (сознательный YAGNI, не баг).
 

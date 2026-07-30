@@ -209,7 +209,7 @@
 - `CalcMethod` (`calc_method` в §3.1): `base_index` (базисно-индексный), `resource` (ресурсный) — SR-17, P4.5.
 - `TotalKind` (`kind` в `footer`, §3.1/§3.3): `overhead`, `profit`, `vat`, `total`, `additional`, `other` — P4.5, D101; детерминированное доопределение по `label` этим планом не строится (долг).
 - `ModifierKind` (`kind` в `attributes.modifiers[]`, §3.2): `qty`, `price`, `correction`, `winter`, `recalculation`, `other` — P4.5, SR-04/SR-05.
-- Скрининговый `DocumentType` (не сметный контракт, но соседний енум из v1 — `Old/app/Process/DocumentAnalysis/Schema/DocumentType.php`, применяется на шаге `screening`, `03-document-pipeline.md` §3.4): `estimate`, `tech_spec`, `unknown` — переносится как `document_type` (text) в `prc_ai_analyses`/`prc_document_types`, справочник открыт (`03` §7).
+- Скрининговый `DocumentType` (не сметный контракт, но соседний енум из v1 — `Old/app/Process/DocumentAnalysis/Schema/DocumentType.php`, применяется на шаге `screening`, `03-document-pipeline.md` §3.4): `estimate`, `tech_spec`, `unknown` — переносится как `document_type` (text, check-constraint) в `prc_ai_analyses`, справочника нет (D16).
 
 ## 4. Алгоритм извлечения
 
@@ -370,7 +370,8 @@ forLlm()` по правилу-ДАННЫМ `config('ai.representations')` (ка�
 Носитель — таблица `prc_ai_prompt_suggestions` (`App\Models\Procurement\Ai\PromptSuggestion`), НЕ
 `prc_ai_corrections`: коррекция — структурированная правка КОНКРЕТНОГО разбора, подмешиваемая
 USER-частью повторного вызова (`CorrectionAwareComposer`); предложение — про ТЕКСТ системной
-инструкции, живущий файлом в git (`resources/ai/prompts/**`), и проходит через статус/аудит
+инструкции, живущий файлом в git (оба корня канона, `resources/ai/prompts/**` +
+`resources/<домен>/ai/prompts/**`, D32), и проходит через статус/аудит
 очереди, прежде чем стать файлом. Смешение обоих смыслов в одну таблицу теряет оба (D59).
 
 **Два вида предложения** (`PromptSuggestionKind`, D60):
@@ -390,9 +391,9 @@ USER-частью повторного вызова (`CorrectionAwareComposer`);
 `(document_type=any, purpose=prompt_critic, priority=0)` на дешёвой модели в `AiRoutingSeeder`, без
 эскалационной строки (повтор — на уровне job-retry, не re-ask внутри шага).
 
-`ai:prompts:suggest {--code=*} {--analysis=} {--step=*} {--dry-run} {--limit=}` — по коду эталона
+`estimate:prompts:suggest {--code=*} {--analysis=} {--step=*} {--dry-run} {--limit=}` — по коду эталона
 (или `--analysis`, тот же резолв `Analysis(step=extraction)` + `estimates/gold/<CODE>.gold.json`,
-что `ai:eval:diff`) строит `EstimateDiffReport` (§8.6) и для каждого запрошенного `--step` вызывает
+что `estimate:eval:diff`) строит `EstimateDiffReport` (§8.6) и для каждого запрошенного `--step` вызывает
 `App\Services\Procurement\Tuning\PromptCritic`: собирает ТЕКУЩУЮ композицию промта шага
 (`PromptComposer::compose()`), вызывает критика структурированным запросом и создаёт запись
 `pending` со статусом `evidence`/`rationale`. Предложение, дублирующее уже существующее
@@ -427,7 +428,7 @@ tools/function-calling (контракт `LlmProvider` их не предост�
 
 ### 8.1 Формат папки эталонов
 
-`ai:dataset:import {path}` читает папку с ПАРАМИ файлов: `<name>.<ext>` (исходный файл — pdf/xlsx/скан, тот же тип, что реальный документ закупки) + `<name>.gold.json` (эталонный разбор). Имя `<name>` произвольное (без точек внутри, кроме `.gold.json`-суффикса), `<ext>` — любое расширение, поддерживаемое подготовкой (`03-document-pipeline.md` §3.3). Пара без файла-источника (сирота `*.gold.json`) или без `*.gold.json` рядом с источником — отклоняется индивидуально (не валит импорт остальных пар).
+`estimate:dataset:import {path}` читает папку с ПАРАМИ файлов: `<name>.<ext>` (исходный файл — pdf/xlsx/скан, тот же тип, что реальный документ закупки) + `<name>.gold.json` (эталонный разбор). Имя `<name>` произвольное (без точек внутри, кроме `.gold.json`-суффикса), `<ext>` — любое расширение, поддерживаемое подготовкой (`03-document-pipeline.md` §3.3). Пара без файла-источника (сирота `*.gold.json`) или без `*.gold.json` рядом с источником — отклоняется индивидуально (не валит импорт остальных пар).
 
 ### 8.2 Контракт `<name>.gold.json`
 
@@ -462,11 +463,11 @@ tools/function-calling (контракт `LlmProvider` их не предост�
 
 ### 8.3 Персистентность и идемпотентность
 
-`ai:dataset:import` создаёт `Document`+`DocumentVersion` вне закупки (`procurement_id=null`, D22) — `external_id="gold:<name>"`, `status=Downloaded`, контент — в `crawler.documents_disk` (тот же путь-конвенция, что `DocumentDownloader::store()`); повторный импорт того же файла дедуплицируется по `content_hash` (та же гарантия, что у краулинга). `prc_ai_dataset_examples` — `updateOrCreate` по `(document_version_id, task, version)` (Code Guidance): повторный импорт с той же тройкой ключей ОБНОВЛЯЕТ `gold` на месте (эталон скорректировали — переимпортировали), не плодит дублей.
+`estimate:dataset:import` создаёт `Document`+`DocumentVersion` вне закупки (`procurement_id=null`, D22) — `external_id="gold:<name>"`, `status=Downloaded`, контент — в `crawler.documents_disk` (тот же путь-конвенция, что `DocumentDownloader::store()`); повторный импорт того же файла дедуплицируется по `content_hash` (та же гарантия, что у краулинга). `prc_ai_dataset_examples` — `updateOrCreate` по `(document_version_id, task, version)` (Code Guidance): повторный импорт с той же тройкой ключей ОБНОВЛЯЕТ `gold` на месте (эталон скорректировали — переимпортировали), не плодит дублей.
 
 ### 8.4 Eval-раннер и метрики
 
-`ai:eval:run` прогоняет `ExtractionOrchestrator` (§4, ТЕКУЩИЙ extraction-пайплайн — БЕЗ стадии скрининга, эталоны заведомо сметы) по каждому `prc_ai_dataset_examples(task=extraction)`, сравнивает `analysis.result.estimates[]` (сырой выход оркестратора, ДО `EstimatePersister` — эталонные документы вне закупки, `EstimatePersister` их сознательно пропускает, D22/P6.3) с `gold.estimates[]` (`App\Services\Procurement\Analyzers\Estimate\EvalMetrics`):
+`estimate:eval:run` прогоняет `ExtractionOrchestrator` (§4, ТЕКУЩИЙ extraction-пайплайн — БЕЗ стадии скрининга, эталоны заведомо сметы) по каждому `prc_ai_dataset_examples(task=extraction)`, сравнивает `analysis.result.estimates[]` (сырой выход оркестратора, ДО `EstimatePersister` — эталонные документы вне закупки, `EstimatePersister` их сознательно пропускает, D22/P6.3) с `gold.estimates[]` (`App\Services\Procurement\Analyzers\Estimate\EvalMetrics`):
 
 - **Сопоставление**: сметы — позиционно по индексу в `estimates[]` (совпадающий `ordinal`); строки внутри сметы — по `row_index` (уникален в рамках сметы, §4а).
 - **Field-level precision/recall/F1** — на паре (строка, поле) для `code`/`name`/`unit`/`quantity`/`price`(=`total_price_curr`)/`row_type`/`unit_price_base`/`total_price_base`/`index_code`/`index_value`/`source_position_number`/`work_type_name` (P7.3, карта следствий P4.5); текстовые поля — нестрогое сравнение (trim + схлопывание пробелов + регистронезависимо), числовые (`quantity`/`price`/`unit_price_base`/`total_price_base`/`index_value`) — bcmath ±0.01 (тот же допуск, что `EstimateValidator`, §4.1 п.6).
@@ -495,11 +496,11 @@ tools/function-calling (контракт `LlmProvider` их не предост�
 
 Правило вердикта: `class=est` (реестр `prc_ai_fixtures`) → `document_type=estimate`, `ignore_reason=null`; `class=neg` → `document_type` берётся из реестра (`Fixture.doc_type`) — отсутствие `doc_type` у негатива отклоняет запись индивидуально (реестр обязан его нести, P1.3/P2, не эта команда). `description`/`ignore_reason` заполняются из `Fixture.notes` (единственный текстовый носитель причины включения эталона в корпус) — пусто в реестре, значит `null` в gold, значение не сочиняется.
 
-**Что сравнивается**: ТОЛЬКО `document_type` — и производный от него бинарный признак «смета / не смета» (`ai:eval:run --task=screening`, §8.6). **Что информативно, но не сравнивается**: `confidence` (в эталоне всегда `1.0` — это поле уверенности МОДЕЛИ, у эталона оно бессмысленно), `description`, `tags`, `ignore_reason` — пишутся в `details` записи `EvalResult` как контекст расхождения, метрику не формируют.
+**Что сравнивается**: ТОЛЬКО `document_type` — и производный от него бинарный признак «смета / не смета» (`estimate:eval:run --task=screening`, §8.6). **Что информативно, но не сравнивается**: `confidence` (в эталоне всегда `1.0` — это поле уверенности МОДЕЛИ, у эталона оно бессмысленно), `description`, `tags`, `ignore_reason` — пишутся в `details` записи `EvalResult` как контекст расхождения, метрику не формируют.
 
 **Почему негативы — главная метрика, не позитивы** (D5): ложное срабатывание скрининга («не смета» размечена как `estimate») дороже пропуска — документ уходит в дорогое извлечение впустую. Позитивы дают долю пропущенных смет, но именно доля ложных срабатываний по негативам — число, ради которого ветка вообще существует.
 
-**Раннер** — `ai:eval:run --task=screening` (P5.6, D44): прогоняет `ScreeningProcessor` (боевой маршрут скрининга через `AiRouteResolver`, реальный LLM-вызов — `FakeLlmProvider` в тестах недопустим, Implementation Rules) по каждому `prc_ai_dataset_examples(task=screening)` и сравнивает `document_type` предсказания с `gold.document_type` через `App\Services\Procurement\Screening\ScreeningEvalMetrics` — независимый от `App\Services\Procurement\Analyzers\Estimate\EvalMetrics` (§8.4) класс: `accuracy`, `confusion` (ожидаемый × фактический по `AiDocumentType`), `false_positive_rate` (доля НЕ-смет, помеченных `estimate` — главное число, D5) и `false_negative_rate` (доля смет, помеченных не-`estimate`). Результат пишется в те же task-агностичные `prc_ai_eval_runs`/`prc_ai_eval_results` (`metric=screening_accuracy`), CI-гейт и пороговое сравнение — вне скоупа (как и §8.4).
+**Раннер** — `estimate:eval:run --task=screening` (P5.6, D44): прогоняет `ScreeningProcessor` (боевой маршрут скрининга через `LlmRouteResolver`, реальный LLM-вызов — `FakeLlmProvider` в тестах недопустим, Implementation Rules) по каждому `prc_ai_dataset_examples(task=screening)` и сравнивает `document_type` предсказания с `gold.document_type` через `App\Services\Procurement\Screening\ScreeningEvalMetrics` — независимый от `App\Services\Procurement\Analyzers\Estimate\EvalMetrics` (§8.4) класс: `accuracy`, `confusion` (ожидаемый × фактический по `AiDocumentType`), `false_positive_rate` (доля НЕ-смет, помеченных `estimate` — главное число, D5) и `false_negative_rate` (доля смет, помеченных не-`estimate`). Результат пишется в те же task-агностичные `prc_ai_eval_runs`/`prc_ai_eval_results` (`metric=screening_accuracy`), CI-гейт и пороговое сравнение — вне скоупа (как и §8.4).
 
 ### 8.6 Diff-отчёт «gold vs предсказание» (P7.3, D62)
 
@@ -517,7 +518,7 @@ tools/function-calling (контракт `LlmProvider` их не предост�
 
 Числа — decimal-строками на всём пути (конверсия во float запрещена, тот же канон, что DTO §3). Повторный вызов на тех же входах детерминирован (сортировка расхождений по `(estimate_index, row_index/label, field)`) — байт-идентичный JSON.
 
-Команда `ai:eval:diff {--code=} {--analysis=} {--format=json|md} {--out=} {--limit-rows=200}` — по коду эталона резолвит `estimates/gold/<CODE>.gold.json` (тот же путь, что `ai:gold:build`, §config `ai.fixtures.gold_dir`) и АКТИВНЫЙ `Analysis(step=extraction)` рабочей копии эталона (`fixture:<CODE>`, конвенция `ai:gold:import`); `--analysis` берёт анализ напрямую и резолвит код эталона обратным ходом через `external_id` документа. Команда НИ ОДНОГО LLM-вызова не делает — читает уже полученный `analysis.result`, оркестратор не запускается.
+Команда `estimate:eval:diff {--code=} {--analysis=} {--format=json|md} {--out=} {--limit-rows=200}` — по коду эталона резолвит `estimates/gold/<CODE>.gold.json` (тот же путь, что `estimate:gold:build`, §config `ai.fixtures.gold_dir`) и АКТИВНЫЙ `Analysis(step=extraction)` рабочей копии эталона (`fixture:<CODE>`, конвенция `estimate:gold:import`); `--analysis` берёт анализ напрямую и резолвит код эталона обратным ходом через `external_id` документа. Команда НИ ОДНОГО LLM-вызова не делает — читает уже полученный `analysis.result`, оркестратор не запускается.
 
 ## 9. Data lifecycle: retention, MinIO ILM, бэкапы (P7.7, D33/D41)
 
@@ -525,8 +526,8 @@ tools/function-calling (контракт `LlmProvider` их не предост�
 
 | Таблица/данные | Окно | Где (механизм) | Почему |
 |:--|:--|:--|:--|
-| `prc_ai_llm_calls` (метаданные строки) | 12 мес. (`AI_RETENTION_LLM_CALLS_MONTHS`) | Postgres, `partman.part_config.retention` (DROP партиции) | Метаданные (usage/cost/purpose) ценны дольше блобов — cost-report/аудит расхода продолжают работать по строке уже БЕЗ `request_ref`/`response_ref`-файлов (блобы expire раньше, см. ниже) |
-| `prc_ai_llm_calls.request_ref`/`response_ref` (блобы, префикс `ai/llm-calls/`) | 90 дней (`AI_STORAGE_LLM_BLOBS_EXPIRE_DAYS`) | MinIO ILM (`ai:storage:lifecycle`, `config('partitioning.minio_lifecycle')`) | Блоб на КАЖДЫЙ LLM-вызов (вкл. re-ask/shadow) — без политики миллионы файлов без ценности после разбора завершён |
+| `llm_calls` (метаданные строки) | 12 мес. (`AI_RETENTION_LLM_CALLS_MONTHS`) | Postgres, `partman.part_config.retention` (DROP партиции) | Метаданные (usage/cost/purpose) ценны дольше блобов — cost-report/аудит расхода продолжают работать по строке уже БЕЗ `request_ref`/`response_ref`-файлов (блобы expire раньше, см. ниже) |
+| `llm_calls.request_ref`/`response_ref` (блобы, префикс `ai/llm-calls/`) | 90 дней (`AI_STORAGE_LLM_BLOBS_EXPIRE_DAYS`) | MinIO ILM (`ai:storage:lifecycle`, `config('partitioning.minio_lifecycle')`) | Блоб на КАЖДЫЙ LLM-вызов (вкл. re-ask/shadow) — без политики миллионы файлов без ценности после разбора завершён |
 | `prc_fetches` | 6 мес. (`AI_RETENTION_FETCHES_MONTHS`) | Postgres, `partman.part_config.retention` (DROP) | Краулинг-лог попыток скачивания — расходник, ценность падает после успешного `Document.status` |
 | `prc_operation_logs` | 6 мес. (`AI_RETENTION_OPERATION_LOGS_MONTHS`) | Postgres, `partman.part_config.retention` (DROP) | Операционный лог обработки — расходник (`01-database.md` §9) |
 | `prc_events` | 6 мес. (`AI_RETENTION_EVENTS_MONTHS`) | Postgres, `partman.part_config.retention` (DROP) | Доменные события — трасса пайплайна, не единственный источник состояния (state — в самих `prc_documents`/`prc_ai_analyses`/`prc_estimates`) |
@@ -540,7 +541,7 @@ tools/function-calling (контракт `LlmProvider` их не предост�
 
 ### 9.3 Postgres: autovacuum hot-партиций
 
-`prc_ai_llm_calls`/`prc_fetches` — наибольший объём вставок среди партиционированных таблиц. Миграция `2026_07_09_100051_set_hot_partition_autovacuum.php` понижает `autovacuum_vacuum_scale_factor`/`autovacuum_analyze_scale_factor`/`autovacuum_vacuum_insert_scale_factor` (default 0.2/0.1/0.2 → 0.01) двумя путями: (1) pg_partman template-таблица (`partman.template_public_<table>`, авто-создана `create_parent()`, 100047) — reloptions отсюда подхватываются ЛЮБОЙ НОВОЙ партицией (declarative-партиционирование само НЕ наследует reloptions родителя — задокументированное ограничение Postgres, ради которого pg_partman вообще ведёт template-таблицы); (2) уже существующие партиции альтерятся явно (template не применяется ретроактивно).
+`llm_calls`/`prc_fetches` — наибольший объём вставок среди партиционированных таблиц. Миграция `2026_07_09_100051_set_hot_partition_autovacuum.php` понижает `autovacuum_vacuum_scale_factor`/`autovacuum_analyze_scale_factor`/`autovacuum_vacuum_insert_scale_factor` (default 0.2/0.1/0.2 → 0.01) двумя путями: (1) pg_partman template-таблица (`partman.template_public_<table>`, авто-создана `create_parent()`, 100047) — reloptions отсюда подхватываются ЛЮБОЙ НОВОЙ партицией (declarative-партиционирование само НЕ наследует reloptions родителя — задокументированное ограничение Postgres, ради которого pg_partman вообще ведёт template-таблицы); (2) уже существующие партиции альтерятся явно (template не применяется ретроактивно).
 
 ### 9.4 MinIO: ILM для LLM-блобов
 

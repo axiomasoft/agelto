@@ -39,12 +39,12 @@ status: draft
   `config('ai.gemini.rate_limit.max')`.
 - Лимит транспорта долетел до провайдера — чинить `config('ai.capabilities.<model>')` (актуализация
   лимитов), не индивидуальный документ.
-- EOL — переключить `prc_ai_routes.is_active` на строку-преемник (уже засеяна) вместо создания новой.
+- EOL — переключить `llm_routes.is_active` на строку-преемник (уже засеяна) вместо создания новой.
 
 ## Rollback
 
 Изменение `config/ai.php` — обычный деплой (`process/deploy.md`), не hot-fix в рантайме;
-`prc_ai_routes.is_active`-переключение — точечный UPDATE через Filament `AiRoutes`-ресурс,
+`llm_routes.is_active`-переключение — точечный UPDATE через Filament `LlmRoutes`-ресурс,
 откатывается тем же путём.
 
 ## Escalation

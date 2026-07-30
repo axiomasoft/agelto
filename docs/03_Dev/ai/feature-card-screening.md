@@ -17,7 +17,7 @@ status: draft
 
 ## Модель, промт, схема
 
-- Маршрут: `(document_type=any, purpose=screening) → gemini-2.5-flash-lite` (D4, `prc_ai_routes`,
+- Маршрут: `(document_type=any, purpose=screening) → gemini-2.5-flash-lite` (D4, `llm_routes`,
   сид `AiRoutingSeeder`).
 - Промты: `resources/ai/prompts/{global,screening-global,screening-classify}/` — композиция
   Global → `screening-global` → `screening-classify`, `priority` ASC (Д3 в `../llm-providers.md`).
@@ -47,6 +47,6 @@ status: draft
 
 ## Eval-результаты
 
-`ai:eval:run --task=screening` (если заведён датасет под скрининг) — Pending Work плана (открытый
+`estimate:eval:run --task=screening` (если заведён датасет под скрининг) — Pending Work плана (открытый
 вопрос: screening-gold ещё не наполнен, см. `../ai/training-loop.md`); прогонов на реальных данных
 пока не было.

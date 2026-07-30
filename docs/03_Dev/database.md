@@ -18,14 +18,14 @@ status: draft
 
 | Таблица | Роль |
 |:--|:--|
-| `prc_documents` | Документ закупки; `procurement_id` **nullable** (D22 — manual-импорт эталонов вне закупки, `ai:dataset:import`); lease-колонки (idempotency guard, P4.1) |
+| `prc_documents` | Документ закупки; `procurement_id` **nullable** (D22 — manual-импорт эталонов вне закупки, `estimate:dataset:import`); lease-колонки (idempotency guard, P4.1) |
 | `prc_ai_analyses` | Сессия AI-анализа (`$analysis`) — шаг (`AnalysisStep`: screening/extraction/discovery), статус, `progress` (checkpoint-requeue, D31), `is_shadow` |
 | `llm_calls` | Один физический LLM-вызов (usage, `cachedTokens`, `finishReason`, ссылки на request/response-блобы) — домен `Llm`, `App\Models\Llm\LlmCall` |
 | `llm_providers` / `llm_routes` | Каталог провайдеров и маршрутов `(document_type, purpose) → model` (роутинг — `llm-providers.md` Д6) — домен `Llm`, `App\Models\Llm\{Provider,LlmRoute}` |
-| `llm_prompts` | Рантайм-копия промтов, синхронизируется из `resources/ai/prompts/**` (`ai:prompts:sync`) — `ai/prompts.md` — домен `Llm`, `App\Models\Llm\Prompt` |
+| `llm_prompts` | Рантайм-копия промтов, синхронизируется из обоих корней канона (`resources/ai/prompts/**` + `resources/<домен>/ai/prompts/**`, D32) командой `ai:prompts:sync` — `ai/prompts.md` — домен `Llm`, `App\Models\Llm\Prompt` |
 | `prc_ai_corrections` | Field-level коррекции оператора (JSONPath + reason-enum) — обучающий контур |
 | `prc_ai_dataset_examples` | Immutable gold-снапшоты (SFT/DPO источник) — `ai/training-loop.md` |
-| `prc_ai_eval_runs` / `prc_ai_eval_results` | Прогоны `ai:eval:run` по golden-датасету и их метрики |
+| `prc_ai_eval_runs` / `prc_ai_eval_results` | Прогоны `estimate:eval:run` по golden-датасету и их метрики |
 | `prc_estimates` / `prc_estimate_items` | Распарсенная смета (`$estimate`) и её позиции (не путать: `prc_items` — позиция объекта закупки/лота); `procurement_id` **nullable** (D98 — обучающий контур работает с документами вне закупки, тот же довод, что и у `prc_documents`); ось «оператор проверил боевой разбор» — `verified_at`/`verified_by` (D89, без писателя внутри плана) |
 | `prc_estimate_sections` / `prc_estimate_resources` / `prc_estimate_totals` | Иерархия разделов, ресурсы позиции (труд/машины/материалы/накладные) и дерево итогов сметы (P4.4) |
 | `prc_estimate_work_types` | Вид работ и его иерархия (`parent_id`, per-estimate область), носитель нормативов НР/СП (D34/D90, P4.4) — полноценно заполняется только gsfx-веткой |

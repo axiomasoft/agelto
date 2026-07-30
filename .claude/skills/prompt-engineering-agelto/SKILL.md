@@ -1,8 +1,9 @@
 ---
 name: prompt-engineering-agelto
-description: "Dev-раннбук текстов промтов AI-пайплайна: файл→сид→is_protected, композиция и приоритеты, discovery/корректирующие hints, eval-цикл ai:eval:run, известные антипаттерны. Активировать при правке resources/ai/prompts/**, PromptStep, PromptComposer/CorrectionAwareComposer."
+description: "Dev-раннбук текстов промтов AI-пайплайна: файл→сид→is_protected, композиция и приоритеты, discovery/корректирующие hints, eval-цикл estimate:eval:run, известные антипаттерны. Активировать при правке resources/ai/prompts/** или resources/<домен>/ai/prompts/**, PromptStep, PromptComposer/CorrectionAwareComposer."
 paths:
   - "resources/ai/prompts/**"
+  - "resources/*/ai/prompts/**"
   - "database/seeders/PromptSeeder.php"
   - "app/Services/Llm/PromptComposer.php"
   - "app/Services/Llm/CorrectionAwareComposer.php"
@@ -17,8 +18,9 @@ paths:
 
 ## 1) Канон: файл → сид → is_protected (D5/D17/D44)
 
-- **Единственный источник истины** — `resources/ai/prompts/**/*.md` (front-matter
-  `key`/`step`/`version`/`priority`/`is_active`), под git. `prc_ai_prompts` — рантайм-копия.
+- **Единственный источник истины** — оба корня канона, `resources/ai/prompts/**/*.md` (кросс-документные
+  группы) и `resources/<домен>/ai/prompts/**/*.md` (группы типа-владельца, D32), front-matter
+  `key`/`step`/`version`/`priority`/`is_active`, под git. `llm_prompts` — рантайм-копия.
 - Применение правки: `php artisan ai:prompts:sync` (или `db:seed --class=PromptSeeder`) — upsert
   по `(key, version)`, идемпотентно.
 - Все записи из файлов получают `is_protected=true` — в Filament-админке read-only
@@ -52,11 +54,11 @@ paths:
 ```bash
 docker compose exec app php artisan ai:prompts:sync --check   # дрейф файлы↔БД, ничего не пишет
 docker compose exec app php artisan ai:prompts:sync           # применить
-docker compose exec app php artisan ai:eval:run                # регресс на gold (prc_ai_dataset_examples)
+docker compose exec app php artisan estimate:eval:run          # регресс на gold (prc_ai_dataset_examples)
 ```
 
-Правь текст → sync → `ai:eval:run` → смотри precision/recall/F1 по полям (`EvalMetrics`) → повтори.
-`ai:eval:run` на момент этого скилла ни разу не прогонялся на боевом eval-наборе (открытый риск,
+Правь текст → sync → `estimate:eval:run` → смотри precision/recall/F1 по полям (`EvalMetrics`) → повтори.
+`estimate:eval:run` на момент этого скилла ни разу не прогонялся на боевом eval-наборе (открытый риск,
 `docs-private/prompt-engineering-notes.md` §5) — не путай «промт плохой» с «eval не проверялся».
 
 ## 5) Известные антипаттерны (не повторять)

@@ -14,13 +14,14 @@ status: draft
 
 Тексты промтов v1 жили ТОЛЬКО в БД (`plt_prompt_rules`, Filament MarkdownEditor) — файлов-источников
 не было, история правок и связь с git отсутствовали (research/B). Требование владельца v2: файлы
-`resources/ai/prompts/**` под git — источник истины; при этом операторы должны иметь возможность
+обоих корней канона (`resources/ai/prompts/**` + `resources/<домен>/ai/prompts/**`, D32) под git —
+источник истины; при этом операторы должны иметь возможность
 дополнять/корректировать промты через админку без правки кода (обучающий контур,
 `docs/03_Dev/ai/training-loop.md`).
 
 ## Decision
 
-`PromptSeeder` читает `resources/ai/prompts/**` и upsert'ит в `prc_ai_prompts` по `(key, version)`
+`PromptSeeder` читает оба корня канона и upsert'ит в `llm_prompts` по `(key, version)`
 (`php artisan db:seed` достаточно для развёртывания). Новая колонка `is_protected` (bool) помечает
 сидовые записи как read-only в админке — операторы создают ТОЛЬКО новые (не редактируют канон)
 дополняющие/корректирующие записи.

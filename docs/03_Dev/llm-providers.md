@@ -16,7 +16,7 @@ status: draft
 ```mermaid
 flowchart TB
     Caller["ScreeningProcessor / ExtractionOrchestrator"]
-    Resolver["AiRouteResolver::resolve(documentType, purpose)<br/>(app/Services/Llm/AiRouteResolver.php:45)"]
+    Resolver["LlmRouteResolver::resolve(documentType, purpose)<br/>(app/Services/Llm/LlmRouteResolver.php:40)"]
     Routes[("llm_routes<br/>priority ASC, activeCandidatesFor()")]
     Resolved["ResolvedRoute(provider, LlmOptions, route)"]
     Gemini["PrismGeminiProvider<br/>(app/Services/Llm/Providers/PrismGeminiProvider.php)"]
@@ -42,13 +42,13 @@ Capability-based кэширование (D14): промт всегда prefix-st
 cache-hint интерпретируется адаптером — Gemini → `cachedContents` (`SupportsContextCaching`,
 частично подключён — см. Known Deviations `ExtractionOrchestrator`), OpenAI/vLLM → no-op/
 автоматический prefix-cache; `usage.cachedTokens` обязателен в ответе независимо от адаптера.
-`shadowRoute()` (`app/Services/Llm/AiRouteResolver.php:74`) — теневой маршрут для сравнения
+`shadowRoute()` (`app/Services/Llm/LlmRouteResolver.php:69`) — теневой маршрут для сравнения
 с локальной LLM (P9.4, `ShadowDispatch`).
 
 ## Роутинг
 
 `llm_routes` хранит кандидатов `(document_type, purpose) → model`, `priority ASC` внутри группы —
-`AiRouteResolver::resolve()` берёт первый активный. Стартовый роутинг (D4, сиды `AiRoutingSeeder`):
+`LlmRouteResolver::resolve()` берёт первый активный. Стартовый роутинг (D4, сиды `AiRoutingSeeder`):
 скрининг → `gemini-2.5-flash-lite`, извлечение → `gemini-2.5-flash`, эскалация по флагу сложности
 или провалу валидации → `gemini-2.5-pro`. Discovery-путь (windowed fallback, D30/D37) — отдельный
 `EstimateLlmPurpose::Discovery`, свой маршрут, свой промт-шаг (`EstimatePromptStep::ExtractionDiscovery`) — НЕ

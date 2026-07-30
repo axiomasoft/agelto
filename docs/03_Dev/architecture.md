@@ -31,7 +31,7 @@ status: draft
 - `Services/Procurement/{Prepare,Screening,Extraction}/` — стадии пайплайна документа/сметы
   (`app/Services/Procurement/`: `PipelineDispatcher`, `DocumentDownloader`, `Prepare/`, `Screening/`,
   `Extraction/`, `Eis/`, `Detail/`).
-- `Services/Llm/` — транспортный слой домена `Llm`: `AiRouteResolver`, `PromptComposer`,
+- `Services/Llm/` — транспортный слой домена `Llm`: `LlmRouteResolver`, `PromptComposer`,
   `CorrectionAwareComposer`, `LlmCacheManager`, `LlmCallRecorder`, `ShadowDispatch`, `Providers/`
   (`PrismGeminiProvider`, `OpenAiCompatibleProvider`), `Contracts/` (`LlmProvider` и capability-
   интерфейсы), `Schema/` (генерация промт-контекста и `responseJsonSchema` из Data-классов), `Dto/`,

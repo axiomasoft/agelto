@@ -18,8 +18,9 @@ status: draft
 - Маршрут: рабочая лошадка `gemini-2.5-flash`, эскалация по флагу сложности/провалу валидации —
   `gemini-2.5-pro` (D4). Discovery-подшаг windowed-пути — отдельный маршрут
   `(estimate, purpose=discovery) → flash-lite-класс` (D37).
-- Промты: `resources/ai/prompts/{global,extraction-global,extraction-passport,extraction-rows,
-  extraction-totals,extraction-discovery}/` — по одному файлу на тип запроса контракта.
+- Промты: `resources/ai/prompts/global/` (кросс-документная база) +
+  `resources/estimates/ai/prompts/{extraction-global,extraction-passport,extraction-rows,
+  extraction-totals,extraction-discovery}/` (D32) — по одному файлу на тип запроса контракта.
 - Схема — плоские DTO с `row_type` (`line_item`/`section_header`/`subtotal`), НЕ вложенное дерево
   section→subsection→item (D10 — глубокая вложенность хрупка в structured output; иерархия
   восстанавливается детерминированно на бэкенде из `row_type`+section-полей).
@@ -58,10 +59,10 @@ handle() (D31, детали идемпотентности — `../document-pipe
 
 ## Eval-результаты
 
-`ai:eval:run --task=extraction [--dataset-version=] [--limit=] [--dry-run]` — прогон по
+`estimate:eval:run --task=extraction [--dataset-version=] [--limit=] [--dry-run]` — прогон по
 golden-датасету (`prc_ai_dataset_examples`), метрики precision/recall/F1 + row coverage
 (`EvalMetrics`). На реальных данных ни разу не прогонялся (открытый вопрос плана — датасет ждёт
-эталонов владельца, `ai:dataset:import`).
+эталонов владельца, `estimate:dataset:import`).
 
 ## Смежное
 
