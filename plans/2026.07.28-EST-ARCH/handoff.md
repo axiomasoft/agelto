@@ -1,83 +1,78 @@
-# HANDOFF — 2026-07-30 — after P4.6
+# HANDOFF — 2026-07-30 — after P4.5
 
-**Next:** редизайн эскалации P4.5: task:plan-design 2026.07.28-EST-ARCH P4.5
+**Next:** ЗАПУСК ВРУЧНУЮ: `sonnet/high`
+
+```
+/model sonnet
+/effort high
+/task:plan-run 2026.07.28-EST-ARCH P4.1
+```
 
 | Параметр | Значение |
 |:--|:--|
-| Model class | frontier |
-| Effort | high |
-| Capabilities | — |
-| Context | NEW SESSION — шаг-не-item |
-| Суть | Снять эскалацию P4.5: Task Contract pre-final даёт структурный ложноположительный `block:ACCEPTANCE_NOT_PUBLIC` на уже исполненной и закоммиченной работе (`eeb519d`) — нужно решение владельца/plan-design: переформулировать Validation 4 без плейсхолдера `<домен>` либо принять D#-запись |
-
-```
-/task:plan-design 2026.07.28-EST-ARCH P4.5
-```
+| Model | sonnet |
+| Thinking | high — предписанная §3 Routing цена ошибки item'а (единый сейм слепка расхода) |
+| Context | continue (/clear) — ручной item |
+| Суть | Первый item денежного контура фазы P4: единый сейм записи слепка расхода на анализе и прогоне (`app/Services/Procurement/...`, `app/Jobs/Procurement/*Job`) |
 
 **Done:** фаза P1 закрыта 🟠 (4/8 🟢). Фаза P2 закрыта 🟠 (5/7 🟢, 2/7 🟠). Фаза P3 закрыта 🟠
-(3/6 🟢, 3/6 🟠), проаудирована (ATTENTION, 10 находок). Фаза P4 идёт (1/6 🟢, P4.5 заблокирован):
+(3/6 🟢, 3/6 🟠), проаудирована (ATTENTION, 10 находок). Фаза P4 идёт: P4.6 🟢 (`af5475d`), P4.5 🟢
+(`eeb519d`, сверено `plan-close` 2026-07-30) — батч B3 закрыт целиком.
 
-- **P4.6 закрыт 🟢 (`af5475d`)**: три остатка P3 сняты — докблок `EvalRunCommand.php`
-  (`@param Collection $rows` убран, `pint --test` зелёный), тест-хелпер `aiRouteResolver()` →
-  `llmRouteResolver()` (8 вхождений, все вызовы обновлены), `.gitignore` получил `/estimates/reports/`
-  с комментарием (D111). Task Contract `pre_mutation: allow · pre_final: allow`. Полный сюит —
-  **791 passed, 1 skipped, 3214 assertions**; `phpstan` — 0 ошибок, `phpstan-baseline.neon` не тронут.
-- **P4.5 → 🔴 Blocked, эскалация ПОСЛЕ полного исполнения** (см. Open risks и `phases/P4.md` P4.5).
-  Оба файла AI-контекстного канона (`.ai/guidelines/architecture.md`, `docs/03_Dev/admin-panel.md`)
-  правлены и закоммичены (`eeb519d`), все 8 Validation зелёные на item-коммите/красные на `<base>`
-  (D89 исход «а» подтверждён вручную). Закрытие остановлено ТОЛЬКО механикой Task Contract
-  (`pre_final: block:ACCEPTANCE_NOT_PUBLIC`) — прецедент F1 этого плана запрещает закрывать item на
-  незелёной границе с одной лишь припиской в Completion Notes (реопен P1.5–P1.8 уже показал цену
-  этого шортката).
+- **P4.5 закрыт сверяющим `plan-close`** на существующем item-коммите `eeb519d` — переисполнение не
+  требовалось. Validation 1–7 зелёные на `eeb519d` (V6/V7 сверены диапазоном `5d8b4f3..eeb519d`, НЕ
+  `..HEAD`: HEAD уже несёт последующий коммит P4.6). Validation 8 (`plan-lint --baseline HEAD`) —
+  `OK, 0 ошибок, 0 предупреждений`. Task Contract пересчитан на дереве `9ff9527` с
+  `actual_route={'model_class': 'implementation', 'effort': 'medium'}` (из терминальной записи
+  `journal.jsonl`, совпадает с предписанием §3 Routing) → `{'pre_mutation': 'allow', 'pre_final':
+  'allow'}`.
+- **`verify-citations.py` найден в этом заходе** (путь `packages/swissknifeman/plans/verify-citations.py`
+  вне репозитория agelto — ранее числился недоступным в этом репо) и на всём плане даёт 263 находки
+  «файл не найден». Разобрано частично: `docs/03_Dev/admin-panel.md` фактически существует, вывод
+  инструмента несёт префикс `../../agelto/agelto/…` — систематический баг резолва путей/cwd самого
+  инструмента, не дефект цитат плана. Строка 19 `research/04-audit-p3-followup-map.md` (цитирует файл
+  P4.5) идентична на `<base>` `5d8b4f3` — новых находок от диффа P4.5 нет (K=0), весь счёт N=263
+  наследуется планом целиком и не относится к P4.5. Требует отдельного разбора вне этого закрытия.
 
-**Remaining:** 17 items ⬜ (P4.5 — 🔴 отдельно, не входит в счёт ⬜) — P4 ×4 (P4.1 → P4.2 →
-B1 = P4.3+P4.4), P5 ×6, P6 ×3, P7 ×4. Гейт владельца впереди один — P4.2. Батчи: **B1**
-(P4.3+P4.4, `plan-exec`), **B2** (P7.1+P7.2, `plan-run`) — `roadmap.md`. **P4.1 не запускается, пока
-P4.5 не разрешён** — P4.5 не в зависимостях P4.1 по данным, но фаза не терминальна, пока в ней есть
-🔴; `plan-exec`/`plan-run` следующего item'а фазы P4 сначала проверит это состояние.
+**Remaining:** 16 items ⬜. Порядок: P4.1 → P4.2 (гейт владельца) → B1 (P4.3+P4.4) → P5 ×6 → P6 ×3 →
+P7 ×4 (B2 = P7.1+P7.2). Гейт владельца впереди один — P4.2. Батчи: **B1** (`plan-exec`), **B2**
+(`plan-run`) — `roadmap.md`. Батч **B3** отработан полностью (P4.5 + P4.6, оба 🟢).
 
-**Sources of truth:** скилл `plan-protocol` · `plan.md` §2, §3 Routing, §5 (D1–D119) · ЗАМОРОЖЕНЫ:
-`root/naming-canon.md`, `root/document-type-axis.md`, `root/document-contour.md`,
-`root/document-analyzer-contract.md`, `root/service-layer-map.md` · `phases/P4.md` (P4.5 эскалация,
-P4.6 Completion Notes) · `roadmap.md` · `open-questions.md` (открытых внутри плана нет).
-
-**Якоря фактов этого захода:**
-P4.5 (item-коммит `eeb519d`, `<base>` = `5d8b4f3`): `git diff --name-only 5d8b4f3..HEAD --
-. ':(exclude)plans'` → ровно два пути. Task Contract → `{'pre_mutation': 'allow', 'pre_final':
-'block:ACCEPTANCE_NOT_PUBLIC'}`.
-P4.6 (item-коммит `af5475d`, `<base>` = `1358d75`): `pint --test <оба файла>` → PASS 2 files (на
-`<base>` — FAIL 2 files, 1 style issue); `grep -rni "airouteresolver" app/ tests/ database/ config/
-resources/` → пусто (на `<base>` — 8); `git check-ignore -v estimates/reports/gold-corpus-report.md`
-→ `.gitignore:105:/estimates/reports/` (на `<base>` — пусто, rc 1); `php artisan test` → 791
-passed, 1 skipped, 3214 assertions; `phpstan analyse --memory-limit=1G` → `[OK] No errors`. Task
-Contract → `{'pre_mutation': 'allow', 'pre_final': 'allow'}`.
+**Sources of truth:** скилл `plan-protocol` · `plan.md` §2 (правило формы шаблонов — D121), §3
+Routing, §5 (D1–D121) · ЗАМОРОЖЕНЫ: `root/naming-canon.md`, `root/document-type-axis.md`,
+`root/document-contour.md`, `root/document-analyzer-contract.md`, `root/service-layer-map.md` ·
+`phases/P4.md` (P4.5 🟢 — снятая эскалация + Completion Notes + Known Deviations + Pending Work
+сверки; P4.6 🟢 Completion Notes) · `research/05-task-contract-acceptance-defect.md` · `roadmap.md` ·
+`open-questions.md` (внутри плана открытых нет; OQ-14 — вне плана).
 
 **Open risks:**
-- **P4.5 эскалирован — Task Contract структурный ложноположительный.** Компилятор `task_contract.build`
-  (плагин `swissknifeman/task@0.9.0`) не разрезает нумерованный `Validation` (сплиттер режет только по
-  `·`) и ложно классифицирует всю клаузу `internal` из-за плейсхолдера `<домен>` в Validation 4
-  (`resources/<домен>/ai/prompts`, читается как абсолютный путь `/ai/prompts`). Разбор — `phases/P4.md`
-  P4.5 Completion Notes. Владелец компилятора — пакет `swissknifeman/task`, не этот план;
-  реопен-кандидат туда. Внутри ЭТОГО плана — решение `plan-design`: переформулировать Validation 4
-  БЕЗ угловых плейсхолдеров (например `resources/{домен}/ai/prompts` или `resources/<DOMAIN>/ai/prompts`
-  — заглавными, без риска коллизии с `PORTABILITY_PATH_RE`), затем повторно прогнать Task Contract на
-  уже существующем коммите `eeb519d` (переисполнять правку не нужно).
-- **Тот же класс ошибки вероятен на будущих Validation-строках с угловыми плейсхолдерами** (`<файл>`,
-  `<имя runbook'а>` и т. п.) или ведущим `/` в цитате пути — при `ACCEPTANCE_NOT_PUBLIC` сначала
-  проверить эту гипотезу, не расширять периметр вручную.
+- **Дефект компилятора Task Contract жив** (OQ-14, `open-questions.md`): правило §2/D121 — обход, а
+  не решение. Реопен-кандидат в пакет `swissknifeman/task`, решение владельца; этот план не ждёт.
+- **`verify-citations.py` на всём плане даёт 263 находки «файл не найден»** — систематический баг
+  резолва путей самого инструмента (проверено на одном примере, файл существует); не относится к
+  диффу P4.5 (K=0). Разобрать до корня и/или завести реопен-кандидат в `swissknifeman` — вне этого
+  захода.
+- **Журнальная аномалия P4.5:** две терминальные записи ДО этого захода — `closed-green` (11:16:17Z,
+  факту не соответствовала) и `escalated` (11:21:37Z). Append-only запрещает переписывание; третья
+  запись `closed-green` (сверка, 11:55:21Z) отражает фактическое закрытие.
 - **A4 аудита P3 — исполнители пропускают построчный отчёт по Validation** (наследуется).
 - **Тексты Validation items P5–P7 цитируют `pint --dirty --test`** — форма отменена D115.
 - **`app/Pulse/Cards/LlmSpendCard.php:17`** — мёртвый FQN ещё жив; закрывает P4.2 (Validation 6а).
 - **`CLAUDE.md` несёт то же ложное утверждение про путь модели промта**, что чинил P4.5 в
   `.ai/guidelines/architecture.md` — закрывает P7.4 (D60/D64).
-- **Посторонние untracked-пути в дереве** — `.swissknife/`, `estimates/gemini-analys.md`,
-  `plans/2026.07.28-EST-ARCH/.swissknife/`: не входят ни в один `Files`, не коммитить, не удалять (§6).
+- **Посторонние untracked-пути в дереве** — `.swissknife/`, `estimates/gemini-analys.md`: не входят
+  ни в один `Files`, не коммитить, не удалять (§6).
 - Наследуются из P1/P3: журнальный разрыв P1.5–P1.8 (D99) · дыра протокола D98 · боевой прогон P5.2 —
-  за владельцем (D94) · `verify-citations.py` недоступен в этом репозитории.
+  за владельцем (D94).
 
 **Workarounds/Deferred/Open questions:**
-- workarounds: —.
+- workarounds: **правило формы §2/D121** — обход дефекта компилятора Task Contract (не улучшение
+  плана): снять, когда пакет `swissknifeman/task` починят.
 - deferred: выравнивание литерального текста гейтов стиля в фазах P5–P7 (D115); ревизия имён
-  `ai:storage:lifecycle`/`ai:tools:doctor` — P7.3/P7.4.
-- open_questions: открытых внутри плана нет. Остался один гейт владельца — P4.2, и одна эскалация
-  закрытия — P4.5.
+  `ai:storage:lifecycle`/`ai:tools:doctor` — P7.3/P7.4; сквозной `plan-design finish` перед уходом
+  фаз P5–P7 в исполнение (названо владельцу заходом `plan-design P4`, контракты фаз этим заходом НЕ
+  менялись); разбор 263 находок `verify-citations.py` до корня (систематический баг инструмента —
+  этот заход не чинит).
+- open_questions: внутри плана открытых нет. Вне плана — **OQ-14** (дефекты компилятора Task
+  Contract, реопен-кандидат в `swissknifeman/task`, решение владельца). Гейт владельца впереди
+  один — P4.2.
