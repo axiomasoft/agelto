@@ -1,5 +1,5 @@
 <x-pulse::card :cols="$cols" :rows="$rows" :class="$class">
-    <x-pulse::card-header name="LLM-расход" details="prc_ai_llm_calls, последние 24ч">
+    <x-pulse::card-header name="LLM-расход" details="llm_calls, последние 24ч">
         <x-slot:icon>
             <x-pulse::icons.scale />
         </x-slot:icon>
@@ -25,11 +25,11 @@
                         <tr wire:key="{{ $row->purpose }}-spacer" class="h-2 first:h-0"></tr>
                         <tr wire:key="{{ $row->purpose }}-row">
                             <x-pulse::td>{{ $row->purpose }}</x-pulse::td>
-                            <x-pulse::td numeric class="text-gray-700 dark:text-gray-300 font-bold">{{ number_format((int) $row->calls) }}</x-pulse::td>
-                            <x-pulse::td numeric class="text-gray-700 dark:text-gray-300 font-bold">{{ number_format((int) $row->prompt_tokens) }}</x-pulse::td>
-                            <x-pulse::td numeric class="text-gray-700 dark:text-gray-300 font-bold">{{ number_format((int) $row->cached_tokens) }}</x-pulse::td>
-                            <x-pulse::td numeric class="text-gray-700 dark:text-gray-300 font-bold">{{ number_format((int) $row->completion_tokens) }}</x-pulse::td>
-                            <x-pulse::td numeric class="text-gray-700 dark:text-gray-300 font-bold">${{ number_format(((int) $row->cost_micros) / 1_000_000, 4) }}</x-pulse::td>
+                            <x-pulse::td numeric class="text-gray-700 dark:text-gray-300 font-bold">{{ number_format($row->calls) }}</x-pulse::td>
+                            <x-pulse::td numeric class="text-gray-700 dark:text-gray-300 font-bold">{{ number_format($row->promptTokens) }}</x-pulse::td>
+                            <x-pulse::td numeric class="text-gray-700 dark:text-gray-300 font-bold">{{ number_format($row->cachedTokens) }}</x-pulse::td>
+                            <x-pulse::td numeric class="text-gray-700 dark:text-gray-300 font-bold">{{ number_format($row->completionTokens) }}</x-pulse::td>
+                            <x-pulse::td numeric class="text-gray-700 dark:text-gray-300 font-bold">${{ number_format($row->costMicros / 1_000_000, 4) }}</x-pulse::td>
                         </tr>
                     @endforeach
                 </tbody>
@@ -40,5 +40,9 @@
                 ({{ number_format(($totalCostMicros / 1_000_000) * $rubPerUsd, 2) }} ₽ по курсу {{ $rubPerUsd }})
             </div>
         @endif
+
+        {{-- Подпись источника обязательна: цифра расхода без происхождения — механизм, по которому
+             расхождение трекинга с биллингом провайдера остаётся невидимым (D10). --}}
+        <div class="mt-1 text-xs text-gray-400 text-center">{{ $signature }}</div>
     </x-pulse::scroll>
 </x-pulse::card>

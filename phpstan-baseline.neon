@@ -433,54 +433,6 @@ parameters:
 			path: app/Services/Llm/LlmRouteResolver.php
 
 		-
-			message: '#^Access to an undefined property App\\Models\\Llm\\LlmCall\:\:\$cached_tokens\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Services/Llm/LlmSpendReporter.php
-
-		-
-			message: '#^Access to an undefined property App\\Models\\Llm\\LlmCall\:\:\$calls\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Services/Llm/LlmSpendReporter.php
-
-		-
-			message: '#^Access to an undefined property App\\Models\\Llm\\LlmCall\:\:\$completion_tokens\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Services/Llm/LlmSpendReporter.php
-
-		-
-			message: '#^Access to an undefined property App\\Models\\Llm\\LlmCall\:\:\$cost_micros\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Services/Llm/LlmSpendReporter.php
-
-		-
-			message: '#^Access to an undefined property App\\Models\\Llm\\LlmCall\:\:\$model\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Services/Llm/LlmSpendReporter.php
-
-		-
-			message: '#^Access to an undefined property App\\Models\\Llm\\LlmCall\:\:\$prompt_tokens\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Services/Llm/LlmSpendReporter.php
-
-		-
-			message: '#^Access to an undefined property App\\Models\\Llm\\LlmCall\:\:\$provider\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Services/Llm/LlmSpendReporter.php
-
-		-
-			message: '#^Access to an undefined property App\\Models\\Llm\\LlmCall\:\:\$purpose\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Services/Llm/LlmSpendReporter.php
-
-		-
 			message: '#^Access to an undefined property App\\Models\\Llm\\Prompt\:\:\$content\.$#'
 			identifier: property.notFound
 			count: 1

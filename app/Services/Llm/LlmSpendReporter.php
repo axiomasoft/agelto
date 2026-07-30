@@ -4,50 +4,71 @@ declare(strict_types=1);
 
 namespace App\Services\Llm;
 
-use App\Models\Llm\LlmCall;
-use App\Repositories\Llm\LlmCallReadRepository;
+use App\Services\Llm\Contracts\UsageSource;
 use App\Services\Llm\Dto\LlmSpendReport;
 use App\Services\Llm\Dto\LlmSpendRow;
+use App\Services\Llm\Dto\UsageQuery;
+use App\Services\Llm\Dto\UsageRow;
 use Carbon\CarbonInterface;
+use Illuminate\Support\Collection;
 
 /**
- * Агрегат расхода `llm_calls` за окно + экономия explicit-кэша по `config('ai.capabilities')`
- * (`ai:cost-report`, `root/service-layer-map.md` §3). Индекс по модели БЕЗ dot-notation — тот же
+ * Расход `llm_calls` за окно `[from, to)` для `ai:cost-report`: строки берутся у источника
+ * (`UsageSource`, контракт `root/usage-source-contract.md`), а деньги-производные — экономия
+ * explicit-кэша по `config('ai.capabilities')` — считаются ЗДЕСЬ (D124: источник отдаёт токены и
+ * `cost_micros`, прайсинг остаётся у потребителя). Индекс по модели БЕЗ dot-notation — тот же
  * приём, что `ExtractionPreflight`/`LlmCallRecorder::costMicros()`, имена моделей Gemini содержат
  * точки.
  */
 final readonly class LlmSpendReporter
 {
-    public function __construct(private LlmCallReadRepository $calls) {}
+    public function __construct(private UsageSource $source) {}
 
-    public function report(CarbonInterface $since): LlmSpendReport
+    public function report(CarbonInterface $from, CarbonInterface $to): LlmSpendReport
     {
         $capabilities = (array) config('ai.capabilities', []);
 
-        $rows = $this->calls->spendByProviderModelPurpose($since)->map(
-            function (LlmCall $row) use ($capabilities): LlmSpendRow {
-                $model = (string) $row->model;
-                $cachedTokens = (int) $row->cached_tokens;
-                $costMicros = (int) $row->cost_micros;
+        // Два запроса к ОДНОМУ методу источника с разными осями: старая таблица (провайдер ×
+        // модель × назначение) и АДДИТИВНАЯ дневная секция (D124/D38) — заменять первую второй
+        // нельзя, свёртка календарных суток не воспроизводит скользящее окно.
+        $report = $this->source->usage(new UsageQuery(
+            from: $from,
+            to: $to,
+            byProvider: true,
+            byModel: true,
+            byPurpose: true,
+        ));
 
-                return new LlmSpendRow(
-                    provider: (string) $row->provider,
-                    model: $model,
-                    purpose: (string) $row->purpose,
-                    calls: (int) $row->calls,
-                    promptTokens: (int) $row->prompt_tokens,
-                    cachedTokens: $cachedTokens,
-                    completionTokens: (int) $row->completion_tokens,
-                    costMicros: $costMicros,
-                    savingsMicros: $this->cacheSavingsMicros($capabilities, $model, $cachedTokens),
-                );
-            },
+        $daily = $this->source->usage(new UsageQuery(
+            from: $from,
+            to: $to,
+            byDay: true,
+            byProvider: true,
+            byModel: true,
+        ));
+
+        /** @var Collection<int, LlmSpendRow> $rows */
+        $rows = Collection::make($report->rows)->map(
+            fn (UsageRow $row): LlmSpendRow => new LlmSpendRow(
+                provider: (string) $row->provider,
+                model: (string) $row->model,
+                purpose: (string) $row->purpose,
+                calls: $row->calls,
+                promptTokens: $row->promptTokens,
+                cachedTokens: $row->cachedTokens,
+                completionTokens: $row->completionTokens,
+                costMicros: $row->costMicros,
+                savingsMicros: $this->cacheSavingsMicros($capabilities, (string) $row->model, $row->cachedTokens),
+            ),
         );
 
         return new LlmSpendReport(
             rows: $rows,
             totalCostMicros: (int) $rows->sum('costMicros'),
             totalSavingsMicros: (int) $rows->sum('savingsMicros'),
+            dailyRows: $daily->rows,
+            signature: $report->signature,
+            beyondHorizon: $report->beyondHorizon,
         );
     }
 

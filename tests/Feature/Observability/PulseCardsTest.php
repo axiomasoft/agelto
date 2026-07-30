@@ -65,8 +65,17 @@ test('LlmSpendCard группирует токены/стоимость llm_call
     $data = $view->getData();
     $rows = $data['rows']->keyBy('purpose');
 
-    expect((int) $rows[CoreLlmPurpose::Screening->value]->calls)->toBe(2)
-        ->and((int) $rows[CoreLlmPurpose::Screening->value]->prompt_tokens)->toBe(1500)
-        ->and((int) $rows[CoreLlmPurpose::Screening->value]->cost_micros)->toBe(750)
+    expect($rows[CoreLlmPurpose::Screening->value]->calls)->toBe(2)
+        ->and($rows[CoreLlmPurpose::Screening->value]->promptTokens)->toBe(1500)
+        ->and($rows[CoreLlmPurpose::Screening->value]->costMicros)->toBe(750)
         ->and($data['totalCostMicros'])->toBe(750);
+});
+
+test('LlmSpendCard подписывает цифру источником — «наш трекинг» с лагом и горизонтом', function () {
+    $card = new LlmSpendCard;
+    $signature = $card->render()->getData()['signature'];
+
+    expect($signature)->toContain('наш трекинг (llm_calls)')
+        ->and($signature)->toContain('лаг 0')
+        ->and($signature)->toContain('горизонт 12 мес.');
 });

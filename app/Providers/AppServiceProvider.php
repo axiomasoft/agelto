@@ -5,6 +5,8 @@ namespace App\Providers;
 use App\Models\User;
 use App\Pulse\Cards\LlmSpendCard;
 use App\Pulse\Cards\PipelineStagesCard;
+use App\Services\Llm\Contracts\UsageSource;
+use App\Services\Llm\TrackingUsageSource;
 use App\Services\Procurement\Analyzers\Estimate\ChunkSource;
 use App\Services\Procurement\Analyzers\Estimate\RowRangeChunkSource;
 use App\Services\Procurement\Contracts\DocumentAnalyzerRegistry;
@@ -32,6 +34,11 @@ class AppServiceProvider extends ServiceProvider
         // Основной путь извлечения смет (D3/D40) — единственная реализация ChunkSource до P6.4
         // (`WindowedChunkSource` добавит оконный путь за отдельным гейтом, не сменой этого bind).
         $this->app->bind(ChunkSource::class, RowRangeChunkSource::class);
+
+        // Источник расхода LLM (P4.2, контракт `root/usage-source-contract.md`, D34): реализация
+        // одна — «наш трекинг» поверх `llm_calls`; второй (биллинг провайдера) нет и класса-заглушки
+        // под неё не заводится, место второй реализации описано в контракте ТЕКСТОМ.
+        $this->app->bind(UsageSource::class, TrackingUsageSource::class);
 
         // Реестр анализаторов типов документа (P2.3, §5.2 контракта): собирается из
         // `config('ai.analyzers')` при ПЕРВОМ резолве и дальше неизменен — отсюда singleton,

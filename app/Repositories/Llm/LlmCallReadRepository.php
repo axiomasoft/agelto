@@ -8,12 +8,21 @@ use App\Enums\Llm\LlmPurpose;
 use App\Models\Llm\LlmCall;
 use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Collection;
+use InvalidArgumentException;
 
 /**
  * Чтение `llm_calls` для отчётности (`ai:cost-report`, `root/service-layer-map.md` §6).
  */
 final readonly class LlmCallReadRepository
 {
+    /**
+     * Оси, по которым репозиторий умеет резать агрегат расхода. Список закрыт: имена осей уезжают
+     * в `GROUP BY`, и белый список — единственное, что отделяет их от произвольной строки.
+     *
+     * @var list<string>
+     */
+    private const AXES = ['day', 'provider', 'model', 'purpose'];
+
     /**
      * Слепок расхода одного анализа (P4.1, D5/D39): сумма ТОЛЬКО вызовов из `$purposes` —
      * принадлежность назначения шагу резолвит вызывающий (`UsageSnapshotRecorder`) через
@@ -48,28 +57,82 @@ final readonly class LlmCallReadRepository
     }
 
     /**
-     * Агрегат по `(provider, model, purpose)` за окно от `$since` — `selectRaw` переносится
-     * БЕЗ переписывания (`CostReportCommand:30`, семантика сумм подтверждена тестом). Строки —
-     * инстансы `LlmCall` только с выбранными колонками (`selectRaw`-агрегаты как динамические
-     * свойства, тот же приём, что `LlmCacheManager::implicitHitStats()`).
+     * Агрегат расхода за полуинтервал `[$from, $to)` в разрезе выбранных осей — единственный
+     * запрос под контракт источника (`root/usage-source-contract.md` §1, D124). Семантика сумм
+     * та же, что у прежнего `spendByProviderModelPurpose()`: `selectRaw`-агрегаты не переписаны,
+     * фильтра по успешности вызова нет (отказы входят с нулевой ценой).
      *
-     * @return Collection<int, LlmCall>
+     * Ось `day` — КАЛЕНДАРНЫЙ день в поясе приложения (`config('app.timezone')`, контракт §3):
+     * `called_at` хранится как `timestamptz`, поэтому пояс применяется к моменту времени, а не к
+     * «сырой» строке. Группировка идёт по ДИАПАЗОНУ `called_at` → работает партиционный pruning,
+     * нового индекса разрез по дням не требует.
+     *
+     * Возврат — ТИПИЗИРОВАННЫЕ строки (тот же приём, что `usageSummary()`), а не модели с
+     * агрегатами в динамических свойствах: агрегат не является колонкой `LlmCall`, и его чтение
+     * через модель порождает записи в `phpstan-baseline.neon` (D125).
+     *
+     * @param  list<string>  $axes  подмножество `day`/`provider`/`model`/`purpose`
+     * @return list<array{day: string|null, provider: string|null, model: string|null, purpose: string|null, calls: int, prompt_tokens: int, cached_tokens: int, completion_tokens: int, cost_micros: int}>
      */
-    public function spendByProviderModelPurpose(CarbonInterface $since): Collection
+    public function usageByAxes(CarbonInterface $from, CarbonInterface $to, array $axes): array
     {
-        return LlmCall::query()
-            ->selectRaw('provider, model, purpose')
+        $unknown = array_diff($axes, self::AXES);
+
+        if ($unknown !== []) {
+            throw new InvalidArgumentException('Неизвестная ось агрегата расхода: '.implode(', ', $unknown));
+        }
+
+        $timezone = (string) config('app.timezone');
+        $dayExpression = '(called_at AT TIME ZONE CAST(? AS text))::date';
+
+        // Границы окна биндятся С МИКРОСЕКУНДАМИ: грамматика запроса форматирует объект даты как
+        // `Y-m-d H:i:s`, и тогда исключающая верхняя граница `to = now()` отрезала бы ВСЕ вызовы
+        // текущей секунды (`called_at` хранится с точностью до секунды — тот же формат на записи).
+        $query = LlmCall::query()
+            ->toBase()
+            ->where('called_at', '>=', $from->format('Y-m-d H:i:s.u'))
+            ->where('called_at', '<', $to->format('Y-m-d H:i:s.u'))
             ->selectRaw('count(*) as calls')
             ->selectRaw('coalesce(sum(prompt_tokens), 0) as prompt_tokens')
             ->selectRaw('coalesce(sum(cached_tokens), 0) as cached_tokens')
             ->selectRaw('coalesce(sum(completion_tokens), 0) as completion_tokens')
-            ->selectRaw('coalesce(sum(cost_micros), 0) as cost_micros')
-            ->where('called_at', '>=', $since)
-            ->groupBy('provider', 'model', 'purpose')
-            ->orderBy('provider')
-            ->orderBy('model')
-            ->orderBy('purpose')
-            ->get();
+            ->selectRaw('coalesce(sum(cost_micros), 0) as cost_micros');
+
+        foreach ($axes as $axis) {
+            if ($axis === 'day') {
+                // Группировка и сортировка идут по ИМЕНИ выходной колонки, а не по повторённому
+                // выражению: параметризованное выражение с другим плейсхолдером Postgres не
+                // признаёт тем же самым («column called_at must appear in the GROUP BY clause»).
+                $query->selectRaw($dayExpression.' as day', [$timezone])
+                    ->groupBy('day')
+                    ->orderBy('day');
+
+                continue;
+            }
+
+            $query->addSelect($axis)->groupBy($axis)->orderBy($axis);
+        }
+
+        $rows = [];
+
+        foreach ($query->get() as $row) {
+            /** @var array<string, scalar|null> $values */
+            $values = (array) $row;
+
+            $rows[] = [
+                'day' => isset($values['day']) ? (string) $values['day'] : null,
+                'provider' => isset($values['provider']) ? (string) $values['provider'] : null,
+                'model' => isset($values['model']) ? (string) $values['model'] : null,
+                'purpose' => isset($values['purpose']) ? (string) $values['purpose'] : null,
+                'calls' => (int) ($values['calls'] ?? 0),
+                'prompt_tokens' => (int) ($values['prompt_tokens'] ?? 0),
+                'cached_tokens' => (int) ($values['cached_tokens'] ?? 0),
+                'completion_tokens' => (int) ($values['completion_tokens'] ?? 0),
+                'cost_micros' => (int) ($values['cost_micros'] ?? 0),
+            ];
+        }
+
+        return $rows;
     }
 
     /**

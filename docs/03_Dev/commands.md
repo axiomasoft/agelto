@@ -58,7 +58,7 @@ status: draft
 | Команда | Назначение |
 |:--|:--|
 | `ai:prompts:sync [--check]` | Синхронизация обоих корней канона промтов → `llm_prompts` (`--check` — только сверить дрейф) |
-| `ai:cost-report [--days=7]` | Отчёт расхода по провайдеру/маршруту/шагу |
+| `ai:cost-report [--days=7]` | Отчёт расхода по провайдеру/модели/назначению + разрез по календарным дням и подпись источника (`наш трекинг (llm_calls)`, лаг, горизонт retention) |
 | `ai:caches {list\|prune} [--hits] [--window=24]` | Explicit context cache: список/prune, доля implicit-хитов |
 | `estimate:eval:run [--task=extraction] [--dataset-version=] [--limit=] [--dry-run]` | Прогон по golden-датасету, метрики precision/recall/F1 |
 | `estimate:dataset:import {path} [--task=] [--source=manual] [--gold-version=1]` | Импорт папки эталонов в `prc_ai_dataset_examples` |

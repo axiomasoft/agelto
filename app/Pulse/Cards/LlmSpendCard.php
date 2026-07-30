@@ -4,42 +4,41 @@ declare(strict_types=1);
 
 namespace App\Pulse\Cards;
 
-use App\Models\Llm\LlmCall;
+use App\Services\Llm\Contracts\UsageSource;
+use App\Services\Llm\Dto\UsageQuery;
 use Carbon\CarbonImmutable;
+use Illuminate\Support\Collection;
 use Illuminate\View\View;
 use Laravel\Pulse\Livewire\Card;
 use Livewire\Attributes\Lazy;
 
 /**
  * Кастомная Pulse-карточка «LLM-расход» (D25, P7.5 Intent п.2, phases/P7.md): токены/стоимость
- * по `llm_calls` за фиксированное окно 24ч, группировка по `purpose` — прямой SQL-агрегат
- * (Code Guidance: НЕ дублировать в pulse-таблицы). Прайсинг переиспользует ту же формулу, что
- * `App\Console\Commands\Ai\CostReportCommand` (P7.2, `config('ai.cost_report.rub_per_usd')`).
+ * за фиксированное окно 24ч, группировка по `purpose` — оперативный срез рядом с дневной кривой
+ * админки (D35). Цифры берутся у источника расхода (`root/usage-source-contract.md`) и несут его
+ * подпись; курс ₽ — тот же `config('ai.cost_report.rub_per_usd')`, что и у
+ * `App\Services\Llm\LlmSpendReporter` (деньги-производные считает потребитель, D124).
  */
 #[Lazy]
 final class LlmSpendCard extends Card
 {
     public function render(): View
     {
-        $since = CarbonImmutable::now()->subDay();
+        // Livewire создаёт компонент как `new $class` (`Factory::create()`) и зовёт `render()` без
+        // аргументов — ни конструкторной инъекции, ни инъекции в метод у Pulse-карточки быть не
+        // может. Резолв из контейнера ЗДЕСЬ — граница фреймворка, а не сервис-локатор из лени.
+        $source = app(UsageSource::class);
 
-        $rows = LlmCall::query()
-            ->where('called_at', '>=', $since)
-            ->toBase()
-            ->selectRaw('purpose')
-            ->selectRaw('count(*) as calls')
-            ->selectRaw('coalesce(sum(prompt_tokens), 0) as prompt_tokens')
-            ->selectRaw('coalesce(sum(cached_tokens), 0) as cached_tokens')
-            ->selectRaw('coalesce(sum(completion_tokens), 0) as completion_tokens')
-            ->selectRaw('coalesce(sum(cost_micros), 0) as cost_micros')
-            ->groupBy('purpose')
-            ->orderBy('purpose')
-            ->get();
+        $to = CarbonImmutable::now();
+        $report = $source->usage(new UsageQuery(from: $to->subDay(), to: $to, byPurpose: true));
+
+        $rows = Collection::make($report->rows);
 
         return view('livewire.pulse.llm-spend', [
             'rows' => $rows,
             'rubPerUsd' => (float) config('ai.cost_report.rub_per_usd'),
-            'totalCostMicros' => (int) $rows->sum('cost_micros'),
+            'totalCostMicros' => (int) $rows->sum('costMicros'),
+            'signature' => $report->signature->toLine(),
         ]);
     }
 }
