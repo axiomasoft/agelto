@@ -3,6 +3,21 @@
 Это единственная инструкция, которая нужна для наполнения/правки промт-текстов v2 — читай её
 целиком перед первой правкой, остальной код пайплайна трогать не нужно.
 
+## Расположение файлов — два корня (D32)
+
+Кросс-документные группы (`document_type: any` — годятся для ЛЮБОГО типа документа) живут здесь,
+в `resources/ai/prompts/`: `global`, `prompt-critic`, `screening-global`, `screening-classify`.
+
+Группы типа-владельца лежат в СВОЁМ доменном корне `resources/<домен>/ai/prompts/`. Сегодня один
+домен — смета: `resources/estimates/ai/prompts/` несёт `extraction-global`, `extraction-discovery`,
+`extraction-passport`, `extraction-rows`, `extraction-totals` (`document_type: estimate`).
+
+Оба корня обнаруживает `App\Services\Llm\PromptCanonReader` двумя глобами: `ai/prompts/*/*.md`
+(ядро) и `*/ai/prompts/*/*.md` (доменные корни). Владелец файла — `document_type` из front-matter,
+не имя папки; несоответствие («сметный» файл в корне ядра или наоборот) роняет чтение канона.
+Новый тип документа добавляет СВОЙ каталог `resources/<домен>/ai/prompts/**` — сидер и применитель
+патчей правки не требуют.
+
 ## Что здесь
 
 Каждый файл — один промт для одного шага `PromptStep` (`App\Enums\Llm\PromptStep` — интерфейс,

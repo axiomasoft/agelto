@@ -8,14 +8,25 @@ use App\Models\Procurement\Ai\PromptSuggestion;
 use App\Models\User;
 
 /**
- * P7.4 — `ai:prompts:apply`: работает ТОЛЬКО со `status=approved` (D8). Тесты, пишущие в
- * `resources/ai/prompts/extraction-totals/0-extraction-totals.md` (реальный файл-канон, не
- * фейковый диск — README «файл под git — канон»), ОБЯЗАНЫ восстановить исходное содержимое в
- * `finally`, иначе рабочее дерево репозитория останется грязным после прогона тестов.
+ * P7.4 — `ai:prompts:apply`: работает ТОЛЬКО со `status=approved` (D8). Тесты, пишущие в реальные
+ * файлы-канон (не фейковый диск — README «файл под git — канон») в ОБОИХ корнях D32 (ядро
+ * `resources/ai/prompts/**`, домен `resources/estimates/ai/prompts/**`), ОБЯЗАНЫ восстановить
+ * исходное содержимое в `finally`, иначе рабочее дерево репозитория останется грязным после
+ * прогона тестов.
  */
 function promptApplyTargetPath(): string
 {
-    return base_path('resources/ai/prompts/extraction-totals/0-extraction-totals.md');
+    return base_path('resources/estimates/ai/prompts/extraction-totals/0-extraction-totals.md');
+}
+
+/**
+ * Ключ `global` живёт в корне ЯДРА (не доменном) — сценарий доказывает, что `PromptPatchApplier`
+ * находит файл по `key` в ОБОИХ корнях объединённого пространства (D32), а не только в доменном,
+ * где живёт `extraction-totals` выше (Validation 6 P3.4).
+ */
+function promptApplyCoreTargetPath(): string
+{
+    return base_path('resources/ai/prompts/global/0-global.md');
 }
 
 test('apply на pending отказывается и не трогает файл', function (): void {
@@ -62,6 +73,34 @@ test('apply на approved (prompt_patch) поднимает версию, сох
         $this->artisan('ai:prompts:sync', ['--check' => true])->assertExitCode(0);
     } finally {
         file_put_contents(promptApplyTargetPath(), $original);
+    }
+});
+
+test('apply на approved (prompt_patch) находит файл кросс-документного ключа в корне ядра, не только в доменном', function (): void {
+    $original = file_get_contents(promptApplyCoreTargetPath());
+
+    try {
+        $suggestion = PromptSuggestion::factory()->approved()->create([
+            'prompt_key' => 'global',
+            'prompt_step' => 'global',
+            'base_version' => 2,
+            'proposed_content' => 'Обновлённый (тестовый) текст глобального правила.',
+        ]);
+
+        $this->artisan('ai:prompts:apply', ['id' => $suggestion->id])->assertExitCode(0);
+
+        $rewritten = file_get_contents(promptApplyCoreTargetPath());
+        expect($rewritten)->toContain('key: global')
+            ->toContain('version: 3')
+            ->toContain('Обновлённый (тестовый) текст глобального правила.');
+
+        expect($suggestion->refresh()->status->value)->toBe('applied')
+            ->and($suggestion->applied_version)->toBe(3);
+
+        $this->artisan('ai:prompts:sync')->assertExitCode(0);
+        $this->artisan('ai:prompts:sync', ['--check' => true])->assertExitCode(0);
+    } finally {
+        file_put_contents(promptApplyCoreTargetPath(), $original);
     }
 });
 

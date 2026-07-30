@@ -83,14 +83,17 @@ test('якорная фраза extraction:rows дословно совпада�
     $anchor = 'у каждой сметы документа отсчёт начинается с 1';
 
     $research = (string) file_get_contents(base_path('plans/2026.07.26-EST-TRAIN/research/07-multi-estimate-anchoring.md'));
-    $prompt = (string) file_get_contents(resource_path('ai/prompts/extraction-rows/0-extraction-rows.md'));
+    $prompt = (string) file_get_contents(resource_path('estimates/ai/prompts/extraction-rows/0-extraction-rows.md'));
 
     expect($research)->toContain($anchor);
     expect($prompt)->toContain($anchor);
 });
 
 test('печатный «№ п/п» не живёт в текстах промтов — словари только в #[Alias] и §2 спеки', function (): void {
-    $files = glob(resource_path('ai/prompts/*/0-*.md')) ?: [];
+    $files = [
+        ...glob(resource_path('ai/prompts/*/0-*.md')) ?: [],
+        ...glob(resource_path('*/ai/prompts/*/0-*.md')) ?: [],
+    ];
 
     expect($files)->not->toBe([]);
 

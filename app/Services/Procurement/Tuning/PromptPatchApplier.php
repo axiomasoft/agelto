@@ -10,19 +10,21 @@ use App\Enums\Procurement\PromptSuggestionStatus;
 use App\Models\Procurement\Ai\Correction;
 use App\Models\Procurement\Ai\PromptSuggestion;
 use App\Repositories\Procurement\PromptSuggestionStoreRepository;
+use App\Services\Llm\PromptCanonReader;
 use RuntimeException;
 
 /**
  * Применение УЖЕ одобренного предложения (D8 — апрув остаётся ЕДИНСТВЕННЫМ путём к файлу): для
- * `prompt_patch` пишет `resources/ai/prompts/**` с поднятой версией (D59), для `correction_hint`
- * создаёт `prc_ai_corrections(is_reusable=true)` существующим носителем (D60). Ни одна ветка не
- * применяет предложение без `status=approved` — D8 не про удобство, а про то, что носитель
- * качества всего разбора не меняет машина.
+ * `prompt_patch` пишет файл канона (оба корня D32, поиск — `PromptCanonReader`) с поднятой версией
+ * (D59), для `correction_hint` создаёт `prc_ai_corrections(is_reusable=true)` существующим
+ * носителем (D60). Ни одна ветка не применяет предложение без `status=approved` — D8 не про
+ * удобство, а про то, что носитель качества всего разбора не меняет машина.
  */
 final readonly class PromptPatchApplier
 {
     public function __construct(
         private PromptSuggestionStoreRepository $suggestions,
+        private PromptCanonReader $canon,
     ) {}
 
     public function apply(PromptSuggestion $suggestion): PromptSuggestion
@@ -82,21 +84,8 @@ final readonly class PromptPatchApplier
 
     private function findFileByKey(string $promptKey): string
     {
-        foreach (glob(resource_path('ai/prompts/*/*.md')) ?: [] as $path) {
-            $raw = file_get_contents($path);
-
-            if ($raw === false || preg_match('/\A---\n(?<front>.*?)\n---\n/s', $raw, $matches) !== 1) {
-                continue;
-            }
-
-            foreach (preg_split('/\n/', trim($matches['front'])) as $line) {
-                if (str_starts_with($line, 'key:') && trim(substr($line, strlen('key:'))) === $promptKey) {
-                    return $path;
-                }
-            }
-        }
-
-        throw new RuntimeException("Файл промта с key={$promptKey} не найден в resources/ai/prompts/**.");
+        return $this->canon->findPathByKey($promptKey)
+            ?? throw new RuntimeException("Файл промта с key={$promptKey} не найден в объединённом пространстве корней канона (D32).");
     }
 
     private function currentVersion(string $path): int
