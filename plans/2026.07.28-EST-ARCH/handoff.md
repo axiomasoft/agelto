@@ -1,104 +1,104 @@
-# HANDOFF — 2026-07-30 — after P4.4
+# HANDOFF — 2026-07-30 — after P5.1
 
-**Next:** exec-item: task:plan-exec 2026.07.28-EST-ARCH P5.1
+**Next:** run-items: task:plan-run 2026.07.28-EST-ARCH P5.2
 
 | Параметр | Значение |
 |:--|:--|
-| Model class | implementation |
-| Effort | medium |
-| Capabilities | — |
+| Model | sonnet |
+| Thinking | high — Routing §3 предписывает `implementation/high` (P5.2), совпадает с сессией P5.1 |
 | Context | continue (/clear) — ручной item |
-| Суть | Первый item фазы P5 (Filament-обучалка): ресурс документа обучения — загрузка файла, код, профиль типа, право доступа ролям |
+| Суть | Действие «Прогнать» на карточке эталона: сервис запуска через ЕДИНСТВЕННЫЙ сейм рабочей копии P3.3 + штатный вход пайплайна |
 
 ````
-/task:plan-exec 2026.07.28-EST-ARCH P5.1
+/task:plan-run 2026.07.28-EST-ARCH P5.2
+
+РЕЖИМ: исполнение item'а по ТЗ (item в `⬜`; модель ставится СЕССИЕЙ — `Exec = manual`, маршрут
+`inherited-plan` §9, фактическую пару «класс/effort» напечатать в отчёте).
+ВХОД: plans/2026.07.28-EST-ARCH/phases/P5.md → item P5.2 (Required Reads 1–9, читать в порядке
+списка).
+СКОУП: 1) сервис запуска прогона (неймспейс по `root/service-layer-map.md`) — вызов ЕДИНСТВЕННОГО
+сейма рабочей копии эталона (вынесен P3.3 из `GoldImportCommand`), проставление оси происхождения
+и связи документа с эталоном (`root/document-contour.md`), создание строки прогона (режим
+`manual`, лимит объёма из конфига с переопределением в форме), диспатч штатного входа пайплайна
+`->afterCommit()`, единая форма отказа при активном прогоне;
+2) действие «Прогнать» на карточке эталона (`authorize()`, `requiresConfirmation()`, уведомление);
+3) правка `OperatorRole` (`AnalysisPermission::Create`) + `guard:sync-roles`;
+4) тесты на `Queue::fake()`/`FakeLlmProvider`, включая «повторный клик не диспатчит второй job».
+НЕ ТРОГАТЬ: порядок стадий пайплайна и прямой вызов оркестратора/анализатора/процессора скрининга
+(запрещено); ВТОРОЙ путь создания рабочей копии (D41 — переиспользуется сервис P3.3, второй путь —
+эскалация); `PipelineJob`/`ScreeningJob`/job извлечения/обработчик исхода (чужие сеймы — только
+вызов); история прогонов и показ расхода (P5.3); модалка результата (P5.4); миграции и схему (P1).
 ````
 
 **Done:** фазы P1 (🟠, 4/8 🟢), P2 (🟠, 5/7 🟢), P3 (🟠, 3/6 🟢, проаудирована ATTENTION),
-**P4 (🟠, 4/6 🟢, терминальна)** закрыты.
-Фаза P4: P4.6 🟢 (`af5475d`), P4.5 🟢 (`eeb519d`), P4.1 🟢 (`f13dc43`), P4.2 🟠 (`c7313de`),
-**P4.3 🟢 (`afb8fe2`), P4.4 🟠 (`8fdabbe`)**.
+P4 (🟠, 4/6 🟢, терминальна) закрыты, как в предыдущем handoff'е. **P5.1 закрыт 🟠 (`9f394eb`)** —
+этот заход.
 
-- **Этот заход (`plan-exec P4.3 P4.4`, 2026-07-30) — оба item'а батча B1 закрыты, фаза P4 терминальна.**
-- **P4.3 🟢** — виджет `LlmSpendChartWidget` на дашборде `/admin` поверх сейма P4.2. Построчная
-  ревизия черновика (D128) нашла и починила ДВЕ реальные ошибки: `getDescription()` был `protected`
-  при `public`-родителе (Fatal Error на любом обращении к классу); серия по чужому дню провайдера
-  читалась через nullsafe, который PHPStan счёл недостижимым — убрать его вслепую было бы неверно
-  (реальный runtime-риск PHP-warning «read property on null»), переписано на явный null-check с
-  регресс-тестом.
-- **P4.4 🟠** — команда `ai:cost-reconcile` + сервис `BillingReconciler` поверх того же сейма:
-  нормализованный CSV нашего формата (D130), порог из `config('ai.reconcile.threshold_percent')`
-  (D129, дефолт 10 %), отказ без пересчёта валют (Rule 10), runbook `billing-reconcile.md`.
-  Находка при первом прогоне: `CarbonImmutable::createFromFormat()` в Carbon 3 бросает
-  `InvalidFormatException`, а не возвращает `false` — PHPStan поймал мёртвую ветку ДО коммита, обе
-  точки разбора дат переведены на `try/catch`. **Отклонение:** item-коммит несёт дифф вне `Files` —
-  `tests/Unit/Architecture/CoreKnowsNoDocumentTypeTest.php` (канарейка периметра ядра 89→92, три
-  новых файла легли в `App\Services\Llm`), тот же класс, что у P4.2 → 🟠 Done with deviations.
-- Оба item'а: полный `artisan test` зелёный (825 passed/1 skipped/3376 assertions на `8fdabbe`),
-  `phpstan` 0 ошибок без роста baseline, `pint` зелёный, все гейты на `<base>` подтверждены красными
-  (`git grep`/`git stash`), `plan-lint --baseline HEAD` — 0 новых ERROR от диффа этого захода.
+- **Этот заход (`plan-run P5.1`, 2026-07-30) — исполнение по ТЗ, item закрыт.** Session: sonnet/high
+  (точное совпадение с Routing §3, ни недобора, ни перебора).
+- Заведён capability-интерфейс `App\Services\Procurement\Contracts\SupportsTypeProfileValidation`
+  (§1.6 контракта P2.1, D132) РОВНО по сигнатуре/шести инвариантам; первая реализация —
+  `EstimateAnalyzer::validateTypeProfile()` (пять полей §6.2 `root/document-type-axis.md`, полная
+  проверка, закрытый состав по ключам).
+- `FixtureResource` (index/create/view/edit, форма из девяти полей, бейдж манифеста ЧТЕНИЕМ
+  `FixtureManifestReader` один раз на рендер, генерический фильтр по полю профиля) поверх
+  `FixtureUploader` (потоковый sha256-дедуп → `FixtureAlreadyUploaded`) и `Fixture::nextCodeFor()`
+  (выражения `type_profile->class`/`type_profile->form`, без индексов — §6.4).
+- `FixturePermission` сгенерирован (`guard:filament:generate --source=enum`); `OperatorRole`
+  (ViewAny/View/Create/Update, без Delete) и `AnalystRole` (ViewAny/View) обновлены,
+  `guard:sync-roles` подтверждён.
+- **Находка при регенерации прав (не тронута, вне Scope):** `guard:filament:generate` завёл бы
+  ВТОРОЙ файл `LlmRoutePermission.php` — резолвер именует по классу ресурса (`LlmRouteResource`),
+  а живой класс до сих пор `AiRoutePermission` (расхождение возникло ДО этого item'а). Стёрт как
+  посторонний артефакт генерации (Implementation Rule 9 — «любой непустой [диф сверх нового файла]
+  — стоп и разбор, а не коммит»), в коммит не попал. Адресат — не P5.1: реестр разошёлся с именем
+  ресурса, чинить чужим item'ом нельзя (нет Files на это).
+- **Три тест-файла зелёные** (`FixtureResourceTest` 7, `FixtureUploadTest` 3, `TypeProfileValidationTest`
+  4 — 14 тестов/61 assertion); СТОРОЖ Validation 8 по ходу заставил переписать фильтр профиля
+  таблицы с типизированного `SelectFilter` (гонявшего `FixtureClass`/`GoldSource`) на генерический
+  `Filter::make('profile_field')` с параметризованным `whereRaw` (двух-текстовое поле «ключ +
+  значение», без конкатенации ключа в SQL — иначе операторский ввод открывал бы SQL-инъекцию).
+- Полный сюит — 839 passed / 1 skipped (наследуемый пропуск, не этого item'а); phpstan — 0 новых
+  ошибок, baseline не тронут; pint — 20 файлов чисто (один автофикс `self_static_accessor` в
+  `Fixture::nextCodeFor()` до коммита).
+- **🟠 Done with deviations, два Known Deviations:** (1) канарейка периметра ядра
+  `CoreKnowsNoDocumentTypeTest` сдвинута 92→94 (два новых файла ядра — `Contracts\
+  SupportsTypeProfileValidation`, `Fixture\FixtureUploader` — сами попадают в периметр §6.2), дифф
+  вне `Files`, тот же класс, что у P4.2/P4.4; (2) `guard:catalog:validate --strict` остаётся
+  красным по СИСТЕМНОЙ причине вне Scope — 148 из 149 permission-ключей каталога не покрыты
+  Policy-классом (`#[GateAbility]`), в репозитории всего ОДНА AzGuard-политика на весь каталог;
+  без `--strict` та же команда зелёная. Ни один из красных ключей не относится к `FixturePermission`.
 
-**Remaining:** 12 items ⬜ — фаза P5 (6, следующая: P5.1), P6 (3), P7 (4, B2 = P7.1+P7.2). Гейтов
-владельца впереди нет. **Фаза P4 терминальна — реконсилирующее закрытие (`plan-close`) не выполнено
-в этом заходе**, останется отдельным шагом (образец — P3: `plan-close` заполнил `## Phase Handoff`,
-агрегировал Known Deviations шести items, подтвердил docs-sync).
+**Remaining:** 11 items ⬜ — фаза P5 (5, следующий P5.2), P6 (3), P7 (4, B2 = P7.1+P7.2). Фаза P4
+терминальна, реконсилирующее закрытие (`plan-close`) не выполнено (наследуется).
 
-**Sources of truth:** скилл `plan-protocol` · `plan.md` §2 (D89 форма гейта на `<base>`, D115 форма
-гейта стиля, D121 форма шаблонов, D122 СТОРОЖ), §3 Routing, §5 (D1–D131) · ЗАМОРОЖЕНЫ:
-`root/naming-canon.md`, `root/document-type-axis.md`, `root/document-contour.md`,
-`root/document-analyzer-contract.md`, `root/service-layer-map.md` (её §4 — реестр единиц фазы P3,
-НЕ закрытый белый список: D123), `root/usage-source-contract.md` (реализован P4.2/P4.3/P4.4) ·
-`phases/P4.md` (ВСЕ 6 items терминальны: P4.1/P4.3/P4.5/P4.6 🟢, P4.2/P4.4 🟠; `## Phase Handoff` —
-плейсхолдер, не заполнен) · `phases/P5.md` (следующая фаза, уже детализирована до DoR) ·
-`roadmap.md` · `open-questions.md` (внутри плана открытых нет; OQ-14 — вне плана).
+**Sources of truth:** скилл `plan-protocol` · `plan.md` §2 (Execution Rules), §3 Routing, §5
+(D1–D133) · ЗАМОРОЖЕНЫ: `root/document-type-axis.md`, `root/document-contour.md`,
+`root/document-analyzer-contract.md` (§1.6 — D132), `root/service-layer-map.md`,
+`root/usage-source-contract.md` · `phases/P5.md` P5.1 (Completion Notes) и P5.2 (следующее ТЗ) ·
+`open-questions.md` (OQ-15, не адресована этим item'ом).
 
 **Open risks:**
-- **Фаза P4 не прошла реконсилирующее закрытие (`plan-close`)** — `## Phase Handoff` P4 не заполнен,
-  агрегат Known Deviations по 6 items не собран, docs-sync не подтверждён отдельным шагом. Следующий
-  проход по P4 (аудит или `plan-close Pn`) обязан это сделать перед тем, как фаза P4 будет считаться
-  полностью закрытой административно (items уже терминальны и не блокируют P5).
-- **Право виджета не выдаётся ролям в P4.3** — до P5 диаграмму расхода видит только суперадмин
-  (Pending Work P4.3). Осознанная граница (права панели — предмет P5).
-- **Счётчик периметра ядра — общий ресурс, теперь 92** (было 89 после P4.2, +3 от P4.4): любой
-  следующий item, заводящий файл в восьми неймспейсах §6.2, снова покраснит
-  `CoreKnowsNoDocumentTypeTest`. Канарейка, а не дефект, но `Files` items P5–P7 её не называют —
-  ремонт снова пойдёт диффом вне `Files` (прецедент — P4.2, P4.4).
-- **Формулировка Validation 1 «счётчик мутации падает до 0»** выполняется для одного счётчика из
-  четырёх (Known Deviations P4.2 п.2): гейты над создаваемым документом, чьё понятие цитируется
-  несколькими разделами, обнулить секционной мутацией нельзя — форму стоит уточнить в §2 до P5.
-- **`ai:cost-report` стал шумнее** (дневная таблица + подпись + возможное предупреждение о
-  горизонте) — если оператору нужен короткий вывод, это новый флаг и новая D-запись, не правка на ходу.
-- **Дефект компилятора Task Contract жив** (OQ-14): правило §2/D121 — обход, а не решение.
-  Предписанный `PYTHONPATH=packages/task/lib` НЕ резолвится в этом репо (`agelto` не вендорит пакет
-  `task`) — гейты `plan-exec` прогоняются через внешний путь `swissknifeman/packages/task/lib` по
-  решению владельца; постоянный путь или вендоринг — вопрос вне предмета плана.
-- **`verify-citations.py` на всём плане даёт 263 находки «файл не найден»** — систематический баг
-  резолва путей самого инструмента.
-- **Третий харнесс (`FormatBenchRunner`/`ExtractionEvalRunner`/`ScreeningEvalRunner`) не переведён на
-  `UsageSnapshotRecorder`** — Pending Work P4.1, отдельного item плана не заводит.
-- **`plan-lint` даёт 1 ERROR вне диффа этого захода** — строка `write-site:` item'а P4.5 обёрнута
-  `**…**`, линтер матчит без обёртки (`plan_lint.py:370`); P4.5 закрыт, история сдачи не правится.
-- **A4 аудита P3 — исполнители пропускают построчный отчёт по Validation** (наследуется).
-- **Тексты Validation items P5–P7 цитируют `pint --dirty --test`** — форма отменена D115.
-- **`CLAUDE.md` несёт то же ложное утверждение про путь модели промта**, что чинил P4.5 — закрывает P7.4.
-- **Дрейф `prc_ai_llm_calls` вне периметра P4.2** — `config/ai.php:180` и пять файлов
-  `docs/specs/v2/**`: класс-закрыватель назван (P7.3/P7.4), item'а под комментарий конфига нет (D126).
-- **Посторонние untracked-пути в дереве** — `.swissknife/`, `estimates/gemini-analys.md`: не входят ни
-  в один `Files`, не коммитить, не удалять.
-- Наследуются из P1/P3: журнальный разрыв P1.5–P1.8 (D99) · дыра протокола D98 · боевой прогон
-  P5.2 — за владельцем (D94).
+- **Две точки проверки формы профиля** (витрина через анализатор + `FixtureManifestEntry` импорта)
+  — принятый долг D132, адресат OQ-15; наследуется P5.2+.
+- **Расхождение `AiRoutePermission`↔`LlmRouteResource`** (см. находку выше) — не чинится этим планом,
+  всплывёт при следующей полной регенерации прав кем угодно; стоит завести отдельный D#/item, если
+  владелец решит чинить (вне P5).
+- `guard:catalog:validate --strict` системно красный (148/149 ключей без Policy) — вне P5.1, вне
+  этого плана в чистом виде; remediation — Completion Notes P5.1 Known Deviations.
+- Фаза P4 не прошла реконсилирующее закрытие (`plan-close`) — наследуется, не блокирует P5.
+- Право виджета расхода не выдаётся ролям в P4.3 — наследуется, предмет P5 (не единственно P5.1).
+- Счётчик периметра ядра — **94** (обновлён этим item'ом, было 92).
+- Дефект компилятора Task Contract (OQ-14) — наследуется, workaround тот же (резолв узла
+  `~/.claude/plugins/cache/swissknifeman/task/0.9.0/lib`, D98).
+- **`plan-lint` на дереве этого захода:** см. bookkeeping-коммит (Completion Notes P5.1 Validation 13).
+- Прочие наследуемые риски — без изменений, см. `git log -p -- handoff.md`.
 
 **Workarounds/Deferred/Open questions:**
-- workarounds: **правило формы §2/D121** — обход дефекта компилятора Task Contract, снять после
-  починки пакета `swissknifeman/task`; **внешний `PYTHONPATH` на `swissknifeman/packages/task/lib`**
-  — обход отсутствия вендоринга пакета `task` в `agelto`.
-- deferred: реконсилирующее закрытие фазы P4 (`plan-close`); перевод третьего харнесса (bench/eval)
-  на `UsageSnapshotRecorder` (Pending Work P4.1); развёрнутое описание нового вывода `ai:cost-report`
-  в `docs/03_Dev/*` (Pending Work P4.2 п.1); ужесточение формы возврата `usageByAxes()` до DTO
-  репозитория (Pending Work P4.2 п.2); выдача права `admin.llm_spend_chart_widget.view` ролям (P5,
-  Pending Work P4.3); выравнивание литерального текста гейтов стиля в фазах P5–P7 (D115); ревизия
-  имён `ai:storage:lifecycle`/`ai:tools:doctor` — P7.3/P7.4; сквозной `plan-design finish` перед
-  уходом фаз P5–P7 в исполнение; разбор 263 находок `verify-citations.py` до корня; комментарий
-  `config/ai.php:180` с устаревшим именем таблицы (D126).
-- open_questions: внутри плана открытых нет. Вне плана — **OQ-14** (дефекты компилятора Task
-  Contract, реопен-кандидат в `swissknifeman/task`). Гейтов владельца впереди нет.
+- workarounds: резолв `task.task_contract`/`task.route_evidence`/`plan-lint.py` через плагин-кэш
+  `~/.claude/plugins/cache/swissknifeman/task/0.9.0/lib` (репо `agelto` не вендорит `packages/task/lib`,
+  D98) — наследуется.
+- deferred: сведение двух точек валидации профиля к одной (OQ-15); чистка `AiRoutePermission`↔
+  `LlmRouteResource` (новая находка, вне плана до отдельного D#); Policy-покрытие каталога прав под
+  `--strict` (новая находка, решение владельца) — остальное наследуется.
+- open_questions: OQ-15 (без изменений, `Decision pending`); вне плана — OQ-14 (без изменений).
