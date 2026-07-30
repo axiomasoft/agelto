@@ -8,12 +8,16 @@ use App\Enums\Llm\LlmPurpose;
 use App\Enums\Llm\PromptStep;
 use App\Enums\Procurement\Analyzers\Estimate\EstimateLlmPurpose;
 use App\Enums\Procurement\Analyzers\Estimate\EstimatePromptStep;
+use App\Enums\Procurement\FixtureClass;
+use App\Enums\Procurement\GoldSource;
 use App\Jobs\Procurement\Analyzers\Estimate\EstimateExtractionJob;
 use App\Models\Procurement\Ai\Analysis;
+use App\Models\Procurement\Ai\Fixture;
 use App\Services\Procurement\Contracts\DocumentAnalyzer;
 use App\Services\Procurement\Contracts\Dto\AnalysisSummary;
 use App\Services\Procurement\Contracts\Dto\SummaryMetric;
 use App\Services\Procurement\Contracts\SupportsResultComparison;
+use App\Services\Procurement\Contracts\SupportsTypeProfileValidation;
 
 /**
  * Смета как тип документа — первая реализация `DocumentAnalyzer` (§6.1 контракта P2.1:
@@ -26,9 +30,11 @@ use App\Services\Procurement\Contracts\SupportsResultComparison;
  *
  * Реализует `SupportsResultComparison` (§1.5 контракта P2.1, D106) — сравнение теневого прогона
  * с боевым (`EvalMetrics`) и разбор ключа `'estimates'` payload'а живут здесь, а не в ядерном
- * `ShadowAnalysisJob`.
+ * `ShadowAnalysisJob`. Реализует `SupportsTypeProfileValidation` (§1.6 контракта P2.1, D132) —
+ * пять полей `type_profile` §6.2 root/document-type-axis.md проверяются здесь, а не в витрине
+ * P5.1 (D43): экран решает, КАК показать сообщения, анализатор — ЧТО в профиле не так.
  */
-final readonly class EstimateAnalyzer implements DocumentAnalyzer, SupportsResultComparison
+final readonly class EstimateAnalyzer implements DocumentAnalyzer, SupportsResultComparison, SupportsTypeProfileValidation
 {
     public function __construct(
         private EvalMetrics $metrics,
@@ -123,6 +129,76 @@ final readonly class EstimateAnalyzer implements DocumentAnalyzer, SupportsResul
         }
 
         return $this->metrics->compare(goldEstimates: $primaryEstimates, predictedEstimates: $shadowEstimates);
+    }
+
+    /**
+     * Валидация пяти полей профиля §6.2 root/document-type-axis.md (§1.6 контракта P2.1, D132) —
+     * ДОСЛОВНО по инвариантам: полная проверка (все поля разом, инвариант 5), не бросает
+     * (инвариант 4), закрытый состав — ключ вне пяти известных полей есть ошибка (Implementation
+     * Rule 6, P5.1). `form` валидируется ПРОТИВ `Fixture::CODE_PATTERN` (единственный носитель
+     * контракта кода, Implementation Rule 2) — синтетический код с валидными EST/XLSX-сегментами
+     * и NNN-хвостом матчится целиком, второй регэксп на третий сегмент не заводится.
+     *
+     * @param  array<string, mixed>  $profile
+     * @return array<string, list<string>>
+     */
+    public function validateTypeProfile(array $profile): array
+    {
+        $errors = [];
+
+        $knownKeys = ['class', 'form', 'gold_source', 'expected_estimates', 'expected_rows'];
+        $unknownKeys = array_diff(array_keys($profile), $knownKeys);
+
+        if ($unknownKeys !== []) {
+            $errors[''] = ['Неизвестные поля профиля: '.implode(', ', $unknownKeys).'.'];
+        }
+
+        if (! array_key_exists('class', $profile) || FixtureClass::tryFrom((string) $profile['class']) === null) {
+            $errors['class'] = ['Поле "class" обязано быть одним из: '.$this->enumValues(FixtureClass::cases()).'.'];
+        }
+
+        if (! array_key_exists('form', $profile) || ! is_string($profile['form']) || $profile['form'] === '' || ! $this->isValidForm($profile['form'])) {
+            $errors['form'] = ['Поле "form" обязано быть строкой из 2–10 заглавных латинских букв/цифр (третий сегмент кода эталона).'];
+        }
+
+        if (! array_key_exists('gold_source', $profile) || GoldSource::tryFrom((string) $profile['gold_source']) === null) {
+            $errors['gold_source'] = ['Поле "gold_source" обязано быть одним из: '.$this->enumValues(GoldSource::cases()).'.'];
+        }
+
+        foreach (['expected_estimates', 'expected_rows'] as $field) {
+            if (array_key_exists($field, $profile) && $profile[$field] !== null && ! $this->isNonNegativeInteger($profile[$field])) {
+                $errors[$field] = ["Поле \"{$field}\" обязано быть целым числом ≥ 0 либо отсутствовать."];
+            }
+        }
+
+        return $errors;
+    }
+
+    /**
+     * Третий сегмент `Fixture::CODE_PATTERN` (`form`) проверяется через синтетический код с
+     * фиксированными валидными первым/вторым/четвёртым сегментами — единственный носитель
+     * контракта кода эталона остаётся `Fixture::CODE_PATTERN` (D13).
+     */
+    private function isValidForm(string $form): bool
+    {
+        return preg_match(Fixture::CODE_PATTERN, "EST-XLSX-{$form}-000") === 1;
+    }
+
+    private function isNonNegativeInteger(mixed $value): bool
+    {
+        if (is_int($value)) {
+            return $value >= 0;
+        }
+
+        return is_string($value) && $value !== '' && ctype_digit($value);
+    }
+
+    /**
+     * @param  list<FixtureClass|GoldSource>  $cases
+     */
+    private function enumValues(array $cases): string
+    {
+        return implode(', ', array_map(static fn (FixtureClass|GoldSource $case): string => $case->value, $cases));
     }
 
     /**

@@ -56,10 +56,11 @@ function coreClassesOfContract(): array
 test('периметр ядра собран правилом вычитания §6.2, не перечнем руками', function (): void {
     $classes = coreClassesOfContract();
 
-    // 92 = 89 + три единицы сверки с биллингом (P4.4): `BillingReconciler` и два DTO
-    // `Dto\Reconciliation*` — ядро транспорта, про типы документа не знающее. Счётчик —
+    // 94 = 92 + два новых файла ядра (P5.1, D132): `Contracts\SupportsTypeProfileValidation`
+    // (капабилити-интерфейс валидации `type_profile`) и `Fixture\FixtureUploader` (сервис
+    // загрузки эталона — `Fixture\**` кросс-документен, §4 root/service-layer-map.md). Счётчик —
     // канарейка периметра: растёт при КАЖДОМ новом файле ядра.
-    expect($classes)->toHaveCount(92)
+    expect($classes)->toHaveCount(94)
         ->and(array_column($classes, 'class'))->not->toContain('App\Jobs\Procurement\Analyzers\Estimate\EstimateExtractionJob');
 });
 

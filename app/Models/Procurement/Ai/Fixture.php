@@ -143,6 +143,37 @@ final class Fixture extends Model
     }
 
     /**
+     * Следующий свободный номер в тройке «класс/формат/форма» (§6.4 контракта P1.2, D18):
+     * пишется на выражениях `type_profile->class`/`type_profile->form` без индексов — размер
+     * отношения (десятки строк) делает seq scan дешевле индекса, а индекс P5.1 заводить не
+     * вправе (схему закрыл P1). Возвращённый код обязан матчить `CODE_PATTERN`.
+     */
+    public static function nextCodeFor(FixtureClass $class, string $sourceFormat, string $form): string
+    {
+        $existingCodes = self::query()
+            ->where('source_format', $sourceFormat)
+            ->where('type_profile->class', $class->value)
+            ->where('type_profile->form', $form)
+            ->pluck('code');
+
+        $max = 0;
+
+        foreach ($existingCodes as $code) {
+            if (preg_match('/-(\d{3})$/', (string) $code, $matches) === 1) {
+                $max = max($max, (int) $matches[1]);
+            }
+        }
+
+        $code = sprintf('%s-%s-%s-%03d', strtoupper($class->value), strtoupper($sourceFormat), $form, $max + 1);
+
+        if (preg_match(self::CODE_PATTERN, $code) !== 1) {
+            throw new \RuntimeException("Сгенерированный код «{$code}» не матчит Fixture::CODE_PATTERN.");
+        }
+
+        return $code;
+    }
+
+    /**
      * Единственный построитель пути производного представления (P3/P6) эталона.
      */
     public static function derivedPathFor(string $code, string $name): string

@@ -8,6 +8,7 @@ use App\Guards\Admin\Permissions\AiRoutePermission;
 use App\Guards\Admin\Permissions\AnalysisPermission;
 use App\Guards\Admin\Permissions\CrawlerPermission;
 use App\Guards\Admin\Permissions\DatasetExamplePermission;
+use App\Guards\Admin\Permissions\FixturePermission;
 use App\Guards\Admin\Permissions\IgnoreRulePermission;
 use App\Guards\Admin\Permissions\PlatformPermission;
 use App\Guards\Admin\Permissions\PromptPermission;
@@ -53,6 +54,12 @@ final class OperatorRole extends BaseRole
             AnalysisPermission::ViewAny,
             AnalysisPermission::View,
             AnalysisPermission::Update,
+            // Реестр эталонов обучающего контура (P5.1, D132/D133): загрузка и правка карточки,
+            // без Delete (эталон удаляется вместе с записью манифеста — консольная операция).
+            FixturePermission::ViewAny,
+            FixturePermission::View,
+            FixturePermission::Create,
+            FixturePermission::Update,
         ];
     }
 

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Guards\Admin\Roles;
 
 use App\Guards\Admin\Permissions\AnalysisPermission;
+use App\Guards\Admin\Permissions\FixturePermission;
 use App\Guards\Admin\Permissions\ProcurementPermission;
 use App\Guards\Admin\Permissions\RunPermission;
 use AzGuard\Roles\BaseRole;
@@ -32,6 +33,8 @@ final class AnalystRole extends BaseRole
             RunPermission::View,
             AnalysisPermission::ViewAny,
             AnalysisPermission::View,
+            FixturePermission::ViewAny,
+            FixturePermission::View,
         ];
     }
 }
