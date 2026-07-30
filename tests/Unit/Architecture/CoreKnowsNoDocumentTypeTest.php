@@ -56,11 +56,10 @@ function coreClassesOfContract(): array
 test('периметр ядра собран правилом вычитания §6.2, не перечнем руками', function (): void {
     $classes = coreClassesOfContract();
 
-    // 94 = 92 + два новых файла ядра (P5.1, D132): `Contracts\SupportsTypeProfileValidation`
-    // (капабилити-интерфейс валидации `type_profile`) и `Fixture\FixtureUploader` (сервис
-    // загрузки эталона — `Fixture\**` кросс-документен, §4 root/service-layer-map.md). Счётчик —
-    // канарейка периметра: растёт при КАЖДОМ новом файле ядра.
-    expect($classes)->toHaveCount(94)
+    // 95 = 94 + один новый файл ядра (P5.2, D135/D136): `Fixture\RunFixtureAnalysisAction`
+    // (действие запуска прогона — `Fixture\**` кросс-документен, §4 root/service-layer-map.md).
+    // Счётчик — канарейка периметра: растёт при КАЖДОМ новом файле ядра.
+    expect($classes)->toHaveCount(95)
         ->and(array_column($classes, 'class'))->not->toContain('App\Jobs\Procurement\Analyzers\Estimate\EstimateExtractionJob');
 });
 

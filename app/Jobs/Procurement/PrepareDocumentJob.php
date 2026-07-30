@@ -27,6 +27,8 @@ final class PrepareDocumentJob extends PipelineJob implements ShouldBeUnique
 
     public function __construct(
         public readonly int $documentId,
+        public readonly RunMode $mode = RunMode::Auto,
+        public readonly ?int $initiatedBy = null,
     ) {
         $this->onQueue('doc_prepare');
     }
@@ -81,8 +83,10 @@ final class PrepareDocumentJob extends PipelineJob implements ShouldBeUnique
         app(DocumentStoreRepository::class)->update($document, ['status' => DocumentStatus::Prepared]);
 
         if (config('ai.screening.enabled', false)) {
-            // Launch-точка (§3.5 root/document-contour.md) — боевой конвейер, mode=auto.
-            app(AnalysisRunStoreRepository::class)->start($version->id, RunMode::Auto);
+            // Launch-точка (§3.5 root/document-contour.md) — режим и инициатор едут параметрами
+            // конструктора (D135): боевой конвейер (`RunMode::Auto` по умолчанию) и UI/harness
+            // launch-точки (P5.2, `RunMode::Manual` + инициатор) заводят прогон здесь одинаково.
+            app(AnalysisRunStoreRepository::class)->start($version->id, $this->mode, $this->initiatedBy);
 
             ScreeningJob::dispatch($document->id)->afterCommit();
         }

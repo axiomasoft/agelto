@@ -50,9 +50,11 @@ final class OperatorRole extends BaseRole
             RunPermission::Update,
             // AI-анализы (P9.2): операторский цикл (проверено/коррекция/re-run) — наблюдение +
             // Update (действия карточки авторизуются через `update`, ResourceGate-конвенция),
-            // без create/delete (пайплайн создаёт/не удаляет анализы сам).
+            // без delete (пайплайн не удаляет анализы сам). Create (P5.2, D44) — право ЗАПУСКА
+            // прогона с карточки эталона, проверяется строкой ability, не абилкой ресурса анализов.
             AnalysisPermission::ViewAny,
             AnalysisPermission::View,
+            AnalysisPermission::Create,
             AnalysisPermission::Update,
             // Реестр эталонов обучающего контура (P5.1, D132/D133): загрузка и правка карточки,
             // без Delete (эталон удаляется вместе с записью манифеста — консольная операция).
