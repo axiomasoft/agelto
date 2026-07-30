@@ -11,7 +11,7 @@ use App\Services\Llm\Schema\PromptContextGenerator;
 use Database\Seeders\PromptSeeder;
 
 beforeEach(function (): void {
-    (new PromptSeeder)->run();
+    app(PromptSeeder::class)->run();
 });
 
 test('композиция каждого шага непуста, а шаги, читающие документ, несут блок безопасности', function (): void {

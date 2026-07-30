@@ -37,6 +37,7 @@ final readonly class LlmCacheManager
 {
     public function __construct(
         private AnalysisStoreRepository $analyses,
+        private LlmProviderFactory $providerFactory,
     ) {}
 
     /**
@@ -174,13 +175,13 @@ final readonly class LlmCacheManager
      * Осиротевшие/просроченные кэши (`ai:caches prune`, Code Guidance): TTL истёк ИЛИ анализ уже
      * финализирован (терминальный статус — succeeded/failed/skipped, `AnalysisStatus`), но
      * `cache_id` не был снят (job упал между вызовом провайдера и обновлением статуса анализа).
-     * `$providerResolver` резолвит `LlmProvider` по строке `analysis.provider` — манагер сам
-     * драйверы не резолвит (Implementation Rules: «манагер не знает про Gemini»).
+     * Провайдер резолвится по строке `analysis.provider` через `LlmProviderFactory` — манагер сам
+     * драйверы не матчит (Implementation Rules: «манагер не знает про Gemini», единственный
+     * `match` — `root/service-layer-map.md` §8).
      *
-     * @param  callable(string): LlmProvider  $providerResolver
      * @return int количество удалённых регистраций
      */
-    public function prune(callable $providerResolver): int
+    public function prune(): int
     {
         $stale = Analysis::query()
             ->whereNotNull('cache_id')
@@ -202,7 +203,7 @@ final readonly class LlmCacheManager
                 continue;
             }
 
-            $this->delete($analysis, $providerResolver($analysis->provider));
+            $this->delete($analysis, $this->providerFactory->forDriver($analysis->provider));
             $pruned++;
         }
 

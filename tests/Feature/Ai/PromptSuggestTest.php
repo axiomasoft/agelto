@@ -78,7 +78,7 @@ function promptSuggestGoldDir(): string
 }
 
 beforeEach(function (): void {
-    (new PromptSeeder)->run();
+    app(PromptSeeder::class)->run();
 });
 
 test('критик кладёт предложение pending с заполненными rationale/evidence', function (): void {

@@ -2,21 +2,17 @@
 
 declare(strict_types=1);
 
-namespace App\Console\Commands\Ai;
+namespace App\Console\Commands\Procurement\Ai;
 
-use App\Services\Llm\Contracts\LlmProvider;
 use App\Services\Llm\LlmCacheManager;
-use App\Services\Llm\Providers\PrismGeminiProvider;
 use Carbon\CarbonInterval;
 use Illuminate\Console\Command;
-use RuntimeException;
 
 /**
  * CRUD-обвязка `LlmCacheManager` (P7.1, ТЗ 04 §2.1/§8): `list` — живые explicit-кэши (или
  * `--hits` — доля implicit cache-хитов по `purpose` за окно); `prune` — снимает осиротевшие/
- * просроченные регистрации (провайдер резолвится по `analysis.provider`, единственный driver
- * `gemini` — тот же YAGNI-приём, что `AiRouteResolver::providerFor()`, второй driver появится
- * вместе со вторым провайдером в `llm_providers`).
+ * просроченные регистрации (провайдер резолвится по `analysis.provider` через
+ * `LlmProviderFactory`, единственный `match` в проекте — `root/service-layer-map.md` §8).
  */
 final class CachesCommand extends Command
 {
@@ -93,19 +89,11 @@ final class CachesCommand extends Command
 
     private function prune(): int
     {
-        $pruned = $this->caches->prune(fn (string $driver): LlmProvider => $this->providerForDriver($driver));
+        $pruned = $this->caches->prune();
 
         $this->info("Снято регистраций кэша: {$pruned}.");
 
         return self::SUCCESS;
-    }
-
-    private function providerForDriver(string $driver): LlmProvider
-    {
-        return match ($driver) {
-            'gemini' => $this->laravel->make(PrismGeminiProvider::class),
-            default => throw new RuntimeException("Неизвестный драйвер провайдера: {$driver}."),
-        };
     }
 
     private function invalidAction(): int

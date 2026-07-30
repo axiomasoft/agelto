@@ -15,13 +15,15 @@ use App\Services\Llm\Dto\LlmResponse;
 use App\Services\Llm\Dto\LlmStructuredResponse;
 use App\Services\Llm\Dto\LlmUsage;
 use App\Services\Llm\LlmCacheManager;
+use App\Services\Llm\LlmProviderFactory;
+use App\Services\Llm\Providers\PrismGeminiProvider;
 use Carbon\CarbonImmutable;
 use Carbon\CarbonInterval;
 use Tests\Support\Doubles\FakeLlmProvider;
 
 function llmCacheManager(): LlmCacheManager
 {
-    return new LlmCacheManager(app(AnalysisStoreRepository::class));
+    return new LlmCacheManager(app(AnalysisStoreRepository::class), app(LlmProviderFactory::class));
 }
 
 function fakeCachingProvider(): FakeLlmProvider
@@ -206,8 +208,9 @@ test('prune() снимает регистрацию просроченных п�
         'cache_expires_at' => CarbonImmutable::now()->addHour(),
     ]);
     $provider = fakeCachingProvider();
+    app()->instance(PrismGeminiProvider::class, $provider);
 
-    $pruned = llmCacheManager()->prune(fn (string $driver): FakeLlmProvider => $provider);
+    $pruned = llmCacheManager()->prune();
 
     expect($pruned)->toBe(1)
         ->and($stale->fresh()->cache_id)->toBeNull()
@@ -222,8 +225,9 @@ test('prune() снимает регистрацию у финализирова�
         'cache_expires_at' => CarbonImmutable::now()->addHour(),
     ]);
     $provider = fakeCachingProvider();
+    app()->instance(PrismGeminiProvider::class, $provider);
 
-    llmCacheManager()->prune(fn (string $driver): FakeLlmProvider => $provider);
+    llmCacheManager()->prune();
 
     expect($succeeded->fresh()->cache_id)->toBeNull();
 });

@@ -13,9 +13,6 @@ use App\Repositories\Llm\LlmRouteReadRepository;
 use App\Services\Llm\Contracts\LlmProvider;
 use App\Services\Llm\Dto\LlmOptions;
 use App\Services\Llm\Dto\ResolvedRoute;
-use App\Services\Llm\Providers\OpenAiCompatibleProvider;
-use App\Services\Llm\Providers\PrismGeminiProvider;
-use Illuminate\Contracts\Container\Container;
 use Illuminate\Support\Collection;
 use RuntimeException;
 
@@ -34,7 +31,7 @@ final readonly class AiRouteResolver
 
     public function __construct(
         private LlmRouteReadRepository $routes,
-        private Container $container,
+        private LlmProviderFactory $providerFactory,
     ) {}
 
     /**
@@ -99,13 +96,6 @@ final readonly class AiRouteResolver
 
     private function providerFor(Provider $provider): LlmProvider
     {
-        return match ($provider->driver) {
-            'gemini' => $this->container->make(PrismGeminiProvider::class),
-            // OpenAI-совместимый транспорт (vLLM/Ollama, P9.4, ТЗ 04 §7) — stateless: base_url/
-            // api_key приходят через `LlmOptions` (см. докблок), не через конструктор, чтобы
-            // `app()->instance(OpenAiCompatibleProvider::class, $fake)` продолжал работать в тестах.
-            'openai_compatible' => $this->container->make(OpenAiCompatibleProvider::class),
-            default => throw new RuntimeException("Неизвестный драйвер провайдера: {$provider->driver}."),
-        };
+        return $this->providerFactory->forDriver($provider->driver);
     }
 }

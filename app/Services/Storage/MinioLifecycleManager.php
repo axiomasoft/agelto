@@ -2,9 +2,8 @@
 
 declare(strict_types=1);
 
-namespace App\Console\Commands\Ai;
+namespace App\Services\Storage;
 
-use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Process;
 use RuntimeException;
 
@@ -16,27 +15,22 @@ use RuntimeException;
  * в MinIO без политики (research/L finding 4).
  *
  * Через `mc` CLI (Process-обвязка, тот же приём, что `PdfPageSlicer`/qpdf, P5.1),
- * а не S3 SDK: `aws-sdk-php`/`league/flysystem-aws-s3-v3` в проекте не установлены
- * (`s3`-диск подключён напрямую через Laravel-конфиг), Code Guidance item'а прямо
- * допускает «MinIO ILM — через S3 API ИЛИ mc в отдельном init-контейнере». Бинарник
- * `mc` — в `docker/php/Dockerfile` (multi-stage `COPY --from=minio/mc`, вне буквального
- * Files-списка — необходимая проводка, прецедент qpdf/mpdf в предыдущих item'ах фазы).
+ * а не S3 SDK: `aws-sdk-php`/`league/flysystem-aws-s3-v3` в проекте не установлены.
  *
  * `mc ilm rule add` САМ по себе НЕ идемпотентен — повторный вызов с теми же `--prefix`/
  * `--expire-days` создаёт ВТОРОЕ правило с новым ID (проверено эмпирически против
- * реального MinIO). Идемпотентность — на уровне этой команды: перед добавлением
+ * реального MinIO). Идемпотентность — на уровне этого сервиса: перед добавлением
  * правила читаем текущие (`mc ilm rule ls --json`) и пропускаем те, чей `prefix` уже
  * зарегистрирован.
  */
-final class StorageLifecycleCommand extends Command
+final readonly class MinioLifecycleManager
 {
-    protected $signature = 'ai:storage:lifecycle';
-
-    protected $description = 'Идемпотентно применяет MinIO ILM-правила (config(partitioning.minio_lifecycle)) на бакет s3-диска';
-
     private const string ALIAS = 'agelto-storage-lifecycle';
 
-    public function handle(): int
+    /**
+     * @return list<array{key: string, prefix: string, expire_days: int, applied: bool}>
+     */
+    public function apply(): array
     {
         $disk = (array) config('filesystems.disks.s3');
         $target = self::ALIAS.'/'.$disk['bucket'];
@@ -44,10 +38,11 @@ final class StorageLifecycleCommand extends Command
         $this->mc(['alias', 'set', self::ALIAS, $disk['endpoint'], $disk['key'], $disk['secret']]);
 
         $existingPrefixes = $this->existingRulePrefixes($target);
+        $report = [];
 
         foreach ((array) config('partitioning.minio_lifecycle') as $ruleKey => $rule) {
             if (in_array($rule['prefix'], $existingPrefixes, true)) {
-                $this->info("Правило «{$ruleKey}» (префикс {$rule['prefix']}) уже существует — пропуск (идемпотентность).");
+                $report[] = ['key' => (string) $ruleKey, 'prefix' => $rule['prefix'], 'expire_days' => $rule['expire_days'], 'applied' => false];
 
                 continue;
             }
@@ -58,10 +53,10 @@ final class StorageLifecycleCommand extends Command
                 '--expire-days', (string) $rule['expire_days'],
             ]);
 
-            $this->info("Правило «{$ruleKey}» добавлено: {$rule['prefix']} → expire {$rule['expire_days']}д.");
+            $report[] = ['key' => (string) $ruleKey, 'prefix' => $rule['prefix'], 'expire_days' => $rule['expire_days'], 'applied' => true];
         }
 
-        return self::SUCCESS;
+        return $report;
     }
 
     /**
@@ -79,7 +74,7 @@ final class StorageLifecycleCommand extends Command
             ));
         }
 
-        // Бакет без ЛЮБОЙ lifecycle-конфигурации (первый запуск команды на свежем бакете) —
+        // Бакет без ЛЮБОЙ lifecycle-конфигурации (первый запуск на свежем бакете) —
         // легитимный старт, не ошибка; любой другой код ошибки — реальная проблема (bucket
         // не существует, авторизация не прошла и т.п.), её нужно видеть.
         $code = $payload['error']['cause']['error']['Code'] ?? null;

@@ -8,7 +8,7 @@ use App\Models\Llm\Prompt;
 use Database\Seeders\PromptSeeder;
 
 test('сидер создаёт по одной активной protected-записи на каждое значение PromptStep', function (): void {
-    (new PromptSeeder)->run();
+    app(PromptSeeder::class)->run();
 
     expect(Prompt::query()->count())->toBe(count([...CorePromptStep::cases(), ...EstimatePromptStep::cases()]));
 
@@ -22,8 +22,8 @@ test('сидер создаёт по одной активной protected-за�
 });
 
 test('сидер идемпотентен — повторный запуск не плодит записей', function (): void {
-    (new PromptSeeder)->run();
-    (new PromptSeeder)->run();
+    app(PromptSeeder::class)->run();
+    app(PromptSeeder::class)->run();
 
     expect(Prompt::query()->count())->toBe(count([...CorePromptStep::cases(), ...EstimatePromptStep::cases()]));
 });
@@ -39,7 +39,7 @@ test('деактивация исчезнувшего файла — is_active=f
         'is_protected' => true,
     ]);
 
-    (new PromptSeeder)->run();
+    app(PromptSeeder::class)->run();
 
     $ghost->refresh();
     expect(Prompt::query()->whereKey($ghost->id)->exists())->toBeTrue()
@@ -57,7 +57,7 @@ test('поднятая версия деактивирует старую вер
         'is_protected' => true,
     ]);
 
-    (new PromptSeeder)->run();
+    app(PromptSeeder::class)->run();
 
     $old->refresh();
     expect(Prompt::query()->whereKey($old->id)->exists())->toBeTrue()
@@ -78,7 +78,7 @@ test('сидер не трогает операторские (не-protected) �
         'is_protected' => false,
     ]);
 
-    (new PromptSeeder)->run();
+    app(PromptSeeder::class)->run();
 
     $operator->refresh();
     expect($operator->is_active)->toBeTrue()

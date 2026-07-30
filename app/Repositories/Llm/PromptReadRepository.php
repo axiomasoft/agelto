@@ -43,4 +43,28 @@ final readonly class PromptReadRepository
             ])
             ->values();
     }
+
+    /**
+     * Точное совпадение `(document_type, key, version)` — сверка канона файлов с БД
+     * (`PromptCanonSynchronizer::drift()`, `root/service-layer-map.md` §6).
+     */
+    public function findVersion(string $documentType, string $key, int $version): ?Prompt
+    {
+        return Prompt::query()
+            ->where('document_type', $documentType)
+            ->where('key', $key)
+            ->where('version', $version)
+            ->first();
+    }
+
+    /**
+     * Все активные protected-записи — множество, которое канон файлов обязан покрывать
+     * (`PromptCanonSynchronizer::sync()/drift()`).
+     *
+     * @return Collection<int, Prompt>
+     */
+    public function activeProtected(): Collection
+    {
+        return Prompt::query()->where('is_protected', true)->where('is_active', true)->get();
+    }
 }

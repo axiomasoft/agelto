@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\Console\Commands\Ai;
+namespace App\Console\Commands\Procurement\Ai;
 
 use App\Enums\Procurement\PromptSuggestionKind;
 use App\Enums\Procurement\PromptSuggestionStatus;
