@@ -361,6 +361,7 @@ LLM-транспорт за фасадом `LlmProvider`, промты как ф
 | 2026-07-30 | plan-run/sonnet-high | **P3.4 закрыт 🟢** — пять сметных групп промтов `git mv` в `resources/estimates/ai/prompts/**`, `PromptCanonReader` — единственный владелец двух глобов D32 и сверки «корень ↔ `document_type`», `PromptPatchApplier` делегирует поиск по `key` ему же — детали см. phases/P3.md P3.4 Completion Notes |
 | 2026-07-30 | plan-run/sonnet-high | **P3.5 закрыт 🟢** — DTO/репозиторий разложены по D31, `AiRouteResolver`→`LlmRouteResolver`, OQ-13 закрыт D113 — детали см. phases/P3.md P3.5 Completion Notes |
 | 2026-07-30 | plan-exec/sonnet-medium | **P3.6 закрыт 🟠, фаза P3 терминальна** (🟠 Done with deviations, 3/6): доки/скилы/нормативная спека синхронизированы с именами `estimate:*`, `llm_*`, `LlmRouteResolver` — детали и Known Deviations см. phases/P3.md P3.6 Completion Notes |
+| 2026-07-30 | plan-close/sonnet-low | **Реконсиляция закрытия фазы P3**: Phase Handoff заполнен (агрегат Known Deviations по 6 items), docs-sync подтверждён (P3.6 покрыл), lint 0/0, handoff.md перезаписан — детали см. phases/P3.md Phase Handoff |
 
 
 ## Обсуждение
