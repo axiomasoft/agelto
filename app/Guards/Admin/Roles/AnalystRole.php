@@ -7,6 +7,7 @@ namespace App\Guards\Admin\Roles;
 use App\Guards\Admin\Permissions\AnalysisPermission;
 use App\Guards\Admin\Permissions\FixturePermission;
 use App\Guards\Admin\Permissions\ProcurementPermission;
+use App\Guards\Admin\Permissions\PromptSuggestionPermission;
 use App\Guards\Admin\Permissions\RunPermission;
 use AzGuard\Roles\BaseRole;
 use UnitEnum;
@@ -35,6 +36,9 @@ final class AnalystRole extends BaseRole
             AnalysisPermission::View,
             FixturePermission::ViewAny,
             FixturePermission::View,
+            // Очередь предложений по промтам (P5.6): аналитик читает очередь, решает — владелец.
+            PromptSuggestionPermission::ViewAny,
+            PromptSuggestionPermission::View,
         ];
     }
 }

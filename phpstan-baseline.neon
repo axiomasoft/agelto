@@ -433,12 +433,6 @@ parameters:
 			path: app/Services/Llm/LlmRouteResolver.php
 
 		-
-			message: '#^Access to an undefined property App\\Models\\Llm\\Prompt\:\:\$content\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Services/Llm/PromptCanonSynchronizer.php
-
-		-
 			message: '#^Access to an undefined property App\\Models\\Llm\\Prompt\:\:\$is_active\.$#'
 			identifier: property.notFound
 			count: 1

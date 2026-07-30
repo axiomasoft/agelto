@@ -12,6 +12,7 @@ use App\Guards\Admin\Permissions\FixturePermission;
 use App\Guards\Admin\Permissions\IgnoreRulePermission;
 use App\Guards\Admin\Permissions\PlatformPermission;
 use App\Guards\Admin\Permissions\PromptPermission;
+use App\Guards\Admin\Permissions\PromptSuggestionPermission;
 use App\Guards\Admin\Permissions\ProviderPermission;
 use App\Guards\Admin\Permissions\ProxyPermission;
 use App\Guards\Admin\Permissions\RegistryPermission;
@@ -62,6 +63,11 @@ final class OperatorRole extends BaseRole
             FixturePermission::View,
             FixturePermission::Create,
             FixturePermission::Update,
+            // Очередь предложений по промтам (P5.6, D47): только ЧТЕНИЕ. Update — это апрув
+            // патча, меняющего поведение модели на всех документах; решение о тексте системной
+            // инструкции остаётся владельческим (суперадмин), оператору не выдаётся.
+            PromptSuggestionPermission::ViewAny,
+            PromptSuggestionPermission::View,
         ];
     }
 

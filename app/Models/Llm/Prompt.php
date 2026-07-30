@@ -13,6 +13,7 @@ use Illuminate\Database\Eloquent\Model;
  * Версионированный промпт для шага AI-анализа.
  *
  * @property string $document_type
+ * @property string $content
  */
 #[UseFactory(PromptFactory::class)]
 final class Prompt extends Model
