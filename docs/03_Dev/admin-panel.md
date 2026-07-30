@@ -31,8 +31,9 @@ scaffold только через `make:filament-*`).
 `null` (карта его не знает), enum-RBAC `Gate::before` НЕ срабатывает, штатный `Gate::policy()`
 резолвится в `App\Guards\Admin\Policies\PromptPolicy` (`app/Guards/Admin/Policies/PromptPolicy.php`,
 `#[GuardPolicy(model: Prompt::class)]` + `#[GateAbility]`). Политика перепроверяет И грубое право
-(`hasPermission()`), И запись-специфичное условие (`!is_protected` — сидовые промты из
-`resources/ai/prompts/**` read-only в админке, D17). Это единственный официально задокументированный
+(`hasPermission()`), И запись-специфичное условие (`!is_protected` — сидовые промты из обоих корней
+канона (`resources/ai/prompts/**` + `resources/<домен>/ai/prompts/**`, D32) read-only в админке, D17).
+Это единственный официально задокументированный
 паттерн композиции «коарс-право + запись-специфичный чек» в AzGuard (`packages/azguard/docs/
 best-practices/policies-and-gates.md`) — не RBAC-роль, `PromptPermission`/`OperatorRole` не менялись.
 
