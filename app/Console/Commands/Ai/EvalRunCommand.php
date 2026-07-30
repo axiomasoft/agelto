@@ -5,12 +5,13 @@ declare(strict_types=1);
 namespace App\Console\Commands\Ai;
 
 use App\Dto\Procurement\Ai\Screening\ScreeningResult;
+use App\Enums\Llm\CoreLlmPurpose;
 use App\Enums\Llm\DocumentTypeScope;
 use App\Enums\Procurement\AiDocumentType;
 use App\Enums\Procurement\AnalysisStatus;
 use App\Enums\Procurement\AnalysisStep;
+use App\Enums\Procurement\Analyzers\Estimate\EstimateLlmPurpose;
 use App\Enums\Procurement\GoldSource;
-use App\Enums\Procurement\LlmPurpose;
 use App\Enums\Procurement\RunMode;
 use App\Models\Llm\LlmCall;
 use App\Models\Procurement\Ai\DatasetExample;
@@ -149,7 +150,7 @@ final class EvalRunCommand extends Command
      */
     private function runExtraction(Collection $examples, string $datasetVersion): int
     {
-        $route = $this->routes->resolve(AiDocumentType::Estimate, LlmPurpose::ExtractRows);
+        $route = $this->routes->resolve(AiDocumentType::Estimate, EstimateLlmPurpose::ExtractRows);
 
         $run = EvalRun::query()->create([
             'document_type' => AiDocumentType::Estimate->value,
@@ -202,7 +203,7 @@ final class EvalRunCommand extends Command
      */
     private function runScreening(Collection $examples, string $datasetVersion): int
     {
-        $route = $this->routes->resolve(DocumentTypeScope::Any, LlmPurpose::Screening);
+        $route = $this->routes->resolve(DocumentTypeScope::Any, CoreLlmPurpose::Screening);
 
         $run = EvalRun::query()->create([
             'document_type' => DocumentTypeScope::Any->value,

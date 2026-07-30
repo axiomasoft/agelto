@@ -47,8 +47,10 @@ sequenceDiagram
 
 ## Файлы → сид → админка
 
-Источник истины — `resources/ai/prompts/**` (git); `App\Enums\Procurement\PromptStep` — 8 значений
-(включая `extraction:discovery` для windowed-пути, D37). Каждый файл — front-matter
+Источник истины — `resources/ai/prompts/**` (git); `App\Enums\Llm\PromptStep` — интерфейс, шаги
+разбиты на ядерный `CorePromptStep` (кросс-документные) и типовые enum'ы анализаторов
+(`App\Enums\Procurement\Analyzers\Estimate\EstimatePromptStep` — 9 значений вместе, включая
+`extraction:discovery` для windowed-пути, D37; P2.5). Каждый файл — front-matter
 (`key`/`step`/`version`/`priority`/`is_active`) + markdown-текст. `php artisan ai:prompts:sync`
 (`PromptsSyncCommand`, есть `--check` для сухой сверки дрейфа) читает дерево и upsert'ит в
 `prc_ai_prompts` по `(key, version)`; `php artisan db:seed` (`PromptSeeder`) достаточно для полного

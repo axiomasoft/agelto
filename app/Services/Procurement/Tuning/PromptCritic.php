@@ -5,11 +5,11 @@ declare(strict_types=1);
 namespace App\Services\Procurement\Tuning;
 
 use App\Dto\Procurement\Ai\Tuning\PromptSuggestionResponse;
+use App\Enums\Llm\CoreLlmPurpose;
+use App\Enums\Llm\CorePromptStep;
 use App\Enums\Llm\DocumentTypeScope;
-use App\Enums\Procurement\AiDocumentType;
+use App\Enums\Llm\PromptStep;
 use App\Enums\Procurement\AnalysisStep;
-use App\Enums\Procurement\LlmPurpose;
-use App\Enums\Procurement\PromptStep;
 use App\Enums\Procurement\PromptSuggestionKind;
 use App\Enums\Procurement\PromptSuggestionStatus;
 use App\Models\Procurement\Ai\PromptSuggestion;
@@ -56,7 +56,7 @@ final readonly class PromptCritic
      */
     public function critique(PromptStep $step, array $diff, ?int $analysisId, ?int $fixtureId): ?PromptSuggestion
     {
-        $critic = $this->prompts->compose(PromptStep::PromptCritic, [PromptSuggestionResponse::class]);
+        $critic = $this->prompts->compose(CorePromptStep::PromptCritic, [PromptSuggestionResponse::class]);
         $target = $this->prompts->compose($step);
         $schema = new JsonSchema($this->schemas->generate(PromptSuggestionResponse::class));
 
@@ -70,7 +70,7 @@ final readonly class PromptCritic
             ],
         );
 
-        $route = $this->routes->resolve(DocumentTypeScope::Any, LlmPurpose::PromptCritic);
+        $route = $this->routes->resolve(DocumentTypeScope::Any, CoreLlmPurpose::PromptCritic);
 
         $calledAt = CarbonImmutable::now();
         $startedAt = microtime(true);
@@ -81,7 +81,7 @@ final readonly class PromptCritic
         } catch (Throwable $exception) {
             $this->recorder->record(
                 analysisId: $analysisId,
-                purpose: LlmPurpose::PromptCritic,
+                purpose: CoreLlmPurpose::PromptCritic,
                 provider: $route->options->provider,
                 model: $route->options->model,
                 promptVersionSet: $critic->promptVersionSet,
@@ -102,7 +102,7 @@ final readonly class PromptCritic
 
         $llmCall = $this->recorder->record(
             analysisId: $analysisId,
-            purpose: LlmPurpose::PromptCritic,
+            purpose: CoreLlmPurpose::PromptCritic,
             provider: $route->options->provider,
             model: $route->options->model,
             promptVersionSet: $critic->promptVersionSet,
@@ -151,7 +151,7 @@ final readonly class PromptCritic
             'base_version' => $isPatch ? ($target->promptVersionSet[$step->value] ?? null) : null,
             'proposed_content' => $isPatch ? $result->proposed_content : null,
             'hint' => $isPatch ? null : $result->hint,
-            'document_type' => $isPatch ? $this->subjectDocumentType($step) : $result->document_type,
+            'document_type' => $isPatch ? $step->documentTypeScope()->value : $result->document_type,
             'analysis_step' => $this->subjectAnalysisStep($step)?->value,
             'rationale' => $result->rationale,
             'evidence' => $result->evidence,
@@ -159,37 +159,21 @@ final readonly class PromptCritic
     }
 
     /**
-     * Предмет патча (D21, §3.3 `root/document-type-axis.md`): шаги `Global`/`ScreeningGlobal`/
-     * `ScreeningClassify`/`PromptCritic` кросс-документные (сентинел `any`), шаги `Extraction*`
-     * сегодня владеет ровно один тип документа — смета (D16, второй тип этот план не реализует).
-     */
-    private function subjectDocumentType(PromptStep $step): string
-    {
-        return $this->isCrossDocumentStep($step) ? DocumentTypeScope::Any->value : AiDocumentType::Estimate->value;
-    }
-
-    /**
-     * Стадия предложения (D21): выводится из того же `$step`, чей текст критикуется/патчится —
-     * `null` для `Global`/`PromptCritic`, которые не привязаны ни к одной стадии.
+     * Стадия предложения (D21): `null` для ядерных шагов `Global`/`PromptCritic`, не привязанных
+     * ни к одной стадии; `ScreeningGlobal`/`ScreeningClassify` — стадия скрининга. Всё, что НЕ
+     * ядерный шаг, принадлежит стадии ИЗВЛЕЧЕНИЯ — единственной стадии, которой владеет тип:
+     * скрининг кросс-документен и КЛАССИФИЦИРУЕТ тип, то есть исполняется до того, как тип
+     * известен, поэтому типовых шагов скрининга не бывает (D102, research/03 §4).
      */
     private function subjectAnalysisStep(PromptStep $step): ?AnalysisStep
     {
-        return match ($step) {
-            PromptStep::ScreeningGlobal, PromptStep::ScreeningClassify => AnalysisStep::Screening,
-            PromptStep::ExtractionGlobal,
-            PromptStep::ExtractionDiscovery,
-            PromptStep::ExtractionPassport,
-            PromptStep::ExtractionRows,
-            PromptStep::ExtractionTotals => AnalysisStep::Extraction,
-            PromptStep::Global, PromptStep::PromptCritic => null,
-        };
-    }
+        if ($step instanceof CorePromptStep) {
+            return match ($step) {
+                CorePromptStep::ScreeningGlobal, CorePromptStep::ScreeningClassify => AnalysisStep::Screening,
+                CorePromptStep::Global, CorePromptStep::PromptCritic => null,
+            };
+        }
 
-    private function isCrossDocumentStep(PromptStep $step): bool
-    {
-        return match ($step) {
-            PromptStep::Global, PromptStep::ScreeningGlobal, PromptStep::ScreeningClassify, PromptStep::PromptCritic => true,
-            default => false,
-        };
+        return AnalysisStep::Extraction;
     }
 }

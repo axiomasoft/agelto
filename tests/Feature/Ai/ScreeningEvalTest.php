@@ -2,8 +2,8 @@
 
 declare(strict_types=1);
 
+use App\Enums\Llm\CoreLlmPurpose;
 use App\Enums\Procurement\FinishReason;
-use App\Enums\Procurement\LlmPurpose;
 use App\Models\Llm\LlmRoute;
 use App\Models\Llm\Provider;
 use App\Models\Procurement\Ai\Analysis;
@@ -60,7 +60,7 @@ function seedScreeningEvalRoute(FakeLlmProvider $fake): void
 
     LlmRoute::factory()->create([
         'document_type' => 'any',
-        'purpose' => LlmPurpose::Screening,
+        'purpose' => CoreLlmPurpose::Screening->value,
         'provider_id' => $provider->id,
         'model' => 'gemini-2.5-flash',
         'priority' => 0,

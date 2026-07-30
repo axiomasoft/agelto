@@ -51,7 +51,7 @@ cache-hint интерпретируется адаптером — Gemini → `c
 `AiRouteResolver::resolve()` берёт первый активный. Стартовый роутинг (D4, сиды `AiRoutingSeeder`):
 скрининг → `gemini-2.5-flash-lite`, извлечение → `gemini-2.5-flash`, эскалация по флагу сложности
 или провалу валидации → `gemini-2.5-pro`. Discovery-путь (windowed fallback, D30/D37) — отдельный
-`LlmPurpose::Discovery`, свой маршрут, свой промт-шаг (`PromptStep::ExtractionDiscovery`) — НЕ
+`EstimateLlmPurpose::Discovery`, свой маршрут, свой промт-шаг (`EstimatePromptStep::ExtractionDiscovery`) — НЕ
 переиспользует screening-маршрут (разные роли: «что за документ» vs «где границы смет»).
 
 ## Транспорт: Prism за фасадом

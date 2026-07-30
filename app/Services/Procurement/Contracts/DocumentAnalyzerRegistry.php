@@ -4,6 +4,11 @@ declare(strict_types=1);
 
 namespace App\Services\Procurement\Contracts;
 
+use App\Enums\Llm\CoreLlmPurpose;
+use App\Enums\Llm\CorePromptStep;
+use App\Enums\Llm\DocumentTypeScope;
+use App\Enums\Llm\LlmPurpose;
+use App\Enums\Llm\PromptStep;
 use App\Enums\Procurement\AiDocumentType;
 use Illuminate\Contracts\Container\Container;
 use InvalidArgumentException;
@@ -16,10 +21,12 @@ use InvalidArgumentException;
  * Инстанс резолвит контейнер, конструкторная инъекция анализатора работает как у любого сервиса.
  *
  * Реестр собирается один раз (синглтон, первый резолв) и на сборке проверяет инварианты §5.4:
- * ключ — значение `AiDocumentType` и это НЕ `unknown`; класс реализует `DocumentAnalyzer`.
- * Проверка «шаги/назначения анализатора не пересекаются с ядерными» (§5.4 п. 2) появится вместе
- * с расщеплением enum'ов на ядерные и типовые — до него множества «ядерных» значений в коде нет
- * (P2.5, там же реализуется валидация `step`/`purpose` на границе записи, §7 контракта).
+ * ключ — значение `AiDocumentType` и это НЕ `unknown`; класс реализует `DocumentAnalyzer`;
+ * значения `step`/`purpose`, объявленные анализатором, НЕ пересекаются с ядерными
+ * (`CorePromptStep`/`CoreLlmPurpose`) — без этой проверки анализатор со значением `'global'`
+ * молча затенил бы ядерный промт (`groupBy('key')`, `PromptReadRepository::activeForSteps()`).
+ * Собственные значения анализатора реестр получает ЧЕРЕЗ `$analyzer->promptSteps()`/`purposes()`
+ * (интерфейс), не импортируя типовой enum — иначе ядро начало бы знать про смету (P2.6).
  *
  * `AiDocumentType::Unknown` зарегистрировать НЕЛЬЗЯ: «анализатор неизвестного типа» вернул бы
  * ветвление по типу в ядро через чёрный ход. Решение «неизвестный тип → `ignored`» остаётся
@@ -36,6 +43,9 @@ final readonly class DocumentAnalyzerRegistry
 
         /** @var array<array-key, mixed> $registrations */
         $registrations = (array) config('ai.analyzers', []);
+
+        $coreStepValues = array_map(fn (CorePromptStep $case): string => $case->value, CorePromptStep::cases());
+        $corePurposeValues = array_map(fn (CoreLlmPurpose $case): string => $case->value, CoreLlmPurpose::cases());
 
         foreach ($registrations as $type => $class) {
             $documentType = AiDocumentType::tryFrom((string) $type);
@@ -58,6 +68,24 @@ final readonly class DocumentAnalyzerRegistry
                 throw new InvalidArgumentException("config('ai.analyzers'): {$class} не реализует ".DocumentAnalyzer::class.'.');
             }
 
+            $ownStepValues = array_map(fn (PromptStep $step): string => $step->value, $analyzer->promptSteps());
+            $overlappingSteps = array_intersect($ownStepValues, $coreStepValues);
+
+            if ($overlappingSteps !== []) {
+                throw new InvalidArgumentException(
+                    "config('ai.analyzers'): анализатор «{$class}» объявляет ядерные значения step: ".implode(', ', $overlappingSteps).'.',
+                );
+            }
+
+            $ownPurposeValues = array_map(fn (LlmPurpose $purpose): string => $purpose->value, $analyzer->purposes());
+            $overlappingPurposes = array_intersect($ownPurposeValues, $corePurposeValues);
+
+            if ($overlappingPurposes !== []) {
+                throw new InvalidArgumentException(
+                    "config('ai.analyzers'): анализатор «{$class}» объявляет ядерные значения purpose: ".implode(', ', $overlappingPurposes).'.',
+                );
+            }
+
             $analyzers[$documentType->value] = $analyzer;
         }
 
@@ -71,5 +99,73 @@ final readonly class DocumentAnalyzerRegistry
     public function for(AiDocumentType $documentType): ?DocumentAnalyzer
     {
         return $this->analyzers[$documentType->value] ?? null;
+    }
+
+    /**
+     * Допустимые шаги композиции для типа: ядерные ∪ собственные (для `DocumentTypeScope::Any`
+     * или типа без анализатора — только ядерные, §5.2 контракта).
+     *
+     * @return list<PromptStep>
+     */
+    public function promptStepsFor(AiDocumentType|DocumentTypeScope $documentType): array
+    {
+        $core = CorePromptStep::cases();
+
+        if ($documentType instanceof DocumentTypeScope) {
+            return $core;
+        }
+
+        $analyzer = $this->analyzers[$documentType->value] ?? null;
+
+        return $analyzer === null ? $core : [...$core, ...$analyzer->promptSteps()];
+    }
+
+    /**
+     * Резолв «строка → носитель шага» для типа — единственное МЕСТО, где значение `step`
+     * проверяется на границе записи (§7 контракта). Бросает на значении вне множества типа —
+     * fail-fast, та же семантика, что была у `PromptStep::from()` до расщепления.
+     */
+    public function promptStepFor(AiDocumentType|DocumentTypeScope $documentType, string $value): PromptStep
+    {
+        foreach ($this->promptStepsFor($documentType) as $step) {
+            if ($step->value === $value) {
+                return $step;
+            }
+        }
+
+        throw new InvalidArgumentException("Реестр: значение step «{$value}» недопустимо для document_type «{$documentType->value}».");
+    }
+
+    /**
+     * Допустимые назначения вызова для типа — та же граница, что `promptStepsFor()`.
+     *
+     * @return list<LlmPurpose>
+     */
+    public function purposesFor(AiDocumentType|DocumentTypeScope $documentType): array
+    {
+        $core = CoreLlmPurpose::cases();
+
+        if ($documentType instanceof DocumentTypeScope) {
+            return $core;
+        }
+
+        $analyzer = $this->analyzers[$documentType->value] ?? null;
+
+        return $analyzer === null ? $core : [...$core, ...$analyzer->purposes()];
+    }
+
+    /**
+     * Резолв «строка → носитель назначения» для типа (§7 контракта) — та же fail-fast
+     * семантика, что `promptStepFor()`.
+     */
+    public function purposeFor(AiDocumentType|DocumentTypeScope $documentType, string $value): LlmPurpose
+    {
+        foreach ($this->purposesFor($documentType) as $purpose) {
+            if ($purpose->value === $value) {
+                return $purpose;
+            }
+        }
+
+        throw new InvalidArgumentException("Реестр: значение purpose «{$value}» недопустимо для document_type «{$documentType->value}».");
     }
 }

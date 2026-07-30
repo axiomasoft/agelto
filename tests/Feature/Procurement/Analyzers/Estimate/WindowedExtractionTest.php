@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 use App\Enums\Procurement\AnalysisStatus;
 use App\Enums\Procurement\AnalysisStep;
+use App\Enums\Procurement\Analyzers\Estimate\EstimateLlmPurpose;
 use App\Enums\Procurement\DocumentStatus;
 use App\Enums\Procurement\FinishReason;
-use App\Enums\Procurement\LlmPurpose;
 use App\Enums\Procurement\RunMode;
 use App\Jobs\Procurement\Analyzers\Estimate\EstimateExtractionJob;
 use App\Models\Llm\LlmRoute;
@@ -67,7 +67,7 @@ function windowedSeedRoutes(FakeLlmProvider $fake): void
 
     LlmRoute::factory()->create([
         'document_type' => 'estimate',
-        'purpose' => LlmPurpose::ExtractRows,
+        'purpose' => EstimateLlmPurpose::ExtractRows->value,
         'provider_id' => $provider->id,
         'model' => 'gemini-2.5-flash',
         'priority' => 0,
@@ -75,7 +75,7 @@ function windowedSeedRoutes(FakeLlmProvider $fake): void
 
     LlmRoute::factory()->create([
         'document_type' => 'estimate',
-        'purpose' => LlmPurpose::Discovery,
+        'purpose' => EstimateLlmPurpose::Discovery->value,
         'provider_id' => $provider->id,
         'model' => 'gemini-2.5-flash',
         'priority' => 0,

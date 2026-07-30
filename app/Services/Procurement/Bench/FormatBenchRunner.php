@@ -8,11 +8,11 @@ use App\Dto\Procurement\Ai\Bench\BenchCellResult;
 use App\Enums\Procurement\AiDocumentType;
 use App\Enums\Procurement\AnalysisStatus;
 use App\Enums\Procurement\AnalysisStep;
+use App\Enums\Procurement\Analyzers\Estimate\EstimateLlmPurpose;
+use App\Enums\Procurement\Analyzers\Estimate\EstimatePromptStep;
 use App\Enums\Procurement\DocumentStatus;
 use App\Enums\Procurement\ExtractionRoute;
 use App\Enums\Procurement\GoldSource;
-use App\Enums\Procurement\LlmPurpose;
-use App\Enums\Procurement\PromptStep;
 use App\Enums\Procurement\RepresentationKind;
 use App\Enums\Procurement\RunMode;
 use App\Models\Llm\LlmCall;
@@ -95,8 +95,8 @@ final readonly class FormatBenchRunner
      */
     public function run(array $onlyCodes, array $onlyVariants, bool $dryRun, ?int $limit): array
     {
-        $route = $this->routes->resolve(AiDocumentType::Estimate, LlmPurpose::ExtractRows);
-        $promptVersionSet = $this->prompts->compose(PromptStep::ExtractionRows)->promptVersionSet;
+        $route = $this->routes->resolve(AiDocumentType::Estimate, EstimateLlmPurpose::ExtractRows);
+        $promptVersionSet = $this->prompts->compose(EstimatePromptStep::ExtractionRows)->promptVersionSet;
         $libreOfficeAvailable = $this->libreOffice->version() !== null;
 
         $examples = $this->eligibleExamples($onlyCodes, $limit);

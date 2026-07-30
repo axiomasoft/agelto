@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Models\Llm;
 
-use App\Enums\Procurement\LlmPurpose;
 use App\Models\Procurement\Ai\Analysis;
 use App\Models\Procurement\Ai\AnalysisRun;
 use Database\Factories\Llm\LlmCallFactory;
@@ -16,6 +15,10 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 /**
  * Каждый вызов LLM (партиция `llm_calls` RANGE by `called_at`).
+ *
+ * `purpose` — СТРОКА объединённого пространства значений (без каста): таблица не несёт
+ * `document_type`, поэтому носитель `App\Enums\Llm\LlmPurpose` (интерфейс) резолвится только
+ * там, где тип документа известен — `DocumentAnalyzerRegistry::purposeFor()` (P2.5, D101).
  *
  * @property int|null $analysis_run_id
  */
@@ -54,7 +57,6 @@ final class LlmCall extends Model
     protected function casts(): array
     {
         return [
-            'purpose' => LlmPurpose::class,
             'prompt_version_set' => AsCollection::class,
             'prompt_tokens' => 'integer',
             'completion_tokens' => 'integer',

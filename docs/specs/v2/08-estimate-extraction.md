@@ -384,9 +384,9 @@ USER-частью повторного вызова (`CorrectionAwareComposer`);
 Решение принимает ТОЛЬКО человек (D8) — ни одна команда не переводит запись в `approved`
 автоматически; экранная форма апрува — P8.4.
 
-**Критик** — `PromptStep::PromptCritic` (`resources/ai/prompts/prompt-critic/0-prompt-critic.md`),
+**Критик** — `CorePromptStep::PromptCritic` (`resources/ai/prompts/prompt-critic/0-prompt-critic.md`),
 обычный шаг системы промтов (D61): версионируемый, `is_protected`, сидится `PromptSeeder` наравне с
-остальными восемью. Назначение вызова — `LlmPurpose::PromptCritic`, маршрут — одна строка
+остальными восемью. Назначение вызова — `CoreLlmPurpose::PromptCritic`, маршрут — одна строка
 `(document_type=any, purpose=prompt_critic, priority=0)` на дешёвой модели в `AiRoutingSeeder`, без
 эскалационной строки (повтор — на уровне job-retry, не re-ask внутри шага).
 

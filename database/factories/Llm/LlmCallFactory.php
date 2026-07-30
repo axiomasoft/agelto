@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Database\Factories\Llm;
 
-use App\Enums\Procurement\LlmPurpose;
+use App\Enums\Llm\CoreLlmPurpose;
 use App\Models\Llm\LlmCall;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
@@ -19,7 +19,7 @@ final class LlmCallFactory extends Factory
     {
         return [
             'analysis_id' => null,
-            'purpose' => LlmPurpose::Screening,
+            'purpose' => CoreLlmPurpose::Screening->value,
             'provider' => 'gemini',
             'model' => 'gemini-2.5-flash',
             'prompt_version_set' => null,

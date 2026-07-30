@@ -2,9 +2,10 @@
 
 declare(strict_types=1);
 
+use App\Enums\Llm\CoreLlmPurpose;
 use App\Enums\Procurement\AnalysisStatus;
+use App\Enums\Procurement\Analyzers\Estimate\EstimateLlmPurpose;
 use App\Enums\Procurement\FinishReason;
-use App\Enums\Procurement\LlmPurpose;
 use App\Models\Llm\LlmCall;
 use App\Models\Procurement\Ai\Analysis;
 use App\Repositories\Procurement\AnalysisStoreRepository;
@@ -229,19 +230,19 @@ test('prune() снимает регистрацию у финализирова�
 
 test('implicitHitStats() считает долю cached_tokens по purpose за окно', function (): void {
     LlmCall::factory()->create([
-        'purpose' => LlmPurpose::ExtractRows,
+        'purpose' => EstimateLlmPurpose::ExtractRows->value,
         'prompt_tokens' => 100,
         'cached_tokens' => 300,
         'called_at' => CarbonImmutable::now(),
     ]);
     LlmCall::factory()->create([
-        'purpose' => LlmPurpose::ExtractRows,
+        'purpose' => EstimateLlmPurpose::ExtractRows->value,
         'prompt_tokens' => 100,
         'cached_tokens' => 100,
         'called_at' => CarbonImmutable::now(),
     ]);
     LlmCall::factory()->create([
-        'purpose' => LlmPurpose::Screening,
+        'purpose' => CoreLlmPurpose::Screening->value,
         'prompt_tokens' => 1000,
         'cached_tokens' => 0,
         'called_at' => CarbonImmutable::now()->subDays(2),

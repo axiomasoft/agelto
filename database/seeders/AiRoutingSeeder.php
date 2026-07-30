@@ -4,11 +4,13 @@ declare(strict_types=1);
 
 namespace Database\Seeders;
 
+use App\Enums\Llm\CoreLlmPurpose;
 use App\Enums\Llm\DocumentTypeScope;
 use App\Enums\Procurement\AiDocumentType;
-use App\Enums\Procurement\LlmPurpose;
+use App\Enums\Procurement\Analyzers\Estimate\EstimateLlmPurpose;
 use App\Models\Llm\LlmRoute;
 use App\Models\Llm\Provider;
+use App\Services\Procurement\Contracts\DocumentAnalyzerRegistry;
 use Illuminate\Database\Seeder;
 
 /**
@@ -39,6 +41,8 @@ final class AiRoutingSeeder extends Seeder
 {
     public function run(): void
     {
+        $registry = app(DocumentAnalyzerRegistry::class);
+
         $provider = Provider::query()->updateOrCreate(
             ['code' => 'gemini'],
             [
@@ -50,6 +54,11 @@ final class AiRoutingSeeder extends Seeder
         );
 
         foreach ($this->routes() as $route) {
+            $documentType = AiDocumentType::tryFrom($route['document_type']) ?? DocumentTypeScope::Any;
+
+            // Fail fast на опечатку в purpose — реестр §7 контракта, та же граница, что PromptSeeder.
+            $registry->purposeFor($documentType, $route['purpose']);
+
             LlmRoute::query()->updateOrCreate(
                 [
                     'document_type' => $route['document_type'],
@@ -77,35 +86,35 @@ final class AiRoutingSeeder extends Seeder
 
         return [
             // (any, screening) — общий дешёвый гейт пайплайна для ЛЮБОГО типа документа (D4).
-            ['document_type' => $any, 'purpose' => LlmPurpose::Screening->value, 'priority' => 0, 'model' => 'gemini-3.1-flash-lite'],
+            ['document_type' => $any, 'purpose' => CoreLlmPurpose::Screening->value, 'priority' => 0, 'model' => 'gemini-3.1-flash-lite'],
             // 'model' => 'gemini-2.5-flash-lite', // D27 исходная — недоступна ключу (D123), не откатывать без проверки доступа.
-            ['document_type' => $any, 'purpose' => LlmPurpose::Screening->value, 'priority' => 1, 'model' => 'gemini-3.1-pro-preview'],
+            ['document_type' => $any, 'purpose' => CoreLlmPurpose::Screening->value, 'priority' => 1, 'model' => 'gemini-3.1-pro-preview'],
             // 'model' => 'gemini-2.5-pro', // D27 исходная — недоступна ключу (D123).
 
             // (estimate, discovery) — маркеры границ смет оконного пути P6.4 (D30/D37), дёшево.
-            ['document_type' => $estimate, 'purpose' => LlmPurpose::Discovery->value, 'priority' => 0, 'model' => 'gemini-3.1-flash-lite'],
+            ['document_type' => $estimate, 'purpose' => EstimateLlmPurpose::Discovery->value, 'priority' => 0, 'model' => 'gemini-3.1-flash-lite'],
             // 'model' => 'gemini-2.5-flash-lite', // D27 исходная — недоступна ключу (D123).
-            ['document_type' => $estimate, 'purpose' => LlmPurpose::Discovery->value, 'priority' => 1, 'model' => 'gemini-3.1-pro-preview'],
+            ['document_type' => $estimate, 'purpose' => EstimateLlmPurpose::Discovery->value, 'priority' => 1, 'model' => 'gemini-3.1-pro-preview'],
             // 'model' => 'gemini-2.5-pro', // D27 исходная — недоступна ключу (D123).
 
             // (estimate, extract_passport|extract_rows|extract_totals) — рабочая лошадка (D4).
-            ['document_type' => $estimate, 'purpose' => LlmPurpose::ExtractPassport->value, 'priority' => 0, 'model' => 'gemini-3.5-flash'],
+            ['document_type' => $estimate, 'purpose' => EstimateLlmPurpose::ExtractPassport->value, 'priority' => 0, 'model' => 'gemini-3.5-flash'],
             // 'model' => 'gemini-2.5-flash', // D27 исходная — недоступна ключу (D123).
-            ['document_type' => $estimate, 'purpose' => LlmPurpose::ExtractPassport->value, 'priority' => 1, 'model' => 'gemini-3.1-pro-preview'],
+            ['document_type' => $estimate, 'purpose' => EstimateLlmPurpose::ExtractPassport->value, 'priority' => 1, 'model' => 'gemini-3.1-pro-preview'],
             // 'model' => 'gemini-2.5-pro', // D27 исходная — недоступна ключу (D123).
 
-            ['document_type' => $estimate, 'purpose' => LlmPurpose::ExtractRows->value, 'priority' => 0, 'model' => 'gemini-3.5-flash'],
+            ['document_type' => $estimate, 'purpose' => EstimateLlmPurpose::ExtractRows->value, 'priority' => 0, 'model' => 'gemini-3.5-flash'],
             // 'model' => 'gemini-2.5-flash', // D27 исходная — недоступна ключу (D123).
-            ['document_type' => $estimate, 'purpose' => LlmPurpose::ExtractRows->value, 'priority' => 1, 'model' => 'gemini-3.1-pro-preview'],
+            ['document_type' => $estimate, 'purpose' => EstimateLlmPurpose::ExtractRows->value, 'priority' => 1, 'model' => 'gemini-3.1-pro-preview'],
             // 'model' => 'gemini-2.5-pro', // D27 исходная — недоступна ключу (D123).
 
-            ['document_type' => $estimate, 'purpose' => LlmPurpose::ExtractTotals->value, 'priority' => 0, 'model' => 'gemini-3.5-flash'],
+            ['document_type' => $estimate, 'purpose' => EstimateLlmPurpose::ExtractTotals->value, 'priority' => 0, 'model' => 'gemini-3.5-flash'],
             // 'model' => 'gemini-2.5-flash', // D27 исходная — недоступна ключу (D123).
-            ['document_type' => $estimate, 'purpose' => LlmPurpose::ExtractTotals->value, 'priority' => 1, 'model' => 'gemini-3.1-pro-preview'],
+            ['document_type' => $estimate, 'purpose' => EstimateLlmPurpose::ExtractTotals->value, 'priority' => 1, 'model' => 'gemini-3.1-pro-preview'],
             // 'model' => 'gemini-2.5-pro', // D27 исходная — недоступна ключу (D123).
 
             // (any, prompt_critic) — критик патчей промтов (P7.4, D61), на дешёвой модели.
-            ['document_type' => $any, 'purpose' => LlmPurpose::PromptCritic->value, 'priority' => 0, 'model' => 'gemini-3.1-flash-lite'],
+            ['document_type' => $any, 'purpose' => CoreLlmPurpose::PromptCritic->value, 'priority' => 0, 'model' => 'gemini-3.1-flash-lite'],
             // 'model' => 'gemini-2.5-flash-lite', // D27 исходная — недоступна ключу (D123).
         ];
     }

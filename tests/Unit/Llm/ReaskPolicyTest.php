@@ -3,8 +3,8 @@
 declare(strict_types=1);
 
 use App\Dto\Procurement\Ai\Screening\ScreeningResult;
+use App\Enums\Llm\CoreLlmPurpose;
 use App\Enums\Procurement\FinishReason;
-use App\Enums\Procurement\LlmPurpose;
 use App\Models\Llm\LlmRoute;
 use App\Services\Llm\Dto\JsonSchema;
 use App\Services\Llm\Dto\LlmOptions;
@@ -48,7 +48,7 @@ function routeWith(FakeLlmProvider $provider, int $priority = 0): ResolvedRoute
     return new ResolvedRoute(
         provider: $provider,
         options: new LlmOptions(provider: 'gemini', model: 'gemini-2.5-flash', temperature: 0.0, maxTokens: 8192),
-        route: LlmRoute::factory()->make(['priority' => $priority, 'purpose' => LlmPurpose::Screening]),
+        route: LlmRoute::factory()->make(['priority' => $priority, 'purpose' => CoreLlmPurpose::Screening->value]),
     );
 }
 

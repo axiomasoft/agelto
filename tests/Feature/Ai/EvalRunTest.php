@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
+use App\Enums\Llm\CorePromptStep;
+use App\Enums\Procurement\Analyzers\Estimate\EstimateLlmPurpose;
 use App\Enums\Procurement\FinishReason;
 use App\Enums\Procurement\FixtureClass;
 use App\Enums\Procurement\GoldSource;
-use App\Enums\Procurement\LlmPurpose;
-use App\Enums\Procurement\PromptStep;
 use App\Models\Llm\LlmRoute;
 use App\Models\Llm\Prompt;
 use App\Models\Llm\Provider;
@@ -63,7 +63,7 @@ function seedEvalRunRoute(FakeLlmProvider $fake): void
 
     LlmRoute::factory()->create([
         'document_type' => 'estimate',
-        'purpose' => LlmPurpose::ExtractRows,
+        'purpose' => EstimateLlmPurpose::ExtractRows->value,
         'provider_id' => $provider->id,
         'model' => 'gemini-2.5-flash',
         'priority' => 0,
@@ -444,7 +444,7 @@ test('prompt_version_set прогона собран из фактических
 
     Prompt::factory()->create([
         'key' => 'global-rule',
-        'step' => PromptStep::Global->value,
+        'step' => CorePromptStep::Global->value,
         'version' => 2,
         'is_active' => true,
     ]);

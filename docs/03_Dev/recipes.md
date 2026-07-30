@@ -35,7 +35,8 @@ status: draft
 1. Результат хранится как `jsonb` в `prc_ai_analyses.result` — generic-таблица под него НЕ
    создаётся заранее (ADR [`adr/0004-jsonb-for-non-estimate-results.md`](adr/0004-jsonb-for-non-estimate-results.md)).
 2. Новый `document_type` в роутинге (`prc_ai_routes`) и, если нужен отдельный набор промтов — новый
-   `PromptStep`-кейс + файлы в `resources/ai/prompts/`.
+   типовой enum шага, реализующий `App\Enums\Llm\PromptStep` (`App\Enums\Procurement\Analyzers\
+   <Type>\*PromptStep`, contract P2.1 §4.1) + файлы в `resources/ai/prompts/`.
 3. Новый Data-контракт ответа (схема-как-код, D2) — генерирует и промт-исходник, и
    `responseJsonSchema` из одного PHP-класса; см. `03_Dev/ai/prompts.md` §Composite versioning.
 4. Второй экстрактор — не копия `ExtractionOrchestrator`, а собственный оркестратор своей стадии

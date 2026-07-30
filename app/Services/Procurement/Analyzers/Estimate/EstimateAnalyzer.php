@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace App\Services\Procurement\Analyzers\Estimate;
 
-use App\Enums\Procurement\LlmPurpose;
-use App\Enums\Procurement\PromptStep;
+use App\Enums\Llm\LlmPurpose;
+use App\Enums\Llm\PromptStep;
+use App\Enums\Procurement\Analyzers\Estimate\EstimateLlmPurpose;
+use App\Enums\Procurement\Analyzers\Estimate\EstimatePromptStep;
 use App\Jobs\Procurement\Analyzers\Estimate\EstimateExtractionJob;
 use App\Models\Procurement\Ai\Analysis;
 use App\Services\Procurement\Contracts\DocumentAnalyzer;
@@ -39,11 +41,11 @@ final readonly class EstimateAnalyzer implements DocumentAnalyzer
     public function promptSteps(): array
     {
         return [
-            PromptStep::ExtractionGlobal,
-            PromptStep::ExtractionDiscovery,
-            PromptStep::ExtractionPassport,
-            PromptStep::ExtractionRows,
-            PromptStep::ExtractionTotals,
+            EstimatePromptStep::ExtractionGlobal,
+            EstimatePromptStep::ExtractionDiscovery,
+            EstimatePromptStep::ExtractionPassport,
+            EstimatePromptStep::ExtractionRows,
+            EstimatePromptStep::ExtractionTotals,
         ];
     }
 
@@ -53,10 +55,10 @@ final readonly class EstimateAnalyzer implements DocumentAnalyzer
     public function purposes(): array
     {
         return [
-            LlmPurpose::Discovery,
-            LlmPurpose::ExtractPassport,
-            LlmPurpose::ExtractRows,
-            LlmPurpose::ExtractTotals,
+            EstimateLlmPurpose::Discovery,
+            EstimateLlmPurpose::ExtractPassport,
+            EstimateLlmPurpose::ExtractRows,
+            EstimateLlmPurpose::ExtractTotals,
         ];
     }
 

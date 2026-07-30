@@ -234,7 +234,7 @@ final readonly class LlmCacheManager
                 $total = (int) $row->prompt_tokens + (int) $row->cached_tokens;
 
                 return (object) [
-                    'purpose' => $row->purpose->value,
+                    'purpose' => $row->getAttribute('purpose'),
                     'calls' => (int) $row->calls,
                     'prompt_tokens' => (int) $row->prompt_tokens,
                     'cached_tokens' => (int) $row->cached_tokens,

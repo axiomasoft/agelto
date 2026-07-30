@@ -6,7 +6,7 @@ namespace Database\Factories\Procurement\Ai;
 
 use App\Enums\Procurement\AiDocumentType;
 use App\Enums\Procurement\AnalysisStep;
-use App\Enums\Procurement\PromptStep;
+use App\Enums\Procurement\Analyzers\Estimate\EstimatePromptStep;
 use App\Enums\Procurement\PromptSuggestionKind;
 use App\Enums\Procurement\PromptSuggestionStatus;
 use App\Models\Procurement\Ai\PromptSuggestion;
@@ -29,8 +29,8 @@ final class PromptSuggestionFactory extends Factory
             'fixture_id' => null,
             'eval_run_id' => null,
             'llm_call_id' => null,
-            'prompt_key' => PromptStep::ExtractionRows->value,
-            'prompt_step' => PromptStep::ExtractionRows->value,
+            'prompt_key' => EstimatePromptStep::ExtractionRows->value,
+            'prompt_step' => EstimatePromptStep::ExtractionRows->value,
             'base_version' => 1,
             'proposed_content' => $this->faker->paragraph(),
             'hint' => null,

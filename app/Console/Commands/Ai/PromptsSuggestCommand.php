@@ -4,17 +4,19 @@ declare(strict_types=1);
 
 namespace App\Console\Commands\Ai;
 
+use App\Enums\Llm\DocumentTypeScope;
+use App\Enums\Procurement\AiDocumentType;
 use App\Enums\Procurement\AnalysisStep;
-use App\Enums\Procurement\PromptStep;
 use App\Models\Procurement\Ai\Analysis;
 use App\Models\Procurement\Ai\Fixture;
 use App\Repositories\Procurement\DocumentStoreRepository;
 use App\Repositories\Procurement\FixtureStoreRepository;
 use App\Services\Procurement\Analyzers\Estimate\EstimateDiffReport;
+use App\Services\Procurement\Contracts\DocumentAnalyzerRegistry;
 use App\Services\Procurement\Tuning\PromptCritic;
 use Illuminate\Console\Command;
+use InvalidArgumentException;
 use JsonException;
-use ValueError;
 
 /**
  * Дешёвый LLM-критик промтов по эталону (P7.4, D8/D59/D61): по каждому `--code`/`--analysis`
@@ -39,6 +41,7 @@ final class PromptsSuggestCommand extends Command
         private readonly FixtureStoreRepository $fixtures,
         private readonly DocumentStoreRepository $documents,
         private readonly PromptCritic $critic,
+        private readonly DocumentAnalyzerRegistry $registry,
     ) {
         parent::__construct();
     }
@@ -60,14 +63,6 @@ final class PromptsSuggestCommand extends Command
 
         if ($stepOptions === []) {
             $this->error('Нужен хотя бы один --step=<PromptStep>.');
-
-            return self::FAILURE;
-        }
-
-        try {
-            $steps = array_map(static fn (string $value): PromptStep => PromptStep::from($value), $stepOptions);
-        } catch (ValueError $e) {
-            $this->error("Неизвестный --step: {$e->getMessage()}");
 
             return self::FAILURE;
         }
@@ -94,6 +89,23 @@ final class PromptsSuggestCommand extends Command
             $predictedEstimates = (array) ($analysis->result['estimates'] ?? []);
             $diff = $this->diffReport->build($goldEstimates, $predictedEstimates)->toArray();
             $fixtureId = $this->fixtures->findByCode($code)?->id;
+
+            // Порядок инвертирован (D101 п. г): предмет (Analysis несёт document_type) резолвится
+            // раньше шагов — значение `step` без типа документа неоднозначно по контракту (§5.4 п.3).
+            $documentType = $analysis->document_type !== null
+                ? (AiDocumentType::tryFrom($analysis->document_type) ?? DocumentTypeScope::Any)
+                : DocumentTypeScope::Any;
+
+            try {
+                $steps = array_map(
+                    fn (string $value) => $this->registry->promptStepFor($documentType, $value),
+                    $stepOptions,
+                );
+            } catch (InvalidArgumentException $e) {
+                $this->error("Неизвестный --step для document_type={$documentType->value}: {$e->getMessage()}");
+
+                continue;
+            }
 
             foreach ($steps as $step) {
                 if ($limit !== null && $created >= $limit) {

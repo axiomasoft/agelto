@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-use App\Enums\Procurement\LlmPurpose;
+use App\Enums\Llm\CoreLlmPurpose;
 use App\Models\Llm\LlmRoute;
 use App\Models\Llm\Prompt;
 use App\Models\Procurement\Ai\Analysis;
@@ -123,14 +123,14 @@ test('битый owner_document_type отвергается БД на prc_ai_fix
 test('дубль кросс-документного маршрута — единый ключ (document_type, purpose, priority, shadow) отвергает повтор', function (): void {
     LlmRoute::factory()->create([
         'document_type' => 'any',
-        'purpose' => LlmPurpose::Screening,
+        'purpose' => CoreLlmPurpose::Screening->value,
         'priority' => 0,
         'shadow' => false,
     ]);
 
     expect(fn () => LlmRoute::factory()->create([
         'document_type' => 'any',
-        'purpose' => LlmPurpose::Screening,
+        'purpose' => CoreLlmPurpose::Screening->value,
         'priority' => 0,
         'shadow' => false,
     ]))->toThrow(QueryException::class);

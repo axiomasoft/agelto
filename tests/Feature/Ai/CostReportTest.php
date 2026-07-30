@@ -2,7 +2,8 @@
 
 declare(strict_types=1);
 
-use App\Enums\Procurement\LlmPurpose;
+use App\Enums\Llm\CoreLlmPurpose;
+use App\Enums\Procurement\Analyzers\Estimate\EstimateLlmPurpose;
 use App\Models\Llm\LlmCall;
 use Carbon\CarbonImmutable;
 
@@ -10,7 +11,7 @@ test('отчёт группирует расход по (provider, model, purpos
     LlmCall::factory()->create([
         'provider' => 'gemini',
         'model' => 'gemini-2.5-flash',
-        'purpose' => LlmPurpose::ExtractRows,
+        'purpose' => EstimateLlmPurpose::ExtractRows->value,
         'prompt_tokens' => 1_000,
         'cached_tokens' => 500,
         'completion_tokens' => 200,
@@ -20,7 +21,7 @@ test('отчёт группирует расход по (provider, model, purpos
     LlmCall::factory()->create([
         'provider' => 'gemini',
         'model' => 'gemini-2.5-flash',
-        'purpose' => LlmPurpose::ExtractRows,
+        'purpose' => EstimateLlmPurpose::ExtractRows->value,
         'prompt_tokens' => 500,
         'cached_tokens' => 0,
         'completion_tokens' => 100,
@@ -33,7 +34,7 @@ test('отчёт группирует расход по (provider, model, purpos
     LlmCall::factory()->create([
         'provider' => 'gemini',
         'model' => 'gemini-2.5-pro',
-        'purpose' => LlmPurpose::Screening,
+        'purpose' => CoreLlmPurpose::Screening->value,
         'cost_micros' => 999_999,
         'called_at' => CarbonImmutable::now()->subDays(8),
     ]);
@@ -69,7 +70,7 @@ test('строка «экономия кэша» считается по capabil
     LlmCall::factory()->create([
         'provider' => 'gemini',
         'model' => 'gemini-2.5-flash',
-        'purpose' => LlmPurpose::ExtractRows,
+        'purpose' => EstimateLlmPurpose::ExtractRows->value,
         'cached_tokens' => 1_000_000,
         'cost_micros' => 300_000,
         'called_at' => CarbonImmutable::now(),
@@ -85,7 +86,7 @@ test('--days влияет на нижнюю границу окна', function (
     LlmCall::factory()->create([
         'provider' => 'gemini',
         'model' => 'gemini-2.5-flash-lite',
-        'purpose' => LlmPurpose::Screening,
+        'purpose' => CoreLlmPurpose::Screening->value,
         'cost_micros' => 1_000,
         'called_at' => CarbonImmutable::now()->subDays(3),
     ]);

@@ -2,9 +2,10 @@
 
 declare(strict_types=1);
 
+use App\Enums\Llm\CoreLlmPurpose;
 use App\Enums\Llm\DocumentTypeScope;
 use App\Enums\Procurement\AiDocumentType;
-use App\Enums\Procurement\LlmPurpose;
+use App\Enums\Procurement\Analyzers\Estimate\EstimateLlmPurpose;
 use App\Models\Llm\LlmRoute;
 use App\Models\Llm\Provider;
 use App\Services\Llm\AiRouteResolver;
@@ -21,7 +22,7 @@ test('сидер создаёт провайдера gemini и стартову�
 
     $screening = LlmRoute::query()
         ->where('document_type', 'any')
-        ->where('purpose', LlmPurpose::Screening->value)
+        ->where('purpose', CoreLlmPurpose::Screening->value)
         ->where('priority', 0)
         ->sole();
     expect($screening->model)->toBe('gemini-3.1-flash-lite')
@@ -31,28 +32,28 @@ test('сидер создаёт провайдера gemini и стартову�
 
     $discovery = LlmRoute::query()
         ->where('document_type', 'estimate')
-        ->where('purpose', LlmPurpose::Discovery->value)
+        ->where('purpose', EstimateLlmPurpose::Discovery->value)
         ->where('priority', 0)
         ->sole();
     expect($discovery->model)->toBe('gemini-3.1-flash-lite');
 
     $extractRows = LlmRoute::query()
         ->where('document_type', 'estimate')
-        ->where('purpose', LlmPurpose::ExtractRows->value)
+        ->where('purpose', EstimateLlmPurpose::ExtractRows->value)
         ->where('priority', 0)
         ->sole();
     expect($extractRows->model)->toBe('gemini-3.5-flash');
 
     $escalation = LlmRoute::query()
         ->where('document_type', 'estimate')
-        ->where('purpose', LlmPurpose::ExtractRows->value)
+        ->where('purpose', EstimateLlmPurpose::ExtractRows->value)
         ->where('priority', 1)
         ->sole();
     expect($escalation->model)->toBe('gemini-3.1-pro-preview');
 
     $promptCritic = LlmRoute::query()
         ->where('document_type', 'any')
-        ->where('purpose', LlmPurpose::PromptCritic->value)
+        ->where('purpose', CoreLlmPurpose::PromptCritic->value)
         ->where('priority', 0)
         ->sole();
     expect($promptCritic->model)->toBe('gemini-3.1-flash-lite')
@@ -71,13 +72,13 @@ test('после сидирования AiRouteResolver находит акти�
     (new AiRoutingSeeder)->run();
     $resolver = app(AiRouteResolver::class);
 
-    expect($resolver->resolve(DocumentTypeScope::Any, LlmPurpose::Screening)->options->model)->toBe('gemini-3.1-flash-lite')
-        ->and($resolver->resolve(AiDocumentType::Estimate, LlmPurpose::Discovery)->options->model)->toBe('gemini-3.1-flash-lite')
-        ->and($resolver->resolve(AiDocumentType::Estimate, LlmPurpose::ExtractPassport)->options->model)->toBe('gemini-3.5-flash')
-        ->and($resolver->resolve(AiDocumentType::Estimate, LlmPurpose::ExtractRows)->options->model)->toBe('gemini-3.5-flash')
-        ->and($resolver->resolve(AiDocumentType::Estimate, LlmPurpose::ExtractTotals)->options->model)->toBe('gemini-3.5-flash');
+    expect($resolver->resolve(DocumentTypeScope::Any, CoreLlmPurpose::Screening)->options->model)->toBe('gemini-3.1-flash-lite')
+        ->and($resolver->resolve(AiDocumentType::Estimate, EstimateLlmPurpose::Discovery)->options->model)->toBe('gemini-3.1-flash-lite')
+        ->and($resolver->resolve(AiDocumentType::Estimate, EstimateLlmPurpose::ExtractPassport)->options->model)->toBe('gemini-3.5-flash')
+        ->and($resolver->resolve(AiDocumentType::Estimate, EstimateLlmPurpose::ExtractRows)->options->model)->toBe('gemini-3.5-flash')
+        ->and($resolver->resolve(AiDocumentType::Estimate, EstimateLlmPurpose::ExtractTotals)->options->model)->toBe('gemini-3.5-flash');
 
-    $candidates = $resolver->candidatesFor(AiDocumentType::Estimate, LlmPurpose::ExtractRows)
+    $candidates = $resolver->candidatesFor(AiDocumentType::Estimate, EstimateLlmPurpose::ExtractRows)
         ->map(fn ($resolved) => $resolved->options->model)
         ->values()
         ->all();

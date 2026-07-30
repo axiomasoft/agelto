@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 use App\Enums\Procurement\AnalysisStatus;
 use App\Enums\Procurement\AnalysisStep;
+use App\Enums\Procurement\Analyzers\Estimate\EstimateLlmPurpose;
 use App\Enums\Procurement\FinishReason;
-use App\Enums\Procurement\LlmPurpose;
 use App\Models\Llm\LlmRoute;
 use App\Models\Llm\Provider;
 use App\Models\Procurement\Ai\Analysis;
@@ -67,7 +67,7 @@ function seedRerunRoute(FakeLlmProvider $fake): void
 
     LlmRoute::factory()->create([
         'document_type' => 'estimate',
-        'purpose' => LlmPurpose::ExtractRows,
+        'purpose' => EstimateLlmPurpose::ExtractRows->value,
         'provider_id' => $provider->id,
         'model' => 'gemini-2.5-flash',
         'priority' => 0,

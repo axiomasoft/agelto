@@ -34,8 +34,9 @@ paths:
 
 `PromptComposer::compose()`: `global` → `<step>-global` (если есть у группы) → `<step>`, порядок
 внутри группы — `priority` ASC, блок JSON Schema (генерируется из PHP Data-класса, не файл) —
-последним. 8 значений `PromptStep` (`app/Enums/Procurement/PromptStep.php`) — сидер падает на
-опечатке в `step` front-matter.
+последним. Носитель шага — `App\Enums\Llm\PromptStep` (интерфейс, P2.5): ядерный `CorePromptStep` +
+типовые enum'ы анализаторов, 9 значений вместе (`app/Enums/Llm/CorePromptStep.php`) — сидер
+(через `DocumentAnalyzerRegistry::promptStepFor()`) падает на опечатке в `step` front-matter.
 
 ## 3) Discovery / корректирующие hints (D15)
 
@@ -43,7 +44,7 @@ paths:
 неизменным ради implicit-кэша) повторного вызова из `prc_ai_corrections`: (1) коррекции,
 привязанные к анализу-предшественнику этого re-run; (2) `is_reusable=true`-коррекции ТОГО ЖЕ
 `document_type` из любого анализа. Текст строки — `hint ?? content`. Не путать с
-`extraction:discovery` (`PromptStep::ExtractionDiscovery`) — это отдельный ШАГ композиции
+`extraction:discovery` (`EstimatePromptStep::ExtractionDiscovery`) — это отдельный ШАГ композиции
 (сегментация смет оконного пути, D30/D37), а не механизм hints.
 
 ## 4) Eval-цикл

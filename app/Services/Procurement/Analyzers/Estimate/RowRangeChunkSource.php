@@ -7,9 +7,11 @@ namespace App\Services\Procurement\Analyzers\Estimate;
 use App\Dto\Procurement\Ai\Estimate\PassportResponse;
 use App\Dto\Procurement\Ai\Estimate\RowsChunkResponse;
 use App\Dto\Procurement\Ai\Estimate\TotalsResponse;
+use App\Enums\Llm\LlmPurpose;
+use App\Enums\Llm\PromptStep;
+use App\Enums\Procurement\Analyzers\Estimate\EstimateLlmPurpose;
+use App\Enums\Procurement\Analyzers\Estimate\EstimatePromptStep;
 use App\Enums\Procurement\FinishReason;
-use App\Enums\Procurement\LlmPurpose;
-use App\Enums\Procurement\PromptStep;
 use App\Models\Procurement\Ai\Analysis;
 use App\Services\Llm\CorrectionAwareComposer;
 use App\Services\Llm\Dto\JsonSchema;
@@ -65,8 +67,8 @@ final readonly class RowRangeChunkSource implements ChunkSource
 
         [$data, $usage] = $this->call(
             analysisId: $analysisId,
-            purpose: LlmPurpose::ExtractPassport,
-            step: PromptStep::ExtractionPassport,
+            purpose: EstimateLlmPurpose::ExtractPassport,
+            step: EstimatePromptStep::ExtractionPassport,
             dataClass: PassportResponse::class,
             route: $route,
             session: $session,
@@ -92,8 +94,8 @@ final readonly class RowRangeChunkSource implements ChunkSource
 
         [$data, $usage] = $this->call(
             analysisId: $analysisId,
-            purpose: LlmPurpose::ExtractRows,
-            step: PromptStep::ExtractionRows,
+            purpose: EstimateLlmPurpose::ExtractRows,
+            step: EstimatePromptStep::ExtractionRows,
             dataClass: RowsChunkResponse::class,
             route: $route,
             session: $session,
@@ -117,8 +119,8 @@ final readonly class RowRangeChunkSource implements ChunkSource
 
         [$data, $usage] = $this->call(
             analysisId: $analysisId,
-            purpose: LlmPurpose::ExtractTotals,
-            step: PromptStep::ExtractionTotals,
+            purpose: EstimateLlmPurpose::ExtractTotals,
+            step: EstimatePromptStep::ExtractionTotals,
             dataClass: TotalsResponse::class,
             route: $route,
             session: $session,

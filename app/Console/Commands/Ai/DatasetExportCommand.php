@@ -6,7 +6,7 @@ namespace App\Console\Commands\Ai;
 
 use App\Dto\Procurement\Ai\Estimate\RowsChunkResponse;
 use App\Enums\Procurement\AnalysisStep;
-use App\Enums\Procurement\PromptStep;
+use App\Enums\Procurement\Analyzers\Estimate\EstimatePromptStep;
 use App\Models\Procurement\Ai\Analysis;
 use App\Models\Procurement\Ai\DatasetExample;
 use App\Models\Procurement\Document\DocumentVersion;
@@ -100,7 +100,7 @@ final class DatasetExportCommand extends Command
      */
     private function writeSft(): array
     {
-        $composed = $this->prompts->compose(PromptStep::ExtractionRows, [RowsChunkResponse::class]);
+        $composed = $this->prompts->compose(EstimatePromptStep::ExtractionRows, [RowsChunkResponse::class]);
         $stream = fopen('php://temp', 'w+');
         $count = 0;
 

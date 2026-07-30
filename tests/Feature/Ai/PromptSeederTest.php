@@ -2,16 +2,17 @@
 
 declare(strict_types=1);
 
-use App\Enums\Procurement\PromptStep;
+use App\Enums\Llm\CorePromptStep;
+use App\Enums\Procurement\Analyzers\Estimate\EstimatePromptStep;
 use App\Models\Llm\Prompt;
 use Database\Seeders\PromptSeeder;
 
 test('сидер создаёт по одной активной protected-записи на каждое значение PromptStep', function (): void {
     (new PromptSeeder)->run();
 
-    expect(Prompt::query()->count())->toBe(count(PromptStep::cases()));
+    expect(Prompt::query()->count())->toBe(count([...CorePromptStep::cases(), ...EstimatePromptStep::cases()]));
 
-    foreach (PromptStep::cases() as $step) {
+    foreach ([...CorePromptStep::cases(), ...EstimatePromptStep::cases()] as $step) {
         $prompt = Prompt::query()->where('step', $step->value)->where('is_active', true)->sole();
 
         expect($prompt->is_protected)->toBeTrue()
@@ -24,13 +25,13 @@ test('сидер идемпотентен — повторный запуск н
     (new PromptSeeder)->run();
     (new PromptSeeder)->run();
 
-    expect(Prompt::query()->count())->toBe(count(PromptStep::cases()));
+    expect(Prompt::query()->count())->toBe(count([...CorePromptStep::cases(), ...EstimatePromptStep::cases()]));
 });
 
 test('деактивация исчезнувшего файла — is_active=false, не delete', function (): void {
     $ghost = Prompt::factory()->create([
         'key' => 'ghost:vanished',
-        'step' => PromptStep::Global->value,
+        'step' => CorePromptStep::Global->value,
         'content' => 'этого файла больше нет в resources/ai/prompts',
         'version' => 1,
         'priority' => 0,
@@ -48,7 +49,7 @@ test('деактивация исчезнувшего файла — is_active=f
 test('поднятая версия деактивирует старую версию того же key, не удаляя её', function (): void {
     $old = Prompt::factory()->create([
         'key' => 'extraction:global',
-        'step' => PromptStep::ExtractionGlobal->value,
+        'step' => EstimatePromptStep::ExtractionGlobal->value,
         'content' => 'устаревший текст версии 0',
         'version' => 0,
         'priority' => 0,
@@ -69,7 +70,7 @@ test('поднятая версия деактивирует старую вер
 test('сидер не трогает операторские (не-protected) записи', function (): void {
     $operator = Prompt::factory()->create([
         'key' => 'operator:extra-hint',
-        'step' => PromptStep::ScreeningClassify->value,
+        'step' => CorePromptStep::ScreeningClassify->value,
         'content' => 'корректирующий промт оператора',
         'version' => 1,
         'priority' => 5,

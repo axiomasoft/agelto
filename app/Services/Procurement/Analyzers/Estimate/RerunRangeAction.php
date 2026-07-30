@@ -7,7 +7,7 @@ namespace App\Services\Procurement\Analyzers\Estimate;
 use App\Dto\Procurement\Ai\Estimate\RowModifier;
 use App\Dto\Procurement\Ai\Estimate\RowsChunkResponse;
 use App\Enums\Procurement\AiDocumentType;
-use App\Enums\Procurement\LlmPurpose;
+use App\Enums\Procurement\Analyzers\Estimate\EstimateLlmPurpose;
 use App\Enums\Procurement\RowType;
 use App\Models\Procurement\Ai\Analysis;
 use App\Models\Procurement\Document\DocumentVersion;
@@ -62,7 +62,7 @@ final readonly class RerunRangeAction
 
         $route = $this->routes->resolve(
             AiDocumentType::from($analysis->document_type ?? AiDocumentType::Estimate->value),
-            LlmPurpose::ExtractRows,
+            EstimateLlmPurpose::ExtractRows,
         );
         $session = $this->buildSession($analysis, $version, $route);
 

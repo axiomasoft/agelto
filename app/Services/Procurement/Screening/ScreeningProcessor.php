@@ -5,11 +5,11 @@ declare(strict_types=1);
 namespace App\Services\Procurement\Screening;
 
 use App\Dto\Procurement\Ai\Screening\ScreeningResult;
+use App\Enums\Llm\CoreLlmPurpose;
+use App\Enums\Llm\CorePromptStep;
 use App\Enums\Llm\DocumentTypeScope;
 use App\Enums\Procurement\AnalysisStatus;
 use App\Enums\Procurement\DocumentStatus;
-use App\Enums\Procurement\LlmPurpose;
-use App\Enums\Procurement\PromptStep;
 use App\Enums\Procurement\UnprocessableReason;
 use App\Models\Procurement\Ai\Analysis;
 use App\Models\Procurement\Document\Document;
@@ -136,7 +136,7 @@ final readonly class ScreeningProcessor
 
     private function classify(Analysis $analysis, string $filePath, string $mimeType, int $routeIndex = 0): void
     {
-        $primary = $this->routes->candidatesFor(DocumentTypeScope::Any, LlmPurpose::Screening)->values()->get($routeIndex);
+        $primary = $this->routes->candidatesFor(DocumentTypeScope::Any, CoreLlmPurpose::Screening)->values()->get($routeIndex);
 
         if ($primary === null) {
             throw new RuntimeException("Нет активного маршрута для document_type=any, purpose=screening, индекс={$routeIndex}.");
@@ -146,7 +146,7 @@ final readonly class ScreeningProcessor
             throw new RuntimeException('Провайдер маршрута скрининга не поддерживает Files API.');
         }
 
-        $composed = $this->prompts->compose(PromptStep::ScreeningClassify, [ScreeningResult::class]);
+        $composed = $this->prompts->compose(CorePromptStep::ScreeningClassify, [ScreeningResult::class]);
         $schema = new JsonSchema($this->schemas->generate(ScreeningResult::class));
         $fileRef = $primary->provider->uploadFile($filePath, $mimeType);
 
@@ -175,7 +175,7 @@ final readonly class ScreeningProcessor
         } catch (Throwable $exception) {
             $this->recorder->record(
                 analysisId: $analysis->id,
-                purpose: LlmPurpose::Screening,
+                purpose: CoreLlmPurpose::Screening,
                 provider: $options->provider,
                 model: $options->model,
                 promptVersionSet: $composed->promptVersionSet,
@@ -196,7 +196,7 @@ final readonly class ScreeningProcessor
 
         $this->recorder->record(
             analysisId: $analysis->id,
-            purpose: LlmPurpose::Screening,
+            purpose: CoreLlmPurpose::Screening,
             provider: $options->provider,
             model: $options->model,
             promptVersionSet: $composed->promptVersionSet,

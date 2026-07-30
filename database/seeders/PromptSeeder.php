@@ -6,8 +6,8 @@ namespace Database\Seeders;
 
 use App\Enums\Llm\DocumentTypeScope;
 use App\Enums\Procurement\AiDocumentType;
-use App\Enums\Procurement\PromptStep;
 use App\Models\Llm\Prompt;
+use App\Services\Procurement\Contracts\DocumentAnalyzerRegistry;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Collection;
 use RuntimeException;
@@ -110,15 +110,17 @@ final class PromptSeeder extends Seeder
             }
         }
 
-        // Fail fast на опечатку в step — обязана совпадать с одним из 8 значений PromptStep.
-        PromptStep::from($front['step']);
-
         // Fail fast на опечатку в document_type — AiDocumentType либо сентинел any (§1.2/§4.1
         // root/document-type-axis.md).
-        if (AiDocumentType::tryFrom($front['document_type']) === null
-            && $front['document_type'] !== DocumentTypeScope::Any->value) {
+        $documentType = AiDocumentType::tryFrom($front['document_type']);
+
+        if ($documentType === null && $front['document_type'] !== DocumentTypeScope::Any->value) {
             throw new RuntimeException("Файл промта с неизвестным document_type «{$front['document_type']}»: {$path}");
         }
+
+        // Fail fast на опечатку в step — обязана совпадать с одним из значений реестра для
+        // ЭТОГО document_type (ядерные ∪ собственные значения его анализатора, P2.5 §7 контракта).
+        app(DocumentAnalyzerRegistry::class)->promptStepFor($documentType ?? DocumentTypeScope::Any, $front['step']);
 
         $content = trim($matches['content']);
 

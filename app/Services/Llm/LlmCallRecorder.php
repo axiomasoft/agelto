@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\Llm;
 
-use App\Enums\Procurement\LlmPurpose;
+use App\Enums\Llm\LlmPurpose;
 use App\Models\Llm\LlmCall;
 use App\Repositories\Llm\LlmCallStoreRepository;
 use App\Services\Llm\Dto\LlmUsage;
@@ -48,7 +48,7 @@ final readonly class LlmCallRecorder
     ): LlmCall {
         $llmCall = $this->storeRepository->create([
             'analysis_id' => $analysisId,
-            'purpose' => $purpose,
+            'purpose' => $purpose->value,
             'provider' => $provider,
             'model' => $model,
             'prompt_version_set' => $promptVersionSet,

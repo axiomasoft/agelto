@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace App\Repositories\Llm;
 
 use App\Enums\Llm\DocumentTypeScope;
+use App\Enums\Llm\LlmPurpose;
 use App\Enums\Procurement\AiDocumentType;
-use App\Enums\Procurement\LlmPurpose;
 use App\Models\Llm\LlmRoute;
 use Illuminate\Database\Eloquent\Collection;
 

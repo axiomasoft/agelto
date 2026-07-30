@@ -4,12 +4,13 @@ namespace App\Filament\Resources\Procurement\Ai\LlmRoutes\Schemas;
 
 use App\Enums\Llm\DocumentTypeScope;
 use App\Enums\Procurement\AiDocumentType;
-use App\Enums\Procurement\LlmPurpose;
+use App\Services\Procurement\Contracts\DocumentAnalyzerRegistry;
 use Filament\Forms\Components\KeyValue;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
+use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Schema;
 
 class AiRouteForm
@@ -25,9 +26,16 @@ class AiRouteForm
                         )->all(),
                         DocumentTypeScope::Any->value => DocumentTypeScope::Any->value,
                     ])
+                    ->live()
                     ->required(),
                 Select::make('purpose')
-                    ->options(LlmPurpose::class)
+                    ->options(function (Get $get) {
+                        $documentType = AiDocumentType::tryFrom((string) $get('document_type')) ?? DocumentTypeScope::Any;
+
+                        return collect(app(DocumentAnalyzerRegistry::class)->purposesFor($documentType))
+                            ->mapWithKeys(static fn ($purpose): array => [$purpose->value => $purpose->value])
+                            ->all();
+                    })
                     ->required(),
                 Select::make('provider_id')
                     ->relationship('provider', 'id')

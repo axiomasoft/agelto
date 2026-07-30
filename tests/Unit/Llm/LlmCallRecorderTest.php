@@ -2,7 +2,8 @@
 
 declare(strict_types=1);
 
-use App\Enums\Procurement\LlmPurpose;
+use App\Enums\Llm\CoreLlmPurpose;
+use App\Enums\Procurement\Analyzers\Estimate\EstimateLlmPurpose;
 use App\Repositories\Llm\LlmCallStoreRepository;
 use App\Services\Llm\Dto\LlmUsage;
 use App\Services\Llm\LlmCallRecorder;
@@ -41,7 +42,7 @@ test('record() пишет успешный вызов: usage, cost_micros по �
 
     $call = llmCallRecorder()->record(
         analysisId: null,
-        purpose: LlmPurpose::Screening,
+        purpose: CoreLlmPurpose::Screening,
         provider: 'gemini',
         model: 'gemini-2.5-flash',
         promptVersionSet: ['screening:global' => '1'],
@@ -58,7 +59,7 @@ test('record() пишет успешный вызов: usage, cost_micros по �
     // 1_000_000 non-cached prompt tok × 0.30 + 1_000_000 cached × 0.03 + 1_000_000 completion × 2.50
     expect($call->cost_micros)->toBe(300_000 + 30_000 + 2_500_000)
         ->and($call->success)->toBeTrue()
-        ->and($call->purpose)->toBe(LlmPurpose::Screening)
+        ->and($call->purpose)->toBe(CoreLlmPurpose::Screening->value)
         ->and($call->prompt_tokens)->toBe(1_000_000)
         ->and($call->cached_tokens)->toBe(1_000_000)
         ->and($call->completion_tokens)->toBe(1_000_000)
@@ -76,7 +77,7 @@ test('record() пишет неуспешный вызов без usage: cost_mic
 
     $call = llmCallRecorder()->record(
         analysisId: null,
-        purpose: LlmPurpose::ExtractRows,
+        purpose: EstimateLlmPurpose::ExtractRows,
         provider: 'gemini',
         model: 'gemini-2.5-flash',
         promptVersionSet: [],
@@ -106,7 +107,7 @@ test('record() модель отсутствует в capability-матрице 
 
     $call = llmCallRecorder()->record(
         analysisId: null,
-        purpose: LlmPurpose::Screening,
+        purpose: CoreLlmPurpose::Screening,
         provider: 'local-vllm',
         model: 'qwen3-4b-unlisted',
         promptVersionSet: [],

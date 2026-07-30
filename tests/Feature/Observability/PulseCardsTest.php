@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
+use App\Enums\Llm\CoreLlmPurpose;
 use App\Enums\Procurement\AnalysisStatus;
 use App\Enums\Procurement\AnalysisStep;
 use App\Enums\Procurement\DocumentStatus;
-use App\Enums\Procurement\LlmPurpose;
 use App\Models\Llm\LlmCall;
 use App\Models\Procurement\Ai\Analysis;
 use App\Models\Procurement\Document\Document;
@@ -38,7 +38,7 @@ test('PipelineStagesCard считает succeeded/failed по стадиям pre
 
 test('LlmSpendCard группирует токены/стоимость llm_calls по purpose за 24ч', function () {
     LlmCall::factory()->create([
-        'purpose' => LlmPurpose::Screening,
+        'purpose' => CoreLlmPurpose::Screening->value,
         'prompt_tokens' => 1000,
         'cached_tokens' => 0,
         'completion_tokens' => 100,
@@ -46,7 +46,7 @@ test('LlmSpendCard группирует токены/стоимость llm_call
         'called_at' => now(),
     ]);
     LlmCall::factory()->create([
-        'purpose' => LlmPurpose::Screening,
+        'purpose' => CoreLlmPurpose::Screening->value,
         'prompt_tokens' => 500,
         'cached_tokens' => 0,
         'completion_tokens' => 50,
@@ -55,7 +55,7 @@ test('LlmSpendCard группирует токены/стоимость llm_call
     ]);
     // вне окна — не учитывается
     LlmCall::factory()->create([
-        'purpose' => LlmPurpose::Screening,
+        'purpose' => CoreLlmPurpose::Screening->value,
         'cost_micros' => 999_999,
         'called_at' => now()->subDays(3),
     ]);
@@ -65,8 +65,8 @@ test('LlmSpendCard группирует токены/стоимость llm_call
     $data = $view->getData();
     $rows = $data['rows']->keyBy('purpose');
 
-    expect((int) $rows[LlmPurpose::Screening->value]->calls)->toBe(2)
-        ->and((int) $rows[LlmPurpose::Screening->value]->prompt_tokens)->toBe(1500)
-        ->and((int) $rows[LlmPurpose::Screening->value]->cost_micros)->toBe(750)
+    expect((int) $rows[CoreLlmPurpose::Screening->value]->calls)->toBe(2)
+        ->and((int) $rows[CoreLlmPurpose::Screening->value]->prompt_tokens)->toBe(1500)
+        ->and((int) $rows[CoreLlmPurpose::Screening->value]->cost_micros)->toBe(750)
         ->and($data['totalCostMicros'])->toBe(750);
 });

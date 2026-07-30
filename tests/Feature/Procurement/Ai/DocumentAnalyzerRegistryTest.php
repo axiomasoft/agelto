@@ -2,11 +2,12 @@
 
 declare(strict_types=1);
 
+use App\Enums\Llm\DocumentTypeScope;
 use App\Enums\Procurement\AiDocumentType;
 use App\Enums\Procurement\AnalysisStatus;
 use App\Enums\Procurement\AnalysisStep;
-use App\Enums\Procurement\LlmPurpose;
-use App\Enums\Procurement\PromptStep;
+use App\Enums\Procurement\Analyzers\Estimate\EstimateLlmPurpose;
+use App\Enums\Procurement\Analyzers\Estimate\EstimatePromptStep;
 use App\Jobs\Procurement\Analyzers\Estimate\EstimateExtractionJob;
 use App\Models\Procurement\Ai\Analysis;
 use App\Models\Procurement\Estimate\Estimate;
@@ -14,6 +15,7 @@ use App\Services\Procurement\Analyzers\Estimate\EstimateAnalyzer;
 use App\Services\Procurement\Contracts\DocumentAnalyzerRegistry;
 use Illuminate\Support\Facades\Queue;
 use Tests\Support\Doubles\ExtractionlessAnalyzer;
+use Tests\Support\Doubles\GlobalStepAnalyzer;
 
 /*
  * Реестр «тип документа → анализатор» (P2.3, §5 контракта document-analyzer-contract): одна
@@ -76,18 +78,33 @@ test('анализатор сметы объявляет только СВОИ �
 
     expect($analyzer->hasExtraction())->toBeTrue()
         ->and($analyzer->promptSteps())->toBe([
-            PromptStep::ExtractionGlobal,
-            PromptStep::ExtractionDiscovery,
-            PromptStep::ExtractionPassport,
-            PromptStep::ExtractionRows,
-            PromptStep::ExtractionTotals,
+            EstimatePromptStep::ExtractionGlobal,
+            EstimatePromptStep::ExtractionDiscovery,
+            EstimatePromptStep::ExtractionPassport,
+            EstimatePromptStep::ExtractionRows,
+            EstimatePromptStep::ExtractionTotals,
         ])
         ->and($analyzer->purposes())->toBe([
-            LlmPurpose::Discovery,
-            LlmPurpose::ExtractPassport,
-            LlmPurpose::ExtractRows,
-            LlmPurpose::ExtractTotals,
+            EstimateLlmPurpose::Discovery,
+            EstimateLlmPurpose::ExtractPassport,
+            EstimateLlmPurpose::ExtractRows,
+            EstimateLlmPurpose::ExtractTotals,
         ]);
+});
+
+test('шаг чужого типа отвергается на записи — promptStepFor() бросает вне множества типа', function (): void {
+    $registry = registry([AiDocumentType::Estimate->value => EstimateAnalyzer::class]);
+
+    expect(fn () => $registry->promptStepFor(AiDocumentType::Estimate, 'screening:classify'))
+        ->not->toThrow(InvalidArgumentException::class);
+
+    expect(fn () => $registry->promptStepFor(DocumentTypeScope::Any, EstimatePromptStep::ExtractionRows->value))
+        ->toThrow(InvalidArgumentException::class);
+});
+
+test('анализатор с ядерным значением шага валит сборку реестра (§5.4 п.2)', function (): void {
+    expect(fn () => registry([AiDocumentType::TechSpec->value => GlobalStepAnalyzer::class]))
+        ->toThrow(InvalidArgumentException::class);
 });
 
 test('сводка результата отдаёт данные, а не разметку, и не теряет копейки', function (): void {

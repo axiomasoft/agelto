@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
+use App\Enums\Llm\CoreLlmPurpose;
 use App\Enums\Procurement\AiDocumentType;
 use App\Enums\Procurement\AnalysisStep;
 use App\Enums\Procurement\DocumentStatus;
 use App\Enums\Procurement\FinishReason;
-use App\Enums\Procurement\LlmPurpose;
 use App\Enums\Procurement\ProcurementEventType;
 use App\Enums\Procurement\RunMode;
 use App\Jobs\Procurement\Analyzers\Estimate\EstimateExtractionJob;
@@ -72,7 +72,7 @@ function seedBranchingRoute(FakeLlmProvider $fake, int $priority = 0, string $mo
 
     LlmRoute::factory()->create([
         'document_type' => 'any',
-        'purpose' => LlmPurpose::Screening,
+        'purpose' => CoreLlmPurpose::Screening->value,
         'provider_id' => $provider->id,
         'model' => $model,
         'priority' => $priority,

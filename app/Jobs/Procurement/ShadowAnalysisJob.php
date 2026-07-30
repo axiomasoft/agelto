@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace App\Jobs\Procurement;
 
+use App\Enums\Llm\CoreLlmPurpose;
 use App\Enums\Llm\DocumentTypeScope;
 use App\Enums\Procurement\AiDocumentType;
 use App\Enums\Procurement\AnalysisStatus;
-use App\Enums\Procurement\LlmPurpose;
 use App\Models\Procurement\Ai\Analysis;
 use App\Repositories\Procurement\AnalysisStoreRepository;
 use App\Services\Llm\AiRouteResolver;
@@ -16,6 +16,7 @@ use App\Services\Llm\Dto\LlmPrompt;
 use App\Services\Llm\Dto\LlmStructuredResponse;
 use App\Services\Llm\LlmCallRecorder;
 use App\Services\Procurement\Analyzers\Estimate\EvalMetrics;
+use App\Services\Procurement\Contracts\DocumentAnalyzerRegistry;
 use Carbon\CarbonImmutable;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -75,9 +76,10 @@ final class ShadowAnalysisJob implements ShouldQueue
         AnalysisStoreRepository $analyses,
         LlmCallRecorder $recorder,
         EvalMetrics $metrics,
+        DocumentAnalyzerRegistry $registry,
     ): void {
         try {
-            $this->run($routes, $analyses, $recorder, $metrics);
+            $this->run($routes, $analyses, $recorder, $metrics, $registry);
         } catch (Throwable $exception) {
             Log::warning('Shadow-анализ завершился ошибкой — боевой путь не затронут', [
                 'primary_analysis_id' => $this->primaryAnalysisId,
@@ -92,8 +94,9 @@ final class ShadowAnalysisJob implements ShouldQueue
         AnalysisStoreRepository $analyses,
         LlmCallRecorder $recorder,
         EvalMetrics $metrics,
+        DocumentAnalyzerRegistry $registry,
     ): void {
-        $purpose = LlmPurpose::from($this->purpose);
+        $purpose = $registry->purposeFor($this->documentType, $this->purpose);
         $primary = Analysis::query()->find($this->primaryAnalysisId);
 
         if ($primary === null) {
@@ -124,7 +127,7 @@ final class ShadowAnalysisJob implements ShouldQueue
         } catch (Throwable $exception) {
             $recorder->record(
                 analysisId: $shadow->id,
-                purpose: LlmPurpose::Shadow,
+                purpose: CoreLlmPurpose::Shadow,
                 provider: $route->options->provider,
                 model: $route->options->model,
                 promptVersionSet: [],
@@ -152,7 +155,7 @@ final class ShadowAnalysisJob implements ShouldQueue
 
         $recorder->record(
             analysisId: $shadow->id,
-            purpose: LlmPurpose::Shadow,
+            purpose: CoreLlmPurpose::Shadow,
             provider: $route->options->provider,
             model: $route->options->model,
             promptVersionSet: [],

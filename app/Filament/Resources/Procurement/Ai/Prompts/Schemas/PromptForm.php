@@ -4,11 +4,13 @@ namespace App\Filament\Resources\Procurement\Ai\Prompts\Schemas;
 
 use App\Enums\Llm\DocumentTypeScope;
 use App\Enums\Procurement\AiDocumentType;
+use App\Services\Procurement\Contracts\DocumentAnalyzerRegistry;
 use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
+use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Schema;
 
 class PromptForm
@@ -28,11 +30,19 @@ class PromptForm
                         )->all(),
                         DocumentTypeScope::Any->value => DocumentTypeScope::Any->value,
                     ])
+                    ->live()
                     ->required(),
                 Textarea::make('key')
                     ->required()
                     ->columnSpanFull(),
-                Textarea::make('step')
+                Select::make('step')
+                    ->options(function (Get $get) {
+                        $documentType = AiDocumentType::tryFrom((string) $get('document_type')) ?? DocumentTypeScope::Any;
+
+                        return collect(app(DocumentAnalyzerRegistry::class)->promptStepsFor($documentType))
+                            ->mapWithKeys(static fn ($step): array => [$step->value => $step->value])
+                            ->all();
+                    })
                     ->required()
                     ->columnSpanFull(),
                 Textarea::make('content')

@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\Llm;
 
-use App\Enums\Procurement\PromptStep;
+use App\Enums\Llm\PromptStep;
 use App\Models\Llm\Prompt;
 use App\Repositories\Llm\PromptReadRepository;
 use App\Services\Llm\Dto\ComposedPrompt;
@@ -29,7 +29,7 @@ final readonly class PromptComposer
      */
     public function compose(PromptStep $step, array $schemaClasses = []): ComposedPrompt
     {
-        $prompts = $this->prompts->activeForSteps($this->stepsForComposition($step));
+        $prompts = $this->prompts->activeForSteps($step->compositionChain(), $step->documentTypeScope());
 
         $parts = [];
 
@@ -52,25 +52,5 @@ final readonly class PromptComposer
                 ->mapWithKeys(fn (Prompt $prompt): array => [$prompt->key => $prompt->version])
                 ->all(),
         );
-    }
-
-    /**
-     * Порядок композиции v1 (`PromptRuleRepository::stepsForInstruction`): всегда `Global`
-     * первым, затем step-global-группа шага, затем сам шаг.
-     *
-     * @return list<PromptStep>
-     */
-    private function stepsForComposition(PromptStep $step): array
-    {
-        $base = [PromptStep::Global];
-
-        return match ($step) {
-            PromptStep::ScreeningClassify => [...$base, PromptStep::ScreeningGlobal, $step],
-            PromptStep::ExtractionDiscovery,
-            PromptStep::ExtractionPassport,
-            PromptStep::ExtractionRows,
-            PromptStep::ExtractionTotals => [...$base, PromptStep::ExtractionGlobal, $step],
-            default => [...$base, $step],
-        };
     }
 }

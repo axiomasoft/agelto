@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Services\Procurement\Contracts;
 
-use App\Enums\Procurement\LlmPurpose;
-use App\Enums\Procurement\PromptStep;
+use App\Enums\Llm\LlmPurpose;
+use App\Enums\Llm\PromptStep;
 use App\Models\Procurement\Ai\Analysis;
 use App\Services\Procurement\Contracts\Dto\AnalysisSummary;
 

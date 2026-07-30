@@ -3,7 +3,8 @@
 declare(strict_types=1);
 
 use App\Dto\Procurement\Ai\Estimate\EstimateHeaderMap;
-use App\Enums\Procurement\PromptStep;
+use App\Enums\Llm\CorePromptStep;
+use App\Enums\Procurement\Analyzers\Estimate\EstimatePromptStep;
 use App\Enums\Procurement\ResourceType;
 use App\Services\Llm\PromptComposer;
 use App\Services\Llm\Schema\PromptContextGenerator;
@@ -17,14 +18,14 @@ test('композиция каждого шага непуста, а шаги, 
     $composer = app(PromptComposer::class);
 
     $readsDocument = [
-        PromptStep::ScreeningClassify,
-        PromptStep::ExtractionDiscovery,
-        PromptStep::ExtractionPassport,
-        PromptStep::ExtractionRows,
-        PromptStep::ExtractionTotals,
+        CorePromptStep::ScreeningClassify,
+        EstimatePromptStep::ExtractionDiscovery,
+        EstimatePromptStep::ExtractionPassport,
+        EstimatePromptStep::ExtractionRows,
+        EstimatePromptStep::ExtractionTotals,
     ];
 
-    foreach (PromptStep::cases() as $step) {
+    foreach ([...CorePromptStep::cases(), ...EstimatePromptStep::cases()] as $step) {
         $composed = $composer->compose(step: $step);
 
         expect($composed->systemPart)->not->toBe('');
@@ -38,7 +39,7 @@ test('композиция каждого шага непуста, а шаги, 
 test('часть правил каждого шага не превышает бюджет 12000 символов', function (): void {
     $composer = app(PromptComposer::class);
 
-    foreach (PromptStep::cases() as $step) {
+    foreach ([...CorePromptStep::cases(), ...EstimatePromptStep::cases()] as $step) {
         $rulesPart = $composer->compose(step: $step)->systemPart;
 
         expect(mb_strlen($rulesPart))->toBeLessThanOrEqual(12000);
@@ -66,11 +67,11 @@ test('композиция каждого пошагового шага несё
     $composer = app(PromptComposer::class);
 
     $multiEstimateRules = [
-        [PromptStep::ScreeningClassify, 'Несколько смет подряд в одном файле'],
-        [PromptStep::ExtractionPassport, 'паспорт ровно ОДНОЙ сметы'],
-        [PromptStep::ExtractionRows, 'у каждой сметы документа отсчёт начинается с 1'],
-        [PromptStep::ExtractionTotals, 'подвал ЗАПРОШЕННОЙ сметы'],
-        [PromptStep::ExtractionDiscovery, 'два маркера'],
+        [CorePromptStep::ScreeningClassify, 'Несколько смет подряд в одном файле'],
+        [EstimatePromptStep::ExtractionPassport, 'паспорт ровно ОДНОЙ сметы'],
+        [EstimatePromptStep::ExtractionRows, 'у каждой сметы документа отсчёт начинается с 1'],
+        [EstimatePromptStep::ExtractionTotals, 'подвал ЗАПРОШЕННОЙ сметы'],
+        [EstimatePromptStep::ExtractionDiscovery, 'два маркера'],
     ];
 
     foreach ($multiEstimateRules as [$step, $rule]) {

@@ -8,8 +8,10 @@ use App\Dto\Procurement\Ai\Estimate\DiscoveryResponse;
 use App\Dto\Procurement\Ai\Estimate\PassportResponse;
 use App\Dto\Procurement\Ai\Estimate\RowsChunkResponse;
 use App\Dto\Procurement\Ai\Estimate\TotalsResponse;
-use App\Enums\Procurement\LlmPurpose;
-use App\Enums\Procurement\PromptStep;
+use App\Enums\Llm\LlmPurpose;
+use App\Enums\Llm\PromptStep;
+use App\Enums\Procurement\Analyzers\Estimate\EstimateLlmPurpose;
+use App\Enums\Procurement\Analyzers\Estimate\EstimatePromptStep;
 use App\Services\Llm\Contracts\SupportsFileUpload;
 use App\Services\Llm\Dto\JsonSchema;
 use App\Services\Llm\Dto\LlmPrompt;
@@ -73,8 +75,8 @@ final readonly class WindowedChunkSource
 
         [$data, $usage] = $this->call(
             analysisId: $analysisId,
-            purpose: LlmPurpose::Discovery,
-            step: PromptStep::ExtractionDiscovery,
+            purpose: EstimateLlmPurpose::Discovery,
+            step: EstimatePromptStep::ExtractionDiscovery,
             dataClass: DiscoveryResponse::class,
             route: $discoveryRoute,
             localPath: $localPath,
@@ -110,8 +112,8 @@ final readonly class WindowedChunkSource
 
         [$data, $usage] = $this->call(
             analysisId: $analysisId,
-            purpose: LlmPurpose::ExtractPassport,
-            step: PromptStep::ExtractionPassport,
+            purpose: EstimateLlmPurpose::ExtractPassport,
+            step: EstimatePromptStep::ExtractionPassport,
             dataClass: PassportResponse::class,
             route: $route,
             localPath: $localPath,
@@ -145,8 +147,8 @@ final readonly class WindowedChunkSource
 
         [$data, $usage] = $this->call(
             analysisId: $analysisId,
-            purpose: LlmPurpose::ExtractRows,
-            step: PromptStep::ExtractionRows,
+            purpose: EstimateLlmPurpose::ExtractRows,
+            step: EstimatePromptStep::ExtractionRows,
             dataClass: RowsChunkResponse::class,
             route: $route,
             localPath: $localPath,
@@ -176,8 +178,8 @@ final readonly class WindowedChunkSource
 
         [$data, $usage] = $this->call(
             analysisId: $analysisId,
-            purpose: LlmPurpose::ExtractTotals,
-            step: PromptStep::ExtractionTotals,
+            purpose: EstimateLlmPurpose::ExtractTotals,
+            step: EstimatePromptStep::ExtractionTotals,
             dataClass: TotalsResponse::class,
             route: $route,
             localPath: $localPath,

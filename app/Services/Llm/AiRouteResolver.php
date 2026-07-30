@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace App\Services\Llm;
 
 use App\Enums\Llm\DocumentTypeScope;
+use App\Enums\Llm\LlmPurpose;
 use App\Enums\Procurement\AiDocumentType;
-use App\Enums\Procurement\LlmPurpose;
 use App\Models\Llm\LlmRoute;
 use App\Models\Llm\Provider;
 use App\Repositories\Llm\LlmRouteReadRepository;
@@ -27,13 +27,6 @@ use RuntimeException;
  */
 final readonly class AiRouteResolver
 {
-    private const array DEFAULT_TEMPERATURE_BY_PURPOSE = [
-        'screening' => 0.0,
-        'extract_passport' => 0.0,
-        'extract_rows' => 0.0,
-        'extract_totals' => 0.0,
-    ];
-
     // 8192 достаточно 2.5-линейке (нет/низкий `thinking`-бюджет); `gemini-3.x` тратит на reasoning
     // ДО ответа 5900-7900+ токенов сверх этого (боевой прогон P6.2 2026-07-28, модель сама называет
     // требуемый порог 12-14k/комфортный запас 23-26k — research/12-format-benchmark.md §5).
@@ -95,7 +88,7 @@ final readonly class AiRouteResolver
             options: new LlmOptions(
                 provider: $provider->code,
                 model: $route->model,
-                temperature: (float) ($options['temperature'] ?? self::DEFAULT_TEMPERATURE_BY_PURPOSE[$purpose->value] ?? 0.0),
+                temperature: (float) ($options['temperature'] ?? $purpose->defaultTemperature()),
                 maxTokens: (int) ($options['max_tokens'] ?? self::DEFAULT_MAX_TOKENS),
                 baseUrl: $provider->base_url,
                 apiKeyEnv: $providerOptions['api_key_env'] ?? null,

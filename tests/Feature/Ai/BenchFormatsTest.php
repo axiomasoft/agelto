@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
+use App\Enums\Procurement\Analyzers\Estimate\EstimateLlmPurpose;
 use App\Enums\Procurement\FinishReason;
 use App\Enums\Procurement\GoldSource;
-use App\Enums\Procurement\LlmPurpose;
 use App\Enums\Procurement\RepresentationKind;
 use App\Models\Llm\LlmCall;
 use App\Models\Llm\LlmRoute;
@@ -75,7 +75,7 @@ function seedBenchRoute(FakeLlmProvider $fake): void
 
     LlmRoute::factory()->create([
         'document_type' => 'estimate',
-        'purpose' => LlmPurpose::ExtractRows,
+        'purpose' => EstimateLlmPurpose::ExtractRows->value,
         'provider_id' => $provider->id,
         'model' => 'gemini-2.5-flash',
         'priority' => 0,

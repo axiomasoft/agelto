@@ -66,7 +66,7 @@ final class CostReportCommand extends Command
             $table[] = [
                 $row->provider,
                 $model,
-                $row->purpose->value,
+                $row->purpose,
                 (int) $row->calls,
                 (int) $row->prompt_tokens,
                 $cachedTokens,

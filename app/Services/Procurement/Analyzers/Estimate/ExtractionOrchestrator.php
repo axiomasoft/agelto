@@ -11,9 +11,9 @@ use App\Dto\Procurement\Ai\Estimate\RowsChunkResponse;
 use App\Dto\Procurement\Ai\Estimate\TotalsResponse;
 use App\Enums\Procurement\AiDocumentType;
 use App\Enums\Procurement\AnalysisStatus;
+use App\Enums\Procurement\Analyzers\Estimate\EstimateLlmPurpose;
 use App\Enums\Procurement\DocumentStatus;
 use App\Enums\Procurement\ExtractionRoute;
-use App\Enums\Procurement\LlmPurpose;
 use App\Enums\Procurement\RepresentationKind;
 use App\Enums\Procurement\UnprocessableReason;
 use App\Models\Procurement\Ai\Analysis;
@@ -116,7 +116,7 @@ final readonly class ExtractionOrchestrator
             // реальной сегодняшней потребности (YAGNI, единственный driver — gemini).
             $route = $this->routes->resolve(
                 AiDocumentType::from($analysis->document_type ?? AiDocumentType::Estimate->value),
-                LlmPurpose::ExtractRows,
+                EstimateLlmPurpose::ExtractRows,
             );
 
             $decision = $this->preflight->decide($localPath, $effective['extension'], $route);
@@ -317,7 +317,7 @@ final readonly class ExtractionOrchestrator
 
         $discoveryRoute = $this->routes->resolve(
             AiDocumentType::from($analysis->document_type ?? AiDocumentType::Estimate->value),
-            LlmPurpose::Discovery,
+            EstimateLlmPurpose::Discovery,
         );
 
         $runStartedAt = microtime(true);
