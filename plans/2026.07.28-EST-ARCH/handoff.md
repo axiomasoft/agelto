@@ -1,95 +1,96 @@
 # HANDOFF — 2026-07-30 — after P5.2
 
-**Next:** `/task:plan-design 2026.07.28-EST-ARCH P5.2` — item эскалирован ДО написания кода
-(конфликт правил): ТЗ P5.2 требует лимит объёма прогона из конфига (D25), а **D92**
-(`supersedes D25` в части лимита) отменил лимит целиком — `root/document-contour.md` §3.2/§3.7 и
-Code Guidance P1.6 прямо запрещают его заводить. Решение (синхронизировать ТЗ P5.2/P5.3/Phase
-Context с D92, либо завести НОВУЮ D-запись, отменяющую D92) — за владельцем/`plan-design`.
+**Next:**
 
 | Параметр | Значение |
 |:--|:--|
-| Model | opus (или fable) |
-| Thinking | high — контракт-класс: расфриз/синхронизация ТЗ под уже принятое решение владельца D92 |
-| Context | NEW SESSION — шаг-не-item (`plan-design` читает план с диска заново) |
-| Суть | Снять противоречие «Validation 1 требует лимит ↔ D92+Code Guidance P1.6 запрещают лимит» в ТЗ P5.2 (и Scope Included/P5.3, где та же формулировка «признак усечения») |
+| Model | sonnet |
+| Thinking | medium — Routing §3 (predписано `implementation/medium`) |
+| Context | continue (/clear) — ручной item |
+| Суть | Relation-менеджер прогонов на карточке эталона: статус, режим, токены и цена в строке из слепка P4.1 |
 
 ```
-/task:plan-design 2026.07.28-EST-ARCH P5.2
+/task:plan-exec 2026.07.28-EST-ARCH P5.3
 ```
 
-**Done:** фазы P1 (🟠, 4/8 🟢), P2 (🟠, 5/7 🟢), P3 (🟠, 3/6 🟢, проаудирована ATTENTION),
-P4 (🟠, 4/6 🟢, терминальна) закрыты, как в предыдущем handoff'е. **P5.1 закрыт 🟠 (`9f394eb`)** —
-реестр эталонов + валидация `type_profile` анализатором (предыдущий заход).
+**Done:** фазы P1 (🟠, 4/8 🟢), P2 (🟠, 5/7 🟢), P3 (🟠, 3/6 🟢), P4 (🟠, 4/6 🟢, терминальна) закрыты
+как в предыдущем handoff'е. P5.1 закрыт 🟠 (`9f394eb`).
 
-**P5.2 🔴 Blocked (эта сессия — `plan-run`, sonnet/high; кода не написано, коммит только
-плановый).** Item обязан был вызвать сейм рабочей копии P3.3 и штатный вход пайплайна — заблокирован
-на первом же несовпадении ТЗ с уже принятым решением владельца:
+**Эта сессия (`plan-run P5.2`, sonnet/high; ТЗ уже было доведено до DoR прошлым заходом
+`plan-design`):** item P5.2 исполнен и закрыт 🟠 `Done with deviations`, item-коммит `bc2e241`.
 
-1. **`Scope Included` (в) / `Implementation Rule 5` / `Validation 1` P5.2 предписывают лимит объёма
-   прогона** («ограничение объёма из конфига с возможностью переопределения в форме подтверждения»,
-   ссылка на D25) и тест «лимит по умолчанию берётся из конфига», утверждая, что «носитель лимита и
-   признак усечения заданы контрактом».
-2. **Контракт говорит обратное.** `root/document-contour.md` §3.2 «Колонок лимита НЕТ», §3.7
-   «Ограничения объёма НЕТ (**D92**, `supersedes D25` в части лимита) … Колонки `max_llm_calls`,
-   `llm_calls_made`, `truncated_reason` и признак усечения **не заводятся**». Факт дерева подтверждает:
-   `database/migrations/2026_07_29_100059_create_prc_ai_analysis_runs_table.php` не несёт ни одной
-   лимит/усечение-колонки.
-3. **Code Guidance соседнего item'а P1.6** (`phases/P1.md` Rule 7) прямо запрещает заводить лимит
-   снова: «ЗАПРЕЩЕНО возвращать снятое владельцем: … лимит и признак усечения (D92) … повторное
-   заведение = отмена решения владельца без D-записи».
-4. **Пустое множество допустимых исходов:** Validation 1 требует лимит-функциональность, D92 + Code
-   Guidance P1.6 одновременно запрещают её заводить.
-5. **Причина разъезда:** D92 принят на гейте P1.3 (2026-07-29) и его Consequences явно снимают
-   Implementation Rule 3 P1.3 и тест P1.6 — но НЕ упоминают P5.2/P5.3/Phase Context. Реконсиляция
-   фазы P5 с фактом предыдущих фаз (**D40**) прошла ДО D91/D92 (более ранний номер в Decision Log) —
-   синхронизация P5 с D92 пропущена. Тот же класс дефекта уже был найден и назван (не мной) у P1.6:
-   `phases/P1.md` строка 222 Pending Work P1.3 — «ТЗ P1.6 устарело по D91/D92», синхронизировано тем
-   же `plan-design`; P5 остался несинхронизированным.
-6. Остальной состав ТЗ P5.2 (вызов `WorkingCopyProvisioner::provision()` — единственный сейм D41,
-   ось происхождения/связь с эталоном по контракту, диспатч штатного входа пайплайна `->afterCommit()`,
-   единая форма отказа, право `AnalysisPermission::Create`, guard против повторного клика) конфликтом
-   НЕ задет — реализуется без изменений после синхронизации ТЗ.
+1. **`RunFixtureAnalysisAction`** (`app/Services/Procurement/Fixture/RunFixtureAnalysisAction.php`,
+   новый) — действие «Прогнать»: гейт `config('ai.screening.enabled')` → `ScreeningDisabled` → гейт
+   `WorkingCopyProvisioner::provision($fixture, dryRun: false)` (D41, единственный сейм) → гейт
+   активного прогона версии → `AnalysisRunAlreadyActive` → в ОДНОЙ транзакции снятие активных
+   анализов версии по обоим шагам (`superseded_at`) + безусловная запись `status = downloaded`
+   (D136) → `PrepareDocumentJob::dispatch(..., RunMode::Manual, $initiatedBy)->afterCommit()`.
+2. **`PrepareDocumentJob`** (D135) — два новых необязательных параметра конструктора
+   (`RunMode $mode = RunMode::Auto`, `?int $initiatedBy = null`), пробрасываются в существующий
+   вызов `AnalysisRunStoreRepository::start()`; поведение по умолчанию неизменно (доказано
+   Validation 2 — тесты пайплайна `tests/Feature/Document/`/`tests/Feature/Procurement/` не
+   тронуты).
+3. **Два наследника `OperationFailed`** — `AnalysisRunAlreadyActive`, `ScreeningDisabled`
+   (`app/Exceptions/Procurement/`).
+4. **`ViewFixture`** (`app/Filament/Resources/Procurement/Ai/Fixtures/Pages/ViewFixture.php`) —
+   действие «Прогнать» в `getHeaderActions()`: право `AnalysisPermission::Create` проверяется
+   строкой ability через `hasPermission()` (не `->authorize()` — тот резолвился бы на
+   `fixture.create`, D44), guard активного прогона стоит И в `visible()`, И внутри действия
+   (Implementation Rule 7); `requiresConfirmation()`, уведомления «поставлено в очередь» / текст
+   исключения.
+5. **`OperatorRole`** — выдано `AnalysisPermission::Create`.
+6. **Тесты** — `tests/Feature/Ai/FixtureRunTest.php` (5 тестов, сервисный слой) +
+   `tests/Feature/Filament/FixtureRunScreenTest.php` (2 теста, экран) — все шесть обязательных
+   кейсов Code Guidance покрыты.
+7. **Отклонение (Known Deviations, детали — `phases/P5.md` P5.2):** item-коммит несёт правку ВНЕ
+   `Files` — канарейка `tests/Unit/Architecture/CoreKnowsNoDocumentTypeTest.php` (94→95, новый
+   файл ядра `Fixture\RunFixtureAnalysisAction`), тот же класс отклонения, что у P4.2/P4.4/P5.1.
+   Второе отклонение (не материальное, обходной приём в коде, не в baseline): систематический
+   пробел `larastan` на `Document::$status` (баселинен в шести существующих файлах) обойдён
+   безусловной записью статуса вместо чтения — baseline не тронут.
 
-**Remaining:** 11 items ⬜/🔴 — фаза P5 (5 ⬜ + P5.2 🔴, следующий по порядку данных — P5.3, но она
-несёт ТУ ЖЕ формулировку «признак усечения» и требует той же синхронизации), P6 (3), P7 (4,
-B2 = P7.1+P7.2). Фаза P4 терминальна, реконсилирующее закрытие (`plan-close`) не выполнено
-(наследуется).
+**Remaining:** 10 items ⬜ — фаза P5 (P5.3…P5.6), P6 (3), P7 (4, B2 = P7.1+P7.2). Фаза P4
+терминальна, реконсилирующее закрытие (`plan-close`) не выполнено (наследуется).
 
 **Sources of truth:** скилл `plan-protocol` · `plan.md` §2 (Execution Rules), §3 Routing, §5
-(D1–D134) · ЗАМОРОЖЕНЫ: `root/document-type-axis.md`, `root/document-contour.md` (**§3.2/§3.7 —
-вход эскалации**), `root/document-analyzer-contract.md`, `root/service-layer-map.md`,
-`root/usage-source-contract.md` · `phases/P5.md` P5.1 (Completion Notes) и P5.2 (блок ESCALATION +
-Pending Work) · `phases/P1.md` P1.3/P1.6 (D91/D92 и их Consequences, прецедент того же дефекта) ·
-`open-questions.md` (OQ-15, не адресована этим item'ом).
+(D1–D136) · ЗАМОРОЖЕНЫ: `root/document-type-axis.md`, `root/document-contour.md`
+(§3.2/§3.5/§3.7/§3.8), `root/document-analyzer-contract.md`, `root/service-layer-map.md`,
+`root/usage-source-contract.md` · `phases/P5.md` P5.1/P5.2 (Completion Notes) ·
+`findings/P5.2-run-launch-facts-2026-07-30.md` · `research/06-p5.2-run-launch-design.md` ·
+`open-questions.md` (OQ-15).
 
 **Open risks:**
-- **P5.3 несёт ту же стилевую формулировку «признак усечения»** (relation-менеджер прогонов) в
-  Scope Included Phase Context и в собственном тексте — не адресована этим item'ом (P5.2), но
-  `plan-design P5.2` обязан свериться заодно, иначе P5.3 упрётся в тот же блокер повторно.
-- **Две точки проверки формы профиля** (витрина через анализатор + `FixtureManifestEntry` импорта)
-  — принятый долг D132, адресат OQ-15; наследуется P5.2+.
-- **Расхождение `AiRoutePermission`↔`LlmRouteResource`** — не чинится этим планом, всплывёт при
-  следующей полной регенерации прав кем угодно; стоит завести отдельный D#/item, если владелец
-  решит чинить (вне P5).
-- `guard:catalog:validate --strict` системно красный (148/149 ключей без Policy) — вне P5, вне
-  этого плана в чистом виде; remediation — Completion Notes P5.1 Known Deviations.
+- **Кнопка требует включённого `AI_SCREENING_ENABLED`** (дефолт `false`). Item заводит честный
+  отказ (`ScreeningDisabled`), но эксплуатационно это значит: до включения гейта кнопка на любом
+  стенде будет отказывать — не дефект item'а, а состояние окружения.
+- Боевой прогон кнопки на реальном провайдере — гейт владельца (D94); item закрыт на
+  `Queue::fake()`/тестах, реальный LLM-вызов не выполнялся.
+- P5.3 (следующий item) читает слепок расхода на прогоне (P4.1) и состав строки прогона — Deliverables
+  P5.2 (сущность прогона с режимом/инициатором) уже готовы, блокеров для P5.3 нет.
+- Две точки проверки формы профиля (витрина через анализатор + `FixtureManifestEntry` импорта) —
+  принятый долг D132, адресат OQ-15.
+- Расхождение `AiRoutePermission`↔`LlmRouteResource` — вне P5, всплывёт при следующей полной
+  регенерации прав.
+- `guard:catalog:validate --strict` системно красный (148/149 ключей без Policy) — вне P5.
 - Фаза P4 не прошла реконсилирующее закрытие (`plan-close`) — наследуется, не блокирует P5.
-- Право виджета расхода не выдаётся ролям в P4.3 — наследуется, предмет P5 (не единственно P5.1).
-- **`plan-lint` на дереве этого захода: 1 ERROR, 0 новых от этого item'а (K=0)** — предсуществующий
-  `phases/P4.md:481` (P4.5 закрыт 🟢 без строки `write-site:` в Completion Notes), не адресован этим
-  item'ом (вне `Files` P5.2).
-- Дефект компилятора Task Contract (OQ-14) — наследуется, workaround тот же (резолв узла
-  `~/.claude/plugins/cache/swissknifeman/task/0.9.0/lib`, D98).
+- Дефект компилятора Task Contract (OQ-14) — наследуется, workaround: резолв узла
+  `~/.claude/plugins/cache/swissknifeman/task/0.9.0/lib` (D98).
+- **Систематический пробел `larastan` на `Document::$status`** (не введён P5.2, баселинен в шести
+  файлах: `PrepareDocumentJob`, `DocumentPreparer`, `ScreeningJob`, `ScreeningOutcomeHandler`,
+  `EstimateExtractionJob`, `GoldImportCommand`) — любой БУДУЩИЙ item, читающий это свойство внутри
+  замыкания/новой конструкции, упрётся в тот же выбор «безусловная запись вместо чтения» либо
+  баселин-запись, если рычаг не сработает; полноценный фикс — докблок `@property` на `Document`
+  моделью, вне периметра P5.
 - Прочие наследуемые риски — без изменений, см. `git log -p -- handoff.md`.
 
 **Workarounds/Deferred/Open questions:**
 - workarounds: резолв `task.task_contract`/`task.route_evidence`/`plan-lint.py` через плагин-кэш
-  `~/.claude/plugins/cache/swissknifeman/task/0.9.0/lib` (репо `agelto` не вендорит `packages/task/lib`,
-  D98) — наследуется.
-- deferred: синхронизация ТЗ P5.2/P5.3/Phase Context P5 с D92 (эта эскалация); сведение двух точек
-  валидации профиля к одной (OQ-15); чистка `AiRoutePermission`↔`LlmRouteResource`; Policy-покрытие
-  каталога прав под `--strict`; предсуществующий `plan-lint` ERROR на `phases/P4.md:481` — остальное
-  наследуется.
-- open_questions: **открыт вопрос P5.2 — чем закрывать разъезд ТЗ с D92** (синхронизация фазы P5 с
-  D92 новой правкой ТЗ, либо новая D-запись, отменяющая D92 — решение владельца). OQ-15 (без
-  изменений, `Decision pending`); вне плана — OQ-14 (без изменений).
+  `~/.claude/plugins/cache/swissknifeman/task/0.9.0/lib` (репо `agelto` не вендорит
+  `packages/task/lib`, D98) — наследуется. `RunFixtureAnalysisAction` пишет `status=downloaded`
+  безусловно (не читает `Document::$status`) — обход систематического пробела `larastan`, см. Open
+  risks.
+- deferred: сведение двух точек валидации профиля к одной (OQ-15); чистка
+  `AiRoutePermission`↔`LlmRouteResource`; Policy-покрытие каталога прав под `--strict`;
+  предсуществующий `plan-lint` ERROR на `phases/P4.md:481` (P4.5 без строки `write-site:`);
+  докблок `@property DocumentStatus $status` на модели `Document` — остальное наследуется.
+- open_questions: без изменений — OQ-15 (`Decision pending`), вне плана OQ-14.
