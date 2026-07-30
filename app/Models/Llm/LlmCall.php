@@ -21,6 +21,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * там, где тип документа известен — `DocumentAnalyzerRegistry::purposeFor()` (P2.5, D101).
  *
  * @property int|null $analysis_run_id
+ * @property string|null $request_ref
+ * @property string|null $response_ref
  */
 #[UseFactory(LlmCallFactory::class)]
 final class LlmCall extends Model

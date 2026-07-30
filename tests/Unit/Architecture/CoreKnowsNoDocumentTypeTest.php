@@ -56,10 +56,12 @@ function coreClassesOfContract(): array
 test('периметр ядра собран правилом вычитания §6.2, не перечнем руками', function (): void {
     $classes = coreClassesOfContract();
 
-    // 95 = 94 + один новый файл ядра (P5.2, D135/D136): `Fixture\RunFixtureAnalysisAction`
-    // (действие запуска прогона — `Fixture\**` кросс-документен, §4 root/service-layer-map.md).
+    // 97 = 95 + два новых файла ядра (P5.5, D46): `App\Services\Llm\LlmPayloadReader` (чтение
+    // сохранённого payload'а) и `App\Services\Llm\Dto\StoredPayload` (DTO трёх штатных состояний)
+    // — домен транспорта `Llm` кросс-документен по контракту (D22), витрина финального промта
+    // читает вызовы ОБОИХ шагов, типовой специфики в этих файлах нет.
     // Счётчик — канарейка периметра: растёт при КАЖДОМ новом файле ядра.
-    expect($classes)->toHaveCount(95)
+    expect($classes)->toHaveCount(97)
         ->and(array_column($classes, 'class'))->not->toContain('App\Jobs\Procurement\Analyzers\Estimate\EstimateExtractionJob');
 });
 

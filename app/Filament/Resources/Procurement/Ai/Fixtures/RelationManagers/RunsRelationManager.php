@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Filament\Resources\Procurement\Ai\Fixtures\RelationManagers;
 
+use App\Filament\Pages\FinalPromptPage;
 use App\Filament\Resources\Procurement\Ai\Analyses\AnalysisResource;
 use App\Filament\Resources\Procurement\Ai\Fixtures\Schemas\RunResultSchema;
 use App\Models\Procurement\Ai\AnalysisRun;
@@ -87,6 +88,10 @@ class RunsRelationManager extends RelationManager
                     ->url(fn (AnalysisRun $record): string => AnalysisResource::getUrl('view', [
                         'record' => $record->analyses->sortByDesc('id')->first(),
                     ]))
+                    ->openUrlInNewTab(),
+                Action::make('finalPrompt')
+                    ->label('Финальный промт')
+                    ->url(fn (AnalysisRun $record): string => FinalPromptPage::getUrl(['run' => $record->id]))
                     ->openUrlInNewTab(),
             ])
             ->toolbarActions([

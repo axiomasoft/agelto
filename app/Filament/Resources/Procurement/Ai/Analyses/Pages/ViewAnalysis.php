@@ -5,6 +5,7 @@ namespace App\Filament\Resources\Procurement\Ai\Analyses\Pages;
 use App\Enums\Procurement\AnalysisStatus;
 use App\Enums\Procurement\CorrectionReason;
 use App\Enums\Procurement\ReviewStatus;
+use App\Filament\Pages\FinalPromptPage;
 use App\Filament\Resources\Procurement\Ai\Analyses\AnalysisResource;
 use App\Models\Procurement\Ai\Analysis;
 use App\Models\Procurement\Ai\Correction;
@@ -32,10 +33,24 @@ class ViewAnalysis extends ViewRecord
     protected function getHeaderActions(): array
     {
         return [
+            $this->finalPromptAction(),
             $this->approveAction(),
             $this->rejectWithCorrectionAction(),
             $this->rerunAction(),
         ];
+    }
+
+    /**
+     * Вход на витрину финального промта (P5.5, D46) из карточки анализа — второй, помимо строки
+     * прогона, вход, названный Scope Included P5.5.
+     */
+    private function finalPromptAction(): Action
+    {
+        return Action::make('finalPrompt')
+            ->label('Финальный промт')
+            ->color('gray')
+            ->url(fn (Analysis $record): string => FinalPromptPage::getUrl(['run' => $record->analysis_run_id]))
+            ->openUrlInNewTab();
     }
 
     /**

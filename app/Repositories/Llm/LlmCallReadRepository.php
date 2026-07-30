@@ -7,6 +7,7 @@ namespace App\Repositories\Llm;
 use App\Enums\Llm\LlmPurpose;
 use App\Models\Llm\LlmCall;
 use Carbon\CarbonInterface;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use InvalidArgumentException;
 
@@ -187,5 +188,30 @@ final readonly class LlmCallReadRepository
         }
 
         return $merged;
+    }
+
+    /**
+     * Вызовы одного прогона для витрины финального промта (P5.5): ОБА шага (screening +
+     * extraction) — ось назначения берётся из данных, литерального списка назначений здесь нет
+     * (Implementation Rule 6 P5.5, D39 — после расщепления назначений ядро их не знает).
+     *
+     * @return Builder<LlmCall>
+     */
+    public function forRun(int $analysisRunId): Builder
+    {
+        return LlmCall::query()
+            ->where('analysis_run_id', $analysisRunId)
+            ->orderBy('called_at');
+    }
+
+    /**
+     * Один вызов прогона по идентичности, СКОУПЛЕННЫЙ по `analysisRunId` (P5.5): выбор вызова на
+     * экране не должен резолвиться в вызов чужого прогона по одному лишь id.
+     */
+    public function findInRun(int $callId, int $analysisRunId): ?LlmCall
+    {
+        return LlmCall::query()
+            ->where('analysis_run_id', $analysisRunId)
+            ->find($callId);
     }
 }
