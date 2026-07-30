@@ -13,6 +13,7 @@ use App\Models\Procurement\Ai\Analysis;
 use App\Services\Procurement\Contracts\DocumentAnalyzer;
 use App\Services\Procurement\Contracts\Dto\AnalysisSummary;
 use App\Services\Procurement\Contracts\Dto\SummaryMetric;
+use App\Services\Procurement\Contracts\SupportsResultComparison;
 
 /**
  * Смета как тип документа — первая реализация `DocumentAnalyzer` (§6.1 контракта P2.1:
@@ -22,9 +23,17 @@ use App\Services\Procurement\Contracts\Dto\SummaryMetric;
  * и назначения и собирает сводку результата, а внутрь зовёт существующие классы по их
  * СЕГОДНЯШНИМ путям. Переезд шестнадцати сметных единиц и самого job'а в этот каталог — P2.4,
  * расщепление enum'ов шагов/назначений на ядерные и сметные — P2.5.
+ *
+ * Реализует `SupportsResultComparison` (§1.5 контракта P2.1, D106) — сравнение теневого прогона
+ * с боевым (`EvalMetrics`) и разбор ключа `'estimates'` payload'а живут здесь, а не в ядерном
+ * `ShadowAnalysisJob`.
  */
-final readonly class EstimateAnalyzer implements DocumentAnalyzer
+final readonly class EstimateAnalyzer implements DocumentAnalyzer, SupportsResultComparison
 {
+    public function __construct(
+        private EvalMetrics $metrics,
+    ) {}
+
     public function hasExtraction(): bool
     {
         return true;
@@ -94,6 +103,26 @@ final readonly class EstimateAnalyzer implements DocumentAnalyzer
                 new SummaryMetric(label: 'Сумма', value: $total, unit: $currency),
             ],
         );
+    }
+
+    /**
+     * Сравнение теневого прогона с боевым (§1.5 контракта P2.1, D106) — сырые payload'ы
+     * `Analysis::$result`, ключ `'estimates'` разбирается ЗДЕСЬ, а не в вызывающем job'е.
+     *
+     * @param  array<string, mixed>  $primaryResult
+     * @param  array<string, mixed>  $shadowResult
+     * @return array<string, mixed>|null
+     */
+    public function compareResults(array $primaryResult, array $shadowResult): ?array
+    {
+        $primaryEstimates = (array) ($primaryResult['estimates'] ?? []);
+        $shadowEstimates = (array) ($shadowResult['estimates'] ?? []);
+
+        if ($primaryEstimates === [] || $shadowEstimates === []) {
+            return null;
+        }
+
+        return $this->metrics->compare(goldEstimates: $primaryEstimates, predictedEstimates: $shadowEstimates);
     }
 
     /**

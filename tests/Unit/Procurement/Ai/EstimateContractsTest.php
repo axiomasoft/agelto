@@ -147,6 +147,40 @@ test('гидрирует пустой чанк extract_rows без строк', 
         ->and($response->incomplete_items)->toBe([]);
 });
 
+test('RowsChunkResponse::structuralError() ловит дубликат row_index', function (): void {
+    $response = RowsChunkResponse::from([
+        'rows' => [
+            ['row_index' => 1, 'row_type' => 'item', 'name' => 'Позиция 1'],
+            ['row_index' => 1, 'row_type' => 'item', 'name' => 'Позиция 1 дубль'],
+        ],
+    ]);
+
+    expect($response->structuralError())->toContain('Дубликат row_index');
+});
+
+test('RowsChunkResponse::structuralError() ловит немонотонный row_index', function (): void {
+    $response = RowsChunkResponse::from([
+        'rows' => [
+            ['row_index' => 5, 'row_type' => 'item', 'name' => 'Позиция 5'],
+            ['row_index' => 3, 'row_type' => 'item', 'name' => 'Позиция 3'],
+        ],
+    ]);
+
+    expect($response->structuralError())->toContain('монотонность');
+});
+
+test('RowsChunkResponse::structuralError() возвращает null для валидного построчного диапазона', function (): void {
+    $response = RowsChunkResponse::from([
+        'rows' => [
+            ['row_index' => 1, 'row_type' => 'section_header', 'name' => 'Раздел 1'],
+            ['row_index' => 2, 'row_type' => 'item', 'name' => 'Позиция 1'],
+            ['row_index' => 3, 'row_type' => 'subtotal', 'name' => 'Итого по разделу'],
+        ],
+    ]);
+
+    expect($response->structuralError())->toBeNull();
+});
+
 test('гидрирует ответ extract_totals (спека 08 §3.3)', function (): void {
     $response = TotalsResponse::from([
         'totals' => [

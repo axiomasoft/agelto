@@ -25,7 +25,6 @@ use App\Services\Llm\Dto\LlmUsage;
 use App\Services\Llm\LlmCallRecorder;
 use App\Services\Llm\Providers\OpenAiCompatibleProvider;
 use App\Services\Llm\ShadowDispatch;
-use App\Services\Procurement\Analyzers\Estimate\EvalMetrics;
 use App\Services\Procurement\Contracts\DocumentAnalyzerRegistry;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Queue;
@@ -38,7 +37,6 @@ function runShadowJob(ShadowAnalysisJob $job): void
         app(AiRouteResolver::class),
         app(AnalysisStoreRepository::class),
         app(LlmCallRecorder::class),
-        app(EvalMetrics::class),
         app(DocumentAnalyzerRegistry::class),
     );
 }
@@ -141,6 +139,42 @@ test('ShadowAnalysisJob создаёт is_shadow-анализ, пишет LlmCal
     $call = LlmCall::query()->where('analysis_id', $shadow->id)->sole();
     expect($call->purpose)->toBe(CoreLlmPurpose::Shadow->value)
         ->and($call->success)->toBeTrue();
+});
+
+test('ShadowAnalysisJob на кросс-документном вызове (DocumentTypeScope::Any) не считает сравнение', function (): void {
+    Storage::fake('s3');
+    seedShadowRoute(DocumentTypeScope::Any->value, CoreLlmPurpose::Screening);
+
+    $primary = Analysis::factory()->create([
+        'step' => AnalysisStep::Screening,
+        'result' => ['estimates' => [['rows' => [['row_index' => 1, 'row_type' => 'line_item', 'name' => 'Кирпич', 'quantity' => '10', 'total_price' => '100.00']]]]],
+    ]);
+
+    $shadowOutput = ['estimates' => [['rows' => [['row_index' => 1, 'row_type' => 'line_item', 'name' => 'Кирпич', 'quantity' => '10', 'total_price' => '100.00']]]]];
+
+    $fake = FakeLlmProvider::succeeding(new LlmStructuredResponse(
+        data: $shadowOutput,
+        usage: new LlmUsage(promptTokens: 50, completionTokens: 10, cachedTokens: 0, totalTokens: 60),
+        finishReason: FinishReason::Stop,
+        raw: json_encode($shadowOutput, JSON_THROW_ON_ERROR),
+    ));
+    app()->instance(OpenAiCompatibleProvider::class, $fake);
+
+    $job = new ShadowAnalysisJob(
+        primaryAnalysisId: $primary->id,
+        purpose: CoreLlmPurpose::Screening->value,
+        documentType: DocumentTypeScope::Any,
+        systemPart: 'система',
+        userParts: ['текст документа'],
+        schema: ['type' => 'object'],
+    );
+
+    runShadowJob($job);
+
+    $shadow = Analysis::query()->where('is_shadow', true)->where('document_version_id', $primary->document_version_id)->sole();
+
+    expect($shadow->status)->toBe(AnalysisStatus::Succeeded)
+        ->and($shadow->result['comparison'])->toBeNull();
 });
 
 test('ShadowAnalysisJob глотает исключение провайдера — боевой путь не затронут, ошибка только в shadow-анализе', function (): void {

@@ -15,8 +15,8 @@ use App\Services\Llm\Dto\JsonSchema;
 use App\Services\Llm\Dto\LlmPrompt;
 use App\Services\Llm\Dto\LlmStructuredResponse;
 use App\Services\Llm\LlmCallRecorder;
-use App\Services\Procurement\Analyzers\Estimate\EvalMetrics;
 use App\Services\Procurement\Contracts\DocumentAnalyzerRegistry;
+use App\Services\Procurement\Contracts\SupportsResultComparison;
 use Carbon\CarbonImmutable;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -36,9 +36,11 @@ use Throwable;
  * целиком в `try/catch` — исключение НИКОГДА не пробрасывается наружу (не создаёт Horizon-алерт
  * по боевому пайплайну; диагностика — только лог).
  *
- * Сравнение метрик (`EvalMetrics`, P7.4) с основным анализом — best-effort: применимо только
- * когда ОБЕ стороны несут `result.estimates[]` той же формы (extraction-шаги); для остальных
- * `purpose` (screening и т.п.) `comparison` в `result` теневого анализа остаётся `null`.
+ * Сравнение с основным анализом (§1.5 контракта P2.1, D106) — best-effort: маршрутизируется через
+ * `DocumentAnalyzerRegistry` на capability-интерфейс `SupportsResultComparison` типа документа;
+ * применимо только когда тип его реализует (сегодня — только смета, `EstimateAnalyzer`) и ОБЕ
+ * стороны несут непустой payload. Для кросс-документных вызовов (`DocumentTypeScope`) и типов без
+ * этой способности `comparison` в `result` теневого анализа остаётся `null`.
  *
  * KNOWN DEVIATION (P9.4, задокументировано, не молча): Code Guidance пункта предписывал писать
  * сравнение в `prc_ai_eval_results` — миграция `2026_07_04_100029` требует НЕ NULL
@@ -75,11 +77,10 @@ final class ShadowAnalysisJob implements ShouldQueue
         AiRouteResolver $routes,
         AnalysisStoreRepository $analyses,
         LlmCallRecorder $recorder,
-        EvalMetrics $metrics,
         DocumentAnalyzerRegistry $registry,
     ): void {
         try {
-            $this->run($routes, $analyses, $recorder, $metrics, $registry);
+            $this->run($routes, $analyses, $recorder, $registry);
         } catch (Throwable $exception) {
             Log::warning('Shadow-анализ завершился ошибкой — боевой путь не затронут', [
                 'primary_analysis_id' => $this->primaryAnalysisId,
@@ -93,7 +94,6 @@ final class ShadowAnalysisJob implements ShouldQueue
         AiRouteResolver $routes,
         AnalysisStoreRepository $analyses,
         LlmCallRecorder $recorder,
-        EvalMetrics $metrics,
         DocumentAnalyzerRegistry $registry,
     ): void {
         $purpose = $registry->purposeFor($this->documentType, $this->purpose);
@@ -175,25 +175,32 @@ final class ShadowAnalysisJob implements ShouldQueue
             'model' => $route->options->model,
             'result' => [
                 'output' => $data,
-                'comparison' => $this->compareWithPrimary($metrics, $primary, $data),
+                'comparison' => $this->compareWithPrimary($registry, $primary, $data),
             ],
             'finished_at' => now(),
         ]);
     }
 
     /**
+     * Явные ветки `null` (Implementation Rules 6–7, P2.7): кросс-документный вызов
+     * (`DocumentTypeScope`) сравнения не имеет по построению, а отсутствие
+     * `SupportsResultComparison` у анализатора — штатная опциональность, не ошибка.
+     *
      * @param  array<string, mixed>  $shadowData
      * @return array<string, mixed>|null
      */
-    private function compareWithPrimary(EvalMetrics $metrics, Analysis $primary, array $shadowData): ?array
+    private function compareWithPrimary(DocumentAnalyzerRegistry $registry, Analysis $primary, array $shadowData): ?array
     {
-        $primaryEstimates = (array) ($primary->result['estimates'] ?? []);
-        $shadowEstimates = (array) ($shadowData['estimates'] ?? []);
-
-        if ($primaryEstimates === [] || $shadowEstimates === []) {
+        if (! $this->documentType instanceof AiDocumentType) {
             return null;
         }
 
-        return $metrics->compare(goldEstimates: $primaryEstimates, predictedEstimates: $shadowEstimates);
+        $analyzer = $registry->for($this->documentType);
+
+        if (! $analyzer instanceof SupportsResultComparison) {
+            return null;
+        }
+
+        return $analyzer->compareResults(primaryResult: $primary->result?->all() ?? [], shadowResult: $shadowData);
     }
 }

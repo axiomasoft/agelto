@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Services\Llm\Validation;
 
-use App\Dto\Procurement\Ai\Estimate\RowsChunkResponse;
 use App\Enums\Procurement\FinishReason;
+use App\Services\Llm\Contracts\StructurallyValidatable;
 use App\Services\Llm\Dto\LlmStructuredResponse;
 use Illuminate\Validation\ValidationException;
 use JsonException;
@@ -70,32 +70,16 @@ final readonly class StructuredResponseValidator
     }
 
     /**
-     * Доменные проверки на этом уровне — только структурные (row_index монотонен внутри чанка,
-     * без дублей); арифметическая сверка сумм — доменный уровень P6.2, не этот сервис.
+     * Структурная проверка делегируется самому DTO ответа (`StructurallyValidatable`, §6.4
+     * контракта P2.1, D107) — у валидатора в этой точке нет типа документа, чтобы спросить
+     * реестр анализаторов; типы без такой проверки пропускаются штатной веткой `null`.
      */
     private function structuralError(Data $data): ?string
     {
-        if (! $data instanceof RowsChunkResponse) {
+        if (! $data instanceof StructurallyValidatable) {
             return null;
         }
 
-        $seenRowIndexes = [];
-        $previousRowIndex = null;
-
-        foreach ($data->rows as $row) {
-            if (isset($seenRowIndexes[$row->row_index])) {
-                return "Дубликат row_index={$row->row_index} в чанке.";
-            }
-
-            $seenRowIndexes[$row->row_index] = true;
-
-            if ($previousRowIndex !== null && $row->row_index <= $previousRowIndex) {
-                return "row_index={$row->row_index} нарушает монотонность (предыдущий row_index={$previousRowIndex}).";
-            }
-
-            $previousRowIndex = $row->row_index;
-        }
-
-        return null;
+        return $data->structuralError();
     }
 }
