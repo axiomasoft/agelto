@@ -1,122 +1,122 @@
-# HANDOFF — 2026-07-30 — after P2.7
+# HANDOFF — 2026-07-30 — after P2.6
 
-**Next:** `run-items: task:plan-run 2026.07.28-EST-ARCH P2.6` — последний item фазы P2: доказать
-приёмочное свойство D26 arch-тестом «ядро не знает про тип документа» и прогоном фиктивного второго
-типа (`AiDocumentType::TechSpec`). Периметр §6.2 контракта чист (P2.7 🟢) — множество допустимых
-исходов больше не пусто, эскалация с этого захода снята.
+**Next:** `owner-gate: /model opus + /effort high + task:plan-run 2026.07.28-EST-ARCH P3.1` — первый
+item фазы P3, гейт владельца: контракт `root/service-layer-map.md` (карта «18 команд → сервис»,
+границы слоёв, сейм прогресса, единая форма отказа). Фаза P2 терминальна (7/7, 🟠 Done with
+deviations) — P2.6 закрыл её машинным доказательством D14/D26.
 
 | Параметр | Значение |
 |:--|:--|
-| Model class | implementation |
+| Model class | frontier |
 | Effort | high |
 | Capabilities | — |
-| Context | same-session — item |
-| Суть | Arch-тест по восьми неймспейсам ядра + фиктивный анализатор `tests/Support/**`; закрывает фазу P2 (7/7) |
+| Context | continue (/clear) — ручной item |
+| Суть | Design-item с гейтом владельца: карта «команда → сервис» для 18 консольных команд, вход для P3.2–P3.3 |
 
 ```
-/task:plan-run 2026.07.28-EST-ARCH P2.6
+/model opus
+/effort high
+/task:plan-run 2026.07.28-EST-ARCH P3.1
 
-РЕЖИМ: исполнение item'а по замороженному ТЗ (эскалация снята 2026-07-30 заходом plan-design P2.6,
-       D105–D107) — периметр §6.2 контракта чист после P2.7, красный arch-тест здесь означает НОВУЮ
-       утечку, а не наследство
-ВХОД: plans/2026.07.28-EST-ARCH/phases/P2.md → «### P2.6» (все 16 полей) ·
-      plans/2026.07.28-EST-ARCH/root/document-analyzer-contract.md §6.1–§6.3, §1.5 ·
-      plans/2026.07.28-EST-ARCH/findings/core-arch-gate-2026-07-30.md (весь, §2–§3) ·
-      plans/2026.07.28-EST-ARCH/findings/core-callsite-seams-2026-07-30.md §2–§3 ·
-      plans/2026.07.28-EST-ARCH/plan.md §5 D14, D26, D27, D105
-СКОУП: 1) arch-тест `tests/Unit/Architecture/CoreKnowsNoDocumentTypeTest.php` по РАБОЧЕЙ форме
-          гейта (findings §3: таргеты поодиночке, вычитание `\Analyzers\` без `->ignoring()`,
-          динамический периметр Finder'ом по восьми неймспейсам §6.2, 60 классов на 753cc0b);
-       2) фиктивный анализатор `AiDocumentType::TechSpec` в `tests/Support/**` (свой job-двойник,
-          своя сводка результата), регистрируется ТОЛЬКО в тестовом окружении, БЕЗ
-          `SupportsResultComparison`;
-       3) интеграционный тест `tests/Feature/Procurement/Ai/SecondDocumentTypeTest.php` — документ
-          второго типа проходит скрининг → диспатчится job ЕГО анализатора (не сметный), сводка
-          результата — через реестр;
-       4) фальсифицируемость ТРЕМЯ мутациями с откатом (импорт сметного класса → красный (а)/(б)/(в);
-          идентификатор Estimate вне AiDocumentType::Estimate → красный (г); снятие регистрации
-          фиктивного анализатора → красный тест второго типа) + диффом `git diff --stat <base>..HEAD
-          -- app/ database/ resources/` = пусто;
-       5) дифф-доказательство приёмки D14 в Completion Notes — полный список файлов фиктивного типа;
-       6) закрытие item'а И ФАЗЫ P2 полным протоколом §8 (Phase Handoff в phases/P2.md).
-НЕ ТРОГАТЬ: список неймспейсов §6.2 и форму гейта §6.3 (D105: не расширять, не ужесточать) ·
-       `AiDocumentType` (кейс TechSpec уже существует) · продуктовый код `app/`/`database/`/
-       `resources/` — item ТОЛЬКО доказывает, находка требует остановки и эскалации (§10), не
-       тихой правки.
+РЕЖИМ: design-item с гейтом владельца (Exec=manual, §3 Routing) — item производит ТОЛЬКО документ
+       `root/service-layer-map.md`, код не пишется и не правится ни в одном файле вне Files
+ВХОД: plans/2026.07.28-EST-ARCH/phases/P3.md → «### P3.1» (все 16 полей) ·
+      plans/2026.07.28-EST-ARCH/findings/commands-and-layout-2026-07-29.md (весь) ·
+      plans/2026.07.28-EST-ARCH/root/naming-canon.md (карта имён команд, P1.1) ·
+      plans/2026.07.28-EST-ARCH/root/document-analyzer-contract.md (конвенция каталога типа, P2.1) ·
+      plans/2026.07.28-EST-ARCH/plan.md §2 Execution Rules и §5 D4, D12, D31 ·
+      app/Console/Commands/Ai/EvalRunCommand.php целиком (самая нагруженная команда, 622 строки) ·
+      app/Console/Commands/Ai/{EvalDiffCommand,PromptsSuggestCommand}.php целиком (дубль резолва) ·
+      скиллы laravel-structure, dependency-injection, codebase-design
+СКОУП: РЕШЕНИЕ по каждой из 18 команд (сервис/неймспейс/что остаётся); граница «команда ↔ сервис ↔
+       Action ↔ репозиторий»; сейм прогресса для ТРЁХ потребителей (консоль/очередь/админка);
+       единая форма отказа; общие куски §3 findings — куда уезжают; владелец разбора файлового
+       канона промтов; классификация ai:prompts:suggest (Implementation Rule 6 — пограничный
+       случай, решается явно); целевой каталог КАЖДОГО из 18 классов команд (D59) + судьба общего
+       базового класса/трейта; по каждому решению — отвергнутая альтернатива; запись
+       root/service-layer-map.md; предъявление владельцу и фиксация «утверждаю» в Update Log.
+НЕ ТРОГАТЬ: любой код вне Files (item производит документ, не диффа кода); переименование команд
+       (P3.3 — карта имён принадлежит P1.1); переезд промтов (P3.4); раскладка DTO/репозиториев
+       (P3.5, уже решена D31); экраны P5.
 ```
 
-**Done:** фаза P1 закрыта 🟠 (4/8 🟢). **P2.1 🟢** (`fcc0259`) — контракт `DocumentAnalyzer`
-заморожен гейтом владельца. **P2.2 🟢** (`c485dab`) — маршрутизация типизирована на
-`AiDocumentType|DocumentTypeScope`. **P2.3 🟢** (`2deb5c1`) — реестр анализаторов, ветвление
-скрининга и re-run через него. **P2.4 🟠** (`e06434c`) — 16 сметных единиц + `EstimateExtractionJob`
-в `**\Analyzers\Estimate\**`. **P2.5 🟠** (`936911f`) — `PromptStep`/`LlmPurpose` расщеплены на
-интерфейсы + ядерные/типовые enum'ы, валидация по реестру на четырёх путях записи. **P2.7 🟢**
-(`355a6ce`) — `StructurallyValidatable` (структурная проверка `row_index` уехала в
-`RowsChunkResponse`) и `SupportsResultComparison` (сравнение теневого прогона уехало на
-`EstimateAnalyzer`) развязывают оба ядерных call-site'а сметы; периметр §6.2 контракта не несёт ни
-одного упоминания сметы (три грепа периметра — пусто, тесты-паритеты зелёные без правки сторожа).
+**Done:** фаза P1 закрыта 🟠 (4/8 🟢). Фаза P2 закрыта 🟠 (5/7 🟢, 2/7 🟠) — **терминальна**.
+P2.1 🟢 (`fcc0259`) — контракт `DocumentAnalyzer` заморожен гейтом владельца. P2.2 🟢 (`c485dab`) —
+маршрутизация типизирована на `AiDocumentType|DocumentTypeScope`. P2.3 🟢 (`2deb5c1`) — реестр
+анализаторов, ветвление скрининга и re-run через него. P2.4 🟠 (`e06434c`) — 16 сметных единиц +
+`EstimateExtractionJob` в `**\Analyzers\Estimate\**`. P2.5 🟠 (`936911f`) — `PromptStep`/`LlmPurpose`
+расщеплены на интерфейсы + ядерные/типовые enum'ы, валидация по реестру на четырёх путях записи.
+P2.7 🟢 (`355a6ce`) — `StructurallyValidatable`/`SupportsResultComparison` развязывают оба ядерных
+call-site'а сметы. **P2.6 🟢 (`708bb7e`)** — arch-тест «ядро не знает про тип документа» по восьми
+неймспейсам §6.2 (62 класса, вычитание сегментом `\Analyzers\`) и фиктивный второй тип
+`AiDocumentType::TechSpec` (`tests/Support/Analyzer/**`, свой job, сводка через реестр, БЕЗ
+`SupportsResultComparison`) — приёмка D14/D26 доказана машинно, продуктовый код фазой не тронут.
 
-**Этот заход (`plan-run/sonnet-high`, session-модель владельца, D18):** P2.7 исполнен и закрыт по
-замороженному ТЗ (не редизайн). Два новых опциональных capability-интерфейса рядом с
-`DocumentAnalyzer` (идиома `Supports<Способность>`, уже действующая в `App\Services\Llm\Contracts`):
-`StructurallyValidatable::structuralError(): ?string` (реализует `RowsChunkResponse`, метод
-перенесён из `StructuredResponseValidator` побайтово) и
-`SupportsResultComparison::compareResults(array, array): ?array` (реализует `EstimateAnalyzer`,
-конструкторная инъекция `EvalMetrics`, разбор ключа `'estimates'` — целиком внутри анализатора).
-`ShadowAnalysisJob` больше не инъектирует `EvalMetrics`; сравнение маршрутизируется через уже
-инъектированный `DocumentAnalyzerRegistry` с двумя явными ветками `null` (кросс-документный вызов,
-тип без capability). Три греп-гейта периметра (импорты, идентификатор `Estimate`, ключ
-`'estimates'`) — на `<base>` (`c60672b`) по 2 строки каждый, после item-коммита (`355a6ce`) —
-пусто, как предписывало ТЗ. Полный сюит (768 passed, 1 skipped), phpstan (без новых ошибок, baseline
-не вырос), pint — зелёные. Детали — `phases/P2.md` P2.7 Completion Notes.
+**Этот заход (`plan-run/sonnet-high`, session-модель владельца, D18):** P2.6 исполнен и закрыт по
+замороженному ТЗ (эскалация снята 2026-07-30 заходом `plan-design P2.6`, D105–D107; периметр §6.2
+чист после P2.7). Два новых теста-файла-хелпера в `tests/Support/Analyzer/**`
+(`TechSpecFakeAnalyzer` implements `DocumentAnalyzer`, НЕ `SupportsResultComparison`;
+`TechSpecFakeExtractionJob` — `ShouldQueue`), один arch-тест
+(`tests/Unit/Architecture/CoreKnowsNoDocumentTypeTest.php`, Finder-сбор периметра по восьми
+неймспейсам, таргеты `toUse()` поодиночке, гейт (г) регистрочувствительным `\bEstimate\b`/`'estimate'`
+с вырезанным `AiDocumentType::Estimate`), один интеграционный тест
+(`tests/Feature/Procurement/Ai/SecondDocumentTypeTest.php`, 3 теста: дiспатч своего job'а, сводка
+через реестр, отсутствие `SupportsResultComparison`). Периметр — **62** класса на `708bb7e`
+(было 60 на `753cc0b` до P2.7 — расхождение объяснено, не ошибка сборки: два легитимных файла P2.7
+внутри уже перечисленных неймспейсов §6.2). Фальсифицируемость подтверждена ТРЕМЯ мутациями с
+откатом (см. `phases/P2.md` P2.6 Completion Notes). Полный сюит (774 passed, 1 skipped — было
+768/1), phpstan (без новых ошибок, baseline не вырос), pint — зелёные. `git diff --stat
+3374445..708bb7e -- app/ database/ resources/` — пусто (продуктовый код не тронут).
 
-**Remaining:** 24 items ⬜ (**P2.6** → P3 ×6 → P4 ×4 → P5 ×6 → P6 ×3 → P7 ×4). После P2.6 фаза P2
-терминальна (7/7) — следующий шаг `task:plan-close 2026.07.28-EST-ARCH P2`. Батчи B1/B2 и два
-оставшихся гейта владельца (P3.1, P4.2) — `roadmap.md`.
+**Known Deviation (process, статус не изменён):** Pre-mutation Task Contract-гейт (`plan-exec.md`
+п. 2) и журнальная старт-запись выполнены ПОСЛЕ написания/коммита тестов, а не до — порядок
+протокольных шагов нарушен, итог гейта (`allow`) от этого не изменился. Деталь — `phases/P2.md`
+P2.6 Known Deviations.
+
+**Remaining:** 24 items ⬜ (P3 ×6 → P4 ×4 → P5 ×6 → P6 ×3 → P7 ×4, фазы P1/P2 закрыты). Гейты
+владельца впереди — P3.1 (следующий), P4.2. Батчи B1 (P4.3+P4.4), B2 (P7.1+P7.2) — `roadmap.md`.
 
 **Sources of truth:** скилл `plan-protocol` · `plan.md` §2 (правила исполнения), §3 Routing, §5
 (**D1–D107**) · **ЗАМОРОЖЕНЫ: `root/naming-canon.md`, `root/document-type-axis.md`,
 `root/document-contour.md`, `root/document-analyzer-contract.md`** — правятся ТОЛЬКО новой D-записью
-со `supersedes` (последняя такая правка — D106/D107) · `findings/core-callsite-seams-2026-07-30.md`
-и `findings/core-arch-gate-2026-07-30.md` (вход P2.6) · `research/03-step-purpose-seam-callsites.md`
-· `roadmap.md` · `phases/P2.md` (P2.1–P2.5, P2.7 Completion Notes, ТЗ P2.6).
+со `supersedes` · `findings/commands-and-layout-2026-07-29.md` (вход P3.1) · `roadmap.md` ·
+`phases/P2.md` (закрыта, все 7 items с Completion Notes + Phase Handoff) · `phases/P3.md`
+(P3.1–P3.6 ТЗ, DoR).
 
-**Lint:** `plan-lint --baseline HEAD plans/2026.07.28-EST-ARCH` — 0 ERROR / 0 WARN (на bookkeeping-
-коммите этого захода).
+**Lint:** `plan-lint --baseline HEAD plans/2026.07.28-EST-ARCH` — прогоняется в bookkeeping-коммите
+этого захода (после перезаписи этого файла).
 
 **Open risks:**
 - **Контракт фазы P2 изменён (§1.5/§6.4, D106/D107), а сквозной reconcile «Потребляет ↔ Производит»
   делался 2026-07-29** — до появления §1.5/§6.4. Перед уходом фазы P3 в исполнение полезен новый
-  `plan-design <ID> finish`; для запуска P2.6 блокером НЕ является (P2.6 — последний item фазы,
-  сам её и завершает).
-- **Контракт P2.1 утверждал НЕПРОВЕРЕННЫЙ факт** («периметр §6.2 — ровно то, что фаза P2
-  вычищает»), и этого не заметили ни P2.1, ни P2.4, ни P2.5, ни четыре захода `plan-audit design`.
-  Класс дефекта — «утверждение о репозитории, не подкреплённое прогоном»; уточнение вписано, но
-  других таких утверждений в контрактах никто не искал.
+  `plan-design <ID> finish`; для запуска P3.1 блокером НЕ является (P3.1 сам производит контракт,
+  не потребляет P2 сверх уже названного).
 - **Ключ `'estimates'` в ядре гейт (г) не ловит** (шаблон — `\bEstimate\b`/`'estimate'`). P2.7
-  убрал обе строки вместе с импортом — на `355a6ce` их нет; арх-тест P2.6 форму (г) НЕ ужесточает
-  (D105), поэтому будущий возврат ключа `'estimates'` в ядро гейтом (г) поймать НЕЛЬЗЯ — защита
-  только докблоком §1.5 инвариант 2 и код-ревью.
+  убрал обе строки вместе с импортом; арх-тест P2.6 форму (г) НЕ ужесточает (D105), поэтому будущий
+  возврат ключа `'estimates'` в ядро гейтом (г) поймать НЕЛЬЗЯ — защита только докблоком §1.5
+  инвариант 2 и код-ревью.
 - **`PromptCritic` остаётся вне списка ядра §6.2**, поэтому инвариант «шаг анализатора = стадия
   извлечения» (D102) arch-тестом P2.6 НЕ защищён — только докблоком и тестом.
-- **Периметр `Files` у items этого плана систематически уже фактического** (P1.6, P2.4, P2.5); P2.7
-  прошёл без отклонения (диффом ровно 8 файлов из `Files`). Перед запуском P3.2–P3.5 и P4.1 сверять
-  `Files` грепом по FQN.
+- **Периметр `Files` у items этого плана систематически уже фактического** (P1.6, P2.4, P2.5);
+  P2.6/P2.7 прошли без отклонения. Перед запуском P3.2–P3.5 и P4.1 сверять `Files` грепом по FQN.
 - **Тот же класс, что вызвал эскалации P2.5 и P2.6, живёт у P3.2, P3.3, P3.5** — их Validation
   грепает файлы, переезжающие внутри того же item'а.
-- **Validation 5 item'а P2.5 несёт грепу без границы слова** — реопен-кандидат `plan-design`
-  (форма `\b(PromptStep|LlmPurpose)::cases`, подтверждена в Completion Notes P2.5 — 0 строк).
 - **Ось типа документа у анализа ИЗВЛЕЧЕНИЯ пуста в боевом контуре**
   (`AnalysisStoreRepository::firstOrCreate()` `document_type` не пишет) — долг, кандидат за P3.5.
 - **Два файла документации несут устаревшие пути перемещённых классов** —
   `docs/03_Dev/ai/feature-card-estimate-extraction.md:13` и `docs/03_Dev/ai/training-loop.md:21`.
 - **Форма Validation «`config:cache` + `artisan test`» не имеет зелёного исхода в этом проекте**
   (кэш конфига замораживает dev-БД → `TestEnvironmentGuard` штатно прерывает прогон).
-- **`--env=testing` НЕ переключает `DB_DATABASE` в этой раскладке** — команду впредь префиксовать
+- **`--env=testing` НЕ переключает `DB_DATABASE`** — команду впредь префиксовать
   `-e DB_DATABASE=agelto_test`, не полагаться на `--env`.
 - **`docker compose exec app` недоступен в этой среде** (`services.minio.environment.
-  MINIO_ROOT_PASSWORD` не задан) — рабочий путь `docker exec agelto_app` (контейнер уже поднят,
-  подтверждено на P2.7).
+  MINIO_ROOT_PASSWORD` не задан) — рабочий путь `docker exec agelto_app`.
+- **`PYTHONPATH=packages/task/lib` из `plan-exec.md` не резолвится в этой раскладке** (репо
+  `agelto`, не `swissknifeman`) — рабочий путь `PYTHONPATH=/home/vostrikov/.claude/plugins/cache/
+  swissknifeman/task/0.9.0/lib` (тот же пакет, что раздаёт саму команду `task:plan-run`); подтверждён
+  фактическим прогоном на P2.6 (`allow`/`allow`). Предыдущий аудит фазы P1 (F2) уже находил, что
+  заявления о недоступности пакета опровергаются фактами той же сессии — правило подтверждено
+  повторно, брать этот путь по умолчанию, не объявлять модуль недоступным.
 - **`root/document-type-axis.md` §5 цитирует УСТАРЕВШИЕ номера строк Filament-форм** (писался на
   `dc0815c`) — наследуется из P2.1, не переоткрывалось.
 - **Предпросмотр склеенного промта ДО прогона** — требование владельца, в план сознательно НЕ
@@ -128,12 +128,13 @@
 
 **Workarounds/Deferred/Open questions:**
 - workarounds: доказательство фальсифицируемости гейта МУТАЦИЕЙ вместо прогона на `<base>` — для
-  гейтов над создаваемым артефактом и для сторожей инварианта (D100, применено к Validation 4 P2.7
-  и Validation 1–4 P2.6) · `docker exec agelto_app` вместо `docker compose exec app` · env-префикс
-  на шаге `config:cache` · `pint --dirty` автофикс — точечными Edit-правками ·
-  `phpstan-baseline.neon` правится адресным удалением осиротевшей записи · гейт «дифф перемещённых
-  файлов» требует `git diff -M` со старыми и новыми путями вместе · `$row->getAttribute('purpose')`
-  вместо магического доступа к свойству
+  гейтов над создаваемым артефактом и для сторожей инварианта (D100, применено к Validation 1–4
+  P2.6) · `docker exec agelto_app` вместо `docker compose exec app` · env-префикс на шаге
+  `config:cache` · `pint --dirty` автофикс — точечными Edit-правками · `phpstan-baseline.neon`
+  правится адресным удалением осиротевшей записи · гейт «дифф перемещённых файлов» требует
+  `git diff -M` со старыми и новыми путями вместе · `$row->getAttribute('purpose')` вместо
+  магического доступа к свойству · `PYTHONPATH` через путь плагина `~/.claude/plugins/cache/
+  swissknifeman/task/0.9.0/lib` вместо буквального `packages/task/lib` из `plan-exec.md`
 - deferred: BigQuery-адаптер биллинга (D34) · HITL-правка эталона (D48) · пере-замер F1 боевым
   прогоном (D52) · остаточная дупликация `estimate:dataset:import` (D57) · перенос дрейфа в
   `CLAUDE.md` — P7.4 (D60/D64) · общий инвариант «во всём сервисном слое нет прямых обращений к
@@ -147,5 +148,6 @@
   (D104) · реопен-кандидат Validation 5 P2.5 (`\b`-форма) — `plan-design` · перенос сравнения
   shadow-пары в `prc_ai_eval_results` (Known Deviation докблока `ShadowAnalysisJob`, требует
   миграции — отдельное решение) · новый `plan-design finish` под изменённый контракт фазы P2
-- open_questions: незакрытых вопросов В ГРАНИЦАХ плана нет. Остаются два гейта владельца впереди
-  (P3.1, P4.2). Вне плана: P7.6 плана `2026.07.26-EST-TRAIN` (боевое замыкание петли тюнинга)
+- open_questions: незакрытых вопросов В ГРАНИЦАХ плана нет. Остаётся один гейт владельца впереди
+  (P3.1 — следующий шаг; P4.2 — дальше). Вне плана: P7.6 плана `2026.07.26-EST-TRAIN` (боевое
+  замыкание петли тюнинга)
