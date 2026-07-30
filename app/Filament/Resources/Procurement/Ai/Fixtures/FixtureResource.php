@@ -6,6 +6,7 @@ use App\Filament\Resources\Procurement\Ai\Fixtures\Pages\CreateFixture;
 use App\Filament\Resources\Procurement\Ai\Fixtures\Pages\EditFixture;
 use App\Filament\Resources\Procurement\Ai\Fixtures\Pages\ListFixtures;
 use App\Filament\Resources\Procurement\Ai\Fixtures\Pages\ViewFixture;
+use App\Filament\Resources\Procurement\Ai\Fixtures\RelationManagers\RunsRelationManager;
 use App\Filament\Resources\Procurement\Ai\Fixtures\Schemas\FixtureForm;
 use App\Filament\Resources\Procurement\Ai\Fixtures\Schemas\FixtureInfolist;
 use App\Filament\Resources\Procurement\Ai\Fixtures\Tables\FixturesTable;
@@ -51,7 +52,7 @@ class FixtureResource extends Resource
     public static function getRelations(): array
     {
         return [
-            //
+            RunsRelationManager::class,
         ];
     }
 

@@ -8,6 +8,7 @@ use App\Enums\Procurement\AiDocumentType;
 use App\Enums\Procurement\FixtureClass;
 use App\Enums\Procurement\GoldSource;
 use App\Models\Procurement\Document\Document;
+use App\Models\Procurement\Document\DocumentVersion;
 use App\Models\User;
 use Database\Factories\Procurement\Ai\FixtureFactory;
 use Illuminate\Database\Eloquent\Attributes\UseFactory;
@@ -16,6 +17,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 
@@ -198,5 +200,22 @@ final class Fixture extends Model
     public function document(): BelongsTo
     {
         return $this->belongsTo(related: Document::class);
+    }
+
+    /**
+     * Прогоны всех версий рабочей копии (P5.3, `RunsRelationManager`) — read-путь для витрины:
+     * `document_id` эталона сопоставляется с `document_id` версии напрямую, минуя промежуточный
+     * `documents.id` (у `Document` нет relation-метода `versions()` — раскладка репозиторием).
+     */
+    public function runs(): HasManyThrough
+    {
+        return $this->hasManyThrough(
+            related: AnalysisRun::class,
+            through: DocumentVersion::class,
+            firstKey: 'document_id',
+            secondKey: 'document_version_id',
+            localKey: 'document_id',
+            secondLocalKey: 'id',
+        );
     }
 }
