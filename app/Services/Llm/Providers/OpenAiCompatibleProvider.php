@@ -27,7 +27,7 @@ use RuntimeException;
  * P9.4, ТЗ 04 §7) — путь подключения без правки домена (D16). Stateless: `base_url`/`api_key`
  * НЕ хранятся в конструкторе (в отличие от `PrismGeminiProvider`, у которого один провайдер на
  * всё приложение) — маршруты с разными `llm_providers` резолвятся к ОДНОМУ инстансу этого
- * класса из контейнера (`AiRouteResolver::providerFor()`), поэтому конфигурация приходит per-call
+ * класса из контейнера (`LlmRouteResolver::providerFor()`), поэтому конфигурация приходит per-call
  * через `LlmOptions::$baseUrl`/`$apiKeyEnv` (см. докблок DTO) — `Prism::using(..., $providerConfig)`
  * принимает override без глобального `config/prism.php`.
  *

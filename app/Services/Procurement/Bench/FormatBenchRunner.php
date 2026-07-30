@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\Procurement\Bench;
 
-use App\Dto\Procurement\Ai\Bench\BenchCellResult;
+use App\Dto\Procurement\Bench\BenchCellResult;
 use App\Enums\Procurement\AiDocumentType;
 use App\Enums\Procurement\AnalysisStatus;
 use App\Enums\Procurement\AnalysisStep;
@@ -26,8 +26,8 @@ use App\Repositories\Procurement\AnalysisStoreRepository;
 use App\Repositories\Procurement\DocumentStoreRepository;
 use App\Repositories\Procurement\FixtureStoreRepository;
 use App\Repositories\Procurement\RepresentationStoreRepository;
-use App\Services\Llm\AiRouteResolver;
 use App\Services\Llm\Dto\ResolvedRoute;
+use App\Services\Llm\LlmRouteResolver;
 use App\Services\Llm\PromptComposer;
 use App\Services\Procurement\Analyzers\Estimate\EvalMetrics;
 use App\Services\Procurement\Analyzers\Estimate\ExtractionOrchestrator;
@@ -79,7 +79,7 @@ final readonly class FormatBenchRunner
         private AnalysisStoreRepository $analyses,
         private AnalysisRunStoreRepository $runs,
         private DocumentStoreRepository $documents,
-        private AiRouteResolver $routes,
+        private LlmRouteResolver $routes,
         private ExtractionPreflight $preflight,
         private ExtractionOrchestrator $orchestrator,
         private EvalMetrics $metrics,

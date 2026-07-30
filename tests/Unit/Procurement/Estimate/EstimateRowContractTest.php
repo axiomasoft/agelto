@@ -2,8 +2,8 @@
 
 declare(strict_types=1);
 
-use App\Dto\Procurement\Ai\Estimate\EstimateRow;
-use App\Dto\Procurement\Ai\Estimate\PassportResponse;
+use App\Dto\Procurement\Analyzers\Estimate\EstimateRow;
+use App\Dto\Procurement\Analyzers\Estimate\PassportResponse;
 use App\Enums\Procurement\CalcMethod;
 use App\Enums\Procurement\RowType;
 use Illuminate\Validation\ValidationException;

@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\Procurement\Fixture;
 
-use App\Dto\Procurement\Ai\Fixture\FixtureManifestEntry;
+use App\Dto\Procurement\Fixture\FixtureManifestEntry;
 use App\Repositories\Procurement\FixtureStoreRepository;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;

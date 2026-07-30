@@ -8,7 +8,7 @@ use App\Enums\Procurement\AiDocumentType;
 use App\Enums\Procurement\Analyzers\Estimate\EstimateLlmPurpose;
 use App\Models\Llm\LlmRoute;
 use App\Models\Llm\Provider;
-use App\Services\Llm\AiRouteResolver;
+use App\Services\Llm\LlmRouteResolver;
 use Database\Seeders\AiRoutingSeeder;
 
 test('сидер создаёт провайдера gemini и стартовую матрицу маршрутов', function (): void {
@@ -68,9 +68,9 @@ test('сидер идемпотентен — повторный запуск н
         ->and(LlmRoute::query()->count())->toBe(11);
 });
 
-test('после сидирования AiRouteResolver находит активный маршрут для каждого purpose стартовой матрицы', function (): void {
+test('после сидирования LlmRouteResolver находит активный маршрут для каждого purpose стартовой матрицы', function (): void {
     (new AiRoutingSeeder)->run();
-    $resolver = app(AiRouteResolver::class);
+    $resolver = app(LlmRouteResolver::class);
 
     expect($resolver->resolve(DocumentTypeScope::Any, CoreLlmPurpose::Screening)->options->model)->toBe('gemini-3.1-flash-lite')
         ->and($resolver->resolve(AiDocumentType::Estimate, EstimateLlmPurpose::Discovery)->options->model)->toBe('gemini-3.1-flash-lite')

@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Services\Procurement\Analyzers\Estimate;
 
-use App\Dto\Procurement\Ai\Estimate\EstimateRow;
-use App\Dto\Procurement\Ai\Estimate\IncompleteRow;
+use App\Dto\Procurement\Analyzers\Estimate\EstimateRow;
+use App\Dto\Procurement\Analyzers\Estimate\IncompleteRow;
 
 /**
  * Результат `EstimateStitcher::stitch()` (`docs/specs/v2/08-estimate-extraction.md` §4.2 «Stitcher»,

@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace App\Services\Procurement\Analyzers\Estimate;
 
-use App\Dto\Procurement\Ai\Diff\DiffEntry;
-use App\Dto\Procurement\Ai\Diff\DiffReport;
-use App\Dto\Procurement\Ai\Estimate\EstimateRow;
-use App\Dto\Procurement\Ai\Estimate\EstimateTotalsBlock;
+use App\Dto\Procurement\Analyzers\Estimate\Diff\DiffEntry;
+use App\Dto\Procurement\Analyzers\Estimate\Diff\DiffReport;
+use App\Dto\Procurement\Analyzers\Estimate\EstimateRow;
+use App\Dto\Procurement\Analyzers\Estimate\EstimateTotalsBlock;
 
 /**
  * Детерминированный diff-отчёт «gold vs предсказание» (P7.3, `docs/specs/v2/

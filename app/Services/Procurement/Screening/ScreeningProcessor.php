@@ -16,12 +16,12 @@ use App\Models\Procurement\Document\Document;
 use App\Models\Procurement\Document\DocumentVersion;
 use App\Repositories\Procurement\AnalysisStoreRepository;
 use App\Repositories\Procurement\DocumentStoreRepository;
-use App\Services\Llm\AiRouteResolver;
 use App\Services\Llm\Contracts\SupportsFileUpload;
 use App\Services\Llm\Dto\JsonSchema;
 use App\Services\Llm\Dto\LlmOptions;
 use App\Services\Llm\Dto\LlmPrompt;
 use App\Services\Llm\LlmCallRecorder;
+use App\Services\Llm\LlmRouteResolver;
 use App\Services\Llm\PromptComposer;
 use App\Services\Llm\Schema\JsonSchemaGenerator;
 use App\Services\Llm\Validation\StructuredResponseValidator;
@@ -46,7 +46,7 @@ final readonly class ScreeningProcessor
     public function __construct(
         private DocumentStoreRepository $documents,
         private AnalysisStoreRepository $analyses,
-        private AiRouteResolver $routes,
+        private LlmRouteResolver $routes,
         private PromptComposer $prompts,
         private JsonSchemaGenerator $schemas,
         private StructuredResponseValidator $validator,
@@ -56,7 +56,7 @@ final readonly class ScreeningProcessor
     ) {}
 
     /**
-     * `$routeIndex` — позиция в `AiRouteResolver::candidatesFor()` (priority ASC): 0 — основной
+     * `$routeIndex` — позиция в `LlmRouteResolver::candidatesFor()` (priority ASC): 0 — основной
      * маршрут; `ScreeningOutcomeHandler` (P5.2, D36) передаёт 1 для одноразовой
      * borderline-эскалации на маршрут классом выше (тот же документ, тот же `Analysis`,
      * повторная резка/загрузка — временные файлы предыдущего прогона уже удалены в `finally`).
@@ -157,7 +157,7 @@ final readonly class ScreeningProcessor
         );
 
         // maxTokens скрининга — конфигурируемый маленький потолок (Code Guidance P5.1), не
-        // дефолт `AiRouteResolver` (8192, рассчитан на extraction-шаги).
+        // дефолт `LlmRouteResolver` (8192, рассчитан на extraction-шаги).
         $options = new LlmOptions(
             provider: $primary->options->provider,
             model: $primary->options->model,

@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-use App\Dto\Procurement\Ai\Estimate\EstimateHeaderMap;
+use App\Dto\Procurement\Analyzers\Estimate\EstimateHeaderMap;
 use App\Enums\Llm\CorePromptStep;
 use App\Enums\Procurement\Analyzers\Estimate\EstimatePromptStep;
 use App\Enums\Procurement\ResourceType;

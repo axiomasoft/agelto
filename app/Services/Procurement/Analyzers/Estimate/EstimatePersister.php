@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace App\Services\Procurement\Analyzers\Estimate;
 
-use App\Dto\Procurement\Ai\Estimate\EstimateRow;
-use App\Dto\Procurement\Ai\Estimate\EstimateTotalsBlock;
-use App\Dto\Procurement\Ai\Estimate\IncompleteRow;
-use App\Dto\Procurement\Ai\Estimate\RowModifier;
-use App\Dto\Procurement\Ai\Estimate\RowResource;
+use App\Dto\Procurement\Analyzers\Estimate\EstimateRow;
+use App\Dto\Procurement\Analyzers\Estimate\EstimateTotalsBlock;
+use App\Dto\Procurement\Analyzers\Estimate\IncompleteRow;
+use App\Dto\Procurement\Analyzers\Estimate\RowModifier;
+use App\Dto\Procurement\Analyzers\Estimate\RowResource;
 use App\Enums\Procurement\ProcurementEventType;
 use App\Enums\Procurement\RowType;
 use App\Enums\Procurement\TotalKind;
@@ -16,7 +16,7 @@ use App\Models\Procurement\Ai\Analysis;
 use App\Models\Procurement\Document\Document;
 use App\Models\Procurement\Document\DocumentVersion;
 use App\Models\Procurement\Estimate\Estimate;
-use App\Repositories\Procurement\EstimateStoreRepository;
+use App\Repositories\Procurement\Analyzers\Estimate\EstimateStoreRepository;
 use App\Repositories\Procurement\ProcurementStoreRepository;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;

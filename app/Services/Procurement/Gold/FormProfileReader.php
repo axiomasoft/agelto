@@ -4,13 +4,13 @@ declare(strict_types=1);
 
 namespace App\Services\Procurement\Gold;
 
-use App\Dto\Procurement\Ai\Gold\GoldExplicitRow;
-use App\Dto\Procurement\Ai\Gold\GoldFormProfile;
-use App\Dto\Procurement\Ai\Gold\GoldFormProfileColumns;
-use App\Dto\Procurement\Ai\Gold\GoldFormProfileEstimate;
-use App\Dto\Procurement\Ai\Gold\GoldHeaderQuote;
-use App\Dto\Procurement\Ai\Gold\GoldResourceGroup;
-use App\Dto\Procurement\Ai\Gold\GoldRowRules;
+use App\Dto\Procurement\Gold\GoldExplicitRow;
+use App\Dto\Procurement\Gold\GoldFormProfile;
+use App\Dto\Procurement\Gold\GoldFormProfileColumns;
+use App\Dto\Procurement\Gold\GoldFormProfileEstimate;
+use App\Dto\Procurement\Gold\GoldHeaderQuote;
+use App\Dto\Procurement\Gold\GoldResourceGroup;
+use App\Dto\Procurement\Gold\GoldRowRules;
 use App\Enums\Procurement\ResourceType;
 use App\Enums\Procurement\RowType;
 use PhpOffice\PhpSpreadsheet\Cell\Coordinate;

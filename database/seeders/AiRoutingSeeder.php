@@ -21,7 +21,7 @@ use Illuminate\Database\Seeder;
  * маршруте выше, повтор — на уровне job-retry, как у остальных шагов.
  *
  * Driver провайдера — `gemini` (не буквальное «prism-gemini» из прозы Intent этого item'а):
- * `AiRouteResolver::providerFor()`/`LlmRouteFactory` уже закрепили `driver === 'gemini'` как
+ * `LlmRouteResolver::providerFor()`/`LlmRouteFactory` уже закрепили `driver === 'gemini'` как
  * код-контракт (P3.3) — сид с «prism-gemini» ломал бы резолв (`RuntimeException` «Неизвестный
  * драйвер провайдера»). Prism — библиотека ТРАНСПОРТА за адаптером, не значение поля `driver`.
  *

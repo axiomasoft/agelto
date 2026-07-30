@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\Procurement\Prepare;
 
-use App\Dto\Procurement\Ai\Gsfx\GsfxDocument as GsfxDocumentDto;
+use App\Dto\Procurement\Prepare\Gsfx\GsfxDocument as GsfxDocumentDto;
 use App\Enums\Procurement\DocumentStatus;
 use App\Enums\Procurement\ProcurementEventType;
 use App\Enums\Procurement\RepresentationKind;

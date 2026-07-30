@@ -31,7 +31,7 @@ class DatabaseSeeder extends Seeder
         // Стартовая матрица роутинга LLM (P7.2, ТЗ 04 §3.1) — идемпотентный updateOrCreate, без
         // секретов (ключи только env, Implementation Rules P7.2). В ОТЛИЧИЕ от демо-аккаунтов
         // ниже — инфраструктурные данные пайплайна нужны и в prod (без активных маршрутов
-        // AiRouteResolver кидает RuntimeException), поэтому вызов — ДО local/testing-гейта.
+        // LlmRouteResolver кидает RuntimeException), поэтому вызов — ДО local/testing-гейта.
         $this->call(AiRoutingSeeder::class);
 
         // Файловые промты (P8.1, D5/D17) — резолверу/оркестраторам НУЖЕН непустой

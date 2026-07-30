@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace App\Services\Procurement\Analyzers\Estimate;
 
-use App\Dto\Procurement\Ai\Estimate\DiscoveryMarkerLine;
-use App\Dto\Procurement\Ai\Estimate\DiscoveryResponse;
-use App\Dto\Procurement\Ai\Estimate\PassportResponse;
-use App\Dto\Procurement\Ai\Estimate\RowsChunkResponse;
-use App\Dto\Procurement\Ai\Estimate\TotalsResponse;
+use App\Dto\Procurement\Analyzers\Estimate\DiscoveryMarkerLine;
+use App\Dto\Procurement\Analyzers\Estimate\DiscoveryResponse;
+use App\Dto\Procurement\Analyzers\Estimate\PassportResponse;
+use App\Dto\Procurement\Analyzers\Estimate\RowsChunkResponse;
+use App\Dto\Procurement\Analyzers\Estimate\TotalsResponse;
 use App\Enums\Procurement\AiDocumentType;
 use App\Enums\Procurement\AnalysisStatus;
 use App\Enums\Procurement\Analyzers\Estimate\EstimateLlmPurpose;
@@ -21,11 +21,11 @@ use App\Models\Procurement\Document\Document;
 use App\Models\Procurement\Document\DocumentVersion;
 use App\Repositories\Procurement\AnalysisStoreRepository;
 use App\Repositories\Procurement\DocumentStoreRepository;
-use App\Services\Llm\AiRouteResolver;
 use App\Services\Llm\Contracts\SupportsFileUpload;
 use App\Services\Llm\Dto\LlmFileHandle;
 use App\Services\Llm\Dto\LlmUsage;
 use App\Services\Llm\Dto\ResolvedRoute;
+use App\Services\Llm\LlmRouteResolver;
 use App\Services\Procurement\Extraction\Exceptions\MaxTokensExceededException;
 use App\Services\Procurement\Extraction\ExtractionPreflight;
 use App\Services\Procurement\Extraction\ExtractionSession;
@@ -68,7 +68,7 @@ final readonly class ExtractionOrchestrator
     public function __construct(
         private DocumentStoreRepository $documents,
         private AnalysisStoreRepository $analyses,
-        private AiRouteResolver $routes,
+        private LlmRouteResolver $routes,
         private ExtractionPreflight $preflight,
         private ChunkSource $chunkSource,
         private WindowedChunkSource $windowedChunkSource,

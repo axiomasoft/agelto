@@ -10,11 +10,11 @@ use App\Enums\Procurement\AiDocumentType;
 use App\Enums\Procurement\AnalysisStatus;
 use App\Models\Procurement\Ai\Analysis;
 use App\Repositories\Procurement\AnalysisStoreRepository;
-use App\Services\Llm\AiRouteResolver;
 use App\Services\Llm\Dto\JsonSchema;
 use App\Services\Llm\Dto\LlmPrompt;
 use App\Services\Llm\Dto\LlmStructuredResponse;
 use App\Services\Llm\LlmCallRecorder;
+use App\Services\Llm\LlmRouteResolver;
 use App\Services\Procurement\Contracts\DocumentAnalyzerRegistry;
 use App\Services\Procurement\Contracts\SupportsResultComparison;
 use Carbon\CarbonImmutable;
@@ -74,7 +74,7 @@ final class ShadowAnalysisJob implements ShouldQueue
     }
 
     public function handle(
-        AiRouteResolver $routes,
+        LlmRouteResolver $routes,
         AnalysisStoreRepository $analyses,
         LlmCallRecorder $recorder,
         DocumentAnalyzerRegistry $registry,
@@ -91,7 +91,7 @@ final class ShadowAnalysisJob implements ShouldQueue
     }
 
     private function run(
-        AiRouteResolver $routes,
+        LlmRouteResolver $routes,
         AnalysisStoreRepository $analyses,
         LlmCallRecorder $recorder,
         DocumentAnalyzerRegistry $registry,

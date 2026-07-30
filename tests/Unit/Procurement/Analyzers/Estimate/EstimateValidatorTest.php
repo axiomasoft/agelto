@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-use App\Dto\Procurement\Ai\Estimate\EstimateRow;
-use App\Dto\Procurement\Ai\Estimate\EstimateTotalsBlock;
-use App\Dto\Procurement\Ai\Estimate\TotalLine;
+use App\Dto\Procurement\Analyzers\Estimate\EstimateRow;
+use App\Dto\Procurement\Analyzers\Estimate\EstimateTotalsBlock;
+use App\Dto\Procurement\Analyzers\Estimate\TotalLine;
 use App\Enums\Procurement\EstimateValidationStatus;
 use App\Enums\Procurement\RowType;
 use App\Services\Procurement\Analyzers\Estimate\EstimateValidator;

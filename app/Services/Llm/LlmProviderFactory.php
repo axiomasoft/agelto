@@ -12,7 +12,7 @@ use Illuminate\Contracts\Container\Container;
 
 /**
  * Единственный `match` по строке драйвера `llm_providers.driver` в проекте
- * (`root/service-layer-map.md` §8) — до этого класса `AiRouteResolver::providerFor()` и
+ * (`root/service-layer-map.md` §8) — до этого класса `LlmRouteResolver::providerFor()` и
  * `CachesCommand::providerForDriver()` держали ДВЕ независимые копии одного и того же
  * ветвления; появление второго провайдера теперь меняется в ОДНОМ месте.
  */

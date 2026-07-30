@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Services\Procurement\Gold;
 
-use App\Dto\Procurement\Ai\Estimate\EstimateRow;
-use App\Dto\Procurement\Ai\Estimate\PassportResponse;
+use App\Dto\Procurement\Analyzers\Estimate\EstimateRow;
+use App\Dto\Procurement\Analyzers\Estimate\PassportResponse;
 use Illuminate\Support\Arr;
 use Illuminate\Validation\ValidationException;
 use Spatie\LaravelData\Exceptions\CannotCreateData;

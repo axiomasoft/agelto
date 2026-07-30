@@ -2,12 +2,12 @@
 
 declare(strict_types=1);
 
-use App\Dto\Procurement\Ai\Estimate\DiscoveryResponse;
-use App\Dto\Procurement\Ai\Estimate\EstimateHeaderMap;
-use App\Dto\Procurement\Ai\Estimate\EstimatePassport;
-use App\Dto\Procurement\Ai\Estimate\PassportResponse;
-use App\Dto\Procurement\Ai\Estimate\RowsChunkResponse;
-use App\Dto\Procurement\Ai\Estimate\TotalsResponse;
+use App\Dto\Procurement\Analyzers\Estimate\DiscoveryResponse;
+use App\Dto\Procurement\Analyzers\Estimate\EstimateHeaderMap;
+use App\Dto\Procurement\Analyzers\Estimate\EstimatePassport;
+use App\Dto\Procurement\Analyzers\Estimate\PassportResponse;
+use App\Dto\Procurement\Analyzers\Estimate\RowsChunkResponse;
+use App\Dto\Procurement\Analyzers\Estimate\TotalsResponse;
 use App\Enums\Procurement\DiscoveryMarker;
 use App\Enums\Procurement\EstimateTarget;
 use App\Enums\Procurement\EstimateType;

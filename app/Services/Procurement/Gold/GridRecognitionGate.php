@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace App\Services\Procurement\Gold;
 
-use App\Dto\Procurement\Ai\Gold\GoldFormProfileColumns;
-use App\Dto\Procurement\Ai\Gold\GoldFormProfileEstimate;
-use App\Dto\Procurement\Ai\Gold\GoldResourceGroup;
+use App\Dto\Procurement\Gold\GoldFormProfileColumns;
+use App\Dto\Procurement\Gold\GoldFormProfileEstimate;
+use App\Dto\Procurement\Gold\GoldResourceGroup;
 use App\Enums\Procurement\ResourceType;
 use App\Enums\Procurement\RowType;
 use PhpOffice\PhpSpreadsheet\Cell\Coordinate;

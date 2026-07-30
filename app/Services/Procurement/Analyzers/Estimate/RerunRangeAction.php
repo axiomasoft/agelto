@@ -4,20 +4,20 @@ declare(strict_types=1);
 
 namespace App\Services\Procurement\Analyzers\Estimate;
 
-use App\Dto\Procurement\Ai\Estimate\RowModifier;
-use App\Dto\Procurement\Ai\Estimate\RowsChunkResponse;
+use App\Dto\Procurement\Analyzers\Estimate\RowModifier;
+use App\Dto\Procurement\Analyzers\Estimate\RowsChunkResponse;
 use App\Enums\Procurement\AiDocumentType;
 use App\Enums\Procurement\Analyzers\Estimate\EstimateLlmPurpose;
 use App\Enums\Procurement\RowType;
 use App\Models\Procurement\Ai\Analysis;
 use App\Models\Procurement\Document\DocumentVersion;
 use App\Models\Procurement\Estimate\Estimate;
-use App\Repositories\Procurement\EstimateStoreRepository;
-use App\Services\Llm\AiRouteResolver;
+use App\Repositories\Procurement\Analyzers\Estimate\EstimateStoreRepository;
 use App\Services\Llm\Contracts\SupportsFileUpload;
 use App\Services\Llm\Dto\LlmFileHandle;
 use App\Services\Llm\Dto\LlmUsage;
 use App\Services\Llm\Dto\ResolvedRoute;
+use App\Services\Llm\LlmRouteResolver;
 use App\Services\Procurement\Extraction\ExtractionSession;
 use App\Services\Procurement\Prepare\RepresentationResolver;
 use Carbon\CarbonImmutable;
@@ -49,7 +49,7 @@ use RuntimeException;
 final readonly class RerunRangeAction
 {
     public function __construct(
-        private AiRouteResolver $routes,
+        private LlmRouteResolver $routes,
         private ChunkSource $chunkSource,
         private EstimateStoreRepository $estimates,
         private RepresentationResolver $representations,

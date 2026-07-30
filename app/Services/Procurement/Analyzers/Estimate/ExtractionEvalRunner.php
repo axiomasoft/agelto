@@ -16,7 +16,7 @@ use App\Repositories\Procurement\AnalysisRunStoreRepository;
 use App\Repositories\Procurement\AnalysisStoreRepository;
 use App\Repositories\Procurement\DocumentStoreRepository;
 use App\Repositories\Procurement\EvalRunStoreRepository;
-use App\Services\Llm\AiRouteResolver;
+use App\Services\Llm\LlmRouteResolver;
 use App\Services\Procurement\Contracts\Dto\ProgressTick;
 use App\Services\Procurement\Contracts\ProgressReporter;
 use Illuminate\Support\Collection;
@@ -37,7 +37,7 @@ final readonly class ExtractionEvalRunner
     public function __construct(
         private AnalysisStoreRepository $analyses,
         private AnalysisRunStoreRepository $runs,
-        private AiRouteResolver $routes,
+        private LlmRouteResolver $routes,
         private ExtractionOrchestrator $orchestrator,
         private EvalMetrics $metrics,
         private EvalRunStoreRepository $evalRuns,

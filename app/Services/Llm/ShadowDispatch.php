@@ -38,7 +38,7 @@ use Throwable;
 final readonly class ShadowDispatch
 {
     public function __construct(
-        private AiRouteResolver $routes,
+        private LlmRouteResolver $routes,
     ) {}
 
     public function afterCall(

@@ -316,13 +316,13 @@ parameters:
 			message: '#^Access to an undefined property App\\Models\\Procurement\\Estimate\\Section\:\:\$position\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Repositories/Procurement/EstimateStoreRepository.php
+			path: app/Repositories/Procurement/Analyzers/Estimate/EstimateStoreRepository.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Procurement\\Estimate\\Section\:\:\$section_number\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Repositories/Procurement/EstimateStoreRepository.php
+			path: app/Repositories/Procurement/Analyzers/Estimate/EstimateStoreRepository.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Procurement\\Procurement\:\:\$detail_attempts\.$#'
@@ -335,48 +335,6 @@ parameters:
 			identifier: property.notFound
 			count: 1
 			path: app/Repositories/Procurement/ProcurementStoreRepository.php
-
-		-
-			message: '#^Access to an undefined property App\\Models\\Llm\\LlmRoute\:\:\$model\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Services/Llm/AiRouteResolver.php
-
-		-
-			message: '#^Access to an undefined property App\\Models\\Llm\\LlmRoute\:\:\$options\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Services/Llm/AiRouteResolver.php
-
-		-
-			message: '#^Access to an undefined property App\\Models\\Llm\\Provider\:\:\$driver\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Services/Llm/AiRouteResolver.php
-
-		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$base_url\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Services/Llm/AiRouteResolver.php
-
-		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$code\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Services/Llm/AiRouteResolver.php
-
-		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$options\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Services/Llm/AiRouteResolver.php
-
-		-
-			message: '#^Parameter \#1 \$provider of method App\\Services\\Llm\\AiRouteResolver\:\:providerFor\(\) expects App\\Models\\Llm\\Provider, Illuminate\\Database\\Eloquent\\Model\|null given\.$#'
-			identifier: argument.type
-			count: 1
-			path: app/Services/Llm/AiRouteResolver.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Procurement\\Ai\\Correction\:\:\$content\.$#'
@@ -431,6 +389,48 @@ parameters:
 			identifier: return.type
 			count: 1
 			path: app/Services/Llm/LlmCacheManager.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Llm\\LlmRoute\:\:\$model\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Services/Llm/LlmRouteResolver.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Llm\\LlmRoute\:\:\$options\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Services/Llm/LlmRouteResolver.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Llm\\Provider\:\:\$driver\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Services/Llm/LlmRouteResolver.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$base_url\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Services/Llm/LlmRouteResolver.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$code\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Services/Llm/LlmRouteResolver.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$options\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Services/Llm/LlmRouteResolver.php
+
+		-
+			message: '#^Parameter \#1 \$provider of method App\\Services\\Llm\\LlmRouteResolver\:\:providerFor\(\) expects App\\Models\\Llm\\Provider, Illuminate\\Database\\Eloquent\\Model\|null given\.$#'
+			identifier: argument.type
+			count: 1
+			path: app/Services/Llm/LlmRouteResolver.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Llm\\LlmCall\:\:\$cached_tokens\.$#'
@@ -877,7 +877,7 @@ parameters:
 			path: app/Services/Procurement/Analyzers/Estimate/EstimateToContractMapper.php
 
 		-
-			message: '#^Parameter \#1 \$callback of method Illuminate\\Database\\Eloquent\\Collection\<int,Illuminate\\Database\\Eloquent\\Model\>\:\:map\(\) expects callable\(Illuminate\\Database\\Eloquent\\Model, int\)\: App\\Dto\\Procurement\\Ai\\Estimate\\RowResource, Closure\(App\\Models\\Procurement\\Estimate\\Resource\)\: App\\Dto\\Procurement\\Ai\\Estimate\\RowResource given\.$#'
+			message: '#^Parameter \#1 \$callback of method Illuminate\\Database\\Eloquent\\Collection\<int,Illuminate\\Database\\Eloquent\\Model\>\:\:map\(\) expects callable\(Illuminate\\Database\\Eloquent\\Model, int\)\: App\\Dto\\Procurement\\Analyzers\\Estimate\\RowResource, Closure\(App\\Models\\Procurement\\Estimate\\Resource\)\: App\\Dto\\Procurement\\Analyzers\\Estimate\\RowResource given\.$#'
 			identifier: argument.type
 			count: 1
 			path: app/Services/Procurement/Analyzers/Estimate/EstimateToContractMapper.php

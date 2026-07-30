@@ -21,7 +21,7 @@ use Tests\Support\Doubles\FakeLlmProvider;
 
 /**
  * P5.6 — ветка `estimate:eval:run --task=screening` прогоняет `ScreeningProcessor` (боевой маршрут через
- * `AiRouteResolver`) по `prc_ai_dataset_examples(task=screening)` и сравнивает `document_type`
+ * `LlmRouteResolver`) по `prc_ai_dataset_examples(task=screening)` и сравнивает `document_type`
  * предсказания с `gold.document_type` через `ScreeningEvalMetrics`, независимый от extraction
  * `EvalMetrics` (§8.4, НЕ трогается — Validation-критерий 4). `FakeLlmProvider` — тот же приём,
  * что `EvalRunTest` (extraction): «FakeLlm недопустим» относится к БОЕВОМУ прогону владельца

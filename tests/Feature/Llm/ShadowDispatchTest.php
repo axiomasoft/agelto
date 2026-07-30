@@ -16,13 +16,13 @@ use App\Models\Llm\LlmRoute;
 use App\Models\Llm\Provider;
 use App\Models\Procurement\Ai\Analysis;
 use App\Repositories\Procurement\AnalysisStoreRepository;
-use App\Services\Llm\AiRouteResolver;
 use App\Services\Llm\Dto\JsonSchema;
 use App\Services\Llm\Dto\LlmFileHandle;
 use App\Services\Llm\Dto\LlmPrompt;
 use App\Services\Llm\Dto\LlmStructuredResponse;
 use App\Services\Llm\Dto\LlmUsage;
 use App\Services\Llm\LlmCallRecorder;
+use App\Services\Llm\LlmRouteResolver;
 use App\Services\Llm\Providers\OpenAiCompatibleProvider;
 use App\Services\Llm\ShadowDispatch;
 use App\Services\Procurement\Contracts\DocumentAnalyzerRegistry;
@@ -34,7 +34,7 @@ use Tests\Support\Doubles\FakeLlmProvider;
 function runShadowJob(ShadowAnalysisJob $job): void
 {
     $job->handle(
-        app(AiRouteResolver::class),
+        app(LlmRouteResolver::class),
         app(AnalysisStoreRepository::class),
         app(LlmCallRecorder::class),
         app(DocumentAnalyzerRegistry::class),

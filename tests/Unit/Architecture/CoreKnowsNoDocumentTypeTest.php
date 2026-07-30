@@ -21,6 +21,7 @@ function coreNamespacesOfContract(): array
         'App\Services\Procurement\Screening', 'App\Services\Procurement\Extraction',
         'App\Services\Llm', 'App\Services\Procurement\Contracts',
         'App\Enums\Llm', 'App\Repositories\Llm', 'App\Models\Llm', 'App\Jobs\Procurement',
+        'App\Services\Procurement\Fixture', 'App\Support\Files',
     ];
 }
 
@@ -55,7 +56,7 @@ function coreClassesOfContract(): array
 test('периметр ядра собран правилом вычитания §6.2, не перечнем руками', function (): void {
     $classes = coreClassesOfContract();
 
-    expect($classes)->toHaveCount(73)
+    expect($classes)->toHaveCount(83)
         ->and(array_column($classes, 'class'))->not->toContain('App\Jobs\Procurement\Analyzers\Estimate\EstimateExtractionJob');
 });
 
@@ -63,7 +64,7 @@ test('ядро не импортирует поверхность типа до�
     foreach (coreClassesOfContract() as $entry) {
         expect($entry['class'])->not->toUse([
             'App\*\Procurement\Analyzers',
-            'App\Dto\Procurement\Ai\Estimate',
+            'App\Dto\Procurement\Analyzers\Estimate',
             'App\Models\Procurement\Estimate',
         ]);
     }

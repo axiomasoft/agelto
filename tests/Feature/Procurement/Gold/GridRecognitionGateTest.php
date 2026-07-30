@@ -2,8 +2,8 @@
 
 declare(strict_types=1);
 
-use App\Dto\Procurement\Ai\Gold\GoldFormProfileEstimate;
-use App\Dto\Procurement\Ai\Gold\GoldHeaderQuote;
+use App\Dto\Procurement\Gold\GoldFormProfileEstimate;
+use App\Dto\Procurement\Gold\GoldHeaderQuote;
 use App\Services\Procurement\Gold\FormProfileReader;
 use App\Services\Procurement\Gold\GridRecognitionGate;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;

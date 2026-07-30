@@ -2,8 +2,8 @@
 
 declare(strict_types=1);
 
-use App\Dto\Procurement\Ai\Estimate\EstimateRow;
-use App\Dto\Procurement\Ai\Estimate\IncompleteRow;
+use App\Dto\Procurement\Analyzers\Estimate\EstimateRow;
+use App\Dto\Procurement\Analyzers\Estimate\IncompleteRow;
 use App\Enums\Procurement\IncompleteReason;
 use App\Enums\Procurement\RowType;
 use App\Services\Procurement\Analyzers\Estimate\EstimateStitcher;

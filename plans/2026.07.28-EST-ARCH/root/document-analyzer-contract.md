@@ -479,7 +479,7 @@ config:cache` (скилл `config-driven-abstraction`, правило 2 — за
 | 16 единиц D28 | `App\Services\Procurement\Analyzers\Estimate\**` (раскладку внутри выбирает P2.4) |
 | job извлечения | `App\Jobs\Procurement\Analyzers\Estimate\EstimateExtractionJob` |
 | enum'ы типа | `App\Enums\Procurement\Analyzers\Estimate\{EstimatePromptStep,EstimateLlmPurpose}` |
-| DTO разбора | `App\Dto\Procurement\Analyzers\Estimate\**` — **только если так решит P3.5**; P2 их не двигает (Implementation Rule 7, D19) |
+| DTO разбора | `App\Dto\Procurement\Analyzers\Estimate\**` — исполнено P3.5 по D31/D33; P2 их не двигал (Implementation Rule 7, D19) |
 
 **Конвенция задаётся ЯВНО и целиком, одним правилом:** всё, что принадлежит типу `<Type>`, лежит по
 пути, содержащему сегмент `Analyzers\<Type>\`, в том слое, которому по смыслу принадлежит.
@@ -502,11 +502,11 @@ config:cache` (скилл `config-driven-abstraction`, правило 2 — за
 локальности, купленной одним предикатом по пути: первую читатель обнаруживает через полгода, вторая
 записана здесь.
 
-Каталоги DTO не перепланируются (Implementation Rule 7, D19): `App\Dto\Procurement\Ai\Estimate\**`
-остаётся на месте до P3.5 и для arch-теста P2.6 считается частью поверхности ТИПА, а не ядра —
-иначе P2.6 покраснеет на состоянии, которое фаза сознательно не чинит. Строка `App\Dto\Procurement\
-Analyzers\Estimate\**` в таблице выше — ЦЕЛЕВАЯ форма на случай, если P3.5 решит двигать DTO;
-настоящий контракт за P3.5 не решает и её не предписывает.
+**Исполнено P3.5 (D33).** Каталог DTO переехал на целевую форму `App\Dto\Procurement\Analyzers\
+Estimate\**`, названную в таблице выше; для arch-теста P2.6 он по-прежнему считается поверхностью
+ТИПА, а не ядра (правило вычитания §6.2 — сегмент `\Analyzers\`), только адрес изменился. Прежний
+корневой сегмент домена транспорта, под которым каталог лежал до переезда, в коде и в этом
+контракте больше не упоминается.
 
 ### 6.2. Неймспейсы ЯДРА для arch-теста P2.6 — поимённый список
 
@@ -518,6 +518,9 @@ Analyzers\Estimate\**` в таблице выше — ЦЕЛЕВАЯ форма 
 6. `App\Repositories\Llm`
 7. `App\Models\Llm`
 8. `App\Jobs\Procurement`
+9. `App\Services\Procurement\Fixture` — восемь кросс-документных сервисов карты §4; добавлено P3.5
+   проверкой OQ-13 (D113)
+10. `App\Support\Files` — добавлено P3.5 проверкой OQ-13 (D113)
 
 **Правило вычитания (обязательное, иначе гейт неверен).** Ни один неймспейс списка НЕ включает свои
 подпространства, содержащие сегмент `Analyzers`. Поимённо это задевает п. 8: `App\Jobs\Procurement`
@@ -530,7 +533,8 @@ Analyzers\Estimate\**` в таблице выше — ЦЕЛЕВАЯ форма 
 Класс из списка §6.2 (за вычетом §6.2 «Правило вычитания») не имеет права:
 
 - (а) импортировать что-либо из неймспейса с сегментом `Analyzers` (`**\Analyzers\**`);
-- (б) импортировать что-либо из `App\Dto\Procurement\Ai\Estimate\**`;
+- (б) импортировать что-либо из `App\Dto\Procurement\Analyzers\Estimate\**` (путь актуализирован
+  P3.5, D33 — DTO переехали из-под сегмента транспортного домена в каталог анализатора);
 - (в) импортировать что-либо из `App\Models\Procurement\Estimate\**`;
 - (г) нести идентификатор `Estimate` или литерал `'estimate'` — **кроме** `AiDocumentType::Estimate`,
   который является SSOT оси типа (D16) и в ядре законен.
@@ -587,7 +591,7 @@ $dataClass)` (`app/Services/Llm/Validation/StructuredResponseValidator.php:27`) 
 
 | Интерфейс | Метод | Реализует | Что заменяет |
 |:--|:--|:--|:--|
-| `App\Services\Llm\Contracts\StructurallyValidatable` | `structuralError(): ?string` | `App\Dto\Procurement\Ai\Estimate\RowsChunkResponse` | ветку `$data instanceof RowsChunkResponse` и сметное правило монотонности `row_index` внутри `StructuredResponseValidator::structuralError()` (`:76-99`) |
+| `App\Services\Llm\Contracts\StructurallyValidatable` | `structuralError(): ?string` | `App\Dto\Procurement\Analyzers\Estimate\RowsChunkResponse` | ветку `$data instanceof RowsChunkResponse` и сметное правило монотонности `row_index` внутри `StructuredResponseValidator::structuralError()` (`:76-99`) |
 
 Инварианты:
 

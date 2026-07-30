@@ -17,7 +17,7 @@ use App\Repositories\Procurement\AnalysisRunStoreRepository;
 use App\Repositories\Procurement\AnalysisStoreRepository;
 use App\Repositories\Procurement\DocumentStoreRepository;
 use App\Repositories\Procurement\ProcurementStoreRepository;
-use App\Services\Llm\AiRouteResolver;
+use App\Services\Llm\LlmRouteResolver;
 use App\Services\Procurement\Contracts\DocumentAnalyzer;
 use App\Services\Procurement\Contracts\DocumentAnalyzerRegistry;
 
@@ -28,7 +28,7 @@ use App\Services\Procurement\Contracts\DocumentAnalyzerRegistry;
  * `ai.screening.ignore_rules` (подстрока в
  * `Procurement.title`, v1-канон) → `ignored`. Borderline-зона confidence (D36) НЕ уходит молча
  * в `ignored`: `ai.screening.borderline_action` = `escalate` (один повторный скрининг на маршрут
- * классом выше, `AiRouteResolver`-индекс 1, флаг `escalated` в `analysis.result` защищает от
+ * классом выше, `LlmRouteResolver`-индекс 1, флаг `escalated` в `analysis.result` защищает от
  * второго прогона — не бесконечный цикл, счётчик как в `ReaskPolicy`) | `flag` (default,
  * `needs_review=true` в `analysis.result`, статус `screened`, экстракция НЕ диспатчится —
  * оператор решает вручную). Идемпотентно: повторный вызов на уже НЕ `prepared` документе — no-op.
@@ -41,7 +41,7 @@ final readonly class ScreeningOutcomeHandler
         private AnalysisRunStoreRepository $runs,
         private ProcurementStoreRepository $procurements,
         private ScreeningProcessor $processor,
-        private AiRouteResolver $routes,
+        private LlmRouteResolver $routes,
         private DocumentAnalyzerRegistry $analyzers,
     ) {}
 

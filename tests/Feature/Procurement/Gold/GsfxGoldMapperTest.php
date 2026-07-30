@@ -2,19 +2,19 @@
 
 declare(strict_types=1);
 
-use App\Dto\Procurement\Ai\Gsfx\GsfxAddZatr;
-use App\Dto\Procurement\Ai\Gsfx\GsfxAddZatrGlava;
-use App\Dto\Procurement\Ai\Gsfx\GsfxChapter;
-use App\Dto\Procurement\Ai\Gsfx\GsfxCoefficient;
-use App\Dto\Procurement\Ai\Gsfx\GsfxDocument;
-use App\Dto\Procurement\Ai\Gsfx\GsfxIndex;
-use App\Dto\Procurement\Ai\Gsfx\GsfxIndexCatalog;
-use App\Dto\Procurement\Ai\Gsfx\GsfxPassport;
-use App\Dto\Procurement\Ai\Gsfx\GsfxPosition;
-use App\Dto\Procurement\Ai\Gsfx\GsfxResource;
-use App\Dto\Procurement\Ai\Gsfx\GsfxTzm2022;
-use App\Dto\Procurement\Ai\Gsfx\GsfxWorkType;
-use App\Dto\Procurement\Ai\Gsfx\GsfxWorkTypeGroup;
+use App\Dto\Procurement\Prepare\Gsfx\GsfxAddZatr;
+use App\Dto\Procurement\Prepare\Gsfx\GsfxAddZatrGlava;
+use App\Dto\Procurement\Prepare\Gsfx\GsfxChapter;
+use App\Dto\Procurement\Prepare\Gsfx\GsfxCoefficient;
+use App\Dto\Procurement\Prepare\Gsfx\GsfxDocument;
+use App\Dto\Procurement\Prepare\Gsfx\GsfxIndex;
+use App\Dto\Procurement\Prepare\Gsfx\GsfxIndexCatalog;
+use App\Dto\Procurement\Prepare\Gsfx\GsfxPassport;
+use App\Dto\Procurement\Prepare\Gsfx\GsfxPosition;
+use App\Dto\Procurement\Prepare\Gsfx\GsfxResource;
+use App\Dto\Procurement\Prepare\Gsfx\GsfxTzm2022;
+use App\Dto\Procurement\Prepare\Gsfx\GsfxWorkType;
+use App\Dto\Procurement\Prepare\Gsfx\GsfxWorkTypeGroup;
 use App\Services\Procurement\Gold\GoldValidator;
 use App\Services\Procurement\Gold\GsfxGoldMapper;
 use App\Services\Procurement\Prepare\Gsfx\GsfxReader;

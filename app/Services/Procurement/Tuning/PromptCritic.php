@@ -15,10 +15,10 @@ use App\Enums\Procurement\PromptSuggestionStatus;
 use App\Models\Procurement\Ai\PromptSuggestion;
 use App\Repositories\Procurement\PromptSuggestionReadRepository;
 use App\Repositories\Procurement\PromptSuggestionStoreRepository;
-use App\Services\Llm\AiRouteResolver;
 use App\Services\Llm\Dto\JsonSchema;
 use App\Services\Llm\Dto\LlmPrompt;
 use App\Services\Llm\LlmCallRecorder;
+use App\Services\Llm\LlmRouteResolver;
 use App\Services\Llm\PromptComposer;
 use App\Services\Llm\Schema\JsonSchemaGenerator;
 use App\Services\Llm\Validation\StructuredResponseValidator;
@@ -38,7 +38,7 @@ use Throwable;
 final readonly class PromptCritic
 {
     public function __construct(
-        private AiRouteResolver $routes,
+        private LlmRouteResolver $routes,
         private PromptComposer $prompts,
         private JsonSchemaGenerator $schemas,
         private StructuredResponseValidator $validator,

@@ -18,7 +18,7 @@ enum EstimateLlmPurpose: string implements LlmPurpose
     case ExtractTotals = 'extract_totals';
 
     /**
-     * Паритет с `AiRouteResolver::DEFAULT_TEMPERATURE_BY_PURPOSE` (contract §4.4): все восемь
+     * Паритет с `LlmRouteResolver::DEFAULT_TEMPERATURE_BY_PURPOSE` (contract §4.4): все восемь
      * кейсов обоих enum'ов сегодня дают `0.0` — константа снимается, значения не меняются.
      */
     public function defaultTemperature(): float

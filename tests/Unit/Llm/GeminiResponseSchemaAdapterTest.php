@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-use App\Dto\Procurement\Ai\Estimate\RowsChunkResponse;
-use App\Dto\Procurement\Ai\Estimate\TotalsResponse;
 use App\Dto\Procurement\Ai\Screening\ScreeningResult;
+use App\Dto\Procurement\Analyzers\Estimate\RowsChunkResponse;
+use App\Dto\Procurement\Analyzers\Estimate\TotalsResponse;
 use App\Services\Llm\Schema\GeminiResponseSchemaAdapter;
 use App\Services\Llm\Schema\JsonSchemaGenerator;
 

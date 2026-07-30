@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\Procurement\Analyzers\Estimate;
 
-use App\Dto\Procurement\Ai\Estimate\RowsChunkResponse;
+use App\Dto\Procurement\Analyzers\Estimate\RowsChunkResponse;
 use App\Enums\Procurement\AnalysisStep;
 use App\Enums\Procurement\Analyzers\Estimate\EstimatePromptStep;
 use App\Models\Procurement\Ai\DatasetExample;

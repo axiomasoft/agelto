@@ -256,7 +256,7 @@ test('пустой датасет без --dry-run пишет EvalRun-заглу
 
 test('--dry-run пропускает реальные LLM-вызовы даже с непустым датасетом', function () {
     // Ни один LlmRoute/провайдер не заведён — если бы `--dry-run` НЕ прервал команду ДО
-    // `AiRouteResolver::resolve()`, артизан-вызов упал бы `RuntimeException` («нет активного
+    // `LlmRouteResolver::resolve()`, артизан-вызов упал бы `RuntimeException` («нет активного
     // маршрута»), и тест сам провалился бы. «Exit 0» здесь и есть доказательство «ни одного
     // обращения к LLM-инфраструктуре».
     DatasetExample::factory()->create(['task' => 'extraction']);

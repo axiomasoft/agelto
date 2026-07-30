@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-use App\Dto\Procurement\Ai\Gold\GoldFormProfile;
+use App\Dto\Procurement\Gold\GoldFormProfile;
 use App\Services\Procurement\Gold\FormProfileReader;
 
 /**

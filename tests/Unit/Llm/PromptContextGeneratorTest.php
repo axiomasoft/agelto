@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-use App\Dto\Procurement\Ai\Estimate\EstimateHeaderMap;
-use App\Dto\Procurement\Ai\Estimate\PassportResponse;
 use App\Dto\Procurement\Ai\Screening\ScreeningResult;
+use App\Dto\Procurement\Analyzers\Estimate\EstimateHeaderMap;
+use App\Dto\Procurement\Analyzers\Estimate\PassportResponse;
 use App\Services\Llm\Schema\PromptContextGenerator;
 
 test('генерирует промт-блок ScreeningResult байт-в-байт как фикстура', function (): void {

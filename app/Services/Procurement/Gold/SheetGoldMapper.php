@@ -4,14 +4,14 @@ declare(strict_types=1);
 
 namespace App\Services\Procurement\Gold;
 
-use App\Dto\Procurement\Ai\Estimate\EstimatePassport;
-use App\Dto\Procurement\Ai\Estimate\EstimateRow;
-use App\Dto\Procurement\Ai\Estimate\PassportResponse;
-use App\Dto\Procurement\Ai\Estimate\RowAttributes;
-use App\Dto\Procurement\Ai\Estimate\RowResource;
-use App\Dto\Procurement\Ai\Gold\GoldFormProfile;
-use App\Dto\Procurement\Ai\Gold\GoldFormProfileColumns;
-use App\Dto\Procurement\Ai\Gold\GoldFormProfileEstimate;
+use App\Dto\Procurement\Analyzers\Estimate\EstimatePassport;
+use App\Dto\Procurement\Analyzers\Estimate\EstimateRow;
+use App\Dto\Procurement\Analyzers\Estimate\PassportResponse;
+use App\Dto\Procurement\Analyzers\Estimate\RowAttributes;
+use App\Dto\Procurement\Analyzers\Estimate\RowResource;
+use App\Dto\Procurement\Gold\GoldFormProfile;
+use App\Dto\Procurement\Gold\GoldFormProfileColumns;
+use App\Dto\Procurement\Gold\GoldFormProfileEstimate;
 use App\Enums\Procurement\ResourceType;
 use App\Enums\Procurement\RowType;
 use Illuminate\Validation\ValidationException;
