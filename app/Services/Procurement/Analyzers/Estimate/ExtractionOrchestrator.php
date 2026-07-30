@@ -26,6 +26,7 @@ use App\Services\Llm\Dto\LlmFileHandle;
 use App\Services\Llm\Dto\LlmUsage;
 use App\Services\Llm\Dto\ResolvedRoute;
 use App\Services\Llm\LlmRouteResolver;
+use App\Services\Procurement\Ai\UsageSnapshotRecorder;
 use App\Services\Procurement\Extraction\Exceptions\MaxTokensExceededException;
 use App\Services\Procurement\Extraction\ExtractionPreflight;
 use App\Services\Procurement\Extraction\ExtractionSession;
@@ -76,6 +77,7 @@ final readonly class ExtractionOrchestrator
         private PdfPageSlicer $pageSlicer,
         private EstimatePersister $persister,
         private RepresentationResolver $representations,
+        private UsageSnapshotRecorder $usageSnapshot,
     ) {}
 
     /**
@@ -288,7 +290,7 @@ final readonly class ExtractionOrchestrator
             $session = $session->withProgress($progress);
         }
 
-        $this->finalizeSuccess($document, $analysis, $session);
+        $this->finalizeSuccess($document, $analysis, $session, $route);
 
         return false;
     }
@@ -516,7 +518,7 @@ final readonly class ExtractionOrchestrator
             $session = $session->withProgress($progress);
         }
 
-        $this->finalizeSuccess($document, $analysis, $session);
+        $this->finalizeSuccess($document, $analysis, $session, $route);
 
         return false;
     }
@@ -689,7 +691,7 @@ final readonly class ExtractionOrchestrator
         });
     }
 
-    private function finalizeSuccess(Document $document, Analysis $analysis, ExtractionSession $session): void
+    private function finalizeSuccess(Document $document, Analysis $analysis, ExtractionSession $session, ResolvedRoute $route): void
     {
         $result = [
             'estimates' => $session->progress['estimates'],
@@ -712,10 +714,12 @@ final readonly class ExtractionOrchestrator
         $analysis->result = $result;
         $this->persister->persist($analysis, supersededAnalysisId: $analysis->parent_analysis_id);
 
-        $this->analyses->update($analysis, [
+        $this->usageSnapshot->finalizeAnalysis($analysis, [
             'status' => AnalysisStatus::Succeeded,
             'progress' => $session->progress,
             'result' => $result,
+            'provider' => $route->options->provider,
+            'model' => $route->options->model,
             'finished_at' => now(),
         ]);
 
@@ -732,7 +736,7 @@ final readonly class ExtractionOrchestrator
             'last_error' => "unprocessable:{$reason->value}: {$detail}",
         ]);
 
-        $this->analyses->update($analysis, [
+        $this->usageSnapshot->finalizeAnalysis($analysis, [
             'status' => AnalysisStatus::Skipped,
             'result' => ['unprocessable_reason' => $reason->value, 'detail' => $detail],
             'finished_at' => now(),

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Repositories\Llm;
 
+use App\Enums\Llm\LlmPurpose;
 use App\Models\Llm\LlmCall;
 use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Collection;
@@ -13,6 +14,39 @@ use Illuminate\Database\Eloquent\Collection;
  */
 final readonly class LlmCallReadRepository
 {
+    /**
+     * Слепок расхода одного анализа (P4.1, D5/D39): сумма ТОЛЬКО вызовов из `$purposes` —
+     * принадлежность назначения шагу резолвит вызывающий (`UsageSnapshotRecorder`) через
+     * `DocumentAnalyzerRegistry`, сюда приходит уже готовый список, литерального фильтра здесь
+     * нет. `coalesce` — анализ без единого вызова не должен превращать сумму в `NULL`.
+     *
+     * @param  list<LlmPurpose>  $purposes
+     * @return array{prompt_tokens: int, completion_tokens: int, cached_tokens: int, total_tokens: int, cost_micros: int}
+     */
+    public function usageSummary(int $analysisId, array $purposes): array
+    {
+        $values = array_map(static fn (LlmPurpose $purpose): string => $purpose->value, $purposes);
+
+        /** @var object{prompt_tokens: numeric-string, completion_tokens: numeric-string, cached_tokens: numeric-string, total_tokens: numeric-string, cost_micros: numeric-string} $row */
+        $row = LlmCall::query()
+            ->where('analysis_id', $analysisId)
+            ->whereIn('purpose', $values)
+            ->selectRaw('coalesce(sum(prompt_tokens), 0) as prompt_tokens')
+            ->selectRaw('coalesce(sum(completion_tokens), 0) as completion_tokens')
+            ->selectRaw('coalesce(sum(cached_tokens), 0) as cached_tokens')
+            ->selectRaw('coalesce(sum(total_tokens), 0) as total_tokens')
+            ->selectRaw('coalesce(sum(cost_micros), 0) as cost_micros')
+            ->first();
+
+        return [
+            'prompt_tokens' => (int) $row->prompt_tokens,
+            'completion_tokens' => (int) $row->completion_tokens,
+            'cached_tokens' => (int) $row->cached_tokens,
+            'total_tokens' => (int) $row->total_tokens,
+            'cost_micros' => (int) $row->cost_micros,
+        ];
+    }
+
     /**
      * Агрегат по `(provider, model, purpose)` за окно от `$since` — `selectRaw` переносится
      * БЕЗ переписывания (`CostReportCommand:30`, семантика сумм подтверждена тестом). Строки —

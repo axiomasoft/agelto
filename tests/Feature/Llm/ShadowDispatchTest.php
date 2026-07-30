@@ -25,6 +25,7 @@ use App\Services\Llm\LlmCallRecorder;
 use App\Services\Llm\LlmRouteResolver;
 use App\Services\Llm\Providers\OpenAiCompatibleProvider;
 use App\Services\Llm\ShadowDispatch;
+use App\Services\Procurement\Ai\UsageSnapshotRecorder;
 use App\Services\Procurement\Contracts\DocumentAnalyzerRegistry;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Queue;
@@ -38,6 +39,7 @@ function runShadowJob(ShadowAnalysisJob $job): void
         app(AnalysisStoreRepository::class),
         app(LlmCallRecorder::class),
         app(DocumentAnalyzerRegistry::class),
+        app(UsageSnapshotRecorder::class),
     );
 }
 

@@ -15,6 +15,7 @@ use App\Services\Llm\Dto\LlmPrompt;
 use App\Services\Llm\Dto\LlmStructuredResponse;
 use App\Services\Llm\LlmCallRecorder;
 use App\Services\Llm\LlmRouteResolver;
+use App\Services\Procurement\Ai\UsageSnapshotRecorder;
 use App\Services\Procurement\Contracts\DocumentAnalyzerRegistry;
 use App\Services\Procurement\Contracts\SupportsResultComparison;
 use Carbon\CarbonImmutable;
@@ -78,9 +79,10 @@ final class ShadowAnalysisJob implements ShouldQueue
         AnalysisStoreRepository $analyses,
         LlmCallRecorder $recorder,
         DocumentAnalyzerRegistry $registry,
+        UsageSnapshotRecorder $usageSnapshot,
     ): void {
         try {
-            $this->run($routes, $analyses, $recorder, $registry);
+            $this->run($routes, $analyses, $recorder, $registry, $usageSnapshot);
         } catch (Throwable $exception) {
             Log::warning('Shadow-анализ завершился ошибкой — боевой путь не затронут', [
                 'primary_analysis_id' => $this->primaryAnalysisId,
@@ -95,6 +97,7 @@ final class ShadowAnalysisJob implements ShouldQueue
         AnalysisStoreRepository $analyses,
         LlmCallRecorder $recorder,
         DocumentAnalyzerRegistry $registry,
+        UsageSnapshotRecorder $usageSnapshot,
     ): void {
         $purpose = $registry->purposeFor($this->documentType, $this->purpose);
         $primary = Analysis::query()->find($this->primaryAnalysisId);
@@ -141,7 +144,7 @@ final class ShadowAnalysisJob implements ShouldQueue
                 calledAt: $calledAt,
             );
 
-            $analyses->update($shadow, [
+            $usageSnapshot->finalizeAnalysis($shadow, [
                 'status' => AnalysisStatus::Failed,
                 'last_error' => $exception->getMessage(),
                 'last_error_at' => now(),
@@ -169,7 +172,7 @@ final class ShadowAnalysisJob implements ShouldQueue
             calledAt: $calledAt,
         );
 
-        $analyses->update($shadow, [
+        $usageSnapshot->finalizeAnalysis($shadow, [
             'status' => AnalysisStatus::Succeeded,
             'provider' => $route->options->provider,
             'model' => $route->options->model,

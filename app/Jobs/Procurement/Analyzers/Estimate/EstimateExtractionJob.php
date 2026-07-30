@@ -12,6 +12,7 @@ use App\Models\Procurement\Ai\Analysis;
 use App\Models\Procurement\Document\Document;
 use App\Repositories\Procurement\AnalysisStoreRepository;
 use App\Repositories\Procurement\DocumentStoreRepository;
+use App\Services\Procurement\Ai\UsageSnapshotRecorder;
 use App\Services\Procurement\Analyzers\Estimate\ExtractionOrchestrator;
 use Illuminate\Contracts\Queue\ShouldBeUniqueUntilProcessing;
 use RuntimeException;
@@ -100,7 +101,12 @@ final class EstimateExtractionJob extends PipelineJob implements ShouldBeUniqueU
         $analysis->recordFailure($exception->getMessage());
 
         if ($analysis->failed_permanently) {
-            app(AnalysisStoreRepository::class)->update($analysis, ['status' => AnalysisStatus::Failed]);
+            // `finished_at` (P4.1, Implementation Rule 2): раньше не проставлялся — тот же фикс,
+            // что `ScreeningJob::recordFailure()`.
+            app(UsageSnapshotRecorder::class)->finalizeAnalysis($analysis, [
+                'status' => AnalysisStatus::Failed,
+                'finished_at' => now(),
+            ]);
             app(DocumentStoreRepository::class)->update($this->document(), ['status' => DocumentStatus::Failed]);
         }
     }

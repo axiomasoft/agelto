@@ -25,6 +25,7 @@ use App\Services\Llm\LlmRouteResolver;
 use App\Services\Llm\PromptComposer;
 use App\Services\Llm\Schema\JsonSchemaGenerator;
 use App\Services\Llm\Validation\StructuredResponseValidator;
+use App\Services\Procurement\Ai\UsageSnapshotRecorder;
 use App\Services\Procurement\Prepare\RepresentationResolver;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Storage;
@@ -53,6 +54,7 @@ final readonly class ScreeningProcessor
         private LlmCallRecorder $recorder,
         private PdfPageSlicer $slicer,
         private RepresentationResolver $representations,
+        private UsageSnapshotRecorder $usageSnapshot,
     ) {}
 
     /**
@@ -217,7 +219,7 @@ final readonly class ScreeningProcessor
         /** @var ScreeningResult $result */
         $result = $outcome->data;
 
-        $this->analyses->update($analysis, [
+        $this->usageSnapshot->finalizeAnalysis($analysis, [
             'status' => AnalysisStatus::Succeeded,
             'document_type' => $result->document_type->value,
             'result' => [
@@ -250,7 +252,7 @@ final readonly class ScreeningProcessor
             'last_error' => "unprocessable:{$reason->value}: {$detail}",
         ]);
 
-        $this->analyses->update($analysis, [
+        $this->usageSnapshot->finalizeAnalysis($analysis, [
             'status' => AnalysisStatus::Skipped,
             'result' => ['unprocessable_reason' => $reason->value, 'detail' => $detail],
             'finished_at' => now(),

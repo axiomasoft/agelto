@@ -13,11 +13,11 @@ use App\Enums\Procurement\ProcurementEventType;
 use App\Models\Procurement\Ai\Analysis;
 use App\Models\Procurement\Document\Document;
 use App\Models\Procurement\Procurement;
-use App\Repositories\Procurement\AnalysisRunStoreRepository;
 use App\Repositories\Procurement\AnalysisStoreRepository;
 use App\Repositories\Procurement\DocumentStoreRepository;
 use App\Repositories\Procurement\ProcurementStoreRepository;
 use App\Services\Llm\LlmRouteResolver;
+use App\Services\Procurement\Ai\UsageSnapshotRecorder;
 use App\Services\Procurement\Contracts\DocumentAnalyzer;
 use App\Services\Procurement\Contracts\DocumentAnalyzerRegistry;
 
@@ -38,7 +38,7 @@ final readonly class ScreeningOutcomeHandler
     public function __construct(
         private DocumentStoreRepository $documents,
         private AnalysisStoreRepository $analyses,
-        private AnalysisRunStoreRepository $runs,
+        private UsageSnapshotRecorder $usageSnapshot,
         private ProcurementStoreRepository $procurements,
         private ScreeningProcessor $processor,
         private LlmRouteResolver $routes,
@@ -175,7 +175,7 @@ final readonly class ScreeningOutcomeHandler
         // определяет исход прогона — у типа нет стадии извлечения либо гейт
         // `ai.extraction.enabled` выключен, извлечение не следует, контур прогона заканчивается
         // на этой ветке.
-        $this->runs->markSucceeded($analysis->analysisRun);
+        $this->usageSnapshot->markRunSucceeded($analysis->analysisRun);
     }
 
     private function flagNeedsReview(Document $document, Analysis $analysis): void
@@ -188,7 +188,7 @@ final readonly class ScreeningOutcomeHandler
 
         $this->storeEvent($document, $analysis, outcome: 'needs_review');
 
-        $this->runs->markSucceeded($analysis->analysisRun);
+        $this->usageSnapshot->markRunSucceeded($analysis->analysisRun);
     }
 
     private function ignore(Document $document, Analysis $analysis, string $reason): void
@@ -201,7 +201,7 @@ final readonly class ScreeningOutcomeHandler
 
         $this->storeEvent($document, $analysis, outcome: 'ignored');
 
-        $this->runs->markSucceeded($analysis->analysisRun);
+        $this->usageSnapshot->markRunSucceeded($analysis->analysisRun);
     }
 
     private function storeEvent(Document $document, Analysis $analysis, string $outcome): void

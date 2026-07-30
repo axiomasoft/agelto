@@ -11,6 +11,7 @@ use App\Models\Procurement\Ai\Analysis;
 use App\Models\Procurement\Document\Document;
 use App\Repositories\Procurement\AnalysisStoreRepository;
 use App\Repositories\Procurement\DocumentStoreRepository;
+use App\Services\Procurement\Ai\UsageSnapshotRecorder;
 use App\Services\Procurement\Screening\ScreeningOutcomeHandler;
 use App\Services\Procurement\Screening\ScreeningProcessor;
 use Illuminate\Contracts\Queue\ShouldBeUnique;
@@ -101,7 +102,13 @@ final class ScreeningJob extends PipelineJob implements ShouldBeUnique
         $analysis->recordFailure($exception->getMessage());
 
         if ($analysis->failed_permanently) {
-            app(AnalysisStoreRepository::class)->update($analysis, ['status' => AnalysisStatus::Failed]);
+            // `finished_at` (P4.1, Implementation Rule 2): раньше не проставлялся — отказавший
+            // анализ потратил деньги ДО отказа, слепок обязан закрыться тем же терминалом, что
+            // succeeded/skipped, а не оставаться "открытым" навсегда.
+            app(UsageSnapshotRecorder::class)->finalizeAnalysis($analysis, [
+                'status' => AnalysisStatus::Failed,
+                'finished_at' => now(),
+            ]);
         }
     }
 

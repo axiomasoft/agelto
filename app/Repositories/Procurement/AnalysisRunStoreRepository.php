@@ -73,4 +73,18 @@ final readonly class AnalysisRunStoreRepository
             'finished_at' => now(),
         ]);
     }
+
+    /**
+     * Запись слепка расхода прогона (P4.1) — чистая персистентность, вычисление суммы остаётся
+     * за вызывающим (`UsageSnapshotRecorder`, `AnalysisReadRepository::usageSummaryForRun()`).
+     * Не привязана к терминации: теневой анализ может доиграть ПОСЛЕ того, как прогон уже
+     * `finished_at`, и его вклад в слепок пересчитывается этим же вызовом (пересчёт, не инкремент,
+     * Implementation Rule 5) — статус/`finished_at` при этом не трогаются.
+     *
+     * @param  array{prompt_tokens: int, completion_tokens: int, cached_tokens: int, total_tokens: int, cost_micros: int}  $usage
+     */
+    public function recordUsage(AnalysisRun $run, array $usage): void
+    {
+        $run->update($usage);
+    }
 }
