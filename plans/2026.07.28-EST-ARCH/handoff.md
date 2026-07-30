@@ -1,106 +1,115 @@
-# HANDOFF — 2026-07-30 — after P2.6
+# HANDOFF — 2026-07-30 — after P3.1
 
-**Next:** `owner-gate: /model opus + /effort high + task:plan-run 2026.07.28-EST-ARCH P3.1` — первый
-item фазы P3, гейт владельца: контракт `root/service-layer-map.md` (карта «18 команд → сервис»,
-границы слоёв, сейм прогресса, единая форма отказа). Фаза P2 терминальна (7/7, 🟠 Done with
-deviations) — P2.6 закрыл её машинным доказательством D14/D26.
+**Next:** `ЗАПУСК ВРУЧНУЮ: implementation/high` — item P3.2 (вынос логики семи кросс-документных
+команд `ai:*` на сервисы по утверждённой карте). §3 Routing: `implementation/high` · `manual` ·
+`Review=full` — `/task:plan-exec` этот item обязан отклонить гейтом (он пинит sonnet/medium),
+поэтому ниже ГОЛЫЙ ПРОМПТ, а не slash-команда. Альтернатива в одну строку: `/model sonnet` +
+`/effort high` + `/task:plan-run 2026.07.28-EST-ARCH P3.2` (D18).
 
 | Параметр | Значение |
 |:--|:--|
-| Model class | frontier |
+| Model class | implementation |
 | Effort | high |
 | Capabilities | — |
 | Context | continue (/clear) — ручной item |
-| Суть | Design-item с гейтом владельца: карта «команда → сервис» для 18 консольных команд, вход для P3.2–P3.3 |
+| Суть | Семь кросс-документных команд переводятся на сервисы карты P3.1; владелец разбора канона промтов уезжает от сидера к сервису |
 
 ```
-/model opus
-/effort high
-/task:plan-run 2026.07.28-EST-ARCH P3.1
-
-РЕЖИМ: design-item с гейтом владельца (Exec=manual, §3 Routing) — item производит ТОЛЬКО документ
-       `root/service-layer-map.md`, код не пишется и не правится ни в одном файле вне Files
-ВХОД: plans/2026.07.28-EST-ARCH/phases/P3.md → «### P3.1» (все 16 полей) ·
-      plans/2026.07.28-EST-ARCH/findings/commands-and-layout-2026-07-29.md (весь) ·
-      plans/2026.07.28-EST-ARCH/root/naming-canon.md (карта имён команд, P1.1) ·
-      plans/2026.07.28-EST-ARCH/root/document-analyzer-contract.md (конвенция каталога типа, P2.1) ·
-      plans/2026.07.28-EST-ARCH/plan.md §2 Execution Rules и §5 D4, D12, D31 ·
-      app/Console/Commands/Ai/EvalRunCommand.php целиком (самая нагруженная команда, 622 строки) ·
-      app/Console/Commands/Ai/{EvalDiffCommand,PromptsSuggestCommand}.php целиком (дубль резолва) ·
-      скиллы laravel-structure, dependency-injection, codebase-design
-СКОУП: РЕШЕНИЕ по каждой из 18 команд (сервис/неймспейс/что остаётся); граница «команда ↔ сервис ↔
-       Action ↔ репозиторий»; сейм прогресса для ТРЁХ потребителей (консоль/очередь/админка);
-       единая форма отказа; общие куски §3 findings — куда уезжают; владелец разбора файлового
-       канона промтов; классификация ai:prompts:suggest (Implementation Rule 6 — пограничный
-       случай, решается явно); целевой каталог КАЖДОГО из 18 классов команд (D59) + судьба общего
-       базового класса/трейта; по каждому решению — отвергнутая альтернатива; запись
-       root/service-layer-map.md; предъявление владельцу и фиксация «утверждаю» в Update Log.
-НЕ ТРОГАТЬ: любой код вне Files (item производит документ, не диффа кода); переименование команд
-       (P3.3 — карта имён принадлежит P1.1); переезд промтов (P3.4); раскладка DTO/репозиториев
-       (P3.5, уже решена D31); экраны P5.
+РЕЖИМ: исполнение item'а P3.2 плана 2026.07.28-EST-ARCH по замороженной карте
+       plans/2026.07.28-EST-ARCH/root/service-layer-map.md (утверждена владельцем 2026-07-30);
+       открытых решений у исполнителя НЕТ — расхождение карты с кодом = эскалация, не импровизация
+ВХОД: plans/2026.07.28-EST-ARCH/phases/P3.md → «### P3.2» (все 16 полей) ·
+      plans/2026.07.28-EST-ARCH/root/service-layer-map.md ЦЕЛИКОМ (особенно §0 границы слоёв,
+        §1 форма отказа, §2 сейм прогресса, §3 первые семь строк, §4, §6, §7, §8, §11) ·
+      plans/2026.07.28-EST-ARCH/findings/commands-and-layout-2026-07-29.md §1, §4, §5, §6 ·
+      plans/2026.07.28-EST-ARCH/plan.md §2 Execution Rules и §5 D22, D32, D58, D59, D108 ·
+      все семь файлов команд из Files item'а · database/seeders/PromptSeeder.php целиком ·
+      скиллы dependency-injection, repositories, testing-rules ·
+      .claude/rules/agelto-reviewer-overrides.md
+СКОУП: сервисы по строкам карты для семи кросс-документных команд и перевод команд на них;
+       владелец разбора канона промтов — App\Services\Llm\{PromptCanonReader,PromptCanonSynchronizer},
+       сидер становится тонким вызывателем; App\Services\Llm\LlmProviderFactory снимает прямой
+       make(PrismGeminiProvider) из ai:caches И второй match из AiRouteResolver (§8 карты);
+       прямой Eloquent этих команд → репозитории по §6 карты (включая НОВЫЙ
+       App\Repositories\Llm\PromptStoreRepository — его введение отнесено к P3 контрактом P2.1 §7);
+       перемещение классов команд в app/Console/Commands/Procurement/Ai/ через git mv (D59);
+       трейт App\Console\Concerns\RendersReport и App\Console\Support\ConsoleProgressReporter в
+       границах этих команд; новые тесты на ai:caches и ai:prompts:sync; phpstan-baseline
+       регенерируется под гейтом трёх величин (D58)
+НЕ ТРОГАТЬ: сметные команды и их переименование (P3.3 — с учётом D108 их теперь 12);
+       переезд файлов промтов (P3.4); раскладка DTO и репозиториев (P3.5); документация и
+       правила ревью (P3.6); поведение команд — флаги, формат вывода, тексты сообщений и коды
+       возврата прежние; тела и front-matter resources/ai/prompts/**; переработка ai:cost-report
+       под слепок анализа (P4)
+ВНИМАНИЕ (Pending Work P3.1, ещё НЕ закрыто plan-design): Files item'а P3.2 не несёт
+       app/Services/Llm/AiRouteResolver.php, которого требует §8 карты, И несёт
+       PromptsSuggestCommand.php, который после D108 принадлежит P3.3. Оба расхождения ТЗ с картой
+       названы в Pending Work P3.1 — начинать item, не сверившись с ними, нельзя.
 ```
 
-**Done:** фаза P1 закрыта 🟠 (4/8 🟢). Фаза P2 закрыта 🟠 (5/7 🟢, 2/7 🟠) — **терминальна**.
-P2.1 🟢 (`fcc0259`) — контракт `DocumentAnalyzer` заморожен гейтом владельца. P2.2 🟢 (`c485dab`) —
-маршрутизация типизирована на `AiDocumentType|DocumentTypeScope`. P2.3 🟢 (`2deb5c1`) — реестр
-анализаторов, ветвление скрининга и re-run через него. P2.4 🟠 (`e06434c`) — 16 сметных единиц +
-`EstimateExtractionJob` в `**\Analyzers\Estimate\**`. P2.5 🟠 (`936911f`) — `PromptStep`/`LlmPurpose`
-расщеплены на интерфейсы + ядерные/типовые enum'ы, валидация по реестру на четырёх путях записи.
-P2.7 🟢 (`355a6ce`) — `StructurallyValidatable`/`SupportsResultComparison` развязывают оба ядерных
-call-site'а сметы. **P2.6 🟢 (`708bb7e`)** — arch-тест «ядро не знает про тип документа» по восьми
-неймспейсам §6.2 (62 класса, вычитание сегментом `\Analyzers\`) и фиктивный второй тип
-`AiDocumentType::TechSpec` (`tests/Support/Analyzer/**`, свой job, сводка через реестр, БЕЗ
-`SupportsResultComparison`) — приёмка D14/D26 доказана машинно, продуктовый код фазой не тронут.
+**Done:** фаза P1 закрыта 🟠 (4/8 🟢). Фаза P2 закрыта 🟠 (5/7 🟢, 2/7 🟠) — терминальна.
+**P3.1 🟢 (`143d587`)** — контракт сервисного слоя `root/service-layer-map.md` утверждён владельцем:
+14 разделов, 574 строки (на `143d587`). Решено: границы четырёх слоёв и три правила против «сервиса
+поверх сервиса»; единая форма отказа (исключение `App\Exceptions\Procurement\OperationFailed` для
+операционного отказа + типизированный `ItemOutcome` для отклонённого элемента партии, тексты
+сообщений переезжают побайтово); сейм прогресса `ProgressReporter` с одним методом и опциональным
+параметром метода — три потребителя названы (консоль `ConsoleProgressReporter`, очередь, админка P5);
+карта 18 команд поимённо с целевым сервисом, остатком в команде и целевым каталогом класса (D59);
+21 новая единица сервисного слоя; адреса 12 общих кусков; все 26 мест прямого Eloquent →
+репозитории; владелец разбора канона промтов (`PromptCanonReader`); `LlmProviderFactory` вместо двух
+`match` по драйверу; хардкод пути в замороженный план → `config('ai.fixtures.reports_dir')`;
+каталоги команд `app/Console/Commands/Procurement/{Ai,Analyzers/Estimate}/`; общий базовый класс
+команд НЕ заводится (общий код — трейты).
 
-**Этот заход (`plan-run/sonnet-high`, session-модель владельца, D18):** P2.6 исполнен и закрыт по
-замороженному ТЗ (эскалация снята 2026-07-30 заходом `plan-design P2.6`, D105–D107; периметр §6.2
-чист после P2.7). Два новых теста-файла-хелпера в `tests/Support/Analyzer/**`
-(`TechSpecFakeAnalyzer` implements `DocumentAnalyzer`, НЕ `SupportsResultComparison`;
-`TechSpecFakeExtractionJob` — `ShouldQueue`), один arch-тест
-(`tests/Unit/Architecture/CoreKnowsNoDocumentTypeTest.php`, Finder-сбор периметра по восьми
-неймспейсам, таргеты `toUse()` поодиночке, гейт (г) регистрочувствительным `\bEstimate\b`/`'estimate'`
-с вырезанным `AiDocumentType::Estimate`), один интеграционный тест
-(`tests/Feature/Procurement/Ai/SecondDocumentTypeTest.php`, 3 теста: дiспатч своего job'а, сводка
-через реестр, отсутствие `SupportsResultComparison`). Периметр — **62** класса на `708bb7e`
-(было 60 на `753cc0b` до P2.7 — расхождение объяснено, не ошибка сборки: два легитимных файла P2.7
-внутри уже перечисленных неймспейсов §6.2). Фальсифицируемость подтверждена ТРЕМЯ мутациями с
-откатом (см. `phases/P2.md` P2.6 Completion Notes). Полный сюит (774 passed, 1 skipped — было
-768/1), phpstan (без новых ошибок, baseline не вырос), pint — зелёные. `git diff --stat
-3374445..708bb7e -- app/ database/ resources/` — пусто (продуктовый код не тронут).
+**Этот заход (`plan-run/opus-high`, session-модель владельца, D18):** P3.1 исполнен и закрыт;
+Validation 1–11 зелёные (числа и команды — `phases/P3.md` P3.1 Completion Notes), диффа кода нет
+(`git diff --stat 70aa998..143d587 -- app/ database/ resources/ tests/` — пусто), lint 0 ERROR /
+0 WARN, K = 0. Гейт владельца пройден после ОДНОГО круга замечаний: владелец потребовал, чтобы всё
+сметное — включая промты — несло префикс закупки смет; замечание закрыто **D108**
+(`ai:prompts:suggest` → `estimate:prompts:suggest`, раннер `App\Services\Procurement\Analyzers\
+Estimate\PromptSuggestionRunner`, исполнитель P3.3 вместо P3.2, разбивка команд 7↔11 → **6↔12**).
+Правка замороженной карты P1.1 исполнена ровно тем путём, который предписывала её же строка класса 4
+(D-запись со `supersedes`), — `root/naming-canon.md` обновлён в том же bookkeeping-коммите.
 
-**Known Deviation (process, статус не изменён):** Pre-mutation Task Contract-гейт (`plan-exec.md`
-п. 2) и журнальная старт-запись выполнены ПОСЛЕ написания/коммита тестов, а не до — порядок
-протокольных шагов нарушен, итог гейта (`allow`) от этого не изменился. Деталь — `phases/P2.md`
-P2.6 Known Deviations.
-
-**Remaining:** 24 items ⬜ (P3 ×6 → P4 ×4 → P5 ×6 → P6 ×3 → P7 ×4, фазы P1/P2 закрыты). Гейты
-владельца впереди — P3.1 (следующий), P4.2. Батчи B1 (P4.3+P4.4), B2 (P7.1+P7.2) — `roadmap.md`.
+**Remaining:** 23 items ⬜ (P3 ×5 → P4 ×4 → P5 ×6 → P6 ×3 → P7 ×4). Гейт владельца впереди один —
+P4.2. Батчи B1 (P4.3+P4.4), B2 (P7.1+P7.2) — `roadmap.md`.
 
 **Sources of truth:** скилл `plan-protocol` · `plan.md` §2 (правила исполнения), §3 Routing, §5
-(**D1–D107**) · **ЗАМОРОЖЕНЫ: `root/naming-canon.md`, `root/document-type-axis.md`,
-`root/document-contour.md`, `root/document-analyzer-contract.md`** — правятся ТОЛЬКО новой D-записью
-со `supersedes` · `findings/commands-and-layout-2026-07-29.md` (вход P3.1) · `roadmap.md` ·
-`phases/P2.md` (закрыта, все 7 items с Completion Notes + Phase Handoff) · `phases/P3.md`
-(P3.1–P3.6 ТЗ, DoR).
+(**D1–D108**) · **ЗАМОРОЖЕНЫ: `root/naming-canon.md`** (правлен D108 — строка класса 4)**,
+`root/document-type-axis.md`, `root/document-contour.md`, `root/document-analyzer-contract.md`,
+`root/service-layer-map.md`** — правятся ТОЛЬКО новой D-записью со `supersedes` ·
+`findings/commands-and-layout-2026-07-29.md` (вход P3.2/P3.3; семь расхождений с фактом кода названы
+в `root/service-layer-map.md` §13) · `roadmap.md` · `phases/P2.md` (закрыта) · `phases/P3.md`.
 
 **Lint:** `plan-lint --baseline HEAD plans/2026.07.28-EST-ARCH` — прогоняется в bookkeeping-коммите
 этого захода (после перезаписи этого файла).
 
 **Open risks:**
+- **ТЗ P3.3 разошлось с картой по числам после D108** — Validation 3 ждёт 11 `estimate:`-команд
+  (стало 12), Validation 4 ждёт 7 `ai:`-команд (стало 6), `PromptsSuggestCommand.php` стоит в
+  `Files` P3.2 вместо P3.3. Без правки `plan-design` у P3.3 нет достижимого зелёного исхода (класс
+  D89). Pending Work P3.1 п.1 — **блокер для P3.3, не для P3.2** (но сверка Files P3.2 нужна уже
+  сейчас, см. п.2).
+- **`Files` P3.2 не несёт `app/Services/Llm/AiRouteResolver.php`,** которого требует §8 карты.
+  Pending Work P3.1 п.2.
+- **Implementation Rule 4 P3.3 называет единственным изменением поведения путь отчёта корпуса,**
+  а карта §9 нашла второе место того же класса (`BenchFormatsCommand:23,47`). Pending Work P3.1 п.3.
 - **Контракт фазы P2 изменён (§1.5/§6.4, D106/D107), а сквозной reconcile «Потребляет ↔ Производит»
-  делался 2026-07-29** — до появления §1.5/§6.4. Перед уходом фазы P3 в исполнение полезен новый
-  `plan-design <ID> finish`; для запуска P3.1 блокером НЕ является (P3.1 сам производит контракт,
-  не потребляет P2 сверх уже названного).
-- **Ключ `'estimates'` в ядре гейт (г) не ловит** (шаблон — `\bEstimate\b`/`'estimate'`). P2.7
-  убрал обе строки вместе с импортом; арх-тест P2.6 форму (г) НЕ ужесточает (D105), поэтому будущий
-  возврат ключа `'estimates'` в ядро гейтом (г) поймать НЕЛЬЗЯ — защита только докблоком §1.5
-  инвариант 2 и код-ревью.
-- **`PromptCritic` остаётся вне списка ядра §6.2**, поэтому инвариант «шаг анализатора = стадия
-  извлечения» (D102) arch-тестом P2.6 НЕ защищён — только докблоком и тестом.
-- **Периметр `Files` у items этого плана систематически уже фактического** (P1.6, P2.4, P2.5);
-  P2.6/P2.7 прошли без отклонения. Перед запуском P3.2–P3.5 и P4.1 сверять `Files` грепом по FQN.
+  делался 2026-07-29** — полезен новый `plan-design <ID> finish`; для P3.2 блокером не является.
+- **Периметр `Files` у items этого плана систематически уже фактического** (P1.6, P2.4, P2.5).
+  Перед запуском P3.2–P3.5 и P4.1 сверять `Files` грепом по FQN — на P3.2 это уже сработало
+  (п. 2 выше).
 - **Тот же класс, что вызвал эскалации P2.5 и P2.6, живёт у P3.2, P3.3, P3.5** — их Validation
   грепает файлы, переезжающие внутри того же item'а.
+- **`ai:storage:lifecycle` и `ai:tools:doctor` — логически спорные имена** (ILM бакета и тулчейн
+  стадии подготовки к AI не относятся). Предъявлены владельцу при закрытии P3.1, решение — оставить.
+  Кандидат в P7.3/P7.4.
+- **`FormatBenchRunner:275` — третья, частичная копия сброса `Analysis`** (карта §6 сводит только
+  две из `EvalRunCommand`). Кандидат в отдельный item после P3.
+- **Ключ `'estimates'` в ядре гейт (г) arch-теста P2.6 не ловит** — защита только докблоком §1.5
+  инвариант 2 и код-ревью.
+- **`PromptCritic` вне списка ядра §6.2**, поэтому инвариант «шаг анализатора = стадия извлечения»
+  (D102) arch-тестом не защищён.
 - **Ось типа документа у анализа ИЗВЛЕЧЕНИЯ пуста в боевом контуре**
   (`AnalysisStoreRepository::firstOrCreate()` `document_type` не пишет) — долг, кандидат за P3.5.
 - **Два файла документации несут устаревшие пути перемещённых классов** —
@@ -108,46 +117,41 @@ P2.6 Known Deviations.
 - **Форма Validation «`config:cache` + `artisan test`» не имеет зелёного исхода в этом проекте**
   (кэш конфига замораживает dev-БД → `TestEnvironmentGuard` штатно прерывает прогон).
 - **`--env=testing` НЕ переключает `DB_DATABASE`** — команду впредь префиксовать
-  `-e DB_DATABASE=agelto_test`, не полагаться на `--env`.
-- **`docker compose exec app` недоступен в этой среде** (`services.minio.environment.
-  MINIO_ROOT_PASSWORD` не задан) — рабочий путь `docker exec agelto_app`.
-- **`PYTHONPATH=packages/task/lib` из `plan-exec.md` не резолвится в этой раскладке** (репо
-  `agelto`, не `swissknifeman`) — рабочий путь `PYTHONPATH=/home/vostrikov/.claude/plugins/cache/
-  swissknifeman/task/0.9.0/lib` (тот же пакет, что раздаёт саму команду `task:plan-run`); подтверждён
-  фактическим прогоном на P2.6 (`allow`/`allow`). Предыдущий аудит фазы P1 (F2) уже находил, что
-  заявления о недоступности пакета опровергаются фактами той же сессии — правило подтверждено
-  повторно, брать этот путь по умолчанию, не объявлять модуль недоступным.
+  `-e DB_DATABASE=agelto_test`.
+- **`docker compose exec app` недоступен в этой среде** — рабочий путь `docker exec agelto_app`.
+- **`PYTHONPATH=packages/task/lib` из `plan-exec.md` не резолвится в этой раскладке** — рабочий путь
+  `PYTHONPATH=/home/vostrikov/.claude/plugins/cache/swissknifeman/task/0.9.0/lib` (подтверждён
+  фактическими прогонами на P2.6 и P3.1: `allow`/`allow`). Брать по умолчанию, не объявлять модуль
+  недоступным.
 - **`root/document-type-axis.md` §5 цитирует УСТАРЕВШИЕ номера строк Filament-форм** (писался на
-  `dc0815c`) — наследуется из P2.1, не переоткрывалось.
+  `dc0815c`).
 - **Предпросмотр склеенного промта ДО прогона** — требование владельца, в план сознательно НЕ
   введено. Кандидат в scope P5.5 либо item P5.7.
 - Наследуются из P1: журнальный разрыв P1.5–P1.8 (D99) · дыра протокола D98 (репозиторий
-  `swissknifeman`) · `config/ai.php` несёт докблочные упоминания старых имён таблиц · четыре+одна
-  строки Pending Work про `CLAUDE.md` живут до P7.4 (D60/D64) · боевой прогон P5.2 — за владельцем
-  (D94).
+  `swissknifeman`) · `config/ai.php` несёт докблочные упоминания старых имён таблиц · строки Pending
+  Work про `CLAUDE.md` живут до P7.4 (D60/D64) · боевой прогон P5.2 — за владельцем (D94).
 
 **Workarounds/Deferred/Open questions:**
 - workarounds: доказательство фальсифицируемости гейта МУТАЦИЕЙ вместо прогона на `<base>` — для
-  гейтов над создаваемым артефактом и для сторожей инварианта (D100, применено к Validation 1–4
-  P2.6) · `docker exec agelto_app` вместо `docker compose exec app` · env-префикс на шаге
-  `config:cache` · `pint --dirty` автофикс — точечными Edit-правками · `phpstan-baseline.neon`
-  правится адресным удалением осиротевшей записи · гейт «дифф перемещённых файлов» требует
-  `git diff -M` со старыми и новыми путями вместе · `$row->getAttribute('purpose')` вместо
-  магического доступа к свойству · `PYTHONPATH` через путь плагина `~/.claude/plugins/cache/
-  swissknifeman/task/0.9.0/lib` вместо буквального `packages/task/lib` из `plan-exec.md`
-- deferred: BigQuery-адаптер биллинга (D34) · HITL-правка эталона (D48) · пере-замер F1 боевым
-  прогоном (D52) · остаточная дупликация `estimate:dataset:import` (D57) · перенос дрейфа в
-  `CLAUDE.md` — P7.4 (D60/D64) · общий инвариант «во всём сервисном слое нет прямых обращений к
-  `LlmCall`» — в план НЕ вводится (D70/D79) · переезд экранов транспорта из
-  `app/Filament/Resources/Procurement/Ai/**` — вне D22 (D96) · expression-индексы по `type_profile`
-  — не заводятся до 10 000 строк реестра · `resources/ai/prompts/README.md` пример front-matter без
-  `document_type` · `config/ai.php` докблочные упоминания старых имён таблиц · раскладка DTO сметы
-  под сегмент `Analyzers\Estimate` — решает P3.5 · подкаталоги внутри `Analyzers/Estimate` ·
+  гейтов над создаваемым артефактом (D100; применено к Validation 2 и 8a P3.1) · `docker exec
+  agelto_app` вместо `docker compose exec app` · env-префикс на шаге `config:cache` · `pint --dirty`
+  автофикс — точечными Edit-правками · `phpstan-baseline.neon` правится адресным удалением
+  осиротевшей записи · гейт «дифф перемещённых файлов» требует `git diff -M` со старыми и новыми
+  путями вместе · `$row->getAttribute('purpose')` вместо магического доступа к свойству ·
+  `PYTHONPATH` через путь плагина `~/.claude/plugins/cache/swissknifeman/task/0.9.0/lib`
+- deferred (введено картой P3.1 §12): транзакции вокруг перенесённой многомодельной записи · полный
+  read/store-split `FixtureStoreRepository` · объединение датасетного и gold-путей создания рабочей
+  копии (D57) · общая константа маски json-флагов (10 вхождений в 8 файлах) · расхождение
+  «`ini_set` из конфига против хардкода» между `GoldBuildCommand:54` и `GoldImportCommand:55` ·
+  переезд каталогов сервисов `Gold`/`Bench`/`Prepare` (D31)
+- deferred (ранее): BigQuery-адаптер биллинга (D34) · HITL-правка эталона (D48) · пере-замер F1
+  боевым прогоном (D52) · перенос дрейфа в `CLAUDE.md` — P7.4 (D60/D64) · общий инвариант «во всём
+  сервисном слое нет прямых обращений к `LlmCall`» — в план НЕ вводится (D70/D79) · переезд экранов
+  транспорта из `app/Filament/Resources/Procurement/Ai/**` (D96) · expression-индексы по
+  `type_profile` · `resources/ai/prompts/README.md` пример front-matter без `document_type` ·
   `AnalysisSummary::$detailRoute` = `null` до появления предметного экрана сметы (P5) ·
-  `docs/specs/v2/07-carryover-from-v1.md:107` и `CLAUDE.md:60` про состав носителя — P7.3/P7.4
-  (D104) · реопен-кандидат Validation 5 P2.5 (`\b`-форма) — `plan-design` · перенос сравнения
-  shadow-пары в `prc_ai_eval_results` (Known Deviation докблока `ShadowAnalysisJob`, требует
-  миграции — отдельное решение) · новый `plan-design finish` под изменённый контракт фазы P2
-- open_questions: незакрытых вопросов В ГРАНИЦАХ плана нет. Остаётся один гейт владельца впереди
-  (P3.1 — следующий шаг; P4.2 — дальше). Вне плана: P7.6 плана `2026.07.26-EST-TRAIN` (боевое
-  замыкание петли тюнинга)
+  `docs/specs/v2/07-carryover-from-v1.md:107` и `CLAUDE.md:60` — P7.3/P7.4 (D104) · реопен-кандидат
+  Validation 5 P2.5 (`\b`-форма) · перенос сравнения shadow-пары в `prc_ai_eval_results` · новый
+  `plan-design finish` под изменённый контракт фазы P2
+- open_questions: незакрытых вопросов В ГРАНИЦАХ плана нет. Остался один гейт владельца — P4.2.
+  Вне плана: P7.6 плана `2026.07.26-EST-TRAIN` (боевое замыкание петли тюнинга)
