@@ -8,7 +8,7 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
 /**
- * P2.3 — контракт манифеста (`FixtureManifestEntry`) и `ai:fixtures:import`, идемпотентный по
+ * P2.3 — контракт манифеста (`FixtureManifestEntry`) и `estimate:fixtures:import`, идемпотентный по
  * sha256. Синтетические манифесты и `Storage::fake(config('ai.fixtures.disk'))`; реальный корпус
  * в тестах не участвует.
  */
@@ -63,7 +63,7 @@ test('валидный манифест импортирует файл и за�
     file_put_contents("{$folder}/EST-XLSX-KS2-001.xlsx", $content);
     $manifest = writeManifest($folder, [fixtureManifestEntry('EST-XLSX-KS2-001', $content)]);
 
-    $this->artisan('ai:fixtures:import', ['--manifest' => $manifest, '--source-dir' => $folder])
+    $this->artisan('estimate:fixtures:import', ['--manifest' => $manifest, '--source-dir' => $folder])
         ->assertExitCode(0);
 
     expect(Storage::disk(config('ai.fixtures.disk'))->exists('EST-XLSX-KS2-001/source.xlsx'))->toBeTrue()
@@ -79,10 +79,10 @@ test('повторный импорт идемпотентен — не плод
     file_put_contents("{$folder}/EST-XLSX-KS2-001.xlsx", $content);
     $manifest = writeManifest($folder, [fixtureManifestEntry('EST-XLSX-KS2-001', $content)]);
 
-    $this->artisan('ai:fixtures:import', ['--manifest' => $manifest, '--source-dir' => $folder])->assertExitCode(0);
+    $this->artisan('estimate:fixtures:import', ['--manifest' => $manifest, '--source-dir' => $folder])->assertExitCode(0);
     $hashBefore = hash('sha256', Storage::disk(config('ai.fixtures.disk'))->get('EST-XLSX-KS2-001/source.xlsx'));
 
-    $this->artisan('ai:fixtures:import', ['--manifest' => $manifest, '--source-dir' => $folder])->assertExitCode(0);
+    $this->artisan('estimate:fixtures:import', ['--manifest' => $manifest, '--source-dir' => $folder])->assertExitCode(0);
     $hashAfter = hash('sha256', Storage::disk(config('ai.fixtures.disk'))->get('EST-XLSX-KS2-001/source.xlsx'));
 
     expect(Fixture::query()->count())->toBe(1)
@@ -98,7 +98,7 @@ test('sha256-дрейф отклоняется без записи файла и
     file_put_contents("{$folder}/EST-XLSX-KS2-001.xlsx", $content);
     $manifest = writeManifest($folder, [fixtureManifestEntry('EST-XLSX-KS2-001', $content, ['sha256' => str_repeat('a', 64)])]);
 
-    $this->artisan('ai:fixtures:import', ['--manifest' => $manifest, '--source-dir' => $folder])
+    $this->artisan('estimate:fixtures:import', ['--manifest' => $manifest, '--source-dir' => $folder])
         ->assertExitCode(1);
 
     expect(Storage::disk(config('ai.fixtures.disk'))->exists('EST-XLSX-KS2-001/source.xlsx'))->toBeFalse()
@@ -117,7 +117,7 @@ test('отсутствующий файл-источник отклоняетс�
         fixtureManifestEntry('EST-XLSX-KS2-002', $content),
     ]);
 
-    $this->artisan('ai:fixtures:import', ['--manifest' => $manifest, '--source-dir' => $folder])
+    $this->artisan('estimate:fixtures:import', ['--manifest' => $manifest, '--source-dir' => $folder])
         ->assertExitCode(1);
 
     expect(Fixture::query()->where('code', 'EST-XLSX-KS2-001')->exists())->toBeFalse()
@@ -135,7 +135,7 @@ test('код вне CODE_PATTERN отклоняется с названием п
         fixtureManifestEntry('not-a-valid-code', $content, ['storage_path' => 'not-a-valid-code/source.xlsx', 'source_path' => 'bad-code.xlsx']),
     ]);
 
-    $this->artisan('ai:fixtures:import', ['--manifest' => $manifest, '--source-dir' => $folder])
+    $this->artisan('estimate:fixtures:import', ['--manifest' => $manifest, '--source-dir' => $folder])
         ->expectsOutputToContain('fixtures.0.code')
         ->assertExitCode(1);
 
@@ -151,7 +151,7 @@ test('--dry-run ничего не пишет ни на диск, ни в БД', 
     file_put_contents("{$folder}/EST-XLSX-KS2-001.xlsx", $content);
     $manifest = writeManifest($folder, [fixtureManifestEntry('EST-XLSX-KS2-001', $content)]);
 
-    $this->artisan('ai:fixtures:import', ['--manifest' => $manifest, '--source-dir' => $folder, '--dry-run' => true])
+    $this->artisan('estimate:fixtures:import', ['--manifest' => $manifest, '--source-dir' => $folder, '--dry-run' => true])
         ->assertExitCode(0);
 
     expect(Storage::disk(config('ai.fixtures.disk'))->exists('EST-XLSX-KS2-001/source.xlsx'))->toBeFalse()

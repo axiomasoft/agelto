@@ -10,7 +10,7 @@ use App\Models\Procurement\Ai\Fixture;
 use App\Services\Procurement\Tuning\EvalRunComparator;
 
 /**
- * `ai:eval:compare` / `EvalRunComparator` (P7.5, критерий D63 + правило отбора D119/D120):
+ * `estimate:eval:compare` / `EvalRunComparator` (P7.5, критерий D63 + правило отбора D119/D120):
  * тестируется целиком на СИНТЕТИЧЕСКИХ прогонах (Scope Excluded — ни одного реального LLM-вызова);
  * `EvalRun`/`EvalResult`/`Fixture`/`DatasetExample` строятся фабриками, разбиение `tune`/`holdout`
  * подкладывается временным файлом (config-override `ai.fixtures.splits_path`).
@@ -130,7 +130,7 @@ test('критерий даёт reject при падении holdout на 0.01',
         ->and($result['reasons'][0])->toContain('(б)');
 });
 
-test('artisan ai:eval:compare отдаёт вердикт с exit 0 и повторный запуск даёт тот же вывод (Validation #5)', function () {
+test('artisan estimate:eval:compare отдаёт вердикт с exit 0 и повторный запуск даёт тот же вывод (Validation #5)', function () {
     $tune = evalCompareSeedExample('EST-XLSX-TUNE-D-001');
     $holdout = evalCompareSeedExample('EST-XLSX-HOLD-D-001');
 
@@ -144,10 +144,10 @@ test('artisan ai:eval:compare отдаёт вердикт с exit 0 и повт�
     evalCompareResult($candidate->id, $tune['dataset_example_id'], f1: 0.82);
     evalCompareResult($candidate->id, $holdout['dataset_example_id'], f1: 0.798);
 
-    $first = $this->artisan('ai:eval:compare', ['--base' => $base->id, '--candidate' => $candidate->id]);
+    $first = $this->artisan('estimate:eval:compare', ['--base' => $base->id, '--candidate' => $candidate->id]);
     $first->assertExitCode(0);
 
-    $second = $this->artisan('ai:eval:compare', ['--base' => $base->id, '--candidate' => $candidate->id]);
+    $second = $this->artisan('estimate:eval:compare', ['--base' => $base->id, '--candidate' => $candidate->id]);
     $second->assertExitCode(0);
 });
 

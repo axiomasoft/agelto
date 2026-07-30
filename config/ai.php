@@ -419,10 +419,10 @@ return [
     | Датасет эталонов и eval-раннер (P7.4, ТЗ 04 §5)
     |--------------------------------------------------------------------------
     |
-    | `dataset_version` — дефолтная метка `prc_ai_eval_runs.dataset_version`, когда `ai:eval:run`
+    | `dataset_version` — дефолтная метка `prc_ai_eval_runs.dataset_version`, когда `estimate:eval:run`
     | вызван без `--dataset-version` (владелец меняет по факту снапшота golden-датасета).
     | `max_orchestrator_iterations` — защитный потолок цикла синхронных повторов
-    | `ExtractionOrchestrator::run()` внутри `ai:eval:run` (checkpoint-requeue D31 здесь БЕЗ
+    | `ExtractionOrchestrator::run()` внутри `estimate:eval:run` (checkpoint-requeue D31 здесь БЕЗ
     | self-dispatch через очередь — команда синхронна, повторяет вызов в том же процессе).
     |
     */
@@ -441,9 +441,9 @@ return [
     | конвенция `<CODE>/source.<ext>` для исходного файла и `<CODE>/derived/<представление>`
     | для производных представлений P3/P6 (единственный построитель путей —
     | `Fixture::storagePathFor()`/`derivedPathFor()`). `manifest_path` — SSOT корпуса в git
-    | (D1/D20): единственный вход `ai:fixtures:import`, единственный выход `ai:fixtures:manifest`.
+    | (D1/D20): единственный вход `estimate:fixtures:import`, единственный выход `estimate:fixtures:manifest`.
     | `gold_dir` — где живут `*.gold.json` (наполняет P5), тоже в git. `source_dir` — папка-источник
-    | НЕ в git (155 МБ реального корпуса), откуда `ai:fixtures:import` берёт файлы, которых ещё нет
+    | НЕ в git (155 МБ реального корпуса), откуда `estimate:fixtures:import` берёт файлы, которых ещё нет
     | в хранилище. Бакет прода создаётся оператором (SOP — P9), этот блок его не заводит.
     |
     */
@@ -487,5 +487,11 @@ return [
         // Разбиение `tune`/`holdout` петли тюнинга промтов (P7.5, D119/D120) — в git рядом с gold,
         // манифест (`manifest_path`) не расширяется.
         'splits_path' => base_path('estimates/eval-splits.json'),
+        // Корень артефактов, пишущихся КОМАНДАМИ корпуса (D111, P3.3): отчёт корпуса
+        // `estimate:gold:build` и дефолт `--out` `estimate:bench:formats` — раньше хардкодили путь
+        // в каталог ЧУЖОГО замороженного плана (`plans/2026.07.26-EST-TRAIN/**`), который уедет в
+        // архив (D2/D9). Каталог создаётся при первой записи (`File::ensureDirectoryExists()`) —
+        // `estimates/reports/` в репозитории не существует.
+        'reports_dir' => env('AI_FIXTURES_REPORTS_DIR', base_path('estimates/reports')),
     ],
 ];

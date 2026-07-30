@@ -14,7 +14,7 @@ namespace App\Services\Procurement\Analyzers\Estimate;
  * Единственный владелец метрики (P7.3, D38/D62/D84): P4 её сознательно не трогает, `P6.1`/`P7.5`
  * только читают. Расширена P7.3 картой следствий `research/08-schema-change-impact.md` §4 —
  * `passport`/`totals` добавлены ОТДЕЛЬНЫМИ ключами, `per_field`/`overall`/`row_coverage` сохраняют
- * форму (их читают `ai:eval:run` и бенчмарк P6.1). `EstimateDiffReport` (P7.3) переиспользует
+ * форму (их читают `estimate:eval:run` и бенчмарк P6.1). `EstimateDiffReport` (P7.3) переиспользует
  * `flattenRows()`/`flattenPassport()`/`flattenTotals()`/`fieldsMatch()` как ОДИН носитель правил
  * сопоставления и сравнения значений — второй такой носитель разъехался бы с этим при первой же
  * правке (`plan-protocol` §3).

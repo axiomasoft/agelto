@@ -20,7 +20,7 @@ use Illuminate\Support\Facades\Storage;
 use Tests\Support\Doubles\FakeLlmProvider;
 
 /**
- * P5.6 — ветка `ai:eval:run --task=screening` прогоняет `ScreeningProcessor` (боевой маршрут через
+ * P5.6 — ветка `estimate:eval:run --task=screening` прогоняет `ScreeningProcessor` (боевой маршрут через
  * `AiRouteResolver`) по `prc_ai_dataset_examples(task=screening)` и сравнивает `document_type`
  * предсказания с `gold.document_type` через `ScreeningEvalMetrics`, независимый от extraction
  * `EvalMetrics` (§8.4, НЕ трогается — Validation-критерий 4). `FakeLlmProvider` — тот же приём,
@@ -108,7 +108,7 @@ test('негатив, правильно классифицированный �
         'gold' => ['document_type' => 'unknown', 'confidence' => 1.0, 'description' => null, 'ignore_reason' => 'негатив'],
     ]);
 
-    $this->artisan('ai:eval:run', ['--task' => 'screening'])->assertExitCode(0);
+    $this->artisan('estimate:eval:run', ['--task' => 'screening'])->assertExitCode(0);
 
     $run = EvalRun::query()->firstOrFail();
 
@@ -136,7 +136,7 @@ test('негатив, помеченный estimate → FP 1.0 и запись �
         'gold' => ['document_type' => 'unknown', 'confidence' => 1.0, 'description' => null, 'ignore_reason' => 'негатив'],
     ]);
 
-    $this->artisan('ai:eval:run', ['--task' => 'screening'])->assertExitCode(0);
+    $this->artisan('estimate:eval:run', ['--task' => 'screening'])->assertExitCode(0);
 
     $run = EvalRun::query()->firstOrFail();
 
@@ -162,7 +162,7 @@ test('смета, помеченная contract_draft → FN учтён', functi
         'gold' => ['document_type' => 'estimate', 'confidence' => 1.0, 'description' => null, 'ignore_reason' => null],
     ]);
 
-    $this->artisan('ai:eval:run', ['--task' => 'screening'])->assertExitCode(0);
+    $this->artisan('estimate:eval:run', ['--task' => 'screening'])->assertExitCode(0);
 
     $run = EvalRun::query()->firstOrFail();
 
@@ -170,7 +170,7 @@ test('смета, помеченная contract_draft → FN учтён', functi
 });
 
 test('пустой датасет task=screening → заглушка EvalRun без вызовов', function () {
-    $this->artisan('ai:eval:run', ['--task' => 'screening'])->assertExitCode(0);
+    $this->artisan('estimate:eval:run', ['--task' => 'screening'])->assertExitCode(0);
 
     expect(EvalRun::query()->count())->toBe(1)
         ->and(EvalRun::query()->firstOrFail()->provider)->toBe('dry-run')
@@ -180,7 +180,7 @@ test('пустой датасет task=screening → заглушка EvalRun б
 test('--dry-run → ноль вызовов', function () {
     DatasetExample::factory()->create(['task' => 'screening']);
 
-    $this->artisan('ai:eval:run', ['--task' => 'screening', '--dry-run' => true])->assertExitCode(0);
+    $this->artisan('estimate:eval:run', ['--task' => 'screening', '--dry-run' => true])->assertExitCode(0);
 
     expect(EvalRun::query()->count())->toBe(1)
         ->and(EvalRun::query()->firstOrFail()->provider)->toBe('dry-run')
@@ -189,7 +189,7 @@ test('--dry-run → ноль вызовов', function () {
 });
 
 test('extraction-ветка осталась зелёной (существующие кейсы EvalRun не сломаны)', function () {
-    $this->artisan('ai:eval:run', ['--task' => 'extraction'])->assertExitCode(0);
+    $this->artisan('estimate:eval:run', ['--task' => 'extraction'])->assertExitCode(0);
 
     expect(EvalRun::query()->count())->toBe(1)
         ->and(EvalRun::query()->firstOrFail()->provider)->toBe('dry-run');

@@ -28,7 +28,7 @@ use Illuminate\Support\Str;
 use Tests\Support\Doubles\FakeLlmProvider;
 
 /**
- * P7.4 — `PromptCritic` (`ai:prompts:suggest`): дешёвый критик читает diff-отчёт (P7.3) и текущую
+ * P7.4 — `PromptCritic` (`estimate:prompts:suggest`): дешёвый критик читает diff-отчёт (P7.3) и текущую
  * композицию промта шага, предлагает патч/hint и кладёт `pending` в очередь (D8/D59–D61/D64).
  */
 function promptSuggestRoute(FakeLlmProvider $fake): void
@@ -187,7 +187,7 @@ test('--dry-run показывает вход критика и не делае�
         'result' => ['estimates' => []],
     ]);
 
-    $this->artisan('ai:prompts:suggest', [
+    $this->artisan('estimate:prompts:suggest', [
         '--code' => ['EST-XLSX-SUGGEST-001'],
         '--step' => [EstimatePromptStep::ExtractionRows->value],
         '--dry-run' => true,

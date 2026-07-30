@@ -19,7 +19,9 @@ use App\Services\Llm\Dto\LlmUsage;
 use App\Services\Llm\Providers\PrismGeminiProvider;
 use App\Services\Procurement\Bench\FormatBenchRunner;
 use App\Services\Procurement\Prepare\RepresentationResolver;
+use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Tests\Support\Doubles\FakeLlmProvider;
 
 // Harness бенчмарка форматов (Scope Included P6.1, D48–D50): сухой обход БЕЗ LLM-вызова + сейм
@@ -328,4 +330,26 @@ test('повторный сухой прогон даёт тот же артеф
     unset($first['generated_at'], $second['generated_at']);
 
     expect($second)->toBe($first);
+});
+
+test('artisan(estimate:bench:formats) без --out пишет артефакт под config(ai.fixtures.reports_dir) (D111)', function (): void {
+    $reportsDir = sys_get_temp_dir().'/bench-formats-reports-'.Str::uuid();
+    config(['ai.fixtures.reports_dir' => $reportsDir]);
+
+    $fixture = benchFixture();
+    [, $version] = benchDocumentAndVersion();
+    benchDatasetExample($fixture, $version);
+
+    seedBenchRoute(FakeLlmProvider::succeeding(benchStructured(['rows' => [], 'incomplete_items' => []])));
+
+    $this->artisan('estimate:bench:formats', ['--code' => [$fixture->code], '--dry-run' => true])
+        ->assertExitCode(0);
+
+    $expectedPath = "{$reportsDir}/bench-formats-dry-".now()->format('Y-m-d').'.json';
+    expect(is_file($expectedPath))->toBeTrue();
+
+    $decoded = json_decode((string) file_get_contents($expectedPath), associative: true, flags: JSON_THROW_ON_ERROR);
+    expect($decoded['mode'])->toBe('dry');
+
+    File::deleteDirectory($reportsDir);
 });

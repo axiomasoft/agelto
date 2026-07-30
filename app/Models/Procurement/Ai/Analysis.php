@@ -35,6 +35,7 @@ use Illuminate\Support\Str;
  * @property bool $is_shadow
  * @property string|null $document_type
  * @property int $analysis_run_id
+ * @property int|null $parent_analysis_id
  * @property-read AnalysisRun $analysisRun
  */
 #[UseFactory(AnalysisFactory::class)]

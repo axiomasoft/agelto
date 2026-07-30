@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace App\Services\Llm;
 
+use App\Exceptions\Procurement\UnknownProviderDriver;
 use App\Services\Llm\Contracts\LlmProvider;
 use App\Services\Llm\Providers\OpenAiCompatibleProvider;
 use App\Services\Llm\Providers\PrismGeminiProvider;
 use Illuminate\Contracts\Container\Container;
-use RuntimeException;
 
 /**
  * Единственный `match` по строке драйвера `llm_providers.driver` в проекте
@@ -27,7 +27,7 @@ final readonly class LlmProviderFactory
             // OpenAI-совместимый транспорт (vLLM/Ollama, P9.4, ТЗ 04 §7) — stateless: base_url/
             // api_key приходят через `LlmOptions`, не через конструктор.
             'openai_compatible' => $this->container->make(OpenAiCompatibleProvider::class),
-            default => throw new RuntimeException("Неизвестный драйвер провайдера: {$driver}."),
+            default => throw new UnknownProviderDriver($driver),
         };
     }
 }

@@ -11,7 +11,7 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
 /**
- * P2.4 — `ai:fixtures:verify` сверяет манифест ↔ файл на диске ↔ запись реестра. Синтетический
+ * P2.4 — `estimate:fixtures:verify` сверяет манифест ↔ файл на диске ↔ запись реестра. Синтетический
  * манифест и `Storage::fake(config('ai.fixtures.disk'))`; реальный корпус не участвует.
  */
 function verifyTestDir(): string
@@ -82,7 +82,7 @@ test('verify зелёный на согласованном комплекте',
     $manifestPath = "{$folder}/manifest.json";
     file_put_contents($manifestPath, json_encode(['version' => 1, 'fixtures' => [verifyManifestEntry('EST-XLSX-KS2-001', $content)]], JSON_THROW_ON_ERROR));
 
-    $this->artisan('ai:fixtures:verify', ['--manifest' => $manifestPath])->assertExitCode(0);
+    $this->artisan('estimate:fixtures:verify', ['--manifest' => $manifestPath])->assertExitCode(0);
 
     File::deleteDirectory($folder);
 });
@@ -98,7 +98,7 @@ test('verify красный при подменённом файле на дис
     $manifestPath = "{$folder}/manifest.json";
     file_put_contents($manifestPath, json_encode(['version' => 1, 'fixtures' => [verifyManifestEntry('EST-XLSX-KS2-001', $content)]], JSON_THROW_ON_ERROR));
 
-    $this->artisan('ai:fixtures:verify', ['--manifest' => $manifestPath])->assertExitCode(1);
+    $this->artisan('estimate:fixtures:verify', ['--manifest' => $manifestPath])->assertExitCode(1);
 
     File::deleteDirectory($folder);
 });
@@ -114,7 +114,7 @@ test('verify красный при отсутствующей записи ре�
     $manifestPath = "{$folder}/manifest.json";
     file_put_contents($manifestPath, json_encode(['version' => 1, 'fixtures' => [verifyManifestEntry('EST-XLSX-KS2-001', $content)]], JSON_THROW_ON_ERROR));
 
-    $this->artisan('ai:fixtures:verify', ['--manifest' => $manifestPath])->assertExitCode(1);
+    $this->artisan('estimate:fixtures:verify', ['--manifest' => $manifestPath])->assertExitCode(1);
 
     File::deleteDirectory($folder);
 });
@@ -131,7 +131,7 @@ test('verify красный при непустом gold_path на несуще�
     $entry['gold_path'] = 'gold/EST-XLSX-KS2-001.gold.json';
     file_put_contents($manifestPath, json_encode(['version' => 1, 'fixtures' => [$entry]], JSON_THROW_ON_ERROR));
 
-    $this->artisan('ai:fixtures:verify', ['--manifest' => $manifestPath])->assertExitCode(1);
+    $this->artisan('estimate:fixtures:verify', ['--manifest' => $manifestPath])->assertExitCode(1);
 
     File::deleteDirectory($folder);
 });
@@ -147,7 +147,7 @@ test('verify красный при orphan-записи реестра', function
     $manifestPath = "{$folder}/manifest.json";
     file_put_contents($manifestPath, json_encode(['version' => 1, 'fixtures' => [verifyManifestEntry('EST-XLSX-KS2-001', $content)]], JSON_THROW_ON_ERROR));
 
-    $this->artisan('ai:fixtures:verify', ['--manifest' => $manifestPath])->assertExitCode(1);
+    $this->artisan('estimate:fixtures:verify', ['--manifest' => $manifestPath])->assertExitCode(1);
 
     File::deleteDirectory($folder);
 });

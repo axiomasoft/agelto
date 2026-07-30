@@ -2,9 +2,11 @@
 
 declare(strict_types=1);
 
-namespace App\Console\Commands\Ai;
+namespace App\Console\Commands\Procurement\Analyzers\Estimate;
 
-use App\Models\Procurement\Ai\EvalRun;
+use App\Console\Concerns\RendersReport;
+use App\Exceptions\Procurement\OperationFailed;
+use App\Repositories\Procurement\EvalRunReadRepository;
 use App\Services\Procurement\Tuning\EvalRunComparator;
 use Illuminate\Console\Command;
 use RuntimeException;
@@ -17,7 +19,9 @@ use RuntimeException;
  */
 final class EvalCompareCommand extends Command
 {
-    protected $signature = 'ai:eval:compare
+    use RendersReport;
+
+    protected $signature = 'estimate:eval:compare
         {--base= : id базового прогона (EvalRun)}
         {--candidate= : id прогона-кандидата (EvalRun)}
         {--format=json : формат вывода (json|md)}
@@ -25,8 +29,10 @@ final class EvalCompareCommand extends Command
 
     protected $description = 'Сравнение двух EvalRun по критерию приёмки патча промта (tune/holdout, D63)';
 
-    public function __construct(private readonly EvalRunComparator $comparator)
-    {
+    public function __construct(
+        private readonly EvalRunComparator $comparator,
+        private readonly EvalRunReadRepository $evalRuns,
+    ) {
         parent::__construct();
     }
 
@@ -34,8 +40,10 @@ final class EvalCompareCommand extends Command
     {
         $format = (string) $this->option('format');
 
-        if (! in_array($format, ['json', 'md'], true)) {
-            $this->error("Неизвестный --format={$format} (ожидается json|md).");
+        try {
+            $this->guardFormat($format);
+        } catch (OperationFailed $e) {
+            $this->error($e->getMessage());
 
             return self::FAILURE;
         }
@@ -49,8 +57,8 @@ final class EvalCompareCommand extends Command
             return self::FAILURE;
         }
 
-        $base = EvalRun::query()->find((int) $baseOption);
-        $candidate = EvalRun::query()->find((int) $candidateOption);
+        $base = $this->evalRuns->find((int) $baseOption);
+        $candidate = $this->evalRuns->find((int) $candidateOption);
 
         if ($base === null || $candidate === null) {
             $this->error('EvalRun не найден — проверь --base/--candidate.');
@@ -68,24 +76,12 @@ final class EvalCompareCommand extends Command
 
         $rendered = $format === 'json' ? $this->renderJson($result) : $this->renderMarkdown($result);
 
-        $out = $this->option('out');
-
-        if ($out !== null) {
-            file_put_contents(base_path((string) $out), $rendered);
-        }
+        $this->writeArtifact($this->option('out'), $rendered);
 
         $this->line($rendered);
         $this->info("Вердикт: {$result['verdict']}");
 
         return self::SUCCESS;
-    }
-
-    /**
-     * @param  array<string, mixed>  $result
-     */
-    private function renderJson(array $result): string
-    {
-        return json_encode($result, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)."\n";
     }
 
     /**

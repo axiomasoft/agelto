@@ -37,4 +37,58 @@ final readonly class LlmCallReadRepository
             ->orderBy('purpose')
             ->get();
     }
+
+    /**
+     * Вызовы обработанных примеров прогона, случившиеся ПОСЛЕ его старта (`estimate:eval:run` —
+     * `resolvePromptVersionSet()`, тот же `Analysis` мог обслужить предыдущий прогон, старые
+     * вызовы не в счёт).
+     *
+     * @param  list<int>  $analysisIds
+     * @return Collection<int, LlmCall>
+     */
+    public function forAnalysesSince(array $analysisIds, CarbonInterface $since): Collection
+    {
+        return LlmCall::query()
+            ->whereIn('analysis_id', $analysisIds)
+            ->where('called_at', '>=', $since)
+            ->get();
+    }
+
+    /**
+     * Версии промтов, реально участвовавших в вызовах прогона (тот же `Analysis` мог обслужить
+     * предыдущий `estimate:eval:run`, старые вызовы не в счёт). Расхождение версии одного ключа
+     * МЕЖДУ вызовами прогона делает прогон непригодным для сравнения — `null` здесь читается
+     * `estimate:eval:compare` как отказ, неотличимый от «вызовов не было» (оба исхода одинаково
+     * непригодны для критерия приёмки). Общий для `ExtractionEvalRunner` и `ScreeningEvalRunner`
+     * (Implementation Rule 7 P3.1 — дубль устраняется вверх, не вбок).
+     *
+     * @param  list<int>  $analysisIds
+     * @return array<string, int>|null
+     */
+    public function resolvePromptVersionSet(array $analysisIds, CarbonInterface $since): ?array
+    {
+        if ($analysisIds === []) {
+            return null;
+        }
+
+        $calls = $this->forAnalysesSince($analysisIds, $since);
+
+        if ($calls->isEmpty()) {
+            return null;
+        }
+
+        $merged = [];
+
+        foreach ($calls as $call) {
+            foreach ($call->prompt_version_set?->all() ?? [] as $key => $version) {
+                if (array_key_exists($key, $merged) && $merged[$key] !== $version) {
+                    return null;
+                }
+
+                $merged[$key] = $version;
+            }
+        }
+
+        return $merged;
+    }
 }

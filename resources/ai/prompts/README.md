@@ -54,8 +54,8 @@ is_active: true
 2. Применяешь в БД одним из двух способов:
    - `docker compose exec app php artisan db:seed --class=Database\\Seeders\\PromptSeeder`
    - `docker compose exec app php artisan ai:prompts:sync` (то же самое, отдельная команда)
-3. Гоняешь `docker compose exec app php artisan ai:eval:run` на папке эталонных смет
-   (`ai:dataset:import`, P7.4) — метрики (precision/recall/F1 по полям, `EvalMetrics`) показывают,
+3. Гоняешь `docker compose exec app php artisan estimate:eval:run` на папке эталонных смет
+   (`estimate:dataset:import`, P7.4) — метрики (precision/recall/F1 по полям, `EvalMetrics`) показывают,
    стало лучше или хуже.
 4. Повторяешь 1–3, пока метрики не устроят.
 

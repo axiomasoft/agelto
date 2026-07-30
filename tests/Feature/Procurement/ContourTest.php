@@ -83,7 +83,7 @@ test('прогон с mode=auto над документом площадки «�
     ]);
     file_put_contents("{$goldDir}/{$code}.gold.json", json_encode(['estimates' => []], JSON_THROW_ON_ERROR));
 
-    $this->artisan('ai:gold:import', ['--code' => [$code]])->assertExitCode(0);
+    $this->artisan('estimate:gold:import', ['--code' => [$code]])->assertExitCode(0);
 
     $document = Document::query()->where('external_id', "fixture:{$code}")->firstOrFail();
     expect($document->platform_id)->toBe(Platform::training()->id);

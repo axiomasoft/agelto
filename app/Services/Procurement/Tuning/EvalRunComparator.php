@@ -12,7 +12,7 @@ use RuntimeException;
 /**
  * Критерий приёмки патча промта между двумя `EvalRun` (P7.5, D63 + правило отбора D119/D120):
  * подвыборки `tune`/`holdout` вычисляются из `estimates/eval-splits.json` по членству в `holdout`
- * (та же семантика, что `ai:eval:run --split`) — сравниваемые прогоны предполагаются прогнанными
+ * (та же семантика, что `estimate:eval:run --split`) — сравниваемые прогоны предполагаются прогнанными
  * `--split=all`, иначе одна из подвыборок останется пустой и `compare()` откажется считать критерий.
  * Числа для порогов (а)–(г) — макро-усреднение per-example `f1`/`row_coverage` внутри подвыборки,
  * тот же приём, что `EvalRunCommand::aggregate()` для прогона целиком.
@@ -66,7 +66,7 @@ final readonly class EvalRunComparator
 
             if ($baseSub->isEmpty() || $candidateSub->isEmpty()) {
                 throw new RuntimeException(
-                    "Подвыборка `{$subsample}` пуста в одном из прогонов (#{$base->id}/#{$candidate->id}) — критерий приёмки не проверить. Прогони `ai:eval:run --split=all`.",
+                    "Подвыборка `{$subsample}` пуста в одном из прогонов (#{$base->id}/#{$candidate->id}) — критерий приёмки не проверить. Прогони `estimate:eval:run --split=all`.",
                 );
             }
 
@@ -138,7 +138,7 @@ final readonly class EvalRunComparator
         $path = (string) config('ai.fixtures.splits_path');
 
         if (! is_file($path)) {
-            throw new RuntimeException("Файл разбиения не найден: {$path}. Прогони `ai:eval:run --write-splits`.");
+            throw new RuntimeException("Файл разбиения не найден: {$path}. Прогони `estimate:eval:run --write-splits`.");
         }
 
         $decoded = json_decode((string) file_get_contents($path), associative: true, flags: JSON_THROW_ON_ERROR);

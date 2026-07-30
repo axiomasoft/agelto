@@ -47,7 +47,7 @@ test('генератор строит валидный манифест из ш�
     file_put_contents($shortlistPath, json_encode([manifestShortlistRow('EST-XLSX-KS2-001', $content)], JSON_THROW_ON_ERROR));
     $manifestPath = "{$sourceDir}/manifest.json";
 
-    $this->artisan('ai:fixtures:manifest', ['--from-shortlist' => $shortlistPath, '--manifest' => $manifestPath])
+    $this->artisan('estimate:fixtures:manifest', ['--from-shortlist' => $shortlistPath, '--manifest' => $manifestPath])
         ->assertExitCode(0);
 
     $manifest = json_decode((string) file_get_contents($manifestPath), associative: true, flags: JSON_THROW_ON_ERROR);
@@ -72,7 +72,7 @@ test('генератор оставляет gold_path = null даже при gol
     );
     $manifestPath = "{$sourceDir}/manifest.json";
 
-    $this->artisan('ai:fixtures:manifest', ['--from-shortlist' => $shortlistPath, '--manifest' => $manifestPath])
+    $this->artisan('estimate:fixtures:manifest', ['--from-shortlist' => $shortlistPath, '--manifest' => $manifestPath])
         ->assertExitCode(0);
 
     $manifest = json_decode((string) file_get_contents($manifestPath), associative: true, flags: JSON_THROW_ON_ERROR);
@@ -92,10 +92,10 @@ test('повторная генерация идемпотентна', function 
     file_put_contents($shortlistPath, json_encode([manifestShortlistRow('EST-XLSX-KS2-001', $content)], JSON_THROW_ON_ERROR));
     $manifestPath = "{$sourceDir}/manifest.json";
 
-    $this->artisan('ai:fixtures:manifest', ['--from-shortlist' => $shortlistPath, '--manifest' => $manifestPath])->assertExitCode(0);
+    $this->artisan('estimate:fixtures:manifest', ['--from-shortlist' => $shortlistPath, '--manifest' => $manifestPath])->assertExitCode(0);
     $first = file_get_contents($manifestPath);
 
-    $this->artisan('ai:fixtures:manifest', ['--from-shortlist' => $shortlistPath, '--manifest' => $manifestPath])->assertExitCode(0);
+    $this->artisan('estimate:fixtures:manifest', ['--from-shortlist' => $shortlistPath, '--manifest' => $manifestPath])->assertExitCode(0);
     $second = file_get_contents($manifestPath);
 
     expect($second)->toBe($first);
@@ -112,13 +112,13 @@ test('ручная правка существующей записи не за�
     file_put_contents($shortlistPath, json_encode([manifestShortlistRow('EST-XLSX-KS2-001', $content)], JSON_THROW_ON_ERROR));
     $manifestPath = "{$sourceDir}/manifest.json";
 
-    $this->artisan('ai:fixtures:manifest', ['--from-shortlist' => $shortlistPath, '--manifest' => $manifestPath])->assertExitCode(0);
+    $this->artisan('estimate:fixtures:manifest', ['--from-shortlist' => $shortlistPath, '--manifest' => $manifestPath])->assertExitCode(0);
 
     $manifest = json_decode((string) file_get_contents($manifestPath), associative: true, flags: JSON_THROW_ON_ERROR);
     $manifest['fixtures'][0]['notes'] = 'ручная правка оператора';
     file_put_contents($manifestPath, json_encode($manifest, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE));
 
-    $this->artisan('ai:fixtures:manifest', ['--from-shortlist' => $shortlistPath, '--manifest' => $manifestPath])->assertExitCode(0);
+    $this->artisan('estimate:fixtures:manifest', ['--from-shortlist' => $shortlistPath, '--manifest' => $manifestPath])->assertExitCode(0);
 
     $reread = json_decode((string) file_get_contents($manifestPath), associative: true, flags: JSON_THROW_ON_ERROR);
     expect($reread['fixtures'][0]['notes'])->toBe('ручная правка оператора');

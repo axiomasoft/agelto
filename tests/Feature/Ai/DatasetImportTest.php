@@ -60,7 +60,7 @@ test('импорт валидной пары создаёт Document/DocumentVer
     file_put_contents("{$folder}/estimate-1.pdf", 'PDF-DUMMY-CONTENT');
     file_put_contents("{$folder}/estimate-1.gold.json", validGoldJson());
 
-    $this->artisan('ai:dataset:import', ['path' => $folder])
+    $this->artisan('estimate:dataset:import', ['path' => $folder])
         ->assertExitCode(0);
 
     $document = Document::query()->where('external_id', 'gold:estimate-1')->sole();
@@ -86,10 +86,10 @@ test('повторный импорт той же пары идемпотент�
     file_put_contents("{$folder}/estimate-1.pdf", 'PDF-DUMMY-CONTENT');
     file_put_contents("{$folder}/estimate-1.gold.json", validGoldJson(estimateNumber: '1'));
 
-    $this->artisan('ai:dataset:import', ['path' => $folder])->assertExitCode(0);
+    $this->artisan('estimate:dataset:import', ['path' => $folder])->assertExitCode(0);
 
     file_put_contents("{$folder}/estimate-1.gold.json", validGoldJson(estimateNumber: '1-corrected'));
-    $this->artisan('ai:dataset:import', ['path' => $folder])->assertExitCode(0);
+    $this->artisan('estimate:dataset:import', ['path' => $folder])->assertExitCode(0);
 
     expect(Document::query()->where('external_id', 'gold:estimate-1')->count())->toBe(1)
         ->and(DatasetExample::query()->count())->toBe(1);
@@ -115,7 +115,7 @@ test('битый gold-эталон (строка без обязательног
         ],
     ], JSON_THROW_ON_ERROR));
 
-    $this->artisan('ai:dataset:import', ['path' => $folder])
+    $this->artisan('estimate:dataset:import', ['path' => $folder])
         ->assertExitCode(1);
 
     expect(Document::query()->where('external_id', 'gold:broken')->exists())->toBeFalse()
@@ -131,7 +131,7 @@ test('осиротевший *.gold.json без файла-источника о
     file_put_contents("{$folder}/estimate-ok.pdf", 'PDF-DUMMY-CONTENT');
     file_put_contents("{$folder}/estimate-ok.gold.json", validGoldJson());
 
-    $this->artisan('ai:dataset:import', ['path' => $folder])
+    $this->artisan('estimate:dataset:import', ['path' => $folder])
         ->assertExitCode(1);
 
     expect(Document::query()->where('external_id', 'gold:orphan')->exists())->toBeFalse()

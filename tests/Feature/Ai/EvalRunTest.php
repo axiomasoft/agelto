@@ -24,10 +24,10 @@ use Illuminate\Support\Facades\Storage;
 use Tests\Support\Doubles\FakeLlmProvider;
 
 /**
- * `ai:eval:run` (P7.4, ревью-фикс HIGH/MED): dry-run/пустой путь без единого LLM-вызова +
+ * `estimate:eval:run` (P7.4, ревью-фикс HIGH/MED): dry-run/пустой путь без единого LLM-вызова +
  * реальный прогон через `FakeLlmProvider` (та же подмена, что `ExtractionOrchestratorTest`, —
  * Intent «FakeLlm недопустим» про боевой прогон ВЛАДЕЛЬЦЕМ, не про тесты самой команды).
- * Ключевой сценарий — регрессия HIGH: повторный `ai:eval:run` на ТОМ ЖЕ датасете обязан сделать
+ * Ключевой сценарий — регрессия HIGH: повторный `estimate:eval:run` на ТОМ ЖЕ датасете обязан сделать
  * НОВЫЕ LLM-вызовы, а не тихо переиспользовать `Analysis` завершённого прошлого прогона.
  */
 function evalRunFixturePath(): string
@@ -242,7 +242,7 @@ function evalRunGold(): array
 }
 
 test('пустой датасет без --dry-run пишет EvalRun-заглушку без единого LLM-вызова', function () {
-    $this->artisan('ai:eval:run', ['--task' => 'extraction'])->assertExitCode(0);
+    $this->artisan('estimate:eval:run', ['--task' => 'extraction'])->assertExitCode(0);
 
     expect(EvalRun::query()->count())->toBe(1);
 
@@ -261,7 +261,7 @@ test('--dry-run пропускает реальные LLM-вызовы даже 
     // обращения к LLM-инфраструктуре».
     DatasetExample::factory()->create(['task' => 'extraction']);
 
-    $this->artisan('ai:eval:run', ['--task' => 'extraction', '--dry-run' => true])->assertExitCode(0);
+    $this->artisan('estimate:eval:run', ['--task' => 'extraction', '--dry-run' => true])->assertExitCode(0);
 
     expect(EvalRun::query()->count())->toBe(1)
         ->and(EvalRun::query()->firstOrFail()->provider)->toBe('dry-run')
@@ -283,7 +283,7 @@ test('реальный прогон извлекает эталон и пише�
         'gold' => evalRunGold(),
     ]);
 
-    $this->artisan('ai:eval:run', ['--task' => 'extraction'])->assertExitCode(0);
+    $this->artisan('estimate:eval:run', ['--task' => 'extraction'])->assertExitCode(0);
 
     $run = EvalRun::query()->firstOrFail();
 
@@ -309,7 +309,7 @@ test('повторный прогон на том же датасете дела
         'gold' => evalRunGold(),
     ]);
 
-    $this->artisan('ai:eval:run', ['--task' => 'extraction'])->assertExitCode(0);
+    $this->artisan('estimate:eval:run', ['--task' => 'extraction'])->assertExitCode(0);
 
     expect($fake->receivedPrompts())->toHaveCount(5);
 
@@ -317,11 +317,11 @@ test('повторный прогон на том же датасете дела
     expect((float) $firstRun->metrics['overall']['f1'])->toBe(1.0);
 
     // Второй прогон — ещё 5 заготовленных исходов ПОВЕРХ уже опустошённой FIFO-очереди. Если бы
-    // `ai:eval:run` тихо переиспользовал завершённый `Analysis` прошлого прогона (HIGH до фикса),
+    // `estimate:eval:run` тихо переиспользовал завершённый `Analysis` прошлого прогона (HIGH до фикса),
     // цикл оркестратора завершился бы БЕЗ единого обращения к очереди — счётчик ниже это ловит.
     queueEvalRunSequence($fake);
 
-    $this->artisan('ai:eval:run', ['--task' => 'extraction'])->assertExitCode(0);
+    $this->artisan('estimate:eval:run', ['--task' => 'extraction'])->assertExitCode(0);
 
     expect($fake->receivedPrompts())->toHaveCount(10)
         ->and(EvalRun::query()->count())->toBe(2)
@@ -339,7 +339,7 @@ test('--split=all не меняет сегодняшнее поведение п
 
     evalRunSeedFixtureExample('EST-XLSX-ALL-001');
 
-    $this->artisan('ai:eval:run', ['--task' => 'extraction', '--split' => 'all'])->assertExitCode(0);
+    $this->artisan('estimate:eval:run', ['--task' => 'extraction', '--split' => 'all'])->assertExitCode(0);
 
     $run = EvalRun::query()->firstOrFail();
 
@@ -359,7 +359,7 @@ test('--split=holdout берёт ровно коды из файла разби�
     $holdExample = evalRunSeedFixtureExample('EST-XLSX-HOLD-001');
     evalRunSeedFixtureExample('EST-XLSX-TUNE-001');
 
-    $this->artisan('ai:eval:run', ['--task' => 'extraction', '--split' => 'holdout'])->assertExitCode(0);
+    $this->artisan('estimate:eval:run', ['--task' => 'extraction', '--split' => 'holdout'])->assertExitCode(0);
 
     expect(EvalResult::query()->count())->toBe(1)
         ->and(EvalResult::query()->firstOrFail()->dataset_example_id)->toBe($holdExample->id);
@@ -381,7 +381,7 @@ test('--split=tune берёт коды датасета, которых НЕТ �
     evalRunSeedFixtureExample('EST-XLSX-TUNE-002');
     evalRunSeedFixtureExample('EST-XLSX-EXTRA-002');
 
-    $this->artisan('ai:eval:run', ['--task' => 'extraction', '--split' => 'tune'])->assertExitCode(0);
+    $this->artisan('estimate:eval:run', ['--task' => 'extraction', '--split' => 'tune'])->assertExitCode(0);
 
     $processedCodes = EvalResult::query()
         ->with('datasetExample.fixture')
@@ -431,7 +431,7 @@ test('--write-splits: единственный носитель формата �
         ],
     ]);
 
-    $this->artisan('ai:eval:run', ['--write-splits' => true])->assertExitCode(0);
+    $this->artisan('estimate:eval:run', ['--write-splits' => true])->assertExitCode(0);
 
     $written = json_decode((string) file_get_contents((string) config('ai.fixtures.splits_path')), associative: true);
 
@@ -454,7 +454,7 @@ test('prompt_version_set прогона собран из фактических
 
     evalRunSeedFixtureExample('EST-XLSX-PVS-001');
 
-    $this->artisan('ai:eval:run', ['--task' => 'extraction'])->assertExitCode(0);
+    $this->artisan('estimate:eval:run', ['--task' => 'extraction'])->assertExitCode(0);
 
     $run = EvalRun::query()->firstOrFail();
 

@@ -15,7 +15,7 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
 /**
- * P5.5 — `ai:gold:import` создаёт рабочие копии `Document`/`DocumentVersion` вне закупки (D19) и
+ * P5.5 — `estimate:gold:import` создаёт рабочие копии `Document`/`DocumentVersion` вне закупки (D19) и
  * записи `prc_ai_dataset_examples` со ссылкой `fixture_id` и `source=deterministic` из
  * `estimates/gold/<CODE>.{gold,screening}.json`. `--prepare` не покрывается здесь глубоко —
  * реальный прогон фабрики представлений по корпусу (P3) — предмет Completion Notes, не синтетики.
@@ -64,7 +64,7 @@ test('эталон с extraction-gold → документ, версия и за
     $fixture = goldImportFixture($fixturesDisk, 'EST-XLSX-IMPORT-001', 'contenido-001');
     file_put_contents("{$goldDir}/EST-XLSX-IMPORT-001.gold.json", json_encode(['estimates' => []], JSON_THROW_ON_ERROR));
 
-    $this->artisan('ai:gold:import', ['--code' => ['EST-XLSX-IMPORT-001']])->assertExitCode(0);
+    $this->artisan('estimate:gold:import', ['--code' => ['EST-XLSX-IMPORT-001']])->assertExitCode(0);
 
     $document = Document::query()->where('external_id', 'fixture:EST-XLSX-IMPORT-001')->first();
     expect($document)->not->toBeNull()
@@ -95,7 +95,7 @@ test('эталон со screening-gold → вторая запись task=screen
         'document_type' => 'estimate', 'confidence' => 1.0, 'description' => null, 'page_count_estimate' => null, 'ignore_reason' => null,
     ], JSON_THROW_ON_ERROR));
 
-    $this->artisan('ai:gold:import', ['--code' => ['EST-XLSX-IMPORT-002']])->assertExitCode(0);
+    $this->artisan('estimate:gold:import', ['--code' => ['EST-XLSX-IMPORT-002']])->assertExitCode(0);
 
     $version = DocumentVersion::query()->whereHas('document', fn ($q) => $q->where('external_id', 'fixture:EST-XLSX-IMPORT-002'))->first();
 
@@ -115,14 +115,14 @@ test('повторный прогон идемпотентен (числа не 
     $fixture = goldImportFixture($fixturesDisk, 'EST-XLSX-IMPORT-003', 'contenido-003');
     file_put_contents("{$goldDir}/EST-XLSX-IMPORT-003.gold.json", json_encode(['estimates' => []], JSON_THROW_ON_ERROR));
 
-    $this->artisan('ai:gold:import', ['--code' => ['EST-XLSX-IMPORT-003']])->assertExitCode(0);
+    $this->artisan('estimate:gold:import', ['--code' => ['EST-XLSX-IMPORT-003']])->assertExitCode(0);
     $documentsAfterFirst = Document::query()->count();
     $versionsAfterFirst = DocumentVersion::query()->count();
     $examplesAfterFirst = DatasetExample::query()->count();
     $storagePath = 'documents/'.substr($fixture->sha256, 0, 2)."/{$fixture->sha256}";
     $bytesAfterFirst = Storage::disk($documentsDisk)->get($storagePath);
 
-    $this->artisan('ai:gold:import', ['--code' => ['EST-XLSX-IMPORT-003']])->assertExitCode(0);
+    $this->artisan('estimate:gold:import', ['--code' => ['EST-XLSX-IMPORT-003']])->assertExitCode(0);
 
     expect(Document::query()->count())->toBe($documentsAfterFirst)
         ->and(DocumentVersion::query()->count())->toBe($versionsAfterFirst)
@@ -142,7 +142,7 @@ test('эталон без gold → пропуск со строкой отчёт
     goldImportFixture($fixturesDisk, 'EST-XLSX-IMPORT-004', 'contenido-004');
     // Ни .gold.json, ни .screening.json не создаются.
 
-    $this->artisan('ai:gold:import', ['--code' => ['EST-XLSX-IMPORT-004']])
+    $this->artisan('estimate:gold:import', ['--code' => ['EST-XLSX-IMPORT-004']])
         ->expectsOutputToContain('записей extraction 0')
         ->assertExitCode(0);
 
@@ -164,7 +164,7 @@ test('невалидный gold → отклонение индивидуаль�
     goldImportFixture($fixturesDisk, 'EST-XLSX-IMPORT-GOOD', 'contenido-good');
     file_put_contents("{$goldDir}/EST-XLSX-IMPORT-GOOD.gold.json", json_encode(['estimates' => []], JSON_THROW_ON_ERROR));
 
-    $this->artisan('ai:gold:import', ['--code' => ['EST-XLSX-IMPORT-BAD', 'EST-XLSX-IMPORT-GOOD']])
+    $this->artisan('estimate:gold:import', ['--code' => ['EST-XLSX-IMPORT-BAD', 'EST-XLSX-IMPORT-GOOD']])
         ->assertExitCode(1);
 
     $goodVersion = DocumentVersion::query()->whereHas('document', fn ($q) => $q->where('external_id', 'fixture:EST-XLSX-IMPORT-GOOD'))->first();
@@ -187,7 +187,7 @@ test('--dry-run → ноль записей', function (): void {
     goldImportFixture($fixturesDisk, 'EST-XLSX-IMPORT-DRY', 'contenido-dry');
     file_put_contents("{$goldDir}/EST-XLSX-IMPORT-DRY.gold.json", json_encode(['estimates' => []], JSON_THROW_ON_ERROR));
 
-    $this->artisan('ai:gold:import', ['--code' => ['EST-XLSX-IMPORT-DRY'], '--dry-run' => true])->assertExitCode(0);
+    $this->artisan('estimate:gold:import', ['--code' => ['EST-XLSX-IMPORT-DRY'], '--dry-run' => true])->assertExitCode(0);
 
     expect(Document::query()->count())->toBe(0)
         ->and(DocumentVersion::query()->count())->toBe(0)
@@ -206,7 +206,7 @@ test('is_verified остался false после прогона', function (): 
     $fixture = goldImportFixture($fixturesDisk, 'EST-XLSX-IMPORT-VERIFY', 'contenido-verify');
     file_put_contents("{$goldDir}/EST-XLSX-IMPORT-VERIFY.gold.json", json_encode(['estimates' => []], JSON_THROW_ON_ERROR));
 
-    $this->artisan('ai:gold:import', ['--code' => ['EST-XLSX-IMPORT-VERIFY']])->assertExitCode(0);
+    $this->artisan('estimate:gold:import', ['--code' => ['EST-XLSX-IMPORT-VERIFY']])->assertExitCode(0);
 
     expect($fixture->refresh()->is_verified)->toBeFalse();
 

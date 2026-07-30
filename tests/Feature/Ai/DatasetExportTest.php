@@ -33,7 +33,7 @@ function exportGoldRow(string $name = 'Позиция 1'): array
     ];
 }
 
-test('ai:dataset:export --format=sft пишет JSONL (system/user/assistant) и манифест', function (): void {
+test('estimate:dataset:export --format=sft пишет JSONL (system/user/assistant) и манифест', function (): void {
     Storage::fake('s3');
 
     $version = DocumentVersion::factory()->create(['filename' => 'estimate.pdf']);
@@ -44,7 +44,7 @@ test('ai:dataset:export --format=sft пишет JSONL (system/user/assistant) и
         'source' => 'llm',
     ]);
 
-    $this->artisan('ai:dataset:export', ['--format' => 'sft', '--path' => 'exports/sft.jsonl'])
+    $this->artisan('estimate:dataset:export', ['--format' => 'sft', '--path' => 'exports/sft.jsonl'])
         ->assertExitCode(0);
 
     Storage::disk('s3')->assertExists('exports/sft.jsonl');
@@ -71,7 +71,7 @@ test('ai:dataset:export --format=sft пишет JSONL (system/user/assistant) и
         ->and($manifest['sha256'])->not->toBeEmpty();
 });
 
-test('ai:dataset:export --format=dpo отдаёт пару chosen/rejected только когда сырой результат анализа отличался от gold', function (): void {
+test('estimate:dataset:export --format=dpo отдаёт пару chosen/rejected только когда сырой результат анализа отличался от gold', function (): void {
     Storage::fake('s3');
 
     $changedVersion = DocumentVersion::factory()->create();
@@ -112,7 +112,7 @@ test('ai:dataset:export --format=dpo отдаёт пару chosen/rejected то�
         'source' => 'llm',
     ]);
 
-    $this->artisan('ai:dataset:export', ['--format' => 'dpo', '--path' => 'exports/dpo.jsonl'])
+    $this->artisan('estimate:dataset:export', ['--format' => 'dpo', '--path' => 'exports/dpo.jsonl'])
         ->assertExitCode(0);
 
     $lines = array_values(array_filter(explode("\n", (string) Storage::disk('s3')->get('exports/dpo.jsonl'))));

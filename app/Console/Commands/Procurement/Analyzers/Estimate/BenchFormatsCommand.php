@@ -2,10 +2,11 @@
 
 declare(strict_types=1);
 
-namespace App\Console\Commands\Ai;
+namespace App\Console\Commands\Procurement\Analyzers\Estimate;
 
 use App\Services\Procurement\Bench\FormatBenchRunner;
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\File;
 
 /**
  * Бенчмарк форматов входа (P6.1, D3/D48–D52): матрица `(эталон × вариант представления)` по
@@ -16,11 +17,11 @@ use Illuminate\Console\Command;
  */
 final class BenchFormatsCommand extends Command
 {
-    protected $signature = 'ai:bench:formats
+    protected $signature = 'estimate:bench:formats
         {--code=* : ограничить эталоны кодами}
         {--variant=* : ограничить варианты (значения RepresentationKind или default)}
         {--dry-run : без LLM-вызовов, только детерминированные факты и предсказание}
-        {--out= : путь машинного артефакта (дефолт plans/2026.07.26-EST-TRAIN/artifacts/bench-formats-<режим>-<дата>.json)}
+        {--out= : путь машинного артефакта (дефолт config(ai.fixtures.reports_dir)/bench-formats-<режим>-<дата>.json)}
         {--limit= : ограничить число эталонов}';
 
     protected $description = 'Матрица (эталон × вариант представления): объём/цена/качество/поведение по ячейке';
@@ -44,13 +45,23 @@ final class BenchFormatsCommand extends Command
 
         $mode = $dryRun ? 'dry' : 'run';
         $date = now()->format('Y-m-d');
-        $out = (string) ($this->option('out') ?: "plans/2026.07.26-EST-TRAIN/artifacts/bench-formats-{$mode}-{$date}.json");
+        $outOption = $this->option('out');
+
+        // Дефолт — НОВЫЙ корень `config('ai.fixtures.reports_dir')` (D111): раньше хардкодился
+        // путь в каталог ЧУЖОГО замороженного плана, который уедет в архив (D2/D9).
+        // `config('ai.fixtures.reports_dir')` уже АБСОЛЮТНЫЙ (дефолт `base_path('estimates/reports')`),
+        // поэтому дефолтная ветка НЕ оборачивается `base_path()` второй раз — только явный
+        // операторский `--out` остаётся репо-относительным, как раньше.
+        $path = $outOption !== null
+            ? base_path($outOption)
+            : ((string) config('ai.fixtures.reports_dir'))."/bench-formats-{$mode}-{$date}.json";
 
         $json = json_encode($artifact, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)."\n";
 
-        // Артефакт плана — путь РЕПО-относительный (`plans/<ID>/artifacts/**`), не диск хранилища
-        // документов (тот же приём, что `GoldBuildCommand` для `research/10-gold-corpus-report.md`).
-        file_put_contents(base_path($out), $json);
+        // Каталог отчётов создаётся при записи (Implementation Rule 10 P3.3):
+        // `estimates/reports/` в репозитории не существует.
+        File::ensureDirectoryExists(dirname($path));
+        file_put_contents($path, $json);
 
         foreach ($artifact['rejected'] as $reason) {
             $this->warn("отклонён: {$reason}");
@@ -61,7 +72,7 @@ final class BenchFormatsCommand extends Command
             $mode,
             count($artifact['cells']),
             count($artifact['rejected']),
-            $out,
+            $path,
         ));
 
         return self::SUCCESS;

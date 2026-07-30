@@ -110,7 +110,7 @@ final readonly class GsfxGoldMapper
 
     /**
      * Список неотображённых элементов/атрибутов `Data.xml` с частотой (Scope Included) —
-     * `toGold()` их судьбу не решает, эта карта — вход сводного отчёта `ai:gold:build` (P5.3).
+     * `toGold()` их судьбу не решает, эта карта — вход сводного отчёта `estimate:gold:build` (P5.3).
      * `has_carrier` сегодня всегда `false`: после реопена P3.8/P3.9 в `unmapped` остаётся ровно
      * то, для чего утверждённое распределение носителя НЕ назвало (`research/16-gsfx-reader-
      * reopen.md` §4, `research/06-schema-decision.md` §6) — поле зарезервировано на случай

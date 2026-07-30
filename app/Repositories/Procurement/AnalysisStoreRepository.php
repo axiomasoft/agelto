@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Repositories\Procurement;
 
+use App\Enums\Procurement\AiDocumentType;
 use App\Enums\Procurement\AnalysisStatus;
 use App\Enums\Procurement\AnalysisStep;
 use App\Exceptions\Procurement\NoActiveAnalysisRun;
@@ -103,6 +104,38 @@ final readonly class AnalysisStoreRepository
         if ($analysis->status === AnalysisStatus::Succeeded && $analysis->step === AnalysisStep::Extraction) {
             $this->runs->markSucceeded($analysis->analysisRun);
         }
+    }
+
+    /**
+     * Сброс `Analysis` до состояния «свежий анализ» перед повторным прогоном ВНУТРИ `estimate:eval:run`
+     * (не путать с {@see createRerun()} — новой строкой боевого re-run): уникальность
+     * `(document_version_id, step)` не даёт завести вторую строку на повторный вызов команды, а
+     * без явного сброса `ExtractionOrchestrator`/`ScreeningProcessor` резюмировал бы persisted
+     * `progress`/`result` прошлого прогона и не сделал бы ни одного нового LLM-вызова.
+     * `$documentType` — `AiDocumentType::Estimate` на пути extraction, `null` на пути screening;
+     * два лишних обнуления `cache_id`/`cache_expires_at` на скрининговом пути — no-op (кэш
+     * регистрируется только контуром извлечения, `root/service-layer-map.md` §6).
+     */
+    public function resetForRerun(Analysis $analysis, int $analysisRunId, ?AiDocumentType $documentType): void
+    {
+        $this->update($analysis, [
+            'status' => AnalysisStatus::Pending,
+            'analysis_run_id' => $analysisRunId,
+            'document_type' => $documentType?->value,
+            'result' => null,
+            'progress' => null,
+            'provider' => null,
+            'model' => null,
+            'attempts' => 0,
+            'last_error' => null,
+            'last_error_at' => null,
+            'next_retry_at' => null,
+            'failed_permanently' => false,
+            'started_at' => null,
+            'finished_at' => null,
+            'cache_id' => null,
+            'cache_expires_at' => null,
+        ]);
     }
 
     /**

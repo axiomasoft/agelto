@@ -1,126 +1,6 @@
 parameters:
 	ignoreErrors:
 		-
-			message: '#^Access to an undefined property App\\Models\\Procurement\\Ai\\Analysis\:\:\$parent_analysis_id\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Console/Commands/Ai/DatasetExportCommand.php
-
-		-
-			message: '#^Access to an undefined property App\\Models\\Procurement\\Ai\\Analysis\|Illuminate\\Database\\Eloquent\\Collection\<int, App\\Models\\Procurement\\Ai\\Analysis\>\:\:\$result\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Console/Commands/Ai/DatasetExportCommand.php
-
-		-
-			message: '#^Access to an undefined property App\\Models\\Procurement\\Ai\\DatasetExample\:\:\$document_version_id\.$#'
-			identifier: property.notFound
-			count: 2
-			path: app/Console/Commands/Ai/DatasetExportCommand.php
-
-		-
-			message: '#^Access to an undefined property App\\Models\\Procurement\\Ai\\DatasetExample\:\:\$source\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Console/Commands/Ai/DatasetExportCommand.php
-
-		-
-			message: '#^Access to an undefined property App\\Models\\Procurement\\Document\\DocumentVersion\:\:\$filename\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Console/Commands/Ai/DatasetExportCommand.php
-
-		-
-			message: '#^Access to an undefined property App\\Models\\Procurement\\Document\\DocumentVersion\:\:\$storage_path\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Console/Commands/Ai/DatasetExportCommand.php
-
-		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$document\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Console/Commands/Ai/EvalDiffCommand.php
-
-		-
-			message: '#^Access to an undefined property App\\Models\\Llm\\LlmRoute\:\:\$model\.$#'
-			identifier: property.notFound
-			count: 2
-			path: app/Console/Commands/Ai/EvalRunCommand.php
-
-		-
-			message: '#^Access to an undefined property App\\Models\\Procurement\\Ai\\Analysis\:\:\$result\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Console/Commands/Ai/EvalRunCommand.php
-
-		-
-			message: '#^Access to an undefined property App\\Models\\Procurement\\Ai\\EvalRun\:\:\$dataset_version\.$#'
-			identifier: property.notFound
-			count: 2
-			path: app/Console/Commands/Ai/EvalRunCommand.php
-
-		-
-			message: '#^Access to an undefined property App\\Models\\Procurement\\Ai\\EvalRun\:\:\$model\.$#'
-			identifier: property.notFound
-			count: 2
-			path: app/Console/Commands/Ai/EvalRunCommand.php
-
-		-
-			message: '#^Access to an undefined property App\\Models\\Procurement\\Ai\\EvalRun\:\:\$provider\.$#'
-			identifier: property.notFound
-			count: 2
-			path: app/Console/Commands/Ai/EvalRunCommand.php
-
-		-
-			message: '#^Access to an undefined property App\\Models\\Procurement\\Ai\\EvalRun\:\:\$started_at\.$#'
-			identifier: property.notFound
-			count: 2
-			path: app/Console/Commands/Ai/EvalRunCommand.php
-
-		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$code\.$#'
-			identifier: property.notFound
-			count: 2
-			path: app/Console/Commands/Ai/EvalRunCommand.php
-
-		-
-			message: '#^Parameter \#1 \$rows of method App\\Console\\Commands\\Ai\\EvalRunCommand\:\:aggregate\(\) expects Illuminate\\Support\\Collection\<int, array\{example\: App\\Models\\Procurement\\Ai\\DatasetExample, metrics\: array\<string, mixed\>\}\>, Illuminate\\Support\\Collection\<int, array\{example\: App\\Models\\Procurement\\Ai\\DatasetExample, metrics\: array\{error\: string\}\|array\{overall\: array\{precision\: float, recall\: float, f1\: float\}, row_coverage\: float\}\}\> given\.$#'
-			identifier: argument.type
-			count: 1
-			path: app/Console/Commands/Ai/EvalRunCommand.php
-
-		-
-			message: '#^Parameter \#3 \$rows of method App\\Console\\Commands\\Ai\\EvalRunCommand\:\:renderReport\(\) expects Illuminate\\Support\\Collection\<int, array\{example\: App\\Models\\Procurement\\Ai\\DatasetExample, metrics\: array\<string, mixed\>\}\>, Illuminate\\Support\\Collection\<int, array\{example\: App\\Models\\Procurement\\Ai\\DatasetExample, metrics\: array\{error\: string\}\|array\{overall\: array\{precision\: float, recall\: float, f1\: float\}, row_coverage\: float\}\}\> given\.$#'
-			identifier: argument.type
-			count: 1
-			path: app/Console/Commands/Ai/EvalRunCommand.php
-
-		-
-			message: '#^Parameter \#3 \$rows of method App\\Console\\Commands\\Ai\\EvalRunCommand\:\:renderScreeningReport\(\) expects Illuminate\\Support\\Collection\<int, array\{example\: App\\Models\\Procurement\\Ai\\DatasetExample, comparison\: array\<string, mixed\>\}\>, Illuminate\\Support\\Collection\<int, array\{example\: App\\Models\\Procurement\\Ai\\DatasetExample, comparison\: array\{error\: string\}\|array\{gold\: string, predicted\: string, match\: bool, gold_is_estimate\: bool, predicted_is_estimate\: bool, code\: string\|null, confidence\: float, ignore_reason\: string\|null\}\}\> given\.$#'
-			identifier: argument.type
-			count: 1
-			path: app/Console/Commands/Ai/EvalRunCommand.php
-
-		-
-			message: '#^Access to an undefined property App\\Models\\Procurement\\Document\\Document\:\:\$last_error\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Console/Commands/Ai/GoldImportCommand.php
-
-		-
-			message: '#^Access to an undefined property App\\Models\\Procurement\\Document\\Document\:\:\$status\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Console/Commands/Ai/GoldImportCommand.php
-
-		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$document\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Console/Commands/Ai/PromptsSuggestCommand.php
-
-		-
 			message: '#^Access to an undefined property App\\Models\\Procurement\\Ai\\Analysis\:\:\$cache_expires_at\.$#'
 			identifier: property.notFound
 			count: 1
@@ -149,6 +29,36 @@ parameters:
 			identifier: argument.unresolvableType
 			count: 1
 			path: app/Console/Commands/Procurement/Ai/CachesCommand.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Procurement\\Ai\\EvalRun\:\:\$dataset_version\.$#'
+			identifier: property.notFound
+			count: 2
+			path: app/Console/Commands/Procurement/Analyzers/Estimate/EvalRunCommand.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Procurement\\Ai\\EvalRun\:\:\$model\.$#'
+			identifier: property.notFound
+			count: 2
+			path: app/Console/Commands/Procurement/Analyzers/Estimate/EvalRunCommand.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Procurement\\Ai\\EvalRun\:\:\$provider\.$#'
+			identifier: property.notFound
+			count: 2
+			path: app/Console/Commands/Procurement/Analyzers/Estimate/EvalRunCommand.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Procurement\\Document\\Document\:\:\$last_error\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Console/Commands/Procurement/Analyzers/Estimate/GoldImportCommand.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Procurement\\Document\\Document\:\:\$status\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Console/Commands/Procurement/Analyzers/Estimate/GoldImportCommand.php
 
 		-
 			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$document_id\.$#'
@@ -469,12 +379,6 @@ parameters:
 			path: app/Services/Llm/AiRouteResolver.php
 
 		-
-			message: '#^Access to an undefined property App\\Models\\Procurement\\Ai\\Analysis\:\:\$parent_analysis_id\.$#'
-			identifier: property.notFound
-			count: 2
-			path: app/Services/Llm/CorrectionAwareComposer.php
-
-		-
 			message: '#^Access to an undefined property App\\Models\\Procurement\\Ai\\Correction\:\:\$content\.$#'
 			identifier: property.notFound
 			count: 1
@@ -653,6 +557,36 @@ parameters:
 			identifier: argument.type
 			count: 1
 			path: app/Services/Llm/Schema/JsonSchemaGenerator.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Procurement\\Ai\\Analysis\:\:\$result\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Services/Procurement/Analyzers/Estimate/DatasetExporter.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Procurement\\Ai\\DatasetExample\:\:\$document_version_id\.$#'
+			identifier: property.notFound
+			count: 2
+			path: app/Services/Procurement/Analyzers/Estimate/DatasetExporter.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Procurement\\Ai\\DatasetExample\:\:\$source\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Services/Procurement/Analyzers/Estimate/DatasetExporter.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Procurement\\Document\\DocumentVersion\:\:\$filename\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Services/Procurement/Analyzers/Estimate/DatasetExporter.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Procurement\\Document\\DocumentVersion\:\:\$storage_path\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Services/Procurement/Analyzers/Estimate/DatasetExporter.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Procurement\\Document\\Document\:\:\$procurement_id\.$#'
@@ -973,10 +907,22 @@ parameters:
 			path: app/Services/Procurement/Analyzers/Estimate/EvalMetrics.php
 
 		-
-			message: '#^Access to an undefined property App\\Models\\Procurement\\Ai\\Analysis\:\:\$parent_analysis_id\.$#'
+			message: '#^Access to an undefined property App\\Models\\Llm\\LlmRoute\:\:\$model\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Services/Procurement/Analyzers/Estimate/ExtractionOrchestrator.php
+			path: app/Services/Procurement/Analyzers/Estimate/ExtractionEvalRunner.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Procurement\\Ai\\EvalRun\:\:\$started_at\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Services/Procurement/Analyzers/Estimate/ExtractionEvalRunner.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$code\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Services/Procurement/Analyzers/Estimate/ExtractionEvalRunner.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Procurement\\Ai\\Analysis\:\:\$progress\.$#'
@@ -1001,12 +947,6 @@ parameters:
 			identifier: argument.type
 			count: 1
 			path: app/Services/Procurement/Analyzers/Estimate/ExtractionOrchestrator.php
-
-		-
-			message: '#^Access to an undefined property App\\Models\\Procurement\\Ai\\Analysis\:\:\$parent_analysis_id\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Services/Procurement/Analyzers/Estimate/GoldExampleRecorder.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Procurement\\Ai\\Analysis\:\:\$reviewed_at\.$#'
@@ -1205,6 +1145,12 @@ parameters:
 			identifier: property.notFound
 			count: 1
 			path: app/Services/Procurement/Extraction/RerunAnalysisAction.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$document\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Services/Procurement/Fixture/FixtureCaseResolver.php
 
 		-
 			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$registry_id\.$#'
@@ -1433,6 +1379,30 @@ parameters:
 			identifier: property.notFound
 			count: 1
 			path: app/Services/Procurement/ProxyPool.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Llm\\LlmRoute\:\:\$model\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Services/Procurement/Screening/ScreeningEvalRunner.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Procurement\\Ai\\Analysis\:\:\$result\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Services/Procurement/Screening/ScreeningEvalRunner.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Procurement\\Ai\\EvalRun\:\:\$started_at\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Services/Procurement/Screening/ScreeningEvalRunner.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$code\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Services/Procurement/Screening/ScreeningEvalRunner.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Procurement\\Ai\\Analysis\:\:\$result\.$#'

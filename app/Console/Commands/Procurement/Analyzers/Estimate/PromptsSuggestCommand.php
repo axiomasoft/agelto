@@ -1,0 +1,83 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Console\Commands\Procurement\Analyzers\Estimate;
+
+use App\Console\Support\ConsoleProgressReporter;
+use App\Dto\Procurement\Fixture\ItemOutcome;
+use App\Services\Procurement\Analyzers\Estimate\PromptSuggestionRunner;
+use Illuminate\Console\Command;
+
+/**
+ * Дешёвый LLM-критик промтов по эталону (P7.4, D8/D59/D61/D108): по каждому `--code`/`--analysis`
+ * строит diff-отчёт и для каждого `--step` предлагает патч/hint. Создаёт ТОЛЬКО записи `pending` —
+ * ни одного изменения в `resources/ai/prompts/**` (это делает `ai:prompts:apply` после апрува,
+ * D8). Команда признана СМЕТНОЙ решением владельца (D108): вход — свидетельство критика
+ * (`EstimateDiffReport`), без которого у неё нет предмета; цикл вынесен в
+ * {@see PromptSuggestionRunner} (P3.3).
+ */
+final class PromptsSuggestCommand extends Command
+{
+    protected $signature = 'estimate:prompts:suggest
+        {--code=* : коды эталонов}
+        {--analysis= : id анализа вместо кода}
+        {--step=* : шаги (PromptStep), по которым предлагать}
+        {--dry-run : не вызывать LLM, показать вход критика}
+        {--limit= : максимум предложений за прогон}';
+
+    protected $description = 'LLM-критик промтов по diff-отчёту эталона — кладёт предложения pending в очередь';
+
+    public function __construct(private readonly PromptSuggestionRunner $runner)
+    {
+        parent::__construct();
+    }
+
+    public function handle(): int
+    {
+        $codes = array_map('strval', (array) $this->option('code'));
+        $analysisOption = $this->option('analysis');
+        $stepOptions = array_map('strval', (array) $this->option('step'));
+        $dryRun = (bool) $this->option('dry-run');
+        $limitOption = $this->option('limit');
+        $limit = $limitOption !== null ? (int) $limitOption : null;
+
+        if ($codes === [] && $analysisOption === null) {
+            $this->error('Нужен хотя бы один --code=<эталон> или --analysis=<id>.');
+
+            return self::FAILURE;
+        }
+
+        if ($stepOptions === []) {
+            $this->error('Нужен хотя бы один --step=<PromptStep>.');
+
+            return self::FAILURE;
+        }
+
+        $result = $this->runner->run(
+            $codes,
+            $analysisOption !== null ? (int) $analysisOption : null,
+            $stepOptions,
+            $dryRun,
+            $limit,
+            new ConsoleProgressReporter($this->output),
+        );
+
+        foreach ($result['outcomes'] as $outcome) {
+            $this->renderOutcome($outcome);
+        }
+
+        $this->info("Создано предложений: {$result['created']}.");
+
+        return self::SUCCESS;
+    }
+
+    private function renderOutcome(ItemOutcome $outcome): void
+    {
+        match ($outcome->status) {
+            'rejected' => $this->error("код={$outcome->code}: {$outcome->reason}"),
+            'created' => $this->info("код={$outcome->code} {$outcome->reason}."),
+            default => $this->line("код={$outcome->code} {$outcome->reason}."),
+        };
+    }
+}

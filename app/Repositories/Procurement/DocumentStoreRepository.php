@@ -19,6 +19,11 @@ final readonly class DocumentStoreRepository
      * `$procurementId` nullable — дочерние документы архива (P4.2) и manual-импорт (P7.4, D22)
      * могут существовать вне закупки.
      */
+    public function findOrFail(int $id): Document
+    {
+        return Document::query()->findOrFail($id);
+    }
+
     public function findByExternalId(?int $procurementId, string $externalId): ?Document
     {
         return Document::query()

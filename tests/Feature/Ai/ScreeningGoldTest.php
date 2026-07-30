@@ -9,7 +9,7 @@ use Illuminate\Support\Facades\File;
 use Illuminate\Support\Str;
 
 /**
- * P5.4 — ветка `ai:gold:build --screening` строит `gold/<CODE>.screening.json` по реестру
+ * P5.4 — ветка `estimate:gold:build --screening` строит `gold/<CODE>.screening.json` по реестру
  * (§8.5): вердикт — `Fixture.document_type` для ЛЮБОГО класса (§6.1 document-type-axis.md, D90 —
  * колонка `NOT NULL`, заполнена и для позитивов); `ignore_reason` — только у негативов. Реестр —
  * единственный источник вердикта, команда его не толкует (Code Guidance) — фабрика заменяет
@@ -35,7 +35,7 @@ test('негатив с document_type → файл с этим вердикто�
         'notes' => 'Чертёж с полным текстовым слоем — самый опасный негатив корпуса',
     ]);
 
-    $this->artisan('ai:gold:build', ['--screening' => true, '--gold-dir' => $folder, '--code' => ['NEG-PDF-DRAWING-901']])
+    $this->artisan('estimate:gold:build', ['--screening' => true, '--gold-dir' => $folder, '--code' => ['NEG-PDF-DRAWING-901']])
         ->assertExitCode(0);
 
     $screening = json_decode((string) file_get_contents("{$folder}/NEG-PDF-DRAWING-901.screening.json"), true);
@@ -51,7 +51,7 @@ test('эталон-смета → вердикт estimate и ignore_reason=null'
     $folder = screeningGoldDir();
     Fixture::factory()->est()->create(['code' => 'EST-XLSX-SCREEN-901']);
 
-    $this->artisan('ai:gold:build', ['--screening' => true, '--gold-dir' => $folder, '--code' => ['EST-XLSX-SCREEN-901']])
+    $this->artisan('estimate:gold:build', ['--screening' => true, '--gold-dir' => $folder, '--code' => ['EST-XLSX-SCREEN-901']])
         ->assertExitCode(0);
 
     $screening = json_decode((string) file_get_contents("{$folder}/EST-XLSX-SCREEN-901.screening.json"), true);
@@ -67,7 +67,7 @@ test('extraction-gold того же эталона не перезаписан',
     Fixture::factory()->est()->create(['code' => 'EST-XLSX-SCREEN-902']);
     file_put_contents("{$folder}/EST-XLSX-SCREEN-902.gold.json", '{"estimates":[]}');
 
-    $this->artisan('ai:gold:build', ['--screening' => true, '--gold-dir' => $folder, '--code' => ['EST-XLSX-SCREEN-902']])
+    $this->artisan('estimate:gold:build', ['--screening' => true, '--gold-dir' => $folder, '--code' => ['EST-XLSX-SCREEN-902']])
         ->assertExitCode(0);
 
     expect((string) file_get_contents("{$folder}/EST-XLSX-SCREEN-902.gold.json"))->toBe('{"estimates":[]}')
@@ -81,10 +81,10 @@ test('повторный прогон байт-идентичен', function ():
     Fixture::factory()->est()->create(['code' => 'EST-XLSX-SCREEN-903']);
     $path = "{$folder}/EST-XLSX-SCREEN-903.screening.json";
 
-    $this->artisan('ai:gold:build', ['--screening' => true, '--gold-dir' => $folder])->assertExitCode(0);
+    $this->artisan('estimate:gold:build', ['--screening' => true, '--gold-dir' => $folder])->assertExitCode(0);
     $first = (string) file_get_contents($path);
 
-    $this->artisan('ai:gold:build', ['--screening' => true, '--gold-dir' => $folder])->assertExitCode(0);
+    $this->artisan('estimate:gold:build', ['--screening' => true, '--gold-dir' => $folder])->assertExitCode(0);
     $second = (string) file_get_contents($path);
 
     expect($second)->toBe($first);
@@ -96,7 +96,7 @@ test('файл проходит ScreeningResult::validateAndCreate()', function 
     $folder = screeningGoldDir();
     Fixture::factory()->est()->create(['code' => 'EST-XLSX-SCREEN-904']);
 
-    $this->artisan('ai:gold:build', ['--screening' => true, '--gold-dir' => $folder, '--code' => ['EST-XLSX-SCREEN-904']])
+    $this->artisan('estimate:gold:build', ['--screening' => true, '--gold-dir' => $folder, '--code' => ['EST-XLSX-SCREEN-904']])
         ->assertExitCode(0);
 
     $raw = json_decode((string) file_get_contents("{$folder}/EST-XLSX-SCREEN-904.screening.json"), true);

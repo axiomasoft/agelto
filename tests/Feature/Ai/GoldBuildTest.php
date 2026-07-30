@@ -15,7 +15,7 @@ use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 
 /**
- * P5.3 — `ai:gold:build` собирает `estimates/gold/**` по реестру `prc_ai_fixtures`, обходит
+ * P5.3 — `estimate:gold:build` собирает `estimates/gold/**` по реестру `prc_ai_fixtures`, обходит
  * gsfx- (P5.1) и табличные (P5.2) мапперы, пишет сводный отчёт и (`--update-manifest`) РОВНО
  * четыре gold-производных поля манифеста. Синтетические gsfx/xlsx-эталоны собираются в тесте
  * (D1 — реальный корпус не коммитится); реальный прогон — предмет Completion Notes P5.3.
@@ -222,7 +222,7 @@ test('gsfx-эталон → файл gold на месте и валиден', fu
 
     $manifestPath = buildGoldManifest($folder, [buildGoldManifestEntry($fixture)]);
 
-    $this->artisan('ai:gold:build', ['--manifest' => $manifestPath, '--gold-dir' => "{$folder}/gold"])
+    $this->artisan('estimate:gold:build', ['--manifest' => $manifestPath, '--gold-dir' => "{$folder}/gold"])
         ->assertExitCode(0);
 
     $goldPath = "{$folder}/gold/EST-GSFX-TEST-001.gold.json";
@@ -243,12 +243,12 @@ test('табличный эталон с downgrade → gold не создан, �
     $fixture = seedGoldFixture($disk, $folder, 'EST-XLSX-DOWNGRADE-001', $bytes, GoldSource::Deterministic, downgradingWorkbookProfileJson('EST-XLSX-DOWNGRADE-001'));
     $manifestPath = buildGoldManifest($folder, [buildGoldManifestEntry($fixture)]);
 
-    $this->artisan('ai:gold:build', ['--manifest' => $manifestPath, '--gold-dir' => "{$folder}/gold"])
+    $this->artisan('estimate:gold:build', ['--manifest' => $manifestPath, '--gold-dir' => "{$folder}/gold"])
         ->assertExitCode(0);
 
     expect(is_file("{$folder}/gold/EST-XLSX-DOWNGRADE-001.gold.json"))->toBeFalse();
 
-    $report = (string) file_get_contents(base_path('plans/2026.07.26-EST-TRAIN/research/10-gold-corpus-report.md'));
+    $report = (string) file_get_contents(((string) config('ai.fixtures.reports_dir')).'/gold-corpus-report.md');
     expect($report)->toContain('EST-XLSX-DOWNGRADE-001');
 
     File::deleteDirectory($folder);
@@ -264,7 +264,7 @@ test('dry-run → ноль файлов и ноль правок манифес�
     $manifestPath = buildGoldManifest($folder, [buildGoldManifestEntry($fixture)]);
     $manifestBefore = (string) file_get_contents($manifestPath);
 
-    $this->artisan('ai:gold:build', [
+    $this->artisan('estimate:gold:build', [
         '--manifest' => $manifestPath,
         '--gold-dir' => "{$folder}/gold",
         '--update-manifest' => true,
@@ -287,10 +287,10 @@ test('повторный прогон байт-идентичен', function ():
     $manifestPath = buildGoldManifest($folder, [buildGoldManifestEntry($fixture)]);
     $goldPath = "{$folder}/gold/EST-XLSX-REPEAT-001.gold.json";
 
-    $this->artisan('ai:gold:build', ['--manifest' => $manifestPath, '--gold-dir' => "{$folder}/gold"])->assertExitCode(0);
+    $this->artisan('estimate:gold:build', ['--manifest' => $manifestPath, '--gold-dir' => "{$folder}/gold"])->assertExitCode(0);
     $first = (string) file_get_contents($goldPath);
 
-    $this->artisan('ai:gold:build', ['--manifest' => $manifestPath, '--gold-dir' => "{$folder}/gold"])->assertExitCode(0);
+    $this->artisan('estimate:gold:build', ['--manifest' => $manifestPath, '--gold-dir' => "{$folder}/gold"])->assertExitCode(0);
     $second = (string) file_get_contents($goldPath);
 
     expect($second)->toBe($first);
@@ -307,7 +307,7 @@ test('--update-manifest меняет РОВНО четыре поля', function
     $fixture = seedGoldFixture($disk, $folder, 'EST-XLSX-MANIFEST-001', $bytes, GoldSource::Deterministic, passingWorkbookProfileJson('EST-XLSX-MANIFEST-001'));
     $manifestPath = buildGoldManifest($folder, [buildGoldManifestEntry($fixture)]);
 
-    $this->artisan('ai:gold:build', [
+    $this->artisan('estimate:gold:build', [
         '--manifest' => $manifestPath,
         '--gold-dir' => "{$folder}/gold",
         '--update-manifest' => true,
@@ -367,7 +367,7 @@ test('невалидный gold отклонён индивидуально, о�
 
     $manifestPath = buildGoldManifest($folder, [buildGoldManifestEntry($broken), buildGoldManifestEntry($good)]);
 
-    $this->artisan('ai:gold:build', ['--manifest' => $manifestPath, '--gold-dir' => "{$folder}/gold"])
+    $this->artisan('estimate:gold:build', ['--manifest' => $manifestPath, '--gold-dir' => "{$folder}/gold"])
         ->assertExitCode(1);
 
     expect(is_file("{$folder}/gold/EST-XLSX-BROKEN-001.gold.json"))->toBeFalse()

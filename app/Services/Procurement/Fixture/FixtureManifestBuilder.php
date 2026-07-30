@@ -2,62 +2,29 @@
 
 declare(strict_types=1);
 
-namespace App\Console\Commands\Ai;
+namespace App\Services\Procurement\Fixture;
 
+use App\Exceptions\Procurement\ManifestUnreadable;
 use App\Models\Procurement\Ai\Fixture;
-use Illuminate\Console\Command;
+use App\Support\Files\MimeDetector;
 use JsonException;
 
 /**
- * Генератор `estimates/manifest.json` из шорт-листа P1.3 (D1/D20, P2.4): `storage_path`
- * пересчитывается построителем `Fixture::storagePathFor()`, `sha256`/`size_bytes` берутся из
- * шорт-листа и ПРОВЕРЯЮТСЯ пересчётом по файлу-источнику (расхождение — ошибка, запись не
- * добавляется), `mime` — из инвентаря P1.1 (при отсутствии — `finfo` по файлу), `gold_path` —
- * всегда `null` (D91: указатель на файл gold пишет его производитель — `ai:gold:build
- * --update-manifest`, P5.3 — вместе с самим файлом; намерение несёт `gold_source`). Запись, чей
- * `code` уже есть в манифесте, НЕ трогается без `--force` — манифест SSOT и может быть поправлен
- * руками (D20).
+ * Построение записей `estimates/manifest.json` из шорт-листа P1.3 (`estimate:fixtures:manifest`, D1/D20):
+ * `storage_path` пересчитывается построителем `Fixture::storagePathFor()`, `sha256`/`size_bytes`
+ * из шорт-листа ПРОВЕРЯЮТСЯ пересчётом по файлу-источнику. Запись, чей `code` уже есть в манифесте,
+ * НЕ трогается без `$force`.
  */
-final class FixturesManifestCommand extends Command
+final readonly class FixtureManifestBuilder
 {
-    protected $signature = 'ai:fixtures:manifest
-        {--from-shortlist= : путь к fixture-shortlist.json}
-        {--inventory= : путь к P1-corpus-inventory.json для mime/размера}
-        {--manifest= : куда писать (дефолт config(ai.fixtures.manifest_path))}
-        {--force : перезаписать существующие записи}';
-
-    protected $description = 'Собрать estimates/manifest.json из шорт-листа эталонов (P1.3)';
-
-    public function handle(): int
+    /**
+     * @param  list<mixed>  $shortlist
+     * @param  array<string, array<string, mixed>>  $existing  keyed по code
+     * @param  array<string, string>  $mimeByPath
+     * @return array{records: array<string, array<string, mixed>>, errors: list<string>}
+     */
+    public function build(array $shortlist, array $existing, string $sourceDir, array $mimeByPath, bool $force): array
     {
-        $shortlistPath = (string) $this->option('from-shortlist');
-        $manifestPath = (string) ($this->option('manifest') ?? config('ai.fixtures.manifest_path'));
-        $sourceDir = (string) config('ai.fixtures.source_dir');
-        $force = (bool) $this->option('force');
-
-        if (! is_file($shortlistPath)) {
-            $this->error("Шорт-лист не найден: {$shortlistPath}");
-
-            return self::FAILURE;
-        }
-
-        try {
-            $shortlist = json_decode((string) file_get_contents($shortlistPath), associative: true, flags: JSON_THROW_ON_ERROR);
-        } catch (JsonException $e) {
-            $this->error("Шорт-лист не распарсен: {$e->getMessage()}");
-
-            return self::FAILURE;
-        }
-
-        if (! is_array($shortlist)) {
-            $this->error('Ожидается JSON-массив записей шорт-листа.');
-
-            return self::FAILURE;
-        }
-
-        $mimeByPath = $this->mimeIndex((string) $this->option('inventory'));
-        $existing = $this->readExistingManifest($manifestPath);
-
         $errors = [];
 
         foreach ($shortlist as $index => $row) {
@@ -108,8 +75,7 @@ final class FixturesManifestCommand extends Command
             $goldSource = (string) ($row['gold_source'] ?? 'none');
             // Ось типа документа (D16/D17, §6.1 document-type-axis.md): шорт-лист несёт её ключом
             // document_type; «владелец корпуса» без явного значения в строке равен фактическому
-            // типу (запись без document_type отклоняется валидацией FixtureManifestEntry, а не
-            // тихо подставляется).
+            // типу (запись без document_type отклоняется валидацией FixtureManifestEntry).
             $documentType = (string) ($row['document_type'] ?? '');
             $ownerDocumentType = (string) ($row['owner_document_type'] ?? $documentType);
             $title = (string) ($row['title'] ?? pathinfo($sourcePath, PATHINFO_FILENAME));
@@ -121,7 +87,7 @@ final class FixturesManifestCommand extends Command
                 'original_filename' => basename($sourcePath),
                 'sha256' => $actualHash,
                 'size_bytes' => $actualSize,
-                'mime' => $mimeByPath[$sourcePath] ?? $this->mimeOf($content),
+                'mime' => $mimeByPath[$sourcePath] ?? MimeDetector::of($content),
                 'class' => strtolower((string) ($row['class'] ?? '')),
                 'source_format' => $extension,
                 'form' => (string) ($row['form'] ?? ''),
@@ -140,31 +106,16 @@ final class FixturesManifestCommand extends Command
             ];
         }
 
-        if ($errors !== []) {
-            foreach ($errors as $error) {
-                $this->error($error);
-            }
-
-            return self::FAILURE;
-        }
-
-        ksort($existing);
-
-        $json = json_encode(
-            ['version' => 1, 'fixtures' => array_values($existing)],
-            JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR,
-        );
-
-        file_put_contents($manifestPath, $json.PHP_EOL);
-        $this->info('Готово: '.count($existing).' запись(ей) в манифесте.');
-
-        return self::SUCCESS;
+        return ['records' => $existing, 'errors' => $errors];
     }
 
     /**
+     * Манифест, ещё не существующий на диске, — штатное состояние ДО первой генерации, не ошибка
+     * ({@see ManifestUnreadable} — для УЖЕ существующего, но битого).
+     *
      * @return array<string, array<string, mixed>>
      */
-    private function readExistingManifest(string $manifestPath): array
+    public function readExistingManifest(string $manifestPath): array
     {
         if (! is_file($manifestPath)) {
             return [];
@@ -194,7 +145,7 @@ final class FixturesManifestCommand extends Command
     /**
      * @return array<string, string>
      */
-    private function mimeIndex(string $inventoryPath): array
+    public function mimeIndex(string $inventoryPath): array
     {
         if ($inventoryPath === '' || ! is_file($inventoryPath)) {
             return [];
@@ -215,13 +166,5 @@ final class FixturesManifestCommand extends Command
         }
 
         return $byPath;
-    }
-
-    private function mimeOf(string $content): string
-    {
-        $finfo = finfo_open(FILEINFO_MIME_TYPE);
-        $mime = $finfo !== false ? finfo_buffer($finfo, $content) : false;
-
-        return is_string($mime) ? $mime : 'application/octet-stream';
     }
 }
