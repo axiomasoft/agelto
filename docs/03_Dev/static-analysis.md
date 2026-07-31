@@ -77,12 +77,17 @@ grep -oP "count: \K\d+" phpstan-baseline.neon | paste -sd+ | bc                 
 | `larastan.noEnvCallsOutsideOfConfig` | 1 | 1 |
 | `identical.alwaysFalse` | 1 | 1 |
 | `booleanOr.rightAlwaysFalse` | 1 | 1 |
+| `argument.unresolvableType` | 1 | 0 |
 | `assign.propertyType` | 0 | 1 |
 | `argument.unknown` | 1 | 1 |
+| **Σ (18 identifier'ов)** | **240** | **74** |
+
+Сумма считается той же формой команды с добавленным подсчётом: `grep -oP "identifier: \K.*" phpstan-baseline.neon | wc -l` (после — на текущем дереве; до — `git show 0badded:phpstan-baseline.neon | grep -oP "identifier: \K.*" | wc -l`). Дописывающий строку в эту таблицу обязан сверить получившуюся СУММУ колонки с этой командой, а не только свою строку — иначе повторится расхождение, найденное аудитом P6 (F2).
 
 `instanceof.alwaysTrue`(2)/`assign.propertyType`(1) — НОВЫЕ (0 на `<base>`), появились КАК ПОБОЧНЫЙ
 эффект рычага (см. §3.6 таблицы ниже) — не рост неучтённого долга, а более точный анализ на месте,
-где раньше свойство было вовсе не типизировано.
+где раньше свойство было вовсе не типизировано. `argument.unresolvableType`(1 → 0) — класс УШЁЛ в
+ноль тем же рычагом `@property`, скрытого долга нет.
 
 **Расхождение с `findings/repo-structure-2026-07-28.md` §12.2** («19 записей» прироста) не
 воспроизводится ни этим, ни предыдущим снимком (`findings/inherited-debts-2026-07-29.md` §2.4 даёт
