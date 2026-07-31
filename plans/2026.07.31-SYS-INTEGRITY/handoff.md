@@ -1,66 +1,64 @@
-# HANDOFF — 2026-07-31 — after P1.4
+# HANDOFF — 2026-07-31 — after P1.5
 
-**Next:** P1.5 — гейт запрещённых стран для LLM-скоупа + LLM-канал через пул (порт `OutboundProxy`)
+**Next:** P1.6–P1.7 (батч B1) — перевод трёх HTTP call-site'ов кроулинга на скоупы резолвера +
+Filament-поверхность прокси/привязки профиля
 
 | Параметр | Значение |
 |:--|:--|
 | Model class | implementation |
-| Effort | high |
+| Effort | medium |
 | Context | continue (/clear) — ручной item |
-| Суть | P1.5 — порт `OutboundProxy` + адаптер `PoolOutboundProxy` поверх `ProxyResolver`, перевод `PrismGeminiProvider` на порт с env-фолбэком, жёсткий фильтр запрещённых стран ДО скоринга внутри резолвера (D5, D16) |
+| Суть | B1: подстановка `ProxyScope` в три call-site'а `pick()` по замороженному контракту P1.4, удаление `ProxyPool` (P1.6); Filament-форма прокси/привязки профиля (P1.7) |
 
 ```
-/task:plan-run 2026.07.31-SYS-INTEGRITY P1.5
+/task:plan-exec 2026.07.31-SYS-INTEGRITY P1.6 P1.7
 ```
 
-**Done:** **P1.4 закрыт 🟠 Done with deviations** (item-коммит `6fc2e75`, после промежуточного
-`f4ffbf1`) — резолвер прокси: политика выбора, двухуровневое здоровье, circuit breaker:
+**Done:** **P1.5 закрыт 🟠 Done with deviations** (item-коммит `65b562a`) — гейт запрещённых стран +
+LLM-канал через прокси-пул:
 
-- **`ProxyResolver`** (`app/Services/Procurement/Proxy/ProxyResolver.php`) — единственная точка
-  выдачи: фильтр (`is_active`, `scopes @> [scope]`, требование страны профиля, глобальный+целевой
-  breaker не открыт) → `ProxyScoreCalculator` → weighted random внутри top-K с инъектируемым
-  источником случайности (D5, D6). Гейт запрещённых стран (D5, скоуп `llm`) НЕ входит — заводит
-  P1.5 поверх этого же файла (уже в его `Files`). Пустой пул/весь пул занят пробой →
-  `NoProxyAvailableException` + `Log::warning` (`research/02` §10 — «тихого прямого запроса не
-  существует»).
-- **`ProxyCircuitBreaker`** — чистая логика автомата `closed → open → half-open → closed`,
-  таксономия причин → уровень (`ProxyFailureReason::level()`-логика внутри breaker'а, не в самом
-  enum'е — P1.5 его не трогает); `http_429` — отдельный порог/cooldown целевого уровня (D7).
-- **`ProxyHealthStoreRepository`** — CRUD `Proxy`/`ProxyTarget` + атомарный condition-`UPDATE`
-  захвата half-open пробы (единственность гарантирует БД).
-- **Контракт резолвера** (research/02 §9.1): `ProxyLease`/`ProxyRequirements`/`ProxyOutcome`
-  (`app/Dto/Procurement/Proxy/**`) + `NoProxyAvailableException`
-  (`app/Exceptions/Procurement/`) — типы контракта, которых не было в `Files` item'а (см. Known
-  Deviations ниже).
-- **`config/crawler.php`** — блок `proxy.resolver`/`proxy.breaker` (веса, top-K, EWMA, пороги
-  breaker'а по уровню, `http_429`-исключение), все значения помечены некалиброванными (P4.7).
+- **Порт `App\Services\Llm\Contracts\OutboundProxy`** (`optionsFor(string $host): array`) + адаптер
+  **`App\Services\Procurement\Proxy\PoolOutboundProxy`** поверх `ProxyResolver` (D16): резолв
+  `ProxyScope::Llm` → `httpOptions()`; пустой пул → фолбэк на `config('ai.gemini.proxy')` +
+  `Log::warning`; пустой пул И пустой env → `NoProxyAvailableException` пробрасывается необработанной
+  (домен `Llm` её не именует). Биндинг в `AppServiceProvider::register()`.
+- **`PrismGeminiProvider`** получил конструктор с `OutboundProxy`; все пять чтений
+  `config('ai.gemini.proxy')` заменены на `$this->outboundProxy->optionsFor($this->host())`
+  (`host()` — канонический `generativelanguage.googleapis.com`).
+- **`ProxyResolver::candidates()`** — жёсткий SQL-гейт (D5): `whereNotIn('prc_proxies.country',
+  $forbiddenCountries)` — пустой список не сужает выборку, непустой исключает и запрещённые страны,
+  и `NULL` (SQL `NOT IN` с `NULL` → false в WHERE), без отдельного предиката.
+- **`config/crawler.php`** → `proxy.policy` — четыре скоупа; `llm` несёт
+  `forbidden_countries` из `env('CRAWLER_PROXY_LLM_FORBIDDEN_COUNTRIES', 'RU')`, три
+  crawl-скоупа — пустой список (задел под их политику НЕ вводился — не в предмете item'а).
 
 **Known Deviations (статус 🟠, не 🟢):** item-коммит несёт дифф вне `Files` item'а —
-`app/Dto/Procurement/Proxy/**` (3 файла), `app/Exceptions/Procurement/NoProxyAvailableException.php`
-(контракт §9.1 нереализуем без них), `app/Models/Procurement/Crawler/{Proxy,ProxyTarget}.php`
-(только `@property`-докблоки — без них phpstan не видит атрибуты `casts()`-метода) и
-`phpstan-baseline.neon` (СОКРАЩЁН на 5 устаревших записей `ProxyPool.php`, вскрытых теми же
-докблоками). Подробности и обоснование каждого файла — `phases/P1.md` P1.4 Completion Notes.
+`tests/Unit/Llm/PrismGeminiProviderTest.php` (11 вызовов `new PrismGeminiProvider` переведены на
+локальную заглушку `nullOutboundProxy()` — конструктор провайдера перестал быть беспараметровым).
+Плюс Validation-критерий «`grep -rn "Services\\\\Procurement" app/Services/Llm` — пусто» не
+выполнен буквально: один пред-существующий хит (`PromptCanonReader.php:9`, коммит `2a140b9`, чужой
+этому item'у) — вне Scope P1.5, назван явно. Подробности — `phases/P1.md` P1.5 Completion Notes.
 
-Validation: `--filter=ProxyResolver` 10 passed/15 assertions, `--filter=ProxyCircuitBreaker` 9
-passed/24 assertions (оба на `6fc2e75`), все четыре обязательных тест-кейса Code Guidance
-поимённо; регрессия `--filter=ProxyPool` 6 passed, `--filter=CrawlerProxySettings` 2 passed; pint
-чисто; `phpstan analyse` — `[OK] No errors`; `grep "orderBy('fails_count')"
-app/Services/Procurement/Proxy` — пусто.
+Validation: `--filter=GeminiProxyRouting` 7 passed/10 assertions (инвариант-кейс §8 на трёх
+конфигурациях здоровья + позитивный кейс + фолбэк/исключение адаптера + seam-тест провайдера);
+регрессия `--filter=Llm` 120 passed/320 assertions, `--filter=ProxyResolver` 10 passed/15 assertions;
+pint чисто по всем 8 файлам диффа; `phpstan analyse` — `[OK] No errors`, baseline 69 записей до и
+после (не выросло).
 
 `plan-lint` — счёт см. ниже (после этого коммита bookkeeping).
 
-**Известное для следующих items (не блокер P1.5, факт видимости):**
+**Известное для следующих items (не блокер P1.6/P1.7, факт видимости):**
 
-- `ProxyPool::pick(target: …)` вызывает `whereJsonContains('targets', …)` на удалённой колонке —
-  упадёт SQL-ошибкой при непустом `target` до перевода call-site'ов (P1.6, D19); живого трафика в
-  этом окне нет (D36).
+- `ProxyPool::pick(target: …)` по-прежнему вызывает `whereJsonContains('targets', …)` на удалённой
+  колонке — упадёт SQL-ошибкой при непустом `target` до перевода call-site'ов (P1.6, D19); живого
+  трафика в этом окне нет (D36).
 - `app/Filament/Resources/Procurement/Crawler/Proxies/Schemas/ProxyForm.php` ссылается на снятое
-  поле `targets` — Filament вне Scope, чинится в P1.7.
-- `ProxyResolver::resolve()` НЕ содержит гейт запрещённых стран (§8) — P1.5 добавляет его поверх
-  этого же файла (уже в `Files` P1.5), не заново проектирует фильтр.
+  поле `targets` — чинится в P1.7.
+- `PromptCanonReader.php` несёт `use App\Services\Procurement\Contracts\DocumentAnalyzerRegistry`
+  внутри домена `Llm` (пред-существующий факт, коммит `2a140b9`, не предмет P1) —
+  **PROMOTE-CANDIDATE**: находка для отдельной ревизии домена `Llm`, не для этого плана.
 
-**Remaining:** 46 items из 50 (закрыто 4: 3 🟢 + 1 🟠). Фаза P1 — 3/8 🟢 (4 терминальных). Очередь
+**Remaining:** 45 items из 50 (закрыто 5: 3 🟢 + 2 🟠). Фаза P1 — 3/8 🟢 (5 терминальных). Очередь
 фаз (D63): `P1 → P2 → P3 → P5 → P6 → P4 → P7`.
 
 **Sources of truth:** `plan.md` (Meta v0.11.2, §3 Routing поitem'ный, §5 D1–D81, §4 Status Board
@@ -78,7 +76,7 @@ D71`, OQ-2…OQ-5) · `findings/` (слой 1) · `brief/` (слой 0) · `jour
 - **Инверсия семантики скоупа.** Пустой `scopes` = узел НЕ выдаётся; оператор обязан проставить
   скоупы при заведении узла, иначе пул пуст (fail-closed, сознательный выбор).
 - **`ProxyPool::pick(target:)` небезопасен до P1.6** — см. «Известное для следующих items» выше;
-  живого трафика нет (D36), но P1.5 НЕ должен звать `pick()` с непустым `target`.
+  живого трафика нет (D36), но эта опасность закрывается ИМЕННО P1.6.
 - **OQ-1 закрыт (D71 — одна БД), подтверждение упирается в границу измеримости:** `replica lag` и
   per-query contention снять нечем (D57); P7.3 подтверждает по измеримым с поимённым перечнем
   неизмеренного (D61).
@@ -97,18 +95,14 @@ D71`, OQ-2…OQ-5) · `findings/` (слой 1) · `brief/` (слой 0) · `jour
   Формулировки без слова-маркера уже стоят в Phase Context P1–P4 (см. предыдущий handoff).
   **PROMOTE-CANDIDATE:** негативный контекст обязан гасить детект.
 - **`docker compose` на хосте не поднимается** (`MINIO_ROOT_PASSWORD` отсутствует в окружении
-  сессии) — исполнитель P1.5 обязан использовать `docker exec agelto_app` вместо `docker compose
+  сессии) — исполнитель обязан использовать `docker exec agelto_app` вместо `docker compose
   exec app` буквально командой Validation, либо починить `.env` (чужой диф — не трогать без
   директивы владельца).
 - **Протокольная дыра (PROMOTE-CANDIDATE, не правится этим планом):** свип после отмены D-записи
   идёт по списку адресов, который пишет человек, и неполон там, где отменённое решение цитируется
   пересказом, а не номером.
-- **Files item'ов P1 не всегда полны для DTO/exception-типов, требуемых замороженным контрактом
-  (PROMOTE-CANDIDATE, факт P1.4).** `research/02` §9.1 предписывает точную сигнатуру
-  `resolve()`/`reportOutcome()`, но `Files` P1.4/P1.5/P1.6 называют только сервис-классы; типы
-  `ProxyLease`/`ProxyRequirements`/`ProxyOutcome`/`NoProxyAvailableException` пришлось заводить вне
-  списка (см. Known Deviations выше). P1.5/P1.6 эти типы УЖЕ существуют — доп. файлов по этой
-  причине больше не потребуется, но исполнителю следующих items полезно знать источник 🟠 P1.4.
+- **`PromptCanonReader.php` несёт пред-существующую ссылку на `Services\Procurement`** внутри
+  домена `Llm` — см. «Известное для следующих items» выше (PROMOTE-CANDIDATE, не предмет P1).
 
 **Workarounds/Deferred/Open questions:**
 
@@ -118,7 +112,9 @@ D71`, OQ-2…OQ-5) · `findings/` (слой 1) · `brief/` (слой 0) · `jour
   модели хранения → OQ-5 · переход транспорта ЕИС на XML/SOAP (D14) · переименование дисков в
   поколенческие имена — в момент cutover (D53) · судьба таблицы `cache` — находка ревизии P7.5
   (D75) · связь «выделенные узлы под конкретный профиль» (pivot `prc_crawler_proxy`) — названного
-  требования нет (`research/02` §14.1, D80) · починка `ProxyForm.php` (поле `targets`) — P1.7.
+  требования нет (`research/02` §14.1, D80) · починка `ProxyForm.php` (поле `targets`) — P1.7 ·
+  политика запретов/требований по стране для `crawl_*`/`document_download` скоупов — не заводилась
+  этим item'ом (только структура конфига под неё), не в предмете P1.5/P1.6.
 - *Open questions:* OQ-1 **закрыт** (D71) · OQ-2 (судьба `PromptContextGenerator`, снимает P2.5) ·
   OQ-3 (источник истины ЕИС, снимает P4.1) · OQ-4 (браузерный канал — решение владельца; форма
   контракта под него готова, `research/02` §9.3) · OQ-5 (продуктовый контур — основание отдельного
