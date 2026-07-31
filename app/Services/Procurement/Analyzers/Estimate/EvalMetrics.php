@@ -19,10 +19,10 @@ namespace App\Services\Procurement\Analyzers\Estimate;
  * сопоставления и сравнения значений — второй такой носитель разъехался бы с этим при первой же
  * правке (`plan-protocol` §3).
  *
- * Сметы сопоставляются ПОЗИЦИОННО (индекс в списке `estimates`, соответствующий возрастающему
- * `ordinal`) — эвристика сопоставления по номеру/заголовку не входит в Scope этого item'а
- * (Pending Work при появлении многосметных эталонов, `research/08-schema-change-impact.md` §7).
- * Строки внутри сметы сопоставляются по `row_index` (уникален в рамках сметы, D10/§4а); строки
+ * Сметы сопоставляются ЯВНЫМ ПАРНЫМ ПРОХОДОМ (P6.2, D54, единственный носитель правила —
+ * {@see self::matchEstimates()}): порядок правил `estimate_number` → `passport.address` →
+ * позиция среди оставшихся несопоставленными, каждое детерминированно и перечислимо. Строки
+ * внутри сметы сопоставляются по `row_index` (уникален в рамках сметы, D10/§4а); строки
  * итогов — по `(нормализованный label, kind)` (P7.3, `docs/specs/v2/08-estimate-extraction.md` §8.6).
  */
 final readonly class EvalMetrics
@@ -124,8 +124,10 @@ final readonly class EvalMetrics
      */
     public function compare(array $goldEstimates, array $predictedEstimates): array
     {
-        $goldRows = $this->flattenRows($goldEstimates);
-        $predictedRows = $this->flattenRows($predictedEstimates);
+        $matches = $this->matchEstimates($goldEstimates, $predictedEstimates);
+
+        $goldRows = $this->flattenRows($goldEstimates, $matches, forGold: true);
+        $predictedRows = $this->flattenRows($predictedEstimates, $matches, forGold: false);
 
         /** @var array<string, array{tp: int, fp: int, fn: int}> $counts */
         $counts = array_map(static fn (): array => ['tp' => 0, 'fp' => 0, 'fn' => 0], self::FIELD_MAP);
@@ -176,18 +178,189 @@ final readonly class EvalMetrics
             'overall' => $this->precisionRecallF1($totalTp, $totalFp, $totalFn),
             'row_coverage' => $rowCoverage,
             'passport' => $this->aggregateFieldMetrics(
-                $this->flattenPassport($goldEstimates),
-                $this->flattenPassport($predictedEstimates),
+                $this->flattenPassport($goldEstimates, $matches, forGold: true),
+                $this->flattenPassport($predictedEstimates, $matches, forGold: false),
                 array_combine(self::PASSPORT_FIELD_MAP, self::PASSPORT_FIELD_MAP),
                 self::PASSPORT_NUMERIC_FIELDS,
             ),
             'totals' => $this->aggregateFieldMetrics(
-                $this->flattenTotals($goldEstimates),
-                $this->flattenTotals($predictedEstimates),
+                $this->flattenTotals($goldEstimates, $matches, forGold: true),
+                $this->flattenTotals($predictedEstimates, $matches, forGold: false),
                 array_combine(self::TOTALS_FIELD_MAP, self::TOTALS_FIELD_MAP),
                 self::TOTALS_NUMERIC_FIELDS,
             ),
         ];
+    }
+
+    /**
+     * Явный парный проход «gold ↔ предсказание» (D54) — единственный носитель правила
+     * сопоставления смет, цитируется {@see EstimateDiffReport} через флэттен-методы ниже, не
+     * пересчитывается им заново. Порядок правил, КАЖДОЕ детерминированно и перечислимо:
+     * 1) точное совпадение нормализованного непустого `estimate_number`;
+     * 2) точное совпадение нормализованного непустого `passport.address`;
+     * 3) позиция среди оставшихся несопоставленными (относительный порядок сохраняется).
+     * Нормализация — {@see self::normalizeText()} (trim + схлопывание пробелов + регистронезависимо),
+     * новая не изобретается. Дубль нормализованного значения на ОДНОЙ стороне делает его
+     * неинформативным для ВСЕХ носителей на этой стороне (молчаливый выбор первого совпадения
+     * дал бы разное сопоставление при разном порядке входа) — такие сметы остаются
+     * несопоставленными этим правилом и падают на следующее. Непарная смета (после всех трёх
+     * правил) получает собственный слот без пары — она считается ЦЕЛИКОМ (FN у gold, FP у
+     * предсказания), а не молча теряется.
+     *
+     * @param  list<array<string, mixed>>  $goldEstimates
+     * @param  list<array<string, mixed>>  $predictedEstimates
+     * @return list<array{slot: int, gold_index: ?int, predicted_index: ?int, rule: ?string}> `rule`
+     *                                                                                        ∈ `estimate_number`|`address`|`position`|`null` (`null` — пары нет)
+     */
+    public function matchEstimates(array $goldEstimates, array $predictedEstimates): array
+    {
+        $unpairedGold = array_keys($goldEstimates);
+        $unpairedPredicted = array_keys($predictedEstimates);
+
+        $numberMatch = $this->matchByExactKey(
+            $unpairedGold,
+            $unpairedPredicted,
+            $this->normalizedKeyMap($goldEstimates, static fn (array $estimate): mixed => $estimate['estimate_number'] ?? null),
+            $this->normalizedKeyMap($predictedEstimates, static fn (array $estimate): mixed => $estimate['estimate_number'] ?? null),
+            'estimate_number',
+        );
+
+        $addressMatch = $this->matchByExactKey(
+            $numberMatch['unpairedGold'],
+            $numberMatch['unpairedPredicted'],
+            $this->normalizedKeyMap($goldEstimates, static fn (array $estimate): mixed => $estimate['passport']['address'] ?? null),
+            $this->normalizedKeyMap($predictedEstimates, static fn (array $estimate): mixed => $estimate['passport']['address'] ?? null),
+            'address',
+        );
+
+        $unpairedGold = $addressMatch['unpairedGold'];
+        $unpairedPredicted = $addressMatch['unpairedPredicted'];
+        $positionCount = min(count($unpairedGold), count($unpairedPredicted));
+        $positionPairs = [];
+
+        for ($i = 0; $i < $positionCount; $i++) {
+            $positionPairs[] = [$unpairedGold[$i], $unpairedPredicted[$i], 'position'];
+        }
+
+        $entries = [];
+
+        foreach ([...$numberMatch['pairs'], ...$addressMatch['pairs'], ...$positionPairs] as [$goldIndex, $predictedIndex, $rule]) {
+            $entries[] = ['gold_index' => $goldIndex, 'predicted_index' => $predictedIndex, 'rule' => $rule];
+        }
+
+        foreach (array_slice($unpairedGold, $positionCount) as $goldIndex) {
+            $entries[] = ['gold_index' => $goldIndex, 'predicted_index' => null, 'rule' => null];
+        }
+
+        foreach (array_slice($unpairedPredicted, $positionCount) as $predictedIndex) {
+            $entries[] = ['gold_index' => null, 'predicted_index' => $predictedIndex, 'rule' => null];
+        }
+
+        usort($entries, static fn (array $a, array $b): int => [$a['gold_index'] ?? PHP_INT_MAX, $a['predicted_index'] ?? PHP_INT_MAX]
+            <=> [$b['gold_index'] ?? PHP_INT_MAX, $b['predicted_index'] ?? PHP_INT_MAX]);
+
+        $result = [];
+
+        foreach ($entries as $slot => $entry) {
+            $result[] = ['slot' => $slot, ...$entry];
+        }
+
+        return $result;
+    }
+
+    /**
+     * @param  list<array<string, mixed>>  $estimates
+     * @param  callable(array<string, mixed>): mixed  $extractor
+     * @return array<int, ?string> индекс сметы в `$estimates` → нормализованное непустое значение,
+     *                             либо `null` (значение отсутствует/пустое)
+     */
+    private function normalizedKeyMap(array $estimates, callable $extractor): array
+    {
+        $map = [];
+
+        foreach ($estimates as $index => $estimate) {
+            $value = $extractor($estimate);
+            $map[$index] = $this->isPresent($value) ? $this->normalizeText((string) $value) : null;
+        }
+
+        return $map;
+    }
+
+    /**
+     * Один проход правила «точное совпадение нормализованного непустого ключа» — дубль значения
+     * на ОДНОЙ стороне исключает его из этого прохода для ВСЕХ носителей на этой стороне
+     * (см. докблок {@see self::matchEstimates()}).
+     *
+     * @param  list<int>  $unpairedGold
+     * @param  list<int>  $unpairedPredicted
+     * @param  array<int, ?string>  $goldKeys
+     * @param  array<int, ?string>  $predictedKeys
+     * @return array{pairs: list<array{0: int, 1: int, 2: string}>, unpairedGold: list<int>, unpairedPredicted: list<int>}
+     */
+    private function matchByExactKey(array $unpairedGold, array $unpairedPredicted, array $goldKeys, array $predictedKeys, string $rule): array
+    {
+        $goldCounts = [];
+
+        foreach ($unpairedGold as $goldIndex) {
+            $key = $goldKeys[$goldIndex] ?? null;
+
+            if ($key !== null) {
+                $goldCounts[$key] = ($goldCounts[$key] ?? 0) + 1;
+            }
+        }
+
+        $predictedCounts = [];
+        $predictedIndexByKey = [];
+
+        foreach ($unpairedPredicted as $predictedIndex) {
+            $key = $predictedKeys[$predictedIndex] ?? null;
+
+            if ($key !== null) {
+                $predictedCounts[$key] = ($predictedCounts[$key] ?? 0) + 1;
+                $predictedIndexByKey[$key] = $predictedIndex;
+            }
+        }
+
+        $pairs = [];
+        $matchedGold = [];
+        $matchedPredicted = [];
+
+        foreach ($unpairedGold as $goldIndex) {
+            $key = $goldKeys[$goldIndex] ?? null;
+
+            if ($key === null || $goldCounts[$key] !== 1 || ($predictedCounts[$key] ?? 0) !== 1) {
+                continue;
+            }
+
+            $predictedIndex = $predictedIndexByKey[$key];
+            $pairs[] = [$goldIndex, $predictedIndex, $rule];
+            $matchedGold[] = $goldIndex;
+            $matchedPredicted[] = $predictedIndex;
+        }
+
+        return [
+            'pairs' => $pairs,
+            'unpairedGold' => array_values(array_diff($unpairedGold, $matchedGold)),
+            'unpairedPredicted' => array_values(array_diff($unpairedPredicted, $matchedPredicted)),
+        ];
+    }
+
+    /**
+     * @param  list<array{slot: int, gold_index: ?int, predicted_index: ?int, rule: ?string}>  $matches
+     * @return array<int, int> индекс сметы своей стороны (`$forGold` — gold/предсказание) → номер слота
+     */
+    private function slotByOriginalIndex(array $matches, bool $forGold): array
+    {
+        $side = $forGold ? 'gold_index' : 'predicted_index';
+        $map = [];
+
+        foreach ($matches as $entry) {
+            if ($entry[$side] !== null) {
+                $map[$entry[$side]] = $entry['slot'];
+            }
+        }
+
+        return $map;
     }
 
     /**
@@ -224,13 +397,22 @@ final readonly class EvalMetrics
 
     /**
      * @param  list<array<string, mixed>>  $estimates
-     * @return array<string, array<string, mixed>> ключ "{индекс сметы}:{row_index}"
+     * @param  list<array{slot: int, gold_index: ?int, predicted_index: ?int, rule: ?string}>  $matches
+     *                                                                                                   {@see self::matchEstimates()}
+     * @return array<string, array<string, mixed>> ключ "{слот}:{row_index}"
      */
-    public function flattenRows(array $estimates): array
+    public function flattenRows(array $estimates, array $matches, bool $forGold): array
     {
+        $slotByIndex = $this->slotByOriginalIndex($matches, $forGold);
         $flat = [];
 
         foreach (array_values($estimates) as $estimateIndex => $estimate) {
+            $slot = $slotByIndex[$estimateIndex] ?? null;
+
+            if ($slot === null) {
+                continue;
+            }
+
             foreach ((array) ($estimate['rows'] ?? []) as $row) {
                 $rowIndex = $row['row_index'] ?? null;
 
@@ -238,7 +420,7 @@ final readonly class EvalMetrics
                     continue;
                 }
 
-                $flat["{$estimateIndex}:{$rowIndex}"] = (array) $row;
+                $flat["{$slot}:{$rowIndex}"] = (array) $row;
             }
         }
 
@@ -247,17 +429,26 @@ final readonly class EvalMetrics
 
     /**
      * @param  list<array<string, mixed>>  $estimates
-     * @return array<int, array<string, mixed>> ключ — индекс сметы; значение — плоская карта
+     * @param  list<array{slot: int, gold_index: ?int, predicted_index: ?int, rule: ?string}>  $matches
+     *                                                                                                   {@see self::matchEstimates()}
+     * @return array<int, array<string, mixed>> ключ — номер слота; значение — плоская карта
      *                                          `PASSPORT_FIELD_MAP`
      */
-    public function flattenPassport(array $estimates): array
+    public function flattenPassport(array $estimates, array $matches, bool $forGold): array
     {
+        $slotByIndex = $this->slotByOriginalIndex($matches, $forGold);
         $flat = [];
 
         foreach ($estimates as $estimateIndex => $estimate) {
+            $slot = $slotByIndex[$estimateIndex] ?? null;
+
+            if ($slot === null) {
+                continue;
+            }
+
             $passport = (array) ($estimate['passport'] ?? []);
 
-            $flat[$estimateIndex] = [
+            $flat[$slot] = [
                 'estimate_number' => $estimate['estimate_number'] ?? null,
                 'currency' => $estimate['currency'] ?? null,
                 'base_year' => $estimate['base_year'] ?? null,
@@ -291,15 +482,25 @@ final readonly class EvalMetrics
      * порядковая эвристика по позиции в дереве).
      *
      * @param  list<array<string, mixed>>  $estimates
+     * @param  list<array{slot: int, gold_index: ?int, predicted_index: ?int, rule: ?string}>  $matches
+     *                                                                                                   {@see self::matchEstimates()}
      * @return array<string, array{estimate_index: int, label: string, value: mixed, kind: mixed, chapter_number: mixed, rate: mixed}>
+     *                                                                                                                                 `estimate_index` — номер слота, не индекс списка `estimates` (D54)
      */
-    public function flattenTotals(array $estimates): array
+    public function flattenTotals(array $estimates, array $matches, bool $forGold): array
     {
+        $slotByIndex = $this->slotByOriginalIndex($matches, $forGold);
         $flat = [];
 
         foreach ($estimates as $estimateIndex => $estimate) {
+            $slot = $slotByIndex[$estimateIndex] ?? null;
+
+            if ($slot === null) {
+                continue;
+            }
+
             $footer = (array) ($estimate['totals']['footer'] ?? []);
-            $this->flattenTotalLines($footer, $estimateIndex, $flat);
+            $this->flattenTotalLines($footer, $slot, $flat);
         }
 
         return $flat;
@@ -309,16 +510,16 @@ final readonly class EvalMetrics
      * @param  list<array<string, mixed>>  $lines
      * @param  array<string, array{estimate_index: int, label: string, value: mixed, kind: mixed, chapter_number: mixed, rate: mixed}>  $flat
      */
-    private function flattenTotalLines(array $lines, int $estimateIndex, array &$flat): void
+    private function flattenTotalLines(array $lines, int $slot, array &$flat): void
     {
         foreach ($lines as $line) {
             $line = (array) $line;
             $label = (string) ($line['label'] ?? '');
             $kind = $line['kind'] ?? null;
-            $key = $estimateIndex.'::'.$this->normalizeText($label).'::'.($kind ?? '');
+            $key = $slot.'::'.$this->normalizeText($label).'::'.($kind ?? '');
 
             $flat[$key] = [
-                'estimate_index' => $estimateIndex,
+                'estimate_index' => $slot,
                 'label' => $label,
                 'value' => $line['value'] ?? null,
                 'kind' => $kind,
@@ -326,7 +527,7 @@ final readonly class EvalMetrics
                 'rate' => $line['rate'] ?? null,
             ];
 
-            $this->flattenTotalLines((array) ($line['children'] ?? []), $estimateIndex, $flat);
+            $this->flattenTotalLines((array) ($line['children'] ?? []), $slot, $flat);
         }
     }
 

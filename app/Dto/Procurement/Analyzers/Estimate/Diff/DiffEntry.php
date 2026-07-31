@@ -4,11 +4,16 @@ declare(strict_types=1);
 
 namespace App\Dto\Procurement\Analyzers\Estimate\Diff;
 
+use App\Services\Procurement\Analyzers\Estimate\EvalMetrics;
+
 /**
  * Одна запись расхождения «gold ↔ предсказание» (P7.3, `docs/specs/v2/08-estimate-extraction.md`
  * §8.6) — самодостаточна (адрес + оба значения), не полагается на соседние записи. Используется
  * во всех трёх группах отчёта (`rows`/`passport`/`totals`, `EstimateDiffReport`):
- * - estimateIndex: позиция сметы в списке `estimates` (та же позиционная адресация, что `EvalMetrics`).
+ * - estimateIndex: номер СЛОТА парного сопоставления смет (P6.2, D54: `estimate_number` →
+ *   `passport.address` → позиция среди оставшихся, {@see EvalMetrics::matchEstimates()}) —
+ *   НЕ позиция в исходном списке `estimates`; см. `DiffReport::$matches` для самой таблицы
+ *   сопоставления (слот → смета эталона, смета предсказания, сработавшее правило).
  * - rowIndex: `row_index` строки — только для группы `rows`; `null` у `passport`/`totals`.
  * - kind: `missing` (есть в gold, нет в предсказании) | `extra` (есть в предсказании, нет в gold) |
  *   `field_mismatch` (оба присутствуют, но значение поля расходится).

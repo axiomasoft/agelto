@@ -15,13 +15,14 @@ use App\Dto\Procurement\Analyzers\Estimate\EstimateTotalsBlock;
  * сравнения (P8.3). ЧИСТАЯ функция над массивами формы §8.2 (та же форма, что
  * `analysis.result.estimates[]`) — ни БД, ни сети, ни файлов, как {@see EvalMetrics}.
  *
- * Правило сопоставления и критерий совпадения значений — ОДИН носитель ({@see EvalMetrics}):
- * этот сервис только цитирует его `flattenRows()`/`flattenPassport()`/`flattenTotals()`/
- * `fieldsMatch()`, не пересчитывает их заново (иначе диагностика и агрегат метрики разъехались бы
- * при первой же правке правила сопоставления, `plan-protocol` §3). Арифметика — тем же приёмом
- * через {@see EstimateValidator}, отдельно по gold и по предсказанию: базисно-индексный расчёт
- * законно не сходится и у эталона (D42), отчёт обязан различать «модель ошиблась» и «документ
- * такой».
+ * Правило парного сопоставления смет (P6.2, D54, порядок: номер сметы → адрес паспорта →
+ * позиция среди оставшихся) и критерий совпадения значений — ОДИН носитель ({@see EvalMetrics}):
+ * этот сервис только цитирует его `matchEstimates()`/`flattenRows()`/`flattenPassport()`/
+ * `flattenTotals()`/`fieldsMatch()`, не пересчитывает их заново (иначе диагностика и агрегат
+ * метрики разъехались бы при первой же правке правила сопоставления, `plan-protocol` §3).
+ * Арифметика — тем же приёмом через {@see EstimateValidator}, отдельно по gold и по
+ * предсказанию: базисно-индексный расчёт законно не сходится и у эталона (D42), отчёт обязан
+ * различать «модель ошиблась» и «документ такой».
  */
 final readonly class EstimateDiffReport
 {
@@ -37,17 +38,19 @@ final readonly class EstimateDiffReport
     public function build(array $goldEstimates, array $predictedEstimates, ?int $limitRows = 200): DiffReport
     {
         $summary = $this->metrics->compare($goldEstimates, $predictedEstimates);
+        $matches = $this->metrics->matchEstimates($goldEstimates, $predictedEstimates);
 
-        $rowEntries = $this->diffRows($goldEstimates, $predictedEstimates);
+        $rowEntries = $this->diffRows($goldEstimates, $predictedEstimates, $matches);
         $totalRowEntries = count($rowEntries);
         $shownRowEntries = $limitRows === null ? $rowEntries : array_slice($rowEntries, 0, $limitRows);
 
-        $passportEntries = $this->diffPassport($goldEstimates, $predictedEstimates);
-        $totalsEntries = $this->diffTotals($goldEstimates, $predictedEstimates);
-        $arithmetic = $this->diffArithmetic($goldEstimates, $predictedEstimates);
+        $passportEntries = $this->diffPassport($goldEstimates, $predictedEstimates, $matches);
+        $totalsEntries = $this->diffTotals($goldEstimates, $predictedEstimates, $matches);
+        $arithmetic = $this->diffArithmetic($goldEstimates, $predictedEstimates, $matches);
 
         return new DiffReport(
             summary: $summary,
+            matches: $matches,
             rows: $shownRowEntries,
             passport: $passportEntries,
             totals: $totalsEntries,
@@ -60,12 +63,13 @@ final readonly class EstimateDiffReport
     /**
      * @param  list<array<string, mixed>>  $gold
      * @param  list<array<string, mixed>>  $predicted
+     * @param  list<array{slot: int, gold_index: ?int, predicted_index: ?int, rule: ?string}>  $matches
      * @return list<DiffEntry>
      */
-    private function diffRows(array $gold, array $predicted): array
+    private function diffRows(array $gold, array $predicted, array $matches): array
     {
-        $goldFlat = $this->metrics->flattenRows($gold);
-        $predictedFlat = $this->metrics->flattenRows($predicted);
+        $goldFlat = $this->metrics->flattenRows($gold, $matches, forGold: true);
+        $predictedFlat = $this->metrics->flattenRows($predicted, $matches, forGold: false);
 
         $entries = [];
 
@@ -108,12 +112,13 @@ final readonly class EstimateDiffReport
     /**
      * @param  list<array<string, mixed>>  $gold
      * @param  list<array<string, mixed>>  $predicted
+     * @param  list<array{slot: int, gold_index: ?int, predicted_index: ?int, rule: ?string}>  $matches
      * @return list<DiffEntry>
      */
-    private function diffPassport(array $gold, array $predicted): array
+    private function diffPassport(array $gold, array $predicted, array $matches): array
     {
-        $goldFlat = $this->metrics->flattenPassport($gold);
-        $predictedFlat = $this->metrics->flattenPassport($predicted);
+        $goldFlat = $this->metrics->flattenPassport($gold, $matches, forGold: true);
+        $predictedFlat = $this->metrics->flattenPassport($predicted, $matches, forGold: false);
 
         $entries = [];
 
@@ -139,12 +144,13 @@ final readonly class EstimateDiffReport
     /**
      * @param  list<array<string, mixed>>  $gold
      * @param  list<array<string, mixed>>  $predicted
+     * @param  list<array{slot: int, gold_index: ?int, predicted_index: ?int, rule: ?string}>  $matches
      * @return list<DiffEntry>
      */
-    private function diffTotals(array $gold, array $predicted): array
+    private function diffTotals(array $gold, array $predicted, array $matches): array
     {
-        $goldFlat = $this->metrics->flattenTotals($gold);
-        $predictedFlat = $this->metrics->flattenTotals($predicted);
+        $goldFlat = $this->metrics->flattenTotals($gold, $matches, forGold: true);
+        $predictedFlat = $this->metrics->flattenTotals($predicted, $matches, forGold: false);
 
         $entries = [];
 
@@ -183,21 +189,27 @@ final readonly class EstimateDiffReport
     }
 
     /**
+     * Каждая пара валидируется ОТДЕЛЬНО по своей стороне слота (не по общему списочному индексу,
+     * D54) — базисно-индексный расчёт законно не сходится и у эталона (D42), поэтому статусы двух
+     * сторон одного слота не подменяют друг друга при несовпадении списочных позиций.
+     *
      * @param  list<array<string, mixed>>  $gold
      * @param  list<array<string, mixed>>  $predicted
+     * @param  list<array{slot: int, gold_index: ?int, predicted_index: ?int, rule: ?string}>  $matches
      * @return list<array{estimate_index: int, predicted: array{status: string, anomalous_row_indexes: list<int>, notes: list<string>}|null, gold: array{status: string, anomalous_row_indexes: list<int>, notes: list<string>}|null}>
      */
-    private function diffArithmetic(array $gold, array $predicted): array
+    private function diffArithmetic(array $gold, array $predicted, array $matches): array
     {
-        $count = max(count($gold), count($predicted));
-
         $result = [];
 
-        for ($estimateIndex = 0; $estimateIndex < $count; $estimateIndex++) {
+        foreach ($matches as $entry) {
+            $goldEstimate = $entry['gold_index'] !== null ? ($gold[$entry['gold_index']] ?? null) : null;
+            $predictedEstimate = $entry['predicted_index'] !== null ? ($predicted[$entry['predicted_index']] ?? null) : null;
+
             $result[] = [
-                'estimate_index' => $estimateIndex,
-                'predicted' => $this->validateEstimate($predicted[$estimateIndex] ?? null),
-                'gold' => $this->validateEstimate($gold[$estimateIndex] ?? null),
+                'estimate_index' => $entry['slot'],
+                'predicted' => $this->validateEstimate($predictedEstimate),
+                'gold' => $this->validateEstimate($goldEstimate),
             ];
         }
 
@@ -259,7 +271,7 @@ final readonly class EstimateDiffReport
     }
 
     /**
-     * @return array{0: int, 1: int} [estimateIndex, rowIndex] — ключ `EvalMetrics::flattenRows()`
+     * @return array{0: int, 1: int} [слот, rowIndex] — ключ `EvalMetrics::flattenRows()`
      *                               гарантированно "{int}:{int}", разбор строкой безопасен.
      */
     private function splitRowKey(string $key): array

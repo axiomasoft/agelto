@@ -157,3 +157,20 @@ test('итоги: расхождение value сопоставленной ст
         ->and($mismatch->gold)->toBe('1000.00')
         ->and($mismatch->predicted)->toBe('1500.00');
 });
+
+test('таблица сопоставления смет (P6.2, D54): слот несёт индексы обеих сторон и сработавшее правило', function () {
+    $gold = [
+        diffEstimate([diffRow(1, ['name' => 'Кабель ВВГ'])], ['estimate_number' => 'ЛСР-2']),
+        diffEstimate([diffRow(1, ['name' => 'Розетка'])], ['estimate_number' => 'ЛСР-1']),
+    ];
+    $predicted = [
+        diffEstimate([diffRow(1, ['name' => 'Розетка'])], ['estimate_number' => 'ЛСР-1']),
+        diffEstimate([diffRow(1, ['name' => 'Кабель ВВГ'])], ['estimate_number' => 'ЛСР-2']),
+    ];
+
+    $report = diffReport()->build($gold, $predicted);
+
+    expect($report->matches)->toHaveCount(2)
+        ->and(collect($report->matches)->pluck('rule')->unique()->all())->toBe(['estimate_number'])
+        ->and($report->verdict)->toBe('расхождений нет');
+});

@@ -178,3 +178,134 @@ test('расширение EvalMetrics не ломает существующи�
     expect($metrics)->toHaveKeys(['per_field', 'overall', 'row_coverage', 'passport', 'totals'])
         ->and($metrics['overall']['f1'])->toBe(1.0);
 });
+
+/**
+ * Смета для многосметных тестов сопоставления (P6.2, D54) — `estimate_number`/`passport.address`
+ * настраиваемы, `rows` по умолчанию несёт одну уникальную строку.
+ */
+function matchableEstimate(array $overrides = []): array
+{
+    return array_merge([
+        'ordinal' => 1,
+        'estimate_number' => null,
+        'passport' => [],
+        'rows' => [goldRow(1)],
+    ], $overrides);
+}
+
+test('ключевой негативный кейс: матчинг по estimate_number переживает сдвиг на одну смету — обе реальные сметы дают полный recall (findings §3.4 — позиционно расклеивалось)', function () {
+    $e1 = matchableEstimate(['estimate_number' => 'ЛСР-1', 'rows' => [goldRow(1, ['name' => 'Кабель ВВГ'])]]);
+    $e2 = matchableEstimate(['estimate_number' => 'ЛСР-2', 'rows' => [goldRow(1, ['name' => 'Розетка'])]]);
+    $hallucinated = matchableEstimate(['estimate_number' => 'ЛСР-0', 'rows' => [goldRow(1, ['name' => 'Придуманная позиция'])]]);
+
+    $gold = [$e1, $e2];
+    $predicted = [$hallucinated, $e1, $e2];
+
+    $metrics = (new EvalMetrics)->compare($gold, $predicted);
+
+    // recall/row_coverage полные: обе реальные сметы сопоставлены верно вопреки сдвигу индекса;
+    // precision снижена ЗАКОНОМЕРНО — лишняя (хаотично вставленная) смета предсказания непарна и
+    // целиком FP (Implementation Rule 5), это не дефект пары, а корректный учёт шума.
+    expect($metrics['overall']['recall'])->toBe(1.0)
+        ->and($metrics['row_coverage'])->toBe(1.0);
+});
+
+test('матчинг по estimate_number не зависит от порядка списка (обратный порядок предсказания)', function () {
+    $e1 = matchableEstimate(['estimate_number' => 'ЛСР-1', 'rows' => [goldRow(1, ['name' => 'Кабель ВВГ'])]]);
+    $e2 = matchableEstimate(['estimate_number' => 'ЛСР-2', 'rows' => [goldRow(1, ['name' => 'Розетка'])]]);
+
+    $gold = [$e1, $e2];
+    $predicted = [$e2, $e1];
+
+    $metrics = (new EvalMetrics)->compare($gold, $predicted);
+
+    expect($metrics['overall']['f1'])->toBe(1.0)
+        ->and($metrics['row_coverage'])->toBe(1.0);
+});
+
+test('без estimate_number матчинг падает на passport.address', function () {
+    $gold = [
+        matchableEstimate(['passport' => ['address' => 'г. Москва, ул. Ленина, 1'], 'rows' => [goldRow(1, ['name' => 'Кабель ВВГ'])]]),
+        matchableEstimate(['passport' => ['address' => 'г. Москва, ул. Мира, 2'], 'rows' => [goldRow(1, ['name' => 'Розетка'])]]),
+    ];
+    $predicted = [
+        matchableEstimate(['passport' => ['address' => 'г. Москва, ул. Мира, 2'], 'rows' => [goldRow(1, ['name' => 'Розетка'])]]),
+        matchableEstimate(['passport' => ['address' => 'г. Москва, ул. Ленина, 1'], 'rows' => [goldRow(1, ['name' => 'Кабель ВВГ'])]]),
+    ];
+
+    $metrics = (new EvalMetrics)->compare($gold, $predicted);
+    $matches = (new EvalMetrics)->matchEstimates($gold, $predicted);
+
+    expect($metrics['overall']['f1'])->toBe(1.0)
+        ->and(collect($matches)->pluck('rule')->unique()->all())->toBe(['address']);
+});
+
+test('без estimate_number и passport.address матчинг падает на позицию среди оставшихся', function () {
+    $gold = [
+        matchableEstimate(['rows' => [goldRow(1, ['name' => 'Кабель ВВГ'])]]),
+        matchableEstimate(['rows' => [goldRow(1, ['name' => 'Розетка'])]]),
+    ];
+    $predicted = [
+        matchableEstimate(['rows' => [goldRow(1, ['name' => 'Кабель ВВГ'])]]),
+        matchableEstimate(['rows' => [goldRow(1, ['name' => 'Розетка'])]]),
+    ];
+
+    $matches = (new EvalMetrics)->matchEstimates($gold, $predicted);
+
+    expect($matches)->toHaveCount(2)
+        ->and($matches[0]['rule'])->toBe('position')
+        ->and($matches[1]['rule'])->toBe('position');
+});
+
+test('дубль estimate_number на одной стороне неинформативен для всех его носителей — матчинг падает на адрес', function () {
+    $gold = [
+        matchableEstimate(['estimate_number' => 'ЛСР-1', 'passport' => ['address' => 'Адрес A'], 'rows' => [goldRow(1, ['name' => 'Кабель ВВГ'])]]),
+        matchableEstimate(['estimate_number' => 'ЛСР-1', 'passport' => ['address' => 'Адрес B'], 'rows' => [goldRow(1, ['name' => 'Розетка'])]]),
+    ];
+    $predicted = [
+        matchableEstimate(['estimate_number' => 'ЛСР-1', 'passport' => ['address' => 'Адрес A'], 'rows' => [goldRow(1, ['name' => 'Кабель ВВГ'])]]),
+        matchableEstimate(['estimate_number' => 'ЛСР-1', 'passport' => ['address' => 'Адрес B'], 'rows' => [goldRow(1, ['name' => 'Розетка'])]]),
+    ];
+
+    $matches = (new EvalMetrics)->matchEstimates($gold, $predicted);
+
+    expect(collect($matches)->pluck('rule')->unique()->all())->toBe(['address']);
+});
+
+test('непарная смета эталона получает собственный слот без пары и считается целиком FN', function () {
+    $gold = [
+        matchableEstimate(['estimate_number' => 'ЛСР-1', 'rows' => [goldRow(1, ['name' => 'Кабель ВВГ'])]]),
+        matchableEstimate(['estimate_number' => 'ЛСР-2', 'rows' => [goldRow(1, ['name' => 'Розетка'])]]),
+    ];
+    $predicted = [
+        matchableEstimate(['estimate_number' => 'ЛСР-1', 'rows' => [goldRow(1, ['name' => 'Кабель ВВГ'])]]),
+    ];
+
+    $matches = (new EvalMetrics)->matchEstimates($gold, $predicted);
+    $metrics = (new EvalMetrics)->compare($gold, $predicted);
+
+    $unpaired = collect($matches)->first(fn (array $entry): bool => $entry['predicted_index'] === null);
+
+    expect($unpaired)->not->toBeNull()
+        ->and($unpaired['rule'])->toBeNull()
+        ->and($metrics['overall']['recall'])->toBeLessThan(1.0);
+});
+
+test('непарная смета предсказания получает собственный слот без пары и считается целиком FP', function () {
+    $gold = [
+        matchableEstimate(['estimate_number' => 'ЛСР-1', 'rows' => [goldRow(1, ['name' => 'Кабель ВВГ'])]]),
+    ];
+    $predicted = [
+        matchableEstimate(['estimate_number' => 'ЛСР-1', 'rows' => [goldRow(1, ['name' => 'Кабель ВВГ'])]]),
+        matchableEstimate(['estimate_number' => 'ЛСР-2', 'rows' => [goldRow(1, ['name' => 'Придуманная позиция'])]]),
+    ];
+
+    $matches = (new EvalMetrics)->matchEstimates($gold, $predicted);
+    $metrics = (new EvalMetrics)->compare($gold, $predicted);
+
+    $unpaired = collect($matches)->first(fn (array $entry): bool => $entry['gold_index'] === null);
+
+    expect($unpaired)->not->toBeNull()
+        ->and($unpaired['rule'])->toBeNull()
+        ->and($metrics['overall']['precision'])->toBeLessThan(1.0);
+});
