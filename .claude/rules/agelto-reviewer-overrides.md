@@ -38,6 +38,9 @@ Upgrade: harness agent-packs upgrade --pack backend-laravel --target .
 - `EstimateExtractionJob`/наследники checkpoint-requeue переведены на `ShouldBeUnique` вместо
   `ShouldBeUniqueUntilProcessing` — блокирующее (self-dispatch продолжения тихо дедуплицируется,
   документ зависает в extraction, D39).
+- Реальный LLM-вызов из команды экспорта датасета (`estimate:dataset:export`) — блокирующее:
+  команда только читает уже сохранённый gold, вызов провайдера здесь означает деньги/недетерминизм
+  на путях, которые обязаны быть чистым чтением БД (P7.1, D56).
 
 ## Статический анализ (`docs/03_Dev/static-analysis.md`)
 

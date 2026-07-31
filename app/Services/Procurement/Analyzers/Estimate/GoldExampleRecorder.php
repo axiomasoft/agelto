@@ -63,6 +63,7 @@ final readonly class GoldExampleRecorder
 
         DatasetExample::query()->create([
             'document_version_id' => $analysis->document_version_id,
+            'analysis_id' => $analysis->id,
             // Извлечение сегодня — исключительно про сметы (D14, второй тип не реализован);
             // тот же fallback, что `ExtractionOrchestrator`/`RerunRangeAction` уже применяют
             // к `$analysis->document_type` при разборе смет вне явного скрининга.

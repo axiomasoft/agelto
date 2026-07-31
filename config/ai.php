@@ -510,4 +510,21 @@ return [
         // `estimates/reports/` в репозитории не существует.
         'reports_dir' => env('AI_FIXTURES_REPORTS_DIR', base_path('estimates/reports')),
     ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Экспорт под локальную LLM (`estimate:dataset:export`, P7.1, D56)
+    |--------------------------------------------------------------------------
+    |
+    | `representation_priority` — порядок kind'ов `prc_document_representations`, из которых
+    | `DatasetInputBuilder` берёт ТЕКСТ во вход обучающей строки (первое существующее представление
+    | с `mime`, начинающимся на `text/`); `structured_xml` исключён явно самим строителем, в список
+    | политики не входит. `max_input_chars` — потолок ЗАДАН ТЗ до данных (D56): сдвиг после первого
+    | прогона «чтобы вошло больше» — подгонка, запрещена, изменение только новым D#.
+    |
+    */
+    'dataset_export' => [
+        'representation_priority' => ['text_grid', 'text'],
+        'max_input_chars' => (int) env('AI_DATASET_EXPORT_MAX_INPUT_CHARS', 300_000),
+    ],
 ];

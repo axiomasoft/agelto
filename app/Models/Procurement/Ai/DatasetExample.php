@@ -17,9 +17,13 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * Эталонный пример (gold) для датасета оценки качества AI-анализа.
  *
  * @property int $document_version_id
+ * @property string $document_type
  * @property string $source
+ * @property int $version
+ * @property int|null $analysis_id
  * @property-read DocumentVersion|null $documentVersion
  * @property-read Fixture|null $fixture
+ * @property-read Analysis|null $analysis
  */
 #[UseFactory(DatasetExampleFactory::class)]
 final class DatasetExample extends Model
@@ -31,6 +35,7 @@ final class DatasetExample extends Model
     protected $fillable = [
         'document_version_id',
         'fixture_id',
+        'analysis_id',
         'document_type',
         'task',
         'gold',
@@ -63,5 +68,10 @@ final class DatasetExample extends Model
     public function fixture(): BelongsTo
     {
         return $this->belongsTo(related: Fixture::class);
+    }
+
+    public function analysis(): BelongsTo
+    {
+        return $this->belongsTo(related: Analysis::class);
     }
 }

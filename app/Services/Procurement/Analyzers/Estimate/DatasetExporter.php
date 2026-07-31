@@ -4,145 +4,271 @@ declare(strict_types=1);
 
 namespace App\Services\Procurement\Analyzers\Estimate;
 
-use App\Dto\Procurement\Analyzers\Estimate\RowsChunkResponse;
-use App\Enums\Procurement\AnalysisStep;
-use App\Enums\Procurement\Analyzers\Estimate\EstimatePromptStep;
+use App\Models\Procurement\Ai\Analysis;
 use App\Models\Procurement\Ai\DatasetExample;
-use App\Models\Procurement\Document\DocumentVersion;
 use App\Repositories\Procurement\AnalysisReadRepository;
 use App\Repositories\Procurement\DatasetExampleReadRepository;
-use App\Services\Llm\PromptComposer;
+use RuntimeException;
 
 /**
- * Экспорт `prc_ai_dataset_examples` (gold, P9.3/D15/D16) в обучающий датасет
- * (`estimate:dataset:export`, вынесено из `DatasetExportCommand`, P3.3):
- * - `sft` — JSONL chat-format (D16-стек: Qwen3-4B/8B QLoRA-SFT). `system` — та же композиция,
- *   что боевой `extract_rows`-вызов (`PromptComposer`, переиспользована буквально). `assistant` —
- *   `{rows, incomplete_items}` того же контракта, что `RowsChunkResponse` (§3.2). `user` —
- *   ВОСПРОИЗВОДИМАЯ ссылка на документ (document_version_id + storage_path), НЕ сам текст
- *   документа: распознавание документа — отдельный, ЕЩЁ НЕ РЕАЛИЗОВАННЫЙ этап подготовки корпуса
- *   (deferred, см. handoff P9.2/P9.3).
- * - `dpo` — preference-пары chosen(gold)/rejected(`Analysis.result` предшественника), только там,
- *   где `example->source === 'corrected'` (P9.3 ревью, MED-фикс): напрямую сравнивать `chosen`
- *   (нормализованный контракт) с `rejected` (сырой `Analysis.result`) на строковое равенство
- *   НЕЛЬЗЯ — представления структурно различаются ВСЕГДА. `source` уже хранит именно этот сигнал
- *   (`GoldExampleRecorder`: `corrected` ⟺ у прямого предшественника есть применённая коррекция).
+ * Экспорт `prc_ai_dataset_examples` (gold) в обучающий датасет (`estimate:dataset:export`, P7.1,
+ * D56):
+ * - `sft` — JSONL chat-format. `system`/`user` строятся {@see DatasetInputBuilder} (ЕДИНЫЙ
+ *   строитель входа для обоих форматов) — `user` несёт ФАКТИЧЕСКИЙ текст представления документа
+ *   (`prc_document_representations`), а не ссылку. `assistant` — `{rows, incomplete_items}`
+ *   контракта шага строк (§3.2 спеки).
+ * - `dpo` — preference-пары `chosen`(gold-снапшот)/`rejected`(`Analysis.result` предшественника):
+ *   предшественник резолвится через СОХРАНЁННЫЙ `analysis_id` записи (D56) — резолв через активный
+ *   анализ версии документа резолвил бы ОДИН И ТОТ ЖЕ предшественник для каждой gold-версии,
+ *   чинимый этим item'ом дефект.
+ *
+ * Основание доверия (запись экспортируема ⟺ `source=deterministic` ИЛИ непустой `verified_at`) и
+ * счётчики пропусков — {@see DatasetExampleReadRepository}. Пропуск ВСЕГДА считается и печатается
+ * с причиной (`skipped`, манифест) — молчаливого исключения нет.
  */
 final readonly class DatasetExporter
 {
+    private const EXPORTER_VERSION = 2;
+
     public function __construct(
-        private PromptComposer $prompts,
         private DatasetExampleReadRepository $examples,
         private AnalysisReadRepository $analyses,
-        private EstimateStepDictionaries $dictionaries,
+        private DatasetInputBuilder $inputBuilder,
+        private EvalSplitPlanner $splitPlanner,
     ) {}
 
     /**
-     * @return array{0: int, 1: resource}
+     * @param  list<string>  $sources
+     * @return array{0: array{examples: int, skipped: array<string, int>, by_source: array<string, int>, by_split: array<string, int>, by_representation_kind: array<string, int>, prompt_version_set: array<string, int>, rules_hash: string, warnings: list<string>}, 1: resource}
      */
-    public function export(string $format, string $task): array
+    public function export(string $format, string $task, string $split, array $sources, string $dpoSchema): array
     {
-        return $format === 'sft' ? $this->writeSft($task) : $this->writeDpo($task);
+        return $format === 'sft'
+            ? $this->writeSft($task, $split, $sources)
+            : $this->writeDpo($task, $split, $sources, $dpoSchema);
     }
 
     /**
-     * @return array{0: int, 1: resource}
+     * @param  list<string>  $sources
+     * @return array{0: array{examples: int, skipped: array<string, int>, by_source: array<string, int>, by_split: array<string, int>, by_representation_kind: array<string, int>, prompt_version_set: array<string, int>, rules_hash: string, warnings: list<string>}, 1: resource}
      */
-    private function writeSft(string $task): array
+    private function writeSft(string $task, string $split, array $sources): array
     {
-        $composed = $this->prompts->compose(
-            EstimatePromptStep::ExtractionRows,
-            [RowsChunkResponse::class, ...$this->dictionaries->forStep(EstimatePromptStep::ExtractionRows)],
-        );
+        $composed = $this->inputBuilder->composePrompt();
+        [$holdoutCodes, $warnings] = $this->loadHoldoutCodes();
+
         $stream = fopen('php://temp', 'w+');
         $count = 0;
+        $skipped = ['not_trusted' => $this->examples->countNotTrusted($task, $sources)];
+        $bySource = [];
+        $bySplit = [];
+        $byRepresentationKind = [];
 
-        foreach ($this->examples->goldExamples($task)->with('documentVersion')->cursor() as $example) {
-            /** @var DocumentVersion|null $version */
-            $version = $example->documentVersion;
+        foreach ($this->examples->exportableSft($task, $sources) as $example) {
+            /** @var DatasetExample $example */
+            $rowSplit = $this->splitOf($example, $holdoutCodes);
+
+            if ($split !== 'all' && $rowSplit !== $split) {
+                continue;
+            }
+
+            $resolved = $this->inputBuilder->resolveInput($example->documentVersion);
+
+            if (isset($resolved['skip'])) {
+                $skipped[$resolved['skip']] = ($skipped[$resolved['skip']] ?? 0) + 1;
+
+                continue;
+            }
+
             $estimates = (array) ($example->gold?->get('estimates') ?? []);
 
             foreach ($estimates as $estimate) {
                 $line = [
                     'messages' => [
                         ['role' => 'system', 'content' => $composed->systemPart],
-                        ['role' => 'user', 'content' => $this->userTurn($version, (array) $estimate)],
+                        ['role' => 'user', 'content' => $this->inputBuilder->userTurn(
+                            $resolved['text'],
+                            isset($estimate['ordinal']) ? (int) $estimate['ordinal'] : null,
+                            $estimate['estimate_number'] ?? null,
+                        )],
                         ['role' => 'assistant', 'content' => json_encode([
                             'rows' => $estimate['rows'] ?? [],
                             'incomplete_items' => [],
                         ], JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE)],
                     ],
+                    'meta' => $this->rowMeta($example, $rowSplit, $resolved['representation_kind']->value),
                 ];
 
                 fwrite($stream, json_encode($line, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE)."\n");
                 $count++;
+                $bySource[$example->source] = ($bySource[$example->source] ?? 0) + 1;
+                $bySplit[$rowSplit] = ($bySplit[$rowSplit] ?? 0) + 1;
+                $byRepresentationKind[$resolved['representation_kind']->value] = ($byRepresentationKind[$resolved['representation_kind']->value] ?? 0) + 1;
             }
         }
 
         rewind($stream);
 
-        return [$count, $stream];
+        return [[
+            'examples' => $count,
+            'skipped' => array_filter($skipped),
+            'by_source' => $bySource,
+            'by_split' => $bySplit,
+            'by_representation_kind' => $byRepresentationKind,
+            'prompt_version_set' => $composed->promptVersionSet,
+            'rules_hash' => $composed->rulesHash,
+            'warnings' => $warnings,
+        ], $stream];
     }
 
     /**
-     * @return array{0: int, 1: resource}
+     * @param  list<string>  $sources
+     * @return array{0: array{examples: int, skipped: array<string, int>, by_source: array<string, int>, by_split: array<string, int>, by_representation_kind: array<string, int>, prompt_version_set: array<string, int>, rules_hash: string, warnings: list<string>}, 1: resource}
      */
-    private function writeDpo(string $task): array
+    private function writeDpo(string $task, string $split, array $sources, string $dpoSchema): array
     {
+        $composed = $this->inputBuilder->composePrompt();
+        [$holdoutCodes, $warnings] = $this->loadHoldoutCodes();
+
         $stream = fopen('php://temp', 'w+');
         $count = 0;
+        $skipped = [
+            'not_trusted' => $this->examples->countUntrustedCorrected($task, $sources),
+            'no_analysis_id' => $this->examples->countMissingAnalysisId($task, $sources),
+        ];
+        $bySource = [];
+        $bySplit = [];
+        $byRepresentationKind = [];
 
-        foreach ($this->examples->goldExamples($task)->cursor() as $example) {
+        foreach ($this->examples->exportableDpo($task, $sources) as $example) {
             /** @var DatasetExample $example */
-            $activeAnalysis = $this->analyses->activeForVersion($example->document_version_id, AnalysisStep::Extraction);
+            /** @var Analysis|null $analysis */
+            $analysis = $example->analysis;
 
-            if ($activeAnalysis === null || $activeAnalysis->parent_analysis_id === null) {
+            if ($analysis === null || $analysis->parent_analysis_id === null) {
+                $skipped['no_parent_analysis'] = ($skipped['no_parent_analysis'] ?? 0) + 1;
+
                 continue;
             }
 
-            $parent = $this->analyses->parentOf($activeAnalysis);
+            $parent = $this->analyses->parentOf($analysis);
 
             if ($parent === null || $parent->result === null) {
+                $skipped['parent_result_empty'] = ($skipped['parent_result_empty'] ?? 0) + 1;
+
                 continue;
             }
 
-            if ($example->source !== 'corrected') {
-                // Оператор одобрил сырой вывод без правок (source=llm) — chosen/rejected
-                // структурно различаются ВСЕГДА (нормализация маппера vs сырой result), поэтому
-                // единственный надёжный сигнал «пары не было» — флаг source, не JSON-сравнение.
+            $rowSplit = $this->splitOf($example, $holdoutCodes);
+
+            if ($split !== 'all' && $rowSplit !== $split) {
+                continue;
+            }
+
+            $resolved = $this->inputBuilder->resolveInput($example->documentVersion);
+
+            if (isset($resolved['skip'])) {
+                $skipped[$resolved['skip']] = ($skipped[$resolved['skip']] ?? 0) + 1;
+
                 continue;
             }
 
             $chosen = json_encode($example->gold?->get('estimates') ?? [], JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE);
             $rejected = json_encode($parent->result->get('estimates') ?? [], JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE);
+            $userPart = $this->inputBuilder->userTurn($resolved['text'], null, null);
 
-            fwrite($stream, json_encode([
-                'prompt' => "document_version_id={$example->document_version_id}",
-                'chosen' => $chosen,
-                'rejected' => $rejected,
-            ], JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE)."\n");
+            $line = $this->dpoRow($dpoSchema, $composed->systemPart, $userPart, $chosen, $rejected);
+            $line['meta'] = $this->rowMeta($example, $rowSplit, $resolved['representation_kind']->value);
+
+            fwrite($stream, json_encode($line, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE)."\n");
             $count++;
+            $bySource[$example->source] = ($bySource[$example->source] ?? 0) + 1;
+            $bySplit[$rowSplit] = ($bySplit[$rowSplit] ?? 0) + 1;
+            $byRepresentationKind[$resolved['representation_kind']->value] = ($byRepresentationKind[$resolved['representation_kind']->value] ?? 0) + 1;
         }
 
         rewind($stream);
 
-        return [$count, $stream];
+        return [[
+            'examples' => $count,
+            'skipped' => array_filter($skipped),
+            'by_source' => $bySource,
+            'by_split' => $bySplit,
+            'by_representation_kind' => $byRepresentationKind,
+            'prompt_version_set' => $composed->promptVersionSet,
+            'rules_hash' => $composed->rulesHash,
+            'warnings' => $warnings,
+        ], $stream];
     }
 
     /**
-     * @param  array<string, mixed>  $estimate
+     * @return array<string, mixed>
      */
-    private function userTurn(?DocumentVersion $version, array $estimate): string
+    private function dpoRow(string $schema, string $systemPart, string $userPart, string $chosen, string $rejected): array
     {
-        $reference = $version === null
-            ? 'документ недоступен (document_version удалена)'
-            : "document_version_id={$version->id}, файл «{$version->filename}» (storage_path={$version->storage_path})";
+        if ($schema === 'standard') {
+            return [
+                'prompt' => $systemPart."\n\n---\n\n".$userPart,
+                'chosen' => $chosen,
+                'rejected' => $rejected,
+            ];
+        }
 
-        $number = $estimate['estimate_number'] ?? null;
-        $label = $number !== null ? " №{$number}" : '';
+        return [
+            'prompt' => [
+                ['role' => 'system', 'content' => $systemPart],
+                ['role' => 'user', 'content' => $userPart],
+            ],
+            'chosen' => [['role' => 'assistant', 'content' => $chosen]],
+            'rejected' => [['role' => 'assistant', 'content' => $rejected]],
+        ];
+    }
 
-        return "Извлеки все строки сметы{$label} из документа: {$reference}. "
-            .'ПРИМЕЧАНИЕ: текст документа в этом экспорте НЕ подставлен — распознавание документа '
-            .'(OCR/vision-транскрипция) выполняется отдельным, ещё не реализованным этапом подготовки корпуса.';
+    /**
+     * @return array{fixture_code: string|null, document_type: string, split: string, source: string, trust: string, representation_kind: string, document_version_id: int, example_version: int}
+     */
+    private function rowMeta(DatasetExample $example, string $split, string $representationKind): array
+    {
+        return [
+            'fixture_code' => $example->fixture?->code,
+            'document_type' => $example->document_type,
+            'split' => $split,
+            'source' => $example->source,
+            'trust' => $example->source === 'deterministic' ? 'deterministic' : 'human',
+            'representation_kind' => $representationKind,
+            'document_version_id' => $example->document_version_id,
+            'example_version' => $example->version,
+        ];
+    }
+
+    private function splitOf(DatasetExample $example, array $holdoutCodes): string
+    {
+        $code = $example->fixture?->code;
+
+        if ($code === null) {
+            return 'none';
+        }
+
+        return in_array($code, $holdoutCodes, true) ? 'holdout' : 'tune';
+    }
+
+    /**
+     * `estimates/eval-splits.json` отсутствует → `split=none` у ВСЕХ строк + предупреждение в
+     * сводке (Implementation Rules P7.1) — не СТОП: экспорт легален и без файла разбиения.
+     *
+     * @return array{0: list<string>, 1: list<string>}
+     */
+    private function loadHoldoutCodes(): array
+    {
+        try {
+            return [$this->splitPlanner->loadHoldoutCodes(), []];
+        } catch (RuntimeException) {
+            return [[], ['estimates/eval-splits.json не найден — все строки помечены split=none.']];
+        }
+    }
+
+    public static function exporterVersion(): int
+    {
+        return self::EXPORTER_VERSION;
     }
 }
