@@ -3,6 +3,8 @@
 declare(strict_types=1);
 
 use App\Enums\Procurement\ProcurementStatus;
+use App\Enums\Procurement\ProxyScope;
+use App\Models\Procurement\Crawler\Proxy;
 use App\Models\Procurement\Platform\Registry;
 use App\Models\Procurement\Procurement;
 use Illuminate\Console\Command;
@@ -51,6 +53,10 @@ function fakeFetchDetailsHttp(): void
 beforeEach(function () {
     Sleep::fake();
     Storage::fake('s3');
+    // Активные узлы скоупов `crawl_detail`/`document_download` (research/02 §9.1, P1.6) —
+    // резолвер прокси не выдаёт лизу без кандидата, детальный анализ резолвит их на каждый вызов.
+    Proxy::factory()->withScopes([ProxyScope::CrawlDetail])->create();
+    Proxy::factory()->withScopes([ProxyScope::DocumentDownload])->create();
 });
 
 test('снимает детальный слой по явному id закупки', function () {

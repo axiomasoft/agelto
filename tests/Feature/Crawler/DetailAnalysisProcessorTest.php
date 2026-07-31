@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 use App\Enums\Procurement\DocumentStatus;
 use App\Enums\Procurement\ProcurementStatus;
+use App\Enums\Procurement\ProxyScope;
+use App\Models\Procurement\Crawler\Proxy;
 use App\Models\Procurement\Document\Document;
 use App\Models\Procurement\EisDetails;
 use App\Models\Procurement\Platform\Registry;
@@ -16,6 +18,16 @@ use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Sleep;
 use Tests\Support\Doubles\Crawler\CardHtmlFixture;
+
+/**
+ * Активные узлы скоупов `crawl_detail` и `document_download` (research/02 §9.1, P1.6) —
+ * стадия детального анализа снимает и вкладку карточки, и файлы документов.
+ */
+function activeDetailAnalysisProxies(): void
+{
+    Proxy::factory()->withScopes([ProxyScope::CrawlDetail])->create();
+    Proxy::factory()->withScopes([ProxyScope::DocumentDownload])->create();
+}
 
 function detailAnalysisRegistry(): Registry
 {
@@ -59,6 +71,7 @@ function fakeDetailAnalysisHttp(): void
 test('run наполняет все вкладки-таблицы и ставит detail_fetched_at', function () {
     Sleep::fake();
     Storage::fake('s3');
+    activeDetailAnalysisProxies();
     $registry = detailAnalysisRegistry();
     $procurement = Procurement::factory()->create([
         'registry_id' => $registry->id,
@@ -86,6 +99,7 @@ test('run наполняет все вкладки-таблицы и стави�
 test('run скачивает документы, снятые с вкладки documents', function () {
     Sleep::fake();
     Storage::fake('s3');
+    activeDetailAnalysisProxies();
     $registry = detailAnalysisRegistry();
     $procurement = Procurement::factory()->create([
         'registry_id' => $registry->id,
@@ -103,6 +117,7 @@ test('run скачивает документы, снятые с вкладки 
 test('падение снятия карточки уходит в error-блок, detail_fetched_at не ставится, другие закупки не затронуты', function () {
     Sleep::fake();
     Storage::fake('s3');
+    activeDetailAnalysisProxies();
     $registry = detailAnalysisRegistry();
     $healthy = Procurement::factory()->create([
         'registry_id' => $registry->id,

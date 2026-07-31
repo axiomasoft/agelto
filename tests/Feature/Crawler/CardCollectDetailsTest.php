@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 use App\Dto\Procurement\ProcurementDetails;
 use App\Enums\Procurement\ProcurementStatus;
+use App\Enums\Procurement\ProxyScope;
+use App\Models\Procurement\Crawler\Proxy;
 use App\Models\Procurement\Platform\Registry;
 use App\Models\Procurement\Procurement;
 use App\Services\Procurement\Eis\CsvSourceMethod;
@@ -12,6 +14,15 @@ use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Sleep;
 use Tests\Support\Doubles\Crawler\CardHtmlFixture;
+
+/**
+ * Активный узел скоупа `crawl_detail` (research/02 §9.1, P1.6) — резолвер не выдаёт лизу без
+ * кандидата, `collectDetails()` теперь резолвит прокси на каждую вкладку карточки.
+ */
+function activeDetailProxy(): Proxy
+{
+    return Proxy::factory()->withScopes([ProxyScope::CrawlDetail])->create();
+}
 
 function fakeCardRegistry(): Registry
 {
@@ -43,6 +54,7 @@ function fakeCardHttp(): void
 
 test('collectDetails возвращает ProcurementDetails с сырым HTML всех вкладок завершённой закупки', function () {
     Sleep::fake();
+    activeDetailProxy();
     $registry = fakeCardRegistry();
     Procurement::factory()->create([
         'registry_id' => $registry->id,
@@ -64,6 +76,7 @@ test('collectDetails возвращает ProcurementDetails с сырым HTML 
 
 test('collectDetails не забирает supplier-results для незавершённой закупки', function () {
     Sleep::fake();
+    activeDetailProxy();
     $registry = fakeCardRegistry();
     Procurement::factory()->create([
         'registry_id' => $registry->id,
@@ -83,6 +96,7 @@ test('collectDetails не забирает supplier-results для незаве�
 test('collectDetails кладёт сырой HTML в storage gzip при включённом retention', function () {
     Sleep::fake();
     Storage::fake('s3');
+    activeDetailProxy();
     config(['crawler.raw_html_retention_enabled' => true]);
     $registry = fakeCardRegistry();
     Procurement::factory()->create([
@@ -101,6 +115,7 @@ test('collectDetails кладёт сырой HTML в storage gzip при вкл�
 test('collectDetails не пишет в storage когда retention выключен', function () {
     Sleep::fake();
     Storage::fake('s3');
+    activeDetailProxy();
     config(['crawler.raw_html_retention_enabled' => false]);
     $registry = fakeCardRegistry();
     Procurement::factory()->create([

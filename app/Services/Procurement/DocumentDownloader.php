@@ -4,12 +4,18 @@ declare(strict_types=1);
 
 namespace App\Services\Procurement;
 
+use App\Dto\Procurement\Proxy\ProxyLease;
+use App\Dto\Procurement\Proxy\ProxyOutcome;
 use App\Enums\Procurement\DocumentStatus;
 use App\Enums\Procurement\ProcurementEventType;
+use App\Enums\Procurement\ProxyFailureReason;
+use App\Enums\Procurement\ProxyScope;
 use App\Models\Procurement\Document\Document;
 use App\Models\Procurement\Document\DocumentVersion;
 use App\Repositories\Procurement\DocumentStoreRepository;
 use App\Repositories\Procurement\ProcurementStoreRepository;
+use App\Services\Procurement\Proxy\ProxyResolver;
+use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\RequestException;
 use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Http;
@@ -26,7 +32,7 @@ use Illuminate\Support\Facades\Storage;
 final readonly class DocumentDownloader
 {
     public function __construct(
-        private ProxyPool $proxyPool,
+        private ProxyResolver $proxyResolver,
         private PoliteThrottle $throttle,
         private DocumentStoreRepository $storeRepository,
         private ProcurementStoreRepository $procurementStore,
@@ -81,11 +87,11 @@ final readonly class DocumentDownloader
 
     private function fetch(string $url): string
     {
-        $proxy = $this->proxyPool->pick(target: $url);
+        $lease = $this->proxyResolver->resolve(ProxyScope::DocumentDownload, $this->canonicalHost($url));
 
         $this->throttle->wait();
 
-        $response = $this->request(url: $url, proxy: $proxy !== null ? $this->proxyPool->proxyOptions($proxy) : []);
+        $response = $this->requestWithOutcome($lease, $url);
 
         if ($response->failed()) {
             throw new \RuntimeException("Не удалось скачать документ: HTTP {$response->status()}");
@@ -94,12 +100,9 @@ final readonly class DocumentDownloader
         return $response->body();
     }
 
-    /**
-     * @param  array<string, mixed>  $proxy
-     */
-    private function request(string $url, array $proxy): Response
+    private function request(string $url, ProxyLease $lease): Response
     {
-        return Http::withOptions($proxy)
+        return Http::withOptions($lease->httpOptions())
             ->withUserAgent((string) config('crawler.user_agent'))
             ->timeout((int) config('crawler.http.timeout', 30))
             ->retry(
@@ -110,6 +113,53 @@ final readonly class DocumentDownloader
                 throw: false,
             )
             ->get($url);
+    }
+
+    /**
+     * Оборачивает `request()` учётом исхода в резолвере (research/02 §9.1) — та же логика
+     * маппинга причины, что и у `CsvSourceMethod` (диапазон вызовов не пересекается, общий
+     * файл вне `Files` этого item'а не заводится).
+     */
+    private function requestWithOutcome(ProxyLease $lease, string $url): Response
+    {
+        try {
+            $response = $this->request(url: $url, lease: $lease);
+        } catch (ConnectionException $exception) {
+            $this->proxyResolver->reportOutcome($lease, ProxyOutcome::failure($this->connectionFailureReason($exception)));
+
+            throw $exception;
+        }
+
+        $this->proxyResolver->reportOutcome($lease, $this->outcomeFrom($response));
+
+        return $response;
+    }
+
+    private function outcomeFrom(Response $response): ProxyOutcome
+    {
+        return match (true) {
+            $response->status() === 403 => ProxyOutcome::failure(ProxyFailureReason::Http403),
+            $response->status() === 429 => ProxyOutcome::failure(ProxyFailureReason::Http429),
+            $response->status() === 407 => ProxyOutcome::failure(ProxyFailureReason::ProxyAuthFailed),
+            $response->status() === 200 && trim($response->body()) === '' => ProxyOutcome::failure(ProxyFailureReason::EmptyBody),
+            default => ProxyOutcome::success(),
+        };
+    }
+
+    private function connectionFailureReason(ConnectionException $exception): ProxyFailureReason
+    {
+        $message = $exception->getMessage();
+
+        return match (true) {
+            str_contains($message, 'SSL') => ProxyFailureReason::TlsError,
+            str_contains($message, 'timed out') || str_contains($message, 'Timeout') => ProxyFailureReason::NetworkTimeout,
+            default => ProxyFailureReason::ConnectFailed,
+        };
+    }
+
+    private function canonicalHost(string $url): string
+    {
+        return strtolower((string) parse_url($url, PHP_URL_HOST));
     }
 
     private function recordFailure(Document $document, \Throwable $exception): void

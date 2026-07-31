@@ -4,16 +4,28 @@ declare(strict_types=1);
 
 use App\Dto\Procurement\ListingBatch;
 use App\Dto\Procurement\ListingCursor;
+use App\Enums\Procurement\ProxyScope;
+use App\Exceptions\Procurement\NoProxyAvailableException;
 use App\Models\Procurement\Crawler\Crawler;
+use App\Models\Procurement\Crawler\Proxy;
 use App\Models\Procurement\Platform\Registry;
 use App\Services\Procurement\Eis\CsvSourceMethod;
 use Illuminate\Support\Facades\Http;
-use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Sleep;
 use Tests\Support\Doubles\Crawler\EisCsvFixture;
 
+/**
+ * Активный узел скоупа `crawl_listing` — резолвер (research/02 §9.1) не выдаёт лизу без
+ * кандидата, поэтому тесты, не проверяющие само отсутствие прокси, заводят узел явно.
+ */
+function activeListingProxy(): Proxy
+{
+    return Proxy::factory()->withScopes([ProxyScope::CrawlListing])->create();
+}
+
 test('collectListing конвертирует win1251-тело в UTF-8 и строит ListingBatch по фикстуре', function () {
     Sleep::fake();
+    activeListingProxy();
     $endpoint = config('crawler.eis.csv_endpoint');
     Http::fake([
         $endpoint.'*' => Http::response(
@@ -49,6 +61,7 @@ test('collectListing конвертирует win1251-тело в UTF-8 и ст�
 
 test('dedupSignature вычисляется по колонке «Реестровый номер закупки» первой строки блока', function () {
     Sleep::fake();
+    activeListingProxy();
     $endpoint = config('crawler.eis.csv_endpoint');
     Http::fake([
         $endpoint.'*' => Http::response(
@@ -68,6 +81,7 @@ test('dedupSignature вычисляется по колонке «Реестро
 
 test('ретрай на 500 забирает второй ответ фикстуры', function () {
     Sleep::fake();
+    activeListingProxy();
     $endpoint = config('crawler.eis.csv_endpoint');
     Http::fake([
         $endpoint.'*' => Http::sequence()
@@ -89,6 +103,7 @@ test('ретрай на 500 забирает второй ответ фикст�
 
 test('пустой ответ 200 повторяется и итог собирается из второго ответа', function () {
     Sleep::fake();
+    activeListingProxy();
     $endpoint = config('crawler.eis.csv_endpoint');
     Http::fake([
         $endpoint.'*' => Http::sequence()
@@ -110,6 +125,7 @@ test('пустой ответ 200 повторяется и итог собир�
 
 test('query-параметры запроса содержат from/to, флаг реестра и сортировку', function () {
     Sleep::fake();
+    activeListingProxy();
     $endpoint = config('crawler.eis.csv_endpoint');
     Http::fake([
         $endpoint.'*' => Http::response(body: EisCsvFixture::body(), status: 200),
@@ -137,9 +153,9 @@ test('query-параметры запроса содержат from/to, флаг
     });
 });
 
-test('при отсутствии активных прокси в пуле делает прямой запрос и логирует предупреждение', function () {
+test('собранный ListingBatch несёт id узла, который резолвер выдал под скоуп crawl_listing', function () {
     Sleep::fake();
-    Log::spy();
+    $proxy = activeListingProxy();
     $endpoint = config('crawler.eis.csv_endpoint');
     Http::fake([
         $endpoint.'*' => Http::response(body: EisCsvFixture::body(), status: 200),
@@ -151,12 +167,24 @@ test('при отсутствии активных прокси в пуле де
 
     $batch = app(CsvSourceMethod::class)->collectListing($crawler, $cursor);
 
-    expect($batch->httpStatus)->toBe(200)
-        ->and($batch->rowsTotal)->toBe(4);
+    expect($batch->proxyId)->toBe($proxy->id);
+});
 
-    Log::shouldHaveReceived('warning')->once()->withArgs(
-        fn (string $message, array $context = []) => $context['crawler_id'] === $crawler->id,
-    );
+test('без активного прокси скоупа crawl_listing резолвер бросает NoProxyAvailableException и запрос не уходит', function () {
+    Sleep::fake();
+    $endpoint = config('crawler.eis.csv_endpoint');
+    Http::fake([
+        $endpoint.'*' => Http::response(body: EisCsvFixture::body(), status: 200),
+    ]);
+
+    $registry = Registry::factory()->create(['code' => 'fz44']);
+    $crawler = Crawler::factory()->for($registry)->create(['filter' => null]);
+    $cursor = new ListingCursor(blockFrom: 1);
+
+    expect(fn () => app(CsvSourceMethod::class)->collectListing($crawler, $cursor))
+        ->toThrow(NoProxyAvailableException::class);
+
+    Http::assertNothingSent();
 });
 
 test('isAvailable возвращает true без сетевых запросов', function () {

@@ -7,18 +7,21 @@ namespace App\Services\Procurement\Eis;
 use App\Dto\Procurement\ListingBatch;
 use App\Dto\Procurement\ListingCursor;
 use App\Dto\Procurement\ProcurementDetails;
+use App\Dto\Procurement\Proxy\ProxyLease;
+use App\Dto\Procurement\Proxy\ProxyOutcome;
 use App\Enums\Procurement\ProcurementStatus;
+use App\Enums\Procurement\ProxyFailureReason;
+use App\Enums\Procurement\ProxyScope;
 use App\Models\Procurement\Crawler\Crawler;
-use App\Models\Procurement\Crawler\Proxy;
 use App\Models\Procurement\Platform\Registry;
 use App\Models\Procurement\Procurement;
 use App\Services\Procurement\Contracts\SourceMethod;
 use App\Services\Procurement\PoliteThrottle;
-use App\Services\Procurement\ProxyPool;
+use App\Services\Procurement\Proxy\ProxyResolver;
+use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\RequestException;
 use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Http;
-use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 
 /**
@@ -55,7 +58,7 @@ final readonly class CsvSourceMethod implements SourceMethod
     public function __construct(
         private EisCsvUrlBuilder $urlBuilder,
         private EisCardUrlBuilder $cardUrlBuilder,
-        private ProxyPool $proxyPool,
+        private ProxyResolver $proxyResolver,
         private PoliteThrottle $throttle,
     ) {}
 
@@ -68,23 +71,16 @@ final readonly class CsvSourceMethod implements SourceMethod
         $endpoint = (string) config('crawler.eis.csv_endpoint');
         $queryParams = $this->urlBuilder->buildQueryParams(crawler: $crawler, from: $from, to: $to, cursor: $cursor);
 
-        $proxy = $this->proxyPool->pick(target: $endpoint);
-
-        if ($proxy === null) {
-            Log::warning(
-                message: 'CsvSourceMethod: no active proxy, requesting directly.',
-                context: ['crawler_id' => $crawler->id],
-            );
-        }
+        $lease = $this->proxyResolver->resolve(ProxyScope::CrawlListing, $this->canonicalHost($endpoint));
 
         $startedAt = hrtime(true);
 
         $this->throttle->wait();
-        $response = $this->request(endpoint: $endpoint, queryParams: $queryParams, proxy: $proxy);
+        $response = $this->requestWithOutcome(lease: $lease, endpoint: $endpoint, queryParams: $queryParams);
 
         if ($response->status() === 200 && trim($response->body()) === '') {
             $this->throttle->wait();
-            $response = $this->request(endpoint: $endpoint, queryParams: $queryParams, proxy: $proxy);
+            $response = $this->requestWithOutcome(lease: $lease, endpoint: $endpoint, queryParams: $queryParams);
         }
 
         $durationMs = (int) ((hrtime(true) - $startedAt) / 1_000_000);
@@ -100,7 +96,7 @@ final readonly class CsvSourceMethod implements SourceMethod
             httpStatus: $response->status(),
             durationMs: $durationMs,
             requestParams: $queryParams,
-            proxyId: $proxy?->id,
+            proxyId: $lease->proxyId,
         );
     }
 
@@ -157,14 +153,14 @@ final readonly class CsvSourceMethod implements SourceMethod
             registryNumber: $registryNumber,
         );
 
-        $proxy = $this->proxyPool->pick(target: $url);
+        $lease = $this->proxyResolver->resolve(ProxyScope::CrawlDetail, $this->canonicalHost($url));
 
         $this->throttle->wait();
-        $response = $this->request(endpoint: $url, queryParams: [], proxy: $proxy);
+        $response = $this->requestWithOutcome(lease: $lease, endpoint: $url, queryParams: []);
 
         if ($response->status() === 200 && trim($response->body()) === '') {
             $this->throttle->wait();
-            $response = $this->request(endpoint: $url, queryParams: [], proxy: $proxy);
+            $response = $this->requestWithOutcome(lease: $lease, endpoint: $url, queryParams: []);
         }
 
         $html = $response->body();
@@ -188,11 +184,9 @@ final readonly class CsvSourceMethod implements SourceMethod
     /**
      * @param  array<string, string>  $queryParams
      */
-    private function request(string $endpoint, array $queryParams, ?Proxy $proxy): Response
+    private function request(string $endpoint, array $queryParams, ProxyLease $lease): Response
     {
-        $options = $proxy !== null ? $this->proxyPool->proxyOptions(proxy: $proxy) : [];
-
-        return Http::withOptions($options)
+        return Http::withOptions($lease->httpOptions())
             ->withUserAgent((string) config('crawler.user_agent'))
             ->withHeaders(['Referer' => 'https://zakupki.gov.ru/'])
             ->timeout((int) config('crawler.http.timeout', 30))
@@ -204,6 +198,56 @@ final readonly class CsvSourceMethod implements SourceMethod
                 throw: false,
             )
             ->get($endpoint, $queryParams);
+    }
+
+    /**
+     * Оборачивает `request()` учётом исхода в резолвере (research/02 §9.1): сетевой отказ
+     * (таймаут/TLS/обрыв соединения) сообщается причиной и пробрасывается дальше, ответ цели
+     * (403/429/пустое тело/успех, включая 5xx как транспортный успех — §5) сообщается после
+     * получения ответа.
+     *
+     * @param  array<string, string>  $queryParams
+     */
+    private function requestWithOutcome(ProxyLease $lease, string $endpoint, array $queryParams): Response
+    {
+        try {
+            $response = $this->request(endpoint: $endpoint, queryParams: $queryParams, lease: $lease);
+        } catch (ConnectionException $exception) {
+            $this->proxyResolver->reportOutcome($lease, ProxyOutcome::failure($this->connectionFailureReason($exception)));
+
+            throw $exception;
+        }
+
+        $this->proxyResolver->reportOutcome($lease, $this->outcomeFrom($response));
+
+        return $response;
+    }
+
+    private function outcomeFrom(Response $response): ProxyOutcome
+    {
+        return match (true) {
+            $response->status() === 403 => ProxyOutcome::failure(ProxyFailureReason::Http403),
+            $response->status() === 429 => ProxyOutcome::failure(ProxyFailureReason::Http429),
+            $response->status() === 407 => ProxyOutcome::failure(ProxyFailureReason::ProxyAuthFailed),
+            $response->status() === 200 && trim($response->body()) === '' => ProxyOutcome::failure(ProxyFailureReason::EmptyBody),
+            default => ProxyOutcome::success(),
+        };
+    }
+
+    private function connectionFailureReason(ConnectionException $exception): ProxyFailureReason
+    {
+        $message = $exception->getMessage();
+
+        return match (true) {
+            str_contains($message, 'SSL') => ProxyFailureReason::TlsError,
+            str_contains($message, 'timed out') || str_contains($message, 'Timeout') => ProxyFailureReason::NetworkTimeout,
+            default => ProxyFailureReason::ConnectFailed,
+        };
+    }
+
+    private function canonicalHost(string $url): string
+    {
+        return strtolower((string) parse_url($url, PHP_URL_HOST));
     }
 
     /**

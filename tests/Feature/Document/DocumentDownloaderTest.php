@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 use App\Enums\Procurement\DocumentStatus;
 use App\Enums\Procurement\ProcurementEventType;
+use App\Enums\Procurement\ProxyScope;
+use App\Models\Procurement\Crawler\Proxy;
 use App\Models\Procurement\Document\Document;
 use App\Models\Procurement\Document\DocumentVersion;
 use App\Models\Procurement\ProcurementEvent;
@@ -17,9 +19,19 @@ function sampleDocumentContent(string $version = 'v1'): string
     return file_get_contents(base_path("tests/Fixtures/Documents/sample-{$version}.pdf"));
 }
 
+/**
+ * Активный узел скоупа `document_download` (research/02 §9.1) — резолвер не выдаёт лизу без
+ * кандидата, тесты, не проверяющие само отсутствие прокси, заводят узел явно.
+ */
+function activeDocumentDownloadProxy(): Proxy
+{
+    return Proxy::factory()->withScopes([ProxyScope::DocumentDownload])->create();
+}
+
 test('download первого файла создаёт версию, кладёт файл в storage и пишет событие document_added', function () {
     Sleep::fake();
     Storage::fake('s3');
+    activeDocumentDownloadProxy();
     $document = Document::factory()->create(['source_url' => 'https://zakupki.gov.ru/filestore/file.html?uid=aaaa-1111']);
     Http::fake(['*filestore*' => Http::response(body: sampleDocumentContent(), status: 200)]);
 
@@ -42,6 +54,7 @@ test('download первого файла создаёт версию, кладё
 test('download того же контента повторно — no-op, версия не дублируется', function () {
     Sleep::fake();
     Storage::fake('s3');
+    activeDocumentDownloadProxy();
     $document = Document::factory()->create(['source_url' => 'https://zakupki.gov.ru/filestore/file.html?uid=aaaa-1111']);
     Http::fake(['*filestore*' => Http::response(body: sampleDocumentContent(), status: 200)]);
 
@@ -54,6 +67,7 @@ test('download того же контента повторно — no-op, вер
 test('download иного контента создаёт новую версию и пишет событие document_replaced', function () {
     Sleep::fake();
     Storage::fake('s3');
+    activeDocumentDownloadProxy();
     $document = Document::factory()->create(['source_url' => 'https://zakupki.gov.ru/filestore/file.html?uid=aaaa-1111']);
 
     Http::fake(['*filestore*' => Http::sequence()
@@ -74,6 +88,7 @@ test('download иного контента создаёт новую верси�
 
 test('download при ошибке сети записывает error-блок и не бросает исключение', function () {
     Sleep::fake();
+    activeDocumentDownloadProxy();
     $document = Document::factory()->create(['source_url' => 'https://zakupki.gov.ru/filestore/file.html?uid=aaaa-1111']);
     Http::fake(['*filestore*' => Http::response(body: 'server error', status: 500)]);
 
@@ -96,4 +111,21 @@ test('download без source_url возвращает null без побочны
 
     expect($version)->toBeNull();
     expect($document->refresh()->attempts)->toBe(0);
+});
+
+test('download без активного прокси скоупа document_download пишет error-блок и не бросает исключение', function () {
+    Sleep::fake();
+    $document = Document::factory()->create(['source_url' => 'https://zakupki.gov.ru/filestore/file.html?uid=aaaa-1111']);
+    Http::fake(['*filestore*' => Http::response(body: sampleDocumentContent(), status: 200)]);
+
+    $version = app(DocumentDownloader::class)->download($document);
+
+    expect($version)->toBeNull();
+
+    $document->refresh();
+
+    expect($document->attempts)->toBe(1)
+        ->and($document->last_error)->not->toBeNull();
+
+    Http::assertNothingSent();
 });
