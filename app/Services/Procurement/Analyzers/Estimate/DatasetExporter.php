@@ -34,6 +34,7 @@ final readonly class DatasetExporter
         private PromptComposer $prompts,
         private DatasetExampleReadRepository $examples,
         private AnalysisReadRepository $analyses,
+        private EstimateStepDictionaries $dictionaries,
     ) {}
 
     /**
@@ -49,7 +50,10 @@ final readonly class DatasetExporter
      */
     private function writeSft(string $task): array
     {
-        $composed = $this->prompts->compose(EstimatePromptStep::ExtractionRows, [RowsChunkResponse::class]);
+        $composed = $this->prompts->compose(
+            EstimatePromptStep::ExtractionRows,
+            [RowsChunkResponse::class, ...$this->dictionaries->forStep(EstimatePromptStep::ExtractionRows)],
+        );
         $stream = fopen('php://temp', 'w+');
         $count = 0;
 

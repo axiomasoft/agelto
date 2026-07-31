@@ -58,7 +58,11 @@ test('compose() добавляет блок схем от PromptContextGenerator
 
     $composed = promptComposer()->compose(EstimatePromptStep::ExtractionGlobal, [ScreeningResult::class]);
 
-    expect($composed->systemPart)->toStartWith('правило'.PHP_EOL.PHP_EOL.'---'.PHP_EOL.PHP_EOL.'// --- Source: ScreeningResult.php ---');
+    // Блок несёт замыкание корня, а не сам корень (P6.1): `AiDocumentType` приезжает свойством
+    // `ScreeningResult::$document_type` и по сортировке короткого имени встаёт первым.
+    expect($composed->systemPart)
+        ->toStartWith('правило'.PHP_EOL.PHP_EOL.'---'.PHP_EOL.PHP_EOL.'// --- Source: AiDocumentType.php ---')
+        ->and($composed->systemPart)->toContain('// --- Source: ScreeningResult.php ---');
 });
 
 test('compose() без правил и без схем возвращает пустую системную часть с детерминированным rules_hash', function (): void {

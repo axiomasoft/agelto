@@ -56,12 +56,16 @@ function coreClassesOfContract(): array
 test('периметр ядра собран правилом вычитания §6.2, не перечнем руками', function (): void {
     $classes = coreClassesOfContract();
 
-    // 97 = 95 + два новых файла ядра (P5.5, D46): `App\Services\Llm\LlmPayloadReader` (чтение
+    // 98 = 97 + один новый файл ядра (P6.1, D51): `App\Services\Llm\Schema\DataTypeGraph` —
+    // единственный владелец правила обхода графа типов, общий с JSON-схемой; правило обходит
+    // Data-классы и enum'ы рефлексией и о типе документа не знает (сметные словари объявляет сам
+    // тип, `App\Services\Procurement\Analyzers\Estimate\EstimateStepDictionaries`).
+    // 97 = 95 + два файла ядра (P5.5, D46): `App\Services\Llm\LlmPayloadReader` (чтение
     // сохранённого payload'а) и `App\Services\Llm\Dto\StoredPayload` (DTO трёх штатных состояний)
     // — домен транспорта `Llm` кросс-документен по контракту (D22), витрина финального промта
     // читает вызовы ОБОИХ шагов, типовой специфики в этих файлах нет.
     // Счётчик — канарейка периметра: растёт при КАЖДОМ новом файле ядра.
-    expect($classes)->toHaveCount(97)
+    expect($classes)->toHaveCount(98)
         ->and(array_column($classes, 'class'))->not->toContain('App\Jobs\Procurement\Analyzers\Estimate\EstimateExtractionJob');
 });
 

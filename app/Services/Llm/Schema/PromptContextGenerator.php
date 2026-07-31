@@ -14,15 +14,25 @@ use ReflectionClass;
  * Выход обязан быть байт-в-байт стабильным между запусками (база rules_hash и implicit-cache
  * префикса, research/E §1) — сортировка классов детерминирована, обёртки шага (суффикс
  * `Response`) всегда идут последними (композиция v1, D5).
+ *
+ * Печатается ТРАНЗИТИВНОЕ ЗАМЫКАНИЕ переданных классов (D51, P6.1), а не переданный список: до
+ * P6.1 боевой call-site передавал одну обёртку ответа шага, и модель на `extraction:rows`
+ * получала `RowsChunkResponse` без единого докблока `EstimateRow`/`RowResource`/`RowAttributes`.
+ * Правило «что вложено» — общее с JSON-схемой (`DataTypeGraph`); словари, до которых обход не
+ * достаёт, объявляет сам ТИП и передаёт их в этот список явно.
  */
 final readonly class PromptContextGenerator
 {
+    public function __construct(
+        private DataTypeGraph $types = new DataTypeGraph,
+    ) {}
+
     /**
-     * @param  class-string[]  $classes
+     * @param  class-string[]  $classes  корни блока схем: обёртки ответа шага и словари типа.
      */
     public function generate(array $classes): string
     {
-        [$plain, $responses] = $this->partitionByKind($classes);
+        [$plain, $responses] = $this->partitionByKind($this->expand($classes));
 
         $ordered = [...$this->sortByShortName($plain), ...$this->sortByShortName($responses)];
 
@@ -40,6 +50,27 @@ final readonly class PromptContextGenerator
     public function rulesHash(string $systemPart): string
     {
         return sha1($systemPart);
+    }
+
+    /**
+     * Замыкание каждого корня по общему с JSON-схемой правилу обхода. Порядок обнаружения на
+     * выход не влияет — ниже множество сортируется по короткому имени (детерминированность
+     * префикса implicit-кэша).
+     *
+     * @param  class-string[]  $classes
+     * @return class-string[]
+     */
+    private function expand(array $classes): array
+    {
+        $expanded = [];
+
+        foreach ($classes as $class) {
+            foreach ($this->types->closure($class) as $nested) {
+                $expanded[] = $nested;
+            }
+        }
+
+        return $expanded;
     }
 
     /**

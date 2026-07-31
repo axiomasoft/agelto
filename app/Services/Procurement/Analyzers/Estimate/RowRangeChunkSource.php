@@ -53,6 +53,7 @@ final readonly class RowRangeChunkSource implements ChunkSource
         private StructuredResponseValidator $validator,
         private LlmCallRecorder $recorder,
         private CorrectionAwareComposer $corrections,
+        private EstimateStepDictionaries $dictionaries,
     ) {}
 
     public function fetchPassport(
@@ -145,7 +146,7 @@ final readonly class RowRangeChunkSource implements ChunkSource
         string $userPart,
         ?Closure $onMaxTokens = null,
     ): array {
-        $composed = $this->prompts->compose($step, [$dataClass]);
+        $composed = $this->prompts->compose($step, [$dataClass, ...$this->dictionaries->forStep($step)]);
         $schema = new JsonSchema($this->schemas->generate($dataClass));
         $hint = $this->correctionsHint($analysisId);
 

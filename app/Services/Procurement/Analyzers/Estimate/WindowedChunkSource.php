@@ -54,6 +54,7 @@ final readonly class WindowedChunkSource
         private JsonSchemaGenerator $schemas,
         private StructuredResponseValidator $validator,
         private LlmCallRecorder $recorder,
+        private EstimateStepDictionaries $dictionaries,
     ) {}
 
     /**
@@ -223,7 +224,7 @@ final readonly class WindowedChunkSource
         try {
             $fileHandle = $route->provider->uploadFile($slicePath, 'application/pdf');
 
-            $composed = $this->prompts->compose($step, [$dataClass]);
+            $composed = $this->prompts->compose($step, [$dataClass, ...$this->dictionaries->forStep($step)]);
             $schema = new JsonSchema($this->schemas->generate($dataClass));
 
             $prompt = new LlmPrompt(

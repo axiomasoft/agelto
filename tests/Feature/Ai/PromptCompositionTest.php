@@ -2,12 +2,17 @@
 
 declare(strict_types=1);
 
-use App\Dto\Procurement\Analyzers\Estimate\EstimateHeaderMap;
+use App\Dto\Procurement\Ai\Screening\ScreeningResult;
+use App\Dto\Procurement\Analyzers\Estimate\DiscoveryResponse;
+use App\Dto\Procurement\Analyzers\Estimate\PassportResponse;
+use App\Dto\Procurement\Analyzers\Estimate\RowsChunkResponse;
+use App\Dto\Procurement\Analyzers\Estimate\TotalsResponse;
 use App\Enums\Llm\CorePromptStep;
 use App\Enums\Procurement\Analyzers\Estimate\EstimatePromptStep;
-use App\Enums\Procurement\ResourceType;
 use App\Services\Llm\PromptComposer;
+use App\Services\Llm\Schema\JsonSchemaGenerator;
 use App\Services\Llm\Schema\PromptContextGenerator;
+use App\Services\Procurement\Analyzers\Estimate\EstimateStepDictionaries;
 use Database\Seeders\PromptSeeder;
 
 beforeEach(function (): void {
@@ -46,15 +51,55 @@ test('часть правил каждого шага не превышает б
     }
 });
 
-test('добавленные синонимы словарей присутствуют в сгенерированном блоке схем', function (): void {
-    $block = app(PromptContextGenerator::class)->generate([EstimateHeaderMap::class, ResourceType::class]);
+test('синонимы словарей доезжают до боевой системной части шага строк', function (): void {
+    $step = EstimatePromptStep::ExtractionRows;
+    $dictionaries = app(EstimateStepDictionaries::class);
+
+    // Ровно то, что собирают боевые потребители шага (RowRangeChunkSource, WindowedChunkSource,
+    // DatasetExporter): обёртка ответа + словари, объявленные ТИПОМ. Список словарей руками сюда
+    // не переписывается — иначе тест был бы зелен по построению, как до P6.1.
+    $systemPart = app(PromptComposer::class)
+        ->compose($step, [RowsChunkResponse::class, ...$dictionaries->forStep($step)])
+        ->systemPart;
 
     foreach (['Номер п/п', '№№ п/п', 'Шифр расценки и коды ресурсов', 'Единица измерения', 'Кол-во единиц', 'всего в текущем уровне цен'] as $headerSynonym) {
-        expect($block)->toContain($headerSynonym);
+        expect($systemPart)->toContain($headerSynonym);
     }
 
-    foreach (['ОТ(ЗТ)', 'ОТм(ЗТм)', 'М'] as $resourceSynonym) {
-        expect($block)->toContain($resourceSynonym);
+    // Словарь ресурсов приезжает ЗАМЫКАНИЕМ (RowsChunkResponse → EstimateRow → RowResource),
+    // а не объявлением — обе половины D51 проверяются одним боевым составом.
+    foreach (['ОТ(ЗТ)', 'ОТм(ЗТм)', 'ФССЦ'] as $resourceSynonym) {
+        expect($systemPart)->toContain($resourceSynonym);
+    }
+});
+
+test('блок схем шага покрывает классы JSON-схемы того же шага (когерентность носителей)', function (): void {
+    $context = app(PromptContextGenerator::class);
+    $schemas = app(JsonSchemaGenerator::class);
+    $dictionaries = app(EstimateStepDictionaries::class);
+
+    $steps = [
+        [CorePromptStep::ScreeningClassify, ScreeningResult::class],
+        [EstimatePromptStep::ExtractionDiscovery, DiscoveryResponse::class],
+        [EstimatePromptStep::ExtractionPassport, PassportResponse::class],
+        [EstimatePromptStep::ExtractionRows, RowsChunkResponse::class],
+        [EstimatePromptStep::ExtractionTotals, TotalsResponse::class],
+    ];
+
+    foreach ($steps as [$step, $root]) {
+        // Состав — тот же, что у боевых потребителей шага: корень + словари, объявленные ТИПОМ.
+        $contextClasses = [$root, ...$dictionaries->forStep($step)];
+
+        $block = $context->generate($contextClasses);
+
+        preg_match_all('/^\/\/ --- Source: (.+)\.php ---$/m', $block, $matches);
+
+        $schema = $schemas->generate($root);
+        $inSchema = [new ReflectionClass($root)->getShortName(), ...array_keys($schema['$defs'] ?? [])];
+
+        // Класс, попавший в JSON-схему, но не в контекст, невидим глазами: модель получает имя
+        // поля без единого пояснения. Ослаблять утверждение до списка исключений запрещено.
+        expect([$step->value, array_values(array_diff($inSchema, $matches[1]))])->toBe([$step->value, []]);
     }
 });
 

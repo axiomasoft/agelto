@@ -18,9 +18,16 @@ use Spatie\LaravelData\Data;
  * элементов массивов. Схема держится плоской и компактной: без description-дублей (семантика уже
  * в prompt-контексте, PromptContextGenerator), рекурсия (`TotalLine.children`) — через `$defs`/
  * `$ref`, не инлайн. Выход стабилен между запусками — база rules_hash и implicit-cache префикса.
+ *
+ * Правило «что считается вложенным типом» здесь НЕ живёт: оно принадлежит `DataTypeGraph` (P6.1),
+ * общему с блоком схем промта. Этот класс отвечает только за ФОРМУ схемы.
  */
 final readonly class JsonSchemaGenerator
 {
+    public function __construct(
+        private DataTypeGraph $types = new DataTypeGraph,
+    ) {}
+
     /**
      * @param  class-string<Data>  $class
      * @return array<string, mixed>
@@ -104,8 +111,8 @@ final readonly class JsonSchemaGenerator
             $typeName === 'int' => ['type' => 'integer'],
             $typeName === 'float' => ['type' => 'number'],
             $typeName === 'bool' => ['type' => 'boolean'],
-            enum_exists($typeName) => $this->enumSchema($typeName),
-            is_subclass_of($typeName, Data::class) => $this->dataClassRef($typeName, $defs),
+            $this->types->isEnum($typeName) => $this->enumSchema($typeName),
+            $this->types->isDataClass($typeName) => $this->dataClassRef($typeName, $defs),
             default => throw new RuntimeException("Неподдерживаемый тип {$typeName} (контекст {$context->getName()})."),
         };
     }
@@ -145,7 +152,7 @@ final readonly class JsonSchemaGenerator
      */
     private function arraySchema(ReflectionParameter $parameter, ReflectionMethod $constructor, array &$defs): array
     {
-        $itemType = $this->docblockArrayItemType($parameter->getName(), $constructor);
+        $itemType = $this->types->docblockArrayItemType($parameter, $constructor);
 
         if ($itemType === null) {
             throw new RuntimeException("Не найден тип элементов массива \${$parameter->getName()} в докблоке @param.");
@@ -155,32 +162,6 @@ final readonly class JsonSchemaGenerator
             'type' => 'array',
             'items' => $this->namedTypeSchema($itemType, $constructor->getDeclaringClass(), $defs),
         ];
-    }
-
-    private function docblockArrayItemType(string $paramName, ReflectionMethod $constructor): ?string
-    {
-        $doc = $constructor->getDocComment();
-
-        if ($doc === false) {
-            return null;
-        }
-
-        if (preg_match('/@param\s+([^\s\[]+)\[\]\s+\$'.preg_quote($paramName, '/').'\b/', $doc, $matches) !== 1) {
-            return null;
-        }
-
-        return $this->resolveClassName($matches[1], $constructor->getDeclaringClass());
-    }
-
-    private function resolveClassName(string $shortType, ReflectionClass $declaringClass): string
-    {
-        if (in_array($shortType, ['string', 'int', 'float', 'bool'], true)) {
-            return $shortType;
-        }
-
-        $candidate = $declaringClass->getNamespaceName().'\\'.$shortType;
-
-        return class_exists($candidate) || enum_exists($candidate) ? $candidate : $shortType;
     }
 
     private function allowsNull(ReflectionParameter $parameter): bool

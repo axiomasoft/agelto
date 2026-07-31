@@ -19,12 +19,15 @@ sequenceDiagram
     participant Composer as PromptComposer
     participant Repo as PromptReadRepository
     participant Schema as PromptContextGenerator
+    participant Graph as DataTypeGraph
     participant Corr as CorrectionAwareComposer
 
-    Job->>Composer: compose(step, schemaClasses)
+    Job->>Composer: compose(step, [обёртка ответа, ...словари типа])
     Composer->>Repo: activeForSteps([Global, step-global?, step])
     Repo-->>Composer: правила, priority ASC
-    Composer->>Schema: generate(schemaClasses)
+    Composer->>Schema: generate(корни блока схем)
+    Schema->>Graph: closure(корень)
+    Graph-->>Schema: транзитивное замыкание вложенных Data/enum
     Schema-->>Composer: очищенный PHP-исходник Data-контрактов<br/>(докблоки/#[Alias] как инструкции)
     Note over Composer: systemPart = правила + блок схем<br/>rulesHash = sha1(systemPart)
     Composer-->>Job: ComposedPrompt(systemPart, rulesHash, promptVersionSet)
@@ -40,9 +43,25 @@ sequenceDiagram
 Композиция: `App\Services\Llm\PromptComposer::compose()` (`app/Services/Llm/PromptComposer.php:30`) —
 порядок Global → step-global (`ScreeningGlobal`/`ExtractionGlobal`) → сам шаг, `priority` ASC внутри
 каждого уровня (канон v1, `PromptComposer::stepsForComposition()`). Блок схем —
-`App\Services\Llm\Schema\PromptContextGenerator::generate()`
-(`app/Services/Llm/Schema/PromptContextGenerator.php:23`) — обёртки шага (суффикс `Response`) всегда
-последними. Коррекции — `App\Services\Llm\CorrectionAwareComposer::correctionsBlock()`
+`App\Services\Llm\Schema\PromptContextGenerator::generate()` — обёртки шага (суффикс `Response`)
+всегда последними.
+
+**Состав блока схем (P6.1, D51).** Печатается ТРАНЗИТИВНОЕ ЗАМЫКАНИЕ переданных корней, а не
+переданный список: от обёртки ответа шага обход доходит до вложенных Data-классов и enum'ов
+(конструктор, элементы массивов по докблоку `@param X[]`, самоссылки без зацикливания). Владелец
+правила обхода ОДИН — `App\Services\Llm\Schema\DataTypeGraph`, тот же, что у
+`JsonSchemaGenerator`: JSON-схема сознательно не дублирует семантику полей («без description-дублей
+— семантика уже в prompt-контексте»), поэтому расхождение двух носителей означало бы, что семантику
+не несёт НИ ОДИН. Инвариант держит тест когерентности (`tests/Feature/Ai/PromptCompositionTest.php`).
+
+Словари `#[Alias]`, до которых обход не доходит (`EstimateHeaderMap` — «НЕ часть JSON-ответа LLM ни
+одного шага»), объявляет сам ТИП документа одним объявлением
+(`App\Services\Procurement\Analyzers\Estimate\EstimateStepDictionaries`), которое читают ВСЕ
+потребители шага; ядро о них не знает. Достижимое замыканием (`ResourceType`) в объявлении не
+дублируется. Смена состава блока меняет `rules_hash` — живые explicit-кэши анализов инвалидируются
+штатным `LlmCacheManager::validHandle()` один раз, ручная правка `rules_hash` запрещена.
+
+Коррекции — `App\Services\Llm\CorrectionAwareComposer::correctionsBlock()`
 (`app/Services/Llm/CorrectionAwareComposer.php:26`) — намеренно USER-часть, не системная (иначе
 ломался бы стабильный префикс кэша).
 
