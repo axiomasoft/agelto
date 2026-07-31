@@ -280,6 +280,7 @@ reconcile pass 3/3 закрыт (D63–D69), 14 находок первого `p
 | 2026-07-31 | issue-planner / frontier-high | ТЗ P1.3 приведено к вердиктам P1.1: **D80** (профиль несёт две колонки, скоупа на нём нет) и **D81** (у детальной стадии профиля нет) + следствие D78 в `Required Reads` P7.3/P7.8 — детали см. phases/P1.md P1.3 и plan.md §5 |
 | 2026-07-31 | plan-run / sonnet-high | P1.2 закрыт: схема прокси — `ProxyScope`/`ProxyFailureReason`, миграции `prc_proxies`+7 колонок/`prc_proxy_targets`, модели/фабрики со states — детали см. phases/P1.md P1.2 Completion Notes |
 | 2026-07-31 | plan-run / sonnet-high | P1.3 закрыт: миграция `prc_crawlers` (`use_proxy`/`proxy_country`, D80) + перечитывание настроек на итерации в `FreshRunProcessor`/`ArchiveWindowScanner` (D81) — детали см. phases/P1.md P1.3 Completion Notes |
+| 2026-07-31 | plan-run / sonnet-high | P1.4 закрыт 🟠 (deviations): `ProxyResolver`+score+breaker+StoreRepository здоровья, weighted random top-K, двухуровневый breaker (D5–D7); дифф вне `Files` (контрактные DTO/exception + докблоки моделей + сокращение `phpstan-baseline.neon`) — детали см. phases/P1.md P1.4 Completion Notes |
 
 ## Обсуждение
 
