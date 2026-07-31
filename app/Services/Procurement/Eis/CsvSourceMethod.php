@@ -9,6 +9,7 @@ use App\Dto\Procurement\ListingCursor;
 use App\Dto\Procurement\ProcurementDetails;
 use App\Dto\Procurement\Proxy\ProxyLease;
 use App\Dto\Procurement\Proxy\ProxyOutcome;
+use App\Dto\Procurement\Proxy\ProxyRequirements;
 use App\Enums\Procurement\ProcurementStatus;
 use App\Enums\Procurement\ProxyFailureReason;
 use App\Enums\Procurement\ProxyScope;
@@ -22,6 +23,7 @@ use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\RequestException;
 use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 
 /**
@@ -71,7 +73,7 @@ final readonly class CsvSourceMethod implements SourceMethod
         $endpoint = (string) config('crawler.eis.csv_endpoint');
         $queryParams = $this->urlBuilder->buildQueryParams(crawler: $crawler, from: $from, to: $to, cursor: $cursor);
 
-        $lease = $this->proxyResolver->resolve(ProxyScope::CrawlListing, $this->canonicalHost($endpoint));
+        $lease = $this->listingLease($crawler, $this->canonicalHost($endpoint));
 
         $startedAt = hrtime(true);
 
@@ -97,6 +99,31 @@ final readonly class CsvSourceMethod implements SourceMethod
             durationMs: $durationMs,
             requestParams: $queryParams,
             proxyId: $lease->proxyId,
+        );
+    }
+
+    /**
+     * `use_proxy = false` — единственный легальный способ уйти напрямую, обходящий резолвер
+     * ЦЕЛИКОМ (research/02 §10, D83): direct-лиза обязана быть видна логом, а не только значением
+     * `null`. `use_proxy = true` передаёт требование профиля к стране — резолвер складывает его с
+     * гео-политикой скоупа `crawl_listing` (Implementation Rules P1.9).
+     */
+    private function listingLease(Crawler $crawler, string $host): ProxyLease
+    {
+        if (! $crawler->use_proxy) {
+            Log::info('Резолвер прокси: профиль отключил прокси, запрос уходит напрямую', [
+                'crawler' => $crawler->name,
+                'scope' => ProxyScope::CrawlListing->value,
+                'target' => $host,
+            ]);
+
+            return ProxyLease::direct(ProxyScope::CrawlListing, $host);
+        }
+
+        return $this->proxyResolver->resolve(
+            ProxyScope::CrawlListing,
+            $host,
+            new ProxyRequirements(country: $crawler->proxy_country),
         );
     }
 

@@ -25,8 +25,8 @@ use Tests\Support\Doubles\Crawler\CardHtmlFixture;
  */
 function activeDetailAnalysisProxies(): void
 {
-    Proxy::factory()->withScopes([ProxyScope::CrawlDetail])->create();
-    Proxy::factory()->withScopes([ProxyScope::DocumentDownload])->create();
+    Proxy::factory()->country('RU')->withScopes([ProxyScope::CrawlDetail])->create();
+    Proxy::factory()->country('RU')->withScopes([ProxyScope::DocumentDownload])->create();
 }
 
 function detailAnalysisRegistry(): Registry

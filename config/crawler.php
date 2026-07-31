@@ -108,6 +108,11 @@ return [
         | скоупа с непустым `forbidden_countries` (неизвестная страна = запрещённая). Только
         | скоуп `llm` несёт запрет сегодня (требование брифа «не запустить Gemini через российский
         | прокси»); `env`-override — под калибровку без деплоя.
+        |
+        | `required_country` (research/02 §8, P1.9, D83) — вторая половина той же политики: пол
+        | площадки для `crawl_*`/`document_download` («кроулинг ЕИС обязан идти через российский
+        | прокси»), `null` у `llm` (требование — запрет, не привязка к стране). Складывается с
+        | `ProxyRequirements->country` профиля, не заменяет его (Implementation Rules P1.9).
         */
         'policy' => [
             ProxyScope::Llm->value => [
@@ -115,10 +120,20 @@ return [
                     'trim',
                     explode(',', (string) env('CRAWLER_PROXY_LLM_FORBIDDEN_COUNTRIES', 'RU')),
                 )),
+                'required_country' => env('CRAWLER_PROXY_LLM_REQUIRED_COUNTRY'),
             ],
-            ProxyScope::CrawlListing->value => ['forbidden_countries' => []],
-            ProxyScope::CrawlDetail->value => ['forbidden_countries' => []],
-            ProxyScope::DocumentDownload->value => ['forbidden_countries' => []],
+            ProxyScope::CrawlListing->value => [
+                'forbidden_countries' => [],
+                'required_country' => env('CRAWLER_PROXY_CRAWL_LISTING_REQUIRED_COUNTRY', 'RU'),
+            ],
+            ProxyScope::CrawlDetail->value => [
+                'forbidden_countries' => [],
+                'required_country' => env('CRAWLER_PROXY_CRAWL_DETAIL_REQUIRED_COUNTRY', 'RU'),
+            ],
+            ProxyScope::DocumentDownload->value => [
+                'forbidden_countries' => [],
+                'required_country' => env('CRAWLER_PROXY_DOCUMENT_DOWNLOAD_REQUIRED_COUNTRY', 'RU'),
+            ],
         ],
     ],
 

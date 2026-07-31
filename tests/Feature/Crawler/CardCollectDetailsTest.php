@@ -21,7 +21,7 @@ use Tests\Support\Doubles\Crawler\CardHtmlFixture;
  */
 function activeDetailProxy(): Proxy
 {
-    return Proxy::factory()->withScopes([ProxyScope::CrawlDetail])->create();
+    return Proxy::factory()->country('RU')->withScopes([ProxyScope::CrawlDetail])->create();
 }
 
 function fakeCardRegistry(): Registry

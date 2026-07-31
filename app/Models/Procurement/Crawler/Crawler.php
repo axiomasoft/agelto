@@ -13,9 +13,26 @@ use Illuminate\Database\Eloquent\Casts\AsCollection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
 
 /**
  * Профиль обхода площадки: режим, метод забора данных и фильтры.
+ *
+ * @property int $id
+ * @property int $registry_id
+ * @property string $name
+ * @property CrawlerMode $mode
+ * @property SourceMethod $source_method
+ * @property SourceMethod|null $fallback_method
+ * @property Collection<array-key, mixed>|null $filter
+ * @property string|null $schedule
+ * @property Collection<array-key, mixed>|null $options
+ * @property bool $is_active
+ * @property bool $use_proxy
+ * @property string|null $proxy_country
+ * @property Carbon $created_at
+ * @property Carbon $updated_at
  */
 #[UseFactory(CrawlerFactory::class)]
 final class Crawler extends Model

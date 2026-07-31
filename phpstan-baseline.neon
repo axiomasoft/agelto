@@ -13,22 +13,10 @@ parameters:
 			path: app/Console/Commands/Procurement/PipelineStuckCheck.php
 
 		-
-			message: '#^Access to an undefined property App\\Models\\Procurement\\Crawler\\Crawler\:\:\$name\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Console/Commands/Procurement/RunArchiveCrawler.php
-
-		-
 			message: '#^Access to an undefined property App\\Models\\Procurement\\Crawler\\Run\:\:\$status\.$#'
 			identifier: property.notFound
 			count: 1
 			path: app/Console/Commands/Procurement/RunArchiveCrawler.php
-
-		-
-			message: '#^Access to an undefined property App\\Models\\Procurement\\Crawler\\Crawler\:\:\$name\.$#'
-			identifier: property.notFound
-			count: 2
-			path: app/Console/Commands/Procurement/RunFreshCrawler.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Procurement\\Crawler\\Run\:\:\$status\.$#'
@@ -253,18 +241,6 @@ parameters:
 			path: app/Services/Procurement/Analyzers/Estimate/SegmentAssembler.php
 
 		-
-			message: '#^Access to an undefined property App\\Models\\Procurement\\Crawler\\Crawler\:\:\$registry_id\.$#'
-			identifier: property.notFound
-			count: 2
-			path: app/Services/Procurement/CsvBlockIngestor.php
-
-		-
-			message: '#^Access to an undefined property App\\Models\\Procurement\\Crawler\\Crawler\:\:\$source_method\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Services/Procurement/CsvBlockIngestor.php
-
-		-
 			message: '#^Access to an undefined property App\\Models\\Procurement\\Procurement\:\:\$revision_count\.$#'
 			identifier: property.notFound
 			count: 2
@@ -305,12 +281,6 @@ parameters:
 			identifier: property.notFound
 			count: 2
 			path: app/Services/Procurement/Eis/EisCardUrlBuilder.php
-
-		-
-			message: '#^Access to an undefined property App\\Models\\Procurement\\Crawler\\Crawler\:\:\$registry_id\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Services/Procurement/Eis/EisCsvRowMapper.php
 
 		-
 			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$code\.$#'
@@ -389,18 +359,6 @@ parameters:
 			identifier: property.notFound
 			count: 1
 			path: app/Services/Procurement/Screening/ScreeningOutcomeHandler.php
-
-		-
-			message: '#^Access to an undefined property App\\Models\\Procurement\\Crawler\\Crawler\:\:\$fallback_method\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Services/Procurement/SourceMethodFactory.php
-
-		-
-			message: '#^Access to an undefined property App\\Models\\Procurement\\Crawler\\Crawler\:\:\$source_method\.$#'
-			identifier: property.notFound
-			count: 4
-			path: app/Services/Procurement/SourceMethodFactory.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Procurement\\Platform\\StatusMapping\:\:\$canonical_status\.$#'

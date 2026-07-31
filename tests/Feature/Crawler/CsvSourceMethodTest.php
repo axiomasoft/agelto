@@ -20,7 +20,7 @@ use Tests\Support\Doubles\Crawler\EisCsvFixture;
  */
 function activeListingProxy(): Proxy
 {
-    return Proxy::factory()->withScopes([ProxyScope::CrawlListing])->create();
+    return Proxy::factory()->country('RU')->withScopes([ProxyScope::CrawlListing])->create();
 }
 
 test('collectListing конвертирует win1251-тело в UTF-8 и строит ListingBatch по фикстуре', function () {
@@ -185,6 +185,46 @@ test('без активного прокси скоупа crawl_listing резо
         ->toThrow(NoProxyAvailableException::class);
 
     Http::assertNothingSent();
+});
+
+test('профиль с proxy_country=RU при пуле из RU и DE получает только RU-узел', function () {
+    Sleep::fake();
+    $ruProxy = Proxy::factory()->country('RU')->withScopes([ProxyScope::CrawlListing])->create();
+    Proxy::factory()->country('DE')->withScopes([ProxyScope::CrawlListing])->create();
+    $endpoint = config('crawler.eis.csv_endpoint');
+    Http::fake([
+        $endpoint.'*' => Http::response(body: EisCsvFixture::body(), status: 200),
+    ]);
+
+    $registry = Registry::factory()->create(['code' => 'fz44']);
+    $crawler = Crawler::factory()->for($registry)->create(['filter' => null, 'proxy_country' => 'RU']);
+    $cursor = new ListingCursor(blockFrom: 1);
+
+    $batch = app(CsvSourceMethod::class)->collectListing($crawler, $cursor);
+
+    expect($batch->proxyId)->toBe($ruProxy->id);
+});
+
+test('профиль с use_proxy=false не вызывает резолвер — запрос уходит напрямую с NULL proxyId', function () {
+    Sleep::fake();
+    // Пул кандидатов пуст: если бы `resolve()` всё же был вызван, тест упал бы
+    // `NoProxyAvailableException` — этого достаточно, чтобы доказать, что `use_proxy = false`
+    // обходит резолвер целиком, а не просто получает от него direct-подобный результат (research/02 §10).
+    $endpoint = config('crawler.eis.csv_endpoint');
+    Http::fake([
+        $endpoint.'*' => Http::response(body: EisCsvFixture::body(), status: 200),
+    ]);
+
+    $registry = Registry::factory()->create(['code' => 'fz44']);
+    $crawler = Crawler::factory()->for($registry)->create(['filter' => null, 'use_proxy' => false]);
+    $cursor = new ListingCursor(blockFrom: 1);
+
+    $batch = app(CsvSourceMethod::class)->collectListing($crawler, $cursor);
+
+    expect($batch->httpStatus)->toBe(200)
+        ->and($batch->proxyId)->toBeNull();
+
+    Http::assertSentCount(1);
 });
 
 test('isAvailable возвращает true без сетевых запросов', function () {

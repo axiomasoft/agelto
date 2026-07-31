@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Enums\Procurement\ProxyScope;
 use App\Exceptions\Procurement\NoProxyAvailableException;
+use App\Exceptions\Procurement\ProxyPolicyMisconfiguredException;
 use App\Models\Procurement\Crawler\Proxy;
 use App\Repositories\Procurement\ProxyHealthStoreRepository;
 use App\Services\Llm\Contracts\OutboundProxy;
@@ -93,6 +94,25 @@ test('пустой пул для LLM фолбэчит на env-прокси с �
     Log::shouldHaveReceived('warning')
         ->withArgs(fn (string $message, array $context): bool => str_contains($message, 'env-фолбэк')
             && $context['host'] === 'generativelanguage.googleapis.com');
+});
+
+test('пустая политика запретов для LLM-скоупа — резолвер бросает ProxyPolicyMisconfiguredException', function (): void {
+    config(['crawler.proxy.policy.'.ProxyScope::Llm->value.'.forbidden_countries' => []]);
+
+    expect(fn () => llmResolver()->resolve(scope: ProxyScope::Llm, target: 'generativelanguage.googleapis.com'))
+        ->toThrow(ProxyPolicyMisconfiguredException::class);
+});
+
+test('предохранитель пустой политики LLM не ловится PoolOutboundProxy — env-фолбэк не срабатывает', function (): void {
+    config([
+        'crawler.proxy.policy.'.ProxyScope::Llm->value.'.forbidden_countries' => [],
+        'ai.gemini.proxy' => 'http://env-proxy.test:8080',
+    ]);
+
+    $adapter = new PoolOutboundProxy(llmResolver());
+
+    expect(fn () => $adapter->optionsFor('generativelanguage.googleapis.com'))
+        ->toThrow(ProxyPolicyMisconfiguredException::class);
 });
 
 test('PrismGeminiProvider запрашивает опции у порта OutboundProxy по каноническому хосту Gemini', function (): void {

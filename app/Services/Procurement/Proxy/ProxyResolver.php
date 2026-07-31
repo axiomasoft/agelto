@@ -9,6 +9,7 @@ use App\Dto\Procurement\Proxy\ProxyOutcome;
 use App\Dto\Procurement\Proxy\ProxyRequirements;
 use App\Enums\Procurement\ProxyScope;
 use App\Exceptions\Procurement\NoProxyAvailableException;
+use App\Exceptions\Procurement\ProxyPolicyMisconfiguredException;
 use App\Models\Procurement\Crawler\ProxyTarget;
 use App\Repositories\Procurement\ProxyHealthStoreRepository;
 use Closure;
@@ -34,6 +35,7 @@ final readonly class ProxyResolver
 
     /**
      * @throws NoProxyAvailableException пул кандидатов пуст либо весь пул занят пробой
+     * @throws ProxyPolicyMisconfiguredException пустая политика запретов для скоупа `llm` (D84)
      */
     public function resolve(ProxyScope $scope, string $target, ?ProxyRequirements $requirements = null): ProxyLease
     {
@@ -142,6 +144,19 @@ final readonly class ProxyResolver
         // ровно то поведение, которого требует §8, без отдельного предиката на NULL.
         $forbiddenCountries = (array) config("crawler.proxy.policy.{$scope->value}.forbidden_countries", []);
 
+        // Предохранитель F11 (D84): пустая политика запретов для `llm` — неверная конфигурация,
+        // не «запретов нет» (`whereNotIn([])` компилируется в `1 = 1`, гейт молча не сужает пул).
+        // СВОЙ тип исключения — `PoolOutboundProxy` ловит `NoProxyAvailableException` и фолбэчит
+        // на env без гейта стран; тот же тип здесь превратил бы предохранитель в тихий обход.
+        if ($scope === ProxyScope::Llm && $forbiddenCountries === []) {
+            throw new ProxyPolicyMisconfiguredException($scope);
+        }
+
+        // Гео-политика скоупа (research/02 §8, P1.9, D83) — пол площадки, СКЛАДЫВАЕТСЯ с
+        // требованием профиля (`$requirements->country`), не заменяет его: конфликт двух стран
+        // даёт пустое множество и штатный `NoProxyAvailableException`.
+        $requiredCountry = config("crawler.proxy.policy.{$scope->value}.required_country");
+
         return DB::table('prc_proxies')
             ->leftJoin('prc_proxy_targets', function (JoinClause $join) use ($target): void {
                 $join->on('prc_proxy_targets.proxy_id', '=', 'prc_proxies.id')
@@ -152,6 +167,10 @@ final readonly class ProxyResolver
             ->where(fn ($query) => $query->whereNull('prc_proxies.open_until')->orWhere('prc_proxies.open_until', '<=', now()))
             ->where(fn ($query) => $query->whereNull('prc_proxy_targets.open_until')->orWhere('prc_proxy_targets.open_until', '<=', now()))
             ->whereNotIn('prc_proxies.country', $forbiddenCountries)
+            ->when(
+                $requiredCountry !== null,
+                fn ($query) => $query->where('prc_proxies.country', $requiredCountry),
+            )
             ->when(
                 $requirements?->country !== null,
                 fn ($query) => $query->where('prc_proxies.country', $requirements->country),

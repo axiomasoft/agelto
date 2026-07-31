@@ -25,7 +25,7 @@ function sampleDocumentContent(string $version = 'v1'): string
  */
 function activeDocumentDownloadProxy(): Proxy
 {
-    return Proxy::factory()->withScopes([ProxyScope::DocumentDownload])->create();
+    return Proxy::factory()->country('RU')->withScopes([ProxyScope::DocumentDownload])->create();
 }
 
 test('download первого файла создаёт версию, кладёт файл в storage и пишет событие document_added', function () {
