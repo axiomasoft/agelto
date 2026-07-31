@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Enums\Procurement\FinishReason;
+use App\Services\Llm\Contracts\OutboundProxy;
 use App\Services\Llm\Dto\CacheableContent;
 use App\Services\Llm\Dto\JsonSchema;
 use App\Services\Llm\Dto\LlmCacheHandle;
@@ -20,6 +21,21 @@ use Prism\Prism\Structured\Response as PrismStructuredResponse;
 use Prism\Prism\Text\Response as PrismTextResponse;
 use Prism\Prism\ValueObjects\Meta as PrismMeta;
 use Prism\Prism\ValueObjects\Usage as PrismUsage;
+
+/**
+ * Порт `OutboundProxy` (P1.5, D16) вне предмета этого файла — заглушка без прокси, тот же
+ * результат, что у пустого `config('ai.gemini.proxy')` до перевода на порт.
+ */
+function nullOutboundProxy(): OutboundProxy
+{
+    return new class implements OutboundProxy
+    {
+        public function optionsFor(string $host): array
+        {
+            return [];
+        }
+    };
+}
 
 function geminiOptions(?LlmCacheHandle $cacheHandle = null): LlmOptions
 {
@@ -57,7 +73,7 @@ test('completeStructured() маппит usage из сырого usageMetadata, �
         ),
     ]);
 
-    $provider = new PrismGeminiProvider;
+    $provider = new PrismGeminiProvider(nullOutboundProxy());
     $prompt = new LlmPrompt(systemPart: 'система: правило A', userParts: ['извлеки строки 1-40']);
 
     $response = $provider->completeStructured($prompt, new JsonSchema(['type' => 'object']), geminiOptions());
@@ -95,7 +111,7 @@ test('completeStructured() складывает thoughtsTokenCount в completion
         ),
     ]);
 
-    $provider = new PrismGeminiProvider;
+    $provider = new PrismGeminiProvider(nullOutboundProxy());
     $prompt = new LlmPrompt(systemPart: 'система: правило A', userParts: ['извлеки строки 1-40']);
 
     $response = $provider->completeStructured($prompt, new JsonSchema(['type' => 'object']), geminiOptions());
@@ -122,7 +138,7 @@ test('completeStructured() кладёт в raw модельный JSON-текс�
         ),
     ]);
 
-    $provider = new PrismGeminiProvider;
+    $provider = new PrismGeminiProvider(nullOutboundProxy());
     $response = $provider->completeStructured(
         new LlmPrompt(systemPart: 's'),
         new JsonSchema(['type' => 'object']),
@@ -146,7 +162,7 @@ test('completeStructured() передаёт canonical JSON Schema через Gem
     ]);
 
     $schema = new JsonSchema(['type' => 'object', 'properties' => ['rowIndex' => ['type' => 'integer', 'nullable' => true]]]);
-    $provider = new PrismGeminiProvider;
+    $provider = new PrismGeminiProvider(nullOutboundProxy());
 
     $provider->completeStructured(new LlmPrompt(systemPart: 's'), $schema, geminiOptions());
 
@@ -173,7 +189,7 @@ test('complete() маппит MAX_TOKENS (Prism Length) в FinishReason::MaxToke
         ),
     ]);
 
-    $provider = new PrismGeminiProvider;
+    $provider = new PrismGeminiProvider(nullOutboundProxy());
     $response = $provider->complete(new LlmPrompt(systemPart: 's'), geminiOptions());
 
     expect($response->finishReason)->toBe(FinishReason::MaxTokens);
@@ -193,7 +209,7 @@ test('cacheHandle из LlmOptions уходит в providerOptions cachedContentN
     ]);
 
     $handle = new LlmCacheHandle(id: 'cachedContents/abc123', expiresAt: CarbonImmutable::now()->addHour());
-    $provider = new PrismGeminiProvider;
+    $provider = new PrismGeminiProvider(nullOutboundProxy());
 
     $provider->completeStructured(new LlmPrompt(systemPart: 's'), new JsonSchema([]), geminiOptions($handle));
 
@@ -211,7 +227,7 @@ test('createCache() создаёт explicit context cache через Gemini API 
         ]),
     ]);
 
-    $provider = new PrismGeminiProvider;
+    $provider = new PrismGeminiProvider(nullOutboundProxy());
     $handle = $provider->createCache(
         new CacheableContent(systemPart: 'стабильная системная часть'),
         new LlmCacheOptions(model: 'gemini-2.5-flash', ttl: CarbonInterval::hour()),
@@ -227,7 +243,7 @@ test('refreshCache() PATCH-ит expireTime по id кэша (Prism кэш не �
         'generativelanguage.googleapis.com/v1beta/cachedContents/abc123*' => Http::response(['name' => 'cachedContents/abc123']),
     ]);
 
-    $provider = new PrismGeminiProvider;
+    $provider = new PrismGeminiProvider(nullOutboundProxy());
     $provider->refreshCache(new LlmCacheHandle(id: 'cachedContents/abc123', expiresAt: CarbonImmutable::now()), CarbonInterval::hour());
 
     Http::assertSent(fn ($request): bool => $request->method() === 'PATCH' && str_contains($request->url(), 'updateMask=expireTime'));
@@ -238,7 +254,7 @@ test('deleteCache() DELETE-ит кэш по id (Prism кэш не покрыва
         'generativelanguage.googleapis.com/v1beta/cachedContents/abc123' => Http::response([]),
     ]);
 
-    $provider = new PrismGeminiProvider;
+    $provider = new PrismGeminiProvider(nullOutboundProxy());
     $provider->deleteCache(new LlmCacheHandle(id: 'cachedContents/abc123', expiresAt: CarbonImmutable::now()));
 
     Http::assertSent(fn ($request): bool => $request->method() === 'DELETE');
@@ -264,7 +280,7 @@ test('uploadFile() проходит resumable-протокол Files API и во
         ]),
     ]);
 
-    $provider = new PrismGeminiProvider;
+    $provider = new PrismGeminiProvider(nullOutboundProxy());
     $handle = $provider->uploadFile($path, 'application/pdf');
 
     expect($handle)->toBeInstanceOf(LlmFileHandle::class)
@@ -296,7 +312,7 @@ test('uploadFile() опрашивает состояние, пока PROCESSING,
         ]),
     ]);
 
-    $provider = new PrismGeminiProvider;
+    $provider = new PrismGeminiProvider(nullOutboundProxy());
     $handle = $provider->uploadFile($path, 'application/pdf');
 
     expect($handle->uri)->toBe('https://generativelanguage.googleapis.com/v1beta/files/def456');

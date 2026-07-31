@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Enums\Procurement\ProxyScope;
 use App\Enums\Procurement\SourceMethod;
 use App\Services\Procurement\Eis\CsvSourceMethod;
 
@@ -99,6 +100,25 @@ return [
                 'threshold' => 10,
                 'base_cooldown_minutes' => 2,
             ],
+        ],
+
+        /*
+        | Гео-политика по скоупу (research/02 §8, P1.5, D5) — жёсткий фильтр ДО скоринга внутри
+        | резолвера, не вес: запрет обязан быть гарантией. Узел без `country` не проходит гейт
+        | скоупа с непустым `forbidden_countries` (неизвестная страна = запрещённая). Только
+        | скоуп `llm` несёт запрет сегодня (требование брифа «не запустить Gemini через российский
+        | прокси»); `env`-override — под калибровку без деплоя.
+        */
+        'policy' => [
+            ProxyScope::Llm->value => [
+                'forbidden_countries' => array_filter(array_map(
+                    'trim',
+                    explode(',', (string) env('CRAWLER_PROXY_LLM_FORBIDDEN_COUNTRIES', 'RU')),
+                )),
+            ],
+            ProxyScope::CrawlListing->value => ['forbidden_countries' => []],
+            ProxyScope::CrawlDetail->value => ['forbidden_countries' => []],
+            ProxyScope::DocumentDownload->value => ['forbidden_countries' => []],
         ],
     ],
 

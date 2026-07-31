@@ -5,6 +5,7 @@ namespace App\Providers;
 use App\Models\User;
 use App\Pulse\Cards\LlmSpendCard;
 use App\Pulse\Cards\PipelineStagesCard;
+use App\Services\Llm\Contracts\OutboundProxy;
 use App\Services\Llm\Contracts\UsageSource;
 use App\Services\Llm\TrackingUsageSource;
 use App\Services\Procurement\Analyzers\Estimate\ChunkSource;
@@ -12,6 +13,7 @@ use App\Services\Procurement\Analyzers\Estimate\RowRangeChunkSource;
 use App\Services\Procurement\Contracts\DocumentAnalyzerRegistry;
 use App\Services\Procurement\Contracts\ListingRowMapper;
 use App\Services\Procurement\Eis\EisCsvRowMapper;
+use App\Services\Procurement\Proxy\PoolOutboundProxy;
 use Illuminate\Console\Events\CommandStarting;
 use Illuminate\Support\Facades\Context;
 use Illuminate\Support\Facades\Event;
@@ -39,6 +41,11 @@ class AppServiceProvider extends ServiceProvider
         // одна — «наш трекинг» поверх `llm_calls`; второй (биллинг провайдера) нет и класса-заглушки
         // под неё не заводится, место второй реализации описано в контракте ТЕКСТОМ.
         $this->app->bind(UsageSource::class, TrackingUsageSource::class);
+
+        // Стык доменов Llm↔Procurement для исходящего прокси (research/02 §9.2, D16) — порт
+        // в домене Llm, реализация со стороны прокси-слоя; прямой инъекции резолвера в провайдера
+        // LLM это не допускает.
+        $this->app->bind(OutboundProxy::class, PoolOutboundProxy::class);
 
         // Реестр анализаторов типов документа (P2.3, §5.2 контракта): собирается из
         // `config('ai.analyzers')` при ПЕРВОМ резолве и дальше неизменен — отсюда singleton,

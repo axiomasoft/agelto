@@ -135,6 +135,13 @@ final readonly class ProxyResolver
 
     private function candidates(ProxyScope $scope, string $target, ?ProxyRequirements $requirements): Collection
     {
+        // Гейт запрещённых стран (research/02 §8, D5) — ДО скоринга, жёсткий SQL-фильтр, не вес.
+        // `whereNotIn` с пустым списком компилируется в `1 = 1` (Grammar::whereNotIn) — скоуп без
+        // запретов не сужается; с непустым списком SQL `NOT IN` возвращает NULL (= false в WHERE)
+        // для строк с `country IS NULL`, поэтому неизвестная страна автоматически запрещена —
+        // ровно то поведение, которого требует §8, без отдельного предиката на NULL.
+        $forbiddenCountries = (array) config("crawler.proxy.policy.{$scope->value}.forbidden_countries", []);
+
         return DB::table('prc_proxies')
             ->leftJoin('prc_proxy_targets', function (JoinClause $join) use ($target): void {
                 $join->on('prc_proxy_targets.proxy_id', '=', 'prc_proxies.id')
@@ -144,6 +151,7 @@ final readonly class ProxyResolver
             ->whereJsonContains('prc_proxies.scopes', $scope->value)
             ->where(fn ($query) => $query->whereNull('prc_proxies.open_until')->orWhere('prc_proxies.open_until', '<=', now()))
             ->where(fn ($query) => $query->whereNull('prc_proxy_targets.open_until')->orWhere('prc_proxy_targets.open_until', '<=', now()))
+            ->whereNotIn('prc_proxies.country', $forbiddenCountries)
             ->when(
                 $requirements?->country !== null,
                 fn ($query) => $query->where('prc_proxies.country', $requirements->country),

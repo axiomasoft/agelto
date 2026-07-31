@@ -6,6 +6,7 @@ namespace App\Services\Llm\Providers;
 
 use App\Enums\Procurement\FinishReason;
 use App\Services\Llm\Contracts\LlmProvider;
+use App\Services\Llm\Contracts\OutboundProxy;
 use App\Services\Llm\Contracts\SupportsContextCaching;
 use App\Services\Llm\Contracts\SupportsFileUpload;
 use App\Services\Llm\Dto\CacheableContent;
@@ -57,6 +58,8 @@ use Prism\Prism\ValueObjects\Messages\UserMessage as PrismUserMessage;
  */
 final readonly class PrismGeminiProvider implements LlmProvider, SupportsContextCaching, SupportsFileUpload
 {
+    public function __construct(private OutboundProxy $outboundProxy) {}
+
     public function complete(LlmPrompt $prompt, LlmOptions $options): LlmResponse
     {
         $response = $this->withRateLimit(fn () => $this->textRequest($prompt, $options)->asText());
@@ -177,13 +180,10 @@ final readonly class PrismGeminiProvider implements LlmProvider, SupportsContext
      */
     private function withProxy(TextPendingRequest|StructuredPendingRequest $request): TextPendingRequest|StructuredPendingRequest
     {
-        $proxy = $this->proxy();
-
-        $clientOptions = ['timeout' => (int) config('ai.gemini.request_timeout_seconds', 90)];
-
-        if ($proxy !== null) {
-            $clientOptions['proxy'] = $proxy;
-        }
+        $clientOptions = [
+            'timeout' => (int) config('ai.gemini.request_timeout_seconds', 90),
+            ...$this->outboundProxy->optionsFor($this->host()),
+        ];
 
         return $request->withClientOptions($clientOptions);
     }
@@ -293,7 +293,7 @@ final readonly class PrismGeminiProvider implements LlmProvider, SupportsContext
             'X-Goog-Upload-Header-Content-Length' => (string) $size,
             'X-Goog-Upload-Header-Content-Type' => $mimeType,
         ])
-            ->when($this->proxy() !== null, fn (PendingRequest $client) => $client->withOptions(['proxy' => $this->proxy()]))
+            ->withOptions($this->outboundProxy->optionsFor($this->host()))
             ->post($this->filesUploadUrl(), [
                 'file' => ['display_name' => basename($path)],
             ]);
@@ -326,7 +326,7 @@ final readonly class PrismGeminiProvider implements LlmProvider, SupportsContext
             'X-Goog-Upload-Offset' => '0',
             'X-Goog-Upload-Command' => 'upload, finalize',
         ])
-            ->when($this->proxy() !== null, fn (PendingRequest $client) => $client->withOptions(['proxy' => $this->proxy()]))
+            ->withOptions($this->outboundProxy->optionsFor($this->host()))
             ->withBody($content, $mimeType)
             ->post($uploadUrl);
 
@@ -376,10 +376,9 @@ final readonly class PrismGeminiProvider implements LlmProvider, SupportsContext
      */
     private function geminiClient(): PendingRequest
     {
-        $client = Http::withHeaders(['x-goog-api-key' => $this->apiKey()])
-            ->baseUrl(rtrim((string) config('ai.gemini.files.base_url'), '/').'/v1beta');
-
-        return $this->proxy() !== null ? $client->withOptions(['proxy' => $this->proxy()]) : $client;
+        return Http::withHeaders(['x-goog-api-key' => $this->apiKey()])
+            ->baseUrl(rtrim((string) config('ai.gemini.files.base_url'), '/').'/v1beta')
+            ->withOptions($this->outboundProxy->optionsFor($this->host()));
     }
 
     private function apiKey(): string
@@ -387,10 +386,14 @@ final readonly class PrismGeminiProvider implements LlmProvider, SupportsContext
         return (string) config('prism.providers.gemini.api_key');
     }
 
-    private function proxy(): ?string
+    /**
+     * Канонический хост Gemini API (research/02 §9.1 — без схемы/порта), вход порта
+     * `OutboundProxy::optionsFor()`. Prism (generateContent) и Files API/cache CRUD бьют в один
+     * и тот же хост (`config('ai.gemini.files.base_url')` и `GEMINI_URL` из `config/prism.php`
+     * оба указывают на `generativelanguage.googleapis.com`).
+     */
+    private function host(): string
     {
-        $proxy = config('ai.gemini.proxy');
-
-        return is_string($proxy) && $proxy !== '' ? $proxy : null;
+        return (string) parse_url((string) config('ai.gemini.files.base_url'), PHP_URL_HOST);
     }
 }
