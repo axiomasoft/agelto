@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Casts\AsCollection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Collection;
 
 /**
  * Матрица роутинга «тип документа × назначение → провайдер/модель» (без spatie-settings —
@@ -18,6 +19,10 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * `document_type`/`purpose` — СТРОКИ (без каста): типизированное чтение носителя `purpose`,
  * когда понадобится, идёт через `DocumentAnalyzerRegistry::purposeFor($route->document_type,
  * $route->purpose)` — тип берётся из ТОЙ ЖЕ строки, а не угадывается (P2.5, D101).
+ *
+ * @property string $model
+ * @property Collection<string, mixed>|null $options
+ * @property-read Provider|null $provider
  */
 #[UseFactory(LlmRouteFactory::class)]
 final class LlmRoute extends Model

@@ -13,6 +13,9 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 /**
  * Результат по одной метрике на одном эталонном примере в рамках прогона оценки.
+ *
+ * @property string $value
+ * @property-read DatasetExample|null $datasetExample
  */
 #[UseFactory(EvalResultFactory::class)]
 final class EvalResult extends Model

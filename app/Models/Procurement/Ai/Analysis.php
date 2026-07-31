@@ -20,6 +20,8 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
 
 /**
@@ -29,14 +31,28 @@ use Illuminate\Support\Str;
  * `prc_ai_dataset_examples` (gold), rejected — из `result`/`raw_result` анализа, который
  * этот gold заменил (`parent_analysis_id`) — пара собирается запросом на экспорте.
  *
+ * @property string $uuid
  * @property int $document_version_id
  * @property AnalysisStep $step
  * @property AnalysisStatus $status
  * @property bool $is_shadow
  * @property string|null $document_type
+ * @property Collection<string, mixed>|null $result
+ * @property string|null $provider
+ * @property string|null $model
+ * @property int $attempts
+ * @property bool $failed_permanently
+ * @property string|null $cache_id
+ * @property Carbon|null $cache_expires_at
+ * @property string|null $rules_hash
+ * @property Collection<string, mixed>|null $progress
+ * @property ReviewStatus $review_status
+ * @property int|null $reviewed_by
+ * @property Carbon|null $reviewed_at
  * @property int $analysis_run_id
  * @property int|null $parent_analysis_id
  * @property-read AnalysisRun $analysisRun
+ * @property-read DocumentVersion|null $documentVersion
  */
 #[UseFactory(AnalysisFactory::class)]
 final class Analysis extends Model

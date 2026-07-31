@@ -16,6 +16,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 /**
  * Эталонный пример (gold) для датасета оценки качества AI-анализа.
  *
+ * @property int $document_version_id
+ * @property string $source
  * @property-read DocumentVersion|null $documentVersion
  * @property-read Fixture|null $fixture
  */

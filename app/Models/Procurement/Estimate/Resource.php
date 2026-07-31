@@ -13,6 +13,16 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 /**
  * Ресурс позиции сметы (трудозатраты/машины/материалы/накладные/прочее).
+ *
+ * @property ResourceType $resource_type
+ * @property string|null $code
+ * @property string $name
+ * @property string|null $unit
+ * @property string|null $quantity
+ * @property string|null $price_base
+ * @property string|null $price_curr
+ * @property string|null $index_code
+ * @property string|null $index_value
  */
 #[UseFactory(ResourceFactory::class)]
 final class Resource extends Model

@@ -9,9 +9,15 @@ use Illuminate\Database\Eloquent\Attributes\UseFactory;
 use Illuminate\Database\Eloquent\Casts\AsCollection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Collection;
 
 /**
  * Конфигурация LLM-провайдера. Ключи API в БД не хранятся — только имя секрета (env/secrets).
+ *
+ * @property string $code
+ * @property string $driver
+ * @property string|null $base_url
+ * @property Collection<string, mixed>|null $options
  */
 #[UseFactory(ProviderFactory::class)]
 final class Provider extends Model

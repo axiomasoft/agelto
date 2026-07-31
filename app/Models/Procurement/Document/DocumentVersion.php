@@ -17,6 +17,14 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * ({@see DocumentRepresentation}, D25) — отдельной колонки под подготовленный путь у версии нет.
  *
  * @property int $document_id
+ * @property string $content_hash
+ * @property int $size_bytes
+ * @property string $filename
+ * @property string $extension
+ * @property string $mime
+ * @property string $storage_path
+ * @property int|null $parent_version_id
+ * @property-read Document|null $document
  */
 #[UseFactory(DocumentVersionFactory::class)]
 final class DocumentVersion extends Model

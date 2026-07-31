@@ -18,6 +18,9 @@ use Illuminate\Support\Str;
  * Структурированная операторская коррекция результата AI-анализа (P9.1, D15) — «что не так»
  * с JSONPath-адресом поля и enum-причиной; `hint` — переформулировка для подмешивания в промт
  * повторного прогона (P9.2), `is_reusable` распространяет её на все документы этого типа.
+ *
+ * @property string $uuid
+ * @property string $content
  */
 #[UseFactory(CorrectionFactory::class)]
 final class Correction extends Model

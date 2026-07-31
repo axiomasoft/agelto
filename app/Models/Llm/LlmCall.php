@@ -23,6 +23,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property int|null $analysis_run_id
  * @property string|null $request_ref
  * @property string|null $response_ref
+ * @property int|null $prompt_tokens
+ * @property int|null $cached_tokens
  */
 #[UseFactory(LlmCallFactory::class)]
 final class LlmCall extends Model

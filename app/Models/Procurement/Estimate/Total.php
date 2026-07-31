@@ -14,6 +14,12 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 /**
  * Итоговая строка/начисление сметы (иерархия «Итого» → «в т.ч. НДС»).
+ *
+ * @property string $label
+ * @property TotalKind|null $kind
+ * @property string|null $amount
+ * @property int|null $chapter_number
+ * @property string|null $rate
  */
 #[UseFactory(TotalFactory::class)]
 final class Total extends Model

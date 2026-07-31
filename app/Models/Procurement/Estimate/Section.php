@@ -13,6 +13,10 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 /**
  * Дерево разделов сметы.
+ *
+ * @property int|null $parent_id
+ * @property int $position
+ * @property string $title
  */
 #[UseFactory(SectionFactory::class)]
 final class Section extends Model

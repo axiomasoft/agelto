@@ -20,7 +20,15 @@ use Illuminate\Support\Str;
 /**
  * Логический документ закупки (извещение/протокол/контракт/…), независимый от конкретной версии файла.
  *
+ * @property string $uuid
+ * @property int|null $procurement_id
  * @property int $platform_id
+ * @property string|null $external_id
+ * @property string $title
+ * @property string|null $source_url
+ * @property DocumentStatus $status
+ * @property int $attempts
+ * @property string|null $last_error
  */
 #[UseFactory(DocumentFactory::class)]
 final class Document extends Model

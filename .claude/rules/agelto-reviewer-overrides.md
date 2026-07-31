@@ -38,3 +38,12 @@ Upgrade: harness agent-packs upgrade --pack backend-laravel --target .
 - `EstimateExtractionJob`/наследники checkpoint-requeue переведены на `ShouldBeUnique` вместо
   `ShouldBeUniqueUntilProcessing` — блокирующее (self-dispatch продолжения тихо дедуплицируется,
   документ зависает в extraction, D39).
+
+## Статический анализ (`docs/03_Dev/static-analysis.md`)
+
+- Рост `phpstan-baseline.neon` (новая запись сверх легальных рычагов — `databaseMigrationsPath`,
+  `@property`/`@property-read` докблоки, отражающие фактическую схему/связь) без D-записи, объясняющей
+  причину — блокирующее замечание.
+- `@phpstan-ignore` точечно / `excludePaths` / понижение `level` / отключение
+  `reportUnmatchedIgnoredErrors` как способ «снять» ошибку — блокирующее (глушит baseline вместо
+  документирования долга, политика `docs/03_Dev/static-analysis.md`).

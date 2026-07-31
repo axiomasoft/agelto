@@ -18,6 +18,8 @@ status: living
 ## Разделы
 
 - [architecture.md](architecture.md) · [database.md](database.md) — устройство системы.
+- [static-analysis.md](static-analysis.md) — политика PHPStan/Larastan baseline: что легально
+  снимается, классификация остатка, что делать при новой ошибке.
 - [crawling-pipeline.md](crawling-pipeline.md) · [document-pipeline.md](document-pipeline.md) ·
   [llm-providers.md](llm-providers.md) — internals пайплайнов.
 - [admin-panel.md](admin-panel.md) — Filament для разработчика.

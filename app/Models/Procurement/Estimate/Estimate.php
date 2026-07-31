@@ -21,12 +21,32 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Str;
 
 /**
  * Распарсенная смета (нормализованное хранилище результата AI-извлечения).
  *
+ * @property string $uuid
  * @property int $platform_id
+ * @property int $ordinal
+ * @property string|null $estimate_number
+ * @property string|null $currency
+ * @property int|null $base_year
+ * @property string|null $price_level
+ * @property CalcMethod|null $calc_method
+ * @property string|null $labor_hours_workers
+ * @property string|null $labor_hours_machinists
+ * @property string|null $document_number
+ * @property Carbon|null $document_date
+ * @property Carbon|null $period_start
+ * @property Carbon|null $period_end
+ * @property int|null $rows_extracted
+ * @property string $validation_status
+ * @property string|null $source_sheet_name
+ * @property int|null $source_page_start
+ * @property-read DocumentVersion|null $documentVersion
+ * @property-read Analysis|null $analysis
  */
 #[UseFactory(EstimateFactory::class)]
 final class Estimate extends Model

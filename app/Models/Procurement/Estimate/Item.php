@@ -14,6 +14,19 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 /**
  * Позиция сметы (строка).
+ *
+ * @property int|null $section_id
+ * @property string|null $code
+ * @property string $name
+ * @property string|null $unit
+ * @property string|null $quantity
+ * @property string|null $unit_price_base
+ * @property string|null $unit_price_curr
+ * @property string|null $total_price_base
+ * @property string|null $total_price_curr
+ * @property string|null $index_code
+ * @property string|null $index_value
+ * @property string|null $source_position_number
  */
 #[UseFactory(ItemFactory::class)]
 final class Item extends Model
