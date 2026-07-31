@@ -6,7 +6,7 @@
 |:--|:--|
 | Plan ID | 2026.07.31-SYS-INTEGRITY |
 | Title | Целостность, надёжность и предсказуемость пайплайна: прокси как слой маршрутизации, контракт LLM в одном канале, выравнивание доменной раскладки, боевой кроулинг ЕИС, полнота сметной модели, адресация файлов, ревизия схемы БД |
-| Version | 0.11.1 |
+| Version | 0.11.2 |
 | Status | 🟡 In progress |
 | Document Type | Executable Master Plan |
 | Authoring Model | frontier |
@@ -147,7 +147,7 @@ P7.3 не выбирает топологию, а подтверждает ре�
 
 | Phase | Title | Items 🟢/всего | Status |
 |:--|:--|:--|:--|
-| P1 | Прокси как слой маршрутизации: скоуп, гео, здоровье, привязка к профилю | 2/8 | 🟡 In progress |
+| P1 | Прокси как слой маршрутизации: скоуп, гео, здоровье, привязка к профилю | 3/8 | 🟡 In progress |
 | P2 | Контракт LLM в одном канале: `#[Description]`, JSON Schema, промты | 0/7 | ⬜ Not started |
 | P3 | Доменная раскладка и arch-тесты | 0/5 | ⬜ Not started |
 | P4 | ЕИС: разведка, типизированные фильтры, сиды кроулеров, боевой прогон | 0/8 | ⬜ Not started |
@@ -279,6 +279,7 @@ reconcile pass 3/3 закрыт (D63–D69), 14 находок первого `p
 | 2026-07-31 | plan-run / opus-high | Закрыты 11 находок захода 2 `plan-audit design` (N1–N11): фаза P4 и `open-questions.md` приведены к D71, таксономия «канал» снята, **D78** (coupling `architecture.md`), **D79** (prod-кластера Postgres нет), шесть bookkeeping-правок |
 | 2026-07-31 | issue-planner / frontier-high | ТЗ P1.3 приведено к вердиктам P1.1: **D80** (профиль несёт две колонки, скоупа на нём нет) и **D81** (у детальной стадии профиля нет) + следствие D78 в `Required Reads` P7.3/P7.8 — детали см. phases/P1.md P1.3 и plan.md §5 |
 | 2026-07-31 | plan-run / sonnet-high | P1.2 закрыт: схема прокси — `ProxyScope`/`ProxyFailureReason`, миграции `prc_proxies`+7 колонок/`prc_proxy_targets`, модели/фабрики со states — детали см. phases/P1.md P1.2 Completion Notes |
+| 2026-07-31 | plan-run / sonnet-high | P1.3 закрыт: миграция `prc_crawlers` (`use_proxy`/`proxy_country`, D80) + перечитывание настроек на итерации в `FreshRunProcessor`/`ArchiveWindowScanner` (D81) — детали см. phases/P1.md P1.3 Completion Notes |
 
 ## Обсуждение
 
