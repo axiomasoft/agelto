@@ -57,7 +57,7 @@ Repositories — read/write доступ к `prc_*`/`org_*` таблицам. П
 - `Ai\Analysis` → `$analysis` — сессия анализа версии документа; re-run — `parent_analysis_id`, shadow-прогон — `is_shadow`.
 - `Ai\Prompt` → `$prompt` — версия системной инструкции; канон — оба корня (`resources/ai/prompts/**` + `resources/<домен>/ai/prompts/**`, D32) → `ai:prompts:sync`; `is_protected` — сидовые записи read-only в админке.
 - `Ai\Correction`/`Ai\DatasetExample` — операторская правка результата и immutable gold-снапшот обучающего контура.
-- `PromptStep` (композиция промта) ≠ `AnalysisStep` (шаг анализа: screening/extraction) ≠ `LlmPurpose` (назначение конкретного вызова).
+- `App\Enums\Llm\PromptStep` (интерфейс, ядерный `CorePromptStep` + типовые enum'ы анализаторов) — композиция промта ≠ `AnalysisStep` (шаг анализа: screening/extraction) ≠ `App\Enums\Llm\LlmPurpose` (тот же интерфейсный сейм для назначения конкретного вызова).
 - `DocumentStatus::Unprocessable` + `UnprocessableReason` — терминальный «не можем обработать» (лимит провайдера/формат/пароль/zip-бомба) — константация, не сбой, не ретраится.
 - `ExtractionRoute` (`Whole`/`Windowed`) — путь извлечения, выбранный `ExtractionPreflight` по capability-матрице ДО первого upload.
 
