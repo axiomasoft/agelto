@@ -3,6 +3,8 @@
 declare(strict_types=1);
 
 use App\Dto\Procurement\Ai\Screening\ScreeningResult;
+use App\Dto\Procurement\Analyzers\Estimate\DiscoveryResponse;
+use App\Dto\Procurement\Analyzers\Estimate\PassportResponse;
 use App\Dto\Procurement\Analyzers\Estimate\RowsChunkResponse;
 use App\Dto\Procurement\Analyzers\Estimate\TotalsResponse;
 use App\Services\Llm\Schema\JsonSchemaGenerator;
@@ -60,4 +62,33 @@ test('генерация детерминирована между запуск�
     $generator = new JsonSchemaGenerator;
 
     expect($generator->generate(RowsChunkResponse::class))->toBe($generator->generate(RowsChunkResponse::class));
+});
+
+test('схемы Response-классов всех шагов извлечения и скрининга совпадают с golden-фикстурой', function (): void {
+    $generator = new JsonSchemaGenerator;
+
+    $classes = [
+        'DiscoveryResponse' => DiscoveryResponse::class,
+        'PassportResponse' => PassportResponse::class,
+        'RowsChunkResponse' => RowsChunkResponse::class,
+        'ScreeningResult' => ScreeningResult::class,
+        'TotalsResponse' => TotalsResponse::class,
+    ];
+
+    $actual = [];
+
+    foreach ($classes as $shortName => $class) {
+        $actual[$shortName] = $generator->generate($class);
+    }
+
+    $golden = json_decode(
+        (string) file_get_contents(base_path('tests/Fixtures/Llm/step-json-schemas.json')),
+        true,
+        flags: JSON_THROW_ON_ERROR,
+    );
+
+    // Схема — контракт structured output провайдера: её молчаливое изменение ломает разбор
+    // ответа, а не тест (P6.1 Implementation Rule 2). Фикстура снята ДО выделения обходчика
+    // графа типов и с тех пор не пересобиралась.
+    expect($actual)->toBe($golden);
 });

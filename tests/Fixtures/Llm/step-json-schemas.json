@@ -1,0 +1,778 @@
+{
+    "DiscoveryResponse": {
+        "$defs": {
+            "DiscoveryMarkerLine": {
+                "type": "object",
+                "properties": {
+                    "marker": {
+                        "type": "string",
+                        "enum": [
+                            "estimate_start",
+                            "continuation",
+                            "estimate_end"
+                        ]
+                    },
+                    "page": {
+                        "type": "integer"
+                    },
+                    "title": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    }
+                },
+                "required": [
+                    "marker",
+                    "page"
+                ],
+                "additionalProperties": false
+            }
+        },
+        "type": "object",
+        "properties": {
+            "markers": {
+                "type": "array",
+                "items": {
+                    "$ref": "#/$defs/DiscoveryMarkerLine"
+                }
+            }
+        },
+        "required": [],
+        "additionalProperties": false
+    },
+    "PassportResponse": {
+        "$defs": {
+            "EstimatePassport": {
+                "type": "object",
+                "properties": {
+                    "address": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "contract_date": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "contract_number": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "generator": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "reference": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "target": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "enum": [
+                            "construction",
+                            "renovation",
+                            "medical_equipment",
+                            "engineering"
+                        ]
+                    },
+                    "type": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "enum": [
+                            "local_estimate",
+                            "act",
+                            "resource_calculation",
+                            "defect_list"
+                        ]
+                    }
+                },
+                "required": [],
+                "additionalProperties": false
+            },
+            "EstimateTotalsBlock": {
+                "type": "object",
+                "properties": {
+                    "footer": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/$defs/TotalLine"
+                        }
+                    }
+                },
+                "required": [],
+                "additionalProperties": false
+            },
+            "EstimateWorkType": {
+                "type": "object",
+                "properties": {
+                    "children": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/$defs/EstimateWorkType"
+                        }
+                    },
+                    "overhead_code": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "overhead_rate": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "overhead_rate_curr": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "profit_code": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "profit_rate": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "profit_rate_curr": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "title": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "title"
+                ],
+                "additionalProperties": false
+            },
+            "TotalLine": {
+                "type": "object",
+                "properties": {
+                    "chapter_number": {
+                        "type": [
+                            "integer",
+                            "null"
+                        ]
+                    },
+                    "children": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/$defs/TotalLine"
+                        }
+                    },
+                    "kind": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "enum": [
+                            "overhead",
+                            "profit",
+                            "vat",
+                            "total",
+                            "additional",
+                            "other"
+                        ]
+                    },
+                    "label": {
+                        "type": "string"
+                    },
+                    "rate": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "value": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    }
+                },
+                "required": [
+                    "label"
+                ],
+                "additionalProperties": false
+            }
+        },
+        "type": "object",
+        "properties": {
+            "base_year": {
+                "type": [
+                    "integer",
+                    "null"
+                ]
+            },
+            "calc_method": {
+                "type": [
+                    "string",
+                    "null"
+                ],
+                "enum": [
+                    "base_index",
+                    "resource"
+                ]
+            },
+            "currency": {
+                "type": "string"
+            },
+            "document_date": {
+                "type": [
+                    "string",
+                    "null"
+                ]
+            },
+            "document_number": {
+                "type": [
+                    "string",
+                    "null"
+                ]
+            },
+            "estimate_number": {
+                "type": [
+                    "string",
+                    "null"
+                ]
+            },
+            "labor_hours_machinists": {
+                "type": [
+                    "string",
+                    "null"
+                ]
+            },
+            "labor_hours_workers": {
+                "type": [
+                    "string",
+                    "null"
+                ]
+            },
+            "passport": {
+                "$ref": "#/$defs/EstimatePassport"
+            },
+            "period_end": {
+                "type": [
+                    "string",
+                    "null"
+                ]
+            },
+            "period_start": {
+                "type": [
+                    "string",
+                    "null"
+                ]
+            },
+            "price_level": {
+                "type": [
+                    "string",
+                    "null"
+                ]
+            },
+            "rows_expected": {
+                "type": "integer"
+            },
+            "totals": {
+                "anyOf": [
+                    {
+                        "$ref": "#/$defs/EstimateTotalsBlock"
+                    },
+                    {
+                        "type": "null"
+                    }
+                ]
+            },
+            "work_types": {
+                "type": "array",
+                "items": {
+                    "$ref": "#/$defs/EstimateWorkType"
+                }
+            }
+        },
+        "required": [
+            "passport"
+        ],
+        "additionalProperties": false
+    },
+    "RowsChunkResponse": {
+        "$defs": {
+            "EstimateRow": {
+                "type": "object",
+                "properties": {
+                    "attributes": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/$defs/RowAttributes"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ]
+                    },
+                    "code": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "index_code": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "index_value": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "quantity": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "resources": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/$defs/RowResource"
+                        }
+                    },
+                    "row_index": {
+                        "type": "integer"
+                    },
+                    "row_type": {
+                        "type": "string",
+                        "enum": [
+                            "section_header",
+                            "subsection_header",
+                            "item",
+                            "subtotal",
+                            "summary_row"
+                        ]
+                    },
+                    "section_title": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "source_position_number": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "total_price_base": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "total_price_curr": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "unit": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "unit_price_base": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "unit_price_curr": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "work_type_name": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    }
+                },
+                "required": [
+                    "name",
+                    "row_index",
+                    "row_type"
+                ],
+                "additionalProperties": false
+            },
+            "IncompleteRow": {
+                "type": "object",
+                "properties": {
+                    "last_known_code": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "page_number": {
+                        "type": [
+                            "integer",
+                            "null"
+                        ]
+                    },
+                    "raw_text": {
+                        "type": "string"
+                    },
+                    "reason": {
+                        "type": "string",
+                        "enum": [
+                            "split_by_page_end",
+                            "orphan_numbers_at_page_start"
+                        ]
+                    }
+                },
+                "required": [
+                    "raw_text",
+                    "reason"
+                ],
+                "additionalProperties": false
+            },
+            "RowAttributes": {
+                "type": "object",
+                "properties": {
+                    "amount_reporting_period": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "amount_since_start": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "amount_since_year_start": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "modifiers": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/$defs/RowModifier"
+                        }
+                    }
+                },
+                "required": [],
+                "additionalProperties": false
+            },
+            "RowModifier": {
+                "type": "object",
+                "properties": {
+                    "code": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "kind": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "enum": [
+                            "qty",
+                            "price",
+                            "correction",
+                            "winter",
+                            "recalculation",
+                            "other"
+                        ]
+                    },
+                    "level": {
+                        "type": [
+                            "integer",
+                            "null"
+                        ]
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "value": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "value_labor": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "value_machines": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "value_machinists_wage": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "value_materials": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    }
+                },
+                "required": [
+                    "name"
+                ],
+                "additionalProperties": false
+            },
+            "RowResource": {
+                "type": "object",
+                "properties": {
+                    "code": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "index_code": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "index_value": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "price_base": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "price_curr": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "quantity": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "resource_type": {
+                        "type": "string",
+                        "enum": [
+                            "labor",
+                            "machine",
+                            "material",
+                            "overhead",
+                            "other"
+                        ]
+                    },
+                    "unit": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    }
+                },
+                "required": [
+                    "name",
+                    "resource_type"
+                ],
+                "additionalProperties": false
+            }
+        },
+        "type": "object",
+        "properties": {
+            "incomplete_items": {
+                "type": "array",
+                "items": {
+                    "$ref": "#/$defs/IncompleteRow"
+                }
+            },
+            "rows": {
+                "type": "array",
+                "items": {
+                    "$ref": "#/$defs/EstimateRow"
+                }
+            }
+        },
+        "required": [],
+        "additionalProperties": false
+    },
+    "ScreeningResult": {
+        "type": "object",
+        "properties": {
+            "confidence": {
+                "type": "number"
+            },
+            "description": {
+                "type": [
+                    "string",
+                    "null"
+                ]
+            },
+            "document_type": {
+                "type": "string",
+                "enum": [
+                    "estimate",
+                    "tech_spec",
+                    "contract_draft",
+                    "protocol",
+                    "unknown"
+                ]
+            },
+            "ignore_reason": {
+                "type": [
+                    "string",
+                    "null"
+                ]
+            },
+            "page_count_estimate": {
+                "type": [
+                    "integer",
+                    "null"
+                ]
+            },
+            "tags": {
+                "type": "array",
+                "items": {
+                    "type": "string"
+                }
+            }
+        },
+        "required": [
+            "confidence",
+            "document_type"
+        ],
+        "additionalProperties": false
+    },
+    "TotalsResponse": {
+        "$defs": {
+            "EstimateTotalsBlock": {
+                "type": "object",
+                "properties": {
+                    "footer": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/$defs/TotalLine"
+                        }
+                    }
+                },
+                "required": [],
+                "additionalProperties": false
+            },
+            "TotalLine": {
+                "type": "object",
+                "properties": {
+                    "chapter_number": {
+                        "type": [
+                            "integer",
+                            "null"
+                        ]
+                    },
+                    "children": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/$defs/TotalLine"
+                        }
+                    },
+                    "kind": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "enum": [
+                            "overhead",
+                            "profit",
+                            "vat",
+                            "total",
+                            "additional",
+                            "other"
+                        ]
+                    },
+                    "label": {
+                        "type": "string"
+                    },
+                    "rate": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "value": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    }
+                },
+                "required": [
+                    "label"
+                ],
+                "additionalProperties": false
+            }
+        },
+        "type": "object",
+        "properties": {
+            "totals": {
+                "$ref": "#/$defs/EstimateTotalsBlock"
+            }
+        },
+        "required": [
+            "totals"
+        ],
+        "additionalProperties": false
+    }
+}
