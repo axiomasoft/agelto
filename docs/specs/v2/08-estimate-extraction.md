@@ -1,8 +1,8 @@
 # ТЗ v2 · 08 — Извлечение смет: контракты, алгоритм, экономика
 
-> Пайплайн — `03-document-pipeline.md` §3.5 (стадия «Полное извлечение»). Транспорт/провайдер — `04-llm-providers.md`. Схема — `01-database.md` §6 (`prc_estimates`/`prc_estimate_sections`/`prc_estimate_items`/`prc_estimate_resources`/`prc_estimate_totals`, `prc_ai_*`). Первоисточники v1, зафиксированные здесь до удаления `Old/` (P11.1): `Old/app/Process/EstimateAnalysis/Schema/**`, `Old/app/Attributes/Alias.php`, `Old/docs/03_Dev/LLM_Strategy.md` §10. Алгоритм разрывов страниц — расшифровка `tmp/agelto2.md` (удаляется в P11.1). Решения — `plans/EST-AI/plan.md` §5, особенно D2, D3, D6, D9, D10, D27, D29–D32, D35.
+> Пайплайн — `03-document-pipeline.md` §3.5 (стадия «Полное извлечение»). Транспорт/провайдер — `04-llm-providers.md`. Схема — `01-database.md` §6 (`prc_estimates`/`prc_estimate_sections`/`prc_estimate_items`/`prc_estimate_resources`/`prc_estimate_totals`, `prc_ai_*`). Первоисточники v1, зафиксированные здесь до удаления `Old/` (план `EST-AI`): `Old/app/Process/EstimateAnalysis/Schema/**`, `Old/app/Attributes/Alias.php`, `Old/docs/03_Dev/LLM_Strategy.md` §10. Алгоритм разрывов страниц — расшифровка `tmp/agelto2.md` (удаляется вместе с `Old/`). Решения — `plans/EST-AI/plan.md` §5, особенно D2, D3, D6, D9, D10, D27, D29–D32, D35.
 >
-> Назначение документа — самодостаточный контракт для исполнителей P2–P6 и для будущей «наполняющей промты» модели (следующий шаг владельца после плана, см. `plan.md` §1). Old/-первоисточники после P11.1 исчезнут — сверка фактов делалась ПРЯМО по коду, не по пересказу.
+> Назначение документа — самодостаточный контракт для исполнителей контура извлечения и для будущей «наполняющей промты» модели (следующий шаг владельца после плана, см. `plan.md` §1). Old/-первоисточники после сноса `Old/` исчезнут — сверка фактов делалась ПРЯМО по коду, не по пересказу.
 
 ## 1. Инвентарь полей v1 → v2
 
@@ -49,10 +49,10 @@
 | `EstimateItem.code` | переносится | `prc_estimate_items.code` (докблок в миграции: «шифр ФЕР/ТЕР») |
 | `EstimateItem.unit` | переносится | `prc_estimate_items.unit` |
 | `EstimateItem.quantity` | переносится | `prc_estimate_items.quantity` |
-| `EstimateItem.price` | переносится (переименовано, вторично переименовано P4.5) | `prc_estimate_items.total_price_curr` (v1 `price` семантически «стоимость всего», см. Alias `price←Стоимость всего,Итого руб» — это НЕ цена за единицу; P4.5 развела два уровня цены — `total_price_curr`/`total_price_base`, `unit_price_curr`/`unit_price_base`, см. §3.1/§3.2 и `plans/2026.07.26-EST-TRAIN/research/06-schema-decision.md` §5.1) |
+| `EstimateItem.price` | переносится (переименовано, вторично переименовано планом `2026.07.26-EST-TRAIN`) | `prc_estimate_items.total_price_curr` (v1 `price` семантически «стоимость всего», см. Alias `price←Стоимость всего,Итого руб» — это НЕ цена за единицу; план `2026.07.26-EST-TRAIN` развёл два уровня цены — `total_price_curr`/`total_price_base`, `unit_price_curr`/`unit_price_base`, см. §3.1/§3.2 и `plans/2026.07.26-EST-TRAIN/research/06-schema-decision.md` §5.1) |
 | `EstimateItem.children` (`EstimateItemResource[]`) | переносится 1:1 | `prc_estimate_resources` (FK `item_id`) |
-| `EstimateItem.modifiers` (`EstimateModifierItem[]`: код-коэффициент, обоснование, значение) | переносится в jsonb (низкая частота, не оправдывает отдельную таблицу — YAGNI, ревизия после первых реальных смет); P4.5 зафиксировала схему элемента (9 ключей, §4.2) и убрала свободный `description` в пользу машиночитаемого `kind` | `prc_estimate_items.attributes->'modifiers'` (колонка `attributes` уже задокументирована в миграции как «коэффициенты/индексы» — назначение совпадает; фиксированная схема ключей — P4.5) |
-| `EstimateItemResource.name`/`.resource_type`/`.code`/`.unit`/`.quantity`/`.price` | переносится 1:1 (P4.5 переименовала `price`→`price_curr`, добавила `price_base`) | `prc_estimate_resources.{name,resource_type,code,unit,quantity,price_base,price_curr}` |
+| `EstimateItem.modifiers` (`EstimateModifierItem[]`: код-коэффициент, обоснование, значение) | переносится в jsonb (низкая частота, не оправдывает отдельную таблицу — YAGNI, ревизия после первых реальных смет); план `2026.07.26-EST-TRAIN` зафиксировал схему элемента (9 ключей, §4.2) и убрал свободный `description` в пользу машиночитаемого `kind` | `prc_estimate_items.attributes->'modifiers'` (колонка `attributes` уже задокументирована в миграции как «коэффициенты/индексы» — назначение совпадает; фиксированная схема ключей — план `2026.07.26-EST-TRAIN`) |
+| `EstimateItemResource.name`/`.resource_type`/`.code`/`.unit`/`.quantity`/`.price` | переносится 1:1 (план `2026.07.26-EST-TRAIN` переименовал `price`→`price_curr`, добавил `price_base`) | `prc_estimate_resources.{name,resource_type,code,unit,quantity,price_base,price_curr}` |
 | `EstimateItemResource.comment` (текст из колонки pos, если там примечание, напр. «прим.») | переносится в jsonb (редкий кейс, нет отдельной колонки) | `prc_estimate_resources` не имеет `comment`-колонки → **осознанно отброшено на уровне ресурса** (пометка ниже); если появится частый кейс — alter-миграция добавит `comment` text nullable |
 
 Раздельная сущность `EstimateSubSection` **не переносится как отдельный тип** — v2 использует единую таблицу `prc_estimate_sections` с self-referencing `parent_id`/`position` (миграция `2026_07_04_100034`), где подраздел — это просто раздел с непустым `parent_id`. Различие «section vs subsection» из v1 было чисто структурным (глубина дерева), не семантическим полем — плоская модель с self-FK строже и проще одновременно (можно углублять дерево дальше 2 уровней без новой сущности).
@@ -136,7 +136,7 @@
 }
 ```
 
-`rows_expected` — оценка числа позиций (не разделов) во всей смете, ключ для контроля полноты (§3.4 doc-pipeline, п.4 Merge). `footer` — рекурсивная структура 1:1 с `EstimateFooterItem` (§1.3), `kind` — машиночитаемая пометка типа начисления, замкнутое множество `TotalKind` (P4.5), опционально заполняется LLM или детерминированно на бэкенде по `label`; `value` — nullable (P4.5): начисление, заданное процентом (`rate`), может не иметь собственной суммы в документе; `chapter_number`/`rate` — номер главы сводного расчёта и ставка процента (SR-11, P4.5). `contract_number`/`contract_date` — реквизиты договора подряда (SR-12, P4.5). `calc_method`/`labor_hours_workers`/`labor_hours_machinists`/`document_number`/`document_date`/`period_start`/`period_end` — поля, добавленные P4.5 по утверждённому распределению величин (`plans/2026.07.26-EST-TRAIN/research/06-schema-decision.md` §3.1/§8, SR-17/SR-07/SR-12); документ не называет метод расчёта или сводные трудозатраты явно — соответствующее поле `null`, бэкенд не подставляет значение по умолчанию. `work_types` — виды работ и их иерархия (SR-08/SR-09, P4.5): заполняет ТОЛЬКО детерминированный маппер `.gsfx` (нормативы НР/СП, `parent_id`) — боевой LLM-ответ всегда несёт пустой список (исключение из D33).
+`rows_expected` — оценка числа позиций (не разделов) во всей смете, ключ для контроля полноты (§3.4 doc-pipeline, п.4 Merge). `footer` — рекурсивная структура 1:1 с `EstimateFooterItem` (§1.3), `kind` — машиночитаемая пометка типа начисления, замкнутое множество `TotalKind` (план `2026.07.26-EST-TRAIN`), опционально заполняется LLM или детерминированно на бэкенде по `label`; `value` — nullable (план `2026.07.26-EST-TRAIN`): начисление, заданное процентом (`rate`), может не иметь собственной суммы в документе; `chapter_number`/`rate` — номер главы сводного расчёта и ставка процента (SR-11, план `2026.07.26-EST-TRAIN`). `contract_number`/`contract_date` — реквизиты договора подряда (SR-12, план `2026.07.26-EST-TRAIN`). `calc_method`/`labor_hours_workers`/`labor_hours_machinists`/`document_number`/`document_date`/`period_start`/`period_end` — поля, добавленные планом `2026.07.26-EST-TRAIN` по утверждённому распределению величин (`plans/2026.07.26-EST-TRAIN/research/06-schema-decision.md` §3.1/§8, SR-17/SR-07/SR-12); документ не называет метод расчёта или сводные трудозатраты явно — соответствующее поле `null`, бэкенд не подставляет значение по умолчанию. `work_types` — виды работ и их иерархия (SR-08/SR-09, план `2026.07.26-EST-TRAIN`): заполняет ТОЛЬКО детерминированный маппер `.gsfx` (нормативы НР/СП, `parent_id`) — боевой LLM-ответ всегда несёт пустой список (исключение из D33).
 
 ### 3.2 `extract_rows` (построчный диапазон; сменяет v1 `fetch_items`)
 
@@ -178,11 +178,11 @@
 }
 ```
 
-`row_type=section_header`/`subtotal`/`summary_row` — тоже строки, участвуют в нумерации `row_index` (D10, детали — §4а; счёт ведётся ПО СМЕТЕ — P4.3). Decimal-величины (`quantity`, `unit_price_*`, `total_price_*`, `index_value`, значения `attributes`) — строками, конверсия во float запрещена (P4.5). `unit_price_curr`/`total_price_curr` — переименованы из v1 `unit_price`/`total_price` (D93), рядом добавлены `*_base` (базисный уровень, SR-01, P4.5) — у ресурсной сметы (`calc_method=resource`) `*_base` законно пуст. `index_code`/`index_value` — индекс пересчёта позиции/ресурса (SR-03, P4.5). `source_position_number` — собственный номер позиции, напечатанный в документе (может быть дробным, «9.1»), если он есть — область ЛЮБАЯ смета, не только акт (SR-13, расширено P4.3 §5.1); отличается от `row_index` — синтетического якоря, существующего и для строк без напечатанного номера. `work_type_name` — подпись вида работ (SR-08, P4.5); нормативы НР/СП и иерархия видов работ контракт СТРОК не несёт — они уровня сметы, см. §3.1 `work_types`. `attributes` — фиксированная схема ключей (P4.5, `plans/2026.07.26-EST-TRAIN/research/06-schema-decision.md` §4): ключ, не перечисленный здесь, отклоняется валидацией (`RowAttributes`, D32). `modifiers[].description` (v1) убран в пользу машиночитаемого `kind` — замкнутое множество (SR-04/SR-05); `value_labor`/`value_machines`/`value_machinists_wage`/`value_materials`/`level` — составляющие коэффициента формы `.gsfx` (SR-06), в форме книг не заполняются. `amount_since_start`/`amount_since_year_start`/`amount_reporting_period` — КС-3, три временных разреза стоимости (SR-14), заполняются только строкой `row_type=summary_row`. `incomplete_items` — буфер незавершённых строк на границах ЗАПРОШЕННОГО диапазона (детали и различие семантики row-range/windowed — §4б).
+`row_type=section_header`/`subtotal`/`summary_row` — тоже строки, участвуют в нумерации `row_index` (D10, детали — §4а; счёт ведётся ПО СМЕТЕ — план `2026.07.26-EST-TRAIN`). Decimal-величины (`quantity`, `unit_price_*`, `total_price_*`, `index_value`, значения `attributes`) — строками, конверсия во float запрещена (план `2026.07.26-EST-TRAIN`). `unit_price_curr`/`total_price_curr` — переименованы из v1 `unit_price`/`total_price` (D93), рядом добавлены `*_base` (базисный уровень, SR-01, план `2026.07.26-EST-TRAIN`) — у ресурсной сметы (`calc_method=resource`) `*_base` законно пуст. `index_code`/`index_value` — индекс пересчёта позиции/ресурса (SR-03, план `2026.07.26-EST-TRAIN`). `source_position_number` — собственный номер позиции, напечатанный в документе (может быть дробным, «9.1»), если он есть — область ЛЮБАЯ смета, не только акт (SR-13, расширено планом `2026.07.26-EST-TRAIN` §5.1); отличается от `row_index` — синтетического якоря, существующего и для строк без напечатанного номера. `work_type_name` — подпись вида работ (SR-08, план `2026.07.26-EST-TRAIN`); нормативы НР/СП и иерархия видов работ контракт СТРОК не несёт — они уровня сметы, см. §3.1 `work_types`. `attributes` — фиксированная схема ключей (`plans/2026.07.26-EST-TRAIN/research/06-schema-decision.md` §4): ключ, не перечисленный здесь, отклоняется валидацией (`RowAttributes`, D32). `modifiers[].description` (v1) убран в пользу машиночитаемого `kind` — замкнутое множество (SR-04/SR-05); `value_labor`/`value_machines`/`value_machinists_wage`/`value_materials`/`level` — составляющие коэффициента формы `.gsfx` (SR-06), в форме книг не заполняются. `amount_since_start`/`amount_since_year_start`/`amount_reporting_period` — КС-3, три временных разреза стоимости (SR-14), заполняются только строкой `row_type=summary_row`. `incomplete_items` — буфер незавершённых строк на границах ЗАПРОШЕННОГО диапазона (детали и различие семантики row-range/windowed — §4б).
 
 ### 3.3 `extract_totals` (итоги/начисления; при большой смете может дублировать/уточнять `footer` из паспорта на последних страницах)
 
-Тот же контракт `footer`, что в §3.1 — вызывается отдельно, когда паспорт запрашивался БЕЗ полного документа (окно, §4.2) и не мог увидеть концевик, либо когда паспорт-вызов намеренно экономит токены и не возвращает `footer` вовсе (решение оркестратора P6.1: запрашивать footer в паспорте, только если документ целиком в контексте).
+Тот же контракт `footer`, что в §3.1 — вызывается отдельно, когда паспорт запрашивался БЕЗ полного документа (окно, §4.2) и не мог увидеть концевик, либо когда паспорт-вызов намеренно экономит токены и не возвращает `footer` вовсе (решение оркестратора: запрашивать footer в паспорте, только если документ целиком в контексте).
 
 ### 3.4 `extraction:discovery` (сегментация смет в оконном fallback-пути, D30/D37)
 
@@ -205,11 +205,11 @@
 - `EstimateType` (`type` в §3.1): `local_estimate` (ЛСР — «Локальный сметный расчёт», «Локальная смета»), `act` (КС-2 — «Акт о приемке выполненных работ», «Форма № КС-2»), `resource_calculation` («Ведомость ресурсов», «Расчет ресурсов»), `defect_list` («Дефектная ведомость», «Опись работ»).
 - `EstimateTarget` (`target` в §3.1): `construction`, `renovation`, `medical_equipment`, `engineering`.
 - `ResourceType` (`resource_type` в §3.2): `material`, `machine`, `labor`, `overhead`, `other` (см. §1.5).
-- `row_type` (`row_type` в §3.2): `section_header`, `subsection_header`, `item`, `subtotal`, `summary_row` (расширяет v1 `ItemType`: section/item → плоский список с явным подразделом и промежуточным итогом, D10; `summary_row` — строка свода КС-3, P4.5, SR-14).
-- `CalcMethod` (`calc_method` в §3.1): `base_index` (базисно-индексный), `resource` (ресурсный) — SR-17, P4.5.
-- `TotalKind` (`kind` в `footer`, §3.1/§3.3): `overhead`, `profit`, `vat`, `total`, `additional`, `other` — P4.5, D101; детерминированное доопределение по `label` этим планом не строится (долг).
-- `ModifierKind` (`kind` в `attributes.modifiers[]`, §3.2): `qty`, `price`, `correction`, `winter`, `recalculation`, `other` — P4.5, SR-04/SR-05.
-- Скрининговый `DocumentType` (не сметный контракт, но соседний енум из v1 — `Old/app/Process/DocumentAnalysis/Schema/DocumentType.php`, применяется на шаге `screening`, `03-document-pipeline.md` §3.4): `estimate`, `tech_spec`, `unknown` — переносится как `document_type` (text, check-constraint) в `prc_ai_analyses`, справочника нет (D16).
+- `row_type` (`row_type` в §3.2): `section_header`, `subsection_header`, `item`, `subtotal`, `summary_row` (расширяет v1 `ItemType`: section/item → плоский список с явным подразделом и промежуточным итогом, D10; `summary_row` — строка свода КС-3, план `2026.07.26-EST-TRAIN`, SR-14).
+- `CalcMethod` (`calc_method` в §3.1): `base_index` (базисно-индексный), `resource` (ресурсный) — SR-17, план `2026.07.26-EST-TRAIN`.
+- `TotalKind` (`kind` в `footer`, §3.1/§3.3): `overhead`, `profit`, `vat`, `total`, `additional`, `other` — план `2026.07.26-EST-TRAIN`, D101; детерминированное доопределение по `label` этим планом не строится (долг).
+- `ModifierKind` (`kind` в `attributes.modifiers[]`, §3.2): `qty`, `price`, `correction`, `winter`, `recalculation`, `other` — план `2026.07.26-EST-TRAIN`, SR-04/SR-05.
+- Скрининговый `AiDocumentType` (не сметный контракт, но соседний SSOT-енум оси типа документа — `App\Enums\Procurement\AiDocumentType`, применяется на шаге `screening`, `03-document-pipeline.md` §3.4): `estimate`, `tech_spec`, `contract_draft`, `protocol`, `unknown` — носитель `document_type` (text, check-constraint по `AiDocumentType::values()`) на `prc_ai_analyses`/`prc_ai_dataset_examples`/`llm_routes`/`llm_prompts`; справочника-таблицы нет (D16, снесён `prc_document_types`).
 
 ## 4. Алгоритм извлечения
 
@@ -232,13 +232,13 @@
 
 Транскрипция алгоритма из `tmp/agelto2.md` («Context Window Stitching with Orphan Lines Buffer»), адаптированная под требование мульти-сметного документа без целого документа в контексте (research/L finding 17, D30):
 
-**Стадия 1 — Discovery.** Документ режется на страничные окна (sliding window, overlap 1 страница — тот же принцип, что «Чанк 1: 1,2,3 / Чанк 2: 3,4,5»). Каждое окно → дешёвый вызов `extraction:discovery` (flash-lite-класс, покрытие §3.4). Бэкенд ДЕТЕРМИНИРОВАННО (не LLM) склеивает маркеры всех окон в сегменты `{estimate_ordinal, page_start, page_end}` — если два окна дают противоречивые маркеры на общей (overlap) странице, приоритет у более раннего окна для `estimate_start` и более позднего для `estimate_end` (сегмент не должен схлопнуться в 0 страниц). Границы сегмента переживают прогон в колонках `prc_estimates.source_page_start`/`.source_page_end` (P4.5, `plans/2026.07.26-EST-TRAIN/research/07-multi-estimate-anchoring.md` §3.1) — исключение из D33 (бэкенд заполняет из детерминированной сегментации, LLM эти колонки не порождает и в контракт ответа они не входят).
+**Стадия 1 — Discovery.** Документ режется на страничные окна (sliding window, overlap 1 страница — тот же принцип, что «Чанк 1: 1,2,3 / Чанк 2: 3,4,5»). Каждое окно → дешёвый вызов `extraction:discovery` (flash-lite-класс, покрытие §3.4). Бэкенд ДЕТЕРМИНИРОВАННО (не LLM) склеивает маркеры всех окон в сегменты `{estimate_ordinal, page_start, page_end}` — если два окна дают противоречивые маркеры на общей (overlap) странице, приоритет у более раннего окна для `estimate_start` и более позднего для `estimate_end` (сегмент не должен схлопнуться в 0 страниц). Границы сегмента переживают прогон в колонках `prc_estimates.source_page_start`/`.source_page_end` (`plans/2026.07.26-EST-TRAIN/research/07-multi-estimate-anchoring.md` §3.1) — исключение из D33 (бэкенд заполняет из детерминированной сегментации, LLM эти колонки не порождает и в контракт ответа они не входят).
 
 **Стадия 2 — Per-estimate извлечение.** Для каждого сегмента (=будущая строка `prc_estimates`, `ordinal` = порядковый номер сегмента, D12) — независимый прогон **того же** row-range контракта (§3.2/§4.1), но окнами СТРАНИЦ внутри сегмента (не диапазонами строк — модель не знает общего числа строк заранее без целого документа), с overlap 1 страница и буфером `incomplete_items` (постраничная семантика, §4б).
 
 **Стадия 3 — Totals.** По последним страницам каждого сегмента — отдельный вызов `extract_totals` (§3.3), окно = хвост сегмента (последние 1–2 страницы или до маркера «Всего по смете/акту»).
 
-Паспорт-DTO для оконного пути (`estimate_number`/`type`/`target`/…) собирается либо отдельным дешёвым вызовом на первую страницу каждого сегмента, либо переиспользует заголовочные данные, если они попали в маркер `estimate_start` (`title` в §3.4) — точное решение за P6.4, здесь фиксируется, что паспорт НЕ требует целого документа в контексте (в отличие от v1-замысла, где паспорт зависел от `fetch_info`, видевшего документ целиком — тот самый gap, зафиксированный research/L finding 17).
+Паспорт-DTO для оконного пути (`estimate_number`/`type`/`target`/…) собирается либо отдельным дешёвым вызовом на первую страницу каждого сегмента, либо переиспользует заголовочные данные, если они попали в маркер `estimate_start` (`title` в §3.4) — точное решение оставлено оркестратору оконного пути, здесь фиксируется, что паспорт НЕ требует целого документа в контексте (в отличие от v1-замысла, где паспорт зависел от `fetch_info`, видевшего документ целиком — тот самый gap, зафиксированный research/L finding 17).
 
 **Маркеры страниц.** Перед нарезкой на окна текст/изображения каждой физической страницы оборачиваются маркерами `[PAGE_START: X]`/`[PAGE_END: X]` (v1-приём, tmp/agelto2.md §3.1) — так LLM сохраняет привязку строк к странице для `incomplete_items.page_number` и для discovery-маркеров (§3.4).
 
@@ -252,7 +252,7 @@
 - **Строки без «№ п/п» в исходнике.** Если в документе у строки физически нет номера (частый случай для заголовков разделов, иногда — для позиций без явной нумерации в исходной таблице), `row_index` всё равно присваивается ПОСЛЕДОВАТЕЛЬНО в порядке появления строки в документе (не переносится «пусто» и не дублируется соседний номер) — правило одинаково для основного и оконного пути.
 - **Идентичность нумерации между вызовами.** Паспорт-вызов (§3.1, поле `rows_expected`) и вызовы `extract_rows` ОБЯЗАНЫ считать строки одинаково (те же правила выше) — иначе `rows_expected` не сопоставим с фактическим количеством извлечённых строк, и детерминированная проверка полноты (§4.1 п.6) даёт ложные расхождения. Если паспорт получен из части документа (оконный путь, где паспорт не видит документ целиком) — `rows_expected` на этом пути не гарантированно точен и НЕ используется как строгий гейт валидации, только как ориентир (уточняется по факту извлечённых `row_index` внутри сегмента).
 - Уникальность в БД: `prc_estimate_items` уже имеет `unique(estimate_id, row_index)` (миграция `2026_07_04_100035`) — правило выше обеспечивает, что LLM не порождает дублей/дыр внутри одной сметы по построению, а не только по факту БД-констрейнта.
-- **Область счёта — ПО СМЕТЕ, не по документу** (P4.5, `plans/2026.07.26-EST-TRAIN/research/07-multi-estimate-anchoring.md` §5): в многосметном документе нумерация `row_index` начинается заново с 1 у КАЖДОЙ сметы — это не новое поведение (код и БД-констрейнт уже считают по смете), а явная формулировка уже существующего правила: буквальное чтение «нумерует любую строку таблицы позиций подряд» без этого уточнения допускало бы сквозной счёт по документу.
+- **Область счёта — ПО СМЕТЕ, не по документу** (`plans/2026.07.26-EST-TRAIN/research/07-multi-estimate-anchoring.md` §5): в многосметном документе нумерация `row_index` начинается заново с 1 у КАЖДОЙ сметы — это не новое поведение (код и БД-констрейнт уже считают по смете), а явная формулировка уже существующего правила: буквальное чтение «нумерует любую строку таблицы позиций подряд» без этого уточнения допускало бы сквозной счёт по документу.
 
 ### 4б. Семантика `incomplete_items`
 
@@ -265,7 +265,7 @@
 
 Лимиты Files API — свойство МАРШРУТА (`document_type × purpose → provider+model`, `04-llm-providers.md` §3.1), а не константа алгоритма: `config/ai.php` несёт per-модель `max_request_file_mb`, `max_pages`, `supports_files_api` (расширение capability-матрицы кэширования D14 на транспорт). Для Gemini — 50 МБ / 1000 страниц НА ЗАПРОС, действует ДАЖЕ через Files API (upload до 2 ГБ пройдёт, `generateContent` вернёт `INVALID_ARGUMENT` при превышении) — верифицировано research/L finding 16.
 
-Оркестратор (P6.1) обязан делать **preflight ДО первого upload**, не полагаться на ошибку провайдера как единственный сигнал:
+Оркестратор извлечения обязан делать **preflight ДО первого upload**, не полагаться на ошибку провайдера как единственный сигнал:
 
 ```
 preflight(file, route.capabilities):
@@ -282,19 +282,19 @@ preflight(file, route.capabilities):
 
 ### 4г. `unprocessable` — терминальный исход, отличный от `failed` (D32/D38)
 
-«Не можем обработать» — это КОНСТАТАЦИЯ (лимит провайдера, нечитаемый формат, защищённый паролем файл, zip-бомба), не СБОЙ (временная недоступность, невалидный ответ модели). Смешивание в общем `failed_permanently`/`last_error` делает исход невидимым для оператора (research/L finding 19) — новый статус `DocumentStatus::Unprocessable` (владелец enum-кейса — первый по порядку исполнения потребитель, P4.2, D38; корректирует ошибочное указание D32 «P5.1») + `UnprocessableReason` со значениями (накапливаются по потребителям):
+«Не можем обработать» — это КОНСТАТАЦИЯ (лимит провайдера, нечитаемый формат, защищённый паролем файл, zip-бомба), не СБОЙ (временная недоступность, невалидный ответ модели). Смешивание в общем `failed_permanently`/`last_error` делает исход невидимым для оператора (research/L finding 19) — новый статус `DocumentStatus::Unprocessable` (владелец enum-кейса — первый по порядку исполнения потребитель, D38) + `UnprocessableReason` со значениями (накапливаются по потребителям):
 
 | Причина | Кто выявляет | Когда |
 |---|---|---|
-| `too_large` | P4.2 (xlsx size-gate, D35) | xlsx сверх `ai.prepare.xlsx_max_rows`/`xlsx_max_mb` без fallback-конвертера |
-| `zip_bomb` | P4.2 (архивная стратегия) | превышен лимит глубины/размера/числа файлов распаковки |
-| `unreadable_format` | P5.1 (qpdf-слайсер) | документ физически не читается (битый PDF, неподдерживаемый формат) |
-| `password_protected` | P5.1 | PDF защищён паролем |
-| `provider_limit_size` | P6.1 (preflight §4в) | файл сверх `max_request_file_mb` активного маршрута ДАЖЕ в оконном пути (крайний случай — гигантский скан-документ) |
-| `provider_limit_pages` | P6.1 (preflight §4в) | число страниц сверх `max_pages` |
+| `too_large` | подготовка документа (xlsx size-gate, D35) | xlsx сверх `ai.prepare.xlsx_max_rows`/`xlsx_max_mb` без fallback-конвертера |
+| `zip_bomb` | подготовка документа (архивная стратегия) | превышен лимит глубины/размера/числа файлов распаковки |
+| `unreadable_format` | подготовка документа (qpdf-слайсер) | документ физически не читается (битый PDF, неподдерживаемый формат) |
+| `password_protected` | подготовка документа (qpdf-слайсер) | PDF защищён паролем |
+| `provider_limit_size` | оркестратор извлечения (preflight §4в) | файл сверх `max_request_file_mb` активного маршрута ДАЖЕ в оконном пути (крайний случай — гигантский скан-документ) |
+| `provider_limit_pages` | оркестратор извлечения (preflight §4в) | число страниц сверх `max_pages` |
 | `other` | любой | необработанный случай, обязателен `analysis.result.message` |
 
-Причина пишется в `prc_ai_analyses.result` соответствующего шага. `unprocessable` НЕ ретраится (не инкрементирует `attempts`) — это финальное состояние документа, требующее либо ручного вмешательства (другой формат исходника, снятие пароля), либо появления более щедрого маршрута в будущем. Алерт «новые unprocessable за окно» + счётчик в `pipeline:status` — P7.3; операторский SOP «что делать с unprocessable-документом» — P10.4.
+Причина пишется в `prc_ai_analyses.result` соответствующего шага. `unprocessable` НЕ ретраится (не инкрементирует `attempts`) — это финальное состояние документа, требующее либо ручного вмешательства (другой формат исходника, снятие пароля), либо появления более щедрого маршрута в будущем. Алерт «новые unprocessable за окно» + счётчик в `pipeline:status`; операторский SOP «что делать с unprocessable-документом» — `docs/04_Operators/**`.
 
 ### 4д. Checkpoint-requeue (D31/D39)
 
@@ -317,7 +317,7 @@ preflight(file, route.capabilities):
 | Извлечение (`extract_*`, `extraction:discovery`) | `gemini-2.5-flash` | 0.30 / 2.50 | 0.03 | 2026-10-16 | `gemini-3.5-flash` (1.50/9.00, кэш 0.15) |
 | Эскалация (сложность/провал валидации) | `gemini-2.5-pro` | 1.25 / 10.00 (≤200k) | 0.125 | 2026-10-16 | `gemini-3.1-pro-preview` (2.00/12.00) |
 
-EOL всей линейки 2.5 — **2026-10-16** (ai.google.dev/gemini-api/docs/deprecations, D27) — стартуем на дешёвой линейке для тюнинга промтов СЕЙЧАС, но `config/ai.php` несёт `eol_date`/`successor` на каждую запись, P7.3 алертит по приближении даты, P7.2-сиды держат закомментированную 3.x-строку-преемника рядом с активной.
+EOL всей линейки 2.5 — **2026-10-16** (ai.google.dev/gemini-api/docs/deprecations, D27) — стартуем на дешёвой линейке для тюнинга промтов СЕЙЧАС, но `config/ai.php` несёт `eol_date`/`successor` на каждую запись, EOL-мониторинг алертит по приближении даты, сиды маршрутов держат закомментированную 3.x-строку-преемника рядом с активной.
 
 Страница PDF Gemini = 258 токенов фиксированно (скан или текст — без разницы, встроенный OCR не тарифицируется отдельно) — плановая константа для оценки объёма (research/E §3).
 
@@ -333,7 +333,7 @@ EOL всей линейки 2.5 — **2026-10-16** (ai.google.dev/gemini-api/doc
 - **LibreOffice headless** (`soffice --convert-to pdf`, D35) — более надёжная по fidelity альтернатива PhpSpreadsheet+Mpdf для конвертации xlsx→PDF (сохраняет print-setup/merged cells), появляется по профилю реальных проблемных файлов; вызовы сериализуются (не параллелится в headless-режиме).
 - **Ghostscript-даунскейл** (150 dpi, JPEG, research/L finding 20) — сжатие скан-PDF перед оконным путём, иногда возвращает документ в путь «целиком» (кэш + row-range дешевле и стабильнее окон). Не обязателен сейчас, фиксируется как рычаг на случай реальных 100+ МБ скан-документов.
 
-### 5.4 Выбор представления на вход (P6.3, D3/D52)
+### 5.4 Выбор представления на вход (план `2026.07.26-EST-TRAIN` P6.3, D3/D52)
 
 Какой файл версии документа уходит в LLM на стадии extraction — решает `RepresentationResolver::
 forLlm()` по правилу-ДАННЫМ `config('ai.representations')` (карта `расширение исходника → упорядоченный
@@ -343,7 +343,7 @@ forLlm()` по правилу-ДАННЫМ `config('ai.representations')` (ка�
 поведение не изменилось. Обоснование, цифры боевого прогона и условия, при которых решение
 устаревает (смена линейки моделей, материальная смена набора промтов, перегенерация представлений,
 новый формат вне подвыборки) — ADR `plans/2026.07.26-EST-TRAIN/root/adr-input-representation.md`
-(судьба — перенос в `docs/03_Dev/adr/`, P9.6), отчёт с цифрами —
+(судьба — перенос в `docs/03_Dev/adr/`, P7.4 этого плана), отчёт с цифрами —
 `plans/2026.07.26-EST-TRAIN/research/12-format-benchmark.md`. Числа привязаны к дате замера
 (2026-07-28) и модели активного маршрута на ту дату (`gemini-3.5-flash`) — они не переживают смену
 модели или набора промтов без нового замера.
@@ -367,7 +367,7 @@ forLlm()` по правилу-ДАННЫМ `config('ai.representations')` (ка�
 
 **Состав системной инструкции (P6.1, D51).** Системная часть шага = правила из `llm_prompts` (композиция global → step-global → шаг) + блок схем. Блок схем несёт ТРАНЗИТИВНОЕ ЗАМЫКАНИЕ контрактов шага: от обёртки ответа (`RowsChunkResponse`, `PassportResponse`, `TotalsResponse`, `DiscoveryResponse` — §3) обход графа типов доходит до вложенных Data-классов и enum'ов по конструктору и докблоку `@param X[]`, самоссылки (`TotalLine.children`) не зацикливаются. Владелец правила обхода ОДИН — `App\Services\Llm\Schema\DataTypeGraph`, общий с генератором JSON-схемы (§ниже): схема сознательно не дублирует семантику полей, поэтому разошедшиеся носители означали бы, что семантику не несёт ни один. Словари синонимов §2, до которых обход не доходит (`EstimateHeaderMap` — «не часть JSON-ответа LLM ни одного шага», §2.1), объявляет сам тип документа одним объявлением, читаемым всеми потребителями шага; достижимое замыканием (`ResourceType`, §2.2 — через `EstimateRow.resources[]`) в нём не дублируется. Порядок печати детерминирован (сортировка по короткому имени, обёртки `*Response` последними) — системная часть является префиксом implicit-кэша провайдера, и недетерминированный порядок обнулял бы кэш молча.
 
-### 6.1 Очередь кандидат-патчей и LLM-критик промтов (P7.4, D8/D59–D61/D64)
+### 6.1 Очередь кандидат-патчей и LLM-критик промтов (команда — P3.3 этого плана, экран апрува — P5.6 этого плана; D8/D59–D61/D64)
 
 Носитель — таблица `prc_ai_prompt_suggestions` (`App\Models\Procurement\Ai\PromptSuggestion`), НЕ
 `prc_ai_corrections`: коррекция — структурированная правка КОНКРЕТНОГО разбора, подмешиваемая
@@ -385,7 +385,7 @@ USER-частью повторного вызова (`CorrectionAwareComposer`);
 
 **Статусы** (`PromptSuggestionStatus`): `pending` → `approved`/`rejected` → `applied`/`reverted`.
 Решение принимает ТОЛЬКО человек (D8) — ни одна команда не переводит запись в `approved`
-автоматически; экранная форма апрува — P8.4.
+автоматически; экранная форма апрува — P5.6 этого плана.
 
 **Критик** — `CorePromptStep::PromptCritic` (`resources/ai/prompts/prompt-critic/0-prompt-critic.md`),
 обычный шаг системы промтов (D61): версионируемый, `is_protected`, сидится `PromptSeeder` наравне с
@@ -426,7 +426,7 @@ tools/function-calling (контракт `LlmProvider` их не предост�
 - Системные правила (это ТЗ, §6) не переопределяются текстом документа ни при каких обстоятельствах — системная инструкция всегда синтаксически отделена от содержимого документа (`system_instruction` vs `contents`, не конкатенация в одном текстовом блоке).
 - Подозрительные инструкции, обнаруженные внутри документа (нехарактерный для сметы императивный текст, попытки переопределить формат ответа) — НЕ исполняются, а флагируются: попадают в `parse_warnings`-подобное поле ответа (конкретное имя поля — за P2.2) для последующего операторского ревью, наравне с прочими аномалиями качества разбора.
 
-## 8. Датасет эталонов и eval-контур (P7.4)
+## 8. Датасет эталонов и eval-контур (ревизия — P7.3 этого плана)
 
 ### 8.1 Формат папки эталонов
 
@@ -461,25 +461,25 @@ tools/function-calling (контракт `LlmProvider` их не предост�
 }
 ```
 
-Каждый элемент `estimates[]` — прямое соответствие `PassportResponse` (§3.1, поля `estimate_number`/`passport`/`currency`/`base_year`/`price_level`/`rows_expected`/`totals`/`calc_method`/`labor_hours_workers`/`labor_hours_machinists`/`document_number`/`document_date`/`period_start`/`period_end`/`work_types`, P4.5) ПЛЮС ключ `rows` (`EstimateRow[]`, §3.2). Импорт валидирует КАЖДЫЙ элемент этим же PHP-контрактом (`PassportResponse::validateAndCreate()` + `EstimateRow::validateAndCreate()` на каждую строку, `Data::validateAndCreate()`, тот же приём, что `StructuredResponseValidator`, P3.4) — битый эталон отклоняется с перечнем ошибок по индексу сметы/строки/поля, ничего не пишется в `prc_ai_dataset_examples` для этой пары; неизвестный ключ внутри `rows[].attributes` отклоняется ЭТИМ ЖЕ вызовом (`RowAttributes`, фиксированная схема, P4.5, D32) — «эталон, несущий поле вне утверждённого списка» тоже битый эталон. `estimates[]` сортируется по возрастанию `ordinal` (индекс в массиве = `ordinal-1`), для многосметных документов — сметы должны идти в том же порядке, в котором их находит `ExtractionOrchestrator` (паспорт-цикл row-range пути/discovery-сегментация оконного пути, §4). Пять колонок адреса сметы в источнике (`source_sheet_name`/`source_row_start`/`source_row_end`/`source_page_start`/`source_page_end`, P4.3) и ось `verified_at`/`verified_by` (D89) в этом контракте НЕ участвуют (исключение из D33, `plans/2026.07.26-EST-TRAIN/research/06-schema-decision.md` §6/§11, `research/07-multi-estimate-anchoring.md` §3.1) — обе группы заполняет бэкенд/оператор, а не разбор, поэтому эталон на вопрос «откуда прогон её взял» не отвечает и отвечать не обязан.
+Каждый элемент `estimates[]` — прямое соответствие `PassportResponse` (§3.1, поля `estimate_number`/`passport`/`currency`/`base_year`/`price_level`/`rows_expected`/`totals`/`calc_method`/`labor_hours_workers`/`labor_hours_machinists`/`document_number`/`document_date`/`period_start`/`period_end`/`work_types`, план `2026.07.26-EST-TRAIN`) ПЛЮС ключ `rows` (`EstimateRow[]`, §3.2). Импорт валидирует КАЖДЫЙ элемент этим же PHP-контрактом (`PassportResponse::validateAndCreate()` + `EstimateRow::validateAndCreate()` на каждую строку, `Data::validateAndCreate()`, тот же приём, что `StructuredResponseValidator`) — битый эталон отклоняется с перечнем ошибок по индексу сметы/строки/поля, ничего не пишется в `prc_ai_dataset_examples` для этой пары; неизвестный ключ внутри `rows[].attributes` отклоняется ЭТИМ ЖЕ вызовом (`RowAttributes`, фиксированная схема, план `2026.07.26-EST-TRAIN`, D32) — «эталон, несущий поле вне утверждённого списка» тоже битый эталон. `estimates[]` сортируется по возрастанию `ordinal` (индекс в массиве = `ordinal-1`), для многосметных документов — сметы должны идти в том же порядке, в котором их находит `ExtractionOrchestrator` (паспорт-цикл row-range пути/discovery-сегментация оконного пути, §4). Пять колонок адреса сметы в источнике (`source_sheet_name`/`source_row_start`/`source_row_end`/`source_page_start`/`source_page_end`, план `2026.07.26-EST-TRAIN`) и ось `verified_at`/`verified_by` (D89) в этом контракте НЕ участвуют (исключение из D33, `plans/2026.07.26-EST-TRAIN/research/06-schema-decision.md` §6/§11, `research/07-multi-estimate-anchoring.md` §3.1) — обе группы заполняет бэкенд/оператор, а не разбор, поэтому эталон на вопрос «откуда прогон её взял» не отвечает и отвечать не обязан.
 
 ### 8.3 Персистентность и идемпотентность
 
-`estimate:dataset:import` создаёт `Document`+`DocumentVersion` вне закупки (`procurement_id=null`, D22) — `external_id="gold:<name>"`, `status=Downloaded`, контент — в `crawler.documents_disk` (тот же путь-конвенция, что `DocumentDownloader::store()`); повторный импорт того же файла дедуплицируется по `content_hash` (та же гарантия, что у краулинга). `prc_ai_dataset_examples` — `updateOrCreate` по `(document_version_id, task, version)` (Code Guidance): повторный импорт с той же тройкой ключей ОБНОВЛЯЕТ `gold` на месте (эталон скорректировали — переимпортировали), не плодит дублей.
+`estimate:dataset:import` создаёт `Document`+`DocumentVersion` вне закупки (`procurement_id=null`) на служебной площадке «Обучалка» (`platform_id=Platform::training()->id`, единственный носитель оси контура — `PublicPlatformScope`, D91) — `external_id="gold:<name>"`, `status=Downloaded`, контент — в `crawler.documents_disk` (тот же путь-конвенция, что `DocumentDownloader::store()`); повторный импорт того же файла дедуплицируется по `content_hash` (та же гарантия, что у краулинга). Создание рабочей копии здесь идёт СОБСТВЕННОЙ логикой (`DatasetImporter::importPair()`), НЕ через `WorkingCopyProvisioner` (единый сейм `estimate:gold:import` ↔ действия «Прогнать», D41) — эта дупликация подтверждена, но сознательно НЕ сведена (D57, вне Scope P7.2); имя сервиса называется здесь как честный текущий факт, а не как рекомендация плодить третий путь. `prc_ai_dataset_examples` — `updateOrCreate` по `(document_version_id, task, version)` (Code Guidance): повторный импорт с той же тройкой ключей ОБНОВЛЯЕТ `gold` на месте (эталон скорректировали — переимпортировали), не плодит дублей; `analysis_id` (nullable FK на `prc_ai_analyses`, добавлен экспортом датасета) заполняется только записями, рождёнными разбором (`source='corrected'`/DPO-предшественник), а не самим импортом эталона.
 
 ### 8.4 Eval-раннер и метрики
 
-`estimate:eval:run` прогоняет `ExtractionOrchestrator` (§4, ТЕКУЩИЙ extraction-пайплайн — БЕЗ стадии скрининга, эталоны заведомо сметы) по каждому `prc_ai_dataset_examples(task=extraction)`, сравнивает `analysis.result.estimates[]` (сырой выход оркестратора, ДО `EstimatePersister` — эталонные документы вне закупки, `EstimatePersister` их сознательно пропускает, D22/P6.3) с `gold.estimates[]` (`App\Services\Procurement\Analyzers\Estimate\EvalMetrics`):
+`estimate:eval:run` прогоняет `ExtractionOrchestrator` (§4, ТЕКУЩИЙ extraction-пайплайн — БЕЗ стадии скрининга, эталоны заведомо сметы) по каждому `prc_ai_dataset_examples(task=extraction)`, сравнивает `analysis.result.estimates[]` (сырой выход оркестратора, ДО `EstimatePersister` — эталонные документы вне закупки, `EstimatePersister` их сознательно пропускает, D22) с `gold.estimates[]` (`App\Services\Procurement\Analyzers\Estimate\EvalMetrics`):
 
 - **Сопоставление**: сметы — позиционно по индексу в `estimates[]` (совпадающий `ordinal`); строки внутри сметы — по `row_index` (уникален в рамках сметы, §4а).
-- **Field-level precision/recall/F1** — на паре (строка, поле) для `code`/`name`/`unit`/`quantity`/`price`(=`total_price_curr`)/`row_type`/`unit_price_base`/`total_price_base`/`index_code`/`index_value`/`source_position_number`/`work_type_name` (P7.3, карта следствий P4.5); текстовые поля — нестрогое сравнение (trim + схлопывание пробелов + регистронезависимо), числовые (`quantity`/`price`/`unit_price_base`/`total_price_base`/`index_value`) — bcmath ±0.01 (тот же допуск, что `EstimateValidator`, §4.1 п.6).
+- **Field-level precision/recall/F1** — на паре (строка, поле) для `code`/`name`/`unit`/`quantity`/`price`(=`total_price_curr`)/`row_type`/`unit_price_base`/`total_price_base`/`index_code`/`index_value`/`source_position_number`/`work_type_name` (карта следствий — план `2026.07.26-EST-TRAIN`); текстовые поля — нестрогое сравнение (trim + схлопывание пробелов + регистронезависимо), числовые (`quantity`/`price`/`unit_price_base`/`total_price_base`/`index_value`) — bcmath ±0.01 (тот же допуск, что `EstimateValidator`, §4.1 п.6).
 - **Row coverage** — доля строк эталона, для которых нашлась строка предсказания с тем же `(индекс сметы, row_index)`, независимо от совпадения полей.
 - **Паспорт и итоги** (P7.3) — тем же приёмом (позиционное сопоставление смет), отдельными ключами `passport`/`totals` результата `EvalMetrics::compare()`: паспорт — по скалярным полям `PassportResponse`/`EstimatePassport`; итоги — по полям `TotalLine`, строки сопоставляются между собой по `(нормализованный label, kind)` (§8.6).
 - Результат — `prc_ai_eval_runs.metrics` (агрегат по всем эталонам прогона) + по одной `prc_ai_eval_results` записи (`metric=f1`, `details` — полный отчёт по примеру) на эталон; консольный отчёт — сводная строка + топ-10 худших примеров по F1.
 - **CI-гейт и shadow-режим** — Scope Excluded этого item'а (Фаза 6 роадмапа, появляется вместе с реальным голденом): `ci_status` пишется информационно (`pass`), без порогового сравнения между прогонами.
 - В CI/тестах реальные LLM-вызовы НЕ делаются (`--dry-run` либо пустой датасет — оба пишут EvalRun-заглушку без единого вызова); `FakeLlmProvider` для реального прогона НЕ допускается (Implementation Rules) — команда предназначена для ручного запуска владельцем с боевым провайдером.
 
-### 8.5 Контракт gold скрининга (P5.4/P5.6, D5)
+### 8.5 Контракт gold скрининга (D5)
 
 Эталон скрининга — файл `gold/<CODE>.screening.json`, РЯДОМ с extraction-gold `<CODE>.gold.json` (не вместо него: у эталона-сметы существуют оба файла). Носитель — конвенция имени, в манифест (`gold_path`, §2.4) screening-gold НЕ заводится.
 
@@ -502,11 +502,11 @@ tools/function-calling (контракт `LlmProvider` их не предост�
 
 **Почему негативы — главная метрика, не позитивы** (D5): ложное срабатывание скрининга («не смета» размечена как `estimate») дороже пропуска — документ уходит в дорогое извлечение впустую. Позитивы дают долю пропущенных смет, но именно доля ложных срабатываний по негативам — число, ради которого ветка вообще существует.
 
-**Раннер** — `estimate:eval:run --task=screening` (P5.6, D44): прогоняет `ScreeningProcessor` (боевой маршрут скрининга через `LlmRouteResolver`, реальный LLM-вызов — `FakeLlmProvider` в тестах недопустим, Implementation Rules) по каждому `prc_ai_dataset_examples(task=screening)` и сравнивает `document_type` предсказания с `gold.document_type` через `App\Services\Procurement\Screening\ScreeningEvalMetrics` — независимый от `App\Services\Procurement\Analyzers\Estimate\EvalMetrics` (§8.4) класс: `accuracy`, `confusion` (ожидаемый × фактический по `AiDocumentType`), `false_positive_rate` (доля НЕ-смет, помеченных `estimate` — главное число, D5) и `false_negative_rate` (доля смет, помеченных не-`estimate`). Результат пишется в те же task-агностичные `prc_ai_eval_runs`/`prc_ai_eval_results` (`metric=screening_accuracy`), CI-гейт и пороговое сравнение — вне скоупа (как и §8.4).
+**Раннер** — `estimate:eval:run --task=screening` (D44): прогоняет `ScreeningProcessor` (боевой маршрут скрининга через `LlmRouteResolver`, реальный LLM-вызов — `FakeLlmProvider` в тестах недопустим, Implementation Rules) по каждому `prc_ai_dataset_examples(task=screening)` и сравнивает `document_type` предсказания с `gold.document_type` через `App\Services\Procurement\Screening\ScreeningEvalMetrics` — независимый от `App\Services\Procurement\Analyzers\Estimate\EvalMetrics` (§8.4) класс: `accuracy`, `confusion` (ожидаемый × фактический по `AiDocumentType`), `false_positive_rate` (доля НЕ-смет, помеченных `estimate` — главное число, D5) и `false_negative_rate` (доля смет, помеченных не-`estimate`). Результат пишется в те же task-агностичные `prc_ai_eval_runs`/`prc_ai_eval_results` (`metric=screening_accuracy`), CI-гейт и пороговое сравнение — вне скоупа (как и §8.4).
 
 ### 8.6 Diff-отчёт «gold vs предсказание» (P7.3, D62)
 
-`App\Services\Procurement\Analyzers\Estimate\EstimateDiffReport::build(array $goldEstimates, array $predictedEstimates, ?int $limitRows = 200): DiffReport` — детерминированный (без LLM) построчный разбор расхождений поверх агрегата §8.4, вход для человека, для критика промтов (P7.4) и для экрана сравнения (P8.3). ЧИСТАЯ функция над той же формой массивов, что §8.2/`analysis.result.estimates[]` — ни БД, ни сети, ни файлов; без собственной таблицы (отчёт — производная величина, не сущность).
+`App\Services\Procurement\Analyzers\Estimate\EstimateDiffReport::build(array $goldEstimates, array $predictedEstimates, ?int $limitRows = 200): DiffReport` — детерминированный (без LLM) построчный разбор расхождений поверх агрегата §8.4, вход для человека, для критика промтов (`estimate:prompts:suggest`, P3.3 этого плана) и для экрана апрува (P5.6 этого плана). ЧИСТАЯ функция над той же формой массивов, что §8.2/`analysis.result.estimates[]` — ни БД, ни сети, ни файлов; без собственной таблицы (отчёт — производная величина, не сущность).
 
 Сметы сопоставляются ЯВНЫМ ПАРНЫМ ПРОХОДОМ (P6.2, D54, единственный носитель — `EvalMetrics::matchEstimates()`), не позицией в списке: порядок правил — точное совпадение нормализованного непустого `estimate_number` → точное совпадение нормализованного непустого `passport.address` → позиция среди оставшихся несопоставленными. Дубль нормализованного значения на одной стороне исключает его из соответствующего правила для ВСЕХ его носителей на этой стороне (правило падает на следующее). Непарная смета получает собственный слот без пары и считается ЦЕЛИКОМ (FN у gold, FP у предсказания) — не теряется молча.
 
@@ -525,7 +525,25 @@ tools/function-calling (контракт `LlmProvider` их не предост�
 
 Команда `estimate:eval:diff {--code=} {--analysis=} {--format=json|md} {--out=} {--limit-rows=200}` — по коду эталона резолвит `estimates/gold/<CODE>.gold.json` (тот же путь, что `estimate:gold:build`, §config `ai.fixtures.gold_dir`) и АКТИВНЫЙ `Analysis(step=extraction)` рабочей копии эталона (`fixture:<CODE>`, конвенция `estimate:gold:import`); `--analysis` берёт анализ напрямую и резолвит код эталона обратным ходом через `external_id` документа. Команда НИ ОДНОГО LLM-вызова не делает — читает уже полученный `analysis.result`, оркестратор не запускается.
 
-## 9. Data lifecycle: retention, MinIO ILM, бэкапы (P7.7, D33/D41)
+### 8.7 Экспорт под локальную LLM (P7.1 этого плана)
+
+`estimate:dataset:export {--format=sft|dpo} {--task=extraction} {--split=all|tune|holdout} {--source=* : ограничить значениями source} {--dpo-schema=conversational|standard} {--disk=} {--path=}` — выгружает `prc_ai_dataset_examples` в chat-JSONL, пригодный training-раннеру КАК ЕСТЬ: chat-template целевой модели в экспорт НЕ входит, его применяет раннер.
+
+**Основание доверия.** Запись экспортируема ⟺ `source === 'deterministic'` ИЛИ `verified_at !== null`; всё остальное (`source='llm'` без верификации) пропускается с причиной `not_trusted` — молчаливого включения непроверенного вывода нет, `--source` СУЖАЕТ отбор, но не отменяет это основание.
+
+**Отбор.** SFT — ПОСЛЕДНЯЯ по `version` экспортируемая запись на пару (`document_version_id`, `task`). DPO — каждая экспортируемая запись с `source='corrected'` и непустым `analysis_id`; `rejected` — `estimates[]` из `result` анализа `analysis->parent_analysis_id` ЭТОЙ ЖЕ записи (сохранённый `analysis_id`, не активный анализ версии, D56 — чинимый дефект: резолв через `Analysis::active()` дал бы одного и того же предшественника разным gold-версиям одной версии документа); нет `analysis_id`, нет родителя или у родителя пустой `result` → пропуск с причиной `no_analysis_id`/`no_parent_analysis`/`parent_result_empty` соответственно.
+
+**Вход — один строитель на оба формата** (`App\Services\Procurement\Analyzers\Estimate\DatasetInputBuilder`): `ComposedPrompt` считается ОДИН раз на прогон (`PromptComposer::compose(PromptStep::ExtractionRows, [RowsChunkResponse::class])`); `user`-содержимое = строка задачи (`ordinal`/`estimate_number`, если есть) + разделитель + ТЕКСТ представления документа (не ссылка). Представление выбирается по `config('ai.dataset_export.representation_priority')` (дефолт `['text_grid', 'text']`) — первое существующее для версии документа с `mime`, начинающимся на `text/`; `structured_xml` исключён ЯВНО. Нет подходящего представления → пропуск с причиной `no_textual_representation`. Текст длиннее `config('ai.dataset_export.max_input_chars')` (дефолт **300000** символов) → пропуск с причиной `input_too_large` — оба числа заданы ТЗ до данных, подгонка порога под первый прогон запрещена.
+
+**Строка SFT** — `{"messages":[system,user,assistant]}`, `assistant` — `{rows, incomplete_items}` контракта шага строк (§3.2). **DPO** (`--dpo-schema=conversational`, дефолт) — `prompt` списком сообщений (тот же строитель), `chosen`/`rejected` — списки из одного `assistant`-сообщения; `--dpo-schema=standard` — те же три поля плоскими строками.
+
+**Маркировка.** Каждая строка несёт ключ `meta`: `fixture_code` (если запись связана с эталоном через `document_version_id`→`Document`→`Fixture`), `document_type`, `split`, `source`, `trust` (`deterministic`|`human`), `representation_kind`, `document_version_id`, `example_version`. Файла `estimates/eval-splits.json` нет → `split=none` у всех строк + предупреждение в сводке; `--split` отбрасывает строки с другим значением и считает их отдельно.
+
+**Что сознательно НЕ экспортируется:** chat-template целевой модели (протухнет при смене модели, применяет раннер); непроверенный вывод (`source='llm'` без `verified_at`); нарезка документа сверх `max_input_chars` на несколько обучающих строк (документ целиком пропускается); задача `screening` (другая форма ответа, вне Scope).
+
+**Манифест** несёт: `schema`, `exporter_version`, `examples`, `skipped` (карта причина→счётчик, ни один пропуск не молчаливый), `by_source`, `by_split`, `by_representation_kind`, `prompt_version_set`, `rules_hash`, `plan` (`2026.07.28-EST-ARCH`, D56), `task`, `generated_at`, `sha256`. Порядок строк — `document_version_id ASC, version ASC`. Консольная сводка — экспортировано N · пропущено по причинам построчно · путь файла и манифеста; `SUCCESS` даже при пропусках, `FAILURE` — только на неизвестном `--format`/`--dpo-schema`/`--split`.
+
+## 9. Data lifecycle: retention, MinIO ILM, бэкапы (D33/D41)
 
 ### 9.1 Матрица «таблица → окно хранения → где → почему»
 
@@ -556,6 +574,6 @@ tools/function-calling (контракт `LlmProvider` их не предост�
 
 `make db:backup [ENV=prod]` (`docker/postgres/backup-and-verify.sh`) — `pg_dump -Fc` в bind-mount `storage/backups` (виден на хосте) + ОБЯЗАТЕЛЬНЫЙ restore в одноразовую scratch-БД (создаётся/дропается в рамках прогона, проверяется непустой `information_schema.tables`) — бэкап без проверенного restore не считается сделанным. Off-host копирование дампа, ротация старых файлов и cron-расписание на прод-хосте — Scope Excluded (инфра-решение владельца, `plans/EST-AI/handoff.md` open_questions). MinIO — версионирование бакета/`mc mirror` для офф-сайт копии не реализованы этим item'ом (та же категория, Pending Work).
 
-## Приложение: первоисточники (актуальны до P11.1)
+## Приложение: первоисточники (актуальны до сноса `Old/`)
 
 `Old/app/Repositories/Prompt/PromptRuleRepository.php`, `Old/app/Services/{PromptService,GeminiService}.php`, `Old/app/Models/Prompt/PromptRule.php`, `Old/app/Dto/Prompt/Step.php`, `Old/app/Process/{DocumentAnalysis,EstimateAnalysis/Schema,DocumentPrepare}/**`, `Old/app/Attributes/Alias.php`, `Old/app/Models/DocumentAnalysis/DocumentAnalysis.php`, `Old/docs/03_Dev/LLM_Strategy.md`, `tmp/agelto2.md`. Разведка: `plans/EST-AI/research/{B,C,E,L}-*.md`.

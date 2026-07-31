@@ -18,7 +18,7 @@
 | **AbstractCrawlingService** — Template Method: `start()` с try/finally, специфика площадки только в хуках; парсинг вложений только при изменении `platform_updated_at` | `app/Process/Crawling/AbstractCrawlingService.php` | **архитектуру как есть**, парсинг вёрстки переписать под текущую разметку |
 | **Идемпотентная джоба** — guard по терминальному статусу → `acquireLease()` → try/finally `releaseLease()` → `failed()` = `recordFailure()` + `PipelineAlert` + `tags()` для Horizon | `app/Process/*/Jobs/*Job.php` | **как эталон** для всех queued-джоб v2 (`03` §4) |
 | **PipelineDispatcher** — явный мост между стадиями (выстрадан на инциденте рассинхрона) | `app/Process/Pipeline/PipelineDispatcher.php` | **как есть** (`02` §8, `03` §4) |
-| **Промпты из БД + версии** — `PromptRule` (key/step/priority/version/is_active), редактор в админке | `app/Repositories/Prompt/PromptRuleRepository.php`, Filament `PromptRule/*` | **как есть** → `prc_ai_prompts` (`04` §3.2) |
+| **Промпты из БД + версии** — `PromptRule` (key/step/priority/version/is_active), редактор в админке | `app/Repositories/Prompt/PromptRuleRepository.php`, Filament `PromptRule/*` | **как есть** → `llm_prompts` (`04` §3.2) |
 | **«Схема как код»** — DTO-схема чистится regex и идёт в system instruction | `app/Services/PromptService.php::getCleanSchema()` | **как есть** |
 | **Gemini context caching + инвалидация** по `rules_hash`/`file_fingerprint`/`expires_at`, учёт токенов | `app/Services/GeminiService.php` | **идею как есть** → `prc_ai_analyses.cache_*`/`rules_hash` (`04` §2.1) |
 | **Прокси Strategy** — Factory + Driver interface (Config/Database), health-tracking (`fails_count`, авто-деактивация при MAX_FAILS) | `app/Services/Http/Proxy/*`, `Modules/Sys/.../ProxyRepository` | **как есть** → `prc_proxies` |
@@ -50,7 +50,7 @@
 
 **Заменено осознанно:**
 - `geo_countries`/`geo_locations` (ФИАС/КЛАДР + geometry) — тяжёлый геосправочник; v2 = денормализованный `region_code` + отложенный ГАР (`01` §12).
-- `plt_document_analysis_logs` (построчный лог сессии) — консолидирован в `prc_ai_llm_calls` (тех-след вызова) + `prc_operation_logs` (общий журнал).
+- `plt_document_analysis_logs` (построчный лог сессии) — консолидирован в `llm_calls` (тех-след вызова) + `prc_operation_logs` (общий журнал).
 - `plt_platform_proxies` pivot — избыточен, привязка через `prc_proxies.targets jsonb`.
 - `ord_lot_infos` со строковыми числами — техдолг не наследуем (`prc_estimate_items` типизирован).
 
@@ -101,7 +101,7 @@
 | `Repositories/Crawling/CrawlingRepository.php` | перенесено | канон read/store уже применён в v2-репозиториях краулинга, вне EST-AI |
 | `Models/DocumentAnalysis/DocumentAnalysis.php` (`acquireLease/releaseLease`, `transitionStatus`, `recordFailure`) | переносится: P4.1 | lease TTL 600с (атомарный `UPDATE WHERE locked_until IS NULL OR < now()`, try/finally); backoff `min(2**n,240)` мин + `failed_permanently` при `attempts>=5` — общий канон error-блока уже есть в v2 (07 §2), P4.1 применяет его к `Document`/`Analysis` |
 | `Models/DocumentAnalysis/DocumentAnalysis.php` (`isCacheValid`) | переносится: P3.2 | `fingerprint && rules_hash=sha1(...) && TTL` — инвалидация кэша |
-| `Models/Prompt/PromptRule.php` | переносится: P8.1 | поля `key/step/priority/version/is_active` уже в `prc_ai_prompts` (D17); сидирование — P8.1 |
+| `Models/Prompt/PromptRule.php` | переносится: P8.1 | поля `key/step/priority/version/is_active` уже в `llm_prompts` (D17); сидирование — P8.1 |
 | `Models/Link.php` (`recomputeStatusFromAnalyses`) | переработать не 1:1: P4.3 | N+1 (research/A слабые стороны) — идея агрегации статуса документа по дочерним анализам переносится батчево, не построчно |
 | `Dto/Estimates/**` + `Enums/Estimates/ItemType.php` (legacy динамическая схема) | выброшено (осознанно) | вытеснена structured-схемой (07 §3), решение уже зафиксировано в спеке 08 §1 (P1.2) с обоснованием отказа |
 | `Dto/Prompt/Step.php` | переносится с расширением: P3.3 | `PromptStep` — 8 значений (+`extraction:discovery`, D37) |
@@ -111,7 +111,7 @@
 | `Enums/EstimateType.php`/`EstimateTarget.php`/`EstimateResourceType.php` | зафиксировано: P1.2 | значения дословно в спеке 08 §2–§3; код-эквивалент — P2.2/P2.3 |
 | `Attributes/Alias.php` (`#[Alias(aliases:[...])]`) | зафиксировано идея: P1.2, код: P2.2 | матчинг русских заголовков колонок/типов ресурсов — словари дословно в спеке 08 §2; атрибут не обязателен 1:1 (можно константой/enum-мапой), решает P2.2 |
 | `Services/GeminiService.php` | переработано не 1:1: P3.2 | транспорт заменён на Prism/`LlmProvider` (D8/D14); идея кэша (ttl=6h, `isCacheValid`, `deleteCache()` вручную), `file-ID=last(explode('/',name))`, `usageFromResponse` null-safe, `uploadFile mimeType` по умолчанию `application/pdf` без реального mime (баг, research/C — исправляется в P3.2, а не наследуется) |
-| `Services/GeminiService.php` (кэш на `gemini-1.5-flash`, генерация на `gemini-2.0-flash`) | выброшено (D4) | баг рассинхрона моделей v1 (research/B) — v2 роутит явно через `config/ai.php`/`prc_ai_routes`, единая модель на шаг |
+| `Services/GeminiService.php` (кэш на `gemini-1.5-flash`, генерация на `gemini-2.0-flash`) | выброшено (D4) | баг рассинхрона моделей v1 (research/B) — v2 роутит явно через `config/ai.php`/`llm_routes`, единая модель на шаг |
 | `Services/PromptService.php::getCleanSchema()` | переносится: P3.3 | «схема как код»: regex-очистка PHP-исходника класса в system instruction — приём сохраняется (D2) |
 | `Services/SmetaParserService.php` | выброшено | мёртвый legacy-парсер (голый Guzzle, hardcoded ключ, `verify:false`), нигде не вызывается (07 §3); только идея якорного поиска шапки таблицы (fallback без LLM) — LLM-first в EST-AI, идея не в скоупе плана, зафиксирована здесь как возможный будущий рычаг |
 | `Services/Http/Proxy/*` | перенесено | `prc_proxies`, вне EST-AI |
@@ -154,7 +154,7 @@
 
 ### 7.3 Диф БД v1→v2 (транскрипция вердиктов research/I)
 
-Колоночная сверка Old-миграций (24+2) против v2 (47) построчно против research/tz-v2/v1-columns.md — **доменных потерь нет**. Группы: (1) заказчики `ord_customers→org_organizations` — полный перенос, v2 богаче; (2) закупки `ord_orders+plt_crawler_links→prc_procurements(+registries/revisions/fetches)` — полный перенос; (3) лоты/позиции `ord_lots/ord_purchase_objects/ord_lot_infos→prc_lots/prc_items` — перенос, строковые числа `lot_infos` осознанно не наследуются (техдолг); (4) **сметы — в v1-БД смет не было** (только DTO-схема в коде), v2 материализует и превосходит (`passport`/`raw_result`/`validation_status`/`rows_expected`); (5) документы/AI `attachments+document_analysis→documents+versions+prc_ai_analyses`, `plt_prompt_rules→prc_ai_prompts` — точный перенос; (6) краулинг — перенесено ранее (partial-unique `WHERE status='running'` воспроизведён); (7) гео/media/users — осознанно не переносится (region_code вместо ФИАС/КЛАДР).
+Колоночная сверка Old-миграций (24+2) против v2 (47) построчно против research/tz-v2/v1-columns.md — **доменных потерь нет**. Группы: (1) заказчики `ord_customers→org_organizations` — полный перенос, v2 богаче; (2) закупки `ord_orders+plt_crawler_links→prc_procurements(+registries/revisions/fetches)` — полный перенос; (3) лоты/позиции `ord_lots/ord_purchase_objects/ord_lot_infos→prc_lots/prc_items` — перенос, строковые числа `lot_infos` осознанно не наследуются (техдолг); (4) **сметы — в v1-БД смет не было** (только DTO-схема в коде), v2 материализует и превосходит (`passport`/`raw_result`/`validation_status`/`rows_expected`); (5) документы/AI `attachments+document_analysis→documents+versions+prc_ai_analyses`, `plt_prompt_rules→llm_prompts` — точный перенос; (6) краулинг — перенесено ранее (partial-unique `WHERE status='running'` воспроизведён); (7) гео/media/users — осознанно не переносится (region_code вместо ФИАС/КЛАДР).
 
 **Потери (c) — все инфраструктурные, не доменные:** `sys_logs.ip_address` (мусор); `plt_document_analysis.options` json (почти не заполнялось); `plt_crawlers.state` json (ушло в `runs.cursor`); `sys_proxies.last_error` снимок (покрыт `prc_proxy_checks`). Ни один пункт не требует item плана — фиксируются здесь как закрытые (low, без переноса).
 

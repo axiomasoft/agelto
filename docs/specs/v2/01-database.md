@@ -7,7 +7,7 @@
 1. **OCDS 1.1 — словарь и референс-модель, не буквальная схема.** Декомпозиция (parties, tender/lots/items, documents, awards, amendments-как-релизы) и паттерн `releases → compiledRelease`: текущее состояние закупки — материализованная проекция, история — append-only.
 2. **Три слоя истории**: `prc_procurements` (текущее состояние) + `prc_revisions` (полные снапшоты редакций, jsonb) + `prc_events` (типизированный журнал). Без temporal-расширений (maintenance-mode, несовместимы с managed PG).
 3. **Идентификаторы**: везде `bigint GENERATED ALWAYS AS IDENTITY` как PK; на внешних сущностях (закупки, документы, сметы, организации) — дополнительно `uuid` (UUIDv7, генерация в приложении на PG17; unique) для API/ссылок/идемпотентности. Тип PK менять постфактум на больших таблицах = full rewrite → фиксируем bigint сразу.
-4. **Партиционирование с первого дня** там, где рост линеен от событий: `prc_events`, `prc_revisions`, `prc_ai_llm_calls`, `prc_fetches`, `prc_operation_logs` — RANGE по времени, помесячно. «Шапки» (`prc_procurements`, `prc_documents`) не партиционируем.
+4. **Партиционирование с первого дня** там, где рост линеен от событий: `prc_events`, `prc_revisions`, `llm_calls`, `prc_fetches`, `prc_operation_logs` — RANGE по времени, помесячно. «Шапки» (`prc_procurements`, `prc_documents`) не партиционируем.
    - Правило PG: UNIQUE/PK на партиционированной таблице обязан включать partition key → PK `(id, <time>)`; глобальная уникальность — на непартиционированных шапках.
    - Обслуживание: **pg_partman** (premake на 3 мес вперёд, поддержка UUIDv7-ключей); своя scheduled-команда — fallback, если расширение недоступно.
 5. **jsonb**: `default_toast_compression = lz4`. Никаких generic GIN «на всякий случай» — фильтруемое выносим в типизированные колонки; GIN (`jsonb_path_ops`) — только под конкретный containment-запрос.
@@ -20,13 +20,14 @@
 
 ### 0.1 Таксономия префиксов (модуль = префикс)
 
-Канон (D11, аудит F ось 1): `prc_` — единый мегадомен закупок (площадки и их справочники, ядро, история, детальная карточка, документы, AI-пайплайн, сметы, краулинг, операционная инфраструктура). Классификаторы и организации — общий shared-слой (`ref_`, `org_`), не принадлежат конкретному домену. Девятипрефиксная схема ниже (`plt_`/`doc_`/`ai_`/`est_`/`crw_`/`sys_`) — исходный черновой замысел ТЗ, отклонена в пользу (b) при реализации; не воспроизводить в новом коде.
+Канон (D11, аудит F ось 1; домен `llm_` — D22 плана `2026.07.28-EST-ARCH`): `prc_` — единый мегадомен закупок (площадки и их справочники, ядро, история, детальная карточка, документы, AI-подомен, сметы, краулинг, операционная инфраструктура). Классификаторы и организации — общий shared-слой (`ref_`, `org_`), не принадлежат конкретному домену. `llm_` — ЧЕТВЁРТЫЙ доменный префикс: LLM-транспорт (провайдер/маршрут/промт/вызов), выделен из `prc_` планом `2026.07.28-EST-ARCH` — он не несёт ни одного закупочного понятия. Девятипрефиксная схема ниже (`plt_`/`doc_`/`ai_`/`est_`/`crw_`/`sys_`) — исходный черновой замысел ТЗ, отклонена в пользу (b) при реализации; не воспроизводить в новом коде.
 
 | Префикс | Домен | Таблицы |
 |---|---|---|
 | `ref_` | Классификаторы (shared) | okpd2, ktru, okved2, kbk |
 | `org_` | Организации (shared) | organizations |
-| `prc_` | Закупки — единый мегадомен | platforms, registries, status_mappings, document_types, regions, procurement_parties, procurements, revisions, events, lots, items, financing, eis_details, protocols, bids, awards, clarifications, cancellations, documents, document_versions, prc_ai_analyses, prc_ai_llm_calls, prc_ai_providers, prc_ai_routes, prc_ai_prompts, prc_ai_dataset_examples, prc_ai_eval_runs, prc_ai_eval_results, estimates, estimate_sections, estimate_items, estimate_resources, estimate_totals, crawlers, crawler_runs, proxies, fetches, proxy_checks, ignore_rules, ignored_items, daily_stats, operation_logs, search (витрина, §10) |
+| `llm_` | LLM-транспорт (shared, D22) | providers, routes, prompts, calls |
+| `prc_` | Закупки — единый мегадомен | platforms, registries, status_mappings, regions, procurement_parties, procurements, revisions, events, lots, items, financing, eis_details, protocols, bids, awards, clarifications, cancellations, documents, document_versions, prc_ai_analyses, prc_ai_dataset_examples, prc_ai_eval_runs, prc_ai_eval_results, estimates, estimate_sections, estimate_items, estimate_resources, estimate_totals, crawlers, crawler_runs, proxies, fetches, proxy_checks, ignore_rules, ignored_items, daily_stats, operation_logs, search (витрина, §10) |
 
 Внутри `prc_`-мегадомена имя по умолчанию без повтора домена (`prc_lots`, а не `prc_procurement_lots`). Осознанное отклонение — сателлиты уже занятых корней: `prc_estimate_items/sections/resources/totals` (не `prc_items` — коллизия с позициями объекта закупки), `prc_crawler_runs` (не `prc_runs`). Фактические имена индексов/FK везде выровнены под настоящее имя таблицы (raw-DDL в 100018/100026/100033/100039/100041/100046 — правка аудита F).
 
@@ -41,8 +42,8 @@
 ### prc_status_mappings — маппинг сырых статусов (данные, не код)
 `id, registry_id FK, source_stage text unique(registry_id,source_stage), canonical_status text (enum)`. Неизвестный сырой статус → `unknown` + событие + алерт; оператор дополняет в админке (закрывает конфигурируемость 223-ФЗ).
 
-### prc_document_types — справочник типов документов (открытый)
-`id, code text unique (estimate/tech_spec/contract_draft/protocol/notice/clarification/unknown…), name, has_extractor bool (на старте true только у estimate), is_active`. Скрининг проставляет `prc_ai_analyses.document_type` = `code`; новый тип — строкой, без миграции.
+### prc_document_types — снесён (D16 плана `2026.07.28-EST-ARCH`)
+SSOT типа документа — enum `App\Enums\Procurement\AiDocumentType` (код) + реестр анализаторов `DocumentAnalyzerRegistry` (`config('ai.analyzers')`); `has_extractor` заменён фактом «в реестре есть анализатор с извлечением». Целостность колонок `document_type` (`prc_ai_analyses`, `prc_ai_dataset_examples`, `llm_routes`, `llm_prompts`) — check-constraint по `AiDocumentType::values()`, не FK на таблицу.
 
 ### prc_regions — справочник регионов площадки
 `id, platform_id FK, external_id text (код региона на площадке), name text, region_code text nullable (наш внутренний код)`. Перенос v1 `plt_platform_regions`: словарь «код региона площадки → имя/внутренний код» для фильтра краулера по региону.
@@ -205,11 +206,11 @@ Unique `(procurement_id, organization_id, role)`. Быстрый доступ к
 > Сметы — в §6b; LLM-конфигурация — в §6c (детали `04`).
 
 ### prc_ai_analyses — сессия анализа версии документа
-`id, uuid, document_version_id FK index, step text (screening/extraction) unique(document_version_id,step), status text (pending→running→succeeded/failed/skipped), document_type text nullable (code из prc_document_types), result jsonb nullable, provider text, model text, locked_by, locked_until (lease), + error-блок, started_at, finished_at`.
+`id, uuid, document_version_id FK index, step text (screening/extraction) unique(document_version_id,step), status text (pending→running→succeeded/failed/skipped), document_type text nullable (code из AiDocumentType, check-constraint, D16), result jsonb nullable, provider text, model text, locked_by, locked_until (lease), + error-блок, started_at, finished_at`.
 Кэш и прогресс (перенос из v1 `plt_document_analysis`): `cache_id text nullable, cache_expires_at timestamptz nullable` (быстрая проверка валидности Gemini-кэша без похода в API), `rules_hash text nullable` (инвалидация кэша при смене версии промптов — если не совпал с текущим, кэш пересоздать), `progress jsonb nullable` (состояние многошаговой экстракции: сколько строк/страниц пройдено и что осталось — резюм прерванного разбора **без полного повтора**, см. `03` §3.5).
 
-### prc_ai_llm_calls — каждый вызов LLM (партиции RANGE by called_at, месяц)
-`id PK (id, called_at); analysis_id bigint nullable index; purpose text (screening/extract_passport/extract_rows/extract_totals/eval/shadow — совпадает с prc_ai_routes.purpose); provider, model; prompt_version_set jsonb; cache_id text nullable (Gemini cachedContent); request_ref, response_ref text (object storage); prompt_tokens, completion_tokens, cached_tokens, total_tokens int; cost_micros bigint nullable; success bool; error text nullable; duration_ms int; called_at timestamptz (partition key)`.
+### llm_calls — каждый вызов LLM (партиции RANGE by called_at, месяц; домен `llm_`, D22)
+`id PK (id, called_at); analysis_id bigint nullable index; purpose text (screening/extract_passport/extract_rows/extract_totals/eval/shadow — совпадает с llm_routes.purpose); provider, model; prompt_version_set jsonb; cache_id text nullable (Gemini cachedContent); request_ref, response_ref text (object storage); prompt_tokens, completion_tokens, cached_tokens, total_tokens int; cost_micros bigint nullable; success bool; error text nullable; duration_ms int; called_at timestamptz (partition key)`.
 
 ### 6b. Сметы (est_*)
 
@@ -228,11 +229,11 @@ Unique `(procurement_id, organization_id, role)`. Быстрый доступ к
 ### prc_estimate_totals — итоговые строки/начисления (иерархия)
 `id, estimate_id FK index, parent_id FK nullable (self), position int, label text, kind text nullable (НР/СП/НДС/…), amount numeric(18,2)`. `parent_id` — вложенные итоги («Итого» → «в т.ч. НДС»), перенос рекурсии `EstimateFooterItem` из v1.
 
-### 6c. LLM-конфигурация (детали — 04)
+### 6c. LLM-конфигурация — домен `llm_` (детали — 04, D22)
 
-- **prc_ai_providers**: `id, code (gemini/local-vllm/…), driver, base_url nullable, options jsonb, is_active` (ключи — в env/secrets, в БД только имя секрета).
-- **prc_ai_routes**: матрица — `document_type text, purpose text, provider_id FK, model text, options jsonb, priority int, is_active, shadow bool`; unique `(document_type, purpose, priority)`. `purpose` — из набора `prc_ai_llm_calls.purpose`. `shadow=true` — теневой прогон (флаг, не значение purpose). `document_type` = `code` из `prc_document_types` **или зарезервированное `any`** (wildcard); **точное совпадение приоритетнее `any`** (сначала exact, потом any). Реализована таблицей+Filament, **не spatie-settings** — осознанное отклонение от буквы решения владельца («настройка в админке через spatie-settings»): spatie-settings хранит скалярные настройки, а матрица роутинга многострочная (тип×шаг → строка). Обе цели решения сохранены: *настраивается в админке без деплоя* (Filament-ресурс), а *скалярные* LLM-настройки (провайдер по умолчанию, троттлинг) остаются в spatie-settings (`05` §2.4).
-- **prc_ai_prompts**: `key, step, content, version, priority, is_active`, unique `(key, version)`; фиксация `prompt_version_set` в `prc_ai_llm_calls`.
+- **llm_providers**: `id, code (gemini/local-vllm/…), driver, base_url nullable, options jsonb, is_active` (ключи — в env/secrets, в БД только имя секрета).
+- **llm_routes**: матрица — `document_type text, purpose text, provider_id FK, model text, options jsonb, priority int, is_active, shadow bool`; unique `(document_type, purpose, priority)`. `purpose` — из набора `llm_calls.purpose`. `shadow=true` — теневой прогон (флаг, не значение purpose). `document_type` = `code` из `AiDocumentType` (check-constraint, D16, D17) **или зарезервированное `any`** (wildcard); **точное совпадение приоритетнее `any`** (сначала exact, потом any). Реализована таблицей+Filament, **не spatie-settings** — осознанное отклонение от буквы решения владельца («настройка в админке через spatie-settings»): spatie-settings хранит скалярные настройки, а матрица роутинга многострочная (тип×шаг → строка). Обе цели решения сохранены: *настраивается в админке без деплоя* (Filament-ресурс), а *скалярные* LLM-настройки (провайдер по умолчанию, троттлинг) остаются в spatie-settings (`05` §2.4).
+- **llm_prompts**: `id, document_type text, key, step, content, version, priority, is_active, is_protected`, unique `(key, version)`; фиксация `prompt_version_set` в `llm_calls`.
 - **prc_ai_dataset_examples**: `id, document_version_id FK, task (screening/extraction), gold jsonb | gold_ref, source (llm/manual/corrected), verified_by, verified_at, version int`.
 - **prc_ai_eval_runs**: `id, dataset_version, provider, model, prompt_version_set jsonb, metrics jsonb (precision/recall/F1, row_coverage), ci_status (pass/fail), started_at, finished_at`.
 - **prc_ai_eval_results**: `id, eval_run_id FK index, dataset_example_id FK, metric text, value numeric, details jsonb nullable`.
@@ -258,7 +259,7 @@ Unique `(procurement_id, organization_id, role)`. Быстрый доступ к
 `id, registry_id FK, registry_number text unique(registry_id,registry_number), reason_category text index, reason text` — осознанный skip конкретной закупки **до** создания `prc_procurements` (не ошибка, а решение «не берём»); отделено от `prc_ignore_rules` (правила) и от failed (ошибки). Полезно для анализа «почему теряем закупки».
 
 ### prc_daily_stats — посуточная аналитика по стадиям (перенос v1 `plt_crawler_analytics`)
-`id, date, crawler_id FK, unique(date, crawler_id)`; счётчики по стадиям: `listing_found/listing_errors`, `detail_fetched/detail_errors`, `docs_indexed/docs_errors`, `screened/estimates_found/screen_errors`, `extracted_items/extract_errors`. Готовый посуточный срез для дашборда — дешевле, чем агрегировать партиционированные `prc_fetches`/`prc_ai_llm_calls` на каждый запрос; наполняется инкрементально процессорами стадий.
+`id, date, crawler_id FK, unique(date, crawler_id)`; счётчики по стадиям: `listing_found/listing_errors`, `detail_fetched/detail_errors`, `docs_indexed/docs_errors`, `screened/estimates_found/screen_errors`, `extracted_items/extract_errors`. Готовый посуточный срез для дашборда — дешевле, чем агрегировать партиционированные `prc_fetches`/`llm_calls` на каждый запрос; наполняется инкрементально процессорами стадий.
 
 ## 8. Операционная инфраструктура
 
