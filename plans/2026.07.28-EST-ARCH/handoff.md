@@ -1,52 +1,44 @@
-# HANDOFF — 2026-07-31 — after P6.3
+# HANDOFF — 2026-07-31 — after P6
 
 **Next:**
 
 | Параметр | Значение |
 |:--|:--|
-| Model | sonnet |
-| Thinking | low — механическая сверка закрытой фазы по git-фактам, `task:plan-close` пин |
+| Model | opus |
+| Thinking | xhigh — аудит фазы с отклонением (P6.1 🟠) |
 | Context | NEW SESSION — шаг-не-item |
-| Суть | Закрыть фазу P6 (терминальна: P6.1 🟠/P6.2 🟢/P6.3 🟢) — таблицы, Phase Handoff, lint |
+| Суть | Adversarial-аудит закрытой фазы P6 (была хоть одна `🟠`/эскалация) |
 
 ```
-/task:plan-close 2026.07.28-EST-ARCH P6
+/task:plan-audit 2026.07.28-EST-ARCH P6
 ```
 
 **Done:** фазы P1 (🟠, 4/8 🟢), P2 (🟠, 5/7 🟢), P3 (🟠, 3/6 🟢), P4 (🟠, 4/6 🟢), P5 (🟠, 1/6 🟢)
-закрыты как в предыдущем handoff'е. **Фаза P6 закрыта этой сессией (терминальна, 2/3 🟢):** P6.1 🟠
-(`e1ab08b`, предыдущая сессия) → P6.2 🟢 (`18019e5`, предыдущая сессия в этом же дне) → P6.3 🟢
-(`72a4ff3`, эта сессия).
+закрыты как в предыдущем handoff'е. **Фаза P6 закрыта режимом `Pn` этой сессией (терминальна,
+2/3 🟢, статус фазы 🟠 Done with deviations):** P6.1 🟠 (`e1ab08b`) → P6.2 🟢 (`18019e5`) → P6.3 🟢
+(`72a4ff3`) → закрытие фазы (`cb5c28b` + эта сессия). Phase Handoff в `phases/P6.md` заполнен:
+агрегат Known Deviations трёх items, docs-sync подтверждён (`docs/03_Dev/static-analysis.md`
+новый, `docs/specs/v2/08-estimate-extraction.md` §6/§8.6, `docs/03_Dev/ai/prompts.md`).
 
-**Эта сессия (`plan-run P6.3`):** механический рычаг `property.notFound` — `@property`/
-`@property-read` докблоки на 16 моделях AI-контура/`Llm`/`Document`/`Estimate` (`Analysis`,
-`Correction`, `DatasetExample`, `EvalResult`, `EvalRun`, `LlmCall`, `LlmRoute`, `Prompt`, `Provider`,
-`Document`, `DocumentVersion`, `Estimate`, `Item`, `Resource`, `Section`, `Total`); `phpstan-
-baseline.neon` пересчитан ЦЕЛИКОМ: `240 → 74` записей / `309 → 84` ошибок (`property.notFound`
-`203 → 41`). `databaseMigrationsPath` опробован (в `phpstan.neon`) и ОТКАЧЕН — 0 эффекта: 47 из 51
-миграции резолвят имя таблицы динамически (`Schema::create($this->table(), …)`), Larastan's
-`SchemaAggregator` распознаёт только литеральный `String_`-узел. Остаток классифицирован по причине
-в новом `docs/03_Dev/static-analysis.md` (20 строк, 17 `identifier`) + строка в
-`.claude/rules/agelto-reviewer-overrides.md` («baseline не растёт без D-записи»). **Найден и НЕ
-починен вживую дефект:** `EstimateStoreRepository::findOrCreateSection()` пишет/читает
-`Section::$section_number` — колонка удалена миграцией D100; запись молча гасится mass-assignment
-guard'ом (не SQL-ошибка), сравнение всегда `null !== $sectionNumber` → лишний `update()` на каждом
-резолве раздела. Эскалирован под отдельный follow-up item (Pending Work phases/P6.md P6.3). Детали —
-`phases/P6.md` P6.3 Completion Notes.
+**Эта сессия (`plan-close P6`):** сверка Phase Status (`phases/P6.md`) ↔ Status Board (`plan.md`
+§4) — расхождений не найдено (уже синхронны с предыдущего коммита `cb5c28b`); docs-sync check
+пройден (три файла обновлены items P6.1/P6.2/P6.3, follow-up не заведён — покрытие полное);
+Phase Handoff перезаписан целиком; строка добавлена в `## 6. Update Log` плана. Незапланированный
+файл в дереве `config/cms.php` — не мой, не в `Files` ни одного item'а P6, отмечен как «посторонний
+дифф» ещё в предыдущем handoff'е (не блокер закрытия). Все фазы плана НЕ терминальны (P7 — 0/4),
+`plans/ACTIVE.md` не тронут.
 
-**Remaining:** фаза P6 закрыта, но НЕ реконсилирована (`task:plan-close` — следующий шаг выше);
-P7 (4 item'а ⬜, B2 = P7.1+P7.2) — единственная незакрытая фаза плана. Реконсилирующее закрытие
-фазы P4 всё ещё не выполнено (наследуемый риск, не блокирует P6/P7). Follow-up вне плана: дефект
-`Section::section_number` (найден P6.3); классифицированный остаток baseline (crawling-контур 19 ·
-`Procurement`/`ProcurementRevision` 13 · кросс-доменные `$uuid` 4 записи) — тем же рычагом, когда
-эти домены войдут в периметр другого плана.
+**Remaining:** P6.1 закрыт с material-отклонением (`🟠`) — Execution Rules предписывают аудит
+закрытой фазы при наличии `🟠`/эскалации (следующий шаг выше). P7 (4 item'а ⬜, B2 = P7.1+P7.2) —
+единственная незакрытая фаза плана. Реконсилирующее закрытие фазы P4 всё ещё не выполнено
+(наследуемый риск, не блокирует P6/P7).
 
 **Sources of truth:** скилл `plan-protocol` · `plan.md` §2 (Execution Rules), §3 Routing, §5
 (D1–D136) · ЗАМОРОЖЕНЫ: `root/document-type-axis.md`, `root/document-contour.md`
 (§3.2/§3.5/§3.7/§3.8), `root/document-analyzer-contract.md`, `root/service-layer-map.md`,
-`root/usage-source-contract.md` · `phases/P6.md` (Phase Context, Completion Notes P6.1/P6.2/P6.3) ·
-`docs/03_Dev/static-analysis.md` (новый, P6.3) · `findings/inherited-debts-2026-07-29.md` §2 ·
-`roadmap.md` · `open-questions.md` (OQ-15).
+`root/usage-source-contract.md` · `phases/P6.md` (Phase Context, Completion Notes P6.1/P6.2/P6.3,
+Phase Handoff) · `docs/03_Dev/static-analysis.md` (новый, P6.3) ·
+`findings/inherited-debts-2026-07-29.md` §2 · `roadmap.md` · `open-questions.md` (OQ-15).
 
 **Open risks:**
 - **F1 после смены состава промта (P6.1) и правила сопоставления (P6.2) НЕ перемерян боевым
