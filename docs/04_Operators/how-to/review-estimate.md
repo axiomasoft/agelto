@@ -2,7 +2,7 @@
 audience: operator
 type: howto
 status: living
-last-reviewed: 2026-07-09
+last-reviewed: 2026-07-31
 ---
 
 # Ревью сметы
@@ -66,3 +66,6 @@ last-reviewed: 2026-07-09
 - `reference/statuses.md` — расшифровка `validation_status`/`review_status`.
 - `02_Workflow/prompts-and-quality.md` — как коррекции влияют на промты.
 - `manage-prompts.md` — когда коррекция должна стать полноценным корректирующим промтом.
+- `run-fixture-analysis.md` — эталонный документ обучалки: там предсказание показывается РЯДОМ с
+  готовым эталонным разбором для сравнения, а не для правки (эталон меняется только через
+  переимпорт, не через это ревью).

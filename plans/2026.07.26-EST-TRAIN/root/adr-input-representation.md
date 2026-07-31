@@ -4,6 +4,8 @@ type: adr
 status: draft
 ---
 
+> ПЕРЕНЕСЁН — канон: docs/03_Dev/adr/0010-input-representation.md
+
 # ADR: Выбор представления документа на вход LLM extraction
 
 - Status: Accepted (владелец, чат 2026-07-28 — см. «Утверждение владельца»)

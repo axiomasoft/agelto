@@ -55,6 +55,7 @@ When a task requires more detail than what's in the current context, load the re
 | Document/estimate pipeline internals (FSM, стадии, очереди, failure modes) | `docs/03_Dev/document-pipeline.md` |
 | Инцидент пайплайна (завис анализ, quota/429, backlog) | `docs/03_Dev/runbooks/_index.md` |
 | Оператор: проверить/скорректировать/перезапустить AI-разбор | `docs/04_Operators/_index.md` |
+| Обучающий контур целиком: эталон → прогон → расход → eval/diff → тюнинг промта → экспорт под локальную LLM | `docs/03_Dev/ai/training-loop.md` |
 | AI-контекст: как устроены `.ai/`/скилы/генерация CLAUDE.md | `docs/03_Dev/ai-context/index.md`, skill `ai-context-workflow` |
 | Admin panel / Filament observability | `docs/03_Dev/admin-panel.md` |
 | Writing or running tests | skill `testing-rules` |

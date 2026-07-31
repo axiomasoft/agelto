@@ -11,8 +11,8 @@
 ## Domain Hub (short)
 
 - Терминология и схема пайплайна: `docs/03_Dev/architecture.md`, `docs/02_Workflow/crawling-and-discovery.md`, `docs/02_Workflow/document-and-estimate-pipeline.md`.
-- Структура плоская (`app/**`), без модулей: три домена по короткому префиксу таблицы — `Procurement` (`prc_*`, единый домен закупок: заказы, документы, сметы, AI-пайплайн, crawling-инфраструктура, площадки, логи), `Reference` (`ref_*`, общие справочники ОКПД2/КТРУ/ОКВЭД2/КБК), `Organization` (`org_*`, организации).
-- AI-подомен внутри Procurement: пайплайн-стадии — `app/Services/Procurement/{Prepare,Screening,Extraction}/` + `app/Jobs/Procurement/*Job`; провайдер-агностичный LLM-транспорт — `app/Services/Llm/**`; модели анализа/промтов/датасета — `app/Models/Procurement/Ai/*`. Глубже — скилы `estimate-extraction-dev`, `llm-layer-dev`, `prompt-engineering-agelto`.
+- Структура плоская (`app/**`), без модулей: четыре домена по короткому префиксу таблицы — `Procurement` (`prc_*`, единый домен закупок: заказы, документы, сметы, AI-подомен предметки, crawling-инфраструктура, площадки, логи), `Reference` (`ref_*`, общие справочники ОКПД2/КТРУ/ОКВЭД2/КБК), `Organization` (`org_*`, организации), `Llm` (`llm_*`, провайдер-агностичный LLM-транспорт: провайдеры, маршруты, промты, вызовы — D22).
+- AI-подомен внутри Procurement: пайплайн-стадии — `app/Services/Procurement/{Prepare,Screening,Extraction}/` + `app/Jobs/Procurement/*Job`; предметные модели анализа/датасета — `app/Models/Procurement/Ai/*`, модель промта — `app/Models/Llm/Prompt.php` (домен транспорта, D22). Каталог типа документа (сейм анализатора) — `app/Services/Procurement/Analyzers/**`; консольные команды — `app/Console/Commands/Procurement/{Ai,Analyzers/Estimate}/` (`Ai/` — кросс-документные `ai:*`, `Analyzers/Estimate/` — сметные `estimate:*`). LLM-транспорт (провайдер-агностичный, домен не знает про Prism/Gemini напрямую) — собственный домен `Llm`: `app/Services/Llm/**` (`Contracts/LlmProvider`, `Providers/*`, `Schema/*`, `Validation/*`), модели/фабрики/репозитории — `app/Models/Llm/**`/`database/factories/Llm/**`/`app/Repositories/Llm/**`. Глубже — скилы `estimate-extraction-dev`, `llm-layer-dev`, `prompt-engineering-agelto`.
 - Очереди: Laravel Horizon (`QUEUE_CONNECTION=redis`), тяжёлые jobs — browser/Gemini parsing.
 
 ## Layer Responsibilities (short)
@@ -55,7 +55,7 @@ Repositories — read/write доступ к `prc_*`/`org_*` таблицам. П
 ### AI-подомен (`App\Models\Procurement\Ai\*`, `App\Services\Llm\*`) — полностью: `.ai/guidelines/glossary.md`
 
 - `Ai\Analysis` → `$analysis` — сессия анализа версии документа; re-run — `parent_analysis_id`, shadow-прогон — `is_shadow`.
-- `Ai\Prompt` → `$prompt` — версия системной инструкции; канон — файл `resources/ai/prompts/**` → `ai:prompts:sync`; `is_protected` — сидовые записи read-only в админке.
+- `Ai\Prompt` → `$prompt` — версия системной инструкции; канон — оба корня (`resources/ai/prompts/**` + `resources/<домен>/ai/prompts/**`, D32) → `ai:prompts:sync`; `is_protected` — сидовые записи read-only в админке.
 - `Ai\Correction`/`Ai\DatasetExample` — операторская правка результата и immutable gold-снапшот обучающего контура.
 - `PromptStep` (композиция промта) ≠ `AnalysisStep` (шаг анализа: screening/extraction) ≠ `LlmPurpose` (назначение конкретного вызова).
 - `DocumentStatus::Unprocessable` + `UnprocessableReason` — терминальный «не можем обработать» (лимит провайдера/формат/пароль/zip-бомба) — константация, не сбой, не ретраится.
@@ -131,6 +131,7 @@ When a task requires more detail than what's in the current context, load the re
 | Document/estimate pipeline internals (FSM, стадии, очереди, failure modes) | `docs/03_Dev/document-pipeline.md` |
 | Инцидент пайплайна (завис анализ, quota/429, backlog) | `docs/03_Dev/runbooks/_index.md` |
 | Оператор: проверить/скорректировать/перезапустить AI-разбор | `docs/04_Operators/_index.md` |
+| Обучающий контур целиком: эталон → прогон → расход → eval/diff → тюнинг промта → экспорт под локальную LLM | `docs/03_Dev/ai/training-loop.md` |
 | AI-контекст: как устроены `.ai/`/скилы/генерация CLAUDE.md | `docs/03_Dev/ai-context/index.md`, skill `ai-context-workflow` |
 | Admin panel / Filament observability | `docs/03_Dev/admin-panel.md` |
 | Writing or running tests | skill `testing-rules` |

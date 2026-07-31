@@ -1,7 +1,7 @@
 ---
 audience: dev
 type: explanation
-status: draft
+status: living
 ---
 
 # Промт-система
@@ -92,6 +92,37 @@ D32) (git); `App\Enums\Llm\PromptStep` — интерфейс, шаги
 модели маршрута. Это даёт воспроизводимость: любой сохранённый вывод можно однозначно связать с
 ТОЧНОЙ комбинацией, которая его породила — критично для gold-датасета (`ai/training-loop.md`) и
 `EvalRun.prompt_version_set` (`estimate:eval:run`).
+
+## Очередь предложений и критик промта (P5.6, D8/D59–D61/D64)
+
+Носитель — `prc_ai_prompt_suggestions` (`App\Models\Procurement\Ai\PromptSuggestion`), ОТДЕЛЬНО от
+`prc_ai_corrections`: коррекция правит КОНКРЕТНЫЙ разбор (USER-часть повторного вызова), предложение
+— это ТЕКСТ системной инструкции, который проходит аудит, прежде чем стать файлом (D59). Два вида
+(`PromptSuggestionKind`): `prompt_patch` — полный новый текст тела файла промта; `correction_hint` —
+переиспользуемая подсказка для существующего `prc_ai_corrections(is_reusable=true)`.
+
+**Критик** — `CorePromptStep::PromptCritic` (`resources/ai/prompts/prompt-critic/0-prompt-critic.md`),
+обычный шаг системы промтов (версионируемый, `is_protected`, сидится наравне с остальными). Вызов
+идёт БЕЗ tools/function-calling, ТОЛЬКО USER-частью (diff-отчёт + текущая композиция промта шага);
+системная часть вызова состоит исключительно из промта критика (D64) — текст, предложенный критиком,
+никогда не попадает в систему автоматически.
+
+`estimate:prompts:suggest {--code=} {--analysis=} {--step=*} {--dry-run}` строит
+`EstimateDiffReport` (`training-loop.md` §4) по эталону и для каждого запрошенного шага зовёт
+`App\Services\Procurement\Tuning\PromptCritic`; предложение, дублирующее уже существующее
+`pending`/`rejected` по паре (`prompt_key`, нормализованный текст), не создаётся повторно.
+
+**Решение — только человек** (`PromptSuggestionStatus`: `pending` → `approved`/`rejected` →
+`applied`/`reverted`). Экран `PromptSuggestionResource` (Filament) — только список+карточка, записи
+создаёт команда, не форма: очередь по умолчанию открыта на `pending`, фильтры по форме/типу
+документа/шагу; карточка несёт решение (кто/когда/причина), предмет (обе оси — тип документа и шаг),
+обоснование критика (`rationale`/`evidence`) и предложенный текст РЯДОМ с текущим. Одобренная запись
+показывает состояние **«одобрено, но не применено»** — готовую команду
+`docker compose exec app php artisan ai:prompts:apply <id>`, которую человек запускает ВТОРЫМ,
+отдельным шагом. `ai:prompts:apply` работает только со `status=approved`: для `prompt_patch` поднимает
+`version` во front-matter и заменяет тело файла, для `correction_hint` заводит
+`prc_ai_corrections(is_reusable=true)`. Коммит правленного файла и `ai:prompts:sync` (развёртывание в
+БД) — тоже руками: автоматического пути «критик предложил → промт живёт в проде» нет ни на одном шаге.
 
 ## Смежное
 

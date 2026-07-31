@@ -11,7 +11,7 @@ status: living
 ## Порядок чтения для новичка
 
 1. [Требования и локальный запуск](getting-started.md) — docker/make/yarn/.env, ключ Gemini.
-2. [Архитектура](architecture.md) — домены Procurement/Reference/Organization, раскладка `app/**`.
+2. [Архитектура](architecture.md) — домены Procurement/Reference/Organization/Llm, раскладка `app/**`.
 3. Пайплайн своей задачи — [document-pipeline.md](document-pipeline.md),
    [llm-providers.md](llm-providers.md) или [crawling-pipeline.md](crawling-pipeline.md).
 
