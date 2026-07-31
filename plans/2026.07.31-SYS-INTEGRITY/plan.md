@@ -282,6 +282,7 @@ reconcile pass 3/3 закрыт (D63–D69), 14 находок первого `p
 | 2026-07-31 | plan-run / sonnet-high | P1.3 закрыт: миграция `prc_crawlers` (`use_proxy`/`proxy_country`, D80) + перечитывание настроек на итерации в `FreshRunProcessor`/`ArchiveWindowScanner` (D81) — детали см. phases/P1.md P1.3 Completion Notes |
 | 2026-07-31 | plan-run / sonnet-high | P1.4 закрыт 🟠 (deviations): `ProxyResolver`+score+breaker+StoreRepository здоровья, weighted random top-K, двухуровневый breaker (D5–D7); дифф вне `Files` (контрактные DTO/exception + докблоки моделей + сокращение `phpstan-baseline.neon`) — детали см. phases/P1.md P1.4 Completion Notes |
 | 2026-07-31 | plan-run / sonnet-high | P1.5 закрыт 🟠: порт `OutboundProxy`+`PoolOutboundProxy` (D16), гейт запрещённых стран в резолвере (D5); дифф вне `Files` + пред-существующий seam-хит — детали см. phases/P1.md P1.5 Completion Notes |
+| 2026-07-31 | plan-exec / sonnet-medium | P1.6 закрыт 🟠: три call-site'а (`CsvSourceMethod`×2, `DocumentDownloader`) на `ProxyResolver::resolve()` с канонической целью и `reportOutcome`, `ProxyPool` удалён; дифф вне `Files` — 3 интеграционных теста, посаженных на пустой пул (сид узла) — детали см. phases/P1.md P1.6 Completion Notes |
 
 ## Обсуждение
 
