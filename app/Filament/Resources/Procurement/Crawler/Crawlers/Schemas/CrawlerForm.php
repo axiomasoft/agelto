@@ -4,6 +4,7 @@ namespace App\Filament\Resources\Procurement\Crawler\Crawlers\Schemas;
 
 use App\Enums\Procurement\CrawlerMode;
 use App\Enums\Procurement\SourceMethod;
+use App\Filament\Resources\Procurement\Crawler\Proxies\Schemas\ProxyForm;
 use Filament\Forms\Components\KeyValue;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
@@ -38,6 +39,10 @@ class CrawlerForm
                     ->columnSpanFull(),
                 Toggle::make('is_active')
                     ->required(),
+                Toggle::make('use_proxy')
+                    ->required(),
+                Select::make('proxy_country')
+                    ->options(ProxyForm::COUNTRIES),
             ]);
     }
 }
