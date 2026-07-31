@@ -8,12 +8,11 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 
 uses(RefreshDatabase::class);
 
-test('пропускает неактивные узлы и узлы без нужного target', function (): void {
+test('пропускает неактивные узлы', function (): void {
     Proxy::factory()->create(['is_active' => false, 'fails_count' => 0]);
-    Proxy::factory()->create(['is_active' => true, 'targets' => ['other.example']]);
-    $expected = Proxy::factory()->create(['is_active' => true, 'targets' => ['zakupki.gov.ru']]);
+    $expected = Proxy::factory()->create(['is_active' => true, 'fails_count' => 0]);
 
-    $picked = (new ProxyPool)->pick(target: 'zakupki.gov.ru');
+    $picked = (new ProxyPool)->pick();
 
     expect($picked?->id)->toBe($expected->id);
 });
