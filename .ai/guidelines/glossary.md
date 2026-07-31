@@ -19,6 +19,8 @@
 - `Lot` / `PurchaseItem` (`prc_items`, не путать с `Estimate\Item`/`prc_estimate_items` — позицией сметы) — лот / позиция объекта закупки.
 - `ProcurementRevision` → `$revision` — снапшот редакции закупки (`prc_revisions`, партиция RANGE by `detected_at`).
 - `ProcurementEvent` → `$event` — immutable типизированное событие в журнале закупки (`prc_events`, партиция RANGE by `occurred_at`, `ProcurementEventType`).
+- `Proxy` → `$proxy` — узел исходящей маршрутизации (`prc_proxies`); единственная точка выдачи — резолвер `App\Services\Procurement\Proxy\ProxyResolver::resolve()`, не прямой доступ к таблице.
+- `ProxyScope` → назначение исходящего запроса, не сам узел (`App\Enums\Procurement\ProxyScope`: `CrawlListing`/`CrawlDetail`/`DocumentDownload`/`Llm`); per-target здоровье — `prc_proxy_targets` (не путать с глобальным здоровьем узла на `prc_proxies`).
 
 ### AI-подомен (`App\Models\Procurement\Ai\*`, `App\Services\Llm\*`)
 

@@ -72,6 +72,15 @@ cache-hint интерпретируется адаптером — Gemini → `c
 приближается к EOL» (линия 2.5 умирает 2026-10-16, преемники 3.x уже прописаны в конфиге
 закомментированной строкой рядом).
 
+## Исходящий прокси
+
+Домен `Llm` не знает про прокси-пул/скоупы/страны — только про узкий порт `OutboundProxy`
+(`App\Services\Llm\Contracts\OutboundProxy::optionsFor(string $host): array`), реализованный
+адаптером `PoolOutboundProxy` (`app/Services/Procurement/Proxy/PoolOutboundProxy.php`) со стороны
+прокси-слоя: адаптер резолвит узел для скоупа `ProxyScope::Llm` через `ProxyResolver` и фолбэчит на
+`config('ai.gemini.proxy')`, если пул для LLM пуст. Подробнее про сам слой маршрутизации —
+`crawling-pipeline.md`.
+
 ## Учёт стоимости
 
 `llm_calls` пишет usage (prompt/completion/cached tokens) на КАЖДЫЙ физический вызов —

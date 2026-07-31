@@ -17,6 +17,11 @@ status: draft
 | `Platform/` | `Platforms`, `Registries` — площадки-источники |
 | `Ai/` | `Providers`, `AiRoutes`, `Prompts`, `Analyses`, `DatasetExamples`, `Fixtures` — AI-пайплайн |
 
+`Crawler/Proxies` — форма узла: страна и скоупы (`ProxyScope`, мультиселект) — закрытые списки
+(`ProxyForm::COUNTRIES`), не свободный текст; здоровье breaker'а — read-only `Fieldset`
+(`disabled()->dehydrated(false)`, правка не долетает до записи — автомат обновляет эти поля сам).
+`CrawlerForm` несёт `use_proxy`/`proxy_country` профиля (тот же закрытый список стран).
+
 `Ai/Fixtures` (P5) — рабочее место для прогонки эталонных документов через штатный пайплайн вручную:
 карточка эталона (файл/код/оси/`type_profile`) → relation-менеджер прогонов (`RunsRelationManager`,
 токены/цена) → модальное сравнение результата анализатора с эталоном (`RunResultSchema`). Соседние

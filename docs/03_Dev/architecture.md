@@ -31,6 +31,11 @@ status: draft
 - `Services/Procurement/{Prepare,Screening,Extraction}/` — стадии пайплайна документа/сметы
   (`app/Services/Procurement/`: `PipelineDispatcher`, `DocumentDownloader`, `Prepare/`, `Screening/`,
   `Extraction/`, `Eis/`, `Detail/`).
+- `Services/Procurement/Proxy/` — слой маршрутизации исходящего трафика (`ProxyResolver`,
+  `ProxyCircuitBreaker`, `ProxyScoreCalculator`) единой точкой выдачи для HTTP-каналов кроулинга и
+  LLM; порт `App\Services\Llm\Contracts\OutboundProxy` — узкая граница со стороны домена `Llm`,
+  реализация — адаптер `PoolOutboundProxy` со стороны прокси-слоя. Подробнее —
+  [`crawling-pipeline.md`](crawling-pipeline.md).
 - `Services/Llm/` — транспортный слой домена `Llm`: `LlmRouteResolver`, `PromptComposer`,
   `CorrectionAwareComposer`, `LlmCacheManager`, `LlmCallRecorder`, `ShadowDispatch`, `Providers/`
   (`PrismGeminiProvider`, `OpenAiCompatibleProvider`), `Contracts/` (`LlmProvider` и capability-

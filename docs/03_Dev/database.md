@@ -30,6 +30,17 @@ status: draft
 | `prc_estimate_sections` / `prc_estimate_resources` / `prc_estimate_totals` | Иерархия разделов, ресурсы позиции (труд/машины/материалы/накладные) и дерево итогов сметы (P4.4) |
 | `prc_estimate_work_types` | Вид работ и его иерархия (`parent_id`, per-estimate область), носитель нормативов НР/СП (D34/D90, P4.4) — полноценно заполняется только gsfx-веткой |
 
+## Прокси-маршрутизация (`prc_proxies`, `prc_proxy_targets`)
+
+| Таблица | Роль |
+|:--|:--|
+| `prc_proxies` | Узел: `country` (ISO 3166-1 alpha-2, единственный носитель гео), `scopes` (jsonb-список `App\Enums\Procurement\ProxyScope`, GIN-индекс), `is_active` (ручной тумблер оператора), глобальное здоровье breaker'а (`open_until`/`open_count`/`fails_count`/`last_failure_reason`) |
+| `prc_proxy_targets` | Per-target здоровье: одна строка на пару (узел, канонический хост цели) — `success_ratio`/`latency_ms_avg` (EWMA), `consecutive_failures`, собственный `open_until`/`open_count`; unique `(proxy_id, target)` |
+
+`prc_crawlers` несёт `use_proxy` (bool, `false` — намеренный прямой запрос) и `proxy_country`
+(nullable ISO 3166-1 alpha-2) — привязка профиля к желаемой стране узла; скоупа на профиле нет,
+единственная точка выдачи — `App\Services\Procurement\Proxy\ProxyResolver` (`crawling-pipeline.md`).
+
 ## Ключевые инварианты
 
 - **Один активный анализ на версию документа+шаг** (D24): partial unique-индекс

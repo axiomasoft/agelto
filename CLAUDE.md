@@ -51,6 +51,7 @@ Repositories — read/write доступ к `prc_*`/`org_*` таблицам. П
 - `Document`/`DocumentVersion` → `$document`/`$documentVersion` — документ закупки и его скачанный файл (в v1 — `LinkAttachment`).
 - `Estimate` → `$estimate` — распарсенная смета (DTO); `Smeta`/«Смета» в идентификаторах не используем.
 - `Lot`/`PurchaseItem` (`prc_items`, не путать с `Estimate\Item`/`prc_estimate_items` — позицией сметы) — лот / позиция объекта закупки.
+- `Proxy` → `$proxy` — узел исходящей маршрутизации (`prc_proxies`); единственная точка выдачи — `ProxyResolver::resolve(ProxyScope, target)`, скоуп — назначение запроса (`CrawlListing`/`CrawlDetail`/`DocumentDownload`/`Llm`), не сам узел.
 
 ### AI-подомен (`App\Models\Procurement\Ai\*`, `App\Services\Llm\*`) — полностью: `.ai/guidelines/glossary.md`
 

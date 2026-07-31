@@ -40,9 +40,40 @@ status: draft
 `Services/Procurement/Eis/**` — ЕИС-специфичные адаптеры (`EisCardUrlBuilder`, `CsvSourceMethod`,
 `EisCsvRowMapper`/`EisCsvUrlBuilder`); `Services/Procurement/Detail/**` — процессоры деталей закупки
 (`CommonInfoProcessor`, `EventJournalProcessor`, `OrganizationPartiesProcessor`,
-`SupplierResultsProcessor`); `ArchiveWindowScanner`/`ProxyPool`/`PoliteThrottle` — вспомогательная
+`SupplierResultsProcessor`); `ArchiveWindowScanner`/`ProxyResolver`/`PoliteThrottle` — вспомогательная
 инфраструктура обхода. Шов `prc_eis_details` подтверждён аудитом схемы БД как расширяемый на другие
 источники (не завязан на ЕИС жёстко, D-требование универсальности плана EST-AI).
+
+## Прокси: слой маршрутизации
+
+Прокси — не список узлов, а слой маршрутизации перед КАЖДЫМ исходящим запросом кроулинга (и LLM,
+см. `llm-providers.md`). Единственная точка выдачи — `ProxyResolver::resolve(ProxyScope $scope,
+string $target, ?ProxyRequirements $requirements)` (`app/Services/Procurement/Proxy/ProxyResolver.php`),
+единственная точка обратной связи — `reportOutcome()`.
+
+- **`ProxyScope`** (`App\Enums\Procurement\ProxyScope`) — точка исхода трафика, а не сам узел:
+  `CrawlListing`/`CrawlDetail`/`DocumentDownload`/`Llm`. Три HTTP-канала кроулинга
+  (`CsvSourceMethod::collectListing`/`collectTab`, `DocumentDownloader::fetch`) и LLM-канал
+  (`PoolOutboundProxy`, порт `OutboundProxy`) каждый передаёт свой скоуп резолверу — сам резолвер
+  скоуп не выбирает.
+- **Отбор кандидата:** фильтр (`is_active`, скоуп в `scopes`, гейт запрещённых стран
+  `crawler.proxy.policy.<scope>.forbidden_countries`, глобальный/target-breaker не открыт) → score
+  (`ProxyScoreCalculator`, вход — `success_ratio`/`latency_ms_avg`/`fails_count`) → weighted random
+  внутри top-K (`crawler.proxy.resolver.top_k`), не голый argmax — не забивает лучший узел трафиком.
+- **Двухуровневое здоровье:** глобальное на `prc_proxies` (`open_until`/`open_count`/`fails_count`) —
+  разрыв соединения/авторизации прокси/etc, узел плох ВЕЗДЕ; per-target на `prc_proxy_targets`
+  (`success_ratio`/`latency_ms_avg`/`consecutive_failures`, EWMA) — 403/429/пустое тело от конкретной
+  цели, узел плох для НЕЁ. Пустой пул = узел не выдан ни для одной цели.
+- **Circuit breaker** — экспоненциальный cooldown (`open_count` — степень бэкоффа), half-open проба
+  через `claimGlobalProbe()`/`claimTargetProbe()` (единственность гарантирует БД: `affectedRows`, не
+  блокировка приложения). Таксономия причин отказа — `App\Enums\Procurement\ProxyFailureReason`
+  (`network_timeout`/`tls_error`/`connect_failed`/`proxy_auth_failed`/`http_403`/`http_429`/
+  `empty_body`/`unknown`); уровень реакции (глобальный/target) — `ProxyCircuitBreaker::level()`.
+- **Привязка к профилю (`prc_crawlers`):** `use_proxy` (false — намеренный прямой запрос, не отказ)
+  и `proxy_country` (ISO 3166-1 alpha-2, ограничение желаемой страны узла профилем). Колонки скоупа
+  на профиле НЕТ — скоуп определяется точкой исхода, а не профилем.
+- **Пустой пул** никогда не тихий: `NoProxyAvailableException` + `Log::warning` на каждый отказ
+  выдачи (нет молчаливого прямого запроса, кроме явного `use_proxy=false`).
 
 ## Смежное
 
