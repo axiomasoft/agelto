@@ -1,52 +1,59 @@
-# HANDOFF — 2026-07-31 — after P1.8
+# HANDOFF — 2026-07-31 — after P1
 
-**Next:** P1 терминальна (8/8 items 🟢/🟠) — закрыть фазу
+**Next:** `/task:plan-audit 2026.07.31-SYS-INTEGRITY P1`
 
 | Параметр | Значение |
 |:--|:--|
-| Model class | economy |
-| Effort | low |
+| Model | opus |
+| Thinking | xhigh — фаза закрыта с 🟠-items, аудит перед следующей фазой |
 | Context | NEW SESSION — шаг-не-item |
-| Суть | Формальное закрытие фазы P1: таблицы, Phase Handoff, финальный `plan-lint` |
+| Суть | Adversarial-аудит закрытой фазы P1: сверка 8 items (5 🟢 + 3 🟠) с git-фактами, no-op, scope drift |
 
 ```
-/task:plan-close 2026.07.31-SYS-INTEGRITY P1
+/task:plan-audit 2026.07.31-SYS-INTEGRITY P1
 ```
 
-**Done:** **P1.8 закрыт 🟢** (item-коммит `40f9611`) — документация домена и приёмочный прогон
-фазы:
+**Done:** **Фаза P1 закрыта 🟠 Done with deviations** (8/8 items терминальны: P1.1/P1.2/P1.3/P1.7/
+P1.8 — 🟢, P1.4/P1.5/P1.6 — 🟠). Прокси переведён из списка узлов в слой маршрутизации:
+`ProxyScope`-таксономия, типизированная схема (страна, per-target здоровье), `ProxyResolver` с
+политикой выбора и circuit breaker'ом, гейт запрещённых стран и LLM-канал через общий пул
+(`OutboundProxy`), три HTTP call-site'а кроулинга и Filament-поверхность переведены на скоупы
+резолвера, доки домена и оба глоссария синхронизированы, приёмочный прогон фазы (P1.8, якорь
+`40f9611`) зелёный.
 
-- Слой маршрутизации прокси (`ProxyScope`, `ProxyResolver`/`reportOutcome`, двухуровневое здоровье
-  `prc_proxies`/`prc_proxy_targets`, circuit breaker, гейт запрещённых стран, привязка профиля
-  `use_proxy`/`proxy_country`, порт `OutboundProxy`/`PoolOutboundProxy`) описан в
-  `docs/03_Dev/crawling-pipeline.md` (новый раздел, починен устаревший `ProxyPool`→`ProxyResolver`),
-  `docs/03_Dev/database.md` (таблицы `prc_proxies`/`prc_proxy_targets`), `docs/03_Dev/architecture.md`
-  (порт `OutboundProxy`), `docs/03_Dev/llm-providers.md` (раздел «Исходящий прокси»),
-  `docs/03_Dev/admin-panel.md` (поверхность `Crawler/Proxies`), `docs/02_Workflow/crawling-and-discovery.md`
-  (бизнес-язык).
-- Новые термины (`ProxyScope`, `Proxy`/резолвер, per-target здоровье) введены в ОБА глоссария
-  (`.ai/guidelines/glossary.md`, `docs/02_Workflow/glossary.md`); перенос в `CLAUDE.md` — строка
-  `Proxy` в «Доменные сущности».
-- Приёмочный прогон фазы (якорь `40f9611`): `docker exec agelto_app php artisan test` — 930
-  passed/2 failed/1 skipped (3944 assertions), оба падения — pre-existing `CoreKnowsNoDocumentTypeTest`
-  (тот же дефект, что в P1.6/P1.7, не наш диф); `pint --dirty --test` — 1 style issue в чужом
-  `config/cms.php` (не наш диф), 9 файлов `Files` чисты; `phpstan analyse --memory-limit=1G` —
-  `[OK] No errors`, baseline 69 записей — без прироста против `d961495` (до фазы P1).
-- **🟢 без отклонений** — item-коммит ровно по путям `Files`.
+**Известные отклонения фазы (агрегат по items, механически из Known Deviations):**
 
-`plan-lint` (`--baseline HEAD` до bookkeeping-коммита) — см. следующий раздел после bookkeeping.
+- P1.1 — правка ТЗ P1.2/P1.3 по двум найденным расхождениям выполнена не полностью (проект
+  D-записи есть, правка ТЗ отложена директивой владельца). Process, не material. Возобновление:
+  `/task:plan-design 2026.07.31-SYS-INTEGRITY P1.2 P1.3`.
+- P1.2 — process-отклонение: первый прогон `pint --dirty` без `--test`, откачен вручную.
+- P1.4 — Pre-mutation Task Contract запущен после первых правок файлов, не строго до первой
+  мутации; гейт вернул `allow`/`allow` на фактическом маршруте — процессное отклонение.
+- P1.5 — item-коммит несёт дифф вне `Files` (контрактные DTO/exception, `@property`-докблоки
+  моделей, сокращение `phpstan-baseline.neon`) — статус `🟠`.
+- P1.6 — (1) дифф вне `Files` — заглушка `nullOutboundProxy()` в `PrismGeminiProviderTest.php`
+  для 11 вызовов без аргументов; (2) Validation «grep пусто» не выполнена буквально — один
+  пред-существующий хит вне диффа этого item'а.
+- P1.7 — item-коммит `da6aed1` несёт дифф вне `Files` — три Feature-теста с сидом активного узла
+  (резолвер fail-closed на пустом пуле).
+- P1.3, P1.8 — отклонений нет.
 
-**Remaining:** 42 items из 50 (закрыто 8: 5 🟢 + 3 🟠). **Фаза P1 терминальна: 8/8 items
-(🟢/🟠)** — закрытие таблиц/Phase Handoff/roadmap делает `task:plan-close`, не `plan-exec`. Очередь
-фаз (D63): `P1 → P2 → P3 → P5 → P6 → P4 → P7`.
+**Docs-sync:** обновлено (P1.8) — `docs/03_Dev/crawling-pipeline.md`, `docs/03_Dev/database.md`,
+`docs/03_Dev/architecture.md`, `docs/03_Dev/llm-providers.md`, `docs/03_Dev/admin-panel.md`,
+`docs/02_Workflow/crawling-and-discovery.md`, `docs/02_Workflow/glossary.md`,
+`.ai/guidelines/glossary.md`, `CLAUDE.md`.
 
-**Sources of truth:** `plan.md` (Meta v0.11.2, §3 Routing поitem'ный, §5 D1–D81, §4 Status Board
-5/50 🟢) · `research/02-proxy-routing.md` · `phases/P1.md`…`P7.md` · `roadmap.md` (очередь фаз и
-батчи B1/B2/B3) · `index.md` · `open-questions.md` (OQ-1 `Resolved → D71`, OQ-2…OQ-5) · `findings/`
-(слой 1) · `brief/` (слой 0) · `journal.jsonl` (D21).
+**Remaining:** 42 items из 50 (закрыто 8 в P1). Очередь фаз (D63):
+`P1 → P2 → P3 → P5 → P6 → P4 → P7`. Фаза P1 несла 🟠-items — по канону `plan-close` следующий шаг
+перед стартом P2 — `plan-audit P1`, не сразу `plan-design P2`.
 
-**Open risks:** (без изменений против предыдущего handoff — P1.8 документирует состояние как есть,
-не меняет код)
+**Sources of truth:** `plan.md` (Meta v0.11.2, §3 Routing поitem'ный, §5 D1–D81, §4 Status Board —
+P1 5/8 🟠 Done with deviations) · `research/02-proxy-routing.md` · `phases/P1.md`…`P7.md` ·
+`roadmap.md` (очередь фаз и батчи B1/B2/B3) · `index.md` · `open-questions.md` (OQ-1
+`Resolved → D71`, OQ-2…OQ-5) · `findings/` (слой 1) · `brief/` (слой 0) · `journal.jsonl` (D21).
+
+**Open risks:** (без изменений против предыдущего handoff — закрытие фазы документирует
+состояние как есть, не меняет код)
 
 - **OQ-4 (браузерный канал) остаётся открытым** — решение владельца.
 - **`use_proxy`/`proxy_country` профиля резолвером P1.6 НЕ потребляются** — задокументировано как
@@ -67,6 +74,11 @@
   `Llm` — PROMOTE-CANDIDATE, не предмет P1.
 - **`app/Dto/Procurement/Proxy/ProxyLease.php`** несёт историческую ссылку на удалённый
   `ProxyPool::reportFailure()` в докблоке (не код) — косметика.
+- **Правка ТЗ P1.2/P1.3 (D20) отложена владельцем** — незакрытая D-запись, follow-up перед
+  началом P2 или в рамках `plan-audit P1`.
+- **`verify-citations.py` — 81 находка вне диффа закрытия P1** (устаревшие пути/строки в
+  `plan.md`, `research/02-proxy-routing.md`, `phases/P7.md` — не новые, baseline-файла
+  исключений в проекте нет) — follow-up вне scope этого закрытия.
 
 **Workarounds/Deferred/Open questions:**
 
