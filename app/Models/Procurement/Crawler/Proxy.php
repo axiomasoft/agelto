@@ -11,9 +11,27 @@ use Illuminate\Database\Eloquent\Casts\AsEnumCollection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
 
 /**
  * Прокси для обхода площадки (креды хранятся только здесь). Скоуп/здоровье — research/02 §3.1.
+ *
+ * @property int $id
+ * @property string $service
+ * @property string $host
+ * @property int|null $port
+ * @property string|null $username
+ * @property string|null $password
+ * @property string|null $country
+ * @property Collection<int, ProxyScope> $scopes
+ * @property bool $is_active
+ * @property int $fails_count
+ * @property Carbon|null $open_until
+ * @property int $open_count
+ * @property string|null $last_failure_reason
+ * @property Carbon|null $last_success_at
+ * @property Carbon|null $last_failure_at
  */
 #[UseFactory(ProxyFactory::class)]
 final class Proxy extends Model

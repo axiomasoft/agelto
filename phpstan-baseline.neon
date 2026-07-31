@@ -385,36 +385,6 @@ parameters:
 			path: app/Services/Procurement/ProcurementIngestProcessor.php
 
 		-
-			message: '#^Access to an undefined property App\\Models\\Procurement\\Crawler\\Proxy\:\:\$fails_count\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Services/Procurement/ProxyPool.php
-
-		-
-			message: '#^Access to an undefined property App\\Models\\Procurement\\Crawler\\Proxy\:\:\$host\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Services/Procurement/ProxyPool.php
-
-		-
-			message: '#^Access to an undefined property App\\Models\\Procurement\\Crawler\\Proxy\:\:\$password\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Services/Procurement/ProxyPool.php
-
-		-
-			message: '#^Access to an undefined property App\\Models\\Procurement\\Crawler\\Proxy\:\:\$port\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Services/Procurement/ProxyPool.php
-
-		-
-			message: '#^Access to an undefined property App\\Models\\Procurement\\Crawler\\Proxy\:\:\$username\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Services/Procurement/ProxyPool.php
-
-		-
 			message: '#^Access to an undefined property App\\Models\\Procurement\\Procurement\:\:\$title\.$#'
 			identifier: property.notFound
 			count: 1
