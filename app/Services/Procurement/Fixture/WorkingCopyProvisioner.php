@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\Procurement\Fixture;
 
+use App\Console\Commands\Procurement\Analyzers\Estimate\GoldImportCommand;
 use App\Enums\Procurement\DocumentStatus;
 use App\Models\Procurement\Ai\Fixture;
 use App\Models\Procurement\Document\Document;
@@ -16,8 +17,10 @@ use Illuminate\Support\Facades\Storage;
 
 /**
  * Рабочая копия эталона (`external_id = "fixture:<CODE>"`, перенос блоба, идемпотентный резолв
- * версии) — ЕДИНСТВЕННЫЙ сейм (D41, `estimate:gold:import`, далее P5.2). Курируемый оригинал (диск
- * эталонов) и рабочая копия (`crawler.documents_disk`) — сознательно РАЗНЫЕ носители (D19).
+ * версии) — ЕДИНСТВЕННЫЙ сейм (D41): подтверждено фактом кода (P7.2) для ДВУХ вызывающих —
+ * {@see GoldImportCommand} (`estimate:gold:import`) и {@see RunFixtureAnalysisAction}
+ * (действие «Прогнать» на карточке эталона, P5.2). Курируемый оригинал (диск эталонов) и рабочая
+ * копия (`crawler.documents_disk`) — сознательно РАЗНЫЕ носители (D19).
  */
 final readonly class WorkingCopyProvisioner
 {

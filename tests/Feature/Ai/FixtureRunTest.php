@@ -187,3 +187,28 @@ test('повторный прогон того же эталона снимае�
     Queue::assertPushed(PrepareDocumentJob::class, fn (PrepareDocumentJob $job): bool => $job->documentId === $document->id
         && $job->mode === RunMode::Manual);
 });
+
+test('оба вызывающих пути (estimate:gold:import и «Прогнать») резолвят одну и ту же рабочую копию по sha256 (D41, единственность сейма)', function (): void {
+    $fixturesDisk = config('ai.fixtures.disk');
+    $documentsDisk = config('crawler.documents_disk');
+    Storage::fake($fixturesDisk);
+    Storage::fake($documentsDisk);
+
+    $fixture = fixtureRunFixture($fixturesDisk, 'EST-XLSX-RUN-005');
+
+    $this->artisan('estimate:gold:import', ['--code' => [$fixture->code]])->assertExitCode(0);
+
+    $documentFromImport = Document::query()->where('external_id', "fixture:{$fixture->code}")->firstOrFail();
+    $versionFromImport = DocumentVersion::query()->where('document_id', $documentFromImport->id)->firstOrFail();
+
+    Queue::fake();
+    $fixture->refresh();
+    app(RunFixtureAnalysisAction::class)->run($fixture);
+
+    $documentFromRun = Document::query()->where('external_id', "fixture:{$fixture->code}")->firstOrFail();
+    $versionFromRun = DocumentVersion::query()->where('document_id', $documentFromRun->id)->firstOrFail();
+
+    expect($documentFromRun->id)->toBe($documentFromImport->id)
+        ->and($versionFromRun->id)->toBe($versionFromImport->id)
+        ->and($versionFromRun->content_hash)->toBe($fixture->sha256);
+});
