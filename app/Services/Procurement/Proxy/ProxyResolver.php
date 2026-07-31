@@ -15,6 +15,7 @@ use Closure;
 use Illuminate\Database\Query\JoinClause;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 /**
  * Единственная точка выдачи прокси для всех точек исхода (research/02 §9.1): фильтр по
@@ -39,7 +40,7 @@ final readonly class ProxyResolver
         $remaining = $this->candidates($scope, $target, $requirements);
 
         if ($remaining->isEmpty()) {
-            throw new NoProxyAvailableException($scope, $target, 'фильтр по скоупу/требованию/breaker\'у вернул пустое множество');
+            $this->throwNoProxyAvailable($scope, $target, 'фильтр по скоупу/требованию/breaker\'у вернул пустое множество');
         }
 
         $topK = (int) config('crawler.proxy.resolver.top_k');
@@ -71,7 +72,22 @@ final readonly class ProxyResolver
             );
         }
 
-        throw new NoProxyAvailableException($scope, $target, 'весь отфильтрованный пул занят half-open пробой');
+        $this->throwNoProxyAvailable($scope, $target, 'весь отфильтрованный пул занят half-open пробой');
+    }
+
+    /**
+     * Тихого прямого запроса не существует (research/02 §10) — отказ ВСЕГДА виден в логе,
+     * не только исключением, которое где-то по цепочке может быть проглочено `catch`'ем.
+     */
+    private function throwNoProxyAvailable(ProxyScope $scope, string $target, string $reason): never
+    {
+        Log::warning('Резолвер прокси: нет доступного узла', [
+            'scope' => $scope->value,
+            'target' => $target,
+            'reason' => $reason,
+        ]);
+
+        throw new NoProxyAvailableException($scope, $target, $reason);
     }
 
     public function reportOutcome(ProxyLease $lease, ProxyOutcome $outcome): void
