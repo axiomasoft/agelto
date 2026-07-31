@@ -1,0 +1,165 @@
+<?php
+
+declare(strict_types=1);
+
+use App\Dto\Procurement\ListingBatch;
+use App\Dto\Procurement\ListingCursor;
+use App\Dto\Procurement\ProcurementDetails;
+use App\Dto\Procurement\WindowFilter;
+use App\Enums\Procurement\CrawlerMode;
+use App\Enums\Procurement\SourceMethod as SourceMethodEnum;
+use App\Models\Procurement\Crawler\Crawler;
+use App\Models\Procurement\Crawler\Run;
+use App\Models\Procurement\Platform\Registry;
+use App\Services\Procurement\ArchiveWindowScanner;
+use App\Services\Procurement\Contracts\SourceMethod;
+use App\Services\Procurement\Modes\FreshRunProcessor;
+use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Sleep;
+
+/**
+ * Одна валидная строка CSV-блока (набор колонок, которые понимает `EisCsvRowMapper`).
+ *
+ * @return array<string, string>
+ */
+function proxySettingsCsvRow(string $registryNumber): array
+{
+    return [
+        'Реестровый номер закупки' => $registryNumber,
+        'Способ определения поставщика' => 'Электронный аукцион',
+        'Наименование закупки' => 'Поставка оргтехники',
+        'Этап закупки' => 'Подача заявок',
+        'Идентификационный код закупки (ИКЗ)' => '243773601234512345100100001',
+        'НМЦК' => '1 250 000,50',
+        'Валюта' => 'RUB',
+        'ОКПД2' => '26.20.11.110',
+        'Дата размещения' => '01.03.2026',
+        'Дата обновления' => '02.03.2026 10:15:00',
+        'Начало подачи заявок' => '01.03.2026',
+        'Окончание подачи заявок' => '15.03.2026',
+        'Наименование заказчика' => 'ГБУ «Тестовое учреждение»',
+    ];
+}
+
+/**
+ * Двойник `SourceMethod`, фиксирующий `use_proxy`/`proxy_country` профиля НА МОМЕНТ
+ * КАЖДОГО вызова `collectListing()` — так проверяется, что правка настроек посреди
+ * прогона доходит до следующей итерации, а не остаётся снимком старта.
+ */
+final class ProxySettingsRecordingSourceMethod implements SourceMethod
+{
+    /** @var list<array{use_proxy: bool, proxy_country: ?string}> */
+    public array $observed = [];
+
+    private int $cursorIndex = 0;
+
+    /**
+     * @param  list<ListingBatch>  $batches
+     */
+    public function __construct(
+        private readonly array $batches,
+        private readonly ?Closure $beforeReturn = null,
+    ) {}
+
+    public function collectListing(Crawler $crawler, ListingCursor $cursor): ListingBatch
+    {
+        $this->observed[] = ['use_proxy' => $crawler->use_proxy, 'proxy_country' => $crawler->proxy_country];
+
+        $batch = $this->batches[$this->cursorIndex];
+
+        if ($this->beforeReturn !== null) {
+            ($this->beforeReturn)($this->cursorIndex);
+        }
+
+        $this->cursorIndex++;
+
+        return $batch;
+    }
+
+    public function collectDetails(string $registryNumber, Registry $registry): ProcurementDetails
+    {
+        return new ProcurementDetails(registryNumber: $registryNumber, procedureUrlType: 'fz44');
+    }
+
+    public function isAvailable(): bool
+    {
+        return true;
+    }
+}
+
+/**
+ * @param  list<ListingBatch>  $batches
+ */
+function useProxySettingsSourceMethod(array $batches, ?Closure $beforeReturn = null): ProxySettingsRecordingSourceMethod
+{
+    $double = new ProxySettingsRecordingSourceMethod(batches: $batches, beforeReturn: $beforeReturn);
+    app()->instance(ProxySettingsRecordingSourceMethod::class, $double);
+
+    config(['crawler.source_methods' => [
+        SourceMethodEnum::Csv->value => ProxySettingsRecordingSourceMethod::class,
+    ]]);
+
+    return $double;
+}
+
+beforeEach(function () {
+    Sleep::fake();
+    Storage::fake('s3');
+});
+
+test('FreshRunProcessor перечитывает use_proxy/proxy_country профиля перед каждой итерацией', function () {
+    $crawler = Crawler::factory()->create(['use_proxy' => true, 'proxy_country' => null]);
+
+    $sourceMethod = useProxySettingsSourceMethod(
+        batches: [
+            new ListingBatch(rows: [proxySettingsCsvRow('0173200001234000001')], rawBody: 'raw', dedupSignature: 'sig-1', rowsTotal: 1, httpStatus: 200, durationMs: 1, requestParams: []),
+            new ListingBatch(rows: [], rawBody: 'raw', dedupSignature: null, rowsTotal: 0, httpStatus: 200, durationMs: 1, requestParams: []),
+        ],
+        beforeReturn: function (int $index) use ($crawler): void {
+            if ($index === 0) {
+                Crawler::query()->whereKey($crawler->id)->update(['use_proxy' => false, 'proxy_country' => 'DE']);
+            }
+        },
+    );
+
+    app(FreshRunProcessor::class)->run(crawler: $crawler);
+
+    expect($sourceMethod->observed)->toBe([
+        ['use_proxy' => true, 'proxy_country' => null],
+        ['use_proxy' => false, 'proxy_country' => 'DE'],
+    ]);
+});
+
+test('ArchiveWindowScanner перечитывает use_proxy/proxy_country профиля перед каждой итерацией', function () {
+    config([
+        'crawler.eis.block_size' => 1,
+        'crawler.archive.price_ceiling' => 100,
+        'crawler.archive.min_price_interval' => 10,
+        'crawler.archive.max_blocks_per_window' => 50,
+    ]);
+
+    $crawler = Crawler::factory()->create(['mode' => CrawlerMode::Archive, 'use_proxy' => true, 'proxy_country' => null]);
+    $run = Run::factory()->for($crawler)->create(['cursor' => null]);
+
+    $sourceMethod = useProxySettingsSourceMethod(
+        batches: [
+            new ListingBatch(rows: [proxySettingsCsvRow('0173200001234000010')], rawBody: 'raw', dedupSignature: 'sig-1', rowsTotal: 1, httpStatus: 200, durationMs: 1, requestParams: []),
+            new ListingBatch(rows: [], rawBody: 'raw', dedupSignature: 'sig-2', rowsTotal: 0, httpStatus: 200, durationMs: 1, requestParams: []),
+        ],
+        beforeReturn: function (int $index) use ($crawler): void {
+            if ($index === 0) {
+                Crawler::query()->whereKey($crawler->id)->update(['use_proxy' => false, 'proxy_country' => 'DE']);
+            }
+        },
+    );
+
+    $filter = new WindowFilter(dateField: 'publish', dateFrom: Carbon::parse('2024-01-01'), dateTo: Carbon::parse('2024-01-01'));
+
+    app(ArchiveWindowScanner::class)->scan(crawler: $crawler, run: $run, filter: $filter);
+
+    expect($sourceMethod->observed)->toBe([
+        ['use_proxy' => true, 'proxy_country' => null],
+        ['use_proxy' => false, 'proxy_country' => 'DE'],
+    ]);
+});

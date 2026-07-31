@@ -31,6 +31,18 @@ final class CrawlerFactory extends Factory
                 'records_per_page' => fake()->numberBetween(int1: 20, int2: 100),
             ],
             'is_active' => true,
+            'use_proxy' => true,
+            'proxy_country' => null,
         ];
+    }
+
+    public function withoutProxy(): self
+    {
+        return $this->state(state: ['use_proxy' => false]);
+    }
+
+    public function proxyCountry(string $country): self
+    {
+        return $this->state(state: ['proxy_country' => $country]);
     }
 }

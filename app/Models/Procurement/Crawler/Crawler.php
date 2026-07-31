@@ -34,6 +34,8 @@ final class Crawler extends Model
         'schedule',
         'options',
         'is_active',
+        'use_proxy',
+        'proxy_country',
     ];
 
     protected function casts(): array
@@ -45,6 +47,7 @@ final class Crawler extends Model
             'filter' => AsCollection::class,
             'options' => AsCollection::class,
             'is_active' => 'boolean',
+            'use_proxy' => 'boolean',
         ];
     }
 

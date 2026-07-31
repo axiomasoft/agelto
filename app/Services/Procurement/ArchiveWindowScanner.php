@@ -42,6 +42,8 @@ final readonly class ArchiveWindowScanner
         $blocksInInterval = 0;
 
         while ($stack !== []) {
+            $crawler->refresh();
+
             if ($blocksInInterval >= $maxBlocksPerWindow) {
                 Log::warning(
                     message: 'ArchiveWindowScanner: max blocks per price interval reached, forcing split point.',

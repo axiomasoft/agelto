@@ -40,6 +40,7 @@ final readonly class FreshRunProcessor
 
         try {
             for ($iteration = 0; $iteration < $maxBlocks; $iteration++) {
+                $crawler->refresh();
                 $sourceMethod = $this->factory->makeWithFallback(crawler: $crawler);
                 $batch = $sourceMethod->collectListing(crawler: $crawler, cursor: $cursor);
                 $fetchResult = $this->ingestor->ingest(crawler: $crawler, run: $run, batch: $batch);
