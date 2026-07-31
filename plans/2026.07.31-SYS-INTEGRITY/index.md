@@ -52,7 +52,8 @@
 
 ## Слой 3 — решения
 
-`plan.md` `## 5. Decision Log` (D1–D77; D74–D77 — pass 4, закрытие 14 находок `plan-audit design`)
+`plan.md` `## 5. Decision Log` (D1–D81; D74–D77 — pass 4, закрытие 14 находок `plan-audit design`;
+D78–D79 — заход 2 аудита; D80–D81 — вердикты research-item'а P1.1, приведение ТЗ P1.3)
 · `plan.md` `## Обсуждение` (16 развилок, провенанс;
 Resolved → D16, D28, D35, D36, D40, D41, D45, D50, D52, D53, D57, D58, D59 и D71 (развилка 1 —
 топология); открыты развилки 2 и 3) · `open-questions.md` (OQ-1 `Resolved → D71`; OQ-2..OQ-5 — трекер нерешённого, OQ-5 — основание
