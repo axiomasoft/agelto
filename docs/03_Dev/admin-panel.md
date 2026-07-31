@@ -21,7 +21,7 @@ status: draft
 карточка эталона (файл/код/оси/`type_profile`) → relation-менеджер прогонов (`RunsRelationManager`,
 токены/цена) → модальное сравнение результата анализатора с эталоном (`RunResultSchema`). Соседние
 экраны того же контура — финальный склеенный промт прогона и очередь предложений по промтам
-(approve/reject/audit) — см. Completion Notes P5.5/P5.6 в `plans/2026.07.28-EST-ARCH/phases/P5.md`.
+(approve/reject/audit) — см. Completion Notes P5.5/P5.6 в `plans/archive/2026.07.28-EST-ARCH/phases/P5.md`.
 
 Каждый ресурс — Filament v5 `Schemas`/`Tables`/`Pages` подпапки (канон skill `filament`,
 scaffold только через `make:filament-*`).

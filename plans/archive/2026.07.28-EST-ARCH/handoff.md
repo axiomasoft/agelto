@@ -96,3 +96,43 @@ Deviations items P7.1/P7.3 механически из полей, docs-sync —
 🟢 без строки `write-site: …`, известен из предыдущих handoff'ов). `verify-citations.py` в этом
 дереве отсутствует (`plans/verify-citations.py` не найден) — шаг пропущен, предупреждение зафиксировано
 здесь, а не молча.
+
+---
+
+## Архивация — чек-лист миграции (`plan-close archive`, 2026-07-31)
+
+**Перенос:** `plans/2026.07.28-EST-ARCH/` → `plans/archive/2026.07.28-EST-ARCH/` (`git mv`, коммит
+`0a90999`), `plans/ACTIVE.md` уже нёс `—` до архивации (сброшен закрытием фазы P7).
+
+**Миграция `root/` → docs:** проверено ПО ФАКТУ, не переписыванием — все шесть замороженных
+контрактов `root/**` (`naming-canon`, `document-type-axis`, `document-contour`,
+`document-analyzer-contract`, `service-layer-map`, `usage-source-contract`) описывают ЦЕЛЕВОЕ
+состояние, которое сами фазы P1–P7 уже реализовали и задокументировали в канонических местах в
+течение исполнения плана (P7.3 ревизовала `docs/specs/v2/**` против финальной структуры, P7.4 свела
+весь дрейф хаба в `CLAUDE.md`/`.ai/guidelines/**`). Durable-содержание каждого контракта уже живёт:
+
+| Контракт `root/` | Durable-содержание уже в |
+|:--|:--|
+| `naming-canon.md` (карта переименований) | `.ai/guidelines/glossary.md`, `docs/02_Workflow/glossary.md` — целевые имена канон, легаси не упоминается |
+| `document-type-axis.md` (ось типа документа) | `docs/03_Dev/database.md`, `docs/specs/v2/01-database.md` — восемь таблиц по факту схемы |
+| `document-contour.md` (единый контур) | `docs/03_Dev/ai/training-loop.md`, `docs/specs/v2/03-document-pipeline.md` |
+| `document-analyzer-contract.md` (сейм типа документа) | `docs/specs/v2/08-estimate-extraction.md`, `docs/03_Dev/ai/*` |
+| `service-layer-map.md` (сервисный слой) | `docs/specs/v2/07-carryover-from-v1.md`, `CLAUDE.md` Domain Hub (пути `Analyzers/**`, `Console/Commands/{Ai,Analyzers/Estimate}/`) |
+| `usage-source-contract.md` (источник расхода) | `docs/03_Dev/llm-providers.md`, `docs/specs/v2/04-llm-providers.md` |
+
+Дальнейшего копирования текста в docs не требуется — контракты были ПРОЕКТНЫМ инструментом (заморожены
+на старте фазы, супersedes только новой D-записью), а не долгоживущей документацией; их роль
+исчерпана исполнением. Остаются в архиве как исторический след решений (кто/когда/почему выбрал
+именно эту форму — Decision Log `plan.md` §5 ссылается на них по D-номерам).
+
+**Реестры и ссылки:** `plans/ACTIVE.md` уже `—`. Обновлены ссылки на старый путь
+`plans/2026.07.28-EST-ARCH` → `plans/archive/2026.07.28-EST-ARCH` в живых доках:
+`docs/03_Dev/admin-panel.md:24`, `docs/03_Dev/static-analysis.md:171-172`,
+`plans/2026.07.26-EST-TRAIN/plan.md:259,343` (второй план ссылался на этот при передаче фаз P8/P9,
+D128). Внутренние самоссылки архивного плана (`plan.md`, `phases/*.md`, `handoff.md`, `research/**`)
+не трогались — они описывают путь на момент своего исполнения, менять их задним числом означало бы
+переписывать историю.
+
+**Что осталось в архиве:** `brief/**`, `findings/**`, `research/**`, `.swissknife/**`,
+`.claude/.maind-feature-log.last`, `journal.jsonl`, `open-questions.md`, `roadmap.md` — по правилу
+§12 скилла, в docs не мигрируют.

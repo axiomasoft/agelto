@@ -168,6 +168,6 @@ grep -oP "count: \K\d+" phpstan-baseline.neon | paste -sd+ | bc                 
 
 - Скилл `static-analysis` — общий гайд по Pint/PHPStan/Rector в проекте.
 - `.claude/rules/agelto-reviewer-overrides.md` — ось ревью «baseline не растёт».
-- `plans/2026.07.28-EST-ARCH/plan.md` §5 D53 — граница «снимается / объясняется» для этого item'а.
-- `plans/2026.07.28-EST-ARCH/findings/inherited-debts-2026-07-29.md` §2 — исходный разбор корня
+- `plans/archive/2026.07.28-EST-ARCH/plan.md` §5 D53 — граница «снимается / объясняется» для этого item'а.
+- `plans/archive/2026.07.28-EST-ARCH/findings/inherited-debts-2026-07-29.md` §2 — исходный разбор корня
   `property.notFound` и механического рычага.
