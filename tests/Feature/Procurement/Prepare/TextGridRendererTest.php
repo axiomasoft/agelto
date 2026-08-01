@@ -123,3 +123,55 @@ test('полностью пустая колонка опущена', function (
     expect($result['text'])->toContain("1\ta\tc")
         ->and($result['text'])->not->toContain("1\ta\t\tc");
 });
+
+test('регрессия разреженности — далёкая непустая ячейка не заставляет обход материализовать пустой used-range', function () {
+    $path = buildXlsx(function (Spreadsheet $spreadsheet) {
+        $sheet = $spreadsheet->getActiveSheet();
+        $sheet->setCellValue('A1', 'первая');
+        $sheet->setCellValue('IW9000', 'далёкая');
+    });
+
+    $originalLimit = ini_get('memory_limit');
+    ini_set('memory_limit', '128M');
+
+    try {
+        $result = app(TextGridRenderer::class)->render($path, 'xlsx');
+    } finally {
+        ini_set('memory_limit', $originalLimit);
+    }
+
+    $lines = explode("\n", $result['text']);
+
+    expect($result)->not->toBeFalse()
+        ->and($lines)->toContain("1\tпервая\t")
+        ->and($lines)->toContain("9000\t\tдалёкая");
+});
+
+test('непустая неякорная ячейка внутри merge при пустом якоре рендерится пустой', function () {
+    $path = buildXlsx(function (Spreadsheet $spreadsheet) {
+        $sheet = $spreadsheet->getActiveSheet();
+        $sheet->setCellValue('B1', 'скрытое');
+        $sheet->mergeCells('A1:C1');
+        $sheet->setCellValue('A2', 'a');
+    });
+
+    $result = app(TextGridRenderer::class)->render($path, 'xlsx');
+    $lines = explode("\n", $result['text']);
+
+    expect($result['text'])->not->toContain('скрытое')
+        ->and(collect($lines)->filter(fn ($line) => str_starts_with($line, '1'.chr(9))))->toBeEmpty()
+        ->and($lines)->toContain('2'.chr(9).'a');
+});
+
+test('превышение бюджета ячеек — false, не исключение', function () {
+    config(['ai.prepare.xlsx_max_cells' => 1]);
+    $path = buildXlsx(function (Spreadsheet $spreadsheet) {
+        $sheet = $spreadsheet->getActiveSheet();
+        $sheet->setCellValue('A1', 'первая');
+        $sheet->setCellValue('A2', 'вторая');
+    });
+
+    $result = app(TextGridRenderer::class)->render($path, 'xlsx');
+
+    expect($result)->toBeFalse();
+});

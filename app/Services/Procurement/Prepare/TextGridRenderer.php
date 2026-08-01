@@ -38,6 +38,21 @@ use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
  * обязательное поведение представления (Implementation Rules + тест-кейс). Size-gate это не
  * ослабляет: он считается ДО загрузки (`filesize()` + `listWorksheetInfo()`), а не за счёт
  * пропуска стилей при самой загрузке.
+ *
+ * Обход листа — РАЗРЕЖЕННЫЙ (P2.8, D95): `Worksheet::getCell()` СОЗДАЁТ отсутствующую ячейку
+ * (`Worksheet.php:1185-1202`), поэтому плотный проход `1..highestColumn × 1..highestRow`
+ * материализует пустой used-range целиком — на легаси `.xls` с раздутыми границами это разрыв
+ * 84× (2 487 503 создаваемых объекта против 29 464 реально существующих,
+ * `findings/P2-textgrid-oom-2026-08-01.md` §2) и детерминированный OOM. Вместо этого: (1) карта
+ * значений строится ТОЛЬКО по существующим координатам (`getCellCollection()->getCoordinates()`);
+ * (2) merge накладывается ПОСЛЕ сбора — якорь переписывает значением все координаты диапазона,
+ * а ПУСТОЙ якорь удаляет их из карты (сохраняет сегодняшнее поведение: непустая неякорная ячейка
+ * внутри merge рендерится пустой); (3) непустые колонки/строки выводятся из этой же карты.
+ * Возвращаться к `cellExists()`-скану по прямоугольнику ЗАПРЕЩЕНО — он снимает создание ячеек, но
+ * оставляет квадратичное число итераций впустую. Бюджет ячеек (`ai.prepare.xlsx_max_cells`)
+ * считается ДО сбора карты по сумме существующих координат и площади merge-диапазонов —
+ * превышение возвращает `false` тем же контрактом «лимит инструмента», что и `xlsx_max_mb`/
+ * `xlsx_max_rows`.
  */
 final readonly class TextGridRenderer
 {
@@ -58,39 +73,35 @@ final readonly class TextGridRenderer
 
         $reader = $extension === 'xls' ? new XlsReader : new XlsxReader;
         $spreadsheet = $reader->load($localPath);
+        $sheets = $spreadsheet->getAllSheets();
+
+        $maxCells = (int) config('ai.prepare.xlsx_max_cells', 2_000_000);
+        if ($this->cellBudget($sheets) > $maxCells) {
+            $spreadsheet->disconnectWorksheets();
+
+            return false;
+        }
 
         $lines = [];
         $totalRows = 0;
-        $sheets = $spreadsheet->getAllSheets();
 
         foreach ($sheets as $sheet) {
             $lines[] = '## SHEET: '.$sheet->getTitle();
 
-            $highestRow = $sheet->getHighestRow();
-            $highestColumn = Coordinate::columnIndexFromString($sheet->getHighestColumn());
-            $mergeMap = $this->buildMergeMap($sheet->getMergeCells());
-            $emptyColumns = $this->emptyColumns($sheet, $highestRow, $highestColumn, $mergeMap);
+            $values = $this->collectValues($sheet);
+            $this->applyMerges($sheet->getMergeCells(), $values);
+            ksort($values, SORT_NUMERIC);
 
-            for ($row = 1; $row <= $highestRow; $row++) {
-                $cells = [];
-                $rowHasValue = false;
+            $columns = $this->distinctColumns($values);
 
-                for ($column = 1; $column <= $highestColumn; $column++) {
-                    if (isset($emptyColumns[$column])) {
-                        continue;
-                    }
-
-                    $value = $this->cellText($sheet, $column, $row, $mergeMap);
-
-                    if ($value !== '') {
-                        $rowHasValue = true;
-                    }
-
-                    $cells[] = $value;
+            foreach ($values as $row => $rowValues) {
+                if ($rowValues === []) {
+                    continue;
                 }
 
-                if (! $rowHasValue) {
-                    continue;
+                $cells = [];
+                foreach ($columns as $column) {
+                    $cells[] = $rowValues[$column] ?? '';
                 }
 
                 $lines[] = $row."\t".implode("\t", $cells);
@@ -108,64 +119,98 @@ final readonly class TextGridRenderer
     }
 
     /**
-     * @return array<string, string> ключ "колонка:строка" → значение якорной ячейки merge-диапазона
+     * @param  array<int, Worksheet>  $sheets
      */
-    private function buildMergeMap(array $mergeRanges): array
+    private function cellBudget(array $sheets): int
     {
-        $map = [];
+        $total = 0;
+
+        foreach ($sheets as $sheet) {
+            $total += count($sheet->getCellCollection()->getCoordinates());
+            $total += $this->mergeArea($sheet->getMergeCells());
+        }
+
+        return $total;
+    }
+
+    /**
+     * @param  array<int, string>  $mergeRanges
+     */
+    private function mergeArea(array $mergeRanges): int
+    {
+        $area = 0;
 
         foreach ($mergeRanges as $range) {
             [[$startColumn, $startRow], [$endColumn, $endRow]] = Coordinate::rangeBoundaries($range);
+            $area += ($endColumn - $startColumn + 1) * ($endRow - $startRow + 1);
+        }
+
+        return $area;
+    }
+
+    /**
+     * @return array<int, array<int, string>> карта значений `[row][column] => value`, только
+     *                                        существующие непустые ячейки
+     */
+    private function collectValues(Worksheet $sheet): array
+    {
+        $values = [];
+
+        foreach ($sheet->getCellCollection()->getCoordinates() as $coordinate) {
+            [$column, $row] = Coordinate::indexesFromString($coordinate);
+            $value = $this->stringify($sheet->getCell($coordinate)->getCalculatedValue());
+
+            if ($value === '') {
+                continue;
+            }
+
+            $values[$row][$column] = $value;
+        }
+
+        return $values;
+    }
+
+    /**
+     * @param  array<int, string>  $mergeRanges
+     * @param  array<int, array<int, string>>  $values
+     */
+    private function applyMerges(array $mergeRanges, array &$values): void
+    {
+        foreach ($mergeRanges as $range) {
+            [[$startColumn, $startRow], [$endColumn, $endRow]] = Coordinate::rangeBoundaries($range);
+            $anchor = $values[$startRow][$startColumn] ?? '';
 
             for ($row = $startRow; $row <= $endRow; $row++) {
                 for ($column = $startColumn; $column <= $endColumn; $column++) {
-                    $map["{$column}:{$row}"] = "{$startColumn}:{$startRow}";
+                    if ($anchor === '') {
+                        unset($values[$row][$column]);
+
+                        continue;
+                    }
+
+                    $values[$row][$column] = $anchor;
                 }
             }
         }
-
-        return $map;
     }
 
     /**
-     * @param  array<string, string>  $mergeMap
+     * @param  array<int, array<int, string>>  $values
+     * @return array<int, int> отсортированные по возрастанию номера непустых колонок
      */
-    private function cellText(Worksheet $sheet, int $column, int $row, array $mergeMap): string
+    private function distinctColumns(array $values): array
     {
-        $key = "{$column}:{$row}";
-        [$anchorColumn, $anchorRow] = isset($mergeMap[$key])
-            ? array_map('intval', explode(':', $mergeMap[$key]))
-            : [$column, $row];
+        $columns = [];
 
-        $value = $sheet->getCell([$anchorColumn, $anchorRow])->getCalculatedValue();
-
-        return $this->stringify($value);
-    }
-
-    /**
-     * @param  array<string, string>  $mergeMap
-     * @return array<int, true>
-     */
-    private function emptyColumns(Worksheet $sheet, int $highestRow, int $highestColumn, array $mergeMap): array
-    {
-        $empty = [];
-
-        for ($column = 1; $column <= $highestColumn; $column++) {
-            $hasValue = false;
-
-            for ($row = 1; $row <= $highestRow; $row++) {
-                if ($this->cellText($sheet, $column, $row, $mergeMap) !== '') {
-                    $hasValue = true;
-                    break;
-                }
-            }
-
-            if (! $hasValue) {
-                $empty[$column] = true;
+        foreach ($values as $rowValues) {
+            foreach (array_keys($rowValues) as $column) {
+                $columns[$column] = true;
             }
         }
 
-        return $empty;
+        ksort($columns, SORT_NUMERIC);
+
+        return array_keys($columns);
     }
 
     private function countRows(string $path, string $extension): int

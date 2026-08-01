@@ -44,7 +44,7 @@ final class GoldImportCommand extends Command
         // `--prepare` прогоняет `SpreadsheetStrategy`/PhpSpreadsheet СИНХРОННО в этом же процессе
         // (не в дочернем, как `ConvertXlsxToPdfCommand`) — текстовая сетка на MERGE_HEAVY книгах
         // корпуса требует больше, чем дефолт xlsx-конвертации (P5.7-зонд использовал 1024M).
-        ini_set('memory_limit', '1024M');
+        ini_set('memory_limit', (string) config('ai.prepare.gold_import_memory_limit'));
 
         $goldDir = (string) config('ai.fixtures.gold_dir');
         $dryRun = (bool) $this->option('dry-run');

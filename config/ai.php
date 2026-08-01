@@ -235,6 +235,18 @@ return [
         'xlsx_convert_memory_limit' => env('AI_PREPARE_XLSX_CONVERT_MEMORY_LIMIT', '512M'),
         'xlsx_convert_timeout_seconds' => (int) env('AI_PREPARE_XLSX_CONVERT_TIMEOUT_SECONDS', 120),
 
+        // Бюджет разреженного обхода `TextGridRenderer` (P2.8, D95/D96): сумма существующих
+        // координат листа + площадь merge-диапазонов, посчитанная ДО сбора карты значений;
+        // превышение — тот же контракт «лимит инструмента», что у xlsx_max_rows/xlsx_max_mb.
+        // Дефолт — запас ≈68× над худшим документом корпуса (29 464 ячейки при 32 МБ памяти
+        // прототипа), ловит патологию вроде merge на весь лист, а не боевые сметы.
+        'xlsx_max_cells' => (int) env('AI_PREPARE_XLSX_MAX_CELLS', 2_000_000),
+
+        // Лимит памяти `estimate:gold:import --prepare` (вынос литерала из GoldImportCommand,
+        // P2.8, D96): значение не меняется этим выносом — квадратичный обход-корень блокера
+        // чинится в TextGridRenderer, этот лимит остаётся вторым рубежом на MERGE_HEAVY книгах.
+        'gold_import_memory_limit' => env('AI_PREPARE_GOLD_IMPORT_MEMORY_LIMIT', '1024M'),
+
         /*
         | Zip-бомба (Code Guidance P4.2): `max_depth` — вложенность архив-в-архиве по цепочке
         | `parent_version_id`; `max_files`/`max_total_mb` — заявленные ZipArchive-заголовками
