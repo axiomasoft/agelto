@@ -392,6 +392,7 @@ window-halving (grep по буквальной подстроке `"truncated("`
 | 2026-08-01 | issue-planner / frontier-high | Блокер P2.4 снят дизайном **D98–D100** (второй дефект: предохранитель MAX_TOKENS мёртв), заведены items **P2.9** и **P2.10** — детали см. `phases/P2.md` P2.9/P2.10 и `findings/P2-extraction-token-budget-2026-08-01.md` |
 | 2026-08-01 | plan-run / sonnet-high | P2.9 закрыт 🟠, item-коммит **`b667b3e`**: бюджет/thinking_level extraction-маршрутов как настройка + перевод MAX_TOKENS в `FinishReason::MaxTokens` — детали см. phases/P2.md P2.9 Completion Notes/Known Deviations |
 | 2026-08-01 | plan-run / sonnet-high | P2.10 закрыт 🟢, item-коммит **`ed202ac`**: пара M0₂ (6/6)/M0₂′ (5/6) на дереве после P2.9 — `reject` обоими критериями, новая величина шума (D100) заменяет D91, база M2=M0₂; новый дефект `bcsub()` на `EST-XLSX-KS2-001` назван в Pending Work — детали см. phases/P2.md P2.10 Completion Notes |
+| 2026-08-01 | plan-run / sonnet-high | P2.4 закрыт 🟠, item-коммит **`4a4ce75`**: схема эмитит `description` + порядок конструктора (D89); eval M2 `reject` механически, дельты внутри шума D100 — детали см. phases/P2.md P2.4 Completion Notes, research/03 §8.8 |
 
 ## Обсуждение
 

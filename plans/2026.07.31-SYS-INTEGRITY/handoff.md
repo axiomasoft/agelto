@@ -1,175 +1,188 @@
-# HANDOFF — 2026-08-01 — after P2.10
+# HANDOFF — 2026-08-01 — after P2.4
 
-**Next:** ЗАПУСК ВРУЧНУЮ: implementation/high
+**Next:** ЗАПУСК ВРУЧНУЮ: frontier/high
 
 | Параметр | Значение |
 |:--|:--|
-| Model class | implementation |
+| Model class | frontier |
 | Effort | high |
 | Capabilities | — |
 | Context | continue (/clear) — ручной item |
-| Суть | Правка ровно двух классов (`JsonSchemaGenerator`/`GeminiResponseSchemaAdapter`): эмиссия `description` в исходящую JSON Schema и снятие `ksort`/`sort` в пользу порядка конструктора — снимает расхождение порядка свойств между схемой и печатаемым исходником (P2.1 дефект). Correctness-critical, effort high обязателен (§9 Routing) |
+| Суть | Снять печать структуры контрактов из системной инструкции, решить OQ-2 (носитель синонимов `EstimateHeaderMap`: A/B/C) измерением трёх вариантов против прогона после P2.4, держать пол системного префикса 4096 токенов (D90). Открытое design-решение по измеренной дельте — effort high обязателен (§9 Routing), sonnet (session tier `implementation`) НИЖЕ предписанного `frontier` — `plan-run` для этого item'а недоступен структурно (Routing-гейт `plan-exec.md` п.2 остановил бы его тем же кодом) |
 
 ```
-### P2.4 — Эмиссия описаний и порядка свойств в исходящую схему
+### P2.5 — Сокращение системной инструкции и судьба `PromptContextGenerator`
 
 **Status:** ⬜ Not started
-**Intent:** Довести описания до модели ТЕМ каналом, которым уходит структура, и свести оба
-носителя контракта к ОДНОМУ порядку свойств: `JsonSchemaGenerator` начинает эмитить
-`description` и теряет `ksort` (свойства идут в порядке конструктора), а
-`GeminiResponseSchemaAdapter` перестаёт терять новые ключи. `propertyOrdering` НЕ эмитируется
-(D89).
-**Why:** Это шаг 2 порядка D8 — без него дублирование каналов снять нельзя: описания есть в
-атрибутах, но модель их не видит. Правка ровно двух классов, а не одного: адаптер пересобирает
-объектный узел из `type`/`properties`/`required` и молча отбрасывает всё остальное, то есть
-`description`, добавленный только в генераторе, до провайдера не доедет (D21). RAG:—
-(repo-grounded: `app/Services/Llm/Schema/GeminiResponseSchemaAdapter.php:91-111` —
-`resolveObject()` возвращает три ключа; `app/Services/Llm/Providers/PrismGeminiProvider.php:162`
-— схема уходит `RawSchema` в `response_schema`).
-Второе — здесь чинится найденный P2.1 дефект дерева: два носителя контракта расходятся по
-порядку свойств (схема алфавитная из-за `ksort`, печатаемый исходник — в порядке конструктора;
-для `EstimateRow` это два совершенно разных порядка), а вендор называет такое расхождение
-источником «incorrect or malformed output». Пока носителя два (печать снимается только в P2.5),
-согласование обязано быть явным правилом. `propertyOrdering` при этом НЕ нужен: для линейки 3.x
-порядок ключей схемы сохраняется неявно, а неподдерживаемые ключи вендор игнорирует — эмиссия
-была бы мёртвым кодом с видимостью работы (D89).
-RAG:✅ 2026-08-01 (`findings/P2-vendor-structured-output.md` §1, §3).
-**Scope Included:** чтение описаний и алиасов ридером P2.3 в `JsonSchemaGenerator` и эмиссия
-`description` на свойствах; **снятие `ksort($properties)`/`sort($required)`** и эмиссия свойств в
-порядке конструктора (`ReflectionMethod::getParameters()`), `required` — тем же порядком (D89);
-сквозной пронос новых ключей через `GeminiResponseSchemaAdapter` (объектные узлы, узлы массивов,
-`anyOf`-ветки nullable); обновление юнит-тестов генератора и адаптера; проверка когерентности
-«что видит модель» между схемой и блоком схем промта, включая СОВПАДЕНИЕ порядка свойств двух
-носителей; названная в отчёте разовая инвалидация `rules_hash` и живых explicit-кэшей.
-**Scope Excluded:** сокращение системной инструкции (P2.5); тексты промтов (P2.6); смена формы
-самой схемы (плоскость, `$defs`, глубина разворота `MAX_SELF_DEPTH`) — фаза не пересматривает
-решения P3 плана `2026.07.26-EST-TRAIN`; правка провайдера и способа передачи схемы; состав
-полей контрактов (P5); **эмиссия `propertyOrdering`** (снята D89 — не «отложена», а признана
-ненужной для линейки 3.x); порядок КЛАССОВ в блоке схем промта (по короткому имени, `*Response`
-последними) — вендорское требование про порядок СВОЙСТВ внутри объекта, порядок классов не
-меняется.
-**Inputs:** `plans/2026.07.31-SYS-INTEGRITY/findings/P2-vendor-structured-output.md` (что канал
-`response_schema` поддерживает — вердикт по `description`/`propertyOrdering`) ·
-`plans/2026.07.31-SYS-INTEGRITY/research/03-prompt-contract.md` (правило порядка свойств) ·
-Deliverables P2.3 (ридер и покрытые атрибутами контракты)
-**Files:** `app/Services/Llm/Schema/JsonSchemaGenerator.php` ·
-`app/Services/Llm/Schema/GeminiResponseSchemaAdapter.php` ·
-`tests/Unit/Llm/JsonSchemaGeneratorTest.php` ·
-`tests/Unit/Llm/GeminiResponseSchemaAdapterTest.php` ·
-`tests/Feature/Ai/PromptCompositionTest.php`
-**Required Reads:** `plans/2026.07.31-SYS-INTEGRITY/findings/P2-vendor-structured-output.md` ·
-`plans/2026.07.31-SYS-INTEGRITY/research/03-prompt-contract.md` ·
-`app/Services/Llm/Schema/JsonSchemaGenerator.php` ·
-`app/Services/Llm/Schema/GeminiResponseSchemaAdapter.php` ·
-`app/Services/Llm/Schema/ContractAttributeReader.php` (Deliverable P2.3, D92) ·
-`app/Services/Llm/Providers/PrismGeminiProvider.php` (строки 140–170) ·
-`tests/Unit/Llm/JsonSchemaGeneratorTest.php` · `tests/Unit/Llm/GeminiResponseSchemaAdapterTest.php`
-**Implementation Rules:** Эмитится только то, поддержку чего подтвердил `findings/P2-vendor-
-structured-output.md` для канала `response_schema`: не подтверждено — не эмитится, а
-фиксируется в Pending Work и в `research/03` (ключ, который канал не понимает, — источник 400 и
-молчаливой деградации). Детерминированность выхода сохраняется байт-в-байт между запусками: это
-база `rules_hash` и префикса implicit-кэша (`JsonSchemaGenerator` докблок) — но носителем
-детерминизма становится ПОРЯДОК КОНСТРУКТОРА, а не алфавит: `ksort($properties)`/`sort($required)`
-снимаются, порядок конструктора так же детерминирован и меняется ровно тогда, когда меняется
-исходник контракта (D89). `propertyOrdering` НЕ эмитируется — не «на всякий случай» и не «пока
-отложено»: для 3.x он не нужен, а неподдерживаемые ключи вендор игнорирует, то есть эмиссия дала
-бы мёртвый код с видимостью работы. Смена порядка ключей меняет байты схемы и `rules_hash` — это
-разовая инвалидация живых explicit-кэшей (`LlmCacheManager::validHandle()`) и обнуление
-implicit-префикса: замер M2 идёт на ХОЛОДНОМ кэше, это ожидаемая разовая цена шага, она
-называется в отчёте, а не скрывается и не выдаётся за регрессию качества. Адаптер обязан
-проносить новые ключи на ВСЕХ уровнях (объект, элементы массива, ветки `anyOf`), а не только на
-корне — ровно тот класс ошибки, который уже ловили на `additionalProperties` (докблок адаптера).
-Ридер атрибутов не дублируется внутри генератора: используется класс P2.3.
-**Code Guidance:** Правка узкая: генератор получает описание/порядок из ридера и кладёт ключи;
-адаптер перестаёт терять ключи. Никакого попутного рефакторинга формы схемы. Тесты — Pest, Unit,
-на фикстурных Data-классах теста; обязательные кейсы: `description` доезжает до КОРНЯ, до
-ВЛОЖЕННОГО объекта, до элемента МАССИВА и до nullable-свойства (`anyOf`-ветка); порядок ключей
-`properties` совпадает с порядком КОНСТРУКТОРА фикстуры и НЕ является алфавитным (фикстура
-подбирается так, чтобы два порядка различались — иначе кейс зелёный по совпадению); `required`
-собран тем же порядком; ключа `propertyOrdering` в выходе НЕТ; контракт без атрибутов даёт
-прежнюю схему с точностью до порядка свойств (обратная совместимость по составу ключей).
-Плюс кейс когерентности: множество классов блока схем шага ⊇ множество классов схемы того же
-шага (инвариант `DataTypeGraph`) не сломано, и порядок свойств одного класса в двух носителях
-совпадает. Запрещено: эмитить `description` дублем и в `properties`, и в отдельный блок; эмитить
-`propertyOrdering` (снят D89); возвращать `ksort`/`sort` «ради стабильности» — стабильность даёт
-конструктор; ослаблять существующие ассерты тестов генератора/адаптера
-ради зелёного — тест переписывается под новую форму, а не удаляется; трогать `MAX_SELF_DEPTH`;
-править провайдера.
-**Validation:** `docker compose exec app php artisan test --filter=JsonSchemaGenerator` зелёный и
-содержит четыре обязательных кейса доезда `description` плюс кейсы порядка (порядок = конструктор,
-не алфавит; `required` тем же порядком; `propertyOrdering` отсутствует);
-`docker compose exec app php artisan test --filter=GeminiResponseSchemaAdapter` зелёный;
-`docker compose exec app php artisan test --filter=PromptComposition` зелёный (по одному
-`--filter` за прогон); `grep -rn "ksort\|propertyOrdering" app/Services/Llm/Schema` — ни одного
-вхождения в путях эмиссии схемы; `docker compose exec app php artisan estimate:eval:run --split=all` +
-`estimate:eval:compare --base=<id-после-P2.3> --candidate=<id> --criterion=no-regression`
-→ `verdict: accept`, дельта сопоставлена с измеренным шумом M0₂↔M0₂′ (P2.10, D100), числа в
-`research/03-prompt-contract.md`; pint чистый;
-`phpstan-baseline.neon` не вырос.
-**Deliverables:** генератор и адаптер, доносящие `description` до провайдера и эмитящие свойства
-в едином порядке конструктора (без `propertyOrdering`, без `ksort`);
-обновлённые юнит-тесты с обязательными кейсами; запись eval-дельты шага 2 (M2) в
-`research/03-prompt-contract.md` с вердиктом критерия и с названной ценой разовой инвалидации
-`rules_hash`/explicit-кэшей (замер на холодном кэше).
+**Intent:** Снять дублирование каналов: перестать печатать структуру контрактов в системную
+инструкцию и решить OQ-2 измерением — какой из трёх вариантов носителя словарей-синонимов
+остаётся.
+**Why:** Это шаг 3 порядка D8 и единственный шаг, ради которого делались первые два: пока
+исходник контрактов печатается в промт, схема едет в модель двумя каналами вопреки рекомендации
+вендора, а системный префикс несёт лишние токены на каждом вызове. Раньше снять его было нельзя
+— описания жили только в докблоке; теперь они в схеме. Но `EstimateHeaderMap` в исходящую схему
+уехать не может (он не часть ответа ни одного шага), поэтому вопрос «куда деваются синонимы»
+решается замером, а не вкусом (OQ-2, D27). RAG:✅ 2026-07-31 (вендор: схему конфигурировать на
+модели, системную инструкцию держать поведенческой — `findings/rag-2026-07-31.md` §3; ОГОВОРКА
+D88: тезис «вендор запрещает дублирование» первичной проверкой НЕ подтверждён — второй канал
+снимается по собственным основаниям фазы, а не по внешнему запрету).
+**Ограничение снизу, которого в первой редакции ТЗ не было (D90):** implicit-кэш включается
+только с **4096** входных токенов на `gemini-3.5-flash` и `gemini-3.1-pro-preview` — маршрутах
+ВСЕХ трёх extraction-шагов и всех эскалаций. Сокращение системной части ниже порога выключит кэш
+МОЛЧА: качество не изменится, а стоимость вырастет, и критерий непрегрессии D24 этого не увидит,
+потому что он меряет качество, а не деньги. RAG:✅ 2026-08-01
+(`findings/P2-vendor-structured-output.md` §5).
+**Scope Included:** прекращение печати структуры контрактов ответа в системную инструкцию;
+реализация и замер трёх вариантов носителя синонимов — **A** печать исходника ТОЛЬКО
+классов-словарей (`EstimateStepDictionaries`), **B** синонимы текстом промта, **C** типизированный
+рендер словаря по атрибутам через ридер P2.3 (без печати PHP-исходника); **замер длины системного
+префикса КАЖДОГО шага до и после сокращения — в токенах, по маршруту шага** — и проверка его
+против пола 4096 входных токенов (D90); выбор по измеренной
+дельте с решающим правилом D27 и фиксацией новой D-записи; правка `PromptContextGenerator`/
+`PromptComposer`/`EstimateStepDictionaries` под выбранный вариант; обновление их тестов;
+фиксация изменения `rules_hash` и его последствий для кэша.
+**Scope Excluded:** переписывание текстов правил промтов (P2.6 — здесь только УДАЛЯЕТСЯ блок
+структуры, поведенческие тексты не трогаются); правка схемы и атрибутов (P2.3/P2.4); изменение
+состава словарей шага (какие классы считаются словарями) — состав берётся как есть;
+`CorrectionAwareComposer` и hints-контур.
+**Inputs:** `plans/2026.07.31-SYS-INTEGRITY/research/03-prompt-contract.md` (целевой вид
+системной инструкции §7, разметка «структура / семантика / правило / словарь» §2, формы вариантов
+OQ-2 §4) · `plans/2026.07.31-SYS-INTEGRITY/findings/P2-vendor-structured-output.md` (§5 — порог
+implicit-кэша 4096 и отсутствие порога для Flash-Lite) ·
+`plans/2026.07.31-SYS-INTEGRITY/findings/P2-eval-baseline.md` (измеренный шум M0↔M0′ — им
+меряется ничья вариантов) · Deliverables P2.4
+(описания реально доезжают схемой) · `plans/2026.07.31-SYS-INTEGRITY/open-questions.md` (OQ-2)
+**Files:** `app/Services/Llm/Schema/PromptContextGenerator.php` ·
+`app/Services/Procurement/Analyzers/Estimate/EstimateStepDictionaries.php` ·
+`app/Services/Llm/PromptComposer.php` · `tests/Unit/Llm/PromptContextGeneratorTest.php` ·
+`tests/Feature/Llm/PromptComposerTest.php` · `tests/Feature/Ai/PromptCompositionTest.php` ·
+`plans/2026.07.31-SYS-INTEGRITY/research/03-prompt-contract.md`
+**Required Reads:** `plans/2026.07.31-SYS-INTEGRITY/research/03-prompt-contract.md` (§4, §7, §8) ·
+`plans/2026.07.31-SYS-INTEGRITY/findings/P2-vendor-structured-output.md` (§5) ·
+`plans/2026.07.31-SYS-INTEGRITY/findings/P2-eval-baseline.md` ·
+`plans/2026.07.31-SYS-INTEGRITY/open-questions.md` (OQ-2) ·
+`app/Services/Llm/Schema/PromptContextGenerator.php` · `app/Services/Llm/PromptComposer.php` ·
+`app/Services/Procurement/Analyzers/Estimate/EstimateStepDictionaries.php` ·
+`app/Dto/Procurement/Analyzers/Estimate/EstimateHeaderMap.php` ·
+`tests/Feature/Ai/PromptCompositionTest.php` · `tests/Unit/Llm/PromptContextGeneratorTest.php` ·
+skill `prompt-engineering-agelto`
+**Implementation Rules:** Решение OQ-2 принимается ПО ИЗМЕРЕННОЙ ДЕЛЬТЕ каждого варианта против
+прогона после P2.4, а не по стилю; «шум» для ничьей — измеренный разброс M0↔M0′ из
+`findings/P2-eval-baseline.md` (D91), а не пороги компаратора; ничья в пределах шума → выбирается
+вариант с типизированным носителем (A или C), не B — требование брифа «любое общение идёт сквозь
+DTO-объекты» (D27). **Пол системного префикса — жёсткое ограничение шага (D90):** после
+сокращения длина системной части каждого extraction-шага и каждой эскалации на маршрутах
+`gemini-3.5-flash`/`gemini-3.1-pro-preview` обязана оставаться ≥ 4096 входных токенов; замер
+делается ДО и ПОСЛЕ, обоими числами, на собранной системной части шага (носитель числа —
+`countTokens` провайдера; это не генеративный вызов и в бюджет корпуса не входит). Для
+`gemini-3.1-flash-lite` (screening, discovery, prompt_critic) порог вендором не документирован
+(`[UNVERIFIED]`) — число публикуется, но гейтом НЕ является. Выбор варианта делается по ПАРЕ
+«качество + сохранность кэша»: вариант, дающий самый короткий промт, автоматически не выигрывает.
+Если лучший по качеству вариант опускает префикс ниже порога — это не повод ни отбросить его
+молча, ни «добить» префикс бессодержательным текстом: факт фиксируется числом и выносится
+владельцу (цена кэша против качества), решение — новой D-записью.
+Выбор фиксируется НОВОЙ D-записью со ссылкой на числа и снимает OQ-2 в `open-questions.md`.
+Детерминированность системной части сохраняется байт-в-байт между запусками (база `rules_hash` и
+префикса кэша): любой новый рендер сортирует детерминированно, как это делает сегодняшний
+генератор. Инвариант безопасности НЕ ослабляется: шаги, читающие документ, обязаны сохранить
+блок «недоверенный вход» в системной части (его проверяет `PromptCompositionTest`) — сокращение
+режет структуру, а не правила безопасности. Смена `rules_hash` фиксируется явно: это разовая
+инвалидация implicit-кэша, она называется в отчёте. Если вариант требует удаления
+`PromptContextGenerator` целиком — удаляется вместе со своим тестом, покрытие переносится, а не
+остаётся «на всякий случай» второй точкой печати.
+**Code Guidance:** Никаких режимов-флагов «печатать/не печатать структуру» в проде: выбранный
+вариант — единственный, ветвление под замер живёт в рамках item'а и в итоговый диф не попадает.
+Тесты — Pest; обязательные кейсы: системная часть шага `extraction:rows` больше НЕ содержит
+исходник контракта ответа (`grep`-ассерт по маркеру `// --- Source:` или его преемнику);
+синонимы шапки присутствуют в том виде, который выбран вариантом; блок «недоверенный вход»
+на месте у всех пяти читающих документ шагов; композиция каждого шага непуста. Запрещено:
+решать OQ-2 без чисел; сокращать системную часть, не замерив префикс (D90) — «на глаз по байтам»
+не годится: перевод символов в токены на кириллице неустойчив; ослаблять `PromptCompositionTest`
+вместо переписывания под новую форму;
+удалять словари шага заодно с печатью структуры (это разные факты); менять приоритеты и порядок
+сборки правил в `PromptComposer` (порядок v1 — канон); совмещать в этом item'е правку текстов
+промтов (D23 — одно изменение за замер).
+**Validation:** `docker compose exec app php artisan test --filter=PromptComposition` зелёный и
+содержит четыре обязательных кейса; `docker compose exec app php artisan test
+--filter=PromptContextGenerator` зелёный или удалён вместе с классом; `docker compose exec app
+php artisan test --filter=PromptComposer` зелёный (по одному `--filter` за прогон); дельты ВСЕХ
+трёх вариантов (A/B/C) записаны в `research/03-prompt-contract.md` с id прогонов и сопоставлены с
+измеренным шумом M0↔M0′, вердикт критерия `no-regression` для выбранного варианта = `accept`;
+**длина системного префикса КАЖДОГО шага опубликована до и после (в токенах, командой замера и с
+якорем на дерево), и для маршрутов `gemini-3.5-flash`/`gemini-3.1-pro-preview` число ПОСЛЕ ≥ 4096**
+(для `gemini-3.1-flash-lite` число опубликовано без гейта); OQ-2 в `open-questions.md` имеет
+статус `Resolved → D#`; pint чистый; `phpstan-baseline.neon` не вырос.
+**Deliverables:** системная инструкция без структуры контрактов ответа; выбранный носитель
+синонимов + D-запись, снимающая OQ-2 по числам; обновлённые тесты композиции; запись eval-дельт
+трёх вариантов и таблицы «шаг → префикс до/после (токены) → порог» в
+`research/03-prompt-contract.md`.
 **Completion Notes:** —
 **Pending Work:** —
 **Known Deviations:** —
 **Escalation Needed:** no
 ```
 
-Либо: `/model sonnet` + `/effort high` + `/task:plan-run 2026.07.31-SYS-INTEGRITY P2.4` (D18) —
-сессия уже несёт этот тир (sonnet/high), доп. переключения не требуются.
+Либо: `/model opus` + `/effort high` + `/task:plan-run 2026.07.31-SYS-INTEGRITY P2.5` (D18) —
+сессия сейчас несёт `sonnet/high` (`implementation`/high), Routing P2.5 предписывает `frontier/high`:
+недобор класса модели, `plan-run` остановит сам себя `ROUTING-BLOCKED` тем же кодом, что и
+`plan-exec`. Переключение модели обязательно ДО запуска.
 
 **Done:** **P2.1 🟢** (`ced2a4f`) · **P2.8 🟠** (`b51ce3a`+`b05235f`) · **P2.2 🟢**
-(`19f9808`+`684ddfb`) · **P2.3 🟠** (`bcd7ad4`) · **P2.9 🟠** (`b667b3e`) · **P2.10 🟢** (`ed202ac`).
+(`19f9808`+`684ddfb`) · **P2.3 🟠** (`bcd7ad4`) · **P2.9 🟠** (`b667b3e`) · **P2.10 🟢** (`ed202ac`) ·
+**P2.4 🟠** (`4a4ce75`).
 
-**Этим заходом (`plan-run`, sonnet/high) закрыт P2.10 🟢** — пере-baseline контура на дереве после
-фикса P2.9 (якорь `d91f86f`, item-коммит `ed202ac`). Два прогона `estimate:eval:run --split=all`
-подряд, без единого изменения между ними: **M0₂ = EvalRun #4** — 6/6 эталонов обработано (было
-4/6 на M0/M0′) — старый флейк по токен-лимиту Gemini закрыт P2.9 полностью; **M0₂′ = EvalRun #5**
-— 5/6, `dataset_example #7` (`EST-XLSX-KS2-001`) упал НОВОЙ ошибкой `bcsub(): Argument #2 ($num2)
-is not well-formed` (не токен-лимит — другой класс дефекта, ранее маскировавшийся старым флейком).
-`estimate:eval:compare --base=4 --candidate=5` — **reject** обоими критериями (`--format=md` и
-`--criterion=no-regression` дали идентичный вердикт): `holdout.overall.f1` -0.2886,
-`holdout.row_coverage` -0.3807, `EST-XLS-KS2-001` -0.1013, `EST-XLSX-KS2-001` -0.6131. Новая
-величина шума контура (D100, число отменяет D91, правило D91 остаётся в силе):
-`tune.overall.f1`=0.0652, `holdout.overall.f1`=0.2886, `tune.row_coverage`=0.1377,
-`holdout.row_coverage`=0.3807, per-fixture (худший)=0.6131 (`EST-XLSX-KS2-001` — доминирующий
-флейк сменился со старого `EST-XLS-KS2-001`, чья дельта упала до -0.1013, что подтверждает: P2.9
-закрыл ровно тот дефект, который был назван). База для M2 (P2.4) — **M0₂ (EvalRun #4)**, не
-исходный M0 (D100 п.3). Полный дословный отчёт — `findings/P2-eval-baseline.md` §7; таблица
-замеров `research/03-prompt-contract.md` §8/§8.7 обновлена.
+**Этим заходом (`plan-run`, sonnet/high) закрыт P2.4 🟠** — item-коммит `4a4ce75`.
+`JsonSchemaGenerator` теперь читает `#[Description]` через `ContractAttributeReader` (P2.3) и
+эмитит `description` на каждом свойстве схемы (объект/вложенный `$ref`/элемент массива/nullable
+`anyOf` — все четыре обязательных кейса покрыты фикстурными Data-классами теста);
+`ksort($properties)`/`sort($required)` сняты — оба массива идут в порядке
+`ReflectionMethod::getParameters()` (D89); `ksort($defs)` НЕ трогается — вне предмета D89.
+`GeminiResponseSchemaAdapter::resolveNode()` теперь снимает/восстанавливает `description` вокруг
+единого разбора узла (`$ref`/`anyOf`/`array`/скаляр) — description проносится на всех уровнях, а
+не отбрасывается вместе с прочими непонятыми ключами. `propertyOrdering` не эмитировался и не
+эмитируется. Добавлен кейс когерентности в `PromptCompositionTest` — порядок свойств `EstimateRow`
+в схеме совпадает с порядком в напечатанном исходнике шага `extraction:rows` (оба носителя читают
+один и тот же файл, совпадение больше не случайность построения теста).
 
-**Material-отклонений нет** (статус 🟢): item без диффа кода выполнен строго по Scope Included,
-все команды Validation прогнаны, оба вывода записаны дословно. Новый дефект `bcsub()` на
-`EST-XLSX-KS2-001` — не отклонение исполнения этого item'а: Implementation Rules P2.10 прямо
-предписывают именно «назвать поимённо и вынести в Pending Work», а не чинить/перемерять; это
-и сделано.
+**Eval M2** (`estimate:eval:run --split=all` → **EvalRun #6**, 6/6 эталонов; `estimate:eval:compare
+--base=4 --candidate=6 --criterion=no-regression`) — механический **`reject`**: компаратор
+сработал на статичном пороге 0.050 по двум эталонам (`EST-XLS-KS2-001` −0.0651, `EST-XLSX-KS2-001`
+−0.1538), но ОБА агрегата выросли (`tune.f1` +0.0299, `holdout.f1` +0.0135, `tune.row_coverage`
++0.1377, `holdout.row_coverage` +0.1439), и обе отрицательные per-fixture дельты — меньше по
+модулю измеренного шума D100 ТЕХ ЖЕ эталонов (0.1013/0.6131) — неотличимы от уже
+задокументированного флейка `EST-XLSX-KS2-001`/`bcsub()` (P2.10 Pending Work). Полный разбор по
+подвыборкам и по эталонам — `research/03-prompt-contract.md` §8.8. Разовая цена (D89
+Consequences): EvalRun #6 — холодный прогон по системной части (байты схемы/`rules_hash`
+изменились), 37 вызовов, `cached_tokens`=201902 относится к document-level кэшу вложений
+(Files API), не к системной части.
+
+**Material-отклонение есть** (статус 🟠): (1) Validation-клауза `→ verdict: accept` не выполнена
+буквально (факт `reject`, диагноз — noise-consistent, не регрессия); (2) item-коммит несёт дифф
+вне `Files` item'а — `tests/Fixtures/Llm/step-json-schemas.json` (золотая фикстура, механически
+пересобранная под новый вывод генератора, не самостоятельная правка). Оба — в Known Deviations
+`phases/P2.md` P2.4.
 
 **Lint:** `python3 /home/vostrikov/projects/packages/swissknifeman/packages/task/scripts/plan-lint.py
 plans/2026.07.31-SYS-INTEGRITY --baseline HEAD` — итог прогона этого захода назван в финальном
 сообщении сессии.
 
-**Remaining:** 39 item из 55. Внутри фазы: P2.4 → P2.5 → P2.6 → P2.7. Дальше по очереди D63:
+**Remaining:** 38 item из 55. Внутри фазы: P2.5 → P2.6 → P2.7. Дальше по очереди D63:
 `P3 → P5 → P6 → P4 → P7`.
 
-**Sources of truth:** `plan.md` (Meta v0.16.0; §3 Routing поitem'ный, строка P2.4 —
-implementation/high/manual/full; §5 D1–D100; §4 Status Board — P2 3/10 🟢, счётчик не включает 🟠) ·
+**Sources of truth:** `plan.md` (Meta v0.16.0; §3 Routing поitem'ный, строка P2.5 —
+frontier/high/manual/full; §5 D1–D100; §4 Status Board — P2 3/10 🟢, счётчик не включает 🟠) ·
 `phases/P2.md` (ТЗ items; Phase Context — очередь `P2.1 → P2.8 → P2.2 → P2.3 → P2.9 → P2.10 →
-P2.4 → P2.5 → P2.6 → P2.7`) · **`findings/P2-eval-baseline.md`** §7 (пара M0₂/M0₂′, дословный
-вывод, новая величина шума) · `research/03-prompt-contract.md` §8/§8.7 (лестница замеров, база
-M2=M0₂) · `findings/P2-vendor-structured-output.md` (что канал `response_schema` поддерживает —
-вход P2.4) · `findings/P2-extraction-token-budget-2026-08-01.md` · `roadmap.md` · `index.md` ·
-`open-questions.md` · `journal.jsonl` · `brief/01-refinements.md`.
+P2.4 → P2.5 → P2.6 → P2.7`) · **`research/03-prompt-contract.md`** §8.8 (разбор M2, таблицы по
+подвыборкам/эталонам, сверка с шумом D100) · `findings/P2-eval-baseline.md` §7 (пара M0₂/M0₂′,
+база сравнений) · `findings/P2-vendor-structured-output.md` (вход P2.4, снят) ·
+`findings/P2-extraction-token-budget-2026-08-01.md` · `roadmap.md` · `index.md` ·
+`open-questions.md` (OQ-2 — вход P2.5) · `journal.jsonl` · `brief/01-refinements.md`.
 
 **Open risks:**
 
-- **Новый дефект контура `bcsub()` на `EST-XLSX-KS2-001`** (P2.10 Pending Work, наблюдался на
-  EvalRun #5/`d91f86f`) — вне Scope P2.10, требует отдельного follow-up item'а
-  (`bcmath`/сравнение числовых полей получает нечисловую строку); не блокирует P2.4 (у P2.4
-  свой платный прогон и своё сравнение M2↔M0₂, риск — ложный `reject` от ЭТОГО эталона, если
-  дефект флейковый как старый; если детерминированный — эталон стабильно теряется, тоже
-  наблюдаемо на M2).
+- **Известный флейк `bcsub()` на `EST-XLSX-KS2-001`** (P2.10 Pending Work) — доминирует и в M2;
+  если P2.5/P2.6 продолжат видеть механический `reject` на ТЕХ ЖЕ эталонах с дельтой внутри D100
+  — follow-up на штатный шаг сверки в `EvalRunComparator`, вне Scope P2.4 (владелец/`plan-design`).
 - **Потолки вывода `gemini-3.1-flash-lite` и `gemini-3.1-pro-preview` `[UNVERIFIED]`** — RAG их не
   подтвердил, ключ `max_output_tokens` этим моделям НЕ поставлен (D99, осознанная граница).
 - **Отдельная величина «дельта P2.3» утрачена навсегда** (D100 Consequences) — дифф P2.3
@@ -177,13 +190,15 @@ M2=M0₂) · `findings/P2-vendor-structured-output.md` (что канал `respo
 - **`estimate:gold:import --prepare` не переводит документ в `prepared`** (P2.8 Known Deviations).
 - **Дешёвый size-gate слеп на легаси `.xls`** (P2.8 Scope Excluded).
 - **DB частично гидрирована, НЕ откатана**: `prc_ai_fixtures`=24, `prc_ai_dataset_examples`=17,
-  `prc_ai_eval_runs`≥5 (M0, M0′, M1, M0₂, M0₂′). **Не запускать `migrate:fresh` до закрытия фазы P2.**
+  `prc_ai_eval_runs`=6 (M0, M0′, M1, M0₂, M0₂′, M2). **Не запускать `migrate:fresh` до закрытия
+  фазы P2.**
 - **`EST-PDF-SCAN-001` (id 7 в манифесте фикстур)** в шестёрку обязательных gold НЕ входит,
   baseline не блокирует.
 - **Представления пересоздаются на ТЕКУЩЕМ образе** — сопоставимо внутри P2, не с числами донора.
-- **Деньги.** Дальше — по одному платному прогону на шаг (P2.4–P2.6), плюс три на варианты OQ-2
+- **Деньги.** Дальше — по одному платному прогону на шаг (P2.5–P2.6), плюс три на варианты OQ-2
   в P2.5.
-- **Расхождение порядка свойств между двумя носителями живёт в боевом коде СЕЙЧАС** — чинится P2.4.
+- **`rules_hash` инвалидирован P2.4** — следующий платный прогон (P2.5) тоже стартует на холодном
+  системном префиксе; это ожидаемо и не регрессия качества.
 - **Пол префикса может не сработать как защита** — байтовый якорь не переведён в токены,
   `[UNVERIFIED]` для `gemini-3.1-flash-lite`. Обязанность P2.5 (D90).
 - **Канал проекта помечен вендором Legacy** — вход EOL-мониторинга, P2.7 фиксирует строкой риска.
@@ -223,8 +238,10 @@ M2=M0₂) · `findings/P2-vendor-structured-output.md` (что канал `respo
   деградация оконного пути (`WindowedChunkSource`) при MAX_TOKENS — колбэка нет осознанно (P2.9
   Scope Excluded) · потолки вывода `gemini-3.1-*` (`[UNVERIFIED]`, D99) ·
   `(array) $provider->options` в `LlmRouteResolver` — тот же класс дефекта, что чинен для
-  `$route->options` в P2.9, дормантен · **новый дефект `bcsub()` на `EST-XLSX-KS2-001`**
-  (P2.10 Pending Work) — follow-up item, решение владельца/`plan-design`.
+  `$route->options` в P2.9, дормантен · новый дефект `bcsub()` на `EST-XLSX-KS2-001`
+  (P2.10 Pending Work) — follow-up item, решение владельца/`plan-design` · **механический `reject`
+  M2 на тех же двух эталонах** (P2.4 Pending Work) — если повторится на P2.5/P2.6, follow-up на
+  штатный шаг сверки с шумом в `EvalRunComparator`.
 - *Open questions:* OQ-1 **закрыт** (D71) · **OQ-2** (судьба `PromptContextGenerator`) — снимает
   P2.5 · OQ-3 (источник истины ЕИС, снимает P4.1) · OQ-4 (браузерный канал) · OQ-5 (продуктовый
   контур, сверяется в P7.8).
