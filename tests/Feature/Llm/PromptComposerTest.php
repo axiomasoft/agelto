@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Dto\Procurement\Ai\Screening\ScreeningResult;
+use App\Dto\Procurement\Analyzers\Estimate\EstimateHeaderMap;
 use App\Enums\Llm\CorePromptStep;
 use App\Enums\Procurement\Analyzers\Estimate\EstimatePromptStep;
 use App\Models\Llm\Prompt;
@@ -53,16 +54,24 @@ test('у ключа берётся максимальная version среди �
         ->and($composed->promptVersionSet)->toBe(['rule' => 2]);
 });
 
-test('compose() добавляет блок схем от PromptContextGenerator после правил', function (): void {
+test('compose() добавляет блок словарей синонимов после правил', function (): void {
     Prompt::factory()->create(['key' => 'rule', 'step' => CorePromptStep::Global->value, 'content' => 'правило', 'priority' => 0, 'version' => 1]);
 
+    $composed = promptComposer()->compose(EstimatePromptStep::ExtractionGlobal, [EstimateHeaderMap::class]);
+
+    expect($composed->systemPart)
+        ->toStartWith('правило'.PHP_EOL.PHP_EOL.'---'.PHP_EOL.PHP_EOL.'Словари синонимов.')
+        ->and($composed->systemPart)->toContain('EstimateHeaderMap:');
+});
+
+test('контракт без синонимов не добавляет пустого разделителя к правилам', function (): void {
+    Prompt::factory()->create(['key' => 'rule', 'step' => CorePromptStep::Global->value, 'content' => 'правило', 'priority' => 0, 'version' => 1]);
+
+    // `ScreeningResult` не несёт ни одного `#[Alias]`: блок словарей пуст, и системная часть
+    // обязана остаться ровно правилами — иначе хвостовой разделитель молча менял бы rules_hash.
     $composed = promptComposer()->compose(EstimatePromptStep::ExtractionGlobal, [ScreeningResult::class]);
 
-    // Блок несёт замыкание корня, а не сам корень (P6.1): `AiDocumentType` приезжает свойством
-    // `ScreeningResult::$document_type` и по сортировке короткого имени встаёт первым.
-    expect($composed->systemPart)
-        ->toStartWith('правило'.PHP_EOL.PHP_EOL.'---'.PHP_EOL.PHP_EOL.'// --- Source: AiDocumentType.php ---')
-        ->and($composed->systemPart)->toContain('// --- Source: ScreeningResult.php ---');
+    expect($composed->systemPart)->toBe('правило');
 });
 
 test('compose() без правил и без схем возвращает пустую системную часть с детерминированным rules_hash', function (): void {

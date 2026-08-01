@@ -9,55 +9,55 @@ use App\Dto\Procurement\Analyzers\Estimate\RowsChunkResponse;
 use App\Dto\Procurement\Analyzers\Estimate\TotalsResponse;
 use App\Services\Llm\Schema\PromptContextGenerator;
 
-test('генерирует промт-блок ScreeningResult байт-в-байт как фикстура', function (): void {
+test('блок не несёт исходника контрактов — структура уехала в исходящую схему (D8 шаг 3)', function (): void {
     $generator = new PromptContextGenerator;
 
-    $block = $generator->generate([ScreeningResult::class]);
+    $block = $generator->generate([RowsChunkResponse::class, EstimateHeaderMap::class]);
 
-    $expected = file_get_contents(base_path('tests/Fixtures/Llm/screening-result.prompt.txt'));
-
-    expect($block)->toBe($expected)
-        ->and($block)->not->toContain('<?php')
-        ->and($block)->not->toContain('namespace ')
-        ->and($block)->not->toContain('use Spatie\LaravelData\Data;')
-        ->and($block)->toStartWith('// --- Source: AiDocumentType.php ---');
-});
-
-test('печатает транзитивное замыкание корня, а не переданный список (D51)', function (): void {
-    $generator = new PromptContextGenerator;
-
-    $block = $generator->generate([RowsChunkResponse::class]);
-
-    // Обёртка ответа шага строк не несёт ни одного докблока позиции сама по себе: без замыкания
-    // модель получала 1.2 КБ `RowsChunkResponse` и ничего больше (находка F4 аудита P7 EST-TRAIN).
-    foreach (['EstimateRow', 'IncompleteRow', 'RowResource', 'RowAttributes', 'RowModifier', 'RowType', 'ResourceType'] as $nested) {
-        expect($block)->toContain("// --- Source: {$nested}.php ---");
+    // Маркер печати исходника v1 и его синтаксические следы: ни одного из них в системной части
+    // больше нет — второй носитель структуры снят (P2.5, D101).
+    foreach (['// --- Source:', 'final class', 'public function __construct', 'extends Data', '#[Description', '#[Alias'] as $marker) {
+        expect($block)->not->toContain($marker);
     }
-
-    // Обёртка по-прежнему последняя (композиция v1, D5) — замыкание порядок не ломает.
-    expect(mb_strpos($block, '// --- Source: RowsChunkResponse.php ---'))
-        ->toBeGreaterThan((int) mb_strpos($block, '// --- Source: EstimateRow.php ---'));
 });
 
-test('самоссылающийся тип не зацикливает обход (TotalLine.children)', function (): void {
+test('синонимы #[Alias] замыкания доезжают до блока — и словаря, и контрактов ответа', function (): void {
     $generator = new PromptContextGenerator;
 
-    $block = $generator->generate([TotalsResponse::class]);
+    $block = $generator->generate([RowsChunkResponse::class, EstimateHeaderMap::class]);
 
-    expect(mb_substr_count($block, '// --- Source: TotalLine.php ---'))->toBe(1);
+    // Словарь, объявленный ТИПОМ (обход от обёртки до него не достаёт, D51).
+    expect($block)->toContain('EstimateHeaderMap:')
+        ->and($block)->toContain('- row_index: «№ п/п», «№», «поз», «Номер», «по порядку», «Номер п/п», «№№ п/п»');
+
+    // Замыкание обёртки ответа: свойства позиции и кейсы enum'а — единственное содержимое
+    // печатавшегося исходника, которого исходящая схема не переносит.
+    expect($block)->toContain('EstimateRow:')
+        ->and($block)->toContain('- index_code: «Индекс», «Ин»')
+        ->and($block)->toContain('ResourceType:')
+        ->and($block)->toContain('- labor: «ЗП», «ОТ», «ЗПМ», «Трудозатраты», «чел.час», «ОТ(ЗТ)», «ОТм(ЗТм)»');
 });
 
-test('ставит Response-обёртки последними независимо от порядка входа (композиция v1, D5)', function (): void {
+test('контракт без единого #[Alias] даёт пустой блок, а не заголовок без содержимого', function (): void {
+    $generator = new PromptContextGenerator;
+
+    expect($generator->generate([ScreeningResult::class]))->toBe('')
+        ->and($generator->generate([TotalsResponse::class]))->toBe('')
+        ->and($generator->generate([]))->toBe('');
+});
+
+test('классы идут по короткому имени, свойства — в порядке конструктора (единый порядок D89)', function (): void {
     $generator = new PromptContextGenerator;
 
     $block = $generator->generate([PassportResponse::class, EstimateHeaderMap::class]);
 
-    $headerMapPos = mb_strpos($block, '// --- Source: EstimateHeaderMap.php ---');
-    $passportResponsePos = mb_strpos($block, '// --- Source: PassportResponse.php ---');
+    preg_match_all('/^(\S+):$/m', $block, $classMatches);
+    expect($classMatches[1])->toBe(['EstimateHeaderMap', 'PassportResponse']);
 
-    expect($headerMapPos)->not->toBeFalse()
-        ->and($passportResponsePos)->not->toBeFalse()
-        ->and($headerMapPos)->toBeLessThan($passportResponsePos);
+    // Порядок свойств словаря — конструкторный (row_index → code → name → …), не алфавитный:
+    // тот же единый порядок, в котором свойства эмитятся в исходящую схему.
+    preg_match_all('/^- (\w+):/m', mb_substr($block, (int) mb_strpos($block, 'EstimateHeaderMap:'), (int) mb_strpos($block, 'PassportResponse:') - (int) mb_strpos($block, 'EstimateHeaderMap:')), $propertyMatches);
+    expect($propertyMatches[1])->toBe(['row_index', 'code', 'name', 'unit', 'quantity', 'total_price']);
 });
 
 test('вывод детерминирован между запусками (база rules_hash и implicit-cache префикса)', function (): void {

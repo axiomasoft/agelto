@@ -11,7 +11,6 @@ use App\Enums\Llm\CorePromptStep;
 use App\Enums\Procurement\Analyzers\Estimate\EstimatePromptStep;
 use App\Services\Llm\PromptComposer;
 use App\Services\Llm\Schema\JsonSchemaGenerator;
-use App\Services\Llm\Schema\PromptContextGenerator;
 use App\Services\Procurement\Analyzers\Estimate\EstimateStepDictionaries;
 use Database\Seeders\PromptSeeder;
 
@@ -71,11 +70,15 @@ test('синонимы словарей доезжают до боевой си�
     foreach (['ОТ(ЗТ)', 'ОТм(ЗТм)', 'ФССЦ'] as $resourceSynonym) {
         expect($systemPart)->toContain($resourceSynonym);
     }
+
+    // Форма носителя — выбранная OQ-2 (вариант C, D101): типизированный рендер по атрибутам,
+    // а не PHP-исходник и не проза промта.
+    expect($systemPart)->toContain('- row_index: «№ п/п»')
+        ->and($systemPart)->toContain('- labor: «ЗП»');
 });
 
-test('блок схем шага покрывает классы JSON-схемы того же шага (когерентность носителей)', function (): void {
-    $context = app(PromptContextGenerator::class);
-    $schemas = app(JsonSchemaGenerator::class);
+test('системная часть ни одного шага не несёт исходника контракта ответа (D8 шаг 3)', function (): void {
+    $composer = app(PromptComposer::class);
     $dictionaries = app(EstimateStepDictionaries::class);
 
     $steps = [
@@ -88,44 +91,28 @@ test('блок схем шага покрывает классы JSON-схемы
 
     foreach ($steps as [$step, $root]) {
         // Состав — тот же, что у боевых потребителей шага: корень + словари, объявленные ТИПОМ.
-        $contextClasses = [$root, ...$dictionaries->forStep($step)];
+        $systemPart = $composer->compose($step, [$root, ...$dictionaries->forStep($step)])->systemPart;
 
-        $block = $context->generate($contextClasses);
-
-        preg_match_all('/^\/\/ --- Source: (.+)\.php ---$/m', $block, $matches);
-
-        $schema = $schemas->generate($root);
-        $inSchema = [new ReflectionClass($root)->getShortName(), ...array_keys($schema['$defs'] ?? [])];
-
-        // Класс, попавший в JSON-схему, но не в контекст, невидим глазами: модель получает имя
-        // поля без единого пояснения. Ослаблять утверждение до списка исключений запрещено.
-        expect([$step->value, array_values(array_diff($inSchema, $matches[1]))])->toBe([$step->value, []]);
+        // Структуру контракта несёт ИСХОДЯЩАЯ СХЕМА (`response_schema` + `#[Description]`,
+        // P2.3/P2.4). Маркер печати исходника v1 и его синтаксические следы в системной части
+        // означали бы возврат второго носителя той же структуры (D101).
+        foreach (['// --- Source:', 'final class', 'extends Data', 'public function __construct'] as $marker) {
+            expect([$step->value, $marker, str_contains($systemPart, $marker)])->toBe([$step->value, $marker, false]);
+        }
     }
 });
 
-test('порядок свойств EstimateRow совпадает в схеме и в напечатанном исходнике шага строк', function (): void {
-    $step = EstimatePromptStep::ExtractionRows;
-    $dictionaries = app(EstimateStepDictionaries::class);
-    $context = app(PromptContextGenerator::class);
+test('каждое свойство схемы шага строк несёт description — семантика уехала схемой, не промтом', function (): void {
     $schemas = app(JsonSchemaGenerator::class);
 
-    $block = $context->generate([RowsChunkResponse::class, ...$dictionaries->forStep($step)]);
+    $schema = $schemas->generate(RowsChunkResponse::class);
 
-    $chunks = preg_split('/(?=^\/\/ --- Source: )/m', $block, flags: PREG_SPLIT_NO_EMPTY) ?: [];
-    $estimateRowChunk = collect($chunks)->first(fn (string $chunk): bool => str_starts_with($chunk, '// --- Source: EstimateRow.php ---'));
-
-    expect($estimateRowChunk)->not->toBeNull();
-
-    // Носитель порядка в печатаемом исходнике — сам PHP-файл (P2.4 не переписывает
-    // PromptContextGenerator): строка объявления promoted-параметра начинается с `public` и не
-    // является сигнатурой самого конструктора/метода.
-    preg_match_all('/^\s*public\s+(?!function\b)[^\$(]*\$([A-Za-z_][A-Za-z0-9_]*)/m', (string) $estimateRowChunk, $matches);
-    $printedOrder = $matches[1];
-
-    $schemaOrder = array_keys($schemas->generate(RowsChunkResponse::class)['$defs']['EstimateRow']['properties']);
-
-    expect($printedOrder)->not->toBe([])
-        ->and($printedOrder)->toBe($schemaOrder);
+    // Пара к тесту выше: печать исходника снята, и единственный носитель семантики поля —
+    // `description` исходящей схемы. Пустое покрытие здесь означало бы, что модель получила имена
+    // полей без единого пояснения (находка F4 аудита P7 плана 2026.07.26-EST-TRAIN).
+    foreach ($schema['$defs']['EstimateRow']['properties'] as $property => $node) {
+        expect([$property, isset($node['description']) || isset($node['$ref']) || isset($node['anyOf'])])->toBe([$property, true]);
+    }
 });
 
 test('ai:prompts:sync --check не находит дрейфа сразу после ai:prompts:sync', function (): void {

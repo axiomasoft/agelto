@@ -4,44 +4,73 @@ declare(strict_types=1);
 
 namespace App\Services\Llm\Schema;
 
+use BackedEnum;
 use ReflectionClass;
 
 /**
- * Собирает очищенный PHP-исходник Data-контрактов для системной инструкции LLM (приём v1,
- * Old/app/Services/PromptService.php::getCleanSchema; docs/specs/v2/08-estimate-extraction.md §6).
- * Модель читает докблоки/#[Alias]-атрибуты как инструкции, а не исполняемый код — поэтому
- * `<?php`/namespace/use/declare вырезаются, вывод предваряется комментарием с именем файла.
- * Выход обязан быть байт-в-байт стабильным между запусками (база rules_hash и implicit-cache
- * префикса, research/E §1) — сортировка классов детерминирована, обёртки шага (суффикс
- * `Response`) всегда идут последними (композиция v1, D5).
+ * Собирает блок СЛОВАРЕЙ СИНОНИМОВ контрактов шага для системной инструкции LLM (P2.5, шаг 3
+ * порядка D8). Структуру контракта ответа (типы, обязательность, вложенность, описания свойств)
+ * несёт ИСХОДЯЩАЯ СХЕМА провайдера (`JsonSchemaGenerator` + `#[Description]`, P2.3/P2.4) — второй
+ * носитель той же структуры (печать PHP-исходника, приём v1
+ * `Old/app/Services/PromptService.php::getCleanSchema`) снят здесь: два носителя одного факта
+ * дороже одного в поддержке и расходятся молча (D88).
  *
- * Печатается ТРАНЗИТИВНОЕ ЗАМЫКАНИЕ переданных классов (D51, P6.1), а не переданный список: до
- * P6.1 боевой call-site передавал одну обёртку ответа шага, и модель на `extraction:rows`
- * получала `RowsChunkResponse` без единого докблока `EstimateRow`/`RowResource`/`RowAttributes`.
- * Правило «что вложено» — общее с JSON-схемой (`DataTypeGraph`); словари, до которых обход не
- * достаёт, объявляет сам ТИП и передаёт их в этот список явно.
+ * Схеме остаётся недоступен ровно один класс содержимого — синонимы `#[Alias]`: у
+ * `EstimateHeaderMap` нет узла схемы вовсе (он не часть ответа ни одного шага), а синонимы кейсов
+ * `ResourceType` и свойств `EstimateRow`/`PassportResponse` схема не переносит (в ней живут
+ * значения enum'а и `description`, но не список того, как та же величина называется в документе).
+ * Поэтому блок печатает ТОЛЬКО их — типизированно, по атрибутам через `ContractAttributeReader`,
+ * без PHP-синтаксиса (вариант C OQ-2, D101).
+ *
+ * Выход обязан быть байт-в-байт стабильным между запусками (база `rules_hash` и implicit-cache
+ * префикса): классы сортируются по короткому имени, свойства идут в порядке конструктора (тот же
+ * единый порядок, что в схеме — D89), кейсы enum'а — в порядке объявления.
+ *
+ * Обход — ТРАНЗИТИВНОЕ ЗАМЫКАНИЕ переданных классов (D51, P6.1) по общему с JSON-схемой правилу
+ * (`DataTypeGraph`); словари, до которых обход не достаёт, объявляет сам ТИП и передаёт их в
+ * список явно (`EstimateStepDictionaries`).
  */
 final readonly class PromptContextGenerator
 {
+    private const string HEADER = 'Словари синонимов. Слева — каноническое имя поля или значения контракта, справа — как та же величина может называться в документе. Сопоставляй по смыслу, а не по написанию; список синонимов не исчерпывающий.';
+
     public function __construct(
         private DataTypeGraph $types = new DataTypeGraph,
+        private ContractAttributeReader $attributes = new ContractAttributeReader,
     ) {}
 
     /**
-     * @param  class-string[]  $classes  корни блока схем: обёртки ответа шага и словари типа.
+     * @param  class-string[]  $classes  корни блока: обёртки ответа шага и словари типа.
      */
     public function generate(array $classes): string
     {
-        [$plain, $responses] = $this->partitionByKind($this->expand($classes));
+        $blocks = [];
 
-        $ordered = [...$this->sortByShortName($plain), ...$this->sortByShortName($responses)];
+        foreach ($this->aliasCarriers($classes) as $class) {
+            $blocks[] = $this->shortName($class).":\n".implode("\n", $this->aliasLines($class));
+        }
 
-        $blocks = array_map(
-            fn (string $class): string => $this->cleanSource($class),
-            $ordered,
-        );
+        return $blocks === [] ? '' : self::HEADER."\n\n".implode("\n\n", $blocks);
+    }
 
-        return implode("\n\n", $blocks);
+    /**
+     * Классы замыкания, реально несущие `#[Alias]` — единственное содержимое печатаемого прежде
+     * исходника, которого исходящая схема не переносит (§2 `research/03-prompt-contract.md`).
+     *
+     * @param  class-string[]  $classes
+     * @return list<class-string>
+     */
+    private function aliasCarriers(array $classes): array
+    {
+        $carriers = [];
+
+        foreach ($this->sortByShortName($this->expand($classes)) as $class) {
+            if ($this->aliasLines($class) !== []) {
+                $carriers[] = $class;
+            }
+        }
+
+        return $carriers;
     }
 
     /**
@@ -50,6 +79,32 @@ final readonly class PromptContextGenerator
     public function rulesHash(string $systemPart): string
     {
         return sha1($systemPart);
+    }
+
+    /**
+     * Синонимы одного класса: свойства Data-контракта ИЛИ кейсы enum'а — носителем `#[Alias]`
+     * бывает и то, и другое (`EstimateHeaderMap` против `ResourceType`).
+     *
+     * @param  class-string  $class
+     * @return list<string>
+     */
+    private function aliasLines(string $class): array
+    {
+        $aliases = is_a($class, BackedEnum::class, true)
+            ? $this->attributes->caseAliases($class)
+            : $this->attributes->aliases($class);
+
+        $lines = [];
+
+        foreach ($aliases as $name => $synonyms) {
+            if ($synonyms === []) {
+                continue;
+            }
+
+            $lines[] = "- {$name}: ".implode(', ', array_map(static fn (string $synonym): string => "«{$synonym}»", $synonyms));
+        }
+
+        return $lines;
     }
 
     /**
@@ -70,29 +125,7 @@ final readonly class PromptContextGenerator
             }
         }
 
-        return $expanded;
-    }
-
-    /**
-     * @param  class-string[]  $classes
-     * @return array{0: class-string[], 1: class-string[]}
-     */
-    private function partitionByKind(array $classes): array
-    {
-        $plain = [];
-        $responses = [];
-
-        foreach (array_unique($classes) as $class) {
-            if (str_ends_with($this->shortName($class), 'Response')) {
-                $responses[] = $class;
-
-                continue;
-            }
-
-            $plain[] = $class;
-        }
-
-        return [$plain, $responses];
+        return array_values(array_unique($expanded));
     }
 
     /**
@@ -109,35 +142,5 @@ final readonly class PromptContextGenerator
     private function shortName(string $class): string
     {
         return new ReflectionClass($class)->getShortName();
-    }
-
-    /**
-     * @param  class-string  $class
-     */
-    private function cleanSource(string $class): string
-    {
-        $path = new ReflectionClass($class)->getFileName();
-
-        if ($path === false) {
-            throw new \RuntimeException("Не удалось определить путь исходника для {$class}.");
-        }
-
-        $content = file_get_contents($path);
-
-        $patterns = [
-            '/<\?php/i',
-            '/declare\s*\([^)]+\);/i',
-            '/namespace\s+[^;]+;/i',
-            '/use\s+[^;]+;/i',
-        ];
-
-        $clean = mb_trim((string) preg_replace($patterns, '', $content));
-
-        return "// --- Source: {$this->basename($path)} ---\n{$clean}";
-    }
-
-    private function basename(string $path): string
-    {
-        return basename($path);
     }
 }
