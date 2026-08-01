@@ -38,8 +38,12 @@ status: draft
 | `prc_proxy_targets` | Per-target здоровье: одна строка на пару (узел, канонический хост цели) — `success_ratio`/`latency_ms_avg` (EWMA), `consecutive_failures`, собственный `open_until`/`open_count`; unique `(proxy_id, target)` |
 
 `prc_crawlers` несёт `use_proxy` (bool, `false` — намеренный прямой запрос) и `proxy_country`
-(nullable ISO 3166-1 alpha-2) — привязка профиля к желаемой стране узла; скоупа на профиле нет,
-единственная точка выдачи — `App\Services\Procurement\Proxy\ProxyResolver` (`crawling-pipeline.md`).
+(nullable ISO 3166-1 alpha-2) — привязка профиля к желаемой стране узла; потребляется РОВНО на
+скоупе `crawl_listing`, у `crawl_detail`/`document_download` профиля нет (D81, `crawling-pipeline.md`).
+Скоупа на профиле нет, единственная точка выдачи —
+`App\Services\Procurement\Proxy\ProxyResolver` (`crawling-pipeline.md`). Гео-требование скоупа
+(`crawler.proxy.policy.<scope>.required_country`) — отдельный носитель на конфиге, не на профиле;
+складывается с `forbidden_countries` союзом внутри резолвера.
 
 ## Ключевые инварианты
 

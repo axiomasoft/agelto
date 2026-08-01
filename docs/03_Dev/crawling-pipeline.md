@@ -57,9 +57,16 @@ string $target, ?ProxyRequirements $requirements)` (`app/Services/Procurement/Pr
   (`PoolOutboundProxy`, порт `OutboundProxy`) каждый передаёт свой скоуп резолверу — сам резолвер
   скоуп не выбирает.
 - **Отбор кандидата:** фильтр (`is_active`, скоуп в `scopes`, гейт запрещённых стран
-  `crawler.proxy.policy.<scope>.forbidden_countries`, глобальный/target-breaker не открыт) → score
-  (`ProxyScoreCalculator`, вход — `success_ratio`/`latency_ms_avg`/`fails_count`) → weighted random
-  внутри top-K (`crawler.proxy.resolver.top_k`), не голый argmax — не забивает лучший узел трафиком.
+  `crawler.proxy.policy.<scope>.forbidden_countries`, гео-политика скоупа
+  `crawler.proxy.policy.<scope>.required_country` (`crawl_*`/`document_download` → `RU`, `llm` →
+  `null`), требование профиля `ProxyRequirements` при его наличии, глобальный/target-breaker не
+  открыт) → score (`ProxyScoreCalculator`, вход —
+  `success_ratio`/`latency_ms_avg`/`fails_count`) → weighted random внутри top-K
+  (`crawler.proxy.resolver.top_k`), не голый argmax — не забивает лучший узел трафиком.
+  `forbidden_countries` и `required_country` складываются союзом (обе гео-политики жёсткие,
+  конфликт даёт пустое множество и `NoProxyAvailableException`); пустая политика запретов для
+  скоупа `llm` не проходит тихо — резолвер бросает `ProxyPolicyMisconfiguredException`, которую
+  `PoolOutboundProxy` не ловит (env-фолбэк LLM не подменяет непроверенный запрет).
 - **Двухуровневое здоровье:** глобальное на `prc_proxies` (`open_until`/`open_count`/`fails_count`) —
   разрыв соединения/авторизации прокси/etc, узел плох ВЕЗДЕ; per-target на `prc_proxy_targets`
   (`success_ratio`/`latency_ms_avg`/`consecutive_failures`, EWMA) — 403/429/пустое тело от конкретной
@@ -70,10 +77,19 @@ string $target, ?ProxyRequirements $requirements)` (`app/Services/Procurement/Pr
   (`network_timeout`/`tls_error`/`connect_failed`/`proxy_auth_failed`/`http_403`/`http_429`/
   `empty_body`/`unknown`); уровень реакции (глобальный/target) — `ProxyCircuitBreaker::level()`.
 - **Привязка к профилю (`prc_crawlers`):** `use_proxy` (false — намеренный прямой запрос, не отказ)
-  и `proxy_country` (ISO 3166-1 alpha-2, ограничение желаемой страны узла профилем). Колонки скоупа
-  на профиле НЕТ — скоуп определяется точкой исхода, а не профилем.
+  и `proxy_country` (ISO 3166-1 alpha-2, желаемая страна узла) потребляются РОВНО на скоупе
+  `crawl_listing` (`CsvSourceMethod::collectListing`) — единственном call-site'е, у которого есть
+  `$crawler` под рукой. `crawl_detail` (`collectTab`) и `document_download`
+  (`DocumentDownloader::fetch`) профиля не видят (детальная стадия и скачивание работают по
+  `Registry`/URL, не по профилю, D81) — их гео закрывает ИСКЛЮЧИТЕЛЬНО политика скоупа
+  `required_country`, без привязки к конкретному профилю. Колонки скоупа на профиле НЕТ — скоуп
+  определяется точкой исхода, а не профилем.
+- **`use_proxy = false`** — намеренный операторский режим ТОЛЬКО для `crawl_listing`: обходит ОБЕ
+  гео-политики (и `forbidden_countries`, и `required_country`) целиком, резолвер не вызывается,
+  уход виден логом (`Log::info`, «профиль отключил прокси»). Для `crawl_detail`/`document_download`
+  такого переключателя нет — они всегда идут через резолвер.
 - **Пустой пул** никогда не тихий: `NoProxyAvailableException` + `Log::warning` на каждый отказ
-  выдачи (нет молчаливого прямого запроса, кроме явного `use_proxy=false`).
+  выдачи (нет молчаливого прямого запроса, кроме явного `use_proxy=false` на `crawl_listing`).
 
 ## Смежное
 
