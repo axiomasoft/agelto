@@ -151,6 +151,82 @@ test('artisan estimate:eval:compare отдаёт вердикт с exit 0 и п�
     $second->assertExitCode(0);
 });
 
+test('нулевая дельта tune: patch даёт reject, no-regression — accept', function () {
+    $tune = evalCompareSeedExample('EST-XLSX-TUNE-E-001');
+    $holdout = evalCompareSeedExample('EST-XLSX-HOLD-E-001');
+
+    evalCompareWriteSplits(holdout: [$holdout['code']]);
+
+    $base = evalCompareRun();
+    $candidate = evalCompareRun();
+
+    evalCompareResult($base->id, $tune['dataset_example_id'], f1: 0.80);
+    evalCompareResult($base->id, $holdout['dataset_example_id'], f1: 0.80);
+    evalCompareResult($candidate->id, $tune['dataset_example_id'], f1: 0.80);
+    evalCompareResult($candidate->id, $holdout['dataset_example_id'], f1: 0.80);
+
+    $comparator = app(EvalRunComparator::class);
+
+    $patchResult = $comparator->compare($base, $candidate, EvalRunComparator::CRITERION_PATCH);
+    $noRegressionResult = $comparator->compare($base, $candidate, EvalRunComparator::CRITERION_NO_REGRESSION);
+
+    expect($patchResult['verdict'])->toBe('reject')
+        ->and($patchResult['reasons'][0])->toContain('(а)')
+        ->and($noRegressionResult['verdict'])->toBe('accept')
+        ->and($noRegressionResult['reasons'])->toBe([]);
+});
+
+test('падение holdout сверх порога даёт reject в обоих режимах', function () {
+    $tune = evalCompareSeedExample('EST-XLSX-TUNE-F-001');
+    $holdout = evalCompareSeedExample('EST-XLSX-HOLD-F-001');
+
+    evalCompareWriteSplits(holdout: [$holdout['code']]);
+
+    $base = evalCompareRun();
+    $candidate = evalCompareRun();
+
+    evalCompareResult($base->id, $tune['dataset_example_id'], f1: 0.80);
+    evalCompareResult($base->id, $holdout['dataset_example_id'], f1: 0.80);
+    evalCompareResult($candidate->id, $tune['dataset_example_id'], f1: 0.82);
+    evalCompareResult($candidate->id, $holdout['dataset_example_id'], f1: 0.79);
+
+    $comparator = app(EvalRunComparator::class);
+
+    $patchResult = $comparator->compare($base, $candidate, EvalRunComparator::CRITERION_PATCH);
+    $noRegressionResult = $comparator->compare($base, $candidate, EvalRunComparator::CRITERION_NO_REGRESSION);
+
+    expect($patchResult['verdict'])->toBe('reject')
+        ->and($patchResult['reasons'][0])->toContain('(б)')
+        ->and($noRegressionResult['verdict'])->toBe('reject')
+        ->and($noRegressionResult['reasons'][0])->toContain('(б)');
+});
+
+test('artisan estimate:eval:compare без --criterion ведёт себя как раньше (дефолт patch)', function () {
+    $tune = evalCompareSeedExample('EST-XLSX-TUNE-G-001');
+    $holdout = evalCompareSeedExample('EST-XLSX-HOLD-G-001');
+
+    evalCompareWriteSplits(holdout: [$holdout['code']]);
+
+    $base = evalCompareRun();
+    $candidate = evalCompareRun();
+
+    evalCompareResult($base->id, $tune['dataset_example_id'], f1: 0.80);
+    evalCompareResult($base->id, $holdout['dataset_example_id'], f1: 0.80);
+    evalCompareResult($candidate->id, $tune['dataset_example_id'], f1: 0.80);
+    evalCompareResult($candidate->id, $holdout['dataset_example_id'], f1: 0.80);
+
+    $withoutCriterion = $this->artisan('estimate:eval:compare', ['--base' => $base->id, '--candidate' => $candidate->id]);
+    $withoutCriterion->assertExitCode(0);
+
+    $withPatch = $this->artisan('estimate:eval:compare', ['--base' => $base->id, '--candidate' => $candidate->id, '--criterion' => 'patch']);
+    $withPatch->assertExitCode(0);
+
+    $result = app(EvalRunComparator::class)->compare($base, $candidate);
+
+    expect($result['verdict'])->toBe('reject')
+        ->and($result['reasons'][0])->toContain('(а)');
+});
+
 test('критерий даёт reject при падении одного эталона на 0.06 даже при общем росте tune', function () {
     $tune1 = evalCompareSeedExample('EST-XLSX-TUNE-C-001');
     $tune2 = evalCompareSeedExample('EST-XLSX-TUNE-C-002');

@@ -16,9 +16,19 @@ use RuntimeException;
  * `--split=all`, иначе одна из подвыборок останется пустой и `compare()` откажется считать критерий.
  * Числа для порогов (а)–(г) — макро-усреднение per-example `f1`/`row_coverage` внутри подвыборки,
  * тот же приём, что `EvalRunCommand::aggregate()` для прогона целиком.
+ *
+ * Режим `no-regression` (P2.2, D24/D91) — та же проверка порогов ПАДЕНИЯ (б)–(г), но БЕЗ
+ * требования прироста (а) `TUNE_F1_MIN_GAIN`: перенос семантики докблока в атрибут (P2 items)
+ * не обещает улучшения, только «не хуже», и штатный режим `patch` дал бы на нём ложный `reject`.
+ * Величины порогов (б)–(г) не меняются ни в одном режиме (D24) — режим только выключает проверку
+ * (а), остальной `verdict()` общий для обоих режимов.
  */
 final readonly class EvalRunComparator
 {
+    public const string CRITERION_PATCH = 'patch';
+
+    public const string CRITERION_NO_REGRESSION = 'no-regression';
+
     private const float TUNE_F1_MIN_GAIN = 0.01;
 
     private const float HOLDOUT_F1_MAX_DROP = 0.005;
@@ -28,6 +38,9 @@ final readonly class EvalRunComparator
     private const float PER_FIXTURE_F1_MAX_DROP = 0.05;
 
     /**
+     * @param  string  $criterion  'patch'|'no-regression' — не типизировано литералом: значение
+     *                             приходит от вызывающего (CLI-опция) непроверенным, инвариант
+     *                             держит runtime-guard ниже
      * @return array{
      *     base_run_id: int, candidate_run_id: int,
      *     subsamples: array<string, array{
@@ -40,8 +53,12 @@ final readonly class EvalRunComparator
      *     reasons: list<string>,
      * }
      */
-    public function compare(EvalRun $base, EvalRun $candidate): array
+    public function compare(EvalRun $base, EvalRun $candidate, string $criterion = self::CRITERION_PATCH): array
     {
+        if (! in_array($criterion, [self::CRITERION_PATCH, self::CRITERION_NO_REGRESSION], true)) {
+            throw new RuntimeException("Неизвестный критерий сравнения «{$criterion}» (ожидается «".self::CRITERION_PATCH.'» или «'.self::CRITERION_NO_REGRESSION.'»).');
+        }
+
         $this->assertComparable($base, $candidate);
 
         $baseResults = $this->loadResults($base);
@@ -85,7 +102,7 @@ final readonly class EvalRunComparator
         }
 
         $perFixture = $this->perFixtureDeltas($baseResults, $candidateResults);
-        $verdict = $this->verdict($subsamples, $perFixture);
+        $verdict = $this->verdict($subsamples, $perFixture, $criterion);
 
         return [
             'base_run_id' => $base->id,
@@ -229,16 +246,17 @@ final readonly class EvalRunComparator
     /**
      * @param  array<string, array{base: array<string, mixed>, candidate: array<string, mixed>, delta: array<string, mixed>}>  $subsamples
      * @param  array<string, float>  $perFixture
+     * @param  'patch'|'no-regression'  $criterion
      * @return array{verdict: 'accept'|'reject', reasons: list<string>}
      */
-    private function verdict(array $subsamples, array $perFixture): array
+    private function verdict(array $subsamples, array $perFixture, string $criterion): array
     {
         $reasons = [];
 
         $tuneF1Delta = $subsamples['tune']['delta']['f1'];
         $holdoutF1Delta = $subsamples['holdout']['delta']['f1'];
 
-        if ($tuneF1Delta < self::TUNE_F1_MIN_GAIN) {
+        if ($criterion === self::CRITERION_PATCH && $tuneF1Delta < self::TUNE_F1_MIN_GAIN) {
             $reasons[] = sprintf('(а) tune.overall.f1 изменился на %.4f — меньше требуемого роста %.3f', $tuneF1Delta, self::TUNE_F1_MIN_GAIN);
         }
 

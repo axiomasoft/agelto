@@ -16,6 +16,8 @@ use RuntimeException;
  * D119/D120): дельты `overall.f1`/`row_coverage`/`per_field` на подвыборках `tune`/`holdout` и
  * дельта `f1` по каждому эталону, вердикт `accept`/`reject` — {@see EvalRunComparator}. НИ ОДНОГО
  * LLM-вызова не делает — читает уже посчитанные `prc_ai_eval_results` двух прогонов.
+ * `--criterion` (P2.2, D24/D91) переключает режим сравнения (`patch`|`no-regression`), дефолт
+ * сохраняет сегодняшнее поведение — тюнинг-контур `2026.07.26-EST-TRAIN` его не замечает.
  */
 final class EvalCompareCommand extends Command
 {
@@ -24,6 +26,7 @@ final class EvalCompareCommand extends Command
     protected $signature = 'estimate:eval:compare
         {--base= : id базового прогона (EvalRun)}
         {--candidate= : id прогона-кандидата (EvalRun)}
+        {--criterion=patch : режим сравнения (patch|no-regression, дефолт — сегодняшнее поведение)}
         {--format=json : формат вывода (json|md)}
         {--out= : путь файла (репо-относительный)}';
 
@@ -57,6 +60,14 @@ final class EvalCompareCommand extends Command
             return self::FAILURE;
         }
 
+        $criterion = (string) $this->option('criterion');
+
+        if (! in_array($criterion, [EvalRunComparator::CRITERION_PATCH, EvalRunComparator::CRITERION_NO_REGRESSION], true)) {
+            $this->error('Неизвестный --criterion — ожидается patch|no-regression.');
+
+            return self::FAILURE;
+        }
+
         $base = $this->evalRuns->find((int) $baseOption);
         $candidate = $this->evalRuns->find((int) $candidateOption);
 
@@ -67,7 +78,7 @@ final class EvalCompareCommand extends Command
         }
 
         try {
-            $result = $this->comparator->compare($base, $candidate);
+            $result = $this->comparator->compare($base, $candidate, $criterion);
         } catch (RuntimeException $e) {
             $this->error($e->getMessage());
 
