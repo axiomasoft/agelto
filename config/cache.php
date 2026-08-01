@@ -114,4 +114,17 @@ return [
 
     'prefix' => env('CACHE_PREFIX', Str::slug((string) env('APP_NAME', 'laravel')).'-cache-'),
 
+    /*
+    |--------------------------------------------------------------------------
+    | Serializable Classes
+    |--------------------------------------------------------------------------
+    |
+    | Objects are only deserialized from the cache if their class is present
+    | in this array. Проект не кладёт объекты в кэш (D11) — дефолт-ужесточение
+    | L13 без стоимости; появится кэширование DTO — расширить allow-list'ом.
+    |
+    */
+
+    'serializable_classes' => false,
+
 ];
