@@ -33,7 +33,7 @@ make test-php         # ENV=dev по умолчанию; test-preflight + db:cre
 
 `tests/Pest.php`: `pest()->tia()->always()->locally()` — движок включён всегда локально
 (`->always()`), `--filtered` и CI-baseline (`->baselined()`) не заводим (`.ai/guidelines/*` не
-трогать; решения — план `2026.08.01-L13-PEST5`, D6/D7).
+трогать; решения — план `plans/archive/2026.08.01-L13-PEST5.md`, D6/D7).
 
 - **Обычный прогон в разработке** — просто `docker exec agelto_app php artisan test` /
   `./vendor/bin/pest`: Tia реплеит закэшированный результат для незатронутых тестов (единицы
