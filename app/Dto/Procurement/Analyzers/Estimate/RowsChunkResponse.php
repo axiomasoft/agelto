@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Dto\Procurement\Analyzers\Estimate;
 
+use App\Attributes\Ai\Description;
 use App\Services\Llm\Contracts\StructurallyValidatable;
 use Spatie\LaravelData\Data;
 
@@ -12,9 +13,6 @@ use Spatie\LaravelData\Data;
  * fetch_items). Построчный диапазон (основной путь, §4.1) или постраничное окно внутри сегмента
  * сметы (оконный путь, §4.2) — контракт один и тот же, различается только семантика границ
  * incomplete_items (§4б).
- * - rows: плоский список строк запрошенного диапазона/окна (включая заголовки разделов и
- *   промежуточные итоги, D10).
- * - incomplete_items: буфер незавершённых строк на границе нарезки (§4б).
  *
  * Реализует `StructurallyValidatable` (§6.4 контракта P2.1, D107) — монотонность/уникальность
  * `row_index` внутри чанка проверяет сам DTO, а не ядерный `StructuredResponseValidator`.
@@ -26,7 +24,9 @@ final class RowsChunkResponse extends Data implements StructurallyValidatable
      * @param  IncompleteRow[]  $incomplete_items
      */
     public function __construct(
+        #[Description('плоский список строк запрошенного диапазона/окна (включая заголовки разделов и промежуточные итоги).')]
         public array $rows = [],
+        #[Description('буфер незавершённых строк на границе нарезки.')]
         public array $incomplete_items = [],
     ) {}
 

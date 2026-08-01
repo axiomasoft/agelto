@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Dto\Procurement\Analyzers\Estimate;
 
+use App\Attributes\Ai\Description;
 use Spatie\LaravelData\Data;
 
 /**
@@ -11,7 +12,6 @@ use Spatie\LaravelData\Data;
  * Один и тот же контракт используется и внутри extract_passport (footer, если документ виден
  * целиком), и как тело отдельного extract_totals-вызова (TotalsResponse) — вызывается отдельно,
  * когда паспорт запрашивался без полного документа и не мог увидеть концевик.
- * - footer: корневые итоговые строки сметы (рекурсивные — см. TotalLine.children).
  */
 final class EstimateTotalsBlock extends Data
 {
@@ -19,6 +19,7 @@ final class EstimateTotalsBlock extends Data
      * @param  TotalLine[]  $footer
      */
     public function __construct(
+        #[Description('корневые итоговые строки сметы (рекурсивные — см. TotalLine.children).')]
         public array $footer = [],
     ) {}
 }

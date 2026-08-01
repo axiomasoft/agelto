@@ -4,17 +4,14 @@ declare(strict_types=1);
 
 namespace App\Dto\Procurement\Analyzers\Estimate;
 
+use App\Attributes\Ai\Description;
 use Spatie\LaravelData\Data;
 
 /**
- * Фиксированная схема `prc_estimate_items.attributes` (jsonb, P4.5, `plans/2026.07.26-EST-TRAIN/
- * research/06-schema-decision.md` §4.1). Ключ, не перечисленный ниже, в `attributes` не пишется
- * вовсе — `EstimateRow::validateAndCreate()` отклоняет неизвестный ключ явно (Implementation Rules
- * P4.5: «фиксированная схема выражается ОТДЕЛЬНЫМ Data-классом, а не свободным array»).
- * - modifiers: коэффициенты позиции (SR-04/SR-05/SR-06, элемент — `RowModifier`, §4.2).
- * - amount_since_start / amount_since_year_start / amount_reporting_period: КС-3 — стоимость с
- *   начала проведения работ / с начала года / за отчётный период (SR-14) — decimal-строки,
- *   заполняются только строкой `row_type=summary_row`.
+ * Фиксированная схема `prc_estimate_items.attributes` (jsonb). Ключ, не перечисленный ниже, в
+ * `attributes` не пишется вовсе — `EstimateRow::validateAndCreate()` отклоняет неизвестный ключ
+ * явно (Implementation Rules P4.5: «фиксированная схема выражается ОТДЕЛЬНЫМ Data-классом, а не
+ * свободным array»).
  */
 final class RowAttributes extends Data
 {
@@ -36,9 +33,13 @@ final class RowAttributes extends Data
      * @param  RowModifier[]  $modifiers
      */
     public function __construct(
+        #[Description('коэффициенты позиции.')]
         public array $modifiers = [],
+        #[Description('КС-3 — стоимость с начала проведения работ (decimal-строка), заполняется только строкой row_type=summary_row.')]
         public ?string $amount_since_start = null,
+        #[Description('КС-3 — стоимость с начала года (decimal-строка), заполняется только строкой row_type=summary_row.')]
         public ?string $amount_since_year_start = null,
+        #[Description('КС-3 — стоимость за отчётный период (decimal-строка), заполняется только строкой row_type=summary_row.')]
         public ?string $amount_reporting_period = null,
     ) {}
 }

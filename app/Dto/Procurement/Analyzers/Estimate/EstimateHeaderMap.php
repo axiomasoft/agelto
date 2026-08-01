@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Dto\Procurement\Analyzers\Estimate;
 
 use App\Attributes\Ai\Alias;
+use App\Attributes\Ai\Description;
 use Spatie\LaravelData\Data;
 
 /**
@@ -21,16 +22,22 @@ use Spatie\LaravelData\Data;
 final class EstimateHeaderMap extends Data
 {
     public function __construct(
+        #[Description('найденная колонка исходной таблицы, соответствующая целевому полю row_index (см. EstimateRow).')]
         #[Alias(aliases: ['№ п/п', '№', 'поз', 'Номер', 'по порядку', 'Номер п/п', '№№ п/п'])]
         public ?HeaderColumn $row_index,
+        #[Description('найденная колонка исходной таблицы, соответствующая целевому полю code (см. EstimateRow).')]
         #[Alias(aliases: ['Шифр', 'Обоснование', 'Код', 'Шифр расценки и коды ресурсов', 'Шифр стоимостного норматива и коды ресурсов'])]
         public ?HeaderColumn $code,
+        #[Description('найденная колонка исходной таблицы, соответствующая целевому полю name (см. EstimateRow).')]
         #[Alias(aliases: ['Наименование работ', 'Описание', 'Наименование работ и затрат', 'Наименование пусковых комплексов, этапов, объектов, видов выполненных работ, оборудования, затрат'])]
         public ?HeaderColumn $name,
+        #[Description('найденная колонка исходной таблицы, соответствующая целевому полю unit (см. EstimateRow).')]
         #[Alias(aliases: ['Ед. изм.', 'Измеритель', 'Единица измерения'])]
         public ?HeaderColumn $unit,
+        #[Description('найденная колонка исходной таблицы, соответствующая целевому полю quantity (см. EstimateRow).')]
         #[Alias(aliases: ['Количество', 'Объем', 'Кол-во единиц', 'всего с учетом коэффициентов'])]
         public ?HeaderColumn $quantity,
+        #[Description('найденная колонка исходной таблицы, соответствующая целевому полю total_price_curr (см. EstimateRow).')]
         #[Alias(aliases: ['Стоимость всего', 'Итого руб', 'всего в текущем уровне цен'])]
         public ?HeaderColumn $total_price,
     ) {}

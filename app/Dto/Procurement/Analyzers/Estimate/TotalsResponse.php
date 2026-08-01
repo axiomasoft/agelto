@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Dto\Procurement\Analyzers\Estimate;
 
+use App\Attributes\Ai\Description;
 use Spatie\LaravelData\Data;
 
 /**
@@ -11,11 +12,11 @@ use Spatie\LaravelData\Data;
  * контракт footer, что в PassportResponse.totals — вызывается отдельно, когда паспорт
  * запрашивался без полного документа и не мог увидеть концевик, либо когда паспорт-вызов
  * намеренно экономит токены и не возвращает footer вовсе.
- * - totals: итоги/начисления сметы (дерево, см. TotalLine).
  */
 final class TotalsResponse extends Data
 {
     public function __construct(
+        #[Description('итоги/начисления сметы (дерево, см. EstimateTotalsBlock).')]
         public EstimateTotalsBlock $totals,
     ) {}
 }
