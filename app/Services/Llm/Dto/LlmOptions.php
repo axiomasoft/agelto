@@ -15,6 +15,11 @@ namespace App\Services\Llm\Dto;
  * `LlmRouteResolver`, чтобы адаптер оставался stateless (`container->make()` без параметров —
  * `app()->instance(OpenAiCompatibleProvider::class, $fake)` продолжает работать в тестах, тот же
  * приём, что `PrismGeminiProvider` в `ScreeningProcessorTest`). Gemini-адаптер оба поля игнорирует.
+ *
+ * `thinkingLevel` (D98/D99, P2.9) — уровень размышления линейки Gemini 3.x
+ * (`MINIMAL`/`LOW`/`MEDIUM`/`HIGH`, дефолт вендора `MEDIUM`), `null` — не передавать провайдеру
+ * вовсе. Носитель значения — `llm_routes.options.thinking_level`. НЕ `thinkingBudget` (рычаг
+ * линейки 2.5, несовместим с `thinkingLevel` в одном запросе Gemini 3).
  */
 final readonly class LlmOptions
 {
@@ -26,5 +31,6 @@ final readonly class LlmOptions
         public ?LlmCacheHandle $cacheHandle = null,
         public ?string $baseUrl = null,
         public ?string $apiKeyEnv = null,
+        public ?string $thinkingLevel = null,
     ) {}
 }

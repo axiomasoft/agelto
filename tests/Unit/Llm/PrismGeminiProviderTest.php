@@ -16,6 +16,7 @@ use Carbon\CarbonImmutable;
 use Carbon\CarbonInterval;
 use Illuminate\Support\Facades\Http;
 use Prism\Prism\Enums\FinishReason as PrismFinishReason;
+use Prism\Prism\Exceptions\PrismException;
 use Prism\Prism\Facades\Prism;
 use Prism\Prism\Structured\Response as PrismStructuredResponse;
 use Prism\Prism\Text\Response as PrismTextResponse;
@@ -287,6 +288,84 @@ test('uploadFile() проходит resumable-протокол Files API и во
         ->and($handle->uri)->toBe('https://generativelanguage.googleapis.com/v1beta/files/abc123');
 
     unlink($path);
+});
+
+// D98/D99 (P2.9): предохранитель «MAX_TOKENS → делим окно диапазона пополам» не срабатывал НИ
+// РАЗУ, потому что вендорский Gemini-хендлер Prism на исходе «MAX_TOKENS + thinking > 0 +
+// пустой/невалидный JSON» бросает `PrismException` вместо ответа с признаком обрезки —
+// `Prism::fake()` ЗАПРЕЩЁН для этих тестов (Implementation Rules P2.9): он подменяет ровно тот
+// слой, где живёт вендорский бросок, и тест стал бы ложно-зелёным (`Structured.php:165-186`).
+test('completeStructured() переводит вендорское MAX_TOKENS-исключение в FinishReason::MaxTokens с числами из фактуры', function (): void {
+    Http::fake([
+        'generativelanguage.googleapis.com/v1beta/models/*:generateContent*' => Http::response([
+            'candidates' => [
+                ['finishReason' => 'MAX_TOKENS', 'content' => ['parts' => []]],
+            ],
+            'usageMetadata' => [
+                'promptTokenCount' => 12382,
+                'candidatesTokenCount' => 7154,
+                'thoughtsTokenCount' => 25598,
+                'totalTokenCount' => 45134,
+            ],
+        ]),
+    ]);
+
+    $provider = new PrismGeminiProvider(nullOutboundProxy());
+
+    $response = $provider->completeStructured(
+        new LlmPrompt(systemPart: 's'),
+        new JsonSchema(['type' => 'object']),
+        geminiOptions(),
+    );
+
+    expect($response->finishReason)->toBe(FinishReason::MaxTokens)
+        ->and($response->data)->toBe([])
+        ->and($response->raw)->toBe('')
+        ->and($response->usage->promptTokens)->toBe(12382)
+        // completionTokens = candidatesTokenCount + thoughtsTokenCount (та же семантика double-count
+        // reasoning-токенов, что usageFrom() для обычного ответа) = (output + thinking) + thinking.
+        ->and($response->usage->completionTokens)->toBe(7154 + 25598)
+        ->and($response->usage->totalTokens)->toBe(45134);
+});
+
+test('completeStructured() НЕ ловит PrismException без вендорской сигнатуры MAX_TOKENS — перевод узкий', function (): void {
+    Http::fake([
+        'generativelanguage.googleapis.com/v1beta/models/*:generateContent*' => Http::response(
+            ['error' => ['code' => 500, 'message' => 'internal error']],
+            500,
+        ),
+    ]);
+
+    $provider = new PrismGeminiProvider(nullOutboundProxy());
+
+    $provider->completeStructured(
+        new LlmPrompt(systemPart: 's'),
+        new JsonSchema(['type' => 'object']),
+        geminiOptions(),
+    );
+})->throws(PrismException::class);
+
+test('completeStructured() эмитит thinkingLevel в providerOptions, когда он задан в LlmOptions (НЕ thinkingBudget)', function (): void {
+    $fake = Prism::fake([
+        new PrismStructuredResponse(
+            steps: collect([]),
+            text: '{}',
+            structured: [],
+            finishReason: PrismFinishReason::Stop,
+            usage: new PrismUsage(promptTokens: 0, completionTokens: 0),
+            meta: new PrismMeta('id-6', 'gemini-3.5-flash'),
+            raw: ['usageMetadata' => []],
+        ),
+    ]);
+
+    $options = new LlmOptions(provider: 'gemini', model: 'gemini-3.5-flash', temperature: 0.0, maxTokens: 65536, thinkingLevel: 'LOW');
+    $provider = new PrismGeminiProvider(nullOutboundProxy());
+
+    $provider->completeStructured(new LlmPrompt(systemPart: 's'), new JsonSchema(['type' => 'object']), $options);
+
+    $fake->assertRequest(function (array $recorded): void {
+        expect($recorded[0]->providerOptions('thinkingLevel'))->toBe('LOW');
+    });
 });
 
 test('uploadFile() опрашивает состояние, пока PROCESSING, и возвращает handle по ACTIVE', function (): void {

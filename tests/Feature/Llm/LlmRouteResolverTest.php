@@ -108,3 +108,72 @@ test('resolve() не принимает произвольную строку �
     /** @phpstan-ignore-next-line намеренно нарушаем типизацию — негативный тест на семантику отказа */
     llmRouteResolver()->resolve('not-a-real-type', CoreLlmPurpose::Screening);
 })->throws(TypeError::class);
+
+// D99 (P2.9): бюджет маршрута (`llm_routes.options.max_tokens`) сверх ИЗВЕСТНОГО потолка вывода
+// модели (`config('ai.capabilities.<model>.max_output_tokens')`) — fail fast, не молчаливый кламп
+// (тихо урезанный бюджет — операторская опечатка, живущая годами).
+test('resolve() бросает исключение, когда бюджет маршрута выше известного потолка вывода модели', function (): void {
+    $provider = Provider::factory()->create(['driver' => 'gemini']);
+
+    LlmRoute::factory()->create([
+        'document_type' => 'estimate',
+        'purpose' => EstimateLlmPurpose::ExtractRows->value,
+        'provider_id' => $provider->id,
+        'model' => 'gemini-3.5-flash', // config('ai.capabilities.gemini-3.5-flash.max_output_tokens') = 65536
+        'priority' => 0,
+        'options' => ['max_tokens' => 70000],
+    ]);
+
+    llmRouteResolver()->resolve(AiDocumentType::Estimate, EstimateLlmPurpose::ExtractRows);
+})->throws(RuntimeException::class);
+
+test('resolve() не бросает исключение, если потолок вывода модели неизвестен (ключ max_output_tokens отсутствует в capability-матрице)', function (): void {
+    $provider = Provider::factory()->create(['driver' => 'gemini']);
+
+    LlmRoute::factory()->create([
+        'document_type' => 'estimate',
+        'purpose' => EstimateLlmPurpose::ExtractRows->value,
+        'provider_id' => $provider->id,
+        'model' => 'gemini-2.5-flash', // capability-запись без max_output_tokens (не RAG-подтверждён)
+        'priority' => 0,
+        'options' => ['max_tokens' => 999999],
+    ]);
+
+    $resolved = llmRouteResolver()->resolve(AiDocumentType::Estimate, EstimateLlmPurpose::ExtractRows);
+
+    expect($resolved->options->maxTokens)->toBe(999999);
+});
+
+// D98/D99 (P2.9): `LlmOptions::$thinkingLevel` ← `llm_routes.options.thinking_level` — только
+// `thinkingLevel`, `thinkingBudget` не эмитится (рычаг линейки 2.5, несовместим в одном запросе
+// Gemini 3 с `thinkingLevel`).
+test('resolve() прокидывает thinking_level из options маршрута в LlmOptions::$thinkingLevel', function (): void {
+    $provider = Provider::factory()->create(['driver' => 'gemini']);
+
+    LlmRoute::factory()->create([
+        'document_type' => 'estimate',
+        'purpose' => EstimateLlmPurpose::ExtractRows->value,
+        'provider_id' => $provider->id,
+        'priority' => 0,
+        'options' => ['thinking_level' => 'LOW'],
+    ]);
+
+    $resolved = llmRouteResolver()->resolve(AiDocumentType::Estimate, EstimateLlmPurpose::ExtractRows);
+
+    expect($resolved->options->thinkingLevel)->toBe('LOW');
+});
+
+test('resolve() оставляет thinkingLevel null, если thinking_level в options маршрута не задан', function (): void {
+    $provider = Provider::factory()->create(['driver' => 'gemini']);
+
+    LlmRoute::factory()->create([
+        'document_type' => 'estimate',
+        'purpose' => EstimateLlmPurpose::ExtractRows->value,
+        'provider_id' => $provider->id,
+        'priority' => 0,
+    ]);
+
+    $resolved = llmRouteResolver()->resolve(AiDocumentType::Estimate, EstimateLlmPurpose::ExtractRows);
+
+    expect($resolved->options->thinkingLevel)->toBeNull();
+});

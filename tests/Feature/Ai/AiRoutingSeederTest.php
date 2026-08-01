@@ -84,3 +84,45 @@ test('после сидирования LlmRouteResolver находит акти
         ->all();
     expect($candidates)->toBe(['gemini-3.5-flash', 'gemini-3.1-pro-preview']);
 });
+
+// D98/D99 (P2.9): три extraction-маршрута (ExtractPassport/ExtractRows/ExtractTotals), ОБЕ строки
+// приоритетов, несут бюджет вывода/уровень размышления как настройку — не константу резолвера.
+test('сидер проставляет options.max_tokens/thinking_level на ОБЕИХ строках приоритетов трёх extraction-маршрутов', function (): void {
+    (new AiRoutingSeeder)->run();
+
+    $extractionRoutes = LlmRoute::query()
+        ->where('document_type', 'estimate')
+        ->whereIn('purpose', [
+            EstimateLlmPurpose::ExtractPassport->value,
+            EstimateLlmPurpose::ExtractRows->value,
+            EstimateLlmPurpose::ExtractTotals->value,
+        ])
+        ->get();
+
+    expect($extractionRoutes)->toHaveCount(6);
+
+    foreach ($extractionRoutes as $route) {
+        expect($route->options->get('max_tokens'))->toBe(65536)
+            ->and($route->options->get('thinking_level'))->toBe('LOW');
+    }
+
+    $resolver = app(LlmRouteResolver::class);
+    $resolved = $resolver->resolve(AiDocumentType::Estimate, EstimateLlmPurpose::ExtractRows);
+
+    expect($resolved->options->maxTokens)->toBe(65536)
+        ->and($resolved->options->thinkingLevel)->toBe('LOW');
+});
+
+test('сидер НЕ проставляет options на маршрутах вне узкого исключения D98 (screening/discovery/prompt_critic)', function (): void {
+    (new AiRoutingSeeder)->run();
+
+    $nonExtractionRoutes = LlmRoute::query()
+        ->whereIn('purpose', [CoreLlmPurpose::Screening->value, EstimateLlmPurpose::Discovery->value, CoreLlmPurpose::PromptCritic->value])
+        ->get();
+
+    expect($nonExtractionRoutes)->toHaveCount(5);
+
+    foreach ($nonExtractionRoutes as $route) {
+        expect($route->options)->toBeNull();
+    }
+});

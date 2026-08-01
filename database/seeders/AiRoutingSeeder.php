@@ -69,7 +69,7 @@ final class AiRoutingSeeder extends Seeder
                 [
                     'provider_id' => $provider->id,
                     'model' => $route['model'],
-                    'options' => null,
+                    'options' => $route['options'] ?? null,
                     'is_active' => true,
                 ],
             );
@@ -77,12 +77,24 @@ final class AiRoutingSeeder extends Seeder
     }
 
     /**
-     * @return list<array{document_type: string, purpose: string, priority: int, model: string}>
+     * @return list<array{document_type: string, purpose: string, priority: int, model: string, options?: array<string, mixed>}>
      */
     private function routes(): array
     {
         $any = DocumentTypeScope::Any->value;
         $estimate = AiDocumentType::Estimate->value;
+
+        // Бюджет вывода и уровень размышления трёх extraction-маршрутов (D98/D99, P2.9) — узкое
+        // исключение из «фаза не трогает `llm_routes`» (P2 Scope Excluded). `max_tokens` = потолок
+        // вывода `gemini-3.5-flash`, подтверждённый RAG (config('ai.capabilities')) — вдвое выше
+        // прежней константы-дефолта `LlmRouteResolver::DEFAULT_MAX_TOKENS`; применён к ОБЕИМ
+        // строкам приоритета (эскалационная модель `gemini-3.1-pro-preview` своего подтверждённого
+        // потолка не имеет — `LlmRouteResolver::assertWithinOutputCeiling()` для нее не
+        // проверяет, ключа `max_output_tokens` в её capability-записи нет). `thinking_level` =
+        // `LOW` — медианная доля thinking/total по уже оплаченным падениям EvalRun #1/#2/#3
+        // (`findings/P2-extraction-token-budget-2026-08-01.md` §4) — 0.5303, что ≥ порога 0.4
+        // из Implementation Rules P2.9.
+        $extractionOptions = ['max_tokens' => 65536, 'thinking_level' => 'LOW'];
 
         return [
             // (any, screening) — общий дешёвый гейт пайплайна для ЛЮБОГО типа документа (D4).
@@ -98,19 +110,19 @@ final class AiRoutingSeeder extends Seeder
             // 'model' => 'gemini-2.5-pro', // D27 исходная — недоступна ключу (D123).
 
             // (estimate, extract_passport|extract_rows|extract_totals) — рабочая лошадка (D4).
-            ['document_type' => $estimate, 'purpose' => EstimateLlmPurpose::ExtractPassport->value, 'priority' => 0, 'model' => 'gemini-3.5-flash'],
+            ['document_type' => $estimate, 'purpose' => EstimateLlmPurpose::ExtractPassport->value, 'priority' => 0, 'model' => 'gemini-3.5-flash', 'options' => $extractionOptions],
             // 'model' => 'gemini-2.5-flash', // D27 исходная — недоступна ключу (D123).
-            ['document_type' => $estimate, 'purpose' => EstimateLlmPurpose::ExtractPassport->value, 'priority' => 1, 'model' => 'gemini-3.1-pro-preview'],
+            ['document_type' => $estimate, 'purpose' => EstimateLlmPurpose::ExtractPassport->value, 'priority' => 1, 'model' => 'gemini-3.1-pro-preview', 'options' => $extractionOptions],
             // 'model' => 'gemini-2.5-pro', // D27 исходная — недоступна ключу (D123).
 
-            ['document_type' => $estimate, 'purpose' => EstimateLlmPurpose::ExtractRows->value, 'priority' => 0, 'model' => 'gemini-3.5-flash'],
+            ['document_type' => $estimate, 'purpose' => EstimateLlmPurpose::ExtractRows->value, 'priority' => 0, 'model' => 'gemini-3.5-flash', 'options' => $extractionOptions],
             // 'model' => 'gemini-2.5-flash', // D27 исходная — недоступна ключу (D123).
-            ['document_type' => $estimate, 'purpose' => EstimateLlmPurpose::ExtractRows->value, 'priority' => 1, 'model' => 'gemini-3.1-pro-preview'],
+            ['document_type' => $estimate, 'purpose' => EstimateLlmPurpose::ExtractRows->value, 'priority' => 1, 'model' => 'gemini-3.1-pro-preview', 'options' => $extractionOptions],
             // 'model' => 'gemini-2.5-pro', // D27 исходная — недоступна ключу (D123).
 
-            ['document_type' => $estimate, 'purpose' => EstimateLlmPurpose::ExtractTotals->value, 'priority' => 0, 'model' => 'gemini-3.5-flash'],
+            ['document_type' => $estimate, 'purpose' => EstimateLlmPurpose::ExtractTotals->value, 'priority' => 0, 'model' => 'gemini-3.5-flash', 'options' => $extractionOptions],
             // 'model' => 'gemini-2.5-flash', // D27 исходная — недоступна ключу (D123).
-            ['document_type' => $estimate, 'purpose' => EstimateLlmPurpose::ExtractTotals->value, 'priority' => 1, 'model' => 'gemini-3.1-pro-preview'],
+            ['document_type' => $estimate, 'purpose' => EstimateLlmPurpose::ExtractTotals->value, 'priority' => 1, 'model' => 'gemini-3.1-pro-preview', 'options' => $extractionOptions],
             // 'model' => 'gemini-2.5-pro', // D27 исходная — недоступна ключу (D123).
 
             // (any, prompt_critic) — критик патчей промтов (P7.4, D61), на дешёвой модели.

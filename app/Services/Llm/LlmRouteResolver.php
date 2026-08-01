@@ -77,8 +77,17 @@ final readonly class LlmRouteResolver
     {
         $provider = $route->provider;
 
-        $options = (array) $route->options;
+        // `(array) $route->options` НЕ работает на заполненной Collection (`AsCollection`-каст):
+        // PHP-каст объекта в массив отдаёт его protected-свойства мангл-именами (`" * items"`),
+        // а не данные `toArray()`/`all()` — до P2.9 не проявлялось, потому что `options` у ВСЕХ
+        // строк сидера был `null` ((array) null === []); `AiRoutingSeeder` (D98/D99) впервые
+        // заполняет его для extraction-маршрутов, и старый каст молча терял `max_tokens`/
+        // `thinking_level`.
+        $options = $route->options?->all() ?? [];
         $providerOptions = (array) $provider->options;
+
+        $maxTokens = (int) ($options['max_tokens'] ?? self::DEFAULT_MAX_TOKENS);
+        $this->assertWithinOutputCeiling($route->model, $maxTokens, $purpose);
 
         return new ResolvedRoute(
             provider: $this->providerFor($provider),
@@ -86,12 +95,35 @@ final readonly class LlmRouteResolver
                 provider: $provider->code,
                 model: $route->model,
                 temperature: (float) ($options['temperature'] ?? $purpose->defaultTemperature()),
-                maxTokens: (int) ($options['max_tokens'] ?? self::DEFAULT_MAX_TOKENS),
+                maxTokens: $maxTokens,
                 baseUrl: $provider->base_url,
                 apiKeyEnv: $providerOptions['api_key_env'] ?? null,
+                thinkingLevel: $options['thinking_level'] ?? null,
             ),
             route: $route,
         );
+    }
+
+    /**
+     * Fail fast (D99): бюджет маршрута сверх ИЗВЕСТНОГО потолка вывода модели — операторская
+     * опечатка, а не повод молча урезать (`config('ai.capabilities.<model>.max_output_tokens')`).
+     * Потолок не подтверждён RAG для модели → ключа нет → проверка не выполняется (осознанная
+     * граница D99, не пробел). Индекс по модели БЕЗ dot-notation (`LlmCallRecorder::costMicros()`,
+     * `ExtractionPreflight` — тот же приём): имена моделей Gemini содержат точки
+     * (`gemini-3.5-flash`), `config("ai.capabilities.{$model}...")` трактовал бы их как разделители
+     * вложенности и НЕ нашёл бы запись.
+     */
+    private function assertWithinOutputCeiling(string $model, int $maxTokens, LlmPurpose $purpose): void
+    {
+        $capabilities = (array) config('ai.capabilities', []);
+        $ceiling = $capabilities[$model]['max_output_tokens'] ?? null;
+
+        if ($ceiling !== null && $maxTokens > $ceiling) {
+            throw new RuntimeException(
+                "Бюджет маршрута (purpose={$purpose->value}, model={$model}) запрошен {$maxTokens} ".
+                "токенов — выше известного потолка вывода модели {$ceiling}.",
+            );
+        }
     }
 
     private function providerFor(Provider $provider): LlmProvider

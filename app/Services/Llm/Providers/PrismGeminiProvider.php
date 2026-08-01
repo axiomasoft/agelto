@@ -27,6 +27,7 @@ use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Redis;
 use Prism\Prism\Enums\FinishReason as PrismFinishReason;
 use Prism\Prism\Enums\Provider as PrismProvider;
+use Prism\Prism\Exceptions\PrismException;
 use Prism\Prism\Facades\Prism;
 use Prism\Prism\Schema\RawSchema;
 use Prism\Prism\Structured\PendingRequest as StructuredPendingRequest;
@@ -58,6 +59,11 @@ use Prism\Prism\ValueObjects\Messages\UserMessage as PrismUserMessage;
  */
 final readonly class PrismGeminiProvider implements LlmProvider, SupportsContextCaching, SupportsFileUpload
 {
+    // Литерал из `vendor/prism-php/prism/src/Providers/Gemini/Handlers/Structured.php:180-185` —
+    // единственный признак, отличающий вендорское MAX_TOKENS-исключение от любого другого
+    // `PrismException` (сетевая ошибка, невалидная схема и т.д.).
+    private const string MAX_TOKENS_SIGNATURE = 'Gemini hit token limit with high thinking token usage.';
+
     public function __construct(private OutboundProxy $outboundProxy) {}
 
     public function complete(LlmPrompt $prompt, LlmOptions $options): LlmResponse
@@ -74,7 +80,11 @@ final readonly class PrismGeminiProvider implements LlmProvider, SupportsContext
 
     public function completeStructured(LlmPrompt $prompt, JsonSchema $schema, LlmOptions $options): LlmStructuredResponse
     {
-        $response = $this->withRateLimit(fn () => $this->structuredRequest($prompt, $schema, $options)->asStructured());
+        try {
+            $response = $this->withRateLimit(fn () => $this->structuredRequest($prompt, $schema, $options)->asStructured());
+        } catch (PrismException $exception) {
+            return $this->maxTokensResponseFrom($exception);
+        }
 
         return new LlmStructuredResponse(
             data: $response->structured ?? [],
@@ -88,6 +98,58 @@ final readonly class PrismGeminiProvider implements LlmProvider, SupportsContext
             // `ReaskPolicy::withReaskMessage()` вставляет его в промпт как «предыдущий ответ» —
             // envelope с `candidates`/`usageMetadata` сломал бы оба потребителя (P3 phase-review).
             raw: $response->text,
+        );
+    }
+
+    /**
+     * Узкий перевод вендорского MAX_TOKENS-исключения (D98/D99, P2.9): на исходе «MAX_TOKENS +
+     * thinking > 0 + пустой/невалидный JSON» Gemini-хендлер Prism БРОСАЕТ `PrismException` вместо
+     * ответа с признаком обрезки (`vendor/prism-php/prism/src/Providers/Gemini/Handlers/Structured.php:165-186`),
+     * из-за чего спроектированный предохранитель («MAX_TOKENS → делим окно диапазона пополам»,
+     * `RowRangeChunkSource`/`ExtractionOrchestrator`) не срабатывает НИ РАЗУ — исключение летит
+     * мимо `catch (MaxTokensExceededException)` и роняет документ целиком. Ловится ТОЛЬКО
+     * исключение с вендорской сигнатурой; любое другое `PrismException` пробрасывается без
+     * изменений — перевод узкий, а не широкий.
+     */
+    private function maxTokensResponseFrom(PrismException $exception): LlmStructuredResponse
+    {
+        if (! str_contains($exception->getMessage(), self::MAX_TOKENS_SIGNATURE)) {
+            throw $exception;
+        }
+
+        return new LlmStructuredResponse(
+            data: [],
+            usage: $this->usageFromExceptionMessage($exception->getMessage()),
+            finishReason: FinishReason::MaxTokens,
+            raw: '',
+        );
+    }
+
+    /**
+     * Best effort: вендор кладёт разложение бюджета текстом
+     * («{prompt} prompt + {thinking} thinking + {output} output = {total} total», где
+     * `output = candidatesTokenCount - thoughtsTokenCount` — см. вендорский исходник); не
+     * разобралось (формат исключения сменился) → нули, парсер диагностики не имеет права стать
+     * новым источником отказа. `completionTokens` восстанавливает `candidatesTokenCount +
+     * thoughtsTokenCount` (`output + thinking) + thinking`) — ТА ЖЕ семантика double-count
+     * reasoning-токенов, что `usageFrom()` для обычного ответа (докблок метода: Google билluет
+     * `thoughtsTokenCount` по ставке `candidatesTokenCount`, без сложения `cost_micros` занижает
+     * реальный счёт); `cachedTokens` вендор в тексте исключения не несёт вовсе.
+     */
+    private function usageFromExceptionMessage(string $message): LlmUsage
+    {
+        if (preg_match('/Token usage: (-?\d+) prompt \+ (-?\d+) thinking \+ (-?\d+) output = (-?\d+) total\./', $message, $matches) !== 1) {
+            return new LlmUsage(promptTokens: 0, completionTokens: 0, cachedTokens: 0, totalTokens: 0);
+        }
+
+        $thinkingTokens = (int) $matches[2];
+        $outputTokens = (int) $matches[3];
+
+        return new LlmUsage(
+            promptTokens: (int) $matches[1],
+            completionTokens: $outputTokens + 2 * $thinkingTokens,
+            cachedTokens: 0,
+            totalTokens: (int) $matches[4],
         );
     }
 
@@ -194,7 +256,10 @@ final readonly class PrismGeminiProvider implements LlmProvider, SupportsContext
     private function providerOptions(LlmOptions $options): array
     {
         return array_filter(
-            ['cachedContentName' => $options->cacheHandle?->id],
+            [
+                'cachedContentName' => $options->cacheHandle?->id,
+                'thinkingLevel' => $options->thinkingLevel,
+            ],
             static fn (mixed $value): bool => $value !== null,
         );
     }
