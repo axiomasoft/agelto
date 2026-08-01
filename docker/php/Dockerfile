@@ -1,6 +1,6 @@
 FROM minio/mc:latest AS mc
 
-FROM serversideup/php:8.4-fpm-nginx
+FROM serversideup/php:8.5-fpm-nginx
 
 USER root
 
@@ -27,6 +27,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && docker-php-ext-install intl bcmath pdo_pgsql pgsql \
     && if ! php -m | grep -qi '^redis$'; then pecl install redis && docker-php-ext-enable redis; fi \
     && if ! php -m | grep -qi '^gd$'; then install-php-extensions gd; fi \
+    && if ! php -m | grep -qi '^pcov$'; then install-php-extensions pcov; fi \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # MinIO Client (mc) — S3/MinIO ILM bucket lifecycle rules (P7.7, `ai:storage:lifecycle`);
@@ -47,6 +48,7 @@ RUN mkdir -p storage/framework/sessions \
 
 USER root
 COPY docker/nginx/default.conf /etc/nginx/conf.d/default.conf
+COPY docker/php/conf.d/pcov.ini /usr/local/etc/php/conf.d/pcov.ini
 COPY docker/php/entrypoint.d/10-secrets.sh /etc/entrypoint.d/10-secrets.sh
 RUN chmod +x /etc/entrypoint.d/10-secrets.sh
 USER www-data
