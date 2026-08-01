@@ -155,7 +155,7 @@ P7.3 не выбирает топологию, а подтверждает ре�
 | Phase | Title | Items 🟢/всего | Status |
 |:--|:--|:--|:--|
 | P1 | Прокси как слой маршрутизации: скоуп, гео, здоровье, привязка к профилю | 4/10 | 🟠 Done with deviations |
-| P2 | Контракт LLM в одном канале: `#[Description]`, JSON Schema, промты | 3/10 | 🟡 In progress |
+| P2 | Контракт LLM в одном канале: `#[Description]`, JSON Schema, промты | 3/10 | 🔴 Blocked |
 | P3 | Доменная раскладка и arch-тесты | 0/5 | ⬜ Not started |
 | P4 | ЕИС: разведка, типизированные фильтры, сиды кроулеров, боевой прогон | 0/8 | ⬜ Not started |
 | P5 | Полнота сметной модели против корпуса эталонов | 0/8 | ⬜ Not started |
@@ -393,6 +393,7 @@ window-halving (grep по буквальной подстроке `"truncated("`
 | 2026-08-01 | plan-run / sonnet-high | P2.9 закрыт 🟠, item-коммит **`b667b3e`**: бюджет/thinking_level extraction-маршрутов как настройка + перевод MAX_TOKENS в `FinishReason::MaxTokens` — детали см. phases/P2.md P2.9 Completion Notes/Known Deviations |
 | 2026-08-01 | plan-run / sonnet-high | P2.10 закрыт 🟢, item-коммит **`ed202ac`**: пара M0₂ (6/6)/M0₂′ (5/6) на дереве после P2.9 — `reject` обоими критериями, новая величина шума (D100) заменяет D91, база M2=M0₂; новый дефект `bcsub()` на `EST-XLSX-KS2-001` назван в Pending Work — детали см. phases/P2.md P2.10 Completion Notes |
 | 2026-08-01 | plan-run / sonnet-high | P2.4 закрыт 🟠, item-коммит **`4a4ce75`**: схема эмитит `description` + порядок конструктора (D89); eval M2 `reject` механически, дельты внутри шума D100 — детали см. phases/P2.md P2.4 Completion Notes, research/03 §8.8 |
+| 2026-08-01 | plan-run / opus-high | P2.5 → 🔴 Blocked: пол 4096 (D90) недостижим ни одним вариантом OQ-2, `llm_routes.options` пуст в рабочей БД — детали см. phases/P2.md P2.5 и research/03 §8.9–§8.10 |
 
 ## Обсуждение
 
