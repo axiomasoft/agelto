@@ -17,6 +17,15 @@ Upgrade: harness agent-packs upgrade --pack backend-laravel --target .
 - Изоляция от прод/dev БД и media — гейт `Tests\Support\TestEnvironmentGuard`
   (`tests/Support/TestEnvironmentGuard.php`, покрыт `tests/Feature/Support/TestEnvironmentGuardTest.php`);
   падение теста на «не та БД» — сначала проверь этот гейт, не патчи симптом.
+- Приёмочный прогон item'а/фазы плана — только `--no-tia` (D8, раздел «Tia» в
+  `docs/03_Dev/process/testing.md`);
+  реплей закэшированного результата (`X replayed` в выводе), поданный как приёмка, —
+  блокирующее замечание: он ничего не доказывает про текущее состояние дерева.
+- `--agent`-сниппет с реальным LLM-вызовом (не `Tests\Support\Doubles\FakeLlmProvider`) —
+  блокирующее замечание на тех же основаниях, что и обычный тест (D10): сниппет наследует
+  `tests/Pest.php`, но правило про фейки распространяется и на него.
+- `--agent` не заменяет постоянный тест: проверка поведения, оставшаяся только в истории
+  команд, регрессионным гейтом не является — на изменённое поведение нужен тест в `tests/`.
 
 ## LLM-слой / промты / лимиты провайдера (skills `llm-layer-dev`, `estimate-extraction-dev`, `prompt-engineering-agelto`)
 

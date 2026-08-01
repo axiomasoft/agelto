@@ -21,6 +21,8 @@ pest()->extend(TestCase::class)
 pest()->extend(TestCase::class)
     ->in('Unit');
 
+pest()->tia()->always()->locally();
+
 /*
 |--------------------------------------------------------------------------
 | Expectations
