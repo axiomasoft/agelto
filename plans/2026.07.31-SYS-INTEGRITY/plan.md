@@ -155,7 +155,7 @@ P7.3 не выбирает топологию, а подтверждает ре�
 | Phase | Title | Items 🟢/всего | Status |
 |:--|:--|:--|:--|
 | P1 | Прокси как слой маршрутизации: скоуп, гео, здоровье, привязка к профилю | 4/10 | 🟠 Done with deviations |
-| P2 | Контракт LLM в одном канале: `#[Description]`, JSON Schema, промты | 2/10 | 🟡 In progress |
+| P2 | Контракт LLM в одном канале: `#[Description]`, JSON Schema, промты | 3/10 | 🟡 In progress |
 | P3 | Доменная раскладка и arch-тесты | 0/5 | ⬜ Not started |
 | P4 | ЕИС: разведка, типизированные фильтры, сиды кроулеров, боевой прогон | 0/8 | ⬜ Not started |
 | P5 | Полнота сметной модели против корпуса эталонов | 0/8 | ⬜ Not started |
@@ -391,6 +391,7 @@ window-halving (grep по буквальной подстроке `"truncated("`
 | 2026-08-01 | plan-run / sonnet-high | P2.3 закрыт 🟠, item-коммит **`bcd7ad4`**: `#[Description]`+`ContractAttributeReader`+арх-гейт покрытия; eval M1 `reject`, P2.4 блокирован — детали см. phases/P2.md P2.3 Completion Notes, research/03-prompt-contract.md §8.5 |
 | 2026-08-01 | issue-planner / frontier-high | Блокер P2.4 снят дизайном **D98–D100** (второй дефект: предохранитель MAX_TOKENS мёртв), заведены items **P2.9** и **P2.10** — детали см. `phases/P2.md` P2.9/P2.10 и `findings/P2-extraction-token-budget-2026-08-01.md` |
 | 2026-08-01 | plan-run / sonnet-high | P2.9 закрыт 🟠, item-коммит **`b667b3e`**: бюджет/thinking_level extraction-маршрутов как настройка + перевод MAX_TOKENS в `FinishReason::MaxTokens` — детали см. phases/P2.md P2.9 Completion Notes/Known Deviations |
+| 2026-08-01 | plan-run / sonnet-high | P2.10 закрыт 🟢, item-коммит **`ed202ac`**: пара M0₂ (6/6)/M0₂′ (5/6) на дереве после P2.9 — `reject` обоими критериями, новая величина шума (D100) заменяет D91, база M2=M0₂; новый дефект `bcsub()` на `EST-XLSX-KS2-001` назван в Pending Work — детали см. phases/P2.md P2.10 Completion Notes |
 
 ## Обсуждение
 
