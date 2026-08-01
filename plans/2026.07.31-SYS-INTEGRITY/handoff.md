@@ -1,105 +1,113 @@
-# HANDOFF — 2026-08-01 — after P2.2
+# HANDOFF — 2026-08-01 — after P2.3
 
-**Next:** run-items: task:plan-run 2026.07.31-SYS-INTEGRITY P2.3
+**Next:** design: /task:plan-design 2026.07.31-SYS-INTEGRITY P2
 
 | Параметр | Значение |
 |:--|:--|
-| Model class | implementation |
+| Model class | frontier |
 | Effort | high |
 | Capabilities | — |
-| Context | continue (/clear) — ручной item |
-| Суть | P2.3: атрибут `#[Description]` + reflection-ридер `ContractAttributeReader` (D92), перенос описаний из докблоков на контрактах пяти шагов, арх-гейт покрытия; замер M1 против baseline P2.2 |
+| Context | NEW SESSION — шаг-не-item |
+| Суть | Завести/утвердить follow-up-фикс `maxOutputTokens`/thinking-бюджета маршрута `extraction` (`llm_routes`, Scope Excluded P2.3) как ПРЕДУСЛОВИЕ P2.4 — M1 (P2.3) вернул `reject`, причина в диффе найдена (research/03-prompt-contract.md §8.5), но фикс вне Scope P2.3; без него P2.4 рискует тем же ложным `reject` на ещё более длинном промте (описания + эмиссия) |
 
 ```
-/task:plan-run 2026.07.31-SYS-INTEGRITY P2.3
+/task:plan-design 2026.07.31-SYS-INTEGRITY P2
 
-РЕЖИМ: exec — НОВЫЙ item P2.3 (первый после закрытия предусловия P2.2).
-ВХОД: `plans/2026.07.31-SYS-INTEGRITY/phases/P2.md` item P2.3 (все 16 полей) +
-  `plans/2026.07.31-SYS-INTEGRITY/research/03-prompt-contract.md` §5.1–§5.3 (сигнатура атрибута,
-  контракт ридера, таблица «поле → куда переезжает») + Deliverables P2.2
-  (`plans/2026.07.31-SYS-INTEGRITY/findings/P2-eval-baseline.md` — id M0/M0′, разброс-шум).
-СОСТОЯНИЕ ДЕРЕВА: P2.2 закрыт двумя item-коммитами (19f9808 код+тесты, 684ddfb findings) +
-  bookkeeping-коммитом этого захода — рабочее дерево чистое от диффа P2.2. Чужой дифф
-  (`.env.example`, `config/cms.php`, `database/seeders/User/`, `estimates/gemini-analys.md`,
-  `.swissknife/`, `plans/2026.07.31-SYS-INTEGRITY/.claude/`, `plans/2026.07.31-SYS-INTEGRITY/.swissknife/`)
-  остаётся нетронутым (`plan.md` §2).
-СКОУП: атрибут `App\Attributes\Ai\Description` + `ContractAttributeReader` (три метода:
-  `descriptions()`/`aliases()`/`caseAliases()`, D92) + перенос (НЕ дублирование — bullet удаляется
-  из докблока) описаний на контрактах пяти шагов + расширение `#[Alias]` + арх-гейт покрытия
-  (`ContractDescriptionCoverageTest`, список исключений с причинами). Замер: `estimate:eval:run
-  --split=all` (M1) + `estimate:eval:compare --base=<M0-id> --candidate=<M1-id>
-  --criterion=no-regression` → `verdict: accept`, дельта сопоставлена с шумом M0↔M0′ из
-  `findings/P2-eval-baseline.md` §5 (tune.f1=0.1413, holdout.f1=0.2664, tune.row_coverage=0.2500,
-  holdout.row_coverage=0.5064, per-fixture f1=0.5652 — но см. НЕ ТРОГАТЬ ниже про флейк).
-НЕ ТРОГАТЬ: `JsonSchemaGenerator`/`GeminiResponseSchemaAdapter`/`PromptContextGenerator` (следующие
-  items) · состав/типы/обязательность полей контрактов (P5) · докблок-парсинг как фолбэк ·
-  M0 (EvalRun #1) baseline-эталон — если M1 упадёт по `EST-XLS-KS2-001`/`EST-XLSX-KS2-003`
-  (флейк токен-лимита Gemini, `findings/P2-eval-baseline.md` §3, вне Scope P2.2/P2.3, маршруты/
-  модели — Excluded) — это ИЗВЕСТНЫЙ шум контура, не регрессия шага; не чинить `llm_routes` внутри
-  P2.3, эскалировать при сомнении.
+РЕЖИМ: design — амендмент ТЗ фазы P2 ПЕРЕД стартом P2.4.
+ВХОД: `plans/2026.07.31-SYS-INTEGRITY/phases/P2.md` P2.3 Completion Notes/Pending Work/Known
+  Deviations (M1 = `reject`, EvalRun #3) + `plans/2026.07.31-SYS-INTEGRITY/research/
+  03-prompt-contract.md` §8.5 (полный диагноз: печатный блок extraction:rows вырос +6.7%
+  символов — атрибутный синтаксис #[Description] длиннее bullet-докблока — компаундирует с уже
+  известной P2.2 фрагильностью токен-бюджета маршрута extraction, пик ~90К токенов ДО P2.3 на
+  EST-XLS-KS2-001) + `findings/P2-eval-baseline.md` §3 (исходный флейк).
+ЗАДАЧА: решить и оформить D#-записью — поднять `maxOutputTokens`/thinking-бюджет маршрута
+  `extraction` (`config('ai.capabilities.<model>')`/`llm_routes`) НАСКОЛЬКО и КАК проверить
+  (новый дешёвый прогон? синтетическая проверка бюджета без платного eval?) — и завести
+  follow-up item (свободный номер по конвенции P2.8, "номер — адрес, а не очередь") ПЕРЕД P2.4
+  в очереди items фазы. Альтернатива, которую тоже нужно явно взвесить и отвергнуть или принять:
+  владелец решает принять M1 `reject` как есть (Known Deviations P2.3 уже фиксирует объяснённое
+  отклонение) и разрешает P2.4 стартовать без фикса — тогда амендмент только документирует это
+  решение, item не заводится.
+НЕ ТРОГАТЬ: `App\Attributes\Ai\Description`/`ContractAttributeReader`/контракты пяти шагов
+  (P2.3 закрыт, дифф корректен и покрыт тестами — причина red НЕ в нём); JsonSchemaGenerator/
+  PromptContextGenerator (P2.4/P2.5); повторный платный eval (бюджет P2.3 — один прогон, D8 —
+  исчерпан; новый прогон — решение владельца по цене, как D26/D91 ранее).
 ```
 
 **Done:** **P2.1 закрыт 🟢** (item-коммит `ced2a4f`). **P2.8 закрыт 🟠** (item-коммиты `b51ce3a`+
-`b05235f`) — разреженный обход `TextGridRenderer` снял OOM на `EST-XLS-KS2-001`, лимиты подготовки
-стали настройками (`ai.prepare.xlsx_max_cells`/`ai.prepare.gold_import_memory_limit`).
+`b05235f`). **P2.2 закрыт 🟢** (item-коммиты `19f9808`+`684ddfb`) — гидрация корпуса,
+режим `no-regression`, парный baseline M0/M0′ (D91).
 
-**Этим заходом (`plan-run`, sonnet/high) закрыт P2.2 🟢 Done** — item-коммиты `19f9808`
-(режим `no-regression` + `--criterion=` в `EvalRunComparator`/`EvalCompareCommand`, 4 теста) и
-`684ddfb` (`findings/P2-eval-baseline.md`). Гидрация корпуса из git-SSOT (D93): `fixtures:import`
-24/24 (0 отклонено), `gold:import --prepare` 21 документ/21 версия/6 extraction/11 screening
-(0 отклонено/0 unprocessable — блокер `EST-XLS-KS2-001` снят P2.8), `fixtures:verify` 24 ok/0/0,
-`prc_ai_fixtures`=24/`prc_ai_dataset_examples`=17. Парный baseline (D91): **EvalRun #1 (M0)**
-4/6 succeeded, f1=0.2755, row_coverage=0.6419; **EvalRun #2 (M0′)** 4/6 succeeded, f1=0.2674,
-row_coverage=0.6452. `estimate:eval:compare --base=1 --candidate=2` — `reject` в обоих режимах
-(`patch`, `no-regression`), целиком объясняется флейком §3, не реальным изменением. Разброс
-M0↔M0′ зафиксирован как определение шума фазы: tune.f1=0.1413, holdout.f1=0.2664,
-tune.row_coverage=0.2500, holdout.row_coverage=0.5064, худший per-fixture f1
-(`EST-XLS-KS2-001`)=0.5652.
-Тесты: `EvalCompare --no-tia` 8 passed/21 assertions; `EvalRun --no-tia` 11 passed/46 assertions
-(остался зелёным). Pint/PHPStan по `Files` item'а — чисто; полный `phpstan analyse` на всём
-дереве — `[OK] No errors`, `phpstan-baseline.neon` не вырос (устранена собственная находка —
-докблок `@param` с литерального юниона на `string`, инвариант держит runtime-guard).
+**Этим заходом (`plan-run`, sonnet/high) закрыт P2.3 🟠 Done with deviations** — item-коммит
+`bcd7ad4`. `App\Attributes\Ai\Description` (property/parameter/class constant) +
+`App\Services\Llm\Schema\ContractAttributeReader` (`descriptions()`/`aliases()`/`caseAliases()`,
+без кэша, D92) введены; описания перенесены (докблок-bullet удалён, не продублирован) в
+`#[Description]` на всех 93 свойствах контрактов пяти шагов (`ScreeningResult`,
+`DiscoveryResponse`+`DiscoveryMarkerLine`, `PassportResponse`+`EstimatePassport`+
+`EstimateTotalsBlock`+`TotalLine`+`EstimateWorkType`, `RowsChunkResponse`+`EstimateRow`+
+`RowResource`+`RowAttributes`+`RowModifier`+`IncompleteRow`, `TotalsResponse`) + словаря
+`EstimateHeaderMap`/`HeaderColumn`; `#[Alias]` расширен на 11 полях, где синоним назван
+источником. Арх-гейт покрытия (`ContractDescriptionCoverageTest`) — полное покрытие, список
+исключений пуст. Тесты: `ContractAttributeReader --no-tia` 4 passed/7 assertions;
+`ContractDescriptionCoverage --no-tia` 2 passed/2 assertions; `PromptComposition --no-tia`
+8 passed/57 assertions (фикстура `screening-result.prompt.txt` пересобрана байт-в-байт
+генератором); `grep -rn "getAttributes(" app/Services/Llm/Schema` — 3 вхождения. Pint по `Files`
+item'а — чисто; `phpstan analyse` на всём дереве — `[OK] No errors`, baseline не вырос.
 
-**Material-находка вне Scope P2.2 (флейк токен-лимита Gemini):** 2 из 6 gold-эталонов рвутся по
-лимиту токенов Gemini в КАЖДОМ из M0/M0′ (`EST-XLSX-KS2-003` — детерминированно в обоих;
-`EST-XLS-KS2-001`/`EST-XLSX-KS2-001` — недетерминированно, меняются местами). Доминирует в
-наблюдённом разбросе (per-fixture f1 = 0.5652 против порога `PER_FIXTURE_F1_MAX_DROP`=0.05 — в
-11× больше). Фикс-предложение: поднять `maxOutputTokens`/thinking-бюджет маршрута `extraction`
-(наблюдённый пик ~90К токенов на `EST-XLS-KS2-001`) либо завести ретрай с увеличенным бюджетом —
-отдельным follow-up item'ом ДО того, как P2.3–P2.6 начнут сравнивать свои прогоны с этим baseline,
-иначе любой шаг рискует ложным `reject` от этого ОДНОГО флейкового эталона. Полный разбор —
-`findings/P2-eval-baseline.md` §3, §5.
+**Material-находка (Validation red, НЕ откачено):** `estimate:eval:run --split=all` +
+`estimate:eval:compare --base=1 --candidate=3 --criterion=no-regression` → **`reject`** (M1,
+EvalRun #3, на `bcd7ad4`). Только 2/6 эталонов обработано (было 4/6 на M0/M0′): известный флейк
+токен-лимита `EST-XLS-KS2-001`/`EST-XLSX-KS2-001` сработал ожидаемо, но ВПЕРВЫЕ упали ещё два
+ранее стабильных эталона — `EST-XLSX-LSR-001` (токен-лимит, новый) и `EST-XLSX-VOR-001`
+(структурный отказ `RowsChunkResponse::structuralError()` — дубликат `row_index`); `EST-GSFX-
+LSR-001` обработан, но f1=0 (было ненулевым). Причина найдена в диффе шага (D23): печатный блок
+схем `extraction:rows` вырос с 18823 до 20086 символов (+6.7%, измерено `PromptContextGenerator::
+generate()` до/после item-коммита) — атрибутный синтаксис `#[Description]` на каждое свойство
+длиннее одной bullet-строки докблока, структурное следствие уже утверждённого дизайна D92/P2.1,
+не дефект переноса (арх-гейт/юнит-тесты/`PromptComposition` зелёные). Компаундирует с уже
+известной ДО P2.3 фрагильностью токен-бюджета маршрута `extraction` (P2.2 Pending Work, пик
+~90К токенов на `EST-XLS-KS2-001`). Диф НЕ откатывается — детали и полное обоснование
+`research/03-prompt-contract.md` §8.5. **P2.4 блокирован** до фикса
+`maxOutputTokens`/thinking-бюджета маршрута `extraction` (вне Scope Excluded P2.3, решение
+владельца/`plan-design`) — `phases/P2.md` P2.3 Pending Work. Платный бюджет P2.3 (один прогон,
+D8) исчерпан этим замером.
 
 **Lint:** `python3 /home/vostrikov/projects/packages/swissknifeman/packages/task/scripts/plan-lint.py
 plans/2026.07.31-SYS-INTEGRITY --baseline HEAD` — см. итоговое число ниже этого захода (гейт
 закрытия item'а прогнан на дереве ПОСЛЕ перезаписи этого файла, шаг 4 `plan-exec.md`).
 
-**Remaining:** 40 item из 53 (было 41 — P2.2 закрыт). Внутри фазы очередь: P2.1 → P2.8 → P2.2 →
-**P2.3** (следующий) → P2.4 → P2.5 → P2.6 → P2.7. Дальше по очереди D63: `P3 → P5 → P6 → P4 → P7`.
+**Remaining:** 39 item из 53 (было 40 — P2.3 закрыт). Внутри фазы очередь: P2.1 → P2.8 → P2.2 →
+P2.3 (закрыт) → **[блокер: фикс бюджета `extraction`]** → P2.4 → P2.5 → P2.6 → P2.7. Дальше по
+очереди D63: `P3 → P5 → P6 → P4 → P7`.
 
 **Sources of truth:** `plan.md` (Meta v0.15.0; §2 Execution Rules; §3 Routing поitem'ный, строка
-P2.3: implementation/high/manual/full; §5 D1–D97; §4 Status Board — P2 2/8) · `phases/P2.md`
-(ТЗ items; P2.2 Completion Notes — числа гидрации+baseline; P2.3 — следующий) ·
-`findings/P2-eval-baseline.md` (гидрация + M0/M0′ + шум D91 + флейк §3) ·
-`findings/P2-textgrid-oom-2026-08-01.md` (диагноз+фикс P2.8) ·
-`findings/P2-corpus-state-2026-08-01.md` · `research/03-prompt-contract.md` ·
+P2.3: implementation/high/manual/full — исполнено сессией sonnet/high, точное совпадение, не
+перебор; §5 D1–D97; §4 Status Board — P2 2/8 🟢, счётчик не включает 🟠) · `phases/P2.md` (ТЗ
+items; P2.3 Completion Notes — числа M1, диагноз, Pending Work-блокер) ·
+`research/03-prompt-contract.md` §8.5 (полный диагноз red-замера M1) ·
+`findings/P2-eval-baseline.md` (гидрация + M0/M0′ + шум D91 + исходный флейк §3) ·
+`findings/P2-textgrid-oom-2026-08-01.md` · `findings/P2-corpus-state-2026-08-01.md` ·
 `findings/P2-vendor-structured-output.md` · `roadmap.md` · `index.md` · `open-questions.md` ·
 `journal.jsonl` · `brief/01-refinements.md`.
 
 **Open risks:**
 
-- **Флейк токен-лимита Gemini на 2/6 extraction gold-эталонов** (НОВОЕ, P2.2 Pending Work) —
-  доминирует в измеренном шуме фазы, риск ложного `reject` на P2.3–P2.6 без фикса маршрута
-  (Scope Excluded этой фазы) — см. выше.
-- **`estimate:gold:import --prepare` не переводит документ в `prepared`** (P2.8 Known Deviations) —
-  не блокирует гидрацию/eval (проверено P2.2), но стоит держать в уме в Validation следующих items.
-- **Дешёвый size-gate слеп на легаси `.xls`** — класс риска остаётся (P2.8 Scope Excluded).
+- **P2.4 заблокирован фиксом токен-бюджета маршрута `extraction`** (НОВОЕ, P2.3 Pending Work) —
+  без него P2.4 (схема тоже растёт — временно ДВА носителя, эмиссия `description`) рискует тем же
+  или худшим `reject`; фикс — вне Scope Excluded P2.3, требует владельца/`plan-design`.
+- **Флейк токен-лимита Gemini расширился с 2/6 до потенциально большего числа extraction
+  gold-эталонов** (P2.2 Pending Work материализовался и усилился P2.3) — `EST-XLSX-LSR-001` и
+  `EST-XLSX-VOR-001` впервые упали в M1; вероятная причина — рост печатного промта, не свойство
+  самих эталонов.
+- **`estimate:gold:import --prepare` не переводит документ в `prepared`** (P2.8 Known Deviations).
+- **Дешёвый size-gate слеп на легаси `.xls`** (P2.8 Scope Excluded).
 - **DB частично гидрирована, НЕ откатана**: `prc_ai_fixtures`=24, `prc_ai_dataset_examples`=17,
-  `prc_ai_eval_runs`≥2 (M0, M0′), документ id 8 (`EST-XLS-KS2-001`) несёт `text_grid`-представление.
+  `prc_ai_eval_runs`≥3 (M0, M0′, M1).
 - **`EST-PDF-SCAN-001` (id 7)** в шестёрку обязательных gold НЕ входит, baseline не блокирует.
 - **Представления пересоздаются на ТЕКУЩЕМ образе** — сопоставимо внутри P2, не с числами донора.
-- **Деньги.** P2.2 израсходовал ОБА утверждённых платных прогона (D26+D91). Дальше — по одному на
-  шаг D8 (P2.3–P2.6), плюс три на варианты OQ-2 в P2.5.
+- **Деньги.** Бюджет P2.3 (один платный прогон, D8) израсходован этим заходом (M1, EvalRun #3).
+  Дальше — по одному на шаг (P2.4–P2.6), плюс три на варианты OQ-2 в P2.5, ЕСЛИ владелец не
+  решит потратить дополнительный прогон на верификацию фикса токен-бюджета раньше.
 - **Расхождение порядка свойств между двумя носителями живёт в боевом коде СЕЙЧАС** — чинится P2.4.
 - **Пол префикса может не сработать как защита** — байтовый якорь не переведён в токены,
   `[UNVERIFIED]` для `gemini-3.1-flash-lite`. Обязанность P2.5 (D90).
@@ -107,9 +115,10 @@ P2.3: implementation/high/manual/full; §5 D1–D97; §4 Status Board — P2 2/8
 - **Строка Update Log для `plan-audit P1` (заход 2) отсутствует** — вне скоупа.
 - **A1 аудита P1 (Major) не закрыт**: потребление `ProxyRequirements->country` не покрыто
   дискриминирующим тестом — решение владельца.
-- **Partition-drift — 11 падений полного сюита вне предмета плана**; фикс-предложение —
-  `phases/P1.md` P1.10 Pending Work. Два красных arch-теста `CoreKnowsNoDocumentTypeTest`
-  исключены поимённо (D86).
+- **Partition-drift — падения полного сюита вне предмета плана** (`llm_calls` — нет партиции под
+  текущую дату; наблюдалось повторно этим заходом на `LlmCacheManagerTest`/`CostReportTest`/
+  `UsageSourceTest`/`PulseCardsTest`, ~9 тестов) — фикс-предложение `phases/P1.md` P1.10 Pending
+  Work. Два красных arch-теста `CoreKnowsNoDocumentTypeTest` исключены поимённо (D86).
 - **`verify-citations.py` — находки вне диффа**; инструмента в `plans/` этого репозитория нет (D76).
 - **`PromptCanonReader.php`** несёт пред-существующую ссылку на `Services\Procurement` внутри
   `Llm` — PROMOTE-CANDIDATE, не предмет фазы.
@@ -132,11 +141,11 @@ P2.3: implementation/high/manual/full; §5 D1–D97; §4 Status Board — P2 2/8
   переименование дисков (D53) · судьба таблицы кэша (D75) · связь «выделенные узлы под конкретный
   профиль» (D80) · `ProxyForm::COUNTRIES` (D86) · починка двух pre-existing
   `CoreKnowsNoDocumentTypeTest` (D86) · разовый флейк `CsvBlockIngestorTest` · partition-drift
-  11 падений (P1.10 Pending Work) · миграция на Interactions API вендора (мониторинг) · починка
+  (P1.10 Pending Work) · миграция на Interactions API вендора (мониторинг) · починка
   слепого size-gate на легаси `.xls` (P2.8 Scope Excluded) · статус `EST-PDF-SCAN-001` (вне
   шестёрки gold) · решение о диспетче `PrepareDocumentJob` из `estimate:gold:import --prepare`
-  (P2.8 Pending Work) · **фикс лимита токенов Gemini на маршруте `extraction`** (НОВОЕ, P2.2
-  Pending Work — до P2.3–P2.6, иначе риск ложного `reject`).
+  (P2.8 Pending Work) · **фикс лимита токенов Gemini на маршруте `extraction`** (P2.2 Pending
+  Work, ТЕПЕРЬ БЛОКЕР P2.4 — P2.3 Pending Work).
 - *Open questions:* OQ-1 **закрыт** (D71) · **OQ-2** (судьба `PromptContextGenerator`) — снимает
   P2.5 · OQ-3 (источник истины ЕИС, снимает P4.1) · OQ-4 (браузерный канал) · OQ-5 (продуктовый
   контур, сверяется в P7.8).

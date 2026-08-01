@@ -190,6 +190,19 @@ run --split=all` ×2 (EvalRun #1/#2) с наблюдённым разбросо�
 (D91) — `findings/P2-eval-baseline.md`. Найден и задокументирован material-флейк вне Scope P2.2:
 2/6 gold-эталонов рвутся по лимиту токенов Gemini (маршруты/модели — Scope Excluded), доминирует в
 разбросе — follow-up назван в `phases/P2.md` P2.2 Pending Work.
+**P2.3 закрыт 🟠 2026-08-01** (item-коммит `bcd7ad4`): `#[Description]` + `ContractAttributeReader`
++ арх-гейт покрытия (полное, список исключений пуст) — введены и покрывают все 93 свойства
+контрактов пяти шагов; юнит-тесты и `PromptComposition` зелёные, pint/phpstan чисты. Validation-
+клауза eval (`estimate:eval:run --split=all` + `--criterion=no-regression`) — **`reject`** (M1,
+EvalRun #3): помимо известного флейка токен-лимита на 2 эталонах впервые упали ещё два ранее
+стабильных (`EST-XLSX-LSR-001`, `EST-XLSX-VOR-001` — структурный дубликат `row_index`). Причина
+найдена в диффе шага: печатный блок схем `extraction:rows` вырос на +6.7% (атрибутный синтаксис на
+каждое свойство длиннее общего bullet-докблока, структурное следствие D92/P2.1) — компаундирует с
+уже известной до P2.3 фрагильностью токен-бюджета маршрута `extraction` (P2.2 Pending Work). Диф
+НЕ откатывается (D24 в этом случае = «не компаундировать», не «удалить корректный код») — детали
+`research/03-prompt-contract.md` §8.5. **Блокер: P2.4 не стартует** до фикса
+`maxOutputTokens`/thinking-бюджета маршрута `extraction` (владелец/`plan-design`, вне Scope
+Excluded P2.3) — `phases/P2.md` P2.3 Pending Work.
 
 ## 5. Decision Log
 
@@ -345,6 +358,7 @@ run --split=all` ×2 (EvalRun #1/#2) с наблюдённым разбросо�
 | 2026-08-01 | issue-planner / frontier-high | Эскалация P2.2 №2 (OOM `EST-XLS-KS2-001`) снята **D95–D97**: корень — плотный обход листа с созданием ячеек, заведён item **P2.8** (фикс + лимиты как настройки, исполняется ДО P2.2), P2.2 🔴 → 🟡 — детали см. `phases/P2.md` P2.8 и `findings/P2-textgrid-oom-2026-08-01.md` |
 | 2026-08-01 | plan-run / sonnet-high | P2.8 закрыт 🟠, item-коммиты **`b51ce3a`**+**`b05235f`**: разреженный обход `TextGridRenderer` снял OOM на `EST-XLS-KS2-001` — детали см. phases/P2.md P2.8 Completion Notes |
 | 2026-08-01 | plan-run / sonnet-high | P2.2 закрыт 🟢, item-коммиты **`19f9808`**+**`684ddfb`**: гидрация, режим `no-regression`, парный baseline M0/M0′ (D91), найден флейк вне Scope — детали см. phases/P2.md P2.2 Completion Notes |
+| 2026-08-01 | plan-run / sonnet-high | P2.3 закрыт 🟠, item-коммит **`bcd7ad4`**: `#[Description]`+`ContractAttributeReader`+арх-гейт покрытия; eval M1 `reject`, P2.4 блокирован — детали см. phases/P2.md P2.3 Completion Notes, research/03-prompt-contract.md §8.5 |
 
 ## Обсуждение
 
