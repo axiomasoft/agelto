@@ -153,7 +153,7 @@ P7.3 не выбирает топологию, а подтверждает ре�
 | Phase | Title | Items 🟢/всего | Status |
 |:--|:--|:--|:--|
 | P1 | Прокси как слой маршрутизации: скоуп, гео, здоровье, привязка к профилю | 4/10 | 🟠 Done with deviations |
-| P2 | Контракт LLM в одном канале: `#[Description]`, JSON Schema, промты | 1/8 | 🟡 In progress |
+| P2 | Контракт LLM в одном канале: `#[Description]`, JSON Schema, промты | 2/8 | 🟡 In progress |
 | P3 | Доменная раскладка и arch-тесты | 0/5 | ⬜ Not started |
 | P4 | ЕИС: разведка, типизированные фильтры, сиды кроулеров, боевой прогон | 0/8 | ⬜ Not started |
 | P5 | Полнота сметной модели против корпуса эталонов | 0/8 | ⬜ Not started |
@@ -183,6 +183,13 @@ baseline (гейт цены пройден владельцем). Реопена
 Included` этого item'а — `estimate:gold:import --prepare` не переводит документ в `prepared`
 (минует `PrepareDocumentJob`, единственный сеттер статуса) — детали
 `phases/P2.md` P2.8 Known Deviations/Pending Work.
+**P2.2 закрыт 🟢 2026-08-01** (item-коммит `19f9808`+`684ddfb`): гидрация корпуса из git-SSOT
+(D93, 24/24 fixtures, 6 extraction + 11 screening датасет-записей), режим `no-regression` +
+`--criterion=` в `EvalRunComparator`/`EvalCompareCommand` (4 теста), парный baseline `estimate:eval:
+run --split=all` ×2 (EvalRun #1/#2) с наблюдённым разбросом M0↔M0′ как определением шума фазы
+(D91) — `findings/P2-eval-baseline.md`. Найден и задокументирован material-флейк вне Scope P2.2:
+2/6 gold-эталонов рвутся по лимиту токенов Gemini (маршруты/модели — Scope Excluded), доминирует в
+разбросе — follow-up назван в `phases/P2.md` P2.2 Pending Work.
 
 ## 5. Decision Log
 
@@ -337,6 +344,7 @@ Included` этого item'а — `estimate:gold:import --prepare` не пере�
 | 2026-08-01 | issue-planner / frontier-high | Эскалация P2.2 снята **D93** (гидрация БД из целого git-SSOT ≠ построение корпуса; триггер D25 сужен до пустого SSOT) + **D94** (процедура восстановления — абзац P2.7): ТЗ P2.2 доведено до DoR, статус 🔴 → ⬜ — детали см. `phases/P2.md` P2.2 и `findings/P2-corpus-state-2026-08-01.md` |
 | 2026-08-01 | issue-planner / frontier-high | Эскалация P2.2 №2 (OOM `EST-XLS-KS2-001`) снята **D95–D97**: корень — плотный обход листа с созданием ячеек, заведён item **P2.8** (фикс + лимиты как настройки, исполняется ДО P2.2), P2.2 🔴 → 🟡 — детали см. `phases/P2.md` P2.8 и `findings/P2-textgrid-oom-2026-08-01.md` |
 | 2026-08-01 | plan-run / sonnet-high | P2.8 закрыт 🟠, item-коммиты **`b51ce3a`**+**`b05235f`**: разреженный обход `TextGridRenderer` снял OOM на `EST-XLS-KS2-001` — детали см. phases/P2.md P2.8 Completion Notes |
+| 2026-08-01 | plan-run / sonnet-high | P2.2 закрыт 🟢, item-коммиты **`19f9808`**+**`684ddfb`**: гидрация, режим `no-regression`, парный baseline M0/M0′ (D91), найден флейк вне Scope — детали см. phases/P2.md P2.2 Completion Notes |
 
 ## Обсуждение
 
