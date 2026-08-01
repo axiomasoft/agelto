@@ -301,6 +301,7 @@ reconcile pass 3/3 закрыт (D63–D69), 14 находок первого `p
 | 2026-07-31 | issue-planner / frontier-high | Карта «item → item-коммит» фазы P1 (F7 аудита; строки выше append-only не переписаны): P1.1 `8da71d7` · P1.2 `8194a7f` · P1.3 `c2b2369` · P1.4 `f4ffbf1`+`6fc2e75` · P1.5 `65b562a` · P1.6 `da6aed1` · P1.7 `75cd673` · P1.8 `40f9611` |
 | 2026-07-31 | issue-planner / frontier-high | **Фаза P1 реопенена** по RED-вердикту (D82, 4 шага): заведены P1.9 (D83/D84) и P1.10 (D87), бухгалтерия закрытия исправлена D85, критерий приёмки и Open risks адресованы D86, P1.8 🟢 → 🟠 — детали см. phases/P1.md P1.8 Known Deviations |
 | 2026-08-01 | plan-run / sonnet-high | P1.9 закрыт 🟠: резолвер потребляет привязку профиля и `required_country` скоупа (D83/D84), дифф вне `Files` — детали см. phases/P1.md P1.9 Completion Notes |
+| 2026-08-01 | plan-exec / sonnet-medium | P1.10 закрыт 🟠: доки прокси-маршрутизации приведены к границе D81 (профиль потребляется только на `crawl_listing`), повторная приёмка нашла НОВЫЙ класс падений (partition-drift, 11 тестов, вне P1) сверх допустимых D86 двух — детали см. phases/P1.md P1.10 Completion Notes |
 
 ## Обсуждение
 
