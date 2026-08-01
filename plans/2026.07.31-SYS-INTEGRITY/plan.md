@@ -150,7 +150,7 @@ P7.3 не выбирает топологию, а подтверждает ре�
 | Phase | Title | Items 🟢/всего | Status |
 |:--|:--|:--|:--|
 | P1 | Прокси как слой маршрутизации: скоуп, гео, здоровье, привязка к профилю | 4/10 | 🟠 Done with deviations |
-| P2 | Контракт LLM в одном канале: `#[Description]`, JSON Schema, промты | 0/7 | ⬜ Not started |
+| P2 | Контракт LLM в одном канале: `#[Description]`, JSON Schema, промты | 1/7 | 🟡 In progress |
 | P3 | Доменная раскладка и arch-тесты | 0/5 | ⬜ Not started |
 | P4 | ЕИС: разведка, типизированные фильтры, сиды кроулеров, боевой прогон | 0/8 | ⬜ Not started |
 | P5 | Полнота сметной модели против корпуса эталонов | 0/8 | ⬜ Not started |
@@ -303,6 +303,7 @@ reconcile pass 3/3 закрыт (D63–D69), 14 находок первого `p
 | 2026-08-01 | plan-run / sonnet-high | P1.9 закрыт 🟠: резолвер потребляет привязку профиля и `required_country` скоупа (D83/D84), дифф вне `Files` — детали см. phases/P1.md P1.9 Completion Notes |
 | 2026-08-01 | plan-exec / sonnet-medium | P1.10 закрыт 🟠: доки прокси-маршрутизации приведены к границе D81 (профиль потребляется только на `crawl_listing`), повторная приёмка нашла НОВЫЙ класс падений (partition-drift, 11 тестов, вне P1) сверх допустимых D86 двух — детали см. phases/P1.md P1.10 Completion Notes |
 | 2026-08-01 | plan-close / sonnet-low | Фаза P1 закрыта повторно 🟠 Done with deviations (10/10 items терминальны, 4×🟢/6×🟠): Phase Handoff перезаписан целиком (маркер D82 снят), Status Board `plan.md` синхронизирован — детали см. phases/P1.md Phase Handoff |
+| 2026-08-01 | plan-exec (manual) / opus-high | P2.1 закрыт 🟢, item-коммит **`ced2a4f`**: гейт D9 снят первичной проверкой вендора (5 подтверждено / 1 нет / 1 `[UNVERIFIED]`), целевое разделение носителей и проекты D88–D91 — детали см. phases/P2.md P2.1 Completion Notes |
 
 ## Обсуждение
 
