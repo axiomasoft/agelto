@@ -14,7 +14,10 @@ namespace App\Services\Llm\Schema;
  * та же семантика, что `SchemaMap::toArray()` Prism применяет для DSL-схем,
  * `vendor/.../Gemini/Maps/SchemaMap.php:71-73`); `additionalProperties` отбрасывается на ВСЕХ
  * уровнях, не только верхнем (P3 Known Deviations (1) ошибочно предполагал, что нижние уровни
- * не мешают — P3 phase-review, HIGH).
+ * не мешают — P3 phase-review, HIGH). `description` — ровно противоположная политика: канал
+ * `response_schema` его поддерживает (`findings/P2-vendor-structured-output.md` §2), поэтому он
+ * ПРОНОСИТСЯ насквозь на всех уровнях (объект, узел массива, ветка `anyOf`), а не отбрасывается
+ * вместе с прочими непонятыми ключами (P2.4).
  *
  * `$ref`-циклы (самоссылка `TotalLine.children`, P2.3) Gemini `response_schema` принципиально не
  * может выразить — разворачиваются инлайном на глубину {@see self::MAX_SELF_DEPTH} вложений
@@ -48,6 +51,25 @@ final readonly class GeminiResponseSchemaAdapter
      *                                   свойство-владелец должно быть отброшено
      */
     private function resolveNode(array $node, array $defs, array $expandStack): ?array
+    {
+        $description = $node['description'] ?? null;
+        unset($node['description']);
+
+        $resolved = $this->resolveDescribedNode($node, $defs, $expandStack);
+
+        return $resolved === null || $description === null
+            ? $resolved
+            : ['description' => $description, ...$resolved];
+    }
+
+    /**
+     * @param  array<string, mixed>  $node  узел БЕЗ `description` — снят и восстановлен вызывающим
+     *                                      {@see resolveNode()} над результатом ЛЮБОЙ из веток ниже
+     * @param  array<string, array<string, mixed>>  $defs
+     * @param  list<string>  $expandStack
+     * @return array<string, mixed>|null
+     */
+    private function resolveDescribedNode(array $node, array $defs, array $expandStack): ?array
     {
         if (isset($node['$ref'])) {
             $name = basename((string) $node['$ref']);

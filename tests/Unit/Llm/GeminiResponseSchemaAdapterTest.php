@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Dto\Procurement\Ai\Screening\ScreeningResult;
+use App\Dto\Procurement\Analyzers\Estimate\PassportResponse;
 use App\Dto\Procurement\Analyzers\Estimate\RowsChunkResponse;
 use App\Dto\Procurement\Analyzers\Estimate\TotalsResponse;
 use App\Services\Llm\Schema\GeminiResponseSchemaAdapter;
@@ -27,7 +28,11 @@ test('адаптер конвертирует type:[X,null] в nullable:true', f
 
     $adapted = $adapter->adapt($generator->generate(ScreeningResult::class));
 
-    expect($adapted['properties']['description'])->toBe(['type' => 'string', 'nullable' => true]);
+    expect($adapted['properties']['description'])->toBe([
+        'description' => 'краткое резюме файла — что это, за какой период, какой объём.',
+        'type' => 'string',
+        'nullable' => true,
+    ]);
 });
 
 test('адаптер отбрасывает additionalProperties на всех уровнях', function (): void {
@@ -38,6 +43,51 @@ test('адаптер отбрасывает additionalProperties на всех �
 
     expect($adapted)->not->toHaveKey('additionalProperties')
         ->and($adapted['properties']['rows']['items'])->not->toHaveKey('additionalProperties');
+});
+
+test('адаптер не эмитирует propertyOrdering', function (): void {
+    $generator = new JsonSchemaGenerator;
+    $adapter = new GeminiResponseSchemaAdapter;
+
+    $adapted = $adapter->adapt($generator->generate(RowsChunkResponse::class));
+
+    expect($adapted)->not->toHaveKey('propertyOrdering')
+        ->and($adapted['properties']['rows']['items'])->not->toHaveKey('propertyOrdering');
+});
+
+test('адаптер проносит description на узле объекта (вложенный $ref-контракт)', function (): void {
+    $generator = new JsonSchemaGenerator;
+    $adapter = new GeminiResponseSchemaAdapter;
+
+    $adapted = $adapter->adapt($generator->generate(PassportResponse::class));
+
+    expect($adapted['properties']['passport']['description'])
+        ->toBe('тип/обоснование/направление/адрес/программа-генератор/договор — прямое соответствие prc_estimates.passport (jsonb).')
+        ->and($adapted['properties']['passport']['type'])->toBe('object');
+});
+
+test('адаптер проносит description на узле массива', function (): void {
+    $generator = new JsonSchemaGenerator;
+    $adapter = new GeminiResponseSchemaAdapter;
+
+    $adapted = $adapter->adapt($generator->generate(ScreeningResult::class));
+
+    expect($adapted['properties']['tags'])->toBe([
+        'description' => 'метки документа (Город, ОС, Шифр, Вид работ, ФИО) — как в исходном v1-классификаторе.',
+        'type' => 'array',
+        'items' => ['type' => 'string'],
+    ]);
+});
+
+test('адаптер проносит description на ветке anyOf (nullable $ref-контракт)', function (): void {
+    $generator = new JsonSchemaGenerator;
+    $adapter = new GeminiResponseSchemaAdapter;
+
+    $adapted = $adapter->adapt($generator->generate(PassportResponse::class));
+
+    expect($adapted['properties']['totals']['description'])
+        ->toBe('итоги/начисления, если документ виден целиком и подвал попал в контекст; иначе null — запрашиваются отдельно через extract_totals.')
+        ->and($adapted['properties']['totals'])->toHaveKey('anyOf');
 });
 
 test('адаптер обрывает рекурсивный TotalLine.children на заданной глубине без бесконечного цикла', function (): void {

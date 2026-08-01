@@ -103,6 +103,31 @@ test('блок схем шага покрывает классы JSON-схемы
     }
 });
 
+test('порядок свойств EstimateRow совпадает в схеме и в напечатанном исходнике шага строк', function (): void {
+    $step = EstimatePromptStep::ExtractionRows;
+    $dictionaries = app(EstimateStepDictionaries::class);
+    $context = app(PromptContextGenerator::class);
+    $schemas = app(JsonSchemaGenerator::class);
+
+    $block = $context->generate([RowsChunkResponse::class, ...$dictionaries->forStep($step)]);
+
+    $chunks = preg_split('/(?=^\/\/ --- Source: )/m', $block, flags: PREG_SPLIT_NO_EMPTY) ?: [];
+    $estimateRowChunk = collect($chunks)->first(fn (string $chunk): bool => str_starts_with($chunk, '// --- Source: EstimateRow.php ---'));
+
+    expect($estimateRowChunk)->not->toBeNull();
+
+    // Носитель порядка в печатаемом исходнике — сам PHP-файл (P2.4 не переписывает
+    // PromptContextGenerator): строка объявления promoted-параметра начинается с `public` и не
+    // является сигнатурой самого конструктора/метода.
+    preg_match_all('/^\s*public\s+(?!function\b)[^\$(]*\$([A-Za-z_][A-Za-z0-9_]*)/m', (string) $estimateRowChunk, $matches);
+    $printedOrder = $matches[1];
+
+    $schemaOrder = array_keys($schemas->generate(RowsChunkResponse::class)['$defs']['EstimateRow']['properties']);
+
+    expect($printedOrder)->not->toBe([])
+        ->and($printedOrder)->toBe($schemaOrder);
+});
+
 test('ai:prompts:sync --check не находит дрейфа сразу после ai:prompts:sync', function (): void {
     $this->artisan('ai:prompts:sync')->assertExitCode(0);
     $this->artisan('ai:prompts:sync', ['--check' => true])->assertExitCode(0);
