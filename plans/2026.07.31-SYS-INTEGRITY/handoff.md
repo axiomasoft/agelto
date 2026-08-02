@@ -1,162 +1,80 @@
-# HANDOFF — 2026-08-02 — after P2.6
+# HANDOFF — 2026-08-02 — after P2.11
 
-**Next:** ре-дизайн P2.6 — переписывание текстов провалило критерий и откачено; нужен пересмотр ТЗ
-под найденный механизм, прежде чем тратить второй платный замер
+**Next:** «ЗАПУСК ВРУЧНУЮ: opus/high»
 
 | Параметр | Значение |
 |:--|:--|
-| Model | opus |
-| Thinking | high — пересмотр правила приёмки item'а по результату платного невоспроизводимого замера |
-| Context | NEW SESSION — шаг-не-item |
-| Суть | Переписать ТЗ P2.6 под две гипотезы механизма (§8.13), решить судьбу дефекта `PromptCanonSynchronizer` и носителя семантики `RowType`, задать правило приёмки повторного захода |
+| Model | opus (frontier) |
+| Thinking | high — авторский текст под инвариантами И1–И4, качество проверяется только платным замером |
+| Context | continue (/clear) — ручной item |
+| Суть | Повторная редакция девяти файлов промтов ОТ отклонённой редакции `storage/app/p26-rejected/`, под И1–И4 (`research/03` §8.14); постоянный якорный тест-гейт директивной силы; ОДИН платный eval-замер, база сравнения #12; провал → откат текстов И эскалация (D106), не третья редакция |
+| Команда | `—` (Exec=manual, нет single-command эквивалента) |
 
 ```
-/task:plan-design 2026.07.31-SYS-INTEGRITY P2.6
+/model opus
+/effort high
+/task:plan-run 2026.07.31-SYS-INTEGRITY P2.12
 ```
 
-**P2.6 закрыт 🟠 2026-08-02 — БЕЗ item-коммита** (в истории только bookkeeping): девять файлов
-промтов обоих канонических корней переписаны под целевой скелет `research/03` §7, `version` 2→3
-(критик 1→2), применён `ai:prompts:sync`, снят замер **M4 = EvalRun #13** — и критерий
-непрегрессии его отверг. Текст откачен, как прямо предписывают Implementation Rules item'а.
+**Сделано этим заходом (P2.11, plan-exec).**
 
-**M4 (EvalRun #13, дерево `7d0f1a7` + дифф P2.6, контур идентичен M0₃/M3c):** 6/6 эталонов,
-precision=0.5305, recall=0.2516, f1=0.2918, row_coverage=0.5323 (создан 03:36:02, завершён
-03:41:50). `estimate:eval:compare --base=12 --candidate=13 --criterion=no-regression` →
-**`reject`, пять причин**: holdout.f1 −0.0533, tune.row_coverage −0.1069, holdout.row_coverage
-−0.4796, `EST-XLSX-KS2-001` −0.0604 f1, `EST-XLSX-KS2-003` −0.6229 f1.
+Фикс `PromptCanonSynchronizer` на откат канона вниз. Обе половины сервиса — `deactivateStale()`
+(пишет) и `drift()` (сверяет) — сравнивали `$prompt->version < $latest` и были слепы к откату
+канона ВНИЗ: после провала и отката P2.6 в `llm_prompts` оставались активными и канонная, и
+осиротевшая старшая версия ключа, `PromptComposer` склеивал в системную часть ОБЕ, а
+`ai:prompts:sync --check` при этом рапортовал «дрейфа не обнаружено».
 
-**Почему это НЕ случай M2/M3c («внутри шума, код не откатывается»).** Все четыре диагностических
-признака §8.11 проверены и ни один не сработал — и это не помогло: у P2.6 собственное, более
-строгое правило приёмки, а профиль вызовов показал систематический сдвиг поведения, которого
-признаки §8.11 не видят. **Вывод модели упал вчетверо** (`completion_tokens` 248 531 → 64 460),
-вызовов 46 → 34, отказы `MAX_TOKENS` исчезли вовсе (3 → 0) — модель стала возвращать меньше
-строк, отсюда провал `row_coverage` на 0.4796 по holdout при измеренном разбросе покрытия парного
-baseline 0.0826. Механизм назван ДВУМЯ ГИПОТЕЗАМИ и намеренно не разделялся замерами (D23):
-(а) усиленное «пустой ответ штатен и всегда лучше правдоподобной догадки» в `global`;
-(б) императив «Включай ВСЕ строки таблицы» заменён описательным «Во фрагмент входят ВСЕ строки».
-Полный разбор — `research/03-prompt-contract.md` §8.13.
+Условие заменено на «активна РОВНО версия канона» (`$prompt->version !== $latest`) в
+`deactivateStale()`; `drift()` дополнительно различает откат («откат канона: активна версия новее
+файла») от протухания («устаревшая версия ещё активна в БД») — оператор видит, что именно
+произошло. Новый регрессионный тест (`tests/Feature/Ai/PromptsSyncTest.php`) доказан красным без
+фикса `git stash` (1 failed: `Expected status code 1 but received 0`) → `git stash pop` → зелёный.
 
-**Дефект, вскрытый откатом (не Scope P2.6, follow-up).** `PromptCanonSynchronizer` гасит версию
-только когда она НИЖЕ канона (`deactivateStale()`: `version < $latest`; `drift()` симметрично).
-Откат канона ВНИЗ (файл вернулся на v2, в БД активна v3) не гасится ничем: композиция склеивает
-ОБЕ версии — правила задваиваются, — а `ai:prompts:sync --check` рапортует «дрейфа не
-обнаружено». Наблюдалось на всех девяти ключах. Рантайм приведён к канону штатным
-`PromptStoreRepository::deactivate()`; фикс кода (`!==` вместо `<` в обеих половинах) + тест на
-даунгрейд — вход follow-up-item'а.
+Item-коммит `dea6f15` (2 файла, 33 вставки/1 удаление) — дифф РОВНО по `Files`.
 
-**Сделано этим заходом:**
+**Done:**
 
-- `resources/ai/prompts/**` + `resources/estimates/ai/prompts/**` — девять файлов переписаны,
-  замерены и **откачены** (`git status --porcelain resources/` пуст, дерево = `7d0f1a7`).
-  Отклонённая редакция — `storage/app/p26-rejected/` (gitignored, вне диффа).
-- `research/03-prompt-contract.md` — **§8.13** (объём текстов, числа M4, вердикт дословно, разбор
-  по признакам §8.11, профиль вызовов, гипотезы механизма, дефект синхронизатора).
-- `phases/P2.md` — P2.6 → `🟠 Done with deviations`, Completion Notes / Pending Work (4 пункта) /
-  Known Deviations (6 пунктов), Phase Status.
-- `plan.md` — примечание под Status Board, Update Log, `Last Updated`. Числитель доски не
-  изменился (P2.6 не 🟢).
-- `journal.jsonl` — старт + финал.
-- **Вне плана, по прямому запросу владельца** (коммит `27d44ea`): `.claude/skills/pest-testing/`
-  и `docs/03_Dev/process/testing.md` — рецепт записи графа Tia и почему `-d pcov.enabled=1` через
-  `artisan test` не работает в принципе (дочерний процесс Pest не наследует флаги интерпретатора).
-  Граф записан (`/var/www/.pest/tia/*/graph.json`, 717 КБ), обычный прогон снова идёт в TIA-режиме.
+- **P2 4/12** 🟡 (терминальны 10 из 12: P2.1 🟢, P2.2 🟢, P2.10 🟢, P2.11 🟢, P2.3 🟠, P2.4 🟠,
+  P2.5 🟠, P2.6 🟠, P2.8 🟠, P2.9 🟠).
+- **P1 4/10** — фаза закрыта повторно `🟠` после реопена D82.
 
-**Done:** **P2.1 🟢** (`ced2a4f`) · **P2.8 🟠** (`b51ce3a`+`b05235f`) · **P2.2 🟢**
-(`19f9808`+`684ddfb`) · **P2.3 🟠** (`bcd7ad4`) · **P2.9 🟠** (`b667b3e`) · **P2.10 🟢** (`ed202ac`) ·
-**P2.4 🟠** (`4a4ce75`) · **P2.5 🟠** (`eee4f64`) · **P2.6 🟠** (без item-коммита).
+**Remaining:**
 
-**Remaining:** 36 items из 55. Внутри фазы остался P2.7, но его Inputs ждут Deliverables P2.2–P2.6,
-а P2.6 их не доставил — сначала ре-дизайн P2.6. Дальше по очереди D63: `P3 → P5 → P6 → P4 → P7`.
+- **P2.12** — повторная редакция текстов промтов, один платный замер (следующий шаг, manual).
+- **P2.7** — доки/спека/скил + приёмочный прогон фазы (Inputs ждут P2.12; P2.11 доставлен).
+- Далее по очереди фаз (D63): P3 → P5 → P6 → P4 → P7.
 
-**Sources of truth:** `plan.md` (Meta v0.17.0; §3 Routing поitem'ный, строка P2.6 —
-frontier/high/manual/full; §5 D1–D103; §4 Status Board — P2 3/10 🟢, фаза 🟡) · `phases/P2.md` ·
-**`research/03-prompt-contract.md`** §7 (целевой скелет), §8.13 (M4 и разбор отказа), §8.11–§8.12
-(правило чтения и прецедент P2.5) · `findings/P2-eval-baseline.md` §7 · `roadmap.md` · `index.md` ·
-`open-questions.md` · `journal.jsonl`.
+**Sources of truth:**
+
+- `plans/2026.07.31-SYS-INTEGRITY/plan.md` — Meta, Routing §3, Status Board §4, D-лог §5.
+- `plans/2026.07.31-SYS-INTEGRITY/phases/P2.md` — ТЗ P2.12 целиком (следующий item), P2.11
+  Completion Notes, Phase Context фазы.
+- `plans/2026.07.31-SYS-INTEGRITY/research/03-prompt-contract.md` — §7 (целевой скелет), §8.13
+  (числа и профиль вызовов M4), §8.14 (диагноз, инварианты И1–И4, что снимать законно).
+- `storage/app/p26-rejected/` — девять файлов отклонённой редакции (gitignored, вне диффа): БАЗА
+  правки P2.12, переписывать с нуля не нужно.
+- `plans/2026.07.31-SYS-INTEGRITY/roadmap.md` — исполнительская карта и гейты владельца.
 
 **Open risks:**
 
-- **P2.6 не доставил Deliverables** — тексты промтов остались дореформенными; всё, ради чего
-  фаза снимала второй носитель структуры, в текстах ещё не отражено.
-- **Дефект `PromptCanonSynchronizer` живёт в коде** — любой откат версии промта вниз тихо
-  задваивает правила в композиции при зелёном `--check`. Пока не починен, откат промта —
-  операция, требующая ручной проверки активных версий.
-- **Семантика кейсов `RowType` не имеет носителя** — схема печатает перечень значений без
-  объяснения, докблок enum'а в модель не уходит с P2.5; сегодня это знает только текст промта.
-- **Замер системного префикса после P2.6 не проводился** — условие пересмотра D101 остаётся
-  открытым (мерить нечего: префикс откачен к исходному объёму).
-- **PROMOTE-CANDIDATE: `AI_GEMINI_REQUEST_TIMEOUT_SECONDS` (150с) недостаточен под бюджет P2.9** —
-  оба прогона захода снова сняты с временным `-e …=300`.
-- **PROMOTE-CANDIDATE: `vendor/prism-php` `Structured::handle()` не отображает
-  `ContentFilter`/`Other`** finish reason — на M4 не воспроизвёлся.
-- **Разово наблюдавшийся `Unable to cast value to a decimal.`** (`dataset_example #10`, M0₃) — на
-  M4 не воспроизвёлся.
-- **13 красных тестов полного сюита** (partition-drift `prc_events`/`llm_calls` — нет партиции под
-  текущую дату) — вне предмета плана, зафиксировано прогоном записи графа Tia; фикс-предложение
-  `phases/P1.md` P1.10 Pending Work.
-- **Локальный MTU-фикс хоста** (`docker-compose.override.yml`, gitignored) — нужен для сети.
-- **`implicit`-кэш системной части на `extraction:passport`/`extraction:rows` выключен сознательно**
-  (D101).
-- **Чисел по вариантам A и B у фазы не будет никогда** (D103 Consequences).
-- **EvalRun #7/#8 незавершены** (`finished_at = NULL`) — в сравнение не подаются, не чистятся.
-- **Известный флейк `bcsub()` на `EST-XLSX-KS2-001`** (P2.10 Pending Work).
-- **Потолки вывода `gemini-3.1-flash-lite` и `gemini-3.1-pro-preview` `[UNVERIFIED]`** (D99).
-- **Отдельная величина «дельта P2.3» утрачена навсегда** (D100 Consequences).
-- **`estimate:gold:import --prepare` не переводит документ в `prepared`** (P2.8 Known Deviations).
-- **Дешёвый size-gate слеп на легаси `.xls`** (P2.8 Scope Excluded).
-- **DB частично гидрирована, НЕ откатана**: `prc_ai_fixtures`=24, `prc_ai_dataset_examples`=17,
-  `prc_ai_eval_runs`=13. **Не запускать `migrate:fresh` до закрытия фазы P2.**
-- **`EST-PDF-SCAN-001` (id 7 в манифесте фикстур)** в шестёрку обязательных gold НЕ входит.
-- **Представления пересоздаются на ТЕКУЩЕМ образе** — сопоставимо внутри P2, не с числами донора.
-- **Деньги.** Этот заход — один полный прогон корпуса (34 вызова), результат отвергнут; повторный
-  заход потребует ещё одного.
-- **`rules_hash` инвалидирован и возвращён обратно** — правка текстов и откат меняли байты
-  системной части дважды; живые кэши инвалидированы, это ожидаемая цена, не регрессия.
-- **Канал проекта помечен вендором Legacy** — вход EOL-мониторинга, P2.7 фиксирует строкой риска.
-- **Строка Update Log для `plan-audit P1` (заход 2) отсутствует** — вне скоупа.
-- **A1 аудита P1 (Major) не закрыт**: потребление `ProxyRequirements->country` не покрыто
-  дискриминирующим тестом — решение владельца.
-- **`verify-citations.py` — находки вне диффа**; инструмента в `plans/` этого репозитория нет (D76).
-- **`PromptCanonReader.php`** несёт пред-существующую ссылку на `Services\Procurement` внутри
-  `Llm` — PROMOTE-CANDIDATE, не предмет фазы.
-- **`(array) $provider->options` в `LlmRouteResolver::toResolvedRoute()` несёт ТОТ ЖЕ класс
-  дефекта**, что был исправлен для `$route->options` в P2.9 — дормантно, PROMOTE-CANDIDATE.
-- **`docker compose` на хосте**: `MINIO_ROOT_PASSWORD`-интерполяция падает — обходка
-  `docker exec agelto_app` рабочая.
-- **Незапланированные файлы в рабочем дереве**: `M .env.example`, untracked `config/cms.php`,
-  `database/seeders/User/`, `estimates/gemini-analys.md`, `.swissknife/`,
-  `plans/2026.07.31-SYS-INTEGRITY/.claude/`, `plans/2026.07.31-SYS-INTEGRITY/.swissknife/` — чужой
-  дифф из `plan.md` §2, не трогать. **Два последних лежат ВНУТРИ carve-out `plans/<PLAN-ID>/**` —
-  `git add plans/<PLAN-ID>` затащил бы их в bookkeeping-коммит; коммитить только поимённые пути.**
-  Плюс `storage/app/p25-backup/`, `storage/app/p26-rejected/` (отклонённая редакция P2.6, нужна
-  следующему заходу) и `docker-compose.override.yml` — все gitignored.
-  **`git stash` без путей запрещён — утащит чужой дифф.**
-- **Кросс-планная зависимость** P5 от `2026.07.26-EST-TRAIN` — сверяется перед стартом P5.
-  **P4.7 — точка невозврата по схеме**: P5 и P6 обязаны быть терминальны до него.
+- **Диагноз D104 достаточен для объяснения, но не доказан достаточным для приёмки.** Три
+  механизма названы; вклад каждого не измерялся сознательно. Второй красный замер означает
+  причину вне них — предусмотрена остановка эскалацией (D106), а не третья попытка.
+- **Платный замер P2.12 невоспроизводим.** Контур обязан быть идентичен замерам M0₃, M3c и M4 (`options`
+  шести extraction-маршрутов `{"max_tokens":65536,"thinking_level":"LOW"}`,
+  `-e AI_GEMINI_REQUEST_TIMEOUT_SECONDS=300`) — иначе сравнение с базой #12 недействительно (D23).
+- Незакоммиченный чужой диф в дереве: `M .env.example` · untracked `config/cms.php`,
+  `database/seeders/User/`, `estimates/gemini-analys.md`, `.swissknife/`, `plans/**/.claude/`,
+  `plans/**/.swissknife/`. Не трогать, не коммитить; фактический состав снимать
+  `git status --porcelain` перед каждым item-коммитом.
 
 **Workarounds/Deferred/Open questions:**
 
-- *Workarounds:* `docker exec agelto_app` вместо `docker compose exec app` · временный
-  `-e AI_GEMINI_REQUEST_TIMEOUT_SECONDS=300` для платных прогонов до постоянного bump'а
-  (PROMOTE-CANDIDATE) · локальный `docker-compose.override.yml` для MTU VPN-хоста · ручное гашение
-  осиротевших версий промта после отката канона (до фикса `PromptCanonSynchronizer`).
-- *Deferred:* повторное переписывание текстов промтов с учётом §8.13 · фикс
-  `PromptCanonSynchronizer` (даунгрейд канона) · носитель семантики кейсов `RowType` · замер
-  префикса после следующей редакции (условие пересмотра D101) · переименование
-  `PromptContextGenerator` под новую роль · чистка незавершённых EvalRun #7/#8 · строка Update Log
-  для `plan-audit P1` захода 2 · A1/A2/A3/A6 аудита P1 · правка ТЗ P1.2/P1.3 (D20) · перенос слоёв
-  класса B (D28) · сплошное покрытие тестами команд и job'ов (D59) · положения (3)–(5) целевой
-  модели хранения (D72) · переход транспорта ЕИС на XML/SOAP (D14) · переименование дисков (D53) ·
-  судьба таблицы кэша (D75) · связь «выделенные узлы под конкретный профиль» (D80) ·
-  `ProxyForm::COUNTRIES` (D86) · починка двух pre-existing `CoreKnowsNoDocumentTypeTest` (D86) ·
-  partition-drift (P1.10 Pending Work) · миграция на Interactions API вендора (мониторинг) ·
-  починка слепого size-gate на легаси `.xls` (P2.8 Scope Excluded) · статус `EST-PDF-SCAN-001` ·
-  решение о диспетче `PrepareDocumentJob` из `estimate:gold:import --prepare` (P2.8 Pending Work) ·
-  деградация оконного пути при MAX_TOKENS (P2.9 Scope Excluded) · потолки вывода `gemini-3.1-*`
-  (`[UNVERIFIED]`, D99) · `(array) $provider->options` в `LlmRouteResolver` · дефект `bcsub()` на
-  `EST-XLSX-KS2-001` (P2.10 Pending Work) · механический `reject` M2/M3c на разных эталонах
-  (P2.4/P2.5 Pending Work) · bump `AI_GEMINI_REQUEST_TIMEOUT_SECONDS` (PROMOTE-CANDIDATE) ·
-  пробел Prism `unhandled finish reason` (PROMOTE-CANDIDATE) · вероятностный decimal-cast на
-  `dataset_example #10` · MTU-раннбук для разработчиков с похожим VPN.
-- *Open questions:* OQ-1 **закрыт** (D71) · **OQ-2 закрыт** (D103) · OQ-3 (источник истины ЕИС,
-  снимает P4.1) · OQ-4 (браузерный канал) · OQ-5 (продуктовый контур, сверяется в P7.8).
+- **Workarounds:** временный `AI_GEMINI_REQUEST_TIMEOUT_SECONDS=300` при eval-прогонах (не
+  персистентно) и локальный `docker-compose.override.yml` с MTU докер-сети (gitignored) —
+  оба введены P2.5 и нужны P2.12.
+- **Deferred:** типизированный носитель семантики кейсов enum (`RowType`) — OQ-6, вне границ P2
+  (D107); дефект `bcsub` на `EST-XLSX-KS2-001` и Prism `unhandled finish reason` —
+  PROMOTE-CANDIDATE, названы в Pending Work P2.10/P2.5.
+- **Open questions:** OQ-3, OQ-4 (`Exploration`), OQ-5 (`Decision pending`), OQ-6 (`Exploration`)
+  — `open-questions.md`.
