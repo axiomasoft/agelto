@@ -45,6 +45,23 @@ php artisan test --filter=ИмяТеста    # точечный прогон
 — `docs/03_Dev/process/testing.md` (разделы «Tia» и «--agent»), правила ревью —
 `.claude/rules/agelto-reviewer-overrides.md`.
 
+**Симптом `Running in TIA mode, however TIA as skipped as it needs Needs ext-pcov or Xdebug`** —
+графа Tia нет и записать его нечем: PCOV в образе есть, но выключен (`pcov.enabled=0`, zero-cost
+для fpm/horizon). Лечится ОДНОРАЗОВОЙ записью графа — командой целиком, без сокращений:
+
+```bash
+docker exec agelto_app php -d pcov.enabled=1 -d pcov.directory=/var/www/html \
+    ./vendor/bin/pest --tia --fresh --coverage
+```
+
+Обе укороченные формы молча НЕ работают, и обе выглядят как успешный прогон: без
+`-d pcov.directory` Pest 5 `PcovRestarter` перезапускает процесс со своим `pcov.directory` и
+теряет `pcov.enabled=1`; без `--coverage` не поднимается внутренний флаг `Coverage::$coverage`.
+Отдельно: `php -d pcov.enabled=1 artisan test` не работает В ПРИНЦИПЕ — `artisan test` порождает
+Pest дочерним процессом, `-d` до него не доезжает (наследуется только окружение, не `-d`).
+После записи графа PCOV для последующих прогонов не нужен, граф живёт в томе
+`app_pest_tia:/var/www/.pest` и переживает пересборку образа.
+
 ## Чеклист
 
 - [ ] Выбран корректный тип (Feature по умолчанию; Unit только для логики без БД).
