@@ -11,7 +11,7 @@
 | Document Type | Executable Master Plan |
 | Authoring Model | frontier |
 | Design Passes | 4/4 — 7 фаз + высокая неопределённость брифа (владелец: «многое требует исследований и подтверждений», вердикт по п.7 снят до исследования); pass 1 — скелеты, контракт-блоки, D1–D14, слои brief/findings/research; pass 2 — детализация фаз до DoR; pass 3 — `finish`: сквозной reconcile контрактов + roadmap; pass 4 — ПОВТОРНЫЙ `finish` по вердикту `plan-audit design` (RED, 14 находок): контракт-блок P7 менялся после pass 3 поправками владельца D70–D73, а `plan-protocol` §5 требует на изменение контракта фазы новый `finish`, а не точечную правку |
-| Last Updated | 2026-08-01 |
+| Last Updated | 2026-08-02 |
 | Repository | agelto (branch main) |
 | Related Packages | spatie/laravel-data, filament/filament, laravel/horizon, prism-php/prism, guzzlehttp/guzzle, league/flysystem-aws-s3-v3, pg_partman; Playwright — только как инструмент разведки (MCP), не рантайм-зависимость |
 | Execution Mode | phase-first |
@@ -253,6 +253,20 @@ Prism `unhandled finish reason`, decimal-cast); **M3c** (EvalRun #12, дерев
 четыре диагностических признака §8.11 отрицательны (единственная причина — `EST-XLSX-VOR-001`
 −0.2393 f1, меньше шума D100 0.2886) — код не откатывается, тот же случай, что M2. Детали
 `phases/P2.md` P2.5 Completion Notes/Known Deviations, `research/03-prompt-contract.md` §8.12.
+**P2.6 закрыт 🟠 2026-08-02 БЕЗ item-коммита** (только bookkeeping): девять файлов промтов обоих
+корней переписаны под скелет `research/03` §7 (`version` 2→3), замер **M4 = EvalRun #13** — 6/6
+эталонов, f1=0.2918, row_coverage=0.5323; `estimate:eval:compare --base=12 --candidate=13
+--criterion=no-regression` → **`reject` по пяти причинам** (обе подвыборки просели по
+`row_coverage`, holdout −0.4796 при измеренном разбросе покрытия 0.0826). Профиль вызовов показал
+систематический, а не шумовой сдвиг: вывод модели упал вчетверо (`completion_tokens` 248 531 →
+64 460), вызовов 46 → 34, отказы `MAX_TOKENS` исчезли вовсе. **Текст откачен** — этого требует
+собственное правило приёмки P2.6 (в отличие от M2/M3c, где «код не откатывается»): дифф по путям
+`Files` пуст, дерево совпадает с `7d0f1a7`, отклонённая редакция сохранена вне диффа. Механизм
+назван двумя гипотезами и НЕ разделялся замерами (D23 запрещает покомпонентную подгонку) — это
+вход следующего захода. Попутно вскрыт дефект `PromptCanonSynchronizer`: откат канона ВНИЗ не
+гасит старшую версию, композиция задваивает правила, а `ai:prompts:sync --check` при этом зелёный
+— рантайм приведён к канону штатным методом репозитория, фикс кода вынесен в follow-up. Детали —
+`phases/P2.md` P2.6, `research/03-prompt-contract.md` §8.13.
 
 ## 5. Decision Log
 
@@ -422,6 +436,7 @@ Prism `unhandled finish reason`, decimal-cast); **M3c** (EvalRun #12, дерев
 | 2026-08-01 | plan-run / opus-high | P2.5 → 🔴 Blocked: пол 4096 (D90) недостижим ни одним вариантом OQ-2, `llm_routes.options` пуст в рабочей БД — детали см. phases/P2.md P2.5 и research/03 §8.9–§8.10 |
 | 2026-08-01 | plan-design / opus-high | Эскалация P2.5 снята тремя решениями владельца — D101 (пол 4096 больше не клауза приёмки), D102 (сид маршрутов + новая база M0₃), D103 (вариант C, один прогон вместо трёх); ТЗ P2.5 переписано, Routing P2.5 → implementation/high, OQ-2 → Resolved, v0.17.0 |
 | 2026-08-01 | plan-run / sonnet-high | P2.5 закрыт 🟠, item-коммит **`eee4f64`**: печать исходника снята (вариант C), M0₃(4/6)/M3c(6/6) — `reject` механически, все четыре диагностических признака §8.11 отрицательны, дельта внутри шума D100 — детали см. phases/P2.md P2.5 Completion Notes, research/03 §8.12 |
+| 2026-08-02 | plan-run / opus-high | P2.6 закрыт 🟠 без item-коммита: тексты девяти промтов переписаны, M4 (EvalRun #13) → `reject` по пяти причинам, вывод модели упал вчетверо — текст откачен по предписанию ТЗ; вскрыт дефект даунгрейда канона промтов — детали см. phases/P2.md P2.6 Completion Notes, research/03 §8.13 |
 
 ## Обсуждение
 
