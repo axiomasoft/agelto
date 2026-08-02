@@ -73,6 +73,8 @@ final readonly class PromptCanonSynchronizer
                 $drift[] = "удалён из файлов, но активен в БД: {$prompt->document_type}/{$prompt->key} v{$prompt->version}";
             } elseif ($prompt->version < $latest) {
                 $drift[] = "устаревшая версия ещё активна в БД: {$prompt->document_type}/{$prompt->key} v{$prompt->version} (файл v{$latest})";
+            } elseif ($prompt->version > $latest) {
+                $drift[] = "откат канона: активна версия новее файла: {$prompt->document_type}/{$prompt->key} v{$prompt->version} (файл v{$latest})";
             }
         }
 
@@ -89,7 +91,7 @@ final readonly class PromptCanonSynchronizer
         foreach ($this->read->activeProtected() as $prompt) {
             $latest = $latestVersionByPair->get($this->pairKeyOf($prompt));
 
-            if ($latest === null || $prompt->version < $latest) {
+            if ($latest === null || $prompt->version !== $latest) {
                 $this->store->deactivate($prompt);
             }
         }

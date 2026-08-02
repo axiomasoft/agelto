@@ -42,6 +42,36 @@ test('--check находит расхождение файл ≠ БД и зав�
         ->expectsOutputToContain('изменён:');
 });
 
+test('откат канона гасит осиротевшую старшую версию, --check зелёный после sync', function (): void {
+    $this->artisan('ai:prompts:sync')->assertExitCode(0);
+
+    $canon = Prompt::query()->where('is_active', true)->where('is_protected', true)->firstOrFail();
+
+    $orphan = Prompt::factory()->create([
+        'document_type' => $canon->document_type,
+        'key' => $canon->key,
+        'step' => $canon->step,
+        'content' => 'осиротевшая версия, которую канон больше не объявляет',
+        'version' => $canon->version + 1,
+        'priority' => $canon->priority,
+        'is_active' => true,
+        'is_protected' => true,
+    ]);
+
+    $this->artisan('ai:prompts:sync', ['--check' => true])
+        ->assertExitCode(1)
+        ->expectsOutputToContain('откат канона: активна версия новее файла');
+
+    $this->artisan('ai:prompts:sync')->assertExitCode(0);
+
+    expect($orphan->refresh()->is_active)->toBeFalse();
+    expect($canon->refresh()->is_active)->toBeTrue();
+
+    $this->artisan('ai:prompts:sync', ['--check' => true])
+        ->assertExitCode(0)
+        ->expectsOutputToContain('Дрейф файлы↔БД не обнаружен.');
+});
+
 test('--check находит protected-запись, исчезнувшую из файлов', function (): void {
     $this->artisan('ai:prompts:sync')->assertExitCode(0);
 
