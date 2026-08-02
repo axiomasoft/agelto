@@ -10,10 +10,13 @@ use App\Models\Procurement\Ai\Fixture;
 use App\Services\Procurement\Tuning\EvalRunComparator;
 
 /**
- * `estimate:eval:compare` / `EvalRunComparator` (P7.5, критерий D63 + правило отбора D119/D120):
- * тестируется целиком на СИНТЕТИЧЕСКИХ прогонах (Scope Excluded — ни одного реального LLM-вызова);
- * `EvalRun`/`EvalResult`/`Fixture`/`DatasetExample` строятся фабриками, разбиение `tune`/`holdout`
- * подкладывается временным файлом (config-override `ai.fixtures.splits_path`).
+ * `estimate:eval:compare` / `EvalRunComparator` (P7.5, критерий D63 + правило отбора D119/D120;
+ * режим `noise-aware` — P2.13, D108/D109): тестируется целиком на СИНТЕТИЧЕСКИХ прогонах (Scope
+ * Excluded — ни одного реального LLM-вызова); `EvalRun`/`EvalResult`/`Fixture`/`DatasetExample`
+ * строятся фабриками, разбиение `tune`/`holdout` подкладывается временным файлом (config-override
+ * `ai.fixtures.splits_path`). `EvalRunFactory` по умолчанию несёт `started_at`/`finished_at`
+ * (`now()`) — профиль вызовов `noise-aware` их требует и в тестовой БД без `llm_calls` честно
+ * считает нулевые агрегаты, не `RuntimeException`.
  */
 function evalCompareWriteSplits(array $holdout): void
 {
@@ -249,4 +252,185 @@ test('критерий даёт reject при падении одного эта
 
     expect($result['verdict'])->toBe('reject')
         ->and($result['reasons'][0])->toContain('(г)');
+});
+
+test('noise-aware: нулевая пара, сравнённая сама с собой, даёт accept', function () {
+    $tune = evalCompareSeedExample('EST-XLSX-TUNE-H-001');
+    $holdout = evalCompareSeedExample('EST-XLSX-HOLD-H-001');
+
+    evalCompareWriteSplits(holdout: [$holdout['code']]);
+
+    $noiseBase = evalCompareRun();
+    $noiseCandidate = evalCompareRun();
+
+    evalCompareResult($noiseBase->id, $tune['dataset_example_id'], f1: 0.80, rowCoverage: 1.0);
+    evalCompareResult($noiseBase->id, $holdout['dataset_example_id'], f1: 0.80, rowCoverage: 1.0);
+    evalCompareResult($noiseCandidate->id, $tune['dataset_example_id'], f1: 0.75, rowCoverage: 0.90);
+    evalCompareResult($noiseCandidate->id, $holdout['dataset_example_id'], f1: 0.70, rowCoverage: 0.95);
+
+    $result = app(EvalRunComparator::class)->compare(
+        base: $noiseBase,
+        candidate: $noiseCandidate,
+        criterion: EvalRunComparator::CRITERION_NOISE_AWARE,
+        noisePairBase: $noiseBase,
+        noisePairCandidate: $noiseCandidate,
+    );
+
+    expect($result['verdict'])->toBe('accept')
+        ->and($result['reasons'])->toBe([]);
+});
+
+test('noise-aware: дельта РОВНО на пороге шума — accept (граница включена)', function () {
+    $tune = evalCompareSeedExample('EST-XLSX-TUNE-I-001');
+    $holdout = evalCompareSeedExample('EST-XLSX-HOLD-I-001');
+
+    evalCompareWriteSplits(holdout: [$holdout['code']]);
+
+    $noiseBase = evalCompareRun();
+    $noiseCandidate = evalCompareRun();
+
+    // Шум пары: holdout.f1 Δ=-0.05 (порог 0.05), tune.f1/row_coverage без изменений — per-fixture
+    // порог тоже 0.05 (худший эталон — holdout).
+    evalCompareResult($noiseBase->id, $tune['dataset_example_id'], f1: 0.80, rowCoverage: 1.0);
+    evalCompareResult($noiseBase->id, $holdout['dataset_example_id'], f1: 0.80, rowCoverage: 1.0);
+    evalCompareResult($noiseCandidate->id, $tune['dataset_example_id'], f1: 0.80, rowCoverage: 1.0);
+    evalCompareResult($noiseCandidate->id, $holdout['dataset_example_id'], f1: 0.75, rowCoverage: 1.0);
+
+    $base = evalCompareRun();
+    $candidate = evalCompareRun();
+
+    // Сравниваемая пара повторяет РОВНО ту же величину падения holdout.f1, что и шум (-0.05).
+    evalCompareResult($base->id, $tune['dataset_example_id'], f1: 0.80, rowCoverage: 1.0);
+    evalCompareResult($base->id, $holdout['dataset_example_id'], f1: 0.80, rowCoverage: 1.0);
+    evalCompareResult($candidate->id, $tune['dataset_example_id'], f1: 0.80, rowCoverage: 1.0);
+    evalCompareResult($candidate->id, $holdout['dataset_example_id'], f1: 0.75, rowCoverage: 1.0);
+
+    $result = app(EvalRunComparator::class)->compare(
+        base: $base,
+        candidate: $candidate,
+        criterion: EvalRunComparator::CRITERION_NOISE_AWARE,
+        noisePairBase: $noiseBase,
+        noisePairCandidate: $noiseCandidate,
+    );
+
+    expect($result['verdict'])->toBe('accept')
+        ->and($result['reasons'])->toBe([]);
+});
+
+test('noise-aware: дельта выше порога по одной оси — reject с ровно одной причиной', function () {
+    $tune = evalCompareSeedExample('EST-XLSX-TUNE-J-001');
+    $holdout = evalCompareSeedExample('EST-XLSX-HOLD-J-001');
+
+    evalCompareWriteSplits(holdout: [$holdout['code']]);
+
+    $noiseBase = evalCompareRun();
+    $noiseCandidate = evalCompareRun();
+
+    // Шум пары: tune.row_coverage Δ=-0.05 (порог 0.05), f1 нигде не меняется (f1-пороги — 0.0).
+    evalCompareResult($noiseBase->id, $tune['dataset_example_id'], f1: 0.80, rowCoverage: 1.0);
+    evalCompareResult($noiseBase->id, $holdout['dataset_example_id'], f1: 0.80, rowCoverage: 1.0);
+    evalCompareResult($noiseCandidate->id, $tune['dataset_example_id'], f1: 0.80, rowCoverage: 0.95);
+    evalCompareResult($noiseCandidate->id, $holdout['dataset_example_id'], f1: 0.80, rowCoverage: 1.0);
+
+    $base = evalCompareRun();
+    $candidate = evalCompareRun();
+
+    // Сравниваемая пара: f1 везде идентичен (не даёт причин (б)/(г)), tune.row_coverage падает на
+    // 0.10 — вдвое больше порога 0.05.
+    evalCompareResult($base->id, $tune['dataset_example_id'], f1: 0.80, rowCoverage: 1.0);
+    evalCompareResult($base->id, $holdout['dataset_example_id'], f1: 0.80, rowCoverage: 1.0);
+    evalCompareResult($candidate->id, $tune['dataset_example_id'], f1: 0.80, rowCoverage: 0.90);
+    evalCompareResult($candidate->id, $holdout['dataset_example_id'], f1: 0.80, rowCoverage: 1.0);
+
+    $result = app(EvalRunComparator::class)->compare(
+        base: $base,
+        candidate: $candidate,
+        criterion: EvalRunComparator::CRITERION_NOISE_AWARE,
+        noisePairBase: $noiseBase,
+        noisePairCandidate: $noiseCandidate,
+    );
+
+    expect($result['verdict'])->toBe('reject')
+        ->and($result['reasons'])->toHaveCount(1)
+        ->and($result['reasons'][0])->toContain('(в)')
+        ->and($result['reasons'][0])->toContain('tune.row_coverage');
+});
+
+test('artisan estimate:eval:compare --criterion=noise-aware без --noise-pair завершается ошибкой, а не берёт дефолт', function () {
+    $tune = evalCompareSeedExample('EST-XLSX-TUNE-K-001');
+    $holdout = evalCompareSeedExample('EST-XLSX-HOLD-K-001');
+
+    evalCompareWriteSplits(holdout: [$holdout['code']]);
+
+    $base = evalCompareRun();
+    $candidate = evalCompareRun();
+
+    evalCompareResult($base->id, $tune['dataset_example_id'], f1: 0.80);
+    evalCompareResult($base->id, $holdout['dataset_example_id'], f1: 0.80);
+    evalCompareResult($candidate->id, $tune['dataset_example_id'], f1: 0.80);
+    evalCompareResult($candidate->id, $holdout['dataset_example_id'], f1: 0.80);
+
+    $result = $this->artisan('estimate:eval:compare', [
+        '--base' => $base->id,
+        '--candidate' => $candidate->id,
+        '--criterion' => 'noise-aware',
+    ]);
+
+    $result->assertExitCode(1);
+});
+
+test('noise-aware: несравнимый состав эталонов нулевой пары — ошибка, а не тихий проход', function () {
+    $tune = evalCompareSeedExample('EST-XLSX-TUNE-L-001');
+    $holdout = evalCompareSeedExample('EST-XLSX-HOLD-L-001');
+    $noiseOnlyBase = evalCompareSeedExample('EST-XLSX-NOISEBASE-L-001');
+    $noiseOnlyCandidate = evalCompareSeedExample('EST-XLSX-NOISECAND-L-001');
+
+    evalCompareWriteSplits(holdout: [$holdout['code']]);
+
+    $base = evalCompareRun();
+    $candidate = evalCompareRun();
+
+    evalCompareResult($base->id, $tune['dataset_example_id'], f1: 0.80);
+    evalCompareResult($base->id, $holdout['dataset_example_id'], f1: 0.80);
+    evalCompareResult($candidate->id, $tune['dataset_example_id'], f1: 0.80);
+    evalCompareResult($candidate->id, $holdout['dataset_example_id'], f1: 0.80);
+
+    // Нулевая пара: базовый прогон несёт ОДИН эталон, кандидат — ДРУГОЙ, состав не совпадает.
+    $noiseBase = evalCompareRun();
+    $noiseCandidate = evalCompareRun();
+
+    evalCompareResult($noiseBase->id, $noiseOnlyBase['dataset_example_id'], f1: 0.80);
+    evalCompareResult($noiseCandidate->id, $noiseOnlyCandidate['dataset_example_id'], f1: 0.75);
+
+    expect(fn () => app(EvalRunComparator::class)->compare(
+        base: $base,
+        candidate: $candidate,
+        criterion: EvalRunComparator::CRITERION_NOISE_AWARE,
+        noisePairBase: $noiseBase,
+        noisePairCandidate: $noiseCandidate,
+    ))->toThrow(RuntimeException::class);
+});
+
+test('no-regression на тех же данных, что noise-aware тесты, даёт прежний вердикт (защита D24 от регрессии)', function () {
+    $tune = evalCompareSeedExample('EST-XLSX-TUNE-M-001');
+    $holdout = evalCompareSeedExample('EST-XLSX-HOLD-M-001');
+
+    evalCompareWriteSplits(holdout: [$holdout['code']]);
+
+    $base = evalCompareRun();
+    $candidate = evalCompareRun();
+
+    evalCompareResult($base->id, $tune['dataset_example_id'], f1: 0.80, rowCoverage: 1.0);
+    evalCompareResult($base->id, $holdout['dataset_example_id'], f1: 0.80, rowCoverage: 1.0);
+    evalCompareResult($candidate->id, $tune['dataset_example_id'], f1: 0.80, rowCoverage: 1.0);
+    evalCompareResult($candidate->id, $holdout['dataset_example_id'], f1: 0.79, rowCoverage: 1.0); // -0.01
+
+    $result = app(EvalRunComparator::class)->compare($base, $candidate, EvalRunComparator::CRITERION_NO_REGRESSION);
+
+    expect($result['verdict'])->toBe('reject')
+        ->and($result['reasons'])->toHaveCount(1)
+        ->and($result['reasons'][0])->toContain('(б)')
+        ->and($result)->not->toHaveKey('noise_basis')
+        ->and($result)->not->toHaveKey('profile')
+        ->and($result['subsamples'])->not->toHaveKey('overall');
 });
