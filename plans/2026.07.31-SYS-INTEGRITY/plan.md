@@ -483,6 +483,7 @@ Prism `unhandled finish reason`, decimal-cast); **M3c** (EvalRun #12, дерев
 | 2026-08-04 | владелец (гейт P3.1) | **Вердикт по OQ-8 — D113:** в P3.3 идут три слоя класса A (`Exceptions`/`Dto`/`Repositories` домена Procurement), `FinishReason` переносится в домен `Llm`. P3.3 вышел из формы `waiting:`, батч B2 исполняется группой |
 | 2026-08-04 | plan-run / sonnet-high | P3.2 закрыт 🟠, item-коммит **`c25bf2e`**: 33/40 enum'ов перенесены по `research/04` §3 — детали см. `phases/P3.md` P3.2 Completion Notes |
 | 2026-08-04 | plan-run / sonnet-high | P3.3 закрыт 🟠, item-коммит **`4e844fe`**: три утверждённых D113 слоя (Exceptions 13/15, Dto 4/7, Repositories 13/16) перенесены по правилу §2.1 — детали см. `phases/P3.md` P3.3 Completion Notes |
+| 2026-08-04 | plan-run / sonnet-high | P3.4 закрыт 🟠, item-коммит **`b6cf324`**: `DomainLayoutTest` — три Finder-проверки правила §2.1 на четырёх слоях, выровненных P3.2/P3.3, все три с доказанной красной пробой — детали см. `phases/P3.md` P3.4 Completion Notes |
 
 ## Обсуждение
 
