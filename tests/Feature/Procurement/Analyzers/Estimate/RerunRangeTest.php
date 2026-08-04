@@ -43,8 +43,16 @@ function rerunRowsResponse(array $rows): LlmStructuredResponse
     return rerunStructured(['rows' => $rows, 'incomplete_items' => []]);
 }
 
-function rerunRow(int $index, string $name, ?string $totalPrice = null): array
-{
+function rerunRow(
+    int $index,
+    string $name,
+    ?string $totalPrice = null,
+    ?string $unitPriceBase = null,
+    ?string $totalPriceBase = null,
+    ?string $indexCode = null,
+    ?string $indexValue = null,
+    ?string $sourcePositionNumber = null,
+): array {
     return [
         'row_index' => $index,
         'row_type' => 'item',
@@ -53,8 +61,13 @@ function rerunRow(int $index, string $name, ?string $totalPrice = null): array
         'code' => null,
         'unit' => null,
         'quantity' => null,
+        'unit_price_base' => $unitPriceBase,
         'unit_price_curr' => null,
+        'total_price_base' => $totalPriceBase,
         'total_price_curr' => $totalPrice,
+        'index_code' => $indexCode,
+        'index_value' => $indexValue,
+        'source_position_number' => $sourcePositionNumber,
         'resources' => [],
     ];
 }
@@ -128,4 +141,106 @@ test('re-run заменяет только позиции запрошенног
 
     // Files API хэндл не переиспользован из progress (пуст) — файл загружен для точечного re-run.
     expect($fake->uploadedFiles())->toHaveCount(1);
+});
+
+test('re-run доводит запись позиции до полноты схемы тем же набором полей, что полный persist (P5.2)', function (): void {
+    Storage::fake('s3');
+
+    $fake = FakeLlmProvider::succeeding(rerunRowsResponse([
+        rerunRow(5, 'Обновлённая позиция 5', totalPrice: '900.00', unitPriceBase: '80.00', totalPriceBase: '800.00', indexCode: 'ИПЦ-2024', indexValue: '1.1', sourcePositionNumber: '3.2'),
+    ]));
+    seedRerunRoute($fake);
+
+    $document = Document::factory()->create();
+    $version = DocumentVersion::factory()->create(['document_id' => $document->id]);
+    $analysis = Analysis::factory()->create([
+        'document_version_id' => $version->id,
+        'step' => AnalysisStep::Extraction,
+        'status' => AnalysisStatus::Succeeded,
+        'progress' => null,
+    ]);
+
+    $estimate = Estimate::factory()->create([
+        'analysis_id' => $analysis->id,
+        'document_version_id' => $version->id,
+        'procurement_id' => $document->procurement_id,
+        'ordinal' => 1,
+        'rows_expected' => 1,
+        'rows_extracted' => 1,
+        'validation_status' => 'suspicious',
+    ]);
+
+    Item::factory()->create([
+        'estimate_id' => $estimate->id,
+        'section_id' => null,
+        'row_index' => 5,
+        'name' => 'Старая позиция 5',
+        'unit_price_base' => '999.00',
+        'index_code' => 'СТАРЫЙ',
+        'source_position_number' => 'СТАРЫЙ',
+    ]);
+
+    app(RerunRangeAction::class)->run($estimate, rowStart: 5, rowLength: 1);
+
+    $updated = Item::query()->where('estimate_id', $estimate->id)->where('row_index', 5)->firstOrFail();
+
+    expect((string) $updated->unit_price_base)->toBe('80.00')
+        ->and((string) $updated->total_price_base)->toBe('800.00')
+        ->and($updated->index_code)->toBe('ИПЦ-2024')
+        ->and((string) $updated->index_value)->toBe('1.100000')
+        ->and($updated->source_position_number)->toBe('3.2');
+});
+
+test('re-run не обнуляет ранее записанные unit_price_base/index_code/source_position_number, если сам их не пересчитал (P5.2 Implementation Rules п.5)', function (): void {
+    Storage::fake('s3');
+
+    $fake = FakeLlmProvider::succeeding(rerunRowsResponse([
+        // Тот же ряд — но ЭТОТ прогон вернул null там, где раньше уже было записано значение
+        // (модель «не пересчитала» поле в этот раз).
+        rerunRow(5, 'Обновлённая позиция 5', totalPrice: '900.00'),
+    ]));
+    seedRerunRoute($fake);
+
+    $document = Document::factory()->create();
+    $version = DocumentVersion::factory()->create(['document_id' => $document->id]);
+    $analysis = Analysis::factory()->create([
+        'document_version_id' => $version->id,
+        'step' => AnalysisStep::Extraction,
+        'status' => AnalysisStatus::Succeeded,
+        'progress' => null,
+    ]);
+
+    $estimate = Estimate::factory()->create([
+        'analysis_id' => $analysis->id,
+        'document_version_id' => $version->id,
+        'procurement_id' => $document->procurement_id,
+        'ordinal' => 1,
+        'rows_expected' => 1,
+        'rows_extracted' => 1,
+        'validation_status' => 'suspicious',
+    ]);
+
+    Item::factory()->create([
+        'estimate_id' => $estimate->id,
+        'section_id' => null,
+        'row_index' => 5,
+        'name' => 'Старая позиция 5',
+        'unit_price_base' => '100.00',
+        'total_price_base' => '1000.00',
+        'index_code' => 'ИПЦ-2023',
+        'index_value' => '1.050000',
+        'source_position_number' => '9.1',
+    ]);
+
+    app(RerunRangeAction::class)->run($estimate, rowStart: 5, rowLength: 1);
+
+    $updated = Item::query()->where('estimate_id', $estimate->id)->where('row_index', 5)->firstOrFail();
+
+    expect($updated->name)->toBe('Обновлённая позиция 5') // поле, которое re-run пересчитал — обновлено
+        ->and((string) $updated->total_price_curr)->toBe('900.00')
+        ->and((string) $updated->unit_price_base)->toBe('100.00') // не пересчитано этим прогоном — сохранено
+        ->and((string) $updated->total_price_base)->toBe('1000.00')
+        ->and($updated->index_code)->toBe('ИПЦ-2023')
+        ->and((string) $updated->index_value)->toBe('1.050000')
+        ->and($updated->source_position_number)->toBe('9.1');
 });

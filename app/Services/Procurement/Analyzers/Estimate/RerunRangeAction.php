@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Services\Procurement\Analyzers\Estimate;
 
-use App\Dto\Procurement\Analyzers\Estimate\RowModifier;
 use App\Dto\Procurement\Analyzers\Estimate\RowsChunkResponse;
 use App\Enums\Procurement\Ai\AiDocumentType;
 use App\Enums\Procurement\Analyzers\Estimate\EstimateLlmPurpose;
@@ -12,6 +11,7 @@ use App\Enums\Procurement\Estimate\RowType;
 use App\Models\Procurement\Ai\Analysis;
 use App\Models\Procurement\Document\DocumentVersion;
 use App\Models\Procurement\Estimate\Estimate;
+use App\Models\Procurement\Estimate\Item;
 use App\Repositories\Procurement\Analyzers\Estimate\EstimateStoreRepository;
 use App\Services\Llm\Contracts\SupportsFileUpload;
 use App\Services\Llm\Dto\LlmFileHandle;
@@ -101,22 +101,37 @@ final readonly class RerunRangeAction
                     estimateId: $estimate->id,
                     sectionId: $sectionId,
                     rowIndex: $row->row_index,
-                    attributes: [
-                        'code' => $row->code,
-                        'name' => $row->name,
-                        'unit' => $row->unit,
-                        'quantity' => $row->quantity,
-                        'unit_price_curr' => $row->unit_price_curr,
-                        'total_price_curr' => $row->total_price_curr,
-                        'attributes' => $row->attributes !== null && $row->attributes->modifiers !== []
-                            ? ['modifiers' => array_map(static fn (RowModifier $modifier): array => $modifier->toArray(), $row->attributes->modifiers)]
-                            : null,
-                    ],
+                    attributes: $this->preserveUnrecomputed(EstimatePersister::itemAttributes($row), $existing),
                 );
             }
 
             $estimate->update(['rows_extracted' => $this->estimates->countItems($estimate->id)]);
         });
+    }
+
+    /**
+     * Точечный re-run обязан сохранять поля, которые он не пересчитывает (Implementation Rules
+     * P5.2 п.5) — если этот прогон вернул `null` там, где раньше уже было записано значение
+     * (полным persist или предыдущим re-run), пустой ответ ЭТОГО вызова не затирает его:
+     * `updateOrCreate` с полным набором ключей иначе обнулил бы позицию точнее старого усечённого
+     * набора, но с той же потерей — молча.
+     *
+     * @param  array<string, mixed>  $attributes
+     * @return array<string, mixed>
+     */
+    private function preserveUnrecomputed(array $attributes, ?Item $existing): array
+    {
+        if ($existing === null) {
+            return $attributes;
+        }
+
+        foreach (['unit_price_base', 'total_price_base', 'index_code', 'index_value', 'source_position_number'] as $field) {
+            if ($attributes[$field] === null && $existing->{$field} !== null) {
+                $attributes[$field] = $existing->{$field};
+            }
+        }
+
+        return $attributes;
     }
 
     private function buildSession(Analysis $analysis, DocumentVersion $version, ResolvedRoute $route): ExtractionSession

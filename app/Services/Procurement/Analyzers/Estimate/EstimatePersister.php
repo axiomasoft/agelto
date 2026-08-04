@@ -7,6 +7,7 @@ namespace App\Services\Procurement\Analyzers\Estimate;
 use App\Dto\Procurement\Analyzers\Estimate\EstimateRow;
 use App\Dto\Procurement\Analyzers\Estimate\EstimateTotalsBlock;
 use App\Dto\Procurement\Analyzers\Estimate\IncompleteRow;
+use App\Dto\Procurement\Analyzers\Estimate\RowAttributes;
 use App\Dto\Procurement\Analyzers\Estimate\RowModifier;
 use App\Dto\Procurement\Analyzers\Estimate\RowResource;
 use App\Enums\Procurement\Estimate\RowType;
@@ -108,6 +109,13 @@ final readonly class EstimatePersister
                     'base_year' => $data['base_year'] ?? null,
                     'price_level' => $data['price_level'] ?? null,
                     'passport' => $data['passport'] ?? null,
+                    'calc_method' => $data['calc_method'] ?? null,
+                    'labor_hours_workers' => $data['labor_hours_workers'] ?? null,
+                    'labor_hours_machinists' => $data['labor_hours_machinists'] ?? null,
+                    'document_number' => $data['document_number'] ?? null,
+                    'document_date' => $data['document_date'] ?? null,
+                    'period_start' => $data['period_start'] ?? null,
+                    'period_end' => $data['period_end'] ?? null,
                     ...$this->rawResultAttributes($analysis->id, $ordinal, $data),
                     'rows_expected' => (int) ($data['rows_expected'] ?? 0),
                     'rows_extracted' => count($itemRows),
@@ -155,17 +163,7 @@ final readonly class EstimatePersister
                 estimateId: $estimate->id,
                 sectionId: $sectionId,
                 rowIndex: $row->row_index,
-                attributes: [
-                    'code' => $row->code,
-                    'name' => $row->name,
-                    'unit' => $row->unit,
-                    'quantity' => $row->quantity,
-                    'unit_price_curr' => $row->unit_price_curr,
-                    'total_price_curr' => $row->total_price_curr,
-                    'attributes' => $row->attributes !== null && $row->attributes->modifiers !== []
-                        ? ['modifiers' => array_map(static fn (RowModifier $modifier): array => $modifier->toArray(), $row->attributes->modifiers)]
-                        : null,
-                ],
+                attributes: self::itemAttributes($row),
             );
 
             $this->estimates->replaceResources(
@@ -176,10 +174,75 @@ final readonly class EstimatePersister
                     'name' => $resource->name,
                     'unit' => $resource->unit,
                     'quantity' => $resource->quantity,
+                    'price_base' => $resource->price_base,
                     'price_curr' => $resource->price_curr,
+                    'index_code' => $resource->index_code,
+                    'index_value' => $resource->index_value,
                 ], $row->resources),
             );
         }
+    }
+
+    /**
+     * Единственный носитель набора полей позиции (`prc_estimate_items`), читаемого ОБОИМИ
+     * writer-путями (`self`/`RerunRangeAction`, P5.2 Implementation Rules п.2) — две независимые
+     * копии этого набора и есть причина, по которой полный persist и точечный re-run расходились
+     * (D40). `work_type_id` сюда не входит: резолв `work_type_name` → FK требует нового поведения
+     * (сопоставление с `prc_estimate_work_types`), не маппинга контракта в колонку — решение P5.3
+     * (Scope Excluded P5.2).
+     *
+     * @return array<string, mixed>
+     */
+    public static function itemAttributes(EstimateRow $row): array
+    {
+        return [
+            'code' => $row->code,
+            'name' => $row->name,
+            'unit' => $row->unit,
+            'quantity' => $row->quantity,
+            'unit_price_base' => $row->unit_price_base,
+            'unit_price_curr' => $row->unit_price_curr,
+            'total_price_base' => $row->total_price_base,
+            'total_price_curr' => $row->total_price_curr,
+            'index_code' => $row->index_code,
+            'index_value' => $row->index_value,
+            'source_position_number' => $row->source_position_number,
+            'attributes' => self::rowAttributes($row->attributes),
+        ];
+    }
+
+    /**
+     * Собирается по `RowAttributes::ALLOWED_KEYS` (единственный источник истины допустимых ключей,
+     * P5.2 Implementation Rules п.3), а не перечислением ключей руками — пустое значение не
+     * превращается в `null`-ключ.
+     *
+     * @return array<string, mixed>|null
+     */
+    private static function rowAttributes(?RowAttributes $attributes): ?array
+    {
+        if ($attributes === null) {
+            return null;
+        }
+
+        $values = [];
+
+        foreach (RowAttributes::ALLOWED_KEYS as $key) {
+            $value = $attributes->{$key};
+
+            if ($key === 'modifiers') {
+                if ($value !== []) {
+                    $values['modifiers'] = array_map(static fn (RowModifier $modifier): array => $modifier->toArray(), $value);
+                }
+
+                continue;
+            }
+
+            if ($value !== null) {
+                $values[$key] = $value;
+            }
+        }
+
+        return $values === [] ? null : $values;
     }
 
     /**
@@ -209,7 +272,6 @@ final readonly class EstimatePersister
                     parentId: $parentId,
                     title: $title,
                     position: $childPositionCounters[$parentKey],
-                    sectionNumber: null,
                 );
 
                 $sectionIdCache[$key] = $section->id;

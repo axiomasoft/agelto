@@ -115,12 +115,6 @@ parameters:
 			path: app/Repositories/Organization/ProcurementPartyStoreRepository.php
 
 		-
-			message: '#^Access to an undefined property App\\Models\\Procurement\\Estimate\\Section\:\:\$section_number\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Repositories/Procurement/Analyzers/Estimate/EstimateStoreRepository.php
-
-		-
 			message: '#^Access to an undefined property App\\Models\\Procurement\\Procurement\:\:\$detail_attempts\.$#'
 			identifier: property.notFound
 			count: 1

@@ -48,15 +48,15 @@ final readonly class EstimateStoreRepository
      * между повторными persist одного и того же анализа: сохраняет `Section.id` (Items ссылаются
      * на него `nullOnDelete`), не плодит дублей при том же названии на том же уровне иерархии.
      */
-    public function findOrCreateSection(int $estimateId, ?int $parentId, string $title, int $position, ?string $sectionNumber): Section
+    public function findOrCreateSection(int $estimateId, ?int $parentId, string $title, int $position): Section
     {
         $section = Section::query()->firstOrCreate(
             ['estimate_id' => $estimateId, 'parent_id' => $parentId, 'title' => $title],
-            ['position' => $position, 'section_number' => $sectionNumber],
+            ['position' => $position],
         );
 
-        if ($section->position !== $position || $section->section_number !== $sectionNumber) {
-            $section->update(['position' => $position, 'section_number' => $sectionNumber]);
+        if ($section->position !== $position) {
+            $section->update(['position' => $position]);
         }
 
         return $section;
@@ -158,6 +158,8 @@ final readonly class EstimateStoreRepository
                 'label' => $line->label,
                 'kind' => $line->kind,
                 'amount' => $line->value,
+                'chapter_number' => $line->chapter_number,
+                'rate' => $line->rate,
             ]);
 
             if ($line->children !== []) {
