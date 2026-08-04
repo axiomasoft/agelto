@@ -19,6 +19,8 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property string|null $code
  * @property string $name
  * @property string|null $unit
+ * @property string|null $unit_base
+ * @property string|null $unit_multiplier
  * @property string|null $quantity
  * @property string|null $unit_price_base
  * @property string|null $unit_price_curr
@@ -27,6 +29,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property string|null $index_code
  * @property string|null $index_value
  * @property string|null $source_position_number
+ * @property int|null $work_type_id
  */
 #[UseFactory(ItemFactory::class)]
 final class Item extends Model

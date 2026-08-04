@@ -198,6 +198,7 @@ final readonly class ExtractionOrchestrator
                     'currency' => $passport->currency,
                     'base_year' => $passport->base_year,
                     'price_level' => $passport->price_level,
+                    'regulatory_base' => $passport->regulatory_base,
                     'rows_expected' => $passport->rows_expected,
                     'next_row_index' => 1,
                     'row_range_size' => $rowRangeSize,
@@ -392,6 +393,7 @@ final readonly class ExtractionOrchestrator
                     'currency' => 'RUB',
                     'base_year' => null,
                     'price_level' => null,
+                    'regulatory_base' => null,
                     'rows_expected' => 0,
                     'segment_page_start' => $segment['page_start'],
                     'segment_page_end' => $segment['page_end'],
@@ -441,6 +443,7 @@ final readonly class ExtractionOrchestrator
                 $estimates[$currentIndex]['currency'] = $passport->currency;
                 $estimates[$currentIndex]['base_year'] = $passport->base_year;
                 $estimates[$currentIndex]['price_level'] = $passport->price_level;
+                $estimates[$currentIndex]['regulatory_base'] = $passport->regulatory_base;
                 $estimates[$currentIndex]['rows_expected'] = $passport->rows_expected;
                 $estimates[$currentIndex]['passport_done'] = true;
 

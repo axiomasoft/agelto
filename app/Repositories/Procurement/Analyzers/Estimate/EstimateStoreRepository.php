@@ -4,11 +4,13 @@ declare(strict_types=1);
 
 namespace App\Repositories\Procurement\Analyzers\Estimate;
 
+use App\Dto\Procurement\Analyzers\Estimate\EstimateWorkType;
 use App\Dto\Procurement\Analyzers\Estimate\TotalLine;
 use App\Models\Procurement\Estimate\Estimate;
 use App\Models\Procurement\Estimate\Item;
 use App\Models\Procurement\Estimate\Section;
 use App\Models\Procurement\Estimate\Total;
+use App\Models\Procurement\Estimate\WorkType;
 
 /**
  * Единственная точка персистентности `prc_estimates`/`prc_estimate_sections`/
@@ -141,6 +143,64 @@ final readonly class EstimateStoreRepository
         Total::query()->where('estimate_id', $estimateId)->delete();
 
         $this->createTotalTree($estimateId, null, $footer);
+    }
+
+    /**
+     * Резолв `work_type_id` строки позиции по `EstimateRow::$work_type_name` (B-5, P5.3 `research/
+     * 06-estimate-completeness.md` §4) — единственный писатель дерева `prc_estimate_work_types` даёт
+     * `title` без иерархии (боевой LLM-ответ несёт `work_types = []` по построению, докблок
+     * `PassportResponse::$work_types`): запись, созданная резолвом, несёт только `title`, нормативы
+     * НР/СП остаются `null` — не потеря, а честное «вид работ назван, нормативы не напечатаны».
+     */
+    public function findOrCreateWorkType(int $estimateId, string $title): WorkType
+    {
+        return WorkType::query()->firstOrCreate(
+            ['estimate_id' => $estimateId, 'title' => $title],
+            ['parent_id' => null, 'position' => (int) WorkType::query()->where('estimate_id', $estimateId)->max('position') + 1],
+        );
+    }
+
+    /**
+     * Дерево видов работ из `PassportResponse::$work_types` (заполняет ТОЛЬКО детерминированный
+     * маппер `.gsfx`, D33-исключение) — та же полная пересборка на каждый persist, что
+     * `replaceTotals()`: дерево не несёт FK-зависимых записей извне, кроме `prc_estimate_items.
+     * work_type_id` (`nullOnDelete`), который персистер пересчитывает СРАЗУ следом в той же
+     * транзакции (`findOrCreateWorkType()`).
+     *
+     * @param  list<EstimateWorkType>  $workTypes
+     */
+    public function replaceWorkTypes(int $estimateId, array $workTypes): void
+    {
+        WorkType::query()->where('estimate_id', $estimateId)->delete();
+
+        $this->createWorkTypeTree($estimateId, null, $workTypes);
+    }
+
+    /**
+     * @param  list<EstimateWorkType>  $workTypes
+     */
+    private function createWorkTypeTree(int $estimateId, ?int $parentId, array $workTypes): void
+    {
+        $position = 1;
+
+        foreach ($workTypes as $workType) {
+            $record = WorkType::query()->create([
+                'estimate_id' => $estimateId,
+                'parent_id' => $parentId,
+                'position' => $position++,
+                'title' => $workType->title,
+                'overhead_code' => $workType->overhead_code,
+                'overhead_rate' => $workType->overhead_rate,
+                'overhead_rate_curr' => $workType->overhead_rate_curr,
+                'profit_code' => $workType->profit_code,
+                'profit_rate' => $workType->profit_rate,
+                'profit_rate_curr' => $workType->profit_rate_curr,
+            ]);
+
+            if ($workType->children !== []) {
+                $this->createWorkTypeTree($estimateId, $record->id, $workType->children);
+            }
+        }
     }
 
     /**

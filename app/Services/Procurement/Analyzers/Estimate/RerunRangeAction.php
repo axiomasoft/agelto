@@ -97,11 +97,21 @@ final readonly class RerunRangeAction
                     $sectionId = $this->estimates->findNearestPrecedingSectionId($estimate->id, $row->row_index);
                 }
 
+                // work_type_id — та же логика «пустой ответ не затирает старое», что
+                // preserveUnrecomputed() ниже (P5.3, B-5): точечный re-run резолвит заново ТОЛЬКО
+                // если этот прогон вернул work_type_name, иначе сохраняет уже записанную ссылку.
+                $workTypeId = $row->work_type_name !== null
+                    ? $this->estimates->findOrCreateWorkType($estimate->id, $row->work_type_name)->id
+                    : $existing?->work_type_id;
+
                 $this->estimates->upsertItem(
                     estimateId: $estimate->id,
                     sectionId: $sectionId,
                     rowIndex: $row->row_index,
-                    attributes: $this->preserveUnrecomputed(EstimatePersister::itemAttributes($row), $existing),
+                    attributes: [
+                        ...$this->preserveUnrecomputed(EstimatePersister::itemAttributes($row), $existing),
+                        'work_type_id' => $workTypeId,
+                    ],
                 );
             }
 

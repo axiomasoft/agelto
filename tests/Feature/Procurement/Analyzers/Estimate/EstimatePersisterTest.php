@@ -14,6 +14,7 @@ use App\Models\Procurement\Estimate\Item;
 use App\Models\Procurement\Estimate\Resource;
 use App\Models\Procurement\Estimate\Section;
 use App\Models\Procurement\Estimate\Total;
+use App\Models\Procurement\Estimate\WorkType;
 use App\Models\Procurement\ProcurementEvent;
 use App\Services\Procurement\Analyzers\Estimate\EstimatePersister;
 
@@ -40,6 +41,8 @@ function estimateRowData(
     ?string $indexValue = null,
     ?string $sourcePositionNumber = null,
     array $resources = [],
+    ?string $unit = null,
+    ?string $workTypeName = null,
 ): array {
     return [
         'row_index' => $index,
@@ -47,7 +50,7 @@ function estimateRowData(
         'name' => $name,
         'section_title' => $sectionTitle,
         'code' => $code,
-        'unit' => $quantity !== null ? 'м3' : null,
+        'unit' => $unit ?? ($quantity !== null ? 'м3' : null),
         'quantity' => $quantity,
         'unit_price_base' => $unitPriceBase,
         'unit_price_curr' => $unitPrice,
@@ -56,6 +59,7 @@ function estimateRowData(
         'index_code' => $indexCode,
         'index_value' => $indexValue,
         'source_position_number' => $sourcePositionNumber,
+        'work_type_name' => $workTypeName,
         'resources' => $resources,
     ];
 }
@@ -70,12 +74,13 @@ function estimateResourceData(
     ?string $priceCurr = null,
     ?string $indexCode = null,
     ?string $indexValue = null,
+    ?string $unit = null,
 ): array {
     return [
         'resource_type' => $resourceType,
         'name' => $name,
         'code' => null,
-        'unit' => null,
+        'unit' => $unit,
         'quantity' => null,
         'price_base' => $priceBase,
         'price_curr' => $priceCurr,
@@ -87,8 +92,13 @@ function estimateResourceData(
 /**
  * @param  list<array<string, mixed>>  $rows
  */
-function estimateResultData(int $ordinal, array $rows, ?string $grandTotal = '2000.00'): array
-{
+function estimateResultData(
+    int $ordinal,
+    array $rows,
+    ?string $grandTotal = '2000.00',
+    ?string $regulatoryBase = null,
+    array $workTypes = [],
+): array {
     return [
         'ordinal' => $ordinal,
         'estimate_number' => "СМ-{$ordinal}",
@@ -96,12 +106,14 @@ function estimateResultData(int $ordinal, array $rows, ?string $grandTotal = '20
         'currency' => 'RUB',
         'base_year' => 2001,
         'price_level' => 'ФЕР-2001',
+        'regulatory_base' => $regulatoryBase,
         'rows_expected' => 2,
         'rows' => $rows,
         'incomplete_items' => [],
         'totals' => $grandTotal === null ? null : ['footer' => [
             ['label' => 'Итого', 'value' => $grandTotal, 'kind' => null, 'children' => []],
         ]],
+        'work_types' => $workTypes,
         'rows_done' => true,
         'totals_done' => true,
     ];
@@ -258,4 +270,98 @@ test('persist доводит запись до полноты схемы: все
 
     expect($total->chapter_number)->toBe(15)
         ->and((string) $total->rate)->toBe('5.000000');
+});
+
+test('persist пишет regulatory_base и нормализует unit_base/unit_multiplier позиции и ресурса (P5.5)', function (): void {
+    $rows = [
+        estimateRowData(
+            1,
+            'item',
+            'Позиция 1',
+            totalPrice: '1000.00',
+            quantity: '10.000000',
+            unitPrice: '100.00',
+            unit: '100 м2',
+            resources: [estimateResourceData('Материал А', unit: '1000 кг')],
+        ),
+    ];
+
+    $analysis = seedPersisterAnalysis([
+        estimateResultData(1, $rows, grandTotal: null, regulatoryBase: 'Приказ Минстроя России от 30.12.2021 № 1046/пр'),
+    ]);
+
+    app(EstimatePersister::class)->persist($analysis);
+
+    $estimate = Estimate::query()->where('analysis_id', $analysis->id)->firstOrFail();
+    expect($estimate->regulatory_base)->toBe('Приказ Минстроя России от 30.12.2021 № 1046/пр');
+
+    $item = Item::query()->where('estimate_id', $estimate->id)->where('row_index', 1)->firstOrFail();
+    expect($item->unit_base)->toBe('м2')->and((string) $item->unit_multiplier)->toBe('100.000000');
+
+    $resource = Resource::query()->where('item_id', $item->id)->firstOrFail();
+    expect($resource->unit_base)->toBe('кг')->and((string) $resource->unit_multiplier)->toBe('1000.000000');
+});
+
+test('нормализатор unit без множителя даёт unit_base = unit, unit_multiplier = 1 (P5.5)', function (): void {
+    $rows = [estimateRowData(1, 'item', 'Позиция 1', unit: 'м3')];
+
+    $analysis = seedPersisterAnalysis([estimateResultData(1, $rows, grandTotal: null)]);
+
+    app(EstimatePersister::class)->persist($analysis);
+
+    $item = Item::query()->where('row_index', 1)->firstOrFail();
+
+    expect($item->unit_base)->toBe('м3')->and((string) $item->unit_multiplier)->toBe('1.000000');
+});
+
+test('persist резолвит work_type_id по work_type_name через findOrCreate и переиспользует запись между позициями (P5.5)', function (): void {
+    $rows = [
+        estimateRowData(1, 'item', 'Позиция 1', workTypeName: 'Кровельные работы'),
+        estimateRowData(2, 'item', 'Позиция 2', workTypeName: 'Кровельные работы'),
+        estimateRowData(3, 'item', 'Позиция 3'),
+    ];
+
+    $analysis = seedPersisterAnalysis([estimateResultData(1, $rows, grandTotal: null)]);
+
+    app(EstimatePersister::class)->persist($analysis);
+
+    $estimate = Estimate::query()->where('analysis_id', $analysis->id)->firstOrFail();
+    $items = Item::query()->where('estimate_id', $estimate->id)->orderBy('row_index')->get();
+
+    expect($items[0]->work_type_id)->not->toBeNull()
+        ->and($items[0]->work_type_id)->toBe($items[1]->work_type_id)
+        ->and($items[2]->work_type_id)->toBeNull();
+
+    $workType = WorkType::query()->findOrFail($items[0]->work_type_id);
+
+    expect($workType->title)->toBe('Кровельные работы')
+        ->and(WorkType::query()->where('estimate_id', $estimate->id)->count())->toBe(1);
+});
+
+test('persist пишет дерево видов работ из PassportResponse::work_types с нормативами НР/СП (P5.5)', function (): void {
+    $rows = [estimateRowData(1, 'item', 'Позиция 1')];
+
+    $analysis = seedPersisterAnalysis([
+        estimateResultData(1, $rows, grandTotal: null, workTypes: [
+            [
+                'title' => 'Кровельные работы',
+                'overhead_code' => 'МДС81-33',
+                'overhead_rate' => '95.000000',
+                'children' => [
+                    ['title' => 'Устройство кровли'],
+                ],
+            ],
+        ]),
+    ]);
+
+    app(EstimatePersister::class)->persist($analysis);
+
+    $estimate = Estimate::query()->where('analysis_id', $analysis->id)->firstOrFail();
+    $root = WorkType::query()->where('estimate_id', $estimate->id)->whereNull('parent_id')->firstOrFail();
+
+    expect($root->title)->toBe('Кровельные работы')
+        ->and((string) $root->overhead_rate)->toBe('95.000000');
+
+    $child = WorkType::query()->where('parent_id', $root->id)->firstOrFail();
+    expect($child->title)->toBe('Устройство кровли');
 });

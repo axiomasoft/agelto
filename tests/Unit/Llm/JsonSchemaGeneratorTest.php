@@ -129,6 +129,15 @@ test('схема RowsChunkResponse раскладывает вложенные D
         ->and($schema['$defs']['EstimateRow']['properties']['resources']['items'])->toBe(['$ref' => '#/$defs/RowResource']);
 });
 
+test('схема PassportResponse несёт regulatory_base и вложенные regulatory_amendments/index_letter EstimatePassport (P5.5)', function (): void {
+    $generator = new JsonSchemaGenerator;
+
+    $schema = $generator->generate(PassportResponse::class);
+
+    expect($schema['properties'])->toHaveKey('regulatory_base')
+        ->and($schema['$defs']['EstimatePassport']['properties'])->toHaveKeys(['regulatory_amendments', 'index_letter']);
+});
+
 test('рекурсивный TotalLine.children резолвится через $ref без бесконечной рекурсии', function (): void {
     $generator = new JsonSchemaGenerator;
 

@@ -118,9 +118,12 @@
   "generator": "string|null",
   "contract_number": "string|null",
   "contract_date": "string|null",
+  "regulatory_amendments": "string|null",
+  "index_letter": "string|null",
   "currency": "RUB",
   "base_year": 2001,
   "price_level": "string|null",
+  "regulatory_base": "string|null",
   "rows_expected": 0,
   "calc_method": "base_index|resource|null",
   "labor_hours_workers": "string|null",
@@ -136,7 +139,7 @@
 }
 ```
 
-`rows_expected` — оценка числа позиций (не разделов) во всей смете, ключ для контроля полноты (§3.4 doc-pipeline, п.4 Merge). `footer` — рекурсивная структура 1:1 с `EstimateFooterItem` (§1.3), `kind` — машиночитаемая пометка типа начисления, замкнутое множество `TotalKind` (план `2026.07.26-EST-TRAIN`), опционально заполняется LLM или детерминированно на бэкенде по `label`; `value` — nullable (план `2026.07.26-EST-TRAIN`): начисление, заданное процентом (`rate`), может не иметь собственной суммы в документе; `chapter_number`/`rate` — номер главы сводного расчёта и ставка процента (SR-11, план `2026.07.26-EST-TRAIN`). `contract_number`/`contract_date` — реквизиты договора подряда (SR-12, план `2026.07.26-EST-TRAIN`). `calc_method`/`labor_hours_workers`/`labor_hours_machinists`/`document_number`/`document_date`/`period_start`/`period_end` — поля, добавленные планом `2026.07.26-EST-TRAIN` по утверждённому распределению величин (`plans/2026.07.26-EST-TRAIN/research/06-schema-decision.md` §3.1/§8, SR-17/SR-07/SR-12); документ не называет метод расчёта или сводные трудозатраты явно — соответствующее поле `null`, бэкенд не подставляет значение по умолчанию. `work_types` — виды работ и их иерархия (SR-08/SR-09, план `2026.07.26-EST-TRAIN`): заполняет ТОЛЬКО детерминированный маппер `.gsfx` (нормативы НР/СП, `parent_id`) — боевой LLM-ответ всегда несёт пустой список (исключение из D33).
+`rows_expected` — оценка числа позиций (не разделов) во всей смете, ключ для контроля полноты (§3.4 doc-pipeline, п.4 Merge). `footer` — рекурсивная структура 1:1 с `EstimateFooterItem` (§1.3), `kind` — машиночитаемая пометка типа начисления, замкнутое множество `TotalKind` (план `2026.07.26-EST-TRAIN`), опционально заполняется LLM или детерминированно на бэкенде по `label`; `value` — nullable (план `2026.07.26-EST-TRAIN`): начисление, заданное процентом (`rate`), может не иметь собственной суммы в документе; `chapter_number`/`rate` — номер главы сводного расчёта и ставка процента (SR-11, план `2026.07.26-EST-TRAIN`). `contract_number`/`contract_date` — реквизиты договора подряда (SR-12, план `2026.07.26-EST-TRAIN`). `calc_method`/`labor_hours_workers`/`labor_hours_machinists`/`document_number`/`document_date`/`period_start`/`period_end` — поля, добавленные планом `2026.07.26-EST-TRAIN` по утверждённому распределению величин (`plans/2026.07.26-EST-TRAIN/research/06-schema-decision.md` §3.1/§8, SR-17/SR-07/SR-12); документ не называет метод расчёта или сводные трудозатраты явно — соответствующее поле `null`, бэкенд не подставляет значение по умолчанию. `work_types` — виды работ и их иерархия (SR-08/SR-09, план `2026.07.26-EST-TRAIN`): заполняет ТОЛЬКО детерминированный маппер `.gsfx` (нормативы НР/СП, `parent_id`) — боевой LLM-ответ всегда несёт пустой список (исключение из D33). `regulatory_base`/`regulatory_amendments`/`index_letter` — паспортный блок формы 421/пр (GAP-8, план `2026.07.31-SYS-INTEGRITY` P5.3/P5.5, `plans/2026.07.31-SYS-INTEGRITY/research/06-estimate-completeness.md` §2/§6): редакция сметных нормативов, реквизиты приказа Минстроя России о дополнениях к ней и реквизиты письма об индексах изменения сметной стоимости — каждое поле ЦИТАТА документа как напечатана, не парсится в номер/дату на бэкенде (тот же приём, что `contract_date`); `reference` сужен до основания составления сметы (проектная и (или) иная техническая документация, задание, договор) — редакция сметных нормативов больше НЕ попадает в `reference`, только в `regulatory_base`.
 
 ### 3.2 `extract_rows` (построчный диапазон; сменяет v1 `fetch_items`)
 
@@ -440,10 +443,11 @@ tools/function-calling (контракт `LlmProvider` их не предост�
   "estimates": [
     {
       "estimate_number": "string|null",
-      "passport": { "type": null, "reference": null, "target": null, "address": null, "generator": null, "contract_number": null, "contract_date": null },
+      "passport": { "type": null, "reference": null, "target": null, "address": null, "generator": null, "contract_number": null, "contract_date": null, "regulatory_amendments": null, "index_letter": null },
       "currency": "RUB",
       "base_year": 2001,
       "price_level": null,
+      "regulatory_base": null,
       "rows_expected": 0,
       "calc_method": null,
       "labor_hours_workers": null,
@@ -460,7 +464,7 @@ tools/function-calling (контракт `LlmProvider` их не предост�
 }
 ```
 
-Каждый элемент `estimates[]` — прямое соответствие `PassportResponse` (§3.1, поля `estimate_number`/`passport`/`currency`/`base_year`/`price_level`/`rows_expected`/`totals`/`calc_method`/`labor_hours_workers`/`labor_hours_machinists`/`document_number`/`document_date`/`period_start`/`period_end`/`work_types`, план `2026.07.26-EST-TRAIN`) ПЛЮС ключ `rows` (`EstimateRow[]`, §3.2). Импорт валидирует КАЖДЫЙ элемент этим же PHP-контрактом (`PassportResponse::validateAndCreate()` + `EstimateRow::validateAndCreate()` на каждую строку, `Data::validateAndCreate()`, тот же приём, что `StructuredResponseValidator`) — битый эталон отклоняется с перечнем ошибок по индексу сметы/строки/поля, ничего не пишется в `prc_ai_dataset_examples` для этой пары; неизвестный ключ внутри `rows[].attributes` отклоняется ЭТИМ ЖЕ вызовом (`RowAttributes`, фиксированная схема, план `2026.07.26-EST-TRAIN`, D32) — «эталон, несущий поле вне утверждённого списка» тоже битый эталон. `estimates[]` сортируется по возрастанию `ordinal` (индекс в массиве = `ordinal-1`), для многосметных документов — сметы должны идти в том же порядке, в котором их находит `ExtractionOrchestrator` (паспорт-цикл row-range пути/discovery-сегментация оконного пути, §4). Пять колонок адреса сметы в источнике (`source_sheet_name`/`source_row_start`/`source_row_end`/`source_page_start`/`source_page_end`, план `2026.07.26-EST-TRAIN`) и ось `verified_at`/`verified_by` (D89) в этом контракте НЕ участвуют (исключение из D33, `plans/2026.07.26-EST-TRAIN/research/06-schema-decision.md` §6/§11, `research/07-multi-estimate-anchoring.md` §3.1) — обе группы заполняет бэкенд/оператор, а не разбор, поэтому эталон на вопрос «откуда прогон её взял» не отвечает и отвечать не обязан.
+Каждый элемент `estimates[]` — прямое соответствие `PassportResponse` (§3.1, поля `estimate_number`/`passport`/`currency`/`base_year`/`price_level`/`regulatory_base`/`rows_expected`/`totals`/`calc_method`/`labor_hours_workers`/`labor_hours_machinists`/`document_number`/`document_date`/`period_start`/`period_end`/`work_types`, план `2026.07.26-EST-TRAIN`; `regulatory_base` — план `2026.07.31-SYS-INTEGRITY` P5.5) ПЛЮС ключ `rows` (`EstimateRow[]`, §3.2). Импорт валидирует КАЖДЫЙ элемент этим же PHP-контрактом (`PassportResponse::validateAndCreate()` + `EstimateRow::validateAndCreate()` на каждую строку, `Data::validateAndCreate()`, тот же приём, что `StructuredResponseValidator`) — битый эталон отклоняется с перечнем ошибок по индексу сметы/строки/поля, ничего не пишется в `prc_ai_dataset_examples` для этой пары; неизвестный ключ внутри `rows[].attributes` отклоняется ЭТИМ ЖЕ вызовом (`RowAttributes`, фиксированная схема, план `2026.07.26-EST-TRAIN`, D32) — «эталон, несущий поле вне утверждённого списка» тоже битый эталон. `estimates[]` сортируется по возрастанию `ordinal` (индекс в массиве = `ordinal-1`), для многосметных документов — сметы должны идти в том же порядке, в котором их находит `ExtractionOrchestrator` (паспорт-цикл row-range пути/discovery-сегментация оконного пути, §4). Пять колонок адреса сметы в источнике (`source_sheet_name`/`source_row_start`/`source_row_end`/`source_page_start`/`source_page_end`, план `2026.07.26-EST-TRAIN`) и ось `verified_at`/`verified_by` (D89) в этом контракте НЕ участвуют (исключение из D33, `plans/2026.07.26-EST-TRAIN/research/06-schema-decision.md` §6/§11, `research/07-multi-estimate-anchoring.md` §3.1) — обе группы заполняет бэкенд/оператор, а не разбор, поэтому эталон на вопрос «откуда прогон её взял» не отвечает и отвечать не обязан.
 
 ### 8.3 Персистентность и идемпотентность
 

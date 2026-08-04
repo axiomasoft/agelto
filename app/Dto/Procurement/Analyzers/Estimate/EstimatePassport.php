@@ -19,7 +19,7 @@ final class EstimatePassport extends Data
     public function __construct(
         #[Description('тип сметного документа — local_estimate/act/resource_calculation/defect_list, если не уверена — null.')]
         public ?EstimateType $type = null,
-        #[Description('обоснование/ссылка на нормативный документ, если есть в тексте.')]
+        #[Description('основание составления сметы — проектная и (или) иная техническая документация, задание, договор (форма 421/пр, строка «Основание»); НЕ редакция сметных нормативов — та живёт в PassportResponse::$regulatory_base.')]
         public ?string $reference = null,
         #[Description('направление объекта — construction/renovation/medical_equipment/engineering.')]
         public ?EstimateTarget $target = null,
@@ -31,5 +31,9 @@ final class EstimatePassport extends Data
         public ?string $contract_number = null,
         #[Description('дата договора подряда, ISO-строка — цитата документа, не парсится в дату на бэкенде.')]
         public ?string $contract_date = null,
+        #[Description('реквизиты приказа Минстроя России о дополнениях к редакции сметных нормативов — ЦИТАТА документа.')]
+        public ?string $regulatory_amendments = null,
+        #[Description('реквизиты письма Минстроя России об индексах изменения сметной стоимости — ЦИТАТА документа.')]
+        public ?string $index_letter = null,
     ) {}
 }

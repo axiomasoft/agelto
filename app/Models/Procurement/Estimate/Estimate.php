@@ -34,6 +34,7 @@ use Illuminate\Support\Str;
  * @property string|null $currency
  * @property int|null $base_year
  * @property string|null $price_level
+ * @property string|null $regulatory_base
  * @property CalcMethod|null $calc_method
  * @property string|null $labor_hours_workers
  * @property string|null $labor_hours_machinists
@@ -67,6 +68,7 @@ final class Estimate extends Model
         'currency',
         'base_year',
         'price_level',
+        'regulatory_base',
         'calc_method',
         'labor_hours_workers',
         'labor_hours_machinists',

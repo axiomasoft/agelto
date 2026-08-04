@@ -32,6 +32,22 @@ test('гидрирует паспорт сметы из спеки 08 §1.1', fu
         ->and($passport->generator)->toBe('Гранд-Смета');
 });
 
+test('гидрирует паспортный блок нормативной базы из research/06 §2 (GAP-8, P5.5)', function (): void {
+    $response = PassportResponse::from([
+        'passport' => [
+            'reference' => 'проектная документация шифр 17-СМ-0042',
+            'regulatory_amendments' => 'Приказ Минстроя России от 18 мая 2022 г. № 378/пр',
+            'index_letter' => 'Письмо Минстроя России от 25.11.2024 № 69894-ИФ/09',
+        ],
+        'regulatory_base' => 'Приказ Минстроя России от 30.12.2021 № 1046/пр',
+    ]);
+
+    expect($response->regulatory_base)->toBe('Приказ Минстроя России от 30.12.2021 № 1046/пр')
+        ->and($response->passport->reference)->toBe('проектная документация шифр 17-СМ-0042')
+        ->and($response->passport->regulatory_amendments)->toBe('Приказ Минстроя России от 18 мая 2022 г. № 378/пр')
+        ->and($response->passport->index_letter)->toBe('Письмо Минстроя России от 25.11.2024 № 69894-ИФ/09');
+});
+
 test('гидрирует полный ответ extract_passport из спеки 08 §3.1', function (): void {
     $response = PassportResponse::from([
         'estimate_number' => 'ЛСР-01-01',

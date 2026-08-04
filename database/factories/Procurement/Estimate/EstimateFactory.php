@@ -32,6 +32,7 @@ final class EstimateFactory extends Factory
             'currency' => 'RUB',
             'base_year' => $this->faker->numberBetween(2000, 2001),
             'price_level' => 'ФЕР-2001',
+            'regulatory_base' => 'Приказ Минстроя России от 30.12.2021 № 1046/пр',
             'calc_method' => CalcMethod::BaseIndex,
             'labor_hours_workers' => $this->faker->randomFloat(6, 10, 1_000),
             'labor_hours_machinists' => $this->faker->randomFloat(6, 5, 500),

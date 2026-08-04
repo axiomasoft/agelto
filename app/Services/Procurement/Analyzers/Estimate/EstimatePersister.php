@@ -6,6 +6,7 @@ namespace App\Services\Procurement\Analyzers\Estimate;
 
 use App\Dto\Procurement\Analyzers\Estimate\EstimateRow;
 use App\Dto\Procurement\Analyzers\Estimate\EstimateTotalsBlock;
+use App\Dto\Procurement\Analyzers\Estimate\EstimateWorkType;
 use App\Dto\Procurement\Analyzers\Estimate\IncompleteRow;
 use App\Dto\Procurement\Analyzers\Estimate\RowAttributes;
 use App\Dto\Procurement\Analyzers\Estimate\RowModifier;
@@ -86,6 +87,7 @@ final readonly class EstimatePersister
         $rows = array_map(static fn (array $row): EstimateRow => EstimateRow::from($row), (array) ($data['rows'] ?? []));
         $incompleteItems = array_map(static fn (array $row): IncompleteRow => IncompleteRow::from($row), (array) ($data['incomplete_items'] ?? []));
         $totals = isset($data['totals']) && $data['totals'] !== null ? EstimateTotalsBlock::from($data['totals']) : null;
+        $workTypes = array_map(static fn (array $workType): EstimateWorkType => EstimateWorkType::from($workType), (array) ($data['work_types'] ?? []));
 
         $stitched = $this->stitcher->stitch($rows, $incompleteItems);
         $report = $this->validator->validate((int) ($data['rows_expected'] ?? 0), $stitched->rows, $totals);
@@ -94,7 +96,7 @@ final readonly class EstimatePersister
         $estimateNumber = $data['estimate_number'] ?? null;
         $itemRows = array_values(array_filter($stitched->rows, static fn (EstimateRow $row): bool => $row->row_type === RowType::Item));
 
-        DB::transaction(function () use ($analysis, $document, $version, $ordinal, $estimateNumber, $data, $stitched, $itemRows, $report, $totals): void {
+        DB::transaction(function () use ($analysis, $document, $version, $ordinal, $estimateNumber, $data, $stitched, $itemRows, $report, $totals, $workTypes): void {
             $estimate = $this->estimates->upsertEstimate(
                 analysisId: $analysis->id,
                 ordinal: $ordinal,
@@ -108,6 +110,7 @@ final readonly class EstimatePersister
                     'currency' => $data['currency'] ?? 'RUB',
                     'base_year' => $data['base_year'] ?? null,
                     'price_level' => $data['price_level'] ?? null,
+                    'regulatory_base' => $data['regulatory_base'] ?? null,
                     'passport' => $data['passport'] ?? null,
                     'calc_method' => $data['calc_method'] ?? null,
                     'labor_hours_workers' => $data['labor_hours_workers'] ?? null,
@@ -122,6 +125,8 @@ final readonly class EstimatePersister
                     'validation_status' => $report->status->value,
                 ],
             );
+
+            $this->estimates->replaceWorkTypes($estimate->id, $workTypes);
 
             $this->persistRows($estimate, $stitched->rows, $stitched->sectionPaths);
 
@@ -163,22 +168,31 @@ final readonly class EstimatePersister
                 estimateId: $estimate->id,
                 sectionId: $sectionId,
                 rowIndex: $row->row_index,
-                attributes: self::itemAttributes($row),
+                attributes: [
+                    ...self::itemAttributes($row),
+                    'work_type_id' => $this->resolveWorkTypeId($estimate->id, $row->work_type_name),
+                ],
             );
 
             $this->estimates->replaceResources(
                 $item,
-                array_map(static fn (RowResource $resource): array => [
-                    'resource_type' => $resource->resource_type,
-                    'code' => $resource->code,
-                    'name' => $resource->name,
-                    'unit' => $resource->unit,
-                    'quantity' => $resource->quantity,
-                    'price_base' => $resource->price_base,
-                    'price_curr' => $resource->price_curr,
-                    'index_code' => $resource->index_code,
-                    'index_value' => $resource->index_value,
-                ], $row->resources),
+                array_map(static function (RowResource $resource): array {
+                    $unit = UnitNormalizer::normalize($resource->unit);
+
+                    return [
+                        'resource_type' => $resource->resource_type,
+                        'code' => $resource->code,
+                        'name' => $resource->name,
+                        'unit' => $resource->unit,
+                        'unit_base' => $unit['unit_base'],
+                        'unit_multiplier' => $unit['unit_multiplier'],
+                        'quantity' => $resource->quantity,
+                        'price_base' => $resource->price_base,
+                        'price_curr' => $resource->price_curr,
+                        'index_code' => $resource->index_code,
+                        'index_value' => $resource->index_value,
+                    ];
+                }, $row->resources),
             );
         }
     }
@@ -187,18 +201,22 @@ final readonly class EstimatePersister
      * Единственный носитель набора полей позиции (`prc_estimate_items`), читаемого ОБОИМИ
      * writer-путями (`self`/`RerunRangeAction`, P5.2 Implementation Rules п.2) — две независимые
      * копии этого набора и есть причина, по которой полный persist и точечный re-run расходились
-     * (D40). `work_type_id` сюда не входит: резолв `work_type_name` → FK требует нового поведения
-     * (сопоставление с `prc_estimate_work_types`), не маппинга контракта в колонку — решение P5.3
-     * (Scope Excluded P5.2).
+     * (D40). `work_type_id` сюда не входит: резолв `work_type_name` → FK читает состояние БД
+     * (`EstimateStoreRepository::findOrCreateWorkType()`, P5.3, B-5) — `itemAttributes()` остаётся
+     * чистой функцией строки, вызывающая сторона мёржит `work_type_id` отдельным ключом.
      *
      * @return array<string, mixed>
      */
     public static function itemAttributes(EstimateRow $row): array
     {
+        $unit = UnitNormalizer::normalize($row->unit);
+
         return [
             'code' => $row->code,
             'name' => $row->name,
             'unit' => $row->unit,
+            'unit_base' => $unit['unit_base'],
+            'unit_multiplier' => $unit['unit_multiplier'],
             'quantity' => $row->quantity,
             'unit_price_base' => $row->unit_price_base,
             'unit_price_curr' => $row->unit_price_curr,
@@ -243,6 +261,19 @@ final readonly class EstimatePersister
         }
 
         return $values === [] ? null : $values;
+    }
+
+    /**
+     * `EstimateRow::$work_type_name` пуст на боевом LLM-ответе только строкой без вида работ —
+     * это законное состояние, не потеря (P5.3, B-5).
+     */
+    private function resolveWorkTypeId(int $estimateId, ?string $workTypeName): ?int
+    {
+        if ($workTypeName === null) {
+            return null;
+        }
+
+        return $this->estimates->findOrCreateWorkType($estimateId, $workTypeName)->id;
     }
 
     /**
