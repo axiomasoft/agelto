@@ -1,13 +1,16 @@
-# HANDOFF — 2026-08-04 — after P6.3
+# HANDOFF — 2026-08-04 — after P6.4
 
 **Next:** ЗАПУСК ВРУЧНУЮ: implementation/high
 
 | Параметр | Значение |
 |:--|:--|
 | Model | sonnet |
-| Thinking | high — инварианты фолбэка (только на отсутствие объекта, не сбой драйвера) и запрет copy-on-read, effort high+ обязателен (§3 Routing P6.4) |
+| Thinking | high — потоковое копирование с верификацией sha256/размера, порядок «сравнить →
+скопировать → сравнить → ТОЛЬКО ПОТОМ обновить строку», resumable/идемпотентность, effort high+
+обязателен (§3 Routing P6.5) |
 | Context | continue (/clear) — ручной item |
-| Суть | P6.4 — фолбэк-цепочка дисков на окно cutover: `*_fallback_disks` (данные, не ветка кода), автомат чтения по `research/07-storage-addressing.md` §5, третий ключ `crawler.raw_fallback_disks` (следствие D114) |
+| Суть | P6.5 — команда backfill: материализация `null` → фактическое имя диска (`--materialize-only`)
+и перенос с верификацией (`--to=<disk>`) по трём носителям с колонкой диска, `research/07-storage-addressing.md` §6 |
 | Команда | — |
 
 Код-блок ниже несёт полную D18-форму:
@@ -15,36 +18,37 @@
 ```
 /model sonnet
 /effort high
-/task:plan-run 2026.07.31-SYS-INTEGRITY P6.4
+/task:plan-run 2026.07.31-SYS-INTEGRITY P6.5
 ```
 
-**Сделано этим заходом (`plan-run`, sonnet/high, 2026-08-04).** P6.3 закрыт 🟢 Done, item-коммит
-`cc5397e` (19 файлов, все из `Files` item'а, посторонний дифф отсутствует):
+**Сделано этим заходом (`plan-run`, sonnet/high, 2026-08-04).** P6.4 закрыт 🟢 Done, item-коммит
+`6c7bb39` (4 файла, все из `Files` item'а, посторонний дифф отсутствует):
 
-- **`FileLocation`/`FileLocationResolver`** (новые, `app/Services/Storage/**`) — единственная точка
-  «по записи дай диск и путь» / «на какой диск класть НОВЫЙ объект»; три write-аксессора
-  (`current{Documents,Fixtures,Raw}Disk()`) — единственные легальные читатели трёх конфиг-ключей
-  диска в проекте.
-- **`RepresentationResolver`** переведён на резолвер (внешняя форма не изменилась, 4 потребителя
-  не тронуты).
-- **8 writer-путей** (5 `prc_document_versions` + 2 `prc_ai_fixtures` + 1 `prc_estimates.raw_result_disk`)
-  и **7 writer-call-site'ов `prc_document_representations`** (были — литеральный `null`) пишут
-  имя диска явно.
-- **Пятый обходчик резолвера** (`DatasetInputBuilder`) переведён на `forRepresentation()`.
-- **Гейт-тест** `StorageAddressingGateTest` — запрещает прямое чтение трёх конфиг-ключей диска вне
-  `app/Services/Storage/**`; ложно-зелёный проверен вручную (временный возврат прямого чтения в
-  `RepresentationResolver` → гейт покраснел, отменено → снова зелёный).
-- **7 тестов резолвера** (`FileLocationResolverTest`) — фолбэк на `null` и явный диск для всех трёх
-  read-методов + три write-аксессора.
+- **Автомат фолбэка** в `FileLocationResolver::resolveWithFallback()` (приватный метод,
+  вызывается из `forDocumentVersion()`/`forRepresentation()`/`forFixture()`): диск записи →
+  `exists()` → при промахе перебор конфиг-цепочки (новые поколения → старые), промах логируется
+  `Log::warning()` (носитель, id записи, оба диска). При пустой цепочке (дефолт) `exists()` не
+  вызывается вовсе — ноль I/O и байт-в-байт то же поведение, что до item'а; это сохранило зелёным
+  `tests/Feature/Storage/FileLocationResolverTest.php` (P6.3, вне `Files` P6.4), который заводит
+  фейковые имена дисков без драйвера в `config/filesystems.php` и не пережил бы безусловный
+  `exists()` на каждом чтении.
+- **Три конфиг-ключа цепочки**, все `[]` по умолчанию: `crawler.documents_fallback_disks`,
+  `ai.fixtures.fallback_disks`, `crawler.raw_fallback_disks` (третий — данные без читателя,
+  `forEstimateRawResult()` не существует в резолвере, D114/§4.2 `research/07`).
+- **`tests/Feature/Storage/FileLocationFallbackTest.php`** — 5 тестов (12 assertions) на
+  `Storage::fake` двух дисков: объект на диске записи (фолбэк не трогает второй диск), объект
+  только в цепочке (найден + `Log::spy()` подтверждает контекст warning), объект нигде (адрес
+  записи без исключения), пустая цепочка (обращения ко второму диску нет вовсе), `forFixture` —
+  своя цепочка fallback-дисков эталонов.
 - **Task Contract**: `pre_mutation: allow` · `pre_final: allow` (route `implementation/high`,
-  точное совпадение с §3 Routing P6.3 — Routing предписывал `Exec=manual`, item исполнен `plan-run`
-  инвертированным гейтом под фактическим маршрутом сессии, D75; не перебор).
+  точное совпадение с §3 Routing P6.4 — тот же паттерн, что P6.3: Routing предписывал
+  `Exec=manual`, item исполнен `plan-run` инвертированным гейтом под фактическим маршрутом сессии,
+  D75; не перебор).
 
-Полные числа и разбивка Validation — `phases/P6.md` P6.3 Completion Notes.
+Полные числа и разбивка Validation — `phases/P6.md` P6.4 Completion Notes.
 
-**Status:** 🟢 Done. Known Deviations — два process-отклонения (Pre-mutation Task Contract прогнан
-belated, вместе с Pre-final, а не до первой мутации; allowlist гейта расширен с 5 до 9 файлов —
-4 найдены доменным грепом за пределами Files P6.3, задокументированы с причиной, код не тронут).
+**Status:** 🟢 Done. Known Deviations — одно process-отклонение (Pre-mutation Task Contract
+прогнан belated, вместе с Pre-final, а не до первой мутации — тот же паттерн, что P6.3).
 
 **Done:**
 
@@ -52,20 +56,20 @@ belated, вместе с Pre-final, а не до первой мутации; al
 - **P2 5/13** 🟠 Done with deviations — фаза терминальна.
 - **P3 1/5** 🟠 Done with deviations — фаза терминальна.
 - **P5 3/8** 🟠 Done with deviations — фаза терминальна.
-- **P6 3/6** 🟡 In progress — закрыты P6.1 (research), P6.2 (миграции колонки диска), P6.3
-  (резолвер адреса); фаза открыта.
+- **P6 4/6** 🟡 In progress — закрыты P6.1 (research), P6.2 (миграции колонки диска), P6.3
+  (резолвер адреса), P6.4 (фолбэк-цепочка); фаза открыта.
 
 **Remaining:**
 
 - **Порядок фаз (D63):** `P1 → P2 → P3 → P5 → P6 → P4 → P7`. Идёт P6, очередь items —
-  `P6.4 → P6.5 → P6.6` (номер = очередь, зависимости линейны: каждый следующий потребляет
-  Deliverables предыдущего).
-- **P6.4 (фолбэк-цепочка)** — `research/07-storage-addressing.md` §5: автомат чтения одного
-  носителя, `exists()` на диске записи → при промахе перебор цепочки НОВЫЕ→старые поколения,
-  промах логируется `warning`. Инварианты: фолбэк только на ОТСУТСТВИЕ объекта (не исключение
-  драйвера — сеть/IAM/KMS пробрасывается), копирование/запись на пути чтения ЗАПРЕЩЕНЫ (D52,
-  promote-on-read не пишется). Третий ключ цепочки `crawler.raw_fallback_disks` — следствие D114.
-- **Follow-up (Pending Work P6.3, не блокирует P6.4):** `FormatBenchRunner::producePdfAlt()`,
+  `P6.5 → P6.6` (номер = очередь, зависимости линейны: каждый следующий потребляет Deliverables
+  предыдущего).
+- **P6.5 (backfill)** — `research/07-storage-addressing.md` §6: artisan-команда с двумя режимами
+  (`--materialize-only` и `--to=<disk>`) по трём носителям с колонкой диска (`document-versions`,
+  `fixtures`, `estimate-raw-results`); порядок на строку неизменен (заявить → сравнить хэш → при
+  необходимости скопировать потоком → сравнить sha256/размер → ТОЛЬКО ПОТОМ обновить запись);
+  resumable, идемпотентная, source никогда не удаляется.
+- **Follow-up (Pending Work P6.3, не блокирует P6.4/P6.5):** `FormatBenchRunner::producePdfAlt()`,
   `GoldBuildCommand`, `FixtureForm`, `FixturesVerifyCommand` читают конфиг-ключи диска напрямую
   (allowlisted гейтом с причиной, периметр D115 их не назвал) — перевод на резолвер вне Scope
   P6.3, отдельный follow-up item.
@@ -82,9 +86,9 @@ belated, вместе с Pre-final, а не до первой мутации; al
 **Sources of truth:**
 
 - `research/07-storage-addressing.md` — вердикты, контракты, фолбэк, backfill и процедура cutover
-  целиком; §5 — автомат фолбэка (единственный источник контракта P6.4).
+  целиком; §6 — псевдокод backfill (единственный источник контракта P6.5).
 - `findings/P6-file-carriers.md` — факты дерева со строками (слой 1), на которых стоят вердикты.
-- `phases/P6.md` — Phase Context, ТЗ P6.4–P6.6 в редакции D114–D116, Completion Notes P6.1–P6.3.
+- `phases/P6.md` — Phase Context, ТЗ P6.5–P6.6 в редакции D114–D116, Completion Notes P6.1–P6.4.
 - `roadmap.md` — очередь фаз (D63) и гейты владельца по items.
 
 **Open risks:**
@@ -96,18 +100,18 @@ belated, вместе с Pre-final, а не до первой мутации; al
 - **10 упавших тестов приёмочного прогона P5.8** — партиционный дрейф `pg_partman`,
   `memory_limit`-конфликт `agelto_app`, один arch-тест, permission denied на `resources/`.
   Владелец не назначен; P6.6 будет гонять ПОЛНЫЙ сюит и упрётся в них (подтверждено на P6.3 —
-  тот же состав из 10, новых падений от диффа P6.3 нет).
+  тот же состав из 10, новых падений от диффа P6.3/P6.4 нет).
 - **Dev-БД теряет `prc_ai_dataset_examples`/`prc_ai_eval_runs` при `migrate:fresh`** (P5.7) —
-  после `migrate:fresh --seed` P6.2 датасет восстановлен НЕ был (вне Scope P6.2/P6.3); следующему
-  item'у, которому нужен датасет, восстанавливать `estimate:gold:import --prepare`.
+  после `migrate:fresh --seed` P6.2 датасет восстановлен НЕ был (вне Scope P6.2/P6.3/P6.4);
+  следующему item'у, которому нужен датасет, восстанавливать `estimate:gold:import --prepare`.
 - **`app/Filament/Resources/Procurement/** ` restrictive ACL**, **`rm` заблокирован в харнессе**,
   **незакоммиченный чужой дифф** (`.env.example`, `CLAUDE.md`, `.swissknife*`, `.swissknifeman/`,
   `config/cms.php`, `database/seeders/User/`, `estimates/gemini-analys.md`) — без изменений;
   состав снимать `git status --porcelain` перед каждым item-коммитом.
 - **`.env` не несёт `MINIO_ROOT_PASSWORD`** — обход `docker exec agelto_app …` вместо
-  `docker compose exec …` (подтверждено действующим на P6.3, действует и дальше по P6).
+  `docker compose exec …` (подтверждено действующим на P6.3/P6.4, действует и дальше по P6).
 - **PHPStan в контейнере `agelto_app` падает на дефолтном 256M лимите** (`memory_limit`-конфликт,
-  P5.8) — обход `--memory-limit=1G`, подтверждено на P6.3, действует и дальше по P6.
+  P5.8) — обход `--memory-limit=1G`, подтверждено на P6.3/P6.4, действует и дальше по P6.
 
 **Workarounds/Deferred/Open questions:**
 
