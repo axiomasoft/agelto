@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Dto\Procurement\Analyzers\Estimate;
 
 use App\Attributes\Ai\Description;
-use App\Enums\Procurement\ModifierKind;
+use App\Enums\Procurement\Estimate\ModifierKind;
 use Spatie\LaravelData\Data;
 
 /**

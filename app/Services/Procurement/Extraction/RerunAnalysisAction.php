@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace App\Services\Procurement\Extraction;
 
-use App\Enums\Procurement\AiDocumentType;
-use App\Enums\Procurement\AnalysisStep;
-use App\Enums\Procurement\DocumentStatus;
-use App\Enums\Procurement\RunMode;
+use App\Enums\Procurement\Ai\AiDocumentType;
+use App\Enums\Procurement\Ai\AnalysisStep;
+use App\Enums\Procurement\Ai\RunMode;
+use App\Enums\Procurement\Document\DocumentStatus;
 use App\Jobs\Procurement\ScreeningJob;
 use App\Models\Procurement\Ai\Analysis;
 use App\Models\Procurement\Document\Document;

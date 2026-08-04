@@ -3,8 +3,8 @@
 declare(strict_types=1);
 
 use App\Enums\Llm\DocumentTypeScope;
-use App\Enums\Procurement\AiDocumentType;
-use App\Enums\Procurement\AnalysisStep;
+use App\Enums\Procurement\Ai\AiDocumentType;
+use App\Enums\Procurement\Ai\AnalysisStep;
 use App\Models\Procurement\Ai\Analysis;
 use App\Models\Procurement\Ai\EvalRun;
 use App\Models\Procurement\Ai\Fixture;

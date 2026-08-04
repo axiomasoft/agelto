@@ -2,15 +2,15 @@
 
 declare(strict_types=1);
 
-use App\Enums\Procurement\AiDocumentType;
-use App\Enums\Procurement\AnalysisStatus;
-use App\Enums\Procurement\AnalysisStep;
+use App\Enums\Llm\FinishReason;
+use App\Enums\Procurement\Ai\AiDocumentType;
+use App\Enums\Procurement\Ai\AnalysisStatus;
+use App\Enums\Procurement\Ai\AnalysisStep;
+use App\Enums\Procurement\Ai\CorrectionReason;
+use App\Enums\Procurement\Ai\ReviewStatus;
+use App\Enums\Procurement\Ai\RunMode;
 use App\Enums\Procurement\Analyzers\Estimate\EstimateLlmPurpose;
-use App\Enums\Procurement\CorrectionReason;
-use App\Enums\Procurement\DocumentStatus;
-use App\Enums\Procurement\FinishReason;
-use App\Enums\Procurement\ReviewStatus;
-use App\Enums\Procurement\RunMode;
+use App\Enums\Procurement\Document\DocumentStatus;
 use App\Guards\Admin\Roles\AnalystRole;
 use App\Guards\Admin\Roles\OperatorRole;
 use App\Jobs\Procurement\Analyzers\Estimate\EstimateExtractionJob;

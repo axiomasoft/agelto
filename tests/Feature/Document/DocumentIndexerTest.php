@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-use App\Enums\Procurement\DocumentStatus;
+use App\Enums\Procurement\Document\DocumentStatus;
 use App\Enums\Procurement\ProcurementEventType;
 use App\Models\Procurement\Document\Document;
 use App\Models\Procurement\Procurement;

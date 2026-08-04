@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Dto\Procurement\Ai\Screening;
 
 use App\Attributes\Ai\Description;
-use App\Enums\Procurement\AiDocumentType;
+use App\Enums\Procurement\Ai\AiDocumentType;
 use Spatie\LaravelData\Data;
 
 /**

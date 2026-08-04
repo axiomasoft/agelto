@@ -20,7 +20,7 @@ return new class extends Migration
                 ->constrained(table: (new Item)->getTable())
                 ->cascadeOnDelete();
 
-            // text + PHP Backed enum (App\Enums\Procurement\ResourceType), не Postgres native enum.
+            // text + PHP Backed enum (App\Enums\Procurement\Estimate\ResourceType), не Postgres native enum.
             $table->text('resource_type')->comment('labor/machine/material/overhead/other');
             $table->text('code')->nullable();
             $table->text('name');

@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace App\Models\Procurement\Ai;
 
-use App\Enums\Procurement\AnalysisStatus;
-use App\Enums\Procurement\AnalysisStep;
-use App\Enums\Procurement\ReviewStatus;
+use App\Enums\Procurement\Ai\AnalysisStatus;
+use App\Enums\Procurement\Ai\AnalysisStep;
+use App\Enums\Procurement\Ai\ReviewStatus;
 use App\Models\Concerns\HasErrorBlock;
 use App\Models\Concerns\HasLease;
 use App\Models\Procurement\Document\DocumentVersion;

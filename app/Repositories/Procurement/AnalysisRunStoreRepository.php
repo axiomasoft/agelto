@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Repositories\Procurement;
 
-use App\Enums\Procurement\AnalysisRunStatus;
-use App\Enums\Procurement\RunMode;
+use App\Enums\Procurement\Ai\AnalysisRunStatus;
+use App\Enums\Procurement\Ai\RunMode;
 use App\Models\Procurement\Ai\AnalysisRun;
 
 /**

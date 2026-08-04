@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace App\Models\Procurement\Ai;
 
-use App\Enums\Procurement\AiDocumentType;
-use App\Enums\Procurement\FixtureClass;
-use App\Enums\Procurement\GoldSource;
+use App\Enums\Procurement\Ai\AiDocumentType;
+use App\Enums\Procurement\Ai\FixtureClass;
+use App\Enums\Procurement\Ai\GoldSource;
 use App\Models\Procurement\Document\Document;
 use App\Models\Procurement\Document\DocumentVersion;
 use App\Models\User;

@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 use App\Dto\Procurement\Ai\Screening\ScreeningResult;
 use App\Dto\Procurement\Analyzers\Estimate\RowsChunkResponse;
-use App\Enums\Procurement\FinishReason;
+use App\Enums\Llm\FinishReason;
 use App\Services\Llm\Dto\LlmStructuredResponse;
 use App\Services\Llm\Dto\LlmUsage;
 use App\Services\Llm\Validation\StructuredResponseValidator;

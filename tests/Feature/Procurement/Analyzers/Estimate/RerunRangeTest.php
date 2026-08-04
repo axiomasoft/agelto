@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-use App\Enums\Procurement\AnalysisStatus;
-use App\Enums\Procurement\AnalysisStep;
+use App\Enums\Llm\FinishReason;
+use App\Enums\Procurement\Ai\AnalysisStatus;
+use App\Enums\Procurement\Ai\AnalysisStep;
 use App\Enums\Procurement\Analyzers\Estimate\EstimateLlmPurpose;
-use App\Enums\Procurement\FinishReason;
 use App\Models\Llm\LlmRoute;
 use App\Models\Llm\Provider;
 use App\Models\Procurement\Ai\Analysis;

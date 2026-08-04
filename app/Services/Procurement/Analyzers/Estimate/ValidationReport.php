@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\Procurement\Analyzers\Estimate;
 
-use App\Enums\Procurement\EstimateValidationStatus;
+use App\Enums\Procurement\Estimate\EstimateValidationStatus;
 
 /**
  * Результат `EstimateValidator::validate()` (`docs/specs/v2/08-estimate-extraction.md` §4.1 п.6,

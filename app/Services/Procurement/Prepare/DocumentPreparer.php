@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Services\Procurement\Prepare;
 
-use App\Enums\Procurement\DocumentStatus;
-use App\Enums\Procurement\UnprocessableReason;
+use App\Enums\Procurement\Document\DocumentStatus;
+use App\Enums\Procurement\Document\UnprocessableReason;
 use App\Jobs\Procurement\PrepareDocumentJob;
 use App\Models\Procurement\Document\Document;
 use App\Models\Procurement\Document\DocumentVersion;

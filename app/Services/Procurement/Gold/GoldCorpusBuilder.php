@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Services\Procurement\Gold;
 
-use App\Enums\Procurement\FixtureClass;
-use App\Enums\Procurement\GoldSource;
+use App\Enums\Procurement\Ai\FixtureClass;
+use App\Enums\Procurement\Ai\GoldSource;
 use App\Models\Procurement\Ai\Fixture;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Storage;

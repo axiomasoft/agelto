@@ -2,8 +2,8 @@
 
 declare(strict_types=1);
 
-use App\Enums\Procurement\AnalysisStep;
-use App\Enums\Procurement\CorrectionReason;
+use App\Enums\Procurement\Ai\AnalysisStep;
+use App\Enums\Procurement\Ai\CorrectionReason;
 use App\Models\Procurement\Ai\Analysis;
 use App\Models\Procurement\Ai\Correction;
 use App\Models\Procurement\Ai\DatasetExample;

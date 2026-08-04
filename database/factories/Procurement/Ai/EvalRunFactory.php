@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Database\Factories\Procurement\Ai;
 
-use App\Enums\Procurement\AiDocumentType;
-use App\Enums\Procurement\AnalysisStep;
+use App\Enums\Procurement\Ai\AiDocumentType;
+use App\Enums\Procurement\Ai\AnalysisStep;
 use App\Models\Procurement\Ai\EvalRun;
 use Illuminate\Database\Eloquent\Factories\Factory;
 

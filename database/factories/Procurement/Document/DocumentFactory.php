@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Database\Factories\Procurement\Document;
 
-use App\Enums\Procurement\DocumentStatus;
+use App\Enums\Procurement\Document\DocumentStatus;
 use App\Models\Procurement\Document\Document;
 use App\Models\Procurement\Platform\Platform;
 use App\Models\Procurement\Procurement;

@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 use App\Dto\Procurement\Proxy\ProxyOutcome;
 use App\Dto\Procurement\Proxy\ProxyRequirements;
-use App\Enums\Procurement\ProxyFailureReason;
-use App\Enums\Procurement\ProxyScope;
+use App\Enums\Procurement\Proxy\ProxyFailureReason;
+use App\Enums\Procurement\Proxy\ProxyScope;
 use App\Exceptions\Procurement\NoProxyAvailableException;
 use App\Models\Procurement\Crawler\Proxy;
 use App\Models\Procurement\Crawler\ProxyTarget;

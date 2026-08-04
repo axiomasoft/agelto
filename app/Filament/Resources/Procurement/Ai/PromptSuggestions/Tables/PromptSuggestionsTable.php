@@ -3,10 +3,10 @@
 namespace App\Filament\Resources\Procurement\Ai\PromptSuggestions\Tables;
 
 use App\Enums\Llm\DocumentTypeScope;
-use App\Enums\Procurement\AiDocumentType;
-use App\Enums\Procurement\AnalysisStep;
-use App\Enums\Procurement\PromptSuggestionKind;
-use App\Enums\Procurement\PromptSuggestionStatus;
+use App\Enums\Procurement\Ai\AiDocumentType;
+use App\Enums\Procurement\Ai\AnalysisStep;
+use App\Enums\Procurement\Ai\PromptSuggestionKind;
+use App\Enums\Procurement\Ai\PromptSuggestionStatus;
 use App\Filament\Resources\Procurement\Ai\PromptSuggestions\PromptSuggestionResource;
 use App\Models\Procurement\Ai\PromptSuggestion;
 use Filament\Actions\ViewAction;

@@ -7,8 +7,8 @@ namespace App\Services\Procurement\Gold;
 use App\Dto\Procurement\Gold\GoldFormProfileColumns;
 use App\Dto\Procurement\Gold\GoldFormProfileEstimate;
 use App\Dto\Procurement\Gold\GoldResourceGroup;
-use App\Enums\Procurement\ResourceType;
-use App\Enums\Procurement\RowType;
+use App\Enums\Procurement\Estimate\ResourceType;
+use App\Enums\Procurement\Estimate\RowType;
 use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 

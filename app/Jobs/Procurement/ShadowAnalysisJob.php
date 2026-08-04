@@ -6,8 +6,8 @@ namespace App\Jobs\Procurement;
 
 use App\Enums\Llm\CoreLlmPurpose;
 use App\Enums\Llm\DocumentTypeScope;
-use App\Enums\Procurement\AiDocumentType;
-use App\Enums\Procurement\AnalysisStatus;
+use App\Enums\Procurement\Ai\AiDocumentType;
+use App\Enums\Procurement\Ai\AnalysisStatus;
 use App\Models\Procurement\Ai\Analysis;
 use App\Repositories\Procurement\AnalysisStoreRepository;
 use App\Services\Llm\Dto\JsonSchema;

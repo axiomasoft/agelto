@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace App\Dto\Procurement\Fixture;
 
-use App\Enums\Procurement\AiDocumentType;
-use App\Enums\Procurement\FixtureClass;
-use App\Enums\Procurement\GoldSource;
+use App\Enums\Procurement\Ai\AiDocumentType;
+use App\Enums\Procurement\Ai\FixtureClass;
+use App\Enums\Procurement\Ai\GoldSource;
 use App\Models\Procurement\Ai\Fixture;
 use Spatie\LaravelData\Data;
 use Spatie\LaravelData\Support\Validation\ValidationContext;

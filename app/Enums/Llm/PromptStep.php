@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Enums\Llm;
 
-use App\Enums\Procurement\AiDocumentType;
+use App\Enums\Procurement\Ai\AiDocumentType;
 
 /**
  * Носитель шага композиции системной инструкции (`llm_prompts.step`), реализуемый ядерным

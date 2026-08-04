@@ -1,6 +1,6 @@
 <?php
 
-use App\Enums\Procurement\CrawlerMode;
+use App\Enums\Procurement\Crawler\CrawlerMode;
 use App\Models\Procurement\Crawler\Crawler;
 use App\Services\Procurement\PipelineDispatcher;
 use Illuminate\Foundation\Inspiring;

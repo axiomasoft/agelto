@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Console\Commands\Procurement;
 
-use App\Enums\Procurement\CrawlerMode;
+use App\Enums\Procurement\Crawler\CrawlerMode;
 use App\Models\Procurement\Crawler\Crawler;
 use App\Services\Procurement\Modes\FreshRunProcessor;
 use Illuminate\Console\Command;

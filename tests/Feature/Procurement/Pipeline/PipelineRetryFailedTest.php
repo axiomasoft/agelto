@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-use App\Enums\Procurement\AnalysisStatus;
-use App\Enums\Procurement\AnalysisStep;
-use App\Enums\Procurement\DocumentStatus;
+use App\Enums\Procurement\Ai\AnalysisStatus;
+use App\Enums\Procurement\Ai\AnalysisStep;
+use App\Enums\Procurement\Document\DocumentStatus;
 use App\Jobs\Procurement\PrepareDocumentJob;
 use App\Jobs\Procurement\ScreeningJob;
 use App\Models\Procurement\Ai\Analysis;

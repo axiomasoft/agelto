@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\Llm\Providers;
 
-use App\Enums\Procurement\FinishReason;
+use App\Enums\Llm\FinishReason;
 use App\Services\Llm\Contracts\LlmProvider;
 use App\Services\Llm\Contracts\OutboundProxy;
 use App\Services\Llm\Contracts\SupportsContextCaching;

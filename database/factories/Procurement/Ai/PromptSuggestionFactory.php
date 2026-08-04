@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace Database\Factories\Procurement\Ai;
 
-use App\Enums\Procurement\AiDocumentType;
-use App\Enums\Procurement\AnalysisStep;
+use App\Enums\Procurement\Ai\AiDocumentType;
+use App\Enums\Procurement\Ai\AnalysisStep;
+use App\Enums\Procurement\Ai\PromptSuggestionKind;
+use App\Enums\Procurement\Ai\PromptSuggestionStatus;
 use App\Enums\Procurement\Analyzers\Estimate\EstimatePromptStep;
-use App\Enums\Procurement\PromptSuggestionKind;
-use App\Enums\Procurement\PromptSuggestionStatus;
 use App\Models\Procurement\Ai\PromptSuggestion;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;

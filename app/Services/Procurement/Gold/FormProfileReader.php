@@ -11,8 +11,8 @@ use App\Dto\Procurement\Gold\GoldFormProfileEstimate;
 use App\Dto\Procurement\Gold\GoldHeaderQuote;
 use App\Dto\Procurement\Gold\GoldResourceGroup;
 use App\Dto\Procurement\Gold\GoldRowRules;
-use App\Enums\Procurement\ResourceType;
-use App\Enums\Procurement\RowType;
+use App\Enums\Procurement\Estimate\ResourceType;
+use App\Enums\Procurement\Estimate\RowType;
 use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
 use RuntimeException;
 

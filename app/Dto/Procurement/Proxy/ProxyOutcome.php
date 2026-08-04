@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Dto\Procurement\Proxy;
 
-use App\Enums\Procurement\ProxyFailureReason;
+use App\Enums\Procurement\Proxy\ProxyFailureReason;
 
 /**
  * Исход запроса, отчитываемый резолверу через `reportOutcome()` (research/02 §7, §9.1).

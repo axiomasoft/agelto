@@ -6,7 +6,7 @@ namespace App\Console\Commands\Procurement\Analyzers\Estimate;
 
 use App\Console\Support\ConsoleProgressReporter;
 use App\Enums\Llm\DocumentTypeScope;
-use App\Enums\Procurement\AiDocumentType;
+use App\Enums\Procurement\Ai\AiDocumentType;
 use App\Exceptions\Procurement\OperationFailed;
 use App\Models\Procurement\Ai\DatasetExample;
 use App\Models\Procurement\Ai\EvalRun;

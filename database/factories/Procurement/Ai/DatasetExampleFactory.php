@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Database\Factories\Procurement\Ai;
 
-use App\Enums\Procurement\AiDocumentType;
+use App\Enums\Procurement\Ai\AiDocumentType;
 use App\Models\Procurement\Ai\DatasetExample;
 use App\Models\Procurement\Document\DocumentVersion;
 use Illuminate\Database\Eloquent\Factories\Factory;

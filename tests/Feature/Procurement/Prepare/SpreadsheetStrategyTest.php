@@ -2,8 +2,8 @@
 
 declare(strict_types=1);
 
-use App\Enums\Procurement\DocumentStatus;
-use App\Enums\Procurement\RepresentationKind;
+use App\Enums\Procurement\Document\DocumentStatus;
+use App\Enums\Procurement\Document\RepresentationKind;
 use App\Models\Procurement\Document\Document;
 use App\Models\Procurement\Document\DocumentRepresentation;
 use App\Models\Procurement\Document\DocumentVersion;

@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-use App\Enums\Procurement\ResourceType;
+use App\Enums\Procurement\Estimate\ResourceType;
 use App\Models\Procurement\Estimate\Estimate;
 use App\Models\Procurement\Estimate\Item;
 use App\Models\Procurement\Estimate\Resource;

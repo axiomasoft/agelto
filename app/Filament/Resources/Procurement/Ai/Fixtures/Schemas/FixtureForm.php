@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Filament\Resources\Procurement\Ai\Fixtures\Schemas;
 
-use App\Enums\Procurement\AiDocumentType;
+use App\Enums\Procurement\Ai\AiDocumentType;
 use App\Services\Procurement\Contracts\DocumentAnalyzerRegistry;
 use App\Services\Procurement\Contracts\SupportsTypeProfileValidation;
 use Closure;

@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-use App\Enums\Procurement\AnalysisStep;
-use App\Enums\Procurement\FixtureClass;
-use App\Enums\Procurement\RepresentationKind;
+use App\Enums\Procurement\Ai\AnalysisStep;
+use App\Enums\Procurement\Ai\FixtureClass;
+use App\Enums\Procurement\Document\RepresentationKind;
 use App\Models\Procurement\Ai\Analysis;
 use App\Models\Procurement\Ai\DatasetExample;
 use App\Models\Procurement\Ai\Fixture;

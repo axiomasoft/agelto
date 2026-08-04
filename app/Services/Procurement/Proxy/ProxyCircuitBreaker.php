@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\Procurement\Proxy;
 
-use App\Enums\Procurement\ProxyFailureReason;
+use App\Enums\Procurement\Proxy\ProxyFailureReason;
 use Carbon\CarbonImmutable;
 
 /**

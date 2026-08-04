@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Database\Factories\Procurement\Estimate;
 
-use App\Enums\Procurement\CalcMethod;
+use App\Enums\Procurement\Estimate\CalcMethod;
 use App\Models\Procurement\Ai\Analysis;
 use App\Models\Procurement\Document\DocumentVersion;
 use App\Models\Procurement\Estimate\Estimate;

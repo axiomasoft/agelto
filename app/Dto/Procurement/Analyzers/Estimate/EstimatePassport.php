@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace App\Dto\Procurement\Analyzers\Estimate;
 
 use App\Attributes\Ai\Description;
-use App\Enums\Procurement\EstimateTarget;
-use App\Enums\Procurement\EstimateType;
+use App\Enums\Procurement\Estimate\EstimateTarget;
+use App\Enums\Procurement\Estimate\EstimateType;
 use Spatie\LaravelData\Data;
 
 /**

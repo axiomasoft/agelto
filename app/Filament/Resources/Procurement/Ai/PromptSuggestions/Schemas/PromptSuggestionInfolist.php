@@ -2,8 +2,8 @@
 
 namespace App\Filament\Resources\Procurement\Ai\PromptSuggestions\Schemas;
 
-use App\Enums\Procurement\PromptSuggestionKind;
-use App\Enums\Procurement\PromptSuggestionStatus;
+use App\Enums\Procurement\Ai\PromptSuggestionKind;
+use App\Enums\Procurement\Ai\PromptSuggestionStatus;
 use App\Filament\Resources\Procurement\Ai\PromptSuggestions\PromptSuggestionResource;
 use App\Models\Procurement\Ai\PromptSuggestion;
 use App\Repositories\Llm\PromptReadRepository;

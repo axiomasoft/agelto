@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Database\Factories\Procurement\Document;
 
-use App\Enums\Procurement\RepresentationKind;
+use App\Enums\Procurement\Document\RepresentationKind;
 use App\Models\Procurement\Document\DocumentRepresentation;
 use App\Models\Procurement\Document\DocumentVersion;
 use Illuminate\Database\Eloquent\Factories\Factory;

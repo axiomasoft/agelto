@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Database\Factories\Procurement\Ai;
 
-use App\Enums\Procurement\AiDocumentType;
-use App\Enums\Procurement\CorrectionReason;
+use App\Enums\Procurement\Ai\AiDocumentType;
+use App\Enums\Procurement\Ai\CorrectionReason;
 use App\Models\Procurement\Ai\Analysis;
 use App\Models\Procurement\Ai\Correction;
 use App\Models\User;

@@ -31,7 +31,7 @@ return new class extends Migration
 
             $table->timestampTz('open_until')->nullable()->comment('breaker уровня (узел, цель)');
             $table->smallInteger('open_count')->default(0)->comment('степень экспоненциального cooldown');
-            $table->text('last_failure_reason')->nullable()->comment('значение App\Enums\Procurement\ProxyFailureReason');
+            $table->text('last_failure_reason')->nullable()->comment('значение App\Enums\Procurement\Proxy\ProxyFailureReason');
             $table->timestampTz('last_outcome_at')->nullable();
 
             $table->timestamps();

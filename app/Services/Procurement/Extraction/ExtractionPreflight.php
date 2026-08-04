@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\Procurement\Extraction;
 
-use App\Enums\Procurement\UnprocessableReason;
+use App\Enums\Procurement\Document\UnprocessableReason;
 use App\Services\Llm\Dto\ResolvedRoute;
 use App\Services\Procurement\Extraction\Dto\PreflightDecision;
 use App\Services\Procurement\Screening\PdfPageSlicer;

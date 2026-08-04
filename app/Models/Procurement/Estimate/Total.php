@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models\Procurement\Estimate;
 
-use App\Enums\Procurement\TotalKind;
+use App\Enums\Procurement\Estimate\TotalKind;
 use Database\Factories\Procurement\Estimate\TotalFactory;
 use Illuminate\Database\Eloquent\Attributes\UseFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;

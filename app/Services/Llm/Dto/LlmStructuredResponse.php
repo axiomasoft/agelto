@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\Llm\Dto;
 
-use App\Enums\Procurement\FinishReason;
+use App\Enums\Llm\FinishReason;
 
 /**
  * Ответ `LlmProvider::completeStructured()` — `$data` decoded JSON ПО СХЕМЕ (ТЗ 04 §2), ещё не

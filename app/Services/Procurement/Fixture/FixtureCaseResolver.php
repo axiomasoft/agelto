@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\Procurement\Fixture;
 
-use App\Enums\Procurement\AnalysisStep;
+use App\Enums\Procurement\Ai\AnalysisStep;
 use App\Exceptions\Procurement\FixtureCaseNotFound;
 use App\Exceptions\Procurement\GoldFileUnreadable;
 use App\Models\Procurement\Ai\Analysis;

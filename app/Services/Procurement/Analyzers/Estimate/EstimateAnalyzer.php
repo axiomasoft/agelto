@@ -6,10 +6,10 @@ namespace App\Services\Procurement\Analyzers\Estimate;
 
 use App\Enums\Llm\LlmPurpose;
 use App\Enums\Llm\PromptStep;
+use App\Enums\Procurement\Ai\FixtureClass;
+use App\Enums\Procurement\Ai\GoldSource;
 use App\Enums\Procurement\Analyzers\Estimate\EstimateLlmPurpose;
 use App\Enums\Procurement\Analyzers\Estimate\EstimatePromptStep;
-use App\Enums\Procurement\FixtureClass;
-use App\Enums\Procurement\GoldSource;
 use App\Jobs\Procurement\Analyzers\Estimate\EstimateExtractionJob;
 use App\Models\Procurement\Ai\Analysis;
 use App\Models\Procurement\Ai\Fixture;

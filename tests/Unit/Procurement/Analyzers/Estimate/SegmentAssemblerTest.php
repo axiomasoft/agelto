@@ -3,7 +3,7 @@
 declare(strict_types=1);
 
 use App\Dto\Procurement\Analyzers\Estimate\DiscoveryMarkerLine;
-use App\Enums\Procurement\DiscoveryMarker;
+use App\Enums\Procurement\Estimate\DiscoveryMarker;
 use App\Services\Procurement\Analyzers\Estimate\SegmentAssembler;
 
 // Юнит-тесты SegmentAssembler (Scope Included P6.4, сценарии (а)-(г) из phases/P6.md): чистая

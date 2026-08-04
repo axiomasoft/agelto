@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace App\Filament\Resources\Procurement\Ai\Fixtures\Schemas;
 
-use App\Enums\Procurement\AiDocumentType;
-use App\Enums\Procurement\AnalysisStatus;
-use App\Enums\Procurement\AnalysisStep;
+use App\Enums\Procurement\Ai\AiDocumentType;
+use App\Enums\Procurement\Ai\AnalysisStatus;
+use App\Enums\Procurement\Ai\AnalysisStep;
 use App\Models\Procurement\Ai\Analysis;
 use App\Models\Procurement\Ai\AnalysisRun;
 use App\Models\Procurement\Ai\DatasetExample;

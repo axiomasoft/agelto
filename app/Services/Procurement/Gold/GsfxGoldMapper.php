@@ -23,10 +23,10 @@ use App\Dto\Procurement\Prepare\Gsfx\GsfxResource;
 use App\Dto\Procurement\Prepare\Gsfx\GsfxTzm2022;
 use App\Dto\Procurement\Prepare\Gsfx\GsfxWorkType;
 use App\Dto\Procurement\Prepare\Gsfx\GsfxWorkTypeGroup;
-use App\Enums\Procurement\CalcMethod;
-use App\Enums\Procurement\ResourceType;
-use App\Enums\Procurement\RowType;
-use App\Enums\Procurement\TotalKind;
+use App\Enums\Procurement\Estimate\CalcMethod;
+use App\Enums\Procurement\Estimate\ResourceType;
+use App\Enums\Procurement\Estimate\RowType;
+use App\Enums\Procurement\Estimate\TotalKind;
 
 /**
  * `GsfxDocument` (P3.3/P3.8/P3.9) → форма gold §8.2 (P5.1, D2/D94/D112/D113). Единственный метод

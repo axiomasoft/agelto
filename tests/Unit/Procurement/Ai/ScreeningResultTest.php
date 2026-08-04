@@ -3,7 +3,7 @@
 declare(strict_types=1);
 
 use App\Dto\Procurement\Ai\Screening\ScreeningResult;
-use App\Enums\Procurement\AiDocumentType;
+use App\Enums\Procurement\Ai\AiDocumentType;
 
 test('гидрирует полный JSON-ответ скрининга сметы', function (): void {
     $result = ScreeningResult::from([

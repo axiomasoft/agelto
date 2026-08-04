@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-use App\Enums\Procurement\AiDocumentType;
+use App\Enums\Procurement\Ai\AiDocumentType;
 use App\Models\Procurement\Ai\Fixture;
 use App\Models\Procurement\Document\Document;
 use App\Models\User;

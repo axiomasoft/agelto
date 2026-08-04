@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\Procurement\Exceptions;
 
-use App\Enums\Procurement\SourceMethod;
+use App\Enums\Procurement\Crawler\SourceMethod;
 use RuntimeException;
 
 final class SourceMethodUnavailableException extends RuntimeException

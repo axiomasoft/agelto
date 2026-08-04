@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-use App\Enums\Procurement\DocumentStatus;
+use App\Enums\Procurement\Document\DocumentStatus;
+use App\Enums\Procurement\Document\RepresentationKind;
 use App\Enums\Procurement\ProcurementEventType;
-use App\Enums\Procurement\RepresentationKind;
 use App\Jobs\Procurement\PrepareDocumentJob;
 use App\Jobs\Procurement\ScreeningJob;
 use App\Models\Procurement\Document\Document;

@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Database\Factories\Procurement\Crawler;
 
-use App\Enums\Procurement\CrawlerMode;
-use App\Enums\Procurement\SourceMethod;
+use App\Enums\Procurement\Crawler\CrawlerMode;
+use App\Enums\Procurement\Crawler\SourceMethod;
 use App\Models\Procurement\Crawler\Crawler;
 use App\Models\Procurement\Platform\Registry;
 use Illuminate\Database\Eloquent\Factories\Factory;

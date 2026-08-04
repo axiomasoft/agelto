@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Console\Commands\Procurement\Ai;
 
-use App\Enums\Procurement\PromptSuggestionKind;
-use App\Enums\Procurement\PromptSuggestionStatus;
+use App\Enums\Procurement\Ai\PromptSuggestionKind;
+use App\Enums\Procurement\Ai\PromptSuggestionStatus;
 use App\Repositories\Procurement\PromptSuggestionReadRepository;
 use App\Services\Procurement\Tuning\PromptPatchApplier;
 use Illuminate\Console\Command;

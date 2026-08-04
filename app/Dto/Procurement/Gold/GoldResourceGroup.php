@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Dto\Procurement\Gold;
 
-use App\Enums\Procurement\ResourceType;
+use App\Enums\Procurement\Estimate\ResourceType;
 use Spatie\LaravelData\Data;
 
 /**

@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Services\Procurement\Analyzers\Estimate;
 
-use App\Enums\Procurement\AiDocumentType;
-use App\Enums\Procurement\AnalysisStep;
+use App\Enums\Procurement\Ai\AiDocumentType;
+use App\Enums\Procurement\Ai\AnalysisStep;
 use App\Models\Procurement\Ai\Analysis;
 use App\Models\Procurement\Ai\Correction;
 use App\Models\Procurement\Ai\DatasetExample;

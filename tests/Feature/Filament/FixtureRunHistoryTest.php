@@ -2,8 +2,8 @@
 
 declare(strict_types=1);
 
-use App\Enums\Procurement\AnalysisRunStatus;
-use App\Enums\Procurement\RunMode;
+use App\Enums\Procurement\Ai\AnalysisRunStatus;
+use App\Enums\Procurement\Ai\RunMode;
 use App\Filament\Resources\Procurement\Ai\Fixtures\FixtureResource;
 use App\Filament\Resources\Procurement\Ai\Fixtures\Pages\ViewFixture;
 use App\Filament\Resources\Procurement\Ai\Fixtures\RelationManagers\RunsRelationManager;

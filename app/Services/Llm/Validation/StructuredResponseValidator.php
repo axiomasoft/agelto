@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\Llm\Validation;
 
-use App\Enums\Procurement\FinishReason;
+use App\Enums\Llm\FinishReason;
 use App\Services\Llm\Contracts\StructurallyValidatable;
 use App\Services\Llm\Dto\LlmStructuredResponse;
 use Illuminate\Validation\ValidationException;

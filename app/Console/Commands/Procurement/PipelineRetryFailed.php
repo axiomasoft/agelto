@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace App\Console\Commands\Procurement;
 
-use App\Enums\Procurement\AnalysisStatus;
-use App\Enums\Procurement\DocumentStatus;
-use App\Enums\Procurement\PipelineStage;
-use App\Enums\Procurement\RunMode;
+use App\Enums\Procurement\Ai\AnalysisStatus;
+use App\Enums\Procurement\Ai\RunMode;
+use App\Enums\Procurement\Document\DocumentStatus;
+use App\Enums\Procurement\Document\PipelineStage;
 use App\Jobs\Procurement\PrepareDocumentJob;
 use App\Jobs\Procurement\ScreeningJob;
 use App\Models\Procurement\Ai\Analysis;

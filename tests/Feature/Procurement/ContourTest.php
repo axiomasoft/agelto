@@ -2,12 +2,12 @@
 
 declare(strict_types=1);
 
-use App\Enums\Procurement\AnalysisRunStatus;
-use App\Enums\Procurement\AnalysisStep;
-use App\Enums\Procurement\DocumentStatus;
-use App\Enums\Procurement\FixtureClass;
-use App\Enums\Procurement\GoldSource;
-use App\Enums\Procurement\RunMode;
+use App\Enums\Procurement\Ai\AnalysisRunStatus;
+use App\Enums\Procurement\Ai\AnalysisStep;
+use App\Enums\Procurement\Ai\FixtureClass;
+use App\Enums\Procurement\Ai\GoldSource;
+use App\Enums\Procurement\Ai\RunMode;
+use App\Enums\Procurement\Document\DocumentStatus;
 use App\Exceptions\Procurement\NoActiveAnalysisRun;
 use App\Models\Procurement\Ai\AnalysisRun;
 use App\Models\Procurement\Ai\Fixture;

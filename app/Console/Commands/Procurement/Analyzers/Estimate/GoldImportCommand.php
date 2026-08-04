@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Console\Commands\Procurement\Analyzers\Estimate;
 
-use App\Enums\Procurement\DocumentStatus;
+use App\Enums\Procurement\Document\DocumentStatus;
 use App\Repositories\Procurement\FixtureStoreRepository;
 use App\Services\Procurement\Fixture\GoldExampleImporter;
 use App\Services\Procurement\Fixture\WorkingCopyProvisioner;

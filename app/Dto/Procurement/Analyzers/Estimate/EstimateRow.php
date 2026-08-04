@@ -6,7 +6,7 @@ namespace App\Dto\Procurement\Analyzers\Estimate;
 
 use App\Attributes\Ai\Alias;
 use App\Attributes\Ai\Description;
-use App\Enums\Procurement\RowType;
+use App\Enums\Procurement\Estimate\RowType;
 use Illuminate\Contracts\Support\Arrayable;
 use Illuminate\Validation\ValidationException;
 use Spatie\LaravelData\Data;

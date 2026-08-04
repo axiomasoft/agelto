@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 use App\Enums\Llm\CoreLlmPurpose;
 use App\Enums\Llm\CorePromptStep;
-use App\Enums\Procurement\AnalysisStep;
+use App\Enums\Llm\FinishReason;
+use App\Enums\Procurement\Ai\AnalysisStep;
+use App\Enums\Procurement\Ai\PromptSuggestionKind;
 use App\Enums\Procurement\Analyzers\Estimate\EstimatePromptStep;
-use App\Enums\Procurement\FinishReason;
-use App\Enums\Procurement\PromptSuggestionKind;
 use App\Models\Llm\LlmRoute;
 use App\Models\Llm\Provider;
 use App\Models\Procurement\Ai\Analysis;

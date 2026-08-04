@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace App\Services\Procurement\Tuning;
 
-use App\Enums\Procurement\CorrectionReason;
-use App\Enums\Procurement\PromptSuggestionKind;
-use App\Enums\Procurement\PromptSuggestionStatus;
+use App\Enums\Procurement\Ai\CorrectionReason;
+use App\Enums\Procurement\Ai\PromptSuggestionKind;
+use App\Enums\Procurement\Ai\PromptSuggestionStatus;
 use App\Models\Procurement\Ai\Correction;
 use App\Models\Procurement\Ai\PromptSuggestion;
 use App\Repositories\Procurement\PromptSuggestionStoreRepository;

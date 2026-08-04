@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-use App\Enums\Procurement\AnalysisStatus;
-use App\Enums\Procurement\AnalysisStep;
-use App\Enums\Procurement\DocumentStatus;
-use App\Enums\Procurement\RunMode;
+use App\Enums\Procurement\Ai\AnalysisStatus;
+use App\Enums\Procurement\Ai\AnalysisStep;
+use App\Enums\Procurement\Ai\RunMode;
+use App\Enums\Procurement\Document\DocumentStatus;
 use App\Exceptions\Procurement\AnalysisRunAlreadyActive;
 use App\Exceptions\Procurement\ScreeningDisabled;
 use App\Jobs\Procurement\PrepareDocumentJob;

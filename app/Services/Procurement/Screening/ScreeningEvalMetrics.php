@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Services\Procurement\Screening;
 
 use App\Dto\Procurement\Ai\Screening\ScreeningResult;
-use App\Enums\Procurement\AiDocumentType;
+use App\Enums\Procurement\Ai\AiDocumentType;
 
 /**
  * Классификационная метрика скрининга (P5.6, D5/D44) — независима от `App\Services\Procurement\

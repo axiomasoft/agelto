@@ -6,9 +6,9 @@ namespace App\Services\Procurement\Analyzers\Estimate;
 
 use App\Dto\Procurement\Analyzers\Estimate\RowModifier;
 use App\Dto\Procurement\Analyzers\Estimate\RowsChunkResponse;
-use App\Enums\Procurement\AiDocumentType;
+use App\Enums\Procurement\Ai\AiDocumentType;
 use App\Enums\Procurement\Analyzers\Estimate\EstimateLlmPurpose;
-use App\Enums\Procurement\RowType;
+use App\Enums\Procurement\Estimate\RowType;
 use App\Models\Procurement\Ai\Analysis;
 use App\Models\Procurement\Document\DocumentVersion;
 use App\Models\Procurement\Estimate\Estimate;

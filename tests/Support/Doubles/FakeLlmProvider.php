@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Support\Doubles;
 
-use App\Enums\Procurement\FinishReason;
+use App\Enums\Llm\FinishReason;
 use App\Services\Llm\Contracts\LlmProvider;
 use App\Services\Llm\Contracts\SupportsContextCaching;
 use App\Services\Llm\Contracts\SupportsFileUpload;

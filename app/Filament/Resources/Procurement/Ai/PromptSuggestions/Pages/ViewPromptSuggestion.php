@@ -2,7 +2,7 @@
 
 namespace App\Filament\Resources\Procurement\Ai\PromptSuggestions\Pages;
 
-use App\Enums\Procurement\PromptSuggestionStatus;
+use App\Enums\Procurement\Ai\PromptSuggestionStatus;
 use App\Exceptions\Procurement\OperationFailed;
 use App\Filament\Resources\Procurement\Ai\PromptSuggestions\PromptSuggestionResource;
 use App\Guards\Admin\Permissions\PromptSuggestionPermission;

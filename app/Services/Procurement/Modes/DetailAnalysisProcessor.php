@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Services\Procurement\Modes;
 
-use App\Enums\Procurement\DocumentStatus;
-use App\Enums\Procurement\SourceMethod as SourceMethodEnum;
+use App\Enums\Procurement\Crawler\SourceMethod as SourceMethodEnum;
+use App\Enums\Procurement\Document\DocumentStatus;
 use App\Models\Procurement\Document\Document;
 use App\Models\Procurement\Procurement;
 use App\Repositories\Procurement\ProcurementStoreRepository;

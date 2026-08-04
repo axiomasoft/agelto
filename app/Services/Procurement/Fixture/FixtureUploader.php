@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Services\Procurement\Fixture;
 
-use App\Enums\Procurement\AiDocumentType;
-use App\Enums\Procurement\FixtureClass;
+use App\Enums\Procurement\Ai\AiDocumentType;
+use App\Enums\Procurement\Ai\FixtureClass;
 use App\Exceptions\Procurement\FixtureAlreadyUploaded;
 use App\Models\Procurement\Ai\Fixture;
 use App\Repositories\Procurement\FixtureStoreRepository;

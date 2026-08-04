@@ -6,7 +6,7 @@ namespace App\Services\Procurement\Analyzers\Estimate;
 
 use App\Dto\Procurement\Analyzers\Estimate\RowsChunkResponse;
 use App\Enums\Procurement\Analyzers\Estimate\EstimatePromptStep;
-use App\Enums\Procurement\RepresentationKind;
+use App\Enums\Procurement\Document\RepresentationKind;
 use App\Models\Procurement\Document\DocumentVersion;
 use App\Repositories\Procurement\RepresentationStoreRepository;
 use App\Services\Llm\Dto\ComposedPrompt;

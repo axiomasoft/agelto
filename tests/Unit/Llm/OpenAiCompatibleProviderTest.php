@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-use App\Enums\Procurement\FinishReason;
+use App\Enums\Llm\FinishReason;
 use App\Services\Llm\Dto\JsonSchema;
 use App\Services\Llm\Dto\LlmFileHandle;
 use App\Services\Llm\Dto\LlmOptions;

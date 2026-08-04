@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models\Procurement\Crawler;
 
-use App\Enums\Procurement\RunStatus;
+use App\Enums\Procurement\Crawler\RunStatus;
 use Database\Factories\Procurement\Crawler\RunFactory;
 use Illuminate\Database\Eloquent\Attributes\UseFactory;
 use Illuminate\Database\Eloquent\Casts\AsCollection;

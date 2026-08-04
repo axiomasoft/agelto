@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\Llm\Dto;
 
-use App\Enums\Procurement\FinishReason;
+use App\Enums\Llm\FinishReason;
 
 /**
  * Ответ `LlmProvider::complete()` — нетипизированный текстовый вызов (ТЗ 04 §2). `raw` — сырой

@@ -4,12 +4,12 @@ declare(strict_types=1);
 
 use App\Enums\Llm\CoreLlmPurpose;
 use App\Enums\Llm\DocumentTypeScope;
+use App\Enums\Llm\FinishReason;
 use App\Enums\Llm\LlmPurpose;
-use App\Enums\Procurement\AiDocumentType;
-use App\Enums\Procurement\AnalysisStatus;
-use App\Enums\Procurement\AnalysisStep;
+use App\Enums\Procurement\Ai\AiDocumentType;
+use App\Enums\Procurement\Ai\AnalysisStatus;
+use App\Enums\Procurement\Ai\AnalysisStep;
 use App\Enums\Procurement\Analyzers\Estimate\EstimateLlmPurpose;
-use App\Enums\Procurement\FinishReason;
 use App\Jobs\Procurement\ShadowAnalysisJob;
 use App\Models\Llm\LlmCall;
 use App\Models\Llm\LlmRoute;

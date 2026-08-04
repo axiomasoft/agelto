@@ -6,8 +6,8 @@ namespace App\Services\Procurement\Analyzers\Estimate;
 
 use App\Dto\Procurement\Analyzers\Estimate\EstimateRow;
 use App\Dto\Procurement\Analyzers\Estimate\IncompleteRow;
-use App\Enums\Procurement\IncompleteReason;
-use App\Enums\Procurement\RowType;
+use App\Enums\Procurement\Estimate\IncompleteReason;
+use App\Enums\Procurement\Estimate\RowType;
 
 /**
  * Детерминированный (без LLM) merge построчных чанков сметы (`docs/specs/v2/

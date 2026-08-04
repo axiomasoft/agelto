@@ -6,7 +6,7 @@ namespace Database\Seeders;
 
 use App\Enums\Llm\CoreLlmPurpose;
 use App\Enums\Llm\DocumentTypeScope;
-use App\Enums\Procurement\AiDocumentType;
+use App\Enums\Procurement\Ai\AiDocumentType;
 use App\Enums\Procurement\Analyzers\Estimate\EstimateLlmPurpose;
 use App\Models\Llm\LlmRoute;
 use App\Models\Llm\Provider;

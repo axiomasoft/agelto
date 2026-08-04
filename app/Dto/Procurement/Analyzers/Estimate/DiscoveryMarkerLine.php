@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Dto\Procurement\Analyzers\Estimate;
 
 use App\Attributes\Ai\Description;
-use App\Enums\Procurement\DiscoveryMarker;
+use App\Enums\Procurement\Estimate\DiscoveryMarker;
 use Spatie\LaravelData\Data;
 
 /**

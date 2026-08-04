@@ -6,8 +6,8 @@ namespace App\Services\Procurement\Ai;
 
 use App\Enums\Llm\CoreLlmPurpose;
 use App\Enums\Llm\LlmPurpose;
-use App\Enums\Procurement\AiDocumentType;
-use App\Enums\Procurement\AnalysisStep;
+use App\Enums\Procurement\Ai\AiDocumentType;
+use App\Enums\Procurement\Ai\AnalysisStep;
 use App\Models\Procurement\Ai\Analysis;
 use App\Models\Procurement\Ai\AnalysisRun;
 use App\Repositories\Llm\LlmCallReadRepository;

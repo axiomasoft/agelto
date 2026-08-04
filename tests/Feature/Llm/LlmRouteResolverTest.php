@@ -3,7 +3,7 @@
 declare(strict_types=1);
 
 use App\Enums\Llm\CoreLlmPurpose;
-use App\Enums\Procurement\AiDocumentType;
+use App\Enums\Procurement\Ai\AiDocumentType;
 use App\Enums\Procurement\Analyzers\Estimate\EstimateLlmPurpose;
 use App\Models\Llm\LlmRoute;
 use App\Models\Llm\Provider;

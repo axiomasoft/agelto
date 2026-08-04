@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Exceptions\Procurement;
 
-use App\Enums\Procurement\ProxyScope;
+use App\Enums\Procurement\Proxy\ProxyScope;
 
 /**
  * Резолвер не нашёл ни одного кандидата для скоупа/цели (research/02 §10) — «тихого прямого

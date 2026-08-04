@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
+use App\Enums\Llm\FinishReason;
+use App\Enums\Procurement\Ai\GoldSource;
 use App\Enums\Procurement\Analyzers\Estimate\EstimateLlmPurpose;
-use App\Enums\Procurement\FinishReason;
-use App\Enums\Procurement\GoldSource;
-use App\Enums\Procurement\RepresentationKind;
+use App\Enums\Procurement\Document\RepresentationKind;
 use App\Models\Llm\LlmCall;
 use App\Models\Llm\LlmRoute;
 use App\Models\Llm\Provider;

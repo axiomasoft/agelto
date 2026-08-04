@@ -6,8 +6,8 @@ namespace App\Services\Procurement\Analyzers\Estimate;
 
 use App\Dto\Procurement\Analyzers\Estimate\EstimateRow;
 use App\Dto\Procurement\Analyzers\Estimate\PassportResponse;
-use App\Enums\Procurement\AiDocumentType;
-use App\Enums\Procurement\DocumentStatus;
+use App\Enums\Procurement\Ai\AiDocumentType;
+use App\Enums\Procurement\Document\DocumentStatus;
 use App\Models\Procurement\Platform\Platform;
 use App\Repositories\Procurement\DatasetExampleStoreRepository;
 use App\Repositories\Procurement\DocumentStoreRepository;

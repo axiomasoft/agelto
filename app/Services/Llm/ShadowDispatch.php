@@ -6,7 +6,7 @@ namespace App\Services\Llm;
 
 use App\Enums\Llm\DocumentTypeScope;
 use App\Enums\Llm\LlmPurpose;
-use App\Enums\Procurement\AiDocumentType;
+use App\Enums\Procurement\Ai\AiDocumentType;
 use App\Jobs\Procurement\ShadowAnalysisJob;
 use App\Models\Procurement\Ai\Analysis;
 use App\Services\Llm\Dto\JsonSchema;

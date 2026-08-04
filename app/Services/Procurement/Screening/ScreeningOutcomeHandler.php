@@ -6,9 +6,9 @@ namespace App\Services\Procurement\Screening;
 
 use App\Enums\Llm\CoreLlmPurpose;
 use App\Enums\Llm\DocumentTypeScope;
-use App\Enums\Procurement\AiDocumentType;
-use App\Enums\Procurement\AnalysisStatus;
-use App\Enums\Procurement\DocumentStatus;
+use App\Enums\Procurement\Ai\AiDocumentType;
+use App\Enums\Procurement\Ai\AnalysisStatus;
+use App\Enums\Procurement\Document\DocumentStatus;
 use App\Enums\Procurement\ProcurementEventType;
 use App\Models\Procurement\Ai\Analysis;
 use App\Models\Procurement\Document\Document;

@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\Procurement\Tuning;
 
-use App\Enums\Procurement\PromptSuggestionStatus;
+use App\Enums\Procurement\Ai\PromptSuggestionStatus;
 use App\Exceptions\Procurement\PromptSuggestionAlreadyDecided;
 use App\Models\Procurement\Ai\PromptSuggestion;
 use App\Repositories\Procurement\PromptSuggestionStoreRepository;

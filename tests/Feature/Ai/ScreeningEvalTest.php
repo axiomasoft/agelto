@@ -3,7 +3,7 @@
 declare(strict_types=1);
 
 use App\Enums\Llm\CoreLlmPurpose;
-use App\Enums\Procurement\FinishReason;
+use App\Enums\Llm\FinishReason;
 use App\Models\Llm\LlmRoute;
 use App\Models\Llm\Provider;
 use App\Models\Procurement\Ai\Analysis;

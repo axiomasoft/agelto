@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 use App\Dto\Procurement\ProcurementDetails;
 use App\Enums\Procurement\ProcurementStatus;
-use App\Enums\Procurement\ProxyScope;
+use App\Enums\Procurement\Proxy\ProxyScope;
 use App\Models\Procurement\Crawler\Proxy;
 use App\Models\Procurement\Platform\Registry;
 use App\Models\Procurement\Procurement;

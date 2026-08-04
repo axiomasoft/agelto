@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\Procurement\Proxy;
 
-use App\Enums\Procurement\ProxyScope;
+use App\Enums\Procurement\Proxy\ProxyScope;
 use App\Exceptions\Procurement\NoProxyAvailableException;
 use App\Services\Llm\Contracts\OutboundProxy;
 use Illuminate\Support\Facades\Log;

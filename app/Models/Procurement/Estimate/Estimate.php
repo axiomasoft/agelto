@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Models\Procurement\Estimate;
 
-use App\Enums\Procurement\CalcMethod;
-use App\Enums\Procurement\EstimateSourceKind;
+use App\Enums\Procurement\Estimate\CalcMethod;
+use App\Enums\Procurement\Estimate\EstimateSourceKind;
 use App\Models\Procurement\Ai\Analysis;
 use App\Models\Procurement\Document\DocumentVersion;
 use App\Models\Procurement\Platform\Platform;

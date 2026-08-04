@@ -6,7 +6,7 @@ namespace App\Enums\Procurement\Analyzers\Estimate;
 
 use App\Enums\Llm\CorePromptStep;
 use App\Enums\Llm\PromptStep;
-use App\Enums\Procurement\AiDocumentType;
+use App\Enums\Procurement\Ai\AiDocumentType;
 
 /**
  * Собственные шаги композиции анализатора сметы (contract P2.1 §4.1) — принадлежат

@@ -2,8 +2,8 @@
 
 namespace App\Filament\Resources\Procurement\Crawler\Crawlers\Schemas;
 
-use App\Enums\Procurement\CrawlerMode;
-use App\Enums\Procurement\SourceMethod;
+use App\Enums\Procurement\Crawler\CrawlerMode;
+use App\Enums\Procurement\Crawler\SourceMethod;
 use App\Filament\Resources\Procurement\Crawler\Proxies\Schemas\ProxyForm;
 use Filament\Forms\Components\KeyValue;
 use Filament\Forms\Components\Select;

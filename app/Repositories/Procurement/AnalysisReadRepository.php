@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Repositories\Procurement;
 
-use App\Enums\Procurement\AnalysisStep;
+use App\Enums\Procurement\Ai\AnalysisStep;
 use App\Models\Procurement\Ai\Analysis;
 
 /**

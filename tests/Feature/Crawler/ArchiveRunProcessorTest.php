@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 use App\Dto\Procurement\ListingBatch;
 use App\Dto\Procurement\ListingCursor;
-use App\Enums\Procurement\CrawlerMode;
-use App\Enums\Procurement\RunStatus;
-use App\Enums\Procurement\SourceMethod as SourceMethodEnum;
+use App\Enums\Procurement\Crawler\CrawlerMode;
+use App\Enums\Procurement\Crawler\RunStatus;
+use App\Enums\Procurement\Crawler\SourceMethod as SourceMethodEnum;
 use App\Models\Procurement\Crawler\Crawler;
 use App\Models\Procurement\Crawler\Run;
 use App\Models\Procurement\Procurement;

@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Services\Procurement;
 
 use App\Dto\Procurement\Details\DocumentData;
-use App\Enums\Procurement\DocumentStatus;
+use App\Enums\Procurement\Document\DocumentStatus;
 use App\Enums\Procurement\ProcurementEventType;
 use App\Models\Procurement\Procurement;
 use App\Repositories\Procurement\DocumentStoreRepository;

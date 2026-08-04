@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Dto\Procurement\Analyzers\Estimate;
 
 use App\Attributes\Ai\Description;
-use App\Enums\Procurement\IncompleteReason;
+use App\Enums\Procurement\Estimate\IncompleteReason;
 use Spatie\LaravelData\Data;
 
 /**

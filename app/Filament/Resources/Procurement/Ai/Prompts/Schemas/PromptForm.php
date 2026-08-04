@@ -3,7 +3,7 @@
 namespace App\Filament\Resources\Procurement\Ai\Prompts\Schemas;
 
 use App\Enums\Llm\DocumentTypeScope;
-use App\Enums\Procurement\AiDocumentType;
+use App\Enums\Procurement\Ai\AiDocumentType;
 use App\Services\Procurement\Contracts\DocumentAnalyzerRegistry;
 use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\Select;

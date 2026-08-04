@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 use App\Dto\Procurement\Analyzers\Estimate\EstimateRow;
 use App\Dto\Procurement\Analyzers\Estimate\PassportResponse;
-use App\Enums\Procurement\CalcMethod;
-use App\Enums\Procurement\RowType;
+use App\Enums\Procurement\Estimate\CalcMethod;
+use App\Enums\Procurement\Estimate\RowType;
 use Illuminate\Validation\ValidationException;
 
 // Контракты расширенные P4.5 по утверждённому распределению величин

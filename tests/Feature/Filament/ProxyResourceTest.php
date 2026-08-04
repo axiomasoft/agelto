@@ -2,8 +2,8 @@
 
 declare(strict_types=1);
 
-use App\Enums\Procurement\ProxyFailureReason;
-use App\Enums\Procurement\ProxyScope;
+use App\Enums\Procurement\Proxy\ProxyFailureReason;
+use App\Enums\Procurement\Proxy\ProxyScope;
 use App\Filament\Resources\Procurement\Crawler\Proxies\Pages\CreateProxy;
 use App\Filament\Resources\Procurement\Crawler\Proxies\Pages\EditProxy;
 use App\Guards\Admin\Roles\OperatorRole;

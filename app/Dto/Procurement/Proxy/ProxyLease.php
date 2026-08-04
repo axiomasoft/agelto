@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Dto\Procurement\Proxy;
 
-use App\Enums\Procurement\ProxyScope;
+use App\Enums\Procurement\Proxy\ProxyScope;
 
 /**
  * Выдача резолвера (research/02 §9.1) — НЕ модель Eloquent: несёт `scope`/`target`, чтобы

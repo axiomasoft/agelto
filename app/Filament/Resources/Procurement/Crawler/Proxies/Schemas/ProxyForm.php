@@ -2,7 +2,7 @@
 
 namespace App\Filament\Resources\Procurement\Crawler\Proxies\Schemas;
 
-use App\Enums\Procurement\ProxyScope;
+use App\Enums\Procurement\Proxy\ProxyScope;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;

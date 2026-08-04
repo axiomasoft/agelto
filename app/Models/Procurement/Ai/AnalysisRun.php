@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Models\Procurement\Ai;
 
-use App\Enums\Procurement\AnalysisRunStatus;
-use App\Enums\Procurement\RunMode;
+use App\Enums\Procurement\Ai\AnalysisRunStatus;
+use App\Enums\Procurement\Ai\RunMode;
 use App\Models\Procurement\Document\DocumentVersion;
 use App\Models\User;
 use Database\Factories\Procurement\Ai\AnalysisRunFactory;

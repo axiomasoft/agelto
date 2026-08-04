@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\Procurement;
 
-use App\Enums\Procurement\DocumentStatus;
+use App\Enums\Procurement\Document\DocumentStatus;
 use App\Jobs\Procurement\PrepareDocumentJob;
 use App\Models\Procurement\Document\Document;
 use App\Models\Procurement\Procurement;

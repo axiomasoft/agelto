@@ -3,7 +3,7 @@
 declare(strict_types=1);
 
 use App\Enums\Llm\DocumentTypeScope;
-use App\Enums\Procurement\AiDocumentType;
+use App\Enums\Procurement\Ai\AiDocumentType;
 
 /**
  * §7 root/document-type-axis.md — сентинел кросс-документного назначения живёт в том же

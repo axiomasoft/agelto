@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\Procurement\Prepare;
 
-use App\Enums\Procurement\RepresentationKind;
+use App\Enums\Procurement\Document\RepresentationKind;
 use App\Models\Procurement\Document\DocumentVersion;
 use App\Repositories\Procurement\RepresentationStoreRepository;
 

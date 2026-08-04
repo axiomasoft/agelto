@@ -3,7 +3,7 @@
 declare(strict_types=1);
 
 use App\Enums\Llm\DocumentTypeScope;
-use App\Enums\Procurement\AiDocumentType;
+use App\Enums\Procurement\Ai\AiDocumentType;
 use App\Models\Llm\LlmRoute;
 use App\Models\Llm\Provider;
 use Illuminate\Database\Migrations\Migration;

@@ -6,10 +6,10 @@ namespace App\Services\Procurement;
 
 use App\Dto\Procurement\Proxy\ProxyLease;
 use App\Dto\Procurement\Proxy\ProxyOutcome;
-use App\Enums\Procurement\DocumentStatus;
+use App\Enums\Procurement\Document\DocumentStatus;
 use App\Enums\Procurement\ProcurementEventType;
-use App\Enums\Procurement\ProxyFailureReason;
-use App\Enums\Procurement\ProxyScope;
+use App\Enums\Procurement\Proxy\ProxyFailureReason;
+use App\Enums\Procurement\Proxy\ProxyScope;
 use App\Models\Procurement\Document\Document;
 use App\Models\Procurement\Document\DocumentVersion;
 use App\Repositories\Procurement\DocumentStoreRepository;

@@ -3,7 +3,7 @@
 declare(strict_types=1);
 
 use App\Dto\Procurement\ListingCursor;
-use App\Enums\Procurement\RunStatus;
+use App\Enums\Procurement\Crawler\RunStatus;
 use App\Models\Procurement\Crawler\Crawler;
 use App\Models\Procurement\Crawler\Run;
 use App\Services\Procurement\CrawlerRunManager;

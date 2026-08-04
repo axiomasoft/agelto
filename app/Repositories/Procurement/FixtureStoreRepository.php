@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Repositories\Procurement;
 
-use App\Enums\Procurement\GoldSource;
+use App\Enums\Procurement\Ai\GoldSource;
 use App\Models\Procurement\Ai\Fixture;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\DB;

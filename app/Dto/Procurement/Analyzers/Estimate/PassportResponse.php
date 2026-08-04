@@ -6,7 +6,7 @@ namespace App\Dto\Procurement\Analyzers\Estimate;
 
 use App\Attributes\Ai\Alias;
 use App\Attributes\Ai\Description;
-use App\Enums\Procurement\CalcMethod;
+use App\Enums\Procurement\Estimate\CalcMethod;
 use Spatie\LaravelData\Data;
 
 /**

@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 use App\Dto\Procurement\ListingBatch;
 use App\Dto\Procurement\ListingCursor;
-use App\Enums\Procurement\ProxyScope;
+use App\Enums\Procurement\Proxy\ProxyScope;
 use App\Exceptions\Procurement\NoProxyAvailableException;
 use App\Models\Procurement\Crawler\Crawler;
 use App\Models\Procurement\Crawler\Proxy;

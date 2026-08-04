@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Services\Llm;
 
 use App\Enums\Llm\DocumentTypeScope;
-use App\Enums\Procurement\AiDocumentType;
+use App\Enums\Procurement\Ai\AiDocumentType;
 use App\Services\Procurement\Contracts\DocumentAnalyzerRegistry;
 use Illuminate\Support\Collection;
 use RuntimeException;

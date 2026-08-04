@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Services\Procurement\Analyzers\Estimate;
 
 use App\Dto\Procurement\Analyzers\Estimate\DiscoveryMarkerLine;
-use App\Enums\Procurement\DiscoveryMarker;
+use App\Enums\Procurement\Estimate\DiscoveryMarker;
 
 /**
  * Детерминированная (БЕЗ LLM) сборка сегментов смет из накопленных discovery-маркеров (D30,

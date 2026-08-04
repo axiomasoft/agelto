@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace App\Models\Procurement\Ai;
 
-use App\Enums\Procurement\AnalysisStep;
-use App\Enums\Procurement\PromptSuggestionKind;
-use App\Enums\Procurement\PromptSuggestionStatus;
+use App\Enums\Procurement\Ai\AnalysisStep;
+use App\Enums\Procurement\Ai\PromptSuggestionKind;
+use App\Enums\Procurement\Ai\PromptSuggestionStatus;
 use App\Models\Llm\LlmCall;
 use App\Models\User;
 use Database\Factories\Procurement\Ai\PromptSuggestionFactory;

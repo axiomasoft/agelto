@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models\Procurement\Crawler;
 
-use App\Enums\Procurement\ProxyScope;
+use App\Enums\Procurement\Proxy\ProxyScope;
 use Database\Factories\Procurement\Crawler\ProxyFactory;
 use Illuminate\Database\Eloquent\Attributes\UseFactory;
 use Illuminate\Database\Eloquent\Casts\AsEnumCollection;

@@ -9,7 +9,7 @@ use App\Enums\Llm\CorePromptStep;
 use App\Enums\Llm\DocumentTypeScope;
 use App\Enums\Llm\LlmPurpose;
 use App\Enums\Llm\PromptStep;
-use App\Enums\Procurement\AiDocumentType;
+use App\Enums\Procurement\Ai\AiDocumentType;
 use Illuminate\Contracts\Container\Container;
 use InvalidArgumentException;
 

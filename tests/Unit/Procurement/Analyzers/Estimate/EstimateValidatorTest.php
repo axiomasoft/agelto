@@ -5,8 +5,8 @@ declare(strict_types=1);
 use App\Dto\Procurement\Analyzers\Estimate\EstimateRow;
 use App\Dto\Procurement\Analyzers\Estimate\EstimateTotalsBlock;
 use App\Dto\Procurement\Analyzers\Estimate\TotalLine;
-use App\Enums\Procurement\EstimateValidationStatus;
-use App\Enums\Procurement\RowType;
+use App\Enums\Procurement\Estimate\EstimateValidationStatus;
+use App\Enums\Procurement\Estimate\RowType;
 use App\Services\Procurement\Analyzers\Estimate\EstimateValidator;
 
 function validatorRow(

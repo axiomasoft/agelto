@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models\Procurement\Estimate;
 
-use App\Enums\Procurement\ResourceType;
+use App\Enums\Procurement\Estimate\ResourceType;
 use Database\Factories\Procurement\Estimate\ResourceFactory;
 use Illuminate\Database\Eloquent\Attributes\UseFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;

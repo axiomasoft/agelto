@@ -8,13 +8,13 @@ use App\Dto\Procurement\Analyzers\Estimate\EstimatePassport;
 use App\Dto\Procurement\Analyzers\Estimate\PassportResponse;
 use App\Dto\Procurement\Analyzers\Estimate\RowsChunkResponse;
 use App\Dto\Procurement\Analyzers\Estimate\TotalsResponse;
-use App\Enums\Procurement\DiscoveryMarker;
-use App\Enums\Procurement\EstimateTarget;
-use App\Enums\Procurement\EstimateType;
-use App\Enums\Procurement\IncompleteReason;
-use App\Enums\Procurement\ResourceType;
-use App\Enums\Procurement\RowType;
-use App\Enums\Procurement\TotalKind;
+use App\Enums\Procurement\Estimate\DiscoveryMarker;
+use App\Enums\Procurement\Estimate\EstimateTarget;
+use App\Enums\Procurement\Estimate\EstimateType;
+use App\Enums\Procurement\Estimate\IncompleteReason;
+use App\Enums\Procurement\Estimate\ResourceType;
+use App\Enums\Procurement\Estimate\RowType;
+use App\Enums\Procurement\Estimate\TotalKind;
 
 test('гидрирует паспорт сметы из спеки 08 §1.1', function (): void {
     $passport = EstimatePassport::from([

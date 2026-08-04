@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 use App\Dto\Procurement\Ai\Screening\ScreeningResult;
 use App\Enums\Llm\CoreLlmPurpose;
-use App\Enums\Procurement\FinishReason;
+use App\Enums\Llm\FinishReason;
 use App\Models\Llm\LlmRoute;
 use App\Services\Llm\Dto\JsonSchema;
 use App\Services\Llm\Dto\LlmOptions;

@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-use App\Enums\Procurement\FinishReason;
+use App\Enums\Llm\FinishReason;
 use App\Models\Procurement\Ai\Analysis;
 use App\Services\Llm\Dto\LlmResponse;
 use App\Services\Llm\Dto\LlmUsage;

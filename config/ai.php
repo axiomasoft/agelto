@@ -1,7 +1,7 @@
 <?php
 
 declare(strict_types=1);
-use App\Enums\Procurement\AiDocumentType;
+use App\Enums\Procurement\Ai\AiDocumentType;
 use App\Services\Procurement\Analyzers\Estimate\EstimateAnalyzer;
 use App\Services\Procurement\Prepare\ArchiveStrategy;
 use App\Services\Procurement\Prepare\GsfxStrategy;

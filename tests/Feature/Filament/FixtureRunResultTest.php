@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
-use App\Enums\Procurement\AiDocumentType;
-use App\Enums\Procurement\AnalysisRunStatus;
-use App\Enums\Procurement\AnalysisStatus;
-use App\Enums\Procurement\AnalysisStep;
-use App\Enums\Procurement\RunMode;
+use App\Enums\Procurement\Ai\AiDocumentType;
+use App\Enums\Procurement\Ai\AnalysisRunStatus;
+use App\Enums\Procurement\Ai\AnalysisStatus;
+use App\Enums\Procurement\Ai\AnalysisStep;
+use App\Enums\Procurement\Ai\RunMode;
 use App\Filament\Resources\Procurement\Ai\Fixtures\Pages\ViewFixture;
 use App\Filament\Resources\Procurement\Ai\Fixtures\RelationManagers\RunsRelationManager;
 use App\Guards\Admin\Roles\OperatorRole;

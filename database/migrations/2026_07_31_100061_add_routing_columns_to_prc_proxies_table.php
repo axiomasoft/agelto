@@ -20,10 +20,10 @@ return new class extends Migration
     {
         Schema::table($this->table(), function (Blueprint $table): void {
             $table->char('country', 2)->nullable()->comment('ISO 3166-1 alpha-2, верхний регистр; единственный носитель гео (D5)');
-            $table->jsonb('scopes')->default('[]')->comment('список значений App\Enums\Procurement\ProxyScope; пустой = узел не выдаётся ни для одного скоупа');
+            $table->jsonb('scopes')->default('[]')->comment('список значений App\Enums\Procurement\Proxy\ProxyScope; пустой = узел не выдаётся ни для одного скоупа');
             $table->timestampTz('open_until')->nullable()->comment('breaker: момент, до которого узел глобально выведен из выдачи; NULL/прошлое = доступен');
             $table->smallInteger('open_count')->default(0)->comment('сколько раз подряд breaker открывался без успешной пробы — степень экспоненциального cooldown');
-            $table->text('last_failure_reason')->nullable()->comment('значение App\Enums\Procurement\ProxyFailureReason последнего глобального отказа');
+            $table->text('last_failure_reason')->nullable()->comment('значение App\Enums\Procurement\Proxy\ProxyFailureReason последнего глобального отказа');
             $table->timestampTz('last_success_at')->nullable();
             $table->timestampTz('last_failure_at')->nullable();
 

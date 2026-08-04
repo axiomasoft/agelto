@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-use App\Enums\Procurement\SourceMethod as SourceMethodEnum;
+use App\Enums\Procurement\Crawler\SourceMethod as SourceMethodEnum;
 use App\Models\Procurement\Crawler\Crawler;
 use App\Services\Procurement\Exceptions\SourceMethodUnavailableException;
 use App\Services\Procurement\SourceMethodFactory;

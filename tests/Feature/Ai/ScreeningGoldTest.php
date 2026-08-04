@@ -3,7 +3,7 @@
 declare(strict_types=1);
 
 use App\Dto\Procurement\Ai\Screening\ScreeningResult;
-use App\Enums\Procurement\AiDocumentType;
+use App\Enums\Procurement\Ai\AiDocumentType;
 use App\Models\Procurement\Ai\Fixture;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Str;

@@ -6,7 +6,7 @@ namespace App\Repositories\Llm;
 
 use App\Enums\Llm\DocumentTypeScope;
 use App\Enums\Llm\LlmPurpose;
-use App\Enums\Procurement\AiDocumentType;
+use App\Enums\Procurement\Ai\AiDocumentType;
 use App\Models\Llm\LlmRoute;
 use Illuminate\Database\Eloquent\Collection;
 

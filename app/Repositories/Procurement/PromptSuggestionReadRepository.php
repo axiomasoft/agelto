@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Repositories\Procurement;
 
-use App\Enums\Procurement\PromptSuggestionKind;
-use App\Enums\Procurement\PromptSuggestionStatus;
+use App\Enums\Procurement\Ai\PromptSuggestionKind;
+use App\Enums\Procurement\Ai\PromptSuggestionStatus;
 use App\Models\Procurement\Ai\PromptSuggestion;
 
 /**

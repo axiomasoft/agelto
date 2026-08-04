@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-use App\Enums\Procurement\GoldSource;
+use App\Enums\Procurement\Ai\GoldSource;
 use App\Models\Procurement\Ai\DatasetExample;
 use App\Models\Procurement\Ai\EvalResult;
 use App\Models\Procurement\Ai\EvalRun;

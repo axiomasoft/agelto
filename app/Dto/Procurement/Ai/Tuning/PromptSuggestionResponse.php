@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Dto\Procurement\Ai\Tuning;
 
-use App\Enums\Procurement\PromptSuggestionKind;
+use App\Enums\Procurement\Ai\PromptSuggestionKind;
 use Spatie\LaravelData\Data;
 
 /**

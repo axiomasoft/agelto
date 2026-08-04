@@ -7,9 +7,9 @@ namespace App\Services\Procurement\Analyzers\Estimate;
 use App\Dto\Procurement\Analyzers\Estimate\EstimateRow;
 use App\Dto\Procurement\Analyzers\Estimate\EstimateTotalsBlock;
 use App\Dto\Procurement\Analyzers\Estimate\TotalLine;
-use App\Enums\Procurement\EstimateValidationStatus;
-use App\Enums\Procurement\RowType;
-use App\Enums\Procurement\TotalKind;
+use App\Enums\Procurement\Estimate\EstimateValidationStatus;
+use App\Enums\Procurement\Estimate\RowType;
+use App\Enums\Procurement\Estimate\TotalKind;
 
 /**
  * Детерминированная (без LLM) арифметическая/структурная валидация извлечённой сметы

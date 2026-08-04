@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace App\Pulse\Cards;
 
-use App\Enums\Procurement\AnalysisStatus;
-use App\Enums\Procurement\AnalysisStep;
-use App\Enums\Procurement\DocumentStatus;
+use App\Enums\Procurement\Ai\AnalysisStatus;
+use App\Enums\Procurement\Ai\AnalysisStep;
+use App\Enums\Procurement\Document\DocumentStatus;
 use App\Models\Procurement\Ai\Analysis;
 use App\Models\Procurement\Document\Document;
 use Carbon\CarbonImmutable;

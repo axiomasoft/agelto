@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 use App\Dto\Procurement\Analyzers\Estimate\EstimateRow;
 use App\Dto\Procurement\Analyzers\Estimate\IncompleteRow;
-use App\Enums\Procurement\IncompleteReason;
-use App\Enums\Procurement\RowType;
+use App\Enums\Procurement\Estimate\IncompleteReason;
+use App\Enums\Procurement\Estimate\RowType;
 use App\Services\Procurement\Analyzers\Estimate\EstimateStitcher;
 
 // Юнит-тесты чистой функции (Scope Included P6.2) — без LLM/БД, входы строятся напрямую из

@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Database\Factories\Procurement\Crawler;
 
-use App\Enums\Procurement\ProxyFailureReason;
+use App\Enums\Procurement\Proxy\ProxyFailureReason;
 use App\Models\Procurement\Crawler\Proxy;
 use App\Models\Procurement\Crawler\ProxyTarget;
 use Illuminate\Database\Eloquent\Factories\Factory;

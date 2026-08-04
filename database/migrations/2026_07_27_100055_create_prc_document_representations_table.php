@@ -27,7 +27,7 @@ return new class extends Migration
                 ->cascadeOnDelete();
 
             // Текстом, не PG-enum: новый вид представления не должен требовать миграции (D25).
-            $table->text('kind')->comment('значение App\Enums\Procurement\RepresentationKind');
+            $table->text('kind')->comment('значение App\Enums\Procurement\Document\RepresentationKind');
 
             $table->text('storage_path');
             $table->text('disk')->nullable()->comment('null = диск документов config(crawler.documents_disk)');

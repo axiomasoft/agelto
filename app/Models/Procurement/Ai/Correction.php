@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models\Procurement\Ai;
 
-use App\Enums\Procurement\CorrectionReason;
+use App\Enums\Procurement\Ai\CorrectionReason;
 use App\Models\Procurement\Estimate\Estimate;
 use App\Models\User;
 use Database\Factories\Procurement\Ai\CorrectionFactory;

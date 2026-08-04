@@ -3,10 +3,10 @@
 declare(strict_types=1);
 
 use App\Enums\Llm\CorePromptStep;
+use App\Enums\Llm\FinishReason;
+use App\Enums\Procurement\Ai\FixtureClass;
+use App\Enums\Procurement\Ai\GoldSource;
 use App\Enums\Procurement\Analyzers\Estimate\EstimateLlmPurpose;
-use App\Enums\Procurement\FinishReason;
-use App\Enums\Procurement\FixtureClass;
-use App\Enums\Procurement\GoldSource;
 use App\Models\Llm\LlmRoute;
 use App\Models\Llm\Prompt;
 use App\Models\Llm\Provider;

@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-use App\Enums\Procurement\FinishReason;
+use App\Enums\Llm\FinishReason;
 use App\Services\Llm\Contracts\OutboundProxy;
 use App\Services\Llm\Dto\CacheableContent;
 use App\Services\Llm\Dto\JsonSchema;

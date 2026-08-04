@@ -2,8 +2,8 @@
 
 declare(strict_types=1);
 
-use App\Enums\Procurement\AnalysisRunStatus;
-use App\Enums\Procurement\RunMode;
+use App\Enums\Procurement\Ai\AnalysisRunStatus;
+use App\Enums\Procurement\Ai\RunMode;
 use App\Models\Procurement\Ai\Analysis;
 use App\Models\Procurement\Ai\AnalysisRun;
 use App\Models\Procurement\Document\DocumentVersion;
@@ -25,8 +25,8 @@ return new class extends Migration
                 ->index()
                 ->constrained(table: (new DocumentVersion)->getTable());
 
-            $table->text('mode')->comment('auto/manual — App\\Enums\\Procurement\\RunMode');
-            $table->text('status')->comment('pending→running→succeeded/failed — App\\Enums\\Procurement\\AnalysisRunStatus');
+            $table->text('mode')->comment('auto/manual — App\\Enums\\Procurement\\Ai\\RunMode');
+            $table->text('status')->comment('pending→running→succeeded/failed — App\\Enums\\Procurement\\Ai\\AnalysisRunStatus');
 
             // Слепок расхода (D5) — заполняется P4.1 в терминальных точках контура, здесь только
             // схема (D20). Имена — байт-в-байт как в llm_calls (§3.2 root/document-contour.md).

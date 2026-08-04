@@ -7,7 +7,7 @@ namespace App\Services\Procurement\Proxy;
 use App\Dto\Procurement\Proxy\ProxyLease;
 use App\Dto\Procurement\Proxy\ProxyOutcome;
 use App\Dto\Procurement\Proxy\ProxyRequirements;
-use App\Enums\Procurement\ProxyScope;
+use App\Enums\Procurement\Proxy\ProxyScope;
 use App\Exceptions\Procurement\NoProxyAvailableException;
 use App\Exceptions\Procurement\ProxyPolicyMisconfiguredException;
 use App\Models\Procurement\Crawler\ProxyTarget;

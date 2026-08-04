@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-use App\Enums\Procurement\AiDocumentType;
-use App\Enums\Procurement\FixtureClass;
-use App\Enums\Procurement\GoldSource;
+use App\Enums\Procurement\Ai\AiDocumentType;
+use App\Enums\Procurement\Ai\FixtureClass;
+use App\Enums\Procurement\Ai\GoldSource;
 use App\Filament\Resources\Procurement\Ai\Fixtures\Pages\CreateFixture;
 use App\Guards\Admin\Roles\OperatorRole;
 use App\Models\Procurement\Ai\Fixture;

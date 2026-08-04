@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Jobs\Procurement;
 
-use App\Enums\Procurement\DocumentStatus;
-use App\Enums\Procurement\RunMode;
+use App\Enums\Procurement\Ai\RunMode;
+use App\Enums\Procurement\Document\DocumentStatus;
 use App\Models\Procurement\Document\Document;
 use App\Repositories\Procurement\AnalysisRunStoreRepository;
 use App\Repositories\Procurement\DocumentStoreRepository;

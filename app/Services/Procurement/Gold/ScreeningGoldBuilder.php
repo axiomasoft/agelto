@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Services\Procurement\Gold;
 
 use App\Dto\Procurement\Ai\Screening\ScreeningResult;
-use App\Enums\Procurement\FixtureClass;
+use App\Enums\Procurement\Ai\FixtureClass;
 use App\Models\Procurement\Ai\Fixture;
 use Illuminate\Validation\ValidationException;
 use Spatie\LaravelData\Exceptions\CannotCreateData;

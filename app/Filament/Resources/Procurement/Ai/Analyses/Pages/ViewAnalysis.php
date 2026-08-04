@@ -2,9 +2,9 @@
 
 namespace App\Filament\Resources\Procurement\Ai\Analyses\Pages;
 
-use App\Enums\Procurement\AnalysisStatus;
-use App\Enums\Procurement\CorrectionReason;
-use App\Enums\Procurement\ReviewStatus;
+use App\Enums\Procurement\Ai\AnalysisStatus;
+use App\Enums\Procurement\Ai\CorrectionReason;
+use App\Enums\Procurement\Ai\ReviewStatus;
 use App\Filament\Pages\FinalPromptPage;
 use App\Filament\Resources\Procurement\Ai\Analyses\AnalysisResource;
 use App\Models\Procurement\Ai\Analysis;

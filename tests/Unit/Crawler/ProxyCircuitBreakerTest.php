@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-use App\Enums\Procurement\ProxyFailureReason;
+use App\Enums\Procurement\Proxy\ProxyFailureReason;
 use App\Services\Procurement\Proxy\ProxyCircuitBreaker;
 
 beforeEach(function (): void {

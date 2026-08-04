@@ -10,7 +10,7 @@ use App\Dto\Procurement\Analyzers\Estimate\RowAttributes;
 use App\Dto\Procurement\Analyzers\Estimate\RowModifier;
 use App\Dto\Procurement\Analyzers\Estimate\RowResource;
 use App\Dto\Procurement\Analyzers\Estimate\TotalLine;
-use App\Enums\Procurement\RowType;
+use App\Enums\Procurement\Estimate\RowType;
 use App\Models\Procurement\Estimate\Estimate;
 use App\Models\Procurement\Estimate\Item;
 use App\Models\Procurement\Estimate\Resource;

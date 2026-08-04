@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models\Procurement\Document;
 
-use App\Enums\Procurement\DocumentStatus;
+use App\Enums\Procurement\Document\DocumentStatus;
 use App\Models\Concerns\HasErrorBlock;
 use App\Models\Concerns\HasLease;
 use App\Models\Procurement\Platform\Platform;

@@ -2,8 +2,8 @@
 
 declare(strict_types=1);
 
-use App\Enums\Procurement\ProxyScope;
-use App\Enums\Procurement\SourceMethod;
+use App\Enums\Procurement\Crawler\SourceMethod;
+use App\Enums\Procurement\Proxy\ProxyScope;
 use App\Services\Procurement\Eis\CsvSourceMethod;
 
 return [

@@ -3,9 +3,9 @@
 declare(strict_types=1);
 
 use App\Enums\Llm\DocumentTypeScope;
-use App\Enums\Procurement\AiDocumentType;
-use App\Enums\Procurement\AnalysisStatus;
-use App\Enums\Procurement\AnalysisStep;
+use App\Enums\Procurement\Ai\AiDocumentType;
+use App\Enums\Procurement\Ai\AnalysisStatus;
+use App\Enums\Procurement\Ai\AnalysisStep;
 use App\Enums\Procurement\Analyzers\Estimate\EstimateLlmPurpose;
 use App\Enums\Procurement\Analyzers\Estimate\EstimatePromptStep;
 use App\Jobs\Procurement\Analyzers\Estimate\EstimateExtractionJob;
