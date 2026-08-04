@@ -59,7 +59,7 @@
 
 ### 1.5 Ресурсы: `EstimateResourceType` → `prc_estimate_resources.resource_type`
 
-| v1-кейс (enum `EstimateResourceType`) | v2-значение (`ResourceType` PHP backed-enum, `app/Enums/Procurement/ResourceType.php`, text-колонка) |
+| v1-кейс (enum `EstimateResourceType`) | v2-значение (`ResourceType` PHP backed-enum, `app/Enums/Procurement/Estimate/ResourceType.php`, text-колонка) |
 |---|---|
 | `Material` | `material` |
 | `Machine` | `machine` |
@@ -209,7 +209,7 @@
 - `CalcMethod` (`calc_method` в §3.1): `base_index` (базисно-индексный), `resource` (ресурсный) — SR-17, план `2026.07.26-EST-TRAIN`.
 - `TotalKind` (`kind` в `footer`, §3.1/§3.3): `overhead`, `profit`, `vat`, `total`, `additional`, `other` — план `2026.07.26-EST-TRAIN`, D101; детерминированное доопределение по `label` этим планом не строится (долг).
 - `ModifierKind` (`kind` в `attributes.modifiers[]`, §3.2): `qty`, `price`, `correction`, `winter`, `recalculation`, `other` — план `2026.07.26-EST-TRAIN`, SR-04/SR-05.
-- Скрининговый `AiDocumentType` (не сметный контракт, но соседний SSOT-енум оси типа документа — `App\Enums\Procurement\AiDocumentType`, применяется на шаге `screening`, `03-document-pipeline.md` §3.4): `estimate`, `tech_spec`, `contract_draft`, `protocol`, `unknown` — носитель `document_type` (text, check-constraint по `AiDocumentType::values()`) на `prc_ai_analyses`/`prc_ai_dataset_examples`/`llm_routes`/`llm_prompts`; справочника-таблицы нет (D16, снесён `prc_document_types`).
+- Скрининговый `AiDocumentType` (не сметный контракт, но соседний SSOT-енум оси типа документа — `App\Enums\Procurement\Ai\AiDocumentType`, применяется на шаге `screening`, `03-document-pipeline.md` §3.4): `estimate`, `tech_spec`, `contract_draft`, `protocol`, `unknown` — носитель `document_type` (text, check-constraint по `AiDocumentType::values()`) на `prc_ai_analyses`/`prc_ai_dataset_examples`/`llm_routes`/`llm_prompts`; справочника-таблицы нет (D16, снесён `prc_document_types`).
 
 ## 4. Алгоритм извлечения
 

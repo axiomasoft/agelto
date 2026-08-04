@@ -32,12 +32,12 @@ stateDiagram-v2
     Unprocessable --> [*]
 ```
 
-Узлы = `App\Enums\Procurement\DocumentStatus` (`app/Enums/Procurement/DocumentStatus.php`);
+Узлы = `App\Enums\Procurement\Document\DocumentStatus` (`app/Enums/Procurement/Document/DocumentStatus.php`);
 переходы подписаны job/методом-триггером:
 
 | Класс | Файл |
 |:--|:--|
-| `DocumentStatus` | `app/Enums/Procurement/DocumentStatus.php` |
+| `DocumentStatus` | `app/Enums/Procurement/Document/DocumentStatus.php` |
 | `PrepareDocumentJob` | `app/Jobs/Procurement/PrepareDocumentJob.php` |
 | `DocumentPreparer` | `app/Services/Procurement/Prepare/DocumentPreparer.php:26` |
 | `ScreeningJob` | `app/Jobs/Procurement/ScreeningJob.php` |
@@ -141,7 +141,7 @@ checkpoint-цикле, не пересчитывает `validation_status`/ие�
 `unknown`/`low_confidence`/`ignore_rule`), `Failed` (исчерпаны `attempts` — временный/технический
 сбой, ретраится `pipeline:retry-failed` до исчерпания), **`Unprocessable`** (D32 — отдельный
 терминальный исход, НЕ generic `Failed`: константация факта «не можем обработать», не сбой —
-`attempts` не жжём, ретраи не назначаются). Причина — `App\Enums\Procurement\UnprocessableReason`
+`attempts` не жжём, ретраи не назначаются). Причина — `App\Enums\Procurement\Document\UnprocessableReason`
 (`unreadable_format`/`password_protected`/`provider_limit_size`/`provider_limit_pages`/`zip_bomb`/
 `too_large`/`other`), пишется в `analysis.result`. Владельцы enum-кейсов по порядку исполнения
 (D38): `too_large`/`zip_bomb` — P4.2 (`SpreadsheetStrategy`/`ArchiveStrategy`-гейты),

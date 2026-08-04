@@ -24,7 +24,7 @@ status: draft
   аргумента — все закупки, due по `DetailRefetchSelector`).
 - `crawler:rescan-backlog` (`RescanBacklog`) — пересканирование зависшего/пропущенного бэклога.
 
-Прогон (`$run`, `App\Enums\Procurement\RunStatus`: running/paused/completed/failed/cancelled)
+Прогон (`$run`, `App\Enums\Procurement\Crawler\RunStatus`: running/paused/completed/failed/cancelled)
 оркеструется `App\Services\Procurement\CrawlerRunManager`.
 
 ## Мост в AI-пайплайн
@@ -51,7 +51,7 @@ status: draft
 string $target, ?ProxyRequirements $requirements)` (`app/Services/Procurement/Proxy/ProxyResolver.php`),
 единственная точка обратной связи — `reportOutcome()`.
 
-- **`ProxyScope`** (`App\Enums\Procurement\ProxyScope`) — точка исхода трафика, а не сам узел:
+- **`ProxyScope`** (`App\Enums\Procurement\Proxy\ProxyScope`) — точка исхода трафика, а не сам узел:
   `CrawlListing`/`CrawlDetail`/`DocumentDownload`/`Llm`. Три HTTP-канала кроулинга
   (`CsvSourceMethod::collectListing`/`collectTab`, `DocumentDownloader::fetch`) и LLM-канал
   (`PoolOutboundProxy`, порт `OutboundProxy`) каждый передаёт свой скоуп резолверу — сам резолвер
@@ -73,7 +73,7 @@ string $target, ?ProxyRequirements $requirements)` (`app/Services/Procurement/Pr
   цели, узел плох для НЕЁ. Пустой пул = узел не выдан ни для одной цели.
 - **Circuit breaker** — экспоненциальный cooldown (`open_count` — степень бэкоффа), half-open проба
   через `claimGlobalProbe()`/`claimTargetProbe()` (единственность гарантирует БД: `affectedRows`, не
-  блокировка приложения). Таксономия причин отказа — `App\Enums\Procurement\ProxyFailureReason`
+  блокировка приложения). Таксономия причин отказа — `App\Enums\Procurement\Proxy\ProxyFailureReason`
   (`network_timeout`/`tls_error`/`connect_failed`/`proxy_auth_failed`/`http_403`/`http_429`/
   `empty_body`/`unknown`); уровень реакции (глобальный/target) — `ProxyCircuitBreaker::level()`.
 - **Привязка к профилю (`prc_crawlers`):** `use_proxy` (false — намеренный прямой запрос, не отказ)

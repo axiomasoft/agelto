@@ -8,7 +8,7 @@ status: draft
 
 Слова `status`/`stage`/`state`/`step` в проекте читаются как одно понятие, но это **пять разных
 осей**, три разных класса — не рисуются одинаково. У ни одного из пяти enum'ов нет метода
-`allowedTransitions()`/`canTransitionTo()`/`transitions()` (`grep` по `app/Enums/Procurement/*.php`
+`allowedTransitions()`/`canTransitionTo()`/`transitions()` (`grep` по `app/Enums/Procurement/**/*.php`
 = 0) — переходы нигде не декларируются на enum'е, они выполняются присваиваниями в job'ах/сервисах.
 Каждое ребро диаграмм ниже подтверждено конкретным `file:line`, перепроверенным чтением файла
 (`plans/archive/DOMLANG` P8.1, `verified:✅ 2026-07-10`, разведка — `plans/archive/DOMLANG/findings/P8-status-writers.md`).
@@ -26,7 +26,7 @@ status: draft
 
 ## AnalysisStatus — `pending → running → succeeded|failed|skipped`
 
-`app/Enums/Procurement/AnalysisStatus.php`: `Pending` / `Running` / `Succeeded` / `Failed` /
+`app/Enums/Procurement/Ai/AnalysisStatus.php`: `Pending` / `Running` / `Succeeded` / `Failed` /
 `Skipped`. Терминальность — по конвенции (методов `isTerminal()`/`isFailed()` на enum'е нет).
 
 ```mermaid
@@ -74,7 +74,7 @@ true`) сразу в `Running`, минуя `Pending`, — параллельны
 
 ## RunStatus — единственный писатель `CrawlerRunManager`
 
-`app/Enums/Procurement/RunStatus.php`: `Running` / `Paused` / `Completed` / `Failed` / `Cancelled`.
+`app/Enums/Procurement/Crawler/RunStatus.php`: `Running` / `Paused` / `Completed` / `Failed` / `Cancelled`.
 `isTerminal()` = `Completed`/`Failed`/`Cancelled` (`RunStatus.php:18-24`). Все переходы — в одном
 сервисе, `app/Services/Procurement/CrawlerRunManager.php`.
 
@@ -108,7 +108,7 @@ forward-provision без названного продюсера (аналоги
 
 ## DocumentStatus — уже нарисован (Д1)
 
-`app/Enums/Procurement/DocumentStatus.php` (8 кейсов: `Discovered`/`Downloaded`/`Prepared`/
+`app/Enums/Procurement/Document/DocumentStatus.php` (8 кейсов: `Discovered`/`Downloaded`/`Prepared`/
 `Screened`/`Extracted`/`Ignored`/`Failed`/`Unprocessable`) — guarded pipeline-FSM с диаграммой в
 `docs/03_Dev/document-pipeline.md` (раздел «Д1 — FSM документа»). Не дублируется здесь: канон рёбер
 и их писателей — там.
@@ -149,12 +149,12 @@ Evaluation` означало бы приписать enum'у transition-гард
 
 Обе оси — измерения маршрута/шага, не статусы с переходами.
 
-- **`PipelineStage`** (`app/Enums/Procurement/PipelineStage.php`: `Prepare`/`Screening`/
+- **`PipelineStage`** (`app/Enums/Procurement/Document/PipelineStage.php`: `Prepare`/`Screening`/
   `Extraction`) — стадия конвейера-диспетчера, не статус документа. Фабрики: `forDocumentRetry()`
   (`:26`) всегда возвращает `Prepare` — документы ретраятся только на стадии подготовки;
   `fromAnalysisStep()` (`:31`) — чистое сопоставление `AnalysisStep → PipelineStage`. Связана с Д2
   (`docs/03_Dev/document-pipeline.md`, раздел «Д2 — стадии, очереди, lease/retry»,
   `PipelineDispatcher`). `ProcessStage` в коде не существует (`grep` = 0), упоминать не следует.
-- **`AnalysisStep`** (`app/Enums/Procurement/AnalysisStep.php`: `Screening`/`Extraction`) — какой
+- **`AnalysisStep`** (`app/Enums/Procurement/Ai/AnalysisStep.php`: `Screening`/`Extraction`) — какой
   шаг анализа выполняется для сессии `Ai\Analysis`; ортогонален `AnalysisStatus` (см. выше) — одна
   сессия несёт `step` и прогоняет свой `pending → running → terminal` в его рамках.

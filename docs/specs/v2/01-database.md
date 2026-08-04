@@ -43,7 +43,7 @@
 `id, registry_id FK, source_stage text unique(registry_id,source_stage), canonical_status text (enum)`. Неизвестный сырой статус → `unknown` + событие + алерт; оператор дополняет в админке (закрывает конфигурируемость 223-ФЗ).
 
 ### prc_document_types — снесён (D16 плана `2026.07.28-EST-ARCH`)
-SSOT типа документа — enum `App\Enums\Procurement\AiDocumentType` (код) + реестр анализаторов `DocumentAnalyzerRegistry` (`config('ai.analyzers')`); `has_extractor` заменён фактом «в реестре есть анализатор с извлечением». Целостность колонок `document_type` (`prc_ai_analyses`, `prc_ai_dataset_examples`, `llm_routes`, `llm_prompts`) — check-constraint по `AiDocumentType::values()`, не FK на таблицу.
+SSOT типа документа — enum `App\Enums\Procurement\Ai\AiDocumentType` (код) + реестр анализаторов `DocumentAnalyzerRegistry` (`config('ai.analyzers')`); `has_extractor` заменён фактом «в реестре есть анализатор с извлечением». Целостность колонок `document_type` (`prc_ai_analyses`, `prc_ai_dataset_examples`, `llm_routes`, `llm_prompts`) — check-constraint по `AiDocumentType::values()`, не FK на таблицу.
 
 ### prc_regions — справочник регионов площадки
 `id, platform_id FK, external_id text (код региона на площадке), name text, region_code text nullable (наш внутренний код)`. Перенос v1 `plt_platform_regions`: словарь «код региона площадки → имя/внутренний код» для фильтра краулера по региону.

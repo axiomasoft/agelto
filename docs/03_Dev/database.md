@@ -34,7 +34,7 @@ status: draft
 
 | Таблица | Роль |
 |:--|:--|
-| `prc_proxies` | Узел: `country` (ISO 3166-1 alpha-2, единственный носитель гео), `scopes` (jsonb-список `App\Enums\Procurement\ProxyScope`, GIN-индекс), `is_active` (ручной тумблер оператора), глобальное здоровье breaker'а (`open_until`/`open_count`/`fails_count`/`last_failure_reason`) |
+| `prc_proxies` | Узел: `country` (ISO 3166-1 alpha-2, единственный носитель гео), `scopes` (jsonb-список `App\Enums\Procurement\Proxy\ProxyScope`, GIN-индекс), `is_active` (ручной тумблер оператора), глобальное здоровье breaker'а (`open_until`/`open_count`/`fails_count`/`last_failure_reason`) |
 | `prc_proxy_targets` | Per-target здоровье: одна строка на пару (узел, канонический хост цели) — `success_ratio`/`latency_ms_avg` (EWMA), `consecutive_failures`, собственный `open_until`/`open_count`; unique `(proxy_id, target)` |
 
 `prc_crawlers` несёт `use_proxy` (bool, `false` — намеренный прямой запрос) и `proxy_country`

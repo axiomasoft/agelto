@@ -20,7 +20,7 @@
 - `ProcurementRevision` → `$revision` — снапшот редакции закупки (`prc_revisions`, партиция RANGE by `detected_at`).
 - `ProcurementEvent` → `$event` — immutable типизированное событие в журнале закупки (`prc_events`, партиция RANGE by `occurred_at`, `ProcurementEventType`).
 - `Proxy` → `$proxy` — узел исходящей маршрутизации (`prc_proxies`); единственная точка выдачи — резолвер `App\Services\Procurement\Proxy\ProxyResolver::resolve()`, не прямой доступ к таблице.
-- `ProxyScope` → назначение исходящего запроса, не сам узел (`App\Enums\Procurement\ProxyScope`: `CrawlListing`/`CrawlDetail`/`DocumentDownload`/`Llm`); per-target здоровье — `prc_proxy_targets` (не путать с глобальным здоровьем узла на `prc_proxies`).
+- `ProxyScope` → назначение исходящего запроса, не сам узел (`App\Enums\Procurement\Proxy\ProxyScope`: `CrawlListing`/`CrawlDetail`/`DocumentDownload`/`Llm`); per-target здоровье — `prc_proxy_targets` (не путать с глобальным здоровьем узла на `prc_proxies`).
 
 ### AI-подомен (`App\Models\Procurement\Ai\*`, `App\Services\Llm\*`)
 
@@ -78,7 +78,7 @@
 - `provenance` — тонкий срез coarse-lineage колонок (`crawler_run_id`, `artifact_ref`,
   `provider`/`model`/`rules_hash`/`cache_id`, `source_url`), не fact-level схема на 5 уровней (см.
   ADR-0008, `docs/03_Dev/adr/0008-thin-provenance-slice.md`).
-- `quality flag` → `App\Enums\Procurement\EstimateValidationStatus` (`prc_estimates.validation_status`:
+- `quality flag` → `App\Enums\Procurement\Estimate\EstimateValidationStatus` (`prc_estimates.validation_status`:
   `Valid`/`Suspicious`/`Invalid`) — детерминированный вывод пайплайна ДО оператора. **Не путать** с
   `ReviewStatus` (`prc_ai_analyses.review_status`: операторское ревью AI-анализа) — это два разных
   статуса про разные вещи, смешение запрещено.

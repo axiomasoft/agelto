@@ -14,6 +14,11 @@
 - Структура плоская (`app/**`), без модулей: четыре домена по короткому префиксу таблицы — `Procurement` (`prc_*`, единый домен закупок: заказы, документы, сметы, AI-подомен предметки, crawling-инфраструктура, площадки, логи), `Reference` (`ref_*`, общие справочники ОКПД2/КТРУ/ОКВЭД2/КБК), `Organization` (`org_*`, организации), `Llm` (`llm_*`, провайдер-агностичный LLM-транспорт: провайдеры, маршруты, промты, вызовы — D22).
 - AI-подомен внутри Procurement: пайплайн-стадии — `app/Services/Procurement/{Prepare,Screening,Extraction}/` + `app/Jobs/Procurement/*Job`; предметные модели анализа/датасета — `app/Models/Procurement/Ai/*`, модель промта — `app/Models/Llm/Prompt.php` (домен транспорта, D22). Каталог типа документа (сейм анализатора) — `app/Services/Procurement/Analyzers/**`; консольные команды — `app/Console/Commands/Procurement/{Ai,Analyzers/Estimate}/` (`Ai/` — кросс-документные `ai:*`, `Analyzers/Estimate/` — сметные `estimate:*`). LLM-транспорт (провайдер-агностичный, домен не знает про Prism/Gemini напрямую) — собственный домен `Llm`: `app/Services/Llm/**` (`Contracts/LlmProvider`, `Providers/*`, `Schema/*`, `Validation/*`), модели/фабрики/репозитории — `app/Models/Llm/**`/`database/factories/Llm/**`/`app/Repositories/Llm/**`. Глубже — скилы `estimate-extraction-dev`, `llm-layer-dev`, `prompt-engineering-agelto`.
 - Очереди: Laravel Horizon (`QUEUE_CONNECTION=redis`), тяжёлые jobs — browser/Gemini parsing.
+- Внутри доменной папки слоя (`app/<Слой>/<Домен>/`) файл принадлежит ровно одной подобласти,
+  выражаемой подкаталогом (заводится вместе с первым файлом подобласти); в корне легально лежат
+  только ядровая подобласть домена и кросс-подобластные файлы — правило и машинный гейт
+  (`tests/Unit/Architecture/DomainLayoutTest.php`) целиком см. `docs/03_Dev/architecture.md`
+  («Правило размещения внутри доменной папки слоя»).
 
 ## Layer Responsibilities (short)
 
