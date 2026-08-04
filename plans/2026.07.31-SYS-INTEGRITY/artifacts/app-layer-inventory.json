@@ -1,0 +1,2557 @@
+{
+  "schema": "app-layer-inventory/v1",
+  "root": "app",
+  "domains": [
+    "Llm",
+    "Organization",
+    "Procurement",
+    "Reference"
+  ],
+  "totals": {
+    "php_files": 542,
+    "domain_folders": 20,
+    "layer_dirs": 136,
+    "technical_dirs": 27
+  },
+  "domain_layers": [
+    {
+      "path": "app/Console/Commands/Procurement",
+      "layer": "Console/Commands",
+      "domain": "Procurement",
+      "subarea": "",
+      "is_domain_root": true,
+      "root_files": 8,
+      "subdirs": [
+        "Ai",
+        "Analyzers"
+      ],
+      "files_recursive": 27,
+      "root_file_names": [
+        "ConvertXlsxToPdfCommand.php",
+        "FetchDetails.php",
+        "PipelineRetryFailed.php",
+        "PipelineStatus.php",
+        "PipelineStuckCheck.php",
+        "RescanBacklog.php",
+        "RunArchiveCrawler.php",
+        "RunFreshCrawler.php"
+      ]
+    },
+    {
+      "path": "app/Console/Commands/Reference",
+      "layer": "Console/Commands",
+      "domain": "Reference",
+      "subarea": "",
+      "is_domain_root": true,
+      "root_files": 1,
+      "subdirs": [],
+      "files_recursive": 1,
+      "root_file_names": [
+        "LoadClassifiers.php"
+      ]
+    },
+    {
+      "path": "app/Dto/Procurement",
+      "layer": "Dto",
+      "domain": "Procurement",
+      "subarea": "",
+      "is_domain_root": true,
+      "root_files": 7,
+      "subdirs": [
+        "Ai",
+        "Analyzers",
+        "Bench",
+        "Details",
+        "Fixture",
+        "Gold",
+        "Prepare",
+        "Proxy"
+      ],
+      "files_recursive": 65,
+      "root_file_names": [
+        "FetchResult.php",
+        "ListingBatch.php",
+        "ListingCursor.php",
+        "ProcurementDetails.php",
+        "ProcurementSnapshotData.php",
+        "StatusResolution.php",
+        "WindowFilter.php"
+      ]
+    },
+    {
+      "path": "app/Enums/Llm",
+      "layer": "Enums",
+      "domain": "Llm",
+      "subarea": "",
+      "is_domain_root": true,
+      "root_files": 5,
+      "subdirs": [],
+      "files_recursive": 5,
+      "root_file_names": [
+        "CoreLlmPurpose.php",
+        "CorePromptStep.php",
+        "DocumentTypeScope.php",
+        "LlmPurpose.php",
+        "PromptStep.php"
+      ]
+    },
+    {
+      "path": "app/Enums/Organization",
+      "layer": "Enums",
+      "domain": "Organization",
+      "subarea": "",
+      "is_domain_root": true,
+      "root_files": 1,
+      "subdirs": [],
+      "files_recursive": 1,
+      "root_file_names": [
+        "ProcurementPartyRole.php"
+      ]
+    },
+    {
+      "path": "app/Enums/Procurement",
+      "layer": "Enums",
+      "domain": "Procurement",
+      "subarea": "",
+      "is_domain_root": true,
+      "root_files": 40,
+      "subdirs": [
+        "Analyzers"
+      ],
+      "files_recursive": 42,
+      "root_file_names": [
+        "AiDocumentType.php",
+        "AnalysisRunStatus.php",
+        "AnalysisStatus.php",
+        "AnalysisStep.php",
+        "AwardStatus.php",
+        "BidStatus.php",
+        "CalcMethod.php",
+        "CorrectionReason.php",
+        "CrawlerMode.php",
+        "DiscoveryMarker.php",
+        "DocumentStatus.php",
+        "EisProcedureType.php",
+        "EstimateSourceKind.php",
+        "EstimateTarget.php",
+        "EstimateType.php",
+        "EstimateValidationStatus.php",
+        "ExtractionRoute.php",
+        "FinishReason.php",
+        "FixtureClass.php",
+        "GoldSource.php",
+        "IncompleteReason.php",
+        "ModifierKind.php",
+        "OperationLogLevel.php",
+        "PipelineStage.php",
+        "ProcurementEventType.php",
+        "ProcurementStatus.php",
+        "PromptSuggestionKind.php",
+        "PromptSuggestionStatus.php",
+        "ProtocolType.php",
+        "ProxyFailureReason.php",
+        "ProxyScope.php",
+        "RepresentationKind.php",
+        "ResourceType.php",
+        "ReviewStatus.php",
+        "RowType.php",
+        "RunMode.php",
+        "RunStatus.php",
+        "SourceMethod.php",
+        "TotalKind.php",
+        "UnprocessableReason.php"
+      ]
+    },
+    {
+      "path": "app/Exceptions/Procurement",
+      "layer": "Exceptions",
+      "domain": "Procurement",
+      "subarea": "",
+      "is_domain_root": true,
+      "root_files": 15,
+      "subdirs": [],
+      "files_recursive": 15,
+      "root_file_names": [
+        "AnalysisRunAlreadyActive.php",
+        "BillingExportUnreadable.php",
+        "FixtureAlreadyUploaded.php",
+        "FixtureCaseNotFound.php",
+        "GoldFileUnreadable.php",
+        "ManifestUnreadable.php",
+        "NoActiveAnalysisRun.php",
+        "NoProxyAvailableException.php",
+        "OperationFailed.php",
+        "PromptSuggestionAlreadyDecided.php",
+        "ProxyPolicyMisconfiguredException.php",
+        "ScreeningDisabled.php",
+        "SplitPoolEmpty.php",
+        "UnknownProviderDriver.php",
+        "UnknownReportFormat.php"
+      ]
+    },
+    {
+      "path": "app/Filament/Resources/Procurement",
+      "layer": "Filament/Resources",
+      "domain": "Procurement",
+      "subarea": "",
+      "is_domain_root": true,
+      "root_files": 0,
+      "subdirs": [
+        "Ai",
+        "Crawler",
+        "Platform",
+        "Procurements"
+      ],
+      "files_recursive": 85,
+      "root_file_names": []
+    },
+    {
+      "path": "app/Jobs/Procurement",
+      "layer": "Jobs",
+      "domain": "Procurement",
+      "subarea": "",
+      "is_domain_root": true,
+      "root_files": 4,
+      "subdirs": [
+        "Analyzers"
+      ],
+      "files_recursive": 5,
+      "root_file_names": [
+        "PipelineJob.php",
+        "PrepareDocumentJob.php",
+        "ScreeningJob.php",
+        "ShadowAnalysisJob.php"
+      ]
+    },
+    {
+      "path": "app/Models/Llm",
+      "layer": "Models",
+      "domain": "Llm",
+      "subarea": "",
+      "is_domain_root": true,
+      "root_files": 4,
+      "subdirs": [],
+      "files_recursive": 4,
+      "root_file_names": [
+        "LlmCall.php",
+        "LlmRoute.php",
+        "Prompt.php",
+        "Provider.php"
+      ]
+    },
+    {
+      "path": "app/Models/Organization",
+      "layer": "Models",
+      "domain": "Organization",
+      "subarea": "",
+      "is_domain_root": true,
+      "root_files": 1,
+      "subdirs": [],
+      "files_recursive": 1,
+      "root_file_names": [
+        "Organization.php"
+      ]
+    },
+    {
+      "path": "app/Models/Procurement",
+      "layer": "Models",
+      "domain": "Procurement",
+      "subarea": "",
+      "is_domain_root": true,
+      "root_files": 14,
+      "subdirs": [
+        "Ai",
+        "Crawler",
+        "Document",
+        "Estimate",
+        "Platform"
+      ],
+      "files_recursive": 44,
+      "root_file_names": [
+        "Award.php",
+        "Bid.php",
+        "Cancellation.php",
+        "Clarification.php",
+        "EisDetails.php",
+        "Financing.php",
+        "Lot.php",
+        "OperationLog.php",
+        "Procurement.php",
+        "ProcurementEvent.php",
+        "ProcurementParty.php",
+        "ProcurementRevision.php",
+        "Protocol.php",
+        "PurchaseItem.php"
+      ]
+    },
+    {
+      "path": "app/Models/Reference",
+      "layer": "Models",
+      "domain": "Reference",
+      "subarea": "",
+      "is_domain_root": true,
+      "root_files": 4,
+      "subdirs": [],
+      "files_recursive": 4,
+      "root_file_names": [
+        "Kbk.php",
+        "Ktru.php",
+        "Okpd2.php",
+        "Okved2.php"
+      ]
+    },
+    {
+      "path": "app/Repositories/Llm",
+      "layer": "Repositories",
+      "domain": "Llm",
+      "subarea": "",
+      "is_domain_root": true,
+      "root_files": 5,
+      "subdirs": [],
+      "files_recursive": 5,
+      "root_file_names": [
+        "LlmCallReadRepository.php",
+        "LlmCallStoreRepository.php",
+        "LlmRouteReadRepository.php",
+        "PromptReadRepository.php",
+        "PromptStoreRepository.php"
+      ]
+    },
+    {
+      "path": "app/Repositories/Organization",
+      "layer": "Repositories",
+      "domain": "Organization",
+      "subarea": "",
+      "is_domain_root": true,
+      "root_files": 2,
+      "subdirs": [],
+      "files_recursive": 2,
+      "root_file_names": [
+        "OrganizationStoreRepository.php",
+        "ProcurementPartyStoreRepository.php"
+      ]
+    },
+    {
+      "path": "app/Repositories/Procurement",
+      "layer": "Repositories",
+      "domain": "Procurement",
+      "subarea": "",
+      "is_domain_root": true,
+      "root_files": 16,
+      "subdirs": [
+        "Analyzers"
+      ],
+      "files_recursive": 17,
+      "root_file_names": [
+        "AnalysisReadRepository.php",
+        "AnalysisRunStoreRepository.php",
+        "AnalysisStoreRepository.php",
+        "DatasetExampleReadRepository.php",
+        "DatasetExampleStoreRepository.php",
+        "DocumentStoreRepository.php",
+        "EvalRunReadRepository.php",
+        "EvalRunStoreRepository.php",
+        "FixtureStoreRepository.php",
+        "ProcurementDetailStoreRepository.php",
+        "ProcurementReadRepository.php",
+        "ProcurementStoreRepository.php",
+        "PromptSuggestionReadRepository.php",
+        "PromptSuggestionStoreRepository.php",
+        "ProxyHealthStoreRepository.php",
+        "RepresentationStoreRepository.php"
+      ]
+    },
+    {
+      "path": "app/Services/Llm",
+      "layer": "Services",
+      "domain": "Llm",
+      "subarea": "",
+      "is_domain_root": true,
+      "root_files": 13,
+      "subdirs": [
+        "Contracts",
+        "Dto",
+        "Providers",
+        "Schema",
+        "Validation"
+      ],
+      "files_recursive": 50,
+      "root_file_names": [
+        "BillingReconciler.php",
+        "CorrectionAwareComposer.php",
+        "LlmCacheManager.php",
+        "LlmCallRecorder.php",
+        "LlmPayloadReader.php",
+        "LlmProviderFactory.php",
+        "LlmRouteResolver.php",
+        "LlmSpendReporter.php",
+        "PromptCanonReader.php",
+        "PromptCanonSynchronizer.php",
+        "PromptComposer.php",
+        "ShadowDispatch.php",
+        "TrackingUsageSource.php"
+      ]
+    },
+    {
+      "path": "app/Services/Organization",
+      "layer": "Services",
+      "domain": "Organization",
+      "subarea": "",
+      "is_domain_root": true,
+      "root_files": 1,
+      "subdirs": [],
+      "files_recursive": 1,
+      "root_file_names": [
+        "OrganizationResolver.php"
+      ]
+    },
+    {
+      "path": "app/Services/Procurement",
+      "layer": "Services",
+      "domain": "Procurement",
+      "subarea": "",
+      "is_domain_root": true,
+      "root_files": 11,
+      "subdirs": [
+        "Ai",
+        "Analyzers",
+        "Bench",
+        "Contracts",
+        "Detail",
+        "Eis",
+        "Exceptions",
+        "Extraction",
+        "Fixture",
+        "Gold",
+        "Modes",
+        "Prepare",
+        "Proxy",
+        "Screening",
+        "Tuning"
+      ],
+      "files_recursive": 121,
+      "root_file_names": [
+        "ArchiveWindowScanner.php",
+        "CrawlerRunManager.php",
+        "CsvBlockIngestor.php",
+        "DetailRefetchSelector.php",
+        "DocumentDownloader.php",
+        "DocumentIndexer.php",
+        "PipelineDispatcher.php",
+        "PoliteThrottle.php",
+        "ProcurementIngestProcessor.php",
+        "SourceMethodFactory.php",
+        "StatusMappingService.php"
+      ]
+    },
+    {
+      "path": "app/Services/Reference",
+      "layer": "Services",
+      "domain": "Reference",
+      "subarea": "",
+      "is_domain_root": true,
+      "root_files": 2,
+      "subdirs": [],
+      "files_recursive": 2,
+      "root_file_names": [
+        "ClassifierImporter.php",
+        "ClassifierResolver.php"
+      ]
+    }
+  ],
+  "subarea_dirs": [
+    {
+      "path": "app/Console/Commands/Procurement/Ai",
+      "layer": "Console/Commands",
+      "domain": "Procurement",
+      "subarea": "Ai",
+      "is_domain_root": false,
+      "root_files": 7,
+      "subdirs": [],
+      "files_recursive": 7,
+      "root_file_names": [
+        "CachesCommand.php",
+        "CostReconcileCommand.php",
+        "CostReportCommand.php",
+        "PromptsApplyCommand.php",
+        "PromptsSyncCommand.php",
+        "StorageLifecycleCommand.php",
+        "ToolsDoctorCommand.php"
+      ]
+    },
+    {
+      "path": "app/Console/Commands/Procurement/Analyzers",
+      "layer": "Console/Commands",
+      "domain": "Procurement",
+      "subarea": "Analyzers",
+      "is_domain_root": false,
+      "root_files": 0,
+      "subdirs": [
+        "Estimate"
+      ],
+      "files_recursive": 12,
+      "root_file_names": []
+    },
+    {
+      "path": "app/Console/Commands/Procurement/Analyzers/Estimate",
+      "layer": "Console/Commands",
+      "domain": "Procurement",
+      "subarea": "Analyzers/Estimate",
+      "is_domain_root": false,
+      "root_files": 12,
+      "subdirs": [],
+      "files_recursive": 12,
+      "root_file_names": [
+        "BenchFormatsCommand.php",
+        "DatasetExportCommand.php",
+        "DatasetImportCommand.php",
+        "EvalCompareCommand.php",
+        "EvalDiffCommand.php",
+        "EvalRunCommand.php",
+        "FixturesImportCommand.php",
+        "FixturesManifestCommand.php",
+        "FixturesVerifyCommand.php",
+        "GoldBuildCommand.php",
+        "GoldImportCommand.php",
+        "PromptsSuggestCommand.php"
+      ]
+    },
+    {
+      "path": "app/Dto/Procurement/Ai",
+      "layer": "Dto",
+      "domain": "Procurement",
+      "subarea": "Ai",
+      "is_domain_root": false,
+      "root_files": 0,
+      "subdirs": [
+        "Screening",
+        "Tuning"
+      ],
+      "files_recursive": 2,
+      "root_file_names": []
+    },
+    {
+      "path": "app/Dto/Procurement/Ai/Screening",
+      "layer": "Dto",
+      "domain": "Procurement",
+      "subarea": "Ai/Screening",
+      "is_domain_root": false,
+      "root_files": 1,
+      "subdirs": [],
+      "files_recursive": 1,
+      "root_file_names": [
+        "ScreeningResult.php"
+      ]
+    },
+    {
+      "path": "app/Dto/Procurement/Ai/Tuning",
+      "layer": "Dto",
+      "domain": "Procurement",
+      "subarea": "Ai/Tuning",
+      "is_domain_root": false,
+      "root_files": 1,
+      "subdirs": [],
+      "files_recursive": 1,
+      "root_file_names": [
+        "PromptSuggestionResponse.php"
+      ]
+    },
+    {
+      "path": "app/Dto/Procurement/Analyzers",
+      "layer": "Dto",
+      "domain": "Procurement",
+      "subarea": "Analyzers",
+      "is_domain_root": false,
+      "root_files": 0,
+      "subdirs": [
+        "Estimate"
+      ],
+      "files_recursive": 18,
+      "root_file_names": []
+    },
+    {
+      "path": "app/Dto/Procurement/Analyzers/Estimate",
+      "layer": "Dto",
+      "domain": "Procurement",
+      "subarea": "Analyzers/Estimate",
+      "is_domain_root": false,
+      "root_files": 16,
+      "subdirs": [
+        "Diff"
+      ],
+      "files_recursive": 18,
+      "root_file_names": [
+        "DiscoveryMarkerLine.php",
+        "DiscoveryResponse.php",
+        "EstimateHeaderMap.php",
+        "EstimatePassport.php",
+        "EstimateRow.php",
+        "EstimateTotalsBlock.php",
+        "EstimateWorkType.php",
+        "HeaderColumn.php",
+        "IncompleteRow.php",
+        "PassportResponse.php",
+        "RowAttributes.php",
+        "RowModifier.php",
+        "RowResource.php",
+        "RowsChunkResponse.php",
+        "TotalLine.php",
+        "TotalsResponse.php"
+      ]
+    },
+    {
+      "path": "app/Dto/Procurement/Analyzers/Estimate/Diff",
+      "layer": "Dto",
+      "domain": "Procurement",
+      "subarea": "Analyzers/Estimate/Diff",
+      "is_domain_root": false,
+      "root_files": 2,
+      "subdirs": [],
+      "files_recursive": 2,
+      "root_file_names": [
+        "DiffEntry.php",
+        "DiffReport.php"
+      ]
+    },
+    {
+      "path": "app/Dto/Procurement/Bench",
+      "layer": "Dto",
+      "domain": "Procurement",
+      "subarea": "Bench",
+      "is_domain_root": false,
+      "root_files": 1,
+      "subdirs": [],
+      "files_recursive": 1,
+      "root_file_names": [
+        "BenchCellResult.php"
+      ]
+    },
+    {
+      "path": "app/Dto/Procurement/Details",
+      "layer": "Dto",
+      "domain": "Procurement",
+      "subarea": "Details",
+      "is_domain_root": false,
+      "root_files": 11,
+      "subdirs": [],
+      "files_recursive": 11,
+      "root_file_names": [
+        "AwardData.php",
+        "BidData.php",
+        "CommonInfoData.php",
+        "DocumentData.php",
+        "FinancingRowData.php",
+        "JournalEntryData.php",
+        "OrganizationData.php",
+        "PartyData.php",
+        "ProtocolData.php",
+        "PurchaseItemRowData.php",
+        "SupplierResultsData.php"
+      ]
+    },
+    {
+      "path": "app/Dto/Procurement/Fixture",
+      "layer": "Dto",
+      "domain": "Procurement",
+      "subarea": "Fixture",
+      "is_domain_root": false,
+      "root_files": 3,
+      "subdirs": [],
+      "files_recursive": 3,
+      "root_file_names": [
+        "FixtureManifest.php",
+        "FixtureManifestEntry.php",
+        "ItemOutcome.php"
+      ]
+    },
+    {
+      "path": "app/Dto/Procurement/Gold",
+      "layer": "Dto",
+      "domain": "Procurement",
+      "subarea": "Gold",
+      "is_domain_root": false,
+      "root_files": 7,
+      "subdirs": [],
+      "files_recursive": 7,
+      "root_file_names": [
+        "GoldExplicitRow.php",
+        "GoldFormProfile.php",
+        "GoldFormProfileColumns.php",
+        "GoldFormProfileEstimate.php",
+        "GoldHeaderQuote.php",
+        "GoldResourceGroup.php",
+        "GoldRowRules.php"
+      ]
+    },
+    {
+      "path": "app/Dto/Procurement/Prepare",
+      "layer": "Dto",
+      "domain": "Procurement",
+      "subarea": "Prepare",
+      "is_domain_root": false,
+      "root_files": 0,
+      "subdirs": [
+        "Gsfx"
+      ],
+      "files_recursive": 13,
+      "root_file_names": []
+    },
+    {
+      "path": "app/Dto/Procurement/Prepare/Gsfx",
+      "layer": "Dto",
+      "domain": "Procurement",
+      "subarea": "Prepare/Gsfx",
+      "is_domain_root": false,
+      "root_files": 13,
+      "subdirs": [],
+      "files_recursive": 13,
+      "root_file_names": [
+        "GsfxAddZatr.php",
+        "GsfxAddZatrGlava.php",
+        "GsfxChapter.php",
+        "GsfxCoefficient.php",
+        "GsfxDocument.php",
+        "GsfxIndex.php",
+        "GsfxIndexCatalog.php",
+        "GsfxPassport.php",
+        "GsfxPosition.php",
+        "GsfxResource.php",
+        "GsfxTzm2022.php",
+        "GsfxWorkType.php",
+        "GsfxWorkTypeGroup.php"
+      ]
+    },
+    {
+      "path": "app/Dto/Procurement/Proxy",
+      "layer": "Dto",
+      "domain": "Procurement",
+      "subarea": "Proxy",
+      "is_domain_root": false,
+      "root_files": 3,
+      "subdirs": [],
+      "files_recursive": 3,
+      "root_file_names": [
+        "ProxyLease.php",
+        "ProxyOutcome.php",
+        "ProxyRequirements.php"
+      ]
+    },
+    {
+      "path": "app/Enums/Procurement/Analyzers",
+      "layer": "Enums",
+      "domain": "Procurement",
+      "subarea": "Analyzers",
+      "is_domain_root": false,
+      "root_files": 0,
+      "subdirs": [
+        "Estimate"
+      ],
+      "files_recursive": 2,
+      "root_file_names": []
+    },
+    {
+      "path": "app/Enums/Procurement/Analyzers/Estimate",
+      "layer": "Enums",
+      "domain": "Procurement",
+      "subarea": "Analyzers/Estimate",
+      "is_domain_root": false,
+      "root_files": 2,
+      "subdirs": [],
+      "files_recursive": 2,
+      "root_file_names": [
+        "EstimateLlmPurpose.php",
+        "EstimatePromptStep.php"
+      ]
+    },
+    {
+      "path": "app/Filament/Resources/Procurement/Ai",
+      "layer": "Filament/Resources",
+      "domain": "Procurement",
+      "subarea": "Ai",
+      "is_domain_root": false,
+      "root_files": 0,
+      "subdirs": [
+        "Analyses",
+        "DatasetExamples",
+        "Fixtures",
+        "LlmRoutes",
+        "PromptSuggestions",
+        "Prompts",
+        "Providers"
+      ],
+      "files_recursive": 45,
+      "root_file_names": []
+    },
+    {
+      "path": "app/Filament/Resources/Procurement/Ai/Analyses",
+      "layer": "Filament/Resources",
+      "domain": "Procurement",
+      "subarea": "Ai/Analyses",
+      "is_domain_root": false,
+      "root_files": 1,
+      "subdirs": [
+        "Pages",
+        "RelationManagers",
+        "Schemas",
+        "Tables"
+      ],
+      "files_recursive": 6,
+      "root_file_names": [
+        "AnalysisResource.php"
+      ]
+    },
+    {
+      "path": "app/Filament/Resources/Procurement/Ai/Analyses/Pages",
+      "layer": "Filament/Resources",
+      "domain": "Procurement",
+      "subarea": "Ai/Analyses/Pages",
+      "is_domain_root": false,
+      "root_files": 2,
+      "subdirs": [],
+      "files_recursive": 2,
+      "root_file_names": [
+        "ListAnalyses.php",
+        "ViewAnalysis.php"
+      ]
+    },
+    {
+      "path": "app/Filament/Resources/Procurement/Ai/Analyses/RelationManagers",
+      "layer": "Filament/Resources",
+      "domain": "Procurement",
+      "subarea": "Ai/Analyses/RelationManagers",
+      "is_domain_root": false,
+      "root_files": 1,
+      "subdirs": [],
+      "files_recursive": 1,
+      "root_file_names": [
+        "CorrectionsRelationManager.php"
+      ]
+    },
+    {
+      "path": "app/Filament/Resources/Procurement/Ai/Analyses/Schemas",
+      "layer": "Filament/Resources",
+      "domain": "Procurement",
+      "subarea": "Ai/Analyses/Schemas",
+      "is_domain_root": false,
+      "root_files": 1,
+      "subdirs": [],
+      "files_recursive": 1,
+      "root_file_names": [
+        "AnalysisInfolist.php"
+      ]
+    },
+    {
+      "path": "app/Filament/Resources/Procurement/Ai/Analyses/Tables",
+      "layer": "Filament/Resources",
+      "domain": "Procurement",
+      "subarea": "Ai/Analyses/Tables",
+      "is_domain_root": false,
+      "root_files": 1,
+      "subdirs": [],
+      "files_recursive": 1,
+      "root_file_names": [
+        "AnalysesTable.php"
+      ]
+    },
+    {
+      "path": "app/Filament/Resources/Procurement/Ai/DatasetExamples",
+      "layer": "Filament/Resources",
+      "domain": "Procurement",
+      "subarea": "Ai/DatasetExamples",
+      "is_domain_root": false,
+      "root_files": 1,
+      "subdirs": [
+        "Pages",
+        "Schemas",
+        "Tables"
+      ],
+      "files_recursive": 6,
+      "root_file_names": [
+        "DatasetExampleResource.php"
+      ]
+    },
+    {
+      "path": "app/Filament/Resources/Procurement/Ai/DatasetExamples/Pages",
+      "layer": "Filament/Resources",
+      "domain": "Procurement",
+      "subarea": "Ai/DatasetExamples/Pages",
+      "is_domain_root": false,
+      "root_files": 3,
+      "subdirs": [],
+      "files_recursive": 3,
+      "root_file_names": [
+        "CreateDatasetExample.php",
+        "EditDatasetExample.php",
+        "ListDatasetExamples.php"
+      ]
+    },
+    {
+      "path": "app/Filament/Resources/Procurement/Ai/DatasetExamples/Schemas",
+      "layer": "Filament/Resources",
+      "domain": "Procurement",
+      "subarea": "Ai/DatasetExamples/Schemas",
+      "is_domain_root": false,
+      "root_files": 1,
+      "subdirs": [],
+      "files_recursive": 1,
+      "root_file_names": [
+        "DatasetExampleForm.php"
+      ]
+    },
+    {
+      "path": "app/Filament/Resources/Procurement/Ai/DatasetExamples/Tables",
+      "layer": "Filament/Resources",
+      "domain": "Procurement",
+      "subarea": "Ai/DatasetExamples/Tables",
+      "is_domain_root": false,
+      "root_files": 1,
+      "subdirs": [],
+      "files_recursive": 1,
+      "root_file_names": [
+        "DatasetExamplesTable.php"
+      ]
+    },
+    {
+      "path": "app/Filament/Resources/Procurement/Ai/Fixtures",
+      "layer": "Filament/Resources",
+      "domain": "Procurement",
+      "subarea": "Ai/Fixtures",
+      "is_domain_root": false,
+      "root_files": 1,
+      "subdirs": [
+        "Pages",
+        "RelationManagers",
+        "Schemas",
+        "Tables"
+      ],
+      "files_recursive": 10,
+      "root_file_names": [
+        "FixtureResource.php"
+      ]
+    },
+    {
+      "path": "app/Filament/Resources/Procurement/Ai/Fixtures/Pages",
+      "layer": "Filament/Resources",
+      "domain": "Procurement",
+      "subarea": "Ai/Fixtures/Pages",
+      "is_domain_root": false,
+      "root_files": 4,
+      "subdirs": [],
+      "files_recursive": 4,
+      "root_file_names": [
+        "CreateFixture.php",
+        "EditFixture.php",
+        "ListFixtures.php",
+        "ViewFixture.php"
+      ]
+    },
+    {
+      "path": "app/Filament/Resources/Procurement/Ai/Fixtures/RelationManagers",
+      "layer": "Filament/Resources",
+      "domain": "Procurement",
+      "subarea": "Ai/Fixtures/RelationManagers",
+      "is_domain_root": false,
+      "root_files": 1,
+      "subdirs": [],
+      "files_recursive": 1,
+      "root_file_names": [
+        "RunsRelationManager.php"
+      ]
+    },
+    {
+      "path": "app/Filament/Resources/Procurement/Ai/Fixtures/Schemas",
+      "layer": "Filament/Resources",
+      "domain": "Procurement",
+      "subarea": "Ai/Fixtures/Schemas",
+      "is_domain_root": false,
+      "root_files": 3,
+      "subdirs": [],
+      "files_recursive": 3,
+      "root_file_names": [
+        "FixtureForm.php",
+        "FixtureInfolist.php",
+        "RunResultSchema.php"
+      ]
+    },
+    {
+      "path": "app/Filament/Resources/Procurement/Ai/Fixtures/Tables",
+      "layer": "Filament/Resources",
+      "domain": "Procurement",
+      "subarea": "Ai/Fixtures/Tables",
+      "is_domain_root": false,
+      "root_files": 1,
+      "subdirs": [],
+      "files_recursive": 1,
+      "root_file_names": [
+        "FixturesTable.php"
+      ]
+    },
+    {
+      "path": "app/Filament/Resources/Procurement/Ai/LlmRoutes",
+      "layer": "Filament/Resources",
+      "domain": "Procurement",
+      "subarea": "Ai/LlmRoutes",
+      "is_domain_root": false,
+      "root_files": 1,
+      "subdirs": [
+        "Pages",
+        "Schemas",
+        "Tables"
+      ],
+      "files_recursive": 6,
+      "root_file_names": [
+        "LlmRouteResource.php"
+      ]
+    },
+    {
+      "path": "app/Filament/Resources/Procurement/Ai/LlmRoutes/Pages",
+      "layer": "Filament/Resources",
+      "domain": "Procurement",
+      "subarea": "Ai/LlmRoutes/Pages",
+      "is_domain_root": false,
+      "root_files": 3,
+      "subdirs": [],
+      "files_recursive": 3,
+      "root_file_names": [
+        "CreateAiRoute.php",
+        "EditAiRoute.php",
+        "ListAiRoutes.php"
+      ]
+    },
+    {
+      "path": "app/Filament/Resources/Procurement/Ai/LlmRoutes/Schemas",
+      "layer": "Filament/Resources",
+      "domain": "Procurement",
+      "subarea": "Ai/LlmRoutes/Schemas",
+      "is_domain_root": false,
+      "root_files": 1,
+      "subdirs": [],
+      "files_recursive": 1,
+      "root_file_names": [
+        "AiRouteForm.php"
+      ]
+    },
+    {
+      "path": "app/Filament/Resources/Procurement/Ai/LlmRoutes/Tables",
+      "layer": "Filament/Resources",
+      "domain": "Procurement",
+      "subarea": "Ai/LlmRoutes/Tables",
+      "is_domain_root": false,
+      "root_files": 1,
+      "subdirs": [],
+      "files_recursive": 1,
+      "root_file_names": [
+        "AiRoutesTable.php"
+      ]
+    },
+    {
+      "path": "app/Filament/Resources/Procurement/Ai/PromptSuggestions",
+      "layer": "Filament/Resources",
+      "domain": "Procurement",
+      "subarea": "Ai/PromptSuggestions",
+      "is_domain_root": false,
+      "root_files": 1,
+      "subdirs": [
+        "Pages",
+        "Schemas",
+        "Tables"
+      ],
+      "files_recursive": 5,
+      "root_file_names": [
+        "PromptSuggestionResource.php"
+      ]
+    },
+    {
+      "path": "app/Filament/Resources/Procurement/Ai/PromptSuggestions/Pages",
+      "layer": "Filament/Resources",
+      "domain": "Procurement",
+      "subarea": "Ai/PromptSuggestions/Pages",
+      "is_domain_root": false,
+      "root_files": 2,
+      "subdirs": [],
+      "files_recursive": 2,
+      "root_file_names": [
+        "ListPromptSuggestions.php",
+        "ViewPromptSuggestion.php"
+      ]
+    },
+    {
+      "path": "app/Filament/Resources/Procurement/Ai/PromptSuggestions/Schemas",
+      "layer": "Filament/Resources",
+      "domain": "Procurement",
+      "subarea": "Ai/PromptSuggestions/Schemas",
+      "is_domain_root": false,
+      "root_files": 1,
+      "subdirs": [],
+      "files_recursive": 1,
+      "root_file_names": [
+        "PromptSuggestionInfolist.php"
+      ]
+    },
+    {
+      "path": "app/Filament/Resources/Procurement/Ai/PromptSuggestions/Tables",
+      "layer": "Filament/Resources",
+      "domain": "Procurement",
+      "subarea": "Ai/PromptSuggestions/Tables",
+      "is_domain_root": false,
+      "root_files": 1,
+      "subdirs": [],
+      "files_recursive": 1,
+      "root_file_names": [
+        "PromptSuggestionsTable.php"
+      ]
+    },
+    {
+      "path": "app/Filament/Resources/Procurement/Ai/Prompts",
+      "layer": "Filament/Resources",
+      "domain": "Procurement",
+      "subarea": "Ai/Prompts",
+      "is_domain_root": false,
+      "root_files": 1,
+      "subdirs": [
+        "Pages",
+        "Schemas",
+        "Tables"
+      ],
+      "files_recursive": 6,
+      "root_file_names": [
+        "PromptResource.php"
+      ]
+    },
+    {
+      "path": "app/Filament/Resources/Procurement/Ai/Prompts/Pages",
+      "layer": "Filament/Resources",
+      "domain": "Procurement",
+      "subarea": "Ai/Prompts/Pages",
+      "is_domain_root": false,
+      "root_files": 3,
+      "subdirs": [],
+      "files_recursive": 3,
+      "root_file_names": [
+        "CreatePrompt.php",
+        "EditPrompt.php",
+        "ListPrompts.php"
+      ]
+    },
+    {
+      "path": "app/Filament/Resources/Procurement/Ai/Prompts/Schemas",
+      "layer": "Filament/Resources",
+      "domain": "Procurement",
+      "subarea": "Ai/Prompts/Schemas",
+      "is_domain_root": false,
+      "root_files": 1,
+      "subdirs": [],
+      "files_recursive": 1,
+      "root_file_names": [
+        "PromptForm.php"
+      ]
+    },
+    {
+      "path": "app/Filament/Resources/Procurement/Ai/Prompts/Tables",
+      "layer": "Filament/Resources",
+      "domain": "Procurement",
+      "subarea": "Ai/Prompts/Tables",
+      "is_domain_root": false,
+      "root_files": 1,
+      "subdirs": [],
+      "files_recursive": 1,
+      "root_file_names": [
+        "PromptsTable.php"
+      ]
+    },
+    {
+      "path": "app/Filament/Resources/Procurement/Ai/Providers",
+      "layer": "Filament/Resources",
+      "domain": "Procurement",
+      "subarea": "Ai/Providers",
+      "is_domain_root": false,
+      "root_files": 1,
+      "subdirs": [
+        "Pages",
+        "Schemas",
+        "Tables"
+      ],
+      "files_recursive": 6,
+      "root_file_names": [
+        "ProviderResource.php"
+      ]
+    },
+    {
+      "path": "app/Filament/Resources/Procurement/Ai/Providers/Pages",
+      "layer": "Filament/Resources",
+      "domain": "Procurement",
+      "subarea": "Ai/Providers/Pages",
+      "is_domain_root": false,
+      "root_files": 3,
+      "subdirs": [],
+      "files_recursive": 3,
+      "root_file_names": [
+        "CreateProvider.php",
+        "EditProvider.php",
+        "ListProviders.php"
+      ]
+    },
+    {
+      "path": "app/Filament/Resources/Procurement/Ai/Providers/Schemas",
+      "layer": "Filament/Resources",
+      "domain": "Procurement",
+      "subarea": "Ai/Providers/Schemas",
+      "is_domain_root": false,
+      "root_files": 1,
+      "subdirs": [],
+      "files_recursive": 1,
+      "root_file_names": [
+        "ProviderForm.php"
+      ]
+    },
+    {
+      "path": "app/Filament/Resources/Procurement/Ai/Providers/Tables",
+      "layer": "Filament/Resources",
+      "domain": "Procurement",
+      "subarea": "Ai/Providers/Tables",
+      "is_domain_root": false,
+      "root_files": 1,
+      "subdirs": [],
+      "files_recursive": 1,
+      "root_file_names": [
+        "ProvidersTable.php"
+      ]
+    },
+    {
+      "path": "app/Filament/Resources/Procurement/Crawler",
+      "layer": "Filament/Resources",
+      "domain": "Procurement",
+      "subarea": "Crawler",
+      "is_domain_root": false,
+      "root_files": 0,
+      "subdirs": [
+        "Crawlers",
+        "IgnoreRules",
+        "Proxies",
+        "Runs"
+      ],
+      "files_recursive": 23,
+      "root_file_names": []
+    },
+    {
+      "path": "app/Filament/Resources/Procurement/Crawler/Crawlers",
+      "layer": "Filament/Resources",
+      "domain": "Procurement",
+      "subarea": "Crawler/Crawlers",
+      "is_domain_root": false,
+      "root_files": 1,
+      "subdirs": [
+        "Pages",
+        "Schemas",
+        "Tables"
+      ],
+      "files_recursive": 6,
+      "root_file_names": [
+        "CrawlerResource.php"
+      ]
+    },
+    {
+      "path": "app/Filament/Resources/Procurement/Crawler/Crawlers/Pages",
+      "layer": "Filament/Resources",
+      "domain": "Procurement",
+      "subarea": "Crawler/Crawlers/Pages",
+      "is_domain_root": false,
+      "root_files": 3,
+      "subdirs": [],
+      "files_recursive": 3,
+      "root_file_names": [
+        "CreateCrawler.php",
+        "EditCrawler.php",
+        "ListCrawlers.php"
+      ]
+    },
+    {
+      "path": "app/Filament/Resources/Procurement/Crawler/Crawlers/Schemas",
+      "layer": "Filament/Resources",
+      "domain": "Procurement",
+      "subarea": "Crawler/Crawlers/Schemas",
+      "is_domain_root": false,
+      "root_files": 1,
+      "subdirs": [],
+      "files_recursive": 1,
+      "root_file_names": [
+        "CrawlerForm.php"
+      ]
+    },
+    {
+      "path": "app/Filament/Resources/Procurement/Crawler/Crawlers/Tables",
+      "layer": "Filament/Resources",
+      "domain": "Procurement",
+      "subarea": "Crawler/Crawlers/Tables",
+      "is_domain_root": false,
+      "root_files": 1,
+      "subdirs": [],
+      "files_recursive": 1,
+      "root_file_names": [
+        "CrawlersTable.php"
+      ]
+    },
+    {
+      "path": "app/Filament/Resources/Procurement/Crawler/IgnoreRules",
+      "layer": "Filament/Resources",
+      "domain": "Procurement",
+      "subarea": "Crawler/IgnoreRules",
+      "is_domain_root": false,
+      "root_files": 1,
+      "subdirs": [
+        "Pages",
+        "Schemas",
+        "Tables"
+      ],
+      "files_recursive": 6,
+      "root_file_names": [
+        "IgnoreRuleResource.php"
+      ]
+    },
+    {
+      "path": "app/Filament/Resources/Procurement/Crawler/IgnoreRules/Pages",
+      "layer": "Filament/Resources",
+      "domain": "Procurement",
+      "subarea": "Crawler/IgnoreRules/Pages",
+      "is_domain_root": false,
+      "root_files": 3,
+      "subdirs": [],
+      "files_recursive": 3,
+      "root_file_names": [
+        "CreateIgnoreRule.php",
+        "EditIgnoreRule.php",
+        "ListIgnoreRules.php"
+      ]
+    },
+    {
+      "path": "app/Filament/Resources/Procurement/Crawler/IgnoreRules/Schemas",
+      "layer": "Filament/Resources",
+      "domain": "Procurement",
+      "subarea": "Crawler/IgnoreRules/Schemas",
+      "is_domain_root": false,
+      "root_files": 1,
+      "subdirs": [],
+      "files_recursive": 1,
+      "root_file_names": [
+        "IgnoreRuleForm.php"
+      ]
+    },
+    {
+      "path": "app/Filament/Resources/Procurement/Crawler/IgnoreRules/Tables",
+      "layer": "Filament/Resources",
+      "domain": "Procurement",
+      "subarea": "Crawler/IgnoreRules/Tables",
+      "is_domain_root": false,
+      "root_files": 1,
+      "subdirs": [],
+      "files_recursive": 1,
+      "root_file_names": [
+        "IgnoreRulesTable.php"
+      ]
+    },
+    {
+      "path": "app/Filament/Resources/Procurement/Crawler/Proxies",
+      "layer": "Filament/Resources",
+      "domain": "Procurement",
+      "subarea": "Crawler/Proxies",
+      "is_domain_root": false,
+      "root_files": 1,
+      "subdirs": [
+        "Pages",
+        "Schemas",
+        "Tables"
+      ],
+      "files_recursive": 6,
+      "root_file_names": [
+        "ProxyResource.php"
+      ]
+    },
+    {
+      "path": "app/Filament/Resources/Procurement/Crawler/Proxies/Pages",
+      "layer": "Filament/Resources",
+      "domain": "Procurement",
+      "subarea": "Crawler/Proxies/Pages",
+      "is_domain_root": false,
+      "root_files": 3,
+      "subdirs": [],
+      "files_recursive": 3,
+      "root_file_names": [
+        "CreateProxy.php",
+        "EditProxy.php",
+        "ListProxies.php"
+      ]
+    },
+    {
+      "path": "app/Filament/Resources/Procurement/Crawler/Proxies/Schemas",
+      "layer": "Filament/Resources",
+      "domain": "Procurement",
+      "subarea": "Crawler/Proxies/Schemas",
+      "is_domain_root": false,
+      "root_files": 1,
+      "subdirs": [],
+      "files_recursive": 1,
+      "root_file_names": [
+        "ProxyForm.php"
+      ]
+    },
+    {
+      "path": "app/Filament/Resources/Procurement/Crawler/Proxies/Tables",
+      "layer": "Filament/Resources",
+      "domain": "Procurement",
+      "subarea": "Crawler/Proxies/Tables",
+      "is_domain_root": false,
+      "root_files": 1,
+      "subdirs": [],
+      "files_recursive": 1,
+      "root_file_names": [
+        "ProxiesTable.php"
+      ]
+    },
+    {
+      "path": "app/Filament/Resources/Procurement/Crawler/Runs",
+      "layer": "Filament/Resources",
+      "domain": "Procurement",
+      "subarea": "Crawler/Runs",
+      "is_domain_root": false,
+      "root_files": 1,
+      "subdirs": [
+        "Pages",
+        "Schemas",
+        "Tables"
+      ],
+      "files_recursive": 5,
+      "root_file_names": [
+        "RunResource.php"
+      ]
+    },
+    {
+      "path": "app/Filament/Resources/Procurement/Crawler/Runs/Pages",
+      "layer": "Filament/Resources",
+      "domain": "Procurement",
+      "subarea": "Crawler/Runs/Pages",
+      "is_domain_root": false,
+      "root_files": 2,
+      "subdirs": [],
+      "files_recursive": 2,
+      "root_file_names": [
+        "ListRuns.php",
+        "ViewRun.php"
+      ]
+    },
+    {
+      "path": "app/Filament/Resources/Procurement/Crawler/Runs/Schemas",
+      "layer": "Filament/Resources",
+      "domain": "Procurement",
+      "subarea": "Crawler/Runs/Schemas",
+      "is_domain_root": false,
+      "root_files": 1,
+      "subdirs": [],
+      "files_recursive": 1,
+      "root_file_names": [
+        "RunInfolist.php"
+      ]
+    },
+    {
+      "path": "app/Filament/Resources/Procurement/Crawler/Runs/Tables",
+      "layer": "Filament/Resources",
+      "domain": "Procurement",
+      "subarea": "Crawler/Runs/Tables",
+      "is_domain_root": false,
+      "root_files": 1,
+      "subdirs": [],
+      "files_recursive": 1,
+      "root_file_names": [
+        "RunsTable.php"
+      ]
+    },
+    {
+      "path": "app/Filament/Resources/Procurement/Platform",
+      "layer": "Filament/Resources",
+      "domain": "Procurement",
+      "subarea": "Platform",
+      "is_domain_root": false,
+      "root_files": 0,
+      "subdirs": [
+        "Platforms",
+        "Registries"
+      ],
+      "files_recursive": 12,
+      "root_file_names": []
+    },
+    {
+      "path": "app/Filament/Resources/Procurement/Platform/Platforms",
+      "layer": "Filament/Resources",
+      "domain": "Procurement",
+      "subarea": "Platform/Platforms",
+      "is_domain_root": false,
+      "root_files": 1,
+      "subdirs": [
+        "Pages",
+        "Schemas",
+        "Tables"
+      ],
+      "files_recursive": 6,
+      "root_file_names": [
+        "PlatformResource.php"
+      ]
+    },
+    {
+      "path": "app/Filament/Resources/Procurement/Platform/Platforms/Pages",
+      "layer": "Filament/Resources",
+      "domain": "Procurement",
+      "subarea": "Platform/Platforms/Pages",
+      "is_domain_root": false,
+      "root_files": 3,
+      "subdirs": [],
+      "files_recursive": 3,
+      "root_file_names": [
+        "CreatePlatform.php",
+        "EditPlatform.php",
+        "ListPlatforms.php"
+      ]
+    },
+    {
+      "path": "app/Filament/Resources/Procurement/Platform/Platforms/Schemas",
+      "layer": "Filament/Resources",
+      "domain": "Procurement",
+      "subarea": "Platform/Platforms/Schemas",
+      "is_domain_root": false,
+      "root_files": 1,
+      "subdirs": [],
+      "files_recursive": 1,
+      "root_file_names": [
+        "PlatformForm.php"
+      ]
+    },
+    {
+      "path": "app/Filament/Resources/Procurement/Platform/Platforms/Tables",
+      "layer": "Filament/Resources",
+      "domain": "Procurement",
+      "subarea": "Platform/Platforms/Tables",
+      "is_domain_root": false,
+      "root_files": 1,
+      "subdirs": [],
+      "files_recursive": 1,
+      "root_file_names": [
+        "PlatformsTable.php"
+      ]
+    },
+    {
+      "path": "app/Filament/Resources/Procurement/Platform/Registries",
+      "layer": "Filament/Resources",
+      "domain": "Procurement",
+      "subarea": "Platform/Registries",
+      "is_domain_root": false,
+      "root_files": 1,
+      "subdirs": [
+        "Pages",
+        "Schemas",
+        "Tables"
+      ],
+      "files_recursive": 6,
+      "root_file_names": [
+        "RegistryResource.php"
+      ]
+    },
+    {
+      "path": "app/Filament/Resources/Procurement/Platform/Registries/Pages",
+      "layer": "Filament/Resources",
+      "domain": "Procurement",
+      "subarea": "Platform/Registries/Pages",
+      "is_domain_root": false,
+      "root_files": 3,
+      "subdirs": [],
+      "files_recursive": 3,
+      "root_file_names": [
+        "CreateRegistry.php",
+        "EditRegistry.php",
+        "ListRegistries.php"
+      ]
+    },
+    {
+      "path": "app/Filament/Resources/Procurement/Platform/Registries/Schemas",
+      "layer": "Filament/Resources",
+      "domain": "Procurement",
+      "subarea": "Platform/Registries/Schemas",
+      "is_domain_root": false,
+      "root_files": 1,
+      "subdirs": [],
+      "files_recursive": 1,
+      "root_file_names": [
+        "RegistryForm.php"
+      ]
+    },
+    {
+      "path": "app/Filament/Resources/Procurement/Platform/Registries/Tables",
+      "layer": "Filament/Resources",
+      "domain": "Procurement",
+      "subarea": "Platform/Registries/Tables",
+      "is_domain_root": false,
+      "root_files": 1,
+      "subdirs": [],
+      "files_recursive": 1,
+      "root_file_names": [
+        "RegistriesTable.php"
+      ]
+    },
+    {
+      "path": "app/Filament/Resources/Procurement/Procurements",
+      "layer": "Filament/Resources",
+      "domain": "Procurement",
+      "subarea": "Procurements",
+      "is_domain_root": false,
+      "root_files": 1,
+      "subdirs": [
+        "Pages",
+        "Schemas",
+        "Tables"
+      ],
+      "files_recursive": 5,
+      "root_file_names": [
+        "ProcurementResource.php"
+      ]
+    },
+    {
+      "path": "app/Filament/Resources/Procurement/Procurements/Pages",
+      "layer": "Filament/Resources",
+      "domain": "Procurement",
+      "subarea": "Procurements/Pages",
+      "is_domain_root": false,
+      "root_files": 2,
+      "subdirs": [],
+      "files_recursive": 2,
+      "root_file_names": [
+        "ListProcurements.php",
+        "ViewProcurement.php"
+      ]
+    },
+    {
+      "path": "app/Filament/Resources/Procurement/Procurements/Schemas",
+      "layer": "Filament/Resources",
+      "domain": "Procurement",
+      "subarea": "Procurements/Schemas",
+      "is_domain_root": false,
+      "root_files": 1,
+      "subdirs": [],
+      "files_recursive": 1,
+      "root_file_names": [
+        "ProcurementInfolist.php"
+      ]
+    },
+    {
+      "path": "app/Filament/Resources/Procurement/Procurements/Tables",
+      "layer": "Filament/Resources",
+      "domain": "Procurement",
+      "subarea": "Procurements/Tables",
+      "is_domain_root": false,
+      "root_files": 1,
+      "subdirs": [],
+      "files_recursive": 1,
+      "root_file_names": [
+        "ProcurementsTable.php"
+      ]
+    },
+    {
+      "path": "app/Jobs/Procurement/Analyzers",
+      "layer": "Jobs",
+      "domain": "Procurement",
+      "subarea": "Analyzers",
+      "is_domain_root": false,
+      "root_files": 0,
+      "subdirs": [
+        "Estimate"
+      ],
+      "files_recursive": 1,
+      "root_file_names": []
+    },
+    {
+      "path": "app/Jobs/Procurement/Analyzers/Estimate",
+      "layer": "Jobs",
+      "domain": "Procurement",
+      "subarea": "Analyzers/Estimate",
+      "is_domain_root": false,
+      "root_files": 1,
+      "subdirs": [],
+      "files_recursive": 1,
+      "root_file_names": [
+        "EstimateExtractionJob.php"
+      ]
+    },
+    {
+      "path": "app/Models/Procurement/Ai",
+      "layer": "Models",
+      "domain": "Procurement",
+      "subarea": "Ai",
+      "is_domain_root": false,
+      "root_files": 8,
+      "subdirs": [],
+      "files_recursive": 8,
+      "root_file_names": [
+        "Analysis.php",
+        "AnalysisRun.php",
+        "Correction.php",
+        "DatasetExample.php",
+        "EvalResult.php",
+        "EvalRun.php",
+        "Fixture.php",
+        "PromptSuggestion.php"
+      ]
+    },
+    {
+      "path": "app/Models/Procurement/Crawler",
+      "layer": "Models",
+      "domain": "Procurement",
+      "subarea": "Crawler",
+      "is_domain_root": false,
+      "root_files": 9,
+      "subdirs": [],
+      "files_recursive": 9,
+      "root_file_names": [
+        "Crawler.php",
+        "DailyStat.php",
+        "Fetch.php",
+        "IgnoreRule.php",
+        "IgnoredItem.php",
+        "Proxy.php",
+        "ProxyCheck.php",
+        "ProxyTarget.php",
+        "Run.php"
+      ]
+    },
+    {
+      "path": "app/Models/Procurement/Document",
+      "layer": "Models",
+      "domain": "Procurement",
+      "subarea": "Document",
+      "is_domain_root": false,
+      "root_files": 3,
+      "subdirs": [],
+      "files_recursive": 3,
+      "root_file_names": [
+        "Document.php",
+        "DocumentRepresentation.php",
+        "DocumentVersion.php"
+      ]
+    },
+    {
+      "path": "app/Models/Procurement/Estimate",
+      "layer": "Models",
+      "domain": "Procurement",
+      "subarea": "Estimate",
+      "is_domain_root": false,
+      "root_files": 6,
+      "subdirs": [],
+      "files_recursive": 6,
+      "root_file_names": [
+        "Estimate.php",
+        "Item.php",
+        "Resource.php",
+        "Section.php",
+        "Total.php",
+        "WorkType.php"
+      ]
+    },
+    {
+      "path": "app/Models/Procurement/Platform",
+      "layer": "Models",
+      "domain": "Procurement",
+      "subarea": "Platform",
+      "is_domain_root": false,
+      "root_files": 4,
+      "subdirs": [],
+      "files_recursive": 4,
+      "root_file_names": [
+        "Platform.php",
+        "Region.php",
+        "Registry.php",
+        "StatusMapping.php"
+      ]
+    },
+    {
+      "path": "app/Repositories/Procurement/Analyzers",
+      "layer": "Repositories",
+      "domain": "Procurement",
+      "subarea": "Analyzers",
+      "is_domain_root": false,
+      "root_files": 0,
+      "subdirs": [
+        "Estimate"
+      ],
+      "files_recursive": 1,
+      "root_file_names": []
+    },
+    {
+      "path": "app/Repositories/Procurement/Analyzers/Estimate",
+      "layer": "Repositories",
+      "domain": "Procurement",
+      "subarea": "Analyzers/Estimate",
+      "is_domain_root": false,
+      "root_files": 1,
+      "subdirs": [],
+      "files_recursive": 1,
+      "root_file_names": [
+        "EstimateStoreRepository.php"
+      ]
+    },
+    {
+      "path": "app/Services/Llm/Contracts",
+      "layer": "Services",
+      "domain": "Llm",
+      "subarea": "Contracts",
+      "is_domain_root": false,
+      "root_files": 6,
+      "subdirs": [],
+      "files_recursive": 6,
+      "root_file_names": [
+        "LlmProvider.php",
+        "OutboundProxy.php",
+        "StructurallyValidatable.php",
+        "SupportsContextCaching.php",
+        "SupportsFileUpload.php",
+        "UsageSource.php"
+      ]
+    },
+    {
+      "path": "app/Services/Llm/Dto",
+      "layer": "Services",
+      "domain": "Llm",
+      "subarea": "Dto",
+      "is_domain_root": false,
+      "root_files": 21,
+      "subdirs": [],
+      "files_recursive": 21,
+      "root_file_names": [
+        "CacheableContent.php",
+        "ComposedPrompt.php",
+        "JsonSchema.php",
+        "LlmCacheHandle.php",
+        "LlmCacheOptions.php",
+        "LlmFileHandle.php",
+        "LlmOptions.php",
+        "LlmPrompt.php",
+        "LlmResponse.php",
+        "LlmSpendReport.php",
+        "LlmSpendRow.php",
+        "LlmStructuredResponse.php",
+        "LlmUsage.php",
+        "ReconciliationReport.php",
+        "ReconciliationRow.php",
+        "ResolvedRoute.php",
+        "StoredPayload.php",
+        "UsageQuery.php",
+        "UsageReport.php",
+        "UsageRow.php",
+        "UsageSignature.php"
+      ]
+    },
+    {
+      "path": "app/Services/Llm/Providers",
+      "layer": "Services",
+      "domain": "Llm",
+      "subarea": "Providers",
+      "is_domain_root": false,
+      "root_files": 2,
+      "subdirs": [],
+      "files_recursive": 2,
+      "root_file_names": [
+        "OpenAiCompatibleProvider.php",
+        "PrismGeminiProvider.php"
+      ]
+    },
+    {
+      "path": "app/Services/Llm/Schema",
+      "layer": "Services",
+      "domain": "Llm",
+      "subarea": "Schema",
+      "is_domain_root": false,
+      "root_files": 5,
+      "subdirs": [],
+      "files_recursive": 5,
+      "root_file_names": [
+        "ContractAttributeReader.php",
+        "DataTypeGraph.php",
+        "GeminiResponseSchemaAdapter.php",
+        "JsonSchemaGenerator.php",
+        "PromptContextGenerator.php"
+      ]
+    },
+    {
+      "path": "app/Services/Llm/Validation",
+      "layer": "Services",
+      "domain": "Llm",
+      "subarea": "Validation",
+      "is_domain_root": false,
+      "root_files": 3,
+      "subdirs": [],
+      "files_recursive": 3,
+      "root_file_names": [
+        "ReaskPolicy.php",
+        "StructuredResponseValidator.php",
+        "ValidationOutcome.php"
+      ]
+    },
+    {
+      "path": "app/Services/Procurement/Ai",
+      "layer": "Services",
+      "domain": "Procurement",
+      "subarea": "Ai",
+      "is_domain_root": false,
+      "root_files": 1,
+      "subdirs": [],
+      "files_recursive": 1,
+      "root_file_names": [
+        "UsageSnapshotRecorder.php"
+      ]
+    },
+    {
+      "path": "app/Services/Procurement/Analyzers",
+      "layer": "Services",
+      "domain": "Procurement",
+      "subarea": "Analyzers",
+      "is_domain_root": false,
+      "root_files": 0,
+      "subdirs": [
+        "Estimate"
+      ],
+      "files_recursive": 24,
+      "root_file_names": []
+    },
+    {
+      "path": "app/Services/Procurement/Analyzers/Estimate",
+      "layer": "Services",
+      "domain": "Procurement",
+      "subarea": "Analyzers/Estimate",
+      "is_domain_root": false,
+      "root_files": 23,
+      "subdirs": [
+        "Dto"
+      ],
+      "files_recursive": 24,
+      "root_file_names": [
+        "ChunkSource.php",
+        "DatasetExporter.php",
+        "DatasetImporter.php",
+        "DatasetInputBuilder.php",
+        "EstimateAnalyzer.php",
+        "EstimateDiffReport.php",
+        "EstimatePersister.php",
+        "EstimateStepDictionaries.php",
+        "EstimateStitcher.php",
+        "EstimateToContractMapper.php",
+        "EstimateValidator.php",
+        "EvalMetrics.php",
+        "EvalSplitPlanner.php",
+        "ExtractionEvalRunner.php",
+        "ExtractionOrchestrator.php",
+        "GoldExampleRecorder.php",
+        "PromptSuggestionRunner.php",
+        "RerunRangeAction.php",
+        "RowRangeChunkSource.php",
+        "SegmentAssembler.php",
+        "StitchReport.php",
+        "ValidationReport.php",
+        "WindowedChunkSource.php"
+      ]
+    },
+    {
+      "path": "app/Services/Procurement/Analyzers/Estimate/Dto",
+      "layer": "Services",
+      "domain": "Procurement",
+      "subarea": "Analyzers/Estimate/Dto",
+      "is_domain_root": false,
+      "root_files": 1,
+      "subdirs": [],
+      "files_recursive": 1,
+      "root_file_names": [
+        "ChunkFetchResult.php"
+      ]
+    },
+    {
+      "path": "app/Services/Procurement/Bench",
+      "layer": "Services",
+      "domain": "Procurement",
+      "subarea": "Bench",
+      "is_domain_root": false,
+      "root_files": 1,
+      "subdirs": [],
+      "files_recursive": 1,
+      "root_file_names": [
+        "FormatBenchRunner.php"
+      ]
+    },
+    {
+      "path": "app/Services/Procurement/Contracts",
+      "layer": "Services",
+      "domain": "Procurement",
+      "subarea": "Contracts",
+      "is_domain_root": false,
+      "root_files": 7,
+      "subdirs": [
+        "Dto"
+      ],
+      "files_recursive": 10,
+      "root_file_names": [
+        "DocumentAnalyzer.php",
+        "DocumentAnalyzerRegistry.php",
+        "ListingRowMapper.php",
+        "ProgressReporter.php",
+        "SourceMethod.php",
+        "SupportsResultComparison.php",
+        "SupportsTypeProfileValidation.php"
+      ]
+    },
+    {
+      "path": "app/Services/Procurement/Contracts/Dto",
+      "layer": "Services",
+      "domain": "Procurement",
+      "subarea": "Contracts/Dto",
+      "is_domain_root": false,
+      "root_files": 3,
+      "subdirs": [],
+      "files_recursive": 3,
+      "root_file_names": [
+        "AnalysisSummary.php",
+        "ProgressTick.php",
+        "SummaryMetric.php"
+      ]
+    },
+    {
+      "path": "app/Services/Procurement/Detail",
+      "layer": "Services",
+      "domain": "Procurement",
+      "subarea": "Detail",
+      "is_domain_root": false,
+      "root_files": 4,
+      "subdirs": [],
+      "files_recursive": 4,
+      "root_file_names": [
+        "CommonInfoProcessor.php",
+        "EventJournalProcessor.php",
+        "OrganizationPartiesProcessor.php",
+        "SupplierResultsProcessor.php"
+      ]
+    },
+    {
+      "path": "app/Services/Procurement/Eis",
+      "layer": "Services",
+      "domain": "Procurement",
+      "subarea": "Eis",
+      "is_domain_root": false,
+      "root_files": 4,
+      "subdirs": [
+        "Card"
+      ],
+      "files_recursive": 9,
+      "root_file_names": [
+        "CsvSourceMethod.php",
+        "EisCardUrlBuilder.php",
+        "EisCsvRowMapper.php",
+        "EisCsvUrlBuilder.php"
+      ]
+    },
+    {
+      "path": "app/Services/Procurement/Eis/Card",
+      "layer": "Services",
+      "domain": "Procurement",
+      "subarea": "Eis/Card",
+      "is_domain_root": false,
+      "root_files": 5,
+      "subdirs": [],
+      "files_recursive": 5,
+      "root_file_names": [
+        "CommonInfoParser.php",
+        "DocumentsParser.php",
+        "EventJournalParser.php",
+        "PartiesParser.php",
+        "SupplierResultsParser.php"
+      ]
+    },
+    {
+      "path": "app/Services/Procurement/Exceptions",
+      "layer": "Services",
+      "domain": "Procurement",
+      "subarea": "Exceptions",
+      "is_domain_root": false,
+      "root_files": 2,
+      "subdirs": [],
+      "files_recursive": 2,
+      "root_file_names": [
+        "CardUrlTemplateMissingException.php",
+        "SourceMethodUnavailableException.php"
+      ]
+    },
+    {
+      "path": "app/Services/Procurement/Extraction",
+      "layer": "Services",
+      "domain": "Procurement",
+      "subarea": "Extraction",
+      "is_domain_root": false,
+      "root_files": 3,
+      "subdirs": [
+        "Dto",
+        "Exceptions"
+      ],
+      "files_recursive": 5,
+      "root_file_names": [
+        "ExtractionPreflight.php",
+        "ExtractionSession.php",
+        "RerunAnalysisAction.php"
+      ]
+    },
+    {
+      "path": "app/Services/Procurement/Extraction/Dto",
+      "layer": "Services",
+      "domain": "Procurement",
+      "subarea": "Extraction/Dto",
+      "is_domain_root": false,
+      "root_files": 1,
+      "subdirs": [],
+      "files_recursive": 1,
+      "root_file_names": [
+        "PreflightDecision.php"
+      ]
+    },
+    {
+      "path": "app/Services/Procurement/Extraction/Exceptions",
+      "layer": "Services",
+      "domain": "Procurement",
+      "subarea": "Extraction/Exceptions",
+      "is_domain_root": false,
+      "root_files": 1,
+      "subdirs": [],
+      "files_recursive": 1,
+      "root_file_names": [
+        "MaxTokensExceededException.php"
+      ]
+    },
+    {
+      "path": "app/Services/Procurement/Fixture",
+      "layer": "Services",
+      "domain": "Procurement",
+      "subarea": "Fixture",
+      "is_domain_root": false,
+      "root_files": 10,
+      "subdirs": [],
+      "files_recursive": 10,
+      "root_file_names": [
+        "FixtureCaseResolver.php",
+        "FixtureManifestBuilder.php",
+        "FixtureManifestReader.php",
+        "FixtureManifestWriter.php",
+        "FixtureRegistrar.php",
+        "FixtureUploader.php",
+        "FixtureVerifier.php",
+        "GoldExampleImporter.php",
+        "RunFixtureAnalysisAction.php",
+        "WorkingCopyProvisioner.php"
+      ]
+    },
+    {
+      "path": "app/Services/Procurement/Gold",
+      "layer": "Services",
+      "domain": "Procurement",
+      "subarea": "Gold",
+      "is_domain_root": false,
+      "root_files": 8,
+      "subdirs": [],
+      "files_recursive": 8,
+      "root_file_names": [
+        "FormProfileReader.php",
+        "GoldBuilder.php",
+        "GoldCorpusBuilder.php",
+        "GoldValidator.php",
+        "GridRecognitionGate.php",
+        "GsfxGoldMapper.php",
+        "ScreeningGoldBuilder.php",
+        "SheetGoldMapper.php"
+      ]
+    },
+    {
+      "path": "app/Services/Procurement/Modes",
+      "layer": "Services",
+      "domain": "Procurement",
+      "subarea": "Modes",
+      "is_domain_root": false,
+      "root_files": 4,
+      "subdirs": [],
+      "files_recursive": 4,
+      "root_file_names": [
+        "ArchiveRunProcessor.php",
+        "BacklogRescanProcessor.php",
+        "DetailAnalysisProcessor.php",
+        "FreshRunProcessor.php"
+      ]
+    },
+    {
+      "path": "app/Services/Procurement/Prepare",
+      "layer": "Services",
+      "domain": "Procurement",
+      "subarea": "Prepare",
+      "is_domain_root": false,
+      "root_files": 14,
+      "subdirs": [
+        "Archive",
+        "Gsfx"
+      ],
+      "files_recursive": 19,
+      "root_file_names": [
+        "ArchiveStrategy.php",
+        "DocumentPreparer.php",
+        "GsfxStrategy.php",
+        "ImageStrategy.php",
+        "LibreOfficeConverter.php",
+        "OcrConverter.php",
+        "PassthroughStrategy.php",
+        "PreparationStrategy.php",
+        "RepresentationResolver.php",
+        "ScanStrategy.php",
+        "SpreadsheetStrategy.php",
+        "TextGridRenderer.php",
+        "ToolchainProbe.php",
+        "WordStrategy.php"
+      ]
+    },
+    {
+      "path": "app/Services/Procurement/Prepare/Archive",
+      "layer": "Services",
+      "domain": "Procurement",
+      "subarea": "Prepare/Archive",
+      "is_domain_root": false,
+      "root_files": 3,
+      "subdirs": [],
+      "files_recursive": 3,
+      "root_file_names": [
+        "ArchiveExtractor.php",
+        "ArchivePasswordProtectedException.php",
+        "ArchiveUnsupportedException.php"
+      ]
+    },
+    {
+      "path": "app/Services/Procurement/Prepare/Gsfx",
+      "layer": "Services",
+      "domain": "Procurement",
+      "subarea": "Prepare/Gsfx",
+      "is_domain_root": false,
+      "root_files": 2,
+      "subdirs": [],
+      "files_recursive": 2,
+      "root_file_names": [
+        "GsfxReader.php",
+        "GsfxUnreadableException.php"
+      ]
+    },
+    {
+      "path": "app/Services/Procurement/Proxy",
+      "layer": "Services",
+      "domain": "Procurement",
+      "subarea": "Proxy",
+      "is_domain_root": false,
+      "root_files": 4,
+      "subdirs": [],
+      "files_recursive": 4,
+      "root_file_names": [
+        "PoolOutboundProxy.php",
+        "ProxyCircuitBreaker.php",
+        "ProxyResolver.php",
+        "ProxyScoreCalculator.php"
+      ]
+    },
+    {
+      "path": "app/Services/Procurement/Screening",
+      "layer": "Services",
+      "domain": "Procurement",
+      "subarea": "Screening",
+      "is_domain_root": false,
+      "root_files": 5,
+      "subdirs": [],
+      "files_recursive": 5,
+      "root_file_names": [
+        "PdfPageSlicer.php",
+        "ScreeningEvalMetrics.php",
+        "ScreeningEvalRunner.php",
+        "ScreeningOutcomeHandler.php",
+        "ScreeningProcessor.php"
+      ]
+    },
+    {
+      "path": "app/Services/Procurement/Tuning",
+      "layer": "Services",
+      "domain": "Procurement",
+      "subarea": "Tuning",
+      "is_domain_root": false,
+      "root_files": 4,
+      "subdirs": [],
+      "files_recursive": 4,
+      "root_file_names": [
+        "EvalRunComparator.php",
+        "PromptCritic.php",
+        "PromptPatchApplier.php",
+        "PromptSuggestionDecider.php"
+      ]
+    }
+  ],
+  "subarea_vocabulary": {
+    "Llm": {
+      "Contracts": [
+        "Services/Llm"
+      ],
+      "Dto": [
+        "Services/Llm"
+      ],
+      "Providers": [
+        "Services/Llm"
+      ],
+      "Schema": [
+        "Services/Llm"
+      ],
+      "Validation": [
+        "Services/Llm"
+      ]
+    },
+    "Organization": {},
+    "Procurement": {
+      "Ai": [
+        "Console/Commands/Procurement",
+        "Dto/Procurement",
+        "Filament/Resources/Procurement",
+        "Models/Procurement",
+        "Services/Procurement"
+      ],
+      "Analyzers": [
+        "Console/Commands/Procurement",
+        "Dto/Procurement",
+        "Enums/Procurement",
+        "Jobs/Procurement",
+        "Repositories/Procurement",
+        "Services/Procurement"
+      ],
+      "Bench": [
+        "Dto/Procurement",
+        "Services/Procurement"
+      ],
+      "Contracts": [
+        "Services/Procurement"
+      ],
+      "Crawler": [
+        "Filament/Resources/Procurement",
+        "Models/Procurement"
+      ],
+      "Detail": [
+        "Services/Procurement"
+      ],
+      "Details": [
+        "Dto/Procurement"
+      ],
+      "Document": [
+        "Models/Procurement"
+      ],
+      "Eis": [
+        "Services/Procurement"
+      ],
+      "Estimate": [
+        "Models/Procurement"
+      ],
+      "Exceptions": [
+        "Services/Procurement"
+      ],
+      "Extraction": [
+        "Services/Procurement"
+      ],
+      "Fixture": [
+        "Dto/Procurement",
+        "Services/Procurement"
+      ],
+      "Gold": [
+        "Dto/Procurement",
+        "Services/Procurement"
+      ],
+      "Modes": [
+        "Services/Procurement"
+      ],
+      "Platform": [
+        "Filament/Resources/Procurement",
+        "Models/Procurement"
+      ],
+      "Prepare": [
+        "Dto/Procurement",
+        "Services/Procurement"
+      ],
+      "Procurements": [
+        "Filament/Resources/Procurement"
+      ],
+      "Proxy": [
+        "Dto/Procurement",
+        "Services/Procurement"
+      ],
+      "Screening": [
+        "Services/Procurement"
+      ],
+      "Tuning": [
+        "Services/Procurement"
+      ]
+    },
+    "Reference": {}
+  },
+  "technical_axis": [
+    {
+      "path": "app/Attributes",
+      "root_files": 0,
+      "subdirs": [
+        "Ai"
+      ]
+    },
+    {
+      "path": "app/Attributes/Ai",
+      "root_files": 2,
+      "subdirs": []
+    },
+    {
+      "path": "app/Casts",
+      "root_files": 1,
+      "subdirs": []
+    },
+    {
+      "path": "app/Console",
+      "root_files": 0,
+      "subdirs": [
+        "Commands",
+        "Concerns",
+        "Support"
+      ]
+    },
+    {
+      "path": "app/Console/Concerns",
+      "root_files": 2,
+      "subdirs": []
+    },
+    {
+      "path": "app/Console/Support",
+      "root_files": 1,
+      "subdirs": []
+    },
+    {
+      "path": "app/Filament",
+      "root_files": 0,
+      "subdirs": [
+        "Pages",
+        "Resources",
+        "Widgets"
+      ]
+    },
+    {
+      "path": "app/Filament/Pages",
+      "root_files": 1,
+      "subdirs": []
+    },
+    {
+      "path": "app/Filament/Widgets",
+      "root_files": 1,
+      "subdirs": []
+    },
+    {
+      "path": "app/Guards",
+      "root_files": 0,
+      "subdirs": [
+        "Admin"
+      ]
+    },
+    {
+      "path": "app/Guards/Admin",
+      "root_files": 1,
+      "subdirs": [
+        "Permissions",
+        "Policies",
+        "Roles"
+      ]
+    },
+    {
+      "path": "app/Guards/Admin/Permissions",
+      "root_files": 16,
+      "subdirs": []
+    },
+    {
+      "path": "app/Guards/Admin/Policies",
+      "root_files": 1,
+      "subdirs": []
+    },
+    {
+      "path": "app/Guards/Admin/Roles",
+      "root_files": 3,
+      "subdirs": []
+    },
+    {
+      "path": "app/Http",
+      "root_files": 0,
+      "subdirs": [
+        "Controllers",
+        "Middleware"
+      ]
+    },
+    {
+      "path": "app/Http/Controllers",
+      "root_files": 1,
+      "subdirs": []
+    },
+    {
+      "path": "app/Http/Middleware",
+      "root_files": 1,
+      "subdirs": []
+    },
+    {
+      "path": "app/Models/Concerns",
+      "root_files": 2,
+      "subdirs": []
+    },
+    {
+      "path": "app/Models/Scopes",
+      "root_files": 1,
+      "subdirs": []
+    },
+    {
+      "path": "app/Notifications",
+      "root_files": 1,
+      "subdirs": []
+    },
+    {
+      "path": "app/Providers",
+      "root_files": 2,
+      "subdirs": [
+        "Filament"
+      ]
+    },
+    {
+      "path": "app/Providers/Filament",
+      "root_files": 1,
+      "subdirs": []
+    },
+    {
+      "path": "app/Pulse",
+      "root_files": 0,
+      "subdirs": [
+        "Cards"
+      ]
+    },
+    {
+      "path": "app/Pulse/Cards",
+      "root_files": 2,
+      "subdirs": []
+    },
+    {
+      "path": "app/Services/Storage",
+      "root_files": 1,
+      "subdirs": []
+    },
+    {
+      "path": "app/Support",
+      "root_files": 0,
+      "subdirs": [
+        "Files"
+      ]
+    },
+    {
+      "path": "app/Support/Files",
+      "root_files": 2,
+      "subdirs": []
+    }
+  ]
+}
