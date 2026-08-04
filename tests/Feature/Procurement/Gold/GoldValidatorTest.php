@@ -66,3 +66,16 @@ test('assertValid бросает ValidationException с ключом gold на �
 test('assertValid молчит на валидном payload', function () {
     (new GoldValidator)->assertValid(validGoldPayload());
 })->throwsNoExceptions();
+
+test('каждый пересобранный эталон корпуса проходит GoldValidator без ошибок', function () {
+    $paths = glob(base_path('estimates/gold/*.gold.json'));
+
+    expect($paths)->not->toBeEmpty();
+
+    foreach ($paths as $path) {
+        $gold = json_decode((string) file_get_contents($path), true, flags: JSON_THROW_ON_ERROR);
+        $errors = (new GoldValidator)->validate($gold);
+
+        expect($errors)->toBe([], basename($path).': '.implode(' | ', $errors));
+    }
+});

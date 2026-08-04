@@ -8,12 +8,15 @@
                 "address": "Текущий ремонт помещения в здании МКУ \"Кременской центр обслуживания органов местного самоуправления, учреждений культуры и спорта\", 292900, ЛНР, г. Кременная, пл. Красная, д. 14А",
                 "generator": "ГрандСмета 15.3.5.55343",
                 "contract_number": null,
-                "contract_date": null
+                "contract_date": null,
+                "regulatory_amendments": null,
+                "index_letter": null
             },
             "estimate_number": "ЛСР-02-01-01",
             "currency": "RUB",
             "base_year": 2022,
             "price_level": "ФСНБ-2022 (с Изм. 1-13)",
+            "regulatory_base": null,
             "rows_expected": 110,
             "totals": {
                 "footer": [

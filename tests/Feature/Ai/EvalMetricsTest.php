@@ -169,6 +169,13 @@ test('итоги: chapter_number/rate участвуют в сравнении �
         ->and($metrics['totals']['rate']['f1'])->toBeLessThan(1.0);
 });
 
+test('P5.6/D46: три новых поля паспорта (regulatory_base/regulatory_amendments/index_letter) не заходят в PASSPORT_FIELD_MAP — ни один gold-маппер их не заполняет машинно', function () {
+    expect(EvalMetrics::PASSPORT_FIELD_MAP)
+        ->not->toContain('regulatory_base')
+        ->not->toContain('passport.regulatory_amendments')
+        ->not->toContain('passport.index_letter');
+});
+
 test('расширение EvalMetrics не ломает существующие ключи per_field/overall/row_coverage — passport/totals добавлены отдельно', function () {
     $gold = estimatesOf([goldRow(1)]);
     $predicted = estimatesOf([goldRow(1)]);

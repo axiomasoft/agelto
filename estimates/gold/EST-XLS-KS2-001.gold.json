@@ -8,12 +8,15 @@
                 "address": null,
                 "generator": null,
                 "contract_number": null,
-                "contract_date": null
+                "contract_date": null,
+                "regulatory_amendments": null,
+                "index_letter": null
             },
             "estimate_number": null,
             "currency": "RUB",
             "base_year": null,
             "price_level": null,
+            "regulatory_base": null,
             "rows_expected": 7,
             "totals": null,
             "calc_method": null,
