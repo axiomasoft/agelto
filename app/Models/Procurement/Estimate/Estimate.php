@@ -44,6 +44,7 @@ use Illuminate\Support\Str;
  * @property Carbon|null $period_end
  * @property int|null $rows_extracted
  * @property string $validation_status
+ * @property string|null $raw_result_ref
  * @property string|null $raw_result_disk
  * @property string|null $source_sheet_name
  * @property int|null $source_page_start

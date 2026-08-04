@@ -7,6 +7,7 @@ namespace App\Repositories\Procurement\Document;
 use App\Models\Procurement\Document\Document;
 use App\Models\Procurement\Document\DocumentVersion;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Support\LazyCollection;
 
 /**
  * Единственная точка персистентности `prc_documents`/`prc_document_versions` для `DocumentIndexer`
@@ -105,5 +106,29 @@ final readonly class DocumentStoreRepository
             ->where('document_id', $documentId)
             ->latest('downloaded_at')
             ->first();
+    }
+
+    /**
+     * Версии по возрастанию `id`, начиная с `$fromId` — read-путь backfill'а дисков (P6.5,
+     * `research/07-storage-addressing.md` §6): Eloquent cursor, память не растёт с объёмом.
+     *
+     * @return LazyCollection<int, DocumentVersion>
+     */
+    public function versionsFromId(int $fromId): LazyCollection
+    {
+        return DocumentVersion::query()
+            ->where('id', '>=', $fromId)
+            ->orderBy('id')
+            ->select(['id', 'disk', 'storage_path', 'content_hash'])
+            ->cursor();
+    }
+
+    /**
+     * Точечная запись диска версии по `id` — write-путь backfill'а (P6.5), когда объект под рукой
+     * только как примитив (id/disk/path/hash), не гидратированная модель.
+     */
+    public function updateVersionDisk(int $id, string $disk): void
+    {
+        DocumentVersion::query()->whereKey($id)->update(['disk' => $disk]);
     }
 }

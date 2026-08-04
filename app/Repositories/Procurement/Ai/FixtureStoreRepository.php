@@ -8,6 +8,7 @@ use App\Enums\Procurement\Ai\GoldSource;
 use App\Models\Procurement\Ai\Fixture;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\LazyCollection;
 
 /**
  * Единственная точка персистентности `prc_ai_fixtures` (D6) — реестр эталонных ФАЙЛОВ.
@@ -80,5 +81,29 @@ final readonly class FixtureStoreRepository
             ->orderByRaw("type_profile->>'form'")
             ->orderBy('code')
             ->get(['code', 'source_format', DB::raw("type_profile->>'form' as form")]);
+    }
+
+    /**
+     * Эталоны по возрастанию `id`, начиная с `$fromId` — read-путь backfill'а дисков (P6.5,
+     * `research/07-storage-addressing.md` §6): Eloquent cursor, память не растёт с объёмом.
+     *
+     * @return LazyCollection<int, Fixture>
+     */
+    public function fromId(int $fromId): LazyCollection
+    {
+        return Fixture::query()
+            ->where('id', '>=', $fromId)
+            ->orderBy('id')
+            ->select(['id', 'disk', 'storage_path', 'sha256'])
+            ->cursor();
+    }
+
+    /**
+     * Точечная запись диска эталона по `id` — write-путь backfill'а (P6.5), когда объект под рукой
+     * только как примитив (id/disk/path/hash), не гидратированная модель.
+     */
+    public function updateDisk(int $id, string $disk): void
+    {
+        Fixture::query()->whereKey($id)->update(['disk' => $disk]);
     }
 }

@@ -11,6 +11,7 @@ use App\Models\Procurement\Estimate\Item;
 use App\Models\Procurement\Estimate\Section;
 use App\Models\Procurement\Estimate\Total;
 use App\Models\Procurement\Estimate\WorkType;
+use Illuminate\Support\LazyCollection;
 
 /**
  * Единственная точка персистентности `prc_estimates`/`prc_estimate_sections`/
@@ -43,6 +44,32 @@ final readonly class EstimateStoreRepository
     public function deleteByAnalysisId(int $analysisId): void
     {
         Estimate::query()->where('analysis_id', $analysisId)->delete();
+    }
+
+    /**
+     * Сметы с вынесенным сырым результатом (`raw_result_ref IS NOT NULL`) по возрастанию `id`,
+     * начиная с `$fromId` — read-путь backfill'а дисков (P6.5, `research/07-storage-addressing.md`
+     * §6): строки с inline `raw_result` не носят файла и backfill'у не подлежат.
+     *
+     * @return LazyCollection<int, Estimate>
+     */
+    public function withRawResultRefFromId(int $fromId): LazyCollection
+    {
+        return Estimate::query()
+            ->where('id', '>=', $fromId)
+            ->whereNotNull('raw_result_ref')
+            ->orderBy('id')
+            ->select(['id', 'raw_result_disk', 'raw_result_ref'])
+            ->cursor();
+    }
+
+    /**
+     * Точечная запись диска сырого результата — write-путь backfill'а (P6.5), симметрично
+     * писателю `EstimatePersister::rawResultAttributes()`.
+     */
+    public function updateRawResultDisk(int $id, string $disk): void
+    {
+        Estimate::query()->whereKey($id)->update(['raw_result_disk' => $disk]);
     }
 
     /**
