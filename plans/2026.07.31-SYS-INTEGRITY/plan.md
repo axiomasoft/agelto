@@ -11,7 +11,7 @@
 | Document Type | Executable Master Plan |
 | Authoring Model | frontier |
 | Design Passes | 4/4 — 7 фаз + высокая неопределённость брифа (владелец: «многое требует исследований и подтверждений», вердикт по п.7 снят до исследования); pass 1 — скелеты, контракт-блоки, D1–D14, слои brief/findings/research; pass 2 — детализация фаз до DoR; pass 3 — `finish`: сквозной reconcile контрактов + roadmap; pass 4 — ПОВТОРНЫЙ `finish` по вердикту `plan-audit design` (RED, 14 находок): контракт-блок P7 менялся после pass 3 поправками владельца D70–D73, а `plan-protocol` §5 требует на изменение контракта фазы новый `finish`, а не точечную правку |
-| Last Updated | 2026-08-02 |
+| Last Updated | 2026-08-04 |
 | Repository | agelto (branch main) |
 | Related Packages | spatie/laravel-data, filament/filament, laravel/horizon, prism-php/prism, guzzlehttp/guzzle, league/flysystem-aws-s3-v3, pg_partman; Playwright — только как инструмент разведки (MCP), не рантайм-зависимость |
 | Execution Mode | phase-first |
@@ -281,6 +281,14 @@ Prism `unhandled finish reason`, decimal-cast); **M3c** (EvalRun #12, дерев
 канона вниз. Семантика кейсов `RowType` остаётся правилом [step]-текста, типизированный носитель
 переведён в `open-questions.md` как `Exploration` (D107). Очередь items фазы —
 `… → P2.5 → P2.6 → P2.11 → P2.12 → P2.7`.
+**P2.12 закрыт 🟠 2026-08-04** (без item-коммита, дифф пуст на `7718a03`): удаления дублей схемы
+(шесть из девяти файлов, `+15/−28`) написаны и измерены — EvalRun #18 (кандидат 6/6) против базы
+#12 через `noise-aware --noise-pair=4,5` → `reject`, единственная причина в полосе неоднозначности
+`≤2×` (D110). Предписанный второй прогон того же кандидата (EvalRun #19) вернулся неполным (5/6,
+сетевой таймаут одного эталона) и не образовал сравнимую пару; владелец отказался от третьего
+платного прогона. Тексты возвращены `git checkout --` к канону, `ai:prompts:sync` пересинхронизирован
+— детали `phases/P2.md` P2.12 Completion Notes, `research/03-prompt-contract.md` §8.18. Очередь фазы
+после P2.12 — только `P2.7` (доки/приёмка фазы).
 
 ## 5. Decision Log
 
@@ -464,6 +472,7 @@ Prism `unhandled finish reason`, decimal-cast); **M3c** (EvalRun #12, дерев
 | 2026-08-02 | plan-run / opus-high | **P2.12 🔴 Blocked (эскалация D106)**: M5 = EvalRun #14 → `reject`, вывод упал ещё ниже M4 при устранённых всех трёх механизмах §8.14 — диагноз опровергнут как достаточный; тексты откачены, тест-гейт И1–И4 доставлен — детали см. phases/P2.md P2.12 Completion Notes |
 | 2026-08-02 | issue-planner / frontier-high | Ре-дизайн P2.12 по эскалации D106 — **D108–D111**: критерий отвергает нулевое изменение; заведён P2.13, P2.12 сужен до удаления дублей схемы, OQ-7 — детали см. `findings/P2-eval-resolution-2026-08-02.md` и `research/03` §8.16 |
 | 2026-08-02 | plan-run / sonnet-high | P2.13 закрыт 🟢, item-коммит **`2b9a59e`**: режим `noise-aware` в `EvalRunComparator` — пороги из нулевой пары #4/#5, `overall`+профиль вызовов в отчёте — детали см. phases/P2.md P2.13 Completion Notes |
+| 2026-08-04 | plan-run / sonnet-high | P2.12 закрыт 🟠: EvalRun #18/#19 → `reject`, второй прогон неполон, откат к канону — детали см. phases/P2.md P2.12 Completion Notes, research/03 §8.18 |
 
 ## Обсуждение
 
