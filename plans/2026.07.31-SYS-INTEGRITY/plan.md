@@ -158,7 +158,7 @@ P7.3 не выбирает топологию, а подтверждает ре�
 | Phase | Title | Items 🟢/всего | Status |
 |:--|:--|:--|:--|
 | P1 | Прокси как слой маршрутизации: скоуп, гео, здоровье, привязка к профилю | 4/10 | 🟠 Done with deviations |
-| P2 | Контракт LLM в одном канале: `#[Description]`, JSON Schema, промты | 5/13 | 🟡 In progress |
+| P2 | Контракт LLM в одном канале: `#[Description]`, JSON Schema, промты | 5/13 | 🟠 Done with deviations |
 | P3 | Доменная раскладка и arch-тесты | 0/5 | ⬜ Not started |
 | P4 | ЕИС: разведка, типизированные фильтры, сиды кроулеров, боевой прогон | 0/8 | ⬜ Not started |
 | P5 | Полнота сметной модели против корпуса эталонов | 0/8 | ⬜ Not started |
@@ -473,6 +473,7 @@ Prism `unhandled finish reason`, decimal-cast); **M3c** (EvalRun #12, дерев
 | 2026-08-02 | issue-planner / frontier-high | Ре-дизайн P2.12 по эскалации D106 — **D108–D111**: критерий отвергает нулевое изменение; заведён P2.13, P2.12 сужен до удаления дублей схемы, OQ-7 — детали см. `findings/P2-eval-resolution-2026-08-02.md` и `research/03` §8.16 |
 | 2026-08-02 | plan-run / sonnet-high | P2.13 закрыт 🟢, item-коммит **`2b9a59e`**: режим `noise-aware` в `EvalRunComparator` — пороги из нулевой пары #4/#5, `overall`+профиль вызовов в отчёте — детали см. phases/P2.md P2.13 Completion Notes |
 | 2026-08-04 | plan-run / sonnet-high | P2.12 закрыт 🟠: EvalRun #18/#19 → `reject`, второй прогон неполон, откат к канону — детали см. phases/P2.md P2.12 Completion Notes, research/03 §8.18 |
+| 2026-08-04 | plan-exec / sonnet-low | P2.7 закрыт 🟠, item-коммит **`529df8f`**: доки/спека/глоссарии синхронизированы под P2.3–P2.6, фаза P2 терминальна — детали см. phases/P2.md P2.7 Completion Notes |
 
 ## Обсуждение
 
