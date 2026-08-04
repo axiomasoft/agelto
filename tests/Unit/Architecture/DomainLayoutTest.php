@@ -1,0 +1,140 @@
+<?php
+
+declare(strict_types=1);
+
+use Symfony\Component\Finder\Finder;
+
+/*
+ * Приёмочное свойство P3.4 (`research/04-domain-layout.md` §2.2/§6): правило §2.1 закреплено
+ * машинным гейтом на слоях, ВЫРОВНЕННЫХ этой фазой (P3.2 — `app/Enums/Procurement`; P3.3 —
+ * утверждённые D113 слои `app/Exceptions/Procurement`, `app/Dto/Procurement`,
+ * `app/Repositories/Procurement`). Слои, фазой не выравнивавшиеся (`app/Enums/Llm`,
+ * `app/Exceptions/Llm` — оба легальны плоскими по §2.4, домен-пересекающие адреса D113/П3.2–П3.3),
+ * гейтом не судятся (D65).
+ *
+ * Форма — Finder по файловой системе, НЕ `pest-plugin-arch`: предмет проверки — путь и строка
+ * `namespace`, а не граф `uses` (`core-arch-gate-2026-07-30.md` §9.6/§2). Реестры root-legal
+ * классов и утверждённых подобластей — рукописные константы (разрешённое, не проверяемое —
+ * research/04 §2.2 I3), периметр файлов и подкаталогов собирается ДИНАМИЧЕСКИ.
+ */
+
+/**
+ * @return array<string, array{root: list<string>, subareas: list<string>}>
+ */
+function alignedDomainLayoutLayers(): array
+{
+    return [
+        // P3.2, Completion Notes: 7 корневых (6 ядро + `OperationLogLevel` кросс), Completion Notes P3.2.
+        'App\Enums\Procurement' => [
+            'root' => [
+                'AwardStatus', 'BidStatus', 'EisProcedureType', 'ProcurementEventType',
+                'ProcurementStatus', 'ProtocolType', 'OperationLogLevel',
+            ],
+            'subareas' => ['Ai', 'Analyzers', 'Crawler', 'Document', 'Estimate', 'Proxy'],
+        ],
+        // P3.3, Completion Notes: `OperationFailed` (базовый, кросс) + `UnknownReportFormat` (кросс).
+        'App\Exceptions\Procurement' => [
+            'root' => ['OperationFailed', 'UnknownReportFormat'],
+            'subareas' => ['Ai', 'Proxy'],
+        ],
+        // P3.3, Completion Notes: три файла ядра закупки остаются в корне.
+        'App\Dto\Procurement' => [
+            'root' => ['ProcurementDetails', 'ProcurementSnapshotData', 'StatusResolution'],
+            'subareas' => ['Ai', 'Analyzers', 'Bench', 'Crawler', 'Details', 'Fixture', 'Gold', 'Prepare', 'Proxy'],
+        ],
+        // P3.3, Completion Notes: три ядровых репозитория закупки остаются в корне.
+        'App\Repositories\Procurement' => [
+            'root' => ['ProcurementDetailStoreRepository', 'ProcurementReadRepository', 'ProcurementStoreRepository'],
+            'subareas' => ['Ai', 'Analyzers', 'Document', 'Proxy'],
+        ],
+    ];
+}
+
+function domainLayoutLayerDirectory(string $namespace): string
+{
+    return app_path(str_replace('\\', '/', substr($namespace, strlen('App\\'))));
+}
+
+test('в корне выровненных слоёв раскладки нет файлов сверх реестра root-legal классов', function (): void {
+    $violations = [];
+
+    foreach (alignedDomainLayoutLayers() as $namespace => $layer) {
+        $directory = domainLayoutLayerDirectory($namespace);
+
+        foreach (Finder::create()->files()->in($directory)->depth('== 0')->name('*.php') as $file) {
+            $class = $file->getBasename('.php');
+
+            if (! in_array($class, $layer['root'], strict: true)) {
+                $violations[] = sprintf(
+                    '%s\%s.php лежит в корне слоя %s, но не входит в реестр root-legal классов '.
+                    '(research/04-domain-layout.md §2.1/§6): либо файл принадлежит подобласти и '.
+                    'должен переехать в подкаталог, либо реестр устарел.',
+                    $namespace,
+                    $class,
+                    $namespace
+                );
+            }
+        }
+    }
+
+    expect($violations)->toBe([]);
+});
+
+test('namespace каждого файла выровненных слоёв совпадает с его путём', function (): void {
+    $violations = [];
+
+    foreach (alignedDomainLayoutLayers() as $namespace => $layer) {
+        $directory = domainLayoutLayerDirectory($namespace);
+
+        foreach (Finder::create()->files()->in($directory)->name('*.php') as $file) {
+            $relativeDirectory = $file->getRelativePath();
+            $expectedNamespace = $relativeDirectory === ''
+                ? $namespace
+                : $namespace.'\\'.str_replace('/', '\\', $relativeDirectory);
+
+            $source = (string) file_get_contents($file->getRealPath());
+
+            if (! preg_match('/^namespace\s+([^;]+);/m', $source, $matches)) {
+                $violations[] = sprintf('%s не объявляет namespace.', $file->getRealPath());
+
+                continue;
+            }
+
+            if ($matches[1] !== $expectedNamespace) {
+                $violations[] = sprintf(
+                    '%s объявляет namespace %s, а по пути обязан быть %s.',
+                    $file->getRealPath(),
+                    $matches[1],
+                    $expectedNamespace
+                );
+            }
+        }
+    }
+
+    expect($violations)->toBe([]);
+});
+
+test('подкаталоги выровненных слоёв принадлежат утверждённому множеству подобластей', function (): void {
+    $violations = [];
+
+    foreach (alignedDomainLayoutLayers() as $namespace => $layer) {
+        $directory = domainLayoutLayerDirectory($namespace);
+
+        foreach (Finder::create()->directories()->in($directory)->depth('== 0') as $subdirectory) {
+            $name = $subdirectory->getFilename();
+
+            if (! in_array($name, $layer['subareas'], strict: true)) {
+                $violations[] = sprintf(
+                    'Подкаталог %s\%s не входит в утверждённое множество подобластей слоя %s '.
+                    '(research/04-domain-layout.md §2.1/§6): либо это новая подобласть, требующая '.
+                    'записи в реестре, либо ошибочно заведённый каталог.',
+                    $namespace,
+                    $name,
+                    $namespace
+                );
+            }
+        }
+    }
+
+    expect($violations)->toBe([]);
+});
