@@ -1278,6 +1278,85 @@ P2.12, если оно есть (та же ось, что уже дважды п
 RAG:— (repo-grounded: вывод `estimate:eval:compare --criterion=noise-aware` на парах #4→#5,
 #12→#13, #12→#14 в этом заходе; `app/Services/Procurement/Tuning/EvalRunComparator.php`).
 
+**8.18 P2.12 (D110) — минимальная дедупликация: что снято, чем подтверждён носитель, объёмы.**
+Заход `plan-run` (сессия opus/high), 2026-08-04. Единица изменения — УДАЛЕНИЕ; ни одна остающаяся
+формулировка не переписана. Дифф лежит в рабочем дереве НЕзакоммиченным (ветка отката ТЗ —
+`git checkout --` по девяти путям, поэтому до вердикта замера тексты не коммитятся); якорный
+тест-гейт директивной силы И1–И4 закоммичен ОТДЕЛЬНО и ДО правки текстов — `a770baf`
+(`test(ai): якорный тест-гейт директивной силы И1-И4 промтов (P2.12)`).
+
+**Построчный перечень удалённого — строка на каждое удаление, носитель подтверждён чтением кода.**
+
+| Шаг | Удалённый фрагмент | Носитель (подтверждён чтением) |
+|:--|:--|:--|
+| `screening:global` | «твоя калиброванная уверенность (0.0–1.0) в классификации, не формальность» | `ScreeningResult::$confidence` `#[Description]` («уверенность модели в классификации, от 0 … до 1») |
+| `screening:classify` | литерал `estimate` в bullet'е сметы | `ScreeningResult::$document_type` («тип документа — estimate/tech_spec/contract_draft/protocol/unknown») |
+| `screening:classify` | литерал `tech_spec` | там же |
+| `screening:classify` | литерал `contract_draft` | там же |
+| `screening:classify` | литерал `protocol` | там же |
+| `screening:classify` | «`ignore_reason` заполняется ТОЛЬКО при `document_type=unknown` — для распознанных типов оставляй `null`» | `ScreeningResult::$ignore_reason` («если документ точно не подходит … иначе null») |
+| `extraction:discovery` | литерал `estimate_start` | `DiscoveryMarkerLine::$marker` (несёт семантику всех трёх маркеров) |
+| `extraction:discovery` | литерал `continuation` | там же |
+| `extraction:discovery` | литерал `estimate_end` | там же |
+| `extraction:passport` | bullet «`estimate_number` — номер сметы, если указан» | `PassportResponse::$estimate_number` («номер/идентификатор сметы, если указан в документе») |
+| `extraction:passport` | bullet «`currency` — код валюты (по умолчанию `RUB`…)» | `PassportResponse::$currency` («код валюты, по умолчанию рубль») + дефолт конструктора `= 'RUB'` |
+| `extraction:passport` | bullet «`base_year` — базовый год цен…» | `PassportResponse::$base_year` («базовый год цен (напр. 2001 для ФЕР), если указан») |
+| `extraction:passport` | bullet «`price_level` — текстовое указание уровня цен…» | `PassportResponse::$price_level` (дословно то же условие) |
+| `extraction:passport` | bullet «`totals` — заполняй ТОЛЬКО если подвал попал в тот же контекст; иначе `null`» | `PassportResponse::$totals` («иначе null — запрашиваются отдельно через extract_totals») |
+| `extraction:passport` | хвост bullet'а `rows_expected` «это ориентир для контроля полноты на бэкенде, не обязана быть точной до единицы» | `PassportResponse::$rows_expected` («ключ для контроля полноты на бэкенде … ориентир, не строгий гейт») |
+| `extraction:rows` | имена трёх атрибутов разрезов КС-3 (`amount_since_start`, `amount_since_year_start`, `amount_reporting_period`) с их подписями | `RowAttributes` `#[Description]` на каждом из трёх («КС-3 — стоимость с начала проведения работ / с начала года / за отчётный период») |
+| `extraction:rows` | `reason=split_by_page_end` | `IncompleteRow::$reason` (несёт оба литерала с их семантикой) |
+| `extraction:rows` | `reason=orphan_numbers_at_page_start` | там же |
+| `extraction:totals` | «(сумма как строка, не число с плавающей точкой — переноси десятичные разряды один в один)» | `TotalLine::$value` («decimal без потерь — конверсия во float запрещена») + `extraction:global` §«Разряды и точность» |
+
+**Сшивки — 15 добавленных строк, все поимённо** (`git diff --numstat`: +15/−28 по шести путям):
+`screening:classify` — четыре переголовленных bullet'а («Смета (ЛСР…», «Техническое задание…»,
+«Проект контракта/договора…», «Протокол…») + закрытие предложения на «…«чертёж»).»;
+`screening:global` — переносом склеенный bullet `confidence` (2 строки);
+`extraction:discovery` — три переголовленных bullet'а маркеров; `extraction:passport` — перенос
+хвоста bullet'а `rows_expected` (1 строка); `extraction:rows` — «…раскладывай по нижней строке
+двухстрочной шапки.», «Помести обрывок в `incomplete_items`, сохранив то, что видно» и «Помести
+их в `incomplete_items`.»; `extraction:totals` — «— `label` (подпись как в документе) + `value`.».
+Новых правил, примеров и переформулировок нет.
+
+**Объёмы ДО/ПОСЛЕ (`wc -c`, канон на `a770baf` → рабочее дерево):** `global` 1166→1166 ·
+`screening:global` 2957→2822 · `screening:classify` 4252→4030 · `prompt:critic` 3484→3484 ·
+`extraction:global` 6133→6133 · `extraction:discovery` 2924→2865 · `extraction:passport`
+4282→3273 · `extraction:rows` 5803→5424 · `extraction:totals` 3307→3142. Итого **34 308 → 32 339
+байт (−5.7 %)**; ни один файл не вырос. Для сравнения: обе отклонённые редакции были ДЛИННЕЕ
+канона (M4 и M5 — 37 415 байт, +9.1 %), то есть кандидат P2.12 — первый на фазе, идущий по оси
+объёма в противоположную сторону, и тем самым бесплатно разделяет гипотезу §8.16 «длиннее
+системная часть → скупее вывод».
+
+**Расхождение таблицы §8.15 с кодом — одна строка, удаление НЕ сделано (находка, не долг текста).**
+Строка «`extraction:totals` · «НДС по умолчанию 20 %» · носитель `extraction:global`» носителем не
+подтверждена: `grep -n "НДС" resources/estimates/ai/prompts/extraction-global/0-extraction-global.md`
+пуст — правило про 20 % живёт ТОЛЬКО в `extraction:totals`, а в `extraction:global` его перенесла
+ОТКЛОНЁННАЯ редакция M5, откаченная вместе с текстами. По Implementation Rules item'а («носитель не
+подтвердился чтением — строка НЕ удаляется») фрагмент сохранён дословно; факт вынесен сюда и в
+Pending Work item'а. Строки таблицы про блок «Безопасность» (`screening:global`/`extraction:global`
+→ `global`) не исполнялись по прямому запрету Code Guidance («удалять блок безопасности» —
+запрещено) — это не расхождение, а выписанное в ТЗ исключение.
+
+**Провенанс кандидата (замер ещё не куплен).** Версии front-matter НЕ бампались (дифф item'а —
+только удаления), поэтому `prompt_version_set` будущего прогона будет читаться так же, как у базы
+#12; идентичность кандидата фиксируется md5 девяти файлов на дереве замера: `global` `649bd567` ·
+`screening:global` `44e80d6e` · `screening:classify` `7691b0a7` · `prompt:critic` `1dbfc0bf` ·
+`extraction:global` `aaf886c6` · `extraction:discovery` `dace6ab6` · `extraction:passport`
+`b5b4c077` · `extraction:rows` `4a6aa05f` · `extraction:totals` `3c843d1c` (`md5sum`, первые 8
+символов). Дрейфа файлы↔БД нет (`ai:prompts:sync` + `--check` — «Дрейф файлы↔БД не обнаружен»),
+задвоенных активных `is_protected`-записей нет (пустой массив), маршруты `llm_routes` с прогона
+#14 не менялись (item в них не пишет): `extract_passport`/`extract_rows`/`extract_totals` —
+`gemini-3.1-pro-preview` + `{"max_tokens":65536,"thinking_level":"LOW"}`.
+
+**Вердикт — не получен: платный замер решением владельца 2026-08-04 НЕ куплен в этом заходе.**
+Item остаётся `🟡 In progress`; строки «номер прогона / вердикт `noise-aware` дословно / профиль
+вызовов против #12/#13/#14 / вердикт по гипотезе §8.16» дописываются сюда тем заходом, который
+купит прогон. Никакая часть отчёта не заполняется предположением.
+RAG:— (repo-grounded: `git diff --numstat` и `wc -c` по девяти путям рабочего дерева на `a770baf`;
+чтение `app/Dto/Procurement/Analyzers/Estimate/*`, `app/Dto/Procurement/Ai/Screening/ScreeningResult.php`;
+вывод `ai:prompts:sync --check`, `artisan test --no-tia --filter=PromptComposition`).
+
 ## 10. Неоднозначности — все сняты
 
 | Спорное | Разрешение |
