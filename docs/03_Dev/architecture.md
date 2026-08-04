@@ -44,6 +44,14 @@ status: draft
   `Validation/`; модели/фабрики/репозитории транспорта — `app/Models/Llm/**`,
   `database/factories/Llm/**`, `app/Repositories/Llm/**` (D22, P1.5). Подробнее —
   [`llm-providers.md`](llm-providers.md).
+- `Services/Storage/` — адресация файлов на дисках (P6): `FileLocationResolver` — единственная
+  точка «по записи дай диск+путь» (read-половина фолбэкает `null`/пробует цепочку прошлых
+  поколений на окно cutover, D51) и «на какой диск класть новый объект» (write-половина —
+  единственный легальный читатель конфиг-ключей диска, `crawler.documents_disk`/
+  `ai.fixtures.disk`/`crawler.raw_disk`); `FileLocation` — неизменяемый VO (`disk`+`path`).
+  `Console/Commands/Storage/DiskBackfillCommand` (`storage:disk-backfill`) — материализация `null`
+  и перенос объектов между дисками с верификацией sha256/размера. Подробнее — колонка `disk` в
+  [`database.md`](database.md) и runbook [`storage-provider-switch.md`](runbooks/storage-provider-switch.md).
 - `Dto/` / `Enums/` — доменные контракты и enum'ы; размещение внутри доменной папки — по правилу
   подобластей, см. «Правило размещения внутри доменной папки слоя» ниже.
 - `Jobs/Procurement/` — очереди (`PipelineJob` — общий абстракт, `PrepareDocumentJob`,

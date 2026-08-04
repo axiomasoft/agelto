@@ -10,5 +10,6 @@ status: living
 - [Ошибки Gemini](gemini-errors.md) — квоты/429/региональные блокировки/прокси.
 - [Затор Horizon](horizon-backlog.md) — растёт очередь, supervisor'ы.
 - [Сверка с биллингом провайдера](billing-reconcile.md) — `ai:cost-reconcile`, расхождение трекинга с биллингом.
+- [Смена S3-провайдера](storage-provider-switch.md) — переименование дисков, материализация, фолбэк, backfill, cutover.
 
 Формат: Symptoms → Triage → Fix → Rollback → Escalation.
