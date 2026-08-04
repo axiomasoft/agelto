@@ -516,6 +516,10 @@ return [
 
     'fixtures' => [
         'disk' => env('AI_FIXTURES_DISK', 'estimates'),
+        // Fallback-цепочка на окно cutover (P6.4, `research/07-storage-addressing.md` §5) —
+        // упорядоченный список имён дисков от новых поколений к старым, ДАННЫЕ, не ветка кода.
+        // Пустая по умолчанию: поведение не меняется байт-в-байт. Читатель — `FileLocationResolver::forFixture()`.
+        'fallback_disks' => [],
         'manifest_path' => base_path('estimates/manifest.json'),
         'gold_dir' => base_path('estimates/gold'),
         'source_dir' => base_path('estimates/files'),
