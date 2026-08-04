@@ -485,6 +485,7 @@ Prism `unhandled finish reason`, decimal-cast); **M3c** (EvalRun #12, дерев
 | 2026-08-04 | plan-run / sonnet-high | P3.3 закрыт 🟠, item-коммит **`4e844fe`**: три утверждённых D113 слоя (Exceptions 13/15, Dto 4/7, Repositories 13/16) перенесены по правилу §2.1 — детали см. `phases/P3.md` P3.3 Completion Notes |
 | 2026-08-04 | plan-run / sonnet-high | P3.4 закрыт 🟠, item-коммит **`b6cf324`**: `DomainLayoutTest` — три Finder-проверки правила §2.1 на четырёх слоях, выровненных P3.2/P3.3, все три с доказанной красной пробой — детали см. `phases/P3.md` P3.4 Completion Notes |
 | 2026-08-04 | plan-exec / sonnet-medium | P3.5 закрыт 🟠, item-коммит **`b046496`**: правило §2.1 записано в `docs/03_Dev/architecture.md` + кратко в `.ai/guidelines/architecture.md`/`CLAUDE.md`, пути/FQN семи файлов приведены к подкаталогам P3.2/P3.3 — фаза P3 терминальна — детали см. `phases/P3.md` P3.5 Completion Notes |
+| 2026-08-04 | plan-close / sonnet-low | Фаза P3 закрыта: Phase Index `5/5`, `## Phase Handoff` уже собран (заполнен заходом P3.5), очередь D63 переходит на P5 |
 
 ## Обсуждение
 
