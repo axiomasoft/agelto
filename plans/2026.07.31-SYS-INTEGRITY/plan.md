@@ -501,6 +501,7 @@ Prism `unhandled finish reason`, decimal-cast); **M3c** (EvalRun #12, дерев
 | 2026-08-04 | plan-run / sonnet-high | P6.2 закрыт 🟢, item-коммит **`d4161b8`**: три миграции колонки диска (`prc_document_versions`, `prc_ai_fixtures`, `prc_estimates.raw_result_disk`), модели, фабрики, тест — детали см. phases/P6.md P6.2 Completion Notes |
 | 2026-08-04 | plan-run / sonnet-high | P6.3 закрыт 🟢, item-коммит **`cc5397e`**: `FileLocationResolver` — единственная точка чтения/записи диска, 5+2+1 writer-путей + 7 writer-call-site'ов представлений переведены на явную запись, гейт-тест с проверенной краснотой — детали см. phases/P6.md P6.3 Completion Notes |
 | 2026-08-04 | plan-run / sonnet-high | P6.4 закрыт 🟢, item-коммит **`6c7bb39`**: автомат фолбэка в `FileLocationResolver` (диск записи → `exists()` → цепочка новые→старые, промах в `Log::warning`), три конфиг-ключа цепочки (пустые по умолчанию, ноль I/O на happy path) — детали см. phases/P6.md P6.4 Completion Notes |
+| 2026-08-04 | plan-run / sonnet-high | P6.5 закрыт 🟠, item-коммит **`32fda0d`**: `storage:disk-backfill` (материализация + перенос с верификацией sha256/размера, 3 носителя), дифф вне Files — три StoreRepository + докблок `Estimate` — детали см. phases/P6.md P6.5 Completion Notes |
 
 ## Обсуждение
 
