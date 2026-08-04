@@ -1,0 +1,73 @@
+{
+  "_meta": {
+    "источник": "живая разведка P4.1, zakupki.gov.ru через RU-прокси (prc_proxies id=1, 185.218.0.130)",
+    "снято": "2026-08-04 20:33–21:00 UTC (серверная дата ЕИС в имени CSV-файла — 04.08.2026)",
+    "форма": "как читает App\\Services\\Procurement\\Eis\\EisCardUrlBuilder: settings['procedure_url_types'] и settings['card_url_templates']",
+    "реестр": "fz44",
+    "ключ procedure_url_types": "СЫРОЕ значение колонки CSV `methodOrderPurchaseCsv` (заголовок «Способ определения поставщика (подрядчика, исполнителя), подрядной организации (размещения закупки)»), а НЕ значение App\\Enums\\Procurement\\EisProcedureType",
+    "метод снятия": "джойн «реестровый номер → сегмент URL» (SSR-разметка листинга, ссылки common-info.html) × «реестровый номер → способ закупки» (CSV того же фильтра), 7 фильтров, 261 сопоставление, конфликтов нет",
+    "223-ФЗ": "в этот файл НЕ входит — у 223-ФЗ другая ветка карточки (/epz/order/notice/notice223/<вкладка>.html?purchaseNoticeNumber=<N>&noticeGuid=<GUID>), она требует GUID извещения и отдельного реестра"
+  },
+
+  "procedure_url_types": {
+    "Электронный аукцион": "ea20",
+    "Электронный аукцион на проведение работ по строительству, реконструкции, кап. ремонту, сносу объекта кап. строительства в соответствии с п. 8 ч. 1 ст. 33 Закона № 44-ФЗ": "ea20",
+    "Запрос котировок в электронной форме": "zk20",
+    "Запрос котировок в электронной форме на проведение работ по строительству, реконструкции, кап. ремонту, сносу объекта кап. строительства в соответствии с п. 8 ч. 1 ст. 33 Закона № 44-ФЗ": "zk20",
+    "Открытый конкурс в электронной форме": "ok20",
+    "Открытый конкурс в электронной форме на проведение работ по строительству, реконструкции, кап. ремонту, сносу объекта кап. строительства в соответствии с п. 8 ч. 1 ст. 33 Закона № 44-ФЗ": "ok20",
+    "Закупка, осуществляемая в соответствии с частью 12 статьи 93 Закона № 44-ФЗ": "ezt20",
+    "Электронный аукцион на оказание услуг или выполнение работ по капитальному ремонту общего имущества в многоквартирном доме": "ea615",
+    "Предварительный отбор квалифицированных подрядных организаций": "po615"
+  },
+
+  "card_url_templates": {
+    "ea20": {
+      "common-info": "https://zakupki.gov.ru/epz/order/notice/ea20/view/common-info.html?regNumber={regNumber}",
+      "documents": "https://zakupki.gov.ru/epz/order/notice/ea20/view/documents.html?regNumber={regNumber}",
+      "event-journal": "https://zakupki.gov.ru/epz/order/notice/ea20/view/event-journal.html?regNumber={regNumber}",
+      "supplier-results": "https://zakupki.gov.ru/epz/order/notice/ea20/view/supplier-results.html?regNumber={regNumber}"
+    },
+    "zk20": {
+      "common-info": "https://zakupki.gov.ru/epz/order/notice/zk20/view/common-info.html?regNumber={regNumber}",
+      "documents": "https://zakupki.gov.ru/epz/order/notice/zk20/view/documents.html?regNumber={regNumber}",
+      "event-journal": "https://zakupki.gov.ru/epz/order/notice/zk20/view/event-journal.html?regNumber={regNumber}",
+      "supplier-results": "https://zakupki.gov.ru/epz/order/notice/zk20/view/supplier-results.html?regNumber={regNumber}"
+    },
+    "ok20": {
+      "common-info": "https://zakupki.gov.ru/epz/order/notice/ok20/view/common-info.html?regNumber={regNumber}",
+      "documents": "https://zakupki.gov.ru/epz/order/notice/ok20/view/documents.html?regNumber={regNumber}",
+      "event-journal": "https://zakupki.gov.ru/epz/order/notice/ok20/view/event-journal.html?regNumber={regNumber}",
+      "supplier-results": "https://zakupki.gov.ru/epz/order/notice/ok20/view/supplier-results.html?regNumber={regNumber}"
+    },
+    "ezt20": {
+      "common-info": "https://zakupki.gov.ru/epz/order/notice/ezt20/view/common-info.html?regNumber={regNumber}",
+      "documents": "https://zakupki.gov.ru/epz/order/notice/ezt20/view/documents.html?regNumber={regNumber}",
+      "event-journal": "https://zakupki.gov.ru/epz/order/notice/ezt20/view/event-journal.html?regNumber={regNumber}",
+      "supplier-results": "https://zakupki.gov.ru/epz/order/notice/ezt20/view/supplier-results.html?regNumber={regNumber}"
+    },
+    "ea615": {
+      "common-info": "https://zakupki.gov.ru/epz/order/notice/ea615/view/common-info.html?regNumber={regNumber}",
+      "documents": "https://zakupki.gov.ru/epz/order/notice/ea615/view/documents.html?regNumber={regNumber}",
+      "event-journal": "https://zakupki.gov.ru/epz/order/notice/ea615/view/event-journal.html?regNumber={regNumber}"
+    },
+    "po615": {
+      "common-info": "https://zakupki.gov.ru/epz/order/notice/po615/view/common-info.html?regNumber={regNumber}",
+      "documents": "https://zakupki.gov.ru/epz/order/notice/po615/view/documents.html?regNumber={regNumber}",
+      "event-journal": "https://zakupki.gov.ru/epz/order/notice/po615/view/event-journal.html?regNumber={regNumber}"
+    }
+  },
+
+  "_observed": {
+    "проверенные карточки": {
+      "ea20": "0320300026126000144",
+      "zk20": "0322300059126000708",
+      "ok20": "0323300064326000001",
+      "ezt20": "0317300034826000001",
+      "ea615": "206050000012601031",
+      "po615": "010420000212600027"
+    },
+    "статусы вкладок": "все перечисленные шаблоны отвечают 200 без сессии (credentials: omit); supplier-results у ea615/po615 отдаёт 404 «Страница не найдена» — вкладки у 615-типов НЕТ, поэтому в шаблонах её нет",
+    "не установлено": "типы процедур сверх девяти наблюдённых (конкурс с ограниченным участием, двухэтапный конкурс, запрос предложений) — в выдаче за окно разведки не встретились; при появлении неизвестного способа EisCardUrlBuilder кинет CardUrlTemplateMissingException, что и есть штатный сигнал добрать справочник"
+  }
+}
