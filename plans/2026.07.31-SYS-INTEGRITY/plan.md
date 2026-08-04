@@ -487,6 +487,7 @@ Prism `unhandled finish reason`, decimal-cast); **M3c** (EvalRun #12, дерев
 | 2026-08-04 | plan-exec / sonnet-medium | P3.5 закрыт 🟠, item-коммит **`b046496`**: правило §2.1 записано в `docs/03_Dev/architecture.md` + кратко в `.ai/guidelines/architecture.md`/`CLAUDE.md`, пути/FQN семи файлов приведены к подкаталогам P3.2/P3.3 — фаза P3 терминальна — детали см. `phases/P3.md` P3.5 Completion Notes |
 | 2026-08-04 | plan-close / sonnet-low | Фаза P3 закрыта: Phase Index `5/5`, `## Phase Handoff` уже собран (заполнен заходом P3.5), очередь D63 переходит на P5 |
 | 2026-08-04 | plan-run / sonnet-high | P5.1 закрыт 🟠, item-коммит **`8c78b68`**: инвентарь записи (14 колонок класса A прогоном, 4 чтением кода) + дельта-сверка восьми пробелов (2 кандидата в P5.3, 1 переадресован на SR-11, 5 отложены/не пробел) — детали см. phases/P5.md P5.1 Completion Notes |
+| 2026-08-04 | plan-run / sonnet-high | P5.2 закрыт 🟠, item-коммит **`576794b`**: оба writer-пути доведены до полноты схемы (13/13 класса A в Scope — гидра `db_nonempty=gold_nonempty`, зонд P5.1), единый носитель полей позиции, `section_number` удалён — детали см. phases/P5.md P5.2 Completion Notes |
 
 ## Обсуждение
 
