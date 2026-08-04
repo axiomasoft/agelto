@@ -481,6 +481,7 @@ Prism `unhandled finish reason`, decimal-cast); **M3c** (EvalRun #12, дерев
 | 2026-08-04 | issue-planner / frontier-high | Ре-дизайн P3.1 (не design pass): фактура P3 пересчитана на `4b628a8` — **D112** + слой 1 `findings/P3-layout-facts-2026-08-04.md`; числа и шаблоны грепов правлены в P3.1–P3.3/P3.5, items не закрывались |
 | 2026-08-04 | plan-run / opus-high | P3.1 закрыт 🟢, item-коммит **`1fc3b8b`**: правило доменного размещения, таблица адресов 40 enum'ов, классы A/B по 20 слоям, проект гейта P3.4; гейт владельца выставлен предложением — OQ-8. Детали см. `phases/P3.md` P3.1 Completion Notes |
 | 2026-08-04 | владелец (гейт P3.1) | **Вердикт по OQ-8 — D113:** в P3.3 идут три слоя класса A (`Exceptions`/`Dto`/`Repositories` домена Procurement), `FinishReason` переносится в домен `Llm`. P3.3 вышел из формы `waiting:`, батч B2 исполняется группой |
+| 2026-08-04 | plan-run / sonnet-high | P3.2 закрыт 🟠, item-коммит **`c25bf2e`**: 33/40 enum'ов перенесены по `research/04` §3 — детали см. `phases/P3.md` P3.2 Completion Notes |
 
 ## Обсуждение
 
