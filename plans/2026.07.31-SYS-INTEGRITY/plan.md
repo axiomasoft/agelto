@@ -164,7 +164,7 @@ P7.3 не выбирает топологию, а подтверждает ре�
 | P3 | Доменная раскладка и arch-тесты | 1/5 | 🟠 Done with deviations |
 | P4 | ЕИС: разведка, типизированные фильтры, сиды кроулеров, боевой прогон | 0/8 | ⬜ Not started |
 | P5 | Полнота сметной модели против корпуса эталонов | 3/8 | 🟠 Done with deviations |
-| P6 | Адресация файлов: диск в записи, dual-read, backfill | 4/6 | 🟡 In progress |
+| P6 | Адресация файлов: диск в записи, dual-read, backfill | 5/6 | 🟠 Done with deviations |
 | P7 | Ревизия схемы БД, топология хранения, финальный аудит процессов | 0/8 | ⬜ Not started |
 
 Все семь фаз детализированы до DoR — P1 (**10** items после реопена D82; было 8), P2 (**13** — P2.8 заведён 2026-08-01 по D97, P2.9/P2.10 — 2026-08-01 по D98, P2.11/P2.12 —
@@ -502,6 +502,7 @@ Prism `unhandled finish reason`, decimal-cast); **M3c** (EvalRun #12, дерев
 | 2026-08-04 | plan-run / sonnet-high | P6.3 закрыт 🟢, item-коммит **`cc5397e`**: `FileLocationResolver` — единственная точка чтения/записи диска, 5+2+1 writer-путей + 7 writer-call-site'ов представлений переведены на явную запись, гейт-тест с проверенной краснотой — детали см. phases/P6.md P6.3 Completion Notes |
 | 2026-08-04 | plan-run / sonnet-high | P6.4 закрыт 🟢, item-коммит **`6c7bb39`**: автомат фолбэка в `FileLocationResolver` (диск записи → `exists()` → цепочка новые→старые, промах в `Log::warning`), три конфиг-ключа цепочки (пустые по умолчанию, ноль I/O на happy path) — детали см. phases/P6.md P6.4 Completion Notes |
 | 2026-08-04 | plan-run / sonnet-high | P6.5 закрыт 🟠, item-коммит **`32fda0d`**: `storage:disk-backfill` (материализация + перенос с верификацией sha256/размера, 3 носителя), дифф вне Files — три StoreRepository + докблок `Estimate` — детали см. phases/P6.md P6.5 Completion Notes |
+| 2026-08-04 | plan-exec / sonnet-medium | P6.6 закрыт 🟢, item-коммит **`d1b1aa2`**: runbook смены S3-провайдера (10 шагов + чеклист ловушек), раздел адресации в `database.md`/`architecture.md`, запись в `runbooks/_index.md`; фаза P6 терминальна (5/6, 🟠 Done with deviations) — детали см. phases/P6.md P6.6 Completion Notes |
 
 ## Обсуждение
 
