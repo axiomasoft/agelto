@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\Llm;
 
-use App\Exceptions\Procurement\UnknownProviderDriver;
+use App\Exceptions\Llm\UnknownProviderDriver;
 use App\Services\Llm\Contracts\LlmProvider;
 use App\Services\Llm\Providers\OpenAiCompatibleProvider;
 use App\Services\Llm\Providers\PrismGeminiProvider;

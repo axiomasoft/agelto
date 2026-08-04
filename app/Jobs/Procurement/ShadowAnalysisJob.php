@@ -9,7 +9,7 @@ use App\Enums\Llm\DocumentTypeScope;
 use App\Enums\Procurement\Ai\AiDocumentType;
 use App\Enums\Procurement\Ai\AnalysisStatus;
 use App\Models\Procurement\Ai\Analysis;
-use App\Repositories\Procurement\AnalysisStoreRepository;
+use App\Repositories\Procurement\Ai\AnalysisStoreRepository;
 use App\Services\Llm\Dto\JsonSchema;
 use App\Services\Llm\Dto\LlmPrompt;
 use App\Services\Llm\Dto\LlmStructuredResponse;

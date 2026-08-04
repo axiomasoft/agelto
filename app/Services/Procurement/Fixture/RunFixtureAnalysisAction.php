@@ -7,14 +7,14 @@ namespace App\Services\Procurement\Fixture;
 use App\Enums\Procurement\Ai\AnalysisStep;
 use App\Enums\Procurement\Ai\RunMode;
 use App\Enums\Procurement\Document\DocumentStatus;
-use App\Exceptions\Procurement\AnalysisRunAlreadyActive;
-use App\Exceptions\Procurement\ScreeningDisabled;
+use App\Exceptions\Procurement\Ai\AnalysisRunAlreadyActive;
+use App\Exceptions\Procurement\Ai\ScreeningDisabled;
 use App\Jobs\Procurement\PrepareDocumentJob;
 use App\Models\Procurement\Ai\Fixture;
-use App\Repositories\Procurement\AnalysisReadRepository;
-use App\Repositories\Procurement\AnalysisRunStoreRepository;
-use App\Repositories\Procurement\AnalysisStoreRepository;
-use App\Repositories\Procurement\DocumentStoreRepository;
+use App\Repositories\Procurement\Ai\AnalysisReadRepository;
+use App\Repositories\Procurement\Ai\AnalysisRunStoreRepository;
+use App\Repositories\Procurement\Ai\AnalysisStoreRepository;
+use App\Repositories\Procurement\Document\DocumentStoreRepository;
 use Illuminate\Support\Facades\DB;
 
 /**

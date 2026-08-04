@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\Llm;
 
-use App\Exceptions\Procurement\BillingExportUnreadable;
+use App\Exceptions\Llm\BillingExportUnreadable;
 use App\Services\Llm\Contracts\UsageSource;
 use App\Services\Llm\Dto\ReconciliationReport;
 use App\Services\Llm\Dto\ReconciliationRow;

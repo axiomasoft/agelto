@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Services\Procurement\Contracts;
 
-use App\Dto\Procurement\ListingBatch;
-use App\Dto\Procurement\ListingCursor;
+use App\Dto\Procurement\Crawler\ListingBatch;
+use App\Dto\Procurement\Crawler\ListingCursor;
 use App\Dto\Procurement\ProcurementDetails;
 use App\Models\Procurement\Crawler\Crawler;
 use App\Models\Procurement\Platform\Registry;

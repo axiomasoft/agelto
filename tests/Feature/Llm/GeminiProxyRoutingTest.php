@@ -3,10 +3,10 @@
 declare(strict_types=1);
 
 use App\Enums\Procurement\Proxy\ProxyScope;
-use App\Exceptions\Procurement\NoProxyAvailableException;
-use App\Exceptions\Procurement\ProxyPolicyMisconfiguredException;
+use App\Exceptions\Procurement\Proxy\NoProxyAvailableException;
+use App\Exceptions\Procurement\Proxy\ProxyPolicyMisconfiguredException;
 use App\Models\Procurement\Crawler\Proxy;
-use App\Repositories\Procurement\ProxyHealthStoreRepository;
+use App\Repositories\Procurement\Proxy\ProxyHealthStoreRepository;
 use App\Services\Llm\Contracts\OutboundProxy;
 use App\Services\Llm\Dto\JsonSchema;
 use App\Services\Llm\Dto\LlmOptions;

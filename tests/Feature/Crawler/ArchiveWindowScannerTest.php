@@ -2,8 +2,8 @@
 
 declare(strict_types=1);
 
-use App\Dto\Procurement\ListingBatch;
-use App\Dto\Procurement\WindowFilter;
+use App\Dto\Procurement\Crawler\ListingBatch;
+use App\Dto\Procurement\Crawler\WindowFilter;
 use App\Enums\Procurement\Crawler\CrawlerMode;
 use App\Enums\Procurement\Crawler\SourceMethod as SourceMethodEnum;
 use App\Models\Procurement\Crawler\Crawler;

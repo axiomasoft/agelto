@@ -10,8 +10,8 @@ use App\Models\Procurement\Ai\Fixture;
 use App\Models\Procurement\Document\Document;
 use App\Models\Procurement\Document\DocumentVersion;
 use App\Models\Procurement\Platform\Platform;
-use App\Repositories\Procurement\DocumentStoreRepository;
-use App\Repositories\Procurement\FixtureStoreRepository;
+use App\Repositories\Procurement\Ai\FixtureStoreRepository;
+use App\Repositories\Procurement\Document\DocumentStoreRepository;
 use App\Support\Files\ShardedBlobPath;
 use Illuminate\Support\Facades\Storage;
 

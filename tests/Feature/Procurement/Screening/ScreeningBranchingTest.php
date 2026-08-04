@@ -19,7 +19,7 @@ use App\Models\Procurement\Document\Document;
 use App\Models\Procurement\Document\DocumentVersion;
 use App\Models\Procurement\Procurement;
 use App\Models\Procurement\ProcurementEvent;
-use App\Repositories\Procurement\AnalysisRunStoreRepository;
+use App\Repositories\Procurement\Ai\AnalysisRunStoreRepository;
 use App\Services\Llm\Dto\LlmStructuredResponse;
 use App\Services\Llm\Dto\LlmUsage;
 use App\Services\Llm\Providers\PrismGeminiProvider;

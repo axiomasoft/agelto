@@ -6,7 +6,7 @@ namespace App\Services\Procurement\Prepare;
 
 use App\Enums\Procurement\Document\RepresentationKind;
 use App\Models\Procurement\Document\DocumentVersion;
-use App\Repositories\Procurement\RepresentationStoreRepository;
+use App\Repositories\Procurement\Document\RepresentationStoreRepository;
 
 /**
  * Какой файл версии уходит в LLM (D25). Политика по расширению исходника читается из

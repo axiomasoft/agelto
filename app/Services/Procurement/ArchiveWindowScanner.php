@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Services\Procurement;
 
-use App\Dto\Procurement\ListingCursor;
-use App\Dto\Procurement\WindowFilter;
+use App\Dto\Procurement\Crawler\ListingCursor;
+use App\Dto\Procurement\Crawler\WindowFilter;
 use App\Models\Procurement\Crawler\Crawler;
 use App\Models\Procurement\Crawler\Run;
 use Illuminate\Support\Facades\Log;

@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Services\Procurement;
 
-use App\Dto\Procurement\FetchResult;
-use App\Dto\Procurement\ListingBatch;
+use App\Dto\Procurement\Crawler\FetchResult;
+use App\Dto\Procurement\Crawler\ListingBatch;
 use App\Dto\Procurement\ProcurementSnapshotData;
 use App\Models\Procurement\Crawler\Crawler;
 use App\Models\Procurement\Crawler\Fetch;

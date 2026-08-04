@@ -5,12 +5,12 @@ declare(strict_types=1);
 namespace App\Services\Procurement\Fixture;
 
 use App\Enums\Procurement\Ai\AnalysisStep;
-use App\Exceptions\Procurement\FixtureCaseNotFound;
-use App\Exceptions\Procurement\GoldFileUnreadable;
+use App\Exceptions\Procurement\Ai\FixtureCaseNotFound;
+use App\Exceptions\Procurement\Ai\GoldFileUnreadable;
 use App\Models\Procurement\Ai\Analysis;
-use App\Repositories\Procurement\AnalysisReadRepository;
-use App\Repositories\Procurement\DocumentStoreRepository;
-use App\Repositories\Procurement\FixtureStoreRepository;
+use App\Repositories\Procurement\Ai\AnalysisReadRepository;
+use App\Repositories\Procurement\Ai\FixtureStoreRepository;
+use App\Repositories\Procurement\Document\DocumentStoreRepository;
 use JsonException;
 
 /**

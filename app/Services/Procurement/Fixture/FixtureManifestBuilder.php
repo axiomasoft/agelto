@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\Procurement\Fixture;
 
-use App\Exceptions\Procurement\ManifestUnreadable;
+use App\Exceptions\Procurement\Ai\ManifestUnreadable;
 use App\Models\Procurement\Ai\Fixture;
 use App\Support\Files\MimeDetector;
 use JsonException;

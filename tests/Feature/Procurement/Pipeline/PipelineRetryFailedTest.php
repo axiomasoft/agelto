@@ -10,7 +10,7 @@ use App\Jobs\Procurement\ScreeningJob;
 use App\Models\Procurement\Ai\Analysis;
 use App\Models\Procurement\Document\Document;
 use App\Models\Procurement\Document\DocumentVersion;
-use App\Repositories\Procurement\AnalysisRunStoreRepository;
+use App\Repositories\Procurement\Ai\AnalysisRunStoreRepository;
 use Illuminate\Support\Facades\Queue;
 
 test('ретраит документ, у которого наступил next_retry_at, и не трогает документы без попыток/в ожидании backoff', function () {

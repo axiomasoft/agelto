@@ -9,7 +9,7 @@ use App\Enums\Procurement\Document\UnprocessableReason;
 use App\Enums\Procurement\ProcurementEventType;
 use App\Models\Procurement\Document\Document;
 use App\Models\Procurement\Document\DocumentVersion;
-use App\Repositories\Procurement\DocumentStoreRepository;
+use App\Repositories\Procurement\Document\DocumentStoreRepository;
 use App\Repositories\Procurement\ProcurementStoreRepository;
 use App\Services\Procurement\Prepare\Archive\ArchiveExtractor;
 use App\Services\Procurement\Prepare\Archive\ArchivePasswordProtectedException;

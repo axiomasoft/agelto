@@ -8,7 +8,7 @@ use App\Dto\Procurement\Ai\Screening\ScreeningResult;
 use App\Dto\Procurement\Fixture\ItemOutcome;
 use App\Models\Procurement\Ai\Fixture;
 use App\Models\Procurement\Document\DocumentVersion;
-use App\Repositories\Procurement\DatasetExampleStoreRepository;
+use App\Repositories\Procurement\Ai\DatasetExampleStoreRepository;
 use App\Services\Procurement\Gold\GoldValidator;
 use Illuminate\Validation\ValidationException;
 use Spatie\LaravelData\Exceptions\CannotCreateData;

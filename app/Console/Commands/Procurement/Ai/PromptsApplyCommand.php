@@ -6,7 +6,7 @@ namespace App\Console\Commands\Procurement\Ai;
 
 use App\Enums\Procurement\Ai\PromptSuggestionKind;
 use App\Enums\Procurement\Ai\PromptSuggestionStatus;
-use App\Repositories\Procurement\PromptSuggestionReadRepository;
+use App\Repositories\Procurement\Ai\PromptSuggestionReadRepository;
 use App\Services\Procurement\Tuning\PromptPatchApplier;
 use Illuminate\Console\Command;
 use RuntimeException;

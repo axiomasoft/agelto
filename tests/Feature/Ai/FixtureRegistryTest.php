@@ -7,7 +7,7 @@ use App\Enums\Procurement\Ai\FixtureClass;
 use App\Enums\Procurement\Ai\GoldSource;
 use App\Models\Procurement\Ai\DatasetExample;
 use App\Models\Procurement\Ai\Fixture;
-use App\Repositories\Procurement\FixtureStoreRepository;
+use App\Repositories\Procurement\Ai\FixtureStoreRepository;
 use Illuminate\Database\QueryException;
 
 test('сохраняет и читает все типизированные поля эталона', function (): void {

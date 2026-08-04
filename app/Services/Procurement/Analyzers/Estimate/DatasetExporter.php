@@ -6,8 +6,8 @@ namespace App\Services\Procurement\Analyzers\Estimate;
 
 use App\Models\Procurement\Ai\Analysis;
 use App\Models\Procurement\Ai\DatasetExample;
-use App\Repositories\Procurement\AnalysisReadRepository;
-use App\Repositories\Procurement\DatasetExampleReadRepository;
+use App\Repositories\Procurement\Ai\AnalysisReadRepository;
+use App\Repositories\Procurement\Ai\DatasetExampleReadRepository;
 use RuntimeException;
 
 /**

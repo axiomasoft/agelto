@@ -11,9 +11,9 @@ use App\Enums\Procurement\Ai\AnalysisStep;
 use App\Models\Procurement\Ai\Analysis;
 use App\Models\Procurement\Ai\AnalysisRun;
 use App\Repositories\Llm\LlmCallReadRepository;
-use App\Repositories\Procurement\AnalysisReadRepository;
-use App\Repositories\Procurement\AnalysisRunStoreRepository;
-use App\Repositories\Procurement\AnalysisStoreRepository;
+use App\Repositories\Procurement\Ai\AnalysisReadRepository;
+use App\Repositories\Procurement\Ai\AnalysisRunStoreRepository;
+use App\Repositories\Procurement\Ai\AnalysisStoreRepository;
 use App\Services\Procurement\Contracts\DocumentAnalyzerRegistry;
 
 /**

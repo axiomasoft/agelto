@@ -9,7 +9,7 @@ use App\Enums\Procurement\Document\UnprocessableReason;
 use App\Jobs\Procurement\PrepareDocumentJob;
 use App\Models\Procurement\Document\Document;
 use App\Models\Procurement\Document\DocumentVersion;
-use App\Repositories\Procurement\DocumentStoreRepository;
+use App\Repositories\Procurement\Document\DocumentStoreRepository;
 use Illuminate\Contracts\Container\Container;
 
 /**

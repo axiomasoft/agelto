@@ -17,7 +17,7 @@ use App\Models\Procurement\Ai\Analysis;
 use App\Models\Procurement\Document\Document;
 use App\Models\Procurement\Document\DocumentVersion;
 use App\Models\Procurement\Estimate\Estimate;
-use App\Repositories\Procurement\AnalysisRunStoreRepository;
+use App\Repositories\Procurement\Ai\AnalysisRunStoreRepository;
 use App\Services\Llm\Dto\LlmOptions;
 use App\Services\Llm\Dto\LlmStructuredResponse;
 use App\Services\Llm\Dto\LlmUsage;

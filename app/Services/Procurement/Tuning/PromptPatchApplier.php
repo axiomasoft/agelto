@@ -9,7 +9,7 @@ use App\Enums\Procurement\Ai\PromptSuggestionKind;
 use App\Enums\Procurement\Ai\PromptSuggestionStatus;
 use App\Models\Procurement\Ai\Correction;
 use App\Models\Procurement\Ai\PromptSuggestion;
-use App\Repositories\Procurement\PromptSuggestionStoreRepository;
+use App\Repositories\Procurement\Ai\PromptSuggestionStoreRepository;
 use App\Services\Llm\PromptCanonReader;
 use RuntimeException;
 

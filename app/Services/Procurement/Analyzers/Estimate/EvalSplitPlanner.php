@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace App\Services\Procurement\Analyzers\Estimate;
 
-use App\Exceptions\Procurement\SplitPoolEmpty;
+use App\Exceptions\Procurement\Ai\SplitPoolEmpty;
 use App\Models\Procurement\Ai\Fixture;
-use App\Repositories\Procurement\FixtureStoreRepository;
+use App\Repositories\Procurement\Ai\FixtureStoreRepository;
 use RuntimeException;
 
 /**

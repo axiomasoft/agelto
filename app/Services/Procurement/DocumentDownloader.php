@@ -12,7 +12,7 @@ use App\Enums\Procurement\Proxy\ProxyFailureReason;
 use App\Enums\Procurement\Proxy\ProxyScope;
 use App\Models\Procurement\Document\Document;
 use App\Models\Procurement\Document\DocumentVersion;
-use App\Repositories\Procurement\DocumentStoreRepository;
+use App\Repositories\Procurement\Document\DocumentStoreRepository;
 use App\Repositories\Procurement\ProcurementStoreRepository;
 use App\Services\Procurement\Proxy\ProxyResolver;
 use Illuminate\Http\Client\ConnectionException;

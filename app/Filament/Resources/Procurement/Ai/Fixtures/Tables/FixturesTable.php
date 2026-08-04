@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Filament\Resources\Procurement\Ai\Fixtures\Tables;
 
 use App\Enums\Procurement\Ai\AiDocumentType;
-use App\Exceptions\Procurement\ManifestUnreadable;
+use App\Exceptions\Procurement\Ai\ManifestUnreadable;
 use App\Models\Procurement\Ai\Fixture;
 use App\Services\Procurement\Fixture\FixtureManifestReader;
 use Filament\Actions\BulkActionGroup;

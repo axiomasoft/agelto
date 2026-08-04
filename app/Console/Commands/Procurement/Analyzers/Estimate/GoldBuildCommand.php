@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Console\Commands\Procurement\Analyzers\Estimate;
 
 use App\Exceptions\Procurement\OperationFailed;
-use App\Repositories\Procurement\FixtureStoreRepository;
+use App\Repositories\Procurement\Ai\FixtureStoreRepository;
 use App\Services\Procurement\Fixture\FixtureManifestReader;
 use App\Services\Procurement\Fixture\FixtureManifestWriter;
 use App\Services\Procurement\Gold\GoldCorpusBuilder;

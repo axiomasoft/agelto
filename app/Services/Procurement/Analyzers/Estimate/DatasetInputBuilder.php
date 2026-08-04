@@ -8,7 +8,7 @@ use App\Dto\Procurement\Analyzers\Estimate\RowsChunkResponse;
 use App\Enums\Procurement\Analyzers\Estimate\EstimatePromptStep;
 use App\Enums\Procurement\Document\RepresentationKind;
 use App\Models\Procurement\Document\DocumentVersion;
-use App\Repositories\Procurement\RepresentationStoreRepository;
+use App\Repositories\Procurement\Document\RepresentationStoreRepository;
 use App\Services\Llm\Dto\ComposedPrompt;
 use App\Services\Llm\PromptComposer;
 use Illuminate\Support\Facades\Storage;

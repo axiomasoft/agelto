@@ -6,9 +6,9 @@ namespace App\Services\Procurement\Fixture;
 
 use App\Enums\Procurement\Ai\AiDocumentType;
 use App\Enums\Procurement\Ai\FixtureClass;
-use App\Exceptions\Procurement\FixtureAlreadyUploaded;
+use App\Exceptions\Procurement\Ai\FixtureAlreadyUploaded;
 use App\Models\Procurement\Ai\Fixture;
-use App\Repositories\Procurement\FixtureStoreRepository;
+use App\Repositories\Procurement\Ai\FixtureStoreRepository;
 use Illuminate\Support\Facades\Storage;
 use Livewire\Features\SupportFileUploads\TemporaryUploadedFile;
 

@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace App\Services\Procurement\Tuning;
 
 use App\Enums\Procurement\Ai\PromptSuggestionStatus;
-use App\Exceptions\Procurement\PromptSuggestionAlreadyDecided;
+use App\Exceptions\Procurement\Ai\PromptSuggestionAlreadyDecided;
 use App\Models\Procurement\Ai\PromptSuggestion;
-use App\Repositories\Procurement\PromptSuggestionStoreRepository;
+use App\Repositories\Procurement\Ai\PromptSuggestionStoreRepository;
 
 /**
  * Решение человека по предложению критика (P5.6, D47): ставит статус и аудит решения — и НИЧЕГО

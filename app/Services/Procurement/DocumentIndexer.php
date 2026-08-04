@@ -8,7 +8,7 @@ use App\Dto\Procurement\Details\DocumentData;
 use App\Enums\Procurement\Document\DocumentStatus;
 use App\Enums\Procurement\ProcurementEventType;
 use App\Models\Procurement\Procurement;
-use App\Repositories\Procurement\DocumentStoreRepository;
+use App\Repositories\Procurement\Document\DocumentStoreRepository;
 use App\Repositories\Procurement\ProcurementStoreRepository;
 use Illuminate\Support\Facades\DB;
 

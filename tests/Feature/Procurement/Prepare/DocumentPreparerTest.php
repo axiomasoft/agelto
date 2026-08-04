@@ -10,7 +10,7 @@ use App\Jobs\Procurement\ScreeningJob;
 use App\Models\Procurement\Document\Document;
 use App\Models\Procurement\Document\DocumentVersion;
 use App\Models\Procurement\ProcurementEvent;
-use App\Repositories\Procurement\RepresentationStoreRepository;
+use App\Repositories\Procurement\Document\RepresentationStoreRepository;
 use App\Services\Procurement\Prepare\SpreadsheetStrategy;
 use Illuminate\Support\Facades\Process;
 use Illuminate\Support\Facades\Queue;

@@ -6,7 +6,7 @@ namespace App\Services\Llm;
 
 use App\Models\Llm\LlmCall;
 use App\Models\Procurement\Ai\Analysis;
-use App\Repositories\Procurement\AnalysisStoreRepository;
+use App\Repositories\Procurement\Ai\AnalysisStoreRepository;
 use App\Services\Llm\Contracts\LlmProvider;
 use App\Services\Llm\Contracts\SupportsContextCaching;
 use App\Services\Llm\Dto\CacheableContent;

@@ -15,7 +15,7 @@ use App\Models\Llm\LlmCall;
 use App\Models\Llm\LlmRoute;
 use App\Models\Llm\Provider;
 use App\Models\Procurement\Ai\Analysis;
-use App\Repositories\Procurement\AnalysisStoreRepository;
+use App\Repositories\Procurement\Ai\AnalysisStoreRepository;
 use App\Services\Llm\Dto\JsonSchema;
 use App\Services\Llm\Dto\LlmFileHandle;
 use App\Services\Llm\Dto\LlmPrompt;

@@ -8,7 +8,7 @@ use App\Dto\Procurement\Fixture\ItemOutcome;
 use App\Enums\Llm\DocumentTypeScope;
 use App\Enums\Procurement\Ai\AiDocumentType;
 use App\Exceptions\Procurement\OperationFailed;
-use App\Repositories\Procurement\FixtureStoreRepository;
+use App\Repositories\Procurement\Ai\FixtureStoreRepository;
 use App\Services\Procurement\Contracts\DocumentAnalyzerRegistry;
 use App\Services\Procurement\Contracts\Dto\ProgressTick;
 use App\Services\Procurement\Contracts\ProgressReporter;

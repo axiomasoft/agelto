@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-use App\Dto\Procurement\ListingCursor;
+use App\Dto\Procurement\Crawler\ListingCursor;
 use App\Services\Procurement\Eis\EisCsvUrlBuilder;
 use Tests\Support\Doubles\Crawler\CrawlerWithRegistry;
 

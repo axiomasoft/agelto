@@ -6,7 +6,7 @@ namespace App\Console\Commands\Procurement\Analyzers\Estimate;
 
 use App\Console\Concerns\RendersReport;
 use App\Exceptions\Procurement\OperationFailed;
-use App\Repositories\Procurement\EvalRunReadRepository;
+use App\Repositories\Procurement\Ai\EvalRunReadRepository;
 use App\Services\Procurement\Tuning\EvalRunComparator;
 use Illuminate\Console\Command;
 use RuntimeException;

@@ -2,8 +2,8 @@
 
 declare(strict_types=1);
 
-use App\Dto\Procurement\ListingBatch;
-use App\Dto\Procurement\ListingCursor;
+use App\Dto\Procurement\Crawler\ListingBatch;
+use App\Dto\Procurement\Crawler\ListingCursor;
 use App\Enums\Procurement\Crawler\CrawlerMode;
 use App\Enums\Procurement\Crawler\RunStatus;
 use App\Enums\Procurement\Crawler\SourceMethod as SourceMethodEnum;

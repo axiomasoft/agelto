@@ -7,7 +7,7 @@ use App\Enums\Procurement\Document\RepresentationKind;
 use App\Models\Procurement\Document\Document;
 use App\Models\Procurement\Document\DocumentRepresentation;
 use App\Models\Procurement\Document\DocumentVersion;
-use App\Repositories\Procurement\RepresentationStoreRepository;
+use App\Repositories\Procurement\Document\RepresentationStoreRepository;
 use App\Services\Procurement\Prepare\DocumentPreparer;
 use App\Services\Procurement\Prepare\PassthroughStrategy;
 use App\Services\Procurement\Prepare\PreparationStrategy;

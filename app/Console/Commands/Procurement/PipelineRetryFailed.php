@@ -12,7 +12,7 @@ use App\Jobs\Procurement\PrepareDocumentJob;
 use App\Jobs\Procurement\ScreeningJob;
 use App\Models\Procurement\Ai\Analysis;
 use App\Models\Procurement\Document\Document;
-use App\Repositories\Procurement\AnalysisRunStoreRepository;
+use App\Repositories\Procurement\Ai\AnalysisRunStoreRepository;
 use Illuminate\Console\Command;
 use LogicException;
 

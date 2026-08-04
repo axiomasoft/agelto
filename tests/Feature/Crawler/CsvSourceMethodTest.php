@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-use App\Dto\Procurement\ListingBatch;
-use App\Dto\Procurement\ListingCursor;
+use App\Dto\Procurement\Crawler\ListingBatch;
+use App\Dto\Procurement\Crawler\ListingCursor;
 use App\Enums\Procurement\Proxy\ProxyScope;
-use App\Exceptions\Procurement\NoProxyAvailableException;
+use App\Exceptions\Procurement\Proxy\NoProxyAvailableException;
 use App\Models\Procurement\Crawler\Crawler;
 use App\Models\Procurement\Crawler\Proxy;
 use App\Models\Procurement\Platform\Registry;

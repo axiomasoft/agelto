@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Filament\Resources\Procurement\Ai\Fixtures\Pages;
 
 use App\Enums\Procurement\Ai\AiDocumentType;
-use App\Exceptions\Procurement\FixtureAlreadyUploaded;
+use App\Exceptions\Procurement\Ai\FixtureAlreadyUploaded;
 use App\Filament\Resources\Procurement\Ai\Fixtures\FixtureResource;
 use App\Models\Procurement\Ai\Fixture;
 use App\Services\Procurement\Fixture\FixtureUploader;
