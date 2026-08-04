@@ -1,54 +1,69 @@
-# HANDOFF — 2026-08-04 — after P6.6
+# HANDOFF — 2026-08-05 — after P4.1
 
 **Next:** ЗАПУСК ВРУЧНУЮ: frontier/high
 
 | Параметр | Значение |
 |:--|:--|
 | Model | opus |
-| Thinking | high — живая разведка внешнего источника (ЕИС): снятая фактура замораживает контракт фильтра, сиды и план боевого прогона (§3 Routing P4.1) |
+| Thinking | high — открытые design-решения: граница «что есть / что дыра» в механизме отслеживания, состав двух профилей, план прогона и перечень метрик (§3 Routing P4.2) |
 | Context | continue (/clear) — ручной item |
-| Суть | P4.1 — разведка ЕИС через прокси-скоуп площадки (D3): реестры, поля фильтров, форма листинга/детали, план боевого прогона |
+| Суть | P4.2 — синтез: свести фактуру P4.1 и состояние контура в `research/05-change-tracking.md` |
 | Команда | — |
-
-Код-блок ниже несёт полную D18-форму:
 
 ```
 /model opus
 /effort high
-/task:plan-run 2026.07.31-SYS-INTEGRITY P4.1
+/task:plan-run 2026.07.31-SYS-INTEGRITY P4.2
 ```
 
-**Сделано этим заходом (`plan-exec`, sonnet/medium, 2026-08-04).** P6.6 закрыт 🟢 Done,
-item-коммит `d1b1aa2` (4 файла, все из `Files` item'а):
+**Сделано этим заходом (`plan-run`, opus/high, 2026-08-05).** Item-коммит `7ddb95d` (3 файла,
++700 строк), bookkeeping — отдельным коммитом. Разведка ЕИС проведена целиком: девять вопросов
+Scope Included сняты, каждый с URL, датой и меткой исхода.
 
-- **Runbook** `docs/03_Dev/runbooks/storage-provider-switch.md` — десять шагов процедуры смены
-  S3-провайдера по `research/07-storage-addressing.md` §8 (шаг 0 «переименование логических имён
-  дисков» → создать приёмник → материализовать `null` → включить фолбэк-цепочку → backfill с
-  верификацией → **дельта-синк** (шаг 5, закрывает потерю горячих записей во время backfill'а) →
-  флип конфига → окно наблюдения → снять фолбэк → уборка источника), у каждого шага — проверка и
-  точка отката (у шага 9 отката нет — намеренно, поэтому отделён окном наблюдения от шага 8);
-  чеклист семи ловушек (ETag, дрейф метаданных, троттлинг, права приёмника, версионирование,
-  подписанные URL, кэши воркеров Horizon). Реальные CLI-опции `storage:disk-backfill` взяты из кода
-  команды (`--materialize-only`, `--to=`, `--from-id`), не по памяти.
-- **Зарегистрирован** в `docs/03_Dev/runbooks/_index.md`.
-- **Раздел «Адресация файлов: колонка `disk`»** в `docs/03_Dev/database.md` — семантика `null`
-  (диск по конфиг-ключу на момент чтения), инвариант материализации (D51), соглашение об именах
-  дисков (D53), ссылка на runbook.
-- **Раздел `Services/Storage/`** в `docs/03_Dev/architecture.md` — `FileLocationResolver`/
-  `FileLocation`/`DiskBackfillCommand`, ссылки на `database.md` и runbook.
-- `CLAUDE.md`/`.ai/guidelines/**` не тронуты (D64/D66 — фаза P6 их не меняет, переносить нечего).
-- **Task Contract**: `pre_mutation: allow` · `pre_final: allow` (route `implementation/medium`,
-  точное совпадение с §3 Routing P6.6: `Exec=plan-exec`).
+- **Канал D3 проверен ДО первого запроса к ЕИС:** `ipinfo.io/json` через MCP Playwright →
+  `185.218.0.130` / Saint Petersburg / RU. Весь трафик разведки шёл через `prc_proxies` id=1.
+- **Ре-верификация восьми фактов 2026-07-03: семь «подтверждено», один «изменилось».** Изменился
+  фактический cap глубины — было ≈10 000, стало **ровно 5 000**: последний реальный блок
+  `from=4501`, при `from=5001…100001` сервер молча повторяет его. UI-лимит и фактический потолок
+  теперь совпали.
+- **`updateDateFrom`/`updateDateTo` подтверждены живьём** — снимает экстраполяцию D24, на которой
+  стоял весь backlog-рескан. Окно `01.08.2026` → 171 запись, у ВСЕХ «Дата обновления» =
+  `01.08.2026`; тот же день по `publishDate` → 134 (другое множество). Контроль пройден: мусорный
+  ключ и `lastDateChangeFrom/To` выдачу не меняют — неизвестный параметр игнорируется молча.
+- **Шаг блока выгрузки — 500, «по 100–200» не воспроизведён.** Источник величины назван: серверный
+  рендер списка диапазонов в `loadSettings.html` (`data-from`/`data-to`, при `totalCount` ≥ 5000 —
+  ровно 10 диапазонов `1-500`…`4501-5000`). Три кандидата отвергнуты по отдельности:
+  `recordsPerPage` на выгрузку не влияет (четыре значения — байт-в-байт один блок), `totalCount`
+  задаёт число диапазонов, а не шаг, набор колонок приходит тем же HTML ДО выбора.
+- **Критерий достаточности владельца выполнен:** ссылка на CSV строится из сида детерминированно,
+  чистым HTTP. Включая `totalCount` — он есть в SSR-разметке листинга
+  (`downloadCsv('<query>','<N>')`), браузер для решения «дробить или нет» не нужен.
+- **OQ-3 закрыт D117 фактом:** `viewXml.html` → `404` по всем 13 адресам, SOAP
+  `int44.zakupki.gov.ru` с рабочего канала не отвечает. Решение о смене транспорта остаётся
+  владельца — запись его не выносит.
+- **Снято под сид P4.5:** `procedure_url_types` — 9 способов закупки → сегмент URL
+  (`ea20`/`zk20`/`ok20`/`ezt20`/`ea615`/`po615`), без конфликтов, методом джойна
+  «номер → сегмент» (SSR) × «номер → способ» (CSV); `card_url_templates` — все четыре вкладки для
+  четырёх типов (у `ea615`/`po615` `supplier-results` физически `404`).
+- **11 расхождений «наблюдённое ↔ код»** перечислены в `findings/P4-eis-recon.md` §8 как вход P4.2.
+  Правок кода не делалось (Scope Excluded).
 
-Validation (на `d1b1aa2`): `pint --test` — 11 style issues, все вне диффа item'а (тот же состав,
-что на P6.3–P6.5); `phpstan --memory-limit=1G` — `[OK] No errors`, новых записей baseline нет;
-`migrate:fresh --seed` — зелёный; `php artisan test --no-tia` (D8, полный сюит) — 10 failed / 1
-skipped / 1003 passed, тот же состав 10 падений, что на P6.3/P6.4/P6.5 (партиционный дрейф
-`pg_partman`, `memory_limit`-конфликт `agelto_app`, arch-тест, permission denied — все вне Scope
-P6.6), новых падений от диффа P6.6 нет; `grep -rn "storage-provider-switch"
-docs/03_Dev/runbooks/_index.md` — вхождение есть.
+**Что из этих 11 требует решения раньше остальных (вход P4.2, не сделано здесь):**
 
-**Status:** 🟢 Done. Known Deviations — нет.
+1. **Р-1 — детальная стадия сегодня не заработает вовсе.** `EisCsvRowMapper` ищет колонку
+   `'Способ определения поставщика'`, фактический заголовок —
+   `'Способ определения поставщика (подрядчика, исполнителя), подрядной организации (размещения закупки)'`;
+   точный поиск по ключу не находит → `procedureType` = `null` у каждой строки →
+   `CardUrlTemplateMissingException` на каждой карточке.
+2. **Р-2** — `EisProcedureType::fromRawLabel()` покрывает 3 из 9 наблюдённых способов.
+3. **Р-3** — `archive.price_ceiling = 1e9` отсекает **8 714** закупок 44-ФЗ (1 378 за 2025),
+   максимум наблюдённой НМЦК — 135 443 825 416.98 ₽.
+4. **Р-5** — блок 223-ФЗ вернул **510 строк на 500 уникальных** номеров (многолотовые): условие
+   «окно дренировано» по `rowsTotal < block_size` на таких блоках не срабатывает, дедуп нужен и
+   ВНУТРИ блока.
+5. **Р-7** — дробление включается только после 10 холостых блоков, хотя `totalCount` известен
+   заранее. Числа окна разведки: день публикации `04.08.2026` — 7 292 (дробить), день ОБНОВЛЕНИЯ
+   `03.08.2026` — **16 166** (дробить втрое), день `15.01.2025` — 1 270 (не дробить).
 
 **Done:**
 
@@ -56,73 +71,75 @@ docs/03_Dev/runbooks/_index.md` — вхождение есть.
 - **P2 5/13** 🟠 Done with deviations — фаза терминальна.
 - **P3 1/5** 🟠 Done with deviations — фаза терминальна.
 - **P5 3/8** 🟠 Done with deviations — фаза терминальна.
-- **P6 5/6** 🟠 Done with deviations — **фаза терминальна**: закрыты все шесть items (P6.1
-  research, P6.2 миграции, P6.3 резолвер, P6.4 фолбэк, P6.5 backfill 🟠, P6.6 runbook/доки/приёмка).
+- **P6 5/6** 🟠 Done with deviations — фаза терминальна.
+- **P4 1/8** 🟡 In progress — P4.1 закрыт 🟢.
 
 **Remaining:**
 
-- **Порядок фаз (D63):** `P1 → P2 → P3 → P5 → P6 → P4 → P7`. P6 закрыта — следующая фаза **P4**
-  (ЕИС: разведка, типизированные фильтры, сиды кроулеров, боевой прогон), первый item — `P4.1`
-  (research, ЖЁСТКОЕ предусловие боевого прогона P4.7 — терминальные P1/P5/P6, которые уже
-  терминальны).
-- **`## Phase Handoff` фаз P2 и P5 не собран** («—» в `phases/P2.md`/`phases/P5.md`); теперь и
-  **P6** нуждается в формальном `plan-close` (текст в `phases/P6.md` подготовлен, но статус-борд
-  и линт закрытия фазы штатно делает `/task:plan-close <ID> P6`, не `plan-exec`) — висящий
-  bookkeeping-хвост, продолжение плана НЕ блокирует.
+- **Порядок фаз (D63):** `P1 → P2 → P3 → P5 → P6 → P4 → P7`. Идёт P4: следующий — P4.2 (синтез),
+  дальше P4.3–P4.5 (контракт/Filament/сиды) → P4.6 → P4.7 (боевой прогон) → P4.8.
+- **`## Phase Handoff` фаз P2 и P5 не собран**; **P6** нуждается в формальном `plan-close`
+  (`/task:plan-close 2026.07.31-SYS-INTEGRITY P6`) — висящий bookkeeping-хвост, продолжение плана
+  НЕ блокирует.
 - **Прочие follow-up без изменений**: `ExtractionOrchestrator` теряет семь старых полей паспорта
   (P5.5); `EstimateValidator::bcadd()` научная нотация (P5.4); `RerunRangeAction` не вызывает
   `replaceResources()` (P5.1/P5.2); пять колонок `source_*` без писателя (B-4); `RerunRangeAction`
   work_type_id preserve-ветка без теста (P5.5); систематический timeout `EST-XLSX-KS2-001` (P5.7);
-  партиционный дрейф `pg_partman` (`prc_events`), `memory_limit`-конфликт контейнера
-  `agelto_app`, нерасследованный arch-тест `CoreKnowsNoDocumentTypeTest` (P5.8); четыре
-  потребителя конфиг-ключа диска в обход резолвера (`FormatBenchRunner::producePdfAlt()`,
-  `GoldBuildCommand`, `FixtureForm`, `FixturesVerifyCommand` — Pending Work P6.3).
+  партиционный дрейф `pg_partman` (`prc_events`), `memory_limit`-конфликт контейнера `agelto_app`,
+  нерасследованный arch-тест `CoreKnowsNoDocumentTypeTest` (P5.8); четыре потребителя конфиг-ключа
+  диска в обход резолвера (Pending Work P6.3).
 
 **Sources of truth:**
 
-- `research/07-storage-addressing.md` — вердикты, контракты, фолбэк, backfill и процедура cutover
-  фазы P6 целиком; §8 — источник текста уже написанного runbook'а.
-- `docs/03_Dev/runbooks/storage-provider-switch.md` — операционный текст процедуры (P6.6).
-- `phases/P6.md` — Phase Context, ТЗ P6.1–P6.6, Completion Notes, Phase Handoff (фаза терминальна).
-- `roadmap.md` — очередь фаз (D63) и гейты владельца по items; P4.1–P4.8 — следующий блок.
+- `findings/P4-eis-recon.md` — фактура ЕИС 2026-08-04 (слой 1: факты, без проектных выводов).
+- `artifacts/eis-filter-params.json` — параметры, 25 флагов колонок, встречная сверка с кодом.
+- `artifacts/eis-registry-settings.json` — `procedure_url_types`/`card_url_templates` под сид P4.5.
+- `research/eis-csv-recon.md`, `research/eis-card-recon.md` — исторические артефакты 2026-07-03
+  (не правятся; расхождения — в новом документе).
+- `findings/repo-recon-2026-07-31.md` §10 — состояние кроулинг-контура.
+- `phases/P4.md` — Phase Context, контракт фазы, ТЗ P4.1–P4.8.
+- `roadmap.md` — очередь фаз (D63).
 
 **Open risks:**
 
-- **`estimates_s3` объявлен и никем не адресуется** (`config/filesystems.php:74-85`) — мёртвое
-  объявление, владелец не назначен.
-- **Перевод корпуса эталонов на S3 сломает `GoldCorpusBuilder`** (`:162` вызывает `->path()`,
-  которого у S3-драйвера нет) — независимо от адресации; решение вне плана.
-- **10 упавших тестов приёмочного прогона** — партиционный дрейф `pg_partman`,
-  `memory_limit`-конфликт `agelto_app`, один arch-тест, permission denied на `resources/`.
-  Владелец не назначен; тот же состав из 10 на P6.3/P6.4/P6.5/P6.6, новых падений нет.
-- **Dev-БД теряет `prc_ai_dataset_examples`/`prc_ai_eval_runs` при `migrate:fresh`** (P5.7) —
-  датасет для следующего item'а, которому он понадобится, восстанавливать
-  `estimate:gold:import --prepare`.
-- **`app/Filament/Resources/Procurement/** ` restrictive ACL**, **`rm` заблокирован в харнессе**,
-  **незакоммиченный чужой дифф** (`.env.example`, `CLAUDE.md`, `.swissknife*`, `.swissknifeman/`,
-  `config/cms.php`, `database/seeders/User/`, `estimates/gemini-analys.md`) — без изменений;
+- **Сертификат ЕИС не проверяется дефолтным набором корней Chromium** (`ERR_CERT_AUTHORITY_INVALID`
+  — российский УЦ). Разведка шла с `ignoreHTTPSErrors`; `scripts/playwright-mcp.sh` флага не
+  передаёт. Для БОЕВОГО HTTP-клиента (Guzzle) нужна политика — корень Минцифры в доверенных либо
+  явное решение (Р-10, вход P4.2/P4.7). Владелец 2026-08-04: ставить сертификаты только если
+  начнутся проблемы с работой.
+- **Детальная стадия на сегодняшнем дереве упадёт на первой же карточке** (Р-1) — это не риск
+  прогона, а известный дефект, адрес починки P4.6.
+- **Единственный RU-узел в пуле** (id=1): его бан останавливает и разведку, и боевой прогон P4.7.
+- **Дневной темп сдвига выдачи не измерен** — разведка шла ночью (голова блока держалась ≈17 минут
+  и сменилась между 20:57:09Z и 21:00:01Z). Оценка длительности fresh-скана на этой цифре не
+  строится.
+- **`estimates_s3` объявлен и никем не адресуется** (`config/filesystems.php:74-85`).
+- **Перевод корпуса эталонов на S3 сломает `GoldCorpusBuilder`** (`:162` вызывает `->path()`).
+- **10 упавших тестов приёмочного прогона** — партиционный дрейф `pg_partman`, `memory_limit`
+  `agelto_app`, arch-тест, permission denied на `resources/`.
+- **Dev-БД теряет `prc_ai_dataset_examples`/`prc_ai_eval_runs` при `migrate:fresh`** (P5.7).
+- **`app/Filament/Resources/Procurement/**` restrictive ACL**, **`rm` заблокирован в харнессе**,
+  **незакоммиченный чужой дифф** (`.env.example`, `CLAUDE.md`, `.swissknife.json`, `.swissknife/`,
+  `.swissknifeman/`, `config/cms.php`, `database/seeders/User/`, `estimates/gemini-analys.md`) —
   состав снимать `git status --porcelain` перед каждым item-коммитом.
-- **`.env` не несёт `MINIO_ROOT_PASSWORD`** — обход `docker exec agelto_app …` вместо
-  `docker compose exec …`, подтверждено действующим на P6.3–P6.6.
-- **PHPStan в контейнере `agelto_app` падает на дефолтном 256M лимите** — обход
-  `--memory-limit=1G`, подтверждено на P6.3–P6.6.
+- **`.env` не несёт `MINIO_ROOT_PASSWORD`** — `docker compose` падает на интерполяции, обход
+  `docker exec agelto_app …`.
+- **PHPStan в контейнере `agelto_app` падает на дефолтном 256M лимите** — обход `--memory-limit=1G`.
 
 **Workarounds/Deferred/Open questions:**
 
-- **Workarounds:** `docker exec agelto_app` вместо `docker compose exec` (`MINIO_ROOT_PASSWORD`);
-  `phpstan analyse --memory-limit=1G` вместо дефолта — без изменений, см. Open risks.
-- **Deferred:** `## Phase Handoff` P2/P5 (нужен `plan-close`); формальный `plan-close` P6
-  (bookkeeping/статус-борд/линт закрытия фазы); писатель `verified_at`/`verified_by`; писатель пяти
-  колонок `source_*`; прокидка семи старых полей паспорта в `ExtractionOrchestrator`;
-  материализация не-`Item` строк; тип нормы аксессором из `code`; типизированный носитель `RowType`
-  (OQ-6); переписывание текстов промтов сверх дедупликации (OQ-7); партиционирование
-  `prc_events`/`llm_calls`; `RerunRangeAction` `replaceResources()`; научная нотация в
-  `EstimateValidator::bcadd()`; тест на preserve-ветку `work_type_id`; персистентный подъём
-  `AI_GEMINI_REQUEST_TIMEOUT_SECONDS`; партиционный дрейф `pg_partman` под тестовые даты,
-  `memory_limit`-конфликт `agelto_app`, разбор `CoreKnowsNoDocumentTypeTest`; судьба мёртвого диска
-  `estimates_s3`; колонка диска для `prc_ai_dataset_examples.gold_ref` (заводится вместе с
-  писателем, если он появится); перевод `FormatBenchRunner`/`GoldBuildCommand`/`FixtureForm`/
-  `FixturesVerifyCommand` на `FileLocationResolver` (Pending Work P6.3); реальное удаление объектов
-  на исходном диске после окна отката (Scope Excluded P6.5/P6.6 — операционное решение владельца).
-- **Open questions:** OQ-3, OQ-4, OQ-7 (`Exploration`), OQ-5 (`Decision pending`), OQ-6; OQ-8
-  закрыта D113.
+- **Workarounds:** `ignoreHTTPSErrors` для разведки ЕИС (сертификат); `docker exec agelto_app`
+  вместо `docker compose exec`; `phpstan analyse --memory-limit=1G`.
+- **Deferred:** `## Phase Handoff` P2/P5 и формальный `plan-close` P6; резервный RU-прокси-узел;
+  писатель `verified_at`/`verified_by`; писатель пяти колонок `source_*`; прокидка семи старых
+  полей паспорта в `ExtractionOrchestrator`; материализация не-`Item` строк; тип нормы аксессором
+  из `code`; типизированный носитель `RowType` (OQ-6); переписывание текстов промтов сверх
+  дедупликации (OQ-7); партиционирование `prc_events`/`llm_calls`; `RerunRangeAction`
+  `replaceResources()`; научная нотация в `EstimateValidator::bcadd()`; тест на preserve-ветку
+  `work_type_id`; персистентный подъём `AI_GEMINI_REQUEST_TIMEOUT_SECONDS`; партиционный дрейф
+  `pg_partman`, `memory_limit`-конфликт `agelto_app`, разбор `CoreKnowsNoDocumentTypeTest`; судьба
+  мёртвого диска `estimates_s3`; колонка диска для `prc_ai_dataset_examples.gold_ref`; перевод
+  `FormatBenchRunner`/`GoldBuildCommand`/`FixtureForm`/`FixturesVerifyCommand` на
+  `FileLocationResolver`; реальное удаление объектов на исходном диске после окна отката.
+- **Open questions:** OQ-4, OQ-7 (`Exploration`), OQ-5 (`Decision pending`), OQ-6;
+  OQ-3 закрыта D117, OQ-8 закрыта D113.
