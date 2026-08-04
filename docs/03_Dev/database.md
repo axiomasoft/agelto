@@ -26,9 +26,18 @@ status: draft
 | `prc_ai_corrections` | Field-level коррекции оператора (JSONPath + reason-enum) — обучающий контур |
 | `prc_ai_dataset_examples` | Immutable gold-снапшоты (SFT/DPO источник) — `ai/training-loop.md` |
 | `prc_ai_eval_runs` / `prc_ai_eval_results` | Прогоны `estimate:eval:run` по golden-датасету и их метрики |
-| `prc_estimates` / `prc_estimate_items` | Распарсенная смета (`$estimate`) и её позиции (не путать: `prc_items` — позиция объекта закупки/лота); `procurement_id` **nullable** (D98 — обучающий контур работает с документами вне закупки, тот же довод, что и у `prc_documents`); ось «оператор проверил боевой разбор» — `verified_at`/`verified_by` (D89, без писателя внутри плана) |
-| `prc_estimate_sections` / `prc_estimate_resources` / `prc_estimate_totals` | Иерархия разделов, ресурсы позиции (труд/машины/материалы/накладные) и дерево итогов сметы (P4.4) |
-| `prc_estimate_work_types` | Вид работ и его иерархия (`parent_id`, per-estimate область), носитель нормативов НР/СП (D34/D90, P4.4) — полноценно заполняется только gsfx-веткой |
+| `prc_estimates` / `prc_estimate_items` | Распарсенная смета (`$estimate`) и её позиции (не путать: `prc_items` — позиция объекта закупки/лота); `procurement_id` **nullable** (D98 — обучающий контур работает с документами вне закупки, тот же довод, что и у `prc_documents`); ось «оператор проверил боевой разбор» — `verified_at`/`verified_by` (D89, без писателя внутри плана); `regulatory_base` (`text nullable`, P5.5) — редакция сметных нормативов ЦИТАТОЙ как напечатана, не парсится; `unit_base`/`unit_multiplier` на `prc_estimate_items` и `prc_estimate_resources` — детерминированный разбор `unit` («100 м2» → `м2`/`100`), исключение из D33 (не поле контракта LLM, писатель — нормализатор в `EstimatePersister`, P5.5) |
+| `prc_estimate_sections` / `prc_estimate_resources` / `prc_estimate_totals` | Иерархия разделов, ресурсы позиции (труд/машины/материалы/накладные) и дерево итогов сметы (P4.4). Строки `row_type != item` (КС-3, печатные агрегаты позиции, итог раздела) НЕ материализуются — решение владельца (P5.3 §5): `EstimatePersister::persistRows()` их пропускает, величины остаются в `prc_ai_analyses.result`/gold |
+| `prc_estimate_work_types` | Вид работ и его иерархия (`parent_id`, per-estimate область), носитель нормативов НР/СП (D34/D90, P4.4) — нормативы полноценно заполняются только gsfx-веткой; на боевом LLM-пути `work_type_id` резолвится через `findOrCreate(estimate_id, title)` (P5.5), запись несёт только `title`, нормативы `null` |
+
+**Критерий подтверждения величины сметной схемы.** Новая колонка/ключ `prc_estimate*` заводится
+только при пороге `N ≥ 9` файлов корпуса `estimates/files`, несущих величину, ПЛЮС хотя бы один из
+тестов: (а) прямое подтверждение · (б1) величина — операнд арифметической проверки · (б2) поле F1
+метрики извлечения · (б3) назван сценарий сортировки/фильтрации витрины; форма носителя
+(колонка/jsonb-ключ/производный аксессор) решается тестом (в) — «ровно один носитель на величину»,
+«и колонка, и jsonb» для одного факта запрещено. Ранее отклонённая величина переоткрывается только
+новым фактом корпуса, не повторной цитатой методики (пример прогона — `regulatory_base`/
+`unit_base`/`unit_multiplier` выше).
 
 ## Прокси-маршрутизация (`prc_proxies`, `prc_proxy_targets`)
 

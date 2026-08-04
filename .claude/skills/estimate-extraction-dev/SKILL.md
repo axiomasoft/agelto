@@ -99,6 +99,10 @@ checkpoint_ranges')` единиц ИЛИ `checkpoint_seconds` секунд — �
 - `EstimatePersister` — нормализация `analysis.result.estimates[]` → `prc_estimate_*`, ОДНА
   транзакция на смету. Не переключает `DocumentStatus` (это делает `ExtractionOrchestrator`) и
   сознательно пропускает документы без `procurement_id` (эталоны P7.4/`estimate:dataset:import`).
+  Материализует ТОЛЬКО `row_type = item` (КС-3/печатные агрегаты/итог раздела — решение владельца,
+  не хранятся); пишет `unit_base`/`unit_multiplier` детерминированным нормализатором `unit`
+  (позиция и ресурс) и резолвит `work_type_id` через `findOrCreate(estimate_id, title)` — нормативы
+  НР/СП в резолве не заполняются (`docs/03_Dev/database.md`).
 
 Если меняешь формат `analysis.result.estimates[]` — обнови ВСЕ три класса синхронно, они читают
 один и тот же промежуточный формат позиционно, не через общий DTO-контракт между собой.
