@@ -163,7 +163,7 @@ P7.3 не выбирает топологию, а подтверждает ре�
 | P2 | Контракт LLM в одном канале: `#[Description]`, JSON Schema, промты | 5/13 | 🟠 Done with deviations |
 | P3 | Доменная раскладка и arch-тесты | 1/5 | 🟠 Done with deviations |
 | P4 | ЕИС: разведка, типизированные фильтры, сиды кроулеров, боевой прогон | 0/8 | ⬜ Not started |
-| P5 | Полнота сметной модели против корпуса эталонов | 2/8 | 🟡 In progress |
+| P5 | Полнота сметной модели против корпуса эталонов | 3/8 | 🟡 In progress |
 | P6 | Адресация файлов: диск в записи, dual-read, backfill | 0/6 | ⬜ Not started |
 | P7 | Ревизия схемы БД, топология хранения, финальный аудит процессов | 0/8 | ⬜ Not started |
 
@@ -491,6 +491,7 @@ Prism `unhandled finish reason`, decimal-cast); **M3c** (EvalRun #12, дерев
 | 2026-08-04 | plan-run / opus-high | P5.3 закрыт 🟢, item-коммит **`2abf097`**: распределение утверждено владельцем — GAP-2 без своего носителя, GAP-8 → 1 колонка + 2 ключа `passport`, не-`Item` строки не материализуются, 2 писателя класса B, 0 индексов — детали см. phases/P5.md P5.3 Completion Notes |
 | 2026-08-04 | plan-run / sonnet-high | P5.4 закрыт 🟢, item-коммит **`f21ecb7`**: baseline `EvalRun #22` (5/6, $0.7322 при апруве до ~$1.2), критерий `no-regression` числами для P5.7; вне Scope найден и задокументирован дефект `EstimateValidator::bcadd()` (научная нотация) — детали см. phases/P5.md P5.4 Completion Notes |
 | 2026-08-04 | plan-run / sonnet-high | P5.5 закрыт 🟠, item-коммит **`146d6ab`**: `regulatory_base`+нормализация `unit`+резолв `work_type_id` (B-1/B-2/B-5) в обоих writer-путях; найден пре-существующий дефект вне Scope — детали см. phases/P5.md P5.5 Completion Notes |
+| 2026-08-04 | plan-run / sonnet-high | P5.6 закрыт 🟢, item-коммит **`57dd7a1`**: 0 правок мапперов (D46), gold пересобран байт-стабильно, `EvalMetrics` без изменений, `work_type_id` подтверждён `db_nonempty=gold_nonempty=110` — детали см. phases/P5.md P5.6 Completion Notes |
 
 ## Обсуждение
 
