@@ -25,8 +25,17 @@ final class DocumentVersionFactory extends Factory
             'extension' => 'pdf',
             'mime' => 'application/pdf',
             'storage_path' => 'documents/'.fake()->uuid().'.pdf',
+            'disk' => null,
             'downloaded_at' => now(),
             'parent_version_id' => null,
         ];
+    }
+
+    /**
+     * Историческая запись с материализованным диском (P6.2/P6.5) — по умолчанию `disk` пуст.
+     */
+    public function onDisk(string $disk): self
+    {
+        return $this->state(fn (): array => ['disk' => $disk]);
     }
 }

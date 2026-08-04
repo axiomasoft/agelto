@@ -31,6 +31,7 @@ use Illuminate\Support\Collection;
  * @property string $code
  * @property string $source_format
  * @property string $storage_path
+ * @property string|null $disk
  * @property string $sha256
  * @property int $size_bytes
  * @property string $mime
@@ -66,6 +67,7 @@ final class Fixture extends Model
         'code',
         'source_format',
         'storage_path',
+        'disk',
         'sha256',
         'size_bytes',
         'mime',

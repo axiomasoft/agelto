@@ -43,6 +43,7 @@ final class EstimateFactory extends Factory
             'passport' => null,
             'raw_result' => null,
             'raw_result_ref' => null,
+            'raw_result_disk' => null,
             'rows_expected' => null,
             'rows_extracted' => null,
             'validation_status' => 'pending',
@@ -68,5 +69,14 @@ final class EstimateFactory extends Factory
             'verified_at' => now(),
             'verified_by' => User::factory(),
         ]);
+    }
+
+    /**
+     * Историческая запись с материализованным диском сырого результата (P6.2/P6.5) — по
+     * умолчанию `raw_result_disk` пуст.
+     */
+    public function onDisk(string $disk): static
+    {
+        return $this->state(fn (): array => ['raw_result_disk' => $disk]);
     }
 }

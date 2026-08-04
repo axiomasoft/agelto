@@ -23,6 +23,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property string $extension
  * @property string $mime
  * @property string $storage_path
+ * @property string|null $disk
  * @property int|null $parent_version_id
  * @property-read Document|null $document
  */
@@ -41,6 +42,7 @@ final class DocumentVersion extends Model
         'extension',
         'mime',
         'storage_path',
+        'disk',
         'downloaded_at',
         'parent_version_id',
     ];

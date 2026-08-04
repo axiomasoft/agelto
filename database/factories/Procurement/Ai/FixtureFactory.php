@@ -25,6 +25,7 @@ final class FixtureFactory extends Factory
             'code' => $code,
             'source_format' => 'xlsx',
             'storage_path' => Fixture::storagePathFor($code, 'xlsx'),
+            'disk' => null,
             'sha256' => hash('sha256', $code),
             'size_bytes' => $this->faker->numberBetween(1_000, 500_000),
             'mime' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
@@ -90,5 +91,13 @@ final class FixtureFactory extends Factory
             'is_verified' => true,
             'verified_at' => now(),
         ]);
+    }
+
+    /**
+     * Историческая запись с материализованным диском (P6.2/P6.5) — по умолчанию `disk` пуст.
+     */
+    public function onDisk(string $disk): self
+    {
+        return $this->state(fn (): array => ['disk' => $disk]);
     }
 }
