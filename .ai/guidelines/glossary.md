@@ -30,6 +30,16 @@
 - `Ai\DatasetExample` → `$example` — immutable gold-снапшот обучающего контура (`prc_ai_dataset_examples`); единственный автор новых строк — `GoldExampleRecorder` при `review_status=approved` (D15/P9.2).
 - `App\Enums\Llm\PromptStep` (интерфейс, P2.5) — шаг композиции системной инструкции (`global`/`screening:*`/`extraction:*`, включая `extraction:discovery`, D37), реализуют ядерный `CorePromptStep` (кросс-документные) и типовые enum'ы анализаторов (`App\Enums\Procurement\Analyzers\<Type>\*PromptStep`) — не путать с `AnalysisStep` (шаг АНАЛИЗА, screening/extraction) или `App\Enums\Llm\LlmPurpose` (тот же интерфейсный сейм для назначения конкретного вызова: `screening`/`discovery`/`extract_passport`/`extract_rows`/`extract_totals`/`eval`/`shadow`).
 - `DocumentStatus::Unprocessable` + `UnprocessableReason` → терминальный исход «не можем обработать» (лимит провайдера/формат/пароль/zip-бомба) — константация, не сбой, не ретраится (D32/D38).
+- `App\Attributes\Ai\Description` (property/parameter/class constant, P2.3) — типизированный носитель
+  семантики поля контракта ответа AI, заменивший докблок-bullet; ридер атрибутов —
+  `App\Services\Llm\Schema\ContractAttributeReader` (`descriptions()`/`aliases()`/`caseAliases()`) —
+  единственный источник и для `description` в исходящей схеме (`JsonSchemaGenerator`), и для
+  словаря синонимов (`PromptContextGenerator`, `#[Alias]`). Не путать с `#[Alias]` (синоним
+  написания величины в документе, не смысл поля).
+- **Критерий непрегрессии** (`EvalRunComparator::compare()`, `--criterion=patch|no-regression|
+  noise-aware`, P2.2/P2.13) — числовое условие приёмки патча промта: рост/непадение F1 и row
+  coverage на `tune`/`holdout` в пределах порога; `noise-aware` берёт порог из дельты нулевой пары
+  замеров, а не из константы (`docs/03_Dev/ai/training-loop.md` §6).
 - `DiscoveryResponse`/`DiscoveryMarker` (`App\Dto\Procurement\Analyzers\Estimate\*`) — паспорт границ смет оконного пути извлечения: LLM размечает страницы окна маркерами (`estimate_start`/`continuation`/`estimate_end`), бэкенд ДЕТЕРМИНИРОВАННО (не LLM) склеивает их в сегменты `{estimate_ordinal, page_start, page_end}` (D30/D37).
 - `ExtractionRoute` (не backed enum, `Whole`/`Windowed`) — путь извлечения, выбранный `ExtractionPreflight` до первого upload по capability-матрице маршрута (D29).
 

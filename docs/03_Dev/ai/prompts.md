@@ -25,11 +25,11 @@ sequenceDiagram
     Job->>Composer: compose(step, [обёртка ответа, ...словари типа])
     Composer->>Repo: activeForSteps([Global, step-global?, step])
     Repo-->>Composer: правила, priority ASC
-    Composer->>Schema: generate(корни блока схем)
+    Composer->>Schema: generate(корни блока словарей)
     Schema->>Graph: closure(корень)
     Graph-->>Schema: транзитивное замыкание вложенных Data/enum
-    Schema-->>Composer: очищенный PHP-исходник Data-контрактов<br/>(докблоки/#[Alias] как инструкции)
-    Note over Composer: systemPart = правила + блок схем<br/>rulesHash = sha1(systemPart)
+    Schema-->>Composer: блок словарей синонимов (#[Alias])<br/>структура контракта — ОТДЕЛЬНО, в response_schema (P2.3/P2.5)
+    Note over Composer: systemPart = правила + блок словарей<br/>rulesHash = sha1(systemPart)
     Composer-->>Job: ComposedPrompt(systemPart, rulesHash, promptVersionSet)
     rect rgb(220, 235, 250)
         Note over Composer: ГРАНИЦА КЭШИРУЕМОГО ПРЕФИКСА (D8/D14)<br/>systemPart детерминирован между вызовами —<br/>implicit-кэш провайдера экономит ~90% на повторе
@@ -42,17 +42,26 @@ sequenceDiagram
 
 Композиция: `App\Services\Llm\PromptComposer::compose()` (`app/Services/Llm/PromptComposer.php:30`) —
 порядок Global → step-global (`ScreeningGlobal`/`ExtractionGlobal`) → сам шаг, `priority` ASC внутри
-каждого уровня (канон v1, `PromptComposer::stepsForComposition()`). Блок схем —
-`App\Services\Llm\Schema\PromptContextGenerator::generate()` — обёртки шага (суффикс `Response`)
-всегда последними.
+каждого уровня (канон v1, `PromptComposer::stepsForComposition()`), затем блок словарей синонимов —
+`App\Services\Llm\Schema\PromptContextGenerator::generate()`.
 
-**Состав блока схем (P6.1, D51).** Печатается ТРАНЗИТИВНОЕ ЗАМЫКАНИЕ переданных корней, а не
-переданный список: от обёртки ответа шага обход доходит до вложенных Data-классов и enum'ов
+**Разделение «схема / правила» (P2.3–P2.5, D88/D101).** Структуру контракта ответа (типы,
+обязательность, вложенность, `description` каждого поля) несёт ИСХОДЯЩАЯ СХЕМА провайдера
+(`App\Services\Llm\Schema\JsonSchemaGenerator` + атрибут `App\Attributes\Ai\Description`, читаемый
+`ContractAttributeReader` — см. ниже) — отдельный канал вызова (`response_schema` через
+`Prism\Schema\RawSchema`, НЕ системная часть промта). `PromptContextGenerator::generate()` печатает
+в системную часть ТОЛЬКО словарь синонимов (`#[Alias]`) — печать очищенного PHP-исходника
+Data-контрактов (приём v1, `Old/app/Services/PromptService.php::getCleanSchema`) снята: два
+носителя одной структуры (докблок промта и JSON-схема) дороже одного и расходятся молча (D88).
+Инвариант держит тест когерентности (`tests/Feature/Ai/PromptCompositionTest.php`).
+
+**Состав блока словарей (P6.1, D51).** Печатается ТРАНЗИТИВНОЕ ЗАМЫКАНИЕ переданных корней (обёртки
+ответа шага), а не переданный список — обход доходит до вложенных Data-классов и enum'ов
 (конструктор, элементы массивов по докблоку `@param X[]`, самоссылки без зацикливания). Владелец
-правила обхода ОДИН — `App\Services\Llm\Schema\DataTypeGraph`, тот же, что у
-`JsonSchemaGenerator`: JSON-схема сознательно не дублирует семантику полей («без description-дублей
-— семантика уже в prompt-контексте»), поэтому расхождение двух носителей означало бы, что семантику
-не несёт НИ ОДИН. Инвариант держит тест когерентности (`tests/Feature/Ai/PromptCompositionTest.php`).
+правила обхода ОДИН — `App\Services\Llm\Schema\DataTypeGraph`, тот же, что у `JsonSchemaGenerator`.
+Печатаются только классы, реально несущие `#[Alias]` — синоним того, как поле/значение может
+называться в исходном документе; JSON-схема эту семантику не несёт (`description` там — про смысл
+поля для модели, не про синонимы написания).
 
 Словари `#[Alias]`, до которых обход не доходит (`EstimateHeaderMap` — «НЕ часть JSON-ответа LLM ни
 одного шага»), объявляет сам ТИП документа одним объявлением
@@ -60,6 +69,22 @@ sequenceDiagram
 потребители шага; ядро о них не знает. Достижимое замыканием (`ResourceType`) в объявлении не
 дублируется. Смена состава блока меняет `rules_hash` — живые explicit-кэши анализов инвалидируются
 штатным `LlmCacheManager::validHandle()` один раз, ручная правка `rules_hash` запрещена.
+
+## Атрибут `#[Description]` и ридер контрактов (P2.3/P2.4)
+
+`App\Attributes\Ai\Description` (property/parameter/class constant) — типизированный носитель
+семантики поля контракта ответа, заменивший докблок-bullet (`@param X описание`) на всех свойствах
+Data-контрактов пяти шагов. `App\Services\Llm\Schema\ContractAttributeReader` читает атрибуты
+(`descriptions()`/`aliases()`/`caseAliases()`, без кэша) — единственный источник и для блока
+словарей (выше), и для `description` в исходящей схеме (`JsonSchemaGenerator::classSchema()`).
+Покрытие контрактов проверяет `tests/Feature/Ai/ContractDescriptionCoverageTest.php`.
+
+`JsonSchemaGenerator` печатает `description` каждого свойства в схему и НЕ сортирует свойства/
+`required` — оба массива идут в порядке объявления параметров конструктора Data-класса (единый
+порядок между схемой и, где применимо, словарями, D89). `propertyOrdering` (отдельный ключ
+`response_schema`, требуемый некоторыми моделями линейки 2.0) НЕ эмитируется — по вердикту
+`findings/P2-vendor-structured-output.md` §3/§7 модели активных маршрутов проекта (линейка 3.x) его
+не требуют.
 
 Коррекции — `App\Services\Llm\CorrectionAwareComposer::correctionsBlock()`
 (`app/Services/Llm/CorrectionAwareComposer.php:26`) — намеренно USER-часть, не системная (иначе
@@ -126,8 +151,9 @@ D32) (git); `App\Enums\Llm\PromptStep` — интерфейс, шаги
 
 ## Смежное
 
-- Композиция и блок схем — `App\Services\Llm\Schema\PromptContextGenerator` генерирует их из PHP
-  Data-контрактов (докблоки/`#[Alias]`-словари как инструкции модели, приём v1 — research/B §Синхронизация PHP↔JSON).
+- Композиция и блок словарей синонимов — `App\Services\Llm\Schema\PromptContextGenerator` генерирует
+  их из `#[Alias]` Data-контрактов; структура ответа (типы/`description`/порядок) — отдельно,
+  исходящей схемой (`App\Services\Llm\Schema\JsonSchemaGenerator`, см. выше).
 - Как менеджеры и операторы читают промт-систему бизнес-языком — `docs/02_Workflow/prompts-and-quality.md` (P10.4).
 - Feature-карточки конкретных AI-шагов — [`feature-card-screening.md`](feature-card-screening.md),
   [`feature-card-estimate-extraction.md`](feature-card-estimate-extraction.md).

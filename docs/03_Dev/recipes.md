@@ -38,8 +38,9 @@ status: draft
 2. Новый `document_type` в роутинге (`llm_routes`) и, если нужен отдельный набор промтов — новый
    типовой enum шага, реализующий `App\Enums\Llm\PromptStep` (`App\Enums\Procurement\Analyzers\
    <Type>\*PromptStep`, contract P2.1 §4.1) + свой каталог `resources/<домен>/ai/prompts/**` (D32).
-3. Новый Data-контракт ответа (схема-как-код, D2) — генерирует и промт-исходник, и
-   `responseJsonSchema` из одного PHP-класса; см. `03_Dev/ai/prompts.md` §Composite versioning.
+3. Новый Data-контракт ответа (схема-как-код, D2) — из одного PHP-класса генерируется и
+   `response_schema` (структура/`description`/порядок), и словарь синонимов `#[Alias]`,
+   печатаемый в системную часть; см. `03_Dev/ai/prompts.md` §Composite versioning.
 4. Второй экстрактор — не копия `ExtractionOrchestrator`, а собственный оркестратор своей стадии
    (реюз ChunkSource/checkpoint-механики — по применимости, не обязателен).
 

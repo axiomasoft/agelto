@@ -61,6 +61,7 @@ Repositories — read/write доступ к `prc_*`/`org_*` таблицам. П
 - `App\Enums\Llm\PromptStep` (интерфейс, ядерный `CorePromptStep` + типовые enum'ы анализаторов) — композиция промта ≠ `AnalysisStep` (шаг анализа: screening/extraction) ≠ `App\Enums\Llm\LlmPurpose` (тот же интерфейсный сейм для назначения конкретного вызова).
 - `DocumentStatus::Unprocessable` + `UnprocessableReason` — терминальный «не можем обработать» (лимит провайдера/формат/пароль/zip-бомба) — константация, не сбой, не ретраится.
 - `ExtractionRoute` (`Whole`/`Windowed`) — путь извлечения, выбранный `ExtractionPreflight` по capability-матрице ДО первого upload.
+- `App\Attributes\Ai\Description` (P2.3) — семантика поля контракта ответа AI, читает `ContractAttributeReader`; структуру ответа (типы/`description`/порядок) целиком несёт исходящая схема (`response_schema`), системный текст промта — только правила поведения + словарь синонимов `#[Alias]` (разделение «схема / правила», P2.3–P2.5).
 
 В UI и комментариях допустим бизнес-язык («извещение», «вложение», «смета»); в идентификаторах — технический канон.
 

@@ -35,10 +35,19 @@ paths:
 ## 2) Композиция и приоритеты (D5)
 
 `PromptComposer::compose()`: `global` → `<step>-global` (если есть у группы) → `<step>`, порядок
-внутри группы — `priority` ASC, блок JSON Schema (генерируется из PHP Data-класса, не файл) —
-последним. Носитель шага — `App\Enums\Llm\PromptStep` (интерфейс, P2.5): ядерный `CorePromptStep` +
-типовые enum'ы анализаторов, 9 значений вместе (`app/Enums/Llm/CorePromptStep.php`) — сидер
-(через `DocumentAnalyzerRegistry::promptStepFor()`) падает на опечатке в `step` front-matter.
+внутри группы — `priority` ASC, затем блок словарей синонимов (`PromptContextGenerator`,
+генерируется из `#[Alias]` Data-классов, не файл). Носитель шага — `App\Enums\Llm\PromptStep`
+(интерфейс, P2.5): ядерный `CorePromptStep` + типовые enum'ы анализаторов, 9 значений вместе
+(`app/Enums/Llm/CorePromptStep.php`) — сидер (через `DocumentAnalyzerRegistry::promptStepFor()`)
+падает на опечатке в `step` front-matter.
+
+**Разделение «схема / правила» (P2.3–P2.5).** Текст промта-файла — ПРАВИЛА поведения, не описание
+структуры ответа: структуру (типы, `description` каждого поля, порядок) несёт исходящая схема
+(`response_schema`, генерируется `JsonSchemaGenerator` + `#[Description]`-атрибут на контракте,
+`App\Services\Llm\Schema\ContractAttributeReader`) — ОТДЕЛЬНЫЙ канал вызова, не системная часть
+промта. Печать очищенного PHP-исходника контракта в системную часть (приём v1) снята — писать в
+промте «поле X — это Y» после P2.5 избыточно, это уже несёт схема; текст промта описывает ПОВЕДЕНИЕ
+(что делать при неполных данных, как трактовать нормативные базы и т.п.), не форму ответа.
 
 ## 3) Discovery / корректирующие hints (D15)
 

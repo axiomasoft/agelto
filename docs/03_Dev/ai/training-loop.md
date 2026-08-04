@@ -55,6 +55,16 @@ flowchart TD
 реализация создания рабочей копии — см. «Известные долги»). Обе команды создают `Document`+
 `DocumentVersion` с `external_id` по своей конвенции (`fixture:<CODE>`/`gold:<name>`).
 
+**Восстановление корпуса в пустой БД (D94).** Реестр `prc_ai_fixtures` и рабочие копии — рантайм-
+проекция манифеста `estimates/manifest.json` (git-SSOT), не первичный носитель: свежая БД
+восстанавливает корпус без единого платного вызова, тремя командами по порядку —
+`estimate:fixtures:import` (манифест → диск эталонов → `prc_ai_fixtures`, идемпотентно по sha256,
+битая запись отклоняется индивидуально) → `estimate:gold:import --prepare` (рабочие копии ВНЕ
+закупки + `prc_ai_dataset_examples` из `<CODE>.gold.json`/`<CODE>.screening.json`,
+`source=deterministic`) → `estimate:fixtures:verify` (диагностическая сверка манифест ↔ диск ↔
+реестр, ничего не правит). Граница: git-SSOT (`estimates/manifest.json`) сам пуст или не читается —
+это эскалация владельцу, а не повод строить корпус вручную из чего-то другого.
+
 ## 2. Как запускается прогон и что он показывает (P5.2/P5.3/P5.4)
 
 Кнопка **«Прогнать»** на карточке эталона (`ViewFixture`, право `AnalysisPermission::Create`,

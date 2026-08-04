@@ -39,7 +39,8 @@ status: draft
 - `Services/Llm/` — транспортный слой домена `Llm`: `LlmRouteResolver`, `PromptComposer`,
   `CorrectionAwareComposer`, `LlmCacheManager`, `LlmCallRecorder`, `ShadowDispatch`, `Providers/`
   (`PrismGeminiProvider`, `OpenAiCompatibleProvider`), `Contracts/` (`LlmProvider` и capability-
-  интерфейсы), `Schema/` (генерация промт-контекста и `responseJsonSchema` из Data-классов), `Dto/`,
+  интерфейсы), `Schema/` (генерация словаря синонимов промт-контекста и `response_schema` из
+  Data-классов), `Dto/`,
   `Validation/`; модели/фабрики/репозитории транспорта — `app/Models/Llm/**`,
   `database/factories/Llm/**`, `app/Repositories/Llm/**` (D22, P1.5). Подробнее —
   [`llm-providers.md`](llm-providers.md).

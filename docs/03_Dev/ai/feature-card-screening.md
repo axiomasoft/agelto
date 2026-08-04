@@ -21,8 +21,8 @@ status: draft
   сид `AiRoutingSeeder`).
 - Промты: `resources/ai/prompts/{global,screening-global,screening-classify}/` — композиция
   Global → `screening-global` → `screening-classify`, `priority` ASC (Д3 в `../llm-providers.md`).
-- Схема ответа — `App\Dto\...` Data-класс шага (генерируется в `responseJsonSchema` + промт-исходник
-  через `PromptContextGenerator`, «схема-как-код», D2).
+- Схема ответа — `App\Dto\...` Data-класс шага (генерируется в `response_schema`; словарь синонимов
+  `#[Alias]` — отдельно, через `PromptContextGenerator`, «схема-как-код», D2).
 
 ## Why-решения
 
