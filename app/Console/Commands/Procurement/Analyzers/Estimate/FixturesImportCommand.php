@@ -7,14 +7,16 @@ namespace App\Console\Commands\Procurement\Analyzers\Estimate;
 use App\Exceptions\Procurement\OperationFailed;
 use App\Services\Procurement\Fixture\FixtureManifestReader;
 use App\Services\Procurement\Fixture\FixtureRegistrar;
+use App\Services\Storage\FileLocationResolver;
 use Illuminate\Console\Command;
 
 /**
  * Импорт `estimates/manifest.json` (D1/D20, P2.3): читает манифест, валидирует КАЖДУЮ запись
- * контрактом `FixtureManifestEntry`, кладёт файл эталона на диск `config('ai.fixtures.disk')`,
- * апсертит запись реестра `prc_ai_fixtures`. Идемпотентность — по sha256: повтор не перезаливает
- * файл и не плодит записи; битая запись отклоняется индивидуально, не роняя остальные. Чтение
- * манифеста и импорт записи вынесены в {@see FixtureManifestReader}/{@see FixtureRegistrar} (P3.3).
+ * контрактом `FixtureManifestEntry`, кладёт файл эталона на текущий диск эталонов
+ * ({@see FileLocationResolver::currentFixturesDisk()}), апсертит запись реестра `prc_ai_fixtures`.
+ * Идемпотентность — по sha256: повтор не перезаливает файл и не плодит записи; битая запись
+ * отклоняется индивидуально, не роняя остальные. Чтение манифеста и импорт записи вынесены в
+ * {@see FixtureManifestReader}/{@see FixtureRegistrar} (P3.3).
  */
 final class FixturesImportCommand extends Command
 {
@@ -28,6 +30,7 @@ final class FixturesImportCommand extends Command
     public function __construct(
         private readonly FixtureManifestReader $manifestReader,
         private readonly FixtureRegistrar $registrar,
+        private readonly FileLocationResolver $locationResolver,
     ) {
         parent::__construct();
     }
@@ -37,7 +40,7 @@ final class FixturesImportCommand extends Command
         $manifestPath = (string) ($this->option('manifest') ?? config('ai.fixtures.manifest_path'));
         $sourceDir = (string) ($this->option('source-dir') ?? config('ai.fixtures.source_dir'));
         $dryRun = (bool) $this->option('dry-run');
-        $disk = (string) config('ai.fixtures.disk');
+        $disk = $this->locationResolver->currentFixturesDisk();
 
         try {
             $manifest = $this->manifestReader->read($manifestPath);

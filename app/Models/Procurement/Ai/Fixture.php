@@ -10,6 +10,7 @@ use App\Enums\Procurement\Ai\GoldSource;
 use App\Models\Procurement\Document\Document;
 use App\Models\Procurement\Document\DocumentVersion;
 use App\Models\User;
+use App\Services\Storage\FileLocationResolver;
 use Database\Factories\Procurement\Ai\FixtureFactory;
 use Illuminate\Database\Eloquent\Attributes\UseFactory;
 use Illuminate\Database\Eloquent\Casts\AsCollection;
@@ -139,7 +140,8 @@ final class Fixture extends Model
     }
 
     /**
-     * Единственный построитель пути исходного файла эталона на диске `config('ai.fixtures.disk')`.
+     * Единственный построитель пути исходного файла эталона на текущем диске эталонов
+     * ({@see FileLocationResolver::currentFixturesDisk()}).
      */
     public static function storagePathFor(string $code, string $extension): string
     {

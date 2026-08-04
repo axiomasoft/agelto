@@ -14,6 +14,7 @@ use App\Repositories\Procurement\ProcurementStoreRepository;
 use App\Services\Procurement\Prepare\Archive\ArchiveExtractor;
 use App\Services\Procurement\Prepare\Archive\ArchivePasswordProtectedException;
 use App\Services\Procurement\Prepare\Archive\ArchiveUnsupportedException;
+use App\Services\Storage\FileLocationResolver;
 use Illuminate\Contracts\Filesystem\Filesystem;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
@@ -38,6 +39,7 @@ final readonly class ArchiveStrategy implements PreparationStrategy
         private DocumentStoreRepository $storeRepository,
         private ProcurementStoreRepository $procurementStore,
         private ArchiveExtractor $extractor,
+        private FileLocationResolver $locationResolver,
     ) {}
 
     public function canProcess(DocumentVersion $version): bool
@@ -59,7 +61,8 @@ final readonly class ArchiveStrategy implements PreparationStrategy
             return false;
         }
 
-        $disk = Storage::disk((string) config('crawler.documents_disk'));
+        $diskName = $this->locationResolver->currentDocumentsDisk();
+        $disk = Storage::disk($diskName);
         $localArchive = tempnam(sys_get_temp_dir(), 'archive_');
 
         try {
@@ -86,7 +89,7 @@ final readonly class ArchiveStrategy implements PreparationStrategy
                 return false;
             }
 
-            $this->extractChildren($document, $version, $localArchive, $entries, $disk);
+            $this->extractChildren($document, $version, $localArchive, $entries, $disk, $diskName);
         } finally {
             @unlink($localArchive);
         }
@@ -122,7 +125,7 @@ final readonly class ArchiveStrategy implements PreparationStrategy
     /**
      * @param  list<string>  $entries
      */
-    private function extractChildren(Document $document, DocumentVersion $version, string $localArchive, array $entries, Filesystem $disk): void
+    private function extractChildren(Document $document, DocumentVersion $version, string $localArchive, array $entries, Filesystem $disk, string $diskName): void
     {
         $tempFolder = 'tmp_extract/'.Str::uuid();
         $extractPath = storage_path('app/'.$tempFolder);
@@ -131,7 +134,7 @@ final readonly class ArchiveStrategy implements PreparationStrategy
             $this->extractor->extract($localArchive, $version->extension, $extractPath, $entries);
 
             foreach ($entries as $relativePath) {
-                $this->indexChild($document, $version, $relativePath, $extractPath.'/'.$relativePath, $disk);
+                $this->indexChild($document, $version, $relativePath, $extractPath.'/'.$relativePath, $disk, $diskName);
             }
         } finally {
             File::deleteDirectory($extractPath);
@@ -168,7 +171,7 @@ final readonly class ArchiveStrategy implements PreparationStrategy
      * не перезаписывает существующий по пути) остаётся ВНЕ транзакции (внешний I/O не должен
      * держать DB-транзакцию открытой), а child+version+event — единая DB-транзакция.
      */
-    private function indexChild(Document $document, DocumentVersion $version, string $relativePath, string $localPath, Filesystem $disk): void
+    private function indexChild(Document $document, DocumentVersion $version, string $relativePath, string $localPath, Filesystem $disk, string $diskName): void
     {
         $externalId = $version->id.':'.$relativePath;
 
@@ -181,7 +184,7 @@ final readonly class ArchiveStrategy implements PreparationStrategy
         $hash = hash('sha256', $content);
         $storagePath = $this->store($disk, $hash, $content);
 
-        DB::transaction(function () use ($document, $externalId, $relativePath, $content, $hash, $storagePath, $version): void {
+        DB::transaction(function () use ($document, $externalId, $relativePath, $content, $hash, $storagePath, $diskName, $version): void {
             $child = $this->storeRepository->findByExternalId($document->procurement_id, $externalId)
                 ?? $this->storeRepository->create([
                     'procurement_id' => $document->procurement_id,
@@ -201,6 +204,7 @@ final readonly class ArchiveStrategy implements PreparationStrategy
                 'extension' => pathinfo($relativePath, PATHINFO_EXTENSION),
                 'mime' => $this->mimeOf($content),
                 'storage_path' => $storagePath,
+                'disk' => $diskName,
                 'downloaded_at' => now(),
                 'parent_version_id' => $version->id,
             ]);

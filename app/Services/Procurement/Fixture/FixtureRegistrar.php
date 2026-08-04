@@ -78,6 +78,7 @@ final readonly class FixtureRegistrar
         $this->fixtures->storeOrUpdate($entry->code, [
             'source_format' => $entry->source_format,
             'storage_path' => $entry->storage_path,
+            'disk' => $disk,
             'sha256' => $entry->sha256,
             'size_bytes' => $entry->size_bytes,
             'mime' => $entry->mime ?? 'application/octet-stream',

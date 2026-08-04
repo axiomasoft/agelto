@@ -11,6 +11,7 @@ use App\Models\Procurement\Document\Document;
 use App\Models\Procurement\Document\DocumentVersion;
 use App\Repositories\Procurement\Document\DocumentStoreRepository;
 use App\Repositories\Procurement\Document\RepresentationStoreRepository;
+use App\Services\Storage\FileLocationResolver;
 use Illuminate\Contracts\Filesystem\Filesystem;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Storage;
@@ -53,6 +54,7 @@ final readonly class ScanStrategy implements PreparationStrategy
         private RepresentationStoreRepository $representations,
         private DocumentStoreRepository $storeRepository,
         private OcrConverter $converter,
+        private FileLocationResolver $locationResolver,
     ) {}
 
     public function canProcess(DocumentVersion $version): bool
@@ -68,7 +70,8 @@ final readonly class ScanStrategy implements PreparationStrategy
         }
 
         $isPdf = $version->extension === 'pdf';
-        $disk = Storage::disk((string) config('crawler.documents_disk'));
+        $diskName = $this->locationResolver->currentDocumentsDisk();
+        $disk = Storage::disk($diskName);
         $workDir = sys_get_temp_dir().'/ocr_'.Str::uuid();
         $localInput = $workDir.'/source.'.$version->extension;
         $localOutput = $workDir.'/ocr.pdf';
@@ -107,7 +110,7 @@ final readonly class ScanStrategy implements PreparationStrategy
                 return true;
             }
 
-            $this->storeRepresentations($version, $disk, $localOutput, $text, $durationMs);
+            $this->storeRepresentations($version, $disk, $diskName, $localOutput, $text, $durationMs);
 
             return true;
         } finally {
@@ -118,6 +121,7 @@ final readonly class ScanStrategy implements PreparationStrategy
     private function storeRepresentations(
         DocumentVersion $version,
         Filesystem $disk,
+        string $diskName,
         string $localOutput,
         string $text,
         int $durationMs,
@@ -138,7 +142,7 @@ final readonly class ScanStrategy implements PreparationStrategy
 
         $this->representations->storeOrUpdate($version, RepresentationKind::PdfOcr, [
             'storage_path' => $pdfPath,
-            'disk' => null,
+            'disk' => $diskName,
             'size_bytes' => (int) filesize($localOutput),
             'page_count' => $this->converter->pageCount($localOutput),
             'mime' => 'application/pdf',
@@ -151,7 +155,7 @@ final readonly class ScanStrategy implements PreparationStrategy
 
         $this->representations->storeOrUpdate($version, RepresentationKind::Text, [
             'storage_path' => $textPath,
-            'disk' => null,
+            'disk' => $diskName,
             'size_bytes' => strlen($text),
             // Та же эвристика оценки токенов, что у `text_grid` (P3.5): 4 символа на токен.
             'token_estimate' => (int) ceil(strlen($text) / 4),

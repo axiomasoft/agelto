@@ -1,0 +1,75 @@
+<?php
+
+declare(strict_types=1);
+
+use App\Models\Procurement\Ai\Fixture;
+use App\Models\Procurement\Document\DocumentRepresentation;
+use App\Models\Procurement\Document\DocumentVersion;
+use App\Services\Storage\FileLocationResolver;
+
+beforeEach(function (): void {
+    config([
+        'crawler.documents_disk' => 'documents_v1',
+        'ai.fixtures.disk' => 'fixtures_v1',
+        'crawler.raw_disk' => 'raw_v1',
+    ]);
+
+    $this->resolver = new FileLocationResolver;
+});
+
+test('forDocumentVersion фолбэкает на текущий диск документов при пустой колонке', function (): void {
+    $version = DocumentVersion::factory()->create(['disk' => null, 'storage_path' => 'documents/aa/hash']);
+
+    $location = $this->resolver->forDocumentVersion($version);
+
+    expect($location->disk)->toBe('documents_v1')
+        ->and($location->path)->toBe('documents/aa/hash');
+});
+
+test('forDocumentVersion берёт диск из записи, если он материализован', function (): void {
+    $version = DocumentVersion::factory()->onDisk('documents_v2')->create(['storage_path' => 'documents/bb/hash']);
+
+    $location = $this->resolver->forDocumentVersion($version);
+
+    expect($location->disk)->toBe('documents_v2');
+});
+
+test('forRepresentation фолбэкает на текущий диск документов при пустой колонке', function (): void {
+    $representation = DocumentRepresentation::factory()->create(['disk' => null, 'storage_path' => 'documents/aa/hash.prepared.pdf']);
+
+    $location = $this->resolver->forRepresentation($representation);
+
+    expect($location->disk)->toBe('documents_v1')
+        ->and($location->path)->toBe('documents/aa/hash.prepared.pdf');
+});
+
+test('forRepresentation берёт диск из записи, если он материализован', function (): void {
+    $representation = DocumentRepresentation::factory()->create(['disk' => 'documents_v2']);
+
+    $location = $this->resolver->forRepresentation($representation);
+
+    expect($location->disk)->toBe('documents_v2');
+});
+
+test('forFixture фолбэкает на текущий диск эталонов при пустой колонке', function (): void {
+    $fixture = Fixture::factory()->create(['disk' => null]);
+
+    $location = $this->resolver->forFixture($fixture);
+
+    expect($location->disk)->toBe('fixtures_v1')
+        ->and($location->path)->toBe($fixture->storage_path);
+});
+
+test('forFixture берёт диск из записи, если он материализован', function (): void {
+    $fixture = Fixture::factory()->onDisk('fixtures_v2')->create();
+
+    $location = $this->resolver->forFixture($fixture);
+
+    expect($location->disk)->toBe('fixtures_v2');
+});
+
+test('write-аксессоры читают текущие конфиг-ключи диска, каждый свой', function (): void {
+    expect($this->resolver->currentDocumentsDisk())->toBe('documents_v1')
+        ->and($this->resolver->currentFixturesDisk())->toBe('fixtures_v1')
+        ->and($this->resolver->currentRawDisk())->toBe('raw_v1');
+});

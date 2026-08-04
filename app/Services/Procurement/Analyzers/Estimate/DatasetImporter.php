@@ -11,6 +11,7 @@ use App\Enums\Procurement\Document\DocumentStatus;
 use App\Models\Procurement\Platform\Platform;
 use App\Repositories\Procurement\Ai\DatasetExampleStoreRepository;
 use App\Repositories\Procurement\Document\DocumentStoreRepository;
+use App\Services\Storage\FileLocationResolver;
 use App\Support\Files\MimeDetector;
 use App\Support\Files\ShardedBlobPath;
 use Illuminate\Support\Arr;
@@ -31,6 +32,7 @@ final readonly class DatasetImporter
     public function __construct(
         private DocumentStoreRepository $documents,
         private DatasetExampleStoreRepository $examples,
+        private FileLocationResolver $locationResolver,
     ) {}
 
     /**
@@ -138,6 +140,7 @@ final readonly class DatasetImporter
                 'extension' => pathinfo($sourceFile, PATHINFO_EXTENSION),
                 'mime' => MimeDetector::of($content),
                 'storage_path' => $this->store($hash, $content),
+                'disk' => $this->locationResolver->currentDocumentsDisk(),
                 'downloaded_at' => now(),
             ]);
 
@@ -150,7 +153,7 @@ final readonly class DatasetImporter
 
     private function store(string $hash, string $content): string
     {
-        $disk = (string) config('crawler.documents_disk');
+        $disk = $this->locationResolver->currentDocumentsDisk();
         $path = ShardedBlobPath::for($hash);
 
         if (! Storage::disk($disk)->exists($path)) {

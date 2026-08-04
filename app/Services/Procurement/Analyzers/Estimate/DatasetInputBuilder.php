@@ -11,6 +11,7 @@ use App\Models\Procurement\Document\DocumentVersion;
 use App\Repositories\Procurement\Document\RepresentationStoreRepository;
 use App\Services\Llm\Dto\ComposedPrompt;
 use App\Services\Llm\PromptComposer;
+use App\Services\Storage\FileLocationResolver;
 use Illuminate\Support\Facades\Storage;
 
 /**
@@ -28,6 +29,7 @@ final readonly class DatasetInputBuilder
         private PromptComposer $prompts,
         private RepresentationStoreRepository $representations,
         private EstimateStepDictionaries $dictionaries,
+        private FileLocationResolver $locationResolver,
     ) {}
 
     public function composePrompt(): ComposedPrompt
@@ -92,9 +94,9 @@ final readonly class DatasetInputBuilder
                 continue;
             }
 
-            $disk = $representation->disk ?? (string) config('crawler.documents_disk');
+            $location = $this->locationResolver->forRepresentation($representation);
 
-            return [$kind, (string) Storage::disk($disk)->get($representation->storage_path)];
+            return [$kind, (string) Storage::disk($location->disk)->get($location->path)];
         }
 
         return null;

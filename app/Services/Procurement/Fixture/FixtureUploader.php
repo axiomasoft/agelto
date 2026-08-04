@@ -9,6 +9,7 @@ use App\Enums\Procurement\Ai\FixtureClass;
 use App\Exceptions\Procurement\Ai\FixtureAlreadyUploaded;
 use App\Models\Procurement\Ai\Fixture;
 use App\Repositories\Procurement\Ai\FixtureStoreRepository;
+use App\Services\Storage\FileLocationResolver;
 use Illuminate\Support\Facades\Storage;
 use Livewire\Features\SupportFileUploads\TemporaryUploadedFile;
 
@@ -24,6 +25,7 @@ final readonly class FixtureUploader
 {
     public function __construct(
         private FixtureStoreRepository $fixtures,
+        private FileLocationResolver $locationResolver,
     ) {}
 
     /**
@@ -57,12 +59,14 @@ final readonly class FixtureUploader
 
         $code = Fixture::nextCodeFor($class, $sourceFormat, $form);
         $storagePath = Fixture::storagePathFor($code, $sourceFormat);
+        $disk = $this->locationResolver->currentFixturesDisk();
 
-        Storage::disk((string) config('ai.fixtures.disk'))->put($storagePath, $file->readStream());
+        Storage::disk($disk)->put($storagePath, $file->readStream());
 
         return $this->fixtures->storeOrUpdate($code, [
             'source_format' => $sourceFormat,
             'storage_path' => $storagePath,
+            'disk' => $disk,
             'sha256' => $sha256,
             'size_bytes' => $file->getSize(),
             'mime' => $file->getMimeType(),

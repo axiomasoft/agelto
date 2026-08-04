@@ -12,6 +12,7 @@ use App\Models\Procurement\Document\Document;
 use App\Models\Procurement\Document\DocumentVersion;
 use App\Repositories\Procurement\Document\DocumentStoreRepository;
 use App\Repositories\Procurement\Document\RepresentationStoreRepository;
+use App\Services\Storage\FileLocationResolver;
 use Composer\InstalledVersions;
 use Illuminate\Contracts\Filesystem\Filesystem;
 use Illuminate\Support\Facades\File;
@@ -50,6 +51,7 @@ final readonly class SpreadsheetStrategy implements PreparationStrategy
         private DocumentStoreRepository $storeRepository,
         private LibreOfficeConverter $converter,
         private TextGridRenderer $textGridRenderer,
+        private FileLocationResolver $locationResolver,
     ) {}
 
     public function canProcess(DocumentVersion $version): bool
@@ -66,7 +68,8 @@ final readonly class SpreadsheetStrategy implements PreparationStrategy
             return true;
         }
 
-        $disk = Storage::disk((string) config('crawler.documents_disk'));
+        $diskName = $this->locationResolver->currentDocumentsDisk();
+        $disk = Storage::disk($diskName);
         $localInput = tempnam(sys_get_temp_dir(), 'xlsx_').'.'.$version->extension;
 
         try {
@@ -75,12 +78,12 @@ final readonly class SpreadsheetStrategy implements PreparationStrategy
             $withinToolLimits = $this->withinToolLimits($version, $localInput);
 
             if (! $hasPdf) {
-                $hasPdf = ($withinToolLimits && $this->tryPhpSpreadsheet($version, $disk, $localInput))
-                    || $this->tryLibreOffice($version, $disk, $localInput);
+                $hasPdf = ($withinToolLimits && $this->tryPhpSpreadsheet($version, $disk, $diskName, $localInput))
+                    || $this->tryLibreOffice($version, $disk, $diskName, $localInput);
             }
 
             if (! $hasTextGrid) {
-                $this->storeTextGrid($version, $disk, $localInput);
+                $this->storeTextGrid($version, $disk, $diskName, $localInput);
             }
 
             if (! $hasPdf) {
@@ -105,7 +108,7 @@ final readonly class SpreadsheetStrategy implements PreparationStrategy
         return $this->countRows($localInput, $version->extension) <= $maxRows;
     }
 
-    private function tryPhpSpreadsheet(DocumentVersion $version, Filesystem $disk, string $localInput): bool
+    private function tryPhpSpreadsheet(DocumentVersion $version, Filesystem $disk, string $diskName, string $localInput): bool
     {
         $localOutput = tempnam(sys_get_temp_dir(), 'xlsx_pdf_').'.pdf';
 
@@ -115,7 +118,7 @@ final readonly class SpreadsheetStrategy implements PreparationStrategy
             $durationMs = (int) round((microtime(as_float: true) - $startedAt) * 1000);
 
             $pdf = (string) file_get_contents($localOutput);
-            $this->storePdfRepresentation($version, $disk, $pdf, [
+            $this->storePdfRepresentation($version, $disk, $diskName, $pdf, [
                 'tool' => 'phpspreadsheet+mpdf',
                 'tool_version' => InstalledVersions::getPrettyVersion('phpoffice/phpspreadsheet'),
                 'duration_ms' => $durationMs,
@@ -130,7 +133,7 @@ final readonly class SpreadsheetStrategy implements PreparationStrategy
         }
     }
 
-    private function tryLibreOffice(DocumentVersion $version, Filesystem $disk, string $localInput): bool
+    private function tryLibreOffice(DocumentVersion $version, Filesystem $disk, string $diskName, string $localInput): bool
     {
         $outputDir = sys_get_temp_dir().'/xlsx_pdf_'.Str::uuid();
 
@@ -139,7 +142,7 @@ final readonly class SpreadsheetStrategy implements PreparationStrategy
             $localOutput = $this->converter->toPdf($localInput, $outputDir);
 
             $pdf = (string) file_get_contents($localOutput);
-            $this->storePdfRepresentation($version, $disk, $pdf, [
+            $this->storePdfRepresentation($version, $disk, $diskName, $pdf, [
                 'tool' => 'libreoffice',
                 'tool_version' => $this->converter->version(),
             ]);
@@ -155,14 +158,14 @@ final readonly class SpreadsheetStrategy implements PreparationStrategy
     /**
      * @param  array<string, mixed>  $meta
      */
-    private function storePdfRepresentation(DocumentVersion $version, Filesystem $disk, string $pdf, array $meta): void
+    private function storePdfRepresentation(DocumentVersion $version, Filesystem $disk, string $diskName, string $pdf, array $meta): void
     {
         $preparedPath = $this->preparedPath($version);
         $disk->put($preparedPath, $pdf);
 
         $this->representations->storeOrUpdate($version, RepresentationKind::Pdf, [
             'storage_path' => $preparedPath,
-            'disk' => null,
+            'disk' => $diskName,
             'size_bytes' => strlen($pdf),
             'mime' => 'application/pdf',
             'meta' => $meta,
@@ -170,7 +173,7 @@ final readonly class SpreadsheetStrategy implements PreparationStrategy
         ]);
     }
 
-    private function storeTextGrid(DocumentVersion $version, Filesystem $disk, string $localInput): void
+    private function storeTextGrid(DocumentVersion $version, Filesystem $disk, string $diskName, string $localInput): void
     {
         $rendered = $this->textGridRenderer->render($localInput, $version->extension);
 
@@ -183,7 +186,7 @@ final readonly class SpreadsheetStrategy implements PreparationStrategy
 
         $this->representations->storeOrUpdate($version, RepresentationKind::TextGrid, [
             'storage_path' => $preparedPath,
-            'disk' => null,
+            'disk' => $diskName,
             'size_bytes' => strlen($rendered['text']),
             'token_estimate' => (int) ceil(strlen($rendered['text']) / 4),
             'mime' => 'text/tab-separated-values',

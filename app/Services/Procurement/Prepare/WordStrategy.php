@@ -11,6 +11,7 @@ use App\Models\Procurement\Document\Document;
 use App\Models\Procurement\Document\DocumentVersion;
 use App\Repositories\Procurement\Document\DocumentStoreRepository;
 use App\Repositories\Procurement\Document\RepresentationStoreRepository;
+use App\Services\Storage\FileLocationResolver;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -29,6 +30,7 @@ final readonly class WordStrategy implements PreparationStrategy
         private RepresentationStoreRepository $representations,
         private DocumentStoreRepository $storeRepository,
         private LibreOfficeConverter $converter,
+        private FileLocationResolver $locationResolver,
     ) {}
 
     public function canProcess(DocumentVersion $version): bool
@@ -42,7 +44,8 @@ final readonly class WordStrategy implements PreparationStrategy
             return true;
         }
 
-        $disk = Storage::disk((string) config('crawler.documents_disk'));
+        $diskName = $this->locationResolver->currentDocumentsDisk();
+        $disk = Storage::disk($diskName);
         $localInput = tempnam(sys_get_temp_dir(), 'word_').'.'.$version->extension;
         $outputDir = sys_get_temp_dir().'/word_pdf_'.Str::uuid();
 
@@ -58,7 +61,7 @@ final readonly class WordStrategy implements PreparationStrategy
 
             $this->representations->storeOrUpdate($version, RepresentationKind::Pdf, [
                 'storage_path' => $preparedPath,
-                'disk' => null,
+                'disk' => $diskName,
                 'size_bytes' => strlen($pdf),
                 'mime' => 'application/pdf',
                 'meta' => [

@@ -7,16 +7,20 @@ namespace App\Services\Procurement\Prepare;
 use App\Enums\Procurement\Document\RepresentationKind;
 use App\Models\Procurement\Document\DocumentVersion;
 use App\Repositories\Procurement\Document\RepresentationStoreRepository;
+use App\Services\Storage\FileLocationResolver;
 
 /**
  * Какой файл версии уходит в LLM (D25). Политика по расширению исходника читается из
  * `config('ai.representations')` (P6.3, D3/D52, ADR `adr-input-representation.md`) — правило
- * живёт как ДАННЫЕ, ветка выбора легальна только здесь.
+ * живёт как ДАННЫЕ, ветка выбора легальна только здесь. Источник диска — {@see FileLocationResolver}
+ * (P6.3, D115): внешняя форма `array{storagePath, disk, extension, mime}` не меняется, диск внутри
+ * больше не читается из `config(...)` напрямую.
  */
 final readonly class RepresentationResolver
 {
     public function __construct(
         private RepresentationStoreRepository $representations,
+        private FileLocationResolver $resolver,
     ) {}
 
     /**
@@ -30,8 +34,6 @@ final readonly class RepresentationResolver
      */
     public function forLlm(DocumentVersion $version, ?RepresentationKind $forceKind = null): ?array
     {
-        $documentsDisk = (string) config('crawler.documents_disk');
-
         if ($forceKind !== null) {
             $representation = $this->representations->find($version, $forceKind);
 
@@ -39,9 +41,11 @@ final readonly class RepresentationResolver
                 return null;
             }
 
+            $location = $this->resolver->forRepresentation($representation);
+
             return [
-                'storagePath' => $representation->storage_path,
-                'disk' => $representation->disk ?? $documentsDisk,
+                'storagePath' => $location->path,
+                'disk' => $location->disk,
                 'extension' => $forceKind->extension(),
                 'mime' => $representation->mime,
             ];
@@ -51,9 +55,11 @@ final readonly class RepresentationResolver
             $representation = $this->representations->find($version, $kind);
 
             if ($representation !== null) {
+                $location = $this->resolver->forRepresentation($representation);
+
                 return [
-                    'storagePath' => $representation->storage_path,
-                    'disk' => $representation->disk ?? $documentsDisk,
+                    'storagePath' => $location->path,
+                    'disk' => $location->disk,
                     'extension' => $kind->extension(),
                     'mime' => $representation->mime,
                 ];
@@ -64,9 +70,11 @@ final readonly class RepresentationResolver
             return null;
         }
 
+        $location = $this->resolver->forDocumentVersion($version);
+
         return [
-            'storagePath' => $version->storage_path,
-            'disk' => $documentsDisk,
+            'storagePath' => $location->path,
+            'disk' => $location->disk,
             'extension' => (string) $version->extension,
             'mime' => (string) $version->mime,
         ];

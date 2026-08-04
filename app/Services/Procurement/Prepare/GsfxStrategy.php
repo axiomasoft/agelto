@@ -16,6 +16,7 @@ use App\Repositories\Procurement\Document\RepresentationStoreRepository;
 use App\Repositories\Procurement\ProcurementStoreRepository;
 use App\Services\Procurement\Prepare\Gsfx\GsfxReader;
 use App\Services\Procurement\Prepare\Gsfx\GsfxUnreadableException;
+use App\Services\Storage\FileLocationResolver;
 use Illuminate\Contracts\Filesystem\Filesystem;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
@@ -43,6 +44,7 @@ final readonly class GsfxStrategy implements PreparationStrategy
         private DocumentStoreRepository $storeRepository,
         private ProcurementStoreRepository $procurementStore,
         private GsfxReader $reader,
+        private FileLocationResolver $locationResolver,
     ) {}
 
     public function canProcess(DocumentVersion $version): bool
@@ -51,7 +53,7 @@ final readonly class GsfxStrategy implements PreparationStrategy
             return false;
         }
 
-        $disk = Storage::disk((string) config('crawler.documents_disk'));
+        $disk = Storage::disk($this->locationResolver->currentDocumentsDisk());
         $stream = $disk->readStream($version->storage_path);
 
         if ($stream === null) {
@@ -70,7 +72,8 @@ final readonly class GsfxStrategy implements PreparationStrategy
             return true;
         }
 
-        $disk = Storage::disk((string) config('crawler.documents_disk'));
+        $diskName = $this->locationResolver->currentDocumentsDisk();
+        $disk = Storage::disk($diskName);
         $localZip = tempnam(sys_get_temp_dir(), 'gsfx_');
 
         try {
@@ -110,8 +113,8 @@ final readonly class GsfxStrategy implements PreparationStrategy
                 return false;
             }
 
-            $this->storeRepresentations($version, $gsfxDocument, $disk);
-            $this->extractAttachments($document, $version, $zip, $attachmentEntries, $disk);
+            $this->storeRepresentations($version, $gsfxDocument, $disk, $diskName);
+            $this->extractAttachments($document, $version, $zip, $attachmentEntries, $disk, $diskName);
 
             $zip->close();
         } finally {
@@ -121,7 +124,7 @@ final readonly class GsfxStrategy implements PreparationStrategy
         return true;
     }
 
-    private function storeRepresentations(DocumentVersion $version, GsfxDocumentDto $gsfxDocument, Filesystem $disk): void
+    private function storeRepresentations(DocumentVersion $version, GsfxDocumentDto $gsfxDocument, Filesystem $disk, string $diskName): void
     {
         $structuredXml = json_encode($gsfxDocument, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT | JSON_THROW_ON_ERROR);
         $text = $this->renderText($gsfxDocument);
@@ -143,7 +146,7 @@ final readonly class GsfxStrategy implements PreparationStrategy
 
         $this->representations->storeOrUpdate($version, RepresentationKind::StructuredXml, [
             'storage_path' => $structuredXmlPath,
-            'disk' => null,
+            'disk' => $diskName,
             'size_bytes' => strlen($structuredXml),
             'mime' => 'application/json',
             'meta' => $meta,
@@ -155,7 +158,7 @@ final readonly class GsfxStrategy implements PreparationStrategy
 
         $this->representations->storeOrUpdate($version, RepresentationKind::Text, [
             'storage_path' => $textPath,
-            'disk' => null,
+            'disk' => $diskName,
             'size_bytes' => strlen($text),
             'mime' => 'text/plain',
             'meta' => $meta,
@@ -231,7 +234,7 @@ final readonly class GsfxStrategy implements PreparationStrategy
     /**
      * @param  list<string>  $entries
      */
-    private function extractAttachments(Document $document, DocumentVersion $version, ZipArchive $zip, array $entries, Filesystem $disk): void
+    private function extractAttachments(Document $document, DocumentVersion $version, ZipArchive $zip, array $entries, Filesystem $disk, string $diskName): void
     {
         if ($entries === []) {
             return;
@@ -244,7 +247,7 @@ final readonly class GsfxStrategy implements PreparationStrategy
             $zip->extractTo($extractPath, $entries);
 
             foreach ($entries as $relativePath) {
-                $this->indexChild($document, $version, $relativePath, $extractPath.'/'.$relativePath, $disk);
+                $this->indexChild($document, $version, $relativePath, $extractPath.'/'.$relativePath, $disk, $diskName);
             }
         } finally {
             File::deleteDirectory($extractPath);
@@ -266,7 +269,7 @@ final readonly class GsfxStrategy implements PreparationStrategy
         return true;
     }
 
-    private function indexChild(Document $document, DocumentVersion $version, string $relativePath, string $localPath, Filesystem $disk): void
+    private function indexChild(Document $document, DocumentVersion $version, string $relativePath, string $localPath, Filesystem $disk, string $diskName): void
     {
         $externalId = $version->id.':'.$relativePath;
 
@@ -279,7 +282,7 @@ final readonly class GsfxStrategy implements PreparationStrategy
         $hash = hash('sha256', $content);
         $storagePath = $this->store($disk, $hash, $content);
 
-        DB::transaction(function () use ($document, $externalId, $relativePath, $content, $hash, $storagePath, $version): void {
+        DB::transaction(function () use ($document, $externalId, $relativePath, $content, $hash, $storagePath, $diskName, $version): void {
             $child = $this->storeRepository->findByExternalId($document->procurement_id, $externalId)
                 ?? $this->storeRepository->create([
                     'procurement_id' => $document->procurement_id,
@@ -299,6 +302,7 @@ final readonly class GsfxStrategy implements PreparationStrategy
                 'extension' => pathinfo($relativePath, PATHINFO_EXTENSION),
                 'mime' => $this->mimeOf($content),
                 'storage_path' => $storagePath,
+                'disk' => $diskName,
                 'downloaded_at' => now(),
                 'parent_version_id' => $version->id,
             ]);

@@ -12,6 +12,7 @@ use App\Models\Procurement\Document\DocumentVersion;
 use App\Models\Procurement\Platform\Platform;
 use App\Repositories\Procurement\Ai\FixtureStoreRepository;
 use App\Repositories\Procurement\Document\DocumentStoreRepository;
+use App\Services\Storage\FileLocationResolver;
 use App\Support\Files\ShardedBlobPath;
 use Illuminate\Support\Facades\Storage;
 
@@ -27,6 +28,7 @@ final readonly class WorkingCopyProvisioner
     public function __construct(
         private FixtureStoreRepository $fixtures,
         private DocumentStoreRepository $documents,
+        private FileLocationResolver $locationResolver,
     ) {}
 
     /**
@@ -34,8 +36,8 @@ final readonly class WorkingCopyProvisioner
      */
     public function provision(Fixture $fixture, bool $dryRun): array
     {
-        $fixturesDisk = (string) config('ai.fixtures.disk');
-        $documentsDisk = (string) config('crawler.documents_disk');
+        $fixturesDisk = $this->locationResolver->currentFixturesDisk();
+        $documentsDisk = $this->locationResolver->currentDocumentsDisk();
 
         $externalId = "fixture:{$fixture->code}";
         $existingDocument = $fixture->document;
@@ -87,6 +89,7 @@ final readonly class WorkingCopyProvisioner
             'extension' => $fixture->source_format,
             'mime' => $fixture->mime,
             'storage_path' => $storagePath,
+            'disk' => $documentsDisk,
             'downloaded_at' => now(),
         ]);
 

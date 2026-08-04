@@ -15,6 +15,7 @@ use App\Models\Procurement\Document\DocumentVersion;
 use App\Repositories\Procurement\Document\DocumentStoreRepository;
 use App\Repositories\Procurement\ProcurementStoreRepository;
 use App\Services\Procurement\Proxy\ProxyResolver;
+use App\Services\Storage\FileLocationResolver;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\RequestException;
 use Illuminate\Http\Client\Response;
@@ -36,6 +37,7 @@ final readonly class DocumentDownloader
         private PoliteThrottle $throttle,
         private DocumentStoreRepository $storeRepository,
         private ProcurementStoreRepository $procurementStore,
+        private FileLocationResolver $locationResolver,
     ) {}
 
     public function download(Document $document): ?DocumentVersion
@@ -62,6 +64,8 @@ final readonly class DocumentDownloader
 
         $isFirstVersion = $this->storeRepository->countVersions($document->id) === 0;
 
+        $disk = $this->locationResolver->currentDocumentsDisk();
+
         $version = $this->storeRepository->createVersion([
             'document_id' => $document->id,
             'content_hash' => $hash,
@@ -69,7 +73,8 @@ final readonly class DocumentDownloader
             'filename' => $this->filenameFrom($document),
             'extension' => $this->extensionFrom($document),
             'mime' => $this->mimeFrom($content),
-            'storage_path' => $this->store(hash: $hash, content: $content),
+            'storage_path' => $this->store(disk: $disk, hash: $hash, content: $content),
+            'disk' => $disk,
             'downloaded_at' => now(),
         ]);
 
@@ -178,9 +183,8 @@ final readonly class DocumentDownloader
         ]);
     }
 
-    private function store(string $hash, string $content): string
+    private function store(string $disk, string $hash, string $content): string
     {
-        $disk = config('crawler.documents_disk', config('crawler.raw_disk'));
         $path = 'documents/'.substr($hash, 0, 2)."/{$hash}";
 
         if (! Storage::disk($disk)->exists($path)) {

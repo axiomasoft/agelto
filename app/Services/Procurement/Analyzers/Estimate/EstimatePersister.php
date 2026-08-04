@@ -20,6 +20,7 @@ use App\Models\Procurement\Document\DocumentVersion;
 use App\Models\Procurement\Estimate\Estimate;
 use App\Repositories\Procurement\Analyzers\Estimate\EstimateStoreRepository;
 use App\Repositories\Procurement\ProcurementStoreRepository;
+use App\Services\Storage\FileLocationResolver;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -46,6 +47,7 @@ final readonly class EstimatePersister
         private ProcurementStoreRepository $procurements,
         private EstimateStitcher $stitcher,
         private EstimateValidator $validator,
+        private FileLocationResolver $locationResolver,
     ) {}
 
     /**
@@ -339,20 +341,21 @@ final readonly class EstimatePersister
 
     /**
      * @param  array<string, mixed>  $data
-     * @return array{raw_result: array<string, mixed>|null, raw_result_ref: string|null}
+     * @return array{raw_result: array<string, mixed>|null, raw_result_ref: string|null, raw_result_disk: string|null}
      */
     private function rawResultAttributes(int $analysisId, int $ordinal, array $data): array
     {
         $encoded = json_encode($data, JSON_THROW_ON_ERROR);
 
         if (strlen($encoded) <= self::RAW_RESULT_INLINE_MAX_BYTES) {
-            return ['raw_result' => $data, 'raw_result_ref' => null];
+            return ['raw_result' => $data, 'raw_result_ref' => null, 'raw_result_disk' => null];
         }
 
+        $disk = $this->locationResolver->currentRawDisk();
         $path = sprintf('ai/estimates/%d/%d-%s.json', $analysisId, $ordinal, (string) Str::uuid());
-        Storage::disk((string) config('crawler.raw_disk'))->put($path, $encoded);
+        Storage::disk($disk)->put($path, $encoded);
 
-        return ['raw_result' => null, 'raw_result_ref' => $path];
+        return ['raw_result' => null, 'raw_result_ref' => $path, 'raw_result_disk' => $disk];
     }
 
     private function storeEvent(Document $document, Estimate $estimate): void
