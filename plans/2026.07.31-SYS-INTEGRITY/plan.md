@@ -163,7 +163,7 @@ P7.3 не выбирает топологию, а подтверждает ре�
 | P2 | Контракт LLM в одном канале: `#[Description]`, JSON Schema, промты | 5/13 | 🟠 Done with deviations |
 | P3 | Доменная раскладка и arch-тесты | 1/5 | 🟠 Done with deviations |
 | P4 | ЕИС: разведка, типизированные фильтры, сиды кроулеров, боевой прогон | 0/8 | ⬜ Not started |
-| P5 | Полнота сметной модели против корпуса эталонов | 0/8 | ⬜ Not started |
+| P5 | Полнота сметной модели против корпуса эталонов | 0/8 | 🟡 In progress |
 | P6 | Адресация файлов: диск в записи, dual-read, backfill | 0/6 | ⬜ Not started |
 | P7 | Ревизия схемы БД, топология хранения, финальный аудит процессов | 0/8 | ⬜ Not started |
 
@@ -486,6 +486,7 @@ Prism `unhandled finish reason`, decimal-cast); **M3c** (EvalRun #12, дерев
 | 2026-08-04 | plan-run / sonnet-high | P3.4 закрыт 🟠, item-коммит **`b6cf324`**: `DomainLayoutTest` — три Finder-проверки правила §2.1 на четырёх слоях, выровненных P3.2/P3.3, все три с доказанной красной пробой — детали см. `phases/P3.md` P3.4 Completion Notes |
 | 2026-08-04 | plan-exec / sonnet-medium | P3.5 закрыт 🟠, item-коммит **`b046496`**: правило §2.1 записано в `docs/03_Dev/architecture.md` + кратко в `.ai/guidelines/architecture.md`/`CLAUDE.md`, пути/FQN семи файлов приведены к подкаталогам P3.2/P3.3 — фаза P3 терминальна — детали см. `phases/P3.md` P3.5 Completion Notes |
 | 2026-08-04 | plan-close / sonnet-low | Фаза P3 закрыта: Phase Index `5/5`, `## Phase Handoff` уже собран (заполнен заходом P3.5), очередь D63 переходит на P5 |
+| 2026-08-04 | plan-run / sonnet-high | P5.1 закрыт 🟠, item-коммит **`8c78b68`**: инвентарь записи (14 колонок класса A прогоном, 4 чтением кода) + дельта-сверка восьми пробелов (2 кандидата в P5.3, 1 переадресован на SR-11, 5 отложены/не пробел) — детали см. phases/P5.md P5.1 Completion Notes |
 
 ## Обсуждение
 
