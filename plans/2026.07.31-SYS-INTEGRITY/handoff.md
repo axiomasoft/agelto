@@ -1,13 +1,13 @@
-# HANDOFF — 2026-08-04 — after P6.1
+# HANDOFF — 2026-08-04 — after P6.2
 
 **Next:** ЗАПУСК ВРУЧНУЮ: implementation/high
 
 | Параметр | Значение |
 |:--|:--|
 | Model | sonnet |
-| Thinking | high — класс «migrations» всегда full (§3 Routing P6.2) |
+| Thinking | high — инварианты writer-путей и единственной точки адресации, effort high+ обязателен (§3 Routing P6.3) |
 | Context | continue (/clear) — ручной item |
-| Суть | P6.2 — три миграции колонки диска (`prc_document_versions`, `prc_ai_fixtures`, `prc_estimates.raw_result_disk`), модели, фабрики, тест |
+| Суть | P6.3 — резолвер адреса (`FileLocation`+`FileLocationResolver`) как единственная точка чтения/записи; периметр расширен D115 (пять писателей версий, семь writer-call-site'ов представлений, пятый обходчик резолвера) |
 | Команда | — |
 
 Код-блок ниже несёт полную D18-форму:
@@ -15,53 +15,30 @@
 ```
 /model sonnet
 /effort high
-/task:plan-run 2026.07.31-SYS-INTEGRITY P6.2
+/task:plan-run 2026.07.31-SYS-INTEGRITY P6.3
 ```
 
-**Сделано этим заходом (`plan-run`, opus/high, 2026-08-04).** P6.1 закрыт 🟢 Done, item-коммит
-`925bc9b` (4 файла, все под `plans/2026.07.31-SYS-INTEGRITY/**`: три из `Files` + скрипт
-инвентаря `artifacts/collect-storage-carriers.py`, разрешённый Code Guidance item'а):
+**Сделано этим заходом (`plan-run`, sonnet/high, 2026-08-04).** P6.2 закрыт 🟢 Done, item-коммит
+`d4161b8` (10 файлов, все из `Files` item'а, посторонний дифф отсутствует):
 
-- **Машинный инвентарь** (`findings/P6-file-carriers.md` + `artifacts/storage-carriers.json`):
-  12 колонок-кандидатов из миграций (включая сырой SQL партиционированных таблиц — греп по
-  `$table->text` их не видит), 8 носителей + 4 не-носителя, writer/reader-пути по каждому,
-  числа retention и ILM. Скрипт сбора сам проверяет полноту и падает ненулевым кодом, если
-  инвентарь отстал от схемы; на `925bc9b` — `unlisted_columns: []`, exit 0.
-- **Три поправки к разведке `repo-recon` §12** — ровно то, ради чего требовался встречный греп:
-  у `prc_document_versions.storage_path` **пять** writer-путей, а не один (`DocumentDownloader`,
-  `WorkingCopyProvisioner`, `DatasetImporter`, `ArchiveStrategy`, `GsfxStrategy`); рабочая копия
-  эталона — не «файл без записи», а пятый из них; потребителей резолвера пять, а не четыре
-  (`DatasetInputBuilder:95` дублирует фолбэк в обход).
-- **Находка о прецеденте:** `prc_document_representations.disk` заведена верно, но **семь боевых
-  writer-call-site'ов пишут литеральный `null`**; реальное имя диска пишет один call-site
-  бенчмарка. Приём «диск в записи» на дереве не работает даже там, где схема его несёт.
-- **Вердикты** (`research/07-storage-addressing.md` §2, критерий D50 в проверяемой форме В1 ∧ В2):
-  колонка нужна трём носителям — версии документа, эталону корпуса и **`prc_estimates.
-  raw_result_ref`** (D114, расхождение с пред-вердиктом D50); пяти — не нужна, каждому с причиной
-  словами.
-- **Контракты и процедура:** `FileLocation` + `FileLocationResolver` с явным списком «что НЕ
-  делает»; автомат фолбэка (срабатывает только на отсутствие объекта, не на сбой драйвера);
-  псевдокод backfill с порядком «верифицировал → обновил строку»; соглашение об именах дисков;
-  **cutover из десяти шагов** с точкой отката на каждом.
-- **Task Contract**: `pre_mutation: allow` · `pre_final: allow` (route `frontier/high`, точное
-  совпадение с Routing P6.1 — не перебор).
+- **Три новые миграции** по вердиктам P6.1/D114, форма по прецеденту `100055:33` (`text`,
+  `nullable`, без `default`, без индекса, комментарий называет точный конфиг-ключ):
+  `prc_document_versions.disk` (`crawler.documents_disk`), `prc_ai_fixtures.disk`
+  (`ai.fixtures.disk`), `prc_estimates.raw_result_disk` (`crawler.raw_disk`). `down()` симметричен
+  (`dropColumn`).
+- **Три модели** — `disk`/`raw_result_disk` в `fillable` + докблок `@property string|null`, каст
+  не заведён (строка).
+- **Три фабрики** — дефолт `null` (историческая семантика), состояние `onDisk(string $disk)` во
+  всех трёх (не булев флаг).
+- **Тест** `tests/Feature/Document/DocumentVersionDiskColumnTest.php` — `test('колонка диска
+  версии документа пишется и читается', ...)`, оба случая (`null` и явное имя).
+- **Task Contract**: `pre_mutation: allow` · `pre_final: allow` (route `implementation/high`,
+  точное совпадение с §3 Routing P6.2 — Routing предписывал `Exec=manual`, item исполнен
+  `plan-run` инвертированным гейтом под фактическим маршрутом сессии, D75; не перебор).
 
-Полные числа и разбивка — `phases/P6.md` P6.1 Completion Notes.
+Полные числа и разбивка Validation — `phases/P6.md` P6.2 Completion Notes.
 
 **Status:** 🟢 Done. Known Deviations — нет.
-
-**Три новые D-записи, которые обязан прочитать исполнитель P6.2–P6.6:**
-
-- **D114** — критерий D50 операционализирован (В1: запись адресует файл И у неё есть живой
-  писатель; В2: строки одного носителя могут указывать в разные поколения диска), и по нему
-  `prc_estimates` получает колонку `raw_result_disk`. Буквальный D50 на фактах дерева вырождался:
-  окно отката — недели, самый короткоживущий блоб живёт 90 дней, то есть «(б)» выполнялось у всех
-  семи носителей.
-- **D115** — периметр writer/reader-путей P6.3 расширен: пять писателей версий, семь
-  writer-call-site'ов представлений (пишут `null`), пятый обходчик резолвера.
-- **D116** — cutover из десяти шагов; **переименование дисков в поколенческие имена (D53) стоит
-  ДО материализации `null` (D51)**, иначе материализация зафиксирует `s3` в тысячах строк и
-  превратит переименование в миграцию данных. Плюс шаг дельта-синка перед флипом конфига.
 
 **Done:**
 
@@ -69,16 +46,19 @@
 - **P2 5/13** 🟠 Done with deviations — фаза терминальна.
 - **P3 1/5** 🟠 Done with deviations — фаза терминальна.
 - **P5 3/8** 🟠 Done with deviations — фаза терминальна.
-- **P6 1/6** 🟡 In progress — закрыт research-item P6.1; фаза открыта.
+- **P6 2/6** 🟡 In progress — закрыты P6.1 (research), P6.2 (миграции колонки диска); фаза открыта.
 
 **Remaining:**
 
 - **Порядок фаз (D63):** `P1 → P2 → P3 → P5 → P6 → P4 → P7`. Идёт P6, очередь items —
-  `P6.1 → P6.2 → P6.3 → P6.4 → P6.5 → P6.6` (номер = очередь, зависимости линейны:
-  каждый следующий потребляет Deliverables предыдущего).
-- **ТЗ P6.2–P6.6 приведено к вердиктам P6.1** (D114–D116) — читать `phases/P6.md` в текущей
-  редакции, не по памяти: изменились `Scope Included`/`Files` P6.2 и P6.3, `Code Guidance` P6.4,
-  `Scope Included` P6.5, `Scope Included`/`Validation` P6.6.
+  `P6.3 → P6.4 → P6.5 → P6.6` (номер = очередь, зависимости линейны: каждый следующий потребляет
+  Deliverables предыдущего).
+- **P6.3 периметр шире скелета** (D115): пять writer-путей `prc_document_versions.storage_path`
+  (`DocumentDownloader::store()`, `WorkingCopyProvisioner`, `DatasetImporter`, `ArchiveStrategy`,
+  `GsfxStrategy`), семь writer-call-site'ов `prc_document_representations.disk` (пишут `null`),
+  пятый потребитель контракта резолвера (`DatasetInputBuilder:95`, обходит `RepresentationResolver`
+  фолбэком `disk ?? config(...)`) — читать `research/07-storage-addressing.md` §4 в текущей
+  редакции, не по памяти.
 - **`## Phase Handoff` фаз P2 и P5 не собран** («—» в `phases/P2.md`/`phases/P5.md`) — висящий
   bookkeeping-хвост, штатно закрывается `/task:plan-close <ID> P2` / `P5`; продолжение плана НЕ
   блокирует.
@@ -92,18 +72,14 @@
 **Sources of truth:**
 
 - `research/07-storage-addressing.md` — вердикты, контракты, фолбэк, backfill и процедура cutover
-  целиком; **единственный источник состава миграций P6.2 и периметра P6.3**.
+  целиком; §4 — контракт резолвера (единственный источник периметра P6.3), §3 — состав колонок,
+  уже заведённых P6.2.
 - `findings/P6-file-carriers.md` — факты дерева со строками (слой 1), на которых стоят вердикты.
-- `artifacts/storage-carriers.json` + `artifacts/collect-storage-carriers.py` — машинный индекс и
-  воспроизводимая команда сбора; пересобирается на любом дереве.
-- `phases/P6.md` — Phase Context, ТЗ P6.2–P6.6 в редакции D114–D116, Completion Notes P6.1.
+- `phases/P6.md` — Phase Context, ТЗ P6.3–P6.6 в редакции D114–D116, Completion Notes P6.1/P6.2.
 - `roadmap.md` — очередь фаз (D63) и гейты владельца по items.
 
 **Open risks:**
 
-- **Периметр P6.3 больше, чем выглядел в скелете** (D115): ~20 файлов вместо 9. Item остаётся
-  одним — гейт-тест обязан лечь вместе с миграцией писателей, иначе перевод остаётся
-  негейтированным; но объём стоит учитывать при планировании захода.
 - **`estimates_s3` объявлен и никем не адресуется** (`config/filesystems.php:74-85`) — мёртвое
   объявление, владелец не назначен.
 - **Перевод корпуса эталонов на S3 сломает `GoldCorpusBuilder`** (`:162` вызывает `->path()`,
@@ -112,18 +88,21 @@
   `memory_limit`-конфликт `agelto_app`, один arch-тест. Владелец не назначен; P6.6 будет гонять
   ПОЛНЫЙ сюит и упрётся в них.
 - **Dev-БД теряет `prc_ai_dataset_examples`/`prc_ai_eval_runs` при `migrate:fresh`** (P5.7) —
-  P6.2 в Validation несёт `migrate:fresh --seed`: датасет восстанавливать
-  `estimate:gold:import --prepare` после прогона.
+  после `migrate:fresh --seed` P6.2 датасет восстановлен НЕ был (вне Scope P6.2); следующему item'у,
+  которому нужен датасет, восстанавливать `estimate:gold:import --prepare`.
 - **`app/Filament/Resources/Procurement/** ` restrictive ACL**, **`rm` заблокирован в харнессе**,
   **незакоммиченный чужой дифф** (`.env.example`, `CLAUDE.md`, `.swissknife*`, `.swissknifeman/`,
   `config/cms.php`, `database/seeders/User/`, `estimates/gemini-analys.md`) — без изменений;
   состав снимать `git status --porcelain` перед каждым item-коммитом.
 - **`.env` не несёт `MINIO_ROOT_PASSWORD`** — обход `docker exec agelto_app …` вместо
-  `docker compose exec …` (действует и для P6).
+  `docker compose exec …` (подтверждено действующим на P6.2, действует и дальше по P6).
+- **PHPStan в контейнере `agelto_app` падает на дефолтном 256M лимите** (`memory_limit`-конфликт,
+  P5.8) — обход `--memory-limit=1G`, подтверждено на P6.2, действует и дальше по P6.
 
 **Workarounds/Deferred/Open questions:**
 
-- **Workarounds:** те же, что в предыдущем handoff'е (см. Open risks) — без изменений.
+- **Workarounds:** `docker exec agelto_app` вместо `docker compose exec` (`MINIO_ROOT_PASSWORD`);
+  `phpstan analyse --memory-limit=1G` вместо дефолта — без изменений, см. Open risks.
 - **Deferred:** `## Phase Handoff` P2/P5 (нужен `plan-close`); писатель `verified_at`/`verified_by`;
   писатель пяти колонок `source_*`; прокидка семи старых полей паспорта в
   `ExtractionOrchestrator`; материализация не-`Item` строк; тип нормы аксессором из `code`;
@@ -132,7 +111,7 @@
   научная нотация в `EstimateValidator::bcadd()`; тест на preserve-ветку `work_type_id`;
   персистентный подъём `AI_GEMINI_REQUEST_TIMEOUT_SECONDS`; партиционный дрейф `pg_partman` под
   тестовые даты, `memory_limit`-конфликт `agelto_app`, разбор `CoreKnowsNoDocumentTypeTest`;
-  **новое (P6.1)** — судьба мёртвого диска `estimates_s3`; колонка диска для
-  `prc_ai_dataset_examples.gold_ref` (заводится вместе с писателем, если он появится).
+  судьба мёртвого диска `estimates_s3`; колонка диска для `prc_ai_dataset_examples.gold_ref`
+  (заводится вместе с писателем, если он появится).
 - **Open questions:** OQ-3, OQ-4, OQ-7 (`Exploration`), OQ-5 (`Decision pending`), OQ-6; OQ-8
   закрыта D113.
