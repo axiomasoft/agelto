@@ -79,6 +79,13 @@ docker compose exec app php artisan test --compact --filter=ChangedArea
 
 - Локальная разработка с прокси: см. `docs/03_Dev/crawling-pipeline.md` (отдельного doc-файла по proxy-setup сейчас нет).
 - Docker `extra_hosts` для `eis-auth.local`, `eis-api.local` — не удалять без замены.
+- Доверие TLS площадки ЕИС — бандл в образе (`docker/php/certs/`), не системный доверенный набор;
+  единственный носитель — `SourceTlsTrust` (`docs/03_Dev/crawling-pipeline.md`). `verify => false`
+  запрещён абсолютно.
+- Типизированный фильтр профиля и площадка резолвятся config-картами (`crawler.filters`,
+  `crawler.source_methods`) — новая площадка получает свой `Data`-класс строкой в карте, не
+  `match`/`if` в билдере.
+- Запуск архивного/контрольного обхода — `docs/03_Dev/runbooks/archive-run.md`.
 
 ## 7) PR checklist
 

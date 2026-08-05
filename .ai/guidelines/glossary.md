@@ -21,6 +21,17 @@
 - `ProcurementEvent` → `$event` — immutable типизированное событие в журнале закупки (`prc_events`, партиция RANGE by `occurred_at`, `ProcurementEventType`).
 - `Proxy` → `$proxy` — узел исходящей маршрутизации (`prc_proxies`); единственная точка выдачи — резолвер `App\Services\Procurement\Proxy\ProxyResolver::resolve()`, не прямой доступ к таблице.
 - `ProxyScope` → назначение исходящего запроса, не сам узел (`App\Enums\Procurement\Proxy\ProxyScope`: `CrawlListing`/`CrawlDetail`/`DocumentDownload`/`Llm`); per-target здоровье — `prc_proxy_targets` (не путать с глобальным здоровьем узла на `prc_proxies`).
+- Типизированный фильтр профиля (`App\Dto\Procurement\Crawler\EisSearchFilter` и т.п.) → `$filter`
+  — резолвится по коду реестра через `CrawlerFilterFactory::for(Registry): class-string<Data>`
+  (config-карта `crawler.filters`, тот же приём, что `SourceMethodFactory`); площадка/реестр вне
+  карты → исключение с кодом реестра, не тихий фолбэк. Состав полей — по площадке (P4.3, D34).
+- `App\Services\Procurement\Modes\DeltaScanProcessor` — плановый суточный дозор окна обновлений
+  (`crawler:run-delta`, гейт `config('crawler.tracking.delta_scan_enabled')`, по умолчанию
+  `false`); `window_overlap_days` (`config('crawler.tracking.*')`) — запас переобхода назад в
+  сутках, применяется и рескан-бэклогом, и delta-scan'ом (P4.6, D33).
+- `App\Services\Procurement\SourceTlsTrust` → единственный носитель карты доверия TLS площадок
+  (`config('crawler.tls.bundles')`); `verify => false` в HTTP-клиенте кроулинга запрещён абсолютно
+  (P4.12, D125).
 
 ### AI-подомен (`App\Models\Procurement\Ai\*`, `App\Services\Llm\*`)
 
