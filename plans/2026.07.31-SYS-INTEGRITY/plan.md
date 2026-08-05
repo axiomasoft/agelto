@@ -162,7 +162,7 @@ P7.3 не выбирает топологию, а подтверждает ре�
 | P1 | Прокси как слой маршрутизации: скоуп, гео, здоровье, привязка к профилю | 4/10 | 🟠 Done with deviations |
 | P2 | Контракт LLM в одном канале: `#[Description]`, JSON Schema, промты | 5/13 | 🟠 Done with deviations |
 | P3 | Доменная раскладка и arch-тесты | 1/5 | 🟠 Done with deviations |
-| P4 | ЕИС: разведка, типизированные фильтры, сиды кроулеров, боевой прогон | 1/8 | 🟡 In progress |
+| P4 | ЕИС: разведка, типизированные фильтры, сиды кроулеров, боевой прогон | 2/8 | 🟡 In progress |
 | P5 | Полнота сметной модели против корпуса эталонов | 3/8 | 🟠 Done with deviations |
 | P6 | Адресация файлов: диск в записи, dual-read, backfill | 5/6 | 🟠 Done with deviations |
 | P7 | Ревизия схемы БД, топология хранения, финальный аудит процессов | 0/8 | ⬜ Not started |
@@ -505,6 +505,7 @@ Prism `unhandled finish reason`, decimal-cast); **M3c** (EvalRun #12, дерев
 | 2026-08-04 | plan-run / sonnet-high | P6.5 закрыт 🟠, item-коммит **`32fda0d`**: `storage:disk-backfill` (материализация + перенос с верификацией sha256/размера, 3 носителя), дифф вне Files — три StoreRepository + докблок `Estimate` — детали см. phases/P6.md P6.5 Completion Notes |
 | 2026-08-04 | plan-exec / sonnet-medium | P6.6 закрыт 🟢, item-коммит **`d1b1aa2`**: runbook смены S3-провайдера (10 шагов + чеклист ловушек), раздел адресации в `database.md`/`architecture.md`, запись в `runbooks/_index.md`; фаза P6 терминальна (5/6, 🟠 Done with deviations) — детали см. phases/P6.md P6.6 Completion Notes |
 | 2026-08-05 | plan-run / opus-high | P4.1 закрыт: живая разведка ЕИС через RU-прокси — девять вопросов сняты, cap глубины изменился (≈10 000 → 5 000), `updateDateFrom/To` подтверждён живьём, OQ-3 закрыт D117, найдено 11 расхождений «наблюдённое ↔ код» — детали см. phases/P4.md P4.1 Completion Notes |
+| 2026-08-05 | plan-run / opus-high | P4.2 закрыт 🟢, item-коммит **`e517878`**: `research/05-change-tracking.md` (8 разделов) — синтез механизма отслеживания, контракт фильтра, два профиля, план прогона; 4 расхождения сверх перечня P4.1, `Files` P4.6 требует дополнения — детали см. phases/P4.md P4.2 Completion Notes |
 
 ## Обсуждение
 
