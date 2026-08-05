@@ -1,0 +1,79 @@
+{
+  "_meta": {
+    "план": "2026.07.31-SYS-INTEGRITY",
+    "item": "P7.2",
+    "источник команд": "findings/rag-2026-07-31.md §7 дословно по смыслу",
+    "кластер": "PostgreSQL 17 (pg_partman), контейнер agelto_postgres, БД agelto",
+    "инвокация": "docker exec agelto_postgres psql -U agelto -d agelto <команда метрики>",
+    "формат значений": "сырой вывод psql -At -F'|' (строки разделены \\n, колонки — |), без пересчёта",
+    "снятие": "один прогон 2026-08-05 15:05:16 UTC, tree-якорь ae45f4c (git rev-parse --short HEAD)",
+    "закрытый список критериев": "findings/rag-2026-07-31.md §1 — 5 строк, не добавляются и не выбрасываются (Implementation Rules п.1)",
+    "не снято (структурно)": {
+      "replica lag": "реплики нет, на одиночном primary не измеряется",
+      "per-query write pressure / contention": "pg_stat_statements не установлено, требует shared_preload_libraries и рестарта кластера (P7.4)",
+      "bloat % (строгий)": "pgstattuple не установлено (select count(*) from pg_extension where extname='pgstattuple' → 0)",
+      "независимое масштабирование чтения": "read-контура (реплика/API выдачи) в системе не существует"
+    },
+    "не снято (дефект инструмента, вне Scope этого item'а)": {
+      "wait events, полная серия контрольного прогона P4.15": "дефект скрипта-сэмплера исполнителя (findings/P4-load-baseline.md §9.6, M-5) — доступны только 3 точечных сэмпла"
+    }
+  },
+  "команды": {
+    "stats_reset_database": "select stats_reset from pg_stat_database where datname='agelto';",
+    "extensions": "select extname from pg_extension order by extname;",
+    "replication": "select count(*) from pg_stat_replication;",
+    "dead_tuples_autovacuum": "select relname, n_live_tup, n_dead_tup, last_autovacuum, autovacuum_count from pg_stat_user_tables where relname in ('prc_procurements','prc_revisions_2026_08','prc_events_2026_08','prc_fetches_2026_08') order by relname;",
+    "sizes": "select relname, pg_total_relation_size(relid), pg_relation_size(relid), pg_indexes_size(relid) from pg_stat_user_tables where relname in (…) order by relname;",
+    "idx_scan_hot_tables": "select relname, count(*) filter (where idx_scan=0), count(*) from pg_stat_user_indexes where relname like 'prc_procurements%' or relname like 'prc_revisions_2026_08%' or relname like 'prc_events_2026_08%' or relname like 'prc_fetches_2026_08%' group by relname order by relname;",
+    "partition_counts": "select p.relname, count(c.relname) from pg_inherits i join pg_class c on c.oid=i.inhrelid join pg_class p on p.oid=i.inhparent where p.relname in ('prc_events','prc_revisions','llm_calls','prc_fetches','prc_operation_logs') group by p.relname order by p.relname;"
+  },
+  "постфактум_2026-08-05T15:05:16Z_ae45f4c": {
+    "stats_reset_database": "",
+    "extensions": "pg_partman\nplpgsql\n",
+    "pg_stat_replication_rows": 0,
+    "dead_tuples_autovacuum": "prc_events_2026_08|18004|0|2026-08-05 12:22:43.164764+00|16\nprc_fetches_2026_08|191|0|2026-08-05 11:55:49.053636+00|1\nprc_procurements|17943|778|2026-08-05 12:23:43.440074+00|33\nprc_revisions_2026_08|17942|0|2026-08-05 12:22:43.441783+00|15\n",
+    "sizes_bytes_total_heap_indexes": "prc_events_2026_08|3178496|1826816|1310720\nprc_fetches_2026_08|229376|147456|49152\nprc_procurements|19038208|14123008|4874240\nprc_revisions_2026_08|26116096|24330240|1744896\n",
+    "idx_scan_unused_total": "prc_events_2026_08|0|3\nprc_fetches_2026_08|1|3\nprc_procurements|8|15\nprc_revisions_2026_08|0|3\n",
+    "partition_counts": "llm_calls|3\nprc_events|3\nprc_fetches|3\nprc_operation_logs|3\nprc_revisions|3\n"
+  },
+  "критерии_§1": {
+    "WAL pressure + replica lag": {
+      "снято_на_прогоне": {
+        "WAL pressure": true,
+        "replica lag": false
+      },
+      "значение": {
+        "WAL первый прогон P4.7": "423.0 МБ за 29 мин 40 с = 14.3 МБ/мин ≈ 238 КБ/с (t0 2026-08-05 06:35:13 UTC → t2 07:04:53 UTC)",
+        "WAL контрольный прогон P4.15": "142.0 МБ за 28 мин 04 с = 5.06 МБ/мин ≈ 84 КБ/с (t0 2026-08-05 11:56:40 UTC → t2 12:24:44 UTC)",
+        "replica lag": "не измерено — pg_stat_replication: 0 строк"
+      },
+      "источник": "findings/P4-load-baseline.md §4 M-3/M-4 (первый прогон), §9.6 M-3/M-4 (контрольный прогон); replica lag — постфактум этот item"
+    },
+    "отставание autovacuum и рост bloat": {
+      "снято_на_прогоне": {
+        "доля мёртвых строк": true,
+        "строгий bloat %": false
+      },
+      "значение": "см. постфактум-блок dead_tuples_autovacuum выше; prc_procurements 778/17943=4.16% мёртвых",
+      "источник": "постфактум этот item, 2026-08-05T15:05:16Z, ae45f4c"
+    },
+    "конкуренция чтения с ingestion за shared buffers / CPU / checkpoint I/O": {
+      "снято_на_прогоне": {
+        "wait events, первый прогон P4.7": "полная серия 60 сэмплов",
+        "wait events, контрольный прогон P4.15": "частично — 3 точечных сэмпла (дефект сэмплера)",
+        "per-query (pg_stat_statements)": false
+      },
+      "значение": "все доступные сэмплы (63 из 63 полученных) = Client/ClientRead; 0 Lock/LWLock/IO/BufferPin",
+      "источник": "findings/P4-load-baseline.md §4 M-5 (первый прогон), §9.6 M-5 (контрольный прогон)"
+    },
+    "потребность в РАЗНЫХ индексах / fillfactor / autovacuum / retention для write- и read-контуров": {
+      "снято_на_прогоне": true,
+      "значение": "config/partitioning.php — единый retention/premake/interval на таблицу; read-контура в системе нет; idx_scan см. постфактум-блок выше",
+      "источник": "config/partitioning.php (код) + постфактум этот item"
+    },
+    "независимое масштабирование чтения": {
+      "снято_на_прогоне": false,
+      "причина": "read-serving слой (реплика/API выдачи) в системе не реализован — findings/repo-recon-2026-07-31.md §12, research/08-db-review.md §11; положения (3)-(5) модели D72 не реализованы (OQ-5)"
+    }
+  }
+}
