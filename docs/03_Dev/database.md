@@ -100,6 +100,39 @@ config-окну. **Хранится вечно** (явное исключени�
 или отдельное длинное окно по согласованию владельца). Блобы (`request_ref`/`response_ref`) в MinIO
 — под ILM-правила (transition/expire), не под Postgres-retention.
 
+## Наблюдаемость и рантайм-параметры кластера (P7.4)
+
+Кластер `postgres` (dev — `docker-compose.yml`, prod — `docker-compose.prod.yml`, идентично):
+
+- `shared_preload_libraries=pg_stat_statements` + `CREATE EXTENSION IF NOT EXISTS pg_stat_statements`
+  (миграция `2026_08_05_100068_enable_db_observability_extensions.php`) — per-query
+  `calls`/`total_exec_time`/`wal_bytes`: `SELECT * FROM pg_stat_statements ORDER BY total_exec_time DESC LIMIT 20`.
+- `pgstattuple` (та же миграция, рестарт не требует) — строгий bloat:
+  `SELECT * FROM pgstattuple('prc_procurements')`.
+- `statement_timeout=600000` (10 мин), `idle_in_transaction_session_timeout=300000` (5 мин — верхняя
+  граница самого длинного supervisor-таймаута Horizon, `config/horizon.php`),
+  `log_min_duration_statement=1000` (1 с) — глобальные параметры кластера, F-10
+  (`research/08-db-review.md` §11); ЗАВИСИМЫЕ от долгих операций команды (backfill/массовые
+  миграции) при необходимости повышают `statement_timeout` на уровне сессии
+  (`SET LOCAL statement_timeout = ...`), не трогая кластерный дефолт.
+- `shm_size: '512mb'` на сервисе `postgres` (параллельные планы, `partman.run_maintenance()`,
+  сортировки) — F-11. Сервис `horizon` сохраняет свой `shm_size: '2gb'` (prod) — зарезервирован под
+  будущую браузерную автоматизацию в этом контейнере (`CHROME_BIN`, Фаза 8), не переносится.
+
+**Рестарт кластера (даунтайм, порядок и точка отката).** 1) Снять счётчики строк ключевых таблиц
+(`prc_procurements`/`prc_documents`/`prc_revisions`) и текущие `SHOW shared_preload_libraries`/
+`df -h /dev/shm` — точка отката. 2) Применить правки `docker-compose*.yml`. 3) Пересоздать
+контейнер `postgres` (`docker compose up -d postgres`; на среде с рабочим `docker compose` этого
+достаточно — расхождение, встреченное при первом прогоне P7.4, ниже). 4) Проверить `healthy`,
+сверить счётчики, `SHOW`/`df -h /dev/shm`. 5) `CREATE EXTENSION` — ТОЛЬКО после рестарта с новым
+`shared_preload_libraries` (`php artisan migrate`). Откат — вернуть `docker-compose*.yml` к
+предыдущей ревизии и пересоздать контейнер; том `pgsql_data` не трогается ни на одном шаге.
+
+Кэш (D73/D75): `config/cache.php` fallback `env('CACHE_STORE', 'redis')` — контекст без переменной
+окружения (artisan с хоста, CI, будущий контейнер без compose-блока) пишет в Redis, не в Postgres.
+Таблица `cache` сохранена (удаление — отдельное решение владельца, `research/08-db-review.md` §11.1);
+эффективное значение — `php artisan config:show cache.default`.
+
 ## Смежное
 
 - `architecture.md` — домены/префиксы.

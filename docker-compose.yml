@@ -130,6 +130,37 @@ services:
     image: agelto_postgres:17-partman
     container_name: agelto_postgres
     restart: unless-stopped
+    # P7.4 (F-10/F-11/F-12, research/08-db-review.md §11): текущее значение — база образа
+    # (shared_preload_libraries пуст, /dev/shm — дефолтные 64 МБ) — снято `SHOW`/`df -h /dev/shm`
+    # на 2026-08-05, findings/rag-2026-07-31.md §7.
+    # - shared_preload_libraries=pg_stat_statements — единственный источник per-query
+    #   calls/total_exec_time/wal_bytes (OQ-1, F-12); значение ДОПОЛНЯЕТ пустой список, ничего
+    #   не теряет (правило 2 item'а).
+    # - statement_timeout=600000 (10 мин) — выше любой измеренной боевой операции (макс.
+    #   HTTP-фетч 18 577 мс, findings/P4-load-baseline.md §9) и типового объёма миграций проекта;
+    #   `postgresql.org/docs/current/runtime-config-client.html` предостерегает от глобального
+    #   значения «впритык» — порог даёт запас, а не имитирует роль-специфичный лимит.
+    # - idle_in_transaction_session_timeout=300000 (5 мин) — F-10: зависшая транзакция держит
+    #   `xmin` неограниченно; порог совпадает с самым длинным supervisor-таймаутом Horizon
+    #   (config/horizon.php — supervisor-ai-extraction=300с), выше которого ни один боевой job
+    #   не должен удерживать соединение.
+    # - log_min_duration_statement=1000 (1 с) — минимальный порог наблюдаемости без риска
+    #   переполнить лог (документированный baseline).
+    command:
+      - "postgres"
+      - "-c"
+      - "shared_preload_libraries=pg_stat_statements"
+      - "-c"
+      - "statement_timeout=600000"
+      - "-c"
+      - "idle_in_transaction_session_timeout=300000"
+      - "-c"
+      - "log_min_duration_statement=1000"
+    # shm нужен Postgres (параллельные планы, `partman.run_maintenance()`, сортировки), а не
+    # PHP-воркеру — F-11. Дефолт Docker 64 МБ мал для parallel query/maintenance на растущем
+    # корпусе; 512 МБ — задокументированный безопасный порог для контейнеров Postgres 17
+    # (last9.io/blog/how-to-configure-dockers-shared-memory-size-dev-shm, 2026-08-05).
+    shm_size: '512mb'
     ports:
       - "127.0.0.1:${PGSQL_PORT:-5432}:5432"
     volumes:

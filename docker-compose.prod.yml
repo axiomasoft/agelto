@@ -79,6 +79,11 @@ services:
     # (диапазон 600–3600s); env-параметризуемо под будущую калибровку.
     stop_grace_period: ${HORIZON_STOP_GRACE_PERIOD:-600s}
     working_dir: /var/www/html
+    # Решение P7.4 (F-11 называет это дремлющим дефектом — Postgres нуждается в shm, не
+    # PHP-воркер): блок ОСТАЁТСЯ здесь как есть, а не переносится. CLAUDE.md («Очереди: Laravel
+    # Horizon») резервирует этот контейнер под будущую браузерную автоматизацию
+    # (`shm_size`/`CHROME_BIN`, Фаза 8 — Playwright/Chromium ещё не подключены, D14 запрещает
+    # рефакторинг вне ТЗ item'а); независимо обоснованный `shm_size` для `postgres` — ниже.
     shm_size: '2gb'
     volumes:
       - ./:/var/www/html
@@ -140,6 +145,19 @@ services:
     image: agelto_postgres:17-partman
     container_name: agelto_postgres
     restart: unless-stopped
+    # P7.4 (F-10/F-11/F-12) — те же параметры и то же обоснование, что `docker-compose.yml`
+    # (правило 7 item'а: расширения/параметры одинаковы в dev и prod).
+    command:
+      - "postgres"
+      - "-c"
+      - "shared_preload_libraries=pg_stat_statements"
+      - "-c"
+      - "statement_timeout=600000"
+      - "-c"
+      - "idle_in_transaction_session_timeout=300000"
+      - "-c"
+      - "log_min_duration_statement=1000"
+    shm_size: '512mb'
     ports:
       - "127.0.0.1:${PGSQL_PORT:-5432}:5432"
     volumes:
