@@ -560,6 +560,7 @@ Prism `unhandled finish reason`, decimal-cast); **M3c** (EvalRun #12, дерев
 | 2026-08-05 | plan-run / opus-xhigh | P7.1 закрыт 🟢, item-коммит **`9481d85`**: ревизия схемы и рантайма на каталоге живой БД — 13 находок (5 × P0, 2 × P1, 3 × P2, 3 вне шкалы D60), 6 строк на гейт владельца, состав P7.2–P7.8 подтверждён с одним изменением (D132) — детали см. phases/P7.md P7.1 Completion Notes |
 | 2026-08-05 | plan-run / sonnet-high | P7.2 закрыт 🟢, item-коммит **`a2988a9`**: сверка пяти критериев §1 с P4.7/P4.15 + постфактум-досъём каталога — WAL/dead tuples измеримы постоянно, replica lag/per-query contention/независимое масштабирование чтения структурно неизмеримы — детали см. phases/P7.md P7.2 Completion Notes |
 | 2026-08-05 | plan-run / opus-high | P7.3 закрыт 🟢, item-коммит **`6ad1855`**: D71 «одна БД» подтверждён числами (0 из 5 критериев §1, подтверждение частичное), найдено пересечение контуров по `org_organizations`, модель D72 — канон `architecture.md` — детали см. phases/P7.md P7.3 Completion Notes |
+| 2026-08-05 | plan-run / sonnet-high | P7.4 закрыт 🟠, item-коммит **`a73d3b8`**: наблюдаемость/параметры кластера/`shm_size`/кэш на Redis (F-10/F-11/F-12, D73/D75) — детали см. phases/P7.md P7.4 Completion Notes/Known Deviations |
 
 ## Обсуждение
 
