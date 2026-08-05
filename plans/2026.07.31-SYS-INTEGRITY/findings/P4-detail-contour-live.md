@@ -1,7 +1,8 @@
 # P4-detail-contour-live — живая приёмка P4.16 (Д-8, D131)
 
-**Дата:** 2026-08-05. **Дерево кода:** `f174038` + дифф item'а P4.16 (закоммичен как `<item-commit>`,
-см. handoff). **Команда:** `docker exec agelto_app php artisan crawler:fetch-details <id>` — по
+**Дата:** 2026-08-05. **Дерево кода:** `58149bd` (item-коммит P4.16, дифф применён на дереве до
+этого коммита совпадает байт-в-байт с закоммиченным — числа сняты ДО коммита, код на дереве после
+не менялся). **Команда:** `docker exec agelto_app php artisan crawler:fetch-details <id>` — по
 восьми реестровым номерам `findings/P4-load-baseline.md` §9.5 (тем же, что первый прогон P4.15).
 
 ## 1. Предусловия (Implementation Rules п. 6)
