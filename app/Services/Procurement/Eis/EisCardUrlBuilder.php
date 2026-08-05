@@ -21,29 +21,33 @@ final readonly class EisCardUrlBuilder
     /**
      * @return non-empty-string сегмент типа процедуры в URL карточки (`ea20`/`zk20`/…)
      */
-    public function resolveProcedureUrlType(Registry $registry, ?string $procedureType): string
+    public function resolveProcedureUrlType(Registry $registry, ?string $procedureTypeRaw): string
     {
         /** @var array<string, string> $map */
         $map = $registry->settings['procedure_url_types'] ?? [];
-        $procedureUrlType = $procedureType !== null ? ($map[$procedureType] ?? null) : null;
+        $procedureUrlType = $procedureTypeRaw !== null ? ($map[$procedureTypeRaw] ?? null) : null;
 
         if ($procedureUrlType === null) {
             throw CardUrlTemplateMissingException::forUnknownProcedureType(
                 registryCode: $registry->code,
-                procedureType: $procedureType,
+                procedureType: $procedureTypeRaw,
             );
         }
 
         return $procedureUrlType;
     }
 
-    public function buildUrl(Registry $registry, string $procedureUrlType, string $tab, string $registryNumber): string
+    /**
+     * `null` в шаблоне (`array_key_exists` истинен, значение `null`) — явный маркер D121
+     * «у этого типа процедуры такой вкладки нет по природе», разбор карточки продолжается.
+     * Отсутствие самого ключа — незаполненный справочник, остаётся ошибкой конфигурации.
+     */
+    public function buildUrl(Registry $registry, string $procedureUrlType, string $tab, string $registryNumber): ?string
     {
-        /** @var array<string, array<string, string>> $templates */
+        /** @var array<string, array<string, ?string>> $templates */
         $templates = $registry->settings['card_url_templates'] ?? [];
-        $template = $templates[$procedureUrlType][$tab] ?? null;
 
-        if ($template === null) {
+        if (! array_key_exists($procedureUrlType, $templates) || ! array_key_exists($tab, $templates[$procedureUrlType])) {
             throw CardUrlTemplateMissingException::forMissingTabTemplate(
                 registryCode: $registry->code,
                 procedureUrlType: $procedureUrlType,
@@ -51,6 +55,8 @@ final readonly class EisCardUrlBuilder
             );
         }
 
-        return str_replace(self::REG_NUMBER_PLACEHOLDER, $registryNumber, $template);
+        $template = $templates[$procedureUrlType][$tab];
+
+        return $template === null ? null : str_replace(self::REG_NUMBER_PLACEHOLDER, $registryNumber, $template);
     }
 }

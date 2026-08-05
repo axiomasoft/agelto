@@ -104,10 +104,12 @@ final class EisPlatformSeeder extends Seeder
 
     /**
      * Шаблоны URL детальной карточки по сегменту типа + вкладке — `{regNumber}` резолвит
-     * `EisCardUrlBuilder::buildUrl()`. `supplier-results` у `ea615`/`po615` намеренно отсутствует —
-     * вкладка отвечает 404 у обоих типов (разведка §`_observed`).
+     * `EisCardUrlBuilder::buildUrl()`. `supplier-results` у `ea615`/`po615` — явный маркер
+     * `null` (D121): вкладка отвечает 404 у обоих типов «по природе» (разведка §`_observed`),
+     * а не «справочник не заполнен» — `EisCardUrlBuilder` отличает эти два случая по
+     * `array_key_exists`.
      *
-     * @return array<string, array<string, string>>
+     * @return array<string, array<string, ?string>>
      */
     private function cardUrlTemplates(): array
     {
@@ -126,6 +128,8 @@ final class EisPlatformSeeder extends Seeder
             foreach ($withoutSupplierResults as $tab) {
                 $templates[$type][$tab] = $this->cardUrl(type: $type, tab: $tab);
             }
+
+            $templates[$type]['supplier-results'] = null;
         }
 
         return $templates;

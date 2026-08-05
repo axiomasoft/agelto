@@ -29,7 +29,7 @@ function fakeCardRegistry(): Registry
     return Registry::factory()->create([
         'code' => 'fz44',
         'settings' => [
-            'procedure_url_types' => ['electronic_auction' => 'ea20'],
+            'procedure_url_types' => ['Электронный аукцион' => 'ea20'],
             'card_url_templates' => [
                 'ea20' => [
                     'common-info' => 'https://zakupki.gov.ru/epz/order/notice/ea20/view/common-info.html?regNumber={regNumber}',
@@ -60,6 +60,7 @@ test('collectDetails возвращает ProcurementDetails с сырым HTML 
         'registry_id' => $registry->id,
         'registry_number' => '0173200001234000001',
         'procedure_type' => 'electronic_auction',
+        'procedure_type_raw' => 'Электронный аукцион',
         'status' => ProcurementStatus::Awarded,
     ]);
     fakeCardHttp();
@@ -82,6 +83,7 @@ test('collectDetails не забирает supplier-results для незаве�
         'registry_id' => $registry->id,
         'registry_number' => '0173200001234000001',
         'procedure_type' => 'electronic_auction',
+        'procedure_type_raw' => 'Электронный аукцион',
         'status' => ProcurementStatus::Bidding,
     ]);
     fakeCardHttp();
@@ -103,6 +105,7 @@ test('collectDetails кладёт сырой HTML в storage gzip при вкл�
         'registry_id' => $registry->id,
         'registry_number' => '0173200001234000001',
         'procedure_type' => 'electronic_auction',
+        'procedure_type_raw' => 'Электронный аукцион',
         'status' => ProcurementStatus::Bidding,
     ]);
     fakeCardHttp();
@@ -122,6 +125,7 @@ test('collectDetails не пишет в storage когда retention выклю�
         'registry_id' => $registry->id,
         'registry_number' => '0173200001234000001',
         'procedure_type' => 'electronic_auction',
+        'procedure_type_raw' => 'Электронный аукцион',
         'status' => ProcurementStatus::Bidding,
     ]);
     fakeCardHttp();
@@ -141,8 +145,44 @@ test('collectDetails бросает исключение при отсутств
         'registry_id' => $registry->id,
         'registry_number' => '0173200001234000001',
         'procedure_type' => 'electronic_auction',
+        'procedure_type_raw' => 'Электронный аукцион',
         'status' => ProcurementStatus::Bidding,
     ]);
 
     app(CsvSourceMethod::class)->collectDetails(registryNumber: '0173200001234000001', registry: $registry);
 })->throws(CardUrlTemplateMissingException::class);
+
+test('collectDetails у типа без вкладки supplier-results (маркер null, D121) снимает три вкладки без исключения', function () {
+    Sleep::fake();
+    activeDetailProxy();
+    $registry = Registry::factory()->create([
+        'code' => 'fz44',
+        'settings' => [
+            'procedure_url_types' => ['Электронный аукцион на оказание услуг или выполнение работ по капитальному ремонту общего имущества в многоквартирном доме' => 'ea615'],
+            'card_url_templates' => [
+                'ea615' => [
+                    'common-info' => 'https://zakupki.gov.ru/epz/order/notice/ea615/view/common-info.html?regNumber={regNumber}',
+                    'documents' => 'https://zakupki.gov.ru/epz/order/notice/ea615/view/documents.html?regNumber={regNumber}',
+                    'event-journal' => 'https://zakupki.gov.ru/epz/order/notice/ea615/view/event-journal.html?regNumber={regNumber}',
+                    'supplier-results' => null,
+                ],
+            ],
+        ],
+    ]);
+    Procurement::factory()->create([
+        'registry_id' => $registry->id,
+        'registry_number' => '0173200001234000001',
+        'procedure_type_raw' => 'Электронный аукцион на оказание услуг или выполнение работ по капитальному ремонту общего имущества в многоквартирном доме',
+        'status' => ProcurementStatus::Awarded,
+    ]);
+    fakeCardHttp();
+
+    $details = app(CsvSourceMethod::class)->collectDetails(registryNumber: '0173200001234000001', registry: $registry);
+
+    expect($details->commonInfoHtml)->toBe(CardHtmlFixture::commonInfo())
+        ->and($details->documentsHtml)->toBe(CardHtmlFixture::documents())
+        ->and($details->eventJournalHtml)->toBe(CardHtmlFixture::eventJournal())
+        ->and($details->supplierResultsHtml)->toBeNull();
+
+    Http::assertNotSent(fn ($request) => str_contains((string) $request->url(), 'supplier-results.html'));
+});

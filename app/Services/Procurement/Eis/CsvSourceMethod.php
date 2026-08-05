@@ -136,7 +136,7 @@ final readonly class CsvSourceMethod implements SourceMethod
 
         $procedureUrlType = $this->cardUrlBuilder->resolveProcedureUrlType(
             registry: $registry,
-            procedureType: $procurement->procedure_type,
+            procedureTypeRaw: $procurement->procedure_type_raw,
         );
 
         $html = [];
@@ -148,12 +148,20 @@ final readonly class CsvSourceMethod implements SourceMethod
                 continue;
             }
 
-            $html[$tab] = $this->collectTab(
+            $url = $this->cardUrlBuilder->buildUrl(
                 registry: $registry,
                 procedureUrlType: $procedureUrlType,
                 tab: $tab,
                 registryNumber: $registryNumber,
             );
+
+            if ($url === null) {
+                $html[$tab] = null;
+
+                continue;
+            }
+
+            $html[$tab] = $this->collectTab(registry: $registry, tab: $tab, registryNumber: $registryNumber, url: $url);
         }
 
         return new ProcurementDetails(
@@ -171,15 +179,8 @@ final readonly class CsvSourceMethod implements SourceMethod
         return true;
     }
 
-    private function collectTab(Registry $registry, string $procedureUrlType, string $tab, string $registryNumber): string
+    private function collectTab(Registry $registry, string $tab, string $registryNumber, string $url): string
     {
-        $url = $this->cardUrlBuilder->buildUrl(
-            registry: $registry,
-            procedureUrlType: $procedureUrlType,
-            tab: $tab,
-            registryNumber: $registryNumber,
-        );
-
         $lease = $this->proxyResolver->resolve(ProxyScope::CrawlDetail, $this->canonicalHost($url));
 
         $this->throttle->wait();

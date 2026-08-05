@@ -259,12 +259,6 @@ parameters:
 			path: app/Services/Procurement/Eis/Card/SupplierResultsParser.php
 
 		-
-			message: '#^Access to an undefined property App\\Models\\Procurement\\Procurement\:\:\$procedure_type\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Services/Procurement/Eis/CsvSourceMethod.php
-
-		-
 			message: '#^Access to an undefined property App\\Models\\Procurement\\Procurement\:\:\$status\.$#'
 			identifier: property.notFound
 			count: 1

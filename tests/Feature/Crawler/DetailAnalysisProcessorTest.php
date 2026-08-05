@@ -34,7 +34,7 @@ function detailAnalysisRegistry(): Registry
     return Registry::factory()->create([
         'code' => 'fz44',
         'settings' => [
-            'procedure_url_types' => ['electronic_auction' => 'ea20'],
+            'procedure_url_types' => ['Электронный аукцион' => 'ea20'],
             'card_url_templates' => [
                 'ea20' => [
                     'common-info' => 'https://zakupki.gov.ru/epz/order/notice/ea20/view/common-info.html?regNumber={regNumber}',
@@ -77,6 +77,7 @@ test('run наполняет все вкладки-таблицы и стави�
         'registry_id' => $registry->id,
         'registry_number' => '0173200001234000001',
         'procedure_type' => 'electronic_auction',
+        'procedure_type_raw' => 'Электронный аукцион',
         'status' => ProcurementStatus::Awarded,
     ]);
     fakeDetailAnalysisHttp();
@@ -105,6 +106,7 @@ test('run скачивает документы, снятые с вкладки 
         'registry_id' => $registry->id,
         'registry_number' => '0173200001234000001',
         'procedure_type' => 'electronic_auction',
+        'procedure_type_raw' => 'Электронный аукцион',
         'status' => ProcurementStatus::Bidding,
     ]);
     fakeDetailAnalysisHttp();
@@ -123,12 +125,14 @@ test('падение снятия карточки уходит в error-бло�
         'registry_id' => $registry->id,
         'registry_number' => '0173200001234000001',
         'procedure_type' => 'electronic_auction',
+        'procedure_type_raw' => 'Электронный аукцион',
         'status' => ProcurementStatus::Bidding,
     ]);
     $broken = Procurement::factory()->create([
         'registry_id' => $registry->id,
         'registry_number' => '0173200009999000009',
         'procedure_type' => 'unmapped_procedure_type',
+        'procedure_type_raw' => 'Неизвестный способ вне карты',
         'status' => ProcurementStatus::Bidding,
     ]);
     fakeDetailAnalysisHttp();
@@ -157,6 +161,7 @@ test('исчерпание попыток ставит detail_failed', function 
         'registry_id' => $registry->id,
         'registry_number' => '0173200009999000009',
         'procedure_type' => 'unmapped_procedure_type',
+        'procedure_type_raw' => 'Неизвестный способ вне карты',
         'status' => ProcurementStatus::Bidding,
         'detail_attempts' => (int) config('crawler.detail_max_attempts', 5) - 1,
     ]);

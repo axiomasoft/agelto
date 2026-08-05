@@ -19,7 +19,7 @@ final readonly class EisCsvRowMapper implements ListingRowMapper
 {
     private const string REGISTRY_NUMBER_COLUMN = 'Реестровый номер закупки';
 
-    private const string PROCUREMENT_METHOD_COLUMN = 'Способ определения поставщика';
+    private const string PROCUREMENT_METHOD_COLUMN = 'Способ определения поставщика (подрядчика, исполнителя), подрядной организации (размещения закупки)';
 
     private const string TITLE_COLUMN = 'Наименование закупки';
 
@@ -27,11 +27,11 @@ final readonly class EisCsvRowMapper implements ListingRowMapper
 
     private const string IKZ_COLUMN = 'Идентификационный код закупки (ИКЗ)';
 
-    private const string INITIAL_PRICE_COLUMN = 'НМЦК';
+    private const string INITIAL_PRICE_COLUMN = 'Начальная (максимальная) цена контракта';
 
     private const string CURRENCY_COLUMN = 'Валюта';
 
-    private const string OKPD2_COLUMN = 'ОКПД2';
+    private const string OKPD2_COLUMN = 'Классификация по ОКПД2';
 
     private const string PUBLISHED_AT_COLUMN = 'Дата размещения';
 
@@ -41,13 +41,22 @@ final readonly class EisCsvRowMapper implements ListingRowMapper
 
     private const string BIDDING_ENDS_AT_COLUMN = 'Окончание подачи заявок';
 
-    private const string CUSTOMER_NAME_COLUMN = 'Наименование заказчика';
+    private const string CUSTOMER_NAME_COLUMN = 'Наименование Заказчика';
 
     private const string FZ44_REGISTRY_CODE = 'fz44';
 
+    /**
+     * Префикс «№» (U+2116) перед номером реестровой закупки — живая проба P4.9
+     * (`findings/P4-csv-headers.md`): 500/500 строк блока несут его в значении, площадка не
+     * документировала это нигде. Снимается ДО сохранения — резолв карточки (`EisCardUrlBuilder::
+     * buildUrl()`) подставляет `registry_number` в `regNumber` query-параметр карточки, а
+     * образцы `artifacts/eis-registry-settings.json` `_observed` несут номер БЕЗ префикса.
+     */
+    private const string REGISTRY_NUMBER_PREFIX = '№';
+
     public function map(array $row, Crawler $crawler): ?ProcurementSnapshotData
     {
-        $registryNumber = trim($row[self::REGISTRY_NUMBER_COLUMN] ?? '');
+        $registryNumber = $this->stripRegistryNumberPrefix(trim($row[self::REGISTRY_NUMBER_COLUMN] ?? ''));
 
         if ($registryNumber === '') {
             return null;
@@ -166,6 +175,13 @@ final readonly class EisCsvRowMapper implements ListingRowMapper
         }
 
         return null;
+    }
+
+    private function stripRegistryNumberPrefix(string $registryNumber): string
+    {
+        return str_starts_with($registryNumber, self::REGISTRY_NUMBER_PREFIX)
+            ? trim(mb_substr($registryNumber, mb_strlen(self::REGISTRY_NUMBER_PREFIX)))
+            : $registryNumber;
     }
 
     private function nullableString(?string $value): ?string

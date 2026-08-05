@@ -21,6 +21,7 @@ use Illuminate\Support\Str;
  * Текущее состояние закупки (compiledRelease-проекция поверх редакций).
  *
  * @property-read Registry|null $registry
+ * @property-read string|null $procedure_type_raw
  */
 #[UseFactory(ProcurementFactory::class)]
 final class Procurement extends Model
