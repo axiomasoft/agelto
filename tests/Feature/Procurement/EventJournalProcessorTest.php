@@ -12,37 +12,41 @@ use Illuminate\Support\Facades\Log;
 function eventJournalEntriesForProcessorTest(): array
 {
     // `prc_events` партиционирована по месяцам вокруг реального времени прогона (см.
-    // `2026_07_04_100013_create_prc_events_table.php`); дата «30.06.2026» из фикстуры
-    // (унаследована от P3.1) может выпасть из окна премейка партиций — сдвигаем на
-    // текущий месяц теста, сохраняя оригинальный HTML-файл фикстуры нетронутым.
+    // `2026_07_04_100013_create_prc_events_table.php`); даты реальной фикстуры (P4.14, живая
+    // проба P4.13 — «23.01.2025»/«15.01.2025») выпадают из окна премейка партиций — сдвигаем
+    // на текущий месяц теста, сохраняя оригинальный HTML-файл фикстуры нетронутым и порядок
+    // строк (относительные сдвиги дней сохраняют хронологию).
     $html = file_get_contents(base_path('tests/Fixtures/Crawler/Card/event-journal.html'));
-    $html = str_replace('30.06.2026 08:22', now()->startOfMonth()->addDay()->format('d.m.Y H:i'), $html);
-    $html = str_replace('11.07.2026 07:00', now()->startOfMonth()->addDays(2)->format('d.m.Y H:i'), $html);
+    $html = str_replace('23.01.2025 09:29', now()->startOfMonth()->addDay()->format('d.m.Y').' 09:29', $html);
+    $html = str_replace('23.01.2025 09:00', now()->startOfMonth()->addDays(2)->format('d.m.Y').' 09:00', $html);
+    $html = str_replace('15.01.2025 11:55', now()->startOfMonth()->addDays(3)->format('d.m.Y').' 11:55', $html);
 
     return app(EventJournalParser::class)->parse($html);
 }
 
 test('process создаёт prc_events из распознанных строк журнала и пропускает нераспознанные', function () {
-    // 1 предупреждение на нераспознанную строку + 1 итоговое с числом пропусков.
-    Log::shouldReceive('warning')->twice();
+    // 2 предупреждения на нераспознанные строки + 1 итоговое с числом пропусков.
+    Log::shouldReceive('warning')->times(3);
 
     $procurement = Procurement::factory()->create();
 
     app(EventJournalProcessor::class)->process($procurement, eventJournalEntriesForProcessorTest());
 
-    // 3 строки в фикстуре: 1 нераспознанная («Размещен документ…»), 2 — переход этапа.
-    expect(ProcurementEvent::query()->where('procurement_id', $procurement->id)->count())->toBe(2);
+    // 5 строк в фикстуре: 2 нераспознанные («Размещен «Протокол…»», «Размещен документ…»),
+    // 3 — переход этапа.
+    expect(ProcurementEvent::query()->where('procurement_id', $procurement->id)->count())->toBe(3);
 
     $events = ProcurementEvent::query()->where('procurement_id', $procurement->id)->orderBy('occurred_at')->get();
 
     expect($events[0]->event_type)->toBe(ProcurementEventType::StatusChanged)
-        ->and($events[0]->new_value)->toBe('Подача заявок')
-        ->and($events[1]->new_value)->toBe('Работа комиссии');
+        ->and($events[0]->new_value)->toBe('Определение поставщика завершено')
+        ->and($events[1]->new_value)->toBe('Работа комиссии')
+        ->and($events[2]->new_value)->toBe('Подача заявок');
 });
 
 test('повторный process идемпотентен — события не задваиваются', function () {
-    // 2 предупреждения на прогон (нераспознанная строка + итог) × 2 прогона.
-    Log::shouldReceive('warning')->times(4);
+    // 3 предупреждения на прогон (2 нераспознанные строки + итог) × 2 прогона.
+    Log::shouldReceive('warning')->times(6);
 
     $procurement = Procurement::factory()->create();
     $entries = eventJournalEntriesForProcessorTest();
@@ -50,5 +54,5 @@ test('повторный process идемпотентен — события н�
     app(EventJournalProcessor::class)->process($procurement, $entries);
     app(EventJournalProcessor::class)->process($procurement, $entries);
 
-    expect(ProcurementEvent::query()->where('procurement_id', $procurement->id)->count())->toBe(2);
+    expect(ProcurementEvent::query()->where('procurement_id', $procurement->id)->count())->toBe(3);
 });

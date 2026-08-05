@@ -28,9 +28,12 @@ final readonly class EventJournalParser
     public function parse(string $html): array
     {
         try {
-            $table = (new Crawler($html))->filter('div.event-journal table.event-journal-table');
+            $crawler = new Crawler($html);
+            $table = $crawler->filter('table#event');
 
             if ($table->count() === 0) {
+                $this->warnIfJournalEvidenceSuppressed($crawler, recognized: 0);
+
                 return [];
             }
 
@@ -43,6 +46,8 @@ final readonly class EventJournalParser
                     $entries[] = $entry;
                 }
             });
+
+            $this->warnIfJournalEvidenceSuppressed($crawler, recognized: count($entries));
 
             return $entries;
         } catch (\Throwable $exception) {
@@ -79,6 +84,26 @@ final readonly class EventJournalParser
         }
 
         return new JournalEntryData(occurredAt: $occurredAt, rawText: $text);
+    }
+
+    /**
+     * Тихий отказ (`research/10-p4-remediation.md` §3.7): страница несёт признаки таблицы
+     * событий (`.timeZoneName`), а распознано 0 записей — признак разошедшейся вёрстки,
+     * обязан быть виден в логе.
+     */
+    private function warnIfJournalEvidenceSuppressed(Crawler $crawler, int $recognized): void
+    {
+        if ($recognized > 0) {
+            return;
+        }
+
+        $timeZoneMarkers = $crawler->filter('span.timeZoneName')->count();
+
+        if ($timeZoneMarkers > 0) {
+            Log::warning('На вкладке event-journal есть признаки таблицы событий, но не распознано ни одной записи', [
+                'timezone_markers' => $timeZoneMarkers,
+            ]);
+        }
     }
 
     private function parseDate(string $value): ?Carbon

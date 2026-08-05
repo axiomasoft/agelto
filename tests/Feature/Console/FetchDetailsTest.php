@@ -33,10 +33,13 @@ function fetchDetailsRegistry(): Registry
 
 function fetchDetailsEventJournalHtml(): string
 {
+    // Даты реальной фикстуры (P4.14 — «23.01.2025»/«15.01.2025») сдвигаются на текущий месяц
+    // теста — см. `EventJournalProcessorTest`.
     $html = file_get_contents(base_path('tests/Fixtures/Crawler/Card/event-journal.html'));
-    $html = str_replace('30.06.2026 08:22', now()->startOfMonth()->addDay()->format('d.m.Y H:i'), $html);
+    $html = str_replace('23.01.2025 09:29', now()->startOfMonth()->addDay()->format('d.m.Y').' 09:29', $html);
+    $html = str_replace('23.01.2025 09:00', now()->startOfMonth()->addDays(2)->format('d.m.Y').' 09:00', $html);
 
-    return str_replace('11.07.2026 07:00', now()->startOfMonth()->addDays(2)->format('d.m.Y H:i'), $html);
+    return str_replace('15.01.2025 11:55', now()->startOfMonth()->addDays(3)->format('d.m.Y').' 11:55', $html);
 }
 
 /**

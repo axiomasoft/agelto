@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Dto\Procurement\Details\PartyData;
 use App\Enums\Organization\ProcurementPartyRole;
 use App\Models\Organization\Organization;
 use App\Models\Procurement\Procurement;
@@ -9,9 +10,55 @@ use App\Models\Procurement\ProcurementParty;
 use App\Services\Procurement\Detail\OrganizationPartiesProcessor;
 use App\Services\Procurement\Eis\Card\PartiesParser;
 
+/**
+ * Синтетический HTML под `organizations-block`/`table.parties-table` — НЕ общая фикстура
+ * парсера (P4.14 заменил `tests/Fixtures/Crawler/Card/common-info.html` на реальную вкладку,
+ * где этого блока нет вовсе, `findings/P4-card-layout.md` §3; парсер намеренно не правился,
+ * см. Pending Work item'а P4.14). Этот тест проверяет `OrganizationPartiesProcessor` —
+ * персистенцию/резолв по ЛЮБОМУ валидному списку `PartyData`, а не соответствие текущей
+ * раскладке ЕИС.
+ *
+ * @return list<PartyData>
+ */
 function partiesFixtureDataForProcessorTest(): array
 {
-    $html = file_get_contents(base_path('tests/Fixtures/Crawler/Card/common-info.html'));
+    $html = <<<'HTML'
+    <html><body>
+    <section class="organizations-block">
+      <table class="parties-table">
+        <tbody>
+          <tr>
+            <td>Заказчик</td>
+            <td>Администрация городского округа</td>
+            <td>5001234567</td>
+            <td>500101001</td>
+            <td>1025001234567</td>
+            <td>Иванов Иван Иванович</td>
+            <td>Главный специалист</td>
+          </tr>
+          <tr>
+            <td>Размещающая организация</td>
+            <td>Администрация городского округа</td>
+            <td>5001234567</td>
+            <td>500101001</td>
+            <td>1025001234567</td>
+            <td></td>
+            <td></td>
+          </tr>
+          <tr>
+            <td>Уполномоченный орган</td>
+            <td>Департамент государственного заказа Московской области</td>
+            <td>5027654321</td>
+            <td>502701001</td>
+            <td>1035027654321</td>
+            <td></td>
+            <td></td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+    </body></html>
+    HTML;
 
     return app(PartiesParser::class)->parse($html);
 }

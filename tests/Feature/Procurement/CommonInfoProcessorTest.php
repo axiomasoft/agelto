@@ -18,22 +18,22 @@ function commonInfoFixtureData(): CommonInfoData
     return app(CommonInfoParser::class)->parse($html);
 }
 
-test('process создаёт eis_details/financing/items из разобранных данных вкладки', function () {
+test('process создаёт eis_details/financing/items из разобранных данных вкладки (реальная вкладка common-info, P4.14)', function () {
     $procurement = Procurement::factory()->create();
 
     app(CommonInfoProcessor::class)->process($procurement, commonInfoFixtureData());
 
     expect(EisDetails::query()->where('procurement_id', $procurement->id)->count())->toBe(1)
-        ->and(Financing::query()->where('procurement_id', $procurement->id)->count())->toBe(2)
+        ->and(Financing::query()->where('procurement_id', $procurement->id)->count())->toBe(3)
         ->and(PurchaseItem::query()->where('procurement_id', $procurement->id)->count())->toBe(1);
 
     $details = EisDetails::query()->where('procurement_id', $procurement->id)->firstOrFail();
 
-    expect($details->ikz_year)->toBe(26)
-        ->and($details->etp_name)->toBe('АО «Единая электронная торговая площадка»')
-        ->and($details->etp_url)->toBe('https://www.roseltorg.ru/')
-        ->and($details->contact_person['name'])->toBe('Иванов Иван Иванович')
-        ->and($details->contact_person['email'])->toBe('zakupki@example.gov.ru');
+    expect($details->ikz_year)->toBe(25)
+        ->and($details->etp_name)->toBe('АО «Сбербанк-АСТ»')
+        ->and($details->etp_url)->toBe('http://www.sberbank-ast.ru')
+        ->and($details->contact_person['name'])->toBe('Иванов И. И.')
+        ->and($details->contact_person['email'])->toBe('responsible-official@example.invalid');
 });
 
 test('повторный process идемпотентен — строки не задваиваются', function () {
@@ -44,19 +44,19 @@ test('повторный process идемпотентен — строки не 
     app(CommonInfoProcessor::class)->process($procurement, $data);
 
     expect(EisDetails::query()->where('procurement_id', $procurement->id)->count())->toBe(1)
-        ->and(Financing::query()->where('procurement_id', $procurement->id)->count())->toBe(2)
+        ->and(Financing::query()->where('procurement_id', $procurement->id)->count())->toBe(3)
         ->and(PurchaseItem::query()->where('procurement_id', $procurement->id)->count())->toBe(1);
 });
 
 test('process резолвит okpd2_ref_id, когда код есть в справочнике ref_okpd2', function () {
     $procurement = Procurement::factory()->create();
-    $okpd2 = Okpd2::factory()->create(['code' => '41.20.40']);
+    $okpd2 = Okpd2::factory()->create(['code' => '18.11.10.000']);
 
     app(CommonInfoProcessor::class)->process($procurement, commonInfoFixtureData());
 
     $item = PurchaseItem::query()->where('procurement_id', $procurement->id)->firstOrFail();
 
-    expect($item->classifier_code)->toBe('41.20.40')
+    expect($item->classifier_code)->toBe('18.11.10.000')
         ->and($item->okpd2_ref_id)->toBe($okpd2->id);
 });
 
@@ -67,7 +67,7 @@ test('process сохраняет сырой classifier_code без резолв�
 
     $item = PurchaseItem::query()->where('procurement_id', $procurement->id)->firstOrFail();
 
-    expect($item->classifier_code)->toBe('41.20.40')
+    expect($item->classifier_code)->toBe('18.11.10.000')
         ->and($item->okpd2_ref_id)->toBeNull()
         ->and($item->ktru_ref_id)->toBeNull();
 });

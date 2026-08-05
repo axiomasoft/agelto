@@ -16,9 +16,33 @@ use App\Models\Procurement\Protocol;
 use App\Services\Procurement\Detail\SupplierResultsProcessor;
 use App\Services\Procurement\Eis\Card\SupplierResultsParser;
 
+/**
+ * Синтетический HTML под протокол/заявки/победителя — НЕ общая фикстура парсера (P4.14
+ * заменил `tests/Fixtures/Crawler/Card/supplier-results.html` на реальную вкладку НЕСОСТОЯВШЕЙСЯ
+ * закупки без победителя; этот тест проверяет `SupplierResultsProcessor` — персистенцию по
+ * ЛЮБОМУ валидному `SupplierResultsData`, а не соответствие текущей раскладке ЕИС).
+ */
 function supplierResultsDataForProcessorTest(): SupplierResultsData
 {
-    $html = file_get_contents(base_path('tests/Fixtures/Crawler/Card/supplier-results.html'));
+    $html = <<<'HTML'
+    <html><body>
+    <div class="supplier-results">
+      <dl>
+        <dt>Протокол</dt>
+        <dd>Протокол подведения итогов №ИЗК1 от 15.07.2026</dd>
+        <dt>Победитель</dt>
+        <dd>ООО «Стройремонт», ИНН 7701234567, ОГРН 1027700123456</dd>
+      </dl>
+      <table class="bids-table">
+        <tbody>
+          <tr><td>1</td><td>ООО «Стройремонт»</td><td>1 450 000,00</td></tr>
+          <tr><td>2</td><td>ООО «РемСтрой»</td><td>1 480 000,00</td></tr>
+          <tr><td>3</td><td>ООО «Прогресс»</td><td>1 490 000,00</td></tr>
+        </tbody>
+      </table>
+    </div>
+    </body></html>
+    HTML;
 
     return app(SupplierResultsParser::class)->parse($html);
 }

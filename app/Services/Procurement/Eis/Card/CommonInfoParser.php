@@ -7,17 +7,32 @@ namespace App\Services\Procurement\Eis\Card;
 use App\Dto\Procurement\Details\CommonInfoData;
 use App\Dto\Procurement\Details\FinancingRowData;
 use App\Dto\Procurement\Details\PurchaseItemRowData;
+use Illuminate\Support\Facades\Log;
 use Symfony\Component\DomCrawler\Crawler;
 
 /**
- * Разбор вкладки `common-info` карточки закупки ЕИС (`research/eis-card-recon.md` §3–§5) в
- * {@see CommonInfoData}. Только HTML → DTO, без записи в БД (это `CommonInfoProcessor`).
- * Устойчив к отсутствию отдельных блоков вёрстки — блок отсутствует → соответствующее
- * поле/список остаётся `null`/пустым, парсер не падает.
+ * Разбор вкладки `common-info` карточки закупки ЕИС (`findings/P4-card-layout.md` §3, живая
+ * проба P4.13/P4.14) в {@see CommonInfoData}. Только HTML → DTO, без записи в БД (это
+ * `CommonInfoProcessor`). Устойчив к отсутствию отдельных блоков вёрстки — блок отсутствует →
+ * соответствующее поле/список остаётся `null`/пустым, парсер не падает. Раскладка полей — не
+ * `dt`/`dd` (снято ошибочно `research/10` §3.7), а плоские пары
+ * `section.blockInfo__section > span.section__title` + `span.section__info`.
  */
 final readonly class CommonInfoParser
 {
     private const int IKZ_LENGTH = 36;
+
+    private const string TERM_IKZ = 'Идентификационный код закупки (ИКЗ)';
+
+    private const string TERM_ETP_NAME = 'Наименование электронной площадки в информационно-телекоммуникационной сети «Интернет»';
+
+    private const string TERM_ETP_URL = 'Адрес электронной площадки в информационно-телекоммуникационной сети «Интернет»';
+
+    private const string TERM_CONTACT_NAME = 'Ответственное должностное лицо';
+
+    private const string TERM_CONTACT_EMAIL = 'Адрес электронной почты';
+
+    private const string TERM_FINANCING_TOTAL = 'Финансовое обеспечение закупки (всего)';
 
     public function parse(string $html): CommonInfoData
     {
@@ -26,6 +41,10 @@ final readonly class CommonInfoParser
         $ikz = $this->parseIkz($crawler);
         $etp = $this->parseEtp($crawler);
         $contactPerson = $this->parseContactPerson($crawler);
+        $financingRows = $this->parseFinancingRows($crawler);
+        $items = $this->parseItems($crawler);
+
+        $this->warnIfBlockInfoSuppressed($crawler, $ikz, $etp, $contactPerson, $financingRows, $items);
 
         return new CommonInfoData(
             ikzYear: $ikz['ikz_year'] ?? null,
@@ -40,8 +59,8 @@ final readonly class CommonInfoParser
             etpUrl: $etp['url'] ?? null,
             contactPersonName: $contactPerson['name'] ?? null,
             contactPersonEmail: $contactPerson['email'] ?? null,
-            financingRows: $this->parseFinancingRows($crawler),
-            items: $this->parseItems($crawler),
+            financingRows: $financingRows,
+            items: $items,
         );
     }
 
@@ -50,7 +69,7 @@ final readonly class CommonInfoParser
      */
     private function parseIkz(Crawler $crawler): array
     {
-        $ikz = $this->readDefinitionValue(crawler: $crawler, section: 'section.price-info-block', term: 'ИКЗ');
+        $ikz = $this->readDefinitionValue($crawler, self::TERM_IKZ);
 
         if ($ikz === null || strlen($ikz) !== self::IKZ_LENGTH) {
             return [];
@@ -69,32 +88,25 @@ final readonly class CommonInfoParser
     }
 
     /**
+     * Имя и адрес площадки живут в ДВУХ раздельных `section` (не в одном `dd` со ссылкой, как
+     * предполагала старая раскладка) — имя всегда простой текст, адрес — ссылка внутри
+     * `section__info`.
+     *
      * @return array{name?: string, url?: string}
      */
     private function parseEtp(Crawler $crawler): array
     {
-        try {
-            $node = $crawler
-                ->filter('section.common-info-block dt')
-                ->reduce(fn (Crawler $dt): bool => trim($dt->text()) === 'Наименование электронной площадки');
+        $name = $this->readDefinitionValue($crawler, self::TERM_ETP_NAME);
 
-            if ($node->count() === 0) {
-                return [];
-            }
+        $urlSection = $this->titleSection($crawler, self::TERM_ETP_URL);
+        $urlInfo = $urlSection !== null ? $this->infoNode($urlSection) : null;
+        $link = $urlInfo?->filter('a');
+        $url = $link !== null && $link->count() > 0 ? $link->attr('href') : null;
 
-            $link = $node->nextAll()->filter('dd')->first()->filter('a');
-
-            if ($link->count() === 0) {
-                return [];
-            }
-
-            return [
-                'name' => trim($link->text()),
-                'url' => $link->attr('href'),
-            ];
-        } catch (\Throwable) {
-            return [];
-        }
+        return array_filter([
+            'name' => $name,
+            'url' => $url,
+        ], static fn (?string $value): bool => $value !== null);
     }
 
     /**
@@ -102,61 +114,75 @@ final readonly class CommonInfoParser
      */
     private function parseContactPerson(Crawler $crawler): array
     {
-        try {
-            if ($crawler->filter('section.contact-info-block')->count() === 0) {
-                return [];
-            }
+        $name = $this->readDefinitionValue($crawler, self::TERM_CONTACT_NAME);
+        $email = $this->readDefinitionValue($crawler, self::TERM_CONTACT_EMAIL);
 
-            $name = $this->readDefinitionValue(crawler: $crawler, section: 'section.contact-info-block', term: 'Ответственное должностное лицо');
-            $email = $this->readDefinitionValue(crawler: $crawler, section: 'section.contact-info-block', term: 'Email');
-
-            return array_filter([
-                'name' => $name,
-                'email' => $email,
-            ], static fn (?string $value): bool => $value !== null);
-        } catch (\Throwable) {
-            return [];
-        }
+        return array_filter([
+            'name' => $name,
+            'email' => $email,
+        ], static fn (?string $value): bool => $value !== null);
     }
 
     /**
+     * Раскладка «год — колонка, а не строка»: заголовки таблицы («На 2025 год, ₽», …, «Всего, ₽»)
+     * и ровно одна строка значений в том же порядке колонок. Транспонируем в список строк по
+     * году. Колонка «Всего» — производная (пропускается). Колонка «Последующие годы» не несёт
+     * дискретного года — `FinancingRowData::fiscalYear` в контракте DTO не `nullable`
+     * (форма DTO вне Scope item'а), поэтому этот бакет сейчас не заполняется (см. Pending Work).
+     *
      * @return list<FinancingRowData>
      */
     private function parseFinancingRows(Crawler $crawler): array
     {
         try {
-            $table = $crawler->filter('section.financing-info-block table.financing-table');
+            $section = $this->titleSection($crawler, self::TERM_FINANCING_TOTAL);
+
+            if ($section === null) {
+                return [];
+            }
+
+            $table = $section->filter('table.tableBlock')->first();
 
             if ($table->count() === 0) {
                 return [];
             }
 
+            $headers = $table->filter('tr.tableBlock__row th')->each(static fn (Crawler $th): string => trim($th->text()));
+            $dataRow = $table->filter('tr')->reduce(static fn (Crawler $tr): bool => $tr->filter('th')->count() === 0);
+
+            if ($dataRow->count() === 0) {
+                return [];
+            }
+
+            $values = $dataRow->first()->filter('td')->each(static fn (Crawler $td): string => trim($td->text()));
+
             $rows = [];
 
-            $table->filter('tbody tr')->each(function (Crawler $tr) use (&$rows): void {
-                $cells = $tr->filter('td');
+            foreach ($headers as $index => $header) {
+                $year = $this->parseFiscalYear($header);
 
-                if ($cells->count() < 2) {
-                    return;
+                if ($year === null) {
+                    continue;
                 }
 
-                $yearCell = trim($cells->eq(0)->text());
+                $amount = $this->normalizeAmount($values[$index] ?? '');
 
-                // Итоговая строка «Всего» — производная, в prc_financing не пишется.
-                if (! ctype_digit($yearCell)) {
-                    return;
+                if ($amount === null) {
+                    continue;
                 }
 
-                $rows[] = new FinancingRowData(
-                    fiscalYear: (int) $yearCell,
-                    amount: $this->normalizeAmount(trim($cells->eq(1)->text())),
-                );
-            });
+                $rows[] = new FinancingRowData(fiscalYear: $year, amount: $amount);
+            }
 
             return $rows;
         } catch (\Throwable) {
             return [];
         }
+    }
+
+    private function parseFiscalYear(string $header): ?int
+    {
+        return preg_match('/(\d{4})\s*год/u', $header, $matches) === 1 ? (int) $matches[1] : null;
     }
 
     /**
@@ -172,14 +198,16 @@ final readonly class CommonInfoParser
      * только от её положения в HTML-таблице. Если у площадки когда-нибудь появится
      * стабильная перестановка строк без изменения `№` — потребуется отдельный устойчивый
      * идентификатор позиции (например, по совокупности name+characteristics), это вне
-     * объёма текущего среза.
+     * объёма текущего среза. На снятой карточке первая колонка всегда пуста (не «№», а
+     * служебный пустой заголовок) — fallback срабатывает на КАЖДОЙ строке, что и есть
+     * штатный путь для текущей вёрстки.
      *
      * @return list<PurchaseItemRowData>
      */
     private function parseItems(Crawler $crawler): array
     {
         try {
-            $table = $crawler->filter('section.purchase-items-block table.items-table');
+            $table = $crawler->filter('div#positionKTRU table.tableBlock');
 
             if ($table->count() === 0) {
                 return [];
@@ -232,6 +260,11 @@ final readonly class CommonInfoParser
     }
 
     /**
+     * Снятая карточка несёт в ячейке РОВНО один код, не пару «ОКПД2 / КТРУ» через слэш (это
+     * предполагала старая раскладка, `research/10` §3.7 её не сверял). КТРУ отличим по
+     * дефис-суффиксу поверх префикса ОКПД2 (`database/factories/Reference/KtruFactory.php` —
+     * `##.##.##.###-#####`); без дефиса ячейка несёт голый код ОКПД2.
+     *
      * @return array{0: ?string, 1: ?string} [ОКПД2, КТРУ]
      */
     private function splitClassifierCode(string $rawCode): array
@@ -240,13 +273,13 @@ final readonly class CommonInfoParser
             return [null, null];
         }
 
-        if (! str_contains($rawCode, '/')) {
+        if (! str_contains($rawCode, '-')) {
             return [$rawCode, null];
         }
 
-        [$okpd2, $ktru] = array_map('trim', explode('/', $rawCode, limit: 2));
+        $okpd2Prefix = strstr($rawCode, '-', before_needle: true);
 
-        return [$okpd2 !== '' ? $okpd2 : null, $ktru !== '' ? $ktru : null];
+        return [$okpd2Prefix !== false && $okpd2Prefix !== '' ? $okpd2Prefix : null, $rawCode];
     }
 
     private function normalizeAmount(string $rawAmount): ?string
@@ -261,22 +294,69 @@ final readonly class CommonInfoParser
         return is_numeric($normalized) ? $normalized : null;
     }
 
-    private function readDefinitionValue(Crawler $crawler, string $section, string $term): ?string
+    private function readDefinitionValue(Crawler $crawler, string $term): ?string
+    {
+        $section = $this->titleSection($crawler, $term);
+        $info = $section !== null ? $this->infoNode($section) : null;
+
+        if ($info === null) {
+            return null;
+        }
+
+        $value = trim($info->text());
+
+        return $value !== '' ? $value : null;
+    }
+
+    /**
+     * Единственный носитель поиска «раздел по заголовку» (Implementation Rules item'а P4.14 —
+     * общий помощник меняется ОДИН раз, не тремя локальными костылями): ищет
+     * `span.section__title` с точным текстом `$term` и возвращает ближайший `section`-предок.
+     */
+    private function titleSection(Crawler $crawler, string $term): ?Crawler
     {
         try {
-            $node = $crawler
-                ->filter("{$section} dt")
-                ->reduce(fn (Crawler $dt): bool => trim($dt->text()) === $term);
+            $title = $crawler
+                ->filter('span.section__title')
+                ->reduce(static fn (Crawler $span): bool => trim($span->text()) === $term);
 
-            if ($node->count() === 0) {
+            if ($title->count() === 0) {
                 return null;
             }
 
-            $value = trim($node->nextAll()->filter('dd')->first()->text());
+            $section = $title->ancestors()->first();
 
-            return $value !== '' ? $value : null;
+            return $section->count() > 0 ? $section : null;
         } catch (\Throwable) {
             return null;
+        }
+    }
+
+    private function infoNode(Crawler $section): ?Crawler
+    {
+        $info = $section->filter('span.section__info')->first();
+
+        return $info->count() > 0 ? $info : null;
+    }
+
+    /**
+     * Тихий отказ (`research/10-p4-remediation.md` §3.7, Д-7): страница несёт блоки
+     * `blockInfo__section`, а не распознано вообще ни одного поля/строки — признак
+     * разошедшейся вёрстки, обязан быть виден в логе (легитимное отсутствие ОТДЕЛЬНЫХ
+     * блоков — штатный случай, докблок класса, — здесь не срабатывает: порог именно «ничего»).
+     */
+    private function warnIfBlockInfoSuppressed(Crawler $crawler, array $ikz, array $etp, array $contactPerson, array $financingRows, array $items): void
+    {
+        if ($ikz !== [] || $etp !== [] || $contactPerson !== [] || $financingRows !== [] || $items !== []) {
+            return;
+        }
+
+        $sections = $crawler->filter('section.blockInfo__section')->count();
+
+        if ($sections > 0) {
+            Log::warning('На вкладке common-info есть блоки blockInfo, но не распознано ни одного поля', [
+                'sections' => $sections,
+            ]);
         }
     }
 }
