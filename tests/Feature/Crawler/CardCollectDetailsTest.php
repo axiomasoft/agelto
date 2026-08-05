@@ -52,20 +52,41 @@ function fakeCardHttp(): void
     ]);
 }
 
-test('collectDetails возвращает ProcurementDetails с сырым HTML всех вкладок завершённой закупки', function () {
+test('collectDetails отправляет карточный URL с query-строкой regNumber, а не голый endpoint (Д-8)', function () {
     Sleep::fake();
     activeDetailProxy();
     $registry = fakeCardRegistry();
     Procurement::factory()->create([
         'registry_id' => $registry->id,
-        'registry_number' => '0173200001234000001',
+        'registry_number' => '0338200009125000001',
         'procedure_type' => 'electronic_auction',
         'procedure_type_raw' => 'Электронный аукцион',
         'status' => ProcurementStatus::Awarded,
     ]);
     fakeCardHttp();
 
-    $details = app(CsvSourceMethod::class)->collectDetails(registryNumber: '0173200001234000001', registry: $registry);
+    app(CsvSourceMethod::class)->collectDetails(registryNumber: '0338200009125000001', registry: $registry);
+
+    Http::assertSent(fn ($request) => (string) $request->url() === 'https://zakupki.gov.ru/epz/order/notice/ea20/view/common-info.html?regNumber=0338200009125000001');
+    Http::assertSent(fn ($request) => (string) $request->url() === 'https://zakupki.gov.ru/epz/order/notice/ea20/view/documents.html?regNumber=0338200009125000001');
+    Http::assertSent(fn ($request) => (string) $request->url() === 'https://zakupki.gov.ru/epz/order/notice/ea20/view/event-journal.html?regNumber=0338200009125000001');
+    Http::assertSent(fn ($request) => (string) $request->url() === 'https://zakupki.gov.ru/epz/order/notice/ea20/view/supplier-results.html?regNumber=0338200009125000001');
+});
+
+test('collectDetails возвращает ProcurementDetails с сырым HTML всех вкладок завершённой закупки', function () {
+    Sleep::fake();
+    activeDetailProxy();
+    $registry = fakeCardRegistry();
+    Procurement::factory()->create([
+        'registry_id' => $registry->id,
+        'registry_number' => '0338200009125000001',
+        'procedure_type' => 'electronic_auction',
+        'procedure_type_raw' => 'Электронный аукцион',
+        'status' => ProcurementStatus::Awarded,
+    ]);
+    fakeCardHttp();
+
+    $details = app(CsvSourceMethod::class)->collectDetails(registryNumber: '0338200009125000001', registry: $registry);
 
     expect($details)->toBeInstanceOf(ProcurementDetails::class)
         ->and($details->procedureUrlType)->toBe('ea20')
@@ -81,14 +102,14 @@ test('collectDetails не забирает supplier-results для незаве�
     $registry = fakeCardRegistry();
     Procurement::factory()->create([
         'registry_id' => $registry->id,
-        'registry_number' => '0173200001234000001',
+        'registry_number' => '0338200009125000001',
         'procedure_type' => 'electronic_auction',
         'procedure_type_raw' => 'Электронный аукцион',
         'status' => ProcurementStatus::Bidding,
     ]);
     fakeCardHttp();
 
-    $details = app(CsvSourceMethod::class)->collectDetails(registryNumber: '0173200001234000001', registry: $registry);
+    $details = app(CsvSourceMethod::class)->collectDetails(registryNumber: '0338200009125000001', registry: $registry);
 
     expect($details->supplierResultsHtml)->toBeNull();
 
@@ -103,16 +124,16 @@ test('collectDetails кладёт сырой HTML в storage gzip при вкл�
     $registry = fakeCardRegistry();
     Procurement::factory()->create([
         'registry_id' => $registry->id,
-        'registry_number' => '0173200001234000001',
+        'registry_number' => '0338200009125000001',
         'procedure_type' => 'electronic_auction',
         'procedure_type_raw' => 'Электронный аукцион',
         'status' => ProcurementStatus::Bidding,
     ]);
     fakeCardHttp();
 
-    app(CsvSourceMethod::class)->collectDetails(registryNumber: '0173200001234000001', registry: $registry);
+    app(CsvSourceMethod::class)->collectDetails(registryNumber: '0338200009125000001', registry: $registry);
 
-    Storage::disk('s3')->assertExists("raw/html/{$registry->id}/0173200001234000001/common-info.html.gz");
+    Storage::disk('s3')->assertExists("raw/html/{$registry->id}/0338200009125000001/common-info.html.gz");
 });
 
 test('collectDetails не пишет в storage когда retention выключен', function () {
@@ -123,16 +144,16 @@ test('collectDetails не пишет в storage когда retention выклю�
     $registry = fakeCardRegistry();
     Procurement::factory()->create([
         'registry_id' => $registry->id,
-        'registry_number' => '0173200001234000001',
+        'registry_number' => '0338200009125000001',
         'procedure_type' => 'electronic_auction',
         'procedure_type_raw' => 'Электронный аукцион',
         'status' => ProcurementStatus::Bidding,
     ]);
     fakeCardHttp();
 
-    app(CsvSourceMethod::class)->collectDetails(registryNumber: '0173200001234000001', registry: $registry);
+    app(CsvSourceMethod::class)->collectDetails(registryNumber: '0338200009125000001', registry: $registry);
 
-    Storage::disk('s3')->assertMissing("raw/html/{$registry->id}/0173200001234000001/common-info.html.gz");
+    Storage::disk('s3')->assertMissing("raw/html/{$registry->id}/0338200009125000001/common-info.html.gz");
 });
 
 test('collectDetails бросает исключение при отсутствии URL-шаблона для типа процедуры', function () {
@@ -143,13 +164,13 @@ test('collectDetails бросает исключение при отсутств
     ]);
     Procurement::factory()->create([
         'registry_id' => $registry->id,
-        'registry_number' => '0173200001234000001',
+        'registry_number' => '0338200009125000001',
         'procedure_type' => 'electronic_auction',
         'procedure_type_raw' => 'Электронный аукцион',
         'status' => ProcurementStatus::Bidding,
     ]);
 
-    app(CsvSourceMethod::class)->collectDetails(registryNumber: '0173200001234000001', registry: $registry);
+    app(CsvSourceMethod::class)->collectDetails(registryNumber: '0338200009125000001', registry: $registry);
 })->throws(CardUrlTemplateMissingException::class);
 
 test('collectDetails у типа без вкладки supplier-results (маркер null, D121) снимает три вкладки без исключения', function () {
@@ -171,13 +192,13 @@ test('collectDetails у типа без вкладки supplier-results (мар�
     ]);
     Procurement::factory()->create([
         'registry_id' => $registry->id,
-        'registry_number' => '0173200001234000001',
+        'registry_number' => '0338200009125000001',
         'procedure_type_raw' => 'Электронный аукцион на оказание услуг или выполнение работ по капитальному ремонту общего имущества в многоквартирном доме',
         'status' => ProcurementStatus::Awarded,
     ]);
     fakeCardHttp();
 
-    $details = app(CsvSourceMethod::class)->collectDetails(registryNumber: '0173200001234000001', registry: $registry);
+    $details = app(CsvSourceMethod::class)->collectDetails(registryNumber: '0338200009125000001', registry: $registry);
 
     expect($details->commonInfoHtml)->toBe(CardHtmlFixture::commonInfo())
         ->and($details->documentsHtml)->toBe(CardHtmlFixture::documents())

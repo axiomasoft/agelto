@@ -102,7 +102,7 @@ test('снимает детальный слой по явному id закуп
     $registry = fetchDetailsRegistry();
     $procurement = Procurement::factory()->create([
         'registry_id' => $registry->id,
-        'registry_number' => '0173200001234000001',
+        'registry_number' => '0338200009125000001',
         'procedure_type' => 'electronic_auction',
         'procedure_type_raw' => 'Электронный аукцион',
         'status' => ProcurementStatus::Bidding,
@@ -125,7 +125,7 @@ test('без аргумента обрабатывает все due-закупк
     $registry = fetchDetailsRegistry();
     $due = Procurement::factory()->create([
         'registry_id' => $registry->id,
-        'registry_number' => '0173200001234000001',
+        'registry_number' => '0338200009125000001',
         'procedure_type' => 'electronic_auction',
         'procedure_type_raw' => 'Электронный аукцион',
         'status' => ProcurementStatus::Bidding,
@@ -155,7 +155,7 @@ test('падение одной закупки не прерывает обра�
     $registry = fetchDetailsRegistry();
     $healthy = Procurement::factory()->create([
         'registry_id' => $registry->id,
-        'registry_number' => '0173200001234000001',
+        'registry_number' => '0338200009125000001',
         'procedure_type' => 'electronic_auction',
         'procedure_type_raw' => 'Электронный аукцион',
         'status' => ProcurementStatus::Bidding,

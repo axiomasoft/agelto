@@ -77,7 +77,7 @@ test('run наполняет все вкладки-таблицы и стави�
     $registry = detailAnalysisRegistry();
     $procurement = Procurement::factory()->create([
         'registry_id' => $registry->id,
-        'registry_number' => '0173200001234000001',
+        'registry_number' => '0338200009125000001',
         'procedure_type' => 'electronic_auction',
         'procedure_type_raw' => 'Электронный аукцион',
         'status' => ProcurementStatus::Awarded,
@@ -115,7 +115,7 @@ test('run скачивает документы, снятые с вкладки 
     $registry = detailAnalysisRegistry();
     $procurement = Procurement::factory()->create([
         'registry_id' => $registry->id,
-        'registry_number' => '0173200001234000001',
+        'registry_number' => '0338200009125000001',
         'procedure_type' => 'electronic_auction',
         'procedure_type_raw' => 'Электронный аукцион',
         'status' => ProcurementStatus::Bidding,
@@ -134,7 +134,7 @@ test('падение снятия карточки уходит в error-бло�
     $registry = detailAnalysisRegistry();
     $healthy = Procurement::factory()->create([
         'registry_id' => $registry->id,
-        'registry_number' => '0173200001234000001',
+        'registry_number' => '0338200009125000001',
         'procedure_type' => 'electronic_auction',
         'procedure_type_raw' => 'Электронный аукцион',
         'status' => ProcurementStatus::Bidding,
@@ -162,6 +162,37 @@ test('падение снятия карточки уходит в error-бло�
         ->and($broken->detail_last_error)->not->toBeNull()
         ->and($broken->detail_failed)->toBeFalse()
         ->and($broken->detail_next_retry_at)->not->toBeNull();
+});
+
+test('common-info вернул страницу без запрошенного реестрового номера (Д-8) — detail_last_error непуст, detail_fetched_at пуст, prc_eis_details не создана', function () {
+    Sleep::fake();
+    Storage::fake('s3');
+    activeDetailAnalysisProxies();
+    $registry = detailAnalysisRegistry();
+    $procurement = Procurement::factory()->create([
+        'registry_id' => $registry->id,
+        'registry_number' => '0338200009125000001',
+        'procedure_type' => 'electronic_auction',
+        'procedure_type_raw' => 'Электронный аукцион',
+        'status' => ProcurementStatus::Bidding,
+    ]);
+    Http::fake([
+        '*view/common-info.html*' => Http::response(body: '<html><body>Страница не найдена</body></html>', status: 200),
+        '*view/documents.html*' => Http::response(body: CardHtmlFixture::documents(), status: 200),
+        '*view/event-journal.html*' => Http::response(body: detailAnalysisEventJournalHtml(), status: 200),
+        '*view/supplier-results.html*' => Http::response(body: CardHtmlFixture::supplierResults(), status: 200),
+        '*filestore*' => Http::response(body: 'binary-content', status: 200),
+    ]);
+
+    app(DetailAnalysisProcessor::class)->run(procurement: $procurement);
+
+    $procurement->refresh();
+
+    expect($procurement->detail_fetched_at)->toBeNull()
+        ->and($procurement->detail_attempts)->toBe(1)
+        ->and($procurement->detail_last_error)->not->toBeNull();
+
+    expect(EisDetails::query()->where('procurement_id', $procurement->id)->exists())->toBeFalse();
 });
 
 test('исчерпание попыток ставит detail_failed', function () {

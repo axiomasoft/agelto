@@ -11,6 +11,7 @@ use App\Repositories\Procurement\ProcurementDetailStoreRepository;
 use App\Services\Procurement\Eis\Card\CommonInfoParser;
 use App\Services\Reference\ClassifierResolver;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 /**
  * DTO → БД для вкладки `common-info`: `prc_eis_details` (1:1, upsert), `prc_financing`
@@ -28,6 +29,14 @@ final readonly class CommonInfoProcessor
 
     public function process(Procurement $procurement, CommonInfoData $data): void
     {
+        if ($this->isEmpty($data)) {
+            Log::warning(message: 'CommonInfoProcessor: разбор вкладки common-info пуст, запись prc_eis_details пропущена.', context: [
+                'procurement_id' => $procurement->id,
+            ]);
+
+            return;
+        }
+
         DB::transaction(function () use ($procurement, $data): void {
             $this->storeRepository->storeEisDetails(
                 procurementId: $procurement->id,
@@ -46,6 +55,29 @@ final readonly class CommonInfoProcessor
                 );
             }
         });
+    }
+
+    /**
+     * Ноль-как-успех запрещён (Д-8, `research/10` §2): пустая строка `prc_eis_details`
+     * неотличима от «карточка снята, данных нет» — не пишем её вовсе, если разбор не дал
+     * ни одного атрибута, ни строки финансирования, ни позиции.
+     */
+    private function isEmpty(CommonInfoData $data): bool
+    {
+        return $data->ikzYear === null
+            && $data->ikzCustomerCode === null
+            && $data->ikzPlanNumber === null
+            && $data->ikzPlangraphNumber === null
+            && $data->ikzOkpdClass === null
+            && $data->ikzOkpdSubclass === null
+            && $data->ikzOkpdGroup === null
+            && $data->ikzKvr === null
+            && $data->etpName === null
+            && $data->etpUrl === null
+            && $data->contactPersonName === null
+            && $data->contactPersonEmail === null
+            && $data->financingRows === []
+            && $data->items === [];
     }
 
     /**

@@ -17,6 +17,7 @@ use App\Models\Procurement\Crawler\Crawler;
 use App\Models\Procurement\Platform\Registry;
 use App\Models\Procurement\Procurement;
 use App\Services\Procurement\Contracts\SourceMethod;
+use App\Services\Procurement\Exceptions\CardPageMismatchException;
 use App\Services\Procurement\PoliteThrottle;
 use App\Services\Procurement\Proxy\ProxyResolver;
 use App\Services\Procurement\SourceTlsTrust;
@@ -193,6 +194,8 @@ final readonly class CsvSourceMethod implements SourceMethod
             $response = $this->requestWithOutcome(lease: $lease, endpoint: $url, queryParams: []);
         }
 
+        $this->assertCardPage(response: $response, tab: $tab, url: $url, registryNumber: $registryNumber);
+
         $html = $response->body();
 
         if ((bool) config('crawler.raw_html_retention_enabled', false)) {
@@ -200,6 +203,36 @@ final readonly class CsvSourceMethod implements SourceMethod
         }
 
         return $html;
+    }
+
+    /**
+     * Сторож «пришла не та страница» (Д-8): несоответствие = отказ ответа ИЛИ тело не несёт
+     * запрошенного реестрового номера (кодировка тела на эту проверку не влияет — номер состоит
+     * из цифр). Любая вкладка логирует; `common-info` дополнительно бросает исключение — без неё
+     * карточка не считается снятой.
+     */
+    private function assertCardPage(Response $response, string $tab, string $url, string $registryNumber): void
+    {
+        if (! $response->failed() && str_contains($response->body(), $registryNumber)) {
+            return;
+        }
+
+        Log::warning(message: 'CsvSourceMethod: вкладка карточки вернула страницу без запрошенного реестрового номера.', context: [
+            'tab' => $tab,
+            'url' => $url,
+            'status' => $response->status(),
+            'body_length' => strlen($response->body()),
+            'registry_number' => $registryNumber,
+        ]);
+
+        if ($tab === 'common-info') {
+            throw CardPageMismatchException::forTab(
+                tab: $tab,
+                url: $url,
+                status: $response->status(),
+                bodyLength: strlen($response->body()),
+            );
+        }
     }
 
     private function storeRawHtml(int $registryId, string $registryNumber, string $tab, string $html): void
@@ -218,7 +251,7 @@ final readonly class CsvSourceMethod implements SourceMethod
     {
         $tlsOptions = $this->tlsTrust->optionsFor($this->canonicalHost($endpoint));
 
-        return Http::withOptions([...$lease->httpOptions(), ...$tlsOptions])
+        $pendingRequest = Http::withOptions([...$lease->httpOptions(), ...$tlsOptions])
             ->withUserAgent((string) config('crawler.user_agent'))
             ->withHeaders(['Referer' => 'https://zakupki.gov.ru/'])
             ->timeout((int) config('crawler.http.timeout', 30))
@@ -228,8 +261,14 @@ final readonly class CsvSourceMethod implements SourceMethod
                 when: static fn (\Throwable $exception): bool => $exception instanceof RequestException
                     && ($exception->response->status() === 429 || $exception->response->status() >= 500),
                 throw: false,
-            )
-            ->get($endpoint, $queryParams);
+            );
+
+        // Guzzle замещает query-строку URI опцией `query`, ДАЖЕ пустым массивом
+        // (`http_build_query([]) === ''`) — endpoint'ы, несущие свою query-строку внутри
+        // (карточные URL, Д-8), теряют её, если передать сюда `$queryParams = []`.
+        return $queryParams === []
+            ? $pendingRequest->get($endpoint)
+            : $pendingRequest->get($endpoint, $queryParams);
     }
 
     /**

@@ -48,6 +48,16 @@ test('повторный process идемпотентен — строки не 
         ->and(PurchaseItem::query()->where('procurement_id', $procurement->id)->count())->toBe(1);
 });
 
+test('process не создаёт prc_eis_details при полностью пустом разборе вкладки (ноль-как-успех запрещён, Д-8)', function () {
+    $procurement = Procurement::factory()->create();
+
+    app(CommonInfoProcessor::class)->process($procurement, new CommonInfoData);
+
+    expect(EisDetails::query()->where('procurement_id', $procurement->id)->exists())->toBeFalse()
+        ->and(Financing::query()->where('procurement_id', $procurement->id)->exists())->toBeFalse()
+        ->and(PurchaseItem::query()->where('procurement_id', $procurement->id)->exists())->toBeFalse();
+});
+
 test('process резолвит okpd2_ref_id, когда код есть в справочнике ref_okpd2', function () {
     $procurement = Procurement::factory()->create();
     $okpd2 = Okpd2::factory()->create(['code' => '18.11.10.000']);
