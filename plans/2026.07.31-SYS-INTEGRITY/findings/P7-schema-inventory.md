@@ -651,16 +651,76 @@ Template-таблицы в схеме `partman` — **9**, из них 4 не с
 (привязаны к трём осиротевшим строкам `part_config`) и `template_public_prc_ai_llm_calls`
 (не упомянута в `part_config` вовсе).
 
-Поведение обслуживания при осиротевшей строке — проверено ЧТЕНИЕМ ИСХОДНИКА функции
-(`SELECT prosrc FROM pg_proc … WHERE proname='run_maintenance'`, pg_partman 5.2.4), строки 130–134:
+**Поведение обслуживания при осиротевшей строке — проба (read-only) и исходник функции.**
+
+Проба:
 
 ```
-RAISE DEBUG 'run_maint: Parent table possibly removed from part_config by retenion';
+docker exec agelto_postgres psql -U agelto -d agelto -c "SELECT partman.show_partitions('public.ai_llm_calls');"
+```
+
+```
+ERROR:  Given parent table not found in system catalogs: public.ai_llm_calls
+CONTEXT:  PL/pgSQL function show_partitions(text,text,boolean) line 52 at RAISE
+```
+
+Исходник (`SELECT prosrc FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace AND
+n.nspname='partman' WHERE p.proname='run_maintenance'`, pg_partman 5.2.4). Единственная проверка
+существования внутри цикла смотрит на строку `part_config`, а НЕ на таблицу:
+
+```
+v_parent_exists := NULL;
+SELECT parent_table, time_encoder, time_decoder INTO v_parent_exists, …
+  FROM partman.part_config WHERE parent_table = v_row.parent_table;
 …
 CONTINUE WHEN v_parent_exists IS NULL;
 ```
 
-— осиротевшая строка ПРОПУСКАЕТСЯ, обслуживание остальных не прерывается.
+— у осиротевшей строки `part_config` она НА МЕСТЕ, поэтому `CONTINUE` не срабатывает, и ниже по
+циклу вызывается `partman.show_partitions(v_row.parent_table, …)` (две точки в теле цикла), который
+на несуществующей таблице бросает исключение выше. Внешний блок `EXCEPTION` функции завершается
+`RAISE EXCEPTION '%'` — то есть падает ВЕСЬ вызов `run_maintenance()`, а не одна строка.
+
+Порядок обхода — `ORDER BY maintenance_order ASC NULLS LAST, parent_table ASC` (там же в
+`v_tables_list_sql`); `maintenance_order` не задан ни у одной строки, значит порядок алфавитный и
+`public.ai_llm_calls` идёт ПЕРВЫМ.
+
+Отпечаток этого в каталоге:
+
+```sql
+SELECT parent_table, maintenance_order, maintenance_last_run FROM partman.part_config
+ORDER BY maintenance_order ASC NULLS LAST, parent_table ASC;
+```
+
+```
+       parent_table        | maintenance_order |     maintenance_last_run
+---------------------------+-------------------+-------------------------------
+ public.ai_llm_calls       |                   | 2026-07-06 00:00:00.232087+00
+ public.crw_fetches        |                   | 2026-07-06 00:00:00.235362+00
+ public.llm_calls          |                   |            ← НИ РАЗУ
+ public.prc_events         |                   | 2026-07-06 00:00:00.241263+00
+ public.prc_fetches        |                   |            ← НИ РАЗУ
+ public.prc_operation_logs |                   |            ← НИ РАЗУ
+ public.prc_revisions      |                   | 2026-07-06 00:00:00.244524+00
+ public.sys_operation_logs |                   | 2026-07-06 00:00:00.245981+00
+```
+
+Три АКТУАЛЬНЫЕ таблицы (`llm_calls`, `prc_fetches`, `prc_operation_logs`) не обслуживались ни разу;
+пять отметок 2026-07-06 принадлежат прошлому поколению имён, когда осиротевших строк ещё не было.
+
+Обработка ошибки в команде-обёртке (`app/Console/Commands/MaintainPartitions.php:38-52`):
+
+```php
+if ($this->pgPartmanIsAvailable()) {
+    DB::statement('SELECT partman.run_maintenance()');
+    …
+    return self::SUCCESS;
+}
+// fallback-путь ниже
+```
+
+— fallback включается ТОЛЬКО при отсутствии расширения (`pgPartmanIsAvailable()` проверяет
+`pg_extension`), а не при неуспехе `run_maintenance()`; исключение уходит наружу.
 
 Состояние тестовой БД (`docker exec agelto_postgres psql -U agelto -d agelto_test -c
 "SELECT parent_table, to_regclass(parent_table) IS NOT NULL … FROM partman.part_config"`):
