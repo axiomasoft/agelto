@@ -39,11 +39,47 @@ function fetchDetailsEventJournalHtml(): string
     return str_replace('11.07.2026 07:00', now()->startOfMonth()->addDays(2)->format('d.m.Y H:i'), $html);
 }
 
+/**
+ * Локальная (не общая `CardHtmlFixture::documents()`) HTML вкладки `documents` — этот тест
+ * проверяет оркестрацию команды (exit code, due-набор), а не разбор HTML; оба вложения — `.pdf`,
+ * чтобы фейковое бинарное тело `filestore`-ответа не попало в `SpreadsheetStrategy`/`WordStrategy`
+ * (они пытаются реально распарсить содержимое и бросают исключение на невалидном бинарнике —
+ * `PassthroughStrategy` для PDF такой проверки не делает). Структура — `div.blockFilesTabDocs` →
+ * `div.attachment` → `span.section__value > a[href^=".../filestore/..."]`, см. `DocumentsParser`.
+ */
+function fetchDetailsDocumentsHtml(): string
+{
+    return <<<'HTML'
+        <!DOCTYPE html>
+        <html lang="ru">
+        <body>
+        <div class="blockFilesTabDocs">
+            <div class="section__title mb-3">Прикрепленные файлы</div>
+            <div class="attachment row ">
+                <div class="col clipText">
+                    <span class="section__value">
+                        <a href="https://zakupki.gov.ru/44fz/filestore/public/1.0/download/priz/file.html?uid=aaaa-1111" title="notice.pdf">notice</a>
+                    </span>
+                </div>
+            </div>
+            <div class="attachment row ">
+                <div class="col clipText">
+                    <span class="section__value">
+                        <a href="https://zakupki.gov.ru/44fz/filestore/public/1.0/download/priz/file.html?uid=bbbb-2222" title="contract-draft.pdf">contract-draft</a>
+                    </span>
+                </div>
+            </div>
+        </div>
+        </body>
+        </html>
+        HTML;
+}
+
 function fakeFetchDetailsHttp(): void
 {
     Http::fake([
         '*view/common-info.html*' => Http::response(body: CardHtmlFixture::commonInfo(), status: 200),
-        '*view/documents.html*' => Http::response(body: CardHtmlFixture::documents(), status: 200),
+        '*view/documents.html*' => Http::response(body: fetchDetailsDocumentsHtml(), status: 200),
         '*view/event-journal.html*' => Http::response(body: fetchDetailsEventJournalHtml(), status: 200),
         '*view/supplier-results.html*' => Http::response(body: CardHtmlFixture::supplierResults(), status: 200),
         '*filestore*' => Http::response(body: 'binary-content', status: 200),

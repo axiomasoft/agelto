@@ -113,7 +113,7 @@ test('run скачивает документы, снятые с вкладки 
 
     app(DetailAnalysisProcessor::class)->run(procurement: $procurement);
 
-    expect(Document::query()->where('procurement_id', $procurement->id)->where('status', DocumentStatus::Downloaded)->count())->toBe(2);
+    expect(Document::query()->where('procurement_id', $procurement->id)->where('status', DocumentStatus::Downloaded)->count())->toBe(6);
 });
 
 test('падение снятия карточки уходит в error-блок, detail_fetched_at не ставится, другие закупки не затронуты', function () {

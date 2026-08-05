@@ -9,12 +9,12 @@ use Illuminate\Support\Facades\Log;
 use Symfony\Component\DomCrawler\Crawler;
 
 /**
- * Разбор вкладки `documents` карточки закупки ЕИС (`research/eis-card-recon.md` §2,
- * `research/eis-csv-recon.md` «Бонус: страница вложений») в список
- * {@see DocumentData}. Только HTML → DTO, без записи в БД (это `DocumentIndexer`) и без
- * скачивания файла (это `DocumentDownloader`). Ссылка на файл — относительный `filestore/...`
- * путь, резолвится в абсолютный URL через `crawler.eis.base_url`. Строка без файла-ссылки
- * (брак вёрстки/ещё не опубликован) — пропускается, без неё нет `external_id` для дедупа.
+ * Разбор вкладки `documents` карточки закупки ЕИС (`findings/P4-card-layout.md` §2, живая проба
+ * P4.13) в список {@see DocumentData}. Только HTML → DTO, без записи в БД (это `DocumentIndexer`)
+ * и без скачивания файла (это `DocumentDownloader`). Ссылка на файл — АБСОЛЮТНАЯ
+ * (`https://zakupki.gov.ru/44fz/filestore/...`), резолвится как есть. Строка без файла-ссылки
+ * (брак вёрстки/ещё не опубликован) — пропускается, без неё нет `external_id` для дедупа. Вкладка
+ * не несёт колонки с типом документа — `kind` легитимно `null` для всех строк.
  */
 final readonly class DocumentsParser
 {
@@ -24,40 +24,43 @@ final readonly class DocumentsParser
     public function parse(string $html): array
     {
         try {
-            $table = (new Crawler($html))->filter('div.documents-list table.documents-table');
+            $crawler = new Crawler($html);
+            $block = $crawler->filter('div.blockFilesTabDocs');
 
-            if ($table->count() === 0) {
+            if ($block->count() === 0) {
+                $this->warnIfFilestoreLinksSuppressed($crawler, recognized: 0);
+
                 return [];
             }
 
             $documents = [];
 
-            $table->filter('tbody tr')->each(function (Crawler $tr) use (&$documents): void {
-                $document = $this->parseRow($tr);
+            $block->filter('div.attachment')->each(function (Crawler $row) use (&$documents): void {
+                $document = $this->parseRow($row);
 
                 if ($document !== null) {
                     $documents[] = $document;
                 }
             });
 
+            $this->warnIfFilestoreLinksSuppressed($crawler, recognized: count($documents));
+
             return $documents;
-        } catch (\Throwable) {
+        } catch (\Throwable $exception) {
+            Log::warning('Разбор вкладки documents провалился целиком, документы пропущены', [
+                'exception' => $exception->getMessage(),
+            ]);
+
             return [];
         }
     }
 
-    private function parseRow(Crawler $tr): ?DocumentData
+    private function parseRow(Crawler $row): ?DocumentData
     {
-        $cells = $tr->filter('td');
-
-        if ($cells->count() < 3) {
-            return null;
-        }
-
-        $link = $cells->eq(2)->filter('a');
+        $link = $row->filter('span.section__value > a');
 
         if ($link->count() === 0) {
-            Log::warning('Строка вкладки documents без файла-ссылки пропущена', ['row' => trim($cells->eq(0)->text())]);
+            Log::warning('Строка вкладки documents без файла-ссылки пропущена', []);
 
             return null;
         }
@@ -71,14 +74,34 @@ final readonly class DocumentsParser
             return null;
         }
 
-        $kind = trim($cells->eq(0)->text());
+        $title = $link->attr('title');
+        $title = $title !== null && trim($title) !== '' ? trim($title) : trim($link->text());
 
         return new DocumentData(
-            title: trim($link->text()),
-            kind: $kind !== '' ? $kind : null,
+            title: $title,
+            kind: null,
             sourceUrl: $this->absoluteUrl($href),
             externalId: $externalId,
         );
+    }
+
+    /**
+     * Тихий отказ (research/10-p4-remediation.md §3.6): страница несёт ссылки `filestore`, а
+     * распознано 0 документов — признак разошедшейся вёрстки, обязан быть виден в логе.
+     */
+    private function warnIfFilestoreLinksSuppressed(Crawler $crawler, int $recognized): void
+    {
+        if ($recognized > 0) {
+            return;
+        }
+
+        $filestoreLinks = $crawler->filter('a[href*="filestore"]')->count();
+
+        if ($filestoreLinks > 0) {
+            Log::warning('На вкладке documents есть ссылки filestore, но не распознано ни одного документа', [
+                'filestore_links' => $filestoreLinks,
+            ]);
+        }
     }
 
     private function externalIdFromHref(?string $href): ?string
