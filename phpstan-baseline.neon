@@ -13,18 +13,6 @@ parameters:
 			path: app/Console/Commands/Procurement/PipelineStuckCheck.php
 
 		-
-			message: '#^Access to an undefined property App\\Models\\Procurement\\Crawler\\Run\:\:\$status\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Console/Commands/Procurement/RunArchiveCrawler.php
-
-		-
-			message: '#^Access to an undefined property App\\Models\\Procurement\\Crawler\\Run\:\:\$status\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Console/Commands/Procurement/RunFreshCrawler.php
-
-		-
 			message: '#^Method App\\Console\\Commands\\Reference\\LoadClassifiers\:\:resolveClassifiers\(\) should return Illuminate\\Support\\Collection\<string, array\{model\: class\-string, source_path\: string\|null\}\> but returns Illuminate\\Support\\Collection\<string, array\{model\: class\-string, source_path\: string\|null\}\>\.$#'
 			identifier: return.type
 			count: 2
@@ -305,18 +293,6 @@ parameters:
 			identifier: property.notFound
 			count: 1
 			path: app/Services/Procurement/Modes/DetailAnalysisProcessor.php
-
-		-
-			message: '#^Access to an undefined property App\\Models\\Procurement\\Crawler\\Run\:\:\$finished_at\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Services/Procurement/Modes/FreshRunProcessor.php
-
-		-
-			message: '#^Access to an undefined property App\\Models\\Procurement\\Crawler\\Run\:\:\$started_at\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Services/Procurement/Modes/FreshRunProcessor.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Procurement\\Procurement\:\:\$revision_count\.$#'

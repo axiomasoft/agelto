@@ -1,0 +1,20 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Dto\Procurement\Crawler\Contracts;
+
+/**
+ * Узкий шов для площадко-агностичного `ArchiveWindowScanner` (P4.6, П-9): фильтр профиля,
+ * несущий ценовую границу, отдаёт готовый стартовый интервал стека дробления — без
+ * `instanceof <площадка>SearchFilter` внутри сканера. Один реализующий класс сегодня
+ * (`EisSearchFilter`) — гипотетический шов, поэтому интерфейс узкий, без задела.
+ */
+interface HasPriceRange
+{
+    /**
+     * Форма `"{from}:{to}"`; `null` — верхняя граница не заполнена, сканер падает обратно на
+     * `config('crawler.archive.price_ceiling')`.
+     */
+    public function startingPriceInterval(): ?string;
+}

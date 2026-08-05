@@ -17,7 +17,12 @@ use Tests\Support\Doubles\Crawler\QueueSourceMethod;
 beforeEach(function () {
     Sleep::fake();
     Storage::fake('s3');
-    config(['crawler.eis.block_size' => 2]);
+    config([
+        'crawler.eis.block_size' => 2,
+        // Нулевой оверлап — этот тест проверяет делегирование команды, не окно перекрытия (П-2,
+        // `tests/Feature/Crawler/BacklogRescanProcessorTest.php` несёт отдельную пробу сдвига).
+        'crawler.tracking.window_overlap_days' => 0,
+    ]);
 });
 
 test('делегирует BacklogRescanProcessor и репортит число обработанных прогонов', function () {

@@ -110,12 +110,27 @@ final readonly class BacklogRescanProcessor
 
     private function drainWindow(Crawler $crawler, Run $run, Carbon $from, Carbon $to): void
     {
+        $overlapDays = (int) config('crawler.tracking.window_overlap_days');
+        $overlappedFrom = $from->copy()->subDays($overlapDays)->startOfDay();
+
         $cursor = ListingCursor::fromArray(cursor: $run->cursor?->toArray() ?? []);
-        $day = $cursor->day !== null ? Carbon::parse($cursor->day) : $from->copy()->startOfDay();
+        $day = $cursor->day !== null ? Carbon::parse($cursor->day) : $overlappedFrom->copy();
 
         if ($cursor->day === null) {
             $this->runs->updateCursor(run: $run, cursor: new ListingCursor(blockFrom: 1, day: $day->toDateString()));
         }
+
+        Log::info(
+            message: 'BacklogRescanProcessor: перекрытое окно рескана.',
+            context: [
+                'crawler_id' => $crawler->id,
+                'run_id' => $run->id,
+                'requested_from' => $from->toDateString(),
+                'overlap_days' => $overlapDays,
+                'from' => $overlappedFrom->toDateString(),
+                'to' => $to->toDateString(),
+            ],
+        );
 
         while ($day->lte($to)) {
             $this->scanner->scan(crawler: $crawler, run: $run, filter: new WindowFilter(

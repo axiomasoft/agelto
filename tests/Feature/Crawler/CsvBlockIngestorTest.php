@@ -13,6 +13,7 @@ use App\Models\Procurement\Procurement;
 use App\Models\Procurement\ProcurementEvent;
 use App\Models\Procurement\ProcurementRevision;
 use App\Services\Procurement\CsvBlockIngestor;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 
 /**
@@ -178,6 +179,40 @@ test('битая строка без источника номера не руш
     expect($result->rowsNew)->toBe(1)
         ->and(Procurement::query()->count())->toBe(1)
         ->and(Procurement::query()->where('registry_number', '0173200001234000001')->exists())->toBeTrue();
+});
+
+test('дедуп внутри блока по реестровому номеру — 510 строк на 500 уникальных дают 500 инжестов без вторых ревизий', function () {
+    Storage::fake('s3');
+    Log::spy();
+    $registry = Registry::factory()->create(['code' => 'fz44']);
+    $crawler = Crawler::factory()->for($registry)->create();
+    $run = Run::factory()->for($crawler)->create();
+
+    $rows = [];
+    for ($i = 1; $i <= 500; $i++) {
+        $rows[] = ingestorCsvRow(sprintf('017320000123400%04d', $i));
+    }
+    // Десять дублей ПОСЛЕ оригиналов — порядок сервера значимый, первая строка выигрывает.
+    for ($i = 1; $i <= 10; $i++) {
+        $rows[] = ingestorCsvRow(sprintf('017320000123400%04d', $i), ['Наименование закупки' => 'ДУБЛЬ, обязан быть отброшен']);
+    }
+
+    $batch = ingestorBatch($rows);
+
+    $result = app(CsvBlockIngestor::class)->ingest(crawler: $crawler, run: $run, batch: $batch);
+
+    expect($result->rowsTotal)->toBe(510)
+        ->and($result->rowsNew)->toBe(500)
+        ->and($result->rowsDuplicated)->toBe(10)
+        ->and(Procurement::query()->count())->toBe(500)
+        ->and(ProcurementRevision::query()->count())->toBe(500);
+
+    $firstDuplicated = Procurement::query()->where('registry_number', '0173200001234000001')->firstOrFail();
+    expect($firstDuplicated->title)->toBe('Поставка оргтехники');
+
+    Log::shouldHaveReceived('warning')
+        ->withArgs(fn (string $message, array $context): bool => str_contains($message, 'схлопнуты дедупом') && $context['duplicates'] === 10)
+        ->once();
 });
 
 test('битая строка с непарсящейся датой размещения не рушит блок', function () {

@@ -10,6 +10,7 @@ use App\Models\Procurement\Crawler\Crawler;
 use App\Models\Procurement\Crawler\Run;
 use App\Models\Procurement\Platform\Registry;
 use App\Services\Procurement\Modes\BacklogRescanProcessor;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Sleep;
 use Tests\Support\Doubles\Crawler\QueueSourceMethod;
@@ -48,6 +49,9 @@ beforeEach(function () {
         'crawler.archive.price_ceiling' => 100,
         'crawler.archive.min_price_interval' => 10,
         'crawler.archive.max_blocks_per_window' => 50,
+        // Нулевой оверлап здесь — тесты этого файла проверяют механику sweep()/архив-профиля,
+        // не окно перекрытия (П-2, отдельная проба — тест ниже про сдвиг окна).
+        'crawler.tracking.window_overlap_days' => 0,
     ]);
 });
 
@@ -134,6 +138,38 @@ test('possible_skip_window.from не определён — пропуск бе�
 
     $freshRun->refresh();
     expect($freshRun->stats['backlog_rescanned_at'] ?? null)->toBeNull();
+});
+
+test('окно рескана сдвигается назад на window_overlap_days, лог несёт фактические границы', function () {
+    config(['crawler.tracking.window_overlap_days' => 2]);
+    Log::spy();
+
+    $registry = Registry::factory()->create();
+    $freshCrawler = Crawler::factory()->create(['registry_id' => $registry->id, 'mode' => CrawlerMode::Fresh]);
+    Crawler::factory()->create(['registry_id' => $registry->id, 'mode' => CrawlerMode::Archive, 'is_active' => true]);
+
+    Run::factory()->for($freshCrawler, 'crawler')->create([
+        'status' => RunStatus::Completed,
+        'stats' => ['cap_hit' => true, 'possible_skip_window' => ['from' => '2024-01-05T00:00:00Z', 'to' => '2024-01-05T12:00:00Z']],
+    ]);
+
+    useBacklogRescanQueueSourceMethod([
+        backlogRescanDrainedBatch(),
+        backlogRescanDrainedBatch(),
+        backlogRescanDrainedBatch(),
+    ]);
+
+    $processed = app(BacklogRescanProcessor::class)->sweep();
+
+    expect($processed)->toBe(1);
+
+    Log::shouldHaveReceived('info')
+        ->withArgs(fn (string $message, array $context): bool => str_contains($message, 'перекрытое окно рескана')
+            && $context['requested_from'] === '2024-01-05'
+            && $context['overlap_days'] === 2
+            && $context['from'] === '2024-01-03'
+            && $context['to'] === '2024-01-05')
+        ->once();
 });
 
 test('исключение внутри scan — archive-run failed, флаг остаётся непомеченным', function () {

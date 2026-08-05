@@ -33,6 +33,13 @@ if (Schema::hasTable('prc_crawler_runs')) {
     Schedule::command('crawler:rescan-backlog')->everyFifteenMinutes();
 }
 
+// Тот же schema-guard (см. выше) — плановый delta-scan окна обновления (П-3,
+// `research/05-change-tracking.md` §2.2); выключен по умолчанию — включает владелец
+// после боевого прогона P4.7 (как и fresh-профиль, D37).
+if (Schema::hasTable('prc_crawlers') && config('crawler.tracking.delta_scan_enabled')) {
+    Schedule::command('crawler:run-delta')->cron((string) config('crawler.tracking.delta_scan_cron'));
+}
+
 // Тот же schema-guard (см. выше) — мост подготовки документов (P4.3, ТЗ 03 §4). Поллер —
 // страховка (research/L finding 12): прямой dispatch() уже происходит сразу после downloaded
 // из `crawler:fetch-details`; этот тик добирает пропущенное/несработавшее по ВСЕМ закупкам.

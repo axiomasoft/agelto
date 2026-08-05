@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Services\Procurement\Modes;
 
 use App\Dto\Procurement\Crawler\ListingCursor;
-use App\Enums\Procurement\Crawler\RunStatus;
 use App\Models\Procurement\Crawler\Crawler;
 use App\Models\Procurement\Crawler\Run;
 use App\Services\Procurement\CrawlerRunManager;
@@ -32,6 +31,10 @@ final readonly class FreshRunProcessor
     public function run(Crawler $crawler): Run
     {
         $run = $this->runs->startOrResume(crawler: $crawler);
+        $this->runs->recordScanGap(
+            run: $run,
+            previousCompletedRun: $this->runs->lastCompletedRun(crawler: $crawler, excludeRunId: $run->id),
+        );
 
         $cursor = ListingCursor::fromArray(cursor: $run->cursor?->toArray() ?? []);
         $blockSize = (int) config('crawler.eis.block_size', 500);
@@ -44,6 +47,10 @@ final readonly class FreshRunProcessor
                 $sourceMethod = $this->factory->makeWithFallback(crawler: $crawler);
                 $batch = $sourceMethod->collectListing(crawler: $crawler, cursor: $cursor);
                 $fetchResult = $this->ingestor->ingest(crawler: $crawler, run: $run, batch: $batch);
+
+                if ($fetchResult->oldestUpdateSeen !== null) {
+                    $this->runs->recordOldestUpdateSeen(run: $run, candidate: $fetchResult->oldestUpdateSeen);
+                }
 
                 if ($fetchResult->rowsNew === 0 && $fetchResult->rowsUpdated === 0) {
                     $cursor = new ListingCursor(
@@ -102,12 +109,7 @@ final readonly class FreshRunProcessor
 
     private function handleCapHit(Crawler $crawler, Run $run, int $blockFrom): void
     {
-        $lastSuccessfulRun = Run::query()
-            ->where('crawler_id', $crawler->id)
-            ->where('status', RunStatus::Completed)
-            ->where('id', '!=', $run->id)
-            ->latest('finished_at')
-            ->first();
+        $lastSuccessfulRun = $this->runs->lastCompletedRun(crawler: $crawler, excludeRunId: $run->id);
 
         $lastSuccessfulScanAt = $lastSuccessfulRun?->finished_at?->toIso8601String();
 

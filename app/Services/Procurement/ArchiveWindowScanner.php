@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\Procurement;
 
+use App\Dto\Procurement\Crawler\Contracts\HasPriceRange;
 use App\Dto\Procurement\Crawler\ListingCursor;
 use App\Dto\Procurement\Crawler\WindowFilter;
 use App\Models\Procurement\Crawler\Crawler;
@@ -36,7 +37,12 @@ final readonly class ArchiveWindowScanner
         $cursor = ListingCursor::fromArray(cursor: $run->cursor?->toArray() ?? []);
         $day = $cursor->day ?? $filter->dateFrom->toDateString();
         $dateField = $filter->dateField;
-        $stack = $cursor->priceStack ?? ["0:{$priceCeiling}"];
+
+        $profileFilter = $crawler->filter;
+        $startingInterval = $profileFilter instanceof HasPriceRange
+            ? $profileFilter->startingPriceInterval()
+            : null;
+        $stack = $cursor->priceStack ?? [$startingInterval ?? "0:{$priceCeiling}"];
         $blockFrom = $cursor->priceStack === null ? 1 : $cursor->blockFrom;
         $previousSignature = null;
         $blocksInInterval = 0;

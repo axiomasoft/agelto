@@ -9,6 +9,7 @@ use App\Enums\Procurement\Crawler\RunStatus;
 use App\Models\Procurement\Crawler\Crawler;
 use App\Models\Procurement\Crawler\Run;
 use Illuminate\Database\UniqueConstraintViolationException;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -94,6 +95,61 @@ final readonly class CrawlerRunManager
         $run->update([
             'stats' => array_merge($run->stats?->toArray() ?? [], [
                 'backlog_rescanned_at' => now()->toIso8601String(),
+            ]),
+        ]);
+    }
+
+    /**
+     * Последний завершённый прогон профиля (`02-crawling.md` §4.1) — единственный носитель
+     * этого запроса (П-4, D33: снятие второго носителя одного факта): раньше жил только внутри
+     * `FreshRunProcessor::handleCapHit()`, теперь его же использует `recordScanGap()`.
+     */
+    public function lastCompletedRun(Crawler $crawler, ?int $excludeRunId = null): ?Run
+    {
+        return Run::query()
+            ->where('crawler_id', $crawler->id)
+            ->where('status', RunStatus::Completed)
+            ->when($excludeRunId !== null, fn ($query) => $query->where('id', '!=', $excludeRunId))
+            ->latest('finished_at')
+            ->first();
+    }
+
+    /**
+     * Метрика отставания fresh-скана (П-4, `research/05-change-tracking.md` §3.1): пауза от
+     * `finished_at` предыдущего completed-прогона профиля до старта текущего. Нет предыдущего
+     * прогона (первый скан профиля) — `null`, не `0`: отставание не измерено, а не нулевое.
+     */
+    public function recordScanGap(Run $run, ?Run $previousCompletedRun): void
+    {
+        $gapSeconds = $previousCompletedRun?->finished_at !== null
+            ? $run->started_at->diffInSeconds($previousCompletedRun->finished_at)
+            : null;
+
+        $run->update([
+            'stats' => array_merge($run->stats?->toArray() ?? [], [
+                'scan_gap_seconds' => $gapSeconds,
+            ]),
+        ]);
+    }
+
+    /**
+     * Минимальная «Дата обновления» среди СНЯТЫХ блоков прогона (П-4) — источник каждого
+     * кандидата: `FetchResult::$oldestUpdateSeen`, заполненное инжестором из уже разобранных
+     * снапшотов. Пишется только fresh-прогоном (Implementation Rules П-4); архив и delta-scan
+     * эту метрику не наполняют — вызывающий код их не зовёт.
+     */
+    public function recordOldestUpdateSeen(Run $run, Carbon $candidate): void
+    {
+        $current = $run->stats?->toArray()['oldest_update_seen'] ?? null;
+        $currentAt = $current !== null ? Carbon::parse($current) : null;
+
+        if ($currentAt !== null && $candidate->gte($currentAt)) {
+            return;
+        }
+
+        $run->update([
+            'stats' => array_merge($run->stats?->toArray() ?? [], [
+                'oldest_update_seen' => $candidate->toIso8601String(),
             ]),
         ]);
     }

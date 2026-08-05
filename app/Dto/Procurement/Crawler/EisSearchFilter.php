@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Dto\Procurement\Crawler;
 
+use App\Dto\Procurement\Crawler\Contracts\HasPriceRange;
 use Carbon\CarbonImmutable;
 use Illuminate\Contracts\Support\Arrayable;
 use Illuminate\Validation\ValidationException;
@@ -23,7 +24,7 @@ use Spatie\LaravelData\Support\Validation\ValidationContext;
  * `priceFromGeneral`, …) и формат даты `d.m.Y` остаются в `EisCsvUrlBuilder` — единственном
  * носителе ЕИС-специфики (Code Guidance P4.3).
  */
-final class EisSearchFilter extends Data
+final class EisSearchFilter extends Data implements HasPriceRange
 {
     /**
      * Единственный источник истины по допустимым ключам `prc_crawlers.filter` — используется
@@ -115,5 +116,19 @@ final class EisSearchFilter extends Data
             'priceTo' => ['nullable', 'integer', 'min:1'],
             'priceFrom' => ['nullable', 'integer', 'min:0'],
         ];
+    }
+
+    /**
+     * Стартовый ценовой стек `ArchiveWindowScanner` (P4.6, П-9): владелец 2026-08-05 п. 1 —
+     * «потолок обязан быть полем профиля и правиться из Filament, а не жить константой конфига».
+     * Незаполненная верхняя граница отдаёт `null` — сканер падает на `config`-дефолт.
+     */
+    public function startingPriceInterval(): ?string
+    {
+        if ($this->priceTo === null) {
+            return null;
+        }
+
+        return sprintf('%d:%d', $this->priceFrom ?? 0, $this->priceTo);
     }
 }

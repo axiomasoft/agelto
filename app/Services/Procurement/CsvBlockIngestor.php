@@ -56,6 +56,23 @@ final readonly class CsvBlockIngestor
             $snapshots[] = $snapshot;
         }
 
+        [$snapshots, $duplicates] = $this->deduplicateByRegistryNumber(snapshots: $snapshots);
+
+        if ($duplicates > 0) {
+            Log::warning(
+                message: 'CsvBlockIngestor: строки блока схлопнуты дедупом по реестровому номеру.',
+                context: ['crawler_id' => $crawler->id, 'run_id' => $run->id, 'duplicates' => $duplicates],
+            );
+        }
+
+        $oldestUpdateSeen = null;
+
+        foreach ($snapshots as $snapshot) {
+            if ($oldestUpdateSeen === null || $snapshot->sourceUpdatedAt->lt($oldestUpdateSeen)) {
+                $oldestUpdateSeen = $snapshot->sourceUpdatedAt;
+            }
+        }
+
         $ignoredNumbers = $this->ignoredRegistryNumbers(crawler: $crawler, snapshots: $snapshots);
 
         $new = 0;
@@ -101,7 +118,37 @@ final readonly class CsvBlockIngestor
             rowsUpdated: $updated,
             rowsSkipped: $skipped,
             errors: $errors,
+            rowsDuplicated: $duplicates,
+            oldestUpdateSeen: $oldestUpdateSeen,
         );
+    }
+
+    /**
+     * Дедуп ВНУТРИ блока по реестровому номеру (П-5) — первая строка выигрывает (порядок сервера
+     * значимый). `rowsTotal`/`dedup_signature` не пересчитываются: они про полноту блока сервера
+     * (стоп-условие `ArchiveWindowScanner:66`, детект тихого cap), не про уникальность строк.
+     *
+     * @param  list<ProcurementSnapshotData>  $snapshots
+     * @return array{0: list<ProcurementSnapshotData>, 1: int}
+     */
+    private function deduplicateByRegistryNumber(array $snapshots): array
+    {
+        $seen = [];
+        $duplicates = 0;
+        $deduped = [];
+
+        foreach ($snapshots as $snapshot) {
+            if (isset($seen[$snapshot->registryNumber])) {
+                $duplicates++;
+
+                continue;
+            }
+
+            $seen[$snapshot->registryNumber] = true;
+            $deduped[] = $snapshot;
+        }
+
+        return [$deduped, $duplicates];
     }
 
     /**

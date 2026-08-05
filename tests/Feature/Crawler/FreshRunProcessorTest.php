@@ -9,6 +9,7 @@ use App\Models\Procurement\Crawler\Crawler;
 use App\Models\Procurement\Crawler\Run;
 use App\Models\Procurement\Procurement;
 use App\Services\Procurement\Modes\FreshRunProcessor;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Sleep;
 use Tests\Support\Doubles\Crawler\QueueSourceMethod;
@@ -86,6 +87,42 @@ test('останавливается на первом полностью изв
         ->and($run->cursor['reachedKnown'])->toBeTrue()
         ->and($run->cursor['blockFrom'])->toBe(1001)
         ->and(Procurement::query()->count())->toBe(3);
+});
+
+test('метрика отставания: первый скан профиля пишет oldest_update_seen, scan_gap_seconds — null', function () {
+    $crawler = Crawler::factory()->create();
+
+    useQueueSourceMethod([
+        freshRunBatch([
+            freshRunCsvRow('0173200001234000040'),
+            freshRunCsvRow('0173200001234000041', ['Дата обновления' => '01.03.2026 08:00:00']),
+        ], dedupSignature: 'sig-metrics'),
+        freshRunBatch([], dedupSignature: null),
+    ]);
+
+    $run = app(FreshRunProcessor::class)->run(crawler: $crawler);
+
+    expect(array_key_exists('scan_gap_seconds', $run->stats->toArray()))->toBeTrue()
+        ->and($run->stats['scan_gap_seconds'])->toBeNull()
+        ->and($run->stats['oldest_update_seen'])->not->toBeNull()
+        ->and(Carbon::parse($run->stats['oldest_update_seen'])->toDateString())->toBe('2026-03-01');
+});
+
+test('метрика отставания: повторный скан профиля пишет ненулевой scan_gap_seconds', function () {
+    $crawler = Crawler::factory()->create();
+
+    useQueueSourceMethod([
+        freshRunBatch([freshRunCsvRow('0173200001234000050')], dedupSignature: 'sig-first'),
+        freshRunBatch([], dedupSignature: null),
+    ]);
+    app(FreshRunProcessor::class)->run(crawler: $crawler);
+
+    useQueueSourceMethod([
+        freshRunBatch([], dedupSignature: null),
+    ]);
+    $secondRun = app(FreshRunProcessor::class)->run(crawler: $crawler);
+
+    expect($secondRun->stats['scan_gap_seconds'] ?? null)->not->toBeNull();
 });
 
 test('cap по повтору dedup_signature поднимает флаг и завершает прогон', function () {

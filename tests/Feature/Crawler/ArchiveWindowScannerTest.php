@@ -2,12 +2,14 @@
 
 declare(strict_types=1);
 
+use App\Dto\Procurement\Crawler\EisSearchFilter;
 use App\Dto\Procurement\Crawler\ListingBatch;
 use App\Dto\Procurement\Crawler\WindowFilter;
 use App\Enums\Procurement\Crawler\CrawlerMode;
 use App\Enums\Procurement\Crawler\SourceMethod as SourceMethodEnum;
 use App\Models\Procurement\Crawler\Crawler;
 use App\Models\Procurement\Crawler\Run;
+use App\Models\Procurement\Platform\Registry;
 use App\Models\Procurement\Procurement;
 use App\Services\Procurement\ArchiveWindowScanner;
 use Illuminate\Support\Carbon;
@@ -157,4 +159,33 @@ test('max_blocks_per_window останавливает интервал без �
 
     expect(Procurement::query()->count())->toBe(4)
         ->and($run->fresh()->cursor['priceStack'])->toBeNull();
+});
+
+test('стартовый ценовой стек берётся из priceTo фильтра профиля, config остаётся дефолтом без него', function () {
+    // max_blocks_per_window=0 форсирует деление на ПЕРВОЙ итерации, ДО единого collectListing():
+    // Log-контекст несёт стартовый интервал стека до какого-либо дробления — точная проба П-9.
+    config(['crawler.archive.price_ceiling' => 1_000_000_000, 'crawler.archive.max_blocks_per_window' => 0]);
+    Log::spy();
+
+    $registry = Registry::factory()->create(['code' => 'fz44']);
+
+    $crawlerWithPrice = Crawler::factory()
+        ->filter(new EisSearchFilter(priceTo: 200_000_000))
+        ->create(['registry_id' => $registry->id, 'mode' => CrawlerMode::Archive]);
+    $runWithPrice = Run::factory()->for($crawlerWithPrice)->create(['cursor' => null]);
+
+    app(ArchiveWindowScanner::class)->scan(crawler: $crawlerWithPrice, run: $runWithPrice, filter: archiveWindowFilter());
+
+    Log::shouldHaveReceived('warning')
+        ->withArgs(fn (string $message, array $context): bool => str_contains($message, 'max blocks per price interval') && $context['interval'] === '0:200000000')
+        ->once();
+
+    $crawlerWithoutPrice = Crawler::factory()->create(['registry_id' => $registry->id, 'mode' => CrawlerMode::Archive]);
+    $runWithoutPrice = Run::factory()->for($crawlerWithoutPrice)->create(['cursor' => null]);
+
+    app(ArchiveWindowScanner::class)->scan(crawler: $crawlerWithoutPrice, run: $runWithoutPrice, filter: archiveWindowFilter());
+
+    Log::shouldHaveReceived('warning')
+        ->withArgs(fn (string $message, array $context): bool => str_contains($message, 'max blocks per price interval') && $context['interval'] === '0:1000000000')
+        ->once();
 });

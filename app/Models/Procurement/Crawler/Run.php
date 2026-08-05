@@ -11,9 +11,27 @@ use Illuminate\Database\Eloquent\Casts\AsCollection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
 
 /**
  * Один прогон краулера: heartbeat, иерархический курсор, ретраи.
+ *
+ * @property int $id
+ * @property int $crawler_id
+ * @property RunStatus $status
+ * @property Collection<array-key, mixed>|null $cursor
+ * @property Collection<array-key, mixed>|null $stats
+ * @property Carbon|null $started_at
+ * @property Carbon|null $finished_at
+ * @property Carbon|null $last_heartbeat_at
+ * @property int $attempts
+ * @property string|null $last_error
+ * @property Carbon|null $last_error_at
+ * @property Carbon|null $next_retry_at
+ * @property bool $failed_permanently
+ * @property Carbon $created_at
+ * @property Carbon $updated_at
  */
 #[UseFactory(RunFactory::class)]
 final class Run extends Model
