@@ -17,6 +17,10 @@ class CrawlersTable
             ->columns([
                 TextColumn::make('registry.name')
                     ->searchable(),
+                TextColumn::make('mode')
+                    ->badge(),
+                TextColumn::make('schedule')
+                    ->placeholder('—'),
                 IconColumn::make('is_active')
                     ->boolean(),
                 TextColumn::make('created_at')
