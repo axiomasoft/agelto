@@ -1,59 +1,60 @@
-# HANDOFF — 2026-08-05 — after P4.9
+# HANDOFF — 2026-08-05 — after P4.6
 
-**Next:** manual: implementation/high — item P4.6 (механизм отслеживания изменений: перекрытие
-окон, delta-scan, метрика отставания; ТЗ пересобрано под группу А без миграций, D118/D122).
+**Next:** manual: frontier/high — item P4.7 (боевой прогон-смоук архивного профиля через прокси,
+2–3 дня 2025 года, метрики нагрузки БД в трёх точках, калибровка констант дробления по фактам).
 
 | Параметр | Значение |
 |:--|:--|
-| Model | sonnet |
-| Thinking | high — предписано §3 Routing (`implementation/high`) |
+| Model | opus |
+| Thinking | high — предписано §3 Routing (`frontier/high`) |
 | Context | continue (/clear) — ручной item |
-| Суть | Реализовать перекрытие окна backlog-рескана (`window_overlap_days`), новый delta-scan (процессор + команда `crawler:run-delta` + регистрация под флагом), метрики `scan_gap_seconds`/`oldest_update_seen` в `prc_crawler_runs.stats`, дедуп строк блока по `registryNumber`, стартовый ценовой стек из поля профиля |
+| Суть | Прогнать `crawler:run-archive` на засеянном архивном профиле за окно 2–3 дня 2025 (`research/05` §6), снять метрики `t0`/`t1`/`t2` (§7), откалибровать `eis.block_size`/`archive.price_ceiling`/`min_price_interval`/`max_blocks_per_window` по фактам, зафиксировать `findings/P4-load-baseline.md` + `artifacts/p4-run-metrics.json` |
 
 ```text
-/model sonnet
+/model opus
 /effort high
-/task:plan-run 2026.07.31-SYS-INTEGRITY P4.6
+/task:plan-run 2026.07.31-SYS-INTEGRITY P4.7
 ```
 
-**Сделано этим заходом (`plan-run`, sonnet/high, 2026-08-05) — P4.9 закрыт 🟠, item-коммит
-`c5add62`.**
+**Сделано этим заходом (`plan-run`, sonnet/high, 2026-08-05) — P4.6 закрыт 🟠, item-коммит
+`d297d44`.**
 
-- **Живая проба P4.9 подтвердила все четыре константы П-6** (`PROCUREMENT_METHOD_COLUMN`/
-  `INITIAL_PRICE_COLUMN`/`OKPD2_COLUMN`/`CUSTOMER_NAME_COLUMN`) — ноль расхождений с ожиданием
-  `research/05` §3.2, включая оба «вероятных» (Р-14/Р-15). Полная строка из 25 заголовков и
-  таблица «ожидалось → снято» — `findings/P4-csv-headers.md`, `artifacts/eis-csv-headers.json`.
-  Проба шла через RU-прокси `prc_proxies` id=1 (тот же узел, что P4.1), MCP Playwright с
-  `ignoreHTTPSErrors`, боевой URL собран РЕАЛЬНЫМ `EisCsvUrlBuilder` на засеянном профиле P4.5.
-- **Код: П-6/П-7/П-8/П-10 закрыты.** `EisCsvRowMapper` — четыре константы по факту;
-  `EisProcedureType` — 9/9 наблюдённых способов (было 3/9); `CsvSourceMethod`/`EisCardUrlBuilder`
-  резолвят карточку по `procedure_type_raw`, не по нормализованному enum (П-8); `EisCardUrlBuilder::
-  buildUrl()` различает явный маркер `null` (вкладки нет по природе, D121) от отсутствующего ключа
-  (ошибка конфигурации) — `EisPlatformSeeder` заводит маркер для `ea615`/`po615`.
-- **Найдена и снята пятая, незадокументированная причина тихого отказа резолва карточки:**
-  реестровый номер несёт префикс «№» (U+2116) у 500/500 строк пробы — виден уже в сырой фактуре
-  P4.1, но не был назван дефектом маппера. Без снятия ЛЮБАЯ карточка резолвилась бы по номеру,
-  не совпадающему ни с одним примером разведки. `EisCsvRowMapper::stripRegistryNumberPrefix()`.
-- **Фикстура `eis-block-win1251.csv` пересобрана** из реального тела пробы (4 строки, четыре
-  разных способа закупки); красная проба маппера до правки процитирована в Completion Notes
-  item'а (`git stash` четырёх app-файлов → 7/12 тестов падают → `git stash pop`).
-- **Material-отклонение (🟠), полностью названо:** item-коммит несёт дифф вне `Files` — докблок
-  `Procurement::$procedure_type_raw` (легальный рычаг против `phpstan-baseline.neon`, требуется
-  правкой П-8), сама строка `phpstan-baseline.neon` (минус одна, не рост), и два теста
-  (`FetchDetailsTest`/`DetailAnalysisProcessorTest`), чьи фикстуры несли `procedure_type`/
-  нормализованный `procedure_url_types`-ключ и регрессировали бы 6 уже зелёных тестов после П-8 —
-  правка обоих механическая (ключи фикстуры под новую сигнатуру, ассерты не менялись).
-- **Validation-клауза «непусты … `okpd2_code`» на реальной фикстуре — честный `null`, не
-  дефект:** живая проба (500 строк архивного профиля, завершённые закупки) не несёт классификации
-  ОКПД2/ОКПД/ОКДП/КТРУ ни у ОДНОЙ строки — источник не заполняет её на этом срезе данных
-  (заголовок колонки подтверждён отдельно). Синтетический тест «ОКПД2 разбирается…» продолжает
-  покрывать логику разбора непустого значения.
-- **Полный сюит на item-коммите — 10 failed / 1040 passed, K=0:** байт-в-байт документированная
-  база (`pg_partman` ×4, `CoreKnowsNoDocumentTypeTest` ×2, `PromptApplyTest` ×2, `CostReportTest`
-  ×1, `TextGridRendererTest` ×1); один `pg_partman`-провал сместился на новую строку
-  (`DetailAnalysisProcessorTest > run наполняет…` — стал доступен глубже пайплайна после починки
-  П-8), верифицировано отдельным прогоном на дереве БЕЗ единой строки диффа item'а (тот же тест
-  красный и там) — не новый дефект, дочинивается P7.4.
+- **Шесть позиций группы А `research/05` §3.1 закрыты.** Блок `tracking` в `config/crawler.php`
+  (`window_overlap_days=2`, `delta_scan_enabled=false`, `delta_scan_cron='0 23 * * *'`) + снята
+  метка «экстраполяция, D24» из докблока `archive` (ссылка на `findings/P4-eis-recon.md` §2).
+  `BacklogRescanProcessor::drainWindow()` сдвигает старт окна назад на `window_overlap_days`,
+  лог несёт фактические границы. Новый `DeltaScanProcessor` (переиспользует
+  `ArchiveWindowScanner`, профиль резолвится тем же способом, что `BacklogRescanProcessor:62-67`)
+  + команда `crawler:run-delta {crawler?}` + регистрация в `routes/console.php` под флагом
+  (выключен). `CrawlerRunManager::recordScanGap()`/`recordOldestUpdateSeen()` пишут
+  `scan_gap_seconds`/`oldest_update_seen` в `prc_crawler_runs.stats` (только fresh-прогон);
+  `lastCompletedRun()` снял второй носитель запроса, ранее жившего только в
+  `FreshRunProcessor::handleCapHit()`. `CsvBlockIngestor::ingest()` дедуплицирует строки блока по
+  `registryNumber` (первая строка выигрывает) со счётчиком `FetchResult::$rowsDuplicated` +
+  `Log::warning`. `HasPriceRange::startingPriceInterval()` (новый узкий интерфейс) +
+  `EisSearchFilter`-реализация — `ArchiveWindowScanner` берёт стартовый ценовой стек из `priceTo`
+  профиля, падает на `config('crawler.archive.price_ceiling')` без него; сканер остался
+  площадко-агностиком (`instanceof HasPriceRange`, не `instanceof EisSearchFilter`).
+- **Регрессионный протокол П-2 процитирован:** `git stash` диффа `BacklogRescanProcessor.php` →
+  `--filter=ChangeTrackingWindow` → `Failed asserting that 3 is identical to 5.` (без перекрытия
+  видно только 3 дня из 5) → `git stash pop` → тот же фильтр зелёный (3 assertions).
+- **Восемь новых тестов** (`ChangeTrackingWindowTest`, `DeltaScanTest` ×2, +1 в
+  `CsvBlockIngestorTest` — 510/500 дедуп, +2 в `FreshRunProcessorTest` — метрики отставания, +1 в
+  `ArchiveWindowScannerTest` — приоритет `priceTo`, +1 в `BacklogRescanProcessorTest` — сдвиг
+  окна). Полный сюит на item-коммите (`d297d44`) — **10 failed / 1048 passed**: тот же список имён,
+  что документированная база (`pg_partman` ×4, `CoreKnowsNoDocumentTypeTest` ×2,
+  `PromptApplyTest` ×2, `CostReportTest` ×1, `TextGridRendererTest` ×1), прирост `passed` — только
+  восемь новых тестов item'а (K=0).
+- **Material-отклонение (🟠), полностью названо:** item-коммит несёт дифф вне `Files` —
+  `@property`-докблок `app/Models/Procurement/Crawler/Run.php` (легальный рычаг: без него PHPStan
+  падает на новых `$run->status`/`$run->started_at`/`$run->finished_at` в
+  `CrawlerRunManager`/`RunDeltaScan` — у `Run`, в отличие от `Crawler`, докблока не было вовсе),
+  сокращение `phpstan-baseline.neon` на 4 записи (стали `ignore.unmatched` после докблока —
+  СОКРАЩЕНИЕ, не рост), и `tests/Feature/Console/RescanBacklogTest.php` (`window_overlap_days=0` в
+  `beforeEach` — тест проверяет делегирование команды однодневным блоком, реальный дефолт
+  `overlap=2` растянул бы окно до трёх дней при одном queued-блоке).
+- `phpstan analyse --memory-limit=1G` — `[OK] No errors`; `pint --dirty --test` — зелёный (22
+  файла); `write-site: pre_mutation: allow · pre_final: allow`.
 
 **Done:**
 
@@ -62,14 +63,19 @@
 - **P3 1/5** 🟠 Done with deviations — фаза терминальна.
 - **P5 3/8** 🟠 Done with deviations — фаза терминальна.
 - **P6 5/6** 🟠 Done with deviations — фаза терминальна.
-- **P4 2/9** 🟡 In progress — P4.1/P4.2 закрыты 🟢, P4.3/P4.4/P4.5/**P4.9** закрыты 🟠, P4.6/P4.7/
-  P4.8 открыты.
+- **P4 2/9** 🟡 In progress — P4.1/P4.2 закрыты 🟢, P4.3/P4.4/P4.5/P4.9/**P4.6** закрыты 🟠,
+  P4.7/P4.8 открыты.
 - **P8 0/7** ⬜ Not started — заведена скелетом, не детализирована.
 
 **Remaining:**
 
 - **Порядок фаз (D63):** `P1 → P2 → P3 → P5 → P6 → P4 → P7`. Идёт P4, очередь остатка —
-  **P4.6 → P4.7 → P4.8**.
+  **P4.7 → P4.8**.
+- **P4.7 — боевой прогон с внешними необратимыми эффектами** (первый в истории проекта): гейт
+  входа D36/D12 (P1/P6 терминальны — да), окно 2–3 дня 2025 из `research/05` §6, живые
+  стоп-сигналы С-1…С-7, метрики в трёх точках (§7), калибровка констант дробления по фактам.
+  Requires frontier/high (opus/fable) — сессия ЭТОГО захода (sonnet/high) НЕ покрывает тир, item
+  не запущен этим заходом.
 - **P8 требует отдельного дизайн-захода** `/task:plan-design 2026.07.31-SYS-INTEGRITY P8`
   (frontier/high, NEW SESSION) и ПОСЛЕ него — повторного `/task:plan-design <ID> finish`:
   контракт фазы появился после последнего `finish`, и `plan-protocol` §5 требует сквозного
@@ -91,55 +97,46 @@
   паспорта (P5.5); `EstimateValidator::bcadd()` научная нотация (P5.4); `RerunRangeAction` не
   вызывает `replaceResources()` (P5.1/P5.2); пять колонок `source_*` без писателя (B-4);
   `RerunRangeAction` work_type_id preserve-ветка без теста (P5.5); систематический timeout
-  `EST-XLSX-KS2-001` (P5.7); партиционный дрейф `pg_partman` (`prc_events` — теперь ВИДЕН и в
-  `DetailAnalysisProcessorTest`, дочинивается P7.4), `memory_limit`-конфликт контейнера
-  `agelto_app`, нерасследованный arch-тест `CoreKnowsNoDocumentTypeTest` (P5.8); четыре
-  потребителя конфиг-ключа диска в обход резолвера (Pending Work P6.3).
+  `EST-XLSX-KS2-001` (P5.7); партиционный дрейф `pg_partman` (`prc_events`, дочинивается P7.4),
+  `memory_limit`-конфликт контейнера `agelto_app`, нерасследованный arch-тест
+  `CoreKnowsNoDocumentTypeTest` (P5.8); четыре потребителя конфиг-ключа диска в обход резолвера
+  (Pending Work P6.3).
 
 **Sources of truth:**
 
-- `phases/P4.md` — Phase Context, контракт фазы, ТЗ P4.1–P4.9, P4.9 Completion Notes/Known
-  Deviations (полный разбор дифф-вне-Files и honest-null по ОКПД2).
+- `phases/P4.md` — Phase Context, контракт фазы, ТЗ P4.1–P4.9, P4.6 Completion Notes/Known
+  Deviations (полный разбор трёх диффов вне `Files` и протокола красной пробы).
 - `phases/P8.md` — скелет новой фазы с контракт-блоком; предмет, что уже есть в проекте и чего нет.
-- `findings/P4-csv-headers.md` + `artifacts/eis-csv-headers.json` — живая проба P4.9: полная
-  строка из 25 заголовков, `expected_vs_observed` четырёх констант, три дополнительные находки
-  (префикс «№», пустой ОКПД2 в архивном срезе, заголовок ИКЗ без суффикса).
-- `research/05-change-tracking.md` — синтез P4.2: gap-таблица, перекрытие и календарь, перечень
-  правок §3.1 (группа А → P4.6) и §3.2 (группа Б → P4.9, ЗАКРЫТА), §3.4 (что не чинится в фазе),
-  контракт фильтра, две таблицы профилей, план прогона, метрики, калибровочные вопросы.
-- `findings/P4-eis-recon.md` — фактура ЕИС 2026-08-04 (слой 1); §8 — одиннадцать расхождений
-  «наблюдённое ↔ код» (пять из них — П-6/П-7/П-8/П-10 — закрыты этим заходом).
-- `artifacts/eis-filter-params.json` — 25 флагов колонок и их подписи.
-- `artifacts/eis-registry-settings.json` — `procedure_url_types` (девять сырых меток — эталон
-  покрытия П-7, ЗАКРЫТО) и `card_url_templates` с `_observed`.
+- `research/05-change-tracking.md` — §3.1 (закрытая группа А) · §6–8 (план прогона P4.7,
+  стоп-сигналы, метрики, калибровочные вопросы) — прямой вход следующего item'а.
+- `findings/P4-eis-recon.md` §2 — подтверждение update-параметров, снявшее метку экстраполяции.
+- `findings/P4-csv-headers.md` + `artifacts/eis-csv-headers.json` — живая проба P4.9 (раскладка
+  колонок и резолв карточки, закрыты).
 - `brief/01-refinements.md` блок 2026-08-05 — вход владельца: обе развилки и новое требование по
-  деградированным сметам с трассировкой «мысль → куда ушла».
-- `plan.md` §5 D118–D122 — решения захода `plan-design`, предшествовавшего этому item'у;
-  `roadmap.md` — очередь и место P8.
+  деградированным сметам.
+- `plan.md` §5 D118–D122 — решения захода `plan-design`, предшествовавшего P4.9/P4.6.
 
 **Open risks:**
 
 - **`Классификация по ОКПД2` пуста у ВСЕХ строк архивного среза 500-строчного блока пробы** —
   источник не заполняет классификацию на уровне листинга для завершённых закупок 44-ФЗ этого
-  окна. Не блокирует P4.6/P4.7 (мапится корректно, когда данные есть), но `okpd2_code`/
-  `okpd2_codes` могут оставаться пустыми систематически на боевом прогоне — числовой масштаб
-  снимается только боевым прогоном P4.7.
-- **`pg_partman` (`prc_events`)** — партиции не покрывают тестовые даты; теперь виден в НОВОМ
-  месте (`DetailAnalysisProcessorTest > run наполняет…`, помимо трёх `SupplierResultsProcessor`);
-  чинится инструментовкой P7.4.
+  окна; числовой масштаб снимается только боевым прогоном P4.7.
+- **`pg_partman` (`prc_events`)** — партиции не покрывают тестовые даты; чинится инструментовкой
+  P7.4.
 - **Сертификат ЕИС не проверяется дефолтным набором корней** (`ERR_CERT_AUTHORITY_INVALID` —
   российский УЦ). Для боевого Guzzle нужна политика (Р-10) — стоп-сигнал С-5 плана прогона.
   Владелец 2026-08-04: ставить сертификаты только если начнутся проблемы.
 - **Дневной темп сдвига выдачи не измерен** — час delta-scan (02:00 МСК) выбран по единственному
-  ночному измерению, K-7.
+  ночному измерению, K-7; величина `window_overlap_days=2` — стартовая, калибруется на прогоне
+  (K-5).
 - **223-ФЗ проработан только как листинг** — детальная стадия требует `noticeGuid`, которого в CSV
   нет, способ добора разведкой не проверялся (Р-11).
 - **`estimates_s3` объявлен и никем не адресуется** (`config/filesystems.php:74-85`); перевод
   корпуса эталонов на S3 сломает `GoldCorpusBuilder` (`:162` вызывает `->path()`).
-- **10 упавших тестов приёмочного прогона** (подтверждено на `c5add62`, тот же список ×
-  `DetailAnalysisProcessorTest` вместо смещения счётчика): `pg_partman` (`prc_events`, 4),
-  `CoreKnowsNoDocumentTypeTest` (2), `permission denied` на `resources/` (`PromptApplyTest`, 2),
-  `CostReportTest` (1), `memory_limit` `TextGridRendererTest` (1).
+- **10 упавших тестов приёмочного прогона** (подтверждено на `d297d44`, тот же список имён, что
+  документированная база): `pg_partman` (`prc_events`, 4), `CoreKnowsNoDocumentTypeTest` (2),
+  `permission denied` на `resources/` (`PromptApplyTest`, 2), `CostReportTest` (1), `memory_limit`
+  `TextGridRendererTest` (1).
 - **Dev-БД теряет `prc_ai_dataset_examples`/`prc_ai_eval_runs` при `migrate:fresh`** (P5.7).
 - **`app/Filament/Resources/Procurement/**` restrictive ACL**, **`rm` заблокирован в харнессе**,
   **незакоммиченный чужой дифф** (`.env.example`, `CLAUDE.md`, `.swissknife.json`, `.swissknife/`,
@@ -173,6 +170,8 @@
   `options` сверх `columns` при правке профиля через форму; историческая витрина числа дублей
   блока (D122 — счётчик живёт в `FetchResult` и логе, колонки в `prc_fetches` нет); заголовок
   `IKZ_COLUMN` без суффикса «(ИКЗ)» (P4.9 Pending Work); систематически пустой `okpd2_code` на
-  архивном срезе — числовой масштаб снимается P4.7.
+  архивном срезе — числовой масштаб снимается P4.7; включение `delta_scan_enabled` в боевое
+  расписание (после P4.7, решение владельца); калибровка `window_overlap_days`/`delta_scan_cron`
+  по фактам P4.7 (K-5/K-7).
 - **Open questions:** OQ-4, OQ-7 (`Exploration`), OQ-5 (`Decision pending`), OQ-6;
   OQ-3 закрыта D117, OQ-8 закрыта D113.
