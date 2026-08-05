@@ -20,7 +20,7 @@ use Symfony\Component\DomCrawler\Crawler;
  */
 final readonly class EventJournalParser
 {
-    private const string DATE_FORMAT = 'd.m.Y H:i';
+    private const string DATE_FORMAT = '!d.m.Y H:i';
 
     /**
      * @return list<JournalEntryData>

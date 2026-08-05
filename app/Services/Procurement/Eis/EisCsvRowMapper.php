@@ -166,7 +166,7 @@ final readonly class EisCsvRowMapper implements ListingRowMapper
 
         $value = trim($value);
 
-        foreach (['d.m.Y H:i:s', 'd.m.Y H:i', 'd.m.Y'] as $format) {
+        foreach (['!d.m.Y H:i:s', '!d.m.Y H:i', '!d.m.Y'] as $format) {
             try {
                 return Carbon::createFromFormat($format, $value);
             } catch (\Throwable) {

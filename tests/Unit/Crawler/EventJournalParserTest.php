@@ -14,7 +14,7 @@ test('parse разбирает строки журнала событий с д�
 
     expect($entries)->toHaveCount(3);
 
-    expect($entries[0]->occurredAt->format('Y-m-d H:i'))->toBe('2026-06-30 08:22')
+    expect($entries[0]->occurredAt->format('Y-m-d H:i:s'))->toBe('2026-06-30 08:22:00')
         ->and($entries[0]->rawText)->toContain('Размещен документ');
 
     expect($entries[1]->rawText)->toContain('переведена на этап «Подача заявок»');

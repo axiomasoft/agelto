@@ -101,6 +101,18 @@ test('даты размещения/обновления/подачи заяво
         ->and($snapshot->biddingEndsAt->toDateString())->toBe('2026-03-15');
 });
 
+test('дата парсится без подстановки текущего времени (модификатор `!`)', function (string $rawDate, string $expected) {
+    $crawler = eisCrawlerForRegistryCode('fz44');
+
+    $snapshot = app(EisCsvRowMapper::class)->map(row: eisCsvRow(['Дата обновления' => $rawDate]), crawler: $crawler);
+
+    expect($snapshot->sourceUpdatedAt->format('Y-m-d H:i:s'))->toBe($expected);
+})->with([
+    'd.m.Y H:i:s — время сохраняется целиком' => ['02.03.2026 10:15:42', '2026-03-02 10:15:42'],
+    'd.m.Y H:i — секунды нулевые, часы и минуты сохранены' => ['02.03.2026 10:15', '2026-03-02 10:15:00'],
+    'd.m.Y — время целиком нулевое' => ['02.03.2026', '2026-03-02 00:00:00'],
+]);
+
 test('ОКПД2 разбирается на первый код и полный список', function () {
     $crawler = eisCrawlerForRegistryCode('fz44');
 

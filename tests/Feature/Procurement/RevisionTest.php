@@ -3,9 +3,12 @@
 declare(strict_types=1);
 
 use App\Enums\Procurement\ProcurementEventType;
+use App\Models\Procurement\Crawler\Crawler;
 use App\Models\Procurement\Platform\Registry;
 use App\Models\Procurement\ProcurementEvent;
+use App\Models\Procurement\ProcurementRevision;
 use App\Repositories\Procurement\ProcurementReadRepository;
+use App\Services\Procurement\Eis\EisCsvRowMapper;
 use App\Services\Procurement\ProcurementIngestProcessor;
 use Illuminate\Support\Carbon;
 use Tests\Support\Procurement\SnapshotFactory;
@@ -37,6 +40,55 @@ test('изменение цены и статуса создаёт новую р
     expect($events)->toContain(ProcurementEventType::StatusChanged)
         ->and($events)->toContain(ProcurementEventType::PriceChanged)
         ->and($events)->toContain(ProcurementEventType::RevisionPublished);
+});
+
+/**
+ * Дефект Д-1: `EisCsvRowMapper::parseDate()` без модификатора `!` подставляет ТЕКУЩЕЕ время
+ * в компоненты, не указанные форматом источника (`Дата размещения` несёт только `d.m.Y`),
+ * поэтому `snapshot_hash` двух парсингов одной и той же строки различался бы из-за времени
+ * инжеста, а не факта источника. Снапшот собирается через РЕАЛЬНЫЙ `EisCsvRowMapper` (не
+ * `SnapshotFactory` — он строит `Carbon` напрямую, минуя `parseDate`, и дефект не ловит).
+ */
+test('повторный инжест идентичного CSV-снапшота ЕИС не создаёт вторую ревизию и событие (Д-1)', function () {
+    $registry = Registry::factory()->create(['code' => 'fz44']);
+    $crawler = Crawler::factory()->create(['registry_id' => $registry->id]);
+    $mapper = app(EisCsvRowMapper::class);
+    $processor = app(ProcurementIngestProcessor::class);
+
+    $row = [
+        'Реестровый номер закупки' => '0173100000123000001',
+        'Способ определения поставщика (подрядчика, исполнителя), подрядной организации (размещения закупки)' => 'Электронный аукцион',
+        'Наименование закупки' => 'Поставка бумаги офисной',
+        'Этап закупки' => 'Подача заявок',
+        'Идентификационный код закупки (ИКЗ)' => '243773601234512345100100001',
+        'Начальная (максимальная) цена контракта' => '150000,00',
+        'Валюта' => 'RUB',
+        'Классификация по ОКПД2' => '',
+        'Дата размещения' => '10.01.2026',
+        'Дата обновления' => '10.01.2026 10:00:00',
+        'Начало подачи заявок' => '',
+        'Окончание подачи заявок' => '',
+        'Наименование Заказчика' => 'ГБУ «Тестовое учреждение»',
+    ];
+
+    $first = $processor->ingest($mapper->map(row: $row, crawler: $crawler));
+
+    // Первый инжест сам вправе создать больше одного события (незнакомая пара статусов
+    // резолвится как newly-mapped) — базовая линия снимается ПОСЛЕ него, а не жёстко «1».
+    $revisionsAfterFirst = ProcurementRevision::query()->where('procurement_id', $first->id)->count();
+    $eventsAfterFirst = ProcurementEvent::query()->where('procurement_id', $first->id)->count();
+
+    // Между инжестами системное время ОБЯЗАНО отличаться (иначе тест не ловит Д-1, а совпадает
+    // случайно): пауза гарантирует переход через границу секунды.
+    usleep(1_100_000);
+
+    $second = $processor->ingest($mapper->map(row: $row, crawler: $crawler));
+
+    expect($second->id)->toBe($first->id)
+        ->and($second->revision_count)->toBe($revisionsAfterFirst);
+
+    expect(ProcurementRevision::query()->where('procurement_id', $first->id)->count())->toBe($revisionsAfterFirst)
+        ->and(ProcurementEvent::query()->where('procurement_id', $first->id)->count())->toBe($eventsAfterFirst);
 });
 
 test('состояние на дату X читается по последней ревизии с detected_at <= X, таймлайн — по prc_events', function () {
