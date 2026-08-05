@@ -73,7 +73,7 @@ final readonly class ProxyLease
         }
 
         $credentials = $this->username !== null
-            ? "{$this->username}:{$this->password}@"
+            ? rawurlencode($this->username).':'.rawurlencode((string) $this->password).'@'
             : '';
 
         return ['proxy' => "http://{$credentials}{$this->server}"];

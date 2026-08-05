@@ -127,6 +127,8 @@ final readonly class DocumentDownloader
      */
     private function requestWithOutcome(ProxyLease $lease, string $url): Response
     {
+        $startedAt = hrtime(true);
+
         try {
             $response = $this->request(url: $url, lease: $lease);
         } catch (ConnectionException $exception) {
@@ -135,19 +137,21 @@ final readonly class DocumentDownloader
             throw $exception;
         }
 
-        $this->proxyResolver->reportOutcome($lease, $this->outcomeFrom($response));
+        $latencyMs = (int) ((hrtime(true) - $startedAt) / 1_000_000);
+
+        $this->proxyResolver->reportOutcome($lease, $this->outcomeFrom($response, $latencyMs));
 
         return $response;
     }
 
-    private function outcomeFrom(Response $response): ProxyOutcome
+    private function outcomeFrom(Response $response, int $latencyMs): ProxyOutcome
     {
         return match (true) {
             $response->status() === 403 => ProxyOutcome::failure(ProxyFailureReason::Http403),
             $response->status() === 429 => ProxyOutcome::failure(ProxyFailureReason::Http429),
             $response->status() === 407 => ProxyOutcome::failure(ProxyFailureReason::ProxyAuthFailed),
             $response->status() === 200 && trim($response->body()) === '' => ProxyOutcome::failure(ProxyFailureReason::EmptyBody),
-            default => ProxyOutcome::success(),
+            default => ProxyOutcome::success(latencyMs: $latencyMs),
         };
     }
 

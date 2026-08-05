@@ -8,6 +8,7 @@ use App\Dto\Procurement\Crawler\EisSearchFilter;
 use App\Enums\Procurement\Crawler\CrawlerMode;
 use App\Enums\Procurement\Crawler\SourceMethod;
 use App\Models\Procurement\Crawler\Crawler;
+use App\Models\Procurement\Platform\Platform;
 use App\Models\Procurement\Platform\Registry;
 use Illuminate\Database\Seeder;
 use RuntimeException;
@@ -58,16 +59,48 @@ final class CrawlerProfileSeeder extends Seeder
 
     public function run(): void
     {
-        $registry = Registry::query()->where('code', 'fz44')->first();
-
-        if (! $registry instanceof Registry) {
-            throw new RuntimeException(
-                'CrawlerProfileSeeder: реестр fz44 не найден — прогоните EisPlatformSeeder первым.'
-            );
-        }
+        $registry = $this->resolveEisFz44Registry();
 
         $this->seedArchiveProfile(registry: $registry);
         $this->seedFreshProfile(registry: $registry);
+    }
+
+    /**
+     * Резолв по паре (площадка `eis`, код `fz44`) — не `Registry::where('code', …)->first()`:
+     * код `fz44` не уникален глобально (заводится фабриками у сторонних площадок), поэтому поиск
+     * без площадки достаётся первому попавшемуся реестру. Неоднозначность (два реестра `fz44` у
+     * ОДНОЙ площадки `eis`) — тоже `RuntimeException` с перечислением id: молча брать первый
+     * значит воспроизводить тот же класс отказа, который здесь чинится.
+     */
+    private function resolveEisFz44Registry(): Registry
+    {
+        $platform = Platform::query()->where('code', 'eis')->first();
+
+        if (! $platform instanceof Platform) {
+            throw new RuntimeException(
+                'CrawlerProfileSeeder: площадка eis не найдена — прогоните EisPlatformSeeder первым.'
+            );
+        }
+
+        $registries = Registry::query()->where('platform_id', $platform->id)->where('code', 'fz44')->get();
+
+        if ($registries->count() > 1) {
+            throw new RuntimeException(sprintf(
+                'CrawlerProfileSeeder: у площадки eis найдено %d реестров с кодом fz44 (id: %s) — неоднозначность.',
+                $registries->count(),
+                $registries->pluck('id')->implode(', '),
+            ));
+        }
+
+        $registry = $registries->first();
+
+        if (! $registry instanceof Registry) {
+            throw new RuntimeException(
+                'CrawlerProfileSeeder: реестр fz44 площадки eis не найден — прогоните EisPlatformSeeder первым.'
+            );
+        }
+
+        return $registry;
     }
 
     /**

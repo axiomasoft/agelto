@@ -102,6 +102,20 @@ test('weighted random с инъектированным источником в�
         ->toEqual([$first->id, $second->id]);
 });
 
+test('reportOutcome с латентностью пишет latency_ms_avg узла (не NULL)', function (): void {
+    $proxy = Proxy::factory()->country('RU')->withScopes([ProxyScope::CrawlListing])->create();
+    $target = ProxyTarget::factory()->create([
+        'proxy_id' => $proxy->id,
+        'target' => 'zakupki.gov.ru',
+        'latency_ms_avg' => null,
+    ]);
+
+    $lease = makeResolver()->resolve(scope: ProxyScope::CrawlListing, target: 'zakupki.gov.ru');
+    makeResolver()->reportOutcome($lease, ProxyOutcome::success(latencyMs: 120));
+
+    expect($target->refresh()->latency_ms_avg)->not->toBeNull();
+});
+
 test('reportOutcome на успехе сбрасывает целевой и глобальный breaker', function (): void {
     $proxy = Proxy::factory()->country('RU')->withScopes([ProxyScope::CrawlListing])->create(['fails_count' => 3]);
     $target = ProxyTarget::factory()->create([

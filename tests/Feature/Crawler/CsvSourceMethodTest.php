@@ -8,6 +8,7 @@ use App\Enums\Procurement\Proxy\ProxyScope;
 use App\Exceptions\Procurement\Proxy\NoProxyAvailableException;
 use App\Models\Procurement\Crawler\Crawler;
 use App\Models\Procurement\Crawler\Proxy;
+use App\Models\Procurement\Crawler\ProxyTarget;
 use App\Models\Procurement\Platform\Registry;
 use App\Services\Procurement\Eis\CsvSourceMethod;
 use Illuminate\Support\Facades\Http;
@@ -228,6 +229,30 @@ test('профиль с use_proxy=false не вызывает резолвер �
         ->and($batch->proxyId)->toBeNull();
 
     Http::assertSentCount(1);
+});
+
+/**
+ * Д-3: `requestWithOutcome()` обязан замерять длительность вокруг HTTP-вызова и передавать её в
+ * `ProxyOutcome::success()` — без замера `prc_proxy_targets.latency_ms_avg` остаётся `NULL`
+ * даже после успешных запросов, и вес `w_latency` резолвера структурно не влияет ни на что.
+ */
+test('успешный запрос листинга пишет latency_ms_avg узла (не NULL)', function () {
+    Sleep::fake();
+    $proxy = activeListingProxy();
+    $endpoint = config('crawler.eis.csv_endpoint');
+    Http::fake([
+        $endpoint.'*' => Http::response(body: EisCsvFixture::body(), status: 200),
+    ]);
+
+    $registry = Registry::factory()->create(['code' => 'fz44']);
+    $crawler = Crawler::factory()->for($registry)->create(['filter' => null]);
+    $cursor = new ListingCursor(blockFrom: 1);
+
+    app(CsvSourceMethod::class)->collectListing($crawler, $cursor);
+
+    $target = ProxyTarget::query()->where('proxy_id', $proxy->id)->where('target', 'zakupki.gov.ru')->firstOrFail();
+
+    expect($target->latency_ms_avg)->not->toBeNull();
 });
 
 test('isAvailable возвращает true без сетевых запросов', function () {

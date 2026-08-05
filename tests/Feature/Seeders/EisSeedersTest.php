@@ -73,9 +73,28 @@ test('повторный прогон сида профилей идемпоте
     expect(Crawler::query()->where('registry_id', $registry->id)->count())->toBe(2);
 });
 
-test('сид профилей без реестра fz44 бросает внятное исключение', function (): void {
+test('сид профилей без площадки eis бросает внятное исключение', function (): void {
     expect(fn () => (new CrawlerProfileSeeder)->run())
-        ->toThrow(RuntimeException::class, 'fz44');
+        ->toThrow(RuntimeException::class, 'eis');
+});
+
+/**
+ * Д-2: реестр `fz44` привязывается по паре (площадка, код), а не по голому коду — код НЕ
+ * уникален глобально (фабрики заводят реестры `fz44` у сторонних площадок). Без фикса профили
+ * достаются первому попавшемуся реестру `fz44` вместо реестра площадки `eis`.
+ */
+test('сид профилей резолвит реестр fz44 СВОЕЙ площадки eis, а не чужой', function (): void {
+    Registry::factory()->create(['code' => 'fz44']);
+
+    $this->seed(EisPlatformSeeder::class);
+    $this->seed(CrawlerProfileSeeder::class);
+
+    $eisPlatform = Platform::query()->where('code', 'eis')->sole();
+    $eisRegistry = Registry::query()->where('platform_id', $eisPlatform->id)->where('code', 'fz44')->sole();
+
+    $crawlers = Crawler::query()->where('registry_id', $eisRegistry->id)->get();
+
+    expect($crawlers)->toHaveCount(2);
 });
 
 test('архивный профиль из сида даёт ожидаемый боевой URL выгрузки', function (): void {
