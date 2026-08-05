@@ -506,6 +506,7 @@ Prism `unhandled finish reason`, decimal-cast); **M3c** (EvalRun #12, дерев
 | 2026-08-04 | plan-exec / sonnet-medium | P6.6 закрыт 🟢, item-коммит **`d1b1aa2`**: runbook смены S3-провайдера (10 шагов + чеклист ловушек), раздел адресации в `database.md`/`architecture.md`, запись в `runbooks/_index.md`; фаза P6 терминальна (5/6, 🟠 Done with deviations) — детали см. phases/P6.md P6.6 Completion Notes |
 | 2026-08-05 | plan-run / opus-high | P4.1 закрыт: живая разведка ЕИС через RU-прокси — девять вопросов сняты, cap глубины изменился (≈10 000 → 5 000), `updateDateFrom/To` подтверждён живьём, OQ-3 закрыт D117, найдено 11 расхождений «наблюдённое ↔ код» — детали см. phases/P4.md P4.1 Completion Notes |
 | 2026-08-05 | plan-run / opus-high | P4.2 закрыт 🟢, item-коммит **`e517878`**: `research/05-change-tracking.md` (8 разделов) — синтез механизма отслеживания, контракт фильтра, два профиля, план прогона; 4 расхождения сверх перечня P4.1, `Files` P4.6 требует дополнения — детали см. phases/P4.md P4.2 Completion Notes |
+| 2026-08-05 | plan-run / opus-high | P4.3 закрыт 🟠, item-коммит **`77265b3`**: `EisSearchFilter` + резолв класса по коду реестра, отказ на неизвестном ключе; дифф вне `Files` — один тест — детали см. phases/P4.md P4.3 Completion Notes |
 
 ## Обсуждение
 
