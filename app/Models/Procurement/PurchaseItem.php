@@ -39,7 +39,7 @@ final class PurchaseItem extends Model
     {
         return [
             'position_number' => 'integer',
-            'quantity' => 'decimal:3',
+            'quantity' => 'decimal:6',
             'unit_price' => 'decimal:2',
             'total_cost' => 'decimal:2',
         ];
