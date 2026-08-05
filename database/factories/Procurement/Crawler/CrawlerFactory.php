@@ -9,6 +9,7 @@ use App\Enums\Procurement\Crawler\SourceMethod;
 use App\Models\Procurement\Crawler\Crawler;
 use App\Models\Procurement\Platform\Registry;
 use Illuminate\Database\Eloquent\Factories\Factory;
+use Spatie\LaravelData\Data;
 
 /**
  * @extends Factory<Crawler>
@@ -34,6 +35,16 @@ final class CrawlerFactory extends Factory
             'use_proxy' => true,
             'proxy_country' => null,
         ];
+    }
+
+    /**
+     * Типизированный фильтр профиля (P4.3): состояние принимает готовый `Data`-объект, а не
+     * массив ключей — набирать фильтр строками в фабрике значит воспроизводить ровно тот отказ
+     * в тишине, ради которого контракт заводился.
+     */
+    public function filter(Data $filter): self
+    {
+        return $this->state(state: ['filter' => $filter->toArray()]);
     }
 
     public function withoutProxy(): self

@@ -132,7 +132,7 @@ test('query-параметры запроса содержат from/to, флаг
     ]);
 
     $registry = Registry::factory()->create(['code' => 'fz44']);
-    $crawler = Crawler::factory()->for($registry)->create(['filter' => ['okpd2' => '86.10']]);
+    $crawler = Crawler::factory()->for($registry)->create(['filter' => ['stageCompleted' => true]]);
     $cursor = new ListingCursor(blockFrom: 501);
 
     $batch = app(CsvSourceMethod::class)->collectListing($crawler, $cursor);
@@ -143,7 +143,7 @@ test('query-параметры запроса содержат from/to, флаг
         ->and($batch->requestParams['sortBy'])->toBe('UPDATE_DATE')
         ->and($batch->requestParams['sortDirection'])->toBe('false')
         ->and($batch->requestParams['registryNumberCsv'])->toBe('on')
-        ->and($batch->requestParams['okpd2'])->toBe('86.10');
+        ->and($batch->requestParams['pc'])->toBe('on');
 
     Http::assertSent(function ($request) {
         return str_contains((string) $request->url(), 'fz44=on')

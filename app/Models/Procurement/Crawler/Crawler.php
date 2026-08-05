@@ -7,14 +7,19 @@ namespace App\Models\Procurement\Crawler;
 use App\Enums\Procurement\Crawler\CrawlerMode;
 use App\Enums\Procurement\Crawler\SourceMethod;
 use App\Models\Procurement\Platform\Registry;
+use App\Services\Procurement\CrawlerFilterFactory;
 use Database\Factories\Procurement\Crawler\CrawlerFactory;
+use Illuminate\Contracts\Support\Arrayable;
 use Illuminate\Database\Eloquent\Attributes\UseFactory;
 use Illuminate\Database\Eloquent\Casts\AsCollection;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
+use RuntimeException;
+use Spatie\LaravelData\Data;
 
 /**
  * Профиль обхода площадки: режим, метод забора данных и фильтры.
@@ -25,7 +30,7 @@ use Illuminate\Support\Collection;
  * @property CrawlerMode $mode
  * @property SourceMethod $source_method
  * @property SourceMethod|null $fallback_method
- * @property Collection<array-key, mixed>|null $filter
+ * @property Data|null $filter
  * @property string|null $schedule
  * @property Collection<array-key, mixed>|null $options
  * @property bool $is_active
@@ -61,15 +66,83 @@ final class Crawler extends Model
             'mode' => CrawlerMode::class,
             'source_method' => SourceMethod::class,
             'fallback_method' => SourceMethod::class,
-            'filter' => AsCollection::class,
             'options' => AsCollection::class,
             'is_active' => 'boolean',
             'use_proxy' => 'boolean',
         ];
     }
 
+    /**
+     * Гейт записи: неизвестный ключ фильтра обязан отвергаться в момент сохранения профиля, а не
+     * на боевом прогоне — иначе опечатка оператора доживает до запроса к площадке и молча
+     * расширяет выборку (P4.3 Why). Читающая сторона защищена аксессором `filter` ниже.
+     */
+    protected static function booted(): void
+    {
+        self::saving(static function (self $crawler): void {
+            $crawler->resolveFilter(raw: $crawler->rawFilter());
+        });
+    }
+
+    /**
+     * `filter` хранится прежним `jsonb` (D34), а наружу отдаётся типизированным объектом:
+     * класс резолвится по коду реестра через `config('crawler.filters')`, поэтому у другой
+     * площадки/реестра — свой `Data`-класс, а не общий мешок ключей.
+     */
+    protected function filter(): Attribute
+    {
+        return Attribute::make(
+            get: fn (): ?Data => $this->resolveFilter(raw: $this->rawFilter()),
+            set: static fn (Data|array|Arrayable|null $value): array => [
+                'filter' => $value === null ? null : json_encode(
+                    $value instanceof Arrayable ? $value->toArray() : $value,
+                    JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE,
+                ),
+            ],
+        );
+    }
+
     public function registry(): BelongsTo
     {
         return $this->belongsTo(related: Registry::class);
+    }
+
+    /**
+     * @return array<string, mixed>|null
+     */
+    private function rawFilter(): ?array
+    {
+        $raw = $this->attributes['filter'] ?? null;
+
+        if ($raw === null || $raw === '') {
+            return null;
+        }
+
+        $decoded = is_string($raw) ? json_decode($raw, associative: true, flags: JSON_THROW_ON_ERROR) : $raw;
+
+        return is_array($decoded) ? $decoded : null;
+    }
+
+    /**
+     * @param  array<string, mixed>|null  $raw
+     */
+    private function resolveFilter(?array $raw): ?Data
+    {
+        if ($raw === null || $raw === []) {
+            return null;
+        }
+
+        $registry = $this->registry;
+
+        if (! $registry instanceof Registry) {
+            throw new RuntimeException(
+                'Фильтр профиля обхода не типизировать без реестра: связь `registry` не резолвится '
+                .'(модель загружена без `registry_id`?). Класс фильтра выбирается по коду реестра.'
+            );
+        }
+
+        $class = app(CrawlerFilterFactory::class)->for(registry: $registry);
+
+        return $class::validateAndCreate($raw);
     }
 }

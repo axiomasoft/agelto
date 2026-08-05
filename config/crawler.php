@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Dto\Procurement\Crawler\EisSearchFilter;
 use App\Enums\Procurement\Crawler\SourceMethod;
 use App\Enums\Procurement\Proxy\ProxyScope;
 use App\Services\Procurement\Eis\CsvSourceMethod;
@@ -20,6 +21,22 @@ return [
     */
     'source_methods' => [
         SourceMethod::Csv->value => CsvSourceMethod::class,
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Crawler filters
+    |--------------------------------------------------------------------------
+    |
+    | Карта «код реестра (`prc_registries.code`) → класс типизированного фильтра
+    | профиля» (`research/05-change-tracking.md` раздел 4, P4.3). Резолвится
+    | `CrawlerFilterFactory` через ту же механику, что `source_methods`
+    | (config-driven-abstraction), — форма P4.4 берёт состав полей отсюда же.
+    | `fz223` заводится, когда владелец включит ветку 223-ФЗ (`research/05` §5.4).
+    |
+    */
+    'filters' => [
+        'fz44' => EisSearchFilter::class,
     ],
 
     /*

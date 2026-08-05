@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 namespace App\Services\Procurement\Eis;
 
+use App\Dto\Procurement\Crawler\EisSearchFilter;
 use App\Dto\Procurement\Crawler\ListingCursor;
 use App\Models\Procurement\Crawler\Crawler;
 use Illuminate\Support\Carbon;
+use RuntimeException;
 
 /**
  * Query-параметры CSV-экспорта ЕИС (`orderCsvSettings/download.html`) из профиля
@@ -26,10 +28,18 @@ final readonly class EisCsvUrlBuilder
      */
     public function buildQueryParams(Crawler $crawler, int $from, int $to, ?ListingCursor $cursor = null): array
     {
-        $filter = $this->stringValues(values: $crawler->filter?->toArray() ?? []);
+        $filter = $crawler->filter;
+
+        if ($filter !== null && ! $filter instanceof EisSearchFilter) {
+            throw new RuntimeException(
+                'EisCsvUrlBuilder ожидает фильтр EisSearchFilter, получен '.$filter::class
+                .' — проверьте карту config(\'crawler.filters\') для реестра профиля.'
+            );
+        }
+
         $columns = $crawler->options?->toArray()['columns'] ?? [];
 
-        $query = $filter;
+        $query = $filter === null ? [] : $this->filterParams(filter: $filter);
 
         foreach ($columns as $column => $enabled) {
             if ($enabled === true) {
@@ -48,6 +58,60 @@ final readonly class EisCsvUrlBuilder
 
         if ($cursor?->day !== null) {
             $query = [...$query, ...$this->archiveOverrides(day: $cursor->day, priceStack: $cursor->priceStack ?? [], dateField: $cursor->dateField ?? 'publish')];
+        }
+
+        return $query;
+    }
+
+    /**
+     * Перевод типизированного фильтра в query-параметры ЕИС. Имена параметров (`af`, `pc`,
+     * `priceFromGeneral`, …) и формат даты — ЕИС-специфика и живут ТОЛЬКО здесь: DTO несёт смысл
+     * поля, а не представление площадки (Code Guidance P4.3). Соответствие «поле → параметр» —
+     * `research/05-change-tracking.md` раздел 4.
+     *
+     * Выключенный этап и незаполненное поле ключа НЕ эмитят: ЕИС трактует присутствие флага как
+     * включённый фильтр, а `priceToGeneral=0` обнуляет выдачу (`findings/P4-eis-recon.md` §5.2).
+     *
+     * @return array<string, string>
+     */
+    private function filterParams(EisSearchFilter $filter): array
+    {
+        $dateFormat = (string) config('crawler.archive.date_format', 'd.m.Y');
+
+        $params = [
+            'af' => $filter->stageApplications,
+            'ca' => $filter->stageCommission,
+            'pc' => $filter->stageCompleted,
+            'pa' => $filter->stageCancelled,
+            'morphology' => $filter->morphology,
+        ];
+
+        $query = [];
+
+        foreach ($params as $key => $enabled) {
+            if ($enabled === true) {
+                $query[$key] = 'on';
+            }
+        }
+
+        if ($filter->priceFrom !== null) {
+            $query['priceFromGeneral'] = (string) $filter->priceFrom;
+        }
+
+        if ($filter->priceTo !== null) {
+            $query['priceToGeneral'] = (string) $filter->priceTo;
+        }
+
+        if ($filter->publishedFrom !== null) {
+            $query['publishDateFrom'] = $filter->publishedFrom->format($dateFormat);
+        }
+
+        if ($filter->publishedTo !== null) {
+            $query['publishDateTo'] = $filter->publishedTo->format($dateFormat);
+        }
+
+        if ($filter->searchString !== null && $filter->searchString !== '') {
+            $query['searchString'] = $filter->searchString;
         }
 
         return $query;
@@ -89,14 +153,5 @@ final readonly class EisCsvUrlBuilder
         [$from, $to] = explode(':', $top);
 
         return [$from, $to];
-    }
-
-    /**
-     * @param  array<string, mixed>  $values
-     * @return array<string, string>
-     */
-    private function stringValues(array $values): array
-    {
-        return array_map(static fn (mixed $value): string => (string) $value, $values);
     }
 }
