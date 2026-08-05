@@ -30,6 +30,11 @@ COMPOSE_PROD = docker compose --project-directory $(ROOT_DIR) -f $(ROOT_DIR)/doc
 COMPOSE      = $(if $(filter prod,$(ENV)),$(COMPOSE_PROD),$(COMPOSE_DEV))
 MIGRATE_FORCE = $(if $(filter prod,$(ENV)),--force,)
 
+# laravel/pao (agent-optimized output): `docker compose exec` не наследует переменные хоста —
+# маркеры детектора агента (`vendor/laravel/agent-detector`) пробрасываются явно, иначе PHPUnit/
+# Pest/PHPStan/Pint внутри контейнера всегда отдают человеческий вывод, даже из-под агента на хосте.
+AGENT_ENV := $(if $(CLAUDECODE),-e CLAUDECODE=$(CLAUDECODE)) $(if $(CURSOR_AGENT),-e CURSOR_AGENT=$(CURSOR_AGENT)) $(if $(AI_AGENT),-e AI_AGENT=$(AI_AGENT))
+
 PROD_EXEC = $(COMPOSE_PROD) exec -T app
 MK_SELF   := $(MAKE) -f $(MAKEFILE_PATH)
 MK_PROD   := $(MAKE) -f $(MAKEFILE_PATH) ENV=prod
@@ -149,10 +154,10 @@ shell:
 	$(COMPOSE) exec app bash
 
 artisan:
-	$(COMPOSE) exec $(if $(filter prod,$(ENV)),-T,) app php artisan $(ARGS)
+	$(COMPOSE) exec $(if $(filter prod,$(ENV)),-T,) $(AGENT_ENV) app php artisan $(ARGS)
 
 composer:
-	$(COMPOSE) exec app composer $(ARGS)
+	$(COMPOSE) exec $(AGENT_ENV) app composer $(ARGS)
 
 image:
 	docker build -t agelto/app:latest -f $(ROOT_DIR)/docker/php/Dockerfile $(ROOT_DIR)
@@ -183,7 +188,7 @@ test-preflight:
 test-php:
 	@$(MK_SELF) test-preflight ENV=$(ENV)
 	@$(MK_SELF) db:create-test ENV=$(ENV)
-	$(COMPOSE) exec $(if $(filter prod,$(ENV)),-T,) -e DB_DATABASE=agelto_test app php artisan test --compact
+	$(COMPOSE) exec $(if $(filter prod,$(ENV)),-T,) -e DB_DATABASE=agelto_test $(AGENT_ENV) app php artisan test --compact
 
 ##@ Dev
 
