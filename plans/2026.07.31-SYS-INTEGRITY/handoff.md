@@ -1,54 +1,44 @@
-# HANDOFF — 2026-08-05 — after P4.3
+# HANDOFF — 2026-08-05 — after P4.5
 
-**Next:** серия B3 — P4.4 (Filament-поверхность фильтра) и P4.5 (сиды площадки, реестра и двух
-профилей) одной сессией по замороженному контракту P4.3
+**Next:** ре-дизайн ТЗ P4.6 (перечень правок `research/05` §3.3 не покрыт текущим `Files`) —
+владелец решил его раньше batch B3, приоритет не изменился.
 
 | Параметр | Значение |
 |:--|:--|
-| Model | sonnet |
-| Thinking | medium — предписанная поверхность по замороженному контракту |
-| Context | continue (/clear) — ручной item |
-| Суть | Форма профиля со специфичными для реестра полями + сиды площадки ЕИС/`fz44`/двух профилей |
-| Команда | `/task:plan-exec 2026.07.31-SYS-INTEGRITY P4.4 P4.5` |
+| Model | opus |
+| Thinking | high — открытые design-решения (перечень правок, состав `Files`, class миграции) |
+| Context | NEW SESSION — шаг-не-item |
+| Суть | Пересобрать ТЗ P4.6: покрыть `Files` группой Б перечня (`DeltaScanProcessor`, `RunDeltaScan`, `CrawlerRunManager`, `CsvBlockIngestor`, `EisCsvRowMapper`, `CsvSourceMethod`, `EisProcedureType` + их тесты) |
+| Команда | `/task:plan-design 2026.07.31-SYS-INTEGRITY P4.6` |
 
-**Ре-дизайн ТЗ P4.6 по-прежнему нужен** — он не блокирует B3, но блокирует сам P4.6 (половина
-перечня правок `research/05` §3.3 лежит вне его `Files`). Владелец вправе сделать его первым:
+**Сделано этим заходом (`plan-exec`, sonnet/medium, 2026-08-05) — серия B3 целиком.**
 
-```
-/task:plan-design 2026.07.31-SYS-INTEGRITY P4.6
-```
-
-**Сделано этим заходом (`plan-run`, opus/high, 2026-08-05).** Item-коммит `77265b3` — 9 файлов,
-`+475/−19`; bookkeeping — отдельным коммитом. P4.3 закрыт **🟠 Done with deviations**.
-
-- **`EisSearchFilter`** (`app/Dto/Procurement/Crawler/`, 119 строк) — `Data`-класс на 10 полей
-  контракта `research/05` §4; параметры со статусом «не установлено» в контракт не вошли. Адрес —
-  по правилу `research/04` §2.5 (D65), `DomainLayoutTest` зелёный.
-- **Фильтр соответствует площадке.** Класс резолвится по коду реестра через карту
-  `config('crawler.filters')` (`CrawlerFilterFactory`, механика `SourceMethodFactory`): другая
-  площадка/реестр получает СВОЙ `Data`-класс строкой в карте, а не общий мешок ключей.
-  `match`-лестницы и `if (code === 'fz44')` в билдере нет.
-- **Отказ на неизвестном ключе — в двух точках:** `validateAndCreate()` (явная проверка против
-  `ALLOWED_KEYS`: spatie лишние ключи игнорирует молча) и хук `saving` модели, чтобы опечатка
-  оператора не доживала до боевого запроса. `priceTo=0` запрещён правилом `min:1` (Р-4: он
-  обнуляет выдачу, а не снимает ограничение).
-- **Схема БД не тронута** (D34): `prc_crawlers.filter` остаётся `jsonb`, ключи в БД — имена полей
-  DTO, как в таблицах профилей `research/05` §5.2. Миграций нет.
-- **`EisCsvUrlBuilder` собирает query из типа**; имена параметров ЕИС и формат даты остались
-  только в нём. Выключенный этап и незаполненное поле ключа не эмитят.
-- **Находка (Implementation Rules п. 5): два теста фиксировали НЕСУЩЕСТВУЮЩИЕ параметры ЕИС** —
-  `okpd2`/`priceFrom` в боевом URL (правильные — `okpd2Ids` со статусом «не установлено» и
-  `priceFromGeneral`). Это ровно та опечатка, ради которой заводился контракт; оба теста
-  переведены на контрактные ключи.
-- **Тесты:** новый `CrawlerFilterContractTest` (7), `EisCsvUrlBuilderTest` 9 → 13.
-
-**Почему 🟠, а не 🟢:**
-
-1. **Дифф вне `Files`** — `tests/Feature/Crawler/CsvSourceMethodTest.php` (`+2/−2`): без правки
-   полный сюит краснел бы диффом item'а, но файл в `Files` не перечислен.
-2. **Клауза «полный сюит зелёный» не выполнена** — `10 failed, 1 skipped, 1014 passed`. Диффом
-   item'а НЕ вызвано: `git stash` всего диффа P4.3 и прогон на чистом `111320d` дают **тот же
-   список из 10 падений** (`1003 passed`). Все десять уже стоят в Open risks ниже.
+- **P4.4 закрыт 🟠**, item-коммит `20d2e6a` (3 файла, `+363/−6`), bookkeeping `acb9bcf`.
+  `CrawlerForm`: реактивная секция «Фильтр площадки» резолвит класс через `CrawlerFilterFactory`
+  (та же карта, что P4.3 — второго списка «какие поля у ЕИС» нет), мультиселект 25 флагов колонок
+  CSV с тремя заблокированными обязательными (`registryNumberCsv`/`publishDateCsv`/
+  `lastDateChangeCsv` — объединяются на сохранении, даже если UI как-то обойдёт disable),
+  cron-валидация расписания (`Cron\CronExpression`, пакет уже в vendor), read-only превью боевого
+  URL через реальный `EisCsvUrlBuilder` на неперсистентном `Crawler`. `CrawlersTable` — колонки
+  `mode`/`schedule`. Тесты (`CrawlerFormTest`, 4) — зелёные. «Ручная проба в админке» из Validation
+  заменена эквивалентным `Livewire::test()`-прогоном (нет живой браузерной GUI-сессии в этом
+  окружении) — Known Deviations item'а.
+- **P4.5 закрыт 🟠**, item-коммит `5ab05b2` (4 файла, `+366`), bookkeeping `e94f16f`.
+  `EisPlatformSeeder` — площадка `code=eis` + реестр `fz44` с `settings` (`procedure_url_types`
+  9 меток, `card_url_templates` 6×4, `ea615`/`po615` без `supplier-results`) буквально из
+  `artifacts/eis-registry-settings.json`. `CrawlerProfileSeeder` — архивный (`stageCompleted`,
+  `is_active=true`) и fresh (`filter=null`, `is_active=false`, D37) профили, 13 флагов колонок
+  общей константой. Порядок в `DatabaseSeeder`: площадка/реестр → `StatusMappingSeeder` → профили.
+  Тесты (`EisSeedersTest`, 7) — зелёные; дважды прогнан `db:seed` на dev-БД вручную — 2 профиля оба
+  раза, `StatusMappingSeeder` без warn. Мелкая находка: `database/seeders/Procurement/` на входе
+  item'а фактически не существовала (план утверждал «уже существует, пустая») — создана вместе с
+  первым файлом, эскалация не требовалась (Pending Work item'а).
+- **Оба item'а 🟠 по одной и той же внешней причине**: Validation-клауза «полный сюит зелёный» не
+  выполнена буквально — 10 падений побайтово совпадают с документированной базой (`pg_partman`-дрейф
+  ×4, `CoreKnowsNoDocumentTypeTest` ×2, `PromptApplyTest` ×2, `CostReportTest` ×1,
+  `TextGridRendererTest` ×1), диффа обоих item'ов среди затронутых файлов нет — тот же случай, что
+  P4.3/P5.8. Канонический `phpstan analyse` (`paths: [app]`) — 0 ошибок на обоих item'ах; сидеры и
+  тесты вне зоны анализа проекта (`docs/03_Dev/static-analysis.md`).
 
 **Done:**
 
@@ -57,12 +47,12 @@
 - **P3 1/5** 🟠 Done with deviations — фаза терминальна.
 - **P5 3/8** 🟠 Done with deviations — фаза терминальна.
 - **P6 5/6** 🟠 Done with deviations — фаза терминальна.
-- **P4 2/8** 🟡 In progress — P4.1/P4.2 закрыты 🟢, P4.3 закрыт 🟠.
+- **P4 2/8** 🟡 In progress — P4.1/P4.2 закрыты 🟢, P4.3/P4.4/P4.5 закрыты 🟠.
 
 **Remaining:**
 
-- **Порядок фаз (D63):** `P1 → P2 → P3 → P5 → P6 → P4 → P7`. Идёт P4: B3 (P4.4 + P4.5) →
-  ре-дизайн ТЗ P4.6 → P4.6 (механизм + раскладка) → P4.7 (боевой прогон) → P4.8 (доки и приёмка).
+- **Порядок фаз (D63):** `P1 → P2 → P3 → P5 → P6 → P4 → P7`. Идёт P4: ре-дизайн ТЗ P4.6 → P4.6
+  (механизм + раскладка) → P4.7 (боевой прогон) → P4.8 (доки и приёмка).
 - **ТЗ P4.6 невыполнимо в нынешнем виде** — `Files` не покрывает `DeltaScanProcessor`,
   `RunDeltaScan`, `CrawlerRunManager`, `CsvBlockIngestor`, `EisCsvRowMapper`, `CsvSourceMethod`,
   `EisProcedureType` и их тесты; группа Б перечня (4 позиции, блокеры P4.7) — кандидат в отдельный
@@ -73,10 +63,11 @@
 - **Р-8 и Р-4 — за пределами фазы** (`research/05` §3.4): `max_blocks_per_window = 100`
   недостижим, а его ветка при срабатывании теряет ценовой интервал без дробления. Кандидаты в
   `open-questions.md`.
-- **Новое из P4.3 (Pending Work item'а):** `CrawlerForm` остаётся на `KeyValue` до P4.4; докблок
-  `@property string $code` у `Registry` требует парной чистки baseline-записи `EisCardUrlBuilder`;
-  формат даты ЕИС живёт под archive-специфичным ключом `config('crawler.archive.date_format')`;
-  `fz223` в карте фильтров отсутствует по решению `research/05` §5.4.
+- **Новое из P4.4/P4.5 (Pending Work items'ов):** `options.records_per_page` (мёртвый дефолт
+  `CrawlerFactory`, читателя нет) при правке профиля через форму P4.4 больше не сохраняется —
+  `options.columns` единственный managed-ключ; оператор, отредактировавший профиль в админке,
+  теряет правку при повторном `db:seed --class=CrawlerProfileSeeder` (сидер перезаписывает
+  безусловно, как `StatusMappingSeeder`/`AiRoutingSeeder`).
 - **Прочие follow-up без изменений**: `ExtractionOrchestrator` теряет семь старых полей паспорта
   (P5.5); `EstimateValidator::bcadd()` научная нотация (P5.4); `RerunRangeAction` не вызывает
   `replaceResources()` (P5.1/P5.2); пять колонок `source_*` без писателя (B-4); `RerunRangeAction`
@@ -88,26 +79,26 @@
 **Sources of truth:**
 
 - `research/05-change-tracking.md` — синтез P4.2 (слой 3): gap-таблица, перекрытие и календарь,
-  перечень правок P4.6, **контракт фильтра (раздел 4 — исполнен P4.3)**, две таблицы профилей
-  (раздел 5 — вход P4.4/P4.5), план прогона, метрики, калибровочные вопросы.
+  перечень правок P4.6, контракт фильтра (раздел 4 — исполнен P4.3), две таблицы профилей
+  (раздел 5 — исполнены P4.4/P4.5), план прогона, метрики, калибровочные вопросы.
 - `findings/P4-eis-recon.md` — фактура ЕИС 2026-08-04 (слой 1: факты, без проектных выводов).
-- `artifacts/eis-filter-params.json` — параметры, 25 флагов колонок, встречная сверка с кодом.
-- `artifacts/eis-registry-settings.json` — `procedure_url_types`/`card_url_templates` под сид P4.5
-  (ключи — СЫРЫЕ строки CSV, см. Р-12).
+- `artifacts/eis-filter-params.json` — параметры, 25 флагов колонок — источник `COLUMN_FLAG_LABELS`
+  (`CrawlerForm`) и `COLUMNS` (`CrawlerProfileSeeder`).
+- `artifacts/eis-registry-settings.json` — `procedure_url_types`/`card_url_templates`, буквально
+  перенесён в `EisPlatformSeeder`.
 - `app/Dto/Procurement/Crawler/EisSearchFilter.php` + `config('crawler.filters')` — контракт
-  фильтра в коде; источник истины по допустимым значениям для формы P4.4 один, и он в DTO.
+  фильтра в коде; `app/Filament/Resources/Procurement/Crawler/Crawlers/Schemas/CrawlerForm.php` —
+  его Filament-поверхность; `database/seeders/Procurement/{EisPlatformSeeder,CrawlerProfileSeeder}.php`
+  — боевые данные площадки/реестра/профилей.
 - `research/eis-csv-recon.md`, `research/eis-card-recon.md` — исторические артефакты 2026-07-03
   (не правятся; расхождения — в новых документах).
 - `findings/repo-recon-2026-07-31.md` §10 — состояние кроулинг-контура.
 - `phases/P4.md` — Phase Context, контракт фазы, ТЗ P4.1–P4.8.
-- `roadmap.md` — очередь фаз (D63) и launch-блок батча B3.
+- `roadmap.md` — очередь фаз (D63) и launch-блок батча B3 (исполнен, роль исчерпана).
 
 **Open risks:**
 
 - **P4.6 в нынешнем ТЗ невыполним** — половина перечня правок лежит вне его `Files`.
-- **`CrawlerForm` до P4.4 несовместим с типизированным фильтром** — `KeyValue::make('filter')`
-  получит `Data`-объект. Пока профиля с непустым фильтром в БД нет (первый заводит сид P4.5,
-  идущий ПОСЛЕ P4.4), окно закрыто порядком items; смена порядка его открывает.
 - **Детальная стадия на сегодняшнем дереве не снимет ни одной карточки** — Р-1 + Р-12
   (`procedure_type_raw` не читается и резолвится не тем ключом); НМЦК не заносится (Р-13).
   Адрес — группа Б перечня `research/05` §3.2.
@@ -123,8 +114,8 @@
   CSV нет, способ добора разведкой не проверялся (Р-11).
 - **`estimates_s3` объявлен и никем не адресуется** (`config/filesystems.php:74-85`).
 - **Перевод корпуса эталонов на S3 сломает `GoldCorpusBuilder`** (`:162` вызывает `->path()`).
-- **10 упавших тестов приёмочного прогона** (подтверждено на `111320d` и на `77265b3` — тот же
-  список): партиционный дрейф `pg_partman` (`prc_events`, 4), arch-тест
+- **10 упавших тестов приёмочного прогона** (подтверждено на `111320d`, `77265b3`, `20d2e6a`,
+  `5ab05b2` — тот же список): партиционный дрейф `pg_partman` (`prc_events`, 4), arch-тест
   `CoreKnowsNoDocumentTypeTest` (2), `permission denied` на `resources/` (`PromptApplyTest`, 2),
   `CostReportTest` (1), `memory_limit` `TextGridRendererTest` (1).
 - **Dev-БД теряет `prc_ai_dataset_examples`/`prc_ai_eval_runs` при `migrate:fresh`** (P5.7).
@@ -155,6 +146,8 @@
   `agelto_app`, разбор `CoreKnowsNoDocumentTypeTest`; судьба мёртвого диска `estimates_s3`;
   колонка диска для `prc_ai_dataset_examples.gold_ref`; перевод `FormatBenchRunner`/
   `GoldBuildCommand`/`FixtureForm`/`FixturesVerifyCommand` на `FileLocationResolver`; реальное
-  удаление объектов на исходном диске после окна отката.
+  удаление объектов на исходном диске после окна отката; операторская правка `options.
+  records_per_page` через форму профиля (мёртвый ключ, читателя нет — Pending Work P4.4);
+  сохранение других ключей `options` сверх `columns` при правке профиля через форму.
 - **Open questions:** OQ-4, OQ-7 (`Exploration`), OQ-5 (`Decision pending`), OQ-6;
   OQ-3 закрыта D117, OQ-8 закрыта D113.
