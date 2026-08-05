@@ -1,0 +1,257 @@
+{
+  "meta": {
+    "item": "P7.1",
+    "plan": "2026.07.31-SYS-INTEGRITY",
+    "tree_anchor": "6ddaa62",
+    "captured_at": "2026-08-05T14:27:00Z/2026-08-05T14:36:00Z",
+    "database": "agelto",
+    "server_version": "17.10 (Debian 17.10-1.pgdg13+1)",
+    "connection": "docker exec agelto_postgres psql -U agelto -d agelto",
+    "layer1": "plans/2026.07.31-SYS-INTEGRITY/findings/P7-schema-inventory.md",
+    "layer2": "plans/2026.07.31-SYS-INTEGRITY/research/08-db-review.md",
+    "severity_scale": "D60 — severity = позиция пункта в чеклисте findings/rag-2026-07-31.md §8",
+    "fix_class_scale": "D58 — non_destructive | owner_gate"
+  },
+
+  "inventory": {
+    "pg_tables_public": 85,
+    "partitioned_parents": 5,
+    "plain_tables": 65,
+    "partitions": 15,
+    "logical_tables": 70,
+    "tables_by_prefix": {
+      "prc_": 44,
+      "llm_": 4,
+      "ref_": 4,
+      "org_": 1,
+      "pulse_": 3,
+      "system": 14
+    },
+    "columns_total": 865,
+    "columns_nullable": 481,
+    "columns_not_null": 384,
+    "columns_nullable_with_default": 0,
+    "columns_not_null_with_default": 117,
+    "constraints": { "check": 14, "foreign_key": 86, "primary_key": 69, "unique": 42 },
+    "indexes_total": 257,
+    "indexes_never_scanned": 183,
+    "unique_indexes": 120,
+    "partial_indexes": 7,
+    "jsonb_columns": 42,
+    "jsonb_attributes_bags": 9,
+    "floating_point_columns": 1,
+    "migrations_ran": 76,
+    "migrations_pending": 0,
+    "stats_reset": null,
+    "row_counts": {
+      "prc_procurements": 17943,
+      "prc_revisions": 17942,
+      "prc_events": 18004,
+      "prc_fetches": 191,
+      "prc_documents": 66,
+      "prc_document_versions": 62,
+      "prc_document_representations": 31,
+      "prc_items": 77,
+      "prc_financing": 26,
+      "prc_procurement_parties": 3,
+      "prc_estimates": 0,
+      "prc_estimate_items": 0,
+      "prc_ai_analyses": 0,
+      "llm_calls": 0,
+      "prc_operation_logs": 0,
+      "prc_regions": 0,
+      "cache": 0,
+      "cache_locks": 0
+    }
+  },
+
+  "checklist_results": [
+    { "point": "P0.1", "title": "FK-колонка без индекса", "verdict": "violated", "count": 25, "findings": ["F-01"] },
+    { "point": "P0.2", "title": "семантика ON DELETE", "verdict": "violated", "count": 28, "findings": ["F-02"] },
+    { "point": "P0.3", "title": "разъезд точностей numeric", "verdict": "violated", "count": 1, "findings": ["F-03"] },
+    { "point": "P1.1", "title": "миграционная безопасность (invalid-индексы, блокирующие ALTER)", "verdict": "clean", "count": 0, "findings": [] },
+    { "point": "P1.2", "title": "ограничения RANGE-партиционирования", "verdict": "partially_clean", "detail": "PK ⊇ ключ партиционирования — 5/5 ✅; FK на партиционированную — 0 ✅; покрытие диапазона — нарушено", "findings": ["F-06"] },
+    { "point": "P2.1", "title": "NOT NULL и дефолты", "verdict": "partially_clean", "detail": "антипаттерн «nullable + DEFAULT» — 0 колонок ✅; обязательность на боевой таблице не выражена", "findings": ["F-07"] },
+    { "point": "P2.2", "title": "jsonb vs выделенные колонки", "verdict": "violated", "count": 1, "findings": ["F-08"] }
+  ],
+
+  "findings": [
+    {
+      "id": "F-01",
+      "checklist_point": "P0.1",
+      "severity": "P0",
+      "address": "25 FK-констрейнтов без покрывающего индекса (полный список — layer1 §2.1)",
+      "problem": "ведущие колонки FK не покрыты ни одним валидным индексом",
+      "consequence": "проверка детей при DELETE/UPDATE родителя вырождается в seq scan; срабатывает на re-run анализа, GC версий документов, удалении данных прогона (D124). Сегодня цена ≈ 0 (21 из 25 детей пусты), растёт с наполнением обучающего и сметного контуров",
+      "fix_class": "non_destructive",
+      "addressee": "P7.5",
+      "notes": "две связи (model_has_roles.role_id, model_has_scopes.role_id) — таблицы пакета, вынесены в F-01b на гейт владельца"
+    },
+    {
+      "id": "F-02",
+      "checklist_point": "P0.2",
+      "severity": "P0",
+      "address": "28 FK с confdeltype='a' (NO ACTION); RESTRICT в схеме — 0",
+      "problem": "правило жизненного цикла не объявлено; раскол у детей prc_procurements — 9 CASCADE / 5 NO ACTION",
+      "consequence": "удаление закупки каскадит половину графа и падает на второй половине; порядок удаления сегодня выводится из знания исполнителя, а не из схемы",
+      "fix_class": "mixed",
+      "addressee": "P7.5 (явное объявление действующих правил) + owner_gate (смена семантики пяти аудитных связей)"
+    },
+    {
+      "id": "F-03",
+      "checklist_point": "P0.3",
+      "severity": "P0",
+      "address": "prc_items.quantity numeric(15,3) против prc_estimate_items.quantity / prc_estimate_resources.quantity numeric(18,6)",
+      "problem": "одно доменное понятие «количество» несёт две точности",
+      "consequence": "количество с 4–6 знаками молча округляется до 3 при записи в prc_items; сопоставление позиции закупки с позицией сметы даёт расхождение не по существу",
+      "fix_class": "non_destructive",
+      "addressee": "P7.5"
+    },
+    {
+      "id": "F-04",
+      "checklist_point": null,
+      "severity": "P0",
+      "severity_note": "строки в чеклисте нет — назначено по ближайшему пункту (ссылочная целостность)",
+      "address": "prc_revisions.crawler_run_id",
+      "problem": "FK на prc_crawler_runs не создан, хотя цель не партиционирована",
+      "consequence": "провенанс 17 942 ревизий не защищён: удаление прогона оставляет висячий идентификатор без возможности восстановить источник",
+      "fix_class": "non_destructive",
+      "addressee": "P7.5",
+      "notes": "колонка write-only (читателей в коде нет) — нужен констрейнт, не индекс"
+    },
+    {
+      "id": "F-05",
+      "checklist_point": null,
+      "severity": "P0",
+      "severity_note": "то же примечание, что F-04",
+      "address": "llm_calls.analysis_run_id",
+      "problem": "FK на prc_ai_analysis_runs не создан, хотя FK на analysis_id из той же таблицы существует",
+      "consequence": "учёт стоимости прогона может ссылаться на удалённый прогон; расхождение проявится как «вызовы есть, прогона нет» в ai:cost-report",
+      "fix_class": "non_destructive",
+      "addressee": "P7.5",
+      "notes": "llm_calls партиционирована — ADD CONSTRAINT берёт блокировку на родителе и всех партициях"
+    },
+    {
+      "id": "F-06",
+      "checklist_point": "P1.2",
+      "severity": "P1",
+      "address": "все пять партиционированных таблиц: покрытие [2026-08-01, 2026-11-01), DEFAULT-партиции нет ни у одной",
+      "problem": "строка с доменной меткой времени вне окна отвергается",
+      "consequence": "действующий блокер: исторические occurred_at карточек ЕИС ломают markDetailFetched (найдено P4.16). Вторая ветка — после 2026-11-01 перестаёт писаться всё, включая prc_fetches кроулинга",
+      "fix_class": "owner_gate",
+      "addressee": "owner_gate → P7.5 (по D132)",
+      "gate_question": "DEFAULT-партиция на все пять таблиц или предсоздание исторических партиций на названную глубину?"
+    },
+    {
+      "id": "F-07",
+      "checklist_point": "P2.1",
+      "severity": "P2",
+      "address": "prc_procurements — 13 колонок NULL во всех 17 943 строках + customer_org_id (1/17943)",
+      "problem": "обязательность не выражена ни NOT NULL, ни CHECK, ни документированным условием «заполняется стадией X»",
+      "consequence": "витрина на этих полях вернёт null на 100 % корпуса, и отличить «источник не даёт» от «стадия не отработала» будет нечем; прямое денежное следствие — F-09",
+      "fix_class": "owner_gate",
+      "addressee": "owner_gate",
+      "gate_question": "колонки заполняет детальная стадия/223-ФЗ (оставляем) или они не нужны (удаление деструктивно)?"
+    },
+    {
+      "id": "F-08",
+      "checklist_point": "P2.2",
+      "severity": "P2",
+      "address": "prc_ai_analyses.result — предикаты result->>'needs_review' (PipelineStatus.php:142) и result->>'branch_reason' (PipelineStuckCheck.php:168)",
+      "problem": "горячие признаки фильтруются whereRaw по ключам jsonb без выражающего индекса",
+      "consequence": "pipeline:stuck-check по расписанию каждые 15 минут делает seq scan с распаковкой TOAST; таблица растёт как «анализ × версия документа» — деградация придёт с первым боевым AI-контуром",
+      "fix_class": "non_destructive",
+      "addressee": "P7.5 (по D132)"
+    },
+    {
+      "id": "F-09",
+      "checklist_point": null,
+      "severity": "P2",
+      "severity_note": "строки в чеклисте нет — назначено по ближайшему пункту (гигиена)",
+      "address": "prc_procurements: 8 из 15 индексов с idx_scan = 0, суммарно 2048 кБ из 4760 кБ",
+      "problem": "семь из восьми стоят на колонках, пустых во всех 17 943 строках; читателя-запроса нет ни у одного",
+      "consequence": "каждая вставка/обновление самой горячей на запись таблицы поддерживает восемь индексов без читателя — WAL, время, 43 % индексных байт",
+      "fix_class": "owner_gate",
+      "addressee": "owner_gate",
+      "caveat": "stats_reset = NULL, окно = archive-прогоны кроулинга, контур выдачи не исполнялся ни разу — рекомендации удалить НЕ выносится (Implementation Rules п.6)"
+    },
+    {
+      "id": "F-10",
+      "checklist_point": null,
+      "severity": null,
+      "priority": "high_operational",
+      "severity_note": "рантайм кластера — шкала D60 не применима",
+      "address": "statement_timeout=0, idle_in_transaction_session_timeout=0, log_min_duration_statement=-1 (все source: default)",
+      "problem": "нет ни одного предохранителя против зависшего запроса и ни одного канала наблюдения за медленными",
+      "consequence": "зависшая транзакция удерживает xmin — autovacuum перестаёт чистить во всей базе; диагностировать нечем",
+      "fix_class": "non_destructive",
+      "addressee": "P7.4"
+    },
+    {
+      "id": "F-11",
+      "checklist_point": null,
+      "severity": null,
+      "priority": "high_operational",
+      "address": "docker-compose.prod.yml:82 — shm_size: '2gb' в блоке horizon (строки 68–90); у сервиса postgres отсутствует",
+      "problem": "shm отдан PHP-воркеру, а нужен Postgres",
+      "consequence": "параллельный план или partman.run_maintenance() упрётся в дефолтные 64 МБ /dev/shm — could not resize shared memory segment; дремлет до роста объёмов",
+      "fix_class": "non_destructive",
+      "addressee": "P7.4"
+    },
+    {
+      "id": "F-12",
+      "checklist_point": null,
+      "severity": null,
+      "priority": "high_measurability",
+      "address": "pg_extension = {pg_partman 5.2.4, plpgsql}; shared_preload_libraries пуст",
+      "problem": "pg_stat_statements и pgstattuple отсутствуют",
+      "consequence": "два критерия OQ-1 структурно неизмеримы, строгий bloat не измеряется ничем; на вердикт P7.3 влияет как «не измерено», а не «в порядке» (D61)",
+      "fix_class": "non_destructive",
+      "addressee": "P7.4"
+    }
+  ],
+
+  "observations": [
+    { "id": "O-01", "what": "value: prc_ai_eval_results numeric(18,6) против pulse_aggregates numeric(20,2)", "why_not_finding": "разные доменные понятия, совпало только имя; pulse — вендорная таблица" },
+    { "id": "O-02", "what": "кандидаты в NOT NULL по фактической полноте: procedure_type_raw, initial_price, currency, attributes, created_at, updated_at (17943/17943)", "why_not_finding": "полнота доказана на одном архивном профиле одного реестра — правило 5 P7.5 не удовлетворено" },
+    { "id": "O-03", "what": "девять generic-мешков attributes", "why_not_finding": "ни одного предиката по ним в коде" },
+    { "id": "O-04", "what": "дрейф каталога partman: 3 осиротевшие строки part_config (ai_llm_calls, crw_fetches, sys_operation_logs) + 4 осиротевших template", "why_not_finding": "последствие проверено отсутствующим: run_maintenance 5.2.4 содержит CONTINUE WHEN v_parent_exists IS NULL; agelto_test несёт ровно 5 корректных строк" },
+    { "id": "O-05", "what": "autovacuum-тюнинг на llm_calls/prc_fetches, фактически горячие — prc_revisions/prc_events", "why_not_finding": "на измеренном профиле n_dead_tup обеих горячих = 0, autovacuum отрабатывал по ходу прогона (M-2)" },
+    { "id": "O-06", "what": "prc_proxy_targets.success_ratio double precision — единственная плавающая точка в схеме", "why_not_finding": "EWMA-доля, не деньги и не количество; поправка к §13.3 разведки, где факт «плавающей точки нет» устарел" }
+  ],
+
+  "owner_gate": [
+    { "id": "F-02-гейт", "question": "Удаление закупки уносит prc_revisions/prc_documents/prc_estimates/prc_events/prc_eis_details (CASCADE) или эти пять связей объявляются RESTRICT?" },
+    { "id": "F-06-гейт", "question": "Чем закрывать выход за диапазон партиций: DEFAULT-партицией или предсозданием исторических партиций на названную глубину?" },
+    { "id": "F-07-гейт", "question": "13 пустых на 100 % корпуса колонок prc_procurements: их заполняет детальная стадия/223-ФЗ или они не нужны?" },
+    { "id": "F-09-гейт", "question": "8 индексов prc_procurements без единого скана (2048 кБ): держим до появления контура выдачи или снимаем?" },
+    { "id": "F-01b-гейт", "question": "Индексы под FK в таблицах пакета (model_has_roles.role_id, model_has_scopes.role_id): проектная миграция поверх чужой таблицы или апстрим azguard?" },
+    { "id": "cache-гейт", "question": "После перевода fallback config/cache.php на redis (P7.4): удаляем таблицы cache/cache_locks миграцией или оставляем?", "verdict_now": "ОСТАВИТЬ — удаление раньше смены fallback превращает «лишнюю запись в Postgres» в фатальную ошибку кэша" }
+  ],
+
+  "partitioning": [
+    { "table": "prc_events", "range_key": "occurred_at", "pk": "(id, occurred_at)", "pk_includes_key": true, "partitions": 3, "size": "3168 kB", "retention": "6 months, DROP", "verdict": "соответствует классу «поток» D72" },
+    { "table": "llm_calls", "range_key": "called_at", "pk": "(id, called_at)", "pk_includes_key": true, "partitions": 3, "size": "120 kB", "retention": "12 months, DROP", "verdict": "соответствует; окно намеренно длиннее TTL блобов MinIO" },
+    { "table": "prc_fetches", "range_key": "fetched_at", "pk": "(id, fetched_at)", "pk_includes_key": true, "partitions": 3, "size": "288 kB", "retention": "6 months, DROP", "verdict": "соответствует" },
+    { "table": "prc_operation_logs", "range_key": "created_at", "pk": "(id, created_at)", "pk_includes_key": true, "partitions": 3, "size": "72 kB", "retention": "6 months, DROP", "verdict": "соответствует" },
+    { "table": "prc_revisions", "range_key": "detected_at", "pk": "(id, detected_at)", "pk_includes_key": true, "partitions": 3, "size": "25 MB", "rows": 17942, "retention": null, "verdict": "ПОДТВЕРЖДЁННОЕ РЕШЕНИЕ (D74/V2-CORE D41), не находка — класс «состояние» по D72, retention ему не предписан; в P7.5 не уходит", "growth_unit": "≈ 1.4 КБ на ревизию (25 МБ / 17 942 на 6ddaa62)" }
+  ],
+
+  "items_composition": [
+    { "item": "P7.2", "verdict": "confirmed" },
+    { "item": "P7.3", "verdict": "confirmed" },
+    { "item": "P7.4", "verdict": "confirmed", "receives": ["F-10", "F-11", "F-12"] },
+    { "item": "P7.5", "verdict": "changed", "decision": "D132", "receives": ["F-01", "F-02(объявление)", "F-03", "F-04", "F-05", "F-08", "F-06(после гейта)"], "scope_added": ["выражающий индекс под названный ревизией запрос-потребитель", "создание партиций / DEFAULT-партиции сырым SQL по решению владельца"] },
+    { "item": "P7.6", "verdict": "confirmed" },
+    { "item": "P7.7", "verdict": "confirmed" },
+    { "item": "P7.8", "verdict": "confirmed" }
+  ],
+
+  "not_measured": [
+    { "metric": "строгий bloat (pgstattuple)", "why": "расширение не установлено; введение — Scope P7.4" },
+    { "metric": "per-query write pressure / contention (pg_stat_statements)", "why": "shared_preload_libraries пуст, требуется рестарт кластера — Scope P7.4" },
+    { "metric": "replica lag", "why": "реплики нет; на одиночном primary не измеряется в принципе" },
+    { "metric": "WAL-скорость и wait events «сейчас»", "why": "снимаются только под нагрузкой; прогон этим item'ом не запускается (Scope Excluded)" },
+    { "metric": "idx_scan за окно прогона", "why": "stats_reset = NULL — доступно только «за всю жизнь БД»" }
+  ]
+}
