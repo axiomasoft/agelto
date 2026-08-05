@@ -1,39 +1,42 @@
-# HANDOFF — 2026-08-05 — after P4.10
+# HANDOFF — 2026-08-05 — after P4.11
 
-**Next:** exec-item: task:plan-exec 2026.07.31-SYS-INTEGRITY P4.11
+**Next:** ЗАПУСК ВРУЧНУЮ: sonnet/high — P4.12 (Exec=manual, security-sensitive: граница доверия TLS)
 
 | Параметр | Значение |
 |:--|:--|
 | Model class | implementation |
-| Effort | medium |
+| Effort | high |
 | Capabilities | — |
-| Context | same-session — item |
-| Суть | Батч B4, второй item: три тихих дефекта контура прогона (Д-2 сид резолвит реестр без площадки, Д-3 латентность узла не пишется, Д-4 креды прокси не URL-кодируются). Оффлайн, предписан диагнозами, гейт детерминированный — «красное без фикса» на каждый из трёх через `git stash` |
-| Команда | `/task:plan-exec 2026.07.31-SYS-INTEGRITY P4.11` |
+| Context | continue (/clear) — ручной item |
+| Суть | Персистентная граница доверия TLS: CA-бандл в репозиторий + `COPY` в образ, карта `crawler.tls.bundles`, единственный носитель `SourceTlsTrust`; `update-ca-certificates` и `verify => false` запрещены абсолютно |
+| Команда | — |
 
-**Сделано этим заходом (`plan-exec P4.10`, sonnet/medium, 2026-08-05).**
+```
+/model sonnet
+/effort high
+/task:plan-run 2026.07.31-SYS-INTEGRITY P4.12
+```
+
+**Сделано этим заходом (`plan-exec P4.10 P4.11`, sonnet/medium, 2026-08-05) — батч B4 закрыт целиком.**
 
 - **P4.10 закрыт 🟢**, item-коммит `cd4248b`: модификатор `!` добавлен на все три формата
   `EisCsvRowMapper::parseDate()` и на `EventJournalParser::DATE_FORMAT` — снята подстановка
   текущего системного времени в разобранные даты источника, корень недетерминированности
-  `snapshot_hash` и отказа guard'а идемпотентности инжеста.
-- Новый тест `RevisionTest`: повторный инжест ИДЕНТИЧНОЙ строки CSV через реальный
-  `EisCsvRowMapper::map()` (не `SnapshotFactory` — он строит `Carbon` напрямую, минуя `parseDate`)
-  с паузой 1.1 с между вызовами — `revision_count`/`prc_revisions`/`prc_events` не растут на
-  второй вызов. Датасет-тест на три формы формата в `EisCsvRowMapperTest`.
-- Проба «красное без фикса» (`git stash push` двух файлов фикса → `--filter=RevisionTest`)
-  подтверждена: `1 failed, 2 passed`, ненулевой exit code, `git stash pop` восстановил фикс.
-- **Находка вне ТЗ (к сведению, не отклонение):** для формата `EventJournalParser` (`d.m.Y H:i`)
-  PHP/Carbon и без модификатора `!` уже отдаёт секунды `00` (эмпирически проверено через tinker) —
-  заявленная в `research/10-p4-remediation.md` §3.1 недетерминированность секунд для ЭТОГО
-  конкретного формата не подтвердилась; модификатор добавлен по ТЗ и корректен, реальный
-  недетерминизм есть только у чистого `d.m.Y` в `EisCsvRowMapper` (что и ловит `RevisionTest`).
-  Деталь — `phases/P4.md` P4.10 Completion Notes.
-- Validation: `EisCsvRowMapperTest` — `15 passed`; `EventJournalParserTest` — `3 passed`;
-  `RevisionTest` — `3 passed`; `phpstan --memory-limit=1G` — `[OK] No errors`, baseline `56`
-  записей без роста; `pint --dirty --test` — зелёный.
-- Bookkeeping-коммит следом (`plans/2026.07.31-SYS-INTEGRITY`, `plan.md` Status Board `3/15`,
-  Update Log, `phases/P4.md` Phase Status + item Status → 🟢).
+  `snapshot_hash` и отказа guard'а идемпотентности инжеста. Новый feature-тест повторного
+  идентичного инжеста через реальный `EisCsvRowMapper::map()`, «красное без фикса» подтверждено.
+  Находка вне ТЗ: для формата `EventJournalParser` (`d.m.Y H:i`) PHP/Carbon уже отдаёт секунды
+  `00` даже без `!` — заявленная в `research/10` §3.1 недетерминированность секунд для ЭТОГО
+  формата эмпирически не подтвердилась (реальный недетерминизм есть только у чистого `d.m.Y`).
+- **P4.11 закрыт 🟢**, item-коммит `9fe6de3`: (Д-2) `CrawlerProfileSeeder` резолвит реестр `fz44`
+  по паре `(площадка eis, код)` вместо голого `where('code', …)->first()`, fail fast на
+  неоднозначности; (Д-3) `requestWithOutcome()` в `CsvSourceMethod`/`DocumentDownloader` замеряет
+  `hrtime(true)` вокруг HTTP-вызова (включая `->retry()`) и передаёт латентность в
+  `ProxyOutcome::success()`; (Д-4) `ProxyLease::httpOptions()` кодирует логин/пароль
+  `rawurlencode()`. Три новых/дополненных теста, «красное без фикса» подтверждено на каждом из
+  трёх дефектов отдельно.
+- Оба item'а: `phpstan --memory-limit=1G` — без новых ошибок (`phpstan-baseline.neon` — 56 записей,
+  без роста ни на одном коммите), `pint --dirty --test` — зелёный.
+- `plan-lint` зелёный на обоих закрытиях (0 ошибок, K=0 новых).
 
 **Done:**
 
@@ -42,15 +45,19 @@
 - **P3 1/5** 🟠 Done with deviations — фаза терминальна.
 - **P5 3/8** 🟠 Done with deviations — фаза терминальна.
 - **P6 5/6** 🟠 Done with deviations — фаза терминальна.
-- **P4 3/15** 🟡 In progress — терминальны 9 из 15 (P4.1 🟢, P4.2 🟢, P4.3 🟠, P4.4 🟠, P4.5 🟠,
-  P4.9 🟠, P4.6 🟠, P4.7 🟠, P4.10 🟢); открыты P4.11–P4.15 и P4.8.
+- **P4 4/15** 🟡 In progress — терминальны 10 из 15 (P4.1 🟢, P4.2 🟢, P4.3 🟠, P4.4 🟠, P4.5 🟠,
+  P4.9 🟠, P4.6 🟠, P4.7 🟠, P4.10 🟢, P4.11 🟢); открыты P4.12–P4.15 и P4.8.
 - **P7 0/8** ⬜ Not started — ждёт терминальной P4.
 - **P8 0/7** ⬜ Not started — заведена скелетом, не детализирована.
 
 **Remaining:**
 
-- **Порядок фаз (D63):** `P1 → P2 → P3 → P5 → P6 → P4 → P7`. Идёт P4: остаток батча B4 (P4.11),
-  затем solo P4.12 → P4.13 → P4.14 → P4.15 → P4.8.
+- **Порядок фаз (D63):** `P1 → P2 → P3 → P5 → P6 → P4 → P7`. Идёт P4: батч B4 закрыт, дальше
+  solo `P4.12 → P4.13 → P4.14 → P4.15 → P4.8`.
+- **P4.12 — Exec=manual** (implementation/high, security-sensitive: граница доверия TLS,
+  Dockerfile) — не запускается `/task:plan-exec` (гейт п.2 отклонит: model/effort выше пина
+  sonnet/medium). Запуск — либо `/task:plan-run 2026.07.31-SYS-INTEGRITY P4.12` под сессией
+  sonnet/high, либо прямой промпт-заход тем же классом.
 - **P8 требует отдельного дизайн-захода** `/task:plan-design 2026.07.31-SYS-INTEGRITY P8`
   (frontier/high, NEW SESSION) и ПОСЛЕ него — повторного `finish` (`plan-protocol` §5: контракт
   фазы P8 появился после последнего `finish`). Контракт P4 расширен (Производит — документный
@@ -65,8 +72,8 @@
 
 - `research/10-p4-remediation.md` — вердикт по каждому из семи дефектов с кодовой фактурой,
   раскрой на items и критерий раскроя, обязательные числа контрольного прогона и их потребители.
-- `phases/P4.md` — Phase Context (очередь, обоснование «ремедиация внутрь фазы»), P4.10 закрыт,
-  items P4.11–P4.15 целиком.
+- `phases/P4.md` — Phase Context (очередь, обоснование «ремедиация внутрь фазы»), P4.10/P4.11
+  закрыты, items P4.12–P4.15 целиком.
 - `plan.md` §3 Routing (строки P4.10–P4.15, батч B4), §5 D123–D128.
 - `findings/P4-load-baseline.md` §5 (семь дефектов с точными строками и снятой фактурой), §7
   (калибровка), §8 (три гейта — все закрыты).
@@ -78,12 +85,9 @@
 
 - **Документный контур не работает на боевых данных** (Д-5) — до закрытия P4.13 у P5 и P8 нет
   входа вообще. Это по-прежнему самый тяжёлый открытый риск плана.
-- **Идемпотентность инжеста ПОЧИНЕНА в коде (P4.10)**, но перекрытие окон/delta-scan остаются
-  выключенными (D126) до контрольного прогона P4.15 — уже занесённые прогонами #14/#15 дубли
-  снимаются только очисткой в P4.15, не этим item'ом.
-- **Три тихих дефекта контура прогона (Д-2/Д-3/Д-4) ещё не починены** — вход P4.11: сид
-  привязывает профили ЕИС к чужому реестру `fz44` без площадки, латентность узла никогда не
-  пишется, креды прокси не URL-кодируются (падение на «неудобном» пароле).
+- **Идемпотентность инжеста и три тихих дефекта контура прогона ПОЧИНЕНЫ в коде** (P4.10/P4.11),
+  но перекрытие окон/delta-scan остаются выключенными (D126) до контрольного прогона P4.15 —
+  уже занесённые прогонами #14/#15 дубли снимаются только очисткой в P4.15.
 - **Корень Минцифры внесён непepсистентно** — в writable-слое `agelto_app`/`agelto_horizon`,
   исчезнет при пересоздании контейнера или ребилде; после этого боевой клиент не подключится к ЕИС
   (`tls=20`). Закрывается P4.12; до него любой сетевой шаг фазы зависит от ручной правки. Отпечаток
@@ -114,9 +118,7 @@
 - **`app/Filament/Resources/Procurement/**` restrictive ACL**, **`rm` заблокирован в харнессе**,
   **незакоммиченный чужой дифф** (`.env.example`, `CLAUDE.md`, `.swissknife.json`, `.swissknife/`,
   `.swissknifeman/`, `config/cms.php`, `database/seeders/User/`, `estimates/gemini-analys.md`) —
-  состав снимать `git status --porcelain` перед каждым item-коммитом. Особая осторожность с
-  `database/seeders/User/`: P4.11 пишет в `database/seeders/Procurement/`, коммитятся только
-  поимённые пути из `Files`.
+  состав снимать `git status --porcelain` перед каждым item-коммитом.
 - **`.env` не несёт `MINIO_ROOT_PASSWORD`** — `docker compose` падает на интерполяции, обход
   `docker exec agelto_app …`.
 - **PHPStan в контейнере падает на дефолтном 256M** — обход `--memory-limit=1G`.
@@ -126,7 +128,7 @@
 - **Workarounds:** `docker exec agelto_app` вместо `docker compose exec`; `phpstan analyse
   --memory-limit=1G`; корень Минцифры + Sub CA 2024 в доверенном хранилище контейнеров
   (непepсистентно — снимается P4.12); `agelto_scheduler` остановлен; `update prc_crawlers set
-  registry_id = 3` вместо фикса сида (снимается P4.11 — в код НЕ переносится);
+  registry_id = 3` вместо фикса сида — БОЛЬШЕ НЕ ТРЕБУЕТСЯ (снято P4.11, сид резолвит верно сам);
   `Registry::getAttribute('code')` вместо `->code` в новом коде.
 - **Deferred:** расширение окна прогона и включение delta-scan/fresh (D126 — после P4.15);
   персистентность корня для ОСТАЛЬНЫХ каналов (P4.12 закрывает только площадку); два типа процедуры
