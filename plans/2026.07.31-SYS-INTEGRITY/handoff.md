@@ -1,49 +1,59 @@
-# HANDOFF — 2026-08-05 — after P4.13
+# HANDOFF — 2026-08-05 — after P4.14
 
-**Next:** `/task:plan-run 2026.07.31-SYS-INTEGRITY P4.14` (Exec=manual, implementation/high — та же
-модель/effort, что уже несёт эта сессия, переключение `/model`/`/effort` не требуется)
+**Next:** «ЗАПУСК ВРУЧНУЮ: fable|opus/high» — P4.15 (Exec=manual, frontier/high — ВЫШЕ этой сессии,
+`/task:plan-run` пинит sonnet/high и по Routing-гейту обязан отклонить такой item)
 
 | Параметр | Значение |
 |:--|:--|
-| Model class | implementation |
+| Model class | frontier |
 | Effort | high |
 | Capabilities | — |
 | Context | continue (/clear) — ручной item |
-| Суть | Детальный слой карточки: диагноз Д-6/Д-7 по HTML, снятому P4.13, и правка `EventJournalParser`/`CommonInfoParser`/`PartiesParser` под фактическую вёрстку |
+| Суть | Контрольный прогон: очистка данных первого прогона (`registry_id = 1`, 17 942 закупки), перезалив трёх дней архивного профиля через фиксы P4.10–P4.14, пере-baseline метрик БД для P7.3 |
 | Команда | — |
 
 ```
-/task:plan-run 2026.07.31-SYS-INTEGRITY P4.14
+/model opus
+/effort high
+/task:plan-run 2026.07.31-SYS-INTEGRITY P4.15
 ```
 
-**Сделано этим заходом (`plan-run P4.13`, sonnet/high, 2026-08-05).**
+**Сделано этим заходом (`plan-run P4.14`, sonnet/high, 2026-08-05).**
 
-- **P4.13 закрыт 🟠**, item-коммит `40b928a`: живая проба ВСЕХ четырёх вкладок карточки
-  `prc_procurements` id=18151 (regNumber `0338200009125000001`, `ea20`) через RU-прокси
-  `prc_proxies` id=1 (тот же узел, что P4.1/P4.9/P4.12) — egress проверен ДО первого запроса
-  (D3). Сырой HTML — `artifacts/eis-card-html/{documents,common-info,event-journal,
-  supplier-results}.html`, раскладка — `findings/P4-card-layout.md` (вход P4.14). Найдена и
-  обезличена ДО коммита персональные данные физлица (ФИО/email/телефон) на вкладке
-  `common-info.html`.
-- `DocumentsParser` приведён к фактической вёрстке вкладки `documents`: `div.blockFilesTabDocs`
-  → `div.attachment` → `span.section__value > a[href^=".../filestore/..."]`, имя файла — атрибут
-  `title`. `uid` в query-строке сохранился без изменений — `externalIdFromHref()` не тронут;
-  `absoluteUrl()` не тронут (подтверждено чтением кода до пробы). `kind` — легитимный `null` (у
-  новой вёрстки нет колонки-категории документа). Тихий отказ снят: `catch` логирует + отдельно
-  логируется несоответствие «есть ссылки filestore, распознано 0». Фикстура пересобрана из
-  реального (усечённого) тела — 6 документов вместо 2 синтетических.
-- **K=0** (полный сюит `--no-tia` на item-коммите: список упавших тестов байт-в-байт идентичен
-  дереву ДО диффа item'а). Попутно вскрыта устаревшая база: `handoff`/Execution Rules несли
-  «10 упавших», фактически уже **14** (добавились `GeminiProxyRoutingTest` ×1 и
-  `StorageLifecycleTest` ×3 — оба подтверждены НЕ этим диффом) — см. Pending Work ниже.
-- Дифф вне `Files` (Known Deviation, material → 🟠): три уже-зелёных теста
-  (`DocumentIndexerTest`, `DetailAnalysisProcessorTest`, `FetchDetailsTest`) держали жёсткие
-  предположения о старой 2-документной синтетической фикстуре — поправлены механически
-  (`FetchDetailsTest` получил СВОЙ локальный `.pdf`-only HTML вместо общей 6-документной
-  фикстуры — иначе реальные расширения `.xls`/`.doc`/`.docx`/`.xml` заводят вложения, которые
-  `SpreadsheetStrategy`/`WordStrategy` реально пытаются распарсить и падают на фейковом бинарном
-  теле `Http::fake()`; это by-design поведение `PipelineJob`/`DocumentPreparer`, не баг домена, и
-  вне Scope P4.13).
+- **P4.14 закрыт 🟠**, item-коммит `c6cd6b4`: диагноз Д-7 поставлен ФАКТОМ по HTML, снятому
+  P4.13 (`findings/P4-card-layout.md`), для всех пяти блоков детального слоя.
+  - `EventJournalParser`: старый селектор `div.event-journal table.event-journal-table` — 0
+    совпадений; факт — `table#event.displaytagTable`. Фикс: селектор `table#event`, строки/ячейки
+    уже были generic. Тихий отказ снят (`warnIfJournalEvidenceSuppressed`).
+  - `CommonInfoParser`: `dt`/`dd` — 0 `<dt>` на странице целиком; факт — плоские пары
+    `section.blockInfo__section` > `span.section__title` + `span.section__info`. Единый помощник
+    `titleSection()`/`readDefinitionValue()`/`infoNode()` заменил три локальных костыля.
+    Финансирование — таблица «год-колонка», не «год-строка»: `parseFinancingRows()` транспонирует.
+    Классификатор позиции — ОДИН код на ячейку (не пара «ОКПД2/КТРУ» через слэш):
+    `splitClassifierCode()` переписан на дефис-детект КТРУ. Тихий отказ снят
+    (`warnIfBlockInfoSuppressed`).
+  - `PartiesParser`/`SupplierResultsParser` — **НЕТРОНУТЫ**: `organizations-block`/
+    `table.parties-table` отсутствует на ОБЕИХ кандидатных вкладках, success-путь
+    `supplier-results` (протокол+заявки+победитель) не снят ни на одной карточке (доступна
+    только карточка НЕСОСТОЯВШЕЙСЯ закупки) — Implementation Rules item'а п. 2/5 запрещают правку
+    без фактуры. `[UNVERIFIED]` в Pending Work — см. `phases/P4.md` P4.14 Completion Notes.
+  - K-6 закрыт (`research/05-change-tracking.md` §8): пояс «Дата обновления» CSV — **МСК**
+    (хронологическая сверка `source_updated_at` против `event-journal`, детали — Completion
+    Notes).
+  - Фикстуры пересобраны из реальных тел: `event-journal.html` 4288 байт (было 136 614) ·
+    `common-info.html` 10 773 байта (было 170 418) · `supplier-results.html` 4310 байт (было
+    152 215).
+- **K=0** (полный сюит `--no-tia` на item-коммите `c6cd6b4`: **13 упавших**, на ОДИН МЕНЬШЕ базы
+  **14** — список идентичен базовому за вычетом одной строки, `DetailAnalysisProcessorTest > run
+  наполняет…` починен мимоходом). Новая база для следующего item'а, трогающего полный сюит: **13**.
+- Дифф вне `Files` (Known Deviation, material → 🟠): шесть тестов-потребителей общих фикстур
+  common-info/event-journal сломались реальными данными, поправлены механически (тот же класс, что
+  прецедент P4.13) — `SupplierResultsProcessorTest`/`CommonInfoProcessorTest`/
+  `OrganizationPartiesProcessorTest` сняты с общей фикстуры на локальный синтетический HTML;
+  `EventJournalProcessorTest`/`DetailAnalysisProcessorTest`/`FetchDetailsTest` — date-shift-хелперы
+  обновлены на реальные литералы дат (`23.01.2025`/`15.01.2025`, были `30.06.2026`/`11.07.2026`);
+  `DetailAnalysisProcessorTest` попутно поправлены два пред-существующих латентных дефекта
+  (`Document::count()` 2→6, честные `toBeFalse()` для parties/protocol на реальных данных).
 
 **Done:**
 
@@ -52,52 +62,53 @@
 - **P3 1/5** 🟠 Done with deviations — фаза терминальна.
 - **P5 3/8** 🟠 Done with deviations — фаза терминальна.
 - **P6 5/6** 🟠 Done with deviations — фаза терминальна.
-- **P4 5/15** 🟡 In progress — терминальны 12 из 15 (P4.1 🟢, P4.2 🟢, P4.3 🟠, P4.4 🟠, P4.5 🟠,
-  P4.9 🟠, P4.6 🟠, P4.7 🟠, P4.10 🟢, P4.11 🟢, P4.12 🟢, P4.13 🟠); открыты P4.14–P4.15 и P4.8.
+- **P4 5/15** 🟡 In progress — терминальны 13 из 15 (P4.1 🟢, P4.2 🟢, P4.3 🟠, P4.4 🟠, P4.5 🟠,
+  P4.9 🟠, P4.6 🟠, P4.7 🟠, P4.10 🟢, P4.11 🟢, P4.12 🟢, P4.13 🟠, P4.14 🟠); открыты P4.15 и P4.8.
 - **P7 0/8** ⬜ Not started — ждёт терминальной P4.
 - **P8 0/7** ⬜ Not started — заведена скелетом, не детализирована.
 
 **Remaining:**
 
-- **Порядок фаз (D63):** `P1 → P2 → P3 → P5 → P6 → P4 → P7`. Идёт P4: соло `P4.14 → P4.15 → P4.8`.
-- **P4.14 — Exec=manual** (implementation/high, D118-класс: диагноз Д-6/Д-7 по РЕАЛЬНОМУ HTML,
-  снятому P4.13, а не по гипотезе) — та же модель/effort, что уже несёт эта сессия:
-  `/task:plan-run 2026.07.31-SYS-INTEGRITY P4.14` запускается БЕЗ переключения
-  `/model`/`/effort`.
+- **Порядок фаз (D63):** `P1 → P2 → P3 → P5 → P6 → P4 → P7`. Идёт P4: соло `P4.15 → P4.8`.
+- **P4.15 — Exec=manual** (frontier/high, D123/D124/D126-класс: боевой прогон с внешними
+  необратимыми эффектами + необратимое удаление данных первого прогона) — ВЫШЕ этой сессии
+  (sonnet/high): `/model opus` + `/effort high` + `/task:plan-run 2026.07.31-SYS-INTEGRITY P4.15`.
 - **P8 требует отдельного дизайн-захода** `/task:plan-design 2026.07.31-SYS-INTEGRITY P8`
   (frontier/high, NEW SESSION) и ПОСЛЕ него — повторного `finish` (`plan-protocol` §5: контракт
-  фазы P8 появился после последнего `finish`). Контракт P4 расширен (Производит — документный
-  контур, вёрстка вкладок, CA-бандл), и это второе основание для повторного `finish` перед
-  закрытием плана.
+  фазы P8 появился после последнего `finish`).
 - **`## Phase Handoff` фаз P2 и P5 не собран**; **P6** нуждается в формальном `plan-close` —
   висящий bookkeeping-хвост, продолжение плана НЕ блокирует.
 - **Расширение окна прогона и включение delta-scan/fresh** — сознательно отложены (D126), решение
   пересматривается ПОСЛЕ того, как контур доказан контрольным прогоном P4.15.
-- **База «упавших тестов» полного сюита устарела** (документированные 10 → фактические 14 на
-  дереве после P4.13): `GeminiProxyRoutingTest` (1 — ассертация не обновлена после P4.11/Д-4,
-  URL-кодирование кредов прокси теперь корректно) и `StorageLifecycleTest` (3 — `mc alias set`
-  падает на кредах MinIO окружения) — оба подтверждены `git stash` как НЕ вызванные диффом P4.13.
-  Следующий item, трогающий полный сюит, обязан считать от **14**, не от 10.
+- **База «упавших тестов» полного сюита обновлена** (10 → 14 после P4.13 → **13** после P4.14,
+  попутно починен `DetailAnalysisProcessorTest > run наполняет…`): `GeminiProxyRoutingTest` (1),
+  `StorageLifecycleTest` (3) и ещё девять пред-существующих — следующий item, трогающий полный
+  сюит, обязан считать от **13**.
+- **`PartiesParser`/`SupplierResultsParser` `[UNVERIFIED]`** — блока-источника нет ни на одной
+  снятой карточке; снимается следующим боевым прогоном (P4.15) на КАРТОЧКЕ С СОСТАВОМ СТОРОН/
+  определённым победителем, если такая попадёт в перезалитое окно.
+- **Бакет «Последующие годы» финансирования не заполняется** — `FinancingRowData::fiscalYear`
+  non-nullable в форме DTO (вне Scope P4.14); нужен отдельный item на правку формы DTO +
+  `is_beyond_horizon`.
+- **К-6 закрыт диагнозом (МСК), но не кодом** — `EisCsvRowMapper`/`config/crawler.php` не
+  приведены к явному указанию пояса; follow-up вне Scope P4.14.
 
 **Sources of truth:**
 
-- `research/10-p4-remediation.md` §3.6–§3.7 — вердикты Д-5/Д-6/Д-7 и раскрой ремедиации.
+- `research/10-p4-remediation.md` §3.6–§3.8 — вердикты Д-5/Д-6/Д-7 и раскрой ремедиации P4.15.
 - `findings/P4-load-baseline.md` §5, §3.6 — фактура боевого прогона, кандидат карточки.
-- `findings/P4-card-layout.md` — фактическая вёрстка ВСЕХ четырёх вкладок (новый, вход P4.14).
-- `artifacts/eis-card-html/*.html` — сырой HTML вкладок (новый, вход P4.14).
-- `phases/P4.md` — Phase Context, P4.10–P4.13 закрыты, items P4.14–P4.15 целиком.
-- `plan.md` §3 Routing (строки P4.10–P4.15, батч B4), §5 D123–D128.
+- `findings/P4-card-layout.md` — фактическая вёрстка ВСЕХ четырёх вкладок (вход P4.14, потреблён).
+- `phases/P4.md` — Phase Context, P4.10–P4.14 закрыты, item P4.15 целиком.
+- `plan.md` §3 Routing (строка P4.15, батч —), §5 D123–D128.
 - `roadmap.md` — карта исполнения фазы.
-- `app/Services/Procurement/Eis/Card/DocumentsParser.php` — новый канон разбора вкладки
-  `documents`.
+- `app/Services/Procurement/Eis/Card/{EventJournalParser,CommonInfoParser}.php` — новый канон
+  разбора вкладок `event-journal`/`common-info`.
+- `research/05-change-tracking.md` §8 — K-6 закрыт (МСК).
 
 **Open risks:**
 
-- **Детальный слой карточки пуст** (Д-6/Д-7) — до закрытия P4.14 журнал событий и
-  common-info/parties/items/financing не читаются с боевых данных; это следующий, а не последний
-  открытый риск (после него — P4.15 контрольный прогон).
-- **Документный контур починен в коде** (P4.13), но НЕ подтверждён контрольным прогоном на живых
-  данных — это делает P4.15.
+- **Документный и детальный слой карточки починены в коде** (P4.13/P4.14), но НЕ подтверждены
+  контрольным прогоном на живых данных — это делает P4.15.
 - **Идемпотентность инжеста и три тихих дефекта контура прогона ПОЧИНЕНЫ в коде** (P4.10/P4.11),
   граница доверия TLS персистентна (P4.12) — перекрытие окон/delta-scan остаются выключенными
   (D126) до контрольного прогона P4.15; уже занесённые прогонами #14/#15 дубли снимаются только
@@ -106,8 +117,9 @@
   каждые 15 минут и портит здоровье узла. Поднимать — после деактивации профиля.
 - **Данные под `registry_id = 1`** (17 942 закупки прогонов #14/#15) остаются в БД до P4.15 —
   любой запрос к `prc_procurements` до очистки видит их вперемешку с корректными.
-- **Диагноз Д-7 — гипотеза**, а не факт до P4.14: причина пустой `prc_eis_details` в findings не
-  разбиралась; P4.13 сняла HTML для диагноза, сам диагноз ещё не поставлен.
+- **`PartiesParser`/`SupplierResultsParser` `[UNVERIFIED]`** — состав сторон и success-путь
+  результатов торгов не читаются с боевых данных ни на одной снятой карточке; следующий боевой
+  прогон (P4.15) может либо подтвердить достаточность фактуры, либо оставить пробел открытым.
 - **Два типа процедуры вне `procedure_url_types`** реестра ЕИС (аудит бухотчётности — 11 закупок,
   ТКО — 3): 14 из 8 584 = 0.16 % теряют детальную стадию.
 - **Стартовый ценовой стек строится от потолка, а не от распределения**: 180 блоков вместо
@@ -116,12 +128,15 @@
   завершённых закупок, не выборочный пробел.
 - **`pg_partman` (`prc_events`)** — партиции не покрывают тестовые даты, дефект расширяется день
   ото дня (календарный дрейф теста); чинится инструментовкой P7.4.
-- **База «упавших тестов» полного сюита устарела** (10 документированных → 14 фактических на
-  дереве после P4.13; детали — Remaining выше).
+- **База «упавших тестов» полного сюита обновлена** (14 → 13 после P4.14; детали — Remaining
+  выше).
 - **Dev-БД теряет `prc_ai_dataset_examples`/`prc_ai_eval_runs` при `migrate:fresh`** (P5.7) —
   дополнительное основание запрета `migrate:fresh` в P4.15.
 - **`estimates_s3` объявлен и никем не адресуется**; перевод корпуса эталонов на S3 сломает
   `GoldCorpusBuilder`.
+- **Бакет «Последующие годы» финансирования не заполняется** (`FinancingRowData::fiscalYear`
+  non-nullable) — follow-up вне Scope P4.14.
+- **К-6 закрыт диагнозом (МСК), не кодом** — `EisCsvRowMapper` не приведён к явному поясу.
 - **`app/Filament/Resources/Procurement/**` restrictive ACL**, **`rm` заблокирован в харнессе**,
   **незакоммиченный чужой дифф** (`.env.example`, `CLAUDE.md`, `.swissknife.json`, `.swissknife/`,
   `.swissknifeman/`, `config/cms.php`, `database/seeders/User/`, `estimates/gemini-analys.md`) —
@@ -155,8 +170,10 @@
   `FormatBenchRunner`/`GoldBuildCommand`/`FixtureForm`/`FixturesVerifyCommand` на
   `FileLocationResolver`; реальное удаление объектов на исходном диске после окна отката;
   операторская правка `options.records_per_page` через форму профиля; историческая витрина числа
-  дублей блока; заголовок `IKZ_COLUMN` без суффикса «(ИКЗ)»; актуализация базы «упавших тестов»
-  полного сюита (10 → 14) в Execution Rules/следующем handoff; `GeminiProxyRoutingTest`-assertion
-  под URL-кодирование кредов P4.11; креды `mc`/MinIO окружения (`StorageLifecycleTest`).
+  дублей блока; заголовок `IKZ_COLUMN` без суффикса «(ИКЗ)»; `GeminiProxyRoutingTest`-assertion под
+  URL-кодирование кредов P4.11; креды `mc`/MinIO окружения (`StorageLifecycleTest`); `PartiesParser`/
+  `SupplierResultsParser` под success-путь (нужна фактура следующего прогона); правка формы
+  `FinancingRowData::fiscalYear` под бакет «Последующие годы»; явный пояс МСК в `EisCsvRowMapper`
+  под К-6.
 - **Open questions:** OQ-4, OQ-7 (`Exploration`), OQ-5 (`Decision pending`), OQ-6;
   OQ-3 закрыта D117, OQ-8 закрыта D113.
