@@ -6,6 +6,8 @@ use App\Guards\Admin\Roles\AnalystRole;
 use App\Guards\Admin\Roles\OperatorRole;
 use App\Guards\Admin\Roles\SuperAdminRole;
 use App\Models\User;
+use Database\Seeders\Procurement\CrawlerProfileSeeder;
+use Database\Seeders\Procurement\EisPlatformSeeder;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Artisan;
@@ -39,10 +41,18 @@ class DatabaseSeeder extends Seeder
         // пустую системную часть) — та же логика «до local/testing-гейта», что AiRoutingSeeder.
         $this->call(PromptSeeder::class);
 
+        // Площадка ЕИС + реестр fz44 с настройками детальной карточки (P4.5) — ДО
+        // StatusMappingSeeder: тот заводит матрицу только когда реестр fz44 уже существует.
+        $this->call(EisPlatformSeeder::class);
+
         // Стартовая матрица `prc_status_mappings` для реестра fz44 (DOMLANG P2.2, D17) — без неё
         // первый боевой прогон ЕИС отправит все закупки в unknown (`StatusMappingService::resolve()`
         // на незнакомой паре). Инфраструктурные данные, поэтому ДО local/testing-гейта, как выше.
         $this->call(StatusMappingSeeder::class);
+
+        // Два профиля обхода fz44 — архивный (обучающий корпус) и fresh (выключен, D37), P4.5.
+        // ПОСЛЕ StatusMappingSeeder — тот же порядок, что задокументирован research/05 §5.
+        $this->call(CrawlerProfileSeeder::class);
 
         // Демо-аккаунты (в т.ч. суперадмин с wildcard) — ТОЛЬКО в local/testing.
         // На prod бутстрап суперадмина — через `php artisan guard:super-admin --user=`,

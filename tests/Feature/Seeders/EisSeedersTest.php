@@ -1,0 +1,100 @@
+<?php
+
+declare(strict_types=1);
+
+use App\Enums\Procurement\Crawler\CrawlerMode;
+use App\Models\Procurement\Crawler\Crawler;
+use App\Models\Procurement\Platform\Platform;
+use App\Models\Procurement\Platform\Registry;
+use App\Models\Procurement\Platform\StatusMapping;
+use App\Services\Procurement\Eis\EisCsvUrlBuilder;
+use Database\Seeders\Procurement\CrawlerProfileSeeder;
+use Database\Seeders\Procurement\EisPlatformSeeder;
+use Database\Seeders\StatusMappingSeeder;
+use Illuminate\Support\Facades\Artisan;
+
+test('сид заводит площадку ЕИС и реестр fz44 с настройками карточки', function (): void {
+    $this->seed(EisPlatformSeeder::class);
+
+    $platform = Platform::query()->where('code', 'eis')->sole();
+    $registry = Registry::query()->where('platform_id', $platform->id)->where('code', 'fz44')->sole();
+
+    expect($registry->settings['procedure_url_types'])->toHaveKey('Электронный аукцион', 'ea20')
+        ->and($registry->settings['card_url_templates']['ea20']['common-info'])
+        ->toBe('https://zakupki.gov.ru/epz/order/notice/ea20/view/common-info.html?regNumber={regNumber}');
+});
+
+test('повторный прогон сида площадки идемпотентен — без дублей', function (): void {
+    $this->seed(EisPlatformSeeder::class);
+    $this->seed(EisPlatformSeeder::class);
+
+    expect(Platform::query()->where('code', 'eis')->count())->toBe(1)
+        ->and(Registry::query()->where('code', 'fz44')->count())->toBe(1);
+});
+
+test('после сида площадки StatusMappingSeeder заводит матрицу без предупреждения', function (): void {
+    $this->seed(EisPlatformSeeder::class);
+
+    Artisan::call('db:seed', ['--class' => StatusMappingSeeder::class]);
+
+    $registry = Registry::query()->where('code', 'fz44')->sole();
+
+    expect(StatusMapping::query()->where('registry_id', $registry->id)->count())
+        ->toBe(4);
+});
+
+test('сид заводит два профиля обхода — архивный активен, fresh выключен', function (): void {
+    $this->seed(EisPlatformSeeder::class);
+    $this->seed(CrawlerProfileSeeder::class);
+
+    $registry = Registry::query()->where('code', 'fz44')->sole();
+    $crawlers = Crawler::query()->where('registry_id', $registry->id)->get()->keyBy('mode');
+
+    expect($crawlers)->toHaveCount(2);
+
+    $archive = $crawlers[CrawlerMode::Archive->value];
+    expect($archive->is_active)->toBeTrue()
+        ->and($archive->filter->stageCompleted)->toBeTrue()
+        ->and($archive->options?->toArray()['columns']['registryNumberCsv'] ?? null)->toBeTrue();
+
+    $fresh = $crawlers[CrawlerMode::Fresh->value];
+    expect($fresh->is_active)->toBeFalse()
+        ->and($fresh->filter)->toBeNull()
+        ->and($fresh->schedule)->toBe('*/30 * * * *');
+});
+
+test('повторный прогон сида профилей идемпотентен — число профилей не меняется', function (): void {
+    $this->seed(EisPlatformSeeder::class);
+    $this->seed(CrawlerProfileSeeder::class);
+    $this->seed(CrawlerProfileSeeder::class);
+
+    $registry = Registry::query()->where('code', 'fz44')->sole();
+
+    expect(Crawler::query()->where('registry_id', $registry->id)->count())->toBe(2);
+});
+
+test('сид профилей без реестра fz44 бросает внятное исключение', function (): void {
+    expect(fn () => (new CrawlerProfileSeeder)->run())
+        ->toThrow(RuntimeException::class, 'fz44');
+});
+
+test('архивный профиль из сида даёт ожидаемый боевой URL выгрузки', function (): void {
+    $this->seed(EisPlatformSeeder::class);
+    $this->seed(CrawlerProfileSeeder::class);
+
+    $registry = Registry::query()->where('code', 'fz44')->sole();
+    $archive = Crawler::query()
+        ->where('registry_id', $registry->id)
+        ->where('mode', CrawlerMode::Archive)
+        ->sole();
+
+    $query = app(EisCsvUrlBuilder::class)->buildQueryParams(crawler: $archive, from: 1, to: 500);
+
+    expect($query)
+        ->toHaveKey('pc', 'on')
+        ->toHaveKey('registryNumberCsv', 'on')
+        ->toHaveKey('publishDateCsv', 'on')
+        ->toHaveKey('lastDateChangeCsv', 'on')
+        ->toHaveKey('fz44', 'on')
+        ->and($query)->not->toHaveKey('af');
+});
