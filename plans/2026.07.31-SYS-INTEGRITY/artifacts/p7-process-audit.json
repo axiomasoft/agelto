@@ -1,0 +1,853 @@
+{
+  "_meta": {
+    "план": "2026.07.31-SYS-INTEGRITY",
+    "item": "P7.6",
+    "документ": "research/10-process-audit.md",
+    "якорь_дерева": "fec238a",
+    "дата_снятия": "2026-08-05",
+    "источник_чисел_кода": "рабочее дерево на fec238a (app/, config/, routes/, tests/ не изменены)",
+    "источник_чисел_БД": "docker exec agelto_postgres psql -U agelto -d agelto; docker exec agelto_redis redis-cli",
+    "критерий_изолируемости": [
+      "И1 ни сети ни реального LLM",
+      "И2 вход детерминирован",
+      "И3 результат наблюдаем",
+      "И4 состояние откатывается",
+      "И5 есть прямой тест процесса"
+    ],
+    "вердикты": [
+      "изолированно тестируется",
+      "не покрыто",
+      "структурно не изолируемо"
+    ]
+  },
+  "счётчики": {
+    "job'ов": 5,
+    "команд": 31,
+    "supervisor'ов": 4,
+    "записей_расписания": 8,
+    "тест_файлов": 180,
+    "job'ов_с_прямым_тестом": 5,
+    "команд_с_прямой_инвокацией": 29,
+    "команд_без_прямого_теста": 2,
+    "тестов_расписания": 0,
+    "свойств_ретрая_в_job'ах": 0,
+    "эксплуатационных_задач_в_расписании": 0,
+    "ожидалось_команд_по_спеке_P7.6": 30,
+    "расхождение_команд": "+1 — app/Console/Commands/Procurement/RunDeltaScan.php (crawler:run-delta), заведена P4.6 коммитом d297d44; спека писалась до реопена P4 под D123"
+  },
+  "job'ы": [
+    {
+      "класс": "PipelineJob",
+      "файл": "app/Jobs/Procurement/PipelineJob.php",
+      "тип": "job",
+      "очередь": null,
+      "уникальность": "uniqueFor()",
+      "вердикт": "изолированно тестируется",
+      "тесты": [
+        {
+          "файл": "tests/Feature/Procurement/Pipeline/LeaseTest.php",
+          "первый_тест": "PipelineJob: провальный status-guard не захватывает лиз и не выполняет process",
+          "прямых_запусков": 4,
+          "форма": "анонимный наследник абстракта"
+        }
+      ]
+    },
+    {
+      "класс": "PrepareDocumentJob",
+      "файл": "app/Jobs/Procurement/PrepareDocumentJob.php",
+      "тип": "job",
+      "очередь": "doc_prepare",
+      "уникальность": "ShouldBeUnique",
+      "вердикт": "изолированно тестируется",
+      "тесты": [
+        {
+          "файл": "tests/Feature/Ai/FixtureRunTest.php",
+          "первый_тест": "PrepareDocumentJob со значениями по умолчанию заводит прогон auto без инициатора, а с явными параметрами — manual с initiated_by (D135)",
+          "прямых_запусков": 2
+        },
+        {
+          "файл": "tests/Feature/Procurement/Prepare/DocumentPreparerTest.php",
+          "первый_тест": "подготовка PDF — PassthroughStrategy, документ переходит в prepared без ScreeningJob (флаг выключен)",
+          "прямых_запусков": 16
+        },
+        {
+          "файл": "tests/Feature/Procurement/Screening/ScreeningBranchingTest.php",
+          "первый_тест": "архив со сметой внутри доходит до кандидата на извлечение (сквозной сценарий)",
+          "прямых_запусков": 2
+        }
+      ]
+    },
+    {
+      "класс": "ScreeningJob",
+      "файл": "app/Jobs/Procurement/ScreeningJob.php",
+      "тип": "job",
+      "очередь": "ai_screening",
+      "уникальность": "ShouldBeUnique",
+      "вердикт": "изолированно тестируется",
+      "тесты": [
+        {
+          "файл": "tests/Feature/Ai/UsageSnapshotTest.php",
+          "первый_тест": "успешный скрининг — слепок расхода пишется на Analysis И на AnalysisRun (интеграционный путь ScreeningJob)",
+          "прямых_запусков": 3
+        },
+        {
+          "файл": "tests/Feature/Procurement/Ai/SecondDocumentTypeTest.php",
+          "первый_тест": "документ второго типа проходит скрининг → диспатчится job ЕГО анализатора, а не сметный",
+          "прямых_запусков": 1
+        },
+        {
+          "файл": "tests/Feature/Procurement/Screening/ScreeningBranchingTest.php",
+          "первый_тест": "не-смета (протокол) сохраняет тип без разбора — screened, extraction не диспатчится",
+          "прямых_запусков": 11
+        },
+        {
+          "файл": "tests/Feature/Procurement/Screening/ScreeningProcessorTest.php",
+          "первый_тест": "успешный скрининг PDF — Analysis succeeded, document_type/result заполнены, Document доводится до screened (P5.2 branching)",
+          "прямых_запусков": 9
+        }
+      ]
+    },
+    {
+      "класс": "EstimateExtractionJob",
+      "файл": "app/Jobs/Procurement/Analyzers/Estimate/EstimateExtractionJob.php",
+      "тип": "job",
+      "очередь": "ai_extraction",
+      "уникальность": "ShouldBeUniqueUntilProcessing",
+      "вердикт": "изолированно тестируется",
+      "тесты": [
+        {
+          "файл": "tests/Feature/Ai/UsageSnapshotTest.php",
+          "первый_тест": "успешное извлечение — Analysis несёт provider/model (сегодня их писал только скрининг) и слепок = сумма вызовов extract_*",
+          "прямых_запусков": 1
+        },
+        {
+          "файл": "tests/Feature/Procurement/Ai/OperatorFeedbackLoopTest.php",
+          "первый_тест": "отклонённый анализ с коррекцией → re-run подмешивает hint в USER-часть промта, новый анализ ссылается на старый, старые сметы заменяются",
+          "прямых_запусков": 2
+        },
+        {
+          "файл": "tests/Feature/Procurement/Analyzers/Estimate/ExtractionOrchestratorTest.php",
+          "первый_тест": "оркестратор извлекает 2 сметы построчными диапазонами и итогами — Analysis succeeded, Document extracted",
+          "прямых_запусков": 9
+        },
+        {
+          "файл": "tests/Feature/Procurement/Analyzers/Estimate/WindowedExtractionTest.php",
+          "первый_тест": "оконный путь: discovery → 1 сегмент → passport → rows-окна → totals — тот же результат-shape, что row-range (е)",
+          "прямых_запусков": 2
+        }
+      ]
+    },
+    {
+      "класс": "ShadowAnalysisJob",
+      "файл": "app/Jobs/Procurement/ShadowAnalysisJob.php",
+      "тип": "job",
+      "очередь": "ai_shadow",
+      "уникальность": "ShouldQueue",
+      "вердикт": "изолированно тестируется",
+      "тесты": [
+        {
+          "файл": "tests/Feature/Llm/ShadowDispatchTest.php",
+          "первый_тест": "ShadowAnalysisJob создаёт is_shadow-анализ, пишет LlmCall(purpose=shadow) и считает сравнение с основным",
+          "прямых_запусков": 3
+        }
+      ]
+    }
+  ],
+  "команды": [
+    {
+      "сигнатура": "partitions:maintain",
+      "файл": "app/Console/Commands/MaintainPartitions.php",
+      "тип": "команда",
+      "вердикт": "изолированно тестируется",
+      "тесты": [
+        {
+          "файл": "tests/Feature/Console/MaintainPartitionsTest.php",
+          "первый_тест": "команда partitions:maintain успешна через pg_partman (расширение установлено миграцией)",
+          "инвокаций": 3
+        },
+        {
+          "файл": "tests/Feature/Infra/PartitionRetentionTest.php",
+          "первый_тест": "fallback-путь дропает партиции старше retention-окна, когда pg_partman недоступен",
+          "инвокаций": 2
+        }
+      ]
+    },
+    {
+      "сигнатура": "ai:caches",
+      "файл": "app/Console/Commands/Procurement/Ai/CachesCommand.php",
+      "тип": "команда",
+      "вердикт": "изолированно тестируется",
+      "тесты": [
+        {
+          "файл": "tests/Feature/Ai/CachesTest.php",
+          "первый_тест": "list без активных explicit-кэшей — сообщение без падения",
+          "инвокаций": 5
+        }
+      ]
+    },
+    {
+      "сигнатура": "ai:cost-reconcile",
+      "файл": "app/Console/Commands/Procurement/Ai/CostReconcileCommand.php",
+      "тип": "команда",
+      "вердикт": "изолированно тестируется",
+      "тесты": [
+        {
+          "файл": "tests/Feature/Ai/CostReconcileTest.php",
+          "первый_тест": "дельта НИЖЕ порога — превышение не объявлено",
+          "инвокаций": 9
+        }
+      ]
+    },
+    {
+      "сигнатура": "ai:cost-report",
+      "файл": "app/Console/Commands/Procurement/Ai/CostReportCommand.php",
+      "тип": "команда",
+      "вердикт": "изолированно тестируется",
+      "тесты": [
+        {
+          "файл": "tests/Feature/Ai/CostReportTest.php",
+          "первый_тест": "отчёт группирует расход по (provider, model, purpose) и считает итого за окно",
+          "инвокаций": 5
+        }
+      ]
+    },
+    {
+      "сигнатура": "ai:prompts:apply",
+      "файл": "app/Console/Commands/Procurement/Ai/PromptsApplyCommand.php",
+      "тип": "команда",
+      "вердикт": "изолированно тестируется",
+      "тесты": [
+        {
+          "файл": "tests/Feature/Ai/PromptApplyTest.php",
+          "первый_тест": "apply на pending отказывается и не трогает файл",
+          "инвокаций": 5
+        }
+      ]
+    },
+    {
+      "сигнатура": "ai:prompts:sync",
+      "файл": "app/Console/Commands/Procurement/Ai/PromptsSyncCommand.php",
+      "тип": "команда",
+      "вердикт": "изолированно тестируется",
+      "тесты": [
+        {
+          "файл": "tests/Feature/Ai/PromptApplyTest.php",
+          "первый_тест": "apply на approved (prompt_patch) поднимает версию, сохраняет поля, ai:prompts:sync --check зелёный",
+          "инвокаций": 4
+        },
+        {
+          "файл": "tests/Feature/Ai/PromptCompositionTest.php",
+          "первый_тест": "ai:prompts:sync --check не находит дрейфа сразу после ai:prompts:sync",
+          "инвокаций": 2
+        },
+        {
+          "файл": "tests/Feature/Ai/PromptsSyncTest.php",
+          "первый_тест": "без --check синхронизирует канон и печатает подтверждение",
+          "инвокаций": 11
+        }
+      ]
+    },
+    {
+      "сигнатура": "ai:storage:lifecycle",
+      "файл": "app/Console/Commands/Procurement/Ai/StorageLifecycleCommand.php",
+      "тип": "команда",
+      "вердикт": "изолированно тестируется",
+      "тесты": [
+        {
+          "файл": "tests/Feature/Infra/StorageLifecycleTest.php",
+          "первый_тест": "ai:storage:lifecycle применяет ILM-правило на пустом бакете (первый прогон, нет lifecycle-конфигурации)",
+          "инвокаций": 5
+        }
+      ]
+    },
+    {
+      "сигнатура": "ai:tools:doctor",
+      "файл": "app/Console/Commands/Procurement/Ai/ToolsDoctorCommand.php",
+      "тип": "команда",
+      "вердикт": "изолированно тестируется",
+      "тесты": [
+        {
+          "файл": "tests/Feature/Ai/ToolsDoctorTest.php",
+          "первый_тест": "doctor зелёный, когда все бинари на месте",
+          "инвокаций": 2
+        }
+      ]
+    },
+    {
+      "сигнатура": "estimate:bench:formats",
+      "файл": "app/Console/Commands/Procurement/Analyzers/Estimate/BenchFormatsCommand.php",
+      "тип": "команда",
+      "вердикт": "изолированно тестируется",
+      "тесты": [
+        {
+          "файл": "tests/Feature/Ai/BenchFormatsTest.php",
+          "первый_тест": "artisan(estimate:bench:formats) без --out пишет артефакт под config(ai.fixtures.reports_dir) (D111)",
+          "инвокаций": 1
+        }
+      ]
+    },
+    {
+      "сигнатура": "estimate:dataset:export",
+      "файл": "app/Console/Commands/Procurement/Analyzers/Estimate/DatasetExportCommand.php",
+      "тип": "команда",
+      "вердикт": "изолированно тестируется",
+      "тесты": [
+        {
+          "файл": "tests/Feature/Ai/DatasetExportTest.php",
+          "первый_тест": "SFT-строка несёт ТЕКСТ представления, а не ссылку на документ",
+          "инвокаций": 11
+        }
+      ]
+    },
+    {
+      "сигнатура": "estimate:dataset:import",
+      "файл": "app/Console/Commands/Procurement/Analyzers/Estimate/DatasetImportCommand.php",
+      "тип": "команда",
+      "вердикт": "изолированно тестируется",
+      "тесты": [
+        {
+          "файл": "tests/Feature/Ai/DatasetImportTest.php",
+          "первый_тест": "импорт валидной пары создаёт Document/DocumentVersion вне закупки и DatasetExample с gold",
+          "инвокаций": 5
+        }
+      ]
+    },
+    {
+      "сигнатура": "estimate:eval:compare",
+      "файл": "app/Console/Commands/Procurement/Analyzers/Estimate/EvalCompareCommand.php",
+      "тип": "команда",
+      "вердикт": "изолированно тестируется",
+      "тесты": [
+        {
+          "файл": "tests/Feature/Ai/EvalCompareTest.php",
+          "первый_тест": "artisan estimate:eval:compare отдаёт вердикт с exit 0 и повторный запуск даёт тот же вывод (Validation #5)",
+          "инвокаций": 5
+        }
+      ]
+    },
+    {
+      "сигнатура": "estimate:eval:diff",
+      "файл": "app/Console/Commands/Procurement/Analyzers/Estimate/EvalDiffCommand.php",
+      "тип": "команда",
+      "вердикт": "изолированно тестируется",
+      "тесты": [
+        {
+          "файл": "tests/Feature/Ai/EvalDiffTest.php",
+          "первый_тест": "artisan(estimate:eval:diff) по --code печатает JSON-отчёт и вердикт",
+          "инвокаций": 3
+        }
+      ]
+    },
+    {
+      "сигнатура": "estimate:eval:run",
+      "файл": "app/Console/Commands/Procurement/Analyzers/Estimate/EvalRunCommand.php",
+      "тип": "команда",
+      "вердикт": "изолированно тестируется",
+      "тесты": [
+        {
+          "файл": "tests/Feature/Ai/EvalRunTest.php",
+          "первый_тест": "пустой датасет без --dry-run пишет EvalRun-заглушку без единого LLM-вызова",
+          "инвокаций": 10
+        },
+        {
+          "файл": "tests/Feature/Ai/ScreeningEvalTest.php",
+          "первый_тест": "негатив, правильно классифицированный → accuracy 1.0 и FP 0",
+          "инвокаций": 6
+        }
+      ]
+    },
+    {
+      "сигнатура": "estimate:fixtures:import",
+      "файл": "app/Console/Commands/Procurement/Analyzers/Estimate/FixturesImportCommand.php",
+      "тип": "команда",
+      "вердикт": "изолированно тестируется",
+      "тесты": [
+        {
+          "файл": "tests/Feature/Ai/FixtureImportTest.php",
+          "первый_тест": "валидный манифест импортирует файл и запись реестра",
+          "инвокаций": 7
+        }
+      ]
+    },
+    {
+      "сигнатура": "estimate:fixtures:manifest",
+      "файл": "app/Console/Commands/Procurement/Analyzers/Estimate/FixturesManifestCommand.php",
+      "тип": "команда",
+      "вердикт": "изолированно тестируется",
+      "тесты": [
+        {
+          "файл": "tests/Feature/Ai/FixtureManifestTest.php",
+          "первый_тест": "генератор строит валидный манифест из шорт-листа",
+          "инвокаций": 6
+        }
+      ]
+    },
+    {
+      "сигнатура": "estimate:fixtures:verify",
+      "файл": "app/Console/Commands/Procurement/Analyzers/Estimate/FixturesVerifyCommand.php",
+      "тип": "команда",
+      "вердикт": "изолированно тестируется",
+      "тесты": [
+        {
+          "файл": "tests/Feature/Ai/FixtureVerifyTest.php",
+          "первый_тест": "verify зелёный на согласованном комплекте",
+          "инвокаций": 5
+        }
+      ]
+    },
+    {
+      "сигнатура": "estimate:gold:build",
+      "файл": "app/Console/Commands/Procurement/Analyzers/Estimate/GoldBuildCommand.php",
+      "тип": "команда",
+      "вердикт": "изолированно тестируется",
+      "тесты": [
+        {
+          "файл": "tests/Feature/Ai/GoldBuildTest.php",
+          "первый_тест": "gsfx-эталон → файл gold на месте и валиден",
+          "инвокаций": 7
+        },
+        {
+          "файл": "tests/Feature/Ai/ScreeningGoldTest.php",
+          "первый_тест": "негатив с document_type → файл с этим вердиктом и непустым ignore_reason",
+          "инвокаций": 6
+        }
+      ]
+    },
+    {
+      "сигнатура": "estimate:gold:import",
+      "файл": "app/Console/Commands/Procurement/Analyzers/Estimate/GoldImportCommand.php",
+      "тип": "команда",
+      "вердикт": "изолированно тестируется",
+      "тесты": [
+        {
+          "файл": "tests/Feature/Ai/FixtureRunTest.php",
+          "первый_тест": "оба вызывающих пути (estimate:gold:import и «Прогнать») резолвят одну и ту же рабочую копию по sha256 (D41, единственность сейма)",
+          "инвокаций": 1
+        },
+        {
+          "файл": "tests/Feature/Ai/GoldImportTest.php",
+          "первый_тест": "эталон с extraction-gold → документ, версия и запись task=extraction с fixture_id и source=deterministic",
+          "инвокаций": 8
+        },
+        {
+          "файл": "tests/Feature/Procurement/ContourTest.php",
+          "первый_тест": "прогон с mode=auto над документом площадки «Обучалка» не создаётся",
+          "инвокаций": 1
+        }
+      ]
+    },
+    {
+      "сигнатура": "estimate:prompts:suggest",
+      "файл": "app/Console/Commands/Procurement/Analyzers/Estimate/PromptsSuggestCommand.php",
+      "тип": "команда",
+      "вердикт": "изолированно тестируется",
+      "тесты": [
+        {
+          "файл": "tests/Feature/Ai/PromptSuggestTest.php",
+          "первый_тест": "--dry-run показывает вход критика и не делает ни одного вызова",
+          "инвокаций": 1
+        }
+      ]
+    },
+    {
+      "сигнатура": "procurement:convert-xlsx-to-pdf",
+      "файл": "app/Console/Commands/Procurement/ConvertXlsxToPdfCommand.php",
+      "тип": "команда",
+      "вердикт": "не покрыто",
+      "тесты": []
+    },
+    {
+      "сигнатура": "crawler:fetch-details",
+      "файл": "app/Console/Commands/Procurement/FetchDetails.php",
+      "тип": "команда",
+      "вердикт": "изолированно тестируется",
+      "тесты": [
+        {
+          "файл": "tests/Feature/Console/FetchDetailsTest.php",
+          "первый_тест": "снимает детальный слой по явному id закупки",
+          "инвокаций": 4
+        }
+      ]
+    },
+    {
+      "сигнатура": "pipeline:retry-failed",
+      "файл": "app/Console/Commands/Procurement/PipelineRetryFailed.php",
+      "тип": "команда",
+      "вердикт": "изолированно тестируется",
+      "тесты": [
+        {
+          "файл": "tests/Feature/Procurement/Pipeline/PipelineRetryFailedTest.php",
+          "первый_тест": "ретраит документ, у которого наступил next_retry_at, и не трогает документы без попыток/в ожидании backoff",
+          "инвокаций": 5
+        }
+      ]
+    },
+    {
+      "сигнатура": "pipeline:status",
+      "файл": "app/Console/Commands/Procurement/PipelineStatus.php",
+      "тип": "команда",
+      "вердикт": "изолированно тестируется",
+      "тесты": [
+        {
+          "файл": "tests/Feature/Procurement/Pipeline/StuckCheckTest.php",
+          "первый_тест": "pipeline:status отрабатывает без ошибок и показывает счётчики документов/анализов",
+          "инвокаций": 1
+        }
+      ]
+    },
+    {
+      "сигнатура": "pipeline:stuck-check",
+      "файл": "app/Console/Commands/Procurement/PipelineStuckCheck.php",
+      "тип": "команда",
+      "вердикт": "изолированно тестируется",
+      "тесты": [
+        {
+          "файл": "tests/Feature/Procurement/Pipeline/StuckCheckTest.php",
+          "первый_тест": "без аномалий команда завершается тихо, без Telegram-алерта",
+          "инвокаций": 16
+        }
+      ]
+    },
+    {
+      "сигнатура": "crawler:rescan-backlog",
+      "файл": "app/Console/Commands/Procurement/RescanBacklog.php",
+      "тип": "команда",
+      "вердикт": "изолированно тестируется",
+      "тесты": [
+        {
+          "файл": "tests/Feature/Console/RescanBacklogTest.php",
+          "первый_тест": "делегирует BacklogRescanProcessor и репортит число обработанных прогонов",
+          "инвокаций": 2
+        }
+      ]
+    },
+    {
+      "сигнатура": "crawler:run-archive",
+      "файл": "app/Console/Commands/Procurement/RunArchiveCrawler.php",
+      "тип": "команда",
+      "вердикт": "изолированно тестируется",
+      "тесты": [
+        {
+          "файл": "tests/Feature/Console/RunArchiveCrawlerTest.php",
+          "первый_тест": "резолвит профиль по числовому id и делегирует ArchiveRunProcessor за период",
+          "инвокаций": 4
+        }
+      ]
+    },
+    {
+      "сигнатура": "crawler:run-delta",
+      "файл": "app/Console/Commands/Procurement/RunDeltaScan.php",
+      "тип": "команда",
+      "вердикт": "не покрыто",
+      "тесты": []
+    },
+    {
+      "сигнатура": "crawler:run-fresh",
+      "файл": "app/Console/Commands/Procurement/RunFreshCrawler.php",
+      "тип": "команда",
+      "вердикт": "изолированно тестируется",
+      "тесты": [
+        {
+          "файл": "tests/Feature/Console/RunFreshCrawlerTest.php",
+          "первый_тест": "резолвит профиль по числовому id и делегирует FreshRunProcessor",
+          "инвокаций": 6
+        }
+      ]
+    },
+    {
+      "сигнатура": "ref:load-classifiers",
+      "файл": "app/Console/Commands/Reference/LoadClassifiers.php",
+      "тип": "команда",
+      "вердикт": "изолированно тестируется",
+      "тесты": [
+        {
+          "файл": "tests/Feature/Reference/LoadClassifiersTest.php",
+          "первый_тест": "ref:load-classifiers наполняет ref_okpd2 из выгрузки",
+          "инвокаций": 8
+        }
+      ]
+    },
+    {
+      "сигнатура": "storage:disk-backfill",
+      "файл": "app/Console/Commands/Storage/DiskBackfillCommand.php",
+      "тип": "команда",
+      "вердикт": "изолированно тестируется",
+      "тесты": [
+        {
+          "файл": "tests/Feature/Storage/DiskBackfillTest.php",
+          "первый_тест": "перенос копирует объект потоком и обновляет диск записи после совпадения хэша",
+          "инвокаций": 7
+        }
+      ]
+    }
+  ],
+  "расписание": [
+    {
+      "запись": "partitions:maintain",
+      "периодичность": "daily()",
+      "withoutOverlapping": false,
+      "вердикт": "не покрыто",
+      "класс": "отдельный план"
+    },
+    {
+      "запись": "crawler:run-fresh <id>",
+      "периодичность": "cron(crawler.schedule ?? '*/30 * * * *') на профиль",
+      "withoutOverlapping": false,
+      "вердикт": "не покрыто",
+      "класс": "отдельный план (Д-10)"
+    },
+    {
+      "запись": "crawler:fetch-details",
+      "периодичность": "everyFiveMinutes()",
+      "withoutOverlapping": false,
+      "вердикт": "не покрыто",
+      "класс": "отдельный план (Д-10)"
+    },
+    {
+      "запись": "crawler:rescan-backlog",
+      "периодичность": "everyFifteenMinutes()",
+      "withoutOverlapping": false,
+      "вердикт": "не покрыто",
+      "класс": "отдельный план (Д-10)"
+    },
+    {
+      "запись": "crawler:run-delta",
+      "периодичность": "cron(crawler.tracking.delta_scan_cron), за выключенным гейтом",
+      "withoutOverlapping": false,
+      "вердикт": "не покрыто",
+      "класс": "отдельный план (Д-10)"
+    },
+    {
+      "запись": "pipeline:dispatch-backlog (Schedule::call)",
+      "периодичность": "everyMinute()",
+      "withoutOverlapping": true,
+      "вердикт": "не покрыто",
+      "класс": "отдельный план"
+    },
+    {
+      "запись": "pipeline:retry-failed",
+      "периодичность": "everyTenMinutes()",
+      "withoutOverlapping": true,
+      "вердикт": "не покрыто",
+      "класс": "P7.7 (через Д-4)"
+    },
+    {
+      "запись": "pipeline:stuck-check",
+      "периодичность": "everyFifteenMinutes()",
+      "withoutOverlapping": true,
+      "вердикт": "не покрыто",
+      "класс": "P7.7 (через Д-5)"
+    }
+  ],
+  "supervisor'ы": [
+    {
+      "имя": "supervisor-1",
+      "очередь": "default",
+      "maxProcesses": {
+        "default": 1,
+        "production": 10,
+        "local": 3
+      },
+      "memory": 128,
+      "tries": 1,
+      "timeout": 60
+    },
+    {
+      "имя": "supervisor-doc-prepare",
+      "очередь": "doc_prepare",
+      "maxProcesses": {
+        "default": 3,
+        "production": 6,
+        "local": 2
+      },
+      "memory": 128,
+      "tries": 1,
+      "timeout": 120
+    },
+    {
+      "имя": "supervisor-ai-screening",
+      "очередь": "ai_screening",
+      "maxProcesses": {
+        "default": 2,
+        "production": 3,
+        "local": 1
+      },
+      "memory": 128,
+      "tries": 1,
+      "timeout": 60
+    },
+    {
+      "имя": "supervisor-ai-extraction",
+      "очередь": "ai_extraction",
+      "maxProcesses": {
+        "default": 2,
+        "production": 3,
+        "local": 1
+      },
+      "memory": 256,
+      "tries": 1,
+      "timeout": 300
+    }
+  ],
+  "осиротевшие_очереди": [
+    {
+      "очередь": "ai_shadow",
+      "объявлена_в": "app/Jobs/Procurement/ShadowAnalysisJob.php:74",
+      "supervisor": null,
+      "находка": "Д-1"
+    }
+  ],
+  "стадии_пайплайна": [
+    {
+      "стадия": "download",
+      "носитель": "DetailAnalysisProcessor::downloadPendingDocuments() внутри команды crawler:fetch-details (не job)",
+      "переход": "discovered → downloaded",
+      "вердикт": "изолированно тестируется",
+      "тест": "tests/Feature/Console/FetchDetailsTest.php"
+    },
+    {
+      "стадия": "prepare",
+      "носитель": "PrepareDocumentJob",
+      "переход": "downloaded → prepared/unprocessable",
+      "вердикт": "изолированно тестируется",
+      "тест": "tests/Feature/Procurement/Prepare/DocumentPreparerTest.php"
+    },
+    {
+      "стадия": "screening",
+      "носитель": "ScreeningJob",
+      "переход": "prepared → screened",
+      "вердикт": "изолированно тестируется",
+      "тест": "tests/Feature/Procurement/Screening/ScreeningProcessorTest.php"
+    },
+    {
+      "стадия": "extraction",
+      "носитель": "EstimateExtractionJob (checkpoint-requeue)",
+      "переход": "screened → extracted/failed/unprocessable",
+      "вердикт": "изолированно тестируется",
+      "тест": "tests/Feature/Procurement/Analyzers/Estimate/ExtractionOrchestratorTest.php"
+    }
+  ],
+  "находки": [
+    {
+      "id": "Д-1",
+      "название": "очередь ai_shadow без supervisor'а",
+      "статус": "подтверждён (назван разведкой §13.5)",
+      "тяжесть": "высокая",
+      "класс": "P7.7",
+      "доказательство": "ShadowAnalysisJob.php:74 onQueue('ai_shadow'); config/horizon.php объявляет 4 другие очереди; redis --scan '*queue*' (2026-08-05) → ключа ai_shadow нет — латентно, shadow-маршрутов ещё не заведено"
+    },
+    {
+      "id": "Д-2",
+      "название": "tries:1 без свойств ретрая в job'ах: решение не записано, сторожа нет",
+      "статус": "подтверждён (назван разведкой §13.5), диагноз уточнён",
+      "тяжесть": "средняя",
+      "класс": "P7.7",
+      "доказательство": "grep -rnE '\\$tries|\\$backoff|\\$timeout|retryUntil' app/Jobs/ → 0; ретрай вынесен в HasErrorBlock + pipeline:retry-failed, но ни D-записи, ни комментария, ни теста-сторожа"
+    },
+    {
+      "id": "Д-3",
+      "название": "покрытие job'ов и команд",
+      "статус": "ОПРОВЕРГНУТ в исходной формулировке «5 из 29»",
+      "тяжесть": "средняя",
+      "класс": "P7.7 частично (сторож D39), остальное — отдельный план",
+      "доказательство": "замер по инвокации, не по каталогу: job'ы 5/5, команды 29/31; остаток — 2 команды, очередная семантика, расписание"
+    },
+    {
+      "id": "Д-4",
+      "название": "pipeline:retry-failed бросает LogicException на extraction — стадия никогда не ретраится",
+      "статус": "новый",
+      "тяжесть": "высокая",
+      "класс": "P7.7",
+      "доказательство": "PipelineRetryFailed.php dispatchAnalysisRetry(): PipelineStage::Extraction => throw new LogicException('… ещё не реализована (P6)'); EstimateExtractionJob добавлен e06434c, команда с тех пор менялась только namespace-переносами; тестов ветки 0; prc_ai_analyses пуста — латентно"
+    },
+    {
+      "id": "Д-5",
+      "название": "pipeline:stuck-check слеп к DocumentStatus::Discovered",
+      "статус": "новый",
+      "тяжесть": "высокая",
+      "класс": "P7.7 (наблюдаемость); развязка ретрая — отдельный план",
+      "доказательство": "stuckDocuments() whereIn [Downloaded, Prepared, Screened]; боевая БД 2026-08-05: discovered с attempts>0 = 4 документа — невидимы"
+    },
+    {
+      "id": "Д-6",
+      "название": "horizon:snapshot не расписан — метрики Horizon пусты",
+      "статус": "новый",
+      "тяжесть": "средняя",
+      "класс": "гейт владельца",
+      "доказательство": "grep -rn 'horizon:snapshot' routes/ app/ → 0; HorizonServiceProvider сам не регистрирует"
+    },
+    {
+      "id": "Д-7",
+      "название": "pulse:check/pulse:trim не расписаны — таблицы Pulse без пруна",
+      "статус": "новый",
+      "тяжесть": "средняя",
+      "класс": "гейт владельца",
+      "доказательство": "grep → 0; боевая БД 2026-08-05: pulse_aggregates 4198 строк / 2952 kB, pulse_entries 601 / 496 kB"
+    },
+    {
+      "id": "Д-8",
+      "название": "failed_jobs никем не читается и не прунится",
+      "статус": "новый",
+      "тяжесть": "средняя",
+      "класс": "гейт владельца",
+      "доказательство": "queue:prune-failed не расписан; боевая БД 2026-08-05: 19 записей PrepareDocumentJob, max(failed_at)=2026-08-05 13:48:27 — дубль отказа, уже лежащего в error-блоке"
+    },
+    {
+      "id": "Д-9",
+      "название": "dev-компоуз horizon без stop_grace_period при timeout 300s",
+      "статус": "новый",
+      "тяжесть": "средняя",
+      "класс": "P7.7",
+      "доказательство": "docker-compose.prod.yml:80 несёт ${HORIZON_STOP_GRACE_PERIOD:-600s}; docker-compose.yml сервис horizon (67–93) не несёт вовсе → дефолт Docker 10s; QueueTimeoutInvariantTest сверяется с константой 600"
+    },
+    {
+      "id": "Д-10",
+      "название": "4 расписанные crawler-команды без withoutOverlapping() и без claim'а",
+      "статус": "новый",
+      "тяжесть": "средняя",
+      "класс": "отдельный план",
+      "доказательство": "routes/console.php: withoutOverlapping только у трёх pipeline:*; DetailRefetchSelector::due() — чистое чтение без UPDATE-claim'а"
+    },
+    {
+      "id": "Д-11",
+      "название": "routes/console.php ходит в БД на каждый artisan-вызов",
+      "статус": "новый",
+      "тяжесть": "низкая",
+      "класс": "отдельный план",
+      "доказательство": "4×Schema::hasTable() + Crawler::query()->…->get() вне ветки schedule:run"
+    },
+    {
+      "id": "Д-12",
+      "название": "нет Http::preventStrayRequests() — критерий И1 держится дисциплиной",
+      "статус": "новый",
+      "тяжесть": "низкая",
+      "класс": "отдельный план",
+      "доказательство": "grep -rn 'preventStrayRequests' tests/ app/ → 0; фактических нарушений 0"
+    }
+  ],
+  "гейт_владельца": {
+    "статус": "предложение исполнителя, вердикт владельца не вынесен (провенанс — open-questions.md OQ-9)",
+    "предлагается_в_P7.7": [
+      "Д-4",
+      "Д-1",
+      "Д-5",
+      "Д-2 + сторож Д-3",
+      "Д-9"
+    ],
+    "требует_отдельного_вердикта": [
+      "Д-6",
+      "Д-7",
+      "Д-8"
+    ],
+    "отдельный_план": [
+      "Д-10",
+      "Д-11",
+      "Д-12",
+      "тесты procurement:convert-xlsx-to-pdf и crawler:run-delta",
+      "очередная семантика job'ов через реальную очередь",
+      "тесты расписания",
+      "развязка ретрая скачивания от refetch-расписания",
+      "перенос стадии скачивания в job"
+    ]
+  }
+}
