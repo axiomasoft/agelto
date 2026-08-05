@@ -122,10 +122,12 @@ final class PipelineStuckCheck extends Command
     }
 
     /**
-     * Документы, застрявшие в downloaded/prepared/screened сверх порога — разрыв моста между
-     * стадиями (screened-затор возможен при выключенном `ai.extraction.enabled` или
-     * перманентных фейлах extraction, ревью K п.20). `failed_permanently` исключены —
-     * dead-letter не подбирается ни этой проверкой, ни `pipeline:retry-failed`.
+     * Документы, застрявшие в discovered/downloaded/prepared/screened сверх порога — разрыв
+     * моста между стадиями (screened-затор возможен при выключенном `ai.extraction.enabled` или
+     * перманентных фейлах extraction, ревью K п.20). `discovered` — Д-5 (P7.7, research/10 §3):
+     * провал СКАЧИВАНИЯ раньше не попадал ни в одну проверку — единственный канал, который сам
+     * приходит к человеку (`PipelineAlert`), был слеп к этой стадии. `failed_permanently`
+     * исключены — dead-letter не подбирается ни этой проверкой, ни `pipeline:retry-failed`.
      *
      * @return array<string, string>
      */
@@ -134,7 +136,7 @@ final class PipelineStuckCheck extends Command
         $minutes = (int) config('ai.pipeline.document_stuck_minutes', 60);
 
         $rows = Document::query()
-            ->whereIn('status', [DocumentStatus::Downloaded->value, DocumentStatus::Prepared->value, DocumentStatus::Screened->value])
+            ->whereIn('status', [DocumentStatus::Discovered->value, DocumentStatus::Downloaded->value, DocumentStatus::Prepared->value, DocumentStatus::Screened->value])
             ->where('failed_permanently', false)
             ->where('updated_at', '<=', now()->subMinutes($minutes))
             ->toBase()

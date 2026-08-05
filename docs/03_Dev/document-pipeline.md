@@ -62,8 +62,17 @@ flowchart LR
     Prepare -.->|"recordFailure() → HasErrorBlock backoff<br/>next_retry_at"| Retry1["pipeline:retry-failed<br/>(app/Console/Commands/Procurement/PipelineRetryFailed.php)"]
     Screen -.->|recordFailure backoff| Retry1
     Extract -.->|recordFailure backoff| Retry1
-    Retry1 -.->|переотправка при next_retry_at| Prepare
+    Retry1 -.->|"документ (Prepare) — переотправка при next_retry_at"| Prepare
+    Retry1 -.->|"анализ, step=screening — ScreeningJob::dispatch()"| Screen
+    Retry1 -.->|"анализ, step=extraction — DocumentAnalyzer::dispatchExtraction() (реестр, D93)"| Extract
 ```
+
+Ретрай `Analysis` — ДВЕ независимые ветки по `step` (`PipelineRetryFailed::dispatchAnalysisRetry()`):
+`screening` передиспатчит `ScreeningJob` напрямую; `extraction` резолвит анализатор через
+`DocumentAnalyzerRegistry` (`App\Services\Procurement\Contracts\DocumentAnalyzerRegistry`) и
+зовёт `DocumentAnalyzer::dispatchExtraction()` — ядро команды не называет `EstimateExtractionJob`
+поимённо, тот же приём, что у `RerunAnalysisAction` (Д-4, P7.7: до фикса ветка extraction бросала
+`LogicException` безусловно — провалившийся extraction никогда не передиспатчился).
 
 Все три job'а наследуют `App\Jobs\Procurement\PipelineJob` (`app/Jobs/Procurement/PipelineJob.php`) —
 шаблонный метод `handle()`: status-guard → `acquireLease()` → `process()` → (при исключении)
@@ -71,6 +80,12 @@ flowchart LR
 `PrepareDocumentJob`/`ScreeningJob` — `ShouldBeUnique` (короткий single-shot); `EstimateExtractionJob`
 — `ShouldBeUniqueUntilProcessing` (checkpoint-requeue, D31/D39) — lock снимается ДО обработки,
 чтобы self-dispatch продолжения не дедуплицировался.
+
+**Ретрай — НЕ через Horizon.** Все пять supervisor'ов (`config/horizon.php`, включая
+`supervisor-ai-shadow` — теневой прогон `ShadowAnalysisJob`, P9.4) держат `tries: 1` сознательно
+(D135, P7.7): очередной ретрай задиспатчил бы стадию ДВАЖДЫ параллельно с `pipeline:retry-failed`.
+Единственный контур ретрая — `HasErrorBlock` (`attempts`/`next_retry_at`/`failed_permanently` на
+`Document`/`Ai\Analysis`) + расписанная команда выше; сторож — `tests/Unit/Architecture/JobRetryContractGuardTest.php`.
 
 ## Д4 — extraction-сессия
 
@@ -158,4 +173,6 @@ checkpoint-цикле, не пересчитывает `validation_status`/ие�
 
 Диагностика на уровне пайплайна в целом — `pipeline:status` (`PipelineStatus`, срез по статусам) и
 `pipeline:stuck-check` (`PipelineStuckCheck`, пороги «висит дольше N» не откалиброваны на живом
-трафике — открытый вопрос плана EST-AI).
+трафике — открытый вопрос плана EST-AI). `stuckDocuments()` смотрит `discovered`/`downloaded`/
+`prepared`/`screened` (Д-5, P7.7: до фикса `discovered` в список не входил — провал СКАЧИВАНИЯ был
+невидим для единственного канала, который сам приходит к человеку, `PipelineAlert`).

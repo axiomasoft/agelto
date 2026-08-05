@@ -71,6 +71,12 @@ services:
       network: host
     container_name: agelto_horizon
     restart: unless-stopped
+    stop_signal: SIGTERM
+    # Д-9 (P7.7, research/10 §3): третье звено инварианта D26 (config/horizon.php: timeout <
+    # queue.redis.retry_after=360s < stop_grace_period) отсутствовало в dev — Docker-дефолт 10s
+    # SIGKILL'ит воркер посреди extraction (timeout=300s). 600s — тот же канон, что
+    # docker-compose.prod.yml (research/J §2).
+    stop_grace_period: 600s
     working_dir: /var/www/html
     command: ["php", "artisan", "horizon"]
     volumes:

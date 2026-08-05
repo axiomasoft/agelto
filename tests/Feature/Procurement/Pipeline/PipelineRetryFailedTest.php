@@ -2,9 +2,11 @@
 
 declare(strict_types=1);
 
+use App\Enums\Procurement\Ai\AiDocumentType;
 use App\Enums\Procurement\Ai\AnalysisStatus;
 use App\Enums\Procurement\Ai\AnalysisStep;
 use App\Enums\Procurement\Document\DocumentStatus;
+use App\Jobs\Procurement\Analyzers\Estimate\EstimateExtractionJob;
 use App\Jobs\Procurement\PrepareDocumentJob;
 use App\Jobs\Procurement\ScreeningJob;
 use App\Models\Procurement\Ai\Analysis;
@@ -89,6 +91,39 @@ test('ретраит анализ на стадии screening по next_retry_at
 
     Queue::assertPushed(ScreeningJob::class, fn (ScreeningJob $job) => $job->documentId === $version->document_id);
     Queue::assertPushed(ScreeningJob::class, 1);
+    expect($analysis->refresh()->next_retry_at->isFuture())->toBeTrue();
+});
+
+// Д-4 (P7.7, research/10 §3): раньше ветка PipelineStage::Extraction бросала LogicException
+// безусловно («стадия ещё не реализована (P6)») — провалившийся extraction никогда не
+// передиспатчился, хотя EstimateExtractionJob существует с e06434c.
+test('ретраит анализ на стадии extraction по next_retry_at — диспатчит EstimateExtractionJob через реестр (Д-4)', function () {
+    Queue::fake();
+    $document = Document::factory()->create();
+    $version = DocumentVersion::factory()->create(['document_id' => $document->id]);
+    // Собственный document_type у анализа извлечения в боевом контуре пуст (см.
+    // AnalysisStoreRepository::firstOrCreate()) — ось несёт активный анализ скрининга той же
+    // версии документа (тот же fixture-приём, что OperatorFeedbackLoopTest::seedRerunnableExtraction()).
+    Analysis::factory()->create([
+        'document_version_id' => $version->id,
+        'step' => AnalysisStep::Screening,
+        'status' => AnalysisStatus::Succeeded,
+        'document_type' => AiDocumentType::Estimate->value,
+    ]);
+    $analysis = Analysis::factory()->create([
+        'document_version_id' => $version->id,
+        'step' => AnalysisStep::Extraction,
+        'status' => AnalysisStatus::Failed,
+        'attempts' => 1,
+        'next_retry_at' => now()->subMinute(),
+        'failed_permanently' => false,
+    ]);
+    app(AnalysisRunStoreRepository::class)->markFailed($analysis->analysisRun);
+
+    $this->artisan('pipeline:retry-failed')->assertSuccessful();
+
+    Queue::assertPushed(EstimateExtractionJob::class, fn (EstimateExtractionJob $job) => $job->documentId === $document->id);
+    Queue::assertPushed(EstimateExtractionJob::class, 1);
     expect($analysis->refresh()->next_retry_at->isFuture())->toBeTrue();
 });
 

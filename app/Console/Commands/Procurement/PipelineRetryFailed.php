@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace App\Console\Commands\Procurement;
 
+use App\Enums\Procurement\Ai\AiDocumentType;
 use App\Enums\Procurement\Ai\AnalysisStatus;
+use App\Enums\Procurement\Ai\AnalysisStep;
 use App\Enums\Procurement\Ai\RunMode;
 use App\Enums\Procurement\Document\DocumentStatus;
 use App\Enums\Procurement\Document\PipelineStage;
@@ -13,6 +15,8 @@ use App\Jobs\Procurement\ScreeningJob;
 use App\Models\Procurement\Ai\Analysis;
 use App\Models\Procurement\Document\Document;
 use App\Repositories\Procurement\Ai\AnalysisRunStoreRepository;
+use App\Services\Procurement\Contracts\DocumentAnalyzer;
+use App\Services\Procurement\Contracts\DocumentAnalyzerRegistry;
 use Illuminate\Console\Command;
 use LogicException;
 
@@ -44,8 +48,10 @@ final class PipelineRetryFailed extends Command
 
     protected $description = 'Повторно запускает провалившиеся стадии пайплайна (документы/анализы) с нужной стадии по next_retry_at';
 
-    public function __construct(private readonly AnalysisRunStoreRepository $runs)
-    {
+    public function __construct(
+        private readonly AnalysisRunStoreRepository $runs,
+        private readonly DocumentAnalyzerRegistry $analyzers,
+    ) {
         parent::__construct();
     }
 
@@ -120,8 +126,9 @@ final class PipelineRetryFailed extends Command
                 $this->dispatchAnalysisRetry($analysis);
                 $dispatched++;
             } catch (LogicException $exception) {
-                // Стадия ещё не реализована (extraction — P6): claim уже сдвинул next_retry_at,
-                // следующий тик подберёт запись снова, когда job появится. Не роняем весь batch.
+                // Резолв анализатора извлечения провалился (тип документа не определён/без
+                // extraction) — claim уже сдвинул next_retry_at, следующий тик подберёт запись
+                // снова. Не роняем весь batch на одной записи.
                 $this->warn($exception->getMessage());
             }
         }
@@ -139,9 +146,10 @@ final class PipelineRetryFailed extends Command
             // mode=auto: старый прогон завершён (иначе status=Failed не проставился бы,
             // AnalysisStoreRepository::maybeTerminateRun), новый заводится перед передиспатчем.
             PipelineStage::Screening => $this->retryScreening($analysis, $documentId),
-            PipelineStage::Extraction => throw new LogicException(
-                "Анализ #{$analysis->id}: стадия extraction ещё не реализована (P6) — ретрай отложен.",
-            ),
+            // Д-4 (P7.7, research/10 §3): раньше здесь была заглушка «extraction ещё не
+            // реализована (P6)» — EstimateExtractionJob существует с e06434c, ветка лгала и
+            // проваленный extraction никогда не передиспатчился.
+            PipelineStage::Extraction => $this->retryExtraction($analysis, $documentId),
             PipelineStage::Prepare => throw new LogicException(
                 "Анализ #{$analysis->id}: недостижимо — PipelineStage::fromAnalysisStep никогда не возвращает Prepare.",
             ),
@@ -153,5 +161,46 @@ final class PipelineRetryFailed extends Command
         $this->runs->start($analysis->document_version_id, RunMode::Auto);
 
         ScreeningJob::dispatch($documentId)->afterCommit();
+    }
+
+    /**
+     * Launch-точка стадии extraction — тот же приём D93, что `retryScreening()`: старый прогон
+     * уже терминирован (`status=Failed` ставит его `AnalysisStoreRepository::maybeTerminateRun`
+     * при ЛЮБОЙ провалившейся стадии, не только screening), новый заводится перед передиспатчем.
+     * Диспатч — через реестр (`extractionAnalyzer()`), тот же приём, что
+     * `RerunAnalysisAction::extractionAnalyzer()` (D93): ядро не называет `EstimateExtractionJob`
+     * поимённо.
+     */
+    private function retryExtraction(Analysis $analysis, int $documentId): void
+    {
+        $this->runs->start($analysis->document_version_id, RunMode::Auto);
+
+        $this->extractionAnalyzer($analysis)->dispatchExtraction($documentId);
+    }
+
+    /**
+     * Собственный `document_type` у анализа извлечения в боевом контуре пуст
+     * (`AnalysisStoreRepository::firstOrCreate()` его не пишет) — ось берётся оттуда, где её
+     * ЗАПОЛНИЛИ: с активного анализа скрининга той же версии документа (тот же fallback, что
+     * `RerunAnalysisAction::extractionAnalyzer()`).
+     */
+    private function extractionAnalyzer(Analysis $analysis): DocumentAnalyzer
+    {
+        $documentType = $analysis->document_type ?? Analysis::query()
+            ->active()
+            ->where('document_version_id', $analysis->document_version_id)
+            ->where('step', AnalysisStep::Screening)
+            ->value('document_type');
+
+        $type = $documentType !== null ? AiDocumentType::tryFrom((string) $documentType) : null;
+        $analyzer = $type !== null ? $this->analyzers->for($type) : null;
+
+        if ($analyzer === null || ! $analyzer->hasExtraction()) {
+            throw new LogicException(
+                "Анализ #{$analysis->id}: ретрай извлечения невозможен — тип документа «".($documentType ?? '—').'» без анализатора со стадией извлечения.'
+            );
+        }
+
+        return $analyzer;
     }
 }

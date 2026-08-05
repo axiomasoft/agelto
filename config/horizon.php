@@ -196,6 +196,11 @@ return [
     |
     */
 
+    // `tries: 1` во ВСЕХ supervisor'ах ниже — не недосмотр (D135, P7.7): ретрай стадий Procurement
+    // сознательно вынесен из очереди в доменный контур `HasErrorBlock` (attempts/next_retry_at/
+    // failed_permanently на самой модели) + расписанный `pipeline:retry-failed`. Свойств
+    // очередного ретрая (`$tries`/`$backoff`/`retryUntil()`) у job'ов Procurement быть не должно —
+    // сторож `tests/Unit/Architecture/JobRetryContractGuardTest.php`.
     'defaults' => [
         'supervisor-1' => [
             'connection' => 'redis',
@@ -253,6 +258,28 @@ return [
             'balance' => 'auto',
             'autoScalingStrategy' => 'time',
             'maxProcesses' => 2,
+            'maxTime' => 0,
+            'maxJobs' => 0,
+            'memory' => 256,
+            'tries' => 1,
+            'timeout' => 300,
+            'nice' => 0,
+        ],
+
+        // Д-1 (P7.7, research/10 §3): `ShadowAnalysisJob::onQueue('ai_shadow')` диспатчился в
+        // очередь, которую ни один supervisor не разбирал — теневые прогоны копились бы в Redis
+        // молча, пока shadow-маршруты (`llm_routes.shadow=true`) не заведены. `timeout`/`memory` —
+        // потолок `supervisor-ai-extraction` (тень дублирует ЛЮБОЙ боевой вызов, включая
+        // extraction, `ShadowDispatch::afterCall()` вызывается после screening И extraction);
+        // `maxProcesses=1` без per-environment override — низкий приоритет, shadow-контур ещё не
+        // включён ни на одном маршруте (Д-1 факт: ключа `ai_shadow` в Redis нет), масштабировать
+        // раньше первого реального использования — подгонка без факта (Implementation Rule 6).
+        'supervisor-ai-shadow' => [
+            'connection' => 'redis',
+            'queue' => ['ai_shadow'],
+            'balance' => 'auto',
+            'autoScalingStrategy' => 'time',
+            'maxProcesses' => 1,
             'maxTime' => 0,
             'maxJobs' => 0,
             'memory' => 256,

@@ -127,6 +127,24 @@ test('документ, застрявший в prepared сверх порога
     Http::assertSentCount(1);
 });
 
+// Д-5 (P7.7, research/10 §3): до фикса `discovered` не входил в whereIn() stuckDocuments() —
+// документ с провалом СКАЧИВАНИЯ был невидим для единственного канала, который сам приходит к
+// человеку (Telegram PipelineAlert).
+test('документ, застрявший в discovered сверх порога (провал скачивания), — алерт (Д-5)', function () {
+    Http::fake();
+
+    Document::factory()->create([
+        'status' => DocumentStatus::Discovered,
+        'failed_permanently' => false,
+        'attempts' => 1,
+        'updated_at' => now()->subMinutes(61),
+    ]);
+
+    $this->artisan('pipeline:stuck-check')->assertSuccessful();
+
+    Http::assertSentCount(1);
+});
+
 test('всплеск unknown в скрининге сверх порога — алерт', function () {
     Http::fake();
 
