@@ -1,60 +1,84 @@
-# HANDOFF — 2026-08-05 — after P7.5
+# HANDOFF — 2026-08-05 — after P7.6
 
-**Next:** «ЗАПУСК ВРУЧНУЮ: frontier/high» — **P7.6** (аудит процессов пайплайна на
-изолируемость и тестируемость — research-item фазы). Routing требует `frontier/high`
-(§3 Routing) — сессия сейчас на `sonnet/high`, ниже предписанного тира: нужен переход на
-Opus перед стартом.
+**Next:** «ЗАПУСК ВРУЧНУЮ: implementation/high» — **P7.7** (фиксы дефектов контракта процессов
+и точечные тесты по гейту). Routing требует `implementation/high`, `Exec = manual`
+(§3 Routing, `roadmap.md` строка 188 — solo, не батч).
+
+> **GUARD — старт P7.7 заблокирован до вердикта владельца.** Inputs P7.7 названы как
+> «утверждённый перечень фиксов P7.6», а вердикта нет: перечень лежит **предложением
+> исполнителя** в `open-questions.md` **OQ-9** (`Open`) и `research/10-process-audit.md` §6.
+> D59 запрещает исполнителю самоутверждать объём. Сначала — ответ владельца по OQ-9 (прямым
+> ответом в сессии с последующей D-записью, как гейт P7.5/D133, либо новой D-записью), и
+> только потом запуск ниже.
 
 | Параметр | Значение |
 |:--|:--|
-| Model | opus |
-| Thinking | high — предписано §3 Routing (`frontier/high`), открытые design-решения: критерий изолируемости формулируется здесь и определяет объём P7.7 |
+| Model | sonnet |
+| Thinking | high — предписано §3 Routing (`implementation/high`), correctness-critical боевой контур очередей |
 | Context | continue (/clear) — ручной item |
-| Суть | Пройти по всем процессам пайплайна (job'ы, очереди, команды, расписание, supervisor'ы), вынести вердикт «изолированно тестируется / не тестируется + чего не хватает» по каждому, разделить находки на «чинится в P7.7» / «отдельный план» |
+| Суть | Починить дефекты контракта процессов из утверждённого владельцем перечня P7.6 и покрыть тестами названные критичными инварианты (уникальность job'а, идемпотентность, checkpoint-requeue D39, контур `pipeline:retry-failed`) |
+| Команда | — (нет single-command эквивалента: `Exec = manual`) |
 
 ```
-/model opus
+/model sonnet
 /effort high
-/task:plan-run 2026.07.31-SYS-INTEGRITY P7.6
+/task:plan-run 2026.07.31-SYS-INTEGRITY P7.7
 ```
 
-**Сделано этим заходом (`plan-run P7.5`, sonnet/high, 2026-08-05).**
+**Вопрос владельцу, который снимает guard** (полный текст — `open-questions.md` OQ-9):
 
-- **Гейт владельца разрешён прямым вопросом в сессии (D133, `plan.md` §5).** Item Inputs требовали
-  «утверждённый владельцем перечень» (`research/08-db-review.md` §12) — двух строк не хватало:
-  F-02-гейт (ON DELETE для пяти аудитных детей `prc_procurements`) → **RESTRICT**; F-06-гейт (выход
-  дат за диапазон партиций) → **предсоздание исторических партиций, 12 месяцев назад**
-  (`[2025-08-01, 2026-08-01)`). Записано в Decision Log и в §12 самого research-документа.
-- **P7.5 закрыт 🟠 Done with deviations**, item-коммит **`a5b066c`** — 8 находок → 8 миграций
-  (`database/migrations/2026_08_05_100069`…`100076`), `app/Models/Procurement/PurchaseItem.php`
-  (каст `decimal:6`), `tests/Feature/Infra/SchemaHardeningTest.php` (5 тестов на изменённое
-  поведение).
-  - F-01 — индексы на 23 FK-колонках (15 таблиц). F-02 — явный `ON DELETE` на 28 FK (23 `NO
-    ACTION`, 5 аудитных детей `prc_procurements` → `RESTRICT`, D133). F-03 — `prc_items.quantity`
-    → `numeric(18,6)`. F-04/F-05 — FK `prc_revisions.crawler_run_id`/`llm_calls.analysis_run_id`.
-    F-06 — 12 месяцев исторических партиций на пять таблиц (D132/D133). F-08 — выражающие
-    индексы `prc_ai_analyses.result`. F-13 — обобщённый прун `partman.part_config`.
-  - **Технический факт, не описанный research-документом:** Postgres 17 не поддерживает
-    `NOT VALID` при добавлении FK НА партиционированный родитель (`SQLSTATE[42809]`) — для
-    констрейнтов на `llm_calls`/`prc_fetches`/`prc_events`/`prc_revisions` использован обычный
-    `ADD CONSTRAINT` вместо `NOT VALID`+`VALIDATE` (безопасно на объёмах ≤ 18 004 строк).
-  - **Побочный эффект F-06:** чинит боевой дефект F-06/P4.16 — 3 кейса
-    `SupplierResultsProcessorTest`, красных с P7.4, теперь зелёные.
-- **Validation (якорь `a5b066c`).** `migrate` → `rollback --step=8` → `migrate` — все зелёные,
-  схема после rollback побайтово вернулась к состоянию до (проверено по `quantity`-типу,
-  числу партиций, `confdeltype`, составу `partman.part_config`). `pg_index NOT indisvalid` = 0.
-  Счётчики строк ДО/ПОСЛЕ идентичны (`prc_procurements` 17943, `prc_revisions` 17942,
-  `prc_documents` 66, `prc_items` 77, `prc_events` 18004, `prc_estimates` 0). Полный сюит
-  `--no-tia` — **1081 passed, 6 failed, 1 skipped** (было 1072/10/1 на `a73d3b8`) — все 6 вне
-  `Files` item'а, тот же класс, что уже в Known Deviations P7.4. `phpstan` — `[OK] No errors`,
-  `phpstan-baseline.neon` не менялся (`git status --porcelain` пуст). `pint --dirty --test` —
-  чисто.
-- **Known Deviations P7.5** (детали — `phases/P7.md` P7.5 Known Deviations): (1) process —
-  гейт владельца разрешён вопросом в сессии, записан D133, не отклонение от ТЗ; (2) material —
-  полный сюит несёт 6 предсуществующих красных теста вне Scope (тот же класс, что P7.4);
-  (3) собственный текст Validation item'а называет «74 записи» ожидаемым числом строк
-  `phpstan-baseline.neon` — на дереве их 56/61 (по разным способам счёта), но файл НЕ менялся —
-  неточность спеки item'а, не дефект исполнения.
+```
+OQ-9. Утвердить объём P7.7. Предлагается пять фиксов:
+  1) Д-4 — pipeline:retry-failed бросает LogicException на extraction, стадия не
+     ретраится НИКОГДА (EstimateExtractionJob существует с e06434c) + тест;
+  2) Д-1 — ai_shadow без supervisor'а: завести supervisor ЛИБО снять очередь с job'а;
+  3) Д-5 — добавить DocumentStatus::Discovered в PipelineStuckCheck::stuckDocuments()
+     (4 документа с провалом скачивания невидимы уже сейчас) + тест;
+  4) Д-2 + сторож Д-3 — D-запись «ретрай сознательно вне очереди» + тест, краснеющий на
+     появление $tries и на подмену ShouldBeUniqueUntilProcessing → ShouldBeUnique (D39);
+  5) Д-9 — stop_grace_period сервису horizon в docker-compose.yml (dev) + сторож.
+Отдельным вердиктом — три позиции по одной строке расписания каждая (формально это
+заведение отсутствующих процессов, не фикс дефекта; по умолчанию ушли бы в отдельный план):
+  6) Д-6 horizon:snapshot (метрики Horizon пусты навсегда);
+  7) Д-7 pulse:check/pulse:trim (pulse_aggregates 4198 строк / 2952 kB растут без пруна);
+  8) Д-8 queue:prune-failed + failed_jobs в stuck-check (19 записей никем не читаются).
+Включаем 1–5? Включаем ли 6–8?
+```
+
+**Сделано этим заходом (`plan-run P7.6`, opus/high, 2026-08-05).**
+
+- **P7.6 закрыт 🟢 Done**, item-коммит **`938d23d`** — три файла плана, ни одного файла вне
+  `Files`; кода не тронуто (Implementation Rule 8 — «ничего не чинится в этом item'е»).
+  Deliverables: `research/10-process-audit.md` (6 разделов), `artifacts/p7-process-audit.json`
+  (38 807 байт, `json.tool` валиден), `open-questions.md` → OQ-9.
+- **Критерий изолируемости сформулирован явным перечнем** (И1: ни сети, ни реального LLM ·
+  И2: вход детерминирован · И3: результат наблюдаем · И4: состояние откатывается · И5: есть
+  ПРЯМОЙ тест самого процесса). Три вердикта разведены по Implementation Rule 3:
+  `изолированно тестируется` / `не покрыто` / `структурно не изолируемо`. Наблюдаемость отказа
+  вынесена отдельной осью — «покрыт» ≠ «виден».
+- **Инвентарь 52 процессов** (числа на `fec238a`): 5 job'ов · **31** команда (спека ожидала 30 —
+  расхождение +1 названо, а не подогнано: `crawler:run-delta`, заведён P4.6 коммитом `d297d44`,
+  спека писалась до реопена P4 под D123) · 8 записей расписания · 4 supervisor'а · 4 стадии.
+- **Главный положительный вывод: структурно неизолируемых процессов — 0.** Изолированно
+  тестируются 40, частично 2, не покрыто 10. Job'ы **5/5**, команды **29/31**.
+- **Три дефекта разведки §13.5 получили явный вердикт каждый:** Д-1 (`ai_shadow` без
+  supervisor'а) — **подтверждён**, латентен (в Redis ключа `ai_shadow` нет, shadow-маршрутов не
+  заведено); Д-2 (`tries: 1` без свойств ретрая) — **подтверждён с уточнением** (ретрай
+  сознательно вынесен в `HasErrorBlock` + `pipeline:retry-failed`, дефект — что решение не
+  записано и сторожа нет); Д-3 («5 команд из 29») — **опровергнут**: разведка мерила каталоги
+  (`tests/**/Jobs`, `tests/**/Command*` — их нет, тесты разложены по доменам), замер по
+  инвокации даёт 5/5 и 29/31.
+- **Девять находок сверх названных (Д-4…Д-12)**, тяжелейшая — **Д-4**: `pipeline:retry-failed`
+  бросает `LogicException` на `PipelineStage::Extraction` с текстом «стадия ещё не реализована
+  (P6)», хотя `EstimateExtractionJob` живёт с `e06434c`. Провалившийся extraction не
+  передиспатчится никогда: claim каждые 10 минут двигает `next_retry_at`, `attempts` не растёт,
+  `failed_permanently` не наступает, а warning уходит в лог, который никто не читает. Тестов
+  ветки 0. На боевой БД латентно (`prc_ai_analyses` пуста — AI-стадии за выключенными гейтами).
+- **Validation — все клаузы passed** (якорь `938d23d`): счётчики job'ов/команд/supervisor'ов
+  сняты на дереве исполнения, `json.tool` валиден, критерий присутствует перечнем, три дефекта
+  §13.5 с вердиктом, 12 находок с классом, OQ-9 заведён.
+- **Known Deviations P7.6: —** (Routing `frontier/high` = фактический маршрут сессии
+  `opus/high`, ни недобора, ни перебора).
 
 **Done:**
 
@@ -64,48 +88,61 @@ Opus перед стартом.
 - **P5 3/8** 🟠 Done with deviations — фаза терминальна.
 - **P6 5/6** 🟠 Done with deviations — фаза терминальна.
 - **P4 6/16** 🟠 Done with deviations — фаза терминальна.
-- **P7 3/8** 🟡 In progress — P7.1/P7.2/P7.3 🟢, P7.4/P7.5 🟠; открыты P7.6–P7.8.
+- **P7 4/8** 🟡 In progress — P7.1/P7.2/P7.3/P7.6 🟢, P7.4/P7.5 🟠; открыты P7.7, P7.8.
 - **P8 0/7** ⬜ Not started — заведена скелетом, не детализирована.
 
 **Remaining:**
 
-- **P7 — 3 items**: P7.6 (frontier/high, manual, research-item — **требует переключения на
-  Opus**) → P7.7 (implementation/high, manual) → P7.8 (implementation/low, plan-exec, приёмка
-  фазы и закрытие плана).
+- **P7 — 2 items**: P7.7 (implementation/high, manual — **заблокирован вердиктом владельца по
+  OQ-9**) → P7.8 (implementation/low, plan-exec, приёмка фазы и закрытие плана).
 - **P8 требует отдельного дизайн-захода** `/task:plan-design 2026.07.31-SYS-INTEGRITY P8`
   (frontier/high, NEW SESSION) и ПОСЛЕ него — повторного `finish` (`plan-protocol` §5).
 - **`## Phase Handoff` фаз P2 и P5 не собран**; **P6** нуждается в формальном `plan-close` —
   висящий bookkeeping-хвост, продолжение плана НЕ блокирует.
+- **Объём, вынесенный P7.6 в отдельный план** (`research/10` §6.3, основание D59): Д-10
+  (наложение расписанных crawler-команд — нужен дизайн claim'а), Д-11 (`routes/console.php`
+  ходит в БД на каждый artisan-вызов), Д-12 (`Http::preventStrayRequests()`), тесты
+  `procurement:convert-xlsx-to-pdf` и `crawler:run-delta`, очередная семантика job'ов через
+  реальную очередь, тесты расписания (сегодня 0), развязка ретрая скачивания от
+  refetch-расписания закупки, перенос стадии скачивания в job.
 - **Расширение окна прогона и включение delta-scan/fresh** (D126) — решение владельца; вне Scope
   плана, если владелец не решит иначе.
 - **Серия M-5 (60 сэмплов) не снята** на контрольном прогоне P4.15 — дефект скрипта-сэмплера;
   пересдать нечем до следующего боевого прогона.
 - **F-13 «сторож видимости отказа `run_maintenance()`»** (вторая половина, `research/08` §10.3) —
-  плановый разрыв между P7.1 и текстом P7.4, не входил в Scope P7.5 (только сама миграция-прун);
-  ждёт D# от `plan-design`.
+  плановый разрыв между P7.1 и текстом P7.4, не входил в Scope P7.5; ждёт D# от `plan-design`.
 - **Четыре строки гейта владельца остаются открытыми** (`research/08-db-review.md` §12): F-07
   (13 пустых колонок `prc_procurements`), F-09 (8 неиспользуемых индексов), F-01b (индексы в
-  таблицах пакета azguard), cache-гейт (удаление `cache`/`cache_locks`) — P7.5 их не блокировали,
-  решение вне Scope этого item'а.
+  таблицах пакета azguard), cache-гейт (удаление `cache`/`cache_locks`).
 - **`agelto_postgres_pre_p74`** — стоп-контейнер, требует `docker rm` владельцем вне харнесса
   (см. Known Deviations P7.4).
 
 **Sources of truth:**
 
-- `plans/2026.07.31-SYS-INTEGRITY/research/08-db-review.md` §12 (гейт владельца, Resolved →
-  D133) · §13 (сводка находок).
-- `plans/2026.07.31-SYS-INTEGRITY/phases/P7.md` P7.5 Completion Notes — находка → миграция →
-  результат, полный текст Validation.
-- `database/migrations/2026_08_05_100069`…`100076` — восемь миграций P7.5, каждая с докблоком
-  на находку.
-- `plan.md` D133 (гейт) · §4 Phase Index (P7 `4/8`) · §6 Update Log (строки P7.1–P7.5).
+- `plans/2026.07.31-SYS-INTEGRITY/research/10-process-audit.md` — §1 критерий изолируемости,
+  §2 таблицы всех 52 процессов с вердиктами и ссылками на тесты, §3 находки Д-1…Д-12 с
+  доказательствами, §4 наблюдаемость отказа, §5 сводка со счётчиками, §6 перечень для гейта.
+- `plans/2026.07.31-SYS-INTEGRITY/artifacts/p7-process-audit.json` — машинная форма того же;
+  карта процесс→тест построена грепом инвокации, а не руками.
+- `plans/2026.07.31-SYS-INTEGRITY/open-questions.md` **OQ-9** — гейт владельца, блокирует P7.7.
+- `plans/2026.07.31-SYS-INTEGRITY/phases/P7.md` P7.6 Completion Notes — полный текст Validation
+  и провенанс каждого числа.
+- `plan.md` §4 Phase Index (P7 `4/8`) · §6 Update Log (строки P7.1–P7.6).
 
 **Open risks:**
 
+- **`pipeline:retry-failed` не ретраит extraction (Д-4)** — латентно, выстрелит на первом же
+  провале извлечения на боевых данных. Пока AI-стадии за выключенными гейтами, риск не
+  реализован; включение гейтов ДО фикса Д-4 делает его немедленным.
+- **Очередь `ai_shadow` без supervisor'а (Д-1)** — включение shadow-контура до фикса означает
+  молчаливое накопление задач в Redis.
+- **Наблюдаемость сама не обслуживается (Д-6/Д-7/Д-8)**: снапшоты Horizon не снимаются,
+  `pulse_*` не прунятся (4198 строк / 2952 kB на 2026-08-05), `failed_jobs` (19 записей)
+  не читается и не чистится.
+- **4 документа `discovered` с `attempts > 0` невидимы** для `pipeline:stuck-check` (Д-5).
 - **Обслуживание партиций (F-13, P1) — ЧАСТИЧНО адресовано.** Прун `partman.part_config`
-  обобщён (P7.5); видимость отказа `run_maintenance()` (вторая половина F-13) не реализована
-  нигде — плановый разрыв, ждёт D# от `plan-design`. **Партиции кончаются `2026-11-01`**
-  (`premake=3` от текущей даты; исторические партиции P7.5 не меняют этот горизонт).
+  обобщён (P7.5); видимость отказа `run_maintenance()` не реализована нигде. **Партиции
+  кончаются `2026-11-01`** (`premake=3`; исторические партиции P7.5 горизонт не меняют).
 - **`org_organizations` живёт по UPDATE-модели, будучи продуктовой таблицей** (найдено P7.3) —
   решение владельца по OQ-5, вне Scope этого плана.
 - **Подтверждение D71 остаётся частичным** до первого боевого извлечения смет.
@@ -114,30 +151,27 @@ Opus перед стартом.
   — `partitions:maintain` не запускается даже неуспешно.
 - **Два типа процедуры вне `procedure_url_types`** (аудит бухотчётности, ТКО) — 0.16 % теряют
   детальную стадию.
-- **Коллизия нумерации research:** `research/10-p4-remediation.md` и плановый
-  `research/10-process-audit.md` (P7.6) делят номер `10` — отмечено в `index.md`.
+- **Коллизия нумерации research:** `research/10-p4-remediation.md` и `research/10-process-audit.md`
+  (P7.6) делят номер `10` — отмечено в `index.md`; переименование вне Scope P7.6.
 - **`app/Filament/Resources/Procurement/**` restrictive ACL**, **`rm` заблокирован в харнессе**,
   **незакоммиченный чужой дифф** (`.env.example`, `.swissknife.json`, `.swissknife/`,
   `.swissknifeman/`, `config/cms.php`, `database/seeders/User/`, `estimates/gemini-analys.md`) —
   состав снимать `git status --porcelain` перед каждым item-коммитом.
 - **`.env` не читается харнессом вовсе** — `docker compose`/`docker compose exec` требуют
-  `MINIO_ROOT_PASSWORD` в shell-окружении инвокации (снимать `docker exec agelto_minio printenv
-  MINIO_ROOT_PASSWORD` с уже работающего контейнера, экспортировать перед `docker compose exec`).
-  **PHPStan в контейнере падает на дефолтном 256M** (обход `--memory-limit=1G` или
-  `-d memory_limit=1G`). **`psql` внутри `agelto_postgres` требует `-U agelto`**.
+  `MINIO_ROOT_PASSWORD` в shell-окружении инвокации. **PHPStan в контейнере падает на дефолтном
+  256M** (обход `--memory-limit=1G`). **`psql` внутри `agelto_postgres` требует `-U agelto`**.
 - **`docker compose {up,restart,down} postgres` сломан до ручного `docker rm
-  agelto_postgres_pre_p74`** владельцем — до этого управлять контейнером `postgres` напрямую
-  через `docker`.
+  agelto_postgres_pre_p74`** владельцем — до этого управлять контейнером напрямую через `docker`.
 
 **Workarounds/Deferred/Open questions:**
 
-- **Workarounds:** снятие `MINIO_ROOT_PASSWORD`/прочих секретов из env уже работающих контейнеров
-  вместо чтения `.env`; управление `postgres` через raw `docker` вместо `docker compose` до
-  ручного `docker rm agelto_postgres_pre_p74`; на партиционированных referencing-таблицах FK
-  добавляется без `NOT VALID` (Postgres 17 не поддерживает `NOT VALID` на партиционированном
-  родителе) — см. Known Deviations/Completion Notes P7.5.
+- **Workarounds:** снятие секретов из env уже работающих контейнеров вместо чтения `.env`;
+  управление `postgres` через raw `docker` вместо `docker compose` до ручного `docker rm
+  agelto_postgres_pre_p74`; на партиционированных referencing-таблицах FK добавляется без
+  `NOT VALID` (Postgres 17 не поддерживает).
 - **Deferred:** положения (3), (4), (5) модели D72 — OQ-5, отдельный план. F-13 «сторож
   видимости отказа `run_maintenance()`» — ждёт D# от `plan-design`. Четыре строки гейта
-  владельца (F-07, F-09, F-01b, cache) — вне Scope P7.5.
-- **Open questions:** OQ-3 (источник истины ЕИС), OQ-5 (продуктовый контур), OQ-6
-  (типизированный носитель семантики кейсов enum).
+  владельца (F-07, F-09, F-01b, cache) — вне Scope P7.5. Восемь пунктов §6.3 `research/10` —
+  объём процессного покрытия, вынесенный P7.6 в отдельный план (D59).
+- **Open questions:** **OQ-9 (перечень фиксов P7.7 — блокирует P7.7)**, OQ-3 (источник истины
+  ЕИС), OQ-5 (продуктовый контур), OQ-6 (типизированный носитель семантики кейсов enum).
