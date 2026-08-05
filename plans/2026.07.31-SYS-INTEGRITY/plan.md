@@ -547,6 +547,7 @@ Prism `unhandled finish reason`, decimal-cast); **M3c** (EvalRun #12, дерев
 | 2026-08-05 | plan-run / sonnet-high | P4.12 закрыт 🟢, item-коммит **`9143991`**: CA-бандл (Root+Sub CA 2024) в образе фиксированным путём, `SourceTlsTrust` — единственный носитель карты `crawler.tls.bundles`, персистентность доказана пересборкой образа и живой пробой через прокси-скоуп — детали см. phases/P4.md P4.12 Completion Notes |
 | 2026-08-05 | plan-run / sonnet-high | P4.13 закрыт 🟠, item-коммит **`40b928a`**: живая проба всех вкладок карточки 18151, `DocumentsParser` под фактическую вёрстку, тихий отказ снят, K=0 — детали см. phases/P4.md P4.13 Completion Notes |
 | 2026-08-05 | plan-run / sonnet-high | P4.14 закрыт 🟠, item-коммит **`c6cd6b4`**: `EventJournalParser`/`CommonInfoParser` под фактическую вёрстку, K-6 закрыт (МСК), K=0 — детали см. phases/P4.md P4.14 Completion Notes |
+| 2026-08-05 | plan-run / opus-high | P4.15 закрыт 🟠, item-коммит **`1679026`**: контрольный прогон — идемпотентность выполнена, прирост БД 2.61 КБ/закупку (вход P7.3, было 9.2), документный контур пуст: найден Д-8 — детали см. phases/P4.md P4.15 Completion Notes |
 
 ## Обсуждение
 
