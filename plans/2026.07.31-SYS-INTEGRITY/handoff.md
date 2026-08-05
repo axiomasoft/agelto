@@ -1,60 +1,59 @@
-# HANDOFF — 2026-08-05 — after P4.6
+# HANDOFF — 2026-08-05 — after P4.7
 
-**Next:** manual: frontier/high — item P4.7 (боевой прогон-смоук архивного профиля через прокси,
-2–3 дня 2025 года, метрики нагрузки БД в трёх точках, калибровка констант дробления по фактам).
+**Next:** ре-дизайн фазы P4 — завести items под дефекты, найденные боевым прогоном (Д-1 и Д-5 —
+блокеры: без них фаза не доставляет документы вовсе и пишет пятикратно раздутые ревизии), и решить
+судьбу Д-2/Д-3/Д-4/Д-6/Д-7. **P4.8 (доки + приёмка фазы) исполнять ПОСЛЕ них**: приёмочный прогон
+фазы, у которой документный контур не работает, зафиксирует неработающее состояние как норму.
 
 | Параметр | Значение |
 |:--|:--|
 | Model | opus |
-| Thinking | high — предписано §3 Routing (`frontier/high`) |
-| Context | continue (/clear) — ручной item |
-| Суть | Прогнать `crawler:run-archive` на засеянном архивном профиле за окно 2–3 дня 2025 (`research/05` §6), снять метрики `t0`/`t1`/`t2` (§7), откалибровать `eis.block_size`/`archive.price_ceiling`/`min_price_interval`/`max_blocks_per_window` по фактам, зафиксировать `findings/P4-load-baseline.md` + `artifacts/p4-run-metrics.json` |
+| Thinking | high — открытые решения: состав новых items, судьба 19 161 закупки с испорченными датами |
+| Context | NEW SESSION — шаг-не-item |
+| Суть | Завести items фазы P4 под Д-1 (`parseDate` без `startOfDay` ломает идемпотентность) и Д-5 (`DocumentsParser` не находит вложения — 0 документов на боевых данных), вынести владельцу три гейта §8 `findings/P4-load-baseline.md`, определить очередь до P4.8 |
+| Команда | `/task:plan-design 2026.07.31-SYS-INTEGRITY P4` |
 
-```text
-/model opus
-/effort high
-/task:plan-run 2026.07.31-SYS-INTEGRITY P4.7
-```
+**Сделано этим заходом (`plan-run`, opus/high, 2026-08-05) — P4.7 закрыт 🟠, item-коммит
+`84c6725`.**
 
-**Сделано этим заходом (`plan-run`, sonnet/high, 2026-08-05) — P4.6 закрыт 🟠, item-коммит
-`d297d44`.**
+- **Первый боевой прогон в истории проекта состоялся.** Четыре вызова `crawler:run-archive`
+  профиля `prc_crawlers#2`: #14 15–16.01.2025 (8 блоков), #15 20.11.2025 (180 блоков, 27 мин),
+  #16 15.01.2025 после переподключения к реестру ЕИС (3 блока), #17 повтор того же дня (проба
+  идемпотентности). Тело смоука — #14+#15, 3 дня (D35). Дни выбраны пробой `totalCount`:
+  15.01 → 1 218, 16.01 → 2 365, 20.11 → 14 375 (требование «один ниже 5 000, один выше»).
+- **D3 доказан машинно:** 0 из 194 блоков без `proxy_id`; 194 ответа HTTP 200, ни одного
+  403/429/5xx; узел после прогона `success_ratio = 0.99999999999999`, breaker закрыт.
+- **Метрики в трёх точках** (`t0` 06:35:13 · `t1` 06:40:12 · `t2` 07:04:53 UTC) —
+  `artifacts/p4-run-metrics.json` (сырой вывод девяти метрик + 60 сэмплов M-5 с шагом 30 с),
+  разбор — `findings/P4-load-baseline.md`. Прирост БД **165.0 МБ на 17 942 закупки**, WAL
+  **423.0 МБ за 29 мин 40 с (14.3 МБ/мин)**, мёртвых строк максимум **4.5 %** при пороге «20 %
+  разбираться», autovacuum отработал 26 раз ПО ХОДУ прогона, во всех 60 сэмплах — только
+  `Client/ClientRead`, ни одного `Lock`/`LWLock`/`IO`.
+- **Калибровка:** `archive.max_blocks_per_window` 100 → **12** (наблюдённый максимум блоков на
+  ценовой интервал — 11, среднее 6.67 на 27 интервалах; 100 недостижимы — Р-8 закрыт числом).
+  Подтверждены без изменения: `price_ceiling` 1e9 (максимум НМЦК корпуса 987 236 134 ₽, выше
+  потолка 0 из 19 160), `min_price_interval` 1000 (не калибруется — С-6 не сработал ни разу),
+  `eis.block_size` 500, троттл 1000–4000 мс.
+- **Поправка к разведке:** фактический cap глубины листинга — **5 000**, а не ≈10 000
+  (`research/eis-csv-recon.md`); механизм «тихий повтор последнего блока» подтверждён.
+- **Стоп-сигналы:** С-5 (TLS) сработал ДО первого запроса, С-7 (детальная стадия) — 2/5 = 40 % при
+  пороге 20 %. Остальные пять не срабатывали.
+- `phpstan --memory-limit=1G` → `[OK] No errors`; `pint --dirty --test` → PASS (3 файла); полный
+  сюит — `10 failed, 1 skipped, 1048 passed`, тот же счёт и состав, что база на `d297d44`, K = 0
+  (доказано `git stash` конфига). `write-site: pre_mutation: allow · pre_final: allow`.
 
-- **Шесть позиций группы А `research/05` §3.1 закрыты.** Блок `tracking` в `config/crawler.php`
-  (`window_overlap_days=2`, `delta_scan_enabled=false`, `delta_scan_cron='0 23 * * *'`) + снята
-  метка «экстраполяция, D24» из докблока `archive` (ссылка на `findings/P4-eis-recon.md` §2).
-  `BacklogRescanProcessor::drainWindow()` сдвигает старт окна назад на `window_overlap_days`,
-  лог несёт фактические границы. Новый `DeltaScanProcessor` (переиспользует
-  `ArchiveWindowScanner`, профиль резолвится тем же способом, что `BacklogRescanProcessor:62-67`)
-  + команда `crawler:run-delta {crawler?}` + регистрация в `routes/console.php` под флагом
-  (выключен). `CrawlerRunManager::recordScanGap()`/`recordOldestUpdateSeen()` пишут
-  `scan_gap_seconds`/`oldest_update_seen` в `prc_crawler_runs.stats` (только fresh-прогон);
-  `lastCompletedRun()` снял второй носитель запроса, ранее жившего только в
-  `FreshRunProcessor::handleCapHit()`. `CsvBlockIngestor::ingest()` дедуплицирует строки блока по
-  `registryNumber` (первая строка выигрывает) со счётчиком `FetchResult::$rowsDuplicated` +
-  `Log::warning`. `HasPriceRange::startingPriceInterval()` (новый узкий интерфейс) +
-  `EisSearchFilter`-реализация — `ArchiveWindowScanner` берёт стартовый ценовой стек из `priceTo`
-  профиля, падает на `config('crawler.archive.price_ceiling')` без него; сканер остался
-  площадко-агностиком (`instanceof HasPriceRange`, не `instanceof EisSearchFilter`).
-- **Регрессионный протокол П-2 процитирован:** `git stash` диффа `BacklogRescanProcessor.php` →
-  `--filter=ChangeTrackingWindow` → `Failed asserting that 3 is identical to 5.` (без перекрытия
-  видно только 3 дня из 5) → `git stash pop` → тот же фильтр зелёный (3 assertions).
-- **Восемь новых тестов** (`ChangeTrackingWindowTest`, `DeltaScanTest` ×2, +1 в
-  `CsvBlockIngestorTest` — 510/500 дедуп, +2 в `FreshRunProcessorTest` — метрики отставания, +1 в
-  `ArchiveWindowScannerTest` — приоритет `priceTo`, +1 в `BacklogRescanProcessorTest` — сдвиг
-  окна). Полный сюит на item-коммите (`d297d44`) — **10 failed / 1048 passed**: тот же список имён,
-  что документированная база (`pg_partman` ×4, `CoreKnowsNoDocumentTypeTest` ×2,
-  `PromptApplyTest` ×2, `CostReportTest` ×1, `TextGridRendererTest` ×1), прирост `passed` — только
-  восемь новых тестов item'а (K=0).
-- **Material-отклонение (🟠), полностью названо:** item-коммит несёт дифф вне `Files` —
-  `@property`-докблок `app/Models/Procurement/Crawler/Run.php` (легальный рычаг: без него PHPStan
-  падает на новых `$run->status`/`$run->started_at`/`$run->finished_at` в
-  `CrawlerRunManager`/`RunDeltaScan` — у `Run`, в отличие от `Crawler`, докблока не было вовсе),
-  сокращение `phpstan-baseline.neon` на 4 записи (стали `ignore.unmatched` после докблока —
-  СОКРАЩЕНИЕ, не рост), и `tests/Feature/Console/RescanBacklogTest.php` (`window_overlap_days=0` в
-  `beforeEach` — тест проверяет делегирование команды однодневным блоком, реальный дефолт
-  `overlap=2` растянул бы окно до трёх дней при одном queued-блоке).
-- `phpstan analyse --memory-limit=1G` — `[OK] No errors`; `pint --dirty --test` — зелёный (22
-  файла); `write-site: pre_mutation: allow · pre_final: allow`.
+**Семь дефектов боевого контура, найденных прогоном** (полностью — `findings/P4-load-baseline.md`
+§5; ни один не чинился на живом прогоне, все — вне `Scope Included` P4.7):
+
+| # | Что | Цена |
+|:--|:--|:--|
+| **Д-1** | `EisCsvRowMapper::parseDate` (`:161-178`) — `Carbon::createFromFormat('d.m.Y', …)` без `->startOfDay()`, в дату попадает время инжеста | `snapshot_hash` недетерминирован → ревизия пишется на КАЖДУЮ прочитанную строку. Повтор дня дал вторую ревизию 100 % записей (0 → 1 218). 80 % строк `prc_revisions` и ≈103 МБ из 165 МБ прироста — дубли. Перекрытие окон P4.6 опирается ровно на эту идемпотентность |
+| **Д-5** | `DocumentsParser` (`:28`) ищет `div.documents-list table.documents-table` — на живой странице таких 0 при 6 ссылках `filestore`; отказ бесшумен (`catch (\Throwable) { return []; }`) | **0 документов на боевых данных.** P5/P8 не получают входа вообще. Фактическая раскладка снята и записана в findings |
+| **Д-6** | `EventJournalParser` (`:31`) — `div.event-journal table.event-journal-table`, на странице 0 (фактические классы `table.displaytagTable`, `div.table__row`) | журнал событий не парсится; калибровочный вопрос K-6 из-за этого не снят |
+| **Д-7** | вкладка `common-info` даёт `prc_eis_details` со всеми полями `NULL`; `prc_procurement_parties`/`prc_items`/`prc_financing` не выросли ни на строку | детальный слой пуст даже там, где карточка снялась |
+| **Д-2** | `CrawlerProfileSeeder:61` — `Registry::where('code','fz44')->first()` без площадки; оба профиля ЕИС достались faker-реестру `#1` | отказ тихий: листинг работает, детальная стадия падает. Обойдено правкой данных (`update prc_crawlers set registry_id = 3 where id in (2,3)`), сид не менялся |
+| **Д-3** | `ProxyOutcome::success()` без `latencyMs` (`CsvSourceMethod:261`, `DocumentDownloader:150`) | `prc_proxy_targets.latency_ms_avg` вечно `NULL` → `latencyNorm = 0.0` → вес `w_latency = 0.3` не влияет ни на что. Дормантно при одном узле |
+| **Д-4** | `ProxyLease::httpOptions()` (`:69-82`) склеивает креды без `rawurlencode` | узел с URL-небезопасным паролем даёт `cURL error 5` на каждом запросе; узел #1 работает случайно |
 
 **Done:**
 
@@ -63,99 +62,95 @@
 - **P3 1/5** 🟠 Done with deviations — фаза терминальна.
 - **P5 3/8** 🟠 Done with deviations — фаза терминальна.
 - **P6 5/6** 🟠 Done with deviations — фаза терминальна.
-- **P4 2/9** 🟡 In progress — P4.1/P4.2 закрыты 🟢, P4.3/P4.4/P4.5/P4.9/**P4.6** закрыты 🟠,
-  P4.7/P4.8 открыты.
+- **P4 2/9** 🟡 In progress — P4.1/P4.2 закрыты 🟢, P4.3/P4.4/P4.5/P4.9/P4.6/**P4.7** закрыты 🟠,
+  открыт только P4.8.
 - **P8 0/7** ⬜ Not started — заведена скелетом, не детализирована.
 
 **Remaining:**
 
-- **Порядок фаз (D63):** `P1 → P2 → P3 → P5 → P6 → P4 → P7`. Идёт P4, очередь остатка —
-  **P4.7 → P4.8**.
-- **P4.7 — боевой прогон с внешними необратимыми эффектами** (первый в истории проекта): гейт
-  входа D36/D12 (P1/P6 терминальны — да), окно 2–3 дня 2025 из `research/05` §6, живые
-  стоп-сигналы С-1…С-7, метрики в трёх точках (§7), калибровка констант дробления по фактам.
-  Requires frontier/high (opus/fable) — сессия ЭТОГО захода (sonnet/high) НЕ покрывает тир, item
-  не запущен этим заходом.
+- **Порядок фаз (D63):** `P1 → P2 → P3 → P5 → P6 → P4 → P7`. Идёт P4; в ней остался P4.8 плюс
+  новые items, которые заведёт ре-дизайн (см. Next).
+- **Три гейта владельца** с числами на руках (`findings/P4-load-baseline.md` §8): расширять ли окно
+  прогона (D35) · персистентная форма доверия корню Минцифры — Dockerfile против узкой опции
+  `verify` на клиенте площадки (Р-10) · включать ли `delta_scan_enabled` и fresh-профиль (D37).
+  По всем трём рекомендация одна: сначала Д-1 и Д-5.
 - **P8 требует отдельного дизайн-захода** `/task:plan-design 2026.07.31-SYS-INTEGRITY P8`
-  (frontier/high, NEW SESSION) и ПОСЛЕ него — повторного `/task:plan-design <ID> finish`:
-  контракт фазы появился после последнего `finish`, и `plan-protocol` §5 требует сквозного
-  reconcile, а не точечной правки. До этого P8 не исполняется (`Exec = plan-design`).
-- **`## Phase Handoff` фаз P2 и P5 не собран**; **P6** нуждается в формальном `plan-close`
-  (`/task:plan-close 2026.07.31-SYS-INTEGRITY P6`) — висящий bookkeeping-хвост, продолжение плана
-  НЕ блокирует.
-- **Р-8 и Р-4 — за пределами фазы** (`research/05` §3.4): `max_blocks_per_window = 100`
-  недостижим, а его ветка при срабатывании теряет ценовой интервал без дробления. Кандидаты в
-  `open-questions.md`.
-- **Из P4.4/P4.5 (Pending Work items'ов):** `options.records_per_page` (мёртвый дефолт
-  `CrawlerFactory`, читателя нет) при правке профиля через форму P4.4 больше не сохраняется —
-  `options.columns` единственный managed-ключ; оператор, отредактировавший профиль в админке,
-  теряет правку при повторном `db:seed --class=CrawlerProfileSeeder`.
-- **Из P4.9 (Pending Work item'а):** `IKZ_COLUMN` — фактический заголовок пробы БЕЗ суффикса
-  «(ИКЗ)», вне четырёх констант П-6, не правился; `okpd2_code` на реальной фикстуре легально
-  `null` (источник не заполняет классификацию на этом срезе данных) — не дефект маппера.
-- **Прочие follow-up без изменений**: `ExtractionOrchestrator` теряет семь старых полей
-  паспорта (P5.5); `EstimateValidator::bcadd()` научная нотация (P5.4); `RerunRangeAction` не
-  вызывает `replaceResources()` (P5.1/P5.2); пять колонок `source_*` без писателя (B-4);
-  `RerunRangeAction` work_type_id preserve-ветка без теста (P5.5); систематический timeout
-  `EST-XLSX-KS2-001` (P5.7); партиционный дрейф `pg_partman` (`prc_events`, дочинивается P7.4),
-  `memory_limit`-конфликт контейнера `agelto_app`, нерасследованный arch-тест
-  `CoreKnowsNoDocumentTypeTest` (P5.8); четыре потребителя конфиг-ключа диска в обход резолвера
-  (Pending Work P6.3).
+  (frontier/high, NEW SESSION) и ПОСЛЕ него — повторного `finish`.
+- **`## Phase Handoff` фаз P2 и P5 не собран**; **P6** нуждается в формальном `plan-close` —
+  висящий bookkeeping-хвост, продолжение плана НЕ блокирует.
+- **Данные под `registry_id = 1`** (17 942 закупки прогонов #14/#15) остались в БД и не удалялись
+  (Implementation Rules P4.7 п. 7) — судьба решается вместе с Д-2.
+- **Два типа процедуры вне `procedure_url_types`** реестра ЕИС (аудит бухгалтерской отчётности —
+  11 закупок, ТКО — 3): 14 из 8 584 = 0.16 % теряют детальную стадию.
+- **Стартовый ценовой стек строится от потолка, а не от распределения**: при медиане НМЦК
+  442 241 ₽ и потолке 1e9 первые ≈11 половинений холостые — 180 блоков вместо теоретических 29
+  (6.2×). Правка алгоритмическая, кандидат в follow-up.
+- **Из P4.4/P4.5, P4.9** — без изменений: `options.records_per_page` теряется при правке профиля
+  через форму; `IKZ_COLUMN` без суффикса «(ИКЗ)».
+- **Прочие follow-up без изменений**: `ExtractionOrchestrator` теряет семь старых полей паспорта
+  (P5.5); `EstimateValidator::bcadd()` научная нотация (P5.4); `RerunRangeAction` не вызывает
+  `replaceResources()` (P5.1/P5.2); пять колонок `source_*` без писателя (B-4); систематический
+  timeout `EST-XLSX-KS2-001` (P5.7); партиционный дрейф `pg_partman` (`prc_events`, дочинивается
+  P7.4), `memory_limit`-конфликт `agelto_app`, нерасследованный `CoreKnowsNoDocumentTypeTest`
+  (P5.8); четыре потребителя конфиг-ключа диска в обход резолвера (P6.3).
 
 **Sources of truth:**
 
-- `phases/P4.md` — Phase Context, контракт фазы, ТЗ P4.1–P4.9, P4.6 Completion Notes/Known
-  Deviations (полный разбор трёх диффов вне `Files` и протокола красной пробы).
-- `phases/P8.md` — скелет новой фазы с контракт-блоком; предмет, что уже есть в проекте и чего нет.
-- `research/05-change-tracking.md` — §3.1 (закрытая группа А) · §6–8 (план прогона P4.7,
-  стоп-сигналы, метрики, калибровочные вопросы) — прямой вход следующего item'а.
-- `findings/P4-eis-recon.md` §2 — подтверждение update-параметров, снявшее метку экстраполяции.
-- `findings/P4-csv-headers.md` + `artifacts/eis-csv-headers.json` — живая проба P4.9 (раскладка
-  колонок и резолв карточки, закрыты).
-- `brief/01-refinements.md` блок 2026-08-05 — вход владельца: обе развилки и новое требование по
-  деградированным сметам.
-- `plan.md` §5 D118–D122 — решения захода `plan-design`, предшествовавшего P4.9/P4.6.
+- `findings/P4-load-baseline.md` — **главный артефакт захода**: методика выбора дней, разбор С-5,
+  факты прогонов, метрики трёх точек, семь дефектов с точными строками и снятой фактической
+  вёрсткой, калибровка с фактами-основаниями, три гейта владельца.
+- `artifacts/p4-run-metrics.json` — сырой вывод девяти метрик в `t0`/`t1`/`t2` + 60 сэмплов M-5;
+  команды снятия — в блоке `команды` того же файла.
+- `phases/P4.md` — P4.7 Completion Notes / Pending Work / Known Deviations (семь отклонений,
+  три из них material).
+- `research/05-change-tracking.md` §6–8 — план прогона, стоп-сигналы, метрики, калибровочные
+  вопросы: раздел 8 теперь имеет ответы по K-1…K-4, K-7…K-11; K-5 и K-6 остались неснятыми.
+- `phases/P8.md` — скелет новой фазы с контракт-блоком.
 
 **Open risks:**
 
-- **`Классификация по ОКПД2` пуста у ВСЕХ строк архивного среза 500-строчного блока пробы** —
-  источник не заполняет классификацию на уровне листинга для завершённых закупок 44-ФЗ этого
-  окна; числовой масштаб снимается только боевым прогоном P4.7.
-- **`pg_partman` (`prc_events`)** — партиции не покрывают тестовые даты; чинится инструментовкой
-  P7.4.
-- **Сертификат ЕИС не проверяется дефолтным набором корней** (`ERR_CERT_AUTHORITY_INVALID` —
-  российский УЦ). Для боевого Guzzle нужна политика (Р-10) — стоп-сигнал С-5 плана прогона.
-  Владелец 2026-08-04: ставить сертификаты только если начнутся проблемы.
-- **Дневной темп сдвига выдачи не измерен** — час delta-scan (02:00 МСК) выбран по единственному
-  ночному измерению, K-7; величина `window_overlap_days=2` — стартовая, калибруется на прогоне
-  (K-5).
-- **223-ФЗ проработан только как листинг** — детальная стадия требует `noticeGuid`, которого в CSV
-  нет, способ добора разведкой не проверялся (Р-11).
-- **`estimates_s3` объявлен и никем не адресуется** (`config/filesystems.php:74-85`); перевод
-  корпуса эталонов на S3 сломает `GoldCorpusBuilder` (`:162` вызывает `->path()`).
-- **10 упавших тестов приёмочного прогона** (подтверждено на `d297d44`, тот же список имён, что
-  документированная база): `pg_partman` (`prc_events`, 4), `CoreKnowsNoDocumentTypeTest` (2),
-  `permission denied` на `resources/` (`PromptApplyTest`, 2), `CostReportTest` (1), `memory_limit`
+- **Документный контур не работает на боевых данных** (Д-5) — самый тяжёлый результат прогона:
+  всё, что стоит за документом (P5 — полнота сметной модели, P8 — деградированный источник), не
+  имеет входа, пока парсер не приведён к текущей вёрстке.
+- **Идемпотентность инжеста не выполняется** (Д-1) — перекрытие окон и delta-scan, построенные
+  P4.6, при включении будут писать полный комплект дублей за каждый перекрытый день.
+- **Корень Минцифры внесён непepсистентно** — в writable-слое `agelto_app`/`agelto_horizon`,
+  исчезнет при пересоздании контейнера или ребилде образа; после этого боевой клиент снова не
+  подключится к ЕИС (`tls=20`). Отпечаток корня SHA-256
+  `D2:6D:2D:02:31:B7:C3:9F:92:CC:73:85:12:BA:54:10:35:19:E4:40:5D:68:B5:BD:70:3E:97:88:CA:8E:CF:31`.
+- **`agelto_scheduler` остановлен** на время прогона и НЕ поднят обратно намеренно: активный
+  faker-профиль `prc_crawlers#1` из dev-данных ходит в ЕИС каждые 15 минут и портит здоровье узла.
+  Поднимать — после того, как профиль будет деактивирован.
+- **`Классификация по ОКПД2` пуста у 100 % архивного среза** — 8 584 из 8 584; это свойство
+  листинга завершённых закупок, а не выборочный пробел.
+- **`pg_partman` (`prc_events`)** — партиции не покрывают тестовые даты, четыре падения сюита;
+  чинится инструментовкой P7.4.
+- **10 упавших тестов приёмочного прогона** (подтверждено на `84c6725`, тот же состав, что база):
+  `pg_partman` (4), `CoreKnowsNoDocumentTypeTest` (2), `PromptApplyTest` (2), `CostReportTest` (1),
   `TextGridRendererTest` (1).
 - **Dev-БД теряет `prc_ai_dataset_examples`/`prc_ai_eval_runs` при `migrate:fresh`** (P5.7).
+- **`estimates_s3` объявлен и никем не адресуется**; перевод корпуса эталонов на S3 сломает
+  `GoldCorpusBuilder`.
 - **`app/Filament/Resources/Procurement/**` restrictive ACL**, **`rm` заблокирован в харнессе**,
   **незакоммиченный чужой дифф** (`.env.example`, `CLAUDE.md`, `.swissknife.json`, `.swissknife/`,
   `.swissknifeman/`, `config/cms.php`, `database/seeders/User/`, `estimates/gemini-analys.md`) —
   состав снимать `git status --porcelain` перед каждым item-коммитом.
 - **`.env` не несёт `MINIO_ROOT_PASSWORD`** — `docker compose` падает на интерполяции, обход
   `docker exec agelto_app …`.
-- **PHPStan в контейнере `agelto_app` падает на дефолтном 256M лимите** — обход `--memory-limit=1G`.
+- **PHPStan в контейнере падает на дефолтном 256M** — обход `--memory-limit=1G`.
 
 **Workarounds/Deferred/Open questions:**
 
 - **Workarounds:** `docker exec agelto_app` вместо `docker compose exec`; `phpstan analyse
-  --memory-limit=1G`; `ignoreHTTPSErrors` для разведки ЕИС (сертификат); `Registry::getAttribute
-  ('code')` вместо `->code` в новом коде (докблок сломал бы существующую baseline-запись).
-- **Deferred:** детализация фазы P8 и повторный `finish`; `## Phase Handoff` P2/P5 и формальный
-  `plan-close` P6; Р-8 (safety-cap ценового дробления) и Р-4 (ловушка стартового стека `0:0`);
-  детальная стадия 223-ФЗ (Р-11); резервный RU-прокси-узел; `fz223` в карте
-  `config('crawler.filters')`; докблок `@property string $code` у `Registry` + парная чистка
-  baseline; переименование `crawler.archive.date_format` → `crawler.eis.date_format`; писатель
+  --memory-limit=1G`; корень Минцифры + Sub CA 2024 в доверенном хранилище контейнеров
+  (непepсистентно); `agelto_scheduler` остановлен; `update prc_crawlers set registry_id = 3`
+  вместо фикса сида; `Registry::getAttribute('code')` вместо `->code` в новом коде.
+- **Deferred:** семь дефектов Д-1…Д-7 таблицей выше; персистентность корня Минцифры; два типа
+  процедуры вне `procedure_url_types`; стартовый ценовой стек от распределения; судьба данных под
+  `registry_id = 1`; детализация фазы P8 и повторный `finish`; `## Phase Handoff` P2/P5 и формальный
+  `plan-close` P6; Р-4 (ловушка стартового стека `0:0`); детальная стадия 223-ФЗ (Р-11); резервный
+  RU-прокси-узел; `fz223` в карте `config('crawler.filters')`; докблок `@property string $code` у
+  `Registry`; переименование `crawler.archive.date_format` → `crawler.eis.date_format`; писатель
   `verified_at`/`verified_by`; писатель пяти колонок `source_*`; прокидка семи старых полей
   паспорта в `ExtractionOrchestrator`; материализация не-`Item` строк; тип нормы аксессором из
   `code`; типизированный носитель `RowType` (OQ-6); переписывание текстов промтов сверх
@@ -166,12 +161,7 @@
   мёртвого диска `estimates_s3`; колонка диска для `prc_ai_dataset_examples.gold_ref`; перевод
   `FormatBenchRunner`/`GoldBuildCommand`/`FixtureForm`/`FixturesVerifyCommand` на
   `FileLocationResolver`; реальное удаление объектов на исходном диске после окна отката;
-  операторская правка `options.records_per_page` через форму профиля; сохранение других ключей
-  `options` сверх `columns` при правке профиля через форму; историческая витрина числа дублей
-  блока (D122 — счётчик живёт в `FetchResult` и логе, колонки в `prc_fetches` нет); заголовок
-  `IKZ_COLUMN` без суффикса «(ИКЗ)» (P4.9 Pending Work); систематически пустой `okpd2_code` на
-  архивном срезе — числовой масштаб снимается P4.7; включение `delta_scan_enabled` в боевое
-  расписание (после P4.7, решение владельца); калибровка `window_overlap_days`/`delta_scan_cron`
-  по фактам P4.7 (K-5/K-7).
+  операторская правка `options.records_per_page` через форму профиля; историческая витрина числа
+  дублей блока; заголовок `IKZ_COLUMN` без суффикса «(ИКЗ)».
 - **Open questions:** OQ-4, OQ-7 (`Exploration`), OQ-5 (`Decision pending`), OQ-6;
   OQ-3 закрыта D117, OQ-8 закрыта D113.
