@@ -170,7 +170,7 @@ P7.3 не выбирает топологию, а подтверждает ре�
 | P1 | Прокси как слой маршрутизации: скоуп, гео, здоровье, привязка к профилю | 4/10 | 🟠 Done with deviations |
 | P2 | Контракт LLM в одном канале: `#[Description]`, JSON Schema, промты | 5/13 | 🟠 Done with deviations |
 | P3 | Доменная раскладка и arch-тесты | 1/5 | 🟠 Done with deviations |
-| P4 | ЕИС: разведка, типизированные фильтры, сиды кроулеров, боевой прогон | 4/15 | 🟡 In progress |
+| P4 | ЕИС: разведка, типизированные фильтры, сиды кроулеров, боевой прогон | 5/15 | 🟡 In progress |
 | P5 | Полнота сметной модели против корпуса эталонов | 3/8 | 🟠 Done with deviations |
 | P6 | Адресация файлов: диск в записи, dual-read, backfill | 5/6 | 🟠 Done with deviations |
 | P7 | Ревизия схемы БД, топология хранения, финальный аудит процессов | 0/8 | ⬜ Not started |
@@ -544,6 +544,7 @@ Prism `unhandled finish reason`, decimal-cast); **M3c** (EvalRun #12, дерев
 | 2026-08-05 | issue-planner / opus-high | Ре-дизайн фазы **P4** по итогам боевого прогона: заведены **P4.10–P4.15** (семь дефектов + гейт Р-10 + контрольный прогон), D123–D128, `research/10-p4-remediation.md`; P4.8 исполняется последним. Четыре гейта владельца закрыты — детали см. `brief/01-refinements.md` блок 2026-08-05 (второе за день). |
 | 2026-08-05 | plan-exec / sonnet-medium | P4.10 закрыт 🟢, item-коммит **`cd4248b`**: модификатор `!` на `EisCsvRowMapper::parseDate()` и `EventJournalParser::DATE_FORMAT`, три теста, «красное без фикса» подтверждено — детали см. phases/P4.md P4.10 Completion Notes |
 | 2026-08-05 | plan-exec / sonnet-medium | P4.11 закрыт 🟢, item-коммит **`9fe6de3`**: резолв реестра по паре (площадка, код) в `CrawlerProfileSeeder`, замер латентности вокруг `requestWithOutcome`, `rawurlencode` кредов прокси — три теста, «красное без фикса» подтверждено на каждом — детали см. phases/P4.md P4.11 Completion Notes |
+| 2026-08-05 | plan-run / sonnet-high | P4.12 закрыт 🟢, item-коммит **`9143991`**: CA-бандл (Root+Sub CA 2024) в образе фиксированным путём, `SourceTlsTrust` — единственный носитель карты `crawler.tls.bundles`, персистентность доказана пересборкой образа и живой пробой через прокси-скоуп — детали см. phases/P4.md P4.12 Completion Notes |
 
 ## Обсуждение
 
