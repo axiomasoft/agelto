@@ -38,6 +38,7 @@ final readonly class DocumentDownloader
         private DocumentStoreRepository $storeRepository,
         private ProcurementStoreRepository $procurementStore,
         private FileLocationResolver $locationResolver,
+        private SourceTlsTrust $tlsTrust,
     ) {}
 
     public function download(Document $document): ?DocumentVersion
@@ -107,7 +108,9 @@ final readonly class DocumentDownloader
 
     private function request(string $url, ProxyLease $lease): Response
     {
-        return Http::withOptions($lease->httpOptions())
+        $tlsOptions = $this->tlsTrust->optionsFor($this->canonicalHost($url));
+
+        return Http::withOptions([...$lease->httpOptions(), ...$tlsOptions])
             ->withUserAgent((string) config('crawler.user_agent'))
             ->timeout((int) config('crawler.http.timeout', 30))
             ->retry(

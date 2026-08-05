@@ -19,6 +19,7 @@ use App\Models\Procurement\Procurement;
 use App\Services\Procurement\Contracts\SourceMethod;
 use App\Services\Procurement\PoliteThrottle;
 use App\Services\Procurement\Proxy\ProxyResolver;
+use App\Services\Procurement\SourceTlsTrust;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\RequestException;
 use Illuminate\Http\Client\Response;
@@ -62,6 +63,7 @@ final readonly class CsvSourceMethod implements SourceMethod
         private EisCardUrlBuilder $cardUrlBuilder,
         private ProxyResolver $proxyResolver,
         private PoliteThrottle $throttle,
+        private SourceTlsTrust $tlsTrust,
     ) {}
 
     public function collectListing(Crawler $crawler, ListingCursor $cursor): ListingBatch
@@ -214,7 +216,9 @@ final readonly class CsvSourceMethod implements SourceMethod
      */
     private function request(string $endpoint, array $queryParams, ProxyLease $lease): Response
     {
-        return Http::withOptions($lease->httpOptions())
+        $tlsOptions = $this->tlsTrust->optionsFor($this->canonicalHost($endpoint));
+
+        return Http::withOptions([...$lease->httpOptions(), ...$tlsOptions])
             ->withUserAgent((string) config('crawler.user_agent'))
             ->withHeaders(['Referer' => 'https://zakupki.gov.ru/'])
             ->timeout((int) config('crawler.http.timeout', 30))

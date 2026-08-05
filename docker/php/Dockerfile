@@ -61,4 +61,13 @@ COPY docker/nginx/default.conf /etc/nginx/conf.d/default.conf
 COPY docker/php/conf.d/pcov.ini /usr/local/etc/php/conf.d/pcov.ini
 COPY docker/php/entrypoint.d/10-secrets.sh /etc/entrypoint.d/10-secrets.sh
 RUN chmod +x /etc/entrypoint.d/10-secrets.sh
+
+# Доверие ЕИС (`config('crawler.tls.bundles')`, `SourceTlsTrust`) — узкое, НЕ системный трест
+# (P4.12, D125): бандл несёт Russian Trusted Root CA (SHA-256
+# D2:6D:2D:02:31:B7:C3:9F:92:CC:73:85:12:BA:54:10:35:19:E4:40:5D:68:B5:BD:70:3E:97:88:CA:8E:CF:31)
+# и Russian Trusted Sub CA 2024 (SHA-256
+# 21:55:78:50:36:C9:00:DB:B5:F1:BB:2A:15:69:C8:0C:55:59:5B:D6:BF:94:86:7A:29:BB:DD:BC:7D:88:A3:F2).
+# `update-ca-certificates` НЕ вызывается — попадание в системный трест расширило бы доверие
+# российскому УЦ на весь контейнер, включая исходящий канал к LLM-провайдеру.
+COPY docker/php/certs/russian-trusted-ca.pem /etc/ssl/certs/russian-trusted-ca.pem
 USER www-data

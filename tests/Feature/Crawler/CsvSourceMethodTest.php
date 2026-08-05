@@ -255,6 +255,26 @@ test('успешный запрос листинга пишет latency_ms_avg �
     expect($target->latency_ms_avg)->not->toBeNull();
 });
 
+test('запрос листинга несёт verify из карты crawler.tls.bundles для хоста площадки', function () {
+    Sleep::fake();
+    activeListingProxy();
+
+    $capturedOptions = null;
+    Http::fake(function ($request, $options) use (&$capturedOptions) {
+        $capturedOptions = $options;
+
+        return Http::response(body: EisCsvFixture::body(), status: 200);
+    });
+
+    $registry = Registry::factory()->create(['code' => 'fz44']);
+    $crawler = Crawler::factory()->for($registry)->create(['filter' => null]);
+    $cursor = new ListingCursor(blockFrom: 1);
+
+    app(CsvSourceMethod::class)->collectListing($crawler, $cursor);
+
+    expect($capturedOptions['verify'] ?? null)->toBe(config('crawler.tls.bundles')['zakupki.gov.ru']);
+});
+
 test('isAvailable возвращает true без сетевых запросов', function () {
     Http::fake();
 
