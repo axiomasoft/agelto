@@ -508,6 +508,7 @@ Prism `unhandled finish reason`, decimal-cast); **M3c** (EvalRun #12, дерев
 | 2026-08-05 | plan-run / opus-high | P4.2 закрыт 🟢, item-коммит **`e517878`**: `research/05-change-tracking.md` (8 разделов) — синтез механизма отслеживания, контракт фильтра, два профиля, план прогона; 4 расхождения сверх перечня P4.1, `Files` P4.6 требует дополнения — детали см. phases/P4.md P4.2 Completion Notes |
 | 2026-08-05 | plan-run / opus-high | P4.3 закрыт 🟠, item-коммит **`77265b3`**: `EisSearchFilter` + резолв класса по коду реестра, отказ на неизвестном ключе; дифф вне `Files` — один тест — детали см. phases/P4.md P4.3 Completion Notes |
 | 2026-08-05 | plan-exec / sonnet-medium | P4.4 закрыт 🟠, item-коммит **`20d2e6a`**: реактивный фильтр по `CrawlerFilterFactory`, 25 колонок с тремя заблокированными, cron-валидация, URL-превью — детали см. phases/P4.md P4.4 Completion Notes |
+| 2026-08-05 | plan-exec / sonnet-medium | P4.5 закрыт 🟠, item-коммит **`5ab05b2`**: сид площадки ЕИС + реестра `fz44` (справочники карточки из разведки), сид двух профилей (архив/fresh), порядок в `DatabaseSeeder` — детали см. phases/P4.md P4.5 Completion Notes |
 
 ## Обсуждение
 
