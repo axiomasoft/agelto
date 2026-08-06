@@ -107,6 +107,32 @@ checkpoint_ranges')` единиц ИЛИ `checkpoint_seconds` секунд — �
 Если меняешь формат `analysis.result.estimates[]` — обнови ВСЕ три класса синхронно, они читают
 один и тот же промежуточный формат позиционно, не через общий DTO-контракт между собой.
 
+## 6a) Деградированный источник — пометка неопределённости позиции (план `2026.07.31-SYS-INTEGRITY` P8)
+
+Плохой скан/нечитаемый фрагмент документа не превращается в отдельную ветку пайплайна — он виден
+на уровне ОДНОЙ строки, через `EstimateRow::$quality` (`RowQuality{reason, fields}`,
+`docs/specs/v2/08-estimate-extraction.md` §3.2). Модель вправе вернуть только
+`RowQualityReason::Unreadable` — построчные аномалии (`ArithmeticMismatch`/`NumberingGap`)
+производит ТОЛЬКО `EstimateValidator`, `EstimateRow::validateAndCreate()` отклоняет любую другую
+причину модели тем же приёмом, что и неизвестный ключ `attributes`.
+
+- **Контрактная форма ≠ форма хранения.** `EstimateRow::$quality` (ответ модели) — плоский объект;
+  `prc_estimate_items.quality` (БД, jsonb) — провенанс ключом верхнего уровня `model`/`validator`,
+  каждый в форме контракта. Мёрж — приватный сборщик `EstimatePersister::rowQuality()`, второй
+  писатель не заводится (канон «персистентность только через `*StoreRepository`»).
+- **Пишется ВСЕГДА, включая явный `NULL`.** `RerunRangeAction` не несёт отдельной ветки для
+  пометки — она следует из необязательного `?ValidationReport`-параметра общего сборщика: без
+  явного `NULL` на переизвлечённой строке пометка первого прогона пережила бы факт, который её
+  вызвал.
+- **`AsCollection::class` на nullable jsonb — ловушка null-safety** (найдено P8.4): этот каст
+  безусловно JSON-кодирует `null` в строку `"null"`, а не пишет SQL `NULL` — партиционирующий
+  индекс `WHERE quality IS NOT NULL` тогда вечно пуст. `Item::$quality`/`Estimate::$validation_notes`
+  используют примитивный каст `'collection'` вместо `AsCollection::class` — та же ловушка ждёт
+  любую другую nullable jsonb-колонку проекта, кастуемую через `AsCollection::class`.
+- **Eval мерит заполненность (`fill_rate`), не F1** (`EvalMetrics::compare()['quality']`,
+  `research/12-uncertainty-model.md` §9) — extraction-gold деградированного эталона в корпусе нет,
+  сравнивать пометку не с чем; F1 на всегда-пустом поле был бы структурным нулём, а не сигналом.
+
 ## 7) Калибруемые параметры (`config('ai.extraction.*')`)
 
 `row_range_size`/`min_row_range_size` (размер row-range диапазона и его уменьшение при

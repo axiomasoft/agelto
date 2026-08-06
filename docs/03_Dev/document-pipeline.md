@@ -129,6 +129,19 @@ sequenceDiagram
     Orch->>Orch: finalizeSuccess() → Analysis::Succeeded, Document::Extracted
 ```
 
+**Деградированный источник (скан/нечитаемый фрагмент, план `2026.07.31-SYS-INTEGRITY` P8).** Ни FSM,
+ни Д4-диаграмма веткой не меняются — деградация видна не документу целиком, а отдельным ПОЗИЦИЯМ
+внутри уже успешного `Succeeded`-прогона. Модель, не сумев прочесть строку, кладёт в ответ `extract_rows`
+контрактную пометку `quality={"reason":"unreadable","fields":[...]}` (§3.2
+`docs/specs/v2/08-estimate-extraction.md`) вместо того, чтобы молча вернуть `null` по каждому полю
+неотличимо от «поле законно пусто в источнике». `Persist` (`EstimatePersister`) мёржит эту пометку с
+построчными аномалиями, которые уже вычисляет `EstimateValidator` на шаге детерминированной валидации
+(§4.1 п.6 спеки) — обе причины уходят в `prc_estimate_items.quality` под ключами `model`/`validator`
+одним и тем же writer-путём, `RerunRangeAction` переписывает ключ `model` и стирает `validator` на
+переизвлечённой строке той же самой сборкой (второй ветки код не заводит). Персист пишет `quality`
+ВСЕГДА, включая явный `NULL` — иначе пометка первого прогона молча переживает строку, которую он
+описывал.
+
 Точечное переизвлечение диапазона (не всей сметы) — `RerunRangeAction`
 (`app/Services/Procurement/Analyzers/Estimate/RerunRangeAction.php`, Scope Included P6.3): переиспользует
 `ChunkSource::fetchRows()` и файловый handle из `analysis.progress`, не участвует в
