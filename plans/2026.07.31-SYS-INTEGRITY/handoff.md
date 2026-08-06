@@ -1,88 +1,97 @@
-# HANDOFF — 2026-08-06 — after P8.5
+# HANDOFF — 2026-08-06 — after P8.6
 
-**Next:** run-items: task:plan-run 2026.07.31-SYS-INTEGRITY P8.6
+**Next:** `/task:plan-exec 2026.07.31-SYS-INTEGRITY P8.7`
 
 | Параметр | Значение |
 |:--|:--|
-| Model class | manual — соседи по очереди (P8.6/P8.7) идут `manual/high`, батч не собирается (solo) |
-| Effort | high |
+| Model | sonnet |
+| Thinking | low — синхронизация доков по принятым решениям |
 | Context | continue (/clear) — ручной item |
-| Суть | Gold и eval: представимость пометок в gold-контракте (расширение эталона под `quality`) и вердикт измеримости на eval-контуре (D148) |
-| Команда | — (нет single-command эквивалента: Routing P8.6 = `manual`, `/task:plan-exec` пинит sonnet/medium и по гейту п.2 обязан отклонить этот item) |
+| Суть | Доки сметного домена + оба глоссария + скилл, приёмочный прогон фазы `--no-tia` с атрибуцией падений, `## Phase Handoff` P8 |
 
 ```
-/model opus
-/effort high
-/task:plan-run 2026.07.31-SYS-INTEGRITY P8.6
+/task:plan-exec 2026.07.31-SYS-INTEGRITY P8.7
 ```
 
-**Done:** P8.5 закрыт 🟠 2026-08-06 заходом `plan-exec` (sonnet/medium, совпадает с Routing
-implementation/medium — без перебора тира). Item-коммит **`70811f3`**, bookkeeping-коммит — следом
-за этой перезаписью.
+**Done:** P8.6 закрыт **🟢 2026-08-06** заходом `plan-run` (сессия **opus/high**; Routing предписывал
+`implementation/high` — перебор тира, недобора нет, запись в Known Deviations). Item-коммит
+**`c88f91a`**, bookkeeping-коммит — следом за этой перезаписью. Ноль LLM-вызовов.
 
-Read-only витрина смет реализована полностью: `EstimateResource` (index + view, без
-create/edit-страниц — read-only на уровне ресурса) + `EstimatesTable`/`EstimateInfolist`. Счётчик
-«помечено N из M» — `EstimateResource::getEloquentQuery()` (`withCount` двумя алиасами), не выборка
-позиций — подтверждено тестом на 3→200 позициях одной сметы (число запросов списка не растёт).
-Таблица позиций — `ItemsRelationManager` (не секция инфолиста: `RepeatableEntry` не несёт
-`->filters()`, а Scope Included требует интерактивный фильтр «только помеченные») с колонкой
-пометки: провенанс различим двумя подписями («Не прочитано моделью» / «Нашла проверка сметы»,
-формулировки §4 `research/12`), причины и имена полей — человекочитаемые (`RowQualityReason::label()`
-— новый метод, единственный носитель перевода причины; статическая карта `FIELD_LABELS` в
-`ItemsRelationManager` — единственный носитель перевода имени поля).
+Пометка неопределённости стала представимой в эталоне и измеримой:
 
-**Material-отклонение (🟠, не 🟢):** item-коммит несёт диф сверх буквального `Files` — три
-дополнительных файла, функционально необходимых: `app/Guards/Admin/Permissions/EstimatePermission.php`
-(без permission-enum'а `guard:sync-roles` не выдаёт `estimate.*` НИКОМУ — ресурс 403 у всех, включая
-оператора, прямое противоречие Implementation Rules п.4 item'а «права — по образцу существующего
-ресурса панели»), гранты `EstimatePermission::ViewAny`/`::View` в `OperatorRole`/`AnalystRole`
-(`AnalystRole` докблок уже называл это наперёд), `RowQualityReason::label()` + `@property-read`
-докблоки `items_count`/`marked_items_count` на `Estimate` (без них `phpstan analyse` красный).
-Подробности — phases/P8.md P8.5 Completion Notes/Known Deviations.
+- **gold-контракт** принимает `quality` в КОНТРАКТНОЙ форме (`{"reason","fields"}`) — `DatasetImporter`
+  НЕ правился: гейт уже несёт `EstimateRow::validateAndCreate()` (P8.3), второй носитель правила
+  заводить запрещено. Доказано тестами импорта реального JSON: эталон с пометкой доезжает, эталон без
+  пометки валиден, четыре формы битой пометки отклоняются поимённо;
+- **`EvalMetrics::compare()['quality']`** — `marked_rows`/`item_rows`/`fill_rate`/`by_reason` по
+  позициям (`row_type=item`) предсказания. `FIELD_MAP`/`ROW_NUMERIC_FIELDS` не тронуты (D139) и
+  охраняются сторож-тестом; ветки провенанса «валидатор» в разбивке нет (D148) — `marked_rows` = сумме
+  `by_reason` всегда;
+- **`DiffEntry::$predictedQuality`** (седьмое необязательное свойство, D149) — пометка как КОНТЕКСТ
+  расхождения: только на `field_mismatch` и только когда адресует ИМЕННО это поле; своей записи не
+  порождает, на `verdict` не влияет;
+- **вердикт измеримости** — `research/12-uncertainty-model.md` §9 (форма D46/P5.6): мерится
+  заполненностью, не F1. **Число на `41d3fc7a`: 6 эталонов · 214 позиций · 0 помеченных ·
+  `fill_rate` 0.0** — И-А (ложных пометок нет) измеримо и совпадает с нормой; **И-Б (пометки на
+  деградированном есть) сегодня не измеримо** — gold у скан-эталона нет, последний платный прогон шёл
+  старым промтом. Условие пересмотра структурное (§9.2).
+
+Validation зелёная целиком: `--filter=EvalMetrics --no-tia` 27 passed · `--filter=DatasetImport
+--no-tia` 11 passed · `--filter=EstimateDiffReport --no-tia` 13 passed · `estimate:eval:run --dry-run`
+без единого вызова · `pint --dirty --test` passed · `phpstan analyse` `[OK] No errors`, baseline не
+рос. Потребители формы агрегата проверены отдельно: `EvalDiff`/`EvalRun`/`EvalCompare`/`BenchFormats`
+— 3/11/14/9 passed.
 
 **Remaining:**
 
-- **Фаза P8** — items P8.6–P8.7 (счёт 2/7 — счётчик считает только `🟢`, P8.3–P8.5 закрыты `🟠`).
-  Очередь по данным: P8.6 (gold/eval) → P8.7 (доки+приёмка фазы).
+- **Фаза P8** — остался один item **P8.7** (доки + приёмочный прогон фазы). Счёт 3/7 — счётчик считает
+  только `🟢`, P8.3–P8.5 закрыты `🟠`.
 - Фазы P1–P7 терминальны (`🟠`) — работы по ним не осталось.
 
 **Sources of truth:**
 
-- `research/12-uncertainty-model.md` §2/§3/§4 — причины, форма носителя, провенанс (P8.5 закрыт по
-  ним без отклонений формы).
-- `phases/P8.md` P8.5 — Completion Notes/Known Deviations (закрыт); P8.6 — Scope Included готово,
-  читать целиком; `## Phase Status` фазы (2/7 по `🟢`).
-- `plan.md` — §4 Status Board (P8 `🟡` 2/7), §6 Update Log, §3 Routing (P8.6 — `manual/high`).
-- `app/Filament/Resources/Procurement/Estimates/EstimateResource.php` — витрина смет, единственный
-  read-only ресурс сметного домена.
-- `app/Enums/Procurement/Estimate/RowQualityReason.php` — `label()` (`:24`), единственный носитель
-  перевода причины в человекочитаемый текст.
+- `research/12-uncertainty-model.md` §9 — вердикт измеримости, число и структурное условие пересмотра
+  (единственный носитель вердикта; P8.7 его пересказывает, а не переписывает).
+- `phases/P8.md` P8.6 — Completion Notes/Pending Work (закрыт); P8.7 — Scope Included готово, читать
+  целиком; `## Phase Status` фазы (3/7 по `🟢`).
+- `plan.md` — §4 Status Board (P8 `🟡` 3/7), §6 Update Log, §3 Routing (P8.7 — `implementation/low`,
+  `Exec = plan-exec`, `Review = light`).
+- `app/Services/Procurement/Analyzers/Estimate/EvalMetrics.php` — `qualityCoverage()`, единственный
+  носитель правила «как считается заполненность пометок».
+- `docs/specs/v2/08-estimate-extraction.md` §8.2/§8.4/§8.6 — синхронизированы этим item'ом; §3.2
+  (контракт строки несёт `quality`) — **ещё НЕ синхронизирована**, это Scope Included 1 P8.7.
 
 **Open risks:**
 
+- **Run-level агрегат прогона не несёт fill-rate** (Pending Work P8.6 п.1): `ExtractionEvalRunner::
+  aggregate()` усредняет только `overall`/`row_coverage`, число живёт в `prc_ai_eval_results.details`
+  на пример. Дрейф «модель перестала помечать» не виден в сводке прогона. Фикс — среднее `fill_rate` +
+  сумма `by_reason` в `aggregate()`; решение о заведении follow-up item'а за владельцем.
+- **`estimate:eval:diff --format=md` не печатает `predicted_quality`** (Pending Work P8.6 п.2) —
+  контекст виден только в `--format=json`; фикс — седьмая колонка md-рендера.
+- **И-Б непроверяема до первого платного прогона** с промтом редакции P8.3 — «канал работает»
+  утверждать нельзя; это вход следующего платного шага, не долг кода.
 - Найденный дефект NULL-unsafety `AsCollection::class` на других nullable jsonb-колонках проекта
   (Pending Work P8.4) — без изменений, не блокер.
-- Открытые риски P8.1–P8.3 (генератор схемы не сужает enum; стоимость формы `response_schema`
-  +9.6%; `pdf_ocr` не отдаётся для голых сканов; И-Б непроверяем сегодня) — без изменений.
-- Стало неверно ещё при закрытии P8.1, не правлено (вне Scope): абзац под Status Board `plan.md`
-  §4 утверждает «До exec фазы остаётся один шаг — `plan-audit design`».
+- Открытые риски P8.1–P8.3 (генератор схемы не сужает enum; стоимость формы `response_schema` +9.6%;
+  `pdf_ocr` не отдаётся для голых сканов) — без изменений.
+- Стало неверно ещё при закрытии P8.1, не правлено (вне Scope): абзац под Status Board `plan.md` §4
+  утверждает «До exec фазы остаётся один шаг — `plan-audit design`».
 - Чужой незакоммиченный диф, НЕ ТРОНУТ (`plan.md` §2 Execution Rules — называть, не трогать):
   `M .env.example`, `M docker-compose.yml` (жёсткое `MINIO_ROOT_PASSWORD:?…` без дефолта —
   `docker compose` CLI падает на интерполяции ДО любой команды; рабочий обход —
   `docker exec agelto_app …`), `M docs/03_Dev/process/testing.md`, untracked
   `.swissknife.json`/`.swissknife/`/`.swissknifeman/`/`config/cms.php`/`database/seeders/User/`/
-  `docker/php/conf.d/pcov-dev.ini`/`estimates/gemini-analys.md`/
-  `plans/2026.07.31-SYS-INTEGRITY/artifacts/.write-test`.
-- Прочие Open risks — без изменений (промты P2.12 не поставлены/OQ-7; качество пометок неизмеримо
-  на eval-контуре, D148 — это ровно предмет P8.6; `CoreKnowsNoDocumentTypeTest` — пред-существующее
-  падение, вне Scope этого плана, воспроизведено ДО P8.4 и подтверждено воспроизводимым БЕЗ диффа
-  P8.5 (`git stash -u`)).
+  `docker/php/conf.d/pcov-dev.ini`/`estimates/gemini-analys.md`.
+- `CoreKnowsNoDocumentTypeTest` — пред-существующее падение, вне Scope этого плана (зафиксировано
+  P8.4/P8.5); приёмочный прогон P8.7 обязан атрибутировать его именно так.
 
 **Workarounds/Deferred/Open questions:**
 
 - *Workarounds:* команды идут `docker exec agelto_app …` вместо `docker compose exec app …` —
   вынужденный обход чужого дифа `docker-compose.yml`.
 - *Deferred:* пересмотр `ai.representations.policy` для PDF-сканов; режим bench «без gold» (D151,
-  скан-эталон); OQ-10 (контур операторских правок позиции) — явно назван вне Scope P8.5 (D137).
-- *Open questions:* OQ-7 (дедупликация текстов промтов P2.12, чужой долг); D148 (измеримость
-  пометок на eval-контуре) — снимается P8.6.
+  скан-эталон); OQ-10 (контур операторских правок позиции, D137); fill-rate в агрегате прогона и
+  колонка пометки в md-рендере diff (Pending Work P8.6).
+- *Open questions:* OQ-7 (дедупликация текстов промтов P2.12, чужой долг); D148 закрыт P8.6 —
+  провенанс на eval-пути не заводится, граница зафиксирована тестом.
