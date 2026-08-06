@@ -667,6 +667,32 @@
             "gold_path": null,
             "is_verified": false,
             "notes": "Вырожденный случай: книга из двух столбцов чисел без шапки вообще — проверка, что скрининг не считает сметой любую таблицу с числами"
+        },
+        {
+            "code": "EST-PDF-SCAN-002",
+            "storage_path": "EST-PDF-SCAN-002/source.pdf",
+            "source_path": "EST-PDF-SCAN-001-slice-1-33.pdf",
+            "original_filename": "EST-PDF-SCAN-001-slice-1-33.pdf",
+            "sha256": "1a63ce8e302870a1408444f622a689c444cf27fdf3d198b0b78ad53fc865acde",
+            "size_bytes": 49297847,
+            "mime": "application/pdf",
+            "class": "est",
+            "source_format": "pdf",
+            "form": "SCAN",
+            "generator": "PDF24 (сканирование бумаги)",
+            "cluster_id": "CL-16",
+            "document_type": "estimate",
+            "owner_document_type": "estimate",
+            "title": "Смета картинками (срез 1-33 из 86 стр.)",
+            "quirks": [
+                "SCAN_NO_TEXT"
+            ],
+            "expected_estimates": null,
+            "expected_rows": null,
+            "gold_source": "none",
+            "gold_path": null,
+            "is_verified": false,
+            "notes": "СРЕЗ первых 33 страниц EST-PDF-SCAN-001 (86 стр., 132615874 байт) — единственный диапазон, укладывающийся в max_request_file_mb=50 активных маршрутов (P8.1, D138); воспроизводится PdfPageSlicer::sliceRange('estimates/files/Смета картинками.pdf', 1, 33)."
         }
     ]
 }
