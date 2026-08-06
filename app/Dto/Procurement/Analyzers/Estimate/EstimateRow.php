@@ -6,6 +6,7 @@ namespace App\Dto\Procurement\Analyzers\Estimate;
 
 use App\Attributes\Ai\Alias;
 use App\Attributes\Ai\Description;
+use App\Enums\Procurement\Estimate\RowQualityReason;
 use App\Enums\Procurement\Estimate\RowType;
 use Illuminate\Contracts\Support\Arrayable;
 use Illuminate\Validation\ValidationException;
@@ -62,6 +63,8 @@ final class EstimateRow extends Data
         public array $resources = [],
         #[Description('фиксированная схема attributes (коэффициенты + КС-3, см. RowAttributes) — null, если строка не несёт ни коэффициентов, ни КС-3-разрезов.')]
         public ?RowAttributes $attributes = null,
+        #[Description('носитель неопределённости строки — причина, по которой перечисленные в нём поля этой строки нельзя считать надёжными; отсутствует/null на строке, прочитанной полностью.')]
+        public ?RowQuality $quality = null,
     ) {}
 
     /**
@@ -81,6 +84,38 @@ final class EstimateRow extends Data
             if ($unknown !== []) {
                 throw ValidationException::withMessages([
                     'attributes' => sprintf('Неизвестный ключ attributes: %s', implode(', ', $unknown)),
+                ]);
+            }
+        }
+
+        if (isset($raw['quality']) && is_array($raw['quality'])) {
+            $unknown = array_diff(array_keys($raw['quality']), ['reason', 'fields']);
+
+            if ($unknown !== []) {
+                throw ValidationException::withMessages([
+                    'quality' => sprintf('Неизвестный ключ quality: %s', implode(', ', $unknown)),
+                ]);
+            }
+
+            if (array_key_exists('reason', $raw['quality'])) {
+                $reason = is_string($raw['quality']['reason']) ? RowQualityReason::tryFrom($raw['quality']['reason']) : null;
+
+                if ($reason === null) {
+                    throw ValidationException::withMessages([
+                        'quality.reason' => 'Неизвестная причина quality.',
+                    ]);
+                }
+
+                if (! $reason->isModelOrigin()) {
+                    throw ValidationException::withMessages([
+                        'quality.reason' => sprintf('Причина "%s" недоступна модели (не model-origin).', $reason->value),
+                    ]);
+                }
+            }
+
+            if (($raw['quality']['fields'] ?? []) === []) {
+                throw ValidationException::withMessages([
+                    'quality.fields' => 'quality.fields не может быть пустым.',
                 ]);
             }
         }

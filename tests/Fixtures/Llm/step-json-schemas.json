@@ -506,6 +506,17 @@
                                 "type": "null"
                             }
                         ]
+                    },
+                    "quality": {
+                        "description": "носитель неопределённости строки — причина, по которой перечисленные в нём поля этой строки нельзя считать надёжными; отсутствует/null на строке, прочитанной полностью.",
+                        "anyOf": [
+                            {
+                                "$ref": "#/$defs/RowQuality"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ]
                     }
                 },
                 "required": [
@@ -660,6 +671,32 @@
                 },
                 "required": [
                     "name"
+                ],
+                "additionalProperties": false
+            },
+            "RowQuality": {
+                "type": "object",
+                "properties": {
+                    "reason": {
+                        "description": "причина, по которой перечисленные поля строки нельзя считать надёжными; модель вправе вернуть только unreadable — величину не удалось прочитать в источнике.",
+                        "type": "string",
+                        "enum": [
+                            "unreadable",
+                            "arithmetic_mismatch",
+                            "numbering_gap"
+                        ]
+                    },
+                    "fields": {
+                        "description": "имена полей EstimateRow, которых касается причина (например quantity, total_price_curr); пустой список запрещён — пометка без адреса.",
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    }
+                },
+                "required": [
+                    "reason",
+                    "fields"
                 ],
                 "additionalProperties": false
             },
