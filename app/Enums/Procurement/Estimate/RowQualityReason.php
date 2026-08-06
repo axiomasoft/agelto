@@ -23,4 +23,14 @@ enum RowQualityReason: string
     {
         return $this === self::Unreadable;
     }
+
+    /** Человекочитаемая подпись для операторской витрины (P8.5) — единственный носитель перевода. */
+    public function label(): string
+    {
+        return match ($this) {
+            self::Unreadable => 'не удалось прочитать в источнике',
+            self::ArithmeticMismatch => 'арифметика раздела не сходится',
+            self::NumberingGap => 'нарушена нумерация строк',
+        };
+    }
 }

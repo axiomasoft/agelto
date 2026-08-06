@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Guards\Admin\Roles;
 
 use App\Guards\Admin\Permissions\AnalysisPermission;
+use App\Guards\Admin\Permissions\EstimatePermission;
 use App\Guards\Admin\Permissions\FixturePermission;
 use App\Guards\Admin\Permissions\ProcurementPermission;
 use App\Guards\Admin\Permissions\PromptSuggestionPermission;
@@ -39,6 +40,10 @@ final class AnalystRole extends BaseRole
             // Очередь предложений по промтам (P5.6): аналитик читает очередь, решает — владелец.
             PromptSuggestionPermission::ViewAny,
             PromptSuggestionPermission::View,
+            // Витрина смет с пометками неопределённости (P8.5) — ресурс фазы 2, добавлен по
+            // прежней заметке докблока.
+            EstimatePermission::ViewAny,
+            EstimatePermission::View,
         ];
     }
 }

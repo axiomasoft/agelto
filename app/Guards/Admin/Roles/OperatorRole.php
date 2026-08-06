@@ -8,6 +8,7 @@ use App\Guards\Admin\Permissions\AiRoutePermission;
 use App\Guards\Admin\Permissions\AnalysisPermission;
 use App\Guards\Admin\Permissions\CrawlerPermission;
 use App\Guards\Admin\Permissions\DatasetExamplePermission;
+use App\Guards\Admin\Permissions\EstimatePermission;
 use App\Guards\Admin\Permissions\FixturePermission;
 use App\Guards\Admin\Permissions\IgnoreRulePermission;
 use App\Guards\Admin\Permissions\PlatformPermission;
@@ -68,6 +69,10 @@ final class OperatorRole extends BaseRole
             // инструкции остаётся владельческим (суперадмин), оператору не выдаётся.
             PromptSuggestionPermission::ViewAny,
             PromptSuggestionPermission::View,
+            // Витрина смет с пометками неопределённости (P8.5, D137): read-only ресурс,
+            // create/edit/delete-страниц у него нет — грант ограничен просмотром.
+            EstimatePermission::ViewAny,
+            EstimatePermission::View,
         ];
     }
 

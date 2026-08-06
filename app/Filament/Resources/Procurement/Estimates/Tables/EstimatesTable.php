@@ -1,0 +1,50 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Filament\Resources\Procurement\Estimates\Tables;
+
+use App\Models\Procurement\Estimate\Estimate;
+use Filament\Actions\ViewAction;
+use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Table;
+
+class EstimatesTable
+{
+    public static function configure(Table $table): Table
+    {
+        return $table
+            ->columns([
+                TextColumn::make('title')
+                    ->label('Смета'),
+                TextColumn::make('procurement.title')
+                    ->label('Закупка')
+                    ->placeholder('-')
+                    ->limit(60),
+                TextColumn::make('documentVersion.document.title')
+                    ->label('Документ')
+                    ->placeholder('-')
+                    ->limit(60),
+                TextColumn::make('validation_status')
+                    ->label('Статус валидации')
+                    ->badge()
+                    ->sortable(),
+                // Агрегат из getEloquentQuery() (withCount) — не выборка позиций в цикле
+                // (Implementation Rules P8.5 п.2).
+                TextColumn::make('marked_items_count')
+                    ->label('Помечено')
+                    ->state(fn (Estimate $record): string => "{$record->marked_items_count} из {$record->items_count}"),
+                TextColumn::make('created_at')
+                    ->dateTime()
+                    ->sortable()
+                    ->toggleable(isToggledHiddenByDefault: true),
+            ])
+            ->filters([
+                //
+            ])
+            // Read-only: только просмотр.
+            ->recordActions([
+                ViewAction::make(),
+            ]);
+    }
+}

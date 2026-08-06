@@ -52,6 +52,8 @@ use Illuminate\Support\Str;
  * @property int|null $source_page_start
  * @property-read DocumentVersion|null $documentVersion
  * @property-read Analysis|null $analysis
+ * @property-read int $items_count `withCount('items')` — счётчик витрины (P8.5, EstimateResource::getEloquentQuery())
+ * @property-read int $marked_items_count `withCount('items as marked_items_count', ...)` — то же, отфильтровано по `quality IS NOT NULL`
  */
 #[UseFactory(EstimateFactory::class)]
 final class Estimate extends Model
