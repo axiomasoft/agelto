@@ -23,6 +23,10 @@ use App\Dto\Procurement\Analyzers\Estimate\EstimateTotalsBlock;
  * Арифметика — тем же приёмом через {@see EstimateValidator}, отдельно по gold и по
  * предсказанию: базисно-индексный расчёт законно не сходится и у эталона (D42), отчёт обязан
  * различать «модель ошиблась» и «документ такой».
+ *
+ * Пометка неопределённости строки (P8.3) входит в отчёт КОНТЕКСТОМ расхождения
+ * ({@see self::qualityContext()}, P8.6), а не отдельным видом расхождения: собственной записи она
+ * не порождает и на `verdict` не влияет.
  */
 final readonly class EstimateDiffReport
 {
@@ -89,7 +93,15 @@ final readonly class EstimateDiffReport
                 $numeric = in_array($metric, EvalMetrics::ROW_NUMERIC_FIELDS, true);
 
                 if (! $this->metrics->fieldsMatch($goldValue, $predictedValue, $numeric)) {
-                    $entries[] = new DiffEntry($estimateIndex, $rowIndex, 'field_mismatch', $metric, $goldValue, $predictedValue);
+                    $entries[] = new DiffEntry(
+                        $estimateIndex,
+                        $rowIndex,
+                        'field_mismatch',
+                        $metric,
+                        $goldValue,
+                        $predictedValue,
+                        $this->qualityContext($predictedRow, $dtoField),
+                    );
                 }
             }
         }
@@ -268,6 +280,34 @@ final readonly class EstimateDiffReport
             $arithmeticAnomalies,
             count($arithmetic),
         );
+    }
+
+    /**
+     * Пометка неопределённости строки предсказания как КОНТЕКСТ расхождения этого поля (P8.6,
+     * `research/12-uncertainty-model.md` §3.1): расхождением она НЕ становится — своей записи
+     * `DiffEntry` не порождает и в `verdict` не считается, а объясняет уже найденное («предсказание
+     * пусто, потому что модель не прочитала это поле»). Прикладывается, только если пометка
+     * адресует ИМЕННО это поле: `fields` несёт имена полей `EstimateRow`, поэтому сравнение идёт с
+     * `$dtoField` (`FIELD_MAP`-значением), а не с метрическим ключом — `price` ≠ `total_price_curr`.
+     *
+     * @param  array<string, mixed>  $predictedRow
+     * @return array<string, mixed>|null
+     */
+    private function qualityContext(array $predictedRow, string $dtoField): ?array
+    {
+        $quality = $predictedRow['quality'] ?? null;
+
+        if (! is_array($quality)) {
+            return null;
+        }
+
+        $fields = $quality['fields'] ?? [];
+
+        if (! is_array($fields) || ! in_array($dtoField, $fields, true)) {
+            return null;
+        }
+
+        return $quality;
     }
 
     /**

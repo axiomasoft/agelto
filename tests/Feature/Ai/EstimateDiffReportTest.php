@@ -91,6 +91,50 @@ test('разное значение поля даёт запись field_mismatc
         ->and($mismatch->predicted)->toBe('Кабель ВВГнг');
 });
 
+test('P8.6: пометка неопределённости прикладывается к расхождению как контекст, если адресует это поле', function () {
+    $gold = [diffEstimate([diffRow(1, ['quantity' => '2'])])];
+    $predicted = [diffEstimate([diffRow(1, [
+        'quantity' => null,
+        'quality' => ['reason' => 'unreadable', 'fields' => ['quantity']],
+    ])])];
+
+    $report = diffReport()->build($gold, $predicted);
+
+    $mismatch = collect($report->rows)->first(fn ($entry) => $entry->field === 'quantity');
+
+    expect($mismatch)->not->toBeNull()
+        ->and($mismatch->kind)->toBe('field_mismatch')
+        ->and($mismatch->predicted)->toBeNull()
+        ->and($mismatch->predictedQuality)->toBe(['reason' => 'unreadable', 'fields' => ['quantity']])
+        ->and($mismatch->toArray()['predicted_quality'])->toBe(['reason' => 'unreadable', 'fields' => ['quantity']]);
+});
+
+test('P8.6: пометка про другое поле контекстом расхождения не становится', function () {
+    $gold = [diffEstimate([diffRow(1, ['name' => 'Кабель ВВГ', 'quantity' => '2'])])];
+    $predicted = [diffEstimate([diffRow(1, [
+        'name' => 'Иное наименование',
+        'quantity' => '2',
+        'quality' => ['reason' => 'unreadable', 'fields' => ['total_price_curr']],
+    ])])];
+
+    $report = diffReport()->build($gold, $predicted);
+
+    $mismatch = collect($report->rows)->first(fn ($entry) => $entry->field === 'name');
+
+    expect($mismatch)->not->toBeNull()
+        ->and($mismatch->predictedQuality)->toBeNull();
+});
+
+test('P8.6: пометка сама по себе расхождением не является — строка с пометкой и совпавшими полями не даёт записей', function () {
+    $gold = [diffEstimate([diffRow(1)])];
+    $predicted = [diffEstimate([diffRow(1, ['quality' => ['reason' => 'unreadable', 'fields' => ['quantity']]])])];
+
+    $report = diffReport()->build($gold, $predicted);
+
+    expect($report->rows)->toBe([])
+        ->and($report->verdict)->toBe('расхождений нет');
+});
+
 test('арифметика считается раздельно по gold и по предсказанию — расхождение одной стороны не красит другую', function () {
     $section = [
         diffRow(1, ['row_type' => 'section_header']),

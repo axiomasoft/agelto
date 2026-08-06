@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Services\Procurement\Analyzers\Estimate;
 
+use App\Enums\Procurement\Estimate\RowQualityReason;
+
 /**
  * Метрики офлайн-оценки качества извлечения (P7.4, ТЗ 04 §5): field-level precision/recall/F1
  * на паре (row_index, field) + row coverage. Чистая функция над УЖЕ нормализованными массивами
@@ -14,7 +16,9 @@ namespace App\Services\Procurement\Analyzers\Estimate;
  * Единственный владелец метрики (P7.3, D38/D62/D84): P4 её сознательно не трогает, `P6.1`/`P7.5`
  * только читают. Расширена P7.3 картой следствий `research/08-schema-change-impact.md` §4 —
  * `passport`/`totals` добавлены ОТДЕЛЬНЫМИ ключами, `per_field`/`overall`/`row_coverage` сохраняют
- * форму (их читают `estimate:eval:run` и бенчмарк P6.1). `EstimateDiffReport` (P7.3) переиспользует
+ * форму (их читают `estimate:eval:run` и бенчмарк P6.1). Тем же приёмом P8.6 добавил ключ
+ * `quality` — заполненность пометок неопределённости, поставленных МОДЕЛЬЮ
+ * ({@see self::qualityCoverage()}); в `FIELD_MAP` пометка НЕ входит (D139). `EstimateDiffReport` (P7.3) переиспользует
  * `flattenRows()`/`flattenPassport()`/`flattenTotals()`/`fieldsMatch()` как ОДИН носитель правил
  * сопоставления и сравнения значений — второй такой носитель разъехался бы с этим при первой же
  * правке (`plan-protocol` §3).
@@ -112,6 +116,14 @@ final readonly class EvalMetrics
     public const array TOTALS_NUMERIC_FIELDS = ['value', 'rate'];
 
     /**
+     * Строка, на которой пометка неопределённости вообще имеет носителя: только `item`
+     * материализуется в `prc_estimate_items` (решение владельца P5.3 §5), поэтому знаменатель
+     * заполненности считается по позициям — тем же множеством, на котором сформулированы
+     * инварианты И-А/И-Б (`plans/2026.07.31-SYS-INTEGRITY/research/12-uncertainty-model.md` §6.1).
+     */
+    private const string QUALITY_ROW_TYPE = 'item';
+
+    /**
      * @param  list<array<string, mixed>>  $goldEstimates
      * @param  list<array<string, mixed>>  $predictedEstimates
      * @return array{
@@ -120,6 +132,7 @@ final readonly class EvalMetrics
      *     row_coverage: float,
      *     passport: array<string, array{precision: float, recall: float, f1: float}>,
      *     totals: array<string, array{precision: float, recall: float, f1: float}>,
+     *     quality: array{marked_rows: int, item_rows: int, fill_rate: float, by_reason: array<string, int>},
      * }
      */
     public function compare(array $goldEstimates, array $predictedEstimates): array
@@ -189,6 +202,66 @@ final readonly class EvalMetrics
                 array_combine(self::TOTALS_FIELD_MAP, self::TOTALS_FIELD_MAP),
                 self::TOTALS_NUMERIC_FIELDS,
             ),
+            'quality' => $this->qualityCoverage($predictedRows),
+        ];
+    }
+
+    /**
+     * Заполненность пометок неопределённости, поставленных МОДЕЛЬЮ (P8.6, `research/12-uncertainty-
+     * model.md` §9): доля позиций предсказания с непустой `quality` + разбивка по причинам.
+     * НЕ участвует в {@see self::FIELD_MAP} и в F1 (D139): у деградированного эталона extraction-gold
+     * нет, сравнивать пометку не с чем — метрика на всегда-пустом поле дала бы `f1 = 1.0` на пустом
+     * месте (тот же вердикт, что D46/P5.6).
+     *
+     * **Провенанса в разбивке нет и он не заводится (D148).** Eval сравнивает
+     * `analysis->result['estimates']` с gold, а в `result` попадает ТОЛЬКО вывод модели после сшивки
+     * ({@see ExtractionOrchestrator}); вердикт {@see EstimateValidator} живёт в `ValidationReport` и
+     * уходит в БД внутри персистера. Ветка «валидатор» печатала бы структурный ноль на КАЖДОМ
+     * реальном прогоне независимо от того, работает валидатор или нет. Поэтому `by_reason`
+     * перечисляет РОВНО model-origin причины ({@see RowQualityReason::isModelOrigin()}), а строка с
+     * причиной вне этого подмножества (контракт её отклоняет — `EstimateRow::validateAndCreate()`)
+     * не считается пометкой модели вовсе: `marked_rows` = сумма `by_reason` всегда.
+     *
+     * @param  array<string, array<string, mixed>>  $predictedRows  результат {@see self::flattenRows()}
+     * @return array{marked_rows: int, item_rows: int, fill_rate: float, by_reason: array<string, int>}
+     */
+    private function qualityCoverage(array $predictedRows): array
+    {
+        $byReason = [];
+
+        foreach (RowQualityReason::cases() as $reason) {
+            if ($reason->isModelOrigin()) {
+                $byReason[$reason->value] = 0;
+            }
+        }
+
+        $itemRows = 0;
+        $markedRows = 0;
+
+        foreach ($predictedRows as $row) {
+            if (($row['row_type'] ?? null) !== self::QUALITY_ROW_TYPE) {
+                continue;
+            }
+
+            $itemRows++;
+
+            $quality = $row['quality'] ?? null;
+            $rawReason = is_array($quality) ? ($quality['reason'] ?? null) : null;
+            $reason = is_string($rawReason) ? RowQualityReason::tryFrom($rawReason) : null;
+
+            if ($reason === null || ! $reason->isModelOrigin()) {
+                continue;
+            }
+
+            $markedRows++;
+            $byReason[$reason->value]++;
+        }
+
+        return [
+            'marked_rows' => $markedRows,
+            'item_rows' => $itemRows,
+            'fill_rate' => $itemRows === 0 ? 0.0 : round($markedRows / $itemRows, self::SCALE),
+            'by_reason' => $byReason,
         ];
     }
 

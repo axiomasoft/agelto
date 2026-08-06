@@ -176,14 +176,86 @@ test('P5.6/D46: три новых поля паспорта (regulatory_base/reg
         ->not->toContain('passport.index_letter');
 });
 
-test('расширение EvalMetrics не ломает существующие ключи per_field/overall/row_coverage — passport/totals добавлены отдельно', function () {
+test('расширение EvalMetrics не ломает существующие ключи per_field/overall/row_coverage — passport/totals/quality добавлены отдельно', function () {
     $gold = estimatesOf([goldRow(1)]);
     $predicted = estimatesOf([goldRow(1)]);
 
     $metrics = (new EvalMetrics)->compare($gold, $predicted);
 
-    expect($metrics)->toHaveKeys(['per_field', 'overall', 'row_coverage', 'passport', 'totals'])
+    expect($metrics)->toHaveKeys(['per_field', 'overall', 'row_coverage', 'passport', 'totals', 'quality'])
         ->and($metrics['overall']['f1'])->toBe(1.0);
+});
+
+test('P8.6/D139: пометка неопределённости не заходит ни в FIELD_MAP, ни в ROW_NUMERIC_FIELDS — сторож против тихого включения в F1', function () {
+    expect(EvalMetrics::FIELD_MAP)
+        ->not->toHaveKey('quality')
+        ->not->toContain('quality')
+        ->and(EvalMetrics::ROW_NUMERIC_FIELDS)->not->toContain('quality');
+});
+
+test('P8.6: заполненность пометок модели считается по позициям предсказания с разбивкой по причинам', function () {
+    $gold = estimatesOf([goldRow(1), goldRow(2), goldRow(3), goldRow(4)]);
+    $predicted = estimatesOf([
+        goldRow(1, ['quantity' => null, 'quality' => ['reason' => 'unreadable', 'fields' => ['quantity']]]),
+        goldRow(2),
+        goldRow(3),
+        goldRow(4),
+    ]);
+
+    $metrics = (new EvalMetrics)->compare($gold, $predicted);
+
+    expect($metrics['quality'])->toBe([
+        'marked_rows' => 1,
+        'item_rows' => 4,
+        'fill_rate' => 0.25,
+        'by_reason' => ['unreadable' => 1],
+    ]);
+});
+
+test('P8.6/И-А: чистое предсказание без пометок даёт заполненность 0.0 — норма читаемого корпуса', function () {
+    $estimates = estimatesOf([goldRow(1), goldRow(2)]);
+
+    $metrics = (new EvalMetrics)->compare($estimates, $estimates);
+
+    expect($metrics['quality']['fill_rate'])->toBe(0.0)
+        ->and($metrics['quality']['marked_rows'])->toBe(0)
+        ->and($metrics['quality']['item_rows'])->toBe(2);
+});
+
+test('P8.6/D148: в разбивке нет ветки провенанса «валидатор» — validator-origin причина не считается пометкой модели', function () {
+    $gold = estimatesOf([goldRow(1)]);
+    $predicted = estimatesOf([goldRow(1, ['quality' => ['reason' => 'arithmetic_mismatch', 'fields' => ['quantity']]])]);
+
+    $metrics = (new EvalMetrics)->compare($gold, $predicted);
+
+    expect($metrics['quality']['by_reason'])->toBe(['unreadable' => 0])
+        ->and($metrics['quality']['marked_rows'])->toBe(0);
+});
+
+test('P8.6/Г-2: знаменатель заполненности — только строки row_type=item, заголовки и итоги в него не входят', function () {
+    $rows = [
+        goldRow(1, ['row_type' => 'section_header', 'name' => 'Раздел 1']),
+        goldRow(2, ['quality' => ['reason' => 'unreadable', 'fields' => ['total_price_curr']]]),
+        goldRow(3, ['row_type' => 'subtotal', 'name' => 'Итого по разделу']),
+    ];
+
+    $metrics = (new EvalMetrics)->compare(estimatesOf($rows), estimatesOf($rows));
+
+    expect($metrics['quality']['item_rows'])->toBe(1)
+        ->and($metrics['quality']['fill_rate'])->toBe(1.0);
+});
+
+test('P8.6: ключ заполненности детерминирован — повторный вызов даёт байт-идентичный результат', function () {
+    $gold = estimatesOf([goldRow(1), goldRow(2)]);
+    $predicted = estimatesOf([
+        goldRow(1, ['quality' => ['reason' => 'unreadable', 'fields' => ['quantity']]]),
+        goldRow(2),
+    ]);
+
+    $first = json_encode((new EvalMetrics)->compare($gold, $predicted)['quality'], JSON_UNESCAPED_UNICODE);
+    $second = json_encode((new EvalMetrics)->compare($gold, $predicted)['quality'], JSON_UNESCAPED_UNICODE);
+
+    expect($first)->toBe($second);
 });
 
 /**

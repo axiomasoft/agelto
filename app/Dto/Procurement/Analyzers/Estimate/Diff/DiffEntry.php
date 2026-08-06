@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Dto\Procurement\Analyzers\Estimate\Diff;
 
+use App\Dto\Procurement\Analyzers\Estimate\RowQuality;
 use App\Services\Procurement\Analyzers\Estimate\EvalMetrics;
 
 /**
@@ -20,9 +21,18 @@ use App\Services\Procurement\Analyzers\Estimate\EvalMetrics;
  * - field: имя расходящегося поля (`field_mismatch`) — `null` у `missing`/`extra` (расхождение
  *   целой строки/начисления, не одного поля).
  * - gold / predicted: значения соответствующей стороны как есть (decimal — строкой, без float).
+ * - predictedQuality: пометка неопределённости строки предсказания (`EstimateRow::$quality`,
+ *   P8.3) — КОНТЕКСТ расхождения, а не само расхождение (P8.6): она объясняет, почему предсказание
+ *   пусто («модель не прочитала это поле в источнике»), и потому прикладывается только к
+ *   `field_mismatch` и только когда пометка АДРЕСУЕТ это поле ({@see RowQuality::$fields});
+ *   `null` — пометки нет либо она про другое поле; у `missing` (строки предсказания нет вовсе) и
+ *   `extra` (вся строка уже лежит в `predicted`) контекста не бывает по построению.
  */
 final readonly class DiffEntry
 {
+    /**
+     * @param  array<string, mixed>|null  $predictedQuality
+     */
     public function __construct(
         public int $estimateIndex,
         public ?int $rowIndex,
@@ -30,10 +40,11 @@ final readonly class DiffEntry
         public ?string $field,
         public mixed $gold,
         public mixed $predicted,
+        public ?array $predictedQuality = null,
     ) {}
 
     /**
-     * @return array{estimate_index: int, row_index: ?int, kind: string, field: ?string, gold: mixed, predicted: mixed}
+     * @return array{estimate_index: int, row_index: ?int, kind: string, field: ?string, gold: mixed, predicted: mixed, predicted_quality: array<string, mixed>|null}
      */
     public function toArray(): array
     {
@@ -44,6 +55,7 @@ final readonly class DiffEntry
             'field' => $this->field,
             'gold' => $this->gold,
             'predicted' => $this->predicted,
+            'predicted_quality' => $this->predictedQuality,
         ];
     }
 }

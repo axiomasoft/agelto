@@ -124,6 +124,76 @@ test('битый gold-эталон (строка без обязательног
     File::deleteDirectory($folder);
 });
 
+/**
+ * Эталон с пометкой неопределённости позиции (P8.6): форма — КОНТРАКТНАЯ
+ * (`research/12-uncertainty-model.md` §3.1), эталон это ответ модели, а не строка БД.
+ */
+function goldJsonWithQuality(array $quality): string
+{
+    $decoded = json_decode(validGoldJson(), associative: true, flags: JSON_THROW_ON_ERROR);
+    $decoded['estimates'][0]['rows'][0]['quality'] = $quality;
+
+    return json_encode($decoded, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE);
+}
+
+test('P8.6: эталон с пометкой неопределённости импортируется и пометка доезжает в gold как есть', function () {
+    Storage::fake('s3');
+    $folder = datasetFixtureFolder();
+    file_put_contents("{$folder}/marked.pdf", 'PDF-DUMMY-CONTENT');
+    file_put_contents("{$folder}/marked.gold.json", goldJsonWithQuality([
+        'reason' => 'unreadable',
+        'fields' => ['quantity', 'total_price_curr'],
+    ]));
+
+    $this->artisan('estimate:dataset:import', ['path' => $folder])
+        ->assertExitCode(0);
+
+    $example = DatasetExample::query()->sole();
+
+    // Порядок ключей внутри пометки задаёт jsonb (нормализует их сам), поэтому сверяются значения.
+    expect($example->gold['estimates'][0]['rows'][0]['quality']['reason'])->toBe('unreadable')
+        ->and($example->gold['estimates'][0]['rows'][0]['quality']['fields'])->toBe(['quantity', 'total_price_curr']);
+
+    File::deleteDirectory($folder);
+});
+
+test('P8.6: эталон БЕЗ пометки остаётся валидным — quality необязателен', function () {
+    Storage::fake('s3');
+    $folder = datasetFixtureFolder();
+    file_put_contents("{$folder}/clean.pdf", 'PDF-DUMMY-CONTENT');
+    file_put_contents("{$folder}/clean.gold.json", validGoldJson());
+
+    $this->artisan('estimate:dataset:import', ['path' => $folder])
+        ->assertExitCode(0);
+
+    $example = DatasetExample::query()->sole();
+
+    expect($example->gold['estimates'][0]['rows'][0]['quality'])->toBeNull();
+
+    File::deleteDirectory($folder);
+});
+
+test('P8.6: битая пометка отклоняется поимённо — неизвестный ключ, неизвестная причина, причина не model-origin, пустой перечень полей', function (array $quality, string $expectedField) {
+    Storage::fake('s3');
+    $folder = datasetFixtureFolder();
+    file_put_contents("{$folder}/broken-quality.pdf", 'PDF-DUMMY-CONTENT');
+    file_put_contents("{$folder}/broken-quality.gold.json", goldJsonWithQuality($quality));
+
+    $this->artisan('estimate:dataset:import', ['path' => $folder])
+        ->expectsOutputToContain("estimates.0.rows.0.{$expectedField}")
+        ->assertExitCode(1);
+
+    expect(Document::query()->where('external_id', 'gold:broken-quality')->exists())->toBeFalse()
+        ->and(DatasetExample::query()->count())->toBe(0);
+
+    File::deleteDirectory($folder);
+})->with([
+    'неизвестный ключ внутри quality' => [['reason' => 'unreadable', 'fields' => ['quantity'], 'confidence' => 0.5], 'quality'],
+    'неизвестная причина' => [['reason' => 'blurry', 'fields' => ['quantity']], 'quality.reason'],
+    'причина вне model-origin подмножества' => [['reason' => 'arithmetic_mismatch', 'fields' => ['quantity']], 'quality.reason'],
+    'пустой перечень полей' => [['reason' => 'unreadable', 'fields' => []], 'quality.fields'],
+]);
+
 test('осиротевший *.gold.json без файла-источника отклоняется без падения всего импорта', function () {
     Storage::fake('s3');
     $folder = datasetFixtureFolder();
