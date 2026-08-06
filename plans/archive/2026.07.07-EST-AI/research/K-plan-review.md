@@ -17,7 +17,7 @@
 13. [major] После partial unique firstOrCreate находил superseded → ФИКС: P9.1 Scope — retrofit процессоров на scope active().
 14. [minor] P8.1 пропускал screening:global → дописан (все 7 значений enum).
 15. [minor] «наивысший приоритет» маршрута двусмысленно → «минимальное значение priority».
-16. [minor] Неоднозначный путь v1-prompts → закреплён plans/EST-AI/research/v1-prompts/**.
+16. [minor] Неоднозначный путь v1-prompts → закреплён plans/archive/2026.07.07-EST-AI/research/v1-prompts/**.
 17. [minor] Косметика счётчиков в plan.md/P12.1 → исправлено.
 18. [minor] spatie/laravel-data «преобразователи в JSON Schema» — нативных нет → формулировка P2.3 смягчена (Reflection-маппер — основной путь).
 19. [minor] env-ключи и docker-extensions вне scope → добавлено в P3.2 (env.example) и P4.2 (gd/zip/gd в образе — проверка+добавление).

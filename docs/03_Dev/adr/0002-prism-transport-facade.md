@@ -8,7 +8,7 @@ status: draft
 
 - Status: Accepted
 - Date: 2026-07-07
-- Источник: `plans/EST-AI/plan.md` §5 Decision Log, D8, D14; `plans/EST-AI/research/G-llm-transport-training.md` §1
+- Источник: `plans/archive/2026.07.07-EST-AI/plan.md` §5 Decision Log, D8, D14; `plans/archive/2026.07.07-EST-AI/research/G-llm-transport-training.md` §1
 
 ## Context
 

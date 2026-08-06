@@ -8,7 +8,7 @@ status: draft
 
 - Status: Accepted
 - Date: 2026-07-07 (уточнено D30/D40/D42, 2026-07-07/09)
-- Источник: `plans/EST-AI/plan.md` §5 Decision Log, D3, D30, D40, D42
+- Источник: `plans/archive/2026.07.07-EST-AI/plan.md` §5 Decision Log, D3, D30, D40, D42
 
 ## Context
 

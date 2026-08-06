@@ -8,7 +8,7 @@ status: draft
 
 - Status: Accepted
 - Date: 2026-07-07
-- Источник: `plans/EST-AI/plan.md` §5 Decision Log, D11 (аудит F, вариант b)
+- Источник: `plans/archive/2026.07.07-EST-AI/plan.md` §5 Decision Log, D11 (аудит F, вариант b)
 
 ## Context
 

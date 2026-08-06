@@ -46,21 +46,30 @@ make test-php         # ENV=dev по умолчанию; test-preflight + db:cre
   Владелец тома и `git safe.directory` для bind-mount `html` (uid хоста ≠ www-data) заданы на
   уровне образа (`docker/php/Dockerfile`) — если граф не пишется после ручной правки Dockerfile,
   проверить `docker exec agelto_app ls -la /var/www/.pest` (должен быть `www-data:www-data`).
-- **PCOV выключен по умолчанию** (`pcov.enabled=0` в `docker/php/conf.d/pcov.ini`, zero-cost) —
-  движку Tia он не нужен для реплея, только для (пере)записи графа по изменённым файлам. Включать
-  разово через `-d`, **и обязательно указывать `pcov.directory` тем же флагом** — иначе
-  Pest 5 `PcovRestarter` перезапускает процесс с `-d pcov.directory=<root>`, теряя переданный
-  `pcov.enabled=1` (в перезапущенном процессе он снова читается из `pcov.ini` = `0`):
-  ```bash
-  docker exec agelto_app php -d pcov.enabled=1 -d pcov.directory=/var/www/html \
-      ./vendor/bin/pest --tia --fresh --coverage
-  ```
-  Без `--coverage` Pest не активирует свой внутренний флаг `Coverage::$coverage` — простого
-  `-d pcov.enabled=1` недостаточно даже для первого прогона.
-  Команда обязана идти через `./vendor/bin/pest` НАПРЯМУЮ: `php -d pcov.enabled=1 artisan test`
-  не работает в принципе — `artisan test` порождает Pest ДОЧЕРНИМ процессом, и `-d` до него не
-  доезжает (наследуется окружение, не флаги интерпретатора). Прогон при этом выглядит успешным,
-  а строка «TIA as skipped as it needs ext-pcov or Xdebug» остаётся на месте.
+- **PCOV включён ПОСТОЯННО в dev** (bind-mount `docker/php/conf.d/pcov-dev.ini` поверх
+  `/usr/local/etc/php/conf.d/pcov.ini` — только в `docker-compose.yml`, dev; в проде и в самом
+  образе (`Dockerfile`) `docker/php/conf.d/pcov.ini` остаётся `pcov.enabled=0`, zero-cost,
+  без изменений). Решение: `pcov.enabled`, переданный флагом `-d` на КАЖДЫЙ вызов, терялся при
+  перезапуске воркера (`Pest\Restarters\PcovRestarter` перезапускает процесс с
+  `-d pcov.directory=<root>` ТОЛЬКО, не `-d pcov.enabled=1`, — новый процесс читает `pcov.enabled`
+  заново из файла на диске, где он снова `0`); постоянный `pcov.enabled=1` в примонтированном
+  ini-файле убирает саму причину — `PcovRestarter` находит `pcov.directory` уже верным (задан там
+  же явно, не `auto`) и не перезапускает процесс вовсе. Обычный
+  `docker exec agelto_app php artisan test` (без `--filter`, без `-d`) теперь сам подхватывает
+  pcov — проверено: `Pest\Plugins\Tia\Recorder` детектит драйвер через `ini_get('pcov.enabled')`
+  в рантайме, ручной флаг/обходной путь через `./vendor/bin/pest` больше не нужен.
+  После правки `docker/php/conf.d/pcov-dev.ini` — `docker compose up -d --force-recreate --no-deps
+  app` (bind-mount отдельного ФАЙЛА не подхватывает правку хоста без пересоздания контейнера).
+- **Известное ограничение (не от pcov, орфографически смежное).** Полный сюит (`artisan test` без
+  `--filter`) сегодня почти целиком «uncached» на КАЖДОМ прогоне, даже без изменений в дереве:
+  `Pest\Plugins\Tia\ChangedFiles::workingTreeChanges()` считает «изменёнными» ВСЕ untracked-файлы
+  (`git status --porcelain --untracked-files=all`), включая чужой незакоммиченный `config/cms.php`
+  (Execution Rules плана `2026.07.31-SYS-INTEGRITY` — «не трогать»); `config/*.php` грузится
+  Laravel-бутстрапом на КАЖДОМ тесте, поэтому его «изменённость» инвалидирует edge почти всей
+  матрицы. Фикс — не докер/pcov: `config/cms.php` либо коммитится владельцем, либо уходит в
+  `.gitignore` (тогда `ChangedFiles::filterIgnored()` его исключит через `git check-ignore`).
+  Точечные `--filter`-прогоны затронуты НЕ бывают (изолированный тест-файл реплеится стабильно —
+  проверено 3× подряд).
 - **Инвалидация** — по git-диффу рабочего дерева относительно последнего записанного графа;
   структурный fingerprint игнорирует чисто косметические правки (комментарий, пробелы) — 0
   незакэшированных тестов на `pint --dirty` без смысловых изменений.

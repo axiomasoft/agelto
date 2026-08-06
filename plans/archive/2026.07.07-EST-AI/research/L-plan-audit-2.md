@@ -67,7 +67,7 @@ setasign, vLLM docs, GlitchTip, PhpSpreadsheet/mPDF issues, PG17/pg_partman/Redi
 
 7. **[MED · процесс] Финальная версия плана не закоммичена.**
    `git status`: plan.md, все phases/*, research/{H,I,J,K} — modified/untracked. Потеря рабочего дерева = потеря
-   результата четырёх итераций; cold-start по git log увидит старую версию. Fix: закоммитить plans/EST-AI/** до P1.1.
+   результата четырёх итераций; cold-start по git log увидит старую версию. Fix: закоммитить plans/archive/2026.07.07-EST-AI/** до P1.1.
 
 ### LOW
 

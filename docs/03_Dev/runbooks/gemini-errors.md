@@ -50,5 +50,5 @@ status: draft
 ## Escalation
 
 Прокси/боевая квота/дата переключения на 3.x — решения владельца, не инженерные (открытые вопросы
-плана EST-AI, `plans/EST-AI/handoff.md`). Систематический `INVALID_ARGUMENT` при живом preflight —
+плана EST-AI, `plans/archive/2026.07.07-EST-AI/handoff.md`). Систематический `INVALID_ARGUMENT` при живом preflight —
 баг в `ExtractionPreflight`/`config('ai.capabilities.*')`, эскалация разработчику.

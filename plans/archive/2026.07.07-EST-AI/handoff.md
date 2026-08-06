@@ -34,8 +34,8 @@ pre-existing ошибок (P3/P4/P5/P7/P9), новых нет; `skiller status` 
 (`session-observer`/`shared-memory` + дубль marketplace/vendor каналов), не связан с этим item'ом.
 **Remaining:** 0 items. P11.1 — вне remaining (Skipped, не Done), переисполнение — по решению
 владельца (см. Next).
-**Sources of truth:** `plans/EST-AI/plan.md` (Meta Status 🟠 Done with deviations; Decision Log
-D1–D45; Status Board — все фазы терминальны) · `plans/EST-AI/phases/P12.md` (P12.1/P12.2 Completion
+**Sources of truth:** `plans/archive/2026.07.07-EST-AI/plan.md` (Meta Status 🟠 Done with deviations; Decision Log
+D1–D45; Status Board — все фазы терминальны) · `plans/archive/2026.07.07-EST-AI/phases/P12.md` (P12.1/P12.2 Completion
 Notes/Known Deviations целиком) · `CLAUDE.md` (корень, 185 строк — актуальный хаб) ·
 `.ai/guidelines/{architecture,glossary,navigation,docs-pr-checklist}.md` (источники хаба) ·
 `.claude/skills/{procurement-pipeline-dev,estimate-extraction-dev,llm-layer-dev,

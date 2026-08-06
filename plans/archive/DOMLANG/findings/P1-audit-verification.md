@@ -165,7 +165,7 @@ Open Contracting Data Standard — де-факто глобальный стан
 ¹ Частично **легитимно** — файл описывает таблицы v1. Также затронуты `docs/03_Dev/database.md`
 и `docs-private/**` (включая `history/`, где v1-имена легитимны).
 
-Зафиксировано как открытый долг в `plans/EST-AI/handoff.md` (строки 64–65).
+Зафиксировано как открытый долг в `plans/archive/2026.07.07-EST-AI/handoff.md` (строки 64–65).
 
 ### 4.4 `PipelineDispatcher` не мутирует статус документа
 

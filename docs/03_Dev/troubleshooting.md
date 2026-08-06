@@ -22,7 +22,7 @@ status: draft
 ## `dispatch(...)->afterCommit()` срабатывает немедленно в тесте
 
 Под `RefreshDatabase` в определённых условиях `afterCommit()`-диспатч исполняется сразу, не после
-реальной транзакции — известный workaround плана EST-AI (см. `plans/EST-AI/handoff.md`
+реальной транзакции — известный workaround плана EST-AI (см. `plans/archive/2026.07.07-EST-AI/handoff.md`
 Workarounds), учитывать при тестировании job-цепочек пайплайна (`PipelineDispatcher`,
 `PipelineJob::afterRelease()`).
 

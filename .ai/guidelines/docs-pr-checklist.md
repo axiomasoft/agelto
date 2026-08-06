@@ -2,7 +2,7 @@
 
 Применяется ко ВСЕМ PR, не только к домену парсинга (для правил парсинг-пайплайна — skill
 `procurement-pipeline-dev`, свой PR-чеклист там). Источник — `docs/` каркас EST-AI P10.1
-(`plans/EST-AI/research/H-docs-structure.md`).
+(`plans/archive/2026.07.07-EST-AI/research/H-docs-structure.md`).
 
 Перед мержем PR проверь:
 

@@ -25,7 +25,7 @@ v2-краулинг доведён ровно до статуса докумен
 
 Черновые документы `tmp/agelto.md` и `tmp/agelto2.md` (agelto2 — надмножество agelto) дают алгоритм разрывов страниц (sliding window + orphan buffer + stitcher) и JSON-контракты; они транскрибируются в спеку и удаляются. Их `ord_*`-схема БД устарела — актуальная `prc_*` уже смигрирована.
 
-Выжимки одиннадцати разведок (A процессы v1 · B промты v1 · C поля смет v1 · D состояние v2 · E Gemini-2026 · F аудит схемы БД · G транспорт/обучение · H структура доков · I диф v1-БД · J observability/деплой/конкурентность · K ревью плана) — в `plans/EST-AI/research/`; исполнитель обязан читать их по Required Reads, а не переоткрывать Old/ с нуля.
+Выжимки одиннадцати разведок (A процессы v1 · B промты v1 · C поля смет v1 · D состояние v2 · E Gemini-2026 · F аудит схемы БД · G транспорт/обучение · H структура доков · I диф v1-БД · J observability/деплой/конкурентность · K ревью плана) — в `plans/archive/2026.07.07-EST-AI/research/`; исполнитель обязан читать их по Required Reads, а не переоткрывать Old/ с нуля.
 
 Вторая итерация (2026-07-07) добавила: санацию схемы БД по аудиту F (нейминг индексов, FK, onDelete, снятие unique с `prc_estimates.analysis_id`), обучающий контур (обратная связь оператора «проверено/что не так», корректирующие промты, gold-петля, экспорт SFT-датасета — фундамент локальной LLM при отключении Gemini в РФ), сиды и `is_protected` для промтов, фазу документации с диаграммами. Требование универсальности: система не завязана на Gemini (capability-based кэширование, D14), не завязана на ЕИС (шов `prc_eis_details` подтверждён аудитом), расширяема на другие типы документов (D13) и до CRM (org_* — чистый shared-слой; контакты-сущность — отложенный шов).
 
@@ -38,9 +38,9 @@ v2-краулинг доведён ровно до статуса докумен
 - Один item за раз; статус обновляется В ПЛАНЕ (phase-файл + Status Board здесь) до завершения работы.
 - Статусы — 6 канонических строк байт-в-байт (plan-protocol §5).
 - План разошёлся с кодом → не импровизировать, эскалировать (Escalation Needed + handoff).
-- После закрытия item/фазы — перезаписать `plans/EST-AI/handoff.md` целиком.
+- После закрытия item/фазы — перезаписать `plans/archive/2026.07.07-EST-AI/handoff.md` целиком.
 - Тесты: Pest, `test('<интент по-русски>')`, БД `agelto_test`, запуск `docker compose exec app php artisan test --filter=<Subject>`; стиль `docker compose exec app ./vendor/bin/pint --dirty --test`.
-- Канон имён/слоёв — CLAUDE.md + `docs/02_Workflow/glossary.md` отсутствует → канон в `plans/EST-AI/research/D-v2-state.md` §Конвенции; сущности `$document`, `$documentVersion`, `$analysis`, `$estimate`.
+- Канон имён/слоёв — CLAUDE.md + `docs/02_Workflow/glossary.md` отсутствует → канон в `plans/archive/2026.07.07-EST-AI/research/D-v2-state.md` §Конвенции; сущности `$document`, `$documentVersion`, `$analysis`, `$estimate`.
 - Персистентность только через `app/Repositories/Procurement/*StoreRepository`; сервисы `final readonly`, конструкторная инъекция, именованные аргументы, `declare(strict_types=1)`.
 - Таблицы существуют (`prc_*`) — новые миграции создавать ТОЛЬКО там, где item явно это указывает.
 - Old/ и tmp/agelto*.md — read-only справочники до P11.1; ничего в них не менять.
