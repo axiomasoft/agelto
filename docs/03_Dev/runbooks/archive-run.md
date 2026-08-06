@@ -13,7 +13,7 @@ status: draft
 
 ## Triage
 
-Перед запуском проверить предусловия (`plans/2026.07.31-SYS-INTEGRITY/research/05-change-tracking.md`
+Перед запуском проверить предусловия (`plans/archive/2026.07.31-SYS-INTEGRITY/research/05-change-tracking.md`
 §6.1, живо доказаны прогонами P4.7/P4.15):
 
 1. Egress ДО первого запроса к источнику — прокси-скоуп площадки отдаёт RU-адрес

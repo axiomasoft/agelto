@@ -101,6 +101,6 @@ P1 Прокси → P2 Контракты LLM → P3 Раскладка → P5 �
   `pub`/`raw`, контур выдачи (кэш/пагинация/rate limit): они ждут стабилизировавшейся сметной
   модели и несуществующего API-контура и вынесены в OQ-5 как основание отдельного плана.
 - **Не трогает незакоммиченный чужой диф** в рабочем дереве. На `09e07a5` это `.env.example`
-  и untracked `config/cms.php`, `database/seeders/User/`, `estimates/gemini-analys.md`,
+  и untracked `config/cms.php`, `database/seeders/User/`, `plans/archive/2026.07.31-SYS-INTEGRITY/artifacts/gemini-analys.md`,
   `.swissknife/`; удаление `Old/**` к этому моменту УЖЕ закоммичено (`09e07a5`) и чужим дифом не
   является (D77). Актуальный состав — `plan.md` §2 и `git status --porcelain` перед коммитом.

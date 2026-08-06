@@ -74,7 +74,7 @@ P6.2 с биллингом Google Cloud/AI Studio; (2) откалиброват�
 - **P3 OOM на `--prepare` (P5.5, унаследован).**
 - `soffice` PATH-квирк (P5.5, унаследован) — в текущем контейнере работает.
 - Посторонний незакоммиченный дифф в дереве (не мой, не трогал; `git status --short` на момент
-  закрытия P7): `.gitignore`, `app/Models/Procurement/Ai/Fixture.php`, `estimates/gemini-analys.md`,
+  закрытия P7): `.gitignore`, `app/Models/Procurement/Ai/Fixture.php`, `plans/archive/2026.07.31-SYS-INTEGRITY/artifacts/gemini-analys.md`,
   `.swissknife/`.
 - `phpstan-baseline.neon` растёт вне items — долг унаследован.
 - Docs-sync follow-up (P3) и долг `prc_estimate_totals.kind` по `label`/`@Caption` — владелец

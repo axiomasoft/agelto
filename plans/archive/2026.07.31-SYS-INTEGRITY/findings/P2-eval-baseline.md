@@ -33,7 +33,7 @@ docker exec agelto_app php artisan tinker --execute="echo DB::table('prc_ai_fixt
 предсказывал Validation item'а).
 
 `git status --porcelain estimates/` — пусто (единственный untracked файл каталога,
-`estimates/gemini-analys.md`, — чужой дифф из `plan.md` §2, гидрацией не создан и не тронут).
+`plans/archive/2026.07.31-SYS-INTEGRITY/artifacts/gemini-analys.md`, — чужой дифф из `plan.md` §2, гидрацией не создан и не тронут).
 
 ## 2. Парный baseline (D91) — task=extraction, --split=all
 

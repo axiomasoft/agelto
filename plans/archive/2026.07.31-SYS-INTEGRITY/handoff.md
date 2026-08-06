@@ -52,7 +52,7 @@ Deferred ниже, унаследованные из предыдущей зап
 - Чужой незакоммиченный диф, НЕ ТРОНУТ (`plan.md` §2 Execution Rules): `M .env.example`,
   `M docker-compose.yml`, `M docs/03_Dev/process/testing.md`, untracked `.swissknife.json`,
   `.swissknife/`, `.swissknifeman/`, `config/cms.php`, `database/seeders/User/`,
-  `docker/php/conf.d/pcov-dev.ini`, `estimates/gemini-analys.md`.
+  `docker/php/conf.d/pcov-dev.ini`, `plans/archive/2026.07.31-SYS-INTEGRITY/artifacts/gemini-analys.md`.
 
 **Workarounds/Deferred/Open questions:**
 

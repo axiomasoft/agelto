@@ -179,5 +179,5 @@ for item in <все ### Pn.m семи phase-файлов>:
   посторонним untracked-путём в дереве; на самом деле он ОТСЛЕЖИВАЕТСЯ
   (`git ls-files plans/2026.07.28-EST-ARCH/research/` — пять файлов, включая его). Закрытый item не
   правится (история сдачи), факт назван здесь. Реально посторонние untracked в дереве — только
-  `.swissknife/`, `estimates/gemini-analys.md` и `plans/2026.07.28-EST-ARCH/.swissknife/`
+  `.swissknife/`, `plans/archive/2026.07.31-SYS-INTEGRITY/artifacts/gemini-analys.md` и `plans/2026.07.28-EST-ARCH/.swissknife/`
   (`git status --porcelain` на `9ff9527` + правки этого захода).

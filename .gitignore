@@ -54,6 +54,8 @@ yarn-error.log
 # закрытия item'а не различает их и файлов плана и дважды затягивал в индекс (P3.1).
 plans/**/.claude/
 plans/**/.swissknife/
+/.swissknife/
+/.swissknifeman/
 .gemini
 .idea/
 .junie/

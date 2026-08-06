@@ -74,7 +74,7 @@ P7.3 не выбирает топологию, а подтверждает ре�
 - `composer require` / `pint --dirty` автофикс / `vendor:publish` — с ХОСТА, не из контейнера.
 - **Незакоммиченный чужой диф — НЕ трогать, не коммитить, не откатывать; называть в отчёте**
   (`plan-protocol` §6). Состав на `09e07a5`: `M .env.example` · untracked `config/cms.php`,
-  `database/seeders/User/`, `estimates/gemini-analys.md`, `.swissknife/`. Удаление `Old/**`
+  `database/seeders/User/`, `plans/archive/2026.07.31-SYS-INTEGRITY/artifacts/gemini-analys.md`, `.swissknife/`. Удаление `Old/**`
   ЗАКОММИЧЕНО (`09e07a5 chore: удалить устаревший каталог Old/`) и чужим дифом больше не является.
   Список — ориентир, а не истина: фактический состав снимается `git status --porcelain` ПЕРЕД
   каждым item-коммитом. Особая осторожность с `database/seeders/User/` — он лежит в каталоге, куда

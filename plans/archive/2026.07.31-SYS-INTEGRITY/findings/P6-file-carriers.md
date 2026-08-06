@@ -6,7 +6,7 @@
 **Якорь дерева:** все числа и строки сняты на `532ba71` (`git rev-parse --short HEAD`).
 Незакоммиченный чужой дифф в дереве на момент сбора: `M .env.example`, `M CLAUDE.md`,
 untracked `.swissknife.json`, `.swissknife/`, `.swissknifeman/`, `config/cms.php`,
-`database/seeders/User/`, `estimates/gemini-analys.md` — ни один не лежит в `app/`,
+`database/seeders/User/`, `plans/archive/2026.07.31-SYS-INTEGRITY/artifacts/gemini-analys.md` — ни один не лежит в `app/`,
 `config/` или `database/migrations/`, то есть на инвентарь не влияет.
 
 ## 1. Метод сбора (воспроизводимая команда)
