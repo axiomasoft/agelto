@@ -7,7 +7,7 @@
 | Plan ID | 2026.07.31-SYS-INTEGRITY |
 | Title | Целостность, надёжность и предсказуемость пайплайна: прокси как слой маршрутизации, контракт LLM в одном канале, выравнивание доменной раскладки, боевой кроулинг ЕИС, полнота сметной модели, адресация файлов, ревизия схемы БД |
 | Version | 0.25.2 |
-| Status | 🟡 In progress |
+| Status | 🟠 Done with deviations |
 | Document Type | Executable Master Plan |
 | Authoring Model | frontier |
 | Design Passes | 5/5 — 8 фаз + высокая неопределённость брифа (владелец: «многое требует исследований и подтверждений», вердикт по п.7 снят до исследования); pass 1 — скелеты, контракт-блоки, D1–D14, слои brief/findings/research; pass 2 — детализация фаз до DoR; pass 3 — `finish`: сквозной reconcile контрактов + roadmap; pass 4 — ПОВТОРНЫЙ `finish` по вердикту `plan-audit design` (RED, 14 находок): контракт-блок P7 менялся после pass 3 поправками владельца D70–D73, а `plan-protocol` §5 требует на изменение контракта фазы новый `finish`, а не точечную правку; **pass 5 — D144**: восьмая фаза P8 заведена (D120) и детализирована уже ПОСЛЕ исчерпания бюджета 4/4, поэтому N поднят до 5, и pass 5 = `plan-design P8` (2026-08-05) + завершающий его `finish` (2026-08-05, D141–D145) |
@@ -616,6 +616,7 @@ Prism `unhandled finish reason`, decimal-cast); **M3c** (EvalRun #12, дерев
 | 2026-08-06 | plan-exec / sonnet-medium | P8.5 закрыт 🟠, item-коммит `70811f3`: read-only `EstimateResource` (список+просмотр, фильтр «только помеченные», пометка провенансом) — детали см. phases/P8.md P8.5 Completion Notes/Known Deviations |
 | 2026-08-06 | plan-run / opus-high | P8.6 закрыт 🟢, item-коммит `c88f91a`: пометка представима в gold и измерима заполненностью (ключ `quality` метрики, контекст в diff-отчёте, вердикт `research/12` §9) — детали см. phases/P8.md P8.6 Completion Notes |
 | 2026-08-06 | plan-exec / sonnet-medium | P8.7 закрыт 🟢, item-коммит `6ca3f859`: доки/глоссарии/скилл синхронизированы, приёмочный прогон фазы зелёный — фаза P8 терминальна, детали см. phases/P8.md P8.7 Completion Notes/Pending Work |
+| 2026-08-06 | plan-close / sonnet-low | Фаза P8 закрыта 🟠 Done with deviations (все 7 items терминальны, 4🟢+3🟠) — реконсиляция подтвердила Status Board ↔ Phase Status без расхождений. Все восемь фаз плана терминальны → план закрыт ЦЕЛИКОМ: Status плана `🟠 Done with deviations`, `plans/ACTIVE.md` сброшен на `—` |
 
 ## Обсуждение
 
