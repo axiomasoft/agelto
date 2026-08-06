@@ -2,6 +2,24 @@
 
 **Next:** план закрыт
 
+**Чек-лист миграции архивации (`archive 2026.07.31-SYS-INTEGRITY`, 2026-08-06):**
+
+- `root/` в плане отсутствовал — миграция root/ → docs пропущена (нечего переносить).
+- `git mv plans/2026.07.31-SYS-INTEGRITY → plans/archive/2026.07.31-SYS-INTEGRITY` — коммит `e410a047`.
+- `plans/ACTIVE.md` уже был `Active: —` (сброшен закрытием плана до архивации).
+- Ссылки на `plans/2026.07.31-SYS-INTEGRITY/**` в живых доках (`docs/specs/v2/02-crawling.md`,
+  `docs/03_Dev/architecture.md`, `docs/03_Dev/crawling-pipeline.md`,
+  `docs/03_Dev/runbooks/archive-run.md`, `docs/specs/v2/08-estimate-extraction.md`,
+  `docs/02_Workflow/crawling-and-discovery.md`) переписаны на `plans/archive/...` — коммит `532d56a2`.
+- Попутно (по указанию владельца, вне протокола archive): два legacy freeform-плана
+  (`plans/tz-v2-crawling-system.md`, `plans/rustling-jingling-quiche.md`) перенесены в `plans/archive/`
+  — коммит `20cfc54d`; чужой untracked `estimates/gemini-analys.md` перенесён в
+  `plans/archive/2026.07.31-SYS-INTEGRITY/artifacts/gemini-analys.md` со сверкой ссылок во ВСЕХ
+  ссылающихся планах, включая живой `2026.07.26-EST-TRAIN` — коммит `532d56a2`.
+- Осталось в архиве: весь материал плана (`artifacts/`, `brief/`, `findings/`, `research/`,
+  `phases/`, `plan.md`, `journal.jsonl`, `roadmap.md`, `index.md`, `open-questions.md`) — Diátaxis-
+  миграция не применялась (нет `root/`), эти каталоги в docs не переносятся по правилу режима.
+
 | Параметр | Значение |
 |:--|:--|
 | Model | sonnet |
