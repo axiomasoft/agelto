@@ -611,6 +611,7 @@ Prism `unhandled finish reason`, decimal-cast); **M3c** (EvalRun #12, дерев
 | 2026-08-06 | plan-design / opus-high | **P8.1: эскалация снята (D151–D152)** — метод пробы переписан, детали см. D151/D152 и `phases/P8.md` P8.1. Статус P8.1 `🔴` → `🟡`, фаза P8 `🔴` → `🟡` 0/7 |
 | 2026-08-06 | plan-run / sonnet-high | P8.1 закрыт 🟢, item-коммит `f42523e`: живая проба скана + вторая точка фактуры P4 — детали см. phases/P8.md P8.1 Completion Notes и `findings/P8-degraded-source.md` |
 | 2026-08-06 | plan-run / opus-high | P8.2 закрыт 🟢: модель неопределённости заморожена (`research/12-uncertainty-model.md`), гейт владельца D146 пройден по всем четырём предметам, D153–D158 — детали см. phases/P8.md P8.2 Completion Notes |
+| 2026-08-06 | plan-run / sonnet-high | P8.3 закрыт 🟠, item-коммит `43ff0c7`: канал причины пустоты — `RowQuality`+`RowQualityReason`, `EstimateRow::$quality`, гейт схемы, промт `extraction:rows` v2→v3 — детали см. phases/P8.md P8.3 Completion Notes/Known Deviations |
 
 ## Обсуждение
 
