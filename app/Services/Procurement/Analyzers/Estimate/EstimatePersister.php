@@ -11,6 +11,7 @@ use App\Dto\Procurement\Analyzers\Estimate\IncompleteRow;
 use App\Dto\Procurement\Analyzers\Estimate\RowAttributes;
 use App\Dto\Procurement\Analyzers\Estimate\RowModifier;
 use App\Dto\Procurement\Analyzers\Estimate\RowResource;
+use App\Enums\Procurement\Estimate\RowQualityReason;
 use App\Enums\Procurement\Estimate\RowType;
 use App\Enums\Procurement\Estimate\TotalKind;
 use App\Enums\Procurement\ProcurementEventType;
@@ -125,12 +126,13 @@ final readonly class EstimatePersister
                     'rows_expected' => (int) ($data['rows_expected'] ?? 0),
                     'rows_extracted' => count($itemRows),
                     'validation_status' => $report->status->value,
+                    'validation_notes' => $report->notes === [] ? null : $report->notes,
                 ],
             );
 
             $this->estimates->replaceWorkTypes($estimate->id, $workTypes);
 
-            $this->persistRows($estimate, $stitched->rows, $stitched->sectionPaths);
+            $this->persistRows($estimate, $stitched->rows, $stitched->sectionPaths, $report);
 
             if ($totals !== null) {
                 $this->estimates->replaceTotals($estimate->id, $totals->footer);
@@ -144,7 +146,7 @@ final readonly class EstimatePersister
      * @param  list<EstimateRow>  $rows
      * @param  array<int, list<string>>  $sectionPaths
      */
-    private function persistRows(Estimate $estimate, array $rows, array $sectionPaths): void
+    private function persistRows(Estimate $estimate, array $rows, array $sectionPaths, ValidationReport $report): void
     {
         $sectionIdCache = [];
         $childPositionCounters = [];
@@ -171,7 +173,7 @@ final readonly class EstimatePersister
                 sectionId: $sectionId,
                 rowIndex: $row->row_index,
                 attributes: [
-                    ...self::itemAttributes($row),
+                    ...self::itemAttributes($row, $report),
                     'work_type_id' => $this->resolveWorkTypeId($estimate->id, $row->work_type_name),
                 ],
             );
@@ -209,7 +211,7 @@ final readonly class EstimatePersister
      *
      * @return array<string, mixed>
      */
-    public static function itemAttributes(EstimateRow $row): array
+    public static function itemAttributes(EstimateRow $row, ?ValidationReport $report = null): array
     {
         $unit = UnitNormalizer::normalize($row->unit);
 
@@ -228,7 +230,42 @@ final readonly class EstimatePersister
             'index_value' => $row->index_value,
             'source_position_number' => $row->source_position_number,
             'attributes' => self::rowAttributes($row->attributes),
+            'quality' => self::rowQuality($row, $report),
         ];
+    }
+
+    /**
+     * Слияние ДВУХ независимых утверждений о строке под провенанс-ключом верхнего уровня
+     * (research/12-uncertainty-model.md §3.2/§3.3): `model` — контрактная форма модели (P8.3),
+     * как есть; `validator` — построчная карта причин `ValidationReport` (P8.4). Оба входа пусты →
+     * `null` (чистая позиция, И-А §6.1). `quality` возвращается ВСЕГДА (в т.ч. `null`) — атрибут,
+     * который писатель молча пропускает, оставляет пометку прошлого прогона (Ф-10). Точечный
+     * re-run (`RerunRangeAction`) вызывает этот метод без `$report` (нет `ValidationReport` без
+     * полного стичинга сметы, §7 докблок класса) — ключ `validator` в записи исчезает, ключ
+     * `model` перезаписывается новым ответом (правило re-run, research/12 §7).
+     *
+     * @return array{model?: array<string, mixed>, validator?: array{reasons: list<string>, notes: list<string>}}|null
+     */
+    private static function rowQuality(EstimateRow $row, ?ValidationReport $report): ?array
+    {
+        $quality = [];
+
+        if ($row->quality !== null) {
+            $quality['model'] = $row->quality->toArray();
+        }
+
+        if ($report !== null) {
+            $reasons = $report->rowReasons[$row->row_index] ?? [];
+
+            if ($reasons !== []) {
+                $quality['validator'] = [
+                    'reasons' => array_map(static fn (RowQualityReason $reason): string => $reason->value, $reasons),
+                    'notes' => $report->rowNotes[$row->row_index] ?? [],
+                ];
+            }
+        }
+
+        return $quality === [] ? null : $quality;
     }
 
     /**

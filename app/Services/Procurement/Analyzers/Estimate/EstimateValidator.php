@@ -8,6 +8,7 @@ use App\Dto\Procurement\Analyzers\Estimate\EstimateRow;
 use App\Dto\Procurement\Analyzers\Estimate\EstimateTotalsBlock;
 use App\Dto\Procurement\Analyzers\Estimate\TotalLine;
 use App\Enums\Procurement\Estimate\EstimateValidationStatus;
+use App\Enums\Procurement\Estimate\RowQualityReason;
 use App\Enums\Procurement\Estimate\RowType;
 use App\Enums\Procurement\Estimate\TotalKind;
 
@@ -45,12 +46,14 @@ final readonly class EstimateValidator
         usort($rows, static fn (EstimateRow $a, EstimateRow $b): int => $a->row_index <=> $b->row_index);
 
         $anomalousRowIndexes = [];
+        $rowReasons = [];
+        $rowNotes = [];
         $notes = [];
         $severe = false;
 
-        $this->checkMonotonicity($rows, $anomalousRowIndexes, $notes);
+        $this->checkMonotonicity($rows, $anomalousRowIndexes, $rowReasons, $rowNotes, $notes);
         $severe = $this->checkCompleteness($rowsExpected, $rows, $notes) || $severe;
-        $this->checkSectionArithmetic($rows, $anomalousRowIndexes, $notes);
+        $this->checkSectionArithmetic($rows, $anomalousRowIndexes, $rowReasons, $rowNotes, $notes);
         $this->checkGrandTotal($rows, $totals, $notes);
 
         $status = match (true) {
@@ -62,16 +65,34 @@ final readonly class EstimateValidator
         return new ValidationReport(
             status: $status,
             anomalousRowIndexes: array_values(array_unique($anomalousRowIndexes)),
+            rowReasons: $rowReasons,
+            rowNotes: $rowNotes,
             notes: $notes,
         );
     }
 
     /**
+     * Пара `$rowReasons`/`$rowNotes` заполняется ОДНИМ вызовом на строке обнаружения — гарантирует
+     * позиционное соответствие 1:1 (P8.4, research/12-uncertainty-model.md §3.2) без последующего
+     * сопоставления причины и текста заметки.
+     *
+     * @param  array<int, list<RowQualityReason>>  $rowReasons
+     * @param  array<int, list<string>>  $rowNotes
+     */
+    private function addRowIssue(array &$rowReasons, array &$rowNotes, int $rowIndex, RowQualityReason $reason, string $note): void
+    {
+        $rowReasons[$rowIndex][] = $reason;
+        $rowNotes[$rowIndex][] = $note;
+    }
+
+    /**
      * @param  list<EstimateRow>  $rows
      * @param  list<int>  $anomalousRowIndexes
+     * @param  array<int, list<RowQualityReason>>  $rowReasons
+     * @param  array<int, list<string>>  $rowNotes
      * @param  list<string>  $notes
      */
-    private function checkMonotonicity(array $rows, array &$anomalousRowIndexes, array &$notes): void
+    private function checkMonotonicity(array $rows, array &$anomalousRowIndexes, array &$rowReasons, array &$rowNotes, array &$notes): void
     {
         $previousIndex = null;
         $seen = [];
@@ -79,7 +100,9 @@ final readonly class EstimateValidator
         foreach ($rows as $row) {
             if (isset($seen[$row->row_index])) {
                 $anomalousRowIndexes[] = $row->row_index;
-                $notes[] = "дубль row_index={$row->row_index} после стичинга (не должен встречаться, defensive-проверка)";
+                $note = "дубль row_index={$row->row_index} после стичинга (не должен встречаться, defensive-проверка)";
+                $notes[] = $note;
+                $this->addRowIssue($rowReasons, $rowNotes, $row->row_index, RowQualityReason::NumberingGap, $note);
 
                 continue;
             }
@@ -88,7 +111,9 @@ final readonly class EstimateValidator
 
             if ($previousIndex !== null && $row->row_index > $previousIndex + 1) {
                 $anomalousRowIndexes[] = $row->row_index;
-                $notes[] = "разрыв нумерации: row_index {$previousIndex} → {$row->row_index}";
+                $note = "разрыв нумерации: row_index {$previousIndex} → {$row->row_index}";
+                $notes[] = $note;
+                $this->addRowIssue($rowReasons, $rowNotes, $row->row_index, RowQualityReason::NumberingGap, $note);
             }
 
             $previousIndex = $row->row_index;
@@ -128,9 +153,11 @@ final readonly class EstimateValidator
      *
      * @param  list<EstimateRow>  $rows
      * @param  list<int>  $anomalousRowIndexes
+     * @param  array<int, list<RowQualityReason>>  $rowReasons
+     * @param  array<int, list<string>>  $rowNotes
      * @param  list<string>  $notes
      */
-    private function checkSectionArithmetic(array $rows, array &$anomalousRowIndexes, array &$notes): void
+    private function checkSectionArithmetic(array $rows, array &$anomalousRowIndexes, array &$rowReasons, array &$rowNotes, array &$notes): void
     {
         $accumulated = '0';
         $itemIndexesInSection = [];
@@ -156,8 +183,14 @@ final readonly class EstimateValidator
             }
 
             if (! $this->withinTolerance($accumulated, $row->total_price_curr)) {
-                $anomalousRowIndexes = [...$anomalousRowIndexes, ...$itemIndexesInSection, $row->row_index];
-                $notes[] = "арифметика раздела: сумма позиций {$accumulated} ≠ subtotal {$row->total_price_curr} (row_index={$row->row_index})";
+                $affectedIndexes = [...$itemIndexesInSection, $row->row_index];
+                $anomalousRowIndexes = [...$anomalousRowIndexes, ...$affectedIndexes];
+                $note = "арифметика раздела: сумма позиций {$accumulated} ≠ subtotal {$row->total_price_curr} (row_index={$row->row_index})";
+                $notes[] = $note;
+
+                foreach ($affectedIndexes as $affectedIndex) {
+                    $this->addRowIssue($rowReasons, $rowNotes, $affectedIndex, RowQualityReason::ArithmeticMismatch, $note);
+                }
             }
 
             $accumulated = '0';

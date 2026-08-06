@@ -36,6 +36,7 @@ final class ItemFactory extends Factory
             'source_position_number' => (string) $this->faker->numberBetween(1, 200),
             'work_type_id' => null,
             'attributes' => null,
+            'quality' => null,
         ];
     }
 }

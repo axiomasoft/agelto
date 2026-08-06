@@ -22,6 +22,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
 
 /**
@@ -44,6 +45,7 @@ use Illuminate\Support\Str;
  * @property Carbon|null $period_end
  * @property int|null $rows_extracted
  * @property string $validation_status
+ * @property Collection|null $validation_notes ValidationReport::$notes сметы целиком (research/12-uncertainty-model.md §5); null — валидатор ничего не нашёл
  * @property string|null $raw_result_ref
  * @property string|null $raw_result_disk
  * @property string|null $source_sheet_name
@@ -85,6 +87,7 @@ final class Estimate extends Model
         'rows_expected',
         'rows_extracted',
         'validation_status',
+        'validation_notes',
         'verified_at',
         'verified_by',
         'source_sheet_name',
@@ -108,6 +111,10 @@ final class Estimate extends Model
             'period_end' => 'date',
             'passport' => AsCollection::class,
             'raw_result' => AsCollection::class,
+            // Примитивный `'collection'`, НЕ `AsCollection::class` — тот же null-safety довод, что
+            // `Item::$quality` (research/12-uncertainty-model.md §5): класс-каст пишет JSON `"null"`
+            // вместо SQL NULL на пустом значении.
+            'validation_notes' => 'collection',
             'rows_expected' => 'integer',
             'rows_extracted' => 'integer',
             'verified_at' => 'datetime',

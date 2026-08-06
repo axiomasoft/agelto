@@ -11,6 +11,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Collection;
 
 /**
  * Позиция сметы (строка).
@@ -30,6 +31,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property string|null $index_value
  * @property string|null $source_position_number
  * @property int|null $work_type_id
+ * @property Collection|null $quality провенанс-ключ верхнего уровня model/validator (research/12-uncertainty-model.md §3.2); null — чистая позиция
  */
 #[UseFactory(ItemFactory::class)]
 final class Item extends Model
@@ -57,6 +59,7 @@ final class Item extends Model
         'source_position_number',
         'work_type_id',
         'attributes',
+        'quality',
     ];
 
     protected function casts(): array
@@ -71,6 +74,13 @@ final class Item extends Model
             'total_price_curr' => 'decimal:2',
             'index_value' => 'decimal:6',
             'attributes' => AsCollection::class,
+            // Примитивный `'collection'`, НЕ `AsCollection::class`: класс-каст (`Castable`)
+            // безусловно JSON-кодирует значение на записи (`Json::encode(null)` → строка `"null"`,
+            // НЕ SQL NULL) — ломает инвариант «колонка NULL — ни один писатель ничего не сказал»
+            // (research/12-uncertainty-model.md §3.2) и партиционирующий индекс `WHERE quality IS
+            // NOT NULL` (P8.5). Примитивный тип пропускает кодирование при `null` до JSON (Laravel
+            // `HasAttributes::setAttribute()`), сохраняя SQL NULL.
+            'quality' => 'collection',
         ];
     }
 
