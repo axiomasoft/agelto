@@ -612,6 +612,7 @@ Prism `unhandled finish reason`, decimal-cast); **M3c** (EvalRun #12, дерев
 | 2026-08-06 | plan-run / sonnet-high | P8.1 закрыт 🟢, item-коммит `f42523e`: живая проба скана + вторая точка фактуры P4 — детали см. phases/P8.md P8.1 Completion Notes и `findings/P8-degraded-source.md` |
 | 2026-08-06 | plan-run / opus-high | P8.2 закрыт 🟢: модель неопределённости заморожена (`research/12-uncertainty-model.md`), гейт владельца D146 пройден по всем четырём предметам, D153–D158 — детали см. phases/P8.md P8.2 Completion Notes |
 | 2026-08-06 | plan-run / sonnet-high | P8.3 закрыт 🟠, item-коммит `43ff0c7`: канал причины пустоты — `RowQuality`+`RowQualityReason`, `EstimateRow::$quality`, гейт схемы, промт `extraction:rows` v2→v3 — детали см. phases/P8.md P8.3 Completion Notes/Known Deviations |
+| 2026-08-06 | plan-run / sonnet-high | P8.4 закрыт 🟠, item-коммит `1486814`: носитель неопределённости позиции персистирован, попутно найден и исправлен null-unsafety дефект каста — детали см. phases/P8.md P8.4 Completion Notes/Known Deviations/Pending Work |
 
 ## Обсуждение
 
