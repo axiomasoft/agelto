@@ -336,6 +336,7 @@ Deliverables другого. P1.3 идёт solo: ему нужен не Playwrig
 | 2026-08-07 | plan-run/sonnet/high | P2.2 закрыт 🟢: дефолты фабрик (D108), минимальное поле `filter.okpd2Codes` (D109), пять фикстурных файлов + ассерта `EisSeedersTest`; приёмочная дельта 15/15 против baseline (D110) — детали см. phases/P2.md P2.2 Completion Notes |
 | 2026-08-07 | plan-run/sonnet/high | P2.3 закрыт 🟠: `EisCsvUrlBuilder` резолвит `okpd2Codes` → `okpd2Ids`+`okpd2IdsWithNested=on` через `Okpd2NodeReadRepository`, отказ на нерезолвящемся коде; дифф вне Files — починка трёх фикстур (`CrawlerWithRegistry`, `CsvSourceMethodTest`, `EisSeedersTest`), не несших карту ОКПД2, K=0 на полном прогоне — детали см. phases/P2.md P2.3 Completion Notes |
 | 2026-08-07 | plan-exec/sonnet/medium | P2.4 закрыт 🟢: `Select::make('filter.okpd2Codes')` доведён — `->searchable()`, группировка опций по `parent_code`, `Placeholder` при пустой карте, helperText о пустых классификаторных колонках; +2 теста формы (группировка/поиск, превью URL); приёмочная дельта 0 против baseline `c4fbfbc4` (D110) — детали см. phases/P2.md P2.4 Completion Notes |
+| 2026-08-07 | plan-run/opus/high | P2.5 закрыт 🟠: команда `crawler:okpd2-sync` + синхронизатор + store-репозиторий + секция `okpd2` конфига + синтетическая фикстура и 6 тестов; статус 🟠 — три строки Validation («grep zakupki пусто», «pint зелено», «полный прогон зелено») красны идентично на baseline — детали см. phases/P2.md P2.5 Completion Notes |
 
 ## 7. Contracts
 
