@@ -72,6 +72,10 @@ final class CrawlRunJob implements ShouldBeUniqueUntilProcessing, ShouldQueue
 
         $run = match ($this->mode) {
             CrawlerMode::Fresh => $freshProcessor->run(crawler: $crawler),
+            // `LogicException` здесь — инвариант ПОСЛЕДНЕЙ инстанции, не пользовательский отказ:
+            // `StartCrawlerRunAction` (P3.8) резолвит окно (override → профиль → отказ ДО
+            // диспатча) и никогда не отправляет archive-job без обеих дат — упасть сюда может
+            // только прямой вызов `CrawlRunJob::dispatch()` в обход Action.
             CrawlerMode::Archive => $archiveProcessor->run(
                 crawler: $crawler,
                 from: Carbon::parse($this->from ?? throw new LogicException('CrawlRunJob(mode=Archive) требует $from.')),

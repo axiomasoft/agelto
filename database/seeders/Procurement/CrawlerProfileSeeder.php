@@ -12,6 +12,7 @@ use App\Enums\Procurement\Crawler\SourceMethod;
 use App\Models\Procurement\Crawler\Crawler;
 use App\Models\Procurement\Platform\Platform;
 use App\Models\Procurement\Platform\Registry;
+use Carbon\CarbonImmutable;
 use Illuminate\Database\Seeder;
 use RuntimeException;
 
@@ -107,8 +108,9 @@ final class CrawlerProfileSeeder extends Seeder
     }
 
     /**
-     * Профиль 1 — архив (`research/05` §5.2): «завершённые закупки за 2025», окно дат задаёт
-     * `--from`/`--to` команды `crawler:run-archive`, не фильтр. Сортировка — по дате размещения
+     * Профиль 1 — архив (`research/05` §5.2): «завершённые закупки за 2025», окно дат живёт НА
+     * ПРОФИЛЕ (`filter.publishedFrom/publishedTo`, D113/P3.8) — `crawler:run-archive` без явных
+     * `--from`/`--to` читает его через контракт `HasArchiveWindow`. Сортировка — по дате размещения
      * ПО ВОЗРАСТАНИЮ (`sortField: Published`, `sortAscending: true`): обучающий корпус читается
      * от старых закупок к новым, `stop_policy = Default` — политика «только актуальные данные»
      * (P3.3) осмыслена лишь у fresh-прогона, архивный её не применяет (`Crawler::assertStopPolicy()`).
@@ -125,6 +127,8 @@ final class CrawlerProfileSeeder extends Seeder
                 'filter' => new EisSearchFilter(
                     stageCompleted: true,
                     okpd2Codes: ['43'],
+                    publishedFrom: CarbonImmutable::parse('2025-01-01'),
+                    publishedTo: CarbonImmutable::parse('2025-12-31'),
                     sortField: ListingSortField::Published,
                     sortAscending: true,
                 ),

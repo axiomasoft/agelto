@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 namespace App\Services\Procurement\Crawler;
 
+use App\Dto\Procurement\Crawler\Contracts\HasArchiveWindow;
 use App\Dto\Procurement\Crawler\ListingCursor;
 use App\Enums\Procurement\Crawler\CrawlerMode;
 use App\Enums\Procurement\Crawler\RunStatus;
+use App\Exceptions\Procurement\Crawler\ArchiveWindowMissing;
 use App\Exceptions\Procurement\Crawler\CrawlerRunAlreadyActive;
 use App\Jobs\Procurement\CrawlRunJob;
 use App\Models\Procurement\Crawler\Crawler;
@@ -94,11 +96,46 @@ final readonly class StartCrawlerRunAction
 
     private function dispatch(Crawler $crawler, ?CrawlerMode $mode, ?CarbonInterface $from, ?CarbonInterface $to): void
     {
+        $resolvedMode = $mode ?? $crawler->mode;
+        [$from, $to] = $this->resolveWindow($crawler, $resolvedMode, $from, $to);
+
         CrawlRunJob::dispatch(
             crawlerId: $crawler->id,
-            mode: $mode ?? $crawler->mode,
+            mode: $resolvedMode,
             from: $from?->toIso8601String(),
             to: $to?->toIso8601String(),
         );
+    }
+
+    /**
+     * ЕДИНСТВЕННАЯ точка резолва окна archive-прогона (P3.8, Implementation Rules п. 1/5): явный
+     * `$from` (override от команды/будущего вызывающего) побеждает безусловно; иначе окно читается
+     * ЧЕРЕЗ КОНТРАКТ `HasArchiveWindow` (не `instanceof EisSearchFilter` — вторая площадка обязана
+     * уметь участвовать); ни override, ни профильное окно — отказ, а не молчаливый дефолт (пустой
+     * `$from`/`$to` дошёл бы до `CrawlRunJob::handle()` и упал бы ТАМ, уже после создания строки
+     * прогона). Fresh/delta режим окно не резолвит вовсе — `CrawlRunJob` его для них не читает.
+     *
+     * @return array{0: ?CarbonInterface, 1: ?CarbonInterface}
+     */
+    private function resolveWindow(
+        Crawler $crawler,
+        CrawlerMode $mode,
+        ?CarbonInterface $from,
+        ?CarbonInterface $to,
+    ): array {
+        if ($mode !== CrawlerMode::Archive || $from !== null) {
+            return [$from, $to];
+        }
+
+        $filter = $crawler->filter;
+
+        if ($filter instanceof HasArchiveWindow
+            && $filter->archiveWindowFrom() !== null
+            && $filter->archiveWindowTo() !== null
+        ) {
+            return [$filter->archiveWindowFrom(), $filter->archiveWindowTo()];
+        }
+
+        throw ArchiveWindowMissing::forCrawler($crawler);
     }
 }

@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Dto\Procurement\Crawler\Contracts\HasArchiveWindow;
 use App\Dto\Procurement\Crawler\EisSearchFilter;
 use App\Enums\Procurement\Crawler\ListingSortField;
 use App\Models\Procurement\Crawler\Crawler;
@@ -167,4 +168,31 @@ test('реестр без записи в карте фильтров даёт �
 
     expect(fn () => app(CrawlerFilterFactory::class)->for(registry: $registry))
         ->toThrow(RuntimeException::class, 'fz223');
+});
+
+test('EisSearchFilter отдаёт окно archive-прогона через контракт HasArchiveWindow (P3.8, D113)', function () {
+    $filter = new EisSearchFilter(
+        okpd2Codes: ['43'],
+        publishedFrom: CarbonImmutable::parse('2025-01-01'),
+        publishedTo: CarbonImmutable::parse('2025-12-31'),
+    );
+
+    expect($filter)->toBeInstanceOf(HasArchiveWindow::class)
+        ->and($filter->archiveWindowFrom()?->toDateString())->toBe('2025-01-01')
+        ->and($filter->archiveWindowTo()?->toDateString())->toBe('2025-12-31');
+});
+
+test('без заполненных дат archiveWindowFrom/To отдают null', function () {
+    $filter = new EisSearchFilter(okpd2Codes: ['43']);
+
+    expect($filter->archiveWindowFrom())->toBeNull()
+        ->and($filter->archiveWindowTo())->toBeNull();
+});
+
+test('publishedTo раньше publishedFrom отклоняется валидацией на сохранении профиля (P3.8, D113)', function () {
+    $registry = Registry::factory()->create(['code' => 'fz44']);
+
+    expect(fn () => Crawler::factory()->for($registry)->create([
+        'filter' => ['okpd2Codes' => ['43'], 'publishedFrom' => '2025-06-01', 'publishedTo' => '2025-01-01'],
+    ]))->toThrow(ValidationException::class);
 });

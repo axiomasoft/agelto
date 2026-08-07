@@ -66,6 +66,17 @@ test('сид заводит два профиля обхода — архивн�
         ->and($fresh->schedule)->toBe('*/30 * * * *');
 });
 
+test('сид заводит архивный профиль с окном дат прогона (P3.8, D113)', function (): void {
+    $this->seed(EisPlatformSeeder::class);
+    $this->seed(CrawlerProfileSeeder::class);
+
+    $registry = Registry::query()->where('code', 'fz44')->sole();
+    $archive = Crawler::query()->where('registry_id', $registry->id)->where('mode', CrawlerMode::Archive)->sole();
+
+    expect($archive->filter->archiveWindowFrom()?->toDateString())->toBe('2025-01-01')
+        ->and($archive->filter->archiveWindowTo()?->toDateString())->toBe('2025-12-31');
+});
+
 /**
  * P3.5: поля сортировки и `stop_policy` — единственная проверка, что заведённые фазами P3.1/P3.3
  * поля совместимы друг с другом (архивный профиль сортирует по возрастанию даты размещения без

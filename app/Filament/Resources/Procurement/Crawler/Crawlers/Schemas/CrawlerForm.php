@@ -325,12 +325,12 @@ class CrawlerForm
                 DatePicker::make('filter.publishedFrom')
                     ->label('Дата размещения с')
                     ->helperText(
-                        'Параметр ЕИС: publishDateFrom. Только для профилей без окна — archive/delta '
-                        .'ставят окно сами и это поле не дублируют.',
+                        'Параметр ЕИС: publishDateFrom. У профиля archive это ОКНО ПРОГОНА (запуск без '
+                        .'--from в консоли берёт его отсюда) — у fresh/delta это обычный фильтр выдачи.',
                     ),
                 DatePicker::make('filter.publishedTo')
                     ->label('Дата размещения по')
-                    ->helperText('Параметр ЕИС: publishDateTo — та же оговорка, что у поля «с».'),
+                    ->helperText('Параметр ЕИС: publishDateTo — та же двойная роль, что у поля «с».'),
                 TextInput::make('filter.searchString')
                     ->label('Строка поиска')
                     ->helperText('Параметр ЕИС: searchString. Принимает и реестровый номер.'),

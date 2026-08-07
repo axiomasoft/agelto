@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Dto\Procurement\Crawler;
 
+use App\Dto\Procurement\Crawler\Contracts\HasArchiveWindow;
 use App\Dto\Procurement\Crawler\Contracts\HasPriceRange;
 use App\Dto\Procurement\Crawler\Contracts\RequiresScope;
 use App\Enums\Procurement\Crawler\ListingSortField;
@@ -27,7 +28,7 @@ use Spatie\LaravelData\Support\Validation\ValidationContext;
  * `priceFromGeneral`, …) и формат даты `d.m.Y` остаются в `EisCsvUrlBuilder` — единственном
  * носителе ЕИС-специфики (Code Guidance P4.3).
  */
-final class EisSearchFilter extends Data implements HasPriceRange, RequiresScope
+final class EisSearchFilter extends Data implements HasArchiveWindow, HasPriceRange, RequiresScope
 {
     /**
      * Единственный источник истины по допустимым ключам `prc_crawlers.filter` — используется
@@ -71,15 +72,17 @@ final class EisSearchFilter extends Data implements HasPriceRange, RequiresScope
          */
         public ?int $priceTo = null,
         /**
-         * Дата размещения «с» (`publishDateFrom`) — только для профилей БЕЗ окна: в
-         * archive/delta-прогоне окно ставит сканер (`EisCsvUrlBuilder::archiveOverrides()`
-         * перекрывает оба ключа), фильтр его не дублирует. Форматы каста — оба, которые реально
-         * приходят: ISO из собственного `toArray()` (round-trip через jsonb) и `Y-m-d` из сида и
-         * формы.
+         * Дата размещения «с» (`publishDateFrom`) — у ДВУХ разных ролей в зависимости от режима
+         * профиля (D113): у fresh/delta это обычный фильтр выдачи; у archive-профиля БЕЗ явного
+         * `--from`/`--to` команды это ОКНО ПРОГОНА, которое `StartCrawlerRunAction` читает через
+         * контракт `HasArchiveWindow` — посуточный override внутри прогона
+         * (`EisCsvUrlBuilder::archiveOverrides()`) не конфликтует с профильным окном, а
+         * вкладывается в него. Форматы каста — оба, которые реально приходят: ISO из собственного
+         * `toArray()` (round-trip через jsonb) и `Y-m-d` из сида и формы.
          */
         #[WithCast(DateTimeInterfaceCast::class, format: [DATE_ATOM, 'Y-m-d'])]
         public ?CarbonImmutable $publishedFrom = null,
-        /** Дата размещения «по» (`publishDateTo`) — та же оговорка, что у `publishedFrom`. */
+        /** Дата размещения «по» (`publishDateTo`) — та же двойная роль, что у `publishedFrom`. */
         #[WithCast(DateTimeInterfaceCast::class, format: [DATE_ATOM, 'Y-m-d'])]
         public ?CarbonImmutable $publishedTo = null,
         /** Строка поиска (`searchString`); принимает и реестровый номер. */
@@ -154,6 +157,10 @@ final class EisSearchFilter extends Data implements HasPriceRange, RequiresScope
             // запроса (Implementation Rules п. 5).
             'sortField' => ['nullable', 'string', Rule::enum(ListingSortField::class)],
             'sortAscending' => ['boolean'],
+            'publishedFrom' => ['nullable', 'date'],
+            // Окно archive-профиля (D113): конец раньше начала молча развернул бы прогон на
+            // отрицательный период — гейт ловит это на сохранении формы, а не на боевом запросе.
+            'publishedTo' => ['nullable', 'date', 'after_or_equal:publishedFrom'],
         ];
     }
 
@@ -174,5 +181,15 @@ final class EisSearchFilter extends Data implements HasPriceRange, RequiresScope
     public function hasScope(): bool
     {
         return $this->okpd2Codes !== [];
+    }
+
+    public function archiveWindowFrom(): ?CarbonImmutable
+    {
+        return $this->publishedFrom;
+    }
+
+    public function archiveWindowTo(): ?CarbonImmutable
+    {
+        return $this->publishedTo;
     }
 }

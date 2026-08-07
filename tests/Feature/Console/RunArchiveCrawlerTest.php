@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Dto\Procurement\Crawler\EisSearchFilter;
 use App\Dto\Procurement\Crawler\ListingBatch;
 use App\Enums\Procurement\Crawler\CrawlerMode;
 use App\Enums\Procurement\Crawler\RunStatus;
@@ -9,6 +10,7 @@ use App\Enums\Procurement\Crawler\SourceMethod as SourceMethodEnum;
 use App\Jobs\Procurement\CrawlRunJob;
 use App\Models\Procurement\Crawler\Crawler;
 use App\Models\Procurement\Crawler\Run;
+use Carbon\CarbonImmutable;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
@@ -89,12 +91,50 @@ test('несуществующий id/name профиля — FAILURE без з�
     expect(Run::query()->count())->toBe(0);
 });
 
-test('без --from — FAILURE без запуска прогона', function () {
-    $crawler = Crawler::factory()->create(['mode' => CrawlerMode::Archive, 'source_method' => SourceMethodEnum::Csv]);
+test('без --from профиль БЕЗ окна — FAILURE без запуска прогона (P3.8, D113)', function () {
+    $crawler = Crawler::factory()
+        ->filter(new EisSearchFilter(okpd2Codes: ['43']))
+        ->create(['mode' => CrawlerMode::Archive, 'source_method' => SourceMethodEnum::Csv]);
 
     $this->artisan('crawler:run-archive', ['crawler' => (string) $crawler->id])
-        ->expectsOutputToContain('Обязателен параметр --from')
+        ->expectsOutputToContain('не заполнено окно дат')
         ->assertExitCode(Command::FAILURE);
 
     expect(Run::query()->count())->toBe(0);
+});
+
+test('без --from профиль С окном берёт окно профиля (P3.8, D113)', function () {
+    $crawler = Crawler::factory()
+        ->filter(new EisSearchFilter(
+            okpd2Codes: ['43'],
+            publishedFrom: CarbonImmutable::parse('2025-01-01'),
+            publishedTo: CarbonImmutable::parse('2025-12-31'),
+        ))
+        ->create(['mode' => CrawlerMode::Archive, 'source_method' => SourceMethodEnum::Csv]);
+    Queue::fake();
+
+    $this->artisan('crawler:run-archive', ['crawler' => (string) $crawler->id])
+        ->assertExitCode(Command::SUCCESS);
+
+    Queue::assertPushed(CrawlRunJob::class, fn (CrawlRunJob $job): bool => $job->crawlerId === $crawler->id
+        && str_starts_with((string) $job->from, '2025-01-01')
+        && str_starts_with((string) $job->to, '2025-12-31'));
+});
+
+test('--from/--to перекрывают окно профиля (P3.8, D113)', function () {
+    $crawler = Crawler::factory()
+        ->filter(new EisSearchFilter(
+            okpd2Codes: ['43'],
+            publishedFrom: CarbonImmutable::parse('2025-01-01'),
+            publishedTo: CarbonImmutable::parse('2025-12-31'),
+        ))
+        ->create(['mode' => CrawlerMode::Archive, 'source_method' => SourceMethodEnum::Csv]);
+    Queue::fake();
+
+    $this->artisan('crawler:run-archive', ['crawler' => (string) $crawler->id, '--from' => '2024-03-01', '--to' => '2024-03-31'])
+        ->assertExitCode(Command::SUCCESS);
+
+    Queue::assertPushed(CrawlRunJob::class, fn (CrawlRunJob $job): bool => $job->crawlerId === $crawler->id
+        && str_starts_with((string) $job->from, '2024-03-01')
+        && str_starts_with((string) $job->to, '2024-03-31'));
 });
