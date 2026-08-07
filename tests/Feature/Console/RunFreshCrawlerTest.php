@@ -124,3 +124,32 @@ test('падение одного профиля не прерывает обр�
     expect(Run::query()->where('crawler_id', $healthy->id)->sole()->status)->toBe(RunStatus::Completed)
         ->and(Run::query()->where('crawler_id', $broken->id)->sole()->status)->toBe(RunStatus::Failed);
 });
+
+test('активный прогон профиля — команда отказывает, второй job не ставится', function () {
+    $crawler = Crawler::factory()->create(['source_method' => SourceMethodEnum::Csv]);
+    $activeRun = Run::factory()->for($crawler, 'crawler')->create(['status' => RunStatus::Running]);
+    Queue::fake();
+
+    $this->artisan('crawler:run-fresh', ['crawler' => (string) $crawler->id])
+        ->expectsOutputToContain("уже идёт прогон #{$activeRun->id}")
+        ->assertExitCode(Command::FAILURE);
+
+    Queue::assertNotPushed(CrawlRunJob::class);
+    expect(Run::query()->where('crawler_id', $crawler->id)->count())->toBe(1);
+});
+
+test('мульти-профильный вызов: активный прогон одного профиля не мешает запуску свободного', function () {
+    $busy = Crawler::factory()->create(['mode' => CrawlerMode::Fresh, 'is_active' => true, 'source_method' => SourceMethodEnum::Csv]);
+    $activeRun = Run::factory()->for($busy, 'crawler')->create(['status' => RunStatus::Running]);
+    $free = Crawler::factory()->create(['mode' => CrawlerMode::Fresh, 'is_active' => true, 'source_method' => SourceMethodEnum::Csv]);
+
+    app()->instance(QueueSourceMethod::class, new QueueSourceMethod(batches: [runFreshCrawlerKnownBatch()]));
+    config(['crawler.source_methods' => [SourceMethodEnum::Csv->value => QueueSourceMethod::class]]);
+
+    $this->artisan('crawler:run-fresh')
+        ->expectsOutputToContain("уже идёт прогон #{$activeRun->id}")
+        ->assertExitCode(Command::FAILURE);
+
+    expect(Run::query()->where('crawler_id', $busy->id)->count())->toBe(1)
+        ->and(Run::query()->where('crawler_id', $free->id)->sole()->status)->toBe(RunStatus::Completed);
+});
