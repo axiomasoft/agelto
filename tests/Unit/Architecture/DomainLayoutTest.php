@@ -33,9 +33,10 @@ function alignedDomainLayoutLayers(): array
             'subareas' => ['Ai', 'Analyzers', 'Crawler', 'Document', 'Estimate', 'Proxy'],
         ],
         // P3.3, Completion Notes: `OperationFailed` (базовый, кросс) + `UnknownReportFormat` (кросс).
+        // P3.4: подобласть `Crawler` заведена первым файлом (`CrawlerRunAlreadyActive`).
         'App\Exceptions\Procurement' => [
             'root' => ['OperationFailed', 'UnknownReportFormat'],
-            'subareas' => ['Ai', 'Proxy'],
+            'subareas' => ['Ai', 'Crawler', 'Proxy'],
         ],
         // P3.3, Completion Notes: три файла ядра закупки остаются в корне.
         'App\Dto\Procurement' => [

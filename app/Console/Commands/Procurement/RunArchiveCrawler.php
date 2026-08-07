@@ -5,15 +5,17 @@ declare(strict_types=1);
 namespace App\Console\Commands\Procurement;
 
 use App\Enums\Procurement\Crawler\CrawlerMode;
-use App\Jobs\Procurement\CrawlRunJob;
+use App\Exceptions\Procurement\OperationFailed;
 use App\Models\Procurement\Crawler\Crawler;
+use App\Services\Procurement\Crawler\StartCrawlerRunAction;
 use Illuminate\Console\Command;
 use Illuminate\Support\Carbon;
 
 /**
  * Тонкая точка входа archive-перекачки (`02-crawling.md` §4.2) — операторская
- * bulk-задача по явной команде, не по расписанию (в отличие от fresh/detail). Диспатчит
- * `CrawlRunJob` на очередь `crawl` (P3.2) — сам обход исполняется job'ом.
+ * bulk-задача по явной команде, не по расписанию (в отличие от fresh/detail). Зовёт
+ * `StartCrawlerRunAction` (P3.4) — единственный носитель проверки «можно ли запускать», тот же
+ * класс диспетчерит кнопка админки.
  */
 final class RunArchiveCrawler extends Command
 {
@@ -21,7 +23,7 @@ final class RunArchiveCrawler extends Command
 
     protected $description = 'Запускает archive-перекачку профиля краулера за период [--from, --to]';
 
-    public function handle(): int
+    public function handle(StartCrawlerRunAction $starter): int
     {
         $crawler = $this->resolveCrawler();
 
@@ -41,12 +43,13 @@ final class RunArchiveCrawler extends Command
 
         $to = $this->option('to') !== null ? Carbon::parse($this->option('to')) : Carbon::now();
 
-        CrawlRunJob::dispatch(
-            crawlerId: $crawler->id,
-            mode: CrawlerMode::Archive,
-            from: Carbon::parse($from)->toIso8601String(),
-            to: $to->toIso8601String(),
-        );
+        try {
+            $starter->start($crawler, mode: CrawlerMode::Archive, from: Carbon::parse($from), to: $to);
+        } catch (OperationFailed $exception) {
+            $this->error($exception->getMessage());
+
+            return self::FAILURE;
+        }
 
         $this->info("Профиль «{$crawler->name}» (#{$crawler->id}): archive-перекачка поставлена в очередь crawl.");
 

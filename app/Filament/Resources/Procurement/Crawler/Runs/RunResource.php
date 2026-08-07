@@ -15,10 +15,11 @@ use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 
 /**
- * Прогоны краулера — read-only наблюдаемость (index + view). Операторских
- * мутаций нет: create/edit-страницы не заводим, а роли не получают
- * create/update/delete на runs (гейт AzGuard закрывает действия).
- * Ручное возобновление/сброс курсора — отдельная фаза.
+ * Прогоны краулера: index + view, БЕЗ create/edit/delete-страниц (профиль и прогон не
+ * редактируются напрямую). Единственная мутация — операторские действия «Остановить»/«Отменить»
+ * (P3.4, `RequestRunStopAction`) поверх кооперативного стоп-гейта; они не требуют своего
+ * create/update/delete на ресурсе — авторизуются строкой ability `RunPermission::Update`
+ * (канон `ViewFixture`), а не через `authorize()` ресурса.
  */
 class RunResource extends Resource
 {
