@@ -10,19 +10,40 @@ status: draft
 разработчика; полный рефакторинг/переписывание вне scope EST-AI (Scope Excluded P10.2/P10.3:
 «диаграммы краулинга»). Бизнес-описание стадий — `docs/02_Workflow/crawling-and-discovery.md`.
 
-## Вход: команды, не Jobs
+## Вход: команды-диспетчеры, обход — на очереди (P3.2)
 
-В отличие от AI-пайплайна (`document-pipeline.md` — весь цикл на очередях Horizon), краулинг
-запускается artisan-командами (`app/Console/Commands/Procurement/`), обычно из `schedule:work`
-(`scheduler`-контейнер) или вручную:
+Fresh- и archive-обход исполняются job'ом `App\Jobs\Procurement\CrawlRunJob` на очереди Horizon
+`crawl` (`supervisor-crawl`, `config/horizon.php`) — как и AI-пайплайн (`document-pipeline.md`).
+Artisan-команды (`app/Console/Commands/Procurement/`) остались тонкими диспетчерами: резолвят
+профиль(и) и диспатчат job, сам обход в процессе команды больше не идёт.
 
-- `crawler:run-fresh {crawler?}` (`RunFreshCrawler`) — обход свежих извещений по профилю площадки
-  (`CrawlerMode::Fresh`).
-- `crawler:run-archive {crawler} {--from=} {--to=}` (`RunArchiveCrawler`) — обход архива за диапазон
-  дат (`CrawlerMode::Archive`).
+- `crawler:run-fresh {crawler?}` (`RunFreshCrawler`) — диспатчит `CrawlRunJob(mode: Fresh)` по
+  профилю(-ям) площадки, обычно из `schedule:work` (`scheduler`-контейнер) или вручную.
+- `crawler:run-archive {crawler} {--from=} {--to=}` (`RunArchiveCrawler`) — диспатчит
+  `CrawlRunJob(mode: Archive, from, to)` за диапазон дат.
 - `crawler:fetch-details {procurement?}` (`FetchDetails`) — дозагрузка деталей закупки (без
-  аргумента — все закупки, due по `DetailRefetchSelector`).
-- `crawler:rescan-backlog` (`RescanBacklog`) — пересканирование зависшего/пропущенного бэклога.
+  аргумента — все закупки, due по `DetailRefetchSelector`); на очередь ЕЩЁ не переведена (вне
+  Scope P3.2, гэп G8 → P4).
+- `crawler:rescan-backlog` (`RescanBacklog`) — пересканирование зависшего/пропущенного бэклога;
+  синхронна.
+- `crawler:recover-stale` (`RecoverStaleRuns`, планируется `everyFiveMinutes()`) — поднимает
+  `running`-прогоны с протухшим heartbeat в `paused`: `CrawlerRunManager::recoverStale()`
+  реализован и покрыт тестом с самого начала, но не вызывался ниоткуда — павший воркер оставлял
+  прогон в `running` навсегда, а частичный unique-индекс превращал его в блокировщик профиля.
+
+`CrawlRunJob` — checkpoint-requeue (`ShouldBeUniqueUntilProcessing`, тот же приём, что
+`EstimateExtractionJob`): бюджет одного запуска — `config('crawler.run.checkpoint_seconds')`
+(240с); по исчерпании `FreshRunProcessor` выходит с сохранённым курсором и статусом `running`,
+job самодиспатчится продолжением. `ArchiveWindowScanner` этот бюджет не читает — у обёрток-дневных
+циклов (`ArchiveRunProcessor`/`DeltaScanProcessor`/`BacklogRescanProcessor`) нет чистой точки
+выхода по бюджету между днями.
+
+Остановить УЖЕ ВЫПОЛНЯЮЩИЙСЯ job средствами Laravel/Horizon нельзя — остановка кооперативна:
+`App\Services\Procurement\RunStopGate::signal()` читает `prc_crawler_runs.stop_requested_at`/
+`stop_kind` между блоками (`FreshRunProcessor::run()`, `ArchiveWindowScanner::scan()`), сигнал
+`Pause` сохраняет курсор и переводит в `paused` (resumable), `Cancel` — в `cancelled`
+(терминальный). Флаг выставляет операторское действие в админке (P3.4) — P3.2 несёт только
+механизм, кнопок нет.
 
 Прогон (`$run`, `App\Enums\Procurement\Crawler\RunStatus`: running/paused/completed/failed/cancelled)
 оркеструется `App\Services\Procurement\CrawlerRunManager`.

@@ -33,6 +33,13 @@ if (Schema::hasTable('prc_crawler_runs')) {
     Schedule::command('crawler:rescan-backlog')->everyFifteenMinutes();
 }
 
+// Тот же schema-guard (см. выше) — подъём зависших running-прогонов (P3.2, D28): павший
+// воркер оставляет прогон в running навсегда, recoverStale() был мёртвым кодом, никем не
+// вызывался.
+if (Schema::hasTable('prc_crawler_runs')) {
+    Schedule::command('crawler:recover-stale')->everyFiveMinutes();
+}
+
 // Тот же schema-guard (см. выше) — плановый delta-scan окна обновления (П-3,
 // `research/05-change-tracking.md` §2.2); выключен по умолчанию — включает владелец
 // после боевого прогона P4.7 (как и fresh-профиль, D37).

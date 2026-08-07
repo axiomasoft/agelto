@@ -7,6 +7,7 @@ namespace App\Services\Procurement;
 use App\Dto\Procurement\Crawler\Contracts\HasPriceRange;
 use App\Dto\Procurement\Crawler\ListingCursor;
 use App\Dto\Procurement\Crawler\WindowFilter;
+use App\Enums\Procurement\Crawler\RunStopKind;
 use App\Models\Procurement\Crawler\Crawler;
 use App\Models\Procurement\Crawler\Run;
 use Illuminate\Support\Facades\Log;
@@ -17,6 +18,13 @@ use Illuminate\Support\Facades\Log;
  * публикации) и P4.2 (по окну обновления). Переполнение детектируется БЕЗ счётчика
  * записей: окно дренировано при `rowsTotal < block_size`, cap — при повторе
  * `dedupSignature` на полном блоке.
+ *
+ * Стоп-гейт (P3.2, D28) читается в той же точке, что уже делает `$crawler->refresh()`,
+ * и останавливает дренаж ТЕКУЩЕГО окна с уже сохранённым курсором. Известное ограничение
+ * (Pending Work P3.2): вызывающие обёртки-дневные-циклы (`ArchiveRunProcessor`/
+ * `DeltaScanProcessor`/`BacklogRescanProcessor`, вне `Files` этого item'а) статус прогона
+ * после `scan()` не перечитывают и продолжат звать `scan()` на следующий день — пауза/отмена
+ * останавливает обход текущего окна, но не сам прогон целиком.
  */
 final readonly class ArchiveWindowScanner
 {
@@ -25,6 +33,7 @@ final readonly class ArchiveWindowScanner
         private CrawlerRunManager $runs,
         private PoliteThrottle $throttle,
         private CsvBlockIngestor $ingestor,
+        private RunStopGate $stopGate,
     ) {}
 
     public function scan(Crawler $crawler, Run $run, WindowFilter $filter): void
@@ -49,6 +58,18 @@ final readonly class ArchiveWindowScanner
 
         while ($stack !== []) {
             $crawler->refresh();
+
+            $stopSignal = $this->stopGate->signal(run: $run);
+
+            if ($stopSignal !== null) {
+                $reason = "Остановлено оператором ({$stopSignal->value}).";
+                match ($stopSignal) {
+                    RunStopKind::Pause => $this->runs->pause(run: $run, reason: $reason),
+                    RunStopKind::Cancel => $this->runs->cancel(run: $run, reason: $reason),
+                };
+
+                return;
+            }
 
             if ($blocksInInterval >= $maxBlocksPerWindow) {
                 Log::warning(

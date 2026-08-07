@@ -6,9 +6,11 @@ use App\Dto\Procurement\Crawler\ListingBatch;
 use App\Enums\Procurement\Crawler\CrawlerMode;
 use App\Enums\Procurement\Crawler\RunStatus;
 use App\Enums\Procurement\Crawler\SourceMethod as SourceMethodEnum;
+use App\Jobs\Procurement\CrawlRunJob;
 use App\Models\Procurement\Crawler\Crawler;
 use App\Models\Procurement\Crawler\Run;
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
 use Tests\Support\Doubles\Crawler\BrokenSourceMethod;
 use Tests\Support\Doubles\Crawler\QueueSourceMethod;
@@ -34,7 +36,17 @@ beforeEach(function () {
     Storage::fake('s3');
 });
 
-test('резолвит профиль по числовому id и делегирует FreshRunProcessor', function () {
+test('резолвит профиль по числовому id и диспатчит CrawlRunJob(mode: Fresh)', function () {
+    $crawler = Crawler::factory()->create(['source_method' => SourceMethodEnum::Csv]);
+    Queue::fake();
+
+    $this->artisan('crawler:run-fresh', ['crawler' => (string) $crawler->id])
+        ->assertExitCode(Command::SUCCESS);
+
+    Queue::assertPushed(CrawlRunJob::class, fn (CrawlRunJob $job): bool => $job->crawlerId === $crawler->id && $job->mode === CrawlerMode::Fresh);
+});
+
+test('без faked-очереди job исполняется синхронно (sync-driver) и доводит прогон до completed', function () {
     $crawler = Crawler::factory()->create(['source_method' => SourceMethodEnum::Csv]);
 
     app()->instance(QueueSourceMethod::class, new QueueSourceMethod(batches: [runFreshCrawlerKnownBatch()]));
@@ -48,7 +60,7 @@ test('резолвит профиль по числовому id и делеги
     expect($run->status)->toBe(RunStatus::Completed);
 });
 
-test('резолвит профиль по name и делегирует FreshRunProcessor', function () {
+test('резолвит профиль по name и диспатчит CrawlRunJob', function () {
     $crawler = Crawler::factory()->create(['name' => 'eis-fresh-profile', 'source_method' => SourceMethodEnum::Csv]);
 
     app()->instance(QueueSourceMethod::class, new QueueSourceMethod(batches: [runFreshCrawlerKnownBatch()]));

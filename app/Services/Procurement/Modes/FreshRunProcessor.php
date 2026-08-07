@@ -5,19 +5,25 @@ declare(strict_types=1);
 namespace App\Services\Procurement\Modes;
 
 use App\Dto\Procurement\Crawler\ListingCursor;
+use App\Enums\Procurement\Crawler\RunStopKind;
 use App\Models\Procurement\Crawler\Crawler;
 use App\Models\Procurement\Crawler\Run;
 use App\Services\Procurement\CrawlerRunManager;
 use App\Services\Procurement\CsvBlockIngestor;
 use App\Services\Procurement\PoliteThrottle;
+use App\Services\Procurement\RunStopGate;
 use App\Services\Procurement\SourceMethodFactory;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Log;
 use Throwable;
 
 /**
  * Оркестрация fresh-прогона (`02-crawling.md` §4.1): цикл блоков листинга до первого
  * известного блока или cap по повтору `dedupSignature`, с heartbeat/курсором на каждом
- * шаге и safety hard-cap от бесконечного цикла.
+ * шаге и safety hard-cap от бесконечного цикла. Стоп-гейт (P3.2, D28) и бюджет одного
+ * запуска (`crawler.run.checkpoint_seconds`) читаются в ТОЙ ЖЕ точке итерации, что уже
+ * делает `$crawler->refresh()` — курсор к моменту любого из этих выходов уже сохранён
+ * предыдущей итерацией, повторный поход в БД не добавляется.
  */
 final readonly class FreshRunProcessor
 {
@@ -26,6 +32,7 @@ final readonly class FreshRunProcessor
         private CrawlerRunManager $runs,
         private PoliteThrottle $throttle,
         private CsvBlockIngestor $ingestor,
+        private RunStopGate $stopGate,
     ) {}
 
     public function run(Crawler $crawler): Run
@@ -39,11 +46,32 @@ final readonly class FreshRunProcessor
         $cursor = ListingCursor::fromArray(cursor: $run->cursor?->toArray() ?? []);
         $blockSize = (int) config('crawler.eis.block_size', 500);
         $maxBlocks = (int) config('crawler.fresh_max_blocks', 40);
+        $checkpointSeconds = (int) config('crawler.run.checkpoint_seconds', 240);
+        $startedAt = Carbon::now();
         $previousSignature = null;
 
         try {
             for ($iteration = 0; $iteration < $maxBlocks; $iteration++) {
                 $crawler->refresh();
+
+                $stopSignal = $this->stopGate->signal(run: $run);
+
+                if ($stopSignal !== null) {
+                    $reason = "Остановлено оператором ({$stopSignal->value}).";
+                    match ($stopSignal) {
+                        RunStopKind::Pause => $this->runs->pause(run: $run, reason: $reason),
+                        RunStopKind::Cancel => $this->runs->cancel(run: $run, reason: $reason),
+                    };
+
+                    return $run;
+                }
+
+                if ($startedAt->diffInSeconds(Carbon::now()) >= $checkpointSeconds) {
+                    $this->runs->recordCheckpoint(run: $run);
+
+                    return $run;
+                }
+
                 $sourceMethod = $this->factory->makeWithFallback(crawler: $crawler);
                 $batch = $sourceMethod->collectListing(crawler: $crawler, cursor: $cursor);
                 $fetchResult = $this->ingestor->ingest(crawler: $crawler, run: $run, batch: $batch);

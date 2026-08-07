@@ -287,6 +287,27 @@ return [
             'timeout' => 300,
             'nice' => 0,
         ],
+
+        // Прогон краулера на очереди (P3.2, D27/D28). Инвариант таймаутов: checkpoint_seconds
+        // (config('crawler.run.checkpoint_seconds')=240) < timeout (300) <
+        // queue.redis.retry_after (config/queue.php, 360) — нарушение отдаёт job ВТОРОМУ
+        // воркеру, пока первый ещё легитимно работает (площадку начнут обходить дважды).
+        // `maxProcesses => 1` — сознательное ограничение: параллельные обходы одной площадки
+        // есть ровно то, ради предотвращения чего существует P4 (общий бюджет запросов);
+        // когда P4 введёт бюджет, значение пересматривается ЕЮ, не этим item'ом.
+        'supervisor-crawl' => [
+            'connection' => 'redis',
+            'queue' => ['crawl'],
+            'balance' => 'auto',
+            'autoScalingStrategy' => 'time',
+            'maxProcesses' => 1,
+            'maxTime' => 0,
+            'maxJobs' => 0,
+            'memory' => 128,
+            'tries' => 1,
+            'timeout' => 300,
+            'nice' => 0,
+        ],
     ],
 
     'environments' => [

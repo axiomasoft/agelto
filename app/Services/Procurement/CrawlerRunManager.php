@@ -161,6 +161,56 @@ final readonly class CrawlerRunManager
         });
     }
 
+    /**
+     * Сигнал `Pause` стоп-гейта (P3.2, D28): курсор к этому моменту уже сохранён вызывающим
+     * циклом, статус — `paused` (resumable), запрос остановки гасится, чтобы `startOrResume()`
+     * следующего запуска не увидел его снова.
+     */
+    public function pause(Run $run, string $reason): void
+    {
+        DB::transaction(function () use ($run, $reason): void {
+            $run->update([
+                'status' => RunStatus::Paused,
+                'stats' => array_merge($run->stats?->toArray() ?? [], ['stop_reason' => $reason]),
+                'stop_requested_at' => null,
+                'stop_kind' => null,
+                'stop_requested_by' => null,
+            ]);
+        });
+    }
+
+    /**
+     * Сигнал `Cancel` стоп-гейта (P3.2, D28): терминальный статус, `finished_at` проставляется
+     * тем же приёмом, что `complete()`/`fail()`; запрос остановки гасится.
+     */
+    public function cancel(Run $run, string $reason): void
+    {
+        DB::transaction(function () use ($run, $reason): void {
+            $run->update([
+                'status' => RunStatus::Cancelled,
+                'finished_at' => now(),
+                'stats' => array_merge($run->stats?->toArray() ?? [], ['stop_reason' => $reason]),
+                'stop_requested_at' => null,
+                'stop_kind' => null,
+                'stop_requested_by' => null,
+            ]);
+        });
+    }
+
+    /**
+     * Бюджет одного запуска исчерпан (P3.2, `crawler.run.checkpoint_seconds`): курсор уже
+     * сохранён вызывающим циклом, статус ОСТАЁТСЯ `running` — это и есть сигнал для
+     * `CrawlRunJob` самодиспатчить продолжение. Счётчик — только наблюдаемость.
+     */
+    public function recordCheckpoint(Run $run): void
+    {
+        $run->update([
+            'stats' => array_merge($run->stats?->toArray() ?? [], [
+                'checkpoints' => (int) ($run->stats?->toArray()['checkpoints'] ?? 0) + 1,
+            ]),
+        ]);
+    }
+
     public function fail(Run $run, string $error): void
     {
         DB::transaction(function () use ($run, $error): void {

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Models\Procurement\Crawler;
 
 use App\Enums\Procurement\Crawler\RunStatus;
+use App\Enums\Procurement\Crawler\RunStopKind;
 use Database\Factories\Procurement\Crawler\RunFactory;
 use Illuminate\Database\Eloquent\Attributes\UseFactory;
 use Illuminate\Database\Eloquent\Casts\AsCollection;
@@ -30,6 +31,10 @@ use Illuminate\Support\Collection;
  * @property Carbon|null $last_error_at
  * @property Carbon|null $next_retry_at
  * @property bool $failed_permanently
+ * @property Carbon|null $stop_requested_at
+ * @property RunStopKind|null $stop_kind
+ * @property int|null $stop_requested_by
+ * @property string|null $queue_job_id
  * @property Carbon $created_at
  * @property Carbon $updated_at
  */
@@ -53,6 +58,10 @@ final class Run extends Model
         'last_error_at',
         'next_retry_at',
         'failed_permanently',
+        'stop_requested_at',
+        'stop_kind',
+        'stop_requested_by',
+        'queue_job_id',
     ];
 
     protected function casts(): array
@@ -68,6 +77,8 @@ final class Run extends Model
             'last_error_at' => 'datetime',
             'next_retry_at' => 'datetime',
             'failed_permanently' => 'boolean',
+            'stop_requested_at' => 'datetime',
+            'stop_kind' => RunStopKind::class,
         ];
     }
 
