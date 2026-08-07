@@ -32,8 +32,6 @@ final class ProcurementFactory extends Factory
             'initial_price' => fake()->randomFloat(nbMaxDecimals: 2, min: 10000, max: 1000000),
             'currency' => 'RUB',
             'advance_percent' => null,
-            'okpd2_code' => null,
-            'okpd2_codes' => null,
             'okved_code' => null,
             'okved_additional' => null,
             'region_code' => null,

@@ -37,7 +37,7 @@ ADR-0007 «Триггер пересмотра»: первый внешний п
 | `prc_procurements.procedure_type` / `procedure_type_raw` | `tender.procurementMethod` / `tender.procurementMethodDetails` | |
 | `prc_procurements.initial_price` + `prc_procurements.currency` | `tender.value.amount` + `tender.value.currency` | НМЦК |
 | `prc_procurements.bidding_starts_at` / `bidding_ends_at` | `tender.tenderPeriod.startDate` / `tender.tenderPeriod.endDate` | |
-| `prc_procurements.okpd2_code` / `okpd2_codes` / `okved_code` | `tender.items[].classification` | профильный классификатор (ОКПД2/ОКВЭД2), не CPV |
+| `prc_procurements.okved_code` | `tender.items[].classification` | профильный классификатор (ОКВЭД2), не CPV; `okpd2_code`/`okpd2_codes` снесены (D16 плана `2026.08.06-CRAWL-HARDEN`) — колонка листинга всегда пуста, скоуп по ОКПД2 держит серверный фильтр профиля |
 | `prc_lots` (строка) | `tender.lots[]` | core-расширение OCDS 1.1+ (`research/tz-v2/ocds-schema.md` §1) |
 | `prc_lots.lot_number` | `tender.lots[].id` | |
 | `prc_lots.subject` | `tender.lots[].title` | |

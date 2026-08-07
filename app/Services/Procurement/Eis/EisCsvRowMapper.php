@@ -31,8 +31,6 @@ final readonly class EisCsvRowMapper implements ListingRowMapper
 
     private const string CURRENCY_COLUMN = 'Валюта';
 
-    private const string OKPD2_COLUMN = 'Классификация по ОКПД2';
-
     private const string PUBLISHED_AT_COLUMN = 'Дата размещения';
 
     private const string SOURCE_UPDATED_AT_COLUMN = 'Дата обновления';
@@ -70,7 +68,6 @@ final readonly class EisCsvRowMapper implements ListingRowMapper
         }
 
         [$procedureType, $procedureTypeRaw] = $this->mapProcedureType(row: $row, crawler: $crawler);
-        [$okpd2Code, $okpd2Codes] = $this->mapOkpd2(value: $row[self::OKPD2_COLUMN] ?? null);
 
         return new ProcurementSnapshotData(
             registryId: $crawler->registry_id,
@@ -84,8 +81,6 @@ final readonly class EisCsvRowMapper implements ListingRowMapper
             procedureTypeRaw: $procedureTypeRaw,
             initialPrice: $this->mapPrice(value: $row[self::INITIAL_PRICE_COLUMN] ?? null),
             currency: $this->nullableString(value: $row[self::CURRENCY_COLUMN] ?? null),
-            okpd2Code: $okpd2Code,
-            okpd2Codes: $okpd2Codes,
             regionCode: null,
             biddingStartsAt: $this->parseDate(value: $row[self::BIDDING_STARTS_AT_COLUMN] ?? null),
             biddingEndsAt: $this->parseDate(value: $row[self::BIDDING_ENDS_AT_COLUMN] ?? null),
@@ -109,27 +104,6 @@ final readonly class EisCsvRowMapper implements ListingRowMapper
         $procedureType = $isFz44 ? EisProcedureType::fromRawLabel(raw: $raw)?->value : null;
 
         return [$procedureType, $raw];
-    }
-
-    /**
-     * @return array{0: ?string, 1: ?list<string>} [okpd2Code, okpd2Codes]
-     */
-    private function mapOkpd2(?string $value): array
-    {
-        if ($value === null || trim($value) === '') {
-            return [null, null];
-        }
-
-        $codes = array_values(array_filter(
-            array_map(static fn (string $code): string => trim($code), preg_split('/[,;]/', $value) ?: []),
-            static fn (string $code): bool => $code !== '',
-        ));
-
-        if ($codes === []) {
-            return [null, null];
-        }
-
-        return [$codes[0], $codes];
     }
 
     private function mapPrice(?string $value): ?string

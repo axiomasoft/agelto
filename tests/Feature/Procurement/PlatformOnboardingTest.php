@@ -30,20 +30,16 @@ test('новая площадка заводится вставкой prc_platfo
     expect(Registry::query()->where('platform_id', $platform->id)->count())->toBe(1);
 });
 
-test('коммерческая площадка без ИКЗ/ОКПД2 сохраняет закупку с ikz/okpd2_code = null в ядре', function () {
+test('коммерческая площадка без ИКЗ сохраняет закупку с ikz = null в ядре', function () {
     $platform = Platform::factory()->create(['code' => 'commercial-x']);
     $registry = Registry::factory()->create(['platform_id' => $platform->id, 'code' => 'main']);
 
     $procurement = Procurement::factory()->create([
         'registry_id' => $registry->id,
         'ikz' => null,
-        'okpd2_code' => null,
-        'okpd2_codes' => null,
     ]);
 
-    expect($procurement->ikz)->toBeNull()
-        ->and($procurement->okpd2_code)->toBeNull()
-        ->and($procurement->okpd2_codes)->toBeNull();
+    expect($procurement->ikz)->toBeNull();
 
     // Классификатор позиций заменяем (OCDS-подход): своя схема через classifier_scheme,
     // не завязана на окpd2-специфичный столбец.

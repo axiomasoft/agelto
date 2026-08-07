@@ -36,8 +36,10 @@ use RuntimeException;
 final class CrawlerProfileSeeder extends Seeder
 {
     /**
-     * Общие 12 флагов колонок (`research/05-change-tracking.md` §5.1) + принудительный
-     * `registryNumberCsv` — единственный носитель этого перечня в сиде.
+     * Общие 11 флагов колонок (`research/05-change-tracking.md` §5.1) + принудительный
+     * `registryNumberCsv` — единственный носитель этого перечня в сиде. `scopeOkpd2Csv` снят
+     * (D16, P2.6): колонка «Классификация по ОКПД2» приходит пустой, запрашивать её — трата
+     * места в выгрузке.
      *
      * @var array<string, bool>
      */
@@ -51,7 +53,6 @@ final class CrawlerProfileSeeder extends Seeder
         'purchaseNumbersCsv' => true,
         'maxContractPriceCsv' => true,
         'currencyCodeCsv' => true,
-        'scopeOkpd2Csv' => true,
         'startDateRequestCsv' => true,
         'endDateRequestCsv' => true,
         'customerNameCsv' => true,

@@ -48,9 +48,6 @@ class ProcurementInfolist
                 TextEntry::make('advance_percent')
                     ->numeric()
                     ->placeholder('-'),
-                TextEntry::make('okpd2_code')
-                    ->placeholder('-')
-                    ->columnSpanFull(),
                 TextEntry::make('okved_code')
                     ->placeholder('-')
                     ->columnSpanFull(),
@@ -115,8 +112,6 @@ class ProcurementInfolist
                     ->placeholder('-'),
                 TextEntry::make('updated_at')
                     ->dateTime()
-                    ->placeholder('-'),
-                TextEntry::make('okpd2_codes')
                     ->placeholder('-'),
             ]);
     }

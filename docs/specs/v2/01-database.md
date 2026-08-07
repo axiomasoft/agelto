@@ -101,8 +101,6 @@ Unique `(procurement_id, organization_id, role)`. Быстрый доступ к
 | initial_price | numeric(18,2) nullable | НМЦК |
 | currency | char(3) nullable | |
 | advance_percent | numeric(5,2) nullable | размер аванса, % |
-| okpd2_code | text nullable index | основной код (сырой) |
-| okpd2_codes | text[] nullable | все коды позиций — денормализация под GIN-поиск |
 | okved_code | text nullable index | ОКВЭД основной (перенос из v1 `plt_crawler_links.okved`) |
 | okved_additional | text nullable index | ОКВЭД дополнительный (v1 `okved_additional` — легко упускаемая деталь) |
 | region_code | text nullable index | |
@@ -122,7 +120,10 @@ Unique `(procurement_id, organization_id, role)`. Быстрый доступ к
 | first_seen_at, last_seen_at | timestamptz | наши метки |
 | created_at, updated_at | timestamptz | |
 
-Индексы: `(registry_id, status, published_at)`, `(status, bidding_ends_at)`, `(customer_org_id)`, GIN на `okpd2_codes`.
+Индексы: `(registry_id, status, published_at)`, `(status, bidding_ends_at)`, `(customer_org_id)`.
+`okpd2_code`/`okpd2_codes` (+ GIN-индекс) сняты (D16 плана `2026.08.06-CRAWL-HARDEN`) — колонка
+листинга на боевых данных всегда пуста, принадлежность скоупу ОКПД2 гарантирует серверный фильтр
+профиля (P2.2–P2.3), второй носитель того же факта не заводится.
 
 #### 3.1 Канонический статус (закрытый codelist, по мотивам OCDS tenderStatus)
 `announced` → `bidding` (подача заявок) → `evaluation` (работа комиссии) → `awarded` (определён поставщик) → `completed` | `cancelled` | `unsuccessful` (не состоялась) | `unknown` (не смаппился — сигнал в мониторинг). `prc_lots.status` — тот же codelist (OCDS: отдельного lotStatus нет).
@@ -307,7 +308,7 @@ Unique `(procurement_id, organization_id, role)`. Быстрый доступ к
 
 Гипотетическая площадка без ИКЗ/ОКПД2, иной классификатор, свои статусы:
 - `prc_platforms` (`code='commercial-x'`) + `prc_registries` + `prc_status_mappings`; адаптер в коде. **Миграций ядра нет.**
-- Ядро `prc_procurements` заполняется как есть; `ikz`/`okpd2_code` — `null`; классификатор позиций → `prc_items.classifier_scheme` (OCDS: схема заменяема).
+- Ядро `prc_procurements` заполняется как есть; `ikz` — `null`; классификатор позиций → `prc_items.classifier_scheme` (OCDS: схема заменяема).
 - Специфика → `prc_procurements.attributes` или своя `<platform>_details` extension-таблица (как `prc_eis_details`).
 - Организации/роли — тот же `org_organizations` + `org_procurement_parties` (роли открыты enum'ом).
 - Статусы вне канона → ближайший или `unknown`+алерт; устойчивая потребность → расширение enum (одно место).

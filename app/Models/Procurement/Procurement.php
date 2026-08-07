@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Models\Procurement;
 
-use App\Casts\PostgresTextArrayCast;
 use App\Enums\Procurement\ProcurementStatus;
 use App\Models\Procurement\Platform\Registry;
 use App\Models\Scopes\PublicPlatformScope;
@@ -45,8 +44,6 @@ final class Procurement extends Model
         'initial_price',
         'currency',
         'advance_percent',
-        'okpd2_code',
-        'okpd2_codes',
         'okved_code',
         'okved_additional',
         'region_code',
@@ -76,7 +73,6 @@ final class Procurement extends Model
     {
         return [
             'status' => ProcurementStatus::class,
-            'okpd2_codes' => PostgresTextArrayCast::class,
             'attributes' => AsCollection::class,
             'initial_price' => 'decimal:2',
             'advance_percent' => 'decimal:2',

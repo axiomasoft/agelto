@@ -15,7 +15,6 @@ use Illuminate\Support\Carbon;
 final readonly class ProcurementSnapshotData
 {
     /**
-     * @param  list<string>|null  $okpd2Codes
      * @param  array<string, mixed>|null  $attributes
      */
     public function __construct(
@@ -32,8 +31,6 @@ final readonly class ProcurementSnapshotData
         public ?string $initialPrice = null,
         public ?string $currency = null,
         public ?string $advancePercent = null,
-        public ?string $okpd2Code = null,
-        public ?array $okpd2Codes = null,
         public ?string $okvedCode = null,
         public ?string $okvedAdditional = null,
         public ?string $regionCode = null,
@@ -67,8 +64,6 @@ final readonly class ProcurementSnapshotData
             'initial_price' => $this->initialPrice,
             'currency' => $this->currency,
             'advance_percent' => $this->advancePercent,
-            'okpd2_code' => $this->okpd2Code,
-            'okpd2_codes' => $this->okpd2Codes,
             'okved_code' => $this->okvedCode,
             'okved_additional' => $this->okvedAdditional,
             'region_code' => $this->regionCode,
