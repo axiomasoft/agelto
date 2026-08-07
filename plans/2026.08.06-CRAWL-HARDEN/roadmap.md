@@ -31,9 +31,9 @@
 | P1.3 | solo | plan-run (manual) | frontier/high | — | RAG-ступень, канал разведки не нужен; две темы после D97 → вход P4.1/P4.4/P4.5 |
 | P1.5 | solo | plan-run (manual) | frontier/high | — | до 60 запросов к площадке — отдельная сессия, иначе один вежливостный бюджет на ~100 обращений |
 | P2.1 | — | plan-exec | implementation/medium | — | таблица `prc_okpd2_nodes`, датафайл, сид, резолвер |
-| P2.2 | — | plan-run (manual) | implementation/high | — | поле `okpd2Codes` + структурный гейт скоупа (D18); coupling `Crawler::saving()` |
+| P2.2 | — | plan-run (manual) | implementation/high | — | поле `okpd2Codes` + структурный гейт скоупа (D18); coupling `Crawler::saving()`; после редизайна 2026-08-07 несёт также дефолты фабрик (D108) и минимальное поле формы (D109) |
 | P2.3 | — | plan-run (manual) | implementation/high | — | `okpd2Ids` + `okpd2IdsWithNested`, отказ на нерезолвящемся коде (D21) |
-| P2.4 | — | plan-exec | implementation/medium | — | сгруппированный мультиселект (D17) |
+| P2.4 | — | plan-exec | implementation/medium | — | ДОВОДКА поля, заведённого P2.2 (D109): поиск, группировка, helperText, пустая карта (D17) |
 | P2.5 | — | plan-run (manual) | implementation/high | — | единственная точка фазы, ходящая на живую площадку |
 | P2.6 | — | plan-exec | implementation/medium | — | сплошное удаление мёртвой ветки (D16): grep-гейт + `migrate:fresh --seed` |
 | P3.1 | — | plan-run (manual) | implementation/high | — | инвертированная семантика `sortDirection` — coupling с P2 по `EisSearchFilter` |
