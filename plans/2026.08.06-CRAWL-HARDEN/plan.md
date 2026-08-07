@@ -176,7 +176,7 @@ Deliverables другого. P1.3 идёт solo: ему нужен не Playwrig
 | Phase | Title | Items 🟢/всего | Status |
 |:--|:--|:--|:--|
 | P1 | Разведка ЕИС: параметры листинга, ОКПД2, практики, карточка, инвентарь вкладок | 4/5 | 🟠 Done with deviations |
-| P2 | ОКПД2: фильтр профиля и древовидная форма | 1/6 | 🟡 In progress |
+| P2 | ОКПД2: фильтр профиля и древовидная форма | 2/6 | 🟡 In progress |
 | P3 | Профили обхода и управление прогонами из админки | 0/6 | ⬜ Not started |
 | P4 | Надёжность конвейера: бюджет запросов, троттлинг, анти-дубли | 0/6 | ⬜ Not started |
 | P5 | Healthcheck площадки и уведомления | 0/6 | ⬜ Not started |
@@ -335,6 +335,7 @@ Deliverables другого. P1.3 идёт solo: ему нужен не Playwrig
 | 2026-08-07 | plan-design/opus/high | Эскалация P2.2 разрешена (D108–D110): периметр фикстур — дефолты фабрик, минимальное поле формы перенесено из P2.4, приёмочный гейт — дельта против baseline; P2.2 🔴 → ⬜, P2 🔴 → 🟡 — детали см. phases/P2.md P2.2 и research/11-p2.2-scope-gate-perimeter.md |
 | 2026-08-07 | plan-run/sonnet/high | P2.2 закрыт 🟢: дефолты фабрик (D108), минимальное поле `filter.okpd2Codes` (D109), пять фикстурных файлов + ассерта `EisSeedersTest`; приёмочная дельта 15/15 против baseline (D110) — детали см. phases/P2.md P2.2 Completion Notes |
 | 2026-08-07 | plan-run/sonnet/high | P2.3 закрыт 🟠: `EisCsvUrlBuilder` резолвит `okpd2Codes` → `okpd2Ids`+`okpd2IdsWithNested=on` через `Okpd2NodeReadRepository`, отказ на нерезолвящемся коде; дифф вне Files — починка трёх фикстур (`CrawlerWithRegistry`, `CsvSourceMethodTest`, `EisSeedersTest`), не несших карту ОКПД2, K=0 на полном прогоне — детали см. phases/P2.md P2.3 Completion Notes |
+| 2026-08-07 | plan-exec/sonnet/medium | P2.4 закрыт 🟢: `Select::make('filter.okpd2Codes')` доведён — `->searchable()`, группировка опций по `parent_code`, `Placeholder` при пустой карте, helperText о пустых классификаторных колонках; +2 теста формы (группировка/поиск, превью URL); приёмочная дельта 0 против baseline `c4fbfbc4` (D110) — детали см. phases/P2.md P2.4 Completion Notes |
 
 ## 7. Contracts
 

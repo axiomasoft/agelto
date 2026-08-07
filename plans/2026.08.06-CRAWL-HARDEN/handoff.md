@@ -1,17 +1,17 @@
-# HANDOFF — 2026-08-07 — after P2.3
+# HANDOFF — 2026-08-07 — after P2.4
 
-**Next:** `/task:plan-exec 2026.08.06-CRAWL-HARDEN P2.4`
+**Next:** `/task:plan-exec 2026.08.06-CRAWL-HARDEN P2.5`
 
 | Параметр | Значение |
 |:--|:--|
 | Model | sonnet |
 | Thinking | medium — Routing §3 предписывает implementation/medium |
 | Context | continue (/clear) — ручной item |
-| Суть | Сгруппированный поисковый мультиселект ОКПД2 в форме профиля (довод P2.2) |
-| Команда | `/task:plan-exec 2026.08.06-CRAWL-HARDEN P2.4` |
+| Суть | Команда пересборки карты ОКПД2 с ЕИС + детект дрейфа id (`crawler:okpd2-sync`) |
+| Команда | `/task:plan-exec 2026.08.06-CRAWL-HARDEN P2.5` |
 
 ```
-/task:plan-exec 2026.08.06-CRAWL-HARDEN P2.4
+/task:plan-exec 2026.08.06-CRAWL-HARDEN P2.5
 ```
 
 **Done:** P2.1 закрыт 🟠 Done with deviations (item-коммит `2e36ad56`) — таблица `prc_okpd2_nodes`,
@@ -33,34 +33,49 @@ skipped на `f172a43d` против baseline 15 failed / 588 passed / 1 skipped
 предсуществующих фикстурных файла её не несли: `CrawlerWithRegistry` (добавлен параметр
 `platformId`), `CsvSourceMethodTest` (11 сайтов → хелпер `registryWithOkpd2Scope()`),
 `EisSeedersTest` (один тест довесил `$this->seed(Okpd2NodeSeeder::class)`) — без этой правки
-K было бы 12, с ней **K = 0** (полный прогон 18 failed / 1127 passed / 1 skipped на `ac76e424`
+K было бы 12, с ней K = 0 (полный прогон 18 failed / 1127 passed / 1 skipped на `ac76e424`
 против 18 failed / 1123 passed / 1 skipped на `bcc681f8`, список падающих классов идентичен).
-Дифф вне `Files` item'а → статус 🟠 по status-rule, независимо от корректности диффа. Детали —
-`phases/P2.md` P2.3 Completion Notes.
+Дифф вне `Files` item'а → статус 🟠 по status-rule, независимо от корректности диффа.
 
-**Remaining:** 43 items из 51. Внутри P2: P2.4–P2.6.
+**P2.4 закрыт 🟢 Done** (item-коммит `4a9238d7`) — `Select::make('filter.okpd2Codes')` доведён
+внутри `okpd2CodeField()`/`okpd2CodeOptions()` `CrawlerForm.php`: `->searchable()` +
+группировка опций по `parent_code` (узлы без родителя — группа «Разделы»); карта площадки пуста
+(сид не прогнан) → вместо пустого обязательного селекта — `Placeholder` с причиной и путём
+починки; `helperText` `CheckboxList` колонок CSV дополнен наблюдением о пустых классификаторных
+колонках. +2 теста Livewire сверх заведённых P2.2 (группировка/поиск через
+`assertFormFieldExists`+`Select::getOptions()`, превью URL через `assertFormComponentExists`+
+`Placeholder::getContent()`). Внутри `Files` этого item'а доведён и заведённый P2.2 тест «форма
+отклоняет профиль fz44 без выбранного узла ОКПД2» — он сидировал регистр без `Okpd2Node`, что до
+P2.4 совпадало со сценарием «узел не выбран» (карта пустая, но `Select` рендерился), а после
+P2.4 стало сценарием «карта пуста» (рендерится `Placeholder`, поля `filter.okpd2Codes` в схеме
+нет); добавлен `Okpd2Node::factory()->create(...)`, чтобы тест снова проверял исходный сценарий.
+Приёмочная дельта: 18 failed / 1129 passed / 1 skipped на `4a9238d7` против 18 failed / 1127
+passed / 1 skipped на baseline `c4fbfbc4` (собственное дерево до item'а, парный прогон снят
+`git stash`) — Δ failed = 0. Дифф — целиком внутри `Files` item'а. Детали —
+`phases/P2.md` P2.4 Completion Notes.
+
+**Remaining:** 42 items из 51. Внутри P2: P2.5–P2.6.
 Порядок жёсткий в трёх местах: P2 → P3 → P4 → P5 по coupling-поверхности (D98); P8 — после всех
 схемных фаз P2–P6 и после терминальной P1.5 (D4/D83); P9 — после P8 (D4).
 
 **Sources of truth:** `plan.md` (Meta 0.15.0, §3 Routing построчно, Status Board, D1–D110,
-`## 6. Update Log`, `## 7. Contracts`, развилки № 35–№ 37) · `phases/P2.md` (P2.1–P2.3 закрыты,
-P2.4–P2.6 — ТЗ готово) · `research/03-p2-okpd2-design.md` §2.4/§3.2 (UI-развилка P2.4) ·
-`app/Repositories/Procurement/Platform/Okpd2NodeReadRepository.php` (`selectableNodes()` — опции
-формы P2.4) · `app/Services/Procurement/Eis/EisCsvUrlBuilder.php` (резолв P2.3, ЕИС-специфика) ·
-`open-questions.md` (Q9/Q10/Q13/Q15/Q16 — ни один не блокирует P2).
+`## 6. Update Log`, `## 7. Contracts`, развилки № 35–№ 37) · `phases/P2.md` (P2.1–P2.4 закрыты,
+P2.5–P2.6 — ТЗ готово) · `research/03-p2-okpd2-design.md` §3.3 (команда пересборки, развилка № 9) ·
+`app/Repositories/Procurement/Platform/Okpd2NodeReadRepository.php` · `app/Services/Procurement/
+Eis/EisCsvUrlBuilder.php` (резолв P2.3, ЕИС-специфика) · `open-questions.md` (Q9/Q10/Q13/Q15/Q16
+— ни один не блокирует P2).
 
 **Open risks:**
-- **Строка Validation «полный прогон — зелено» ложна ещё у 43 незакрытых items** — D110 поправил
-  её только у P2.2 и P2.4 (по имени), P2.3 подтвердил K=0 отдельным явным прогоном (не в
-  Validation-строке item'а). Долг назван в самой D-записи; правит его тот, кто эти items
-  исполняет, либо следующий `plan-design`.
+- **Строка Validation «полный прогон — зелено» ложна ещё у 41 незакрытых item'а** — D110 поправил
+  её у P2.2 и P2.4 (по имени), P2.3 подтвердил K=0 отдельным явным прогоном. Долг назван в самой
+  D-записи; правит его тот, кто эти items исполняет, либо следующий `plan-design`.
 - **Загрязнение батч-прогона тестового контура**: `EisSeedersTest`/`StatusMappingSeederTest`
   видят чужие реестры в батче и зелёные в одиночном прогоне. Дефект существует НА BASELINE
-  (подтверждено ещё раз прогонами P2.2 и P2.3), ни один item плана его не адресует — кандидат в
-  follow-up item вне P2.
+  (подтверждено ещё раз прогонами P2.2/P2.3/P2.4), ни один item плана его не адресует — кандидат
+  в follow-up item вне P2.
 - **~7 предсуществующих падений окружения контейнера `app`** (`storage/app/tmp_extract`, запрет
   `ini_set('memory_limit')`: `Prepare/**`, `Screening/**`, `ContourTest`) — вне диффа плана,
-  подтверждено идентичным на baseline `bcc681f8` и на `ac76e424`.
+  подтверждено идентичным на baseline и на `4a9238d7`.
 - Перенесены из P1, не пересматривались: вежливостный бюджет P1.5 замерен неполно (ужесточить
   `eis-recon` перед P2.5/P5.4) · `Scope Included` P4.1 п. 7 противоречит D107 (синхронизация до
   старта P4) · два дефекта боевого кода из P1.3 (плоский retry-backoff без `Retry-After` → P4.1;
