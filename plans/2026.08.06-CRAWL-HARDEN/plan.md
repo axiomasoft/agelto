@@ -338,6 +338,7 @@ Deliverables другого. P1.3 идёт solo: ему нужен не Playwrig
 | 2026-08-07 | plan-exec/sonnet/medium | P2.4 закрыт 🟢: `Select::make('filter.okpd2Codes')` доведён — `->searchable()`, группировка опций по `parent_code`, `Placeholder` при пустой карте, helperText о пустых классификаторных колонках; +2 теста формы (группировка/поиск, превью URL); приёмочная дельта 0 против baseline `c4fbfbc4` (D110) — детали см. phases/P2.md P2.4 Completion Notes |
 | 2026-08-07 | plan-run/opus/high | P2.5 закрыт 🟠: команда `crawler:okpd2-sync` + синхронизатор + store-репозиторий + секция `okpd2` конфига + синтетическая фикстура и 6 тестов; статус 🟠 — три строки Validation («grep zakupki пусто», «pint зелено», «полный прогон зелено») красны идентично на baseline — детали см. phases/P2.md P2.5 Completion Notes |
 | 2026-08-07 | plan-exec/sonnet/medium | P2.6 закрыт 🟠 (последний item фазы): мёртвая ветка ОКПД2 листинга снесена — маппер, DTO снимка, репозиторий, модель, `PostgresTextArrayCast` (единственный потребитель), фабрика, витрина, `scopeOkpd2Csv` в сиде, drop-миграция с обратимым `down()`, доки; статус 🟠 — три строки Validation (`pint --test`, `migrate:fresh --seed`, полный прогон) красны идентично на baseline, Δ = 0 везде — детали см. phases/P2.md P2.6 Completion Notes |
+| 2026-08-07 | plan-close/sonnet/low | Фаза P2 закрыта 🟠 Done with deviations: все 6 items терминальны (P2.2/P2.4 🟢, P2.1/P2.3/P2.5/P2.6 🟠), Phase Handoff заполнен, docs-sync — обновлено (`docs/03_Dev/database.md`, `docs/03_Dev/ocds-mapping.md`, вошло в коммит P2.6) |
 
 ## 7. Contracts
 
