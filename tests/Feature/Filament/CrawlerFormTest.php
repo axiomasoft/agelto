@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Dto\Procurement\Crawler\EisSearchFilter;
 use App\Enums\Procurement\Crawler\CrawlerMode;
+use App\Enums\Procurement\Crawler\ListingSortField;
 use App\Enums\Procurement\Crawler\SourceMethod;
 use App\Filament\Resources\Procurement\Crawler\Crawlers\Pages\CreateCrawler;
 use App\Filament\Resources\Procurement\Crawler\Crawlers\Pages\EditCrawler;
@@ -191,6 +192,34 @@ test('превью URL несёт okpd2Ids и okpd2IdsWithNested после вы
 
             return true;
         });
+});
+
+test('форма сохраняет профиль с полями сортировки', function (): void {
+    actingAs(crawlerFormOperator());
+
+    $registry = Registry::factory()->create(['code' => 'fz44']);
+    Okpd2Node::factory()->create(['platform_id' => $registry->platform_id, 'code' => '43']);
+
+    Livewire::test(CreateCrawler::class)
+        ->fillForm([
+            'registry_id' => $registry->getKey(),
+            'name' => 'ЕИС 44-ФЗ — актуальный поток',
+            'mode' => CrawlerMode::Fresh->value,
+            'source_method' => SourceMethod::Csv->value,
+            'filter' => ['okpd2Codes' => ['43'], 'sortField' => ListingSortField::Updated->value, 'sortAscending' => false],
+            'options' => ['columns' => []],
+            'is_active' => true,
+            'use_proxy' => true,
+        ])
+        ->call('create')
+        ->assertHasNoFormErrors();
+
+    $filter = Crawler::query()->sole()->filter;
+
+    expect($filter)->toBeInstanceOf(EisSearchFilter::class);
+    /** @var EisSearchFilter $filter */
+    expect($filter->sortField)->toBe(ListingSortField::Updated);
+    expect($filter->sortAscending)->toBeFalse();
 });
 
 test('форма отклоняет профиль fz44 без выбранного узла ОКПД2', function (): void {

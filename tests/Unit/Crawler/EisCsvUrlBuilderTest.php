@@ -252,3 +252,77 @@ test('buildQueryParams на нерезолвящемся коде ОКПД2 от
     expect(fn () => app(EisCsvUrlBuilder::class)->buildQueryParams(crawler: $crawler, from: 1, to: 500))
         ->toThrow(RuntimeException::class, '99.99');
 });
+
+test('buildQueryParams переводит поле сортировки профиля в sortBy для обоих значений', function () {
+    $updated = CrawlerWithRegistry::make(
+        registryCode: 'fz44',
+        filter: ['sortField' => 'updated', 'okpd2Codes' => ['43']],
+        options: null,
+        platformId: $this->platformId,
+    );
+    $published = CrawlerWithRegistry::make(
+        registryCode: 'fz44',
+        filter: ['sortField' => 'published', 'okpd2Codes' => ['43']],
+        options: null,
+        platformId: $this->platformId,
+    );
+
+    $updatedParams = app(EisCsvUrlBuilder::class)->buildQueryParams(crawler: $updated, from: 1, to: 500);
+    $publishedParams = app(EisCsvUrlBuilder::class)->buildQueryParams(crawler: $published, from: 1, to: 500);
+
+    expect($updatedParams['sortBy'])->toBe('UPDATE_DATE')
+        ->and($publishedParams['sortBy'])->toBe('PUBLISH_DATE');
+});
+
+test('buildQueryParams переводит sortAscending профиля в sortDirection для обоих направлений (инверсия)', function () {
+    $ascending = CrawlerWithRegistry::make(
+        registryCode: 'fz44',
+        filter: ['sortField' => 'updated', 'sortAscending' => true, 'okpd2Codes' => ['43']],
+        options: null,
+        platformId: $this->platformId,
+    );
+    $descending = CrawlerWithRegistry::make(
+        registryCode: 'fz44',
+        filter: ['sortField' => 'updated', 'sortAscending' => false, 'okpd2Codes' => ['43']],
+        options: null,
+        platformId: $this->platformId,
+    );
+
+    $ascendingParams = app(EisCsvUrlBuilder::class)->buildQueryParams(crawler: $ascending, from: 1, to: 500);
+    $descendingParams = app(EisCsvUrlBuilder::class)->buildQueryParams(crawler: $descending, from: 1, to: 500);
+
+    // sortDirection инвертирован площадкой: 'true' — возрастание, 'false' — убывание
+    // (findings/eis-params-carryover.md §1) — интуиция здесь врёт, проверяем ТОЧНУЮ строку.
+    expect($ascendingParams['sortDirection'])->toBe('true')
+        ->and($descendingParams['sortDirection'])->toBe('false');
+});
+
+test('buildQueryParams профиль без поля сортировки даёт прежнюю пару sortBy/sortDirection', function () {
+    $crawler = CrawlerWithRegistry::make(
+        registryCode: 'fz44',
+        filter: ['stageCompleted' => true, 'okpd2Codes' => ['43']],
+        options: null,
+        platformId: $this->platformId,
+    );
+
+    $params = app(EisCsvUrlBuilder::class)->buildQueryParams(crawler: $crawler, from: 1, to: 500);
+
+    expect($params['sortBy'])->toBe('UPDATE_DATE')
+        ->and($params['sortDirection'])->toBe('false');
+});
+
+test('buildQueryParams archive-курсор перекрывает sortDirection профиля безусловно', function () {
+    $crawler = CrawlerWithRegistry::make(
+        registryCode: 'fz44',
+        filter: ['sortField' => 'updated', 'sortAscending' => false, 'okpd2Codes' => ['43']],
+        options: null,
+        platformId: $this->platformId,
+    );
+    $cursor = new ListingCursor(blockFrom: 1, day: '2024-03-15', priceStack: ['0:500000']);
+
+    $params = app(EisCsvUrlBuilder::class)->buildQueryParams(crawler: $crawler, from: 1, to: 500, cursor: $cursor);
+
+    // Профиль просит убывание (sortAscending=false), но archive-ветка ставит порядок
+    // сама (D21) — направление сканера обязано выигрывать у профиля.
+    expect($params['sortDirection'])->toBe('true');
+});

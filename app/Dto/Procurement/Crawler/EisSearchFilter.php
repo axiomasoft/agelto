@@ -6,8 +6,10 @@ namespace App\Dto\Procurement\Crawler;
 
 use App\Dto\Procurement\Crawler\Contracts\HasPriceRange;
 use App\Dto\Procurement\Crawler\Contracts\RequiresScope;
+use App\Enums\Procurement\Crawler\ListingSortField;
 use Carbon\CarbonImmutable;
 use Illuminate\Contracts\Support\Arrayable;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Spatie\LaravelData\Attributes\WithCast;
 use Spatie\LaravelData\Casts\DateTimeInterfaceCast;
@@ -47,6 +49,8 @@ final class EisSearchFilter extends Data implements HasPriceRange, RequiresScope
         'searchString',
         'morphology',
         'okpd2Codes',
+        'sortField',
+        'sortAscending',
     ];
 
     public function __construct(
@@ -91,6 +95,19 @@ final class EisSearchFilter extends Data implements HasPriceRange, RequiresScope
          * @var list<string>
          */
         public array $okpd2Codes = [],
+        /**
+         * Поле сортировки выдачи (`sortBy`); `null` → билдер эмитит прежний дефолт
+         * (`UPDATE_DATE`) — item обязан быть поведенчески нейтральным для уже лежащих в БД
+         * профилей (Implementation Rules п. 4).
+         */
+        public ?ListingSortField $sortField = null,
+        /**
+         * Направление сортировки — ПОЛОЖИТЕЛЬНОЕ утверждение («по возрастанию»), а НЕ строка
+         * площадки: перевод в инвертированный `sortDirection` (`true`/`false`) выполняет
+         * билдер и только он (Implementation Rules п. 2). Дефолт `false` воспроизводит
+         * сегодняшнее поведение (`sortDirection='false'`, убывание).
+         */
+        public bool $sortAscending = false,
     ) {}
 
     /**
@@ -132,6 +149,11 @@ final class EisSearchFilter extends Data implements HasPriceRange, RequiresScope
             // здесь ЗАПРЕЩЕНА — членство обеспечивают форма (предлагает коды карты) и билдер
             // (отказ при нерезолве, D21), а `Data`-класс обязан строиться без БД.
             'okpd2Codes.*' => ['string', 'regex:/^([A-Z]|\d{2}(\.\d+)*)$/'],
+            // ЕИС молча игнорирует неизвестное значение sortBy, отвечая 200
+            // (findings/P1-okpd2-probe.md §2) — опечатка без гейта по enum доживёт до боевого
+            // запроса (Implementation Rules п. 5).
+            'sortField' => ['nullable', 'string', Rule::enum(ListingSortField::class)],
+            'sortAscending' => ['boolean'],
         ];
     }
 

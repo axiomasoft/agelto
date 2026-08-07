@@ -4,6 +4,7 @@ namespace App\Filament\Resources\Procurement\Crawler\Crawlers\Schemas;
 
 use App\Dto\Procurement\Crawler\EisSearchFilter;
 use App\Enums\Procurement\Crawler\CrawlerMode;
+use App\Enums\Procurement\Crawler\ListingSortField;
 use App\Enums\Procurement\Crawler\SourceMethod;
 use App\Filament\Resources\Procurement\Crawler\Proxies\Schemas\ProxyForm;
 use App\Models\Procurement\Crawler\Crawler;
@@ -325,6 +326,18 @@ class CrawlerForm
                 Toggle::make('filter.morphology')
                     ->label('Морфология поиска')
                     ->helperText('Параметр ЕИС: morphology. Имеет смысл только вместе со строкой поиска.'),
+                Select::make('filter.sortField')
+                    ->label('Сортировка выдачи')
+                    ->options(ListingSortField::class)
+                    ->helperText(
+                        'Параметр ЕИС: sortBy. Не выбрано — прежний дефолт (дата обновления). '
+                        .'В archive/delta-прогоне направление ставит сканер и это поле не действует.',
+                    ),
+                Toggle::make('filter.sortAscending')
+                    ->label('По возрастанию')
+                    ->helperText(
+                        'Параметр ЕИС: sortDirection (инвертирован площадкой — выключено означает убывание).',
+                    ),
             ],
             default => [
                 Placeholder::make('filter_unavailable')

@@ -6,6 +6,7 @@ namespace App\Services\Procurement\Eis;
 
 use App\Dto\Procurement\Crawler\EisSearchFilter;
 use App\Dto\Procurement\Crawler\ListingCursor;
+use App\Enums\Procurement\Crawler\ListingSortField;
 use App\Models\Procurement\Crawler\Crawler;
 use App\Models\Procurement\Platform\Registry;
 use App\Repositories\Procurement\Platform\Okpd2NodeReadRepository;
@@ -56,8 +57,7 @@ final readonly class EisCsvUrlBuilder
         $query['from'] = (string) $from;
         $query['to'] = (string) $to;
         $query[$crawler->registry->code] = 'on';
-        $query['sortBy'] = 'UPDATE_DATE';
-        $query['sortDirection'] = 'false';
+        [$query['sortBy'], $query['sortDirection']] = $this->sortParams(filter: $filter);
         // Обязательна для cap-детекта (`CsvSourceMethod::dedupSignature`) — запрашивается
         // всегда, независимо от `options.columns` профиля.
         $query[self::REGISTRY_NUMBER_COLUMN_FLAG] = 'on';
@@ -139,6 +139,35 @@ final readonly class EisCsvUrlBuilder
         }
 
         return $registry;
+    }
+
+    /**
+     * Сортировка выдачи (`sortBy`/`sortDirection`) из профиля (P3.1). `sortDirection`
+     * ИНВЕРТИРОВАН на площадке: `'false'` даёт УБЫВАНИЕ, `'true'` — возрастание
+     * (`findings/eis-params-carryover.md` §1, живой замер P1.1) — DTO хранит положительное
+     * `sortAscending`, инверсию выполняет только этот метод. `sortField === null` или
+     * `filter === null` эмитят прежний дефолт (`UPDATE_DATE`/`false`) байт-в-байт: item обязан
+     * быть поведенчески нейтральным для уже лежащих в БД профилей. Archive/delta-курсор
+     * ПЕРЕКРЫВАЕТ направление через `archiveOverrides()` (:`sortDirection` → `'true'`)
+     * БЕЗУСЛОВНО и намеренно — в этой ветке окно и порядок дренажа ставит сканер, профильная
+     * сортировка на неё не распространяется.
+     *
+     * @return array{0: string, 1: string}
+     */
+    private function sortParams(?EisSearchFilter $filter): array
+    {
+        $sortField = $filter?->sortField;
+
+        if ($sortField === null) {
+            return ['UPDATE_DATE', 'false'];
+        }
+
+        $sortBy = match ($sortField) {
+            ListingSortField::Published => 'PUBLISH_DATE',
+            ListingSortField::Updated => 'UPDATE_DATE',
+        };
+
+        return [$sortBy, $filter->sortAscending ? 'true' : 'false'];
     }
 
     /**

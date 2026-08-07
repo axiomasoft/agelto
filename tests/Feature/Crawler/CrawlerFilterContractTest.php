@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Dto\Procurement\Crawler\EisSearchFilter;
+use App\Enums\Procurement\Crawler\ListingSortField;
 use App\Models\Procurement\Crawler\Crawler;
 use App\Models\Procurement\Platform\Registry;
 use App\Services\Procurement\CrawlerFilterFactory;
@@ -130,6 +131,27 @@ test('мусор вместо кода ОКПД2 отклоняется пров
     expect(fn () => Crawler::factory()->for($registry)->create(
         ['filter' => ['okpd2Codes' => ['строительство']]]
     ))->toThrow(ValidationException::class);
+});
+
+test('поля сортировки переживают round-trip через jsonb', function () {
+    $registry = Registry::factory()->create(['code' => 'fz44']);
+    $crawler = Crawler::factory()->for($registry)->create([
+        'filter' => new EisSearchFilter(okpd2Codes: ['43'], sortField: ListingSortField::Published, sortAscending: true),
+    ]);
+
+    $stored = json_decode(
+        (string) DB::table('prc_crawlers')->where('id', $crawler->getKey())->value('filter'),
+        associative: true,
+    );
+
+    expect($stored['sortField'])->toBe('published')
+        ->and($stored['sortAscending'])->toBeTrue();
+
+    $filter = $crawler->fresh()->filter;
+
+    expect($filter)->toBeInstanceOf(EisSearchFilter::class)
+        ->and($filter->sortField)->toBe(ListingSortField::Published)
+        ->and($filter->sortAscending)->toBeTrue();
 });
 
 test('класс фильтра резолвится по коду реестра через карту config(crawler.filters)', function () {
