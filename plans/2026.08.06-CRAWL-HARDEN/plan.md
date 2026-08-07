@@ -334,6 +334,7 @@ Deliverables другого. P1.3 идёт solo: ему нужен не Playwrig
 | 2026-08-07 | plan-exec/sonnet/medium | P2.1 закрыт 🟠: таблица `prc_okpd2_nodes` + модель + фабрика + read-репозиторий + датафайл (34 узла, coverage full из P1.2) + идемпотентный сид; дифф вне Files item'а — регистрация подобласти `Platform` в `DomainLayoutTest` — детали см. phases/P2.md P2.1 Completion Notes |
 | 2026-08-07 | plan-design/opus/high | Эскалация P2.2 разрешена (D108–D110): периметр фикстур — дефолты фабрик, минимальное поле формы перенесено из P2.4, приёмочный гейт — дельта против baseline; P2.2 🔴 → ⬜, P2 🔴 → 🟡 — детали см. phases/P2.md P2.2 и research/11-p2.2-scope-gate-perimeter.md |
 | 2026-08-07 | plan-run/sonnet/high | P2.2 закрыт 🟢: дефолты фабрик (D108), минимальное поле `filter.okpd2Codes` (D109), пять фикстурных файлов + ассерта `EisSeedersTest`; приёмочная дельта 15/15 против baseline (D110) — детали см. phases/P2.md P2.2 Completion Notes |
+| 2026-08-07 | plan-run/sonnet/high | P2.3 закрыт 🟠: `EisCsvUrlBuilder` резолвит `okpd2Codes` → `okpd2Ids`+`okpd2IdsWithNested=on` через `Okpd2NodeReadRepository`, отказ на нерезолвящемся коде; дифф вне Files — починка трёх фикстур (`CrawlerWithRegistry`, `CsvSourceMethodTest`, `EisSeedersTest`), не несших карту ОКПД2, K=0 на полном прогоне — детали см. phases/P2.md P2.3 Completion Notes |
 
 ## 7. Contracts
 
