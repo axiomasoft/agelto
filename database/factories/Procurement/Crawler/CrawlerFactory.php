@@ -6,6 +6,7 @@ namespace Database\Factories\Procurement\Crawler;
 
 use App\Dto\Procurement\Crawler\EisSearchFilter;
 use App\Enums\Procurement\Crawler\CrawlerMode;
+use App\Enums\Procurement\Crawler\RunStopPolicy;
 use App\Enums\Procurement\Crawler\SourceMethod;
 use App\Models\Procurement\Crawler\Crawler;
 use App\Models\Procurement\Platform\Registry;
@@ -25,6 +26,7 @@ final class CrawlerFactory extends Factory
             'registry_id' => Registry::factory(),
             'name' => fake()->words(asText: true),
             'mode' => CrawlerMode::Fresh,
+            'stop_policy' => RunStopPolicy::Default,
             'source_method' => SourceMethod::Csv,
             'fallback_method' => SourceMethod::Html,
             // После D18 дефолт `null` отдаёт НЕСОХРАНЯЕМУЮ модель для реестра fz44 (гейт
@@ -49,6 +51,15 @@ final class CrawlerFactory extends Factory
     public function filter(Data $filter): self
     {
         return $this->state(state: ['filter' => $filter->toArray()]);
+    }
+
+    /**
+     * Политика остановки «только актуальные данные» (P3.3) — легальна только у fresh-профиля
+     * (гейт `Crawler::saving()`), поэтому состояние фиксирует `mode` тем же приёмом.
+     */
+    public function onlyFresh(): self
+    {
+        return $this->state(state: ['mode' => CrawlerMode::Fresh, 'stop_policy' => RunStopPolicy::OnlyFresh]);
     }
 
     public function withoutProxy(): self

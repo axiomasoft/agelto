@@ -5,6 +5,7 @@ declare(strict_types=1);
 use App\Dto\Procurement\Crawler\EisSearchFilter;
 use App\Enums\Procurement\Crawler\CrawlerMode;
 use App\Enums\Procurement\Crawler\ListingSortField;
+use App\Enums\Procurement\Crawler\RunStopPolicy;
 use App\Enums\Procurement\Crawler\SourceMethod;
 use App\Filament\Resources\Procurement\Crawler\Crawlers\Pages\CreateCrawler;
 use App\Filament\Resources\Procurement\Crawler\Crawlers\Pages\EditCrawler;
@@ -42,6 +43,7 @@ test('сохранение профиля формой даёт типизиро
             'registry_id' => $registry->getKey(),
             'name' => 'ЕИС 44-ФЗ — архив 2025',
             'mode' => CrawlerMode::Archive->value,
+            'stop_policy' => RunStopPolicy::Default->value,
             'source_method' => SourceMethod::Csv->value,
             'filter' => ['stageCompleted' => true, 'okpd2Codes' => ['43']],
             'options' => ['columns' => ['nameOrderCsv']],
@@ -102,6 +104,7 @@ test('невалидное cron-выражение отклоняется на �
             'registry_id' => $registry->getKey(),
             'name' => 'ЕИС 44-ФЗ — свежий поток',
             'mode' => CrawlerMode::Fresh->value,
+            'stop_policy' => RunStopPolicy::Default->value,
             'source_method' => SourceMethod::Csv->value,
             'schedule' => 'не cron',
             'is_active' => false,
@@ -123,6 +126,7 @@ test('неизвестный ключ фильтра отклоняется фо
             'registry_id' => $registry->getKey(),
             'name' => 'Профиль с опечаткой в фильтре',
             'mode' => CrawlerMode::Archive->value,
+            'stop_policy' => RunStopPolicy::Default->value,
             'source_method' => SourceMethod::Csv->value,
             // Заведомо чужой ключ: `okpd2Codes` теперь валиден, а `okpd2` отличается от него одним
             // суффиксом — тест на такой строке был бы хрупким (research/03-p2-okpd2-design.md §2.4).
@@ -180,6 +184,7 @@ test('превью URL несёт okpd2Ids и okpd2IdsWithNested после вы
         ->fillForm([
             'registry_id' => $registry->getKey(),
             'mode' => CrawlerMode::Archive->value,
+            'stop_policy' => RunStopPolicy::Default->value,
             'source_method' => SourceMethod::Csv->value,
             'filter' => ['okpd2Codes' => ['43']],
         ])
@@ -205,6 +210,7 @@ test('форма сохраняет профиль с полями сортир�
             'registry_id' => $registry->getKey(),
             'name' => 'ЕИС 44-ФЗ — актуальный поток',
             'mode' => CrawlerMode::Fresh->value,
+            'stop_policy' => RunStopPolicy::Default->value,
             'source_method' => SourceMethod::Csv->value,
             'filter' => ['okpd2Codes' => ['43'], 'sortField' => ListingSortField::Updated->value, 'sortAscending' => false],
             'options' => ['columns' => []],
@@ -222,6 +228,54 @@ test('форма сохраняет профиль с полями сортир�
     expect($filter->sortAscending)->toBeFalse();
 });
 
+test('форма сохраняет профиль с политикой остановки «только актуальные данные»', function (): void {
+    actingAs(crawlerFormOperator());
+
+    $registry = Registry::factory()->create(['code' => 'fz44']);
+    Okpd2Node::factory()->create(['platform_id' => $registry->platform_id, 'code' => '43']);
+
+    Livewire::test(CreateCrawler::class)
+        ->fillForm([
+            'registry_id' => $registry->getKey(),
+            'name' => 'ЕИС 44-ФЗ — только актуальные',
+            'mode' => CrawlerMode::Fresh->value,
+            'stop_policy' => RunStopPolicy::OnlyFresh->value,
+            'source_method' => SourceMethod::Csv->value,
+            'filter' => ['okpd2Codes' => ['43']],
+            'options' => ['columns' => []],
+            'is_active' => true,
+            'use_proxy' => true,
+        ])
+        ->call('create')
+        ->assertHasNoFormErrors();
+
+    expect(Crawler::query()->sole()->stop_policy)->toBe(RunStopPolicy::OnlyFresh);
+});
+
+test('форма не сохраняет политику «только актуальные данные» на archive-профиле — та же ошибка, что у модели', function (): void {
+    actingAs(crawlerFormOperator());
+
+    $registry = Registry::factory()->create(['code' => 'fz44']);
+    Okpd2Node::factory()->create(['platform_id' => $registry->platform_id, 'code' => '43']);
+
+    // Гейт (P3.3) стоит в модельном `saving()`, форма его не дублирует — Filament ловит
+    // исключение сохранения и не создаёт запись (тот же приём, что неизвестный ключ фильтра).
+    Livewire::test(CreateCrawler::class)
+        ->fillForm([
+            'registry_id' => $registry->getKey(),
+            'name' => 'Архив с ошибочной политикой',
+            'mode' => CrawlerMode::Archive->value,
+            'stop_policy' => RunStopPolicy::OnlyFresh->value,
+            'source_method' => SourceMethod::Csv->value,
+            'filter' => ['okpd2Codes' => ['43']],
+            'is_active' => true,
+            'use_proxy' => true,
+        ])
+        ->call('create');
+
+    expect(Crawler::query()->count())->toBe(0);
+});
+
 test('форма отклоняет профиль fz44 без выбранного узла ОКПД2', function (): void {
     actingAs(crawlerFormOperator());
 
@@ -233,6 +287,7 @@ test('форма отклоняет профиль fz44 без выбранно�
             'registry_id' => $registry->getKey(),
             'name' => 'Профиль без скоупа',
             'mode' => CrawlerMode::Archive->value,
+            'stop_policy' => RunStopPolicy::Default->value,
             'source_method' => SourceMethod::Csv->value,
             'filter' => ['stageCompleted' => true],
             'is_active' => true,

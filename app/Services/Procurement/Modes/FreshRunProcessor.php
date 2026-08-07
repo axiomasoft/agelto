@@ -6,6 +6,7 @@ namespace App\Services\Procurement\Modes;
 
 use App\Dto\Procurement\Crawler\ListingCursor;
 use App\Enums\Procurement\Crawler\RunStopKind;
+use App\Enums\Procurement\Crawler\RunStopPolicy;
 use App\Models\Procurement\Crawler\Crawler;
 use App\Models\Procurement\Crawler\Run;
 use App\Services\Procurement\CrawlerRunManager;
@@ -38,10 +39,8 @@ final readonly class FreshRunProcessor
     public function run(Crawler $crawler): Run
     {
         $run = $this->runs->startOrResume(crawler: $crawler);
-        $this->runs->recordScanGap(
-            run: $run,
-            previousCompletedRun: $this->runs->lastCompletedRun(crawler: $crawler, excludeRunId: $run->id),
-        );
+        $previousCompletedRun = $this->runs->lastCompletedRun(crawler: $crawler, excludeRunId: $run->id);
+        $this->runs->recordScanGap(run: $run, previousCompletedRun: $previousCompletedRun);
 
         $cursor = ListingCursor::fromArray(cursor: $run->cursor?->toArray() ?? []);
         $blockSize = (int) config('crawler.eis.block_size', 500);
@@ -49,6 +48,9 @@ final readonly class FreshRunProcessor
         $checkpointSeconds = (int) config('crawler.run.checkpoint_seconds', 240);
         $startedAt = Carbon::now();
         $previousSignature = null;
+        // Порог считается ОДИН раз на старте (Implementation Rule 2): предыдущий завершённый
+        // прогон за время обхода не меняется, перечитывание на каждом блоке — лишний запрос.
+        $onlyFreshThreshold = $this->resolveOnlyFreshThreshold(crawler: $crawler, previousCompletedRun: $previousCompletedRun);
 
         try {
             for ($iteration = 0; $iteration < $maxBlocks; $iteration++) {
@@ -80,7 +82,26 @@ final readonly class FreshRunProcessor
                     $this->runs->recordOldestUpdateSeen(run: $run, candidate: $fetchResult->oldestUpdateSeen);
                 }
 
+                // Сравнение — ПОСЛЕ инжеста (Implementation Rule 4): строки блока уже сохранены,
+                // останавливаемся, собрав блок, а не выбросив его.
+                if ($this->reachedPreviousRun(threshold: $onlyFreshThreshold, oldestUpdateSeen: $fetchResult->oldestUpdateSeen)) {
+                    $this->markStopReason(run: $run, reason: 'reached_previous_run', stopThresholdAt: $onlyFreshThreshold);
+
+                    $cursor = new ListingCursor(
+                        blockFrom: $cursor->blockFrom,
+                        day: $cursor->day,
+                        priceStack: $cursor->priceStack,
+                        reachedKnown: true,
+                    );
+                    $this->runs->updateCursor(run: $run, cursor: $cursor);
+                    $this->runs->complete(run: $run);
+
+                    return $run;
+                }
+
                 if ($fetchResult->rowsNew === 0 && $fetchResult->rowsUpdated === 0) {
+                    $this->markStopReason(run: $run, reason: 'no_new_or_updated_rows');
+
                     $cursor = new ListingCursor(
                         blockFrom: $cursor->blockFrom,
                         day: $cursor->day,
@@ -95,6 +116,7 @@ final readonly class FreshRunProcessor
 
                 if ($previousSignature !== null && $batch->dedupSignature === $previousSignature) {
                     $this->handleCapHit(crawler: $crawler, run: $run, blockFrom: $cursor->blockFrom);
+                    $this->markStopReason(run: $run, reason: 'dedup_signature_repeat');
 
                     $cursor = new ListingCursor(
                         blockFrom: $cursor->blockFrom,
@@ -133,6 +155,56 @@ final readonly class FreshRunProcessor
         $this->runs->complete(run: $run);
 
         return $run;
+    }
+
+    /**
+     * Порог политики «только актуальные данные» (P3.3, `research/04-p3-runs-design.md` §4):
+     * время СТАРТА предыдущего завершённого прогона минус запас из конфига — НЕ `finished_at`
+     * (Implementation Rule/Why: интервал, пока шёл предыдущий прогон, он мог не увидеть).
+     * Нет предыдущего завершённого прогона → политика не действует (Implementation Rule 3):
+     * трактовать отсутствие как «останавливайся сразу» здесь запрещено.
+     */
+    private function resolveOnlyFreshThreshold(Crawler $crawler, ?Run $previousCompletedRun): ?Carbon
+    {
+        if ($crawler->stop_policy !== RunStopPolicy::OnlyFresh) {
+            return null;
+        }
+
+        if ($previousCompletedRun?->started_at === null) {
+            return null;
+        }
+
+        $marginMinutes = (int) config('crawler.fresh.only_fresh_margin_minutes', 60);
+
+        return $previousCompletedRun->started_at->clone()->subMinutes($marginMinutes);
+    }
+
+    /**
+     * Граничный случай «ровно на пороге» (Implementation Rule 5): НЕ ПОЗЖЕ порога = остановка.
+     */
+    private function reachedPreviousRun(?Carbon $threshold, ?Carbon $oldestUpdateSeen): bool
+    {
+        if ($threshold === null || $oldestUpdateSeen === null) {
+            return false;
+        }
+
+        return $oldestUpdateSeen->lte($threshold);
+    }
+
+    /**
+     * Все три стоп-условия fresh-прогона пишут РАЗНЫЙ `stats.stop_reason` (Implementation
+     * Rule 1) — приёмом `array_merge`, что и `pause()`/`cancel()`, чтобы не затереть соседние
+     * ключи (`cap_hit`, `scan_gap_seconds`, `oldest_update_seen`). Мутирует модель В ПАМЯТИ —
+     * персистится ближайшим `update()` (`updateCursor()`/`complete()`), второй записи не даёт.
+     */
+    private function markStopReason(Run $run, string $reason, ?Carbon $stopThresholdAt = null): void
+    {
+        $stats = array_merge($run->stats?->toArray() ?? [], array_filter([
+            'stop_reason' => $reason,
+            'stop_threshold_at' => $stopThresholdAt?->toIso8601String(),
+        ], static fn (?string $value): bool => $value !== null));
+
+        $run->stats = collect($stats);
     }
 
     private function handleCapHit(Crawler $crawler, Run $run, int $blockFrom): void

@@ -6,6 +6,7 @@ namespace App\Models\Procurement\Crawler;
 
 use App\Dto\Procurement\Crawler\Contracts\RequiresScope;
 use App\Enums\Procurement\Crawler\CrawlerMode;
+use App\Enums\Procurement\Crawler\RunStopPolicy;
 use App\Enums\Procurement\Crawler\SourceMethod;
 use App\Models\Procurement\Platform\Registry;
 use App\Services\Procurement\CrawlerFilterFactory;
@@ -30,6 +31,7 @@ use Spatie\LaravelData\Data;
  * @property int $registry_id
  * @property string $name
  * @property CrawlerMode $mode
+ * @property RunStopPolicy $stop_policy
  * @property SourceMethod $source_method
  * @property SourceMethod|null $fallback_method
  * @property Data|null $filter
@@ -52,6 +54,7 @@ final class Crawler extends Model
         'registry_id',
         'name',
         'mode',
+        'stop_policy',
         'source_method',
         'fallback_method',
         'filter',
@@ -66,6 +69,7 @@ final class Crawler extends Model
     {
         return [
             'mode' => CrawlerMode::class,
+            'stop_policy' => RunStopPolicy::class,
             'source_method' => SourceMethod::class,
             'fallback_method' => SourceMethod::class,
             'options' => AsCollection::class,
@@ -85,7 +89,33 @@ final class Crawler extends Model
             $filter = $crawler->resolveFilter(raw: $crawler->rawFilter());
 
             $crawler->assertScope(filter: $filter);
+            $crawler->assertStopPolicy();
         });
+    }
+
+    /**
+     * Третий гейт записи (P3.3): `RunStopPolicy::OnlyFresh` осмыслен только у fresh-прогона —
+     * archive-профиль с этой политикой не отвергается на прогоне (стоп-условие живёт в
+     * `FreshRunProcessor`, до которого archive никогда не доходит), а молча остаётся мёртвой
+     * настройкой, если не запретить сохранение здесь.
+     */
+    private function assertStopPolicy(): void
+    {
+        if ($this->stop_policy !== RunStopPolicy::OnlyFresh) {
+            return;
+        }
+
+        if ($this->mode === CrawlerMode::Fresh) {
+            return;
+        }
+
+        throw ValidationException::withMessages([
+            'stop_policy' => sprintf(
+                'Режим работы «только актуальные данные» доступен только профилю с mode=fresh '
+                .'(текущий mode=%s): политика останова читает свежий обход, архивный её не применяет.',
+                $this->mode->value,
+            ),
+        ]);
     }
 
     /**

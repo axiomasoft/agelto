@@ -5,6 +5,7 @@ namespace App\Filament\Resources\Procurement\Crawler\Crawlers\Schemas;
 use App\Dto\Procurement\Crawler\EisSearchFilter;
 use App\Enums\Procurement\Crawler\CrawlerMode;
 use App\Enums\Procurement\Crawler\ListingSortField;
+use App\Enums\Procurement\Crawler\RunStopPolicy;
 use App\Enums\Procurement\Crawler\SourceMethod;
 use App\Filament\Resources\Procurement\Crawler\Proxies\Schemas\ProxyForm;
 use App\Models\Procurement\Crawler\Crawler;
@@ -93,6 +94,16 @@ class CrawlerForm
                 Select::make('mode')
                     ->options(CrawlerMode::class)
                     ->required(),
+                Select::make('stop_policy')
+                    ->label('Режим работы')
+                    ->options(RunStopPolicy::class)
+                    ->required()
+                    ->helperText(
+                        'Останавливает fresh-прогон на времени старта предыдущего завершённого прогона '
+                        .'(с запасом) — работает, ТОЛЬКО пока выдача отсортирована по дате обновления '
+                        .'убывающе (поле «Сортировка выдачи» ниже не заполнено или — «Дата обновления» '
+                        .'по убыванию). Доступно только профилю с режимом «fresh».',
+                    ),
                 Select::make('source_method')
                     ->options(SourceMethod::class)
                     ->required(),
