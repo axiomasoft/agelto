@@ -12,6 +12,8 @@ use App\Models\Procurement\Crawler\Crawler;
 use App\Models\Procurement\Platform\Okpd2Node;
 use App\Models\Procurement\Platform\Registry;
 use App\Models\User;
+use Filament\Forms\Components\Placeholder;
+use Filament\Forms\Components\Select;
 use Livewire\Livewire;
 
 use function Pest\Laravel\actingAs;
@@ -132,10 +134,70 @@ test('неизвестный ключ фильтра отклоняется фо
     expect(Crawler::query()->count())->toBe(0);
 });
 
+test('опции ОКПД2 сгруппированы по родительскому узлу и находятся поиском по коду и по названию', function (): void {
+    actingAs(crawlerFormOperator());
+
+    $registry = Registry::factory()->create(['code' => 'fz44']);
+    $root = Okpd2Node::factory()->create([
+        'platform_id' => $registry->platform_id,
+        'code' => '43',
+        'name' => 'Работы строительные специализированные',
+        'parent_code' => null,
+    ]);
+    Okpd2Node::factory()->create([
+        'platform_id' => $registry->platform_id,
+        'code' => '43.99',
+        'name' => 'Работы строительные специализированные прочие',
+        'parent_code' => $root->code,
+    ]);
+
+    Livewire::test(CreateCrawler::class)
+        ->fillForm(['registry_id' => $registry->getKey()])
+        ->assertFormFieldExists('filter.okpd2Codes', function (Select $field): bool {
+            expect($field->isSearchable())->toBeTrue();
+
+            $options = $field->getOptions();
+
+            expect($options)->toHaveKey('43 — Работы строительные специализированные');
+            expect($options['43 — Работы строительные специализированные'])->toHaveKey('43.99');
+
+            return true;
+        });
+});
+
+test('превью URL несёт okpd2Ids и okpd2IdsWithNested после выбора узла ОКПД2', function (): void {
+    actingAs(crawlerFormOperator());
+
+    $registry = Registry::factory()->create(['code' => 'fz44']);
+    Okpd2Node::factory()->create([
+        'platform_id' => $registry->platform_id,
+        'code' => '43',
+        'external_id' => '10501000',
+    ]);
+
+    Livewire::test(CreateCrawler::class)
+        ->fillForm([
+            'registry_id' => $registry->getKey(),
+            'mode' => CrawlerMode::Archive->value,
+            'source_method' => SourceMethod::Csv->value,
+            'filter' => ['okpd2Codes' => ['43']],
+        ])
+        ->assertFormComponentExists('url_preview', function (Placeholder $component): bool {
+            $preview = (string) $component->getContent();
+
+            expect($preview)
+                ->toContain('okpd2Ids=10501000')
+                ->toContain('okpd2IdsWithNested=on');
+
+            return true;
+        });
+});
+
 test('форма отклоняет профиль fz44 без выбранного узла ОКПД2', function (): void {
     actingAs(crawlerFormOperator());
 
     $registry = Registry::factory()->create(['code' => 'fz44']);
+    Okpd2Node::factory()->create(['platform_id' => $registry->platform_id, 'code' => '43']);
 
     Livewire::test(CreateCrawler::class)
         ->fillForm([

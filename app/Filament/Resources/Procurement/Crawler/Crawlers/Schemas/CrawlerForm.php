@@ -23,6 +23,7 @@ use Filament\Forms\Components\Toggle;
 use Filament\Schemas\Components\Fieldset;
 use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Schema;
+use Illuminate\Support\Collection;
 use RuntimeException;
 use Throwable;
 
@@ -126,7 +127,10 @@ class CrawlerForm
                     })
                     ->helperText(
                         'Обязательные колонки (реестровый номер, дата размещения, дата обновления) нельзя '
-                        .'снять — без них EisCsvRowMapper отбрасывает строку боевой выгрузки.',
+                        .'снять — без них EisCsvRowMapper отбрасывает строку боевой выгрузки. Наблюдение '
+                        .'2026-08-06: классификаторные колонки (ОКДП/ОКПД/ОКПД2/«Код позиции») на всех '
+                        .'снятых замерах приходят пустыми — их выбор данных не добавит, отбор по ОКПД2 '
+                        .'делает только поле выше.',
                     ),
                 TextInput::make('schedule')
                     ->label('Расписание (cron)')
@@ -181,34 +185,95 @@ class CrawlerForm
     }
 
     /**
-     * Опции минимального мультиселекта ОКПД2 (D109) — плоский список площадки выбранного
-     * реестра, чистой функцией из коллекции репозитория, без запроса в цикле. Группировка,
-     * поиск и подпись пустой карты — доводка P2.4.
+     * Узлы карты ОКПД2 площадки выбранного реестра — единственное чтение репозитория P2.1,
+     * переиспользуемое опциями формы и подписью пустой карты (P2.4).
      *
-     * @return array<string, string>
+     * @return Collection<int, Okpd2Node>
      */
-    private static function okpd2CodeOptions(mixed $registryId): array
+    private static function okpd2Nodes(mixed $registryId): Collection
     {
         if (! is_numeric($registryId)) {
-            return [];
+            return collect();
         }
 
         $registry = Registry::find($registryId);
 
         if (! $registry instanceof Registry) {
-            return [];
+            return collect();
         }
 
-        return app(Okpd2NodeReadRepository::class)
-            ->selectableNodes(platformId: $registry->platform_id)
-            ->mapWithKeys(static fn (Okpd2Node $node): array => [
-                (string) $node->getAttribute('code') => sprintf(
-                    '%s — %s',
-                    (string) $node->getAttribute('code'),
-                    (string) $node->getAttribute('name'),
-                ),
-            ])
+        return app(Okpd2NodeReadRepository::class)->selectableNodes(platformId: $registry->platform_id);
+    }
+
+    private static function okpd2OptionLabel(Okpd2Node $node): string
+    {
+        return sprintf('%s — %s', (string) $node->getAttribute('code'), (string) $node->getAttribute('name'));
+    }
+
+    /**
+     * Опции мультиселекта ОКПД2, сгруппированные по `parent_code` (узлы без родителя — группа
+     * «Разделы»); чистая функция из уже загруженной коллекции узлов, без запроса в цикле (P2.4).
+     *
+     * @return array<string, array<string, string>>
+     */
+    private static function okpd2CodeOptions(Collection $nodes): array
+    {
+        $labelsByCode = $nodes->mapWithKeys(
+            static fn (Okpd2Node $node): array => [(string) $node->getAttribute('code') => self::okpd2OptionLabel($node)],
+        );
+
+        return $nodes
+            ->groupBy(static fn (Okpd2Node $node): string => (string) ($node->getAttribute('parent_code') ?? ''))
+            ->mapWithKeys(static function (Collection $group, string $parentCode) use ($labelsByCode): array {
+                $groupLabel = $parentCode === '' ? 'Разделы' : ($labelsByCode->get($parentCode) ?? $parentCode);
+
+                return [
+                    $groupLabel => $group
+                        ->mapWithKeys(static fn (Okpd2Node $node): array => [
+                            (string) $node->getAttribute('code') => self::okpd2OptionLabel($node),
+                        ])
+                        ->all(),
+                ];
+            })
             ->all();
+    }
+
+    /**
+     * Поле выбора ОКПД2 — сгруппированный поисковый мультиселект (P2.4); карта площадки пуста
+     * (сид не прогнан) → вместо пустого обязательного селекта отрисовывается `Placeholder` с
+     * причиной и путём починки, а не молчаливо нерабочее поле.
+     */
+    private static function okpd2CodeField(mixed $registryId): Select|Placeholder
+    {
+        $nodes = self::okpd2Nodes(registryId: $registryId);
+
+        if ($nodes->isEmpty()) {
+            return Placeholder::make('filter_okpd2_empty')
+                ->label('ОКПД2')
+                ->content(
+                    'Карта ОКПД2 этой площадки пуста — прогоните сид (`Okpd2NodeSeeder`) либо команду '
+                    .'пересборки карты (`crawler:okpd2-sync`, P2.5). Без карты профиль сохранить нельзя.',
+                );
+        }
+
+        return Select::make('filter.okpd2Codes')
+            ->label('ОКПД2')
+            ->multiple()
+            ->required()
+            ->searchable()
+            ->options(self::okpd2CodeOptions(nodes: $nodes))
+            // Чисто числовой код («43») PHP превращает в int-ключ массива опций —
+            // `EisSearchFilter::rules()` требует `string` (Implementation Rules п. 2:
+            // DTO не смягчается ради формы), поэтому состояние приводится обратно к строкам.
+            ->dehydrateStateUsing(static fn (mixed $state): array => array_map(
+                strval(...),
+                is_array($state) ? $state : [],
+            ))
+            ->helperText(
+                'Параметр ЕИС: okpd2Ids. Выбранный узел означает «этот узел и всё, что под ним» '
+                .'(okpd2IdsWithNested=on) — без этого флага выдача ЕИС пуста. Профиль обязан нести '
+                .'хотя бы один узел.',
+            );
     }
 
     /**
@@ -222,19 +287,7 @@ class CrawlerForm
     {
         return match ($filterClass) {
             EisSearchFilter::class => [
-                Select::make('filter.okpd2Codes')
-                    ->label('ОКПД2')
-                    ->multiple()
-                    ->required()
-                    ->options(self::okpd2CodeOptions(registryId: $registryId))
-                    // Чисто числовой код («43») PHP превращает в int-ключ массива опций —
-                    // `EisSearchFilter::rules()` требует `string` (Implementation Rules п. 2:
-                    // DTO не смягчается ради формы), поэтому состояние приводится обратно к строкам.
-                    ->dehydrateStateUsing(static fn (mixed $state): array => array_map(
-                        strval(...),
-                        is_array($state) ? $state : [],
-                    ))
-                    ->helperText('Параметр ЕИС: okpd2Ids. Профиль обязан нести хотя бы один узел.'),
+                self::okpd2CodeField(registryId: $registryId),
                 Toggle::make('filter.stageApplications')
                     ->label('Этап «Подача заявок»')
                     ->helperText('Параметр ЕИС: af'),
