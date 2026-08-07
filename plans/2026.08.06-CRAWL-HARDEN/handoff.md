@@ -1,53 +1,49 @@
-# HANDOFF — 2026-08-07 — after P3.8
+# HANDOFF — 2026-08-07 — after P3.9
 
-**Next:** `/task:plan-exec 2026.08.06-CRAWL-HARDEN P3.9` (§3 Routing: `implementation/medium`,
-`Exec = plan-exec`, `Review = light`; регрессионный гейт консольного отказа
-`CrawlerRunAlreadyActive` — пункт 10 Scope Included P3.4, который остался ненаписанным)
+**Next:** `/task:plan-close 2026.08.06-CRAWL-HARDEN P3`
 
 | Параметр | Значение |
 |:--|:--|
 | Model | sonnet |
-| Thinking | medium — предписано Routing, `plan-exec` пин совпадает |
-| Context | continue (/clear) — ручной item |
-| Суть | Написать регрессионный тест: `crawler:run-fresh` при активном прогоне отказывает (FAILURE, текст исключения, job не поставлен), плюс мульти-профильный кейс (ошибка одного профиля не прерывает остальные). Прикладной код не трогать. |
-| Команда | `/task:plan-exec 2026.08.06-CRAWL-HARDEN P3.9` |
+| Thinking | low — plan-close пин |
+| Context | NEW SESSION — шаг-не-item |
+| Суть | Закрыть фазу P3: все 9 items терминальны (7 🟢, 2 🟠 — P3.4/P3.5 material-отклонения из Known Deviations), проверить критерий завершения фазы (`## Phase Context` «Завершением фазы считается») выполненным реопеном (P3.7+P3.8+P3.9), заполнить `## Phase Handoff` (снять пометку `> УСТАРЕЛ`), docs-sync. |
+| Команда | `/task:plan-close 2026.08.06-CRAWL-HARDEN P3` |
 
 ```
-/task:plan-exec 2026.08.06-CRAWL-HARDEN P3.9
+/task:plan-close 2026.08.06-CRAWL-HARDEN P3
 ```
 
 **Done:** дизайн закрыт (2/2 прогона + два захода фиксов аудита). Фаза P3 реопенена 2026-08-07 по
-вердикту `RED` аудита (D111): доска была **P3 4/9**, теперь **6/9** после закрытия P3.7 и P3.8.
-Сдано и не переисполняется: сортировка выдачи в фильтре профиля (P3.1), прогон на очереди Horizon —
-`CrawlRunJob`, стоп-гейт, checkpoint-requeue, подъём зависших (P3.2), политика «только актуальные
-данные» (P3.3), пять операторских действий и отказ второму запуску (P3.4), два сидовых профиля
-(P3.5), витрина истории прогонов (P3.6), кооперативный стоп доведён до обёрток-дневных-циклов
-(P3.7), **окно дат archive-прогона живёт на профиле (P3.8)** — контракт `HasArchiveWindow` +
-`EisSearchFilter implements`, `StartCrawlerRunAction::resolveWindow()` — единственная точка резолва
-для `start()`/`restart()`/`resume()` (явный override → профиль через контракт →
-`ArchiveWindowMissing` ДО диспатча `CrawlRunJob`), `RunArchiveCrawler --from`/`--to` стали override,
-сид архивного профиля получил окно `2025-01-01…2025-12-31`; сидовый архивный профиль теперь проходит
-из админки все пять действий (start/restart/resume — новая логика окна; pause/cancel —
-mode-агностичный механизм P3.7, явно перепроверен на archive-профиле). 17 новых тестов на `2aaa50a5`
-(70/70 в целевом фильтре, 287 assertions); полный прогон — 18 failed / 1200 passed на `2aaa50a5`,
-Δ=0 против baseline `8728723e` (D112).
+вердикту `RED` аудита (D111): доска несёт **P3 7/9** (счёт `🟢/всего`), все 9 items терминальны
+(фаза не закрыта — ждёт `plan-close`). Сдано и не переисполняется: сортировка выдачи в фильтре
+профиля (P3.1), прогон на очереди Horizon — `CrawlRunJob`, стоп-гейт, checkpoint-requeue, подъём
+зависших (P3.2), политика «только актуальные данные» (P3.3), пять операторских действий и отказ
+второму запуску (P3.4), два сидовых профиля (P3.5), витрина истории прогонов (P3.6), кооперативный
+стоп доведён до обёрток-дневных-циклов (P3.7), окно дат archive-прогона живёт на профиле (P3.8),
+**регрессионный гейт консольного отказа `CrawlerRunAlreadyActive` (P3.9)** — два новых кейса в
+`tests/Feature/Console/RunFreshCrawlerTest.php` (одиночный отказ по активному `Running`-прогону:
+`FAILURE`, текст исключения, `Queue::assertNotPushed`, вторая строка `Run` не создана;
+мульти-профильный — активный прогон одного профиля не мешает запуску свободного), анти-самообман
+подтверждён (временная порча `RunFreshCrawler::handle()` красит оба кейса, откат чист), прикладной
+код не тронут (`git diff HEAD -- app/` пусто). 19 новых тестов на `88ce1f9a` (8/8 в целевом
+фильтре, 28 assertions); полный прогон — 18 failed / 1204 passed на `88ce1f9a`, Δ=0 против baseline
+`8728723e` (D112).
 
-**Remaining:** 35 items из 54. Ближайший — реопен фазы P3: **P3.9** (регрессионный гейт консольного
-отказа `CrawlerRunAlreadyActive`, `Exec = plan-exec`) — по данным независим от P3.7/P3.8, но по
-`Model/effort`+`Exec` в батч с ними не сливается (`implementation/medium · plan-exec` против
-`implementation/high · manual`). После P3.9 фаза P3 терминальна (все 9 items 🟢/🟠) →
-`/task:plan-close 2026.08.06-CRAWL-HARDEN P3`. Дальше — фаза **P4** (носитель настроек обхода,
-привязка прокси, авто-дизейбл, общий бюджет, подача пачками, журналы), первый item — P4.1,
-`Exec = manual`. Жёсткий порядок фаз прежний: P2 → P3 → P4 → P5 (D98); P8 — после P2–P6 (D4/D83);
-P9 — последняя.
+**Remaining:** 34 items из 54. Фаза P3 терминальна (все 9 items 🟢/🟠) → `/task:plan-close
+2026.08.06-CRAWL-HARDEN P3` (следующий шаг, см. Launch-block выше). Дальше — фаза **P4** (носитель
+настроек обхода, привязка прокси, авто-дизейбл, общий бюджет, подача пачками, журналы), первый item
+— P4.1, `Exec = manual`. Жёсткий порядок фаз прежний: P2 → P3 → P4 → P5 (D98); P8 — после P2–P6
+(D4/D83); P9 — последняя.
 
 **Sources of truth:** `plan.md` (Meta v0.16.0, §3 Routing построчно, Status Board, D1–D114, §2
 Execution Rules — мера приёмки полного прогона, §7 Contracts) · `roadmap.md` (порядок запуска,
-P3.7 → P3.8 → P3.9) · `phases/P3.md` (Phase Context с блоком реопена, items P3.1–P3.9, `## Phase
-Status` 9 строк, `## Audit P3 — 2026-08-07` — первоисточник находок, `## Phase Handoff` помечен
-устаревшим) · `phases/P4.md`–`P9.md` · `research/04-p3-runs-design.md` (дизайн контура прогонов) ·
-`docs/03_Dev/crawling-pipeline.md`, `docs/04_Operators/how-to/restart-failed-run.md`,
-`docs/04_Operators/reference/statuses.md` (актуализированы items P3.2/P3.4/P3.6/P3.8).
+P3.7 → P3.8 → P3.9) · `phases/P3.md` (Phase Context с блоком реопена, items P3.1–P3.9 все
+терминальны, `## Phase Status` 9 строк, `## Audit P3 — 2026-08-07` — первоисточник находок,
+`## Phase Handoff` всё ещё помечен устаревшим — снимает `plan-close`) · `phases/P4.md`–`P9.md` ·
+`research/04-p3-runs-design.md` (дизайн контура прогонов) · `docs/03_Dev/crawling-pipeline.md`,
+`docs/04_Operators/how-to/restart-failed-run.md`, `docs/04_Operators/reference/statuses.md`
+(актуализированы items P3.2/P3.4/P3.6/P3.8).
 
 **Open risks:**
 - **Pending Work P3.2 (2)**: checkpoint-requeue для archive/delta/backlog не заведён —
@@ -84,4 +80,4 @@ archive/delta/backlog (Open risks выше); разовое окно archive-п�
 сознательно только через консоль/форму (D113 `Consequences`); наполнение `ref_okpd2` (Q13); ветка
 223-ФЗ (Q10); предел `okpd2Ids` и стабильность id НСИ сверх разового детекта дрейфа P2.5;
 агрегаты `prc_fetches` на боевом объёме. Open questions: Q9, Q10, Q13, Q14, Q15, Q16 —
-`Exploration`, ни один не блокирует P3.9.
+`Exploration`, ни один не блокирует P3.9 или закрытие фазы P3.

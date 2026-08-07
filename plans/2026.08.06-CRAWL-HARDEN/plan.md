@@ -190,7 +190,7 @@ Deliverables другого. P1.3 идёт solo: ему нужен не Playwrig
 |:--|:--|:--|:--|
 | P1 | Разведка ЕИС: параметры листинга, ОКПД2, практики, карточка, инвентарь вкладок | 4/5 | 🟠 Done with deviations |
 | P2 | ОКПД2: фильтр профиля и древовидная форма | 2/6 | 🟠 Done with deviations |
-| P3 | Профили обхода и управление прогонами из админки | 6/9 | 🟡 In progress |
+| P3 | Профили обхода и управление прогонами из админки | 7/9 | 🟡 In progress |
 | P4 | Надёжность конвейера: бюджет запросов, троттлинг, анти-дубли | 0/6 | ⬜ Not started |
 | P5 | Healthcheck площадки и уведомления | 0/6 | ⬜ Not started |
 | P6 | Статусы, история изменений закупки, событие «закупка состоялась» | 0/5 | ⬜ Not started |
@@ -368,6 +368,7 @@ Deliverables другого. P1.3 идёт solo: ему нужен не Playwrig
 | 2026-08-07 | plan-design/opus/high | Бухгалтерия по находкам аудита: D112 — одна мера красной строки на план (Δ против baseline, расширяет D110) ⇒ P3.1/P3.2 🟠 → 🟢; D114 — P3.4 🟢 → 🟠 (дифф вне Files + невыполненный п. 10 Scope); D113 — окно archive на профиле; результат `plan-lint --baseline` дописан в Completion Notes P3.1–P3.5 (F6) |
 | 2026-08-07 | plan-run/sonnet/high | P3.7 закрыт 🟢 (реопен D111): `CrawlerRunManager::complete()` — только из `Running` (условный `UPDATE`); `ArchiveRunProcessor`/`DeltaScanProcessor`/`BacklogRescanProcessor::drainWindow()` перечитывают статус в начале дневной итерации; `rescanOne()` не помечает fresh-прогон rescanned, если архивный run не `Running` после дренажа; 7 новых тестов, Δ=0 на полном прогоне — детали см. phases/P3.md P3.7 Completion Notes |
 | 2026-08-07 | plan-run/sonnet/high | P3.8 закрыт 🟢 (реопен D111): контракт `HasArchiveWindow` + `EisSearchFilter implements` (окно archive-профиля на `publishedFrom`/`publishedTo`, D113); `StartCrawlerRunAction::resolveWindow()` — единственная точка резолва для `start()`/`restart()`/`resume()` (override → профиль → `ArchiveWindowMissing` ДО диспатча); `RunArchiveCrawler --from`/`--to` стали override; сид архивного профиля получил окно 2025; 17 новых тестов, Δ=0 на полном прогоне — детали см. phases/P3.md P3.8 Completion Notes |
+| 2026-08-07 | plan-exec/sonnet/medium | P3.9 закрыт 🟢 (реопен D111, последний item фазы): регрессионный гейт `crawler:run-fresh` при активном прогоне — `RunFreshCrawlerTest` 2 новых кейса (одиночный отказ + мульти-профильный «ошибка одного не прерывает остальных»), анти-самообман подтверждён (временная порча `RunFreshCrawler::handle()` краснит оба кейса), прикладной код не тронут, Δ=0 на полном прогоне — детали см. phases/P3.md P3.9 Completion Notes |
 
 ## 7. Contracts
 
