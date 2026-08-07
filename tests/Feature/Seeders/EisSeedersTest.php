@@ -10,6 +10,7 @@ use App\Models\Procurement\Platform\StatusMapping;
 use App\Services\Procurement\Eis\EisCsvUrlBuilder;
 use Database\Seeders\Procurement\CrawlerProfileSeeder;
 use Database\Seeders\Procurement\EisPlatformSeeder;
+use Database\Seeders\Procurement\Okpd2NodeSeeder;
 use Database\Seeders\StatusMappingSeeder;
 use Illuminate\Support\Facades\Artisan;
 
@@ -99,6 +100,7 @@ test('сид профилей резолвит реестр fz44 СВОЕЙ пл
 
 test('архивный профиль из сида даёт ожидаемый боевой URL выгрузки', function (): void {
     $this->seed(EisPlatformSeeder::class);
+    $this->seed(Okpd2NodeSeeder::class);
     $this->seed(CrawlerProfileSeeder::class);
 
     $registry = Registry::query()->where('code', 'fz44')->sole();

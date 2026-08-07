@@ -17,10 +17,11 @@ final class CrawlerWithRegistry
      * @param  array<string, mixed>|null  $filter
      * @param  array<string, mixed>|null  $options
      */
-    public static function make(string $registryCode, ?array $filter, ?array $options): Crawler
+    public static function make(string $registryCode, ?array $filter, ?array $options, int $platformId = 1): Crawler
     {
         $registry = new Registry;
         $registry->code = $registryCode;
+        $registry->platform_id = $platformId;
 
         $crawler = new Crawler;
         $crawler->filter = $filter;

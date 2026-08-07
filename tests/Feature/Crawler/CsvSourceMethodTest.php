@@ -9,6 +9,7 @@ use App\Exceptions\Procurement\Proxy\NoProxyAvailableException;
 use App\Models\Procurement\Crawler\Crawler;
 use App\Models\Procurement\Crawler\Proxy;
 use App\Models\Procurement\Crawler\ProxyTarget;
+use App\Models\Procurement\Platform\Okpd2Node;
 use App\Models\Procurement\Platform\Registry;
 use App\Services\Procurement\Eis\CsvSourceMethod;
 use Illuminate\Support\Facades\Http;
@@ -24,6 +25,19 @@ function activeListingProxy(): Proxy
     return Proxy::factory()->country('RU')->withScopes([ProxyScope::CrawlListing])->create();
 }
 
+/**
+ * Реестр `fz44` с резолвящимся скоупом ОКПД2 (P2.3): `EisCsvUrlBuilder` отказывает на
+ * нерезолвящемся коде, поэтому фикстуре нужен узел карты `prc_okpd2_nodes` под код `43`,
+ * которым эти тесты фильтруют профиль.
+ */
+function registryWithOkpd2Scope(): Registry
+{
+    $registry = Registry::factory()->create(['code' => 'fz44']);
+    Okpd2Node::factory()->create(['platform_id' => $registry->platform_id, 'code' => '43', 'external_id' => '8873921']);
+
+    return $registry;
+}
+
 test('collectListing конвертирует win1251-тело в UTF-8 и строит ListingBatch по фикстуре', function () {
     Sleep::fake();
     activeListingProxy();
@@ -36,7 +50,7 @@ test('collectListing конвертирует win1251-тело в UTF-8 и ст�
         ),
     ]);
 
-    $registry = Registry::factory()->create(['code' => 'fz44']);
+    $registry = registryWithOkpd2Scope();
     $crawler = Crawler::factory()->for($registry)->create(['filter' => ['okpd2Codes' => ['43']]]);
     $cursor = new ListingCursor(blockFrom: 1);
 
@@ -74,7 +88,7 @@ test('dedupSignature вычисляется по колонке «Реестро
         ),
     ]);
 
-    $registry = Registry::factory()->create(['code' => 'fz44']);
+    $registry = registryWithOkpd2Scope();
     $crawler = Crawler::factory()->for($registry)->create(['filter' => ['okpd2Codes' => ['43']]]);
     $cursor = new ListingCursor(blockFrom: 1);
 
@@ -93,7 +107,7 @@ test('ретрай на 500 забирает второй ответ фикст�
             ->push(body: EisCsvFixture::body(), status: 200),
     ]);
 
-    $registry = Registry::factory()->create(['code' => 'fz44']);
+    $registry = registryWithOkpd2Scope();
     $crawler = Crawler::factory()->for($registry)->create(['filter' => ['okpd2Codes' => ['43']]]);
     $cursor = new ListingCursor(blockFrom: 1);
 
@@ -115,7 +129,7 @@ test('пустой ответ 200 повторяется и итог собир�
             ->push(body: EisCsvFixture::body(), status: 200),
     ]);
 
-    $registry = Registry::factory()->create(['code' => 'fz44']);
+    $registry = registryWithOkpd2Scope();
     $crawler = Crawler::factory()->for($registry)->create(['filter' => ['okpd2Codes' => ['43']]]);
     $cursor = new ListingCursor(blockFrom: 1);
 
@@ -135,7 +149,7 @@ test('query-параметры запроса содержат from/to, флаг
         $endpoint.'*' => Http::response(body: EisCsvFixture::body(), status: 200),
     ]);
 
-    $registry = Registry::factory()->create(['code' => 'fz44']);
+    $registry = registryWithOkpd2Scope();
     $crawler = Crawler::factory()->for($registry)->create(['filter' => ['stageCompleted' => true, 'okpd2Codes' => ['43']]]);
     $cursor = new ListingCursor(blockFrom: 501);
 
@@ -165,7 +179,7 @@ test('собранный ListingBatch несёт id узла, который р�
         $endpoint.'*' => Http::response(body: EisCsvFixture::body(), status: 200),
     ]);
 
-    $registry = Registry::factory()->create(['code' => 'fz44']);
+    $registry = registryWithOkpd2Scope();
     $crawler = Crawler::factory()->for($registry)->create(['filter' => ['okpd2Codes' => ['43']]]);
     $cursor = new ListingCursor(blockFrom: 1);
 
@@ -181,7 +195,7 @@ test('без активного прокси скоупа crawl_listing резо
         $endpoint.'*' => Http::response(body: EisCsvFixture::body(), status: 200),
     ]);
 
-    $registry = Registry::factory()->create(['code' => 'fz44']);
+    $registry = registryWithOkpd2Scope();
     $crawler = Crawler::factory()->for($registry)->create(['filter' => ['okpd2Codes' => ['43']]]);
     $cursor = new ListingCursor(blockFrom: 1);
 
@@ -200,7 +214,7 @@ test('профиль с proxy_country=RU при пуле из RU и DE полу�
         $endpoint.'*' => Http::response(body: EisCsvFixture::body(), status: 200),
     ]);
 
-    $registry = Registry::factory()->create(['code' => 'fz44']);
+    $registry = registryWithOkpd2Scope();
     $crawler = Crawler::factory()->for($registry)->create(['filter' => ['okpd2Codes' => ['43']], 'proxy_country' => 'RU']);
     $cursor = new ListingCursor(blockFrom: 1);
 
@@ -219,7 +233,7 @@ test('профиль с use_proxy=false не вызывает резолвер �
         $endpoint.'*' => Http::response(body: EisCsvFixture::body(), status: 200),
     ]);
 
-    $registry = Registry::factory()->create(['code' => 'fz44']);
+    $registry = registryWithOkpd2Scope();
     $crawler = Crawler::factory()->for($registry)->create(['filter' => ['okpd2Codes' => ['43']], 'use_proxy' => false]);
     $cursor = new ListingCursor(blockFrom: 1);
 
@@ -244,7 +258,7 @@ test('успешный запрос листинга пишет latency_ms_avg �
         $endpoint.'*' => Http::response(body: EisCsvFixture::body(), status: 200),
     ]);
 
-    $registry = Registry::factory()->create(['code' => 'fz44']);
+    $registry = registryWithOkpd2Scope();
     $crawler = Crawler::factory()->for($registry)->create(['filter' => ['okpd2Codes' => ['43']]]);
     $cursor = new ListingCursor(blockFrom: 1);
 
@@ -266,7 +280,7 @@ test('запрос листинга несёт verify из карты crawler.tl
         return Http::response(body: EisCsvFixture::body(), status: 200);
     });
 
-    $registry = Registry::factory()->create(['code' => 'fz44']);
+    $registry = registryWithOkpd2Scope();
     $crawler = Crawler::factory()->for($registry)->create(['filter' => ['okpd2Codes' => ['43']]]);
     $cursor = new ListingCursor(blockFrom: 1);
 

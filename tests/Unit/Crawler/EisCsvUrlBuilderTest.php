@@ -3,14 +3,26 @@
 declare(strict_types=1);
 
 use App\Dto\Procurement\Crawler\ListingCursor;
+use App\Models\Procurement\Platform\Okpd2Node;
+use App\Models\Procurement\Platform\Platform;
 use App\Services\Procurement\Eis\EisCsvUrlBuilder;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\Support\Doubles\Crawler\CrawlerWithRegistry;
+
+uses(RefreshDatabase::class);
+
+beforeEach(function () {
+    $this->platformId = Platform::factory()->create()->id;
+
+    Okpd2Node::factory()->create(['platform_id' => $this->platformId, 'code' => '43', 'external_id' => '8873921']);
+});
 
 test('buildQueryParams переводит поля типизированного фильтра в параметры ЕИС и добавляет from/to/sort', function () {
     $crawler = CrawlerWithRegistry::make(
         registryCode: 'fz44',
         filter: ['stageCompleted' => true, 'priceFrom' => 100000, 'okpd2Codes' => ['43']],
         options: null,
+        platformId: $this->platformId,
     );
 
     $params = app(EisCsvUrlBuilder::class)->buildQueryParams(crawler: $crawler, from: 1, to: 500);
@@ -28,6 +40,7 @@ test('buildQueryParams не эмитит ключ выключенного эт�
         registryCode: 'fz44',
         filter: ['stageCompleted' => true, 'stageApplications' => false, 'okpd2Codes' => ['43']],
         options: null,
+        platformId: $this->platformId,
     );
 
     $params = app(EisCsvUrlBuilder::class)->buildQueryParams(crawler: $crawler, from: 1, to: 500);
@@ -48,6 +61,7 @@ test('buildQueryParams форматирует даты фильтра в d.m.Y, 
         registryCode: 'fz44',
         filter: ['publishedFrom' => '2025-03-15', 'publishedTo' => '2025-03-31', 'okpd2Codes' => ['43']],
         options: null,
+        platformId: $this->platformId,
     );
 
     $params = app(EisCsvUrlBuilder::class)->buildQueryParams(crawler: $crawler, from: 1, to: 500);
@@ -61,6 +75,7 @@ test('buildQueryParams переносит searchString и morphology как ес
         registryCode: 'fz44',
         filter: ['searchString' => 'ремонт кровли', 'morphology' => true, 'priceTo' => 5000000, 'okpd2Codes' => ['43']],
         options: null,
+        platformId: $this->platformId,
     );
 
     $params = app(EisCsvUrlBuilder::class)->buildQueryParams(crawler: $crawler, from: 1, to: 500);
@@ -76,6 +91,7 @@ test('buildQueryParams archive-ветка перекрывает даты фил
         registryCode: 'fz44',
         filter: ['publishedFrom' => '2025-03-15', 'publishedTo' => '2025-03-31', 'okpd2Codes' => ['43']],
         options: null,
+        platformId: $this->platformId,
     );
     $cursor = new ListingCursor(blockFrom: 1, day: '2024-03-15', priceStack: ['0:500000']);
 
@@ -100,7 +116,7 @@ test('buildQueryParams добавляет column=on только для true-к�
 });
 
 test('buildQueryParams выставляет флаг реестра fz44=on по crawler.registry.code', function () {
-    $crawler = CrawlerWithRegistry::make(registryCode: 'fz44', filter: null, options: null);
+    $crawler = CrawlerWithRegistry::make(registryCode: 'fz44', filter: null, options: null, platformId: $this->platformId);
 
     $params = app(EisCsvUrlBuilder::class)->buildQueryParams(crawler: $crawler, from: 1, to: 500);
 
@@ -109,7 +125,7 @@ test('buildQueryParams выставляет флаг реестра fz44=on по
 });
 
 test('buildQueryParams выставляет флаг реестра fz223=on по crawler.registry.code', function () {
-    $crawler = CrawlerWithRegistry::make(registryCode: 'fz223', filter: null, options: null);
+    $crawler = CrawlerWithRegistry::make(registryCode: 'fz223', filter: null, options: null, platformId: $this->platformId);
 
     $params = app(EisCsvUrlBuilder::class)->buildQueryParams(crawler: $crawler, from: 1, to: 500);
 
@@ -118,7 +134,7 @@ test('buildQueryParams выставляет флаг реестра fz223=on п�
 });
 
 test('buildQueryParams без filter и без options.columns собирает только from/to/registry/sort/registryNumberCsv', function () {
-    $crawler = CrawlerWithRegistry::make(registryCode: 'fz44', filter: null, options: null);
+    $crawler = CrawlerWithRegistry::make(registryCode: 'fz44', filter: null, options: null, platformId: $this->platformId);
 
     $params = app(EisCsvUrlBuilder::class)->buildQueryParams(crawler: $crawler, from: 501, to: 1000);
 
@@ -146,7 +162,7 @@ test('buildQueryParams всегда запрашивает registryNumberCsv д�
 
 test('buildQueryParams с cursor->day archive-ветка добавляет publishDateFrom/To+price+sortDirection=true', function () {
     config(['crawler.archive.date_format' => 'd.m.Y']);
-    $crawler = CrawlerWithRegistry::make(registryCode: 'fz44', filter: null, options: null);
+    $crawler = CrawlerWithRegistry::make(registryCode: 'fz44', filter: null, options: null, platformId: $this->platformId);
     $cursor = new ListingCursor(blockFrom: 1, day: '2024-03-15', priceStack: ['0:500000']);
 
     $params = app(EisCsvUrlBuilder::class)->buildQueryParams(crawler: $crawler, from: 1, to: 500, cursor: $cursor);
@@ -160,7 +176,7 @@ test('buildQueryParams с cursor->day archive-ветка добавляет publ
 });
 
 test('buildQueryParams с cursor->day и cursor->dateField=update маппится на updateDateFrom/To', function () {
-    $crawler = CrawlerWithRegistry::make(registryCode: 'fz44', filter: null, options: null);
+    $crawler = CrawlerWithRegistry::make(registryCode: 'fz44', filter: null, options: null, platformId: $this->platformId);
     $cursor = new ListingCursor(blockFrom: 1, day: '2024-03-15', priceStack: ['100:200'], dateField: 'update');
 
     $params = app(EisCsvUrlBuilder::class)->buildQueryParams(crawler: $crawler, from: 1, to: 500, cursor: $cursor);
@@ -171,7 +187,7 @@ test('buildQueryParams с cursor->day и cursor->dateField=update маппитс
 });
 
 test('buildQueryParams без cursor или с cursor->day=null — прежний fresh-набор без регресса', function () {
-    $crawler = CrawlerWithRegistry::make(registryCode: 'fz44', filter: null, options: null);
+    $crawler = CrawlerWithRegistry::make(registryCode: 'fz44', filter: null, options: null, platformId: $this->platformId);
 
     $withoutCursor = app(EisCsvUrlBuilder::class)->buildQueryParams(crawler: $crawler, from: 1, to: 500);
     $withNullDayCursor = app(EisCsvUrlBuilder::class)->buildQueryParams(crawler: $crawler, from: 1, to: 500, cursor: new ListingCursor);
@@ -179,4 +195,60 @@ test('buildQueryParams без cursor или с cursor->day=null — прежни
     expect($withoutCursor)->toBe($withNullDayCursor)
         ->and($withoutCursor['sortDirection'])->toBe('false')
         ->and($withoutCursor)->not->toHaveKey('publishDateFrom');
+});
+
+test('buildQueryParams резолвит okpd2Codes в okpd2Ids по коду и добавляет okpd2IdsWithNested=on', function () {
+    Okpd2Node::factory()->create(['platform_id' => $this->platformId, 'code' => '41', 'external_id' => '8873919']);
+    $crawler = CrawlerWithRegistry::make(
+        registryCode: 'fz44',
+        filter: ['okpd2Codes' => ['43', '41']],
+        options: null,
+        platformId: $this->platformId,
+    );
+
+    $params = app(EisCsvUrlBuilder::class)->buildQueryParams(crawler: $crawler, from: 1, to: 500);
+
+    expect($params['okpd2Ids'])->toBe('8873919,8873921')
+        ->and($params['okpd2IdsWithNested'])->toBe('on');
+});
+
+test('buildQueryParams выбор одного листового кода тоже добавляет okpd2IdsWithNested=on', function () {
+    Okpd2Node::factory()->create(['platform_id' => $this->platformId, 'code' => '43.21.10.140', 'external_id' => '9000001']);
+    $crawler = CrawlerWithRegistry::make(
+        registryCode: 'fz44',
+        filter: ['okpd2Codes' => ['43.21.10.140']],
+        options: null,
+        platformId: $this->platformId,
+    );
+
+    $params = app(EisCsvUrlBuilder::class)->buildQueryParams(crawler: $crawler, from: 1, to: 500);
+
+    expect($params['okpd2Ids'])->toBe('9000001')
+        ->and($params['okpd2IdsWithNested'])->toBe('on');
+});
+
+test('buildQueryParams порядок okpd2Ids не зависит от порядка кодов в профиле', function () {
+    Okpd2Node::factory()->create(['platform_id' => $this->platformId, 'code' => '41', 'external_id' => '8873919']);
+    Okpd2Node::factory()->create(['platform_id' => $this->platformId, 'code' => '42', 'external_id' => '8873920']);
+
+    $forward = CrawlerWithRegistry::make(registryCode: 'fz44', filter: ['okpd2Codes' => ['41', '42', '43']], options: null, platformId: $this->platformId);
+    $reversed = CrawlerWithRegistry::make(registryCode: 'fz44', filter: ['okpd2Codes' => ['43', '42', '41']], options: null, platformId: $this->platformId);
+
+    $paramsForward = app(EisCsvUrlBuilder::class)->buildQueryParams(crawler: $forward, from: 1, to: 500);
+    $paramsReversed = app(EisCsvUrlBuilder::class)->buildQueryParams(crawler: $reversed, from: 1, to: 500);
+
+    expect($paramsForward['okpd2Ids'])->toBe('8873919,8873920,8873921')
+        ->and($paramsReversed['okpd2Ids'])->toBe($paramsForward['okpd2Ids']);
+});
+
+test('buildQueryParams на нерезолвящемся коде ОКПД2 отказывает исключением с именем кода', function () {
+    $crawler = CrawlerWithRegistry::make(
+        registryCode: 'fz44',
+        filter: ['okpd2Codes' => ['43', '99.99']],
+        options: null,
+        platformId: $this->platformId,
+    );
+
+    expect(fn () => app(EisCsvUrlBuilder::class)->buildQueryParams(crawler: $crawler, from: 1, to: 500))
+        ->toThrow(RuntimeException::class, '99.99');
 });

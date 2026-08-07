@@ -7,6 +7,8 @@ namespace App\Services\Procurement\Eis;
 use App\Dto\Procurement\Crawler\EisSearchFilter;
 use App\Dto\Procurement\Crawler\ListingCursor;
 use App\Models\Procurement\Crawler\Crawler;
+use App\Models\Procurement\Platform\Registry;
+use App\Repositories\Procurement\Platform\Okpd2NodeReadRepository;
 use Illuminate\Support\Carbon;
 use RuntimeException;
 
@@ -22,6 +24,10 @@ final readonly class EisCsvUrlBuilder
      * источник `dedupSignature` для cap-детекта, запрашивается всегда.
      */
     public const string REGISTRY_NUMBER_COLUMN_FLAG = 'registryNumberCsv';
+
+    public function __construct(
+        private Okpd2NodeReadRepository $okpd2Nodes,
+    ) {}
 
     /**
      * @return array<string, string>
@@ -39,7 +45,7 @@ final readonly class EisCsvUrlBuilder
 
         $columns = $crawler->options?->toArray()['columns'] ?? [];
 
-        $query = $filter === null ? [] : $this->filterParams(filter: $filter);
+        $query = $filter === null ? [] : $this->filterParams(filter: $filter, registry: $this->requireRegistry($crawler));
 
         foreach ($columns as $column => $enabled) {
             if ($enabled === true) {
@@ -74,7 +80,7 @@ final readonly class EisCsvUrlBuilder
      *
      * @return array<string, string>
      */
-    private function filterParams(EisSearchFilter $filter): array
+    private function filterParams(EisSearchFilter $filter, Registry $registry): array
     {
         $dateFormat = (string) config('crawler.archive.date_format', 'd.m.Y');
 
@@ -114,7 +120,61 @@ final readonly class EisCsvUrlBuilder
             $query['searchString'] = $filter->searchString;
         }
 
-        return $query;
+        return [...$query, ...$this->okpd2Params(filter: $filter, registry: $registry)];
+    }
+
+    /**
+     * Резолв кодов ОКПД2 упирается в `platform_id` реестра профиля (P2.1) — без загруженной
+     * связи `registry` резолвить нечего, отказ явный (тот же класс защиты, что
+     * `Crawler::resolveFilter()` на несохранённой модели).
+     */
+    private function requireRegistry(Crawler $crawler): Registry
+    {
+        $registry = $crawler->registry;
+
+        if (! $registry instanceof Registry) {
+            throw new RuntimeException(
+                'EisCsvUrlBuilder не резолвит фильтр без реестра профиля — связь `registry` не загружена.'
+            );
+        }
+
+        return $registry;
+    }
+
+    /**
+     * Резолв предметного скоупа профиля (`okpd2Codes`, коды) в `okpd2Ids` (внутренние id карты
+     * `prc_okpd2_nodes` площадки реестра) — единственная рабочая форма фильтра ЕИС
+     * (`findings/P1-okpd2-probe.md` §2, §3): без `okpd2IdsWithNested=on` закупки, ссылающиеся на
+     * листовые коды, не совпадают с узлом группы, поэтому флаг эмитится безусловно.
+     *
+     * @return array<string, string>
+     */
+    private function okpd2Params(EisSearchFilter $filter, Registry $registry): array
+    {
+        if ($filter->okpd2Codes === []) {
+            // Ветка только ради обратной совместимости с профилями, сохранёнными до
+            // обязательности скоупа (D18/P2.2) — новый профиль пустым `okpd2Codes` не сохранить.
+            return [];
+        }
+
+        $externalIds = $this->okpd2Nodes->externalIds(platformId: $registry->platform_id, codes: $filter->okpd2Codes);
+
+        $unresolved = array_diff($filter->okpd2Codes, array_keys($externalIds));
+
+        if ($unresolved !== []) {
+            throw new RuntimeException(
+                'Не резолвятся коды ОКПД2 в карте узлов площадки: '.implode(', ', $unresolved)
+                .' — прогоните пересборку карты (P2.5) и повторите.'
+            );
+        }
+
+        $codes = $filter->okpd2Codes;
+        sort($codes, SORT_STRING);
+
+        return [
+            'okpd2Ids' => implode(',', array_map(static fn (string $code): string => $externalIds[$code], $codes)),
+            'okpd2IdsWithNested' => 'on',
+        ];
     }
 
     /**
