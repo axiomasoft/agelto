@@ -1,55 +1,51 @@
-# HANDOFF — 2026-08-07 — after P3.4
+# HANDOFF — 2026-08-07 — after P3.5
 
-**Next:** `/task:plan-exec 2026.08.06-CRAWL-HARDEN P3.5` (§3 Routing/roadmap.md: Exec = plan-exec,
-implementation/medium; сиды поверх уже заведённых полей P3.1+P3.3, `Inputs` ссылается на их
-Deliverables)
+**Next:** `/task:plan-exec 2026.08.06-CRAWL-HARDEN P3.6` (§3 Routing/roadmap.md: Exec = plan-exec,
+implementation/medium; витрина поверх готовых носителей P3.2+P3.3+P3.4, `Inputs` ссылается на их
+Deliverables — последний item фазы P3)
 
 | Параметр | Значение |
 |:--|:--|
 | Model | sonnet |
-| Thinking | medium — Routing item'а, решения запинены брифом, гейты детерминированы |
+| Thinking | medium — Routing item'а, гейты детерминированы, N+1 на партиционированной `prc_fetches` обязывает `Review = full` |
 | Context | continue (/clear) — ручной item |
-| Суть | Реализовать P3.5: привести `CrawlerProfileSeeder` к двум профилям из брифа в их ПОЛНОМ виде (архивный + актуальный, поля сортировки и `stop_policy`) |
-| Команда | `/task:plan-exec 2026.08.06-CRAWL-HARDEN P3.5` |
+| Суть | Реализовать P3.6: витрина истории прогонов и статистика в админке (последний item фазы P3) |
+| Команда | `/task:plan-exec 2026.08.06-CRAWL-HARDEN P3.6` |
 
 ```
-/task:plan-exec 2026.08.06-CRAWL-HARDEN P3.5
+/task:plan-exec 2026.08.06-CRAWL-HARDEN P3.6
 ```
 
 **Done:** дизайн закрыт (2/2 + два захода фиксов аудита, v0.15.0). Исполнение фазы P3: **P3.1 🟠**
 (сортировка в фильтре профиля) + **P3.2 🟠** (прогон на очереди) + **P3.3 🟢** (политика остановки
-«только актуальные данные») + **P3.4 🟢** (операторские действия над прогоном). P3.4:
-`StartCrawlerRunAction` (`start()`/`restart()`/`resume()`, опциональный `$mode` override) +
-`RequestRunStopAction` (`pause()`/`cancel()`, идемпотентно) — единственный носитель правила «можно
-ли запускать/останавливать», консоль (`crawler:run-fresh`/`crawler:run-archive`) и админка зовут
-один и тот же класс; исключения `CrawlerRunAlreadyActive`/`RunAlreadyTerminal`
-(`app/Exceptions/Procurement/Crawler/`, подобласть дописана в `DomainLayoutTest`); три кнопки на
-`CrawlersTable` («Запустить»/«Запустить с начала»/«Продолжить»), две на `RunsTable`+`ViewRun`
-(«Остановить»/«Отменить») — право строкой ability `RunPermission::Update`, guard И в `visible()`,
-И внутри Action; `RunResource` докблок и `docs/04_Operators/how-to/restart-failed-run.md`
-переписаны под кнопки. 11 новых тестов (`CrawlerRunActionsTest`); Validation: целевой фильтр
-20 passed (на `5b237ab0`), `pint`/`phpstan` зелено без роста baseline, полный прогон 18 failed/1176
-passed — тот же предсуществующий baseline (Δ=0, +11 моих зелёных). Pending Work — кнопки
-`CrawlersTable` не передают `from`/`to`: для Archive-режима профиля админ-старт упадёт
-`LogicException` внутри job'а (окно дат архивного профиля живёт только как `--from/--to` консоли,
-P3.5 Implementation Rules п. 2), консольный путь не затронут. Known Deviations: второй
-exception-файл `RunAlreadyTerminal.php` сверх Files item'а (механически необходим Scope Included
-п. 3); Pre-mutation Task Contract собран после начала мутаций (та же перестановка порядка, что
-P3.3).
+«только актуальные данные») + **P3.4 🟢** (операторские действия над прогоном) + **P3.5 🟠**
+(сиды двух профилей). P3.5: `CrawlerProfileSeeder::seedArchiveProfile()`/`seedFreshProfile()`
+дополнены полями сортировки (P3.1) и `stop_policy` (P3.3) — архив: `ListingSortField::Published`/
+`sortAscending: true`/`RunStopPolicy::Default`; fresh: `ListingSortField::Updated`/
+`sortAscending: false`/`RunStopPolicy::OnlyFresh`. Тест расширен в существующем
+`tests/Feature/Seeders/EisSeedersTest.php` (новый кейс «сид заводит профили с сортировкой выдачи
+и политикой остановки из брифа») — отдельный `CrawlerProfileSeederTest.php` не заведён, т.к.
+`EisSeedersTest.php` уже покрывает состав полей и идемпотентность того же сидера тем же сетапом
+(`EisPlatformSeeder`). Validation: целевой фильтр `EisSeedersTest` 9 passed/34 assertions (на
+`fc3df115`); `db:seed --class=CrawlerProfileSeeder` код 0 (после `artisan migrate --force` — dev-БД
+отставала на 4 миграции P2/P3); `pint --test`/`phpstan analyse` (полный прогон, 578 файлов) —
+зелено без роста baseline; полный прогон `artisan test --no-tia --compact` — 18 failed/1177 passed
+(предсуществующий baseline `8728723e`, Δ=0 по failed, +1 мой зелёный). Статус 🟠 — item-коммит
+`fc3df115` несёт дифф вне `Files` item'а (`EisSeedersTest.php` вместо заявленного условно нового
+файла) — material-отклонение по status-rule.
 
-**Remaining:** 41 item из 51. Порядок жёсткий: P2 → P3 → P4 → P5 по coupling-поверхности (D98);
+**Remaining:** 40 items из 51. Порядок жёсткий: P2 → P3 → P4 → P5 по coupling-поверхности (D98);
 P8 — после P2–P6 (D4/D83); P9 — после P8. Внутри P3 — цепочка последовательна по данным
-(`research/04-p3-runs-design.md` §7): P3.1 + P3.2 + P3.3 + **P3.4** (все закрыты) → **P3.5** (сиды)
-· P3.2 + P3.3 + P3.4 → **P3.6** (витрина, тоже разблокирована). Следующий по порядковому номеру —
-**P3.5**.
+(`research/04-p3-runs-design.md` §7): P3.1 + P3.2 + P3.3 + P3.4 + **P3.5** (все закрыты) →
+**P3.6** (витрина, последний item фазы). Следующий по порядковому номеру — **P3.6**.
 
 **Sources of truth:** `plan.md` (Meta 0.15.0, §3 Routing построчно, Status Board, D1–D110,
 развилки № 1–№ 34, §7 Contracts) · `roadmap.md` (порядок запуска) · `phases/P3.md` (Phase Context,
-Completion Notes P3.1–P3.4) · `phases/P4.md`–`P9.md` · `research/04-p3-runs-design.md` (дизайн P3,
+Completion Notes P3.1–P3.5) · `phases/P4.md`–`P9.md` · `research/04-p3-runs-design.md` (дизайн P3,
 §6 ловушки, §7 порядок items) · `docs/03_Dev/crawling-pipeline.md` §«Вход: команды-диспетчеры,
-обход — на очереди» (актуализирован P3.2; P3.3/P3.4 доки не трогали кроме
-`restart-failed-run.md`) · `docs/03_Dev/database.md`, `docs/03_Dev/ocds-mapping.md`
-(актуализированы P2.6, P3.1–P3.4 их не трогают).
+обход — на очереди» (актуализирован P3.2; P3.3–P3.5 доки не трогали кроме
+`restart-failed-run.md` в P3.4) · `docs/03_Dev/database.md`, `docs/03_Dev/ocds-mapping.md`
+(актуализированы P2.6, P3.1–P3.5 их не трогают).
 
 **Open risks:**
 - **Pending Work P3.2** (унаследовано): `ArchiveWindowScanner::scan()` стоп-гейт останавливает дренаж
@@ -57,7 +53,7 @@ Completion Notes P3.1–P3.4) · `phases/P4.md`–`P9.md` · `research/04-p3-run
   `BacklogRescanProcessor`, вне `Files` P3.2) статус прогона после `scan()` не перечитывают —
   `Pause`/`Cancel` не останавливает archive/delta/backlog-прогон целиком. Для fresh-режима
   (единственного, что `CrawlRunJob` реально диспетчит из P3.2/P3.3/P3.4) не проявляется;
-- **Pending Work P3.4** (новое): admin-кнопки `CrawlersTable` не передают `from`/`to` — старт
+- **Pending Work P3.4** (унаследовано): admin-кнопки `CrawlersTable` не передают `from`/`to` — старт
   Archive-профиля из админки упадёт `LogicException` внутри `CrawlRunJob::handle()`; консольный
   путь (`--from/--to`) не затронут;
 - **only_fresh_margin_minutes = 60 не калиброван боевым прогоном** (P3.3) — прода нет в скоупе
@@ -65,7 +61,8 @@ Completion Notes P3.1–P3.4) · `phases/P4.md`–`P9.md` · `research/04-p3-run
 - **загрязнение батч-прогона тестового контура**: `EisSeedersTest`/`StatusMappingSeederTest`
   видят чужие реестры при батч-прогоне, зелёные изолированно (D110) — follow-up вне фазы P2/P3;
 - `migrate:fresh --seed --force` красен на baseline (`EisPlatformSeeder` /
-  `prc_registries.uuid` not-null) — вне Scope P3, не чинилось;
+  `prc_registries.uuid` not-null) — вне Scope P3, не чинилось; dev-БД теперь домигрирована до
+  `…100081` (P3.5 db:seed-гейт), но `fresh --seed` баг это не затрагивает;
 - `pint --test` — 12 предсуществующих style issues на репозитории вне путей P3 — вне Scope;
 - **полный прогон `artisan test --no-tia --compact` красен на baseline** (18 failed: `Prepare/
   Archive`, `Prepare/Gsfx`, `TextGridRenderer`, `Ai/Llm/CoreKnowsNoDocumentType` — распаковка
@@ -82,4 +79,4 @@ Completion Notes P3.1–P3.4) · `phases/P4.md`–`P9.md` · `research/04-p3-run
 сверх разового детекта дрейфа P2.5; обёртки-дневные-циклы Archive/Delta/Backlog не перечитывают
 статус прогона после `scan()` (см. Open risks выше); admin-старт Archive-профиля без `from`/`to`
 (Open risks выше). Open questions: Q9, Q10, Q13, Q14 (`prc_daily_stats`, вне скоупа P3), Q15, Q16 —
-`Exploration`, ни один не блокирует P3.5.
+`Exploration`, ни один не блокирует P3.6.
