@@ -199,9 +199,7 @@ test('без RunPermission::Update кнопки остановки прогон�
 /**
  * P3.8 (D113): профиль в кейсах архивного окна заводится ЯВНО с `mode: CrawlerMode::Archive` —
  * дефолт `CrawlerFactory` равен `Fresh`, и именно поэтому окно раньше не тестировалось (Анти-
- * самообман item'а). «Продолжить»/«Отменить» на archive-прогоне остаются mode-агностичными
- * (`CrawlerRunManager`/`RunsTable` не читают `CrawlerMode`) — покрыты общими кейсами P3.7 выше,
- * здесь дублировать нечего.
+ * самообман item'а).
  */
 function crawlerArchiveWithWindow(): Crawler
 {
@@ -281,4 +279,37 @@ test('archive-профиль БЕЗ окна: «Запустить» отказ�
 
     Queue::assertNotPushed(CrawlRunJob::class);
     expect(Run::query()->where('crawler_id', $crawler->id)->count())->toBe(0);
+});
+
+test('archive-профиль с окном: «Остановить» пишет запрос кооперативной остановки', function (): void {
+    actAsRunActionsOperator();
+
+    $crawler = crawlerArchiveWithWindow();
+    $run = Run::factory()->for($crawler)->create(['status' => RunStatus::Running]);
+
+    Livewire::test(ListRuns::class)
+        ->callTableAction('pause', record: $run)
+        ->assertNotified('Остановка запрошена — прогон завершится на текущем блоке');
+
+    $run->refresh();
+
+    expect($run->stop_kind)->toBe(RunStopKind::Pause)
+        ->and($run->stop_requested_at)->not->toBeNull()
+        ->and($run->status)->toBe(RunStatus::Running);
+});
+
+test('archive-профиль с окном: «Отменить» пишет запрос кооперативной остановки', function (): void {
+    $operator = actAsRunActionsOperator();
+
+    $crawler = crawlerArchiveWithWindow();
+    $run = Run::factory()->for($crawler)->create(['status' => RunStatus::Running]);
+
+    Livewire::test(ViewRun::class, ['record' => $run->getKey()])
+        ->callAction('cancel')
+        ->assertNotified('Остановка запрошена — прогон завершится на текущем блоке');
+
+    $run->refresh();
+
+    expect($run->stop_kind)->toBe(RunStopKind::Cancel)
+        ->and($run->stop_requested_by)->toBe($operator->id);
 });
