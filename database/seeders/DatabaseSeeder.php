@@ -8,6 +8,7 @@ use App\Guards\Admin\Roles\SuperAdminRole;
 use App\Models\User;
 use Database\Seeders\Procurement\CrawlerProfileSeeder;
 use Database\Seeders\Procurement\EisPlatformSeeder;
+use Database\Seeders\Procurement\Okpd2NodeSeeder;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Artisan;
@@ -49,6 +50,10 @@ class DatabaseSeeder extends Seeder
         // первый боевой прогон ЕИС отправит все закупки в unknown (`StatusMappingService::resolve()`
         // на незнакомой паре). Инфраструктурные данные, поэтому ДО local/testing-гейта, как выше.
         $this->call(StatusMappingSeeder::class);
+
+        // Карта «код ОКПД2 → внутренний id НСИ» площадки eis (P2.1, D19) — ДО CrawlerProfileSeeder:
+        // резолв okpd2Codes фильтра в P2.2+ опирается на неё.
+        $this->call(Okpd2NodeSeeder::class);
 
         // Два профиля обхода fz44 — архивный (обучающий корпус) и fresh (выключен, D37), P4.5.
         // ПОСЛЕ StatusMappingSeeder — тот же порядок, что задокументирован research/05 §5.
