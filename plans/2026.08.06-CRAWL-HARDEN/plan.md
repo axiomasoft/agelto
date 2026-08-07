@@ -177,7 +177,7 @@ Deliverables другого. P1.3 идёт solo: ему нужен не Playwrig
 |:--|:--|:--|:--|
 | P1 | Разведка ЕИС: параметры листинга, ОКПД2, практики, карточка, инвентарь вкладок | 4/5 | 🟠 Done with deviations |
 | P2 | ОКПД2: фильтр профиля и древовидная форма | 2/6 | 🟠 Done with deviations |
-| P3 | Профили обхода и управление прогонами из админки | 2/6 | 🟡 In progress |
+| P3 | Профили обхода и управление прогонами из админки | 3/6 | 🟡 In progress |
 | P4 | Надёжность конвейера: бюджет запросов, троттлинг, анти-дубли | 0/6 | ⬜ Not started |
 | P5 | Healthcheck площадки и уведомления | 0/6 | ⬜ Not started |
 | P6 | Статусы, история изменений закупки, событие «закупка состоялась» | 0/5 | ⬜ Not started |
@@ -344,6 +344,7 @@ Deliverables другого. P1.3 идёт solo: ему нужен не Playwrig
 | 2026-08-07 | plan-run/sonnet/high | P3.3 закрыт 🟢: `RunStopPolicy` (`Default`/`OnlyFresh`) + `stop_policy` на профиле, третий гейт записи `mode=fresh`, стоп-условие `FreshRunProcessor` по времени старта предыдущего завершённого прогона (порог один раз на старте, граница «на пороге» = стоп), все три стоп-условия пишут различимый `stats.stop_reason`; 7 новых + 2 расширенных теста, Δ=0 на полном прогоне — детали см. phases/P3.md P3.3 Completion Notes |
 | 2026-08-07 | plan-exec/sonnet/medium | P3.4 закрыт 🟢: `StartCrawlerRunAction`/`RequestRunStopAction` — единственный носитель правила «можно ли запускать/останавливать», зовут и консольные команды, и кнопки; пять операторских действий («Запустить»/«Запустить с начала»/«Продолжить» на `CrawlersTable`, «Остановить»/«Отменить» на `RunsTable`+`ViewRun`), `CrawlerRunAlreadyActive`/`RunAlreadyTerminal`; 11 новых тестов, Δ=0 на полном прогоне — детали см. phases/P3.md P3.4 Completion Notes |
 | 2026-08-07 | plan-exec/sonnet/medium | P3.5 закрыт 🟠: сиды обоих профилей несут поля сортировки (архив — `Published`/по возрастанию, fresh — `Updated`/по убыванию) и `stop_policy` (`Default`/`OnlyFresh`); тест расширен в существующем `EisSeedersTest.php`, а не заведён отдельным файлом — 🟠 из-за диффа вне `Files` item'а, Δ=0 на полном прогоне (+1 зелёный) — детали см. phases/P3.md P3.5 Completion Notes |
+| 2026-08-07 | plan-exec/sonnet/medium | P3.6 закрыт 🟢 (последний item фазы): `Run::fetches()`/`stopRequestedBy()`, `RunsTable` (badge-статус, профиль, длительность, агрегаты блоков `withCount`/`withSum`, причина остановки, фильтры профиль/статус/окно старта), `RunInfolist` (декодированный курсор + явный перечень 8 ключей `stats`), `docs/04_Operators/reference/statuses.md` пополнен `RunStatus`/`stop_reason`/`RunStopKind`; 6 новых тестов включая N+1-гейт, Δ=0 на полном прогоне (+6 зелёных) — детали см. phases/P3.md P3.6 Completion Notes |
 
 ## 7. Contracts
 

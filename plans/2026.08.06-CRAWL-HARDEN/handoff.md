@@ -1,53 +1,76 @@
-# HANDOFF — 2026-08-07 — after P3.5
+# HANDOFF — 2026-08-07 — after P3.6
 
-**Next:** `/task:plan-exec 2026.08.06-CRAWL-HARDEN P3.6` (§3 Routing/roadmap.md: Exec = plan-exec,
-implementation/medium; витрина поверх готовых носителей P3.2+P3.3+P3.4, `Inputs` ссылается на их
-Deliverables — последний item фазы P3)
+**Next:** «ЗАПУСК ВРУЧНУЮ: sonnet/high» — P4.1 (§3 Routing: `implementation/high`, `Exec = manual`;
+носитель настроек лежит на coupling-поверхности `config/crawler.php` и формы профиля — неверное
+слияние трёх уровней молча вернёт глобальные значения и обесценит калибровку боевым прогоном;
+phase-first: P3 не терминальна формально (Phase Handoff — скелет), но все 6 её items закрыты —
+следующий шаг по нумерации фазы P4 не заблокирован; закрыть P3 формально —
+`/task:plan-close 2026.08.06-CRAWL-HARDEN P3` перед или после P4.1, порядок не критичен)
 
 | Параметр | Значение |
 |:--|:--|
 | Model | sonnet |
-| Thinking | medium — Routing item'а, гейты детерминированы, N+1 на партиционированной `prc_fetches` обязывает `Review = full` |
+| Thinking | high — предписано Routing (`manual`), команда `plan-exec` пинит sonnet/medium и обязана отклонить этот item по гейту п. 2 |
 | Context | continue (/clear) — ручной item |
-| Суть | Реализовать P3.6: витрина истории прогонов и статистика в админке (последний item фазы P3) |
-| Команда | `/task:plan-exec 2026.08.06-CRAWL-HARDEN P3.6` |
+| Суть | Реализовать P4.1: трёхуровневый носитель настроек обхода (площадка → профиль → config) и единственный резолвер |
+| Команда | `—` |
 
 ```
-/task:plan-exec 2026.08.06-CRAWL-HARDEN P3.6
+Прочитай plans/2026.08.06-CRAWL-HARDEN/plan.md (Context, Execution Rules, §3 Routing, Status Board),
+plans/2026.08.06-CRAWL-HARDEN/handoff.md, plans/2026.08.06-CRAWL-HARDEN/phases/P4.md
+(Phase Context + P4.1 целиком), затем Required Reads item'а P4.1. Исполни P4.1 строго по его
+Scope Included/Excluded, Implementation Rules, Code Guidance. Закрой item по полному протоколу
+plan-protocol §8 (два коммита: item-коммит по Files + bookkeeping плана), запусти Validation
+целиком, обнови phases/P4.md (Status/Completion Notes/Phase Status), plan.md (Status Board/Update
+Log/Meta), handoff.md, journal.jsonl.
 ```
 
-**Done:** дизайн закрыт (2/2 + два захода фиксов аудита, v0.15.0). Исполнение фазы P3: **P3.1 🟠**
-(сортировка в фильтре профиля) + **P3.2 🟠** (прогон на очереди) + **P3.3 🟢** (политика остановки
-«только актуальные данные») + **P3.4 🟢** (операторские действия над прогоном) + **P3.5 🟠**
-(сиды двух профилей). P3.5: `CrawlerProfileSeeder::seedArchiveProfile()`/`seedFreshProfile()`
-дополнены полями сортировки (P3.1) и `stop_policy` (P3.3) — архив: `ListingSortField::Published`/
-`sortAscending: true`/`RunStopPolicy::Default`; fresh: `ListingSortField::Updated`/
-`sortAscending: false`/`RunStopPolicy::OnlyFresh`. Тест расширен в существующем
-`tests/Feature/Seeders/EisSeedersTest.php` (новый кейс «сид заводит профили с сортировкой выдачи
-и политикой остановки из брифа») — отдельный `CrawlerProfileSeederTest.php` не заведён, т.к.
-`EisSeedersTest.php` уже покрывает состав полей и идемпотентность того же сидера тем же сетапом
-(`EisPlatformSeeder`). Validation: целевой фильтр `EisSeedersTest` 9 passed/34 assertions (на
-`fc3df115`); `db:seed --class=CrawlerProfileSeeder` код 0 (после `artisan migrate --force` — dev-БД
-отставала на 4 миграции P2/P3); `pint --test`/`phpstan analyse` (полный прогон, 578 файлов) —
-зелено без роста baseline; полный прогон `artisan test --no-tia --compact` — 18 failed/1177 passed
-(предсуществующий baseline `8728723e`, Δ=0 по failed, +1 мой зелёный). Статус 🟠 — item-коммит
-`fc3df115` несёт дифф вне `Files` item'а (`EisSeedersTest.php` вместо заявленного условно нового
-файла) — material-отклонение по status-rule.
+**Done:** дизайн закрыт (2/2 + два захода фиксов аудита, v0.15.0). **Фаза P3 фактически
+завершена: все 6 items терминальны** (P3.3 🟢, P3.4 🟢, P3.6 🟢, P3.1 🟠, P3.2 🟠, P3.5 🟠) —
+формальное закрытие фазы (`Phase Handoff` в `phases/P3.md` всё ещё скелет, docs-sync-проверка)
+остаётся за `/task:plan-close 2026.08.06-CRAWL-HARDEN P3`, эта команда его не запускала (не входит
+в scope `plan-exec` одного item'а). P3.6 (последний item фазы, эта сессия): связь
+`Run::fetches(): HasMany` + `Run::stopRequestedBy(): BelongsTo`; `RunResource::getEloquentQuery()` —
+`withCount('fetches')`/`withSum(..., 'rows_new')`/`withSum(..., 'rows_updated')` вместо построчной
+выборки; `RunsTable` — badge-статус с цветовой картой, профиль, длительность (канон
+`RunsRelationManager::diffForHumans`), агрегаты блоков, причина остановки и `cap_hit` из `stats`,
+фильтры профиль/статус/окно старта; `RunInfolist` — секция «Где остановились» (декодированный
+курсор) и «Итоги» (явный перечень 8 ключей `stats` с подписями, отсутствующий — «—»), секция
+«Остановка оператором»; `docs/04_Operators/reference/statuses.md` пополнен разделами `RunStatus`/
+`stop_reason`/`RunStopKind`. Новый тест `tests/Feature/Filament/CrawlerRunHistoryTest.php` — 6
+тестов, включая N+1-гейт (канон `EstimateResourceTest`). Validation: целевой фильтр
+`CrawlerRunHistory` — 6 passed/35 assertions (на `d6329cdb`); `pint --test`/`phpstan analyse` —
+зелено без роста baseline; полный прогон — 18 failed/1183 passed (Δ=0 против baseline `8728723e`,
++6 моих зелёных, тот же состав failed-семейств); `plan-lint --baseline HEAD` — 0/0 новых. Статус
+🟢 — item-коммит `d6329cdb` несёт дифф РОВНО по `Files` item'а (сверено `git status` до/после
+`git add`), material-отклонений нет.
 
-**Remaining:** 40 items из 51. Порядок жёсткий: P2 → P3 → P4 → P5 по coupling-поверхности (D98);
-P8 — после P2–P6 (D4/D83); P9 — после P8. Внутри P3 — цепочка последовательна по данным
-(`research/04-p3-runs-design.md` §7): P3.1 + P3.2 + P3.3 + P3.4 + **P3.5** (все закрыты) →
-**P3.6** (витрина, последний item фазы). Следующий по порядковому номеру — **P3.6**.
+**Remaining:** 39 items из 51 (P3.6 закрыт этой сессией). Порядок жёсткий: P2 → P3 → P4 → P5 по
+coupling-поверхности (D98); P8 — после P2–P6 (D4/D83); P9 — после P8. P3 фактически завершена (см.
+Done выше). Следующая по порядку — фаза **P4** (носитель настроек обхода, привязка прокси, авто-
+дизейбл, общий бюджет, подача пачками, журналы), items связаны последовательно по данным
+(`research/05-p4-reliability-design.md` §6), первый — **P4.1**, `Exec = manual`.
 
-**Sources of truth:** `plan.md` (Meta 0.15.0, §3 Routing построчно, Status Board, D1–D110,
-развилки № 1–№ 34, §7 Contracts) · `roadmap.md` (порядок запуска) · `phases/P3.md` (Phase Context,
-Completion Notes P3.1–P3.5) · `phases/P4.md`–`P9.md` · `research/04-p3-runs-design.md` (дизайн P3,
-§6 ловушки, §7 порядок items) · `docs/03_Dev/crawling-pipeline.md` §«Вход: команды-диспетчеры,
-обход — на очереди» (актуализирован P3.2; P3.3–P3.5 доки не трогали кроме
-`restart-failed-run.md` в P3.4) · `docs/03_Dev/database.md`, `docs/03_Dev/ocds-mapping.md`
-(актуализированы P2.6, P3.1–P3.5 их не трогают).
+**Sources of truth:** `plan.md` (Meta 0.15.0, §3 Routing построчно, Status Board, D1–D110, развилки
+№ 1–№ 34, §7 Contracts) · `roadmap.md` (порядок запуска) · `phases/P3.md` (Phase Context, Completion
+Notes P3.1–P3.6, Phase Status все 6 терминальны, `Phase Handoff` — скелет, не заполнен) ·
+`phases/P4.md`–`P9.md` · `research/05-p4-reliability-design.md` (дизайн P4) ·
+`docs/03_Dev/crawling-pipeline.md` §«Вход: команды-диспетчеры, обход — на очереди» (актуализирован
+P3.2; P3.6 доки не трогал кроме `docs/04_Operators/reference/statuses.md`) ·
+`docs/04_Operators/reference/statuses.md` (актуализирован P3.6 — разделы `RunStatus`/
+`stop_reason`/`RunStopKind`) · `docs/03_Dev/database.md`, `docs/03_Dev/ocds-mapping.md`
+(актуализированы P2.6, P3.1–P3.6 их не трогают).
 
 **Open risks:**
+- **Фаза P3 не закрыта формально** — `Phase Handoff` в `phases/P3.md` остаётся скелетом, `plan.md`
+  Status Board несёт P3 как «🟡 In progress» при 6/6 закрытых items: следующая сессия обязана либо
+  прогнать `/task:plan-close 2026.08.06-CRAWL-HARDEN P3` перед P4.1, либо явно принять, что
+  phase-first гейт P4.1 это не блокирует (все items P3 терминальны, формальность закрытия фазы —
+  бухгалтерия, не открытая работа);
+- **Pending Work P3.6** (новое): агрегаты `withCount`/`withSum` по `crawler_run_id` проверены
+  только на тестовом масштабе (1–52 строки `prc_fetches`) — если боевой объём покажет полный скан
+  партиций, агрегат ограничивается окном `started_at`…`finished_at` (if-then Implementation Rules
+  item'а), это НЕ сделано превентивно;
 - **Pending Work P3.2** (унаследовано): `ArchiveWindowScanner::scan()` стоп-гейт останавливает дренаж
   ТЕКУЩЕГО date-окна, но обёртки-дневные-циклы (`ArchiveRunProcessor`/`DeltaScanProcessor`/
   `BacklogRescanProcessor`, вне `Files` P3.2) статус прогона после `scan()` не перечитывают —
@@ -61,13 +84,14 @@ Completion Notes P3.1–P3.5) · `phases/P4.md`–`P9.md` · `research/04-p3-run
 - **загрязнение батч-прогона тестового контура**: `EisSeedersTest`/`StatusMappingSeederTest`
   видят чужие реестры при батч-прогоне, зелёные изолированно (D110) — follow-up вне фазы P2/P3;
 - `migrate:fresh --seed --force` красен на baseline (`EisPlatformSeeder` /
-  `prc_registries.uuid` not-null) — вне Scope P3, не чинилось; dev-БД теперь домигрирована до
-  `…100081` (P3.5 db:seed-гейт), но `fresh --seed` баг это не затрагивает;
+  `prc_registries.uuid` not-null) — вне Scope P3, не чинилось;
 - `pint --test` — 12 предсуществующих style issues на репозитории вне путей P3 — вне Scope;
 - **полный прогон `artisan test --no-tia --compact` красен на baseline** (18 failed: `Prepare/
-  Archive`, `Prepare/Gsfx`, `TextGridRenderer`, `Ai/Llm/CoreKnowsNoDocumentType` — распаковка
-  7z/`tmp_extract`/`memory_limit` и несвязанные с P3 семейства) — вне Scope P2/P3, приёмка следующих
-  items по-прежнему идёт дельтой против baseline (`8728723e`), не «зелено»;
+  Archive`, `Prepare/Gsfx`, `TextGridRenderer`, `Ai/PromptApply`, `Ai/PromptComposition`,
+  `Ai/PromptRoot`, `Llm/GeminiProxyRouting`, `Architecture/CoreKnowsNoDocumentType`,
+  `Procurement/Contour` — распаковка 7z/`tmp_extract`/`memory_limit` и несвязанные с P3 семейства)
+  — вне Scope P2/P3, приёмка следующих items по-прежнему идёт дельтой против baseline (`8728723e`),
+  не «зелено»;
 - остаток F5 (`research`, унаследовано из handoff P1): три строки D-лога (`D26`, `D45`, `D62`)
   несут кросс-плановый id без квалификатора донора;
 - **посторонний дифф в дереве, НЕ созданный этой сессией**: удаления
@@ -78,5 +102,6 @@ Completion Notes P3.1–P3.5) · `phases/P4.md`–`P9.md` · `research/04-p3-run
 (Q13, вне скоупа P2/P3); ветка 223-ФЗ (Q10); предел `okpd2Ids` и долгосрочная стабильность id НСИ
 сверх разового детекта дрейфа P2.5; обёртки-дневные-циклы Archive/Delta/Backlog не перечитывают
 статус прогона после `scan()` (см. Open risks выше); admin-старт Archive-профиля без `from`/`to`
-(Open risks выше). Open questions: Q9, Q10, Q13, Q14 (`prc_daily_stats`, вне скоупа P3), Q15, Q16 —
-`Exploration`, ни один не блокирует P3.6.
+(Open risks выше); агрегаты `prc_fetches` не проверены на боевом объёме (см. Open risks выше).
+Open questions: Q9, Q10, Q13, Q14 (`prc_daily_stats`, вне скоупа P3), Q15, Q16 — `Exploration`, ни
+один не блокирует P4.
