@@ -6,6 +6,8 @@ namespace Database\Seeders\Procurement;
 
 use App\Dto\Procurement\Crawler\EisSearchFilter;
 use App\Enums\Procurement\Crawler\CrawlerMode;
+use App\Enums\Procurement\Crawler\ListingSortField;
+use App\Enums\Procurement\Crawler\RunStopPolicy;
 use App\Enums\Procurement\Crawler\SourceMethod;
 use App\Models\Procurement\Crawler\Crawler;
 use App\Models\Procurement\Platform\Platform;
@@ -106,8 +108,10 @@ final class CrawlerProfileSeeder extends Seeder
 
     /**
      * Профиль 1 — архив (`research/05` §5.2): «завершённые закупки за 2025», окно дат задаёт
-     * `--from`/`--to` команды `crawler:run-archive`, не фильтр; сортировка по возрастанию тоже
-     * ставит сканер (`EisCsvUrlBuilder:78`), профиль её не несёт.
+     * `--from`/`--to` команды `crawler:run-archive`, не фильтр. Сортировка — по дате размещения
+     * ПО ВОЗРАСТАНИЮ (`sortField: Published`, `sortAscending: true`): обучающий корпус читается
+     * от старых закупок к новым, `stop_policy = Default` — политика «только актуальные данные»
+     * (P3.3) осмыслена лишь у fresh-прогона, архивный её не применяет (`Crawler::assertStopPolicy()`).
      */
     private function seedArchiveProfile(Registry $registry): void
     {
@@ -115,9 +119,15 @@ final class CrawlerProfileSeeder extends Seeder
             ['registry_id' => $registry->id, 'name' => 'ЕИС 44-ФЗ — архив 2025 (завершённые)'],
             [
                 'mode' => CrawlerMode::Archive,
+                'stop_policy' => RunStopPolicy::Default,
                 'source_method' => SourceMethod::Csv,
                 'fallback_method' => null,
-                'filter' => new EisSearchFilter(stageCompleted: true, okpd2Codes: ['43']),
+                'filter' => new EisSearchFilter(
+                    stageCompleted: true,
+                    okpd2Codes: ['43'],
+                    sortField: ListingSortField::Published,
+                    sortAscending: true,
+                ),
                 'schedule' => null,
                 'options' => ['columns' => self::COLUMNS],
                 'is_active' => true,
@@ -130,8 +140,11 @@ final class CrawlerProfileSeeder extends Seeder
     /**
      * Профиль 2 — fresh (`research/05` §5.3): обязан видеть ЛЮБОЕ обновление — этапы по-прежнему
      * не фильтруются, виден любой переход; сужен только предметный скоуп (`okpd2Codes: ['43']`,
-     * D18 — фильтр ОКПД2 обязателен для профилей ЕИС). Курсор без окна дат — `FreshRunProcessor`
-     * листает от `from=1` по убыванию даты обновления сам.
+     * D18 — фильтр ОКПД2 обязателен для профилей ЕИС). Сортировка — по дате обновления ПО
+     * УБЫВАНИЮ (`sortField: Updated`, `sortAscending: false`): свежие изменения обязаны идти
+     * первыми, на этом порядке стоит стоп-условие `stop_policy = OnlyFresh` (P3.3) — прогон
+     * останавливается, дойдя до времени старта предыдущего завершённого прогона. Курсор без окна
+     * дат — `FreshRunProcessor` листает от `from=1` сам.
      */
     private function seedFreshProfile(Registry $registry): void
     {
@@ -139,9 +152,14 @@ final class CrawlerProfileSeeder extends Seeder
             ['registry_id' => $registry->id, 'name' => 'ЕИС 44-ФЗ — свежий поток'],
             [
                 'mode' => CrawlerMode::Fresh,
+                'stop_policy' => RunStopPolicy::OnlyFresh,
                 'source_method' => SourceMethod::Csv,
                 'fallback_method' => null,
-                'filter' => new EisSearchFilter(okpd2Codes: ['43']),
+                'filter' => new EisSearchFilter(
+                    okpd2Codes: ['43'],
+                    sortField: ListingSortField::Updated,
+                    sortAscending: false,
+                ),
                 'schedule' => '*/30 * * * *',
                 'options' => ['columns' => self::COLUMNS],
                 'is_active' => false,

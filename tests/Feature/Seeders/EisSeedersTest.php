@@ -3,6 +3,8 @@
 declare(strict_types=1);
 
 use App\Enums\Procurement\Crawler\CrawlerMode;
+use App\Enums\Procurement\Crawler\ListingSortField;
+use App\Enums\Procurement\Crawler\RunStopPolicy;
 use App\Models\Procurement\Crawler\Crawler;
 use App\Models\Procurement\Platform\Platform;
 use App\Models\Procurement\Platform\Registry;
@@ -62,6 +64,29 @@ test('сид заводит два профиля обхода — архивн�
     expect($fresh->is_active)->toBeFalse()
         ->and($fresh->filter->okpd2Codes)->toBe(['43'])
         ->and($fresh->schedule)->toBe('*/30 * * * *');
+});
+
+/**
+ * P3.5: поля сортировки и `stop_policy` — единственная проверка, что заведённые фазами P3.1/P3.3
+ * поля совместимы друг с другом (архивный профиль сортирует по возрастанию даты размещения без
+ * стоп-условия, fresh — по убыванию даты обновления со стоп-условием «только актуальные данные»).
+ */
+test('сид заводит профили с сортировкой выдачи и политикой остановки из брифа', function (): void {
+    $this->seed(EisPlatformSeeder::class);
+    $this->seed(CrawlerProfileSeeder::class);
+
+    $registry = Registry::query()->where('code', 'fz44')->sole();
+    $crawlers = Crawler::query()->where('registry_id', $registry->id)->get()->keyBy('mode');
+
+    $archive = $crawlers[CrawlerMode::Archive->value];
+    expect($archive->filter->sortField)->toBe(ListingSortField::Published)
+        ->and($archive->filter->sortAscending)->toBeTrue()
+        ->and($archive->stop_policy)->toBe(RunStopPolicy::Default);
+
+    $fresh = $crawlers[CrawlerMode::Fresh->value];
+    expect($fresh->filter->sortField)->toBe(ListingSortField::Updated)
+        ->and($fresh->filter->sortAscending)->toBeFalse()
+        ->and($fresh->stop_policy)->toBe(RunStopPolicy::OnlyFresh);
 });
 
 test('повторный прогон сида профилей идемпотентен — число профилей не меняется', function (): void {
