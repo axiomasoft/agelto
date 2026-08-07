@@ -176,7 +176,7 @@ Deliverables другого. P1.3 идёт solo: ему нужен не Playwrig
 | Phase | Title | Items 🟢/всего | Status |
 |:--|:--|:--|:--|
 | P1 | Разведка ЕИС: параметры листинга, ОКПД2, практики, карточка, инвентарь вкладок | 4/5 | 🟠 Done with deviations |
-| P2 | ОКПД2: фильтр профиля и древовидная форма | 0/6 | ⬜ Not started |
+| P2 | ОКПД2: фильтр профиля и древовидная форма | 0/6 | 🟡 In progress |
 | P3 | Профили обхода и управление прогонами из админки | 0/6 | ⬜ Not started |
 | P4 | Надёжность конвейера: бюджет запросов, троттлинг, анти-дубли | 0/6 | ⬜ Not started |
 | P5 | Healthcheck площадки и уведомления | 0/6 | ⬜ Not started |
@@ -328,6 +328,7 @@ Deliverables другого. P1.3 идёт solo: ему нужен не Playwrig
 | 2026-08-07 | plan-run/opus/high | P1.3 закрыт: свод двух тем снят, для ЕИС публичных лимитов нет (`unknown`), заведена D107 `supersedes D45` по форме паузы между попытками, найдены два дефекта боевого кода (плоский retry-backoff, `lazy()` по мутируемой колонке) — детали см. phases/P1.md P1.3 Completion Notes |
 | 2026-08-07 | plan-run/opus/high | P1.5 закрыт 🟠: инвентарь по шести видам снят, вкладок сверх четырёх нет, но перечень зависит от ЭТАПА и сегмент URL — алиасуемый; новых колонок матрица не требует (Q16) — детали см. phases/P1.md P1.5 Completion Notes |
 | 2026-08-07 | plan-close/sonnet/low | Фаза P1 закрыта 🟠 Done with deviations: все 5 items терминальны (4 🟢 + P1.5 🟠), Phase Handoff заполнен, docs-sync — не требуется |
+| 2026-08-07 | plan-exec/sonnet/medium | P2.1 закрыт 🟠: таблица `prc_okpd2_nodes` + модель + фабрика + read-репозиторий + датафайл (34 узла, coverage full из P1.2) + идемпотентный сид; дифф вне Files item'а — регистрация подобласти `Platform` в `DomainLayoutTest` — детали см. phases/P2.md P2.1 Completion Notes |
 
 ## 7. Contracts
 
