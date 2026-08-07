@@ -3,13 +3,18 @@
 declare(strict_types=1);
 
 use App\Dto\Procurement\Crawler\ListingBatch;
+use App\Dto\Procurement\Crawler\ListingCursor;
+use App\Dto\Procurement\ProcurementDetails;
 use App\Enums\Procurement\Crawler\CrawlerMode;
 use App\Enums\Procurement\Crawler\RunStatus;
+use App\Enums\Procurement\Crawler\RunStopKind;
 use App\Enums\Procurement\Crawler\SourceMethod as SourceMethodEnum;
 use App\Models\Procurement\Crawler\Crawler;
 use App\Models\Procurement\Crawler\Run;
 use App\Models\Procurement\Platform\Registry;
+use App\Services\Procurement\Contracts\SourceMethod;
 use App\Services\Procurement\Modes\BacklogRescanProcessor;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Sleep;
@@ -39,6 +44,54 @@ function useBacklogRescanQueueSourceMethod(array $batches): void
     config(['crawler.source_methods' => [
         SourceMethodEnum::Csv->value => QueueSourceMethod::class,
     ]]);
+}
+
+/**
+ * Тот же приём, что `ArchiveRunProcessorTest::useArchiveRunStopSignalingSourceMethod()` (P3.7):
+ * `QueueSourceMethod` не умеет менять состояние строки прогона В ПРОЦЕССЕ обхода — этот двойник
+ * вдобавок к выдаче батча по индексу вызова применяет побочный эффект, симулируя оператора,
+ * нажавшего «Остановить»/«Отменить» МЕЖДУ днями рескана. Возвращает сам двойник — тест читает
+ * `->calls`.
+ *
+ * @param  list<ListingBatch>  $batches
+ * @param  array<int, Closure>  $sideEffectsByCallIndex  0-based индекс вызова → эффект ПОСЛЕ выдачи батча
+ */
+function useBacklogRescanStopSignalingSourceMethod(array $batches, array $sideEffectsByCallIndex = []): object
+{
+    $double = new class($batches, $sideEffectsByCallIndex) implements SourceMethod
+    {
+        public int $calls = 0;
+
+        public function __construct(private readonly array $batches, private readonly array $sideEffects) {}
+
+        public function collectListing(Crawler $crawler, ListingCursor $cursor): ListingBatch
+        {
+            $index = $this->calls;
+            $batch = $this->batches[$index] ?? throw new OutOfBoundsException('стоп-двойник: очередь блоков исчерпана раньше, чем ожидал тест.');
+            $this->calls++;
+
+            ($this->sideEffects[$index] ?? null)?->__invoke();
+
+            return $batch;
+        }
+
+        public function collectDetails(string $registryNumber, Registry $registry): ProcurementDetails
+        {
+            return new ProcurementDetails;
+        }
+
+        public function isAvailable(): bool
+        {
+            return true;
+        }
+    };
+
+    app()->instance($double::class, $double);
+    config(['crawler.source_methods' => [
+        SourceMethodEnum::Csv->value => $double::class,
+    ]]);
+
+    return $double;
 }
 
 beforeEach(function () {
@@ -170,6 +223,83 @@ test('окно рескана сдвигается назад на window_overla
             && $context['from'] === '2024-01-03'
             && $context['to'] === '2024-01-05')
         ->once();
+});
+
+test('стоп-сигнал Pause между днями останавливает рескан целиком, fresh-прогон не помечается rescanned', function () {
+    config(['crawler.tracking.window_overlap_days' => 2]);
+
+    $registry = Registry::factory()->create();
+    $freshCrawler = Crawler::factory()->create(['registry_id' => $registry->id, 'mode' => CrawlerMode::Fresh]);
+    $archiveCrawler = Crawler::factory()->create(['registry_id' => $registry->id, 'mode' => CrawlerMode::Archive, 'is_active' => true]);
+
+    $freshRun = Run::factory()->for($freshCrawler, 'crawler')->create([
+        'status' => RunStatus::Completed,
+        'stats' => ['cap_hit' => true, 'possible_skip_window' => ['from' => '2024-01-05T00:00:00Z', 'to' => '2024-01-05T12:00:00Z']],
+    ]);
+
+    // overlap_days=2, from=2024-01-05 → перекрытое окно [2024-01-03; 2024-01-05] — 3 дня.
+    $sourceMethod = useBacklogRescanStopSignalingSourceMethod(
+        batches: [
+            backlogRescanDrainedBatch(),
+            backlogRescanDrainedBatch(),
+        ],
+        sideEffectsByCallIndex: [
+            0 => fn () => Run::query()->where('crawler_id', $archiveCrawler->id)->update([
+                'stop_requested_at' => Carbon::now(),
+                'stop_kind' => RunStopKind::Pause->value,
+            ]),
+        ],
+    );
+
+    $processed = app(BacklogRescanProcessor::class)->sweep();
+
+    expect($processed)->toBe(0)
+        ->and($sourceMethod->calls)->toBe(1);
+
+    $archiveRun = Run::query()->where('crawler_id', $archiveCrawler->id)->sole();
+    expect($archiveRun->status)->toBe(RunStatus::Paused)
+        ->and($archiveRun->status)->not->toBe(RunStatus::Completed);
+
+    $freshRun->refresh();
+    expect($freshRun->stats['backlog_rescanned_at'] ?? null)->toBeNull();
+});
+
+test('стоп-сигнал Cancel между днями останавливает рескан целиком, fresh-прогон не помечается rescanned', function () {
+    config(['crawler.tracking.window_overlap_days' => 2]);
+
+    $registry = Registry::factory()->create();
+    $freshCrawler = Crawler::factory()->create(['registry_id' => $registry->id, 'mode' => CrawlerMode::Fresh]);
+    $archiveCrawler = Crawler::factory()->create(['registry_id' => $registry->id, 'mode' => CrawlerMode::Archive, 'is_active' => true]);
+
+    $freshRun = Run::factory()->for($freshCrawler, 'crawler')->create([
+        'status' => RunStatus::Completed,
+        'stats' => ['cap_hit' => true, 'possible_skip_window' => ['from' => '2024-01-05T00:00:00Z', 'to' => '2024-01-05T12:00:00Z']],
+    ]);
+
+    $sourceMethod = useBacklogRescanStopSignalingSourceMethod(
+        batches: [
+            backlogRescanDrainedBatch(),
+            backlogRescanDrainedBatch(),
+        ],
+        sideEffectsByCallIndex: [
+            0 => fn () => Run::query()->where('crawler_id', $archiveCrawler->id)->update([
+                'stop_requested_at' => Carbon::now(),
+                'stop_kind' => RunStopKind::Cancel->value,
+            ]),
+        ],
+    );
+
+    $processed = app(BacklogRescanProcessor::class)->sweep();
+
+    expect($processed)->toBe(0)
+        ->and($sourceMethod->calls)->toBe(1);
+
+    $archiveRun = Run::query()->where('crawler_id', $archiveCrawler->id)->sole();
+    expect($archiveRun->status)->toBe(RunStatus::Cancelled)
+        ->and($archiveRun->status)->not->toBe(RunStatus::Completed);
+
+    $freshRun->refresh();
+    expect($freshRun->stats['backlog_rescanned_at'] ?? null)->toBeNull();
 });
 
 test('исключение внутри scan — archive-run failed, флаг остаётся непомеченным', function () {

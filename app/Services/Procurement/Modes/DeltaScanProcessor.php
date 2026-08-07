@@ -7,6 +7,7 @@ namespace App\Services\Procurement\Modes;
 use App\Dto\Procurement\Crawler\ListingCursor;
 use App\Dto\Procurement\Crawler\WindowFilter;
 use App\Enums\Procurement\Crawler\CrawlerMode;
+use App\Enums\Procurement\Crawler\RunStatus;
 use App\Models\Procurement\Crawler\Crawler;
 use App\Models\Procurement\Crawler\Run;
 use App\Services\Procurement\ArchiveWindowScanner;
@@ -63,6 +64,12 @@ final readonly class DeltaScanProcessor
         }
 
         while ($day->lte($to)) {
+            $run->refresh();
+
+            if ($run->status !== RunStatus::Running) {
+                return $run;
+            }
+
             $this->scanner->scan(crawler: $archiveCrawler, run: $run, filter: new WindowFilter(
                 dateField: 'update',
                 dateFrom: $day->copy(),

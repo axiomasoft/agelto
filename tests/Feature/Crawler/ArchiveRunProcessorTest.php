@@ -4,12 +4,16 @@ declare(strict_types=1);
 
 use App\Dto\Procurement\Crawler\ListingBatch;
 use App\Dto\Procurement\Crawler\ListingCursor;
+use App\Dto\Procurement\ProcurementDetails;
 use App\Enums\Procurement\Crawler\CrawlerMode;
 use App\Enums\Procurement\Crawler\RunStatus;
+use App\Enums\Procurement\Crawler\RunStopKind;
 use App\Enums\Procurement\Crawler\SourceMethod as SourceMethodEnum;
 use App\Models\Procurement\Crawler\Crawler;
 use App\Models\Procurement\Crawler\Run;
+use App\Models\Procurement\Platform\Registry;
 use App\Models\Procurement\Procurement;
+use App\Services\Procurement\Contracts\SourceMethod;
 use App\Services\Procurement\Modes\ArchiveRunProcessor;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Storage;
@@ -58,6 +62,54 @@ function useArchiveRunQueueSourceMethod(array $batches): void
     config(['crawler.source_methods' => [
         SourceMethodEnum::Csv->value => QueueSourceMethod::class,
     ]]);
+}
+
+/**
+ * `QueueSourceMethod` не умеет менять состояние строки прогона В ПРОЦЕССЕ обхода — этот
+ * двойник (P3.7) вдобавок к выдаче батча по индексу вызова синхронно применяет побочный эффект
+ * (постановку стоп-сигнала), симулируя оператора, нажавшего «Остановить»/«Отменить» МЕЖДУ днями.
+ * Возвращает сам двойник — тест читает `->calls`, чтобы доказать, что источник НЕ был опрошен
+ * на дне, следующем за тем, где стоп-гейт его обнаружил.
+ *
+ * @param  list<ListingBatch>  $batches
+ * @param  array<int, Closure>  $sideEffectsByCallIndex  0-based индекс вызова → эффект ПОСЛЕ выдачи батча
+ */
+function useArchiveRunStopSignalingSourceMethod(array $batches, array $sideEffectsByCallIndex = []): object
+{
+    $double = new class($batches, $sideEffectsByCallIndex) implements SourceMethod
+    {
+        public int $calls = 0;
+
+        public function __construct(private readonly array $batches, private readonly array $sideEffects) {}
+
+        public function collectListing(Crawler $crawler, ListingCursor $cursor): ListingBatch
+        {
+            $index = $this->calls;
+            $batch = $this->batches[$index] ?? throw new OutOfBoundsException('стоп-двойник: очередь блоков исчерпана раньше, чем ожидал тест.');
+            $this->calls++;
+
+            ($this->sideEffects[$index] ?? null)?->__invoke();
+
+            return $batch;
+        }
+
+        public function collectDetails(string $registryNumber, Registry $registry): ProcurementDetails
+        {
+            return new ProcurementDetails;
+        }
+
+        public function isAvailable(): bool
+        {
+            return true;
+        }
+    };
+
+    app()->instance($double::class, $double);
+    config(['crawler.source_methods' => [
+        SourceMethodEnum::Csv->value => $double::class,
+    ]]);
+
+    return $double;
 }
 
 beforeEach(function () {
@@ -111,5 +163,61 @@ test('оборванный прогон (paused с курсором на 2-м д
 
     expect($run->id)->toBe($existingRun->id)
         ->and($run->status)->toBe(RunStatus::Completed)
+        ->and(Procurement::query()->count())->toBe(1);
+});
+
+test('стоп-сигнал Pause между днями останавливает archive-прогон целиком, следующий день не обходится', function () {
+    $crawler = Crawler::factory()->create(['mode' => CrawlerMode::Archive]);
+
+    $sourceMethod = useArchiveRunStopSignalingSourceMethod(
+        batches: [
+            archiveRunBatch('0173200001234000201', 'sig-day-1'),
+            archiveRunBatch('0173200001234000203', 'sig-day-3-must-not-be-fetched'),
+        ],
+        sideEffectsByCallIndex: [
+            0 => fn () => Run::query()->where('crawler_id', $crawler->id)->update([
+                'stop_requested_at' => Carbon::now(),
+                'stop_kind' => RunStopKind::Pause->value,
+            ]),
+        ],
+    );
+
+    $run = app(ArchiveRunProcessor::class)->run(
+        crawler: $crawler,
+        from: Carbon::parse('2024-01-01'),
+        to: Carbon::parse('2024-01-03'),
+    );
+
+    expect($sourceMethod->calls)->toBe(1)
+        ->and($run->fresh()->status)->toBe(RunStatus::Paused)
+        ->and($run->fresh()->status)->not->toBe(RunStatus::Completed)
+        ->and(Procurement::query()->count())->toBe(1);
+});
+
+test('стоп-сигнал Cancel между днями останавливает archive-прогон целиком, статус терминален', function () {
+    $crawler = Crawler::factory()->create(['mode' => CrawlerMode::Archive]);
+
+    $sourceMethod = useArchiveRunStopSignalingSourceMethod(
+        batches: [
+            archiveRunBatch('0173200001234000301', 'sig-day-1-cancel'),
+            archiveRunBatch('0173200001234000303', 'sig-day-3-must-not-be-fetched'),
+        ],
+        sideEffectsByCallIndex: [
+            0 => fn () => Run::query()->where('crawler_id', $crawler->id)->update([
+                'stop_requested_at' => Carbon::now(),
+                'stop_kind' => RunStopKind::Cancel->value,
+            ]),
+        ],
+    );
+
+    $run = app(ArchiveRunProcessor::class)->run(
+        crawler: $crawler,
+        from: Carbon::parse('2024-01-01'),
+        to: Carbon::parse('2024-01-03'),
+    );
+
+    expect($sourceMethod->calls)->toBe(1)
+        ->and($run->fresh()->status)->toBe(RunStatus::Cancelled)
+        ->and($run->fresh()->status)->not->toBe(RunStatus::Completed)
         ->and(Procurement::query()->count())->toBe(1);
 });

@@ -102,6 +102,13 @@ final readonly class BacklogRescanProcessor
             return false;
         }
 
+        // Кооперативный стоп мог оборвать drainWindow() между днями (P3.7, D111): архивный
+        // прогон тогда носит Paused/Cancelled, а не Running — рескан не считается завершённым,
+        // fresh-прогон НЕ помечается rescanned, иначе потерянное окно станет невидимым навсегда.
+        if ($archiveRun->refresh()->status !== RunStatus::Running) {
+            return false;
+        }
+
         $this->runs->complete(run: $archiveRun);
         $this->runs->markBacklogRescanned(run: $freshRun);
 
@@ -133,6 +140,12 @@ final readonly class BacklogRescanProcessor
         );
 
         while ($day->lte($to)) {
+            $run->refresh();
+
+            if ($run->status !== RunStatus::Running) {
+                return;
+            }
+
             $this->scanner->scan(crawler: $crawler, run: $run, filter: new WindowFilter(
                 dateField: 'update',
                 dateFrom: $day->copy(),

@@ -146,6 +146,17 @@ test('recordCheckpoint наращивает stats.checkpoints, не трогая
         ->and($run->stats['cap_hit'])->toBeTrue();
 });
 
+test('complete на прогоне, который уже НЕ Running — тихий no-op, статус и finished_at не меняются', function () {
+    $crawler = Crawler::factory()->create();
+    $run = Run::factory()->for($crawler)->create(['status' => RunStatus::Paused, 'finished_at' => null]);
+
+    app(CrawlerRunManager::class)->complete($run);
+
+    $run->refresh();
+    expect($run->status)->toBe(RunStatus::Paused)
+        ->and($run->finished_at)->toBeNull();
+});
+
 test('complete и fail ставят терминальный статус и finished_at', function () {
     $crawler = Crawler::factory()->create();
     $manager = app(CrawlerRunManager::class);

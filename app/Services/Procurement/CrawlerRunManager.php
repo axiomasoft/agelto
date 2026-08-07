@@ -154,11 +154,26 @@ final readonly class CrawlerRunManager
         ]);
     }
 
+    /**
+     * Переводит прогон в `Completed` ТОЛЬКО из `Running` (P3.7, D111): владелец состояния
+     * прогона один, вторую проверку статуса перед вызовом обёртки не заводят — вызывающий цикл
+     * мог быть остановлен кооперативно между итерациями, и такой прогон уже носит
+     * `Paused`/`Cancelled`. На любом другом статусе — тихий идемпотентный no-op (условие
+     * проверяется в самом `UPDATE`, а не через ранее прочитанный `$run->status`, иначе гонка
+     * между чтением и записью осталась бы открытой). `$run->refresh()` после транзакции
+     * синхронизирует переданный инстанс с фактической строкой — вызывающий код (все три
+     * обёртки) возвращает этот же `$run` наружу.
+     */
     public function complete(Run $run): void
     {
         DB::transaction(function () use ($run): void {
-            $run->update(['status' => RunStatus::Completed, 'finished_at' => now()]);
+            Run::query()
+                ->whereKey($run->getKey())
+                ->where('status', RunStatus::Running)
+                ->update(['status' => RunStatus::Completed, 'finished_at' => now()]);
         });
+
+        $run->refresh();
     }
 
     /**
