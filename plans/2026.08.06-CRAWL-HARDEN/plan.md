@@ -177,7 +177,7 @@ Deliverables другого. P1.3 идёт solo: ему нужен не Playwrig
 |:--|:--|:--|:--|
 | P1 | Разведка ЕИС: параметры листинга, ОКПД2, практики, карточка, инвентарь вкладок | 4/5 | 🟠 Done with deviations |
 | P2 | ОКПД2: фильтр профиля и древовидная форма | 2/6 | 🟠 Done with deviations |
-| P3 | Профили обхода и управление прогонами из админки | 1/6 | 🟡 In progress |
+| P3 | Профили обхода и управление прогонами из админки | 2/6 | 🟡 In progress |
 | P4 | Надёжность конвейера: бюджет запросов, троттлинг, анти-дубли | 0/6 | ⬜ Not started |
 | P5 | Healthcheck площадки и уведомления | 0/6 | ⬜ Not started |
 | P6 | Статусы, история изменений закупки, событие «закупка состоялась» | 0/5 | ⬜ Not started |
@@ -342,6 +342,7 @@ Deliverables другого. P1.3 идёт solo: ему нужен не Playwrig
 | 2026-08-07 | plan-run/sonnet/high | P3.1 закрыт 🟠: enum `ListingSortField` + два поля `EisSearchFilter` (`sortField`/`sortAscending`, конец конструктора) + `EisCsvUrlBuilder::sortParams()` (прежний дефолт при `null`, archive-курсор перекрывает безусловно) + два поля формы; статус 🟠 — полный прогон 18 failed на предсуществующем baseline (D110, `Prepare/Archive`/`Gsfx`/`TextGridRenderer`), вне `Files` item'а — детали см. phases/P3.md P3.1 Completion Notes |
 | 2026-08-07 | plan-run/sonnet/high | P3.2 закрыт 🟠: `CrawlRunJob` на очереди `crawl` (checkpoint-requeue, `ShouldBeUniqueUntilProcessing`) + кооперативный стоп-гейт (`RunStopGate`/`RunStopKind`/`CrawlerRunManager::pause,cancel`) в `FreshRunProcessor`/`ArchiveWindowScanner` + `crawler:recover-stale` в расписании + команды стали тонкими диспетчерами; статус 🟠 — та же предсуществующая baseline-краснота (18 failed / 12 pint), Δ=0; Pending Work — обёртки-дневные-циклы Archive/Delta/Backlog не перечитывают статус после `scan()` — детали см. phases/P3.md P3.2 Completion Notes |
 | 2026-08-07 | plan-run/sonnet/high | P3.3 закрыт 🟢: `RunStopPolicy` (`Default`/`OnlyFresh`) + `stop_policy` на профиле, третий гейт записи `mode=fresh`, стоп-условие `FreshRunProcessor` по времени старта предыдущего завершённого прогона (порог один раз на старте, граница «на пороге» = стоп), все три стоп-условия пишут различимый `stats.stop_reason`; 7 новых + 2 расширенных теста, Δ=0 на полном прогоне — детали см. phases/P3.md P3.3 Completion Notes |
+| 2026-08-07 | plan-exec/sonnet/medium | P3.4 закрыт 🟢: `StartCrawlerRunAction`/`RequestRunStopAction` — единственный носитель правила «можно ли запускать/останавливать», зовут и консольные команды, и кнопки; пять операторских действий («Запустить»/«Запустить с начала»/«Продолжить» на `CrawlersTable`, «Остановить»/«Отменить» на `RunsTable`+`ViewRun`), `CrawlerRunAlreadyActive`/`RunAlreadyTerminal`; 11 новых тестов, Δ=0 на полном прогоне — детали см. phases/P3.md P3.4 Completion Notes |
 
 ## 7. Contracts
 
