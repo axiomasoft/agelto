@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Database\Factories\Procurement\Crawler;
 
+use App\Dto\Procurement\Crawler\EisSearchFilter;
 use App\Enums\Procurement\Crawler\CrawlerMode;
 use App\Enums\Procurement\Crawler\SourceMethod;
 use App\Models\Procurement\Crawler\Crawler;
@@ -26,7 +27,10 @@ final class CrawlerFactory extends Factory
             'mode' => CrawlerMode::Fresh,
             'source_method' => SourceMethod::Csv,
             'fallback_method' => SourceMethod::Html,
-            'filter' => null,
+            // После D18 дефолт `null` отдаёт НЕСОХРАНЯЕМУЮ модель для реестра fz44 (гейт
+            // `Crawler::saving()` требует скоуп) — контракт фабрики в этом репозитории обязывает
+            // отдавать валидный дефолт (D108).
+            'filter' => new EisSearchFilter(okpd2Codes: ['43']),
             'schedule' => '*/15 * * * *',
             'options' => [
                 'records_per_page' => fake()->numberBetween(int1: 20, int2: 100),

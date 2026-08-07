@@ -59,7 +59,7 @@ test('сид заводит два профиля обхода — архивн�
 
     $fresh = $crawlers[CrawlerMode::Fresh->value];
     expect($fresh->is_active)->toBeFalse()
-        ->and($fresh->filter)->toBeNull()
+        ->and($fresh->filter->okpd2Codes)->toBe(['43'])
         ->and($fresh->schedule)->toBe('*/30 * * * *');
 });
 

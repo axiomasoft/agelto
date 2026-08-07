@@ -9,7 +9,7 @@ use Tests\Support\Doubles\Crawler\CrawlerWithRegistry;
 test('buildQueryParams переводит поля типизированного фильтра в параметры ЕИС и добавляет from/to/sort', function () {
     $crawler = CrawlerWithRegistry::make(
         registryCode: 'fz44',
-        filter: ['stageCompleted' => true, 'priceFrom' => 100000],
+        filter: ['stageCompleted' => true, 'priceFrom' => 100000, 'okpd2Codes' => ['43']],
         options: null,
     );
 
@@ -26,7 +26,7 @@ test('buildQueryParams переводит поля типизированног�
 test('buildQueryParams не эмитит ключ выключенного этапа и незаполненного поля', function () {
     $crawler = CrawlerWithRegistry::make(
         registryCode: 'fz44',
-        filter: ['stageCompleted' => true, 'stageApplications' => false],
+        filter: ['stageCompleted' => true, 'stageApplications' => false, 'okpd2Codes' => ['43']],
         options: null,
     );
 
@@ -46,7 +46,7 @@ test('buildQueryParams не эмитит ключ выключенного эт�
 test('buildQueryParams форматирует даты фильтра в d.m.Y, а типизированное значение остаётся в DTO', function () {
     $crawler = CrawlerWithRegistry::make(
         registryCode: 'fz44',
-        filter: ['publishedFrom' => '2025-03-15', 'publishedTo' => '2025-03-31'],
+        filter: ['publishedFrom' => '2025-03-15', 'publishedTo' => '2025-03-31', 'okpd2Codes' => ['43']],
         options: null,
     );
 
@@ -59,7 +59,7 @@ test('buildQueryParams форматирует даты фильтра в d.m.Y, 
 test('buildQueryParams переносит searchString и morphology как есть', function () {
     $crawler = CrawlerWithRegistry::make(
         registryCode: 'fz44',
-        filter: ['searchString' => 'ремонт кровли', 'morphology' => true, 'priceTo' => 5000000],
+        filter: ['searchString' => 'ремонт кровли', 'morphology' => true, 'priceTo' => 5000000, 'okpd2Codes' => ['43']],
         options: null,
     );
 
@@ -74,7 +74,7 @@ test('buildQueryParams archive-ветка перекрывает даты фил
     config(['crawler.archive.date_format' => 'd.m.Y']);
     $crawler = CrawlerWithRegistry::make(
         registryCode: 'fz44',
-        filter: ['publishedFrom' => '2025-03-15', 'publishedTo' => '2025-03-31'],
+        filter: ['publishedFrom' => '2025-03-15', 'publishedTo' => '2025-03-31', 'okpd2Codes' => ['43']],
         options: null,
     );
     $cursor = new ListingCursor(blockFrom: 1, day: '2024-03-15', priceStack: ['0:500000']);

@@ -19,7 +19,10 @@ final class RegistryFactory extends Factory
     {
         return [
             'platform_id' => Platform::factory(),
-            'code' => fake()->randomElement(['fz44', 'fz223']),
+            // `config('crawler.filters')` знает ровно один код — `fz44`; случайный выбор делал бы
+            // гейт скоупа `Crawler::saving()` флаки (D108, research/11 §2). Тестам, которым нужен
+            // `fz223`, задают код ЯВНО.
+            'code' => 'fz44',
             'name' => fake()->words(asText: true),
             'settings' => [
                 'records_per_page' => fake()->numberBetween(int1: 20, int2: 100),

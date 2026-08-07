@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Dto\Procurement\Crawler;
 
 use App\Dto\Procurement\Crawler\Contracts\HasPriceRange;
+use App\Dto\Procurement\Crawler\Contracts\RequiresScope;
 use Carbon\CarbonImmutable;
 use Illuminate\Contracts\Support\Arrayable;
 use Illuminate\Validation\ValidationException;
@@ -24,7 +25,7 @@ use Spatie\LaravelData\Support\Validation\ValidationContext;
  * `priceFromGeneral`, …) и формат даты `d.m.Y` остаются в `EisCsvUrlBuilder` — единственном
  * носителе ЕИС-специфики (Code Guidance P4.3).
  */
-final class EisSearchFilter extends Data implements HasPriceRange
+final class EisSearchFilter extends Data implements HasPriceRange, RequiresScope
 {
     /**
      * Единственный источник истины по допустимым ключам `prc_crawlers.filter` — используется
@@ -45,6 +46,7 @@ final class EisSearchFilter extends Data implements HasPriceRange
         'publishedTo',
         'searchString',
         'morphology',
+        'okpd2Codes',
     ];
 
     public function __construct(
@@ -80,6 +82,15 @@ final class EisSearchFilter extends Data implements HasPriceRange
         public ?string $searchString = null,
         /** Морфология поиска (`morphology`); имеет смысл только вместе с `searchString`. */
         public bool $morphology = false,
+        /**
+         * Предметный скоуп профиля — КОДЫ ОКПД2 (не внутренние id площадки, D9): в запрос они
+         * приведут к `okpd2Ids` + `okpd2IdsWithNested=on` после резолва по карте
+         * `prc_okpd2_nodes` (P2.3), сам резолв здесь не живёт — DTO остаётся конструируемым без
+         * БД. Пустым быть не может (D18): профиль без скоупа расширяет выборку на весь реестр.
+         *
+         * @var list<string>
+         */
+        public array $okpd2Codes = [],
     ) {}
 
     /**
@@ -115,6 +126,12 @@ final class EisSearchFilter extends Data implements HasPriceRange
             // пустую выгрузку (Р-4). Нет верхней границы — поле остаётся `null`.
             'priceTo' => ['nullable', 'integer', 'min:1'],
             'priceFrom' => ['nullable', 'integer', 'min:0'],
+            // Обязательность — решение владельца (D18), а не удобство: см. докблок поля.
+            'okpd2Codes' => ['required', 'array', 'min:1'],
+            // Только форма кода и только как защита от мусора: проверка «код есть в карте»
+            // здесь ЗАПРЕЩЕНА — членство обеспечивают форма (предлагает коды карты) и билдер
+            // (отказ при нерезолве, D21), а `Data`-класс обязан строиться без БД.
+            'okpd2Codes.*' => ['string', 'regex:/^([A-Z]|\d{2}(\.\d+)*)$/'],
         ];
     }
 
@@ -130,5 +147,10 @@ final class EisSearchFilter extends Data implements HasPriceRange
         }
 
         return sprintf('%d:%d', $this->priceFrom ?? 0, $this->priceTo);
+    }
+
+    public function hasScope(): bool
+    {
+        return $this->okpd2Codes !== [];
     }
 }

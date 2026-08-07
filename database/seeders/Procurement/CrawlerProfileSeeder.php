@@ -116,7 +116,7 @@ final class CrawlerProfileSeeder extends Seeder
                 'mode' => CrawlerMode::Archive,
                 'source_method' => SourceMethod::Csv,
                 'fallback_method' => null,
-                'filter' => new EisSearchFilter(stageCompleted: true),
+                'filter' => new EisSearchFilter(stageCompleted: true, okpd2Codes: ['43']),
                 'schedule' => null,
                 'options' => ['columns' => self::COLUMNS],
                 'is_active' => true,
@@ -127,9 +127,10 @@ final class CrawlerProfileSeeder extends Seeder
     }
 
     /**
-     * Профиль 2 — fresh (`research/05` §5.3): обязан видеть ЛЮБОЕ обновление — фильтр по этапу
-     * отсёк бы переходы, ради которых профиль существует, поэтому `filter=null`. Курсор без окна
-     * дат — `FreshRunProcessor` листает от `from=1` по убыванию даты обновления сам.
+     * Профиль 2 — fresh (`research/05` §5.3): обязан видеть ЛЮБОЕ обновление — этапы по-прежнему
+     * не фильтруются, виден любой переход; сужен только предметный скоуп (`okpd2Codes: ['43']`,
+     * D18 — фильтр ОКПД2 обязателен для профилей ЕИС). Курсор без окна дат — `FreshRunProcessor`
+     * листает от `from=1` по убыванию даты обновления сам.
      */
     private function seedFreshProfile(Registry $registry): void
     {
@@ -139,7 +140,7 @@ final class CrawlerProfileSeeder extends Seeder
                 'mode' => CrawlerMode::Fresh,
                 'source_method' => SourceMethod::Csv,
                 'fallback_method' => null,
-                'filter' => null,
+                'filter' => new EisSearchFilter(okpd2Codes: ['43']),
                 'schedule' => '*/30 * * * *',
                 'options' => ['columns' => self::COLUMNS],
                 'is_active' => false,

@@ -37,7 +37,7 @@ test('collectListing конвертирует win1251-тело в UTF-8 и ст�
     ]);
 
     $registry = Registry::factory()->create(['code' => 'fz44']);
-    $crawler = Crawler::factory()->for($registry)->create(['filter' => null]);
+    $crawler = Crawler::factory()->for($registry)->create(['filter' => ['okpd2Codes' => ['43']]]);
     $cursor = new ListingCursor(blockFrom: 1);
 
     $batch = app(CsvSourceMethod::class)->collectListing($crawler, $cursor);
@@ -75,7 +75,7 @@ test('dedupSignature вычисляется по колонке «Реестро
     ]);
 
     $registry = Registry::factory()->create(['code' => 'fz44']);
-    $crawler = Crawler::factory()->for($registry)->create(['filter' => null]);
+    $crawler = Crawler::factory()->for($registry)->create(['filter' => ['okpd2Codes' => ['43']]]);
     $cursor = new ListingCursor(blockFrom: 1);
 
     $batch = app(CsvSourceMethod::class)->collectListing($crawler, $cursor);
@@ -94,7 +94,7 @@ test('ретрай на 500 забирает второй ответ фикст�
     ]);
 
     $registry = Registry::factory()->create(['code' => 'fz44']);
-    $crawler = Crawler::factory()->for($registry)->create(['filter' => null]);
+    $crawler = Crawler::factory()->for($registry)->create(['filter' => ['okpd2Codes' => ['43']]]);
     $cursor = new ListingCursor(blockFrom: 1);
 
     $batch = app(CsvSourceMethod::class)->collectListing($crawler, $cursor);
@@ -116,7 +116,7 @@ test('пустой ответ 200 повторяется и итог собир�
     ]);
 
     $registry = Registry::factory()->create(['code' => 'fz44']);
-    $crawler = Crawler::factory()->for($registry)->create(['filter' => null]);
+    $crawler = Crawler::factory()->for($registry)->create(['filter' => ['okpd2Codes' => ['43']]]);
     $cursor = new ListingCursor(blockFrom: 1);
 
     $batch = app(CsvSourceMethod::class)->collectListing($crawler, $cursor);
@@ -136,7 +136,7 @@ test('query-параметры запроса содержат from/to, флаг
     ]);
 
     $registry = Registry::factory()->create(['code' => 'fz44']);
-    $crawler = Crawler::factory()->for($registry)->create(['filter' => ['stageCompleted' => true]]);
+    $crawler = Crawler::factory()->for($registry)->create(['filter' => ['stageCompleted' => true, 'okpd2Codes' => ['43']]]);
     $cursor = new ListingCursor(blockFrom: 501);
 
     $batch = app(CsvSourceMethod::class)->collectListing($crawler, $cursor);
@@ -166,7 +166,7 @@ test('собранный ListingBatch несёт id узла, который р�
     ]);
 
     $registry = Registry::factory()->create(['code' => 'fz44']);
-    $crawler = Crawler::factory()->for($registry)->create(['filter' => null]);
+    $crawler = Crawler::factory()->for($registry)->create(['filter' => ['okpd2Codes' => ['43']]]);
     $cursor = new ListingCursor(blockFrom: 1);
 
     $batch = app(CsvSourceMethod::class)->collectListing($crawler, $cursor);
@@ -182,7 +182,7 @@ test('без активного прокси скоупа crawl_listing резо
     ]);
 
     $registry = Registry::factory()->create(['code' => 'fz44']);
-    $crawler = Crawler::factory()->for($registry)->create(['filter' => null]);
+    $crawler = Crawler::factory()->for($registry)->create(['filter' => ['okpd2Codes' => ['43']]]);
     $cursor = new ListingCursor(blockFrom: 1);
 
     expect(fn () => app(CsvSourceMethod::class)->collectListing($crawler, $cursor))
@@ -201,7 +201,7 @@ test('профиль с proxy_country=RU при пуле из RU и DE полу�
     ]);
 
     $registry = Registry::factory()->create(['code' => 'fz44']);
-    $crawler = Crawler::factory()->for($registry)->create(['filter' => null, 'proxy_country' => 'RU']);
+    $crawler = Crawler::factory()->for($registry)->create(['filter' => ['okpd2Codes' => ['43']], 'proxy_country' => 'RU']);
     $cursor = new ListingCursor(blockFrom: 1);
 
     $batch = app(CsvSourceMethod::class)->collectListing($crawler, $cursor);
@@ -220,7 +220,7 @@ test('профиль с use_proxy=false не вызывает резолвер �
     ]);
 
     $registry = Registry::factory()->create(['code' => 'fz44']);
-    $crawler = Crawler::factory()->for($registry)->create(['filter' => null, 'use_proxy' => false]);
+    $crawler = Crawler::factory()->for($registry)->create(['filter' => ['okpd2Codes' => ['43']], 'use_proxy' => false]);
     $cursor = new ListingCursor(blockFrom: 1);
 
     $batch = app(CsvSourceMethod::class)->collectListing($crawler, $cursor);
@@ -245,7 +245,7 @@ test('успешный запрос листинга пишет latency_ms_avg �
     ]);
 
     $registry = Registry::factory()->create(['code' => 'fz44']);
-    $crawler = Crawler::factory()->for($registry)->create(['filter' => null]);
+    $crawler = Crawler::factory()->for($registry)->create(['filter' => ['okpd2Codes' => ['43']]]);
     $cursor = new ListingCursor(blockFrom: 1);
 
     app(CsvSourceMethod::class)->collectListing($crawler, $cursor);
@@ -267,7 +267,7 @@ test('запрос листинга несёт verify из карты crawler.tl
     });
 
     $registry = Registry::factory()->create(['code' => 'fz44']);
-    $crawler = Crawler::factory()->for($registry)->create(['filter' => null]);
+    $crawler = Crawler::factory()->for($registry)->create(['filter' => ['okpd2Codes' => ['43']]]);
     $cursor = new ListingCursor(blockFrom: 1);
 
     app(CsvSourceMethod::class)->collectListing($crawler, $cursor);

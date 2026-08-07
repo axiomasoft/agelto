@@ -170,7 +170,7 @@ test('стартовый ценовой стек берётся из priceTo ф�
     $registry = Registry::factory()->create(['code' => 'fz44']);
 
     $crawlerWithPrice = Crawler::factory()
-        ->filter(new EisSearchFilter(priceTo: 200_000_000))
+        ->filter(new EisSearchFilter(priceTo: 200_000_000, okpd2Codes: ['43']))
         ->create(['registry_id' => $registry->id, 'mode' => CrawlerMode::Archive]);
     $runWithPrice = Run::factory()->for($crawlerWithPrice)->create(['cursor' => null]);
 

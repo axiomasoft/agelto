@@ -7,7 +7,9 @@ use App\Enums\Procurement\Crawler\CrawlerMode;
 use App\Enums\Procurement\Crawler\SourceMethod;
 use App\Filament\Resources\Procurement\Crawler\Proxies\Schemas\ProxyForm;
 use App\Models\Procurement\Crawler\Crawler;
+use App\Models\Procurement\Platform\Okpd2Node;
 use App\Models\Procurement\Platform\Registry;
+use App\Repositories\Procurement\Platform\Okpd2NodeReadRepository;
 use App\Services\Procurement\CrawlerFilterFactory;
 use App\Services\Procurement\Eis\EisCsvUrlBuilder;
 use Cron\CronExpression;
@@ -97,7 +99,10 @@ class CrawlerForm
                 Fieldset::make('Фильтр площадки')
                     ->columnSpanFull()
                     ->schema(
-                        fn (Get $get): array => self::filterFields(filterClass: self::resolveFilterClass(registryId: $get('registry_id'))),
+                        fn (Get $get): array => self::filterFields(
+                            filterClass: self::resolveFilterClass(registryId: $get('registry_id')),
+                            registryId: $get('registry_id'),
+                        ),
                     ),
                 CheckboxList::make('options.columns')
                     ->label('Колонки CSV-выгрузки')
@@ -176,16 +181,60 @@ class CrawlerForm
     }
 
     /**
+     * Опции минимального мультиселекта ОКПД2 (D109) — плоский список площадки выбранного
+     * реестра, чистой функцией из коллекции репозитория, без запроса в цикле. Группировка,
+     * поиск и подпись пустой карты — доводка P2.4.
+     *
+     * @return array<string, string>
+     */
+    private static function okpd2CodeOptions(mixed $registryId): array
+    {
+        if (! is_numeric($registryId)) {
+            return [];
+        }
+
+        $registry = Registry::find($registryId);
+
+        if (! $registry instanceof Registry) {
+            return [];
+        }
+
+        return app(Okpd2NodeReadRepository::class)
+            ->selectableNodes(platformId: $registry->platform_id)
+            ->mapWithKeys(static fn (Okpd2Node $node): array => [
+                (string) $node->getAttribute('code') => sprintf(
+                    '%s — %s',
+                    (string) $node->getAttribute('code'),
+                    (string) $node->getAttribute('name'),
+                ),
+            ])
+            ->all();
+    }
+
+    /**
      * Поля секции «Фильтр площадки» — по резолвленному классу фильтра, не по коду реестра
      * (`if ($code === 'fz44')` запрещён Implementation Rules п. 1): другая площадка со своим
      * `Data`-классом в `config('crawler.filters')` получает свою ветку здесь же.
      *
      * @return array<int, mixed>
      */
-    private static function filterFields(?string $filterClass): array
+    private static function filterFields(?string $filterClass, mixed $registryId): array
     {
         return match ($filterClass) {
             EisSearchFilter::class => [
+                Select::make('filter.okpd2Codes')
+                    ->label('ОКПД2')
+                    ->multiple()
+                    ->required()
+                    ->options(self::okpd2CodeOptions(registryId: $registryId))
+                    // Чисто числовой код («43») PHP превращает в int-ключ массива опций —
+                    // `EisSearchFilter::rules()` требует `string` (Implementation Rules п. 2:
+                    // DTO не смягчается ради формы), поэтому состояние приводится обратно к строкам.
+                    ->dehydrateStateUsing(static fn (mixed $state): array => array_map(
+                        strval(...),
+                        is_array($state) ? $state : [],
+                    ))
+                    ->helperText('Параметр ЕИС: okpd2Ids. Профиль обязан нести хотя бы один узел.'),
                 Toggle::make('filter.stageApplications')
                     ->label('Этап «Подача заявок»')
                     ->helperText('Параметр ЕИС: af'),
