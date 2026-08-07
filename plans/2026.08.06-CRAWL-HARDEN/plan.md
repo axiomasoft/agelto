@@ -177,7 +177,7 @@ Deliverables другого. P1.3 идёт solo: ему нужен не Playwrig
 |:--|:--|:--|:--|
 | P1 | Разведка ЕИС: параметры листинга, ОКПД2, практики, карточка, инвентарь вкладок | 4/5 | 🟠 Done with deviations |
 | P2 | ОКПД2: фильтр профиля и древовидная форма | 2/6 | 🟠 Done with deviations |
-| P3 | Профили обхода и управление прогонами из админки | 0/6 | ⬜ Not started |
+| P3 | Профили обхода и управление прогонами из админки | 0/6 | 🟡 In progress |
 | P4 | Надёжность конвейера: бюджет запросов, троттлинг, анти-дубли | 0/6 | ⬜ Not started |
 | P5 | Healthcheck площадки и уведомления | 0/6 | ⬜ Not started |
 | P6 | Статусы, история изменений закупки, событие «закупка состоялась» | 0/5 | ⬜ Not started |
@@ -339,6 +339,7 @@ Deliverables другого. P1.3 идёт solo: ему нужен не Playwrig
 | 2026-08-07 | plan-run/opus/high | P2.5 закрыт 🟠: команда `crawler:okpd2-sync` + синхронизатор + store-репозиторий + секция `okpd2` конфига + синтетическая фикстура и 6 тестов; статус 🟠 — три строки Validation («grep zakupki пусто», «pint зелено», «полный прогон зелено») красны идентично на baseline — детали см. phases/P2.md P2.5 Completion Notes |
 | 2026-08-07 | plan-exec/sonnet/medium | P2.6 закрыт 🟠 (последний item фазы): мёртвая ветка ОКПД2 листинга снесена — маппер, DTO снимка, репозиторий, модель, `PostgresTextArrayCast` (единственный потребитель), фабрика, витрина, `scopeOkpd2Csv` в сиде, drop-миграция с обратимым `down()`, доки; статус 🟠 — три строки Validation (`pint --test`, `migrate:fresh --seed`, полный прогон) красны идентично на baseline, Δ = 0 везде — детали см. phases/P2.md P2.6 Completion Notes |
 | 2026-08-07 | plan-close/sonnet/low | Фаза P2 закрыта 🟠 Done with deviations: все 6 items терминальны (P2.2/P2.4 🟢, P2.1/P2.3/P2.5/P2.6 🟠), Phase Handoff заполнен, docs-sync — обновлено (`docs/03_Dev/database.md`, `docs/03_Dev/ocds-mapping.md`, вошло в коммит P2.6) |
+| 2026-08-07 | plan-run/sonnet/high | P3.1 закрыт 🟠: enum `ListingSortField` + два поля `EisSearchFilter` (`sortField`/`sortAscending`, конец конструктора) + `EisCsvUrlBuilder::sortParams()` (прежний дефолт при `null`, archive-курсор перекрывает безусловно) + два поля формы; статус 🟠 — полный прогон 18 failed на предсуществующем baseline (D110, `Prepare/Archive`/`Gsfx`/`TextGridRenderer`), вне `Files` item'а — детали см. phases/P3.md P3.1 Completion Notes |
 
 ## 7. Contracts
 
