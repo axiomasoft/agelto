@@ -6,12 +6,14 @@ namespace App\Models\Procurement\Crawler;
 
 use App\Enums\Procurement\Crawler\RunStatus;
 use App\Enums\Procurement\Crawler\RunStopKind;
+use App\Models\User;
 use Database\Factories\Procurement\Crawler\RunFactory;
 use Illuminate\Database\Eloquent\Attributes\UseFactory;
 use Illuminate\Database\Eloquent\Casts\AsCollection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 
@@ -85,5 +87,15 @@ final class Run extends Model
     public function crawler(): BelongsTo
     {
         return $this->belongsTo(related: Crawler::class);
+    }
+
+    public function fetches(): HasMany
+    {
+        return $this->hasMany(related: Fetch::class, foreignKey: 'crawler_run_id');
+    }
+
+    public function stopRequestedBy(): BelongsTo
+    {
+        return $this->belongsTo(related: User::class, foreignKey: 'stop_requested_by');
     }
 }

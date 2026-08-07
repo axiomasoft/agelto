@@ -41,10 +41,18 @@ class RunResource extends Resource
         return RunsTable::configure($table);
     }
 
-    // Eager-load связи, показанной в таблице (crawler.name) — против N+1 в листинге.
+    /**
+     * Eager-load связи (`crawler.name`) + агрегаты по блокам БАЗОЙ (`withCount`/`withSum`), не
+     * выборкой всех строк в PHP: `prc_fetches` партиционирована и растёт на каждый блок каждого
+     * прогона (Implementation Rule 1, P3.6).
+     */
     public static function getEloquentQuery(): Builder
     {
-        return parent::getEloquentQuery()->with('crawler');
+        return parent::getEloquentQuery()
+            ->with('crawler')
+            ->withCount('fetches')
+            ->withSum('fetches as fetches_rows_new_sum', 'rows_new')
+            ->withSum('fetches as fetches_rows_updated_sum', 'rows_updated');
     }
 
     public static function getPages(): array

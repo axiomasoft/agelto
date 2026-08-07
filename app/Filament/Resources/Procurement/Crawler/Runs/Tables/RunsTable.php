@@ -7,12 +7,17 @@ use App\Exceptions\Procurement\OperationFailed;
 use App\Guards\Admin\Permissions\RunPermission;
 use App\Models\Procurement\Crawler\Run;
 use App\Services\Procurement\Crawler\RequestRunStopAction;
+use Carbon\CarbonInterface;
 use Filament\Actions\Action;
 use Filament\Actions\ViewAction;
+use Filament\Forms\Components\DatePicker;
 use Filament\Notifications\Notification;
 use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Filters\Filter;
+use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Auth;
 
 class RunsTable
@@ -21,28 +26,57 @@ class RunsTable
     {
         return $table
             ->columns([
+                TextColumn::make('status')
+                    ->label('Статус')
+                    ->badge()
+                    ->color(static fn (RunStatus $state): string => self::statusColor($state)),
                 TextColumn::make('crawler.name')
+                    ->label('Профиль')
                     ->searchable(),
                 TextColumn::make('started_at')
+                    ->label('Начат')
                     ->dateTime()
                     ->sortable(),
                 TextColumn::make('finished_at')
+                    ->label('Завершён')
                     ->dateTime()
+                    ->placeholder('—')
                     ->sortable(),
-                TextColumn::make('last_heartbeat_at')
-                    ->dateTime()
-                    ->sortable(),
-                TextColumn::make('attempts')
+                TextColumn::make('duration')
+                    ->label('Длительность')
+                    ->state(fn (Run $record): ?string => $record->started_at === null
+                        ? null
+                        : $record->started_at->diffForHumans($record->finished_at ?? now(), syntax: CarbonInterface::DIFF_ABSOLUTE))
+                    ->placeholder('—'),
+                TextColumn::make('fetches_count')
+                    ->label('Блоков')
                     ->numeric()
                     ->sortable(),
-                TextColumn::make('last_error_at')
-                    ->dateTime()
+                TextColumn::make('fetches_rows_new_sum')
+                    ->label('Новых строк')
+                    ->numeric()
+                    ->placeholder('0')
                     ->sortable(),
-                TextColumn::make('next_retry_at')
-                    ->dateTime()
+                TextColumn::make('fetches_rows_updated_sum')
+                    ->label('Обновлённых строк')
+                    ->numeric()
+                    ->placeholder('0')
                     ->sortable(),
-                IconColumn::make('failed_permanently')
+                TextColumn::make('stop_reason')
+                    ->label('Причина остановки')
+                    ->state(fn (Run $record): ?string => $record->stats?->get('stop_reason'))
+                    ->placeholder('—'),
+                IconColumn::make('cap_hit')
+                    ->label('Возможен пропуск')
+                    ->state(fn (Run $record): bool => (bool) $record->stats?->get('cap_hit'))
                     ->boolean(),
+                TextColumn::make('attempts')
+                    ->numeric()
+                    ->sortable()
+                    ->toggleable(isToggledHiddenByDefault: true),
+                IconColumn::make('failed_permanently')
+                    ->boolean()
+                    ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('created_at')
                     ->dateTime()
                     ->sortable()
@@ -52,8 +86,15 @@ class RunsTable
                     ->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),
             ])
+            ->defaultSort('started_at', 'desc')
             ->filters([
-                //
+                SelectFilter::make('crawler_id')
+                    ->label('Профиль')
+                    ->relationship('crawler', 'name'),
+                SelectFilter::make('status')
+                    ->label('Статус')
+                    ->options(collect(RunStatus::cases())->pluck('value', 'value')->all()),
+                self::startedAtRangeFilter(),
             ])
             // Мутации — только остановка/отмена уже идущего прогона (P3.4), не create/edit/delete.
             ->recordActions([
@@ -61,6 +102,37 @@ class RunsTable
                 self::pauseAction(),
                 self::cancelAction(),
             ]);
+    }
+
+    private static function startedAtRangeFilter(): Filter
+    {
+        return Filter::make('started_at')
+            ->label('Окно старта')
+            ->schema([
+                DatePicker::make('started_from')->label('С'),
+                DatePicker::make('started_until')->label('По'),
+            ])
+            ->query(static function (Builder $query, array $data): Builder {
+                return $query
+                    ->when(
+                        $data['started_from'] ?? null,
+                        fn (Builder $query, string $date): Builder => $query->whereDate('started_at', '>=', $date),
+                    )
+                    ->when(
+                        $data['started_until'] ?? null,
+                        fn (Builder $query, string $date): Builder => $query->whereDate('started_at', '<=', $date),
+                    );
+            });
+    }
+
+    private static function statusColor(RunStatus $status): string
+    {
+        return match ($status) {
+            RunStatus::Running => 'info',
+            RunStatus::Paused => 'warning',
+            RunStatus::Completed => 'success',
+            RunStatus::Failed, RunStatus::Cancelled => 'danger',
+        };
     }
 
     /**
