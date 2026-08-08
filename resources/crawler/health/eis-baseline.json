@@ -1,0 +1,52 @@
+{
+  "platform": "eis",
+  "captured_at": "2026-08-08T00:00:00+00:00",
+  "source": "plans/2026.08.06-CRAWL-HARDEN/findings/P1-card-anchors.md",
+  "card_tabs": {
+    "common-info": {
+      "status": "measured",
+      "anchors": [
+        { "selector": "div#positionKTRU", "critical": true, "min_matches": 1 },
+        { "selector": "span.section__title", "critical": true, "min_matches": 1 },
+        { "selector": "span.section__info", "critical": true, "min_matches": 1 }
+      ],
+      "key_fields": []
+    },
+    "documents": {
+      "status": "measured",
+      "anchors": [
+        { "selector": "a[href*=filestore]", "critical": true, "min_matches": 1 },
+        { "selector": "div.attachment", "critical": true, "min_matches": 1 }
+      ],
+      "key_fields": []
+    },
+    "event-journal": {
+      "status": "measured",
+      "anchors": [{ "selector": "table#event", "critical": true, "min_matches": 1 }],
+      "key_fields": []
+    },
+    "supplier-results": {
+      "status": "known_broken",
+      "anchors": [
+        { "selector": "section.blockInfo__section", "critical": true, "min_matches": 1 },
+        { "selector": "table.tableBlock", "critical": true, "min_matches": 1 }
+      ],
+      "key_fields": [],
+      "message": "Вкладка известна как неработающая до промоушена P6.2."
+    }
+  },
+  "listing_csv": {
+    "required_headers": [
+      "Реестровый номер закупки",
+      "Дата обновления",
+      "Начальная (максимальная) цена контракта"
+    ]
+  },
+  "thresholds": {
+    "listing_filter": { "min_sample": 1 },
+    "card_parse": { "min_sample": 1 },
+    "listing_shape": { "min_sample": 1 },
+    "estimate_fields": { "min_sample": 1 }
+  },
+  "calibrated": false
+}

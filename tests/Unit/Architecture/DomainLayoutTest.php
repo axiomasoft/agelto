@@ -30,25 +30,25 @@ function alignedDomainLayoutLayers(): array
                 'AwardStatus', 'BidStatus', 'EisProcedureType', 'ProcurementEventType',
                 'ProcurementStatus', 'ProtocolType', 'OperationLogLevel',
             ],
-            'subareas' => ['Ai', 'Analyzers', 'Crawler', 'Document', 'Estimate', 'Proxy'],
+            'subareas' => ['Ai', 'Analyzers', 'Crawler', 'Document', 'Estimate', 'Health', 'Proxy'],
         ],
         // P3.3, Completion Notes: `OperationFailed` (базовый, кросс) + `UnknownReportFormat` (кросс).
         // P3.4: подобласть `Crawler` заведена первым файлом (`CrawlerRunAlreadyActive`).
         'App\Exceptions\Procurement' => [
             'root' => ['OperationFailed', 'UnknownReportFormat'],
-            'subareas' => ['Ai', 'Crawler', 'Proxy'],
+            'subareas' => ['Ai', 'Crawler', 'Health', 'Proxy'],
         ],
         // P3.3, Completion Notes: три файла ядра закупки остаются в корне.
         'App\Dto\Procurement' => [
             'root' => ['ProcurementDetails', 'ProcurementSnapshotData', 'StatusResolution'],
-            'subareas' => ['Ai', 'Analyzers', 'Bench', 'Crawler', 'Details', 'Fixture', 'Gold', 'Prepare', 'Proxy'],
+            'subareas' => ['Ai', 'Analyzers', 'Bench', 'Crawler', 'Details', 'Fixture', 'Gold', 'Health', 'Prepare', 'Proxy'],
         ],
         // P3.3, Completion Notes: три ядровых репозитория закупки остаются в корне.
         // P2.1 (2026.08.06-CRAWL-HARDEN): подобласть `Platform` заведена первым файлом
         // (`Okpd2NodeReadRepository`) — зеркалит уже существующую подобласть `App\Models\Procurement\Platform`.
         'App\Repositories\Procurement' => [
             'root' => ['ProcurementDetailStoreRepository', 'ProcurementReadRepository', 'ProcurementStoreRepository'],
-            'subareas' => ['Ai', 'Analyzers', 'Document', 'Platform', 'Proxy'],
+            'subareas' => ['Ai', 'Analyzers', 'Document', 'Health', 'Platform', 'Proxy'],
         ],
     ];
 }
