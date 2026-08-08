@@ -1,22 +1,21 @@
-# HANDOFF — 2026-08-08 — after P4.6
+# HANDOFF — 2026-08-08 — after P4
 
-**Next:** close: task:plan-close 2026.08.06-CRAWL-HARDEN P4
+**Next:** exec-items: task:plan-exec 2026.08.06-CRAWL-HARDEN P5.1
 
 | Параметр | Значение |
 |:--|:--|
-| Model class | implementation |
-| Effort | medium |
-| Capabilities | — |
-| Context | NEW SESSION — шаг-не-item |
-| Суть | Закрыть и сверить фазу P4. |
-| Команда | `$ task:plan-close 2026.08.06-CRAWL-HARDEN P4` |
+| Model | implementation |
+| Thinking | medium — детерминированные носители и миграция |
+| Context | continue (reset the session context) — ручной item |
+| Суть | Создать эталон healthcheck, историю проверок и словарь вердиктов P5.1. |
+| Команда | `$ task:plan-exec 2026.08.06-CRAWL-HARDEN P5.1` |
 
-**Done:** P4.6 закрыт item-коммитом `ef41f3f3`.
+**Done:** P4 закрыта `🟠 Done with deviations`; все 9 items терминальны, 4 из 9 — 🟢.
 
-**Remaining:** закрытие и аудит P4.
+**Remaining:** P5.1 — первый последовательный item следующей фазы.
 
-**Sources of truth:** `phases/P4.md` P4.6 Completion Notes · `plan.md` §3.
+**Sources of truth:** `phases/P4.md` Phase Handoff · `phases/P5.md` P5.1 · `plan.md` §2–§4 · `roadmap.md`.
 
-**Open risks:** нет.
+**Open risks:** отклонения P4 перечислены в `phases/P4.md` Phase Handoff; до P5 остаются предсуществующие красные общий Pest/Pint и literal URL-grep в границах P4.1/P4.4/P4.8.
 
-**Workarounds/Deferred/Open questions:** workarounds — нет; deferred — нет; open_questions — нет.
+**Workarounds/Deferred/Open questions:** workarounds — P4.4/P4.7 checkpoint-ограничения зафиксированы в Phase Handoff; deferred — P4.8 style remediation; open_questions — нет.

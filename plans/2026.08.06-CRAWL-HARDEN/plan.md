@@ -200,7 +200,7 @@ Deliverables другого. P1.3 идёт solo: ему нужен не Playwrig
 | P1 | Разведка ЕИС: параметры листинга, ОКПД2, практики, карточка, инвентарь вкладок | 4/5 | 🟠 Done with deviations |
 | P2 | ОКПД2: фильтр профиля и древовидная форма | 2/6 | 🟠 Done with deviations |
 | P3 | Профили обхода и управление прогонами из админки | 7/10 | 🟠 Done with deviations |
-| P4 | Надёжность конвейера: budget запросов, троттлинг, анти-дубли, execution lanes | 4/9 | 🟡 In progress |
+| P4 | Надёжность конвейера: budget запросов, троттлинг, анти-дубли, execution lanes | 4/9 | 🟠 Done with deviations |
 | P5 | Healthcheck площадки и уведомления | 0/6 | ⬜ Not started |
 | P6 | Статусы, история изменений закупки, событие «закупка состоялась» | 0/5 | ⬜ Not started |
 | P7 | Три слоя смет в админке и видимость промтов | 0/5 | ⬜ Not started |
@@ -409,6 +409,7 @@ Deliverables другого. P1.3 идёт solo: ему нужен не Playwrig
 | 2026-08-08 | plan-run/gpt-5.6-terra/high | P4.5 закрыт 🟠: detail-стадия переведена на лимитированную unique-защищённую очередь `crawl_detail` — детали см. phases/P4.md P4.5 Completion Notes. |
 | 2026-08-08 | plan-design/frontier/high | P4.6 re-design: D122 добавил `ProxyResolver` как единственную точку журналирования авто-дизейбла; item возвращён в исполнение. |
 | 2026-08-08 | plan-exec/implementation/medium | P4.6 закрыт: единые журналы заборов и операторских событий, read-only витрина и метрики ожидания — детали см. phases/P4.md P4.6 Completion Notes. |
+| 2026-08-08 | plan-close/implementation/low | Фаза P4 закрыта 🟠 Done with deviations: все 9 items терминальны, 4/9 🟢; Phase Handoff свёл отклонения items, docs-sync подтверждён по P4.7/P4.6. |
 
 ## 7. Contracts
 
