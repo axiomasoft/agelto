@@ -1,23 +1,22 @@
-# HANDOFF — 2026-08-08 — after P4.2
+# HANDOFF — 2026-08-08 — after P4.3
 
-**Next:** /task:plan-run 2026.08.06-CRAWL-HARDEN P4.3
+**Next:** ЗАПУСК ВРУЧНУЮ: implementation/high
 
 | Параметр | Значение |
 |:--|:--|
 | Model | implementation |
-| Thinking | medium — implement auto-disable and operator visibility |
+| Thinking | high — design shared request budget semantics |
 | Context | continue (reset the session context) — ручной item |
-| Суть | Выполнить P4.3: глобальный breaker отключает прокси, оператор возвращает его явным действием. |
-| Команда | /task:plan-run 2026.08.06-CRAWL-HARDEN P4.3 |
+| Суть | Выполнить P4.4: ввести общий бюджет запросов к площадке. |
+| Команда | — |
 
 ~~~text
-/task:plan-run 2026.08.06-CRAWL-HARDEN P4.3
+/task:plan-run 2026.08.06-CRAWL-HARDEN P4.4
 ~~~
 
-**Done:** P4.2 закрыт отдельным item-коммитом `ea327264`: привязка proxy↔profile, явный direct-режим
-и обновлённые regression-carriers подтверждены тестами.
+**Done:** P4.3 закрыт `88912091`: auto-disable, health-витрина и явное возвращение узла оператором.
 
-**Remaining:** P4.3–P4.6; отдельный fix-item для 12 предсуществующих Pint-нарушений.
+**Remaining:** P4.4–P4.6; отдельный fix-item для 12 предсуществующих Pint-нарушений.
 
 **Sources of truth:** phases/P4.md P4.2–P4.3 · plan.md §3 Routing · journal.jsonl.
 

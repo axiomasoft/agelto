@@ -199,7 +199,7 @@ Deliverables другого. P1.3 идёт solo: ему нужен не Playwrig
 | P1 | Разведка ЕИС: параметры листинга, ОКПД2, практики, карточка, инвентарь вкладок | 4/5 | 🟠 Done with deviations |
 | P2 | ОКПД2: фильтр профиля и древовидная форма | 2/6 | 🟠 Done with deviations |
 | P3 | Профили обхода и управление прогонами из админки | 7/10 | 🟠 Done with deviations |
-| P4 | Надёжность конвейера: budget запросов, троттлинг, анти-дубли, execution lanes | 1/8 | 🟡 In progress |
+| P4 | Надёжность конвейера: budget запросов, троттлинг, анти-дубли, execution lanes | 2/8 | 🟡 In progress |
 | P5 | Healthcheck площадки и уведомления | 0/6 | ⬜ Not started |
 | P6 | Статусы, история изменений закупки, событие «закупка состоялась» | 0/5 | ⬜ Not started |
 | P7 | Три слоя смет в админке и видимость промтов | 0/5 | ⬜ Not started |
@@ -399,6 +399,7 @@ Deliverables другого. P1.3 идёт solo: ему нужен не Playwrig
 | 2026-08-08 | plan-design/gpt-5.6-sol/high | P4.2 доведён до DoR после escalation: D120, валидный factory-default и реальные test-носители; детали см. phases/P4.md P4.2 |
 | 2026-08-08 | plan-design/gpt-5.6/frontier/medium | P4.2 scope доведён до фактического DoR: `CrawlerFormTest` добавлен в Files и Required Reads для гейта привязки прокси. |
 | 2026-08-08 | plan-close/implementation/low | P4.2 закрыт: профиль ограничивает прокси явной привязкой, direct-режим легализован на трёх HTTP-выходах — детали см. phases/P4.md P4.2 Completion Notes. |
+| 2026-08-08 | plan-run/gpt-5.6/frontier/medium | P4.3 закрыт: глобальный breaker отключает proxy, оператор возвращает его с полным reset — детали см. phases/P4.md P4.3 Completion Notes. |
 
 ## 7. Contracts
 
