@@ -50,3 +50,14 @@ test('явный ноль профиля не наследует паузу пл
 
     expect($settings->minPauseMs)->toBe(0);
 });
+
+test('лимит detail-пачки резолвится из настройки площадки или config-default', function (): void {
+    $platform = new Platform;
+    $platform->throttle = ['stages' => ['detail' => ['dispatchBatchLimit' => 25]]];
+
+    $platformSettings = app(CrawlSettingsResolver::class)->forStage(CrawlStage::Detail, $platform);
+    $defaultSettings = app(CrawlSettingsResolver::class)->defaultForStage(CrawlStage::Detail);
+
+    expect($platformSettings->dispatchBatchLimit)->toBe(25)
+        ->and($defaultSettings->dispatchBatchLimit)->toBe(100);
+});

@@ -25,7 +25,7 @@ final readonly class DetailRefetchSelector
     /**
      * @return LazyCollection<int, Procurement>
      */
-    public function due(): LazyCollection
+    public function due(int $limit): LazyCollection
     {
         $rescanBefore = Carbon::now()->subMinutes((int) config('crawler.detail_rescan_interval_minutes', 60));
 
@@ -43,6 +43,10 @@ final readonly class DetailRefetchSelector
                             ->where('detail_fetched_at', '<=', $rescanBefore);
                     });
             })
-            ->lazy();
+            ->orderByRaw('CASE WHEN detail_fetched_at IS NULL THEN 0 ELSE 1 END')
+            ->orderBy('detail_fetched_at')
+            ->orderBy('id')
+            ->limit($limit)
+            ->cursor();
     }
 }

@@ -24,9 +24,11 @@ Artisan-команды (`app/Console/Commands/Procurement/`) остались т
   профилю(-ям) площадки, обычно из `schedule:work` (`scheduler`-контейнер) или вручную.
 - `crawler:run-archive {crawler} {--from=} {--to=}` (`RunArchiveCrawler`) — диспатчит
   `CrawlRunJob(mode: Archive, from, to)` за диапазон дат.
-- `crawler:fetch-details {procurement?}` (`FetchDetails`) — дозагрузка деталей закупки (без
-  аргумента — все закупки, due по `DetailRefetchSelector`); на очередь ЕЩЁ не переведена (вне
-  Scope P3.2, гэп G8 → P4).
+- `crawler:fetch-details {procurement?}` (`FetchDetails`) — тонкий диспетчер `crawl_detail`: с
+  явным id ставит одну закупку, без аргумента — ограниченную `dispatch_batch_limit` due-пачку.
+  `DetailRefetchSelector` отдаёт сначала ни разу не снятые закупки, затем самые старые
+  `detail_fetched_at`, со стабильной развязкой по id; расписание раз в пять минут защищено
+  `withoutOverlapping()`.
 - `crawler:rescan-backlog` (`RescanBacklog`) — пересканирование зависшего/пропущенного бэклога;
   синхронна.
 - `crawler:recover-stale` (`RecoverStaleRuns`, планируется `everyFiveMinutes()`) — поднимает
@@ -47,6 +49,14 @@ execution lane; delta ждёт следующего cron, а backlog — сле�
 2025 long lane остаётся конечным; если фактическая длительность превысит час, не поднимать timeout
 молча — снять HTTP/throttle/DB-метрики и принять отдельное решение.
 
+Детальная стадия работает отдельным `FetchProcurementDetailJob` на `redis/crawl_detail`
+(`supervisor-crawl-detail`, timeout 300s < retry_after 360s). Job — `ShouldBeUnique` по id
+закупки и не имеет свойств очередного ретрая: retry остаётся в `detail_*` на закупке. После
+успешного `DetailAnalysisProcessor::run()` job передаёт скачанные документы в `PipelineDispatcher`;
+исчерпание platform budget возвращает job без error-блока, роста `detail_attempts` или передачи в
+мост. Лимит пачки — `crawler.stages.detail.dispatch_batch_limit` (100 по умолчанию, не
+калиброван) и проходит через `CrawlSettingsResolver`/`StageSettings`.
+
 Остановить УЖЕ ВЫПОЛНЯЮЩИЙСЯ job средствами Laravel/Horizon нельзя — остановка кооперативна:
 `App\Services\Procurement\RunStopGate::signal()` читает `prc_crawler_runs.stop_requested_at`/
 `stop_kind` между блоками (`FreshRunProcessor::run()`, `ArchiveWindowScanner::scan()`), сигнал
@@ -60,7 +70,7 @@ execution lane; delta ждёт следующего cron, а backlog — сле�
 ## Мост в AI-пайплайн
 
 Точка передачи — `PipelineDispatcher` (`app/Services/Procurement/PipelineDispatcher.php`):
-`dispatch()` сразу после `FetchDetails`, `dispatchBacklog()` — everyMinute-поллер бэклога.
+`dispatch()` сразу после `FetchProcurementDetailJob`, `dispatchBacklog()` — everyMinute-поллер бэклога.
 `DocumentDownloader` (`app/Services/Procurement/DocumentDownloader.php`) доводит документ до
 статуса `downloaded` — с этого момента начинается зона ответственности `document-pipeline.md`
 (Д2, узел `PipelineDispatcher`).

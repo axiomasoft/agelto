@@ -309,6 +309,23 @@ return [
             'nice' => 0,
         ],
 
+        // Детальная карточка делает до четырёх запросов и скачивания, поэтому queue держим
+        // узкой. Реальный ограничитель нагрузки — общий platform budget; его ожидание (≤60 с)
+        // входит в timeout. Инвариант: 300 < redis.retry_after 360.
+        'supervisor-crawl-detail' => [
+            'connection' => 'redis',
+            'queue' => ['crawl_detail'],
+            'balance' => 'auto',
+            'autoScalingStrategy' => 'time',
+            'maxProcesses' => 1,
+            'maxTime' => 0,
+            'maxJobs' => 0,
+            'memory' => 128,
+            'tries' => 1,
+            'timeout' => 300,
+            'nice' => 0,
+        ],
+
         // Отдельная logical connection не даёт long archive job пересечь lease standard lane:
         // `timeout < redis_crawl_long.retry_after < horizon.stop_grace_period` (P4.7, D117).
         // Один процесс сохраняет последовательность обхода одной площадки; это не второй Horizon.

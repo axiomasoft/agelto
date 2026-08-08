@@ -56,6 +56,8 @@ function coreClassesOfContract(): array
 test('периметр ядра собран правилом вычитания §6.2, не перечнем руками', function (): void {
     $classes = coreClassesOfContract();
 
+    // 103 = 102 + `App\Jobs\Procurement\FetchProcurementDetailJob`: detail-очередь не знает
+    // типа документа, а после успешной карточки передаёт их в общий PipelineDispatcher.
     // 102 = 98 + четыре файла ядра: `App\Enums\Llm\FinishReason` (терминальный исход LLM),
     // `App\Jobs\Procurement\Crawler\CrawlRunJob` (очередной прогон),
     // `App\Services\Procurement\Proxy\OutboundProxy` (транспортный прокси) и
@@ -69,7 +71,7 @@ test('периметр ядра собран правилом вычитания
     // — домен транспорта `Llm` кросс-документен по контракту (D22), витрина финального промта
     // читает вызовы ОБОИХ шагов, типовой специфики в этих файлах нет.
     // Счётчик — канарейка периметра: растёт при КАЖДОМ новом файле ядра.
-    expect($classes)->toHaveCount(102)
+    expect($classes)->toHaveCount(103)
         ->and(array_column($classes, 'class'))->not->toContain('App\Jobs\Procurement\Analyzers\Estimate\EstimateExtractionJob');
 });
 

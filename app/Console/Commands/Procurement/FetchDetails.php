@@ -4,26 +4,24 @@ declare(strict_types=1);
 
 namespace App\Console\Commands\Procurement;
 
+use App\Enums\Procurement\Crawler\CrawlStage;
+use App\Jobs\Procurement\FetchProcurementDetailJob;
 use App\Models\Procurement\Procurement;
-use App\Services\Procurement\DetailRefetchSelector;
-use App\Services\Procurement\Modes\DetailAnalysisProcessor;
-use App\Services\Procurement\PipelineDispatcher;
+use App\Services\Procurement\CrawlSettingsResolver;
+use App\Services\Procurement\DetailDispatcher;
 use Illuminate\Console\Command;
-use Throwable;
 
 /**
- * Тонкая точка входа стадии детального анализа: явная закупка по id либо весь due-набор
- * `DetailRefetchSelector` (`02-crawling.md` §5.2). Ошибка одной закупки не прерывает
- * обработку остальных (`DetailAnalysisProcessor::run()` сам не бросает исключений наружу —
- * try/catch здесь на случай непредвиденного сбоя моста/резолва конкретной закупки).
+ * Тонкая точка входа стадии детального анализа: явная закупка по id либо ограниченная due-пачка.
+ * Снятие карточки и мост документов выполняет `FetchProcurementDetailJob` на `crawl_detail`.
  */
 final class FetchDetails extends Command
 {
-    protected $signature = 'crawler:fetch-details {procurement? : ID закупки (без аргумента — все закупки, due по DetailRefetchSelector)}';
+    protected $signature = 'crawler:fetch-details {procurement? : ID закупки (без аргумента — ограниченная due-пачка)}';
 
-    protected $description = 'Снимает детальную карточку закупки(-ок): оркестратор вкладок + мост в пайплайн документов';
+    protected $description = 'Ставит детальные карточки закупок в очередь: ограниченная due-пачка или одна закупка';
 
-    public function handle(DetailAnalysisProcessor $processor, DetailRefetchSelector $selector, PipelineDispatcher $dispatcher): int
+    public function handle(DetailDispatcher $dispatcher, CrawlSettingsResolver $settings): int
     {
         $identifier = $this->argument('procurement');
 
@@ -36,27 +34,24 @@ final class FetchDetails extends Command
                 return self::FAILURE;
             }
 
-            $procurements = [$procurement];
-        } else {
-            $procurements = $selector->due();
+            FetchProcurementDetailJob::dispatch(procurementId: $procurement->id)->afterCommit();
+            $this->info("Закупка #{$procurement->id} поставлена в очередь crawl_detail.");
+
+            return self::SUCCESS;
         }
 
-        $processed = 0;
-        $hasFailure = false;
+        $limit = $settings->defaultForStage(stage: CrawlStage::Detail)->dispatchBatchLimit;
 
-        foreach ($procurements as $procurement) {
-            try {
-                $processor->run(procurement: $procurement);
-                $dispatcher->dispatch(procurement: $procurement);
-                $processed++;
-            } catch (Throwable $exception) {
-                $hasFailure = true;
-                $this->error("Закупка #{$procurement->id}: {$exception->getMessage()}");
-            }
+        if ($limit === null) {
+            $this->error('Не задан лимит пачки детальной стадии.');
+
+            return self::FAILURE;
         }
 
-        $this->info("Детальный слой снят для {$processed} закупок(и).");
+        $dispatched = $dispatcher->dispatchDue(limit: $limit);
 
-        return $hasFailure ? self::FAILURE : self::SUCCESS;
+        $this->info("В очередь crawl_detail поставлено {$dispatched} закупок(и).");
+
+        return self::SUCCESS;
     }
 }

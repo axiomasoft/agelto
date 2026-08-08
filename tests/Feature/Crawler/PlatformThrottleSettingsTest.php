@@ -11,13 +11,14 @@ test('площадка сохраняет типизированные наст�
     $platform = Platform::factory()->create([
         'throttle' => [
             'requestsPerMinuteBase' => 20,
-            'stages' => ['detail' => ['timeoutSeconds' => 45]],
+            'stages' => ['detail' => ['timeoutSeconds' => 45, 'dispatchBatchLimit' => 25]],
         ],
     ]);
 
     expect($platform->throttle)->toBeInstanceOf(PlatformThrottleSettings::class)
         ->and($platform->throttle?->requestsPerMinuteBase)->toBe(20)
-        ->and($platform->throttle?->forStage(CrawlStage::Detail)?->timeoutSeconds)->toBe(45);
+        ->and($platform->throttle?->forStage(CrawlStage::Detail)?->timeoutSeconds)->toBe(45)
+        ->and($platform->throttle?->forStage(CrawlStage::Detail)?->dispatchBatchLimit)->toBe(25);
 });
 
 test('неизвестный ключ настроек площадки отклоняется при сохранении', function (): void {

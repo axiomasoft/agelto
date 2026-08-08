@@ -92,6 +92,8 @@ return [
             'retries' => 5,
             'retry_delay_ms' => 500,
             'timeout_seconds' => 30,
+            // NOT calibrated: matches the already-proven document pipeline batch size.
+            'dispatch_batch_limit' => 100,
         ],
         'document' => [
             'min_pause_ms' => 1000,

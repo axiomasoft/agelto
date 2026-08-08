@@ -12,7 +12,7 @@ use Spatie\LaravelData\Support\Validation\ValidationContext;
 /** Nullable fields explicitly mean «inherit the next settings layer». */
 final class StageSettings extends Data
 {
-    public const array ALLOWED_KEYS = ['minPauseMs', 'maxPauseMs', 'retries', 'retryDelayMs', 'timeoutSeconds'];
+    public const array ALLOWED_KEYS = ['minPauseMs', 'maxPauseMs', 'retries', 'retryDelayMs', 'timeoutSeconds', 'dispatchBatchLimit'];
 
     public function __construct(
         public ?int $minPauseMs = null,
@@ -20,6 +20,7 @@ final class StageSettings extends Data
         public ?int $retries = null,
         public ?int $retryDelayMs = null,
         public ?int $timeoutSeconds = null,
+        public ?int $dispatchBatchLimit = null,
     ) {}
 
     public static function validateAndCreate(Arrayable|array $payload): static
@@ -44,6 +45,7 @@ final class StageSettings extends Data
             'retries' => ['nullable', 'integer', 'min:0'],
             'retryDelayMs' => ['nullable', 'integer', 'min:0'],
             'timeoutSeconds' => ['nullable', 'integer', 'min:1'],
+            'dispatchBatchLimit' => ['nullable', 'integer', 'min:1'],
         ];
     }
 }

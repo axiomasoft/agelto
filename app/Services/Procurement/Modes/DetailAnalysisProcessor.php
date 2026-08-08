@@ -51,7 +51,7 @@ final readonly class DetailAnalysisProcessor
         private ProcurementStoreRepository $procurementStore,
     ) {}
 
-    public function run(Procurement $procurement): void
+    public function run(Procurement $procurement): bool
     {
         try {
             $registry = $procurement->registry;
@@ -91,10 +91,14 @@ final readonly class DetailAnalysisProcessor
             }
 
             $this->procurementStore->markDetailFetched(procurement: $procurement, fetchedAt: now());
+
+            return true;
         } catch (PlatformBudgetExhaustedException) {
-            return;
+            return false;
         } catch (Throwable $exception) {
             $this->markFailed(procurement: $procurement, exception: $exception);
+
+            return false;
         }
     }
 

@@ -2,182 +2,44 @@
 
 declare(strict_types=1);
 
-use App\Enums\Procurement\ProcurementStatus;
-use App\Enums\Procurement\Proxy\ProxyScope;
-use App\Models\Procurement\Crawler\Proxy;
-use App\Models\Procurement\Platform\Registry;
+use App\Jobs\Procurement\FetchProcurementDetailJob;
 use App\Models\Procurement\Procurement;
 use Illuminate\Console\Command;
-use Illuminate\Support\Facades\Http;
-use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Sleep;
-use Tests\Support\Doubles\Crawler\CardHtmlFixture;
+use Illuminate\Support\Facades\Queue;
 
-function fetchDetailsRegistry(): Registry
-{
-    return Registry::factory()->create([
-        'code' => 'fz44',
-        'settings' => [
-            'procedure_url_types' => ['Электронный аукцион' => 'ea20'],
-            'card_url_templates' => [
-                'ea20' => [
-                    'common-info' => 'https://zakupki.gov.ru/epz/order/notice/ea20/view/common-info.html?regNumber={regNumber}',
-                    'documents' => 'https://zakupki.gov.ru/epz/order/notice/ea20/view/documents.html?regNumber={regNumber}',
-                    'event-journal' => 'https://zakupki.gov.ru/epz/order/notice/ea20/view/event-journal.html?regNumber={regNumber}',
-                    'supplier-results' => 'https://zakupki.gov.ru/epz/order/notice/ea20/view/supplier-results.html?regNumber={regNumber}',
-                ],
-            ],
-        ],
-    ]);
-}
-
-function fetchDetailsEventJournalHtml(): string
-{
-    // Даты реальной фикстуры (P4.14 — «23.01.2025»/«15.01.2025») сдвигаются на текущий месяц
-    // теста — см. `EventJournalProcessorTest`.
-    $html = file_get_contents(base_path('tests/Fixtures/Crawler/Card/event-journal.html'));
-    $html = str_replace('23.01.2025 09:29', now()->startOfMonth()->addDay()->format('d.m.Y').' 09:29', $html);
-    $html = str_replace('23.01.2025 09:00', now()->startOfMonth()->addDays(2)->format('d.m.Y').' 09:00', $html);
-
-    return str_replace('15.01.2025 11:55', now()->startOfMonth()->addDays(3)->format('d.m.Y').' 11:55', $html);
-}
-
-/**
- * Локальная (не общая `CardHtmlFixture::documents()`) HTML вкладки `documents` — этот тест
- * проверяет оркестрацию команды (exit code, due-набор), а не разбор HTML; оба вложения — `.pdf`,
- * чтобы фейковое бинарное тело `filestore`-ответа не попало в `SpreadsheetStrategy`/`WordStrategy`
- * (они пытаются реально распарсить содержимое и бросают исключение на невалидном бинарнике —
- * `PassthroughStrategy` для PDF такой проверки не делает). Структура — `div.blockFilesTabDocs` →
- * `div.attachment` → `span.section__value > a[href^=".../filestore/..."]`, см. `DocumentsParser`.
- */
-function fetchDetailsDocumentsHtml(): string
-{
-    return <<<'HTML'
-        <!DOCTYPE html>
-        <html lang="ru">
-        <body>
-        <div class="blockFilesTabDocs">
-            <div class="section__title mb-3">Прикрепленные файлы</div>
-            <div class="attachment row ">
-                <div class="col clipText">
-                    <span class="section__value">
-                        <a href="https://zakupki.gov.ru/44fz/filestore/public/1.0/download/priz/file.html?uid=aaaa-1111" title="notice.pdf">notice</a>
-                    </span>
-                </div>
-            </div>
-            <div class="attachment row ">
-                <div class="col clipText">
-                    <span class="section__value">
-                        <a href="https://zakupki.gov.ru/44fz/filestore/public/1.0/download/priz/file.html?uid=bbbb-2222" title="contract-draft.pdf">contract-draft</a>
-                    </span>
-                </div>
-            </div>
-        </div>
-        </body>
-        </html>
-        HTML;
-}
-
-function fakeFetchDetailsHttp(): void
-{
-    Http::fake([
-        '*view/common-info.html*' => Http::response(body: CardHtmlFixture::commonInfo(), status: 200),
-        '*view/documents.html*' => Http::response(body: fetchDetailsDocumentsHtml(), status: 200),
-        '*view/event-journal.html*' => Http::response(body: fetchDetailsEventJournalHtml(), status: 200),
-        '*view/supplier-results.html*' => Http::response(body: CardHtmlFixture::supplierResults(), status: 200),
-        '*filestore*' => Http::response(body: 'binary-content', status: 200),
-    ]);
-}
-
-beforeEach(function () {
-    Sleep::fake();
-    Storage::fake('s3');
-    // Активные узлы скоупов `crawl_detail`/`document_download` (research/02 §9.1, P1.6) —
-    // резолвер прокси не выдаёт лизу без кандидата, детальный анализ резолвит их на каждый вызов.
-    Proxy::factory()->country('RU')->withScopes([ProxyScope::CrawlDetail])->create();
-    Proxy::factory()->country('RU')->withScopes([ProxyScope::DocumentDownload])->create();
-});
-
-test('снимает детальный слой по явному id закупки', function () {
-    $registry = fetchDetailsRegistry();
-    $procurement = Procurement::factory()->create([
-        'registry_id' => $registry->id,
-        'registry_number' => '0338200009125000001',
-        'procedure_type' => 'electronic_auction',
-        'procedure_type_raw' => 'Электронный аукцион',
-        'status' => ProcurementStatus::Bidding,
-    ]);
-    fakeFetchDetailsHttp();
+test('явный id ставит одну детальную закупку в очередь', function (): void {
+    Queue::fake();
+    $procurement = Procurement::factory()->create();
 
     $this->artisan('crawler:fetch-details', ['procurement' => (string) $procurement->id])
+        ->expectsOutputToContain('поставлена в очередь crawl_detail')
         ->assertExitCode(Command::SUCCESS);
 
-    expect($procurement->refresh()->detail_fetched_at)->not->toBeNull();
+    Queue::assertPushed(FetchProcurementDetailJob::class, fn (FetchProcurementDetailJob $job): bool => $job->procurementId === $procurement->id);
+    Queue::assertPushed(FetchProcurementDetailJob::class, 1);
 });
 
-test('несуществующий id закупки — FAILURE с сообщением об ошибке', function () {
+test('несуществующий id закупки — FAILURE с сообщением об ошибке', function (): void {
     $this->artisan('crawler:fetch-details', ['procurement' => '999999'])
         ->expectsOutputToContain('не найдена')
         ->assertExitCode(Command::FAILURE);
 });
 
-test('без аргумента обрабатывает все due-закупки по DetailRefetchSelector', function () {
-    $registry = fetchDetailsRegistry();
-    $due = Procurement::factory()->create([
-        'registry_id' => $registry->id,
-        'registry_number' => '0338200009125000001',
-        'procedure_type' => 'electronic_auction',
-        'procedure_type_raw' => 'Электронный аукцион',
-        'status' => ProcurementStatus::Bidding,
-        'detail_fetched_at' => null,
-    ]);
-    $fresh = Procurement::factory()->create([
-        'registry_id' => $registry->id,
-        'registry_number' => '0173200001234000002',
-        'procedure_type' => 'electronic_auction',
-        'procedure_type_raw' => 'Электронный аукцион',
-        'status' => ProcurementStatus::Bidding,
+test('без аргумента ставит в очередь только ограниченную due-пачку', function (): void {
+    Queue::fake();
+    config(['crawler.stages.detail.dispatch_batch_limit' => 2]);
+    $first = Procurement::factory()->create(['detail_fetched_at' => null]);
+    $second = Procurement::factory()->create(['detail_fetched_at' => null]);
+    Procurement::factory()->create(['detail_fetched_at' => null]);
+    Procurement::factory()->create([
         'detail_fetched_at' => now(),
         'current_revision_detected_at' => now()->subDay(),
     ]);
-    fakeFetchDetailsHttp();
 
     $this->artisan('crawler:fetch-details')
+        ->expectsOutputToContain('В очередь crawl_detail поставлено 2')
         ->assertExitCode(Command::SUCCESS);
 
-    expect($due->refresh()->detail_fetched_at)->not->toBeNull();
-
-    $freshFetchedAt = $fresh->detail_fetched_at;
-    expect($fresh->refresh()->detail_fetched_at->equalTo($freshFetchedAt))->toBeTrue();
-});
-
-test('падение одной закупки не прерывает обработку остальных', function () {
-    $registry = fetchDetailsRegistry();
-    $healthy = Procurement::factory()->create([
-        'registry_id' => $registry->id,
-        'registry_number' => '0338200009125000001',
-        'procedure_type' => 'electronic_auction',
-        'procedure_type_raw' => 'Электронный аукцион',
-        'status' => ProcurementStatus::Bidding,
-        'detail_fetched_at' => null,
-    ]);
-    $broken = Procurement::factory()->create([
-        'registry_id' => $registry->id,
-        'registry_number' => '0173200009999000009',
-        'procedure_type' => 'unmapped_procedure_type',
-        'procedure_type_raw' => 'Неизвестный способ вне карты',
-        'status' => ProcurementStatus::Bidding,
-        'detail_fetched_at' => null,
-    ]);
-    fakeFetchDetailsHttp();
-
-    $this->artisan('crawler:fetch-details')
-        ->assertExitCode(Command::SUCCESS);
-
-    // DetailAnalysisProcessor не бросает исключений наружу (error-блок), поэтому
-    // командный try/catch здесь не срабатывает — обе закупки обрабатываются, FAILURE
-    // не проявляется на уровне команды; ошибка видна в error-блоке `broken`.
-    expect($healthy->refresh()->detail_fetched_at)->not->toBeNull()
-        ->and($broken->refresh()->detail_fetched_at)->toBeNull()
-        ->and($broken->detail_last_error)->not->toBeNull();
+    Queue::assertPushed(FetchProcurementDetailJob::class, 2);
+    Queue::assertPushed(FetchProcurementDetailJob::class, fn (FetchProcurementDetailJob $job): bool => in_array($job->procurementId, [$first->id, $second->id], true));
 });

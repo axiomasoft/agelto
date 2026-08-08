@@ -25,7 +25,7 @@ if (Schema::hasTable('prc_crawlers')) {
 
 // Тот же schema-guard (см. выше) — детальная стадия читает `prc_procurements`.
 if (Schema::hasTable('prc_procurements')) {
-    Schedule::command('crawler:fetch-details')->everyFiveMinutes();
+    Schedule::command('crawler:fetch-details')->name('crawler:fetch-details')->everyFiveMinutes()->withoutOverlapping();
 }
 
 // Тот же schema-guard (см. выше) — sweep читает `prc_crawler_runs.stats->cap_hit`.
