@@ -21,6 +21,7 @@ use App\Services\Procurement\Eis\Card\DocumentsParser;
 use App\Services\Procurement\Eis\Card\EventJournalParser;
 use App\Services\Procurement\Eis\Card\PartiesParser;
 use App\Services\Procurement\Eis\Card\SupplierResultsParser;
+use App\Services\Procurement\OperationLogWriter;
 use App\Services\Procurement\SourceMethodFactory;
 use Illuminate\Support\Facades\Log;
 use RuntimeException;
@@ -49,6 +50,7 @@ final readonly class DetailAnalysisProcessor
         private SupplierResultsParser $supplierResultsParser,
         private SupplierResultsProcessor $supplierResultsProcessor,
         private ProcurementStoreRepository $procurementStore,
+        private OperationLogWriter $operationLogs,
     ) {}
 
     public function run(Procurement $procurement): bool
@@ -94,8 +96,11 @@ final readonly class DetailAnalysisProcessor
 
             return true;
         } catch (PlatformBudgetExhaustedException) {
+            $this->operationLogs->budgetExhausted($procurement->id);
+
             return false;
         } catch (Throwable $exception) {
+            $this->operationLogs->detailFailed($procurement->id, $exception);
             $this->markFailed(procurement: $procurement, exception: $exception);
 
             return false;

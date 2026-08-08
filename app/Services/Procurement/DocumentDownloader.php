@@ -48,6 +48,8 @@ final readonly class DocumentDownloader
         private ProcurementStoreRepository $procurementStore,
         private FileLocationResolver $locationResolver,
         private SourceTlsTrust $tlsTrust,
+        private OperationLogWriter $operationLogs,
+        private FetchLogger $fetches,
     ) {}
 
     public function download(Document $document): ?DocumentVersion
@@ -59,8 +61,11 @@ final readonly class DocumentDownloader
         try {
             $content = $this->fetch(document: $document);
         } catch (PlatformBudgetExhaustedException) {
+            $this->operationLogs->budgetExhausted($document->procurement_id);
+
             return null;
         } catch (\Throwable $exception) {
+            $this->operationLogs->documentFailed($document->id, $exception);
             $this->recordFailure($document, $exception);
 
             return null;
@@ -109,9 +114,16 @@ final readonly class DocumentDownloader
         $lease = $this->documentLease(document: $document, host: $host);
         $settings = $this->crawlSettings->forStage(stage: CrawlStage::Document, platform: Platform::query()->findOrFail($document->platform_id));
 
-        $this->requestBudget->acquire(host: $host, stage: CrawlStage::Document);
+        $startedAt = hrtime(true);
+        $waitMs = $this->requestBudget->acquire(host: $host, stage: CrawlStage::Document);
 
         $response = $this->requestWithOutcome($lease, $url, $settings);
+
+        $this->fetches->log(CrawlStage::Document, null, $document->procurement_id, [
+            'method' => 'document-download', 'request_params' => ['url' => $url],
+            'http_status' => $response->status(), 'duration_ms' => (int) ((hrtime(true) - $startedAt) / 1_000_000),
+            'proxy_id' => $lease->proxyId, 'wait_ms' => $waitMs,
+        ]);
 
         if ($response->failed()) {
             throw new \RuntimeException("Не удалось скачать документ: HTTP {$response->status()}");

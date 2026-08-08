@@ -12,6 +12,7 @@ use App\Exceptions\Procurement\Proxy\NoProxyAvailableException;
 use App\Exceptions\Procurement\Proxy\ProxyPolicyMisconfiguredException;
 use App\Models\Procurement\Crawler\ProxyTarget;
 use App\Repositories\Procurement\Proxy\ProxyHealthStoreRepository;
+use App\Services\Procurement\OperationLogWriter;
 use Closure;
 use Illuminate\Database\Query\JoinClause;
 use Illuminate\Support\Collection;
@@ -31,6 +32,7 @@ final readonly class ProxyResolver
         private ProxyCircuitBreaker $breaker,
         private ProxyHealthStoreRepository $health,
         private ?Closure $randomSource = null,
+        private ?OperationLogWriter $operationLogs = null,
     ) {}
 
     /**
@@ -131,6 +133,10 @@ final readonly class ProxyResolver
             }
 
             $this->health->updateProxy($proxy, $attributes);
+
+            if (! $proxy->is_active && ($attributes['is_active'] ?? true) === false) {
+                $this->operationLogs?->proxyDisabled($lease->proxyId, $outcome->reason->value);
+            }
 
             return;
         }

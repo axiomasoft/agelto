@@ -7,13 +7,12 @@ namespace App\Services\Procurement;
 use App\Dto\Procurement\Crawler\FetchResult;
 use App\Dto\Procurement\Crawler\ListingBatch;
 use App\Dto\Procurement\ProcurementSnapshotData;
+use App\Enums\Procurement\Crawler\CrawlStage;
 use App\Models\Procurement\Crawler\Crawler;
-use App\Models\Procurement\Crawler\Fetch;
 use App\Models\Procurement\Crawler\IgnoredItem;
 use App\Models\Procurement\Crawler\Run;
 use App\Repositories\Procurement\ProcurementReadRepository;
 use App\Services\Procurement\Contracts\ListingRowMapper;
-use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 
@@ -29,6 +28,7 @@ final readonly class CsvBlockIngestor
         private ProcurementIngestProcessor $ingestProcessor,
         private ProcurementReadRepository $procurements,
         private ListingRowMapper $rowMapper,
+        private FetchLogger $fetches,
     ) {}
 
     public function ingest(Crawler $crawler, Run $run, ListingBatch $batch): FetchResult
@@ -97,7 +97,7 @@ final readonly class CsvBlockIngestor
 
         $artifactRef = $this->storeRawArtifact(crawler: $crawler, run: $run, batch: $batch);
 
-        Fetch::create([
+        $this->fetches->log(CrawlStage::Listing, $run, null, [
             'crawler_run_id' => $run->id,
             'method' => $crawler->source_method->value,
             'request_params' => $batch->requestParams,
@@ -109,8 +109,14 @@ final readonly class CsvBlockIngestor
             'rows_updated' => $updated,
             'dedup_signature' => $batch->dedupSignature,
             'proxy_id' => $batch->proxyId,
-            'fetched_at' => Carbon::now(),
+            'wait_ms' => $batch->waitMs,
         ]);
+
+        $stats = $run->stats?->toArray() ?? [];
+        $run->update(['stats' => array_merge($stats, [
+            'budget_wait_total_ms' => (int) ($stats['budget_wait_total_ms'] ?? 0) + $batch->waitMs,
+            'budget_wait_max_ms' => max((int) ($stats['budget_wait_max_ms'] ?? 0), $batch->waitMs),
+        ])]);
 
         return new FetchResult(
             rowsTotal: $batch->rowsTotal,

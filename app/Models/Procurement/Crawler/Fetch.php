@@ -27,6 +27,9 @@ final class Fetch extends Model
 
     protected $fillable = [
         'crawler_run_id',
+        'stage',
+        'procurement_id',
+        'wait_ms',
         'method',
         'request_params',
         'artifact_ref',
@@ -46,6 +49,8 @@ final class Fetch extends Model
             'request_params' => AsCollection::class,
             'http_status' => 'integer',
             'duration_ms' => 'integer',
+            'procurement_id' => 'integer',
+            'wait_ms' => 'integer',
             'rows_total' => 'integer',
             'rows_new' => 'integer',
             'rows_updated' => 'integer',

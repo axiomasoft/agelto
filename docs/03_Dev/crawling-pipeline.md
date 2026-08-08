@@ -67,6 +67,15 @@ execution lane; delta ждёт следующего cron, а backlog — сле�
 Прогон (`$run`, `App\Enums\Procurement\Crawler\RunStatus`: running/paused/completed/failed/cancelled)
 оркеструется `App\Services\Procurement\CrawlerRunManager`.
 
+## Наблюдаемость
+
+Каждый HTTP-забор пишет `prc_fetches` через единственный `FetchLogger`: листинг связан с прогоном,
+а detail/document — с закупкой. В строке видны стадия, статус ответа, длительность, прокси и ожидание
+слота. Суммарное и максимальное ожидание листинга сохраняются в `prc_crawler_runs.stats`.
+Операторские сбои пишутся через `OperationLogWriter` в `prc_operation_logs`; read-only витрина
+«Краулинг → Operation logs» фильтрует их по уровню, стадии и сущности. Файловые `Log::*` остаются
+для разработчика и не заменяются этой витриной.
+
 ## Мост в AI-пайплайн
 
 Точка передачи — `PipelineDispatcher` (`app/Services/Procurement/PipelineDispatcher.php`):

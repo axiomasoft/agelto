@@ -24,5 +24,6 @@ final readonly class ListingBatch
         public int $durationMs,
         public array $requestParams,
         public ?int $proxyId = null,
+        public int $waitMs = 0,
     ) {}
 }

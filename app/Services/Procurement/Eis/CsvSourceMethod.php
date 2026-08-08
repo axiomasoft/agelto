@@ -22,6 +22,7 @@ use App\Models\Procurement\Procurement;
 use App\Services\Procurement\Contracts\SourceMethod;
 use App\Services\Procurement\CrawlSettingsResolver;
 use App\Services\Procurement\Exceptions\CardPageMismatchException;
+use App\Services\Procurement\FetchLogger;
 use App\Services\Procurement\PlatformRequestBudget;
 use App\Services\Procurement\Proxy\ProxyBindingResolver;
 use App\Services\Procurement\Proxy\ProxyResolver;
@@ -72,6 +73,7 @@ final readonly class CsvSourceMethod implements SourceMethod
         private PlatformRequestBudget $requestBudget,
         private CrawlSettingsResolver $crawlSettings,
         private SourceTlsTrust $tlsTrust,
+        private FetchLogger $fetches,
     ) {}
 
     public function collectListing(Crawler $crawler, ListingCursor $cursor): ListingBatch
@@ -93,11 +95,11 @@ final readonly class CsvSourceMethod implements SourceMethod
 
         $startedAt = hrtime(true);
 
-        $this->requestBudget->acquire(host: $host, stage: CrawlStage::Listing, crawler: $crawler);
+        $waitMs = $this->requestBudget->acquire(host: $host, stage: CrawlStage::Listing, crawler: $crawler);
         $response = $this->requestWithOutcome(lease: $lease, endpoint: $endpoint, queryParams: $queryParams, settings: $settings);
 
         if ($response->status() === 200 && trim($response->body()) === '') {
-            $this->requestBudget->acquire(host: $host, stage: CrawlStage::Listing, crawler: $crawler);
+            $waitMs += $this->requestBudget->acquire(host: $host, stage: CrawlStage::Listing, crawler: $crawler);
             $response = $this->requestWithOutcome(lease: $lease, endpoint: $endpoint, queryParams: $queryParams, settings: $settings);
         }
 
@@ -115,6 +117,7 @@ final readonly class CsvSourceMethod implements SourceMethod
             durationMs: $durationMs,
             requestParams: $queryParams,
             proxyId: $lease->proxyId,
+            waitMs: $waitMs,
         );
     }
 
@@ -210,13 +213,20 @@ final readonly class CsvSourceMethod implements SourceMethod
         $lease = $this->detailLease(procurement: $procurement, host: $host);
         $settings = $this->crawlSettings->forStage(stage: CrawlStage::Detail, platform: Platform::query()->findOrFail($registry->platform_id));
 
-        $this->requestBudget->acquire(host: $host, stage: CrawlStage::Detail);
+        $startedAt = hrtime(true);
+        $waitMs = $this->requestBudget->acquire(host: $host, stage: CrawlStage::Detail);
         $response = $this->requestWithOutcome(lease: $lease, endpoint: $url, queryParams: [], settings: $settings);
 
         if ($response->status() === 200 && trim($response->body()) === '') {
             $this->requestBudget->acquire(host: $host, stage: CrawlStage::Detail);
             $response = $this->requestWithOutcome(lease: $lease, endpoint: $url, queryParams: [], settings: $settings);
         }
+
+        $this->fetches->log(CrawlStage::Detail, null, $procurement->id, [
+            'method' => 'eis-card', 'request_params' => ['tab' => $tab, 'url' => $url],
+            'http_status' => $response->status(), 'duration_ms' => (int) ((hrtime(true) - $startedAt) / 1_000_000),
+            'proxy_id' => $lease->proxyId, 'wait_ms' => $waitMs,
+        ]);
 
         $this->assertCardPage(response: $response, tab: $tab, url: $url, registryNumber: $registryNumber);
 
