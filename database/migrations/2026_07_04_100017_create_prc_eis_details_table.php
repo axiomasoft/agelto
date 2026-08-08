@@ -16,7 +16,8 @@ return new class extends Migration
             // Extension 1:1 — procurement_id одновременно PK и FK, без собственного id.
             $table->foreignId('procurement_id')
                 ->primary()
-                ->constrained(table: (new Procurement)->getTable());
+                ->constrained(table: (new Procurement)->getTable())
+                ->onDelete('RESTRICT'); // P7.5, F-02/D133: аудитный ребёнок блокирует удаление.
 
             // ИКЗ (36 разрядов) — разбор в колонки, без парсинга строки в коде.
             $table->integer('ikz_year')->nullable();

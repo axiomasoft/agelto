@@ -10,6 +10,11 @@ use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
+/**
+ * P7.5, F-02/D133: документы запрещают удаление закупки (`RESTRICT`), а связь с площадкой
+ * сохраняет прежний `NO ACTION` явно. Lease-колонки `locked_by`/`locked_until` поглощены из
+ * 100049. Категория документа уже хранится в `kind`; D130 не добавляет второй носитель.
+ */
 return new class extends Migration
 {
     public function up(): void
@@ -21,11 +26,13 @@ return new class extends Migration
             $table->foreignId('procurement_id')
                 ->nullable()
                 ->index()
-                ->constrained(table: (new Procurement)->getTable());
+                ->constrained(table: (new Procurement)->getTable())
+                ->onDelete('RESTRICT');
 
             $table->foreignId('platform_id')
                 ->index()
-                ->constrained(table: (new Platform)->getTable());
+                ->constrained(table: (new Platform)->getTable())
+                ->onDelete('NO ACTION');
 
             // uid вложения в filestore ЕИС.
             $table->text('external_id')->nullable();
@@ -45,6 +52,8 @@ return new class extends Migration
             $table->timestampTz('last_error_at')->nullable();
             $table->timestampTz('next_retry_at')->nullable();
             $table->boolean('failed_permanently')->default(false);
+            $table->text('locked_by')->nullable();
+            $table->timestampTz('locked_until')->nullable();
 
             $table->timestamps();
         });

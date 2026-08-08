@@ -19,6 +19,8 @@ return new class extends Migration
             $table->unsignedBigInteger('procurement_id')->index();
 
             $table->foreignId('organization_id')
+                // P7.5, F-01: индекс ведущей колонки FK; таблица < 1 МБ на ревизии.
+                ->index()
                 ->constrained(table: (new Organization)->getTable())
                 ->cascadeOnDelete();
             $table->string('role');
@@ -28,6 +30,9 @@ return new class extends Migration
 
             $table->unique(['procurement_id', 'organization_id', 'role']);
         });
+
+        // FK procurement_id объявляется сразу после создания prc_procurements в миграции 100011:
+        // create-миграции не перенумеровываются (D81), а родителя на этом шаге ещё нет.
     }
 
     public function down(): void

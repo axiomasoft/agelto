@@ -17,7 +17,8 @@ return new class extends Migration
 
             $table->foreignId('proxy_id')
                 ->index()
-                ->constrained(table: (new Proxy)->getTable());
+                ->constrained(table: (new Proxy)->getTable())
+                ->onDelete('NO ACTION'); // P7.5, F-02: прежнее поведение объявлено явно.
 
             $table->timestampTz('checked_at');
             $table->boolean('success');

@@ -10,7 +10,6 @@ use App\Guards\Admin\Permissions\CrawlerPermission;
 use App\Guards\Admin\Permissions\DatasetExamplePermission;
 use App\Guards\Admin\Permissions\EstimatePermission;
 use App\Guards\Admin\Permissions\FixturePermission;
-use App\Guards\Admin\Permissions\IgnoreRulePermission;
 use App\Guards\Admin\Permissions\PlatformCheckPermission;
 use App\Guards\Admin\Permissions\PlatformPermission;
 use App\Guards\Admin\Permissions\PromptPermission;
@@ -25,7 +24,7 @@ use UnitEnum;
 
 /**
  * Оператор: полный CRUD над операторской конфигурацией (площадки/реестры,
- * краулеры/прокси/ignore-правила, AI-провайдеры/роутинг/промпты/датасет).
+ * краулеры/прокси, AI-провайдеры/роутинг/промпты/датасет).
  * Управление прогонами (Run.update) и доступ к ролям/грантам НЕ входят.
  */
 final class OperatorRole extends BaseRole
@@ -43,7 +42,6 @@ final class OperatorRole extends BaseRole
             ...$this->crud(RegistryPermission::class),
             ...$this->crud(CrawlerPermission::class),
             ...$this->crud(ProxyPermission::class),
-            ...$this->crud(IgnoreRulePermission::class),
             ...$this->crud(ProviderPermission::class),
             ...$this->crud(AiRoutePermission::class),
             ...$this->crud(PromptPermission::class),

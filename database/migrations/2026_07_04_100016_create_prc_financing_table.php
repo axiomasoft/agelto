@@ -33,6 +33,7 @@ return new class extends Migration
 
             $table->foreignId('kbk_ref_id')
                 ->nullable()
+                ->index() // P7.5, F-01: индекс ведущей колонки FK.
                 ->constrained(table: (new Kbk)->getTable())
                 ->nullOnDelete();
 

@@ -6,6 +6,11 @@ use Illuminate\Database\Migrations\Migration;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 
+/**
+ * P7.5, F-04: `crawler_run_id` несёт FK на `prc_crawler_runs` без индекса (write-only).
+ * Родитель создаётся позже, поэтому FK объявляет create-миграция `prc_crawler_runs` 100039;
+ * для партиционированного родителя Postgres 17 не поддерживает `NOT VALID` (SQLSTATE 42809).
+ */
 return new class extends Migration
 {
     public function up(): void
@@ -35,7 +40,7 @@ return new class extends Migration
         );
         DB::statement(
             'ALTER TABLE prc_revisions ADD CONSTRAINT prc_revisions_procurement_id_foreign '
-            .'FOREIGN KEY (procurement_id) REFERENCES prc_procurements (id)',
+            .'FOREIGN KEY (procurement_id) REFERENCES prc_procurements (id) ON DELETE RESTRICT',
         );
 
         $this->bootstrapPartitions();
