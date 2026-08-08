@@ -116,11 +116,21 @@ final readonly class ProxyResolver
 
             $proxy = $this->health->findProxy($lease->proxyId);
             $state = $this->breaker->onFailure($proxy->fails_count, $proxy->open_count, $outcome->reason);
-            $this->health->updateProxy($proxy, [
+            $attributes = [
                 ...$this->proxyBreakerAttributes($state),
                 'last_failure_reason' => $outcome->reason->value,
                 'last_failure_at' => now(),
-            ]);
+            ];
+
+            if ($state['open_count'] >= (int) config('crawler.proxy.breaker.disable_after_openings')) {
+                $attributes += [
+                    'is_active' => false,
+                    'disabled_at' => now(),
+                    'disabled_reason' => $outcome->reason->value,
+                ];
+            }
+
+            $this->health->updateProxy($proxy, $attributes);
 
             return;
         }

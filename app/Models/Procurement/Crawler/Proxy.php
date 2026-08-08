@@ -33,6 +33,8 @@ use Illuminate\Support\Collection;
  * @property string|null $last_failure_reason
  * @property Carbon|null $last_success_at
  * @property Carbon|null $last_failure_at
+ * @property Carbon|null $disabled_at
+ * @property string|null $disabled_reason
  */
 #[UseFactory(ProxyFactory::class)]
 final class Proxy extends Model
@@ -56,6 +58,8 @@ final class Proxy extends Model
         'last_failure_reason',
         'last_success_at',
         'last_failure_at',
+        'disabled_at',
+        'disabled_reason',
     ];
 
     protected function casts(): array
@@ -69,6 +73,7 @@ final class Proxy extends Model
             'open_count' => 'integer',
             'last_success_at' => 'datetime',
             'last_failure_at' => 'datetime',
+            'disabled_at' => 'datetime',
         ];
     }
 

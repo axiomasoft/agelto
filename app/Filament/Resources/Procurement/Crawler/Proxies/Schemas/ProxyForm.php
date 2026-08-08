@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\Procurement\Crawler\Proxies\Schemas;
 
 use App\Enums\Procurement\Proxy\ProxyScope;
+use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
@@ -84,6 +85,19 @@ class ProxyForm
                         TextInput::make('last_failure_at')
                             ->disabled()
                             ->dehydrated(false),
+                    ]),
+                Repeater::make('targets')
+                    ->label('Здоровье по хостам')
+                    ->relationship()
+                    ->addable(false)
+                    ->deletable(false)
+                    ->reorderable(false)
+                    ->schema([
+                        TextInput::make('target')->label('Хост')->disabled(),
+                        TextInput::make('consecutive_failures')->label('Серия отказов')->disabled(),
+                        TextInput::make('open_until')->label('Закрыт до')->disabled(),
+                        TextInput::make('last_failure_reason')->label('Причина')->disabled(),
+                        TextInput::make('last_outcome_at')->label('Последний исход')->disabled(),
                     ]),
             ]);
     }

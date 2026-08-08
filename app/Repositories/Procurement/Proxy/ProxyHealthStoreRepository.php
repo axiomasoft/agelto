@@ -37,6 +37,18 @@ final readonly class ProxyHealthStoreRepository
         $proxy->update($attributes);
     }
 
+    public function reactivate(Proxy $proxy): void
+    {
+        $proxy->update([
+            'is_active' => true,
+            'fails_count' => 0,
+            'open_count' => 0,
+            'open_until' => null,
+            'disabled_at' => null,
+            'disabled_reason' => null,
+        ]);
+    }
+
     /**
      * @param  array<string, mixed>  $attributes
      */
