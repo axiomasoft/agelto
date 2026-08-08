@@ -6,7 +6,7 @@
 |:--|:--|
 | Plan ID | 2026.08.06-CRAWL-HARDEN |
 | Title | Надёжный контур crawling/парсинга ЕИС |
-| Version | 0.25.0 |
+| Version | 0.26.0 |
 | Status | 🟡 In progress |
 | Document Type | Executable Master Plan |
 | Authoring Model | frontier |
@@ -203,7 +203,7 @@ Deliverables другого. P1.3 идёт solo: ему нужен не Playwrig
 | P3 | Профили обхода и управление прогонами из админки | 7/10 | 🟠 Done with deviations |
 | P4 | Надёжность конвейера: budget запросов, троттлинг, анти-дубли, execution lanes | 4/9 | 🟠 Done with deviations |
 | P5 | Healthcheck площадки и уведомления | 4/7 | 🟠 Done with deviations |
-| P6 | Статусы, история изменений закупки, событие «закупка состоялась» | 0/5 | 🟡 In progress |
+| P6 | Статусы, история изменений закупки, событие «закупка состоялась» | 1/5 | 🟡 In progress |
 | P7 | Три слоя смет в админке и видимость промтов | 0/5 | ⬜ Not started |
 | P8 | Схлопывание миграций и финальный аудит схемы | 0/4 | ⬜ Not started |
 | P9 | Единая документация с диаграммами | 0/8 | ⬜ Not started |
@@ -341,10 +341,13 @@ Deliverables другого. P1.3 идёт solo: ему нужен не Playwrig
 | D126 | 2026-08-08 | **Для этого плана owner подтверждает быстрый путь малых execution-блокировок: локальное расширение `Files`/узкий типизированный шов можно завершать в той же сессии без отдельного design-захода, если факт записан в journal/Completion Notes, item закрывается `🟠`, добавлена регрессия и повторно прогнана полная Validation.** Новый предметный контракт, необратимая смена семантики или конфликт двух фаз по-прежнему требуют `plan-design`. **Consequences:** owner-gate снимает цену лишней сессии, но не снимает ни status-rule, ни pre-final, ни обязанность честного якоря; P5.3/P5.4 считаются валидными экспериментами этого пути, а ложный full-pass P5.4 — дефект применения финального гейта, не доказательство, что быстрый путь запрещён. | Прямое уточнение владельца в audit-сессии: блокировки P5 использовались как тест механизма и в большинстве были минимальными; критерий успеха — свежая приемлемая реализация при явной маркировке факта. `RAG:— (repo-grounded: journal.jsonl P5.1/P5.3/P5.4/P5.6; phases/P5.md Known Deviations и Audit P5)` |
 | D127 | 2026-08-08 | **Fast path D126 применён внутри P5.7 к единственной новой красной дельте полного suite: stale-ожидание `GeminiProxyRoutingTest` сравнивало URL с сырыми credentials после введённого ранее percent-encoding.** Тест исправлен inline, продуктовый LLM/proxy-код не менялся; файл находится вне исходного `Files`, поэтому P5.7 честно закрывается 🟠. **Consequences:** полный suite возвращён к именованному baseline D112; отдельный design/fix-item не создаётся, а факт блока остаётся в D-логе, journal и Completion Notes. | Ошибка локальна, решение однозначно задано действующим контрактом `ProxyLease::httpOptions()` и уже покрывается самим тестом; новая итерация не добавила бы проектного знания. `RAG:— (repo-grounded: tests/Feature/Llm/GeminiProxyRoutingTest.php; tests/Unit/Crawler/ProxyLeaseTest.php; phases/P5.md P5.7 Completion Notes)` |
 
+| D128 | 2026-08-08 | **P6.2 фиксирует подтверждённый award даже при анонимном победителе: `AwardData::$winner` nullable, optional `BidData::$bidNumber` отделяет идентификатор участника от порядкового номера, `SupplierResultsProcessor` пишет `prc_awards` с `winner_org_id = null`, а организацию и роль winner создаёт только при наличии идентифицируемого победителя. Анонимный повторный разбор не затирает уже обогащённый `winner_org_id`.** Отменяет обязательность имени/ИНН/ОГРН внутри самой вкладки `supplier-results`, заложенную в исходное ТЗ P6.2. **Consequences:** узкий публичный DTO-контракт расширяется двумя nullable-полями, а processor входит в `Files`; схема не меняется, потому что `winner_org_id` и `bid_number` уже существуют и nullable. | Прямое указание владельца автономно разрешить блокировку; живая factура доказывает идентификатор участника, порядковый номер/ранг победителя и цену без реквизитов организации. Отвергнуты выдуманная организация, смешивание двух колонок, потеря award до будущего контракта и сетевой переход из HTML-parser. `RAG:— (repo-grounded: findings/P6-supplier-results-fix.md; research/15-p6.2-anonymous-winner-design.md; database/migrations/2026_07_04_100021_create_prc_bids_table.php; database/migrations/2026_07_04_100022_create_prc_awards_table.php)` |
+
 ## 6. Update Log
 
 | Дата | Кто (role/model) | Что |
 |:--|:--|:--|
+| 2026-08-08 | plan-design/frontier/high | P6.2 перепроектирован по D128: award допускает анонимного победителя без потери результата; блокировка снята, ТЗ возвращено в исполнение |
 | 2026-08-08 | plan-run/gpt-5.6-terra/high | P6.1 закрыт 🟠, item-коммит `9f4a54eb`: точный этап отмены, канон положительного исхода, операторская витрина и grant; детали см. phases/P6.md P6.1 Completion Notes |
 | 2026-08-08 | plan-audit/frontier/xhigh | Повторный audit P5 (заход 2) — GREEN: F1–F6 закрыты P5.7, код/plan/git согласованы; следующий item P6.1 |
 | 2026-08-08 | plan-run/frontier/xhigh | P5.7 закрыт 🟠, item-коммит `1ad32f21`: F1–F6 RED-аудита исправлены; D127 фиксирует inline stale-test fast path — детали см. phases/P5.md P5.7 Completion Notes |
@@ -427,6 +430,7 @@ Deliverables другого. P1.3 идёт solo: ему нужен не Playwrig
 | 2026-08-08 | plan-run/gpt-5.6-terra/high | P5.2 закрыт, item-коммит `a25e1015`: зонд якорей и последний измеримый исход разбора карточки добавлены — детали см. phases/P5.md P5.2 Completion Notes. |
 | 2026-08-08 | plan-run/gpt-5.6-terra/high | P5.3 закрыт 🟠, item-коммит `af86c077`: три пассивные пробы, history-orchestrator и ежедневная команда добавлены; D124 снял блокировку прямым baseline-исправлением — детали см. phases/P5.md P5.3 Completion Notes. |
 | 2026-08-08 | plan-run/gpt-5.6-terra/high | P5.4 закрыт 🟠, item-коммит `0edb60cb`: активная проба действия ОКПД2-фильтра добавлена штатным сетевым путём — детали см. phases/P5.md P5.4 Completion Notes. |
+| 2026-08-08 | plan-run/gpt-5.6-sol/high | P6.2 закрыт: реальная вкладка пишет протокол, анонимную заявку и award с монотонным winner enrichment — детали см. phases/P6.md P6.2 Completion Notes. |
 
 ## 7. Contracts
 
