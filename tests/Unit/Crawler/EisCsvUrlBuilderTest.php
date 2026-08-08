@@ -186,6 +186,43 @@ test('buildQueryParams с cursor->day и cursor->dateField=update маппитс
         ->and($params)->not->toHaveKey('publishDateFrom');
 });
 
+test('buildQueryParams с окном профиля и update-курсором снимает окно публикации', function () {
+    $crawler = CrawlerWithRegistry::make(
+        registryCode: 'fz44',
+        filter: ['publishedFrom' => '2025-01-01', 'publishedTo' => '2025-12-31', 'okpd2Codes' => ['43']],
+        options: null,
+        platformId: $this->platformId,
+    );
+    $cursor = new ListingCursor(blockFrom: 1, day: '2026-08-08', priceStack: ['100:200'], dateField: 'update');
+
+    $params = app(EisCsvUrlBuilder::class)->buildQueryParams(crawler: $crawler, from: 1, to: 500, cursor: $cursor);
+
+    expect($params['updateDateFrom'])->toBe('08.08.2026')
+        ->and($params['updateDateTo'])->toBe('08.08.2026')
+        ->and($params)->not->toHaveKey('publishDateFrom')
+        ->and($params)->not->toHaveKey('publishDateTo');
+});
+
+test('buildQueryParams с окном профиля и publish-курсором сохраняет archive-параметры', function () {
+    $crawler = CrawlerWithRegistry::make(
+        registryCode: 'fz44',
+        filter: ['publishedFrom' => '2025-01-01', 'publishedTo' => '2025-12-31', 'okpd2Codes' => ['43']],
+        options: null,
+        platformId: $this->platformId,
+    );
+    $cursor = new ListingCursor(blockFrom: 1, day: '2025-06-15', priceStack: ['100:200'], dateField: 'publish');
+
+    $params = app(EisCsvUrlBuilder::class)->buildQueryParams(crawler: $crawler, from: 1, to: 500, cursor: $cursor);
+
+    expect($params['publishDateFrom'])->toBe('15.06.2025')
+        ->and($params['publishDateTo'])->toBe('15.06.2025')
+        ->and($params['priceFromGeneral'])->toBe('100')
+        ->and($params['priceToGeneral'])->toBe('200')
+        ->and($params['sortDirection'])->toBe('true')
+        ->and($params)->not->toHaveKey('updateDateFrom')
+        ->and($params)->not->toHaveKey('updateDateTo');
+});
+
 test('buildQueryParams без cursor или с cursor->day=null — прежний fresh-набор без регресса', function () {
     $crawler = CrawlerWithRegistry::make(registryCode: 'fz44', filter: null, options: null, platformId: $this->platformId);
 

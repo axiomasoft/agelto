@@ -72,17 +72,17 @@ final class EisSearchFilter extends Data implements HasArchiveWindow, HasPriceRa
          */
         public ?int $priceTo = null,
         /**
-         * Дата размещения «с» (`publishDateFrom`) — у ДВУХ разных ролей в зависимости от режима
-         * профиля (D113): у fresh/delta это обычный фильтр выдачи; у archive-профиля БЕЗ явного
-         * `--from`/`--to` команды это ОКНО ПРОГОНА, которое `StartCrawlerRunAction` читает через
-         * контракт `HasArchiveWindow` — посуточный override внутри прогона
-         * (`EisCsvUrlBuilder::archiveOverrides()`) не конфликтует с профильным окном, а
-         * вкладывается в него. Форматы каста — оба, которые реально приходят: ISO из собственного
-         * `toArray()` (round-trip через jsonb) и `Y-m-d` из сида и формы.
+         * Дата размещения «с» (`publishDateFrom`) имеет ТРИ роли (D113/D115): у fresh это обычный
+         * фильтр выдачи; у archive-профиля БЕЗ явного `--from`/`--to` — ОКНО ПРОГОНА, которое
+         * `StartCrawlerRunAction` читает через `HasArchiveWindow`; у delta-scan и backlog-rescan
+         * профильное окно публикации в запрос не уходит — их курсор дренирует день обновления.
+         * Посуточный override archive вкладывается в окно профиля. Форматы каста — оба, которые
+         * реально приходят: ISO из собственного `toArray()` (round-trip через jsonb) и `Y-m-d` из
+         * сида и формы.
          */
         #[WithCast(DateTimeInterfaceCast::class, format: [DATE_ATOM, 'Y-m-d'])]
         public ?CarbonImmutable $publishedFrom = null,
-        /** Дата размещения «по» (`publishDateTo`) — та же двойная роль, что у `publishedFrom`. */
+        /** Дата размещения «по» (`publishDateTo`) — те же три роли, что у `publishedFrom`. */
         #[WithCast(DateTimeInterfaceCast::class, format: [DATE_ATOM, 'Y-m-d'])]
         public ?CarbonImmutable $publishedTo = null,
         /** Строка поиска (`searchString`); принимает и реестровый номер. */

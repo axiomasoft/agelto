@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Dto\Procurement\Crawler\ListingCursor;
 use App\Enums\Procurement\Crawler\CrawlerMode;
 use App\Enums\Procurement\Crawler\ListingSortField;
 use App\Enums\Procurement\Crawler\RunStopPolicy;
@@ -154,4 +155,28 @@ test('архивный профиль из сида даёт ожидаемый 
         ->toHaveKey('lastDateChangeCsv', 'on')
         ->toHaveKey('fz44', 'on')
         ->and($query)->not->toHaveKey('af');
+});
+
+test('сидовый архивный профиль не передаёт окно публикации в sweep по дате обновления', function (): void {
+    $this->seed(EisPlatformSeeder::class);
+    $this->seed(Okpd2NodeSeeder::class);
+    $this->seed(CrawlerProfileSeeder::class);
+
+    $registry = Registry::query()->where('code', 'fz44')->sole();
+    $archive = Crawler::query()
+        ->where('registry_id', $registry->id)
+        ->where('mode', CrawlerMode::Archive)
+        ->sole();
+
+    $query = app(EisCsvUrlBuilder::class)->buildQueryParams(
+        crawler: $archive,
+        from: 1,
+        to: 500,
+        cursor: new ListingCursor(blockFrom: 1, day: '2026-08-08', priceStack: ['0:500000'], dateField: 'update'),
+    );
+
+    expect($query['updateDateFrom'])->toBe('08.08.2026')
+        ->and($query['updateDateTo'])->toBe('08.08.2026')
+        ->and($query)->not->toHaveKey('publishDateFrom')
+        ->and($query)->not->toHaveKey('publishDateTo');
 });

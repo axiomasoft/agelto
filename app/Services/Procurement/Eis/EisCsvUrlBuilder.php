@@ -31,6 +31,10 @@ final readonly class EisCsvUrlBuilder
     ) {}
 
     /**
+     * Собирает параметры для всех путей листинга. Если курсор дренирует день, он —
+     * единственный источник дат: archive использует дату публикации, delta-scan и
+     * backlog-rescan — дату обновления; fresh без дня курсора не затрагивается (D113/D115).
+     *
      * @return array<string, string>
      */
     public function buildQueryParams(Crawler $crawler, int $from, int $to, ?ListingCursor $cursor = null): array
@@ -63,8 +67,30 @@ final readonly class EisCsvUrlBuilder
         $query[self::REGISTRY_NUMBER_COLUMN_FLAG] = 'on';
 
         if ($cursor?->day !== null) {
+            $query = $this->withoutFilterDateWindow(query: $query);
             $query = [...$query, ...$this->archiveOverrides(day: $cursor->day, priceStack: $cursor->priceStack ?? [], dateField: $cursor->dateField ?? 'publish')];
         }
+
+        return $query;
+    }
+
+    /**
+     * Курсор archive/delta/backlog уже задаёт один конкретный день, поэтому профильное окно
+     * публикации не должно остаться второй датовой парой в query (D113/D115). Снимаем обе пары
+     * симметрично: сегодня фильтр эмитит только `publishDate*`, но правило не должно протечь,
+     * если профиль начнёт хранить окно обновления.
+     *
+     * @param  array<string, string>  $query
+     * @return array<string, string>
+     */
+    private function withoutFilterDateWindow(array $query): array
+    {
+        unset(
+            $query['publishDateFrom'],
+            $query['publishDateTo'],
+            $query['updateDateFrom'],
+            $query['updateDateTo'],
+        );
 
         return $query;
     }
