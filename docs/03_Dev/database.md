@@ -9,6 +9,29 @@ status: draft
 Полная схема — миграции `database/migrations/` (источник истины, не копируется сюда). Этот раздел —
 карта таблиц AI-пайплайна и ключевые инварианты, которые не читаются из одной миграции с ходу.
 
+## Фактический состав схемы
+
+После консолидации P8 (2026-08-08) дерево содержит **63 миграции**: 57 `create_*` с полной
+финальной формой таблиц и шесть отдельных инфраструктурных операций. Инфраструктурные файлы
+устанавливают/регистрируют pg_partman, задают retention и autovacuum, включают расширения
+наблюдаемости, создают исторические партиции и чистят осиротевшие регистрации partman:
+
+- `2026_07_04_100047_setup_pg_partman.php`;
+- `2026_07_09_100050_set_pg_partman_retention.php`;
+- `2026_07_09_100051_set_hot_partition_autovacuum.php`;
+- `2026_08_05_100068_enable_db_observability_extensions.php`;
+- `2026_08_05_100074_precreate_historical_partitions.php`;
+- `2026_08_05_100076_prune_orphaned_partman_part_config_entries.php`.
+
+В `public` после `migrate:fresh --seed` — **70** обычных и партиционированных родительских
+таблиц (физические партиции не считаются). Пять родителей зарегистрированы в pg_partman:
+`prc_events`, `prc_revisions`, `llm_calls`, `prc_fetches`, `prc_operation_logs`.
+
+По [D82](../../plans/2026.08.06-CRAWL-HARDEN/decisions/D82-legacy.md) удалены три носителя без
+живых доменных писателей/читателей: `prc_daily_stats`, `prc_regions`, `prc_ignore_rules`.
+`prc_ignored_items` сохранена: это действующий denylist конкретных закупок. Возврат любого из
+трёх удалённых носителей требует новой миграции и восстановления прикладной поверхности.
+
 ## Таблицы AI-пайплайна (`prc_ai_*`) и транспорта (`llm_*`)
 
 Домен `Llm` (`llm_*`) — провайдер-агностичный LLM-транспорт, выделенный из закупочного `prc_ai_*` в
@@ -92,7 +115,8 @@ status: draft
 
 ## Партиционирование и retention (D33, D41, P7.7)
 
-`llm_calls`/`prc_fetches`/`prc_operation_logs`/`prc_events` — партиционированы через
+`prc_events`/`prc_revisions`/`llm_calls`/`prc_fetches`/`prc_operation_logs` — пять таблиц,
+партиционированных через
 `pg_partman` (`docker/postgres/`), retention-окно задаётся в `part_config` — DROP старых партиций по
 config-окну. **Хранится вечно** (явное исключение из агрессивного retention): gold-датасет
 (`prc_ai_dataset_examples`), `prc_estimates.raw_result`, метаданные `LlmCall` без блобов,

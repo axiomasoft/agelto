@@ -37,6 +37,10 @@
 - `prc_regions` (справочник регионов площадки); `prc_ignored_items` (denylist конкретных закупок с `reason_category`); `prc_daily_stats` (посуточная аналитика по стадиям — бывш. `plt_crawler_analytics`);
 - сценарии в чек-листе §11: инвалидация кэша по `rules_hash`, резюм прерванной экстракции, ретрай упавшей детальной карточки.
 
+> Историческая строка сохранена. `prc_regions` и `prc_daily_stats` отменены 2026-08-08 по
+> [D82](../../../plans/2026.08.06-CRAWL-HARDEN/decisions/D82-legacy.md); `prc_ignored_items`
+> остаётся действующим denylist. Тем же решением отменена `prc_ignore_rules`.
+
 Прочие полезные v1-паттерны, уже покрытые v2: `content_hash` дедуп (`prc_document_versions`), `dirty_data`/`attributes jsonb` (сырое неразобранное), `submission_end_at` (→ `bidding_ends_at`, приоритизация очереди), error-блок `next_retry_at/failed_permanently` (канон), lease `locked_by/until`.
 
 ## 3. Что осознанно НЕ переносим (в Old остаётся как история)

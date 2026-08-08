@@ -29,6 +29,9 @@
 | `llm_` | LLM-транспорт (shared, D22) | providers, routes, prompts, calls |
 | `prc_` | Закупки — единый мегадомен | platforms, registries, status_mappings, regions, procurement_parties, procurements, revisions, events, lots, items, financing, eis_details, protocols, bids, awards, clarifications, cancellations, documents, document_versions, prc_ai_analyses, prc_ai_dataset_examples, prc_ai_eval_runs, prc_ai_eval_results, estimates, estimate_sections, estimate_items, estimate_resources, estimate_totals, crawlers, crawler_runs, proxies, fetches, proxy_checks, ignore_rules, ignored_items, daily_stats, operation_logs, search (витрина, §10) |
 
+> Исторический перечень сохранён без переписывания. `regions`, `ignore_rules` и `daily_stats`
+> отменены 2026-08-08 по [D82](../../../plans/2026.08.06-CRAWL-HARDEN/decisions/D82-legacy.md).
+
 Внутри `prc_`-мегадомена имя по умолчанию без повтора домена (`prc_lots`, а не `prc_procurement_lots`). Осознанное отклонение — сателлиты уже занятых корней: `prc_estimate_items/sections/resources/totals` (не `prc_items` — коллизия с позициями объекта закупки), `prc_crawler_runs` (не `prc_runs`). Фактические имена индексов/FK везде выровнены под настоящее имя таблицы (raw-DDL в 100018/100026/100033/100039/100041/100046 — правка аудита F).
 
 ## 1. Справочники и классификаторы
@@ -45,7 +48,11 @@
 ### prc_document_types — снесён (D16 плана `2026.07.28-EST-ARCH`)
 SSOT типа документа — enum `App\Enums\Procurement\Ai\AiDocumentType` (код) + реестр анализаторов `DocumentAnalyzerRegistry` (`config('ai.analyzers')`); `has_extractor` заменён фактом «в реестре есть анализатор с извлечением». Целостность колонок `document_type` (`prc_ai_analyses`, `prc_ai_dataset_examples`, `llm_routes`, `llm_prompts`) — check-constraint по `AiDocumentType::values()`, не FK на таблицу.
 
-### prc_regions — справочник регионов площадки
+### prc_regions — отменён 2026-08-08 (D82)
+
+> Исторический замысел ниже сохранён; таблица удалена вместе с моделью и фабрикой, потому что
+> живых писателей и читателей не было. Решение: [D82](../../../plans/2026.08.06-CRAWL-HARDEN/decisions/D82-legacy.md).
+
 `id, platform_id FK, external_id text (код региона на площадке), name text, region_code text nullable (наш внутренний код)`. Перенос v1 `plt_platform_regions`: словарь «код региона площадки → имя/внутренний код» для фильтра краулера по региону.
 
 ### ref_okpd2 / ref_ktru / ref_okved2 / ref_kbk — классификаторы
@@ -253,13 +260,21 @@ Unique `(procurement_id, organization_id, role)`. Быстрый доступ к
 ### prc_proxies / prc_proxy_checks
 Как v1 `sys_proxies` (service, creds, targets, is_active, fails_count) + журнал проверок. Креды — только здесь.
 
-### prc_ignore_rules
+### prc_ignore_rules — отменён 2026-08-08 (D82)
+
+> Исторический замысел ниже сохранён; таблица и неработающая операторская поверхность удалены,
+> поскольку ни один доменный сервис правила не применял. Решение: [D82](../../../plans/2026.08.06-CRAWL-HARDEN/decisions/D82-legacy.md).
+
 `id, registry_id nullable, field text, operator text (contains/regex), value text, reason_category, is_active` → попадание = `prc_procurements.ignored_at` + событие `ignored`.
 
 ### prc_ignored_items — denylist конкретных закупок (перенос v1 `plt_crawler_ignore_links`)
 `id, registry_id FK, registry_number text unique(registry_id,registry_number), reason_category text index, reason text` — осознанный skip конкретной закупки **до** создания `prc_procurements` (не ошибка, а решение «не берём»); отделено от `prc_ignore_rules` (правила) и от failed (ошибки). Полезно для анализа «почему теряем закупки».
 
-### prc_daily_stats — посуточная аналитика по стадиям (перенос v1 `plt_crawler_analytics`)
+### prc_daily_stats — отменён 2026-08-08 (D82)
+
+> Исторический замысел ниже сохранён; таблица удалена, потому что не имела писателя или читателя.
+> Решение: [D82](../../../plans/2026.08.06-CRAWL-HARDEN/decisions/D82-legacy.md).
+
 `id, date, crawler_id FK, unique(date, crawler_id)`; счётчики по стадиям: `listing_found/listing_errors`, `detail_fetched/detail_errors`, `docs_indexed/docs_errors`, `screened/estimates_found/screen_errors`, `extracted_items/extract_errors`. Готовый посуточный срез для дашборда — дешевле, чем агрегировать партиционированные `prc_fetches`/`llm_calls` на каждый запрос; наполняется инкрементально процессорами стадий.
 
 ## 8. Операционная инфраструктура
