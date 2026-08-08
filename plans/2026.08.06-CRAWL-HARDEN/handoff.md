@@ -1,34 +1,27 @@
-# HANDOFF — 2026-08-08 — after P3.10
+# HANDOFF — 2026-08-08 — after P3
 
-**Next:** `/task:plan-close 2026.08.06-CRAWL-HARDEN P3`
+**Next:** `/task:plan-audit 2026.08.06-CRAWL-HARDEN P3`
 
 | Параметр | Значение |
 |:--|:--|
-| Model | gpt-5.6-terra (implementation) |
-| Thinking | low — терминальная фаза требует сверки статусов и фактов |
+| Model | frontier |
+| Thinking | xhigh — AUDIT-CAP после двух реопенов |
 | Context | NEW SESSION — шаг-не-item |
-| Суть | Закрыть P3 после реопена D115, затем передать фазу на обязательный третий аудит (`AUDIT-CAP`). |
-| Команда | `$ task:plan-close 2026.08.06-CRAWL-HARDEN P3` |
+| Суть | Adversarial-аудит закрытой P3 после реопенов D111/D115; решение по итогам — за владельцем. |
+| Команда | `/task:plan-audit 2026.08.06-CRAWL-HARDEN P3` |
 
-```
-/model gpt-5.6-terra
-/effort low
-$ task:plan-close 2026.08.06-CRAWL-HARDEN P3
-```
+**Done:** P3 закрыта: 10/10 items терминальны (7 🟢, 3 🟠). P3.10 (`a30daff0`) закрывает F1 аудита
+захода 2: update-sweep больше не получает профильное окно публикации, archive-путь сохранён.
+Phase Handoff переписан, устаревший маркер D115 снят. Docs-sync: обновлены
+`docs/03_Dev/crawling-pipeline.md`, `docs/04_Operators/how-to/restart-failed-run.md` и
+`docs/04_Operators/reference/statuses.md`.
 
-**Done:** P3.10 закрыт item-коммитом `a30daff0`: правило «курсор — единственный источник дат»
-живёт только в `EisCsvUrlBuilder`; при дневном update-курсоре обе пары дат профиля сняты, archive
-сохраняет прежний дневной override. Докблоки `EisSearchFilter` называют третью, sweep-роль поля.
-Добавлены три регрессионных кейса, включая сидовый архивный профиль; целевой Pest — 69 passed / 202
-assertions на `a30daff0`, Pint на путях item'а и PHPStan зелёные. Анти-самообман пройден: без
-снятия ключей два новых кейса красные, archive-кейс зелёный.
-
-**Remaining:** Закрыть фазу P3 (`7 🟢 + 3 🟠`), затем провести аудит P3 заход 3. Это `AUDIT-CAP`:
+**Remaining:** Провести аудит P3 заход 3. Это `AUDIT-CAP`:
 после его результата владелец решает, принять ли фазу с отклонениями, открыть новый item или вынести
 остаток в другой план. P4–P9 не начаты; переход к P4 — только после терминального P3.
 
 **Sources of truth:** `plan.md` (D112/D113/D115, §3 Routing, Status Board) · `phases/P3.md`
-(P3.10 Completion Notes, audit захода 2) · `roadmap.md` (последовательность) · commit `a30daff0`
+(P3.10 Completion Notes, аудиты заходов 1–2) · `roadmap.md` (последовательность) · commit `a30daff0`
 (код и тесты P3.10) · `journal.jsonl` (append-only история).
 
 **Open risks:** полный Pest имеет предсуществующую baseline-красноту (D112: 18 failed на
