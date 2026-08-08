@@ -12,6 +12,11 @@ use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
+/**
+ * P7.5 F-01/F-02: ведущие FK `estimate_id`/`created_by` индексированы; оператор правки
+ * сохраняет исходное `NO ACTION` явно. Таблицы контура были < 1 МБ при ревизии, поэтому
+ * обычные индексы допустимы без `CONCURRENTLY`.
+ */
 return new class extends Migration
 {
     public function up(): void
@@ -27,6 +32,7 @@ return new class extends Migration
 
             $table->foreignId('estimate_id')
                 ->nullable()
+                ->index()
                 ->constrained(table: (new Estimate)->getTable())
                 ->nullOnDelete();
 
@@ -38,7 +44,9 @@ return new class extends Migration
             $table->boolean('is_reusable')->default(false)->comment('применять ко всем документам этого document_type');
 
             $table->foreignId('created_by')
-                ->constrained(table: (new User)->getTable());
+                ->index()
+                ->constrained(table: (new User)->getTable())
+                ->onDelete('NO ACTION');
 
             $table->timestampTz('applied_at')->nullable();
 

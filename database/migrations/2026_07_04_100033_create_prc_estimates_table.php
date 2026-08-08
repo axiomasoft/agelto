@@ -12,6 +12,13 @@ use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
+/**
+ * GAP-8/P5.3: `regulatory_base` хранит цитату редакции нормативов формы 421/пр; дополнения и
+ * письмо индексов остаются в passport. D114/P6.2: `raw_result_disk` адресует сырой ответ LLM
+ * вне ILM-префикса и образует пару с `raw_result_ref`, без default. P8.4/D136/D155/D74:
+ * `validation_notes` хранит ValidationReport::$notes сметы. P7.5 F-01/F-02: `verified_by`
+ * индексирован; аудируемые FK сохраняют явные `NO ACTION`/`RESTRICT`.
+ */
 return new class extends Migration
 {
     public function up(): void
@@ -22,25 +29,29 @@ return new class extends Migration
 
             $table->foreignId('analysis_id')
                 ->index()
-                ->constrained(table: (new Analysis)->getTable());
+                ->constrained(table: (new Analysis)->getTable())
+                ->onDelete('NO ACTION');
 
             $table->foreignId('document_version_id')
                 ->index()
-                ->constrained(table: (new DocumentVersion)->getTable());
+                ->constrained(table: (new DocumentVersion)->getTable())
+                ->onDelete('NO ACTION');
 
             // Nullable (D98): обучающий контур работает с документами вне закупки (D19) — guard,
             // пропускавший такие документы, снят в EstimatePersister.
             $table->foreignId('procurement_id')
                 ->nullable()
                 ->index()
-                ->constrained(table: (new Procurement)->getTable());
+                ->constrained(table: (new Procurement)->getTable())
+                ->onDelete('RESTRICT');
 
             // Денормализация с документа прогона (§4.2 root/document-contour.md, D91, тот же
             // приём, что procurement_id выше, D98) — ответ на вопрос «с какой площадки эта смета»
             // без джойна через закупку и единственный носитель правила показа (§4).
             $table->foreignId('platform_id')
                 ->index()
-                ->constrained(table: (new Platform)->getTable());
+                ->constrained(table: (new Platform)->getTable())
+                ->onDelete('NO ACTION');
 
             // Порядковый номер сметы внутри одного анализа (в файле может быть несколько смет).
             $table->smallInteger('ordinal')->default(1);
@@ -51,6 +62,9 @@ return new class extends Migration
             $table->char('currency', length: 3)->nullable();
             $table->integer('base_year')->nullable();
             $table->text('price_level')->nullable();
+            $table->text('regulatory_base')
+                ->nullable()
+                ->comment('редакция сметных нормативов — цитата документа; заполняет контракт LLM (PassportResponse)');
 
             // text + PHP backed enum CalcMethod (D105), не Postgres native enum.
             $table->text('calc_method')->nullable();
@@ -70,15 +84,21 @@ return new class extends Migration
             // Сырой ответ LLM целиком — по решению «нормализованные + сырой jsonb», для переобработки/датасета.
             $table->jsonb('raw_result')->nullable();
             $table->text('raw_result_ref')->nullable()->comment('object storage только для payload > ~1МБ');
+            $table->text('raw_result_disk')
+                ->nullable()
+                ->comment('null = диск сырого результата config(crawler.raw_disk)');
 
             $table->integer('rows_expected')->nullable();
             $table->integer('rows_extracted')->nullable();
             $table->text('validation_status');
+            $table->jsonb('validation_notes')->nullable()
+                ->comment('ValidationReport::$notes сметы целиком — research/12-uncertainty-model.md §5');
 
             // Ось «оператор проверил боевой разбор» (D89/D99) — без писателя внутри плана.
             $table->timestampTz('verified_at')->nullable();
             $table->foreignId('verified_by')
                 ->nullable()
+                ->index()
                 ->constrained(table: (new User)->getTable())
                 ->nullOnDelete();
 

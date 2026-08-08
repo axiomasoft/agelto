@@ -11,6 +11,9 @@ use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
+/**
+ * P7.5 F-02/D133: маршрут сохраняет исходный `NO ACTION` к провайдеру явно.
+ */
 return new class extends Migration
 {
     public function up(): void
@@ -23,7 +26,8 @@ return new class extends Migration
 
             $table->foreignId('provider_id')
                 ->index()
-                ->constrained(table: (new Provider)->getTable());
+                ->constrained(table: (new Provider)->getTable())
+                ->onDelete('NO ACTION');
 
             $table->text('model');
             $table->jsonb('options')->nullable();

@@ -9,6 +9,10 @@ use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
+/**
+ * P7.5 F-02/D133: обе аудируемые связи результата оценки сохраняют исходный `NO ACTION`
+ * явно; изменение поведения удаления не входит в консолидацию.
+ */
 return new class extends Migration
 {
     public function up(): void
@@ -18,11 +22,13 @@ return new class extends Migration
 
             $table->foreignId('eval_run_id')
                 ->index()
-                ->constrained(table: (new EvalRun)->getTable());
+                ->constrained(table: (new EvalRun)->getTable())
+                ->onDelete('NO ACTION');
 
             $table->foreignId('dataset_example_id')
                 ->index()
-                ->constrained(table: (new DatasetExample)->getTable());
+                ->constrained(table: (new DatasetExample)->getTable())
+                ->onDelete('NO ACTION');
 
             $table->text('metric');
             $table->decimal('value', total: 18, places: 6);

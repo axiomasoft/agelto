@@ -7,8 +7,14 @@ use App\Models\Procurement\Estimate\Item;
 use App\Models\Procurement\Estimate\Section;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
+/**
+ * P8.4, research/12-uncertainty-model.md §3.2, D136: nullable `quality` — носитель
+ * неопределённости позиции, без backfill. Частичный индекс сохраняет точное условие
+ * `WHERE quality IS NOT NULL` для фильтра/счётчика помеченных строк витрины P8.5 (D74).
+ */
 return new class extends Migration
 {
     public function up(): void
@@ -55,11 +61,18 @@ return new class extends Migration
             $table->unsignedBigInteger('work_type_id')->nullable()->index();
 
             $table->jsonb('attributes')->nullable()->comment('modifiers[] + плоские ключи КС-3 (§4)');
+            $table->jsonb('quality')->nullable()
+                ->comment('провенанс-ключ верхнего уровня model/validator — research/12-uncertainty-model.md §3.2');
 
             $table->timestamps();
 
             $table->unique(['estimate_id', 'row_index']);
         });
+
+        DB::statement(sprintf(
+            'create index %1$s_quality_index on %1$s (estimate_id) where quality is not null',
+            $this->table(),
+        ));
     }
 
     public function down(): void

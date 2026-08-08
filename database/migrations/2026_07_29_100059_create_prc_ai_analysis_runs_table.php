@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Enums\Procurement\Ai\AnalysisRunStatus;
 use App\Enums\Procurement\Ai\RunMode;
+use App\Models\Llm\LlmCall;
 use App\Models\Procurement\Ai\Analysis;
 use App\Models\Procurement\Ai\AnalysisRun;
 use App\Models\Procurement\Document\DocumentVersion;
@@ -13,6 +14,12 @@ use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
+/**
+ * P7.5 F-01/F-02: `initiated_by` индексирован, версия документа и обратный FK анализа сохраняют
+ * явный `NO ACTION`. F-05: `llm_calls.analysis_run_id` получает недостающий FK здесь, после
+ * появления позднего родителя; индекс уже создан в 100026. Postgres 17 не поддерживает
+ * `NOT VALID` для FK на партиционированном родителе, поэтому используется обычный constraint.
+ */
 return new class extends Migration
 {
     public function up(): void
@@ -23,7 +30,8 @@ return new class extends Migration
 
             $table->foreignId('document_version_id')
                 ->index()
-                ->constrained(table: (new DocumentVersion)->getTable());
+                ->constrained(table: (new DocumentVersion)->getTable())
+                ->onDelete('NO ACTION');
 
             $table->text('mode')->comment('auto/manual — App\\Enums\\Procurement\\Ai\\RunMode');
             $table->text('status')->comment('pending→running→succeeded/failed — App\\Enums\\Procurement\\Ai\\AnalysisRunStatus');
@@ -38,6 +46,7 @@ return new class extends Migration
 
             $table->foreignId('initiated_by')
                 ->nullable()
+                ->index()
                 ->constrained(table: (new User)->getTable())
                 ->nullOnDelete();
 
@@ -72,12 +81,22 @@ return new class extends Migration
         Schema::table((new Analysis)->getTable(), function (Blueprint $table): void {
             $table->foreign('analysis_run_id')
                 ->references('id')
-                ->on($this->table());
+                ->on($this->table())
+                ->onDelete('NO ACTION');
         });
+
+        $llmCalls = (new LlmCall)->getTable();
+        DB::statement(
+            "ALTER TABLE {$llmCalls} ADD CONSTRAINT {$llmCalls}_analysis_run_id_foreign "
+            ."FOREIGN KEY (analysis_run_id) REFERENCES {$this->table()}(id) ON DELETE NO ACTION",
+        );
     }
 
     public function down(): void
     {
+        $llmCalls = (new LlmCall)->getTable();
+        DB::statement("ALTER TABLE {$llmCalls} DROP CONSTRAINT {$llmCalls}_analysis_run_id_foreign");
+
         Schema::table((new Analysis)->getTable(), function (Blueprint $table): void {
             $table->dropForeign(['analysis_run_id']);
         });

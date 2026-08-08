@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Enums\Procurement\Ai\AiDocumentType;
 use App\Enums\Procurement\Ai\AnalysisStep;
+use App\Models\Procurement\Ai\Analysis;
 use App\Models\Procurement\Ai\DatasetExample;
 use App\Models\Procurement\Document\DocumentVersion;
 use App\Models\User;
@@ -12,6 +13,12 @@ use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
+/**
+ * Реестр версий эталонных ОТВЕТОВ связан с отдельным реестром эталонных ФАЙЛОВ (D6/D10).
+ * `analysis_id` хранит точный анализ-предшественник DPO-снапшота (D56, P7.1), а не результат
+ * `Analysis::active()`. P7.5 F-01/F-02: ведущие FK индексированы, документ сохраняет явный
+ * `NO ACTION`.
+ */
 return new class extends Migration
 {
     public function up(): void
@@ -21,7 +28,17 @@ return new class extends Migration
 
             $table->foreignId('document_version_id')
                 ->index()
-                ->constrained(table: (new DocumentVersion)->getTable());
+                ->constrained(table: (new DocumentVersion)->getTable())
+                ->onDelete('NO ACTION');
+
+            // Без constrained(): prc_ai_fixtures создаётся позже (100053); FK связывается там.
+            $table->unsignedBigInteger('fixture_id')->nullable()->index();
+
+            $table->foreignId('analysis_id')
+                ->nullable()
+                ->index()
+                ->constrained(table: (new Analysis)->getTable())
+                ->nullOnDelete();
 
             $table->text('document_type')->comment('тип разобранного документа — эталон всегда про конкретный документ, значения AiDocumentType, целостность — check-constraint (D16/D17, §3.5 document-type-axis.md)');
             $table->text('task')->comment('screening/extraction');
@@ -31,6 +48,7 @@ return new class extends Migration
 
             $table->foreignId('verified_by')
                 ->nullable()
+                ->index()
                 ->constrained(table: (new User)->getTable())
                 ->nullOnDelete();
 

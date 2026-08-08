@@ -6,6 +6,12 @@ use Illuminate\Database\Migrations\Migration;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 
+/**
+ * P7.5 F-02: `analysis_id` сохраняет исходный `NO ACTION` явно. F-05: FK
+ * `analysis_run_id → prc_ai_analysis_runs` привязывается в поздней 100059 после появления
+ * родителя; индекс создаётся здесь. Порядок create → partition/index/constraint → bootstrap
+ * сохраняется для партиционированного родителя.
+ */
 return new class extends Migration
 {
     public function up(): void
@@ -42,7 +48,7 @@ return new class extends Migration
         DB::statement('CREATE INDEX llm_calls_purpose_called_at_index ON llm_calls (purpose, called_at)');
         DB::statement(
             'ALTER TABLE llm_calls ADD CONSTRAINT llm_calls_analysis_id_foreign '
-            .'FOREIGN KEY (analysis_id) REFERENCES prc_ai_analyses (id)',
+            .'FOREIGN KEY (analysis_id) REFERENCES prc_ai_analyses (id) ON DELETE NO ACTION',
         );
 
         $this->bootstrapPartitions();

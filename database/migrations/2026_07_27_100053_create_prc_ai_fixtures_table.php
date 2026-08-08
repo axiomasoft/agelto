@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Enums\Procurement\Ai\AiDocumentType;
+use App\Models\Procurement\Ai\DatasetExample;
 use App\Models\Procurement\Ai\Fixture;
 use App\Models\Procurement\Document\Document;
 use App\Models\User;
@@ -11,6 +12,11 @@ use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
+/**
+ * Адресация исходного файла эталона (D11/D50/D114, P6.2: research/07-storage-addressing.md
+ * §2/§3) живёт дольше поколения диска; fallback — `ai.fixtures.disk`, без default, чтобы не
+ * маскировать пропуск писателя. P7.5 F-01: `verified_by` индексирован.
+ */
 return new class extends Migration
 {
     public function up(): void
@@ -21,6 +27,7 @@ return new class extends Migration
             $table->text('code')->unique();
             $table->text('source_format');
             $table->text('storage_path');
+            $table->text('disk')->nullable()->comment('null = диск эталонов config(ai.fixtures.disk)');
             $table->text('sha256')->unique();
             $table->bigInteger('size_bytes');
             $table->text('mime');
@@ -46,6 +53,7 @@ return new class extends Migration
 
             $table->foreignId('verified_by')
                 ->nullable()
+                ->index()
                 ->constrained(table: (new User)->getTable())
                 ->nullOnDelete();
 
@@ -65,10 +73,21 @@ return new class extends Migration
             .'ADD CONSTRAINT prc_ai_fixtures_owner_document_type_check '
             ."CHECK (owner_document_type IN ({$this->documentTypeValues()}))",
         );
+
+        Schema::table((new DatasetExample)->getTable(), function (Blueprint $table): void {
+            $table->foreign('fixture_id')
+                ->references('id')
+                ->on($this->table())
+                ->nullOnDelete();
+        });
     }
 
     public function down(): void
     {
+        Schema::table((new DatasetExample)->getTable(), function (Blueprint $table): void {
+            $table->dropForeign(['fixture_id']);
+        });
+
         Schema::dropIfExists($this->table());
     }
 

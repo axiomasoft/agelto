@@ -11,6 +11,12 @@ use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
+/**
+ * P7.5 F-01/F-02/F-08: FK-индексы обратной связи поглощены в финальную форму; связи с версией
+ * документа и прогоном сохраняют `NO ACTION` явно. Выражения по `result.branch_reason` и
+ * `result.needs_review` обслуживают `pipeline:stuck-check` и `PipelineStatus` без seq scan с
+ * распаковкой TOAST (research/08-db-review.md, D132).
+ */
 return new class extends Migration
 {
     public function up(): void
@@ -21,7 +27,8 @@ return new class extends Migration
 
             $table->foreignId('document_version_id')
                 ->index()
-                ->constrained(table: (new DocumentVersion)->getTable());
+                ->constrained(table: (new DocumentVersion)->getTable())
+                ->onDelete('NO ACTION');
 
             // Без constrained() — prc_ai_analysis_runs заводится позже (2026_07_29_100059,
             // D91/D93 root/document-contour.md §3.3), FK связывается там же (тот же приём, что
@@ -65,6 +72,7 @@ return new class extends Migration
             $table->text('review_status')->default('unreviewed')->comment('unreviewed/approved/rejected');
             $table->foreignId('reviewed_by')
                 ->nullable()
+                ->index()
                 ->constrained(table: (new User)->getTable())
                 ->nullOnDelete();
             $table->timestampTz('reviewed_at')->nullable();
@@ -72,6 +80,7 @@ return new class extends Migration
 
             $table->foreignId('parent_analysis_id')
                 ->nullable()
+                ->index()
                 ->constrained(table: (new Analysis)->getTable())
                 ->nullOnDelete();
             $table->timestampTz('superseded_at')->nullable();
@@ -86,6 +95,15 @@ return new class extends Migration
             'CREATE UNIQUE INDEX prc_ai_analyses_active_version_step_unique '
             .'ON prc_ai_analyses (document_version_id, step) '
             .'WHERE superseded_at IS NULL AND is_shadow = false',
+        );
+
+        DB::statement(
+            "CREATE INDEX {$this->table()}_result_branch_reason_index "
+            ."ON {$this->table()} ((result->>'branch_reason'))",
+        );
+        DB::statement(
+            "CREATE INDEX {$this->table()}_result_needs_review_index "
+            ."ON {$this->table()} (((result->>'needs_review')::boolean))",
         );
 
         // Ось типа документа (D16/D17, §1.3 root/document-type-axis.md): единственный носитель

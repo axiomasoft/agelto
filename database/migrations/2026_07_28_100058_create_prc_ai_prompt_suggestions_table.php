@@ -15,6 +15,11 @@ use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
+/**
+ * P7.5 F-01: четыре ведущих nullable FK (`analysis_id`, `fixture_id`, `eval_run_id`,
+ * `decided_by`) индексированы в финальной форме. На момент ревизии таблица была < 1 МБ,
+ * поэтому обычные индексы допустимы без `CONCURRENTLY`.
+ */
 return new class extends Migration
 {
     public function up(): void
@@ -28,16 +33,19 @@ return new class extends Migration
 
             $table->foreignId('analysis_id')
                 ->nullable()
+                ->index()
                 ->constrained(table: (new Analysis)->getTable())
                 ->nullOnDelete();
 
             $table->foreignId('fixture_id')
                 ->nullable()
+                ->index()
                 ->constrained(table: (new Fixture)->getTable())
                 ->nullOnDelete();
 
             $table->foreignId('eval_run_id')
                 ->nullable()
+                ->index()
                 ->constrained(table: (new EvalRun)->getTable())
                 ->nullOnDelete();
 
@@ -60,6 +68,7 @@ return new class extends Migration
 
             $table->foreignId('decided_by')
                 ->nullable()
+                ->index()
                 ->constrained(table: (new User)->getTable())
                 ->nullOnDelete();
 
