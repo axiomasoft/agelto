@@ -201,7 +201,7 @@ Deliverables другого. P1.3 идёт solo: ему нужен не Playwrig
 | P2 | ОКПД2: фильтр профиля и древовидная форма | 2/6 | 🟠 Done with deviations |
 | P3 | Профили обхода и управление прогонами из админки | 7/10 | 🟠 Done with deviations |
 | P4 | Надёжность конвейера: budget запросов, троттлинг, анти-дубли, execution lanes | 4/9 | 🟠 Done with deviations |
-| P5 | Healthcheck площадки и уведомления | 3/6 | 🟡 In progress |
+| P5 | Healthcheck площадки и уведомления | 4/6 | 🟠 Done with deviations |
 | P6 | Статусы, история изменений закупки, событие «закупка состоялась» | 0/5 | ⬜ Not started |
 | P7 | Три слоя смет в админке и видимость промтов | 0/5 | ⬜ Not started |
 | P8 | Схлопывание миграций и финальный аудит схемы | 0/4 | ⬜ Not started |
@@ -341,6 +341,7 @@ Deliverables другого. P1.3 идёт solo: ему нужен не Playwrig
 
 | Дата | Кто (role/model) | Что |
 |:--|:--|:--|
+| 2026-08-08 | implementation/medium | P5.6 закрыт: read-only Filament-витрина history healthcheck, право оператора и runbook — детали см. phases/P5.md P5.6 Completion Notes |
 | 2026-08-06 | issue-planner/frontier | План создан: brief, 2 findings, 2 research, 9 скелет-фаз, 35 items |
 | 2026-08-06 | issue-planner/frontier | `plans/ACTIVE.md` переведён на 2026.08.06-CRAWL-HARDEN (прежнее значение — «—», перехватывать было нечего) |
 | 2026-08-06 | issue-planner/frontier | Живой замер ОКПД2 на ЕИС (вне фаз): D8–D11, findings/P1-okpd2-probe.md, artifacts/eis-okpd2-probe.json; Q1/Q6 закрыты |
