@@ -1,31 +1,28 @@
-# HANDOFF — 2026-08-08 — after P4.8
+# HANDOFF — 2026-08-08 — after P4.2
 
-**Next:** ЗАПУСК ВРУЧНУЮ: implementation/high
+**Next:** /task:plan-run 2026.08.06-CRAWL-HARDEN P4.3
 
 | Параметр | Значение |
 |:--|:--|
 | Model | implementation |
-| Thinking | high — proxy binding crosses three HTTP paths |
+| Thinking | medium — implement auto-disable and operator visibility |
 | Context | continue (reset the session context) — ручной item |
-| Суть | Выполнить P4.2: привязать прокси к профилю и легализовать direct mode. |
-| Команда | — |
+| Суть | Выполнить P4.3: глобальный breaker отключает прокси, оператор возвращает его явным действием. |
+| Команда | /task:plan-run 2026.08.06-CRAWL-HARDEN P4.3 |
 
-```text
-$ task:plan-run 2026.08.06-CRAWL-HARDEN P4.2
-```
+~~~text
+/task:plan-run 2026.08.06-CRAWL-HARDEN P4.3
+~~~
 
-**Done:** P4.8 закрыт 🟠: seed реестра сохраняет UUID при повторе, core boundary больше не знает
-type-specific `Estimate`, а все тесты fail-closed для HTTP.
+**Done:** P4.2 закрыт отдельным item-коммитом `ea327264`: привязка proxy↔profile, явный direct-режим
+и обновлённые regression-carriers подтверждены тестами.
 
-**Remaining:** P4.2–P4.6; отдельный fix-item нужен для 12 предсуществующих Pint-нарушений вне
-P4.8.
+**Remaining:** P4.3–P4.6; отдельный fix-item для 12 предсуществующих Pint-нарушений.
 
-**Sources of truth:** `plan.md` D119 и §3 Routing · `phases/P4.md` P4.8 ·
-`findings/P4.8-validation-gates-2026-08-08.md` · `research/13-p4.8-validation-gates.md` ·
-`journal.jsonl`.
+**Sources of truth:** phases/P4.md P4.2–P4.3 · plan.md §3 Routing · journal.jsonl.
 
-**Open risks:** Полный Pint остаётся красным на 12 style issues вне P4.8; remediation — отдельный
-узкий fix-item, не расширять P4.2.
+**Open risks:** Полный Pint остался красным на предсуществующих 12 style issues при P4.8; P4.2 Pint
+зелёный. P4.3 не должен расширять scope на этот cleanup.
 
-**Workarounds/Deferred/Open questions:** workarounds — `PoliteThrottle` и `crawler.throttle.*`
-до P4.4; deferred — Pint cleanup; open_questions — —.
+**Workarounds/Deferred/Open questions:** workarounds — PoliteThrottle и crawler.throttle.* до
+P4.4; deferred — Pint cleanup; open_questions — —.
