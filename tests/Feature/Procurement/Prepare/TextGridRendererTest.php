@@ -132,7 +132,10 @@ test('регрессия разреженности — далёкая непу�
     });
 
     $originalLimit = ini_get('memory_limit');
-    ini_set('memory_limit', '128M');
+    // Полный suite уже держит память предыдущих тестов. Даём renderer фиксированные 128 MiB
+    // ДОПОЛНИТЕЛЬНОГО headroom, иначе абсолютный 128M делает тест зависимым от порядка файлов.
+    $headroomBytes = memory_get_usage(true) + 128 * 1024 * 1024;
+    ini_set('memory_limit', (string) $headroomBytes);
 
     try {
         $result = app(TextGridRenderer::class)->render($path, 'xlsx');
