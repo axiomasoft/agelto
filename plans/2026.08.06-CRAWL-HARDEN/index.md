@@ -8,13 +8,13 @@
 |:--|:--|
 | `plan.md` | мастер-план: Meta, Context, Execution Rules, Routing, Status Board, D-лог, Update Log, Contracts, Обсуждение |
 | `handoff.md` | rolling-указатель «что запускать дальше» |
-| `roadmap.md` | исполнительская карта: жёсткий порядок фаз, 51 item по строкам, батчи `B1`/`B2`, оркестрация `W1`, гейты владельца (собрана 2026-08-07 режимом `finish`) |
+| `roadmap.md` | исполнительская карта: жёсткий порядок фаз, 56 items по строкам, батчи `B1`/`B2`, оркестрация `W1`, гейты владельца (собрана 2026-08-07 режимом `finish`) |
 | `open-questions.md` | трекер незакрытого (Q9, Q10, Q13, Q15, Q16; Q1–Q8, Q11, Q12, Q14 закрыты) |
 | `journal.jsonl` | append-only история исполнения |
 | `phases/P1.md` | **детализирована** (5 items — P1.5 добавлен при детализации P6, D71; DoR пройден) |
 | `phases/P2.md` | **детализирована** (6 items, DoR пройден) |
 | `phases/P3.md` | **детализирована** (6 items с перенумерацией, DoR пройден) |
-| `phases/P4.md` | **детализирована** (6 items с перенумерацией, DoR пройден) |
+| `phases/P4.md` | **детализирована** (7 items: P4.7 добавлен D117; P4.1 re-design D118, DoR пройден) |
 | `phases/P5.md` | **детализирована** (6 items с перенумерацией, DoR пройден) |
 | `phases/P6.md` | **детализирована** (5 items с перенумерацией, DoR пройден) |
 | `phases/P7.md` | **детализирована** (5 items с перенумерацией, DoR пройден; заявлена оркестрация) |
@@ -41,6 +41,7 @@
 | `findings/P8-rag-squash-2026-08-06.md` — штатное схлопывание Laravel (`schema:dump --prune`) и его цена на нашем стеке: нет `psql`/`pg_dump` в образе `app`, `pg_dump --schema-only` не переносит `partman.part_config` | P8.1 (обоснование D81), P8.4 |
 | `findings/P9-rag-docs-2026-08-06.md` — безопасные типы mermaid на обоих зеркалах (GitHub + Obsidian) и их ловушки, отсутствие гейта доков, замер дерева (83 файла, 18 без frontmatter, 150 ссылок, битых 0) | P9.2 (форма и счётчики гейта), P9.6/P9.7 (типы диаграмм) |
 | `findings/P4-rag-throttle-2026-08-06.md` — примитивы троттлинга Laravel 13.x: `RateLimiter`, `Redis::throttle`, запрет middleware `RateLimited` при `tries = 1`, отсутствие штатного «общего бюджета на хост» | P4.4 (выбор механизма), P4.5 (канон планировщика), P1.3 (закрыл его тему 1 — D49/D97) |
+| `findings/P4-settings-readers-2026-08-08.md` — репозиторный инвентарь читателей legacy-настроек и потребителей `PoliteThrottle` | P4.1 (граница миграции HTTP), P4.4 (полный переход на общий budget) |
 
 Ожидаются от P1: `P1-listing-params.md` (P1.1), `P1-okpd2-map.md` (P1.2),
 `P1-rag-reliability-practices.md` (P1.3, две темы после сужения D97), `P1-card-anchors.md` (P1.4), `P1-card-inventory.md` (P1.5).
