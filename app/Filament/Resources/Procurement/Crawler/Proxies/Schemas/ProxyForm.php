@@ -89,6 +89,7 @@ class ProxyForm
                 Repeater::make('targets')
                     ->label('Здоровье по хостам')
                     ->relationship()
+                    ->disabled()
                     ->addable(false)
                     ->deletable(false)
                     ->reorderable(false)
