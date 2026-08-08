@@ -1,31 +1,27 @@
-# HANDOFF — 2026-08-08 — after P5.6
+# HANDOFF — 2026-08-08 — after P5.7
 
-**Next:** ЗАПУСК ВРУЧНУЮ: implementation/high
+**Next:** /task:plan-audit 2026.08.06-CRAWL-HARDEN P5
 
 | Параметр | Значение |
 |:--|:--|
-| Model | implementation |
-| Thinking | high — канон статусов и витрина маппингов |
-| Context | continue (reset the session context) — ручной item |
-| Суть | Выполнить P6.1: сверка статусов ЕИС, канон положительного исхода и витрина маппингов. |
-| Команда | `—` |
+| Model | frontier |
+| Thinking | xhigh — повторная проверка закрытия RED-находок |
+| Context | NEW SESSION — шаг-не-item |
+| Суть | Сверить P5 после remediation P5.7 с кодом, git-топологией и Validation. |
+| Команда | `$ task:plan-audit 2026.08.06-CRAWL-HARDEN P5` |
 
-```bash
-codex -C /home/vostrikov/projects/agelto/agelto -m gpt-5.6-terra -c 'model_reasoning_effort="high"' -a never -s danger-full-access '$ task:plan-run 2026.08.06-CRAWL-HARDEN P6.1'
-```
+**Done:** P5.1 — `9260026d`; P5.2 — `a25e1015`; P5.3 — `af86c077`; P5.4 — `0edb60cb`;
+P5.5 — `e4bcd9e6`; P5.6 — `864d1598`; P5.7 — `1ad32f21`. Первый audit P5 дал RED;
+F1–F6 закрыты P5.7, а новая дельта полного suite возвращена к baseline D112 через D127.
 
-```text
-select session model class implementation
-select session effort high
-$ task:plan-run 2026.08.06-CRAWL-HARDEN P6.1
-```
+**Remaining:** повторный audit P5; после GREEN — P6.1–P9.8.
 
-**Done:** P5.1 — `9260026d`; P5.2 — `a25e1015`; P5.3 — `af86c077`; P5.4 — `0edb60cb`; P5.5 — `e4bcd9e6`: событие смены здоровья, Telegram-слушатель и антиспам по вердикту.
+**Sources of truth:** `phases/P5.md` P5.7 + оба audit-блока · `plan.md` D125–D127 ·
+`roadmap.md` · item tree `1ad32f21`.
 
-**Remaining:** P6.1–P9.8.
+**Open risks:** `max_overlap_share=0.032` P5.4 остаётся явно некалиброванным; общий suite держит
+предсуществующий baseline D112 — 18 failed вне P5, без новой красной дельты на `1ad32f21`.
 
-**Sources of truth:** `phases/P5.md` P5.6 · `phases/P6.md` P6.1 · `plan.md` §2–§4 · commit `864d1598`.
-
-**Open risks:** Порог пересечения P5.4 некалиброван (`max_overlap_share=0.032`, P1 `16/500`); пересмотреть после первого боевого окна.
-
-**Workarounds/Deferred/Open questions:** workarounds: `docker compose exec` требует отсутствующий `MINIO_ROOT_PASSWORD`, поэтому P5.5 верифицирован через запущенный `agelto_app` с тестовой БД · deferred: — · open_questions: —.
+**Workarounds/Deferred/Open questions:** workarounds: compose CLI требует отсутствующий
+`MINIO_ROOT_PASSWORD`, поэтому Validation выполнена в healthy `agelto_app` с явной
+`DB_DATABASE=agelto_test` после DB-preflight · deferred: — · open_questions: —.

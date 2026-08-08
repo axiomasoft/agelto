@@ -6,12 +6,12 @@
      группировка запусков и порядок. Закрытие фазы или re-design обновляет эту таблицу
      (+ строка в `## 6. Update Log` плана). -->
 
-**Обновлён:** 2026-08-08 (P4.9 budget-checkpoint follow-up, D121) · **Соответствует plan.md:**
-v0.22.0 · **Items:** 58, терминальны 28 — P1.1–P1.5, P2.1–P2.6, P3.1–P3.10,
-P4.7/P4.1/P4.8/P4.2/P4.3/P4.4/P4.9 закрыты
+**Обновлён:** 2026-08-08 (P5.7 remediation и fast path D127) · **Соответствует plan.md:**
+v0.25.0 · **Items:** 59, терминальны 37 — P1.1–P1.5, P2.1–P2.6, P3.1–P3.10,
+P4.1–P4.9 и P5.1–P5.7 закрыты
 (🟢/🟠 — точные статусы только в Status Board `plan.md` и `## Phase Status` фаз, здесь не
-дублируются), открыт 30 items. AUDIT-CAP P3 закрыт решением владельца: P3 принята 🟠 без четвёртого
-реопена. Ближайший шаг — **P4.5**, затем P4.6.
+дублируются), открыты 22 items. AUDIT-CAP P3 закрыт решением владельца: P3 принята 🟠 без
+четвёртого реопена. Ближайший шаг — **повторный audit P5**, затем P6.1.
 
 ## Жёсткий порядок
 
@@ -59,7 +59,7 @@ P4.7/P4.1/P4.8/P4.2/P4.3/P4.4/P4.9 закрыты
 | P4.3 | — | plan-exec | implementation/medium | — | авто-дизейбл по серии открытий breaker'а (D41) |
 | P4.4 | — | plan-run (manual) | frontier/high | — | общий бюджет площадки; читает свод P1.3 тема 1; необратимая цена — бан |
 | P4.9 | solo | plan-run (manual) | implementation/high | — | **follow-up D121.** Типизированный outcome scanner: request-budget checkpoint не двигает недренированный день и не переводит archive/delta/backlog в failure |
-| P4.5 | solo, **NEXT** | plan-run (manual) | implementation/high | — | подача пачками; читает свод P1.3 тема 2 |
+| P4.5 | solo | plan-run (manual) | implementation/high | — | подача пачками; читает свод P1.3 тема 2 |
 | P4.6 | — | plan-exec | implementation/medium | — | журнал всех заборов + единственный писатель `prc_operation_logs` |
 | P5.1 | — | plan-exec | implementation/medium | — | эталон в git + `prc_platform_checks` + четыре вердикта (D50/D52) |
 | P5.2 | — | plan-run (manual) | implementation/high | — | зонд якорей на ГОРЯЧЕМ пути снятия карточки |
@@ -67,6 +67,7 @@ P4.7/P4.1/P4.8/P4.2/P4.3/P4.4/P4.9 закрыты
 | P5.4 | — | plan-run (manual) | implementation/high | — | единственная активная проба фазы: доказательство, что выборка строительная |
 | P5.5 | — | plan-run (manual) | implementation/high | — | ПЕРВОЕ доменное событие проекта; конвенция наследуется P6.5 (D55) |
 | P5.6 | — | plan-exec | implementation/medium (`Review = light`) | — | read-only витрина, единственный `light` в плане |
+| P5.7 | solo | plan-run (manual) | implementation/high | — | remediation D125/D127 закрыт; пять healthcheck findings и stale full-suite expectation исправлены в одной сессии |
 | P6.1 | — | plan-run (manual) | implementation/high | — | канон положительного исхода (D61); вход — `artifacts/eis-stages.json` (P1.4) |
 | P6.2 | — | plan-run (manual) | frontier/high | — | живой контакт с площадкой + правка боевого парсера по свежей фактуре |
 | P6.3 | — | plan-run (manual) | implementation/high | — | история на ДВУХ партиционированных таблицах; граница по времени в сигнатуре |
@@ -92,23 +93,23 @@ Solo-запуски обоснованы построчно в `## 3. Routing`: 
 design-решения или цена ошибки необратима; `plan-exec` — там, где решения запинены D-записями,
 а гейты детерминированы командой.
 
-## Следующий запуск — P4.5
+## Следующий запуск — повторный audit P5
 
-**Next:** manual: implementation/high
+**Next:** task:plan-audit: frontier/xhigh
 
 | Параметр | Значение |
 |:--|:--|
-| Model class | implementation (`gpt-5.6-terra`) |
-| Effort | high |
+| Model class | frontier (`gpt-5.6-sol`) |
+| Effort | xhigh |
 | Capabilities | — |
-| Context | same-session — item |
-| Суть | Перевести детальную стадию на планомерную подачу job'ов без дублей |
-| Команда | — |
+| Context | cold-start — шаг-не-item |
+| Суть | Повторно сверить P5 после P5.7 и подтвердить, что F1–F6 закрыты без новых регрессий. |
+| Команда | `$ task:plan-audit 2026.08.06-CRAWL-HARDEN P5` |
 
 ```text
-/model gpt-5.6-terra
-/effort high
-$ task:plan-run 2026.08.06-CRAWL-HARDEN P4.5
+select session model class frontier
+select session effort xhigh
+$ task:plan-audit 2026.08.06-CRAWL-HARDEN P5
 ```
 
 ## Готовые launch-block'и групп

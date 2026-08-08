@@ -6,7 +6,7 @@
 |:--|:--|
 | Plan ID | 2026.08.06-CRAWL-HARDEN |
 | Title | Надёжный контур crawling/парсинга ЕИС |
-| Version | 0.24.0 |
+| Version | 0.25.0 |
 | Status | 🟡 In progress |
 | Document Type | Executable Master Plan |
 | Authoring Model | frontier |
@@ -112,6 +112,7 @@ healthcheck «вёрстка ЕИС не поменялась» с уведом�
 | — | P5.4 | implementation/high | manual | full | единственная активная проба фазы: запросы к госплощадке через бюджет и прокси, и единственное доказательство, что выборка вообще строительная (D8/D20) |
 | — | P5.5 | implementation/high | manual | full | первое доменное событие проекта: конвенция нагрузки и каталогов замораживается и наследуется P6.5 (кандидат на экспортируемый контракт) |
 | — | P5.6 | implementation/medium | plan-exec | light | read-only витрина над одной непартиционированной таблицей: новых решений нет, риск локализован, гейты детерминированы (тест на отсутствие роутов мутации + grep действий) |
+| — | P5.7 | implementation/high | manual | full | **ремедиация RED-аудита D125.** Исправляет ложный `ok` в двух health-сигналах и активный сетевой control-flow; цена ошибки — healthcheck продолжает молча считать систему здоровой либо ходить к ЕИС после отключения |
 | — | P6.1 | implementation/high | manual | full | канон положительного исхода замораживается и наследуется событием P6.5 против запиненного D61; открытых design-решений нет, но ошибка в сверке этапов молча меняет, какие закупки считаются состоявшимися, и постфактум не видна ни одним гейтом |
 | — | P6.2 | frontier/high | manual | full | живой контакт с госплощадкой (поиск success-карточки по фильтрам — дословное требование владельца) плюс правка боевого парсера по свежей фактуре: открытое design-решение о селекторах-каноне при необратимой цене ошибки (фикстура-фантазия уже однажды увела парсер от площадки) |
 | — | P6.3 | implementation/high | manual | full | доменный модуль истории на ДВУХ партиционированных таблицах: инвариант «граница по времени в сигнатуре» и платформо-независимость решаются впервые; ошибка даёт скан всех партиций и длительности, измеряющие работу краулера вместо закупки |
@@ -201,7 +202,7 @@ Deliverables другого. P1.3 идёт solo: ему нужен не Playwrig
 | P2 | ОКПД2: фильтр профиля и древовидная форма | 2/6 | 🟠 Done with deviations |
 | P3 | Профили обхода и управление прогонами из админки | 7/10 | 🟠 Done with deviations |
 | P4 | Надёжность конвейера: budget запросов, троттлинг, анти-дубли, execution lanes | 4/9 | 🟠 Done with deviations |
-| P5 | Healthcheck площадки и уведомления | 4/6 | 🟠 Done with deviations |
+| P5 | Healthcheck площадки и уведомления | 4/7 | 🟠 Done with deviations |
 | P6 | Статусы, история изменений закупки, событие «закупка состоялась» | 0/5 | ⬜ Not started |
 | P7 | Три слоя смет в админке и видимость промтов | 0/5 | ⬜ Not started |
 | P8 | Схлопывание миграций и финальный аудит схемы | 0/4 | ⬜ Not started |
@@ -336,12 +337,17 @@ Deliverables другого. P1.3 идёт solo: ему нужен не Playwrig
 | D122 | 2026-08-08 | **P4.6 дополняет закрытый перечень `Files` единственной точкой факта авто-дизейбла — `app/Services/Procurement/Proxy/ProxyResolver.php`; `OperationLogWriter` вызывается в ветке, которая уже переводит узел в disabled.** Альтернатива — новый event/listener — отвергнута: он создал бы второй механизм доставки для одного синхронного операторского события и расширил бы контракт сверх задачи. **Consequences:** item меняет ещё один существующий сервис и добавляет регрессионный тест записи события дизейбла; остальной механизм breaker и критерии отключения не меняются. | Исполнение P4.6 остановилось до кодовых правок: `ProxyResolver::reportOutcome()` — единственное место, устанавливающее `is_active = false`, `disabled_at` и `disabled_reason`, а в исходном `Files` оно отсутствовало. `RAG:— (repo-grounded: phases/P4.md P4.6 escalation; app/Services/Procurement/Proxy/ProxyResolver.php:125-132)` |
 | D123 | 2026-08-08 | **Owner разрешил завершить P5.1 в текущей сессии: `Procurement\\Health` становится утверждённой подобластью для Enums, Exceptions, DTO и Repositories, а `DomainLayoutTest` включён в Files и Required Reads P5.1.** **Consequences:** область изменения P5.1 расширяется на один архитектурный реестр; без этой записи четыре точно заданных ТЗ каталога остаются недопустимыми и item невозможно принять. | Прямое указание владельца продолжить, а машинный гейт назвал все четыре отсутствующие регистрации. `RAG:— (repo-grounded: tests/Unit/Architecture/DomainLayoutTest.php:29-59; phases/P5.md P5.1)` |
 | D124 | 2026-08-08 | **Owner разрешил снять блокировку P5.3 прямой правкой versioned baseline: для `card_parse`, `listing_shape` и `estimate_fields` добавлены одинаковые некалиброванные границы `degraded_share=0.05` и `broken_share=0.20`; итоговый вердикт берёт худшую измеренную долю.** **Consequences:** P5.3 меняет baseline и вводит общий резолвер порогов сверх исходного Files, поэтому закрывается 🟠; до первого боевого окна эти числа не считаются калиброванными и должны оставаться явно помеченными в истории. | В baseline P5.1 были только `min_sample`, тогда как P5.3 требовал четыре вердикта и не мог детерминированно отличить `degraded` от `broken`. Прямое указание владельца: исправить без отдельного design-захода. `RAG:— (repo-grounded: resources/crawler/health/eis-baseline.json; phases/P5.md P5.3)` |
+| D125 | 2026-08-08 | **Фаза P5 реопенена по `RED` аудита P5, заход 1; заводится один remediation-item P5.7 на F1–F6.** Четыре шага реопена исполнены: Status Board `🟠` → `🟡` (4/7), Version 0.24.0 → 0.25.0, эта D-запись, `## Phase Handoff` помечен `> УСТАРЕЛ — фаза реопенена D125`. **Consequences:** P6.1 временно сдвинут до закрытия P5.7 и повторного аудита; закрытые ТЗ P5.1–P5.6 не переписываются, их продуктовые расхождения исправляет отдельный атомарный item, а бухгалтерия получает воспроизводимые git-якоря. | Audit replay воспроизвёл красный интеграционный тест и четыре дефекта непосредственно в Deliverables фазы: выборка смет, key-fields сигнал, requests counter и disable-control; блок `phases/P5.md` `## Audit P5 — 2026-08-08 (заход 1)`. `RAG:— (repo-grounded: phases/P5.md Audit P5; tests/Feature/Health/HealthCheckCommandTest.php; app/Services/Procurement/Health)` |
+| D126 | 2026-08-08 | **Для этого плана owner подтверждает быстрый путь малых execution-блокировок: локальное расширение `Files`/узкий типизированный шов можно завершать в той же сессии без отдельного design-захода, если факт записан в journal/Completion Notes, item закрывается `🟠`, добавлена регрессия и повторно прогнана полная Validation.** Новый предметный контракт, необратимая смена семантики или конфликт двух фаз по-прежнему требуют `plan-design`. **Consequences:** owner-gate снимает цену лишней сессии, но не снимает ни status-rule, ни pre-final, ни обязанность честного якоря; P5.3/P5.4 считаются валидными экспериментами этого пути, а ложный full-pass P5.4 — дефект применения финального гейта, не доказательство, что быстрый путь запрещён. | Прямое уточнение владельца в audit-сессии: блокировки P5 использовались как тест механизма и в большинстве были минимальными; критерий успеха — свежая приемлемая реализация при явной маркировке факта. `RAG:— (repo-grounded: journal.jsonl P5.1/P5.3/P5.4/P5.6; phases/P5.md Known Deviations и Audit P5)` |
+| D127 | 2026-08-08 | **Fast path D126 применён внутри P5.7 к единственной новой красной дельте полного suite: stale-ожидание `GeminiProxyRoutingTest` сравнивало URL с сырыми credentials после введённого ранее percent-encoding.** Тест исправлен inline, продуктовый LLM/proxy-код не менялся; файл находится вне исходного `Files`, поэтому P5.7 честно закрывается 🟠. **Consequences:** полный suite возвращён к именованному baseline D112; отдельный design/fix-item не создаётся, а факт блока остаётся в D-логе, journal и Completion Notes. | Ошибка локальна, решение однозначно задано действующим контрактом `ProxyLease::httpOptions()` и уже покрывается самим тестом; новая итерация не добавила бы проектного знания. `RAG:— (repo-grounded: tests/Feature/Llm/GeminiProxyRoutingTest.php; tests/Unit/Crawler/ProxyLeaseTest.php; phases/P5.md P5.7 Completion Notes)` |
 
 ## 6. Update Log
 
 | Дата | Кто (role/model) | Что |
 |:--|:--|:--|
-| 2026-08-08 | implementation/medium | P5.6 закрыт: read-only Filament-витрина history healthcheck, право оператора и runbook — детали см. phases/P5.md P5.6 Completion Notes |
+| 2026-08-08 | plan-run/frontier/xhigh | P5.7 закрыт 🟠, item-коммит `1ad32f21`: F1–F6 RED-аудита исправлены; D127 фиксирует inline stale-test fast path — детали см. phases/P5.md P5.7 Completion Notes |
+| 2026-08-08 | implementation/medium | P5.6 закрыт, item-коммит `864d1598`: read-only Filament-витрина history healthcheck, право оператора и runbook — детали см. phases/P5.md P5.6 Completion Notes |
+| 2026-08-08 | plan-design/frontier/high | P5 реопенена D125 после RED-аудита, добавлен remediation-item P5.7; D126 фиксирует быстрый owner-путь для малых execution-блокировок при 🟠 + полной повторной Validation |
 | 2026-08-06 | issue-planner/frontier | План создан: brief, 2 findings, 2 research, 9 скелет-фаз, 35 items |
 | 2026-08-06 | issue-planner/frontier | `plans/ACTIVE.md` переведён на 2026.08.06-CRAWL-HARDEN (прежнее значение — «—», перехватывать было нечего) |
 | 2026-08-06 | issue-planner/frontier | Живой замер ОКПД2 на ЕИС (вне фаз): D8–D11, findings/P1-okpd2-probe.md, artifacts/eis-okpd2-probe.json; Q1/Q6 закрыты |
@@ -362,7 +368,7 @@ Deliverables другого. P1.3 идёт solo: ему нужен не Playwrig
 | 2026-08-07 | issue-planner/frontier | **Design pass 1/2 (закрыт; строка восстановлена ретроспективно — F3 аудита захода 2).** Сделано 2026-08-06: скелеты девяти фаз + пофазная детализация до DoR, 51 item, D1–D96, развилки № 1–№ 34. Не дотянулись: сквозной reconcile, D-лог под перенумерации, roadmap. Фокус дальше — `finish` |
 | 2026-08-07 | issue-planner/frontier | Фиксы семи находок аудита захода 2: семь адресов события → P6.5 греп-проходом по всем слоям (аудит называл пять), квалификатор донора у трёх кросс-плановых id, деплой вне скоупа P8.4, относительные пути в workflow, Q16 в roadmap, каталог плана впервые в git (`a86e2289`). D105–D106, Meta 0.14.0 |
 | 2026-08-08 | implementation/low | P3 закрыта после реопена D115: 10/10 items терминальны (7 🟢, 3 🟠); Phase Handoff обновлён, docs-sync подтверждён, следующий шаг — `AUDIT-CAP` P3. |
-| 2026-08-08 | plan-run/gpt-5.6-terra/high | P5.5 закрыт: первое доменное событие здоровья площадки, Telegram-слушатель и антиспам по смене вердикта — детали см. phases/P5.md P5.5 Completion Notes |
+| 2026-08-08 | plan-run/gpt-5.6-terra/high | P5.5 закрыт, item-коммит `e4bcd9e6`: первое доменное событие здоровья площадки, Telegram-слушатель и антиспам по смене вердикта — детали см. phases/P5.md P5.5 Completion Notes |
 
 | 2026-08-07 | plan-run/opus/high | P1.1 закрыт: сортировка действует на CSV-выгрузке, дата — суточной гранулярности, ISO-формат молча снимает фильтр по дате — детали см. phases/P1.md P1.1 Completion Notes |
 | 2026-08-07 | plan-run/opus/high | P1.2 закрыт: карта раздела F (34 узла) снята, колонка ОКПД2 в CSV пуста финально, источник ОКПД2 закупки — таблица позиций карточки — детали см. phases/P1.md P1.2 Completion Notes |
@@ -415,9 +421,10 @@ Deliverables другого. P1.3 идёт solo: ему нужен не Playwrig
 | 2026-08-08 | plan-exec/implementation/medium | P4.6 закрыт: единые журналы заборов и операторских событий, read-only витрина и метрики ожидания — детали см. phases/P4.md P4.6 Completion Notes. |
 | 2026-08-08 | plan-close/implementation/low | Фаза P4 закрыта 🟠 Done with deviations: все 9 items терминальны, 4/9 🟢; Phase Handoff свёл отклонения items, docs-sync подтверждён по P4.7/P4.6. |
 | 2026-08-08 | plan-design/frontier/high | P5.1 re-design: D123 по прямому решению владельца регистрирует `Procurement\\Health` в архитектурном реестре и сужает grep-гейт до health-секции; item возвращён в исполнение. |
-| 2026-08-08 | plan-exec/implementation/medium | P5.1 закрыт: эталон, история проверок и словарь вердиктов добавлены; D123 зарегистрировал подобласть Health — детали см. phases/P5.md P5.1 Completion Notes. |
-| 2026-08-08 | plan-run/gpt-5.6-terra/high | P5.2 закрыт: зонд якорей и последний измеримый исход разбора карточки добавлены — детали см. phases/P5.md P5.2 Completion Notes. |
-| 2026-08-08 | plan-run/gpt-5.6-terra/high | P5.3 закрыт 🟠: три пассивные пробы, history-orchestrator и ежедневная команда добавлены; D124 снял блокировку прямым baseline-исправлением — детали см. phases/P5.md P5.3 Completion Notes. |
+| 2026-08-08 | plan-exec/implementation/medium | P5.1 закрыт, item-коммит `9260026d`: эталон, история проверок и словарь вердиктов добавлены; D123 зарегистрировал подобласть Health — детали см. phases/P5.md P5.1 Completion Notes. |
+| 2026-08-08 | plan-run/gpt-5.6-terra/high | P5.2 закрыт, item-коммит `a25e1015`: зонд якорей и последний измеримый исход разбора карточки добавлены — детали см. phases/P5.md P5.2 Completion Notes. |
+| 2026-08-08 | plan-run/gpt-5.6-terra/high | P5.3 закрыт 🟠, item-коммит `af86c077`: три пассивные пробы, history-orchestrator и ежедневная команда добавлены; D124 снял блокировку прямым baseline-исправлением — детали см. phases/P5.md P5.3 Completion Notes. |
+| 2026-08-08 | plan-run/gpt-5.6-terra/high | P5.4 закрыт 🟠, item-коммит `0edb60cb`: активная проба действия ОКПД2-фильтра добавлена штатным сетевым путём — детали см. phases/P5.md P5.4 Completion Notes. |
 
 ## 7. Contracts
 
