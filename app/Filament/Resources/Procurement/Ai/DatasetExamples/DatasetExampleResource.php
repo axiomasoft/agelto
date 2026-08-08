@@ -1,11 +1,12 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Filament\Resources\Procurement\Ai\DatasetExamples;
 
-use App\Filament\Resources\Procurement\Ai\DatasetExamples\Pages\CreateDatasetExample;
-use App\Filament\Resources\Procurement\Ai\DatasetExamples\Pages\EditDatasetExample;
 use App\Filament\Resources\Procurement\Ai\DatasetExamples\Pages\ListDatasetExamples;
-use App\Filament\Resources\Procurement\Ai\DatasetExamples\Schemas\DatasetExampleForm;
+use App\Filament\Resources\Procurement\Ai\DatasetExamples\Pages\ViewDatasetExample;
+use App\Filament\Resources\Procurement\Ai\DatasetExamples\Schemas\DatasetExampleInfolist;
 use App\Filament\Resources\Procurement\Ai\DatasetExamples\Tables\DatasetExamplesTable;
 use App\Models\Procurement\Ai\DatasetExample;
 use BackedEnum;
@@ -13,6 +14,8 @@ use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Model;
 
 class DatasetExampleResource extends Resource
 {
@@ -24,14 +27,19 @@ class DatasetExampleResource extends Resource
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedRectangleStack;
 
-    public static function form(Schema $schema): Schema
-    {
-        return DatasetExampleForm::configure($schema);
-    }
-
     public static function table(Table $table): Table
     {
         return DatasetExamplesTable::configure($table);
+    }
+
+    public static function infolist(Schema $schema): Schema
+    {
+        return DatasetExampleInfolist::configure($schema);
+    }
+
+    public static function getEloquentQuery(): Builder
+    {
+        return parent::getEloquentQuery()->with(['fixture', 'analysis', 'documentVersion.document', 'verifiedBy']);
     }
 
     public static function getRelations(): array
@@ -45,8 +53,22 @@ class DatasetExampleResource extends Resource
     {
         return [
             'index' => ListDatasetExamples::route('/'),
-            'create' => CreateDatasetExample::route('/create'),
-            'edit' => EditDatasetExample::route('/{record}/edit'),
+            'view' => ViewDatasetExample::route('/{record}'),
         ];
+    }
+
+    public static function canCreate(): bool
+    {
+        return false;
+    }
+
+    public static function canEdit(Model $record): bool
+    {
+        return false;
+    }
+
+    public static function canDelete(Model $record): bool
+    {
+        return false;
     }
 }

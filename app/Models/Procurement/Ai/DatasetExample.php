@@ -12,12 +12,15 @@ use Illuminate\Database\Eloquent\Casts\AsCollection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Collection;
 
 /**
  * Эталонный пример (gold) для датасета оценки качества AI-анализа.
  *
  * @property int $document_version_id
  * @property string $document_type
+ * @property Collection<string, mixed>|null $gold
+ * @property string|null $gold_ref
  * @property string $source
  * @property int $version
  * @property int|null $analysis_id
