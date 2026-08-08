@@ -48,7 +48,7 @@ class EstimateResource extends Resource
     public static function getEloquentQuery(): Builder
     {
         return parent::getEloquentQuery()
-            ->with(['procurement', 'documentVersion.document'])
+            ->with(['procurement', 'documentVersion.document', 'analysis'])
             ->withCount([
                 'items as items_count',
                 'items as marked_items_count' => fn (Builder $query): Builder => $query->whereNotNull('quality'),

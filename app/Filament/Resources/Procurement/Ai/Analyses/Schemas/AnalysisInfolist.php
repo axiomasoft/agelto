@@ -2,6 +2,8 @@
 
 namespace App\Filament\Resources\Procurement\Ai\Analyses\Schemas;
 
+use App\Filament\Resources\Procurement\Ai\Fixtures\FixtureResource;
+use App\Filament\Resources\Procurement\Estimates\EstimateResource;
 use App\Models\Procurement\Ai\Analysis;
 use Filament\Infolists\Components\RepeatableEntry;
 use Filament\Infolists\Components\TextEntry;
@@ -17,6 +19,10 @@ class AnalysisInfolist
                     ->label('Документ')
                     ->placeholder('-')
                     ->columnSpanFull(),
+                TextEntry::make('documentVersion.document.fixture.code')
+                    ->label('Эталон')
+                    ->placeholder('—')
+                    ->url(fn (Analysis $record): ?string => $record->documentVersion?->document?->fixture === null ? null : FixtureResource::getUrl('view', ['record' => $record->documentVersion->document->fixture])),
                 TextEntry::make('step')
                     ->badge(),
                 TextEntry::make('status')
@@ -54,7 +60,8 @@ class AnalysisInfolist
                 RepeatableEntry::make('estimates')
                     ->label('Сметы')
                     ->schema([
-                        TextEntry::make('ordinal'),
+                        TextEntry::make('ordinal')
+                            ->url(fn ($record): string => EstimateResource::getUrl('view', ['record' => $record])),
                         TextEntry::make('estimate_number')->placeholder('-'),
                         TextEntry::make('validation_status')->badge(),
                         TextEntry::make('rows_extracted'),

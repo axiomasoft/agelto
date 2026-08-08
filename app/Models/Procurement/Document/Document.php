@@ -7,6 +7,7 @@ namespace App\Models\Procurement\Document;
 use App\Enums\Procurement\Document\DocumentStatus;
 use App\Models\Concerns\HasErrorBlock;
 use App\Models\Concerns\HasLease;
+use App\Models\Procurement\Ai\Fixture;
 use App\Models\Procurement\Platform\Platform;
 use App\Models\Scopes\PublicPlatformScope;
 use Database\Factories\Procurement\Document\DocumentFactory;
@@ -15,6 +16,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Support\Str;
 
 /**
@@ -102,6 +104,12 @@ final class Document extends Model
     public function platform(): BelongsTo
     {
         return $this->belongsTo(related: Platform::class);
+    }
+
+    /** Рабочая копия эталона, если документ создан из fixture. */
+    public function fixture(): HasOne
+    {
+        return $this->hasOne(related: Fixture::class);
     }
 
     protected static function booted(): void

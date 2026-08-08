@@ -4,11 +4,13 @@ declare(strict_types=1);
 
 namespace App\Models\Procurement\Document;
 
+use App\Models\Procurement\Ai\DatasetExample;
 use Database\Factories\Procurement\Document\DocumentVersionFactory;
 use Illuminate\Database\Eloquent\Attributes\UseFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 /**
  * Контент-адресованная версия файла документа (дедуп по sha256 в рамках документа).
@@ -62,5 +64,10 @@ final class DocumentVersion extends Model
     public function document(): BelongsTo
     {
         return $this->belongsTo(related: Document::class);
+    }
+
+    public function datasetExamples(): HasMany
+    {
+        return $this->hasMany(related: DatasetExample::class);
     }
 }

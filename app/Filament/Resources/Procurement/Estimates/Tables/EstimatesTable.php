@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Filament\Resources\Procurement\Estimates\Tables;
 
+use App\Filament\Resources\Procurement\Ai\Analyses\AnalysisResource;
+use App\Filament\Resources\Procurement\Procurements\ProcurementResource;
 use App\Models\Procurement\Estimate\Estimate;
 use Filament\Actions\ViewAction;
 use Filament\Tables\Columns\TextColumn;
@@ -20,11 +22,16 @@ class EstimatesTable
                 TextColumn::make('procurement.title')
                     ->label('Закупка')
                     ->placeholder('-')
+                    ->url(fn (Estimate $record): ?string => $record->procurement === null ? null : ProcurementResource::getUrl('view', ['record' => $record->procurement]))
                     ->limit(60),
                 TextColumn::make('documentVersion.document.title')
                     ->label('Документ')
                     ->placeholder('-')
                     ->limit(60),
+                TextColumn::make('analysis.id')
+                    ->label('Анализ')
+                    ->placeholder('-')
+                    ->url(fn (Estimate $record): ?string => $record->analysis === null ? null : AnalysisResource::getUrl('view', ['record' => $record->analysis])),
                 TextColumn::make('validation_status')
                     ->label('Статус валидации')
                     ->badge()

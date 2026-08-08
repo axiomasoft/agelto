@@ -159,6 +159,11 @@ final class Analysis extends Model
         return $this->hasMany(related: Estimate::class);
     }
 
+    public function datasetExamples(): HasMany
+    {
+        return $this->hasMany(related: DatasetExample::class);
+    }
+
     /**
      * Активные (боевые) анализы: не заменённые перепрогоном и не теневые (P9.1, D24) —
      * то же множество, что покрывает partial unique `(document_version_id, step)`.

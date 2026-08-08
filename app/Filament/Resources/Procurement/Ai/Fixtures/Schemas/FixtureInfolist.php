@@ -4,8 +4,12 @@ declare(strict_types=1);
 
 namespace App\Filament\Resources\Procurement\Ai\Fixtures\Schemas;
 
+use App\Filament\Resources\Procurement\Ai\DatasetExamples\DatasetExampleResource;
+use App\Filament\Resources\Procurement\Ai\Fixtures\FixtureResource;
+use App\Models\Procurement\Ai\Fixture;
 use Filament\Infolists\Components\IconEntry;
 use Filament\Infolists\Components\KeyValueEntry;
+use Filament\Infolists\Components\RepeatableEntry;
 use Filament\Infolists\Components\TextEntry;
 use Filament\Schemas\Schema;
 
@@ -17,6 +21,20 @@ class FixtureInfolist
             ->components([
                 TextEntry::make('code')
                     ->label('Код'),
+                TextEntry::make('gold_navigation')
+                    ->label('Золото')
+                    ->state('Открыть gold-смету')
+                    ->url(fn (Fixture $record): string => FixtureResource::getUrl('gold', ['record' => $record])),
+                RepeatableEntry::make('datasetExamples')
+                    ->label('Эталонные ответы')
+                    ->schema([
+                        TextEntry::make('id')
+                            ->label('Ответ')
+                            ->url(fn ($record): string => DatasetExampleResource::getUrl('view', ['record' => $record])),
+                        TextEntry::make('task')->label('Задача'),
+                    ])
+                    ->columns(2)
+                    ->columnSpanFull(),
                 TextEntry::make('title')
                     ->label('Название'),
                 TextEntry::make('document_type')
