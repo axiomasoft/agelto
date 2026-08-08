@@ -201,7 +201,7 @@ Deliverables другого. P1.3 идёт solo: ему нужен не Playwrig
 | P2 | ОКПД2: фильтр профиля и древовидная форма | 2/6 | 🟠 Done with deviations |
 | P3 | Профили обхода и управление прогонами из админки | 7/10 | 🟠 Done with deviations |
 | P4 | Надёжность конвейера: budget запросов, троттлинг, анти-дубли, execution lanes | 4/9 | 🟠 Done with deviations |
-| P5 | Healthcheck площадки и уведомления | 1/6 | 🟡 In progress |
+| P5 | Healthcheck площадки и уведомления | 2/6 | 🟡 In progress |
 | P6 | Статусы, история изменений закупки, событие «закупка состоялась» | 0/5 | ⬜ Not started |
 | P7 | Три слоя смет в админке и видимость промтов | 0/5 | ⬜ Not started |
 | P8 | Схлопывание миграций и финальный аудит схемы | 0/4 | ⬜ Not started |
@@ -413,6 +413,7 @@ Deliverables другого. P1.3 идёт solo: ему нужен не Playwrig
 | 2026-08-08 | plan-close/implementation/low | Фаза P4 закрыта 🟠 Done with deviations: все 9 items терминальны, 4/9 🟢; Phase Handoff свёл отклонения items, docs-sync подтверждён по P4.7/P4.6. |
 | 2026-08-08 | plan-design/frontier/high | P5.1 re-design: D123 по прямому решению владельца регистрирует `Procurement\\Health` в архитектурном реестре и сужает grep-гейт до health-секции; item возвращён в исполнение. |
 | 2026-08-08 | plan-exec/implementation/medium | P5.1 закрыт: эталон, история проверок и словарь вердиктов добавлены; D123 зарегистрировал подобласть Health — детали см. phases/P5.md P5.1 Completion Notes. |
+| 2026-08-08 | plan-run/gpt-5.6-terra/high | P5.2 закрыт: зонд якорей и последний измеримый исход разбора карточки добавлены — детали см. phases/P5.md P5.2 Completion Notes. |
 
 ## 7. Contracts
 
