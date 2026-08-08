@@ -40,6 +40,14 @@ if (Schema::hasTable('prc_crawler_runs')) {
     Schedule::command('crawler:recover-stale')->everyFiveMinutes();
 }
 
+// Эталон и история healthcheck существуют только после P5.1; до миграций console.php всё так же
+// безопасно загружается для любого artisan-вызова.
+if (Schema::hasTable('prc_platform_checks')) {
+    Schedule::command('crawler:health-check')
+        ->cron((string) config('crawler.health.cron'))
+        ->withoutOverlapping();
+}
+
 // Тот же schema-guard (см. выше) — плановый delta-scan окна обновления (П-3,
 // `research/05-change-tracking.md` §2.2); выключен по умолчанию — включает владелец
 // после боевого прогона P4.7 (как и fresh-профиль, D37).

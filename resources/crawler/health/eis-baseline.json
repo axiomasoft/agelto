@@ -44,9 +44,9 @@
   },
   "thresholds": {
     "listing_filter": { "min_sample": 1 },
-    "card_parse": { "min_sample": 1 },
-    "listing_shape": { "min_sample": 1 },
-    "estimate_fields": { "min_sample": 1 }
+    "card_parse": { "min_sample": 1, "degraded_share": 0.05, "broken_share": 0.20 },
+    "listing_shape": { "min_sample": 1, "degraded_share": 0.05, "broken_share": 0.20 },
+    "estimate_fields": { "min_sample": 1, "degraded_share": 0.05, "broken_share": 0.20 }
   },
   "calibrated": false
 }
