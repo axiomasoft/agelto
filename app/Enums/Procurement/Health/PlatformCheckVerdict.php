@@ -16,6 +16,16 @@ enum PlatformCheckVerdict: string
         return $this->severity() > $previous->severity();
     }
 
+    public function color(): string
+    {
+        return match ($this) {
+            self::Ok => 'success',
+            self::NotEnoughData => 'gray',
+            self::Degraded => 'warning',
+            self::Broken => 'danger',
+        };
+    }
+
     private function severity(): int
     {
         return match ($this) {

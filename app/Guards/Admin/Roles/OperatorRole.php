@@ -11,6 +11,7 @@ use App\Guards\Admin\Permissions\DatasetExamplePermission;
 use App\Guards\Admin\Permissions\EstimatePermission;
 use App\Guards\Admin\Permissions\FixturePermission;
 use App\Guards\Admin\Permissions\IgnoreRulePermission;
+use App\Guards\Admin\Permissions\PlatformCheckPermission;
 use App\Guards\Admin\Permissions\PlatformPermission;
 use App\Guards\Admin\Permissions\PromptPermission;
 use App\Guards\Admin\Permissions\PromptSuggestionPermission;
@@ -73,6 +74,9 @@ final class OperatorRole extends BaseRole
             // create/edit/delete-страниц у него нет — грант ограничен просмотром.
             EstimatePermission::ViewAny,
             EstimatePermission::View,
+            // История healthcheck (P5.6): только чтение — витрина не меняет ни ожидания, ни факт.
+            PlatformCheckPermission::ViewAny,
+            PlatformCheckPermission::View,
         ];
     }
 
