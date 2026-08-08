@@ -6,7 +6,7 @@
 |:--|:--|
 | Plan ID | 2026.08.06-CRAWL-HARDEN |
 | Title | Надёжный контур crawling/парсинга ЕИС |
-| Version | 0.21.0 |
+| Version | 0.22.0 |
 | Status | 🟡 In progress |
 | Document Type | Executable Master Plan |
 | Authoring Model | frontier |
@@ -16,7 +16,7 @@
 | Execution Mode | phase-first |
 | Target Operator Classes | economy → `gpt-5.6-luna` · implementation → `gpt-5.6-terra` · frontier → `gpt-5.6-sol` |
 | Approval Owner | Dmitry Vostrikov |
-| Design Passes | 2/2 — 9 фаз, 56 items после follow-up P3.7–P3.10 и P4.7 (скелетная оценка 35 выросла при детализации: D47 4→6, D58 3→6, D69 3→5, D78 4→5, D84 3→4, D88 4→8, D71 +P1.5); однорепный скоуп, фазы слабо связаны (contract-first), детализация пофазная. Прогон 1 — вид сверху (скелеты + контракты + развилки); прогон 2 — `finish` (сквозной reconcile + roadmap), выполнен 2026-08-07. Третий прогон не объявляется: P4.7 — адресный follow-up owner gate, а не новый сквозной pass (`research/12-p4.7-long-execution-lane.md`) |
+| Design Passes | 2/2 — 9 фаз, 58 items после follow-up P3.7–P3.10 и P4.7–P4.9 (скелетная оценка 35 выросла при детализации: D47 4→6, D58 3→6, D69 3→5, D78 4→5, D84 3→4, D88 4→8, D71 +P1.5); однорепный скоуп, фазы слабо связаны (contract-first), детализация пофазная. Прогон 1 — вид сверху (скелеты + контракты + развилки); прогон 2 — `finish` (сквозной reconcile + roadmap), выполнен 2026-08-07. Третий прогон не объявляется: P4.7/P4.9 — адресные follow-up items по факту исполнения, а не новый сквозной pass (`research/12-p4.7-long-execution-lane.md`, `research/14-p4.9-budget-checkpoint-design.md`) |
 
 ## 1. Context
 
@@ -103,6 +103,7 @@ healthcheck «вёрстка ЕИС не поменялась» с уведом�
 | — | P4.2 | implementation/high | manual | full | привязка решает, через какой узел уходит запрос к госплощадке: ошибка даёт либо иностранный прокси на ЕИС («тут же спалимся» — слова владельца), либо прямой запрос там, где он не задуман — цена необратима |
 | — | P4.3 | implementation/medium | plan-exec | full | порог авто-дизейбла и витрина против запиненного D41; гейты детерминированы (тесты + grep мёртвого ключа), но миграция и автоматическое отключение узла обязывают `Review = full` |
 | — | P4.4 | frontier/high | manual | full | общий бюджет запросов — открытые design-решения (семантика ожидания против чекпоинта прогона, три разные трактовки исчерпания) при необратимой цене ошибки: бан площадки |
+| — | P4.9 | implementation/high | manual | full | follow-up P4.4 против запиненного D121: типизированный исход scanner → три дневные обёртки; открытых design-решений нет, но ошибка молча продвигает курсор мимо недренированного дня, поэтому effort high и `Review = full` |
 | — | P4.5 | implementation/high | manual | full | перевод стадии на очередь: анти-дубль по закупке, инвариант таймаутов и лимит пачки сходятся впервые; ошибка даёт либо вставшую стадию, либо повторный обход одной закупки |
 | — | P4.6 | implementation/medium | plan-exec | full | журналы и витрина поверх уже введённых механизмов, открытых решений нет; миграция секционированной `prc_fetches` обязывает `Review = full` |
 | — | P5.1 | implementation/medium | plan-exec | full | эталон, таблица истории и словарь вердиктов против запиненного D50; открытых design-решений нет, гейты детерминированы (миграция + тесты), но миграция обязывает `Review = full` |
@@ -149,8 +150,8 @@ healthcheck «вёрстка ЕИС не поменялась» с уведом�
 (P3.10) — тоже solo: он единственный открытый в фазе, сливать не с чем.
 
 Фаза P4 батчей не несёт: цепочка начинается с follow-up P4.7 (execution lane), затем идёт
-носитель настроек → привязка прокси → авто-дизейбл → бюджет → подача пачками → журналы; пять
-items из семи — `manual`, а `Inputs`
+носитель настроек → привязка прокси → авто-дизейбл → бюджет → checkpoint P4.9 → подача пачками →
+журналы; семь items из девяти — `manual`, а `Inputs`
 каждого следующего ссылаются на `Deliverables` предыдущего (`research/05-p4-reliability-design.md` §6).
 
 Фаза P5 батчей не несёт: носители (P5.1) — вход всех остальных, зонд (P5.2) — вход пассивных проб
@@ -199,7 +200,7 @@ Deliverables другого. P1.3 идёт solo: ему нужен не Playwrig
 | P1 | Разведка ЕИС: параметры листинга, ОКПД2, практики, карточка, инвентарь вкладок | 4/5 | 🟠 Done with deviations |
 | P2 | ОКПД2: фильтр профиля и древовидная форма | 2/6 | 🟠 Done with deviations |
 | P3 | Профили обхода и управление прогонами из админки | 7/10 | 🟠 Done with deviations |
-| P4 | Надёжность конвейера: budget запросов, троттлинг, анти-дубли, execution lanes | 2/8 | 🟡 In progress |
+| P4 | Надёжность конвейера: budget запросов, троттлинг, анти-дубли, execution lanes | 3/9 | 🟡 In progress |
 | P5 | Healthcheck площадки и уведомления | 0/6 | ⬜ Not started |
 | P6 | Статусы, история изменений закупки, событие «закупка состоялась» | 0/5 | ⬜ Not started |
 | P7 | Три слоя смет в админке и видимость промтов | 0/5 | ⬜ Not started |
@@ -331,6 +332,7 @@ Deliverables другого. P1.3 идёт solo: ему нужен не Playwrig
 | D118 | 2026-08-08 | **P4.1 не удаляет `PoliteThrottle` и `crawler.throttle.*`: она мигрирует четыре HTTP-места на `CrawlSettingsResolver`, удаляет только `crawler.http.*` и возвращается из `🔴 Blocked` в `⬜ Not started`. `Okpd2NodeSynchronizer` — служебный запрос без профиля — использует `CrawlStage::Listing` с `crawler: null`, то есть берёт площадку/конфиг и никогда не наследует `CrawlerRuntimeOptions`. Полный переход всех вызовов `PoliteThrottle` на общий budget, удаление класса и последний grep-гейт остаются исключительно P4.4.** | Исполнитель P4.1 честно остановился: его старый validation требовал убрать троттлер, хотя Scope прямо откладывал это на P4.4. Проверка дерева одновременно нашла четвёртый HTTP-читатель `crawler.http.*` и четвёртый потребитель троттлера — `Okpd2NodeSynchronizer`; без его явной роли удаление legacy-ключей либо сломает sync, либо оставит неучтённый обход общего бюджета. `RAG:— (repo-grounded: findings/P4-settings-readers-2026-08-08.md; phases/P4.md P4.1/P4.4; app/Services/Procurement/Eis/Okpd2NodeSynchronizer.php)` |
 | D119 | 2026-08-08 | **Отдельный P4.8 восстанавливает три общих validation-гейта P4.1 и не реопенит её сданный носитель настроек:** `EisPlatformSeeder` создаёт `Registry.uuid` только при insert; core-contract возвращается в document-neutral границы (нейтральный `ExtractionRoute`, без ссылки на type-specific command); `Http::preventStrayRequests()` заменяет ложный grep URL. **Consequences:** P4 растёт с 7 до 8 items, а следующая фаза ждёт завершения P4.8; guard может честно открыть дополнительные stray HTTP в старых тестах — их нельзя обходить или разрешать молча. | Три красных гейта были уже до P4.1, но именно её завершение сделало их блокирующими для честной приёмки. Фактура и сужение решения — `findings/P4.8-validation-gates-2026-08-08.md` и `research/13-p4.8-validation-gates.md`. `RAG:— (repo-grounded: findings/P4.8-validation-gates-2026-08-08.md; research/13-p4.8-validation-gates.md)` |
 | D120 | 2026-08-08 | **Ре-дизайн P4.2 снимает escalation без ослабления D38: валидный default `CrawlerFactory` — `use_proxy = false`; явный state `withProxies(Proxy ...$proxies)` сначала создаёт pivot-привязку, затем включает флаг. Реальный тест сидера — `tests/Feature/Seeders/EisSeedersTest.php`; direct-регрессии остаются в трёх тестах своих HTTP-выходов. Эта запись supersedes ошибочную часть D104 о пути и происхождении `CrawlerProfileSeederTest`. **Consequences:** P4.2 расширяет `Files` на фабрику и пять существующих тестовых носителей; все тесты, которым нужен включённый прокси, обязаны выражать привязку явно, поэтому скрытый несохраняемый default больше не маскирует продуктовый инвариант. | Фактура из `findings/P4.2-blocked-redesign-2026-08-08.md`: D104 назвала отсутствующий файл, а P4.2 не объявляла обязательную правку фабрики, хотя гейт D38 делает её текущий default несохраняемым. `RAG:— (repo-grounded: findings/P4.2-blocked-redesign-2026-08-08.md; database/factories/Procurement/Crawler/CrawlerFactory.php; tests/Feature/Seeders/EisSeedersTest.php)` |
+| D121 | 2026-08-08 | **Follow-up P4.4 получает один типизированный control-flow контракт: `ArchiveWindowScanner::scan()` возвращает `ArchiveWindowScanResult::{Drained,Checkpointed,Stopped}`; только `Drained` разрешает archive/delta/backlog продвинуть `cursor.day`.** `PlatformBudgetExhaustedException` ловится в сканере, превращается в `recordCheckpoint()` + `Checkpointed` без `Failed`; archive продолжает существующий `CrawlRunJob`, delta — следующий cron, backlog — следующий 15-минутный sweep без `backlog_rescanned_at`. D119 применяется и к acceptance P4.9: `Http::preventStrayRequests()` + зелёный Pest заменяют literal URL-grep. Отвергнуты catch в каждой обёртке (три носителя одной семантики), exception как нормальный carrier (конфликт с широким failure-catch) и `bool` (не различает checkpoint/stop). | `scan(): void` делает дренаж и прерывание неразличимыми, а три обёртки двигают день после любого возврата; budget exception сейчас попадает в failure-path. Синтез и проверяемые сценарии — `research/14-p4.9-budget-checkpoint-design.md`; сырая фактура — `findings/P4.9-budget-checkpoint-control-flow-2026-08-08.md`. `RAG:— (repo-grounded: app/Services/Procurement/ArchiveWindowScanner.php; app/Services/Procurement/Modes/ArchiveRunProcessor.php; app/Services/Procurement/Modes/DeltaScanProcessor.php; app/Services/Procurement/Modes/BacklogRescanProcessor.php; tests/TestCase.php)` |
 
 ## 6. Update Log
 
@@ -401,6 +403,8 @@ Deliverables другого. P1.3 идёт solo: ему нужен не Playwrig
 | 2026-08-08 | plan-close/implementation/low | P4.2 закрыт: профиль ограничивает прокси явной привязкой, direct-режим легализован на трёх HTTP-выходах — детали см. phases/P4.md P4.2 Completion Notes. |
 | 2026-08-08 | plan-run/gpt-5.6/frontier/medium | P4.3 закрыт: глобальный breaker отключает proxy, оператор возвращает его с полным reset — детали см. phases/P4.md P4.3 Completion Notes. |
 | 2026-08-08 | plan-run/gpt-5.6-sol/high | P4.4 закрыт 🟠: единый host-budget заменил `PoliteThrottle`; archive checkpoint и ложный literal-grep вынесены в follow-up — детали см. phases/P4.md P4.4 Completion Notes. |
+| 2026-08-08 | plan-design/gpt-5.6-sol/high | P4 дополнена P4.9 до DoR: D121 запинил outcome scanner, checkpoint без продвижения дня/Failed и существующие carrier'ы archive/delta/backlog; добавлены findings/research, Routing и roadmap. |
+| 2026-08-08 | plan-run/gpt-5.6-terra/high | P4.9 закрыт: typed outcome scanner сохраняет недренированный день при request-budget checkpoint и продолжает через существующие carrier'ы — детали см. phases/P4.md P4.9 Completion Notes. |
 
 ## 7. Contracts
 
