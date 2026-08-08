@@ -6,18 +6,18 @@
      группировка запусков и порядок. Закрытие фазы или re-design обновляет эту таблицу
      (+ строка в `## 6. Update Log` плана). -->
 
-**Обновлён:** 2026-08-08 (owner gate + long execution lane, D117) · **Соответствует plan.md:**
-v0.18.0 · **Items:** 56, терминальны 21 — P1.1–P1.5, P2.1–P2.6, P3.1–P3.10 закрыты
+**Обновлён:** 2026-08-08 (P4.8 validation remediation, D119) · **Соответствует plan.md:**
+v0.20.0 · **Items:** 57, терминальны 23 — P1.1–P1.5, P2.1–P2.6, P3.1–P3.10, P4.7 и P4.1 закрыты
 (🟢/🟠 — точные статусы только в Status Board `plan.md` и `## Phase Status` фаз, здесь не
-дублируются), открыты 35. AUDIT-CAP P3 закрыт решением владельца: P3 принята 🟠 без четвёртого
-реопена. Ближайший шаг — **P4.7**, затем P4.1–P4.6.
+дублируются), открыты 34. AUDIT-CAP P3 закрыт решением владельца: P3 принята 🟠 без четвёртого
+реопена. Ближайший шаг — **P4.8**, затем P4.2–P4.6.
 
 ## Жёсткий порядок
 
 1. **P1 — первая.** Три фазы ждут её фактуру: P2 (карта ОКПД2), P3 (параметры листинга),
    P5/P6 (якоря вкладок, этапы, success-карточка), P8 (инвентарь карточки → Q16).
 2. **P2 → P3 → P4 → P5** — последовательно: перед обычной цепочкой P4 исполняется follow-up
-   **P4.7** (D117), затем P4.1→P4.6; семь прежних coupling-точек D98 сохраняются, каждая следующая
+   **P4.7** (D117), затем P4.1→P4.8→P4.2→P4.6; семь прежних coupling-точек D98 сохраняются, каждая следующая
    фаза дописывает то, что предыдущая уже сузила (`config/crawler.php`, гейты `Crawler::saving()`,
    сидер профилей, `EisSearchFilter`, `routes/console.php`).
 3. **P6** — после P5 (наследует конвенцию доменного события, D55) и после P1.4/P1.5.
@@ -53,6 +53,7 @@ v0.18.0 · **Items:** 56, терминальны 21 — P1.1–P1.5, P2.1–P2.6
 | P3.10 | solo | plan-run (manual) | implementation/high | — | **реопен D115.** Курсор — единственный источник дат в запросе (`EisCsvUrlBuilder`): профильное окно публикации перестаёт утекать в sweep-запрос delta/backlog (F1 аудита захода 2); solo — единственный открытый item фазы |
 | P4.7 | solo, **FIRST** | plan-run (manual) | implementation/high | — | **follow-up AUDIT-CAP, D117.** Profile-driven `standard/long`: архив 2025 идёт в отдельные connection/queue/supervisor с 3600/3900 с; общий crawl и detailed jobs не лимитируются этим lane |
 | P4.1 | — | plan-run (manual) | implementation/high | — | три уровня настроек (D36); читает свод P1.3 тема 1 |
+| P4.8 | solo, **NEXT** | plan-run (manual) | implementation/high | — | **remediation D119.** Восстанавливает UUID seed, document-neutral core boundary и fail-closed HTTP guard до P4.2 |
 | P4.2 | — | plan-run (manual) | implementation/high | — | привязка прокси; ошибка = иностранный узел на ЕИС |
 | P4.3 | — | plan-exec | implementation/medium | — | авто-дизейбл по серии открытий breaker'а (D41) |
 | P4.4 | — | plan-run (manual) | frontier/high | — | общий бюджет площадки; читает свод P1.3 тема 1; необратимая цена — бан |
@@ -89,7 +90,7 @@ Solo-запуски обоснованы построчно в `## 3. Routing`: 
 design-решения или цена ошибки необратима; `plan-exec` — там, где решения запинены D-записями,
 а гейты детерминированы командой.
 
-## Следующий запуск — P4.7
+## Следующий запуск — P4.8
 
 **Next:** manual: implementation/high
 
@@ -99,13 +100,13 @@ design-решения или цена ошибки необратима; `plan-e
 | Effort | high |
 | Capabilities | — |
 | Context | same-session — item |
-| Суть | Реализовать profile-driven `standard/long` lane; архив 2025 — long 1 час, default — прежние 5 минут; detailed jobs не трогать |
+| Суть | Восстановить три общих validation-гейта P4.1 без изменения её носителя настроек |
 | Команда | — |
 
 ```text
 /model gpt-5.6-terra
 /effort high
-$ task:plan-run 2026.08.06-CRAWL-HARDEN P4.7
+$ task:plan-run 2026.08.06-CRAWL-HARDEN P4.8
 ```
 
 ## Готовые launch-block'и групп
