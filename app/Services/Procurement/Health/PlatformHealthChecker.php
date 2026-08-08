@@ -10,6 +10,7 @@ use App\Models\Procurement\Platform\Platform;
 use App\Repositories\Procurement\Health\PlatformCheckStoreRepository;
 use App\Services\Procurement\Health\Checks\CardParseCheck;
 use App\Services\Procurement\Health\Checks\EstimateFieldsCheck;
+use App\Services\Procurement\Health\Checks\ListingFilterCheck;
 use App\Services\Procurement\Health\Checks\ListingShapeCheck;
 use App\Services\Procurement\Health\Contracts\HealthCheck;
 use Carbon\CarbonInterface;
@@ -28,8 +29,9 @@ final readonly class PlatformHealthChecker
         CardParseCheck $cardParseCheck,
         ListingShapeCheck $listingShapeCheck,
         EstimateFieldsCheck $estimateFieldsCheck,
+        ListingFilterCheck $listingFilterCheck,
     ) {
-        $this->checks = [$cardParseCheck, $listingShapeCheck, $estimateFieldsCheck];
+        $this->checks = [$cardParseCheck, $listingShapeCheck, $estimateFieldsCheck, $listingFilterCheck];
     }
 
     /**

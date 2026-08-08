@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\Procurement\Eis;
 
+use App\Dto\Procurement\Crawler\EisListingQueryOverrides;
 use App\Dto\Procurement\Crawler\ListingBatch;
 use App\Dto\Procurement\Crawler\ListingCursor;
 use App\Dto\Procurement\Crawler\StageSettings;
@@ -76,14 +77,23 @@ final readonly class CsvSourceMethod implements SourceMethod
         private FetchLogger $fetches,
     ) {}
 
-    public function collectListing(Crawler $crawler, ListingCursor $cursor): ListingBatch
-    {
+    public function collectListing(
+        Crawler $crawler,
+        ListingCursor $cursor,
+        ?EisListingQueryOverrides $queryOverrides = null,
+    ): ListingBatch {
         $blockSize = (int) config('crawler.eis.block_size', 500);
         $from = $cursor->blockFrom;
         $to = $from + $blockSize - 1;
 
         $endpoint = (string) config('crawler.eis.csv_endpoint');
-        $queryParams = $this->urlBuilder->buildQueryParams(crawler: $crawler, from: $from, to: $to, cursor: $cursor);
+        $queryParams = $this->urlBuilder->buildQueryParams(
+            crawler: $crawler,
+            from: $from,
+            to: $to,
+            cursor: $cursor,
+            overrides: $queryOverrides,
+        );
 
         $host = $this->canonicalHost($endpoint);
         $lease = $this->listingLease($crawler, $host);
@@ -92,13 +102,14 @@ final readonly class CsvSourceMethod implements SourceMethod
             platform: Platform::query()->findOrFail($crawler->registry()->firstOrFail()->getAttribute('platform_id')),
             crawler: $crawler,
         );
+        $settings = $this->withRequestAttempts(settings: $settings, attempts: $queryOverrides?->requestAttempts);
 
         $startedAt = hrtime(true);
 
         $waitMs = $this->requestBudget->acquire(host: $host, stage: CrawlStage::Listing, crawler: $crawler);
         $response = $this->requestWithOutcome(lease: $lease, endpoint: $endpoint, queryParams: $queryParams, settings: $settings);
 
-        if ($response->status() === 200 && trim($response->body()) === '') {
+        if (($queryOverrides === null || $queryOverrides->retryOnEmptyResponse) && $response->status() === 200 && trim($response->body()) === '') {
             $waitMs += $this->requestBudget->acquire(host: $host, stage: CrawlStage::Listing, crawler: $crawler);
             $response = $this->requestWithOutcome(lease: $lease, endpoint: $endpoint, queryParams: $queryParams, settings: $settings);
         }
@@ -146,6 +157,22 @@ final readonly class CsvSourceMethod implements SourceMethod
                 country: $crawler->proxy_country,
                 proxyIds: $this->proxyBindingResolver->forCrawler($crawler),
             ),
+        );
+    }
+
+    private function withRequestAttempts(StageSettings $settings, ?int $attempts): StageSettings
+    {
+        if ($attempts === null) {
+            return $settings;
+        }
+
+        return new StageSettings(
+            minPauseMs: $settings->minPauseMs,
+            maxPauseMs: $settings->maxPauseMs,
+            retries: $attempts,
+            retryDelayMs: $settings->retryDelayMs,
+            timeoutSeconds: $settings->timeoutSeconds,
+            dispatchBatchLimit: $settings->dispatchBatchLimit,
         );
     }
 

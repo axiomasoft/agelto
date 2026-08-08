@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\Procurement\Eis;
 
+use App\Dto\Procurement\Crawler\EisListingQueryOverrides;
 use App\Dto\Procurement\Crawler\EisSearchFilter;
 use App\Dto\Procurement\Crawler\ListingCursor;
 use App\Enums\Procurement\Crawler\ListingSortField;
@@ -37,8 +38,13 @@ final readonly class EisCsvUrlBuilder
      *
      * @return array<string, string>
      */
-    public function buildQueryParams(Crawler $crawler, int $from, int $to, ?ListingCursor $cursor = null): array
-    {
+    public function buildQueryParams(
+        Crawler $crawler,
+        int $from,
+        int $to,
+        ?ListingCursor $cursor = null,
+        ?EisListingQueryOverrides $overrides = null,
+    ): array {
         $filter = $crawler->filter;
 
         if ($filter !== null && ! $filter instanceof EisSearchFilter) {
@@ -50,7 +56,11 @@ final readonly class EisCsvUrlBuilder
 
         $columns = $crawler->options?->toArray()['columns'] ?? [];
 
-        $query = $filter === null ? [] : $this->filterParams(filter: $filter, registry: $this->requireRegistry($crawler));
+        $query = $filter === null ? [] : $this->filterParams(
+            filter: $filter,
+            registry: $this->requireRegistry($crawler),
+            includeOkpd2: ! ($overrides !== null && $overrides->withoutOkpd2),
+        );
 
         foreach ($columns as $column => $enabled) {
             if ($enabled === true) {
@@ -65,6 +75,11 @@ final readonly class EisCsvUrlBuilder
         // Обязательна для cap-детекта (`CsvSourceMethod::dedupSignature`) — запрашивается
         // всегда, независимо от `options.columns` профиля.
         $query[self::REGISTRY_NUMBER_COLUMN_FLAG] = 'on';
+
+        if ($overrides !== null) {
+            $query = $this->withoutFilterDateWindow(query: $query);
+            $query = [...$query, ...$this->publishedDateWindowParams(overrides: $overrides)];
+        }
 
         if ($cursor?->day !== null) {
             $query = $this->withoutFilterDateWindow(query: $query);
@@ -106,7 +121,7 @@ final readonly class EisCsvUrlBuilder
      *
      * @return array<string, string>
      */
-    private function filterParams(EisSearchFilter $filter, Registry $registry): array
+    private function filterParams(EisSearchFilter $filter, Registry $registry, bool $includeOkpd2 = true): array
     {
         $dateFormat = (string) config('crawler.archive.date_format', 'd.m.Y');
 
@@ -146,7 +161,26 @@ final readonly class EisCsvUrlBuilder
             $query['searchString'] = $filter->searchString;
         }
 
-        return [...$query, ...$this->okpd2Params(filter: $filter, registry: $registry)];
+        return $includeOkpd2
+            ? [...$query, ...$this->okpd2Params(filter: $filter, registry: $registry)]
+            : $query;
+    }
+
+    /**
+     * Дата healthcheck-запроса — временное свойство именно запроса, а не persisted-профиля:
+     * иначе для нефильтрованной стороны пришлось бы сохранять невалидный пустой scope. ЕИС-имена
+     * и формат даты по-прежнему инкапсулированы только этим builder'ом.
+     *
+     * @return array<string, string>
+     */
+    private function publishedDateWindowParams(EisListingQueryOverrides $overrides): array
+    {
+        $dateFormat = (string) config('crawler.archive.date_format', 'd.m.Y');
+
+        return [
+            'publishDateFrom' => $overrides->publishedFrom->format($dateFormat),
+            'publishDateTo' => $overrides->publishedTo->format($dateFormat),
+        ];
     }
 
     /**
