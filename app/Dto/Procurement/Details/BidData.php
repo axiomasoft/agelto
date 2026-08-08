@@ -9,16 +9,16 @@ use App\Services\Organization\OrganizationResolver;
 
 /**
  * Заявка/предложение участника, построчно из таблицы результатов вкладки
- * `supplier-results` (`SupplierResultsParser::parse()`). Организация участника-
- * победителя обогащена ИНН/ОГРН из блока «Победитель» той же вкладки (совпадение
- * по наименованию) — иначе резолвер {@see OrganizationResolver}
- * создал бы для победителя две разные записи `org_organizations` (по имени и по ИНН).
+ * `supplier-results` (`SupplierResultsParser::parse()`). Реальная success-вкладка
+ * может скрывать реквизиты участника, оставляя только анонимный номер заявки и ранг.
  *
  * `organization === null` — участник БЕЗ надёжного идентификатора (ИНН/ОГРН): строка
- * таблицы результатов содержит только наименование, а `OrganizationResolver::find()`
+ * таблицы результатов не содержит реквизитов, а `OrganizationResolver::find()`
  * без ИНН/ОГРН не отличает одно юрлицо от другого — резолв по голому имени склеил бы
  * разных участников в одну `org_organizations` (обнаружено ревью P3.7). Для такой
  * заявки `prc_bids.organization_id` остаётся `null`.
+ * `bidNumber` — анонимный идентификатор участника из отдельной колонки ЕИС; он не равен
+ * `participantOrdinal`, полученному по результатам рассмотрения заявок (D128).
  */
 final readonly class BidData
 {
@@ -27,5 +27,6 @@ final readonly class BidData
         public ?int $participantOrdinal,
         public ?float $price,
         public BidStatus $status,
+        public ?string $bidNumber = null,
     ) {}
 }

@@ -6,7 +6,6 @@ namespace App\Services\Procurement\Eis\Card;
 
 use App\Dto\Procurement\Details\AwardData;
 use App\Dto\Procurement\Details\BidData;
-use App\Dto\Procurement\Details\OrganizationData;
 use App\Dto\Procurement\Details\ProtocolData;
 use App\Dto\Procurement\Details\SupplierResultsData;
 use App\Enums\Procurement\AwardStatus;
@@ -17,18 +16,21 @@ use Illuminate\Support\Facades\Log;
 use Symfony\Component\DomCrawler\Crawler;
 
 /**
- * Разбор вкладки `supplier-results` карточки закупки ЕИС (`research/eis-card-recon.md` §5,
- * `docs/03_Dev/crawling-pipeline.md` §5.1) в {@see SupplierResultsData}. Только HTML → DTO,
- * без записи в БД (это `SupplierResultsProcessor`) и без entity resolution организаций
- * (это `OrganizationResolver`). Вкладка непуста только для завершающих этапов процедуры —
- * пустой/неопознанный HTML даёт пустой результат, не исключение.
+ * Разбор вкладки `supplier-results` карточки ЕИС в {@see SupplierResultsData}. Реальная
+ * success-фикстура снята 2026-08-07 с карточки 0356500001426005498: старые селекторы
+ * `div.supplier-results`/`dl`/`table.bids-table` мертвы, текущая раскладка использует
+ * `section.blockInfo__section` и `table.tableBlock`. У `ea615`/`po615` вкладки нет по природе.
  *
- * HTML-фикстура (`tests/Fixtures/Crawler/Card/supplier-results.html`) синтетическая: сырого
- * дампа этой вкладки в разведке нет, только текстовое описание полей (как для common-info/
- * documents/event-journal, P3.1/P3.4/P3.5/P3.6).
+ * ЕИС публикует идентификатор заявки, ранг победителя и цену раньше реквизитов организации,
+ * поэтому подтверждённый award может иметь nullable winner (D128). Только HTML → DTO, без
+ * записи в БД; пустой/неопознанный HTML даёт пустой результат, не исключение.
  */
 final readonly class SupplierResultsParser
 {
+    private const string TERM_PROTOCOL = 'Наименование протокола определения поставщика (подрядчика, исполнителя)';
+
+    private const string TERM_FORMED_AT = 'Дата и время формирования результатов определения поставщика (подрядчика, исполнителя)';
+
     /**
      * @var array<string, ProtocolType>
      */
@@ -45,17 +47,13 @@ final readonly class SupplierResultsParser
     public function parse(string $html): SupplierResultsData
     {
         try {
-            $root = (new Crawler($html))->filter('div.supplier-results');
+            $crawler = new Crawler($html);
+            $protocol = $this->parseProtocol($this->fieldValue($crawler, self::TERM_PROTOCOL));
+            $bids = $this->parseBids($crawler);
+            $formedAt = $this->parseDateTime($this->fieldValue($crawler, self::TERM_FORMED_AT));
+            $award = $this->buildAward($bids, $protocol, $formedAt);
 
-            if ($root->count() === 0) {
-                return new SupplierResultsData(protocol: null, bids: [], award: null);
-            }
-
-            $fields = $this->parseDefinitionList($root);
-            $protocol = $this->parseProtocol($fields['Протокол'] ?? null);
-            $winner = $this->parseWinner($fields['Победитель'] ?? null);
-            $bids = $this->parseBids($root, $winner);
-            $award = $this->buildAward($winner, $bids, $protocol);
+            $this->warnIfBlockInfoSuppressed($crawler, $protocol, $bids);
 
             return new SupplierResultsData(protocol: $protocol, bids: $bids, award: $award);
         } catch (\Throwable $exception) {
@@ -67,73 +65,57 @@ final readonly class SupplierResultsParser
         }
     }
 
-    /**
-     * @return array<string, string>
-     */
-    private function parseDefinitionList(Crawler $root): array
-    {
-        $dl = $root->filter('dl');
-
-        if ($dl->count() === 0) {
-            return [];
-        }
-
-        $labels = $dl->filter('dt')->each(static fn (Crawler $dt): string => trim($dt->text()));
-        $values = $dl->filter('dd')->each(static fn (Crawler $dd): string => trim($dd->text()));
-
-        return array_combine($labels, $values) ?: [];
-    }
-
     private function parseProtocol(?string $text): ?ProtocolData
     {
         if ($text === null || $text === '') {
             return null;
         }
 
-        if (preg_match('/^Протокол\s+(.+?)\s*№\s*(\S+)\s+от\s+(\d{2}\.\d{2}\.\d{4})/ui', $text, $matches) !== 1) {
-            Log::warning('Строка протокола на вкладке supplier-results не распознана', ['text' => $text]);
+        $normalized = preg_replace('/\s+/u', ' ', trim($text)) ?? trim($text);
+        $matched = preg_match(
+            '/^Протокол\s+(.+?)\s+от\s+(\d{2}\.\d{2}\.\d{4})\s+№\s*(\S+)/ui',
+            $normalized,
+            $matches,
+        );
+
+        if ($matched !== 1) {
+            Log::warning('Строка протокола на вкладке supplier-results не распознана', ['text' => $normalized]);
 
             return null;
         }
 
-        [, $typeText, $sourceNumber, $dateText] = $matches;
-
-        $type = self::PROTOCOL_TYPE_MAP[mb_strtolower(trim($typeText))] ?? null;
+        [, $typeText, $dateText, $sourceNumber] = $matches;
         $date = $this->parseDate($dateText);
 
         return new ProtocolData(
-            type: $type?->value ?? trim($typeText),
+            type: $this->protocolType($typeText),
             sourceNumber: $sourceNumber,
             signedAt: $date,
             publishedAt: $date,
         );
     }
 
-    private function parseWinner(?string $text): ?OrganizationData
+    private function protocolType(string $text): string
     {
-        if ($text === null || $text === '') {
-            return null;
+        $normalized = mb_strtolower(trim($text));
+
+        foreach (self::PROTOCOL_TYPE_MAP as $fragment => $type) {
+            if (str_contains($normalized, $fragment)) {
+                return $type->value;
+            }
         }
 
-        if (preg_match('/^(.+?),\s*ИНН\s*(\d+)(?:,\s*ОГРН\s*(\d+))?/ui', $text, $matches) !== 1) {
-            Log::warning('Строка победителя на вкладке supplier-results не распознана', ['text' => $text]);
-
-            return null;
-        }
-
-        return new OrganizationData(
-            fullName: trim($matches[1]),
-            inn: $matches[2],
-            ogrn: $matches[3] ?? null,
-        );
+        return trim($text);
     }
 
     /**
      * @return list<BidData>
      */
-    private function parseBids(Crawler $root, ?OrganizationData $winner): array
+    private function parseBids(Crawler $crawler): array
     {
-        $table = $root->filter('table.bids-table');
+        $table = $crawler
+            ->filter('div[id^="supplier-def-result-participant-table-"] table.tableBlock')
+            ->first();
 
         if ($table->count() === 0) {
             return [];
@@ -141,8 +123,8 @@ final readonly class SupplierResultsParser
 
         $bids = [];
 
-        $table->filter('tbody tr')->each(function (Crawler $tr) use ($winner, &$bids): void {
-            $bid = $this->parseBidRow($tr, $winner);
+        $table->filter('tbody tr')->each(function (Crawler $row) use (&$bids): void {
+            $bid = $this->parseBidRow($row);
 
             if ($bid !== null) {
                 $bids[] = $bid;
@@ -152,61 +134,103 @@ final readonly class SupplierResultsParser
         return $bids;
     }
 
-    private function parseBidRow(Crawler $tr, ?OrganizationData $winner): ?BidData
+    private function parseBidRow(Crawler $row): ?BidData
     {
-        $cells = $tr->filter('td');
+        $cells = $row->filter('td');
 
         if ($cells->count() < 3) {
             return null;
         }
 
-        $ordinalText = trim($cells->eq(0)->text());
-        $name = trim($cells->eq(1)->text());
+        $bidNumber = trim($cells->eq(0)->text());
+        $rank = trim($cells->eq(1)->text());
         $price = $this->parseAmount(trim($cells->eq(2)->text()));
+        $isWinner = str_contains(mb_strtolower($rank), 'победител');
+        $participantOrdinal = $this->parseLeadingInteger($rank);
 
-        if ($name === '') {
+        if ($bidNumber === '' && $rank === '' && $price === null) {
             return null;
         }
 
-        $isWinner = $winner !== null && mb_strtolower($winner->fullName) === mb_strtolower($name);
-
-        // Обогащаем строку победителя ИНН/ОГРН из блока «Победитель», чтобы резолвер
-        // не создал для победителя вторую org_organizations по одному имени без ИНН.
-        // Остальные участники таблицы результатов не имеют в источнике ИНН/ОГРН — резолвить
-        // их через OrganizationResolver нельзя: без надёжного идентификатора find() всегда
-        // возвращает null, и второй (третий, …) безымянный участник любой закупки ловит
-        // UniqueConstraintViolationException на org_organizations_inn_kpp_unique, а catch-
-        // восстановление в OrganizationStoreRepository::create() молча склеивает его с ПЕРВОЙ
-        // попавшейся организацией без ИНН — разные юрлица схлопываются в одну запись.
-        // Поэтому для таких строк organization не резолвим вовсе: prc_bids.organization_id
-        // остаётся null (см. SupplierResultsProcessor::storeBid).
-        $organization = $isWinner ? $winner : null;
-
         return new BidData(
-            organization: $organization,
-            participantOrdinal: is_numeric($ordinalText) ? (int) $ordinalText : null,
+            organization: null,
+            participantOrdinal: $participantOrdinal,
             price: $price,
             status: $isWinner ? BidStatus::Winner : BidStatus::Admitted,
+            bidNumber: $bidNumber !== '' ? $bidNumber : null,
         );
+    }
+
+    private function parseLeadingInteger(string $value): ?int
+    {
+        if (preg_match('/^\s*(\d+)/u', $value, $matches) !== 1) {
+            return null;
+        }
+
+        return (int) $matches[1];
     }
 
     /**
      * @param  list<BidData>  $bids
      */
-    private function buildAward(?OrganizationData $winner, array $bids, ?ProtocolData $protocol): ?AwardData
+    private function buildAward(array $bids, ?ProtocolData $protocol, ?Carbon $formedAt): ?AwardData
     {
-        if ($winner === null) {
+        $winningBid = collect($bids)->first(
+            static fn (BidData $bid): bool => $bid->status === BidStatus::Winner,
+        );
+
+        if (! $winningBid instanceof BidData) {
             return null;
         }
 
-        $winningBid = collect($bids)->first(static fn (BidData $bid): bool => $bid->status === BidStatus::Winner);
-
         return new AwardData(
-            winner: $winner,
-            finalPrice: $winningBid?->price,
+            winner: $winningBid->organization,
+            finalPrice: $winningBid->price,
             status: AwardStatus::Awarded,
-            awardedAt: $protocol?->publishedAt ?? $protocol?->signedAt,
+            awardedAt: $protocol === null
+                ? $formedAt
+                : ($protocol->publishedAt ?? $protocol->signedAt ?? $formedAt),
         );
+    }
+
+    private function fieldValue(Crawler $crawler, string $term): ?string
+    {
+        $section = $this->titleSection($crawler, $term);
+        $info = $section !== null ? $this->infoNode($section) : null;
+
+        if ($info === null) {
+            return null;
+        }
+
+        $value = trim($info->text());
+
+        return $value !== '' ? $value : null;
+    }
+
+    private function titleSection(Crawler $crawler, string $term): ?Crawler
+    {
+        try {
+            $title = $crawler
+                ->filter('span.section__title')
+                ->reduce(static fn (Crawler $span): bool => trim($span->text()) === $term);
+
+            if ($title->count() === 0) {
+                return null;
+            }
+
+            $section = $title->ancestors()->first();
+
+            return $section->count() > 0 ? $section : null;
+        } catch (\Throwable) {
+            return null;
+        }
+    }
+
+    private function infoNode(Crawler $section): ?Crawler
+    {
+        $info = $section->filter('span.section__info')->first();
+
+        return $info->count() > 0 ? $info : null;
     }
 
     private function parseAmount(string $value): ?float
@@ -222,6 +246,37 @@ final readonly class SupplierResultsParser
             return Carbon::createFromFormat('d.m.Y', $value)?->startOfDay();
         } catch (\Throwable) {
             return null;
+        }
+    }
+
+    private function parseDateTime(?string $value): ?Carbon
+    {
+        if ($value === null || preg_match('/(\d{2}\.\d{2}\.\d{4}\s+\d{2}:\d{2})/u', $value, $matches) !== 1) {
+            return null;
+        }
+
+        try {
+            return Carbon::createFromFormat('d.m.Y H:i', $matches[1]);
+        } catch (\Throwable) {
+            return null;
+        }
+    }
+
+    /**
+     * @param  list<BidData>  $bids
+     */
+    private function warnIfBlockInfoSuppressed(Crawler $crawler, ?ProtocolData $protocol, array $bids): void
+    {
+        if ($protocol !== null || $bids !== []) {
+            return;
+        }
+
+        $sections = $crawler->filter('section.blockInfo__section')->count();
+
+        if ($sections > 0) {
+            Log::warning('На вкладке supplier-results есть блоки blockInfo, но не распознано ни протокола, ни заявок', [
+                'sections' => $sections,
+            ]);
         }
     }
 }

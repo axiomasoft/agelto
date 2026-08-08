@@ -22,8 +22,11 @@ use Illuminate\Support\Facades\DB;
 
 /**
  * DTO → БД для итогов завершённой закупки, вкладка `supplier-results`: `prc_protocols`
- * (по `source_number`), `prc_bids` построчно, `prc_awards` (итог, победитель через
- * {@see OrganizationResolver} + роль `winner` в `prc_procurement_parties`). Персистентность —
+ * (по `source_number`), `prc_bids` построчно, `prc_awards` (итог; идентифицируемый победитель
+ * через {@see OrganizationResolver} + роль `winner` в `prc_procurement_parties`). ЕИС может
+ * подтвердить ранг победителя раньше его реквизитов: такой award сохраняется с null
+ * `winner_org_id`, а повторный анонимный разбор не стирает позднее обогащение (D128).
+ * Персистентность —
  * только через {@see ProcurementDetailStoreRepository}/{@see ProcurementPartyStoreRepository}
  * (аналог P3.3/P3.4/P3.5). Пустая вкладка (незавершённая закупка) → no-op (`01-database.md` §4).
  *
@@ -100,6 +103,7 @@ final readonly class SupplierResultsProcessor
             organizationId: $organizationId,
             participantOrdinal: $data->participantOrdinal,
             attributes: [
+                'bid_number' => $data->bidNumber,
                 'participant_ordinal' => $data->participantOrdinal,
                 'price' => $data->price,
                 'status' => $data->status,
@@ -109,30 +113,39 @@ final readonly class SupplierResultsProcessor
 
     private function storeAward(Procurement $procurement, AwardData $data): Award
     {
-        $winner = $this->organizationResolver->resolve($data->winner);
+        $winner = $data->winner !== null
+            ? $this->organizationResolver->resolve($data->winner)
+            : null;
+
+        $attributes = [
+            'final_price' => $data->finalPrice,
+            'status' => $data->status,
+            'awarded_at' => $data->awardedAt ?? Carbon::now(),
+        ];
+
+        if ($winner !== null) {
+            $attributes['winner_org_id'] = $winner->id;
+        }
 
         $award = $this->detailStoreRepository->upsertAward(
             procurementId: $procurement->id,
             lotId: null,
-            attributes: [
-                'winner_org_id' => $winner->id,
-                'final_price' => $data->finalPrice,
-                'status' => $data->status,
-                'awarded_at' => $data->awardedAt ?? Carbon::now(),
-            ],
+            attributes: $attributes,
         );
 
-        $this->partyStoreRepository->upsertParty(
-            procurementId: $procurement->id,
-            organizationId: $winner->id,
-            role: ProcurementPartyRole::Winner,
-            attributes: null,
-        );
+        if ($winner !== null) {
+            $this->partyStoreRepository->upsertParty(
+                procurementId: $procurement->id,
+                organizationId: $winner->id,
+                role: ProcurementPartyRole::Winner,
+                attributes: null,
+            );
 
-        $this->partyStoreRepository->syncWinnerRoles(
-            procurementId: $procurement->id,
-            winnerOrgIds: [$winner->id],
-        );
+            $this->partyStoreRepository->syncWinnerRoles(
+                procurementId: $procurement->id,
+                winnerOrgIds: [$winner->id],
+            );
+        }
 
         if ($award->wasRecentlyCreated) {
             $this->procurementStoreRepository->storeEvent(
@@ -140,7 +153,7 @@ final readonly class SupplierResultsProcessor
                 eventType: ProcurementEventType::AwardMade,
                 occurredAt: $data->awardedAt ?? Carbon::now(),
                 entityRef: ['award_id' => $award->id],
-                payload: ['winner_org_id' => $winner->id, 'final_price' => $data->finalPrice],
+                payload: ['winner_org_id' => $winner?->id, 'final_price' => $data->finalPrice],
             );
         }
 

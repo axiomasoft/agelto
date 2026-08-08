@@ -42,13 +42,13 @@
       "key_fields": ["entries"]
     },
     "supplier-results": {
-      "status": "known_broken",
+      "status": "measured",
       "anchors": [
         { "selector": "section.blockInfo__section", "critical": true, "min_matches": 1 },
-        { "selector": "table.tableBlock", "critical": true, "min_matches": 1 }
+        { "selector": "span.section__title", "critical": true, "min_matches": 1 },
+        { "selector": "div[id^=\"supplier-def-result-participant-table-\"] table.tableBlock", "critical": true, "min_matches": 1 }
       ],
-      "key_fields": ["protocol", "bids", "award"],
-      "message": "Вкладка известна как неработающая до промоушена P6.2."
+      "key_fields": ["protocol", "bids", "award"]
     }
   },
   "listing_csv": {

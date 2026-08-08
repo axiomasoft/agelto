@@ -20,6 +20,7 @@ function platformHealthMeasuredOutcome(bool $broken = false): array
         'common-info' => ['status' => 'measured', 'anchors_missing_critical' => 0, 'key_fields_expected' => 0, 'key_fields_filled' => 0],
         'documents' => ['status' => 'measured', 'anchors_missing_critical' => $broken ? 1 : 0, 'key_fields_expected' => 0, 'key_fields_filled' => 0],
         'event-journal' => ['status' => 'measured', 'anchors_missing_critical' => 0, 'key_fields_expected' => 0, 'key_fields_filled' => 0],
+        'supplier-results' => ['status' => 'measured', 'anchors_missing_critical' => 0, 'key_fields_expected' => 0, 'key_fields_filled' => 0],
     ];
 }
 

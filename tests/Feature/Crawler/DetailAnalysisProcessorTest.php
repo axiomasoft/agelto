@@ -59,13 +59,22 @@ function detailAnalysisEventJournalHtml(): string
     return str_replace('15.01.2025 11:55', now()->startOfMonth()->addDays(3)->format('d.m.Y').' 11:55', $html);
 }
 
+function detailAnalysisSupplierResultsHtml(): string
+{
+    return str_replace(
+        '23.01.2025',
+        now()->startOfMonth()->addDays(4)->format('d.m.Y'),
+        CardHtmlFixture::supplierResults(),
+    );
+}
+
 function fakeDetailAnalysisHttp(): void
 {
     Http::fake([
         '*view/common-info.html*' => Http::response(body: CardHtmlFixture::commonInfo(), status: 200),
         '*view/documents.html*' => Http::response(body: CardHtmlFixture::documents(), status: 200),
         '*view/event-journal.html*' => Http::response(body: detailAnalysisEventJournalHtml(), status: 200),
-        '*view/supplier-results.html*' => Http::response(body: CardHtmlFixture::supplierResults(), status: 200),
+        '*view/supplier-results.html*' => Http::response(body: detailAnalysisSupplierResultsHtml(), status: 200),
         '*filestore*' => Http::response(body: 'binary-content', status: 200),
     ]);
 }
@@ -102,10 +111,9 @@ test('run наполняет все вкладки-таблицы и стави�
     // тест падал раньше, на detail_fetched_at), правка мимоходом при первом реальном достижении.
     expect(Document::query()->where('procurement_id', $procurement->id)->count())->toBe(6);
     expect(ProcurementEvent::query()->where('procurement_id', $procurement->id)->exists())->toBeTrue();
-    // `div.supplier-results`/`dl`/`table.bids-table` отсутствует на реальной вкладке
-    // supplier-results (закупка несостоявшаяся, P4.14) — SupplierResultsParser честно
-    // возвращает пустой результат, протокол не создаётся.
-    expect(Protocol::query()->where('procurement_id', $procurement->id)->exists())->toBeFalse();
+    // Даже несостоявшаяся закупка содержит опубликованный протокол; участники и award
+    // при этом отсутствуют (D128).
+    expect(Protocol::query()->where('procurement_id', $procurement->id)->exists())->toBeTrue();
 });
 
 test('run скачивает документы, снятые с вкладки documents', function () {
@@ -180,7 +188,7 @@ test('common-info вернул страницу без запрошенного 
         '*view/common-info.html*' => Http::response(body: '<html><body>Страница не найдена</body></html>', status: 200),
         '*view/documents.html*' => Http::response(body: CardHtmlFixture::documents(), status: 200),
         '*view/event-journal.html*' => Http::response(body: detailAnalysisEventJournalHtml(), status: 200),
-        '*view/supplier-results.html*' => Http::response(body: CardHtmlFixture::supplierResults(), status: 200),
+        '*view/supplier-results.html*' => Http::response(body: detailAnalysisSupplierResultsHtml(), status: 200),
         '*filestore*' => Http::response(body: 'binary-content', status: 200),
     ]);
 
