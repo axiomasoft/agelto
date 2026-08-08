@@ -11,7 +11,7 @@ use Database\Seeders\StatusMappingSeeder;
 /**
  * DOMLANG P2.2 (D17) — стартовая матрица `prc_status_mappings` для реестра fz44.
  */
-test('сид заводит ровно 4 маппинга для реестра fz44', function () {
+test('сид заводит ровно 5 маппингов для реестра fz44', function () {
     $registry = Registry::factory()->create(['code' => 'fz44']);
 
     $this->seed(StatusMappingSeeder::class);
@@ -20,11 +20,12 @@ test('сид заводит ровно 4 маппинга для реестра 
         ->where('registry_id', $registry->id)
         ->pluck('canonical_status', 'source_stage');
 
-    expect($mappings)->toHaveCount(4)
+    expect($mappings)->toHaveCount(5)
         ->and($mappings['Подача заявок'])->toBe(ProcurementStatus::Bidding->value)
         ->and($mappings['Работа комиссии'])->toBe(ProcurementStatus::Evaluation->value)
         ->and($mappings['Закупка завершена'])->toBe(ProcurementStatus::Completed->value)
-        ->and($mappings['Закупка отменена'])->toBe(ProcurementStatus::Cancelled->value);
+        ->and($mappings['Закупка отменена'])->toBe(ProcurementStatus::Cancelled->value)
+        ->and($mappings['Определение поставщика отменено'])->toBe(ProcurementStatus::Cancelled->value);
 });
 
 test('повторный прогон сидера идемпотентен — число строк не меняется', function () {
@@ -33,7 +34,18 @@ test('повторный прогон сидера идемпотентен — 
     $this->seed(StatusMappingSeeder::class);
     $this->seed(StatusMappingSeeder::class);
 
-    expect(StatusMapping::query()->where('registry_id', $registry->id)->count())->toBe(4);
+    expect(StatusMapping::query()->where('registry_id', $registry->id)->count())->toBe(5);
+});
+
+test('сид покрывает снятый этап отмены дословной строкой площадки', function () {
+    $registry = Registry::factory()->create(['code' => 'fz44']);
+
+    $this->seed(StatusMappingSeeder::class);
+
+    expect(StatusMapping::query()->where([
+        'registry_id' => $registry->id,
+        'source_stage' => 'Определение поставщика отменено',
+    ])->value('canonical_status'))->toBe(ProcurementStatus::Cancelled->value);
 });
 
 test('после сида резолв Работа комиссии даёт Evaluation и не считается новым маппингом', function () {

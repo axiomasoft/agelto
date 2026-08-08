@@ -19,6 +19,7 @@ use App\Guards\Admin\Permissions\ProviderPermission;
 use App\Guards\Admin\Permissions\ProxyPermission;
 use App\Guards\Admin\Permissions\RegistryPermission;
 use App\Guards\Admin\Permissions\RunPermission;
+use App\Guards\Admin\Permissions\StatusMappingPermission;
 use AzGuard\Roles\BaseRole;
 use UnitEnum;
 
@@ -77,6 +78,11 @@ final class OperatorRole extends BaseRole
             // История healthcheck (P5.6): только чтение — витрина не меняет ни ожидания, ни факт.
             PlatformCheckPermission::ViewAny,
             PlatformCheckPermission::View,
+            // Матрица статусов ЕИС: оператор читает пары и исправляет только канонический исход;
+            // новые натуральные ключи создаёт исключительно StatusMappingService::resolve().
+            StatusMappingPermission::ViewAny,
+            StatusMappingPermission::View,
+            StatusMappingPermission::Update,
         ];
     }
 

@@ -54,7 +54,7 @@ test('после сида площадки StatusMappingSeeder заводит м
     $registry = Registry::query()->where('code', 'fz44')->sole();
 
     expect(StatusMapping::query()->where('registry_id', $registry->id)->count())
-        ->toBe(4);
+        ->toBe(5);
 });
 
 test('сид заводит два профиля обхода — архивный активен, fresh выключен', function (): void {

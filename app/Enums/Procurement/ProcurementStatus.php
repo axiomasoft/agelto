@@ -16,7 +16,7 @@ namespace App\Enums\Procurement;
  * | Completed      | этап ЕИС «Закупка завершена»                        | да                |
  * | Cancelled      | этап ЕИС «Закупка отменена»                         | да                |
  * | Unknown        | StatusMappingService::resolve() на незнакомой паре | да                |
- * | Awarded        | detail-слой / протоколы (prc_protocols)            | forward-provision |
+ * | Awarded        | P6.2: detail-слой / протоколы (prc_protocols)      | forward-provision |
  * | Unsuccessful   | detail-слой / результаты определения поставщика    | forward-provision |
  *
  * forward-provision — кейс с названным будущим продюсером и таблицей-носителем, ещё не
@@ -45,6 +45,14 @@ enum ProcurementStatus: string
     {
         return match ($this) {
             self::Cancelled, self::Unsuccessful => true,
+            default => false,
+        };
+    }
+
+    public function isPositiveTerminal(): bool
+    {
+        return match ($this) {
+            self::Completed, self::Awarded => true,
             default => false,
         };
     }

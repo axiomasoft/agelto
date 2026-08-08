@@ -11,7 +11,11 @@ use Illuminate\Database\Seeder;
 
 /**
  * Стартовая матрица `prc_status_mappings` для реестра `fz44` (DOMLANG D17,
- * `findings/P2-eis-stages.md` §1) — 4 доказанных пары «этап ЕИС → канонический статус».
+ * `findings/P2-eis-stages.md` §1) — 5 доказанных пар «этап ЕИС → канонический статус».
+ *
+ * Пара «Определение поставщика отменено» → `cancelled` снята 2026-08-07 в P1.4:
+ * `plans/2026.08.06-CRAWL-HARDEN/artifacts/eis-stages.json` (`stages[3]`). Строка копируется
+ * дословно: натуральный ключ матрицы сравнивается без нормализации.
  *
  * НЕ закрытый codelist: `StatusMappingService::resolve()` на незнакомой паре по-прежнему
  * заводит `unknown` через `firstOrCreate` (V2-CORE D5) — сид делает эту тропу редкой, а не
@@ -59,6 +63,7 @@ final class StatusMappingSeeder extends Seeder
             ['source_stage' => 'Работа комиссии', 'canonical_status' => ProcurementStatus::Evaluation->value],
             ['source_stage' => 'Закупка завершена', 'canonical_status' => ProcurementStatus::Completed->value],
             ['source_stage' => 'Закупка отменена', 'canonical_status' => ProcurementStatus::Cancelled->value],
+            ['source_stage' => 'Определение поставщика отменено', 'canonical_status' => ProcurementStatus::Cancelled->value],
         ];
     }
 }
