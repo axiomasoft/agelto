@@ -70,6 +70,26 @@ test('фильтр «только помеченные» отбирает ожи
         ->assertCanNotSeeTableRecords([$clean]);
 });
 
+test('фильтр причины пометки отбирает позиции validator-а', function (): void {
+    actingAs(estimateResourceOperator());
+
+    $estimate = Estimate::factory()->create();
+    $other = Item::factory()->for($estimate)->create([
+        'quality' => ['validator' => ['reasons' => [RowQualityReason::NumberingGap->value], 'notes' => ['разрыв нумерации']]],
+    ]);
+    $requiredFieldMissing = Item::factory()->for($estimate)->create([
+        'quality' => ['validator' => ['reasons' => [RowQualityReason::RequiredFieldMissing->value], 'notes' => ['не заполнено обязательное поле «Количество»']]],
+    ]);
+
+    Livewire::test(ItemsRelationManager::class, [
+        'ownerRecord' => $estimate,
+        'pageClass' => ViewEstimate::class,
+    ])
+        ->filterTable('quality_reason', RowQualityReason::RequiredFieldMissing->value)
+        ->assertCanSeeTableRecords([$requiredFieldMissing])
+        ->assertCanNotSeeTableRecords([$other]);
+});
+
 test('число запросов списка не растёт с числом позиций сметы', function (): void {
     actingAs(estimateResourceOperator());
 

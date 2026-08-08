@@ -20,6 +20,23 @@ use Spatie\LaravelData\Data;
  */
 final class EstimateRow extends Data
 {
+    /** Единственный носитель русских подписей полей позиции для витрины и validator-пометок. */
+    private const array FIELD_LABELS = [
+        'name' => 'Наименование',
+        'section_title' => 'Раздел',
+        'code' => 'Шифр расценки',
+        'unit' => 'Ед. изм.',
+        'quantity' => 'Количество',
+        'unit_price_base' => 'Цена (базисный уровень)',
+        'unit_price_curr' => 'Цена (текущий уровень)',
+        'total_price_base' => 'Стоимость (базисный уровень)',
+        'total_price_curr' => 'Стоимость (текущий уровень)',
+        'index_code' => 'Индекс (код)',
+        'index_value' => 'Индекс (значение)',
+        'source_position_number' => '№ позиции в документе',
+        'work_type_name' => 'Вид работ',
+    ];
+
     /**
      * @param  RowResource[]  $resources
      */
@@ -121,5 +138,11 @@ final class EstimateRow extends Data
         }
 
         return parent::validateAndCreate($payload);
+    }
+
+    /** Подпись контрактного поля для интерфейса и детерминированных validator-пометок. */
+    public static function fieldLabel(string $field): string
+    {
+        return self::FIELD_LABELS[$field] ?? $field;
     }
 }

@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace App\Services\Llm\Schema;
 
+use App\Attributes\Ai\ExcludeFromProviderSchema;
 use ReflectionClass;
+use ReflectionEnum;
 use ReflectionMethod;
 use ReflectionNamedType;
 use ReflectionParameter;
@@ -128,7 +130,15 @@ final readonly class JsonSchemaGenerator
      */
     private function enumSchema(string $enum): array
     {
-        $values = array_map(static fn (\BackedEnum $case): string|int => $case->value, $enum::cases());
+        $values = [];
+
+        foreach (new ReflectionEnum($enum)->getCases() as $case) {
+            if ($case->getAttributes(ExcludeFromProviderSchema::class) !== []) {
+                continue;
+            }
+
+            $values[] = $case->getBackingValue();
+        }
 
         return ['type' => 'string', 'enum' => $values];
     }

@@ -4,11 +4,13 @@ declare(strict_types=1);
 
 namespace App\Filament\Resources\Procurement\Estimates\RelationManagers;
 
+use App\Dto\Procurement\Analyzers\Estimate\EstimateRow;
 use App\Enums\Procurement\Estimate\RowQualityReason;
 use App\Models\Procurement\Estimate\Item;
 use Filament\Resources\RelationManagers\RelationManager;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\Filter;
+use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
@@ -26,23 +28,6 @@ use Illuminate\Support\Collection;
 class ItemsRelationManager extends RelationManager
 {
     protected static string $relationship = 'items';
-
-    /** Подписи полей `EstimateRow`, которых касается пометка модели (§3.1 research/12) — единственный носитель перевода в человекочитаемые подписи колонок сметы (Code Guidance П8.5). */
-    private const array FIELD_LABELS = [
-        'name' => 'Наименование',
-        'section_title' => 'Раздел',
-        'code' => 'Шифр расценки',
-        'unit' => 'Ед. изм.',
-        'quantity' => 'Количество',
-        'unit_price_base' => 'Цена (базисный уровень)',
-        'unit_price_curr' => 'Цена (текущий уровень)',
-        'total_price_base' => 'Стоимость (базисный уровень)',
-        'total_price_curr' => 'Стоимость (текущий уровень)',
-        'index_code' => 'Индекс (код)',
-        'index_value' => 'Индекс (значение)',
-        'source_position_number' => '№ позиции в документе',
-        'work_type_name' => 'Вид работ',
-    ];
 
     public function table(Table $table): Table
     {
@@ -85,6 +70,24 @@ class ItemsRelationManager extends RelationManager
                 Filter::make('marked')
                     ->label('Только помеченные')
                     ->query(fn (Builder $query): Builder => $query->whereNotNull('quality')),
+                SelectFilter::make('quality_reason')
+                    ->label('Причина пометки')
+                    ->options(collect(RowQualityReason::cases())
+                        ->mapWithKeys(static fn (RowQualityReason $reason): array => [$reason->value => $reason->label()])
+                        ->all())
+                    ->query(function (Builder $query, array $data): Builder {
+                        $reason = $data['value'] ?? null;
+
+                        if (! is_string($reason) || $reason === '') {
+                            return $query;
+                        }
+
+                        return $query->where(function (Builder $query) use ($reason): void {
+                            $query
+                                ->whereJsonContains('quality->validator->reasons', $reason)
+                                ->orWhere('quality->model->reason', $reason);
+                        });
+                    }),
             ])
             ->headerActions([
                 //
@@ -119,7 +122,7 @@ class ItemsRelationManager extends RelationManager
         if (is_array($model)) {
             $reason = RowQualityReason::from($model['reason']);
             $fields = collect($model['fields'])
-                ->map(static fn (string $field): string => self::FIELD_LABELS[$field] ?? $field)
+                ->map(static fn (string $field): string => EstimateRow::fieldLabel($field))
                 ->implode(', ');
 
             $lines[] = "Не прочитано моделью: {$reason->label()} ({$fields})";

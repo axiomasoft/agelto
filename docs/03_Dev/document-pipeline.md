@@ -176,6 +176,21 @@ checkpoint-цикле, не пересчитывает `validation_status`/ие�
 `unreadable_format`/`password_protected` — P5.1 (`PdfPageSlicer`), `provider_limit_size`/
 `provider_limit_pages` — P6.1 (`ExtractionPreflight`).
 
+## Пометки неполных позиций
+
+`EstimateValidator` ставит позиции с пустым № позиции, шифром расценки, наименованием, единицей
+измерения или количеством в `quality.validator` с причиной `required_field_missing`. Это сигнал
+для оператора на уровне строки: фильтр «Причина пометки» в таблице позиций позволяет показать
+только такие записи. Пометка не добавляет заметку сметы и не меняет `validation_status`: до
+решения владельца по допустимым пустотам для конкретных форм она не означает ошибку разбора всей
+сметы.
+
+Для контрольного замера используется чистая read-only команда
+`estimate:fields:audit --source=gold --json` (либо `--source=database` для уже сохранённых
+смет). Она не вызывает LLM и не пишет в БД; фиксированный снимок золотого корпуса лежит в
+`plans/2026.08.06-CRAWL-HARDEN/artifacts/P7.4-fields-audit.json` и задаёт пороги регрессионного
+теста.
+
 ## Failure modes → runbooks
 
 | Симптом | Runbook |

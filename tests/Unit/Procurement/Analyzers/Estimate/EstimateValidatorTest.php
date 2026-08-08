@@ -6,6 +6,7 @@ use App\Dto\Procurement\Analyzers\Estimate\EstimateRow;
 use App\Dto\Procurement\Analyzers\Estimate\EstimateTotalsBlock;
 use App\Dto\Procurement\Analyzers\Estimate\TotalLine;
 use App\Enums\Procurement\Estimate\EstimateValidationStatus;
+use App\Enums\Procurement\Estimate\RowQualityReason;
 use App\Enums\Procurement\Estimate\RowType;
 use App\Services\Procurement\Analyzers\Estimate\EstimateValidator;
 
@@ -103,6 +104,52 @@ test('validate best-effort сверяет сумму позиций с итог�
     $report = app(EstimateValidator::class)->validate(rowsExpected: 2, rows: $rows, totals: $totals);
 
     expect($report->status)->toBe(EstimateValidationStatus::Valid);
+});
+
+test('validate помечает каждое пустое обязательное поле позиции, не добавляя заметку сметы', function (): void {
+    $row = new EstimateRow(
+        row_index: 1,
+        row_type: RowType::Item,
+        name: ' ',
+        code: '',
+        unit: ' ',
+        quantity: null,
+        source_position_number: '',
+    );
+
+    $report = app(EstimateValidator::class)->validate(rowsExpected: 1, rows: [$row], totals: null);
+
+    expect($report->status)->toBe(EstimateValidationStatus::Valid)
+        ->and($report->notes)->toBe([])
+        ->and($report->rowReasons[1])->toHaveCount(5)
+        ->and($report->rowReasons[1])->each->toBe(RowQualityReason::RequiredFieldMissing)
+        ->and($report->rowNotes[1])->toBe([
+            'не заполнено обязательное поле «№ позиции в документе»',
+            'не заполнено обязательное поле «Шифр расценки»',
+            'не заполнено обязательное поле «Наименование»',
+            'не заполнено обязательное поле «Ед. изм.»',
+            'не заполнено обязательное поле «Количество»',
+        ]);
+});
+
+test('validate не проверяет обязательные поля у непозиционных строк', function (): void {
+    $row = new EstimateRow(
+        row_index: 1,
+        row_type: RowType::SectionHeader,
+        name: 'Раздел 1',
+    );
+
+    $report = app(EstimateValidator::class)->validate(rowsExpected: 0, rows: [$row], totals: null);
+
+    expect($report->status)->toBe(EstimateValidationStatus::Valid)
+        ->and($report->rowReasons)->toBe([])
+        ->and($report->rowNotes)->toBe([])
+        ->and($report->notes)->toBe([]);
+});
+
+test('причина незаполненного обязательного поля остаётся validator-origin', function (): void {
+    expect(RowQualityReason::RequiredFieldMissing->isModelOrigin())->toBeFalse()
+        ->and(RowQualityReason::RequiredFieldMissing->label())->toBe('не заполнено обязательное поле');
 });
 
 test('validate флагирует расхождение с итоговой строкой footer как suspicious', function () {

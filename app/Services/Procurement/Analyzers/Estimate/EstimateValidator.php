@@ -30,6 +30,15 @@ final readonly class EstimateValidator
 
     private const int SCALE = 2;
 
+    /** @var list<string> */
+    private const array REQUIRED_ITEM_FIELDS = [
+        'source_position_number',
+        'code',
+        'name',
+        'unit',
+        'quantity',
+    ];
+
     /**
      * Порог доли расхождения rows_expected/фактически извлечено, после которого неполнота
      * считается СЕРЬЁЗНОЙ (invalid), а не просто подозрительной — калибровка на реальных сметах
@@ -53,6 +62,7 @@ final readonly class EstimateValidator
 
         $this->checkMonotonicity($rows, $anomalousRowIndexes, $rowReasons, $rowNotes, $notes);
         $severe = $this->checkCompleteness($rowsExpected, $rows, $notes) || $severe;
+        $this->checkRequiredItemFields($rows, $rowReasons, $rowNotes);
         $this->checkSectionArithmetic($rows, $anomalousRowIndexes, $rowReasons, $rowNotes, $notes);
         $this->checkGrandTotal($rows, $totals, $notes);
 
@@ -144,6 +154,47 @@ final readonly class EstimateValidator
         $notes[] = "полнота: rows_expected={$rowsExpected}, извлечено позиций={$extracted} (расхождение {$diff})";
 
         return $ratio > self::SEVERE_COMPLETENESS_RATIO;
+    }
+
+    /**
+     * Пустота обязательного поля — только построчная пометка: она не добавляет заметку сметы и
+     * не меняет её validation_status (P7.4).
+     *
+     * @param  list<EstimateRow>  $rows
+     * @param  array<int, list<RowQualityReason>>  $rowReasons
+     * @param  array<int, list<string>>  $rowNotes
+     */
+    private function checkRequiredItemFields(array $rows, array &$rowReasons, array &$rowNotes): void
+    {
+        foreach ($rows as $row) {
+            if ($row->row_type !== RowType::Item) {
+                continue;
+            }
+
+            foreach (self::REQUIRED_ITEM_FIELDS as $field) {
+                if ($this->hasValue($row->{$field})) {
+                    continue;
+                }
+
+                $label = EstimateRow::fieldLabel($field);
+                $this->addRowIssue(
+                    rowReasons: $rowReasons,
+                    rowNotes: $rowNotes,
+                    rowIndex: $row->row_index,
+                    reason: RowQualityReason::RequiredFieldMissing,
+                    note: "не заполнено обязательное поле «{$label}»",
+                );
+            }
+        }
+    }
+
+    private function hasValue(mixed $value): bool
+    {
+        if (! is_string($value)) {
+            return $value !== null;
+        }
+
+        return trim($value) !== '';
     }
 
     /**

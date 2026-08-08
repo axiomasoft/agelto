@@ -139,9 +139,8 @@ test('схема RowsChunkResponse несёт EstimateRow.quality как нео�
             'description' => 'носитель неопределённости строки — причина, по которой перечисленные в нём поля этой строки нельзя считать надёжными; отсутствует/null на строке, прочитанной полностью.',
             'anyOf' => [['$ref' => '#/$defs/RowQuality'], ['type' => 'null']],
         ])
-        // Генератор не умеет ограничить enum подмножеством — исходящая схема несёт ПОЛНЫЙ enum
-        // RowQualityReason (model-origin + validator-origin), отказ на validator-origin причине
-        // держит бэкенд (EstimateRow::validateAndCreate(), допустимое отклонение Scope Included п.4).
+        // P7 remediation сохраняет замороженный provider-contract: новая backend-only причина
+        // RequiredFieldMissing исключена из схемы, а исторические значения остаются byte-for-byte.
         ->and($schema['$defs']['RowQuality']['properties']['reason']['enum'])->toBe(['unreadable', 'arithmetic_mismatch', 'numbering_gap'])
         ->and($schema['$defs']['RowQuality']['required'])->toBe(['reason', 'fields']);
 });

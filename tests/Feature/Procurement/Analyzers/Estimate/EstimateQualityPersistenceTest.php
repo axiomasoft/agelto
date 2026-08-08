@@ -41,21 +41,23 @@ function qualityRowData(
     ?array $quality = null,
     array $resources = [],
 ): array {
+    $isItem = $rowType === 'item';
+
     return [
         'row_index' => $index,
         'row_type' => $rowType,
         'name' => $name,
         'section_title' => null,
-        'code' => null,
-        'unit' => $quantity !== null ? 'м3' : null,
-        'quantity' => $quantity,
+        'code' => $isItem ? "ФЕР-{$index}" : null,
+        'unit' => $isItem ? 'м3' : null,
+        'quantity' => $isItem ? ($quantity ?? '1.000000') : $quantity,
         'unit_price_base' => null,
         'unit_price_curr' => $unitPrice,
         'total_price_base' => null,
         'total_price_curr' => $totalPrice,
         'index_code' => null,
         'index_value' => null,
-        'source_position_number' => null,
+        'source_position_number' => $isItem ? (string) $index : null,
         'work_type_name' => null,
         'resources' => $resources,
         'quality' => $quality,
