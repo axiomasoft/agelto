@@ -87,16 +87,24 @@ final readonly class ProcurementStoreRepository
     /**
      * Детальный слой снят успешно (`02-crawling.md` §5.2) — error-блок сбрасывается,
      * повторный успешный снимок «лечит» ранее накопленные отказы.
+     *
+     * @param  array<string, mixed>|null  $detailParseOutcome
      */
-    public function markDetailFetched(Procurement $procurement, Carbon $fetchedAt): void
+    public function markDetailFetched(Procurement $procurement, Carbon $fetchedAt, ?array $detailParseOutcome = null): void
     {
-        $procurement->update([
+        $attributes = [
             'detail_fetched_at' => $fetchedAt,
             'detail_attempts' => 0,
             'detail_last_error' => null,
             'detail_next_retry_at' => null,
             'detail_failed' => false,
-        ]);
+        ];
+
+        if ($detailParseOutcome !== null) {
+            $attributes['detail_parse_outcome'] = $detailParseOutcome;
+        }
+
+        $procurement->update($attributes);
     }
 
     /**
