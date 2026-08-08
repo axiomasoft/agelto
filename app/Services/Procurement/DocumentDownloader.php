@@ -4,14 +4,17 @@ declare(strict_types=1);
 
 namespace App\Services\Procurement;
 
+use App\Dto\Procurement\Crawler\StageSettings;
 use App\Dto\Procurement\Proxy\ProxyLease;
 use App\Dto\Procurement\Proxy\ProxyOutcome;
+use App\Enums\Procurement\Crawler\CrawlStage;
 use App\Enums\Procurement\Document\DocumentStatus;
 use App\Enums\Procurement\ProcurementEventType;
 use App\Enums\Procurement\Proxy\ProxyFailureReason;
 use App\Enums\Procurement\Proxy\ProxyScope;
 use App\Models\Procurement\Document\Document;
 use App\Models\Procurement\Document\DocumentVersion;
+use App\Models\Procurement\Platform\Platform;
 use App\Repositories\Procurement\Document\DocumentStoreRepository;
 use App\Repositories\Procurement\ProcurementStoreRepository;
 use App\Services\Procurement\Proxy\ProxyResolver;
@@ -35,6 +38,7 @@ final readonly class DocumentDownloader
     public function __construct(
         private ProxyResolver $proxyResolver,
         private PoliteThrottle $throttle,
+        private CrawlSettingsResolver $crawlSettings,
         private DocumentStoreRepository $storeRepository,
         private ProcurementStoreRepository $procurementStore,
         private FileLocationResolver $locationResolver,
@@ -48,7 +52,7 @@ final readonly class DocumentDownloader
         }
 
         try {
-            $content = $this->fetch($document->source_url);
+            $content = $this->fetch(document: $document);
         } catch (\Throwable $exception) {
             $this->recordFailure($document, $exception);
 
@@ -91,13 +95,15 @@ final readonly class DocumentDownloader
         return $version;
     }
 
-    private function fetch(string $url): string
+    private function fetch(Document $document): string
     {
+        $url = (string) $document->source_url;
         $lease = $this->proxyResolver->resolve(ProxyScope::DocumentDownload, $this->canonicalHost($url));
+        $settings = $this->crawlSettings->forStage(stage: CrawlStage::Document, platform: Platform::query()->findOrFail($document->platform_id));
 
         $this->throttle->wait();
 
-        $response = $this->requestWithOutcome($lease, $url);
+        $response = $this->requestWithOutcome($lease, $url, $settings);
 
         if ($response->failed()) {
             throw new \RuntimeException("Не удалось скачать документ: HTTP {$response->status()}");
@@ -106,16 +112,16 @@ final readonly class DocumentDownloader
         return $response->body();
     }
 
-    private function request(string $url, ProxyLease $lease): Response
+    private function request(string $url, ProxyLease $lease, StageSettings $settings): Response
     {
         $tlsOptions = $this->tlsTrust->optionsFor($this->canonicalHost($url));
 
         return Http::withOptions([...$lease->httpOptions(), ...$tlsOptions])
             ->withUserAgent((string) config('crawler.user_agent'))
-            ->timeout((int) config('crawler.http.timeout', 30))
+            ->timeout($settings->timeoutSeconds ?? 30)
             ->retry(
-                times: (int) config('crawler.http.retries', 3),
-                sleepMilliseconds: (int) config('crawler.http.base_delay_ms', 500),
+                times: $settings->retries ?? 5,
+                sleepMilliseconds: $settings->retryDelayMs ?? 500,
                 when: static fn (\Throwable $exception): bool => $exception instanceof RequestException
                     && ($exception->response->status() === 429 || $exception->response->status() >= 500),
                 throw: false,
@@ -128,12 +134,12 @@ final readonly class DocumentDownloader
      * маппинга причины, что и у `CsvSourceMethod` (диапазон вызовов не пересекается, общий
      * файл вне `Files` этого item'а не заводится).
      */
-    private function requestWithOutcome(ProxyLease $lease, string $url): Response
+    private function requestWithOutcome(ProxyLease $lease, string $url, StageSettings $settings): Response
     {
         $startedAt = hrtime(true);
 
         try {
-            $response = $this->request(url: $url, lease: $lease);
+            $response = $this->request(url: $url, lease: $lease, settings: $settings);
         } catch (ConnectionException $exception) {
             $this->proxyResolver->reportOutcome($lease, ProxyOutcome::failure($this->connectionFailureReason($exception)));
 

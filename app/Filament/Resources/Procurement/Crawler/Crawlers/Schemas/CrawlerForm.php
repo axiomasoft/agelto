@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Procurement\Crawler\Crawlers\Schemas;
 
+use App\Dto\Procurement\Crawler\CrawlerRuntimeOptions;
 use App\Dto\Procurement\Crawler\EisSearchFilter;
 use App\Enums\Procurement\Crawler\CrawlerExecutionLane;
 use App\Enums\Procurement\Crawler\CrawlerMode;
@@ -154,6 +155,30 @@ class CrawlerForm
                         .'снятых замерах приходят пустыми — их выбор данных не добавит, отбор по ОКПД2 '
                         .'делает только поле выше.',
                     ),
+                Fieldset::make('Переопределения листинга')
+                    ->columnSpanFull()
+                    ->schema([
+                        TextInput::make('options.retries')
+                            ->label('Попытки')
+                            ->numeric()
+                            ->minValue(0)
+                            ->helperText('Пусто — как у площадки.'),
+                        TextInput::make('options.retryDelayMs')
+                            ->label('Пауза перед повтором, мс')
+                            ->numeric()
+                            ->minValue(0)
+                            ->helperText('Пусто — как у площадки.'),
+                        TextInput::make('options.minPauseMs')
+                            ->label('Пауза между запросами от, мс')
+                            ->numeric()
+                            ->minValue(0)
+                            ->helperText('Пусто — как у площадки; 0 — явное значение.'),
+                        TextInput::make('options.maxPauseMs')
+                            ->label('Пауза между запросами до, мс')
+                            ->numeric()
+                            ->minValue(0)
+                            ->helperText('Пусто — как у площадки; 0 — явное значение.'),
+                    ]),
                 TextInput::make('schedule')
                     ->label('Расписание (cron)')
                     ->helperText(
@@ -399,7 +424,7 @@ class CrawlerForm
             $crawler = new Crawler;
             $crawler->setRelation('registry', $registry);
             $crawler->filter = $filter;
-            $crawler->options = collect(['columns' => $columns]);
+            $crawler->options = new CrawlerRuntimeOptions(columns: $columns);
 
             $query = app(EisCsvUrlBuilder::class)->buildQueryParams(crawler: $crawler, from: 1, to: 500);
 

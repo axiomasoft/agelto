@@ -6,17 +6,21 @@ namespace App\Services\Procurement\Eis;
 
 use App\Dto\Procurement\Crawler\ListingBatch;
 use App\Dto\Procurement\Crawler\ListingCursor;
+use App\Dto\Procurement\Crawler\StageSettings;
 use App\Dto\Procurement\ProcurementDetails;
 use App\Dto\Procurement\Proxy\ProxyLease;
 use App\Dto\Procurement\Proxy\ProxyOutcome;
 use App\Dto\Procurement\Proxy\ProxyRequirements;
+use App\Enums\Procurement\Crawler\CrawlStage;
 use App\Enums\Procurement\ProcurementStatus;
 use App\Enums\Procurement\Proxy\ProxyFailureReason;
 use App\Enums\Procurement\Proxy\ProxyScope;
 use App\Models\Procurement\Crawler\Crawler;
+use App\Models\Procurement\Platform\Platform;
 use App\Models\Procurement\Platform\Registry;
 use App\Models\Procurement\Procurement;
 use App\Services\Procurement\Contracts\SourceMethod;
+use App\Services\Procurement\CrawlSettingsResolver;
 use App\Services\Procurement\Exceptions\CardPageMismatchException;
 use App\Services\Procurement\PoliteThrottle;
 use App\Services\Procurement\Proxy\ProxyResolver;
@@ -64,6 +68,7 @@ final readonly class CsvSourceMethod implements SourceMethod
         private EisCardUrlBuilder $cardUrlBuilder,
         private ProxyResolver $proxyResolver,
         private PoliteThrottle $throttle,
+        private CrawlSettingsResolver $crawlSettings,
         private SourceTlsTrust $tlsTrust,
     ) {}
 
@@ -77,15 +82,20 @@ final readonly class CsvSourceMethod implements SourceMethod
         $queryParams = $this->urlBuilder->buildQueryParams(crawler: $crawler, from: $from, to: $to, cursor: $cursor);
 
         $lease = $this->listingLease($crawler, $this->canonicalHost($endpoint));
+        $settings = $this->crawlSettings->forStage(
+            stage: CrawlStage::Listing,
+            platform: Platform::query()->findOrFail($crawler->registry()->firstOrFail()->getAttribute('platform_id')),
+            crawler: $crawler,
+        );
 
         $startedAt = hrtime(true);
 
         $this->throttle->wait();
-        $response = $this->requestWithOutcome(lease: $lease, endpoint: $endpoint, queryParams: $queryParams);
+        $response = $this->requestWithOutcome(lease: $lease, endpoint: $endpoint, queryParams: $queryParams, settings: $settings);
 
         if ($response->status() === 200 && trim($response->body()) === '') {
             $this->throttle->wait();
-            $response = $this->requestWithOutcome(lease: $lease, endpoint: $endpoint, queryParams: $queryParams);
+            $response = $this->requestWithOutcome(lease: $lease, endpoint: $endpoint, queryParams: $queryParams, settings: $settings);
         }
 
         $durationMs = (int) ((hrtime(true) - $startedAt) / 1_000_000);
@@ -185,13 +195,14 @@ final readonly class CsvSourceMethod implements SourceMethod
     private function collectTab(Registry $registry, string $tab, string $registryNumber, string $url): string
     {
         $lease = $this->proxyResolver->resolve(ProxyScope::CrawlDetail, $this->canonicalHost($url));
+        $settings = $this->crawlSettings->forStage(stage: CrawlStage::Detail, platform: Platform::query()->findOrFail($registry->platform_id));
 
         $this->throttle->wait();
-        $response = $this->requestWithOutcome(lease: $lease, endpoint: $url, queryParams: []);
+        $response = $this->requestWithOutcome(lease: $lease, endpoint: $url, queryParams: [], settings: $settings);
 
         if ($response->status() === 200 && trim($response->body()) === '') {
             $this->throttle->wait();
-            $response = $this->requestWithOutcome(lease: $lease, endpoint: $url, queryParams: []);
+            $response = $this->requestWithOutcome(lease: $lease, endpoint: $url, queryParams: [], settings: $settings);
         }
 
         $this->assertCardPage(response: $response, tab: $tab, url: $url, registryNumber: $registryNumber);
@@ -247,17 +258,17 @@ final readonly class CsvSourceMethod implements SourceMethod
     /**
      * @param  array<string, string>  $queryParams
      */
-    private function request(string $endpoint, array $queryParams, ProxyLease $lease): Response
+    private function request(string $endpoint, array $queryParams, ProxyLease $lease, StageSettings $settings): Response
     {
         $tlsOptions = $this->tlsTrust->optionsFor($this->canonicalHost($endpoint));
 
         $pendingRequest = Http::withOptions([...$lease->httpOptions(), ...$tlsOptions])
             ->withUserAgent((string) config('crawler.user_agent'))
             ->withHeaders(['Referer' => 'https://zakupki.gov.ru/'])
-            ->timeout((int) config('crawler.http.timeout', 30))
+            ->timeout($settings->timeoutSeconds ?? 30)
             ->retry(
-                times: (int) config('crawler.http.retries', 3),
-                sleepMilliseconds: (int) config('crawler.http.base_delay_ms', 500),
+                times: $settings->retries ?? 5,
+                sleepMilliseconds: $settings->retryDelayMs ?? 500,
                 when: static fn (\Throwable $exception): bool => $exception instanceof RequestException
                     && ($exception->response->status() === 429 || $exception->response->status() >= 500),
                 throw: false,
@@ -279,12 +290,12 @@ final readonly class CsvSourceMethod implements SourceMethod
      *
      * @param  array<string, string>  $queryParams
      */
-    private function requestWithOutcome(ProxyLease $lease, string $endpoint, array $queryParams): Response
+    private function requestWithOutcome(ProxyLease $lease, string $endpoint, array $queryParams, StageSettings $settings): Response
     {
         $startedAt = hrtime(true);
 
         try {
-            $response = $this->request(endpoint: $endpoint, queryParams: $queryParams, lease: $lease);
+            $response = $this->request(endpoint: $endpoint, queryParams: $queryParams, lease: $lease, settings: $settings);
         } catch (ConnectionException $exception) {
             $this->proxyResolver->reportOutcome($lease, ProxyOutcome::failure($this->connectionFailureReason($exception)));
 

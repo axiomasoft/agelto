@@ -5,13 +5,16 @@ declare(strict_types=1);
 namespace App\Services\Procurement\Eis;
 
 use App\Dto\Procurement\Crawler\EisSearchFilter;
+use App\Dto\Procurement\Crawler\StageSettings;
 use App\Dto\Procurement\Proxy\ProxyLease;
+use App\Enums\Procurement\Crawler\CrawlStage;
 use App\Enums\Procurement\Proxy\ProxyScope;
 use App\Models\Procurement\Crawler\Crawler;
 use App\Models\Procurement\Platform\Okpd2Node;
 use App\Models\Procurement\Platform\Platform;
 use App\Repositories\Procurement\Platform\Okpd2NodeReadRepository;
 use App\Repositories\Procurement\Platform\Okpd2NodeStoreRepository;
+use App\Services\Procurement\CrawlSettingsResolver;
 use App\Services\Procurement\PoliteThrottle;
 use App\Services\Procurement\Proxy\ProxyResolver;
 use App\Services\Procurement\SourceTlsTrust;
@@ -48,6 +51,7 @@ final readonly class Okpd2NodeSynchronizer
         private Okpd2NodeStoreRepository $store,
         private ProxyResolver $proxyResolver,
         private PoliteThrottle $throttle,
+        private CrawlSettingsResolver $crawlSettings,
         private SourceTlsTrust $tlsTrust,
     ) {}
 
@@ -87,6 +91,7 @@ final readonly class Okpd2NodeSynchronizer
             rootId: $rootId,
             rootLevel: $rootLevel,
             limit: $limit,
+            platform: $platform,
         );
 
         $new = [];
@@ -147,10 +152,11 @@ final readonly class Okpd2NodeSynchronizer
      *
      * @return array{0: array<string, array{code: string, external_id: string, parent_code: string|null, level: int, name: string}>, 1: list<string|null>, 2: list<string>, 3: int}
      */
-    private function traverse(string $rootId, int $rootLevel, int $limit): array
+    private function traverse(string $rootId, int $rootLevel, int $limit, Platform $platform): array
     {
         $endpoint = (string) config('crawler.okpd2.children_endpoint');
         $lease = $this->proxyResolver->resolve(ProxyScope::CrawlListing, $this->canonicalHost($endpoint));
+        $settings = $this->crawlSettings->forStage(stage: CrawlStage::Listing, platform: $platform);
 
         // Корень поддерева в карту НЕ пишется: его `parent_code` неизвестен, а дети получают
         // `parent_code = null` — ровно та форма, в которой карту снял и засидировал P1.2/P2.1.
@@ -171,7 +177,7 @@ final readonly class Okpd2NodeSynchronizer
             }
 
             $this->throttle->wait();
-            $children = $this->fetchChildren(lease: $lease, endpoint: $endpoint, parentId: $current['external_id']);
+            $children = $this->fetchChildren(lease: $lease, endpoint: $endpoint, parentId: $current['external_id'], settings: $settings);
             $requests++;
             $expandedCodes[] = $current['code'];
 
@@ -306,9 +312,9 @@ final readonly class Okpd2NodeSynchronizer
     /**
      * @return list<array<string, mixed>>
      */
-    private function fetchChildren(ProxyLease $lease, string $endpoint, string $parentId): array
+    private function fetchChildren(ProxyLease $lease, string $endpoint, string $parentId, StageSettings $settings): array
     {
-        $response = $this->request(lease: $lease, endpoint: $endpoint, parentId: $parentId);
+        $response = $this->request(lease: $lease, endpoint: $endpoint, parentId: $parentId, settings: $settings);
 
         if ($response->failed()) {
             throw new RuntimeException(
@@ -329,17 +335,17 @@ final readonly class Okpd2NodeSynchronizer
         return $decoded;
     }
 
-    private function request(ProxyLease $lease, string $endpoint, string $parentId): Response
+    private function request(ProxyLease $lease, string $endpoint, string $parentId, StageSettings $settings): Response
     {
         $tlsOptions = $this->tlsTrust->optionsFor($this->canonicalHost($endpoint));
 
         return Http::withOptions([...$lease->httpOptions(), ...$tlsOptions])
             ->withUserAgent((string) config('crawler.user_agent'))
             ->withHeaders(['Referer' => 'https://zakupki.gov.ru/'])
-            ->timeout((int) config('crawler.http.timeout', 30))
+            ->timeout($settings->timeoutSeconds ?? 30)
             ->retry(
-                times: (int) config('crawler.http.retries', 3),
-                sleepMilliseconds: (int) config('crawler.http.base_delay_ms', 500),
+                times: $settings->retries ?? 5,
+                sleepMilliseconds: $settings->retryDelayMs ?? 500,
                 when: static fn (Throwable $exception): bool => $exception instanceof RequestException
                     && ($exception->response->status() === 429 || $exception->response->status() >= 500),
                 throw: false,

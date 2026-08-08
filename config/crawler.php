@@ -87,6 +87,48 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Crawl stages and platform request budget (P4.1)
+    |--------------------------------------------------------------------------
+    |
+    | The 1–4 second pauses retain the P4.7 calibration above: 194 listing blocks
+    | produced 194 HTTP 200 responses and no 403/429. Retry count five is the
+    | owner-approved default; the budget values are NOT calibrated and P4.4 owns
+    | their enforcement.
+    |
+    */
+    'stages' => [
+        'listing' => [
+            'min_pause_ms' => 1000,
+            'max_pause_ms' => 4000,
+            'retries' => 5,
+            'retry_delay_ms' => 500,
+            'timeout_seconds' => 30,
+        ],
+        'detail' => [
+            'min_pause_ms' => 1000,
+            'max_pause_ms' => 4000,
+            'retries' => 5,
+            'retry_delay_ms' => 500,
+            'timeout_seconds' => 30,
+        ],
+        'document' => [
+            'min_pause_ms' => 1000,
+            'max_pause_ms' => 4000,
+            'retries' => 5,
+            'retry_delay_ms' => 500,
+            'timeout_seconds' => 30,
+        ],
+    ],
+
+    // NOT calibrated — calibrate during the production run; P4.4 enforces this budget.
+    'budget' => [
+        'requests_per_minute_base' => null,
+        'requests_per_minute_per_proxy' => null,
+        'max_wait_seconds' => null,
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Proxy resolver: политика выбора и circuit breaker (research/02 §6-7, P1.4)
     |--------------------------------------------------------------------------
     |
@@ -171,20 +213,6 @@ return [
                 'required_country' => env('CRAWLER_PROXY_DOCUMENT_DOWNLOAD_REQUIRED_COUNTRY', 'RU'),
             ],
         ],
-    ],
-
-    /*
-    |--------------------------------------------------------------------------
-    | HTTP
-    |--------------------------------------------------------------------------
-    |
-    | Ретраи и таймаут для `Http`-запросов `SourceMethod`-реализаций к площадкам.
-    |
-    */
-    'http' => [
-        'retries' => 3,
-        'base_delay_ms' => 500,
-        'timeout' => 30,
     ],
 
     'user_agent' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 '

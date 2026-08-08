@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Models\Procurement\Crawler;
 
 use App\Dto\Procurement\Crawler\Contracts\RequiresScope;
+use App\Dto\Procurement\Crawler\CrawlerRuntimeOptions;
 use App\Enums\Procurement\Crawler\CrawlerExecutionLane;
 use App\Enums\Procurement\Crawler\CrawlerMode;
 use App\Enums\Procurement\Crawler\RunStopPolicy;
@@ -14,13 +15,11 @@ use App\Services\Procurement\CrawlerFilterFactory;
 use Database\Factories\Procurement\Crawler\CrawlerFactory;
 use Illuminate\Contracts\Support\Arrayable;
 use Illuminate\Database\Eloquent\Attributes\UseFactory;
-use Illuminate\Database\Eloquent\Casts\AsCollection;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Carbon;
-use Illuminate\Support\Collection;
 use Illuminate\Validation\ValidationException;
 use RuntimeException;
 use Spatie\LaravelData\Data;
@@ -38,7 +37,7 @@ use Spatie\LaravelData\Data;
  * @property SourceMethod|null $fallback_method
  * @property Data|null $filter
  * @property string|null $schedule
- * @property Collection<array-key, mixed>|null $options
+ * @property CrawlerRuntimeOptions|null $options
  * @property bool $is_active
  * @property bool $use_proxy
  * @property string|null $proxy_country
@@ -76,7 +75,6 @@ final class Crawler extends Model
             'stop_policy' => RunStopPolicy::class,
             'source_method' => SourceMethod::class,
             'fallback_method' => SourceMethod::class,
-            'options' => AsCollection::class,
             'is_active' => 'boolean',
             'use_proxy' => 'boolean',
         ];
@@ -91,6 +89,7 @@ final class Crawler extends Model
     {
         self::saving(static function (self $crawler): void {
             $filter = $crawler->resolveFilter(raw: $crawler->rawFilter());
+            $crawler->resolveRuntimeOptions(raw: $crawler->rawOptions());
 
             $crawler->assertScope(filter: $filter);
             $crawler->assertStopPolicy();
@@ -184,6 +183,19 @@ final class Crawler extends Model
         );
     }
 
+    protected function options(): Attribute
+    {
+        return Attribute::make(
+            get: fn (): ?CrawlerRuntimeOptions => $this->resolveRuntimeOptions(raw: $this->rawOptions()),
+            set: static fn (CrawlerRuntimeOptions|array|Arrayable|null $value): array => [
+                'options' => $value === null ? null : json_encode(
+                    $value instanceof Arrayable ? $value->toArray() : $value,
+                    JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE,
+                ),
+            ],
+        );
+    }
+
     public function registry(): BelongsTo
     {
         return $this->belongsTo(related: Registry::class);
@@ -195,6 +207,20 @@ final class Crawler extends Model
     private function rawFilter(): ?array
     {
         $raw = $this->attributes['filter'] ?? null;
+
+        if ($raw === null || $raw === '') {
+            return null;
+        }
+
+        $decoded = is_string($raw) ? json_decode($raw, associative: true, flags: JSON_THROW_ON_ERROR) : $raw;
+
+        return is_array($decoded) ? $decoded : null;
+    }
+
+    /** @return array<string, mixed>|null */
+    private function rawOptions(): ?array
+    {
+        $raw = $this->attributes['options'] ?? null;
 
         if ($raw === null || $raw === '') {
             return null;
@@ -226,5 +252,15 @@ final class Crawler extends Model
         $class = app(CrawlerFilterFactory::class)->for(registry: $registry);
 
         return $class::validateAndCreate($raw);
+    }
+
+    /** @param array<string, mixed>|null $raw */
+    private function resolveRuntimeOptions(?array $raw): ?CrawlerRuntimeOptions
+    {
+        if ($raw === null || $raw === []) {
+            return null;
+        }
+
+        return CrawlerRuntimeOptions::validateAndCreate($raw);
     }
 }
