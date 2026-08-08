@@ -4,14 +4,18 @@ declare(strict_types=1);
 
 use App\Dto\Procurement\Crawler\ListingBatch;
 use App\Dto\Procurement\Crawler\ListingCursor;
+use App\Dto\Procurement\ProcurementDetails;
 use App\Enums\Procurement\Crawler\CrawlerExecutionLane;
 use App\Enums\Procurement\Crawler\CrawlerMode;
 use App\Enums\Procurement\Crawler\RunStatus;
 use App\Enums\Procurement\Crawler\RunStopKind;
 use App\Enums\Procurement\Crawler\SourceMethod as SourceMethodEnum;
+use App\Exceptions\Procurement\Crawler\PlatformBudgetExhaustedException;
 use App\Jobs\Procurement\CrawlRunJob;
 use App\Models\Procurement\Crawler\Crawler;
 use App\Models\Procurement\Crawler\Run;
+use App\Models\Procurement\Platform\Registry;
+use App\Services\Procurement\Contracts\SourceMethod;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
@@ -109,6 +113,55 @@ test('исчерпание бюджета checkpoint_seconds оставляет 
         && $job->executionLane === CrawlerExecutionLane::Standard
         && $job->connection === 'redis'
         && $job->queue === 'crawl');
+});
+
+test('request-budget checkpoint archive сохраняет execution lane и самодиспатчит continuation', function (): void {
+    Queue::fake();
+    $sourceMethod = new class implements SourceMethod
+    {
+        public function collectListing(Crawler $crawler, ListingCursor $cursor): ListingBatch
+        {
+            throw PlatformBudgetExhaustedException::forHost(host: 'eis.test', maxWaitSeconds: 0);
+        }
+
+        public function collectDetails(string $registryNumber, Registry $registry): ProcurementDetails
+        {
+            return new ProcurementDetails;
+        }
+
+        public function isAvailable(): bool
+        {
+            return true;
+        }
+    };
+    app()->instance($sourceMethod::class, $sourceMethod);
+    config(['crawler.source_methods' => [SourceMethodEnum::Csv->value => $sourceMethod::class]]);
+
+    $crawler = Crawler::factory()->create(['mode' => CrawlerMode::Archive, 'source_method' => SourceMethodEnum::Csv]);
+
+    app()->call([
+        new CrawlRunJob(
+            crawlerId: $crawler->id,
+            mode: CrawlerMode::Archive,
+            executionLane: CrawlerExecutionLane::Long,
+            from: '2024-01-01',
+            to: '2024-01-01',
+        ),
+        'handle',
+    ]);
+
+    $run = Run::query()->where('crawler_id', $crawler->id)->sole();
+    expect($run->status)->toBe(RunStatus::Running)
+        ->and($run->cursor['day'])->toBe('2024-01-01')
+        ->and($run->stats['checkpoints'] ?? null)->toBe(1)
+        ->and($run->last_error)->toBeNull()
+        ->and($run->finished_at)->toBeNull();
+
+    Queue::assertPushed(CrawlRunJob::class, fn (CrawlRunJob $job): bool => $job->crawlerId === $crawler->id
+        && $job->mode === CrawlerMode::Archive
+        && $job->executionLane === CrawlerExecutionLane::Long
+        && $job->connection === 'redis_crawl_long'
+        && $job->queue === 'crawl_long');
 });
 
 test('self-dispatch continuation сохраняет long lane и оба маршрута', function (): void {

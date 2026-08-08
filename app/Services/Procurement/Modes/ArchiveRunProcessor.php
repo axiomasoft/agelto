@@ -6,6 +6,7 @@ namespace App\Services\Procurement\Modes;
 
 use App\Dto\Procurement\Crawler\ListingCursor;
 use App\Dto\Procurement\Crawler\WindowFilter;
+use App\Enums\Procurement\Crawler\ArchiveWindowScanResult;
 use App\Enums\Procurement\Crawler\RunStatus;
 use App\Models\Procurement\Crawler\Crawler;
 use App\Models\Procurement\Crawler\Run;
@@ -46,11 +47,15 @@ final readonly class ArchiveRunProcessor
                     return $run;
                 }
 
-                $this->scanner->scan(crawler: $crawler, run: $run, filter: new WindowFilter(
+                $result = $this->scanner->scan(crawler: $crawler, run: $run, filter: new WindowFilter(
                     dateField: 'publish',
                     dateFrom: $day->copy(),
                     dateTo: $day->copy(),
                 ));
+
+                if ($result !== ArchiveWindowScanResult::Drained) {
+                    return $run;
+                }
 
                 $day = $day->copy()->addDay();
                 $this->runs->updateCursor(run: $run, cursor: new ListingCursor(blockFrom: 1, day: $day->toDateString()));

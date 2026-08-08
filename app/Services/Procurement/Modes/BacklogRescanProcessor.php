@@ -6,6 +6,7 @@ namespace App\Services\Procurement\Modes;
 
 use App\Dto\Procurement\Crawler\ListingCursor;
 use App\Dto\Procurement\Crawler\WindowFilter;
+use App\Enums\Procurement\Crawler\ArchiveWindowScanResult;
 use App\Enums\Procurement\Crawler\CrawlerMode;
 use App\Enums\Procurement\Crawler\RunStatus;
 use App\Models\Procurement\Crawler\Crawler;
@@ -90,7 +91,7 @@ final readonly class BacklogRescanProcessor
         $archiveRun = $this->runs->startOrResume(crawler: $archiveCrawler);
 
         try {
-            $this->drainWindow(crawler: $archiveCrawler, run: $archiveRun, from: Carbon::parse($from), to: Carbon::parse($to));
+            $result = $this->drainWindow(crawler: $archiveCrawler, run: $archiveRun, from: Carbon::parse($from), to: Carbon::parse($to));
         } catch (Throwable $exception) {
             $this->runs->fail(run: $archiveRun, error: $exception->getMessage());
 
@@ -99,6 +100,10 @@ final readonly class BacklogRescanProcessor
                 context: ['fresh_run_id' => $freshRun->id, 'archive_run_id' => $archiveRun->id, 'error' => $exception->getMessage()],
             );
 
+            return false;
+        }
+
+        if ($result !== ArchiveWindowScanResult::Drained) {
             return false;
         }
 
@@ -115,7 +120,7 @@ final readonly class BacklogRescanProcessor
         return true;
     }
 
-    private function drainWindow(Crawler $crawler, Run $run, Carbon $from, Carbon $to): void
+    private function drainWindow(Crawler $crawler, Run $run, Carbon $from, Carbon $to): ArchiveWindowScanResult
     {
         $overlapDays = (int) config('crawler.tracking.window_overlap_days');
         $overlappedFrom = $from->copy()->subDays($overlapDays)->startOfDay();
@@ -143,17 +148,23 @@ final readonly class BacklogRescanProcessor
             $run->refresh();
 
             if ($run->status !== RunStatus::Running) {
-                return;
+                return ArchiveWindowScanResult::Stopped;
             }
 
-            $this->scanner->scan(crawler: $crawler, run: $run, filter: new WindowFilter(
+            $result = $this->scanner->scan(crawler: $crawler, run: $run, filter: new WindowFilter(
                 dateField: 'update',
                 dateFrom: $day->copy(),
                 dateTo: $day->copy(),
             ));
 
+            if ($result !== ArchiveWindowScanResult::Drained) {
+                return $result;
+            }
+
             $day = $day->copy()->addDay();
             $this->runs->updateCursor(run: $run, cursor: new ListingCursor(blockFrom: 1, day: $day->toDateString()));
         }
+
+        return ArchiveWindowScanResult::Drained;
     }
 }

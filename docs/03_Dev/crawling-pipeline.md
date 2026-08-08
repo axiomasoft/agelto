@@ -37,11 +37,15 @@ Artisan-команды (`app/Console/Commands/Procurement/`) остались т
 `CrawlRunJob` — checkpoint-requeue (`ShouldBeUniqueUntilProcessing`, тот же приём, что
 `EstimateExtractionJob`): бюджет одного запуска — `config('crawler.run.checkpoint_seconds')`
 (240с); по исчерпании `FreshRunProcessor` выходит с сохранённым курсором и статусом `running`,
-job самодиспатчится продолжением. `ArchiveWindowScanner` этот бюджет не читает — у обёрток-дневных
-циклов (`ArchiveRunProcessor`/`DeltaScanProcessor`/`BacklogRescanProcessor`) нет чистой точки
-выхода по бюджету между днями. Для сида архива 2025 это осознанно закрыто конечным `long` lane;
-если фактическая длительность превысит час, не поднимать timeout молча — снять HTTP/throttle/DB
-метрики и принять отдельное решение.
+job самодиспатчится продолжением. Для archive `ArchiveWindowScanner` возвращает
+`ArchiveWindowScanResult`: только `Drained` разрешает дневной обёртке перейти к следующему дню;
+`PlatformBudgetExhaustedException` становится `Checkpointed` через
+`CrawlerRunManager::recordCheckpoint()`, а операторский pause/cancel — `Stopped`. Оба исхода
+сохраняют текущие день и ценовой стек. Archive продолжает существующий `CrawlRunJob` в том же
+execution lane; delta ждёт следующего cron, а backlog — следующего 15-минутного sweep без записи
+`backlog_rescanned_at`. Новый job, retry-loop или sleep для этого не создаются. Для сида архива
+2025 long lane остаётся конечным; если фактическая длительность превысит час, не поднимать timeout
+молча — снять HTTP/throttle/DB-метрики и принять отдельное решение.
 
 Остановить УЖЕ ВЫПОЛНЯЮЩИЙСЯ job средствами Laravel/Horizon нельзя — остановка кооперативна:
 `App\Services\Procurement\RunStopGate::signal()` читает `prc_crawler_runs.stop_requested_at`/

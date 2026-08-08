@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Console\Commands\Procurement;
 
 use App\Enums\Procurement\Crawler\CrawlerMode;
+use App\Enums\Procurement\Crawler\RunStatus;
 use App\Models\Procurement\Crawler\Crawler;
 use App\Services\Procurement\Modes\DeltaScanProcessor;
 use Illuminate\Console\Command;
@@ -38,9 +39,11 @@ final class RunDeltaScan extends Command
         foreach ($crawlers as $crawler) {
             try {
                 $run = $processor->run(crawler: $crawler);
-                $message = $run === null
-                    ? "Профиль «{$crawler->name}» (#{$crawler->id}): нет активного archive-профиля реестра, пропущен."
-                    : "Профиль «{$crawler->name}» (#{$crawler->id}): delta-scan #{$run->id} завершён со статусом {$run->status->value}.";
+                $message = match (true) {
+                    $run === null => "Профиль «{$crawler->name}» (#{$crawler->id}): нет активного archive-профиля реестра, пропущен.",
+                    $run->status === RunStatus::Running => "Профиль «{$crawler->name}» (#{$crawler->id}): delta-scan #{$run->id} поставлен на checkpoint и продолжится следующим cron.",
+                    default => "Профиль «{$crawler->name}» (#{$crawler->id}): delta-scan #{$run->id} завершён со статусом {$run->status->value}.",
+                };
                 $this->info($message);
             } catch (Throwable $exception) {
                 $hasFailure = true;

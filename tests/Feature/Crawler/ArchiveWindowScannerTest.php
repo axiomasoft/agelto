@@ -5,6 +5,7 @@ declare(strict_types=1);
 use App\Dto\Procurement\Crawler\EisSearchFilter;
 use App\Dto\Procurement\Crawler\ListingBatch;
 use App\Dto\Procurement\Crawler\WindowFilter;
+use App\Enums\Procurement\Crawler\ArchiveWindowScanResult;
 use App\Enums\Procurement\Crawler\CrawlerMode;
 use App\Enums\Procurement\Crawler\SourceMethod as SourceMethodEnum;
 use App\Models\Procurement\Crawler\Crawler;
@@ -93,9 +94,10 @@ test('окно дренируется на частичном блоке, сте
         archiveScannerBatch(['0173200001234000005'], dedupSignature: 'sig-3'),
     ]);
 
-    app(ArchiveWindowScanner::class)->scan(crawler: $crawler, run: $run, filter: archiveWindowFilter());
+    $result = app(ArchiveWindowScanner::class)->scan(crawler: $crawler, run: $run, filter: archiveWindowFilter());
 
-    expect(Procurement::query()->count())->toBe(5)
+    expect($result)->toBe(ArchiveWindowScanResult::Drained)
+        ->and(Procurement::query()->count())->toBe(5)
         ->and($run->fresh()->cursor['priceStack'])->toBeNull()
         ->and($run->fresh()->cursor['blockFrom'])->toBe(1);
 });

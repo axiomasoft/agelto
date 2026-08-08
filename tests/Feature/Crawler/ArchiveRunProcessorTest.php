@@ -191,6 +191,7 @@ test('стоп-сигнал Pause между днями останавливае
     expect($sourceMethod->calls)->toBe(1)
         ->and($run->fresh()->status)->toBe(RunStatus::Paused)
         ->and($run->fresh()->status)->not->toBe(RunStatus::Completed)
+        ->and($run->fresh()->cursor['day'])->toBe('2024-01-02')
         ->and(Procurement::query()->count())->toBe(1);
 });
 

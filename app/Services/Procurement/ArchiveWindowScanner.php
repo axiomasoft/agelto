@@ -7,7 +7,9 @@ namespace App\Services\Procurement;
 use App\Dto\Procurement\Crawler\Contracts\HasPriceRange;
 use App\Dto\Procurement\Crawler\ListingCursor;
 use App\Dto\Procurement\Crawler\WindowFilter;
+use App\Enums\Procurement\Crawler\ArchiveWindowScanResult;
 use App\Enums\Procurement\Crawler\RunStopKind;
+use App\Exceptions\Procurement\Crawler\PlatformBudgetExhaustedException;
 use App\Models\Procurement\Crawler\Crawler;
 use App\Models\Procurement\Crawler\Run;
 use Illuminate\Support\Facades\Log;
@@ -35,7 +37,7 @@ final readonly class ArchiveWindowScanner
         private RunStopGate $stopGate,
     ) {}
 
-    public function scan(Crawler $crawler, Run $run, WindowFilter $filter): void
+    public function scan(Crawler $crawler, Run $run, WindowFilter $filter): ArchiveWindowScanResult
     {
         $blockSize = (int) config('crawler.eis.block_size', 500);
         $priceCeiling = (int) config('crawler.archive.price_ceiling');
@@ -67,7 +69,7 @@ final readonly class ArchiveWindowScanner
                     RunStopKind::Cancel => $this->runs->cancel(run: $run, reason: $reason),
                 };
 
-                return;
+                return ArchiveWindowScanResult::Stopped;
             }
 
             if ($blocksInInterval >= $maxBlocksPerWindow) {
@@ -86,7 +88,14 @@ final readonly class ArchiveWindowScanner
 
             $iterationCursor = new ListingCursor(blockFrom: $blockFrom, day: $day, priceStack: $stack, dateField: $dateField);
             $sourceMethod = $this->factory->makeWithFallback(crawler: $crawler);
-            $batch = $sourceMethod->collectListing(crawler: $crawler, cursor: $iterationCursor);
+            try {
+                $batch = $sourceMethod->collectListing(crawler: $crawler, cursor: $iterationCursor);
+            } catch (PlatformBudgetExhaustedException) {
+                $this->runs->recordCheckpoint(run: $run);
+
+                return ArchiveWindowScanResult::Checkpointed;
+            }
+
             $this->ingestor->ingest(crawler: $crawler, run: $run, batch: $batch);
 
             if ($batch->rowsTotal < $blockSize) {
@@ -108,6 +117,8 @@ final readonly class ArchiveWindowScanner
             $this->persistCursor(run: $run, day: $day, stack: $stack, blockFrom: $blockFrom, dateField: $dateField);
             $this->runs->heartbeat(run: $run);
         }
+
+        return ArchiveWindowScanResult::Drained;
     }
 
     /**
