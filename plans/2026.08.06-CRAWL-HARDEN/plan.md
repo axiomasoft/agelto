@@ -400,6 +400,7 @@ Deliverables другого. P1.3 идёт solo: ему нужен не Playwrig
 | 2026-08-08 | plan-design/gpt-5.6/frontier/medium | P4.2 scope доведён до фактического DoR: `CrawlerFormTest` добавлен в Files и Required Reads для гейта привязки прокси. |
 | 2026-08-08 | plan-close/implementation/low | P4.2 закрыт: профиль ограничивает прокси явной привязкой, direct-режим легализован на трёх HTTP-выходах — детали см. phases/P4.md P4.2 Completion Notes. |
 | 2026-08-08 | plan-run/gpt-5.6/frontier/medium | P4.3 закрыт: глобальный breaker отключает proxy, оператор возвращает его с полным reset — детали см. phases/P4.md P4.3 Completion Notes. |
+| 2026-08-08 | plan-run/gpt-5.6-sol/high | P4.4 закрыт 🟠: единый host-budget заменил `PoliteThrottle`; archive checkpoint и ложный literal-grep вынесены в follow-up — детали см. phases/P4.md P4.4 Completion Notes. |
 
 ## 7. Contracts
 
