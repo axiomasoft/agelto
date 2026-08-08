@@ -6,6 +6,7 @@ namespace App\Services\Procurement\Modes;
 
 use App\Enums\Procurement\Crawler\SourceMethod as SourceMethodEnum;
 use App\Enums\Procurement\Document\DocumentStatus;
+use App\Exceptions\Procurement\Crawler\PlatformBudgetExhaustedException;
 use App\Models\Procurement\Document\Document;
 use App\Models\Procurement\Procurement;
 use App\Repositories\Procurement\ProcurementStoreRepository;
@@ -90,6 +91,8 @@ final readonly class DetailAnalysisProcessor
             }
 
             $this->procurementStore->markDetailFetched(procurement: $procurement, fetchedAt: now());
+        } catch (PlatformBudgetExhaustedException) {
+            return;
         } catch (Throwable $exception) {
             $this->markFailed(procurement: $procurement, exception: $exception);
         }

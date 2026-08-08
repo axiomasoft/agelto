@@ -7,11 +7,11 @@ namespace App\Services\Procurement\Modes;
 use App\Dto\Procurement\Crawler\ListingCursor;
 use App\Enums\Procurement\Crawler\RunStopKind;
 use App\Enums\Procurement\Crawler\RunStopPolicy;
+use App\Exceptions\Procurement\Crawler\PlatformBudgetExhaustedException;
 use App\Models\Procurement\Crawler\Crawler;
 use App\Models\Procurement\Crawler\Run;
 use App\Services\Procurement\CrawlerRunManager;
 use App\Services\Procurement\CsvBlockIngestor;
-use App\Services\Procurement\PoliteThrottle;
 use App\Services\Procurement\RunStopGate;
 use App\Services\Procurement\SourceMethodFactory;
 use Illuminate\Support\Carbon;
@@ -31,7 +31,6 @@ final readonly class FreshRunProcessor
     public function __construct(
         private SourceMethodFactory $factory,
         private CrawlerRunManager $runs,
-        private PoliteThrottle $throttle,
         private CsvBlockIngestor $ingestor,
         private RunStopGate $stopGate,
     ) {}
@@ -140,8 +139,11 @@ final readonly class FreshRunProcessor
                 );
                 $this->runs->updateCursor(run: $run, cursor: $cursor);
                 $this->runs->heartbeat(run: $run);
-                $this->throttle->wait();
             }
+        } catch (PlatformBudgetExhaustedException) {
+            $this->runs->recordCheckpoint(run: $run);
+
+            return $run;
         } catch (Throwable $exception) {
             $this->runs->fail(run: $run, error: $exception->getMessage());
 

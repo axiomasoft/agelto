@@ -22,7 +22,7 @@ use App\Models\Procurement\Procurement;
 use App\Services\Procurement\Contracts\SourceMethod;
 use App\Services\Procurement\CrawlSettingsResolver;
 use App\Services\Procurement\Exceptions\CardPageMismatchException;
-use App\Services\Procurement\PoliteThrottle;
+use App\Services\Procurement\PlatformRequestBudget;
 use App\Services\Procurement\Proxy\ProxyBindingResolver;
 use App\Services\Procurement\Proxy\ProxyResolver;
 use App\Services\Procurement\SourceTlsTrust;
@@ -69,7 +69,7 @@ final readonly class CsvSourceMethod implements SourceMethod
         private EisCardUrlBuilder $cardUrlBuilder,
         private ProxyResolver $proxyResolver,
         private ProxyBindingResolver $proxyBindingResolver,
-        private PoliteThrottle $throttle,
+        private PlatformRequestBudget $requestBudget,
         private CrawlSettingsResolver $crawlSettings,
         private SourceTlsTrust $tlsTrust,
     ) {}
@@ -83,7 +83,8 @@ final readonly class CsvSourceMethod implements SourceMethod
         $endpoint = (string) config('crawler.eis.csv_endpoint');
         $queryParams = $this->urlBuilder->buildQueryParams(crawler: $crawler, from: $from, to: $to, cursor: $cursor);
 
-        $lease = $this->listingLease($crawler, $this->canonicalHost($endpoint));
+        $host = $this->canonicalHost($endpoint);
+        $lease = $this->listingLease($crawler, $host);
         $settings = $this->crawlSettings->forStage(
             stage: CrawlStage::Listing,
             platform: Platform::query()->findOrFail($crawler->registry()->firstOrFail()->getAttribute('platform_id')),
@@ -92,11 +93,11 @@ final readonly class CsvSourceMethod implements SourceMethod
 
         $startedAt = hrtime(true);
 
-        $this->throttle->wait();
+        $this->requestBudget->acquire(host: $host, stage: CrawlStage::Listing, crawler: $crawler);
         $response = $this->requestWithOutcome(lease: $lease, endpoint: $endpoint, queryParams: $queryParams, settings: $settings);
 
         if ($response->status() === 200 && trim($response->body()) === '') {
-            $this->throttle->wait();
+            $this->requestBudget->acquire(host: $host, stage: CrawlStage::Listing, crawler: $crawler);
             $response = $this->requestWithOutcome(lease: $lease, endpoint: $endpoint, queryParams: $queryParams, settings: $settings);
         }
 
@@ -205,14 +206,15 @@ final readonly class CsvSourceMethod implements SourceMethod
 
     private function collectTab(Procurement $procurement, Registry $registry, string $tab, string $registryNumber, string $url): string
     {
-        $lease = $this->detailLease(procurement: $procurement, host: $this->canonicalHost($url));
+        $host = $this->canonicalHost($url);
+        $lease = $this->detailLease(procurement: $procurement, host: $host);
         $settings = $this->crawlSettings->forStage(stage: CrawlStage::Detail, platform: Platform::query()->findOrFail($registry->platform_id));
 
-        $this->throttle->wait();
+        $this->requestBudget->acquire(host: $host, stage: CrawlStage::Detail);
         $response = $this->requestWithOutcome(lease: $lease, endpoint: $url, queryParams: [], settings: $settings);
 
         if ($response->status() === 200 && trim($response->body()) === '') {
-            $this->throttle->wait();
+            $this->requestBudget->acquire(host: $host, stage: CrawlStage::Detail);
             $response = $this->requestWithOutcome(lease: $lease, endpoint: $url, queryParams: [], settings: $settings);
         }
 

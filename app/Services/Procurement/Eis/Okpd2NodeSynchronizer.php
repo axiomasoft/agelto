@@ -15,7 +15,7 @@ use App\Models\Procurement\Platform\Platform;
 use App\Repositories\Procurement\Platform\Okpd2NodeReadRepository;
 use App\Repositories\Procurement\Platform\Okpd2NodeStoreRepository;
 use App\Services\Procurement\CrawlSettingsResolver;
-use App\Services\Procurement\PoliteThrottle;
+use App\Services\Procurement\PlatformRequestBudget;
 use App\Services\Procurement\Proxy\ProxyResolver;
 use App\Services\Procurement\SourceTlsTrust;
 use Illuminate\Http\Client\RequestException;
@@ -35,7 +35,7 @@ use Throwable;
  * на КОДЫ, при этом не страдают, ради чего код и хранится вместо id (D9).
  *
  * Канал к площадке — те же три сейма, что у боевого `CsvSourceMethod`: лиза
- * `ProxyResolver::resolve()` → пауза `PoliteThrottle` → запрос с `verify` из `SourceTlsTrust`.
+ * `ProxyResolver::resolve()` → общий `PlatformRequestBudget` → запрос с `verify` из `SourceTlsTrust`.
  * Второго канала не заводится (гэп G7, Implementation Rules P2.5 п. 1).
  */
 final readonly class Okpd2NodeSynchronizer
@@ -50,7 +50,7 @@ final readonly class Okpd2NodeSynchronizer
         private Okpd2NodeReadRepository $nodes,
         private Okpd2NodeStoreRepository $store,
         private ProxyResolver $proxyResolver,
-        private PoliteThrottle $throttle,
+        private PlatformRequestBudget $requestBudget,
         private CrawlSettingsResolver $crawlSettings,
         private SourceTlsTrust $tlsTrust,
     ) {}
@@ -176,7 +176,10 @@ final readonly class Okpd2NodeSynchronizer
                 continue;
             }
 
-            $this->throttle->wait();
+            $this->requestBudget->acquire(
+                host: $this->canonicalHost($endpoint),
+                stage: CrawlStage::Listing,
+            );
             $children = $this->fetchChildren(lease: $lease, endpoint: $endpoint, parentId: $current['external_id'], settings: $settings);
             $requests++;
             $expandedCodes[] = $current['code'];

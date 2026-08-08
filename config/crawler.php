@@ -67,13 +67,6 @@ return [
         'checkpoint_seconds' => 240,
     ],
 
-    // Подтверждены прогоном P4.7 (K-4): 194 блока листинга — 194 ответа HTTP 200,
-    // ни одного 403/429, средняя длительность блока 4 577 мс, максимум 11 125 мс.
-    'throttle' => [
-        'min_ms' => 1000,
-        'max_ms' => 4000,
-    ],
-
     /*
     |--------------------------------------------------------------------------
     | Crawl stages and platform request budget (P4.1)
@@ -109,11 +102,12 @@ return [
         ],
     ],
 
-    // NOT calibrated — calibrate during the production run; P4.4 enforces this budget.
+    // NOT calibrated: engineering-cautious defaults derived from the existing 1–4 second
+    // request pause, not an EIS-published quota. Raise only from production observations.
     'budget' => [
-        'requests_per_minute_base' => null,
-        'requests_per_minute_per_proxy' => null,
-        'max_wait_seconds' => null,
+        'requests_per_minute_base' => 15,
+        'requests_per_minute_per_proxy' => 15,
+        'max_wait_seconds' => 60,
     ],
 
     /*

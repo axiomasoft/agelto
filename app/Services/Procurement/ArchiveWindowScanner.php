@@ -31,7 +31,6 @@ final readonly class ArchiveWindowScanner
     public function __construct(
         private SourceMethodFactory $factory,
         private CrawlerRunManager $runs,
-        private PoliteThrottle $throttle,
         private CsvBlockIngestor $ingestor,
         private RunStopGate $stopGate,
     ) {}
@@ -108,7 +107,6 @@ final readonly class ArchiveWindowScanner
 
             $this->persistCursor(run: $run, day: $day, stack: $stack, blockFrom: $blockFrom, dateField: $dateField);
             $this->runs->heartbeat(run: $run);
-            $this->throttle->wait();
         }
     }
 

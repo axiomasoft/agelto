@@ -13,6 +13,7 @@ use App\Enums\Procurement\Document\DocumentStatus;
 use App\Enums\Procurement\ProcurementEventType;
 use App\Enums\Procurement\Proxy\ProxyFailureReason;
 use App\Enums\Procurement\Proxy\ProxyScope;
+use App\Exceptions\Procurement\Crawler\PlatformBudgetExhaustedException;
 use App\Models\Procurement\Document\Document;
 use App\Models\Procurement\Document\DocumentVersion;
 use App\Models\Procurement\Platform\Platform;
@@ -41,7 +42,7 @@ final readonly class DocumentDownloader
     public function __construct(
         private ProxyResolver $proxyResolver,
         private ProxyBindingResolver $proxyBindingResolver,
-        private PoliteThrottle $throttle,
+        private PlatformRequestBudget $requestBudget,
         private CrawlSettingsResolver $crawlSettings,
         private DocumentStoreRepository $storeRepository,
         private ProcurementStoreRepository $procurementStore,
@@ -57,6 +58,8 @@ final readonly class DocumentDownloader
 
         try {
             $content = $this->fetch(document: $document);
+        } catch (PlatformBudgetExhaustedException) {
+            return null;
         } catch (\Throwable $exception) {
             $this->recordFailure($document, $exception);
 
@@ -102,10 +105,11 @@ final readonly class DocumentDownloader
     private function fetch(Document $document): string
     {
         $url = (string) $document->source_url;
-        $lease = $this->documentLease(document: $document, host: $this->canonicalHost($url));
+        $host = $this->canonicalHost($url);
+        $lease = $this->documentLease(document: $document, host: $host);
         $settings = $this->crawlSettings->forStage(stage: CrawlStage::Document, platform: Platform::query()->findOrFail($document->platform_id));
 
-        $this->throttle->wait();
+        $this->requestBudget->acquire(host: $host, stage: CrawlStage::Document);
 
         $response = $this->requestWithOutcome($lease, $url, $settings);
 
