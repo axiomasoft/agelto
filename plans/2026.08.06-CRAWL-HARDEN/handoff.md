@@ -1,39 +1,27 @@
-# HANDOFF — 2026-08-08 — after P6.2
+# HANDOFF — 2026-08-08 — after P6.3
 
-**Next:** ЗАПУСК ВРУЧНУЮ: implementation/high
+**Next:** exec-items: task:plan-exec 2026.08.06-CRAWL-HARDEN P6.4
 
 | Параметр | Значение |
 |:--|:--|
 | Model | implementation |
-| Thinking | high — две партиционированные истории |
+| Thinking | medium — витрина готового read-модуля |
 | Context | continue (reset the session context) — ручной item |
-| Суть | Реализовать платформо-независимые timeline, durations и revision diff с обязательными временными границами запросов. |
-| Команда | `—` |
-
-```text
-select session model class implementation
-select session effort high
-$ task:plan-run 2026.08.06-CRAWL-HARDEN P6.3
-```
+| Суть | Показать историю закупки read-only в карточке Filament поверх сервисов P6.3. |
+| Команда | `$ task:plan-exec 2026.08.06-CRAWL-HARDEN P6.4` |
 
 Native Codex launch-block:
 
 ```bash
-codex -C /home/vostrikov/projects/agelto/agelto -m gpt-5.6-terra -c 'model_reasoning_effort="high"' -a never -s danger-full-access '$ task:plan-run 2026.08.06-CRAWL-HARDEN P6.3'
+codex -C /home/vostrikov/projects/agelto/agelto -m gpt-5.6-terra -c 'model_reasoning_effort="medium"' -a never -s danger-full-access '$ task:plan-exec 2026.08.06-CRAWL-HARDEN P6.4'
 ```
 
-**Done:** P6.2 закрыт item-коммитом `85dda256`: реальная success-вкладка ЕИС разбирается
-в protocol, anonymous bid и award; D128 сохраняет nullable winner и монотонное enrichment.
+**Done:** P6.3 закрыт item-коммитом `100889c6`: доменный read-модуль истории с обязательными временными границами, DTO длительностей и diff снапшотов.
 
-**Remaining:** P6.3–P6.5; затем P7–P9.
+**Remaining:** P6.4–P6.5; затем P7–P9.
 
-**Sources of truth:** `plan.md` D128 · `phases/P6.md` P6.2/P6.3 ·
-`research/15-p6.2-anonymous-winner-design.md` · `findings/P6-supplier-results-fix.md` ·
-item-коммит `85dda256`.
+**Sources of truth:** `plan.md` D126/D129 · `phases/P6.md` P6.3/P6.4 · item-коммит `100889c6`.
 
-**Open risks:** P6.3 читает две партиционированные таблицы; временная граница обязана оставаться
-частью сигнатуры каждого запроса, а durations — считаться по доменному времени.
+**Open risks:** P6.3 закрыт 🟠: `DomainLayoutTest` был добавлен в scope только D129. P6.4 не должна дублировать вычисления timeline/diff или делать запросы без временного окна.
 
-**Workarounds/Deferred/Open questions:** workarounds: validation P6.2 выполнялась в существующих
-healthy-контейнерах из-за отсутствующего compose env · deferred: внешний источник реквизитов
-анонимного победителя · open_questions: —.
+**Workarounds/Deferred/Open questions:** workarounds: Compose требует временный `MINIO_ROOT_PASSWORD` для интерполяции команд · deferred: — · open_questions: —.

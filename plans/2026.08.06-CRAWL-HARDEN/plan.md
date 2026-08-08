@@ -6,7 +6,7 @@
 |:--|:--|
 | Plan ID | 2026.08.06-CRAWL-HARDEN |
 | Title | Надёжный контур crawling/парсинга ЕИС |
-| Version | 0.26.0 |
+| Version | 0.27.0 |
 | Status | 🟡 In progress |
 | Document Type | Executable Master Plan |
 | Authoring Model | frontier |
@@ -342,6 +342,7 @@ Deliverables другого. P1.3 идёт solo: ему нужен не Playwrig
 | D127 | 2026-08-08 | **Fast path D126 применён внутри P5.7 к единственной новой красной дельте полного suite: stale-ожидание `GeminiProxyRoutingTest` сравнивало URL с сырыми credentials после введённого ранее percent-encoding.** Тест исправлен inline, продуктовый LLM/proxy-код не менялся; файл находится вне исходного `Files`, поэтому P5.7 честно закрывается 🟠. **Consequences:** полный suite возвращён к именованному baseline D112; отдельный design/fix-item не создаётся, а факт блока остаётся в D-логе, journal и Completion Notes. | Ошибка локальна, решение однозначно задано действующим контрактом `ProxyLease::httpOptions()` и уже покрывается самим тестом; новая итерация не добавила бы проектного знания. `RAG:— (repo-grounded: tests/Feature/Llm/GeminiProxyRoutingTest.php; tests/Unit/Crawler/ProxyLeaseTest.php; phases/P5.md P5.7 Completion Notes)` |
 
 | D128 | 2026-08-08 | **P6.2 фиксирует подтверждённый award даже при анонимном победителе: `AwardData::$winner` nullable, optional `BidData::$bidNumber` отделяет идентификатор участника от порядкового номера, `SupplierResultsProcessor` пишет `prc_awards` с `winner_org_id = null`, а организацию и роль winner создаёт только при наличии идентифицируемого победителя. Анонимный повторный разбор не затирает уже обогащённый `winner_org_id`.** Отменяет обязательность имени/ИНН/ОГРН внутри самой вкладки `supplier-results`, заложенную в исходное ТЗ P6.2. **Consequences:** узкий публичный DTO-контракт расширяется двумя nullable-полями, а processor входит в `Files`; схема не меняется, потому что `winner_org_id` и `bid_number` уже существуют и nullable. | Прямое указание владельца автономно разрешить блокировку; живая factура доказывает идентификатор участника, порядковый номер/ранг победителя и цену без реквизитов организации. Отвергнуты выдуманная организация, смешивание двух колонок, потеря award до будущего контракта и сетевой переход из HTML-parser. `RAG:— (repo-grounded: findings/P6-supplier-results-fix.md; research/15-p6.2-anonymous-winner-design.md; database/migrations/2026_07_04_100021_create_prc_bids_table.php; database/migrations/2026_07_04_100022_create_prc_awards_table.php)` |
+| D129 | 2026-08-08 | **Fast path D126 применён к P6.3 по прямому указанию владельца: `tests/Unit/Architecture/DomainLayoutTest.php` входит в `Files` и Required Reads, чтобы зарегистрировать уже предписанные подобласти `Procurement\\History` для DTO и read-репозитория.** **Consequences:** P6.3 расширяет item-коммит на один архитектурный реестр и получает честный статус `🟠`, поскольку исходный `Files` не перечислял обязательный тест; предметный контракт модуля истории, его Routing и соседние фазы не меняются. | Без регистрации `History` полный прогон детерминированно отклоняет пути, прямо заданные Scope Included P6.3. Владелец явно потребовал устранить блокировку в текущем проходе. `RAG:— (repo-grounded: tests/Unit/Architecture/DomainLayoutTest.php:29-59; phases/P6.md P6.3; D126)` |
 
 ## 6. Update Log
 
@@ -431,6 +432,8 @@ Deliverables другого. P1.3 идёт solo: ему нужен не Playwrig
 | 2026-08-08 | plan-run/gpt-5.6-terra/high | P5.3 закрыт 🟠, item-коммит `af86c077`: три пассивные пробы, history-orchestrator и ежедневная команда добавлены; D124 снял блокировку прямым baseline-исправлением — детали см. phases/P5.md P5.3 Completion Notes. |
 | 2026-08-08 | plan-run/gpt-5.6-terra/high | P5.4 закрыт 🟠, item-коммит `0edb60cb`: активная проба действия ОКПД2-фильтра добавлена штатным сетевым путём — детали см. phases/P5.md P5.4 Completion Notes. |
 | 2026-08-08 | plan-run/gpt-5.6-sol/high | P6.2 закрыт: реальная вкладка пишет протокол, анонимную заявку и award с монотонным winner enrichment — детали см. phases/P6.md P6.2 Completion Notes. |
+| 2026-08-08 | plan-run/gpt-5.6-terra/high | P6.3 re-design in place: D129 добавил обязательный архитектурный реестр в Files и снял локальную блокировку по fast path D126. |
+| 2026-08-08 | plan-run/gpt-5.6-terra/high | P6.3 закрыт 🟠: платформо-независимые timeline, durations, snapshot diff и time-bounded read-репозиторий — детали см. phases/P6.md P6.3 Completion Notes. |
 
 ## 7. Contracts
 
