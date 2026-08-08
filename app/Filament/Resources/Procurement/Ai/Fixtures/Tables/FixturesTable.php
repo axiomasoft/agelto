@@ -68,6 +68,21 @@ class FixturesTable
                         'нет в манифесте' => 'danger',
                         default => 'gray',
                     }),
+                TextColumn::make('gold')
+                    ->label('Золото')
+                    ->state(function (Fixture $record) use ($manifestState): string {
+                        if (! $manifestState['available']) {
+                            return 'манифест недоступен';
+                        }
+
+                        return in_array($record->code, $manifestState['goldCodes'], true) ? 'есть' : 'нет';
+                    })
+                    ->badge()
+                    ->color(fn (string $state): string => match ($state) {
+                        'есть' => 'success',
+                        'нет' => 'gray',
+                        default => 'gray',
+                    }),
                 TextColumn::make('created_at')
                     ->dateTime()
                     ->sortable()
@@ -113,14 +128,14 @@ class FixturesTable
     }
 
     /**
-     * @return array{available: bool, codes: list<string>}
+     * @return array{available: bool, codes: list<string>, goldCodes: list<string>}
      */
     private static function manifestState(): array
     {
         try {
             $manifest = app(FixtureManifestReader::class)->read((string) config('ai.fixtures.manifest_path'));
         } catch (ManifestUnreadable) {
-            return ['available' => false, 'codes' => []];
+            return ['available' => false, 'codes' => [], 'goldCodes' => []];
         }
 
         $codes = collect($manifest['fixtures'])
@@ -129,6 +144,13 @@ class FixturesTable
             ->values()
             ->all();
 
-        return ['available' => true, 'codes' => $codes];
+        $goldCodes = collect($manifest['fixtures'])
+            ->filter(static fn (mixed $entry): bool => is_array($entry) && filled($entry['gold_path'] ?? null))
+            ->map(static fn (array $entry): ?string => ($entry['code'] ?? null) !== null ? (string) $entry['code'] : null)
+            ->filter()
+            ->values()
+            ->all();
+
+        return ['available' => true, 'codes' => $codes, 'goldCodes' => $goldCodes];
     }
 }

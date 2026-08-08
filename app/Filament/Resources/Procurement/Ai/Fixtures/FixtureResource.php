@@ -6,16 +6,21 @@ use App\Filament\Resources\Procurement\Ai\Fixtures\Pages\CreateFixture;
 use App\Filament\Resources\Procurement\Ai\Fixtures\Pages\EditFixture;
 use App\Filament\Resources\Procurement\Ai\Fixtures\Pages\ListFixtures;
 use App\Filament\Resources\Procurement\Ai\Fixtures\Pages\ViewFixture;
+use App\Filament\Resources\Procurement\Ai\Fixtures\Pages\ViewFixtureGold;
 use App\Filament\Resources\Procurement\Ai\Fixtures\RelationManagers\RunsRelationManager;
 use App\Filament\Resources\Procurement\Ai\Fixtures\Schemas\FixtureForm;
 use App\Filament\Resources\Procurement\Ai\Fixtures\Schemas\FixtureInfolist;
 use App\Filament\Resources\Procurement\Ai\Fixtures\Tables\FixturesTable;
 use App\Models\Procurement\Ai\Fixture;
 use BackedEnum;
+use Filament\Navigation\NavigationItem;
+use Filament\Resources\Pages\Page;
+use Filament\Resources\Pages\ViewRecord;
 use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
 
 /**
  * Реестр эталонных документов обучающего контура (P5.1, D6/D18/D90/D132/D133): загрузка файла,
@@ -49,6 +54,11 @@ class FixtureResource extends Resource
         return FixturesTable::configure($table);
     }
 
+    public static function getEloquentQuery(): Builder
+    {
+        return parent::getEloquentQuery()->with(['document', 'datasetExamples']);
+    }
+
     public static function getRelations(): array
     {
         return [
@@ -62,7 +72,21 @@ class FixtureResource extends Resource
             'index' => ListFixtures::route('/'),
             'create' => CreateFixture::route('/create'),
             'view' => ViewFixture::route('/{record}'),
+            'gold' => ViewFixtureGold::route('/{record}/gold'),
             'edit' => EditFixture::route('/{record}/edit'),
+        ];
+    }
+
+    /** @return array<NavigationItem> */
+    public static function getRecordSubNavigation(Page $page): array
+    {
+        assert($page instanceof ViewRecord);
+
+        return [
+            NavigationItem::make('Эталон')
+                ->url(static::getUrl('view', ['record' => $page->getRecord()])),
+            NavigationItem::make('Золото')
+                ->url(static::getUrl('gold', ['record' => $page->getRecord()])),
         ];
     }
 }
