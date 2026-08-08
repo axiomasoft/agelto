@@ -6,7 +6,7 @@
      группировка запусков и порядок. Закрытие фазы или re-design обновляет эту таблицу
      (+ строка в `## 6. Update Log` плана). -->
 
-**Обновлён:** 2026-08-07 (повторный реопен фазы P3, D115) · **Соответствует plan.md:** v0.17.0 ·
+**Обновлён:** 2026-08-08 (модельный маршрут Codex, D116) · **Соответствует plan.md:** v0.17.1 ·
 **Items:** 55, терминальны 20 — P1.1–P1.5, P2.1–P2.6, P3.1–P3.9 закрыты (🟢/🟠 — точные статусы
 только в Status Board `plan.md` и `## Phase Status` фаз, здесь не дублируются), открыты 35,
 ближайший — **P3.10** (реопен D115: курсор — единственный источник дат в запросе листинга), затем
@@ -94,7 +94,7 @@ design-решения или цена ошибки необратима; `plan-e
 
 | Параметр | Значение |
 |:--|:--|
-| Model class | frontier |
+| Model class | frontier (`gpt-5.6-sol`) |
 | Effort | high — открытые design-решения, вердикты замораживают форму P2/P3/P5/P6 |
 | Capabilities | Playwright MCP (RU-прокси + `ignoreHTTPSErrors`), repo-чтение |
 | Context | cold-start: `plan.md` → `roadmap.md` → `phases/P1.md` → скилл `eis-recon` |
@@ -102,7 +102,7 @@ design-решения или цена ошибки необратима; `plan-e
 | Команда | `/task:plan-run 2026.08.06-CRAWL-HARDEN P1.1 P1.2 P1.4` |
 
 ```
-/model opus
+/model gpt-5.6-sol
 /effort high
 /task:plan-run 2026.08.06-CRAWL-HARDEN P1.1 P1.2 P1.4
 ```
@@ -114,7 +114,7 @@ design-решения или цена ошибки необратима; `plan-e
 
 | Параметр | Значение |
 |:--|:--|
-| Model class | implementation |
+| Model class | implementation (`gpt-5.6-terra`) |
 | Effort | medium — открытых решений нет, текст пишется по уже финальному коду |
 | Capabilities | repo-чтение, запись `docs/**`, прогон Pest-гейта P9.2 |
 | Context | cold-start: `plan.md` → `roadmap.md` → `phases/P9.md` (после закрытия P9.5) |

@@ -28,9 +28,9 @@ export const meta = {
   description: 'P7.1–P7.3 плана 2026.08.06-CRAWL-HARDEN: витрины трёх слоёв смет и связная навигация (P7.4/P7.5 — вручную, D100)',
   whenToUse: 'Исполнение срезов P7.1–P7.3 после утверждения плана; запускать через scriptPath (НЕ named-workflow — args приходит строкой). P7.4 и P7.5 запускаются вручную ПОСЛЕ него',
   phases: [
-    { title: 'Impl', detail: 'реализация среза + тесты', model: 'sonnet' },
-    { title: 'Green', detail: 'loop: прогон тестов → фикс, до зелёного или max-iteration', model: 'sonnet' },
-    { title: 'Review', detail: 'ревью диффа среза, глубина по риску', model: 'opus' },
+    { title: 'Impl', detail: 'реализация среза + тесты', model: 'gpt-5.6-terra' },
+    { title: 'Green', detail: 'loop: прогон тестов → фикс, до зелёного или max-iteration', model: 'gpt-5.6-terra' },
+    { title: 'Review', detail: 'ревью диффа среза, глубина по риску', model: 'gpt-5.6-sol' },
   ],
 }
 
@@ -84,16 +84,17 @@ const GATES = [
 
 const MAX_GREEN_ITERATIONS = 3
 
-// model/effort. Тир среза — из §3 Routing плана: implementation ⇒ sonnet; medium/high — effort.
+// model/effort. Тир среза — из §3 Routing плана: implementation ⇒ gpt-5.6-terra;
+// medium/high — effort.
 // guarded-optional-args: срез без `tier` не должен молча получить более дешёвый прогон —
 // явный дефолт 'high' (typeof-guard), то есть в сторону строгости, а не экономии.
 const tierOf = s => (typeof s.tier === 'string' ? s.tier : 'high')
-const modelOf = s => ({ model: 'sonnet', effort: tierOf(s) })
-const GREEN_MODEL_FOR = s => ({ model: 'sonnet', effort: tierOf(s) })
+const modelOf = s => ({ model: 'gpt-5.6-terra', effort: tierOf(s) })
+const GREEN_MODEL_FOR = s => ({ model: 'gpt-5.6-terra', effort: tierOf(s) })
 const riskOf = s => (typeof s.risk === 'string' ? s.risk : 'medium')
 const reviewFor = risk => (risk === 'high'
-  ? { model: 'opus', effort: 'xhigh' }
-  : { model: 'opus', effort: 'medium' })
+  ? { model: 'gpt-5.6-sol', effort: 'xhigh' }
+  : { model: 'gpt-5.6-sol', effort: 'medium' })
 
 // ── Схемы structured-summary ─────────────────────────────────────────────────
 const REPORT = {
@@ -231,7 +232,7 @@ for (const s of SLICES) {
 
   // Гейты между срезами.
   const gate = GATES.length
-    ? await safeAgent(gatePrompt(s), { label: `gate:${s.key}:${s.asOf || ''}`, phase: 'Impl', model: 'sonnet', effort: 'low', schema: REPORT })
+    ? await safeAgent(gatePrompt(s), { label: `gate:${s.key}:${s.asOf || ''}`, phase: 'Impl', model: 'gpt-5.6-terra', effort: 'low', schema: REPORT })
     : null
   if (GATES.length && !gate) {
     log(`СТОП: gate:${s.key} без результата`)

@@ -4,13 +4,15 @@
 
 | Параметр | Значение |
 |:--|:--|
-| Model | implementation |
+| Model | gpt-5.6-terra (implementation) |
 | Thinking | low — терминальная фаза требует сверки статусов и фактов |
 | Context | NEW SESSION — шаг-не-item |
 | Суть | Закрыть P3 после реопена D115, затем передать фазу на обязательный третий аудит (`AUDIT-CAP`). |
 | Команда | `$ task:plan-close 2026.08.06-CRAWL-HARDEN P3` |
 
 ```
+/model gpt-5.6-terra
+/effort low
 $ task:plan-close 2026.08.06-CRAWL-HARDEN P3
 ```
 
