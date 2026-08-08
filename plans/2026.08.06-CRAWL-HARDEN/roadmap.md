@@ -6,12 +6,12 @@
      группировка запусков и порядок. Закрытие фазы или re-design обновляет эту таблицу
      (+ строка в `## 6. Update Log` плана). -->
 
-**Обновлён:** 2026-08-08 (P5.7 remediation и fast path D127) · **Соответствует plan.md:**
-v0.25.0 · **Items:** 59, терминальны 37 — P1.1–P1.5, P2.1–P2.6, P3.1–P3.10,
+**Обновлён:** 2026-08-08 (P6.1 закрыт с отклонениями) · **Соответствует plan.md:**
+v0.25.0 · **Items:** 59, терминальны 38 — P1.1–P1.5, P2.1–P2.6, P3.1–P3.10,
 P4.1–P4.9 и P5.1–P5.7 закрыты
 (🟢/🟠 — точные статусы только в Status Board `plan.md` и `## Phase Status` фаз, здесь не
-дублируются), открыты 22 items. AUDIT-CAP P3 закрыт решением владельца: P3 принята 🟠 без
-четвёртого реопена. Ближайший шаг — **P6.1**; повторный audit P5 закрыт GREEN.
+дублируются), открыты 21 items. AUDIT-CAP P3 закрыт решением владельца: P3 принята 🟠 без
+четвёртого реопена. Ближайший шаг — **P6.2**; повторный audit P5 закрыт GREEN.
 
 ## Жёсткий порядок
 
@@ -93,23 +93,23 @@ Solo-запуски обоснованы построчно в `## 3. Routing`: 
 design-решения или цена ошибки необратима; `plan-exec` — там, где решения запинены D-записями,
 а гейты детерминированы командой.
 
-## Следующий запуск — P6.1
+## Следующий запуск — P6.2
 
-**Next:** manual: implementation/high
+**Next:** manual: frontier/high
 
 | Параметр | Значение |
 |:--|:--|
-| Model class | implementation (`gpt-5.6-terra`) |
+| Model class | frontier (`gpt-5.6-sol`) |
 | Effort | high |
 | Capabilities | — |
 | Context | same-session — item |
-| Суть | Исполнить P6.1: канон положительного исхода закупки после GREEN-аудита P5. |
+| Суть | Исполнить P6.2: success-разбор вкладки результатов по живой фактуре ЕИС. |
 | Команда | — |
 
 ```text
-select session model class implementation
+select session model class frontier
 select session effort high
-$ task:plan-run 2026.08.06-CRAWL-HARDEN P6.1
+$ task:plan-run 2026.08.06-CRAWL-HARDEN P6.2
 ```
 
 ## Готовые launch-block'и групп

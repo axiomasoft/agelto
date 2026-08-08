@@ -203,7 +203,7 @@ Deliverables другого. P1.3 идёт solo: ему нужен не Playwrig
 | P3 | Профили обхода и управление прогонами из админки | 7/10 | 🟠 Done with deviations |
 | P4 | Надёжность конвейера: budget запросов, троттлинг, анти-дубли, execution lanes | 4/9 | 🟠 Done with deviations |
 | P5 | Healthcheck площадки и уведомления | 4/7 | 🟠 Done with deviations |
-| P6 | Статусы, история изменений закупки, событие «закупка состоялась» | 0/5 | ⬜ Not started |
+| P6 | Статусы, история изменений закупки, событие «закупка состоялась» | 0/5 | 🟡 In progress |
 | P7 | Три слоя смет в админке и видимость промтов | 0/5 | ⬜ Not started |
 | P8 | Схлопывание миграций и финальный аудит схемы | 0/4 | ⬜ Not started |
 | P9 | Единая документация с диаграммами | 0/8 | ⬜ Not started |
@@ -345,6 +345,7 @@ Deliverables другого. P1.3 идёт solo: ему нужен не Playwrig
 
 | Дата | Кто (role/model) | Что |
 |:--|:--|:--|
+| 2026-08-08 | plan-run/gpt-5.6-terra/high | P6.1 закрыт 🟠, item-коммит `9f4a54eb`: точный этап отмены, канон положительного исхода, операторская витрина и grant; детали см. phases/P6.md P6.1 Completion Notes |
 | 2026-08-08 | plan-audit/frontier/xhigh | Повторный audit P5 (заход 2) — GREEN: F1–F6 закрыты P5.7, код/plan/git согласованы; следующий item P6.1 |
 | 2026-08-08 | plan-run/frontier/xhigh | P5.7 закрыт 🟠, item-коммит `1ad32f21`: F1–F6 RED-аудита исправлены; D127 фиксирует inline stale-test fast path — детали см. phases/P5.md P5.7 Completion Notes |
 | 2026-08-08 | implementation/medium | P5.6 закрыт, item-коммит `864d1598`: read-only Filament-витрина history healthcheck, право оператора и runbook — детали см. phases/P5.md P5.6 Completion Notes |
