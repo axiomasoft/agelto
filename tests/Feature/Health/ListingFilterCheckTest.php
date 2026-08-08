@@ -151,7 +151,7 @@ test('проверка называет исчерпание бюджета не
     $result = runListingFilterCheck($platform);
 
     expect($result->verdict)->toBe(PlatformCheckVerdict::NotEnoughData)
-        ->and($result->requestsUsed)->toBe(1)
+        ->and($result->requestsUsed)->toBe(0)
         ->and($result->message)->toContain('Бюджет запросов');
 
     Http::assertNothingSent();
@@ -164,7 +164,7 @@ test('проверка называет недоступность прокси 
     $result = runListingFilterCheck($platform);
 
     expect($result->verdict)->toBe(PlatformCheckVerdict::NotEnoughData)
-        ->and($result->requestsUsed)->toBe(1)
+        ->and($result->requestsUsed)->toBe(0)
         ->and($result->message)->toContain('Нет доступного прокси');
 
     Http::assertNothingSent();

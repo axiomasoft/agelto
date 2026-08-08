@@ -47,3 +47,35 @@ test('проверка разбора карточек не называет п�
 
     expect($result->verdict)->toBe(PlatformCheckVerdict::NotEnoughData);
 });
+
+test('production baseline считает пустые поля при сохранных якорях поломкой', function (): void {
+    $platform = Platform::factory()->create(['code' => 'eis']);
+    $registry = Registry::factory()->create(['platform_id' => $platform->id]);
+    $baseline = app(HealthBaselineReader::class)->read();
+    $outcome = [];
+
+    foreach ($baseline->cardTabs as $tab => $description) {
+        if (($description['status'] ?? null) === 'known_broken') {
+            continue;
+        }
+
+        $keyFields = $description['key_fields'] ?? [];
+        expect($keyFields)->not->toBeEmpty();
+        $outcome[$tab] = [
+            'status' => 'measured',
+            'anchors_missing_critical' => 0,
+            'key_fields_expected' => count($keyFields),
+            'key_fields_filled' => 0,
+        ];
+    }
+
+    Procurement::factory()->create([
+        'registry_id' => $registry->id,
+        'detail_fetched_at' => now(),
+        'detail_parse_outcome' => $outcome,
+    ]);
+
+    $result = app(CardParseCheck::class)->run($platform, $baseline, now()->subDay(), now());
+
+    expect($result->verdict)->toBe(PlatformCheckVerdict::Broken);
+});

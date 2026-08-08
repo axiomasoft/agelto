@@ -13,6 +13,7 @@ use App\Models\Procurement\Platform\Platform;
 use App\Services\Procurement\Health\Contracts\HealthCheck;
 use App\Services\Procurement\Health\HealthCheckResultFactory;
 use Carbon\CarbonInterface;
+use LogicException;
 
 final readonly class EstimateFieldsCheck implements HealthCheck
 {
@@ -25,11 +26,13 @@ final readonly class EstimateFieldsCheck implements HealthCheck
 
     public function run(Platform $platform, HealthBaseline $baseline, CarbonInterface $from, CarbonInterface $to): CheckResult
     {
+        $minSample = $this->minSample(baseline: $baseline);
         $estimates = Estimate::query()
             ->where('platform_id', $platform->id)
             ->whereBetween('updated_at', [$from, $to])
             ->with('items:id,estimate_id,code,name,unit,quantity')
             ->orderByDesc('updated_at')
+            ->limit($minSample)
             ->get(['id', 'validation_status']);
 
         $sample = $estimates->count();
@@ -58,5 +61,16 @@ final readonly class EstimateFieldsCheck implements HealthCheck
             sampleSize: $sample,
             badShares: [$estimateShare, $itemShare],
         );
+    }
+
+    private function minSample(HealthBaseline $baseline): int
+    {
+        $minSample = $baseline->thresholds[$this->kind()->value]['min_sample'] ?? null;
+
+        if (! is_int($minSample) || $minSample < 1) {
+            throw new LogicException('В эталоне отсутствует положительный min_sample для estimate_fields.');
+        }
+
+        return $minSample;
     }
 }

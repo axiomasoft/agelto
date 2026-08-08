@@ -66,7 +66,6 @@ final readonly class ListingFilterCheck implements HealthCheck
         $requestsUsed = 0;
 
         try {
-            $requestsUsed++;
             $unfiltered = $this->source->collectListing(
                 crawler: $crawler,
                 cursor: $cursor,
@@ -78,8 +77,8 @@ final readonly class ListingFilterCheck implements HealthCheck
                     requestAttempts: 1,
                 ),
             );
-
             $requestsUsed++;
+
             $filtered = $this->source->collectListing(
                 crawler: $crawler,
                 cursor: $cursor,
@@ -90,10 +89,17 @@ final readonly class ListingFilterCheck implements HealthCheck
                     requestAttempts: 1,
                 ),
             );
-        } catch (PlatformBudgetExhaustedException|NoProxyAvailableException|ConnectionException $exception) {
+            $requestsUsed++;
+        } catch (PlatformBudgetExhaustedException|NoProxyAvailableException $exception) {
             return $this->notEnoughData(
                 message: "Проба фильтра ОКПД2 не выполнилась: {$exception->getMessage()}",
                 requestsUsed: $requestsUsed,
+                measured: $this->measured(crawler: $crawler, windowFrom: $windowFrom, windowTo: $windowTo),
+            );
+        } catch (ConnectionException $exception) {
+            return $this->notEnoughData(
+                message: "Проба фильтра ОКПД2 не выполнилась: {$exception->getMessage()}",
+                requestsUsed: $requestsUsed + 1,
                 measured: $this->measured(crawler: $crawler, windowFrom: $windowFrom, windowTo: $windowTo),
             );
         }

@@ -25,6 +25,12 @@ final class HealthCheckCommand extends Command
 
     public function handle(): int
     {
+        if (! config('crawler.health.enabled')) {
+            $this->info('Healthcheck отключён конфигурацией.');
+
+            return self::SUCCESS;
+        }
+
         $platformCode = (string) ($this->option('platform') ?: 'eis');
         $kind = $this->option('kind');
 

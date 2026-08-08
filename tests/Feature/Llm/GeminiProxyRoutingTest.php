@@ -68,9 +68,16 @@ test('PoolOutboundProxy отдаёт httpOptions разрешённого узл
     $allowed = Proxy::factory()->country('DE')->withScopes([ProxyScope::Llm])->create();
 
     $adapter = new PoolOutboundProxy(llmResolver());
+    $expectedProxy = sprintf(
+        'http://%s:%s@%s:%d',
+        rawurlencode((string) $allowed->username),
+        rawurlencode((string) $allowed->password),
+        $allowed->host,
+        $allowed->port,
+    );
 
     expect($adapter->optionsFor('generativelanguage.googleapis.com'))
-        ->toBe(['proxy' => "http://{$allowed->username}:{$allowed->password}@{$allowed->host}:{$allowed->port}"]);
+        ->toBe(['proxy' => $expectedProxy]);
 });
 
 test('пустой пул для LLM и пустой env — PoolOutboundProxy бросает NoProxyAvailableException', function (): void {

@@ -42,7 +42,7 @@ if (Schema::hasTable('prc_crawler_runs')) {
 
 // Эталон и история healthcheck существуют только после P5.1; до миграций console.php всё так же
 // безопасно загружается для любого artisan-вызова.
-if (Schema::hasTable('prc_platform_checks')) {
+if (config('crawler.health.enabled') && Schema::hasTable('prc_platform_checks')) {
     Schedule::command('crawler:health-check')
         ->cron((string) config('crawler.health.cron'))
         ->withoutOverlapping();

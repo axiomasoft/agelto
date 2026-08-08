@@ -10,7 +10,23 @@
         { "selector": "span.section__title", "critical": true, "min_matches": 1 },
         { "selector": "span.section__info", "critical": true, "min_matches": 1 }
       ],
-      "key_fields": []
+      "key_fields": [
+        "ikz_year",
+        "ikz_customer_code",
+        "ikz_plan_number",
+        "ikz_plangraph_number",
+        "ikz_okpd_class",
+        "ikz_okpd_subclass",
+        "ikz_okpd_group",
+        "ikz_kvr",
+        "etp_name",
+        "etp_url",
+        "contact_person_name",
+        "contact_person_email",
+        "financing_rows",
+        "items",
+        "parties"
+      ]
     },
     "documents": {
       "status": "measured",
@@ -18,12 +34,12 @@
         { "selector": "a[href*=filestore]", "critical": true, "min_matches": 1 },
         { "selector": "div.attachment", "critical": true, "min_matches": 1 }
       ],
-      "key_fields": []
+      "key_fields": ["documents"]
     },
     "event-journal": {
       "status": "measured",
       "anchors": [{ "selector": "table#event", "critical": true, "min_matches": 1 }],
-      "key_fields": []
+      "key_fields": ["entries"]
     },
     "supplier-results": {
       "status": "known_broken",
@@ -31,7 +47,7 @@
         { "selector": "section.blockInfo__section", "critical": true, "min_matches": 1 },
         { "selector": "table.tableBlock", "critical": true, "min_matches": 1 }
       ],
-      "key_fields": [],
+      "key_fields": ["protocol", "bids", "award"],
       "message": "Вкладка известна как неработающая до промоушена P6.2."
     }
   },
