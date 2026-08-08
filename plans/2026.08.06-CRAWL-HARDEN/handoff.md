@@ -1,23 +1,29 @@
-# HANDOFF — 2026-08-08 — after P5.7
+# HANDOFF — 2026-08-08 — after P5
 
-**Next:** /task:plan-audit 2026.08.06-CRAWL-HARDEN P5
+**Next:** ЗАПУСК ВРУЧНУЮ: implementation/high
 
 | Параметр | Значение |
 |:--|:--|
-| Model | frontier |
-| Thinking | xhigh — повторная проверка закрытия RED-находок |
-| Context | NEW SESSION — шаг-не-item |
-| Суть | Сверить P5 после remediation P5.7 с кодом, git-топологией и Validation. |
-| Команда | `$ task:plan-audit 2026.08.06-CRAWL-HARDEN P5` |
+| Model | implementation |
+| Thinking | high — канон положительного исхода закупки |
+| Context | continue (/clear) — ручной item |
+| Суть | Исполнить P6.1 после GREEN-аудита P5. |
+| Команда | `—` |
+
+```text
+select session model class implementation
+select session effort high
+$ task:plan-run 2026.08.06-CRAWL-HARDEN P6.1
+```
 
 **Done:** P5.1 — `9260026d`; P5.2 — `a25e1015`; P5.3 — `af86c077`; P5.4 — `0edb60cb`;
-P5.5 — `e4bcd9e6`; P5.6 — `864d1598`; P5.7 — `1ad32f21`. Первый audit P5 дал RED;
-F1–F6 закрыты P5.7, а новая дельта полного suite возвращена к baseline D112 через D127.
+P5.5 — `e4bcd9e6`; P5.6 — `864d1598`; P5.7 — `1ad32f21`; bookkeeping P5.7 —
+`32069fed`. Audit P5: заход 1 RED, заход 2 GREEN.
 
-**Remaining:** повторный audit P5; после GREEN — P6.1–P9.8.
+**Remaining:** P6.1–P9.8.
 
-**Sources of truth:** `phases/P5.md` P5.7 + оба audit-блока · `plan.md` D125–D127 ·
-`roadmap.md` · item tree `1ad32f21`.
+**Sources of truth:** `phases/P5.md` Audit P5 (заход 2) · `plan.md` D125–D127 ·
+`phases/P6.md` P6.1 · `roadmap.md`.
 
 **Open risks:** `max_overlap_share=0.032` P5.4 остаётся явно некалиброванным; общий suite держит
 предсуществующий baseline D112 — 18 failed вне P5, без новой красной дельты на `1ad32f21`.

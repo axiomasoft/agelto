@@ -11,7 +11,7 @@ v0.25.0 · **Items:** 59, терминальны 37 — P1.1–P1.5, P2.1–P2.6
 P4.1–P4.9 и P5.1–P5.7 закрыты
 (🟢/🟠 — точные статусы только в Status Board `plan.md` и `## Phase Status` фаз, здесь не
 дублируются), открыты 22 items. AUDIT-CAP P3 закрыт решением владельца: P3 принята 🟠 без
-четвёртого реопена. Ближайший шаг — **повторный audit P5**, затем P6.1.
+четвёртого реопена. Ближайший шаг — **P6.1**; повторный audit P5 закрыт GREEN.
 
 ## Жёсткий порядок
 
@@ -93,23 +93,23 @@ Solo-запуски обоснованы построчно в `## 3. Routing`: 
 design-решения или цена ошибки необратима; `plan-exec` — там, где решения запинены D-записями,
 а гейты детерминированы командой.
 
-## Следующий запуск — повторный audit P5
+## Следующий запуск — P6.1
 
-**Next:** task:plan-audit: frontier/xhigh
+**Next:** manual: implementation/high
 
 | Параметр | Значение |
 |:--|:--|
-| Model class | frontier (`gpt-5.6-sol`) |
-| Effort | xhigh |
+| Model class | implementation (`gpt-5.6-terra`) |
+| Effort | high |
 | Capabilities | — |
-| Context | cold-start — шаг-не-item |
-| Суть | Повторно сверить P5 после P5.7 и подтвердить, что F1–F6 закрыты без новых регрессий. |
-| Команда | `$ task:plan-audit 2026.08.06-CRAWL-HARDEN P5` |
+| Context | same-session — item |
+| Суть | Исполнить P6.1: канон положительного исхода закупки после GREEN-аудита P5. |
+| Команда | — |
 
 ```text
-select session model class frontier
-select session effort xhigh
-$ task:plan-audit 2026.08.06-CRAWL-HARDEN P5
+select session model class implementation
+select session effort high
+$ task:plan-run 2026.08.06-CRAWL-HARDEN P6.1
 ```
 
 ## Готовые launch-block'и групп

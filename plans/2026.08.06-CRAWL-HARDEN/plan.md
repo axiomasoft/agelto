@@ -345,6 +345,7 @@ Deliverables другого. P1.3 идёт solo: ему нужен не Playwrig
 
 | Дата | Кто (role/model) | Что |
 |:--|:--|:--|
+| 2026-08-08 | plan-audit/frontier/xhigh | Повторный audit P5 (заход 2) — GREEN: F1–F6 закрыты P5.7, код/plan/git согласованы; следующий item P6.1 |
 | 2026-08-08 | plan-run/frontier/xhigh | P5.7 закрыт 🟠, item-коммит `1ad32f21`: F1–F6 RED-аудита исправлены; D127 фиксирует inline stale-test fast path — детали см. phases/P5.md P5.7 Completion Notes |
 | 2026-08-08 | implementation/medium | P5.6 закрыт, item-коммит `864d1598`: read-only Filament-витрина history healthcheck, право оператора и runbook — детали см. phases/P5.md P5.6 Completion Notes |
 | 2026-08-08 | plan-design/frontier/high | P5 реопенена D125 после RED-аудита, добавлен remediation-item P5.7; D126 фиксирует быстрый owner-путь для малых execution-блокировок при 🟠 + полной повторной Validation |
