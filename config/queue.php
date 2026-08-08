@@ -82,6 +82,18 @@ return [
             'after_commit' => false,
         ],
 
+        // Длинный lease ТОЛЬКО для profile-driven archive lane (P4.7, D117). Это отдельная
+        // logical connection на тот же Redis, иначе `retry_after=360` общей `redis` вернёт ещё
+        // работающую часовую job второму воркеру. Остальные очереди не получают новый lease.
+        'redis_crawl_long' => [
+            'driver' => 'redis',
+            'connection' => env('REDIS_QUEUE_CONNECTION', 'default'),
+            'queue' => 'crawl_long',
+            'retry_after' => (int) env('REDIS_CRAWL_LONG_RETRY_AFTER', 3900),
+            'block_for' => null,
+            'after_commit' => false,
+        ],
+
         'deferred' => [
             'driver' => 'deferred',
         ],

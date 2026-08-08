@@ -77,7 +77,10 @@ services:
     # SIGKILL'ит контейнер раньше, чем horizon:terminate успевает дождаться текущих jobs
     # (Docker default 10s убил бы 300+с job — research/J §2). 600s — канон research/J §2
     # (диапазон 600–3600s); env-параметризуемо под будущую калибровку.
-    stop_grace_period: ${HORIZON_STOP_GRACE_PERIOD:-600s}
+    # P4.7 (D117): long archive lane держит одну job до 3600s; её logical Redis connection
+    # возвращает reserved job после 3900s. Grace обязан быть больше обоих, иначе Docker SIGKILL
+    # прервёт Horizon раньше контролируемого завершения. Изменение требует новой D-записи.
+    stop_grace_period: ${HORIZON_STOP_GRACE_PERIOD:-4200s}
     working_dir: /var/www/html
     # Решение P7.4 (F-11 называет это дремлющим дефектом — Postgres нуждается в shm, не
     # PHP-воркер): блок ОСТАЁТСЯ здесь как есть, а не переносится. CLAUDE.md («Очереди: Laravel

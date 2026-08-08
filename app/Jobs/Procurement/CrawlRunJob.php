@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 namespace App\Jobs\Procurement;
 
+use App\Enums\Procurement\Crawler\CrawlerExecutionLane;
 use App\Enums\Procurement\Crawler\CrawlerMode;
 use App\Enums\Procurement\Crawler\RunStatus;
 use App\Models\Procurement\Crawler\Crawler;
+use App\Services\Procurement\Crawler\CrawlQueueRoute;
 use App\Services\Procurement\CrawlerRunManager;
 use App\Services\Procurement\Modes\ArchiveRunProcessor;
 use App\Services\Procurement\Modes\FreshRunProcessor;
@@ -20,7 +22,7 @@ use Illuminate\Support\Carbon;
 use LogicException;
 
 /**
- * Прогон краулера на очереди `crawl` (P3.2, D27/D28): вызывает процессор режима и
+ * Прогон краулера на profile-driven execution lane (P3.2, P4.7, D27/D28/D117): вызывает процессор режима и
  * самодиспатчится продолжением, пока процессор выходит по бюджету одного запуска
  * (`crawler.run.checkpoint_seconds`) с сохранённым курсором и статусом `running` — тот
  * же checkpoint-requeue приём, что `EstimateExtractionJob` (D39). `ShouldBeUniqueUntilProcessing`,
@@ -39,10 +41,13 @@ final class CrawlRunJob implements ShouldBeUniqueUntilProcessing, ShouldQueue
     public function __construct(
         public readonly int $crawlerId,
         public readonly CrawlerMode $mode,
+        public readonly CrawlerExecutionLane $executionLane = CrawlerExecutionLane::Standard,
         public readonly ?string $from = null,
         public readonly ?string $to = null,
     ) {
-        $this->onQueue('crawl');
+        $route = CrawlQueueRoute::forLane(lane: $this->executionLane);
+
+        $this->onConnection($route->connection)->onQueue($route->queue);
     }
 
     public function uniqueId(): string
@@ -87,6 +92,7 @@ final class CrawlRunJob implements ShouldBeUniqueUntilProcessing, ShouldQueue
             self::dispatch(
                 crawlerId: $this->crawlerId,
                 mode: $this->mode,
+                executionLane: $this->executionLane,
                 from: $this->from,
                 to: $this->to,
             );

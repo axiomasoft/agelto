@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Dto\Procurement\Crawler\EisSearchFilter;
 use App\Dto\Procurement\Crawler\ListingCursor;
+use App\Enums\Procurement\Crawler\CrawlerExecutionLane;
 use App\Enums\Procurement\Crawler\CrawlerMode;
 use App\Enums\Procurement\Crawler\RunStatus;
 use App\Enums\Procurement\Crawler\RunStopKind;
@@ -59,7 +60,11 @@ test('«Запустить» ставит CrawlRunJob(mode: профиля) в �
         ->callTableAction('start', record: $crawler)
         ->assertNotified('Поставлено в очередь');
 
-    Queue::assertPushed(CrawlRunJob::class, fn (CrawlRunJob $job): bool => $job->crawlerId === $crawler->id && $job->mode === CrawlerMode::Fresh);
+    Queue::assertPushed(CrawlRunJob::class, fn (CrawlRunJob $job): bool => $job->crawlerId === $crawler->id
+        && $job->mode === CrawlerMode::Fresh
+        && $job->executionLane === CrawlerExecutionLane::Standard
+        && $job->connection === 'redis'
+        && $job->queue === 'crawl');
 });
 
 test('«Запустить» при активном прогоне не виден на строке профиля', function (): void {
@@ -209,7 +214,7 @@ function crawlerArchiveWithWindow(): Crawler
             publishedFrom: CarbonImmutable::parse('2025-01-01'),
             publishedTo: CarbonImmutable::parse('2025-12-31'),
         ))
-        ->create(['mode' => CrawlerMode::Archive]);
+        ->create(['mode' => CrawlerMode::Archive, 'execution_lane' => CrawlerExecutionLane::Long]);
 }
 
 test('archive-профиль с окном: «Запустить» ставит CrawlRunJob(mode: Archive) с окном профиля', function (): void {
@@ -224,6 +229,9 @@ test('archive-профиль с окном: «Запустить» ставит 
 
     Queue::assertPushed(CrawlRunJob::class, fn (CrawlRunJob $job): bool => $job->crawlerId === $crawler->id
         && $job->mode === CrawlerMode::Archive
+        && $job->executionLane === CrawlerExecutionLane::Long
+        && $job->connection === 'redis_crawl_long'
+        && $job->queue === 'crawl_long'
         && str_starts_with((string) $job->from, '2025-01-01')
         && str_starts_with((string) $job->to, '2025-12-31'));
 });
@@ -244,6 +252,9 @@ test('archive-профиль с окном: «Запустить с начала
 
     Queue::assertPushed(CrawlRunJob::class, fn (CrawlRunJob $job): bool => $job->crawlerId === $crawler->id
         && $job->mode === CrawlerMode::Archive
+        && $job->executionLane === CrawlerExecutionLane::Long
+        && $job->connection === 'redis_crawl_long'
+        && $job->queue === 'crawl_long'
         && str_starts_with((string) $job->from, '2025-01-01')
         && str_starts_with((string) $job->to, '2025-12-31'));
 });
@@ -261,6 +272,9 @@ test('archive-профиль с окном: «Продолжить» стави�
 
     Queue::assertPushed(CrawlRunJob::class, fn (CrawlRunJob $job): bool => $job->crawlerId === $crawler->id
         && $job->mode === CrawlerMode::Archive
+        && $job->executionLane === CrawlerExecutionLane::Long
+        && $job->connection === 'redis_crawl_long'
+        && $job->queue === 'crawl_long'
         && str_starts_with((string) $job->from, '2025-01-01')
         && str_starts_with((string) $job->to, '2025-12-31'));
 });

@@ -2,13 +2,14 @@
 
 declare(strict_types=1);
 
-test('таймаут каждого horizon-супервизора строго меньше retry_after очереди redis (инвариант D26)', function () {
-    $retryAfter = (int) config('queue.connections.redis.retry_after');
-
+test('таймаут каждого horizon-супервизора строго меньше retry_after его connection (инварианты D26 и D117)', function (): void {
     foreach ((array) config('horizon.defaults') as $name => $supervisor) {
+        $connection = $supervisor['connection'];
+        $retryAfter = (int) config("queue.connections.{$connection}.retry_after");
+
         expect($supervisor['timeout'])->toBeLessThan(
             $retryAfter,
-            "Супервизор \"{$name}\": timeout={$supervisor['timeout']}s ≥ retry_after={$retryAfter}s — ".
+            "Супервизор \"{$name}\" ({$connection}): timeout={$supervisor['timeout']}s ≥ retry_after={$retryAfter}s — ".
             'Redis сочтёт job осиротевшим и передиспатчит его другому воркеру, пока первый ещё легитимно работает (D26).',
         );
     }
@@ -25,13 +26,17 @@ test('checkpoint_seconds извлечения строго меньше timeout 
     );
 });
 
-test('самый длинный horizon-супервизор задаёт нижнюю границу для документированного stop_grace_period (инвариант D26)', function () {
+test('long lane сохраняет обе timeout-цепочки и documented stop_grace_period (инвариант D117)', function (): void {
+    expect(config('horizon.defaults.supervisor-crawl.timeout'))->toBe(300)
+        ->and(config('queue.connections.redis.retry_after'))->toBe(360)
+        ->and(config('horizon.defaults.supervisor-crawl-long.timeout'))->toBe(3600)
+        ->and(config('queue.connections.redis_crawl_long.retry_after'))->toBe(3900);
+
     $longestSupervisorTimeout = collect((array) config('horizon.defaults'))->max('timeout');
 
-    // docker-compose.prod.yml не читается из PHP-рантайма — здесь фиксируется задокументированный
-    // канон (research/J §2: 600–3600s), чтобы будущая правка config/horizon.php молча не пробила
-    // потолок, зашитый комментарием в docker-compose.prod.yml.
-    $documentedStopGracePeriodSeconds = 600;
+    // Compose не читается из PHP-рантайма; фиксируем согласованный D117 default, чтобы будущая
+    // правка Horizon не превысила `stop_grace_period` в dev/prod (4200s).
+    $documentedStopGracePeriodSeconds = 4200;
 
     expect($longestSupervisorTimeout)->toBeLessThan($documentedStopGracePeriodSeconds);
 });

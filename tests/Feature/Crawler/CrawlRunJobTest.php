@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Dto\Procurement\Crawler\ListingBatch;
 use App\Dto\Procurement\Crawler\ListingCursor;
+use App\Enums\Procurement\Crawler\CrawlerExecutionLane;
 use App\Enums\Procurement\Crawler\CrawlerMode;
 use App\Enums\Procurement\Crawler\RunStatus;
 use App\Enums\Procurement\Crawler\RunStopKind;
@@ -37,7 +38,7 @@ test('job резолвит fresh-режим и вызывает FreshRunProcesso
     app()->instance(QueueSourceMethod::class, new QueueSourceMethod(batches: [crawlRunJobEmptyBatch()]));
     config(['crawler.source_methods' => [SourceMethodEnum::Csv->value => QueueSourceMethod::class]]);
 
-    CrawlRunJob::dispatch(crawlerId: $crawler->id, mode: CrawlerMode::Fresh);
+    app()->call([new CrawlRunJob(crawlerId: $crawler->id, mode: CrawlerMode::Fresh), 'handle']);
 
     expect(Run::query()->where('crawler_id', $crawler->id)->sole()->status)->toBe(RunStatus::Completed);
 });
@@ -49,7 +50,15 @@ test('job резолвит archive-режим и вызывает ArchiveRunProc
     app()->instance(QueueSourceMethod::class, new QueueSourceMethod(batches: [crawlRunJobEmptyBatch()]));
     config(['crawler.source_methods' => [SourceMethodEnum::Csv->value => QueueSourceMethod::class]]);
 
-    CrawlRunJob::dispatch(crawlerId: $crawler->id, mode: CrawlerMode::Archive, from: '2024-01-01', to: '2024-01-01');
+    app()->call([
+        new CrawlRunJob(
+            crawlerId: $crawler->id,
+            mode: CrawlerMode::Archive,
+            from: '2024-01-01',
+            to: '2024-01-01',
+        ),
+        'handle',
+    ]);
 
     expect(Run::query()->where('crawler_id', $crawler->id)->sole()->status)->toBe(RunStatus::Completed);
 });
@@ -72,6 +81,17 @@ test('диспатч на РАЗНЫЕ crawlerId не делит unique-лок',
     Queue::assertPushed(CrawlRunJob::class, 2);
 });
 
+test('long lane задаёт отдельные connection и queue, а constructor без lane сохраняет standard', function (): void {
+    $standard = new CrawlRunJob(crawlerId: 1, mode: CrawlerMode::Fresh);
+    $long = new CrawlRunJob(crawlerId: 2, mode: CrawlerMode::Archive, executionLane: CrawlerExecutionLane::Long);
+
+    expect($standard->executionLane)->toBe(CrawlerExecutionLane::Standard)
+        ->and($standard->connection)->toBe('redis')
+        ->and($standard->queue)->toBe('crawl')
+        ->and($long->connection)->toBe('redis_crawl_long')
+        ->and($long->queue)->toBe('crawl_long');
+});
+
 test('исчерпание бюджета checkpoint_seconds оставляет running и job самодиспатчит продолжение', function () {
     config(['crawler.run.checkpoint_seconds' => 0]);
     Queue::fake();
@@ -84,7 +104,32 @@ test('исчерпание бюджета checkpoint_seconds оставляет 
     expect($run->status)->toBe(RunStatus::Running)
         ->and($run->stats['checkpoints'] ?? null)->toBe(1);
 
-    Queue::assertPushed(CrawlRunJob::class, fn (CrawlRunJob $job): bool => $job->crawlerId === $crawler->id && $job->mode === CrawlerMode::Fresh);
+    Queue::assertPushed(CrawlRunJob::class, fn (CrawlRunJob $job): bool => $job->crawlerId === $crawler->id
+        && $job->mode === CrawlerMode::Fresh
+        && $job->executionLane === CrawlerExecutionLane::Standard
+        && $job->connection === 'redis'
+        && $job->queue === 'crawl');
+});
+
+test('self-dispatch continuation сохраняет long lane и оба маршрута', function (): void {
+    config(['crawler.run.checkpoint_seconds' => 0]);
+    Queue::fake();
+
+    $crawler = Crawler::factory()->create(['mode' => CrawlerMode::Fresh, 'source_method' => SourceMethodEnum::Csv]);
+
+    app()->call([
+        new CrawlRunJob(
+            crawlerId: $crawler->id,
+            mode: CrawlerMode::Fresh,
+            executionLane: CrawlerExecutionLane::Long,
+        ),
+        'handle',
+    ]);
+
+    Queue::assertPushed(CrawlRunJob::class, fn (CrawlRunJob $job): bool => $job->crawlerId === $crawler->id
+        && $job->executionLane === CrawlerExecutionLane::Long
+        && $job->connection === 'redis_crawl_long'
+        && $job->queue === 'crawl_long');
 });
 
 test('сигнал Pause останавливает fresh-прогон между блоками с сохранённым курсором и stats.stop_reason', function () {

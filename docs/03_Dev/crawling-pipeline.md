@@ -12,8 +12,11 @@ status: draft
 
 ## Вход: команды-диспетчеры, обход — на очереди (P3.2)
 
-Fresh- и archive-обход исполняются job'ом `App\Jobs\Procurement\CrawlRunJob` на очереди Horizon
-`crawl` (`supervisor-crawl`, `config/horizon.php`) — как и AI-пайплайн (`document-pipeline.md`).
+Fresh- и archive-обход исполняются job'ом `App\Jobs\Procurement\CrawlRunJob` на profile-driven
+execution lane Horizon — как и AI-пайплайн (`document-pipeline.md`). `standard` использует
+`redis/crawl` (`supervisor-crawl`, timeout 300s, retry_after 360s); временный архивный `long` —
+`redis_crawl_long/crawl_long` (`supervisor-crawl-long`, 3600s/3900s). Это lease ОДНОЙ job, не
+лимит всего crawl: курсор остаётся гарантией resume, а connection оба используют один Redis.
 Artisan-команды (`app/Console/Commands/Procurement/`) остались тонкими диспетчерами: резолвят
 профиль(и) и диспатчат job, сам обход в процессе команды больше не идёт.
 
@@ -36,7 +39,9 @@ Artisan-команды (`app/Console/Commands/Procurement/`) остались т
 (240с); по исчерпании `FreshRunProcessor` выходит с сохранённым курсором и статусом `running`,
 job самодиспатчится продолжением. `ArchiveWindowScanner` этот бюджет не читает — у обёрток-дневных
 циклов (`ArchiveRunProcessor`/`DeltaScanProcessor`/`BacklogRescanProcessor`) нет чистой точки
-выхода по бюджету между днями.
+выхода по бюджету между днями. Для сида архива 2025 это осознанно закрыто конечным `long` lane;
+если фактическая длительность превысит час, не поднимать timeout молча — снять HTTP/throttle/DB
+метрики и принять отдельное решение.
 
 Остановить УЖЕ ВЫПОЛНЯЮЩИЙСЯ job средствами Laravel/Horizon нельзя — остановка кооперативна:
 `App\Services\Procurement\RunStopGate::signal()` читает `prc_crawler_runs.stop_requested_at`/
@@ -111,9 +116,9 @@ job самодиспатчится продолжением. `ArchiveWindowScann
 `database/seeders/Procurement/EisPlatformSeeder.php` заводит площадку `code=eis`, реестр `fz44` и
 его `settings` (`procedure_url_types` — сегменты URL по способу закупки, `card_url_templates` —
 шаблоны вкладок карточки по типу процедуры); `CrawlerProfileSeeder.php` — два профиля обхода
-(архивный, `filter=stageCompleted:true`, `is_active=true`, запуск явной командой; «свежий поток»,
+(архивный, `filter=stageCompleted:true`, `execution_lane=long`, `is_active=true`, запуск явной командой; «свежий поток»,
 `filter` пуст — обязан видеть любое обновление, `is_active=false` до решения владельца о запуске
-боевого слежения, `schedule='*/30 * * * *'`). Оба сидера `updateOrCreate`-идемпотентны, но
+боевого слежения, `execution_lane=standard`, `schedule='*/30 * * * *'`). Оба сидера `updateOrCreate`-идемпотентны, но
 `CrawlerProfileSeeder` перезаписывает профиль безусловно — повторный прогон стирает правки,
 сделанные оператором в форме краулера.
 

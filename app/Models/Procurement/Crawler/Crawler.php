@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Models\Procurement\Crawler;
 
 use App\Dto\Procurement\Crawler\Contracts\RequiresScope;
+use App\Enums\Procurement\Crawler\CrawlerExecutionLane;
 use App\Enums\Procurement\Crawler\CrawlerMode;
 use App\Enums\Procurement\Crawler\RunStopPolicy;
 use App\Enums\Procurement\Crawler\SourceMethod;
@@ -30,6 +31,7 @@ use Spatie\LaravelData\Data;
  * @property int $id
  * @property int $registry_id
  * @property string $name
+ * @property CrawlerExecutionLane $execution_lane
  * @property CrawlerMode $mode
  * @property RunStopPolicy $stop_policy
  * @property SourceMethod $source_method
@@ -53,6 +55,7 @@ final class Crawler extends Model
     protected $fillable = [
         'registry_id',
         'name',
+        'execution_lane',
         'mode',
         'stop_policy',
         'source_method',
@@ -68,6 +71,7 @@ final class Crawler extends Model
     protected function casts(): array
     {
         return [
+            'execution_lane' => CrawlerExecutionLane::class,
             'mode' => CrawlerMode::class,
             'stop_policy' => RunStopPolicy::class,
             'source_method' => SourceMethod::class,

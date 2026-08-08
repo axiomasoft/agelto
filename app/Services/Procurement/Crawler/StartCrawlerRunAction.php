@@ -102,6 +102,7 @@ final readonly class StartCrawlerRunAction
         CrawlRunJob::dispatch(
             crawlerId: $crawler->id,
             mode: $resolvedMode,
+            executionLane: $crawler->execution_lane,
             from: $from?->toIso8601String(),
             to: $to?->toIso8601String(),
         );

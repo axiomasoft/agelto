@@ -308,6 +308,23 @@ return [
             'timeout' => 300,
             'nice' => 0,
         ],
+
+        // Отдельная logical connection не даёт long archive job пересечь lease standard lane:
+        // `timeout < redis_crawl_long.retry_after < horizon.stop_grace_period` (P4.7, D117).
+        // Один процесс сохраняет последовательность обхода одной площадки; это не второй Horizon.
+        'supervisor-crawl-long' => [
+            'connection' => 'redis_crawl_long',
+            'queue' => ['crawl_long'],
+            'balance' => 'auto',
+            'autoScalingStrategy' => 'time',
+            'maxProcesses' => 1,
+            'maxTime' => 0,
+            'maxJobs' => 0,
+            'memory' => 128,
+            'tries' => 1,
+            'timeout' => (int) env('CRAWL_LONG_TIMEOUT', 3600),
+            'nice' => 0,
+        ],
     ],
 
     'environments' => [

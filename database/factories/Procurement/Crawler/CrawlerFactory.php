@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Database\Factories\Procurement\Crawler;
 
 use App\Dto\Procurement\Crawler\EisSearchFilter;
+use App\Enums\Procurement\Crawler\CrawlerExecutionLane;
 use App\Enums\Procurement\Crawler\CrawlerMode;
 use App\Enums\Procurement\Crawler\RunStopPolicy;
 use App\Enums\Procurement\Crawler\SourceMethod;
@@ -25,6 +26,7 @@ final class CrawlerFactory extends Factory
         return [
             'registry_id' => Registry::factory(),
             'name' => fake()->words(asText: true),
+            'execution_lane' => CrawlerExecutionLane::Standard,
             'mode' => CrawlerMode::Fresh,
             'stop_policy' => RunStopPolicy::Default,
             'source_method' => SourceMethod::Csv,

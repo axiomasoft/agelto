@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\Procurement\Crawler\Crawlers\Schemas;
 
 use App\Dto\Procurement\Crawler\EisSearchFilter;
+use App\Enums\Procurement\Crawler\CrawlerExecutionLane;
 use App\Enums\Procurement\Crawler\CrawlerMode;
 use App\Enums\Procurement\Crawler\ListingSortField;
 use App\Enums\Procurement\Crawler\RunStopPolicy;
@@ -94,6 +95,15 @@ class CrawlerForm
                 Select::make('mode')
                     ->options(CrawlerMode::class)
                     ->required(),
+                Select::make('execution_lane')
+                    ->label('Контур исполнения')
+                    ->options([
+                        CrawlerExecutionLane::Standard->value => 'Стандартный — до 5 минут',
+                        CrawlerExecutionLane::Long->value => 'Длинный архивный — до 1 часа',
+                    ])
+                    ->default(CrawlerExecutionLane::Standard->value)
+                    ->required()
+                    ->helperText('Ограничивает время одной job, а не весь crawl; к сметам и детальным карточкам не относится.'),
                 Select::make('stop_policy')
                     ->label('Режим работы')
                     ->options(RunStopPolicy::class)

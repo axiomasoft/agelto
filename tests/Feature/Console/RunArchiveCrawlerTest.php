@@ -38,6 +38,9 @@ beforeEach(function () {
     Sleep::fake();
     Storage::fake('s3');
     config(['crawler.eis.block_size' => 2]);
+    // P4.7 явно маршрутизирует job на connection `redis`; в тесте сохраняем синхронный driver,
+    // чтобы проверять команду и доменный результат без запущенного Redis worker.
+    config(['queue.connections.redis.driver' => 'sync']);
 });
 
 test('резолвит профиль по числовому id и диспатчит CrawlRunJob(mode: Archive) с окном from/to', function () {

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Database\Seeders\Procurement;
 
 use App\Dto\Procurement\Crawler\EisSearchFilter;
+use App\Enums\Procurement\Crawler\CrawlerExecutionLane;
 use App\Enums\Procurement\Crawler\CrawlerMode;
 use App\Enums\Procurement\Crawler\ListingSortField;
 use App\Enums\Procurement\Crawler\RunStopPolicy;
@@ -120,6 +121,7 @@ final class CrawlerProfileSeeder extends Seeder
         Crawler::query()->updateOrCreate(
             ['registry_id' => $registry->id, 'name' => 'ЕИС 44-ФЗ — архив 2025 (завершённые)'],
             [
+                'execution_lane' => CrawlerExecutionLane::Long,
                 'mode' => CrawlerMode::Archive,
                 'stop_policy' => RunStopPolicy::Default,
                 'source_method' => SourceMethod::Csv,
@@ -155,6 +157,7 @@ final class CrawlerProfileSeeder extends Seeder
         Crawler::query()->updateOrCreate(
             ['registry_id' => $registry->id, 'name' => 'ЕИС 44-ФЗ — свежий поток'],
             [
+                'execution_lane' => CrawlerExecutionLane::Standard,
                 'mode' => CrawlerMode::Fresh,
                 'stop_policy' => RunStopPolicy::OnlyFresh,
                 'source_method' => SourceMethod::Csv,

@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Dto\Procurement\Crawler\EisSearchFilter;
+use App\Enums\Procurement\Crawler\CrawlerExecutionLane;
 use App\Enums\Procurement\Crawler\CrawlerMode;
 use App\Enums\Procurement\Crawler\ListingSortField;
 use App\Enums\Procurement\Crawler\RunStopPolicy;
@@ -69,6 +70,31 @@ test('сохранение профиля формой даёт типизиро
         ->toHaveKey('publishDateCsv', true)
         ->toHaveKey('lastDateChangeCsv', true)
         ->toHaveKey('nameOrderCsv', true);
+});
+
+test('форма сохраняет long execution lane как профильный enum', function (): void {
+    actingAs(crawlerFormOperator());
+
+    $registry = Registry::factory()->create(['code' => 'fz44']);
+    Okpd2Node::factory()->create(['platform_id' => $registry->platform_id, 'code' => '43']);
+
+    Livewire::test(CreateCrawler::class)
+        ->fillForm([
+            'registry_id' => $registry->getKey(),
+            'name' => 'Архив с длинным контуром',
+            'mode' => CrawlerMode::Archive->value,
+            'execution_lane' => CrawlerExecutionLane::Long->value,
+            'stop_policy' => RunStopPolicy::Default->value,
+            'source_method' => SourceMethod::Csv->value,
+            'filter' => ['stageCompleted' => true, 'okpd2Codes' => ['43']],
+            'options' => ['columns' => []],
+            'is_active' => true,
+            'use_proxy' => true,
+        ])
+        ->call('create')
+        ->assertHasNoFormErrors();
+
+    expect(Crawler::query()->sole()->execution_lane)->toBe(CrawlerExecutionLane::Long);
 });
 
 test('обязательные колонки нельзя снять даже при попытке отправить фильтр без них', function (): void {

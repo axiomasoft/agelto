@@ -20,11 +20,11 @@ use Illuminate\Support\Facades\Log;
  * `dedupSignature` на полном блоке.
  *
  * Стоп-гейт (P3.2, D28) читается в той же точке, что уже делает `$crawler->refresh()`,
- * и останавливает дренаж ТЕКУЩЕГО окна с уже сохранённым курсором. Известное ограничение
- * (Pending Work P3.2): вызывающие обёртки-дневные-циклы (`ArchiveRunProcessor`/
- * `DeltaScanProcessor`/`BacklogRescanProcessor`, вне `Files` этого item'а) статус прогона
- * после `scan()` не перечитывают и продолжат звать `scan()` на следующий день — пауза/отмена
- * останавливает обход текущего окна, но не сам прогон целиком.
+ * и останавливает дренаж ТЕКУЩЕГО окна с уже сохранённым курсором. Дневные обёртки
+ * (`ArchiveRunProcessor`/`DeltaScanProcessor`/`BacklogRescanProcessor`) после `scan()`
+ * перечитывают статус прогона (P3.7), поэтому pause/cancel останавливает и сам прогон.
+ * У archive по-прежнему нет секундного checkpoint-requeue: для временного профиля это осознанно
+ * компенсирует конечный long execution lane P4.7, а не обещает бесконечную job.
  */
 final readonly class ArchiveWindowScanner
 {

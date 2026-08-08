@@ -34,6 +34,9 @@ function runFreshCrawlerKnownBatch(): ListingBatch
 
 beforeEach(function () {
     Storage::fake('s3');
+    // P4.7 явно маршрутизирует job на connection `redis`; в тесте сохраняем синхронный driver,
+    // чтобы проверять команду и доменный результат без запущенного Redis worker.
+    config(['queue.connections.redis.driver' => 'sync']);
 });
 
 test('резолвит профиль по числовому id и диспатчит CrawlRunJob(mode: Fresh)', function () {

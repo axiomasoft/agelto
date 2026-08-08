@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Dto\Procurement\Crawler\ListingCursor;
+use App\Enums\Procurement\Crawler\CrawlerExecutionLane;
 use App\Enums\Procurement\Crawler\CrawlerMode;
 use App\Enums\Procurement\Crawler\ListingSortField;
 use App\Enums\Procurement\Crawler\RunStopPolicy;
@@ -58,11 +59,13 @@ test('сид заводит два профиля обхода — архивн�
 
     $archive = $crawlers[CrawlerMode::Archive->value];
     expect($archive->is_active)->toBeTrue()
+        ->and($archive->execution_lane)->toBe(CrawlerExecutionLane::Long)
         ->and($archive->filter->stageCompleted)->toBeTrue()
         ->and($archive->options?->toArray()['columns']['registryNumberCsv'] ?? null)->toBeTrue();
 
     $fresh = $crawlers[CrawlerMode::Fresh->value];
     expect($fresh->is_active)->toBeFalse()
+        ->and($fresh->execution_lane)->toBe(CrawlerExecutionLane::Standard)
         ->and($fresh->filter->okpd2Codes)->toBe(['43'])
         ->and($fresh->schedule)->toBe('*/30 * * * *');
 });
