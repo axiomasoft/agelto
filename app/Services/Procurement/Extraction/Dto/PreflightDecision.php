@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Services\Procurement\Extraction\Dto;
 
+use App\Enums\Procurement\Document\ExtractionRoute;
 use App\Enums\Procurement\Document\UnprocessableReason;
-use App\Enums\Procurement\Estimate\ExtractionRoute;
 
 /**
  * Исход `ExtractionPreflight::decide()` (D29, `docs/specs/v2/08-estimate-extraction.md` §4в):

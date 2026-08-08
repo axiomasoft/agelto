@@ -29,12 +29,21 @@ test('сид заводит площадку ЕИС и реестр fz44 с на
         ->toBe('https://zakupki.gov.ru/epz/order/notice/ea20/view/common-info.html?regNumber={regNumber}');
 });
 
-test('повторный прогон сида площадки идемпотентен — без дублей', function (): void {
-    $this->seed(EisPlatformSeeder::class);
+test('повторный прогон сида площадки идемпотентен — без дублей и ротации UUID реестра', function (): void {
     $this->seed(EisPlatformSeeder::class);
 
+    $registry = Registry::query()->where('code', 'fz44')->sole();
+    $registryId = $registry->id;
+    $registryUuid = $registry->uuid;
+
+    $this->seed(EisPlatformSeeder::class);
+
+    $reseededRegistry = Registry::query()->where('code', 'fz44')->sole();
+
     expect(Platform::query()->where('code', 'eis')->count())->toBe(1)
-        ->and(Registry::query()->where('code', 'fz44')->count())->toBe(1);
+        ->and(Registry::query()->where('code', 'fz44')->count())->toBe(1)
+        ->and($reseededRegistry->id)->toBe($registryId)
+        ->and($reseededRegistry->uuid)->toBe($registryUuid);
 });
 
 test('после сида площадки StatusMappingSeeder заводит матрицу без предупреждения', function (): void {

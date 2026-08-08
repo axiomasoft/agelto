@@ -4,6 +4,7 @@ namespace Tests;
 
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Testing\TestCase as BaseTestCase;
+use Illuminate\Support\Facades\Http;
 use Tests\Support\TestEnvironmentGuard;
 
 abstract class TestCase extends BaseTestCase
@@ -17,6 +18,7 @@ abstract class TestCase extends BaseTestCase
         $app = parent::createApplication();
 
         TestEnvironmentGuard::assertIsolatedTestDatabase($app);
+        Http::preventStrayRequests();
 
         return $app;
     }

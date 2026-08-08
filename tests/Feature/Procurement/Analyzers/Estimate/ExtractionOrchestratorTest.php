@@ -8,7 +8,7 @@ use App\Enums\Procurement\Ai\AnalysisStep;
 use App\Enums\Procurement\Ai\RunMode;
 use App\Enums\Procurement\Analyzers\Estimate\EstimateLlmPurpose;
 use App\Enums\Procurement\Document\DocumentStatus;
-use App\Enums\Procurement\Estimate\ExtractionRoute;
+use App\Enums\Procurement\Document\ExtractionRoute;
 use App\Jobs\Procurement\Analyzers\Estimate\EstimateExtractionJob;
 use App\Models\Llm\LlmCall;
 use App\Models\Llm\LlmRoute;

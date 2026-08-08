@@ -35,16 +35,36 @@ final class EisPlatformSeeder extends Seeder
     {
         $platform = $this->seedPlatform();
 
-        Registry::query()->updateOrCreate(
-            ['platform_id' => $platform->id, 'code' => self::REGISTRY_CODE],
-            [
-                'name' => '44-ФЗ — Контрактная система в сфере закупок товаров, работ, услуг',
-                'settings' => [
-                    'procedure_url_types' => $this->procedureUrlTypes(),
-                    'card_url_templates' => $this->cardUrlTemplates(),
-                ],
+        $this->seedRegistry($platform);
+    }
+
+    private function seedRegistry(Platform $platform): void
+    {
+        $attributes = [
+            'name' => '44-ФЗ — Контрактная система в сфере закупок товаров, работ, услуг',
+            'settings' => [
+                'procedure_url_types' => $this->procedureUrlTypes(),
+                'card_url_templates' => $this->cardUrlTemplates(),
             ],
-        );
+        ];
+
+        $existing = Registry::query()
+            ->where('platform_id', $platform->id)
+            ->where('code', self::REGISTRY_CODE)
+            ->first();
+
+        if ($existing !== null) {
+            $existing->update($attributes);
+
+            return;
+        }
+
+        Registry::query()->create([
+            'platform_id' => $platform->id,
+            'code' => self::REGISTRY_CODE,
+            'uuid' => (string) Str::uuid7(),
+            ...$attributes,
+        ]);
     }
 
     private function seedPlatform(): Platform
