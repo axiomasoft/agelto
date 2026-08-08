@@ -405,6 +405,7 @@ Deliverables другого. P1.3 идёт solo: ему нужен не Playwrig
 | 2026-08-08 | plan-run/gpt-5.6-sol/high | P4.4 закрыт 🟠: единый host-budget заменил `PoliteThrottle`; archive checkpoint и ложный literal-grep вынесены в follow-up — детали см. phases/P4.md P4.4 Completion Notes. |
 | 2026-08-08 | plan-design/gpt-5.6-sol/high | P4 дополнена P4.9 до DoR: D121 запинил outcome scanner, checkpoint без продвижения дня/Failed и существующие carrier'ы archive/delta/backlog; добавлены findings/research, Routing и roadmap. |
 | 2026-08-08 | plan-run/gpt-5.6-terra/high | P4.9 закрыт: typed outcome scanner сохраняет недренированный день при request-budget checkpoint и продолжает через существующие carrier'ы — детали см. phases/P4.md P4.9 Completion Notes. |
+| 2026-08-08 | plan-run/gpt-5.6-terra/high | P4.5 закрыт 🟠: detail-стадия переведена на лимитированную unique-защищённую очередь `crawl_detail` — детали см. phases/P4.md P4.5 Completion Notes. |
 
 ## 7. Contracts
 
