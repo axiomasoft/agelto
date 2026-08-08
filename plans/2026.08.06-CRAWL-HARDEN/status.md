@@ -3,7 +3,7 @@ projection: status-view
 projection_version: v1
 source_scope: plan core + phases + journal
 through: 2026-08-08
-inputs_sha256: cb3b9cb062d2ef7aad9ee8020d5bbca5a2976f95e2e7a92be954f223ce5a9df4
+inputs_sha256: e16506fa2ca5813375c30aece311fa2a22d714e75a78dc07d8c25307152b9e13
 generated_by: task plan-views status
 -->
 
@@ -128,7 +128,7 @@ generated_by: task plan-views status
 
 | ID | Title | Status | Updated |
 |:--|:--|:--|:--|
-| P9.1 | Ревизия обоих деревьев и карта переноса | ⬜ Not started | 2026-08-08 |
+| P9.1 | Ревизия обоих деревьев и карта переноса | 🟠 Done with deviations | 2026-08-08 |
 | P9.2 | Машинный гейт целостности документации | ⬜ Not started | 2026-08-08 |
 | P9.3 | Слияние `docs-private` в `docs` | ⬜ Not started | 2026-08-08 |
 | P9.4 | Роспуск `specs/v2` 00–07 в канон `03_Dev`/`01_Business` | ⬜ Not started | 2026-08-08 |
@@ -302,6 +302,8 @@ generated_by: task plan-views status
 | 2026-08-08 | gpt-5.6-sol/high | plan-run · closed-deviations · note сокращена; полный текст: journal.jsonl:159 |
 | 2026-08-08 | gpt-5.6-sol/high | plan-run · in-progress · Manual Layout v2 preflight: P8.4 bundle exposed one prose-only Completion Notes admission defect; the owning carrier now names P8.2/P8.3 state paths and the bundle is green. Full plan-lint remains fail-closed on 29 staged P5.3/P6.5/P7/P9 defects, with no P8.4 diagnostic. |
 | 2026-08-08 | gpt-5.6-sol/high | plan-run · closed-green · note сокращена; полный текст: journal.jsonl:161 |
+| 2026-08-08 | gpt-5.6-sol/high | plan-run · in-progress · note сокращена; полный текст: journal.jsonl:162 |
+| 2026-08-08 | gpt-5.6-sol/high | plan-run · closed-deviations · note сокращена; полный текст: journal.jsonl:163 |
 
 ## Owner Gates
 
@@ -339,3 +341,4 @@ generated_by: task plan-views status
 - P8.1: known deviation
 - P8.2: known deviation
 - P8.3: known deviation
+- P9.1: known deviation
