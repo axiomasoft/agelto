@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Attributes\UseFactory;
 use Illuminate\Database\Eloquent\Casts\AsEnumCollection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
@@ -79,5 +80,10 @@ final class Proxy extends Model
     public function targets(): HasMany
     {
         return $this->hasMany(related: ProxyTarget::class);
+    }
+
+    public function crawlers(): BelongsToMany
+    {
+        return $this->belongsToMany(related: Crawler::class, table: 'prc_crawler_proxy');
     }
 }

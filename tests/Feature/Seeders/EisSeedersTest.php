@@ -69,12 +69,14 @@ test('сид заводит два профиля обхода — архивн�
     $archive = $crawlers[CrawlerMode::Archive->value];
     expect($archive->is_active)->toBeTrue()
         ->and($archive->execution_lane)->toBe(CrawlerExecutionLane::Long)
+        ->and($archive->use_proxy)->toBeFalse()
         ->and($archive->filter->stageCompleted)->toBeTrue()
         ->and($archive->options?->toArray()['columns']['registryNumberCsv'] ?? null)->toBeTrue();
 
     $fresh = $crawlers[CrawlerMode::Fresh->value];
     expect($fresh->is_active)->toBeFalse()
         ->and($fresh->execution_lane)->toBe(CrawlerExecutionLane::Standard)
+        ->and($fresh->use_proxy)->toBeFalse()
         ->and($fresh->filter->okpd2Codes)->toBe(['43'])
         ->and($fresh->schedule)->toBe('*/30 * * * *');
 });

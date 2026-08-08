@@ -23,6 +23,7 @@ use App\Services\Procurement\Contracts\SourceMethod;
 use App\Services\Procurement\CrawlSettingsResolver;
 use App\Services\Procurement\Exceptions\CardPageMismatchException;
 use App\Services\Procurement\PoliteThrottle;
+use App\Services\Procurement\Proxy\ProxyBindingResolver;
 use App\Services\Procurement\Proxy\ProxyResolver;
 use App\Services\Procurement\SourceTlsTrust;
 use Illuminate\Http\Client\ConnectionException;
@@ -67,6 +68,7 @@ final readonly class CsvSourceMethod implements SourceMethod
         private EisCsvUrlBuilder $urlBuilder,
         private EisCardUrlBuilder $cardUrlBuilder,
         private ProxyResolver $proxyResolver,
+        private ProxyBindingResolver $proxyBindingResolver,
         private PoliteThrottle $throttle,
         private CrawlSettingsResolver $crawlSettings,
         private SourceTlsTrust $tlsTrust,
@@ -136,7 +138,10 @@ final readonly class CsvSourceMethod implements SourceMethod
         return $this->proxyResolver->resolve(
             ProxyScope::CrawlListing,
             $host,
-            new ProxyRequirements(country: $crawler->proxy_country),
+            new ProxyRequirements(
+                country: $crawler->proxy_country,
+                proxyIds: $this->proxyBindingResolver->forCrawler($crawler),
+            ),
         );
     }
 
@@ -174,7 +179,13 @@ final readonly class CsvSourceMethod implements SourceMethod
                 continue;
             }
 
-            $html[$tab] = $this->collectTab(registry: $registry, tab: $tab, registryNumber: $registryNumber, url: $url);
+            $html[$tab] = $this->collectTab(
+                procurement: $procurement,
+                registry: $registry,
+                tab: $tab,
+                registryNumber: $registryNumber,
+                url: $url,
+            );
         }
 
         return new ProcurementDetails(
@@ -192,9 +203,9 @@ final readonly class CsvSourceMethod implements SourceMethod
         return true;
     }
 
-    private function collectTab(Registry $registry, string $tab, string $registryNumber, string $url): string
+    private function collectTab(Procurement $procurement, Registry $registry, string $tab, string $registryNumber, string $url): string
     {
-        $lease = $this->proxyResolver->resolve(ProxyScope::CrawlDetail, $this->canonicalHost($url));
+        $lease = $this->detailLease(procurement: $procurement, host: $this->canonicalHost($url));
         $settings = $this->crawlSettings->forStage(stage: CrawlStage::Detail, platform: Platform::query()->findOrFail($registry->platform_id));
 
         $this->throttle->wait();
@@ -214,6 +225,27 @@ final readonly class CsvSourceMethod implements SourceMethod
         }
 
         return $html;
+    }
+
+    private function detailLease(Procurement $procurement, string $host): ProxyLease
+    {
+        $proxyIds = $this->proxyBindingResolver->forProcurement($procurement->id);
+
+        if ($proxyIds === []) {
+            Log::info('Резолвер прокси: для карточки нет активной привязки, запрос уходит напрямую', [
+                'procurement_id' => $procurement->id,
+                'scope' => ProxyScope::CrawlDetail->value,
+                'target' => $host,
+            ]);
+
+            return ProxyLease::direct(ProxyScope::CrawlDetail, $host);
+        }
+
+        return $this->proxyResolver->resolve(
+            scope: ProxyScope::CrawlDetail,
+            target: $host,
+            requirements: new ProxyRequirements(proxyIds: $proxyIds),
+        );
     }
 
     /**

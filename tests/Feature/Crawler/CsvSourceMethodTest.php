@@ -13,6 +13,7 @@ use App\Models\Procurement\Platform\Okpd2Node;
 use App\Models\Procurement\Platform\Registry;
 use App\Services\Procurement\Eis\CsvSourceMethod;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Sleep;
 use Tests\Support\Doubles\Crawler\EisCsvFixture;
 
@@ -40,7 +41,7 @@ function registryWithOkpd2Scope(): Registry
 
 test('collectListing конвертирует win1251-тело в UTF-8 и строит ListingBatch по фикстуре', function () {
     Sleep::fake();
-    activeListingProxy();
+    $proxy = activeListingProxy();
     $endpoint = config('crawler.eis.csv_endpoint');
     Http::fake([
         $endpoint.'*' => Http::response(
@@ -51,7 +52,7 @@ test('collectListing конвертирует win1251-тело в UTF-8 и ст�
     ]);
 
     $registry = registryWithOkpd2Scope();
-    $crawler = Crawler::factory()->for($registry)->create(['filter' => ['okpd2Codes' => ['43']]]);
+    $crawler = Crawler::factory()->for($registry)->withProxies($proxy)->create(['filter' => ['okpd2Codes' => ['43']]]);
     $cursor = new ListingCursor(blockFrom: 1);
 
     $batch = app(CsvSourceMethod::class)->collectListing($crawler, $cursor);
@@ -79,7 +80,7 @@ test('collectListing конвертирует win1251-тело в UTF-8 и ст�
 
 test('dedupSignature вычисляется по колонке «Реестровый номер закупки» первой строки блока', function () {
     Sleep::fake();
-    activeListingProxy();
+    $proxy = activeListingProxy();
     $endpoint = config('crawler.eis.csv_endpoint');
     Http::fake([
         $endpoint.'*' => Http::response(
@@ -89,7 +90,7 @@ test('dedupSignature вычисляется по колонке «Реестро
     ]);
 
     $registry = registryWithOkpd2Scope();
-    $crawler = Crawler::factory()->for($registry)->create(['filter' => ['okpd2Codes' => ['43']]]);
+    $crawler = Crawler::factory()->for($registry)->withProxies($proxy)->create(['filter' => ['okpd2Codes' => ['43']]]);
     $cursor = new ListingCursor(blockFrom: 1);
 
     $batch = app(CsvSourceMethod::class)->collectListing($crawler, $cursor);
@@ -99,7 +100,7 @@ test('dedupSignature вычисляется по колонке «Реестро
 
 test('ретрай на 500 забирает второй ответ фикстуры', function () {
     Sleep::fake();
-    activeListingProxy();
+    $proxy = activeListingProxy();
     $endpoint = config('crawler.eis.csv_endpoint');
     Http::fake([
         $endpoint.'*' => Http::sequence()
@@ -108,7 +109,7 @@ test('ретрай на 500 забирает второй ответ фикст�
     ]);
 
     $registry = registryWithOkpd2Scope();
-    $crawler = Crawler::factory()->for($registry)->create(['filter' => ['okpd2Codes' => ['43']]]);
+    $crawler = Crawler::factory()->for($registry)->withProxies($proxy)->create(['filter' => ['okpd2Codes' => ['43']]]);
     $cursor = new ListingCursor(blockFrom: 1);
 
     $batch = app(CsvSourceMethod::class)->collectListing($crawler, $cursor);
@@ -121,7 +122,7 @@ test('ретрай на 500 забирает второй ответ фикст�
 
 test('пустой ответ 200 повторяется и итог собирается из второго ответа', function () {
     Sleep::fake();
-    activeListingProxy();
+    $proxy = activeListingProxy();
     $endpoint = config('crawler.eis.csv_endpoint');
     Http::fake([
         $endpoint.'*' => Http::sequence()
@@ -130,7 +131,7 @@ test('пустой ответ 200 повторяется и итог собир�
     ]);
 
     $registry = registryWithOkpd2Scope();
-    $crawler = Crawler::factory()->for($registry)->create(['filter' => ['okpd2Codes' => ['43']]]);
+    $crawler = Crawler::factory()->for($registry)->withProxies($proxy)->create(['filter' => ['okpd2Codes' => ['43']]]);
     $cursor = new ListingCursor(blockFrom: 1);
 
     $batch = app(CsvSourceMethod::class)->collectListing($crawler, $cursor);
@@ -143,14 +144,14 @@ test('пустой ответ 200 повторяется и итог собир�
 
 test('query-параметры запроса содержат from/to, флаг реестра и сортировку', function () {
     Sleep::fake();
-    activeListingProxy();
+    $proxy = activeListingProxy();
     $endpoint = config('crawler.eis.csv_endpoint');
     Http::fake([
         $endpoint.'*' => Http::response(body: EisCsvFixture::body(), status: 200),
     ]);
 
     $registry = registryWithOkpd2Scope();
-    $crawler = Crawler::factory()->for($registry)->create(['filter' => ['stageCompleted' => true, 'okpd2Codes' => ['43']]]);
+    $crawler = Crawler::factory()->for($registry)->withProxies($proxy)->create(['filter' => ['stageCompleted' => true, 'okpd2Codes' => ['43']]]);
     $cursor = new ListingCursor(blockFrom: 501);
 
     $batch = app(CsvSourceMethod::class)->collectListing($crawler, $cursor);
@@ -180,7 +181,7 @@ test('собранный ListingBatch несёт id узла, который р�
     ]);
 
     $registry = registryWithOkpd2Scope();
-    $crawler = Crawler::factory()->for($registry)->create(['filter' => ['okpd2Codes' => ['43']]]);
+    $crawler = Crawler::factory()->for($registry)->withProxies($proxy)->create(['filter' => ['okpd2Codes' => ['43']]]);
     $cursor = new ListingCursor(blockFrom: 1);
 
     $batch = app(CsvSourceMethod::class)->collectListing($crawler, $cursor);
@@ -188,15 +189,18 @@ test('собранный ListingBatch несёт id узла, который р�
     expect($batch->proxyId)->toBe($proxy->id);
 });
 
-test('без активного прокси скоупа crawl_listing резолвер бросает NoProxyAvailableException и запрос не уходит', function () {
+test('закрытый breaker у привязанного прокси не переводит listing на direct и запрос не уходит', function () {
     Sleep::fake();
+    $proxy = Proxy::factory()->country('RU')->withScopes([ProxyScope::CrawlListing])->create([
+        'open_until' => now()->addMinute(),
+    ]);
     $endpoint = config('crawler.eis.csv_endpoint');
     Http::fake([
         $endpoint.'*' => Http::response(body: EisCsvFixture::body(), status: 200),
     ]);
 
     $registry = registryWithOkpd2Scope();
-    $crawler = Crawler::factory()->for($registry)->create(['filter' => ['okpd2Codes' => ['43']]]);
+    $crawler = Crawler::factory()->for($registry)->withProxies($proxy)->create(['filter' => ['okpd2Codes' => ['43']]]);
     $cursor = new ListingCursor(blockFrom: 1);
 
     expect(fn () => app(CsvSourceMethod::class)->collectListing($crawler, $cursor))
@@ -215,7 +219,7 @@ test('профиль с proxy_country=RU при пуле из RU и DE полу�
     ]);
 
     $registry = registryWithOkpd2Scope();
-    $crawler = Crawler::factory()->for($registry)->create(['filter' => ['okpd2Codes' => ['43']], 'proxy_country' => 'RU']);
+    $crawler = Crawler::factory()->for($registry)->withProxies($ruProxy)->create(['filter' => ['okpd2Codes' => ['43']], 'proxy_country' => 'RU']);
     $cursor = new ListingCursor(blockFrom: 1);
 
     $batch = app(CsvSourceMethod::class)->collectListing($crawler, $cursor);
@@ -225,6 +229,7 @@ test('профиль с proxy_country=RU при пуле из RU и DE полу�
 
 test('профиль с use_proxy=false не вызывает резолвер — запрос уходит напрямую с NULL proxyId', function () {
     Sleep::fake();
+    Log::spy();
     // Пул кандидатов пуст: если бы `resolve()` всё же был вызван, тест упал бы
     // `NoProxyAvailableException` — этого достаточно, чтобы доказать, что `use_proxy = false`
     // обходит резолвер целиком, а не просто получает от него direct-подобный результат (research/02 §10).
@@ -243,6 +248,11 @@ test('профиль с use_proxy=false не вызывает резолвер �
         ->and($batch->proxyId)->toBeNull();
 
     Http::assertSentCount(1);
+    Log::shouldHaveReceived('info')
+        ->with('Резолвер прокси: профиль отключил прокси, запрос уходит напрямую', Mockery::on(
+            static fn (array $context): bool => $context['scope'] === ProxyScope::CrawlListing->value,
+        ))
+        ->once();
 });
 
 /**
@@ -259,7 +269,7 @@ test('успешный запрос листинга пишет latency_ms_avg �
     ]);
 
     $registry = registryWithOkpd2Scope();
-    $crawler = Crawler::factory()->for($registry)->create(['filter' => ['okpd2Codes' => ['43']]]);
+    $crawler = Crawler::factory()->for($registry)->withProxies($proxy)->create(['filter' => ['okpd2Codes' => ['43']]]);
     $cursor = new ListingCursor(blockFrom: 1);
 
     app(CsvSourceMethod::class)->collectListing($crawler, $cursor);
@@ -271,7 +281,7 @@ test('успешный запрос листинга пишет latency_ms_avg �
 
 test('запрос листинга несёт verify из карты crawler.tls.bundles для хоста площадки', function () {
     Sleep::fake();
-    activeListingProxy();
+    $proxy = activeListingProxy();
 
     $capturedOptions = null;
     Http::fake(function ($request, $options) use (&$capturedOptions) {
@@ -281,7 +291,7 @@ test('запрос листинга несёт verify из карты crawler.tl
     });
 
     $registry = registryWithOkpd2Scope();
-    $crawler = Crawler::factory()->for($registry)->create(['filter' => ['okpd2Codes' => ['43']]]);
+    $crawler = Crawler::factory()->for($registry)->withProxies($proxy)->create(['filter' => ['okpd2Codes' => ['43']]]);
     $cursor = new ListingCursor(blockFrom: 1);
 
     app(CsvSourceMethod::class)->collectListing($crawler, $cursor);

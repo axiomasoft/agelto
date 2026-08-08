@@ -10,6 +10,7 @@ use App\Enums\Procurement\Crawler\CrawlerMode;
 use App\Enums\Procurement\Crawler\RunStopPolicy;
 use App\Enums\Procurement\Crawler\SourceMethod;
 use App\Models\Procurement\Crawler\Crawler;
+use App\Models\Procurement\Crawler\Proxy;
 use App\Models\Procurement\Platform\Registry;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Spatie\LaravelData\Data;
@@ -40,7 +41,7 @@ final class CrawlerFactory extends Factory
                 'records_per_page' => fake()->numberBetween(int1: 20, int2: 100),
             ],
             'is_active' => true,
-            'use_proxy' => true,
+            'use_proxy' => false,
             'proxy_country' => null,
         ];
     }
@@ -72,5 +73,19 @@ final class CrawlerFactory extends Factory
     public function proxyCountry(string $country): self
     {
         return $this->state(state: ['proxy_country' => $country]);
+    }
+
+    public function withProxies(Proxy ...$proxies): self
+    {
+        if ($proxies === []) {
+            throw new \InvalidArgumentException('Состоянию withProxies нужен хотя бы один узел.');
+        }
+
+        return $this
+            ->state(state: ['use_proxy' => false])
+            ->afterCreating(static function (Crawler $crawler) use ($proxies): void {
+                $crawler->proxies()->sync(array_map(static fn (Proxy $proxy): int => $proxy->id, $proxies));
+                $crawler->update(['use_proxy' => true]);
+            });
     }
 }

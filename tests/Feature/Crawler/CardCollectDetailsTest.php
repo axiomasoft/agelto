@@ -11,6 +11,7 @@ use App\Models\Procurement\Procurement;
 use App\Services\Procurement\Eis\CsvSourceMethod;
 use App\Services\Procurement\Exceptions\CardUrlTemplateMissingException;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Sleep;
 use Tests\Support\Doubles\Crawler\CardHtmlFixture;
@@ -206,4 +207,24 @@ test('collectDetails у типа без вкладки supplier-results (мар�
         ->and($details->supplierResultsHtml)->toBeNull();
 
     Http::assertNotSent(fn ($request) => str_contains((string) $request->url(), 'supplier-results.html'));
+});
+
+test('collectDetails без активной proxy-привязки идёт напрямую и пишет это в лог', function (): void {
+    Sleep::fake();
+    Log::spy();
+    $registry = fakeCardRegistry();
+    Procurement::factory()->create([
+        'registry_id' => $registry->id,
+        'registry_number' => '0338200009125000001',
+        'procedure_type_raw' => 'Электронный аукцион',
+        'status' => ProcurementStatus::Awarded,
+    ]);
+    fakeCardHttp();
+
+    app(CsvSourceMethod::class)->collectDetails(registryNumber: '0338200009125000001', registry: $registry);
+
+    Http::assertSentCount(4);
+    Log::shouldHaveReceived('info')
+        ->with('Резолвер прокси: для карточки нет активной привязки, запрос уходит напрямую', Mockery::any())
+        ->atLeast()->once();
 });

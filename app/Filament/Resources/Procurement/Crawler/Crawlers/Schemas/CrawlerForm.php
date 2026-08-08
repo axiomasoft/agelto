@@ -206,7 +206,15 @@ class CrawlerForm
                 Toggle::make('is_active')
                     ->required(),
                 Toggle::make('use_proxy')
+                    ->label('Использовать прокси')
                     ->required(),
+                Select::make('proxies')
+                    ->label('Разрешённые прокси')
+                    ->relationship('proxies', 'host')
+                    ->multiple()
+                    ->searchable()
+                    ->preload()
+                    ->helperText('Включённый режим требует непустой набор. Сначала сохраните профиль в direct-режиме, затем привяжите узлы и включите прокси.'),
                 Select::make('proxy_country')
                     ->options(ProxyForm::COUNTRIES),
             ]);

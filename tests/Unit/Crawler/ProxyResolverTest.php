@@ -50,6 +50,29 @@ test('требование страны без совпадений даёт NoP
     );
 })->throws(NoProxyAvailableException::class);
 
+test('явная привязка не позволяет выдать подходящий, но не привязанный узел', function (): void {
+    $bound = Proxy::factory()->country('RU')->withScopes([ProxyScope::CrawlListing])->create();
+    Proxy::factory()->country('RU')->withScopes([ProxyScope::CrawlListing])->create();
+
+    $lease = makeResolver()->resolve(
+        scope: ProxyScope::CrawlListing,
+        target: 'zakupki.gov.ru',
+        requirements: new ProxyRequirements(proxyIds: [$bound->id]),
+    );
+
+    expect($lease->proxyId)->toBe($bound->id);
+});
+
+test('гео-гейт применяется до явной привязки и не выдаёт запрещённую страну из набора', function (): void {
+    $deProxy = Proxy::factory()->country('DE')->withScopes([ProxyScope::CrawlListing])->create();
+
+    makeResolver()->resolve(
+        scope: ProxyScope::CrawlListing,
+        target: 'zakupki.gov.ru',
+        requirements: new ProxyRequirements(country: 'RU', proxyIds: [$deProxy->id]),
+    );
+})->throws(NoProxyAvailableException::class);
+
 test('открытый breaker на одной цели не исключает узел на другой цели', function (): void {
     $proxy = Proxy::factory()->country('RU')->withScopes([ProxyScope::CrawlDetail])->create();
     ProxyTarget::factory()->open()->create(['proxy_id' => $proxy->id, 'target' => 'a.example']);

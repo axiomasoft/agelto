@@ -12,6 +12,7 @@ use App\Filament\Resources\Procurement\Crawler\Crawlers\Pages\CreateCrawler;
 use App\Filament\Resources\Procurement\Crawler\Crawlers\Pages\EditCrawler;
 use App\Guards\Admin\Roles\OperatorRole;
 use App\Models\Procurement\Crawler\Crawler;
+use App\Models\Procurement\Crawler\Proxy;
 use App\Models\Procurement\Platform\Okpd2Node;
 use App\Models\Procurement\Platform\Registry;
 use App\Models\User;
@@ -50,7 +51,7 @@ test('сохранение профиля формой даёт типизиро
             'options' => ['columns' => ['nameOrderCsv']],
             'schedule' => null,
             'is_active' => true,
-            'use_proxy' => true,
+            'use_proxy' => false,
         ])
         ->call('create')
         ->assertHasNoFormErrors();
@@ -89,7 +90,7 @@ test('форма сохраняет long execution lane как профильн�
             'filter' => ['stageCompleted' => true, 'okpd2Codes' => ['43']],
             'options' => ['columns' => []],
             'is_active' => true,
-            'use_proxy' => true,
+            'use_proxy' => false,
         ])
         ->call('create')
         ->assertHasNoFormErrors();
@@ -134,7 +135,7 @@ test('невалидное cron-выражение отклоняется на �
             'source_method' => SourceMethod::Csv->value,
             'schedule' => 'не cron',
             'is_active' => false,
-            'use_proxy' => true,
+            'use_proxy' => false,
         ])
         ->call('create')
         ->assertHasFormErrors(['schedule']);
@@ -158,7 +159,7 @@ test('неизвестный ключ фильтра отклоняется фо
             // суффиксом — тест на такой строке был бы хрупким (research/03-p2-okpd2-design.md §2.4).
             'filter' => ['stageUnknown' => true, 'okpd2Codes' => ['43']],
             'is_active' => true,
-            'use_proxy' => true,
+            'use_proxy' => false,
         ])
         ->call('create');
 
@@ -241,7 +242,7 @@ test('форма сохраняет профиль с полями сортир�
             'filter' => ['okpd2Codes' => ['43'], 'sortField' => ListingSortField::Updated->value, 'sortAscending' => false],
             'options' => ['columns' => []],
             'is_active' => true,
-            'use_proxy' => true,
+            'use_proxy' => false,
         ])
         ->call('create')
         ->assertHasNoFormErrors();
@@ -270,7 +271,7 @@ test('форма сохраняет профиль с политикой ост�
             'filter' => ['okpd2Codes' => ['43']],
             'options' => ['columns' => []],
             'is_active' => true,
-            'use_proxy' => true,
+            'use_proxy' => false,
         ])
         ->call('create')
         ->assertHasNoFormErrors();
@@ -295,7 +296,7 @@ test('форма не сохраняет политику «только акт�
             'source_method' => SourceMethod::Csv->value,
             'filter' => ['okpd2Codes' => ['43']],
             'is_active' => true,
-            'use_proxy' => true,
+            'use_proxy' => false,
         ])
         ->call('create');
 
@@ -317,10 +318,33 @@ test('форма отклоняет профиль fz44 без выбранно�
             'source_method' => SourceMethod::Csv->value,
             'filter' => ['stageCompleted' => true],
             'is_active' => true,
-            'use_proxy' => true,
+            'use_proxy' => false,
         ])
         ->call('create')
         ->assertHasFormErrors(['filter.okpd2Codes']);
 
     expect(Crawler::query()->count())->toBe(0);
+});
+
+test('форма сначала сохраняет direct-профиль с привязкой, затем разрешает включить прокси', function (): void {
+    actingAs(crawlerFormOperator());
+
+    $registry = Registry::factory()->create(['code' => 'fz44']);
+    Okpd2Node::factory()->create(['platform_id' => $registry->platform_id, 'code' => '43']);
+    $crawler = Crawler::factory()->for($registry)->create(['options' => null]);
+    $proxy = Proxy::factory()->create();
+    Livewire::test(EditCrawler::class, ['record' => $crawler->getKey()])
+        ->fillForm(['use_proxy' => false, 'proxies' => [$proxy->id], 'options' => ['columns' => []]])
+        ->call('save')
+        ->assertHasNoFormErrors();
+
+    expect($crawler->refresh()->use_proxy)->toBeFalse()
+        ->and($crawler->proxies()->pluck('prc_proxies.id')->all())->toBe([$proxy->id]);
+
+    Livewire::test(EditCrawler::class, ['record' => $crawler->getKey()])
+        ->fillForm(['use_proxy' => true, 'options' => ['columns' => []]])
+        ->call('save')
+        ->assertHasNoFormErrors();
+
+    expect($crawler->refresh()->use_proxy)->toBeTrue();
 });

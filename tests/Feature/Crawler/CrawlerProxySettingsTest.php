@@ -9,6 +9,7 @@ use App\Dto\Procurement\ProcurementDetails;
 use App\Enums\Procurement\Crawler\CrawlerMode;
 use App\Enums\Procurement\Crawler\SourceMethod as SourceMethodEnum;
 use App\Models\Procurement\Crawler\Crawler;
+use App\Models\Procurement\Crawler\Proxy;
 use App\Models\Procurement\Crawler\Run;
 use App\Models\Procurement\Platform\Registry;
 use App\Services\Procurement\ArchiveWindowScanner;
@@ -17,6 +18,7 @@ use App\Services\Procurement\Modes\FreshRunProcessor;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Sleep;
+use Illuminate\Validation\ValidationException;
 
 /**
  * Одна валидная строка CSV-блока (набор колонок, которые понимает `EisCsvRowMapper`).
@@ -109,7 +111,7 @@ beforeEach(function () {
 });
 
 test('FreshRunProcessor перечитывает use_proxy/proxy_country профиля перед каждой итерацией', function () {
-    $crawler = Crawler::factory()->create(['use_proxy' => true, 'proxy_country' => null]);
+    $crawler = Crawler::factory()->withProxies(Proxy::factory()->create())->create(['proxy_country' => null]);
 
     $sourceMethod = useProxySettingsSourceMethod(
         batches: [
@@ -139,7 +141,9 @@ test('ArchiveWindowScanner перечитывает use_proxy/proxy_country пр
         'crawler.archive.max_blocks_per_window' => 50,
     ]);
 
-    $crawler = Crawler::factory()->create(['mode' => CrawlerMode::Archive, 'use_proxy' => true, 'proxy_country' => null]);
+    $crawler = Crawler::factory()
+        ->withProxies(Proxy::factory()->create())
+        ->create(['mode' => CrawlerMode::Archive, 'proxy_country' => null]);
     $run = Run::factory()->for($crawler)->create(['cursor' => null]);
 
     $sourceMethod = useProxySettingsSourceMethod(
@@ -163,3 +167,17 @@ test('ArchiveWindowScanner перечитывает use_proxy/proxy_country пр
         ['use_proxy' => false, 'proxy_country' => 'DE'],
     ]);
 });
+
+test('фабрика по умолчанию сохраняет direct-профиль, а withProxies включает флаг после привязки', function (): void {
+    $directCrawler = Crawler::factory()->create();
+    $proxy = Proxy::factory()->create();
+    $proxyCrawler = Crawler::factory()->withProxies($proxy)->create();
+
+    expect($directCrawler->use_proxy)->toBeFalse()
+        ->and($proxyCrawler->use_proxy)->toBeTrue()
+        ->and($proxyCrawler->proxies()->pluck('prc_proxies.id')->all())->toBe([$proxy->id]);
+});
+
+test('профиль с включёнными прокси без явной привязки не сохраняется', function (): void {
+    Crawler::factory()->create(['use_proxy' => true]);
+})->throws(ValidationException::class, 'привяжите');

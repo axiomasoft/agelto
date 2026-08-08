@@ -11,6 +11,7 @@ use App\Models\Procurement\Document\DocumentVersion;
 use App\Models\Procurement\ProcurementEvent;
 use App\Services\Procurement\DocumentDownloader;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Sleep;
 
@@ -113,19 +114,20 @@ test('download без source_url возвращает null без побочны
     expect($document->refresh()->attempts)->toBe(0);
 });
 
-test('download без активного прокси скоупа document_download пишет error-блок и не бросает исключение', function () {
+test('download без активной proxy-привязки идёт напрямую и пишет это в лог', function () {
     Sleep::fake();
+    Storage::fake('s3');
+    Log::spy();
     $document = Document::factory()->create(['source_url' => 'https://zakupki.gov.ru/filestore/file.html?uid=aaaa-1111']);
     Http::fake(['*filestore*' => Http::response(body: sampleDocumentContent(), status: 200)]);
 
     $version = app(DocumentDownloader::class)->download($document);
 
-    expect($version)->toBeNull();
+    expect($version)->toBeInstanceOf(DocumentVersion::class)
+        ->and($document->refresh()->status)->toBe(DocumentStatus::Downloaded);
 
-    $document->refresh();
-
-    expect($document->attempts)->toBe(1)
-        ->and($document->last_error)->not->toBeNull();
-
-    Http::assertNothingSent();
+    Http::assertSentCount(1);
+    Log::shouldHaveReceived('info')
+        ->with('Резолвер прокси: для документа нет активной привязки, запрос уходит напрямую', Mockery::any())
+        ->once();
 });

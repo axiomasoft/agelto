@@ -175,6 +175,10 @@ final readonly class ProxyResolver
                 $requirements?->country !== null,
                 fn ($query) => $query->where('prc_proxies.country', $requirements->country),
             )
+            ->when(
+                $requirements?->proxyIds !== null,
+                fn ($query) => $query->whereIn('prc_proxies.id', $requirements->proxyIds),
+            )
             ->select([
                 'prc_proxies.id as proxy_id',
                 'prc_proxies.host',

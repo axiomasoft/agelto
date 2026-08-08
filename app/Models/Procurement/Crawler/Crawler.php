@@ -19,6 +19,7 @@ use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Support\Carbon;
 use Illuminate\Validation\ValidationException;
 use RuntimeException;
@@ -93,6 +94,7 @@ final class Crawler extends Model
 
             $crawler->assertScope(filter: $filter);
             $crawler->assertStopPolicy();
+            $crawler->assertProxyBinding();
         });
     }
 
@@ -118,6 +120,25 @@ final class Crawler extends Model
                 .'(текущий mode=%s): политика останова читает свежий обход, архивный её не применяет.',
                 $this->mode->value,
             ),
+        ]);
+    }
+
+    /**
+     * Прокси включается только вместе с явным набором: иначе пустая настройка превратится в
+     * неограниченный выбор любого доступного узла и обойдёт политику профиля (D38).
+     */
+    private function assertProxyBinding(): void
+    {
+        if (! $this->use_proxy) {
+            return;
+        }
+
+        if ($this->exists && $this->proxies()->exists()) {
+            return;
+        }
+
+        throw ValidationException::withMessages([
+            'proxies' => 'Для включения прокси привяжите к профилю хотя бы один узел.',
         ]);
     }
 
@@ -199,6 +220,11 @@ final class Crawler extends Model
     public function registry(): BelongsTo
     {
         return $this->belongsTo(related: Registry::class);
+    }
+
+    public function proxies(): BelongsToMany
+    {
+        return $this->belongsToMany(related: Proxy::class, table: 'prc_crawler_proxy');
     }
 
     /**

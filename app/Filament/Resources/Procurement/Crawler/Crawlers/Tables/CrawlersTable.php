@@ -30,6 +30,10 @@ class CrawlersTable
                     ->badge(),
                 TextColumn::make('schedule')
                     ->placeholder('—'),
+                TextColumn::make('proxies_count')
+                    ->counts('proxies')
+                    ->label('Прокси')
+                    ->sortable(),
                 IconColumn::make('is_active')
                     ->boolean(),
                 TextColumn::make('created_at')

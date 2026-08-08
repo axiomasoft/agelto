@@ -137,7 +137,7 @@ final class CrawlerProfileSeeder extends Seeder
                 'schedule' => null,
                 'options' => ['columns' => self::COLUMNS],
                 'is_active' => true,
-                'use_proxy' => true,
+                'use_proxy' => false,
                 'proxy_country' => 'RU',
             ],
         );
@@ -170,7 +170,7 @@ final class CrawlerProfileSeeder extends Seeder
                 'schedule' => '*/30 * * * *',
                 'options' => ['columns' => self::COLUMNS],
                 'is_active' => false,
-                'use_proxy' => true,
+                'use_proxy' => false,
                 'proxy_country' => 'RU',
             ],
         );

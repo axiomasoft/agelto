@@ -7,6 +7,7 @@ namespace App\Services\Procurement;
 use App\Dto\Procurement\Crawler\StageSettings;
 use App\Dto\Procurement\Proxy\ProxyLease;
 use App\Dto\Procurement\Proxy\ProxyOutcome;
+use App\Dto\Procurement\Proxy\ProxyRequirements;
 use App\Enums\Procurement\Crawler\CrawlStage;
 use App\Enums\Procurement\Document\DocumentStatus;
 use App\Enums\Procurement\ProcurementEventType;
@@ -17,12 +18,14 @@ use App\Models\Procurement\Document\DocumentVersion;
 use App\Models\Procurement\Platform\Platform;
 use App\Repositories\Procurement\Document\DocumentStoreRepository;
 use App\Repositories\Procurement\ProcurementStoreRepository;
+use App\Services\Procurement\Proxy\ProxyBindingResolver;
 use App\Services\Procurement\Proxy\ProxyResolver;
 use App\Services\Storage\FileLocationResolver;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\RequestException;
 use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 
 /**
@@ -37,6 +40,7 @@ final readonly class DocumentDownloader
 {
     public function __construct(
         private ProxyResolver $proxyResolver,
+        private ProxyBindingResolver $proxyBindingResolver,
         private PoliteThrottle $throttle,
         private CrawlSettingsResolver $crawlSettings,
         private DocumentStoreRepository $storeRepository,
@@ -98,7 +102,7 @@ final readonly class DocumentDownloader
     private function fetch(Document $document): string
     {
         $url = (string) $document->source_url;
-        $lease = $this->proxyResolver->resolve(ProxyScope::DocumentDownload, $this->canonicalHost($url));
+        $lease = $this->documentLease(document: $document, host: $this->canonicalHost($url));
         $settings = $this->crawlSettings->forStage(stage: CrawlStage::Document, platform: Platform::query()->findOrFail($document->platform_id));
 
         $this->throttle->wait();
@@ -110,6 +114,28 @@ final readonly class DocumentDownloader
         }
 
         return $response->body();
+    }
+
+    private function documentLease(Document $document, string $host): ProxyLease
+    {
+        $proxyIds = $this->proxyBindingResolver->forProcurement($document->procurement_id);
+
+        if ($proxyIds === []) {
+            Log::info('Резолвер прокси: для документа нет активной привязки, запрос уходит напрямую', [
+                'document_id' => $document->id,
+                'procurement_id' => $document->procurement_id,
+                'scope' => ProxyScope::DocumentDownload->value,
+                'target' => $host,
+            ]);
+
+            return ProxyLease::direct(ProxyScope::DocumentDownload, $host);
+        }
+
+        return $this->proxyResolver->resolve(
+            scope: ProxyScope::DocumentDownload,
+            target: $host,
+            requirements: new ProxyRequirements(proxyIds: $proxyIds),
+        );
     }
 
     private function request(string $url, ProxyLease $lease, StageSettings $settings): Response

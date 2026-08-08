@@ -13,5 +13,7 @@ final readonly class ProxyRequirements
 {
     public function __construct(
         public ?string $country = null,
+        /** @var list<int>|null */
+        public ?array $proxyIds = null,
     ) {}
 }
