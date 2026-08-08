@@ -1,36 +1,38 @@
-# HANDOFF — 2026-08-08 — after P3
+# HANDOFF — 2026-08-08 — after P4.7
 
-**Next:** `/task:plan-audit 2026.08.06-CRAWL-HARDEN P3`
+**Next:** ЗАПУСК ВРУЧНУЮ: implementation/high
 
 | Параметр | Значение |
 |:--|:--|
-| Model | frontier |
-| Thinking | xhigh — AUDIT-CAP после двух реопенов |
-| Context | NEW SESSION — шаг-не-item |
-| Суть | Adversarial-аудит закрытой P3 после реопенов D111/D115; решение по итогам — за владельцем. |
-| Команда | `/task:plan-audit 2026.08.06-CRAWL-HARDEN P3` |
+| Model | implementation (`gpt-5.6-terra`) |
+| Thinking | high — трёхуровневые настройки и профиль |
+| Context | continue (reset the session context) — ручной item |
+| Суть | P4.1 вводит profile/platform/global settings resolver для параметров обхода. |
+| Команда | — |
 
-**Done:** P3 закрыта: 10/10 items терминальны (7 🟢, 3 🟠). P3.10 (`a30daff0`) закрывает F1 аудита
-захода 2: update-sweep больше не получает профильное окно публикации, archive-путь сохранён.
-Phase Handoff переписан, устаревший маркер D115 снят. Docs-sync: обновлены
-`docs/03_Dev/crawling-pipeline.md`, `docs/04_Operators/how-to/restart-failed-run.md` и
-`docs/04_Operators/reference/statuses.md`.
+```text
+select session model class implementation
+select session effort high
+$ task:plan-run 2026.08.06-CRAWL-HARDEN P4.1
+```
 
-**Remaining:** Провести аудит P3 заход 3. Это `AUDIT-CAP`:
-после его результата владелец решает, принять ли фазу с отклонениями, открыть новый item или вынести
-остаток в другой план. P4–P9 не начаты; переход к P4 — только после терминального P3.
+**Done:** P4.7 закрыт 🟠. `prc_crawlers.execution_lane` хранит `standard|long`; `CrawlRunJob`
+атомарно получает route `connection+queue` из profile lane и сохраняет lane при continuation.
+Стандартный контур остался `redis/crawl` (300/360), long — `redis_crawl_long/crawl_long`
+(3600/3900) с grace 4200; сидовый архив 2025 — long, fresh — standard. Кодовый коммит:
+`a1bbd1e5 feat(crawler): добавить длинный execution lane (P4.7)`.
 
-**Sources of truth:** `plan.md` (D112/D113/D115, §3 Routing, Status Board) · `phases/P3.md`
-(P3.10 Completion Notes, аудиты заходов 1–2) · `roadmap.md` (последовательность) · commit `a30daff0`
-(код и тесты P3.10) · `journal.jsonl` (append-only история).
+**Remaining:** P4.1–P4.6; фаза P4 остаётся 🟡 In progress (1/7).
 
-**Open risks:** полный Pest имеет предсуществующую baseline-красноту (D112: 18 failed на
-`8728723e`); полный Pint имеет 12 style issues вне путей P3.10; `migrate:fresh --seed --force`
-красен на `EisPlatformSeeder` / `prc_registries.uuid` — все три вне Scope item'а. Не трогать
-чужой рабочий дифф: удаление `plans/2026.07.26-EST-TRAIN/**` и новый
-`plans/archive/2026.07.26-EST-TRAIN/**`.
+**Sources of truth:** `plan.md` D117 и §3 Routing · `phases/P4.md` P4.7 Completion Notes ·
+`research/12-p4.7-long-execution-lane.md` · `journal.jsonl`.
 
-**Workarounds/Deferred/Open questions:** Workarounds — нет. Deferred: checkpoint-requeue между
-днями для archive/delta/backlog (P3.2/P3.7), агрегаты P3.6 на боевом объёме, калибровка
-`only_fresh_margin_minutes`, разовое окно archive через консоль/форму. Open questions: Q9, Q10,
-Q13–Q16; ни один не блокирует закрытие P3.
+**Open risks:** Универсальный checkpoint-requeue archive/delta/backlog по секундомеру остаётся
+сознательным долгом D117. Полный Pest: 18 pre-existing failed, Δfailed=0 от baseline `8728723e`;
+P4.7 не добавил новых красных. Если production-like archive CSV устойчиво >3600s, не повышать
+timeout молча: зафиксировать разбивку HTTP/throttle/DB и запросить новую D-запись.
+
+**Workarounds/Deferred/Open questions:** Workaround временного архива — конечный long lane, не
+секундный checkpoint. Deferred — универсальный checkpoint-requeue archive/delta/backlog. P4.7
+имеет material scope deviation: два console-теста вне Files переключены на sync driver в testing,
+поскольку job теперь явно выбирает Redis connection; поэтому item закрыт 🟠.
