@@ -5,7 +5,9 @@ namespace App\Filament\Resources\Procurement\Ai\Prompts;
 use App\Filament\Resources\Procurement\Ai\Prompts\Pages\CreatePrompt;
 use App\Filament\Resources\Procurement\Ai\Prompts\Pages\EditPrompt;
 use App\Filament\Resources\Procurement\Ai\Prompts\Pages\ListPrompts;
+use App\Filament\Resources\Procurement\Ai\Prompts\Pages\ViewPrompt;
 use App\Filament\Resources\Procurement\Ai\Prompts\Schemas\PromptForm;
+use App\Filament\Resources\Procurement\Ai\Prompts\Schemas\PromptInfolist;
 use App\Filament\Resources\Procurement\Ai\Prompts\Tables\PromptsTable;
 use App\Models\Llm\Prompt;
 use BackedEnum;
@@ -34,6 +36,11 @@ class PromptResource extends Resource
         return PromptsTable::configure($table);
     }
 
+    public static function infolist(Schema $schema): Schema
+    {
+        return PromptInfolist::configure($schema);
+    }
+
     public static function getRelations(): array
     {
         return [
@@ -46,6 +53,7 @@ class PromptResource extends Resource
         return [
             'index' => ListPrompts::route('/'),
             'create' => CreatePrompt::route('/create'),
+            'view' => ViewPrompt::route('/{record}'),
             'edit' => EditPrompt::route('/{record}/edit'),
         ];
     }

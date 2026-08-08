@@ -1,0 +1,104 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Filament\Pages;
+
+use App\Enums\Llm\DocumentTypeScope;
+use App\Enums\Llm\PromptStep;
+use App\Enums\Procurement\Ai\AiDocumentType;
+use App\Filament\Resources\Procurement\Ai\Prompts\PromptResource;
+use App\Models\Llm\Prompt;
+use App\Repositories\Llm\PromptReadRepository;
+use App\Services\Llm\Dto\ComposedPrompt;
+use App\Services\Llm\PromptComposer;
+use App\Services\Procurement\Contracts\DocumentAnalyzerRegistry;
+use Filament\Pages\Page;
+use Filament\Support\Icons\Heroicon;
+use Illuminate\Support\Collection;
+
+/**
+ * Показывает только текущую RULES-часть `PromptComposer`: schema-блок приходит от места вызова,
+ * поэтому этот экран не является и не пытается пересобрать финальный payload LLM-вызова.
+ *
+ * URL защищён явно через PromptResource::canViewAny(): скрытие navigation-пункта не защищает
+ * кастомную Filament-страницу, а право страницы само по себе не заменяет PromptPermission::ViewAny.
+ */
+final class PromptCompositionPage extends Page
+{
+    protected static ?string $slug = 'prompt-composition';
+
+    protected static string|\UnitEnum|null $navigationGroup = 'AI-анализ';
+
+    protected static ?int $navigationSort = 31;
+
+    protected static string|\BackedEnum|null $navigationIcon = Heroicon::OutlinedDocumentText;
+
+    protected static ?string $navigationLabel = 'Композиция системного промта';
+
+    protected string $view = 'filament.pages.prompt-composition-page';
+
+    public string $documentType = DocumentTypeScope::Any->value;
+
+    public string $step = 'global';
+
+    public static function canAccess(): bool
+    {
+        return PromptResource::canViewAny();
+    }
+
+    public function getTitle(): string
+    {
+        return 'Композиция системного промта';
+    }
+
+    /** @return array<string, string> */
+    public function documentTypeOptions(): array
+    {
+        return [
+            DocumentTypeScope::Any->value => 'Любой тип документа',
+            ...collect(AiDocumentType::cases())
+                ->mapWithKeys(static fn (AiDocumentType $type): array => [$type->value => $type->value])
+                ->all(),
+        ];
+    }
+
+    /** @return array<string, string> */
+    public function stepOptions(): array
+    {
+        return collect(app(DocumentAnalyzerRegistry::class)->promptStepsFor($this->selectedDocumentType()))
+            ->mapWithKeys(static fn (PromptStep $step): array => [$step->value => $step->value])
+            ->all();
+    }
+
+    public function updatedDocumentType(): void
+    {
+        $this->step = array_key_first($this->stepOptions()) ?? 'global';
+    }
+
+    public function selectedPromptStep(): PromptStep
+    {
+        return app(DocumentAnalyzerRegistry::class)->promptStepFor($this->selectedDocumentType(), $this->step);
+    }
+
+    public function composedPrompt(): ComposedPrompt
+    {
+        return app(PromptComposer::class)->compose(step: $this->selectedPromptStep());
+    }
+
+    /** @return Collection<int, Prompt> */
+    public function participatingPrompts(): Collection
+    {
+        $step = $this->selectedPromptStep();
+
+        return app(PromptReadRepository::class)->activeForSteps(
+            steps: $step->compositionChain(),
+            documentType: $step->documentTypeScope(),
+        );
+    }
+
+    private function selectedDocumentType(): AiDocumentType|DocumentTypeScope
+    {
+        return AiDocumentType::tryFrom($this->documentType) ?? DocumentTypeScope::Any;
+    }
+}
