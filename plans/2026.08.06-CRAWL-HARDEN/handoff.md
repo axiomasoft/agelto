@@ -1,26 +1,22 @@
-# HANDOFF — 2026-08-08 — after P4.5
+# HANDOFF — 2026-08-08 — after P4.6
 
-**Next:** /task:plan-exec 2026.08.06-CRAWL-HARDEN P4.6
+**Next:** close: task:plan-close 2026.08.06-CRAWL-HARDEN P4
 
 | Параметр | Значение |
 |:--|:--|
-| Model | implementation (`gpt-5.6-terra`) |
-| Thinking | medium — журналы поверх готового crawl-контрака |
-| Context | continue (reset the session context) — ручной item |
-| Суть | Реализовать P4.6: журнал заборов и операций, метрики ожидания бюджета. |
-| Команда | `$ task:plan-exec 2026.08.06-CRAWL-HARDEN P4.6` |
+| Model class | implementation |
+| Effort | medium |
+| Capabilities | — |
+| Context | NEW SESSION — шаг-не-item |
+| Суть | Закрыть и сверить фазу P4. |
+| Команда | `$ task:plan-close 2026.08.06-CRAWL-HARDEN P4` |
 
-**Done:** P4.5 закрыт item-коммитом `bde5b022`: `crawler:fetch-details` теперь подаёт
-детальные карточки ограниченными пачками в `crawl_detail`; job уникален по закупке и передаёт
-документы в pipeline только после успешного detail-fetch.
+**Done:** P4.6 закрыт item-коммитом `ef41f3f3`.
 
-**Remaining:** P4.6; затем закрытие и аудит P4.
+**Remaining:** закрытие и аудит P4.
 
-**Sources of truth:** `plan.md` §3/Update Log · `phases/P4.md` P4.5 Completion Notes ·
-`app/Jobs/Procurement/FetchProcurementDetailJob.php` · `app/Services/Procurement/DetailDispatcher.php`.
+**Sources of truth:** `phases/P4.md` P4.6 Completion Notes · `plan.md` §3.
 
-**Open risks:** P4.5 имеет material scope-deviation по прямому разрешению владельца:
-доработаны typed settings/resolver и итог job-processor для корректного бюджета.
+**Open risks:** нет.
 
-**Workarounds/Deferred/Open questions:** workarounds — нет; deferred — P4.6 добавит видимость
-ожидания и исходов; open_questions — нет новых.
+**Workarounds/Deferred/Open questions:** workarounds — нет; deferred — нет; open_questions — нет.

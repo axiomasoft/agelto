@@ -6,7 +6,7 @@
 |:--|:--|
 | Plan ID | 2026.08.06-CRAWL-HARDEN |
 | Title | Надёжный контур crawling/парсинга ЕИС |
-| Version | 0.22.0 |
+| Version | 0.23.0 |
 | Status | 🟡 In progress |
 | Document Type | Executable Master Plan |
 | Authoring Model | frontier |
@@ -200,7 +200,7 @@ Deliverables другого. P1.3 идёт solo: ему нужен не Playwrig
 | P1 | Разведка ЕИС: параметры листинга, ОКПД2, практики, карточка, инвентарь вкладок | 4/5 | 🟠 Done with deviations |
 | P2 | ОКПД2: фильтр профиля и древовидная форма | 2/6 | 🟠 Done with deviations |
 | P3 | Профили обхода и управление прогонами из админки | 7/10 | 🟠 Done with deviations |
-| P4 | Надёжность конвейера: budget запросов, троттлинг, анти-дубли, execution lanes | 3/9 | 🟡 In progress |
+| P4 | Надёжность конвейера: budget запросов, троттлинг, анти-дубли, execution lanes | 4/9 | 🟡 In progress |
 | P5 | Healthcheck площадки и уведомления | 0/6 | ⬜ Not started |
 | P6 | Статусы, история изменений закупки, событие «закупка состоялась» | 0/5 | ⬜ Not started |
 | P7 | Три слоя смет в админке и видимость промтов | 0/5 | ⬜ Not started |
@@ -333,6 +333,7 @@ Deliverables другого. P1.3 идёт solo: ему нужен не Playwrig
 | D119 | 2026-08-08 | **Отдельный P4.8 восстанавливает три общих validation-гейта P4.1 и не реопенит её сданный носитель настроек:** `EisPlatformSeeder` создаёт `Registry.uuid` только при insert; core-contract возвращается в document-neutral границы (нейтральный `ExtractionRoute`, без ссылки на type-specific command); `Http::preventStrayRequests()` заменяет ложный grep URL. **Consequences:** P4 растёт с 7 до 8 items, а следующая фаза ждёт завершения P4.8; guard может честно открыть дополнительные stray HTTP в старых тестах — их нельзя обходить или разрешать молча. | Три красных гейта были уже до P4.1, но именно её завершение сделало их блокирующими для честной приёмки. Фактура и сужение решения — `findings/P4.8-validation-gates-2026-08-08.md` и `research/13-p4.8-validation-gates.md`. `RAG:— (repo-grounded: findings/P4.8-validation-gates-2026-08-08.md; research/13-p4.8-validation-gates.md)` |
 | D120 | 2026-08-08 | **Ре-дизайн P4.2 снимает escalation без ослабления D38: валидный default `CrawlerFactory` — `use_proxy = false`; явный state `withProxies(Proxy ...$proxies)` сначала создаёт pivot-привязку, затем включает флаг. Реальный тест сидера — `tests/Feature/Seeders/EisSeedersTest.php`; direct-регрессии остаются в трёх тестах своих HTTP-выходов. Эта запись supersedes ошибочную часть D104 о пути и происхождении `CrawlerProfileSeederTest`. **Consequences:** P4.2 расширяет `Files` на фабрику и пять существующих тестовых носителей; все тесты, которым нужен включённый прокси, обязаны выражать привязку явно, поэтому скрытый несохраняемый default больше не маскирует продуктовый инвариант. | Фактура из `findings/P4.2-blocked-redesign-2026-08-08.md`: D104 назвала отсутствующий файл, а P4.2 не объявляла обязательную правку фабрики, хотя гейт D38 делает её текущий default несохраняемым. `RAG:— (repo-grounded: findings/P4.2-blocked-redesign-2026-08-08.md; database/factories/Procurement/Crawler/CrawlerFactory.php; tests/Feature/Seeders/EisSeedersTest.php)` |
 | D121 | 2026-08-08 | **Follow-up P4.4 получает один типизированный control-flow контракт: `ArchiveWindowScanner::scan()` возвращает `ArchiveWindowScanResult::{Drained,Checkpointed,Stopped}`; только `Drained` разрешает archive/delta/backlog продвинуть `cursor.day`.** `PlatformBudgetExhaustedException` ловится в сканере, превращается в `recordCheckpoint()` + `Checkpointed` без `Failed`; archive продолжает существующий `CrawlRunJob`, delta — следующий cron, backlog — следующий 15-минутный sweep без `backlog_rescanned_at`. D119 применяется и к acceptance P4.9: `Http::preventStrayRequests()` + зелёный Pest заменяют literal URL-grep. Отвергнуты catch в каждой обёртке (три носителя одной семантики), exception как нормальный carrier (конфликт с широким failure-catch) и `bool` (не различает checkpoint/stop). | `scan(): void` делает дренаж и прерывание неразличимыми, а три обёртки двигают день после любого возврата; budget exception сейчас попадает в failure-path. Синтез и проверяемые сценарии — `research/14-p4.9-budget-checkpoint-design.md`; сырая фактура — `findings/P4.9-budget-checkpoint-control-flow-2026-08-08.md`. `RAG:— (repo-grounded: app/Services/Procurement/ArchiveWindowScanner.php; app/Services/Procurement/Modes/ArchiveRunProcessor.php; app/Services/Procurement/Modes/DeltaScanProcessor.php; app/Services/Procurement/Modes/BacklogRescanProcessor.php; tests/TestCase.php)` |
+| D122 | 2026-08-08 | **P4.6 дополняет закрытый перечень `Files` единственной точкой факта авто-дизейбла — `app/Services/Procurement/Proxy/ProxyResolver.php`; `OperationLogWriter` вызывается в ветке, которая уже переводит узел в disabled.** Альтернатива — новый event/listener — отвергнута: он создал бы второй механизм доставки для одного синхронного операторского события и расширил бы контракт сверх задачи. **Consequences:** item меняет ещё один существующий сервис и добавляет регрессионный тест записи события дизейбла; остальной механизм breaker и критерии отключения не меняются. | Исполнение P4.6 остановилось до кодовых правок: `ProxyResolver::reportOutcome()` — единственное место, устанавливающее `is_active = false`, `disabled_at` и `disabled_reason`, а в исходном `Files` оно отсутствовало. `RAG:— (repo-grounded: phases/P4.md P4.6 escalation; app/Services/Procurement/Proxy/ProxyResolver.php:125-132)` |
 
 ## 6. Update Log
 
@@ -406,6 +407,8 @@ Deliverables другого. P1.3 идёт solo: ему нужен не Playwrig
 | 2026-08-08 | plan-design/gpt-5.6-sol/high | P4 дополнена P4.9 до DoR: D121 запинил outcome scanner, checkpoint без продвижения дня/Failed и существующие carrier'ы archive/delta/backlog; добавлены findings/research, Routing и roadmap. |
 | 2026-08-08 | plan-run/gpt-5.6-terra/high | P4.9 закрыт: typed outcome scanner сохраняет недренированный день при request-budget checkpoint и продолжает через существующие carrier'ы — детали см. phases/P4.md P4.9 Completion Notes. |
 | 2026-08-08 | plan-run/gpt-5.6-terra/high | P4.5 закрыт 🟠: detail-стадия переведена на лимитированную unique-защищённую очередь `crawl_detail` — детали см. phases/P4.md P4.5 Completion Notes. |
+| 2026-08-08 | plan-design/frontier/high | P4.6 re-design: D122 добавил `ProxyResolver` как единственную точку журналирования авто-дизейбла; item возвращён в исполнение. |
+| 2026-08-08 | plan-exec/implementation/medium | P4.6 закрыт: единые журналы заборов и операторских событий, read-only витрина и метрики ожидания — детали см. phases/P4.md P4.6 Completion Notes. |
 
 ## 7. Contracts
 
