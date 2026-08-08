@@ -14,6 +14,7 @@ use Illuminate\Database\Eloquent\Casts\AsCollection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Str;
 
 /**
@@ -105,6 +106,38 @@ final class Procurement extends Model
     public function registry(): BelongsTo
     {
         return $this->belongsTo(related: Registry::class);
+    }
+
+    /** @return HasMany<ProcurementRevision, $this> */
+    public function revisions(): HasMany
+    {
+        return $this->hasMany(related: ProcurementRevision::class)
+            ->orderBy('detected_at')
+            ->orderBy('revision_number');
+    }
+
+    /** @return HasMany<ProcurementEvent, $this> */
+    public function events(): HasMany
+    {
+        return $this->hasMany(related: ProcurementEvent::class)
+            ->orderBy('occurred_at')
+            ->orderBy('id');
+    }
+
+    /** @return HasMany<Award, $this> */
+    public function awards(): HasMany
+    {
+        return $this->hasMany(related: Award::class)
+            ->orderBy('awarded_at')
+            ->orderBy('id');
+    }
+
+    /** @return HasMany<Protocol, $this> */
+    public function protocols(): HasMany
+    {
+        return $this->hasMany(related: Protocol::class)
+            ->orderBy('published_at')
+            ->orderBy('id');
     }
 
     /**

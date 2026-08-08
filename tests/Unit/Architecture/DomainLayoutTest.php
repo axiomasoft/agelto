@@ -41,14 +41,14 @@ function alignedDomainLayoutLayers(): array
         // P3.3, Completion Notes: три файла ядра закупки остаются в корне.
         'App\Dto\Procurement' => [
             'root' => ['ProcurementDetails', 'ProcurementSnapshotData', 'StatusResolution'],
-            'subareas' => ['Ai', 'Analyzers', 'Bench', 'Crawler', 'Details', 'Fixture', 'Gold', 'Health', 'Prepare', 'Proxy'],
+            'subareas' => ['Ai', 'Analyzers', 'Bench', 'Crawler', 'Details', 'Fixture', 'Gold', 'Health', 'History', 'Prepare', 'Proxy'],
         ],
         // P3.3, Completion Notes: три ядровых репозитория закупки остаются в корне.
         // P2.1 (2026.08.06-CRAWL-HARDEN): подобласть `Platform` заведена первым файлом
         // (`Okpd2NodeReadRepository`) — зеркалит уже существующую подобласть `App\Models\Procurement\Platform`.
         'App\Repositories\Procurement' => [
             'root' => ['ProcurementDetailStoreRepository', 'ProcurementReadRepository', 'ProcurementStoreRepository'],
-            'subareas' => ['Ai', 'Analyzers', 'Document', 'Health', 'Platform', 'Proxy'],
+            'subareas' => ['Ai', 'Analyzers', 'Document', 'Health', 'History', 'Platform', 'Proxy'],
         ],
     ];
 }
