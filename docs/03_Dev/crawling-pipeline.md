@@ -243,6 +243,19 @@ string $target, ?ProxyRequirements $requirements)` (`app/Services/Procurement/Pr
 - **Пустой пул** никогда не тихий: `NoProxyAvailableException` + `Log::warning` на каждый отказ
   выдачи (нет молчаливого прямого запроса, кроме явного `use_proxy=false` на `crawl_listing`).
 
+## Healthcheck площадки: реакция на смену вердикта
+
+`crawler:health-check` сохраняет каждый результат в `prc_platform_checks`. После сохранения
+`PlatformHealthChecker` сравнивает вердикт с последним результатом той же пары «площадка + вид
+проверки»: ухудшение до `degraded`/`broken`, восстановление до `ok` и напоминание о неизменившейся
+поломке после `crawler.health.repeat_alert_hours` порождают `PlatformHealthChanged`. Его
+синхронный автодискаверимый слушатель `NotifyPlatformHealthChanged` передаёт текст в существующий
+`PipelineAlert`; второй, часовой рубеж антиспама остаётся в самом транспорте.
+
+Healthcheck не останавливает и не ставит на паузу прогоны: результат — сигнал для человека, а не
+команда конвейеру. Telegram не настроен — `PipelineAlert` пишет предупреждение в лог, поэтому
+сигнал не исчезает молча.
+
 ## Смежное
 
 - `docs/02_Workflow/crawling-and-discovery.md` — бизнес-язык, стадии обхода (P10.4).

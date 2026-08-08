@@ -6,6 +6,9 @@ namespace App\Services\Procurement\Health;
 
 use App\Dto\Procurement\Health\CheckResult;
 use App\Enums\Procurement\Health\PlatformCheckKind;
+use App\Enums\Procurement\Health\PlatformCheckVerdict;
+use App\Events\Procurement\PlatformHealthChanged;
+use App\Models\Procurement\Health\PlatformCheck;
 use App\Models\Procurement\Platform\Platform;
 use App\Repositories\Procurement\Health\PlatformCheckStoreRepository;
 use App\Services\Procurement\Health\Checks\CardParseCheck;
@@ -62,19 +65,80 @@ final readonly class PlatformHealthChecker
             $result = $check->run(platform: $platform, baseline: $baseline, from: $from, to: $to);
 
             if (! $dryRun) {
-                $this->checksStore->store(
+                $previous = $this->checksStore->latestFor(platform: $platform, kind: $result->kind);
+                $checkedAt = Carbon::instance($to);
+                $stored = $this->checksStore->store(
                     platform: $platform,
                     result: $result,
                     baselineSha256: $baseline->sha256,
                     windowFrom: Carbon::instance($from),
-                    windowTo: Carbon::instance($to),
-                    checkedAt: Carbon::instance($to),
+                    windowTo: $checkedAt,
+                    checkedAt: $checkedAt,
                 );
+
+                if ($this->shouldDispatchHealthChanged(
+                    previous: $previous,
+                    result: $result,
+                    checkedAt: $checkedAt,
+                )) {
+                    PlatformHealthChanged::dispatch(
+                        platformId: $platform->id,
+                        checkKind: $result->kind,
+                        previousVerdict: $this->previousVerdict(check: $previous),
+                        verdict: $result->verdict,
+                        checkId: $stored->id,
+                        message: $result->message,
+                    );
+                }
             }
 
             $results[] = $result;
         }
 
         return $results;
+    }
+
+    private function shouldDispatchHealthChanged(
+        ?PlatformCheck $previous,
+        CheckResult $result,
+        Carbon $checkedAt,
+    ): bool {
+        $previousVerdict = $this->previousVerdict(check: $previous);
+
+        if ($this->isAlertable(verdict: $result->verdict)) {
+            if ($previousVerdict === null || $result->verdict->isWorseThan($previousVerdict)) {
+                return true;
+            }
+
+            return $previousVerdict === $result->verdict
+                && $this->previousCheckedAt(check: $previous)
+                    ->addHours((int) config('crawler.health.repeat_alert_hours'))
+                    ->lte($checkedAt);
+        }
+
+        return $result->verdict === PlatformCheckVerdict::Ok
+            && $previousVerdict !== null
+            && $previousVerdict !== PlatformCheckVerdict::Ok;
+    }
+
+    private function isAlertable(PlatformCheckVerdict $verdict): bool
+    {
+        return in_array($verdict, [PlatformCheckVerdict::Degraded, PlatformCheckVerdict::Broken], strict: true);
+    }
+
+    private function previousVerdict(?PlatformCheck $check): ?PlatformCheckVerdict
+    {
+        $verdict = $check?->getAttribute('verdict');
+
+        return $verdict instanceof PlatformCheckVerdict ? $verdict : null;
+    }
+
+    private function previousCheckedAt(?PlatformCheck $check): Carbon
+    {
+        $checkedAt = $check?->getAttribute('checked_at');
+
+        return $checkedAt instanceof CarbonInterface ? Carbon::instance($checkedAt) : throw new LogicException(
+            'Последняя проверка здоровья не содержит времени проверки.',
+        );
     }
 }
