@@ -36,11 +36,11 @@ export const meta = {
 
 // ── Конфиг (embedded, НЕ через args-строку) ──────────────────────────────────
 // Пути ОТНОСИТЕЛЬНЫЕ от корня репозитория: скрипт запускается как
-// `Workflow({scriptPath: "plans/2026.08.06-CRAWL-HARDEN/workflows/wf-crawl-harden-p7.js"})`,
+// `Workflow({scriptPath: "plans/archive/2026.08.06-CRAWL-HARDEN/workflows/wf-crawl-harden-p7.js"})`,
 // то есть cwd = корень репозитория. Абсолютный путь машины автора ронял бы прогон в любом
 // другом клоне ещё до первого среза (F6 аудита захода 2).
 const REPO = '.'
-const SPEC = 'plans/2026.08.06-CRAWL-HARDEN/phases/P7.md'
+const SPEC = 'plans/archive/2026.08.06-CRAWL-HARDEN/phases/P7.md'
 if (REPO.startsWith('/')) throw new Error(`REPO должен быть относительным от корня репозитория: "${REPO}"`)
 if (SPEC.startsWith('/')) throw new Error(`SPEC должен быть относительным от корня репозитория: "${SPEC}"`)
 

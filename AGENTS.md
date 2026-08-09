@@ -15,7 +15,7 @@
 
 ## Plan layout v2
 
-- `plans/2026.08.06-CRAWL-HARDEN` is **Layout v2**. Its live execution path is `plan.md` → `status.md` → `handoff.md` → `phases/Pn/Pn.md` → `phases/Pn/Pn.m.md` + `Pn.m.state.md`. `artifacts/legacy-v1-*` are provenance/rollback only and are not normal execution input.
+- `plans/archive/2026.08.06-CRAWL-HARDEN` is the terminal **Layout v2** archive. Its historical execution path is `plan.md` → `status.md` → `handoff.md` → `phases/Pn/Pn.md` → `phases/Pn/Pn.m.md` + `Pn.m.state.md`. `artifacts/legacy-v1-*` are provenance/rollback only and are not normal execution input.
 - Codex receives the native global `task@swissknifeman` plugin (currently v0.10.0) from the local Swissknifeman marketplace; the project deliberately has no `.agents` plugin bundle or copied Task runtime. Claude Code uses the same declared plugin set through its marketplace configuration.
 - Use native `$ task:` plan commands for this plan. Layout-aware commands select the v2 read path and never create v1 phase carriers, Phase Status tables, or outcome fields in item specifications.
 - Before and after plan work, run the Task checks from the Swissknifeman marketplace root in dependency order: `plan-lint.py`, then `plan-views.py state --all`, `decisions`, and `status` with `--check`. An `unresolvable_entry` is a plan-input defect to resolve or record in its owning work; never bypass it by falling back to v1.

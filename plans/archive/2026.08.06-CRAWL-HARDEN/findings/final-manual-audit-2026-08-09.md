@@ -130,7 +130,7 @@ P1.4 и ещё несколько items имеют `🟢 Done`, `Escalation Need
 ### Preflight before bookkeeping
 
 - `codex plugin marketplace list --json` → Swissknifeman root resolved.
-- `plan-lint.py plans/2026.08.06-CRAWL-HARDEN` → exit 1, 28 errors:
+- `plan-lint.py plans/archive/2026.08.06-CRAWL-HARDEN` → exit 1, 28 errors:
   27 известных read-admission/parser diagnostics + один новый schema defect
   `journal.jsonl:172` (дефис вместо точки в plan ID). Schema defect исправлен bookkeeping-правкой;
   известные diagnostics не скрывались и future items не переписывались.
@@ -140,7 +140,7 @@ P1.4 и ещё несколько items имеют `🟢 Done`, `Escalation Need
 
 ### Postflight after bookkeeping
 
-- `plan-lint.py plans/2026.08.06-CRAWL-HARDEN` → exit 1, ровно 27 сохранённых
+- `plan-lint.py plans/archive/2026.08.06-CRAWL-HARDEN` → exit 1, ровно 27 сохранённых
   read-admission/parser diagnostics, 0 warnings; новых journal/handoff diagnostics нет.
 - Regenerate в dependency order → state 59, decisions 4, status 1.
 - `state --all --check` → 59 checked; `decisions --check` → 4 checked;
@@ -188,10 +188,10 @@ Application code, docs and closed item-specs were not changed. The audit only:
 ```bash
 cd /home/vostrikov/projects/agelto/agelto
 codex plugin marketplace list --json
-python3 /home/vostrikov/projects/packages/swissknifeman/packages/task/scripts/plan-lint.py plans/2026.08.06-CRAWL-HARDEN
-python3 /home/vostrikov/projects/packages/swissknifeman/packages/task/scripts/plan-views.py state --plan-dir plans/2026.08.06-CRAWL-HARDEN --all --check
-python3 /home/vostrikov/projects/packages/swissknifeman/packages/task/scripts/plan-views.py decisions --plan-dir plans/2026.08.06-CRAWL-HARDEN --check
-python3 /home/vostrikov/projects/packages/swissknifeman/packages/task/scripts/plan-views.py status --plan-dir plans/2026.08.06-CRAWL-HARDEN --check
+python3 /home/vostrikov/projects/packages/swissknifeman/packages/task/scripts/plan-lint.py plans/archive/2026.08.06-CRAWL-HARDEN
+python3 /home/vostrikov/projects/packages/swissknifeman/packages/task/scripts/plan-views.py state --plan-dir plans/archive/2026.08.06-CRAWL-HARDEN --all --check
+python3 /home/vostrikov/projects/packages/swissknifeman/packages/task/scripts/plan-views.py decisions --plan-dir plans/archive/2026.08.06-CRAWL-HARDEN --check
+python3 /home/vostrikov/projects/packages/swissknifeman/packages/task/scripts/plan-views.py status --plan-dir plans/archive/2026.08.06-CRAWL-HARDEN --check
 git status --short --branch
 ```
 

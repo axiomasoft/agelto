@@ -57,3 +57,14 @@ waived suite.
 
 `plan.md` · `status.md` · `journal.jsonl` · `phases/P10/P10.md` ·
 `artifacts/P10-validation.json` · `findings/P10-code-adversarial-audit-2026-08-09.md` · D131–D138.
+
+## Archive migration checklist — 2026-08-09
+
+- Перенесено: `root/contracts/procurement-succeeded-v1.md` →
+  `docs/03_Dev/contracts/procurement-succeeded-v1.md` (reference); ссылка в document pipeline
+  и индекс `03_Dev` обновлены.
+- Осталось в архиве: `root/contracts/read-budget-v1.md` — plan-local admission contract;
+  `artifacts/`, `findings/` и `research/` — исторические доказательства, не документация продукта.
+- Проверка после переноса: `plan-lint` сообщает 32 исторических read-admission ERROR (0 WARN);
+  это носители уже закрытых items, исправление которых изменило бы архивную историю. Представления
+  `state --all`, `decisions` и `status` согласованы.

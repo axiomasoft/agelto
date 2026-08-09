@@ -14,7 +14,7 @@ use Illuminate\Database\Seeder;
  * `findings/P2-eis-stages.md` §1) — 5 доказанных пар «этап ЕИС → канонический статус».
  *
  * Пара «Определение поставщика отменено» → `cancelled` снята 2026-08-07 в P1.4:
- * `plans/2026.08.06-CRAWL-HARDEN/artifacts/eis-stages.json` (`stages[3]`). Строка копируется
+ * `plans/archive/2026.08.06-CRAWL-HARDEN/artifacts/eis-stages.json` (`stages[3]`). Строка копируется
  * дословно: натуральный ключ матрицы сравнивается без нормализации.
  *
  * НЕ закрытый codelist: `StatusMappingService::resolve()` на незнакомой паре по-прежнему

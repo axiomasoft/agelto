@@ -243,7 +243,7 @@ P7.1, P7.3 ждёт страницы P7.1/P7.2. N = 3 ≥ 3 → **сигнал �
 
 Форма заявленной оркестрации и её сознательные границы:
 
-- носитель — `plans/2026.08.06-CRAWL-HARDEN/workflows/wf-crawl-harden-p7.js`, шаблон
+- носитель — `plans/archive/2026.08.06-CRAWL-HARDEN/workflows/wf-crawl-harden-p7.js`, шаблон
   `wf-dev-slice` (`packages/task/workflows/README.md`: конвейер срезов impl → tests-to-green →
   risk-адаптивное ревью);
 - **срезы идут последовательно, параллелизм сознательно не берётся**: закрытие КАЖДОГО item'а по

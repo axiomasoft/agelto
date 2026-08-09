@@ -92,7 +92,7 @@ Saint Petersburg / RU, AS35278 SPRINTHOST.RU) · **Инструмент:** Playw
 ## 4. Поля: матрица снята, полей без носителя — 65 из 353
 
 Матрица целиком — в `artifacts/eis-card-inventory.json`, ключ `fields`. Сводка (проверяется
-командой `python3 -c "import json; print(json.load(open('plans/2026.08.06-CRAWL-HARDEN/artifacts/eis-card-inventory.json'))['fields_summary'])"`):
+командой `python3 -c "import json; print(json.load(open('plans/archive/2026.08.06-CRAWL-HARDEN/artifacts/eis-card-inventory.json'))['fields_summary'])"`):
 
 | Показатель | Значение |
 |:--|--:|

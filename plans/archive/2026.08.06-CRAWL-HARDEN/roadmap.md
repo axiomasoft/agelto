@@ -150,7 +150,7 @@ $ task:plan-run 2026.08.06-CRAWL-HARDEN P6.2
 ```
 kind: orchestration
 orchestration_id: 2026.08.06-CRAWL-HARDEN:W1
-script: plans/2026.08.06-CRAWL-HARDEN/workflows/wf-crawl-harden-p7.js
+script: plans/archive/2026.08.06-CRAWL-HARDEN/workflows/wf-crawl-harden-p7.js
 inputs: [plan.md, roadmap.md, phases/P7/P7.md]
 slices: P7.1 → P7.2 → P7.3 (последовательно, implementation/medium посрезово из §3 Routing)
 ```
@@ -158,7 +158,7 @@ slices: P7.1 → P7.2 → P7.3 (последовательно, implementation/m
 Запуск — NEW SESSION:
 
 ```
-Workflow({scriptPath: "plans/2026.08.06-CRAWL-HARDEN/workflows/wf-crawl-harden-p7.js"})
+Workflow({scriptPath: "plans/archive/2026.08.06-CRAWL-HARDEN/workflows/wf-crawl-harden-p7.js"})
 ```
 
 Скрипт доводит каждый срез до зелёного и коммитит дифф среза; бухгалтерию плана (статусы,

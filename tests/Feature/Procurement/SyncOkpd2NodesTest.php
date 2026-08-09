@@ -17,7 +17,7 @@ use Illuminate\Support\Sleep;
  *
  * Ни один тест файла не ходит в сеть: `Http::fake()` обязателен, тела ответов берутся из
  * фикстуры `tests/Fixtures/Crawler/okpd2-children.json`. Фикстура СИНТЕТИЧЕСКАЯ —
- * реконструирована из `plans/2026.08.06-CRAWL-HARDEN/artifacts/eis-okpd2-map.json` (живой замер
+ * реконструирована из `plans/archive/2026.08.06-CRAWL-HARDEN/artifacts/eis-okpd2-map.json` (живой замер
  * P1.2 от 2026-08-07): коды, id и наименования снятые, имена полей ответа — из
  * `findings/P1-okpd2-map.md` §1, но сырое тело ответа разведкой не сохранялось. Поддерево
  * усечено до подклассов, чтобы обход завершался за три запроса.

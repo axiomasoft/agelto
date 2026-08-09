@@ -22,11 +22,11 @@
 использована как поставщик. Проверка:
 
 ```bash
-grep -Ec 'ИНН|ОГРН' plans/2026.08.06-CRAWL-HARDEN/artifacts/eis-card-html-success/supplier-results.html
+grep -Ec 'ИНН|ОГРН' plans/archive/2026.08.06-CRAWL-HARDEN/artifacts/eis-card-html-success/supplier-results.html
 # 0
-grep -Ec '1 - Победитель' plans/2026.08.06-CRAWL-HARDEN/artifacts/eis-card-html-success/supplier-results.html
+grep -Ec '1 - Победитель' plans/archive/2026.08.06-CRAWL-HARDEN/artifacts/eis-card-html-success/supplier-results.html
 # 1
-grep -Ec 'Сведения о контракте из реестра контрактов отсутствуют' plans/2026.08.06-CRAWL-HARDEN/artifacts/eis-card-html-success/supplier-results.html
+grep -Ec 'Сведения о контракте из реестра контрактов отсутствуют' plans/archive/2026.08.06-CRAWL-HARDEN/artifacts/eis-card-html-success/supplier-results.html
 # 1
 ```
 

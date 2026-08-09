@@ -64,7 +64,7 @@ stateDiagram-v2
 
 Нагрузка содержит только значения и идентификаторы, включая срез `hasEstimate`/
 `estimatesCount`. Эти поля не означают, что все сметы уже распознаны: извлечение может завершиться
-позже. Полный неизменяемый контракт: `plans/2026.08.06-CRAWL-HARDEN/root/contracts/procurement-succeeded-v1.md`.
+позже. Полный неизменяемый контракт: [`contracts/procurement-succeeded-v1.md`](contracts/procurement-succeeded-v1.md).
 
 ## Д2 — стадии, очереди, lease/retry
 
@@ -204,7 +204,7 @@ checkpoint-цикле, не пересчитывает `validation_status`/ие�
 Для контрольного замера используется чистая read-only команда
 `estimate:fields:audit --source=gold --json` (либо `--source=database` для уже сохранённых
 смет). Она не вызывает LLM и не пишет в БД; фиксированный снимок золотого корпуса лежит в
-`plans/2026.08.06-CRAWL-HARDEN/artifacts/P7.4-fields-audit.json` и задаёт пороги регрессионного
+`plans/archive/2026.08.06-CRAWL-HARDEN/artifacts/P7.4-fields-audit.json` и задаёт пороги регрессионного
 теста.
 
 ## Failure modes → runbooks

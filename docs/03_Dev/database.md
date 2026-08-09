@@ -27,7 +27,7 @@ status: living
 таблиц (физические партиции не считаются). Пять родителей зарегистрированы в pg_partman:
 `prc_events`, `prc_revisions`, `llm_calls`, `prc_fetches`, `prc_operation_logs`.
 
-По [D82](../../plans/2026.08.06-CRAWL-HARDEN/decisions/D82-legacy.md) удалены три носителя без
+По [D82](../../plans/archive/2026.08.06-CRAWL-HARDEN/decisions/D82-legacy.md) удалены три носителя без
 живых доменных писателей/читателей: `prc_daily_stats`, `prc_regions`, `prc_ignore_rules`.
 `prc_ignored_items` сохранена: это действующий denylist конкретных закупок. Возврат любого из
 трёх удалённых носителей требует новой миграции и восстановления прикладной поверхности.

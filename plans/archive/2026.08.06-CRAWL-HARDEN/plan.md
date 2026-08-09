@@ -46,7 +46,7 @@ Swissknifeman/Layout migration: владелец оставил их upstream и
 - Один item за раз; статус обновляется В ПЛАНЕ до завершения работы.
 - Статусы — 6 канонических строк байт-в-байт (см. `plan-protocol` §5).
 - План разошёлся с кодом → не импровизировать, эскалировать (§10 протокола).
-- После закрытия item/фазы — перезаписать `plans/2026.08.06-CRAWL-HARDEN/handoff.md`.
+- После закрытия item/фазы — перезаписать `plans/archive/2026.08.06-CRAWL-HARDEN/handoff.md`.
 - **Проектные правила репозитория обязательны** и приоритетнее общих: `CLAUDE.md`
   (доменная раскладка, канон имён, transaction/jobs policy), `.claude/rules/*`,
   скиллы `testing-rules`, `pest-testing`, `procurement-pipeline-dev`.

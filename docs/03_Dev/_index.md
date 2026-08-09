@@ -23,6 +23,7 @@ status: living
 - [Карта жизненного цикла](entity-lifecycle-map.md)
 - [Машины состояний](state-machines.md)
 - [OCDS mapping](ocds-mapping.md)
+- [Контракт события ProcurementSucceeded v1](contracts/procurement-succeeded-v1.md)
 
 ## Пайплайны
 

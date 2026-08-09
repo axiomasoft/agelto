@@ -101,24 +101,24 @@ Dmitry Vostrikov
 
 ## 19
 
-подтверждённые параметры и их статусы — `plans/2026.08.06-CRAWL-HARDEN/findings/
+подтверждённые параметры и их статусы — `plans/archive/2026.08.06-CRAWL-HARDEN/findings/
 eis-params-carryover.md` §1 · ловушка «молча игнорирует» и рабочая техника измерения `totalCount`
-— `plans/2026.08.06-CRAWL-HARDEN/findings/P1-okpd2-probe.md` §2 · рецепт канала, грабли песочницы
+— `plans/archive/2026.08.06-CRAWL-HARDEN/findings/P1-okpd2-probe.md` §2 · рецепт канала, грабли песочницы
 и карта эндпоинтов — `.claude/skills/eis-recon/SKILL.md` · исходный артефакт замера 2026-08-04 —
 `plans/archive/2026.07.31-SYS-INTEGRITY/artifacts/eis-filter-params.json`
 
 ## 20
 
-`plans/2026.08.06-CRAWL-HARDEN/findings/P1-listing-params.md` (новый) ·
-`plans/2026.08.06-CRAWL-HARDEN/artifacts/eis-listing-params.json` (новый) ·
-`plans/2026.08.06-CRAWL-HARDEN/phases/P1.md` · `plans/2026.08.06-CRAWL-HARDEN/plan.md` ·
-`plans/2026.08.06-CRAWL-HARDEN/handoff.md` · `plans/2026.08.06-CRAWL-HARDEN/journal.jsonl`
+`plans/archive/2026.08.06-CRAWL-HARDEN/findings/P1-listing-params.md` (новый) ·
+`plans/archive/2026.08.06-CRAWL-HARDEN/artifacts/eis-listing-params.json` (новый) ·
+`plans/archive/2026.08.06-CRAWL-HARDEN/phases/P1.md` · `plans/archive/2026.08.06-CRAWL-HARDEN/plan.md` ·
+`plans/archive/2026.08.06-CRAWL-HARDEN/handoff.md` · `plans/archive/2026.08.06-CRAWL-HARDEN/journal.jsonl`
 
 ## 21
 
 1) `.claude/skills/eis-recon/SKILL.md` целиком (без §1.1/§1.2 замер
-недействителен) 2) `plans/2026.08.06-CRAWL-HARDEN/findings/eis-params-carryover.md` §1–§2
-3) `plans/2026.08.06-CRAWL-HARDEN/findings/P1-okpd2-probe.md` §2 (две ловушки измерения)
+недействителен) 2) `plans/archive/2026.08.06-CRAWL-HARDEN/findings/eis-params-carryover.md` §1–§2
+3) `plans/archive/2026.08.06-CRAWL-HARDEN/findings/P1-okpd2-probe.md` §2 (две ловушки измерения)
 4) `app/Services/Procurement/Eis/EisCsvUrlBuilder.php` целиком (что зашито константой, что
 перекрывает archive-ветка) 5) `app/Services/Procurement/Eis/EisCsvRowMapper.php` (какие колонки
 читает боевой маппер — по ним и сверяется порядок) 6) `app/Dto/Procurement/Crawler/
@@ -165,14 +165,14 @@ P3.3, потому что это отменяет физическую осно�
 ## 25
 
 структурный гейт артефакта —
-`python3 -c "import json,sys; d=json.load(open('plans/2026.08.06-CRAWL-HARDEN/artifacts/eis-listing-params.json')); f=d['facts']; bad=[x.get('id') for x in f if x.get('outcome') not in ('подтверждено','изменилось','не установлено') or not x.get('evidence') or not x.get('measured_at')]; print('facts:',len(f),'bad:',bad); sys.exit(1 if bad or not f else 0)"`
+`python3 -c "import json,sys; d=json.load(open('plans/archive/2026.08.06-CRAWL-HARDEN/artifacts/eis-listing-params.json')); f=d['facts']; bad=[x.get('id') for x in f if x.get('outcome') not in ('подтверждено','изменилось','не установлено') or not x.get('evidence') or not x.get('measured_at')]; print('facts:',len(f),'bad:',bad); sys.exit(1 if bad or not f else 0)"`
 — код возврата 0 · гейт канала —
-`python3 -c "import json,sys; d=json.load(open('plans/2026.08.06-CRAWL-HARDEN/artifacts/eis-listing-params.json')); c=d['channel']; print(c); sys.exit(0 if c.get('egress_country')=='RU' and c.get('checked_at') else 1)"`
+`python3 -c "import json,sys; d=json.load(open('plans/archive/2026.08.06-CRAWL-HARDEN/artifacts/eis-listing-params.json')); c=d['channel']; print(c); sys.exit(0 if c.get('egress_country')=='RU' and c.get('checked_at') else 1)"`
 — код возврата 0 · гейт вежливости — `requests_total` в артефакте ≤ 20 (проверяется тем же
 `python3 -c`, значение печатается в Completion Notes) · гейт «код не тронут» —
 `git status --short -- app config database tests routes resources public composer.json` пусто ·
-гейт честности маркеров — `grep -n "не установлено" plans/2026.08.06-CRAWL-HARDEN/findings/P1-listing-params.md | grep "RAG:✅"`
-не находит ничего (пустой вывод) · `plan-lint plans/2026.08.06-CRAWL-HARDEN --baseline HEAD` (скрипт — `packages/task/scripts/plan-lint.py`
+гейт честности маркеров — `grep -n "не установлено" plans/archive/2026.08.06-CRAWL-HARDEN/findings/P1-listing-params.md | grep "RAG:✅"`
+не находит ничего (пустой вывод) · `plan-lint plans/archive/2026.08.06-CRAWL-HARDEN --baseline HEAD` (скрипт — `packages/task/scripts/plan-lint.py`
 узла swissknifeman; путь узла резолвится скиллом `swissknifeman-locator`, в план не зашивается)
 — новых от диффа item'а ошибок 0 (K=0, атрибуция через `--baseline HEAD`).
 
@@ -223,7 +223,7 @@ write-site: pre_mutation: allow · pre_final: allow
 Тот же ложноположительный WARN `plan-lint` ЛАТЕНТЕН ещё в восьми фазах: DoR-строка
 `- [x] Все ` + литерал маркера + ` сняты (0 маркеров в фазе)` живёт в `phases/P2.md:54`, `P3.md:49`,
 `P4.md:34`, `P5.md:40`, `P6.md:55`, `P7.md:29`, `P8.md:36`, `P9.md:35` (8 файлов на
-`bookkeeping`-коммите P1.1, `grep -n "NEEDS CLARIFICATION" plans/2026.08.06-CRAWL-HARDEN/phases/*.md`)
+`bookkeeping`-коммите P1.1, `grep -n "NEEDS CLARIFICATION" plans/archive/2026.08.06-CRAWL-HARDEN/phases/*.md`)
 и выстрелит у каждой в момент перехода фазы в «🟡 In progress». В P1.1 это НЕ чинилось: остальные
 восемь файлов вне `Files` item'а. Фикс — та же переформулировка, что применена к `P1.md:45`;
 делается первым же item'ом соответствующей фазы либо разовой правкой владельца. Ложность
@@ -293,23 +293,23 @@ P2; решение развилки № 6 (откуда брать ОКПД2 з�
 ## 36
 
 уже снятая фактура ОКПД2, включая id разделов и §6 «что осталось не установлено» —
-`plans/2026.08.06-CRAWL-HARDEN/findings/P1-okpd2-probe.md` · машинная выжимка первой пробы —
-`plans/2026.08.06-CRAWL-HARDEN/artifacts/eis-okpd2-probe.json` · решения D8/D9/D14 и развилка № 6
-— `plans/2026.08.06-CRAWL-HARDEN/plan.md` · трекер Q9/Q11 — `plans/2026.08.06-CRAWL-HARDEN/
+`plans/archive/2026.08.06-CRAWL-HARDEN/findings/P1-okpd2-probe.md` · машинная выжимка первой пробы —
+`plans/archive/2026.08.06-CRAWL-HARDEN/artifacts/eis-okpd2-probe.json` · решения D8/D9/D14 и развилка № 6
+— `plans/archive/2026.08.06-CRAWL-HARDEN/plan.md` · трекер Q9/Q11 — `plans/archive/2026.08.06-CRAWL-HARDEN/
 open-questions.md` · работа с деревом dynatree и эндпоинт `children.html` —
 `.claude/skills/eis-recon/SKILL.md` §3
 
 ## 37
 
-`plans/2026.08.06-CRAWL-HARDEN/findings/P1-okpd2-map.md` (новый) ·
-`plans/2026.08.06-CRAWL-HARDEN/artifacts/eis-okpd2-map.json` (новый) ·
-`plans/2026.08.06-CRAWL-HARDEN/phases/P1.md` · `plans/2026.08.06-CRAWL-HARDEN/plan.md` ·
-`plans/2026.08.06-CRAWL-HARDEN/open-questions.md` ·
-`plans/2026.08.06-CRAWL-HARDEN/handoff.md` · `plans/2026.08.06-CRAWL-HARDEN/journal.jsonl`
+`plans/archive/2026.08.06-CRAWL-HARDEN/findings/P1-okpd2-map.md` (новый) ·
+`plans/archive/2026.08.06-CRAWL-HARDEN/artifacts/eis-okpd2-map.json` (новый) ·
+`plans/archive/2026.08.06-CRAWL-HARDEN/phases/P1.md` · `plans/archive/2026.08.06-CRAWL-HARDEN/plan.md` ·
+`plans/archive/2026.08.06-CRAWL-HARDEN/open-questions.md` ·
+`plans/archive/2026.08.06-CRAWL-HARDEN/handoff.md` · `plans/archive/2026.08.06-CRAWL-HARDEN/journal.jsonl`
 
 ## 38
 
-1) `plans/2026.08.06-CRAWL-HARDEN/findings/P1-okpd2-probe.md` целиком
+1) `plans/archive/2026.08.06-CRAWL-HARDEN/findings/P1-okpd2-probe.md` целиком
 2) `.claude/skills/eis-recon/SKILL.md` §1–§3 3) `app/Services/Procurement/Eis/EisCsvRowMapper.php`
 (`mapOkpd2()` и константа `OKPD2_COLUMN` — что именно перестаёт работать при пустой колонке)
 4) `app/Models/Reference/Okpd2.php` + `database/migrations/2026_07_04_100005_create_ref_okpd2_table.php`
@@ -357,14 +357,14 @@ Q11 (C3: правка сопровождается предложением, а 
 ## 41
 
 структурный гейт узлов —
-`python3 -c "import json,sys; d=json.load(open('plans/2026.08.06-CRAWL-HARDEN/artifacts/eis-okpd2-map.json')); n=d['nodes']; bad=[x for x in n if not x.get('id') or 'level' not in x or 'parent_id' not in x]; print('nodes:',len(n),'bad:',len(bad)); sys.exit(1 if bad or len(n)<4 else 0)"`
+`python3 -c "import json,sys; d=json.load(open('plans/archive/2026.08.06-CRAWL-HARDEN/artifacts/eis-okpd2-map.json')); n=d['nodes']; bad=[x for x in n if not x.get('id') or 'level' not in x or 'parent_id' not in x]; print('nodes:',len(n),'bad:',len(bad)); sys.exit(1 if bad or len(n)<4 else 0)"`
 — код возврата 0 · гейт исходов проб —
-`python3 -c "import json,sys; d=json.load(open('plans/2026.08.06-CRAWL-HARDEN/artifacts/eis-okpd2-map.json')); p=d['probes']; bad=[x.get('id') for x in p if x.get('outcome') not in ('подтверждено','изменилось','не установлено') or not x.get('evidence')]; print('probes:',len(p),'bad:',bad); sys.exit(1 if bad or not p else 0)"`
+`python3 -c "import json,sys; d=json.load(open('plans/archive/2026.08.06-CRAWL-HARDEN/artifacts/eis-okpd2-map.json')); p=d['probes']; bad=[x.get('id') for x in p if x.get('outcome') not in ('подтверждено','изменилось','не установлено') or not x.get('evidence')]; print('probes:',len(p),'bad:',bad); sys.exit(1 if bad or not p else 0)"`
 — код возврата 0 · гейт канала и вежливости — `channel.egress_country == "RU"` и
 `requests_total <= 60` (тем же `python3 -c`, значения — в Completion Notes) · перекрёстная сверка
 — в findings приведено равенство «сумма по узлам = `totalCount` набора» с обоими числами · гейт
 «код не тронут» — `git status --short -- app config database tests routes resources public` пусто ·
-`plan-lint plans/2026.08.06-CRAWL-HARDEN --baseline HEAD` (скрипт — `packages/task/scripts/plan-lint.py`
+`plan-lint plans/archive/2026.08.06-CRAWL-HARDEN --baseline HEAD` (скрипт — `packages/task/scripts/plan-lint.py`
 узла swissknifeman; путь узла резолвится скиллом `swissknifeman-locator`, в план не зашивается)
 — новых от диффа item'а ошибок 0.
 
@@ -482,29 +482,29 @@ D49/D60/D97; установка любых пакетов и правка `compo
 
 ## 52
 
-уже собранные внешние факты и их маркеры — `plans/2026.08.06-CRAWL-HARDEN/research/
+уже собранные внешние факты и их маркеры — `plans/archive/2026.08.06-CRAWL-HARDEN/research/
 01-gap-matrix.md` §4 · классы риска гэпов G6–G9 — там же §1 · что именно сегодня глобально, а не
-пер-профильно, и где синхронный проход — `plans/2026.08.06-CRAWL-HARDEN/findings/
+пер-профильно, и где синхронный проход — `plans/archive/2026.08.06-CRAWL-HARDEN/findings/
 repo-recon-2026-08-06.md` §4, §6, §7 · формулировки владельца по таймаутам и настройкам —
-`plans/2026.08.06-CRAWL-HARDEN/brief/00-brief.md` блоки 4–5 · ЧТО уже закрыто и переснятию не
-подлежит — `plans/2026.08.06-CRAWL-HARDEN/findings/P4-rag-throttle-2026-08-06.md` §1–§3, §5, §7 и
-`plans/2026.08.06-CRAWL-HARDEN/findings/P5-rag-health-2026-08-06.md` §5, §6 · сами
-некалиброванные числа и их адресаты — `plans/2026.08.06-CRAWL-HARDEN/plan.md` D45, D46 и
-`plans/2026.08.06-CRAWL-HARDEN/phases/P4.md` P4.1 / P4.4 / P4.5
+`plans/archive/2026.08.06-CRAWL-HARDEN/brief/00-brief.md` блоки 4–5 · ЧТО уже закрыто и переснятию не
+подлежит — `plans/archive/2026.08.06-CRAWL-HARDEN/findings/P4-rag-throttle-2026-08-06.md` §1–§3, §5, §7 и
+`plans/archive/2026.08.06-CRAWL-HARDEN/findings/P5-rag-health-2026-08-06.md` §5, §6 · сами
+некалиброванные числа и их адресаты — `plans/archive/2026.08.06-CRAWL-HARDEN/plan.md` D45, D46 и
+`plans/archive/2026.08.06-CRAWL-HARDEN/phases/P4.md` P4.1 / P4.4 / P4.5
 
 ## 53
 
-`plans/2026.08.06-CRAWL-HARDEN/findings/P1-rag-reliability-practices.md` (новый) ·
-`plans/2026.08.06-CRAWL-HARDEN/phases/P1.md` · `plans/2026.08.06-CRAWL-HARDEN/plan.md` ·
-`plans/2026.08.06-CRAWL-HARDEN/handoff.md` · `plans/2026.08.06-CRAWL-HARDEN/journal.jsonl`
+`plans/archive/2026.08.06-CRAWL-HARDEN/findings/P1-rag-reliability-practices.md` (новый) ·
+`plans/archive/2026.08.06-CRAWL-HARDEN/phases/P1.md` · `plans/archive/2026.08.06-CRAWL-HARDEN/plan.md` ·
+`plans/archive/2026.08.06-CRAWL-HARDEN/handoff.md` · `plans/archive/2026.08.06-CRAWL-HARDEN/journal.jsonl`
 
 ## 54
 
-1) `plans/2026.08.06-CRAWL-HARDEN/research/01-gap-matrix.md` §1, §4
-2) `plans/2026.08.06-CRAWL-HARDEN/findings/P4-rag-throttle-2026-08-06.md` §1–§3, §5, §7 и
-`plans/2026.08.06-CRAWL-HARDEN/findings/P5-rag-health-2026-08-06.md` §5, §6 (граница «что уже
-снято» — переснимать запрещено) 3) `plans/2026.08.06-CRAWL-HARDEN/findings/repo-recon-2026-08-06.md`
-§4, §6, §7 4) `plans/2026.08.06-CRAWL-HARDEN/plan.md` D45, D46 (какие именно числа объявлены
+1) `plans/archive/2026.08.06-CRAWL-HARDEN/research/01-gap-matrix.md` §1, §4
+2) `plans/archive/2026.08.06-CRAWL-HARDEN/findings/P4-rag-throttle-2026-08-06.md` §1–§3, §5, §7 и
+`plans/archive/2026.08.06-CRAWL-HARDEN/findings/P5-rag-health-2026-08-06.md` §5, §6 (граница «что уже
+снято» — переснимать запрещено) 3) `plans/archive/2026.08.06-CRAWL-HARDEN/findings/repo-recon-2026-08-06.md`
+§4, §6, §7 4) `plans/archive/2026.08.06-CRAWL-HARDEN/plan.md` D45, D46 (какие именно числа объявлены
 некалиброванными) 5) `config/crawler.php` (секции `throttle`, `http`, `proxy` — значения, поверх
 которых лягут выводы, вместе с докблоком калибровки прогона P4.7 плана `2026.07.31-SYS-INTEGRITY`)
 6) `app/Console/Commands/Procurement/FetchDetails.php` (синхронный проход — предмет темы 2)
@@ -548,17 +548,17 @@ D45/D46, это пишется прямым текстом, а не смягча
 
 ## 57
 
-покрытие тем — `grep -c "^## " plans/2026.08.06-CRAWL-HARDEN/findings/P1-rag-reliability-practices.md`
+покрытие тем — `grep -c "^## " plans/archive/2026.08.06-CRAWL-HARDEN/findings/P1-rag-reliability-practices.md`
 ≥ 2 · каждая тема несёт вердикт —
-`grep -c "**Вердикт:**" plans/2026.08.06-CRAWL-HARDEN/findings/P1-rag-reliability-practices.md`
+`grep -c "**Вердикт:**" plans/archive/2026.08.06-CRAWL-HARDEN/findings/P1-rag-reliability-practices.md`
 ≥ 2 · у каждой темы назван адрес-потребитель —
-`grep -cE "P4\.(1|4|5)" plans/2026.08.06-CRAWL-HARDEN/findings/P1-rag-reliability-practices.md` ≥ 2 ·
+`grep -cE "P4\.(1|4|5)" plans/archive/2026.08.06-CRAWL-HARDEN/findings/P1-rag-reliability-practices.md` ≥ 2 ·
 источники проставлены —
-`grep -c "RAG:✅" plans/2026.08.06-CRAWL-HARDEN/findings/P1-rag-reliability-practices.md` ≥ 2 и
+`grep -c "RAG:✅" plans/archive/2026.08.06-CRAWL-HARDEN/findings/P1-rag-reliability-practices.md` ≥ 2 и
 `grep -c "https://" …` ≥ 2 · нет «проверенных» фактов без URL —
 `grep -n "RAG:✅" … | grep -v "http"` даёт пустой вывод · гейт «код не тронут» —
 `git status --short -- app config database tests routes resources public composer.json composer.lock`
-пусто · `plan-lint plans/2026.08.06-CRAWL-HARDEN --baseline HEAD` (скрипт — `packages/task/scripts/plan-lint.py`
+пусто · `plan-lint plans/archive/2026.08.06-CRAWL-HARDEN --baseline HEAD` (скрипт — `packages/task/scripts/plan-lint.py`
 узла swissknifeman; путь узла резолвится скиллом `swissknifeman-locator`, в план не зашивается)
 — новых от диффа item'а ошибок 0.
 
@@ -696,23 +696,23 @@ HTML в `artifacts/eis-card-html-success/`, обезличенный; (4) фик
 ## 68
 
 сегодняшний состав пар «этап → статус» и механика `unknown` —
-`plans/2026.08.06-CRAWL-HARDEN/findings/repo-recon-2026-08-06.md` §8 · что по статусам и якорям
-осталось не снятым — `plans/2026.08.06-CRAWL-HARDEN/findings/eis-params-carryover.md` §3 ·
+`plans/archive/2026.08.06-CRAWL-HARDEN/findings/repo-recon-2026-08-06.md` §8 · что по статусам и якорям
+осталось не снятым — `plans/archive/2026.08.06-CRAWL-HARDEN/findings/eis-params-carryover.md` §3 ·
 фактическая раскладка вкладок, снятая 2026-08-05 (ожидание, которое проба подтверждает или
 опровергает) — `plans/archive/2026.07.31-SYS-INTEGRITY/findings/P4-card-layout.md` · диагноз
 `supplier-results` — шапка `tests/Fixtures/Crawler/Card/supplier-results.html` · рецепт канала и
 карта эндпоинтов, включая форму URL вкладок — `.claude/skills/eis-recon/SKILL.md` §2–§3 ·
 флаг этапа `pc`, которым отбирается кандидат-карточка (подтверждён 2026-08-04) —
-`plans/2026.08.06-CRAWL-HARDEN/findings/eis-params-carryover.md` §1
+`plans/archive/2026.08.06-CRAWL-HARDEN/findings/eis-params-carryover.md` §1
 
 ## 69
 
-`plans/2026.08.06-CRAWL-HARDEN/findings/P1-card-anchors.md` (новый) ·
-`plans/2026.08.06-CRAWL-HARDEN/artifacts/eis-stages.json` (новый) ·
-`plans/2026.08.06-CRAWL-HARDEN/artifacts/eis-card-html-success/` (новый каталог: 4 вкладки) ·
-`plans/2026.08.06-CRAWL-HARDEN/phases/P1.md` · `plans/2026.08.06-CRAWL-HARDEN/plan.md` ·
-`plans/2026.08.06-CRAWL-HARDEN/open-questions.md` ·
-`plans/2026.08.06-CRAWL-HARDEN/handoff.md` · `plans/2026.08.06-CRAWL-HARDEN/journal.jsonl`
+`plans/archive/2026.08.06-CRAWL-HARDEN/findings/P1-card-anchors.md` (новый) ·
+`plans/archive/2026.08.06-CRAWL-HARDEN/artifacts/eis-stages.json` (новый) ·
+`plans/archive/2026.08.06-CRAWL-HARDEN/artifacts/eis-card-html-success/` (новый каталог: 4 вкладки) ·
+`plans/archive/2026.08.06-CRAWL-HARDEN/phases/P1.md` · `plans/archive/2026.08.06-CRAWL-HARDEN/plan.md` ·
+`plans/archive/2026.08.06-CRAWL-HARDEN/open-questions.md` ·
+`plans/archive/2026.08.06-CRAWL-HARDEN/handoff.md` · `plans/archive/2026.08.06-CRAWL-HARDEN/journal.jsonl`
 
 ## 70
 
@@ -725,7 +725,7 @@ Card/CommonInfoParser.php`, `DocumentsParser.php`, `EventJournalParser.php`,
 собирается URL вкладки, откуда `procedureUrlType`) 5) `database/seeders/StatusMappingSeeder.php` +
 `app/Services/Procurement/StatusMappingService.php` 6) `app/Enums/Procurement/ProcurementStatus.php`
 (канонический codelist и его матрица достижимости — с ней сверяется снятый перечень)
-7) `plans/2026.08.06-CRAWL-HARDEN/open-questions.md` Q7
+7) `plans/archive/2026.08.06-CRAWL-HARDEN/open-questions.md` Q7
 
 ## 71
 
@@ -771,16 +771,16 @@ card{}}`: `stages[]` несёт `raw` (дословная строка), `count`
 ## 74
 
 гейт перечня этапов —
-`python3 -c "import json,sys; d=json.load(open('plans/2026.08.06-CRAWL-HARDEN/artifacts/eis-stages.json')); s=d['stages']; bad=[x.get('raw') for x in s if not x.get('raw') or 'count' not in x or 'mapped_to' not in x]; print('stages:',len(s),'bad:',bad); sys.exit(1 if bad or len(s)<4 else 0)"`
+`python3 -c "import json,sys; d=json.load(open('plans/archive/2026.08.06-CRAWL-HARDEN/artifacts/eis-stages.json')); s=d['stages']; bad=[x.get('raw') for x in s if not x.get('raw') or 'count' not in x or 'mapped_to' not in x]; print('stages:',len(s),'bad:',bad); sys.exit(1 if bad or len(s)<4 else 0)"`
 — код возврата 0 (менее четырёх этапов означает, что выборка не покрыла даже известный сид) ·
 гейт якорей —
-`python3 -c "import json,sys; d=json.load(open('plans/2026.08.06-CRAWL-HARDEN/artifacts/eis-stages.json')); a=d['anchors']; tabs={x.get('tab') for x in a}; bad=[x.get('selector') for x in a if 'matches' not in x or not x.get('used_by') or x.get('outcome') not in ('есть','нет','изменился')]; print('anchors:',len(a),'tabs:',sorted(tabs),'bad:',bad); sys.exit(1 if bad or len(tabs)<4 else 0)"`
+`python3 -c "import json,sys; d=json.load(open('plans/archive/2026.08.06-CRAWL-HARDEN/artifacts/eis-stages.json')); a=d['anchors']; tabs={x.get('tab') for x in a}; bad=[x.get('selector') for x in a if 'matches' not in x or not x.get('used_by') or x.get('outcome') not in ('есть','нет','изменился')]; print('anchors:',len(a),'tabs:',sorted(tabs),'bad:',bad); sys.exit(1 if bad or len(tabs)<4 else 0)"`
 — код возврата 0 · гейт канала и вежливости — `channel.egress_country == "RU"`,
 `requests_total <= 15` · гейт обезличивания —
-`grep -rEn "[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}" plans/2026.08.06-CRAWL-HARDEN/artifacts/eis-card-html-success/ | grep -v "example.invalid"`
+`grep -rEn "[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}" plans/archive/2026.08.06-CRAWL-HARDEN/artifacts/eis-card-html-success/ | grep -v "example.invalid"`
 даёт пустой вывод · гейт «код и фикстуры не тронуты» —
 `git status --short -- app config database tests routes resources public` пусто ·
-`plan-lint plans/2026.08.06-CRAWL-HARDEN --baseline HEAD` (скрипт — `packages/task/scripts/plan-lint.py`
+`plan-lint plans/archive/2026.08.06-CRAWL-HARDEN --baseline HEAD` (скрипт — `packages/task/scripts/plan-lint.py`
 узла swissknifeman; путь узла резолвится скиллом `swissknifeman-locator`, в план не зашивается)
 — новых от диффа item'а ошибок 0.
 
@@ -923,20 +923,20 @@ success-карточке; здесь нужна СТРУКТУРА, а не ра
 
 справочник типов и вкладок, с которым сверяется факт —
 `database/seeders/Procurement/EisPlatformSeeder.php` (`procedureUrlTypes()`, `cardUrlTemplates()`) ·
-дословное требование владельца — `plans/2026.08.06-CRAWL-HARDEN/brief/01-refinements.md` блок P6
+дословное требование владельца — `plans/archive/2026.08.06-CRAWL-HARDEN/brief/01-refinements.md` блок P6
 п. 5 · зачем инвентарь и куда идёт его вывод —
-`plans/2026.08.06-CRAWL-HARDEN/research/07-p6-history-design.md` §3.8 · рецепт канала, грабли
+`plans/archive/2026.08.06-CRAWL-HARDEN/research/07-p6-history-design.md` §3.8 · рецепт канала, грабли
 песочницы, карта эндпоинтов — `.claude/skills/eis-recon/SKILL.md` §1–§3 · раскладка вкладок,
 снятая 2026-08-05 (ожидание, которое проба подтверждает или опровергает) —
 `plans/archive/2026.07.31-SYS-INTEGRITY/findings/P4-card-layout.md`
 
 ## 86
 
-`plans/2026.08.06-CRAWL-HARDEN/findings/P1-card-inventory.md` (новый) ·
-`plans/2026.08.06-CRAWL-HARDEN/artifacts/eis-card-inventory.json` (новый) ·
-`plans/2026.08.06-CRAWL-HARDEN/phases/P1.md` · `plans/2026.08.06-CRAWL-HARDEN/plan.md` ·
-`plans/2026.08.06-CRAWL-HARDEN/open-questions.md` ·
-`plans/2026.08.06-CRAWL-HARDEN/handoff.md` · `plans/2026.08.06-CRAWL-HARDEN/journal.jsonl`
+`plans/archive/2026.08.06-CRAWL-HARDEN/findings/P1-card-inventory.md` (новый) ·
+`plans/archive/2026.08.06-CRAWL-HARDEN/artifacts/eis-card-inventory.json` (новый) ·
+`plans/archive/2026.08.06-CRAWL-HARDEN/phases/P1.md` · `plans/archive/2026.08.06-CRAWL-HARDEN/plan.md` ·
+`plans/archive/2026.08.06-CRAWL-HARDEN/open-questions.md` ·
+`plans/archive/2026.08.06-CRAWL-HARDEN/handoff.md` · `plans/archive/2026.08.06-CRAWL-HARDEN/journal.jsonl`
 
 ## 87
 
@@ -948,7 +948,7 @@ success-карточке; здесь нужна СТРУКТУРА, а не ра
 5) `database/migrations/2026_07_04_100011_create_prc_procurements_table.php` (полный список
 колонок — с ним сверяется «наш носитель») 6) `app/Services/Procurement/Eis/Card/CommonInfoParser.php`
 строки 1–60 (какие подписи полей парсер уже знает) 7)
-`plans/2026.08.06-CRAWL-HARDEN/research/07-p6-history-design.md` §3.8
+`plans/archive/2026.08.06-CRAWL-HARDEN/research/07-p6-history-design.md` §3.8
 
 ## 88
 
@@ -999,17 +999,17 @@ in_our_catalog}]}], fields[{url_type, tab, label, value_kind, our_carrier, recom
 ## 92
 
 структурный гейт артефакта —
-`python3 -c "import json,sys; d=json.load(open('plans/2026.08.06-CRAWL-HARDEN/artifacts/eis-card-inventory.json')); p=d['procedure_types']; bad=[x.get('url_type') for x in p if x.get('outcome') not in ('снят','не найден кандидат','недоступен') or 'tabs' not in x]; print('types:',len(p),'bad:',bad); sys.exit(1 if bad or len(p)<6 else 0)"`
+`python3 -c "import json,sys; d=json.load(open('plans/archive/2026.08.06-CRAWL-HARDEN/artifacts/eis-card-inventory.json')); p=d['procedure_types']; bad=[x.get('url_type') for x in p if x.get('outcome') not in ('снят','не найден кандидат','недоступен') or 'tabs' not in x]; print('types:',len(p),'bad:',bad); sys.exit(1 if bad or len(p)<6 else 0)"`
 — код возврата 0 (менее шести типов означает, что справочник покрыт не весь) · гейт матрицы полей —
-`python3 -c "import json,sys; d=json.load(open('plans/2026.08.06-CRAWL-HARDEN/artifacts/eis-card-inventory.json')); f=d['fields']; bad=[x.get('label') for x in f if not x.get('label') or x.get('our_carrier') in (None,'') or x.get('recommendation') in (None,'')]; print('fields:',len(f),'bad:',bad); sys.exit(1 if bad or not f else 0)"`
+`python3 -c "import json,sys; d=json.load(open('plans/archive/2026.08.06-CRAWL-HARDEN/artifacts/eis-card-inventory.json')); f=d['fields']; bad=[x.get('label') for x in f if not x.get('label') or x.get('our_carrier') in (None,'') or x.get('recommendation') in (None,'')]; print('fields:',len(f),'bad:',bad); sys.exit(1 if bad or not f else 0)"`
 — код возврата 0 · гейт канала —
-`python3 -c "import json,sys; d=json.load(open('plans/2026.08.06-CRAWL-HARDEN/artifacts/eis-card-inventory.json')); c=d['channel']; print(c); sys.exit(0 if c.get('egress_country')=='RU' and c.get('checked_at') else 1)"`
+`python3 -c "import json,sys; d=json.load(open('plans/archive/2026.08.06-CRAWL-HARDEN/artifacts/eis-card-inventory.json')); c=d['channel']; print(c); sys.exit(0 if c.get('egress_country')=='RU' and c.get('checked_at') else 1)"`
 — код возврата 0 · гейт вежливости — `requests_total` в артефакте ≤ 60 (печатается в Completion
 Notes) · гейт «значений нет» —
-`python3 -c "import json,sys; d=json.load(open('plans/2026.08.06-CRAWL-HARDEN/artifacts/eis-card-inventory.json')); bad=[k for x in d['fields'] for k in x if k in ('value','sample','sample_value')]; print('value-keys:',bad); sys.exit(1 if bad else 0)"`
+`python3 -c "import json,sys; d=json.load(open('plans/archive/2026.08.06-CRAWL-HARDEN/artifacts/eis-card-inventory.json')); bad=[k for x in d['fields'] for k in x if k in ('value','sample','sample_value')]; print('value-keys:',bad); sys.exit(1 if bad else 0)"`
 — код возврата 0 · гейт «код не тронут» —
 `git status --short -- app config database tests routes resources public composer.json` пусто ·
-`plan-lint plans/2026.08.06-CRAWL-HARDEN --baseline HEAD` (скрипт — `packages/task/scripts/plan-lint.py`
+`plan-lint plans/archive/2026.08.06-CRAWL-HARDEN --baseline HEAD` (скрипт — `packages/task/scripts/plan-lint.py`
 узла swissknifeman; путь узла резолвится скиллом `swissknifeman-locator`, в план не зашивается)
 — новых от диффа item'а ошибок 0.
 
@@ -1038,7 +1038,7 @@ AS35278 SPRINTHOST.RU (`ctx.request.get('https://ipinfo.io/json')`, до люб�
 **Запросов к площадке — 42 из 60** (`requests_total` артефакта), пауза 1,7 с; разбивка: SSR-листинг
 2 · CSV-выгрузка 3 · вкладки карточек 37.
 **Числа матрицы (на item-коммите `06a5fb1a`), получены командой**
-`python3 -c "import json; print(json.load(open('plans/2026.08.06-CRAWL-HARDEN/artifacts/eis-card-inventory.json'))['fields_summary'])"`:
+`python3 -c "import json; print(json.load(open('plans/archive/2026.08.06-CRAWL-HARDEN/artifacts/eis-card-inventory.json'))['fields_summary'])"`:
 строк матрицы **353**, без носителя **65**, `неясно` **12**, рекомендация «колонка» **57**,
 «jsonb» **284**, строк-заглушек **12**.
 
@@ -1161,12 +1161,12 @@ index `(platform_id, parent_code)`; корректный обратимый `dow
 ## 107
 
 снятые id разделов и рабочая форма запроса —
-`plans/2026.08.06-CRAWL-HARDEN/findings/P1-okpd2-probe.md` §2, §5 · машинная выжимка первой пробы
-— `plans/2026.08.06-CRAWL-HARDEN/artifacts/eis-okpd2-probe.json` · карта, снятая P1.2 (если фаза
-P1 к этому моменту исполнена) — `plans/2026.08.06-CRAWL-HARDEN/artifacts/eis-okpd2-map.json` +
-`plans/2026.08.06-CRAWL-HARDEN/findings/P1-okpd2-map.md` · разбор носителя и отвергнутые варианты
-— `plans/2026.08.06-CRAWL-HARDEN/research/03-p2-okpd2-design.md` §2.2, §3.3 · решения D9/D14/D19 —
-`plans/2026.08.06-CRAWL-HARDEN/plan.md`
+`plans/archive/2026.08.06-CRAWL-HARDEN/findings/P1-okpd2-probe.md` §2, §5 · машинная выжимка первой пробы
+— `plans/archive/2026.08.06-CRAWL-HARDEN/artifacts/eis-okpd2-probe.json` · карта, снятая P1.2 (если фаза
+P1 к этому моменту исполнена) — `plans/archive/2026.08.06-CRAWL-HARDEN/artifacts/eis-okpd2-map.json` +
+`plans/archive/2026.08.06-CRAWL-HARDEN/findings/P1-okpd2-map.md` · разбор носителя и отвергнутые варианты
+— `plans/archive/2026.08.06-CRAWL-HARDEN/research/03-p2-okpd2-design.md` §2.2, §3.3 · решения D9/D14/D19 —
+`plans/archive/2026.08.06-CRAWL-HARDEN/plan.md`
 
 ## 108
 
@@ -1181,13 +1181,13 @@ tail -1` — а не переписывается из плана: на 2026-08-
 `database/seeders/Procurement/Okpd2NodeSeeder.php` (новый) · `database/seeders/DatabaseSeeder.php` ·
 `tests/Feature/Procurement/Okpd2NodeSeederTest.php` (новый) ·
 `tests/Feature/Procurement/Okpd2NodeReadRepositoryTest.php` (новый) ·
-`plans/2026.08.06-CRAWL-HARDEN/phases/P2.md` · `plans/2026.08.06-CRAWL-HARDEN/plan.md` ·
-`plans/2026.08.06-CRAWL-HARDEN/handoff.md` · `plans/2026.08.06-CRAWL-HARDEN/journal.jsonl`
+`plans/archive/2026.08.06-CRAWL-HARDEN/phases/P2.md` · `plans/archive/2026.08.06-CRAWL-HARDEN/plan.md` ·
+`plans/archive/2026.08.06-CRAWL-HARDEN/handoff.md` · `plans/archive/2026.08.06-CRAWL-HARDEN/journal.jsonl`
 
 ## 109
 
-1) `plans/2026.08.06-CRAWL-HARDEN/research/03-p2-okpd2-design.md` §2.2, §3.3,
-§5 2) `plans/2026.08.06-CRAWL-HARDEN/findings/P1-okpd2-probe.md` §2, §5
+1) `plans/archive/2026.08.06-CRAWL-HARDEN/research/03-p2-okpd2-design.md` §2.2, §3.3,
+§5 2) `plans/archive/2026.08.06-CRAWL-HARDEN/findings/P1-okpd2-probe.md` §2, §5
 3) `database/migrations/2026_07_04_100005_create_ref_okpd2_table.php` (форма справочника, которую
 НЕ повторяем один-в-один: у нас есть `external_id`, `platform_id` и `synced_at`, у него —
 `valid_from`/`valid_to`) 4) `app/Models/Reference/Okpd2.php` (стиль модели-справочника проекта)
@@ -1253,7 +1253,7 @@ tail -1` — а не переписывается из плана: на 2026-08-
 `docker compose exec app ./vendor/bin/phpstan analyse --memory-limit=1G` — без новых ошибок и без
 новых строк в `phpstan-baseline.neon` · полный прогон —
 `docker compose exec -e DB_DATABASE=agelto_test app php artisan test --no-tia --compact` — зелено ·
-`plan-lint plans/2026.08.06-CRAWL-HARDEN --baseline HEAD` (скрипт — `packages/task/scripts/plan-lint.py`
+`plan-lint plans/archive/2026.08.06-CRAWL-HARDEN --baseline HEAD` (скрипт — `packages/task/scripts/plan-lint.py`
 узла swissknifeman; путь узла резолвится скиллом `swissknifeman-locator`, в план не зашивается) —
 новых от диффа item'а ошибок 0.
 
@@ -1289,7 +1289,7 @@ analyse --memory-limit=1G` — **0 errors**, `phpstan-baseline.neon` не выр
 passed / 18 failed / 1 skipped (4929 assertions)**; все 18 падений — предсуществующий дефект
 окружения контейнера (см. Known Deviations п. 2), ни одно не в домене Procurement\Platform/Okpd2 и
 ни одно не задето диффом item'а.
-Счёт линтера — `plan-lint plans/2026.08.06-CRAWL-HARDEN --baseline HEAD` — **0 ERROR / 1 WARN —
+Счёт линтера — `plan-lint plans/archive/2026.08.06-CRAWL-HARDEN --baseline HEAD` — **0 ERROR / 1 WARN —
 новых от диффа item'а: 1** (на bookkeeping-коммите). Единственный WARN — уже задокументированный
 латентный ложноположительный (`handoff.md` до P2.1, Pending Work P1.1): DoR-строка `phases/P2.md:54`
 несёт литерал маркера неясности и «выстреливает», как только фаза переходит в `🟡` — сама строка
@@ -1426,14 +1426,14 @@ baseline, этим item'ом НЕ чинится (`research/11` §5).
 решения D9 (в профиле хранится КОД), D18 (обязательность), D21 (отказ, а не пропуск),
 **D108 (периметр фикстур — фабрики), D109 (минимальное поле формы едет в P2.2), D110 (форма
 приёмочного гейта — дельта против baseline)** —
-`plans/2026.08.06-CRAWL-HARDEN/plan.md` · ответ владельца — `plans/2026.08.06-CRAWL-HARDEN/brief/01-refinements.md`
+`plans/archive/2026.08.06-CRAWL-HARDEN/plan.md` · ответ владельца — `plans/archive/2026.08.06-CRAWL-HARDEN/brief/01-refinements.md`
 · ловушки (тесты на строке `okpd2`, сид с `filter = null`) —
-`plans/2026.08.06-CRAWL-HARDEN/research/03-p2-okpd2-design.md` §2.3, §2.4, §5 · **измеренный
+`plans/archive/2026.08.06-CRAWL-HARDEN/research/03-p2-okpd2-design.md` §2.3, §2.4, §5 · **измеренный
 периметр, парный прогон и baseline** —
-`plans/2026.08.06-CRAWL-HARDEN/research/11-p2.2-scope-gate-perimeter.md` +
-`plans/2026.08.06-CRAWL-HARDEN/artifacts/P2.2-perimeter-baseline.txt` +
-`plans/2026.08.06-CRAWL-HARDEN/artifacts/P2.2-perimeter-with-diff.txt` · числа выборки —
-`plans/2026.08.06-CRAWL-HARDEN/findings/P1-okpd2-probe.md` §3
+`plans/archive/2026.08.06-CRAWL-HARDEN/research/11-p2.2-scope-gate-perimeter.md` +
+`plans/archive/2026.08.06-CRAWL-HARDEN/artifacts/P2.2-perimeter-baseline.txt` +
+`plans/archive/2026.08.06-CRAWL-HARDEN/artifacts/P2.2-perimeter-with-diff.txt` · числа выборки —
+`plans/archive/2026.08.06-CRAWL-HARDEN/findings/P1-okpd2-probe.md` §3
 
 ## 124
 
@@ -1447,14 +1447,14 @@ baseline, этим item'ом НЕ чинится (`research/11` §5).
 `tests/Feature/Crawler/CrawlerFilterContractTest.php` · `tests/Feature/Filament/CrawlerFormTest.php` ·
 `tests/Feature/Crawler/CsvSourceMethodTest.php` · `tests/Feature/Crawler/ArchiveWindowScannerTest.php` ·
 `tests/Unit/Crawler/EisCsvUrlBuilderTest.php` · `tests/Feature/Seeders/EisSeedersTest.php` ·
-`plans/2026.08.06-CRAWL-HARDEN/phases/P2.md` · `plans/2026.08.06-CRAWL-HARDEN/plan.md` ·
-`plans/2026.08.06-CRAWL-HARDEN/handoff.md` · `plans/2026.08.06-CRAWL-HARDEN/journal.jsonl`
+`plans/archive/2026.08.06-CRAWL-HARDEN/phases/P2.md` · `plans/archive/2026.08.06-CRAWL-HARDEN/plan.md` ·
+`plans/archive/2026.08.06-CRAWL-HARDEN/handoff.md` · `plans/archive/2026.08.06-CRAWL-HARDEN/journal.jsonl`
 
 ## 125
 
-1) `plans/2026.08.06-CRAWL-HARDEN/research/11-p2.2-scope-gate-perimeter.md`
+1) `plans/archive/2026.08.06-CRAWL-HARDEN/research/11-p2.2-scope-gate-perimeter.md`
 целиком (измеренный периметр, baseline, обоснование обеих правок фабрик и поля формы) —
-ПЕРВЫМ 2) `plans/2026.08.06-CRAWL-HARDEN/research/03-p2-okpd2-design.md` §2.3, §2.4,
+ПЕРВЫМ 2) `plans/archive/2026.08.06-CRAWL-HARDEN/research/03-p2-okpd2-design.md` §2.3, §2.4,
 §3.4, §5 3) `app/Dto/Procurement/Crawler/EisSearchFilter.php` целиком (докблоки объясняют, почему
 состав полей именно такой) 4) `app/Dto/Procurement/Crawler/Contracts/HasPriceRange.php` (канон
 контрактов этого каталога) 5) `app/Models/Procurement/Crawler/Crawler.php` (`booted()`,
@@ -1567,7 +1567,7 @@ Deviations и предложить владельцу решение (C3).
 тестах фильтра · гейт «фабрика отдаёт сохраняемую модель» —
 `docker compose exec -e DB_DATABASE=agelto_test app php artisan test --no-tia tests/Feature/Crawler/DeltaScanTest.php tests/Feature/Crawler/ChangeTrackingWindowTest.php`
 зелено ТРИЖДЫ подряд (эти два файла — индикатор флакости `RegistryFactory`, `research/11` §2) ·
-`plan-lint plans/2026.08.06-CRAWL-HARDEN --baseline HEAD` — новых от диффа item'а ошибок 0.
+`plan-lint plans/archive/2026.08.06-CRAWL-HARDEN --baseline HEAD` — новых от диффа item'а ошибок 0.
 
 ## 129
 
@@ -1614,7 +1614,7 @@ tests/Feature/Seeders tests/Feature/Filament tests/Feature/Procurement` — **15
 байт-в-байт (`EisSeedersTest` ×5, `ContourTest` ×1, `Prepare/ArchiveStrategyTest` ×2,
 `Prepare/DocumentPreparerTest` ×3, `Prepare/GsfxStrategyTest` ×1, `Prepare/TextGridRendererTest` ×1,
 `Screening/ScreeningBranchingTest` ×1, `StatusMappingSeederTest` ×1 = 15); ни одного падения с текстом
-гейта скоупа или «okpd2 codes field is required» · `plan-lint plans/2026.08.06-CRAWL-HARDEN
+гейта скоупа или «okpd2 codes field is required» · `plan-lint plans/archive/2026.08.06-CRAWL-HARDEN
 --baseline HEAD` — 0 ERROR / 0 WARN, новых от диффа item'а: 0.
 
 ## 131
@@ -1679,24 +1679,24 @@ no
 ## 139
 
 форма запроса и доказательства, что фильтр доезжает до CSV —
-`plans/2026.08.06-CRAWL-HARDEN/findings/P1-okpd2-probe.md` §1–§4 · решения D8/D9/D21 —
-`plans/2026.08.06-CRAWL-HARDEN/plan.md` · ловушки (порядок id, второй канал, `withNested` для
-листа) — `plans/2026.08.06-CRAWL-HARDEN/research/03-p2-okpd2-design.md` §5 · резолвер и его
+`plans/archive/2026.08.06-CRAWL-HARDEN/findings/P1-okpd2-probe.md` §1–§4 · решения D8/D9/D21 —
+`plans/archive/2026.08.06-CRAWL-HARDEN/plan.md` · ловушки (порядок id, второй канал, `withNested` для
+листа) — `plans/archive/2026.08.06-CRAWL-HARDEN/research/03-p2-okpd2-design.md` §5 · резолвер и его
 контракт — `app/Repositories/Procurement/Platform/Okpd2NodeReadRepository.php` (Deliverable P2.1)
 
 ## 140
 
 `app/Services/Procurement/Eis/EisCsvUrlBuilder.php` ·
 `tests/Unit/Crawler/EisCsvUrlBuilderTest.php` (новый, если файла нет; иначе — существующий тест
-билдера) · `plans/2026.08.06-CRAWL-HARDEN/phases/P2.md` · `plans/2026.08.06-CRAWL-HARDEN/plan.md` ·
-`plans/2026.08.06-CRAWL-HARDEN/handoff.md` · `plans/2026.08.06-CRAWL-HARDEN/journal.jsonl`
+билдера) · `plans/archive/2026.08.06-CRAWL-HARDEN/phases/P2.md` · `plans/archive/2026.08.06-CRAWL-HARDEN/plan.md` ·
+`plans/archive/2026.08.06-CRAWL-HARDEN/handoff.md` · `plans/archive/2026.08.06-CRAWL-HARDEN/journal.jsonl`
 
 ## 141
 
 1) `app/Services/Procurement/Eis/EisCsvUrlBuilder.php` целиком (докблок
 объясняет, почему имена ЕИС-параметров живут только здесь) 2)
-`plans/2026.08.06-CRAWL-HARDEN/findings/P1-okpd2-probe.md` §1–§3
-3) `plans/2026.08.06-CRAWL-HARDEN/research/03-p2-okpd2-design.md` §2.5, §5
+`plans/archive/2026.08.06-CRAWL-HARDEN/findings/P1-okpd2-probe.md` §1–§3
+3) `plans/archive/2026.08.06-CRAWL-HARDEN/research/03-p2-okpd2-design.md` §2.5, §5
 4) `app/Services/Procurement/Eis/CsvSourceMethod.php` строки 61–101 (как билдер вызывается в бою —
 чтобы не сломать инъекцию) 5) `app/Filament/Resources/Procurement/Crawler/Crawlers/Schemas/CrawlerForm.php`
 метод `previewUrl()` (второй вызывающий билдера) 6) skill `testing-rules`
@@ -1745,7 +1745,7 @@ Deviations как расширение `Files` относительно спек
 новых строк в `phpstan-baseline.neon` · полный прогон —
 `docker compose exec -e DB_DATABASE=agelto_test app php artisan test --no-tia --compact` — зелено ·
 гейт «сеть не тронута» — `grep -rn "zakupki.gov.ru" tests/ | grep -v Fixtures` пусто ·
-`plan-lint plans/2026.08.06-CRAWL-HARDEN --baseline HEAD` — новых от диффа item'а ошибок 0.
+`plan-lint plans/archive/2026.08.06-CRAWL-HARDEN --baseline HEAD` — новых от диффа item'а ошибок 0.
 
 ## 146
 
@@ -1788,7 +1788,7 @@ php artisan test --no-tia --filter='EisCsvUrlBuilder'`).
 `Prepare\ArchiveStrategyTest` ×2, `Prepare\DocumentPrepareTest` ×3, `Prepare\GsfxStrategyTest`,
 `Prepare\TextGridRendererTest`, `Screening\ScreeningBranchTest` — все окружение контейнера
 `app`/предсуществующий батч-шум, вне диффа item'а) — Δ failed = 0 (K = 0), Δ passed = +4 (ровно
-новые тесты item'а). `plan-lint plans/2026.08.06-CRAWL-HARDEN --baseline HEAD` — нет переменной
+новые тесты item'а). `plan-lint plans/archive/2026.08.06-CRAWL-HARDEN --baseline HEAD` — нет переменной
 `python3 "${CLAUDE_PLUGIN_ROOT}/scripts/plan-lint.py"` в этой раскладке (standalone-плагин из
 кеша, не монорепо), прогон недоступен — предупреждение, не блокер (та же оговорка, что у
 предыдущих items плана).
@@ -1875,28 +1875,28 @@ forms/03-select.md «Grouping options»)`. Оба сценария владел�
 
 ## 156
 
-решение по UI и отвергнутые варианты — `plans/2026.08.06-CRAWL-HARDEN/plan.md` D17 +
+решение по UI и отвергнутые варианты — `plans/archive/2026.08.06-CRAWL-HARDEN/plan.md` D17 +
 `## Обсуждение` развилка № 8 · **граница «минимальное поле → P2.2, доводка → P2.4» — D109 +
 `research/11-p2.2-scope-gate-perimeter.md` §3** · формулировка владельца о маске и конкретных кодах —
-`plans/2026.08.06-CRAWL-HARDEN/brief/01-refinements.md` · пустота классификаторных колонок —
-`plans/2026.08.06-CRAWL-HARDEN/findings/P1-okpd2-probe.md` §4 + `research/03-p2-okpd2-design.md`
+`plans/archive/2026.08.06-CRAWL-HARDEN/brief/01-refinements.md` · пустота классификаторных колонок —
+`plans/archive/2026.08.06-CRAWL-HARDEN/findings/P1-okpd2-probe.md` §4 + `research/03-p2-okpd2-design.md`
 §2.1 · источник опций — `app/Repositories/Procurement/Platform/Okpd2NodeReadRepository.php`
 (Deliverable P2.1)
 
 ## 157
 
 `app/Filament/Resources/Procurement/Crawler/Crawlers/Schemas/CrawlerForm.php` ·
-`tests/Feature/Filament/CrawlerFormTest.php` · `plans/2026.08.06-CRAWL-HARDEN/phases/P2.md` ·
-`plans/2026.08.06-CRAWL-HARDEN/plan.md` · `plans/2026.08.06-CRAWL-HARDEN/handoff.md` ·
-`plans/2026.08.06-CRAWL-HARDEN/journal.jsonl`
+`tests/Feature/Filament/CrawlerFormTest.php` · `plans/archive/2026.08.06-CRAWL-HARDEN/phases/P2.md` ·
+`plans/archive/2026.08.06-CRAWL-HARDEN/plan.md` · `plans/archive/2026.08.06-CRAWL-HARDEN/handoff.md` ·
+`plans/archive/2026.08.06-CRAWL-HARDEN/journal.jsonl`
 
 ## 158
 
 1) `app/Filament/Resources/Procurement/Crawler/Crawlers/Schemas/CrawlerForm.php`
 целиком (докблоки объясняют, почему ветка резолвится по КЛАССУ фильтра, а не по коду реестра)
 2) `tests/Feature/Filament/CrawlerFormTest.php` целиком 3)
-`plans/2026.08.06-CRAWL-HARDEN/research/03-p2-okpd2-design.md` §3.2 4)
-`plans/2026.08.06-CRAWL-HARDEN/research/11-p2.2-scope-gate-perimeter.md` §3 (что именно уже сделано
+`plans/archive/2026.08.06-CRAWL-HARDEN/research/03-p2-okpd2-design.md` §3.2 4)
+`plans/archive/2026.08.06-CRAWL-HARDEN/research/11-p2.2-scope-gate-perimeter.md` §3 (что именно уже сделано
 P2.2 и почему) 5) skill `filament` 6) skill `testing-rules`
 
 ## 159
@@ -1943,7 +1943,7 @@ item'ом на его собственном дереве (форма гейта
 `research/11-p2.2-scope-gate-perimeter.md` §4): `docker compose exec -e DB_DATABASE=agelto_test app php artisan test --no-tia --compact`
 — Δ failed ≤ 0, ни одного нового падения ·
 гейт «зависимостей не прибавилось» — `git diff --stat HEAD -- composer.json composer.lock` пусто ·
-`plan-lint plans/2026.08.06-CRAWL-HARDEN --baseline HEAD` — новых от диффа item'а ошибок 0.
+`plan-lint plans/archive/2026.08.06-CRAWL-HARDEN --baseline HEAD` — новых от диффа item'а ошибок 0.
 
 ## 162
 
@@ -2039,11 +2039,11 @@ Implementation Rules п. 4); (6) код возврата: ненулевой, е
 ## 172
 
 эндпоинт и формат ответа, снятые живым замером —
-`plans/2026.08.06-CRAWL-HARDEN/findings/P1-okpd2-probe.md` §5 · процедура пересборки и требование
+`plans/archive/2026.08.06-CRAWL-HARDEN/findings/P1-okpd2-probe.md` §5 · процедура пересборки и требование
 к детекту дрейфа (Deliverable P1.2) —
-`plans/2026.08.06-CRAWL-HARDEN/findings/P1-okpd2-map.md` · решения D14/D19 —
-`plans/2026.08.06-CRAWL-HARDEN/plan.md` · требование «не заводить второй канал к площадке» —
-`plans/2026.08.06-CRAWL-HARDEN/research/03-p2-okpd2-design.md` §2.6, §5 п. 5 · таблица и
+`plans/archive/2026.08.06-CRAWL-HARDEN/findings/P1-okpd2-map.md` · решения D14/D19 —
+`plans/archive/2026.08.06-CRAWL-HARDEN/plan.md` · требование «не заводить второй канал к площадке» —
+`plans/archive/2026.08.06-CRAWL-HARDEN/research/03-p2-okpd2-design.md` §2.6, §5 п. 5 · таблица и
 репозиторий — Deliverable P2.1
 
 ## 173
@@ -2053,12 +2053,12 @@ Implementation Rules п. 4); (6) код возврата: ненулевой, е
 тонкой) · `app/Repositories/Procurement/Platform/Okpd2NodeStoreRepository.php` (новый — запись
 узлов и `synced_at`) · `config/crawler.php` · `tests/Feature/Procurement/SyncOkpd2NodesTest.php`
 (новый) · `tests/Fixtures/Crawler/okpd2-children.json` (новая фикстура ответа `children.html`) ·
-`plans/2026.08.06-CRAWL-HARDEN/phases/P2.md` · `plans/2026.08.06-CRAWL-HARDEN/plan.md` ·
-`plans/2026.08.06-CRAWL-HARDEN/handoff.md` · `plans/2026.08.06-CRAWL-HARDEN/journal.jsonl`
+`plans/archive/2026.08.06-CRAWL-HARDEN/phases/P2.md` · `plans/archive/2026.08.06-CRAWL-HARDEN/plan.md` ·
+`plans/archive/2026.08.06-CRAWL-HARDEN/handoff.md` · `plans/archive/2026.08.06-CRAWL-HARDEN/journal.jsonl`
 
 ## 174
 
-1) `plans/2026.08.06-CRAWL-HARDEN/findings/P1-okpd2-probe.md` §5, §6, §7
+1) `plans/archive/2026.08.06-CRAWL-HARDEN/findings/P1-okpd2-probe.md` §5, §6, §7
 2) `app/Services/Procurement/Eis/CsvSourceMethod.php` строки 61–101 (канон канала: лиза прокси →
 пауза → запрос с `verify` из `SourceTlsTrust`) 3) `app/Services/Procurement/Proxy/ProxyResolver.php`
 (сигнатура `resolve()`, исключения) 4) `app/Services/Procurement/SourceTlsTrust.php`
@@ -2120,7 +2120,7 @@ skill `repositories`). Классы `final`, `declare(strict_types=1)`, конс
 `docker compose exec app ./vendor/bin/phpstan analyse --memory-limit=1G` — без новых ошибок и без
 новых строк в `phpstan-baseline.neon` · полный прогон —
 `docker compose exec -e DB_DATABASE=agelto_test app php artisan test --no-tia --compact` — зелено ·
-`plan-lint plans/2026.08.06-CRAWL-HARDEN --baseline HEAD` — новых от диффа item'а ошибок 0.
+`plan-lint plans/archive/2026.08.06-CRAWL-HARDEN --baseline HEAD` — новых от диффа item'а ошибок 0.
 
 ## 179
 
@@ -2255,11 +2255,11 @@ okpd2_code`/`okpd2_codes` вместе с GIN-индексом, приведен
 ## 189
 
 решение владельца и его обоснование —
-`plans/2026.08.06-CRAWL-HARDEN/plan.md` D16 + `## Обсуждение` развилка № 6 ·
-`plans/2026.08.06-CRAWL-HARDEN/brief/01-refinements.md` · полный список точек цепочки —
-`plans/2026.08.06-CRAWL-HARDEN/research/03-p2-okpd2-design.md` §2.1, §7 · второй независимый замер
-— `plans/2026.08.06-CRAWL-HARDEN/findings/P1-okpd2-probe.md` §4 · финальный вердикт P1.2 (если
-фаза P1 исполнена) — `plans/2026.08.06-CRAWL-HARDEN/findings/P1-okpd2-map.md`
+`plans/archive/2026.08.06-CRAWL-HARDEN/plan.md` D16 + `## Обсуждение` развилка № 6 ·
+`plans/archive/2026.08.06-CRAWL-HARDEN/brief/01-refinements.md` · полный список точек цепочки —
+`plans/archive/2026.08.06-CRAWL-HARDEN/research/03-p2-okpd2-design.md` §2.1, §7 · второй независимый замер
+— `plans/archive/2026.08.06-CRAWL-HARDEN/findings/P1-okpd2-probe.md` §4 · финальный вердикт P1.2 (если
+фаза P1 исполнена) — `plans/archive/2026.08.06-CRAWL-HARDEN/findings/P1-okpd2-map.md`
 
 ## 190
 
@@ -2272,12 +2272,12 @@ okpd2_code`/`okpd2_codes` вместе с GIN-индексом, приведен
 следующий свободный после миграции P2.1) · `database/seeders/Procurement/CrawlerProfileSeeder.php` ·
 `tests/Unit/Crawler/EisCsvRowMapperTest.php` · `tests/Feature/Procurement/PlatformOnboardingTest.php` ·
 `docs/03_Dev/ocds-mapping.md` · `docs/specs/v2/01-database.md` ·
-`plans/2026.08.06-CRAWL-HARDEN/phases/P2.md` · `plans/2026.08.06-CRAWL-HARDEN/plan.md` ·
-`plans/2026.08.06-CRAWL-HARDEN/handoff.md` · `plans/2026.08.06-CRAWL-HARDEN/journal.jsonl`
+`plans/archive/2026.08.06-CRAWL-HARDEN/phases/P2.md` · `plans/archive/2026.08.06-CRAWL-HARDEN/plan.md` ·
+`plans/archive/2026.08.06-CRAWL-HARDEN/handoff.md` · `plans/archive/2026.08.06-CRAWL-HARDEN/journal.jsonl`
 
 ## 191
 
-1) `plans/2026.08.06-CRAWL-HARDEN/research/03-p2-okpd2-design.md` §2.1, §7
+1) `plans/archive/2026.08.06-CRAWL-HARDEN/research/03-p2-okpd2-design.md` §2.1, §7
 2) `app/Services/Procurement/Eis/EisCsvRowMapper.php` целиком 3)
 `app/Dto/Procurement/ProcurementSnapshotData.php` целиком 4)
 `app/Repositories/Procurement/ProcurementStoreRepository.php` (обе точки записи)
@@ -2332,7 +2332,7 @@ grep-гейт контура листинга —
 `docker compose exec app ./vendor/bin/phpstan analyse --memory-limit=1G` — без новых ошибок и без
 новых строк в `phpstan-baseline.neon` · полный прогон —
 `docker compose exec -e DB_DATABASE=agelto_test app php artisan test --no-tia --compact` — зелено ·
-`plan-lint plans/2026.08.06-CRAWL-HARDEN --baseline HEAD` — новых от диффа item'а ошибок 0.
+`plan-lint plans/archive/2026.08.06-CRAWL-HARDEN --baseline HEAD` — новых от диффа item'а ошибок 0.
 
 ## 195
 
@@ -2449,11 +2449,11 @@ round-trip фильтра через jsonb сохраняет оба поля, �
 ## 205
 
 подтверждённые значения и инверсия направления —
-`plans/2026.08.06-CRAWL-HARDEN/findings/eis-params-carryover.md` §1 · вердикт о действии
-сортировки НА ВЫГРУЗКЕ — `plans/2026.08.06-CRAWL-HARDEN/findings/P1-listing-params.md`
+`plans/archive/2026.08.06-CRAWL-HARDEN/findings/eis-params-carryover.md` §1 · вердикт о действии
+сортировки НА ВЫГРУЗКЕ — `plans/archive/2026.08.06-CRAWL-HARDEN/findings/P1-listing-params.md`
 (Deliverable P1.1) · ловушки (инверсия, перекрытие archive-веткой, coupling с P2) —
-`plans/2026.08.06-CRAWL-HARDEN/research/04-p3-runs-design.md` §6 п. 1–3 · требование двух
-сортировок — `plans/2026.08.06-CRAWL-HARDEN/brief/00-brief.md` блок 2
+`plans/archive/2026.08.06-CRAWL-HARDEN/research/04-p3-runs-design.md` §6 п. 1–3 · требование двух
+сортировок — `plans/archive/2026.08.06-CRAWL-HARDEN/brief/00-brief.md` блок 2
 
 ## 206
 
@@ -2464,14 +2464,14 @@ round-trip фильтра через jsonb сохраняет оба поля, �
 `tests/Unit/Crawler/EisCsvUrlBuilderTest.php` ·
 `tests/Feature/Crawler/CrawlerFilterContractTest.php` ·
 `tests/Feature/Filament/CrawlerFormTest.php` ·
-`plans/2026.08.06-CRAWL-HARDEN/phases/P3.md` · `plans/2026.08.06-CRAWL-HARDEN/plan.md` ·
-`plans/2026.08.06-CRAWL-HARDEN/handoff.md` · `plans/2026.08.06-CRAWL-HARDEN/journal.jsonl`
+`plans/archive/2026.08.06-CRAWL-HARDEN/phases/P3.md` · `plans/archive/2026.08.06-CRAWL-HARDEN/plan.md` ·
+`plans/archive/2026.08.06-CRAWL-HARDEN/handoff.md` · `plans/archive/2026.08.06-CRAWL-HARDEN/journal.jsonl`
 
 ## 207
 
-1) `plans/2026.08.06-CRAWL-HARDEN/research/04-p3-runs-design.md` §1, §6
-2) `plans/2026.08.06-CRAWL-HARDEN/findings/eis-params-carryover.md` §1
-3) `plans/2026.08.06-CRAWL-HARDEN/findings/P1-listing-params.md` целиком (вердикт по сортировке —
+1) `plans/archive/2026.08.06-CRAWL-HARDEN/research/04-p3-runs-design.md` §1, §6
+2) `plans/archive/2026.08.06-CRAWL-HARDEN/findings/eis-params-carryover.md` §1
+3) `plans/archive/2026.08.06-CRAWL-HARDEN/findings/P1-listing-params.md` целиком (вердикт по сортировке —
 предпосылка item'а) 4) `app/Dto/Procurement/Crawler/EisSearchFilter.php` целиком (докблок
 объясняет, почему в контракт входят только параметры с наблюдавшимся действием)
 5) `app/Services/Procurement/Eis/EisCsvUrlBuilder.php` целиком 6)
@@ -2524,7 +2524,7 @@ item не начинается: без вердикта это работа на
 `docker compose exec -e DB_DATABASE=agelto_test app php artisan test --no-tia --compact` — зелено ·
 гейт «дефолт не изменился» — тест, сравнивающий URL профиля БЕЗ полей сортировки с прежней парой
 `sortBy=UPDATE_DATE&sortDirection=false`, зелёный ·
-`plan-lint plans/2026.08.06-CRAWL-HARDEN --baseline HEAD` (скрипт — `packages/task/scripts/plan-lint.py`
+`plan-lint plans/archive/2026.08.06-CRAWL-HARDEN --baseline HEAD` (скрипт — `packages/task/scripts/plan-lint.py`
 узла swissknifeman; путь узла резолвится скиллом `swissknifeman-locator`, в план не зашивается) —
 новых от диффа item'а ошибок 0.
 
@@ -2650,10 +2650,10 @@ tests/Feature/Crawler/CrawlerRunManagerTest.php:61, других вызовов 
 ## 221
 
 факты о синхронном исполнении, мёртвом `recoverStale()`, инварианте таймаутов и
-запрете свойств ретрая — `plans/2026.08.06-CRAWL-HARDEN/research/04-p3-runs-design.md` §2.1, §2.2,
+запрете свойств ретрая — `plans/archive/2026.08.06-CRAWL-HARDEN/research/04-p3-runs-design.md` §2.1, §2.2,
 §2.3, §2.4 · ловушки (`startOrResume` не отказ, `stats` перезаписывается целиком) — там же §6
-п. 4–6 · решения D27/D28 — `plans/2026.08.06-CRAWL-HARDEN/plan.md` · требования брифа —
-`plans/2026.08.06-CRAWL-HARDEN/brief/00-brief.md` блоки 2 и 5
+п. 4–6 · решения D27/D28 — `plans/archive/2026.08.06-CRAWL-HARDEN/plan.md` · требования брифа —
+`plans/archive/2026.08.06-CRAWL-HARDEN/brief/00-brief.md` блоки 2 и 5
 
 ## 222
 
@@ -2675,12 +2675,12 @@ tests/Feature/Crawler/CrawlerRunManagerTest.php:61, других вызовов 
 `tests/Feature/Crawler/CrawlerRunManagerTest.php` ·
 `tests/Feature/Console/RunFreshCrawlerTest.php` ·
 `tests/Feature/Console/RunArchiveCrawlerTest.php` ·
-`plans/2026.08.06-CRAWL-HARDEN/phases/P3.md` · `plans/2026.08.06-CRAWL-HARDEN/plan.md` ·
-`plans/2026.08.06-CRAWL-HARDEN/handoff.md` · `plans/2026.08.06-CRAWL-HARDEN/journal.jsonl`
+`plans/archive/2026.08.06-CRAWL-HARDEN/phases/P3.md` · `plans/archive/2026.08.06-CRAWL-HARDEN/plan.md` ·
+`plans/archive/2026.08.06-CRAWL-HARDEN/handoff.md` · `plans/archive/2026.08.06-CRAWL-HARDEN/journal.jsonl`
 
 ## 223
 
-1) `plans/2026.08.06-CRAWL-HARDEN/research/04-p3-runs-design.md` §2, §6, §7
+1) `plans/archive/2026.08.06-CRAWL-HARDEN/research/04-p3-runs-design.md` §2, §6, §7
 2) `app/Services/Procurement/CrawlerRunManager.php` целиком (докблок класса: инвариантом владеет
 индекс БД, вторая PHP-проверка запрещена) 3) `app/Services/Procurement/Modes/FreshRunProcessor.php`
 целиком 4) `app/Services/Procurement/ArchiveWindowScanner.php` строки 33–70 (точка `refresh()`
@@ -2757,7 +2757,7 @@ job'а (у команды нет ни уникальности, ни бюдже�
 гейт инварианта таймаутов — `docker compose exec app php -r "echo (int) config('crawler.run.checkpoint_seconds'), ' ', (int) config('horizon.defaults.supervisor-crawl.timeout'), ' ', (int) config('queue.connections.redis.retry_after'), PHP_EOL;"`
 даёт строго возрастающую тройку · гейт «сеть не тронута» —
 `grep -rn "zakupki.gov.ru" tests/ | grep -v Fixtures` пусто ·
-`plan-lint plans/2026.08.06-CRAWL-HARDEN --baseline HEAD` — новых от диффа item'а ошибок 0.
+`plan-lint plans/archive/2026.08.06-CRAWL-HARDEN --baseline HEAD` — новых от диффа item'а ошибок 0.
 
 ## 227
 
@@ -2903,11 +2903,11 @@ fresh-прогона; калибровка запаса боевым прого�
 
 ## 237
 
-формулировка владельца — `plans/2026.08.06-CRAWL-HARDEN/brief/00-brief.md` блок 2 ·
+формулировка владельца — `plans/archive/2026.08.06-CRAWL-HARDEN/brief/00-brief.md` блок 2 ·
 разбор порога и отвергнутый `finished_at` —
-`plans/2026.08.06-CRAWL-HARDEN/research/04-p3-runs-design.md` §4 · имя настройки и почему не
+`plans/archive/2026.08.06-CRAWL-HARDEN/research/04-p3-runs-design.md` §4 · имя настройки и почему не
 `mode` — там же §5 (D29) · вердикт о действии сортировки на выгрузке —
-`plans/2026.08.06-CRAWL-HARDEN/findings/P1-listing-params.md` (Deliverable P1.1) · механизм
+`plans/archive/2026.08.06-CRAWL-HARDEN/findings/P1-listing-params.md` (Deliverable P1.1) · механизм
 измерения — `app/Dto/Procurement/Crawler/FetchResult.php`
 
 ## 238
@@ -2920,12 +2920,12 @@ fresh-прогона; калибровка запаса боевым прого�
 `app/Filament/Resources/Procurement/Crawler/Crawlers/Schemas/CrawlerForm.php` ·
 `tests/Feature/Crawler/FreshRunProcessorTest.php` ·
 `tests/Feature/Filament/CrawlerFormTest.php` ·
-`plans/2026.08.06-CRAWL-HARDEN/phases/P3.md` · `plans/2026.08.06-CRAWL-HARDEN/plan.md` ·
-`plans/2026.08.06-CRAWL-HARDEN/handoff.md` · `plans/2026.08.06-CRAWL-HARDEN/journal.jsonl`
+`plans/archive/2026.08.06-CRAWL-HARDEN/phases/P3.md` · `plans/archive/2026.08.06-CRAWL-HARDEN/plan.md` ·
+`plans/archive/2026.08.06-CRAWL-HARDEN/handoff.md` · `plans/archive/2026.08.06-CRAWL-HARDEN/journal.jsonl`
 
 ## 239
 
-1) `plans/2026.08.06-CRAWL-HARDEN/research/04-p3-runs-design.md` §4, §5, §6
+1) `plans/archive/2026.08.06-CRAWL-HARDEN/research/04-p3-runs-design.md` §4, §5, §6
 2) `app/Services/Procurement/Modes/FreshRunProcessor.php` целиком (оба существующих стоп-условия
 и порядок их проверки) 3) `app/Services/Procurement/CrawlerRunManager.php` методы
 `lastCompletedRun()`, `recordOldestUpdateSeen()` 4) `tests/Feature/Crawler/FreshRunProcessorTest.php`
@@ -2978,7 +2978,7 @@ P1.1 — «сортировка на выгрузке не действует» 
 `docker compose exec app ./vendor/bin/phpstan analyse --memory-limit=1G` — без новых ошибок и без
 новых строк в `phpstan-baseline.neon` · полный прогон —
 `docker compose exec -e DB_DATABASE=agelto_test app php artisan test --no-tia --compact` — зелено ·
-`plan-lint plans/2026.08.06-CRAWL-HARDEN --baseline HEAD` — новых от диффа item'а ошибок 0.
+`plan-lint plans/archive/2026.08.06-CRAWL-HARDEN --baseline HEAD` — новых от диффа item'а ошибок 0.
 
 ## 243
 
@@ -3097,11 +3097,11 @@ app/Filament/…/Runs/RunResource.php:17-22; app/Services/Procurement/CrawlerRun
 
 ## 253
 
-требования брифа — `plans/2026.08.06-CRAWL-HARDEN/brief/00-brief.md` блоки 2 и 5 ·
+требования брифа — `plans/archive/2026.08.06-CRAWL-HARDEN/brief/00-brief.md` блоки 2 и 5 ·
 решения D25/D26 (какие кнопки и что делает «Остановить») —
-`plans/2026.08.06-CRAWL-HARDEN/plan.md` · ловушки (право по смыслу действия, арх-гейт подобласти
+`plans/archive/2026.08.06-CRAWL-HARDEN/plan.md` · ловушки (право по смыслу действия, арх-гейт подобласти
 исключений, `startOrResume` не отказ) —
-`plans/2026.08.06-CRAWL-HARDEN/research/04-p3-runs-design.md` §6 п. 4, 9, 10 · механизм
+`plans/archive/2026.08.06-CRAWL-HARDEN/research/04-p3-runs-design.md` §6 п. 4, 9, 10 · механизм
 остановки — `app/Services/Procurement/RunStopGate.php` и `app/Jobs/Procurement/CrawlRunJob.php`
 (Deliverables P3.2)
 
@@ -3120,12 +3120,12 @@ app/Filament/…/Runs/RunResource.php:17-22; app/Services/Procurement/CrawlerRun
 `docs/04_Operators/how-to/restart-failed-run.md` ·
 `tests/Feature/Filament/CrawlerRunActionsTest.php` (новый) ·
 `tests/Feature/Console/RunFreshCrawlerTest.php` ·
-`plans/2026.08.06-CRAWL-HARDEN/phases/P3.md` · `plans/2026.08.06-CRAWL-HARDEN/plan.md` ·
-`plans/2026.08.06-CRAWL-HARDEN/handoff.md` · `plans/2026.08.06-CRAWL-HARDEN/journal.jsonl`
+`plans/archive/2026.08.06-CRAWL-HARDEN/phases/P3.md` · `plans/archive/2026.08.06-CRAWL-HARDEN/plan.md` ·
+`plans/archive/2026.08.06-CRAWL-HARDEN/handoff.md` · `plans/archive/2026.08.06-CRAWL-HARDEN/journal.jsonl`
 
 ## 255
 
-1) `plans/2026.08.06-CRAWL-HARDEN/research/04-p3-runs-design.md` §6 п. 4, 9, 10
+1) `plans/archive/2026.08.06-CRAWL-HARDEN/research/04-p3-runs-design.md` §6 п. 4, 9, 10
 2) `app/Filament/Resources/Procurement/Ai/Fixtures/Pages/ViewFixture.php` целиком (канон
 действия: право строкой ability, guard активного прогона И в `visible()`, И внутри Action,
 уведомления) 3) `app/Services/Procurement/Fixture/RunFixtureAnalysisAction.php` (канон
@@ -3181,7 +3181,7 @@ make()` с `->label()` по-русски, `->requiresConfirmation()` на раз
 новых строк в `phpstan-baseline.neon` · полный прогон —
 `docker compose exec -e DB_DATABASE=agelto_test app php artisan test --no-tia --compact` — зелено ·
 гейт «прав не прибавилось» — `git diff HEAD -- app/Guards/` пусто ·
-`plan-lint plans/2026.08.06-CRAWL-HARDEN --baseline HEAD` — новых от диффа item'а ошибок 0.
+`plan-lint plans/archive/2026.08.06-CRAWL-HARDEN --baseline HEAD` — новых от диффа item'а ошибок 0.
 
 ## 259
 
@@ -3293,24 +3293,24 @@ fresh-профиля `is_active = false`, у archive-профиля полити
 
 ## 269
 
-состав обоих профилей — `plans/2026.08.06-CRAWL-HARDEN/brief/00-brief.md` блок 2 ·
-поля, заведённые фазой — `plans/2026.08.06-CRAWL-HARDEN/phases/P3.md` items P3.1 и P3.3 ·
-состояние сида после P2 — `plans/2026.08.06-CRAWL-HARDEN/phases/P2.md` item P2.2 ·
+состав обоих профилей — `plans/archive/2026.08.06-CRAWL-HARDEN/brief/00-brief.md` блок 2 ·
+поля, заведённые фазой — `plans/archive/2026.08.06-CRAWL-HARDEN/phases/P3.md` items P3.1 и P3.3 ·
+состояние сида после P2 — `plans/archive/2026.08.06-CRAWL-HARDEN/phases/P2.md` item P2.2 ·
 `database/seeders/Procurement/CrawlerProfileSeeder.php`
 
 ## 270
 
 `database/seeders/Procurement/CrawlerProfileSeeder.php` ·
 `tests/Feature/Crawler/CrawlerProfileSeederTest.php` (новый, если файла нет) ·
-`plans/2026.08.06-CRAWL-HARDEN/phases/P3.md` · `plans/2026.08.06-CRAWL-HARDEN/plan.md` ·
-`plans/2026.08.06-CRAWL-HARDEN/handoff.md` · `plans/2026.08.06-CRAWL-HARDEN/journal.jsonl`
+`plans/archive/2026.08.06-CRAWL-HARDEN/phases/P3.md` · `plans/archive/2026.08.06-CRAWL-HARDEN/plan.md` ·
+`plans/archive/2026.08.06-CRAWL-HARDEN/handoff.md` · `plans/archive/2026.08.06-CRAWL-HARDEN/journal.jsonl`
 
 ## 271
 
 1) `database/seeders/Procurement/CrawlerProfileSeeder.php` целиком (докблоки
 объясняют идемпотентность, резолв реестра и почему fresh неактивен) 2)
-`plans/2026.08.06-CRAWL-HARDEN/brief/00-brief.md` блок 2 3)
-`plans/2026.08.06-CRAWL-HARDEN/phases/P2.md` item P2.2 Scope Included п. 5 (что сид несёт после
+`plans/archive/2026.08.06-CRAWL-HARDEN/brief/00-brief.md` блок 2 3)
+`plans/archive/2026.08.06-CRAWL-HARDEN/phases/P2.md` item P2.2 Scope Included п. 5 (что сид несёт после
 P2) 4) skill `testing-rules`
 
 ## 272
@@ -3343,7 +3343,7 @@ P2) 4) skill `testing-rules`
 `docker compose exec app ./vendor/bin/phpstan analyse --memory-limit=1G` — без новых ошибок и без
 новых строк в `phpstan-baseline.neon` · полный прогон —
 `docker compose exec -e DB_DATABASE=agelto_test app php artisan test --no-tia --compact` — зелено ·
-`plan-lint plans/2026.08.06-CRAWL-HARDEN --baseline HEAD` — новых от диффа item'а ошибок 0.
+`plan-lint plans/archive/2026.08.06-CRAWL-HARDEN --baseline HEAD` — новых от диффа item'а ошибок 0.
 
 ## 275
 
@@ -3441,10 +3441,10 @@ app/Services/Procurement/CrawlerRunManager.php:79-155)`. Посуточная `p
 ## 285
 
 носители чисел и почему не `prc_daily_stats` —
-`plans/2026.08.06-CRAWL-HARDEN/research/04-p3-runs-design.md` §2.5, §6 п. 7 · ключи `stats` —
+`plans/archive/2026.08.06-CRAWL-HARDEN/research/04-p3-runs-design.md` §2.5, §6 п. 7 · ключи `stats` —
 `app/Services/Procurement/CrawlerRunManager.php` · ключи, добавляемые фазой (`stop_reason`,
 `stop_threshold_at`, `checkpoints`) — items P3.2 и P3.3 этой фазы · требования брифа —
-`plans/2026.08.06-CRAWL-HARDEN/brief/00-brief.md` блоки 2 и 5
+`plans/archive/2026.08.06-CRAWL-HARDEN/brief/00-brief.md` блоки 2 и 5
 
 ## 286
 
@@ -3454,12 +3454,12 @@ app/Services/Procurement/CrawlerRunManager.php:79-155)`. Посуточная `p
 `app/Filament/Resources/Procurement/Crawler/Runs/RunResource.php` ·
 `docs/04_Operators/reference/statuses.md` ·
 `tests/Feature/Filament/CrawlerRunHistoryTest.php` (новый) ·
-`plans/2026.08.06-CRAWL-HARDEN/phases/P3.md` · `plans/2026.08.06-CRAWL-HARDEN/plan.md` ·
-`plans/2026.08.06-CRAWL-HARDEN/handoff.md` · `plans/2026.08.06-CRAWL-HARDEN/journal.jsonl`
+`plans/archive/2026.08.06-CRAWL-HARDEN/phases/P3.md` · `plans/archive/2026.08.06-CRAWL-HARDEN/plan.md` ·
+`plans/archive/2026.08.06-CRAWL-HARDEN/handoff.md` · `plans/archive/2026.08.06-CRAWL-HARDEN/journal.jsonl`
 
 ## 287
 
-1) `plans/2026.08.06-CRAWL-HARDEN/research/04-p3-runs-design.md` §2.5, §6 п. 6–7
+1) `plans/archive/2026.08.06-CRAWL-HARDEN/research/04-p3-runs-design.md` §2.5, §6 п. 6–7
 2) `app/Filament/Resources/Procurement/Crawler/Runs/**` целиком 3)
 `app/Services/Procurement/CrawlerRunManager.php` (полный перечень ключей `stats` и их смысл)
 4) `app/Models/Procurement/Crawler/Fetch.php` + миграция `…100041` (партиционирование по
@@ -3504,7 +3504,7 @@ badge-статусом и фильтрами) 6) `docs/04_Operators/reference/st
 новых строк в `phpstan-baseline.neon` · полный прогон —
 `docker compose exec -e DB_DATABASE=agelto_test app php artisan test --no-tia --compact` — зелено ·
 гейт «мёртвая таблица не подключена» — `grep -rn "DailyStat\|prc_daily_stats" app/Filament` пусто ·
-`plan-lint plans/2026.08.06-CRAWL-HARDEN --baseline HEAD` — новых от диффа item'а ошибок 0.
+`plan-lint plans/archive/2026.08.06-CRAWL-HARDEN --baseline HEAD` — новых от диффа item'а ошибок 0.
 
 ## 291
 
@@ -3616,10 +3616,10 @@ Pending Work (2) item'а P3.2, остаётся открытым и в этот 
 ## 301
 
 Pending Work (1) item'а P3.2 с точной формулировкой гейта —
-`plans/2026.08.06-CRAWL-HARDEN/phases/P3.md` · находка **F2** —
-`plans/2026.08.06-CRAWL-HARDEN/phases/P3.md` блок `## Audit P3 — 2026-08-07` · D28
-(кооперативность остановки) и D111 (реопен) — `plans/2026.08.06-CRAWL-HARDEN/plan.md` ·
-разбор режимов — `plans/2026.08.06-CRAWL-HARDEN/research/04-p3-runs-design.md` §2
+`plans/archive/2026.08.06-CRAWL-HARDEN/phases/P3.md` · находка **F2** —
+`plans/archive/2026.08.06-CRAWL-HARDEN/phases/P3.md` блок `## Audit P3 — 2026-08-07` · D28
+(кооперативность остановки) и D111 (реопен) — `plans/archive/2026.08.06-CRAWL-HARDEN/plan.md` ·
+разбор режимов — `plans/archive/2026.08.06-CRAWL-HARDEN/research/04-p3-runs-design.md` §2
 
 ## 302
 
@@ -3630,8 +3630,8 @@ Pending Work (1) item'а P3.2 с точной формулировкой гей�
 `tests/Feature/Crawler/ArchiveRunProcessorTest.php` · `tests/Feature/Crawler/DeltaScanTest.php` ·
 `tests/Feature/Crawler/BacklogRescanProcessorTest.php` ·
 `tests/Feature/Crawler/CrawlerRunManagerTest.php` ·
-`plans/2026.08.06-CRAWL-HARDEN/phases/P3.md` · `plans/2026.08.06-CRAWL-HARDEN/plan.md` ·
-`plans/2026.08.06-CRAWL-HARDEN/handoff.md` · `plans/2026.08.06-CRAWL-HARDEN/journal.jsonl`
+`plans/archive/2026.08.06-CRAWL-HARDEN/phases/P3.md` · `plans/archive/2026.08.06-CRAWL-HARDEN/plan.md` ·
+`plans/archive/2026.08.06-CRAWL-HARDEN/handoff.md` · `plans/archive/2026.08.06-CRAWL-HARDEN/journal.jsonl`
 
 ## 303
 
@@ -3684,7 +3684,7 @@ Completion Notes; менять ожидание под новое поведен
 ошибок и без новых строк в `phpstan-baseline.neon` · полный прогон
 `docker compose exec -e DB_DATABASE=agelto_test app php artisan test --no-tia --compact` — мера
 D112: публикуются оба числа и Δ против baseline `8728723e` (18 failed), зелено = 0 новых красных,
-объяснимых диффом item'а · `plan-lint plans/2026.08.06-CRAWL-HARDEN --baseline HEAD` — новых от
+объяснимых диффом item'а · `plan-lint plans/archive/2026.08.06-CRAWL-HARDEN --baseline HEAD` — новых от
 диффа item'а ошибок 0 (результат печатается в Completion Notes, F6).
 
 ## 307
@@ -3720,7 +3720,7 @@ failed, тот же состав классов: `Architecture/CoreKnowsNoDocume
 `Ai/PromptComposition`, `Ai/PromptRoot`, `Llm/GeminiProxyRouting`, `Procurement/Contour`,
 `Prepare/Archive`, `Prepare/Gsfx`, `Prepare/DocumentPrepare`, `Prepare/TextGridRenderer`,
 `Screening/ScreeningBranch`) = **0 новых красных от диффа item'а** (D112) · `plan-lint
-plans/2026.08.06-CRAWL-HARDEN --baseline HEAD` — 0 ошибок / 0 предупреждений, новых от рабочего
+plans/archive/2026.08.06-CRAWL-HARDEN --baseline HEAD` — 0 ошибок / 0 предупреждений, новых от рабочего
 дерева: 0 (F6).
 write-site: pre_mutation: allow · pre_final: allow
 
@@ -3815,11 +3815,11 @@ D113); date-picker в модалке кнопки (там же); разовое 
 
 ## 317
 
-находка **F1** — `plans/2026.08.06-CRAWL-HARDEN/phases/P3.md` блок
+находка **F1** — `plans/archive/2026.08.06-CRAWL-HARDEN/phases/P3.md` блок
 `## Audit P3 — 2026-08-07` · D113 (окно на профиле, альтернативы) и D111 (реопен) —
-`plans/2026.08.06-CRAWL-HARDEN/plan.md` · Pending Work item'а P3.4 и Implementation Rules п. 2
-item'а P3.5 — `plans/2026.08.06-CRAWL-HARDEN/phases/P3.md` · ловушки операторских действий —
-`plans/2026.08.06-CRAWL-HARDEN/research/04-p3-runs-design.md` §6 п. 4, 9, 10
+`plans/archive/2026.08.06-CRAWL-HARDEN/plan.md` · Pending Work item'а P3.4 и Implementation Rules п. 2
+item'а P3.5 — `plans/archive/2026.08.06-CRAWL-HARDEN/phases/P3.md` · ловушки операторских действий —
+`plans/archive/2026.08.06-CRAWL-HARDEN/research/04-p3-runs-design.md` §6 п. 4, 9, 10
 
 ## 318
 
@@ -3836,12 +3836,12 @@ item'а P3.5 — `plans/2026.08.06-CRAWL-HARDEN/phases/P3.md` · ловушки 
 `tests/Feature/Console/RunArchiveCrawlerTest.php` ·
 `tests/Feature/Crawler/CrawlerFilterContractTest.php` ·
 `tests/Feature/Seeders/EisSeedersTest.php` ·
-`plans/2026.08.06-CRAWL-HARDEN/phases/P3.md` · `plans/2026.08.06-CRAWL-HARDEN/plan.md` ·
-`plans/2026.08.06-CRAWL-HARDEN/handoff.md` · `plans/2026.08.06-CRAWL-HARDEN/journal.jsonl`
+`plans/archive/2026.08.06-CRAWL-HARDEN/phases/P3.md` · `plans/archive/2026.08.06-CRAWL-HARDEN/plan.md` ·
+`plans/archive/2026.08.06-CRAWL-HARDEN/handoff.md` · `plans/archive/2026.08.06-CRAWL-HARDEN/journal.jsonl`
 
 ## 319
 
-1) `plans/2026.08.06-CRAWL-HARDEN/research/04-p3-runs-design.md` §6 п. 4, 9, 10
+1) `plans/archive/2026.08.06-CRAWL-HARDEN/research/04-p3-runs-design.md` §6 п. 4, 9, 10
 2) `app/Dto/Procurement/Crawler/Contracts/HasPriceRange.php` и `RequiresScope.php` (канон узкого
 контракта фильтра — стиль докблока и «один реализующий класс сегодня») 3)
 `app/Dto/Procurement/Crawler/EisSearchFilter.php` целиком 4)
@@ -3902,7 +3902,7 @@ shortcuts:** `instanceof EisSearchFilter` внутри Action; чтение `$cr
 пусто · полный прогон
 `docker compose exec -e DB_DATABASE=agelto_test app php artisan test --no-tia --compact` — мера
 D112: оба числа и Δ против baseline `8728723e`, зелено = 0 новых красных · `plan-lint
-plans/2026.08.06-CRAWL-HARDEN --baseline HEAD` — новых от диффа item'а ошибок 0 (результат
+plans/archive/2026.08.06-CRAWL-HARDEN --baseline HEAD` — новых от диффа item'а ошибок 0 (результат
 печатается в Completion Notes, F6).
 
 ## 323
@@ -3944,7 +3944,7 @@ app/Guards/` — пусто · полный прогон — **18 failed / 1 ski
 `Prepare/DocumentPrepare`, `TextGridRenderer`, `Screening/Branch`, `Ai/PromptApply`,
 `Ai/PromptComposition`, `Ai/PromptRoot`, `Llm/GeminiProxyRouting`,
 `Architecture/CoreKnowsNoDocumentType`, `Procurement/Contour`) · `plan-lint
-plans/2026.08.06-CRAWL-HARDEN --baseline HEAD` — OK: 0 ошибок, 0 предупреждений, новых от рабочего
+plans/archive/2026.08.06-CRAWL-HARDEN --baseline HEAD` — OK: 0 ошибок, 0 предупреждений, новых от рабочего
 дерева: 0 (K=0, на итоговом дереве закрытия, F6).
 **Перезамер полного прогона реопеном D115 (F2 аудита захода 2).** Опубликованное выше «1200 passed
 (на `2aaa50a5`)» было снято на ПРЕДЫДУЩЕМ дереве `d0516a88`, а якорь подставлен от финального
@@ -4029,15 +4029,15 @@ FAILURE-кейс идёт через BrokenSourceMethod; git show 5b237ab0 --sta
 
 ## 333
 
-находка **F5** — `plans/2026.08.06-CRAWL-HARDEN/phases/P3.md` блок
+находка **F5** — `plans/archive/2026.08.06-CRAWL-HARDEN/phases/P3.md` блок
 `## Audit P3 — 2026-08-07` · Scope Included п. 10 и Deliverables item'а P3.4 — там же · D111
-(реопен) — `plans/2026.08.06-CRAWL-HARDEN/plan.md`
+(реопен) — `plans/archive/2026.08.06-CRAWL-HARDEN/plan.md`
 
 ## 334
 
 `tests/Feature/Console/RunFreshCrawlerTest.php` ·
-`plans/2026.08.06-CRAWL-HARDEN/phases/P3.md` · `plans/2026.08.06-CRAWL-HARDEN/plan.md` ·
-`plans/2026.08.06-CRAWL-HARDEN/handoff.md` · `plans/2026.08.06-CRAWL-HARDEN/journal.jsonl`
+`plans/archive/2026.08.06-CRAWL-HARDEN/phases/P3.md` · `plans/archive/2026.08.06-CRAWL-HARDEN/plan.md` ·
+`plans/archive/2026.08.06-CRAWL-HARDEN/handoff.md` · `plans/archive/2026.08.06-CRAWL-HARDEN/journal.jsonl`
 
 ## 335
 
@@ -4082,7 +4082,7 @@ FAILURE-кейс идёт через BrokenSourceMethod; git show 5b237ab0 --sta
 ошибок · гейт «прикладной код не тронут» — `git diff HEAD -- app/` пусто · полный прогон
 `docker compose exec -e DB_DATABASE=agelto_test app php artisan test --no-tia --compact` — мера
 D112: оба числа и Δ против baseline `8728723e`, зелено = 0 новых красных · `plan-lint
-plans/2026.08.06-CRAWL-HARDEN --baseline HEAD` — новых от диффа item'а ошибок 0 (результат
+plans/archive/2026.08.06-CRAWL-HARDEN --baseline HEAD` — новых от диффа item'а ошибок 0 (результат
 печатается в Completion Notes, F6).
 
 ## 339
@@ -4211,18 +4211,18 @@ query нет, ценовое дробление и `sortDirection=true` на м�
 
 ## 349
 
-находка **F1** — `plans/2026.08.06-CRAWL-HARDEN/phases/P3.md` блок
+находка **F1** — `plans/archive/2026.08.06-CRAWL-HARDEN/phases/P3.md` блок
 `## Audit P3 — 2026-08-07 (заход 2)` · D115 (реопен, запиненный носитель фикса, отвергнутые
-варианты) и D113 (`Consequences` — три роли поля) — `plans/2026.08.06-CRAWL-HARDEN/plan.md` ·
-Known Deviations item'а P3.8 — `plans/2026.08.06-CRAWL-HARDEN/phases/P3.md`
+варианты) и D113 (`Consequences` — три роли поля) — `plans/archive/2026.08.06-CRAWL-HARDEN/plan.md` ·
+Known Deviations item'а P3.8 — `plans/archive/2026.08.06-CRAWL-HARDEN/phases/P3.md`
 
 ## 350
 
 `app/Services/Procurement/Eis/EisCsvUrlBuilder.php` ·
 `app/Dto/Procurement/Crawler/EisSearchFilter.php` ·
 `tests/Unit/Crawler/EisCsvUrlBuilderTest.php` · `tests/Feature/Seeders/EisSeedersTest.php` ·
-`plans/2026.08.06-CRAWL-HARDEN/phases/P3.md` · `plans/2026.08.06-CRAWL-HARDEN/plan.md` ·
-`plans/2026.08.06-CRAWL-HARDEN/handoff.md` · `plans/2026.08.06-CRAWL-HARDEN/journal.jsonl`
+`plans/archive/2026.08.06-CRAWL-HARDEN/phases/P3.md` · `plans/archive/2026.08.06-CRAWL-HARDEN/plan.md` ·
+`plans/archive/2026.08.06-CRAWL-HARDEN/handoff.md` · `plans/archive/2026.08.06-CRAWL-HARDEN/journal.jsonl`
 
 ## 351
 
@@ -4236,7 +4236,7 @@ Known Deviations item'а P3.8 — `plans/2026.08.06-CRAWL-HARDEN/phases/P3.md`
 `tests/Unit/Crawler/EisCsvUrlBuilderTest.php` целиком (канон кейсов, хелпер
 `Tests\Support\Doubles\Crawler\CrawlerWithRegistry::make()`) 6)
 `tests/Feature/Seeders/EisSeedersTest.php` строки 130-160 (кейс боевого URL сидового профиля)
-7) `plans/2026.08.06-CRAWL-HARDEN/plan.md` — D113 (с дописанным `Consequences`) и D115
+7) `plans/archive/2026.08.06-CRAWL-HARDEN/plan.md` — D113 (с дописанным `Consequences`) и D115
 8) skills `testing-rules`, `pest-testing`, `code-style-spatie`
 
 ## 352
@@ -4293,7 +4293,7 @@ app/Services/Procurement/ArchiveWindowScanner.php` пусто · гейт «пр
 `docker compose exec -e DB_DATABASE=agelto_test app php artisan test --no-tia --compact` — мера
 D112: публикуются оба числа и Δ против baseline `8728723e`, зелено = 0 новых красных; **число
 снимается на ФИНАЛЬНОМ дереве item'а и подписывается его хешем** (урок F2: якорь чужого дерева =
-невыполненная Validation) · `plan-lint plans/2026.08.06-CRAWL-HARDEN --baseline HEAD` — новых от
+невыполненная Validation) · `plan-lint plans/archive/2026.08.06-CRAWL-HARDEN --baseline HEAD` — новых от
 диффа item'а ошибок 0 (результат печатается в Completion Notes).
 
 ## 355
@@ -4395,11 +4395,11 @@ P4.7 плана `2026.07.31-SYS-INTEGRITY`; `retries` = 5 по брифу, `retr
 ## 365
 
 дизайн трёх уровней и обоснование, почему бюджет не живёт в профиле —
-`plans/2026.08.06-CRAWL-HARDEN/research/05-p4-reliability-design.md` §4.1, §2.7 · решение владельца
-по носителю — `plans/2026.08.06-CRAWL-HARDEN/brief/01-refinements.md` блок P4 п. 1 (D36) ·
-формулировки брифа про попытки и таймауты — `plans/2026.08.06-CRAWL-HARDEN/brief/00-brief.md`
+`plans/archive/2026.08.06-CRAWL-HARDEN/research/05-p4-reliability-design.md` §4.1, §2.7 · решение владельца
+по носителю — `plans/archive/2026.08.06-CRAWL-HARDEN/brief/01-refinements.md` блок P4 п. 1 (D36) ·
+формулировки брифа про попытки и таймауты — `plans/archive/2026.08.06-CRAWL-HARDEN/brief/00-brief.md`
 блоки 4–5 · внешняя опора под некалиброванные попытки/таймауты/паузы (D45) —
-`plans/2026.08.06-CRAWL-HARDEN/findings/P1-rag-reliability-practices.md` тема 1 (D97) · ловушки 4
+`plans/archive/2026.08.06-CRAWL-HARDEN/findings/P1-rag-reliability-practices.md` тема 1 (D97) · ловушки 4
 и 5 — `research/05-p4-reliability-design.md` §5
 
 ## 366
@@ -4420,12 +4420,12 @@ P4.7 плана `2026.07.31-SYS-INTEGRITY`; `retries` = 5 по брифу, `retr
 `tests/Unit/Crawler/CrawlSettingsResolverTest.php` (новый) ·
 `tests/Feature/Crawler/PlatformThrottleSettingsTest.php` (новый) ·
 `tests/Feature/Procurement/SyncOkpd2NodesTest.php` ·
-`plans/2026.08.06-CRAWL-HARDEN/phases/P4.md` · `plans/2026.08.06-CRAWL-HARDEN/plan.md` ·
-`plans/2026.08.06-CRAWL-HARDEN/handoff.md` · `plans/2026.08.06-CRAWL-HARDEN/journal.jsonl`
+`plans/archive/2026.08.06-CRAWL-HARDEN/phases/P4.md` · `plans/archive/2026.08.06-CRAWL-HARDEN/plan.md` ·
+`plans/archive/2026.08.06-CRAWL-HARDEN/handoff.md` · `plans/archive/2026.08.06-CRAWL-HARDEN/journal.jsonl`
 
 ## 367
 
-1) `plans/2026.08.06-CRAWL-HARDEN/research/05-p4-reliability-design.md` §2.1,
+1) `plans/archive/2026.08.06-CRAWL-HARDEN/research/05-p4-reliability-design.md` §2.1,
 §2.7, §4.1, §5 2) `app/Models/Procurement/Crawler/Crawler.php` целиком (гейт `saving()` и резолв
 `filter` — образец типизации jsonb) 3) `app/Dto/Procurement/Crawler/EisSearchFilter.php` целиком
 (канон `Data`-класса с `ALLOWED_KEYS`, `rules()` и отвержением неизвестного ключа) 4)
@@ -4433,7 +4433,7 @@ P4.7 плана `2026.07.31-SYS-INTEGRITY`; `retries` = 5 по брифу, `retr
 дословно) 5) `app/Services/Procurement/Eis/CsvSourceMethod.php` строки 60–200 6)
 `app/Services/Procurement/DocumentDownloader.php` строки 90–130 7)
 `app/Services/Procurement/Eis/Okpd2NodeSynchronizer.php` строки 46–53, 160–180, 330–360
-(служебный вызов без профиля) 8) `plans/2026.08.06-CRAWL-HARDEN/findings/P4-settings-readers-2026-08-08.md`
+(служебный вызов без профиля) 8) `plans/archive/2026.08.06-CRAWL-HARDEN/findings/P4-settings-readers-2026-08-08.md`
 целиком 9) скиллы `laravel-data`,
 `php:database`, `code-style-spatie`, `testing-rules`
 
@@ -4498,7 +4498,7 @@ Scope Included п. 8: после item'а `crawler.http.*` в `app/` не чит�
 `docker compose exec app php artisan migrate:fresh --seed` и `migrate:rollback --step=1` без ошибок ·
 полный прогон — `docker compose exec -e DB_DATABASE=agelto_test app php artisan test --no-tia --compact`
 — зелено · гейт «сеть не тронута» — `grep -rn "zakupki.gov.ru" tests/ | grep -v Fixtures` пусто ·
-`plan-lint plans/2026.08.06-CRAWL-HARDEN --baseline HEAD` — новых от диффа item'а ошибок 0.
+`plan-lint plans/archive/2026.08.06-CRAWL-HARDEN --baseline HEAD` — новых от диффа item'а ошибок 0.
 
 ## 372
 
@@ -4560,15 +4560,15 @@ P4.1 закрыт 🟠 не из-за настроек обхода, а из-з�
 
 ## 382
 
-сырая фактура трёх гейтов — `plans/2026.08.06-CRAWL-HARDEN/findings/P4.8-validation-gates-2026-08-08.md` целиком · синтез и границы remediation — `plans/2026.08.06-CRAWL-HARDEN/research/13-p4.8-validation-gates.md` целиком · исходные отклонения — этот файл, P4.1 `Pending Work`/`Known Deviations` · решение D119 — `plans/2026.08.06-CRAWL-HARDEN/plan.md`.
+сырая фактура трёх гейтов — `plans/archive/2026.08.06-CRAWL-HARDEN/findings/P4.8-validation-gates-2026-08-08.md` целиком · синтез и границы remediation — `plans/archive/2026.08.06-CRAWL-HARDEN/research/13-p4.8-validation-gates.md` целиком · исходные отклонения — этот файл, P4.1 `Pending Work`/`Known Deviations` · решение D119 — `plans/archive/2026.08.06-CRAWL-HARDEN/plan.md`.
 
 ## 383
 
-`database/seeders/Procurement/EisPlatformSeeder.php` · `tests/Feature/Seeders/EisSeedersTest.php` · `app/Services/Procurement/Fixture/WorkingCopyProvisioner.php` · `app/Enums/Procurement/Estimate/ExtractionRoute.php` (удалить после перемещения) · `app/Enums/Procurement/Document/ExtractionRoute.php` (новый) · `app/Services/Procurement/Extraction/Dto/PreflightDecision.php` · `app/Services/Procurement/Analyzers/Estimate/ExtractionOrchestrator.php` · `app/Services/Procurement/Bench/FormatBenchRunner.php` · `tests/Feature/Procurement/Analyzers/Estimate/ExtractionOrchestratorTest.php` · `tests/Unit/Architecture/CoreKnowsNoDocumentTypeTest.php` · `tests/TestCase.php` · `plans/2026.08.06-CRAWL-HARDEN/{phases/P4.md,plan.md,handoff.md,journal.jsonl}`.
+`database/seeders/Procurement/EisPlatformSeeder.php` · `tests/Feature/Seeders/EisSeedersTest.php` · `app/Services/Procurement/Fixture/WorkingCopyProvisioner.php` · `app/Enums/Procurement/Estimate/ExtractionRoute.php` (удалить после перемещения) · `app/Enums/Procurement/Document/ExtractionRoute.php` (новый) · `app/Services/Procurement/Extraction/Dto/PreflightDecision.php` · `app/Services/Procurement/Analyzers/Estimate/ExtractionOrchestrator.php` · `app/Services/Procurement/Bench/FormatBenchRunner.php` · `tests/Feature/Procurement/Analyzers/Estimate/ExtractionOrchestratorTest.php` · `tests/Unit/Architecture/CoreKnowsNoDocumentTypeTest.php` · `tests/TestCase.php` · `plans/archive/2026.08.06-CRAWL-HARDEN/{phases/P4.md,plan.md,handoff.md,journal.jsonl}`.
 
 ## 384
 
-1) `plans/2026.08.06-CRAWL-HARDEN/research/13-p4.8-validation-gates.md` целиком 2) `plans/2026.08.06-CRAWL-HARDEN/findings/P4.8-validation-gates-2026-08-08.md` целиком 3) `database/seeders/Procurement/EisPlatformSeeder.php` и `database/seeders/DatabaseSeeder.php` целиком 4) `app/Models/Procurement/Platform/Registry.php` и миграция `2026_07_04_100001_create_prc_registries_table.php` 5) `tests/Feature/Seeders/EisSeedersTest.php` целиком 6) `tests/Unit/Architecture/CoreKnowsNoDocumentTypeTest.php` целиком 7) `app/Services/Procurement/Fixture/WorkingCopyProvisioner.php`, `app/Services/Procurement/Extraction/Dto/PreflightDecision.php`, все пять usage `ExtractionRoute` 8) `tests/TestCase.php` и `vendor/laravel/framework/src/Illuminate/Http/Client/Factory.php:407-421,586-590` 9) скиллы `php:database`, `php:namespace-refactor-safety`, `php:code-style-spatie`, `laravel-testing:laravel-testing`.
+1) `plans/archive/2026.08.06-CRAWL-HARDEN/research/13-p4.8-validation-gates.md` целиком 2) `plans/archive/2026.08.06-CRAWL-HARDEN/findings/P4.8-validation-gates-2026-08-08.md` целиком 3) `database/seeders/Procurement/EisPlatformSeeder.php` и `database/seeders/DatabaseSeeder.php` целиком 4) `app/Models/Procurement/Platform/Registry.php` и миграция `2026_07_04_100001_create_prc_registries_table.php` 5) `tests/Feature/Seeders/EisSeedersTest.php` целиком 6) `tests/Unit/Architecture/CoreKnowsNoDocumentTypeTest.php` целиком 7) `app/Services/Procurement/Fixture/WorkingCopyProvisioner.php`, `app/Services/Procurement/Extraction/Dto/PreflightDecision.php`, все пять usage `ExtractionRoute` 8) `tests/TestCase.php` и `vendor/laravel/framework/src/Illuminate/Http/Client/Factory.php:407-421,586-590` 9) скиллы `php:database`, `php:namespace-refactor-safety`, `php:code-style-spatie`, `laravel-testing:laravel-testing`.
 
 ## 385
 
@@ -4580,7 +4580,7 @@ P4.1 закрыт 🟠 не из-за настроек обхода, а из-з�
 
 ## 387
 
-`docker compose exec -e DB_DATABASE=agelto_test app php artisan test --no-tia --filter='EisSeeders|CoreKnowsNoDocumentType|ExtractionOrchestrator'` — зелено; `docker compose exec app php artisan migrate:fresh --seed` — без ошибки `prc_registries.uuid`; `docker compose exec app ./vendor/bin/pint --test` — зелено; `docker compose exec app ./vendor/bin/phpstan analyse --memory-limit=1G` — без новых ошибок и строк baseline; `docker compose exec -e DB_DATABASE=agelto_test app php artisan test --no-tia --compact` — 0 новых красных против `8728723e`, а `CoreKnowsNoDocumentTypeTest` не входит в красные; `rg -n 'App\\Enums\\Procurement\\Estimate\\ExtractionRoute' app tests` — пусто; `plan-lint plans/2026.08.06-CRAWL-HARDEN --baseline HEAD` — новых ошибок 0.
+`docker compose exec -e DB_DATABASE=agelto_test app php artisan test --no-tia --filter='EisSeeders|CoreKnowsNoDocumentType|ExtractionOrchestrator'` — зелено; `docker compose exec app php artisan migrate:fresh --seed` — без ошибки `prc_registries.uuid`; `docker compose exec app ./vendor/bin/pint --test` — зелено; `docker compose exec app ./vendor/bin/phpstan analyse --memory-limit=1G` — без новых ошибок и строк baseline; `docker compose exec -e DB_DATABASE=agelto_test app php artisan test --no-tia --compact` — 0 новых красных против `8728723e`, а `CoreKnowsNoDocumentTypeTest` не входит в красные; `rg -n 'App\\Enums\\Procurement\\Estimate\\ExtractionRoute' app tests` — пусто; `plan-lint plans/archive/2026.08.06-CRAWL-HARDEN --baseline HEAD` — новых ошибок 0.
 
 ## 388
 
@@ -4663,11 +4663,11 @@ breaker'ом непустой набор по-прежнему даёт отка
 ## 398
 
 фактура escalation и точные factory/test-носители —
-`plans/2026.08.06-CRAWL-HARDEN/findings/P4.2-blocked-redesign-2026-08-08.md` целиком · дословный ответ владельца про пул, привязку и «спалимся» —
-`plans/2026.08.06-CRAWL-HARDEN/brief/01-refinements.md` блок P4 п. 2–3 · дизайн привязки, разбор
+`plans/archive/2026.08.06-CRAWL-HARDEN/findings/P4.2-blocked-redesign-2026-08-08.md` целиком · дословный ответ владельца про пул, привязку и «спалимся» —
+`plans/archive/2026.08.06-CRAWL-HARDEN/brief/01-refinements.md` блок P4 п. 2–3 · дизайн привязки, разбор
 альтернатив (pivot на площадку, привязка на реестр) и различение «пусто по конфигурации» против
-«закрыто breaker'ом» — `plans/2026.08.06-CRAWL-HARDEN/research/05-p4-reliability-design.md` §4.3,
-§2.2 · решения D37/D38/D39/D40 — `plans/2026.08.06-CRAWL-HARDEN/plan.md` · ловушки 5 и 10 —
+«закрыто breaker'ом» — `plans/archive/2026.08.06-CRAWL-HARDEN/research/05-p4-reliability-design.md` §4.3,
+§2.2 · решения D37/D38/D39/D40 — `plans/archive/2026.08.06-CRAWL-HARDEN/plan.md` · ловушки 5 и 10 —
 `research/05-p4-reliability-design.md` §5
 
 ## 399
@@ -4693,12 +4693,12 @@ breaker'ом непустой набор по-прежнему даёт отка
 `tests/Feature/Crawler/CrawlerProxySettingsTest.php` (допустимый factory-state при `use_proxy=true`) ·
 `tests/Feature/Filament/CrawlerFormTest.php` (сохранение валидного direct-профиля и включение прокси только после привязки) ·
 `tests/Feature/Seeders/EisSeedersTest.php` (реальный носитель теста `CrawlerProfileSeeder`) ·
-`plans/2026.08.06-CRAWL-HARDEN/phases/P4.md` · `plans/2026.08.06-CRAWL-HARDEN/plan.md` ·
-`plans/2026.08.06-CRAWL-HARDEN/handoff.md` · `plans/2026.08.06-CRAWL-HARDEN/journal.jsonl`
+`plans/archive/2026.08.06-CRAWL-HARDEN/phases/P4.md` · `plans/archive/2026.08.06-CRAWL-HARDEN/plan.md` ·
+`plans/archive/2026.08.06-CRAWL-HARDEN/handoff.md` · `plans/archive/2026.08.06-CRAWL-HARDEN/journal.jsonl`
 
 ## 400
 
-1) `plans/2026.08.06-CRAWL-HARDEN/research/05-p4-reliability-design.md` §2.2,
+1) `plans/archive/2026.08.06-CRAWL-HARDEN/research/05-p4-reliability-design.md` §2.2,
 §4.3, §5 2) `app/Services/Procurement/Proxy/ProxyResolver.php` целиком (гео-гейт, складывание
 требований, half-open проба — правка обязана лечь ПОСЛЕ гейта стран) 3)
 `app/Services/Procurement/Eis/CsvSourceMethod.php` строки 60–200 (`listingLease()` — образец
@@ -4775,7 +4775,7 @@ breaker'ом непустой набор по-прежнему даёт отка
 `docker compose exec app php artisan migrate:fresh --seed` без ошибок · полный прогон —
 `docker compose exec -e DB_DATABASE=agelto_test app php artisan test --no-tia --compact` — зелено ·
 гейт «сеть не тронута» — `grep -rn "zakupki.gov.ru" tests/ | grep -v Fixtures` пусто ·
-`plan-lint plans/2026.08.06-CRAWL-HARDEN --baseline HEAD` — новых от диффа item'а ошибок 0.
+`plan-lint plans/archive/2026.08.06-CRAWL-HARDEN --baseline HEAD` — новых от диффа item'а ошибок 0.
 
 ## 406
 
@@ -4865,9 +4865,9 @@ breaker'а отключает узел с причиной; пер-хостов�
 ## 416
 
 требование владельца про порог, дизейбл и ручной возврат —
-`plans/2026.08.06-CRAWL-HARDEN/brief/01-refinements.md` блок P4 п. 2 · дизайн порога, разделение
-уровней и состав витрины — `plans/2026.08.06-CRAWL-HARDEN/research/05-p4-reliability-design.md`
-§4.4, §2.6 · решение D41 — `plans/2026.08.06-CRAWL-HARDEN/plan.md` · сегодняшняя семантика
+`plans/archive/2026.08.06-CRAWL-HARDEN/brief/01-refinements.md` блок P4 п. 2 · дизайн порога, разделение
+уровней и состав витрины — `plans/archive/2026.08.06-CRAWL-HARDEN/research/05-p4-reliability-design.md`
+§4.4, §2.6 · решение D41 — `plans/archive/2026.08.06-CRAWL-HARDEN/plan.md` · сегодняшняя семантика
 `is_active`/`open_until` — `findings/repo-recon-2026-08-06.md` §4
 
 ## 417
@@ -4882,12 +4882,12 @@ breaker'а отключает узел с причиной; пер-хостов�
 `app/Filament/Resources/Procurement/Crawler/Proxies/ProxyResource.php` ·
 `tests/Feature/Crawler/ProxyAutoDisableTest.php` (новый) ·
 `tests/Feature/Filament/ProxyReactivateActionTest.php` (новый) ·
-`plans/2026.08.06-CRAWL-HARDEN/phases/P4.md` · `plans/2026.08.06-CRAWL-HARDEN/plan.md` ·
-`plans/2026.08.06-CRAWL-HARDEN/handoff.md` · `plans/2026.08.06-CRAWL-HARDEN/journal.jsonl`
+`plans/archive/2026.08.06-CRAWL-HARDEN/phases/P4.md` · `plans/archive/2026.08.06-CRAWL-HARDEN/plan.md` ·
+`plans/archive/2026.08.06-CRAWL-HARDEN/handoff.md` · `plans/archive/2026.08.06-CRAWL-HARDEN/journal.jsonl`
 
 ## 418
 
-1) `plans/2026.08.06-CRAWL-HARDEN/research/05-p4-reliability-design.md` §2.6,
+1) `plans/archive/2026.08.06-CRAWL-HARDEN/research/05-p4-reliability-design.md` §2.6,
 §4.4 2) `app/Services/Procurement/Proxy/ProxyCircuitBreaker.php` целиком (уровни, `open_count`,
 half-open) 3) `app/Services/Procurement/Proxy/ProxyResolver.php` строки 96–140 и 255–275
 (`reportOutcome`, атрибуты breaker'а) 4) `app/Repositories/Procurement/Proxy/ProxyHealthStoreRepository.php`
@@ -4962,7 +4962,7 @@ Filament-действие «Включить обратно» вызывает �
 `docker compose exec app ./vendor/bin/phpstan analyse --memory-limit=1G` — без новых ошибок и без
 новых строк в `phpstan-baseline.neon` · полный прогон —
 `docker compose exec -e DB_DATABASE=agelto_test app php artisan test --no-tia --compact` — зелено ·
-`plan-lint plans/2026.08.06-CRAWL-HARDEN --baseline HEAD` — новых от диффа item'а ошибок 0.
+`plan-lint plans/archive/2026.08.06-CRAWL-HARDEN --baseline HEAD` — новых от диффа item'а ошибок 0.
 
 ## 425
 
@@ -5051,12 +5051,12 @@ LLM-провайдера (другой домен, свои лимиты); ра�
 ## 435
 
 внешние примитивы, их семантика и явный запрет middleware `RateLimited` —
-`plans/2026.08.06-CRAWL-HARDEN/findings/P4-rag-throttle-2026-08-06.md` §1–§3, §7 · дизайн бюджета,
+`plans/archive/2026.08.06-CRAWL-HARDEN/findings/P4-rag-throttle-2026-08-06.md` §1–§3, §7 · дизайн бюджета,
 формула ёмкости и граница честности про справедливость —
-`plans/2026.08.06-CRAWL-HARDEN/research/05-p4-reliability-design.md` §4.2 · решения D42/D43/D44 —
-`plans/2026.08.06-CRAWL-HARDEN/plan.md` · контур чекпоинта прогона —
-`plans/2026.08.06-CRAWL-HARDEN/phases/P3.md` P3.2 · внешняя опора под некалиброванную ёмкость
-бюджета (D45) — `plans/2026.08.06-CRAWL-HARDEN/findings/P1-rag-reliability-practices.md` тема 1
+`plans/archive/2026.08.06-CRAWL-HARDEN/research/05-p4-reliability-design.md` §4.2 · решения D42/D43/D44 —
+`plans/archive/2026.08.06-CRAWL-HARDEN/plan.md` · контур чекпоинта прогона —
+`plans/archive/2026.08.06-CRAWL-HARDEN/phases/P3.md` P3.2 · внешняя опора под некалиброванную ёмкость
+бюджета (D45) — `plans/archive/2026.08.06-CRAWL-HARDEN/findings/P1-rag-reliability-practices.md` тема 1
 (D97) · ловушки 1, 2, 3, 6 — `research/05-p4-reliability-design.md` §5
 
 ## 436
@@ -5074,13 +5074,13 @@ LLM-провайдера (другой домен, свои лимиты); ра�
 `tests/Feature/Crawler/PlatformRequestBudgetTest.php` (новый) ·
 `tests/Feature/Crawler/BudgetExhaustionTest.php` (новый) ·
 `tests/Feature/Procurement/SyncOkpd2NodesTest.php` ·
-`plans/2026.08.06-CRAWL-HARDEN/phases/P4.md` · `plans/2026.08.06-CRAWL-HARDEN/plan.md` ·
-`plans/2026.08.06-CRAWL-HARDEN/handoff.md` · `plans/2026.08.06-CRAWL-HARDEN/journal.jsonl`
+`plans/archive/2026.08.06-CRAWL-HARDEN/phases/P4.md` · `plans/archive/2026.08.06-CRAWL-HARDEN/plan.md` ·
+`plans/archive/2026.08.06-CRAWL-HARDEN/handoff.md` · `plans/archive/2026.08.06-CRAWL-HARDEN/journal.jsonl`
 
 ## 437
 
-1) `plans/2026.08.06-CRAWL-HARDEN/findings/P4-rag-throttle-2026-08-06.md`
-целиком 2) `plans/2026.08.06-CRAWL-HARDEN/research/05-p4-reliability-design.md` §2.1, §4.2, §5
+1) `plans/archive/2026.08.06-CRAWL-HARDEN/findings/P4-rag-throttle-2026-08-06.md`
+целиком 2) `plans/archive/2026.08.06-CRAWL-HARDEN/research/05-p4-reliability-design.md` §2.1, §4.2, §5
 3) `app/Services/Procurement/PoliteThrottle.php` целиком (22 строки — что именно поглощается) 4)
 `app/Services/Procurement/Modes/FreshRunProcessor.php` целиком (точка чекпоинта и стоп-гейта после
 P3.2) 5) `app/Services/Procurement/ArchiveWindowScanner.php` строки 33–70 6)
@@ -5089,7 +5089,7 @@ P3.2) 5) `app/Services/Procurement/ArchiveWindowScanner.php` строки 33–7
 `config/queue.php` секция `redis` (докблок инварианта таймаутов: максимальное ожидание слота входит
 в бюджет job'а, а не добавляется к нему) 8)
 `app/Services/Procurement/Eis/Okpd2NodeSynchronizer.php` строки 46–53, 160–180 (потребитель
-троттлера без профиля) 9) `plans/2026.08.06-CRAWL-HARDEN/findings/P4-settings-readers-2026-08-08.md`
+троттлера без профиля) 9) `plans/archive/2026.08.06-CRAWL-HARDEN/findings/P4-settings-readers-2026-08-08.md`
 целиком 10) скиллы `testing-rules`, `pest-testing`
 
 ## 438
@@ -5159,7 +5159,7 @@ fresh-контуром, archive отметить в Pending Work и предло
 новых строк в `phpstan-baseline.neon` · полный прогон —
 `docker compose exec -e DB_DATABASE=agelto_test app php artisan test --no-tia --compact` — зелено ·
 гейт «сеть не тронута» — `grep -rn "zakupki.gov.ru" tests/ | grep -v Fixtures` пусто ·
-`plan-lint plans/2026.08.06-CRAWL-HARDEN --baseline HEAD` — новых от диффа item'а ошибок 0.
+`plan-lint plans/archive/2026.08.06-CRAWL-HARDEN --baseline HEAD` — новых от диффа item'а ошибок 0.
 
 ## 444
 
@@ -5257,11 +5257,11 @@ P4.4; новый queue/job/scheduler; секундный checkpoint archive-ск
 ## 454
 
 фактура текущего control-flow —
-`plans/2026.08.06-CRAWL-HARDEN/findings/P4.9-budget-checkpoint-control-flow-2026-08-08.md` целиком ·
+`plans/archive/2026.08.06-CRAWL-HARDEN/findings/P4.9-budget-checkpoint-control-flow-2026-08-08.md` целиком ·
 целевой контракт и alternatives —
-`plans/2026.08.06-CRAWL-HARDEN/research/14-p4.9-budget-checkpoint-design.md` целиком ·
+`plans/archive/2026.08.06-CRAWL-HARDEN/research/14-p4.9-budget-checkpoint-design.md` целиком ·
 исходный material follow-up — этот файл P4.4 `Pending Work`/`Known Deviations` · решение D121 —
-`plans/2026.08.06-CRAWL-HARDEN/plan.md`.
+`plans/archive/2026.08.06-CRAWL-HARDEN/plan.md`.
 
 ## 455
 
@@ -5276,17 +5276,17 @@ P4.4; новый queue/job/scheduler; секундный checkpoint archive-ск
 `tests/Feature/Crawler/BacklogRescanProcessorTest.php` ·
 `tests/Feature/Crawler/BudgetExhaustionTest.php` · `tests/Feature/Crawler/CrawlRunJobTest.php` ·
 `docs/03_Dev/crawling-pipeline.md` ·
-`plans/2026.08.06-CRAWL-HARDEN/{phases/P4.md,plan.md,roadmap.md,handoff.md,journal.jsonl}`.
+`plans/archive/2026.08.06-CRAWL-HARDEN/{phases/P4.md,plan.md,roadmap.md,handoff.md,journal.jsonl}`.
 
 ## 456
 
-1) `plans/2026.08.06-CRAWL-HARDEN/research/14-p4.9-budget-checkpoint-design.md`
-целиком 2) `plans/2026.08.06-CRAWL-HARDEN/findings/P4.9-budget-checkpoint-control-flow-2026-08-08.md`
+1) `plans/archive/2026.08.06-CRAWL-HARDEN/research/14-p4.9-budget-checkpoint-design.md`
+целиком 2) `plans/archive/2026.08.06-CRAWL-HARDEN/findings/P4.9-budget-checkpoint-control-flow-2026-08-08.md`
 целиком 3) `app/Services/Procurement/ArchiveWindowScanner.php` целиком 4) три wrapper-файла из
 `Files` целиком 5) `app/Jobs/Procurement/CrawlRunJob.php` и
 `app/Services/Procurement/CrawlerRunManager.php::{recordCheckpoint,complete,fail}` 6)
 `app/Exceptions/Procurement/Crawler/PlatformBudgetExhaustedException.php` 7)
-`tests/TestCase.php` и `plans/2026.08.06-CRAWL-HARDEN/research/13-p4.8-validation-gates.md` целиком
+`tests/TestCase.php` и `plans/archive/2026.08.06-CRAWL-HARDEN/research/13-p4.8-validation-gates.md` целиком
 8) существующие тесты из `Files` 9) `docs/02_Workflow/crawling-and-discovery.md` §«Устойчивость к
 сбоям» 10) скиллы `php:code-style-spatie`, `php:named-arguments`,
 `laravel-testing:laravel-testing`.
@@ -5341,7 +5341,7 @@ resume-safety; для backlog отдельно проверяется отсут
 ошибок/строк baseline; полный прогон —
 `docker compose exec -e DB_DATABASE=agelto_test app php artisan test --no-tia --compact` — 0 новых
 красных против `8728723e`, ни одного `Attempted request without a matching fake`; `docker compose exec app php artisan migrate:fresh --seed`
-— зелено; `plan-lint plans/2026.08.06-CRAWL-HARDEN --baseline HEAD` — новых ошибок 0.
+— зелено; `plan-lint plans/archive/2026.08.06-CRAWL-HARDEN --baseline HEAD` — новых ошибок 0.
 
 ## 462
 
@@ -5430,13 +5430,13 @@ job одной закупки; (6) расписание в `routes/console.php` 
 ## 472
 
 факт синхронного прохода и его цена —
-`plans/2026.08.06-CRAWL-HARDEN/research/05-p4-reliability-design.md` §2.3, §4.5 · канон подачи
+`plans/archive/2026.08.06-CRAWL-HARDEN/research/05-p4-reliability-design.md` §2.3, §4.5 · канон подачи
 пачками — `app/Services/Procurement/PipelineDispatcher.php` (докблок про два канала) · требования
-брифа — `plans/2026.08.06-CRAWL-HARDEN/brief/00-brief.md` блок 5 · канон job'а без свойств ретрая и
-инвариант таймаутов — `plans/2026.08.06-CRAWL-HARDEN/phases/P3.md` P3.2 Implementation Rules ·
-внешние факты о планировщике — `plans/2026.08.06-CRAWL-HARDEN/findings/P4-rag-throttle-2026-08-06.md` §5 ·
+брифа — `plans/archive/2026.08.06-CRAWL-HARDEN/brief/00-brief.md` блок 5 · канон job'а без свойств ретрая и
+инвариант таймаутов — `plans/archive/2026.08.06-CRAWL-HARDEN/phases/P3.md` P3.2 Implementation Rules ·
+внешние факты о планировщике — `plans/archive/2026.08.06-CRAWL-HARDEN/findings/P4-rag-throttle-2026-08-06.md` §5 ·
 канон разбора синхронного прохода на пачки и критерий размера пачки —
-`plans/2026.08.06-CRAWL-HARDEN/findings/P1-rag-reliability-practices.md` тема 2 (D97)
+`plans/archive/2026.08.06-CRAWL-HARDEN/findings/P1-rag-reliability-practices.md` тема 2 (D97)
 
 ## 473
 
@@ -5449,12 +5449,12 @@ job одной закупки; (6) расписание в `routes/console.php` 
 `tests/Feature/Crawler/DetailDispatcherTest.php` (новый) ·
 `tests/Feature/Crawler/FetchProcurementDetailJobTest.php` (новый) ·
 `tests/Feature/Console/FetchDetailsTest.php` ·
-`plans/2026.08.06-CRAWL-HARDEN/phases/P4.md` · `plans/2026.08.06-CRAWL-HARDEN/plan.md` ·
-`plans/2026.08.06-CRAWL-HARDEN/handoff.md` · `plans/2026.08.06-CRAWL-HARDEN/journal.jsonl`
+`plans/archive/2026.08.06-CRAWL-HARDEN/phases/P4.md` · `plans/archive/2026.08.06-CRAWL-HARDEN/plan.md` ·
+`plans/archive/2026.08.06-CRAWL-HARDEN/handoff.md` · `plans/archive/2026.08.06-CRAWL-HARDEN/journal.jsonl`
 
 ## 474
 
-1) `plans/2026.08.06-CRAWL-HARDEN/research/05-p4-reliability-design.md` §2.3,
+1) `plans/archive/2026.08.06-CRAWL-HARDEN/research/05-p4-reliability-design.md` §2.3,
 §4.5, §5 (ловушки 6 и 9) 2) `app/Services/Procurement/PipelineDispatcher.php` целиком (канон,
 которому item следует) 3) `app/Console/Commands/Procurement/FetchDetails.php` целиком 4)
 `app/Services/Procurement/DetailRefetchSelector.php` целиком (докблок с четырьмя триггерами — они не
@@ -5524,7 +5524,7 @@ status-guard job'а подготовки и зафиксировать факт 
 `docker compose exec app ./vendor/bin/phpstan analyse --memory-limit=1G` — без новых ошибок и без
 новых строк в `phpstan-baseline.neon` · полный прогон —
 `docker compose exec -e DB_DATABASE=agelto_test app php artisan test --no-tia --compact` — зелено ·
-`plan-lint plans/2026.08.06-CRAWL-HARDEN --baseline HEAD` — новых от диффа item'а ошибок 0.
+`plan-lint plans/archive/2026.08.06-CRAWL-HARDEN --baseline HEAD` — новых от диффа item'а ошибок 0.
 
 ## 481
 
@@ -5612,9 +5612,9 @@ database/migrations/2026_07_04_100041_create_prc_fetches_table.php)`). Втор�
 ## 491
 
 карта сегодняшних носителей и обеих слепых зон —
-`plans/2026.08.06-CRAWL-HARDEN/research/05-p4-reliability-design.md` §2.4, §2.5, §4.6 · решение
+`plans/archive/2026.08.06-CRAWL-HARDEN/research/05-p4-reliability-design.md` §2.4, §2.5, §4.6 · решение
 D46 (журнал операций получает писателя, а не уходит в P8) —
-`plans/2026.08.06-CRAWL-HARDEN/plan.md` · ловушки 1, 7, 8 —
+`plans/archive/2026.08.06-CRAWL-HARDEN/plan.md` · ловушки 1, 7, 8 —
 `research/05-p4-reliability-design.md` §5 · требование брифа — `brief/00-brief.md` блоки 4–5
 
 ## 492
@@ -5634,12 +5634,12 @@ D46 (журнал операций получает писателя, а не у
 `tests/Feature/Crawler/FetchLoggerTest.php` (новый) ·
 `tests/Feature/Crawler/OperationLogWriterTest.php` (новый) ·
 `tests/Feature/Filament/OperationLogResourceTest.php` (новый) ·
-`plans/2026.08.06-CRAWL-HARDEN/phases/P4.md` · `plans/2026.08.06-CRAWL-HARDEN/plan.md` ·
-`plans/2026.08.06-CRAWL-HARDEN/handoff.md` · `plans/2026.08.06-CRAWL-HARDEN/journal.jsonl`
+`plans/archive/2026.08.06-CRAWL-HARDEN/phases/P4.md` · `plans/archive/2026.08.06-CRAWL-HARDEN/plan.md` ·
+`plans/archive/2026.08.06-CRAWL-HARDEN/handoff.md` · `plans/archive/2026.08.06-CRAWL-HARDEN/journal.jsonl`
 
 ## 493
 
-1) `plans/2026.08.06-CRAWL-HARDEN/research/05-p4-reliability-design.md` §2.4,
+1) `plans/archive/2026.08.06-CRAWL-HARDEN/research/05-p4-reliability-design.md` §2.4,
 §2.5, §4.6, §5 2) `database/migrations/2026_07_04_100041_create_prc_fetches_table.php` целиком
 (секционирование, FK, индексы) 3) `database/migrations/2026_07_04_100047_setup_pg_partman.php`
 (шаблон партиций — синхронизация новых колонок) 4) `app/Services/Procurement/CsvBlockIngestor.php`
@@ -5702,7 +5702,7 @@ D46 (журнал операций получает писателя, а не у
 зелено · `docker compose exec app ./vendor/bin/phpstan analyse --memory-limit=1G` — без новых ошибок
 и без новых строк в `phpstan-baseline.neon` · полный прогон —
 `docker compose exec -e DB_DATABASE=agelto_test app php artisan test --no-tia --compact` — зелено ·
-`plan-lint plans/2026.08.06-CRAWL-HARDEN --baseline HEAD` — новых от диффа item'а ошибок 0.
+`plan-lint plans/archive/2026.08.06-CRAWL-HARDEN --baseline HEAD` — новых от диффа item'а ошибок 0.
 
 ## 499
 
@@ -5815,10 +5815,10 @@ VO без второго слоя абстракции) · `app/Services/Procure
 `tests/Feature/Filament/CrawlerRunActionsTest.php` ·
 `tests/Feature/Filament/CrawlerFormTest.php` · `tests/Feature/Seeders/EisSeedersTest.php` ·
 `tests/Unit/Config/QueueTimeoutInvariantTest.php` ·
-`plans/2026.08.06-CRAWL-HARDEN/phases/P4.md` ·
-`plans/2026.08.06-CRAWL-HARDEN/plan.md` ·
-`plans/2026.08.06-CRAWL-HARDEN/handoff.md` ·
-`plans/2026.08.06-CRAWL-HARDEN/journal.jsonl`.
+`plans/archive/2026.08.06-CRAWL-HARDEN/phases/P4.md` ·
+`plans/archive/2026.08.06-CRAWL-HARDEN/plan.md` ·
+`plans/archive/2026.08.06-CRAWL-HARDEN/handoff.md` ·
+`plans/archive/2026.08.06-CRAWL-HARDEN/journal.jsonl`.
 
 ## 511
 
@@ -5905,7 +5905,7 @@ queue connection в текущей версии → СТОП, опубликов
 показывает все четыре слоя, а `rg "86400|2592000|timeout.?=.?(0|false)" config/horizon.php
 config/queue.php` не находит shortcut этого item'а · Pint по путям item'а зелено · PHPStan без
 новых ошибок/baseline · полный Pest — Δfailed=0 против именованного baseline D112 и опубликованы
-оба числа с commit anchor · `plan-lint plans/2026.08.06-CRAWL-HARDEN --baseline HEAD` — K=0.
+оба числа с commit anchor · `plan-lint plans/archive/2026.08.06-CRAWL-HARDEN --baseline HEAD` — K=0.
 
 ## 519
 
@@ -6008,11 +6008,11 @@ message) и единственный писатель истории `App\Reposi
 ## 529
 
 решение владельца о носителе и его обоснование —
-`plans/2026.08.06-CRAWL-HARDEN/brief/01-refinements.md` блок P5 п. 1 · раскладка носителей, словарь
-вердиктов и ловушки 3, 6 — `plans/2026.08.06-CRAWL-HARDEN/research/06-p5-health-design.md` §3.1,
+`plans/archive/2026.08.06-CRAWL-HARDEN/brief/01-refinements.md` блок P5 п. 1 · раскладка носителей, словарь
+вердиктов и ловушки 3, 6 — `plans/archive/2026.08.06-CRAWL-HARDEN/research/06-p5-health-design.md` §3.1,
 §3.2, §5 · почему пакет отвергнут по назначению, а не по совместимости —
-`plans/2026.08.06-CRAWL-HARDEN/findings/P5-rag-health-2026-08-06.md` §1 · якоря вкладок (вход
-эталона) — `plans/2026.08.06-CRAWL-HARDEN/findings/P1-card-anchors.md` (производится P1.4)
+`plans/archive/2026.08.06-CRAWL-HARDEN/findings/P5-rag-health-2026-08-06.md` §1 · якоря вкладок (вход
+эталона) — `plans/archive/2026.08.06-CRAWL-HARDEN/findings/P1-card-anchors.md` (производится P1.4)
 
 ## 530
 
@@ -6031,13 +6031,13 @@ message) и единственный писатель истории `App\Reposi
 `tests/Feature/Health/PlatformCheckStoreTest.php` (новый) ·
 `tests/Unit/Health/PlatformCheckVerdictTest.php` (новый) ·
 `tests/Unit/Architecture/DomainLayoutTest.php` ·
-`plans/2026.08.06-CRAWL-HARDEN/phases/P5.md` · `plans/2026.08.06-CRAWL-HARDEN/plan.md` ·
-`plans/2026.08.06-CRAWL-HARDEN/handoff.md` · `plans/2026.08.06-CRAWL-HARDEN/journal.jsonl`
+`plans/archive/2026.08.06-CRAWL-HARDEN/phases/P5.md` · `plans/archive/2026.08.06-CRAWL-HARDEN/plan.md` ·
+`plans/archive/2026.08.06-CRAWL-HARDEN/handoff.md` · `plans/archive/2026.08.06-CRAWL-HARDEN/journal.jsonl`
 
 ## 531
 
-1) `plans/2026.08.06-CRAWL-HARDEN/research/06-p5-health-design.md` §3.1–§3.2, §5
-2) `plans/2026.08.06-CRAWL-HARDEN/findings/P5-rag-health-2026-08-06.md` §1
+1) `plans/archive/2026.08.06-CRAWL-HARDEN/research/06-p5-health-design.md` §3.1–§3.2, §5
+2) `plans/archive/2026.08.06-CRAWL-HARDEN/findings/P5-rag-health-2026-08-06.md` §1
 3) `database/migrations/2026_07_04_100042_create_prc_proxy_checks_table.php` целиком (образец формы
 истории проверок) 4) `app/Models/Procurement/Crawler/ProxyCheck.php` + фабрика
 `database/factories/Procurement/Crawler/ProxyCheckFactory.php` 5) `config/crawler.php` секции
@@ -6108,7 +6108,7 @@ health-секцию конфига — `sed -n '/Healthcheck платформы/
 `docker compose exec app ./vendor/bin/phpstan analyse --memory-limit=1G` — без новых ошибок и без
 новых строк в `phpstan-baseline.neon` · полный прогон —
 `docker compose exec -e DB_DATABASE=agelto_test app php artisan test --no-tia --compact` — зелено ·
-`plan-lint plans/2026.08.06-CRAWL-HARDEN --baseline HEAD` — новых от диффа item'а ошибок 0.
+`plan-lint plans/archive/2026.08.06-CRAWL-HARDEN --baseline HEAD` — новых от диффа item'а ошибок 0.
 
 ## 537
 
@@ -6189,11 +6189,11 @@ EventJournalParser.php:100-103; PartiesParser.php:72; SupplierResultsParser.php:
 
 ## 547
 
-контракт эталона и ридер — `plans/2026.08.06-CRAWL-HARDEN/phases/P5.md` P5.1
+контракт эталона и ридер — `plans/archive/2026.08.06-CRAWL-HARDEN/phases/P5.md` P5.1
 Deliverables · матрица «якорь/поле» и ловушка 4 —
-`plans/2026.08.06-CRAWL-HARDEN/research/06-p5-health-design.md` §3.3, §5 · drift-детекты парсеров и
+`plans/archive/2026.08.06-CRAWL-HARDEN/research/06-p5-health-design.md` §3.3, §5 · drift-детекты парсеров и
 шов разбора — там же §2.2, §2.3 · внешняя практика разделения сигналов —
-`plans/2026.08.06-CRAWL-HARDEN/findings/P5-rag-health-2026-08-06.md` §3
+`plans/archive/2026.08.06-CRAWL-HARDEN/findings/P5-rag-health-2026-08-06.md` §3
 
 ## 548
 
@@ -6205,12 +6205,12 @@ Deliverables · матрица «якорь/поле» и ловушка 4 —
 `database/migrations/<следующий свободный номер>_add_detail_parse_outcome_to_prc_procurements_table.php`
 (новый) · `tests/Feature/Health/CardAnchorProbeTest.php` (новый) ·
 `tests/Feature/Health/DetailParseOutcomeTest.php` (новый) ·
-`plans/2026.08.06-CRAWL-HARDEN/phases/P5.md` · `plans/2026.08.06-CRAWL-HARDEN/plan.md` ·
-`plans/2026.08.06-CRAWL-HARDEN/handoff.md` · `plans/2026.08.06-CRAWL-HARDEN/journal.jsonl`
+`plans/archive/2026.08.06-CRAWL-HARDEN/phases/P5.md` · `plans/archive/2026.08.06-CRAWL-HARDEN/plan.md` ·
+`plans/archive/2026.08.06-CRAWL-HARDEN/handoff.md` · `plans/archive/2026.08.06-CRAWL-HARDEN/journal.jsonl`
 
 ## 549
 
-1) `plans/2026.08.06-CRAWL-HARDEN/research/06-p5-health-design.md` §2.2, §2.3,
+1) `plans/archive/2026.08.06-CRAWL-HARDEN/research/06-p5-health-design.md` §2.2, §2.3,
 §3.3, §3.5, §5 2) `app/Services/Procurement/Modes/DetailAnalysisProcessor.php` целиком (шов, общий
 `catch (Throwable)` и `markFailed()` — ловушка item'а: ошибка зонда НЕ должна попасть в этот catch
 как отказ закупки) 3) `app/Dto/Procurement/ProcurementDetails.php` 4) `app/Services/Procurement/Eis/
@@ -6275,7 +6275,7 @@ Card/CommonInfoParser.php` строки 19, 320–358 (какие якоря р�
 новых строк в `phpstan-baseline.neon` · полный прогон —
 `docker compose exec -e DB_DATABASE=agelto_test app php artisan test --no-tia --compact` — зелено ·
 гейт «сеть не тронута» — `grep -rn "zakupki.gov.ru" tests/Feature/Health/ | grep -v Fixtures` пусто ·
-`plan-lint plans/2026.08.06-CRAWL-HARDEN --baseline HEAD` — новых от диффа item'а ошибок 0.
+`plan-lint plans/archive/2026.08.06-CRAWL-HARDEN --baseline HEAD` — новых от диффа item'а ошибок 0.
 
 ## 554
 
@@ -6295,7 +6295,7 @@ write-site: pre_mutation: allow · pre_final: allow
 
 ## 557
 
-Проверка ссылок `python3 plans/verify-citations.py plans/2026.08.06-CRAWL-HARDEN --strict` недоступна: скрипт отсутствует в репозитории; `plan-lint --baseline HEAD` прошёл с 0 новыми ошибками.
+Проверка ссылок `python3 plans/verify-citations.py plans/archive/2026.08.06-CRAWL-HARDEN --strict` недоступна: скрипт отсутствует в репозитории; `plan-lint --baseline HEAD` прошёл с 0 новыми ошибками.
 
 ## 558
 
@@ -6362,10 +6362,10 @@ no
 ## 564
 
 носители, словарь и правило `not_enough_data` —
-`plans/2026.08.06-CRAWL-HARDEN/phases/P5.md` P5.1 Deliverables · исход разбора карточки —
+`plans/archive/2026.08.06-CRAWL-HARDEN/phases/P5.md` P5.1 Deliverables · исход разбора карточки —
 там же P5.2 Deliverables · формулы трёх проб и их классы отказа —
-`plans/2026.08.06-CRAWL-HARDEN/research/06-p5-health-design.md` §3.4 · ловушки 1, 5, 8 — там же §5 ·
-решение владельца о пассивной модели — `plans/2026.08.06-CRAWL-HARDEN/brief/01-refinements.md`
+`plans/archive/2026.08.06-CRAWL-HARDEN/research/06-p5-health-design.md` §3.4 · ловушки 1, 5, 8 — там же §5 ·
+решение владельца о пассивной модели — `plans/archive/2026.08.06-CRAWL-HARDEN/brief/01-refinements.md`
 блок P5 п. 4 · образец формы команды — `app/Console/Commands/Procurement/PipelineStuckCheck.php`
 
 ## 565
@@ -6380,12 +6380,12 @@ no
 `tests/Feature/Health/ListingShapeCheckTest.php` (новый) ·
 `tests/Feature/Health/EstimateFieldsCheckTest.php` (новый) ·
 `tests/Feature/Health/HealthCheckCommandTest.php` (новый) ·
-`plans/2026.08.06-CRAWL-HARDEN/phases/P5.md` · `plans/2026.08.06-CRAWL-HARDEN/plan.md` ·
-`plans/2026.08.06-CRAWL-HARDEN/handoff.md` · `plans/2026.08.06-CRAWL-HARDEN/journal.jsonl`
+`plans/archive/2026.08.06-CRAWL-HARDEN/phases/P5.md` · `plans/archive/2026.08.06-CRAWL-HARDEN/plan.md` ·
+`plans/archive/2026.08.06-CRAWL-HARDEN/handoff.md` · `plans/archive/2026.08.06-CRAWL-HARDEN/journal.jsonl`
 
 ## 566
 
-1) `plans/2026.08.06-CRAWL-HARDEN/research/06-p5-health-design.md` §3.2, §3.4, §5
+1) `plans/archive/2026.08.06-CRAWL-HARDEN/research/06-p5-health-design.md` §3.2, §3.4, §5
 2) `app/Console/Commands/Procurement/PipelineStuckCheck.php` целиком (образец: read-only, агрегация
 находок, всегда `SUCCESS`) 3) `app/Services/Procurement/Eis/EisCsvRowMapper.php` — метод
 разбора строки CSV целиком, от докблока класса до конца маппинга обязательных полей (почему
@@ -6458,7 +6458,7 @@ config('crawler.health.window_hours'))`, границы кладутся в ст
 `docker compose exec app ./vendor/bin/phpstan analyse --memory-limit=1G` — без новых ошибок и без
 новых строк в `phpstan-baseline.neon` · полный прогон —
 `docker compose exec -e DB_DATABASE=agelto_test app php artisan test --no-tia --compact` — зелено ·
-`plan-lint plans/2026.08.06-CRAWL-HARDEN --baseline HEAD` — новых от диффа item'а ошибок 0.
+`plan-lint plans/archive/2026.08.06-CRAWL-HARDEN --baseline HEAD` — новых от диффа item'а ошибок 0.
 
 ## 572
 
@@ -6544,11 +6544,11 @@ no
 ## 582
 
 метод замера и его числа —
-`plans/2026.08.06-CRAWL-HARDEN/findings/P1-okpd2-probe.md` §3, §5 · требование «healthcheck обязан
-проверять именно ДЕЙСТВИЕ фильтра» — D8/D20 в `plans/2026.08.06-CRAWL-HARDEN/plan.md` · почему
+`plans/archive/2026.08.06-CRAWL-HARDEN/findings/P1-okpd2-probe.md` §3, §5 · требование «healthcheck обязан
+проверять именно ДЕЙСТВИЕ фильтра» — D8/D20 в `plans/archive/2026.08.06-CRAWL-HARDEN/plan.md` · почему
 пассивно нельзя и почему проба идёт боевым путём —
-`plans/2026.08.06-CRAWL-HARDEN/research/06-p5-health-design.md` §3.4, ловушки 2 и 5 в §5 ·
-контракт проверки и словарь вердиктов — `plans/2026.08.06-CRAWL-HARDEN/phases/P5.md` P5.1/P5.3 ·
+`plans/archive/2026.08.06-CRAWL-HARDEN/research/06-p5-health-design.md` §3.4, ловушки 2 и 5 в §5 ·
+контракт проверки и словарь вердиктов — `plans/archive/2026.08.06-CRAWL-HARDEN/phases/P5.md` P5.1/P5.3 ·
 бюджет и его исключение — там же `phases/P4.md` P4.4
 
 ## 583
@@ -6558,20 +6558,20 @@ no
 `app/Console/Commands/Procurement/HealthCheckCommand.php` ·
 `resources/crawler/health/eis-baseline.json` (порог пересечения — если его ещё нет) ·
 `tests/Feature/Health/ListingFilterCheckTest.php` (новый) ·
-`plans/2026.08.06-CRAWL-HARDEN/phases/P5.md` · `plans/2026.08.06-CRAWL-HARDEN/plan.md` ·
-`plans/2026.08.06-CRAWL-HARDEN/handoff.md` · `plans/2026.08.06-CRAWL-HARDEN/journal.jsonl`
+`plans/archive/2026.08.06-CRAWL-HARDEN/phases/P5.md` · `plans/archive/2026.08.06-CRAWL-HARDEN/plan.md` ·
+`plans/archive/2026.08.06-CRAWL-HARDEN/handoff.md` · `plans/archive/2026.08.06-CRAWL-HARDEN/journal.jsonl`
 
 ## 584
 
-1) `plans/2026.08.06-CRAWL-HARDEN/findings/P1-okpd2-probe.md` §3, §5 целиком
-2) `plans/2026.08.06-CRAWL-HARDEN/research/06-p5-health-design.md` §3.4, §5
+1) `plans/archive/2026.08.06-CRAWL-HARDEN/findings/P1-okpd2-probe.md` §3, §5 целиком
+2) `plans/archive/2026.08.06-CRAWL-HARDEN/research/06-p5-health-design.md` §3.4, §5
 3) `app/Services/Procurement/Eis/CsvSourceMethod.php` — метод получения листинга (`listingLease()`
 и вызывающий его путь запроса) плюс блок сборки HTTP-клиента: как собирается боевой запрос
 листинга — параметры, лиза прокси, TLS, ретраи; **строчных анкеров здесь нет сознательно — файл
 правят P4.1/P4.2/P4.4/P4.6, причём P4.4 вставляет получение слота прямо в путь запроса** (D103) 4)
 `app/Services/Procurement/Eis/EisCsvUrlBuilder.php` целиком 5)
-`plans/2026.08.06-CRAWL-HARDEN/phases/P4.md` P4.4 (семантика исчерпания бюджета и его исключение)
-6) `plans/2026.08.06-CRAWL-HARDEN/phases/P2.md` P2.3 (как в запрос попадают `okpd2Ids` и
+`plans/archive/2026.08.06-CRAWL-HARDEN/phases/P4.md` P4.4 (семантика исчерпания бюджета и его исключение)
+6) `plans/archive/2026.08.06-CRAWL-HARDEN/phases/P2.md` P2.3 (как в запрос попадают `okpd2Ids` и
 `okpd2IdsWithNested`) 7) `tests/Feature/Crawler/CsvSourceMethodTest.php` (как тесты подменяют HTTP и
 проверяют параметры запроса) 8) скиллы `testing-rules`, `pest-testing`
 
@@ -6627,7 +6627,7 @@ no
 `docker compose exec app ./vendor/bin/phpstan analyse --memory-limit=1G` — без новых ошибок и без
 новых строк в `phpstan-baseline.neon` · полный прогон —
 `docker compose exec -e DB_DATABASE=agelto_test app php artisan test --no-tia --compact` — зелено ·
-`plan-lint plans/2026.08.06-CRAWL-HARDEN --baseline HEAD` — новых от диффа item'а ошибок 0.
+`plan-lint plans/archive/2026.08.06-CRAWL-HARDEN --baseline HEAD` — новых от диффа item'а ошибок 0.
 
 ## 589
 
@@ -6717,10 +6717,10 @@ e-mail и любой второй канал (D54); рассылка поста�
 ## 599
 
 решение о канале и его обоснование —
-`plans/2026.08.06-CRAWL-HARDEN/brief/01-refinements.md` блок P5 п. 2 · решение «поломка не
+`plans/archive/2026.08.06-CRAWL-HARDEN/brief/01-refinements.md` блок P5 п. 2 · решение «поломка не
 останавливает прогоны» — там же п. 3 · два рубежа антиспама и формулировки —
-`plans/2026.08.06-CRAWL-HARDEN/research/06-p5-health-design.md` §3.6 · автодискавери слушателей и
-`Event::assertListening` — `plans/2026.08.06-CRAWL-HARDEN/findings/P5-rag-health-2026-08-06.md` §4 ·
+`plans/archive/2026.08.06-CRAWL-HARDEN/research/06-p5-health-design.md` §3.6 · автодискавери слушателей и
+`Event::assertListening` — `plans/archive/2026.08.06-CRAWL-HARDEN/findings/P5-rag-health-2026-08-06.md` §4 ·
 транспорт и его антиспам — `app/Notifications/PipelineAlert.php`
 
 ## 600
@@ -6732,14 +6732,14 @@ e-mail и любой второй канал (D54); рассылка поста�
 по паре «площадка + вид») · `config/crawler.php` ·
 `tests/Feature/Health/PlatformHealthChangedEventTest.php` (новый) ·
 `tests/Feature/Health/NotifyPlatformHealthChangedTest.php` (новый) ·
-`docs/03_Dev/crawling-pipeline.md` · `plans/2026.08.06-CRAWL-HARDEN/phases/P5.md` ·
-`plans/2026.08.06-CRAWL-HARDEN/plan.md` · `plans/2026.08.06-CRAWL-HARDEN/handoff.md` ·
-`plans/2026.08.06-CRAWL-HARDEN/journal.jsonl`
+`docs/03_Dev/crawling-pipeline.md` · `plans/archive/2026.08.06-CRAWL-HARDEN/phases/P5.md` ·
+`plans/archive/2026.08.06-CRAWL-HARDEN/plan.md` · `plans/archive/2026.08.06-CRAWL-HARDEN/handoff.md` ·
+`plans/archive/2026.08.06-CRAWL-HARDEN/journal.jsonl`
 
 ## 601
 
-1) `plans/2026.08.06-CRAWL-HARDEN/research/06-p5-health-design.md` §2.6, §3.6
-2) `plans/2026.08.06-CRAWL-HARDEN/findings/P5-rag-health-2026-08-06.md` §4 3)
+1) `plans/archive/2026.08.06-CRAWL-HARDEN/research/06-p5-health-design.md` §2.6, §3.6
+2) `plans/archive/2026.08.06-CRAWL-HARDEN/findings/P5-rag-health-2026-08-06.md` §4 3)
 `app/Notifications/PipelineAlert.php` целиком (формат сообщения, антиспам, фолбэк «канал не
 настроен») 4) `app/Console/Commands/Procurement/PipelineStuckCheck.php` строки 43–69 (как находки
 доходят до транспорта) 5) `tests/Feature/Procurement/Pipeline/StuckCheckTest.php` (как тесты глушат
@@ -6805,7 +6805,7 @@ Eloquent-модели в нагрузке события; событие на к
 `docker compose exec app ./vendor/bin/phpstan analyse --memory-limit=1G` — без новых ошибок и без
 новых строк в `phpstan-baseline.neon` · полный прогон —
 `docker compose exec -e DB_DATABASE=agelto_test app php artisan test --no-tia --compact` — зелено ·
-`plan-lint plans/2026.08.06-CRAWL-HARDEN --baseline HEAD` — новых от диффа item'а ошибок 0.
+`plan-lint plans/archive/2026.08.06-CRAWL-HARDEN --baseline HEAD` — новых от диффа item'а ошибок 0.
 
 ## 607
 
@@ -6889,9 +6889,9 @@ bulk-удаления; (4) устранение N+1 на списке (`with('pl
 
 ## 617
 
-схема таблицы и словарь вердиктов — `plans/2026.08.06-CRAWL-HARDEN/phases/P5.md` P5.1
+схема таблицы и словарь вердиктов — `plans/archive/2026.08.06-CRAWL-HARDEN/phases/P5.md` P5.1
 Deliverables · требование read-only и его причина —
-`plans/2026.08.06-CRAWL-HARDEN/research/06-p5-health-design.md` §3.1, ловушка 3 в §5 · образец
+`plans/archive/2026.08.06-CRAWL-HARDEN/research/06-p5-health-design.md` §3.1, ловушка 3 в §5 · образец
 read-only ресурса — существующий ресурс прогонов краулера
 
 ## 618
@@ -6905,14 +6905,14 @@ read-only ресурса — существующий ресурс прогон�
 порождается `guard:filament:generate --source=enum`) · `app/Guards/Admin/Roles/OperatorRole.php` ·
 `docs/03_Dev/runbooks/platform-health-broken.md` (новый) · `docs/03_Dev/runbooks/_index.md` ·
 `tests/Feature/Filament/PlatformCheckResourceTest.php` (новый) ·
-`plans/2026.08.06-CRAWL-HARDEN/phases/P5.md` · `plans/2026.08.06-CRAWL-HARDEN/plan.md` ·
-`plans/2026.08.06-CRAWL-HARDEN/handoff.md` · `plans/2026.08.06-CRAWL-HARDEN/journal.jsonl`
+`plans/archive/2026.08.06-CRAWL-HARDEN/phases/P5.md` · `plans/archive/2026.08.06-CRAWL-HARDEN/plan.md` ·
+`plans/archive/2026.08.06-CRAWL-HARDEN/handoff.md` · `plans/archive/2026.08.06-CRAWL-HARDEN/journal.jsonl`
 · `app/Enums/Procurement/Health/PlatformCheckVerdict.php` (добавить единый API цвета бейджа;
 расширение Files одобрено владельцем в текущей сессии 2026-08-08)
 
 ## 619
 
-1) `plans/2026.08.06-CRAWL-HARDEN/research/06-p5-health-design.md` §3.1, §3.2
+1) `plans/archive/2026.08.06-CRAWL-HARDEN/research/06-p5-health-design.md` §3.1, §3.2
 2) `app/Filament/Resources/Procurement/Crawler/Runs/RunResource.php` и его `Tables`/`Pages`
 (образец списка с фильтрами и просмотром) 3) `app/Models/Procurement/Health/PlatformCheck.php`
 (появляется в P5.1) 4) `app/Providers/Filament/AdminPanelProvider.php` (регистрация ресурсов,
@@ -7001,7 +7001,7 @@ json; `whereRaw`; собственная навигационная группа
 `docker compose exec app ./vendor/bin/phpstan analyse --memory-limit=1G` — без новых ошибок и без
 новых строк в `phpstan-baseline.neon` · полный прогон —
 `docker compose exec -e DB_DATABASE=agelto_test app php artisan test --no-tia --compact` — зелено ·
-`plan-lint plans/2026.08.06-CRAWL-HARDEN --baseline HEAD` — новых от диффа item'а ошибок 0.
+`plan-lint plans/archive/2026.08.06-CRAWL-HARDEN --baseline HEAD` — новых от диффа item'а ошибок 0.
 
 ## 624
 
@@ -7079,8 +7079,8 @@ Audit P5 — 2026-08-08 (заход 1); tests/Feature/Health; app/Services/Procu
 
 ## 634
 
-`plans/2026.08.06-CRAWL-HARDEN/phases/P5.md` блок Audit P5 · D125/D126 в `plan.md` ·
-`plans/2026.08.06-CRAWL-HARDEN/research/06-p5-health-design.md` §3.3–§3.4 · item-коммиты
+`plans/archive/2026.08.06-CRAWL-HARDEN/phases/P5.md` блок Audit P5 · D125/D126 в `plan.md` ·
+`plans/archive/2026.08.06-CRAWL-HARDEN/research/06-p5-health-design.md` §3.3–§3.4 · item-коммиты
 P5.1–P5.6, перечисленные в audit-блоке.
 
 ## 635
@@ -7090,10 +7090,10 @@ P5.1–P5.6, перечисленные в audit-блоке.
 `app/Services/Procurement/Health/Checks/ListingFilterCheck.php` · `routes/console.php` ·
 `resources/crawler/health/eis-baseline.json` · `tests/Feature/Health/HealthCheckCommandTest.php` ·
 `tests/Feature/Health/EstimateFieldsCheckTest.php` · `tests/Feature/Health/ListingFilterCheckTest.php` ·
-`tests/Feature/Health/CardParseCheckTest.php` · `plans/2026.08.06-CRAWL-HARDEN/phases/P5.md` ·
-`plans/2026.08.06-CRAWL-HARDEN/plan.md` · `plans/2026.08.06-CRAWL-HARDEN/roadmap.md` ·
-`plans/2026.08.06-CRAWL-HARDEN/handoff.md` · `plans/2026.08.06-CRAWL-HARDEN/journal.jsonl` ·
-`plans/2026.08.06-CRAWL-HARDEN/brief/01-refinements.md`.
+`tests/Feature/Health/CardParseCheckTest.php` · `plans/archive/2026.08.06-CRAWL-HARDEN/phases/P5.md` ·
+`plans/archive/2026.08.06-CRAWL-HARDEN/plan.md` · `plans/archive/2026.08.06-CRAWL-HARDEN/roadmap.md` ·
+`plans/archive/2026.08.06-CRAWL-HARDEN/handoff.md` · `plans/archive/2026.08.06-CRAWL-HARDEN/journal.jsonl` ·
+`plans/archive/2026.08.06-CRAWL-HARDEN/brief/01-refinements.md`.
 
 ## 636
 
@@ -7136,7 +7136,7 @@ DB-preflight на `agelto_test` ·
 `docker exec agelto_app ./vendor/bin/phpstan analyse --memory-limit=1G` — 0 errors · полный
 `docker exec -e APP_ENV=testing -e DB_DATABASE=agelto_test agelto_app php artisan test --no-tia --compact --no-progress`
 — дельта 0 против именованного baseline, если остаются чужие красные ·
-`plan-lint plans/2026.08.06-CRAWL-HARDEN --baseline b92ef7df`
+`plan-lint plans/archive/2026.08.06-CRAWL-HARDEN --baseline b92ef7df`
 — новых ошибок 0.
 
 ## 640
@@ -7234,10 +7234,10 @@ P6.2, у `Unsuccessful` — остаётся `forward-provision`; (3) read/edit-
 ## 650
 
 перечень этапов, снятый живой пробой, и его сопоставление с сидом —
-`plans/2026.08.06-CRAWL-HARDEN/artifacts/eis-stages.json` + `findings/P1-card-anchors.md`
+`plans/archive/2026.08.06-CRAWL-HARDEN/artifacts/eis-stages.json` + `findings/P1-card-anchors.md`
 (производятся P1.4) · решение владельца о составе положительного исхода —
-`plans/2026.08.06-CRAWL-HARDEN/brief/01-refinements.md` блок P6 п. 1 · почему признак живёт в
-каноне, а не в данных — `plans/2026.08.06-CRAWL-HARDEN/research/07-p6-history-design.md` §3.1 ·
+`plans/archive/2026.08.06-CRAWL-HARDEN/brief/01-refinements.md` блок P6 п. 1 · почему признак живёт в
+каноне, а не в данных — `plans/archive/2026.08.06-CRAWL-HARDEN/research/07-p6-history-design.md` §3.1 ·
 невыполненное обещание докблока про админку — там же §2.3
 
 ## 651
@@ -7253,12 +7253,12 @@ P6.2, у `Unsuccessful` — остаётся `forward-provision`; (3) read/edit-
 `tests/Feature/Procurement/StatusMappingSeederTest.php` ·
 `tests/Unit/Procurement/ProcurementStatusTest.php` (новый) ·
 `tests/Feature/Filament/StatusMappingResourceTest.php` (новый) ·
-`plans/2026.08.06-CRAWL-HARDEN/phases/P6.md` · `plans/2026.08.06-CRAWL-HARDEN/plan.md` ·
-`plans/2026.08.06-CRAWL-HARDEN/handoff.md` · `plans/2026.08.06-CRAWL-HARDEN/journal.jsonl`
+`plans/archive/2026.08.06-CRAWL-HARDEN/phases/P6.md` · `plans/archive/2026.08.06-CRAWL-HARDEN/plan.md` ·
+`plans/archive/2026.08.06-CRAWL-HARDEN/handoff.md` · `plans/archive/2026.08.06-CRAWL-HARDEN/journal.jsonl`
 
 ## 652
 
-1) `plans/2026.08.06-CRAWL-HARDEN/research/07-p6-history-design.md` §2.1–§2.3,
+1) `plans/archive/2026.08.06-CRAWL-HARDEN/research/07-p6-history-design.md` §2.1–§2.3,
 §3.1 2) `app/Enums/Procurement/ProcurementStatus.php` целиком (докблок-матрица достижимости — её
 надо обновить, а не переписать заново) 3) `database/seeders/StatusMappingSeeder.php` целиком
 (идемпотентность через `updateOrCreate`, поведение при отсутствии реестра) 4)
@@ -7357,7 +7357,7 @@ item НЕ исполняется и НЕ закрывается «частичн
 `docker compose exec app ./vendor/bin/phpstan analyse --memory-limit=1G` — без новых ошибок и без
 новых строк в `phpstan-baseline.neon` · полный прогон —
 `docker compose exec -e DB_DATABASE=agelto_test app php artisan test --no-tia --compact` — зелено ·
-`plan-lint plans/2026.08.06-CRAWL-HARDEN --baseline HEAD` — новых от диффа item'а ошибок 0.
+`plan-lint plans/archive/2026.08.06-CRAWL-HARDEN --baseline HEAD` — новых от диффа item'а ошибок 0.
 
 ## 659
 
@@ -7461,12 +7461,12 @@ P4.14 плана 2026.07.31-SYS-INTEGRITY)`. Живая success-фактура P
 ## 669
 
 решение D128 — `research/15-p6.2-anonymous-winner-design.md` +
-`findings/P6-supplier-results-fix.md` · сырой HTML success-карточки — `plans/2026.08.06-CRAWL-HARDEN/artifacts/eis-card-html-success/`
+`findings/P6-supplier-results-fix.md` · сырой HTML success-карточки — `plans/archive/2026.08.06-CRAWL-HARDEN/artifacts/eis-card-html-success/`
 (производится P1.4) · вариативность вкладок и полей по видам процедур —
-`plans/2026.08.06-CRAWL-HARDEN/artifacts/eis-card-inventory.json` + `findings/P1-card-inventory.md`
+`plans/archive/2026.08.06-CRAWL-HARDEN/artifacts/eis-card-inventory.json` + `findings/P1-card-inventory.md`
 (производятся P1.5) · диагноз старых селекторов и реальный паттерн разметки — шапка
 `tests/Fixtures/Crawler/Card/supplier-results.html` · почему починка — предусловие канона
-`Awarded`, и ловушки 5–6 — `plans/2026.08.06-CRAWL-HARDEN/research/07-p6-history-design.md` §2.4,
+`Awarded`, и ловушки 5–6 — `plans/archive/2026.08.06-CRAWL-HARDEN/research/07-p6-history-design.md` §2.4,
 §2.5, §5 · рецепт живого канала (если карточку придётся добирать) —
 `.claude/skills/eis-recon/SKILL.md` §1–§3
 
@@ -7484,10 +7484,10 @@ P4.14 плана 2026.07.31-SYS-INTEGRITY)`. Живая success-фактура P
 `tests/Feature/Health/PlatformHealthChangedEventTest.php` ·
 `tests/Feature/Procurement/SupplierResultsProcessorTest.php` ·
 `tests/Unit/Crawler/SupplierResultsParserTest.php` (новый, если отсутствует) ·
-`plans/2026.08.06-CRAWL-HARDEN/artifacts/eis-card-html-success/` (только если карточку добирает
-сам item) · `plans/2026.08.06-CRAWL-HARDEN/findings/P6-supplier-results-fix.md` (новый) ·
-`plans/2026.08.06-CRAWL-HARDEN/phases/P6.md` · `plans/2026.08.06-CRAWL-HARDEN/plan.md` ·
-`plans/2026.08.06-CRAWL-HARDEN/handoff.md` · `plans/2026.08.06-CRAWL-HARDEN/journal.jsonl`
+`plans/archive/2026.08.06-CRAWL-HARDEN/artifacts/eis-card-html-success/` (только если карточку добирает
+сам item) · `plans/archive/2026.08.06-CRAWL-HARDEN/findings/P6-supplier-results-fix.md` (новый) ·
+`plans/archive/2026.08.06-CRAWL-HARDEN/phases/P6.md` · `plans/archive/2026.08.06-CRAWL-HARDEN/plan.md` ·
+`plans/archive/2026.08.06-CRAWL-HARDEN/handoff.md` · `plans/archive/2026.08.06-CRAWL-HARDEN/journal.jsonl`
 
 ## 671
 
@@ -7579,7 +7579,7 @@ success-карточке разметка отличается и от `common-i
 `docker compose exec app ./vendor/bin/phpstan analyse --memory-limit=1G` — без новых ошибок и без
 новых строк в `phpstan-baseline.neon` · полный прогон —
 `docker compose exec -e DB_DATABASE=agelto_test app php artisan test --no-tia --compact` — зелено ·
-`plan-lint plans/2026.08.06-CRAWL-HARDEN --baseline HEAD` — новых от диффа item'а ошибок 0.
+`plan-lint plans/archive/2026.08.06-CRAWL-HARDEN --baseline HEAD` — новых от диффа item'а ошибок 0.
 
 ## 678
 
@@ -7683,11 +7683,11 @@ app/Repositories/Procurement/ProcurementReadRepository.php:13-33)`. Универ
 
 ## 688
 
-что уже пишется в историю и чем — `plans/2026.08.06-CRAWL-HARDEN/research/07-p6-history-design.md`
+что уже пишется в историю и чем — `plans/archive/2026.08.06-CRAWL-HARDEN/research/07-p6-history-design.md`
 §2.6 · требование универсальности и его технический смысл — там же §3.6 · глубина витрины, выбранная
-владельцем (сюда входит diff) — `plans/2026.08.06-CRAWL-HARDEN/brief/01-refinements.md` блок P6
+владельцем (сюда входит diff) — `plans/archive/2026.08.06-CRAWL-HARDEN/brief/01-refinements.md` блок P6
 п. 4 · ловушки 4 и 9 (скан партиций, длительность «по `created_at`») —
-`plans/2026.08.06-CRAWL-HARDEN/research/07-p6-history-design.md` §5
+`plans/archive/2026.08.06-CRAWL-HARDEN/research/07-p6-history-design.md` §5
 
 ## 689
 
@@ -7703,12 +7703,12 @@ app/Repositories/Procurement/ProcurementReadRepository.php:13-33)`. Универ
 `tests/Feature/Procurement/History/RevisionDiffServiceTest.php` (новый) ·
 `tests/Unit/Architecture/HistoryModulePlatformAgnosticTest.php` (новый) ·
 `tests/Unit/Architecture/DomainLayoutTest.php` ·
-`plans/2026.08.06-CRAWL-HARDEN/phases/P6.md` · `plans/2026.08.06-CRAWL-HARDEN/plan.md` ·
-`plans/2026.08.06-CRAWL-HARDEN/handoff.md` · `plans/2026.08.06-CRAWL-HARDEN/journal.jsonl`
+`plans/archive/2026.08.06-CRAWL-HARDEN/phases/P6.md` · `plans/archive/2026.08.06-CRAWL-HARDEN/plan.md` ·
+`plans/archive/2026.08.06-CRAWL-HARDEN/handoff.md` · `plans/archive/2026.08.06-CRAWL-HARDEN/journal.jsonl`
 
 ## 690
 
-1) `plans/2026.08.06-CRAWL-HARDEN/research/07-p6-history-design.md` §2.6, §3.6,
+1) `plans/archive/2026.08.06-CRAWL-HARDEN/research/07-p6-history-design.md` §2.6, §3.6,
 §3.7, §5 2) `app/Services/Procurement/ProcurementIngestProcessor.php` целиком (какие события
 рождаются и с какими полями — лента читает ровно их) 3) `app/Enums/Procurement/ProcurementEventType.php`
 целиком 4) `app/Dto/Procurement/ProcurementSnapshotData.php` (форма снапшота — предмет diff'а)
@@ -7783,7 +7783,7 @@ P6.4 — второй словарь в Filament заводить запреще
 `docker compose exec app ./vendor/bin/phpstan analyse --memory-limit=1G` — без новых ошибок и без
 новых строк в `phpstan-baseline.neon` · полный прогон —
 `docker compose exec -e DB_DATABASE=agelto_test app php artisan test --no-tia --compact` — зелено ·
-`plan-lint plans/2026.08.06-CRAWL-HARDEN --baseline HEAD` — новых от диффа item'а ошибок 0.
+`plan-lint plans/archive/2026.08.06-CRAWL-HARDEN --baseline HEAD` — новых от диффа item'а ошибок 0.
 
 ## 697
 
@@ -7867,10 +7867,10 @@ no
 
 ## 707
 
-сервисы, DTO и словарь подписей — `plans/2026.08.06-CRAWL-HARDEN/phases/P6.md` P6.3
+сервисы, DTO и словарь подписей — `plans/archive/2026.08.06-CRAWL-HARDEN/phases/P6.md` P6.3
 Deliverables · глубина витрины, выбранная владельцем —
-`plans/2026.08.06-CRAWL-HARDEN/brief/01-refinements.md` блок P6 п. 4 · ловушки 4, 7, 8 —
-`plans/2026.08.06-CRAWL-HARDEN/research/07-p6-history-design.md` §5 · образец relation-manager'а
+`plans/archive/2026.08.06-CRAWL-HARDEN/brief/01-refinements.md` блок P6 п. 4 · ловушки 4, 7, 8 —
+`plans/archive/2026.08.06-CRAWL-HARDEN/research/07-p6-history-design.md` §5 · образец relation-manager'а
 проекта — `app/Filament/Resources/Procurement/Estimates/RelationManagers/ItemsRelationManager.php`
 
 ## 708
@@ -7880,8 +7880,8 @@ Deliverables · глубина витрины, выбранная владель
 `app/Filament/Resources/Procurement/Procurements/RelationManagers/RevisionsRelationManager.php` (новый) ·
 `app/Filament/Resources/Procurement/Procurements/Schemas/ProcurementInfolist.php` ·
 `tests/Feature/Filament/ProcurementHistoryTest.php` (новый) ·
-`plans/2026.08.06-CRAWL-HARDEN/phases/P6.md` · `plans/2026.08.06-CRAWL-HARDEN/plan.md` ·
-`plans/2026.08.06-CRAWL-HARDEN/handoff.md` · `plans/2026.08.06-CRAWL-HARDEN/journal.jsonl`
+`plans/archive/2026.08.06-CRAWL-HARDEN/phases/P6.md` · `plans/archive/2026.08.06-CRAWL-HARDEN/plan.md` ·
+`plans/archive/2026.08.06-CRAWL-HARDEN/handoff.md` · `plans/archive/2026.08.06-CRAWL-HARDEN/journal.jsonl`
 
 ## 709
 
@@ -7889,9 +7889,9 @@ Deliverables · глубина витрины, выбранная владель
 целиком (образец: докблок с обоснованием, табличные фильтры, отсутствие формы) 2)
 `app/Filament/Resources/Procurement/Procurements/ProcurementResource.php` (докблок про «фазу 2» и
 eager-load против N+1) 3) `app/Filament/Resources/Procurement/Procurements/Schemas/ProcurementInfolist.php`
-4) `plans/2026.08.06-CRAWL-HARDEN/phases/P6.md` P6.3 (какие DTO и методы доступны — витрина не
+4) `plans/archive/2026.08.06-CRAWL-HARDEN/phases/P6.md` P6.3 (какие DTO и методы доступны — витрина не
 считает сама) 5) `tests/Feature/Filament/EstimateResourceTest.php` (как в проекте тестируются
-ресурсы и relation-manager'ы) 6) `plans/2026.08.06-CRAWL-HARDEN/research/07-p6-history-design.md` §5
+ресурсы и relation-manager'ы) 6) `plans/archive/2026.08.06-CRAWL-HARDEN/research/07-p6-history-design.md` §5
 7) скиллы `filament`, `testing-rules`
 
 ## 710
@@ -7952,7 +7952,7 @@ Eager-load всего, что показано в колонках; N+1 на п�
 `docker compose exec app ./vendor/bin/phpstan analyse --memory-limit=1G` — без новых ошибок и без
 новых строк в `phpstan-baseline.neon` · полный прогон —
 `docker compose exec -e DB_DATABASE=agelto_test app php artisan test --no-tia --compact` — зелено ·
-`plan-lint plans/2026.08.06-CRAWL-HARDEN --baseline HEAD` — новых от диффа item'а ошибок 0.
+`plan-lint plans/archive/2026.08.06-CRAWL-HARDEN --baseline HEAD` — новых от диффа item'а ошибок 0.
 
 ## 717
 
@@ -8019,7 +8019,7 @@ no
 нагрузка ТОЛЬКО значения: `procurementId`, `registryId`, `registryNumber`, `canonicalStatus`
 (string), `reason` (`status`|`award`), `succeededAt`, `hasEstimate` (bool), `estimatesCount` (int),
 `winnerOrgId` (?int), `awardId` (?int); (6) контракт нагрузки —
-`plans/2026.08.06-CRAWL-HARDEN/root/contracts/procurement-succeeded-v1.md` (имя события, поля, их
+`plans/archive/2026.08.06-CRAWL-HARDEN/root/contracts/procurement-succeeded-v1.md` (имя события, поля, их
 семантика, гарантии единственности и порядка), строка `## 7. Contracts` плана переводится из
 `draft` в `frozen v1.0.0`; (7) раздел документации «событие завершения закупки и как на него
 подписаться» в `docs/03_Dev/document-pipeline.md`; (8) тесты: событие рождается при переходе в
@@ -8040,12 +8040,12 @@ no
 ## 727
 
 решение владельца о составе исхода и о месте фильтра «есть смета» —
-`plans/2026.08.06-CRAWL-HARDEN/brief/01-refinements.md` блок P6 п. 1 и п. 3 · продюсер `Awarded`,
+`plans/archive/2026.08.06-CRAWL-HARDEN/brief/01-refinements.md` блок P6 п. 1 и п. 3 · продюсер `Awarded`,
 единственность владельца статуса и носитель идемпотентности —
-`plans/2026.08.06-CRAWL-HARDEN/research/07-p6-history-design.md` §3.2, §3.3, §3.5 · ловушки 1–3
+`plans/archive/2026.08.06-CRAWL-HARDEN/research/07-p6-history-design.md` §3.2, §3.3, §3.5 · ловушки 1–3
 (моргание статуса, событие раньше коммита, повторное событие) — там же §5 · конвенция первого
-доменного события — `plans/2026.08.06-CRAWL-HARDEN/phases/P5.md` P5.5 и D55 · признак
-положительного исхода — `plans/2026.08.06-CRAWL-HARDEN/phases/P6.md` P6.1 Deliverables ·
+доменного события — `plans/archive/2026.08.06-CRAWL-HARDEN/phases/P5.md` P5.5 и D55 · признак
+положительного исхода — `plans/archive/2026.08.06-CRAWL-HARDEN/phases/P6.md` P6.1 Deliverables ·
 существующий продюсер award — там же P6.2 Deliverables
 
 ## 728
@@ -8058,19 +8058,19 @@ no
 `app/Services/Procurement/Detail/SupplierResultsProcessor.php` ·
 `app/Events/Procurement/ProcurementSucceeded.php` (новый) ·
 `app/Repositories/Procurement/ProcurementStoreRepository.php` ·
-`plans/2026.08.06-CRAWL-HARDEN/root/contracts/procurement-succeeded-v1.md` (новый) ·
+`plans/archive/2026.08.06-CRAWL-HARDEN/root/contracts/procurement-succeeded-v1.md` (новый) ·
 `docs/03_Dev/document-pipeline.md` ·
 `tests/Feature/Procurement/ProcurementSucceededEventTest.php` (новый) ·
-`plans/2026.08.06-CRAWL-HARDEN/phases/P6.md` · `plans/2026.08.06-CRAWL-HARDEN/plan.md` ·
-`plans/2026.08.06-CRAWL-HARDEN/handoff.md` · `plans/2026.08.06-CRAWL-HARDEN/journal.jsonl`
+`plans/archive/2026.08.06-CRAWL-HARDEN/phases/P6.md` · `plans/archive/2026.08.06-CRAWL-HARDEN/plan.md` ·
+`plans/archive/2026.08.06-CRAWL-HARDEN/handoff.md` · `plans/archive/2026.08.06-CRAWL-HARDEN/journal.jsonl`
 
 ## 729
 
-1) `plans/2026.08.06-CRAWL-HARDEN/research/07-p6-history-design.md` §3.2–§3.5,
+1) `plans/archive/2026.08.06-CRAWL-HARDEN/research/07-p6-history-design.md` §3.2–§3.5,
 §5 2) `app/Services/Procurement/ProcurementIngestProcessor.php` целиком (транзакция, две ветки
 `discover`/`applyRevision`, где именно встаёт вызов оценщика) 3)
 `app/Services/Procurement/Detail/SupplierResultsProcessor.php` строки 44–86 (где появляется award)
-4) `plans/2026.08.06-CRAWL-HARDEN/phases/P5.md` P5.5 целиком (конвенция события — каталог,
+4) `plans/archive/2026.08.06-CRAWL-HARDEN/phases/P5.md` P5.5 целиком (конвенция события — каталог,
 нагрузка значениями, автодискавери, стиль докблока) 5) `app/Models/Procurement/Estimate/Estimate.php`
 связь `procurement()` (как считается `estimatesCount`) 6)
 `app/Repositories/Procurement/ProcurementStoreRepository.php` (единственный писатель полей закупки —
@@ -8148,7 +8148,7 @@ Notes строкой, тест award-пути пишется на фабрика
 `docker compose exec app ./vendor/bin/phpstan analyse --memory-limit=1G` — без новых ошибок и без
 новых строк в `phpstan-baseline.neon` · полный прогон —
 `docker compose exec -e DB_DATABASE=agelto_test app php artisan test --no-tia --compact` — зелено ·
-`plan-lint plans/2026.08.06-CRAWL-HARDEN --baseline HEAD` — новых от диффа item'а ошибок 0.
+`plan-lint plans/archive/2026.08.06-CRAWL-HARDEN --baseline HEAD` — новых от диффа item'а ошибок 0.
 
 ## 736
 
@@ -8243,13 +8243,13 @@ no
 `app/Filament/Resources/Procurement/Ai/Fixtures/Tables/FixturesTable.php` ·
 `tests/Feature/Filament/FixtureGoldPageTest.php` (новый) ·
 `tests/Unit/Procurement/Gold/GoldDocumentReaderTest.php` (новый) · `docs/03_Dev/admin-panel.md` ·
-`plans/2026.08.06-CRAWL-HARDEN/phases/P7.md` · `plans/2026.08.06-CRAWL-HARDEN/plan.md` ·
-`plans/2026.08.06-CRAWL-HARDEN/handoff.md` · `plans/2026.08.06-CRAWL-HARDEN/journal.jsonl`
+`plans/archive/2026.08.06-CRAWL-HARDEN/phases/P7.md` · `plans/archive/2026.08.06-CRAWL-HARDEN/plan.md` ·
+`plans/archive/2026.08.06-CRAWL-HARDEN/handoff.md` · `plans/archive/2026.08.06-CRAWL-HARDEN/journal.jsonl`
 
 ## 748
 
-1) `plans/2026.08.06-CRAWL-HARDEN/research/08-p7-layers-design.md` §1 (Ф-2,
-Ф-3, Ф-4), §7 (Л-1…Л-4) 2) `plans/2026.08.06-CRAWL-HARDEN/findings/P7-rag-filament-2026-08-06.md`
+1) `plans/archive/2026.08.06-CRAWL-HARDEN/research/08-p7-layers-design.md` §1 (Ф-2,
+Ф-3, Ф-4), §7 (Л-1…Л-4) 2) `plans/archive/2026.08.06-CRAWL-HARDEN/findings/P7-rag-filament-2026-08-06.md`
 целиком 3) `app/Services/Procurement/Gold/GoldValidator.php` (как форма §8.2 разбирается сегодня)
 4) `app/Services/Procurement/Fixture/FixtureCaseResolver.php:73-125` (сегодняшнее чтение золота по
 коду и конвенция `fixture:<CODE>`) 5) `app/Filament/Resources/Procurement/Ai/Fixtures/**` целиком
@@ -8319,7 +8319,7 @@ Filament ведёт себя иначе, чем в доках → следова
 `docker compose exec app ./vendor/bin/phpstan analyse --memory-limit=1G` — без новых ошибок и без
 новых строк в `phpstan-baseline.neon` · полный прогон —
 `docker compose exec -e DB_DATABASE=agelto_test app php artisan test --no-tia --compact` — зелено ·
-`plan-lint plans/2026.08.06-CRAWL-HARDEN --baseline HEAD` — новых от диффа item'а ошибок 0.
+`plan-lint plans/archive/2026.08.06-CRAWL-HARDEN --baseline HEAD` — новых от диффа item'а ошибок 0.
 
 ## 755
 
@@ -8407,13 +8407,13 @@ no
 `app/Filament/Resources/Procurement/Ai/DatasetExamples/Pages/EditDatasetExample.php` (удаляется) ·
 `app/Filament/Resources/Procurement/Ai/DatasetExamples/Schemas/DatasetExampleForm.php` (удаляется) ·
 `tests/Feature/Filament/DatasetExampleResourceTest.php` (новый) · `docs/03_Dev/admin-panel.md` ·
-`plans/2026.08.06-CRAWL-HARDEN/phases/P7.md` · `plans/2026.08.06-CRAWL-HARDEN/plan.md` ·
-`plans/2026.08.06-CRAWL-HARDEN/handoff.md` · `plans/2026.08.06-CRAWL-HARDEN/journal.jsonl`
+`plans/archive/2026.08.06-CRAWL-HARDEN/phases/P7.md` · `plans/archive/2026.08.06-CRAWL-HARDEN/plan.md` ·
+`plans/archive/2026.08.06-CRAWL-HARDEN/handoff.md` · `plans/archive/2026.08.06-CRAWL-HARDEN/journal.jsonl`
 
 ## 767
 
-1) `plans/2026.08.06-CRAWL-HARDEN/research/08-p7-layers-design.md` §2, §6 п. 4
-2) `plans/2026.08.06-CRAWL-HARDEN/phases/P7.md` — Deliverables P7.1 (рендер содержимого)
+1) `plans/archive/2026.08.06-CRAWL-HARDEN/research/08-p7-layers-design.md` §2, §6 п. 4
+2) `plans/archive/2026.08.06-CRAWL-HARDEN/phases/P7.md` — Deliverables P7.1 (рендер содержимого)
 3) `app/Models/Procurement/Ai/DatasetExample.php` и обе миграции добавления ключей
 (`…100054`, `…100060`) 4) `app/Services/Procurement/Analyzers/Estimate/GoldExampleRecorder.php`
 (кто и когда создаёт снимок) 5) `app/Filament/Resources/Procurement/Estimates/EstimateResource.php`
@@ -8467,7 +8467,7 @@ Completion Notes и эскалации, рендер под неё не форк
 `docker compose exec app ./vendor/bin/phpstan analyse --memory-limit=1G` — без новых ошибок и без
 новых строк в `phpstan-baseline.neon` · полный прогон —
 `docker compose exec -e DB_DATABASE=agelto_test app php artisan test --no-tia --compact` — зелено ·
-`plan-lint plans/2026.08.06-CRAWL-HARDEN --baseline HEAD` — новых от диффа item'а ошибок 0.
+`plan-lint plans/archive/2026.08.06-CRAWL-HARDEN --baseline HEAD` — новых от диффа item'а ошибок 0.
 
 ## 774
 
@@ -8554,13 +8554,13 @@ app/Services/Procurement/Fixture/WorkingCopyProvisioner.php:37-55)`). В вит�
 `app/Filament/Resources/Procurement/Ai/Fixtures/Schemas/FixtureInfolist.php` ·
 `app/Filament/Resources/Procurement/Ai/DatasetExamples/Schemas/DatasetExampleInfolist.php` ·
 `tests/Feature/Filament/LayerNavigationTest.php` (новый) · `docs/03_Dev/admin-panel.md` ·
-`plans/2026.08.06-CRAWL-HARDEN/phases/P7.md` · `plans/2026.08.06-CRAWL-HARDEN/plan.md` ·
-`plans/2026.08.06-CRAWL-HARDEN/handoff.md` · `plans/2026.08.06-CRAWL-HARDEN/journal.jsonl`
+`plans/archive/2026.08.06-CRAWL-HARDEN/phases/P7.md` · `plans/archive/2026.08.06-CRAWL-HARDEN/plan.md` ·
+`plans/archive/2026.08.06-CRAWL-HARDEN/handoff.md` · `plans/archive/2026.08.06-CRAWL-HARDEN/journal.jsonl`
 
 ## 786
 
-1) `plans/2026.08.06-CRAWL-HARDEN/research/08-p7-layers-design.md` §2, §8
-2) `plans/2026.08.06-CRAWL-HARDEN/phases/P7.md` — Deliverables P7.1 и P7.2 (куда ведут ссылки)
+1) `plans/archive/2026.08.06-CRAWL-HARDEN/research/08-p7-layers-design.md` §2, §8
+2) `plans/archive/2026.08.06-CRAWL-HARDEN/phases/P7.md` — Deliverables P7.1 и P7.2 (куда ведут ссылки)
 3) `app/Services/Procurement/Fixture/FixtureCaseResolver.php:100-125` и
 `app/Services/Procurement/Fixture/WorkingCopyProvisioner.php` (единственные носители связи сегодня)
 4) `app/Models/Procurement/Ai/Fixture.php:190-224` (существующие связи эталона)
@@ -8616,7 +8616,7 @@ Filament получает готовую связь, ссылки строятс
 `docker compose exec app ./vendor/bin/phpstan analyse --memory-limit=1G` — без новых ошибок и без
 новых строк в `phpstan-baseline.neon` · полный прогон —
 `docker compose exec -e DB_DATABASE=agelto_test app php artisan test --no-tia --compact` — зелено ·
-`plan-lint plans/2026.08.06-CRAWL-HARDEN --baseline HEAD` — новых от диффа item'а ошибок 0.
+`plan-lint plans/archive/2026.08.06-CRAWL-HARDEN --baseline HEAD` — новых от диффа item'а ошибок 0.
 
 ## 793
 
@@ -8679,7 +8679,7 @@ no
 ревизии `estimate:fields:audit`: считает по корпусу долю заполненности каждого из пяти полей в
 разрезе типа сметы из паспорта, печатает таблицу, по флагу отдаёт машинный JSON; источник —
 золотой корпус и/или боевые сметы БД, выбирается флагом; (5) артефакт замера
-`plans/2026.08.06-CRAWL-HARDEN/artifacts/P7.4-fields-audit.json` с датой, командой и деревом;
+`plans/archive/2026.08.06-CRAWL-HARDEN/artifacts/P7.4-fields-audit.json` с датой, командой и деревом;
 (6) тест-гейт регресса по ЗОЛОТОМУ корпусу: доля заполненности каждого поля не ниже
 зафиксированной замером; (7) раздел в `docs/03_Dev/document-pipeline.md` или
 `docs/03_Dev/admin-panel.md` — что означает новая пометка для оператора; (8) unit-тесты проверки.
@@ -8707,14 +8707,14 @@ no
 `app/Filament/Resources/Procurement/Estimates/RelationManagers/ItemsRelationManager.php` ·
 `tests/Unit/Procurement/Analyzers/Estimate/EstimateValidatorTest.php` ·
 `tests/Feature/Procurement/Analyzers/Estimate/RequiredFieldsAuditTest.php` (новый) ·
-`plans/2026.08.06-CRAWL-HARDEN/artifacts/P7.4-fields-audit.json` (новый) ·
-`docs/03_Dev/document-pipeline.md` · `plans/2026.08.06-CRAWL-HARDEN/phases/P7.md` ·
-`plans/2026.08.06-CRAWL-HARDEN/plan.md` · `plans/2026.08.06-CRAWL-HARDEN/handoff.md` ·
-`plans/2026.08.06-CRAWL-HARDEN/journal.jsonl`
+`plans/archive/2026.08.06-CRAWL-HARDEN/artifacts/P7.4-fields-audit.json` (новый) ·
+`docs/03_Dev/document-pipeline.md` · `plans/archive/2026.08.06-CRAWL-HARDEN/phases/P7.md` ·
+`plans/archive/2026.08.06-CRAWL-HARDEN/plan.md` · `plans/archive/2026.08.06-CRAWL-HARDEN/handoff.md` ·
+`plans/archive/2026.08.06-CRAWL-HARDEN/journal.jsonl`
 
 ## 805
 
-1) `plans/2026.08.06-CRAWL-HARDEN/research/08-p7-layers-design.md` §1 (Ф-5,
+1) `plans/archive/2026.08.06-CRAWL-HARDEN/research/08-p7-layers-design.md` §1 (Ф-5,
 Ф-6, Ф-7), §4, §7 (Л-5, Л-6, Л-7) 2) `app/Services/Procurement/Analyzers/Estimate/EstimateValidator.php`
 целиком (как устроены существующие проверки и `addRowIssue`) 3)
 `app/Enums/Procurement/Estimate/RowQualityReason.php` (докблок о провенансе причин)
@@ -8785,7 +8785,7 @@ no
 `docker compose exec app ./vendor/bin/phpstan analyse --memory-limit=1G` — без новых ошибок и без
 новых строк в `phpstan-baseline.neon` · полный прогон —
 `docker compose exec -e DB_DATABASE=agelto_test app php artisan test --no-tia --compact` — зелено ·
-`plan-lint plans/2026.08.06-CRAWL-HARDEN --baseline HEAD` — новых от диффа item'а ошибок 0.
+`plan-lint plans/archive/2026.08.06-CRAWL-HARDEN --baseline HEAD` — новых от диффа item'а ошибок 0.
 
 ## 812
 
@@ -8878,13 +8878,13 @@ RowRangeChunkSource.php:149, ScreeningProcessor.php:151)`), а текст, ре�
 `resources/views/filament/pages/prompt-composition-page.blade.php` (новый) ·
 `tests/Feature/Filament/PromptResourceTest.php` (новый) ·
 `tests/Feature/Filament/PromptCompositionPageTest.php` (новый) · `docs/03_Dev/admin-panel.md` ·
-`docs/03_Dev/ai/prompts.md` · `plans/2026.08.06-CRAWL-HARDEN/phases/P7.md` ·
-`plans/2026.08.06-CRAWL-HARDEN/plan.md` · `plans/2026.08.06-CRAWL-HARDEN/handoff.md` ·
-`plans/2026.08.06-CRAWL-HARDEN/journal.jsonl`
+`docs/03_Dev/ai/prompts.md` · `plans/archive/2026.08.06-CRAWL-HARDEN/phases/P7.md` ·
+`plans/archive/2026.08.06-CRAWL-HARDEN/plan.md` · `plans/archive/2026.08.06-CRAWL-HARDEN/handoff.md` ·
+`plans/archive/2026.08.06-CRAWL-HARDEN/journal.jsonl`
 
 ## 824
 
-1) `plans/2026.08.06-CRAWL-HARDEN/research/08-p7-layers-design.md` §1 (Ф-8,
+1) `plans/archive/2026.08.06-CRAWL-HARDEN/research/08-p7-layers-design.md` §1 (Ф-8,
 Ф-9, Ф-10), §7 (Л-8) 2) `app/Services/Llm/PromptComposer.php` целиком (что именно собирается и
 чего в композиции нет) 3) `app/Enums/Llm/PromptStep.php` и
 `app/Enums/Procurement/Analyzers/Estimate/EstimatePromptStep.php` (цепочка композиции)
@@ -8952,7 +8952,7 @@ Completion Notes; молча оставить страницу открытой 
 `docker compose exec app ./vendor/bin/phpstan analyse --memory-limit=1G` — без новых ошибок и без
 новых строк в `phpstan-baseline.neon` · полный прогон —
 `docker compose exec -e DB_DATABASE=agelto_test app php artisan test --no-tia --compact` — зелено ·
-`plan-lint plans/2026.08.06-CRAWL-HARDEN --baseline HEAD` — новых от диффа item'а ошибок 0.
+`plan-lint plans/archive/2026.08.06-CRAWL-HARDEN --baseline HEAD` — новых от диффа item'а ошибок 0.
 
 ## 832
 
@@ -9031,22 +9031,22 @@ create-миграция, перечень переносимых колонок/
 
 ## 843
 
-`plans/2026.08.06-CRAWL-HARDEN/findings/P8-schema-revision.md` (новый) ·
-`plans/2026.08.06-CRAWL-HARDEN/artifacts/P8-schema-baseline.json` (новый) ·
-`plans/2026.08.06-CRAWL-HARDEN/phases/P8.md` · `plans/2026.08.06-CRAWL-HARDEN/plan.md` ·
-`plans/2026.08.06-CRAWL-HARDEN/open-questions.md` ·
-`plans/2026.08.06-CRAWL-HARDEN/brief/01-refinements.md` ·
-`plans/2026.08.06-CRAWL-HARDEN/handoff.md` · `plans/2026.08.06-CRAWL-HARDEN/journal.jsonl`
+`plans/archive/2026.08.06-CRAWL-HARDEN/findings/P8-schema-revision.md` (новый) ·
+`plans/archive/2026.08.06-CRAWL-HARDEN/artifacts/P8-schema-baseline.json` (новый) ·
+`plans/archive/2026.08.06-CRAWL-HARDEN/phases/P8.md` · `plans/archive/2026.08.06-CRAWL-HARDEN/plan.md` ·
+`plans/archive/2026.08.06-CRAWL-HARDEN/open-questions.md` ·
+`plans/archive/2026.08.06-CRAWL-HARDEN/brief/01-refinements.md` ·
+`plans/archive/2026.08.06-CRAWL-HARDEN/handoff.md` · `plans/archive/2026.08.06-CRAWL-HARDEN/journal.jsonl`
 
 ## 844
 
-1) `plans/2026.08.06-CRAWL-HARDEN/research/09-p8-schema-design.md` целиком
-2) `plans/2026.08.06-CRAWL-HARDEN/findings/P8-rag-squash-2026-08-06.md` §4
+1) `plans/archive/2026.08.06-CRAWL-HARDEN/research/09-p8-schema-design.md` целиком
+2) `plans/archive/2026.08.06-CRAWL-HARDEN/findings/P8-rag-squash-2026-08-06.md` §4
 3) `database/migrations/2026_08_05_100069_add_missing_fk_indexes.php` и
 `…100070_declare_explicit_on_delete_for_fk_no_action.php` целиком (кросс-контурные)
 4) `database/migrations/2026_07_04_100047_setup_pg_partman.php` (докблок — почему идемпотентность)
 5) `tests/Feature/Infra/{SchemaHardeningTest,PartitionRetentionTest}.php` (единственные гейты формы)
-6) `plans/2026.08.06-CRAWL-HARDEN/findings/P1-card-inventory.md` (вход Q16)
+6) `plans/archive/2026.08.06-CRAWL-HARDEN/findings/P1-card-inventory.md` (вход Q16)
 7) `docs/03_Dev/database.md` 8) скилл `database`
 
 ## 845
@@ -9096,10 +9096,10 @@ jsonb» без предъявления матрицы; включение ар�
 карта существует и перечисляет каждую догоняющую миграцию дерева —
 `ls database/migrations | grep -vc '_create_'` совпадает с числом строк раздела «догоняющие +
 инфраструктурные» карты · снимок валиден и покрывает все таблицы —
-`docker compose exec app php -r "\$d=json_decode(file_get_contents('plans/2026.08.06-CRAWL-HARDEN/artifacts/P8-schema-baseline.json'),true); echo count(\$d);"`
+`docker compose exec app php -r "\$d=json_decode(file_get_contents('plans/archive/2026.08.06-CRAWL-HARDEN/artifacts/P8-schema-baseline.json'),true); echo count(\$d);"`
 не меньше числа таблиц `public` · ответ владельца по Q16 зафиксирован D-записью и блоком в
 `brief/01-refinements.md` · дифф не выходит за `plans/**` — `git status --porcelain` показывает
-только файлы плана · `plan-lint plans/2026.08.06-CRAWL-HARDEN --baseline HEAD`
+только файлы плана · `plan-lint plans/archive/2026.08.06-CRAWL-HARDEN --baseline HEAD`
 — новых от диффа item'а ошибок 0.
 
 ## 849
@@ -9190,14 +9190,14 @@ AI/LLM/сметный контур (P8.3) · удаление файлов `…1
 `database/factories/Procurement/Platform/RegionFactory.php` (удаление) ·
 `app/Filament/Resources/Procurement/Crawler/IgnoreRules/**` (удаление) ·
 `app/Guards/Admin/Permissions/IgnoreRulePermission.php` (удаление) ·
-`app/Guards/Admin/Roles/OperatorRole.php` · `plans/2026.08.06-CRAWL-HARDEN/phases/P8.md` ·
-`plans/2026.08.06-CRAWL-HARDEN/plan.md` · `plans/2026.08.06-CRAWL-HARDEN/handoff.md` ·
-`plans/2026.08.06-CRAWL-HARDEN/journal.jsonl`
+`app/Guards/Admin/Roles/OperatorRole.php` · `plans/archive/2026.08.06-CRAWL-HARDEN/phases/P8.md` ·
+`plans/archive/2026.08.06-CRAWL-HARDEN/plan.md` · `plans/archive/2026.08.06-CRAWL-HARDEN/handoff.md` ·
+`plans/archive/2026.08.06-CRAWL-HARDEN/journal.jsonl`
 
 ## 861
 
-1) `plans/2026.08.06-CRAWL-HARDEN/findings/P8-schema-revision.md` целиком
-2) `plans/2026.08.06-CRAWL-HARDEN/research/09-p8-schema-design.md` §3, §5, §8
+1) `plans/archive/2026.08.06-CRAWL-HARDEN/findings/P8-schema-revision.md` целиком
+2) `plans/archive/2026.08.06-CRAWL-HARDEN/research/09-p8-schema-design.md` §3, §5, §8
 3) `database/migrations/2026_08_05_100069_add_missing_fk_indexes.php`,
 `…100070_declare_explicit_on_delete_for_fk_no_action.php` (свои строки)
 4) `database/migrations/2026_07_04_100012_create_prc_revisions_table.php` (образец
@@ -9250,7 +9250,7 @@ create-миграции «чтобы не переписывать»; удале
 `docker compose exec app ./vendor/bin/pint --test` — зелено ·
 `docker compose exec app ./vendor/bin/phpstan analyse --memory-limit=1G` — без новых ошибок и без
 новых строк в `phpstan-baseline.neon` ·
-`plan-lint plans/2026.08.06-CRAWL-HARDEN --baseline HEAD` —
+`plan-lint plans/archive/2026.08.06-CRAWL-HARDEN --baseline HEAD` —
 новых от диффа item'а ошибок 0.
 
 ## 865
@@ -9329,17 +9329,17 @@ Completion Notes P8.2 · целевая раскладка — `research/09-p8-s
 
 `database/migrations/**` (create-миграции контура — правка; догоняющие контура и
 кросс-контурные `…100069`/`…100070` — удаление; номера из карты) ·
-`plans/2026.08.06-CRAWL-HARDEN/phases/P8.md` · `plans/2026.08.06-CRAWL-HARDEN/plan.md` ·
-`plans/2026.08.06-CRAWL-HARDEN/handoff.md` · `plans/2026.08.06-CRAWL-HARDEN/journal.jsonl`
+`plans/archive/2026.08.06-CRAWL-HARDEN/phases/P8.md` · `plans/archive/2026.08.06-CRAWL-HARDEN/plan.md` ·
+`plans/archive/2026.08.06-CRAWL-HARDEN/handoff.md` · `plans/archive/2026.08.06-CRAWL-HARDEN/journal.jsonl`
 
 ## 877
 
-1) `plans/2026.08.06-CRAWL-HARDEN/findings/P8-schema-revision.md` (раздел
-AI-контура и разметка кросс-контурных) 2) `plans/2026.08.06-CRAWL-HARDEN/phases/P8.md` — Completion
+1) `plans/archive/2026.08.06-CRAWL-HARDEN/findings/P8-schema-revision.md` (раздел
+AI-контура и разметка кросс-контурных) 2) `plans/archive/2026.08.06-CRAWL-HARDEN/phases/P8.md` — Completion
 Notes P8.2 (что уже поглощено) 3) `database/migrations/2026_08_05_100075_add_result_expression_indexes_to_prc_ai_analyses_table.php`
 и `2026_08_06_100077_add_quality_to_prc_estimate_items_table.php` (частичные и выражения-индексы)
 4) `database/migrations/2026_07_04_100026_create_llm_calls_table.php` (партиционированная
-create-миграция) 5) `plans/2026.08.06-CRAWL-HARDEN/research/09-p8-schema-design.md` §3, §8
+create-миграция) 5) `plans/archive/2026.08.06-CRAWL-HARDEN/research/09-p8-schema-design.md` §3, §8
 6) скиллы `database`, `testing-rules`
 
 ## 878
@@ -9383,7 +9383,7 @@ Notes; (б) поглощение выражения-индекса требуе�
 объяснены в Completion Notes · `docker compose exec app ./vendor/bin/pint --test` — зелено ·
 `docker compose exec app ./vendor/bin/phpstan analyse --memory-limit=1G` — без новых ошибок и без
 новых строк в `phpstan-baseline.neon` ·
-`plan-lint plans/2026.08.06-CRAWL-HARDEN --baseline HEAD` —
+`plan-lint plans/archive/2026.08.06-CRAWL-HARDEN --baseline HEAD` —
 новых от диффа item'а ошибок 0.
 
 ## 882
@@ -9468,14 +9468,14 @@ Completion Notes P8.2 и P8.3 · факты Ф-7, Ф-9 и §4 — `research/09-p
 
 `docs/03_Dev/database.md` · `docs/specs/v2/01-database.md` ·
 `docs/specs/v2/07-carryover-from-v1.md` · докблоки и доки со ссылками на удалённые миграции
-(конкретный перечень — из карты P8.1) · `plans/2026.08.06-CRAWL-HARDEN/phases/P8.md` ·
-`plans/2026.08.06-CRAWL-HARDEN/plan.md` · `plans/2026.08.06-CRAWL-HARDEN/handoff.md` ·
-`plans/2026.08.06-CRAWL-HARDEN/journal.jsonl`
+(конкретный перечень — из карты P8.1) · `plans/archive/2026.08.06-CRAWL-HARDEN/phases/P8.md` ·
+`plans/archive/2026.08.06-CRAWL-HARDEN/plan.md` · `plans/archive/2026.08.06-CRAWL-HARDEN/handoff.md` ·
+`plans/archive/2026.08.06-CRAWL-HARDEN/journal.jsonl`
 
 ## 894
 
-1) `plans/2026.08.06-CRAWL-HARDEN/findings/P8-schema-revision.md` (перечень
-ссылок) 2) `plans/2026.08.06-CRAWL-HARDEN/artifacts/P8-schema-baseline.json` 3) Completion Notes
+1) `plans/archive/2026.08.06-CRAWL-HARDEN/findings/P8-schema-revision.md` (перечень
+ссылок) 2) `plans/archive/2026.08.06-CRAWL-HARDEN/artifacts/P8-schema-baseline.json` 3) Completion Notes
 P8.2 и P8.3 в этом файле 4) `docs/03_Dev/database.md` целиком 5) `docs/specs/v2/01-database.md`
 §§ про `prc_regions`/`prc_ignore_rules`/`prc_daily_stats` 6) `app/Console/Commands/MaintainPartitions.php`
 7) `.ai/guidelines/docs-pr-checklist.md`
@@ -9522,7 +9522,7 @@ item незакрытым независимо от цвета тестов. **�
 `ls database/migrations | grep -cE '_(add|drop|widen|declare)_'` = 0 · битых ссылок на удалённые
 файлы нет — `grep -rn "database/migrations/" app/ docs/ tests/ database/ --include=*.php --include=*.md | grep -oE "database/migrations/[0-9_a-z]+\.php" | sort -u`
 и проверка существования каждого пути — все существуют · сверка снимка целиком приведена таблицей
-чисел в Completion Notes · `plan-lint plans/2026.08.06-CRAWL-HARDEN --baseline HEAD`
+чисел в Completion Notes · `plan-lint plans/archive/2026.08.06-CRAWL-HARDEN --baseline HEAD`
 — новых от диффа item'а ошибок 0.
 
 ## 898
@@ -9595,16 +9595,16 @@ no
 
 ## 909
 
-`plans/2026.08.06-CRAWL-HARDEN/findings/P9-docs-map.md` (новый) ·
-`plans/2026.08.06-CRAWL-HARDEN/artifacts/P9-docs-baseline.json` (новый) ·
-`plans/2026.08.06-CRAWL-HARDEN/phases/P9.md` · `plans/2026.08.06-CRAWL-HARDEN/plan.md` ·
-`plans/2026.08.06-CRAWL-HARDEN/index.md` · `plans/2026.08.06-CRAWL-HARDEN/handoff.md` ·
-`plans/2026.08.06-CRAWL-HARDEN/journal.jsonl`
+`plans/archive/2026.08.06-CRAWL-HARDEN/findings/P9-docs-map.md` (новый) ·
+`plans/archive/2026.08.06-CRAWL-HARDEN/artifacts/P9-docs-baseline.json` (новый) ·
+`plans/archive/2026.08.06-CRAWL-HARDEN/phases/P9.md` · `plans/archive/2026.08.06-CRAWL-HARDEN/plan.md` ·
+`plans/archive/2026.08.06-CRAWL-HARDEN/index.md` · `plans/archive/2026.08.06-CRAWL-HARDEN/handoff.md` ·
+`plans/archive/2026.08.06-CRAWL-HARDEN/journal.jsonl`
 
 ## 910
 
-1) `plans/2026.08.06-CRAWL-HARDEN/research/10-p9-docs-design.md` целиком
-2) `plans/2026.08.06-CRAWL-HARDEN/findings/P9-rag-docs-2026-08-06.md`
+1) `plans/archive/2026.08.06-CRAWL-HARDEN/research/10-p9-docs-design.md` целиком
+2) `plans/archive/2026.08.06-CRAWL-HARDEN/findings/P9-rag-docs-2026-08-06.md`
 3) `docs/meta/editing.md` целиком 4) `docs/index.md` целиком
 5) `plans/archive/2026.07.07-EST-AI/research/H-docs-structure.md` (канонический каркас — только
 чтение, файл не правится) 6) `docs/specs/v2/00-overview.md` и `08-estimate-extraction.md`
@@ -9646,7 +9646,7 @@ bookkeeping-коммит) · замер воспроизводим — кома�
 на том же HEAD даёт те же числа · перечень живых ссылок полон —
 `grep -rn "docs-private\|specs/v2" docs .ai .claude CLAUDE.md | wc -l` равно числу строк перечня ·
 кода не тронуто — `git diff --name-only` содержит только `plans/**` ·
-`python3 "$SWISSKNIFE/packages/task/scripts/plan-lint.py" plans/2026.08.06-CRAWL-HARDEN` — без
+`python3 "$SWISSKNIFE/packages/task/scripts/plan-lint.py" plans/archive/2026.08.06-CRAWL-HARDEN` — без
 новых ERROR
 
 ## 914
@@ -9723,15 +9723,15 @@ markdown-ссылки в существующий файл (якорь `#…` о
 `tests/Unit/Docs/DocsIntegrityTest.php` (новый) ·
 `docs/03_Dev/ai-context/subagents-and-workflows.md` (перенос) · `docs/dev/` (удаляется) ·
 `docs/03_Dev/ai-context/index.md` · `.ai/guidelines/docs-pr-checklist.md` · `CLAUDE.md` ·
-`plans/2026.08.06-CRAWL-HARDEN/phases/P9.md` · `plans/2026.08.06-CRAWL-HARDEN/plan.md` ·
-`plans/2026.08.06-CRAWL-HARDEN/handoff.md` · `plans/2026.08.06-CRAWL-HARDEN/journal.jsonl`
+`plans/archive/2026.08.06-CRAWL-HARDEN/phases/P9.md` · `plans/archive/2026.08.06-CRAWL-HARDEN/plan.md` ·
+`plans/archive/2026.08.06-CRAWL-HARDEN/handoff.md` · `plans/archive/2026.08.06-CRAWL-HARDEN/journal.jsonl`
 
 ## 926
 
-1) `plans/2026.08.06-CRAWL-HARDEN/research/10-p9-docs-design.md` §4 и §7 (Л-3)
+1) `plans/archive/2026.08.06-CRAWL-HARDEN/research/10-p9-docs-design.md` §4 и §7 (Л-3)
 2) `tests/Unit/Architecture/DomainLayoutTest.php` целиком (форма: `Finder`, рукописные реестры,
 динамический периметр) 3) `.ai/guidelines/docs-pr-checklist.md` 4) `docs/meta/editing.md`
-§Frontmatter 5) `plans/2026.08.06-CRAWL-HARDEN/findings/P9-docs-map.md` (P9.1) 6) скиллы
+§Frontmatter 5) `plans/archive/2026.08.06-CRAWL-HARDEN/findings/P9-docs-map.md` (P9.1) 6) скиллы
 `testing-rules`, `pest-testing`
 
 ## 927
@@ -9853,13 +9853,13 @@ no
 `docs/03_Dev/{llm-providers.md,ai/prompts.md,ai/training-loop.md,adr/0009-job-owns-document-transition.md}` ·
 `docs/03_Dev/_index.md` · `.claude/skills/prompt-engineering-agelto/SKILL.md` ·
 `tests/Unit/Docs/DocsIntegrityTest.php` · `docs-private/` (удаляется) ·
-`plans/2026.08.06-CRAWL-HARDEN/phases/P9.md` · `plans/2026.08.06-CRAWL-HARDEN/plan.md` ·
-`plans/2026.08.06-CRAWL-HARDEN/handoff.md` · `plans/2026.08.06-CRAWL-HARDEN/journal.jsonl`
+`plans/archive/2026.08.06-CRAWL-HARDEN/phases/P9.md` · `plans/archive/2026.08.06-CRAWL-HARDEN/plan.md` ·
+`plans/archive/2026.08.06-CRAWL-HARDEN/handoff.md` · `plans/archive/2026.08.06-CRAWL-HARDEN/journal.jsonl`
 
 ## 943
 
-1) `plans/2026.08.06-CRAWL-HARDEN/findings/P9-docs-map.md` целиком
-2) `plans/2026.08.06-CRAWL-HARDEN/research/10-p9-docs-design.md` §3.1 и §7 (Л-10)
+1) `plans/archive/2026.08.06-CRAWL-HARDEN/findings/P9-docs-map.md` целиком
+2) `plans/archive/2026.08.06-CRAWL-HARDEN/research/10-p9-docs-design.md` §3.1 и §7 (Л-10)
 3) все восемь файлов `docs-private/**` целиком 4) `docs/meta/editing.md` целиком
 5) `docs/03_Dev/crawling-pipeline.md` (куда встают ловушки) 6) `docs/03_Dev/adr/0009-*.md`
 (правило «в ADR правится только путь»)
@@ -9972,13 +9972,13 @@ document-pipeline.md`; `04-llm-providers` → `03_Dev/llm-providers.md`; `05-adm
 `docs/03_Dev/{architecture.md,database.md,crawling-pipeline.md,document-pipeline.md,llm-providers.md,admin-panel.md}` ·
 `docs/01_Business/{overview.md,roadmap.md}` · `docs/specs/v2/{00..07}-*.md` (удаляются) ·
 `docs/index.md` · `docs/meta/editing.md` · `.ai/guidelines/navigation.md` · `CLAUDE.md` ·
-`plans/2026.08.06-CRAWL-HARDEN/phases/P9.md` · `plans/2026.08.06-CRAWL-HARDEN/plan.md` ·
-`plans/2026.08.06-CRAWL-HARDEN/handoff.md` · `plans/2026.08.06-CRAWL-HARDEN/journal.jsonl`
+`plans/archive/2026.08.06-CRAWL-HARDEN/phases/P9.md` · `plans/archive/2026.08.06-CRAWL-HARDEN/plan.md` ·
+`plans/archive/2026.08.06-CRAWL-HARDEN/handoff.md` · `plans/archive/2026.08.06-CRAWL-HARDEN/journal.jsonl`
 
 ## 959
 
-1) `plans/2026.08.06-CRAWL-HARDEN/findings/P9-docs-map.md` целиком
-2) `plans/2026.08.06-CRAWL-HARDEN/research/10-p9-docs-design.md` §3.2 и §7 (Л-1, Л-2, Л-4, Л-6)
+1) `plans/archive/2026.08.06-CRAWL-HARDEN/findings/P9-docs-map.md` целиком
+2) `plans/archive/2026.08.06-CRAWL-HARDEN/research/10-p9-docs-design.md` §3.2 и §7 (Л-1, Л-2, Л-4, Л-6)
 3) все семь файлов `docs/specs/v2/{00..07}-*.md` целиком 4) целевые разделы канона
 `docs/03_Dev/**` целиком (иначе перенос дублирует уже написанное)
 5) `plans/archive/DOMLANG/findings/P1-actual-names.md` §таблица расхождений (что именно в спеках
@@ -10094,13 +10094,13 @@ Pending Work, а не переписываются на глаз; (3) удале
 `.claude/skills/estimate-extraction-dev/SKILL.md` · `.claude/skills/llm-layer-dev/SKILL.md` ·
 `.ai/guidelines/navigation.md` · `CLAUDE.md` · `docs/index.md` ·
 `tests/Unit/Docs/DocsIntegrityTest.php` ·
-`plans/2026.08.06-CRAWL-HARDEN/phases/P9.md` · `plans/2026.08.06-CRAWL-HARDEN/plan.md` ·
-`plans/2026.08.06-CRAWL-HARDEN/handoff.md` · `plans/2026.08.06-CRAWL-HARDEN/journal.jsonl`
+`plans/archive/2026.08.06-CRAWL-HARDEN/phases/P9.md` · `plans/archive/2026.08.06-CRAWL-HARDEN/plan.md` ·
+`plans/archive/2026.08.06-CRAWL-HARDEN/handoff.md` · `plans/archive/2026.08.06-CRAWL-HARDEN/journal.jsonl`
 
 ## 975
 
 1) `docs/specs/v2/08-estimate-extraction.md` целиком
-2) `plans/2026.08.06-CRAWL-HARDEN/research/10-p9-docs-design.md` §3.2 и §7 (Л-2, Л-5)
+2) `plans/archive/2026.08.06-CRAWL-HARDEN/research/10-p9-docs-design.md` §3.2 и §7 (Л-2, Л-5)
 3) `.claude/skills/estimate-extraction-dev/SKILL.md` целиком 4) `.claude/rules/
 agelto-reviewer-overrides.md` §LLM-слой 5) `docs/03_Dev/ai/feature-card-estimate-extraction.md`
 6) `CLAUDE.md` §Reference Table и `.ai/guidelines/navigation.md` (какая строка чем является)
@@ -10211,13 +10211,13 @@ D36 и `research/05-p4-reliability-design.md`
 
 `docs/02_Workflow/crawling-and-discovery.md` · `docs/03_Dev/crawling-pipeline.md` ·
 `docs/02_Workflow/_index.md` · `docs/03_Dev/_index.md` ·
-`plans/2026.08.06-CRAWL-HARDEN/phases/P9.md` · `plans/2026.08.06-CRAWL-HARDEN/plan.md` ·
-`plans/2026.08.06-CRAWL-HARDEN/handoff.md` · `plans/2026.08.06-CRAWL-HARDEN/journal.jsonl`
+`plans/archive/2026.08.06-CRAWL-HARDEN/phases/P9.md` · `plans/archive/2026.08.06-CRAWL-HARDEN/plan.md` ·
+`plans/archive/2026.08.06-CRAWL-HARDEN/handoff.md` · `plans/archive/2026.08.06-CRAWL-HARDEN/journal.jsonl`
 
 ## 991
 
-1) `plans/2026.08.06-CRAWL-HARDEN/research/10-p9-docs-design.md` §5 и §7
-(Л-6, Л-7) 2) `plans/2026.08.06-CRAWL-HARDEN/findings/P9-rag-docs-2026-08-06.md` §1
+1) `plans/archive/2026.08.06-CRAWL-HARDEN/research/10-p9-docs-design.md` §5 и §7
+(Л-6, Л-7) 2) `plans/archive/2026.08.06-CRAWL-HARDEN/findings/P9-rag-docs-2026-08-06.md` §1
 3) `docs/03_Dev/crawling-pipeline.md` целиком (после P3–P5) 4) `docs/02_Workflow/
 crawling-and-discovery.md` целиком 5) `docs/03_Dev/document-pipeline.md` §Д1–Д2 (образец стиля
 диаграмм) 6) `docs/meta/editing.md` §Диаграммы (инлайн-правило и gotcha `::`)
@@ -10330,12 +10330,12 @@ mermaid — `findings/P9-rag-docs-2026-08-06.md` §1 · фактура форм�
 `docs/02_Workflow/document-and-estimate-pipeline.md` ·
 `docs/02_Workflow/prompts-and-quality.md` · `docs/03_Dev/llm-providers.md` ·
 `docs/03_Dev/ai/prompts.md` · `docs/02_Workflow/_index.md` ·
-`plans/2026.08.06-CRAWL-HARDEN/phases/P9.md` · `plans/2026.08.06-CRAWL-HARDEN/plan.md` ·
-`plans/2026.08.06-CRAWL-HARDEN/handoff.md` · `plans/2026.08.06-CRAWL-HARDEN/journal.jsonl`
+`plans/archive/2026.08.06-CRAWL-HARDEN/phases/P9.md` · `plans/archive/2026.08.06-CRAWL-HARDEN/plan.md` ·
+`plans/archive/2026.08.06-CRAWL-HARDEN/handoff.md` · `plans/archive/2026.08.06-CRAWL-HARDEN/journal.jsonl`
 
 ## 1008
 
-1) `plans/2026.08.06-CRAWL-HARDEN/research/10-p9-docs-design.md` §5 и §7 (Л-7)
+1) `plans/archive/2026.08.06-CRAWL-HARDEN/research/10-p9-docs-design.md` §5 и §7 (Л-7)
 2) `docs/03_Dev/ai/estimate-extraction.md` целиком (после P9.5) 3) `docs/03_Dev/llm-providers.md`
 целиком 4) `app/Services/Procurement/Prepare/` (листинг — какие представления реально существуют)
 5) `config/ai.php` §capabilities (что записано про каждую модель) 6) `docs/03_Dev/ai/prompts.md`
@@ -10446,17 +10446,17 @@ Brain-sync; `docs/meta/editing.md` ссылается на него вместо
 `docs/{01_Business,02_Workflow,03_Dev,04_Operators}/_index.md` · `docs/00_Ideas/_index.md` ·
 `docs/03_Dev/runbooks/_index.md` · `tests/Unit/Docs/DocsIntegrityTest.php` ·
 `.ai/guidelines/docs-pr-checklist.md` · `CLAUDE.md` ·
-`plans/2026.08.06-CRAWL-HARDEN/artifacts/P9-docs-final.json` (новый) ·
-`plans/2026.08.06-CRAWL-HARDEN/phases/P9.md` · `plans/2026.08.06-CRAWL-HARDEN/plan.md` ·
-`plans/2026.08.06-CRAWL-HARDEN/index.md` · `plans/2026.08.06-CRAWL-HARDEN/handoff.md` ·
-`plans/2026.08.06-CRAWL-HARDEN/journal.jsonl`
+`plans/archive/2026.08.06-CRAWL-HARDEN/artifacts/P9-docs-final.json` (новый) ·
+`plans/archive/2026.08.06-CRAWL-HARDEN/phases/P9.md` · `plans/archive/2026.08.06-CRAWL-HARDEN/plan.md` ·
+`plans/archive/2026.08.06-CRAWL-HARDEN/index.md` · `plans/archive/2026.08.06-CRAWL-HARDEN/handoff.md` ·
+`plans/archive/2026.08.06-CRAWL-HARDEN/journal.jsonl`
 
 ## 1024
 
-1) `plans/2026.08.06-CRAWL-HARDEN/research/10-p9-docs-design.md` §4 и §7 (Л-8,
+1) `plans/archive/2026.08.06-CRAWL-HARDEN/research/10-p9-docs-design.md` §4 и §7 (Л-8,
 Л-9) 2) `plans/archive/2026.07.07-EST-AI/research/H-docs-structure.md` целиком
 3) `docs/index.md` и все пять `_index.md` целиком 4) `tests/Unit/Docs/DocsIntegrityTest.php`
-5) `docs/meta/editing.md` целиком 6) `plans/2026.08.06-CRAWL-HARDEN/artifacts/P9-docs-baseline.json`
+5) `docs/meta/editing.md` целиком 6) `plans/archive/2026.08.06-CRAWL-HARDEN/artifacts/P9-docs-baseline.json`
 
 ## 1025
 

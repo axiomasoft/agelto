@@ -29,6 +29,6 @@ P3 принимается `🟠 Done with deviations`; F1 аудита не яв
 - Универсальный checkpoint-requeue archive/delta/backlog по секундомеру не реализуется P4.7 и
   остаётся осознанным отклонением. Временный архивный CSV-профиль закрывается отдельным long lane.
 
-`RAG:— (repo-grounded: plans/2026.08.06-CRAWL-HARDEN/phases/P3.md Audit P3 2026-08-08;
+`RAG:— (repo-grounded: plans/archive/2026.08.06-CRAWL-HARDEN/phases/P3.md Audit P3 2026-08-08;
 research/12-p4.7-long-execution-lane.md; config/horizon.php; config/queue.php;
 app/Jobs/Procurement/CrawlRunJob.php)`

@@ -45,7 +45,7 @@ healthcheck «вёрстка ЕИС не поменялась» с уведом�
 - Один item за раз; статус обновляется В ПЛАНЕ до завершения работы.
 - Статусы — 6 канонических строк байт-в-байт (см. `plan-protocol` §5).
 - План разошёлся с кодом → не импровизировать, эскалировать (§10 протокола).
-- После закрытия item/фазы — перезаписать `plans/2026.08.06-CRAWL-HARDEN/handoff.md`.
+- После закрытия item/фазы — перезаписать `plans/archive/2026.08.06-CRAWL-HARDEN/handoff.md`.
 - **Проектные правила репозитория обязательны** и приоритетнее общих: `CLAUDE.md`
   (доменная раскладка, канон имён, transaction/jobs policy), `.claude/rules/*`,
   скиллы `testing-rules`, `pest-testing`, `procurement-pipeline-dev`.
@@ -1089,7 +1089,7 @@ Filament 5 нет.
 ## Audit design — 2026-08-07
 
 **Вердикт: ATTENTION** · заход 1 (блоков `## Audit design` в `plan.md` до этого — 0) ·
-`plan-lint plans/2026.08.06-CRAWL-HARDEN` — **0 ERROR / 0 WARN (на `172dd497`)**, обе ветки
+`plan-lint plans/archive/2026.08.06-CRAWL-HARDEN` — **0 ERROR / 0 WARN (на `172dd497`)**, обе ветки
 (плагин `task/0.9.0` и исходник узла swissknifeman) · `plan-lint --conflicts` — OK, 0 расхождений,
 0 предупреждений.
 
@@ -1251,7 +1251,7 @@ D14 и ответы владельца, но не `artifacts/eis-okpd2-map.json`
 /task:plan-design 2026.08.06-CRAWL-HARDEN finish
 
 РЕЖИМ: точечные фиксы по находкам design-аудита, НЕ детализация фаз и НЕ реопен
-ВХОД: plans/2026.08.06-CRAWL-HARDEN/plan.md → блок `## Audit design — 2026-08-07`; прочитать ПЕРВЫМ
+ВХОД: plans/archive/2026.08.06-CRAWL-HARDEN/plan.md → блок `## Audit design — 2026-08-07`; прочитать ПЕРВЫМ
 СКОУП: 1) F1 — в P5.6, P6.1 и P4.3 внести право AzGuard: `*Permission`-enum в Files, грант в `OperatorRole`, шаг `guard:filament:generate`/`guard:sync-roles`, гейт Validation «оператор открывает страницу»; у P4.3 — явный `->authorize()` на действии 2) F2 — закрыть D-записью коллизию «§7 оркестрация ↔ §9 Exec=manual» для P7.4/P7.5: либо вывести их из `SLICES` скрипта в ручные запуски, либо записать явный override; привести строку `W1` в roadmap.md в соответствие 3) F3 — пересобрать D2 (P9.3→P9.7), D4 (схемные фазы P2–P6, P7 исключена), D55 (P6.3→P6.5) 4) F4 — исправить два пути тестов в Files P4.2 5) F5 — снять строчные анкеры Required Reads у P4.5/P5.3/P5.4 (дисциплина D35) 6) F6 — дать адрес процедуре реакции на алерт healthcheck (runbook или operator how-to) в P5.5 или P5.6 7) F7 — дописать `Consequences` в D13 и D88 8) F8 — строка «Design pass 2/2» в Update Log + запись прогона `finish` в journal.jsonl 9) F9 — дописать карту P1.2 в `Потребляет` контракта P2
 НЕ ТРОГАТЬ: статусы и поля 51 item'а сверх перечисленного; Scope/Validation/Deliverables фаз, к находкам не относящиеся; закрытые развилки № 1–№ 34 и их D-записи; `research/**` и `findings/**` (слои знаний реконсайлены прогоном 2/2); порядок фаз и состав roadmap сверх строки `W1`
 ```
@@ -1259,7 +1259,7 @@ D14 и ответы владельца, но не `artifacts/eis-okpd2-map.json`
 ## Audit design — 2026-08-07 (заход 2)
 
 **Вердикт: ATTENTION** · заход 2 (блоков `## Audit design` в `plan.md` до этого — 1) ·
-`plan-lint plans/2026.08.06-CRAWL-HARDEN` — **0 ERROR / 0 WARN** (рабочее дерево на `172dd497`;
+`plan-lint plans/archive/2026.08.06-CRAWL-HARDEN` — **0 ERROR / 0 WARN** (рабочее дерево на `172dd497`;
 план в этом коммите ОТСУТСТВУЕТ — см. F2), обе ветки (плагин `task/0.9.0` и исходник узла
 swissknifeman) · `plan-lint --conflicts` — OK, 0 расхождений, 0 предупреждений.
 
@@ -1285,8 +1285,8 @@ P6.5 — как уже стоит в `phases/P5.md:572` и `roadmap.md:55`. *Fai
 греп-проходом по ВСЕМ слоям (`plan.md` целиком, `research/**`, `findings/**`), а не по списку
 D-записей; ровно эту границу заход 1 уже называл, и фикс её снова не перешагнул.
 
-**F2 · Minor · confidence high · `issue` · весь каталог плана · `plans/2026.08.06-CRAWL-HARDEN/`
-не в git.** `git status --short` → `?? plans/2026.08.06-CRAWL-HARDEN/`; `git log -- plans/2026.08.06-CRAWL-HARDEN`
+**F2 · Minor · confidence high · `issue` · весь каталог плана · `plans/archive/2026.08.06-CRAWL-HARDEN/`
+не в git.** `git status --short` → `?? plans/archive/2026.08.06-CRAWL-HARDEN/`; `git log -- plans/archive/2026.08.06-CRAWL-HARDEN`
 пуст. 11 523 строки, два дизайн-прогона и заход фиксов существуют только в рабочем дереве;
 `.gitignore` план не исключает (ignored только `plans/**/.claude/` и `plans/**/.swissknife/`,
 строки 55–56) — он просто не закоммичен. *Failure scenario:* (а) якорь «на `172dd497`» в
@@ -1436,7 +1436,7 @@ P8.4 «деплой-поверхность вне скоупа (D#)», либо 
 /task:plan-design 2026.08.06-CRAWL-HARDEN finish
 
 РЕЖИМ: точечные фиксы по находкам design-аудита захода 2, НЕ детализация фаз и НЕ реопен
-ВХОД: plans/2026.08.06-CRAWL-HARDEN/plan.md → блок `## Audit design — 2026-08-07 (заход 2)`; прочитать ПЕРВЫМ
-СКОУП: 1) F1 — перевести оставшиеся пять адресов события «закупка завершена» с P6.3 на P6.5: plan.md:98 (§3 Routing, строка P5.5), plan.md:702 (развилка № 20), research/06-p5-health-design.md:100, research/02-p1-recon-design.md:92, findings/P5-rag-health-2026-08-06.md:114 (правится только АДРЕС, замер не трогать); прогнать греп-проход по всем слоям, а не по списку D-записей 2) F2 — закоммитить каталог плана (`git add plans/2026.08.06-CRAWL-HARDEN plans/ACTIVE.md` + отдельный docs(plan)-коммит), после чего якорь дерева в блоках аудита указывает на реальный коммит 3) F3 — дописать в `## 6. Update Log` каноническую строку «Design pass 1/2: что сделано; куда не дотянулись; фокус следующего прогона» 4) F4 — одной строкой закрыть деплой: либо `Scope Excluded` P8.4 «деплой-поверхность вне скоупа» с D-записью, либо пункт Validation «прод-контур подхватил новые supervisor'ы и расписание» 5) F5 — дописать квалификатор плана к кросс-плановым id: phases/P4.md:85 и phases/P1.md:335 («P4.7 плана <ID>»), phases/P5.md:701 («P8.5 плана <ID>») 6) F6 — заменить абсолютные REPO/SPEC в workflows/wf-crawl-harden-p7.js:38-39 на относительные от корня репозитория 7) F7 — добавить Q16 в перечень незакрытых вопросов roadmap.md:154-155
+ВХОД: plans/archive/2026.08.06-CRAWL-HARDEN/plan.md → блок `## Audit design — 2026-08-07 (заход 2)`; прочитать ПЕРВЫМ
+СКОУП: 1) F1 — перевести оставшиеся пять адресов события «закупка завершена» с P6.3 на P6.5: plan.md:98 (§3 Routing, строка P5.5), plan.md:702 (развилка № 20), research/06-p5-health-design.md:100, research/02-p1-recon-design.md:92, findings/P5-rag-health-2026-08-06.md:114 (правится только АДРЕС, замер не трогать); прогнать греп-проход по всем слоям, а не по списку D-записей 2) F2 — закоммитить каталог плана (`git add plans/archive/2026.08.06-CRAWL-HARDEN plans/ACTIVE.md` + отдельный docs(plan)-коммит), после чего якорь дерева в блоках аудита указывает на реальный коммит 3) F3 — дописать в `## 6. Update Log` каноническую строку «Design pass 1/2: что сделано; куда не дотянулись; фокус следующего прогона» 4) F4 — одной строкой закрыть деплой: либо `Scope Excluded` P8.4 «деплой-поверхность вне скоупа» с D-записью, либо пункт Validation «прод-контур подхватил новые supervisor'ы и расписание» 5) F5 — дописать квалификатор плана к кросс-плановым id: phases/P4.md:85 и phases/P1.md:335 («P4.7 плана <ID>»), phases/P5.md:701 («P8.5 плана <ID>») 6) F6 — заменить абсолютные REPO/SPEC в workflows/wf-crawl-harden-p7.js:38-39 на относительные от корня репозитория 7) F7 — добавить Q16 в перечень незакрытых вопросов roadmap.md:154-155
 НЕ ТРОГАТЬ: статусы и поля 51 item'а (доска обязана остаться 0/51); Scope/Validation/Deliverables/Files фаз сверх пункта 4; закрытые развилки № 1–№ 34 и их D-записи (в № 20 правится ТОЛЬКО адрес P6.3→P6.5); D100–D104 и остальной D-лог; roadmap сверх пункта 7; блок `## Audit design — 2026-08-07` захода 1 и этот блок; замеры и выводы `findings/**` (правится только адрес item'а в одной строке)
 ```
