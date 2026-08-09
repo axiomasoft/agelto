@@ -33,9 +33,9 @@ findings/bootstrap-recon-2026-08-09.md. Внешних RAG-источников 
 | Pest 5 fast engine и CI | P11 |
 | Пустой Ubuntu, deploy user, SSH/Git clone | P12.1–P12.2 |
 | Seeds, admin, assets, docs, doctor в первом deploy | P12.3–P12.4 |
-| Subsequent deploy/rollback/backup | P12.5 |
-| Полный fresh/prod rehearsal и DB integrity | D9 · P12.6–P12.7 |
-| Предыдущий CRAWL-HARDEN архивный, не paused | D3 |
+| Subsequent deploy/rollback/backup | P12.3–P12.5 |
+| Полный fresh/prod rehearsal и DB integrity | D9 · P12.4–P12.7 |
+| Предыдущий CRAWL-HARDEN архивный, не paused | D12 (supersedes D3) |
 
 ## Синтез порядка
 
