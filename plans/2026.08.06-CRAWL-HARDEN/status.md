@@ -2,8 +2,8 @@
 projection: status-view
 projection_version: v1
 source_scope: plan core + phases + journal
-through: 2026-08-08
-inputs_sha256: e16506fa2ca5813375c30aece311fa2a22d714e75a78dc07d8c25307152b9e13
+through: 2026-08-09
+inputs_sha256: 9bf3d65af8b45dc49f94c1fb744b58e6b8d68372c2214e51a49248a54758d6ae
 generated_by: task plan-views status
 -->
 
@@ -16,14 +16,15 @@ generated_by: task plan-views status
 | Поле | Значение |
 |:--|:--|
 | Version | 0.27.0 |
-| Status | ⬜ Not started |
-| Last Updated | 2026-08-08 |
+| Status | 🟠 Done with deviations |
+| Last Updated | 2026-08-09 |
 
 ## 4. Phase Index & Status Board
 
 | Phase | Title | Items 🟢/всего | Status |
 |:--|:--|:--|:--|
 | P1 | Разведка ЕИС: параметры листинга, ОКПД2, практики, карточка | 4/5 | 🟠 Done with deviations |
+| P10 | Adversarial remediation: correctness, concurrency and truthful health | 0/7 | 🟠 Done with deviations |
 | P2 | ОКПД2: фильтр профиля и древовидная форма | 2/6 | 🟠 Done with deviations |
 | P3 | Профили обхода и управление прогонами из админки | 7/10 | 🟠 Done with deviations |
 | P4 | Надёжность конвейера: бюджет запросов, троттлинг, анти-дубли | 4/9 | 🟠 Done with deviations |
@@ -31,111 +32,123 @@ generated_by: task plan-views status
 | P6 | Статусы, история изменений закупки, событие «закупка состоялась» | 1/5 | 🟠 Done with deviations |
 | P7 | Три слоя смет в админке и видимость промтов | 0/5 | 🟠 Done with deviations |
 | P8 | Схлопывание миграций и финальный аудит схемы | 1/4 | 🟠 Done with deviations |
-| P9 | Единая документация с диаграммами | 0/8 | ⬜ Not started |
+| P9 | Единая документация с диаграммами | 0/8 | 🟠 Done with deviations |
 
 ## Phase P1
 
 | ID | Title | Status | Updated |
 |:--|:--|:--|:--|
-| P1.1 | Живой замер листинга: действие сортировки, окно `updateDate*`, флаги этапов | 🟢 Done | 2026-08-08 |
-| P1.2 | ОКПД2: карта «код → id НСИ», предел набора, финальный вердикт по колонке CSV | 🟢 Done | 2026-08-08 |
-| P1.3 | RAG-свод практик: пер-стадийные лимиты и разбор синхронного прохода на пачки | 🟢 Done | 2026-08-08 |
-| P1.4 | Карточка 44-ФЗ: перечень этапов, структурные якоря вкладок, success-карточка | 🟢 Done | 2026-08-08 |
-| P1.5 | Инвентарь вкладок и полей по шести видам процедур | 🟠 Done with deviations | 2026-08-08 |
+| P1.1 | Живой замер листинга: действие сортировки, окно `updateDate*`, флаги этапов | 🟢 Done | 2026-08-09 |
+| P1.2 | ОКПД2: карта «код → id НСИ», предел набора, финальный вердикт по колонке CSV | 🟢 Done | 2026-08-09 |
+| P1.3 | RAG-свод практик: пер-стадийные лимиты и разбор синхронного прохода на пачки | 🟢 Done | 2026-08-09 |
+| P1.4 | Карточка 44-ФЗ: перечень этапов, структурные якоря вкладок, success-карточка | 🟢 Done | 2026-08-09 |
+| P1.5 | Инвентарь вкладок и полей по шести видам процедур | 🟠 Done with deviations | 2026-08-09 |
+
+## Phase P10
+
+| ID | Title | Status | Updated |
+|:--|:--|:--|:--|
+| P10.1 | Изолировать ownership crawler run и починить PostgreSQL race recovery | 🟠 Done with deviations | 2026-08-09 |
+| P10.2 | Сохранить cap-detector state через checkpoints и исправить precedence stop-веток | 🟠 Done with deviations | 2026-08-09 |
+| P10.3 | Сериализовать procurement ingest и логическую нумерацию ревизий | 🟠 Done with deviations | 2026-08-09 |
+| P10.4 | Исправить initial/terminal timeline и наблюдённую длительность | 🟠 Done with deviations | 2026-08-09 |
+| P10.5 | Разделить parse health и business delta листинга | 🟠 Done with deviations | 2026-08-09 |
+| P10.6 | Не терять concurrent proxy outcomes в breaker и EWMA | 🟠 Done with deviations | 2026-08-09 |
+| P10.7 | Интегрировать adversarial regressions и закрыть P10 полным доказательством | 🟠 Done with deviations | 2026-08-09 |
 
 ## Phase P2
 
 | ID | Title | Status | Updated |
 |:--|:--|:--|:--|
-| P2.1 | Карта «код ОКПД2 → id НСИ»: таблица, датафайл, сид, резолвер | 🟠 Done with deviations | 2026-08-08 |
-| P2.2 | Поле `okpd2Codes` в `EisSearchFilter`, обязательность скоупа профиля и минимальное поле формы | 🟢 Done | 2026-08-08 |
-| P2.3 | Участие ОКПД2 в сборке запроса: `okpd2Ids` + `okpd2IdsWithNested` | 🟠 Done with deviations | 2026-08-08 |
-| P2.4 | Выбор ОКПД2 в форме профиля: сгруппированный мультиселект | 🟢 Done | 2026-08-08 |
-| P2.5 | Команда пересборки карты с ЕИС и детект дрейфа id | 🟠 Done with deviations | 2026-08-08 |
-| P2.6 | Снос мёртвой ветки ОКПД2 листинга (код, схема, витрина, тесты, доки) | 🟠 Done with deviations | 2026-08-08 |
+| P2.1 | Карта «код ОКПД2 → id НСИ»: таблица, датафайл, сид, резолвер | 🟠 Done with deviations | 2026-08-09 |
+| P2.2 | Поле `okpd2Codes` в `EisSearchFilter`, обязательность скоупа профиля и минимальное поле формы | 🟢 Done | 2026-08-09 |
+| P2.3 | Участие ОКПД2 в сборке запроса: `okpd2Ids` + `okpd2IdsWithNested` | 🟠 Done with deviations | 2026-08-09 |
+| P2.4 | Выбор ОКПД2 в форме профиля: сгруппированный мультиселект | 🟢 Done | 2026-08-09 |
+| P2.5 | Команда пересборки карты с ЕИС и детект дрейфа id | 🟠 Done with deviations | 2026-08-09 |
+| P2.6 | Снос мёртвой ветки ОКПД2 листинга (код, схема, витрина, тесты, доки) | 🟠 Done with deviations | 2026-08-09 |
 
 ## Phase P3
 
 | ID | Title | Status | Updated |
 |:--|:--|:--|:--|
-| P3.1 | Сортировка выдачи в фильтре профиля | 🟠 Done with deviations | 2026-08-08 |
-| P3.2 | Прогон на очереди: `CrawlRunJob`, кооперативный стоп-гейт, подъём зависших | 🟠 Done with deviations | 2026-08-08 |
-| P3.3 | Политика остановки «только актуальные данные» | 🟢 Done | 2026-08-08 |
-| P3.4 | Операторские действия над прогоном и внятный отказ в консоли | 🟢 Done | 2026-08-08 |
-| P3.5 | Сиды двух профилей: архивный обучающий и актуальный продовый | 🟠 Done with deviations | 2026-08-08 |
-| P3.6 | История прогонов и статистика в админке | 🟢 Done | 2026-08-08 |
-| P3.7 | Кооперативный стоп в обёртках-дневных-циклах | 🟢 Done | 2026-08-08 |
-| P3.8 | Админ-старт архивного профиля: окно дат живёт на профиле | 🟢 Done | 2026-08-08 |
-| P3.9 | Регрессионный гейт консольного отказа `CrawlerRunAlreadyActive` | 🟢 Done | 2026-08-08 |
-| P3.10 | Курсор — единственный источник дат в запросе листинга | 🟢 Done | 2026-08-08 |
+| P3.1 | Сортировка выдачи в фильтре профиля | 🟠 Done with deviations | 2026-08-09 |
+| P3.2 | Прогон на очереди: `CrawlRunJob`, кооперативный стоп-гейт, подъём зависших | 🟠 Done with deviations | 2026-08-09 |
+| P3.3 | Политика остановки «только актуальные данные» | 🟢 Done | 2026-08-09 |
+| P3.4 | Операторские действия над прогоном и внятный отказ в консоли | 🟢 Done | 2026-08-09 |
+| P3.5 | Сиды двух профилей: архивный обучающий и актуальный продовый | 🟠 Done with deviations | 2026-08-09 |
+| P3.6 | История прогонов и статистика в админке | 🟢 Done | 2026-08-09 |
+| P3.7 | Кооперативный стоп в обёртках-дневных-циклах | 🟢 Done | 2026-08-09 |
+| P3.8 | Админ-старт архивного профиля: окно дат живёт на профиле | 🟢 Done | 2026-08-09 |
+| P3.9 | Регрессионный гейт консольного отказа `CrawlerRunAlreadyActive` | 🟢 Done | 2026-08-09 |
+| P3.10 | Курсор — единственный источник дат в запросе листинга | 🟢 Done | 2026-08-09 |
 
 ## Phase P4
 
 | ID | Title | Status | Updated |
 |:--|:--|:--|:--|
-| P4.1 | Носитель настроек обхода: площадка, профиль, дефолты конфига | 🟠 Done with deviations | 2026-08-08 |
-| P4.2 | Привязка прокси к профилю и легальный прямой режим | 🟢 Done | 2026-08-08 |
-| P4.3 | Авто-дизейбл прокси и операторская видимость здоровья узлов | 🟢 Done | 2026-08-08 |
-| P4.4 | Общий бюджет запросов к площадке | 🟠 Done with deviations | 2026-08-08 |
-| P4.5 | Планомерная подача детальной стадии | 🟠 Done with deviations | 2026-08-08 |
-| P4.6 | Наблюдаемость конвейера: журнал заборов, журнал операций, метрики ожидания | 🟢 Done | 2026-08-08 |
-| P4.7 | Длинный execution lane для датированного archive-профиля | 🟠 Done with deviations | 2026-08-08 |
-| P4.8 | Восстановление общих validation-гейтов P4.1 | 🟠 Done with deviations | 2026-08-08 |
-| P4.9 | Checkpoint archive/delta/backlog при исчерпании request budget | 🟢 Done | 2026-08-08 |
+| P4.1 | Носитель настроек обхода: площадка, профиль, дефолты конфига | 🟠 Done with deviations | 2026-08-09 |
+| P4.2 | Привязка прокси к профилю и легальный прямой режим | 🟢 Done | 2026-08-09 |
+| P4.3 | Авто-дизейбл прокси и операторская видимость здоровья узлов | 🟢 Done | 2026-08-09 |
+| P4.4 | Общий бюджет запросов к площадке | 🟠 Done with deviations | 2026-08-09 |
+| P4.5 | Планомерная подача детальной стадии | 🟠 Done with deviations | 2026-08-09 |
+| P4.6 | Наблюдаемость конвейера: журнал заборов, журнал операций, метрики ожидания | 🟢 Done | 2026-08-09 |
+| P4.7 | Длинный execution lane для датированного archive-профиля | 🟠 Done with deviations | 2026-08-09 |
+| P4.8 | Восстановление общих validation-гейтов P4.1 | 🟠 Done with deviations | 2026-08-09 |
+| P4.9 | Checkpoint archive/delta/backlog при исчерпании request budget | 🟢 Done | 2026-08-09 |
 
 ## Phase P5
 
 | ID | Title | Status | Updated |
 |:--|:--|:--|:--|
-| P5.1 | Эталон вёрстки в репозитории, история проверок и словарь вердиктов | 🟢 Done | 2026-08-08 |
-| P5.2 | Исход разбора карточки как измеримый факт | 🟢 Done | 2026-08-08 |
-| P5.3 | Ежедневная проверка по штатному потоку: три пассивные пробы и команда | 🟠 Done with deviations | 2026-08-08 |
-| P5.4 | Активная проба действия ОКПД2-фильтра | 🟠 Done with deviations | 2026-08-08 |
-| P5.5 | Событие смены здоровья площадки и уведомление | 🟢 Done | 2026-08-08 |
-| P5.6 | Витрина истории проверок в админке | 🟢 Done | 2026-08-08 |
-| P5.7 | Ремедиация RED-аудита healthcheck | 🟠 Done with deviations | 2026-08-08 |
+| P5.1 | Эталон вёрстки в репозитории, история проверок и словарь вердиктов | 🟢 Done | 2026-08-09 |
+| P5.2 | Исход разбора карточки как измеримый факт | 🟢 Done | 2026-08-09 |
+| P5.3 | Ежедневная проверка по штатному потоку: три пассивные пробы и команда | 🟠 Done with deviations | 2026-08-09 |
+| P5.4 | Активная проба действия ОКПД2-фильтра | 🟠 Done with deviations | 2026-08-09 |
+| P5.5 | Событие смены здоровья площадки и уведомление | 🟢 Done | 2026-08-09 |
+| P5.6 | Витрина истории проверок в админке | 🟢 Done | 2026-08-09 |
+| P5.7 | Ремедиация RED-аудита healthcheck | 🟠 Done with deviations | 2026-08-09 |
 
 ## Phase P6
 
 | ID | Title | Status | Updated |
 |:--|:--|:--|:--|
-| P6.1 | Сверка статусов площадки, канон положительного исхода и витрина маппингов | 🟠 Done with deviations | 2026-08-08 |
-| P6.2 | Разбор вкладки результатов по реальной success-карточке | 🟢 Done | 2026-08-08 |
-| P6.3 | Платформо-независимый модуль истории: таймлайн, длительности, diff редакций | 🟠 Done with deviations | 2026-08-08 |
-| P6.4 | Витрина истории изменений в карточке закупки | 🟠 Done with deviations | 2026-08-08 |
-| P6.5 | Доменное событие «закупка состоялась» и точка подписки | 🟠 Done with deviations | 2026-08-08 |
+| P6.1 | Сверка статусов площадки, канон положительного исхода и витрина маппингов | 🟠 Done with deviations | 2026-08-09 |
+| P6.2 | Разбор вкладки результатов по реальной success-карточке | 🟢 Done | 2026-08-09 |
+| P6.3 | Платформо-независимый модуль истории: таймлайн, длительности, diff редакций | 🟠 Done with deviations | 2026-08-09 |
+| P6.4 | Витрина истории изменений в карточке закупки | 🟠 Done with deviations | 2026-08-09 |
+| P6.5 | Доменное событие «закупка состоялась» и точка подписки | 🟠 Done with deviations | 2026-08-09 |
 
 ## Phase P7
 
 | ID | Title | Status | Updated |
 |:--|:--|:--|:--|
-| P7.1 | Витрина содержимого золотой сметы в карточке эталона | 🟠 Done with deviations | 2026-08-08 |
-| P7.2 | Read-only витрина эталонных ответов датасета | 🟠 Done with deviations | 2026-08-08 |
-| P7.3 | Связная навигация по трём слоям | 🟠 Done with deviations | 2026-08-08 |
-| P7.4 | Полнота обязательных полей позиции: ревизия корпуса и построчная пометка | 🟠 Done with deviations | 2026-08-08 |
-| P7.5 | Видимость промтов: достройка ресурса и экран композиции | 🟠 Done with deviations | 2026-08-08 |
+| P7.1 | Витрина содержимого золотой сметы в карточке эталона | 🟠 Done with deviations | 2026-08-09 |
+| P7.2 | Read-only витрина эталонных ответов датасета | 🟠 Done with deviations | 2026-08-09 |
+| P7.3 | Связная навигация по трём слоям | 🟠 Done with deviations | 2026-08-09 |
+| P7.4 | Полнота обязательных полей позиции: ревизия корпуса и построчная пометка | 🟠 Done with deviations | 2026-08-09 |
+| P7.5 | Видимость промтов: достройка ресурса и экран композиции | 🟠 Done with deviations | 2026-08-09 |
 
 ## Phase P8
 
 | ID | Title | Status | Updated |
 |:--|:--|:--|:--|
-| P8.1 | Ревизия схемы: карта поглощения, счётный снимок, решение Q16 | 🟠 Done with deviations | 2026-08-08 |
-| P8.2 | Схлопывание закупочно-краулингового контура и снос мёртвых носителей | 🟠 Done with deviations | 2026-08-08 |
-| P8.3 | Схлопывание AI/LLM/сметного контура | 🟠 Done with deviations | 2026-08-08 |
-| P8.4 | Пост-аудит схемы и синхронизация описания | 🟢 Done | 2026-08-08 |
+| P8.1 | Ревизия схемы: карта поглощения, счётный снимок, решение Q16 | 🟠 Done with deviations | 2026-08-09 |
+| P8.2 | Схлопывание закупочно-краулингового контура и снос мёртвых носителей | 🟠 Done with deviations | 2026-08-09 |
+| P8.3 | Схлопывание AI/LLM/сметного контура | 🟠 Done with deviations | 2026-08-09 |
+| P8.4 | Пост-аудит схемы и синхронизация описания | 🟢 Done | 2026-08-09 |
 
 ## Phase P9
 
 | ID | Title | Status | Updated |
 |:--|:--|:--|:--|
-| P9.1 | Ревизия обоих деревьев и карта переноса | 🟠 Done with deviations | 2026-08-08 |
-| P9.2 | Машинный гейт целостности документации | ⬜ Not started | 2026-08-08 |
-| P9.3 | Слияние `docs-private` в `docs` | ⬜ Not started | 2026-08-08 |
-| P9.4 | Роспуск `specs/v2` 00–07 в канон `03_Dev`/`01_Business` | ⬜ Not started | 2026-08-08 |
-| P9.5 | Роспуск `specs/v2` 08 и перевод ссылок живого контура | ⬜ Not started | 2026-08-08 |
-| P9.6 | Кроулинг: процессы, настройки, диаграммы Д7–Д12 | ⬜ Not started | 2026-08-08 |
-| P9.7 | Документы и AI: форматы, промты, провайдеры, диаграммы Д13–Д14 | ⬜ Not started | 2026-08-08 |
-| P9.8 | Сводная навигация, канон каркаса и финальная сверка | ⬜ Not started | 2026-08-08 |
+| P9.1 | Ревизия обоих деревьев и карта переноса | 🟠 Done with deviations | 2026-08-09 |
+| P9.2 | Машинный гейт целостности документации | 🟠 Done with deviations | 2026-08-09 |
+| P9.3 | Слияние `docs-private` в `docs` | 🟠 Done with deviations | 2026-08-09 |
+| P9.4 | Роспуск `specs/v2` 00–07 в канон `03_Dev`/`01_Business` | 🟠 Done with deviations | 2026-08-09 |
+| P9.5 | Роспуск `specs/v2` 08 и перевод ссылок живого контура | 🟠 Done with deviations | 2026-08-09 |
+| P9.6 | Кроулинг: процессы, настройки, диаграммы Д7–Д12 | 🟠 Done with deviations | 2026-08-09 |
+| P9.7 | Документы и AI: форматы, промты, провайдеры, диаграммы Д13–Д14 | 🟠 Done with deviations | 2026-08-09 |
+| P9.8 | Сводная навигация, канон каркаса и финальная сверка | 🟠 Done with deviations | 2026-08-09 |
 
 ## 6. Update Log
 
@@ -304,11 +317,41 @@ generated_by: task plan-views status
 | 2026-08-08 | gpt-5.6-sol/high | plan-run · closed-green · note сокращена; полный текст: journal.jsonl:161 |
 | 2026-08-08 | gpt-5.6-sol/high | plan-run · in-progress · note сокращена; полный текст: journal.jsonl:162 |
 | 2026-08-08 | gpt-5.6-sol/high | plan-run · closed-deviations · note сокращена; полный текст: journal.jsonl:163 |
+| 2026-08-08 | gpt-5.6-terra/medium | plan-run · in-progress · Manual Layout v2 preflight: P9.2 bundle fail-closed on prose-only named testing skills. The owning carrier now resolves them to the installed Laravel testing snippets; P9.2 bundle is green. Full plan-lint remains fail-closed on 24 staged defects outside P9.2. |
+| 2026-08-08 | gpt-5.6-terra/medium | plan-run · closed-deviations · note сокращена; полный текст: journal.jsonl:165 |
+| 2026-08-08 | gpt-5.6-terra/medium | plan-run · closed-deviations · note сокращена; полный текст: journal.jsonl:166 |
+| 2026-08-09 | gpt-5.6-terra/high | plan-run · closed-deviations · note сокращена; полный текст: journal.jsonl:167 |
+| 2026-08-09 | gpt-5.6-terra/high | plan-run · closed-deviations · note сокращена; полный текст: journal.jsonl:168 |
+| 2026-08-09 | gpt-5.6-terra/medium | plan-run · closed-deviations · note сокращена; полный текст: journal.jsonl:169 |
+| 2026-08-09 | gpt-5.6-terra/medium | plan-run · closed-deviations · note сокращена; полный текст: journal.jsonl:170 |
+| 2026-08-09 | gpt-5.6-terra/medium | plan-run · closed-deviations · note сокращена; полный текст: journal.jsonl:171 |
+| 2026-08-09 | gpt-5.6-terra/medium | plan-run · closed-deviations · note сокращена; полный текст: journal.jsonl:172 |
+| 2026-08-09 | gpt-5.6-terra/medium | plan-run · closed-deviations · note сокращена; полный текст: journal.jsonl:173 |
+| 2026-08-09 | codex/manual-audit | plan-audit · audit-red · note сокращена; полный текст: journal.jsonl:174 |
+| 2026-08-09 | codex/frontier-high | plan-design · in-progress · Manual Layout v2 design; task command not invoked. P10 adds seven sequential items for eight code defects. Swissknifeman rollout and closed P1-P9 specs stay out of scope. Audit, D131-D137, carriers and P10.1 launch recorded; no application code changed. |
+| 2026-08-09 | gpt-5.6-terra/high | plan-run · in-progress · Manual Layout v2 P10.1 started after baseline: 27 inherited read-admission diagnostics, zero P10 diagnostics; v2 views green. |
+| 2026-08-09 | gpt-5.6-terra/high | plan-run · closed-deviations · Manual v2 P10.1: typed owner, busy, crawler lock/SAVEPOINT and two-PG-worker proof. Focus 31/92, migrate:fresh --seed, Pint and PHPStan green; full suite has unrelated pre-existing failures. |
+| 2026-08-09 | gpt-5.6-terra/high | plan-run · closed-deviations · note сокращена; полный текст: journal.jsonl:178 |
+| 2026-08-09 | gpt-5.6-terra/high | plan-run · closed-deviations · Manual v2 P10.3: xact advisory lock and post-lock revision sequencing. ea65d384; two PostgreSQL workers prove identical→one revision, different→1/2 canonical head. Focus 15/77, migrate:fresh --seed, Pint/PHPStan green; full has unrelated archive/seed failures. |
+| 2026-08-09 | codex/gpt-5.6 | plan-run · closed-deviations · note сокращена; полный текст: journal.jsonl:180 |
+| 2026-08-09 | codex/gpt-5.6 | plan-run · closed-deviations · note сокращена; полный текст: journal.jsonl:181 |
+| 2026-08-09 | codex/gpt-5.6 | plan-run · in-progress · Manual Layout v2 P10.6 started after baseline: 27 inherited read-admission diagnostics, zero P10 diagnostics; v2 views green. |
+| 2026-08-09 | codex/gpt-5.6 | plan-run · closed-deviations · Manual v2 P10.6: proxy→target locks, two PostgreSQL workers prove lossless failures, once-only disable logging and both EWMA samples. Focused 23/44, Pint, PHPStan and diff-check green; full summary unavailable. Commit 5bf0d3ea. |
+| 2026-08-09 | codex/manual | plan-run · closed-deviations · note сокращена; полный текст: journal.jsonl:184 |
+| 2026-08-09 | codex/manual | plan-run · in-progress · note сокращена; полный текст: journal.jsonl:185 |
+| 2026-08-09 | codex/manual | plan-run · closed-deviations · note сокращена; полный текст: journal.jsonl:186 |
 
 ## Owner Gates
 
 - P1.4: known deviation
 - P1.5: known deviation
+- P10.1: known deviation
+- P10.2: known deviation
+- P10.3: known deviation
+- P10.4: known deviation
+- P10.5: known deviation
+- P10.6: known deviation
+- P10.7: known deviation
 - P2.1: known deviation
 - P2.3: known deviation
 - P2.5: known deviation
@@ -342,3 +385,10 @@ generated_by: task plan-views status
 - P8.2: known deviation
 - P8.3: known deviation
 - P9.1: known deviation
+- P9.2: known deviation
+- P9.3: known deviation
+- P9.4: known deviation
+- P9.5: known deviation
+- P9.6: known deviation
+- P9.7: known deviation
+- P9.8: known deviation

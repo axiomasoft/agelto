@@ -1,0 +1,128 @@
+{
+  "schema_version": 1,
+  "generated_at": "2026-08-09T11:23:34+03:00",
+  "git_anchor": {
+    "validated_head": "97b2f84a20e2fb7b98d42e03cd347be5ca1af884",
+    "product_fix_commit": "97b2f84a20e2fb7b98d42e03cd347be5ca1af884",
+    "previous_p10_commits": [
+      "7933c496",
+      "85f50b0b",
+      "580d5aeb",
+      "5bf0d3ea"
+    ],
+    "attribution": "Commit 97b2f84a contains only the repository head-order fix and new regression hunks; pre-existing StatusChanged expectation hunks and all unrelated staged/dirty changes were excluded."
+  },
+  "commands": [
+    {
+      "command": "codex plugin marketplace list --json",
+      "exit": 0,
+      "result": "swissknifeman root resolved to /home/vostrikov/projects/packages/swissknifeman before admission and after completion"
+    },
+    {
+      "command": "python3 /home/vostrikov/projects/packages/swissknifeman/packages/task/scripts/plan-lint.py plans/2026.08.06-CRAWL-HARDEN",
+      "exit": 1,
+      "result": "27 inherited read-admission diagnostics, 0 warnings, none in P10 before admission and after completion"
+    },
+    {
+      "command": "python3 /home/vostrikov/projects/packages/swissknifeman/packages/task/scripts/plan-views.py state --all --check|decisions --check|status --check --plan-dir plans/2026.08.06-CRAWL-HARDEN",
+      "exit": 0,
+      "result": "66 item states, 4 decision views, 1 status view"
+    },
+    {
+      "command": "docker compose exec -u root -e APP_ENV=testing -e DB_DATABASE=agelto_test app php artisan migrate:fresh --seed --no-interaction --env=testing",
+      "exit": 0,
+      "result": "63 migrations and seeders completed on agelto_test"
+    },
+    {
+      "command": "docker compose exec -u root -e APP_ENV=testing -e DB_DATABASE=agelto_test app php artisan test --no-tia tests/Feature/Procurement/ProcurementIngestConcurrencyTest.php --filter='logical head следует номеру ревизии'",
+      "exit": 2,
+      "result": "rollback proof with old detected_at-first ordering fails on third ingest: Procurement 1 has an inconsistent revision head"
+    },
+    {
+      "command": "same rollback command after restoring revision_number-only ordering",
+      "exit": 0,
+      "result": "1 passed, 8 assertions"
+    },
+    {
+      "command": "docker compose exec -u root -e APP_ENV=testing -e DB_DATABASE=agelto_test app php artisan test --no-tia tests/Feature/Crawler/CrawlerRunManagerTest.php tests/Feature/Crawler/FreshRunProcessorTest.php tests/Feature/Crawler/ArchiveWindowScannerTest.php tests/Feature/Procurement/ProcurementIngestConcurrencyTest.php tests/Feature/Procurement/History/ProcurementTimelineBuilderTest.php tests/Feature/Health/ListingShapeCheckTest.php tests/Feature/Crawler/ProxyOutcomeConcurrencyTest.php",
+      "exit": 0,
+      "result": "54 passed, 187 assertions"
+    },
+    {
+      "command": "docker compose exec -u root app ./vendor/bin/pint --test app/Repositories/Procurement/ProcurementReadRepository.php tests/Feature/Procurement/ProcurementIngestConcurrencyTest.php",
+      "exit": 0,
+      "result": "2 files pass"
+    },
+    {
+      "command": "docker compose exec -u root app ./vendor/bin/phpstan analyse --memory-limit=1G",
+      "exit": 0,
+      "result": "643 files, 0 errors"
+    },
+    {
+      "command": "git diff --check",
+      "exit": 0,
+      "result": "pass"
+    },
+    {
+      "command": "if rg -n \"verify\\s*=>\\s*false\" app; then exit 1; fi",
+      "exit": 0,
+      "result": "TLS guard passes; no application match"
+    },
+    {
+      "command": "docker compose exec -u root -e APP_ENV=testing -e DB_DATABASE=agelto_test app php artisan test --no-tia --filter='DocsIntegrity'",
+      "exit": 0,
+      "result": "4 passed, 16 assertions"
+    },
+    {
+      "command": "docker compose exec -u root -e APP_ENV=testing -e DB_DATABASE=agelto_test app ./vendor/bin/pest --no-tia --log-junit=/tmp/p10.7-f5-full-root.xml",
+      "exit": 1,
+      "result": "JUnit: 1418 tests, 5943 assertions, 1405 passed, 1 skipped, 3 failures, 9 errors"
+    }
+  ],
+  "findings": {
+    "F1": "PASS — typed owner rejects mismatched running run; two PostgreSQL workers create one owner run.",
+    "F2": "PASS — unique-race recovery is savepoint-safe inside the manager transaction.",
+    "F3": "PASS — exact repeated dedup signature takes the fresh cap branch before no-change.",
+    "F4": "PASS — fresh and archive continuations retain cap-detector state.",
+    "F5": "PASS — canonical current head is the greatest revision_number. A real second PostgreSQL backend is observed waiting on the advisory lock with detected_at 10:00:00 while revision 1 commits at 10:00:01; revision 2 then commits with the earlier timestamp, and a third different ingest creates revision 3 with canonical head/count 3. The old detected_at-first ordering deterministically throws the named inconsistent-head LogicException.",
+    "F6": "PASS — terminal-at-discovery is terminal with zero observed duration.",
+    "F7": "PASS — unchanged parsed data is healthy; parse errors are independent telemetry.",
+    "F8": "PASS — concurrent outcomes retain both breaker/EWMA updates and auto-disable once."
+  },
+  "test_counts": {
+    "targeted": {
+      "passed": 54,
+      "assertions": 187
+    },
+    "new_regression": {
+      "passed": 1,
+      "assertions": 8,
+      "rollback_exit": 2
+    },
+    "full_root": {
+      "tests": 1418,
+      "passed": 1405,
+      "assertions": 5943,
+      "failures": 3,
+      "errors": 9,
+      "skipped": 1
+    },
+    "d112_baseline_non_passing": 18,
+    "full_root_non_passing_delta": -6
+  },
+  "inherited_failures": {
+    "full_root": "12 non-P10 outcomes: three failures (EstimateResource authorization, unrelated untracked ProcurementHistory, seeded StatusMapping expectation) and nine errors (PlatformForm plus eight EisSeeders duplicate-record outcomes).",
+    "ordinary_user": "The documented www-data storage/framework/testing/disks ownership deviation remains inherited; this acceptance used the root workaround and does not waive it.",
+    "repository_pint": "Repository-wide Pint was not rerun; the required scoped two-file Pint check passes."
+  },
+  "plan_postflight": {
+    "lint": "exit 1 with exactly 27 inherited read-admission diagnostics and 0 warnings; no P10 diagnostic",
+    "views": "state 66, decisions 4 and status 1 regenerated and checked with exit 0",
+    "bundles": "P10.7 regenerated after D138 carrier changes; complete-plan lint reports no P10 bundle diagnostic"
+  },
+  "verdict": {
+    "p10_product_code": "GREEN for F1-F8, including D138 F5 follow-up",
+    "p10_item_status": "Done with deviations",
+    "historical_delivery_projection": "RED, separate and unchanged"
+  }
+}
