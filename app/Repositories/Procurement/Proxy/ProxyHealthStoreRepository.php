@@ -24,9 +24,33 @@ final readonly class ProxyHealthStoreRepository
     public function findOrCreateTarget(int $proxyId, string $target): ProxyTarget
     {
         return ProxyTarget::query()->firstOrCreate(
-            ['proxy_id' => $proxyId, 'target' => $target],
-            ['success_ratio' => 1.0, 'consecutive_failures' => 0, 'open_count' => 0],
+            attributes: ['proxy_id' => $proxyId, 'target' => $target],
+            values: ['success_ratio' => 1.0, 'consecutive_failures' => 0, 'open_count' => 0],
         );
+    }
+
+    /**
+     * Locks the two health carriers in the only permitted order: proxy, then target.
+     *
+     * The caller must retain the surrounding transaction until its outcome is persisted. The
+     * proxy lock serializes first creation of a target row, after which the exact target row is
+     * locked before its breaker and EWMA values are read.
+     *
+     * @return array{proxy: Proxy, target: ProxyTarget}
+     */
+    public function lockProxyAndTarget(int $proxyId, string $target): array
+    {
+        $proxy = Proxy::query()->lockForUpdate()->findOrFail($proxyId);
+
+        $this->findOrCreateTarget(proxyId: $proxy->id, target: $target);
+
+        $lockedTarget = ProxyTarget::query()
+            ->where('proxy_id', $proxy->id)
+            ->where('target', $target)
+            ->lockForUpdate()
+            ->firstOrFail();
+
+        return ['proxy' => $proxy, 'target' => $lockedTarget];
     }
 
     /**

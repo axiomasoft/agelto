@@ -100,55 +100,61 @@ final readonly class ProxyResolver
             return;
         }
 
-        $target = $this->health->findOrCreateTarget($lease->proxyId, $lease->target);
-        $targetAttributes = [...$this->ewmaAttributes($target, $outcome), 'last_outcome_at' => now()];
-
-        if ($outcome->successful) {
-            $this->health->updateTarget($target, [...$targetAttributes, ...$this->breaker->onSuccess()]);
-            $this->health->updateProxy(
-                $this->health->findProxy($lease->proxyId),
-                [...$this->proxyBreakerAttributes($this->breaker->onSuccess()), 'last_success_at' => now()],
+        $disabledReason = DB::transaction(function () use ($lease, $outcome): ?string {
+            ['proxy' => $proxy, 'target' => $target] = $this->health->lockProxyAndTarget(
+                proxyId: $lease->proxyId,
+                target: $lease->target,
             );
+            $targetAttributes = [...$this->ewmaAttributes($target, $outcome), 'last_outcome_at' => now()];
 
-            return;
-        }
+            if ($outcome->successful) {
+                $this->health->updateTarget($target, [...$targetAttributes, ...$this->breaker->onSuccess()]);
+                $this->health->updateProxy(
+                    proxy: $proxy,
+                    attributes: [...$this->proxyBreakerAttributes($this->breaker->onSuccess()), 'last_success_at' => now()],
+                );
 
-        if ($this->breaker->level($outcome->reason) === ProxyCircuitBreaker::LevelGlobal) {
-            $this->health->updateTarget($target, $targetAttributes);
+                return null;
+            }
 
-            $proxy = $this->health->findProxy($lease->proxyId);
-            $state = $this->breaker->onFailure($proxy->fails_count, $proxy->open_count, $outcome->reason);
-            $attributes = [
-                ...$this->proxyBreakerAttributes($state),
-                'last_failure_reason' => $outcome->reason->value,
-                'last_failure_at' => now(),
-            ];
+            if ($this->breaker->level($outcome->reason) === ProxyCircuitBreaker::LevelGlobal) {
+                $this->health->updateTarget(target: $target, attributes: $targetAttributes);
 
-            if ($state['open_count'] >= (int) config('crawler.proxy.breaker.disable_after_openings')) {
-                $attributes += [
-                    'is_active' => false,
-                    'disabled_at' => now(),
-                    'disabled_reason' => $outcome->reason->value,
+                $state = $this->breaker->onFailure($proxy->fails_count, $proxy->open_count, $outcome->reason);
+                $attributes = [
+                    ...$this->proxyBreakerAttributes($state),
+                    'last_failure_reason' => $outcome->reason->value,
+                    'last_failure_at' => now(),
                 ];
+
+                if ($proxy->is_active && $state['open_count'] >= (int) config('crawler.proxy.breaker.disable_after_openings')) {
+                    $attributes += [
+                        'is_active' => false,
+                        'disabled_at' => now(),
+                        'disabled_reason' => $outcome->reason->value,
+                    ];
+                }
+
+                $this->health->updateProxy(proxy: $proxy, attributes: $attributes);
+
+                return ($attributes['is_active'] ?? true) === false ? $outcome->reason->value : null;
             }
 
-            $this->health->updateProxy($proxy, $attributes);
+            $state = $this->breaker->onFailure($target->consecutive_failures, $target->open_count, $outcome->reason);
+            $this->health->updateTarget(target: $target, attributes: [
+                ...$targetAttributes,
+                'consecutive_failures' => $state['consecutive_failures'],
+                'open_count' => $state['open_count'],
+                'open_until' => $state['open_until'],
+                'last_failure_reason' => $outcome->reason->value,
+            ]);
 
-            if (! $proxy->is_active && ($attributes['is_active'] ?? true) === false) {
-                $this->operationLogs?->proxyDisabled($lease->proxyId, $outcome->reason->value);
-            }
+            return null;
+        });
 
-            return;
+        if ($disabledReason !== null) {
+            $this->operationLogs?->proxyDisabled($lease->proxyId, $disabledReason);
         }
-
-        $state = $this->breaker->onFailure($target->consecutive_failures, $target->open_count, $outcome->reason);
-        $this->health->updateTarget($target, [
-            ...$targetAttributes,
-            'consecutive_failures' => $state['consecutive_failures'],
-            'open_count' => $state['open_count'],
-            'open_until' => $state['open_until'],
-            'last_failure_reason' => $outcome->reason->value,
-        ]);
     }
 
     private function candidates(ProxyScope $scope, string $target, ?ProxyRequirements $requirements): Collection
