@@ -15,11 +15,11 @@
 
     codex -C /home/vostrikov/projects/agelto/agelto -m gpt-5.6-sol -c 'model_reasoning_effort="high"' -a never -s danger-full-access '$ task:plan-design 2026.08.09-RELEASE-READINESS P0'
 
-**Done:** создан Layout v2 skeleton; Design pass 1/3; 13 contract-first фаз и 74 item specs; brief, bootstrap recon, intent trace и D1–D11.
+**Done:** создан Layout v2 skeleton; Design pass 1/3; 13 contract-first фаз и 74 item specs; brief, bootstrap recon, intent trace и D1–D12; предыдущий план уже архивирован внешним процессом.
 **Remaining:** детализировать P0–P12 по отдельным cold-start design sessions; finish; design audit; исполнение; final clean-room rehearsal.
 **Sources of truth:** plans/2026.08.09-RELEASE-READINESS/plan.md · plans/2026.08.09-RELEASE-READINESS/status.md · plans/2026.08.09-RELEASE-READINESS/brief/00-brief.md · plans/2026.08.09-RELEASE-READINESS/research/00-user-intent.md
-**Open risks:** внешний RAG ещё не выполнен; точный remote/branch AzGuard не запечатан; предыдущий терминальный план ещё физически не перенесён в archive; его preflight имеет 32 inherited read-budget errors.
+**Open risks:** внешний RAG ещё не выполнен; точный remote/branch AzGuard не запечатан.
 **Workarounds/Deferred/Open questions:**
 - workarounds: —
-- deferred: физическая архивация 2026.08.06-CRAWL-HARDEN — отдельный task:plan-close archive.
+- deferred: —
 - open_questions: технологические развилки RAG принадлежат P0; owner question пока не требуется.

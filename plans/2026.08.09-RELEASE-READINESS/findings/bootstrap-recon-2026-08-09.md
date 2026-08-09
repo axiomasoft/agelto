@@ -51,3 +51,10 @@ best practice не принимались. Полный сравнительны
 Скелет плана может быть создан без выбора технологий. Несущие решения оставлены фазе P0:
 image/build topology, secret backend, package clone contract, asset publication lifecycle,
 documentation generator/serving model, Pest 5 fast path и document taxonomy.
+
+## Concurrent workspace update
+
+После первичного preflight Git history получил три внешних коммита: afd08261 физически
+архивировал 2026.08.06-CRAWL-HARDEN, 1cd23bb8 перенёс его root-материалы в project docs,
+864e06ea зафиксировал bootstrap нового плана. Live-каталог старого плана отсутствует,
+plans/archive/2026.08.06-CRAWL-HARDEN существует. Это supersedes отложенную часть D3 через D12.

@@ -3,7 +3,7 @@ projection: status-view
 projection_version: v1
 source_scope: plan core + phases + journal
 through: 2026-08-09
-inputs_sha256: e77a935e9ccfbec79ef2f08a2d3ef3e2458b92fa141cdcfaca4f65d610f576e4
+inputs_sha256: ca2951fc444d5b05f338f4b58322bfa708c2a0ea1fa60bd637e8d94264b5d403
 generated_by: task plan-views status
 -->
 
@@ -182,6 +182,7 @@ generated_by: task plan-views status
 |:--|:--|:--|
 | 2026-08-09 | frontier/high | plan-design · in-progress · Design pass 1/3: создан Layout v2 skeleton; 13 фаз/68 items, brief/recon/intent trace и D1–D10; следующий фокус — детализация P0 и RAG contracts. |
 | 2026-08-09 | frontier/high | plan-design · in-progress · Bootstrap correction D11: generated carriers подтверждают 13 фаз/74 items; Design Passes остаётся 1/3. |
+| 2026-08-09 | frontier/high | plan-design · in-progress · D12: предыдущий CRAWL-HARDEN уже архивирован внешним процессом; live blocker и deferred archive сняты. |
 
 ## Owner Gates
 
