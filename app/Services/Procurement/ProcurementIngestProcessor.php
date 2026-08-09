@@ -9,6 +9,7 @@ use App\Enums\Procurement\ProcurementEventType;
 use App\Models\Procurement\Procurement;
 use App\Repositories\Procurement\ProcurementReadRepository;
 use App\Repositories\Procurement\ProcurementStoreRepository;
+use App\Support\Database\PostgresAdvisoryLock;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 
@@ -24,6 +25,7 @@ final readonly class ProcurementIngestProcessor
         private ProcurementReadRepository $procurements,
         private ProcurementStoreRepository $store,
         private StatusMappingService $statusMapping,
+        private PostgresAdvisoryLock $locks,
     ) {}
 
     public function ingest(ProcurementSnapshotData $data, ?int $crawlerRunId = null): Procurement
@@ -33,6 +35,11 @@ final readonly class ProcurementIngestProcessor
             $resolution = $this->statusMapping->resolve(registryId: $data->registryId, sourceStage: $data->sourceStage);
             $snapshot = $data->toSnapshotArray(canonicalStatus: $resolution->status->value);
             $snapshotHash = hash('sha256', json_encode($snapshot, JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR));
+
+            $this->locks->acquireProcurement(
+                registryId: $data->registryId,
+                registryNumber: $data->registryNumber,
+            );
 
             $procurement = $this->procurements->findProcurement(
                 registryId: $data->registryId,
@@ -132,7 +139,15 @@ final readonly class ProcurementIngestProcessor
             return $procurement;
         }
 
-        $revisionNumber = $procurement->revision_count + 1;
+        $latestRevisionNumber = $latestRevision === null
+            ? 0
+            : (int) $latestRevision->getAttribute('revision_number');
+
+        if ($procurement->revision_count !== $latestRevisionNumber) {
+            throw new \LogicException("Procurement {$procurement->id} has an inconsistent revision head.");
+        }
+
+        $revisionNumber = $latestRevisionNumber + 1;
 
         $revision = $this->store->storeRevision(
             procurementId: $procurement->id,
