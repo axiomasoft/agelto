@@ -3,7 +3,7 @@ projection: status-view
 projection_version: v1
 source_scope: plan core + phases + journal
 through: 2026-08-09
-inputs_sha256: 14b077ef2c1ff5c4c351a0e667099df49561a47be1d8e180a78568a4208d154a
+inputs_sha256: 3c6fb175e51518fbe5465eb2e84dc79eca92476f5317b3c41f908dce1af0d8b2
 generated_by: task plan-views status
 -->
 
@@ -23,7 +23,7 @@ generated_by: task plan-views status
 
 | Phase | Title | Items 🟢/всего | Status |
 |:--|:--|:--|:--|
-| P0 | Разведка репозитория, референсов и RAG-контракты | 0/7 | ⬜ Not started |
+| P0 | Разведка репозитория, референсов и RAG-контракты | 1/7 | ⬜ Not started |
 | P1 | Makefile и Docker dev/prod с Vite-ready topology | 0/5 | ⬜ Not started |
 | P10 | PHP, архитектура, безопасность и production-readiness audit | 0/6 | ⬜ Not started |
 | P11 | Pest 5 performance, test isolation и CI | 0/6 | ⬜ Not started |
@@ -41,7 +41,7 @@ generated_by: task plan-views status
 
 | ID | Title | Status | Updated |
 |:--|:--|:--|:--|
-| P0.0 | Ввести исполняемый citation gate до первого execution item | ⬜ Not started | — |
+| P0.0 | Ввести исполняемый citation gate до первого execution item | 🟢 Done | 2026-08-09 |
 | P0.1 | Инвентарь Agelto: Docker, Make, deploy, fresh install, admin, proxies, documents, tests | ⬜ Not started | — |
 | P0.2 | Сравнительная матрица Sova, Vintera/CMS и Dterema | ⬜ Not started | — |
 | P0.3 | RAG: Docker/Compose/Makefile, build cache, secrets, Ubuntu deploy и Vite | ⬜ Not started | — |
@@ -205,6 +205,8 @@ generated_by: task plan-views status
 | 2026-08-09 | frontier/xhigh | plan-audit · audit-red · заход 3, вердикт RED |
 | 2026-08-09 | frontier/high | plan-design · in-progress · Remediation audit design заход 3: F9 projections после terminal audit event; F10 D52 machine-current; F11 index D12/D53 ownership; F12 decision declarations deduplicated и ecosystem PROMOTE-CANDIDATE D54. Product/status scope не менялся. |
 | 2026-08-09 | frontier/high | plan-design · in-progress · Owner D55: design принят после F9–F12; audit-loop остановлен на трёх заходах; execution открыт с P0.0; D52 сохранён current finish carrier. |
+| 2026-08-09 | implementation/medium | plan-exec · in-progress · — |
+| 2026-08-09 | implementation/medium | plan-exec · closed-green · Добавлены stdlib citation verifier и пустой exact-exceptions carrier; py_compile, selftest и strict scan зелёные. |
 
 ## Owner Gates
 
