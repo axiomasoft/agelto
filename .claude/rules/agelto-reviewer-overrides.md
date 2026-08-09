@@ -43,7 +43,7 @@ Upgrade: harness agent-packs upgrade --pack backend-laravel --target .
   (нарушает D5/D17: канон — файл, БД — рантайм-копия).
 - Extraction-вызов (`extract_*`/`extraction:discovery`) с `tools`/function-calling или где
   содержимое документа могло бы попасть в `system_instruction` — блокирующее (indirect prompt
-  injection, `docs/specs/v2/08-estimate-extraction.md` §7).
+  injection, `docs/03_Dev/ai/estimate-extraction.md` §7).
 - `EstimateExtractionJob`/наследники checkpoint-requeue переведены на `ShouldBeUnique` вместо
   `ShouldBeUniqueUntilProcessing` — блокирующее (self-dispatch продолжения тихо дедуплицируется,
   документ зависает в extraction, D39).

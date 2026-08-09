@@ -11,6 +11,7 @@ use App\Models\Procurement\Financing;
 use App\Models\Procurement\Protocol;
 use App\Models\Procurement\PurchaseItem;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 
 /**
  * Запись детального слоя карточки закупки (`prc_eis_details`/`prc_financing`/`prc_items`/
@@ -124,12 +125,17 @@ final readonly class ProcurementDetailStoreRepository
      */
     public function upsertAward(int $procurementId, ?int $lotId, array $attributes): Award
     {
-        return Award::query()->updateOrCreate(
-            [
-                'procurement_id' => $procurementId,
-                'lot_id' => $lotId,
-            ],
-            $attributes,
-        );
+        $award = Award::query()->firstOrNew([
+            'procurement_id' => $procurementId,
+            'lot_id' => $lotId,
+        ]);
+
+        if ($award->getAttribute('uuid') === null) {
+            $award->setAttribute('uuid', (string) Str::uuid7());
+        }
+        $award->fill($attributes);
+        $award->save();
+
+        return $award;
     }
 }

@@ -73,9 +73,9 @@ function trainingUiViewFiles(): array
 
 test('периметр витрины обучалки собран Finder\'ом, а не перечнем руками', function (): void {
     // Счётчик — канарейка периметра: растёт при КАЖДОМ новом файле витрины. 10 = ресурс + 4
-    // страницы + форма + инфолист + схема модалки + таблица + relation-менеджер.
-    expect(trainingUiClasses())->toHaveCount(10)
-        ->and(trainingUiViewFiles())->toHaveCount(1);
+    // страницы + форма + инфолист + две схемы + две таблицы + relation-менеджер.
+    expect(trainingUiClasses())->toHaveCount(12)
+        ->and(trainingUiViewFiles())->toHaveCount(2);
 });
 
 test('витрина обучалки не импортирует предметку типа документа', function (): void {

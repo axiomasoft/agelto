@@ -1,7 +1,7 @@
 ---
 audience: dev
 type: explanation
-status: draft
+status: living
 ---
 
 # AI-контур проекта
@@ -56,5 +56,6 @@ flowchart LR
 ## Смежное
 
 - [`scenarios.md`](scenarios.md) — какие скилы подключать в каком порядке под конкретную задачу.
+- [`subagents-and-workflows.md`](subagents-and-workflows.md) — роли агентов и dev-loop проекта.
 - `.ai/guidelines/navigation.md` — Reference Table (маршрутизация по доменным терминам/задачам).
 - `docs/meta/editing.md` — как править саму документацию `docs/` (не путать с `.ai/`-контуром).

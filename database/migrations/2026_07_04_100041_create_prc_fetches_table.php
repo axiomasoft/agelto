@@ -30,6 +30,8 @@ return new class extends Migration
                 rows_total int NULL,
                 rows_new int NULL,
                 rows_updated int NULL,
+                rows_parsed int NULL,
+                rows_errors int NULL,
                 dedup_signature text NULL,
                 proxy_id bigint NULL,
                 fetched_at timestamptz NOT NULL,

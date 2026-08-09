@@ -1,6 +1,7 @@
 <?php
 
 declare(strict_types=1);
+use App\Guards\Admin\AdminGuardPanelProvider;
 use AzGuard\Abilities\DefaultAbilitiesResolver;
 use AzGuard\AzGuardManager;
 use AzGuard\Models\DirectGrant;
@@ -103,7 +104,7 @@ return [
     | AzGuard panel providers. Each entry is the FQCN of a class extending PanelProvider.
     */
     'panels' => [
-        \App\Guards\Admin\AdminGuardPanelProvider::class,
+        AdminGuardPanelProvider::class,
     ],
 
     /*

@@ -121,7 +121,7 @@ $ task:plan-run 2026.08.06-CRAWL-HARDEN P6.2
 | Model class | frontier (`gpt-5.6-sol`) |
 | Effort | high — открытые design-решения, вердикты замораживают форму P2/P3/P5/P6 |
 | Capabilities | Playwright MCP (RU-прокси + `ignoreHTTPSErrors`), repo-чтение |
-| Context | cold-start: `plan.md` → `roadmap.md` → `phases/P1.md` → скилл `eis-recon` |
+| Context | cold-start: `plan.md` → `roadmap.md` → `phases/P1/P1.md` → скилл `eis-recon` |
 | Суть | Канал поднимается ОДИН раз, три item'а идут последовательно, закрытие КАЖДОГО — полный протокол `plan-protocol` §8 |
 | Команда | `/task:plan-run 2026.08.06-CRAWL-HARDEN P1.1 P1.2 P1.4` |
 
@@ -141,7 +141,7 @@ $ task:plan-run 2026.08.06-CRAWL-HARDEN P6.2
 | Model class | implementation (`gpt-5.6-terra`) |
 | Effort | medium — открытых решений нет, текст пишется по уже финальному коду |
 | Capabilities | repo-чтение, запись `docs/**`, прогон Pest-гейта P9.2 |
-| Context | cold-start: `plan.md` → `roadmap.md` → `phases/P9.md` (после закрытия P9.5) |
+| Context | cold-start: `plan.md` → `roadmap.md` → `phases/P9/P9.md` (после закрытия P9.5) |
 | Суть | Нулевая связность между items, один тир, одно входное состояние дерева; закрытие КАЖДОГО — полный протокол §8 |
 | Команда | `/task:plan-exec 2026.08.06-CRAWL-HARDEN P9.6 P9.7` |
 
@@ -151,7 +151,7 @@ $ task:plan-run 2026.08.06-CRAWL-HARDEN P6.2
 kind: orchestration
 orchestration_id: 2026.08.06-CRAWL-HARDEN:W1
 script: plans/2026.08.06-CRAWL-HARDEN/workflows/wf-crawl-harden-p7.js
-inputs: [plan.md, roadmap.md, phases/P7.md]
+inputs: [plan.md, roadmap.md, phases/P7/P7.md]
 slices: P7.1 → P7.2 → P7.3 (последовательно, implementation/medium посрезово из §3 Routing)
 ```
 

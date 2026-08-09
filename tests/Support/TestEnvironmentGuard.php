@@ -33,7 +33,7 @@ final class TestEnvironmentGuard
             throw new RuntimeException(sprintf(
                 "ИЗОЛЯЦИЯ ТЕСТОВ НАРУШЕНА: активная БД не является тестовой.\n".
                     "  connection: [%s], database: [%s]\n".
-                    "Тесты должны работать только с БД, имя которой заканчивается на `_test`, ".
+                    'Тесты должны работать только с БД, имя которой заканчивается на `_test`, '.
                     "потому что RefreshDatabase вызывает migrate:fresh и СОТРЁТ данные dev-БД.\n".
                     'Как починить:'."\n".
                     "  1. Убедитесь, что phpunit.xml содержит APP_ENV=testing и DB_DATABASE=agelto_test.\n".

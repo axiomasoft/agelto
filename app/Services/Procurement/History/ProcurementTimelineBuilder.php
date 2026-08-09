@@ -49,12 +49,29 @@ final readonly class ProcurementTimelineBuilder
         $terminalStatus = null;
         $terminalAt = null;
 
+        if ($statusEvents->isEmpty() && $discoveredAt !== null) {
+            $legacyStatus = $this->legacyInitialStatus(procurement: $procurement);
+
+            if ($legacyStatus !== null) {
+                $activeStatus = $legacyStatus;
+                $activeSince = $discoveredAt;
+
+                if ($legacyStatus->isTerminal()) {
+                    $terminalStatus = $legacyStatus;
+                    $terminalAt = $discoveredAt;
+                    $byStatus[$legacyStatus->value] = 0;
+                }
+            }
+        }
+
         foreach ($statusEvents as $event) {
             $newStatus = ProcurementStatus::tryFrom($this->nullableString($event->getRawOriginal('new_value')) ?? '');
 
             if ($newStatus === null) {
                 continue;
             }
+
+            $isInitialStatus = $activeStatus === null;
 
             if ($activeStatus !== null && $activeSince !== null) {
                 $byStatus[$activeStatus->value] = ($byStatus[$activeStatus->value] ?? 0) + (int) $activeSince->diffInSeconds($this->occurredAt($event));
@@ -66,6 +83,10 @@ final readonly class ProcurementTimelineBuilder
             if ($newStatus->isTerminal()) {
                 $terminalStatus = $newStatus;
                 $terminalAt = $this->occurredAt($event);
+
+                if ($isInitialStatus) {
+                    $byStatus[$newStatus->value] = 0;
+                }
 
                 break;
             }
@@ -79,6 +100,20 @@ final readonly class ProcurementTimelineBuilder
             totalDuration: $discoveredAt !== null && $terminalAt !== null ? (int) $discoveredAt->diffInSeconds($terminalAt) : null,
             byStatus: $byStatus,
         );
+    }
+
+    /**
+     * Legacy discovered-only histories contain no temporal evidence of a later transition.
+     * A one-revision procurement therefore safely treats its persisted status as initial; a
+     * multi-revision history remains unknown rather than inventing an intermediate status.
+     */
+    private function legacyInitialStatus(Procurement $procurement): ?ProcurementStatus
+    {
+        if ((int) $procurement->getRawOriginal('revision_count') !== 1) {
+            return null;
+        }
+
+        return ProcurementStatus::tryFrom((string) $procurement->getRawOriginal('status'));
     }
 
     private function eventType(ProcurementEvent $event): ProcurementEventType

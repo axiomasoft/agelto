@@ -4,6 +4,8 @@ namespace App\Filament\Resources\Procurement\Procurements;
 
 use App\Filament\Resources\Procurement\Procurements\Pages\ListProcurements;
 use App\Filament\Resources\Procurement\Procurements\Pages\ViewProcurement;
+use App\Filament\Resources\Procurement\Procurements\RelationManagers\EventsRelationManager;
+use App\Filament\Resources\Procurement\Procurements\RelationManagers\RevisionsRelationManager;
 use App\Filament\Resources\Procurement\Procurements\Schemas\ProcurementInfolist;
 use App\Filament\Resources\Procurement\Procurements\Tables\ProcurementsTable;
 use App\Models\Procurement\Procurement;
@@ -50,6 +52,15 @@ class ProcurementResource extends Resource
         return [
             'index' => ListProcurements::route('/'),
             'view' => ViewProcurement::route('/{record}'),
+        ];
+    }
+
+    /** @return array<class-string> */
+    public static function getRelations(): array
+    {
+        return [
+            EventsRelationManager::class,
+            RevisionsRelationManager::class,
         ];
     }
 }

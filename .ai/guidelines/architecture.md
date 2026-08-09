@@ -1,42 +1,22 @@
 # Application Architecture
 
-## Fast Entry Rules
+## Resident rules
 
-- AI rules/skills are edited only in `.ai/...` source files.
-- Never hand-edit the generated `CLAUDE.md` (single AI-provider hub — `AGENTS.md`/`GEMINI.md` retired: single-provider Claude Code decision, do not recreate).
-- For quick domain routing and context escalation, use `.ai/guidelines/navigation.md`.
-- Keep this file concise: use it as a hub, escalate details to `docs/03_Dev/*`.
-- Если меняются архитектурные договорённости: синхронно обновить `docs/03_Dev/*`, `docs/02_Workflow/*` и при необходимости `.ai/guidelines/*` / локальные `.claude/skills/*`, затем вручную перенести изменения в `CLAUDE.md` (автокомпозиции нет — Boost подключён только как MCP, см. skill `ai-context-workflow`).
+- `CLAUDE.md` is the generated Claude Code hub; `AGENTS.md` is the compact Codex entrypoint. Shared rules live in `.ai/guidelines/**`; do not recreate retired `GEMINI.md`.
+- Keep this hub short. Read `docs/03_Dev/**` or `docs/02_Workflow/**` only for the active task. Architectural changes update their source docs and this guideline.
 
-## Domain Hub (short)
+## Domain boundaries
 
-- Терминология и схема пайплайна: `docs/03_Dev/architecture.md`, `docs/02_Workflow/crawling-and-discovery.md`, `docs/02_Workflow/document-and-estimate-pipeline.md`.
-- Структура плоская (`app/**`), без модулей: четыре домена по короткому префиксу таблицы — `Procurement` (`prc_*`, единый домен закупок: заказы, документы, сметы, AI-подомен предметки, crawling-инфраструктура, площадки, логи), `Reference` (`ref_*`, общие справочники ОКПД2/КТРУ/ОКВЭД2/КБК), `Organization` (`org_*`, организации), `Llm` (`llm_*`, провайдер-агностичный LLM-транспорт: провайдеры, маршруты, промты, вызовы — D22).
-- AI-подомен внутри Procurement: пайплайн-стадии — `app/Services/Procurement/{Prepare,Screening,Extraction}/` + `app/Jobs/Procurement/*Job`; предметные модели анализа/датасета — `app/Models/Procurement/Ai/*`, модель промта — `app/Models/Llm/Prompt.php` (домен транспорта, D22). Каталог типа документа (сейм анализатора) — `app/Services/Procurement/Analyzers/**`; консольные команды — `app/Console/Commands/Procurement/{Ai,Analyzers/Estimate}/` (`Ai/` — кросс-документные `ai:*`, `Analyzers/Estimate/` — сметные `estimate:*`). LLM-транспорт (провайдер-агностичный, домен не знает про Prism/Gemini напрямую) — собственный домен `Llm`: `app/Services/Llm/**` (`Contracts/LlmProvider`, `Providers/*`, `Schema/*`, `Validation/*`), модели/фабрики/репозитории — `app/Models/Llm/**`/`database/factories/Llm/**`/`app/Repositories/Llm/**`. Глубже — скилы `estimate-extraction-dev`, `llm-layer-dev`, `prompt-engineering-agelto`.
-- Очереди: Laravel Horizon (`QUEUE_CONNECTION=redis`), тяжёлые jobs — browser/Gemini parsing.
-- Внутри доменной папки слоя (`app/<Слой>/<Домен>/`) файл принадлежит ровно одной подобласти,
-  выражаемой подкаталогом (заводится вместе с первым файлом подобласти); в корне легально лежат
-  только ядровая подобласть домена и кросс-подобластные файлы — правило и машинный гейт
-  (`tests/Unit/Architecture/DomainLayoutTest.php`) целиком см. `docs/03_Dev/architecture.md`
-  («Правило размещения внутри доменной папки слоя»).
+- Flat `app/**`, no modules: `Procurement` (`prc_*`: procurements, documents, estimates, AI, crawling), `Reference` (`ref_*`), `Organization` (`org_*`), `Llm` (`llm_*`: provider-agnostic transport).
+- Procurement AI pipeline: `Services/Procurement/{Prepare,Screening,Extraction}`, `Jobs/Procurement/*Job`, `Models/Procurement/Ai/*`; LLM transport stays in `Services/Llm/**` with `Models/Llm/**`, repositories and factories. Use its local skills for extraction, LLM transport and prompts.
+- Crawling contracts: typed profile filters are resolved through `crawler.filters`; TLS trust exists only in `SourceTlsTrust` / `crawler.tls.bundles`. See `docs/03_Dev/crawling-pipeline.md`.
+- Controllers handle HTTP only; Actions/Services own short mutations and transactions; repositories access persistence. Long crawling/parsing/AI work runs as Horizon jobs, never in HTTP.
+- A file in `app/<Layer>/<Domain>/` has one subdomain directory; only domain-core and cross-subdomain files may be at its root. `tests/Unit/Architecture/DomainLayoutTest.php` enforces this.
+- Jobs must be idempotent. AI jobs use lease + status guard, prefix-stable system prompt and checkpoint-requeue without double dispatch.
 
-## Layer Responsibilities (short)
+## Runtime
 
-Controllers — только HTTP: auth, validate, delegate to Action/Service/Job dispatch, response.
-Repositories — read/write доступ к `prc_*`/`org_*` таблицам. Полная раскладка `app/` по доменным
-папкам (Models/Services/Dto/Enums/Repositories/Console) — `docs/03_Dev/architecture.md` (актуальнее
-и подробнее любой копии здесь — не дублировать).
+- Browser automation runs only in the `horizon` worker (`shm_size`, `CHROME_BIN`).
+- Docker runtime image has PHP extensions + Node/yarn, never `composer install`; `vendor` and `public/build` use volumes. Package manager: yarn, not pnpm.
 
-## Transaction & Jobs Policy (short)
-
-1. Короткие синхронные мутации — в Action/Service с явной транзакцией при необходимости.
-2. Длительный crawling/parsing/AI — queued Jobs через Horizon, не в HTTP-request.
-3. Browser automation (Chromium) — только в worker-контейнере `horizon` (Docker: `shm_size`, `CHROME_BIN`).
-4. Idempotency: повтор job не должен дублировать Link/Document без guard по статусу; для AI-анализов — lease + status-guard, prefix-stable системный промт (кэш), checkpoint-requeue не двойного диспатча.
-
-## Docker / Runtime (Agelto-specific)
-
-- Runtime-image лёгкий: PHP extensions + Node/yarn, **без** `composer install` в Dockerfile; `vendor`/`public/build` — через volumes (`make prod:composer-install`/`prod:deploy:frontend`).
-- Package manager: **yarn** (не pnpm).
-
-> For parsing stage details and table names: `docs/02_Workflow/crawling-and-discovery.md`, `docs/02_Workflow/document-and-estimate-pipeline.md`, `docs/03_Dev/architecture.md`.
+For pipeline stages and schema detail: `docs/03_Dev/architecture.md`, `docs/02_Workflow/crawling-and-discovery.md`, `docs/02_Workflow/document-and-estimate-pipeline.md`.

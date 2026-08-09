@@ -1,7 +1,7 @@
 ---
 audience: dev
 type: reference
-status: draft
+status: living
 ---
 
 # Feature card: Screening (первичный анализ)

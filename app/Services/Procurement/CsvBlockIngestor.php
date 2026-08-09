@@ -34,7 +34,7 @@ final readonly class CsvBlockIngestor
     public function ingest(Crawler $crawler, Run $run, ListingBatch $batch): FetchResult
     {
         $skipped = 0;
-        $errors = 0;
+        $rowsErrors = 0;
         $snapshots = [];
 
         foreach ($batch->rows as $row) {
@@ -42,7 +42,7 @@ final readonly class CsvBlockIngestor
                 $snapshot = $this->rowMapper->map(row: $row, crawler: $crawler);
             } catch (\Throwable $exception) {
                 $this->logRowFailure(crawler: $crawler, exception: $exception, registryNumber: null);
-                $errors++;
+                $rowsErrors++;
 
                 continue;
             }
@@ -77,6 +77,7 @@ final readonly class CsvBlockIngestor
 
         $new = 0;
         $updated = 0;
+        $rowsParsed = 0;
 
         foreach ($snapshots as $snapshot) {
             if (in_array($snapshot->registryNumber, $ignoredNumbers, strict: true)) {
@@ -87,17 +88,18 @@ final readonly class CsvBlockIngestor
 
             try {
                 [$isNew, $isUpdated] = $this->ingestSnapshot(snapshot: $snapshot, run: $run);
+                $rowsParsed++;
                 $new += $isNew ? 1 : 0;
                 $updated += $isUpdated ? 1 : 0;
             } catch (\Throwable $exception) {
                 $this->logRowFailure(crawler: $crawler, exception: $exception, registryNumber: $snapshot->registryNumber);
-                $errors++;
+                $rowsErrors++;
             }
         }
 
         $artifactRef = $this->storeRawArtifact(crawler: $crawler, run: $run, batch: $batch);
 
-        $this->fetches->log(CrawlStage::Listing, $run, null, [
+        $this->fetches->log(stage: CrawlStage::Listing, run: $run, procurementId: null, attributes: [
             'crawler_run_id' => $run->id,
             'method' => $crawler->source_method->value,
             'request_params' => $batch->requestParams,
@@ -107,6 +109,8 @@ final readonly class CsvBlockIngestor
             'rows_total' => $batch->rowsTotal,
             'rows_new' => $new,
             'rows_updated' => $updated,
+            'rows_parsed' => $rowsParsed,
+            'rows_errors' => $rowsErrors,
             'dedup_signature' => $batch->dedupSignature,
             'proxy_id' => $batch->proxyId,
             'wait_ms' => $batch->waitMs,
@@ -120,10 +124,11 @@ final readonly class CsvBlockIngestor
 
         return new FetchResult(
             rowsTotal: $batch->rowsTotal,
+            rowsParsed: $rowsParsed,
             rowsNew: $new,
             rowsUpdated: $updated,
             rowsSkipped: $skipped,
-            errors: $errors,
+            rowsErrors: $rowsErrors,
             rowsDuplicated: $duplicates,
             oldestUpdateSeen: $oldestUpdateSeen,
         );

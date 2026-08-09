@@ -18,7 +18,7 @@ final class AdminUserSeeder extends Seeder
      */
     public function run(): void
     {
-        $email = Config::string(key: 'app.cms.admin_email');
+        $email = Config::string(key: 'cms.admin_email');
         $existing = User::query()->where(column: 'email', operator: '=', value: $email)->first();
 
         if ($existing === null) {
@@ -43,7 +43,7 @@ final class AdminUserSeeder extends Seeder
     /** Regenerate an existing administrator password through the explicit command only. */
     public function resetPassword(): bool
     {
-        $email = Config::string(key: 'app.cms.admin_email');
+        $email = Config::string(key: 'cms.admin_email');
         $existing = User::query()->where(column: 'email', operator: '=', value: $email)->first();
 
         if ($existing === null) {
@@ -83,7 +83,7 @@ final class AdminUserSeeder extends Seeder
     private function printPasswordInstructions(string $plainPassword): void
     {
         $this->command->newLine();
-        $this->command->warn(string: 'Пользователь админки: '.Config::string(key: 'app.cms.admin_email'));
+        $this->command->warn(string: 'Пользователь админки: '.Config::string(key: 'cms.admin_email'));
         $this->command->line(string: 'Пароль (скопируйте сейчас, повторно не показывается):');
         $this->command->info(string: $plainPassword);
         $this->command->newLine();

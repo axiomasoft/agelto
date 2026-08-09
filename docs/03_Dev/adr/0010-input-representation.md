@@ -1,7 +1,7 @@
 ---
 audience: dev
 type: adr
-status: draft
+status: living
 ---
 
 # ADR: Выбор представления документа на вход LLM extraction
@@ -163,5 +163,5 @@ P6.3, то же правило, что D22/D35/D42).
   ячейкам, по вариантам, победитель).
 - План `2026.07.26-EST-TRAIN`, `research/11-format-bench-method.md` — методика и критерий,
   зафиксированные ДО данных.
-- `docs/specs/v2/08-estimate-extraction.md` §5.4 — короткое описание правила словами для человека.
+- `docs/03_Dev/ai/estimate-extraction.md` §5.4 — короткое описание правила словами для человека.
 - `app/Services/Procurement/Prepare/RepresentationResolver.php` — код, читающий это правило.

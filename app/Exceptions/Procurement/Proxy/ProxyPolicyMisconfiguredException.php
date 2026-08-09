@@ -4,9 +4,8 @@ declare(strict_types=1);
 
 namespace App\Exceptions\Procurement\Proxy;
 
-use App\Exceptions\Procurement\OperationFailed;
-
 use App\Enums\Procurement\Proxy\ProxyScope;
+use App\Exceptions\Procurement\OperationFailed;
 
 /**
  * Пустая политика запретов для скоупа `llm` — неверная конфигурация, а не «запретов нет»

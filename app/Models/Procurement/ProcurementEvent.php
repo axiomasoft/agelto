@@ -51,4 +51,9 @@ final class ProcurementEvent extends Model
     {
         return $this->belongsTo(related: Procurement::class);
     }
+
+    public function revision(): BelongsTo
+    {
+        return $this->belongsTo(related: ProcurementRevision::class);
+    }
 }

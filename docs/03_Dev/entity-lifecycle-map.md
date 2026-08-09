@@ -1,7 +1,7 @@
 ---
 audience: dev
 type: reference
-status: draft
+status: living
 ---
 
 # Entity Lifecycle Map — кто создаёт, кто мутирует, что есть повтор
@@ -52,6 +52,13 @@ status: draft
 - Голова закупки (`prc_procurements`) синхронизируется отдельным вызовом
   `updateProcurementHead()` (`:50-84`) — принимает уже созданную `$revision`, обновляет
   `current_revision_id`, `current_revision_detected_at`, `revision_count`.
+- `ProcurementIngestProcessor` захватывает PostgreSQL advisory lock по `(registry_id,
+  registry_number)` до чтения текущей головы. Номер новой ревизии и запись головы выводятся уже под
+  этой блокировкой, поэтому два worker-а не создают одинаковый logical revision или last-writer-wins
+  head.
+- Первое наблюдение всегда добавляет `Discovered` **и** канонический `StatusChanged` с первым
+  распознанным статусом. Для terminal статуса это не выдуманный переход: timeline показывает
+  terminal-at-discovery и нулевую наблюдённую длительность, а не «идёт».
 
 ### 2.3 Повтор (ни то ни другое)
 
@@ -72,6 +79,20 @@ status: draft
   (ADR-0007); единственный писатель — `storeEvent()`.
 - `prc_document_versions` (`DocumentVersion`) — content-addressed, дедуп `content_hash`
   (`unique(document_id, content_hash)`); `DocumentDownloader` пишет только через `createVersion()`.
+
+## 4. Резолв организации: коллизия при неименованном участнике
+
+`SupplierResultsProcessor` резолвит участников закупки в `org_organizations` через
+`OrganizationResolver`. Первый прогон резолвил участников **без ИНН/ОГРН по голому имени**: при
+двух и более безымянных участниках `OrganizationResolver` схлопывал разных юрлиц в одну
+`org_organizations`, поскольку recovery `OrganizationStoreRepository::create()` после
+`UniqueConstraintViolationException` возвращал первую найденную запись.
+
+Участник без надёжного идентификатора (ИНН/ОГРН) вообще не резолвится в организацию:
+`organization=null`, `prc_bids.organization_id=null`. Его естественный ключ upsert использует
+`participant_ordinal`; победитель всегда резолвится через `OrganizationResolver` и получает роль
+`winner`. При изменении `SupplierResultsProcessor` или `OrganizationResolver` не резолвьте по
+имени без ИНН/ОГРН — это воспроизводит коллизию.
 
 ## Смежное
 

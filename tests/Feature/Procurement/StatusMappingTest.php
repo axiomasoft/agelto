@@ -43,17 +43,20 @@ test('повторный резолв уже заведённого статус
         ->and(StatusMapping::query()->where('registry_id', $registry->id)->where('source_stage', 'Экзотика')->count())->toBe(1);
 });
 
-test('обнаружение закупки с незнакомым статусом пишет событие status_changed рядом с discovered', function () {
+test('обнаружение закупки с незнакомым статусом пишет одно canonical initial-status событие', function () {
     $registry = Registry::factory()->create();
 
     $procurement = app(ProcurementIngestProcessor::class)->ingest(SnapshotFactory::make($registry, [
         'sourceStage' => 'Совсем незнакомый статус',
     ]));
 
-    $eventTypes = ProcurementEvent::query()
+    $events = ProcurementEvent::query()
         ->where('procurement_id', $procurement->id)
-        ->pluck('event_type');
+        ->get();
+    $statusEvents = $events->where('event_type', ProcurementEventType::StatusChanged);
 
-    expect($eventTypes)->toContain(ProcurementEventType::Discovered)
-        ->and($eventTypes)->toContain(ProcurementEventType::StatusChanged);
+    expect($events->pluck('event_type'))->toContain(ProcurementEventType::Discovered)
+        ->and($statusEvents)->toHaveCount(1)
+        ->and($statusEvents->sole()->old_value)->toBeNull()
+        ->and($statusEvents->sole()->new_value)->toBe(ProcurementStatus::Unknown->value);
 });

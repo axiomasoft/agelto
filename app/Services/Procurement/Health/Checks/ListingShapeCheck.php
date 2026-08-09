@@ -25,31 +25,57 @@ final readonly class ListingShapeCheck implements HealthCheck
 
     public function run(Platform $platform, HealthBaseline $baseline, CarbonInterface $from, CarbonInterface $to): CheckResult
     {
+        $thresholds = $baseline->thresholds[$this->kind()->value] ?? [];
+        $rowErrorShareBadThreshold = $thresholds['row_error_share_bad_threshold'] ?? null;
+
+        if (! is_numeric($rowErrorShareBadThreshold)) {
+            throw new \LogicException('В эталоне отсутствует порог доли ошибок разбора листинга.');
+        }
+
         $fetches = Fetch::query()
             ->where('stage', CrawlStage::Listing->value)
             ->whereBetween('fetched_at', [$from, $to])
             ->whereHas('run.crawler.registry', fn ($query) => $query->where('platform_id', $platform->id))
-            ->get(['id', 'rows_total', 'rows_new', 'rows_updated', 'http_status']);
+            ->get(['id', 'rows_total', 'rows_parsed', 'rows_errors', 'http_status']);
 
-        $sample = $fetches->count();
-        $emptyIngest = $fetches->filter(fn (Fetch $fetch): bool => (int) $fetch->getAttribute('rows_total') > 0
-            && (int) $fetch->getAttribute('rows_new') + (int) $fetch->getAttribute('rows_updated') === 0)->count();
+        $parseSamples = $fetches->filter(fn (Fetch $fetch): bool => $fetch->getAttribute('rows_total') !== null
+            && $fetch->getAttribute('rows_parsed') !== null
+            && $fetch->getAttribute('rows_errors') !== null);
+        $parseSample = $parseSamples->count();
+        $parseFailures = $parseSamples->filter(function (Fetch $fetch) use ($rowErrorShareBadThreshold): bool {
+            $rowsTotal = (int) $fetch->getAttribute('rows_total');
+            $rowsParsed = (int) $fetch->getAttribute('rows_parsed');
+            $rowsErrors = (int) $fetch->getAttribute('rows_errors');
+            $rowErrorShare = $rowsTotal === 0 ? 0.0 : $rowsErrors / $rowsTotal;
+
+            return $rowsTotal > 0
+                && ($rowsParsed === 0 || $rowErrorShare >= (float) $rowErrorShareBadThreshold);
+        })->count();
+        $maxRowErrorShare = $parseSamples
+            ->filter(fn (Fetch $fetch): bool => (int) $fetch->getAttribute('rows_total') > 0)
+            ->map(fn (Fetch $fetch): float => (int) $fetch->getAttribute('rows_errors') / (int) $fetch->getAttribute('rows_total'))
+            ->max() ?? 0.0;
         $nonOk = $fetches->filter(fn (Fetch $fetch): bool => (int) $fetch->getAttribute('http_status') !== 200)->count();
-        $emptyIngestShare = $sample === 0 ? 0 : $emptyIngest / $sample;
-        $nonOkShare = $sample === 0 ? 0 : $nonOk / $sample;
+        $parseFailureShare = $parseSample === 0 ? 0.0 : $parseFailures / $parseSample;
+        $nonOkShare = $fetches->isEmpty() ? 0.0 : $nonOk / $fetches->count();
 
         return $this->results->make(
             kind: $this->kind(),
             baseline: $baseline,
             measured: [
-                'sample' => $sample,
-                'empty_ingest_bad' => $emptyIngest,
-                'empty_ingest_share' => $emptyIngestShare,
+                'sample' => $fetches->count(),
+                'parse_sample' => $parseSample,
+                'unknown_parse_metrics' => $fetches->count() - $parseSample,
+                'parse_failure_bad' => $parseFailures,
+                'parse_failure_share' => $parseFailureShare,
+                'max_row_error_share' => $maxRowErrorShare,
+                'row_error_share_denominator' => 'rows_total',
+                'row_error_share_bad_threshold' => (float) $rowErrorShareBadThreshold,
                 'non_ok_bad' => $nonOk,
                 'non_ok_share' => $nonOkShare,
             ],
-            sampleSize: $sample,
-            badShares: [$emptyIngestShare, $nonOkShare],
+            sampleSize: $parseSample,
+            badShares: [$parseFailureShare, $maxRowErrorShare, $nonOkShare],
         );
     }
 }

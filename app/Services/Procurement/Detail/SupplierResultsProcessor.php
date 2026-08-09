@@ -17,6 +17,7 @@ use App\Repositories\Organization\ProcurementPartyStoreRepository;
 use App\Repositories\Procurement\ProcurementDetailStoreRepository;
 use App\Repositories\Procurement\ProcurementStoreRepository;
 use App\Services\Organization\OrganizationResolver;
+use App\Services\Procurement\ProcurementOutcomeEvaluator;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 
@@ -42,6 +43,7 @@ final readonly class SupplierResultsProcessor
         private ProcurementDetailStoreRepository $detailStoreRepository,
         private ProcurementPartyStoreRepository $partyStoreRepository,
         private ProcurementStoreRepository $procurementStoreRepository,
+        private ProcurementOutcomeEvaluator $outcomeEvaluator,
     ) {}
 
     public function process(Procurement $procurement, SupplierResultsData $data): void
@@ -60,6 +62,8 @@ final readonly class SupplierResultsProcessor
             if ($data->award !== null) {
                 $this->storeAward($procurement, $data->award);
             }
+
+            $this->outcomeEvaluator->evaluate(procurement: $procurement);
         });
     }
 

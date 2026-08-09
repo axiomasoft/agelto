@@ -12,17 +12,19 @@ declare(strict_types=1);
  * Кап (Implementation Rules P8.1 п.2): 20 платных вызовов суммарно И 10 итераций оркестратора.
  */
 
+use App\Dto\Procurement\Analyzers\Estimate\EstimateRow;
+use App\Dto\Procurement\Analyzers\Estimate\EstimateTotalsBlock;
+use App\Dto\Procurement\Analyzers\Estimate\IncompleteRow;
 use App\Enums\Procurement\Ai\AiDocumentType;
+use App\Enums\Procurement\Ai\AnalysisRunStatus;
 use App\Enums\Procurement\Ai\AnalysisStatus;
 use App\Enums\Procurement\Ai\AnalysisStep;
 use App\Enums\Procurement\Ai\RunMode;
 use App\Enums\Procurement\Analyzers\Estimate\EstimateLlmPurpose;
 use App\Enums\Procurement\Estimate\ExtractionRoute;
 use App\Enums\Procurement\Estimate\RowType;
-use App\Dto\Procurement\Analyzers\Estimate\EstimateRow;
-use App\Dto\Procurement\Analyzers\Estimate\EstimateTotalsBlock;
-use App\Dto\Procurement\Analyzers\Estimate\IncompleteRow;
 use App\Models\Llm\LlmCall;
+use App\Models\Procurement\Ai\AnalysisRun;
 use App\Models\Procurement\Ai\Fixture;
 use App\Models\Procurement\Document\DocumentRepresentation;
 use App\Models\Procurement\Document\DocumentVersion;
@@ -126,7 +128,7 @@ function p8_probe_validator_reports(array $estimates, EstimateStitcher $stitcher
                 'dropped_duplicate_row_indexes' => $stitched->droppedDuplicateRowIndexes,
                 'unmatched_incomplete_items' => count($stitched->unmatchedIncompleteItems),
             ];
-        } catch (\Throwable $e) {
+        } catch (Throwable $e) {
             $reports[] = [
                 'ordinal' => $estimate['ordinal'] ?? $i,
                 'error' => $e::class.': '.$e->getMessage(),
@@ -137,7 +139,7 @@ function p8_probe_validator_reports(array $estimates, EstimateStitcher $stitcher
     return $reports;
 }
 
-echo "=== P8.1 п.3«з» — живая проба скана (".P8_PROBE_FIXTURE_CODE.") ===\n";
+echo '=== P8.1 п.3«з» — живая проба скана ('.P8_PROBE_FIXTURE_CODE.") ===\n";
 
 $fixture = Fixture::where('code', P8_PROBE_FIXTURE_CODE)->firstOrFail();
 $document = $fixture->document;
@@ -176,6 +178,7 @@ if ($effective === null) {
     $artifact['aborted'] = 'RepresentationResolver::forLlm() вернул null — нет ни представления по политике, ни фолбэка на оригинал.';
     echo "АБОРТ: {$artifact['aborted']}\n";
     file_put_contents(__DIR__.'/p8-scan-probe.json', json_encode($artifact, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
+
     return;
 }
 
@@ -200,6 +203,7 @@ if ($decision->route !== ExtractionRoute::Whole) {
     $artifact['aborted'] = "пре-гейт не Whole (route={$routeName}) — платный шаг НЕ запущен (Implementation Rules P8.1 п.1).";
     echo "АБОРТ: {$artifact['aborted']}\n";
     file_put_contents(__DIR__.'/p8-scan-probe.json', json_encode($artifact, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
+
     return;
 }
 
@@ -230,9 +234,9 @@ echo $isResume
 // Активный (не терминальный) `AnalysisRun` предыдущей попытки блокирует создание нового
 // (`prc_ai_analysis_runs_active_version_unique`) — закрываем его как `failed` ПЕРЕД стартом
 // нового прогона, продолжение работы фиксируется НОВОЙ строкой прогона.
-$staleRun = \App\Models\Procurement\Ai\AnalysisRun::query()
+$staleRun = AnalysisRun::query()
     ->where('document_version_id', $version->id)
-    ->whereIn('status', [\App\Enums\Procurement\Ai\AnalysisRunStatus::Pending, \App\Enums\Procurement\Ai\AnalysisRunStatus::Running])
+    ->whereIn('status', [AnalysisRunStatus::Pending, AnalysisRunStatus::Running])
     ->first();
 
 if ($staleRun !== null) {
@@ -277,7 +281,7 @@ $capped = false;
 $capReason = null;
 $infraError = null;
 
-echo "=== цикл ExtractionOrchestrator::run() (кап: {".P8_PROBE_CALL_CAP." вызовов суммарно / ".P8_PROBE_ITERATION_CAP." итераций ЭТОГО запуска}) ===\n";
+echo '=== цикл ExtractionOrchestrator::run() (кап: {'.P8_PROBE_CALL_CAP.' вызовов суммарно / '.P8_PROBE_ITERATION_CAP." итераций ЭТОГО запуска}) ===\n";
 
 while (true) {
     if ($iterations >= P8_PROBE_ITERATION_CAP) {
@@ -288,7 +292,7 @@ while (true) {
 
     try {
         $needsContinuation = $orchestrator->run($document, $analysis);
-    } catch (\Throwable $e) {
+    } catch (Throwable $e) {
         // Инфраструктурный провал (таймаут/сеть) — разрешённое исключение Implementation Rules
         // п.2: не глотать молча, зафиксировать факт и завершить ЭТОТ запуск, не теряя уже
         // накопленный расход (`llm_calls` останется как есть, ре-прогон досчитает бюджет).
@@ -376,4 +380,4 @@ $artifact += [
 file_put_contents(__DIR__.'/p8-scan-probe.json', json_encode($artifact, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
 
 echo "=== итог: analysis.status={$artifact['analysis_status']} capped=".($capped ? "да ({$capReason})" : 'нет')." строк={$artifact['null_rate']['items']} вызовов={$artifact['usage']['calls']} cost_micros={$artifact['usage']['cost_micros']} ===\n";
-echo "артефакт: ".__DIR__."/p8-scan-probe.json\n";
+echo 'артефакт: '.__DIR__."/p8-scan-probe.json\n";

@@ -1,7 +1,7 @@
 ---
 audience: dev
 type: explanation
-status: draft
+status: living
 ---
 
 # LLM-провайдеры
@@ -10,6 +10,11 @@ status: draft
 вендора (D14): сегодня Gemini через Prism (`PrismGeminiProvider`), OpenAI-совместимый адаптер
 (`OpenAiCompatibleProvider`) — задел под vLLM/Ollama (локальная LLM, `docs/03_Dev/ai/training-loop.md`)
 и любой OpenAI-протокольный провайдер без изменения домена.
+
+Каждый физический вызов остаётся воспроизводимым: хранится выбранный маршрут, модель, набор версий
+промтов, usage и ссылка на сырой payload. Это позволяет независимо менять провайдера для дешёвого
+скрининга и полного извлечения, а затем сравнивать основной и теневой результат до переключения
+маршрута.
 
 ## Д6 — LLM-слой: роутинг и адаптеры
 
@@ -61,6 +66,22 @@ cache-hint интерпретируется адаптером — Gemini → `c
 (files + context caching) против 0.x/preview статуса `laravel/ai` на момент решения (research/G §1);
 контракт держится адаптер-совместимым с обоими на будущее.
 
+## Особенности провайдеров
+
+У проекта есть два транспорта, но не две одинаковые реализации. Маршрут выбирает провайдера из
+`llm_providers`, а не этот документ; ниже зафиксировано только поведение, подтверждённое
+адаптерами и конфигом.
+
+| Провайдер | Что умеет и как это влияет на маршрут | Основание |
+|:--|:--|:--|
+| Gemini (`PrismGeminiProvider`) | Единственный текущий адаптер, реализующий загрузку файлов и explicit context cache. Для моделей с `supports_files_api=true` preflight допускает upload; размер и страницы сверяются до него. Все шесть записей Gemini в `ai.capabilities.*` имеют `max_request_file_mb=50` и `max_pages=1000`; у `gemini-3.5-flash` дополнительно задан `max_output_tokens=65536`. | `config('ai.capabilities.gemini-2.5-flash-lite.max_request_file_mb')`, `config('ai.capabilities.gemini-2.5-flash-lite.max_pages')`, `config('ai.capabilities.gemini-3.5-flash.max_output_tokens')`; значения остальных Gemini-ключей того же имени — в `config('ai.capabilities.*')`. |
+| OpenAI-совместимый (`OpenAiCompatibleProvider`) | Это stateless адаптер для vLLM/Ollama и других OpenAI-совместимых endpoint'ов: file upload и explicit context cache он не реализует. Для таких моделей capability-запись, включая транспортные лимиты, сейчас не задана; маршрут не получает выдуманных лимитов по аналогии с Gemini. | `App\\Services\\Llm\\Providers\\OpenAiCompatibleProvider`; отсутствие соответствующих записей в `config('ai.capabilities.*')`. |
+
+У Gemini транспортные таймауты, polling Files API и TTL cache задаются отдельно в
+`config('ai.gemini.*')`; они не являются capability модели и не участвуют в выборе представления.
+Если preflight видит превышение capability-лимита, `ExtractionPreflight` выбирает оконный путь или
+терминальный `unprocessable(provider_limit_*)`, а не пытается отправить файл вслепую.
+
 ## Capability-матрица моделей и лимиты (D27, D29)
 
 `config('ai.capabilities.<model>')` — не только цены и параметры кэша, но и ТРАНСПОРТНЫЕ лимиты:
@@ -96,11 +117,12 @@ cache-hint интерпретируется адаптером — Gemini → `c
 заведён — открытый вопрос плана). `ai:caches {list|prune} [--hits] [--window=]` (`CachesCommand`) —
 живые/осиротевшие explicit-кэши и доля implicit cache-хитов по purpose (usage-based, не отдельная
 таблица). Реальные тарифы активных маршрутов, порядок величины стоимости документа и
-неоткалиброванные лимиты аккаунта — `docs-private/ai-economics.md` (не зеркалится в Brain).
+неоткалиброванные лимиты аккаунта — [`ai/economics.md`](ai/economics.md) (зеркалится в Brain по решению владельца D89).
 
 ## Смежное
 
 - Как строится промт, который уходит в вызов — [`ai/prompts.md`](ai/prompts.md) (Д3).
+- Канон контрактов и алгоритм извлечения смет — [`ai/estimate-extraction.md`](ai/estimate-extraction.md).
 - Feature-карточки конкретных AI-шагов — [`ai/feature-card-screening.md`](ai/feature-card-screening.md),
   [`ai/feature-card-estimate-extraction.md`](ai/feature-card-estimate-extraction.md).
 - Диагностика ошибок Gemini — [`runbooks/gemini-errors.md`](runbooks/gemini-errors.md).

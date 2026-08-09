@@ -1,7 +1,7 @@
 ---
 audience: dev
 type: adr
-status: draft
+status: living
 ---
 
 # ADR 0001: таксономия `prc_`-мегадомена

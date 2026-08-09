@@ -64,7 +64,13 @@
       "source_measurement": "16/500 (P1, 2026-08-06); некалиброванный порог"
     },
     "card_parse": { "min_sample": 1, "degraded_share": 0.05, "broken_share": 0.20 },
-    "listing_shape": { "min_sample": 1, "degraded_share": 0.05, "broken_share": 0.20 },
+    "listing_shape": {
+      "min_sample": 1,
+      "degraded_share": 0.05,
+      "broken_share": 0.20,
+      "row_error_share_bad_threshold": 0.20,
+      "row_error_share_denominator": "rows_total"
+    },
     "estimate_fields": { "min_sample": 1, "degraded_share": 0.05, "broken_share": 0.20 }
   },
   "calibrated": false

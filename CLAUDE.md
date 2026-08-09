@@ -1,173 +1,86 @@
 # Application Architecture
 
-## Fast Entry Rules
+## Resident rules
 
-- AI rules are edited only in `.ai/guidelines/**` source files; local domain skills (no `swissknifeman:managed` marker) are edited directly in `.claude/skills/**` — there is no `.ai/skills/`.
-- Never hand-edit the generated `CLAUDE.md` (single AI-provider hub — `AGENTS.md`/`GEMINI.md` retired: single-provider Claude Code decision, do not recreate).
-- For quick domain routing and context escalation, use `.ai/guidelines/navigation.md`.
-- Keep this file concise: use it as a hub, escalate details to `docs/03_Dev/*`.
-- Если меняются архитектурные договорённости: синхронно обновить `docs/03_Dev/*`, `docs/02_Workflow/*` и при необходимости `.ai/guidelines/*` / локальные `.claude/skills/*`, затем вручную перенести изменения в `CLAUDE.md` (автокомпозиции нет — Boost подключён только как MCP, см. skill `ai-context-workflow`).
+- `CLAUDE.md` is the generated Claude Code hub; `AGENTS.md` is the compact Codex entrypoint. Shared rules live in `.ai/guidelines/**`; do not recreate retired `GEMINI.md`.
+- Keep this hub short. Read `docs/03_Dev/**` or `docs/02_Workflow/**` only for the active task. Architectural changes update their source docs and this guideline.
 
-## Domain Hub (short)
+## Domain boundaries
 
-- Терминология и схема пайплайна: `docs/03_Dev/architecture.md`, `docs/02_Workflow/crawling-and-discovery.md`, `docs/02_Workflow/document-and-estimate-pipeline.md`.
-- Структура плоская (`app/**`), без модулей: четыре домена по короткому префиксу таблицы — `Procurement` (`prc_*`, единый домен закупок: заказы, документы, сметы, AI-подомен предметки, crawling-инфраструктура, площадки, логи), `Reference` (`ref_*`, общие справочники ОКПД2/КТРУ/ОКВЭД2/КБК), `Organization` (`org_*`, организации), `Llm` (`llm_*`, провайдер-агностичный LLM-транспорт: провайдеры, маршруты, промты, вызовы — D22).
-- AI-подомен внутри Procurement: пайплайн-стадии — `app/Services/Procurement/{Prepare,Screening,Extraction}/` + `app/Jobs/Procurement/*Job`; предметные модели анализа/датасета — `app/Models/Procurement/Ai/*`, модель промта — `app/Models/Llm/Prompt.php` (домен транспорта, D22). Каталог типа документа (сейм анализатора) — `app/Services/Procurement/Analyzers/**`; консольные команды — `app/Console/Commands/Procurement/{Ai,Analyzers/Estimate}/` (`Ai/` — кросс-документные `ai:*`, `Analyzers/Estimate/` — сметные `estimate:*`). LLM-транспорт (провайдер-агностичный, домен не знает про Prism/Gemini напрямую) — собственный домен `Llm`: `app/Services/Llm/**` (`Contracts/LlmProvider`, `Providers/*`, `Schema/*`, `Validation/*`), модели/фабрики/репозитории — `app/Models/Llm/**`/`database/factories/Llm/**`/`app/Repositories/Llm/**`. Глубже — скилы `estimate-extraction-dev`, `llm-layer-dev`, `prompt-engineering-agelto`.
-- Crawling-инфраструктура внутри Procurement: фильтр профиля площадки — типизированный
-  `spatie/laravel-data` DTO, резолвится по коду реестра config-картой `crawler.filters`
-  (`app/Dto/Procurement/Crawler/EisSearchFilter.php` — образец для ЕИС/44-ФЗ); отслеживание
-  изменений — перекрытие окон + плановый суточный дозор (`crawler.tracking.*`,
-  `DeltaScanProcessor`); доверие TLS площадки — единственный носитель `SourceTlsTrust`
-  (`config('crawler.tls.bundles')`), не системный доверенный набор. Детали — `docs/03_Dev/crawling-pipeline.md`, скилл `procurement-pipeline-dev`.
-- Очереди: Laravel Horizon (`QUEUE_CONNECTION=redis`), тяжёлые jobs — browser/Gemini parsing.
-- Внутри доменной папки слоя (`app/<Слой>/<Домен>/`) файл принадлежит ровно одной подобласти,
-  выражаемой подкаталогом (заводится вместе с первым файлом подобласти); в корне легально лежат
-  только ядровая подобласть домена и кросс-подобластные файлы — правило и машинный гейт
-  (`tests/Unit/Architecture/DomainLayoutTest.php`) целиком см. `docs/03_Dev/architecture.md`
-  («Правило размещения внутри доменной папки слоя»).
+- Flat `app/**`, no modules: `Procurement` (`prc_*`: procurements, documents, estimates, AI, crawling), `Reference` (`ref_*`), `Organization` (`org_*`), `Llm` (`llm_*`: provider-agnostic transport).
+- Procurement AI pipeline: `Services/Procurement/{Prepare,Screening,Extraction}`, `Jobs/Procurement/*Job`, `Models/Procurement/Ai/*`; LLM transport stays in `Services/Llm/**` with `Models/Llm/**`, repositories and factories. Use its local skills for extraction, LLM transport and prompts.
+- Crawling contracts: typed profile filters are resolved through `crawler.filters`; TLS trust exists only in `SourceTlsTrust` / `crawler.tls.bundles`. See `docs/03_Dev/crawling-pipeline.md`.
+- Controllers handle HTTP only; Actions/Services own short mutations and transactions; repositories access persistence. Long crawling/parsing/AI work runs as Horizon jobs, never in HTTP.
+- A file in `app/<Layer>/<Domain>/` has one subdomain directory; only domain-core and cross-subdomain files may be at its root. `tests/Unit/Architecture/DomainLayoutTest.php` enforces this.
+- Jobs must be idempotent. AI jobs use lease + status guard, prefix-stable system prompt and checkpoint-requeue without double dispatch.
 
-## Layer Responsibilities (short)
+## Runtime
 
-Controllers — только HTTP: auth, validate, delegate to Action/Service/Job dispatch, response.
-Repositories — read/write доступ к `prc_*`/`org_*` таблицам. Полная раскладка `app/` по доменным
-папкам (Models/Services/Dto/Enums/Repositories/Console) — `docs/03_Dev/architecture.md`.
+- Browser automation runs only in the `horizon` worker (`shm_size`, `CHROME_BIN`).
+- Docker runtime image has PHP extensions + Node/yarn, never `composer install`; `vendor` and `public/build` use volumes. Package manager: yarn, not pnpm.
 
-## Transaction & Jobs Policy (short)
-
-1. Короткие синхронные мутации — в Action/Service с явной транзакцией при необходимости.
-2. Длительный crawling/parsing/AI — queued Jobs через Horizon, не в HTTP-request.
-3. Browser automation (Chromium) — только в worker-контейнере `horizon` (Docker: `shm_size`, `CHROME_BIN`).
-4. Idempotency: повтор job не должен дублировать Link/Document без guard по статусу; для AI-анализов — lease + status-guard, prefix-stable системный промт (кэш), checkpoint-requeue не двойного диспатча.
-
-## Docker / Runtime (Agelto-specific)
-
-- Runtime-image лёгкий: PHP extensions + Node/yarn, **без** `composer install` в Dockerfile; `vendor`/`public/build` — через volumes (`make prod:composer-install`/`prod:deploy:frontend`).
-- Package manager: **yarn** (не pnpm).
-
-> For parsing stage details and table names: `docs/02_Workflow/crawling-and-discovery.md`, `docs/02_Workflow/document-and-estimate-pipeline.md`, `docs/03_Dev/architecture.md`.
-
----
+For pipeline stages and schema detail: `docs/03_Dev/architecture.md`, `docs/02_Workflow/crawling-and-discovery.md`, `docs/02_Workflow/document-and-estimate-pipeline.md`.
 
 # Glossary & Naming Canon
 
-Единый канон имён: доменные сущности, глаголы методов, нейминг тестов. Имя раскрывает намерение, а не реализацию.
+Use the technical names below in identifiers; business terms are fine in UI/comments. The full, versioned glossary is `docs/02_Workflow/glossary.md`; table/domain detail is `docs/03_Dev/architecture.md`. Rename a canon term consistently.
 
-Полный справочник: `docs/02_Workflow/glossary.md`. Табличные префиксы и доменная структура: `docs/03_Dev/architecture.md`. Общие правила именования PHP/Laravel: skills `naming-conventions`, `php-naming-conventions`. Меняем имя в глоссарии → выравниваем код по нему.
+## Core entities
 
-## Доменные сущности (канон → переменная)
+- `Platform` → `$platform`: source platform; `Crawler` → `$crawler`: crawl profile; `CrawlerRun` → `$run`: one run.
+- `Procurement` → `$procurement`: procurement; `Document`/`DocumentVersion` → `$document`/`$documentVersion`: procurement document and downloaded version.
+- `Estimate` → `$estimate`: parsed estimate DTO; never use `Smeta` in identifiers. `Lot`/`PurchaseItem` is not `Estimate\Item`.
+- `Proxy` → `$proxy`: outbound node. Obtain it only through `ProxyResolver`; `ProxyScope` names the request purpose, not a node. Per-target and global health are distinct.
+- Crawler filters are typed DTOs resolved by registry through `crawler.filters`; an unmapped registry fails, never falls back silently.
+- `DeltaScanProcessor` performs the scheduled overlap-window update scan; `SourceTlsTrust` is the sole platform TLS-trust holder. `verify => false` is forbidden.
 
-- `Platform` → `$platform` — площадка-источник.
-- `Crawler` → `$crawler` — профиль обхода (не «Profile»); `CrawlerRun` → `$run` — один прогон.
-- `Procurement` → `$procurement` — закупка (в v1 — `Link`).
-- `Document`/`DocumentVersion` → `$document`/`$documentVersion` — документ закупки и его скачанный файл (в v1 — `LinkAttachment`).
-- `Estimate` → `$estimate` — распарсенная смета (DTO); `Smeta`/«Смета» в идентификаторах не используем.
-- `Lot`/`PurchaseItem` (`prc_items`, не путать с `Estimate\Item`/`prc_estimate_items` — позицией сметы) — лот / позиция объекта закупки.
-- `Proxy` → `$proxy` — узел исходящей маршрутизации (`prc_proxies`); единственная точка выдачи — `ProxyResolver::resolve(ProxyScope, target)`, скоуп — назначение запроса (`CrawlListing`/`CrawlDetail`/`DocumentDownload`/`Llm`), не сам узел.
+## AI terms
 
-### AI-подомен (`App\Models\Procurement\Ai\*`, `App\Services\Llm\*`) — полностью: `.ai/guidelines/glossary.md`
+- `Ai\Analysis` → `$analysis`: version-analysis session; re-run has `parent_analysis_id`, shadow run `is_shadow`.
+- `Ai\Prompt` → `$prompt`: versioned system instruction; prompt files sync via `ai:prompts:sync`; protected seeded prompts are read-only.
+- `Ai\Correction` is an operator correction; `Ai\DatasetExample` is an immutable approved gold snapshot.
+- `PromptStep` composes a system instruction; do not confuse it with `AnalysisStep` or `LlmPurpose`.
+- `DocumentStatus::Unprocessable` is terminal and not retried. `ExtractionRoute` (`Whole`/`Windowed`) is selected by pre-upload preflight.
+- `#[Description]` is the source of response-schema semantics; `#[Alias]` only describes document spelling variants.
 
-- `Ai\Analysis` → `$analysis` — сессия анализа версии документа; re-run — `parent_analysis_id`, shadow-прогон — `is_shadow`.
-- `Ai\Prompt` → `$prompt` — версия системной инструкции; канон — оба корня (`resources/ai/prompts/**` + `resources/<домен>/ai/prompts/**`, D32) → `ai:prompts:sync`; `is_protected` — сидовые записи read-only в админке.
-- `Ai\Correction`/`Ai\DatasetExample` — операторская правка результата и immutable gold-снапшот обучающего контура.
-- `App\Enums\Llm\PromptStep` (интерфейс, ядерный `CorePromptStep` + типовые enum'ы анализаторов) — композиция промта ≠ `AnalysisStep` (шаг анализа: screening/extraction) ≠ `App\Enums\Llm\LlmPurpose` (тот же интерфейсный сейм для назначения конкретного вызова).
-- `DocumentStatus::Unprocessable` + `UnprocessableReason` — терминальный «не можем обработать» (лимит провайдера/формат/пароль/zip-бомба) — константация, не сбой, не ретраится.
-- `ExtractionRoute` (`Whole`/`Windowed`) — путь извлечения, выбранный `ExtractionPreflight` по capability-матрице ДО первого upload.
-- `App\Attributes\Ai\Description` (P2.3) — семантика поля контракта ответа AI, читает `ContractAttributeReader`; структуру ответа (типы/`description`/порядок) целиком несёт исходящая схема (`response_schema`), системный текст промта — только правила поведения + словарь синонимов `#[Alias]` (разделение «схема / правила», P2.3–P2.5).
+## Methods and tests
 
-В UI и комментариях допустим бизнес-язык («извещение», «вложение», «смета»); в идентификаторах — технический канон.
-
-## Глаголы методов
-
-- `find*` — nullable поиск по идентичности, без суффиксов `ByXAndY`. `get*` — вернуть определённое/вычисленное; если существительное читается ясно — без `get`.
-- `store*`/`storeOrUpdate*` — запись через репозиторий. `mark<State>` — смена статуса. `run()` — точка входа процессора. `start()` — длительный lifecycle.
-- Доменные мутации — глагол+существительное: `transitionStatus()`, `recordFailure()`, `acquireLease()`.
-- Избегать: `fetch*`/`load*` для чтения из БД (`load` — только eager-load связей), безобъектные `handle`/`process`/`do`, `get`-префикс на тривиальных аксессорах.
-
-## Нейминг тестов
-
-- Файл `tests/{Feature|Unit}/<Домен>/<Subject>Test.php`, одна ответственность на файл; только `test('<интент по-русски>', fn)` — без `it()`.
-- Персистентные модели — фабрики `X::factory()`; статусы — states; цепочки — `->for()`/`->has()`; без tuple-возвратов и boolean-флагов в хелперах.
-- Переменные — доменный канон; test doubles → `tests/Support/Doubles/`; LLM-вызовы — только `FakeLlmProvider` (skill `testing-rules`).
-
-Зафиксированные исключения (не трогаем, data-affecting): `UPPER_CASE`-кейсы `CrawlingStatus`; строковые значения enum (`ProcessStage::DocParsing = 'parsing_docs'`).
-
----
+- `find*` is nullable identity lookup; `get*` returns computed/required value; `store*` writes; `mark<State>` changes state; `run()` is a processor entrypoint; `start()` begins a lifecycle.
+- Do not use `fetch*`/`load*` for DB reads (`load` is eager loading), generic `handle`/`process`/`do`, or needless `get` accessors.
+- Tests: `tests/{Feature|Unit}/<Domain>/<Subject>Test.php`, one responsibility; `test('<русский intent>', fn)`, factories/states/`->for()`/`->has()`, domain-canon variables, doubles in `tests/Support/Doubles/`.
+- Keep existing data-affecting exceptions: `CrawlingStatus` UPPER_CASE cases and `ProcessStage::DocParsing = 'parsing_docs'`.
 
 # Navigation Guide
 
-When a task requires more detail than what's in the current context, load the relevant file below. Don't load files preemptively — only when you hit a gap.
+Read 1–2 relevant sources first; expand only for an unresolved term, a cross-layer change, or conflicting rules. Do not pre-load reference material.
 
-## Quick Start (4 steps)
+## Safety
 
-1. Start `quick`: read only 1–2 most relevant sources.
-2. If domain term is unclear (`Crawler`, `Link`, `Document`, `Platform`, `EIS`, стадии парсинга) — open `docs/02_Workflow/crawling-and-discovery.md` and `docs/03_Dev/architecture.md`.
-3. If task is cross-layer (Procurement domain + jobs + Filament + frontend) — open skill `procurement-pipeline-dev`.
-4. If task is LLM-транспорт/провайдер-адаптер — skill `llm-layer-dev`; extraction-контракты/discovery/preflight/unprocessable — skill `estimate-extraction-dev`; тексты промтов/композиция/eval — skill `prompt-engineering-agelto`.
+- Before an edit, check whether the target is Git-ignored.
+- Edit shared rules in `.ai/guidelines/**`; update the generated Claude hub only from them. `AGENTS.md` is the Codex-specific entrypoint. Managed `.claude/skills/**` carry `swissknifeman:managed` and are overwritten by sync; local skills without it may be edited.
 
-## Agent File Edit Safety (High Priority)
+## Routing
 
-- Before any file edit, check whether the target path is ignored by Git (`.gitignore`).
-- Do not hand-edit `CLAUDE.md` — assembled manually from `.ai/guidelines/**`; edit the source instead. No `AGENTS.md`/`GEMINI.md`/`.cursor/` — retired (single-provider Claude Code), do not recreate.
-- `.claude/skills/*`: vendor/managed skills carry an in-file `swissknifeman:managed` marker and are overwritten by `skiller sync` — don't hand-edit; local domain skills have no marker and ARE edited directly (skill `ai-context-workflow`).
-
-## Fast Term Routing (Minimal Context First)
-
-- Непонятные термины домена (Crawler, Link, Document, стадии 1–4) — сначала `docs/02_Workflow/crawling-and-discovery.md`.
-- Имена классов/методов/переменных, канон глаголов, нейминг тестов — `.ai/guidelines/glossary.md`, `docs/02_Workflow/glossary.md`.
-- Изменение пайплайна парсинга / jobs / очередей — skill `procurement-pipeline-dev`.
-- Извлечение смет (discovery/windowed vs row-range, preflight, checkpoint-requeue, unprocessable) — skill `estimate-extraction-dev`.
-- LLM-транспорт (провайдер-адаптер, кэш-инварианты, capability-матрица/EOL-модели) — skill `llm-layer-dev`.
-- Тексты промтов, композиция, protected-промты, eval-цикл — skill `prompt-engineering-agelto`.
-- Большая/неоднозначная задача на несколько слоёв — skill `complex-task-orchestrator`.
-
-## Context Escalation Rule
-
-- Start in `quick` mode. Expand only when: term meaning is still ambiguous after workflow docs; change spans more than one layer (backend + frontend + jobs/tests); there is a direct conflict between instructions/rules.
-- When expanding, follow `Reference Table` top-down and stop once enough context is gathered.
-
-## Reference Table
-
-| Situation | Load this file |
+| Task | Load/use |
 |---|---|
-| Crawling, parsing, AI screening, estimate extraction | `docs/02_Workflow/crawling-and-discovery.md`, `docs/02_Workflow/document-and-estimate-pipeline.md` |
-| Procurement / Reference / Organization домены, терминология | `docs/03_Dev/architecture.md` |
-| Имена сущностей/методов/переменных, канон глаголов, нейминг тестов | `.ai/guidelines/glossary.md`, `docs/02_Workflow/glossary.md` |
-| Layer boundaries, where logic lives | `.ai/guidelines/architecture.md` |
-| Cross-layer change in parsing pipeline (dependency map, test-gate, PR checklist) | skill `procurement-pipeline-dev` |
-| Extraction смет: контракты, discovery/windowed vs row-range, preflight, checkpoint-requeue, unprocessable | skill `estimate-extraction-dev`, `docs/specs/v2/08-estimate-extraction.md` |
-| LLM-транспорт: провайдер-адаптер, кэш-инварианты, capability-матрица/EOL-модели | skill `llm-layer-dev`, `docs/03_Dev/llm-providers.md` |
-| Промты: файл→сид→is_protected, композиция/приоритеты, hints, eval-цикл | skill `prompt-engineering-agelto`, `docs/03_Dev/ai/prompts.md` |
-| PR-чеклист по докам (docs/SOP обновлены?) — для ЛЮБОГО PR | `.ai/guidelines/docs-pr-checklist.md` |
-| Task-starter prompts (review/tests/security/deploy) | `/code-review`, `/test-gen`, `/security-check`, `/docker-deploy` |
-| DB schema, table prefixes | `docs/03_Dev/database.md` |
-| Crawling pipeline internals | `docs/03_Dev/crawling-pipeline.md` |
-| Document/estimate pipeline internals (FSM, стадии, очереди, failure modes) | `docs/03_Dev/document-pipeline.md` |
-| Инцидент пайплайна (завис анализ, quota/429, backlog) | `docs/03_Dev/runbooks/_index.md` |
-| Оператор: проверить/скорректировать/перезапустить AI-разбор | `docs/04_Operators/_index.md` |
-| Обучающий контур целиком: эталон → прогон → расход → eval/diff → тюнинг промта → экспорт под локальную LLM | `docs/03_Dev/ai/training-loop.md` |
-| AI-контекст: как устроены `.ai/`/скилы/генерация CLAUDE.md | `docs/03_Dev/ai-context/index.md`, skill `ai-context-workflow` |
-| Admin panel / Filament observability | `docs/03_Dev/admin-panel.md` |
-| Writing or running tests | skill `testing-rules` |
-| Creating commits | skill `git-commit-rules` |
-| Inertia + Vue pages/forms | skill `inertia-vue` |
-| Filament admin panel | skill `filament` |
-| Frontend routes from backend | skill `wayfinder` |
-| DB schema, migrations | skill `database` |
-| Eloquent Attribute::make() accessors/mutators | skill `eloquent-accessors` |
-| PHP style (final, strict types, named args) | skills `code-style-spatie`, `named-arguments`, `static-analysis` |
-| Folder map and layer ownership | skill `project-map` |
-| Complex multi-step task | skill `complex-task-orchestrator` |
-| Backend + frontend + auth/tests checklist | skill `cross-layer-change-checklist` |
-| Editing `.ai/`, `boost.json`, agent generation cycle | skill `ai-context-workflow` |
-| Natural wording for comments/commits | skill `writing-style` |
-| Terse responses | skill `compact-responses` |
+| Crawling, parsing, screening, extraction | `docs/02_Workflow/{crawling-and-discovery,document-and-estimate-pipeline}.md` |
+| Domain terms, layers, schema | `docs/03_Dev/{architecture,database}.md`, full glossary as needed |
+| Parsing pipeline/jobs/queues | skill `procurement-pipeline-dev` |
+| Estimate discovery, extraction, unprocessable | skill `estimate-extraction-dev`, `docs/03_Dev/ai/estimate-extraction.md` |
+| LLM provider, cache, capability, EOL | skill `llm-layer-dev`, `docs/03_Dev/llm-providers.md` |
+| Prompts, protected records, eval | skill `prompt-engineering-agelto`, `docs/03_Dev/ai/prompts.md` |
+| Tests, migrations, PHP style | skills `testing-rules`, `database`, `code-style-spatie`, `named-arguments`, `static-analysis` |
+| Filament / Inertia / routes | skills `filament`, `inertia-vue`, `wayfinder` |
+| PR documentation, commits, risky multi-layer work | `.ai/guidelines/docs-pr-checklist.md`; `docs/meta/structure.md`; `tests/Unit/Docs/DocsIntegrityTest.php`; skills `git-commit-rules`, `complex-task-orchestrator` |
+| Runbooks, operators, training loop | `docs/03_Dev/runbooks/_index.md`, `docs/04_Operators/_index.md`, `docs/03_Dev/ai/training-loop.md` |
+| AI-context or skill-generation changes | `docs/03_Dev/ai-context/index.md`, skill `ai-context-workflow` |
 
 <!-- swissknifeman:hub:start -->
 # Swissknifeman: хаб скиллов
 
 <!-- Сгенерировано scripts/generate-hub.sh из реестра swissknifeman. -->
 <!-- НЕ редактируйте вручную: перегенерация затрёт правки. -->
-<!-- swissknifeman:registry sha=c0b2c63eeecf skills=229 -->
+<!-- swissknifeman:registry sha=e0e04a1515bc skills=231 -->
 
 ## Приоритет источников правил
 
@@ -200,113 +113,6 @@ When a task requires more detail than what's in the current context, load the re
 | `agelto-spec-writer` | >- | architecture, api-design, data-schema, task-brief-template |
 | `agelto-test-verifier` | >- | — |
 | `agelto-test-writer` | >- | laravel-testing, test-isolation-guard, repositories |
-
-## Скиллы вне нативного листинга (76)
-
-> Эти скиллы установлены swissknifeman, но не подтверждены в нативном активном наборе проекта — перечислены поимённо, чтобы не потерять обнаружение.
-
-### architect — Architecture, API and data design, security, observability, tech stack selection
-
-- **agent-design** — Use when designing an agent: agentic loop, tool contracts, harness, permission gates.
-- **api-design** — Use when designing REST/GraphQL APIs: endpoints, contracts, versioning, authentication.
-- **architecture** — Use when choosing system architecture: stack choice, ADR, C4 diagrams, deployment, scalability.
-- **codebase-design** — Shared vocabulary and discipline for designing DEEP modules (Ousterhout/Feathers): Module/Interface/Depth/Seam/Adapter/Leverage/Locality; deletion-test; interface = test surface; 'one adapter is a hypothetical seam, two is a real one'. Activate when designing/improving a module interface, finding deepening opportunities, choosing a seam, or raising testability/AI-navigability.
-- **data-schema** — Use when designing a data schema: entities, attributes, relations. DB-agnostic — markdown tables only.
-- **dev-engineering-super-skill** — Broad engineering-bucket navigator (composite of external dev skills). For specific work prefer the granular skill — architecture→architecture, API→api-design, data→data-schema, domain→domain-modeling, agents→agent-design, eval→eval-design, security→security-design, observability→observability-design, stack→tech-stack-selection, codebase→codebase-design. Use only for a cross-cutting overview when no single skill fits.
-- **domain-modeling** — Active domain-model discipline: challenge terms, stress-test with scenarios, RECORD the glossary (CONTEXT.md) and ADRs INLINE as they crystallize (not in batches). Multi-context via CONTEXT-MAP.md; Rule of Two entry into the shared term-index; term steward model. Activate when clarifying terminology/ubiquitous language, recording an architectural decision, or when another skill builds a domain model (esp. fintech).
-- **ecosystem-reuse-gate** — Gate against reinventing functionality when designing a new project/feature: before build-new, force a check against the ecosystem registry (radar) and run universal vendor-vs-build if-then rules. Default is reuse; build-new only when a rule explicitly fires. Activate when designing a new project, a large reusable feature, or picking a stack.
-- **eval-design** — Use when evaluating LLM/AI output quality: eval-set, metrics, regression harness, automated + human review.
-- **figma-mcp-core** — Figma Dev Mode MCP discipline: real tools (get_metadata, get_variable_defs, get_code, get_code_connect_map, get_screenshot, search_design_system), no reading values off screenshots, selection-driven algorithm, W3C tokens.json extraction, Code Connect reuse. Activate for any UI-from-Figma task via connected MCP, before mapping to a framework.
-- **legal-compliance** — Use when checking regulatory compliance before launch: GDPR, CCPA, AI Act, DMCA, COPPA, DSA.
-- **observability-design** — Use when designing observability for prod-readiness: logging, metrics, tracing, alerting, SLO/SLI, error budget, runbooks.
-- **package-contribution-protocol** — Gate against bloating a depended-on package from a consumer project: Rule of Three, proposal→ADR, minimal contract, dependency direction, SemVer, read-only boundary. Activate when a project task needs editing a shared package, on 'extract common', and when adding a class/provider/interface/abstraction to a depended-on package.
-- **security-design** — Data classification, auth strategy, RBAC/ABAC, OWASP Top 10, GDPR, STRIDE threat modeling, ops security checklist
-- **tech-stack-selection** — Use when selecting a tech stack: trade-off matrix before architecture design, ADR-first step.
-
-### devops — Docker environments, CI/CD pipelines, GitOps
-
-- **ci-cd** — GitHub Actions / GitLab CI pipelines for Laravel: lint, tests, build, release + security gates (SAST, dependency audit, image scan) + coverage-gate in CI (Clover threshold, jobs)
-- **db-test-preflight** — Pre-flight check of test DB (Postgres in Docker) BEFORE running tests: container up (docker compose ps / pg_isready), target DB exists and its name ends with _test (not dev/prod), migrations applied; distinguishes host vs docker connection. Activate when running Postgres tests, wiring hooks/CI, or when 'tests fail on DB connection'.
-- **docker** — Router for Dockerizing a Laravel/PHP app: directs to the right sub-skill (PHP image, Postgres, dev/prod compose split, full service stack, Vite HMR, Makefile). Use when the task involves Docker/Compose for this stack.
-- **docker-dev-prod** — Split docker-compose into dev (build + bind-mount) and prod (prebuilt image + named volumes), local override, &app_env anchor
-- **docker-php** — Production PHP Docker image: alpine-fpm or all-in-one serversideup/php (FPM+Nginx), entrypoint.d hooks, healthcheck on /up
-- **docker-postgres** — PostgreSQL in Docker: pg_isready healthcheck, named volume for data, init script creating test DB <app>_test for test isolation
-- **docker-services** — Full Laravel service stack from one image: app (fpm-nginx), queue, scheduler, reverb, optional docs; healthcheck /up and depends_on service_healthy
-- **docker-vite** — Vite dev server as separate compose service for Laravel: named volume for node_modules, HMR via localhost, host 0.0.0.0
-- **gitops** — Use when defining team Git strategy: branch model (main/develop/feature/hotfix), PR workflow, branch protection.
-- **makefile** — Makefile as single entrypoint: help, .PHONY, Docker command aliases; delegating root Makefile pattern with catch-all to docker/Makefile
-- **node-pnpm-preflight** — Check Node/pnpm availability on host before commands and git hooks that use pnpm (commitlint, lint, build).
-
-### laravel-auth — Authorization & security: permissions/RBAC, attribute-based gates, security audit
-
-- **attribute-authorization** — Declarative method-level authorization via #[CheckPermission] attribute (enum permission + route args) and reflection-middleware CheckAccess over Gate. Activate for declarative action-level checks, enum permissions instead of strings, reflection middleware.
-- **laravel-permissions** — Manual/native Laravel RBAC: policies, gates, entity-scoped permissions without a dedicated package. Need azguard package → skill azguard; declarative permission attributes on actions → attribute-authorization.
-- **laravel-security-audit** — Audit Laravel code for sharp edges: raw Eloquent queries, mass assignment, Blade XSS, CSRF bypass, open redirect, unsafe serialization, authz holes.
-
-### laravel-data-layer — Typed data + realtime: spatie/laravel-data DTOs (TS export), Echo/Reverb broadcasting
-
-- **laravel-broadcasting** — Laravel Echo + Reverb/Pusher/Ably: broadcast events, channel authorization, presence/whisper, model broadcasting.
-- **laravel-data** — DTOs with spatie/laravel-data: typed Data classes, nested DataCollection, casts/transformers, computed properties, mapName/mapInputName, from(request) with validation, API/Inertia output, #[TypeScript] annotation. Activate: need a type-safe DTO instead of array/array-access, parse incoming request into an object, single data shape between back and front, replace ad-hoc JsonResource with Data.
-
-### laravel-testing — Laravel testing: Pest feature/unit, DB isolation guard, Dusk browser tests, health checks
-
-- **health-checks** — spatie/laravel-health in Laravel: custom Check classes (disk, queue, scheduler heartbeat, TCP port, cache, DB) via Health::checks(); /health endpoint (live/ready, JSON/Filament); scheduled runs, failure notifications. Activate on: health check, liveness/readiness, /health, spatie health, disk/queue/cache/heartbeat checks.
-- **laravel-dusk** — Laravel Dusk: browser E2E tests, isolated test DB, run from Docker via host ChromeDriver, Page Objects
-- **laravel-testing** — Feature/unit/pest testing patterns: test DB isolation, Docker/local env detection, coverage gate, Pest composition (setUp traits, fixtures, beforeEach fake/freeze, datasets)
-- **test-isolation-guard** — Guard Laravel tests against running on prod/dev DB and prod media disk: bootstrap.php sets DB_DATABASE=*_test and media-test before autoload, TestEnvironmentGuard aborts createApplication() on isolation breach, safe RefreshDatabase. Activate when setting up the test environment, protecting CI, or suspecting tests hit dev/prod DB.
-
-### operator — Incident response, runbooks, postmortems, on-call and capacity planning
-
-- **capacity-planning** — Capacity planning — load forecasting, headroom, autoscaling policy, cost budget, what to monitor, when to scale up/down
-- **incident-response** — Prod incident response process — severity levels, roles (IC/Comms/SME), communication, action log, handoff to postmortem
-- **oncall-rotation** — On-call rotation design — schedule, primary/secondary, handoff, compensation, burnout defusing, paging policy
-- **operations-cx-super-skill** — Broad operations/CX-bucket navigator (composite of external CX skills). For specific work prefer the granular skill — incidents→incident-response, postmortem→postmortem, on-call→oncall-rotation, capacity→capacity-planning, runbooks→runbook. Use only for a cross-cutting overview when no single skill fits.
-- **postmortem** — Blameless postmortem after SEV-1/2 incident — timeline, root cause (5 Whys), contributing factors, action items, knowledge distribution
-- **runbook** — Operational runbook template per P1/P2 alert — symptoms, diagnostics, mitigation steps, escalation, post-actions
-
-### php — PHP and Laravel core: architecture, structure, conventions, DI, database, repositories, patterns, static analysis
-
-- **code-style-spatie** — Laravel/PHP code style per Spatie guidelines: Laravel conventions over PSR-12, typing instead of docblocks, early returns, happy path last.
-- **cursor-pagination-design** — Stable keyset (seek) pagination for infinite scroll/feeds: sortable non-nullable key, composite index, handle ties/concurrent inserts, avoid offset drift. Activate building infinite-scroll, cursor/seek pagination, feed lists, or fixing 'duplicates/skips while scrolling'. Triggers: keyset, seek pagination, paginate after, offset drift.
-- **database** — Database migrations, models, and table naming. Activate when writing migrations, creating models, defining schema, foreign keys, or working in database/migrations/.
-- **dependency-injection** — Layer interaction via constructor injection: final readonly + promotion, injection matrix, Action composition
-- **laravel** — Use when applying Laravel architecture patterns: actions, repositories, resources.
-- **laravel-best-practices** — Laravel best practices: 20 rule categories (Eloquent, validation, cache, queues, security) with routing by task.
-- **laravel-structure** — Laravel project structure canon for greenfield and adding domains: domain taxonomy, layer-mirror rule, class placement and naming
-- **named-arguments** — PHP rule: method/function calls use named arguments; exceptions; activate when writing/reviewing calls or when readability/parameter order is mentioned
-- **namespace-refactor-safety** — Discipline for large PHP/Laravel namespace or class-move refactors: three-phase alias → update use-statements → hard rename; anchor find-replace on FQN to dodge prefix collisions; keep a contract at the seam for phpstan; arch-tests for layer parity. Activate on: namespace refactor, move class, rename namespace, domain restructure, mass rename.
-- **pao** — Laravel PAO — agent-optimized PHP tool output: PHPUnit/Pest/Paratest/PHPStan/Rector/Artisan collapse to compact JSON (~20 tokens vs thousands) when run inside an AI agent. Install, verify, limits.
-- **php-naming-conventions** — Naming Laravel/PHP entities: repository methods by intent (not findByCodeOrFail-explosion), Action/DTO/VO/Enum/Event/Job, tables/columns/routes. Kills junk names AI loves to generate. Activate when creating or reviewing class/method/migration names.
-- **php-patterns** — Use when choosing a PHP domain pattern: VO, DTO, pipeline, specification — selection guide.
-- **php-upgrade-checklist** — PHP version upgrade checklist (minor/major): sync image/CI, composer update + clear deprecations, phpstan baseline, full suite, update rector sets, review RFCs for incompatibilities. Activate before bumping PHP version.
-- **production-readiness-checklist** — Verify production-readiness invariants happy-path tests miss: transaction atomicity, race-condition-safe idempotency, config defaults, non-nullable cursor keys, after-commit side-effects, soft-delete, id-strategy compatibility, single queue-retry owner, atomic state transitions. Activate before/at review of risky Laravel slices (services, queues, drivers, migrations), queue semantics, or before merge.
-- **repositories** — Use when building Laravel repositories: read/store split, model scopes, delta-DTO, facade, VisibilityService.
-- **static-analysis** — PHP/Laravel static analysis & linting: Laravel Pint, PHPStan, Rector locally + CI, reference configs
-- **transactional-outbox-relay** — At-least-once async event delivery via transactional outbox: write+outbox in one transaction, relay-sweep sole retry owner, idempotent consumers, backoff+DLQ, after-commit effects. Activate wiring webhook/event delivery, an outbox, or async jobs that must not be lost/double-fired. Triggers: outbox, at-least-once, duplicate events, relay sweep.
-
-### quality — Code review, refactoring plans, tech debt audits, test strategy
-
-- **artifact-review** — Review taxonomy by artifact type: three profiles (plan/spec, documentation, code), each with a conformance constitution and dimensions; shared severity axis Blocker/Major/Minor/Nit + independent Conventional-Comments label. Activate when reviewing any artifact — pick the profile first, then measure.
-- **code-review** — Code review process & checklist: mandatory checks, comment severity grades, async vs sync, PR-comment template
-- **code-simplifier** — Simplify freshly written code without changing behavior: dead code, needless abstractions, dups, align to project patterns; YAGNI ladder before coding + diff delete-list (ponytail discipline). Tests pin behavior.
-- **diagnosing-bugs** — Discipline for diagnosing hard bugs and performance regressions: FIRST build a tight reproducible feedback loop (that IS the skill), only then 3–5 ranked hypotheses, targeted instrumentation tagged [DEBUG-xxxx], a regression test on the right seam, cleanup. Activate on 'debug/fix this', a reproducible or flaky bug, 'crashes/throws/is slow'.
-- **mutation-testing** — PHP mutation testing via Infection: infection.json5 (source/excludes, mutators, logs, minMsi/minCoveredMsi gates), run with --threads and --git-diff-lines for CI increment, reading MSI and escaped mutants. Activate when setting up Infection, adding a mutation test-quality gate to CI, reading an MSI report, or investigating surviving mutants.
-- **playwright-e2e** — Browser E2E with Playwright for a web app (frontend-agnostic: Vue/Inertia/Livewire): playwright.config with webServer + projects, single-login auth via storageState, data-testid convention, data/media isolation between runs, CI run. Activate when adding/fixing an end-to-end browser scenario, configuring playwright.config, or storageState login.
-- **refactoring-plan** — Use when planning a safe refactor: scope, Mikado / strangler pattern, atomic steps, done criteria, rollback.
-- **tdd-discipline** — TDD discipline via red-green-refactor by VERTICAL slices (tracer bullets), NOT horizontally: explicit ban on writing all tests before implementation; tests verify behavior through the PUBLIC interface and survive refactors. Activate when building a feature/fix test-first, mentioning red-green-refactor, or integration tests.
-- **tech-debt-audit** — Tech-debt inventory, classification (architectural/code/dependency/test/process), prioritization by impact × effort, payback ROI calc
-- **test-strategy** — Test strategy: pyramid (unit/integration/e2e), coverage policy, mock vs real, which features need which test level, test-suite composition (Arch/Feature/Unit) and Pest Arch architecture tests
-- **testing-safety-report** — Safety report after a risky change (migrations, schema/layer refactor, dependency upgrade): what changed structurally, which tests ran and with what result, what risks and control checks remain. Do it after the change to make it auditable.
-
-### system — Local environment topology: the three hub nodes (Brain vault, swissknifeman, projects base) and how agents navigate between projects and their docs
-
-- **agent-packs** — Install and VERSIONED upgrade of agent-packs (Claude Code agents/workflows/hooks) from harness into a consumer project: stack detect -> interview -> render+copy -> lock; upgrade via CHANGELOG delta with 3-way reasoning over sha256 in lock, no diff engine. Activate on: install/upgrade agent-pack, add roles+dev-loop+review-gate to project, versioned upgrade of agent templates, agent-pack.lock.
-- **brain-locator** — Reach the Brain vault (ecosystem Obsidian docs) from a project — non-hardcoded path resolution (maind/$HOME), own and linked-project docs, sync
-- **cross-project-coordinator** — Orchestrate cross-project code analysis: walk linked projects (via topology), find dups/divergence/shared-package candidates, emit prioritized unification recommendations. Read-only — no edits, no PRs. Run for broad cross-project work, not a single repo.
-- **local-topology** — Root map of the local dev environment — three hub nodes (Brain vault, swissknifeman, projects base) and navigation between projects, their code and docs. Read from ~/.swissknifeman/topology.json
-- **session-observer** — EXPERIMENTAL (enable per-project). Post-hoc Claude Code session analysis from JSONL logs — finds weak spots on 3 axes: agents (skill-skip, drift, loops), skills (gaps, dead weight, thin), settings (hooks, permissions). Findings → learnings via memory-hook, human promotes. Activate AFTER a work cycle / at session end / on request «analyze session» — only if enabled in project.
-- **shared-memory** — Constellation shared brain via hook ~/.claude/hooks/memory/ + mAInd daemon. Recall before work, remember after. Project canon = MODE=maind (daemon :4111, scope isolation maind-side): private project:<id> + tag-shared ns:<namespace> + global; recall unions them; SessionStart auto-injects digest (native memory off). Routing rule: one fact in one store. Swappable backend: maind|native|file|federation|off.
-- **swissknifeman-locator** — Reach swissknifeman (skills node) from an external repo — non-hardcoded path resolution, root config.json as registry of linked projects, project↔hub link scheme
 <!-- swissknifeman:hub:end -->
 <!-- maind:healthcheck hash=f269dd753069 (managed by maind — не редактировать вручную) -->
 ## ⚠ ПРИОРИТЕТ №1 — связь с mAInd (общая память + граф)

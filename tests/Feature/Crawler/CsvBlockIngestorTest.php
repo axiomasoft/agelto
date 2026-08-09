@@ -12,9 +12,12 @@ use App\Models\Procurement\Platform\Registry;
 use App\Models\Procurement\Procurement;
 use App\Models\Procurement\ProcurementEvent;
 use App\Models\Procurement\ProcurementRevision;
+use App\Services\Procurement\Contracts\ListingRowMapper;
 use App\Services\Procurement\CsvBlockIngestor;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
+use Mockery;
+use RuntimeException;
 
 /**
  * Одна валидная строка блока (все колонки, которые читает `EisCsvRowMapper`) — фикстура
@@ -71,10 +74,11 @@ test('фикстурный блок создаёт закупки, ревизи�
     $result = app(CsvBlockIngestor::class)->ingest(crawler: $crawler, run: $run, batch: $batch);
 
     expect($result->rowsTotal)->toBe(2)
+        ->and($result->rowsParsed)->toBe(2)
         ->and($result->rowsNew)->toBe(2)
         ->and($result->rowsUpdated)->toBe(0)
         ->and($result->rowsSkipped)->toBe(0)
-        ->and($result->errors)->toBe(0);
+        ->and($result->rowsErrors)->toBe(0);
 
     expect(Procurement::query()->count())->toBe(2);
 
@@ -84,7 +88,7 @@ test('фикстурный блок создаёт закупки, ревизи�
         ->and(ProcurementEvent::query()->where('procurement_id', $procurement->id)->where('event_type', ProcurementEventType::Discovered)->count())->toBe(1);
 });
 
-test('повтор того же блока не создаёт дублей и rows_new=0', function () {
+test('неизменившаяся строка считается распарсенной, а не ошибкой', function () {
     Storage::fake('s3');
     $registry = Registry::factory()->create(['code' => 'fz44']);
     $crawler = Crawler::factory()->for($registry)->create();
@@ -99,7 +103,13 @@ test('повтор того же блока не создаёт дублей и 
 
     expect($result->rowsNew)->toBe(0)
         ->and($result->rowsUpdated)->toBe(0)
+        ->and($result->rowsParsed)->toBe(1)
+        ->and($result->rowsErrors)->toBe(0)
         ->and(Procurement::query()->count())->toBe(1);
+
+    $fetch = Fetch::query()->where('crawler_run_id', $run->id)->latest('id')->firstOrFail();
+    expect($fetch->rows_parsed)->toBe(1)
+        ->and($fetch->rows_errors)->toBe(0);
 });
 
 test('crw_fetches создаётся с dedup_signature, счётчиками и artifact_ref', function () {
@@ -121,6 +131,8 @@ test('crw_fetches создаётся с dedup_signature, счётчиками и
         ->and($fetch->rows_total)->toBe(1)
         ->and($fetch->rows_new)->toBe(1)
         ->and($fetch->rows_updated)->toBe(0)
+        ->and($fetch->rows_parsed)->toBe(1)
+        ->and($fetch->rows_errors)->toBe(0)
         ->and($fetch->artifact_ref)->toBe("raw/csv/{$crawler->id}/{$run->id}/501.csv");
 });
 
@@ -202,8 +214,10 @@ test('дедуп внутри блока по реестровому номер�
     $result = app(CsvBlockIngestor::class)->ingest(crawler: $crawler, run: $run, batch: $batch);
 
     expect($result->rowsTotal)->toBe(510)
+        ->and($result->rowsParsed)->toBe(500)
         ->and($result->rowsNew)->toBe(500)
         ->and($result->rowsDuplicated)->toBe(10)
+        ->and($result->rowsParsed + $result->rowsSkipped + $result->rowsDuplicated + $result->rowsErrors)->toBe($result->rowsTotal)
         ->and(Procurement::query()->count())->toBe(500)
         ->and(ProcurementRevision::query()->count())->toBe(500);
 
@@ -229,6 +243,32 @@ test('битая строка с непарсящейся датой разме�
     $result = app(CsvBlockIngestor::class)->ingest(crawler: $crawler, run: $run, batch: $batch);
 
     expect($result->rowsNew)->toBe(1)
+        ->and($result->rowsParsed)->toBe(1)
+        ->and($result->rowsSkipped)->toBe(1)
+        ->and($result->rowsErrors)->toBe(0)
+        ->and($result->rowsParsed + $result->rowsSkipped + $result->rowsDuplicated + $result->rowsErrors)->toBe($result->rowsTotal)
         ->and(Procurement::query()->count())->toBe(1)
         ->and(Procurement::query()->where('registry_number', '0173200001234000001')->exists())->toBeTrue();
+});
+
+test('ошибка маппера записывается отдельно от пропущенной строки', function () {
+    Storage::fake('s3');
+    $registry = Registry::factory()->create(['code' => 'fz44']);
+    $crawler = Crawler::factory()->for($registry)->create();
+    $run = Run::factory()->for($crawler)->create();
+    $mapper = Mockery::mock(ListingRowMapper::class);
+    $mapper->shouldReceive('map')->once()->andThrow(new RuntimeException('Ошибка маппинга'));
+    app()->instance(abstract: ListingRowMapper::class, instance: $mapper);
+
+    $result = app(CsvBlockIngestor::class)->ingest(crawler: $crawler, run: $run, batch: ingestorBatch([
+        ingestorCsvRow('0173200001234000001'),
+    ]));
+
+    expect($result->rowsParsed)->toBe(0)
+        ->and($result->rowsErrors)->toBe(1)
+        ->and($result->rowsParsed + $result->rowsSkipped + $result->rowsDuplicated + $result->rowsErrors)->toBe($result->rowsTotal);
+
+    $fetch = Fetch::query()->where('crawler_run_id', $run->id)->firstOrFail();
+    expect($fetch->rows_parsed)->toBe(0)
+        ->and($fetch->rows_errors)->toBe(1);
 });

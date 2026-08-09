@@ -1,8 +1,8 @@
 # Docs PR Checklist (сквозное правило)
 
 Применяется ко ВСЕМ PR, не только к домену парсинга (для правил парсинг-пайплайна — skill
-`procurement-pipeline-dev`, свой PR-чеклист там). Источник — `docs/` каркас EST-AI P10.1
-(`plans/archive/2026.07.07-EST-AI/research/H-docs-structure.md`).
+`procurement-pipeline-dev`, свой PR-чеклист там). Источник — живой
+[`docs/meta/structure.md`](../../docs/meta/structure.md).
 
 Перед мержем PR проверь:
 
@@ -17,3 +17,5 @@
   `draft`/`living` по факту наполнения).
 - [ ] Внутренние ссылки на изменённые файлы `docs/**` не сломаны (переименование/перенос файла —
   обнови ссылающиеся роутеры `_index.md`/`index.md`).
+- [ ] Запусти `DocsIntegrityTest`: он проверяет frontmatter, разрешимость относительных
+  markdown-ссылок и достижимость каждого файла из `docs/index.md` в едином дереве `docs/`.

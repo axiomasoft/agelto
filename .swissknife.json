@@ -5,22 +5,20 @@
         "enabled": true
       },
       "codex": {
-        "enabled": true
+        "enabled": false
       }
     },
     "contract_version": "1.0.0"
   },
   "plugins": [
-    "architect",
     "core",
     "devops",
     "laravel-auth",
     "laravel-data-layer",
+    "laravel-filament",
     "laravel-testing",
-    "operator",
     "php",
     "quality",
-    "system",
     "task"
   ]
 }

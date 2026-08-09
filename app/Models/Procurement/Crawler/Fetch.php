@@ -38,6 +38,8 @@ final class Fetch extends Model
         'rows_total',
         'rows_new',
         'rows_updated',
+        'rows_parsed',
+        'rows_errors',
         'dedup_signature',
         'proxy_id',
         'fetched_at',
@@ -54,6 +56,8 @@ final class Fetch extends Model
             'rows_total' => 'integer',
             'rows_new' => 'integer',
             'rows_updated' => 'integer',
+            'rows_parsed' => 'integer',
+            'rows_errors' => 'integer',
             'fetched_at' => 'datetime',
         ];
     }

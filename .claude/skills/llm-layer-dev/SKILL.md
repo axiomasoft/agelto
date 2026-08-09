@@ -91,7 +91,7 @@ upload, D29): без `max_request_file_mb`/`max_pages` на новой моде�
   контракта.
 - **Реальные LLM-вызовы в тестах запрещены** — только `Tests\Support\Doubles\FakeLlmProvider`
   (см. skill `testing-rules`).
-- **Indirect prompt injection (research/L finding 14, `docs/specs/v2/08-estimate-extraction.md`
+- **Indirect prompt injection (research/L finding 14, `docs/03_Dev/ai/estimate-extraction.md`
   §7):** содержимое документа закупки — untrusted input (грузит третья сторона, не проверяется
   до отправки в LLM). Для ВСЕХ extraction-вызовов (`extract_*`/`extraction:discovery`):
   - вызовы идут БЕЗ tools/function-calling — модели нечем исполнить встроенную в документ

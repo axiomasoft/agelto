@@ -109,7 +109,7 @@ test('каждое свойство схемы шага строк несёт de
 
     // Пара к тесту выше: печать исходника снята, и единственный носитель семантики поля —
     // `description` исходящей схемы. Пустое покрытие здесь означало бы, что модель получила имена
-    // полей без единого пояснения (находка F4 аудита P7 плана 2026.07.26-EST-TRAIN).
+    // полей без единого пояснения.
     foreach ($schema['$defs']['EstimateRow']['properties'] as $property => $node) {
         expect([$property, isset($node['description']) || isset($node['$ref']) || isset($node['anyOf'])])->toBe([$property, true]);
     }
@@ -136,14 +136,13 @@ test('композиция каждого пошагового шага несё
     }
 });
 
-test('якорная фраза extraction:rows дословно совпадает с research/07', function (): void {
-    $anchor = 'у каждой сметы документа отсчёт начинается с 1';
+test('якорная фраза extraction:rows дословно совпадает с постоянной фикстурой инварианта', function (): void {
+    $anchor = trim((string) file_get_contents(base_path('tests/Fixtures/estimate-row-anchoring.md')));
 
-    $research = (string) file_get_contents(base_path('plans/2026.07.26-EST-TRAIN/research/07-multi-estimate-anchoring.md'));
     $prompt = (string) file_get_contents(resource_path('estimates/ai/prompts/extraction-rows/0-extraction-rows.md'));
 
-    expect($research)->toContain($anchor);
-    expect($prompt)->toContain($anchor);
+    expect($anchor)->toBe('у каждой сметы документа отсчёт начинается с 1')
+        ->and($prompt)->toContain($anchor);
 });
 
 test('И1/И4 — правило полноты шага строк живёт дословным императивом', function (): void {

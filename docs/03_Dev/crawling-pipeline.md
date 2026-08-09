@@ -1,7 +1,7 @@
 ---
 audience: dev
 type: explanation
-status: draft
+status: living
 ---
 
 # Краулинг: internals
@@ -9,6 +9,14 @@ status: draft
 Краулинг реализован вне плана EST-AI (до его старта) — этот раздел даёт входную карту для
 разработчика; полный рефакторинг/переписывание вне scope EST-AI (Scope Excluded P10.2/P10.3:
 «диаграммы краулинга»). Бизнес-описание стадий — `docs/02_Workflow/crawling-and-discovery.md`.
+
+## Граница источника
+
+Метод получения данных выбирается профилем, а не ветвлением ядра: площадко-специфичные URL,
+форматы и разбор карточки изолированы в адаптерах. Для ЕИС листинг и карточка доступны по HTTP;
+браузер остаётся резервной границей для площадки с клиентским рендерингом. Повторный инжест
+безопасен по естественному номеру закупки, а курсор и heartbeat позволяют продолжить прерванный
+прогон. Конкретные реализации, фильтр профиля и фактические ограничения ЕИС приведены ниже.
 
 ## Вход: команды-диспетчеры, обход — на очереди (P3.2)
 
@@ -67,11 +75,72 @@ execution lane; delta ждёт следующего cron, а backlog — сле�
 Прогон (`$run`, `App\Enums\Procurement\Crawler\RunStatus`: running/paused/completed/failed/cancelled)
 оркеструется `App\Services\Procurement\CrawlerRunManager`.
 
+`startOrResume()` принимает типизированный owner (purpose + subject), а не только `crawler_id`:
+running-прогон можно вернуть лишь тому же owner. Создание и recovery гонки unique-индекса происходят
+в короткой PostgreSQL-транзакции; recovery create изолирован savepoint, поэтому последующее чтение
+не выполняется в aborted transaction. Это не меняет правило «один running на crawler», а запрещает
+delta/backlog дописывать курсор или завершать операторский archive-run другого subject.
+
+```mermaid
+stateDiagram-v2
+    [*] --> Running: запуск
+    Running --> Paused: pause или stale recovery
+    Paused --> Running: продолжить или запустить с начала
+    Running --> Completed: листинг исчерпан
+    Running --> Failed: необработанная ошибка
+    Running --> Cancelled: cancel
+    Paused --> Cancelled: cancel
+    Completed --> [*]
+    Failed --> [*]
+    Cancelled --> [*]
+```
+
+Диаграмма Д8 использует только `RunStatus`: checkpoint по времени или исчерпанный бюджет не меняют
+`running`, а сохраняют курсор и ставят продолжение той же job в очередь.
+
+Курсор несёт и состояние detector-а потолка листинга (`dedup_signature` и число повторов). Fresh
+проверяет exact repeat до общей ветки «нет business-change»; archive восстанавливает detector при
+каждом continuation и сбрасывает его только при переходе на другой ценовой интервал. Поэтому
+повтор последнего блока ЕИС не маскируется как нормальная остановка и checkpoint не обходит cap.
+
+## Общий бюджет запросов
+
+`PlatformRequestBudget` — единственный fixed-window счётчик по хосту площадки. Листинг, снятие
+карточек, скачивание документов и служебные пробы берут слот из одного ключа; после слота сервис
+добавляет паузу конкретной стадии. При отсутствии слота он ждёт только до настроенного предела и
+выбрасывает `PlatformBudgetExhaustedException`: текущая стадия сохраняет безопасную точку
+продолжения или возвращает задачу без ложной ошибки.
+
+```mermaid
+sequenceDiagram
+    participant Listing as Листинг
+    participant Detail as Детальная стадия
+    participant Budget as PlatformRequestBudget
+    participant Host as Хост площадки
+    Listing->>Budget: acquire(host, listing)
+    Budget->>Host: общий слот
+    Host-->>Budget: слот доступен
+    Budget-->>Listing: слот и пауза стадии
+    Listing->>Host: запрос листинга
+    Detail->>Budget: acquire(host, crawl_detail)
+    alt слот исчерпан
+        Budget-->>Detail: PlatformBudgetExhaustedException
+        Detail-->>Detail: сохранить checkpoint или вернуть job
+    else слот доступен
+        Budget-->>Detail: слот и пауза стадии
+        Detail->>Host: запрос карточки или документа
+    end
+```
+
 ## Наблюдаемость
 
 Каждый HTTP-забор пишет `prc_fetches` через единственный `FetchLogger`: листинг связан с прогоном,
 а detail/document — с закупкой. В строке видны стадия, статус ответа, длительность, прокси и ожидание
 слота. Суммарное и максимальное ожидание листинга сохраняются в `prc_crawler_runs.stats`.
+Для листинга `rows_parsed` и `rows_errors` отделены от business-delta (`rows_new`/`rows_updated`):
+повтор уже известной, но корректно распарсенной строки остаётся здоровым наблюдением, а mapping error
+не теряется в нулевом delta. `ListingShapeCheck` оценивает именно parse/error share; старые записи с
+null-telemetry остаются unknown, а не становятся искусственно healthy или broken.
 Операторские сбои пишутся через `OperationLogWriter` в `prc_operation_logs`; read-only витрина
 «Краулинг → Operation logs» фильтрует их по уровню, стадии и сущности. Файловые `Log::*` остаются
 для разработчика и не заменяются этой витриной.
@@ -228,6 +297,10 @@ string $target, ?ProxyRequirements $requirements)` (`app/Services/Procurement/Pr
   блокировка приложения). Таксономия причин отказа — `App\Enums\Procurement\Proxy\ProxyFailureReason`
   (`network_timeout`/`tls_error`/`connect_failed`/`proxy_auth_failed`/`http_403`/`http_429`/
   `empty_body`/`unknown`); уровень реакции (глобальный/target) — `ProxyCircuitBreaker::level()`.
+- **Запись outcome** — после завершившегося HTTP `reportOutcome()` открывает короткую транзакцию и
+  берёт блокировки всегда в порядке proxy → exact target. Breaker-счётчики и EWMA перечитываются под
+  блокировкой, поэтому параллельные каналы не теряют failure/latency sample; разовое auto-disable log
+  выпускает только транзакция, которая действительно перевела активный proxy в inactive.
 - **Привязка к профилю (`prc_crawlers`):** `use_proxy` (false — намеренный прямой запрос, не отказ)
   и `proxy_country` (ISO 3166-1 alpha-2, желаемая страна узла) потребляются РОВНО на скоупе
   `crawl_listing` (`CsvSourceMethod::collectListing`) — единственном call-site'е, у которого есть
@@ -256,8 +329,98 @@ Healthcheck не останавливает и не ставит на паузу
 команда конвейеру. Telegram не настроен — `PipelineAlert` пишет предупреждение в лог, поэтому
 сигнал не исчезает молча.
 
+```mermaid
+flowchart LR
+    Schedule[Ежедневный запуск] --> Command[crawler:health-check]
+    Command --> Passive[Пассивные пробы: карточка, листинг, сметы]
+    Command --> Active[Активная проба фильтра ОКПД2]
+    Passive --> Verdict[Вердикт проверки]
+    Active --> Verdict
+    Verdict --> History[prc_platform_checks]
+    History --> Compare[Сравнить с предыдущим вердиктом]
+    Compare --> Event[PlatformHealthChanged]
+    Event --> Notify[NotifyPlatformHealthChanged]
+    Notify --> Telegram[Telegram через PipelineAlert]
+```
+
+Д10 описывает сигнализацию, а не автоматическую остановку: healthcheck не ставит прогоны на паузу;
+при отсутствии Telegram `PipelineAlert` оставляет предупреждение в логе.
+
+## Ловушки
+
+### SAVEPOINT для recovery unique-violation внутри открытой транзакции
+
+`OrganizationResolver::resolve()` ловит гонку создания организации через «try create → catch
+unique violation → find existing». `SupplierResultsProcessor::process()` уже открывает внешнюю
+`DB::transaction()`; без вложенной транзакции PostgreSQL после `UniqueConstraintViolationException`
+оставляет её в `aborted` state, и повторный поиск не выполнится. Поэтому
+`OrganizationStoreRepository::create()` обёрнут во вложенный `DB::transaction()` — Laravel
+транслирует его в `SAVEPOINT`/`RELEASE SAVEPOINT`/`ROLLBACK TO SAVEPOINT`, откатывая только
+попытку создания. Любой такой recovery-паттерн, способный исполниться внутри чужой транзакции,
+должен оборачивать `create()` в собственную транзакцию.
+
+### Хрупкость `participant_ordinal`
+
+Для участника без `organization_id` upsert `prc_bids` использует
+`(procurement_id, protocol_id, organization_id, participant_ordinal)`. Номер берётся из текста
+ячейки «№ п/п», не DOM-индекса; он стабилен в повторе одного HTML-снапшота, но не гарантирован,
+если источник изменит порядок или нумерацию участников. Тогда возможен дубль или перезапись не
+той заявки. Это известный принятый риск.
+
+`prc_financing`/`prc_items`/`prc_protocols`/`prc_awards` по-прежнему используют прикладной
+`updateOrCreate` без DB unique-индекса: это приемлемо при параллелизме 1, но станет риском при
+переносе detail-стадии в очередь. Для `prc_bids` риск DB-подкрепления закрыт двумя частичными
+unique-индексами `prc_bids_identified_participant_unique` и
+`prc_bids_anonymous_participant_unique` (`NULLS NOT DISTINCT`, миграция
+`2026_07_04_100021`); остаётся риск перенумерации источником.
+
+### N+1 на `registry` при пакетной обработке
+
+`DetailRefetchSelector::due()` и `DetailAnalysisProcessor::run()` в пакетном
+`crawler:fetch-details` без аргумента делают по одному `SELECT prc_registries` на закупку вместо
+batched-запроса. Это низкий impact: справочник содержит единицы строк. При росте размера пачек
+вернитесь к вопросу и eager-load'ите `registry`.
+
+### Мост в pipeline не мутирует статус документа
+
+`PipelineDispatcher::dispatch()` не владеет переходом статуса документа. Owner перехода
+`downloaded → prepared` — `PrepareDocumentJob::process()` согласно ADR-0009. Мост лишь отбирает и
+диспатчит документы со статусом `downloaded`; `DocumentStatus::Queued` намеренно не вводится,
+иначе сломаются `scopePendingRetry`, `PipelineStuckCheck::stuckDocuments()` и
+`PipelineRetryFailed`, которые полагаются на сохранение `downloaded`.
+
+Один job на документ обеспечивают `ShouldBeUnique`, status-guard и атомарный lease; TTL
+unique-лока (`PipelineJob::uniqueFor()`,
+`config('ai.pipeline.unique_lock_minutes')`) защищает от вечного лока после смерти воркера.
+Рядом остаётся сознательное ограничение: `DetailAnalysisProcessor` использует только
+`config('crawler.detail_source_method')` без fallback, так как у `Procurement` нет `crawler_id` и
+профиль при нескольких источниках неоднозначен; см. [`open-follow-ups.md`](open-follow-ups.md).
+
+### Проброс `WindowFilter->dateField` через `ListingCursor`
+
+`WindowFilter->dateField` (`publish|update`) должен доходить до `EisCsvUrlBuilder` через
+агностичный `ListingCursor.dateField` (`publish|update|null`). `ArchiveWindowScanner` передаёт
+значение в каждой итерации, а только `EisCsvUrlBuilder` маппит его в ЕИС-параметры
+`publishDateFrom/To` или `updateDateFrom/To`. Не хардкодьте имя ЕИС-параметра в сканере или
+процессоре: курсор остаётся площадко-агностичным.
+
+### Неподтверждённые параметры ЕИС update-window API
+
+`updateDateFrom`/`updateDateTo` и точные `price_ceiling`/`min_price_interval` — калибровка на
+живых данных, не подтверждённая реальным API-прогоном. Перед первым archive/backlog-прогоном
+нужно быть готовым уточнить имена параметров в `EisCsvUrlBuilder`.
+
+### Все HTML-фикстуры карточки синтетические
+
+`tests/Fixtures/Crawler/Card/*.html` — не реальные HTML-дампы ЕИС, а структурные реконструкции
+по `research/eis-card-recon.md`. Это относится и к `organizations-block`, и к
+`supplier-results.html`. При первом реальном прогоне против ЕИС нужно сверить DOM-селекторы всех
+парсеров вкладок с фактической вёрсткой; риск отмечен в §«Раскладка HTML детальной карточки»,
+smoke-контроль — операторская задача.
+
 ## Смежное
 
-- `docs/02_Workflow/crawling-and-discovery.md` — бизнес-язык, стадии обхода (P10.4).
+- [`docs/02_Workflow/crawling-and-discovery.md`](../02_Workflow/crawling-and-discovery.md) —
+  бизнес-язык, профиль обхода, настройки и путь закупки.
 - `document-pipeline.md` — что происходит с документом ПОСЛЕ `downloaded`.
 - Терминология: `Platform`, `Crawler`, `CrawlerRun` — `.ai/guidelines/glossary.md`.

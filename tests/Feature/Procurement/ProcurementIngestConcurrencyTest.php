@@ -21,7 +21,10 @@ test('два PostgreSQL worker с одинаковым снимком созда
             ->and($state['revision_hashes'])->toHaveCount(1)
             ->and($state['revision_count'])->toBe(1)
             ->and($state['current_revision_id'])->toBe($state['revision_ids'][0])
-            ->and($state['events'])->toBe([ProcurementEventType::Discovered->value]);
+            ->and($state['events'])->toBe([
+                ProcurementEventType::Discovered->value,
+                ProcurementEventType::StatusChanged->value,
+            ]);
     } finally {
         concurrentIngestCleanup(registryId: $fixture['registry_id']);
     }
@@ -46,6 +49,7 @@ test('два PostgreSQL worker с разными снимками создают
             ->and($state['current_revision_id'])->toBe($state['revision_ids'][1])
             ->and($state['events'])->toBe([
                 ProcurementEventType::Discovered->value,
+                ProcurementEventType::StatusChanged->value,
                 ProcurementEventType::RevisionPublished->value,
                 ProcurementEventType::PriceChanged->value,
             ]);

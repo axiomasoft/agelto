@@ -10,7 +10,7 @@ paths:
 
 # Estimate Extraction — dev-раннбук
 
-Стадия 5 пайплайна (`screened → extracted`). Источник домена: `docs/specs/v2/08-estimate-extraction.md`.
+Стадия 5 пайплайна (`screened → extracted`). Источник домена: `docs/03_Dev/ai/estimate-extraction.md`.
 Смежное: skill `llm-layer-dev` (транспорт/кэш/EOL), `prompt-engineering-agelto` (тексты промтов),
 `procurement-pipeline-dev` (весь пайплайн, стадии 1–5).
 
@@ -38,7 +38,7 @@ paths:
 4. Прогони `php artisan estimate:eval:run` на gold-датасете (`prc_ai_dataset_examples`, task=extraction) —
    регресс контракта ловится сравнением `analysis.result.estimates[]` с эталоном (`EvalMetrics`).
 5. Смысл контракта изменился (не только формулировка) — синхронно правь
-   `docs/specs/v2/08-estimate-extraction.md`.
+   `docs/03_Dev/ai/estimate-extraction.md`.
 
 ## 2) Два пути извлечения (D3/D29/D30/D40/D42)
 
@@ -87,7 +87,7 @@ checkpoint_ranges')` единиц ИЛИ `checkpoint_seconds` секунд — �
 (`too_large`/`zip_bomb`/`unreadable_format`/`password_protected`/`provider_limit_size`/
 `provider_limit_pages`), НЕ `failed`. Не ретраится, attempts не жжём. Extraction-стадия добавляет
 `provider_limit_*` (preflight §3 или рантайм-отказ провайдера) — не пиши новый reason без
-обновления `docs/specs/v2/08-estimate-extraction.md` §4в/§4г и `PipelineStuckCheck`/алертов P7.3.
+обновления `docs/03_Dev/ai/estimate-extraction.md` §4в/§4г и `PipelineStuckCheck`/алертов P7.3.
 
 ## 6) Stitcher / Validator / Persister — границы ответственности
 
@@ -111,7 +111,7 @@ checkpoint_ranges')` единиц ИЛИ `checkpoint_seconds` секунд — �
 
 Плохой скан/нечитаемый фрагмент документа не превращается в отдельную ветку пайплайна — он виден
 на уровне ОДНОЙ строки, через `EstimateRow::$quality` (`RowQuality{reason, fields}`,
-`docs/specs/v2/08-estimate-extraction.md` §3.2). Модель вправе вернуть только
+`docs/03_Dev/ai/estimate-extraction.md` §3.2). Модель вправе вернуть только
 `RowQualityReason::Unreadable` — построчные аномалии (`ArithmeticMismatch`/`NumberingGap`)
 производит ТОЛЬКО `EstimateValidator`, `EstimateRow::validateAndCreate()` отклоняет любую другую
 причину модели тем же приёмом, что и неизвестный ключ `attributes`.

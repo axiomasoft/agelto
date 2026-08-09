@@ -1,7 +1,7 @@
 ---
 audience: dev
 type: reference
-status: draft
+status: living
 ---
 
 # Feature card: Estimate Extraction (извлечение смет)
@@ -67,4 +67,5 @@ golden-датасету (`prc_ai_dataset_examples`), метрики precision/re
 ## Смежное
 
 - Диаграмма extraction-сессии — Д4, `../document-pipeline.md`.
+- Полный контракт извлечения — [estimate-extraction.md](estimate-extraction.md).
 - Обучающий контур (review → correction → gold) — [`training-loop.md`](training-loop.md).

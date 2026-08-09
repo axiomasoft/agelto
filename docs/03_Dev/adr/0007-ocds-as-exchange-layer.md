@@ -1,7 +1,7 @@
 ---
 audience: dev
 type: adr
-status: draft
+status: living
 ---
 
 # ADR 0007: OCDS — exchange/publication layer, а не внутренняя схема

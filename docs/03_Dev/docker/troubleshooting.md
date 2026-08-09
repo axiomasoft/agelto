@@ -1,7 +1,7 @@
 ---
 audience: dev
 type: howto
-status: draft
+status: living
 ---
 
 # Docker: troubleshooting

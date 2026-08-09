@@ -1,7 +1,7 @@
 ---
 audience: dev
 type: reference
-status: draft
+status: living
 ---
 
 # OCDS mapping — `prc_*` ↔ Open Contracting Data Standard

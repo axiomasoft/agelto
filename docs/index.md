@@ -6,8 +6,8 @@ status: living
 
 # Документация Agelto
 
-Портал по домену закупок (краулинг → извлечение смет), инфраструктуре и разработке AI-пайплайна
-(EST-AI). Рабочие ТЗ v2 — `docs/specs/v2/` (живут до завершения плана EST-AI, см. Decision Log D23).
+Портал по домену закупок (краулинг → извлечение смет), инфраструктуре и разработке AI-пайплайна.
+Начните с маршрута своей роли: каждый раздел доступен отсюда не более чем за два перехода.
 
 ## Для кого что читать
 
@@ -19,7 +19,21 @@ status: living
 | **DevOps** | [Docker: обзор](03_Dev/docker/index.md) → [production](03_Dev/docker/production.md) → [деплой](03_Dev/process/deploy.md) |
 | **AI-агент** | [Устройство `.ai/`-контура](03_Dev/ai-context/index.md) → [сценарии работы](03_Dev/ai-context/scenarios.md) |
 
-## Быстрые ссылки
+```mermaid
+flowchart LR
+    Owner[Владелец] --> Business[01 · Business]
+    Operator[Оператор] --> Operators[04 · Operators]
+    Shared[Менеджер / команда] --> Workflow[02 · Workflow]
+    Developer[Разработчик / AI-агент] --> Dev[03 · Dev]
+    Ideas[Черновики владельца] --> IdeasIndex[00 · Ideas]
+    Business --> BusinessEntry[_index.md]
+    Workflow --> WorkflowEntry[_index.md]
+    Dev --> DevEntry[_index.md]
+    Operators --> OperatorsEntry[_index.md]
+    IdeasIndex --> IdeasEntry[_index.md]
+```
+
+## Быстрые ссылки: работа с продуктом
 
 | Задача | Страница |
 |---|---|
@@ -30,15 +44,20 @@ status: living
 | Проверить результат AI-разбора | [Проверить AI-анализ](04_Operators/how-to/check-ai-analysis.md) |
 | Что-то сломалось (dev) | [Troubleshooting](03_Dev/troubleshooting.md) |
 | Что-то сломалось (Docker) | [Docker troubleshooting](03_Dev/docker/troubleshooting.md) |
+
+## Быстрые ссылки: поддержка документации
+
+| Задача | Страница |
+|---|---|
 | Шпаргалка команд | [Commands](03_Dev/commands.md) |
-| Как править саму документацию | [meta/editing.md](meta/editing.md) |
+| Как править документацию | [Правила редактирования](meta/editing.md) |
+| Куда класть новый файл | [Канон каркаса](meta/structure.md) |
 
 ## Карта разделов
 
-- `00_Ideas/` — черновики владельца (vault-канон, наполняется владельцем).
-- `01_Business/` — обзор продукта и дорожная карта (аудитория: владелец).
-- `02_Workflow/` — доменные процессы бизнес-языком: глоссарий, краулинг, путь документа/сметы, промты и качество.
-- `03_Dev/` — техническая документация для разработчиков и AI-агентов: onboarding, архитектура, БД, пайплайны, LLM-слой, Docker, runbooks, ADR.
-- `04_Operators/` — операторские SOP и справочник статусов админки.
-- `docs/specs/v2/` — рабочие ТЗ EST-AI (живут до завершения плана, D23) — не справочник, не дублируется.
-- `docs-private/` — НЕ зеркалится в Brain: реальная экономика/лимиты, глубокая промт-инженерия, риски.
+- [00_Ideas](00_Ideas/_index.md) — черновики владельца (vault-канон, наполняется владельцем).
+- [01_Business](01_Business/_index.md) — обзор продукта, риски и дорожная карта (аудитория: владелец).
+- [02_Workflow](02_Workflow/_index.md) — доменные процессы бизнес-языком.
+- [03_Dev](03_Dev/_index.md) — техническая документация, пайплайны, Docker, runbooks и ADR.
+- [04_Operators](04_Operators/_index.md) — операторские SOP и справочник статусов админки.
+- [Meta-документация](meta/editing.md) — правила редактирования и каркас дерева.

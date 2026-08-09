@@ -25,6 +25,7 @@ final readonly class ProcurementIngestProcessor
         private ProcurementReadRepository $procurements,
         private ProcurementStoreRepository $store,
         private StatusMappingService $statusMapping,
+        private ProcurementOutcomeEvaluator $outcomeEvaluator,
         private PostgresAdvisoryLock $locks,
     ) {}
 
@@ -46,28 +47,28 @@ final readonly class ProcurementIngestProcessor
                 registryNumber: $data->registryNumber,
             );
 
-            if ($procurement === null) {
-                return $this->discover(
+            $procurement = $procurement === null
+                ? $this->discover(
                     data: $data,
                     status: $resolution->status->value,
-                    isUnknownStatus: $resolution->isNewlyMapped,
+                    snapshot: $snapshot,
+                    snapshotHash: $snapshotHash,
+                    crawlerRunId: $crawlerRunId,
+                    now: $now,
+                )
+                : $this->applyRevision(
+                    procurement: $procurement,
+                    data: $data,
+                    status: $resolution->status->value,
                     snapshot: $snapshot,
                     snapshotHash: $snapshotHash,
                     crawlerRunId: $crawlerRunId,
                     now: $now,
                 );
-            }
 
-            return $this->applyRevision(
-                procurement: $procurement,
-                data: $data,
-                status: $resolution->status->value,
-                isUnknownStatus: $resolution->isNewlyMapped,
-                snapshot: $snapshot,
-                snapshotHash: $snapshotHash,
-                crawlerRunId: $crawlerRunId,
-                now: $now,
-            );
+            $this->outcomeEvaluator->evaluate(procurement: $procurement);
+
+            return $procurement;
         });
     }
 
@@ -77,7 +78,6 @@ final readonly class ProcurementIngestProcessor
     private function discover(
         ProcurementSnapshotData $data,
         string $status,
-        bool $isUnknownStatus,
         array $snapshot,
         string $snapshotHash,
         ?int $crawlerRunId,
@@ -111,9 +111,12 @@ final readonly class ProcurementIngestProcessor
             revisionId: $revision->id,
         );
 
-        if ($isUnknownStatus) {
-            $this->storeUnknownStatusEvent(procurementId: $procurement->id, revisionId: $revision->id, occurredAt: $now, oldStatus: null, newStatus: $status);
-        }
+        $this->storeInitialStatusEvent(
+            procurementId: $procurement->id,
+            revisionId: $revision->id,
+            occurredAt: $now,
+            status: $status,
+        );
 
         return $procurement->refresh();
     }
@@ -125,7 +128,6 @@ final readonly class ProcurementIngestProcessor
         Procurement $procurement,
         ProcurementSnapshotData $data,
         string $status,
-        bool $isUnknownStatus,
         array $snapshot,
         string $snapshotHash,
         ?int $crawlerRunId,
@@ -178,10 +180,6 @@ final readonly class ProcurementIngestProcessor
         $oldSnapshot = $latestRevision?->snapshot ?? [];
         $this->storeDiffEvents(procurementId: $procurement->id, revisionId: $revision->id, occurredAt: $now, oldSnapshot: $oldSnapshot, newSnapshot: $snapshot);
 
-        if ($isUnknownStatus) {
-            $this->storeUnknownStatusEvent(procurementId: $procurement->id, revisionId: $revision->id, occurredAt: $now, oldStatus: $oldSnapshot['status'] ?? null, newStatus: $status);
-        }
-
         return $procurement->refresh();
     }
 
@@ -229,11 +227,8 @@ final readonly class ProcurementIngestProcessor
         }
     }
 
-    /**
-     * Незнакомая пара (registry_id, source_stage), заведённая `StatusMappingService` только что
-     * (см. Decision Log D7) — переиспользуем `status_changed`, отдельный `event_type` не заводим.
-     */
-    private function storeUnknownStatusEvent(int $procurementId, int $revisionId, Carbon $occurredAt, ?string $oldStatus, string $newStatus): void
+    /** The first observed status uses the same event schema as all later transitions. */
+    private function storeInitialStatusEvent(int $procurementId, int $revisionId, Carbon $occurredAt, string $status): void
     {
         $this->store->storeEvent(
             procurementId: $procurementId,
@@ -241,8 +236,7 @@ final readonly class ProcurementIngestProcessor
             occurredAt: $occurredAt,
             revisionId: $revisionId,
             field: 'status',
-            oldValue: $oldStatus,
-            newValue: $newStatus,
+            newValue: $status,
         );
     }
 }

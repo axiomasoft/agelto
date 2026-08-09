@@ -1,7 +1,7 @@
 ---
 audience: dev
 type: adr
-status: draft
+status: living
 ---
 
 # ADR 0006: подомены выражаются папками, а не namespace-ренеймом в bounded contexts
@@ -15,7 +15,7 @@ status: draft
 Внешний аудит (`agelto_goszakupki_audit_consolidated.md`, Perplexity) рекомендовал разложить домен
 в 7 отдельных bounded contexts с namespace-ренеймом — конкретное предложение свёрнуто к пяти именам:
 `SourceIntake` / `NoticeEnrichment` / `DocumentLifecycle` / `EstimateIntelligence` / `AiOrchestration`.
-Рекомендация выдана по спекам `docs/specs/v2/**`, а не по коду; аудит сам оговаривается, что «дерево
+Рекомендация выдана по рабочим документам EST-AI, а не по коду; аудит сам оговаривается, что «дерево
 файлов кода подробно не раскрыто».
 
 `RAG:✅ 2026-07-10 «DDD bounded contexts в Laravel modular monolith: цена и риск большого

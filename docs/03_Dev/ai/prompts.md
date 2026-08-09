@@ -160,7 +160,7 @@ D32) (git); `App\Enums\Llm\PromptStep` — интерфейс, шаги
 - Композиция и блок словарей синонимов — `App\Services\Llm\Schema\PromptContextGenerator` генерирует
   их из `#[Alias]` Data-контрактов; структура ответа (типы/`description`/порядок) — отдельно,
   исходящей схемой (`App\Services\Llm\Schema\JsonSchemaGenerator`, см. выше).
-- Как менеджеры и операторы читают промт-систему бизнес-языком — `docs/02_Workflow/prompts-and-quality.md` (P10.4).
+- Как менеджеры и операторы читают промт-систему бизнес-языком — `docs/02_Workflow/prompts-and-quality.md` (P9.7).
 - Feature-карточки конкретных AI-шагов — [`feature-card-screening.md`](feature-card-screening.md),
   [`feature-card-estimate-extraction.md`](feature-card-estimate-extraction.md).
-- Наследие v1, антипаттерны и глубокая формулировка правок промта — `docs-private/prompt-engineering-notes.md` (не зеркалится в Brain).
+- Наследие v1, антипаттерны и глубокая формулировка правок промта — [`prompt-engineering.md`](prompt-engineering.md), зеркалящийся в Brain по решению владельца D89.

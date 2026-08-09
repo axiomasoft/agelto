@@ -1,7 +1,7 @@
 ---
 audience: dev
 type: adr
-status: draft
+status: living
 ---
 
 # ADR 0005: `is_protected` — сидовые промты read-only в админке

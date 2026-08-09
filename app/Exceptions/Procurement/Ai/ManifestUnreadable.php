@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Exceptions\Procurement\Ai;
 
 use App\Exceptions\Procurement\OperationFailed;
-
 use App\Services\Procurement\Fixture\FixtureManifestReader;
 
 /**

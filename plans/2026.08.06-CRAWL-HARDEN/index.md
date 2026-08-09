@@ -6,20 +6,25 @@
 
 | Файл | Роль |
 |:--|:--|
-| `plan.md` | мастер-план: Meta, Context, Execution Rules, Routing, Status Board, D-лог, Update Log, Contracts, Обсуждение |
+| `plan.md` | мастер-план: Meta, Context, Execution Rules, Routing и Contracts; status/decisions проецируются отдельными v2 views |
 | `handoff.md` | rolling-указатель «что запускать дальше» |
-| `roadmap.md` | исполнительская карта: жёсткий порядок фаз, 57 items по строкам, батчи `B1`/`B2`, оркестрация `W1`, гейты владельца (обновлена P4.8, D119) |
-| `open-questions.md` | трекер незакрытого (Q9, Q10, Q13, Q15, Q16; Q1–Q8, Q11, Q12, Q14 закрыты) |
+| `roadmap.md` | историческая pre-v2 карта P1–P9; live execution идёт только через `plan.md` → `status.md` → `handoff.md` → v2 carriers |
+| `open-questions.md` | generated v2 view; открытых owner-развилок сейчас нет |
+| `artifacts/legacy-v1-open-questions.md` | побайтный v1-трекер Q1–Q16; обязательный архивный источник, пока generated `open-questions.md` не умеет проецировать legacy-вопросы |
 | `journal.jsonl` | append-only история исполнения |
-| `phases/P1.md` | **детализирована** (5 items — P1.5 добавлен при детализации P6, D71; DoR пройден) |
-| `phases/P2.md` | **детализирована** (6 items, DoR пройден) |
-| `phases/P3.md` | **детализирована** (6 items с перенумерацией, DoR пройден) |
-| `phases/P4.md` | **детализирована** (8 items: P4.7 добавлен D117; P4.1 re-design D118; P4.8 remediation D119, DoR пройден) |
-| `phases/P5.md` | **детализирована** (6 items с перенумерацией, DoR пройден) |
-| `phases/P6.md` | **детализирована** (5 items с перенумерацией, DoR пройден) |
-| `phases/P7.md` | **детализирована** (5 items с перенумерацией, DoR пройден; заявлена оркестрация) |
-| `phases/P8.md` | **детализирована** (4 items — схлопывание разделено по контурам, DoR пройден) |
-| `phases/P9.md` | **детализирована** (8 items — добавлены ревизия, гейт и два items роспуска спек, DoR пройден) |
+| `artifacts/legacy-v1-phase-sources/` | побайтные v1-носители P1/P3/P5 с самостоятельными audit-блоками и решением по AUDIT-CAP; архивный путь, не читать при обычном исполнении |
+| `artifacts/legacy-v1-snapshot/` | полный побайтный snapshot преобразованных v1 `plan.md`, `open-questions.md`, `phases/P1.md`…`P9.md`; provenance/rollback, не часть live read-path |
+| `artifacts/legacy-v1-full-plan-snapshot/` | полный побайтный snapshot всех 64 файлов плана из Git перед migration; проверен SHA-256 по каждому файлу, provenance/rollback, не часть live read-path |
+| `phases/P1/P1.md` | **детализирована** (5 items — P1.5 добавлен при детализации P6, D71; DoR пройден) |
+| `phases/P2/P2.md` | **детализирована** (6 items, DoR пройден) |
+| `phases/P3/P3.md` | **детализирована** (10 items после P3.7–P3.10, DoR пройден) |
+| `phases/P4/P4.md` | **детализирована** (9 items после P4.7–P4.9, DoR пройден) |
+| `phases/P5/P5.md` | **детализирована** (7 items после P5.7 remediation, DoR пройден) |
+| `phases/P6/P6.md` | **детализирована** (5 items с перенумерацией, DoR пройден) |
+| `phases/P7/P7.md` | **детализирована** (5 items с перенумерацией, DoR пройден; заявлена оркестрация) |
+| `phases/P8/P8.md` | **детализирована** (4 items — схлопывание разделено по контурам, DoR пройден) |
+| `phases/P9/P9.md` | **детализирована** (8 items — добавлены ревизия, гейт и два items роспуска спек, DoR пройден) |
+| `phases/P10/P10.md` | **детализирована** (7 manual items adversarial code remediation, DoR пройден; D131–D137) |
 | `workflows/wf-crawl-harden-p7.js` | заявленная оркестрация P7 (шаблон `wf-dev-slice`, срезы последовательно, items не закрывает) |
 
 ## Слой 0 — бриф владельца
@@ -43,6 +48,7 @@
 | `findings/P4-rag-throttle-2026-08-06.md` — примитивы троттлинга Laravel 13.x: `RateLimiter`, `Redis::throttle`, запрет middleware `RateLimited` при `tries = 1`, отсутствие штатного «общего бюджета на хост» | P4.4 (выбор механизма), P4.5 (канон планировщика), P1.3 (закрыл его тему 1 — D49/D97) |
 | `findings/P4-settings-readers-2026-08-08.md` — репозиторный инвентарь читателей legacy-настроек и потребителей `PoliteThrottle` | P4.1 (граница миграции HTTP), P4.4 (полный переход на общий budget) |
 | `findings/P4.8-validation-gates-2026-08-08.md` — фактура UUID seed, core boundary и ложного URL-grep | P4.8 (восстановление общих validation-гейтов P4.1) |
+| `findings/P10-code-adversarial-audit-2026-08-09.md` — восемь product defects: run ownership/race, cap persistence, ingest concurrency, timeline, listing health, proxy lost updates | P10.1–P10.7 |
 
 Ожидаются от P1: `P1-listing-params.md` (P1.1), `P1-okpd2-map.md` (P1.2),
 `P1-rag-reliability-practices.md` (P1.3, две темы после сужения D97), `P1-card-anchors.md` (P1.4), `P1-card-inventory.md` (P1.5).
@@ -84,6 +90,8 @@
 Ожидаются от P9: `P9-docs-baseline.json` (счётный замер дерева до переносов, P9.1) и
 `P9-docs-final.json` (замер после фазы со сверкой «было / стало / удалено», P9.8).
 
+Ожидается от P10: `P10-validation.json` — команды, counts, Git anchors и итог по F1–F8 (P10.7).
+
 Ожидаются от P1: `eis-listing-params.json`, `eis-okpd2-map.json`, `eis-stages.json`,
 `eis-card-html-success/` (сырой обезличенный HTML четырёх вкладок), `eis-card-inventory.json`
 (матрица «вид процедуры × вкладка × поле × наш носитель»). Судьба каталога — архив
@@ -91,12 +99,12 @@
 
 ## Порядок работы
 
-1. ~~`/task:plan-design 2026.08.06-CRAWL-HARDEN finish`~~ — прогон 2/2 выполнен 2026-08-07:
-   сквозной reconcile девяти фаз (D97–D99) + собран `roadmap.md`; `plan-lint` зелёный.
-2. `/task:plan-audit 2026.08.06-CRAWL-HARDEN design` — pre-exec ревью (следующий шаг).
-3. Исполнение по `roadmap.md`.
+1. P1–P9 исполнены; delivery/projection deviations остаются в
+   `findings/final-manual-audit-2026-08-09.md`.
+2. P10 спроектирована вручную по Layout v2; следующий item — P10.1 из `handoff.md`.
+3. До Swissknifeman v2-aware rollout `task:*` не вызывать; до/после каждого item выполнять
+   plan-lint и dependency-ordered v2 views по `AGENTS.md`.
 
-Жёсткий порядок исполнения: P8 (схлопывание схемы) — после всех СХЕМНЫХ фаз И после терминальной
-P1.5 (инвентарь карточки — вход решения Q16, D83), P9 (документация) — последней (D4). P7 схемных
-правок не производит (D75/D78) и в этот порядок не входит: её можно исполнять параллельно чему
-угодно.
+P10 идёт строго P10.1 → P10.7: shared run/cursor/ingest contracts, baseline migrations и
+PostgreSQL concurrency harness делают срезы зависимыми. P10.7 повторно синхронизирует docs после
+post-audit schema/code fixes.

@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Guards\Admin\Roles;
 
-use AzGuard\PermissionKey;
+use AzGuard\Permissions\PermissionKey;
 use AzGuard\Roles\BaseRole;
 
 /**

@@ -17,6 +17,9 @@ final class FetchFactory extends Factory
 
     public function definition(): array
     {
+        $rowsTotal = fake()->numberBetween(int1: 0, int2: 500);
+        $rowsParsed = fake()->numberBetween(int1: 0, int2: $rowsTotal);
+
         return [
             'crawler_run_id' => Run::factory(),
             'method' => 'csv',
@@ -24,9 +27,11 @@ final class FetchFactory extends Factory
             'artifact_ref' => null,
             'http_status' => 200,
             'duration_ms' => fake()->numberBetween(int1: 100, int2: 30000),
-            'rows_total' => fake()->numberBetween(int1: 0, int2: 500),
+            'rows_total' => $rowsTotal,
             'rows_new' => fake()->numberBetween(int1: 0, int2: 100),
             'rows_updated' => fake()->numberBetween(int1: 0, int2: 100),
+            'rows_parsed' => $rowsParsed,
+            'rows_errors' => fake()->numberBetween(int1: 0, int2: $rowsTotal - $rowsParsed),
             'dedup_signature' => null,
             'proxy_id' => null,
             'fetched_at' => now(),

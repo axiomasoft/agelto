@@ -1,7 +1,7 @@
 ---
 audience: dev
 type: runbook
-status: draft
+status: living
 ---
 
 # Runbook: затор Horizon

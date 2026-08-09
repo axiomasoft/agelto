@@ -1,7 +1,7 @@
 ---
 audience: dev
 type: runbook
-status: draft
+status: living
 ---
 
 # Runbook: площадка не проходит healthcheck
@@ -17,8 +17,11 @@ Telegram-уведомление healthcheck сообщает `broken` или `de
 1. Сверьте вид проверки, `message`, `measured` и окно проверки с предыдущими зелёными строками.
 2. Сверьте `baseline_sha256`: смена хеша означает, что сравнение шло с новой версией ожиданий.
 3. Для `card_parse` проверьте, исчез ли якорь на площадке или ошибка в нашем парсере; для
-   `listing_shape` — заголовки CSV и число записанных строк; для `estimate_fields` — ключевые поля
-   последних смет. Действующий поток описан в [crawling pipeline](../crawling-pipeline.md).
+   `listing_shape` — заголовки CSV, `rows_parsed`, `rows_errors` и долю ошибок разбора, а не
+   business-delta новых/обновлённых закупок. Блок с `rows_parsed = rows_total` и
+   `rows_errors = 0` здоров даже при нулевом delta; historical null-telemetry остаётся unknown.
+   Для `estimate_fields` проверьте ключевые поля последних смет. Действующий поток описан в
+   [crawling pipeline](../crawling-pipeline.md).
 
 ## Fix
 

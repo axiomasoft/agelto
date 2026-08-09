@@ -1,7 +1,7 @@
 ---
 audience: dev
 type: adr
-status: draft
+status: living
 ---
 
 # ADR 0009: owner перехода `downloaded → prepared` — сам `PrepareDocumentJob`, не мост
@@ -12,11 +12,11 @@ status: draft
 
 ## Context
 
-Скелет фазы P5 и `docs-private/risk-register.md` («Риск 1») повторяли формулировку решения
+Скелет фазы P5 и `docs/01_Business/risk-register.md` («Риск 1») повторяли формулировку решения
 **D17** плана EST-AI: `PipelineDispatcher` обязан быть «единственным owner'ом перехода статуса»
 моста в пайплайн документов, ставя документ в промежуточное состояние «поставлено в очередь».
-`docs/specs/v2/02-crawling.md:159` до сих пор буквально пишет, что диспетчер «ставит их в очередь
-стадии подготовки документов **и помечает статус**».
+Ранняя спецификация буквально предписывала диспетчеру «ставить их в очередь стадии подготовки
+документов **и помечать статус**».
 
 `verified:✅ 2026-07-10` (`findings/P5-pipeline-defects.md` §1) — эта формулировка не воспроизводится
 кодом и опровергнута фактом: документ защищён от повторной постановки в очередь **тремя независимыми
@@ -56,8 +56,7 @@ G1 запинен тестом `tests/Feature/Document/PipelineDispatcherTest.ph
    получают его автоматически). Значение больше TTL лиза (600 c, `HasLease`) и не больше
    `document_stuck_minutes` (60), чтобы протухший лок самовосстанавливался не позже, чем
    `pipeline:stuck-check` о нём просигналит.
-4. Этот ADR **supersedes** текстуально часть D17 (`docs/specs/v2/02-crawling.md` §8: «ставит в
-   очередь и помечает статус») — правку самой спеки выполняет фаза P6 плана DOMLANG (D7).
+4. Этот ADR **supersedes** текстуально часть D17 («ставит в очередь и помечает статус»).
 
 ## Рассмотренные альтернативы
 
@@ -68,7 +67,7 @@ G1 запинен тестом `tests/Feature/Document/PipelineDispatcherTest.ph
 - **(б) оставить как есть (лок без TTL)** — отвергнуто: вечный лок = тот же класс v1 C1 («найдено,
   никогда не обработано»), просто причина другая (лок, а не разрыв конвейера).
 - **(в) снимать лок из `pipeline:stuck-check`** — отвергнуто: команда объявлена read-only-сигнализатором
-  (`docs-private/crawler-gotchas.md`), мутация статуса/локов из наблюдателя ломает её контракт.
+  (`docs/03_Dev/crawling-pipeline.md` §«Ловушки»), мутация статуса/локов из наблюдателя ломает её контракт.
 
 ## Consequences
 
@@ -79,7 +78,7 @@ G1 запинен тестом `tests/Feature/Document/PipelineDispatcherTest.ph
   не позже `unique_lock_minutes`, следующий тик поллера/ретрая забирает документ штатно.
 - Минус (принят осознанно): между смертью воркера и истечением TTL документ остаётся недоступен для
   повторной постановки — окно ограничено `unique_lock_minutes` (60 минут по умолчанию), не мгновенно.
-- Факт: `docs-private/risk-register.md` («Риск 1») и `docs-private/crawler-gotchas.md` (§5)
+- Факт: `docs/01_Business/risk-register.md` («Риск 1») и `docs/03_Dev/crawling-pipeline.md` (§«Ловушки»)
   переписаны по этому решению (2026-07-10).
 
 ## Триггер пересмотра
@@ -91,6 +90,6 @@ G1 запинен тестом `tests/Feature/Document/PipelineDispatcherTest.ph
 ## Смежное
 
 - `../crawling-pipeline.md` §8 — исходная формулировка D17 (плана EST-AI).
-- `docs/specs/v2/02-crawling.md` §8 — спека, которую этот ADR супersedes текстуально; правка
-  выполняется фазой P6 плана DOMLANG.
+- Ранняя спека, которую ADR supersedes текстуально, удалена при роспуске документации; актуальное
+  описание моста находится в [`../crawling-pipeline.md`](../crawling-pipeline.md).
 - `plans/archive/DOMLANG/findings/P5-pipeline-defects.md` §1 — полная карта гардов и механики `UniqueLock`.

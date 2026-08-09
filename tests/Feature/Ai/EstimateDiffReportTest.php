@@ -7,7 +7,7 @@ use App\Services\Procurement\Analyzers\Estimate\EstimateValidator;
 use App\Services\Procurement\Analyzers\Estimate\EvalMetrics;
 
 /**
- * §8.6 `docs/specs/v2/08-estimate-extraction.md` — детерминированный diff-отчёт «gold vs
+ * §8.6 `docs/03_Dev/ai/estimate-extraction.md` — детерминированный diff-отчёт «gold vs
  * предсказание» (`EstimateDiffReport::build()`, P7.3, D62), без LLM (чистая функция над формой
  * §8.2/`analysis.result.estimates[]`).
  */

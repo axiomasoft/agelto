@@ -9,13 +9,19 @@ status: living
 Роутер по ролям: оператор / менеджер → их SOP.
 
 - [Статусы и колонки админки](reference/statuses.md) — что означает каждый статус не-инженерным языком.
-- Как-то: [Проверить AI-анализ](how-to/check-ai-analysis.md) · [Ревью сметы](how-to/review-estimate.md) ·
-  [Проверить помеченные позиции сметы](how-to/check-marked-positions.md) ·
-  [Перезапустить упавшую обработку](how-to/restart-failed-run.md) ·
-  [Что делать с необрабатываемым документом](how-to/handle-unprocessable-document.md) ·
-  [Управление промтами](how-to/manage-prompts.md) ·
-  [Запустить разбор эталона («Прогнать»)](how-to/run-fixture-analysis.md) ·
-  [Прочитать дашборд расхода на AI](how-to/read-spend-dashboard.md).
+## SOP: обработка результатов
+
+- [Проверить AI-анализ](how-to/check-ai-analysis.md)
+- [Ревью сметы](how-to/review-estimate.md)
+- [Проверить помеченные позиции сметы](how-to/check-marked-positions.md)
+- [Перезапустить упавшую обработку](how-to/restart-failed-run.md)
+
+## SOP: настройка и наблюдение
+
+- [Что делать с необрабатываемым документом](how-to/handle-unprocessable-document.md)
+- [Управление промтами](how-to/manage-prompts.md)
+- [Запустить разбор эталона («Прогнать»)](how-to/run-fixture-analysis.md)
+- [Прочитать дашборд расхода на AI](how-to/read-spend-dashboard.md)
 
 ## Мини-матрица прав
 

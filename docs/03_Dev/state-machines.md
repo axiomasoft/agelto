@@ -1,7 +1,7 @@
 ---
 audience: dev
 type: explanation
-status: draft
+status: living
 ---
 
 # Пять осей состояния домена: карта

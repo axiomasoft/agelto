@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Guards\Admin;
 
-use AzGuard\PanelProvider;
-use AzGuard\Support\Panel;
+use AzGuard\Panels\Panel;
+use AzGuard\Panels\PanelProvider;
 
 /**
  * AzGuard-панель admin.

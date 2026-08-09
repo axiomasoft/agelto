@@ -1,7 +1,7 @@
 ---
 audience: dev
 type: adr
-status: draft
+status: living
 ---
 
 # ADR 0008: provenance — тонкий срез по оспариваемым полям, не 5 уровней на все факты

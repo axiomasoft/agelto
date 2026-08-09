@@ -2,9 +2,15 @@
 
 namespace App\Filament\Resources\Procurement\Procurements\Schemas;
 
+use App\Dto\Procurement\History\ProcurementDurations;
+use App\Models\Procurement\Procurement;
+use App\Services\Procurement\History\ProcurementTimelineBuilder;
+use Carbon\CarbonInterval;
 use Filament\Infolists\Components\IconEntry;
 use Filament\Infolists\Components\TextEntry;
+use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
+use Illuminate\Support\Carbon;
 
 class ProcurementInfolist
 {
@@ -12,6 +18,35 @@ class ProcurementInfolist
     {
         return $schema
             ->components([
+                Section::make('Наблюдаемая длительность')
+                    ->columns(2)
+                    ->schema([
+                        TextEntry::make('history.discovered_at')
+                            ->label('Обнаружена')
+                            ->state(fn (Procurement $record): ?string => self::durations($record)->discoveredAt?->format('d.m.Y H:i'))
+                            ->placeholder('—'),
+                        TextEntry::make('history.published_at')
+                            ->label('Опубликована')
+                            ->state(fn (Procurement $record): string => self::durations($record)->publishedAt->format('d.m.Y H:i')),
+                        TextEntry::make('history.current_status')
+                            ->label('Текущий статус')
+                            ->state(fn (Procurement $record): string => (string) $record->getRawOriginal('status')),
+                        TextEntry::make('history.terminal_status')
+                            ->label('Терминальный статус')
+                            ->state(fn (Procurement $record): ?string => self::durations($record)->terminalStatus?->value)
+                            ->placeholder('идёт'),
+                        TextEntry::make('history.total_duration')
+                            ->label('Наблюдаемая длительность')
+                            ->state(fn (Procurement $record): string => self::durationLabel(self::durations($record)->totalDuration)),
+                        TextEntry::make('history.by_status')
+                            ->label('Время в статусах')
+                            ->state(fn (Procurement $record): array => collect(self::durations($record)->byStatus)
+                                ->map(fn (int $seconds, string $status): string => "{$status}: ".self::durationLabel($seconds))
+                                ->values()
+                                ->all())
+                            ->listWithLineBreaks()
+                            ->placeholder('—'),
+                    ]),
                 TextEntry::make('uuid')
                     ->label('UUID'),
                 TextEntry::make('registry.name')
@@ -114,5 +149,20 @@ class ProcurementInfolist
                     ->dateTime()
                     ->placeholder('-'),
             ]);
+    }
+
+    private static function durations(Procurement $record): ProcurementDurations
+    {
+        /** @var array<int, ProcurementDurations> $durations */
+        static $durations = [];
+
+        return $durations[$record->getKey()] ??= app(ProcurementTimelineBuilder::class)
+            ->build(procurement: $record, from: Carbon::parse($record->getRawOriginal('first_seen_at')), until: now())
+            ->durations;
+    }
+
+    private static function durationLabel(?int $seconds): string
+    {
+        return $seconds === null ? 'идёт' : CarbonInterval::seconds($seconds)->cascade()->forHumans();
     }
 }

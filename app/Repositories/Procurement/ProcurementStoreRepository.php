@@ -10,12 +10,14 @@ use App\Models\Procurement\Procurement;
 use App\Models\Procurement\ProcurementEvent;
 use App\Models\Procurement\ProcurementRevision;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Str;
 
 final readonly class ProcurementStoreRepository
 {
     public function storeProcurement(ProcurementSnapshotData $data, string $status, Carbon $seenAt): Procurement
     {
         return Procurement::query()->create([
+            'uuid' => (string) Str::uuid7(),
             'registry_id' => $data->registryId,
             'registry_number' => $data->registryNumber,
             'etp_number' => $data->etpNumber,
@@ -82,6 +84,18 @@ final readonly class ProcurementStoreRepository
     public function touchLastSeen(Procurement $procurement, Carbon $seenAt): void
     {
         $procurement->update(['last_seen_at' => $seenAt]);
+    }
+
+    /**
+     * Атомарно фиксирует первый положительный исход. Колонка, а не `prc_events`, является
+     * носителем идемпотентности доменного события.
+     */
+    public function markSucceeded(Procurement $procurement, Carbon $succeededAt): bool
+    {
+        return Procurement::query()
+            ->whereKey($procurement->id)
+            ->whereNull('succeeded_at')
+            ->update(['succeeded_at' => $succeededAt]) === 1;
     }
 
     /**

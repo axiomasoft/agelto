@@ -4,11 +4,15 @@ declare(strict_types=1);
 
 use App\Enums\Procurement\ProcurementEventType;
 use App\Enums\Procurement\ProcurementStatus;
+use App\Models\Procurement\Platform\Registry;
+use App\Models\Procurement\Platform\StatusMapping;
 use App\Models\Procurement\Procurement;
 use App\Models\Procurement\ProcurementEvent;
 use App\Repositories\Procurement\History\ProcurementHistoryReadRepository;
 use App\Services\Procurement\History\ProcurementTimelineBuilder;
+use App\Services\Procurement\ProcurementIngestProcessor;
 use Illuminate\Support\Carbon;
+use Tests\Support\Procurement\SnapshotFactory;
 
 function historyMoment(string $time): Carbon
 {
@@ -53,6 +57,82 @@ test('незавершённая закупка сохраняет честну�
     expect($timeline->durations->terminalStatus)->toBeNull()
         ->and($timeline->durations->terminalAt)->toBeNull()
         ->and($timeline->durations->totalDuration)->toBeNull();
+});
+
+test('ingest фиксирует наблюдаемую длительность bidding → evaluation → completed', function (): void {
+    $registry = Registry::factory()->create();
+    StatusMapping::factory()->createMany([
+        ['registry_id' => $registry->id, 'source_stage' => 'Подача заявок', 'canonical_status' => ProcurementStatus::Bidding->value],
+        ['registry_id' => $registry->id, 'source_stage' => 'Работа комиссии', 'canonical_status' => ProcurementStatus::Evaluation->value],
+        ['registry_id' => $registry->id, 'source_stage' => 'Закупка завершена', 'canonical_status' => ProcurementStatus::Completed->value],
+    ]);
+    $processor = app(ProcurementIngestProcessor::class);
+    $originalNow = Carbon::getTestNow();
+
+    try {
+        Carbon::setTestNow(historyMoment('10:00:00'));
+        $procurement = $processor->ingest(SnapshotFactory::make($registry, ['sourceStage' => 'Подача заявок']));
+
+        Carbon::setTestNow(historyMoment('12:00:00'));
+        $processor->ingest(SnapshotFactory::make($registry, ['sourceStage' => 'Работа комиссии']));
+
+        Carbon::setTestNow(historyMoment('15:00:00'));
+        $processor->ingest(SnapshotFactory::make($registry, ['sourceStage' => 'Закупка завершена']));
+    } finally {
+        Carbon::setTestNow($originalNow);
+    }
+
+    $timeline = app(ProcurementTimelineBuilder::class)->build($procurement, historyMoment('08:00:00'), historyMoment('17:00:00'));
+
+    expect($timeline->durations->terminalStatus)->toBe(ProcurementStatus::Completed)
+        ->and($timeline->durations->terminalAt?->toDateTimeString())->toBe('2026-08-08 15:00:00')
+        ->and($timeline->durations->totalDuration)->toBe(18000)
+        ->and($timeline->durations->byStatus)->toBe([
+            ProcurementStatus::Bidding->value => 7200,
+            ProcurementStatus::Evaluation->value => 10800,
+        ]);
+});
+
+test('закупка, завершённая при discovery, терминальна с нулевой наблюдаемой длительностью', function (): void {
+    $registry = Registry::factory()->create();
+    StatusMapping::factory()->create([
+        'registry_id' => $registry->id,
+        'source_stage' => 'Закупка завершена',
+        'canonical_status' => ProcurementStatus::Completed->value,
+    ]);
+    $originalNow = Carbon::getTestNow();
+
+    try {
+        Carbon::setTestNow(historyMoment('10:00:00'));
+        $procurement = app(ProcurementIngestProcessor::class)->ingest(SnapshotFactory::make($registry, [
+            'sourceStage' => 'Закупка завершена',
+        ]));
+    } finally {
+        Carbon::setTestNow($originalNow);
+    }
+
+    $timeline = app(ProcurementTimelineBuilder::class)->build($procurement, historyMoment('08:00:00'), historyMoment('17:00:00'));
+
+    expect($timeline->durations->terminalStatus)->toBe(ProcurementStatus::Completed)
+        ->and($timeline->durations->terminalAt?->toDateTimeString())->toBe('2026-08-08 10:00:00')
+        ->and($timeline->durations->totalDuration)->toBe(0)
+        ->and($timeline->durations->byStatus)->toBe([ProcurementStatus::Completed->value => 0]);
+});
+
+test('история только с discovered использует статус одной ревизии без выдуманной длительности', function (): void {
+    $procurement = Procurement::factory()->create([
+        'status' => ProcurementStatus::Completed,
+        'revision_count' => 1,
+        'published_at' => historyMoment('09:00:00'),
+    ]);
+    historyEvent($procurement, ProcurementEventType::Discovered, '10:00:00');
+
+    $timeline = app(ProcurementTimelineBuilder::class)->build($procurement, historyMoment('08:00:00'), historyMoment('17:00:00'));
+
+    expect($timeline->durations->terminalStatus)->toBe(ProcurementStatus::Completed)
+        ->and($timeline->durations->terminalAt?->toDateTimeString())->toBe('2026-08-08 10:00:00')
+        ->and($timeline->durations->totalDuration)->toBe(0)
+        ->and($timeline->durations->byStatus)->toBe([ProcurementStatus::Completed->value => 0]);
 });
 
 test('пустая история возвращает пустую ленту без исключения', function (): void {

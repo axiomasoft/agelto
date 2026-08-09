@@ -8,7 +8,7 @@ status: living
 
 Контур целиком — от заведённого эталона до строки в обучающем датасете локальной LLM. Документ
 идёт маршрутом человека, а не по фазам плана: числа и точные поля контракта — ссылкой на
-`docs/specs/v2/08-estimate-extraction.md` (нормативный носитель), здесь — зачем каждый шаг существует
+`docs/03_Dev/ai/estimate-extraction.md` (нормативный носитель), здесь — зачем каждый шаг существует
 и как он связан с соседним.
 
 ```mermaid
@@ -161,7 +161,7 @@ preference-пару `chosen` (gold) / `rejected` (вывод предшеств�
 ## Известные долги
 
 - **Обучение локальной модели** — вне этого плана; экспорт готовит вход, дальше — задел
-  `docs-private/local-llm-training.md` (не зеркалится в Brain-vault).
+  [`local-llm-training.md`](local-llm-training.md), который зеркалится в Brain по решению владельца D89.
 - **Экспорт screening-задачи** не реализован — `DatasetInputBuilder`/`estimate:dataset:export`
   берут только `task=extraction`.
 - **Длинные документы в датасет не попадают** — текст сверх `config('ai.dataset_export.max_input_chars')`
@@ -176,7 +176,7 @@ preference-пару `chosen` (gold) / `rejected` (вывод предшеств�
 ## Смежное
 
 - Полный контракт (JSON-схемы шагов, алгоритм извлечения, экономика, retention) —
-  `docs/specs/v2/08-estimate-extraction.md`.
+  `docs/03_Dev/ai/estimate-extraction.md`.
 - Композиция промта, версии, кэширование — [`prompts.md`](prompts.md).
 - Выбор представления документа на вход LLM — `docs/03_Dev/adr/0010-input-representation.md`.
 - Операторские шаги — `docs/04_Operators/how-to/{run-fixture-analysis,read-spend-dashboard,

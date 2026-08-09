@@ -38,6 +38,7 @@ final class Procurement extends Model
         'ikz',
         'title',
         'status',
+        'succeeded_at',
         'source_stage',
         'procedure_type',
         'procedure_type_raw',
@@ -75,6 +76,7 @@ final class Procurement extends Model
     {
         return [
             'status' => ProcurementStatus::class,
+            'succeeded_at' => 'datetime',
             'attributes' => AsCollection::class,
             'initial_price' => 'decimal:2',
             'advance_percent' => 'decimal:2',

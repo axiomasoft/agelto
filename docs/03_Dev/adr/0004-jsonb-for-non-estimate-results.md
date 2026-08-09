@@ -1,7 +1,7 @@
 ---
 audience: dev
 type: adr
-status: draft
+status: living
 ---
 
 # ADR 0004: результат AI-извлечения не-смет — jsonb, не отдельная таблица

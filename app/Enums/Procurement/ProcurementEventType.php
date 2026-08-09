@@ -23,6 +23,10 @@ enum ProcurementEventType: string
     case Cancelled = 'cancelled';
     case Restored = 'restored';
     case AwardMade = 'award_made';
+    /**
+     * Закупка впервые достигла положительного исхода; витрина истории, не гарантия единственности.
+     */
+    case Succeeded = 'succeeded';
     case Ignored = 'ignored';
 
     /**
