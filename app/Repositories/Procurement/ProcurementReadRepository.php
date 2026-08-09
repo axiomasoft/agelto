@@ -22,7 +22,6 @@ final readonly class ProcurementReadRepository
     {
         return ProcurementRevision::query()
             ->where('procurement_id', $procurementId)
-            ->orderByDesc('detected_at')
             ->orderByDesc('revision_number')
             ->first();
     }
