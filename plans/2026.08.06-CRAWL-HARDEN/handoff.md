@@ -1,54 +1,80 @@
-# HANDOFF — 2026-08-08 — after P9.1
+# HANDOFF — 2026-08-09 — after P10.2
 
-**Next:** ЗАПУСК ВРУЧНУЮ: implementation/medium
+**Next:** ЗАПУСК ВРУЧНУЮ: P10.3 — serial procurement ingest and revisions
 
-P9.2 — в новой сессии. Текущая сессия не выполняла P9.2 и более поздние items.
+| Параметр | Значение |
+|:--|:--|
+| Model | `gpt-5.6-terra` (implementation tier) |
+| Thinking | `high` |
+| Context | новая сессия, не resume |
+| Exec / Review | `manual` / `full` |
+| Суть | Выполнить только P10.3 после committed P10.2: transaction-scoped serial procurement revisions and canonical head. |
+| Команды | Layout v2 вручную; `task:*` не вызывать; v1 carriers и закрытые P1–P9 specs не править. |
 
-Native Codex launch-block:
+## Copy-paste launch
 
 ```bash
-codex -C /home/vostrikov/projects/agelto/agelto -m gpt-5.6-terra -c 'model_reasoning_effort="medium"' -a never -s danger-full-access 'Read AGENTS.md, plans/2026.08.06-CRAWL-HARDEN/handoff.md, plans/2026.08.06-CRAWL-HARDEN/phases/P9/P9.2.md and plans/2026.08.06-CRAWL-HARDEN/phases/P9/P9.2.state.md. This is Layout v2. Execute only P9.2 manually; do not invoke task:plan-audit, task:plan-exec, create v1 carriers, or execute later P9 items. Resolve the Swissknifeman marketplace root and run the v2 bundle plus the lint/view preflight from AGENTS.md before work. Preserve unrelated dirty worktree changes.'
+codex -C /home/vostrikov/projects/agelto/agelto -m gpt-5.6-terra -c 'model_reasoning_effort="high"' -a never -s danger-full-access 'Read AGENTS.md, plans/2026.08.06-CRAWL-HARDEN/handoff.md, plan.md, status.md, findings/P10-code-adversarial-audit-2026-08-09.md, decisions/D134-procurement-ingest-lock.md, phases/P10/P10.md, phases/P10/P10.3.md and phases/P10/P10.3.state.md. This is Layout v2. Do not invoke any task:* command; do not create or edit v1 carriers or closed P1-P9 specifications. Manually execute only P10.3. Preserve unrelated dirty worktree changes and do not perform Swissknifeman migrations.'
 ```
 
-| Model | Thinking | Context | Суть | Команда |
-|:--|:--|:--|:--|:--|
-| implementation | medium | NEW SESSION — manual Layout-v2 item | P9.2 заводит docs-integrity gate на baseline P9.1 и переносит `docs/dev/**`; P9.1 полностью закрыт. | Вручную по Layout v2. Не вызывать `task:plan-audit`/`task:plan-exec` и не создавать v1 carriers, пока Task-плагин остаётся v1. |
+## Preflight baseline
 
-**Done:** P9.1 закрыт `🟠 Done with deviations`. Командный инвентарь на момент исполнения:
-84 Markdown-файла; карта покрывает 18/18 переносимых носителей (8 `docs-private`, 9 specs,
-1 `docs/dev`); перечень живых ссылок покрывает 37/37 строк обязательного grep. Item-коммит:
-`12c2278c`.
+```bash
+cd /home/vostrikov/projects/agelto/agelto
+codex plugin marketplace list --json
+python3 /home/vostrikov/projects/packages/swissknifeman/packages/task/scripts/plan-lint.py plans/2026.08.06-CRAWL-HARDEN
+python3 /home/vostrikov/projects/packages/swissknifeman/packages/task/scripts/plan-views.py state --plan-dir plans/2026.08.06-CRAWL-HARDEN --all --check
+python3 /home/vostrikov/projects/packages/swissknifeman/packages/task/scripts/plan-views.py decisions --plan-dir plans/2026.08.06-CRAWL-HARDEN --check
+python3 /home/vostrikov/projects/packages/swissknifeman/packages/task/scripts/plan-views.py status --plan-dir plans/2026.08.06-CRAWL-HARDEN --check
+git status --short --branch
+```
 
-**Baseline:** HEAD `c1f071c4`, явно названное dirty execution-time дерево: 84 Markdown-файла,
-18 без frontmatter, 158 относительных markdown-ссылок, 0 битых. Команда-однодневка сохранена
-прямо в `artifacts/P9-docs-baseline.json`; повторный запуск дал те же 84/18/158/0.
+Expected baseline after this design pass:
 
-**Map decisions:** private — 6 переносов/2 дубля к удалению; specs 00–06 — только живые факты,
-07 — удалить без переноса, 08 — перенести целиком с сохранением §§1–9; `docs/dev` и `.bak`
-явно принадлежат P9.2. Research-delta названа: specs выросли 1739 → 1759 строк после P8.4,
-дерево 83 → 84 файла, ссылки 150 → 158, broken остались 0.
+- `state --all --check`: 66 item states;
+- `decisions --check`: 4 generated views from 137 source decisions;
+- `status --check`: one generated status view;
+- complete-plan lint: exactly 27 inherited errors / 0 warnings; no diagnostic points to P10.
 
-**Later-item inputs:** P9.4 до исполнения должен адресовать `docs/03_Dev/_index.md` и два
-`.claude/runs/**` совпадения обязательного grep; P9.5 — добавить
-`docs/03_Dev/document-pipeline.md` в `Files` либо явно передать владельца. Спорные stale-блоки
-`open-follow-ups`/`risk-register` помечены `[решает P9.3 при переносе]`; P9.1 их не решил молча.
+## P10.1 closure evidence
 
-**Validation:** map 18 = command 18; reference ledger 37 = grep 37; JSON parse GREEN; baseline
-rerun 84/18/158/0; `git diff --check` GREEN. Marketplace-resolved P9.1 bundle GREEN. v2 views
-regenerate/check GREEN после journal projection.
+1. Item commit `18e6c629` contains enum-backed `RunPurpose`, exact owner resume, typed busy,
+   crawler-row serialization and nested SAVEPOINT create recovery.
+2. Delta returns `null` on a foreign owner; backlog returns `false` and does not write
+   `backlog_rescanned_at`.
+3. `tests/Support/Postgres/ConcurrentTransactions.php` coordinates two booted PHP workers with a
+   pipe barrier; the regression proves two distinct PostgreSQL backend sessions receive one run.
+4. Green: `migrate:fresh --seed`; focused 31 tests / 92 assertions; Pint; PHPStan at a
+   process-only 1 GiB limit. Full suite remains red only in unrelated existing AI/EIS tests.
 
-**Known deviation:** полный plan-lint fail-closed на 25 staged read-admission defects. Четыре
-ожидаемых missing-input diagnostics исчезли после появления map/baseline; новых ошибок нет.
-Собственная оставшаяся диагностика P9.1 — `docs/specs/v2/08-estimate-extraction.md` оценивается
-в 29 633 токена против 25 000 на одно whole-file read; текущая сессия прочитала файл по частям,
-не ослабляя gate. P9.1 bundle потребовал три item-owned carrier repair и после них зелёный.
+## P10.2 closure evidence
 
-**Dirty-worktree attribution:** item-коммит содержит только
-`findings/P9-docs-map.md` и `artifacts/P9-docs-baseline.json`. Ни один файл вне `plans/**` не
-изменён P9.1; все предсуществующие application/tests/docs/plan migration изменения сохранены.
-Bookkeeping — текущий коммит.
+1. Commit `c5860d6b` makes `ListingCursor` the only durable cap-detector carrier with
+   backward-compatible `lastDedupSignature=null` and `blocksInInterval=0` defaults.
+2. Fresh evaluates an exact repeat after ingest and before reached-known/no-change, including
+   after a one-request checkpoint continuation; archive restores its detector per interval and
+   clears it only on drain/split/pop.
+3. Green: focused 35 tests / 116 assertions; Pint; PHPStan at a process-only 1 GiB limit.
+4. Full `--no-tia` retains the pre-existing failures in `EvalRunTest` and `PlatformFormTest`,
+   outside P10.2 Files; the root-owned storage workaround is still required.
 
-**Sources of truth:** `phases/P9/P9.1.md` + `P9.1.state.md` · `findings/P9-docs-map.md` ·
-`artifacts/P9-docs-baseline.json` · `bundles/P9.1.json` · `journal.jsonl`.
+## Current state
 
-**Remaining:** P9.2–P9.8. P9.2 этой сессией не запускался.
+**P10:** P10.1–P10.2 are closed with deviations; P10.3–P10.7 are not started. DoR is complete; no owner question remains. Product-code verdict is
+`RED` until F1–F8 are closed by P10. Historical delivery/projection `RED` from the prior final
+manual audit remains a separate risk and is not silently cleared by P10.
+
+**Done:** durable F1–F8 code audit; D131–D137; P10 phase and seven item carriers; P10.1 run
+ownership and PostgreSQL race recovery (`18e6c629`); P10.2 durable cap detection (`c5860d6b`);
+master plan/index/routing; manual v2 launch.
+
+**Remaining:** execute P10.3 → P10.7 sequentially; P10.7 replays all eight scenarios and produces
+`artifacts/P10-validation.json` plus the final code verdict.
+
+**Sources of truth:** `plan.md` · `status.md` · `journal.jsonl` · `phases/P10/P10.md` ·
+`findings/P10-code-adversarial-audit-2026-08-09.md` · D131–D137.
+
+**Open risks:** mixed dirty worktree and missing historical P6.4/P6.5/P9.2–P9.8 commits require
+patch-level attribution; ordinary-user tests still encounter inherited root-owned storage paths;
+full suite retains unrelated `EvalRunTest`/`PlatformFormTest` failures; Swissknifeman
+read-admission rollout is deferred to its owner.
