@@ -1,6 +1,6 @@
-# HANDOFF — 2026-08-09 — after P10.2
+# HANDOFF — 2026-08-09 — after P10.3
 
-**Next:** ЗАПУСК ВРУЧНУЮ: P10.3 — serial procurement ingest and revisions
+**Next:** ЗАПУСК ВРУЧНУЮ: P10.4 — truthful initial/terminal procurement timeline
 
 | Параметр | Значение |
 |:--|:--|
@@ -8,13 +8,13 @@
 | Thinking | `high` |
 | Context | новая сессия, не resume |
 | Exec / Review | `manual` / `full` |
-| Суть | Выполнить только P10.3 после committed P10.2: transaction-scoped serial procurement revisions and canonical head. |
+| Суть | Выполнить только P10.4 after committed P10.3: initial terminal state must be observable, not displayed as ongoing. |
 | Команды | Layout v2 вручную; `task:*` не вызывать; v1 carriers и закрытые P1–P9 specs не править. |
 
 ## Copy-paste launch
 
 ```bash
-codex -C /home/vostrikov/projects/agelto/agelto -m gpt-5.6-terra -c 'model_reasoning_effort="high"' -a never -s danger-full-access 'Read AGENTS.md, plans/2026.08.06-CRAWL-HARDEN/handoff.md, plan.md, status.md, findings/P10-code-adversarial-audit-2026-08-09.md, decisions/D134-procurement-ingest-lock.md, phases/P10/P10.md, phases/P10/P10.3.md and phases/P10/P10.3.state.md. This is Layout v2. Do not invoke any task:* command; do not create or edit v1 carriers or closed P1-P9 specifications. Manually execute only P10.3. Preserve unrelated dirty worktree changes and do not perform Swissknifeman migrations.'
+codex -C /home/vostrikov/projects/agelto/agelto -m gpt-5.6-terra -c 'model_reasoning_effort="high"' -a never -s danger-full-access 'Read AGENTS.md, plans/2026.08.06-CRAWL-HARDEN/handoff.md, plan.md, status.md, findings/P10-code-adversarial-audit-2026-08-09.md, decisions/D135-observed-timeline.md, phases/P10/P10.md, phases/P10/P10.4.md and phases/P10/P10.4.state.md. This is Layout v2. Do not invoke any task:* command; do not create or edit v1 carriers or closed P1-P9 specifications. Manually execute only P10.4. Preserve unrelated dirty worktree changes and do not perform Swissknifeman migrations.'
 ```
 
 ## Preflight baseline
@@ -58,17 +58,32 @@ Expected baseline after this design pass:
 4. Full `--no-tia` retains the pre-existing failures in `EvalRunTest` and `PlatformFormTest`,
    outside P10.2 Files; the root-owned storage workaround is still required.
 
+## P10.3 closure evidence
+
+1. Commit `ea65d384` adds a typed PostgreSQL transaction-scoped advisory lock keyed from the
+   complete `(registry_id, registry_number)` identity. A rare 64-bit hash collision only adds
+   benign serialization; exact post-lock predicates keep identities separate.
+2. The lock is acquired before the first procurement lookup. The locked processor rereads the
+   procurement/latest revision, derives the next number from that revision, and fails loudly on
+   an inconsistent head instead of treating it as an unchanged row.
+3. Two independent booted PHP/PostgreSQL workers prove equal snapshots make one revision, while
+   different snapshots make revision numbers `1, 2`, a two-row history and a revision-2 head.
+4. Green: focused 15 tests / 77 assertions; `migrate:fresh --seed`; Pint; PHPStan at a
+   process-only 1 GiB limit. Full `--no-tia` remains red only outside P10.3 (archive temporary
+   storage and seeded-state suites); the documented test-storage ownership workaround was used.
+
 ## Current state
 
-**P10:** P10.1–P10.2 are closed with deviations; P10.3–P10.7 are not started. DoR is complete; no owner question remains. Product-code verdict is
+**P10:** P10.1–P10.3 are closed with deviations; P10.4–P10.7 are not started. DoR is complete; no owner question remains. Product-code verdict is
 `RED` until F1–F8 are closed by P10. Historical delivery/projection `RED` from the prior final
 manual audit remains a separate risk and is not silently cleared by P10.
 
 **Done:** durable F1–F8 code audit; D131–D137; P10 phase and seven item carriers; P10.1 run
 ownership and PostgreSQL race recovery (`18e6c629`); P10.2 durable cap detection (`c5860d6b`);
-master plan/index/routing; manual v2 launch.
+P10.3 serial procurement ingest and canonical revision head (`ea65d384`); master plan/index/routing;
+manual v2 launch.
 
-**Remaining:** execute P10.3 → P10.7 sequentially; P10.7 replays all eight scenarios and produces
+**Remaining:** execute P10.4 → P10.7 sequentially; P10.7 replays all eight scenarios and produces
 `artifacts/P10-validation.json` plus the final code verdict.
 
 **Sources of truth:** `plan.md` · `status.md` · `journal.jsonl` · `phases/P10/P10.md` ·
@@ -76,5 +91,5 @@ master plan/index/routing; manual v2 launch.
 
 **Open risks:** mixed dirty worktree and missing historical P6.4/P6.5/P9.2–P9.8 commits require
 patch-level attribution; ordinary-user tests still encounter inherited root-owned storage paths;
-full suite retains unrelated `EvalRunTest`/`PlatformFormTest` failures; Swissknifeman
+full suite retains unrelated archive temporary-storage and seeded-state failures; Swissknifeman
 read-admission rollout is deferred to its owner.
