@@ -4,20 +4,55 @@ declare(strict_types=1);
 
 use App\Dto\Procurement\Crawler\EisSearchFilter;
 use App\Dto\Procurement\Crawler\ListingBatch;
+use App\Dto\Procurement\Crawler\ListingCursor;
 use App\Dto\Procurement\Crawler\WindowFilter;
+use App\Dto\Procurement\ProcurementDetails;
 use App\Enums\Procurement\Crawler\ArchiveWindowScanResult;
 use App\Enums\Procurement\Crawler\CrawlerMode;
 use App\Enums\Procurement\Crawler\SourceMethod as SourceMethodEnum;
+use App\Exceptions\Procurement\Crawler\PlatformBudgetExhaustedException;
 use App\Models\Procurement\Crawler\Crawler;
 use App\Models\Procurement\Crawler\Run;
 use App\Models\Procurement\Platform\Registry;
 use App\Models\Procurement\Procurement;
 use App\Services\Procurement\ArchiveWindowScanner;
+use App\Services\Procurement\Contracts\SourceMethod;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Sleep;
 use Tests\Support\Doubles\Crawler\QueueSourceMethod;
+
+final class ArchiveContinuationSourceMethod implements SourceMethod
+{
+    private int $cursorIndex = 0;
+
+    /**
+     * @param  list<ListingBatch|PlatformBudgetExhaustedException>  $responses
+     */
+    public function __construct(private readonly array $responses) {}
+
+    public function collectListing(Crawler $crawler, ListingCursor $cursor): ListingBatch
+    {
+        $response = $this->responses[$this->cursorIndex++];
+
+        if ($response instanceof PlatformBudgetExhaustedException) {
+            throw $response;
+        }
+
+        return $response;
+    }
+
+    public function collectDetails(string $registryNumber, Registry $registry): ProcurementDetails
+    {
+        return new ProcurementDetails;
+    }
+
+    public function isAvailable(): bool
+    {
+        return true;
+    }
+}
 
 /**
  * @return array<string, string>
@@ -68,6 +103,17 @@ function useArchiveQueueSourceMethod(array $batches): void
     ]]);
 }
 
+/**
+ * @param  list<ListingBatch|PlatformBudgetExhaustedException>  $responses
+ */
+function useArchiveContinuationSourceMethod(array $responses): void
+{
+    app()->instance(ArchiveContinuationSourceMethod::class, new ArchiveContinuationSourceMethod(responses: $responses));
+    config(['crawler.source_methods' => [
+        SourceMethodEnum::Csv->value => ArchiveContinuationSourceMethod::class,
+    ]]);
+}
+
 beforeEach(function () {
     Sleep::fake();
     Storage::fake('s3');
@@ -106,17 +152,43 @@ test('cap по повтору dedup_signature делит интервал поп
     $crawler = Crawler::factory()->create(['mode' => CrawlerMode::Archive]);
     $run = Run::factory()->for($crawler)->create(['cursor' => null]);
 
+    $repeatedRows = ['0173200001234000010', '0173200001234000011'];
     useArchiveQueueSourceMethod([
-        archiveScannerBatch(['0173200001234000010', '0173200001234000011'], dedupSignature: 'dup-signature'),
-        archiveScannerBatch(['0173200001234000012', '0173200001234000013'], dedupSignature: 'dup-signature'),
+        archiveScannerBatch($repeatedRows, dedupSignature: 'dup-signature'),
+        archiveScannerBatch($repeatedRows, dedupSignature: 'dup-signature'),
         archiveScannerBatch(['0173200001234000014'], dedupSignature: 'sig-lower'),
         archiveScannerBatch(['0173200001234000015'], dedupSignature: 'sig-upper'),
     ]);
 
     app(ArchiveWindowScanner::class)->scan(crawler: $crawler, run: $run, filter: archiveWindowFilter());
 
-    expect(Procurement::query()->count())->toBe(6)
+    expect(Procurement::query()->count())->toBe(4)
         ->and($run->fresh()->cursor['priceStack'])->toBeNull();
+});
+
+test('archive max-block detector survives checkpoints and consumes one listing block per continuation', function () {
+    config(['crawler.archive.max_blocks_per_window' => 2]);
+    $crawler = Crawler::factory()->create(['mode' => CrawlerMode::Archive]);
+    $run = Run::factory()->for($crawler)->create(['cursor' => null]);
+
+    useArchiveContinuationSourceMethod([
+        archiveScannerBatch(['0173200001234000040', '0173200001234000041'], dedupSignature: 'sig-1'),
+        PlatformBudgetExhaustedException::forHost(host: 'eis.test', maxWaitSeconds: 0),
+        archiveScannerBatch(['0173200001234000042', '0173200001234000043'], dedupSignature: 'sig-2'),
+    ]);
+
+    $first = app(ArchiveWindowScanner::class)->scan(crawler: $crawler, run: $run, filter: archiveWindowFilter());
+
+    expect($first)->toBe(ArchiveWindowScanResult::Checkpointed)
+        ->and($run->fresh()->cursor['lastDedupSignature'])->toBe('sig-1')
+        ->and($run->fresh()->cursor['blocksInInterval'])->toBe(1);
+
+    $second = app(ArchiveWindowScanner::class)->scan(crawler: $crawler, run: $run->fresh(), filter: archiveWindowFilter());
+
+    expect($second)->toBe(ArchiveWindowScanResult::Drained)
+        ->and($run->fresh()->cursor['priceStack'])->toBeNull()
+        ->and($run->fresh()->cursor['blocksInInterval'])->toBe(0)
+        ->and(Procurement::query()->count())->toBe(4);
 });
 
 test('cap на минимальном ценовом интервале — предупреждение и остановка без зацикливания', function () {

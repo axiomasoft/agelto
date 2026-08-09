@@ -3,19 +3,57 @@
 declare(strict_types=1);
 
 use App\Dto\Procurement\Crawler\ListingBatch;
+use App\Dto\Procurement\Crawler\ListingCursor;
+use App\Dto\Procurement\ProcurementDetails;
 use App\Enums\Procurement\Crawler\CrawlerMode;
 use App\Enums\Procurement\Crawler\RunStatus;
 use App\Enums\Procurement\Crawler\RunStopPolicy;
 use App\Enums\Procurement\Crawler\SourceMethod as SourceMethodEnum;
 use App\Models\Procurement\Crawler\Crawler;
 use App\Models\Procurement\Crawler\Run;
+use App\Models\Procurement\Platform\Registry;
 use App\Models\Procurement\Procurement;
+use App\Services\Procurement\Contracts\SourceMethod;
 use App\Services\Procurement\Modes\FreshRunProcessor;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Sleep;
 use Illuminate\Validation\ValidationException;
 use Tests\Support\Doubles\Crawler\QueueSourceMethod;
+
+final class FreshContinuationSourceMethod implements SourceMethod
+{
+    private int $cursorIndex = 0;
+
+    /**
+     * @param  list<ListingBatch>  $batches
+     */
+    public function __construct(
+        private readonly array $batches,
+        private readonly Carbon $checkpointAt,
+    ) {}
+
+    public function collectListing(Crawler $crawler, ListingCursor $cursor): ListingBatch
+    {
+        $batch = $this->batches[$this->cursorIndex++];
+
+        if ($this->cursorIndex === 1) {
+            Carbon::setTestNow($this->checkpointAt);
+        }
+
+        return $batch;
+    }
+
+    public function collectDetails(string $registryNumber, Registry $registry): ProcurementDetails
+    {
+        return new ProcurementDetails;
+    }
+
+    public function isAvailable(): bool
+    {
+        return true;
+    }
+}
 
 /**
  * Одна валидная строка блока (набор колонок, которые понимает `EisCsvRowMapper`) —
@@ -67,6 +105,20 @@ function useQueueSourceMethod(array $batches): void
 
     config(['crawler.source_methods' => [
         SourceMethodEnum::Csv->value => QueueSourceMethod::class,
+    ]]);
+}
+
+/**
+ * @param  list<ListingBatch>  $batches
+ */
+function useFreshContinuationSourceMethod(array $batches, Carbon $checkpointAt): void
+{
+    app()->instance(FreshContinuationSourceMethod::class, new FreshContinuationSourceMethod(
+        batches: $batches,
+        checkpointAt: $checkpointAt,
+    ));
+    config(['crawler.source_methods' => [
+        SourceMethodEnum::Csv->value => FreshContinuationSourceMethod::class,
     ]]);
 }
 
@@ -135,10 +187,11 @@ test('метрика отставания: повторный скан проф�
 
 test('cap по повтору dedup_signature поднимает флаг и завершает прогон', function () {
     $crawler = Crawler::factory()->create();
+    $row = freshRunCsvRow('0173200001234000010');
 
     useQueueSourceMethod([
-        freshRunBatch([freshRunCsvRow('0173200001234000010')], dedupSignature: 'dup-signature'),
-        freshRunBatch([freshRunCsvRow('0173200001234000011')], dedupSignature: 'dup-signature'),
+        freshRunBatch([$row], dedupSignature: 'dup-signature'),
+        freshRunBatch([$row], dedupSignature: 'dup-signature'),
     ]);
 
     $run = app(FreshRunProcessor::class)->run(crawler: $crawler);
@@ -150,6 +203,33 @@ test('cap по повтору dedup_signature поднимает флаг и з�
         ->and($run->stats['possible_skip_window']['to'] ?? null)->not->toBeNull()
         // stop_reason не затирает соседние ключи, записанные handleCapHit() раньше в том же стеке.
         ->and($run->stats['stop_reason'] ?? null)->toBe('dedup_signature_repeat');
+});
+
+test('exact repeat after a checkpoint restores the fresh cap detector before the no-change branch', function () {
+    Carbon::setTestNow('2026-03-10 12:00:00');
+    config(['crawler.run.checkpoint_seconds' => 1]);
+
+    $crawler = Crawler::factory()->create();
+    $row = freshRunCsvRow('0173200001234000012');
+    useFreshContinuationSourceMethod(
+        batches: [
+            freshRunBatch([$row], dedupSignature: 'checkpoint-repeat'),
+            freshRunBatch([$row], dedupSignature: 'checkpoint-repeat'),
+        ],
+        checkpointAt: Carbon::parse('2026-03-10 12:00:01'),
+    );
+
+    $checkpointed = app(FreshRunProcessor::class)->run(crawler: $crawler);
+
+    expect($checkpointed->refresh()->stats['checkpoints'] ?? null)->toBe(1)
+        ->and($checkpointed->cursor['lastDedupSignature'] ?? null)->toBe('checkpoint-repeat');
+
+    $run = app(FreshRunProcessor::class)->run(crawler: $crawler);
+
+    expect($run->status)->toBe(RunStatus::Completed)
+        ->and($run->stats['cap_hit'] ?? null)->toBeTrue()
+        ->and($run->stats['stop_reason'] ?? null)->toBe('dedup_signature_repeat')
+        ->and($run->cursor['reachedKnown'])->toBeTrue();
 });
 
 test('повторный запуск на том же профиле после completed создаёт новый Run, не портит прежний', function () {

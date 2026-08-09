@@ -24,10 +24,12 @@ final readonly class ListingCursor
         public ?array $priceStack = null,
         public bool $reachedKnown = false,
         public ?string $dateField = null,
+        public ?string $lastDedupSignature = null,
+        public int $blocksInInterval = 0,
     ) {}
 
     /**
-     * @return array{blockFrom: int, day: string|null, priceStack: list<string>|null, reachedKnown: bool, dateField: string|null}
+     * @return array{blockFrom: int, day: string|null, priceStack: list<string>|null, reachedKnown: bool, dateField: string|null, lastDedupSignature: string|null, blocksInInterval: int}
      */
     public function toArray(): array
     {
@@ -37,6 +39,8 @@ final readonly class ListingCursor
             'priceStack' => $this->priceStack,
             'reachedKnown' => $this->reachedKnown,
             'dateField' => $this->dateField,
+            'lastDedupSignature' => $this->lastDedupSignature,
+            'blocksInInterval' => $this->blocksInInterval,
         ];
     }
 
@@ -51,6 +55,34 @@ final readonly class ListingCursor
             priceStack: $cursor['priceStack'] ?? null,
             reachedKnown: (bool) ($cursor['reachedKnown'] ?? false),
             dateField: $cursor['dateField'] ?? null,
+            lastDedupSignature: $cursor['lastDedupSignature'] ?? null,
+            blocksInInterval: (int) ($cursor['blocksInInterval'] ?? 0),
+        );
+    }
+
+    public function withReachedKnown(): self
+    {
+        return new self(
+            blockFrom: $this->blockFrom,
+            day: $this->day,
+            priceStack: $this->priceStack,
+            reachedKnown: true,
+            dateField: $this->dateField,
+            lastDedupSignature: $this->lastDedupSignature,
+            blocksInInterval: $this->blocksInInterval,
+        );
+    }
+
+    public function afterFreshBlock(int $blockSize, ?string $dedupSignature): self
+    {
+        return new self(
+            blockFrom: $this->blockFrom + $blockSize,
+            day: $this->day,
+            priceStack: $this->priceStack,
+            reachedKnown: false,
+            dateField: $this->dateField,
+            lastDedupSignature: $dedupSignature,
+            blocksInInterval: $this->blocksInInterval,
         );
     }
 }

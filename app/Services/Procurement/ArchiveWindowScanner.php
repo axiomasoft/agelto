@@ -54,8 +54,8 @@ final readonly class ArchiveWindowScanner
             : null;
         $stack = $cursor->priceStack ?? [$startingInterval ?? "0:{$priceCeiling}"];
         $blockFrom = $cursor->priceStack === null ? 1 : $cursor->blockFrom;
-        $previousSignature = null;
-        $blocksInInterval = 0;
+        $previousSignature = $cursor->lastDedupSignature;
+        $blocksInInterval = $cursor->blocksInInterval;
 
         while ($stack !== []) {
             $crawler->refresh();
@@ -81,12 +81,27 @@ final readonly class ArchiveWindowScanner
                 $blockFrom = 1;
                 $previousSignature = null;
                 $blocksInInterval = 0;
-                $this->persistCursor(run: $run, day: $day, stack: $stack, blockFrom: $blockFrom, dateField: $dateField);
+                $this->persistCursor(
+                    run: $run,
+                    day: $day,
+                    stack: $stack,
+                    blockFrom: $blockFrom,
+                    dateField: $dateField,
+                    lastDedupSignature: $previousSignature,
+                    blocksInInterval: $blocksInInterval,
+                );
 
                 continue;
             }
 
-            $iterationCursor = new ListingCursor(blockFrom: $blockFrom, day: $day, priceStack: $stack, dateField: $dateField);
+            $iterationCursor = new ListingCursor(
+                blockFrom: $blockFrom,
+                day: $day,
+                priceStack: $stack,
+                dateField: $dateField,
+                lastDedupSignature: $previousSignature,
+                blocksInInterval: $blocksInInterval,
+            );
             $sourceMethod = $this->factory->makeWithFallback(crawler: $crawler);
             try {
                 $batch = $sourceMethod->collectListing(crawler: $crawler, cursor: $iterationCursor);
@@ -114,7 +129,15 @@ final readonly class ArchiveWindowScanner
                 $blocksInInterval++;
             }
 
-            $this->persistCursor(run: $run, day: $day, stack: $stack, blockFrom: $blockFrom, dateField: $dateField);
+            $this->persistCursor(
+                run: $run,
+                day: $day,
+                stack: $stack,
+                blockFrom: $blockFrom,
+                dateField: $dateField,
+                lastDedupSignature: $previousSignature,
+                blocksInInterval: $blocksInInterval,
+            );
             $this->runs->heartbeat(run: $run);
         }
 
@@ -154,13 +177,22 @@ final readonly class ArchiveWindowScanner
      * @param  list<string>  $stack
      * @param  'publish'|'update'  $dateField
      */
-    private function persistCursor(Run $run, string $day, array $stack, int $blockFrom, string $dateField): void
-    {
+    private function persistCursor(
+        Run $run,
+        string $day,
+        array $stack,
+        int $blockFrom,
+        string $dateField,
+        ?string $lastDedupSignature,
+        int $blocksInInterval,
+    ): void {
         $this->runs->updateCursor(run: $run, cursor: new ListingCursor(
             blockFrom: $blockFrom,
             day: $day,
             priceStack: $stack === [] ? null : $stack,
             dateField: $dateField,
+            lastDedupSignature: $lastDedupSignature,
+            blocksInInterval: $blocksInInterval,
         ));
     }
 }

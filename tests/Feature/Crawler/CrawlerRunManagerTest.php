@@ -179,13 +179,22 @@ test('heartbeat обновляет last_heartbeat_at', function () {
 
 test('updateCursor пишет курсор через ListingCursor::toArray', function () {
     $run = Run::factory()->create(['cursor' => null]);
-    $cursor = new ListingCursor(blockFrom: 501, reachedKnown: true);
+    $cursor = new ListingCursor(blockFrom: 501, reachedKnown: true, lastDedupSignature: 'durable-signature', blocksInInterval: 3);
 
     app(CrawlerRunManager::class)->updateCursor($run, $cursor);
 
     $stored = ListingCursor::fromArray($run->refresh()->cursor->toArray());
     expect($stored->blockFrom)->toBe(501)
-        ->and($stored->reachedKnown)->toBeTrue();
+        ->and($stored->reachedKnown)->toBeTrue()
+        ->and($stored->lastDedupSignature)->toBe('durable-signature')
+        ->and($stored->blocksInInterval)->toBe(3);
+});
+
+test('legacy cursor JSON получает безопасные defaults cap-detector', function () {
+    $cursor = ListingCursor::fromArray(['blockFrom' => 501]);
+
+    expect($cursor->lastDedupSignature)->toBeNull()
+        ->and($cursor->blocksInInterval)->toBe(0);
 });
 
 test('pause переводит running в paused, пишет stats.stop_reason и гасит запрос остановки', function () {

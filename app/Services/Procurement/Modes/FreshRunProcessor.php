@@ -47,7 +47,6 @@ final readonly class FreshRunProcessor
         $maxBlocks = (int) config('crawler.fresh_max_blocks', 40);
         $checkpointSeconds = (int) config('crawler.run.checkpoint_seconds', 240);
         $startedAt = Carbon::now();
-        $previousSignature = null;
         // Порог считается ОДИН раз на старте (Implementation Rule 2): предыдущий завершённый
         // прогон за время обхода не меняется, перечитывание на каждом блоке — лишний запрос.
         $onlyFreshThreshold = $this->resolveOnlyFreshThreshold(crawler: $crawler, previousCompletedRun: $previousCompletedRun);
@@ -84,15 +83,21 @@ final readonly class FreshRunProcessor
 
                 // Сравнение — ПОСЛЕ инжеста (Implementation Rule 4): строки блока уже сохранены,
                 // останавливаемся, собрав блок, а не выбросив его.
+                if ($cursor->lastDedupSignature !== null && $batch->dedupSignature === $cursor->lastDedupSignature) {
+                    $this->handleCapHit(crawler: $crawler, run: $run, blockFrom: $cursor->blockFrom);
+                    $this->markStopReason(run: $run, reason: 'dedup_signature_repeat');
+
+                    $cursor = $cursor->withReachedKnown();
+                    $this->runs->updateCursor(run: $run, cursor: $cursor);
+                    $this->runs->complete(run: $run);
+
+                    return $run;
+                }
+
                 if ($this->reachedPreviousRun(threshold: $onlyFreshThreshold, oldestUpdateSeen: $fetchResult->oldestUpdateSeen)) {
                     $this->markStopReason(run: $run, reason: 'reached_previous_run', stopThresholdAt: $onlyFreshThreshold);
 
-                    $cursor = new ListingCursor(
-                        blockFrom: $cursor->blockFrom,
-                        day: $cursor->day,
-                        priceStack: $cursor->priceStack,
-                        reachedKnown: true,
-                    );
+                    $cursor = $cursor->withReachedKnown();
                     $this->runs->updateCursor(run: $run, cursor: $cursor);
                     $this->runs->complete(run: $run);
 
@@ -102,42 +107,14 @@ final readonly class FreshRunProcessor
                 if ($fetchResult->rowsNew === 0 && $fetchResult->rowsUpdated === 0) {
                     $this->markStopReason(run: $run, reason: 'no_new_or_updated_rows');
 
-                    $cursor = new ListingCursor(
-                        blockFrom: $cursor->blockFrom,
-                        day: $cursor->day,
-                        priceStack: $cursor->priceStack,
-                        reachedKnown: true,
-                    );
+                    $cursor = $cursor->withReachedKnown();
                     $this->runs->updateCursor(run: $run, cursor: $cursor);
                     $this->runs->complete(run: $run);
 
                     return $run;
                 }
 
-                if ($previousSignature !== null && $batch->dedupSignature === $previousSignature) {
-                    $this->handleCapHit(crawler: $crawler, run: $run, blockFrom: $cursor->blockFrom);
-                    $this->markStopReason(run: $run, reason: 'dedup_signature_repeat');
-
-                    $cursor = new ListingCursor(
-                        blockFrom: $cursor->blockFrom,
-                        day: $cursor->day,
-                        priceStack: $cursor->priceStack,
-                        reachedKnown: true,
-                    );
-                    $this->runs->updateCursor(run: $run, cursor: $cursor);
-                    $this->runs->complete(run: $run);
-
-                    return $run;
-                }
-
-                $previousSignature = $batch->dedupSignature;
-
-                $cursor = new ListingCursor(
-                    blockFrom: $cursor->blockFrom + $blockSize,
-                    day: $cursor->day,
-                    priceStack: $cursor->priceStack,
-                    reachedKnown: false,
-                );
+                $cursor = $cursor->afterFreshBlock(blockSize: $blockSize, dedupSignature: $batch->dedupSignature);
                 $this->runs->updateCursor(run: $run, cursor: $cursor);
                 $this->runs->heartbeat(run: $run);
             }
