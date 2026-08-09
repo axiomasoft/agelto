@@ -3,9 +3,18 @@
 **Обновлён:** 2026-08-09 · **Соответствует plan.md:** Layout v2, 75 items, audit-remediation D48–D54 и owner acceptance D55
 
 Roadmap пересобран после повторного full `finish` D52 и адресной remediation F1–F12; D55 закрывает
-audit-loop после трёх заходов и открывает execution напрямую с P0.0. Все items ниже — `solo`:
-их Inputs последовательно зависят от предыдущего item, а `manual` high/full slices слишком велики
-для одной контекстной серии. `plan-exec` оставлен только там, где §3 Routing прямо это разрешает.
+audit-loop после трёх заходов и открывает execution напрямую с P0.0. `solo` оставлен для owner-gate,
+смены route/review и frontier freeze; совместимые последовательные manual items объединяются в
+batch и всё равно закрываются каждый своим commit/validation/handoff.
+
+## Матрица решений по группировке
+
+| Фаза | Кандидаты | Решение | Route/review | Причина |
+|:--|:--|:--|:--|:--|
+| P0 | P0.3–P0.5 | B0-RAG | implementation/high · full | одна evidence-цепь без owner gate; P0.1/P0.2 и P0.6 остаются solo из-за external gate/frontier freeze |
+| P1 | P1.2–P1.5 | B1-RUNTIME | implementation/high · full | одна Compose/image/Vite/deploy цепь после P1.1; заключительный gate остаётся внутри серии |
+| P3 | P3.1–P3.5 | B3-READINESS | implementation/high · full | diagnosis→repair→readiness→E2E→recovery использует один runtime context; root-cause escalation останавливает серию |
+| P2, P4–P12 | текущие solo | solo | как в §3 Routing | требуются owner/external gates, frontier freeze либо отдельный риск-контекст; кандидаты на следующие batch-проходы рассматриваются по фактическим terminal inputs |
 
 ## Карта исполнения
 
@@ -14,26 +23,26 @@ audit-loop после трёх заходов и открывает execution н
 | P0.0 | solo | `task:plan-exec … P0.0` | implementation/medium | — | prerequisite: materialize stdlib citation verifier before all consumers |
 | P0.1 | solo | `task:plan-run … P0.1` | implementation/high | — | широкий immutable repo inventory; отдельный evidence close |
 | P0.2 | solo | `task:plan-run … P0.2` | implementation/high | доступ к 3 reference trees | отдельный чужой-tree snapshot, не смешивать с P0.1 |
-| P0.3 | solo | `task:plan-run … P0.3` | implementation/high | — | infrastructure RAG со своим findings carrier |
-| P0.4 | solo | `task:plan-run … P0.4` | implementation/high | — | Laravel/assets/docs/test RAG после P0.3 |
-| P0.5 | solo | `task:plan-run … P0.5` | implementation/high | — | domain/security RAG после P0.3/P0.4 |
+| P0.3 | B0-RAG | `task:plan-run … P0.3-P0.5` | implementation/high | — | sequential RAG series; each item retains its close cycle |
+| P0.4 | B0-RAG | ↑ | implementation/high | — | consumes P0.3 findings in-session |
+| P0.5 | B0-RAG | ↑ | implementation/high | — | consumes P0.4 findings in-session |
 | P0.6 | solo | `task:plan-run … P0.6` | frontier/high | утверждение frozen contracts | cross-track synthesis меняет tier и запечатывает решения |
 | P1.1 | solo | `task:plan-exec … P1.1` | implementation/medium | — | самостоятельный Make taxonomy/contract slice |
-| P1.2 | solo | `task:plan-run … P1.2` | implementation/high | — | dev Compose runtime mutation + full review |
-| P1.3 | solo | `task:plan-run … P1.3` | implementation/high | — | immutable production image security boundary |
-| P1.4 | solo | `task:plan-run … P1.4` | implementation/high | — | frontend supply-chain/image artifact boundary |
-| P1.5 | solo | `task:plan-run … P1.5` | implementation/high | — | terminal P1 cross-carrier reconciliation |
+| P1.2 | B1-RUNTIME | `task:plan-run … P1.2-P1.5` | implementation/high | — | one sequential runtime series; full review each item |
+| P1.3 | B1-RUNTIME | ↑ | implementation/high | — | consumes dev Compose contract |
+| P1.4 | B1-RUNTIME | ↑ | implementation/high | — | consumes image boundary |
+| P1.5 | B1-RUNTIME | ↑ | implementation/high | — | terminal gate in the same series |
 | P2.1 | solo | `task:plan-run … P2.1` | implementation/high | private repo access | private dependency/source lock boundary |
 | P2.2 | solo | `task:plan-run … P2.2` | implementation/high | — | credential generation/grants security boundary |
 | P2.3 | solo | `task:plan-run … P2.3` | implementation/high | — | fail-closed non-mutating preflight |
 | P2.4 | solo | `task:plan-run … P2.4` | implementation/high | — | resumable bootstrap integrates prior carriers |
 | P2.5 | solo | `task:plan-run … P2.5` | implementation/high | initial-admin identity | production seed/admin auth mutation |
 | P2.6 | solo | `task:plan-run … P2.6` | implementation/high | — | Doctor dependency/image/readiness boundary |
-| P3.1 | solo | `task:plan-run … P3.1` | implementation/high | — | before-fix runtime evidence and root-cause gate |
-| P3.2 | solo | `task:plan-run … P3.2` | implementation/high | — | framework asset/Nginx/image repair |
-| P3.3 | solo | `task:plan-run … P3.3` | implementation/high | — | active readiness and worker semantics |
-| P3.4 | solo | `task:plan-run … P3.4` | implementation/high | — | pinned clean-clone browser acceptance |
-| P3.5 | solo | `task:plan-run … P3.5` | implementation/high | — | destructive-looking recovery containment proof |
+| P3.1 | B3-READINESS | `task:plan-run … P3.1-P3.5` | implementation/high | — | diagnosis→repair→proof; stop on escalation |
+| P3.2 | B3-READINESS | ↑ | implementation/high | — | permitted repair from P3.1 evidence |
+| P3.3 | B3-READINESS | ↑ | implementation/high | — | readiness follows repair |
+| P3.4 | B3-READINESS | ↑ | implementation/high | — | E2E follows readiness |
+| P3.5 | B3-READINESS | ↑ | implementation/high | — | terminal recovery proof |
 | P4.1 | solo | `task:plan-run … P4.1` | frontier/high | frozen threat model | public security contract freeze changes tier |
 | P4.2 | solo | `task:plan-run … P4.2` | implementation/high | — | private docs build/image supply-chain |
 | P4.3 | solo | `task:plan-run … P4.3` | implementation/high | — | path/MIME/cache response security boundary |

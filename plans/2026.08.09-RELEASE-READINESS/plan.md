@@ -64,26 +64,26 @@ owner acceptance D55 открывает execution напрямую с P0.0 бе�
 | — | P0.0 | implementation/medium | plan-exec | full | отдельный deterministic stdlib citation carrier по запечатанному D48; executable selftest и strict gate без product design |
 | — | P0.1 | implementation/high | manual | full | широкий repo inventory по запечатанной схеме; high нужен для cross-layer synthesis, новых product-решений нет |
 | — | P0.2 | implementation/high | manual | full | read-only сравнение трёх dirty reference trees требует воспроизводимого evidence snapshot и синтеза |
-| — | P0.3 | implementation/high | manual | full | infrastructure RAG уточняет runtime/deploy boundary для следующего Laravel-трека |
-| — | P0.4 | implementation/high | manual | full | Laravel/assets/docs/test RAG потребляет P0.3 и задаёт security boundary для P0.5 |
-| — | P0.5 | implementation/high | manual | full | domain/security RAG потребляет запечатанные P0.3/P0.4 findings; новых product-решений не принимает |
+| B0-RAG | P0.3 | implementation/high | manual | full | последовательная RAG-серия с одним evidence context; P0.3 результат обязателен для P0.4 |
+| B0-RAG | P0.4 | implementation/high | manual | full | последовательная RAG-серия; P0.4 findings обязательны для P0.5 |
+| B0-RAG | P0.5 | implementation/high | manual | full | завершает RAG-серию без owner gate внутри неё |
 | — | P0.6 | frontier/high | manual | full | заморозка межфазных contracts и альтернатив — открытые design-решения и высокая цена семантической ошибки |
 | — | P1.1 | implementation/medium | plan-exec | full | target taxonomy/help/preflight реализуются по D10/D16 и проверяются детерминированным shell harness |
-| — | P1.2 | implementation/high | manual | full | dev Compose меняет общий runtime hotspot и non-TTY agent path; design уже запечатан D16 |
-| — | P1.3 | implementation/high | manual | full | production image/service boundary security-critical, но решения запечатаны D17 |
-| — | P1.4 | implementation/high | manual | full | frontend supply-chain, Vite HMR и image artifact boundary требуют high без открытого product design |
-| — | P1.5 | implementation/high | manual | full | deploy taxonomy и сквозные infra contract gates затрагивают production lifecycle |
+| B1-RUNTIME | P1.2 | implementation/high | manual | full | последовательная runtime-серия после P1.1; один route/review, без owner gate внутри |
+| B1-RUNTIME | P1.3 | implementation/high | manual | full | потребляет P1.2 и остаётся в той же runtime-серии |
+| B1-RUNTIME | P1.4 | implementation/high | manual | full | потребляет image boundary P1.3 в той же runtime-серии |
+| B1-RUNTIME | P1.5 | implementation/high | manual | full | terminal gate той же серии; full review сохраняется |
 | — | P2.1 | implementation/high | manual | full | private dependency lock и Composer/image closure security-critical, но D6/D19 запечатали carrier |
 | — | P2.2 | implementation/high | manual | full | file-secret generation/Compose grants меняют production credential boundary по D20 |
 | — | P2.3 | implementation/high | manual | full | fail-closed preflight проверяет security/deploy prerequisites без новых product-решений |
 | — | P2.4 | implementation/high | manual | full | bootstrap связывает vendor/secrets/image/runtime и требует high для идемпотентности/rollback boundary |
 | — | P2.5 | implementation/high | manual | full | production seeds и initial-admin auth mutation security-critical, решения уже запечатаны |
 | — | P2.6 | implementation/high | manual | full | first-party Doctor integration и companion image исполняют D21 без открытого product design |
-| — | P3.1 | implementation/high | manual | full | constrained runtime diagnosis по запечатанной evidence-схеме; root-cause mismatch эскалирует D22 |
-| — | P3.2 | implementation/high | manual | full | Nginx/Composer/image asset boundary cross-layer и correctness-critical, решения запечатаны D22 |
-| — | P3.3 | implementation/high | manual | full | readiness/Doctor/worker semantics production-critical, но carrier запечатан D21/D23 |
-| — | P3.4 | implementation/high | manual | full | browser dependency, auth state и isolated clean install требуют high без открытого product design |
-| — | P3.5 | implementation/high | manual | full | destructive-looking recovery proof требует containment и full review по D22/D25 |
+| B3-READINESS | P3.1 | implementation/high | manual | full | последовательная diagnosis→repair→proof серия; stop при root-cause escalation |
+| B3-READINESS | P3.2 | implementation/high | manual | full | разрешённый repair после P3.1 в той же серии |
+| B3-READINESS | P3.3 | implementation/high | manual | full | readiness carrier после repair, тот же route/review |
+| B3-READINESS | P3.4 | implementation/high | manual | full | E2E доказательство после readiness, тот же route/review |
+| B3-READINESS | P3.5 | implementation/high | manual | full | terminal recovery proof той же серии |
 | — | P4.1 | frontier/high | manual | full | финальный reconcile/freeze threat model после terminal P0/P1/P3: открытая цена security-contract ошибки требует frontier |
 | — | P4.2 | implementation/high | manual | full | generator/manifest/image supply-chain реализуются по D26; security и immutable artifact требуют high |
 | — | P4.3 | implementation/high | manual | full | path containment, MIME и response policy security-critical, но D27 уже запечатал архитектуру |
