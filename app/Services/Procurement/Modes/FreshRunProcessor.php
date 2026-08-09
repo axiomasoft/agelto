@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services\Procurement\Modes;
 
 use App\Dto\Procurement\Crawler\ListingCursor;
+use App\Enums\Procurement\Crawler\RunPurpose;
 use App\Enums\Procurement\Crawler\RunStopKind;
 use App\Enums\Procurement\Crawler\RunStopPolicy;
 use App\Exceptions\Procurement\Crawler\PlatformBudgetExhaustedException;
@@ -37,7 +38,7 @@ final readonly class FreshRunProcessor
 
     public function run(Crawler $crawler): Run
     {
-        $run = $this->runs->startOrResume(crawler: $crawler);
+        $run = $this->runs->startOrResume(crawler: $crawler, purpose: RunPurpose::Profile, subjectKey: null);
         $previousCompletedRun = $this->runs->lastCompletedRun(crawler: $crawler, excludeRunId: $run->id);
         $this->runs->recordScanGap(run: $run, previousCompletedRun: $previousCompletedRun);
 

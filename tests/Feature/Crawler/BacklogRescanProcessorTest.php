@@ -6,6 +6,7 @@ use App\Dto\Procurement\Crawler\ListingBatch;
 use App\Dto\Procurement\Crawler\ListingCursor;
 use App\Dto\Procurement\ProcurementDetails;
 use App\Enums\Procurement\Crawler\CrawlerMode;
+use App\Enums\Procurement\Crawler\RunPurpose;
 use App\Enums\Procurement\Crawler\RunStatus;
 use App\Enums\Procurement\Crawler\RunStopKind;
 use App\Enums\Procurement\Crawler\SourceMethod as SourceMethodEnum;
@@ -151,6 +152,26 @@ test('повторный sweep() уже помеченный run не берёт
 
     expect($processed)->toBe(0)
         ->and(Run::query()->count())->toBe(1);
+});
+
+test('чужой running archive-прогон оставляет fresh-run без backlog acknowledgement', function () {
+    $registry = Registry::factory()->create();
+    $freshCrawler = Crawler::factory()->create(['registry_id' => $registry->id, 'mode' => CrawlerMode::Fresh]);
+    $archiveCrawler = Crawler::factory()->create(['registry_id' => $registry->id, 'mode' => CrawlerMode::Archive, 'is_active' => true]);
+    $freshRun = Run::factory()->for($freshCrawler, 'crawler')->create([
+        'status' => RunStatus::Completed,
+        'stats' => ['cap_hit' => true, 'possible_skip_window' => ['from' => '2024-01-01T00:00:00Z', 'to' => '2024-01-01T12:00:00Z']],
+    ]);
+    $ownerRun = Run::factory()->for($archiveCrawler)->create([
+        'purpose' => RunPurpose::Profile,
+        'subject_key' => null,
+    ]);
+
+    $processed = app(BacklogRescanProcessor::class)->sweep();
+
+    expect($processed)->toBe(0)
+        ->and($ownerRun->refresh()->status)->toBe(RunStatus::Running)
+        ->and($freshRun->refresh()->stats['backlog_rescanned_at'] ?? null)->toBeNull();
 });
 
 test('нет archive-профиля реестра — warning, флаг не помечен, scan не вызван', function () {

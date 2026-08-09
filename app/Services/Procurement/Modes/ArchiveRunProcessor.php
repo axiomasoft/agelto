@@ -7,6 +7,7 @@ namespace App\Services\Procurement\Modes;
 use App\Dto\Procurement\Crawler\ListingCursor;
 use App\Dto\Procurement\Crawler\WindowFilter;
 use App\Enums\Procurement\Crawler\ArchiveWindowScanResult;
+use App\Enums\Procurement\Crawler\RunPurpose;
 use App\Enums\Procurement\Crawler\RunStatus;
 use App\Models\Procurement\Crawler\Crawler;
 use App\Models\Procurement\Crawler\Run;
@@ -31,7 +32,7 @@ final readonly class ArchiveRunProcessor
 
     public function run(Crawler $crawler, CarbonInterface $from, CarbonInterface $to): Run
     {
-        $run = $this->runs->startOrResume(crawler: $crawler);
+        $run = $this->runs->startOrResume(crawler: $crawler, purpose: RunPurpose::Profile, subjectKey: null);
         $cursor = ListingCursor::fromArray(cursor: $run->cursor?->toArray() ?? []);
         $day = $cursor->day !== null ? Carbon::parse($cursor->day) : $from->copy()->startOfDay();
 

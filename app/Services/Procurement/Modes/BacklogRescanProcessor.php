@@ -8,7 +8,9 @@ use App\Dto\Procurement\Crawler\ListingCursor;
 use App\Dto\Procurement\Crawler\WindowFilter;
 use App\Enums\Procurement\Crawler\ArchiveWindowScanResult;
 use App\Enums\Procurement\Crawler\CrawlerMode;
+use App\Enums\Procurement\Crawler\RunPurpose;
 use App\Enums\Procurement\Crawler\RunStatus;
+use App\Exceptions\Procurement\Crawler\CrawlerRunBusyException;
 use App\Models\Procurement\Crawler\Crawler;
 use App\Models\Procurement\Crawler\Run;
 use App\Services\Procurement\ArchiveWindowScanner;
@@ -88,7 +90,15 @@ final readonly class BacklogRescanProcessor
             return false;
         }
 
-        $archiveRun = $this->runs->startOrResume(crawler: $archiveCrawler);
+        try {
+            $archiveRun = $this->runs->startOrResume(
+                crawler: $archiveCrawler,
+                purpose: RunPurpose::Backlog,
+                subjectKey: "fresh-run:{$freshRun->id}",
+            );
+        } catch (CrawlerRunBusyException) {
+            return false;
+        }
 
         try {
             $result = $this->drainWindow(crawler: $archiveCrawler, run: $archiveRun, from: Carbon::parse($from), to: Carbon::parse($to));

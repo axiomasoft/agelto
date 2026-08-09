@@ -6,6 +6,7 @@ use App\Dto\Procurement\Crawler\ListingBatch;
 use App\Dto\Procurement\Crawler\ListingCursor;
 use App\Dto\Procurement\ProcurementDetails;
 use App\Enums\Procurement\Crawler\CrawlerMode;
+use App\Enums\Procurement\Crawler\RunPurpose;
 use App\Enums\Procurement\Crawler\RunStatus;
 use App\Enums\Procurement\Crawler\RunStopKind;
 use App\Enums\Procurement\Crawler\SourceMethod as SourceMethodEnum;
@@ -134,6 +135,22 @@ test('нет активного archive-профиля реестра — warnin
     Log::shouldHaveReceived('warning')
         ->withArgs(fn (string $message): bool => str_contains($message, 'no active archive profile'))
         ->once();
+});
+
+test('чужой running archive-прогон даёт busy без сканирования и completion', function () {
+    $registry = Registry::factory()->create();
+    $freshCrawler = Crawler::factory()->create(['registry_id' => $registry->id, 'mode' => CrawlerMode::Fresh]);
+    $archiveCrawler = Crawler::factory()->create(['registry_id' => $registry->id, 'mode' => CrawlerMode::Archive, 'is_active' => true]);
+    $ownerRun = Run::factory()->for($archiveCrawler)->create([
+        'purpose' => RunPurpose::Profile,
+        'subject_key' => null,
+    ]);
+
+    $run = app(DeltaScanProcessor::class)->run(crawler: $freshCrawler);
+
+    expect($run)->toBeNull()
+        ->and($ownerRun->refresh()->status)->toBe(RunStatus::Running)
+        ->and($ownerRun->purpose)->toBe(RunPurpose::Profile);
 });
 
 test('активный archive-профиль реестра — дренирует окно [сегодня − overlap; сегодня] по update, run завершён', function () {

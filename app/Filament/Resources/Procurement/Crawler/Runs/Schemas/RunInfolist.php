@@ -28,6 +28,12 @@ class RunInfolist
                         TextEntry::make('status')
                             ->label('Статус')
                             ->badge(),
+                        TextEntry::make('purpose')
+                            ->label('Назначение')
+                            ->badge(),
+                        TextEntry::make('subject_key')
+                            ->label('Субъект')
+                            ->placeholder('—'),
                         TextEntry::make('started_at')
                             ->label('Начат')
                             ->dateTime()

@@ -27,6 +27,8 @@ return new class extends Migration
                 ->onDelete('NO ACTION');
 
             $table->text('status');
+            $table->text('purpose')->default('profile');
+            $table->text('subject_key')->nullable();
 
             $table->jsonb('cursor')->nullable()->comment('день/ценовой стек/блок from/признак «дошли до известного»');
             $table->jsonb('stats')->nullable();

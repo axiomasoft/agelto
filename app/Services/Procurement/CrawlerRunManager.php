@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace App\Services\Procurement;
 
 use App\Dto\Procurement\Crawler\ListingCursor;
+use App\Enums\Procurement\Crawler\RunPurpose;
 use App\Enums\Procurement\Crawler\RunStatus;
+use App\Exceptions\Procurement\Crawler\CrawlerRunBusyException;
 use App\Models\Procurement\Crawler\Crawler;
 use App\Models\Procurement\Crawler\Run;
 use Illuminate\Database\UniqueConstraintViolationException;
@@ -13,27 +15,32 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 
 /**
- * Жизненный цикл прогона: инвариант «один `running` на профиль» владеет
- * частичный unique-индекс БД (`crw_runs_crawler_id_running_unique`) — менеджер
- * ловит нарушение и резолвит гонку, вторую PHP-проверку не заводит.
+ * Жизненный цикл прогона: частичный unique-индекс БД сохраняет один `running`
+ * на crawler, а purpose/subject_key определяют владельца его курсора.
  */
 final readonly class CrawlerRunManager
 {
-    public function startOrResume(Crawler $crawler): Run
+    public function startOrResume(Crawler $crawler, RunPurpose $purpose, ?string $subjectKey): Run
     {
-        return DB::transaction(function () use ($crawler): Run {
+        return DB::transaction(function () use ($crawler, $purpose, $subjectKey): Run {
+            $lockedCrawler = Crawler::query()->lockForUpdate()->findOrFail($crawler->id);
             $running = Run::query()
-                ->where('crawler_id', $crawler->id)
+                ->where('crawler_id', $lockedCrawler->id)
                 ->where('status', RunStatus::Running)
                 ->first();
 
             if ($running !== null) {
-                return $running;
+                return $this->ownerMatches(run: $running, purpose: $purpose, subjectKey: $subjectKey)
+                    ? $running
+                    : throw CrawlerRunBusyException::forRun(activeRun: $running);
             }
 
             $paused = Run::query()
-                ->where('crawler_id', $crawler->id)
+                ->where('crawler_id', $lockedCrawler->id)
                 ->where('status', RunStatus::Paused)
+                ->where('purpose', $purpose)
+                ->when($subjectKey === null, fn ($query) => $query->whereNull('subject_key'))
+                ->when($subjectKey !== null, fn ($query) => $query->where('subject_key', $subjectKey))
                 ->latest('id')
                 ->first();
 
@@ -44,20 +51,31 @@ final readonly class CrawlerRunManager
             }
 
             try {
-                return Run::query()->create([
-                    'crawler_id' => $crawler->id,
+                return DB::transaction(fn (): Run => Run::query()->create([
+                    'crawler_id' => $lockedCrawler->id,
                     'status' => RunStatus::Running,
+                    'purpose' => $purpose,
+                    'subject_key' => $subjectKey,
                     'cursor' => (new ListingCursor)->toArray(),
                     'started_at' => now(),
                     'last_heartbeat_at' => now(),
-                ]);
+                ]));
             } catch (UniqueConstraintViolationException) {
-                return Run::query()
-                    ->where('crawler_id', $crawler->id)
+                $winner = Run::query()
+                    ->where('crawler_id', $lockedCrawler->id)
                     ->where('status', RunStatus::Running)
                     ->firstOrFail();
+
+                return $this->ownerMatches(run: $winner, purpose: $purpose, subjectKey: $subjectKey)
+                    ? $winner
+                    : throw CrawlerRunBusyException::forRun(activeRun: $winner);
             }
         });
+    }
+
+    private function ownerMatches(Run $run, RunPurpose $purpose, ?string $subjectKey): bool
+    {
+        return $run->purpose === $purpose && $run->subject_key === $subjectKey;
     }
 
     public function heartbeat(Run $run): void

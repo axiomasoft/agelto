@@ -3,19 +3,22 @@
 declare(strict_types=1);
 
 use App\Dto\Procurement\Crawler\ListingCursor;
+use App\Enums\Procurement\Crawler\RunPurpose;
 use App\Enums\Procurement\Crawler\RunStatus;
 use App\Enums\Procurement\Crawler\RunStopKind;
+use App\Exceptions\Procurement\Crawler\CrawlerRunBusyException;
 use App\Models\Procurement\Crawler\Crawler;
 use App\Models\Procurement\Crawler\Run;
 use App\Services\Procurement\CrawlerRunManager;
 use Illuminate\Console\Command;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Carbon;
+use Tests\Support\Postgres\ConcurrentTransactions;
 
 test('первый startOrResume создаёт один running-прогон', function () {
     $crawler = Crawler::factory()->create();
 
-    $run = app(CrawlerRunManager::class)->startOrResume($crawler);
+    $run = app(CrawlerRunManager::class)->startOrResume(crawler: $crawler, purpose: RunPurpose::Profile, subjectKey: null);
 
     expect($run->status)->toBe(RunStatus::Running)
         ->and(Run::query()->where('crawler_id', $crawler->id)->count())->toBe(1);
@@ -25,8 +28,8 @@ test('повторный startOrResume резюмит тот же running, вт�
     $crawler = Crawler::factory()->create();
     $manager = app(CrawlerRunManager::class);
 
-    $first = $manager->startOrResume($crawler);
-    $second = $manager->startOrResume($crawler);
+    $first = $manager->startOrResume(crawler: $crawler, purpose: RunPurpose::Profile, subjectKey: null);
+    $second = $manager->startOrResume(crawler: $crawler, purpose: RunPurpose::Profile, subjectKey: null);
 
     expect($second->id)->toBe($first->id)
         ->and(Run::query()->where('crawler_id', $crawler->id)->where('status', RunStatus::Running)->count())->toBe(1);
@@ -43,10 +46,95 @@ test('paused-прогон резюмится в running при startOrResume', f
     $crawler = Crawler::factory()->create();
     $paused = Run::factory()->for($crawler)->create(['status' => RunStatus::Paused]);
 
-    $resumed = app(CrawlerRunManager::class)->startOrResume($crawler);
+    $resumed = app(CrawlerRunManager::class)->startOrResume(crawler: $crawler, purpose: RunPurpose::Profile, subjectKey: null);
 
     expect($resumed->id)->toBe($paused->id)
         ->and($resumed->status)->toBe(RunStatus::Running);
+});
+
+test('другой owner не получает running-прогон и не меняет его курсор', function () {
+    $crawler = Crawler::factory()->create();
+    $running = Run::factory()->for($crawler)->create([
+        'purpose' => RunPurpose::Profile,
+        'subject_key' => null,
+        'cursor' => ['blockFrom' => 501],
+    ]);
+    $manager = app(CrawlerRunManager::class);
+
+    expect(fn () => $manager->startOrResume(
+        crawler: $crawler,
+        purpose: RunPurpose::Delta,
+        subjectKey: "fresh-crawler:{$crawler->id}",
+    ))->toThrow(CrawlerRunBusyException::class)
+        ->and(fn () => $manager->startOrResume(
+            crawler: $crawler,
+            purpose: RunPurpose::Backlog,
+            subjectKey: 'fresh-run:1',
+        ))->toThrow(CrawlerRunBusyException::class);
+
+    expect($running->refresh()->purpose)->toBe(RunPurpose::Profile)
+        ->and($running->subject_key)->toBeNull()
+        ->and($running->cursor->all())->toBe(['blockFrom' => 501]);
+});
+
+test('backlog owner не резюмирует другой subject', function () {
+    $crawler = Crawler::factory()->create();
+    $running = Run::factory()->for($crawler)->create([
+        'purpose' => RunPurpose::Backlog,
+        'subject_key' => 'fresh-run:101',
+    ]);
+
+    expect(fn () => app(CrawlerRunManager::class)->startOrResume(
+        crawler: $crawler,
+        purpose: RunPurpose::Backlog,
+        subjectKey: 'fresh-run:102',
+    ))->toThrow(CrawlerRunBusyException::class);
+
+    expect($running->refresh()->subject_key)->toBe('fresh-run:101')
+        ->and($running->status)->toBe(RunStatus::Running);
+});
+
+test('два PostgreSQL worker одновременно стартуют одного owner в один run', function () {
+    $crawler = ConcurrentTransactions::execute(<<<'PHP'
+$crawler = \App\Models\Procurement\Crawler\Crawler::factory()->create();
+
+return ['crawler_id' => $crawler->id];
+PHP);
+
+    try {
+        $workers = ConcurrentTransactions::concurrently([
+            'first' => <<<PHP
+\$crawler = \App\Models\Procurement\Crawler\Crawler::findOrFail({$crawler['crawler_id']});
+\$run = app(\App\Services\Procurement\CrawlerRunManager::class)->startOrResume(
+    crawler: \$crawler,
+    purpose: \App\Enums\Procurement\Crawler\RunPurpose::Delta,
+    subjectKey: 'fresh-crawler:{$crawler['crawler_id']}',
+);
+
+return ['run_id' => \$run->id, 'backend_pid' => \Illuminate\Support\Facades\DB::scalar('select pg_backend_pid()')];
+PHP,
+            'second' => <<<PHP
+\$crawler = \App\Models\Procurement\Crawler\Crawler::findOrFail({$crawler['crawler_id']});
+\$run = app(\App\Services\Procurement\CrawlerRunManager::class)->startOrResume(
+    crawler: \$crawler,
+    purpose: \App\Enums\Procurement\Crawler\RunPurpose::Delta,
+    subjectKey: 'fresh-crawler:{$crawler['crawler_id']}',
+);
+
+return ['run_id' => \$run->id, 'backend_pid' => \Illuminate\Support\Facades\DB::scalar('select pg_backend_pid()')];
+PHP,
+        ]);
+
+        expect($workers['first']['run_id'])->toBe($workers['second']['run_id'])
+            ->and($workers['first']['backend_pid'])->not->toBe($workers['second']['backend_pid']);
+    } finally {
+        ConcurrentTransactions::execute(<<<PHP
+\App\Models\Procurement\Crawler\Run::query()->where('crawler_id', {$crawler['crawler_id']})->delete();
+\App\Models\Procurement\Crawler\Crawler::query()->whereKey({$crawler['crawler_id']})->delete();
+
+return ['cleaned' => true];
+PHP);
+    }
 });
 
 test('recoverStale переводит протухший running в paused и не трогает свежий', function () {

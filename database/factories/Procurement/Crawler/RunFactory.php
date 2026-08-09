@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Database\Factories\Procurement\Crawler;
 
+use App\Enums\Procurement\Crawler\RunPurpose;
 use App\Enums\Procurement\Crawler\RunStatus;
 use App\Models\Procurement\Crawler\Crawler;
 use App\Models\Procurement\Crawler\Run;
@@ -21,6 +22,8 @@ final class RunFactory extends Factory
         return [
             'crawler_id' => Crawler::factory(),
             'status' => RunStatus::Running,
+            'purpose' => RunPurpose::Profile,
+            'subject_key' => null,
             'cursor' => null,
             'stats' => null,
             'started_at' => now(),

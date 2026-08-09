@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models\Procurement\Crawler;
 
+use App\Enums\Procurement\Crawler\RunPurpose;
 use App\Enums\Procurement\Crawler\RunStatus;
 use App\Enums\Procurement\Crawler\RunStopKind;
 use App\Models\User;
@@ -23,6 +24,8 @@ use Illuminate\Support\Collection;
  * @property int $id
  * @property int $crawler_id
  * @property RunStatus $status
+ * @property RunPurpose $purpose
+ * @property string|null $subject_key
  * @property Collection<array-key, mixed>|null $cursor
  * @property Collection<array-key, mixed>|null $stats
  * @property Carbon|null $started_at
@@ -50,6 +53,8 @@ final class Run extends Model
     protected $fillable = [
         'crawler_id',
         'status',
+        'purpose',
+        'subject_key',
         'cursor',
         'stats',
         'started_at',
@@ -70,6 +75,7 @@ final class Run extends Model
     {
         return [
             'status' => RunStatus::class,
+            'purpose' => RunPurpose::class,
             'cursor' => AsCollection::class,
             'stats' => AsCollection::class,
             'started_at' => 'datetime',

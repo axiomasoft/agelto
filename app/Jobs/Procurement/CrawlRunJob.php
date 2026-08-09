@@ -6,6 +6,7 @@ namespace App\Jobs\Procurement;
 
 use App\Enums\Procurement\Crawler\CrawlerExecutionLane;
 use App\Enums\Procurement\Crawler\CrawlerMode;
+use App\Enums\Procurement\Crawler\RunPurpose;
 use App\Enums\Procurement\Crawler\RunStatus;
 use App\Models\Procurement\Crawler\Crawler;
 use App\Services\Procurement\Crawler\CrawlQueueRoute;
@@ -72,7 +73,7 @@ final class CrawlRunJob implements ShouldBeUniqueUntilProcessing, ShouldQueue
     ): void {
         $crawler = Crawler::findOrFail($this->crawlerId);
 
-        $run = $runs->startOrResume(crawler: $crawler);
+        $run = $runs->startOrResume(crawler: $crawler, purpose: RunPurpose::Profile, subjectKey: null);
         $run->update(['queue_job_id' => $this->job?->getJobId()]);
 
         $run = match ($this->mode) {
