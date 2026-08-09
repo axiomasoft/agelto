@@ -5,11 +5,21 @@
 
 | Параметр | Значение |
 |:--|:--|
-| Model | — |
-| Thinking | — |
+| Model | `gpt-5.6-sol` |
+| Thinking | `xhigh` |
 | Context | P10 terminal after D138 |
 | Exec / Review | manual / full |
-| Команда | — |
+| Approval | `never` |
+| Sandbox | `danger-full-access` |
+| Команда | готовый launch block ниже |
+
+## New-session verification launch
+
+Выполнить из любого каталога:
+
+```bash
+codex -C /home/vostrikov/projects/agelto/agelto -m gpt-5.6-sol -c 'model_reasoning_effort="xhigh"' -a never -s danger-full-access 'Read AGENTS.md, plans/2026.08.06-CRAWL-HARDEN/handoff.md, plans/2026.08.06-CRAWL-HARDEN/plan.md, plans/2026.08.06-CRAWL-HARDEN/status.md, plans/2026.08.06-CRAWL-HARDEN/artifacts/P10-validation.json, plans/2026.08.06-CRAWL-HARDEN/findings/P10-code-adversarial-audit-2026-08-09.md, plans/2026.08.06-CRAWL-HARDEN/phases/P10/P10.md, plans/2026.08.06-CRAWL-HARDEN/phases/P10/P10.7.md, plans/2026.08.06-CRAWL-HARDEN/phases/P10/P10.7.state.md, plans/2026.08.06-CRAWL-HARDEN/decisions/D138-revision-head-order.md, app/Repositories/Procurement/ProcurementReadRepository.php, app/Services/Procurement/ProcurementIngestProcessor.php and tests/Feature/Procurement/ProcurementIngestConcurrencyTest.php. This is Layout v2. P10.7 and P10 are terminal after D138. Do not invoke task:*; do not create or edit v1 carriers, closed P1-P9 specifications, Swissknifeman files, product code, tests, documentation or plan carriers; preserve the mixed dirty worktree and existing index. Independently verify commits 97b2f84a20e2fb7b98d42e03cd347be5ca1af884 and 834d660da3a128147af54dbdc6b64eeb0a45613e: resolve the Swissknifeman marketplace root, reproduce plan-lint plus state/decisions/status checks, parse P10-validation.json, inspect the attributable commit diffs, rerun the D138 regression and complete F1-F8 carrier suite, and report whether the final GREEN product-code verdict is supported. Expected evidence: rollback ordering throws the inconsistent revision head LogicException; fixed carriers pass 54 tests / 187 assertions; complete-plan lint has exactly 27 inherited errors / 0 warnings and zero P10 diagnostics. If a new product defect is proven, stop and report the exact defect and required Layout-v2 scope admission; do not edit or commit anything in that verification session.'
+```
 
 ## Final D138 result
 
