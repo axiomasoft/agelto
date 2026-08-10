@@ -10,23 +10,21 @@ status: living
 
 - Docker + Docker Compose v2 (`docker compose`, не легаси `docker-compose`).
 - `make` (обёртка над `docker/Makefile`, см. [`commands.md`](commands.md)).
-- Node.js + `yarn` — фронтенд-сборка (Vite; пакетный менеджер строго yarn, не pnpm — канон
-  CLAUDE.md §Docker/Runtime). `composer install` НЕ входит в runtime-образ — только через
-  `make composer-install`/`make prod:composer-install` (volume-монтирование `vendor`).
+- Docker + Make достаточно для текущего dev command surface. Frontend package-manager и
+  production Composer/image topology будут уточнены следующими P1 items.
 
 ## Первый запуск
 
 ```bash
 cp .env.example .env
-cp .env.docker.example .env.docker   # опционально: dev-специфичные переменные для compose
-make up                              # docker-compose.yml: app/horizon/scheduler/postgres/redis/minio/browser
-make composer-install                # vendor как bind-mount, устанавливается ИЗ контейнера
-make db-migrate                      # либо make db-fresh — migrate:fresh на dev
-make db-seed                         # PromptSeeder + сиды llm_routes/ролей — идемпотентно
-yarn install && yarn dev             # фронтенд (Vite HMR)
+make infra:preflight MODE=dev ENV_FILE=.env.example  # проверка без запуска Docker stack
+make dev:up                          # docker-compose.yml: app/horizon/scheduler/postgres/redis/minio/browser
+make dev:composer ARGS="install"     # Composer внутри dev app
+make dev:artisan ARGS="migrate"       # миграции
+make agent:artisan ARGS="test --compact" # non-TTY запуск для агента
 ```
 
-Проверка живости: `make ps`, `curl http://localhost:8080/up` (healthcheck-эндпоинт, тот же, что
+Проверка живости: `make dev:ps`, `curl http://localhost:8080/up` (healthcheck-эндпоинт, тот же, что
 слушает Docker `healthcheck` — см. [`docker/index.md`](docker/index.md)).
 
 ## `.env`: ключевые группы
@@ -47,8 +45,7 @@ yarn install && yarn dev             # фронтенд (Vite HMR)
 ## Тесты
 
 ```bash
-make db:create-test   # разовая настройка тестовой БД agelto_test
-make test-php         # ENV=dev по умолчанию; docker compose exec app php artisan test --compact
+make agent:artisan ARGS="test --compact" # non-TTY Laravel test run
 ```
 
 Изоляция от прод/dev БД — гейт `Tests\Support\TestEnvironmentGuard`; подробности и правила именования

@@ -6,34 +6,29 @@ status: living
 
 # Команды — шпаргалка
 
-Полная справка: `make help`. Все `make`-цели — тонкая обёртка над `docker compose exec`
-(`docker/Makefile`), `ENV=prod` или алиасы `prod:*` переключают на `docker-compose.prod.yml`.
+Полная справка: `make help`. Root `Makefile` только делегирует в `docker/Makefile`; канонические
+цели namespaced и не переключают окружение скрытой переменной.
 
-## make — общие
-
-| Команда | Что делает |
-|:--|:--|
-| `make up` / `down` / `build` / `restart` / `ps` | Жизненный цикл стека |
-| `make logs [SERVICE=app]` / `make logs:core` | Логи одного сервиса / app+horizon+scheduler разом |
-| `make shell` | `bash` внутри `app` |
-| `make artisan ARGS="..."` | Любая artisan-команда без ручного `docker compose exec` |
-| `make composer ARGS="..."` | Composer внутри контейнера |
-| `make db-migrate` / `db-fresh` / `db-seed` | Миграции/`migrate:fresh`/сиды |
-| `make db:create-test` | Разовая настройка `agelto_test` |
-| `make db:backup [ENV=prod]` | `pg_dump` + обязательная проверка restore на scratch-БД (P7.7) |
-| `make test-preflight` / `test-php` | Проверка соединения с БД / полный прогон тестов |
-
-## make prod:* — деплой (D26, канон живых очередей)
+## make — канон P1
 
 | Команда | Что делает |
 |:--|:--|
-| `make prod:deploy [COLD=1]` | Канон: pull → [`COLD=1`: `horizon:pause`] → `migrate --force` (только аддитивные!) → `horizon:terminate` (graceful) → `up -d` → [`COLD=1`: `horizon:continue`] → `horizon:status` |
-| `make prod:deploy:code` | Быстрое обновление кода без миграций (`optimize:clear` + `config:cache` + рестарт) |
-| `make prod:deploy:runtime` | Composer + миграции + config:cache + рестарт |
-| `make prod:deploy:image` | Пересборка образа + полный `deploy:runtime` |
-| `make prod:doctor` | Health-check: `/up`, наличие `vendor`, статус контейнеров |
+| `make infra:preflight MODE=dev ENV_FILE=.env.example` | Проверяет Docker, Compose и рендер config без запуска, build или pull |
+| `make dev:up` / `dev:down` / `dev:ps` | Жизненный цикл dev-стека |
+| `make dev:logs [SERVICE=app]` / `dev:shell` | Логи / `bash` внутри dev `app` |
+| `make dev:artisan ARGS="..."` / `dev:composer ARGS="..."` | Artisan или Composer внутри dev `app` |
+| `make agent:artisan ARGS="..."` | Non-TTY (`-T`) Artisan для агента |
+| `make prod:config ENV_FILE=.env.production` | Только рендер production Compose, без запуска стека |
+| `make image:build` | Собирает текущий PHP-image |
 
-Подробности деплоя — [`process/deploy.md`](process/deploy.md).
+Старые ненеймспейсные цели сознательно не сохранены. Временные compatibility aliases имеют явную
+судьбу:
+
+| Alias | Canonical target | Removal note |
+|:--|:--|:--|
+| `legacy:up` | `dev:up` | Удалить при закрытии P1 |
+| `legacy:down` | `dev:down` | Удалить при закрытии P1 |
+| `legacy:artisan` | `dev:artisan` | Удалить при закрытии P1 |
 
 ## artisan — пайплайн документов/смет
 
@@ -68,6 +63,6 @@ status: living
 
 ## Docker: полезные комбинации
 
-- Два `--env-file` нужны для dev по умолчанию (`.env` + опционально `.env.docker`) — `make`-цели уже
-  это учитывают, вручную `docker compose` без `make` требует те же два флага.
+- `ENV_FILE` явно указывает единственный env-file (`.env` по умолчанию); preflight и `prod:config`
+  передают его в Compose и никогда не запускают stack.
 - Подробнее по стеку/окружениям — [`docker/index.md`](docker/index.md).
