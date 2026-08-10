@@ -1,45 +1,29 @@
----
-item: P0.6
-date: 2026-08-10
-file: phases/P0/P0.6.md
-rule_or_contract_locus: P0.6 Required Reads and Implementation Rules
-defect_class: rule_conflict
-gate: return-loop-v1
-qualification: unqualifiable
-missing_carrier_reason: fingerprint exists only after a terminal plan-design return event
----
-# P0.6 contract self-audit
+# P0.6 — Contract self-audit
 
-**Verdict:** RED
+## Audit boundary
 
-## Blocking finding
+Reviewed artifacts: `research/02-P0-target-contracts.md`,
+`root/contracts/release-readiness-v1.md`, D57–D61. Evidence inputs are the byte-fresh P0.6 bundle;
+product code and future item specifications were not read or changed. This is the bounded P0.6
+self-audit and does not replace the required fresh-context phase audit.
 
-P0.6 requires the executor to prove first that P0.1–P0.5 are terminal and that their
-Completion Notes name existing outputs. The terminal status is proven, but the byte-fresh
-state carriers name no concrete output paths:
+## Round 1
 
-| Input | Terminal state | Completion Notes output reference |
+| Dimension | Check | Result |
 |:--|:--|:--|
-| P0.1 | 🟢 Done | none |
-| P0.2 | 🟢 Done | none |
-| P0.3 | 🟢 Done | item commit only; no output path |
-| P0.4 | 🟢 Done | none |
-| P0.5 | 🟢 Done | none |
+| Provenance/RAG | Every external claim resolves to INF/LAR/DOM evidence; repo/owner claims resolve to the trace, inventory, reference comparison or accepted D-record. `[UNVERIFIED]` facts become gates, not accepted behavior. | PASS |
+| Brief coverage | Trace matrix covers Docker/Make, private dependencies/secrets/bootstrap, readiness/assets/docs, proxy/documents/extensions, Filament, quality/tests/CI and clean-host production acceptance. | PASS |
+| Contradictions/alternatives | Production bind mount, secret fallback, tag-only identity, public docs, per-call proxy, extension-only routing, TIA-as-gate and backup-artifact-only claims are explicitly rejected with costs. | PASS |
+| Contract→consumer completeness | Every TOP/SEC/APP/EXT/REL clause maps to P1–P12 in the consumer matrix; P12 consumes the whole contract. | PASS |
+| Validation/routing feasibility | Acceptance uses repository commands, HTTP/browser checks, receipts or deterministic scans. Route-review recommendations agree with `plan.md` §3 and preserve full review on critical surfaces. | PASS |
 
-The digest-qualified P0.6 bundle contains those state carriers and D4–D10/D14/D15/D56,
-but it does not declare the findings produced by P0.1–P0.5. The required trace matrix cannot
-therefore be built from the declared execution inputs. Reading repository files outside the
-bundle would violate the Layout v2 read-path contract and make the freeze non-portable.
+Findings: no Blocker or Major. D60 remains `proposed` intentionally: exact operational values are
+not evidenced and the contract fail-closes P12.3/P12.7 until owner acceptance. This is an explicit
+gate, not a missing contract clause. Refine rounds used: 0.
 
-## Required remediation
+## Verdict
 
-`task:plan-design 2026.08.09-RELEASE-READINESS P0.6` must make the upstream outputs explicit:
+**Verdict:** GREEN
 
-1. add concrete output paths to durable upstream state evidence or declare the exact findings
-   directly in P0.6 Inputs and Required Reads;
-2. rebuild the P0.6 bundle and all affected derived views;
-3. preserve the existing P0.1–P0.5 terminal facts and rerun P0.6 from its declared inputs.
-
-## Refine rounds
-
-No synthesis/refine round started because the input proof failed before contract authoring.
+The artifacts are ready for mechanical validation and the separate fresh-context `task:plan-audit
+2026.08.09-RELEASE-READINESS P0` after phase close.
