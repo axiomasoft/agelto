@@ -2,6 +2,10 @@
 
 namespace App\Providers;
 
+use App\Doctor\Diagnostics\BaseDataIsReady;
+use App\Doctor\Diagnostics\InitialAdminIsReady;
+use App\Doctor\Diagnostics\PrivatePackagesArePinned;
+use App\Doctor\Diagnostics\SecretContractIsReady;
 use App\Models\User;
 use App\Pulse\Cards\LlmSpendCard;
 use App\Pulse\Cards\PipelineStagesCard;
@@ -20,6 +24,7 @@ use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Str;
+use Laravel\Doctor\Facades\Doctor;
 use Livewire\Livewire;
 
 class AppServiceProvider extends ServiceProvider
@@ -58,6 +63,12 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        Doctor::diagnostics([
+            PrivatePackagesArePinned::class,
+            SecretContractIsReady::class,
+            BaseDataIsReady::class,
+            InitialAdminIsReady::class,
+        ]);
         // Кастомные Pulse-карточки (P7.5, D25) — классы вне `App\Livewire\*` (Files-список
         // item'а несёт `app/Pulse/**`), поэтому регистрация explicit, не Livewire-конвенцией.
         Livewire::component('pulse.pipeline-stages', PipelineStagesCard::class);

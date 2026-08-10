@@ -1,6 +1,19 @@
 name: ${COMPOSE_PROJECT_NAME:?COMPOSE_PROJECT_NAME is required}
 
 services:
+  doctor:
+    image: agelto/doctor:${IMAGE_TAG:?IMAGE_TAG is required}
+    profiles: [doctor]
+    working_dir: /var/www/html
+    secrets:
+      - app_key
+      - db_password
+      - redis_password
+      - minio_root_password
+    environment: {}
+    networks:
+      - agelto_network
+
   app:
     image: agelto/app:${IMAGE_TAG:?IMAGE_TAG is required}
     restart: unless-stopped

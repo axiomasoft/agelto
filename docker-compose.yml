@@ -1,6 +1,24 @@
 name: ${COMPOSE_PROJECT_NAME:-agelto_dev}
 
 services:
+  doctor:
+    build:
+      context: .
+      dockerfile: docker/php/Dockerfile
+      target: doctor
+    profiles: [doctor]
+    working_dir: /var/www/html
+    volumes:
+      - ./:/var/www/html
+    environment: {}
+    secrets:
+      - app_key
+      - db_password
+      - redis_password
+      - minio_root_password
+    networks:
+      - agelto_network
+
   app:
     build:
       context: .

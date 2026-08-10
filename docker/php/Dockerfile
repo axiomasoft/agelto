@@ -101,3 +101,16 @@ RUN rm -f .env \
     && mkdir -p storage/framework/{cache,sessions,views} storage/logs bootstrap/cache \
     && chown -R www-data:www-data storage bootstrap/cache
 USER www-data
+
+FROM runtime-base AS doctor-dependencies
+WORKDIR /var/www/html
+COPY --exclude=local/vendors/azguard --chown=www-data:www-data . /var/www/html
+COPY --chown=www-data:www-data local/vendors/azguard/packages/core /var/www/html/local/vendors/azguard/packages/core
+COPY --chown=www-data:www-data local/vendors/azguard/packages/filament /var/www/html/local/vendors/azguard/packages/filament
+RUN composer install --no-scripts --no-interaction --no-progress --prefer-dist --classmap-authoritative
+
+FROM runtime-base AS doctor
+COPY --exclude=local/vendors/azguard --chown=www-data:www-data . /var/www/html
+COPY --from=doctor-dependencies --chown=www-data:www-data /var/www/html/vendor /var/www/html/vendor
+LABEL org.opencontainers.image.title="agelto-doctor"
+USER www-data

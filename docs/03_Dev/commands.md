@@ -17,6 +17,8 @@ status: living
 | `make bootstrap MODE=dev\|prod-build ENV_FILE=<file> [IMAGE_TAG=<immutable-tag>] [ADMIN_PASSWORD_FILE=<path>]` | Resumable vendor → secrets → preflight → image/dependencies → dev migrate/base seed/health or prod image-contract carrier; optional initial admin reads a password file only |
 | `make dev:seed-demo` | Заполняет local/testing demo-аккаунты без перезаписи существующих пользователей; требует `DEV_SEED_PASSWORD` |
 | `make dev:admin-create PASSWORD_FILE=<path>` / `make dev:admin-reset PASSWORD_FILE=<path>` | Явное создание initial SuperAdmin или reset; пароль монтируется из файла и не передаётся в argv |
+| `make doctor:local` | Read-only Laravel Doctor в agent-формате для локальной среды |
+| `make prod:doctor IMAGE_TAG=<immutable-tag>` | One-off Doctor image; agent output, `--fail-on=warn`, без `--fix` |
 | `make dev:up` / `dev:down` / `dev:ps` | Жизненный цикл dev-стека |
 | `make dev:health` | Проверяет `/up` внутри running dev `app`; bootstrap retries this canonical health target |
 | `make dev:logs [SERVICE=app]` / `dev:shell` | Логи / `bash` внутри dev `app` |

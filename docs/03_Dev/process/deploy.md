@@ -42,6 +42,10 @@ work, outside this P1 carrier.
 Начального администратора создавайте отдельной командой с читаемым password-file; reset не входит в
 bootstrap или deploy и никогда не принимает пароль через CLI option.
 
+После base data и initial admin выполните `make prod:doctor IMAGE_TAG=<immutable-tag>`. Это one-off
+companion image, а не production service; он возвращает nonzero и при warning, не применяет fixes и
+удаляется Compose после проверки.
+
 ## Смежное
 
 - [`../docker/production.md`](../docker/production.md) — устройство prod-стека (prebuilt immutable
