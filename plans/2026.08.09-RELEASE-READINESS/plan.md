@@ -15,10 +15,10 @@
 | Target Operator Models | economy → gpt-5.6-luna · implementation → gpt-5.6-terra · frontier → gpt-5.6-sol |
 | Approval Owner | Dmitry Vostrikov |
 | Home | repo:/home/vostrikov/projects/agelto/agelto |
-| Design Passes | 1/1 — owner-directed сокращение D46 сохранено; D52 остаётся machine-current carrier повторного полного cross-phase `finish` для 13 фаз / 75 product/design items после добавления P0.0; D55 принимает этот design после ремедиации F9–F12; D62, D64 и D66 адресно добавляют 76-й–78-й remediation-items P0.7/P1.6/P1.7 по RED-аудитам без нового design-pass и без изменения frozen product semantics |
+| Design Passes | 1/1 — owner-directed сокращение D46 сохранено; D52 остаётся machine-current carrier повторного полного cross-phase `finish` для 13 фаз / 75 product/design items после добавления P0.0; D55 принимает этот design после ремедиации F9–F12; D62, D64 и D66 адресно добавили 76-й–78-й remediation-items P0.7/P1.6/P1.7; D67 исправляет только evidence topology P1.7 и разрешает targeted green closure без нового design-pass/product mutation |
 | visibility | private |
 
-<!-- migration-version: 0.1.3 -->
+<!-- migration-version: 0.1.4 -->
 
 ## 1. Context
 
@@ -44,7 +44,7 @@ Vintera/CMS и Dterema и верифицирует внешние практик
 - Перед и после plan-work выполнять Task checks из marketplace root в порядке AGENTS.md: lint → state → decisions → status.
 - Validation каждого будущего consumer входит через один item-owned executable carrier из его Files; prose/placeholder fragments и команды, которые должны стать зелёными только после реализации consumer, не исполняются downstream-gate преждевременно. D63. RAG:— (repo-grounded: `research/15-P1.1-downstream-gate-remediation.md`).
 - RED-аудит P1 закрывается одним P1.6: five-class Make/deploy surface и динамические carriers исправляются product-коммитами, P1.1–P1.5 closure evidence — только append-only reconciliation, а будущие consumer validations входят одним item-owned carrier и до своего item дают downstream `unknown`; P2 не стартует до close и повторного audit P1. D64/D65. RAG:— (repo-grounded: `research/16-P1-audit-remediation.md`, `research/17-P1.6-downstream-retry-design.md`).
-- Второй RED-аудит P1 закрывается одним P1.7: просроченные aliases удаляются, полный P1.6 carrier повторяется на новом чистом product commit, P1.1–P1.6 получают только append-only correction anchors, а duplicate reconciliation остаётся immutable process deviation. P2 не стартует до повторного close и GREEN-аудита P1. D66. RAG:— (repo-grounded: `research/18-P1-audit2-remediation.md`).
+- Второй RED-аудит P1 исторически породил single-anchor P1.7 по D66; D67 supersedes эту topology и audit-gate: `7f203014` остаётся product-origin, отдельный committed closure anchor с byte-identical product paths обязан дать GREEN полного release carrier/lint/views/citations, после чего append-only corrections закрывают P1 зелёной без нового аудита и открывают P2. RAG:— (repo-grounded: `research/18-P1-audit2-remediation.md`, последний Audit P1, owner direction 2026-08-10).
 - RAG-факты и сравнение чужих репозиториев сохранять в findings в том же ходе; синтез — в research; решения — в decisions. P0.3 закрывается только после MCP replay по D56; WebSearch-only fallback остаётся provisional.
 - Любой внешний best practice получает RAG:✅ с URL и датой либо остаётся [UNVERIFIED]; RAG:— допустим только для фактов этого репозитория.
 - Текущие Makefile/Compose — requirements input: совместимость целей сохраняется только после инвентаря и осознанного решения.
@@ -62,7 +62,7 @@ Vintera/CMS и Dterema и верифицирует внешние практик
 ## 3. Routing
 
 Все строки ниже — финальные post-finish маршруты 75 product/design items плюс адресные
-remediation-items P0.7/P1.6/P1.7 по D62/D64/D66; новый design-pass не выполнялся.
+remediation-items P0.7/P1.6/P1.7 по D62/D64/D66 и evidence correction D67; новый design-pass не выполнялся.
 
 | Batch | Items | Model class/effort | Exec | Review | Почему |
 |:--|:--|:--|:--|:--|:--|
@@ -80,7 +80,7 @@ remediation-items P0.7/P1.6/P1.7 по D62/D64/D66; новый design-pass не �
 | B1-RUNTIME | P1.4 | implementation/high | manual | full | потребляет image boundary P1.3 в той же runtime-серии |
 | B1-RUNTIME | P1.5 | implementation/high | manual | full | terminal gate той же серии; full review сохраняется |
 | — | P1.6 | implementation/high | manual | full | audit-defined remediation F1–F5 меняет production deploy/test boundary и затем восстанавливает append-only closure evidence; новых product-решений нет |
-| — | P1.7 | implementation/high | manual | full | audit-defined F6–F10: удаление expired aliases и повтор тяжёлого release carrier на clean commit с append-only evidence correction; новых product-решений нет |
+| — | P1.7 | implementation/high | manual | full | alias removal уже в `7f203014`; D67 закрывает F11–F14 committed closure anchor с byte-identical product tree и append-only correction без нового product-решения/audit |
 | — | P2.1 | implementation/high | manual | full | private dependency lock и Composer/image closure security-critical, но D6/D19 запечатали carrier |
 | — | P2.2 | implementation/high | manual | full | file-secret generation/Compose grants меняют production credential boundary по D20 |
 | — | P2.3 | implementation/high | manual | full | fail-closed preflight проверяет security/deploy prerequisites без новых product-решений |

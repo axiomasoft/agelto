@@ -3,7 +3,7 @@ projection: status-view
 projection_version: v1
 source_scope: plan core + phases + journal
 through: 2026-08-10
-inputs_sha256: 5bdbe68e5f92291e82d1fea498aeb98c00fdb9a0f152d30bb57d8eb1fe0c4338
+inputs_sha256: 25833f025bdf78cce64449c469971bb5b865fef71e7afa6c24b85f3fc4a5f317
 generated_by: task plan-views status
 -->
 
@@ -15,7 +15,7 @@ generated_by: task plan-views status
 
 | Поле | Значение |
 |:--|:--|
-| Version | 0.1.3 |
+| Version | 0.1.4 |
 | Status | ⬜ Not started |
 | Last Updated | 2026-08-10 |
 
@@ -60,7 +60,7 @@ generated_by: task plan-views status
 | P1.4 | Ввести Vite dev service и production frontend build contract | 🟢 Done | 2026-08-10 |
 | P1.5 | Развести build/deploy classes и закрыть P1 contract gates | 🟢 Done | 2026-08-10 |
 | P1.6 | Закрыть F1–F5 RED-аудита P1 одним release-carrier remediation slice | 🟢 Done | 2026-08-10 |
-| P1.7 | Закрыть F6–F10 второго RED-аудита P1 воспроизводимыми anchors | 🟠 Done with deviations | 2026-08-10 |
+| P1.7 | Закрыть RED-аудиты P1 двумя evidence anchors без product mutation | 🟠 Done with deviations | 2026-08-10 |
 
 ## Phase P10
 
@@ -291,6 +291,7 @@ generated_by: task plan-views status
 | 2026-08-10 | gpt-5.6-terra/high | plan-run · in-progress · continuation in current high-effort session; prior routing-blocked self-attribution retained as process deviation |
 | 2026-08-10 | gpt-5.6-terra/high | plan-run · closed-deviations · P1.7 7f203014: make-contract and legacy-negative passed; clean detached p1-release-contract exit 1 (bundle freshness collision); write-site: pre_mutation: allow · pre_final: allow. |
 | 2026-08-10 | implementation/low | plan-close · closed-deviations · фаза P1 закрыта: 6 green, P1.7 closed-deviations; docs commands.md updated |
+| 2026-08-10 | frontier/xhigh | plan-audit · audit-red · заход 3, вердикт RED |
 
 ## Owner Gates
 
