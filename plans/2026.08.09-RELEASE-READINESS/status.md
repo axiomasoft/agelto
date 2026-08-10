@@ -3,7 +3,7 @@ projection: status-view
 projection_version: v1
 source_scope: plan core + phases + journal
 through: 2026-08-10
-inputs_sha256: b3a583f0ca1adf5da09557ae8c2c9d03aa61cc160c0d5e938b3d0769392ba31d
+inputs_sha256: b4015a11a59b3ca4e254bdcf679a519854287c27949c2d1c2bf2e635eaa33689
 generated_by: task plan-views status
 -->
 
@@ -28,7 +28,7 @@ generated_by: task plan-views status
 | P10 | PHP, архитектура, безопасность и production-readiness audit | 0/6 | ⬜ Not started |
 | P11 | Pest 5 performance, test isolation и CI | 0/6 | ⬜ Not started |
 | P12 | Ubuntu deployment guide и финальный clean-room rehearsal | 0/7 | ⬜ Not started |
-| P2 | Local vendor, secrets, preflight, bootstrap и Laravel Doctor | 3/6 | ⬜ Not started |
+| P2 | Local vendor, secrets, preflight, bootstrap и Laravel Doctor | 4/6 | ⬜ Not started |
 | P3 | Fresh install, Livewire/Filament assets и application readiness | 0/5 | ⬜ Not started |
 | P4 | Закрытая production-документация вне public | 0/5 | ⬜ Not started |
 | P5 | Default proxy settings и трёхуровневый resolve | 0/5 | ⬜ Not started |
@@ -103,7 +103,7 @@ generated_by: task plan-views status
 | P2.1 | Перенести AzGuard path contract в local/vendors и оформить clone boundary | 🟢 Done | 2026-08-10 |
 | P2.2 | Сделать безопасный генератор .env и .env.docker secrets | 🟢 Done | 2026-08-10 |
 | P2.3 | Сделать fail-closed host/repository/env/Compose preflight | 🟢 Done | 2026-08-10 |
-| P2.4 | Автоматизировать clone-to-running bootstrap без скрытых ручных шагов | ⬜ Not started | — |
+| P2.4 | Автоматизировать clone-to-running bootstrap без скрытых ручных шагов | 🟢 Done | 2026-08-10 |
 | P2.5 | Развести base seeds, demo data, создание и сброс администратора | ⬜ Not started | — |
 | P2.6 | Установить и настроить Laravel Doctor как dev/prod readiness carrier | ⬜ Not started | — |
 
@@ -315,6 +315,8 @@ generated_by: task plan-views status
 | 2026-08-10 | gpt-5.6-terra/high | plan-run · no-op · D69 resolved the spec conflict; P2.3 is ready for a fresh execution attempt. |
 | 2026-08-10 | gpt-5.6-terra/high | plan-run · in-progress · — |
 | 2026-08-10 | gpt-5.6-terra/high | plan-run · closed-green · P2.3 32b805d5: preflight contract passed; dev/prod-build fixtures, exact exits and non-mutation assertions passed; write-site allow/allow. |
+| 2026-08-10 | gpt-5.6-terra/high | plan-run · in-progress · — |
+| 2026-08-10 | gpt-5.6-terra/high | plan-run · closed-green · P2.4 17d16fa6: bootstrap dev/prod-build contract passed; write-site: pre_mutation: allow · pre_final: allow; Session: gpt-5.6-terra/high |
 
 ## Owner Gates
 
