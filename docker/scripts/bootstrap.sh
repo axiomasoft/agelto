@@ -7,12 +7,13 @@ mode=''
 env_file=''
 image_tag="${IMAGE_TAG:-}"
 project_name="${COMPOSE_PROJECT_NAME:-agelto_bootstrap}"
+admin_password_file=''
 current_stage='initialization'
 progress_file=''
 source_sha=''
 
 usage() {
-    echo 'usage: bootstrap.sh --root <repository> --mode <dev|prod-build> --env-file <path> [--image-tag <tag>] [--project-name <name>]' >&2
+    echo 'usage: bootstrap.sh --root <repository> --mode <dev|prod-build> --env-file <path> [--image-tag <tag>] [--project-name <name>] [--admin-password-file <path>]' >&2
 }
 
 while (($#)); do
@@ -22,6 +23,7 @@ while (($#)); do
         --env-file) env_file="$2"; shift 2 ;;
         --image-tag) image_tag="$2"; shift 2 ;;
         --project-name) project_name="$2"; shift 2 ;;
+        --admin-password-file) admin_password_file="$2"; shift 2 ;;
         *) usage; exit 64 ;;
     esac
 done
@@ -88,6 +90,13 @@ run_stage dependencies-image run_make image:build "IMAGE_TAG=$image_tag"
 if [[ "$mode" == dev ]]; then
     run_stage dev-up run_make dev:up "ENV_FILE=$env_file" "COMPOSE_PROJECT_NAME=$project_name"
     run_stage dev-dependencies run_make dev:composer 'ARGS=install --no-interaction --no-progress' "ENV_FILE=$env_file" "COMPOSE_PROJECT_NAME=$project_name"
+    run_stage dev-migrate run_make dev:migrate "ENV_FILE=$env_file" "COMPOSE_PROJECT_NAME=$project_name"
+    run_stage dev-base-seed run_make dev:seed-base "ENV_FILE=$env_file" "COMPOSE_PROJECT_NAME=$project_name"
+
+    if [[ -n "$admin_password_file" ]]; then
+        [[ -r "$admin_password_file" ]] || { echo 'Initial admin password file is not readable' >&2; exit 2; }
+        run_stage dev-admin-create run_make dev:admin-create "PASSWORD_FILE=$admin_password_file" "ENV_FILE=$env_file" "COMPOSE_PROJECT_NAME=$project_name"
+    fi
 
     current_stage='dev-health'
     write_progress running

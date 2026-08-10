@@ -12,4 +12,6 @@ return [
     */
 
     'admin_email' => env(key: 'ADMIN_EMAIL', default: ''),
+
+    'demo_seed_password' => env(key: 'DEV_SEED_PASSWORD', default: ''),
 ];

@@ -19,14 +19,22 @@ status: living
 ```bash
 cp .env.example .env
 make bootstrap MODE=dev ENV_FILE=.env COMPOSE_PROJECT_NAME=agelto_dev
-# vendor → create-only file secrets → preflight → immutable image → dev dependencies → health
+# vendor → create-only file secrets → preflight → immutable image → dev dependencies → migrate → base seed → health
 ```
 
 Bootstrap is resumable: it records only stage/status/source SHA in the ignored
 `local/secrets/.bootstrap-progress`, preserves existing secret bytes and named volumes, and prints
-an exact retry command after a failed stage. It never runs migrations, seeders, deploy, cleanup or
-volume deletion; P2.5 owns the data/admin stages. After liveness is green, use
-`make dev:artisan ARGS="migrate"` only when that later, explicitly authorised step is required.
+an exact retry command after a failed stage. In dev it applies migrations and idempotent base data;
+it never resets passwords, deploys, cleans up or removes volumes. Demo data is opt-in through
+`make dev:seed-demo` and requires a nonempty local `DEV_SEED_PASSWORD`.
+
+To create the first administrator, provide the password only through a readable file; it is never a
+CLI value or output:
+
+```bash
+make bootstrap MODE=dev ENV_FILE=.env COMPOSE_PROJECT_NAME=agelto_dev \
+  ADMIN_PASSWORD_FILE=/secure/path/initial-admin-password
+```
 
 `local/vendors/azguard` is an ignored nested checkout, never a submodule. Its tracked lock manifest
 (`docker/private-vendors.lock.json`) pins the origin, full commit SHA and Composer package allowlist.

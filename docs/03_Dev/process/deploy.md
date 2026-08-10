@@ -38,6 +38,10 @@ work, outside this P1 carrier.
 Проверить health `/up` и статус трёх контейнеров через выбранный Compose project. Наличие `vendor`
 или frontend artifacts на host не является release condition: они входят в immutable image.
 
+После owner-gated миграции выполните идемпотентный production base seed: `make prod:seed-base`.
+Начального администратора создавайте отдельной командой с читаемым password-file; reset не входит в
+bootstrap или deploy и никогда не принимает пароль через CLI option.
+
 ## Смежное
 
 - [`../docker/production.md`](../docker/production.md) — устройство prod-стека (prebuilt immutable

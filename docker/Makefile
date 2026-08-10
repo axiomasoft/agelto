@@ -11,7 +11,7 @@ AGENT_ENV := $(if $(CLAUDECODE),-e CLAUDECODE=$(CLAUDECODE)) $(if $(CURSOR_AGENT
 
 .DEFAULT_GOAL := help
 .PHONY: help infra\:preflight secrets\:init bootstrap dev\:up dev\:down dev\:ps dev\:logs dev\:shell dev\:artisan dev\:composer dev\:health
-.PHONY: agent\:artisan vendor\:sync vendor\:check prod\:config prod\:ps prod\:deploy\:code prod\:deploy\:php-deps prod\:deploy\:frontend prod\:deploy\:runtime prod\:image\:promote prod\:deploy\:image prod\:migrate image\:build
+.PHONY: agent\:artisan vendor\:sync vendor\:check dev\:migrate dev\:seed-base dev\:seed-demo dev\:admin-create dev\:admin-reset prod\:config prod\:ps prod\:deploy\:code prod\:deploy\:php-deps prod\:deploy\:frontend prod\:deploy\:runtime prod\:image\:promote prod\:deploy\:image prod\:migrate prod\:seed-base image\:build
 
 help:
 	@echo "Agelto command surface"
@@ -44,7 +44,7 @@ secrets\:init:
 	bash $(ROOT_DIR)/docker/scripts/secrets-init.sh --root $(ROOT_DIR)
 
 bootstrap:
-	bash $(ROOT_DIR)/docker/scripts/bootstrap.sh --root $(ROOT_DIR) --mode $(MODE) --env-file $(ENV_FILE) --image-tag "$(IMAGE_TAG)" --project-name "$(COMPOSE_PROJECT_NAME)"
+	bash $(ROOT_DIR)/docker/scripts/bootstrap.sh --root $(ROOT_DIR) --mode $(MODE) --env-file $(ENV_FILE) --image-tag "$(IMAGE_TAG)" --project-name "$(COMPOSE_PROJECT_NAME)" $(if $(ADMIN_PASSWORD_FILE),--admin-password-file "$(ADMIN_PASSWORD_FILE)")
 
 dev\:up:
 	$(COMPOSE_DEV) up -d
@@ -66,6 +66,23 @@ dev\:artisan:
 
 dev\:composer:
 	$(COMPOSE_DEV) exec app composer $(ARGS)
+
+dev\:migrate:
+	$(COMPOSE_DEV) exec -T app php artisan migrate --force
+
+dev\:seed-base:
+	$(COMPOSE_DEV) exec -T app php artisan db:seed --class=Database\\Seeders\\BaseSeeder --force
+
+dev\:seed-demo:
+	$(COMPOSE_DEV) exec -T app php artisan db:seed --class=Database\\Seeders\\DemoSeeder
+
+dev\:admin-create:
+	@test -n "$(PASSWORD_FILE)" || (echo "PASSWORD_FILE is required" >&2; exit 2)
+	$(COMPOSE_DEV) run --rm -v "$(abspath $(PASSWORD_FILE)):/run/secrets/initial_admin_password:ro" app php artisan admin:create-initial --password-file=/run/secrets/initial_admin_password
+
+dev\:admin-reset:
+	@test -n "$(PASSWORD_FILE)" || (echo "PASSWORD_FILE is required" >&2; exit 2)
+	$(COMPOSE_DEV) run --rm -v "$(abspath $(PASSWORD_FILE)):/run/secrets/initial_admin_password:ro" app php artisan admin:reset-password --force --password-file=/run/secrets/initial_admin_password
 
 dev\:health:
 	$(COMPOSE_DEV) exec -T app curl -fsS http://127.0.0.1:8080/up >/dev/null
@@ -111,3 +128,6 @@ prod\:deploy\:image:
 prod\:migrate:
 	@test "$(OWNER_GATE)" = approved || (echo "OWNER_GATE=approved is required for migrations" >&2; exit 2)
 	$(COMPOSE_PROD) run --rm --no-deps app php artisan migrate --force
+
+prod\:seed-base:
+	$(COMPOSE_PROD) run --rm --no-deps app php artisan db:seed --class=Database\\Seeders\\BaseSeeder --force
