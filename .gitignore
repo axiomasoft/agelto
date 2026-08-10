@@ -33,6 +33,7 @@ yarn-error.log
 /.pnpm-store
 
 /auth.json
+/local/vendors/azguard/
 /.fleet
 /.idea
 /.nova

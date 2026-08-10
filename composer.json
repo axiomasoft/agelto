@@ -8,21 +8,14 @@
     "repositories": [
         {
             "type": "path",
-            "url": "../../packages/azguard/packages/core",
+            "url": "local/vendors/azguard/packages/core",
             "options": {
                 "symlink": false
             }
         },
         {
             "type": "path",
-            "url": "../../packages/azguard/packages/filament",
-            "options": {
-                "symlink": false
-            }
-        },
-        {
-            "type": "path",
-            "url": "../../packages/azguard/packages/context",
+            "url": "local/vendors/azguard/packages/filament",
             "options": {
                 "symlink": false
             }

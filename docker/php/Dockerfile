@@ -1,3 +1,5 @@
+# syntax=docker/dockerfile:1.19
+
 FROM minio/mc:latest AS mc
 
 FROM serversideup/php:8.5-fpm-nginx AS runtime-base
@@ -84,8 +86,16 @@ COPY resources ./resources
 COPY vite.config.js ./
 RUN pnpm build
 
+FROM runtime-base AS dependencies
+WORKDIR /var/www/html
+COPY --exclude=local/vendors/azguard --chown=www-data:www-data . /var/www/html
+COPY --chown=www-data:www-data local/vendors/azguard/packages/core /var/www/html/local/vendors/azguard/packages/core
+COPY --chown=www-data:www-data local/vendors/azguard/packages/filament /var/www/html/local/vendors/azguard/packages/filament
+RUN composer install --no-dev --no-scripts --no-interaction --no-progress --prefer-dist --classmap-authoritative
+
 FROM runtime-base AS application
-COPY --chown=www-data:www-data . /var/www/html
+COPY --exclude=local/vendors/azguard --chown=www-data:www-data . /var/www/html
+COPY --from=dependencies --chown=www-data:www-data /var/www/html/vendor /var/www/html/vendor
 COPY --from=frontend --chown=www-data:www-data /build/public/build /var/www/html/public/build
 RUN rm -f .env \
     && mkdir -p storage/framework/{cache,sessions,views} storage/logs bootstrap/cache \

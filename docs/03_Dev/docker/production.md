@@ -15,6 +15,13 @@ status: living
 `application`, запускается как `www-data`; private Composer closure остаётся gate P2, а production
 frontend artifact — gate P1.4/P3. P1 ещё не является доказательством готовности релиза.
 
+## Private Composer packages
+
+Before a build, run `make vendor:sync`. It clones the immutable AzGuard commit declared in
+`docker/private-vendors.lock.json` to ignored `local/vendors/azguard`; the checkout is neither a
+submodule nor an image runtime artifact. The Dockerfile copies only the allowlisted package paths into
+the dependency stage and excludes the raw checkout from the final `application` stage.
+
 ## Секреты (Docker Swarm)
 
 Чувствительные переменные (`APP_KEY`, `DB_PASSWORD`, `REDIS_PASSWORD`, `MINIO_ROOT_PASSWORD`) —

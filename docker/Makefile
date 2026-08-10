@@ -11,7 +11,7 @@ AGENT_ENV := $(if $(CLAUDECODE),-e CLAUDECODE=$(CLAUDECODE)) $(if $(CURSOR_AGENT
 
 .DEFAULT_GOAL := help
 .PHONY: help infra\:preflight dev\:up dev\:down dev\:ps dev\:logs dev\:shell dev\:artisan dev\:composer
-.PHONY: agent\:artisan prod\:config prod\:ps prod\:deploy\:code prod\:deploy\:php-deps prod\:deploy\:frontend prod\:deploy\:runtime prod\:image\:promote prod\:deploy\:image prod\:migrate image\:build
+.PHONY: agent\:artisan vendor\:sync vendor\:check prod\:config prod\:ps prod\:deploy\:code prod\:deploy\:php-deps prod\:deploy\:frontend prod\:deploy\:runtime prod\:image\:promote prod\:deploy\:image prod\:migrate image\:build
 
 help:
 	@echo "Agelto command surface"
@@ -22,6 +22,7 @@ help:
 	@echo "Development:"
 	@echo "  make dev:up | dev:down | dev:ps | dev:logs [SERVICE=app]"
 	@echo "  make dev:shell | dev:artisan ARGS=\"about\" | dev:composer ARGS=\"install\""
+	@echo "  make vendor:sync | vendor:check             Clone/check the pinned private AzGuard packages"
 	@echo ""
 	@echo "Agent and production inspection:"
 	@echo "  make agent:artisan ARGS=\"test --compact\"  Non-TTY app command"
@@ -60,6 +61,12 @@ dev\:composer:
 
 agent\:artisan:
 	$(COMPOSE_DEV) exec -T $(AGENT_ENV) app php artisan $(ARGS)
+
+vendor\:sync:
+	bash $(ROOT_DIR)/docker/scripts/vendor-sync.sh --composer-check
+
+vendor\:check:
+	bash $(ROOT_DIR)/docker/scripts/vendor-sync.sh --check --composer-check
 
 prod\:config:
 	$(COMPOSE_PROD) config

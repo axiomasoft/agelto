@@ -18,6 +18,8 @@ status: living
 | `make dev:logs [SERVICE=app]` / `dev:shell` | Логи / `bash` внутри dev `app` |
 | `make dev:artisan ARGS="..."` / `dev:composer ARGS="..."` | Artisan или Composer внутри dev `app` |
 | `make agent:artisan ARGS="..."` | Non-TTY (`-T`) Artisan для агента |
+| `make vendor:sync` | Клонирует точный private AzGuard commit из tracked manifest и проверяет Composer closure |
+| `make vendor:check` | Без мутаций проверяет origin, полный SHA, чистоту package paths и Composer dry install |
 | `make prod:config ENV_FILE=.env.production` | Только рендер production Compose, без запуска стека |
 | `make image:build` | Собирает текущий PHP-image |
 | `make prod:deploy:{code,php-deps,frontend,runtime}` | Pull + recreate готового immutable image для выбранного класса; требуются `IMAGE_TAG` и `COMPOSE_PROJECT_NAME` |

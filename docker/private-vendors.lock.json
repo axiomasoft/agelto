@@ -1,0 +1,18 @@
+{
+    "version": 1,
+    "repository": {
+        "host": "github.com",
+        "path": "axiomasoft/azguard-private"
+    },
+    "commit": "67ebcde7b3ab32aa0205deb37a483b605e140cdb",
+    "packages": [
+        {
+            "name": "axioma-studio/azguard-core",
+            "path": "packages/core"
+        },
+        {
+            "name": "axioma-studio/azguard-filament",
+            "path": "packages/filament"
+        }
+    ]
+}

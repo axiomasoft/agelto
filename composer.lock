@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "72c8a78b24dc8bb5e9d9cbefe062cb9b",
+    "content-hash": "b5d111cc4043832df9939272ea9859bf",
     "packages": [
         {
             "name": "anourvalar/eloquent-serialize",
@@ -227,7 +227,7 @@
             "version": "dev-main",
             "dist": {
                 "type": "path",
-                "url": "../../packages/azguard/packages/core",
+                "url": "local/vendors/azguard/packages/core",
                 "reference": "d14aa90430d9302fcafd888e665fc990880f53ef"
             },
             "require": {
@@ -292,7 +292,7 @@
             "version": "dev-main",
             "dist": {
                 "type": "path",
-                "url": "../../packages/azguard/packages/filament",
+                "url": "local/vendors/azguard/packages/filament",
                 "reference": "cb2794e794946b3399a10432c56548ca16816520"
             },
             "require": {

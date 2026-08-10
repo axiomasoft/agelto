@@ -17,6 +17,7 @@ status: living
 ## Первый запуск
 
 ```bash
+make vendor:sync                       # clones the exact private AzGuard SHA into local/vendors/azguard
 cp .env.example .env
 make infra:preflight MODE=dev ENV_FILE=.env.example  # проверка без запуска Docker stack
 make dev:up                          # docker-compose.yml: app/horizon/scheduler/postgres/redis/minio/browser
@@ -24,6 +25,10 @@ make dev:composer ARGS="install"     # Composer внутри dev app
 make dev:artisan ARGS="migrate"       # миграции
 make agent:artisan ARGS="test --compact" # non-TTY запуск для агента
 ```
+
+`local/vendors/azguard` is an ignored nested checkout, never a submodule. Its tracked lock manifest
+(`docker/private-vendors.lock.json`) pins the origin, full commit SHA and Composer package allowlist.
+Use `make vendor:check` before a build; it refuses a missing, wrong-origin, wrong-SHA or dirty package checkout.
 
 Проверка живости: `make dev:ps`, `curl http://localhost:8080/up` (healthcheck-эндпоинт, тот же, что
 слушает Docker `healthcheck` — см. [`docker/index.md`](docker/index.md)).
