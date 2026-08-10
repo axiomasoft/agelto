@@ -37,7 +37,7 @@ help:
 	@echo ""
 
 infra\:preflight:
-	bash $(ROOT_DIR)/docker/scripts/compose-preflight.sh --mode $(MODE) --env-file $(ROOT_DIR)/$(ENV_FILE)
+	bash $(ROOT_DIR)/docker/scripts/preflight.sh --root $(ROOT_DIR) --mode $(MODE) --env-file $(abspath $(ENV_FILE))
 
 secrets\:init:
 	bash $(ROOT_DIR)/docker/scripts/secrets-init.sh --root $(ROOT_DIR)

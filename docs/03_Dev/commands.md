@@ -13,7 +13,7 @@ status: living
 
 | Команда | Что делает |
 |:--|:--|
-| `make infra:preflight MODE=dev ENV_FILE=.env.example` | Проверяет Docker, Compose и рендер config без запуска, build или pull |
+| `make infra:preflight MODE=dev ENV_FILE=.env.example` | Fail-closed проверяет host/daemon, vendor, non-secret env, file secrets, ports и тихий Compose render без запуска, build или pull |
 | `make dev:up` / `dev:down` / `dev:ps` | Жизненный цикл dev-стека |
 | `make dev:logs [SERVICE=app]` / `dev:shell` | Логи / `bash` внутри dev `app` |
 | `make dev:artisan ARGS="..."` / `dev:composer ARGS="..."` | Artisan или Composer внутри dev `app` |

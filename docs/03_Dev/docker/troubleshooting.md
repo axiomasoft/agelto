@@ -6,6 +6,12 @@ status: living
 
 # Docker: troubleshooting
 
+## `infra:preflight` stops before Docker starts
+
+The preflight is intentionally fail-closed. Run `make vendor:check`, create secrets with
+`make secrets:init`, then use a non-secret Compose env file such as `.env.example`. Agent JSON
+contains only check IDs, statuses, and remediation; secret values are never rendered.
+
 ## `docker compose` вручную требует ДВА `--env-file`
 
 `docker/Makefile` передаёт `.env` явно. Для ручного вызова также укажите project name и carrier:

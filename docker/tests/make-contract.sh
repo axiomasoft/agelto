@@ -8,6 +8,15 @@ trap 'rm -rf "$temp_dir"' EXIT
 
 mkdir -p "$temp_dir/bin"
 log_file="$temp_dir/docker.argv"
+preflight_env="$temp_dir/preflight.env"
+cp "$root_dir/.env.example" "$preflight_env"
+sed -i \
+    -e 's/^APP_PORT=.*/APP_PORT=38190/' \
+    -e 's/^PGSQL_PORT=.*/PGSQL_PORT=38191/' \
+    -e 's/^REDIS_PORT=.*/REDIS_PORT=38192/' \
+    -e 's/^MINIO_PORT=.*/MINIO_PORT=38193/' \
+    -e 's/^MINIO_CONSOLE_PORT=.*/MINIO_CONSOLE_PORT=38194/' \
+    "$preflight_env"
 
 cat > "$temp_dir/bin/docker" <<'EOF'
 #!/usr/bin/env bash
@@ -23,7 +32,7 @@ run_make() {
     PATH="$temp_dir/bin:$PATH" DOCKER_LOG="$log_file" make -s -C "$root_dir" "$@"
 }
 
-run_make infra:preflight MODE=dev ENV_FILE=.env.example
+run_make infra:preflight MODE=dev ENV_FILE="$preflight_env"
 run_make agent:artisan ARGS='about'
 run_make prod:config ENV_FILE=.env.example IMAGE_TAG=contract-tag COMPOSE_PROJECT_NAME=agelto_contract
 
