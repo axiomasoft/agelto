@@ -3,7 +3,7 @@ projection: status-view
 projection_version: v1
 source_scope: plan core + phases + journal
 through: 2026-08-10
-inputs_sha256: d3b0355fbefff0db6cbe99c6245fe32a0ad8e5772855323e8734b1b9ef29b1ca
+inputs_sha256: 31297b032f703bd63b9d9c2215bba6c8a06b535e2c35ef2412905db3e939e22f
 generated_by: task plan-views status
 -->
 
@@ -16,14 +16,14 @@ generated_by: task plan-views status
 | Поле | Значение |
 |:--|:--|
 | Version | 0.1.0 |
-| Status | 🟡 In progress |
+| Status | ⬜ Not started |
 | Last Updated | 2026-08-10 |
 
 ## 4. Phase Index & Status Board
 
 | Phase | Title | Items 🟢/всего | Status |
 |:--|:--|:--|:--|
-| P0 | Разведка репозитория, референсов и RAG-контракты | 7/8 | 🟡 In progress |
+| P0 | Разведка репозитория, референсов и RAG-контракты | 8/8 | 🟢 Done |
 | P1 | Makefile и Docker dev/prod с Vite-ready topology | 0/5 | ⬜ Not started |
 | P10 | PHP, архитектура, безопасность и production-readiness audit | 0/6 | ⬜ Not started |
 | P11 | Pest 5 performance, test isolation и CI | 0/6 | ⬜ Not started |
@@ -41,14 +41,14 @@ generated_by: task plan-views status
 
 | ID | Title | Status | Updated |
 |:--|:--|:--|:--|
-| P0.0 | Ввести исполняемый citation gate до первого execution item | 🟢 Done | 2026-08-09 |
+| P0.0 | Ввести исполняемый citation gate до первого execution item | 🟢 Done | 2026-08-10 |
 | P0.1 | Инвентарь Agelto: Docker, Make, deploy, fresh install, admin, proxies, documents, tests | 🟢 Done | 2026-08-10 |
 | P0.2 | Сравнительная матрица Sova, Vintera/CMS и Dterema | 🟢 Done | 2026-08-10 |
 | P0.3 | RAG: Docker/Compose/Makefile, build cache, secrets, Ubuntu deploy и Vite | 🟢 Done | 2026-08-10 |
 | P0.4 | RAG: Laravel 13, Filament 5, Livewire assets, Doctor, private docs и Pest 5 | 🟢 Done | 2026-08-10 |
 | P0.5 | RAG: proxy settings, file formats, archives, document taxonomy и extension patterns | 🟢 Done | 2026-08-10 |
 | P0.6 | Заморозить target contracts, ADR-развилки, acceptance matrix и маршруты фаз | 🟢 Done | 2026-08-10 |
-| P0.7 | Закрыть F1–F5 аудита P0 одним remediation slice | 🟡 In progress | 2026-08-10 |
+| P0.7 | Закрыть F1–F5 аудита P0 одним remediation slice | 🟢 Done | 2026-08-10 |
 
 ## Phase P1
 
@@ -241,6 +241,14 @@ generated_by: task plan-views status
 | 2026-08-10 | frontier/high | plan-design · in-progress · P0 реопенена D62: version —→0.1.0, Phase Handoff инвалидирован, добавлен единственный P0.7 по F1–F5 |
 | 2026-08-10 | frontier/high | plan-design · in-progress · ТЗ P0.7 доведено до DoR: один deterministic remediation slice F1–F5, без нового design-pass и P1 |
 | 2026-08-10 | gpt-5.6-terra/medium | plan-exec · in-progress · Admission P0.7: Task Contract pre_mutation allow; formal reopen Status Board → 🟡 before fresh implementation/medium handoff |
+| 2026-08-10 | gpt-5.6-terra/medium | plan-close · closed-green · Reconciliation: stdlib citation verifier, py_compile/selftest/strict scan green. write-site: pre_mutation: allow · pre_final: allow |
+| 2026-08-10 | gpt-5.6-terra/medium | plan-close · closed-green · Reconciliation: inventory completed with 8 evidence-backed surfaces and strict citations green. write-site: pre_mutation: allow · pre_final: allow |
+| 2026-08-10 | gpt-5.6-terra/medium | plan-close · closed-green · Reconciliation: reproducible reference comparison and manifest completed; citations green. write-site: pre_mutation: allow · pre_final: allow |
+| 2026-08-10 | gpt-5.6-terra/medium | plan-close · closed-green · Reconciliation: MCP replay completed, 12 INF rows, citations green; frontier/high overshot implementation/high. write-site: pre_mutation: allow · pre_final: allow |
+| 2026-08-10 | gpt-5.6-terra/medium | plan-close · closed-green · Reconciliation: Laravel RAG findings committed; actual frontier/high, prescribed implementation/high. write-site: pre_mutation: allow · pre_final: allow |
+| 2026-08-10 | gpt-5.6-terra/medium | plan-close · closed-green · Reconciliation: domain/security findings committed and checks/citations green; frontier/high overshot implementation/high. write-site: pre_mutation: allow · pre_final: allow |
+| 2026-08-10 | gpt-5.6-terra/medium | plan-close · closed-green · Reconciliation: product commit 52fb69c6 had decisions check RED, not full validation green; bookkeeping anchor bf234d23 has decisions check GREEN. write-site: pre_mutation: allow · pre_final: allow |
+| 2026-08-10 | gpt-5.6-terra/medium | plan-exec · closed-green · P0.7 item 6b567ada: citation matrix/selftest, old-carrier regression proof, strict scan and D60 normalization green. write-site: pre_mutation: allow · pre_final: allow |
 
 ## Owner Gates
 
