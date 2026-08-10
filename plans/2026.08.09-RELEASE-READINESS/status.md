@@ -3,7 +3,7 @@ projection: status-view
 projection_version: v1
 source_scope: plan core + phases + journal
 through: 2026-08-10
-inputs_sha256: 99eb42d97a5803373a77f9acb73e448fa454a46785409beccd405180984d29ee
+inputs_sha256: 4fbd4531beb041d02b18e129aab1359e47f9d9d9b9f2ebb28340bc46aba90bf1
 generated_by: task plan-views status
 -->
 
@@ -28,7 +28,7 @@ generated_by: task plan-views status
 | P10 | PHP, архитектура, безопасность и production-readiness audit | 0/6 | ⬜ Not started |
 | P11 | Pest 5 performance, test isolation и CI | 0/6 | ⬜ Not started |
 | P12 | Ubuntu deployment guide и финальный clean-room rehearsal | 0/7 | ⬜ Not started |
-| P2 | Local vendor, secrets, preflight, bootstrap и Laravel Doctor | 0/6 | ⬜ Not started |
+| P2 | Local vendor, secrets, preflight, bootstrap и Laravel Doctor | 2/6 | ⬜ Not started |
 | P3 | Fresh install, Livewire/Filament assets и application readiness | 0/5 | ⬜ Not started |
 | P4 | Закрытая production-документация вне public | 0/5 | ⬜ Not started |
 | P5 | Default proxy settings и трёхуровневый resolve | 0/5 | ⬜ Not started |
@@ -100,8 +100,8 @@ generated_by: task plan-views status
 
 | ID | Title | Status | Updated |
 |:--|:--|:--|:--|
-| P2.1 | Перенести AzGuard path contract в local/vendors и оформить clone boundary | ⬜ Not started | — |
-| P2.2 | Сделать безопасный генератор .env и .env.docker secrets | ⬜ Not started | — |
+| P2.1 | Перенести AzGuard path contract в local/vendors и оформить clone boundary | 🟢 Done | 2026-08-10 |
+| P2.2 | Сделать безопасный генератор .env и .env.docker secrets | 🟢 Done | 2026-08-10 |
 | P2.3 | Сделать fail-closed host/repository/env/Compose preflight | ⬜ Not started | — |
 | P2.4 | Автоматизировать clone-to-running bootstrap без скрытых ручных шагов | ⬜ Not started | — |
 | P2.5 | Развести base seeds, demo data, создание и сброс администратора | ⬜ Not started | — |
@@ -300,6 +300,15 @@ generated_by: task plan-views status
 | 2026-08-10 | implementation/low | plan-close · closed-green · P1.6 44a334ac was product-subset; product 7f203014; closure 56aeda8e: bash docker/tests/p1-release-contract.sh exit 0; lint f7f45081=0E/0W,new0; P1 product diff/status empty; write-site: pre_mutation: allow · pre_final: allow. |
 | 2026-08-10 | implementation/low | plan-close · closed-green · P1.7 product-origin 7f203014; closure 56aeda8e: bash docker/tests/p1-release-contract.sh exit 0; lint f7f45081=0E/0W,new0; P1 product diff/status empty; write-site: pre_mutation: allow · pre_final: allow. |
 | 2026-08-10 | implementation/low | plan-close · closed-green · фаза P1 закрыта зелёной: 7/7; closure 56aeda8e; D67; без долга и нового audit |
+| 2026-08-10 | gpt-5.6-terra/high | plan-run · in-progress · — |
+| 2026-08-10 | gpt-5.6-terra/high | plan-run · escalated · D19 origin lacks pinned 67ebcde7; executor cannot select a replacement ref |
+| 2026-08-10 | gpt-5.6-terra/high | plan-run · blocked · decision queue: Q-P2.1-private-vendor-pin-v1 |
+| 2026-08-10 | owner | plan-run · in-progress · decision queue: Q-P2.1-private-vendor-pin-v1 |
+| 2026-08-10 | gpt-5.6-terra/high | plan-run · closed-green · P2.1 8fd8e2f6: vendor contract/image pass; release/agelto-p2.1-67ebcde published; write-site allow/allow. |
+| 2026-08-10 | gpt-5.6-terra/high | plan-run · escalated · P5.2 future consumer validation ran before its carrier existed and returned red; requires plan-design. |
+| 2026-08-10 | gpt-5.6-terra/high | plan-close · closed-green · P2.1 8fd8e2f6: vendor contract passed; rerun downstream gate unknown; write-site allow/allow. |
+| 2026-08-10 | gpt-5.6-terra/high | plan-run · in-progress · — |
+| 2026-08-10 | gpt-5.6-terra/high | plan-run · closed-green · P2.2 5df75000: file-secret generator, Compose grants and contract passed; write-site allow/allow. |
 
 ## Owner Gates
 

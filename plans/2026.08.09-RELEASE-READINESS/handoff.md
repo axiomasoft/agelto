@@ -1,39 +1,33 @@
-# HANDOFF — 2026-08-10 — after P1
+# HANDOFF — 2026-08-10 — after P2.2
 
 **Next:** ЗАПУСК ВРУЧНУЮ: `implementation/high`
 
 | Параметр | Значение |
 |:--|:--|
 | Model | implementation |
-| Thinking | high — private dependency boundary |
-| Context | continue (/clear) — ручной item |
-| Суть | Реализовать P2.1: pinned AzGuard vendor boundary и Composer/image closure. |
+| Thinking | high — read-only deployment prerequisites |
+| Context | continue (reset the session context) — ручной item |
+| Суть | Реализовать P2.3: non-mutating host/repo/env/Compose preflight. |
 | Команда | — |
-
-```text
-/model gpt-5.6-terra
-/effort high
-$ task:plan-run 2026.08.09-RELEASE-READINESS P2.1
-```
 
 **Done:**
 
-- P1.1–P1.7 закрыты `🟢 Done`; Pending Work и material Known Deviations пусты.
-- Product-origin `7f203014` удаляет expired aliases; committed closure anchor `56aeda8e`
-  сохраняет byte-identical product paths.
-- `bash docker/tests/p1-release-contract.sh` на `56aeda8e` прошёл Make/Compose/dev-sync,
-  production image, Vite, Task views, lint и strict citations; correction states называют оба anchors.
-- D67 заменил невыполнимый single-anchor D66 и закрыл F11–F14 без нового product change/audit.
+- Product commit `8fd8e2f6` материализовал P2.1 vendor boundary; `bash docker/tests/vendor-contract.sh` прошёл.
+- Owner approved publication of `67ebcde7b3ab32aa0205deb37a483b605e140cdb`; origin exposes `release/agelto-p2.1-67ebcde`.
+- Повторный downstream-gate на `8fd8e2f6` вернул `unknown`; P5.2 теперь объявляет собственный будущий carrier по D68.
+- Product commit `5df75000` добавил create-only file-secret generator, Compose grants и leakage contract.
 
 **Remaining:**
 
-- Следующий исполнимый item — P2.1 по `implementation/high` route.
+- Следующий исполнимый item — P2.3 по implementation/high route.
 
 **Sources of truth:**
 
-- `phases/P1/P1.closed.md`
-- `phases/P1/P1.7.state.md`
-- `decisions/D67-p1-targeted-two-anchor-closure.md`
+- `findings/P2.1-downstream-P5.2-d0a7394006d9-8fd8e2f67793.md`
+- `docker/tests/vendor-contract.sh`
+- `docker/tests/secrets-contract.sh`
+- `docker/secrets.contract`
+- `phases/P2/P2.1.state.md`
 - `journal.jsonl`
 
 **Open risks:** —
@@ -41,5 +35,5 @@ $ task:plan-run 2026.08.09-RELEASE-READINESS P2.1
 **Workarounds/Deferred/Open questions:**
 
 - Workarounds: —
-- Deferred: upstream Task compiler fix описан в Swissknifeman roadmap и не является долгом Agelto/P1.
+- Deferred: —
 - Open questions: —
