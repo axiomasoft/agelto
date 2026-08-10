@@ -11,7 +11,7 @@ AGENT_ENV := $(if $(CLAUDECODE),-e CLAUDECODE=$(CLAUDECODE)) $(if $(CURSOR_AGENT
 
 .DEFAULT_GOAL := help
 .PHONY: help infra\:preflight dev\:up dev\:down dev\:ps dev\:logs dev\:shell dev\:artisan dev\:composer
-.PHONY: agent\:artisan prod\:config prod\:ps prod\:deploy\:code prod\:deploy\:php-deps prod\:deploy\:frontend prod\:deploy\:runtime prod\:image\:promote prod\:deploy\:image prod\:migrate image\:build legacy\:up legacy\:down legacy\:artisan
+.PHONY: agent\:artisan prod\:config prod\:ps prod\:deploy\:code prod\:deploy\:php-deps prod\:deploy\:frontend prod\:deploy\:runtime prod\:image\:promote prod\:deploy\:image prod\:migrate image\:build
 
 help:
 	@echo "Agelto command surface"
@@ -33,7 +33,6 @@ help:
 	@echo "Images:"
 	@echo "  make image:build                               Build the current PHP image"
 	@echo ""
-	@echo "Legacy aliases (removed after P1): legacy:up, legacy:down, legacy:artisan"
 
 infra\:preflight:
 	bash $(ROOT_DIR)/docker/scripts/compose-preflight.sh --mode $(MODE) --env-file $(ROOT_DIR)/$(ENV_FILE)
@@ -94,8 +93,3 @@ prod\:deploy\:image:
 prod\:migrate:
 	@test "$(OWNER_GATE)" = approved || (echo "OWNER_GATE=approved is required for migrations" >&2; exit 2)
 	$(COMPOSE_PROD) run --rm --no-deps app php artisan migrate --force
-
-# Compatibility aliases remain only through the P1 migration and are covered by the contract harness.
-legacy\:up: dev\:up
-legacy\:down: dev\:down
-legacy\:artisan: dev\:artisan

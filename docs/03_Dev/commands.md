@@ -24,15 +24,6 @@ status: living
 | `make prod:image:promote` | Pull готового immutable tag без build на production host |
 | `make prod:deploy:image` | Promote готового tag и runtime recreate без build |
 
-Старые ненеймспейсные цели сознательно не сохранены. Временные compatibility aliases имеют явную
-судьбу:
-
-| Alias | Canonical target | Removal note |
-|:--|:--|:--|
-| `legacy:up` | `dev:up` | Удалить при закрытии P1 |
-| `legacy:down` | `dev:down` | Удалить при закрытии P1 |
-| `legacy:artisan` | `dev:artisan` | Удалить при закрытии P1 |
-
 ## artisan — пайплайн документов/смет
 
 | Команда | Назначение |

@@ -38,8 +38,18 @@ if grep -Eq '(^| )(up|build|pull|down)( |$)' "$log_file"; then
 fi
 
 : > "$log_file"
-run_make legacy:up
-grep -F 'docker-compose.yml up -d' "$log_file" >/dev/null
+for legacy_target in up down artisan; do
+    target="legacy:${legacy_target}"
+    if run_make "$target"; then
+        echo "Contract failed: expired target $target remains public" >&2
+        exit 1
+    fi
+done
+
+if run_make help | rg -F 'legacy:' >/dev/null; then
+    echo 'Contract failed: expired targets remain in make help' >&2
+    exit 1
+fi
 
 : > "$log_file"
 for target in prod:deploy:code prod:deploy:php-deps prod:deploy:frontend prod:deploy:runtime prod:image:promote prod:deploy:image; do
