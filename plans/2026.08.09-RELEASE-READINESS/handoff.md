@@ -1,6 +1,6 @@
-# HANDOFF — 2026-08-10 — after P1.1 escalation
+# HANDOFF — 2026-08-10 — after P1.1
 
-**Next:** `$ task:plan-design 2026.08.09-RELEASE-READINESS P1.1`
+**Next:** plan-design: task:plan-design 2026.08.09-RELEASE-READINESS P1.1
 
 | Параметр | Значение |
 |:--|:--|
