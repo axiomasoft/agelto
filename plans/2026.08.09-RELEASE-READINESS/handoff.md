@@ -1,6 +1,6 @@
 # HANDOFF — 2026-08-10 — after P1.7
 
-**Next:** close-phase: task:plan-close 2026.08.09-RELEASE-READINESS P1
+**Next:** close: task:plan-close 2026.08.09-RELEASE-READINESS P1
 
 | Параметр | Значение |
 |:--|:--|
