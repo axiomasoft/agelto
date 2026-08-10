@@ -3,7 +3,7 @@ projection: status-view
 projection_version: v1
 source_scope: plan core + phases + journal
 through: 2026-08-10
-inputs_sha256: 5ea697b06f8400444caabff465c60d1aa08dc942d231a2d99612132461e4f6cb
+inputs_sha256: a9318ee0ba340411eba94e164f4fda1fc5599f4b2e5e028bd0b225c2653a1727
 generated_by: task plan-views status
 -->
 
@@ -249,6 +249,7 @@ generated_by: task plan-views status
 | 2026-08-10 | gpt-5.6-terra/medium | plan-close · closed-green · Reconciliation: domain/security findings committed and checks/citations green; frontier/high overshot implementation/high. write-site: pre_mutation: allow · pre_final: allow |
 | 2026-08-10 | gpt-5.6-terra/medium | plan-close · closed-green · Reconciliation: product commit 52fb69c6 had decisions check RED, not full validation green; bookkeeping anchor bf234d23 has decisions check GREEN. write-site: pre_mutation: allow · pre_final: allow |
 | 2026-08-10 | gpt-5.6-terra/medium | plan-exec · closed-green · P0.7 item 6b567ada: citation matrix/selftest, old-carrier regression proof, strict scan and D60 normalization green. write-site: pre_mutation: allow · pre_final: allow |
+| 2026-08-10 | implementation/low | plan-close · closed-green · фаза P0 закрыта: восемь терминальных items сверены; D62 marker заменён terminal handoff |
 
 ## Owner Gates
 

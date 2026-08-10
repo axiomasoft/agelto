@@ -1,30 +1,30 @@
-# HANDOFF — 2026-08-10 — after P0.7
+# HANDOFF — 2026-08-10 — after P0
 
-**Next:** close: task:plan-close 2026.08.09-RELEASE-READINESS P0
+**Next:** exec-items: task:plan-exec 2026.08.09-RELEASE-READINESS P1.1
 
 | Параметр | Значение |
 |:--|:--|
 | Model | implementation |
-| Thinking | medium — закрыть фазовый reconciliation carrier |
-| Context | NEW SESSION — шаг-не-item |
-| Суть | Закрыть P0 после P0.7; P1 не запускать. |
-| Команда | `$ task:plan-close 2026.08.09-RELEASE-READINESS P0` |
+| Thinking | medium — deterministic Make contract slice |
+| Context | continue (reset the session context) — ручной item |
+| Суть | Реализовать P1.1: Make taxonomy, help и non-mutating preflight. |
+| Команда | `$ task:plan-exec 2026.08.09-RELEASE-READINESS P1.1` |
 
 ### Native Codex launch-block
 
 ```bash
-codex -C /home/vostrikov/projects/agelto/agelto -m gpt-5.6-terra -c 'model_reasoning_effort="medium"' -a never -s danger-full-access '$ task:plan-close 2026.08.09-RELEASE-READINESS P0'
+codex -C /home/vostrikov/projects/agelto/agelto -m gpt-5.6-terra -c 'model_reasoning_effort="medium"' -a never -s danger-full-access '$ task:plan-exec 2026.08.09-RELEASE-READINESS P1.1'
 ```
 
 **Done:**
 
-- P0.7 закрыт item-коммитом `6b567ada`: citation selftest покрывает full matrix, old carrier красен, strict scan зелён, D60 нормализован.
-- P0.0–P0.6 reconciled append-only terminal events; states несут `write-site: pre_mutation: allow · pre_final: allow`.
-- P0.6 честно различает product commit `52fb69c6` (decisions check RED) и bookkeeping anchor `bf234d23` (GREEN).
+- P0 закрыта: все 8 items terminal `🟢 Done`; stale Phase Handoff marker D62 заменён terminal block.
+- P0.7 закрыт item-коммитом `6b567ada`: citation selftest покрывает full matrix, old carrier красен, strict scan зелён, D60 нормализован; `984ae1f8` и `a136fb36` завершают его bookkeeping и D54 dedup follow-up.
+- P0.0–P0.6 имеют append-only terminal reconciliation events и states с `write-site: pre_mutation: allow · pre_final: allow`.
 
 **Remaining:**
 
-- Закрыть фазу P0, затем независимо аудировать P0; P1 не запускать до GREEN.
+- Следующий исполнимый item — P1.1 по запечатанному `implementation/medium` route.
 
 **Sources of truth:**
 
@@ -35,7 +35,6 @@ codex -C /home/vostrikov/projects/agelto/agelto -m gpt-5.6-terra -c 'model_reaso
 
 **Open risks:**
 
-- P0 phase-close обязан сохранить stale marker D62 до собственного terminal step и не запускать P1.
 - `PROMOTE-CANDIDATE` по общему Task write-site carrier остаётся неблокирующим долгом вне P0.7.
 
 **Workarounds/Deferred/Open questions:**
