@@ -25,7 +25,7 @@ run_make() {
 
 run_make infra:preflight MODE=dev ENV_FILE=.env.example
 run_make agent:artisan ARGS='about'
-run_make prod:config ENV_FILE=.env.example
+run_make prod:config ENV_FILE=.env.example IMAGE_TAG=contract-tag COMPOSE_PROJECT_NAME=agelto_contract
 
 grep -Fx 'compose version' "$log_file" >/dev/null
 grep -F 'compose --project-directory ' "$log_file" | grep -F -- '-f ' | grep -F 'docker-compose.yml config' >/dev/null

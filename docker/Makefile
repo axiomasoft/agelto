@@ -4,13 +4,14 @@ ROOT_DIR := $(abspath $(DOCKER_DIR)/..)
 MODE ?= dev
 ENV_FILE ?= .env
 COMPOSE_PROJECT_NAME ?= agelto_dev
+IMAGE_TAG ?=
 COMPOSE_DEV := docker compose --project-directory $(ROOT_DIR) --project-name $(COMPOSE_PROJECT_NAME) --env-file $(ROOT_DIR)/$(ENV_FILE) -f $(ROOT_DIR)/docker-compose.yml
-COMPOSE_PROD := docker compose --project-directory $(ROOT_DIR) --env-file $(ROOT_DIR)/$(ENV_FILE) -f $(ROOT_DIR)/docker-compose.prod.yml
+COMPOSE_PROD := docker compose --project-directory $(ROOT_DIR) --project-name $(COMPOSE_PROJECT_NAME) --env-file $(ROOT_DIR)/$(ENV_FILE) -f $(ROOT_DIR)/docker-compose.prod.yml
 AGENT_ENV := $(if $(CLAUDECODE),-e CLAUDECODE=$(CLAUDECODE)) $(if $(CURSOR_AGENT),-e CURSOR_AGENT=$(CURSOR_AGENT)) $(if $(AI_AGENT),-e AI_AGENT=$(AI_AGENT))
 
 .DEFAULT_GOAL := help
 .PHONY: help infra\:preflight dev\:up dev\:down dev\:ps dev\:logs dev\:shell dev\:artisan dev\:composer
-.PHONY: agent\:artisan prod\:config prod\:ps image\:build legacy\:up legacy\:down legacy\:artisan
+.PHONY: agent\:artisan prod\:config prod\:ps prod\:deploy\:code prod\:migrate image\:build legacy\:up legacy\:down legacy\:artisan
 
 help:
 	@echo "Agelto command surface"
@@ -65,7 +66,17 @@ prod\:ps:
 	$(COMPOSE_PROD) ps
 
 image\:build:
-	docker build -t agelto/app:latest -f $(ROOT_DIR)/docker/php/Dockerfile $(ROOT_DIR)
+	@test -n "$(IMAGE_TAG)" || (echo "IMAGE_TAG is required" >&2; exit 2)
+	docker build --target application -t agelto/app:$(IMAGE_TAG) -f $(ROOT_DIR)/docker/php/Dockerfile $(ROOT_DIR)
+
+prod\:deploy\:code:
+	@test -n "$(IMAGE_TAG)" || (echo "IMAGE_TAG is required" >&2; exit 2)
+	$(COMPOSE_PROD) pull app horizon scheduler
+	$(COMPOSE_PROD) up -d --no-build --remove-orphans app horizon scheduler
+
+prod\:migrate:
+	@test "$(OWNER_GATE)" = approved || (echo "OWNER_GATE=approved is required for migrations" >&2; exit 2)
+	$(COMPOSE_PROD) run --rm --no-deps app php artisan migrate --force
 
 # Compatibility aliases remain only through the P1 migration and are covered by the contract harness.
 legacy\:up: dev\:up
