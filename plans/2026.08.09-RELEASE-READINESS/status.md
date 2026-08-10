@@ -3,7 +3,7 @@ projection: status-view
 projection_version: v1
 source_scope: plan core + phases + journal
 through: 2026-08-10
-inputs_sha256: b81fe1e13ff72b9e842712643bac9e686cbe21a4c179b97d28155e26eb0e10d6
+inputs_sha256: 8b4b6c9c981b997233fe27571556b7fba8a5ea6e6a5b0b2658824e761859a394
 generated_by: task plan-views status
 -->
 
@@ -16,14 +16,14 @@ generated_by: task plan-views status
 | Поле | Значение |
 |:--|:--|
 | Version | — |
-| Status | 🔴 Blocked |
+| Status | ⬜ Not started |
 | Last Updated | 2026-08-10 |
 
 ## 4. Phase Index & Status Board
 
 | Phase | Title | Items 🟢/всего | Status |
 |:--|:--|:--|:--|
-| P0 | Разведка репозитория, референсов и RAG-контракты | 6/7 | 🔴 Blocked |
+| P0 | Разведка репозитория, референсов и RAG-контракты | 7/7 | 🟢 Done |
 | P1 | Makefile и Docker dev/prod с Vite-ready topology | 0/5 | ⬜ Not started |
 | P10 | PHP, архитектура, безопасность и production-readiness audit | 0/6 | ⬜ Not started |
 | P11 | Pest 5 performance, test isolation и CI | 0/6 | ⬜ Not started |
@@ -47,7 +47,7 @@ generated_by: task plan-views status
 | P0.3 | RAG: Docker/Compose/Makefile, build cache, secrets, Ubuntu deploy и Vite | 🟢 Done | 2026-08-10 |
 | P0.4 | RAG: Laravel 13, Filament 5, Livewire assets, Doctor, private docs и Pest 5 | 🟢 Done | 2026-08-10 |
 | P0.5 | RAG: proxy settings, file formats, archives, document taxonomy и extension patterns | 🟢 Done | 2026-08-10 |
-| P0.6 | Заморозить target contracts, ADR-развилки, acceptance matrix и маршруты фаз | 🔴 Blocked | 2026-08-10 |
+| P0.6 | Заморозить target contracts, ADR-развилки, acceptance matrix и маршруты фаз | 🟢 Done | 2026-08-10 |
 
 ## Phase P1
 
@@ -234,10 +234,10 @@ generated_by: task plan-views status
 | 2026-08-10 | frontier/high | plan-run · in-progress · — |
 | 2026-08-10 | frontier/high | plan-run · closed-green · Session: frontier/high; contracts, trace, D-records and self-audit committed at 52fb69c6; item validation and strict citations green; write-site: pre_mutation: allow · pre_final: allow |
 | 2026-08-10 | frontier/high | plan-run · escalated · Downstream gate for producer 52fb69c6 is red: future P1-P12 validations require not-yet-created carriers outside P0.6 Scope; plan-design must reconcile phase-first producer closure with downstream-gate-v1. |
+| 2026-08-10 | implementation/low | plan-close · closed-green · P0.6 closed: 52fb69c6 and declared validation are green; downstream RED is not P0.6 acceptance and needs no third run. |
 
 ## Owner Gates
 
 - P0.3: known deviation
 - P0.4: known deviation
 - P0.5: known deviation
-- P0.6: escalation
