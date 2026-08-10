@@ -1,6 +1,6 @@
 FROM minio/mc:latest AS mc
 
-FROM serversideup/php:8.5-fpm-nginx AS development
+FROM serversideup/php:8.5-fpm-nginx AS runtime-base
 
 USER root
 
@@ -70,4 +70,15 @@ RUN chmod +x /etc/entrypoint.d/10-secrets.sh
 # `update-ca-certificates` НЕ вызывается — попадание в системный трест расширило бы доверие
 # российскому УЦ на весь контейнер, включая исходящий канал к LLM-провайдеру.
 COPY docker/php/certs/russian-trusted-ca.pem /etc/ssl/certs/russian-trusted-ca.pem
+USER www-data
+
+# Development keeps its source bind mount. Production copies only the filtered build context;
+# Composer/vendor closure and framework readiness remain explicit P2/P3 gates.
+FROM runtime-base AS development
+
+FROM runtime-base AS application
+COPY --chown=www-data:www-data . /var/www/html
+RUN rm -f .env \
+    && mkdir -p storage/framework/{cache,sessions,views} storage/logs bootstrap/cache \
+    && chown -R www-data:www-data storage bootstrap/cache
 USER www-data

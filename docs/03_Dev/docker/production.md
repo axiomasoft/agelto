@@ -8,13 +8,12 @@ status: living
 
 ## Prebuilt image, не build-on-deploy
 
-`docker-compose.prod.yml`: `image: agelto/app:latest` — образ собирается заранее (`make prod-image`/
-`make prod:deploy:image`), деплой кода — `pull` + `up -d`, не пересборка на сервере при каждом
-деплое. `vendor` — именованный volume `vendor_data` (не bind-mount, в отличие от dev), наполняется
-`make prod:composer-install` (`composer install --no-dev --no-interaction --prefer-dist
---optimize-autoloader --no-scripts` + `package:discover`). `public/build` (фронтенд-ассеты) — тоже
-через volume, собирается вне runtime-образа отдельным шагом сборки фронтенда (см. `getting-started.md`
-про yarn — тот же принцип: сборка не внутри `docker/php/Dockerfile`).
+`docker-compose.prod.yml` требует оба значения: `COMPOSE_PROJECT_NAME` и неизменяемый `IMAGE_TAG`.
+`app`, `horizon` и `scheduler` используют ровно `agelto/app:${IMAGE_TAG}`; production host выполняет
+только `pull` + `up -d`, а не build. В production нет host bind-mount для source или `vendor` и нет
+`container_name`, поэтому два Compose-проекта изолированы. Образ имеет stages `runtime-base` и
+`application`, запускается как `www-data`; private Composer closure остаётся gate P2, а production
+frontend artifact — gate P1.4/P3. P1 ещё не является доказательством готовности релиза.
 
 ## Секреты (Docker Swarm)
 

@@ -24,6 +24,10 @@ Dev services build the named `development` target. Source is a host bind-mount; 
 framework runtime and Pest Tia are project-scoped named volumes. `COMPOSE_PROJECT_NAME` defaults to
 `agelto_dev`; services are addressed through Compose and never use fixed `container_name`.
 
+Production uses the non-root `application` stage and requires an explicit `COMPOSE_PROJECT_NAME` plus
+immutable `IMAGE_TAG`; source and `vendor` are never host-mounted. Private Composer dependencies and
+final framework asset readiness remain P2/P3 gates, not properties claimed by the P1 image.
+
 ## Здоровье
 
 `healthcheck` на `app`/`horizon`/`scheduler` — `curl /up`, `horizon:status | grep running`,

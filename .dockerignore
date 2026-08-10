@@ -1,0 +1,14 @@
+.git
+.env*
+plans/
+.ai/
+.claude/
+vendor/
+node_modules/
+.pnpm-store/
+estimates/
+.playwright-mcp/
+storage/
+bootstrap/cache/
+public/build/
+*.log
