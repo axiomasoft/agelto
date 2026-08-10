@@ -76,8 +76,17 @@ USER www-data
 # Composer/vendor closure and framework readiness remain explicit P2/P3 gates.
 FROM runtime-base AS development
 
+FROM node:24-bookworm AS frontend
+WORKDIR /build
+COPY package.json pnpm-lock.yaml ./
+RUN corepack enable && pnpm install --frozen-lockfile
+COPY resources ./resources
+COPY vite.config.js ./
+RUN pnpm build
+
 FROM runtime-base AS application
 COPY --chown=www-data:www-data . /var/www/html
+COPY --from=frontend --chown=www-data:www-data /build/public/build /var/www/html/public/build
 RUN rm -f .env \
     && mkdir -p storage/framework/{cache,sessions,views} storage/logs bootstrap/cache \
     && chown -R www-data:www-data storage bootstrap/cache

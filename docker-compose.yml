@@ -130,6 +130,25 @@ services:
     networks:
       - agelto_network
 
+  vite:
+    image: node:24-bookworm
+    working_dir: /var/www/html
+    command: ["sh", "-lc", "corepack enable && pnpm install --frozen-lockfile && pnpm dev --host=0.0.0.0 --port=${VITE_PORT:-5173}"]
+    volumes:
+      - ./:/var/www/html
+      - vite_node_modules:/var/www/html/node_modules
+      - vite_pnpm_store:/pnpm/store
+    environment:
+      APP_URL: ${APP_URL:-http://localhost:8080}
+      PNPM_STORE_DIR: /pnpm/store
+      VITE_PORT: ${VITE_PORT:-5173}
+    ports:
+      - "${VITE_PORT:-5173}:${VITE_PORT:-5173}"
+    depends_on:
+      app: { condition: service_healthy }
+    networks:
+      - agelto_network
+
   postgres:
     build:
       context: ./docker/postgres
@@ -242,3 +261,5 @@ volumes:
   app_bootstrap_cache:
   app_storage_framework:
   app_pest_tia:
+  vite_node_modules:
+  vite_pnpm_store:
