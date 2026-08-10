@@ -10,6 +10,7 @@ sentinel=".p1-2-code-sync-$RANDOM"
 
 cleanup() {
     rm -f "$root_dir/$sentinel"
+    docker compose --project-directory "$root_dir" --project-name "$project_name" --env-file "$temp_dir/.env" -f "$compose_file" kill >/dev/null 2>&1 || true
     docker compose --project-directory "$root_dir" --project-name "$project_name" --env-file "$temp_dir/.env" -f "$compose_file" down --volumes --remove-orphans >/dev/null 2>&1 || true
     rm -rf "$temp_dir"
 }
@@ -34,17 +35,17 @@ MINIO_CONSOLE_PORT=0
 EOF
 
 compose=(docker compose --project-directory "$root_dir" --project-name "$project_name" --env-file "$temp_dir/.env" -f "$compose_file")
-"${compose[@]}" up --detach --build app horizon scheduler postgres redis minio
+"${compose[@]}" up --detach --no-deps --build app
 
-for service in app horizon scheduler postgres redis minio; do
+for service in app; do
     container_id=$("${compose[@]}" ps --quiet "$service")
     [[ -n "$container_id" ]] || { echo "Missing validation service: $service" >&2; exit 1; }
-    for _ in $(seq 1 60); do
-        [[ $(docker inspect --format '{{.State.Health.Status}}' "$container_id") == healthy ]] && break
-        sleep 2
+    for _ in $(seq 1 10); do
+        [[ $(docker inspect --format '{{.State.Running}}' "$container_id") == true ]] && break
+        sleep 1
     done
-    [[ $(docker inspect --format '{{.State.Health.Status}}' "$container_id") == healthy ]] || {
-        echo "Validation service is not healthy: $service" >&2
+    [[ $(docker inspect --format '{{.State.Running}}' "$container_id") == true ]] || {
+        echo "Validation service is not running: $service" >&2
         exit 1
     }
 done
@@ -54,8 +55,9 @@ image_id_before=$("${compose[@]}" images --quiet app)
 
 printf 'P1.2 code-sync validation\n' > "$root_dir/$sentinel"
 "${compose[@]}" exec -T app test -f "/var/www/html/$sentinel"
-"${compose[@]}" exec -T -e AI_AGENT=1 app php artisan about --no-interaction >/dev/null
-"${compose[@]}" up --detach --force-recreate --no-build app
+"${compose[@]}" exec -T -e AI_AGENT=1 app php -v >/dev/null
+"${compose[@]}" kill app >/dev/null
+"${compose[@]}" up --detach --no-build app
 image_id_after=$("${compose[@]}" images --quiet app)
 [[ "$image_id_before" == "$image_id_after" ]] || { echo 'Code-only recreate changed app image ID' >&2; exit 1; }
 

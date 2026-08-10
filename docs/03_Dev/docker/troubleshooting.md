@@ -43,3 +43,10 @@ http://localhost:8080/up` — тот же эндпоинт, что слушае�
 
 Генераторы, пишущие в `bootstrap/cache`/конфиг-кэш — надёжнее запускать С ХОСТА при подозрении на
 bind-mount-гонку, аналогично composer-операциям выше.
+
+## Production release target rejects its inputs
+
+`prod:deploy:*` and `prod:image:promote` fail closed unless the caller provides an existing env
+file, explicit `COMPOSE_PROJECT_NAME`, and immutable `IMAGE_TAG` other than `latest`. Build or
+volume cleanup is intentionally unavailable on these production paths; build/promote the artifact
+outside the production host, then retry the selected target.

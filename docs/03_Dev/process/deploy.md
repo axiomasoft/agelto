@@ -6,33 +6,24 @@ status: living
 
 # Деплой
 
-## Канон-деплой с живыми очередями (D26)
+## Immutable release contract
 
-`make prod:deploy [COLD=1]` (`docker/Makefile` — единственная точка правды, не копируется сюда):
-
-```
-pull (app/horizon/scheduler)
-  → [COLD=1: horizon:pause — пауза перед рискованным деплоем]
-  → migrate --force (ТОЛЬКО аддитивные миграции!)
-  → horizon:terminate (graceful — текущие jobs доделываются, НЕ down)
-  → up -d (пересоздаёт контейнеры на новом коде)
-  → [COLD=1: horizon:continue]
-  → horizon:status
-```
-
-`COLD=1` — только для рискованных деплоев (миграция с блокировкой, крупная схемная правка);
-обычный деплой кода идёт БЕЗ паузы — `horizon:terminate` сам дожидается текущих jobs.
-**Деструктивные миграции — отдельным деплоем** (expand/contract паттерн — сначала добавить
-новое/сделать код совместимым с обеими схемами, затем отдельно удалить старое).
+All release commands require an explicit `COMPOSE_PROJECT_NAME`, an existing `ENV_FILE`, and an
+immutable `IMAGE_TAG` other than `latest`. The production host only pulls and recreates the three
+application services with `--no-build`; it never mounts source/vendor/frontend artifacts, builds an
+image, or removes volumes. Migration and queue lifecycle orchestration remain separate owner-gated
+work, outside this P1 carrier.
 
 ## Разновидности
 
 | Команда | Когда |
 |:--|:--|
-| `make prod:deploy:code` | Только код, без миграций/composer — самый частый путь |
-| `make prod:deploy:runtime` | + Composer + миграции |
-| `make prod:deploy:image` | + пересборка Docker-образа (изменились системные зависимости) |
-| `make prod:deploy:php-deps` | Только Composer |
+| `make prod:deploy:code` | Pull + recreate готового tag для code invalidation |
+| `make prod:deploy:php-deps` | Тот же immutable carrier для PHP dependency invalidation; Composer не запускается на host |
+| `make prod:deploy:frontend` | Тот же immutable carrier для frontend artifact invalidation |
+| `make prod:deploy:runtime` | Тот же immutable carrier для runtime invalidation |
+| `make prod:image:promote` | Pull готового immutable tag без recreate и без build |
+| `make prod:deploy:image` | Promote готового tag, затем runtime recreate без build |
 
 ## Инвариант очередей
 
@@ -44,11 +35,11 @@ pull (app/horizon/scheduler)
 
 ## Проверка после деплоя
 
-`make prod:doctor` — health `/up`, наличие `vendor` (volume не потерян), статус трёх контейнеров
-одним отчётом.
+Проверить health `/up` и статус трёх контейнеров через выбранный Compose project. Наличие `vendor`
+или frontend artifacts на host не является release condition: они входят в immutable image.
 
 ## Смежное
 
-- [`../docker/production.md`](../docker/production.md) — устройство prod-стека (prebuilt image,
-  `vendor`/`public/build` через volumes, Swarm secrets).
+- [`../docker/production.md`](../docker/production.md) — устройство prod-стека (prebuilt immutable
+  image, Swarm secrets).
 - [`../commands.md`](../commands.md) — полная шпаргалка команд.

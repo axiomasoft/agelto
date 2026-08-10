@@ -10,8 +10,9 @@ status: living
 
 - Docker + Docker Compose v2 (`docker compose`, не легаси `docker-compose`).
 - `make` (обёртка над `docker/Makefile`, см. [`commands.md`](commands.md)).
-- Docker + Make достаточно для текущего dev command surface. Frontend package-manager и
-  production Composer/image topology будут уточнены следующими P1 items.
+- Docker + Make достаточно для текущего dev command surface. Frontend использует pinned
+  `pnpm@9.15.0`; production запускает только заранее собранный immutable `IMAGE_TAG` через
+  явный Compose project — build на production host не выполняется.
 
 ## Первый запуск
 

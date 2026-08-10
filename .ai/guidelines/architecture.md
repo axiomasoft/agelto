@@ -17,6 +17,6 @@
 ## Runtime
 
 - Browser automation runs only in the `horizon` worker (`shm_size`, `CHROME_BIN`).
-- Docker runtime image has PHP extensions + Node/yarn, never `composer install`; `vendor` and `public/build` use volumes. Package manager: yarn, not pnpm.
+- Development keeps source bind-mounted and Vite runs with pinned `pnpm`; production consumes a promoted immutable `IMAGE_TAG` without source, `vendor`, or frontend bind mounts and never builds on the host. The deploy class is explicit: `code`, `php-deps`, `frontend`, `runtime`, or `image-promotion`.
 
 For pipeline stages and schema detail: `docs/03_Dev/architecture.md`, `docs/02_Workflow/crawling-and-discovery.md`, `docs/02_Workflow/document-and-estimate-pipeline.md`.

@@ -40,3 +40,15 @@ fi
 : > "$log_file"
 run_make legacy:up
 grep -F 'docker-compose.yml up -d' "$log_file" >/dev/null
+
+: > "$log_file"
+for target in prod:deploy:code prod:deploy:php-deps prod:deploy:frontend prod:deploy:runtime prod:image:promote prod:deploy:image; do
+    run_make "$target" ENV_FILE=.env.example IMAGE_TAG=contract-tag COMPOSE_PROJECT_NAME=agelto_contract
+done
+grep -F 'pull app horizon scheduler' "$log_file" >/dev/null
+grep -Fx 'pull agelto/app:contract-tag' "$log_file" >/dev/null
+grep -F 'up -d --no-build --remove-orphans app horizon scheduler' "$log_file" >/dev/null
+if grep -Eq '(^| )(build|down|latest)( |$)' "$log_file"; then
+    echo 'Contract failed: a production release target built, tore down, or used latest' >&2
+    exit 1
+fi

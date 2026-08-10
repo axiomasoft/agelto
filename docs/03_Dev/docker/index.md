@@ -27,6 +27,8 @@ framework runtime and Pest Tia are project-scoped named volumes. `COMPOSE_PROJEC
 Production uses the non-root `application` stage and requires an explicit `COMPOSE_PROJECT_NAME` plus
 immutable `IMAGE_TAG`; source and `vendor` are never host-mounted. Private Composer dependencies and
 final framework asset readiness remain P2/P3 gates, not properties claimed by the P1 image.
+Production release commands select an explicit invalidation class (`code`, `php-deps`, `frontend`,
+`runtime`, `image-promotion`) but all paths consume a ready tag and use `--no-build`.
 
 ## Здоровье
 

@@ -20,6 +20,9 @@ status: living
 | `make agent:artisan ARGS="..."` | Non-TTY (`-T`) Artisan для агента |
 | `make prod:config ENV_FILE=.env.production` | Только рендер production Compose, без запуска стека |
 | `make image:build` | Собирает текущий PHP-image |
+| `make prod:deploy:{code,php-deps,frontend,runtime}` | Pull + recreate готового immutable image для выбранного класса; требуются `IMAGE_TAG` и `COMPOSE_PROJECT_NAME` |
+| `make prod:image:promote` | Pull готового immutable tag без build на production host |
+| `make prod:deploy:image` | Promote готового tag и runtime recreate без build |
 
 Старые ненеймспейсные цели сознательно не сохранены. Временные compatibility aliases имеют явную
 судьбу:

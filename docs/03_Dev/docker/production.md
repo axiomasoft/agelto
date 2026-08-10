@@ -23,13 +23,15 @@ frontend artifact — gate P1.4/P3. P1 ещё не является доказа
 deploy) — переменные берутся из `.env` как обычно, блок `secrets` неактивен. Создание секрета на
 сервере: `echo "value" | docker secret create app_key -`.
 
-## Деплой с живыми очередями (D26)
+## Release classes
 
-Полная последовательность и разновидности (`prod:deploy`/`:code`/`:runtime`/`:image`) —
-[`../process/deploy.md`](../process/deploy.md), не дублируется здесь. Ключевой prod-специфичный
-момент: `stop_grace_period` контейнера `horizon` — `${HORIZON_STOP_GRACE_PERIOD:-600s}` (Docker
-default 10s убил бы 300+с job); инвариант `job timeout < supervisor timeout < queue.retry_after` —
-`../runbooks/horizon-backlog.md`.
+Полная матрица команд — [`../process/deploy.md`](../process/deploy.md). Каждый путь требует
+`IMAGE_TAG` (не `latest`) и `COMPOSE_PROJECT_NAME`: `code`, `php-deps`, `frontend` и `runtime`
+делают `pull` + `up -d --no-build`, а `image-promotion` только получает готовый tag. Ни один из
+них не запускает build, не монтирует source/vendor/frontend artifacts и не удаляет volumes.
+Ключевой prod-специфичный момент: `stop_grace_period` контейнера `horizon` —
+`${HORIZON_STOP_GRACE_PERIOD:-600s}` (Docker default 10s убил бы 300+с job); инвариант
+`job timeout < supervisor timeout < queue.retry_after` — `../runbooks/horizon-backlog.md`.
 
 ## Redis durability (D34)
 

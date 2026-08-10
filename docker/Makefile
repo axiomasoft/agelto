@@ -11,7 +11,7 @@ AGENT_ENV := $(if $(CLAUDECODE),-e CLAUDECODE=$(CLAUDECODE)) $(if $(CURSOR_AGENT
 
 .DEFAULT_GOAL := help
 .PHONY: help infra\:preflight dev\:up dev\:down dev\:ps dev\:logs dev\:shell dev\:artisan dev\:composer
-.PHONY: agent\:artisan prod\:config prod\:ps prod\:deploy\:code prod\:migrate image\:build legacy\:up legacy\:down legacy\:artisan
+.PHONY: agent\:artisan prod\:config prod\:ps prod\:deploy\:code prod\:deploy\:php-deps prod\:deploy\:frontend prod\:deploy\:runtime prod\:image\:promote prod\:deploy\:image prod\:migrate image\:build legacy\:up legacy\:down legacy\:artisan
 
 help:
 	@echo "Agelto command surface"
@@ -26,6 +26,9 @@ help:
 	@echo "Agent and production inspection:"
 	@echo "  make agent:artisan ARGS=\"test --compact\"  Non-TTY app command"
 	@echo "  make prod:config ENV_FILE=.env.production    Render production config only"
+	@echo "  make prod:deploy:<class> IMAGE_TAG=<immutable-tag> COMPOSE_PROJECT_NAME=<project>"
+	@echo "    classes: code, php-deps, frontend, runtime; image promotion: prod:image:promote"
+	@echo "  make prod:deploy:image IMAGE_TAG=<immutable-tag> COMPOSE_PROJECT_NAME=<project>"
 	@echo ""
 	@echo "Images:"
 	@echo "  make image:build                               Build the current PHP image"
@@ -70,9 +73,23 @@ image\:build:
 	docker build --target application -t agelto/app:$(IMAGE_TAG) -f $(ROOT_DIR)/docker/php/Dockerfile $(ROOT_DIR)
 
 prod\:deploy\:code:
-	@test -n "$(IMAGE_TAG)" || (echo "IMAGE_TAG is required" >&2; exit 2)
-	$(COMPOSE_PROD) pull app horizon scheduler
-	$(COMPOSE_PROD) up -d --no-build --remove-orphans app horizon scheduler
+	bash $(ROOT_DIR)/docker/scripts/release-deploy.sh code $(ROOT_DIR) $(ENV_FILE)
+
+prod\:deploy\:php-deps:
+	bash $(ROOT_DIR)/docker/scripts/release-deploy.sh php-deps $(ROOT_DIR) $(ENV_FILE)
+
+prod\:deploy\:frontend:
+	bash $(ROOT_DIR)/docker/scripts/release-deploy.sh frontend $(ROOT_DIR) $(ENV_FILE)
+
+prod\:deploy\:runtime:
+	bash $(ROOT_DIR)/docker/scripts/release-deploy.sh runtime $(ROOT_DIR) $(ENV_FILE)
+
+prod\:image\:promote:
+	bash $(ROOT_DIR)/docker/scripts/release-deploy.sh image-promotion $(ROOT_DIR) $(ENV_FILE)
+
+prod\:deploy\:image:
+	bash $(ROOT_DIR)/docker/scripts/release-deploy.sh image-promotion $(ROOT_DIR) $(ENV_FILE)
+	bash $(ROOT_DIR)/docker/scripts/release-deploy.sh runtime $(ROOT_DIR) $(ENV_FILE)
 
 prod\:migrate:
 	@test "$(OWNER_GATE)" = approved || (echo "OWNER_GATE=approved is required for migrations" >&2; exit 2)

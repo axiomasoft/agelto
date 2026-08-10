@@ -31,6 +31,8 @@ override. `COMPOSE_PROJECT_NAME` по умолчанию равен `agelto_dev`
 Vite запускается отдельным сервисом `vite` на Node 24. Он использует `pnpm@9.15.0` и
 `pnpm-lock.yaml` с `--frozen-lockfile`, а `node_modules`/pnpm store — project-scoped named volumes.
 Сервис слушает `${VITE_PORT:-5173}`; HMR доступен браузеру только через `localhost` и `APP_URL`.
+Для isolated smoke задавайте уникальные `COMPOSE_PROJECT_NAME` и `VITE_PORT`; cleanup удаляет
+только resources этого проекта.
 
 ## Смежное
 
