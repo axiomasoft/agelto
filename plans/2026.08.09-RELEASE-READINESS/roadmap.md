@@ -1,6 +1,6 @@
 # Roadmap исполнения — 2026.08.09-RELEASE-READINESS
 
-**Обновлён:** 2026-08-09 · **Соответствует plan.md:** Layout v2, 75 items, audit-remediation D48–D54 и owner acceptance D55
+**Обновлён:** 2026-08-10 · **Соответствует plan.md:** Layout v2, 75 items, audit-remediation D48–D54, owner acceptance D55 и P0.3 MCP gate D56
 
 Roadmap пересобран после повторного full `finish` D52 и адресной remediation F1–F12; D55 закрывает
 audit-loop после трёх заходов и открывает execution напрямую с P0.0. `solo` оставлен для owner-gate,
@@ -11,7 +11,7 @@ batch и всё равно закрываются каждый своим commit
 
 | Фаза | Кандидаты | Решение | Route/review | Причина |
 |:--|:--|:--|:--|:--|
-| P0 | P0.3–P0.5 | B0-RAG | implementation/high · full | одна evidence-цепь без owner gate; P0.1/P0.2 и P0.6 остаются solo из-за external gate/frontier freeze |
+| P0 | P0.4–P0.5 | B0-RAG | implementation/high · full | оставшаяся evidence-цепь после terminal P0.3 MCP replay D56; P0.1/P0.2 и P0.6 остаются solo из-за external gate/frontier freeze |
 | P1 | P1.2–P1.5 | B1-RUNTIME | implementation/high · full | одна Compose/image/Vite/deploy цепь после P1.1; заключительный gate остаётся внутри серии |
 | P3 | P3.1–P3.5 | B3-READINESS | implementation/high · full | diagnosis→repair→readiness→E2E→recovery использует один runtime context; root-cause escalation останавливает серию |
 | P2, P4–P12 | текущие solo | solo | как в §3 Routing | требуются owner/external gates, frontier freeze либо отдельный риск-контекст; кандидаты на следующие batch-проходы рассматриваются по фактическим terminal inputs |
@@ -23,8 +23,8 @@ batch и всё равно закрываются каждый своим commit
 | P0.0 | solo | `task:plan-exec … P0.0` | implementation/medium | — | prerequisite: materialize stdlib citation verifier before all consumers |
 | P0.1 | solo | `task:plan-run … P0.1` | implementation/high | — | широкий immutable repo inventory; отдельный evidence close |
 | P0.2 | solo | `task:plan-run … P0.2` | implementation/high | доступ к 3 reference trees | отдельный чужой-tree snapshot, не смешивать с P0.1 |
-| P0.3 | B0-RAG | `task:plan-run … P0.3-P0.5` | implementation/high | — | sequential RAG series; each item retains its close cycle |
-| P0.4 | B0-RAG | ↑ | implementation/high | — | consumes P0.3 findings in-session |
+| P0.3 | closed | — | implementation/high | — | 🟢 MCP replay D56; item commit `751d72dd` |
+| P0.4 | B0-RAG | `task:plan-run … P0.4-P0.5` | implementation/high | — | consumes terminal P0.3 MCP findings |
 | P0.5 | B0-RAG | ↑ | implementation/high | — | consumes P0.4 findings in-session |
 | P0.6 | solo | `task:plan-run … P0.6` | frontier/high | утверждение frozen contracts | cross-track synthesis меняет tier и запечатывает решения |
 | P1.1 | solo | `task:plan-exec … P1.1` | implementation/medium | — | самостоятельный Make taxonomy/contract slice |
@@ -96,18 +96,24 @@ batch и всё равно закрываются каждый своим commit
 | P12.6 | solo | `task:plan-run … P12.6` | implementation/high | — | cross-carrier final command/docs verification |
 | P12.7 | solo | `task:plan-run … P12.7` | frontier/xhigh | final external rehearsal access | irreversible cross-plan `READY|NOT_READY` verdict |
 
-## Старт исполнения после design-audit
+## Следующий запуск
 
-**Next:** exec-items: task:plan-exec 2026.08.09-RELEASE-READINESS P0.0
+**Next:** run-items: task:plan-run 2026.08.09-RELEASE-READINESS P0.4-P0.5
 
 | Параметр | Значение |
 |:--|:--|
 | Model class | implementation |
 | Effort | medium |
-| Capabilities | — |
+| Capabilities | `mcp.perplexity-web` · `mcp.context7` |
 | Context | same-session — item |
-| Суть | После GREEN design-audit материализовать общий citation verifier до P0.1 |
-| Команда | `codex -C /home/vostrikov/projects/agelto/agelto -m gpt-5.6-terra -c 'model_reasoning_effort="medium"' -a never -s danger-full-access '$ task:plan-exec 2026.08.09-RELEASE-READINESS P0.0'` |
+| Суть | Продолжить terminal MCP evidence chain: Laravel/runtime P0.4, затем domain/security P0.5 |
+| Команда | — |
+
+### Native Codex launch-block
+
+```bash
+codex -C /home/vostrikov/projects/agelto/agelto -m gpt-5.6-terra -c 'model_reasoning_effort="high"' -a never -s danger-full-access '$ task:plan-run 2026.08.09-RELEASE-READINESS P0.4-P0.5'
+```
 
 ## Гейты владельца (сводно)
 

@@ -14,7 +14,7 @@
 
 1. P0.1 снимает один Agelto baseline по восьми surfaces. RAG:— (repo-grounded: owner brief + bootstrap recon).
 2. P0.2 применяет ту же матрицу к трём references и пинит фактические dirty bytes. RAG:— (repo-grounded: `findings/P0-reference-input-map-2026-08-09.md`).
-3. P0.3→P0.4→P0.5 идут последовательно: infrastructure verdicts задают runtime/deploy boundary Laravel-трека, а он — stack/security boundary domain-трека. Это убирает независимый fan-out после RED workflow gate. RAG:— (repo-grounded: `findings/P0-workflow-static-review-2026-08-09.md`, D15).
+3. P0.3→P0.4→P0.5 идут последовательно: infrastructure verdicts задают runtime/deploy boundary Laravel-трека, а он — stack/security boundary domain-трека. P0.3 имеет дополнительный MCP replay gate D56; WebSearch-only результат остаётся provisional до replay. Это убирает независимый fan-out после RED workflow gate. RAG:— (repo-grounded: `findings/P0-workflow-static-review-2026-08-09.md`, `findings/P0-rag-provider-runtime-2026-08-10.md`, D15, D56).
 4. P0.6 единолично владеет cross-track synthesis/freeze и bounded self-audit; после phase close отдельный fresh-context `task:plan-audit P0` проверяет provenance, coverage и consumer consistency. RAG:— (repo-grounded: D4/D5/D15 and plan-protocol Tier policy).
 
 ## Common findings schema for P0.3–P0.5
@@ -27,6 +27,11 @@
 4. `Contradictions and rejected claims` — source disagreement and `REFUTED|UNVERIFIED` verdict.
 5. `Recommendations` — evidence-backed input for P0.6, not an accepted D-record.
 6. `Open questions` — unresolved fact or owner-policy fork; no silent assumption.
+
+Для P0.3 внутри `Scope and queries` обязателен `### MCP replay matrix`: по одной строке INF-01–INF-12
+с engine/query/date/sources/verdict. Сначала зелёный `perplexity-web` login и cited-search smoke;
+Context7 используется для доступных versioned docs. WebFetch разрешён только как known-URL
+дочитывание и не заменяет MCP replay. RAG:— (repo-grounded: D56).
 
 ## External fact classes and source policy
 
@@ -61,3 +66,9 @@
 - Major/Blocker → fix in frontier main loop → repeated self-audit; maximum two refine rounds.
 - Два rounds исчерпаны и GREEN нет → P0.6 не закрывается, escalation в main loop/owner.
 - GREEN self-audit не заменяет `task:plan-audit P0` после закрытия фазы.
+
+## Проверка (verification status)
+
+- RAG: `perplexity-web` login smoke 2026-08-10 — degraded, `Daemon connection closed before result`; содержательный внешний query не выполнялся.
+- Непроверено → ПОВТОРНЫЙ ПРОХОД: INF-01–INF-12 и их design consequences — после fresh-session MCP smoke по D56.
+- Обходки/[POSSIBLE-DEFECT]: существующий WebSearch-only `findings/P0-rag-infrastructure.md` сохранён как provisional seed; terminal acceptance ему не выдан.

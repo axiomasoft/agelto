@@ -142,3 +142,12 @@ P12 состоит из семи последовательных items: каж�
 design-проходов: полный cross-phase reconcile/DoR/roadmap остаётся обязательным, как и отдельный
 fresh-context `$ task:plan-audit 2026.08.09-RELEASE-READINESS design` на frontier/xhigh до
 любого execution.
+
+## 2026-08-10 — P0.3 MCP replay gate
+
+Владелец потребовал не принимать WebSearch-only infrastructure findings как terminal evidence:
+P0.3 должен повторно проверить прежние findings и относящиеся к ним design-выводы через MCP.
+Диагностика plan-design подтвердила, что `perplexity-web` сейчас не проходит smoke: Codex tool
+возвращает `Daemon connection closed before result`, а daemon logs показывают stale graphical
+environment и конкурирующий persistent-profile lock. До зелёного MCP smoke P0.3 остаётся
+`🔴 Blocked`; fallback-файл сохраняется как provisional input и не открывает P0.4/P0.6.

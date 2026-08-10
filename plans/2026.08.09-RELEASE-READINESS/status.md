@@ -3,7 +3,7 @@ projection: status-view
 projection_version: v1
 source_scope: plan core + phases + journal
 through: 2026-08-10
-inputs_sha256: 582a5f3481a050c2fb7d990c3baf60c501971d8f91b42c6588f46b6b8bb44e5a
+inputs_sha256: 1f0bd1eefbf59689f209c40a7d7eae0d63d0e59d5fb11587be22a2afabd1a3cb
 generated_by: task plan-views status
 -->
 
@@ -23,7 +23,7 @@ generated_by: task plan-views status
 
 | Phase | Title | Items 🟢/всего | Status |
 |:--|:--|:--|:--|
-| P0 | Разведка репозитория, референсов и RAG-контракты | 3/7 | ⬜ Not started |
+| P0 | Разведка репозитория, референсов и RAG-контракты | 4/7 | ⬜ Not started |
 | P1 | Makefile и Docker dev/prod с Vite-ready topology | 0/5 | ⬜ Not started |
 | P10 | PHP, архитектура, безопасность и production-readiness audit | 0/6 | ⬜ Not started |
 | P11 | Pest 5 performance, test isolation и CI | 0/6 | ⬜ Not started |
@@ -44,7 +44,7 @@ generated_by: task plan-views status
 | P0.0 | Ввести исполняемый citation gate до первого execution item | 🟢 Done | 2026-08-09 |
 | P0.1 | Инвентарь Agelto: Docker, Make, deploy, fresh install, admin, proxies, documents, tests | 🟢 Done | 2026-08-10 |
 | P0.2 | Сравнительная матрица Sova, Vintera/CMS и Dterema | 🟢 Done | 2026-08-10 |
-| P0.3 | RAG: Docker/Compose/Makefile, build cache, secrets, Ubuntu deploy и Vite | ⬜ Not started | — |
+| P0.3 | RAG: Docker/Compose/Makefile, build cache, secrets, Ubuntu deploy и Vite | 🟢 Done | 2026-08-10 |
 | P0.4 | RAG: Laravel 13, Filament 5, Livewire assets, Doctor, private docs и Pest 5 | ⬜ Not started | — |
 | P0.5 | RAG: proxy settings, file formats, archives, document taxonomy и extension patterns | ⬜ Not started | — |
 | P0.6 | Заморозить target contracts, ADR-развилки, acceptance matrix и маршруты фаз | ⬜ Not started | — |
@@ -214,7 +214,17 @@ generated_by: task plan-views status
 | 2026-08-10 | gpt-5.6-terra/high | plan-design · in-progress · P0.1 inventory added to P0.2 declared inputs and required reads. |
 | 2026-08-10 | gpt-5.6-terra/high | plan-run · in-progress · Retry after P0.2 declared input refinement. |
 | 2026-08-10 | gpt-5.6-terra/high | plan-run · closed-green · P0.2 comparison and reproducible reference manifest completed; citation verification green. |
+| 2026-08-10 | implementation/medium | plan-run · blocked · Required implementation/high; current session implementation/medium. |
+| 2026-08-10 | frontier/high | plan-design · in-progress · ТЗ item'а доведено до DoR |
+| 2026-08-10 | frontier/high | plan-run · in-progress · Retry after P0.3 cold-start input refinement; prescribed implementation/high, session frontier/high. |
+| 2026-08-10 | gpt-5.6-terra/high | plan-run · escalated · Owner requires MCP-backed re-research of prior findings and plan design; Perplexity MCP has a cross-runtime profile-lock failure. |
+| 2026-08-10 | frontier/high | plan-design · in-progress · фаза детализирована до DoR; P0.3 ждёт зелёный MCP smoke D56 |
+| 2026-08-10 | gpt-5.6-terra/medium | plan-run · blocked · предписано implementation/high; сессия gpt-5.6-terra/medium; item уже 🔴 Blocked |
+| 2026-08-10 | frontier/high | plan-design · in-progress · ТЗ item'а доведено до DoR |
+| 2026-08-10 | frontier/high | plan-run · in-progress · Retry after D56 MCP daemon recovery; session frontier/high overshoots prescribed implementation/high. |
+| 2026-08-10 | frontier/high | plan-run · closed-green · MCP replay closed: login/search PASS; 12 INF rows; citations strict green; item commit 751d72dd; route frontier/high overshot implementation/high. write-site: pre_mutation: allow · pre_final: allow |
+| 2026-08-10 | frontier/high | plan-run · closed-green · MCP replay complete; login/search PASS; all declared INF rows and citation gate green on item commit 751d72dd. Route frontier/high overshot implementation/high. write-site: pre_mutation: allow · pre_final: allow |
 
 ## Owner Gates
 
-- —
+- P0.3: known deviation

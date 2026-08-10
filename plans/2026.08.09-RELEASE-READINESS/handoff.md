@@ -1,36 +1,35 @@
-# HANDOFF — 2026-08-10 — after P0.2
+# HANDOFF — 2026-08-10 — after P0.3
 
-**Next:** manual: implementation/high
+**Next:** run-items: task:plan-run 2026.08.09-RELEASE-READINESS P0.4-P0.5
 
 | Параметр | Значение |
 |:--|:--|
 | Model class | implementation |
 | Effort | high |
-| Capabilities | — |
+| Capabilities | `mcp.perplexity-web` · `mcp.context7` |
 | Context | same-session — item |
-| Суть | Проверить infrastructure claims по первичным источникам для P1/P2/P11/P12. |
+| Суть | Продолжить MCP evidence chain: P0.4, затем P0.5 по terminal outputs предыдущего item |
 | Команда | — |
 
-**Done:** P0.2 создал `findings/P0-reference-snapshot.sha256` и
-`findings/P0-reference-comparison.md`; item commit `1ba60f68`.
+**Done:** P0.3 закрыл D56: `perplexity-web` login и cited-search smoke зелёны,
+INF-01–INF-12 получили MCP replay rows и independent verdicts; item commit `751d72dd`.
 
-**Remaining:** P0.3–P0.6 и следующие фазы по `roadmap.md`.
+**Remaining:** P0.4–P0.6 и следующие фазы по `roadmap.md`.
 
-**Sources of truth:** `plan.md` · `phases/P0/P0.md` · `phases/P0/P0.2.md` ·
-`phases/P0/P0.2.state.md` · `findings/P0-reference-comparison.md` ·
-`findings/P0-reference-snapshot.sha256` · `journal.jsonl` · `roadmap.md`.
+**Sources of truth:** `plan.md` · `phases/P0/P0.md` · `phases/P0/P0.3.md` ·
+`phases/P0/P0.3.state.md` · `findings/P0-rag-infrastructure.md` · `journal.jsonl` ·
+`roadmap.md`.
 
-**Open risks:** Reference evidence относится к фактическим dirty working-tree bytes; P0.3 не
-должен трактовать comparison как verified external infrastructure verdict.
+**Open risks:** INF-09 подтверждает Docker backup/restore mechanics, но off-host destination,
+retention, cadence и RPO/RTO остаются owner/provider policy для P12. Exact installed Vite major
+и runtime external-secret startup остаются проверками declared consumers.
 
-**Workarounds/Deferred/Open questions:** —
+**Workarounds/Deferred/Open questions:** daemon поднят штатным launcher'ом с актуальным
+Xauthority без правок MCP config/profile; route `frontier/high` превысил предписанный
+`implementation/high` и записан как process deviation.
 
 ## Native Codex launch-block
 
 ```bash
-codex -C /home/vostrikov/projects/agelto/agelto -m gpt-5.6-terra -c 'model_reasoning_effort="high"' -a never -s danger-full-access '$ task:plan-run 2026.08.09-RELEASE-READINESS P0.3'
-```
-
-```text
-$ task:plan-run 2026.08.09-RELEASE-READINESS P0.3
+codex -C /home/vostrikov/projects/agelto/agelto -m gpt-5.6-terra -c 'model_reasoning_effort="high"' -a never -s danger-full-access '$ task:plan-run 2026.08.09-RELEASE-READINESS P0.4-P0.5'
 ```

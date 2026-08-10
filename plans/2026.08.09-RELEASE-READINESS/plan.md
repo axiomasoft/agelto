@@ -40,7 +40,7 @@ Vintera/CMS и Dterema и верифицирует внешние практик
 - Повторный cross-phase finish D52 охватывает все 75 items после D48 и остаётся machine-current finish carrier; owner D55 принимает текущий design после ремедиации F9–F12, завершает audit-loop на трёх заходах без четвёртого audit и открывает execution с P0.0.
 - Первый execution item — prerequisite P0.0 из D48; P0.1 и остальные citation consumers не стартуют до его terminal state.
 - Перед и после plan-work выполнять Task checks из marketplace root в порядке AGENTS.md: lint → state → decisions → status.
-- RAG-факты и сравнение чужих репозиториев сохранять в findings в том же ходе; синтез — в research; решения — в decisions.
+- RAG-факты и сравнение чужих репозиториев сохранять в findings в том же ходе; синтез — в research; решения — в decisions. P0.3 закрывается только после MCP replay по D56; WebSearch-only fallback остаётся provisional.
 - Любой внешний best practice получает RAG:✅ с URL и датой либо остаётся [UNVERIFIED]; RAG:— допустим только для фактов этого репозитория.
 - Текущие Makefile/Compose — requirements input: совместимость целей сохраняется только после инвентаря и осознанного решения.
 - Dev code-only change не должен требовать rebuild PHP-образа; причины rebuild должны быть конечным проверяемым перечнем.
@@ -64,7 +64,7 @@ owner acceptance D55 открывает execution напрямую с P0.0 бе�
 | — | P0.0 | implementation/medium | plan-exec | full | отдельный deterministic stdlib citation carrier по запечатанному D48; executable selftest и strict gate без product design |
 | — | P0.1 | implementation/high | manual | full | широкий repo inventory по запечатанной схеме; high нужен для cross-layer synthesis, новых product-решений нет |
 | — | P0.2 | implementation/high | manual | full | read-only сравнение трёх dirty reference trees требует воспроизводимого evidence snapshot и синтеза |
-| B0-RAG | P0.3 | implementation/high | manual | full | последовательная RAG-серия с одним evidence context; P0.3 результат обязателен для P0.4 |
+| B0-RAG | P0.3 | implementation/high | manual | full | MCP-gated RAG replay по D56; P0.3 результат обязателен для P0.4, provider failure не понижает route |
 | B0-RAG | P0.4 | implementation/high | manual | full | последовательная RAG-серия; P0.4 findings обязательны для P0.5 |
 | B0-RAG | P0.5 | implementation/high | manual | full | завершает RAG-серию без owner gate внутри неё |
 | — | P0.6 | frontier/high | manual | full | заморозка межфазных contracts и альтернатив — открытые design-решения и высокая цена семантической ошибки |
