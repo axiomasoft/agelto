@@ -3,7 +3,7 @@ projection: status-view
 projection_version: v1
 source_scope: plan core + phases + journal
 through: 2026-08-10
-inputs_sha256: 4b9c1d91297d8e1c46ab7c15fa9536a8aae3ea413b0f89f0dc4362a5fd10102b
+inputs_sha256: b47d6c72934545c4d3d06f6a0e550718dac09a5cc500efa7cd9b00d36dd6db03
 generated_by: task plan-views status
 -->
 
@@ -16,14 +16,14 @@ generated_by: task plan-views status
 | Поле | Значение |
 |:--|:--|
 | Version | — |
-| Status | ⬜ Not started |
+| Status | 🔴 Blocked |
 | Last Updated | 2026-08-10 |
 
 ## 4. Phase Index & Status Board
 
 | Phase | Title | Items 🟢/всего | Status |
 |:--|:--|:--|:--|
-| P0 | Разведка репозитория, референсов и RAG-контракты | 6/7 | ⬜ Not started |
+| P0 | Разведка репозитория, референсов и RAG-контракты | 6/7 | 🔴 Blocked |
 | P1 | Makefile и Docker dev/prod с Vite-ready topology | 0/5 | ⬜ Not started |
 | P10 | PHP, архитектура, безопасность и production-readiness audit | 0/6 | ⬜ Not started |
 | P11 | Pest 5 performance, test isolation и CI | 0/6 | ⬜ Not started |
@@ -47,7 +47,7 @@ generated_by: task plan-views status
 | P0.3 | RAG: Docker/Compose/Makefile, build cache, secrets, Ubuntu deploy и Vite | 🟢 Done | 2026-08-10 |
 | P0.4 | RAG: Laravel 13, Filament 5, Livewire assets, Doctor, private docs и Pest 5 | 🟢 Done | 2026-08-10 |
 | P0.5 | RAG: proxy settings, file formats, archives, document taxonomy и extension patterns | 🟢 Done | 2026-08-10 |
-| P0.6 | Заморозить target contracts, ADR-развилки, acceptance matrix и маршруты фаз | ⬜ Not started | — |
+| P0.6 | Заморозить target contracts, ADR-развилки, acceptance matrix и маршруты фаз | 🔴 Blocked | 2026-08-10 |
 
 ## Phase P1
 
@@ -228,9 +228,12 @@ generated_by: task plan-views status
 | 2026-08-10 | frontier/high | plan-run · closed-green · P0.4 Laravel ecosystem RAG: findings committed; all item checks and strict citations green. |
 | 2026-08-10 | frontier/high | plan-run · in-progress · — |
 | 2026-08-10 | frontier/high | plan-run · closed-green · Session: frontier/high; exceeded implementation/high. P0.5 findings committed; item checks and strict citations green. |
+| 2026-08-10 | frontier/high | plan-run · in-progress · — |
+| 2026-08-10 | frontier/high | plan-run · escalated · P0.6 input contract is incomplete: upstream states name no output paths and the bundle omits their findings; plan-design must declare exact inputs. |
 
 ## Owner Gates
 
 - P0.3: known deviation
 - P0.4: known deviation
 - P0.5: known deviation
+- P0.6: escalation
