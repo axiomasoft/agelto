@@ -5,31 +5,34 @@
 | Параметр | Значение |
 |:--|:--|
 | Model | implementation |
-| Thinking | high — execute fail-closed preflight |
-| Context | continue (/clear) — ручной item |
-| Суть | Реализовать P2.3: non-mutating host/repo/env/Compose preflight. |
+| Thinking | high — execute resumable bootstrap |
+| Context | continue (reset the session context) — ручной item |
+| Суть | Реализовать P2.4: staged bootstrap, объединяющий vendor, secrets, preflight и P1 targets. |
 | Команда | — |
+
+```
+select session model class implementation
+select session effort high
+$ task:plan-run 2026.08.09-RELEASE-READINESS P2.4
+```
 
 **Done:**
 
 - Product commit `8fd8e2f6` материализовал P2.1 vendor boundary; `bash docker/tests/vendor-contract.sh` прошёл.
-- Owner approved publication of `67ebcde7b3ab32aa0205deb37a483b605e140cdb`; origin exposes `release/agelto-p2.1-67ebcde`.
-- Повторный downstream-gate на `8fd8e2f6` вернул `unknown`; P5.2 теперь объявляет собственный будущий carrier по D68.
 - Product commit `5df75000` добавил create-only file-secret generator, Compose grants и leakage contract.
-- D69 уточнил P1 Compose-v2 capability contract без numeric policy и снял blocker P2.3.
+- D69 уточнил P1 Compose-v2 capability contract без numeric policy.
+- Product commit `32b805d5` добавил fail-closed non-mutating preflight; `bash docker/tests/preflight-contract.sh` и `bash docker/tests/make-contract.sh` прошли.
 
 **Remaining:**
 
-- Реализовать и прогнать P2.3 preflight contract.
+- Реализовать P2.4 resumable bootstrap поверх terminal P2.1–P2.3.
 
 **Sources of truth:**
 
-- `findings/P2.1-downstream-P5.2-d0a7394006d9-8fd8e2f67793.md`
-- `docker/tests/vendor-contract.sh`
-- `docker/tests/secrets-contract.sh`
-- `docker/secrets.contract`
-- `phases/P2/P2.1.state.md`
+- `phases/P2/P2.3.state.md`
+- `phases/P2/P2.4.md`
 - `decisions/D69-p23-compose-v2-capability.md`
+- `findings/P2.3-downstream-P2.4-1de29d6779a2-32b805d5b444.md`
 - `journal.jsonl`
 
 **Open risks:** —
