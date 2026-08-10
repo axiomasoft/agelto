@@ -5,9 +5,9 @@
 | Параметр | Значение |
 |:--|:--|
 | Model | frontier |
-| Thinking | xhigh — исправить frozen execution contract |
+| Thinking | high — reconcile phase-first downstream gate |
 | Context | NEW SESSION — шаг-не-item |
-| Суть | Объявить точные outputs P0.1–P0.5 входами P0.6 и пересобрать v2 bundle/views |
+| Суть | Исправить конфликт между обязательным P0 producer freeze и premature execution P1–P12 acceptance. |
 | Команда | `/task:plan-design 2026.08.09-RELEASE-READINESS P0.6` |
 
 ```text
@@ -17,37 +17,43 @@ $ task:plan-design 2026.08.09-RELEASE-READINESS P0.6
 ### Native Codex launch-block
 
 ```bash
-codex -C /home/vostrikov/projects/agelto/agelto -m gpt-5.6-sol -c 'model_reasoning_effort="xhigh"' -a never -s danger-full-access '$ task:plan-design 2026.08.09-RELEASE-READINESS P0.6'
+codex -C /home/vostrikov/projects/agelto/agelto -m gpt-5.6-sol -c 'model_reasoning_effort="high"' -a never -s danger-full-access '$ task:plan-design 2026.08.09-RELEASE-READINESS P0.6'
 ```
 
 **Done:**
 
-- P0.6 запущен в сессии `frontier/high`; pre-mutation Task Contract — `allow`.
-- Подтверждены terminal states P0.1–P0.5 и свежесть исходного digest-qualified bundle.
-- Fail-closed self-audit зафиксировал конфликт: upstream state не называет output-пути, а bundle не содержит findings для trace/freeze.
-- P0.6 переведён в `🔴 Blocked`; return-evidence записан как `unqualifiable` до будущего terminal plan-design return event.
+- P0.6 contract artifacts committed as `52fb69c6`.
+- Declared item validation and strict citation verification passed.
+- Mandatory downstream run recorded item-scoped findings and returned RED.
+- Terminal journal status is escalation; isolated reviewer evidence was stored without weakening RED.
 
 **Remaining:**
 
-- `plan-design` должен объявить конкретные P0.1–P0.5 findings/outputs в Inputs и Required Reads либо дать эквивалентный durable output carrier.
-- Пересобрать P0.6 bundle и затронутые state/status/decision views.
-- Повторно исполнить P0.6; после успешного close выполнить fresh-context `task:plan-audit 2026.08.09-RELEASE-READINESS P0`.
+- Reconcile `downstream-gate-v1` with phase-first contract producers: future consumer acceptance
+  cannot be required green before its phase starts, while real red compatibility evidence must
+  remain blocking.
+- Remove the escalation only through plan-design, rebuild affected views/bundles and rerun P0.6.
 
 **Sources of truth:**
 
-- `phases/P0/P0.6.md` — item contract и escalation marker.
-- `phases/P0/P0.6.state.md` — byte-fresh blocked state.
-- `findings/P0-contract-self-audit.md` — воспроизводимое основание RED.
-- `bundles/P0.6.json` — текущий digest-qualified read graph.
-- `journal.jsonl` — in-progress и escalated events текущей попытки.
+- `phases/P0/P0.6.md`
+- `root/contracts/release-readiness-v1.md`
+- `findings/P0.6-downstream-*.md`
+- `findings/P0.6-return-downstream-red-2026-08-10.md`
+- `findings/P0.6-judgement-downstream-52fb69c6.md`
+- `journal.jsonl`
 
 **Open risks:**
 
-- Синтез frozen release-readiness contract без явных upstream outputs будет неполным или невоспроизводимым.
-- Phase P0 остаётся незакрытой до remediation и повторного исполнения P0.6.
+- Downstream runner classifies missing future carriers and placeholder-like validation fragments as
+  RED instead of a non-applicable pre-implementation state; producer closure remains blocked.
+- Journal line 52 records the attempted green close and line 53 supersedes it with escalation after
+  the mandatory downstream gate; latest state must remain authoritative.
+- D60 remains a proposed owner gate for recovery policy before P12.3/P12.7; it is not this blocker.
 
 **Workarounds/Deferred/Open questions:**
 
-- Workarounds: не применялись; незаявленное чтение findings запрещено.
-- Deferred: авторинг target contract, ADR alternatives, acceptance/consumer matrix и route-review matrix.
-- Open questions: какие exact findings P0.1–P0.5 являются каноническими execution inputs P0.6.
+- Workarounds: —
+- Deferred: product/future-consumer implementation remains in its owning phases.
+- Open questions: which plan-design representation distinguishes pre-implementation consumer
+  non-applicability from a real downstream contract regression without weakening RED handling.

@@ -3,7 +3,7 @@ projection: status-view
 projection_version: v1
 source_scope: plan core + phases + journal
 through: 2026-08-10
-inputs_sha256: b47d6c72934545c4d3d06f6a0e550718dac09a5cc500efa7cd9b00d36dd6db03
+inputs_sha256: b81fe1e13ff72b9e842712643bac9e686cbe21a4c179b97d28155e26eb0e10d6
 generated_by: task plan-views status
 -->
 
@@ -230,6 +230,10 @@ generated_by: task plan-views status
 | 2026-08-10 | frontier/high | plan-run · closed-green · Session: frontier/high; exceeded implementation/high. P0.5 findings committed; item checks and strict citations green. |
 | 2026-08-10 | frontier/high | plan-run · in-progress · — |
 | 2026-08-10 | frontier/high | plan-run · escalated · P0.6 input contract is incomplete: upstream states name no output paths and the bundle omits their findings; plan-design must declare exact inputs. |
+| 2026-08-10 | frontier/high | plan-design · in-progress · ТЗ item'а доведено до DoR: declared exact P0.1–P0.5 finding outputs и fail-closed bundle gate |
+| 2026-08-10 | frontier/high | plan-run · in-progress · — |
+| 2026-08-10 | frontier/high | plan-run · closed-green · Session: frontier/high; contracts, trace, D-records and self-audit committed at 52fb69c6; item validation and strict citations green; write-site: pre_mutation: allow · pre_final: allow |
+| 2026-08-10 | frontier/high | plan-run · escalated · Downstream gate for producer 52fb69c6 is red: future P1-P12 validations require not-yet-created carriers outside P0.6 Scope; plan-design must reconcile phase-first producer closure with downstream-gate-v1. |
 
 ## Owner Gates
 
