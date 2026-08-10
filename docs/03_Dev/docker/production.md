@@ -58,3 +58,8 @@ crash/OOM теряет очередь Horizon (до часа работы пай
 
 - [`../process/deploy.md`](../process/deploy.md) — команды деплоя одним местом.
 - [`troubleshooting.md`](troubleshooting.md) — типичные сбои prod-контейнеров.
+# File-backed secrets
+
+Production Compose uses the same ignored `local/secrets/` files, generated with
+`make secrets:init`. `.env.docker.production` is intentionally non-secret; services receive
+only their declared Docker secret mounts.

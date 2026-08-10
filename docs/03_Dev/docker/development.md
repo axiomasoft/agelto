@@ -39,3 +39,7 @@ Vite запускается отдельным сервисом `vite` на Node
 - [`index.md`](index.md) — весь стек сервисов.
 - `../getting-started.md` — полный первый запуск с нуля.
 - [`troubleshooting.md`](troubleshooting.md) — типичные сбои прав/env-файлов.
+# Secrets
+
+The development Compose carrier mounts generated files from `local/secrets/`; do not add
+passwords to `.env.docker`. Create them once with `make secrets:init` before `make dev:up`.

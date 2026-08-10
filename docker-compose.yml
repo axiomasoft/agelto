@@ -30,7 +30,7 @@ services:
     environment: &app_env
       APP_NAME: ${APP_NAME}
       APP_ENV: ${APP_ENV}
-      APP_KEY: ${APP_KEY}
+      APP_KEY_FILE: /run/secrets/app_key
       APP_DEBUG: ${APP_DEBUG}
       # APP_URL — только из смонтированного .env: иначе значение «застывает» при create контейнера.
       DB_CONNECTION: pgsql
@@ -38,22 +38,27 @@ services:
       DB_PORT: 5432
       DB_DATABASE: ${DB_DATABASE}
       DB_USERNAME: ${DB_USERNAME}
-      DB_PASSWORD: ${DB_PASSWORD}
+      DB_PASSWORD_FILE: /run/secrets/db_password
       REDIS_HOST: redis
       REDIS_PORT: 6379
-      REDIS_PASSWORD: ${REDIS_PASSWORD:-null}
+      REDIS_PASSWORD_FILE: /run/secrets/redis_password
       CACHE_STORE: ${CACHE_STORE:-redis}
       SESSION_DRIVER: ${SESSION_DRIVER:-redis}
       QUEUE_CONNECTION: ${QUEUE_CONNECTION:-redis}
       FILESYSTEM_DISK: s3
       AWS_ACCESS_KEY_ID: ${MINIO_ROOT_USER:-agelto}
-      AWS_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD:-}
+      AWS_SECRET_ACCESS_KEY_FILE: /run/secrets/minio_root_password
       AWS_DEFAULT_REGION: us-east-1
       AWS_BUCKET: ${MINIO_BUCKET:-agelto}
       AWS_ENDPOINT: http://minio:9000
       AWS_USE_PATH_STYLE_ENDPOINT: "true"
       AI_FIXTURES_DISK: estimates
       AWS_ESTIMATES_BUCKET: ${MINIO_ESTIMATES_BUCKET:-agelto-estimates}
+    secrets:
+      - app_key
+      - db_password
+      - redis_password
+      - minio_root_password
     depends_on:
       postgres: { condition: service_healthy }
       redis: { condition: service_healthy }
@@ -86,6 +91,11 @@ services:
       - app_storage_framework:/var/www/html/storage/framework
       - app_pest_tia:/var/www/.pest
     environment: *app_env
+    secrets:
+      - app_key
+      - db_password
+      - redis_password
+      - minio_root_password
     depends_on:
       app: { condition: service_healthy }
       postgres: { condition: service_healthy }
@@ -117,6 +127,11 @@ services:
       - app_storage_framework:/var/www/html/storage/framework
       - app_pest_tia:/var/www/.pest
     environment: *app_env
+    secrets:
+      - app_key
+      - db_password
+      - redis_password
+      - minio_root_password
     depends_on:
       app: { condition: service_healthy }
       postgres: { condition: service_healthy }
@@ -196,7 +211,9 @@ services:
     environment:
       POSTGRES_DB: ${DB_DATABASE}
       POSTGRES_USER: ${DB_USERNAME}
-      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_PASSWORD_FILE: /run/secrets/db_password
+    secrets:
+      - db_password
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
       interval: 5s
@@ -212,8 +229,11 @@ services:
       - "127.0.0.1:${REDIS_PORT:-6379}:6379"
     volumes:
       - redis_data:/data
+    secrets:
+      - redis_acl
+    command: ["redis-server", "--aclfile", "/run/secrets/redis_acl"]
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: ["CMD", "redis-cli", "--user", "health", "ping"]
       interval: 5s
       timeout: 5s
       retries: 10
@@ -231,7 +251,9 @@ services:
       - minio_data:/data
     environment:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER:-agelto}
-      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?MINIO_ROOT_PASSWORD is required}
+      MINIO_ROOT_PASSWORD_FILE: /run/secrets/minio_root_password
+    secrets:
+      - minio_root_password
     healthcheck:
       test: ["CMD", "curl", "-fsS", "http://127.0.0.1:9000/minio/health/live"]
       interval: 5s
@@ -263,3 +285,15 @@ volumes:
   app_pest_tia:
   vite_node_modules:
   vite_pnpm_store:
+
+secrets:
+  app_key:
+    file: ./local/secrets/app_key
+  db_password:
+    file: ./local/secrets/db_password
+  redis_password:
+    file: ./local/secrets/redis_password
+  redis_acl:
+    file: ./local/secrets/redis_acl
+  minio_root_password:
+    file: ./local/secrets/minio_root_password

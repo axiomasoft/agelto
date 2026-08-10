@@ -11,10 +11,7 @@ services:
       - app_storage:/var/www/html/storage
     ports:
       - "${APP_PORT:-8080}:8080"
-    # Docker Swarm secrets: чувствительные переменные читаются из /run/secrets/*
-    # через entrypoint.d/10-secrets.sh. Работает только с docker stack deploy (Swarm mode).
-    # Создать на сервере: echo "value" | docker secret create app_key -
-    # Без Swarm — переменные берутся из .env как обычно.
+    # File-backed secrets are generated into ignored local/secrets/.
     secrets:
       - app_key
       - db_password
@@ -166,7 +163,9 @@ services:
     environment:
       POSTGRES_DB: ${DB_DATABASE}
       POSTGRES_USER: ${DB_USERNAME}
-      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_PASSWORD_FILE: /run/secrets/db_password
+    secrets:
+      - db_password
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
       interval: 5s
@@ -183,13 +182,15 @@ services:
     # очередь Horizon (до часа работы пайплайна). AOF everysec — канон 2026 (durability/
     # производительность); noeviction — очередь задач, ключи нельзя вытеснять под
     # memory-pressure как обычный кэш.
-    command: ["redis-server", "--appendonly", "yes", "--appendfsync", "everysec", "--maxmemory-policy", "noeviction"]
+    command: ["redis-server", "--aclfile", "/run/secrets/redis_acl", "--appendonly", "yes", "--appendfsync", "everysec", "--maxmemory-policy", "noeviction"]
     ports:
       - "127.0.0.1:${REDIS_PORT:-6379}:6379"
     volumes:
       - redis_data:/data
+    secrets:
+      - redis_acl
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: ["CMD", "redis-cli", "--user", "health", "ping"]
       interval: 5s
       timeout: 5s
       retries: 10
@@ -228,20 +229,14 @@ volumes:
   minio_data:
   app_storage:
 
-# Docker Swarm secrets. Создать на сервере перед первым запуском:
-#   docker swarm init
-#   echo "base64:YOUR_APP_KEY==" | docker secret create app_key -
-#   echo "your_db_password"      | docker secret create db_password -
-#   echo "your_redis_password"   | docker secret create redis_password -
-#   echo "your_minio_password"   | docker secret create minio_root_password -
-# Без Swarm (make up ENV=prod без stack deploy) — этот блок не активен,
-# переменные берутся из .env как обычно (entrypoint noop если файлов нет).
 secrets:
   app_key:
-    external: true
+    file: ./local/secrets/app_key
   db_password:
-    external: true
+    file: ./local/secrets/db_password
   redis_password:
-    external: true
+    file: ./local/secrets/redis_password
+  redis_acl:
+    file: ./local/secrets/redis_acl
   minio_root_password:
-    external: true
+    file: ./local/secrets/minio_root_password

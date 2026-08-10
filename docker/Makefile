@@ -10,13 +10,14 @@ COMPOSE_PROD := docker compose --project-directory $(ROOT_DIR) --project-name $(
 AGENT_ENV := $(if $(CLAUDECODE),-e CLAUDECODE=$(CLAUDECODE)) $(if $(CURSOR_AGENT),-e CURSOR_AGENT=$(CURSOR_AGENT)) $(if $(AI_AGENT),-e AI_AGENT=$(AI_AGENT))
 
 .DEFAULT_GOAL := help
-.PHONY: help infra\:preflight dev\:up dev\:down dev\:ps dev\:logs dev\:shell dev\:artisan dev\:composer
+.PHONY: help infra\:preflight secrets\:init dev\:up dev\:down dev\:ps dev\:logs dev\:shell dev\:artisan dev\:composer
 .PHONY: agent\:artisan vendor\:sync vendor\:check prod\:config prod\:ps prod\:deploy\:code prod\:deploy\:php-deps prod\:deploy\:frontend prod\:deploy\:runtime prod\:image\:promote prod\:deploy\:image prod\:migrate image\:build
 
 help:
 	@echo "Agelto command surface"
 	@echo ""
 	@echo "Infrastructure:"
+	@echo "  make secrets:init                       Create ignored internal Compose secret files"
 	@echo "  make infra:preflight MODE=dev ENV_FILE=.env.example  Validate Docker/Compose without mutation"
 	@echo ""
 	@echo "Development:"
@@ -37,6 +38,9 @@ help:
 
 infra\:preflight:
 	bash $(ROOT_DIR)/docker/scripts/compose-preflight.sh --mode $(MODE) --env-file $(ROOT_DIR)/$(ENV_FILE)
+
+secrets\:init:
+	bash $(ROOT_DIR)/docker/scripts/secrets-init.sh --root $(ROOT_DIR)
 
 dev\:up:
 	$(COMPOSE_DEV) up -d

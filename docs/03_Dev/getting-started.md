@@ -64,3 +64,8 @@ make agent:artisan ARGS="test --compact" # non-TTY Laravel test run
   [`llm-providers.md`](llm-providers.md), [`crawling-pipeline.md`](crawling-pipeline.md).
 - [`commands.md`](commands.md) — шпаргалка команд одним листом.
 - [`docker/index.md`](docker/index.md) — устройство контейнерного стека подробнее.
+# Local secrets
+
+Before starting Compose, run `make secrets:init`. It creates the ignored `local/secrets/`
+files with mode 0600 and never prints their values. Rerunning preserves values; use
+`docker/scripts/secrets-init.sh --root . --rotate <name>` only to stage `<name>.next`.

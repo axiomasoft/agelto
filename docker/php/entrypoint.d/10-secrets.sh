@@ -1,15 +1,14 @@
 #!/bin/sh
-# Читаем Docker Swarm secrets в переменные окружения.
-# Если переменная APP_KEY_FILE (и т.п.) указывает на файл, читаем его содержимое
-# и экспортируем как APP_KEY, затем убираем _FILE-переменную.
-# Работает только в Docker Swarm (docker stack deploy); при обычном compose без Swarm — нет-оп.
+# Reads file-backed Compose secrets exactly once, then removes each *_FILE variable.
 set -eu
 
-for secret_var in APP_KEY DB_PASSWORD REDIS_PASSWORD MINIO_ROOT_PASSWORD; do
+for secret_var in APP_KEY DB_PASSWORD REDIS_PASSWORD AWS_SECRET_ACCESS_KEY; do
     file_var="${secret_var}_FILE"
     eval "file_path=\${${file_var}:-}"
-    if [ -n "$file_path" ] && [ -f "$file_path" ]; then
-        export "$secret_var"="$(cat "$file_path")"
-        unset "$file_var"
-    fi
+    [ -n "$file_path" ] || continue
+    [ -f "$file_path" ] || { echo "$file_var points to a missing secret file" >&2; exit 1; }
+    value="$(cat "$file_path")"
+    [ -n "$value" ] || { echo "$file_var points to an empty secret file" >&2; exit 1; }
+    export "$secret_var=$value"
+    unset "$file_var"
 done
