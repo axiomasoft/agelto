@@ -1,14 +1,14 @@
 # HANDOFF — 2026-08-10 — after P2.3
 
-**Next:** /task:plan-design 2026.08.09-RELEASE-READINESS P2.3
+**Next:** ЗАПУСК ВРУЧНУЮ: `implementation/high`
 
 | Параметр | Значение |
 |:--|:--|
-| Model | frontier |
-| Thinking | high — resolve frozen contract conflict |
-| Context | NEW SESSION — шаг-не-item |
-| Суть | Назначить P1 carrier для версионных порогов P2.3 и синхронизировать спецификацию. |
-| Команда | `$ task:plan-design 2026.08.09-RELEASE-READINESS P2.3` |
+| Model | implementation |
+| Thinking | high — execute fail-closed preflight |
+| Context | continue (/clear) — ручной item |
+| Суть | Реализовать P2.3: non-mutating host/repo/env/Compose preflight. |
+| Команда | — |
 
 **Done:**
 
@@ -16,11 +16,11 @@
 - Owner approved publication of `67ebcde7b3ab32aa0205deb37a483b605e140cdb`; origin exposes `release/agelto-p2.1-67ebcde`.
 - Повторный downstream-gate на `8fd8e2f6` вернул `unknown`; P5.2 теперь объявляет собственный будущий carrier по D68.
 - Product commit `5df75000` добавил create-only file-secret generator, Compose grants и leakage contract.
-- P2.3 остановлен fail-closed: P1 не объявляет версионные пороги, которые P2.3 обязан читать.
+- D69 уточнил P1 Compose-v2 capability contract без numeric policy и снял blocker P2.3.
 
 **Remaining:**
 
-- Планировщик должен назначить единственный P1 carrier для версионных порогов и обновить P2.3.
+- Реализовать и прогнать P2.3 preflight contract.
 
 **Sources of truth:**
 
@@ -29,10 +29,10 @@
 - `docker/tests/secrets-contract.sh`
 - `docker/secrets.contract`
 - `phases/P2/P2.1.state.md`
-- `findings/P2.3-return-missing-p1-version-thresholds-2026-08-10.md`
+- `decisions/D69-p23-compose-v2-capability.md`
 - `journal.jsonl`
 
-**Open risks:** P2.3 нельзя реализовать без второго, незафиксированного источника порогов версий.
+**Open risks:** —
 
 **Workarounds/Deferred/Open questions:**
 
