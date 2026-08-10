@@ -3,7 +3,7 @@ projection: status-view
 projection_version: v1
 source_scope: plan core + phases + journal
 through: 2026-08-10
-inputs_sha256: f6e853e565169f21cf9c8e17bb4e14e96a96417d7a38dc8f9539da432c642a47
+inputs_sha256: 582a5f3481a050c2fb7d990c3baf60c501971d8f91b42c6588f46b6b8bb44e5a
 generated_by: task plan-views status
 -->
 
@@ -16,14 +16,14 @@ generated_by: task plan-views status
 | Поле | Значение |
 |:--|:--|
 | Version | — |
-| Status | 🔴 Blocked |
+| Status | ⬜ Not started |
 | Last Updated | 2026-08-10 |
 
 ## 4. Phase Index & Status Board
 
 | Phase | Title | Items 🟢/всего | Status |
 |:--|:--|:--|:--|
-| P0 | Разведка репозитория, референсов и RAG-контракты | 2/7 | 🔴 Blocked |
+| P0 | Разведка репозитория, референсов и RAG-контракты | 3/7 | ⬜ Not started |
 | P1 | Makefile и Docker dev/prod с Vite-ready topology | 0/5 | ⬜ Not started |
 | P10 | PHP, архитектура, безопасность и production-readiness audit | 0/6 | ⬜ Not started |
 | P11 | Pest 5 performance, test isolation и CI | 0/6 | ⬜ Not started |
@@ -43,7 +43,7 @@ generated_by: task plan-views status
 |:--|:--|:--|:--|
 | P0.0 | Ввести исполняемый citation gate до первого execution item | 🟢 Done | 2026-08-09 |
 | P0.1 | Инвентарь Agelto: Docker, Make, deploy, fresh install, admin, proxies, documents, tests | 🟢 Done | 2026-08-10 |
-| P0.2 | Сравнительная матрица Sova, Vintera/CMS и Dterema | 🔴 Blocked | 2026-08-10 |
+| P0.2 | Сравнительная матрица Sova, Vintera/CMS и Dterema | 🟢 Done | 2026-08-10 |
 | P0.3 | RAG: Docker/Compose/Makefile, build cache, secrets, Ubuntu deploy и Vite | ⬜ Not started | — |
 | P0.4 | RAG: Laravel 13, Filament 5, Livewire assets, Doctor, private docs и Pest 5 | ⬜ Not started | — |
 | P0.5 | RAG: proxy settings, file formats, archives, document taxonomy и extension patterns | ⬜ Not started | — |
@@ -211,7 +211,10 @@ generated_by: task plan-views status
 | 2026-08-10 | gpt-5.6-terra/high | plan-run · closed-green · P0.1 inventory: 8 evidence-backed surfaces; citations strict green. |
 | 2026-08-10 | gpt-5.6-terra/high | plan-run · in-progress · — |
 | 2026-08-10 | gpt-5.6-terra/high | plan-run · escalated · P0.1 inventory is absent from P0.2 declared Inputs and Required Reads; plan-design must add it before comparison. |
+| 2026-08-10 | gpt-5.6-terra/high | plan-design · in-progress · P0.1 inventory added to P0.2 declared inputs and required reads. |
+| 2026-08-10 | gpt-5.6-terra/high | plan-run · in-progress · Retry after P0.2 declared input refinement. |
+| 2026-08-10 | gpt-5.6-terra/high | plan-run · closed-green · P0.2 comparison and reproducible reference manifest completed; citation verification green. |
 
 ## Owner Gates
 
-- P0.2: escalation
+- —
