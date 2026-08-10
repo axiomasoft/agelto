@@ -1,6 +1,6 @@
 # Roadmap исполнения — 2026.08.09-RELEASE-READINESS
 
-**Обновлён:** 2026-08-10 · **Соответствует plan.md:** Layout v2, 75 product/design items + remediations P0.7/P1.6; P1 retry уточнён D65
+**Обновлён:** 2026-08-10 · **Соответствует plan.md:** Layout v2, 75 product/design items + remediations P0.7/P1.6/P1.7; второй reopen P1 зафиксирован D66
 
 Roadmap пересобран после повторного full `finish` D52 и адресной remediation F1–F12; D55 закрывает
 audit-loop после трёх заходов и открывает execution напрямую с P0.0. `solo` оставлен для owner-gate,
@@ -12,7 +12,7 @@ batch и всё равно закрываются каждый своим commit
 | Фаза | Кандидаты | Решение | Route/review | Причина |
 |:--|:--|:--|:--|:--|
 | P0 | P0.0–P0.7 | terminal | — | фаза закрыта после P0.7 remediation D62; следующий исполнимый item — P1.1 |
-| P1 | P1.1–P1.6 | terminal | — | фаза закрыта; до P2 обязателен fresh-context audit P1 |
+| P1 | P1.1–P1.7 | solo P1.7 | implementation/high · full | F6–F10 второго RED-аудита; P2 закрыта до terminal P1.7, close и fresh-context audit P1 |
 | P3 | P3.1–P3.5 | B3-READINESS | implementation/high · full | diagnosis→repair→readiness→E2E→recovery использует один runtime context; root-cause escalation останавливает серию |
 | P2, P4–P12 | текущие solo | solo | как в §3 Routing | требуются owner/external gates, frontier freeze либо отдельный риск-контекст; кандидаты на следующие batch-проходы рассматриваются по фактическим terminal inputs |
 
@@ -28,12 +28,13 @@ batch и всё равно закрываются каждый своим commit
 | P0.5 | B0-RAG | ↑ | implementation/high | — | consumes P0.4 findings in-session |
 | P0.6 | solo | `task:plan-run … P0.6` | frontier/high | утверждение frozen contracts | cross-track synthesis меняет tier и запечатывает решения |
 | P0.7 | solo | `task:plan-exec … P0.7` | implementation/medium | — | один детерминированный remediation slice F1–F5; P1 остаётся закрыта до GREEN-аудита P0 |
-| P1.1 | closed | — | implementation/medium | — | terminal provenance сохранён; reconciliation выполняет P1.6 |
-| P1.2 | closed | — | implementation/high | — | terminal; P1.6 фиксирует actual/prescribed route deviation |
+| P1.1 | closed | — | implementation/medium | — | terminal provenance сохранён; exact lint/tree correction anchors выполняет P1.7 |
+| P1.2 | closed | — | implementation/high | — | terminal; P1.7 сохраняет actual/prescribed route и exact lint/tree anchors |
 | P1.3 | closed | — | implementation/high | — | terminal immutable runtime evidence |
 | P1.4 | closed-deviations | — | implementation/high | — | terminal Vite topology; docs deviation входит в P1.6 |
 | P1.5 | closed-deviations | — | implementation/high | — | RED-аудит F1–F5 породил D64/P1.6 |
-| P1.6 | closed | — | implementation/high | — | `44a334ac`: direct terminal assertions; 25 downstream `unknown`, RED 0; P1 закрыта, далее audit |
+| P1.6 | closed | — | implementation/high | — | `44a334ac` не является full Validation anchor; correction на новый clean P1.7 product commit обязательна |
+| P1.7 | solo | `task:plan-run … P1.7` | implementation/high | — | один audit-defined slice F6–F10: full carrier, expired alias removal и append-only anchors |
 | P2.1 | solo | `task:plan-run … P2.1` | implementation/high | private repo access | private dependency/source lock boundary |
 | P2.2 | solo | `task:plan-run … P2.2` | implementation/high | — | credential generation/grants security boundary |
 | P2.3 | solo | `task:plan-run … P2.3` | implementation/high | — | fail-closed non-mutating preflight |
@@ -100,21 +101,21 @@ batch и всё равно закрываются каждый своим commit
 
 ## Следующий запуск
 
-**Next:** /task:plan-audit 2026.08.09-RELEASE-READINESS P1
+**Next:** run-items: task:plan-run 2026.08.09-RELEASE-READINESS P1.7
 
 | Параметр | Значение |
 |:--|:--|
-| Model class | frontier |
-| Effort | xhigh |
+| Model class | implementation |
+| Effort | high |
 | Capabilities | — |
-| Context | NEW SESSION — шаг-не-item |
-| Суть | Независимо проверить закрытую P1 до старта P2. |
-| Команда | `$ task:plan-audit 2026.08.09-RELEASE-READINESS P1` |
+| Context | same-session — item |
+| Суть | Закрыть F6–F10 второго RED-аудита одним P1.7 и подготовить повторный close P1. |
+| Команда | `$ task:plan-run 2026.08.09-RELEASE-READINESS P1.7` |
 
 ### Native Codex launch-block
 
 ```bash
-codex -C /home/vostrikov/projects/agelto/agelto -m gpt-5.6-sol -c 'model_reasoning_effort="xhigh"' -a never -s danger-full-access '$ task:plan-audit 2026.08.09-RELEASE-READINESS P1'
+codex -C /home/vostrikov/projects/agelto/agelto -m gpt-5.6-terra -c 'model_reasoning_effort="high"' -a never -s danger-full-access '$ task:plan-run 2026.08.09-RELEASE-READINESS P1.7'
 ```
 
 ## Гейты владельца (сводно)

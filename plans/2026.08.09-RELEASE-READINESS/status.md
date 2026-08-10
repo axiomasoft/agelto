@@ -3,7 +3,7 @@ projection: status-view
 projection_version: v1
 source_scope: plan core + phases + journal
 through: 2026-08-10
-inputs_sha256: 766736ffb791a4b146770686fe34f87cfee40c7b34776bd07f4724fa95169447
+inputs_sha256: b26e3524e827741cb1e5da98feed87affa2da40e66176ac7ded9abebd0b186e9
 generated_by: task plan-views status
 -->
 
@@ -15,7 +15,7 @@ generated_by: task plan-views status
 
 | Поле | Значение |
 |:--|:--|
-| Version | 0.1.2 |
+| Version | 0.1.3 |
 | Status | ⬜ Not started |
 | Last Updated | 2026-08-10 |
 
@@ -24,7 +24,7 @@ generated_by: task plan-views status
 | Phase | Title | Items 🟢/всего | Status |
 |:--|:--|:--|:--|
 | P0 | Разведка репозитория, референсов и RAG-контракты | 8/8 | 🟢 Done |
-| P1 | Makefile и Docker dev/prod с Vite-ready topology | 6/6 | 🟢 Done |
+| P1 | Makefile и Docker dev/prod с Vite-ready topology | 6/7 | 🟠 Done with deviations |
 | P10 | PHP, архитектура, безопасность и production-readiness audit | 0/6 | ⬜ Not started |
 | P11 | Pest 5 performance, test isolation и CI | 0/6 | ⬜ Not started |
 | P12 | Ubuntu deployment guide и финальный clean-room rehearsal | 0/7 | ⬜ Not started |
@@ -60,6 +60,7 @@ generated_by: task plan-views status
 | P1.4 | Ввести Vite dev service и production frontend build contract | 🟢 Done | 2026-08-10 |
 | P1.5 | Развести build/deploy classes и закрыть P1 contract gates | 🟢 Done | 2026-08-10 |
 | P1.6 | Закрыть F1–F5 RED-аудита P1 одним release-carrier remediation slice | 🟢 Done | 2026-08-10 |
+| P1.7 | Закрыть F6–F10 второго RED-аудита P1 воспроизводимыми anchors | 🟠 Done with deviations | 2026-08-10 |
 
 ## Phase P10
 
@@ -284,6 +285,11 @@ generated_by: task plan-views status
 | 2026-08-10 | implementation/low | plan-close · closed-green · P1.5 reconciliation: item commit 0db08b00; P1 release carrier passed on 44a334ac; prior docs deviation resolved; actual gpt-5.6-terra/high; write-site: pre_mutation: allow · pre_final: allow. |
 | 2026-08-10 | gpt-5.6-terra/high | plan-run · closed-green · P1.6: 44a334ac terminal carrier passed; 25 downstream outcomes unknown, RED 0; actual gpt-5.6-terra/high; write-site: pre_mutation: allow · pre_final: allow. |
 | 2026-08-10 | implementation/low | plan-close · closed-green · фаза P1 закрыта |
+| 2026-08-10 | frontier/xhigh | plan-audit · audit-red · заход 2, вердикт RED |
+| 2026-08-10 | frontier/high | plan-design · in-progress · P1 повторно реопенена D66: version 0.1.2→0.1.3, handoff инвалидирован, P1.7 доведён до DoR по F6–F10; duplicate reconciliation сохранён immutable. |
+| 2026-08-10 | gpt-5.6-terra/medium | plan-run · blocked · required implementation/high manual; session implementation/medium |
+| 2026-08-10 | gpt-5.6-terra/high | plan-run · in-progress · continuation in current high-effort session; prior routing-blocked self-attribution retained as process deviation |
+| 2026-08-10 | gpt-5.6-terra/high | plan-run · closed-deviations · P1.7 7f203014: make-contract and legacy-negative passed; clean detached p1-release-contract exit 1 (bundle freshness collision); write-site: pre_mutation: allow · pre_final: allow. |
 
 ## Owner Gates
 
@@ -291,3 +297,4 @@ generated_by: task plan-views status
 - P0.4: known deviation
 - P0.5: known deviation
 - P1.2: known deviation
+- P1.7: known deviation

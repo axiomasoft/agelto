@@ -178,3 +178,14 @@ append-only reconciliation, затем обязательны phase close и fre
 будущие P2/P10/P12 acceptance внутри P1.6; нормализовать ошибочно исполнимые consumer Validation
 до item-owned carriers, завершить direct assertions terminal P1 carrier и повторить P1.6 с
 append-only evidence. Решение материализовано D65 и `research/17-P1.6-downstream-retry-design.md`.
+
+## 2026-08-10 — второй reopen P1 по RED-аудиту
+
+Владелец запустил `$ task:plan-design 2026.08.09-RELEASE-READINESS P1` строго в режиме reopen по
+четырём шагам, не детализации. Scope ограничен F6–F10 последнего Audit P1: получить воспроизводимую
+полную P1.6 Validation на чистом названном commit либо явный product/post-close contract; добавить
+exact lint baseline/count и clean product-tree anchors P1.1–P1.5; удалить expired legacy aliases и
+их positive test/docs rows; синхронизировать Phase Context/handoff и сохранить duplicate journal
+reconciliation как immutable process deviation. P0, P2–P12, D16–D18/D25/D57/D63–D65,
+доказанные Docker/Compose/Vite/image/deploy-class semantics, historical audit/journal/findings и
+пользовательский `AGENTS.md` остаются вне scope.
