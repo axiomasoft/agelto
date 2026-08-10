@@ -1,27 +1,45 @@
-# HANDOFF — 2026-08-10 — after P1.7
+# HANDOFF — 2026-08-10 — after P1
 
-**Next:** /task:plan-close 2026.08.09-RELEASE-READINESS P1
+**Next:** ЗАПУСК ВРУЧНУЮ: `implementation/high`
 
 | Параметр | Значение |
 |:--|:--|
 | Model | implementation |
-| Thinking | low — механическое закрытие зелёной фазы |
-| Context | NEW SESSION — шаг-не-item |
-| Суть | После D67 closure carrier и correction events закрыть P1 без нового audit. |
-| Команда | `$ task:plan-close 2026.08.09-RELEASE-READINESS P1` |
+| Thinking | high — private dependency boundary |
+| Context | continue (/clear) — ручной item |
+| Суть | Реализовать P2.1: pinned AzGuard vendor boundary и Composer/image closure. |
+| Команда | — |
 
-**Done:** Фаза P1 закрыта: P1.1–P1.6 `🟢`, P1.7 `🟠`; `7f203014` удалил expired
-`legacy:{up,down,artisan}` из Make surface, harness и docs.
+```text
+/model gpt-5.6-terra
+/effort high
+$ task:plan-run 2026.08.09-RELEASE-READINESS P2.1
+```
 
-**Remaining:** Один committed closure anchor, append-only corrections P1.1–P1.7 и green phase close D67.
+**Done:**
 
-**Sources of truth:** `phases/P1/P1.7.md` · последний Audit P1 · D67 · product-origin `7f203014`.
+- P1.1–P1.7 закрыты `🟢 Done`; Pending Work и material Known Deviations пусты.
+- Product-origin `7f203014` удаляет expired aliases; committed closure anchor `56aeda8e`
+  сохраняет byte-identical product paths.
+- `bash docker/tests/p1-release-contract.sh` на `56aeda8e` прошёл Make/Compose/dev-sync,
+  production image, Vite, Task views, lint и strict citations; correction states называют оба anchors.
+- D67 заменил невыполнимый single-anchor D66 и закрыл F11–F14 без нового product change/audit.
 
-**Open risks:** До фиксации closure anchor material debt F11–F14 не считается закрытым; новый audit
-не является допустимым обходом.
+**Remaining:**
+
+- Следующий исполнимый item — P2.1 по `implementation/high` route.
+
+**Sources of truth:**
+
+- `phases/P1/P1.closed.md`
+- `phases/P1/P1.7.state.md`
+- `decisions/D67-p1-targeted-two-anchor-closure.md`
+- `journal.jsonl`
+
+**Open risks:** —
 
 **Workarounds/Deferred/Open questions:**
 
-- workarounds: нет.
-- deferred: upstream protocol fix описан в roadmap Swissknifeman; он не является долгом продукта Agelto.
-- open_questions: нет; D67 разрешает P2 только после полностью зелёного closure carrier.
+- Workarounds: —
+- Deferred: upstream Task compiler fix описан в Swissknifeman roadmap и не является долгом Agelto/P1.
+- Open questions: —

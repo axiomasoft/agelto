@@ -3,7 +3,7 @@ projection: status-view
 projection_version: v1
 source_scope: plan core + phases + journal
 through: 2026-08-10
-inputs_sha256: 25833f025bdf78cce64449c469971bb5b865fef71e7afa6c24b85f3fc4a5f317
+inputs_sha256: 99eb42d97a5803373a77f9acb73e448fa454a46785409beccd405180984d29ee
 generated_by: task plan-views status
 -->
 
@@ -24,7 +24,7 @@ generated_by: task plan-views status
 | Phase | Title | Items 🟢/всего | Status |
 |:--|:--|:--|:--|
 | P0 | Разведка репозитория, референсов и RAG-контракты | 8/8 | 🟢 Done |
-| P1 | Makefile и Docker dev/prod с Vite-ready topology | 6/7 | 🟠 Done with deviations |
+| P1 | Makefile и Docker dev/prod с Vite-ready topology | 7/7 | 🟢 Done |
 | P10 | PHP, архитектура, безопасность и production-readiness audit | 0/6 | ⬜ Not started |
 | P11 | Pest 5 performance, test isolation и CI | 0/6 | ⬜ Not started |
 | P12 | Ubuntu deployment guide и финальный clean-room rehearsal | 0/7 | ⬜ Not started |
@@ -60,7 +60,7 @@ generated_by: task plan-views status
 | P1.4 | Ввести Vite dev service и production frontend build contract | 🟢 Done | 2026-08-10 |
 | P1.5 | Развести build/deploy classes и закрыть P1 contract gates | 🟢 Done | 2026-08-10 |
 | P1.6 | Закрыть F1–F5 RED-аудита P1 одним release-carrier remediation slice | 🟢 Done | 2026-08-10 |
-| P1.7 | Закрыть RED-аудиты P1 двумя evidence anchors без product mutation | 🟠 Done with deviations | 2026-08-10 |
+| P1.7 | Закрыть RED-аудиты P1 двумя evidence anchors без product mutation | 🟢 Done | 2026-08-10 |
 
 ## Phase P10
 
@@ -292,11 +292,17 @@ generated_by: task plan-views status
 | 2026-08-10 | gpt-5.6-terra/high | plan-run · closed-deviations · P1.7 7f203014: make-contract and legacy-negative passed; clean detached p1-release-contract exit 1 (bundle freshness collision); write-site: pre_mutation: allow · pre_final: allow. |
 | 2026-08-10 | implementation/low | plan-close · closed-deviations · фаза P1 закрыта: 6 green, P1.7 closed-deviations; docs commands.md updated |
 | 2026-08-10 | frontier/xhigh | plan-audit · audit-red · заход 3, вердикт RED |
+| 2026-08-10 | implementation/low | plan-close · closed-green · P1.1 ddb446a4; product 7f203014; closure 56aeda8e: bash docker/tests/p1-release-contract.sh exit 0; lint f7f45081=0E/0W,new0; P1 product diff/status empty; write-site: pre_mutation: allow · pre_final: allow. |
+| 2026-08-10 | implementation/low | plan-close · closed-green · P1.2 a6f295a3; product 7f203014; closure 56aeda8e: bash docker/tests/p1-release-contract.sh exit 0; lint f7f45081=0E/0W,new0; P1 product diff/status empty; write-site: pre_mutation: allow · pre_final: allow. |
+| 2026-08-10 | implementation/low | plan-close · closed-green · P1.3 27066b2a; product 7f203014; closure 56aeda8e: bash docker/tests/p1-release-contract.sh exit 0; lint f7f45081=0E/0W,new0; P1 product diff/status empty; write-site: pre_mutation: allow · pre_final: allow. |
+| 2026-08-10 | implementation/low | plan-close · closed-green · P1.4 4bb88a15; product 7f203014; closure 56aeda8e: bash docker/tests/p1-release-contract.sh exit 0; lint f7f45081=0E/0W,new0; P1 product diff/status empty; write-site: pre_mutation: allow · pre_final: allow. |
+| 2026-08-10 | implementation/low | plan-close · closed-green · P1.5 0db08b00; product 7f203014; closure 56aeda8e: bash docker/tests/p1-release-contract.sh exit 0; lint f7f45081=0E/0W,new0; P1 product diff/status empty; write-site: pre_mutation: allow · pre_final: allow. |
+| 2026-08-10 | implementation/low | plan-close · closed-green · P1.6 44a334ac was product-subset; product 7f203014; closure 56aeda8e: bash docker/tests/p1-release-contract.sh exit 0; lint f7f45081=0E/0W,new0; P1 product diff/status empty; write-site: pre_mutation: allow · pre_final: allow. |
+| 2026-08-10 | implementation/low | plan-close · closed-green · P1.7 product-origin 7f203014; closure 56aeda8e: bash docker/tests/p1-release-contract.sh exit 0; lint f7f45081=0E/0W,new0; P1 product diff/status empty; write-site: pre_mutation: allow · pre_final: allow. |
+| 2026-08-10 | implementation/low | plan-close · closed-green · фаза P1 закрыта зелёной: 7/7; closure 56aeda8e; D67; без долга и нового audit |
 
 ## Owner Gates
 
 - P0.3: known deviation
 - P0.4: known deviation
 - P0.5: known deviation
-- P1.2: known deviation
-- P1.7: known deviation
