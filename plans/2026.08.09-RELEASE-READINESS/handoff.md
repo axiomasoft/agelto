@@ -1,43 +1,44 @@
 # HANDOFF — 2026-08-10 — after P0
 
-**Next:** /task:plan-audit 2026.08.09-RELEASE-READINESS P0
+**Next:** exec-items: task:plan-exec 2026.08.09-RELEASE-READINESS P0.7
 
 | Параметр | Значение |
 |:--|:--|
 | Model | frontier |
-| Thinking | xhigh — независимый аудит закрытой фазы |
-| Context | NEW SESSION — шаг-не-item |
-| Суть | Проверить P0 свежим контекстом перед запуском P1. |
-| Команда | `$ task:plan-audit 2026.08.09-RELEASE-READINESS P0` |
+| Thinking | medium — детерминированный remediation slice |
+| Context | continue (reset the session context) — ручной item |
+| Суть | Закрыть F1–F5 одним P0.7 без изменения P1–P12. |
+| Команда | `$ task:plan-exec 2026.08.09-RELEASE-READINESS P0.7` |
 
 ### Native Codex launch-block
 
 ```bash
-codex -C /home/vostrikov/projects/agelto/agelto -m gpt-5.6-sol -c 'model_reasoning_effort="xhigh"' -a never -s danger-full-access '$ task:plan-audit 2026.08.09-RELEASE-READINESS P0'
+codex -C /home/vostrikov/projects/agelto/agelto -m gpt-5.6-terra -c 'model_reasoning_effort="medium"' -a never -s danger-full-access '$ task:plan-exec 2026.08.09-RELEASE-READINESS P0.7'
 ```
 
 **Done:**
 
-- Фаза P0 закрыта: P0.0–P0.6 терминальны `🟢`.
-- Citation verifier, repo/reference evidence, MCP RAG и frozen readiness contract переданы P1–P12.
+- RED-аудит P0 захода 1 зафиксирован коммитом `cf5700dc`.
+- D62 формально переоткрыл P0 и ограничил remediation одним P0.7; P0.0–P0.6 остаются исторически терминальными.
 
 **Remaining:**
 
-- Независимо аудировать закрытую P0; P1 не запускать до результатов аудита.
+- Исполнить и self-close P0.7, закрыть фазу, затем независимо аудировать P0; P1 не запускать до GREEN.
 
 **Sources of truth:**
 
-- `phases/P0/P0.6.md`
+- `phases/P0/P0.7.md`
+- `phases/P0/P0.md` → `## Audit P0 — 2026-08-10`
 - `root/contracts/release-readiness-v1.md`
 - `journal.jsonl`
 
 **Open risks:**
 
-- Task citation verification обнаруживает 20 исторических ссылок на `HEAD`; новых от закрытия P0 — 0.
-- D60 remains a proposed owner gate for recovery policy before P12.3/P12.7; it is not this blocker.
+- P0.7 обязан сохранить reference/RAG/frozen readiness outputs и исправить только F1–F5.
+- `PROMOTE-CANDIDATE` по общему Task write-site carrier остаётся неблокирующим долгом вне P0.7.
 
 **Workarounds/Deferred/Open questions:**
 
 - Workarounds: —
-- Deferred: product/future-consumer implementation остаётся в своих фазах.
+- Deferred: общий Swissknifeman/Task runtime patch и product/future-consumer implementation остаются вне P0.7.
 - Open questions: —

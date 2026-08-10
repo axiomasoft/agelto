@@ -15,8 +15,10 @@
 | Target Operator Models | economy → gpt-5.6-luna · implementation → gpt-5.6-terra · frontier → gpt-5.6-sol |
 | Approval Owner | Dmitry Vostrikov |
 | Home | repo:/home/vostrikov/projects/agelto/agelto |
-| Design Passes | 1/1 — owner-directed сокращение D46 сохранено; D52 остаётся machine-current carrier повторного полного cross-phase `finish` для 13 фаз / 75 items после добавления P0.0; D55 принимает текущий design после ремедиации F9–F12, останавливает audit-loop на трёх заходах и открывает execution с P0.0 |
+| Design Passes | 1/1 — owner-directed сокращение D46 сохранено; D52 остаётся machine-current carrier повторного полного cross-phase `finish` для 13 фаз / 75 product/design items после добавления P0.0; D55 принимает этот design после ремедиации F9–F12; D62 адресно добавляет 76-й remediation-item P0.7 по RED-аудиту P0 без нового design-pass и без изменения P1–P12 specs |
 | visibility | private |
+
+<!-- migration-version: 0.1.0 -->
 
 ## 1. Context
 
@@ -37,7 +39,7 @@ Vintera/CMS и Dterema и верифицирует внешние практик
 
 ## 2. Execution Rules
 
-- Повторный cross-phase finish D52 охватывает все 75 items после D48 и остаётся machine-current finish carrier; owner D55 принимает текущий design после ремедиации F9–F12, завершает audit-loop на трёх заходах без четвёртого audit и открывает execution с P0.0.
+- Повторный cross-phase finish D52 охватывает 75 product/design items после D48 и остаётся machine-current finish carrier; D62 адресно добавляет remediation-item P0.7, повышает plan version `—` → `0.1.0` и переоткрывает только P0 по RED-аудиту, без нового design-pass и без исполнения P1.
 - Первый execution item — prerequisite P0.0 из D48; P0.1 и остальные citation consumers не стартуют до его terminal state.
 - Перед и после plan-work выполнять Task checks из marketplace root в порядке AGENTS.md: lint → state → decisions → status.
 - RAG-факты и сравнение чужих репозиториев сохранять в findings в том же ходе; синтез — в research; решения — в decisions. P0.3 закрывается только после MCP replay по D56; WebSearch-only fallback остаётся provisional.
@@ -56,8 +58,8 @@ Vintera/CMS и Dterema и верифицирует внешние практик
 
 ## 3. Routing
 
-Все строки ниже — финальные post-finish маршруты 75 детализированных items по Tier policy;
-owner acceptance D55 открывает execution напрямую с P0.0 без четвёртого `plan-audit design`.
+Все строки ниже — финальные post-finish маршруты 75 product/design items плюс адресный
+remediation-item P0.7 по D62; новый design-pass не выполнялся.
 
 | Batch | Items | Model class/effort | Exec | Review | Почему |
 |:--|:--|:--|:--|:--|:--|
@@ -68,6 +70,7 @@ owner acceptance D55 открывает execution напрямую с P0.0 бе�
 | B0-RAG | P0.4 | implementation/high | manual | full | последовательная RAG-серия; P0.4 findings обязательны для P0.5 |
 | B0-RAG | P0.5 | implementation/high | manual | full | завершает RAG-серию без owner gate внутри неё |
 | — | P0.6 | frontier/high | manual | full | заморозка межфазных contracts и альтернатив — открытые design-решения и высокая цена семантической ошибки |
+| — | P0.7 | implementation/medium | plan-exec | full | детерминированная ремедиация F1–F5 по запечатанному RED-аудиту P0: embedded tests, append-only reconciliation и точечная нормализация D60 без нового product design |
 | — | P1.1 | implementation/medium | plan-exec | full | target taxonomy/help/preflight реализуются по D10/D16 и проверяются детерминированным shell harness |
 | B1-RUNTIME | P1.2 | implementation/high | manual | full | последовательная runtime-серия после P1.1; один route/review, без owner gate внутри |
 | B1-RUNTIME | P1.3 | implementation/high | manual | full | потребляет P1.2 и остаётся в той же runtime-серии |

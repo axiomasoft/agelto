@@ -3,7 +3,7 @@ projection: status-view
 projection_version: v1
 source_scope: plan core + phases + journal
 through: 2026-08-10
-inputs_sha256: a294e7e5d65e4c1dad63b53eb40d6e0a2e9cd14b1160e2085bf6317dc6cdcffb
+inputs_sha256: d3b0355fbefff0db6cbe99c6245fe32a0ad8e5772855323e8734b1b9ef29b1ca
 generated_by: task plan-views status
 -->
 
@@ -15,15 +15,15 @@ generated_by: task plan-views status
 
 | Поле | Значение |
 |:--|:--|
-| Version | — |
-| Status | ⬜ Not started |
+| Version | 0.1.0 |
+| Status | 🟡 In progress |
 | Last Updated | 2026-08-10 |
 
 ## 4. Phase Index & Status Board
 
 | Phase | Title | Items 🟢/всего | Status |
 |:--|:--|:--|:--|
-| P0 | Разведка репозитория, референсов и RAG-контракты | 7/7 | 🟢 Done |
+| P0 | Разведка репозитория, референсов и RAG-контракты | 7/8 | 🟡 In progress |
 | P1 | Makefile и Docker dev/prod с Vite-ready topology | 0/5 | ⬜ Not started |
 | P10 | PHP, архитектура, безопасность и production-readiness audit | 0/6 | ⬜ Not started |
 | P11 | Pest 5 performance, test isolation и CI | 0/6 | ⬜ Not started |
@@ -48,6 +48,7 @@ generated_by: task plan-views status
 | P0.4 | RAG: Laravel 13, Filament 5, Livewire assets, Doctor, private docs и Pest 5 | 🟢 Done | 2026-08-10 |
 | P0.5 | RAG: proxy settings, file formats, archives, document taxonomy и extension patterns | 🟢 Done | 2026-08-10 |
 | P0.6 | Заморозить target contracts, ADR-развилки, acceptance matrix и маршруты фаз | 🟢 Done | 2026-08-10 |
+| P0.7 | Закрыть F1–F5 аудита P0 одним remediation slice | 🟡 In progress | 2026-08-10 |
 
 ## Phase P1
 
@@ -237,6 +238,9 @@ generated_by: task plan-views status
 | 2026-08-10 | implementation/low | plan-close · closed-green · P0.6 closed: 52fb69c6 and declared validation are green; downstream RED is not P0.6 acceptance and needs no third run. |
 | 2026-08-10 | implementation/low | plan-close · closed-green · фаза P0 закрыта: семь терминальных items сверены |
 | 2026-08-10 | frontier/xhigh | plan-audit · audit-red · заход 1, вердикт RED |
+| 2026-08-10 | frontier/high | plan-design · in-progress · P0 реопенена D62: version —→0.1.0, Phase Handoff инвалидирован, добавлен единственный P0.7 по F1–F5 |
+| 2026-08-10 | frontier/high | plan-design · in-progress · ТЗ P0.7 доведено до DoR: один deterministic remediation slice F1–F5, без нового design-pass и P1 |
+| 2026-08-10 | gpt-5.6-terra/medium | plan-exec · in-progress · Admission P0.7: Task Contract pre_mutation allow; formal reopen Status Board → 🟡 before fresh implementation/medium handoff |
 
 ## Owner Gates
 

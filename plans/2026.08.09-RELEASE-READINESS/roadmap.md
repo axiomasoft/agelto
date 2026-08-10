@@ -1,6 +1,6 @@
 # Roadmap исполнения — 2026.08.09-RELEASE-READINESS
 
-**Обновлён:** 2026-08-10 · **Соответствует plan.md:** Layout v2, 75 items, audit-remediation D48–D54, owner acceptance D55 и P0.3 MCP gate D56
+**Обновлён:** 2026-08-10 · **Соответствует plan.md:** Layout v2, 75 product/design items + remediation P0.7, D62 reopen P0
 
 Roadmap пересобран после повторного full `finish` D52 и адресной remediation F1–F12; D55 закрывает
 audit-loop после трёх заходов и открывает execution напрямую с P0.0. `solo` оставлен для owner-gate,
@@ -27,6 +27,7 @@ batch и всё равно закрываются каждый своим commit
 | P0.4 | B0-RAG | `task:plan-run … P0.4-P0.5` | implementation/high | — | consumes terminal P0.3 MCP findings |
 | P0.5 | B0-RAG | ↑ | implementation/high | — | consumes P0.4 findings in-session |
 | P0.6 | solo | `task:plan-run … P0.6` | frontier/high | утверждение frozen contracts | cross-track synthesis меняет tier и запечатывает решения |
+| P0.7 | solo | `task:plan-exec … P0.7` | implementation/medium | — | один детерминированный remediation slice F1–F5; P1 остаётся закрыта до GREEN-аудита P0 |
 | P1.1 | solo | `task:plan-exec … P1.1` | implementation/medium | — | самостоятельный Make taxonomy/contract slice |
 | P1.2 | B1-RUNTIME | `task:plan-run … P1.2-P1.5` | implementation/high | — | one sequential runtime series; full review each item |
 | P1.3 | B1-RUNTIME | ↑ | implementation/high | — | consumes dev Compose contract |
@@ -98,21 +99,21 @@ batch и всё равно закрываются каждый своим commit
 
 ## Следующий запуск
 
-**Next:** run-items: task:plan-run 2026.08.09-RELEASE-READINESS P0.4-P0.5
+**Next:** exec-items: task:plan-exec 2026.08.09-RELEASE-READINESS P0.7
 
 | Параметр | Значение |
 |:--|:--|
 | Model class | implementation |
 | Effort | medium |
-| Capabilities | `mcp.perplexity-web` · `mcp.context7` |
+| Capabilities | — |
 | Context | same-session — item |
-| Суть | Продолжить terminal MCP evidence chain: Laravel/runtime P0.4, затем domain/security P0.5 |
-| Команда | — |
+| Суть | Закрыть F1–F5 одним remediation-item и не запускать P1 до GREEN-аудита P0 |
+| Команда | `$ task:plan-exec 2026.08.09-RELEASE-READINESS P0.7` |
 
 ### Native Codex launch-block
 
 ```bash
-codex -C /home/vostrikov/projects/agelto/agelto -m gpt-5.6-terra -c 'model_reasoning_effort="high"' -a never -s danger-full-access '$ task:plan-run 2026.08.09-RELEASE-READINESS P0.4-P0.5'
+codex -C /home/vostrikov/projects/agelto/agelto -m gpt-5.6-terra -c 'model_reasoning_effort="medium"' -a never -s danger-full-access '$ task:plan-exec 2026.08.09-RELEASE-READINESS P0.7'
 ```
 
 ## Гейты владельца (сводно)
