@@ -3,7 +3,7 @@ projection: status-view
 projection_version: v1
 source_scope: plan core + phases + journal
 through: 2026-08-10
-inputs_sha256: 4fbd4531beb041d02b18e129aab1359e47f9d9d9b9f2ebb28340bc46aba90bf1
+inputs_sha256: 783b89362a383767e15816bf55b2386f88cb84ce491571b8d5bb603cac1a9e67
 generated_by: task plan-views status
 -->
 
@@ -16,7 +16,7 @@ generated_by: task plan-views status
 | Поле | Значение |
 |:--|:--|
 | Version | 0.1.4 |
-| Status | ⬜ Not started |
+| Status | 🔴 Blocked |
 | Last Updated | 2026-08-10 |
 
 ## 4. Phase Index & Status Board
@@ -28,7 +28,7 @@ generated_by: task plan-views status
 | P10 | PHP, архитектура, безопасность и production-readiness audit | 0/6 | ⬜ Not started |
 | P11 | Pest 5 performance, test isolation и CI | 0/6 | ⬜ Not started |
 | P12 | Ubuntu deployment guide и финальный clean-room rehearsal | 0/7 | ⬜ Not started |
-| P2 | Local vendor, secrets, preflight, bootstrap и Laravel Doctor | 2/6 | ⬜ Not started |
+| P2 | Local vendor, secrets, preflight, bootstrap и Laravel Doctor | 2/6 | 🔴 Blocked |
 | P3 | Fresh install, Livewire/Filament assets и application readiness | 0/5 | ⬜ Not started |
 | P4 | Закрытая production-документация вне public | 0/5 | ⬜ Not started |
 | P5 | Default proxy settings и трёхуровневый resolve | 0/5 | ⬜ Not started |
@@ -102,7 +102,7 @@ generated_by: task plan-views status
 |:--|:--|:--|:--|
 | P2.1 | Перенести AzGuard path contract в local/vendors и оформить clone boundary | 🟢 Done | 2026-08-10 |
 | P2.2 | Сделать безопасный генератор .env и .env.docker secrets | 🟢 Done | 2026-08-10 |
-| P2.3 | Сделать fail-closed host/repository/env/Compose preflight | ⬜ Not started | — |
+| P2.3 | Сделать fail-closed host/repository/env/Compose preflight | 🔴 Blocked | 2026-08-10 |
 | P2.4 | Автоматизировать clone-to-running bootstrap без скрытых ручных шагов | ⬜ Not started | — |
 | P2.5 | Развести base seeds, demo data, создание и сброс администратора | ⬜ Not started | — |
 | P2.6 | Установить и настроить Laravel Doctor как dev/prod readiness carrier | ⬜ Not started | — |
@@ -309,9 +309,12 @@ generated_by: task plan-views status
 | 2026-08-10 | gpt-5.6-terra/high | plan-close · closed-green · P2.1 8fd8e2f6: vendor contract passed; rerun downstream gate unknown; write-site allow/allow. |
 | 2026-08-10 | gpt-5.6-terra/high | plan-run · in-progress · — |
 | 2026-08-10 | gpt-5.6-terra/high | plan-run · closed-green · P2.2 5df75000: file-secret generator, Compose grants and contract passed; write-site allow/allow. |
+| 2026-08-10 | gpt-5.6-terra/high | plan-run · in-progress · — |
+| 2026-08-10 | gpt-5.6-terra/high | plan-run · escalated · P1 has no declared version threshold required by P2.3. |
 
 ## Owner Gates
 
 - P0.3: known deviation
 - P0.4: known deviation
 - P0.5: known deviation
+- P2.3: escalation
