@@ -1,44 +1,43 @@
-# HANDOFF — 2026-08-10 — after P0
+# HANDOFF — 2026-08-10 — after P1.1 escalation
 
-**Next:** exec-items: task:plan-exec 2026.08.09-RELEASE-READINESS P1.1
+**Next:** `$ task:plan-design 2026.08.09-RELEASE-READINESS P1.1`
 
 | Параметр | Значение |
 |:--|:--|
-| Model | implementation |
-| Thinking | medium — deterministic Make contract slice |
-| Context | continue (reset the session context) — ручной item |
-| Суть | Реализовать P1.1: Make taxonomy, help и non-mutating preflight. |
-| Команда | `$ task:plan-exec 2026.08.09-RELEASE-READINESS P1.1` |
+| Model | frontier |
+| Thinking | high — reconcile downstream gate scope |
+| Context | NEW SESSION — шаг-не-item |
+| Суть | Устранить конфликт P1.1 с downstream gate: consumers запускают будущие или placeholder validations до их реализации. |
+| Команда | `$ task:plan-design 2026.08.09-RELEASE-READINESS P1.1` |
 
 ### Native Codex launch-block
 
 ```bash
-codex -C /home/vostrikov/projects/agelto/agelto -m gpt-5.6-terra -c 'model_reasoning_effort="medium"' -a never -s danger-full-access '$ task:plan-exec 2026.08.09-RELEASE-READINESS P1.1'
+codex -C /home/vostrikov/projects/agelto/agelto -m gpt-5.6-sol -c 'model_reasoning_effort="high"' -a never -s danger-full-access '$ task:plan-design 2026.08.09-RELEASE-READINESS P1.1'
 ```
 
 **Done:**
 
-- P0 закрыта: все 8 items terminal `🟢 Done`; stale Phase Handoff marker D62 заменён terminal block.
-- P0.7 закрыт item-коммитом `6b567ada`: citation selftest покрывает full matrix, old carrier красен, strict scan зелён, D60 нормализован; `984ae1f8` и `a136fb36` завершают его bookkeeping и D54 dedup follow-up.
-- P0.0–P0.6 имеют append-only terminal reconciliation events и states с `write-site: pre_mutation: allow · pre_final: allow`.
+- Product commit `ddb446a4` adds the namespaced Make surface, non-mutating Compose preflight, fake-Docker harness, and synchronized command docs.
+- P1.1 local validation passed: shell syntax, help, preflight with unchanged container IDs, harness, dry-run targets, and diff check.
 
 **Remaining:**
 
-- Следующий исполнимый item — P1.1 по запечатанному `implementation/medium` route.
+- Reconcile downstream-gate semantics/specifications before P1.1 can be terminal; the gate recorded 20 RED consumer findings against `ddb446a4`.
 
 **Sources of truth:**
 
-- `phases/P0/P0.7.md`
-- `phases/P0/P0.md` → `## Audit P0 — 2026-08-10`
-- `root/contracts/release-readiness-v1.md`
+- `phases/P1/P1.1.md`
+- `phases/P1/P1.1.state.md`
+- `findings/P1.1-downstream-*-ddb446a46b79.md`
 - `journal.jsonl`
 
 **Open risks:**
 
-- `PROMOTE-CANDIDATE` по общему Task write-site carrier остаётся неблокирующим долгом вне P0.7.
+- Current downstream execution treats future-item placeholders and not-yet-produced targets as immediate failures, blocking a producer despite its own green acceptance.
 
 **Workarounds/Deferred/Open questions:**
 
-- Workarounds: old carrier `cf5700dc` завершается non-zero при новом selftest-carrier entrypoint; общий Task invariant остаётся PROMOTE-CANDIDATE.
-- Deferred: общий Swissknifeman/Task runtime patch и product/future-consumer implementation остаются вне P0.7.
-- Open questions: —
+- Workarounds: —
+- Deferred: P1.2–P1.5 product behavior remains outside P1.1.
+- Open questions: whether downstream-gate applicability must exclude pre-terminal consumer deliverables.

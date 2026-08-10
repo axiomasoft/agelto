@@ -3,7 +3,7 @@ projection: status-view
 projection_version: v1
 source_scope: plan core + phases + journal
 through: 2026-08-10
-inputs_sha256: cc9dcafda135c521ba2c0c1243c08b4129c05a443bdd1cdab0ad5f8de1618eaf
+inputs_sha256: c63d1be324b8c32dc13b19a5522d76463b1b4424e1f13d267a38f453959ced74
 generated_by: task plan-views status
 -->
 
@@ -16,7 +16,7 @@ generated_by: task plan-views status
 | Поле | Значение |
 |:--|:--|
 | Version | 0.1.0 |
-| Status | ⬜ Not started |
+| Status | 🔴 Blocked |
 | Last Updated | 2026-08-10 |
 
 ## 4. Phase Index & Status Board
@@ -24,7 +24,7 @@ generated_by: task plan-views status
 | Phase | Title | Items 🟢/всего | Status |
 |:--|:--|:--|:--|
 | P0 | Разведка репозитория, референсов и RAG-контракты | 8/8 | 🟢 Done |
-| P1 | Makefile и Docker dev/prod с Vite-ready topology | 0/5 | ⬜ Not started |
+| P1 | Makefile и Docker dev/prod с Vite-ready topology | 0/5 | 🔴 Blocked |
 | P10 | PHP, архитектура, безопасность и production-readiness audit | 0/6 | ⬜ Not started |
 | P11 | Pest 5 performance, test isolation и CI | 0/6 | ⬜ Not started |
 | P12 | Ubuntu deployment guide и финальный clean-room rehearsal | 0/7 | ⬜ Not started |
@@ -54,7 +54,7 @@ generated_by: task plan-views status
 
 | ID | Title | Status | Updated |
 |:--|:--|:--|:--|
-| P1.1 | Зафиксировать канон целей Make и проверяемый help/preflight | ⬜ Not started | — |
+| P1.1 | Зафиксировать канон целей Make и проверяемый help/preflight | 🔴 Blocked | 2026-08-10 |
 | P1.2 | Закрепить dev Compose для code-only изменений и agent execution | ⬜ Not started | — |
 | P1.3 | Собрать immutable production image topology и service contract | ⬜ Not started | — |
 | P1.4 | Ввести Vite dev service и production frontend build contract | ⬜ Not started | — |
@@ -251,9 +251,13 @@ generated_by: task plan-views status
 | 2026-08-10 | gpt-5.6-terra/medium | plan-exec · closed-green · P0.7 item 6b567ada: citation matrix/selftest, old-carrier regression proof, strict scan and D60 normalization green. write-site: pre_mutation: allow · pre_final: allow |
 | 2026-08-10 | implementation/low | plan-close · closed-green · фаза P0 закрыта: восемь терминальных items сверены; D62 marker заменён terminal handoff |
 | 2026-08-10 | frontier/xhigh | plan-audit · audit-green · заход 2, вердикт GREEN |
+| 2026-08-10 | implementation/medium | plan-exec · in-progress · — |
+| 2026-08-10 | implementation/medium | plan-exec · closed-green · Namespaced Make targets, non-mutating preflight and fake-Docker harness added. |
+| 2026-08-10 | implementation/medium | plan-exec · escalated · Downstream gate RED: 20 future consumers run placeholder or unavailable validations. |
 
 ## Owner Gates
 
 - P0.3: known deviation
 - P0.4: known deviation
 - P0.5: known deviation
+- P1.1: escalation
