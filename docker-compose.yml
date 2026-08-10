@@ -10,7 +10,19 @@ services:
     working_dir: /var/www/html
     volumes:
       - ./:/var/www/html
-    environment: {}
+    environment:
+      APP_ENV: ${APP_ENV}
+      APP_KEY_FILE: /run/secrets/app_key
+      DB_CONNECTION: pgsql
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_DATABASE: ${DB_DATABASE}
+      DB_USERNAME: ${DB_USERNAME}
+      DB_PASSWORD_FILE: /run/secrets/db_password
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD_FILE: /run/secrets/redis_password
+      AWS_SECRET_ACCESS_KEY_FILE: /run/secrets/minio_root_password
     secrets:
       - app_key
       - db_password
