@@ -3,7 +3,7 @@ projection: status-view
 projection_version: v1
 source_scope: plan core + phases + journal
 through: 2026-08-10
-inputs_sha256: b26e3524e827741cb1e5da98feed87affa2da40e66176ac7ded9abebd0b186e9
+inputs_sha256: 5bdbe68e5f92291e82d1fea498aeb98c00fdb9a0f152d30bb57d8eb1fe0c4338
 generated_by: task plan-views status
 -->
 
@@ -290,6 +290,7 @@ generated_by: task plan-views status
 | 2026-08-10 | gpt-5.6-terra/medium | plan-run · blocked · required implementation/high manual; session implementation/medium |
 | 2026-08-10 | gpt-5.6-terra/high | plan-run · in-progress · continuation in current high-effort session; prior routing-blocked self-attribution retained as process deviation |
 | 2026-08-10 | gpt-5.6-terra/high | plan-run · closed-deviations · P1.7 7f203014: make-contract and legacy-negative passed; clean detached p1-release-contract exit 1 (bundle freshness collision); write-site: pre_mutation: allow · pre_final: allow. |
+| 2026-08-10 | implementation/low | plan-close · closed-deviations · фаза P1 закрыта: 6 green, P1.7 closed-deviations; docs commands.md updated |
 
 ## Owner Gates
 
