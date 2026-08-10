@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import importlib.util
 import json
 import re
 import sys
@@ -154,21 +155,44 @@ def discover_plans(repo_root: Path, target: str | None) -> list[Path]:
 
 
 class CitationVerifierSelfTest(unittest.TestCase):
-    def test_all_supported_forms_and_two_base_precedence(self) -> None:
+    carrier = sys.modules[__name__]
+
+    @classmethod
+    def load_tests_from_carrier(cls, path: Path | None) -> None:
+        if path is None:
+            cls.carrier = sys.modules[__name__]
+            return
+        specification = importlib.util.spec_from_file_location("citation_test_carrier", path)
+        if specification is None or specification.loader is None:
+            raise ValueError(f"cannot load selftest carrier {path}")
+        module = importlib.util.module_from_spec(specification)
+        sys.modules[specification.name] = module
+        specification.loader.exec_module(module)
+        cls.carrier = module
+
+    def test_all_supported_forms_and_repo_root_precedence(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             repo = Path(temporary)
             plan = repo / "plans" / "demo"
             plan.mkdir(parents=True)
             (repo / "docs").mkdir()
             (plan / "local").mkdir()
+            (repo / "local").mkdir()
             (repo / "docs" / "shared.md").write_text("one\ntwo\nthree\n", encoding="utf-8")
             (plan / "local" / "local.md").write_text("one\ntwo\nthree\n", encoding="utf-8")
+            (repo / "local" / "shared.md").write_text("repo\n", encoding="utf-8")
+            (plan / "local" / "shared.md").write_text("plan\nlocal\n", encoding="utf-8")
             (plan / "local" / "code.py").write_text("def Symbol(): pass\n", encoding="utf-8")
             (plan / "local" / "data.json").write_text('{"outer": {"inner": true}}', encoding="utf-8")
             for citation in ("docs/shared.md:1", "local/local.md:1-3", "local/local.md:1,3", "local/code.py::Symbol", "local/data.json#outer.inner"):
-                self.assertIsNone(check_citation(citation, repo, plan))
-            self.assertEqual(check_citation("local/local.md:4", repo, plan), "line outside 1-3")
-            self.assertEqual(check_citation("local/missing.md:1", repo, plan), "target file does not exist")
+                self.assertIsNone(self.carrier.check_citation(citation, repo, plan))
+            self.assertEqual(self.carrier.check_citation("local/shared.md:2", repo, plan), "line outside 1-1")
+            self.assertEqual(self.carrier.check_citation("local/local.md:4", repo, plan), "line outside 1-3")
+            self.assertEqual(self.carrier.check_citation("local/local.md:3-1", repo, plan), "line range is reversed")
+            self.assertEqual(self.carrier.check_citation("local/local.md:1,4", repo, plan), "line outside 1-3")
+            self.assertEqual(self.carrier.check_citation("local/code.py::Missing", repo, plan), "symbol text does not exist")
+            self.assertEqual(self.carrier.check_citation("local/data.json#outer.missing", repo, plan), "JSON key does not exist: outer.missing")
+            self.assertEqual(self.carrier.check_citation("local/missing.md:1", repo, plan), "target file does not exist")
 
     def test_strict_and_exception_boundaries(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
@@ -176,9 +200,10 @@ class CitationVerifierSelfTest(unittest.TestCase):
             plan = repo / "plans" / "demo"
             (plan / "phases").mkdir(parents=True)
             (plan / "plan.md").write_text("`missing/path.md:1`\n", encoding="utf-8")
-            findings = scan(plan, repo, {}, False)
+            findings = self.carrier.scan(plan, repo, {}, False)
             self.assertEqual(len(findings), 1)
-            self.assertEqual(scan(plan, repo, {"missing/path.md:1": "legacy"}, False), [])
+            self.assertEqual(self.carrier.scan(plan, repo, {"missing/path.md:1": "legacy"}, False), [])
+            self.assertEqual(len(self.carrier.scan(plan, repo, {"missing/path.md:2": "wrong citation"}, False)), 1)
 
     def test_archive_is_opt_in(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
@@ -186,8 +211,43 @@ class CitationVerifierSelfTest(unittest.TestCase):
             plan = repo / "plans" / "demo"
             (plan / "archive").mkdir(parents=True)
             (plan / "archive" / "old.md").write_text("`missing/path.md:1`\n", encoding="utf-8")
-            self.assertEqual(scan(plan, repo, {}, False), [])
-            self.assertEqual(len(scan(plan, repo, {}, True)), 1)
+            self.assertEqual(self.carrier.scan(plan, repo, {}, False), [])
+            self.assertEqual(len(self.carrier.scan(plan, repo, {}, True)), 1)
+
+    def test_cli_strict_non_strict_and_archive_exit_codes(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            repo = Path(temporary)
+            plan = repo / "plans" / "demo"
+            (plan / "archive").mkdir(parents=True)
+            verifier_path = repo / "plans" / "verify-citations.py"
+            verifier_path.write_text("", encoding="utf-8")
+            verifier_path.with_name("verify-citations-known-exceptions.json").write_text('{"exceptions": []}', encoding="utf-8")
+            (plan / "plan.md").write_text("`missing/path.md:1`\n", encoding="utf-8")
+            (plan / "archive" / "old.md").write_text("`missing/archive.md:1`\n", encoding="utf-8")
+            original_file = self.carrier.__file__
+            self.carrier.__file__ = str(verifier_path)
+            try:
+                self.assertEqual(self.carrier.main([str(plan)]), 0)
+                self.assertEqual(self.carrier.main([str(plan), "--strict"]), 1)
+                (plan / "plan.md").write_text("", encoding="utf-8")
+                self.assertEqual(self.carrier.main([str(plan), "--strict"]), 0)
+                self.assertEqual(self.carrier.main([str(plan), "--strict", "--include-archive"]), 1)
+            finally:
+                self.carrier.__file__ = original_file
+
+    def test_carrier_contains_full_acceptance_matrix(self) -> None:
+        required_tests = {
+            "test_all_supported_forms_and_repo_root_precedence",
+            "test_archive_is_opt_in",
+            "test_cli_strict_non_strict_and_archive_exit_codes",
+            "test_strict_and_exception_boundaries",
+        }
+        carrier_tests = {
+            name
+            for name in dir(self.carrier.CitationVerifierSelfTest)
+            if name.startswith("test_")
+        }
+        self.assertTrue(required_tests <= carrier_tests)
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -196,8 +256,10 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--strict", action="store_true", help="return 1 when unresolved citations exist")
     parser.add_argument("--include-archive", action="store_true", help="scan archive Markdown too")
     parser.add_argument("--selftest", action="store_true", help="run embedded regression tests")
+    parser.add_argument("--selftest-carrier", type=Path, help="run embedded tests against this verifier carrier")
     args = parser.parse_args(argv)
     if args.selftest:
+        CitationVerifierSelfTest.load_tests_from_carrier(args.selftest_carrier)
         return 0 if unittest.main(argv=[sys.argv[0]], exit=False).result.wasSuccessful() else 1
     repo_root = Path(__file__).resolve().parent.parent
     try:

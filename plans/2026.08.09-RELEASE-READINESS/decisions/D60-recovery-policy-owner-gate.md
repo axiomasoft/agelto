@@ -12,7 +12,7 @@ superseded_by: null
 До закрытия P12.3 владелец фиксирует RPO, RTO, retention, off-host destination и restore cadence.
 P12.5 доказывает выбранную policy isolated restore receipt и delivery test; P12.7 не выдаёт READY
 без принятого либо superseding D-record. RAG:✅ 2026-08-10 для backup→restore mechanics и
-RAG:[UNVERIFIED] для конкретных operational values (`findings/P0-rag-infrastructure.md`, INF-09).
+[UNVERIFIED] для конкретных operational values (`findings/P0-rag-infrastructure.md`, INF-09).
 
 ## Почему
 
