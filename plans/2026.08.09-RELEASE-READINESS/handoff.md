@@ -1,35 +1,29 @@
-# HANDOFF — 2026-08-10 — after P0.6
+# HANDOFF — 2026-08-10 — after P0
 
-**Next:** /task:plan-close 2026.08.09-RELEASE-READINESS P0
+**Next:** /task:plan-audit 2026.08.09-RELEASE-READINESS P0
 
 | Параметр | Значение |
 |:--|:--|
-| Model | implementation |
-| Thinking | low — свести терминальные статусы P0 |
+| Model | frontier |
+| Thinking | xhigh — независимый аудит закрытой фазы |
 | Context | NEW SESSION — шаг-не-item |
-| Суть | Закрыть фазу P0 и подготовить независимый аудит. |
-| Команда | `$ task:plan-close 2026.08.09-RELEASE-READINESS P0` |
-
-```text
-$ task:plan-close 2026.08.09-RELEASE-READINESS P0
-```
+| Суть | Проверить P0 свежим контекстом перед запуском P1. |
+| Команда | `$ task:plan-audit 2026.08.09-RELEASE-READINESS P0` |
 
 ### Native Codex launch-block
 
 ```bash
-codex -C /home/vostrikov/projects/agelto/agelto -m gpt-5.6-terra -c 'model_reasoning_effort="low"' -a never -s danger-full-access '$ task:plan-close 2026.08.09-RELEASE-READINESS P0'
+codex -C /home/vostrikov/projects/agelto/agelto -m gpt-5.6-sol -c 'model_reasoning_effort="xhigh"' -a never -s danger-full-access '$ task:plan-audit 2026.08.09-RELEASE-READINESS P0'
 ```
 
 **Done:**
 
-- P0.6 contract artifacts committed as `52fb69c6`.
-- Declared item validation and strict citation verification passed.
-- P0.6 закрыт `🟢`: downstream RED был проверкой ещё не стартовавших consumers, а не acceptance P0.6.
-- Третий запуск P0.6 не требуется.
+- Фаза P0 закрыта: P0.0–P0.6 терминальны `🟢`.
+- Citation verifier, repo/reference evidence, MCP RAG и frozen readiness contract переданы P1–P12.
 
 **Remaining:**
 
-- Закрыть фазу P0: все семь её items теперь терминальны.
+- Независимо аудировать закрытую P0; P1 не запускать до результатов аудита.
 
 **Sources of truth:**
 
@@ -39,8 +33,7 @@ codex -C /home/vostrikov/projects/agelto/agelto -m gpt-5.6-terra -c 'model_reaso
 
 **Open risks:**
 
-- Строгая проверка citations обнаруживает 20 исторических ссылок вне P0.6; это нужно учесть
-  при закрытии фазы P0, не приписывая их этому item.
+- Task citation verification обнаруживает 20 исторических ссылок на `HEAD`; новых от закрытия P0 — 0.
 - D60 remains a proposed owner gate for recovery policy before P12.3/P12.7; it is not this blocker.
 
 **Workarounds/Deferred/Open questions:**

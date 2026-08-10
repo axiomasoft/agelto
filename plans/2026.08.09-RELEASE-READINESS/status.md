@@ -3,7 +3,7 @@ projection: status-view
 projection_version: v1
 source_scope: plan core + phases + journal
 through: 2026-08-10
-inputs_sha256: 8b4b6c9c981b997233fe27571556b7fba8a5ea6e6a5b0b2658824e761859a394
+inputs_sha256: c85a9f5ab77317e07e18ec33c6499125dd2a7357fb98d25fd99674c33ce5b26e
 generated_by: task plan-views status
 -->
 
@@ -235,6 +235,7 @@ generated_by: task plan-views status
 | 2026-08-10 | frontier/high | plan-run · closed-green · Session: frontier/high; contracts, trace, D-records and self-audit committed at 52fb69c6; item validation and strict citations green; write-site: pre_mutation: allow · pre_final: allow |
 | 2026-08-10 | frontier/high | plan-run · escalated · Downstream gate for producer 52fb69c6 is red: future P1-P12 validations require not-yet-created carriers outside P0.6 Scope; plan-design must reconcile phase-first producer closure with downstream-gate-v1. |
 | 2026-08-10 | implementation/low | plan-close · closed-green · P0.6 closed: 52fb69c6 and declared validation are green; downstream RED is not P0.6 acceptance and needs no third run. |
+| 2026-08-10 | implementation/low | plan-close · closed-green · фаза P0 закрыта: семь терминальных items сверены |
 
 ## Owner Gates
 
