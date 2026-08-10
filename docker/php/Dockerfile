@@ -1,6 +1,6 @@
 FROM minio/mc:latest AS mc
 
-FROM serversideup/php:8.5-fpm-nginx
+FROM serversideup/php:8.5-fpm-nginx AS development
 
 USER root
 

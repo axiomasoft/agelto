@@ -1,12 +1,12 @@
-name: agelto_v2
+name: ${COMPOSE_PROJECT_NAME:-agelto_dev}
 
 services:
   app:
     build:
       context: .
       dockerfile: docker/php/Dockerfile
+      target: development
       network: host
-    container_name: agelto_app
     restart: unless-stopped
     stop_signal: SIGTERM
     stop_grace_period: 30s
@@ -71,8 +71,8 @@ services:
     build:
       context: .
       dockerfile: docker/php/Dockerfile
+      target: development
       network: host
-    container_name: agelto_horizon
     restart: unless-stopped
     stop_signal: SIGTERM
     # P4.7 (D117): `supervisor-crawl-long.timeout` (3600s) < long retry_after (3900s) < grace.
@@ -103,8 +103,8 @@ services:
     build:
       context: .
       dockerfile: docker/php/Dockerfile
+      target: development
       network: host
-    container_name: agelto_scheduler
     restart: unless-stopped
     stop_signal: SIGTERM
     stop_grace_period: 60s
@@ -135,7 +135,6 @@ services:
       context: ./docker/postgres
       dockerfile: Dockerfile
     image: agelto_postgres:17-partman
-    container_name: agelto_postgres
     restart: unless-stopped
     # P7.4 (F-10/F-11/F-12, research/08-db-review.md §11): текущее значение — база образа
     # (shared_preload_libraries пуст, /dev/shm — дефолтные 64 МБ) — снято `SHOW`/`df -h /dev/shm`
@@ -189,7 +188,6 @@ services:
 
   redis:
     image: redis:7-alpine
-    container_name: agelto_redis
     restart: unless-stopped
     ports:
       - "127.0.0.1:${REDIS_PORT:-6379}:6379"
@@ -205,7 +203,6 @@ services:
 
   minio:
     image: minio/minio:latest
-    container_name: agelto_minio
     restart: unless-stopped
     command: ["server", "/data", "--console-address", ":9001"]
     ports:
@@ -229,7 +226,6 @@ services:
   # (см. 02-crawling.md) — сервис НЕ на критическом пути, здесь только пустой контейнер.
   browser:
     image: node:22-alpine
-    container_name: agelto_browser
     restart: unless-stopped
     command: ["tail", "-f", "/dev/null"]
     networks:

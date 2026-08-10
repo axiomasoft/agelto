@@ -8,10 +8,9 @@ status: living
 
 ## `docker compose` вручную требует ДВА `--env-file`
 
-`docker/Makefile` собирает `COMPOSE_ENV_BASE` (`.env`) + опционально `.env.docker`/
-`.env.docker.production`. Если запускать `docker compose` вручную (не через `make`) — оба флага
-нужны явно, иначе переменные из второго файла не подхватятся молча (не ошибка, просто дефолты).
-Предпочитать `make artisan ARGS="..."`/`make shell` вместо ручного `docker compose exec`.
+`docker/Makefile` передаёт `.env` явно. Для ручного вызова также укажите project name и carrier:
+`docker compose --project-name agelto_dev --env-file .env -f docker-compose.yml …`.
+Предпочитать `make dev:artisan ARGS="…"` или `make agent:artisan ARGS="…"`.
 
 ## Bind-mount permission denied для `www-data`
 
@@ -36,7 +35,7 @@ require, git-операции, редактирование файлов от и
 
 ## Контейнер `app`/`horizon` не проходит healthcheck
 
-`make prod:doctor` (prod) или `make ps` (dev) — статус контейнеров одним отчётом; `curl
+`make dev:ps` (dev) — статус контейнеров одним отчётом; `curl
 http://localhost:8080/up` — тот же эндпоинт, что слушает Docker healthcheck. Если `horizon` не
 проходит `horizon:status | grep running` — см. [`../runbooks/horizon-backlog.md`](../runbooks/horizon-backlog.md).
 

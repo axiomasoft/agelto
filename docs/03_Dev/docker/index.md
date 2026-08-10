@@ -6,7 +6,7 @@ status: living
 
 # Docker: стек
 
-## Сервисы (`docker-compose.yml`/`docker-compose.prod.yml`, project `agelto_v2`)
+## Сервисы (`docker-compose.yml`/`docker-compose.prod.yml`)
 
 | Сервис | Роль |
 |:--|:--|
@@ -20,11 +20,9 @@ status: living
 
 ## Runtime-образ
 
-`docker/php/Dockerfile` — лёгкий: PHP-расширения + Node/yarn, **БЕЗ** `composer install` внутри
-(канон CLAUDE.md §Docker/Runtime). `vendor` и `public/build` — через volumes:
-`app_bootstrap_cache`/`app_storage_framework` (dev, именованные) или bind-mount `./storage/framework`
-(prod); `vendor` — bind-mount в dev, именованный volume `vendor_data` в prod, наполняется
-`make prod:composer-install`/`make prod:deploy:frontend`-эквивалентом.
+Dev services build the named `development` target. Source is a host bind-mount; bootstrap/cache,
+framework runtime and Pest Tia are project-scoped named volumes. `COMPOSE_PROJECT_NAME` defaults to
+`agelto_dev`; services are addressed through Compose and never use fixed `container_name`.
 
 ## Здоровье
 

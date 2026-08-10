@@ -8,10 +8,10 @@ status: living
 
 ## Bind-mount, не именованный volume для кода
 
-`docker-compose.yml`: `./:/var/www/html` — весь код смонтирован с хоста (правки видны в контейнере
-мгновенно, без ребилда). `vendor` — тоже bind-mount в dev (в отличие от prod, где это именованный
-volume) — `composer install`/`require` можно запускать И с хоста, И из контейнера
-(`make composer-install`/`make composer ARGS="..."`).
+`docker-compose.yml` использует named target `development`: `./:/var/www/html` монтирует код с
+хоста, поэтому code-only правка видна без rebuild. Bootstrap/cache, framework runtime и Pest Tia
+— явные project-scoped named volumes. `bash docker/tests/dev-code-sync.sh` доказывает health,
+sentinel, неизменный image ID и non-TTY agent command в изолированном Compose project.
 
 ## Права на файлы (`www-data` внутри контейнера)
 
@@ -21,17 +21,14 @@ volume) — `composer install`/`require` можно запускать И с х�
 `composer install`/`require` с ХОСТА владелец файлов в `storage`/`vendor` может смениться —
 разовая починка: `docker compose exec -u root app chown -R www-data:www-data storage vendor`.
 
-## `.env.docker` (опционально)
+## Локальный override и project name
 
-`cp .env.docker.example .env.docker` — dev-специфичные переменные для `docker compose`, не
-обязателен (если файла нет, `docker/Makefile` его просто не подключает вторым `--env-file`).
+`cp docker-compose.override.example.yml docker-compose.override.yml` создаёт Git-ignored local
+override. `COMPOSE_PROJECT_NAME` по умолчанию равен `agelto_dev`; fixed `container_name` нет.
 
 ## Фронтенд
 
-`yarn install && yarn dev` — Vite HMR запускается ВНЕ контейнера (Node на хосте), не через
-`make`-цель; `APP_URL`/порты см. `.env`. Установка зависимостей и сборка — обычный yarn, `make`
-целей под фронтенд нет (canonical CLAUDE.md §Docker/Runtime говорит только про runtime-образ —
-composer/frontend-сборка вне `docker/php/Dockerfile`).
+Vite dev service и frontend lock contract принадлежат P1.4; пока Node остаётся на хосте.
 
 ## Смежное
 

@@ -3,7 +3,8 @@ ROOT_DIR := $(abspath $(DOCKER_DIR)/..)
 
 MODE ?= dev
 ENV_FILE ?= .env
-COMPOSE_DEV := docker compose --project-directory $(ROOT_DIR) --env-file $(ROOT_DIR)/$(ENV_FILE) -f $(ROOT_DIR)/docker-compose.yml
+COMPOSE_PROJECT_NAME ?= agelto_dev
+COMPOSE_DEV := docker compose --project-directory $(ROOT_DIR) --project-name $(COMPOSE_PROJECT_NAME) --env-file $(ROOT_DIR)/$(ENV_FILE) -f $(ROOT_DIR)/docker-compose.yml
 COMPOSE_PROD := docker compose --project-directory $(ROOT_DIR) --env-file $(ROOT_DIR)/$(ENV_FILE) -f $(ROOT_DIR)/docker-compose.prod.yml
 AGENT_ENV := $(if $(CLAUDECODE),-e CLAUDECODE=$(CLAUDECODE)) $(if $(CURSOR_AGENT),-e CURSOR_AGENT=$(CURSOR_AGENT)) $(if $(AI_AGENT),-e AI_AGENT=$(AI_AGENT))
 
