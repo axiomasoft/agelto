@@ -3,7 +3,7 @@ projection: status-view
 projection_version: v1
 source_scope: plan core + phases + journal
 through: 2026-08-10
-inputs_sha256: 03151279d229bdc7f695ee47c98af7960a06b8de25c18527f69582a53eaed18f
+inputs_sha256: 4b9c1d91297d8e1c46ab7c15fa9536a8aae3ea413b0f89f0dc4362a5fd10102b
 generated_by: task plan-views status
 -->
 
@@ -23,7 +23,7 @@ generated_by: task plan-views status
 
 | Phase | Title | Items 🟢/всего | Status |
 |:--|:--|:--|:--|
-| P0 | Разведка репозитория, референсов и RAG-контракты | 5/7 | ⬜ Not started |
+| P0 | Разведка репозитория, референсов и RAG-контракты | 6/7 | ⬜ Not started |
 | P1 | Makefile и Docker dev/prod с Vite-ready topology | 0/5 | ⬜ Not started |
 | P10 | PHP, архитектура, безопасность и production-readiness audit | 0/6 | ⬜ Not started |
 | P11 | Pest 5 performance, test isolation и CI | 0/6 | ⬜ Not started |
@@ -46,7 +46,7 @@ generated_by: task plan-views status
 | P0.2 | Сравнительная матрица Sova, Vintera/CMS и Dterema | 🟢 Done | 2026-08-10 |
 | P0.3 | RAG: Docker/Compose/Makefile, build cache, secrets, Ubuntu deploy и Vite | 🟢 Done | 2026-08-10 |
 | P0.4 | RAG: Laravel 13, Filament 5, Livewire assets, Doctor, private docs и Pest 5 | 🟢 Done | 2026-08-10 |
-| P0.5 | RAG: proxy settings, file formats, archives, document taxonomy и extension patterns | ⬜ Not started | — |
+| P0.5 | RAG: proxy settings, file formats, archives, document taxonomy и extension patterns | 🟢 Done | 2026-08-10 |
 | P0.6 | Заморозить target contracts, ADR-развилки, acceptance matrix и маршруты фаз | ⬜ Not started | — |
 
 ## Phase P1
@@ -226,8 +226,11 @@ generated_by: task plan-views status
 | 2026-08-10 | frontier/high | plan-run · closed-green · MCP replay complete; login/search PASS; all declared INF rows and citation gate green on item commit 751d72dd. Route frontier/high overshot implementation/high. write-site: pre_mutation: allow · pre_final: allow |
 | 2026-08-10 | frontier/high | plan-run · in-progress · — |
 | 2026-08-10 | frontier/high | plan-run · closed-green · P0.4 Laravel ecosystem RAG: findings committed; all item checks and strict citations green. |
+| 2026-08-10 | frontier/high | plan-run · in-progress · — |
+| 2026-08-10 | frontier/high | plan-run · closed-green · Session: frontier/high; exceeded implementation/high. P0.5 findings committed; item checks and strict citations green. |
 
 ## Owner Gates
 
 - P0.3: known deviation
 - P0.4: known deviation
+- P0.5: known deviation

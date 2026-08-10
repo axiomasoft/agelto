@@ -1,42 +1,42 @@
-# HANDOFF — 2026-08-10 — after P0.4
+# HANDOFF — 2026-08-10 — after P0.5
 
-**Next:** ЗАПУСК ВРУЧНУЮ: implementation/high
+**Next:** ЗАПУСК ВРУЧНУЮ: frontier/high
 
 | Параметр | Значение |
 |:--|:--|
-| Model | implementation |
-| Thinking | high — domain/security external contracts |
+| Model | frontier |
+| Thinking | high — cross-track contract freeze |
 | Context | continue (/clear) — ручной item |
-| Суть | Выполнить P0.5 по terminal Laravel ecosystem findings и зафиксировать proxy/archive/format/taxonomy evidence. |
+| Суть | Синтезировать terminal P0.1–P0.5 findings в frozen release-readiness contract и alternatives; затем выполнить bounded self-audit P0.6. |
 | Команда | — |
 
 ```text
-$ task:plan-run 2026.08.09-RELEASE-READINESS P0.5
+$ task:plan-run 2026.08.09-RELEASE-READINESS P0.6
 ```
 
-**Done:** P0.4 closed green; item commit `04aa63a0` added the six-section Laravel ecosystem
-finding with locked version matrix, runtime-only Livewire 404 branches, private-doc security
-boundary, Pest 5 TIA/parallel verdicts and unverified Doctor package selection. Item checks and
-strict citation verification passed.
+**Done:** P0.5 closed green; item commit `f1cb83dd` added the six-section domain/security
+finding. It confirms the D8/ProxyResolver and TLS boundaries, separates suffix/MIME/magic evidence,
+sets archive failure-and-limit obligations, keeps procurement taxonomy above estimate formats and
+confirms only literal `.gsfx` vendor provenance.
 
-**Remaining:** P0.5–P0.6, then phases P1–P12 as ordered in `roadmap.md`.
+**Remaining:** P0.6, then the phase P0 close/audit path and phases P1–P12 from `roadmap.md`.
 
-**Sources of truth:** `plan.md` · `phases/P0/P0.md` · `phases/P0/P0.4.md` ·
-`phases/P0/P0.4.state.md` · `findings/P0-rag-laravel-ecosystem.md` · `journal.jsonl` ·
-`roadmap.md`.
+**Sources of truth:** `plan.md` · `phases/P0/P0.md` · `phases/P0/P0.5.md` ·
+`phases/P0/P0.5.state.md` · `findings/P0-rag-domain-security.md` ·
+`findings/P0-rag-laravel-ecosystem.md` · `findings/P0-rag-infrastructure.md` ·
+`journal.jsonl` · `roadmap.md`.
 
-**Open risks:** `laravel/doctor` is not in the lockfile and has no selected compatible package
-contract; P2.6 must verify a named dependency before installation. The Livewire 404 root cause is
-not proven without P3 runtime evidence. P0.5 must retain the project invariants around
-`ProxyResolver`, `ProxyScope`, `SourceTlsTrust`, typed registries and profile → default → direct.
+**Open risks:** Spatie Settings compatibility and lifecycle are not established without a named
+package/version. JSRF/GSRF have no issuer provenance and must not be normalized as GSFX. Archive
+adapter enforcement beyond current aggregate limits still requires P6.3 adversarial evidence.
 
-**Workarounds/Deferred/Open questions:** no workaround accepted. P0.4 was executed by
-`frontier/high`, which exceeds the prescribed `implementation/high` route; this is a process
-deviation only. WebSearch was the RAG fallback because Context7/perplexity-web were unavailable
-in this session; unverified facts are named in the finding's verification footer.
+**Workarounds/Deferred/Open questions:** no workaround accepted. P0.5 was executed by
+`frontier/high`, exceeding the prescribed `implementation/high` route; this is process-only.
+WebSearch was the RAG fallback because Context7/perplexity-web were unavailable; each unresolved
+fact is listed in the finding's verification footer.
 
 ## Native Codex launch-block
 
 ```bash
-codex -C /home/vostrikov/projects/agelto/agelto -m gpt-5.6-terra -c 'model_reasoning_effort="high"' -a never -s danger-full-access '$ task:plan-run 2026.08.09-RELEASE-READINESS P0.5'
+codex -C /home/vostrikov/projects/agelto/agelto -m gpt-5.6-sol -c 'model_reasoning_effort="high"' -a never -s danger-full-access '$ task:plan-run 2026.08.09-RELEASE-READINESS P0.6'
 ```
