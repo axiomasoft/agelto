@@ -12,7 +12,7 @@ batch и всё равно закрываются каждый своим commit
 | Фаза | Кандидаты | Решение | Route/review | Причина |
 |:--|:--|:--|:--|:--|
 | P0 | P0.0–P0.7 | terminal | — | фаза закрыта после P0.7 remediation D62; следующий исполнимый item — P1.1 |
-| P1 | P1.6 | solo remediation | implementation/high · full | P1.1–P1.5 terminal; D64 slice продолжается после D65 consumer-carrier normalization |
+| P1 | P1.1–P1.6 | terminal | — | фаза закрыта; до P2 обязателен fresh-context audit P1 |
 | P3 | P3.1–P3.5 | B3-READINESS | implementation/high · full | diagnosis→repair→readiness→E2E→recovery использует один runtime context; root-cause escalation останавливает серию |
 | P2, P4–P12 | текущие solo | solo | как в §3 Routing | требуются owner/external gates, frontier freeze либо отдельный риск-контекст; кандидаты на следующие batch-проходы рассматриваются по фактическим terminal inputs |
 
@@ -33,7 +33,7 @@ batch и всё равно закрываются каждый своим commit
 | P1.3 | closed | — | implementation/high | — | terminal immutable runtime evidence |
 | P1.4 | closed-deviations | — | implementation/high | — | terminal Vite topology; docs deviation входит в P1.6 |
 | P1.5 | closed-deviations | — | implementation/high | — | RED-аудит F1–F5 породил D64/P1.6 |
-| P1.6 | solo | `task:plan-run … P1.6` | implementation/high | — | retry: direct terminal assertions + D65 non-red downstream; затем close и fresh audit P1 |
+| P1.6 | closed | — | implementation/high | — | `44a334ac`: direct terminal assertions; 25 downstream `unknown`, RED 0; P1 закрыта, далее audit |
 | P2.1 | solo | `task:plan-run … P2.1` | implementation/high | private repo access | private dependency/source lock boundary |
 | P2.2 | solo | `task:plan-run … P2.2` | implementation/high | — | credential generation/grants security boundary |
 | P2.3 | solo | `task:plan-run … P2.3` | implementation/high | — | fail-closed non-mutating preflight |
@@ -100,27 +100,21 @@ batch и всё равно закрываются каждый своим commit
 
 ## Следующий запуск
 
-**Next:** manual: implementation/high
+**Next:** /task:plan-audit 2026.08.09-RELEASE-READINESS P1
 
 | Параметр | Значение |
 |:--|:--|
-| Model class | implementation |
-| Effort | high |
+| Model class | frontier |
+| Effort | xhigh |
 | Capabilities | — |
-| Context | cold-start-root — context-budget |
-| Суть | Продолжить P1.6 от `cb49b47c`: закрыть direct terminal assertions, получить D65 non-red downstream и выполнить append-only reconciliation. |
-| Команда | — |
-
-```text
-select the session model class: implementation
-select the session effort: high
-$ task:plan-run 2026.08.09-RELEASE-READINESS P1.6
-```
+| Context | NEW SESSION — шаг-не-item |
+| Суть | Независимо проверить закрытую P1 до старта P2. |
+| Команда | `$ task:plan-audit 2026.08.09-RELEASE-READINESS P1` |
 
 ### Native Codex launch-block
 
 ```bash
-codex -C /home/vostrikov/projects/agelto/agelto -m gpt-5.6-terra -c 'model_reasoning_effort="high"' -a never -s danger-full-access '$ task:plan-run 2026.08.09-RELEASE-READINESS P1.6'
+codex -C /home/vostrikov/projects/agelto/agelto -m gpt-5.6-sol -c 'model_reasoning_effort="xhigh"' -a never -s danger-full-access '$ task:plan-audit 2026.08.09-RELEASE-READINESS P1'
 ```
 
 ## Гейты владельца (сводно)

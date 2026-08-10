@@ -3,7 +3,7 @@ projection: status-view
 projection_version: v1
 source_scope: plan core + phases + journal
 through: 2026-08-10
-inputs_sha256: 37903e41d6d3d7124b67fe65873a0390fdbcefe147c835839e9f4a1fb99230df
+inputs_sha256: 766736ffb791a4b146770686fe34f87cfee40c7b34776bd07f4724fa95169447
 generated_by: task plan-views status
 -->
 
@@ -283,6 +283,7 @@ generated_by: task plan-views status
 | 2026-08-10 | implementation/low | plan-close · closed-green · P1.4 reconciliation: item commit 4bb88a15; dynamic Vite passed in P1.6 carrier on 44a334ac; prior docs deviation resolved; actual gpt-5.6-terra/high; write-site: pre_mutation: allow · pre_final: allow. |
 | 2026-08-10 | implementation/low | plan-close · closed-green · P1.5 reconciliation: item commit 0db08b00; P1 release carrier passed on 44a334ac; prior docs deviation resolved; actual gpt-5.6-terra/high; write-site: pre_mutation: allow · pre_final: allow. |
 | 2026-08-10 | gpt-5.6-terra/high | plan-run · closed-green · P1.6: 44a334ac terminal carrier passed; 25 downstream outcomes unknown, RED 0; actual gpt-5.6-terra/high; write-site: pre_mutation: allow · pre_final: allow. |
+| 2026-08-10 | implementation/low | plan-close · closed-green · фаза P1 закрыта |
 
 ## Owner Gates
 
