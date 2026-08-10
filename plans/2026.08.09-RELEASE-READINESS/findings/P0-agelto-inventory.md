@@ -18,7 +18,7 @@ best-practice claim or target architecture is made here. RAG:— (repo-grounded:
 | Dev Compose builds `app`, `horizon`, and `scheduler` from the PHP Dockerfile and bind-mounts the project. | Source edits are visible in the containers; build/rebuild remains an explicit target. | available | The browser service is an intentional empty Node container, not an enabled rendering capability. | P1.2, P3, P8 |
 | Production Compose names an app image and uses the shared `vendor_data` volume. | Runtime app services consume the same image and vendor volume. | behind-gate | Image provenance and promotion are not evidenced by this inventory. | P1.3, P12 |
 
-Evidence: `Makefile:1-8`, `docker/Makefile:12-31`, `docker/Makefile:104-139`,
+Evidence: `Makefile:1-8`, `findings/P0-docker-Makefile-baseline-56ce9660.json#environment_selection`, `findings/P0-docker-Makefile-baseline-56ce9660.json#target_help_and_lifecycle`,
 `docker-compose.yml:4-27`, `docker-compose.yml:227-236`, `docker-compose.prod.yml:4-16`.
 
 ## Deploy and bootstrap
@@ -29,7 +29,7 @@ Evidence: `Makefile:1-8`, `docker/Makefile:12-31`, `docker/Makefile:104-139`,
 | The PHP image provides the system tools and PHP extensions needed by the application pipeline. | Image build installs document/OCR utilities and database/Redis/GD/PCOV extensions. | available | The image is mutable at package-install time; reproducible image/digest policy remains for later phases. | P1.3, P6, P12 |
 | Composer has path repositories for three private AzGuard packages. | Dependency resolution relies on paths outside this repository and does not symlink them. | behind-gate | Clone/layout and provenance requirements for those packages are not part of the current bootstrap proof. | P2.1, P2.4, P12.2 |
 
-Evidence: `docker/Makefile:210-230`, `docker/Makefile:246-296`,
+Evidence: `findings/P0-docker-Makefile-baseline-56ce9660.json#production_helpers`, `findings/P0-docker-Makefile-baseline-56ce9660.json#production_deploy`,
 `docker/php/Dockerfile:1-47`, `composer.json#repositories`.
 
 ## Secrets and preflight
@@ -41,7 +41,7 @@ Evidence: `docker/Makefile:210-230`, `docker/Makefile:246-296`,
 | Test preflight checks Compose status and a PostgreSQL PDO connection. | `test-php` also creates the test database and sets its database name for the Laravel test command. | behind-gate | It is a runtime command and was not run in this read-only baseline. | P11, P12 |
 
 Evidence: `docker-compose.prod.yml:17-64`, `docker-compose.prod.yml:241-250`,
-`docker/php/entrypoint.d/10-secrets.sh:1-15`, `docker/Makefile:184-191`,
+`docker/php/entrypoint.d/10-secrets.sh:1-15`, `findings/P0-docker-Makefile-baseline-56ce9660.json#test_preflight`,
 `.env.docker.production.example:1-17`.
 
 ## Assets and readiness
@@ -95,7 +95,7 @@ Evidence: `docker/php/Dockerfile:7-30`, `composer.json#require`,
 | The dev compose has a named Pest TIA volume. | There is a test-performance carrier in development. | behind-gate | Its correctness and reproducibility are not demonstrated by a test run. | P11 |
 
 Evidence: `composer.json#scripts.test`, `composer.json#require-dev`,
-`docker/Makefile:184-199`, `docker-compose.yml:20-27`.
+`findings/P0-docker-Makefile-baseline-56ce9660.json#test_commands`, `docker-compose.yml:20-27`.
 
 ## Command inventory and consumer map
 

@@ -3,7 +3,7 @@ projection: status-view
 projection_version: v1
 source_scope: plan core + phases + journal
 through: 2026-08-10
-inputs_sha256: 86895cdad1a06ba28fa0bd8024d52ae909e51da11ac3ee92da9739e26b5c6b2f
+inputs_sha256: 37903e41d6d3d7124b67fe65873a0390fdbcefe147c835839e9f4a1fb99230df
 generated_by: task plan-views status
 -->
 
@@ -15,8 +15,8 @@ generated_by: task plan-views status
 
 | Поле | Значение |
 |:--|:--|
-| Version | 0.1.0 |
-| Status | 🔴 Blocked |
+| Version | 0.1.2 |
+| Status | ⬜ Not started |
 | Last Updated | 2026-08-10 |
 
 ## 4. Phase Index & Status Board
@@ -24,7 +24,7 @@ generated_by: task plan-views status
 | Phase | Title | Items 🟢/всего | Status |
 |:--|:--|:--|:--|
 | P0 | Разведка репозитория, референсов и RAG-контракты | 8/8 | 🟢 Done |
-| P1 | Makefile и Docker dev/prod с Vite-ready topology | 0/5 | 🔴 Blocked |
+| P1 | Makefile и Docker dev/prod с Vite-ready topology | 6/6 | 🟢 Done |
 | P10 | PHP, архитектура, безопасность и production-readiness audit | 0/6 | ⬜ Not started |
 | P11 | Pest 5 performance, test isolation и CI | 0/6 | ⬜ Not started |
 | P12 | Ubuntu deployment guide и финальный clean-room rehearsal | 0/7 | ⬜ Not started |
@@ -54,11 +54,12 @@ generated_by: task plan-views status
 
 | ID | Title | Status | Updated |
 |:--|:--|:--|:--|
-| P1.1 | Зафиксировать канон целей Make и проверяемый help/preflight | 🔴 Blocked | 2026-08-10 |
-| P1.2 | Закрепить dev Compose для code-only изменений и agent execution | ⬜ Not started | — |
-| P1.3 | Собрать immutable production image topology и service contract | ⬜ Not started | — |
-| P1.4 | Ввести Vite dev service и production frontend build contract | ⬜ Not started | — |
-| P1.5 | Развести build/deploy classes и закрыть P1 contract gates | ⬜ Not started | — |
+| P1.1 | Зафиксировать канон целей Make и проверяемый help/preflight | 🟢 Done | 2026-08-10 |
+| P1.2 | Закрепить dev Compose для code-only изменений и agent execution | 🟢 Done | 2026-08-10 |
+| P1.3 | Собрать immutable production image topology и service contract | 🟢 Done | 2026-08-10 |
+| P1.4 | Ввести Vite dev service и production frontend build contract | 🟢 Done | 2026-08-10 |
+| P1.5 | Развести build/deploy classes и закрыть P1 contract gates | 🟢 Done | 2026-08-10 |
+| P1.6 | Закрыть F1–F5 RED-аудита P1 одним release-carrier remediation slice | 🟢 Done | 2026-08-10 |
 
 ## Phase P10
 
@@ -254,10 +255,38 @@ generated_by: task plan-views status
 | 2026-08-10 | implementation/medium | plan-exec · in-progress · — |
 | 2026-08-10 | implementation/medium | plan-exec · closed-green · Namespaced Make targets, non-mutating preflight and fake-Docker harness added. |
 | 2026-08-10 | implementation/medium | plan-exec · escalated · Downstream gate RED: 20 future consumers run placeholder or unavailable validations. |
+| 2026-08-10 | frontier/high | plan-design · in-progress · ТЗ P1.1 и machine-safe Validation 24 downstream consumers доведены до DoR по D63 |
+| 2026-08-10 | implementation/low | plan-close · closed-green · Сверены commit ddb446a4 и P1.1 Validation; downstream D63: 20 unknown, RED нет; contract allow/allow. |
+| 2026-08-10 | gpt-5.6-terra/high | plan-run · in-progress · — |
+| 2026-08-10 | gpt-5.5/high | plan-run · in-progress · — |
+| 2026-08-10 | gpt-5.5/high | plan-run · closed-green · Dev Compose, non-TTY agent, code-sync and isolated ephemeral-port smoke tests passed. |
+| 2026-08-10 | gpt-5.6-terra/high | plan-run · in-progress · — |
+| 2026-08-10 | gpt-5.6-terra/high | plan-run · closed-green · Immutable non-root application image and tag-required production Compose verified. |
+| 2026-08-10 | gpt-5.6-terra/high | plan-run · in-progress · — |
+| 2026-08-10 | gpt-5.6-terra/high | plan-run · closed-deviations · Pinned Vite frontend and container contract passed; remaining P1.4 living docs deferred. |
+| 2026-08-10 | gpt-5.6-terra/high | plan-run · in-progress · — |
+| 2026-08-10 | gpt-5.6-terra/high | plan-run · closed-deviations · Immutable deploy harness passed; remaining P1 documentation synchronization is recorded as deviation. |
+| 2026-08-10 | frontier/xhigh | plan-audit · audit-red · заход 1, вердикт RED |
+| 2026-08-10 | frontier/high | plan-design · in-progress · P1 реопенена D64: version 0.1.1→0.1.2, handoff инвалидирован, P1.6 детализирован до DoR по F1–F5 |
+| 2026-08-10 | gpt-5.6-terra/high | plan-run · in-progress · — |
+| 2026-08-10 | gpt-5.6-terra/high | plan-run · escalated · P1.6 downstream gate RED on future P10-P12 validations outside Scope; plan-design P1 must repair consumer specs before close. |
+| 2026-08-10 | frontier/high | plan-design · in-progress · фаза повторно детализирована до DoR: D65 нормализует downstream carriers, P1.6 готов к retry |
+| 2026-08-10 | gpt-5.6-terra/high | plan-run · in-progress · — |
+| 2026-08-10 | implementation/low | plan-close · closed-green · Reconciled ddb446a4: make-contract passed on 44a334ac; actual implementation/medium; write-site allow/allow. |
+| 2026-08-10 | implementation/low | plan-close · closed-green · Reconciled a6f295a3: dev sync passed in P1.6 carrier on 44a334ac; actual gpt-5.5/high vs prescribed implementation/high; allow/allow. |
+| 2026-08-10 | implementation/low | plan-close · closed-green · Reconciled 27066b2a: prod-image-contract runtime-base passed on 44a334ac; actual gpt-5.6-terra/high; write-site allow/allow. |
+| 2026-08-10 | implementation/low | plan-close · closed-green · Reconciled 4bb88a15: dynamic Vite carrier passed in P1.6 on 44a334ac; prior docs deviation resolved; actual gpt-5.6-terra/high; allow/allow. |
+| 2026-08-10 | implementation/low | plan-close · closed-green · Reconciled 0db08b00: P1 release carrier passed on 44a334ac; prior docs deviation resolved; actual gpt-5.6-terra/high; allow/allow. |
+| 2026-08-10 | implementation/low | plan-close · closed-green · P1.1 reconciliation: item commit ddb446a4; bash docker/tests/make-contract.sh passed on 44a334ac; actual implementation/medium; write-site: pre_mutation: allow · pre_final: allow. |
+| 2026-08-10 | implementation/low | plan-close · closed-green · P1.2 reconciliation: item commit a6f295a3; dev sync passed in P1.6 carrier on 44a334ac; actual gpt-5.5/high; prescribed implementation/high; write-site: pre_mutation: allow · pre_final: allow. |
+| 2026-08-10 | implementation/low | plan-close · closed-green · P1.3 reconciliation: item commit 27066b2a; prod-image-contract runtime-base passed on 44a334ac; actual gpt-5.6-terra/high; write-site: pre_mutation: allow · pre_final: allow. |
+| 2026-08-10 | implementation/low | plan-close · closed-green · P1.4 reconciliation: item commit 4bb88a15; dynamic Vite passed in P1.6 carrier on 44a334ac; prior docs deviation resolved; actual gpt-5.6-terra/high; write-site: pre_mutation: allow · pre_final: allow. |
+| 2026-08-10 | implementation/low | plan-close · closed-green · P1.5 reconciliation: item commit 0db08b00; P1 release carrier passed on 44a334ac; prior docs deviation resolved; actual gpt-5.6-terra/high; write-site: pre_mutation: allow · pre_final: allow. |
+| 2026-08-10 | gpt-5.6-terra/high | plan-run · closed-green · P1.6: 44a334ac terminal carrier passed; 25 downstream outcomes unknown, RED 0; actual gpt-5.6-terra/high; write-site: pre_mutation: allow · pre_final: allow. |
 
 ## Owner Gates
 
 - P0.3: known deviation
 - P0.4: known deviation
 - P0.5: known deviation
-- P1.1: escalation
+- P1.2: known deviation

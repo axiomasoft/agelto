@@ -1,43 +1,35 @@
-# HANDOFF — 2026-08-10 — after P1.1
+# HANDOFF — 2026-08-10 — after P1.6
 
-**Next:** design-item: task:plan-design 2026.08.09-RELEASE-READINESS P1.1
+**Next:** phase-close: task:plan-close 2026.08.09-RELEASE-READINESS P1
 
 | Параметр | Значение |
 |:--|:--|
-| Model | frontier |
-| Thinking | high — reconcile downstream gate scope |
+| Model | implementation |
+| Thinking | low — mechanical phase reconciliation |
 | Context | NEW SESSION — шаг-не-item |
-| Суть | Устранить конфликт P1.1 с downstream gate: consumers запускают будущие или placeholder validations до их реализации. |
-| Команда | `$ task:plan-design 2026.08.09-RELEASE-READINESS P1.1` |
+| Суть | Закрыть P1 по terminal item states, затем передать фазу на fresh audit. |
+| Команда | `$ task:plan-close 2026.08.09-RELEASE-READINESS P1` |
 
 ### Native Codex launch-block
 
 ```bash
-codex -C /home/vostrikov/projects/agelto/agelto -m gpt-5.6-sol -c 'model_reasoning_effort="high"' -a never -s danger-full-access '$ task:plan-design 2026.08.09-RELEASE-READINESS P1.1'
+codex -C /home/vostrikov/projects/agelto/agelto -m gpt-5.6-terra -c 'model_reasoning_effort="low"' -a never -s danger-full-access '$ task:plan-close 2026.08.09-RELEASE-READINESS P1'
 ```
 
-**Done:**
+**Done:** P1.6 follow-up product commit `44a334ac` made the terminal carrier execute direct
+AI/docs, citation, Task and focused dynamic checks. The recorded downstream retry has 25 `unknown`
+future item-owned carriers and no RED; P1.1–P1.5 now carry append-only reconciliation evidence.
 
-- Product commit `ddb446a4` adds the namespaced Make surface, non-mutating Compose preflight, fake-Docker harness, and synchronized command docs.
-- P1.1 local validation passed: shell syntax, help, preflight with unchanged container IDs, harness, dry-run targets, and diff check.
+**Remaining:** Close phase P1, then run a fresh-context P1 audit before P2 starts.
 
-**Remaining:**
+**Sources of truth:** `phases/P1/P1.6.state.md` · `journal.jsonl` ·
+`findings/P1.6-downstream-*-44a334acfd08.md` · D64 · D65.
 
-- Reconcile downstream-gate semantics/specifications before P1.1 can be terminal; the gate recorded 20 RED consumer findings against `ddb446a4`.
-
-**Sources of truth:**
-
-- `phases/P1/P1.1.md`
-- `phases/P1/P1.1.state.md`
-- `findings/P1.1-downstream-*-ddb446a46b79.md`
-- `journal.jsonl`
-
-**Open risks:**
-
-- Current downstream execution treats future-item placeholders and not-yet-produced targets as immediate failures, blocking a producer despite its own green acceptance.
+**Open risks:** Task carrier-completeness/path-mapping remains PROMOTE-CANDIDATE outside Agelto;
+D65 keeps absent future carriers fail-closed as `unknown`.
 
 **Workarounds/Deferred/Open questions:**
 
-- Workarounds: —
-- Deferred: P1.2–P1.5 product behavior remains outside P1.1.
-- Open questions: whether downstream-gate applicability must exclude pre-terminal consumer deliverables.
+- workarounds: —
+- deferred: fresh P1 audit after phase close.
+- open_questions: —

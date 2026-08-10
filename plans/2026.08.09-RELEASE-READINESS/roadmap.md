@@ -1,6 +1,6 @@
 # Roadmap исполнения — 2026.08.09-RELEASE-READINESS
 
-**Обновлён:** 2026-08-10 · **Соответствует plan.md:** Layout v2, 75 product/design items + remediation P0.7; P0 закрыта после D62 remediation
+**Обновлён:** 2026-08-10 · **Соответствует plan.md:** Layout v2, 75 product/design items + remediations P0.7/P1.6; P1 retry уточнён D65
 
 Roadmap пересобран после повторного full `finish` D52 и адресной remediation F1–F12; D55 закрывает
 audit-loop после трёх заходов и открывает execution напрямую с P0.0. `solo` оставлен для owner-gate,
@@ -12,7 +12,7 @@ batch и всё равно закрываются каждый своим commit
 | Фаза | Кандидаты | Решение | Route/review | Причина |
 |:--|:--|:--|:--|:--|
 | P0 | P0.0–P0.7 | terminal | — | фаза закрыта после P0.7 remediation D62; следующий исполнимый item — P1.1 |
-| P1 | P1.2–P1.5 | B1-RUNTIME | implementation/high · full | одна Compose/image/Vite/deploy цепь после P1.1; заключительный gate остаётся внутри серии |
+| P1 | P1.6 | solo remediation | implementation/high · full | P1.1–P1.5 terminal; D64 slice продолжается после D65 consumer-carrier normalization |
 | P3 | P3.1–P3.5 | B3-READINESS | implementation/high · full | diagnosis→repair→readiness→E2E→recovery использует один runtime context; root-cause escalation останавливает серию |
 | P2, P4–P12 | текущие solo | solo | как в §3 Routing | требуются owner/external gates, frontier freeze либо отдельный риск-контекст; кандидаты на следующие batch-проходы рассматриваются по фактическим terminal inputs |
 
@@ -28,11 +28,12 @@ batch и всё равно закрываются каждый своим commit
 | P0.5 | B0-RAG | ↑ | implementation/high | — | consumes P0.4 findings in-session |
 | P0.6 | solo | `task:plan-run … P0.6` | frontier/high | утверждение frozen contracts | cross-track synthesis меняет tier и запечатывает решения |
 | P0.7 | solo | `task:plan-exec … P0.7` | implementation/medium | — | один детерминированный remediation slice F1–F5; P1 остаётся закрыта до GREEN-аудита P0 |
-| P1.1 | solo | `task:plan-exec … P1.1` | implementation/medium | — | самостоятельный Make taxonomy/contract slice |
-| P1.2 | B1-RUNTIME | `task:plan-run … P1.2-P1.5` | implementation/high | — | one sequential runtime series; full review each item |
-| P1.3 | B1-RUNTIME | ↑ | implementation/high | — | consumes dev Compose contract |
-| P1.4 | B1-RUNTIME | ↑ | implementation/high | — | consumes image boundary |
-| P1.5 | B1-RUNTIME | ↑ | implementation/high | — | terminal gate in the same series |
+| P1.1 | closed | — | implementation/medium | — | terminal provenance сохранён; reconciliation выполняет P1.6 |
+| P1.2 | closed | — | implementation/high | — | terminal; P1.6 фиксирует actual/prescribed route deviation |
+| P1.3 | closed | — | implementation/high | — | terminal immutable runtime evidence |
+| P1.4 | closed-deviations | — | implementation/high | — | terminal Vite topology; docs deviation входит в P1.6 |
+| P1.5 | closed-deviations | — | implementation/high | — | RED-аудит F1–F5 породил D64/P1.6 |
+| P1.6 | solo | `task:plan-run … P1.6` | implementation/high | — | retry: direct terminal assertions + D65 non-red downstream; затем close и fresh audit P1 |
 | P2.1 | solo | `task:plan-run … P2.1` | implementation/high | private repo access | private dependency/source lock boundary |
 | P2.2 | solo | `task:plan-run … P2.2` | implementation/high | — | credential generation/grants security boundary |
 | P2.3 | solo | `task:plan-run … P2.3` | implementation/high | — | fail-closed non-mutating preflight |
@@ -99,21 +100,27 @@ batch и всё равно закрываются каждый своим commit
 
 ## Следующий запуск
 
-**Next:** exec-items: task:plan-exec 2026.08.09-RELEASE-READINESS P1.1
+**Next:** manual: implementation/high
 
 | Параметр | Значение |
 |:--|:--|
 | Model class | implementation |
-| Effort | medium |
+| Effort | high |
 | Capabilities | — |
-| Context | same-session — item |
-| Суть | Реализовать канон Make targets, help и non-mutating preflight по P1.1 |
-| Команда | `$ task:plan-exec 2026.08.09-RELEASE-READINESS P1.1` |
+| Context | cold-start-root — context-budget |
+| Суть | Продолжить P1.6 от `cb49b47c`: закрыть direct terminal assertions, получить D65 non-red downstream и выполнить append-only reconciliation. |
+| Команда | — |
+
+```text
+select the session model class: implementation
+select the session effort: high
+$ task:plan-run 2026.08.09-RELEASE-READINESS P1.6
+```
 
 ### Native Codex launch-block
 
 ```bash
-codex -C /home/vostrikov/projects/agelto/agelto -m gpt-5.6-terra -c 'model_reasoning_effort="medium"' -a never -s danger-full-access '$ task:plan-exec 2026.08.09-RELEASE-READINESS P1.1'
+codex -C /home/vostrikov/projects/agelto/agelto -m gpt-5.6-terra -c 'model_reasoning_effort="high"' -a never -s danger-full-access '$ task:plan-run 2026.08.09-RELEASE-READINESS P1.6'
 ```
 
 ## Гейты владельца (сводно)

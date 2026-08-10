@@ -29,6 +29,7 @@
 | findings/P0-workflow-static-review-2026-08-09.md | D15 · blocked workflow evidence |
 | findings/P0-contract-self-audit.md | P0.6 bounded contract/consumer audit; `PENDING` до исполнения |
 | findings/P1-docker-make-vite-recon-2026-08-09.md | P1.1–P1.5 · D16–D18 repo/RAG basis |
+| findings/P1.6-downstream-*-cb49b47cd3fe.md | P1.6 first downstream run · raw GREEN/RED/unknown evidence for D65; append-only |
 | findings/P2-vendor-secrets-doctor-recon-2026-08-09.md | P2.1–P2.6 · D19–D21 repo/RAG basis |
 | findings/P3-livewire-readiness-recon-2026-08-09.md | P3.1–P3.5 · D22–D25 locked-source/repo/RAG basis |
 | findings/P3.1-livewire-runtime-evidence.md | P3.1 output carrier · P3.2 hard gate; `PENDING` до исполнения |
@@ -61,6 +62,7 @@
 | research/01-P0-execution-design.md | P0.1–P0.6 · research schema · sequential/audit topology; P0.0 prerequisite governed by D48 |
 | research/02-P0-target-contracts.md | P0.6 alternatives/trace/route matrix; `PENDING` до исполнения |
 | research/03-P1-execution-design.md | P1.1–P1.5 · Compose/image/Vite contracts and gates |
+| research/17-P1.6-downstream-retry-design.md | P1.6 retry · D65 item-owned future-consumer carrier normalization |
 | research/04-P2-execution-design.md | P2.1–P2.6 · vendor/secrets/bootstrap/admin/Doctor contracts |
 | research/05-P3-execution-design.md | P3.1–P3.5 · asset/readiness/browser/isolation contracts |
 | research/06-P4-execution-design.md | P4.1–P4.5 · private docs threat/build/serve contracts |

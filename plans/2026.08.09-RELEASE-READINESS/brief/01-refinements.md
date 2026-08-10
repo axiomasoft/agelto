@@ -151,3 +151,30 @@ P0.3 должен повторно проверить прежние findings и
 возвращает `Daemon connection closed before result`, а daemon logs показывают stale graphical
 environment и конкурирующий persistent-profile lock. До зелёного MCP smoke P0.3 остаётся
 `🔴 Blocked`; fallback-файл сохраняется как provisional input и не открывает P0.4/P0.6.
+
+## 2026-08-10 — owner requirement после первой попытки P1.1
+
+Владелец считает мгновенный `blocked` на первом implementation-item признаком дефекта дизайна,
+а не нормальной рабочей неудачей. Перед повторным закрытием P1.1 требуется устранить сам класс
+проблемы: проверить P1.1 и обозримую цепочку P1.2–P1.5 на исполнимые предусловия и Validation,
+не допускать преждевременного запуска команд будущих consumers и распространить исправление на
+все механически обнаруженные downstream consumers P1.1. Цель — холодный исполнитель закрывает
+готовый producer по его собственному scope; будущий consumer остаётся `unknown` до появления его
+item-owned verification carrier, а не ложно красным из-за ещё не реализованной цели или фрагмента
+пояснительного текста.
+
+## 2026-08-10 — запуск remediation RED-аудита P1
+
+Владелец запустил предписанный `$ task:plan-design 2026.08.09-RELEASE-READINESS P1` после RED-аудита.
+Scope-payload аудита принят как граница авторинга: закрыть F1–F5 минимальным remediation scope,
+не менять P0/P2–P12 specs, application/domain code и frozen D16–D18/D25. D64 фиксирует один P1.6:
+product Make/test/docs carrier исправляется отдельным commit, исторические P1.1–P1.5 — только
+append-only reconciliation, затем обязательны phase close и fresh-context audit P1.
+
+## 2026-08-10 — повторный design P1 после downstream RED
+
+Владелец запустил повторный `$ task:plan-design 2026.08.09-RELEASE-READINESS P1` из handoff
+заблокированного P1.6. Граница запуска: не отменять product commit `cb49b47c` и не исполнять
+будущие P2/P10/P12 acceptance внутри P1.6; нормализовать ошибочно исполнимые consumer Validation
+до item-owned carriers, завершить direct assertions terminal P1 carrier и повторить P1.6 с
+append-only evidence. Решение материализовано D65 и `research/17-P1.6-downstream-retry-design.md`.
