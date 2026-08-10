@@ -17,14 +17,16 @@ status: living
 ## Первый запуск
 
 ```bash
-make vendor:sync                       # clones the exact private AzGuard SHA into local/vendors/azguard
 cp .env.example .env
-make infra:preflight MODE=dev ENV_FILE=.env.example  # fail-closed проверка без запуска Docker stack
-make dev:up                          # docker-compose.yml: app/horizon/scheduler/postgres/redis/minio/browser
-make dev:composer ARGS="install"     # Composer внутри dev app
-make dev:artisan ARGS="migrate"       # миграции
-make agent:artisan ARGS="test --compact" # non-TTY запуск для агента
+make bootstrap MODE=dev ENV_FILE=.env COMPOSE_PROJECT_NAME=agelto_dev
+# vendor → create-only file secrets → preflight → immutable image → dev dependencies → health
 ```
+
+Bootstrap is resumable: it records only stage/status/source SHA in the ignored
+`local/secrets/.bootstrap-progress`, preserves existing secret bytes and named volumes, and prints
+an exact retry command after a failed stage. It never runs migrations, seeders, deploy, cleanup or
+volume deletion; P2.5 owns the data/admin stages. After liveness is green, use
+`make dev:artisan ARGS="migrate"` only when that later, explicitly authorised step is required.
 
 `local/vendors/azguard` is an ignored nested checkout, never a submodule. Its tracked lock manifest
 (`docker/private-vendors.lock.json`) pins the origin, full commit SHA and Composer package allowlist.
@@ -33,6 +35,15 @@ Use `make vendor:check` before a build; it refuses a missing, wrong-origin, wron
 `infra:preflight` needs a non-secret Compose env file and generated `local/secrets/` files. It
 never prints values or creates Docker resources; use `MODE=prod-build` before building an image
 and `MODE=prod-runtime` before operating an already-built production stack.
+
+For a production-image candidate, bootstrap stops before every host mutation:
+
+```bash
+make bootstrap MODE=prod-build ENV_FILE=.env.production IMAGE_TAG=<immutable-tag> COMPOSE_PROJECT_NAME=agelto_build
+```
+
+It builds and validates the immutable image/Compose contract only. Provisioning, pull, migrate,
+release, rollback and backup remain production-operator work.
 
 Проверка живости: `make dev:ps`, `curl http://localhost:8080/up` (healthcheck-эндпоинт, тот же, что
 слушает Docker `healthcheck` — см. [`docker/index.md`](docker/index.md)).

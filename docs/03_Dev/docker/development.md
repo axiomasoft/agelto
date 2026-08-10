@@ -13,6 +13,14 @@ status: living
 — явные project-scoped named volumes. `bash docker/tests/dev-code-sync.sh` доказывает health,
 sentinel, неизменный image ID и non-TTY agent command в изолированном Compose project.
 
+## Bootstrap чистого clone
+
+`make bootstrap MODE=dev ENV_FILE=.env COMPOSE_PROJECT_NAME=agelto_dev` is the only first-run
+carrier. It calls the existing vendor, secrets, preflight, image, Compose and health targets in
+order, retries liveness without deleting project volumes, and persists only its last non-secret
+stage/status/source SHA under ignored `local/secrets/.bootstrap-progress`. A failure prints the
+same command needed to resume; it does not run migrations, seeders or any production operation.
+
 ## Права на файлы (`www-data` внутри контейнера)
 
 `serversideup/php:8.4-fpm-nginx` НЕ ремаппит `www-data` под хостовой uid (в отличие от некоторых

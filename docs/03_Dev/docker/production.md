@@ -22,13 +22,18 @@ Before a build, run `make vendor:sync`. It clones the immutable AzGuard commit d
 submodule nor an image runtime artifact. The Dockerfile copies only the allowlisted package paths into
 the dependency stage and excludes the raw checkout from the final `application` stage.
 
-## Секреты (Docker Swarm)
+## Секреты (file-backed Compose)
 
-Чувствительные переменные (`APP_KEY`, `DB_PASSWORD`, `REDIS_PASSWORD`, `MINIO_ROOT_PASSWORD`) —
-через `secrets:` (Docker Swarm secrets, `/run/secrets/*`, читаются `entrypoint.d/10-secrets.sh`).
-Работает ТОЛЬКО с `docker stack deploy` (Swarm mode); без Swarm (`make up ENV=prod` без stack
-deploy) — переменные берутся из `.env` как обычно, блок `secrets` неактивен. Создание секрета на
-сервере: `echo "value" | docker secret create app_key -`.
+Sensitive values (`APP_KEY`, `DB_PASSWORD`, `REDIS_PASSWORD`, `MINIO_ROOT_PASSWORD`) live only in
+ignored `local/secrets/` files and are mounted as explicit Compose `secrets:` grants under
+`/run/secrets/*`; `entrypoint.d/10-secrets.sh` reads the declared `*_FILE` paths. `.env.production`
+contains non-secret configuration only. Generate missing files with `make secrets:init`; reruns
+preserve their bytes. Do not use Swarm secret commands or environment-value fallbacks.
+
+`make bootstrap MODE=prod-build ENV_FILE=.env.production IMAGE_TAG=<immutable-tag> COMPOSE_PROJECT_NAME=agelto_build`
+is safe on a build machine: it validates vendor/secrets/preflight, builds the immutable image and
+renders the production contract. It does not provision a host, pull/recreate services, migrate,
+rotate credentials, rollback or delete volumes.
 
 ## Release classes
 

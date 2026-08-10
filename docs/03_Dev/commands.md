@@ -14,7 +14,9 @@ status: living
 | Команда | Что делает |
 |:--|:--|
 | `make infra:preflight MODE=dev ENV_FILE=.env.example` | Fail-closed проверяет host/daemon, vendor, non-secret env, file secrets, ports и тихий Compose render без запуска, build или pull |
+| `make bootstrap MODE=dev\|prod-build ENV_FILE=<file> [IMAGE_TAG=<immutable-tag>]` | Resumable vendor → secrets → preflight → image/dependencies → dev health or prod image-contract carrier; writes only redacted local stage progress and never deploys/migrates/deletes volumes |
 | `make dev:up` / `dev:down` / `dev:ps` | Жизненный цикл dev-стека |
+| `make dev:health` | Проверяет `/up` внутри running dev `app`; bootstrap retries this canonical health target |
 | `make dev:logs [SERVICE=app]` / `dev:shell` | Логи / `bash` внутри dev `app` |
 | `make dev:artisan ARGS="..."` / `dev:composer ARGS="..."` | Artisan или Composer внутри dev `app` |
 | `make agent:artisan ARGS="..."` | Non-TTY (`-T`) Artisan для агента |

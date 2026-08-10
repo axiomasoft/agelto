@@ -10,7 +10,7 @@ COMPOSE_PROD := docker compose --project-directory $(ROOT_DIR) --project-name $(
 AGENT_ENV := $(if $(CLAUDECODE),-e CLAUDECODE=$(CLAUDECODE)) $(if $(CURSOR_AGENT),-e CURSOR_AGENT=$(CURSOR_AGENT)) $(if $(AI_AGENT),-e AI_AGENT=$(AI_AGENT))
 
 .DEFAULT_GOAL := help
-.PHONY: help infra\:preflight secrets\:init dev\:up dev\:down dev\:ps dev\:logs dev\:shell dev\:artisan dev\:composer
+.PHONY: help infra\:preflight secrets\:init bootstrap dev\:up dev\:down dev\:ps dev\:logs dev\:shell dev\:artisan dev\:composer dev\:health
 .PHONY: agent\:artisan vendor\:sync vendor\:check prod\:config prod\:ps prod\:deploy\:code prod\:deploy\:php-deps prod\:deploy\:frontend prod\:deploy\:runtime prod\:image\:promote prod\:deploy\:image prod\:migrate image\:build
 
 help:
@@ -19,6 +19,7 @@ help:
 	@echo "Infrastructure:"
 	@echo "  make secrets:init                       Create ignored internal Compose secret files"
 	@echo "  make infra:preflight MODE=dev ENV_FILE=.env.example  Validate Docker/Compose without mutation"
+	@echo "  make bootstrap MODE=dev|prod-build ENV_FILE=.env.example  Run resumable local bootstrap"
 	@echo ""
 	@echo "Development:"
 	@echo "  make dev:up | dev:down | dev:ps | dev:logs [SERVICE=app]"
@@ -42,6 +43,9 @@ infra\:preflight:
 secrets\:init:
 	bash $(ROOT_DIR)/docker/scripts/secrets-init.sh --root $(ROOT_DIR)
 
+bootstrap:
+	bash $(ROOT_DIR)/docker/scripts/bootstrap.sh --root $(ROOT_DIR) --mode $(MODE) --env-file $(ENV_FILE) --image-tag "$(IMAGE_TAG)" --project-name "$(COMPOSE_PROJECT_NAME)"
+
 dev\:up:
 	$(COMPOSE_DEV) up -d
 
@@ -62,6 +66,9 @@ dev\:artisan:
 
 dev\:composer:
 	$(COMPOSE_DEV) exec app composer $(ARGS)
+
+dev\:health:
+	$(COMPOSE_DEV) exec -T app curl -fsS http://127.0.0.1:8080/up >/dev/null
 
 agent\:artisan:
 	$(COMPOSE_DEV) exec -T $(AGENT_ENV) app php artisan $(ARGS)
