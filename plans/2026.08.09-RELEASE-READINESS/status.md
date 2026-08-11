@@ -3,7 +3,7 @@ projection: status-view
 projection_version: v1
 source_scope: plan core + phases + journal
 through: 2026-08-11
-inputs_sha256: edd586cd8ffada79118e7c55c3c923ea5c13cc09648d6fec66790e049f016150
+inputs_sha256: ad46f341735ce5c047049e35f1f82c8501f6c28333e338d198cfff131af774fd
 generated_by: task plan-views status
 -->
 
@@ -30,7 +30,7 @@ generated_by: task plan-views status
 | P12 | Ubuntu deployment guide и финальный clean-room rehearsal | 0/7 | ⬜ Not started |
 | P2 | Local vendor, secrets, preflight, bootstrap и Laravel Doctor | 7/7 | 🟢 Done |
 | P3 | Fresh install, Livewire/Filament assets и application readiness | 5/5 | 🟢 Done |
-| P4 | Закрытая production-документация вне public | 1/5 | ⬜ Not started |
+| P4 | Закрытая production-документация вне public | 2/5 | ⬜ Not started |
 | P5 | Default proxy settings и трёхуровневый resolve | 0/5 | ⬜ Not started |
 | P6 | File handler registry, архивы и дочерняя обработка | 0/6 | ⬜ Not started |
 | P7 | Document type, summary, estimates и tags | 0/6 | ⬜ Not started |
@@ -123,7 +123,7 @@ generated_by: task plan-views status
 | ID | Title | Status | Updated |
 |:--|:--|:--|:--|
 | P4.1 | Сверить upstream evidence и заморозить threat/build/serving contract | 🟢 Done | 2026-08-11 |
-| P4.2 | Собирать VitePress atomically вне public и включать в immutable image | ⬜ Not started | 2026-08-11 |
+| P4.2 | Собирать VitePress atomically вне public и включать в immutable image | 🟢 Done | 2026-08-11 |
 | P4.3 | Реализовать manifest-backed locator и единый secure controller | ⬜ Not started | — |
 | P4.4 | Подключить AzGuard permission и Filament navigation без обходных routes | ⬜ Not started | — |
 | P4.5 | Доказать access, traversal, MIME/cache, browser и image contract | ⬜ Not started | — |
@@ -353,9 +353,12 @@ generated_by: task plan-views status
 | 2026-08-11 | gpt-5.6-sol/high | plan-run · in-progress · — |
 | 2026-08-11 | gpt-5.6-sol/high | plan-run · escalated · VitePress build stops on unclosed tag in docs/03_Dev/recipes.md, outside P4.2 Files and content scope. |
 | 2026-08-11 | gpt-5.6-sol/high | plan-run · no-op · Owner classified the preceding escalation as false; resume P4.2 with bounded local source repair. |
+| 2026-08-11 | gpt-5.6-sol/high | plan-run · in-progress · — |
+| 2026-08-11 | gpt-5.6-sol/high | plan-run · closed-green · P4.2 completed: deterministic VitePress artifact and immutable image verified. Owner-approved bounded docs repairs fixed one parser token and four dead links; frontier/high route is an allowed overshoot. |
 
 ## Owner Gates
 
 - P0.3: known deviation
 - P0.4: known deviation
 - P0.5: known deviation
+- P4.2: known deviation

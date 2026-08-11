@@ -1,6 +1,6 @@
 # HANDOFF — 2026-08-11 — after P4.2
 
-**Next:** run-items: task:plan-run 2026.08.09-RELEASE-READINESS P4.2
+**Next:** run-items: task:plan-run 2026.08.09-RELEASE-READINESS P4.3
 
 | Параметр | Значение |
 |:--|:--|
@@ -8,30 +8,31 @@
 | Effort | high — immutable build/security boundary |
 | Capabilities | — |
 | Context | continue (/clear) — ручной item |
-| Суть | Выполнить P4.2 с bounded local repair malformed VitePress source literal. |
-| Команда | `$ task:plan-run 2026.08.09-RELEASE-READINESS P4.2` |
+| Суть | Реализовать manifest-backed locator и единственный безопасный Laravel serving path. |
+| Команда | `$ task:plan-run 2026.08.09-RELEASE-READINESS P4.3` |
 
 #### Native Codex launch-block
 
 ```bash
-codex -C /home/vostrikov/projects/agelto/agelto -m gpt-5.6-terra -c 'model_reasoning_effort="high"' -a never -s danger-full-access '$ task:plan-run 2026.08.09-RELEASE-READINESS P4.2'
+codex -C /home/vostrikov/projects/agelto/agelto -m gpt-5.6-terra -c 'model_reasoning_effort="high"' -a never -s danger-full-access '$ task:plan-run 2026.08.09-RELEASE-READINESS P4.3'
 
-РЕЖИМ: execution — bounded local repair + original P4.2 validation
-ВХОД: plans/2026.08.09-RELEASE-READINESS/findings/P4.2-vitepress-build-blocker-2026-08-11.md → блок `Correction by owner`; прочитать первым
-СКОУП: 1) экранировать один malformed literal в `docs/03_Dev/recipes.md` 2) реализовать P4.2 build/verifier/image scope 3) прогнать original carrier
-НЕ ТРОГАТЬ: P4.3–P4.5, production serving/auth code, public docs boundary и несвязанный documentation content
+РЕЖИМ: execution — manifest locator и HTTP-only controller
+ВХОД: `phases/P4/P4.2.state.md` → `research/06-P4-execution-design.md` → D26 → D27
+СКОУП: `config/documentation.php`, locator/value/controller, один GET|HEAD route, focused tests и response-contract carrier
+НЕ ТРОГАТЬ: P4.4–P4.5, public/Nginx/X-Accel/signed URLs, role catalog/navigation и dynamic Markdown rendering
 ```
 
-**Done:** Historical false escalation is preserved in `journal.jsonl`; owner-directed `no-op` restores
-P4.2 to its nonterminal state. The bounded repair and original product scope remain uncommitted.
+**Done:** P4.2 published a deterministic VitePress artifact outside `public`, a sorted verified manifest
+and an immutable application-image copy; `bash docker/tests/documentation-build-contract.sh` passed.
+Product commit: `8f0c14dc404fe3fbe14ddb4cf3e63a701f97a053`.
 
-**Remaining:** P4.2 escapes the malformed docs literal, then completes its build/verifier/image contract.
+**Remaining:** P4.3 consumes the committed artifact and implements the manifest-backed serving seam.
 
-**Sources of truth:** `phases/P4/P4.2.state.md` · `journal.jsonl` ·
-`findings/P4.2-vitepress-build-blocker-2026-08-11.md` · D26 · D27.
+**Sources of truth:** `phases/P4/P4.2.state.md` · `phases/P4/P4.3.md` · `journal.jsonl` · D26 · D27.
 
-**Open risks:** The local repair is valid only if original VitePress validation passes without widening
-the generator allowlist or changing the frozen private-documentation contract.
+**Open risks:** P4.3 must serve only exact manifest members and preserve a uniform 404 surface for
+missing build, malformed manifest and all unsafe paths.
 
-**Workarounds/Deferred/Open questions:** Workarounds — one bounded literal escape in P4.2. Deferred —
-P4.3–P4.5. Open questions — none.
+**Workarounds/Deferred/Open questions:** Known deviations — owner-classified false escalation was
+resolved by five bounded docs syntax/link repairs; `frontier/high` was an allowed route overshoot.
+Deferred — P4.3–P4.5. Open questions — none.
