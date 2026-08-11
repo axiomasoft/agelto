@@ -3,7 +3,7 @@ projection: status-view
 projection_version: v1
 source_scope: plan core + phases + journal
 through: 2026-08-11
-inputs_sha256: e1eb3ac06839ee138f5e1d3e4e5795ca1bb69ff04f88e651fa2bfbec4fc70bb3
+inputs_sha256: d360f66833c521b4f9733ea2fedd817be67d4eab5a4f3638d1c95945894272b2
 generated_by: task plan-views status
 -->
 
@@ -393,6 +393,7 @@ generated_by: task plan-views status
 | 2026-08-11 | gpt-5.6-terra/high | plan-run · closed-green · P5.4: authorized secret-safe proxy settings page and typed crawler mode UX verified. |
 | 2026-08-11 | gpt-5.6-terra/high | plan-run · in-progress · — |
 | 2026-08-11 | gpt-5.6-terra/high | plan-run · closed-green · P5.5: profile/default/direct acceptance, typed fetch source and tooling separation verified. |
+| 2026-08-11 | frontier/xhigh | plan-audit · audit-red · заход 1, вердикт RED |
 
 ## Owner Gates
 
