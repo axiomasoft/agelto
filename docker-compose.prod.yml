@@ -223,8 +223,10 @@ services:
       - "127.0.0.1:${REDIS_PORT:-6379}:6379"
     volumes:
       - redis_data:/data
+      - ./docker/redis/entrypoint.sh:/usr/local/bin/agelto-redis-entrypoint:ro
     secrets:
       - redis_acl
+    entrypoint: ["/usr/local/bin/agelto-redis-entrypoint"]
     healthcheck:
       test: ["CMD", "redis-cli", "--user", "health", "ping"]
       interval: 5s

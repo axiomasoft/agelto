@@ -1,5 +1,7 @@
 <?php
 
+$secret = require __DIR__.'/secrets.php';
+
 return [
 
     /*
@@ -97,7 +99,7 @@ return [
 
     'cipher' => 'AES-256-CBC',
 
-    'key' => env('APP_KEY'),
+    'key' => $secret('APP_KEY'),
 
     'previous_keys' => [
         ...array_filter(

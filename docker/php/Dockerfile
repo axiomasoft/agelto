@@ -73,6 +73,7 @@ RUN chmod +x /etc/entrypoint.d/10-secrets.sh
 # российскому УЦ на весь контейнер, включая исходящий канал к LLM-провайдеру.
 COPY docker/php/certs/russian-trusted-ca.pem /etc/ssl/certs/russian-trusted-ca.pem
 ENTRYPOINT ["/bin/sh", "-c", "AGELTO_ENTRYPOINT_PRELOAD=1 exec /etc/entrypoint.d/10-secrets.sh \"$@\"", "agelto-entrypoint"]
+CMD ["/init"]
 
 # Development keeps its source bind mount. Production copies only the filtered build context;
 # Composer/vendor closure and framework readiness remain explicit P2/P3 gates.

@@ -1,8 +1,11 @@
 #!/bin/sh
-# Reads file-backed Compose secrets exactly once, then removes each *_FILE variable.
+# Copies file-backed Compose secrets into a private runtime directory for PHP-FPM workers.
 set -eu
 
 [ "${AGELTO_SECRETS_LOADED:-}" != '1' ] || exit 0
+
+runtime_dir=/run/agelto-secrets
+install -d -m 0700 -o www-data -g www-data "$runtime_dir"
 
 for secret_var in APP_KEY DB_PASSWORD REDIS_PASSWORD AWS_SECRET_ACCESS_KEY; do
     case "$secret_var" in
@@ -14,14 +17,15 @@ for secret_var in APP_KEY DB_PASSWORD REDIS_PASSWORD AWS_SECRET_ACCESS_KEY; do
 
     [ -n "$file_path" ] || continue
     [ -f "$file_path" ] && [ ! -L "$file_path" ] || { echo "${secret_var}_FILE points to a missing secret file" >&2; exit 1; }
-    value="$(cat "$file_path")"
-    [ -n "$value" ] || { echo "${secret_var}_FILE points to an empty secret file" >&2; exit 1; }
-    export "$secret_var=$value"
-    unset "${secret_var}_FILE"
+    [ -s "$file_path" ] || { echo "${secret_var}_FILE points to an empty secret file" >&2; exit 1; }
+    runtime_file="$runtime_dir/$secret_var"
+    cp "$file_path" "$runtime_file"
+    chown www-data:www-data "$runtime_file"
+    chmod 0600 "$runtime_file"
+    export "${secret_var}_FILE=$runtime_file"
 done
 
 if [ "${AGELTO_ENTRYPOINT_PRELOAD:-}" = '1' ]; then
     export AGELTO_SECRETS_LOADED=1
-    exec setpriv --reuid=33 --regid=33 --clear-groups --inh-caps=-all \
-        /usr/local/bin/docker-php-serversideup-entrypoint "$@"
+    exec /usr/local/bin/docker-php-serversideup-entrypoint "$@"
 fi

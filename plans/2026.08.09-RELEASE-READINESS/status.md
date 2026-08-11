@@ -3,7 +3,7 @@ projection: status-view
 projection_version: v1
 source_scope: plan core + phases + journal
 through: 2026-08-11
-inputs_sha256: cf5e0fe57130f7697c37e9dcabf6a8862d5f426a28a3dfca3a6867855b1ae908
+inputs_sha256: dae48a6177e3c201ac19a4eeb1984b7452e79154ce813d25239fccf25bac00f6
 generated_by: task plan-views status
 -->
 
@@ -112,7 +112,7 @@ generated_by: task plan-views status
 
 | ID | Title | Status | Updated |
 |:--|:--|:--|:--|
-| P3.1 | Воспроизвести Livewire versioned-script 404 и доказать первопричину | ⬜ Not started | — |
+| P3.1 | Воспроизвести Livewire versioned-script 404 и доказать первопричину | 🟠 Done with deviations | 2026-08-11 |
 | P3.2 | Запечатать Composer/build/deploy lifecycle Laravel и Filament assets | ⬜ Not started | — |
 | P3.3 | Развести /up liveness и Doctor/service application readiness | ⬜ Not started | — |
 | P3.4 | Добавить clean-clone E2E открытия /admin и Livewire interaction | ⬜ Not started | — |
@@ -334,9 +334,14 @@ generated_by: task plan-views status
 | 2026-08-11 | gpt-5.6-terra/high | plan-close · closed-green · P2.6 304c7e13 + post-close 189dea38 reconciled by P2.7 cdc6ae5b: companion Doctor carrier passed; write-site: pre_mutation: allow · pre_final: allow. |
 | 2026-08-11 | gpt-5.6-terra/high | plan-close · closed-green · P2.7 product anchor cdc6ae5b: P2 release aggregate, test DB Doctor matrix and local-registry pull verification passed; write-site: pre_mutation: allow · pre_final: allow. |
 | 2026-08-11 | implementation/low | plan-close · closed-green · P2 closed by D71: prior audits and GREEN P2.7 carrier accepted; handoff to P3. |
+| 2026-08-11 | gpt-5.6-terra/high | plan-run · in-progress · — |
+| 2026-08-11 | gpt-5.6-terra/high | plan-run · escalated · Redis cannot read declared ACL secret; P2 remediation required before P3.1 runtime repro. |
+| 2026-08-11 | gpt-5.6-terra/high | plan-run · in-progress · Resumed after local Redis secret/start repair; capturing required Livewire runtime trace. |
+| 2026-08-11 | gpt-5.6-terra/high | plan-run · closed-deviations · Runtime trace refuted D22: emitted Livewire vendor URL returned 200 JavaScript; Redis/PHP secret prerequisite repaired locally. write-site: pre_mutation: allow · pre_final: allow. |
 
 ## Owner Gates
 
 - P0.3: known deviation
 - P0.4: known deviation
 - P0.5: known deviation
+- P3.1: known deviation
