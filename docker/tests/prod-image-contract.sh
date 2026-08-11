@@ -16,7 +16,7 @@ fi
 grep -F 'FROM serversideup/php:8.5-fpm-nginx AS runtime-base' "$root_dir/docker/php/Dockerfile" >/dev/null
 grep -F 'FROM runtime-base AS application' "$root_dir/docker/php/Dockerfile" >/dev/null
 grep -F 'FROM runtime-base AS doctor' "$root_dir/docker/php/Dockerfile" >/dev/null
-grep -F 'setpriv --reuid=33 --regid=33' "$root_dir/docker/php/Dockerfile" >/dev/null
+grep -F 'setpriv --reuid=33 --regid=33' "$root_dir/docker/php/entrypoint.d/10-secrets.sh" >/dev/null
 ! grep -Eq '^container_name:' "$compose_file"
 ! grep -Eq '^[[:space:]]+- \./:/var/www/html' "$compose_file"
 ! grep -Eq '/var/www/html/vendor' "$compose_file"
