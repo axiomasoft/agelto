@@ -9,6 +9,7 @@ use App\Enums\Procurement\Crawler\CrawlerMode;
 use App\Enums\Procurement\Crawler\ListingSortField;
 use App\Enums\Procurement\Crawler\RunStopPolicy;
 use App\Enums\Procurement\Crawler\SourceMethod;
+use App\Enums\Procurement\Proxy\CrawlerProxyMode;
 use App\Filament\Resources\Procurement\Crawler\Proxies\Schemas\ProxyForm;
 use App\Models\Procurement\Crawler\Crawler;
 use App\Models\Procurement\Platform\Okpd2Node;
@@ -205,8 +206,15 @@ class CrawlerForm
                     ->content(fn (Get $get): string => self::previewUrl(get: $get)),
                 Toggle::make('is_active')
                     ->required(),
-                Toggle::make('use_proxy')
-                    ->label('Использовать прокси')
+                Select::make('proxy_mode')
+                    ->label('Режим прокси')
+                    ->options([
+                        CrawlerProxyMode::Profile->value => 'Профиль: использовать привязанные узлы',
+                        CrawlerProxyMode::Default->value => 'По умолчанию: наследовать настройку краулера',
+                        CrawlerProxyMode::Direct->value => 'Напрямую: не использовать прокси',
+                    ])
+                    ->default(CrawlerProxyMode::Default->value)
+                    ->live()
                     ->required(),
                 Select::make('proxies')
                     ->label('Разрешённые прокси')
@@ -214,9 +222,13 @@ class CrawlerForm
                     ->multiple()
                     ->searchable()
                     ->preload()
-                    ->helperText('Включённый режим требует непустой набор. Сначала сохраните профиль в direct-режиме, затем привяжите узлы и включите прокси.'),
+                    ->visible(fn (Get $get): bool => $get('proxy_mode') === CrawlerProxyMode::Profile->value)
+                    ->helperText('Режим «Профиль» требует хотя бы один узел. Новый профиль сначала сохраните в режиме «Напрямую» или «По умолчанию», затем привяжите узлы и переключите режим.'),
                 Select::make('proxy_country')
-                    ->options(ProxyForm::COUNTRIES),
+                    ->label('Предпочитаемая страна прокси')
+                    ->options(ProxyForm::COUNTRIES)
+                    ->visible(fn (Get $get): bool => $get('proxy_mode') === CrawlerProxyMode::Profile->value)
+                    ->helperText('Учитывается только в режиме «Профиль». Режимы «По умолчанию» и «Напрямую» не меняют привязки.'),
             ]);
     }
 

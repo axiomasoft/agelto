@@ -130,6 +130,12 @@ final class Crawler extends Model
      */
     private function assertProxyBinding(): void
     {
+        if (! $this->proxy_mode instanceof CrawlerProxyMode) {
+            throw ValidationException::withMessages([
+                'proxy_mode' => 'Выберите режим прокси: профиль, по умолчанию или напрямую.',
+            ]);
+        }
+
         if ($this->proxy_mode !== CrawlerProxyMode::Profile) {
             return;
         }

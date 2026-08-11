@@ -21,7 +21,12 @@ status: living
 `Crawler/Proxies` — форма узла: страна и скоупы (`ProxyScope`, мультиселект) — закрытые списки
 (`ProxyForm::COUNTRIES`), не свободный текст; здоровье breaker'а — read-only `Fieldset`
 (`disabled()->dehydrated(false)`, правка не долетает до записи — автомат обновляет эти поля сам).
-`CrawlerForm` несёт `use_proxy`/`proxy_country` профиля (тот же закрытый список стран).
+Страница «Прокси краулера» доступна только с `ProxyPermission::Update` и хранит в typed settings
+только nullable ID default-узла. В селекте видны лишь активные прокси со scope listing/detail/document
+и только безопасные service/host/port/country; credentials в страницу, уведомления и settings не
+попадают. `CrawlerForm` вместо старого bool использует режимы: «Профиль» для привязанных узлов,
+«По умолчанию» для inheritance этой настройки и «Напрямую» для явного opt-out. Настроенный, но
+недоступный узел fail-closed — не переключает запрос на другой маршрут.
 
 `Ai/Fixtures` (P5) — рабочее место для прогонки эталонных документов через штатный пайплайн вручную:
 карточка эталона (файл/код/оси/`type_profile`) → relation-менеджер прогонов (`RunsRelationManager`,
