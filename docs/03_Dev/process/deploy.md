@@ -18,6 +18,10 @@ The release tag is produced beforehand as a same-SHA `agelto/app` + `agelto/doct
 carrier verifies private vendor closure, both final filesystem contracts, and an isolated local
 registry push→clean-pull cycle; production receives only that immutable tag.
 
+Documentation is part of that immutable application artifact. Before promoting a release that
+changes `docs/` or the private documentation boundary, run `make documentation:acceptance` on the
+committed candidate with isolated E2E credentials; a source-only deployment cannot publish it.
+
 ## Разновидности
 
 | Команда | Когда |

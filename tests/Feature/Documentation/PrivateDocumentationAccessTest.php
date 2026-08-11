@@ -10,6 +10,7 @@ use App\Models\User;
 use AzGuard\Facades\AzGuard;
 use Filament\Facades\Filament;
 use Filament\Navigation\NavigationItem;
+use Illuminate\Support\Facades\Auth;
 
 use function Pest\Laravel\actingAs;
 use function Pest\Laravel\artisan;
@@ -91,6 +92,34 @@ test('admin-scoped direct grant opens documentation and revocation closes it aga
         ->assertDontSee('private documentation sentinel');
     $this->call('HEAD', '/admin/documentation')->assertForbidden();
     expect(privateDocumentationNavigationItem()->isVisible())->toBeFalse();
+});
+
+test('guest and revoked users cannot recover cached documentation bytes through a direct asset URL', function (): void {
+    $user = User::factory()->create();
+    AzGuard::forUser($user)
+        ->on('admin')
+        ->grant(DocumentationPermission::View);
+    actingAs($user);
+
+    $response = $this->get('/admin/documentation')->assertOk();
+
+    expect($response->headers->get('Cache-Control'))->toContain('private')
+        ->toContain('no-store');
+
+    AzGuard::forUser($user)
+        ->on('admin')
+        ->revoke(DocumentationPermission::View);
+
+    $this->get('/admin/documentation')
+        ->assertForbidden()
+        ->assertDontSee('private documentation sentinel');
+
+    Auth::logout();
+    $this->flushSession();
+
+    $this->get('/admin/documentation')
+        ->assertRedirect(route(name: 'filament.admin.auth.login'))
+        ->assertDontSee('private documentation sentinel');
 });
 
 function privateDocumentationNavigationItem(): NavigationItem

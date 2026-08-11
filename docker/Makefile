@@ -11,7 +11,7 @@ AGENT_ENV := $(if $(CLAUDECODE),-e CLAUDECODE=$(CLAUDECODE)) $(if $(CURSOR_AGENT
 
 .DEFAULT_GOAL := help
 .PHONY: help infra\:preflight secrets\:init bootstrap dev\:up dev\:down dev\:ps dev\:logs dev\:shell dev\:artisan dev\:composer dev\:storage-init dev\:health
-.PHONY: agent\:artisan vendor\:sync vendor\:check doctor\:local readiness\:check assets\:check assets\:sync assets\:repair documentation\:check prod\:doctor dev\:migrate dev\:seed-base dev\:seed-demo dev\:admin-create dev\:admin-reset prod\:config prod\:ps prod\:deploy\:code prod\:deploy\:php-deps prod\:deploy\:frontend prod\:deploy\:runtime prod\:image\:promote prod\:deploy\:image prod\:migrate prod\:seed-base image\:build
+.PHONY: agent\:artisan vendor\:sync vendor\:check doctor\:local readiness\:check assets\:check assets\:sync assets\:repair documentation\:check documentation\:acceptance prod\:doctor dev\:migrate dev\:seed-base dev\:seed-demo dev\:admin-create dev\:admin-reset prod\:config prod\:ps prod\:deploy\:code prod\:deploy\:php-deps prod\:deploy\:frontend prod\:deploy\:runtime prod\:image\:promote prod\:deploy\:image prod\:migrate prod\:seed-base image\:build
 
 help:
 	@echo "Agelto command surface"
@@ -111,6 +111,9 @@ assets\:repair:
 
 documentation\:check:
 	bash $(ROOT_DIR)/docker/tests/documentation-build-contract.sh
+
+documentation\:acceptance:
+	bash $(ROOT_DIR)/docker/tests/private-documentation-acceptance-contract.sh
 
 vendor\:sync:
 	bash $(ROOT_DIR)/docker/scripts/vendor-sync.sh --composer-check

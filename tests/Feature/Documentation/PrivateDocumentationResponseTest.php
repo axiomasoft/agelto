@@ -16,8 +16,16 @@ beforeEach(function (): void {
     file_put_contents($this->documentationRoot.'/site/index.html', '<script>bootstrap()</script><main>root sentinel</main>');
     file_put_contents($this->documentationRoot.'/site/guide.html', '<main>nested sentinel</main>');
     file_put_contents($this->documentationRoot.'/site/assets/app.css', 'body { color: black; }');
+    file_put_contents($this->documentationRoot.'/site/assets/app.js', 'window.documentationReady = true;');
+    file_put_contents($this->documentationRoot.'/site/assets/logo.svg', '<svg xmlns="http://www.w3.org/2000/svg"/>');
+    file_put_contents($this->documentationRoot.'/site/assets/portal.woff2', 'font sentinel');
+    file_put_contents($this->documentationRoot.'/site/assets/search.json', '{"items":[]}');
     file_put_contents($this->documentationRoot.'/manifest.json', json_encode([
         ['path' => 'assets/app.css', 'mime' => 'text/css; charset=utf-8', 'sha256' => hash_file('sha256', $this->documentationRoot.'/site/assets/app.css')],
+        ['path' => 'assets/app.js', 'mime' => 'text/javascript; charset=utf-8', 'sha256' => hash_file('sha256', $this->documentationRoot.'/site/assets/app.js')],
+        ['path' => 'assets/logo.svg', 'mime' => 'image/svg+xml', 'sha256' => hash_file('sha256', $this->documentationRoot.'/site/assets/logo.svg')],
+        ['path' => 'assets/portal.woff2', 'mime' => 'font/woff2', 'sha256' => hash_file('sha256', $this->documentationRoot.'/site/assets/portal.woff2')],
+        ['path' => 'assets/search.json', 'mime' => 'application/json; charset=utf-8', 'sha256' => hash_file('sha256', $this->documentationRoot.'/site/assets/search.json')],
         ['path' => 'guide.html', 'mime' => 'text/html; charset=utf-8', 'sha256' => hash_file('sha256', $this->documentationRoot.'/site/guide.html')],
         ['path' => 'index.html', 'mime' => 'text/html; charset=utf-8', 'sha256' => hash_file('sha256', $this->documentationRoot.'/site/index.html')],
     ], flags: JSON_PRETTY_PRINT | JSON_THROW_ON_ERROR));
@@ -46,14 +54,21 @@ test('response policy preserves manifest body mime headers and html csp', functi
         ->and($response->headers->get('Content-Security-Policy'))->toContain("script-src 'self' 'unsafe-inline'");
 });
 
-test('static assets share the security headers without html csp', function (): void {
-    $response = $this->get('/admin/documentation/assets/app.css');
+test('representative static artifacts share the manifest mime and no-store policy', function (string $path, string $mime, string $contents): void {
+    $response = $this->get("/admin/documentation/{$path}");
 
-    expect(file_get_contents($response->baseResponse->getFile()->getPathname()))->toBe('body { color: black; }')
-        ->and($response->headers->get('Content-Type'))->toBe('text/css; charset=utf-8')
+    expect(file_get_contents($response->baseResponse->getFile()->getPathname()))->toBe($contents)
+        ->and($response->headers->get('Content-Type'))->toBe($mime)
         ->and(privateDocumentationCacheDirectives($response->headers->get('Cache-Control')))->toBe(['no-store', 'private'])
+        ->and($response->headers->get('X-Content-Type-Options'))->toBe('nosniff')
         ->and($response->headers->has('Content-Security-Policy'))->toBeFalse();
-});
+})->with([
+    'CSS' => ['assets/app.css', 'text/css; charset=utf-8', 'body { color: black; }'],
+    'JavaScript' => ['assets/app.js', 'text/javascript; charset=utf-8', 'window.documentationReady = true;'],
+    'JSON' => ['assets/search.json', 'application/json; charset=utf-8', '{"items":[]}'],
+    'SVG' => ['assets/logo.svg', 'image/svg+xml', '<svg xmlns="http://www.w3.org/2000/svg"/>'],
+    'font' => ['assets/portal.woff2', 'font/woff2', 'font sentinel'],
+]);
 
 test('nested manifest page is served and missing page has the uniform 404 surface', function (): void {
     $nested = $this->get('/admin/documentation/guide.html');

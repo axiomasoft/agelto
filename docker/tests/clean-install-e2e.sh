@@ -91,6 +91,7 @@ cp "$e2e_env" "$candidate/.env"
 
 cd "$candidate"
 pnpm install --frozen-lockfile
+pnpm documentation:build
 pnpm exec playwright install chromium
 make vendor:sync
 composer install --no-scripts --no-interaction --no-progress

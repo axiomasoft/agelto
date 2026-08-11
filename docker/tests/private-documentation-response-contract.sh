@@ -17,6 +17,7 @@ test_database=$(sed -n 's/.*<env name="DB_DATABASE" value="\([a-z0-9_]*\)".*/\1/
 
 "${compose[@]}" exec -T app php artisan test \
     tests/Unit/Documentation/PrivateDocumentationLocatorTest.php \
+    tests/Feature/Documentation/PrivateDocumentationAccessTest.php \
     tests/Feature/Documentation/PrivateDocumentationResponseTest.php
 "${compose[@]}" exec -T app vendor/bin/pint --test \
     app/Services/Documentation \
@@ -24,6 +25,7 @@ test_database=$(sed -n 's/.*<env name="DB_DATABASE" value="\([a-z0-9_]*\)".*/\1/
     config/documentation.php \
     routes/web.php \
     tests/Unit/Documentation/PrivateDocumentationLocatorTest.php \
+    tests/Feature/Documentation/PrivateDocumentationAccessTest.php \
     tests/Feature/Documentation/PrivateDocumentationResponseTest.php
 "${compose[@]}" exec -T app vendor/bin/phpstan analyse \
     app/Services/Documentation \

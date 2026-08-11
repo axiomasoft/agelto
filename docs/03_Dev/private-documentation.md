@@ -82,6 +82,16 @@ VitePress 1.6.4 build содержит inline bootstrap scripts и style attribu
 | P4.5 | adversarial acceptance | guest/403/404 body-leak checks, browser assets, no-store and image inspection |
 | P12 | release rehearsal | clean-host build/deploy/recovery proves image-contained docs without host generation |
 
+## P4 acceptance carrier
+
+`make documentation:acceptance` runs the item-owned carrier: focused Pest access/traversal/MIME
+datasets, deterministic documentation build and image checks, then the isolated Chromium
+clean-install flow. It requires `E2E_ADMIN_EMAIL` and `E2E_ADMIN_PASSWORD_FILE`; the runner is
+started from a clean committed candidate so it never reuses an operator's Compose project, database,
+volumes, cookies or browser cache. Browser evidence covers root/nested artifact loading, direct
+representative MIME requests, every observed documentation response's `private, no-store` header,
+no console/page/CSP failures and the post-logout direct reload denial.
+
 The release contract is D7, D17, D18, D26, D27 and APP-07–APP-10 of
 `plans/2026.08.09-RELEASE-READINESS/root/contracts/release-readiness-v1.md`. Any change to the
 generator, storage, authorization, MIME/cache or browser policy requires evidence and a superseding

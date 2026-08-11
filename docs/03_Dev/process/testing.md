@@ -23,6 +23,10 @@ Browser acceptance uses pinned `@playwright/test` 1.62.1 with Chromium. Run
 `E2E_ADMIN_EMAIL` plus `E2E_ADMIN_PASSWORD_FILE`; the runner creates its own Compose project,
 database/media volumes, auth state, traces and teardown. It never uses the owner's running stack.
 
+Private-documentation release acceptance is `make documentation:acceptance` with the same two
+variables. It composes the focused Pest corpus, reproducible VitePress/image checks and the isolated
+Playwright run; it must run from the committed candidate, not a dirty development tree.
+
 ## Правила
 
 - Изоляция от прод/dev БД и media, каноны именования/структуры тестов — skill `testing-rules`.
