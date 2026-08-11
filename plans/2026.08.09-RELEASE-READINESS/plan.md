@@ -18,7 +18,7 @@
 | Design Passes | 1/1 — owner-directed сокращение D46 сохранено; D52 остаётся machine-current carrier повторного полного cross-phase `finish` для 13 фаз / 75 product/design items после добавления P0.0; D55 принимает этот design после ремедиации F9–F12; D62, D64 и D66 адресно добавили 76-й–78-й remediation-items P0.7/P1.6/P1.7; D67 исправляет только evidence topology P1.7; D70 добавляет 79-й remediation-item P2.7 и завершает design-цикл P2; D71 заменяет только fresh-audit gate штатным close и передачей на P3; D72 добавляет 80-й и последний remediation-item P4.6, замыкающий RED-аудит P4 без нового design/audit цикла |
 | visibility | private |
 
-<!-- migration-version: 0.1.6 -->
+<!-- migration-version: 0.1.7 -->
 
 ## 1. Context
 

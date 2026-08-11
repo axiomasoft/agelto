@@ -1,56 +1,46 @@
 # HANDOFF — 2026-08-11 — after P5.2
 
-**Next:** design-item: task:plan-design 2026.08.09-RELEASE-READINESS P5.2
+**Next:** run-items: task:plan-run 2026.08.09-RELEASE-READINESS P5.3
 
 | Параметр | Значение |
 |:--|:--|
-| Model | frontier |
-| Thinking | high — resolve immutable migration-order conflict |
-| Context | cold-start-root |
-| Суть | Изменить P5.2 contract так, чтобы settings schema существовала до settings migration |
-| Команда | `$ task:plan-design 2026.08.09-RELEASE-READINESS P5.2` |
-
-```text
-$ task:plan-design 2026.08.09-RELEASE-READINESS P5.2
-```
+| Model | implementation |
+| Thinking | high — sealed proxy runtime semantics |
+| Context | continue-root |
+| Суть | Реализовать profile/default/direct precedence в P5.3 |
+| Команда | `$ task:plan-run 2026.08.09-RELEASE-READINESS P5.3` |
 
 ### Native Codex launch-block
 
 ```bash
-codex -C /home/vostrikov/projects/agelto/agelto -m gpt-5.6-sol -c 'model_reasoning_effort="high"' -a never -s danger-full-access '$ task:plan-design 2026.08.09-RELEASE-READINESS P5.2'
+codex -C /home/vostrikov/projects/agelto/agelto -m gpt-5.6-terra -c 'model_reasoning_effort="high"' -a never -s danger-full-access '$ task:plan-run 2026.08.09-RELEASE-READINESS P5.3'
 ```
 
 **Done:**
 
-- P5.2 подтвердил совместимость `spatie/laravel-settings` 3.9.0 с locked PHP/Laravel tree и
-  materialized package/config/settings migration scaffolds in the working tree.
-- `bash docker/tests/p5.2-settings-contract.sh` воспроизводимо остановился на clean `agelto_test`:
-  settings migration `2026_08_09_100000` запускается до required schema migration
-  `2026_08_09_100086`, поэтому `prc_settings` отсутствует.
-- Journal run `5e4b869e28af53a2842342560696bdf6e5738f425affcd752eccf27d5772ab43` terminalized as
-  `escalated`; generated state is `🔴 Blocked`.
+- P5.2 product commit `fd286156` adds the locked Spatie Settings dependency, `prc_settings`,
+  typed nullable proxy ID and a refresh-aware reader.
+- D74 corrects the clean-migration order; the item-owned carrier passed migration, an independent
+  Artisan writer process, config cache cycle, Pint and diff checks.
+- D75 turns the future P8.3 prose validation into its own future executable carrier; P5.2
+  downstream gate is now `unknown`, `blocks=false`.
 
 **Remaining:**
 
-- Owner/design must choose and record one safe migration topology (including any exact filename
-  changes) before P5.2 can resume.
-- The uncommitted P5.2 carrier implementation remains in the worktree for that decision; it is not
-  an item commit and has not passed the declared acceptance carrier.
+- P5.3–P5.5 remain sequential runtime, UI and full-acceptance work.
 
 **Sources of truth:**
 
 - `phases/P5/P5.2.md`, `phases/P5/P5.2.state.md`, `bundles/P5.2.json`.
-- `journal.jsonl` lines 193–194 and `docker/tests/p5.2-settings-contract.sh`.
-- `decisions/D28-proxy-settings-carrier.md`.
+- `decisions/D28-proxy-settings-carrier.md`, `decisions/D74-p52-settings-migration-order.md`,
+  `decisions/D75-p83-future-carrier.md`.
 
 **Open risks:**
 
-- The immutable P5.2 `Files` contract assigns a settings migration timestamp earlier than the
-  schema migration it requires. Silently changing either timestamp would invalidate the frozen
-  contract and can alter a deployed migration history.
+- Production settings cache remains disabled until P5.5 proves the full runtime topology.
 
 **Workarounds/Deferred/Open questions:**
 
 - Workarounds: none accepted.
-- Deferred: P5.3–P5.5 remain phase-blocked by P5.2.
-- Open questions: which migration topology and filename contract does the owner approve?
+- Deferred: P8.3 owns its future carrier; no P8 product code was introduced here.
+- Open questions: none.

@@ -3,7 +3,7 @@ projection: status-view
 projection_version: v1
 source_scope: plan core + phases + journal
 through: 2026-08-11
-inputs_sha256: 94aa061e0baa0ed3b233bc10e3dd13e62ce5bfd292709b2b768fd5a9ece623c3
+inputs_sha256: c6151aba2071d8eabcd32b98e096604fe49e179ea07cd7d88435cdb521b88db5
 generated_by: task plan-views status
 -->
 
@@ -15,8 +15,8 @@ generated_by: task plan-views status
 
 | Поле | Значение |
 |:--|:--|
-| Version | 0.1.6 |
-| Status | 🔴 Blocked |
+| Version | 0.1.7 |
+| Status | 🟡 In progress |
 | Last Updated | 2026-08-11 |
 
 ## 4. Phase Index & Status Board
@@ -31,7 +31,7 @@ generated_by: task plan-views status
 | P2 | Local vendor, secrets, preflight, bootstrap и Laravel Doctor | 7/7 | 🟢 Done |
 | P3 | Fresh install, Livewire/Filament assets и application readiness | 5/5 | 🟢 Done |
 | P4 | Закрытая production-документация вне public | 4/6 | 🟠 Done with deviations |
-| P5 | Default proxy settings и трёхуровневый resolve | 1/5 | 🔴 Blocked |
+| P5 | Default proxy settings и трёхуровневый resolve | 2/5 | 🟡 In progress |
 | P6 | File handler registry, архивы и дочерняя обработка | 0/6 | ⬜ Not started |
 | P7 | Document type, summary, estimates и tags | 0/6 | ⬜ Not started |
 | P8 | Расширяемость platforms и гибкие status mappings | 0/5 | ⬜ Not started |
@@ -134,7 +134,7 @@ generated_by: task plan-views status
 | ID | Title | Status | Updated |
 |:--|:--|:--|:--|
 | P5.1 | Проаудировать текущие ProxyResolver, profile, scopes, health и parser call sites | 🟢 Done | 2026-08-11 |
-| P5.2 | Внедрить optional typed crawler/parser proxy settings carrier | 🔴 Blocked | 2026-08-11 |
+| P5.2 | Внедрить optional typed crawler/parser proxy settings carrier | 🟢 Done | 2026-08-11 |
 | P5.3 | Реализовать precedence profile → default → direct через ProxyResolver | ⬜ Not started | — |
 | P5.4 | Добавить понятные Filament settings и secret-safe validation | ⬜ Not started | — |
 | P5.5 | Покрыть три уровня, health axes, no-proxy и Playwright separation тестами | ⬜ Not started | — |
@@ -380,6 +380,9 @@ generated_by: task plan-views status
 | 2026-08-11 | implementation/low | plan-close · closed-green · P5.1 product 41e4e7cb unchanged; original executor frontier/high; D73 normalized future carriers; downstream P5.2–P5.5 unknown/nonblocking; canonical adapter Task Contract allow/allow. write-site: pre_mutation: allow · pre_final: allow. |
 | 2026-08-11 | gpt-5.6-terra/high | plan-run · in-progress · P5.2 settings carrier implementation started. |
 | 2026-08-11 | gpt-5.6-terra/high | plan-run · escalated · Settings migration 100000 runs before required prc_settings migration 100086; exact spec cannot migrate clean agelto_test. |
+| 2026-08-11 | gpt-5.6-terra/high | plan-design · in-progress · D74 resolves P5.2 settings schema migration order; item resumes. |
+| 2026-08-11 | gpt-5.6-terra/high | plan-run · in-progress · P5.2 resumed under D74 migration order. |
+| 2026-08-11 | gpt-5.6-terra/high | plan-run · closed-green · P5.2 settings carrier fd286156: clean migration, two-process refresh, config cache and Pint green. |
 
 ## Owner Gates
 
@@ -390,4 +393,3 @@ generated_by: task plan-views status
 - P4.4: known deviation
 - P4.6: known deviation
 - P5.1: known deviation
-- P5.2: escalation
