@@ -72,7 +72,7 @@ RUN chmod +x /etc/entrypoint.d/10-secrets.sh
 # `update-ca-certificates` НЕ вызывается — попадание в системный трест расширило бы доверие
 # российскому УЦ на весь контейнер, включая исходящий канал к LLM-провайдеру.
 COPY docker/php/certs/russian-trusted-ca.pem /etc/ssl/certs/russian-trusted-ca.pem
-USER www-data
+ENTRYPOINT ["/bin/sh", "-c", "AGELTO_ENTRYPOINT_PRELOAD=1 exec /etc/entrypoint.d/10-secrets.sh \"$@\"", "agelto-entrypoint"]
 
 # Development keeps its source bind mount. Production copies only the filtered build context;
 # Composer/vendor closure and framework readiness remain explicit P2/P3 gates.
@@ -106,7 +106,7 @@ RUN rm -f .env \
     && chown -R www-data:www-data storage bootstrap/cache
 LABEL org.opencontainers.image.revision="${SOURCE_SHA}" \
       io.agelto.vendor-lock-sha="${VENDOR_LOCK_SHA}"
-USER www-data
+USER root
 
 FROM runtime-base AS doctor-dependencies
 WORKDIR /var/www/html
@@ -125,4 +125,4 @@ RUN install -d -m 0755 /usr/share/agelto \
 LABEL org.opencontainers.image.title="agelto-doctor" \
       org.opencontainers.image.revision="${SOURCE_SHA}" \
       io.agelto.vendor-lock-sha="${VENDOR_LOCK_SHA}"
-USER www-data
+USER root

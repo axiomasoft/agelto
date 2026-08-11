@@ -16,7 +16,7 @@ fi
 grep -F 'FROM serversideup/php:8.5-fpm-nginx AS runtime-base' "$root_dir/docker/php/Dockerfile" >/dev/null
 grep -F 'FROM runtime-base AS application' "$root_dir/docker/php/Dockerfile" >/dev/null
 grep -F 'FROM runtime-base AS doctor' "$root_dir/docker/php/Dockerfile" >/dev/null
-grep -F 'USER www-data' "$root_dir/docker/php/Dockerfile" >/dev/null
+grep -F 'setpriv --reuid=33 --regid=33' "$root_dir/docker/php/Dockerfile" >/dev/null
 ! grep -Eq '^container_name:' "$compose_file"
 ! grep -Eq '^[[:space:]]+- \./:/var/www/html' "$compose_file"
 ! grep -Eq '/var/www/html/vendor' "$compose_file"
@@ -36,7 +36,7 @@ grep -F 'image: agelto/app:contract-tag' "$temp_dir/compose.yml" | wc -l | grep 
 sentinel="P1_IMAGE_SECRET_$RANDOM$RANDOM"
 image="agelto-contract:$stage-$RANDOM"
 docker build --file "$root_dir/docker/php/Dockerfile" --target "$stage" --build-arg "VALIDATION_SENTINEL=$sentinel" -t "$image" "$root_dir"
-docker image inspect --format '{{.Config.User}}' "$image" | grep -qx 'www-data'
+docker run --rm "$image" id -u | tail -n 1 | grep -qx '33'
 docker run --rm --entrypoint php "$image" -v | grep -q '^PHP '
 ! docker image history --no-trunc "$image" | grep -F "$sentinel" >/dev/null
 container_name="agelto-p1-image-contract-$RANDOM"

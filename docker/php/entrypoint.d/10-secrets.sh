@@ -2,6 +2,8 @@
 # Reads file-backed Compose secrets exactly once, then removes each *_FILE variable.
 set -eu
 
+[ "${AGELTO_SECRETS_LOADED:-}" != '1' ] || exit 0
+
 for secret_var in APP_KEY DB_PASSWORD REDIS_PASSWORD AWS_SECRET_ACCESS_KEY; do
     case "$secret_var" in
         APP_KEY) file_path="${APP_KEY_FILE:-}" ;;
@@ -17,3 +19,9 @@ for secret_var in APP_KEY DB_PASSWORD REDIS_PASSWORD AWS_SECRET_ACCESS_KEY; do
     export "$secret_var=$value"
     unset "${secret_var}_FILE"
 done
+
+if [ "${AGELTO_ENTRYPOINT_PRELOAD:-}" = '1' ]; then
+    export AGELTO_SECRETS_LOADED=1
+    exec setpriv --reuid=33 --regid=33 --clear-groups --inh-caps=-all \
+        /usr/local/bin/docker-php-serversideup-entrypoint "$@"
+fi

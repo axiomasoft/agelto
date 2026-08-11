@@ -33,7 +33,11 @@ final class PrivatePackagesArePinned extends Diagnostic
                 : $this->fail('missing');
         }
 
-        return Process::run(['bash', base_path(path: 'docker/scripts/vendor-sync.sh'), '--check'])->successful()
+        return Process::env([
+            'GIT_CONFIG_COUNT' => '1',
+            'GIT_CONFIG_KEY_0' => 'safe.directory',
+            'GIT_CONFIG_VALUE_0' => base_path(path: 'local/vendors/azguard'),
+        ])->run(['bash', base_path(path: 'docker/scripts/vendor-sync.sh'), '--check'])->successful()
             ? $this->pass('pinned')
             : $this->fail('missing');
     }

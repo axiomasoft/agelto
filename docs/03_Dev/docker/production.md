@@ -33,6 +33,10 @@ ignored `local/secrets/` files and are mounted as explicit Compose `secrets:` gr
 contains non-secret configuration only. Generate missing files with `make secrets:init`; reruns
 preserve their bytes. Do not use Swarm secret commands or environment-value fallbacks.
 
+Local Compose preserves the owner and `0600` mode of a mounted file. Image startup therefore uses
+a short root-only preload only for the fixed secret paths, then drops to `www-data` before the
+ServersideUp entrypoint and application command; the application process never runs as root.
+
 `make bootstrap MODE=prod-build ENV_FILE=.env.production IMAGE_TAG=<immutable-tag> COMPOSE_PROJECT_NAME=agelto_build`
 is safe on a build machine: it validates vendor/secrets/preflight, builds the immutable image and
 renders the production contract. It does not provision a host, pull/recreate services, migrate,
