@@ -218,3 +218,12 @@ P0–P3/P5+ и пользовательский `AGENTS.md` остаются в�
 Владелец отдельно потребовал не оставлять конфликтов следующему проходу: frozen acceptance defects
 исправляются в текущем P4.6 до полного GREEN, после чего P4 закрывается без ещё одного design/audit
 цикла. Решение материализовано D72 и `research/20-P4-audit-remediation.md`.
+
+## 2026-08-11 — локальная нормализация downstream P5.1 без эскалации
+
+Владелец уточнил критерий эскалации: generated-carrier mismatch или ошибочная Validation будущего
+consumer не требуют новой design/dev-сессии, если минимальный reproducible signal доказывает
+локальный обратимый plan-only fix и закрытые product surfaces не затронуты. Для P5.1 разрешено в
+текущей сессии нормализовать P5.3–P5.5 до одного item-owned carrier по D63, выполнить только
+focused Task/downstream checks и append-only reconciliation; product commit `41e4e7cb`, D28/D29 и
+закрытые фазы остаются неизменными. Общий фазовый аудит P5 остаётся владельцем широкой проверки.
