@@ -2,8 +2,13 @@
 
 declare(strict_types=1);
 
+use App\Guards\Admin\Roles\SuperAdminRole;
 use App\Http\Controllers\Documentation\PrivateDocumentationController;
+use App\Models\User;
 use Illuminate\Support\Facades\Route;
+
+use function Pest\Laravel\actingAs;
+use function Pest\Laravel\artisan;
 
 beforeEach(function (): void {
     $this->documentationRoot = sys_get_temp_dir().'/agelto-documentation-response-'.bin2hex(random_bytes(8));
@@ -17,6 +22,11 @@ beforeEach(function (): void {
         ['path' => 'index.html', 'mime' => 'text/html; charset=utf-8', 'sha256' => hash_file('sha256', $this->documentationRoot.'/site/index.html')],
     ], flags: JSON_PRETTY_PRINT | JSON_THROW_ON_ERROR));
     config(['documentation.root' => $this->documentationRoot]);
+
+    artisan('guard:sync-roles');
+    $user = User::factory()->create();
+    $user->assignRole(SuperAdminRole::class);
+    actingAs($user);
 });
 
 afterEach(function (): void {
@@ -24,8 +34,6 @@ afterEach(function (): void {
 });
 
 test('response policy preserves manifest body mime headers and html csp', function (): void {
-    config(['documentation.authorization_placeholder' => true]);
-
     $response = $this->get('/admin/documentation');
 
     expect(file_get_contents($response->baseResponse->getFile()->getPathname()))->toContain('root sentinel')
@@ -39,8 +47,6 @@ test('response policy preserves manifest body mime headers and html csp', functi
 });
 
 test('static assets share the security headers without html csp', function (): void {
-    config(['documentation.authorization_placeholder' => true]);
-
     $response = $this->get('/admin/documentation/assets/app.css');
 
     expect(file_get_contents($response->baseResponse->getFile()->getPathname()))->toBe('body { color: black; }')
@@ -50,8 +56,6 @@ test('static assets share the security headers without html csp', function (): v
 });
 
 test('nested manifest page is served and missing page has the uniform 404 surface', function (): void {
-    config(['documentation.authorization_placeholder' => true]);
-
     $nested = $this->get('/admin/documentation/guide.html');
 
     expect(file_get_contents($nested->baseResponse->getFile()->getPathname()))->toContain('nested sentinel')
@@ -70,6 +74,8 @@ test('only the declared GET HEAD documentation route exists and remains fail clo
     expect($routes)->toHaveCount(1)
         ->and($routes->first()->methods())->toBe(['GET', 'HEAD'])
         ->and($routes->first()->getActionName())->toBe(PrivateDocumentationController::class);
+
+    actingAs(User::factory()->create());
 
     $this->get('/admin/documentation')->assertForbidden();
     $this->call('HEAD', '/admin/documentation')->assertForbidden();

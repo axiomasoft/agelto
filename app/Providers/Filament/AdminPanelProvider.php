@@ -2,12 +2,14 @@
 
 namespace App\Providers\Filament;
 
+use App\Guards\Admin\Permissions\DocumentationPermission;
 use AzGuard\Filament\AzGuardPlugin;
 use Filament\Http\Middleware\Authenticate;
 use Filament\Http\Middleware\AuthenticateSession;
 use Filament\Http\Middleware\DisableBladeIconComponents;
 use Filament\Http\Middleware\DispatchServingFilamentEvent;
 use Filament\Navigation\NavigationGroup;
+use Filament\Navigation\NavigationItem;
 use Filament\Pages\Dashboard;
 use Filament\Panel;
 use Filament\PanelProvider;
@@ -55,6 +57,15 @@ class AdminPanelProvider extends PanelProvider
                 NavigationGroup::make('Закупки'),
                 NavigationGroup::make('AI-анализ'),
                 NavigationGroup::make('Доступ'),
+            ])
+            ->navigationItems([
+                NavigationItem::make('Документация')
+                    ->group('Доступ')
+                    ->url(fn (): string => route(name: 'admin.documentation.show'))
+                    ->visible(fn (): bool => auth()->user()?->hasPermission(
+                        permission: DocumentationPermission::View,
+                        panelId: 'admin',
+                    ) ?? false),
             ])
             ->middleware([
                 EncryptCookies::class,

@@ -5,6 +5,7 @@ declare(strict_types=1);
 use App\Filament\Resources\Procurement\Ai\Prompts\PromptResource;
 use App\Filament\Resources\Procurement\Crawler\Runs\RunResource;
 use App\Filament\Resources\Procurement\Procurements\ProcurementResource;
+use App\Guards\Admin\Permissions\DocumentationPermission;
 use App\Guards\Admin\Roles\AnalystRole;
 use App\Guards\Admin\Roles\OperatorRole;
 use App\Guards\Admin\Roles\SuperAdminRole;
@@ -59,7 +60,8 @@ test('суперадмин проходит любой gate через wildcard'
     $superAdmin->assignRole(SuperAdminRole::class);
 
     expect($superAdmin->can('admin.procurement.delete'))->toBeTrue()
-        ->and($superAdmin->can('admin.role.delete'))->toBeTrue();
+        ->and($superAdmin->can('admin.role.delete'))->toBeTrue()
+        ->and($superAdmin->hasPermission(permission: DocumentationPermission::View, panelId: 'admin'))->toBeTrue();
 });
 
 test('view-only ресурсы Run и Procurement не имеют create/edit страниц', function () {

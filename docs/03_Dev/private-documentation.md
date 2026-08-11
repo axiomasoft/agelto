@@ -44,7 +44,10 @@ containment принадлежат locator service.
 
 P4.3 регистрирует этот единственный route уже сейчас, но до P4.4 controller возвращает fail-closed
 `403` до locator: ни HTML, ни assets не получают временного allow-all окна. P4.4 заменяет заглушку
-на enum-aware AzGuard permission и проверяет final guest/denial/allow matrix.
+на enum-aware `DocumentationPermission::View` в явном panel scope `admin` и проверяет final
+guest/denial/allow matrix. Route использует canonical web auth и направляет guest к штатному admin
+Filament login; контроллер затем вызывает `hasPermission()` с тем же enum для каждого GET/HEAD
+artifact до обращения к locator.
 
 Initial role path — только SuperAdmin wildcard. AnalystRole, OperatorRole и roleless authenticated
 user не получают bytes. Filament navigation использует ту же permission, но скрытая навигация не

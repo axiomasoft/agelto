@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Documentation;
 
+use App\Guards\Admin\Permissions\DocumentationPermission;
 use App\Http\Controllers\Controller;
+use App\Models\User;
 use App\Services\Documentation\PrivateDocumentationLocator;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
@@ -14,7 +16,7 @@ final class PrivateDocumentationController extends Controller
 
     public function __invoke(?string $path = null): BinaryFileResponse
     {
-        $this->authorizeThroughP43Placeholder();
+        $this->authorizeDocumentation();
 
         $asset = $this->locator->locate(requestedPath: $path);
         $response = response()->file(file: $asset->absolutePath);
@@ -26,9 +28,15 @@ final class PrivateDocumentationController extends Controller
         return $response;
     }
 
-    private function authorizeThroughP43Placeholder(): void
+    private function authorizeDocumentation(): void
     {
-        if (config('documentation.authorization_placeholder') !== true) {
+        $user = request()->user();
+
+        if (! $user instanceof User) {
+            abort(403);
+        }
+
+        if (! $user->hasPermission(permission: DocumentationPermission::View, panelId: 'admin')) {
             abort(403);
         }
     }

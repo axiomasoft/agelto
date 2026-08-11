@@ -69,6 +69,10 @@ LLM должны вести к этим поверхностям и health-check
 для большинства Procurement-ресурсов авторизация решается ГРУБО (per-resource permission из
 `AdminGuardPanelProvider::discoverPermissionEnums()`), без записи-специфичных проверок.
 
+Пункт «Документация» в группе «Доступ» ведёт на единственный именованный route
+`admin.documentation.show` и видим только при `DocumentationPermission::View` в panel `admin`.
+Это discovery-ссылка, не authorization boundary: прямой URL повторно проверяется контроллером.
+
 **Исключение — `PromptResource` (D44).** `config('az-guard-filament.exclude.resources')` исключает
 `PromptResource` из discovery-каталога плагина: `ResourceGate::check()` для `Prompt` возвращает
 `null` (карта его не знает), enum-RBAC `Gate::before` НЕ срабатывает, штатный `Gate::policy()`
