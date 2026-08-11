@@ -10,7 +10,7 @@ COMPOSE_PROD := docker compose --project-directory $(ROOT_DIR) --project-name $(
 AGENT_ENV := $(if $(CLAUDECODE),-e CLAUDECODE=$(CLAUDECODE)) $(if $(CURSOR_AGENT),-e CURSOR_AGENT=$(CURSOR_AGENT)) $(if $(AI_AGENT),-e AI_AGENT=$(AI_AGENT))
 
 .DEFAULT_GOAL := help
-.PHONY: help infra\:preflight secrets\:init bootstrap dev\:up dev\:down dev\:ps dev\:logs dev\:shell dev\:artisan dev\:composer dev\:health
+.PHONY: help infra\:preflight secrets\:init bootstrap dev\:up dev\:down dev\:ps dev\:logs dev\:shell dev\:artisan dev\:composer dev\:storage-init dev\:health
 .PHONY: agent\:artisan vendor\:sync vendor\:check doctor\:local readiness\:check assets\:check assets\:sync assets\:repair prod\:doctor dev\:migrate dev\:seed-base dev\:seed-demo dev\:admin-create dev\:admin-reset prod\:config prod\:ps prod\:deploy\:code prod\:deploy\:php-deps prod\:deploy\:frontend prod\:deploy\:runtime prod\:image\:promote prod\:deploy\:image prod\:migrate prod\:seed-base image\:build
 
 help:
@@ -66,6 +66,9 @@ dev\:artisan:
 
 dev\:composer:
 	$(COMPOSE_DEV) exec app composer $(ARGS)
+
+dev\:storage-init:
+	$(COMPOSE_DEV) exec -T app sh -ec 'mc alias set agelto-bootstrap "$$AWS_ENDPOINT" "$$AWS_ACCESS_KEY_ID" "$$(cat "$$AWS_SECRET_ACCESS_KEY_FILE")" >/dev/null && mc mb --ignore-existing "agelto-bootstrap/$$AWS_BUCKET" >/dev/null'
 
 dev\:migrate:
 	$(COMPOSE_DEV) exec -T app php artisan migrate --force

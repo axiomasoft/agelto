@@ -89,6 +89,7 @@ run_stage dependencies-image run_make image:build "IMAGE_TAG=$image_tag"
 
 if [[ "$mode" == dev ]]; then
     run_stage dev-up run_make dev:up "ENV_FILE=$env_file" "COMPOSE_PROJECT_NAME=$project_name"
+    run_stage dev-storage run_make dev:storage-init "ENV_FILE=$env_file" "COMPOSE_PROJECT_NAME=$project_name"
     run_stage dev-dependencies run_make dev:composer 'ARGS=install --no-interaction --no-progress' "ENV_FILE=$env_file" "COMPOSE_PROJECT_NAME=$project_name"
     run_stage dev-migrate run_make dev:migrate "ENV_FILE=$env_file" "COMPOSE_PROJECT_NAME=$project_name"
     run_stage dev-base-seed run_make dev:seed-base "ENV_FILE=$env_file" "COMPOSE_PROJECT_NAME=$project_name"

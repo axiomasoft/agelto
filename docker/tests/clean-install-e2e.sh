@@ -95,7 +95,21 @@ pnpm exec playwright install chromium
 make vendor:sync
 composer install --no-scripts --no-interaction --no-progress
 COMPOSE_PROJECT_NAME="$project" make bootstrap MODE=dev ENV_FILE=.env.e2e ADMIN_PASSWORD_FILE=.e2e-admin-password
-COMPOSE_PROJECT_NAME="$project" make readiness:check ENV_FILE=.env.e2e
+
+readiness_green=false
+for _ in $(seq 1 45); do
+    if COMPOSE_PROJECT_NAME="$project" make readiness:check ENV_FILE=.env.e2e; then
+        readiness_green=true
+        break
+    fi
+
+    sleep 3
+done
+
+if ! "$readiness_green"; then
+    echo 'Application readiness did not become green within 135 seconds' >&2
+    exit 1
+fi
 
 E2E_BASE_URL="http://127.0.0.1:$app_port" \
 E2E_ADMIN_EMAIL="$admin_email" \
