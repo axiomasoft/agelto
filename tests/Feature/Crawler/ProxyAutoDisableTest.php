@@ -7,6 +7,7 @@ use App\Enums\Procurement\Proxy\ProxyFailureReason;
 use App\Enums\Procurement\Proxy\ProxyScope;
 use App\Models\Procurement\Crawler\Proxy;
 use App\Repositories\Procurement\Proxy\ProxyHealthStoreRepository;
+use App\Services\Procurement\Proxy\CrawlerProxySettingsResolver;
 use App\Services\Procurement\Proxy\ProxyCircuitBreaker;
 use App\Services\Procurement\Proxy\ProxyResolver;
 use App\Services\Procurement\Proxy\ProxyScoreCalculator;
@@ -20,6 +21,7 @@ function autoDisableResolver(): ProxyResolver
         scoreCalculator: new ProxyScoreCalculator,
         breaker: new ProxyCircuitBreaker,
         health: new ProxyHealthStoreRepository,
+        crawlerSettings: app(CrawlerProxySettingsResolver::class),
         randomSource: fn (): float => 0.0,
     );
 }

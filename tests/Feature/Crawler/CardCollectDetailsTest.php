@@ -225,6 +225,6 @@ test('collectDetails без активной proxy-привязки идёт н�
 
     Http::assertSentCount(4);
     Log::shouldHaveReceived('info')
-        ->with('Резолвер прокси: для карточки нет активной привязки, запрос уходит напрямую', Mockery::any())
+        ->with('Резолвер прокси: прямой маршрут', Mockery::any())
         ->atLeast()->once();
 });

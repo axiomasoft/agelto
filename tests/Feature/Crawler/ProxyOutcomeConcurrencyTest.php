@@ -116,6 +116,7 @@ config([
     scoreCalculator: new \App\Services\Procurement\Proxy\ProxyScoreCalculator,
     breaker: new \App\Services\Procurement\Proxy\ProxyCircuitBreaker,
     health: new \App\Repositories\Procurement\Proxy\ProxyHealthStoreRepository,
+    crawlerSettings: app(\App\Services\Procurement\Proxy\CrawlerProxySettingsResolver::class),
     operationLogs: new \App\Services\Procurement\OperationLogWriter,
 );
 \$lease = \App\Dto\Procurement\Proxy\ProxyLease::forProxy(

@@ -49,8 +49,8 @@ final readonly class ProxyLease
     }
 
     /**
-     * Профиль с `use_proxy = false` (или, для LLM, env-фолбэк снят) — намеренный режим без узла
-     * пула, не значение `null` (§9.1).
+     * Typed direct-маршрут (или снятый LLM env-фолбэк) — намеренный режим без узла пула, не
+     * отсутствие значения (§9.1).
      */
     public static function direct(ProxyScope $scope, string $target): self
     {

@@ -69,13 +69,13 @@ status: living
 | `prc_proxies` | Узел: `country` (ISO 3166-1 alpha-2, единственный носитель гео), `scopes` (jsonb-список `App\Enums\Procurement\Proxy\ProxyScope`, GIN-индекс), `is_active` (ручной тумблер оператора), глобальное здоровье breaker'а (`open_until`/`open_count`/`fails_count`/`last_failure_reason`) |
 | `prc_proxy_targets` | Per-target здоровье: одна строка на пару (узел, канонический хост цели) — `success_ratio`/`latency_ms_avg` (EWMA), `consecutive_failures`, собственный `open_until`/`open_count`; unique `(proxy_id, target)` |
 
-`prc_crawlers` несёт `use_proxy` (bool, `false` — намеренный прямой запрос) и `proxy_country`
-(nullable ISO 3166-1 alpha-2) — привязка профиля к желаемой стране узла; потребляется РОВНО на
-скоупе `crawl_listing`, у `crawl_detail`/`document_download` профиля нет (D81, `crawling-pipeline.md`).
-Скоупа на профиле нет, единственная точка выдачи —
-`App\Services\Procurement\Proxy\ProxyResolver` (`crawling-pipeline.md`). Гео-требование скоупа
-(`crawler.proxy.policy.<scope>.required_country`) — отдельный носитель на конфиге, не на профиле;
-складывается с `forbidden_countries` союзом внутри резолвера.
+`prc_crawlers.proxy_mode` — typed `profile|default|direct`; `proxy_country` и pivot-привязки
+сохраняются только для `profile`. `default` читает nullable ID из typed `prc_settings`, `direct`
+получает typed direct-лизу. `prc_fetches.proxy_source` фиксирует именно выбранный
+`profile|default|direct` для листинга, карточки и документа. Настроенный source не имеет availability
+fallback: пустой или unhealthy exact set даёт `NoProxyAvailableException`. Единственная точка выдачи
+— `App\Services\Procurement\Proxy\ProxyResolver`; global health в `prc_proxies` и per-target health
+в `prc_proxy_targets` обновляются для profile/default одинаково, direct их не меняет.
 
 ## Адресация файлов: колонка `disk` (P6, D51)
 

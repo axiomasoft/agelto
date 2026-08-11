@@ -12,6 +12,7 @@ use App\Services\Llm\Dto\JsonSchema;
 use App\Services\Llm\Dto\LlmOptions;
 use App\Services\Llm\Dto\LlmPrompt;
 use App\Services\Llm\Providers\PrismGeminiProvider;
+use App\Services\Procurement\Proxy\CrawlerProxySettingsResolver;
 use App\Services\Procurement\Proxy\PoolOutboundProxy;
 use App\Services\Procurement\Proxy\ProxyCircuitBreaker;
 use App\Services\Procurement\Proxy\ProxyResolver;
@@ -33,6 +34,7 @@ function llmResolver(?Closure $randomSource = null): ProxyResolver
         breaker: new ProxyCircuitBreaker,
         health: new ProxyHealthStoreRepository,
         randomSource: $randomSource,
+        crawlerSettings: app(CrawlerProxySettingsResolver::class),
     );
 }
 

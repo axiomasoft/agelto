@@ -33,9 +33,9 @@ final readonly class ProxyResolver
         private ProxyScoreCalculator $scoreCalculator,
         private ProxyCircuitBreaker $breaker,
         private ProxyHealthStoreRepository $health,
+        private CrawlerProxySettingsResolver $crawlerSettings,
         private ?Closure $randomSource = null,
         private ?OperationLogWriter $operationLogs = null,
-        private ?CrawlerProxySettingsResolver $crawlerSettings = null,
     ) {}
 
     /**
@@ -51,7 +51,7 @@ final readonly class ProxyResolver
         $source = null;
 
         if ($requirements?->crawlerMode === CrawlerProxyMode::Default) {
-            $defaultProxyId = $this->crawlerSettings?->defaultProxyId();
+            $defaultProxyId = $this->crawlerSettings->defaultProxyId();
 
             if ($defaultProxyId === null) {
                 return $this->directLease(scope: $scope, target: $target);

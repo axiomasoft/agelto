@@ -4,15 +4,20 @@ declare(strict_types=1);
 
 use App\Dto\Procurement\Crawler\ListingBatch;
 use App\Dto\Procurement\Crawler\ListingCursor;
+use App\Enums\Procurement\Crawler\CrawlStage;
 use App\Enums\Procurement\Proxy\CrawlerProxyMode;
+use App\Enums\Procurement\Proxy\ProxyRouteSource;
 use App\Enums\Procurement\Proxy\ProxyScope;
 use App\Exceptions\Procurement\Proxy\NoProxyAvailableException;
 use App\Models\Procurement\Crawler\Crawler;
+use App\Models\Procurement\Crawler\Fetch;
 use App\Models\Procurement\Crawler\Proxy;
 use App\Models\Procurement\Crawler\ProxyTarget;
 use App\Models\Procurement\Platform\Okpd2Node;
 use App\Models\Procurement\Platform\Registry;
+use App\Models\Procurement\Procurement;
 use App\Services\Procurement\Eis\CsvSourceMethod;
+use App\Settings\Procurement\CrawlerProxySettings;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Sleep;
@@ -187,7 +192,26 @@ test('собранный ListingBatch несёт id узла, который р�
 
     $batch = app(CsvSourceMethod::class)->collectListing($crawler, $cursor);
 
-    expect($batch->proxyId)->toBe($proxy->id);
+    expect($batch->proxyId)->toBe($proxy->id)
+        ->and($batch->proxySource)->toBe(ProxyRouteSource::Profile);
+});
+
+test('default-профиль выдаёт сохранённый listing-узел и typed source', function (): void {
+    Sleep::fake();
+    $proxy = activeListingProxy();
+    $settings = new CrawlerProxySettings;
+    $settings->defaultProxyId = $proxy->id;
+    $settings->save();
+    $endpoint = config('crawler.eis.csv_endpoint');
+    Http::fake([$endpoint.'*' => Http::response(body: EisCsvFixture::body(), status: 200)]);
+
+    $registry = registryWithOkpd2Scope();
+    $crawler = Crawler::factory()->for($registry)->create(['filter' => ['okpd2Codes' => ['43']], 'proxy_mode' => CrawlerProxyMode::Default]);
+
+    $batch = app(CsvSourceMethod::class)->collectListing($crawler, new ListingCursor(blockFrom: 1));
+
+    expect($batch->proxyId)->toBe($proxy->id)
+        ->and($batch->proxySource)->toBe(ProxyRouteSource::Default);
 });
 
 test('закрытый breaker у привязанного прокси не переводит listing на direct и запрос не уходит', function () {
@@ -231,9 +255,8 @@ test('профиль с proxy_country=RU при пуле из RU и DE полу�
 test('direct-профиль получает typed direct lease от резолвера', function () {
     Sleep::fake();
     Log::spy();
-    // Пул кандидатов пуст: если бы `resolve()` всё же был вызван, тест упал бы
-    // `NoProxyAvailableException` — этого достаточно, чтобы доказать, что `use_proxy = false`
-    // обходит резолвер целиком, а не просто получает от него direct-подобный результат (research/02 §10).
+    // Пул кандидатов пуст, но direct остаётся typed требованием: только `ProxyResolver` создаёт
+    // direct-лизу и пишет наблюдаемый источник маршрута (D29).
     $endpoint = config('crawler.eis.csv_endpoint');
     Http::fake([
         $endpoint.'*' => Http::response(body: EisCsvFixture::body(), status: 200),
@@ -255,6 +278,35 @@ test('direct-профиль получает typed direct lease от резол�
             static fn (array $context): bool => $context['scope'] === ProxyScope::CrawlListing->value,
         ))
         ->once();
+});
+
+test('detail fetch сохраняет source default в partitioned evidence', function (): void {
+    Sleep::fake();
+    $proxy = Proxy::factory()->country('RU')->withScopes([ProxyScope::CrawlDetail])->create();
+    $settings = new CrawlerProxySettings;
+    $settings->defaultProxyId = $proxy->id;
+    $settings->save();
+    $registry = Registry::factory()->create([
+        'code' => 'fz44',
+        'settings' => [
+            'procedure_url_types' => ['Электронный аукцион' => 'ea20'],
+            'card_url_templates' => [
+                'ea20' => ['common-info' => 'https://zakupki.gov.ru/common-info.html?regNumber={regNumber}'],
+            ],
+        ],
+    ]);
+    Crawler::factory()->for($registry)->create(['proxy_mode' => CrawlerProxyMode::Default]);
+    Procurement::factory()->for($registry)->create([
+        'registry_number' => '0338200009125000001',
+        'procedure_type_raw' => 'Электронный аукцион',
+    ]);
+    config(['crawler.eis.card_tabs' => ['common-info']]);
+    Http::fake(['*common-info.html*' => Http::response('0338200009125000001', 200)]);
+
+    app(CsvSourceMethod::class)->collectDetails(registryNumber: '0338200009125000001', registry: $registry);
+
+    expect(Fetch::query()->where('stage', CrawlStage::Detail->value)->sole()->proxy_source)
+        ->toBe(ProxyRouteSource::Default);
 });
 
 /**

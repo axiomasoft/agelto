@@ -134,10 +134,9 @@ final readonly class CsvSourceMethod implements SourceMethod
     }
 
     /**
-     * `use_proxy = false` — единственный легальный способ уйти напрямую, обходящий резолвер
-     * ЦЕЛИКОМ (research/02 §10, D83): direct-лиза обязана быть видна логом, а не только значением
-     * `null`. `use_proxy = true` передаёт требование профиля к стране — резолвер складывает его с
-     * гео-политикой скоупа `crawl_listing` (Implementation Rules P1.9).
+     * Profile передаёт точные привязки и страну, а `default`/`direct` остаются typed требованиями
+     * единственного `ProxyResolver`. Поэтому direct-лиза и наблюдаемый source создаются только там,
+     * а configured source никогда не становится неявным fallback.
      */
     private function listingLease(Crawler $crawler, string $host): ProxyLease
     {
@@ -244,7 +243,7 @@ final readonly class CsvSourceMethod implements SourceMethod
         $this->fetches->log(CrawlStage::Detail, null, $procurement->id, [
             'method' => 'eis-card', 'request_params' => ['tab' => $tab, 'url' => $url],
             'http_status' => $response->status(), 'duration_ms' => (int) ((hrtime(true) - $startedAt) / 1_000_000),
-            'proxy_id' => $lease->proxyId, 'wait_ms' => $waitMs,
+            'proxy_id' => $lease->proxyId, 'proxy_source' => $lease->source?->value, 'wait_ms' => $waitMs,
         ]);
 
         $this->assertCardPage(response: $response, tab: $tab, url: $url, registryNumber: $registryNumber);

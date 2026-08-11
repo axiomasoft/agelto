@@ -5,6 +5,7 @@ declare(strict_types=1);
 use App\Enums\Procurement\Document\DocumentStatus;
 use App\Enums\Procurement\ProcurementEventType;
 use App\Enums\Procurement\Proxy\ProxyScope;
+use App\Models\Procurement\Crawler\Fetch;
 use App\Models\Procurement\Crawler\Proxy;
 use App\Models\Procurement\Document\Document;
 use App\Models\Procurement\Document\DocumentVersion;
@@ -125,6 +126,8 @@ test('download без активной proxy-привязки идёт напр�
 
     expect($version)->toBeInstanceOf(DocumentVersion::class)
         ->and($document->refresh()->status)->toBe(DocumentStatus::Downloaded);
+
+    expect(Fetch::query()->where('stage', 'document')->sole()->proxy_source?->value)->toBe('direct');
 
     Http::assertSentCount(1);
     Log::shouldHaveReceived('info')

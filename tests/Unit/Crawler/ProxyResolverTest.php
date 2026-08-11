@@ -2,28 +2,34 @@
 
 declare(strict_types=1);
 
+use App\Dto\Procurement\Proxy\ProxyLease;
 use App\Dto\Procurement\Proxy\ProxyOutcome;
 use App\Dto\Procurement\Proxy\ProxyRequirements;
+use App\Enums\Procurement\Proxy\CrawlerProxyMode;
 use App\Enums\Procurement\Proxy\ProxyFailureReason;
+use App\Enums\Procurement\Proxy\ProxyRouteSource;
 use App\Enums\Procurement\Proxy\ProxyScope;
 use App\Exceptions\Procurement\Proxy\NoProxyAvailableException;
 use App\Models\Procurement\Crawler\Proxy;
 use App\Models\Procurement\Crawler\ProxyTarget;
 use App\Repositories\Procurement\Proxy\ProxyHealthStoreRepository;
+use App\Services\Procurement\Proxy\CrawlerProxySettingsResolver;
 use App\Services\Procurement\Proxy\ProxyCircuitBreaker;
 use App\Services\Procurement\Proxy\ProxyResolver;
 use App\Services\Procurement\Proxy\ProxyScoreCalculator;
+use App\Settings\Procurement\CrawlerProxySettings;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 
 uses(RefreshDatabase::class);
 
-function makeResolver(?Closure $randomSource = null): ProxyResolver
+function makeResolver(?Closure $randomSource = null, ?CrawlerProxySettingsResolver $crawlerSettings = null): ProxyResolver
 {
     return new ProxyResolver(
         scoreCalculator: new ProxyScoreCalculator,
         breaker: new ProxyCircuitBreaker,
         health: new ProxyHealthStoreRepository,
         randomSource: $randomSource ?? fn (): float => 0.0,
+        crawlerSettings: $crawlerSettings ?? app(CrawlerProxySettingsResolver::class),
     );
 }
 
@@ -112,6 +118,50 @@ test('пустой пул даёт NoProxyAvailableException', function (): void
     makeResolver()->resolve(scope: ProxyScope::CrawlListing, target: 'zakupki.gov.ru');
 })->throws(NoProxyAvailableException::class);
 
+test('default-режим выдаёт только сохранённый узел и помечает его источником default', function (): void {
+    $default = Proxy::factory()->country('RU')->withScopes([ProxyScope::CrawlListing])->create();
+    Proxy::factory()->country('RU')->withScopes([ProxyScope::CrawlListing])->create();
+    $settings = new CrawlerProxySettings;
+    $settings->defaultProxyId = $default->id;
+    $settings->save();
+
+    $lease = makeResolver(crawlerSettings: app(CrawlerProxySettingsResolver::class))->resolve(
+        scope: ProxyScope::CrawlListing,
+        target: 'zakupki.gov.ru',
+        requirements: new ProxyRequirements(crawlerMode: CrawlerProxyMode::Default),
+    );
+
+    expect($lease->proxyId)->toBe($default->id)
+        ->and($lease->source)->toBe(ProxyRouteSource::Default);
+});
+
+test('configured unavailable default не переходит на direct или другой узел', function (): void {
+    $default = Proxy::factory()->country('RU')->withScopes([ProxyScope::CrawlListing])->create([
+        'open_until' => now()->addMinute(),
+    ]);
+    Proxy::factory()->country('RU')->withScopes([ProxyScope::CrawlListing])->create();
+    $settings = new CrawlerProxySettings;
+    $settings->defaultProxyId = $default->id;
+    $settings->save();
+
+    makeResolver(crawlerSettings: app(CrawlerProxySettingsResolver::class))->resolve(
+        scope: ProxyScope::CrawlListing,
+        target: 'zakupki.gov.ru',
+        requirements: new ProxyRequirements(crawlerMode: CrawlerProxyMode::Default),
+    );
+})->throws(NoProxyAvailableException::class);
+
+test('default-режим без сохранённого узла создаёт typed direct-лизу', function (): void {
+    $lease = makeResolver(crawlerSettings: app(CrawlerProxySettingsResolver::class))->resolve(
+        scope: ProxyScope::CrawlListing,
+        target: 'zakupki.gov.ru',
+        requirements: new ProxyRequirements(crawlerMode: CrawlerProxyMode::Default),
+    );
+
+    expect($lease->isDirect)->toBeTrue()
+        ->and($lease->source)->toBe(ProxyRouteSource::Direct);
+});
+
 test('weighted random с инъектированным источником выбирает предсказуемый узел', function (): void {
     config(['crawler.proxy.resolver.top_k' => 2]);
 
@@ -176,6 +226,15 @@ test('reportOutcome глобальной причины не трогает це
 
     $target = ProxyTarget::query()->where('proxy_id', $proxy->id)->where('target', 'a.example')->firstOrFail();
     expect($target->consecutive_failures)->toBe(0);
+});
+
+test('reportOutcome direct-лизы не создаёт health-строк', function (): void {
+    makeResolver()->reportOutcome(
+        ProxyLease::direct(scope: ProxyScope::CrawlListing, target: 'zakupki.gov.ru'),
+        ProxyOutcome::failure(ProxyFailureReason::NetworkTimeout),
+    );
+
+    expect(ProxyTarget::query()->count())->toBe(0);
 });
 
 test('политика required_country=RU не выдаёт узел другой страны ни при одном значении случайности', function (): void {

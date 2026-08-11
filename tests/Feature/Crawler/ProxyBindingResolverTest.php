@@ -40,3 +40,21 @@ test('резолвер стадии объединяет только набор
     expect($requirements->crawlerMode)->toBe(CrawlerProxyMode::Profile)
         ->and($requirements->proxyIds)->toEqualCanonicalizing([$first->id, $second->id]);
 });
+
+test('резолвер стадии выбирает default без profile и direct только при явном opt-out всех профилей', function (): void {
+    $registry = Registry::factory()->create();
+    $procurement = Procurement::factory()->for($registry)->create();
+    Crawler::factory()->for($registry)->create(['proxy_mode' => CrawlerProxyMode::Default]);
+
+    $default = app(ProxyBindingResolver::class)->requirementsForProcurement($procurement->id);
+
+    expect($default->crawlerMode)->toBe(CrawlerProxyMode::Default)
+        ->and($default->proxyIds)->toBeNull();
+
+    Crawler::query()->where('registry_id', $registry->id)->update(['proxy_mode' => CrawlerProxyMode::Direct->value]);
+
+    $direct = app(ProxyBindingResolver::class)->requirementsForProcurement($procurement->id);
+
+    expect($direct->crawlerMode)->toBe(CrawlerProxyMode::Direct)
+        ->and($direct->proxyIds)->toBeNull();
+});
