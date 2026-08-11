@@ -15,6 +15,19 @@ Postgres/test-DB preflight, focused tests without TIA, one test-DB rollback/forw
 the final full no-TIA suite, Pint, PHPStan, exact boundary searches, Task views/checks, strict
 citation verification and `git diff --check`.
 
+## Write-site
+
+`task_contract` returned `pre_mutation: allow` and `pre_final: allow` with actual-route evidence
+from the effective Codex config: `gpt-5.6-terra`, `implementation/high`. This is config evidence,
+not thread-bound provider telemetry.
+
+## Consumer lineage
+
+P10.1 declares `phases/P5/P5.5.state.md` as a required terminal input; the recorded P5.5
+downstream evidence therefore retains that handoff until P10 has a runnable carrier. P12 has no
+direct P5.5 input: its named linkage is the P5.1 source/consumer matrix, which remains the
+authoritative P5-to-P12 planning evidence. No P12 outcome is implied by this acceptance run.
+
 ## Limitations
 
 The evidence intentionally proves routing with fakes and the project test database. It does not

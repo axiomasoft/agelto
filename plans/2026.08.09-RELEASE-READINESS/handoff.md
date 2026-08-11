@@ -1,48 +1,46 @@
-# HANDOFF — 2026-08-11 — after P5.4
+# HANDOFF — 2026-08-11 — after P5.5
 
-**Next:** ЗАПУСК ВРУЧНУЮ: implementation/high
+**Next:** audit-phase: task:plan-audit 2026.08.09-RELEASE-READINESS P5
 
 | Параметр | Значение |
 |:--|:--|
-| Model class | implementation |
-| Effort | high |
+| Model class | frontier |
+| Effort | xhigh |
 | Capabilities | — |
-| Context | continue-root |
-| Суть | Выполнить P5.5: сквозное acceptance-доказательство profile/default/direct, health и tooling separation. |
-| Команда | — |
+| Context | cold-start-root |
+| Суть | Провести свежий adversarial audit terminal candidate P5 перед штатным закрытием фазы. |
+| Команда | `$ task:plan-audit 2026.08.09-RELEASE-READINESS P5` |
 
-```text
-$ task:plan-run 2026.08.09-RELEASE-READINESS P5.5
-```
+Reason for cold-start-root: whole-plan-independent-audit.
 
 ### Native Codex launch-block
 
 ```bash
-codex -C /home/vostrikov/projects/agelto/agelto -m gpt-5.6-terra -c 'model_reasoning_effort="high"' -a never -s danger-full-access '$ task:plan-run 2026.08.09-RELEASE-READINESS P5.5'
+codex -C /home/vostrikov/projects/agelto/agelto -m gpt-5.6-sol -c 'model_reasoning_effort="xhigh"' -a never -s danger-full-access '$ task:plan-audit 2026.08.09-RELEASE-READINESS P5'
 ```
 
 **Done:**
 
-- P5.4 item commit `8824adf6` adds the `ProxyPermission::Update`-gated crawler proxy settings page and Action-owned nullable default-ID save with exact active/all-crawler-scope revalidation.
-- Crawler Filament UX now explains and reacts to `profile` / `default` / `direct`; credentials remain absent from page state, labels, notifications and settings storage.
-- `bash docker/tests/p5.4-proxy-filament-contract.sh` passed: 19 tests / 130 assertions (на `8824adf6`), test-DB preflight, direct-route denial, secret scans, v5 namespace checks, Pint and `git diff --check`.
+- P5.5 item commit `54634414` makes `CrawlerProxySettingsResolver` mandatory for `ProxyResolver`, persists detail `proxy_source`, and adds profile/default/direct, no-fallback, direct-health and source-evidence regression coverage.
+- `bash docker/tests/p5.5-proxy-acceptance.sh` passed focused 96-test/296-assertion matrix, test-DB rollback/forward and final full no-TIA suite on item commit `54634414`.
+- `findings/P5-acceptance-evidence.md` records the P10 downstream anchor and the P5.1 consumer matrix preserves the named P12 planning link, alongside the reproducible command and declared external limitations.
 
 **Remaining:**
 
-- P5.5 remains the phase acceptance carrier for runtime precedence, health and external-tooling separation.
+- Fresh phase audit P5, then `task:plan-close 2026.08.09-RELEASE-READINESS P5` if the verdict is GREEN.
 
 **Sources of truth:**
 
-- `phases/P5/P5.4.md`, `phases/P5/P5.4.state.md`, `bundles/P5.4.json`, `journal.jsonl` P5.4 attempt 2.
-- `decisions/D28-proxy-settings-carrier.md`, `decisions/D29-proxy-route-semantics.md`.
-- `docker/tests/p5.4-proxy-filament-contract.sh` and `findings/P5.4-downstream-*.md`.
+- `phases/P5/P5.5.md`, `phases/P5/P5.5.state.md`, `bundles/P5.5.json`, `journal.jsonl`, `phases/P5/P5.closed.md`.
+- `docker/tests/p5.5-proxy-acceptance.sh`, `findings/P5-acceptance-evidence.md`, D8/D28/D29.
 
 **Open risks:**
 
-- `plan-downstream.py --record` wrote RED records for future P8/P9 consumers because their validation prose is executed as host commands (including bare expected-empty `rg` and unavailable future commands). These are Task-runtime/downstream-gate defects, not P5.4 failures; do not treat them as P5.5 runtime evidence. Resolve the gate interpretation before closing a future producer that depends on those consumers.
+- `plan-downstream.py --record` materialized red records for future P6/P8/P9 validation prose that it executed as shell fragments, including an accidental empty `DocumentStatus::Unprocessable` file that was removed. This is the pre-existing Task-runtime downstream-gate defect recorded after P5.4, not a P5.5 product acceptance failure; P10 records remain `unknown` until their own carriers exist.
+- P5.5 route provenance is effective-config evidence (`gpt-5.6-terra`, implementation/high), not thread-bound provider telemetry.
 
 **Workarounds/Deferred/Open questions:**
 
 - Workarounds: none accepted.
-- Deferred: P8/P9 downstream-gate interpretation needs Task-runtime remediation outside P5.4 scope.
+- Deferred: Task downstream-gate interpretation for future consumer validation prose is outside P5 scope.
 - Open questions: none.
