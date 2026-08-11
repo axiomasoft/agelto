@@ -85,16 +85,14 @@ grep -F 'COPY --from=dependencies' "$root_dir/docker/php/Dockerfile" >/dev/null
 grep -F 'vendor:sync' "$root_dir/docker/Makefile" >/dev/null
 grep -F 'vendor:check' "$root_dir/docker/Makefile" >/dev/null
 
-if [[ "${RUN_DOCKER_CONTRACT:-0}" == '1' ]]; then
-    image='agelto/p2.1-vendor-contract:validation'
-    docker build --target application -t "$image" -f "$root_dir/docker/php/Dockerfile" "$root_dir"
-    ! docker history --no-trunc "$image" | grep -E '(token@|password=|secret=)'
-    docker run --rm --entrypoint sh "$image" -c '
-        test ! -e /var/www/html/local/vendors/azguard
-        ! find /var/www/html -name .git -print -quit | grep -q .
-        test -d /var/www/html/vendor/axioma-studio/azguard-core
-        test -d /var/www/html/vendor/axioma-studio/azguard-filament
-    '
-fi
+image='agelto/p2.1-vendor-contract:validation'
+docker build --target application -t "$image" -f "$root_dir/docker/php/Dockerfile" "$root_dir"
+! docker history --no-trunc "$image" | grep -E '(token@|password=|secret=)'
+docker run --rm --entrypoint sh "$image" -c '
+    test ! -e /var/www/html/local/vendors/azguard
+    ! find /var/www/html -name .git -print -quit | grep -q .
+    test -d /var/www/html/vendor/axioma-studio/azguard-core
+    test -d /var/www/html/vendor/axioma-studio/azguard-filament
+'
 
 echo 'Vendor contract passed'

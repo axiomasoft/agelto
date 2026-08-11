@@ -8,13 +8,14 @@ stage=${1:-application}
 temp_dir=$(mktemp -d)
 trap 'rm -rf "$temp_dir"' EXIT
 
-if [[ "$stage" != "runtime-base" && "$stage" != "application" ]]; then
-    echo "Expected runtime-base or application stage" >&2
+if [[ "$stage" != "runtime-base" && "$stage" != "application" && "$stage" != "doctor" ]]; then
+    echo "Expected runtime-base, application, or doctor stage" >&2
     exit 2
 fi
 
 grep -F 'FROM serversideup/php:8.5-fpm-nginx AS runtime-base' "$root_dir/docker/php/Dockerfile" >/dev/null
 grep -F 'FROM runtime-base AS application' "$root_dir/docker/php/Dockerfile" >/dev/null
+grep -F 'FROM runtime-base AS doctor' "$root_dir/docker/php/Dockerfile" >/dev/null
 grep -F 'USER www-data' "$root_dir/docker/php/Dockerfile" >/dev/null
 ! grep -Eq '^container_name:' "$compose_file"
 ! grep -Eq '^[[:space:]]+- \./:/var/www/html' "$compose_file"

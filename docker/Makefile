@@ -107,7 +107,7 @@ prod\:ps:
 
 image\:build:
 	@test -n "$(IMAGE_TAG)" || (echo "IMAGE_TAG is required" >&2; exit 2)
-	docker build --target application -t agelto/app:$(IMAGE_TAG) -f $(ROOT_DIR)/docker/php/Dockerfile $(ROOT_DIR)
+	bash $(ROOT_DIR)/docker/scripts/image-pair.sh --root $(ROOT_DIR) --tag "$(IMAGE_TAG)"
 
 prod\:deploy\:code:
 	bash $(ROOT_DIR)/docker/scripts/release-deploy.sh code $(ROOT_DIR) $(ENV_FILE)

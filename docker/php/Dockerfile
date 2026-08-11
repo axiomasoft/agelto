@@ -94,12 +94,16 @@ COPY --chown=www-data:www-data local/vendors/azguard/packages/filament /var/www/
 RUN composer install --no-dev --no-scripts --no-interaction --no-progress --prefer-dist --classmap-authoritative
 
 FROM runtime-base AS application
+ARG SOURCE_SHA
+ARG VENDOR_LOCK_SHA
 COPY --exclude=local/vendors/azguard --chown=www-data:www-data . /var/www/html
 COPY --from=dependencies --chown=www-data:www-data /var/www/html/vendor /var/www/html/vendor
 COPY --from=frontend --chown=www-data:www-data /build/public/build /var/www/html/public/build
 RUN rm -f .env \
     && mkdir -p storage/framework/{cache,sessions,views} storage/logs bootstrap/cache \
     && chown -R www-data:www-data storage bootstrap/cache
+LABEL org.opencontainers.image.revision="${SOURCE_SHA}" \
+      io.agelto.vendor-lock-sha="${VENDOR_LOCK_SHA}"
 USER www-data
 
 FROM runtime-base AS doctor-dependencies
@@ -110,7 +114,11 @@ COPY --chown=www-data:www-data local/vendors/azguard/packages/filament /var/www/
 RUN composer install --no-scripts --no-interaction --no-progress --prefer-dist --classmap-authoritative
 
 FROM runtime-base AS doctor
+ARG SOURCE_SHA
+ARG VENDOR_LOCK_SHA
 COPY --exclude=local/vendors/azguard --chown=www-data:www-data . /var/www/html
 COPY --from=doctor-dependencies --chown=www-data:www-data /var/www/html/vendor /var/www/html/vendor
-LABEL org.opencontainers.image.title="agelto-doctor"
+LABEL org.opencontainers.image.title="agelto-doctor" \
+      org.opencontainers.image.revision="${SOURCE_SHA}" \
+      io.agelto.vendor-lock-sha="${VENDOR_LOCK_SHA}"
 USER www-data

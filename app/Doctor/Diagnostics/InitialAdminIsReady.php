@@ -16,9 +16,18 @@ final class InitialAdminIsReady extends Diagnostic
 
     public function check(): DiagnosticResult
     {
-        return User::query()->get()->contains(fn (User $user): bool => $user->isSuperAdmin())
+        $email = config(key: 'cms.admin_email');
+
+        if (! is_string($email) || trim($email) === '') {
+            return $this->fail('missing');
+        }
+
+        return User::query()
+            ->where('email', mb_strtolower(trim($email)))
+            ->get()
+            ->contains(fn (User $user): bool => $user->isSuperAdmin())
             ? $this->pass('ready')
-            : $this->warn('missing');
+            : $this->fail('missing');
     }
 
     protected function messages(): array

@@ -15,8 +15,15 @@ final class SecretContractIsReady extends Diagnostic
 
     public function check(): DiagnosticResult
     {
-        foreach (['APP_KEY', 'DB_PASSWORD', 'REDIS_PASSWORD', 'AWS_SECRET_ACCESS_KEY'] as $key) {
-            if (! is_string(config(key: 'app.key')) && $key === 'APP_KEY') {
+        $requiredSecrets = [
+            config(key: 'app.key'),
+            config(key: 'database.connections.pgsql.password'),
+            config(key: 'database.redis.default.password'),
+            config(key: 'filesystems.disks.s3.secret'),
+        ];
+
+        foreach ($requiredSecrets as $secret) {
+            if (! is_string($secret) || trim($secret) === '') {
                 return $this->fail('missing');
             }
         }

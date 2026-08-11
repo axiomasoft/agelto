@@ -16,6 +16,8 @@ cp "$root_dir/docker-compose.prod.yml" "$repo/docker-compose.prod.yml"
 
 cat > "$repo/docker/scripts/vendor-sync.sh" <<'EOF'
 #!/usr/bin/env bash
+set -euo pipefail
+
 test "${VENDOR_FAIL:-0}" != 1
 test "$1" = --check
 EOF

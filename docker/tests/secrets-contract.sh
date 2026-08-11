@@ -12,6 +12,26 @@ cp "$root/local/secrets/.gitignore" "$repo/local/secrets/.gitignore"
 
 bash -n "$root/docker/scripts/secrets-init.sh"
 bash -n "$root/docker/php/entrypoint.d/10-secrets.sh"
+
+expect_failure() {
+    set +e
+    "$@" >/dev/null 2>&1
+    status=$?
+    set -e
+
+    test "$status" -ne 0
+}
+
+rm -rf "$repo/local/secrets"
+ln -s "$tmp" "$repo/local/secrets"
+expect_failure bash "$repo/docker/scripts/secrets-init.sh" --root "$repo"
+rm "$repo/local/secrets"
+mkdir -p "$repo/local/secrets"
+
+printf 'app_key\napp_key\n' > "$repo/docker/secrets.contract"
+expect_failure bash "$repo/docker/scripts/secrets-init.sh" --root "$repo"
+cp "$root/docker/secrets.contract" "$repo/docker/secrets.contract"
+
 bash "$repo/docker/scripts/secrets-init.sh" --root "$repo" >/dev/null
 first="$(sha256sum "$repo/local/secrets"/{app_key,db_password,redis_password,redis_acl,minio_root_password,admin_initial_password})"
 bash "$repo/docker/scripts/secrets-init.sh" --root "$repo" >/dev/null
@@ -19,6 +39,10 @@ test "$first" = "$(sha256sum "$repo/local/secrets"/{app_key,db_password,redis_pa
 test "$(stat -c %a "$repo/local/secrets/app_key")" = 600
 bash "$repo/docker/scripts/secrets-init.sh" --root "$repo" --rotate db_password >/dev/null
 test -f "$repo/local/secrets/db_password.next"
+rm "$repo/local/secrets/db_password.next"
+rm "$repo/local/secrets/db_password"
+ln -s "$tmp/not-a-secret" "$repo/local/secrets/db_password"
+expect_failure bash "$repo/docker/scripts/secrets-init.sh" --root "$repo"
 ! grep -R --exclude='.gitignore' -E 'change-me|MINIO_ROOT_PASSWORD=' "$root/.env.docker.example" "$root/.env.docker.production.example"
 grep -q 'POSTGRES_PASSWORD_FILE: /run/secrets/db_password' "$root/docker-compose.yml"
 grep -q 'MINIO_ROOT_PASSWORD_FILE: /run/secrets/minio_root_password' "$root/docker-compose.prod.yml"
