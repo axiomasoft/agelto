@@ -11,7 +11,7 @@ asset=$(
 )
 [[ "$asset" == /var/www/html/public/* ]] || { echo 'Resolved asset escaped public root' >&2; exit 2; }
 
-"$root_dir/docker/tests/assets-contract.sh" check
+bash "$root_dir/docker/tests/assets-contract.sh" check
 before_hash=$("${compose[@]}" exec -T app sha256sum "$asset" | awk '{print $1}')
 before_image=$("${compose[@]}" images -q app)
 
@@ -30,12 +30,12 @@ if "${compose[@]}" exec -T app test -f "$asset"; then
     exit 1
 fi
 
-if "$root_dir/docker/tests/assets-contract.sh" check; then
+if bash "$root_dir/docker/tests/assets-contract.sh" check; then
     echo 'Asset contract unexpectedly stayed green after deleting one generated asset' >&2
     exit 1
 fi
 
-"$root_dir/docker/tests/assets-contract.sh" repair
+bash "$root_dir/docker/tests/assets-contract.sh" repair
 after_hash=$("${compose[@]}" exec -T app sha256sum "$asset" | awk '{print $1}')
 after_image=$("${compose[@]}" images -q app)
 
