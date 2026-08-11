@@ -3,7 +3,7 @@ projection: status-view
 projection_version: v1
 source_scope: plan core + phases + journal
 through: 2026-08-11
-inputs_sha256: 500edff5c633342f2fd334e7ea769726d48ebd01ae6aa16e45a4b98fb0234f10
+inputs_sha256: 9b113b5602a408520fce129f599bda16bc1eb46e11a117314a563161208a0b16
 generated_by: task plan-views status
 -->
 
@@ -385,6 +385,7 @@ generated_by: task plan-views status
 | 2026-08-11 | gpt-5.6-terra/high | plan-run · closed-green · P5.2 settings carrier fd286156: clean migration, two-process refresh, config cache and Pint green. |
 | 2026-08-11 | implementation/high | plan-run · in-progress · P5.3 execution started with provider-config route evidence. |
 | 2026-08-11 | implementation/high | plan-run · escalated · Scope conflict: listing proxy_source needs ListingBatch/CsvBlockIngestor outside Files; D29 forbids inference. |
+| 2026-08-11 | frontier/high | plan-design · in-progress · ТЗ P5.3 доведено до DoR: listing proxy_source явно проходит ListingBatch/CsvBlockIngestor; scope conflict снят без изменения D29. |
 
 ## Owner Gates
 

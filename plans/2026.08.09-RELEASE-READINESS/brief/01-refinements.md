@@ -227,3 +227,13 @@ consumer не требуют новой design/dev-сессии, если мин
 текущей сессии нормализовать P5.3–P5.5 до одного item-owned carrier по D63, выполнить только
 focused Task/downstream checks и append-only reconciliation; product commit `41e4e7cb`, D28/D29 и
 закрытые фазы остаются неизменными. Общий фазовый аудит P5 остаётся владельцем широкой проверки.
+
+## 2026-08-11 — P5.3 listing `proxy_source` scope repair
+
+Владелец потребовал снять P5.3 scope conflict без изменения application code в design-сессии:
+добавить в запечатанный item минимальный существующий путь переноса источника listing lease —
+`app/Dto/Procurement/Crawler/ListingBatch.php` и
+`app/Services/Procurement/CsvBlockIngestor.php` — вместе с focused persistence test и явной
+Validation. `proxy_source` передаётся typed-значением до `FetchLogger`; выводить profile/default/
+direct из nullable `proxy_id` запрещено D29. После plan-only repair P5.3 снова запускается через
+`task:plan-run`; D28/D29, health ownership и P5.4–P5.5 остаются неизменными.
