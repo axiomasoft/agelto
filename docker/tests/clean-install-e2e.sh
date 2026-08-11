@@ -92,7 +92,7 @@ cd "$candidate"
 pnpm install --frozen-lockfile
 pnpm exec playwright install chromium
 make vendor:sync
-composer install --no-interaction --no-progress
+composer install --no-scripts --no-interaction --no-progress
 COMPOSE_PROJECT_NAME="$project" make bootstrap MODE=dev ENV_FILE=.env.e2e ADMIN_PASSWORD_FILE=.e2e-admin-password
 COMPOSE_PROJECT_NAME="$project" make readiness:check ENV_FILE=.env.e2e
 
