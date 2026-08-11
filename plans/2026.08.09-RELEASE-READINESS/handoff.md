@@ -1,38 +1,43 @@
-# HANDOFF — 2026-08-11 — after P4.2
+# HANDOFF — 2026-08-11 — after P4.3
 
-**Next:** run-items: task:plan-run 2026.08.09-RELEASE-READINESS P4.3
+**Next:** run-items: task:plan-run 2026.08.09-RELEASE-READINESS P4.4
 
 | Параметр | Значение |
 |:--|:--|
-| Model class | implementation |
-| Effort | high — immutable build/security boundary |
-| Capabilities | — |
+| Model | implementation |
+| Thinking | high — AzGuard access boundary |
 | Context | continue (/clear) — ручной item |
-| Суть | Реализовать manifest-backed locator и единственный безопасный Laravel serving path. |
-| Команда | `$ task:plan-run 2026.08.09-RELEASE-READINESS P4.3` |
+| Суть | Заменить fail-closed placeholder на enum-aware AzGuard и добавить Filament discovery без второго route. |
+| Команда | — |
 
 #### Native Codex launch-block
 
 ```bash
-codex -C /home/vostrikov/projects/agelto/agelto -m gpt-5.6-terra -c 'model_reasoning_effort="high"' -a never -s danger-full-access '$ task:plan-run 2026.08.09-RELEASE-READINESS P4.3'
-
-РЕЖИМ: execution — manifest locator и HTTP-only controller
-ВХОД: `phases/P4/P4.2.state.md` → `research/06-P4-execution-design.md` → D26 → D27
-СКОУП: `config/documentation.php`, locator/value/controller, один GET|HEAD route, focused tests и response-contract carrier
-НЕ ТРОГАТЬ: P4.4–P4.5, public/Nginx/X-Accel/signed URLs, role catalog/navigation и dynamic Markdown rendering
+codex -C /home/vostrikov/projects/agelto/agelto -m gpt-5.6-terra -c 'model_reasoning_effort="high"' -a never -s danger-full-access '$ task:plan-run 2026.08.09-RELEASE-READINESS P4.4'
 ```
 
-**Done:** P4.2 published a deterministic VitePress artifact outside `public`, a sorted verified manifest
-and an immutable application-image copy; `bash docker/tests/documentation-build-contract.sh` passed.
-Product commit: `8f0c14dc404fe3fbe14ddb4cf3e63a701f97a053`.
+РЕЖИМ: execution — AzGuard authorization и Filament discovery
+ВХОД: `plans/2026.08.09-RELEASE-READINESS/plan.md` → `phases/P4/P4.md` → `phases/P4/P4.4.md` → `bundles/P4.4.json` → `phases/P4/P4.4.state.md`
 
-**Remaining:** P4.3 consumes the committed artifact and implements the manifest-backed serving seam.
+**Done:** P4.3 добавил configured private artifact root, строгий manifest-backed locator и immutable
+asset value. Единственный GET/HEAD route/controller остаётся fail-closed до P4.4; ответный путь
+выставляет declared MIME, no-store и browser-security headers. Item-owned carrier прошёл DB preflight,
+focused Pest, Pint, PHPStan, route topology и diff check.
 
-**Sources of truth:** `phases/P4/P4.2.state.md` · `phases/P4/P4.3.md` · `journal.jsonl` · D26 · D27.
+Product commit: `d8b9ed77` — `feat(documentation): закрыть private serving path (P4.3)`.
 
-**Open risks:** P4.3 must serve only exact manifest members and preserve a uniform 404 surface for
-missing build, malformed manifest and all unsafe paths.
+**Remaining:** P4.4 должен заменить literal fail-closed placeholder на scoped
+`DocumentationPermission::View`, не создавая middleware/controller/asset bypass, и доказать grant
+matrix с Filament navigation.
 
-**Workarounds/Deferred/Open questions:** Known deviations — owner-classified false escalation was
-resolved by five bounded docs syntax/link repairs; `frontier/high` was an allowed route overshoot.
-Deferred — P4.3–P4.5. Open questions — none.
+**Sources of truth:** `phases/P4/P4.3.state.md` · `phases/P4/P4.4.md` · `journal.jsonl` · D27 ·
+`app/Services/Documentation/PrivateDocumentationLocator.php` ·
+`docker/tests/private-documentation-response-contract.sh`.
+
+**Open risks:** До terminal P4.4 documentation route отвечает `403` до filesystem и не является
+доступным production documentation surface; P4.4 обязан сохранить эту fail-closed гарантию во время
+замены на AzGuard.
+
+**Workarounds/Deferred/Open questions:** Workarounds — test-only configuration override открывает
+P4.3 controller branch; production config literal остаётся false. Deferred — P4.4 permission/nav и
+P4.5 terminal acceptance. Open questions — none.
