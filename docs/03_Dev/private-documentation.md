@@ -42,6 +42,10 @@ SVG/images и fonts. Он требует authenticated user и enum-aware AzGuar
 HTTP-only: authorization, locator, `response()->file()` и headers; normalisation, manifest, MIME и
 containment принадлежат locator service.
 
+P4.3 регистрирует этот единственный route уже сейчас, но до P4.4 controller возвращает fail-closed
+`403` до locator: ни HTML, ни assets не получают временного allow-all окна. P4.4 заменяет заглушку
+на enum-aware AzGuard permission и проверяет final guest/denial/allow matrix.
+
 Initial role path — только SuperAdmin wildcard. AnalystRole, OperatorRole и roleless authenticated
 user не получают bytes. Filament navigation использует ту же permission, но скрытая навигация не
 заменяет проверку direct URL. Guest получает стандартный admin login flow, authenticated denial —
@@ -60,6 +64,10 @@ backslash, NUL, empty/dot/dot-dot segments и расширение вне closed
 HTML дополнительно получает restrictive CSP, блокирующий remote default/connect/object/frame/form/base
 surfaces. Public/static/Nginx aliases, signed URLs, `X-Accel-Redirect` и alternate asset middleware
 не являются допустимыми serving paths.
+
+VitePress 1.6.4 build содержит inline bootstrap scripts и style attributes, поэтому текущая CSP
+разрешает inline script/style только при `default-src 'self'`; remote origins остаются закрытыми.
+Изменение этого allowance требует повторной проверки against generated artifact.
 
 ## Владельцы и доказательства
 
