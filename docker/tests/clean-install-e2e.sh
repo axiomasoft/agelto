@@ -76,15 +76,17 @@ PY
 fi
 password_file="$candidate/.e2e-admin-password"
 chmod 600 "$candidate/.e2e-admin-password"
-python3 - "$candidate/.env.example" "$e2e_env" "$app_port" "$pgsql_port" "$redis_port" "$minio_port" "$minio_console_port" <<'PY'
+python3 - "$candidate/.env.example" "$e2e_env" "$admin_email" "$app_port" "$pgsql_port" "$redis_port" "$minio_port" "$minio_console_port" <<'PY'
 import re
 import sys
 from pathlib import Path
 
 source = Path(sys.argv[1])
 destination = Path(sys.argv[2])
-ports = sys.argv[3:]
+admin_email = sys.argv[3]
+ports = sys.argv[4:]
 values = dict(zip(('APP_PORT', 'PGSQL_PORT', 'REDIS_PORT', 'MINIO_PORT', 'MINIO_CONSOLE_PORT'), ports, strict=True))
+values['ADMIN_EMAIL'] = admin_email
 content = source.read_text()
 for name, port in values.items():
     content, count = re.subn(rf'^{name}=.*$', f'{name}={port}', content, flags=re.MULTILINE)
