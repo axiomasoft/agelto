@@ -16,9 +16,13 @@
   PHPStan for the documentation serving boundary.
 - `pnpm exec playwright test --list` passed: setup plus the P3 admin and P4 documentation scenarios
   compile and are discoverable.
-- `bash docker/tests/documentation-build-contract.sh` and
-  `bash docker/tests/prod-image-contract.sh application` were started against this worktree; their
-  final committed-candidate run is owned by the acceptance carrier below.
+- `bash docker/tests/documentation-build-contract.sh` passed: two VitePress builds were identical,
+  hostile distribution fixtures were rejected, and the application image contained the read-only
+  private artifact with no public documentation tree.
+- `bash docker/tests/prod-image-contract.sh application` is red before image inspection because its
+  inherited P1 assertion expects `setpriv --reuid=33 --regid=33` in `10-secrets.sh`, while the
+  committed entrypoint uses the current `install`/`chown` secret hand-off instead. This is an
+  inherited production-image contract defect, not a documentation-route bypass.
 
 ## Required committed-candidate gate
 
@@ -30,4 +34,6 @@ P12 consumption.
 ## Limitation
 
 This workspace has no supplied `E2E_ADMIN_EMAIL` or `E2E_ADMIN_PASSWORD_FILE`; therefore the
-isolated browser/image acceptance has not yet produced a committed-candidate evidence record.
+isolated browser acceptance has not yet produced a committed-candidate evidence record. The stale
+P1 `setpriv` assertion must also be reconciled against the actual secret-entrypoint contract before
+the composite carrier can turn green.
