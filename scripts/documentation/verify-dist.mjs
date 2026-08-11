@@ -30,7 +30,7 @@ export async function verifyDistribution({ siteDirectory, manifestPath }) {
     const rootDirectory = resolve(siteDirectory);
     const entries = await collectEntries(rootDirectory, rootDirectory);
 
-    entries.sort((left, right) => left.path.localeCompare(right.path, 'en'));
+    entries.sort((left, right) => Buffer.compare(Buffer.from(left.path), Buffer.from(right.path)));
     await writeFile(manifestPath, `${JSON.stringify(entries, null, 2)}\n`);
 
     return entries;

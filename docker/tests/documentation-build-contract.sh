@@ -28,7 +28,7 @@ pnpm documentation:build
 diff -r "$first_build" var/private-documentation
 
 node --input-type=module <<'NODE'
-import { mkdtemp, mkdir, symlink, writeFile } from 'node:fs/promises';
+import { mkdtemp, mkdir, readFile, symlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { verifyDistribution } from './scripts/documentation/verify-dist.mjs';
@@ -51,6 +51,17 @@ await failure('extension', async (site) => writeFile(join(site, 'payload.exe'), 
 await failure('percent-path', async (site) => writeFile(join(site, 'asset%2f.html'), 'content'));
 await failure('remote-script', async (site) => writeFile(join(site, 'index.html'), '<script src="https://example.test/payload.js"></script>'));
 await failure('active-svg', async (site) => writeFile(join(site, 'active.svg'), '<svg xmlns="http://www.w3.org/2000/svg"><script>alert(document.domain)</script></svg>'));
+
+const byteOrderSite = join(directory, 'byte-order');
+await mkdir(byteOrderSite);
+await writeFile(join(byteOrderSite, 'ai_training-loop.js'), 'training');
+await writeFile(join(byteOrderSite, 'ai-context.js'), 'context');
+await verifyDistribution({ siteDirectory: byteOrderSite, manifestPath: manifest });
+const byteOrderManifest = JSON.parse(await readFile(manifest, 'utf8'));
+
+if (byteOrderManifest.map(({ path }) => path).join('\n') !== 'ai-context.js\nai_training-loop.js') {
+    throw new Error('Manifest paths must use PHP SORT_STRING-compatible byte ordering');
+}
 NODE
 
 image="agelto-documentation-contract:$RANDOM"
