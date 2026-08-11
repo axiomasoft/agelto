@@ -11,6 +11,7 @@ admin_email=${E2E_ADMIN_EMAIL:?E2E_ADMIN_EMAIL is required}
 
 run_id="e2e-$(date +%s)-$RANDOM"
 candidate=$(mktemp -d)
+chmod 755 "$candidate"
 project="agelto_${run_id//-/_}"
 output_dir="$candidate/.e2e/$run_id"
 e2e_env="$candidate/.env.e2e"
