@@ -2,8 +2,8 @@
 
 namespace App\Providers;
 
-use App\Doctor\Diagnostics\BaseDataIsReady;
 use App\Doctor\Diagnostics\ApplicationReadinessIsGreen;
+use App\Doctor\Diagnostics\BaseDataIsReady;
 use App\Doctor\Diagnostics\InitialAdminIsReady;
 use App\Doctor\Diagnostics\PrivatePackagesArePinned;
 use App\Doctor\Diagnostics\SecretContractIsReady;
@@ -64,13 +64,15 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        Doctor::diagnostics([
-            PrivatePackagesArePinned::class,
-            SecretContractIsReady::class,
-            BaseDataIsReady::class,
-            InitialAdminIsReady::class,
-            ApplicationReadinessIsGreen::class,
-        ]);
+        if (class_exists(Doctor::class)) {
+            Doctor::diagnostics([
+                PrivatePackagesArePinned::class,
+                SecretContractIsReady::class,
+                BaseDataIsReady::class,
+                InitialAdminIsReady::class,
+                ApplicationReadinessIsGreen::class,
+            ]);
+        }
         // Кастомные Pulse-карточки (P7.5, D25) — классы вне `App\Livewire\*` (Files-список
         // item'а несёт `app/Pulse/**`), поэтому регистрация explicit, не Livewire-конвенцией.
         Livewire::component('pulse.pipeline-stages', PipelineStagesCard::class);

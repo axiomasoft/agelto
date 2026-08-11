@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Doctor\Diagnostics;
 
-use App\Models\User;
+use App\Services\Health\ReleaseStateReadiness;
 use Laravel\Doctor\Diagnostic;
 use Laravel\Doctor\Results\DiagnosticResult;
 
@@ -14,18 +14,14 @@ final class InitialAdminIsReady extends Diagnostic
 
     public string $group = 'agelto-release';
 
+    public function __construct(private readonly ReleaseStateReadiness $readiness)
+    {
+        parent::__construct();
+    }
+
     public function check(): DiagnosticResult
     {
-        $email = config(key: 'cms.admin_email');
-
-        if (! is_string($email) || trim($email) === '') {
-            return $this->fail('missing');
-        }
-
-        return User::query()
-            ->where('email', mb_strtolower(trim($email)))
-            ->get()
-            ->contains(fn (User $user): bool => $user->isSuperAdmin())
+        return $this->readiness->initialAdminIsReady()
             ? $this->pass('ready')
             : $this->fail('missing');
     }

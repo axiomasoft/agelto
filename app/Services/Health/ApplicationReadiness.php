@@ -4,8 +4,6 @@ declare(strict_types=1);
 
 namespace App\Services\Health;
 
-use App\Doctor\Diagnostics\BaseDataIsReady;
-use App\Doctor\Diagnostics\InitialAdminIsReady;
 use App\Dto\Health\ReadinessCheckResult;
 use App\Enums\Health\ReadinessCheckCode;
 use Carbon\CarbonImmutable;
@@ -15,7 +13,6 @@ use Illuminate\Contracts\Cache\Factory as CacheFactory;
 use Illuminate\Contracts\Filesystem\Factory as FilesystemFactory;
 use Illuminate\Database\ConnectionResolverInterface;
 use Illuminate\Support\Facades\Cache;
-use Laravel\Doctor\Results\Status;
 use Laravel\Horizon\Contracts\MasterSupervisorRepository;
 use Throwable;
 
@@ -28,6 +25,7 @@ final readonly class ApplicationReadiness
         private CacheFactory $cache,
         private FilesystemFactory $filesystem,
         private MasterSupervisorRepository $masters,
+        private ReleaseStateReadiness $releaseState,
     ) {}
 
     /** @return list<ReadinessCheckResult> */
@@ -113,10 +111,7 @@ final readonly class ApplicationReadiness
     private function releaseState(): ReadinessCheckResult
     {
         return $this->attempt(code: ReadinessCheckCode::ReleaseState, callback: function (): void {
-            $base = app(BaseDataIsReady::class)->check();
-            $admin = app(InitialAdminIsReady::class)->check();
-
-            if ($base->status !== Status::Pass || $admin->status !== Status::Pass) {
+            if (! $this->releaseState->baseDataIsReady() || ! $this->releaseState->initialAdminIsReady()) {
                 throw new \RuntimeException('base data or initial administrator is not ready');
             }
         });

@@ -43,6 +43,9 @@ image_user=$(docker image inspect --format '{{.Config.User}}' "$image")
 [[ -z "$image_user" || "$image_user" == root ]]
 docker run --rm --entrypoint sh "$image" -c 'test -x /etc/entrypoint.d/10-secrets.sh && grep -F "exec /usr/local/bin/docker-php-serversideup-entrypoint" /etc/entrypoint.d/10-secrets.sh >/dev/null'
 docker run --rm --entrypoint php "$image" -v | grep -q '^PHP '
+if [[ "$stage" == application ]]; then
+    docker run --rm --entrypoint php "$image" artisan --version | grep -q '^Laravel Framework '
+fi
 ! docker image history --no-trunc "$image" | grep -F "$sentinel" >/dev/null
 container_name="agelto-p1-image-contract-$RANDOM"
 docker create --name "$container_name" "$image" >/dev/null
