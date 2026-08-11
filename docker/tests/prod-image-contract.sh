@@ -16,7 +16,10 @@ fi
 grep -F 'FROM serversideup/php:8.5-fpm-nginx AS runtime-base' "$root_dir/docker/php/Dockerfile" >/dev/null
 grep -F 'FROM runtime-base AS application' "$root_dir/docker/php/Dockerfile" >/dev/null
 grep -F 'FROM runtime-base AS doctor' "$root_dir/docker/php/Dockerfile" >/dev/null
-grep -F 'setpriv --reuid=33 --regid=33' "$root_dir/docker/php/entrypoint.d/10-secrets.sh" >/dev/null
+bash -n "$root_dir/docker/php/entrypoint.d/10-secrets.sh"
+grep -F 'install -d -m 0700 -o www-data -g www-data "$runtime_dir"' "$root_dir/docker/php/entrypoint.d/10-secrets.sh" >/dev/null
+grep -F 'chown www-data:www-data "$runtime_file"' "$root_dir/docker/php/entrypoint.d/10-secrets.sh" >/dev/null
+grep -F 'chmod 0600 "$runtime_file"' "$root_dir/docker/php/entrypoint.d/10-secrets.sh" >/dev/null
 ! grep -Eq '^container_name:' "$compose_file"
 ! grep -Eq '^[[:space:]]+- \./:/var/www/html' "$compose_file"
 ! grep -Eq '/var/www/html/vendor' "$compose_file"
@@ -36,7 +39,9 @@ grep -F 'image: agelto/app:contract-tag' "$temp_dir/compose.yml" | wc -l | grep 
 sentinel="P1_IMAGE_SECRET_$RANDOM$RANDOM"
 image="agelto-contract:$stage-$RANDOM"
 docker build --file "$root_dir/docker/php/Dockerfile" --target "$stage" --build-arg "VALIDATION_SENTINEL=$sentinel" -t "$image" "$root_dir"
-docker run --rm "$image" id -u | tail -n 1 | grep -qx '33'
+image_user=$(docker image inspect --format '{{.Config.User}}' "$image")
+[[ -z "$image_user" || "$image_user" == root ]]
+docker run --rm --entrypoint sh "$image" -c 'test -x /etc/entrypoint.d/10-secrets.sh && grep -F "exec /usr/local/bin/docker-php-serversideup-entrypoint" /etc/entrypoint.d/10-secrets.sh >/dev/null'
 docker run --rm --entrypoint php "$image" -v | grep -q '^PHP '
 ! docker image history --no-trunc "$image" | grep -F "$sentinel" >/dev/null
 container_name="agelto-p1-image-contract-$RANDOM"

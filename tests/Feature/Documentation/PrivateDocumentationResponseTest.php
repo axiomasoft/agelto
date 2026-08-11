@@ -17,13 +17,11 @@ beforeEach(function (): void {
     file_put_contents($this->documentationRoot.'/site/guide.html', '<main>nested sentinel</main>');
     file_put_contents($this->documentationRoot.'/site/assets/app.css', 'body { color: black; }');
     file_put_contents($this->documentationRoot.'/site/assets/app.js', 'window.documentationReady = true;');
-    file_put_contents($this->documentationRoot.'/site/assets/logo.svg', '<svg xmlns="http://www.w3.org/2000/svg"/>');
     file_put_contents($this->documentationRoot.'/site/assets/portal.woff2', 'font sentinel');
     file_put_contents($this->documentationRoot.'/site/assets/search.json', '{"items":[]}');
     file_put_contents($this->documentationRoot.'/manifest.json', json_encode([
         ['path' => 'assets/app.css', 'mime' => 'text/css; charset=utf-8', 'sha256' => hash_file('sha256', $this->documentationRoot.'/site/assets/app.css')],
         ['path' => 'assets/app.js', 'mime' => 'text/javascript; charset=utf-8', 'sha256' => hash_file('sha256', $this->documentationRoot.'/site/assets/app.js')],
-        ['path' => 'assets/logo.svg', 'mime' => 'image/svg+xml', 'sha256' => hash_file('sha256', $this->documentationRoot.'/site/assets/logo.svg')],
         ['path' => 'assets/portal.woff2', 'mime' => 'font/woff2', 'sha256' => hash_file('sha256', $this->documentationRoot.'/site/assets/portal.woff2')],
         ['path' => 'assets/search.json', 'mime' => 'application/json; charset=utf-8', 'sha256' => hash_file('sha256', $this->documentationRoot.'/site/assets/search.json')],
         ['path' => 'guide.html', 'mime' => 'text/html; charset=utf-8', 'sha256' => hash_file('sha256', $this->documentationRoot.'/site/guide.html')],
@@ -66,7 +64,6 @@ test('representative static artifacts share the manifest mime and no-store polic
     'CSS' => ['assets/app.css', 'text/css; charset=utf-8', 'body { color: black; }'],
     'JavaScript' => ['assets/app.js', 'text/javascript; charset=utf-8', 'window.documentationReady = true;'],
     'JSON' => ['assets/search.json', 'application/json; charset=utf-8', '{"items":[]}'],
-    'SVG' => ['assets/logo.svg', 'image/svg+xml', '<svg xmlns="http://www.w3.org/2000/svg"/>'],
     'font' => ['assets/portal.woff2', 'font/woff2', 'font sentinel'],
 ]);
 
@@ -80,6 +77,21 @@ test('nested manifest page is served and missing page has the uniform 404 surfac
         ->assertNotFound()
         ->assertDontSee('root sentinel')
         ->assertDontSee('nested sentinel');
+});
+
+test('active svg отсутствует в закрытом mime contract и не возвращает bytes', function (): void {
+    file_put_contents($this->documentationRoot.'/site/assets/active.svg', '<svg xmlns="http://www.w3.org/2000/svg"><script>alert(document.domain)</script></svg>');
+    $manifest = json_decode((string) file_get_contents($this->documentationRoot.'/manifest.json'), associative: true, flags: JSON_THROW_ON_ERROR);
+    $manifest[] = [
+        'path' => 'assets/active.svg',
+        'mime' => 'image/svg+xml',
+        'sha256' => hash_file('sha256', $this->documentationRoot.'/site/assets/active.svg'),
+    ];
+    file_put_contents($this->documentationRoot.'/manifest.json', json_encode($manifest, flags: JSON_PRETTY_PRINT | JSON_THROW_ON_ERROR));
+
+    $this->get('/admin/documentation/assets/active.svg')
+        ->assertNotFound()
+        ->assertDontSee('alert(document.domain)');
 });
 
 test('only the declared GET HEAD documentation route exists and remains fail closed', function (): void {

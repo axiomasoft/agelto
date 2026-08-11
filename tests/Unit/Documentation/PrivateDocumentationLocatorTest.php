@@ -94,6 +94,16 @@ test('отклоняет unsorted duplicate и unknown-mime manifest entries', f
         ->toThrow(NotFoundHttpException::class);
 });
 
+test('отклоняет active svg даже при forged manifest mime', function (): void {
+    file_put_contents($this->documentationRoot.'/site/active.svg', '<svg><script>alert(document.domain)</script></svg>');
+    file_put_contents($this->documentationRoot.'/manifest.json', json_encode([
+        ['path' => 'active.svg', 'mime' => 'image/svg+xml', 'sha256' => hash_file('sha256', $this->documentationRoot.'/site/active.svg')],
+    ], flags: JSON_PRETTY_PRINT | JSON_THROW_ON_ERROR));
+
+    expect(fn () => (new PrivateDocumentationLocator)->locate(requestedPath: 'active.svg'))
+        ->toThrow(NotFoundHttpException::class);
+});
+
 /**
  * @param  array<string, array{0: string, 1: string}>  $files
  */

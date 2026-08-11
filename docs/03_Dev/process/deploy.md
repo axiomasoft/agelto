@@ -20,7 +20,8 @@ registry push→clean-pull cycle; production receives only that immutable tag.
 
 Documentation is part of that immutable application artifact. Before promoting a release that
 changes `docs/` or the private documentation boundary, run `make documentation:acceptance` on the
-committed candidate with isolated E2E credentials; a source-only deployment cannot publish it.
+committed candidate. The carrier creates isolated one-time E2E credentials and records the exact
+candidate SHA/application image digest; a source-only deployment cannot publish it.
 
 ## Разновидности
 

@@ -18,14 +18,16 @@ make test-php         # ENV=dev по умолчанию; test-preflight + db:cre
 Точечный прогон одного класса/фильтра — `make artisan ARGS="test --filter=<Subject>"`
 (**один `--filter` за прогон** — второй игнорируется Symfony Console, не Laravel-баг).
 
-Browser acceptance uses pinned `@playwright/test` 1.62.1 with Chromium. Run
-`bash docker/tests/clean-install-e2e.sh` only from a clean tracked tree and provide
-`E2E_ADMIN_EMAIL` plus `E2E_ADMIN_PASSWORD_FILE`; the runner creates its own Compose project,
-database/media volumes, auth state, traces and teardown. It never uses the owner's running stack.
+Browser acceptance uses pinned `@playwright/test` 1.62.1 with Chromium.
+`bash docker/tests/clean-install-e2e.sh` creates a detached worktree from exact `HEAD`, its own
+Compose project, database/media volumes, auth state, traces and teardown. By default it creates
+candidate-local one-time administrator credentials; `E2E_ADMIN_EMAIL` and
+`E2E_ADMIN_PASSWORD_FILE` are optional explicit overrides. It never uses the owner's running stack.
 
-Private-documentation release acceptance is `make documentation:acceptance` with the same two
-variables. It composes the focused Pest corpus, reproducible VitePress/image checks and the isolated
-Playwright run; it must run from the committed candidate, not a dirty development tree.
+Private-documentation release acceptance is `make documentation:acceptance` without required
+external credential inputs. It composes active-SVG rejection, the focused Pest corpus, clean
+vendor/VitePress/image checks and the isolated Playwright hash/header/logout/revoke run; its
+candidate and image anchors are printed for the release evidence report.
 
 ## Правила
 

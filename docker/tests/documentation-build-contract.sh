@@ -3,11 +3,24 @@
 set -euo pipefail
 
 root_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)
+
+if [[ "${DOCUMENTATION_BUILD_CANDIDATE:-0}" != 1 ]]; then
+    candidate=$(mktemp -d)
+    cleanup_candidate() {
+        git -C "$root_dir" worktree remove --force "$candidate" >/dev/null 2>&1 || true
+    }
+    trap cleanup_candidate EXIT
+    git -C "$root_dir" worktree add --detach "$candidate" HEAD >/dev/null
+    DOCUMENTATION_BUILD_CANDIDATE=1 bash "$candidate/docker/tests/documentation-build-contract.sh"
+    exit 0
+fi
+
 temporary_dir=$(mktemp -d)
 first_build="$temporary_dir/first"
 trap 'rm -rf "$temporary_dir"' EXIT
 
 cd "$root_dir"
+bash "$root_dir/docker/scripts/vendor-sync.sh" --composer-check
 pnpm install --frozen-lockfile
 pnpm documentation:build
 cp -a var/private-documentation "$first_build"
@@ -37,6 +50,7 @@ await failure('symlink', async (site) => symlink('/etc/passwd', join(site, 'esca
 await failure('extension', async (site) => writeFile(join(site, 'payload.exe'), 'binary'));
 await failure('percent-path', async (site) => writeFile(join(site, 'asset%2f.html'), 'content'));
 await failure('remote-script', async (site) => writeFile(join(site, 'index.html'), '<script src="https://example.test/payload.js"></script>'));
+await failure('active-svg', async (site) => writeFile(join(site, 'active.svg'), '<svg xmlns="http://www.w3.org/2000/svg"><script>alert(document.domain)</script></svg>'));
 NODE
 
 image="agelto-documentation-contract:$RANDOM"

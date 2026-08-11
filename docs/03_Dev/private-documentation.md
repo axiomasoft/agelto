@@ -26,7 +26,8 @@ JS/CSS/fonts, traversal/symlink escape, MIME sniffing, кэш после logout 
   `var/private-documentation/site`, вне `public`, writable `storage` и Compose volumes.
 - Build сначала проверяет complete tree, затем публикует только отсортированный manifest
   `{path, mime, sha256}` и соответствующие ему bytes. Symlink, unsafe path, неизвестное
-  расширение и remote executable resource отвергаются.
+  расширение, SVG и remote executable resource отвергаются. SVG не санитизируется и не
+  компенсируется CSP: active same-origin document отсутствует в artifact contract целиком.
 - Проверка выполняется `make documentation:check`: она доказывает два byte-identical build,
   hostile fixtures и placement read-only artifact в application image. Изменение `docs/` — это
   frontend/image input; `prod:deploy:code` для него не является допустимым carrier.
@@ -37,7 +38,7 @@ pnpm как production-serving dependency.
 ## Serving и authorization
 
 Один именованный Laravel GET/HEAD wildcard route владеет HTML, nested pages, CSS, JavaScript, JSON,
-SVG/images и fonts. Он требует authenticated user и enum-aware AzGuard permission
+raster images и fonts. Он требует authenticated user и enum-aware AzGuard permission
 `DocumentationPermission::View` для panel `admin` до обращения к filesystem. Controller остаётся
 HTTP-only: authorization, locator, `response()->file()` и headers; normalisation, manifest, MIME и
 containment принадлежат locator service.
@@ -79,18 +80,21 @@ VitePress 1.6.4 build содержит inline bootstrap scripts и style attribu
 | P4.2 | build, verifier, manifest и image boundary | deterministic tree/manifest, no public or writable runtime artifact |
 | P4.3 | locator, route и response policy | traversal/containment/MIME/404 corpus и header parity |
 | P4.4 | permission enum и Filament discovery | SuperAdmin allowed; Analyst/Operator/roleless/direct URL denied as specified |
-| P4.5 | adversarial acceptance | guest/403/404 body-leak checks, browser assets, no-store and image inspection |
+| P4.5/P4.6 | adversarial acceptance/remediation | active-SVG rejection, guest/403/404 body-leak checks, exact browser hash/headers, logout/revoke denial and image inspection |
 | P12 | release rehearsal | clean-host build/deploy/recovery proves image-contained docs without host generation |
 
 ## P4 acceptance carrier
 
 `make documentation:acceptance` runs the item-owned carrier: focused Pest access/traversal/MIME
 datasets, deterministic documentation build and image checks, then the isolated Chromium
-clean-install flow. It requires `E2E_ADMIN_EMAIL` and `E2E_ADMIN_PASSWORD_FILE`; the runner is
-started from a clean committed candidate so it never reuses an operator's Compose project, database,
-volumes, cookies or browser cache. Browser evidence covers root/nested artifact loading, direct
-representative MIME requests, every observed documentation response's `private, no-store` header,
-no console/page/CSP failures and the post-logout direct reload denial.
+clean-install flow. The runner checks out exact `HEAD` into a detached worktree, materializes the
+pinned private vendor through `vendor-sync.sh` and generates candidate-local one-time administrator
+credentials when `E2E_ADMIN_EMAIL`/`E2E_ADMIN_PASSWORD_FILE` are not supplied. It never reuses an
+operator's Compose project, database, volumes, cookies or browser cache. Browser evidence covers
+root/nested loading, exact manifest body SHA-256/MIME/CSP/nosniff/referrer/CORP/cache headers for
+representative HTML/CSS/JS/JSON/font entries, no console/page/CSP failures and direct asset denial
+after both logout and SuperAdmin permission revocation. Output names the full candidate SHA and
+application image digest.
 
 The release contract is D7, D17, D18, D26, D27 and APP-07–APP-10 of
 `plans/2026.08.09-RELEASE-READINESS/root/contracts/release-readiness-v1.md`. Any change to the

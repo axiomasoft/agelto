@@ -2,11 +2,10 @@
 set -euo pipefail
 
 root_dir=$(git rev-parse --show-toplevel)
-password_file=${E2E_ADMIN_PASSWORD_FILE:?E2E_ADMIN_PASSWORD_FILE is required}
-admin_email=${E2E_ADMIN_EMAIL:?E2E_ADMIN_EMAIL is required}
+password_file=${E2E_ADMIN_PASSWORD_FILE:-}
+admin_email=${E2E_ADMIN_EMAIL:-p4-acceptance@example.test}
 
-[[ -r "$password_file" ]] || { echo 'E2E admin password file is not readable' >&2; exit 2; }
-[[ -z "$(git status --porcelain)" ]] || { echo 'Clean-install E2E refuses a dirty source tree' >&2; exit 2; }
+[[ -z "$password_file" || -r "$password_file" ]] || { echo 'E2E admin password file is not readable' >&2; exit 2; }
 ! rg -n '^\s*container_name:' "$root_dir"/docker-compose*.yml >/dev/null
 
 run_id="e2e-$(date +%s)-$RANDOM"
@@ -67,7 +66,15 @@ cleanup() {
 trap cleanup EXIT
 
 git -C "$root_dir" worktree add --detach "$candidate" HEAD >/dev/null
-cp "$password_file" "$candidate/.e2e-admin-password"
+if [[ -n "$password_file" ]]; then
+    cp "$password_file" "$candidate/.e2e-admin-password"
+else
+    python3 - <<'PY' > "$candidate/.e2e-admin-password"
+import secrets
+print(secrets.token_urlsafe(48))
+PY
+fi
+password_file="$candidate/.e2e-admin-password"
 chmod 600 "$candidate/.e2e-admin-password"
 python3 - "$candidate/.env.example" "$e2e_env" "$app_port" "$pgsql_port" "$redis_port" "$minio_port" "$minio_console_port" <<'PY'
 import re
@@ -90,12 +97,14 @@ PY
 cp "$e2e_env" "$candidate/.env"
 
 cd "$candidate"
+candidate_sha=$(git rev-parse HEAD)
+image_tag="p4-${candidate_sha:0:12}"
 pnpm install --frozen-lockfile
 pnpm documentation:build
 pnpm exec playwright install chromium
 make vendor:sync
 composer install --no-scripts --no-interaction --no-progress
-COMPOSE_PROJECT_NAME="$project" make bootstrap MODE=dev ENV_FILE=.env.e2e ADMIN_PASSWORD_FILE=.e2e-admin-password
+COMPOSE_PROJECT_NAME="$project" IMAGE_TAG="$image_tag" make bootstrap MODE=dev ENV_FILE=.env.e2e ADMIN_PASSWORD_FILE=.e2e-admin-password
 
 readiness_green=false
 for _ in $(seq 1 45); do
@@ -117,4 +126,10 @@ E2E_ADMIN_EMAIL="$admin_email" \
 E2E_ADMIN_PASSWORD_FILE="$candidate/.e2e-admin-password" \
 E2E_AUTH_FILE="$output_dir/admin.json" \
 E2E_OUTPUT_DIR="$output_dir" \
+E2E_COMPOSE_PROJECT="$project" \
+E2E_COMPOSE_ENV_FILE="$e2e_env" \
 pnpm exec playwright test
+
+image_id=$(docker image inspect --format '{{.Id}}' "agelto/app:$image_tag")
+[[ "$image_id" == sha256:* ]] || { echo 'Application image digest is invalid' >&2; exit 1; }
+printf 'P4_CANDIDATE_SHA=%s\nP4_APPLICATION_IMAGE=%s\n' "$candidate_sha" "$image_id"
