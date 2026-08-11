@@ -27,6 +27,9 @@ JS/CSS/fonts, traversal/symlink escape, MIME sniffing, кэш после logout 
 - Build сначала проверяет complete tree, затем публикует только отсортированный manifest
   `{path, mime, sha256}` и соответствующие ему bytes. Symlink, unsafe path, неизвестное
   расширение и remote executable resource отвергаются.
+- Проверка выполняется `make documentation:check`: она доказывает два byte-identical build,
+  hostile fixtures и placement read-only artifact в application image. Изменение `docs/` — это
+  frontend/image input; `prod:deploy:code` для него не является допустимым carrier.
 
 Изменение source documentation требует нового image artifact. Runtime image не содержит Node или
 pnpm как production-serving dependency.

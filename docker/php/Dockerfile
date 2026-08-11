@@ -85,7 +85,9 @@ COPY package.json pnpm-lock.yaml ./
 RUN corepack enable && pnpm install --frozen-lockfile
 COPY resources ./resources
 COPY vite.config.js ./
-RUN pnpm build
+COPY docs ./docs
+COPY scripts/documentation ./scripts/documentation
+RUN pnpm build && pnpm documentation:build
 
 FROM runtime-base AS dependencies
 WORKDIR /var/www/html
@@ -100,10 +102,12 @@ ARG VENDOR_LOCK_SHA
 COPY --exclude=local/vendors/azguard --chown=www-data:www-data . /var/www/html
 COPY --from=dependencies --chown=www-data:www-data /var/www/html/vendor /var/www/html/vendor
 COPY --from=frontend --chown=www-data:www-data /build/public/build /var/www/html/public/build
+COPY --from=frontend --chown=www-data:www-data /build/var/private-documentation /var/private-documentation
 RUN rm -f .env \
     && mkdir -p storage/framework/{cache,sessions,views} storage/logs bootstrap/cache \
     && install -d -m 0755 /usr/share/agelto \
     && printf '%s\\n' "$VENDOR_LOCK_SHA" > /usr/share/agelto/vendor-lock.sha \
+    && chmod -R a-w /var/private-documentation \
     && chown -R www-data:www-data storage bootstrap/cache
 LABEL org.opencontainers.image.revision="${SOURCE_SHA}" \
       io.agelto.vendor-lock-sha="${VENDOR_LOCK_SHA}"

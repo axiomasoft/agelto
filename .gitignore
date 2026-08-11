@@ -82,7 +82,9 @@ AUDIT.md
 tmp/
 
 # Сборка vitepress — генерируемая статика, не храним в репозитории
+docs/.vitepress/cache/
 docs/.vitepress/dist/
+/var/private-documentation/
 
 # Old/ — архив v1 (см. 07-carryover-from-v1.md); те же build-артефакты, что и раньше,
 # но корневые паттерны выше (/vendor, /node_modules и т.д.) на подпуть не распространяются

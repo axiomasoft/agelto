@@ -14,7 +14,7 @@ status: living
 | Роль | С чего начать |
 |---|---|
 | **Владелец/менеджмент** | [Обзор продукта](01_Business/overview.md) → [дорожная карта](01_Business/roadmap.md) → [процессы бизнес-языком](02_Workflow/_index.md) |
-| **Оператор админки** | [Роутер операторов](04_Operators/_index.md) → [статусы и колонки](04_Operators/reference/statuses.md) → SOP в [how-to/](04_Operators/how-to/) |
+| **Оператор админки** | [Роутер операторов](04_Operators/_index.md) → [статусы и колонки](04_Operators/reference/statuses.md) → SOP в [роутере операторов](04_Operators/_index.md) |
 | **Разработчик** (новый в проекте) | [Требования и запуск](03_Dev/getting-started.md) → [архитектура](03_Dev/architecture.md) → [пайплайн своей задачи](03_Dev/_index.md) |
 | **DevOps** | [Docker: обзор](03_Dev/docker/index.md) → [production](03_Dev/docker/production.md) → [деплой](03_Dev/process/deploy.md) |
 | **AI-агент** | [Устройство `.ai/`-контура](03_Dev/ai-context/index.md) → [сценарии работы](03_Dev/ai-context/scenarios.md) |
