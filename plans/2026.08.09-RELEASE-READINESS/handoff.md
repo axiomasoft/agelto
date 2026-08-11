@@ -1,64 +1,56 @@
-# HANDOFF — 2026-08-11 — after P5.1
+# HANDOFF — 2026-08-11 — after P5.2
 
-**Next:** ЗАПУСК ВРУЧНУЮ: implementation/high
+**Next:** design-item: task:plan-design 2026.08.09-RELEASE-READINESS P5.2
 
 | Параметр | Значение |
 |:--|:--|
-| Model | implementation |
-| Thinking | high — dependency и worker-freshness contract |
-| Context | continue-root |
-| Суть | Реализовать optional typed crawler/parser proxy settings carrier P5.2 по D28 |
-| Команда | — |
+| Model | frontier |
+| Thinking | high — resolve immutable migration-order conflict |
+| Context | cold-start-root |
+| Суть | Изменить P5.2 contract так, чтобы settings schema существовала до settings migration |
+| Команда | `$ task:plan-design 2026.08.09-RELEASE-READINESS P5.2` |
 
 ```text
-select the session model class: implementation
-select the session effort: high
-$ task:plan-run 2026.08.09-RELEASE-READINESS P5.2
+$ task:plan-design 2026.08.09-RELEASE-READINESS P5.2
 ```
 
 ### Native Codex launch-block
 
 ```bash
-codex -C /home/vostrikov/projects/agelto/agelto -m gpt-5.6-terra -c 'model_reasoning_effort="high"' -a never -s danger-full-access '$ task:plan-run 2026.08.09-RELEASE-READINESS P5.2'
+codex -C /home/vostrikov/projects/agelto/agelto -m gpt-5.6-sol -c 'model_reasoning_effort="high"' -a never -s danger-full-access '$ task:plan-design 2026.08.09-RELEASE-READINESS P5.2'
 ```
 
 **Done:**
 
-- P5.1 product commit `41e4e7cb` reconciles terminal P0 evidence, current proxy call sites,
-  official Spatie evidence and P5/P10/P12 consumers; D28/D29 remain stable.
-- D73 нормализует future Validation P5.3–P5.5 до одного item-owned carrier без product mutation.
-- Повторный downstream-gate на `41e4e7cb` вернул `unknown`, `blocks=false` для P5.2–P5.5;
-  historical RED records сохранены как provenance.
-- P5.1 append-only reconciliation завершена: state снова `🟢 Done`, Task Contract
-  `pre_mutation=allow`, `pre_final=allow`.
+- P5.2 подтвердил совместимость `spatie/laravel-settings` 3.9.0 с locked PHP/Laravel tree и
+  materialized package/config/settings migration scaffolds in the working tree.
+- `bash docker/tests/p5.2-settings-contract.sh` воспроизводимо остановился на clean `agelto_test`:
+  settings migration `2026_08_09_100000` запускается до required schema migration
+  `2026_08_09_100086`, поэтому `prc_settings` отсутствует.
+- Journal run `5e4b869e28af53a2842342560696bdf6e5738f425affcd752eccf27d5772ab43` terminalized as
+  `escalated`; generated state is `🔴 Blocked`.
 
 **Remaining:**
 
-- P5.2–P5.5 исполняются последовательно по phase contract; P5.2 — следующий item.
-- Каждый будущий item создаёт свой объявленный carrier и только затем запускает полную собственную
-  acceptance-матрицу.
+- Owner/design must choose and record one safe migration topology (including any exact filename
+  changes) before P5.2 can resume.
+- The uncommitted P5.2 carrier implementation remains in the worktree for that decision; it is not
+  an item commit and has not passed the declared acceptance carrier.
 
 **Sources of truth:**
 
-- `phases/P5/P5.1.md`, `phases/P5/P5.1.state.md`, `bundles/P5.1.json`.
-- `decisions/D73-p51-future-consumer-carriers.md`.
-- `findings/P5.1-return-downstream-resolution-2026-08-11.md` и keyed downstream records на
-  producer `41e4e7cb`.
-- Product commit `41e4e7cb`; original run
-  `cf87730911b14555849a100b2d5c8e1d6fe1b019e3e4ac37ce984e2b62202f44`.
+- `phases/P5/P5.2.md`, `phases/P5/P5.2.state.md`, `bundles/P5.2.json`.
+- `journal.jsonl` lines 193–194 and `docker/tests/p5.2-settings-contract.sh`.
+- `decisions/D28-proxy-settings-carrier.md`.
 
 **Open risks:**
 
-- Marketplace working-copy `route_evidence` уже запрещает route-bearing `self-attested`, тогда как
-  native v0.11.1 adapter этой сессии предписывает его; canonical installed adapter прошёл Task
-  Contract, а marketplace-root lint/views используются по AGENTS.md. Это version-skew harness,
-  не blocker P5.2.
-- Исторический преждевременный P5.5 full-suite run показал seeder duplicate-record failures; это не
-  evidence P5.1 и будет проверено штатным carrier P5.5 на его product tree.
+- The immutable P5.2 `Files` contract assigns a settings migration timestamp earlier than the
+  schema migration it requires. Silently changing either timestamp would invalidate the frozen
+  contract and can alter a deployed migration history.
 
 **Workarounds/Deferred/Open questions:**
 
 - Workarounds: none accepted.
-- Deferred: plugin adapter/runtime version-skew — candidate для синхронизации Swissknifeman вне
-  product scope этого плана.
-- Open questions: none.
+- Deferred: P5.3–P5.5 remain phase-blocked by P5.2.
+- Open questions: which migration topology and filename contract does the owner approve?
