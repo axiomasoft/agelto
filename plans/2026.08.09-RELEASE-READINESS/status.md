@@ -3,7 +3,7 @@ projection: status-view
 projection_version: v1
 source_scope: plan core + phases + journal
 through: 2026-08-11
-inputs_sha256: 03e46a89b80b713dff3ab2b1696b92c121b7482e1d80fd3689b6300a3f89508c
+inputs_sha256: 4e3a6ca1f56f38370246a3aa37169d986d650c1b36719c02393717d3928ecbbd
 generated_by: task plan-views status
 -->
 
@@ -31,7 +31,7 @@ generated_by: task plan-views status
 | P2 | Local vendor, secrets, preflight, bootstrap и Laravel Doctor | 7/7 | 🟢 Done |
 | P3 | Fresh install, Livewire/Filament assets и application readiness | 5/5 | 🟢 Done |
 | P4 | Закрытая production-документация вне public | 4/6 | 🟠 Done with deviations |
-| P5 | Default proxy settings и трёхуровневый resolve | 3/5 | 🟡 In progress |
+| P5 | Default proxy settings и трёхуровневый resolve | 4/5 | 🟡 In progress |
 | P6 | File handler registry, архивы и дочерняя обработка | 0/6 | ⬜ Not started |
 | P7 | Document type, summary, estimates и tags | 0/6 | ⬜ Not started |
 | P8 | Расширяемость platforms и гибкие status mappings | 0/5 | ⬜ Not started |
@@ -136,7 +136,7 @@ generated_by: task plan-views status
 | P5.1 | Проаудировать текущие ProxyResolver, profile, scopes, health и parser call sites | 🟢 Done | 2026-08-11 |
 | P5.2 | Внедрить optional typed crawler/parser proxy settings carrier | 🟢 Done | 2026-08-11 |
 | P5.3 | Реализовать precedence profile → default → direct через ProxyResolver | 🟢 Done | 2026-08-11 |
-| P5.4 | Добавить понятные Filament settings и secret-safe validation | ⬜ Not started | — |
+| P5.4 | Добавить понятные Filament settings и secret-safe validation | 🟢 Done | 2026-08-11 |
 | P5.5 | Покрыть три уровня, health axes, no-proxy и Playwright separation тестами | ⬜ Not started | — |
 
 ## Phase P6
@@ -388,6 +388,9 @@ generated_by: task plan-views status
 | 2026-08-11 | frontier/high | plan-design · in-progress · ТЗ P5.3 доведено до DoR: listing proxy_source явно проходит ListingBatch/CsvBlockIngestor; scope conflict снят без изменения D29. |
 | 2026-08-11 | implementation/high | plan-run · in-progress · P5.3 resumed after scoped re-design commit 74fed218. |
 | 2026-08-11 | implementation/high | plan-run · closed-green · P5.3 typed crawler proxy precedence 674ae628; 40 focused tests and Pint green. |
+| 2026-08-11 | implementation/high | plan-run · in-progress · P5.4 started: replace stale use_proxy UI with typed settings and mode UX. |
+| 2026-08-11 | gpt-5.6-terra/high | plan-run · in-progress · P5.4 resumed: implement authorized secret-safe settings and typed proxy mode UX. |
+| 2026-08-11 | gpt-5.6-terra/high | plan-run · closed-green · P5.4: authorized secret-safe proxy settings page and typed crawler mode UX verified. |
 
 ## Owner Gates
 

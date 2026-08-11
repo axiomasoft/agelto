@@ -1,6 +1,6 @@
-# HANDOFF — 2026-08-11 — after P5.3
+# HANDOFF — 2026-08-11 — after P5.4
 
-**Next:** run-items: task:plan-run 2026.08.09-RELEASE-READINESS P5.3
+**Next:** ЗАПУСК ВРУЧНУЮ: implementation/high
 
 | Параметр | Значение |
 |:--|:--|
@@ -8,42 +8,41 @@
 | Effort | high |
 | Capabilities | — |
 | Context | continue-root |
-| Суть | Реализовать P5.3 по расширенному typed listing-source contract. |
+| Суть | Выполнить P5.5: сквозное acceptance-доказательство profile/default/direct, health и tooling separation. |
 | Команда | — |
 
 ```text
-$ task:plan-run 2026.08.09-RELEASE-READINESS P5.3
+$ task:plan-run 2026.08.09-RELEASE-READINESS P5.5
 ```
 
 ### Native Codex launch-block
 
 ```bash
-codex -C /home/vostrikov/projects/agelto/agelto -m gpt-5.6-terra -c 'model_reasoning_effort="high"' -a never -s danger-full-access '$ task:plan-run 2026.08.09-RELEASE-READINESS P5.3'
+codex -C /home/vostrikov/projects/agelto/agelto -m gpt-5.6-terra -c 'model_reasoning_effort="high"' -a never -s danger-full-access '$ task:plan-run 2026.08.09-RELEASE-READINESS P5.5'
 ```
 
 **Done:**
 
-- P5.3 plan scope now includes the existing `CsvSourceMethod` → `ListingBatch` → `CsvBlockIngestor` → `FetchLogger` source path and its focused persistence test.
-- The sealed D29 semantics are unchanged: `proxy_source` is carried explicitly and is never inferred from nullable `proxy_id`.
-- The execution escalation is resolved through append-only journal reconciliation; no application code was changed by plan design.
+- P5.4 item commit `8824adf6` adds the `ProxyPermission::Update`-gated crawler proxy settings page and Action-owned nullable default-ID save with exact active/all-crawler-scope revalidation.
+- Crawler Filament UX now explains and reacts to `profile` / `default` / `direct`; credentials remain absent from page state, labels, notifications and settings storage.
+- `bash docker/tests/p5.4-proxy-filament-contract.sh` passed: 19 tests / 130 assertions (на `8824adf6`), test-DB preflight, direct-route denial, secret scans, v5 namespace checks, Pint and `git diff --check`.
 
 **Remaining:**
 
-- Execute and close P5.3 product work through its item-owned validation carrier.
-- P5.4–P5.5 remain dependent on terminal P5.3 runtime evidence.
+- P5.5 remains the phase acceptance carrier for runtime precedence, health and external-tooling separation.
 
 **Sources of truth:**
 
-- `phases/P5/P5.3.md`, `phases/P5/P5.3.state.md`, `bundles/P5.3.json`.
-- `decisions/D8-proxy-precedence.md`, `decisions/D29-proxy-route-semantics.md`.
-- `brief/01-refinements.md` and `journal.jsonl` P5.3 attempt history.
+- `phases/P5/P5.4.md`, `phases/P5/P5.4.state.md`, `bundles/P5.4.json`, `journal.jsonl` P5.4 attempt 2.
+- `decisions/D28-proxy-settings-carrier.md`, `decisions/D29-proxy-route-semantics.md`.
+- `docker/tests/p5.4-proxy-filament-contract.sh` and `findings/P5.4-downstream-*.md`.
 
 **Open risks:**
 
-- Any implementation that derives `proxy_source` from nullable `proxy_id` still violates D29 and must stop.
+- `plan-downstream.py --record` wrote RED records for future P8/P9 consumers because their validation prose is executed as host commands (including bare expected-empty `rg` and unavailable future commands). These are Task-runtime/downstream-gate defects, not P5.4 failures; do not treat them as P5.5 runtime evidence. Resolve the gate interpretation before closing a future producer that depends on those consumers.
 
 **Workarounds/Deferred/Open questions:**
 
 - Workarounds: none accepted.
-- Deferred: product implementation belongs to the next `plan-run`.
+- Deferred: P8/P9 downstream-gate interpretation needs Task-runtime remediation outside P5.4 scope.
 - Open questions: none.
