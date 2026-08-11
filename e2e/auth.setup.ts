@@ -19,7 +19,7 @@ test('аутентифицирует initial administrator через Livewire',
     await page.getByRole('textbox', { name: /^password/i }).fill(password);
 
     const livewireUpdate = page.waitForResponse((response) => (
-        response.url().includes('/livewire/update')
+        /\/livewire-[^/]+\/update(?:\?|$)/.test(response.url())
         && response.request().method() === 'POST'
     ));
 
