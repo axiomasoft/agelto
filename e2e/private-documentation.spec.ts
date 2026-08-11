@@ -71,7 +71,8 @@ test('загружает закрытую документацию без browse
         expect(result.status, entry.path).toBe(200);
         expect(createHash('sha256').update(Buffer.from(result.body)).digest('hex'), entry.path).toBe(entry.sha256);
         expect(result.headers['content-type'], entry.path).toBe(entry.mime);
-        expect(result.headers['cache-control'], entry.path).toBe('private, no-store');
+        expect(result.headers['cache-control'].split(',').map((directive) => directive.trim()).sort(), entry.path)
+            .toEqual(['no-store', 'private']);
         expect(result.headers['x-content-type-options'], entry.path).toBe('nosniff');
         expect(result.headers['referrer-policy'], entry.path).toBe('no-referrer');
         expect(result.headers['cross-origin-resource-policy'], entry.path).toBe('same-origin');
