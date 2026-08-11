@@ -89,10 +89,11 @@ test('загружает закрытую документацию без browse
 
     const composeProject = process.env.E2E_COMPOSE_PROJECT;
     const composeEnvFile = process.env.E2E_COMPOSE_ENV_FILE;
+    const composeFile = process.env.E2E_COMPOSE_FILE;
     const adminEmail = process.env.E2E_ADMIN_EMAIL;
 
-    if (!composeProject || !composeEnvFile || !adminEmail) {
-        throw new Error('E2E_COMPOSE_PROJECT, E2E_COMPOSE_ENV_FILE and E2E_ADMIN_EMAIL are required.');
+    if (!composeProject || !composeEnvFile || !composeFile || !adminEmail) {
+        throw new Error('E2E_COMPOSE_PROJECT, E2E_COMPOSE_ENV_FILE, E2E_COMPOSE_FILE and E2E_ADMIN_EMAIL are required.');
     }
 
     const revokedContext = await browser.newContext({ storageState: authFile });
@@ -105,7 +106,7 @@ test('загружает закрытую документацию без browse
         '--project-directory', resolve('.'),
         '--project-name', composeProject,
         '--env-file', composeEnvFile,
-        '-f', resolve('docker-compose.yml'),
+        '-f', composeFile,
         'exec', '-T', 'app', 'php', 'artisan',
     ];
     execFileSync('docker', [...composeArguments, 'guard:role', 'detach', adminEmail, 'App\\Guards\\Admin\\Roles\\SuperAdminRole'], { stdio: 'pipe' });

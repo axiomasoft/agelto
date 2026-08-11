@@ -14,6 +14,7 @@ chmod 755 "$candidate"
 project="agelto_${run_id//-/_}"
 output_dir="$candidate/.e2e/$run_id"
 e2e_env="$candidate/.env.e2e"
+compose_file="$candidate/docker-compose.prod.yml"
 
 mapfile -t isolated_ports < <(python3 - <<'PY'
 import random
@@ -48,12 +49,12 @@ cleanup() {
     local exit_status=$?
 
     if (( exit_status != 0 )); then
-        if ! docker compose --project-directory "$candidate" --project-name "$project" --env-file "$e2e_env" -f "$candidate/docker-compose.yml" logs --tail 100 app >&2; then
+        if ! docker compose --project-directory "$candidate" --project-name "$project" --env-file "$e2e_env" -f "$compose_file" logs --tail 100 app >&2; then
             echo "Could not collect app logs for isolated Compose project $project" >&2
         fi
     fi
 
-    if ! docker compose --project-directory "$candidate" --project-name "$project" --env-file "$e2e_env" -f "$candidate/docker-compose.yml" down --remove-orphans >/dev/null 2>&1; then
+    if ! docker compose --project-directory "$candidate" --project-name "$project" --env-file "$e2e_env" -f "$compose_file" down --remove-orphans >/dev/null 2>&1; then
         echo "Could not fully tear down isolated Compose project $project" >&2
     fi
 
@@ -70,6 +71,8 @@ cleanup() {
 trap cleanup EXIT
 
 git -C "$root_dir" worktree add --detach "$candidate" HEAD >/dev/null
+candidate_sha=$(git -C "$candidate" rev-parse HEAD)
+image_tag="p4-${candidate_sha:0:12}"
 if [[ -n "$password_file" ]]; then
     cp "$password_file" "$candidate/.e2e-admin-password"
 else
@@ -80,7 +83,7 @@ PY
 fi
 password_file="$candidate/.e2e-admin-password"
 chmod 600 "$candidate/.e2e-admin-password"
-python3 - "$candidate/.env.example" "$e2e_env" "$admin_email" "$app_port" "$pgsql_port" "$redis_port" "$minio_port" "$minio_console_port" <<'PY'
+python3 - "$candidate/.env.example" "$e2e_env" "$admin_email" "$image_tag" "$project" "$app_port" "$pgsql_port" "$redis_port" "$minio_port" "$minio_console_port" <<'PY'
 import re
 import sys
 from pathlib import Path
@@ -88,9 +91,13 @@ from pathlib import Path
 source = Path(sys.argv[1])
 destination = Path(sys.argv[2])
 admin_email = sys.argv[3]
-ports = sys.argv[4:]
+image_tag = sys.argv[4]
+project = sys.argv[5]
+ports = sys.argv[6:]
 values = dict(zip(('APP_PORT', 'PGSQL_PORT', 'REDIS_PORT', 'MINIO_PORT', 'MINIO_CONSOLE_PORT'), ports, strict=True))
 values['ADMIN_EMAIL'] = admin_email
+values['IMAGE_TAG'] = image_tag
+values['COMPOSE_PROJECT_NAME'] = project
 content = source.read_text()
 for name, port in values.items():
     content, count = re.subn(rf'^{name}=.*$', f'{name}={port}', content, flags=re.MULTILINE)
@@ -103,18 +110,23 @@ PY
 cp "$e2e_env" "$candidate/.env"
 
 cd "$candidate"
-candidate_sha=$(git rev-parse HEAD)
-image_tag="p4-${candidate_sha:0:12}"
 pnpm install --frozen-lockfile
 pnpm documentation:build
 pnpm exec playwright install chromium
 make vendor:sync
 composer install --no-scripts --no-interaction --no-progress
-COMPOSE_PROJECT_NAME="$project" IMAGE_TAG="$image_tag" make bootstrap MODE=dev ENV_FILE=.env.e2e ADMIN_PASSWORD_FILE=.e2e-admin-password
+COMPOSE_PROJECT_NAME="$project" IMAGE_TAG="$image_tag" make bootstrap MODE=prod-build ENV_FILE=.env.e2e
+
+compose=(docker compose --project-directory "$candidate" --project-name "$project" --env-file "$e2e_env" -f "$compose_file")
+"${compose[@]}" up -d postgres redis minio app horizon scheduler
+"${compose[@]}" exec -T app sh -ec 'mc alias set agelto-bootstrap "$AWS_ENDPOINT" "$AWS_ACCESS_KEY_ID" "$(cat "$AWS_SECRET_ACCESS_KEY_FILE")" >/dev/null && mc mb --ignore-existing "agelto-bootstrap/$AWS_BUCKET" >/dev/null'
+"${compose[@]}" run --rm --no-deps app php artisan migrate --force
+"${compose[@]}" run --rm --no-deps app php artisan db:seed --class=Database\\Seeders\\BaseSeeder --force
+"${compose[@]}" run --rm --no-deps -v "$password_file:/run/secrets/initial_admin_password:ro" app php artisan admin:create-initial --email="$admin_email" --password-file=/run/secrets/initial_admin_password
 
 readiness_green=false
 for _ in $(seq 1 45); do
-    if COMPOSE_PROJECT_NAME="$project" make readiness:check ENV_FILE=.env.e2e; then
+    if "${compose[@]}" exec -T -e ADMIN_EMAIL="$admin_email" app php artisan app:readiness --format=agent; then
         readiness_green=true
         break
     fi
@@ -134,6 +146,7 @@ E2E_AUTH_FILE="$output_dir/admin.json" \
 E2E_OUTPUT_DIR="$output_dir" \
 E2E_COMPOSE_PROJECT="$project" \
 E2E_COMPOSE_ENV_FILE="$e2e_env" \
+E2E_COMPOSE_FILE="$compose_file" \
 pnpm exec playwright test
 
 image_id=$(docker image inspect --format '{{.Id}}' "agelto/app:$image_tag")
