@@ -70,8 +70,10 @@ values = dict(zip(('APP_PORT', 'PGSQL_PORT', 'REDIS_PORT', 'MINIO_PORT', 'MINIO_
 content = source.read_text()
 for name, port in values.items():
     content, count = re.subn(rf'^{name}=.*$', f'{name}={port}', content, flags=re.MULTILINE)
-    if count != 1:
-        raise SystemExit(f'Expected exactly one {name} entry in E2E environment')
+    if count > 1:
+        raise SystemExit(f'Expected at most one {name} entry in E2E environment')
+    if count == 0:
+        content += f'\n{name}={port}\n'
 destination.write_text(content)
 PY
 
