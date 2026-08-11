@@ -3,7 +3,7 @@ projection: status-view
 projection_version: v1
 source_scope: plan core + phases + journal
 through: 2026-08-11
-inputs_sha256: 54a6c4cd102db74a1fb832e92285c8681bee8199cdd6bba72d6c85ac8bc52222
+inputs_sha256: b13d8e844e0acd7d1f1c78b5f85d13d2e1afdba6e98f1345cb020fbff0174bd2
 generated_by: task plan-views status
 -->
 
@@ -125,7 +125,7 @@ generated_by: task plan-views status
 | P4.1 | Сверить upstream evidence и заморозить threat/build/serving contract | 🟢 Done | 2026-08-11 |
 | P4.2 | Собирать VitePress atomically вне public и включать в immutable image | 🟢 Done | 2026-08-11 |
 | P4.3 | Реализовать manifest-backed locator и единый secure controller | 🟢 Done | 2026-08-11 |
-| P4.4 | Подключить AzGuard permission и Filament navigation без обходных routes | ⬜ Not started | — |
+| P4.4 | Подключить AzGuard permission и Filament navigation без обходных routes | 🟠 Done with deviations | 2026-08-11 |
 | P4.5 | Доказать access, traversal, MIME/cache, browser и image contract | ⬜ Not started | — |
 
 ## Phase P5
@@ -357,6 +357,8 @@ generated_by: task plan-views status
 | 2026-08-11 | gpt-5.6-sol/high | plan-run · closed-green · P4.2 completed: deterministic VitePress artifact and immutable image verified. Owner-approved bounded docs repairs fixed one parser token and four dead links; frontier/high route is an allowed overshoot. |
 | 2026-08-11 | gpt-5.6-terra/high | plan-run · in-progress · — |
 | 2026-08-11 | gpt-5.6-terra/high | plan-run · closed-green · Manifest-backed locator, fail-closed single route and response policy completed; carrier passed; write-site: pre_mutation: allow · pre_final: allow. |
+| 2026-08-11 | gpt-5.6-terra/high | plan-run · in-progress · — |
+| 2026-08-11 | gpt-5.6-terra/high | plan-run · closed-deviations · Enum controller and Filament link completed; docs/Filament tests and catalog validation passed; write-site: pre_mutation: allow · pre_final: allow; guard:doctor and full PHPStan legacy errors remain. |
 
 ## Owner Gates
 
@@ -364,3 +366,4 @@ generated_by: task plan-views status
 - P0.4: known deviation
 - P0.5: known deviation
 - P4.2: known deviation
+- P4.4: known deviation
