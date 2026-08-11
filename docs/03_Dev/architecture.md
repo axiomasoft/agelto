@@ -154,6 +154,14 @@ worker-контейнере `horizon`; повтор job не должен дуб
 - [`0007-ocds-as-exchange-layer.md`](adr/0007-ocds-as-exchange-layer.md) — OCDS как exchange layer, не внутренняя схема.
 - [`0008-thin-provenance-slice.md`](adr/0008-thin-provenance-slice.md) — provenance тонким срезом по оспариваемым полям, не 5 уровней.
 
+## Закрытая production-документация
+
+Исходная `docs/` и её собранный artifact не являются public-статикой: build попадает только в
+immutable application image, а HTML и каждый asset проходят единый Laravel authorization boundary.
+Контракт threat/build/serve, владельцы и будущие доказательства приведены в
+[`private-documentation.md`](private-documentation.md). Реализация этого контракта относится к P4
+release-readiness; она не создаёт отдельный публичный API или обходной Nginx-маршрут.
+
 ## Смежное
 
 - [`database.md`](database.md) — схема, FK, unique-инварианты.
