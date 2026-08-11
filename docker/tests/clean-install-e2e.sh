@@ -87,6 +87,7 @@ for name, port in values.items():
         content += f'\n{name}={port}\n'
 destination.write_text(content)
 PY
+cp "$e2e_env" "$candidate/.env"
 
 cd "$candidate"
 pnpm install --frozen-lockfile
