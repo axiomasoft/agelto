@@ -118,11 +118,12 @@ composer install --no-scripts --no-interaction --no-progress
 COMPOSE_PROJECT_NAME="$project" IMAGE_TAG="$image_tag" make bootstrap MODE=prod-build ENV_FILE=.env.e2e
 
 compose=(docker compose --project-directory "$candidate" --project-name "$project" --env-file "$e2e_env" -f "$compose_file")
-"${compose[@]}" up -d postgres redis minio app horizon scheduler
-"${compose[@]}" exec -T app sh -ec 'mc alias set agelto-bootstrap "$AWS_ENDPOINT" "$AWS_ACCESS_KEY_ID" "$(cat "$AWS_SECRET_ACCESS_KEY_FILE")" >/dev/null && mc mb --ignore-existing "agelto-bootstrap/$AWS_BUCKET" >/dev/null'
+"${compose[@]}" up -d --wait postgres redis minio
+"${compose[@]}" run --rm --no-deps app sh -ec 'mc alias set agelto-bootstrap "$AWS_ENDPOINT" "$AWS_ACCESS_KEY_ID" "$(cat "$AWS_SECRET_ACCESS_KEY_FILE")" >/dev/null && mc mb --ignore-existing "agelto-bootstrap/$AWS_BUCKET" >/dev/null'
 "${compose[@]}" run --rm --no-deps app php artisan migrate --force
 "${compose[@]}" run --rm --no-deps app php artisan db:seed --class=Database\\Seeders\\BaseSeeder --force
 "${compose[@]}" run --rm --no-deps -v "$password_file:/run/secrets/initial_admin_password:ro" app php artisan admin:create-initial --email="$admin_email" --password-file=/run/secrets/initial_admin_password
+"${compose[@]}" up -d --wait app horizon scheduler
 
 readiness_green=false
 for _ in $(seq 1 45); do
