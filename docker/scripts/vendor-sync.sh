@@ -130,7 +130,7 @@ fi
 if [[ "$composer_check" == true ]]; then
     (
         cd "$root_dir"
-        composer validate --no-check-publish
+        composer validate --strict
         composer install --dry-run --no-dev --no-scripts --no-interaction --no-progress --prefer-dist
     )
 fi
