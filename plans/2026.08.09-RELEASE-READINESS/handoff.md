@@ -1,46 +1,43 @@
-# HANDOFF — 2026-08-11 — after P5.2
+# HANDOFF — 2026-08-11 — after P5.3
 
-**Next:** run-items: task:plan-run 2026.08.09-RELEASE-READINESS P5.3
+**Next:** /task:plan-design 2026.08.09-RELEASE-READINESS P5.3
 
 | Параметр | Значение |
 |:--|:--|
 | Model | implementation |
-| Thinking | high — sealed proxy runtime semantics |
+| Thinking | high — resolve sealed scope conflict |
 | Context | continue-root |
-| Суть | Реализовать profile/default/direct precedence в P5.3 |
-| Команда | `$ task:plan-run 2026.08.09-RELEASE-READINESS P5.3` |
+| Суть | Add the minimum listing evidence carriers to P5.3 Files and acceptance. |
+| Команда | `$ task:plan-design 2026.08.09-RELEASE-READINESS P5.3` |
 
 ### Native Codex launch-block
 
 ```bash
-codex -C /home/vostrikov/projects/agelto/agelto -m gpt-5.6-terra -c 'model_reasoning_effort="high"' -a never -s danger-full-access '$ task:plan-run 2026.08.09-RELEASE-READINESS P5.3'
+codex -C /home/vostrikov/projects/agelto/agelto -m gpt-5.6-terra -c 'model_reasoning_effort="high"' -a never -s danger-full-access '$ task:plan-design 2026.08.09-RELEASE-READINESS P5.3'
 ```
 
 **Done:**
 
-- P5.2 product commit `fd286156` adds the locked Spatie Settings dependency, `prc_settings`,
-  typed nullable proxy ID and a refresh-aware reader.
-- D74 corrects the clean-migration order; the item-owned carrier passed migration, an independent
-  Artisan writer process, config cache cycle, Pint and diff checks.
-- D75 turns the future P8.3 prose validation into its own future executable carrier; P5.2
-  downstream gate is now `unknown`, `blocks=false`.
+- P5.3 pre-mutation contract allowed the current `implementation/high` session, using provider-config evidence.
+- Execution stopped before product mutation: `proxy_source` for listing fetch evidence cannot be carried to `FetchLogger` under the item’s sealed Files list.
 
 **Remaining:**
 
-- P5.3–P5.5 remain sequential runtime, UI and full-acceptance work.
+- Plan design must add the minimal carrier paths (`ListingBatch` and `CsvBlockIngestor`, or an equivalent explicit source-bearing interface) to P5.3 and its validation; then rerun P5.3.
+- P5.4–P5.5 remain dependent on a terminal P5.3 runtime carrier.
 
 **Sources of truth:**
 
-- `phases/P5/P5.2.md`, `phases/P5/P5.2.state.md`, `bundles/P5.2.json`.
-- `decisions/D28-proxy-settings-carrier.md`, `decisions/D74-p52-settings-migration-order.md`,
-  `decisions/D75-p83-future-carrier.md`.
+- `phases/P5/P5.3.md`, `phases/P5/P5.3.state.md`, `bundles/P5.3.json`.
+- `decisions/D8-proxy-precedence.md`, `decisions/D29-proxy-route-semantics.md`.
+- `journal.jsonl` P5.3 attempt 1.
 
 **Open risks:**
 
-- Production settings cache remains disabled until P5.5 proves the full runtime topology.
+- Inferring `proxy_source` from nullable `proxy_id` would conflate the required default and direct routes; D29 forbids that fallback.
 
 **Workarounds/Deferred/Open questions:**
 
 - Workarounds: none accepted.
-- Deferred: P8.3 owns its future carrier; no P8 product code was introduced here.
+- Deferred: product implementation awaits the scoped plan repair.
 - Open questions: none.
