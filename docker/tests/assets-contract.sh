@@ -18,7 +18,7 @@ case "$mode" in
     sync|repair)
         "${compose[@]}" exec -T app php artisan filament:assets --no-interaction
         "${compose[@]}" exec -T app php artisan livewire:publish --assets --no-interaction
-        "$0" check
+        bash "$0" check
         ;;
     *)
         echo 'usage: assets-contract.sh {check|sync|repair}' >&2
