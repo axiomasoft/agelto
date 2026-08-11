@@ -9,7 +9,7 @@ bash "$root_dir/docker/tests/documentation-build-contract.sh"
 bash "$root_dir/docker/tests/prod-image-contract.sh" application
 bash "$root_dir/docker/tests/clean-install-e2e.sh"
 vendor/bin/pint --test config/documentation.php app/Services/Documentation tests/Unit/Documentation tests/Feature/Documentation
-vendor/bin/phpstan analyse app/Services/Documentation tests/Unit/Documentation tests/Feature/Documentation --no-progress
+DB_CONNECTION=sqlite DB_DATABASE=:memory: vendor/bin/phpstan analyse app/Services/Documentation --no-progress --memory-limit=1G
 
 task_root=$(codex plugin marketplace list --json | python3 -c 'import json,sys,pathlib; data=json.load(sys.stdin); roots=[item["root"] for item in data.get("marketplaces", []) if item.get("name")=="swissknifeman" and (pathlib.Path(item["root"])/"packages/task/lib/task").is_dir()]; len(roots)==1 or sys.exit("task runtime unavailable: expected one marketplace root"); print(roots[0]+"/packages/task")')
 python3 "$task_root/scripts/plan-lint.py" "$root_dir/plans/2026.08.09-RELEASE-READINESS"
