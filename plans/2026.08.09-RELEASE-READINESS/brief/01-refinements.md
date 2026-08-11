@@ -189,3 +189,18 @@ exact lint baseline/count и clean product-tree anchors P1.1–P1.5; удали�
 reconciliation как immutable process deviation. P0, P2–P12, D16–D18/D25/D57/D63–D65,
 доказанные Docker/Compose/Vite/image/deploy-class semantics, historical audit/journal/findings и
 пользовательский `AGENTS.md` остаются вне scope.
+
+## 2026-08-11 — финальный reopen P2 по RED-аудиту
+
+Владелец запустил `$ task:plan-design 2026.08.09-RELEASE-READINESS P2` строго в режиме §3-reopen,
+не детализации. Scope ограничен F1–F8 блока `## Audit P2 — 2026-08-11`: полные fail-closed
+Doctor contracts; same-SHA build/publish Doctor image; replay exact preflight exits; hostile
+secret boundaries; реальные BaseSeeder/Doctor и Pest/Pint/PHPStan/Task/citation/diff suites;
+обязательные non-fake carriers P2.1/P2.2/P2.4; append-only hashes/write-site reconciliation;
+handoff/close/re-audit. Закрытые specs вне минимальной remediation, P0/P1 и чужие фазы,
+пользовательский `AGENTS.md`, private vendor source/ref сверх D19 pin остаются вне scope.
+
+Владелец отдельно постановил, что это последний design-прогон P2. После P2.7 выполняются close и
+повторный audit; если frozen acceptance выявит дополнительные дефекты, они исправляются bounded
+fix-ами без нового design-цикла. Новый product contract или выход за anti-scope по-прежнему требует
+явного решения владельца. Решение материализовано D70 и `research/19-P2-audit-remediation.md`.

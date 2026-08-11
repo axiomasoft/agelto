@@ -15,10 +15,10 @@
 | Target Operator Models | economy → gpt-5.6-luna · implementation → gpt-5.6-terra · frontier → gpt-5.6-sol |
 | Approval Owner | Dmitry Vostrikov |
 | Home | repo:/home/vostrikov/projects/agelto/agelto |
-| Design Passes | 1/1 — owner-directed сокращение D46 сохранено; D52 остаётся machine-current carrier повторного полного cross-phase `finish` для 13 фаз / 75 product/design items после добавления P0.0; D55 принимает этот design после ремедиации F9–F12; D62, D64 и D66 адресно добавили 76-й–78-й remediation-items P0.7/P1.6/P1.7; D67 исправляет только evidence topology P1.7 и разрешает targeted green closure без нового design-pass/product mutation |
+| Design Passes | 1/1 — owner-directed сокращение D46 сохранено; D52 остаётся machine-current carrier повторного полного cross-phase `finish` для 13 фаз / 75 product/design items после добавления P0.0; D55 принимает этот design после ремедиации F9–F12; D62, D64 и D66 адресно добавили 76-й–78-й remediation-items P0.7/P1.6/P1.7; D67 исправляет только evidence topology P1.7; D70 добавляет последний, 79-й remediation-item P2.7 и по прямому решению владельца завершает design-цикл P2 — далее только исполнение, close, audit и bounded fixes по уже запечатанной acceptance |
 | visibility | private |
 
-<!-- migration-version: 0.1.4 -->
+<!-- migration-version: 0.1.5 -->
 
 ## 1. Context
 
@@ -45,6 +45,7 @@ Vintera/CMS и Dterema и верифицирует внешние практик
 - Validation каждого будущего consumer входит через один item-owned executable carrier из его Files; prose/placeholder fragments и команды, которые должны стать зелёными только после реализации consumer, не исполняются downstream-gate преждевременно. D63. RAG:— (repo-grounded: `research/15-P1.1-downstream-gate-remediation.md`).
 - RED-аудит P1 закрывается одним P1.6: five-class Make/deploy surface и динамические carriers исправляются product-коммитами, P1.1–P1.5 closure evidence — только append-only reconciliation, а будущие consumer validations входят одним item-owned carrier и до своего item дают downstream `unknown`; P2 не стартует до close и повторного audit P1. D64/D65. RAG:— (repo-grounded: `research/16-P1-audit-remediation.md`, `research/17-P1.6-downstream-retry-design.md`).
 - Второй RED-аудит P1 исторически породил single-anchor P1.7 по D66; D67 supersedes эту topology и audit-gate: `7f203014` остаётся product-origin, отдельный committed closure anchor с byte-identical product paths обязан дать GREEN полного release carrier/lint/views/citations, после чего append-only corrections закрывают P1 зелёной без нового аудита и открывают P2. RAG:— (repo-grounded: `research/18-P1-audit2-remediation.md`, последний Audit P1, owner direction 2026-08-10).
+- RED-аудит P2 закрывается одним последним design-carrier P2.7 по D70: product fixes F1–F6 сходятся в обязательный P2 release carrier, F7 восстанавливается append-only journal reconciliation без ручной правки state projections, F8 — штатным phase bookkeeping; после этого разрешены только execution → close → повторный audit P2 и bounded fixes против frozen acceptance, не новый design-pass. RAG:— (repo-grounded: `research/19-P2-audit-remediation.md`, P2 Audit 2026-08-11, owner direction 2026-08-11).
 - RAG-факты и сравнение чужих репозиториев сохранять в findings в том же ходе; синтез — в research; решения — в decisions. P0.3 закрывается только после MCP replay по D56; WebSearch-only fallback остаётся provisional.
 - Любой внешний best practice получает RAG:✅ с URL и датой либо остаётся [UNVERIFIED]; RAG:— допустим только для фактов этого репозитория.
 - Текущие Makefile/Compose — requirements input: совместимость целей сохраняется только после инвентаря и осознанного решения.
@@ -62,7 +63,7 @@ Vintera/CMS и Dterema и верифицирует внешние практик
 ## 3. Routing
 
 Все строки ниже — финальные post-finish маршруты 75 product/design items плюс адресные
-remediation-items P0.7/P1.6/P1.7 по D62/D64/D66 и evidence correction D67; новый design-pass не выполнялся.
+remediation-items P0.7/P1.6/P1.7/P2.7 по D62/D64/D66/D70 и evidence correction D67; новый design-pass не выполнялся.
 
 | Batch | Items | Model class/effort | Exec | Review | Почему |
 |:--|:--|:--|:--|:--|:--|
@@ -87,6 +88,7 @@ remediation-items P0.7/P1.6/P1.7 по D62/D64/D66 и evidence correction D67; н
 | — | P2.4 | implementation/high | manual | full | bootstrap связывает vendor/secrets/image/runtime и требует high для идемпотентности/rollback boundary |
 | — | P2.5 | implementation/high | manual | full | production seeds и initial-admin auth mutation security-critical, решения уже запечатаны |
 | — | P2.6 | implementation/high | manual | full | first-party Doctor integration и companion image исполняют D21 без открытого product design |
+| — | P2.7 | implementation/high | manual | full | audit-defined F1–F8 исправляют security/readiness/image/test/evidence boundary по D70; решения запечатаны, но обязательны real Docker/DB gates и full review |
 | B3-READINESS | P3.1 | implementation/high | manual | full | последовательная diagnosis→repair→proof серия; stop при root-cause escalation |
 | B3-READINESS | P3.2 | implementation/high | manual | full | разрешённый repair после P3.1 в той же серии |
 | B3-READINESS | P3.3 | implementation/high | manual | full | readiness carrier после repair, тот же route/review |

@@ -2,8 +2,8 @@
 projection: status-view
 projection_version: v1
 source_scope: plan core + phases + journal
-through: 2026-08-10
-inputs_sha256: bbf6fb9bfee14a09058fbe8205c1da9167f9d3963b0d2f13c2c0c6c5f8eac5d6
+through: 2026-08-11
+inputs_sha256: 132730e82ae731b44bf4cf4555b3d9247b91263c240500478e9bc5631ad88fb9
 generated_by: task plan-views status
 -->
 
@@ -15,9 +15,9 @@ generated_by: task plan-views status
 
 | Поле | Значение |
 |:--|:--|
-| Version | 0.1.4 |
+| Version | 0.1.5 |
 | Status | ⬜ Not started |
-| Last Updated | 2026-08-10 |
+| Last Updated | 2026-08-11 |
 
 ## 4. Phase Index & Status Board
 
@@ -28,7 +28,7 @@ generated_by: task plan-views status
 | P10 | PHP, архитектура, безопасность и production-readiness audit | 0/6 | ⬜ Not started |
 | P11 | Pest 5 performance, test isolation и CI | 0/6 | ⬜ Not started |
 | P12 | Ubuntu deployment guide и финальный clean-room rehearsal | 0/7 | ⬜ Not started |
-| P2 | Local vendor, secrets, preflight, bootstrap и Laravel Doctor | 6/6 | 🟢 Done |
+| P2 | Local vendor, secrets, preflight, bootstrap и Laravel Doctor | 7/7 | 🟢 Done |
 | P3 | Fresh install, Livewire/Filament assets и application readiness | 0/5 | ⬜ Not started |
 | P4 | Закрытая production-документация вне public | 0/5 | ⬜ Not started |
 | P5 | Default proxy settings и трёхуровневый resolve | 0/5 | ⬜ Not started |
@@ -100,12 +100,13 @@ generated_by: task plan-views status
 
 | ID | Title | Status | Updated |
 |:--|:--|:--|:--|
-| P2.1 | Перенести AzGuard path contract в local/vendors и оформить clone boundary | 🟢 Done | 2026-08-10 |
-| P2.2 | Сделать безопасный генератор .env и .env.docker secrets | 🟢 Done | 2026-08-10 |
-| P2.3 | Сделать fail-closed host/repository/env/Compose preflight | 🟢 Done | 2026-08-10 |
-| P2.4 | Автоматизировать clone-to-running bootstrap без скрытых ручных шагов | 🟢 Done | 2026-08-10 |
-| P2.5 | Развести base seeds, demo data, создание и сброс администратора | 🟢 Done | 2026-08-10 |
-| P2.6 | Установить и настроить Laravel Doctor как dev/prod readiness carrier | 🟢 Done | 2026-08-10 |
+| P2.1 | Перенести AzGuard path contract в local/vendors и оформить clone boundary | 🟢 Done | 2026-08-11 |
+| P2.2 | Сделать безопасный генератор .env и .env.docker secrets | 🟢 Done | 2026-08-11 |
+| P2.3 | Сделать fail-closed host/repository/env/Compose preflight | 🟢 Done | 2026-08-11 |
+| P2.4 | Автоматизировать clone-to-running bootstrap без скрытых ручных шагов | 🟢 Done | 2026-08-11 |
+| P2.5 | Развести base seeds, demo data, создание и сброс администратора | 🟢 Done | 2026-08-11 |
+| P2.6 | Установить и настроить Laravel Doctor как dev/prod readiness carrier | 🟢 Done | 2026-08-11 |
+| P2.7 | Закрыть F1–F8 RED-аудита P2 одним fail-closed release carrier | 🟢 Done | 2026-08-11 |
 
 ## Phase P3
 
@@ -321,6 +322,17 @@ generated_by: task plan-views status
 | 2026-08-10 | gpt-5.6-terra/high | plan-run · closed-green · Base/demo seeds and file-only initial-admin commands implemented; carrier, tests, Pint and PHPStan passed. |
 | 2026-08-10 | gpt-5.6-terra/high | plan-run · in-progress · — |
 | 2026-08-10 | gpt-5.6-terra/high | plan-run · closed-green · Laravel Doctor locked in require-dev with four readiness diagnostics and one-off companion carrier; contract, test, Pint and PHPStan passed. |
+| 2026-08-11 | frontier/xhigh | plan-audit · audit-red · заход 1, вердикт RED |
+| 2026-08-11 | frontier/high | plan-design · in-progress · Фаза P2 реопенена по D70: последний design-carrier P2.7 закрывает F1–F8; далее execution, close и повторный audit без нового design-цикла. |
+| 2026-08-11 | gpt-5.6-terra/medium | plan-run · blocked · required implementation/high vs session gpt-5.6-terra/medium |
+| 2026-08-11 | gpt-5.6-terra/high | plan-run · in-progress · correct-route continuation after erroneous routing-blocked self-attestation |
+| 2026-08-11 | gpt-5.6-terra/high | plan-close · closed-green · P2.1 8fd8e2f6 reconciled by P2.7 cdc6ae5b: real vendor/image aggregate passed; write-site: pre_mutation: allow · pre_final: allow. |
+| 2026-08-11 | gpt-5.6-terra/high | plan-close · closed-green · P2.2 5df75000 reconciled by P2.7 cdc6ae5b: secret boundary aggregate passed; write-site: pre_mutation: allow · pre_final: allow. |
+| 2026-08-11 | gpt-5.6-terra/high | plan-close · closed-green · P2.3 32b805d5 reconciled by P2.7 cdc6ae5b: exact negative preflight fixture passed; write-site: pre_mutation: allow · pre_final: allow. |
+| 2026-08-11 | gpt-5.6-terra/high | plan-close · closed-green · P2.4 17d16fa6 reconciled by P2.7 cdc6ae5b: real bootstrap/Compose branch passed; write-site: pre_mutation: allow · pre_final: allow. |
+| 2026-08-11 | gpt-5.6-terra/high | plan-close · closed-green · P2.5 2f2e9486 + post-close d7a4be65 reconciled by P2.7 cdc6ae5b: seed/admin suites passed; write-site: pre_mutation: allow · pre_final: allow. |
+| 2026-08-11 | gpt-5.6-terra/high | plan-close · closed-green · P2.6 304c7e13 + post-close 189dea38 reconciled by P2.7 cdc6ae5b: companion Doctor carrier passed; write-site: pre_mutation: allow · pre_final: allow. |
+| 2026-08-11 | gpt-5.6-terra/high | plan-close · closed-green · P2.7 product anchor cdc6ae5b: P2 release aggregate, test DB Doctor matrix and local-registry pull verification passed; write-site: pre_mutation: allow · pre_final: allow. |
 
 ## Owner Gates
 

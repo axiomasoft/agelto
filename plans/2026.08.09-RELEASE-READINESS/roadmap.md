@@ -1,6 +1,6 @@
 # Roadmap исполнения — 2026.08.09-RELEASE-READINESS
 
-**Обновлён:** 2026-08-10 · **Соответствует plan.md:** Layout v2, 75 product/design items + remediations P0.7/P1.6/P1.7; второй reopen P1 зафиксирован D66
+**Обновлён:** 2026-08-11 · **Соответствует plan.md:** Layout v2, 79 items: 75-item finish + remediations P0.7/P1.6/P1.7/P2.7; финальный reopen P2 зафиксирован D70
 
 Roadmap пересобран после повторного full `finish` D52 и адресной remediation F1–F12; D55 закрывает
 audit-loop после трёх заходов и открывает execution напрямую с P0.0. `solo` оставлен для owner-gate,
@@ -13,8 +13,9 @@ batch и всё равно закрываются каждый своим commit
 |:--|:--|:--|:--|:--|
 | P0 | P0.0–P0.7 | terminal | — | фаза закрыта после P0.7 remediation D62; следующий исполнимый item — P1.1 |
 | P1 | P1.1–P1.7 | solo P1.7 | implementation/high · full | F6–F10 второго RED-аудита; P2 закрыта до terminal P1.7, close и fresh-context audit P1 |
+| P2 | P2.1–P2.7 | solo P2.7 | implementation/high · full | один последовательный audit-defined release carrier; evidence reconcile допустим только после GREEN product anchor |
 | P3 | P3.1–P3.5 | B3-READINESS | implementation/high · full | diagnosis→repair→readiness→E2E→recovery использует один runtime context; root-cause escalation останавливает серию |
-| P2, P4–P12 | текущие solo | solo | как в §3 Routing | требуются owner/external gates, frontier freeze либо отдельный риск-контекст; кандидаты на следующие batch-проходы рассматриваются по фактическим terminal inputs |
+| P4–P12 | текущие solo | solo | как в §3 Routing | требуются owner/external gates, frontier freeze либо отдельный риск-контекст; кандидаты на следующие batch-проходы рассматриваются по фактическим terminal inputs |
 
 ## Карта исполнения
 
@@ -35,12 +36,13 @@ batch и всё равно закрываются каждый своим commit
 | P1.5 | closed-deviations | — | implementation/high | — | RED-аудит F1–F5 породил D64/P1.6 |
 | P1.6 | closed | — | implementation/high | — | `44a334ac` не является full Validation anchor; correction на новый clean P1.7 product commit обязательна |
 | P1.7 | solo | `task:plan-run … P1.7` | implementation/high | — | один audit-defined slice F6–F10: full carrier, expired alias removal и append-only anchors |
-| P2.1 | solo | `task:plan-run … P2.1` | implementation/high | private repo access | private dependency/source lock boundary |
-| P2.2 | solo | `task:plan-run … P2.2` | implementation/high | — | credential generation/grants security boundary |
-| P2.3 | solo | `task:plan-run … P2.3` | implementation/high | — | fail-closed non-mutating preflight |
-| P2.4 | solo | `task:plan-run … P2.4` | implementation/high | — | resumable bootstrap integrates prior carriers |
-| P2.5 | solo | `task:plan-run … P2.5` | implementation/high | initial-admin identity | production seed/admin auth mutation |
-| P2.6 | solo | `task:plan-run … P2.6` | implementation/high | — | Doctor dependency/image/readiness boundary |
+| P2.1 | closed-evidence-remediation | — | implementation/high | — | original vendor boundary terminal; P2.7 replaces optional acceptance and corrects evidence |
+| P2.2 | closed-evidence-remediation | — | implementation/high | — | original secret carrier terminal; P2.7 closes hostile path/leakage boundary |
+| P2.3 | closed-evidence-remediation | — | implementation/high | — | original preflight terminal; P2.7 repairs negative fixture and replays exact exits |
+| P2.4 | closed-evidence-remediation | — | implementation/high | — | original bootstrap terminal; P2.7 adds mandatory fresh-clone real proof |
+| P2.5 | closed-evidence-remediation | — | implementation/high | — | original seed/admin product + `d7a4be65`; P2.7 adds real suites and exact anchors |
+| P2.6 | closed-evidence-remediation | — | implementation/high | — | original Doctor product + `189dea38`; P2.7 closes diagnostics/image/evidence gaps |
+| P2.7 | solo | `task:plan-run … P2.7` | implementation/high | — | финальный audit-defined F1–F8 slice; real Docker/DB/quality gates, затем close→audit |
 | P3.1 | B3-READINESS | `task:plan-run … P3.1-P3.5` | implementation/high | — | diagnosis→repair→proof; stop on escalation |
 | P3.2 | B3-READINESS | ↑ | implementation/high | — | permitted repair from P3.1 evidence |
 | P3.3 | B3-READINESS | ↑ | implementation/high | — | readiness follows repair |
@@ -101,7 +103,7 @@ batch и всё равно закрываются каждый своим commit
 
 ## Следующий запуск
 
-**Next:** run-items: task:plan-run 2026.08.09-RELEASE-READINESS P1.7
+**Next:** manual: implementation/high
 
 | Параметр | Значение |
 |:--|:--|
@@ -109,13 +111,17 @@ batch и всё равно закрываются каждый своим commit
 | Effort | high |
 | Capabilities | — |
 | Context | same-session — item |
-| Суть | Закрыть F6–F10 второго RED-аудита одним P1.7 и подготовить повторный close P1. |
-| Команда | `$ task:plan-run 2026.08.09-RELEASE-READINESS P1.7` |
+| Суть | Закрыть F1–F8 RED-аудита P2 одним P2.7 и подготовить close/audit P2. |
+| Команда | — |
+
+```text
+$ task:plan-run 2026.08.09-RELEASE-READINESS P2.7
+```
 
 ### Native Codex launch-block
 
 ```bash
-codex -C /home/vostrikov/projects/agelto/agelto -m gpt-5.6-terra -c 'model_reasoning_effort="high"' -a never -s danger-full-access '$ task:plan-run 2026.08.09-RELEASE-READINESS P1.7'
+codex -C /home/vostrikov/projects/agelto/agelto -m gpt-5.6-terra -c 'model_reasoning_effort="high"' -a never -s danger-full-access '$ task:plan-run 2026.08.09-RELEASE-READINESS P2.7'
 ```
 
 ## Гейты владельца (сводно)

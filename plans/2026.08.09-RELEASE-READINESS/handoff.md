@@ -1,41 +1,46 @@
-# HANDOFF — 2026-08-10 — after P2.5
+# HANDOFF — 2026-08-11 — after P2
 
-**Next:** ЗАПУСК ВРУЧНУЮ: `implementation/high`
+**Next:** manual: implementation/high
 
 | Параметр | Значение |
 |:--|:--|
-| Model | implementation |
-| Thinking | high — security-critical admin mutation |
-| Context | continue (/clear) — ручной item |
-| Суть | Выполнить P2.6: Laravel Doctor profiles и companion image. |
+| Model class | implementation |
+| Effort | high |
+| Capabilities | — |
+| Context | same-session — item |
+| Суть | Исполнить последний audit-remediation P2.7: F1–F8, затем передать фазу в close и повторный audit. |
 | Команда | — |
 
-```bash
-codex -C /home/vostrikov/projects/agelto/agelto -m gpt-5.6-terra -c 'model_reasoning_effort="high"' -a never -s danger-full-access '$ task:plan-run 2026.08.09-RELEASE-READINESS P2.6'
+```text
+$ task:plan-run 2026.08.09-RELEASE-READINESS P2.7
 ```
 
-**Done:**
+**Done:** RED-аудит P2 принят как frozen remediation input; D70 выполнил §3-reopen, plan version
+поднят до 0.1.5, добавлен один P2.7, Phase Handoff инвалидирован. P2.1–P2.6 сохраняют terminal
+history; их evidence корректируется только append-only после committed GREEN P2.7 anchor.
 
-- P2.1–P2.3 materialized the pinned vendor, file-secret and non-mutating preflight carriers.
-- Product commit `17d16fa6` implemented P2.4 staged `dev`/`prod-build` bootstrap; its contract passed with fresh/retry/redaction/no-destructive-action coverage.
-- Product commit `2f2e9486` implemented idempotent base/demo seeds and file-only initial-admin create/reset; the carrier, 5 feature tests, Pint and PHPStan passed.
+**Remaining:** Исполнить P2.7 с обязательными real Docker/Compose/isolated-DB/Pest/Pint/PHPStan/
+Task/citation/diff gates; закрыть item; выполнить `task:plan-close 2026.08.09-RELEASE-READINESS P2`;
+затем fresh-context `task:plan-audit 2026.08.09-RELEASE-READINESS P2`. Новый design-прогон
+запрещён D70; дополнительные дефекты frozen acceptance исправляются bounded fix-ами.
 
-**Remaining:**
+**Sources of truth:** `plan.md` · `phases/P2/P2.md` → Audit P2 и invalidated Phase Handoff ·
+`phases/P2/P2.7.md` · `decisions/D70-p2-final-audit-remediation-reopen.md` ·
+`research/19-P2-audit-remediation.md` · `phases/P2/P2.1.state.md` … `P2.6.state.md` ·
+`journal.jsonl` · `status.md`.
 
-- P2.6: Laravel Doctor profiles and companion image, after terminal P2.5.
+**Open risks:** Layout v2 projector до первого P2.7 execution event показывает phase status
+`⬜ Not started`, а не общий reopen-канон `🟡 In progress`; D70 фиксирует это как известный
+PROMOTE-CANDIDATE и запрещает fabricated journal event. Strict citations остаются красными на
+исторической ссылке docker/php/entrypoint.d/10-secrets.sh:1-15 до product fix P2.7; P2.7 обязан
+сделать final strict gate зелёным без правки чужого P0 item spec/state.
 
-**Sources of truth:**
+**Workarounds/Deferred/Open questions:** Workarounds — нет. Deferred — Task runtime regex/status
+projection fixes остаются вне Agelto P2. Open questions — нет; D70 и owner direction закрывают
+все design-развилки этого захода.
 
-- `phases/P2/P2.5.state.md`
-- `phases/P2/P2.6.md`
-- `docker/scripts/bootstrap.sh`
-- `docker/tests/seed-admin-contract.sh`
-- `journal.jsonl`
+### Native Codex launch-block
 
-**Open risks:** P2.5 must not fabricate the initial-admin identity; resolve it only through the canonical DecisionRequest path. The independent strict citation gate remains red on pre-existing `findings/P0-agelto-inventory.md:44` (`docker/php/entrypoint.d/10-secrets.sh:1-15` is outside its declared `1-14` range); it is outside P2.4 scope and needs an owning P0-plan correction.
-
-**Workarounds/Deferred/Open questions:**
-
-- Workarounds: —
-- Deferred: —
-- Open questions: —
+```bash
+codex -C /home/vostrikov/projects/agelto/agelto -m gpt-5.6-terra -c 'model_reasoning_effort="high"' -a never -s danger-full-access '$ task:plan-run 2026.08.09-RELEASE-READINESS P2.7'
+```

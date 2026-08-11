@@ -23,14 +23,14 @@
 | Файл | Потребители |
 |:--|:--|
 | brief/00-brief.md | все фазы |
-| brief/01-refinements.md | D12 · current authoring lifecycle; D3 superseded |
+| brief/01-refinements.md | D12 · current authoring lifecycle; D3 superseded · D70 final P2 design boundary |
 | findings/bootstrap-recon-2026-08-09.md | P0 · P1–P4 bootstrap context |
 | findings/P0-reference-input-map-2026-08-09.md | P0.2 · D14 external-tree provenance |
 | findings/P0-workflow-static-review-2026-08-09.md | D15 · blocked workflow evidence |
 | findings/P0-contract-self-audit.md | P0.6 bounded contract/consumer audit; `PENDING` до исполнения |
 | findings/P1-docker-make-vite-recon-2026-08-09.md | P1.1–P1.5 · D16–D18 repo/RAG basis |
 | findings/P1.6-downstream-*-cb49b47cd3fe.md | P1.6 first downstream run · raw GREEN/RED/unknown evidence for D65; append-only |
-| findings/P2-vendor-secrets-doctor-recon-2026-08-09.md | P2.1–P2.6 · D19–D21 repo/RAG basis |
+| findings/P2-vendor-secrets-doctor-recon-2026-08-09.md | P2.1–P2.7 · D19–D21/D70 repo/RAG basis |
 | findings/P3-livewire-readiness-recon-2026-08-09.md | P3.1–P3.5 · D22–D25 locked-source/repo/RAG basis |
 | findings/P3.1-livewire-runtime-evidence.md | P3.1 output carrier · P3.2 hard gate; `PENDING` до исполнения |
 | findings/P4-private-documentation-recon-2026-08-09.md | P4.1–P4.5 · D26/D27 repo/reference/security basis |
@@ -64,6 +64,7 @@
 | research/03-P1-execution-design.md | P1.1–P1.5 · Compose/image/Vite contracts and gates |
 | research/17-P1.6-downstream-retry-design.md | P1.6 retry · D65 item-owned future-consumer carrier normalization |
 | research/04-P2-execution-design.md | P2.1–P2.6 · vendor/secrets/bootstrap/admin/Doctor contracts |
+| research/19-P2-audit-remediation.md | P2.7 · D70 final audit-remediation carrier for F1–F8 |
 | research/05-P3-execution-design.md | P3.1–P3.5 · asset/readiness/browser/isolation contracts |
 | research/06-P4-execution-design.md | P4.1–P4.5 · private docs threat/build/serve contracts |
 | research/07-P5-execution-design.md | P5.1–P5.5 · settings/proxy precedence and health contracts |
