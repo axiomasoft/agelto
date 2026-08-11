@@ -122,7 +122,11 @@ primary-source страницам. Secondary/forum sources не использо
 ## Verification status
 
 - RAG: official Web RAG, 10 primary pages + locked/repo/reference source inspection, OK.
-- Непроверено → ПОВТОРНЫЙ ПРОХОД: terminal P0.4 ecosystem verdict and actually implemented P1/P3
-  carriers do not exist yet; P4.1 carries a hard reconcile gate.
+- P4.1 reconciliation, 2026-08-11: all four required upstream item-state projections are terminal.
+  P0.4 confirms the Laravel-response research carrier; P0.6 confirms its contract/check closure;
+  P1.5 records the green P1 release carrier (`0db08b00`, product `7f203014`, closure
+  `56aeda8e`); P3.5 records controlled asset recovery and authenticated browser smoke (2/2).
+  None changes the stable VitePress version, `/admin/documentation/` base, immutable image boundary,
+  one-route authorization model, or response policy fixed by D26/D27.
 - Обходки/[POSSIBLE-DEFECT]: none. PHP-per-asset cost is an accepted first-release trade-off, not
   hidden behind a public cache or alternate asset route.

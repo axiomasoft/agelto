@@ -134,10 +134,33 @@ chain is intended. RAG:— (repo-grounded: dependencies above).
 6. Recovery/deploy: docs-only source change changes image artifact/tag via the declared build
    classification; no prod-host build, public fallback or volume population appears.
 
+## P4.1 terminal reconcile — 2026-08-11
+
+P4.1 read the fresh item-state projections rather than the authoring-time phase status. The evidence
+does not contradict D26 or D27, so both decisions remain byte-stable and no superseding decision is
+created.
+
+| Upstream | Terminal evidence read | Reconciled premise | Result for P4 |
+|:--|:--|:--|:--|
+| P0.4 | `🟢 Done`; Laravel RAG reconciliation recorded | Laravel can retain one explicit file-response and middleware boundary | D27's single Laravel serving path remains frozen |
+| P0.6 | `🟢 Done`; its decision-check closure is green | release contract continues to require private source/output and a single authorization policy | D7 and APP-07–APP-10 remain the lower bound |
+| P1.5 | `🟢 Done`; P1 release carrier `0db08b00`, product `7f203014`, closure `56aeda8e` | pnpm/image lifecycle closes as an immutable production carrier | D26 keeps VitePress 1.6.4 in the image build, never on the production host |
+| P3.5 | `🟢 Done`; controlled generated-asset recovery and authenticated browser smoke (2/2) | asset recovery remains a tested application boundary, not a reason for a public bypass | D27 keeps authorization and no-store parity for HTML and every asset |
+
+### Frozen source / consumer matrix
+
+| Consumer | Receives from P4.1 | Must prove before its own terminal state |
+|:--|:--|:--|
+| P4.2 | exact VitePress 1.6.4, `/admin/documentation/`, image-only `var/private-documentation/site`, sorted manifest | deterministic verified build; no Node/pnpm or writable/public artifact in runtime |
+| P4.3 | manifest-only locator, one GET/HEAD wildcard route, closed MIME/path grammar | containment, real 404s and one response branch for HTML and assets |
+| P4.4 | `DocumentationPermission::View` on panel `admin`; SuperAdmin-only initial role path | enum-aware authorization for direct URL and Filament discovery without default Analyst/Operator grant |
+| P4.5 | all frozen build, route, authorization and response-policy clauses | adversarial guest/role/traversal/cache/browser/image proof, including no byte leakage |
+| P12 | D26/D27 as release inputs plus APP-07–APP-10 | clean-host image/deploy/recovery proof with no host build, public fallback or volume substitution |
+
 ## Verification status
 
 - RAG: official Web RAG ×10 primary pages + repo/vendor/reference inspection, OK.
-- Непроверено → ПОВТОРНЫЙ ПРОХОД: P0.4/P0.6/P1.5/P3.5 terminal products; P4.1 is the exact
-  reconcile/freeze carrier and blocks mutation until they exist.
+- P4.1 reconciliation: completed against fresh terminal P0.4/P0.6/P1.5/P3.5 state projections;
+  D26/D27 remain unchanged.
 - Обходки/[POSSIBLE-DEFECT]: none. Serving each asset through PHP is an explicit D27 cost; an
   optimized internal-send path may be designed later only without weakening auth/cache parity.

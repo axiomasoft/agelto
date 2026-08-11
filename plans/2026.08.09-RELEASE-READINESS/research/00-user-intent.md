@@ -36,6 +36,8 @@ findings/bootstrap-recon-2026-08-09.md. Внешних RAG-источников 
 | Subsequent deploy/rollback/backup | P12.3–P12.5 |
 | Полный fresh/prod rehearsal и DB integrity | D9 · P12.4–P12.7 |
 | Предыдущий CRAWL-HARDEN архивный, не paused | D12 (supersedes D3) |
+| Финальный RED-remediation P2 закрывает F1–F8 одним обязательным real carrier | D70 · P2.7 |
+| После P2.7 новых design-прогонов не делать; close/audit и bounded fixes исполнять по frozen acceptance | D70 · brief/01-refinements.md |
 
 ## Синтез порядка
 

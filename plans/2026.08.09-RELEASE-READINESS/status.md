@@ -3,7 +3,7 @@ projection: status-view
 projection_version: v1
 source_scope: plan core + phases + journal
 through: 2026-08-11
-inputs_sha256: 646d47fe27d015eaac60cd44096236a0df49157ed813fe0176ca349dc38b8c7f
+inputs_sha256: 46dddfe8e30754c1dcbc03734bb1b574ccd1192c0ed6dac505f8510f7865bda8
 generated_by: task plan-views status
 -->
 
@@ -29,8 +29,8 @@ generated_by: task plan-views status
 | P11 | Pest 5 performance, test isolation и CI | 0/6 | ⬜ Not started |
 | P12 | Ubuntu deployment guide и финальный clean-room rehearsal | 0/7 | ⬜ Not started |
 | P2 | Local vendor, secrets, preflight, bootstrap и Laravel Doctor | 7/7 | 🟢 Done |
-| P3 | Fresh install, Livewire/Filament assets и application readiness | 2/5 | ⬜ Not started |
-| P4 | Закрытая production-документация вне public | 0/5 | ⬜ Not started |
+| P3 | Fresh install, Livewire/Filament assets и application readiness | 5/5 | 🟢 Done |
+| P4 | Закрытая production-документация вне public | 1/5 | ⬜ Not started |
 | P5 | Default proxy settings и трёхуровневый resolve | 0/5 | ⬜ Not started |
 | P6 | File handler registry, архивы и дочерняя обработка | 0/6 | ⬜ Not started |
 | P7 | Document type, summary, estimates и tags | 0/6 | ⬜ Not started |
@@ -114,15 +114,15 @@ generated_by: task plan-views status
 |:--|:--|:--|:--|
 | P3.1 | Воспроизвести Livewire versioned-script 404 и доказать первопричину | 🟢 Done | 2026-08-11 |
 | P3.2 | Принять подтверждённый Laravel и Filament asset lifecycle | 🟢 Done | 2026-08-11 |
-| P3.3 | Развести /up liveness и Doctor/service application readiness | ⬜ Not started | — |
-| P3.4 | Добавить clean-clone E2E открытия /admin и Livewire interaction | ⬜ Not started | — |
-| P3.5 | Проверить идемпотентность bootstrap, cache/restart и узкое восстановление assets | ⬜ Not started | — |
+| P3.3 | Развести /up liveness и Doctor/service application readiness | 🟢 Done | 2026-08-11 |
+| P3.4 | Добавить clean-clone E2E открытия /admin и Livewire interaction | 🟢 Done | 2026-08-11 |
+| P3.5 | Проверить идемпотентность bootstrap, cache/restart и узкое восстановление assets | 🟢 Done | 2026-08-11 |
 
 ## Phase P4
 
 | ID | Title | Status | Updated |
 |:--|:--|:--|:--|
-| P4.1 | Сверить upstream evidence и заморозить threat/build/serving contract | ⬜ Not started | — |
+| P4.1 | Сверить upstream evidence и заморозить threat/build/serving contract | 🟢 Done | 2026-08-11 |
 | P4.2 | Собирать VitePress atomically вне public и включать в immutable image | ⬜ Not started | — |
 | P4.3 | Реализовать manifest-backed locator и единый secure controller | ⬜ Not started | — |
 | P4.4 | Подключить AzGuard permission и Filament navigation без обходных routes | ⬜ Not started | — |
@@ -342,6 +342,14 @@ generated_by: task plan-views status
 | 2026-08-11 | gpt-5.6-terra/high | plan-run · closed-green · Accepted green isolated bootstrap: migrations passed and emitted Livewire asset returned 200 JavaScript. write-site: pre_mutation: allow · pre_final: allow. |
 | 2026-08-11 | gpt-5.6-terra/high | plan-run · in-progress · Reconciling owner-accepted green P3.1 runtime baseline; no product mutation is required. |
 | 2026-08-11 | gpt-5.6-terra/high | plan-run · closed-green · Accepted green delivery baseline: isolated bootstrap and migrations passed; emitted Livewire asset returned 200 JavaScript. write-site: pre_mutation: allow · pre_final: allow. |
+| 2026-08-11 | gpt-5.6-terra/high | plan-run · in-progress · — |
+| 2026-08-11 | gpt-5.6-terra/high | plan-run · escalated · P3.3 requires a P3.2 asset-check carrier, but P3.2 explicitly produces none; plan-design must reconcile ownership. |
+| 2026-08-11 | gpt-5.6-terra/high | plan-run · in-progress · User authorized direct in-session implementation; resume P3.3 with a read-only accepted-delivery asset readiness check. |
+| 2026-08-11 | gpt-5.6-terra/high | plan-run · closed-green · Delivered shared typed readiness service, Doctor delegation, scheduler heartbeat and active DB/cache/storage/release/assets/Horizon checks. Focused readiness contract passed; isolated clean bootstrap reached all-green readiness. |
+| 2026-08-11 | gpt-5.6-terra/high | plan-run · closed-green · Pinned Playwright/Chromium clean-clone runner bootstrapped isolated Compose, reached green readiness, and passed authenticated Livewire/admin browser smoke (2/2). |
+| 2026-08-11 | gpt-5.6-terra/high | plan-run · closed-green · Isolated recovery harness completed optimize/cache, app/Horizon/scheduler restart, controlled generated-asset red state, same-hash repair without image replacement, and post-recovery authenticated browser smoke (2/2). |
+| 2026-08-11 | gpt-5.6-sol/high | plan-run · in-progress · — |
+| 2026-08-11 | gpt-5.6-sol/high | plan-run · closed-green · Reconciled terminal P0/P1/P3 evidence; D26/D27 unchanged; private-doc contract and consumer matrix committed. |
 
 ## Owner Gates
 
