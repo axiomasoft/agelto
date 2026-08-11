@@ -3,7 +3,7 @@ projection: status-view
 projection_version: v1
 source_scope: plan core + phases + journal
 through: 2026-08-11
-inputs_sha256: dae48a6177e3c201ac19a4eeb1984b7452e79154ce813d25239fccf25bac00f6
+inputs_sha256: 02a1be4e03f63d92bfd814f1a4343038d6cb7ee790121e3c2377d29486f2538b
 generated_by: task plan-views status
 -->
 
@@ -29,7 +29,7 @@ generated_by: task plan-views status
 | P11 | Pest 5 performance, test isolation и CI | 0/6 | ⬜ Not started |
 | P12 | Ubuntu deployment guide и финальный clean-room rehearsal | 0/7 | ⬜ Not started |
 | P2 | Local vendor, secrets, preflight, bootstrap и Laravel Doctor | 7/7 | 🟢 Done |
-| P3 | Fresh install, Livewire/Filament assets и application readiness | 0/5 | ⬜ Not started |
+| P3 | Fresh install, Livewire/Filament assets и application readiness | 1/5 | ⬜ Not started |
 | P4 | Закрытая production-документация вне public | 0/5 | ⬜ Not started |
 | P5 | Default proxy settings и трёхуровневый resolve | 0/5 | ⬜ Not started |
 | P6 | File handler registry, архивы и дочерняя обработка | 0/6 | ⬜ Not started |
@@ -112,7 +112,7 @@ generated_by: task plan-views status
 
 | ID | Title | Status | Updated |
 |:--|:--|:--|:--|
-| P3.1 | Воспроизвести Livewire versioned-script 404 и доказать первопричину | 🟠 Done with deviations | 2026-08-11 |
+| P3.1 | Воспроизвести Livewire versioned-script 404 и доказать первопричину | 🟢 Done | 2026-08-11 |
 | P3.2 | Запечатать Composer/build/deploy lifecycle Laravel и Filament assets | ⬜ Not started | — |
 | P3.3 | Развести /up liveness и Doctor/service application readiness | ⬜ Not started | — |
 | P3.4 | Добавить clean-clone E2E открытия /admin и Livewire interaction | ⬜ Not started | — |
@@ -338,10 +338,11 @@ generated_by: task plan-views status
 | 2026-08-11 | gpt-5.6-terra/high | plan-run · escalated · Redis cannot read declared ACL secret; P2 remediation required before P3.1 runtime repro. |
 | 2026-08-11 | gpt-5.6-terra/high | plan-run · in-progress · Resumed after local Redis secret/start repair; capturing required Livewire runtime trace. |
 | 2026-08-11 | gpt-5.6-terra/high | plan-run · closed-deviations · Runtime trace refuted D22: emitted Livewire vendor URL returned 200 JavaScript; Redis/PHP secret prerequisite repaired locally. write-site: pre_mutation: allow · pre_final: allow. |
+| 2026-08-11 | gpt-5.6-terra/high | plan-run · in-progress · Owner accepted successful isolated bootstrap, migrations and Livewire HTTP 200 as P3.1 completion. |
+| 2026-08-11 | gpt-5.6-terra/high | plan-run · closed-green · Accepted green isolated bootstrap: migrations passed and emitted Livewire asset returned 200 JavaScript. write-site: pre_mutation: allow · pre_final: allow. |
 
 ## Owner Gates
 
 - P0.3: known deviation
 - P0.4: known deviation
 - P0.5: known deviation
-- P3.1: known deviation
