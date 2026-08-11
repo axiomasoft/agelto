@@ -1,6 +1,6 @@
 <?php
 
-$secret = require __DIR__.'/secrets.php';
+$secret = [\App\Support\SecretValue::class, 'resolve'];
 
 use Illuminate\Support\Str;
 use Pdo\Mysql;
