@@ -101,6 +101,8 @@ COPY --from=dependencies --chown=www-data:www-data /var/www/html/vendor /var/www
 COPY --from=frontend --chown=www-data:www-data /build/public/build /var/www/html/public/build
 RUN rm -f .env \
     && mkdir -p storage/framework/{cache,sessions,views} storage/logs bootstrap/cache \
+    && install -d -m 0755 /usr/share/agelto \
+    && printf '%s\\n' "$VENDOR_LOCK_SHA" > /usr/share/agelto/vendor-lock.sha \
     && chown -R www-data:www-data storage bootstrap/cache
 LABEL org.opencontainers.image.revision="${SOURCE_SHA}" \
       io.agelto.vendor-lock-sha="${VENDOR_LOCK_SHA}"
@@ -118,6 +120,8 @@ ARG SOURCE_SHA
 ARG VENDOR_LOCK_SHA
 COPY --exclude=local/vendors/azguard --chown=www-data:www-data . /var/www/html
 COPY --from=doctor-dependencies --chown=www-data:www-data /var/www/html/vendor /var/www/html/vendor
+RUN install -d -m 0755 /usr/share/agelto \
+    && printf '%s\\n' "$VENDOR_LOCK_SHA" > /usr/share/agelto/vendor-lock.sha
 LABEL org.opencontainers.image.title="agelto-doctor" \
       org.opencontainers.image.revision="${SOURCE_SHA}" \
       io.agelto.vendor-lock-sha="${VENDOR_LOCK_SHA}"

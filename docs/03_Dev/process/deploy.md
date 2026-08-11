@@ -14,6 +14,10 @@ application services with `--no-build`; it never mounts source/vendor/frontend a
 image, or removes volumes. Migration and queue lifecycle orchestration remain separate owner-gated
 work, outside this P1 carrier.
 
+The release tag is produced beforehand as a same-SHA `agelto/app` + `agelto/doctor` pair. The build
+carrier verifies private vendor closure, both final filesystem contracts, and an isolated local
+registry push→clean-pull cycle; production receives only that immutable tag.
+
 ## Разновидности
 
 | Команда | Когда |

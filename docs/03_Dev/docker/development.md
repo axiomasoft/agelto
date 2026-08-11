@@ -51,3 +51,5 @@ Vite запускается отдельным сервисом `vite` на Node
 
 The development Compose carrier mounts generated files from `local/secrets/`; do not add
 passwords to `.env.docker`. Create them once with `make secrets:init` before `make dev:up`.
+The initializer accepts only the fixed secret-name set and rejects symlink/non-regular roots and
+targets before writing; a failed run leaves no staged secret behind.

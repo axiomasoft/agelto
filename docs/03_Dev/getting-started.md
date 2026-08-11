@@ -53,6 +53,11 @@ make bootstrap MODE=prod-build ENV_FILE=.env.production IMAGE_TAG=<immutable-tag
 It builds and validates the immutable image/Compose contract only. Provisioning, pull, migrate,
 release, rollback and backup remain production-operator work.
 
+Release images are always a pair: `agelto/app` and `agelto/doctor` receive the same immutable tag,
+source revision and private-vendor-lock attestation. Build and publish that pair only from a clean
+build-machine checkout; the carrier rejects `latest` and verifies a local-registry push followed by
+a clean pull before a tag can be handed to production operations.
+
 Проверка живости: `make dev:ps`, `curl http://localhost:8080/up` (healthcheck-эндпоинт, тот же, что
 слушает Docker `healthcheck` — см. [`docker/index.md`](docker/index.md)).
 

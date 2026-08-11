@@ -27,7 +27,7 @@ status: living
 | `make vendor:sync` | Клонирует точный private AzGuard commit из tracked manifest и проверяет Composer closure |
 | `make vendor:check` | Без мутаций проверяет origin, полный SHA, чистоту package paths и Composer dry install |
 | `make prod:config ENV_FILE=.env.production` | Только рендер production Compose, без запуска стека |
-| `make image:build` | Собирает текущий PHP-image |
+| `make image:build IMAGE_TAG=<immutable-tag>` | Собирает same-SHA `app` + `doctor` image pair; `latest` запрещён |
 | `make prod:deploy:{code,php-deps,frontend,runtime}` | Pull + recreate готового immutable image для выбранного класса; требуются `IMAGE_TAG` и `COMPOSE_PROJECT_NAME` |
 | `make prod:image:promote` | Pull готового immutable tag без build на production host |
 | `make prod:deploy:image` | Promote готового tag и runtime recreate без build |
