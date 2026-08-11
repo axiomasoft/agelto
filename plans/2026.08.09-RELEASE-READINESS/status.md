@@ -3,7 +3,7 @@ projection: status-view
 projection_version: v1
 source_scope: plan core + phases + journal
 through: 2026-08-11
-inputs_sha256: 132730e82ae731b44bf4cf4555b3d9247b91263c240500478e9bc5631ad88fb9
+inputs_sha256: cf5e0fe57130f7697c37e9dcabf6a8862d5f426a28a3dfca3a6867855b1ae908
 generated_by: task plan-views status
 -->
 
@@ -333,6 +333,7 @@ generated_by: task plan-views status
 | 2026-08-11 | gpt-5.6-terra/high | plan-close · closed-green · P2.5 2f2e9486 + post-close d7a4be65 reconciled by P2.7 cdc6ae5b: seed/admin suites passed; write-site: pre_mutation: allow · pre_final: allow. |
 | 2026-08-11 | gpt-5.6-terra/high | plan-close · closed-green · P2.6 304c7e13 + post-close 189dea38 reconciled by P2.7 cdc6ae5b: companion Doctor carrier passed; write-site: pre_mutation: allow · pre_final: allow. |
 | 2026-08-11 | gpt-5.6-terra/high | plan-close · closed-green · P2.7 product anchor cdc6ae5b: P2 release aggregate, test DB Doctor matrix and local-registry pull verification passed; write-site: pre_mutation: allow · pre_final: allow. |
+| 2026-08-11 | implementation/low | plan-close · closed-green · P2 closed by D71: prior audits and GREEN P2.7 carrier accepted; handoff to P3. |
 
 ## Owner Gates
 
