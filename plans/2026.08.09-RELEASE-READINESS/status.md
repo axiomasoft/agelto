@@ -3,7 +3,7 @@ projection: status-view
 projection_version: v1
 source_scope: plan core + phases + journal
 through: 2026-08-11
-inputs_sha256: b13d8e844e0acd7d1f1c78b5f85d13d2e1afdba6e98f1345cb020fbff0174bd2
+inputs_sha256: 28ec35bc005b003d4a6fc6bfdfbbaeb1f25a1026754402e1bbcbd1feb3eff298
 generated_by: task plan-views status
 -->
 
@@ -30,7 +30,7 @@ generated_by: task plan-views status
 | P12 | Ubuntu deployment guide и финальный clean-room rehearsal | 0/7 | ⬜ Not started |
 | P2 | Local vendor, secrets, preflight, bootstrap и Laravel Doctor | 7/7 | 🟢 Done |
 | P3 | Fresh install, Livewire/Filament assets и application readiness | 5/5 | 🟢 Done |
-| P4 | Закрытая production-документация вне public | 3/5 | ⬜ Not started |
+| P4 | Закрытая production-документация вне public | 3/5 | 🟠 Done with deviations |
 | P5 | Default proxy settings и трёхуровневый resolve | 0/5 | ⬜ Not started |
 | P6 | File handler registry, архивы и дочерняя обработка | 0/6 | ⬜ Not started |
 | P7 | Document type, summary, estimates и tags | 0/6 | ⬜ Not started |
@@ -126,7 +126,7 @@ generated_by: task plan-views status
 | P4.2 | Собирать VitePress atomically вне public и включать в immutable image | 🟢 Done | 2026-08-11 |
 | P4.3 | Реализовать manifest-backed locator и единый secure controller | 🟢 Done | 2026-08-11 |
 | P4.4 | Подключить AzGuard permission и Filament navigation без обходных routes | 🟠 Done with deviations | 2026-08-11 |
-| P4.5 | Доказать access, traversal, MIME/cache, browser и image contract | ⬜ Not started | — |
+| P4.5 | Доказать access, traversal, MIME/cache, browser и image contract | 🟠 Done with deviations | 2026-08-11 |
 
 ## Phase P5
 
@@ -359,6 +359,8 @@ generated_by: task plan-views status
 | 2026-08-11 | gpt-5.6-terra/high | plan-run · closed-green · Manifest-backed locator, fail-closed single route and response policy completed; carrier passed; write-site: pre_mutation: allow · pre_final: allow. |
 | 2026-08-11 | gpt-5.6-terra/high | plan-run · in-progress · — |
 | 2026-08-11 | gpt-5.6-terra/high | plan-run · closed-deviations · Enum controller and Filament link completed; docs/Filament tests and catalog validation passed; write-site: pre_mutation: allow · pre_final: allow; guard:doctor and full PHPStan legacy errors remain. |
+| 2026-08-11 | gpt-5.6-terra/high | plan-run · in-progress · — |
+| 2026-08-11 | gpt-5.6-terra/high | plan-run · closed-deviations · Focused PHP, build and image gates passed; isolated E2E needs absent credential inputs. |
 
 ## Owner Gates
 
@@ -367,3 +369,4 @@ generated_by: task plan-views status
 - P0.5: known deviation
 - P4.2: known deviation
 - P4.4: known deviation
+- P4.5: known deviation
