@@ -112,6 +112,11 @@ status: living
 
 ## Ключевые инварианты
 
+`prc_settings` — dedicated Spatie Settings repository для typed procurement-настроек. В нём хранится
+только nullable ID proxy default; URL и credentials остаются в `prc_proxies`. Кэш настроек выключен
+по умолчанию (`SETTINGS_CACHE_ENABLED=false`) и может включаться в production только после
+подтверждённого cross-process refresh теста.
+
 - **Один активный анализ на версию документа+шаг** (D24): partial unique-индекс
   `prc_ai_analyses_active_version_step_unique` — `(document_version_id, step) WHERE superseded_at IS
   NULL AND is_shadow = false`. Обычный (не partial) `unique(key, version)` — `llm_prompts`, канон
