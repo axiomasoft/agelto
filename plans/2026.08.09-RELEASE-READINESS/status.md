@@ -3,7 +3,7 @@ projection: status-view
 projection_version: v1
 source_scope: plan core + phases + journal
 through: 2026-08-11
-inputs_sha256: d360f66833c521b4f9733ea2fedd817be67d4eab5a4f3638d1c95945894272b2
+inputs_sha256: ed59d8f14b7fb9d62dfeeecf48869bf59a9227febea45ccb809179413b342dc8
 generated_by: task plan-views status
 -->
 
@@ -31,7 +31,7 @@ generated_by: task plan-views status
 | P2 | Local vendor, secrets, preflight, bootstrap и Laravel Doctor | 7/7 | 🟢 Done |
 | P3 | Fresh install, Livewire/Filament assets и application readiness | 5/5 | 🟢 Done |
 | P4 | Закрытая production-документация вне public | 4/6 | 🟠 Done with deviations |
-| P5 | Default proxy settings и трёхуровневый resolve | 5/5 | 🟢 Done |
+| P5 | Default proxy settings и трёхуровневый resolve | 4/5 | 🟠 Done with deviations |
 | P6 | File handler registry, архивы и дочерняя обработка | 0/6 | ⬜ Not started |
 | P7 | Document type, summary, estimates и tags | 0/6 | ⬜ Not started |
 | P8 | Расширяемость platforms и гибкие status mappings | 0/5 | ⬜ Not started |
@@ -137,7 +137,7 @@ generated_by: task plan-views status
 | P5.2 | Внедрить optional typed crawler/parser proxy settings carrier | 🟢 Done | 2026-08-11 |
 | P5.3 | Реализовать precedence profile → default → direct через ProxyResolver | 🟢 Done | 2026-08-11 |
 | P5.4 | Добавить понятные Filament settings и secret-safe validation | 🟢 Done | 2026-08-11 |
-| P5.5 | Покрыть три уровня, health axes, no-proxy и Playwright separation тестами | 🟢 Done | 2026-08-11 |
+| P5.5 | Покрыть три уровня, health axes, no-proxy и Playwright separation тестами | 🟠 Done with deviations | 2026-08-11 |
 
 ## Phase P6
 
@@ -394,6 +394,14 @@ generated_by: task plan-views status
 | 2026-08-11 | gpt-5.6-terra/high | plan-run · in-progress · — |
 | 2026-08-11 | gpt-5.6-terra/high | plan-run · closed-green · P5.5: profile/default/direct acceptance, typed fetch source and tooling separation verified. |
 | 2026-08-11 | frontier/xhigh | plan-audit · audit-red · заход 1, вердикт RED |
+| 2026-08-11 | gpt-5.6-terra/high | plan-run · in-progress · P5.2 bounded audit repair: write-site evidence. |
+| 2026-08-11 | gpt-5.6-terra/high | plan-run · in-progress · P5.3 bounded audit repair: restore item validation carrier. |
+| 2026-08-11 | gpt-5.6-terra/high | plan-run · in-progress · P5.4 bounded audit repair: write-site evidence. |
+| 2026-08-11 | gpt-5.6-terra/high | plan-run · in-progress · P5.5 bounded audit repair: write-site and scope evidence. |
+| 2026-08-11 | gpt-5.6-terra/high | plan-run · closed-green · P5.2 carrier passed: 2 tests/4 assertions; write-site: pre_mutation: allow · pre_final: allow. |
+| 2026-08-11 | gpt-5.6-terra/high | plan-run · closed-green · P5.3 carrier 128d4779 passed: 60 tests/165 assertions, rollback/forward and Pint; write-site: pre_mutation: allow · pre_final: allow. |
+| 2026-08-11 | gpt-5.6-terra/high | plan-run · closed-green · P5.4 carrier passed: 19 tests/130 assertions; write-site: pre_mutation: allow · pre_final: allow. |
+| 2026-08-11 | gpt-5.6-terra/high | plan-run · closed-deviations · P5.5 carrier passed: 96 tests/296 assertions; two test paths were outside Files; write-site: pre_mutation: allow · pre_final: allow. |
 
 ## Owner Gates
 
