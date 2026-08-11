@@ -40,8 +40,8 @@ test('загружает закрытую документацию без browse
         expect(url.pathname).not.toContain('/public/');
     });
 
-    await page.goto('/admin/documentation');
-    await expect(page).toHaveURL(/\/admin\/documentation$/);
+    await page.goto('/admin/documentation/');
+    await expect(page).toHaveURL(/\/admin\/documentation\/$/);
     await expect(page.locator('body')).toBeVisible();
 
     const entries = JSON.parse(readFileSync(resolve('var/private-documentation/manifest.json'), 'utf8')) as Array<{ mime: string; path: string; sha256: string }>;
