@@ -3,7 +3,7 @@ projection: status-view
 projection_version: v1
 source_scope: plan core + phases + journal
 through: 2026-08-11
-inputs_sha256: 304bcc93ff9a26781219871bcc88fb309de4d9142f6bd928946eb995f511b261
+inputs_sha256: 54441dac4a140acbb74cf342c9f6677d67d958d5470ab43720479bf5d4500a6a
 generated_by: task plan-views status
 -->
 
@@ -31,7 +31,7 @@ generated_by: task plan-views status
 | P2 | Local vendor, secrets, preflight, bootstrap и Laravel Doctor | 7/7 | 🟢 Done |
 | P3 | Fresh install, Livewire/Filament assets и application readiness | 5/5 | 🟢 Done |
 | P4 | Закрытая production-документация вне public | 4/6 | 🟠 Done with deviations |
-| P5 | Default proxy settings и трёхуровневый resolve | 0/5 | ⬜ Not started |
+| P5 | Default proxy settings и трёхуровневый resolve | 1/5 | ⬜ Not started |
 | P6 | File handler registry, архивы и дочерняя обработка | 0/6 | ⬜ Not started |
 | P7 | Document type, summary, estimates и tags | 0/6 | ⬜ Not started |
 | P8 | Расширяемость platforms и гибкие status mappings | 0/5 | ⬜ Not started |
@@ -133,7 +133,7 @@ generated_by: task plan-views status
 
 | ID | Title | Status | Updated |
 |:--|:--|:--|:--|
-| P5.1 | Проаудировать текущие ProxyResolver, profile, scopes, health и parser call sites | ⬜ Not started | — |
+| P5.1 | Проаудировать текущие ProxyResolver, profile, scopes, health и parser call sites | 🟢 Done | 2026-08-11 |
 | P5.2 | Внедрить optional typed crawler/parser proxy settings carrier | ⬜ Not started | — |
 | P5.3 | Реализовать precedence profile → default → direct через ProxyResolver | ⬜ Not started | — |
 | P5.4 | Добавить понятные Filament settings и secret-safe validation | ⬜ Not started | — |
@@ -374,6 +374,8 @@ generated_by: task plan-views status
 | 2026-08-11 | gpt-5.6-sol/high | plan-close · closed-green · note сокращена; полный текст: journal.jsonl:186 |
 | 2026-08-11 | gpt-5.6-sol/high | plan-close · closed-green · note сокращена; полный текст: journal.jsonl:187 |
 | 2026-08-11 | gpt-5.6-sol/high | plan-close · closed-green · note сокращена; полный текст: journal.jsonl:188 |
+| 2026-08-11 | frontier/high | plan-run · in-progress · — |
+| 2026-08-11 | frontier/high | plan-run · closed-green · Reconciliation: terminal upstream products and current proxy call sites verified; D28/D29 stable; findings/research committed at 41e4e7cb; Context7/GitHub/citations green; Session: frontier/high. write-site: pre_mutation: allow · pre_final: allow |
 
 ## Owner Gates
 
