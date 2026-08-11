@@ -44,7 +44,8 @@ image_user=$(docker image inspect --format '{{.Config.User}}' "$image")
 docker run --rm --entrypoint sh "$image" -c 'test -x /etc/entrypoint.d/10-secrets.sh && grep -F "exec /usr/local/bin/docker-php-serversideup-entrypoint" /etc/entrypoint.d/10-secrets.sh >/dev/null'
 docker run --rm --entrypoint php "$image" -v | grep -q '^PHP '
 if [[ "$stage" == application ]]; then
-    docker run --rm --entrypoint php "$image" artisan --version | grep -q '^Laravel Framework '
+    install -m 0600 /dev/null "$temp_dir/database.sqlite"
+    docker run --rm --entrypoint php -e DB_CONNECTION=sqlite -e DB_DATABASE=/tmp/database.sqlite -v "$temp_dir/database.sqlite:/tmp/database.sqlite" "$image" artisan --version | grep -q '^Laravel Framework '
     docker run --rm --entrypoint sh "$image" -c 'test -f public/vendor/livewire/manifest.json && test -f public/js/filament/filament/app.js && test -f public/css/filament/filament/app.css'
 fi
 ! docker image history --no-trunc "$image" | grep -F "$sentinel" >/dev/null
