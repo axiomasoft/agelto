@@ -9,6 +9,7 @@ use App\Enums\Procurement\Crawler\CrawlerExecutionLane;
 use App\Enums\Procurement\Crawler\CrawlerMode;
 use App\Enums\Procurement\Crawler\RunStopPolicy;
 use App\Enums\Procurement\Crawler\SourceMethod;
+use App\Enums\Procurement\Proxy\CrawlerProxyMode;
 use App\Models\Procurement\Crawler\Crawler;
 use App\Models\Procurement\Crawler\Proxy;
 use App\Models\Procurement\Platform\Registry;
@@ -41,7 +42,7 @@ final class CrawlerFactory extends Factory
                 'records_per_page' => fake()->numberBetween(int1: 20, int2: 100),
             ],
             'is_active' => true,
-            'use_proxy' => false,
+            'proxy_mode' => CrawlerProxyMode::Default,
             'proxy_country' => null,
         ];
     }
@@ -67,7 +68,7 @@ final class CrawlerFactory extends Factory
 
     public function withoutProxy(): self
     {
-        return $this->state(state: ['use_proxy' => false]);
+        return $this->state(state: ['proxy_mode' => CrawlerProxyMode::Direct]);
     }
 
     public function proxyCountry(string $country): self
@@ -82,10 +83,10 @@ final class CrawlerFactory extends Factory
         }
 
         return $this
-            ->state(state: ['use_proxy' => false])
+            ->state(state: ['proxy_mode' => CrawlerProxyMode::Direct])
             ->afterCreating(static function (Crawler $crawler) use ($proxies): void {
                 $crawler->proxies()->sync(array_map(static fn (Proxy $proxy): int => $proxy->id, $proxies));
-                $crawler->update(['use_proxy' => true]);
+                $crawler->update(['proxy_mode' => CrawlerProxyMode::Profile]);
             });
     }
 }

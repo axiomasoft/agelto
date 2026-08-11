@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Enums\Procurement\Proxy\CrawlerProxyMode;
 use App\Models\Procurement\Crawler\Crawler;
 use App\Models\Procurement\Crawler\Proxy;
 use App\Models\Procurement\Platform\Registry;
@@ -34,6 +35,8 @@ test('резолвер стадии объединяет только набор
     Crawler::factory()->for($registry)->create()->proxies()->sync([$ignoredDirect->id]);
     Crawler::factory()->withProxies($ignoredOtherRegistry)->create();
 
-    expect(app(ProxyBindingResolver::class)->forProcurement($procurement->id))
-        ->toEqualCanonicalizing([$first->id, $second->id]);
+    $requirements = app(ProxyBindingResolver::class)->requirementsForProcurement($procurement->id);
+
+    expect($requirements->crawlerMode)->toBe(CrawlerProxyMode::Profile)
+        ->and($requirements->proxyIds)->toEqualCanonicalizing([$first->id, $second->id]);
 });

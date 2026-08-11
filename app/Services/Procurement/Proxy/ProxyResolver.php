@@ -7,6 +7,8 @@ namespace App\Services\Procurement\Proxy;
 use App\Dto\Procurement\Proxy\ProxyLease;
 use App\Dto\Procurement\Proxy\ProxyOutcome;
 use App\Dto\Procurement\Proxy\ProxyRequirements;
+use App\Enums\Procurement\Proxy\CrawlerProxyMode;
+use App\Enums\Procurement\Proxy\ProxyRouteSource;
 use App\Enums\Procurement\Proxy\ProxyScope;
 use App\Exceptions\Procurement\Proxy\NoProxyAvailableException;
 use App\Exceptions\Procurement\Proxy\ProxyPolicyMisconfiguredException;
@@ -33,6 +35,7 @@ final readonly class ProxyResolver
         private ProxyHealthStoreRepository $health,
         private ?Closure $randomSource = null,
         private ?OperationLogWriter $operationLogs = null,
+        private ?CrawlerProxySettingsResolver $crawlerSettings = null,
     ) {}
 
     /**
@@ -41,6 +44,32 @@ final readonly class ProxyResolver
      */
     public function resolve(ProxyScope $scope, string $target, ?ProxyRequirements $requirements = null): ProxyLease
     {
+        if ($requirements?->crawlerMode === CrawlerProxyMode::Direct) {
+            return $this->directLease(scope: $scope, target: $target);
+        }
+
+        $source = null;
+
+        if ($requirements?->crawlerMode === CrawlerProxyMode::Default) {
+            $defaultProxyId = $this->crawlerSettings?->defaultProxyId();
+
+            if ($defaultProxyId === null) {
+                return $this->directLease(scope: $scope, target: $target);
+            }
+
+            $requirements = new ProxyRequirements(proxyIds: [$defaultProxyId]);
+            $source = ProxyRouteSource::Default;
+        }
+
+        if ($requirements?->crawlerMode === CrawlerProxyMode::Profile) {
+            if ($requirements->proxyIds === []) {
+                $this->throwNoProxyAvailable(scope: $scope, target: $target, reason: 'profile mode requires nonempty proxy bindings');
+            }
+
+            $requirements = new ProxyRequirements(country: $requirements->country, proxyIds: $requirements->proxyIds);
+            $source = ProxyRouteSource::Profile;
+        }
+
         $remaining = $this->candidates($scope, $target, $requirements);
 
         if ($remaining->isEmpty()) {
@@ -73,6 +102,7 @@ final readonly class ProxyResolver
                 password: $chosen->password,
                 scope: $scope,
                 target: $target,
+                source: $source,
             );
         }
 
@@ -92,6 +122,17 @@ final readonly class ProxyResolver
         ]);
 
         throw new NoProxyAvailableException($scope, $target, $reason);
+    }
+
+    private function directLease(ProxyScope $scope, string $target): ProxyLease
+    {
+        Log::info('Резолвер прокси: прямой маршрут', [
+            'scope' => $scope->value,
+            'target' => $target,
+            'proxy_source' => ProxyRouteSource::Direct->value,
+        ]);
+
+        return ProxyLease::direct(scope: $scope, target: $target);
     }
 
     public function reportOutcome(ProxyLease $lease, ProxyOutcome $outcome): void

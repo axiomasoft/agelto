@@ -8,6 +8,7 @@ use App\Dto\Procurement\Crawler\WindowFilter;
 use App\Dto\Procurement\ProcurementDetails;
 use App\Enums\Procurement\Crawler\CrawlerMode;
 use App\Enums\Procurement\Crawler\SourceMethod as SourceMethodEnum;
+use App\Enums\Procurement\Proxy\CrawlerProxyMode;
 use App\Models\Procurement\Crawler\Crawler;
 use App\Models\Procurement\Crawler\Proxy;
 use App\Models\Procurement\Crawler\Run;
@@ -45,13 +46,13 @@ function proxySettingsCsvRow(string $registryNumber): array
 }
 
 /**
- * Двойник `SourceMethod`, фиксирующий `use_proxy`/`proxy_country` профиля НА МОМЕНТ
+ * Двойник `SourceMethod`, фиксирующий `proxy_mode`/`proxy_country` профиля НА МОМЕНТ
  * КАЖДОГО вызова `collectListing()` — так проверяется, что правка настроек посреди
  * прогона доходит до следующей итерации, а не остаётся снимком старта.
  */
 final class ProxySettingsRecordingSourceMethod implements SourceMethod
 {
-    /** @var list<array{use_proxy: bool, proxy_country: ?string}> */
+    /** @var list<array{proxy_mode: string, proxy_country: ?string}> */
     public array $observed = [];
 
     private int $cursorIndex = 0;
@@ -66,7 +67,7 @@ final class ProxySettingsRecordingSourceMethod implements SourceMethod
 
     public function collectListing(Crawler $crawler, ListingCursor $cursor): ListingBatch
     {
-        $this->observed[] = ['use_proxy' => $crawler->use_proxy, 'proxy_country' => $crawler->proxy_country];
+        $this->observed[] = ['proxy_mode' => $crawler->proxy_mode->value, 'proxy_country' => $crawler->proxy_country];
 
         $batch = $this->batches[$this->cursorIndex];
 
@@ -110,7 +111,7 @@ beforeEach(function () {
     Storage::fake('s3');
 });
 
-test('FreshRunProcessor перечитывает use_proxy/proxy_country профиля перед каждой итерацией', function () {
+test('FreshRunProcessor перечитывает proxy_mode/proxy_country профиля перед каждой итерацией', function () {
     $crawler = Crawler::factory()->withProxies(Proxy::factory()->create())->create(['proxy_country' => null]);
 
     $sourceMethod = useProxySettingsSourceMethod(
@@ -120,7 +121,7 @@ test('FreshRunProcessor перечитывает use_proxy/proxy_country про�
         ],
         beforeReturn: function (int $index) use ($crawler): void {
             if ($index === 0) {
-                Crawler::query()->whereKey($crawler->id)->update(['use_proxy' => false, 'proxy_country' => 'DE']);
+                Crawler::query()->whereKey($crawler->id)->update(['proxy_mode' => CrawlerProxyMode::Direct->value, 'proxy_country' => 'DE']);
             }
         },
     );
@@ -128,12 +129,12 @@ test('FreshRunProcessor перечитывает use_proxy/proxy_country про�
     app(FreshRunProcessor::class)->run(crawler: $crawler);
 
     expect($sourceMethod->observed)->toBe([
-        ['use_proxy' => true, 'proxy_country' => null],
-        ['use_proxy' => false, 'proxy_country' => 'DE'],
+        ['proxy_mode' => 'profile', 'proxy_country' => null],
+        ['proxy_mode' => 'direct', 'proxy_country' => 'DE'],
     ]);
 });
 
-test('ArchiveWindowScanner перечитывает use_proxy/proxy_country профиля перед каждой итерацией', function () {
+test('ArchiveWindowScanner перечитывает proxy_mode/proxy_country профиля перед каждой итерацией', function () {
     config([
         'crawler.eis.block_size' => 1,
         'crawler.archive.price_ceiling' => 100,
@@ -153,7 +154,7 @@ test('ArchiveWindowScanner перечитывает use_proxy/proxy_country пр
         ],
         beforeReturn: function (int $index) use ($crawler): void {
             if ($index === 0) {
-                Crawler::query()->whereKey($crawler->id)->update(['use_proxy' => false, 'proxy_country' => 'DE']);
+                Crawler::query()->whereKey($crawler->id)->update(['proxy_mode' => CrawlerProxyMode::Direct->value, 'proxy_country' => 'DE']);
             }
         },
     );
@@ -163,21 +164,21 @@ test('ArchiveWindowScanner перечитывает use_proxy/proxy_country пр
     app(ArchiveWindowScanner::class)->scan(crawler: $crawler, run: $run, filter: $filter);
 
     expect($sourceMethod->observed)->toBe([
-        ['use_proxy' => true, 'proxy_country' => null],
-        ['use_proxy' => false, 'proxy_country' => 'DE'],
+        ['proxy_mode' => 'profile', 'proxy_country' => null],
+        ['proxy_mode' => 'direct', 'proxy_country' => 'DE'],
     ]);
 });
 
-test('фабрика по умолчанию сохраняет direct-профиль, а withProxies включает флаг после привязки', function (): void {
+test('фабрика по умолчанию сохраняет default-профиль, а withProxies задаёт profile mode', function (): void {
     $directCrawler = Crawler::factory()->create();
     $proxy = Proxy::factory()->create();
     $proxyCrawler = Crawler::factory()->withProxies($proxy)->create();
 
-    expect($directCrawler->use_proxy)->toBeFalse()
-        ->and($proxyCrawler->use_proxy)->toBeTrue()
+    expect($directCrawler->proxy_mode)->toBe(CrawlerProxyMode::Default)
+        ->and($proxyCrawler->proxy_mode)->toBe(CrawlerProxyMode::Profile)
         ->and($proxyCrawler->proxies()->pluck('prc_proxies.id')->all())->toBe([$proxy->id]);
 });
 
 test('профиль с включёнными прокси без явной привязки не сохраняется', function (): void {
-    Crawler::factory()->create(['use_proxy' => true]);
+    Crawler::factory()->create(['proxy_mode' => CrawlerProxyMode::Profile]);
 })->throws(ValidationException::class, 'привяжите');

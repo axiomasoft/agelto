@@ -7,6 +7,7 @@ namespace App\Services\Procurement;
 use App\Dto\Procurement\Crawler\PlatformThrottleSettings;
 use App\Dto\Procurement\Crawler\StageSettings;
 use App\Enums\Procurement\Crawler\CrawlStage;
+use App\Enums\Procurement\Proxy\CrawlerProxyMode;
 use App\Exceptions\Procurement\Crawler\PlatformBudgetExhaustedException;
 use App\Models\Procurement\Crawler\Crawler;
 use App\Models\Procurement\Crawler\Proxy;
@@ -144,7 +145,7 @@ final readonly class PlatformRequestBudget
 
         $proxyIds = Crawler::query()
             ->where('is_active', true)
-            ->where('use_proxy', true)
+            ->where('proxy_mode', CrawlerProxyMode::Profile)
             ->whereHas('registry', static fn ($query) => $query->where('platform_id', $platform->id))
             ->get()
             ->flatMap(fn (Crawler $crawler): array => $this->proxyBindings->forCrawler(crawler: $crawler))

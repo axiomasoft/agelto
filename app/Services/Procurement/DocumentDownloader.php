@@ -7,7 +7,6 @@ namespace App\Services\Procurement;
 use App\Dto\Procurement\Crawler\StageSettings;
 use App\Dto\Procurement\Proxy\ProxyLease;
 use App\Dto\Procurement\Proxy\ProxyOutcome;
-use App\Dto\Procurement\Proxy\ProxyRequirements;
 use App\Enums\Procurement\Crawler\CrawlStage;
 use App\Enums\Procurement\Document\DocumentStatus;
 use App\Enums\Procurement\ProcurementEventType;
@@ -26,7 +25,6 @@ use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\RequestException;
 use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Http;
-use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 
 /**
@@ -122,7 +120,7 @@ final readonly class DocumentDownloader
         $this->fetches->log(CrawlStage::Document, null, $document->procurement_id, [
             'method' => 'document-download', 'request_params' => ['url' => $url],
             'http_status' => $response->status(), 'duration_ms' => (int) ((hrtime(true) - $startedAt) / 1_000_000),
-            'proxy_id' => $lease->proxyId, 'wait_ms' => $waitMs,
+            'proxy_id' => $lease->proxyId, 'proxy_source' => $lease->source?->value, 'wait_ms' => $waitMs,
         ]);
 
         if ($response->failed()) {
@@ -134,23 +132,10 @@ final readonly class DocumentDownloader
 
     private function documentLease(Document $document, string $host): ProxyLease
     {
-        $proxyIds = $this->proxyBindingResolver->forProcurement($document->procurement_id);
-
-        if ($proxyIds === []) {
-            Log::info('Резолвер прокси: для документа нет активной привязки, запрос уходит напрямую', [
-                'document_id' => $document->id,
-                'procurement_id' => $document->procurement_id,
-                'scope' => ProxyScope::DocumentDownload->value,
-                'target' => $host,
-            ]);
-
-            return ProxyLease::direct(ProxyScope::DocumentDownload, $host);
-        }
-
         return $this->proxyResolver->resolve(
             scope: ProxyScope::DocumentDownload,
             target: $host,
-            requirements: new ProxyRequirements(proxyIds: $proxyIds),
+            requirements: $this->proxyBindingResolver->requirementsForProcurement($document->procurement_id),
         );
     }
 

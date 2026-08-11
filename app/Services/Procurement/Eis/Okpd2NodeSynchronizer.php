@@ -7,7 +7,9 @@ namespace App\Services\Procurement\Eis;
 use App\Dto\Procurement\Crawler\EisSearchFilter;
 use App\Dto\Procurement\Crawler\StageSettings;
 use App\Dto\Procurement\Proxy\ProxyLease;
+use App\Dto\Procurement\Proxy\ProxyRequirements;
 use App\Enums\Procurement\Crawler\CrawlStage;
+use App\Enums\Procurement\Proxy\CrawlerProxyMode;
 use App\Enums\Procurement\Proxy\ProxyScope;
 use App\Models\Procurement\Crawler\Crawler;
 use App\Models\Procurement\Platform\Okpd2Node;
@@ -155,7 +157,11 @@ final readonly class Okpd2NodeSynchronizer
     private function traverse(string $rootId, int $rootLevel, int $limit, Platform $platform): array
     {
         $endpoint = (string) config('crawler.okpd2.children_endpoint');
-        $lease = $this->proxyResolver->resolve(ProxyScope::CrawlListing, $this->canonicalHost($endpoint));
+        $lease = $this->proxyResolver->resolve(
+            scope: ProxyScope::CrawlListing,
+            target: $this->canonicalHost($endpoint),
+            requirements: new ProxyRequirements(crawlerMode: CrawlerProxyMode::Default),
+        );
         $settings = $this->crawlSettings->forStage(stage: CrawlStage::Listing, platform: $platform);
 
         // Корень поддерева в карту НЕ пишется: его `parent_code` неизвестен, а дети получают

@@ -10,6 +10,7 @@ use App\Enums\Procurement\Crawler\CrawlerExecutionLane;
 use App\Enums\Procurement\Crawler\CrawlerMode;
 use App\Enums\Procurement\Crawler\RunStopPolicy;
 use App\Enums\Procurement\Crawler\SourceMethod;
+use App\Enums\Procurement\Proxy\CrawlerProxyMode;
 use App\Models\Procurement\Platform\Registry;
 use App\Services\Procurement\CrawlerFilterFactory;
 use Database\Factories\Procurement\Crawler\CrawlerFactory;
@@ -40,7 +41,7 @@ use Spatie\LaravelData\Data;
  * @property string|null $schedule
  * @property CrawlerRuntimeOptions|null $options
  * @property bool $is_active
- * @property bool $use_proxy
+ * @property CrawlerProxyMode $proxy_mode
  * @property string|null $proxy_country
  * @property Carbon $created_at
  * @property Carbon $updated_at
@@ -64,7 +65,7 @@ final class Crawler extends Model
         'schedule',
         'options',
         'is_active',
-        'use_proxy',
+        'proxy_mode',
         'proxy_country',
     ];
 
@@ -77,7 +78,7 @@ final class Crawler extends Model
             'source_method' => SourceMethod::class,
             'fallback_method' => SourceMethod::class,
             'is_active' => 'boolean',
-            'use_proxy' => 'boolean',
+            'proxy_mode' => CrawlerProxyMode::class,
         ];
     }
 
@@ -129,7 +130,7 @@ final class Crawler extends Model
      */
     private function assertProxyBinding(): void
     {
-        if (! $this->use_proxy) {
+        if ($this->proxy_mode !== CrawlerProxyMode::Profile) {
             return;
         }
 

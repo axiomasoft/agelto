@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Dto\Procurement\Crawler;
 
+use App\Enums\Procurement\Proxy\ProxyRouteSource;
+
 /**
  * Один блок листинга, как его вернул `SourceMethod::collectListing()` — сырые строки
  * (ассоциативы по заголовку CSV) + метаданные забора для `prc_fetches` и cap-детекта
@@ -24,6 +26,7 @@ final readonly class ListingBatch
         public int $durationMs,
         public array $requestParams,
         public ?int $proxyId = null,
+        public ?ProxyRouteSource $proxySource = null,
         public int $waitMs = 0,
     ) {}
 }

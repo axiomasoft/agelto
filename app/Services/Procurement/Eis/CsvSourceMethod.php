@@ -128,6 +128,7 @@ final readonly class CsvSourceMethod implements SourceMethod
             durationMs: $durationMs,
             requestParams: $queryParams,
             proxyId: $lease->proxyId,
+            proxySource: $lease->source,
             waitMs: $waitMs,
         );
     }
@@ -140,22 +141,13 @@ final readonly class CsvSourceMethod implements SourceMethod
      */
     private function listingLease(Crawler $crawler, string $host): ProxyLease
     {
-        if (! $crawler->use_proxy) {
-            Log::info('Резолвер прокси: профиль отключил прокси, запрос уходит напрямую', [
-                'crawler' => $crawler->name,
-                'scope' => ProxyScope::CrawlListing->value,
-                'target' => $host,
-            ]);
-
-            return ProxyLease::direct(ProxyScope::CrawlListing, $host);
-        }
-
         return $this->proxyResolver->resolve(
-            ProxyScope::CrawlListing,
-            $host,
-            new ProxyRequirements(
+            scope: ProxyScope::CrawlListing,
+            target: $host,
+            requirements: new ProxyRequirements(
                 country: $crawler->proxy_country,
                 proxyIds: $this->proxyBindingResolver->forCrawler($crawler),
+                crawlerMode: $crawler->proxy_mode,
             ),
         );
     }
@@ -268,22 +260,10 @@ final readonly class CsvSourceMethod implements SourceMethod
 
     private function detailLease(Procurement $procurement, string $host): ProxyLease
     {
-        $proxyIds = $this->proxyBindingResolver->forProcurement($procurement->id);
-
-        if ($proxyIds === []) {
-            Log::info('Резолвер прокси: для карточки нет активной привязки, запрос уходит напрямую', [
-                'procurement_id' => $procurement->id,
-                'scope' => ProxyScope::CrawlDetail->value,
-                'target' => $host,
-            ]);
-
-            return ProxyLease::direct(ProxyScope::CrawlDetail, $host);
-        }
-
         return $this->proxyResolver->resolve(
             scope: ProxyScope::CrawlDetail,
             target: $host,
-            requirements: new ProxyRequirements(proxyIds: $proxyIds),
+            requirements: $this->proxyBindingResolver->requirementsForProcurement($procurement->id),
         );
     }
 

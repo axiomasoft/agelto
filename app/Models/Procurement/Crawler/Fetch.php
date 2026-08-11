@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models\Procurement\Crawler;
 
+use App\Enums\Procurement\Proxy\ProxyRouteSource;
 use Database\Factories\Procurement\Crawler\FetchFactory;
 use Illuminate\Database\Eloquent\Attributes\UseFactory;
 use Illuminate\Database\Eloquent\Casts\AsCollection;
@@ -42,6 +43,7 @@ final class Fetch extends Model
         'rows_errors',
         'dedup_signature',
         'proxy_id',
+        'proxy_source',
         'fetched_at',
     ];
 
@@ -59,6 +61,7 @@ final class Fetch extends Model
             'rows_parsed' => 'integer',
             'rows_errors' => 'integer',
             'fetched_at' => 'datetime',
+            'proxy_source' => ProxyRouteSource::class,
         ];
     }
 

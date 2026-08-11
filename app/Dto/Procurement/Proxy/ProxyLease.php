@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Dto\Procurement\Proxy;
 
+use App\Enums\Procurement\Proxy\ProxyRouteSource;
 use App\Enums\Procurement\Proxy\ProxyScope;
 
 /**
@@ -22,6 +23,7 @@ final readonly class ProxyLease
         public ProxyScope $scope,
         public string $target,
         public bool $isDirect,
+        public ?ProxyRouteSource $source,
     ) {}
 
     public static function forProxy(
@@ -32,6 +34,7 @@ final readonly class ProxyLease
         ?string $password,
         ProxyScope $scope,
         string $target,
+        ?ProxyRouteSource $source = null,
     ): self {
         return new self(
             proxyId: $proxyId,
@@ -41,6 +44,7 @@ final readonly class ProxyLease
             scope: $scope,
             target: $target,
             isDirect: false,
+            source: $source,
         );
     }
 
@@ -58,6 +62,7 @@ final readonly class ProxyLease
             scope: $scope,
             target: $target,
             isDirect: true,
+            source: ProxyRouteSource::Direct,
         );
     }
 

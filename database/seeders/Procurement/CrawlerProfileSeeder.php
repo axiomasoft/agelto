@@ -10,6 +10,7 @@ use App\Enums\Procurement\Crawler\CrawlerMode;
 use App\Enums\Procurement\Crawler\ListingSortField;
 use App\Enums\Procurement\Crawler\RunStopPolicy;
 use App\Enums\Procurement\Crawler\SourceMethod;
+use App\Enums\Procurement\Proxy\CrawlerProxyMode;
 use App\Models\Procurement\Crawler\Crawler;
 use App\Models\Procurement\Platform\Platform;
 use App\Models\Procurement\Platform\Registry;
@@ -137,7 +138,7 @@ final class CrawlerProfileSeeder extends Seeder
                 'schedule' => null,
                 'options' => ['columns' => self::COLUMNS],
                 'is_active' => true,
-                'use_proxy' => false,
+                'proxy_mode' => CrawlerProxyMode::Default,
                 'proxy_country' => 'RU',
             ],
         );
@@ -170,7 +171,7 @@ final class CrawlerProfileSeeder extends Seeder
                 'schedule' => '*/30 * * * *',
                 'options' => ['columns' => self::COLUMNS],
                 'is_active' => false,
-                'use_proxy' => false,
+                'proxy_mode' => CrawlerProxyMode::Default,
                 'proxy_country' => 'RU',
             ],
         );

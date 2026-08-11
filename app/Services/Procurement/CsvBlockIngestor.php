@@ -113,6 +113,7 @@ final readonly class CsvBlockIngestor
             'rows_errors' => $rowsErrors,
             'dedup_signature' => $batch->dedupSignature,
             'proxy_id' => $batch->proxyId,
+            'proxy_source' => $batch->proxySource?->value,
             'wait_ms' => $batch->waitMs,
         ]);
 

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Dto\Procurement\Crawler\ListingBatch;
 use App\Dto\Procurement\Crawler\ListingCursor;
+use App\Enums\Procurement\Proxy\CrawlerProxyMode;
 use App\Enums\Procurement\Proxy\ProxyScope;
 use App\Exceptions\Procurement\Proxy\NoProxyAvailableException;
 use App\Models\Procurement\Crawler\Crawler;
@@ -227,7 +228,7 @@ test('профиль с proxy_country=RU при пуле из RU и DE полу�
     expect($batch->proxyId)->toBe($ruProxy->id);
 });
 
-test('профиль с use_proxy=false не вызывает резолвер — запрос уходит напрямую с NULL proxyId', function () {
+test('direct-профиль получает typed direct lease от резолвера', function () {
     Sleep::fake();
     Log::spy();
     // Пул кандидатов пуст: если бы `resolve()` всё же был вызван, тест упал бы
@@ -239,17 +240,18 @@ test('профиль с use_proxy=false не вызывает резолвер �
     ]);
 
     $registry = registryWithOkpd2Scope();
-    $crawler = Crawler::factory()->for($registry)->create(['filter' => ['okpd2Codes' => ['43']], 'use_proxy' => false]);
+    $crawler = Crawler::factory()->for($registry)->create(['filter' => ['okpd2Codes' => ['43']], 'proxy_mode' => CrawlerProxyMode::Direct]);
     $cursor = new ListingCursor(blockFrom: 1);
 
     $batch = app(CsvSourceMethod::class)->collectListing($crawler, $cursor);
 
     expect($batch->httpStatus)->toBe(200)
-        ->and($batch->proxyId)->toBeNull();
+        ->and($batch->proxyId)->toBeNull()
+        ->and($batch->proxySource?->value)->toBe('direct');
 
     Http::assertSentCount(1);
     Log::shouldHaveReceived('info')
-        ->with('Резолвер прокси: профиль отключил прокси, запрос уходит напрямую', Mockery::on(
+        ->with('Резолвер прокси: прямой маршрут', Mockery::on(
             static fn (array $context): bool => $context['scope'] === ProxyScope::CrawlListing->value,
         ))
         ->once();

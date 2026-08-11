@@ -4,8 +4,9 @@ declare(strict_types=1);
 
 namespace App\Services\Procurement\Proxy;
 
+use App\Dto\Procurement\Proxy\ProxyRequirements;
+use App\Enums\Procurement\Proxy\CrawlerProxyMode;
 use App\Models\Procurement\Crawler\Crawler;
-use App\Models\Procurement\Crawler\Proxy;
 
 /**
  * Единственный носитель привязки прокси к профилям (D38). У стадий карточки и документа нет
@@ -24,23 +25,29 @@ final readonly class ProxyBindingResolver
     }
 
     /** @return list<int> */
-    public function forProcurement(?int $procurementId): array
+    public function requirementsForProcurement(?int $procurementId): ProxyRequirements
     {
         if ($procurementId === null) {
-            return [];
+            return new ProxyRequirements(crawlerMode: CrawlerProxyMode::Direct);
         }
 
-        return Proxy::query()
-            ->join('prc_crawler_proxy', 'prc_crawler_proxy.proxy_id', '=', 'prc_proxies.id')
-            ->join('prc_crawlers', 'prc_crawlers.id', '=', 'prc_crawler_proxy.crawler_id')
+        $crawlers = Crawler::query()
             ->join('prc_procurements', 'prc_procurements.registry_id', '=', 'prc_crawlers.registry_id')
             ->where('prc_procurements.id', $procurementId)
             ->where('prc_crawlers.is_active', true)
-            ->where('prc_crawlers.use_proxy', true)
-            ->distinct()
-            ->pluck('prc_proxies.id')
-            ->map(static fn (mixed $id): int => (int) $id)
-            ->values()
-            ->all();
+            ->get(['prc_crawlers.*']);
+        $profiles = $crawlers->where('proxy_mode', CrawlerProxyMode::Profile);
+
+        if ($profiles->isNotEmpty()) {
+            $proxyIds = $profiles->flatMap(fn (Crawler $crawler): array => $this->forCrawler($crawler))->unique()->values()->all();
+
+            return new ProxyRequirements(proxyIds: $proxyIds, crawlerMode: CrawlerProxyMode::Profile);
+        }
+
+        if ($crawlers->contains('proxy_mode', CrawlerProxyMode::Default)) {
+            return new ProxyRequirements(crawlerMode: CrawlerProxyMode::Default);
+        }
+
+        return new ProxyRequirements(crawlerMode: CrawlerProxyMode::Direct);
     }
 }

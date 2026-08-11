@@ -128,6 +128,6 @@ test('download без активной proxy-привязки идёт напр�
 
     Http::assertSentCount(1);
     Log::shouldHaveReceived('info')
-        ->with('Резолвер прокси: для документа нет активной привязки, запрос уходит напрямую', Mockery::any())
+        ->with('Резолвер прокси: прямой маршрут', Mockery::any())
         ->once();
 });
