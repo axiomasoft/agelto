@@ -5,12 +5,14 @@
 - `findings/P5-proxy-settings-recon-2026-08-09.md` — repo call-site map and official Spatie RAG.
 - `research/00-user-intent.md` — owner trace for profile → default → direct and tooling separation.
 - D8 — immutable owner precedence and ProxyResolver/health boundary.
-- P0.5/P0.6 state/products — authoritative future RAG/frozen contract, not yet produced.
+- P0.5/P0.6 terminal state/products — `f1cb83dd` domain/security RAG and `52fb69c6` frozen
+  release-readiness contract, reconciled by P5.1 on 2026-08-11.
 
-P5 is designed before P0 execution. P5.1 is therefore a hard reconcile/freeze item: it requires
-terminal P0.5/P0.6 and compares their named products with D28/D29 before any Composer, migration or
-application mutation. Contradiction produces a superseding decision through plan-design; the executor
-does not improvise. RAG:— (repo-grounded: P0.5/P0.6 current states and plan phase order).
+P5 was designed before P0 execution. P5.1 confirmed both upstream states terminal, recovered their
+named products from committed history and compared them with D28/D29 before any Composer, migration
+or application mutation. P0.5 confirms D8 but deliberately defers exact Settings compatibility;
+P5.1 closes that fact through official 3.9.0 release/tag/README evidence. No contradiction exists,
+so D28/D29 remain byte-stable. RAG:✅ 2026-08-11 official Spatie GitHub + repo history/state.
 
 ## Alternatives and decisions
 
@@ -67,6 +69,9 @@ does not improvise. RAG:— (repo-grounded: P0.5/P0.6 current states and plan ph
    Proxy identity/service/host/country/scopes and never dehydrates credentials into settings state.
 8. Horizon freshness is explicit: a read-side settings resolver calls official `refresh()` before
    selection; production cache is enabled only if cross-process edit/read proof stays green.
+9. OKPD2 is a crawler runtime call site, not an exception: its current unrestricted
+   `crawl_listing` resolve without `reportOutcome()` must enter the same default/direct and health
+   accounting boundary in P5.3.
 
 RAG:— (repo-grounded synthesis: D8/D28/D29 and P5 findings).
 
@@ -74,7 +79,7 @@ RAG:— (repo-grounded synthesis: D8/D28/D29 and P5 findings).
 
 | Item | Input dependency | Product | Downstream gate |
 |:--|:--|:--|:--|
-| P5.1 | terminal P0.5/P0.6 | reconciled findings/contracts and stable D28/D29 or explicit superseding chain | P5.2 may change dependencies/schema only after freeze |
+| P5.1 | terminal P0.5/P0.6 | reconciled findings/contracts, complete runtime/tooling + consumer matrices and stable D28/D29 | P5.2 may change dependencies/schema only after freeze |
 | P5.2 | terminal P5.1 | locked package, dedicated settings repository/class and refresh-aware reader | P5.3 consumes one typed carrier |
 | P5.3 | terminal P5.2 | typed modes/source, migrations and centralized resolver precedence at every call site | P5.4 exposes only sealed semantics |
 | P5.4 | terminal P5.3 | authorized secret-safe settings/profile UX | P5.5 tests real UI/runtime carrier |
@@ -101,6 +106,8 @@ matrix above).
 
 ## Verification status
 
-- RAG: official GitHub/Spatie ×3 fact classes OK; repo inspection OK.
-- Непроверено → ПОВТОРНЫЙ ПРОХОД: P0.5/P0.6 terminal products; P5.1 is the exact reconcile carrier.
+- RAG: terminal P0 products + Context7 ×2 + official GitHub latest release/tagged composer/README
+  OK; Perplexity bridge no-answer was replaced by primary-source Web fallback; repo inspection OK.
+- Непроверено → ПОВТОРНЫЙ ПРОХОД: nothing for P5.1; P5.2/P5.5 own executable cross-process
+  freshness proof rather than a narrative package guarantee.
 - Обходки/[POSSIBLE-DEFECT]: none.
