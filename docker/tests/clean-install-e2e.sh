@@ -46,6 +46,14 @@ minio_port=${isolated_ports[3]}
 minio_console_port=${isolated_ports[4]}
 
 cleanup() {
+    local exit_status=$?
+
+    if (( exit_status != 0 )); then
+        if ! docker compose --project-directory "$candidate" --project-name "$project" --env-file "$e2e_env" -f "$candidate/docker-compose.yml" logs --tail 100 app >&2; then
+            echo "Could not collect app logs for isolated Compose project $project" >&2
+        fi
+    fi
+
     if ! docker compose --project-directory "$candidate" --project-name "$project" --env-file "$e2e_env" -f "$candidate/docker-compose.yml" down --remove-orphans >/dev/null 2>&1; then
         echo "Could not fully tear down isolated Compose project $project" >&2
     fi
@@ -53,6 +61,8 @@ cleanup() {
     if ! git -C "$root_dir" worktree remove --force "$candidate" >/dev/null 2>&1; then
         echo "Could not remove isolated candidate worktree $candidate" >&2
     fi
+
+    return "$exit_status"
 }
 trap cleanup EXIT
 
