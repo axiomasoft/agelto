@@ -1,42 +1,45 @@
-# HANDOFF — 2026-08-11 — after P4.4
+# HANDOFF — 2026-08-11 — after P4
 
-**Next:** ЗАПУСК ВРУЧНУЮ: implementation/high
+**Next:** manual: frontier/high
 
 | Параметр | Значение |
 |:--|:--|
-| Model | implementation |
-| Thinking | high — adversarial docs acceptance |
-| Context | continue (/clear) — ручной item |
-| Суть | Доказать access, browser, cache и image contract закрытой документации. |
+| Model class | frontier |
+| Effort | high |
+| Capabilities | — |
+| Context | continue-root |
+| Суть | Сверить ProxyResolver/profile/scopes/health и заморозить P5 contract. |
 | Команда | — |
 
-#### Native Codex launch-block
+```text
+select the session model class: frontier
+select the session effort: high
+$ task:plan-run 2026.08.09-RELEASE-READINESS P5.1
+```
+
+### Native Codex launch-block
 
 ```bash
-codex -C /home/vostrikov/projects/agelto/agelto -m gpt-5.6-terra -c 'model_reasoning_effort="high"' -a never -s danger-full-access '$ task:plan-run 2026.08.09-RELEASE-READINESS P4.5'
+codex -C /home/vostrikov/projects/agelto/agelto -m gpt-5.6-sol -c 'model_reasoning_effort="high"' -a never -s danger-full-access '$ task:plan-run 2026.08.09-RELEASE-READINESS P5.1'
 ```
 
-```text
-$ task:plan-run 2026.08.09-RELEASE-READINESS P4.5
-```
+**Done:** P4.1–P4.6 terminal; active SVG surface rejected; VitePress 1.6.4 private artifact
+reproducible in a clean detached candidate; exact HTTP/browser/image carrier GREEN on product
+`d9f025f3` and image
+`sha256:f4cbc49282d6e773de1f630390a00a3459c0abd81316c6f73b4f7def413189c0`.
+P4.1/P4.2/P4.5 commit, route and write-site evidence reconciled append-only; P4.2 status corrected
+to 🟠, P4.5 to 🟢.
 
-**Done:** P4.4 добавил auto-discovered `DocumentationPermission::View`, canonical web-auth guest
-redirect и controller check до locator; Filament discovery использует тот же enum. SuperAdmin и
-direct grant получают bytes, roleless/Analyst/Operator — нет; revoke закрывает route и navigation.
+**Remaining:** P4 work — none. P5.1 is the next plan item and was not started in this session.
 
-Product commit: `4c485b28` — `feat(docs): закрыть доступ к документации (P4.4)`.
+**Sources of truth:** `phases/P4/P4.md` · `phases/P4/P4.1.state.md` ·
+`phases/P4/P4.2.state.md` · `phases/P4/P4.5.state.md` · `phases/P4/P4.6.state.md` ·
+`artifacts/P4-acceptance-report.md` · D72 · `journal.jsonl`.
 
-**Remaining:** P4.5 должен запустить item-owned adversarial PHP/browser/image carrier и выпустить
-P4 acceptance report. Полный `guard:doctor` остаётся красным на унаследованных policy gaps, а full
-PHPStan — на двух унаследованных `env()` findings в `app/Support/SecretValue.php`; P10.1 должен
-зафиксировать их disposition, не маскируя их в P4.
+**Open risks:** P4.2 foreign docs diff and P4.4 inherited Doctor/full-PHPStan failures remain
+terminal Known Deviations. D72 records owner-waived Task protocol collisions: stale audit
+fingerprint and false RED downstream execution of prose tokens from future P5/P11 specs; neither
+changes P4 product acceptance or authorizes touching those phases.
 
-**Sources of truth:** `phases/P4/P4.4.state.md` · `phases/P4/P4.5.md` · `journal.jsonl` · D27 ·
-`app/Guards/Admin/Permissions/DocumentationPermission.php` ·
-`tests/Feature/Documentation/PrivateDocumentationAccessTest.php`.
-
-**Open risks:** P4.4 access matrix зелёная, но P4.5 ещё не доказал browser/cache/image denial и
-full release carrier остаётся заблокирован унаследованными quality findings.
-
-**Workarounds/Deferred/Open questions:** Workarounds — нет. Deferred — policy-catalog and
-`SecretValue` quality remediation в владельце P10.1. Open questions — нет.
+**Workarounds/Deferred/Open questions:** Workarounds — нет. Deferred — нет.
+Open questions — нет.

@@ -1,6 +1,6 @@
 # Roadmap исполнения — 2026.08.09-RELEASE-READINESS
 
-**Обновлён:** 2026-08-11 · **Соответствует plan.md:** Layout v2, 79 items: 75-item finish + remediations P0.7/P1.6/P1.7/P2.7; финальный reopen P2 зафиксирован D70
+**Обновлён:** 2026-08-11 · **Соответствует plan.md:** Layout v2, 80 items: 75-item finish + remediations P0.7/P1.6/P1.7/P2.7/P4.6; финальный reopen P4 зафиксирован D72
 
 Roadmap пересобран после повторного full `finish` D52 и адресной remediation F1–F12; D55 закрывает
 audit-loop после трёх заходов и открывает execution напрямую с P0.0. `solo` оставлен для owner-gate,
@@ -15,7 +15,8 @@ batch и всё равно закрываются каждый своим commit
 | P1 | P1.1–P1.7 | solo P1.7 | implementation/high · full | F6–F10 второго RED-аудита; P2 закрыта до terminal P1.7, close и fresh-context audit P1 |
 | P2 | P2.1–P2.7 | solo P2.7 | implementation/high · full | один последовательный audit-defined release carrier; evidence reconcile допустим только после GREEN product anchor |
 | P3 | P3.1–P3.5 | B3-READINESS | implementation/high · full | diagnosis→repair→readiness→E2E→recovery использует один runtime context; root-cause escalation останавливает серию |
-| P4–P12 | текущие solo | solo | как в §3 Routing | требуются owner/external gates, frontier freeze либо отдельный риск-контекст; кандидаты на следующие batch-проходы рассматриваются по фактическим terminal inputs |
+| P4 | P4.1–P4.6 | terminal | — | фаза закрыта после P4.6 remediation D72; следующий исполнимый item — P5.1 |
+| P5–P12 | текущие solo | solo | как в §3 Routing | требуются owner/external gates, frontier freeze либо отдельный риск-контекст; кандидаты на следующие batch-проходы рассматриваются по фактическим terminal inputs |
 
 ## Карта исполнения
 
@@ -53,6 +54,7 @@ batch и всё равно закрываются каждый своим commit
 | P4.3 | solo | `task:plan-run … P4.3` | implementation/high | — | path/MIME/cache response security boundary |
 | P4.4 | solo | `task:plan-run … P4.4` | implementation/high | — | package/application authorization integration |
 | P4.5 | solo | `task:plan-run … P4.5` | implementation/high | — | terminal adversarial HTTP/browser/image proof |
+| P4.6 | closed | — | implementation/high | — | terminal product `d9f025f3`: active SVG rejected, self-contained clean candidate и exact browser/image proof GREEN; append-only evidence reconciled |
 | P5.1 | solo | `task:plan-run … P5.1` | frontier/high | contract reconcile | terminal upstream may supersede proxy design |
 | P5.2 | solo | `task:plan-run … P5.2` | implementation/high | — | settings schema/worker freshness mutation |
 | P5.3 | solo | `task:plan-run … P5.3` | implementation/high | — | egress precedence/health correctness boundary |
@@ -103,25 +105,25 @@ batch и всё равно закрываются каждый своим commit
 
 ## Следующий запуск
 
-**Next:** manual: implementation/high
+**Next:** manual: frontier/high
 
 | Параметр | Значение |
 |:--|:--|
-| Model class | implementation |
+| Model class | frontier |
 | Effort | high |
 | Capabilities | — |
-| Context | same-session — item |
-| Суть | Закрыть F1–F8 RED-аудита P2 одним P2.7 и подготовить close/audit P2. |
+| Context | continue-root |
+| Суть | Сверить ProxyResolver/profile/scopes/health и заморозить P5 contract. |
 | Команда | — |
 
 ```text
-$ task:plan-run 2026.08.09-RELEASE-READINESS P2.7
+$ task:plan-run 2026.08.09-RELEASE-READINESS P5.1
 ```
 
 ### Native Codex launch-block
 
 ```bash
-codex -C /home/vostrikov/projects/agelto/agelto -m gpt-5.6-terra -c 'model_reasoning_effort="high"' -a never -s danger-full-access '$ task:plan-run 2026.08.09-RELEASE-READINESS P2.7'
+codex -C /home/vostrikov/projects/agelto/agelto -m gpt-5.6-sol -c 'model_reasoning_effort="high"' -a never -s danger-full-access '$ task:plan-run 2026.08.09-RELEASE-READINESS P5.1'
 ```
 
 ## Гейты владельца (сводно)

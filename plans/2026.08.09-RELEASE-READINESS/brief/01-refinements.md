@@ -204,3 +204,17 @@ handoff/close/re-audit. Закрытые specs вне минимальной rem
 повторный audit; если frozen acceptance выявит дополнительные дефекты, они исправляются bounded
 fix-ами без нового design-цикла. Новый product contract или выход за anti-scope по-прежнему требует
 явного решения владельца. Решение материализовано D70 и `research/19-P2-audit-remediation.md`.
+
+## 2026-08-11 — финальный reopen P4 по RED-аудиту
+
+Владелец запустил `$ task:plan-design 2026.08.09-RELEASE-READINESS P4` строго в режиме §3-reopen,
+не детализации. Scope ограничен F1–F8 блока `## Audit P4 — 2026-08-11`: закрыть active-SVG seam;
+довести P4.5 до буквального GREEN composite browser/image carrier; сделать P4.2 clean-commit
+carrier самодостаточным; восстановить P4.1 upstream committed refs; append-only reconcile P4.2
+status, P4.1/P4.2/P4.5 write-sites/routes/anchors и phase/handoff views. Single auth route, AzGuard
+permission model, traversal/realpath containment, VitePress 1.6.4, outside-public boundary,
+P0–P3/P5+ и пользовательский `AGENTS.md` остаются вне scope.
+
+Владелец отдельно потребовал не оставлять конфликтов следующему проходу: frozen acceptance defects
+исправляются в текущем P4.6 до полного GREEN, после чего P4 закрывается без ещё одного design/audit
+цикла. Решение материализовано D72 и `research/20-P4-audit-remediation.md`.

@@ -3,7 +3,7 @@ projection: status-view
 projection_version: v1
 source_scope: plan core + phases + journal
 through: 2026-08-11
-inputs_sha256: 28ec35bc005b003d4a6fc6bfdfbbaeb1f25a1026754402e1bbcbd1feb3eff298
+inputs_sha256: 304bcc93ff9a26781219871bcc88fb309de4d9142f6bd928946eb995f511b261
 generated_by: task plan-views status
 -->
 
@@ -15,7 +15,7 @@ generated_by: task plan-views status
 
 | Поле | Значение |
 |:--|:--|
-| Version | 0.1.5 |
+| Version | 0.1.6 |
 | Status | ⬜ Not started |
 | Last Updated | 2026-08-11 |
 
@@ -30,7 +30,7 @@ generated_by: task plan-views status
 | P12 | Ubuntu deployment guide и финальный clean-room rehearsal | 0/7 | ⬜ Not started |
 | P2 | Local vendor, secrets, preflight, bootstrap и Laravel Doctor | 7/7 | 🟢 Done |
 | P3 | Fresh install, Livewire/Filament assets и application readiness | 5/5 | 🟢 Done |
-| P4 | Закрытая production-документация вне public | 3/5 | 🟠 Done with deviations |
+| P4 | Закрытая production-документация вне public | 4/6 | 🟠 Done with deviations |
 | P5 | Default proxy settings и трёхуровневый resolve | 0/5 | ⬜ Not started |
 | P6 | File handler registry, архивы и дочерняя обработка | 0/6 | ⬜ Not started |
 | P7 | Document type, summary, estimates и tags | 0/6 | ⬜ Not started |
@@ -123,10 +123,11 @@ generated_by: task plan-views status
 | ID | Title | Status | Updated |
 |:--|:--|:--|:--|
 | P4.1 | Сверить upstream evidence и заморозить threat/build/serving contract | 🟢 Done | 2026-08-11 |
-| P4.2 | Собирать VitePress atomically вне public и включать в immutable image | 🟢 Done | 2026-08-11 |
+| P4.2 | Собирать VitePress atomically вне public и включать в immutable image | 🟠 Done with deviations | 2026-08-11 |
 | P4.3 | Реализовать manifest-backed locator и единый secure controller | 🟢 Done | 2026-08-11 |
 | P4.4 | Подключить AzGuard permission и Filament navigation без обходных routes | 🟠 Done with deviations | 2026-08-11 |
-| P4.5 | Доказать access, traversal, MIME/cache, browser и image contract | 🟠 Done with deviations | 2026-08-11 |
+| P4.5 | Доказать access, traversal, MIME/cache, browser и image contract | 🟢 Done | 2026-08-11 |
+| P4.6 | Закрыть F1–F8 RED-аудита P4 единым committed acceptance carrier | 🟢 Done | 2026-08-11 |
 
 ## Phase P5
 
@@ -361,6 +362,18 @@ generated_by: task plan-views status
 | 2026-08-11 | gpt-5.6-terra/high | plan-run · closed-deviations · Enum controller and Filament link completed; docs/Filament tests and catalog validation passed; write-site: pre_mutation: allow · pre_final: allow; guard:doctor and full PHPStan legacy errors remain. |
 | 2026-08-11 | gpt-5.6-terra/high | plan-run · in-progress · — |
 | 2026-08-11 | gpt-5.6-terra/high | plan-run · closed-deviations · Focused PHP, build and image gates passed; isolated E2E needs absent credential inputs. |
+| 2026-08-11 | frontier/xhigh | plan-audit · audit-red · заход 1, вердикт RED |
+| 2026-08-11 | frontier/high | plan-design · in-progress · Фаза P4 реопенена D72: P4.6 закрывает F1–F8 единым GREEN carrier; затем штатный close без нового audit/design цикла. |
+| 2026-08-11 | frontier/high | plan-run · in-progress · — |
+| 2026-08-11 | gpt-5.6-sol/high | plan-close · closed-green · P4.1 product accc25fb/closure cde579a8; upstream P0.4 04aa63a0, P0.6 52fb69c6+bf234d23, P1.5 0db08b00+56aeda8e, P3.5 8971b0d6; actual/prescribed frontier/high; write-site: pre_mutation: allow · pre_final: allow. |
+| 2026-08-11 | gpt-5.6-sol/high | plan-close · closed-deviations · P4.2 product 8f0c14dc/closure 0a231331 reconciled by P4.6 367e5b5c; actual frontier/high vs prescribed implementation/high; foreign docs diff retained; write-site: pre_mutation: allow · pre_final: allow. |
+| 2026-08-11 | gpt-5.6-terra/high | plan-close · closed-green · P4.5 product 39e30717/report 8e44f4d1/closure e3583231 reconciled by P4.6 367e5b5c; actual/prescribed implementation/high; full carrier green; write-site: pre_mutation: allow · pre_final: allow. |
+| 2026-08-11 | gpt-5.6-sol/high | plan-run · closed-green · P4.6 product 367e5b5c; clean browser/image carrier green; actual frontier/high vs prescribed implementation/high; D72 records downstream/audit process waivers; write-site: pre_mutation: allow · pre_final: allow. |
+| 2026-08-11 | implementation/low | plan-close · closed-deviations · фаза P4 закрыта: 4 green, P4.2/P4.4 deviations; P4.6 acceptance GREEN, D72 protocol waivers recorded; handoff to P5.1 |
+| 2026-08-11 | gpt-5.6-sol/high | plan-close · closed-green · note сокращена; полный текст: journal.jsonl:185 |
+| 2026-08-11 | gpt-5.6-sol/high | plan-close · closed-green · note сокращена; полный текст: journal.jsonl:186 |
+| 2026-08-11 | gpt-5.6-sol/high | plan-close · closed-green · note сокращена; полный текст: journal.jsonl:187 |
+| 2026-08-11 | gpt-5.6-sol/high | plan-close · closed-green · note сокращена; полный текст: journal.jsonl:188 |
 
 ## Owner Gates
 
@@ -369,4 +382,4 @@ generated_by: task plan-views status
 - P0.5: known deviation
 - P4.2: known deviation
 - P4.4: known deviation
-- P4.5: known deviation
+- P4.6: known deviation

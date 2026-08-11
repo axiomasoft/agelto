@@ -6,34 +6,40 @@
 |:--|:--|:--|
 | Guest, role and direct-URL disclosure | One enum-aware route, explicit access dataset and sentinel-byte assertions | `PrivateDocumentationAccessTest.php` |
 | Traversal, symlink and missing artifact | Manifest-only locator with hostile-path dataset and uniform 404 | `PrivateDocumentationLocatorTest.php` |
-| MIME sniffing and response-policy drift | Closed manifest MIME dataset for HTML, CSS, JS, JSON, SVG and font | `PrivateDocumentationResponseTest.php` |
-| Browser asset/cache bypass | Isolated Chromium request/header/error corpus followed by cookie removal and direct reload | `e2e/private-documentation.spec.ts` |
+| Active same-origin SVG | SVG is absent from Node/PHP MIME allowlists; hostile build and forged-manifest/direct-URL tests reject it without returning bytes | `documentation-build-contract.sh`, `PrivateDocumentationLocatorTest.php`, `PrivateDocumentationResponseTest.php` |
+| MIME sniffing and response-policy drift | Closed manifest MIME dataset for HTML, CSS, JS, JSON and font; exact header assertions | `PrivateDocumentationResponseTest.php` |
+| Browser asset/cache bypass | Manifest-driven Chromium body/hash/MIME/header proof followed by direct logout and revoke reloads | `e2e/private-documentation.spec.ts` |
 | Mutable/public image artifact | Deterministic build, final-image filesystem inspection and clean-install runner | `documentation-build-contract.sh`, `prod-image-contract.sh`, `clean-install-e2e.sh` |
 
 ## Evidence
 
-- `bash docker/tests/private-documentation-response-contract.sh` passed: 24 Pest tests, Pint and
-  PHPStan for the documentation serving boundary.
-- `pnpm exec playwright test --list` passed: setup plus the P3 admin and P4 documentation scenarios
-  compile and are discoverable.
-- `bash docker/tests/documentation-build-contract.sh` passed: two VitePress builds were identical,
-  hostile distribution fixtures were rejected, and the application image contained the read-only
-  private artifact with no public documentation tree.
-- `bash docker/tests/prod-image-contract.sh application` is red before image inspection because its
-  inherited P1 assertion expects `setpriv --reuid=33 --regid=33` in `10-secrets.sh`, while the
-  committed entrypoint uses the current `install`/`chown` secret hand-off instead. This is an
-  inherited production-image contract defect, not a documentation-route bypass.
+- Candidate: `d9f025f3c421621060d192dd6142c74e8e2a4614`.
+- Application image: `sha256:f4cbc49282d6e773de1f630390a00a3459c0abd81316c6f73b4f7def413189c0`.
+- `bash docker/tests/private-documentation-response-contract.sh` exited 0: 25 Pest tests / 94
+  assertions, eight Pint files and focused PHPStan passed; active SVG forged-manifest and direct
+  response regressions returned no bytes.
+- `bash docker/tests/documentation-build-contract.sh` exited 0 from a detached clean worktree after
+  repository-owned pinned vendor sync: two VitePress 1.6.4 builds were byte-identical; hostile SVG,
+  symlink, extension, percent-path and remote-script fixtures were rejected; the image artifact was
+  read-only and absent from public/runtime Node paths.
+- `bash docker/tests/prod-image-contract.sh application` exited 0 against the current ordered secret
+  hand-off, application health and private-documentation filesystem contract.
+- `bash docker/tests/clean-install-e2e.sh` exited 0 without external credentials: candidate-local
+  credentials were generated and removed by the isolated trap; Playwright passed 3/3 scenarios,
+  including exact manifest body SHA-256, MIME and all cache/security headers for HTML/CSS/JS/JSON/
+  font, zero page/console/CSP failures, and denial of the same direct asset after logout and revoke.
+- `bash docker/tests/private-documentation-acceptance-contract.sh` exited 0 for the same committed
+  candidate and combined the focused response, clean build, production image, isolated browser,
+  scoped Pint/PHPStan, Task views, strict citations and clean-diff gates. The scoped PHPStan step
+  uses an in-memory SQLite bootstrap and an explicit memory ceiling, so it does not depend on a
+  checkout-external database after the isolated browser stack is removed.
 
-## Required committed-candidate gate
+## Committed-candidate verdict
 
-Run `make documentation:acceptance` from a clean worktree with `E2E_ADMIN_EMAIL` and
-`E2E_ADMIN_PASSWORD_FILE`. It executes the full focused-PHP, reproducible-build, private-image and
-isolated Chromium proof. The candidate tree/image digest and final result must be appended here for
-P12 consumption.
+GREEN. `make documentation:acceptance` delegates to the same composite carrier and requires no
+external `E2E_*` values. P12 must consume the exact candidate SHA and application image identifier
+above; a different tree or image requires a fresh carrier run.
 
-## Limitation
+## Limitations
 
-This workspace has no supplied `E2E_ADMIN_EMAIL` or `E2E_ADMIN_PASSWORD_FILE`; therefore the
-isolated browser acceptance has not yet produced a committed-candidate evidence record. The stale
-P1 `setpriv` assertion must also be reconciled against the actual secret-entrypoint contract before
-the composite carrier can turn green.
+Unresolved limitations: 0.

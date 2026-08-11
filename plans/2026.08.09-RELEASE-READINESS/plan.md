@@ -15,10 +15,10 @@
 | Target Operator Models | economy → gpt-5.6-luna · implementation → gpt-5.6-terra · frontier → gpt-5.6-sol |
 | Approval Owner | Dmitry Vostrikov |
 | Home | repo:/home/vostrikov/projects/agelto/agelto |
-| Design Passes | 1/1 — owner-directed сокращение D46 сохранено; D52 остаётся machine-current carrier повторного полного cross-phase `finish` для 13 фаз / 75 product/design items после добавления P0.0; D55 принимает этот design после ремедиации F9–F12; D62, D64 и D66 адресно добавили 76-й–78-й remediation-items P0.7/P1.6/P1.7; D67 исправляет только evidence topology P1.7; D70 добавляет последний, 79-й remediation-item P2.7 и завершает design-цикл P2; D71 заменяет только fresh-audit gate штатным close и передачей на P3 |
+| Design Passes | 1/1 — owner-directed сокращение D46 сохранено; D52 остаётся machine-current carrier повторного полного cross-phase `finish` для 13 фаз / 75 product/design items после добавления P0.0; D55 принимает этот design после ремедиации F9–F12; D62, D64 и D66 адресно добавили 76-й–78-й remediation-items P0.7/P1.6/P1.7; D67 исправляет только evidence topology P1.7; D70 добавляет 79-й remediation-item P2.7 и завершает design-цикл P2; D71 заменяет только fresh-audit gate штатным close и передачей на P3; D72 добавляет 80-й и последний remediation-item P4.6, замыкающий RED-аудит P4 без нового design/audit цикла |
 | visibility | private |
 
-<!-- migration-version: 0.1.5 -->
+<!-- migration-version: 0.1.6 -->
 
 ## 1. Context
 
@@ -46,6 +46,7 @@ Vintera/CMS и Dterema и верифицирует внешние практик
 - RED-аудит P1 закрывается одним P1.6: five-class Make/deploy surface и динамические carriers исправляются product-коммитами, P1.1–P1.5 closure evidence — только append-only reconciliation, а будущие consumer validations входят одним item-owned carrier и до своего item дают downstream `unknown`; P2 не стартует до close и повторного audit P1. D64/D65. RAG:— (repo-grounded: `research/16-P1-audit-remediation.md`, `research/17-P1.6-downstream-retry-design.md`).
 - Второй RED-аудит P1 исторически породил single-anchor P1.7 по D66; D67 supersedes эту topology и audit-gate: `7f203014` остаётся product-origin, отдельный committed closure anchor с byte-identical product paths обязан дать GREEN полного release carrier/lint/views/citations, после чего append-only corrections закрывают P1 зелёной без нового аудита и открывают P2. RAG:— (repo-grounded: `research/18-P1-audit2-remediation.md`, последний Audit P1, owner direction 2026-08-10).
 - RED-аудит P2 закрывается одним последним design-carrier P2.7 по D70: product fixes F1–F6 сходятся в обязательный P2 release carrier, F7 восстанавливается append-only journal reconciliation без ручной правки state projections, F8 — штатным phase bookkeeping; D71 по прямой директиве владельца заменяет fresh-context audit штатным close и передачей на P3. RAG:— (repo-grounded: `research/19-P2-audit-remediation.md`, P2 Audit 2026-08-11, owner directions 2026-08-11).
+- RED-аудит P4 закрывается одним последним design-carrier P4.6 по D72: active SVG исключается из build/manifest/HTTP boundary, P4.2/P4.5 получают self-contained clean candidate и буквальный browser/image proof, а P4.1/P4.2/P4.5 evidence исправляется только append-only; после GREEN P4.6 выполняется штатный close P4 без нового audit/design цикла. RAG:— (repo-grounded: `research/20-P4-audit-remediation.md`, P4 Audit 2026-08-11, owner direction 2026-08-11).
 - RAG-факты и сравнение чужих репозиториев сохранять в findings в том же ходе; синтез — в research; решения — в decisions. P0.3 закрывается только после MCP replay по D56; WebSearch-only fallback остаётся provisional.
 - Любой внешний best practice получает RAG:✅ с URL и датой либо остаётся [UNVERIFIED]; RAG:— допустим только для фактов этого репозитория.
 - Текущие Makefile/Compose — requirements input: совместимость целей сохраняется только после инвентаря и осознанного решения.
@@ -63,7 +64,7 @@ Vintera/CMS и Dterema и верифицирует внешние практик
 ## 3. Routing
 
 Все строки ниже — финальные post-finish маршруты 75 product/design items плюс адресные
-remediation-items P0.7/P1.6/P1.7/P2.7 по D62/D64/D66/D70 и evidence correction D67; новый design-pass не выполнялся.
+remediation-items P0.7/P1.6/P1.7/P2.7/P4.6 по D62/D64/D66/D70/D72 и evidence correction D67; новый design-pass не выполнялся.
 
 | Batch | Items | Model class/effort | Exec | Review | Почему |
 |:--|:--|:--|:--|:--|:--|
@@ -99,6 +100,7 @@ remediation-items P0.7/P1.6/P1.7/P2.7 по D62/D64/D66/D70 и evidence correctio
 | — | P4.3 | implementation/high | manual | full | path containment, MIME и response policy security-critical, но D27 уже запечатал архитектуру |
 | — | P4.4 | implementation/high | manual | full | AzGuard/Filament authorization меняет access boundary по D27 без открытого product design |
 | — | P4.5 | implementation/high | manual | full | adversarial HTTP/browser/image acceptance подтверждает confidentiality и deploy contract |
+| — | P4.6 | implementation/high | manual | full | audit-defined F1–F8 закрывают active-content, clean-build, browser/image и append-only evidence boundaries одним committed GREEN carrier без нового product design |
 | — | P5.1 | frontier/high | manual | full | terminal P0 contract reconcile может supersede settings/egress decisions; открытая цена ошибки требует frontier |
 | — | P5.2 | implementation/high | manual | full | dependency/settings schema и long-lived worker freshness реализуются по запечатанному D28 |
 | — | P5.3 | implementation/high | manual | full | центральный egress resolver, миграции и health-safe precedence correctness-critical, но D29 запечатал semantics |
