@@ -57,6 +57,10 @@ cleanup() {
         echo "Could not fully tear down isolated Compose project $project" >&2
     fi
 
+    if [[ -d "$candidate/.pnpm-store" ]] && ! docker run --rm -v "$candidate:/candidate" node:24-bookworm chown -R "$(id -u):$(id -g)" /candidate/.pnpm-store >/dev/null 2>&1; then
+        echo "Could not restore candidate pnpm-store ownership in $candidate" >&2
+    fi
+
     if ! git -C "$root_dir" worktree remove --force "$candidate" >/dev/null 2>&1; then
         echo "Could not remove isolated candidate worktree $candidate" >&2
     fi
