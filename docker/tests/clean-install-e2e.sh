@@ -12,11 +12,40 @@ admin_email=${E2E_ADMIN_EMAIL:?E2E_ADMIN_EMAIL is required}
 run_id="e2e-$(date +%s)-$RANDOM"
 candidate=$(mktemp -d)
 project="agelto_${run_id//-/_}"
-app_port=$((20000 + RANDOM % 10000))
 output_dir="$candidate/.e2e/$run_id"
+e2e_env="$candidate/.env.e2e"
+
+mapfile -t isolated_ports < <(python3 - <<'PY'
+import random
+import socket
+
+ports = []
+while len(ports) < 5:
+    port = random.randint(20000, 50000)
+    if port in ports:
+        continue
+
+    with socket.socket() as sock:
+        try:
+            sock.bind(('127.0.0.1', port))
+        except OSError:
+            continue
+
+    ports.append(port)
+
+print(*ports, sep='\n')
+PY
+)
+
+(( ${#isolated_ports[@]} == 5 )) || { echo 'Could not allocate isolated E2E host ports' >&2; exit 2; }
+app_port=${isolated_ports[0]}
+pgsql_port=${isolated_ports[1]}
+redis_port=${isolated_ports[2]}
+minio_port=${isolated_ports[3]}
+minio_console_port=${isolated_ports[4]}
 
 cleanup() {
-    if ! docker compose --project-directory "$candidate" --project-name "$project" --env-file "$candidate/.env.example" -f "$candidate/docker-compose.yml" down --remove-orphans >/dev/null 2>&1; then
+    if ! docker compose --project-directory "$candidate" --project-name "$project" --env-file "$e2e_env" -f "$candidate/docker-compose.yml" down --remove-orphans >/dev/null 2>&1; then
         echo "Could not fully tear down isolated Compose project $project" >&2
     fi
 
@@ -29,12 +58,28 @@ trap cleanup EXIT
 git -C "$root_dir" worktree add --detach "$candidate" HEAD >/dev/null
 cp "$password_file" "$candidate/.e2e-admin-password"
 chmod 600 "$candidate/.e2e-admin-password"
+python3 - "$candidate/.env.example" "$e2e_env" "$app_port" "$pgsql_port" "$redis_port" "$minio_port" "$minio_console_port" <<'PY'
+import re
+import sys
+from pathlib import Path
+
+source = Path(sys.argv[1])
+destination = Path(sys.argv[2])
+ports = sys.argv[3:]
+values = dict(zip(('APP_PORT', 'PGSQL_PORT', 'REDIS_PORT', 'MINIO_PORT', 'MINIO_CONSOLE_PORT'), ports, strict=True))
+content = source.read_text()
+for name, port in values.items():
+    content, count = re.subn(rf'^{name}=.*$', f'{name}={port}', content, flags=re.MULTILINE)
+    if count != 1:
+        raise SystemExit(f'Expected exactly one {name} entry in E2E environment')
+destination.write_text(content)
+PY
 
 cd "$candidate"
 pnpm install --frozen-lockfile
 pnpm exec playwright install chromium
-APP_PORT="$app_port" COMPOSE_PROJECT_NAME="$project" make bootstrap MODE=dev ENV_FILE=.env.example ADMIN_PASSWORD_FILE=.e2e-admin-password
-APP_PORT="$app_port" COMPOSE_PROJECT_NAME="$project" make readiness:check ENV_FILE=.env.example
+COMPOSE_PROJECT_NAME="$project" make bootstrap MODE=dev ENV_FILE=.env.e2e ADMIN_PASSWORD_FILE=.e2e-admin-password
+COMPOSE_PROJECT_NAME="$project" make readiness:check ENV_FILE=.env.e2e
 
 E2E_BASE_URL="http://127.0.0.1:$app_port" \
 E2E_ADMIN_EMAIL="$admin_email" \
