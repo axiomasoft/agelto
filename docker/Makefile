@@ -100,13 +100,13 @@ readiness\:check:
 	$(COMPOSE_DEV) exec -T app php artisan app:readiness --format=agent
 
 assets\:check:
-	bash $(ROOT_DIR)/docker/tests/assets-contract.sh check
+	COMPOSE_PROJECT_NAME=$(COMPOSE_PROJECT_NAME) ENV_FILE=$(ENV_FILE) bash $(ROOT_DIR)/docker/tests/assets-contract.sh check
 
 assets\:sync:
-	bash $(ROOT_DIR)/docker/tests/assets-contract.sh sync
+	COMPOSE_PROJECT_NAME=$(COMPOSE_PROJECT_NAME) ENV_FILE=$(ENV_FILE) bash $(ROOT_DIR)/docker/tests/assets-contract.sh sync
 
 assets\:repair:
-	bash $(ROOT_DIR)/docker/tests/assets-contract.sh repair
+	COMPOSE_PROJECT_NAME=$(COMPOSE_PROJECT_NAME) ENV_FILE=$(ENV_FILE) bash $(ROOT_DIR)/docker/tests/assets-contract.sh repair
 
 vendor\:sync:
 	bash $(ROOT_DIR)/docker/scripts/vendor-sync.sh --composer-check
