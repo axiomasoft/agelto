@@ -14,14 +14,15 @@ test('аутентифицирует initial administrator через Livewire',
 
     const password = readFileSync(passwordFile, 'utf8').trim();
 
+    await page.goto('/admin/login');
+    await page.getByRole('textbox', { name: /^email address/i }).fill(email);
+    await page.getByRole('textbox', { name: /^password/i }).fill(password);
+
     const livewireUpdate = page.waitForResponse((response) => (
         response.url().includes('/livewire/update')
         && response.request().method() === 'POST'
     ));
 
-    await page.goto('/admin/login');
-    await page.getByLabel(/email/i).fill(email);
-    await page.getByLabel(/password/i).fill(password);
     await page.getByRole('button', { name: /sign in|войти/i }).click();
 
     expect((await livewireUpdate).ok()).toBeTruthy();

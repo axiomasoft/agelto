@@ -24,6 +24,7 @@ for argument in "$@"; do
         dev:up) target='dev:up' ;;
         dev:storage-init) target='dev:storage-init' ;;
         dev:composer) target='dev:composer' ;;
+        assets:repair) target='assets:repair' ;;
         dev:migrate) target='dev:migrate' ;;
         dev:seed-base) target='dev:seed-base' ;;
         dev:admin-create) target='dev:admin-create' ;;
@@ -64,8 +65,8 @@ run_bootstrap() {
 
 run_bootstrap --mode dev --env-file .env.example > "$temp_dir/dev.out"
 
-mapfile -t stages < <(sed -E 's/.* (vendor:sync|secrets:init|infra:preflight|image:build|dev:up|dev:storage-init|dev:composer|dev:migrate|dev:seed-base|dev:health).*/\1/' "$temp_dir/make.log")
-[[ "${stages[*]}" == 'vendor:sync secrets:init infra:preflight image:build dev:up dev:storage-init dev:composer dev:migrate dev:seed-base dev:health' ]]
+mapfile -t stages < <(sed -E 's/.* (vendor:sync|secrets:init|infra:preflight|image:build|dev:up|dev:storage-init|dev:composer|assets:repair|dev:migrate|dev:seed-base|dev:health).*/\1/' "$temp_dir/make.log")
+[[ "${stages[*]}" == 'vendor:sync secrets:init infra:preflight image:build dev:up dev:storage-init dev:composer assets:repair dev:migrate dev:seed-base dev:health' ]]
 grep -F 'Bootstrap completed: dev stack is healthy.' "$temp_dir/dev.out" >/dev/null
 ! grep -F 'super-secret' "$temp_dir/dev.out"
 python3 - "$repo/local/secrets/.bootstrap-progress" <<'PY'
