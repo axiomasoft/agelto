@@ -54,6 +54,8 @@ cleanup() {
         fi
     fi
 
+    docker compose --project-directory "$candidate" --project-name "$project" --env-file "$e2e_env" -f "$compose_file" kill >/dev/null 2>&1 || true
+
     if ! docker compose --project-directory "$candidate" --project-name "$project" --env-file "$e2e_env" -f "$compose_file" down --remove-orphans >/dev/null 2>&1; then
         echo "Could not fully tear down isolated Compose project $project" >&2
     fi
