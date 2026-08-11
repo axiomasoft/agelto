@@ -11,7 +11,7 @@ AGENT_ENV := $(if $(CLAUDECODE),-e CLAUDECODE=$(CLAUDECODE)) $(if $(CURSOR_AGENT
 
 .DEFAULT_GOAL := help
 .PHONY: help infra\:preflight secrets\:init bootstrap dev\:up dev\:down dev\:ps dev\:logs dev\:shell dev\:artisan dev\:composer dev\:health
-.PHONY: agent\:artisan vendor\:sync vendor\:check doctor\:local prod\:doctor dev\:migrate dev\:seed-base dev\:seed-demo dev\:admin-create dev\:admin-reset prod\:config prod\:ps prod\:deploy\:code prod\:deploy\:php-deps prod\:deploy\:frontend prod\:deploy\:runtime prod\:image\:promote prod\:deploy\:image prod\:migrate prod\:seed-base image\:build
+.PHONY: agent\:artisan vendor\:sync vendor\:check doctor\:local readiness\:check assets\:check assets\:sync assets\:repair prod\:doctor dev\:migrate dev\:seed-base dev\:seed-demo dev\:admin-create dev\:admin-reset prod\:config prod\:ps prod\:deploy\:code prod\:deploy\:php-deps prod\:deploy\:frontend prod\:deploy\:runtime prod\:image\:promote prod\:deploy\:image prod\:migrate prod\:seed-base image\:build
 
 help:
 	@echo "Agelto command surface"
@@ -92,6 +92,18 @@ agent\:artisan:
 
 doctor\:local:
 	$(COMPOSE_DEV) exec -T app php artisan doctor --format=agent --no-interaction
+
+readiness\:check:
+	$(COMPOSE_DEV) exec -T app php artisan app:readiness --format=agent
+
+assets\:check:
+	bash $(ROOT_DIR)/docker/tests/assets-contract.sh check
+
+assets\:sync:
+	bash $(ROOT_DIR)/docker/tests/assets-contract.sh sync
+
+assets\:repair:
+	bash $(ROOT_DIR)/docker/tests/assets-contract.sh repair
 
 vendor\:sync:
 	bash $(ROOT_DIR)/docker/scripts/vendor-sync.sh --composer-check

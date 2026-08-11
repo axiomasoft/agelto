@@ -42,6 +42,16 @@ Vite запускается отдельным сервисом `vite` на Node
 Для isolated smoke задавайте уникальные `COMPOSE_PROJECT_NAME` и `VITE_PORT`; cleanup удаляет
 только resources этого проекта.
 
+## Application readiness и admin E2E
+
+`/up` остаётся liveness probe и намеренно не обращается к DB, cache, storage, Horizon или scheduler.
+Для release gate используйте `make readiness:check`; тот же typed service читает Doctor. Scheduler
+пишет heartbeat, а readiness проверяет его свежесть.
+
+`bash docker/tests/clean-install-e2e.sh` materializes a detached tracked-tree worktree and uses a
+unique Compose project and port. Set `E2E_ADMIN_EMAIL` and `E2E_ADMIN_PASSWORD_FILE`; browser
+state and traces remain under ignored run output.
+
 ## Смежное
 
 - [`index.md`](index.md) — весь стек сервисов.

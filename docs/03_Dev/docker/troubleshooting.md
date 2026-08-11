@@ -45,6 +45,13 @@ require, git-операции, редактирование файлов от и
 http://localhost:8080/up` — тот же эндпоинт, что слушает Docker healthcheck. Если `horizon` не
 проходит `horizon:status | grep running` — см. [`../runbooks/horizon-backlog.md`](../runbooks/horizon-backlog.md).
 
+## `app:readiness` is red while `/up` is green
+
+That is expected when an external dependency, generated Filament asset, Horizon or scheduler heartbeat
+is unavailable: `/up` is liveness only. Run `make readiness:check` for stable redacted check codes;
+use `make assets:check` first when the failing code is `assets`, then `make assets:repair` only for
+the isolated/canonical recovery path.
+
 ## `vendor:publish`/`guard:filament:generate` не подхватывают правки
 
 Генераторы, пишущие в `bootstrap/cache`/конфиг-кэш — надёжнее запускать С ХОСТА при подозрении на

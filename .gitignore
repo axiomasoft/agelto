@@ -31,6 +31,10 @@ Homestead.yaml
 npm-debug.log
 yarn-error.log
 /.pnpm-store
+/playwright/.auth/
+/playwright-report/
+/test-results/
+/.e2e/
 
 /auth.json
 /local/vendors/azguard/

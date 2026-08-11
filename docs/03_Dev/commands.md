@@ -18,6 +18,8 @@ status: living
 | `make dev:seed-demo` | Заполняет local/testing demo-аккаунты без перезаписи существующих пользователей; требует `DEV_SEED_PASSWORD` |
 | `make dev:admin-create PASSWORD_FILE=<path>` / `make dev:admin-reset PASSWORD_FILE=<path>` | Явное создание initial SuperAdmin или reset; пароль монтируется из файла и не передаётся в argv |
 | `make doctor:local` | Read-only Laravel Doctor в agent-формате для локальной среды |
+| `make readiness:check` | Active DB/cache/storage/release/assets/Horizon/scheduler readiness; `/up` не заменяет эту проверку |
+| `make assets:check` / `assets:sync` / `assets:repair` | Проверка и canonical Filament asset carrier; repair не меняет image, secrets, DB или volumes |
 | `make prod:doctor IMAGE_TAG=<immutable-tag>` | One-off Doctor image; agent output, `--fail-on=warn`, без `--fix` |
 | `make dev:up` / `dev:down` / `dev:ps` | Жизненный цикл dev-стека |
 | `make dev:health` | Проверяет `/up` внутри running dev `app`; bootstrap retries this canonical health target |
@@ -31,6 +33,7 @@ status: living
 | `make prod:deploy:{code,php-deps,frontend,runtime}` | Pull + recreate готового immutable image для выбранного класса; требуются `IMAGE_TAG` и `COMPOSE_PROJECT_NAME` |
 | `make prod:image:promote` | Pull готового immutable tag без build на production host |
 | `make prod:deploy:image` | Promote готового tag и runtime recreate без build |
+| `bash docker/tests/clean-install-e2e.sh` | Isolated tracked-tree bootstrap и Chromium login/admin smoke; требует `E2E_ADMIN_EMAIL` и password-file вне argv |
 
 ## artisan — пайплайн документов/смет
 

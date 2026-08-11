@@ -18,6 +18,11 @@ make test-php         # ENV=dev по умолчанию; test-preflight + db:cre
 Точечный прогон одного класса/фильтра — `make artisan ARGS="test --filter=<Subject>"`
 (**один `--filter` за прогон** — второй игнорируется Symfony Console, не Laravel-баг).
 
+Browser acceptance uses pinned `@playwright/test` 1.62.1 with Chromium. Run
+`bash docker/tests/clean-install-e2e.sh` only from a clean tracked tree and provide
+`E2E_ADMIN_EMAIL` plus `E2E_ADMIN_PASSWORD_FILE`; the runner creates its own Compose project,
+database/media volumes, auth state, traces and teardown. It never uses the owner's running stack.
+
 ## Правила
 
 - Изоляция от прод/dev БД и media, каноны именования/структуры тестов — skill `testing-rules`.

@@ -3,6 +3,7 @@
 use App\Enums\Procurement\Crawler\CrawlerMode;
 use App\Models\Procurement\Crawler\Crawler;
 use App\Services\Procurement\PipelineDispatcher;
+use App\Services\Health\ApplicationReadiness;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Schedule;
@@ -13,6 +14,7 @@ Artisan::command('inspire', function () {
 })->purpose('Display an inspiring quote');
 
 Schedule::command('partitions:maintain')->daily();
+Schedule::call(ApplicationReadiness::recordSchedulerHeartbeat(...))->everyMinute();
 
 // Schema-guard: этот файл выполняется на КАЖДЫЙ artisan-вызов (не только schedule:run),
 // в т.ч. до первой миграции (`migrate` на свежем окружении) — без гварда упал бы на

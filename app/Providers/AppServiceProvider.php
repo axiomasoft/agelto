@@ -3,6 +3,7 @@
 namespace App\Providers;
 
 use App\Doctor\Diagnostics\BaseDataIsReady;
+use App\Doctor\Diagnostics\ApplicationReadinessIsGreen;
 use App\Doctor\Diagnostics\InitialAdminIsReady;
 use App\Doctor\Diagnostics\PrivatePackagesArePinned;
 use App\Doctor\Diagnostics\SecretContractIsReady;
@@ -68,6 +69,7 @@ class AppServiceProvider extends ServiceProvider
             SecretContractIsReady::class,
             BaseDataIsReady::class,
             InitialAdminIsReady::class,
+            ApplicationReadinessIsGreen::class,
         ]);
         // Кастомные Pulse-карточки (P7.5, D25) — классы вне `App\Livewire\*` (Files-список
         // item'а несёт `app/Pulse/**`), поэтому регистрация explicit, не Livewire-конвенцией.

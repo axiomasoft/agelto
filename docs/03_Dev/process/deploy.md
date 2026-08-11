@@ -39,7 +39,7 @@ registry push→clean-pull cycle; production receives only that immutable tag.
 
 ## Проверка после деплоя
 
-Проверить health `/up` и статус трёх контейнеров через выбранный Compose project. Наличие `vendor`
+Проверить liveness `/up` и статус трёх контейнеров через выбранный Compose project. Наличие `vendor`
 или frontend artifacts на host не является release condition: они входят в immutable image.
 
 После owner-gated миграции выполните идемпотентный production base seed: `make prod:seed-base`.
@@ -49,6 +49,10 @@ bootstrap или deploy и никогда не принимает пароль �
 После base data и initial admin выполните `make prod:doctor IMAGE_TAG=<immutable-tag>`. Это one-off
 companion image, а не production service; он возвращает nonzero и при warning, не применяет fixes и
 удаляется Compose после проверки.
+
+До Doctor запустите active readiness carrier (`php artisan app:readiness --format=agent` в app
+container): он actively verifies DB, cache, storage, release state, Filament assets, Horizon and
+scheduler heartbeat. A green `/up` alone never authorizes a deployment.
 
 ## Смежное
 

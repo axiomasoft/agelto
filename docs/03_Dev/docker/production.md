@@ -52,6 +52,10 @@ rotate credentials, rollback or delete volumes.
 `${HORIZON_STOP_GRACE_PERIOD:-600s}` (Docker default 10s убил бы 300+с job); инвариант
 `job timeout < supervisor timeout < queue.retry_after` — `../runbooks/horizon-backlog.md`.
 
+After migrations, base data and initial-admin creation, run the explicit application gate before
+declaring a release ready: `php artisan app:readiness --format=agent` in the app context, then
+`make prod:doctor IMAGE_TAG=<immutable-tag>`. `/up` is liveness only and is not a substitute.
+
 ## Redis durability (D34)
 
 `command: ["redis-server", "--appendonly", "yes", "--appendfsync", "everysec", "--maxmemory-policy",
