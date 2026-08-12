@@ -4,8 +4,9 @@ declare(strict_types=1);
 
 namespace App\Services\Procurement\Prepare;
 
+use App\Actions\Procurement\Document\MarkDocumentUnprocessableAction;
 use App\Dto\Procurement\Prepare\Gsfx\GsfxDocument as GsfxDocumentDto;
-use App\Enums\Procurement\Document\DocumentStatus;
+use App\Enums\Procurement\Document\PreparationResult;
 use App\Enums\Procurement\Document\RepresentationKind;
 use App\Enums\Procurement\Document\UnprocessableReason;
 use App\Enums\Procurement\ProcurementEventType;
@@ -42,34 +43,16 @@ final readonly class GsfxStrategy implements PreparationStrategy
     public function __construct(
         private RepresentationStoreRepository $representations,
         private DocumentStoreRepository $storeRepository,
+        private MarkDocumentUnprocessableAction $markUnprocessable,
         private ProcurementStoreRepository $procurementStore,
         private GsfxReader $reader,
         private FileLocationResolver $locationResolver,
     ) {}
 
-    public function canProcess(DocumentVersion $version): bool
-    {
-        if ($version->extension !== 'gsfx') {
-            return false;
-        }
-
-        $disk = Storage::disk($this->locationResolver->currentDocumentsDisk());
-        $stream = $disk->readStream($version->storage_path);
-
-        if ($stream === null) {
-            return false;
-        }
-
-        $signature = fread($stream, 2);
-        fclose($stream);
-
-        return $signature === 'PK';
-    }
-
-    public function process(Document $document, DocumentVersion $version): bool
+    public function process(Document $document, DocumentVersion $version): PreparationResult
     {
         if ($this->representations->find($version, RepresentationKind::StructuredXml) !== null) {
-            return true;
+            return PreparationResult::ReadyForScreening;
         }
 
         $diskName = $this->locationResolver->currentDocumentsDisk();
@@ -83,7 +66,7 @@ final readonly class GsfxStrategy implements PreparationStrategy
             if ($zip->open($localZip) !== true) {
                 $this->markUnprocessable($document, UnprocessableReason::UnreadableFormat, 'не удалось открыть контейнер как ZIP');
 
-                return false;
+                return PreparationResult::Unprocessable;
             }
 
             $dataXml = $zip->getFromName('Data.xml');
@@ -91,7 +74,7 @@ final readonly class GsfxStrategy implements PreparationStrategy
                 $zip->close();
                 $this->markUnprocessable($document, UnprocessableReason::UnreadableFormat, 'в контейнере отсутствует Data.xml');
 
-                return false;
+                return PreparationResult::Unprocessable;
             }
 
             $propertiesTxt = $zip->getFromName('Properties.txt');
@@ -102,7 +85,7 @@ final readonly class GsfxStrategy implements PreparationStrategy
                 $zip->close();
                 $this->markUnprocessable($document, UnprocessableReason::UnreadableFormat, $e->getMessage());
 
-                return false;
+                return PreparationResult::Unprocessable;
             }
 
             $attachmentEntries = $this->safeAttachmentEntries($zip);
@@ -110,7 +93,7 @@ final readonly class GsfxStrategy implements PreparationStrategy
                 $zip->close();
                 $this->markUnprocessable($document, UnprocessableReason::ZipBomb, 'вложения контейнера превышают лимиты ai.prepare.archive.*');
 
-                return false;
+                return PreparationResult::Unprocessable;
             }
 
             $this->storeRepresentations($version, $gsfxDocument, $disk, $diskName);
@@ -121,7 +104,7 @@ final readonly class GsfxStrategy implements PreparationStrategy
             @unlink($localZip);
         }
 
-        return true;
+        return PreparationResult::ReadyForScreening;
     }
 
     private function storeRepresentations(DocumentVersion $version, GsfxDocumentDto $gsfxDocument, Filesystem $disk, string $diskName): void
@@ -344,9 +327,6 @@ final readonly class GsfxStrategy implements PreparationStrategy
 
     private function markUnprocessable(Document $document, UnprocessableReason $reason, string $detail): void
     {
-        $this->storeRepository->update($document, [
-            'status' => DocumentStatus::Unprocessable,
-            'last_error' => 'unprocessable:'.$reason->value.": {$detail}",
-        ]);
+        $this->markUnprocessable->execute($document, $reason, $detail);
     }
 }

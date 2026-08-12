@@ -4,12 +4,12 @@ declare(strict_types=1);
 
 namespace App\Services\Procurement\Screening;
 
+use App\Actions\Procurement\Document\MarkDocumentUnprocessableAction;
 use App\Dto\Procurement\Ai\Screening\ScreeningResult;
 use App\Enums\Llm\CoreLlmPurpose;
 use App\Enums\Llm\CorePromptStep;
 use App\Enums\Llm\DocumentTypeScope;
 use App\Enums\Procurement\Ai\AnalysisStatus;
-use App\Enums\Procurement\Document\DocumentStatus;
 use App\Enums\Procurement\Document\UnprocessableReason;
 use App\Models\Procurement\Ai\Analysis;
 use App\Models\Procurement\Document\Document;
@@ -46,6 +46,7 @@ final readonly class ScreeningProcessor
 {
     public function __construct(
         private DocumentStoreRepository $documents,
+        private MarkDocumentUnprocessableAction $markDocumentUnprocessable,
         private AnalysisStoreRepository $analyses,
         private LlmRouteResolver $routes,
         private PromptComposer $prompts,
@@ -247,10 +248,7 @@ final readonly class ScreeningProcessor
 
     private function markUnprocessable(Document $document, Analysis $analysis, UnprocessableReason $reason, string $detail): void
     {
-        $this->documents->update($document, [
-            'status' => DocumentStatus::Unprocessable,
-            'last_error' => "unprocessable:{$reason->value}: {$detail}",
-        ]);
+        $this->markDocumentUnprocessable->execute($document, $reason, $detail);
 
         $this->usageSnapshot->finalizeAnalysis($analysis, [
             'status' => AnalysisStatus::Skipped,

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\Procurement\Prepare;
 
+use App\Enums\Procurement\Document\PreparationResult;
 use App\Models\Procurement\Document\Document;
 use App\Models\Procurement\Document\DocumentVersion;
 
@@ -14,17 +15,10 @@ use App\Models\Procurement\Document\DocumentVersion;
  */
 final readonly class ImageStrategy implements PreparationStrategy
 {
-    private const array IMAGE_EXTENSIONS = ['png', 'jpg', 'jpeg', 'tif', 'tiff', 'bmp', 'webp'];
-
-    public function canProcess(DocumentVersion $version): bool
-    {
-        return in_array($version->extension, self::IMAGE_EXTENSIONS, true);
-    }
-
-    public function process(Document $document, DocumentVersion $version): bool
+    public function process(Document $document, DocumentVersion $version): PreparationResult
     {
         // Пометка vision-ветки — по extension/mime версии на стадии скрининга/извлечения.
         // `true` — изображение уходит в vision как есть, следующая стратегия не нужна (D28).
-        return true;
+        return PreparationResult::ReadyForScreening;
     }
 }

@@ -3,13 +3,6 @@
 declare(strict_types=1);
 use App\Enums\Procurement\Ai\AiDocumentType;
 use App\Services\Procurement\Analyzers\Estimate\EstimateAnalyzer;
-use App\Services\Procurement\Prepare\ArchiveStrategy;
-use App\Services\Procurement\Prepare\GsfxStrategy;
-use App\Services\Procurement\Prepare\ImageStrategy;
-use App\Services\Procurement\Prepare\PassthroughStrategy;
-use App\Services\Procurement\Prepare\ScanStrategy;
-use App\Services\Procurement\Prepare\SpreadsheetStrategy;
-use App\Services\Procurement\Prepare\WordStrategy;
 
 return [
     /*
@@ -215,8 +208,8 @@ return [
     | Подготовка документов (P4.2, ТЗ 03 §3.3)
     |--------------------------------------------------------------------------
     |
-    | `strategies` — реестр `PreparationStrategy`, порядок важен: первая подошедшая по
-    | `canProcess()` обрабатывает версию; `PassthroughStrategy` — ловит всё, всегда последняя.
+    | Format selection lives in `DocumentFormatRegistry`; an unknown extension or a MIME/signature
+    | mismatch becomes an explicit terminal outcome and never falls through to a catch-all.
     | xlsx size-gate (D35, research/L finding 5): `xlsx_max_mb`/`xlsx_max_rows` проверяются
     | ДО полной загрузки файла — сверх лимита `unprocessable(too_large)`, не OOM. Сама конверсия
     | Excel→PDF — в отдельном PHP-процессе (`procurement:convert-xlsx-to-pdf`) с явным
@@ -224,19 +217,6 @@ return [
     |
     */
     'prepare' => [
-        'strategies' => [
-            ArchiveStrategy::class,
-            GsfxStrategy::class,
-            SpreadsheetStrategy::class,
-            WordStrategy::class,
-            // ScanStrategy — ПЕРЕД ImageStrategy (и, значит, перед PassthroughStrategy, D88):
-            // иначе картинка останавливалась бы на ImageStrategy и OCR-текст скана не производился
-            // бы вовсе; PDF с текстовым слоем стратегия пропускает сама (возвращает false).
-            ScanStrategy::class,
-            ImageStrategy::class,
-            PassthroughStrategy::class,
-        ],
-
         'xlsx_max_rows' => (int) env('AI_PREPARE_XLSX_MAX_ROWS', 20000),
         'xlsx_max_mb' => (int) env('AI_PREPARE_XLSX_MAX_MB', 25),
         'xlsx_convert_memory_limit' => env('AI_PREPARE_XLSX_CONVERT_MEMORY_LIMIT', '512M'),

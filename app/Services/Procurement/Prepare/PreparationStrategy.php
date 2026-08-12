@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\Procurement\Prepare;
 
+use App\Enums\Procurement\Document\PreparationResult;
 use App\Jobs\Procurement\PrepareDocumentJob;
 use App\Models\Procurement\Document\Document;
 use App\Models\Procurement\Document\DocumentVersion;
@@ -24,7 +25,5 @@ use App\Models\Procurement\Document\DocumentVersion;
  */
 interface PreparationStrategy
 {
-    public function canProcess(DocumentVersion $version): bool;
-
-    public function process(Document $document, DocumentVersion $version): bool;
+    public function process(Document $document, DocumentVersion $version): PreparationResult;
 }

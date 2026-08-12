@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\Procurement\Prepare;
 
+use App\Enums\Procurement\Document\PreparationResult;
 use App\Models\Procurement\Document\Document;
 use App\Models\Procurement\Document\DocumentVersion;
 
@@ -14,15 +15,10 @@ use App\Models\Procurement\Document\DocumentVersion;
  */
 final readonly class PassthroughStrategy implements PreparationStrategy
 {
-    public function canProcess(DocumentVersion $version): bool
-    {
-        return true;
-    }
-
-    public function process(Document $document, DocumentVersion $version): bool
+    public function process(Document $document, DocumentVersion $version): PreparationResult
     {
         // Нет представления, отличного от оригинала — downstream использует storage_path как есть.
         // `true` — оригинал сам по себе валидный вход, цепочка на этом заканчивается (D28).
-        return true;
+        return PreparationResult::ReadyForScreening;
     }
 }

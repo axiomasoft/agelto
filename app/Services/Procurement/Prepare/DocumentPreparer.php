@@ -4,65 +4,39 @@ declare(strict_types=1);
 
 namespace App\Services\Procurement\Prepare;
 
-use App\Enums\Procurement\Document\DocumentStatus;
-use App\Enums\Procurement\Document\UnprocessableReason;
-use App\Jobs\Procurement\PrepareDocumentJob;
+use App\Actions\Procurement\Document\MarkDocumentUnprocessableAction;
+use App\Enums\Procurement\Document\PreparationResult;
 use App\Models\Procurement\Document\Document;
 use App\Models\Procurement\Document\DocumentVersion;
-use App\Repositories\Procurement\Document\DocumentStoreRepository;
 use Illuminate\Contracts\Container\Container;
 
 /**
- * ЦЕПОЧКА стратегий подготовки (D28, `config('ai.prepare.strategies')`, порядок важен —
- * `PassthroughStrategy` всегда последняя и возвращает `true`): вызывается КАЖДАЯ подошедшая по
- * `canProcess()`, пока одна не вернёт `true` или пока документ не станет терминальным. Отказ
- * стратегии (`false`) — обычный исход, а не приговор документу: лимит ИНСТРУМЕНТА подготовки
- * означает «пробуем следующую», лимит ПОТРЕБИТЕЛЯ живёт в capability-матрице модели (D26).
- *
- * `unprocessable(conversion_failed)` наступает, только когда цепочка исчерпана и ни одна
- * стратегия не отработала (D27); {@see PrepareDocumentJob} переводит документ в `prepared`,
- * если он не стал терминальным. Исключение стратегии НЕ ловится: оно пробрасывается в
- * error-блок job'а, а не маскируется под «не подошла».
+ * Registry и inspector определяют единственный strategy до его запуска. Legacy strategy methods
+ * still return their internal completion signal while P6.2 migrates their public contract; that
+ * signal is not used for format selection and cannot fall through to another handler.
  */
 final readonly class DocumentPreparer
 {
     public function __construct(
         private Container $container,
-        private DocumentStoreRepository $documents,
+        private DocumentFormatInspector $inspector,
+        private DocumentFormatRegistry $registry,
+        private MarkDocumentUnprocessableAction $markUnprocessable,
     ) {}
 
-    public function prepare(Document $document, DocumentVersion $version): void
+    public function prepare(Document $document, DocumentVersion $version): PreparationResult
     {
-        $tried = [];
+        $evidence = $this->inspector->inspect($version);
 
-        foreach ((array) config('ai.prepare.strategies', []) as $class) {
-            /** @var PreparationStrategy $strategy */
-            $strategy = $this->container->make($class);
+        if ($evidence->reason !== null) {
+            $this->markUnprocessable->execute($document, $evidence->reason, (string) $evidence->detail);
 
-            if (! $strategy->canProcess($version)) {
-                continue;
-            }
-
-            $tried[] = class_basename($class);
-
-            if ($strategy->process($document, $version)) {
-                return;
-            }
-
-            if ($document->status === DocumentStatus::Unprocessable) {
-                return;
-            }
+            return PreparationResult::Unprocessable;
         }
 
-        if ($document->status === DocumentStatus::Unprocessable) {
-            return;
-        }
+        /** @var PreparationStrategy $strategy */
+        $strategy = $this->container->make($evidence->strategy);
 
-        $this->documents->update($document, [
-            'status' => DocumentStatus::Unprocessable,
-            'last_error' => 'unprocessable:'.UnprocessableReason::ConversionFailed->value
-                .': ни одна стратегия не произвела представление, испробованы: '
-                .($tried === [] ? '—' : implode(', ', $tried)),
-        ]);
+        return $strategy->process($document, $version);
     }
 }

@@ -20,6 +20,8 @@ namespace App\Enums\Procurement\Document;
  */
 enum UnprocessableReason: string
 {
+    case UnsupportedFormat = 'unsupported_format';
+    case FormatMismatch = 'format_mismatch';
     case TooLarge = 'too_large';
     case ZipBomb = 'zip_bomb';
     case UnreadableFormat = 'unreadable_format';

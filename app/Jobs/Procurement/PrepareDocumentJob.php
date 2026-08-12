@@ -6,6 +6,7 @@ namespace App\Jobs\Procurement;
 
 use App\Enums\Procurement\Ai\RunMode;
 use App\Enums\Procurement\Document\DocumentStatus;
+use App\Enums\Procurement\Document\PreparationResult;
 use App\Models\Procurement\Document\Document;
 use App\Repositories\Procurement\Ai\AnalysisRunStoreRepository;
 use App\Repositories\Procurement\Document\DocumentStoreRepository;
@@ -72,15 +73,17 @@ final class PrepareDocumentJob extends PipelineJob implements ShouldBeUnique
             throw new RuntimeException("У документа #{$document->id} нет скачанной версии.");
         }
 
-        app(DocumentPreparer::class)->prepare($document, $version);
+        $result = app(DocumentPreparer::class)->prepare($document, $version);
 
-        $document->refresh();
-
-        if ($document->status === DocumentStatus::Unprocessable) {
+        if ($result === PreparationResult::Unprocessable) {
             return;
         }
 
         app(DocumentStoreRepository::class)->update($document, ['status' => DocumentStatus::Prepared]);
+
+        if ($result === PreparationResult::ExpandedContainer) {
+            return;
+        }
 
         if (config('ai.screening.enabled', false)) {
             // Launch-точка (§3.5 root/document-contour.md) — режим и инициатор едут параметрами

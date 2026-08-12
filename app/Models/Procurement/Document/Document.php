@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Models\Procurement\Document;
 
 use App\Enums\Procurement\Document\DocumentStatus;
+use App\Enums\Procurement\Document\UnprocessableReason;
 use App\Models\Concerns\HasErrorBlock;
 use App\Models\Concerns\HasLease;
 use App\Models\Procurement\Ai\Fixture;
@@ -52,6 +53,7 @@ final class Document extends Model
         'removed_at',
         'attempts',
         'last_error',
+        'unprocessable_reason',
         'last_error_at',
         'next_retry_at',
         'failed_permanently',
@@ -63,6 +65,7 @@ final class Document extends Model
     {
         return [
             'status' => DocumentStatus::class,
+            'unprocessable_reason' => UnprocessableReason::class,
             'removed_at' => 'datetime',
             'last_error_at' => 'datetime',
             'next_retry_at' => 'datetime',

@@ -2,16 +2,13 @@
 
 declare(strict_types=1);
 
-use App\Enums\Procurement\Document\DocumentStatus;
 use App\Enums\Procurement\Document\RepresentationKind;
-use App\Models\Procurement\Document\Document;
 use App\Models\Procurement\Document\DocumentRepresentation;
 use App\Models\Procurement\Document\DocumentVersion;
 use App\Repositories\Procurement\Document\RepresentationStoreRepository;
-use App\Services\Procurement\Prepare\DocumentPreparer;
-use App\Services\Procurement\Prepare\PassthroughStrategy;
-use App\Services\Procurement\Prepare\PreparationStrategy;
+use App\Services\Procurement\Prepare\DocumentFormatRegistry;
 use App\Services\Procurement\Prepare\RepresentationResolver;
+use App\Services\Procurement\Prepare\ScanStrategy;
 use Illuminate\Database\QueryException;
 
 /**
@@ -116,114 +113,10 @@ test('резолвер отдаёт диск представления, есл�
     expect(app(RepresentationResolver::class)->forLlm($version)['disk'])->toBe('estimates');
 });
 
-test('цепочка подготовки: первая стратегия вернула false — вызывается следующая', function () {
-    config(['ai.prepare.strategies' => [RefusingStrategy::class, AcceptingStrategy::class]]);
-    RefusingStrategy::$calls = 0;
-    AcceptingStrategy::$calls = 0;
+test('registry закрывает known extensions и не даёт catch-all для неизвестного формата', function () {
+    $registry = app(DocumentFormatRegistry::class);
 
-    $document = Document::factory()->create(['status' => DocumentStatus::Downloaded]);
-    $version = DocumentVersion::factory()->create(['document_id' => $document->id]);
-
-    app(DocumentPreparer::class)->prepare($document, $version);
-
-    expect(RefusingStrategy::$calls)->toBe(1)
-        ->and(AcceptingStrategy::$calls)->toBe(1)
-        ->and($document->refresh()->status)->toBe(DocumentStatus::Downloaded);
+    expect($registry->forExtension('pdf')['strategy'])->toBe(ScanStrategy::class)
+        ->and($registry->forExtension('zip')['result']->value)->toBe('expanded_container')
+        ->and($registry->forExtension('unknown'))->toBeNull();
 });
-
-test('цепочка подготовки: стратегия вернула true — следующая не вызывается', function () {
-    config(['ai.prepare.strategies' => [AcceptingStrategy::class, RefusingStrategy::class]]);
-    RefusingStrategy::$calls = 0;
-    AcceptingStrategy::$calls = 0;
-
-    $document = Document::factory()->create(['status' => DocumentStatus::Downloaded]);
-    $version = DocumentVersion::factory()->create(['document_id' => $document->id]);
-
-    app(DocumentPreparer::class)->prepare($document, $version);
-
-    expect(AcceptingStrategy::$calls)->toBe(1)
-        ->and(RefusingStrategy::$calls)->toBe(0);
-});
-
-test('цепочка исчерпана — unprocessable(conversion_failed) с перечислением испробованных стратегий', function () {
-    config(['ai.prepare.strategies' => [RefusingStrategy::class]]);
-    RefusingStrategy::$calls = 0;
-
-    $document = Document::factory()->create(['status' => DocumentStatus::Downloaded]);
-    $version = DocumentVersion::factory()->create(['document_id' => $document->id]);
-
-    app(DocumentPreparer::class)->prepare($document, $version);
-
-    $document->refresh();
-    expect($document->status)->toBe(DocumentStatus::Unprocessable)
-        ->and($document->last_error)->toContain('conversion_failed')
-        ->and($document->last_error)->toContain('RefusingStrategy');
-});
-
-test('PassthroughStrategy замыкает цепочку успехом — оригинал валидный вход', function () {
-    $document = Document::factory()->create(['status' => DocumentStatus::Downloaded]);
-    $version = DocumentVersion::factory()->create(['document_id' => $document->id]);
-
-    expect(app(PassthroughStrategy::class)->process($document, $version))->toBeTrue();
-});
-
-test('исключение стратегии не маскируется под «не подошла» — пробрасывается наружу', function () {
-    config(['ai.prepare.strategies' => [ThrowingStrategy::class, AcceptingStrategy::class]]);
-    AcceptingStrategy::$calls = 0;
-
-    $document = Document::factory()->create(['status' => DocumentStatus::Downloaded]);
-    $version = DocumentVersion::factory()->create(['document_id' => $document->id]);
-
-    expect(fn () => app(DocumentPreparer::class)->prepare($document, $version))
-        ->toThrow(RuntimeException::class, 'стратегия упала');
-
-    expect(AcceptingStrategy::$calls)->toBe(0)
-        ->and($document->refresh()->status)->toBe(DocumentStatus::Downloaded);
-});
-
-final class RefusingStrategy implements PreparationStrategy
-{
-    public static int $calls = 0;
-
-    public function canProcess(DocumentVersion $version): bool
-    {
-        return true;
-    }
-
-    public function process(Document $document, DocumentVersion $version): bool
-    {
-        self::$calls++;
-
-        return false;
-    }
-}
-
-final class AcceptingStrategy implements PreparationStrategy
-{
-    public static int $calls = 0;
-
-    public function canProcess(DocumentVersion $version): bool
-    {
-        return true;
-    }
-
-    public function process(Document $document, DocumentVersion $version): bool
-    {
-        self::$calls++;
-
-        return true;
-    }
-}
-
-final class ThrowingStrategy implements PreparationStrategy
-{
-    public function canProcess(DocumentVersion $version): bool
-    {
-        return true;
-    }
-
-    public function process(Document $document, DocumentVersion $version): bool
-    {
-        throw new RuntimeException('стратегия упала');
-    }
-}

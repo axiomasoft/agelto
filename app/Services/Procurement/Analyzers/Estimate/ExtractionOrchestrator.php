@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\Procurement\Analyzers\Estimate;
 
+use App\Actions\Procurement\Document\MarkDocumentUnprocessableAction;
 use App\Dto\Procurement\Analyzers\Estimate\DiscoveryMarkerLine;
 use App\Dto\Procurement\Analyzers\Estimate\DiscoveryResponse;
 use App\Dto\Procurement\Analyzers\Estimate\PassportResponse;
@@ -68,6 +69,7 @@ final readonly class ExtractionOrchestrator
 {
     public function __construct(
         private DocumentStoreRepository $documents,
+        private MarkDocumentUnprocessableAction $markDocumentUnprocessable,
         private AnalysisStoreRepository $analyses,
         private LlmRouteResolver $routes,
         private ExtractionPreflight $preflight,
@@ -734,10 +736,7 @@ final readonly class ExtractionOrchestrator
 
     private function markUnprocessable(Document $document, Analysis $analysis, UnprocessableReason $reason, string $detail): void
     {
-        $this->documents->update($document, [
-            'status' => DocumentStatus::Unprocessable,
-            'last_error' => "unprocessable:{$reason->value}: {$detail}",
-        ]);
+        $this->markDocumentUnprocessable->execute($document, $reason, $detail);
 
         $this->usageSnapshot->finalizeAnalysis($analysis, [
             'status' => AnalysisStatus::Skipped,

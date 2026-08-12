@@ -4,12 +4,12 @@ declare(strict_types=1);
 
 namespace App\Services\Procurement\Prepare;
 
-use App\Enums\Procurement\Document\DocumentStatus;
+use App\Actions\Procurement\Document\MarkDocumentUnprocessableAction;
+use App\Enums\Procurement\Document\PreparationResult;
 use App\Enums\Procurement\Document\RepresentationKind;
 use App\Enums\Procurement\Document\UnprocessableReason;
 use App\Models\Procurement\Document\Document;
 use App\Models\Procurement\Document\DocumentVersion;
-use App\Repositories\Procurement\Document\DocumentStoreRepository;
 use App\Repositories\Procurement\Document\RepresentationStoreRepository;
 use App\Services\Storage\FileLocationResolver;
 use Illuminate\Contracts\Filesystem\Filesystem;
@@ -48,25 +48,18 @@ final readonly class ScanStrategy implements PreparationStrategy
      */
     private const float TEXT_LAYER_SPARSE_MAX_CHARS_PER_PAGE = 50.0;
 
-    private const array IMAGE_EXTENSIONS = ['png', 'jpg', 'jpeg', 'tif', 'tiff', 'bmp', 'webp'];
-
     public function __construct(
         private RepresentationStoreRepository $representations,
-        private DocumentStoreRepository $storeRepository,
+        private MarkDocumentUnprocessableAction $markUnprocessable,
         private OcrConverter $converter,
         private FileLocationResolver $locationResolver,
     ) {}
 
-    public function canProcess(DocumentVersion $version): bool
-    {
-        return $version->extension === 'pdf' || in_array($version->extension, self::IMAGE_EXTENSIONS, true);
-    }
-
-    public function process(Document $document, DocumentVersion $version): bool
+    public function process(Document $document, DocumentVersion $version): PreparationResult
     {
         if ($this->representations->find($version, RepresentationKind::PdfOcr) !== null
             && $this->representations->find($version, RepresentationKind::Text) !== null) {
-            return true;
+            return PreparationResult::ReadyForScreening;
         }
 
         $isPdf = $version->extension === 'pdf';
@@ -85,7 +78,7 @@ final readonly class ScanStrategy implements PreparationStrategy
             $this->copyToLocal($disk, $version->storage_path, $localInput);
 
             if ($isPdf && ! $this->needsOcr($localInput)) {
-                return false;
+                return PreparationResult::ReadyForScreening;
             }
 
             // Ловится ТОЛЬКО провал самого OCR — доменный исход стратегии; сбой доступа к диску
@@ -102,17 +95,17 @@ final readonly class ScanStrategy implements PreparationStrategy
                 }
             } catch (RuntimeException $e) {
                 if (! $isPdf) {
-                    return false;
+                    return PreparationResult::ReadyForScreening;
                 }
 
                 $this->markUnprocessable($document, $e->getMessage());
 
-                return true;
+                return PreparationResult::Unprocessable;
             }
 
             $this->storeRepresentations($version, $disk, $diskName, $localOutput, $text, $durationMs);
 
-            return true;
+            return PreparationResult::ReadyForScreening;
         } finally {
             File::deleteDirectory($workDir);
         }
@@ -207,9 +200,6 @@ final readonly class ScanStrategy implements PreparationStrategy
 
     private function markUnprocessable(Document $document, string $detail): void
     {
-        $this->storeRepository->update($document, [
-            'status' => DocumentStatus::Unprocessable,
-            'last_error' => 'unprocessable:'.UnprocessableReason::OcrFailed->value.": {$detail}",
-        ]);
+        $this->markUnprocessable->execute($document, UnprocessableReason::OcrFailed, $detail);
     }
 }

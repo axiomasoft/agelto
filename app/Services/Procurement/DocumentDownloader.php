@@ -21,6 +21,7 @@ use App\Repositories\Procurement\ProcurementStoreRepository;
 use App\Services\Procurement\Proxy\ProxyBindingResolver;
 use App\Services\Procurement\Proxy\ProxyResolver;
 use App\Services\Storage\FileLocationResolver;
+use App\Support\Files\MimeDetector;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\RequestException;
 use Illuminate\Http\Client\Response;
@@ -243,14 +244,11 @@ final readonly class DocumentDownloader
     {
         $extension = pathinfo($this->filenameFrom($document), PATHINFO_EXTENSION);
 
-        return $extension !== '' ? $extension : 'bin';
+        return $extension !== '' ? strtolower($extension) : 'bin';
     }
 
     private function mimeFrom(string $content): string
     {
-        $finfo = finfo_open(FILEINFO_MIME_TYPE);
-        $mime = $finfo !== false ? finfo_buffer($finfo, $content) : false;
-
-        return is_string($mime) ? $mime : 'application/octet-stream';
+        return MimeDetector::of($content);
     }
 }

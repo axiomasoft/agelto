@@ -4,13 +4,13 @@ declare(strict_types=1);
 
 namespace App\Services\Procurement\Prepare;
 
+use App\Actions\Procurement\Document\MarkDocumentUnprocessableAction;
 use App\Console\Commands\Procurement\ConvertXlsxToPdfCommand;
-use App\Enums\Procurement\Document\DocumentStatus;
+use App\Enums\Procurement\Document\PreparationResult;
 use App\Enums\Procurement\Document\RepresentationKind;
 use App\Enums\Procurement\Document\UnprocessableReason;
 use App\Models\Procurement\Document\Document;
 use App\Models\Procurement\Document\DocumentVersion;
-use App\Repositories\Procurement\Document\DocumentStoreRepository;
 use App\Repositories\Procurement\Document\RepresentationStoreRepository;
 use App\Services\Storage\FileLocationResolver;
 use Composer\InstalledVersions;
@@ -48,24 +48,19 @@ final readonly class SpreadsheetStrategy implements PreparationStrategy
 {
     public function __construct(
         private RepresentationStoreRepository $representations,
-        private DocumentStoreRepository $storeRepository,
+        private MarkDocumentUnprocessableAction $markUnprocessable,
         private LibreOfficeConverter $converter,
         private TextGridRenderer $textGridRenderer,
         private FileLocationResolver $locationResolver,
     ) {}
 
-    public function canProcess(DocumentVersion $version): bool
-    {
-        return in_array($version->extension, ['xls', 'xlsx'], true);
-    }
-
-    public function process(Document $document, DocumentVersion $version): bool
+    public function process(Document $document, DocumentVersion $version): PreparationResult
     {
         $hasPdf = $this->representations->find($version, RepresentationKind::Pdf) !== null;
         $hasTextGrid = $this->representations->find($version, RepresentationKind::TextGrid) !== null;
 
         if ($hasPdf && $hasTextGrid) {
-            return true;
+            return PreparationResult::ReadyForScreening;
         }
 
         $diskName = $this->locationResolver->currentDocumentsDisk();
@@ -90,7 +85,7 @@ final readonly class SpreadsheetStrategy implements PreparationStrategy
                 $this->markUnprocessable($document, 'PhpSpreadsheet и LibreOffice не смогли сконвертировать файл в PDF');
             }
 
-            return true;
+            return $hasPdf ? PreparationResult::ReadyForScreening : PreparationResult::Unprocessable;
         } finally {
             @unlink($localInput);
         }
@@ -233,9 +228,6 @@ final readonly class SpreadsheetStrategy implements PreparationStrategy
 
     private function markUnprocessable(Document $document, string $detail): void
     {
-        $this->storeRepository->update($document, [
-            'status' => DocumentStatus::Unprocessable,
-            'last_error' => 'unprocessable:'.UnprocessableReason::ConversionFailed->value.": {$detail}",
-        ]);
+        $this->markUnprocessable->execute($document, UnprocessableReason::ConversionFailed, $detail);
     }
 }

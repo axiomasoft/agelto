@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace App\Services\Procurement\Prepare;
 
+use App\Actions\Procurement\Document\MarkDocumentUnprocessableAction;
 use App\Enums\Procurement\Document\DocumentStatus;
+use App\Enums\Procurement\Document\PreparationResult;
 use App\Enums\Procurement\Document\UnprocessableReason;
 use App\Enums\Procurement\ProcurementEventType;
 use App\Models\Procurement\Document\Document;
@@ -37,15 +39,11 @@ final readonly class ArchiveStrategy implements PreparationStrategy
 {
     public function __construct(
         private DocumentStoreRepository $storeRepository,
+        private MarkDocumentUnprocessableAction $markUnprocessable,
         private ProcurementStoreRepository $procurementStore,
         private ArchiveExtractor $extractor,
         private FileLocationResolver $locationResolver,
     ) {}
-
-    public function canProcess(DocumentVersion $version): bool
-    {
-        return in_array($version->extension, ['zip', '7z', 'rar'], true);
-    }
 
     /**
      * Представления версии-архива не производит (файлы уезжают в ДОЧЕРНИЕ документы), но исход
@@ -53,12 +51,12 @@ final readonly class ArchiveStrategy implements PreparationStrategy
      * исходы (бомба/пароль/неподдержанный формат) — `unprocessable` ставится здесь же (D28),
      * возврат `false` при этом только сигнализирует «представления нет».
      */
-    public function process(Document $document, DocumentVersion $version): bool
+    public function process(Document $document, DocumentVersion $version): PreparationResult
     {
         if ($this->nestingDepth($version) >= (int) config('ai.prepare.archive.max_depth', 2)) {
             $this->markUnprocessable($document, UnprocessableReason::ZipBomb, 'превышена допустимая глубина вложенности архивов');
 
-            return false;
+            return PreparationResult::Unprocessable;
         }
 
         $diskName = $this->locationResolver->currentDocumentsDisk();
@@ -73,11 +71,11 @@ final readonly class ArchiveStrategy implements PreparationStrategy
             } catch (ArchivePasswordProtectedException $e) {
                 $this->markUnprocessable($document, UnprocessableReason::PasswordProtected, $e->getMessage());
 
-                return false;
+                return PreparationResult::Unprocessable;
             } catch (ArchiveUnsupportedException $e) {
                 $this->markUnprocessable($document, UnprocessableReason::ArchiveUnsupported, $e->getMessage());
 
-                return false;
+                return PreparationResult::Unprocessable;
             }
 
             [$fileCount, $totalBytes, $entries] = $this->safeEntries($listing);
@@ -86,7 +84,7 @@ final readonly class ArchiveStrategy implements PreparationStrategy
                 || $totalBytes > (int) config('ai.prepare.archive.max_total_mb', 500) * 1024 * 1024) {
                 $this->markUnprocessable($document, UnprocessableReason::ZipBomb, "файлов={$fileCount}, суммарно={$totalBytes} байт");
 
-                return false;
+                return PreparationResult::Unprocessable;
             }
 
             $this->extractChildren($document, $version, $localArchive, $entries, $disk, $diskName);
@@ -94,7 +92,7 @@ final readonly class ArchiveStrategy implements PreparationStrategy
             @unlink($localArchive);
         }
 
-        return true;
+        return PreparationResult::ExpandedContainer;
     }
 
     /**
@@ -255,9 +253,6 @@ final readonly class ArchiveStrategy implements PreparationStrategy
 
     private function markUnprocessable(Document $document, UnprocessableReason $reason, string $detail): void
     {
-        $this->storeRepository->update($document, [
-            'status' => DocumentStatus::Unprocessable,
-            'last_error' => 'unprocessable:'.$reason->value.": {$detail}",
-        ]);
+        $this->markUnprocessable->execute($document, $reason, $detail);
     }
 }

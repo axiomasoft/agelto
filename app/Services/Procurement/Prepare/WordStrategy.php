@@ -4,12 +4,12 @@ declare(strict_types=1);
 
 namespace App\Services\Procurement\Prepare;
 
-use App\Enums\Procurement\Document\DocumentStatus;
+use App\Actions\Procurement\Document\MarkDocumentUnprocessableAction;
+use App\Enums\Procurement\Document\PreparationResult;
 use App\Enums\Procurement\Document\RepresentationKind;
 use App\Enums\Procurement\Document\UnprocessableReason;
 use App\Models\Procurement\Document\Document;
 use App\Models\Procurement\Document\DocumentVersion;
-use App\Repositories\Procurement\Document\DocumentStoreRepository;
 use App\Repositories\Procurement\Document\RepresentationStoreRepository;
 use App\Services\Storage\FileLocationResolver;
 use Illuminate\Support\Facades\File;
@@ -28,20 +28,15 @@ final readonly class WordStrategy implements PreparationStrategy
 {
     public function __construct(
         private RepresentationStoreRepository $representations,
-        private DocumentStoreRepository $storeRepository,
+        private MarkDocumentUnprocessableAction $markUnprocessable,
         private LibreOfficeConverter $converter,
         private FileLocationResolver $locationResolver,
     ) {}
 
-    public function canProcess(DocumentVersion $version): bool
-    {
-        return in_array($version->extension, ['doc', 'docx', 'rtf', 'odt'], true);
-    }
-
-    public function process(Document $document, DocumentVersion $version): bool
+    public function process(Document $document, DocumentVersion $version): PreparationResult
     {
         if ($this->representations->find($version, RepresentationKind::Pdf) !== null) {
-            return true;
+            return PreparationResult::ReadyForScreening;
         }
 
         $diskName = $this->locationResolver->currentDocumentsDisk();
@@ -71,11 +66,11 @@ final readonly class WordStrategy implements PreparationStrategy
                 'generated_at' => now(),
             ]);
 
-            return true;
+            return PreparationResult::ReadyForScreening;
         } catch (RuntimeException $e) {
             $this->markUnprocessable($document, $e->getMessage());
 
-            return true;
+            return PreparationResult::Unprocessable;
         } finally {
             @unlink($localInput);
             File::deleteDirectory($outputDir);
@@ -89,9 +84,6 @@ final readonly class WordStrategy implements PreparationStrategy
 
     private function markUnprocessable(Document $document, string $detail): void
     {
-        $this->storeRepository->update($document, [
-            'status' => DocumentStatus::Unprocessable,
-            'last_error' => 'unprocessable:'.UnprocessableReason::ConversionFailed->value.": {$detail}",
-        ]);
+        $this->markUnprocessable->execute($document, UnprocessableReason::ConversionFailed, $detail);
     }
 }
