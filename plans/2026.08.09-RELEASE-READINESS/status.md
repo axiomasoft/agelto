@@ -3,7 +3,7 @@ projection: status-view
 projection_version: v1
 source_scope: plan core + phases + journal
 through: 2026-08-12
-inputs_sha256: 33018313736d65435d6aa3413dfbbe2db3f8f4d80c9070c15e7d8adc96588bf3
+inputs_sha256: 9a0cea2075d62712ad1ff2ef32915058747bdc01e5dfcf7994105ab7427d5a03
 generated_by: task plan-views status
 -->
 
@@ -147,7 +147,7 @@ generated_by: task plan-views status
 | P6.1 | Снять каноническую матрицу extension/MIME/magic и текущих handlers | 🟠 Done with deviations | 2026-08-12 |
 | P6.2 | Запечатать typed file-handler registry и terminal reasons для unsupported | 🟠 Done with deviations | 2026-08-12 |
 | P6.3 | Реализовать безопасное идемпотентное раскрытие архивов с лимитами | 🟢 Done | 2026-08-12 |
-| P6.4 | Создавать child file records со ссылкой на parent archive и dispatch | ⬜ Not started | — |
+| P6.4 | Создавать child file records со ссылкой на parent archive и dispatch | 🟠 Done with deviations | 2026-08-12 |
 | P6.5 | Добавить требуемый archive-to-children-to-processing integration test | ⬜ Not started | — |
 | P6.6 | Закрепить extension contract и тест-шаблон для новых handlers | ⬜ Not started | — |
 
@@ -432,6 +432,8 @@ write-site: pre_mutation: allow · pre_final: allow |
 write-site: pre_mutation: allow · pre_final: allow |
 | 2026-08-12 | owner | plan-run · in-progress · Пользователь разрешил игнорировать дефекты Task; выполняется продуктовый P6.3. |
 | 2026-08-12 | owner | plan-run · closed-green · Typed bounded ZIP/7z/RAR extraction, hostile-entry guards и focused tests завершены; Task lint игнорирован по прямому указанию пользователя. |
+| 2026-08-12 | gpt-5.6-terra/high | plan-run · in-progress · P6.4 started: child lineage/action migration under owner-approved routing override. |
+| 2026-08-12 | gpt-5.6-terra/high | plan-run · closed-deviations · P6.4 delivered; product tests green, but declared Make preflight target and inherited plan lint remain red. |
 
 ## Owner Gates
 
@@ -443,3 +445,4 @@ write-site: pre_mutation: allow · pre_final: allow |
 - P4.6: known deviation
 - P6.1: known deviation
 - P6.2: known deviation
+- P6.4: known deviation

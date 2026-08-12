@@ -1,55 +1,58 @@
-# HANDOFF — 2026-08-12 — after P6.3
+# HANDOFF — 2026-08-12 — after P6.4
 
-**Next:** manual: implementation/high — P6.4 (§3 Routing: Exec = manual)
+**Next:** manual: implementation/high — P6.5 (§3 Routing: Exec = manual)
 
 | Параметр | Значение |
 |:--|:--|
 | Batch | solo |
 | Model | implementation |
-| Thinking | high — transactional storage/queue lifecycle |
+| Thinking | high — lifecycle concurrency/security proof |
 | Capabilities | — |
 | Context | continue-root |
-| Суть | Материализовать validated archive entries как concurrent-safe child versions и dispatch после commit. |
+| Суть | Доказать полный archive→children→ordinary lifecycle, retry/concurrency и security contract. |
 | Команда | — |
 
 ```text
-Прочитать P6.4 и её Required Reads. Реализовать только durable lineage, короткий Action,
-after-commit dispatch и Expanded parent semantics; выполнить требуемые migration/concurrency tests,
-закрыть item journal/state/handoff отдельным commit.
+Прочитать P6.5 и её Required Reads. Выполнить только сквозной archive lifecycle proof:
+children, ordinary PrepareDocumentJob, retry/concurrency/security scenarios и acceptance evidence.
+Закрыть item journal/state/handoff отдельным bookkeeping commit.
 ```
 
 Native Codex launch-block:
 
 ```bash
-codex -C /home/vostrikov/projects/agelto/agelto -m gpt-5.6-terra -c 'model_reasoning_effort="high"' -a never -s danger-full-access '$ task:plan-run 2026.08.09-RELEASE-READINESS P6.4'
+codex -C /home/vostrikov/projects/agelto/agelto -m gpt-5.6-terra -c 'model_reasoning_effort="high"' -a never -s danger-full-access '$ task:plan-run 2026.08.09-RELEASE-READINESS P6.5'
 ```
 
 **Done:**
 
-- P6.3 closed 🟢: typed `ArchiveEntry`/budget/path validator, complete-listing fail-closed guards,
-  bounded one-entry ZIP/7z/RAR streams, actual-size checks and hostile corpus were added in
-  `91b18770`.
-- Focused archive tests passed: 22 passed, one RAR encoder-dependent happy-path fixture skipped;
-  Pint, citation verification and `git diff --check` passed.
+- P6.4 closed 🟠: `89b4e793` adds durable `archive_entry_path` lineage and the partial unique
+  parent-version/path index, transactional child Action, resolver-correct parent read/current-disk
+  write, after-commit child prepare dispatch and terminal `Expanded` parent semantics.
+- Focused migration apply/rollback/reapply and feature tests passed: 42 passed, 1 skipped; Pint and
+  `git diff --check` passed.
 
 **Remaining:**
 
-- P6.4–P6.6: persist child lineage, prove retry/dispatch behaviour, then finish P6 acceptance.
+- P6.5–P6.6: end-to-end archive lifecycle/adversarial proof, then extension/documentation gate.
 
 **Sources of truth:**
 
-- `phases/P6/P6.3.state.md`, `phases/P6/P6.4.md`, `research/08-P6-execution-design.md`, D31.
-- Product commits `91b18770` and `102537c6`; `journal.jsonl` P6.3 terminal pointer.
+- `phases/P6/P6.4.md`, `phases/P6/P6.4.state.md`, `research/08-P6-execution-design.md`, D31.
+- Product commit `89b4e793`; P6.4 downstream evidence for P6.5/P7.4 in `findings/`.
 
 **Open risks:**
 
-- Task `plan-lint` still reports historical bundle/D-reference defects outside P6.3 product scope;
-  owner explicitly authorized continuing P6.3 despite it. The defects are captured in Swissknifeman
-  Roadmap and must not be silently treated as green validation.
+- `make test-preflight` is absent from the project Makefile; P6.4 used the equivalent isolated
+  Docker/Postgres checks manually. The declared validation cannot be fully green until that target
+  is supplied by its Makefile owner.
+- Plan lint has inherited P6.1–P6.3 provenance/bundle defects outside P6.4 scope. P6.4 remains
+  🟠 because the item declares plan-lint green as validation; do not represent the plan as lint-green.
 
 **Workarounds/Deferred/Open questions:**
 
-- workarounds: P6.3 was closed with direct owner authorization while the unrelated Task lint defect remained.
-- deferred: Swissknifeman must enforce subject-aware terminal delivery; see roadmap entry
-  `2026.08.12-task-plan-run-terminal-delivery-gap.md`.
+- workarounds: routing gate was overridden by direct owner instruction; execution is recorded as
+  `gpt-5.6-terra/high` launch provenance, not provider-attested thread telemetry.
+- deferred: add/repair `make test-preflight` through the Makefile owner before claiming complete
+  release-plan validation.
 - open_questions: —
