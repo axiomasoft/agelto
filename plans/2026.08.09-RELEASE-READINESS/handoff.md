@@ -6,14 +6,16 @@
 |:--|:--|
 | Model | implementation |
 | Thinking | high |
-| Context | cold-start-root |
+| Context | continue-root |
 | Суть | Исполнить P6.2: реализовать frozen typed format registry/inspector/result, закрытый reason keyset и durable unprocessable reason без catch-all. |
-| Команда | `$ task:plan-run 2026.08.09-RELEASE-READINESS P6.2` |
+| Команда | — |
 
-Reason for cold-start-root: P6.1 terminally froze the security-sensitive contract; P6.2 starts its
-schema/application implementation in a fresh context.
+The authoritative root may continue: P6.1 is terminal, P6.2 has a byte-fresh bundle, and no owner
+gate or external-state wait is open.
 
 ```text
+select session model class implementation
+select session effort high
 $ task:plan-run 2026.08.09-RELEASE-READINESS P6.2
 ```
 
@@ -56,7 +58,9 @@ codex -C /home/vostrikov/projects/agelto/agelto -m gpt-5.6-terra -c 'model_reaso
 
 - Formal P6.1 validation remains deviated: terminal P0.5/P0.6 state files do not themselves name
   their products. The exact provenance is now carried by the terminal P6.1 products/state, so this
-  is traceability debt rather than a downstream product block.
+  is traceability debt rather than a downstream product block. The concrete follow-up is a future
+  plan-design/Task-runtime maintenance item that makes v2 bundles declare exact terminal product
+  paths without mutating historical upstream Completion Notes; it is not a prerequisite for P6.2.
 - P6.2 must preserve the closed reason keyset, especially `password_protected` for PDF and `AR1` for
   archives; infrastructure failures remain retryable exceptions, not input-terminal reasons.
 - Current plan lint has one known D29 warning: P6 declares orchestration while no workflow script is
