@@ -3,10 +3,12 @@
 declare(strict_types=1);
 
 use App\Enums\Procurement\Document\DocumentStatus;
+use App\Enums\Procurement\Document\PreparationResult;
 use App\Enums\Procurement\Document\RepresentationKind;
 use App\Models\Procurement\Document\Document;
 use App\Models\Procurement\Document\DocumentRepresentation;
 use App\Models\Procurement\Document\DocumentVersion;
+use App\Services\Procurement\Prepare\DocumentFormatRegistry;
 use App\Services\Procurement\Prepare\SpreadsheetStrategy;
 use App\Services\Procurement\Prepare\WordStrategy;
 use Illuminate\Support\Facades\Process;
@@ -62,20 +64,14 @@ function fakeSoffice(bool $conversionSucceeds, string $pdfContent = '%PDF-fake')
 
 // --- WordStrategy (doc/docx/rtf/odt → pdf через LibreOffice) ---
 
-test('canProcess распознаёт doc/docx/rtf/odt и отклоняет прочие расширения', function () {
-    [, $docx] = makeDocumentVersion('docx', 'dummy');
-    [, $xlsx] = makeDocumentVersion('xlsx', 'dummy');
+test('registry направляет текстовые документы в typed Word handler', function () {
+    $registry = app(DocumentFormatRegistry::class);
 
-    $strategy = app(WordStrategy::class);
-
-    expect($strategy->canProcess($docx))->toBeTrue();
-
-    foreach (['doc', 'rtf', 'odt'] as $extension) {
-        $docx->extension = $extension;
-        expect($strategy->canProcess($docx))->toBeTrue();
+    foreach (['doc', 'docx', 'rtf', 'odt'] as $extension) {
+        expect($registry->forExtension($extension)['strategy'])->toBe(WordStrategy::class);
     }
 
-    expect($strategy->canProcess($xlsx))->toBeFalse();
+    expect($registry->forExtension('xlsx')['strategy'])->not->toBe(WordStrategy::class);
 });
 
 test('docx → представление pdf с meta.tool=libreoffice, документ не терминален', function () {
@@ -84,7 +80,7 @@ test('docx → представление pdf с meta.tool=libreoffice, доку
 
     $result = app(WordStrategy::class)->process($document, $version);
 
-    expect($result)->toBeTrue()
+    expect($result)->toBe(PreparationResult::ReadyForScreening)
         ->and($document->refresh()->status)->not->toBe(DocumentStatus::Unprocessable);
 
     $representation = DocumentRepresentation::query()
@@ -105,7 +101,7 @@ test('падение LibreOffice-конверсии docx → unprocessable(conve
 
     $result = app(WordStrategy::class)->process($document, $version);
 
-    expect($result)->toBeTrue()
+    expect($result)->toBe(PreparationResult::Unprocessable)
         ->and($document->refresh()->status)->toBe(DocumentStatus::Unprocessable)
         ->and($document->last_error)->toContain('conversion_failed');
 });
@@ -117,7 +113,7 @@ test('повторный прогон WordStrategy идемпотентен — 
     app(WordStrategy::class)->process($document, $version);
     $result = app(WordStrategy::class)->process($document, $version);
 
-    expect($result)->toBeTrue();
+    expect($result)->toBe(PreparationResult::ReadyForScreening);
     Process::assertRanTimes(fn ($process) => in_array('--convert-to', $process->command, true), 1);
     expect(DocumentRepresentation::query()->where('document_version_id', $version->id)->count())->toBe(1);
 });
@@ -130,7 +126,7 @@ test('xlsx в пределах лимитов — представление ч�
 
     $result = app(SpreadsheetStrategy::class)->process($document, $version);
 
-    expect($result)->toBeTrue()
+    expect($result)->toBe(PreparationResult::ReadyForScreening)
         ->and($document->refresh()->status)->not->toBe(DocumentStatus::Unprocessable);
 
     $representation = DocumentRepresentation::query()
@@ -150,7 +146,7 @@ test('xlsx сверх лимита строк — ветка LibreOffice, пре
 
     $result = app(SpreadsheetStrategy::class)->process($document, $version);
 
-    expect($result)->toBeTrue()
+    expect($result)->toBe(PreparationResult::ReadyForScreening)
         ->and($document->refresh()->status)->not->toBe(DocumentStatus::Unprocessable);
 
     $representation = DocumentRepresentation::query()
@@ -170,7 +166,7 @@ test('xlsx сверх лимита размера — ветка LibreOffice, п
 
     $result = app(SpreadsheetStrategy::class)->process($document, $version);
 
-    expect($result)->toBeTrue()
+    expect($result)->toBe(PreparationResult::ReadyForScreening)
         ->and($document->refresh()->status)->not->toBe(DocumentStatus::Unprocessable);
 
     $representation = DocumentRepresentation::query()
@@ -189,7 +185,7 @@ test('обе ветки упали — unprocessable(conversion_failed)', functi
 
     $result = app(SpreadsheetStrategy::class)->process($document, $version);
 
-    expect($result)->toBeTrue()
+    expect($result)->toBe(PreparationResult::Unprocessable)
         ->and($document->refresh()->status)->toBe(DocumentStatus::Unprocessable)
         ->and($document->last_error)->toContain('conversion_failed');
 
@@ -205,7 +201,7 @@ test('повторный прогон SpreadsheetStrategy идемпотенте
     app(SpreadsheetStrategy::class)->process($document, $version);
     $result = app(SpreadsheetStrategy::class)->process($document, $version);
 
-    expect($result)->toBeTrue();
+    expect($result)->toBe(PreparationResult::ReadyForScreening);
     Process::assertRanTimes(fn ($process) => in_array('--convert-to', $process->command, true), 1);
     expect(DocumentRepresentation::query()->where('document_version_id', $version->id)->count())->toBe(1);
 });

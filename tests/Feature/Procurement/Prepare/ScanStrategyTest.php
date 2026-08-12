@@ -3,10 +3,12 @@
 declare(strict_types=1);
 
 use App\Enums\Procurement\Document\DocumentStatus;
+use App\Enums\Procurement\Document\PreparationResult;
 use App\Enums\Procurement\Document\RepresentationKind;
 use App\Models\Procurement\Document\Document;
 use App\Models\Procurement\Document\DocumentRepresentation;
 use App\Models\Procurement\Document\DocumentVersion;
+use App\Services\Procurement\Prepare\DocumentFormatRegistry;
 use App\Services\Procurement\Prepare\ScanStrategy;
 use Illuminate\Support\Facades\Process;
 use Illuminate\Support\Facades\Storage;
@@ -59,20 +61,13 @@ function fakeOcrTools(float $charsPerPage = 0.0, bool $ocrSucceeds = true, strin
     ]);
 }
 
-test('canProcess распознаёт pdf и изображения, отклоняет табличные форматы', function () {
-    [, $version] = makeScanVersion();
-    $strategy = app(ScanStrategy::class);
+test('registry направляет PDF в typed scan handler', function () {
+    $registry = app(DocumentFormatRegistry::class);
 
-    expect($strategy->canProcess($version))->toBeTrue();
+    expect($registry->forExtension('pdf')['strategy'])->toBe(ScanStrategy::class);
 
-    foreach (['jpg', 'jpeg', 'png', 'tiff'] as $extension) {
-        $version->extension = $extension;
-        expect($strategy->canProcess($version))->toBeTrue();
-    }
-
-    foreach (['xlsx', 'docx', 'gsfx', 'zip'] as $extension) {
-        $version->extension = $extension;
-        expect($strategy->canProcess($version))->toBeFalse();
+    foreach (['jpg', 'jpeg', 'png', 'tiff', 'xlsx', 'docx', 'gsfx', 'zip'] as $extension) {
+        expect($registry->forExtension($extension)['strategy'])->not->toBe(ScanStrategy::class);
     }
 });
 
@@ -82,7 +77,7 @@ test('PDF с текстовым слоем — стратегия вернула
 
     $result = app(ScanStrategy::class)->process($document, $version);
 
-    expect($result)->toBeFalse()
+    expect($result)->toBe(PreparationResult::ReadyForScreening)
         ->and($document->refresh()->status)->not->toBe(DocumentStatus::Unprocessable)
         ->and(DocumentRepresentation::query()->where('document_version_id', $version->id)->count())->toBe(0);
 
@@ -99,7 +94,7 @@ test('зонд не прочитал файл как PDF — стратегия 
 
     $result = app(ScanStrategy::class)->process($document, $version);
 
-    expect($result)->toBeFalse()
+    expect($result)->toBe(PreparationResult::ReadyForScreening)
         ->and($document->refresh()->status)->not->toBe(DocumentStatus::Unprocessable)
         ->and(DocumentRepresentation::query()->where('document_version_id', $version->id)->count())->toBe(0);
 
@@ -112,7 +107,7 @@ test('PDF без текстового слоя — созданы два пре�
 
     $result = app(ScanStrategy::class)->process($document, $version);
 
-    expect($result)->toBeTrue()
+    expect($result)->toBe(PreparationResult::ReadyForScreening)
         ->and($document->refresh()->status)->not->toBe(DocumentStatus::Unprocessable);
 
     $pdfOcr = DocumentRepresentation::query()
@@ -172,7 +167,7 @@ test('падение ocrmypdf — unprocessable(ocr_failed), представл�
 
     $result = app(ScanStrategy::class)->process($document, $version);
 
-    expect($result)->toBeTrue()
+    expect($result)->toBe(PreparationResult::Unprocessable)
         ->and($document->refresh()->status)->toBe(DocumentStatus::Unprocessable)
         ->and($document->last_error)->toContain('ocr_failed')
         ->and($document->last_error)->toContain('TaggedPDFError')
@@ -185,7 +180,7 @@ test('пустой sidecar — unprocessable(ocr_failed), представлен
 
     $result = app(ScanStrategy::class)->process($document, $version);
 
-    expect($result)->toBeTrue()
+    expect($result)->toBe(PreparationResult::Unprocessable)
         ->and($document->refresh()->status)->toBe(DocumentStatus::Unprocessable)
         ->and($document->last_error)->toContain('ocr_failed')
         ->and(DocumentRepresentation::query()->where('document_version_id', $version->id)->count())->toBe(0);
@@ -198,7 +193,7 @@ test('повторный прогон идемпотентен — ocrmypdf не
     app(ScanStrategy::class)->process($document, $version);
     $result = app(ScanStrategy::class)->process($document, $version);
 
-    expect($result)->toBeTrue()
+    expect($result)->toBe(PreparationResult::ReadyForScreening)
         ->and(DocumentRepresentation::query()->where('document_version_id', $version->id)->count())->toBe(2);
 
     Process::assertRanTimes(fn ($process) => str_contains((string) ($process->command[0] ?? ''), 'ocrmypdf'), 1);
@@ -210,7 +205,7 @@ test('изображение — OCR запускается без зонда т
 
     $result = app(ScanStrategy::class)->process($document, $version);
 
-    expect($result)->toBeTrue()
+    expect($result)->toBe(PreparationResult::ReadyForScreening)
         ->and(DocumentRepresentation::query()->where('document_version_id', $version->id)->count())->toBe(2);
 
     Process::assertNotRan(fn ($process) => str_contains((string) ($process->command[0] ?? ''), 'pdftotext'));
@@ -222,7 +217,7 @@ test('падение OCR на изображении НЕ терминально
 
     $result = app(ScanStrategy::class)->process($document, $version);
 
-    expect($result)->toBeFalse()
+    expect($result)->toBe(PreparationResult::ReadyForScreening)
         ->and($document->refresh()->status)->not->toBe(DocumentStatus::Unprocessable)
         ->and(DocumentRepresentation::query()->where('document_version_id', $version->id)->count())->toBe(0);
 });

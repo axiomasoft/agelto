@@ -3,12 +3,20 @@
 declare(strict_types=1);
 
 use App\Enums\Procurement\Document\DocumentStatus;
+use App\Enums\Procurement\Document\PreparationResult;
 use App\Enums\Procurement\Document\RepresentationKind;
+use App\Enums\Procurement\Document\UnprocessableReason;
+use App\Enums\Procurement\ProcurementEventType;
+use App\Jobs\Procurement\PrepareDocumentJob;
 use App\Models\Procurement\Document\Document;
 use App\Models\Procurement\Document\DocumentRepresentation;
 use App\Models\Procurement\Document\DocumentVersion;
+use App\Models\Procurement\ProcurementEvent;
+use App\Services\Procurement\Prepare\DocumentFormatInspector;
+use App\Services\Procurement\Prepare\DocumentFormatRegistry;
 use App\Services\Procurement\Prepare\Gsfx\GsfxReader;
 use App\Services\Procurement\Prepare\GsfxStrategy;
+use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
 
 /**
@@ -43,6 +51,7 @@ function makeGsfxVersion(string $zipPath): array
     $version = DocumentVersion::factory()->create([
         'document_id' => $document->id,
         'extension' => 'gsfx',
+        'disk' => (string) config('crawler.documents_disk'),
         'storage_path' => $storagePath,
         'content_hash' => hash('sha256', $storagePath),
     ]);
@@ -423,7 +432,7 @@ test('битый контейнер — отсутствующий Data.xml → 
 
     $result = app(GsfxStrategy::class)->process($document, $version);
 
-    expect($result)->toBeFalse()
+    expect($result)->toBe(PreparationResult::Unprocessable)
         ->and($document->refresh()->status)->toBe(DocumentStatus::Unprocessable)
         ->and($document->last_error)->toContain('unreadable_format');
 });
@@ -439,12 +448,13 @@ test('XXE в Data.xml отклоняется до парсинга — unprocess
 
     $result = app(GsfxStrategy::class)->process($document, $version);
 
-    expect($result)->toBeFalse()
+    expect($result)->toBe(PreparationResult::Unprocessable)
         ->and($document->refresh()->status)->toBe(DocumentStatus::Unprocessable)
         ->and($document->last_error)->toContain('unreadable_format');
 });
 
 test('вложение стало дочерним документом', function () {
+    Queue::fake();
     [$document, $version] = makeGsfxVersion(buildGsfxZip([
         'Attachments/photo.png' => 'fake-png-bytes',
     ]));
@@ -459,18 +469,27 @@ test('вложение стало дочерним документом', functi
 
     $childVersion = DocumentVersion::query()->where('document_id', $child->id)->first();
     expect($childVersion->parent_version_id)->toBe($version->id)
+        ->and($childVersion->archive_entry_path)->toBe('Attachments/photo.png')
         ->and($childVersion->filename)->toBe('photo.png');
+    Queue::assertPushed(PrepareDocumentJob::class, 1);
 });
 
-test('вредоносное имя entry (zip-slip) не извлекается дочерним документом', function () {
+test('вредоносное имя entry (zip-slip) отклоняет весь GSFX без child effects', function () {
+    Queue::fake();
     [$document, $version] = makeGsfxVersion(buildGsfxZip([
         'Attachments/../../../evil.txt' => 'payload',
     ]));
 
     $result = app(GsfxStrategy::class)->process($document, $version);
 
-    expect($result)->toBeTrue()
-        ->and(Document::query()->where('external_id', 'like', '%evil.txt')->exists())->toBeFalse();
+    expect($result)->toBe(PreparationResult::Unprocessable)
+        ->and($document->refresh()->unprocessable_reason)->toBe(UnprocessableReason::ZipBomb)
+        ->and(DocumentVersion::query()->where('parent_version_id', $version->id)->count())->toBe(0)
+        ->and(ProcurementEvent::query()
+            ->where('procurement_id', $document->procurement_id)
+            ->where('event_type', ProcurementEventType::DocumentAdded)
+            ->count())->toBe(0);
+    Queue::assertNothingPushed();
 });
 
 test('повторный прогон идемпотентен — одно представление каждого kind', function () {
@@ -484,16 +503,24 @@ test('повторный прогон идемпотентен — одно пр
         ->and(DocumentRepresentation::query()->where('document_version_id', $version->id)->where('kind', RepresentationKind::Text)->count())->toBe(1);
 });
 
-test('canProcess распознаёт расширение и сигнатуру ZIP', function () {
-    [$document, $version] = makeGsfxVersion(buildGsfxZip());
+test('registry и inspector подтверждают typed GSFX contract', function () {
+    Storage::fake('s3');
+    $document = Document::factory()->create(['status' => DocumentStatus::Downloaded]);
+    $path = 'documents/contract.gsfx';
+    Storage::disk('s3')->put($path, file_get_contents(buildGsfxZip()));
+    $version = DocumentVersion::factory()->create([
+        'document_id' => $document->id,
+        'disk' => 's3',
+        'extension' => 'gsfx',
+        'filename' => 'contract.gsfx',
+        'storage_path' => $path,
+    ]);
 
-    expect(app(GsfxStrategy::class)->canProcess($version))->toBeTrue();
-
-    $version->extension = 'xlsx';
-    expect(app(GsfxStrategy::class)->canProcess($version))->toBeFalse();
+    expect(app(DocumentFormatRegistry::class)->forExtension('gsfx')['strategy'])->toBe(GsfxStrategy::class)
+        ->and(app(DocumentFormatInspector::class)->inspect($version)->strategy)->toBe(GsfxStrategy::class);
 });
 
-test('canProcess отклоняет gsfx-расширение без ZIP-сигнатуры', function () {
+test('inspector отклоняет gsfx-расширение без ZIP-сигнатуры', function () {
     $document = Document::factory()->create(['status' => DocumentStatus::Downloaded]);
     $disk = Storage::fake((string) config('crawler.documents_disk'));
     $disk->put('documents/not-a-zip.gsfx', 'not a zip at all');
@@ -504,5 +531,5 @@ test('canProcess отклоняет gsfx-расширение без ZIP-сиг�
         'storage_path' => 'documents/not-a-zip.gsfx',
     ]);
 
-    expect(app(GsfxStrategy::class)->canProcess($version))->toBeFalse();
+    expect(app(DocumentFormatInspector::class)->inspect($version)->reason)->toBe(UnprocessableReason::FormatMismatch);
 });
