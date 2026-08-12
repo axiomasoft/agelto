@@ -3,7 +3,7 @@ projection: status-view
 projection_version: v1
 source_scope: plan core + phases + journal
 through: 2026-08-12
-inputs_sha256: b65166ab332d18ef8b40ec00991ab90f57c7921c6a45f1eddf52b50866ba3904
+inputs_sha256: 33018313736d65435d6aa3413dfbbe2db3f8f4d80c9070c15e7d8adc96588bf3
 generated_by: task plan-views status
 -->
 
@@ -32,7 +32,7 @@ generated_by: task plan-views status
 | P3 | Fresh install, Livewire/Filament assets и application readiness | 5/5 | 🟢 Done |
 | P4 | Закрытая production-документация вне public | 4/6 | 🟠 Done with deviations |
 | P5 | Default proxy settings и трёхуровневый resolve | 6/6 | 🟢 Done |
-| P6 | File handler registry, архивы и дочерняя обработка | 0/6 | 🟡 In progress |
+| P6 | File handler registry, архивы и дочерняя обработка | 1/6 | 🟡 In progress |
 | P7 | Document type, summary, estimates и tags | 0/6 | ⬜ Not started |
 | P8 | Расширяемость platforms и гибкие status mappings | 0/5 | ⬜ Not started |
 | P9 | Filament information architecture и понятный русский UX | 0/6 | ⬜ Not started |
@@ -146,7 +146,7 @@ generated_by: task plan-views status
 |:--|:--|:--|:--|
 | P6.1 | Снять каноническую матрицу extension/MIME/magic и текущих handlers | 🟠 Done with deviations | 2026-08-12 |
 | P6.2 | Запечатать typed file-handler registry и terminal reasons для unsupported | 🟠 Done with deviations | 2026-08-12 |
-| P6.3 | Реализовать безопасное идемпотентное раскрытие архивов с лимитами | ⬜ Not started | — |
+| P6.3 | Реализовать безопасное идемпотентное раскрытие архивов с лимитами | 🟢 Done | 2026-08-12 |
 | P6.4 | Создавать child file records со ссылкой на parent archive и dispatch | ⬜ Not started | — |
 | P6.5 | Добавить требуемый archive-to-children-to-processing integration test | ⬜ Not started | — |
 | P6.6 | Закрепить extension contract и тест-шаблон для новых handlers | ⬜ Not started | — |
@@ -430,6 +430,8 @@ write-site: pre_mutation: allow · pre_final: allow |
 | 2026-08-12 | gpt-5.6-terra/high | plan-run · in-progress · Reconcile canonical write-site line and downstream records. |
 | 2026-08-12 | gpt-5.6-terra/high | plan-run · closed-deviations · Typed registry, inspection evidence, centralized terminal mutation and durable reason migration delivered; legacy Make validation targets are absent.
 write-site: pre_mutation: allow · pre_final: allow |
+| 2026-08-12 | owner | plan-run · in-progress · Пользователь разрешил игнорировать дефекты Task; выполняется продуктовый P6.3. |
+| 2026-08-12 | owner | plan-run · closed-green · Typed bounded ZIP/7z/RAR extraction, hostile-entry guards и focused tests завершены; Task lint игнорирован по прямому указанию пользователя. |
 
 ## Owner Gates
 
