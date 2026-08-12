@@ -4,10 +4,8 @@ declare(strict_types=1);
 
 namespace App\Services\Procurement\Screening;
 
-use App\Dto\Procurement\Ai\Screening\ScreeningResult;
 use App\Enums\Llm\CoreLlmPurpose;
 use App\Enums\Llm\DocumentTypeScope;
-use App\Enums\Procurement\Ai\AiDocumentType;
 use App\Enums\Procurement\Ai\AnalysisStep;
 use App\Enums\Procurement\Ai\RunMode;
 use App\Models\Procurement\Ai\DatasetExample;
@@ -104,7 +102,7 @@ final readonly class ScreeningEvalRunner
 
     /**
      * @return array{gold: string, predicted: string, match: bool, gold_is_estimate: bool,
-     *     predicted_is_estimate: bool, code: string|null, confidence: float, ignore_reason: string|null}|array{error: string}
+     *     predicted_is_estimate: bool, code: string|null, confidence: float, classification_note: string|null}|array{error: string}
      */
     private function evaluateScreeningExample(DatasetExample $example, ?int &$analysisId, ?ProgressReporter $progress, int $done, int $total): array
     {
@@ -131,26 +129,13 @@ final readonly class ScreeningEvalRunner
             $this->analyses->resetForRerun($analysis, $run->id, null);
             $analysis->refresh();
 
-            $this->screeningProcessor->run($document, $analysis);
-            $analysis->refresh();
-            $this->runs->markSucceeded($run);
+            $prediction = $this->screeningProcessor->run($document, $analysis);
 
-            $documentType = AiDocumentType::tryFrom((string) $analysis->document_type);
-
-            if ($documentType === null) {
-                $detail = json_encode($analysis->result, JSON_UNESCAPED_UNICODE);
-
-                return ['error' => "скрининг не вернул document_type (Analysis.result: {$detail})"];
+            if ($prediction === null) {
+                return ['error' => 'скрининг завершился без validated provider result'];
             }
 
-            $prediction = new ScreeningResult(
-                document_type: $documentType,
-                confidence: (float) ($analysis->result['confidence'] ?? 0.0),
-                description: $analysis->result['description'] ?? null,
-                tags: (array) ($analysis->result['tags'] ?? []),
-                page_count_estimate: $analysis->result['page_count_estimate'] ?? null,
-                ignore_reason: $analysis->result['ignore_reason'] ?? null,
-            );
+            $this->runs->markSucceeded($run);
 
             $comparison = $this->screeningMetrics->compare($example->gold?->toArray() ?? [], $prediction);
 
@@ -158,7 +143,7 @@ final readonly class ScreeningEvalRunner
                 ...$comparison,
                 'code' => $example->fixture?->code,
                 'confidence' => $prediction->confidence,
-                'ignore_reason' => $prediction->ignore_reason,
+                'classification_note' => $prediction->classification_note,
             ];
         } catch (Throwable $e) {
             $progress?->report(new ProgressTick($done, $total, "dataset_example #{$example->id}", $e->getMessage()));

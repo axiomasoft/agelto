@@ -10,8 +10,7 @@ use App\Models\Procurement\Ai\Fixture;
 use App\Models\Procurement\Document\DocumentVersion;
 use App\Repositories\Procurement\Ai\DatasetExampleStoreRepository;
 use App\Services\Procurement\Gold\GoldValidator;
-use Illuminate\Validation\ValidationException;
-use Spatie\LaravelData\Exceptions\CannotCreateData;
+use Throwable;
 
 /**
  * Ветвление screening/extraction при импорте ОДНОГО эталонного примера (`estimate:gold:import`, P5.5).
@@ -34,7 +33,7 @@ final readonly class GoldExampleImporter
         if ($isScreening) {
             try {
                 ScreeningResult::validateAndCreate($decoded);
-            } catch (ValidationException|CannotCreateData $e) {
+            } catch (Throwable $e) {
                 return new ItemOutcome($fixture->code, 'rejected', "screening-gold не прошёл валидацию: {$e->getMessage()}");
             }
         } else {

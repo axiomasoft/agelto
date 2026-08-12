@@ -80,16 +80,15 @@ function screeningEvalStructured(array $data): LlmStructuredResponse
     );
 }
 
-function screeningEvalResult(string $documentType, ?string $ignoreReason = null): LlmStructuredResponse
+function screeningEvalResult(string $documentType, ?string $classificationNote = null): LlmStructuredResponse
 {
-    // `tags` НЕ передаётся: Laravel `required` отклоняет ПРИСУТСТВУЮЩИЙ пустой массив (тот же
-    // квирк, что обошли в `ScreeningGoldBuilder`, P5.4) — отсутствующий ключ берёт дефолт `[]`.
     return screeningEvalStructured([
         'document_type' => $documentType,
         'confidence' => 0.95,
-        'description' => 'фикстура ScreeningEvalTest',
-        'page_count_estimate' => 1,
-        'ignore_reason' => $ignoreReason,
+        'summary' => 'фикстура ScreeningEvalTest',
+        'estimate_cardinality' => $documentType === 'estimate' ? 'single' : 'none',
+        'tags' => [],
+        'classification_note' => $classificationNote,
     ]);
 }
 
@@ -105,7 +104,7 @@ test('негатив, правильно классифицированный �
     DatasetExample::factory()->create([
         'document_version_id' => $documentVersion->id,
         'task' => 'screening',
-        'gold' => ['document_type' => 'unknown', 'confidence' => 1.0, 'description' => null, 'ignore_reason' => 'негатив'],
+        'gold' => ['document_type' => 'unknown', 'confidence' => 1.0, 'summary' => 'негатив', 'estimate_cardinality' => 'none', 'tags' => [], 'classification_note' => 'негатив'],
     ]);
 
     $this->artisan('estimate:eval:run', ['--task' => 'screening'])->assertExitCode(0);
@@ -133,7 +132,7 @@ test('негатив, помеченный estimate → FP 1.0 и запись �
         'document_version_id' => $documentVersion->id,
         'fixture_id' => $fixture->id,
         'task' => 'screening',
-        'gold' => ['document_type' => 'unknown', 'confidence' => 1.0, 'description' => null, 'ignore_reason' => 'негатив'],
+        'gold' => ['document_type' => 'unknown', 'confidence' => 1.0, 'summary' => 'негатив', 'estimate_cardinality' => 'none', 'tags' => [], 'classification_note' => 'негатив'],
     ]);
 
     $this->artisan('estimate:eval:run', ['--task' => 'screening'])->assertExitCode(0);
@@ -159,7 +158,7 @@ test('смета, помеченная contract_draft → FN учтён', functi
     DatasetExample::factory()->create([
         'document_version_id' => $documentVersion->id,
         'task' => 'screening',
-        'gold' => ['document_type' => 'estimate', 'confidence' => 1.0, 'description' => null, 'ignore_reason' => null],
+        'gold' => ['document_type' => 'estimate', 'confidence' => 1.0, 'summary' => 'смета', 'estimate_cardinality' => 'single', 'tags' => [], 'classification_note' => null],
     ]);
 
     $this->artisan('estimate:eval:run', ['--task' => 'screening'])->assertExitCode(0);

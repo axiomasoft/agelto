@@ -57,8 +57,20 @@ function structuredOk(string $raw): LlmStructuredResponse
     return new LlmStructuredResponse(data: [], usage: zeroLlmUsage(), finishReason: FinishReason::Stop, raw: $raw);
 }
 
+function screeningOk(float $confidence): LlmStructuredResponse
+{
+    return structuredOk(json_encode([
+        'document_type' => 'estimate',
+        'confidence' => $confidence,
+        'summary' => 'Тестовая смета',
+        'estimate_cardinality' => 'single',
+        'tags' => [],
+        'classification_note' => null,
+    ], JSON_THROW_ON_ERROR));
+}
+
 test('успешный первый ответ возвращается без re-ask и без эскалации', function (): void {
-    $provider = FakeLlmProvider::succeeding(structuredOk('{"document_type": "estimate", "confidence": 0.9}'));
+    $provider = FakeLlmProvider::succeeding(screeningOk(0.9));
     $candidates = new Collection([routeWith($provider)]);
 
     $outcome = reaskPolicy()->run(basePrompt(), noopSchema(), ScreeningResult::class, $candidates);
@@ -70,7 +82,7 @@ test('успешный первый ответ возвращается без r
 
 test('невалидный JSON re-ask’ается на том же маршруте с текстом ошибки и прошлым выводом, затем проходит', function (): void {
     $provider = FakeLlmProvider::succeeding(structuredOk('{"document_type": "estimate", "confidence": 0.9')) // невалидный JSON
-        ->andThen(structuredOk('{"document_type": "estimate", "confidence": 0.9}')); // исправленный
+        ->andThen(screeningOk(0.9)); // исправленный
     $candidates = new Collection([routeWith($provider)]);
 
     $outcome = reaskPolicy()->run(basePrompt(), noopSchema(), ScreeningResult::class, $candidates);
@@ -101,7 +113,7 @@ test('исчерпанные re-ask на первом маршруте эска�
     $primary = FakeLlmProvider::succeeding(structuredOk('invalid-1'))
         ->andThen(structuredOk('invalid-2'))
         ->andThen(structuredOk('invalid-3'));
-    $escalated = FakeLlmProvider::succeeding(structuredOk('{"document_type": "estimate", "confidence": 0.7}'));
+    $escalated = FakeLlmProvider::succeeding(screeningOk(0.7));
 
     $candidates = new Collection([routeWith($primary, priority: 0), routeWith($escalated, priority: 10)]);
 
@@ -116,7 +128,7 @@ test('fatal-исход (finishReason=safety) эскалирует на след�
     $primary = FakeLlmProvider::succeeding(
         new LlmStructuredResponse(data: [], usage: zeroLlmUsage(), finishReason: FinishReason::Safety, raw: '{}'),
     );
-    $escalated = FakeLlmProvider::succeeding(structuredOk('{"document_type": "estimate", "confidence": 0.7}'));
+    $escalated = FakeLlmProvider::succeeding(screeningOk(0.7));
 
     $candidates = new Collection([routeWith($primary), routeWith($escalated, priority: 10)]);
 
@@ -128,7 +140,7 @@ test('fatal-исход (finishReason=safety) эскалирует на след�
 
 test('MAX_TOKENS бабблится немедленно — без re-ask и без эскалации маршрутом', function (): void {
     $primary = FakeLlmProvider::truncated();
-    $escalated = FakeLlmProvider::succeeding(structuredOk('{"document_type": "estimate", "confidence": 0.7}'));
+    $escalated = FakeLlmProvider::succeeding(screeningOk(0.7));
 
     $candidates = new Collection([routeWith($primary), routeWith($escalated, priority: 10)]);
 

@@ -813,29 +813,29 @@
                 "description": "уверенность модели в классификации, от 0 (совсем не уверена) до 1 (полностью уверена).",
                 "type": "number"
             },
-            "description": {
-                "description": "краткое резюме файла — что это, за какой период, какой объём.",
-                "type": [
-                    "string",
-                    "null"
+            "summary": {
+                "description": "краткое обязательное резюме видимого содержания документа; 1–1000 символов.",
+                "type": "string"
+            },
+            "estimate_cardinality": {
+                "description": "сколько логических смет видно в одном документе: none/single/multiple/unknown.",
+                "type": "string",
+                "enum": [
+                    "none",
+                    "single",
+                    "multiple",
+                    "unknown"
                 ]
             },
             "tags": {
-                "description": "метки документа (Город, ОС, Шифр, Вид работ, ФИО) — как в исходном v1-классификаторе.",
+                "description": "нормализованные метки видимого содержания: 0–12 непустых значений, до 64 символов каждое.",
                 "type": "array",
                 "items": {
                     "type": "string"
                 }
             },
-            "page_count_estimate": {
-                "description": "оценочное число страниц документа, если видно из среза.",
-                "type": [
-                    "integer",
-                    "null"
-                ]
-            },
-            "ignore_reason": {
-                "description": "если документ точно не подходит для дальнейшей обработки — короткая причина на русском (иначе null; нечитаемое или неясное — null, не придумывать причину).",
+            "classification_note": {
+                "description": "необязательное пояснение классификации по видимому содержанию; не является backend-решением.",
                 "type": [
                     "string",
                     "null"
@@ -844,7 +844,10 @@
         },
         "required": [
             "document_type",
-            "confidence"
+            "confidence",
+            "summary",
+            "estimate_cardinality",
+            "tags"
         ],
         "additionalProperties": false
     },

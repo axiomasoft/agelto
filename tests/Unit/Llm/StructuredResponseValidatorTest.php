@@ -94,7 +94,7 @@ test('валидный ответ гидрируется в Data-класс и �
         data: [],
         usage: zeroUsage(),
         finishReason: FinishReason::Stop,
-        raw: '{"document_type": "estimate", "confidence": 0.92}',
+        raw: '{"document_type":"estimate","confidence":0.92,"summary":"Тестовая смета","estimate_cardinality":"single","tags":[],"classification_note":null}',
     );
 
     $outcome = structuredResponseValidator()->validate($response, ScreeningResult::class);

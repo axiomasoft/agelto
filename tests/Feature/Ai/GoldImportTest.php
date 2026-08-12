@@ -92,7 +92,7 @@ test('эталон со screening-gold → вторая запись task=screen
     goldImportFixture($fixturesDisk, 'EST-XLSX-IMPORT-002', 'contenido-002');
     file_put_contents("{$goldDir}/EST-XLSX-IMPORT-002.gold.json", json_encode(['estimates' => []], JSON_THROW_ON_ERROR));
     file_put_contents("{$goldDir}/EST-XLSX-IMPORT-002.screening.json", json_encode([
-        'document_type' => 'estimate', 'confidence' => 1.0, 'description' => null, 'page_count_estimate' => null, 'ignore_reason' => null,
+        'document_type' => 'estimate', 'confidence' => 1.0, 'summary' => 'Импортируемая смета', 'estimate_cardinality' => 'single', 'tags' => [], 'classification_note' => null,
     ], JSON_THROW_ON_ERROR));
 
     $this->artisan('estimate:gold:import', ['--code' => ['EST-XLSX-IMPORT-002']])->assertExitCode(0);

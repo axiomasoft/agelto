@@ -11,7 +11,7 @@ use Illuminate\Support\Str;
 /**
  * P5.4 — ветка `estimate:gold:build --screening` строит `gold/<CODE>.screening.json` по реестру
  * (§8.5): вердикт — `Fixture.document_type` для ЛЮБОГО класса (§6.1 document-type-axis.md, D90 —
- * колонка `NOT NULL`, заполнена и для позитивов); `ignore_reason` — только у негативов. Реестр —
+ * колонка `NOT NULL`, заполнена и для позитивов); classification note — только у негативов. Реестр —
  * единственный источник вердикта, команда его не толкует (Code Guidance) — фабрика заменяет
  * реальный корпус, реальный прогон — предмет Completion Notes.
  *
@@ -27,7 +27,7 @@ function screeningGoldDir(): string
     return $folder;
 }
 
-test('негатив с document_type → файл с этим вердиктом и непустым ignore_reason', function (): void {
+test('негатив с document_type → файл с этим вердиктом и неавторитетной classification note', function (): void {
     $folder = screeningGoldDir();
     Fixture::factory()->neg()->create([
         'code' => 'NEG-PDF-DRAWING-901',
@@ -41,13 +41,15 @@ test('негатив с document_type → файл с этим вердикто�
     $screening = json_decode((string) file_get_contents("{$folder}/NEG-PDF-DRAWING-901.screening.json"), true);
 
     expect($screening['document_type'])->toBe('unknown')
-        ->and($screening['ignore_reason'])->not->toBeNull()
+        ->and($screening['classification_note'])->not->toBeNull()
+        ->and($screening['estimate_cardinality'])->toBe('none')
+        ->and($screening['tags'])->toBe([])
         ->and($screening['confidence'])->toBe(1.0);
 
     File::deleteDirectory($folder);
 });
 
-test('эталон-смета → вердикт estimate и ignore_reason=null', function (): void {
+test('эталон-смета → вердикт estimate, single cardinality и пустые tags', function (): void {
     $folder = screeningGoldDir();
     Fixture::factory()->est()->create(['code' => 'EST-XLSX-SCREEN-901']);
 
@@ -57,7 +59,9 @@ test('эталон-смета → вердикт estimate и ignore_reason=null'
     $screening = json_decode((string) file_get_contents("{$folder}/EST-XLSX-SCREEN-901.screening.json"), true);
 
     expect($screening['document_type'])->toBe('estimate')
-        ->and($screening['ignore_reason'])->toBeNull();
+        ->and($screening['estimate_cardinality'])->toBe('single')
+        ->and($screening['tags'])->toBe([])
+        ->and($screening['classification_note'])->toBeNull();
 
     File::deleteDirectory($folder);
 });

@@ -28,8 +28,8 @@ test('адаптер конвертирует type:[X,null] в nullable:true', f
 
     $adapted = $adapter->adapt($generator->generate(ScreeningResult::class));
 
-    expect($adapted['properties']['description'])->toBe([
-        'description' => 'краткое резюме файла — что это, за какой период, какой объём.',
+    expect($adapted['properties']['classification_note'])->toBe([
+        'description' => 'необязательное пояснение классификации по видимому содержанию; не является backend-решением.',
         'type' => 'string',
         'nullable' => true,
     ]);
@@ -73,7 +73,7 @@ test('адаптер проносит description на узле массива',
     $adapted = $adapter->adapt($generator->generate(ScreeningResult::class));
 
     expect($adapted['properties']['tags'])->toBe([
-        'description' => 'метки документа (Город, ОС, Шифр, Вид работ, ФИО) — как в исходном v1-классификаторе.',
+        'description' => 'нормализованные метки видимого содержания: 0–12 непустых значений, до 64 символов каждое.',
         'type' => 'array',
         'items' => ['type' => 'string'],
     ]);

@@ -98,9 +98,9 @@ test('схема ScreeningResult валидна и содержит обязат
 
     expect($decoded)->toBe($schema)
         ->and($schema['type'])->toBe('object')
-        ->and($schema['properties'])->toHaveKeys(['document_type', 'confidence', 'description', 'tags', 'page_count_estimate', 'ignore_reason'])
-        ->and(array_keys($schema['properties']))->toBe(['document_type', 'confidence', 'description', 'tags', 'page_count_estimate', 'ignore_reason'])
-        ->and($schema['required'])->toBe(['document_type', 'confidence'])
+        ->and($schema['properties'])->toHaveKeys(['document_type', 'confidence', 'summary', 'estimate_cardinality', 'tags', 'classification_note'])
+        ->and(array_keys($schema['properties']))->toBe(['document_type', 'confidence', 'summary', 'estimate_cardinality', 'tags', 'classification_note'])
+        ->and($schema['required'])->toBe(['document_type', 'confidence', 'summary', 'estimate_cardinality', 'tags'])
         ->and($schema['additionalProperties'])->toBeFalse()
         ->and($schema['properties']['document_type'])->toBe([
             'description' => 'тип документа — estimate/tech_spec/contract_draft/protocol/unknown.',
@@ -108,8 +108,10 @@ test('схема ScreeningResult валидна и содержит обязат
             'enum' => ['estimate', 'tech_spec', 'contract_draft', 'protocol', 'unknown'],
         ])
         ->and($schema['properties']['confidence']['type'])->toBe('number')
-        ->and($schema['properties']['description']['type'])->toBe(['string', 'null'])
-        ->and($schema['properties']['tags']['type'])->toBe('array');
+        ->and($schema['properties']['summary']['type'])->toBe('string')
+        ->and($schema['properties']['estimate_cardinality']['enum'])->toBe(['none', 'single', 'multiple', 'unknown'])
+        ->and($schema['properties']['tags']['type'])->toBe('array')
+        ->and($schema['properties']['classification_note']['type'])->toBe(['string', 'null']);
 });
 
 test('схема RowsChunkResponse раскладывает вложенные Data-классы в $defs со ссылками $ref', function (): void {

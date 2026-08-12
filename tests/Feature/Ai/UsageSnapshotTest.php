@@ -76,15 +76,38 @@ function usageSeedScreeningRoute(FakeLlmProvider $fake): void
     ]);
 }
 
+/**
+ * @return array<string, mixed>
+ */
+function usageScreeningStoredResult(): array
+{
+    return [
+        'schema_version' => 2,
+        'screening' => [
+            'confidence' => 0.92,
+            'summary' => 'ЛСР на капитальный ремонт кровли',
+            'estimate_cardinality' => 'single',
+            'tags' => ['Ремонт'],
+            'classification_note' => null,
+            'page_count_estimate' => null,
+        ],
+        'decision' => [
+            'disposition' => 'retain',
+            'reason' => 'known_type_no_analyzer',
+            'extraction_dispatched' => false,
+        ],
+    ];
+}
+
 function usageScreeningResponse(int $promptTokens, int $completionTokens, FinishReason $finishReason = FinishReason::Stop): LlmStructuredResponse
 {
     $data = [
         'document_type' => 'estimate',
         'confidence' => 0.92,
-        'description' => 'ЛСР на капитальный ремонт кровли',
+        'summary' => 'ЛСР на капитальный ремонт кровли',
+        'estimate_cardinality' => 'single',
         'tags' => ['Ремонт'],
-        'page_count_estimate' => 12,
-        'ignore_reason' => null,
+        'classification_note' => null,
     ];
 
     return new LlmStructuredResponse(
@@ -129,6 +152,7 @@ test('слепок анализа = сумма вызовов её шага, в�
 
     app(UsageSnapshotRecorder::class)->finalizeAnalysis($analysis, [
         'status' => AnalysisStatus::Succeeded,
+        'result' => usageScreeningStoredResult(),
         'finished_at' => now(),
     ]);
 
@@ -156,8 +180,16 @@ test('повторный вызов сейма не удваивает цифр�
     ]);
 
     $recorder = app(UsageSnapshotRecorder::class);
-    $recorder->finalizeAnalysis($analysis, ['status' => AnalysisStatus::Succeeded, 'finished_at' => now()]);
-    $recorder->finalizeAnalysis($analysis, ['status' => AnalysisStatus::Succeeded, 'finished_at' => now()]);
+    $recorder->finalizeAnalysis($analysis, [
+        'status' => AnalysisStatus::Succeeded,
+        'result' => usageScreeningStoredResult(),
+        'finished_at' => now(),
+    ]);
+    $recorder->finalizeAnalysis($analysis, [
+        'status' => AnalysisStatus::Succeeded,
+        'result' => usageScreeningStoredResult(),
+        'finished_at' => now(),
+    ]);
 
     expect($analysis->refresh()->cost_micros)->toBe(1_000);
 });
@@ -184,7 +216,11 @@ test('теневой анализ (is_shadow) считает ТОЛЬКО purpos
         'cost_micros' => 999_999,
     ]);
 
-    app(UsageSnapshotRecorder::class)->finalizeAnalysis($shadow, ['status' => AnalysisStatus::Succeeded, 'finished_at' => now()]);
+    app(UsageSnapshotRecorder::class)->finalizeAnalysis($shadow, [
+        'status' => AnalysisStatus::Succeeded,
+        'result' => usageScreeningStoredResult(),
+        'finished_at' => now(),
+    ]);
 
     expect($shadow->refresh()->cost_micros)->toBe(500)
         ->and($shadow->prompt_tokens)->toBe(200);

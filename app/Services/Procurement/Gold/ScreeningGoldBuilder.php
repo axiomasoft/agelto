@@ -5,20 +5,20 @@ declare(strict_types=1);
 namespace App\Services\Procurement\Gold;
 
 use App\Dto\Procurement\Ai\Screening\ScreeningResult;
+use App\Enums\Procurement\Ai\AiDocumentType;
+use App\Enums\Procurement\Ai\EstimateCardinality;
 use App\Enums\Procurement\Ai\FixtureClass;
 use App\Models\Procurement\Ai\Fixture;
 use Illuminate\Validation\ValidationException;
-use Spatie\LaravelData\Exceptions\CannotCreateData;
+use Throwable;
 
 /**
  * Эталон скрининга ОДНОГО эталона корпуса (P5.4, D5, §8.5): вердикт — `Fixture::document_type`
  * для ЛЮБОГО класса эталона (§6.1 root/document-type-axis.md, D90 — колонка `NOT NULL` и
  * заполнена и для позитивов, ветвление по классу для ВЕРДИКТА больше не нужно). Форма — дословно
  * {@see ScreeningResult}: `confidence` эталона всегда `1.0` (в сравнении не участвует, §8.5),
- * `description` — из `Fixture::notes` (единственный текстовый носитель причины включения в
- * корпус, `research/02-fixture-shortlist.md`); `ignore_reason` заполняется только у негативов
- * (`profileClass() === FixtureClass::Negative`) — у позитива объяснять нечего, документ и есть
- * ожидаемый тип.
+ * `summary` — заметка корпуса либо title, когда заметка ещё не заполнена; `classification_note`
+ * заполняется только у негативов и остаётся неавторитетным пояснением, не backend-решением.
  */
 final readonly class ScreeningGoldBuilder
 {
@@ -30,9 +30,10 @@ final readonly class ScreeningGoldBuilder
         $payload = [
             'document_type' => $fixture->document_type->value,
             'confidence' => 1.0,
-            'description' => $fixture->notes,
-            'page_count_estimate' => null,
-            'ignore_reason' => $fixture->profileClass() === FixtureClass::Negative ? $fixture->notes : null,
+            'summary' => $fixture->notes ?? $fixture->title,
+            'estimate_cardinality' => $this->estimateCardinality($fixture)->value,
+            'tags' => [],
+            'classification_note' => $fixture->profileClass() === FixtureClass::Negative ? $fixture->notes : null,
         ];
 
         try {
@@ -45,14 +46,23 @@ final readonly class ScreeningGoldBuilder
             }
 
             return ['action' => 'rejected', 'screening' => null, 'reason' => 'ScreeningResult: '.implode('; ', $messages)];
-        } catch (CannotCreateData $e) {
+        } catch (Throwable $e) {
             return ['action' => 'rejected', 'screening' => null, 'reason' => "ScreeningResult: {$e->getMessage()}"];
         }
 
-        // `tags` НЕ пишется ключом: Laravel `required` отклоняет ПРИСУТСТВУЮЩИЙ пустой массив
-        // (в отличие от отсутствующего — там срабатывает дефолт `[]`), а `tags` эталона всегда
-        // пуст (v1-метки не предмет эталона) — присутствие ключа сделало бы файл невалидируемым
-        // повторно тем же `ScreeningResult::validateAndCreate()`.
         return ['action' => 'built', 'screening' => $payload, 'reason' => null];
+    }
+
+    private function estimateCardinality(Fixture $fixture): EstimateCardinality
+    {
+        if ($fixture->document_type !== AiDocumentType::Estimate) {
+            return EstimateCardinality::None;
+        }
+
+        return match ($fixture->profileExpectedEstimates()) {
+            null => EstimateCardinality::Unknown,
+            1 => EstimateCardinality::Single,
+            default => EstimateCardinality::Multiple,
+        };
     }
 }
