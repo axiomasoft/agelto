@@ -3,7 +3,7 @@ projection: status-view
 projection_version: v1
 source_scope: plan core + phases + journal
 through: 2026-08-12
-inputs_sha256: 9a0cea2075d62712ad1ff2ef32915058747bdc01e5dfcf7994105ab7427d5a03
+inputs_sha256: 8cb2f7d1ae8e5331b14101e4e40fca941cb9b1db8b22b7a58cd1b850d8f00723
 generated_by: task plan-views status
 -->
 
@@ -434,6 +434,9 @@ write-site: pre_mutation: allow · pre_final: allow |
 | 2026-08-12 | owner | plan-run · closed-green · Typed bounded ZIP/7z/RAR extraction, hostile-entry guards и focused tests завершены; Task lint игнорирован по прямому указанию пользователя. |
 | 2026-08-12 | gpt-5.6-terra/high | plan-run · in-progress · P6.4 started: child lineage/action migration under owner-approved routing override. |
 | 2026-08-12 | gpt-5.6-terra/high | plan-run · closed-deviations · P6.4 delivered; product tests green, but declared Make preflight target and inherited plan lint remain red. |
+| 2026-08-12 | gpt-5.6-terra/high | plan-run · in-progress · P6.4 reconciliation: add required pre-final write-site evidence to terminal projection. |
+| 2026-08-12 | gpt-5.6-terra/high | plan-run · closed-deviations · P6.4 reconciliation completed; product remains 89b4e793.
+write-site: pre_mutation: allow · pre_final: allow |
 
 ## Owner Gates
 
