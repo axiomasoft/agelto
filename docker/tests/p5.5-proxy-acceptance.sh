@@ -31,6 +31,10 @@ test_database=$(sed -n 's/.*<env name="DB_DATABASE" value="\([a-z0-9_]*\)".*/\1/
     tests/Feature/Filament/CrawlerFormTest.php
 "${compose[@]}" exec -T app php artisan migrate:rollback --env=testing --force --step=1
 "${compose[@]}" exec -T app php artisan migrate --env=testing --force
+# Focused feature tests above legitimately create fixture rows.  The final release
+# suite must start from a clean, preflight-guarded *_test schema so seeders are not
+# evaluated against rows left by another test class in this carrier.
+"${compose[@]}" exec -T app php artisan migrate:fresh --env=testing --force
 "${compose[@]}" exec -T app php artisan test --no-tia
 "${compose[@]}" exec -T app vendor/bin/pint --test \
     app/Dto/Procurement/Proxy/ProxyLease.php \

@@ -11,6 +11,10 @@ The full-suite preflight also exposed a stale `EisSeedersTest` assertion for the
 `CrawlerProxyMode::Default` contract; the seed behaviour, migration and D8/D28/D29 semantics
 are unchanged. The focused seed suite passes 11 tests / 46 assertions on the candidate tree.
 
+The shared P5.5 carrier now recreates its preflight-guarded `*_test` schema after the required
+rollback/forward proof and before the full suite. This prevents focused fixture rows from leaking
+into seed assertions; it does not touch a development or production database.
+
 The paired Swissknifeman source/runtime repair is
 `d2bed1f22f04f7de59fe7e16f1f4d5b76597bdde`; it makes the Task return projection exclude the
 historical phase audit-attention reopen and admits only the declared P5 validation carrier.
