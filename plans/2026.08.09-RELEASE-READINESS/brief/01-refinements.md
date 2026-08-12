@@ -237,3 +237,14 @@ focused Task/downstream checks и append-only reconciliation; product commit `41
 Validation. `proxy_source` передаётся typed-значением до `FetchLogger`; выводить profile/default/
 direct из nullable `proxy_id` запрещено D29. После plan-only repair P5.3 снова запускается через
 `task:plan-run`; D28/D29, health ownership и P5.4–P5.5 остаются неизменными.
+
+## 2026-08-11 — owner decision после AUDIT-CAP P5
+
+Владелец запретил сдавать P5 с отклонениями или хвостами. После второго Audit P5 фаза
+останавливается на AUDIT-CAP, owner decision материализуется D76, и P5 штатно переоткрывается
+одним последним P5.6. Remediation обязана устранить current P5.5 out-of-Files deviation; починить
+`plan-lint --conflicts` в canonical Swissknifeman source/runtime без правки generated cache;
+закрыть все lint/downstream/return/decision-queue errors; получить `0 ERROR / 0 WARN` и свежие
+state/decisions/status/bundle/closure views. Третий Audit P5 запрещён: после GREEN P5.6 следует
+штатный direct close P5. Оба существующих dirty worktree сначала классифицируются и сохраняются,
+чужие изменения не затираются.
