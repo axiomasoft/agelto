@@ -86,9 +86,20 @@ function seedScreeningAnalysis(AnalysisRun $run, DocumentVersion $version, array
         'status' => AnalysisStatus::Succeeded,
         'document_type' => AiDocumentType::TechSpec->value,
         'result' => [
-            'confidence' => 0.93,
-            'description' => 'Похоже на техническое задание с таблицей объёмов',
-            'tags' => ['таблица', 'объёмы'],
+            'schema_version' => 2,
+            'screening' => [
+                'confidence' => 0.93,
+                'summary' => 'Похоже на техническое задание с таблицей объёмов',
+                'estimate_cardinality' => 'none',
+                'tags' => ['таблица', 'объёмы'],
+                'classification_note' => null,
+                'page_count_estimate' => null,
+            ],
+            'decision' => [
+                'disposition' => 'retain',
+                'reason' => 'known_type_no_analyzer',
+                'extraction_dispatched' => false,
+            ],
             ...$result,
         ],
     ]);
@@ -132,7 +143,13 @@ test('модалка показывает вердикт первичного а
     registerFakeAnalyzerForResultModal();
 
     [$fixture, $run, $version] = seedFixtureRunForResult();
-    seedScreeningAnalysis($run, $version, ['branch_reason' => 'ignore_rule']);
+    seedScreeningAnalysis($run, $version, [
+        'decision' => [
+            'disposition' => 'ignore',
+            'reason' => 'ignore_rule',
+            'extraction_dispatched' => false,
+        ],
+    ]);
 
     mountResultModal($fixture, $run)
         ->assertSchemaComponentStateSet('screening_status', AnalysisStatus::Succeeded)
@@ -140,7 +157,7 @@ test('модалка показывает вердикт первичного а
         ->assertSchemaComponentStateSet('screening_confidence', '0.93')
         ->assertSchemaComponentStateSet('screening_description', 'Похоже на техническое задание с таблицей объёмов')
         ->assertSchemaComponentStateSet('screening_tags', 'таблица, объёмы')
-        ->assertSchemaComponentStateSet('screening_branch', 'ignore_rule');
+        ->assertSchemaComponentStateSet('screening_branch', 'ignore/ignore_rule');
 });
 
 test('сводка разбора приходит от анализатора типа, а не из предметных таблиц', function (): void {

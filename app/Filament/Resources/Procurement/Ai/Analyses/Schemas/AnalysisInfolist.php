@@ -1,12 +1,16 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Filament\Resources\Procurement\Ai\Analyses\Schemas;
 
+use App\Filament\Resources\Procurement\Ai\Analyses\AnalysisResource;
 use App\Filament\Resources\Procurement\Ai\Fixtures\FixtureResource;
 use App\Filament\Resources\Procurement\Estimates\EstimateResource;
 use App\Models\Procurement\Ai\Analysis;
 use Filament\Infolists\Components\RepeatableEntry;
 use Filament\Infolists\Components\TextEntry;
+use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
 
 class AnalysisInfolist
@@ -47,6 +51,64 @@ class AnalysisInfolist
                     ->label('Заменён (дата)')
                     ->dateTime()
                     ->placeholder('-'),
+                TextEntry::make('screening_lifecycle')
+                    ->label('Состояние записи')
+                    ->state(static fn (Analysis $record): string => self::lifecycle($record))
+                    ->badge(),
+                Section::make('Классификация screening')
+                    ->columns(3)
+                    ->schema([
+                        TextEntry::make('screening_summary')
+                            ->label('Краткое содержание')
+                            ->state(static fn (Analysis $record): ?string => $record->storedScreeningResult()?->summary)
+                            ->placeholder('Нет v2-результата screening')
+                            ->columnSpanFull(),
+                        TextEntry::make('screening_cardinality')
+                            ->label('Количество смет')
+                            ->state(static fn (Analysis $record): ?string => $record->storedScreeningResult()?->estimateCardinality->value)
+                            ->badge()
+                            ->placeholder('—'),
+                        TextEntry::make('screening_confidence')
+                            ->label('Уверенность')
+                            ->state(static fn (Analysis $record): ?string => self::confidence($record))
+                            ->placeholder('—'),
+                        TextEntry::make('screening_note')
+                            ->label('Примечание классификации')
+                            ->state(static fn (Analysis $record): ?string => $record->storedScreeningResult()?->classificationNote)
+                            ->placeholder('—'),
+                        RepeatableEntry::make('screening_tag_anchors')
+                            ->label('Теги')
+                            ->state(static fn (Analysis $record): array => self::tagAnchors($record))
+                            ->schema([
+                                TextEntry::make('tag')
+                                    ->badge()
+                                    ->url(static fn (string $state): string => AnalysisResource::getUrl('index', [
+                                        'tableFilters' => ['screening_tag' => ['value' => $state]],
+                                    ])),
+                            ])
+                            ->placeholder('—')
+                            ->columnSpanFull(),
+                    ])
+                    ->columnSpanFull(),
+                Section::make('Решение backend')
+                    ->columns(3)
+                    ->schema([
+                        TextEntry::make('screening_disposition')
+                            ->label('Распоряжение')
+                            ->state(static fn (Analysis $record): ?string => $record->storedScreeningResult()?->decision->disposition->value)
+                            ->badge()
+                            ->placeholder('—'),
+                        TextEntry::make('screening_reason')
+                            ->label('Причина')
+                            ->state(static fn (Analysis $record): ?string => $record->storedScreeningResult()?->decision->reason->value)
+                            ->badge()
+                            ->placeholder('—'),
+                        TextEntry::make('screening_extraction_dispatched')
+                            ->label('Разбор поставлен в очередь')
+                            ->state(static fn (Analysis $record): ?string => self::extractionDispatched($record))
+                            ->placeholder('—'),
+                    ])
+                    ->columnSpanFull(),
                 TextEntry::make('last_error')
                     ->placeholder('-')
                     ->columnSpanFull(),
@@ -70,5 +132,38 @@ class AnalysisInfolist
                     ->columns(5)
                     ->columnSpanFull(),
             ]);
+    }
+
+    private static function confidence(Analysis $record): ?string
+    {
+        $confidence = $record->storedScreeningResult()?->confidence;
+
+        return $confidence === null ? null : number_format($confidence * 100, 1).'%';
+    }
+
+    /**
+     * @return list<array{tag: string}>
+     */
+    private static function tagAnchors(Analysis $record): array
+    {
+        $tags = $record->storedScreeningResult()?->tags ?? [];
+
+        return array_map(static fn (string $tag): array => ['tag' => $tag], $tags);
+    }
+
+    private static function extractionDispatched(Analysis $record): ?string
+    {
+        $value = $record->storedScreeningResult()?->decision->extractionDispatched;
+
+        return $value === null ? null : ($value ? 'да' : 'нет');
+    }
+
+    private static function lifecycle(Analysis $record): string
+    {
+        if ($record->is_shadow) {
+            return 'теневая';
+        }
+
+        return $record->superseded_at === null ? 'активная' : 'заменена';
     }
 }

@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Filament\Resources\Procurement\Ai\Analyses\AnalysisResource;
 use App\Filament\Resources\Procurement\Ai\Prompts\PromptResource;
 use Filament\Resources\Pages\CreateRecord;
 
@@ -127,6 +128,7 @@ return [
     'exclude' => [
         'resources' => [
             PromptResource::class,
+            AnalysisResource::class,
         ],
         'pages' => [
             CreateRecord::class,

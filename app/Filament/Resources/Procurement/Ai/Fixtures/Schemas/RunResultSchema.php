@@ -76,15 +76,15 @@ final class RunResultSchema
                     ->placeholder('тип не определён'),
                 TextEntry::make('screening_confidence')
                     ->label('Уверенность')
-                    ->state(self::resultValue($screening, 'confidence'))
+                    ->state(self::confidence($screening))
                     ->placeholder('нет данных'),
                 TextEntry::make('screening_branch')
-                    ->label('Ветка решения')
-                    ->state(self::branch($screening))
+                    ->label('Решение backend')
+                    ->state(self::decision($screening))
                     ->placeholder('—'),
                 TextEntry::make('screening_description')
-                    ->label('Заметки модели')
-                    ->state(self::resultValue($screening, 'description'))
+                    ->label('Краткое содержание')
+                    ->state(self::summary($screening))
                     ->placeholder('—')
                     ->columnSpanFull(),
                 TextEntry::make('screening_tags')
@@ -283,18 +283,23 @@ final class RunResultSchema
         return $analysis instanceof Analysis ? $analysis : null;
     }
 
-    private static function resultValue(?Analysis $analysis, string $key): ?string
+    private static function confidence(?Analysis $analysis): ?string
     {
-        $value = $analysis === null ? null : (($analysis->result ?? null)?->get($key));
+        $confidence = $analysis?->storedScreeningResult()?->confidence;
 
-        return is_scalar($value) ? (string) $value : null;
+        return $confidence === null ? null : (string) $confidence;
+    }
+
+    private static function summary(?Analysis $analysis): ?string
+    {
+        return $analysis?->storedScreeningResult()?->summary;
     }
 
     private static function tags(?Analysis $analysis): ?string
     {
-        $tags = $analysis === null ? null : (($analysis->result ?? null)?->get('tags'));
+        $tags = $analysis?->storedScreeningResult()?->tags ?? [];
 
-        if (! is_array($tags) || $tags === []) {
+        if ($tags === []) {
             return null;
         }
 
@@ -302,19 +307,12 @@ final class RunResultSchema
     }
 
     /**
-     * Ветка решения скрининга — то, что ядро записало в результат: причина игнорирования либо
-     * пометка «нужен человек».
+     * Backend-owned disposition/reason в v2-результате; провайдер не может его подменить.
      */
-    private static function branch(?Analysis $analysis): ?string
+    private static function decision(?Analysis $analysis): ?string
     {
-        $reason = self::resultValue($analysis, 'branch_reason');
+        $decision = $analysis?->storedScreeningResult()?->decision;
 
-        if ($reason !== null) {
-            return $reason;
-        }
-
-        $needsReview = $analysis === null ? null : (($analysis->result ?? null)?->get('needs_review'));
-
-        return $needsReview === true ? 'needs_review' : null;
+        return $decision === null ? null : "{$decision->disposition->value}/{$decision->reason->value}";
     }
 }
