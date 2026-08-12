@@ -3,7 +3,7 @@ projection: status-view
 projection_version: v1
 source_scope: plan core + phases + journal
 through: 2026-08-12
-inputs_sha256: 8cb2f7d1ae8e5331b14101e4e40fca941cb9b1db8b22b7a58cd1b850d8f00723
+inputs_sha256: ebe17fc9596ac610e8ae159f3f605e7e728deffbaaf069b73f0fb02d6bcbba4e
 generated_by: task plan-views status
 -->
 
@@ -148,7 +148,7 @@ generated_by: task plan-views status
 | P6.2 | Запечатать typed file-handler registry и terminal reasons для unsupported | 🟠 Done with deviations | 2026-08-12 |
 | P6.3 | Реализовать безопасное идемпотентное раскрытие архивов с лимитами | 🟢 Done | 2026-08-12 |
 | P6.4 | Создавать child file records со ссылкой на parent archive и dispatch | 🟠 Done with deviations | 2026-08-12 |
-| P6.5 | Добавить требуемый archive-to-children-to-processing integration test | ⬜ Not started | — |
+| P6.5 | Добавить требуемый archive-to-children-to-processing integration test | 🟠 Done with deviations | 2026-08-12 |
 | P6.6 | Закрепить extension contract и тест-шаблон для новых handlers | ⬜ Not started | — |
 
 ## Phase P7
@@ -437,6 +437,8 @@ write-site: pre_mutation: allow · pre_final: allow |
 | 2026-08-12 | gpt-5.6-terra/high | plan-run · in-progress · P6.4 reconciliation: add required pre-final write-site evidence to terminal projection. |
 | 2026-08-12 | gpt-5.6-terra/high | plan-run · closed-deviations · P6.4 reconciliation completed; product remains 89b4e793.
 write-site: pre_mutation: allow · pre_final: allow |
+| 2026-08-12 | owner | plan-run · in-progress · P6.5 started under direct owner authorization to continue despite broken route-evidence helper. |
+| 2026-08-12 | owner | plan-run · closed-deviations · P6.5 c6bff21f: lifecycle/retry/two-worker concurrency, hostile zero-effect matrix, encrypted ZIP detection and RAR runtime proof green. Deviations: owner route override; missing Make targets; ArchiveExtractor outside Files. write-site: owner-authorized override. |
 
 ## Owner Gates
 
@@ -449,3 +451,4 @@ write-site: pre_mutation: allow · pre_final: allow |
 - P6.1: known deviation
 - P6.2: known deviation
 - P6.4: known deviation
+- P6.5: known deviation
