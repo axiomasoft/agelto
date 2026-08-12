@@ -43,6 +43,8 @@ migration tests. Проверены focused Pest, Pint, PHPStan, Task views, str
 **Open risks:** P8.4 должна сохранить exact-over-platform precedence, не ловить любой
 `QueryException` как duplicate и не ослабить существующие permission guards. Downstream остаётся
 `unknown`, пока P8.4/P8.5 не создадут свои executable carriers; downstream RED отсутствует.
+Полный plan-lint сохраняет один унаследованный P8.2 write-site formatting error; P8.3 carrier
+прошёл `--gate new` без новых диагностик.
 
 **Workarounds/Deferred/Open questions:**
 
