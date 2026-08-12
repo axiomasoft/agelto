@@ -4,9 +4,14 @@ declare(strict_types=1);
 
 namespace App\Models\Procurement\Ai;
 
+use App\Dto\Procurement\Ai\Screening\StoredScreeningResult;
+use App\Enums\Procurement\Ai\AiDocumentType;
 use App\Enums\Procurement\Ai\AnalysisStatus;
 use App\Enums\Procurement\Ai\AnalysisStep;
+use App\Enums\Procurement\Ai\EstimateCardinality;
 use App\Enums\Procurement\Ai\ReviewStatus;
+use App\Enums\Procurement\Ai\ScreeningDecisionReason;
+use App\Enums\Procurement\Ai\ScreeningDisposition;
 use App\Models\Concerns\HasErrorBlock;
 use App\Models\Concerns\HasLease;
 use App\Models\Procurement\Document\DocumentVersion;
@@ -23,6 +28,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
+use InvalidArgumentException;
 
 /**
  * Сессия AI-анализа версии документа (screening/extraction) с lease-локом и кэшем LLM.
@@ -191,6 +197,110 @@ final class Analysis extends Model
                     ->orWhere('next_retry_at', '<=', now());
             })
             ->where('failed_permanently', false);
+    }
+
+    /**
+     * @param  Builder<Analysis>  $query
+     * @return Builder<Analysis>
+     */
+    public function scopeActiveScreening(Builder $query): Builder
+    {
+        return $query->active()->where('step', AnalysisStep::Screening);
+    }
+
+    /**
+     * @param  Builder<Analysis>  $query
+     * @return Builder<Analysis>
+     */
+    public function scopeWithScreeningDisposition(Builder $query, ScreeningDisposition $disposition): Builder
+    {
+        return $query->activeScreening()
+            ->where('result->decision->disposition', $disposition->value);
+    }
+
+    /**
+     * @param  Builder<Analysis>  $query
+     * @return Builder<Analysis>
+     */
+    public function scopeWithScreeningDocumentType(Builder $query, AiDocumentType $documentType): Builder
+    {
+        return $query->activeScreening()
+            ->where('document_type', $documentType->value);
+    }
+
+    /**
+     * @param  Builder<Analysis>  $query
+     * @return Builder<Analysis>
+     */
+    public function scopeWithEstimateCardinality(Builder $query, EstimateCardinality $cardinality): Builder
+    {
+        return $query->activeScreening()
+            ->where('result->screening->estimate_cardinality', $cardinality->value);
+    }
+
+    /**
+     * @param  Builder<Analysis>  $query
+     * @return Builder<Analysis>
+     */
+    public function scopeWithScreeningDecisionReason(Builder $query, ScreeningDecisionReason $reason): Builder
+    {
+        return $query->activeScreening()
+            ->where('result->decision->reason', $reason->value);
+    }
+
+    /**
+     * @param  Builder<Analysis>  $query
+     * @return Builder<Analysis>
+     */
+    public function scopeWithScreeningTag(Builder $query, string $tag): Builder
+    {
+        return $query->activeScreening()
+            ->whereJsonContains('result->screening->tags', $tag);
+    }
+
+    /**
+     * Полнотекстовый поиск остаётся только по активным v2-screening: выражение в точности
+     * соответствует partial GIN-index из P7.5, а точный tag-якорь использует GIN из P7.2.
+     *
+     * @param  Builder<Analysis>  $query
+     * @return Builder<Analysis>
+     */
+    public function scopeWithScreeningSearch(Builder $query, string $search): Builder
+    {
+        $search = trim($search);
+
+        if ($search === '') {
+            return $query;
+        }
+
+        return $query->activeScreening()
+            ->where(function (Builder $query) use ($search): void {
+                $query->whereRaw(
+                    "to_tsvector('russian', coalesce(result #>> '{screening,summary}', '')) @@ websearch_to_tsquery('russian', ?)",
+                    [$search],
+                )->orWhereJsonContains('result->screening->tags', $search);
+            });
+    }
+
+    public function storedScreeningResult(): ?StoredScreeningResult
+    {
+        if ($this->step !== AnalysisStep::Screening || $this->result === null) {
+            return null;
+        }
+
+        $value = $this->result->toArray();
+
+        if (($value['schema_version'] ?? null) !== 2) {
+            return null;
+        }
+
+        try {
+            return StoredScreeningResult::fromArray($value);
+        } catch (InvalidArgumentException) {
+            // Старая/повреждённая запись не должна ломать read-only витрину: raw JSON остаётся
+            // доступен для аудита, а typed-поля показывают явный placeholder.
+            return null;
+        }
     }
 
     protected static function booted(): void
