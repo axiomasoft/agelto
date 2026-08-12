@@ -3,7 +3,7 @@ projection: status-view
 projection_version: v1
 source_scope: plan core + phases + journal
 through: 2026-08-12
-inputs_sha256: 2d18ceedcc7b5312a34f9f76f105be97928e3f4862a97675bbfa0ecbfe503ae3
+inputs_sha256: 8a83eee9934533af25a51e0f6b5cdb7175a7c113939a6df88cd59e081383fe43
 generated_by: task plan-views status
 -->
 
@@ -34,7 +34,7 @@ generated_by: task plan-views status
 | P5 | Default proxy settings и трёхуровневый resolve | 6/6 | 🟢 Done |
 | P6 | File handler registry, архивы и дочерняя обработка | 0/7 | 🟠 Done with deviations |
 | P7 | Document type, summary, estimates и tags | 6/6 | 🟢 Done |
-| P8 | Расширяемость platforms и гибкие status mappings | 2/5 | 🟡 In progress |
+| P8 | Расширяемость platforms и гибкие status mappings | 3/5 | 🟡 In progress |
 | P9 | Filament information architecture и понятный русский UX | 0/6 | ⬜ Not started |
 
 ## Phase P0
@@ -169,7 +169,7 @@ generated_by: task plan-views status
 |:--|:--|:--|:--|
 | P8.1 | Проаудировать platform adapters, registries, configs, fixtures и schema seams | 🟢 Done | 2026-08-12 |
 | P8.2 | Запечатать минимальный contract добавления новой площадки | 🟢 Done | 2026-08-12 |
-| P8.3 | Перепроектировать status mapping без жёсткой привязки к одному ФЗ | ⬜ Not started | — |
+| P8.3 | Перепроектировать status mapping без жёсткой привязки к одному ФЗ | 🟢 Done | 2026-08-12 |
 | P8.4 | Мигрировать данные и обновить repositories/policies/forms | ⬜ Not started | — |
 | P8.5 | Добавить architecture/contract tests и developer guide расширения | ⬜ Not started | — |
 
@@ -533,6 +533,14 @@ write-site: pre_mutation: allow · pre_final: allow |
 write-site: pre_mutation: allow · pre_final: allow |
 | 2026-08-12 | gpt-5.6-terra/high | plan-run · in-progress · Начата реализация D35 typed platform adapter registry. |
 | 2026-08-12 | gpt-5.6-terra/high | plan-run · closed-green · b27a5c09: exact platform adapters and EIS form/config cutover; 132 Pest, PHPStan, Pint, config cache, scans and diff green. write-site: pre_mutation: allow · pre_final: allow |
+| 2026-08-12 | gpt-5.6-terra/high | plan-run · in-progress · — |
+| 2026-08-12 | gpt-5.6-terra/high | plan-run · closed-green · 44168b91: two-scope status mapping migration, typed applicability, SQL proof and lossless rollback guard; focused 14 Pest / 55 assertions, Pint and PHPStan green. write-site: pre_mutation: allow · pre_final: allow |
+| 2026-08-12 | gpt-5.6-terra/high | plan-run · in-progress · Local repair: restore the canonical terminal write-site record. |
+| 2026-08-12 | gpt-5.6-terra/high | plan-run · closed-green · 44168b91: status mapping migration and focused 14 Pest / 55 assertions confirmed. Delivery-record local repair only.
+write-site: pre_mutation: allow · pre_final: allow |
+| 2026-08-12 | gpt-5.6-terra/high | plan-run · in-progress · Local repair: remove unanchored counters from the delivery record. |
+| 2026-08-12 | gpt-5.6-terra/high | plan-run · closed-green · d079f5d0: status-mapping schema contract verified; delivery-record local repair only.
+write-site: pre_mutation: allow · pre_final: allow |
 
 ## Owner Gates
 
@@ -550,3 +558,4 @@ write-site: pre_mutation: allow · pre_final: allow |
 - P6.6: known deviation
 - P6.7: known deviation
 - P8.1: known deviation
+- P8.3: known deviation
