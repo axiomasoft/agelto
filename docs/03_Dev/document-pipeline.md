@@ -22,8 +22,9 @@ status: living
 stateDiagram-v2
     [*] --> Discovered
     Discovered --> Downloaded: DocumentDownloader (краулинг)
-    Downloaded --> Prepared: PrepareDocumentJob.process()
-    Downloaded --> Unprocessable: DocumentPreparer-стратегия (D32/D38, напр. RAR/7z)
+    Downloaded --> Prepared: PrepareDocumentJob.process() → ready_for_screening
+    Downloaded --> Expanded: PrepareDocumentJob.process() → expanded_container
+    Downloaded --> Unprocessable: registry/handler terminal reason
     Downloaded --> Failed: PrepareDocumentJob.recordFailure() (attempts исчерпаны)
     Prepared --> Screened: ScreeningJob → ScreeningOutcomeHandler.markScreened()
     Prepared --> Ignored: ScreeningOutcomeHandler.ignore() (unknown/low_confidence/ignore_rule)
@@ -32,6 +33,7 @@ stateDiagram-v2
     Screened --> Unprocessable: ExtractionOrchestrator.markUnprocessable() (D29 лимит провайдера, D38 unreadable/password)
     Screened --> Failed: EstimateExtractionJob.recordFailure()
     Extracted --> [*]
+    Expanded --> [*]
     Ignored --> [*]
     Failed --> [*]
     Unprocessable --> [*]
@@ -51,6 +53,23 @@ stateDiagram-v2
 | `ExtractionOrchestrator` | `app/Services/Procurement/Analyzers/Estimate/ExtractionOrchestrator.php:81` |
 
 Упрощённая версия без job'ов/ошибок (бизнес-язык) — `docs/02_Workflow/document-and-estimate-pipeline.md` (Д1-lite).
+
+## Закрытый registry форматов и расширение handler'а
+
+`DocumentFormatRegistry` — единственный маршрут `extension → MIME/signature probe → handler`.
+Поддерживаются PDF; XLS/XLSX; DOC/DOCX/RTF/ODT; PNG/JPEG/TIFF/BMP/WebP; GSFX; ZIP/7z/RAR.
+Расширение нормализуется из имени файла, MIME определяется по байтам, а container-форматы проходят
+дополнительный probe. Результат handler'а типизирован: `ready_for_screening`,
+`expanded_container` или terminal `unprocessable`; catch-all и локальные списки расширений в
+strategy запрещены.
+
+Чтобы добавить формат, в одном изменении нужно: добавить `DocumentFormat`; завести точную запись в
+`DocumentFormatRegistry` (extension, допустимые MIME, единственный handler и result); добавить
+format-specific probe в `DocumentFormatInspector`; внести valid/mismatch vector в
+`tests/Support/Documents/DocumentFormatContract.php`; подтвердить representative happy-path и
+terminal mismatch/unsupported tests; обновить эту матрицу и operator workflow. Новый format без
+этих носителей падает на `DocumentFormatRegistryTest` до реализации. Не добавляйте executable/media
+семейства, второй registry или generic plugin path: они вне archive security contract D30/D31.
 
 Место Д1 среди остальных осей состояния домена (`AnalysisStatus`, `RunStatus`, `ProcurementStatus`,
 `PipelineStage`/`AnalysisStep`) — `docs/03_Dev/state-machines.md`.

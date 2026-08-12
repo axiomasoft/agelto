@@ -79,6 +79,11 @@ fallback: пустой или unhealthy exact set даёт `NoProxyAvailableExce
 
 ## Адресация файлов: колонка `disk` (P6, D51)
 
+Для archive lineage `prc_document_versions` также хранит nullable `parent_version_id` и
+`archive_entry_path`; уникальная пара `(parent_version_id, archive_entry_path)` не даёт ретраю или
+двум воркерам создать одного child дважды. Terminal причина неподдерживаемого или несовпавшего
+формата живёт в `prc_documents.unprocessable_reason`, а не только в человекочитаемом `last_error`.
+
 Три носителя, у которых файл переживает окно отката (`prc_document_versions.storage_path`,
 `prc_ai_fixtures.storage_path`, `prc_estimates.raw_result_ref`), несут `disk` (`nullable`):
 `null` означает «диск по конфиг-ключу носителя НА МОМЕНТ ЧТЕНИЯ» (`crawler.documents_disk` /
