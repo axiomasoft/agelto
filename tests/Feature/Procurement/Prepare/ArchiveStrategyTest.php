@@ -3,12 +3,14 @@
 declare(strict_types=1);
 
 use App\Enums\Procurement\Document\DocumentStatus;
+use App\Enums\Procurement\Document\PreparationResult;
 use App\Models\Procurement\Document\Document;
 use App\Models\Procurement\Document\DocumentVersion;
 use App\Services\Procurement\Prepare\ArchiveStrategy;
 use Illuminate\Support\Facades\Process;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use ZipArchive;
 
 /**
  * `ArchiveStrategy` расширена с ZIP до трёх форматов (P3.6, D24) — `7z`/`rar` через реальные
@@ -58,19 +60,29 @@ function makeArchiveVersion(string $localArchivePath, string $extension): array
     return [$document, $version];
 }
 
-test('canProcess распознаёт zip/7z/rar и отклоняет прочие расширения', function () {
-    [, $version] = makeArchiveVersion(build7z(['a.txt' => 'x']), '7z');
-    $strategy = app(ArchiveStrategy::class);
+function buildZip(array $files): string
+{
+    $archivePath = sys_get_temp_dir().'/archive_test_'.Str::uuid().'.zip';
+    $zip = new ZipArchive;
+    expect($zip->open($archivePath, ZipArchive::CREATE))->toBeTrue();
 
-    expect($strategy->canProcess($version))->toBeTrue();
-
-    foreach (['zip', 'rar'] as $extension) {
-        $version->extension = $extension;
-        expect($strategy->canProcess($version))->toBeTrue();
+    foreach ($files as $relativePath => $content) {
+        expect($zip->addFromString($relativePath, $content))->toBeTrue();
     }
 
-    $version->extension = 'xlsx';
-    expect($strategy->canProcess($version))->toBeFalse();
+    $zip->close();
+
+    return $archivePath;
+}
+
+test('ZIP metadata проходит CHECKCONS и entry извлекается потоком', function () {
+    $archive = buildZip(['nested/estimate.txt' => 'содержимое сметы']);
+    [$document, $version] = makeArchiveVersion($archive, 'zip');
+
+    $result = app(ArchiveStrategy::class)->process($document, $version);
+
+    expect($result)->toBe(PreparationResult::ExpandedContainer)
+        ->and(Document::query()->where('external_id', "{$version->id}:nested/estimate.txt")->exists())->toBeTrue();
 });
 
 test('7z → дочерние документы созданы', function () {
@@ -79,7 +91,7 @@ test('7z → дочерние документы созданы', function () {
 
     $result = app(ArchiveStrategy::class)->process($document, $version);
 
-    expect($result)->toBeTrue()
+    expect($result)->toBe(PreparationResult::ExpandedContainer)
         ->and($document->refresh()->status)->not->toBe(DocumentStatus::Unprocessable);
 
     $child = Document::query()
@@ -93,7 +105,7 @@ test('7z → дочерние документы созданы', function () {
         ->and($childVersion->filename)->toBe('sample.txt');
 });
 
-test('7z-архив с path traversal в имени entry — entry отброшена', function () {
+test('7z-архив с path traversal в имени entry — весь архив отклонён до записи children', function () {
     // 7z-CLI сам блокирует запись '../' при упаковке относительным путём — синтетический архив
     // с вредоносным именем entry собирается через ZipArchive-обёртку `7z rn`, переименовывающую
     // entry ПОСЛЕ упаковки (не через файловую систему, где '../' невозможен как имя внутри workDir).
@@ -106,7 +118,9 @@ test('7z-архив с path traversal в имени entry — entry отброш
 
     $result = app(ArchiveStrategy::class)->process($document, $version);
 
-    expect($result)->toBeTrue()
+    expect($result)->toBe(PreparationResult::Unprocessable)
+        ->and($document->refresh()->status)->toBe(DocumentStatus::Unprocessable)
+        ->and($document->last_error)->toContain('zip_bomb')
         ->and(Document::query()->where('external_id', 'like', '%evil.txt')->exists())->toBeFalse();
 });
 
@@ -117,7 +131,7 @@ test('7z-листинг сверх лимита числа файлов — unpr
 
     $result = app(ArchiveStrategy::class)->process($document, $version);
 
-    expect($result)->toBeFalse()
+    expect($result)->toBe(PreparationResult::Unprocessable)
         ->and($document->refresh()->status)->toBe(DocumentStatus::Unprocessable)
         ->and($document->last_error)->toContain('zip_bomb');
 });
@@ -128,7 +142,7 @@ test('запароленный 7z (шифрование содержимого) 
 
     $result = app(ArchiveStrategy::class)->process($document, $version);
 
-    expect($result)->toBeFalse()
+    expect($result)->toBe(PreparationResult::Unprocessable)
         ->and($document->refresh()->status)->toBe(DocumentStatus::Unprocessable)
         ->and($document->last_error)->toContain('password_protected');
 });
@@ -140,7 +154,7 @@ test('битый 7z — unprocessable(archive_unsupported)', function () {
 
     $result = app(ArchiveStrategy::class)->process($document, $version);
 
-    expect($result)->toBeFalse()
+    expect($result)->toBe(PreparationResult::Unprocessable)
         ->and($document->refresh()->status)->toBe(DocumentStatus::Unprocessable)
         ->and($document->last_error)->toContain('archive_unsupported');
 });
@@ -152,7 +166,7 @@ test('битый rar (не распознан unar) — unprocessable(archive_un
 
     $result = app(ArchiveStrategy::class)->process($document, $version);
 
-    expect($result)->toBeFalse()
+    expect($result)->toBe(PreparationResult::Unprocessable)
         ->and($document->refresh()->status)->toBe(DocumentStatus::Unprocessable)
         ->and($document->last_error)->toContain('archive_unsupported');
 });

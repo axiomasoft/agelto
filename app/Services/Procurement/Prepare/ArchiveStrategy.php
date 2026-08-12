@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Services\Procurement\Prepare;
 
 use App\Actions\Procurement\Document\MarkDocumentUnprocessableAction;
+use App\Dto\Procurement\Prepare\Archive\ArchiveBudget;
+use App\Dto\Procurement\Prepare\Archive\ArchiveEntry;
 use App\Enums\Procurement\Document\DocumentStatus;
 use App\Enums\Procurement\Document\PreparationResult;
 use App\Enums\Procurement\Document\UnprocessableReason;
@@ -13,9 +15,11 @@ use App\Models\Procurement\Document\Document;
 use App\Models\Procurement\Document\DocumentVersion;
 use App\Repositories\Procurement\Document\DocumentStoreRepository;
 use App\Repositories\Procurement\ProcurementStoreRepository;
+use App\Services\Procurement\Prepare\Archive\ArchiveEntryValidator;
 use App\Services\Procurement\Prepare\Archive\ArchiveExtractor;
 use App\Services\Procurement\Prepare\Archive\ArchivePasswordProtectedException;
 use App\Services\Procurement\Prepare\Archive\ArchiveUnsupportedException;
+use App\Services\Procurement\Prepare\Archive\ArchiveValidationException;
 use App\Services\Storage\FileLocationResolver;
 use Illuminate\Contracts\Filesystem\Filesystem;
 use Illuminate\Support\Facades\DB;
@@ -42,6 +46,7 @@ final readonly class ArchiveStrategy implements PreparationStrategy
         private MarkDocumentUnprocessableAction $markUnprocessable,
         private ProcurementStoreRepository $procurementStore,
         private ArchiveExtractor $extractor,
+        private ArchiveEntryValidator $entryValidator,
         private FileLocationResolver $locationResolver,
     ) {}
 
@@ -53,7 +58,8 @@ final readonly class ArchiveStrategy implements PreparationStrategy
      */
     public function process(Document $document, DocumentVersion $version): PreparationResult
     {
-        if ($this->nestingDepth($version) >= (int) config('ai.prepare.archive.max_depth', 2)) {
+        $budget = ArchiveBudget::fromConfig();
+        if ($this->nestingDepth($version) >= $budget->maxDepth) {
             $this->markUnprocessable($document, UnprocessableReason::ZipBomb, 'превышена допустимая глубина вложенности архивов');
 
             return PreparationResult::Unprocessable;
@@ -62,12 +68,15 @@ final readonly class ArchiveStrategy implements PreparationStrategy
         $diskName = $this->locationResolver->currentDocumentsDisk();
         $disk = Storage::disk($diskName);
         $localArchive = tempnam(sys_get_temp_dir(), 'archive_');
+        if ($localArchive === false) {
+            throw new \RuntimeException('не удалось создать временный файл архива');
+        }
 
         try {
             file_put_contents($localArchive, $disk->get($version->storage_path));
 
             try {
-                $listing = $this->extractor->listEntries($localArchive, $version->extension);
+                $entries = $this->entryValidator->validate($this->extractor->listEntries($localArchive, $version->extension), $budget);
             } catch (ArchivePasswordProtectedException $e) {
                 $this->markUnprocessable($document, UnprocessableReason::PasswordProtected, $e->getMessage());
 
@@ -76,87 +85,64 @@ final readonly class ArchiveStrategy implements PreparationStrategy
                 $this->markUnprocessable($document, UnprocessableReason::ArchiveUnsupported, $e->getMessage());
 
                 return PreparationResult::Unprocessable;
-            }
-
-            [$fileCount, $totalBytes, $entries] = $this->safeEntries($listing);
-
-            if ($fileCount > (int) config('ai.prepare.archive.max_files', 200)
-                || $totalBytes > (int) config('ai.prepare.archive.max_total_mb', 500) * 1024 * 1024) {
-                $this->markUnprocessable($document, UnprocessableReason::ZipBomb, "файлов={$fileCount}, суммарно={$totalBytes} байт");
+            } catch (ArchiveValidationException $e) {
+                $this->markUnprocessable($document, UnprocessableReason::ZipBomb, $e->getMessage());
 
                 return PreparationResult::Unprocessable;
             }
 
-            $this->extractChildren($document, $version, $localArchive, $entries, $disk, $diskName);
+            try {
+                $this->extractChildren($document, $version, $localArchive, $entries, $budget, $disk, $diskName);
+            } catch (ArchivePasswordProtectedException $e) {
+                $this->markUnprocessable($document, UnprocessableReason::PasswordProtected, $e->getMessage());
+
+                return PreparationResult::Unprocessable;
+            } catch (ArchiveUnsupportedException $e) {
+                $this->markUnprocessable($document, UnprocessableReason::ArchiveUnsupported, $e->getMessage());
+
+                return PreparationResult::Unprocessable;
+            } catch (ArchiveValidationException $e) {
+                $this->markUnprocessable($document, UnprocessableReason::ZipBomb, $e->getMessage());
+
+                return PreparationResult::Unprocessable;
+            }
         } finally {
-            @unlink($localArchive);
+            if (file_exists($localArchive) && ! unlink($localArchive)) {
+                throw new \RuntimeException('не удалось удалить временный файл архива');
+            }
         }
 
         return PreparationResult::ExpandedContainer;
     }
 
-    /**
-     * @param  list<array{name: string, size: int}>  $listing
-     * @return array{0: int, 1: int, 2: list<string>}
-     */
-    private function safeEntries(array $listing): array
-    {
-        $fileCount = 0;
-        $totalBytes = 0;
-        $entries = [];
-
-        foreach ($listing as $entry) {
-            $name = $entry['name'];
-
-            if (str_ends_with($name, '/') || str_starts_with(basename($name), '.') || ! $this->isSafeEntryName($name)) {
-                continue;
-            }
-
-            $fileCount++;
-            $totalBytes += $entry['size'];
-            $entries[] = $name;
-        }
-
-        return [$fileCount, $totalBytes, $entries];
-    }
-
-    /**
-     * @param  list<string>  $entries
-     */
-    private function extractChildren(Document $document, DocumentVersion $version, string $localArchive, array $entries, Filesystem $disk, string $diskName): void
+    /** @param list<ArchiveEntry> $entries */
+    private function extractChildren(Document $document, DocumentVersion $version, string $localArchive, array $entries, ArchiveBudget $budget, Filesystem $disk, string $diskName): void
     {
         $tempFolder = 'tmp_extract/'.Str::uuid();
         $extractPath = storage_path('app/'.$tempFolder);
 
         try {
-            $this->extractor->extract($localArchive, $version->extension, $extractPath, $entries);
+            $totalBytes = 0;
+            foreach ($entries as $entry) {
+                if ($entry->isDirectory) {
+                    continue;
+                }
+                $targetPath = $extractPath.'/'.$entry->path;
+                $directory = dirname($targetPath);
+                if (! is_dir($directory) && ! mkdir($directory, 0700, true) && ! is_dir($directory)) {
+                    throw new \RuntimeException("не удалось создать временную директорию: {$directory}");
+                }
+                $this->extractor->extractEntry($localArchive, $version->extension, $entry, $targetPath, $budget, $totalBytes);
+            }
 
-            foreach ($entries as $relativePath) {
-                $this->indexChild($document, $version, $relativePath, $extractPath.'/'.$relativePath, $disk, $diskName);
+            foreach ($entries as $entry) {
+                if (! $entry->isDirectory) {
+                    $this->indexChild($document, $version, $entry->path, $extractPath.'/'.$entry->path, $disk, $diskName);
+                }
             }
         } finally {
             File::deleteDirectory($extractPath);
         }
-    }
-
-    /**
-     * Защита в глубину от path traversal в именах entry архива (не доверяем содержимому
-     * недоверенных архивов из закупок) — для ВСЕХ трёх форматов: отбрасываем абсолютные пути
-     * и `..`-сегменты до распаковки.
-     */
-    private function isSafeEntryName(string $name): bool
-    {
-        if ($name === '' || str_starts_with($name, '/') || str_contains($name, "\0")) {
-            return false;
-        }
-
-        foreach (explode('/', $name) as $segment) {
-            if ($segment === '..') {
-                return false;
-            }
-        }
-
-        return true;
     }
 
     /**

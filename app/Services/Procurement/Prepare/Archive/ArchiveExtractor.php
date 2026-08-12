@@ -4,27 +4,17 @@ declare(strict_types=1);
 
 namespace App\Services\Procurement\Prepare\Archive;
 
+use App\Dto\Procurement\Prepare\Archive\ArchiveBudget;
+use App\Dto\Procurement\Prepare\Archive\ArchiveEntry;
+use Illuminate\Process\ProcessResult;
 use Illuminate\Support\Facades\Process;
+use RuntimeException;
 use ZipArchive;
 
-/**
- * Диспетчер распаковки по формату (P3.6, D24) — три независимых пути: ZIP через `ZipArchive`
- * (канон, перенесён из `ArchiveStrategy` как есть — код покрыт тестами и правкой не рискует),
- * `7z` через `7z`/`7zz` (листинг `-slt`, извлечение по списку entry), `rar` через `unar`/`lsar`
- * (`unar` — единственный legal распаковщик, `unrar` из non-free не подключается, D24).
- *
- * Guard'ы бомбы и фильтр безопасных имён (`isSafeEntryName`) — забота вызывающей
- * `ArchiveStrategy`: этот класс только листит (даёт размер/имя КАЖДОГО entry ДО распаковки) и
- * распаковывает УЖЕ отфильтрованный список.
- */
+/** Adapter metadata/byte stream only: security policy lives in ArchiveEntryValidator. */
 final readonly class ArchiveExtractor
 {
-    /**
-     * @return list<array{name: string, size: int}>
-     *
-     * @throws ArchivePasswordProtectedException
-     * @throws ArchiveUnsupportedException
-     */
+    /** @return list<ArchiveEntry> */
     public function listEntries(string $archivePath, string $format): array
     {
         return match ($format) {
@@ -36,198 +26,255 @@ final readonly class ArchiveExtractor
     }
 
     /**
-     * @param  list<string>  $entries  относительные пути entry, разрешённые к распаковке
+     * Writes precisely one validated entry and verifies actual bytes against metadata.
+     *
+     * @param  int  $totalBytes  actual aggregate, maintained by caller for one archive
      */
-    public function extract(string $archivePath, string $format, string $outputDir, array $entries): void
+    public function extractEntry(string $archivePath, string $format, ArchiveEntry $entry, string $targetPath, ArchiveBudget $budget, int &$totalBytes): void
     {
-        if ($entries === []) {
-            return;
-        }
-
         match ($format) {
-            'zip' => $this->extractZip($archivePath, $outputDir, $entries),
-            '7z' => $this->extractSevenZip($archivePath, $outputDir, $entries),
-            'rar' => $this->extractRar($archivePath, $outputDir, $entries),
+            'zip' => $this->extractZipEntry($archivePath, $entry, $targetPath, $budget, $totalBytes),
+            '7z' => $this->extractSevenZipEntry($archivePath, $entry, $targetPath, $budget, $totalBytes),
+            'rar' => $this->extractRarEntry($archivePath, $entry, $targetPath, $budget, $totalBytes),
             default => throw new ArchiveUnsupportedException("неизвестный формат архива: {$format}"),
         };
     }
 
-    /**
-     * @return list<array{name: string, size: int}>
-     */
+    /** @return list<ArchiveEntry> */
     private function listZip(string $archivePath): array
     {
         $zip = new ZipArchive;
-
-        if ($zip->open($archivePath) !== true) {
+        if ($zip->open($archivePath, ZipArchive::CHECKCONS) !== true) {
             throw new ArchiveUnsupportedException("не удалось открыть ZIP-архив: {$archivePath}");
         }
 
-        $entries = [];
+        try {
+            $entries = [];
+            for ($index = 0; $index < $zip->numFiles; $index++) {
+                $stat = $zip->statIndex($index);
+                if ($stat === false || ! isset($stat['name'], $stat['size'], $stat['comp_size'])) {
+                    throw new ArchiveUnsupportedException('ZIP metadata неполна');
+                }
+                $opsys = 0;
+                $attributes = 0;
+                $zip->getExternalAttributesIndex($index, $opsys, $attributes);
+                $mode = ($attributes >> 16) & 0170000;
+                $isDirectory = str_ends_with((string) $stat['name'], '/') || $mode === 0040000;
+                $type = match ($mode) {
+                    0, 0100000, 0040000 => $isDirectory ? 'directory' : 'file',
+                    0120000 => 'symlink',
+                    default => 'special',
+                };
+                $entries[] = new ArchiveEntry(
+                    path: (string) $stat['name'],
+                    declaredSize: (int) $stat['size'],
+                    compressedSize: (int) $stat['comp_size'],
+                    isDirectory: $isDirectory,
+                    isEncrypted: (($stat['bitflags'] ?? 0) & 1) === 1,
+                    type: $type,
+                );
+            }
 
-        for ($i = 0; $i < $zip->numFiles; $i++) {
-            $stat = $zip->statIndex($i);
-            $entries[] = ['name' => (string) $stat['name'], 'size' => (int) $stat['size']];
+            return $entries;
+        } finally {
+            $zip->close();
         }
-
-        $zip->close();
-
-        return $entries;
     }
 
-    /**
-     * @param  list<string>  $entries
-     */
-    private function extractZip(string $archivePath, string $outputDir, array $entries): void
+    private function extractZipEntry(string $archivePath, ArchiveEntry $entry, string $targetPath, ArchiveBudget $budget, int &$totalBytes): void
     {
         $zip = new ZipArchive;
-
-        if ($zip->open($archivePath) !== true) {
+        if ($zip->open($archivePath, ZipArchive::CHECKCONS) !== true) {
             throw new ArchiveUnsupportedException("не удалось открыть ZIP-архив: {$archivePath}");
         }
 
-        $zip->extractTo($outputDir, $entries);
-        $zip->close();
+        $input = $zip->getStream($entry->path);
+        if ($input === false) {
+            $zip->close();
+            throw new ArchiveUnsupportedException("не удалось открыть ZIP entry: {$entry->path}");
+        }
+
+        try {
+            $this->copyBounded($input, $targetPath, $entry, $budget, $totalBytes);
+        } finally {
+            fclose($input);
+            $zip->close();
+        }
     }
 
-    /**
-     * @return list<array{name: string, size: int}>
-     */
+    /** @return list<ArchiveEntry> */
     private function listSevenZip(string $archivePath): array
     {
-        $result = Process::timeout($this->timeout())
-            ->run([(string) config('ai.tools.sevenzip_bin'), 'l', '-slt', $archivePath]);
-
+        $result = Process::timeout($this->timeout())->run([(string) config('ai.tools.sevenzip_bin'), 'l', '-slt', $archivePath]);
         if ($result->failed()) {
-            $this->rejectByOutput($result->errorOutput().$result->output());
+            $this->rejectByOutput($result);
         }
 
         $afterSeparator = explode('----------', $result->output(), 2)[1] ?? '';
-        $blocks = preg_split('/\n{2,}/', trim($afterSeparator)) ?: [];
-
         $entries = [];
-        $encrypted = false;
-
-        foreach ($blocks as $block) {
+        foreach (preg_split('/\n{2,}/', trim($afterSeparator)) ?: [] as $block) {
             $parsed = $this->parseSevenZipEntryBlock($block);
-
-            if ($parsed === null) {
-                continue;
+            if ($parsed !== null) {
+                $entries[] = $parsed;
             }
-
-            if ($parsed['encrypted']) {
-                $encrypted = true;
-            }
-
-            if (! $parsed['isDirectory']) {
-                $entries[] = ['name' => $parsed['name'], 'size' => $parsed['size']];
-            }
-        }
-
-        if ($encrypted) {
-            throw new ArchivePasswordProtectedException("архив зашифрован: {$archivePath}");
         }
 
         return $entries;
     }
 
-    /**
-     * @return array{name: string, size: int, isDirectory: bool, encrypted: bool}|null
-     */
-    private function parseSevenZipEntryBlock(string $block): ?array
+    private function parseSevenZipEntryBlock(string $block): ?ArchiveEntry
     {
-        $name = null;
-        $size = 0;
-        $isDirectory = false;
-        $encrypted = false;
-
+        $values = [];
         foreach (explode("\n", $block) as $line) {
-            $line = trim($line);
-
-            if (str_starts_with($line, 'Path = ')) {
-                $name = substr($line, strlen('Path = '));
-            } elseif (str_starts_with($line, 'Size = ')) {
-                $size = (int) substr($line, strlen('Size = '));
-            } elseif (str_starts_with($line, 'Attributes = D')) {
-                $isDirectory = true;
-            } elseif ($line === 'Encrypted = +') {
-                $encrypted = true;
+            [$key, $value] = array_pad(explode(' = ', trim($line), 2), 2, null);
+            if ($key !== null && $value !== null) {
+                $values[$key] = $value;
             }
         }
-
-        return $name === null ? null : compact('name', 'size', 'isDirectory', 'encrypted');
-    }
-
-    /**
-     * @param  list<string>  $entries
-     */
-    private function extractSevenZip(string $archivePath, string $outputDir, array $entries): void
-    {
-        $result = Process::timeout($this->timeout())
-            ->run([
-                (string) config('ai.tools.sevenzip_bin'), 'x', '-y', '-o'.$outputDir, $archivePath, ...$entries,
-            ]);
-
-        if ($result->failed()) {
-            $this->rejectByOutput($result->errorOutput().$result->output());
+        if (! isset($values['Path'])) {
+            return null;
         }
+        $attributes = (string) ($values['Attributes'] ?? '');
+        $isDirectory = str_contains($attributes, 'D');
+        $type = str_contains($attributes, 'L') || isset($values['Symbolic Link']) ? 'symlink' : ($isDirectory ? 'directory' : 'file');
+
+        return new ArchiveEntry(
+            path: (string) $values['Path'],
+            declaredSize: (int) ($values['Size'] ?? 0),
+            compressedSize: (int) ($values['Packed Size'] ?? 0),
+            isDirectory: $isDirectory,
+            isEncrypted: ($values['Encrypted'] ?? '') === '+',
+            type: $type,
+        );
     }
 
-    /**
-     * @return list<array{name: string, size: int}>
-     */
+    private function extractSevenZipEntry(string $archivePath, ArchiveEntry $entry, string $targetPath, ArchiveBudget $budget, int &$totalBytes): void
+    {
+        $this->extractProcessEntry(
+            [(string) config('ai.tools.sevenzip_bin'), 'x', '-so', '-y', $archivePath, $entry->path],
+            $entry,
+            $targetPath,
+            $budget,
+            $totalBytes,
+        );
+    }
+
+    private function extractRarEntry(string $archivePath, ArchiveEntry $entry, string $targetPath, ArchiveBudget $budget, int &$totalBytes): void
+    {
+        $this->extractProcessEntry(
+            [(string) config('ai.tools.unar_bin'), '-o', '-', '-D', '-q', $archivePath, $entry->path],
+            $entry,
+            $targetPath,
+            $budget,
+            $totalBytes,
+        );
+    }
+
+    /** @param list<string> $command */
+    private function extractProcessEntry(array $command, ArchiveEntry $entry, string $targetPath, ArchiveBudget $budget, int &$totalBytes): void
+    {
+        $output = fopen($targetPath, 'xb');
+        if ($output === false) {
+            throw new RuntimeException("не удалось создать временный файл entry: {$targetPath}");
+        }
+        $bytes = 0;
+        $hash = hash_init('sha256');
+        try {
+            $result = Process::timeout($this->timeout())->run(
+                $command,
+                function (string $type, string $buffer) use ($output, $entry, $budget, &$totalBytes, &$bytes, $hash): void {
+                    if ($type !== 'out') {
+                        return;
+                    }
+                    $bytes += strlen($buffer);
+                    $totalBytes += strlen($buffer);
+                    if ($bytes > $entry->declaredSize || $bytes > $budget->maxEntryBytes || $totalBytes > $budget->maxTotalBytes) {
+                        throw new ArchiveValidationException('фактические байты записи архива превысили бюджет');
+                    }
+                    hash_update($hash, $buffer);
+                    if (fwrite($output, $buffer) !== strlen($buffer)) {
+                        throw new RuntimeException('не удалось записать временный файл entry');
+                    }
+                },
+            );
+            if ($result->failed()) {
+                $this->rejectByOutput($result);
+            }
+            if ($bytes !== $entry->declaredSize) {
+                throw new ArchiveValidationException('фактический размер записи не совпал с metadata');
+            }
+        } catch (\Throwable $exception) {
+            fclose($output);
+            unlink($targetPath);
+            throw $exception;
+        }
+        fclose($output);
+    }
+
+    /** @return list<ArchiveEntry> */
     private function listRar(string $archivePath): array
     {
-        $result = Process::timeout($this->timeout())
-            ->run(['lsar', '-json', $archivePath]);
-
+        $result = Process::timeout($this->timeout())->run(['lsar', '-json', $archivePath]);
         $decoded = json_decode($result->output(), true);
-
-        if ($result->failed() || ! is_array($decoded) || ! isset($decoded['lsarContents']) || ! is_array($decoded['lsarContents'])) {
-            $this->rejectByOutput($result->errorOutput().$result->output());
+        if ($result->failed() || ! is_array($decoded) || ! is_array($decoded['lsarContents'] ?? null)) {
+            $this->rejectByOutput($result);
         }
 
-        $entries = [];
-
-        foreach ($decoded['lsarContents'] as $entry) {
-            if (($entry['XADIsEncrypted'] ?? false) === true) {
-                throw new ArchivePasswordProtectedException("архив зашифрован: {$archivePath}");
-            }
-
-            if (! isset($entry['XADFileName'])) {
-                continue;
-            }
-
-            $entries[] = ['name' => (string) $entry['XADFileName'], 'size' => (int) ($entry['XADFileSize'] ?? 0)];
-        }
-
-        return $entries;
+        return array_map(fn (array $entry): ArchiveEntry => new ArchiveEntry(
+            path: (string) ($entry['XADFileName'] ?? ''),
+            declaredSize: (int) ($entry['XADFileSize'] ?? 0),
+            compressedSize: (int) ($entry['XADCompressedSize'] ?? 0),
+            isDirectory: (bool) ($entry['XADIsDirectory'] ?? false),
+            isEncrypted: (bool) ($entry['XADIsEncrypted'] ?? false),
+            type: (bool) ($entry['XADIsLink'] ?? false) ? 'symlink' : ((bool) ($entry['XADIsDirectory'] ?? false) ? 'directory' : 'file'),
+        ), $decoded['lsarContents']);
     }
 
-    /**
-     * @param  list<string>  $entries
-     */
-    private function extractRar(string $archivePath, string $outputDir, array $entries): void
+    /** @param resource $input */
+    private function copyBounded($input, string $targetPath, ArchiveEntry $entry, ArchiveBudget $budget, int &$totalBytes): void
     {
-        $result = Process::timeout($this->timeout())
-            ->run([(string) config('ai.tools.unar_bin'), '-o', $outputDir, '-f', $archivePath, ...$entries]);
-
-        if ($result->failed()) {
-            $this->rejectByOutput($result->errorOutput().$result->output());
+        $output = fopen($targetPath, 'xb');
+        if ($output === false) {
+            throw new RuntimeException("не удалось создать временный файл entry: {$targetPath}");
         }
+        $bytes = 0;
+        try {
+            while (! feof($input)) {
+                $chunk = fread($input, 65536);
+                if ($chunk === false) {
+                    throw new ArchiveUnsupportedException('ошибка чтения ZIP entry');
+                }
+                $bytes += strlen($chunk);
+                $totalBytes += strlen($chunk);
+                if ($bytes > $entry->declaredSize || $bytes > $budget->maxEntryBytes || $totalBytes > $budget->maxTotalBytes) {
+                    throw new ArchiveValidationException('фактические байты записи архива превысили бюджет');
+                }
+                if (fwrite($output, $chunk) !== strlen($chunk)) {
+                    throw new RuntimeException('не удалось записать временный файл entry');
+                }
+            }
+            if ($bytes !== $entry->declaredSize) {
+                throw new ArchiveValidationException('фактический размер записи не совпал с metadata');
+            }
+        } catch (\Throwable $exception) {
+            fclose($output);
+            unlink($targetPath);
+            throw $exception;
+        }
+        fclose($output);
     }
 
-    private function rejectByOutput(string $output): never
+    private function rejectByOutput(ProcessResult $result): never
     {
+        $output = trim($result->errorOutput().$result->output());
         if (str_contains(mb_strtolower($output), 'password')) {
-            throw new ArchivePasswordProtectedException(trim($output));
+            throw new ArchivePasswordProtectedException($output);
         }
-
-        throw new ArchiveUnsupportedException(trim($output) !== '' ? trim($output) : 'распаковщик не смог обработать архив');
+        throw new ArchiveUnsupportedException($output !== '' ? $output : 'распаковщик не смог обработать архив');
     }
 
     private function timeout(): int
     {
-        return (int) config('ai.tools.default_timeout_seconds', 180);
+        return (int) config('ai.prepare.archive.timeout_seconds', config('ai.tools.default_timeout_seconds', 180));
     }
 }

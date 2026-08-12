@@ -236,13 +236,17 @@ return [
 
         /*
         | Zip-бомба (Code Guidance P4.2): `max_depth` — вложенность архив-в-архиве по цепочке
-        | `parent_version_id`; `max_files`/`max_total_mb` — заявленные ZipArchive-заголовками
-        | (без распаковки) число файлов и суммарный uncompressed-размер.
+        | `parent_version_id`; остальные лимиты проверяются до извлечения и повторно по
+        | фактическому потоку одной записи (P6.3, D31).
         */
         'archive' => [
             'max_depth' => (int) env('AI_PREPARE_ARCHIVE_MAX_DEPTH', 2),
             'max_files' => (int) env('AI_PREPARE_ARCHIVE_MAX_FILES', 200),
             'max_total_mb' => (int) env('AI_PREPARE_ARCHIVE_MAX_TOTAL_MB', 500),
+            'max_entry_mb' => (int) env('AI_PREPARE_ARCHIVE_MAX_ENTRY_MB', 100),
+            'max_ratio' => (int) env('AI_PREPARE_ARCHIVE_MAX_RATIO', 100),
+            'max_path_length' => (int) env('AI_PREPARE_ARCHIVE_MAX_PATH_LENGTH', 240),
+            'timeout_seconds' => (int) env('AI_PREPARE_ARCHIVE_TIMEOUT_SECONDS', 180),
         ],
     ],
 
