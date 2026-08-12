@@ -62,12 +62,13 @@ batch и всё равно закрываются каждый своим commit
 | P5.4 | solo | `task:plan-run … P5.4` | implementation/high | — | secret-safe authorized settings UI |
 | P5.5 | solo | `task:plan-run … P5.5` | implementation/high | — | terminal no-fallback/health/tooling proof |
 | P5.6 | solo | `task:plan-run … P5.6` | implementation/high | D76 | final source/product/projection remediation; два repository commits, 0 deviations, direct close P5 без Audit 3 |
-| P6.1 | solo | `task:plan-run … P6.1` | frontier/high | contract reconcile | terminal upstream may supersede format/archive design |
-| P6.2 | solo | `task:plan-run … P6.2` | implementation/high | — | typed registry/result/reason contract |
-| P6.3 | solo | `task:plan-run … P6.3` | implementation/high | — | hostile archive resource/path boundary |
-| P6.4 | solo | `task:plan-run … P6.4` | implementation/high | — | transactional child persistence/dispatch |
-| P6.5 | solo | `task:plan-run … P6.5` | implementation/high | — | concurrency/retry/adversarial proof |
-| P6.6 | solo | `task:plan-exec … P6.6` | implementation/medium | — | deterministic terminal docs/contract gate |
+| P6.1 | closed | — | frontier/high | contract reconcile | terminal with product `aee27831`; historical deviation retained |
+| P6.2 | closed | — | implementation/high | — | terminal typed registry/result/reason product |
+| P6.3 | closed | — | implementation/high | — | product `91b18770`; write-site undershoot reconciles truthfully in P6.7 |
+| P6.4 | closed | — | implementation/high | — | product `89b4e793`; exact out-of-Files status-test drift reconciles in P6.7 |
+| P6.5 | closed | — | implementation/high | — | product `c6bff21f`; write-site undershoot reconciles truthfully in P6.7 |
+| P6.6 | closed | — | implementation/medium | — | product `5045cc85`; stale full-suite claim remediates on P6.7 candidate |
+| P6.7 | solo | `task:plan-run … P6.7` | implementation/high | D77 | common GSFX bounded lifecycle, typed-suite/full no-TIA proof and append-only evidence; then Audit P6 round 2 |
 | P7.1 | solo | `task:plan-run … P7.1` | frontier/high | taxonomy/schema freeze | public prompt/schema contract freeze |
 | P7.2 | solo | `task:plan-run … P7.2` | implementation/high | — | schema migration/backfill/index correctness |
 | P7.3 | solo | `task:plan-run … P7.3` | implementation/high | — | provider schema/prompt/gold contract |

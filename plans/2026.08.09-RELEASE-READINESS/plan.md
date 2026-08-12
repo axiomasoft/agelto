@@ -15,10 +15,10 @@
 | Target Operator Models | economy → gpt-5.6-luna · implementation → gpt-5.6-terra · frontier → gpt-5.6-sol |
 | Approval Owner | Dmitry Vostrikov |
 | Home | repo:/home/vostrikov/projects/agelto/agelto |
-| Design Passes | 1/1 — owner-directed сокращение D46 сохранено; D52 остаётся machine-current carrier повторного полного cross-phase `finish` для 13 фаз / 75 product/design items после добавления P0.0; D55 принимает этот design после ремедиации F9–F12; D62, D64 и D66 адресно добавили 76-й–78-й remediation-items P0.7/P1.6/P1.7; D67 исправляет только evidence topology P1.7; D70 добавляет 79-й remediation-item P2.7 и завершает design-цикл P2; D71 заменяет только fresh-audit gate штатным close и передачей на P3; D72 добавляет 80-й и последний remediation-item P4.6, замыкающий RED-аудит P4 без нового design/audit цикла |
+| Design Passes | 1/1 — owner-directed сокращение D46 сохранено; D52 остаётся machine-current carrier повторного полного cross-phase `finish` для 13 фаз / 75 product/design items после добавления P0.0; D55 принимает этот design после ремедиации F9–F12; D62, D64 и D66 адресно добавили 76-й–78-й remediation-items P0.7/P1.6/P1.7; D67 исправляет только evidence topology P1.7; D70 добавляет 79-й remediation-item P2.7 и завершает design-цикл P2; D71 заменяет только fresh-audit gate штатным close и передачей на P3; D72/D76/D77 адресно добавили 80-й–82-й remediation-items P4.6/P5.6/P6.7; P6.7 возвращает фазу на обязательный Audit P6, заход 2 |
 | visibility | private |
 
-<!-- migration-version: 0.1.8 -->
+<!-- migration-version: 0.1.9 -->
 
 ## 1. Context
 
@@ -48,6 +48,7 @@ Vintera/CMS и Dterema и верифицирует внешние практик
 - RED-аудит P2 закрывается одним последним design-carrier P2.7 по D70: product fixes F1–F6 сходятся в обязательный P2 release carrier, F7 восстанавливается append-only journal reconciliation без ручной правки state projections, F8 — штатным phase bookkeeping; D71 по прямой директиве владельца заменяет fresh-context audit штатным close и передачей на P3. RAG:— (repo-grounded: `research/19-P2-audit-remediation.md`, P2 Audit 2026-08-11, owner directions 2026-08-11).
 - RED-аудит P4 закрывается одним последним design-carrier P4.6 по D72: active SVG исключается из build/manifest/HTTP boundary, P4.2/P4.5 получают self-contained clean candidate и буквальный browser/image proof, а P4.1/P4.2/P4.5 evidence исправляется только append-only; после GREEN P4.6 выполняется штатный close P4 без нового audit/design цикла. RAG:— (repo-grounded: `research/20-P4-audit-remediation.md`, P4 Audit 2026-08-11, owner direction 2026-08-11).
 - AUDIT-CAP P5 закрывается одним последним cross-repository remediation-carrier P5.6 по D76: current P5.5 out-of-Files effect получает нового владельца и GREEN correction, Task `--conflicts`/downstream исправляются только в canonical source/runtime projection без cache edits, return/decision/projection gates сходятся в 0/0; после GREEN выполняется direct close P5 без третьего Audit P5. RAG:— (repo-grounded: `research/21-P5-audit-cap-remediation.md`, Audit P5 round 2, owner direction 2026-08-11).
+- RED-аудит P6 закрывается одним bounded remediation-carrier P6.7 по D77: GSFX attachments входят в общий D31 validator/extractor/lineage Action/after-commit path, stale Gsfx/Scan/Spreadsheet tests переходят на typed P6.2 contract, а P6.3/P6.5/P6.6 и P6.4 получают только truthful append-only reconciliation; после terminal P6.7 обязателен Audit P6, заход 2. RAG:— (repo-grounded: `research/22-P6-audit-remediation.md`, `phases/P6/P6.md` → `## Audit P6 — 2026-08-12`).
 - RAG-факты и сравнение чужих репозиториев сохранять в findings в том же ходе; синтез — в research; решения — в decisions. P0.3 закрывается только после MCP replay по D56; WebSearch-only fallback остаётся provisional.
 - Любой внешний best practice получает RAG:✅ с URL и датой либо остаётся [UNVERIFIED]; RAG:— допустим только для фактов этого репозитория.
 - Текущие Makefile/Compose — requirements input: совместимость целей сохраняется только после инвентаря и осознанного решения.
@@ -114,6 +115,7 @@ remediation-items P0.7/P1.6/P1.7/P2.7/P4.6/P5.6 по D62/D64/D66/D70/D72/D76 и 
 | — | P6.4 | implementation/high | manual | full | schema uniqueness, storage addressing and after-commit job lifecycle требуют high без открытого product design |
 | — | P6.5 | implementation/high | manual | full | adversarial integration/retry/concurrency proof проверяет security и idempotency contract целиком |
 | — | P6.6 | implementation/medium | plan-exec | full | deterministic contract-test/docs/architecture gate по уже запечатанным D30/D31 |
+| — | P6.7 | implementation/high | manual | full | audit-defined security/lifecycle remediation и truthful cross-item evidence reconciliation требуют один committed product anchor и полный no-TIA gate без нового product design |
 | — | P7.1 | frontier/high | manual | full | terminal P0/P6 reconcile замораживает taxonomy/response/disposition contract; открытая цена schema/prompt ошибки требует frontier |
 | — | P7.2 | implementation/high | manual | full | JSON schema migration/backfill/indexes correctness-critical, но D32–D34 и P7.1 запечатали carrier |
 | — | P7.3 | implementation/high | manual | full | structured provider schema/prompt/gold contract public для pipeline, решения уже запечатаны D33 |

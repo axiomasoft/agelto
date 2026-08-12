@@ -1,42 +1,33 @@
-# HANDOFF — 2026-08-12 — after P6.6
+# HANDOFF — 2026-08-12 — after P6.7
 
-**Next:** `task:plan-audit 2026.08.09-RELEASE-READINESS P6`
+**Next:** audit-phase: task:plan-audit 2026.08.09-RELEASE-READINESS P6
 
 | Параметр | Значение |
 |:--|:--|
-| Batch | solo |
-| Model | frontier |
-| Thinking | xhigh — независимый phase audit |
-| Context | fresh reviewer |
-| Суть | Проверить P6 registry/archive/child lifecycle и P6.6 extension gate перед закрытием фазы. |
+| Batch | n/a |
+| Model class | frontier |
+| Effort | xhigh |
+| Capabilities | — |
+| Context | cold-start-root: audit-root-terminal |
+| Суть | Независимо проверить P6.7 candidate, append-only corrections и P6 closure eligibility (Audit P6, заход 2). |
 | Команда | `$ task:plan-audit 2026.08.09-RELEASE-READINESS P6` |
 
-Native Codex launch-block:
+#### Native Codex launch-block
 
 ```bash
 codex -C /home/vostrikov/projects/agelto/agelto -m gpt-5.6-sol -c 'model_reasoning_effort="xhigh"' -a never -s danger-full-access '$ task:plan-audit 2026.08.09-RELEASE-READINESS P6'
 ```
 
-**Done:**
+**Done:** P6.7 product anchors `b86d47c6fc55e95317bdcdf29a8f2c77b632c861` и `84d033fc124dcfc8ba365ba3a67309118ba5b472` унифицировали GSFX attachment lifecycle, migrated stale strategy assertions и добавили typed Contour assertion по D78. Focused carrier green: 75 tests / 361 assertions; full no-TIA green: 1491 tests / 6398 assertions. P6.3–P6.6 получили append-only factual reconciliation и current downstream records.
 
-- P6.6 closed 🟠: product `5045cc85` adds the enum-complete extension contract dataset, registry architecture guard, terminal mismatch/unsupported feature tests and P6 documentation/status synchronization.
-- Focused carrier passed: 5 tests / 162 assertions. Full `php artisan test --no-tia` passed in the `app` container. Pint, `git diff --check`, static routing search and strict citation verification are green.
+**Remaining:** Выполнить независимый Audit P6, заход 2. Direct close P6 и P7 до его GREEN verdict запрещены.
 
-**Remaining:**
+**Sources of truth:** `plan.md` · `phases/P6/P6.md` → `## Audit P6 — 2026-08-12` · `phases/P6/P6.7.md` · `research/22-P6-audit-remediation.md` · D77 · D30 · D31.
 
-- Independent phase audit P6, then phase closure if the audit is GREEN.
-
-**Sources of truth:**
-
-- `phases/P6/P6.6.md`, `phases/P6/P6.6.state.md`, `research/08-P6-execution-design.md`, D30/D31.
-- Product commit `5045cc85`; current digest bundles and `journal.jsonl`.
-
-**Open risks:**
-
-- `make test-preflight`, `make db:create-test` and `make artisan` are absent. P6.6 used the isolated Docker/Postgres preflight plus direct `php artisan test --no-tia`; restoring the Make targets remains outside this item.
+**Open risks:** Historical P6.3/P6.5 route evidence остаётся `block:ROUTE_UNDERSHOOT / n/a`; P6.7 несёт собственный `allow/allow` anchor. Audit обязан проверить, что future-consumer `unknown` downstream records не выданы за GREEN acceptance.
 
 **Workarounds/Deferred/Open questions:**
 
-- workarounds: owner explicitly authorized proceeding despite unavailable provider route evidence; preflight recorded `ROUTE_UNDERSHOOT` and the item is therefore 🟠.
-- deferred: add the missing Make validation targets through their owner before release-plan closure.
+- workarounds: —
+- deferred: semantic taxonomy P7 и чужие phase products остаются у своих owners.
 - open_questions: —

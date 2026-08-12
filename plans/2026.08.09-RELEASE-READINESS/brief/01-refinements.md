@@ -248,3 +248,23 @@ direct из nullable `proxy_id` запрещено D29. После plan-only rep
 state/decisions/status/bundle/closure views. Третий Audit P5 запрещён: после GREEN P5.6 следует
 штатный direct close P5. Оба существующих dirty worktree сначала классифицируются и сохраняются,
 чужие изменения не затираются.
+
+## 2026-08-12 — bounded reopen P6 по RED-аудиту
+
+Владелец запустил `$ task:plan-design 2026.08.09-RELEASE-READINESS P6` как bounded audit
+design-repair, не полную детализацию и не execution. Scope ограничен F1–F5 блока
+`## Audit P6 — 2026-08-12`: один remediation-item проводит GSFX attachments через общий bounded
+validator/extractor, существующий lineage Action и after-commit dispatch; переводит stale
+Gsfx/Scan/Spreadsheet tests на typed contract; повторяет focused/full no-TIA suite; append-only
+reconciles canonical write-site/downstream evidence P6.3/P6.5/P6.6 и exact P6.4 scope drift;
+обновляет handoff и после execution возвращает P6 на Audit, заход 2. Frozen D30/D31, P7 taxonomy,
+чужие phase products, generated views и test DB/media guards остаются вне ручного scope. Решение
+материализовано D77 и `research/22-P6-audit-remediation.md`.
+
+## 2026-08-12 — owner scope clarification P6.7
+
+Владелец явно разрешил завершить P6.7 в этой сессии и классифицировал оставшийся red
+`tests/Feature/Procurement/ContourTest.php:131` как минимальное stale boolean assertion, а не
+как блокер. D78 добавляет только этот test-path в P6.7: assertion `ArchiveStrategy::process()`
+должен проверять existing `PreparationResult::ExpandedContainer`; D30/D31, production code
+semantics, guards и полный no-TIA acceptance остаются неизменными.
