@@ -3,7 +3,7 @@ projection: status-view
 projection_version: v1
 source_scope: plan core + phases + journal
 through: 2026-08-12
-inputs_sha256: 4cb746af25474f42e48e557d2ff9fe3bbcf61800a6fd99873204713f06606455
+inputs_sha256: ad58700e2e7b339ef76a6444f6a571468d7f0096f69a9d956064dbdf2d798411
 generated_by: task plan-views status
 -->
 
@@ -522,6 +522,9 @@ write-site: pre_mutation: allow · pre_final: allow |
 | 2026-08-12 | frontier/high | plan-run · closed-green · Carrier-only reconciliation of original frontier/high run 062c3426 and product 5e929fc9; no implementation replay.
 write-site: pre_mutation: allow · pre_final: allow |
 | 2026-08-12 | frontier/xhigh | plan-audit · audit-green · заход 2, вердикт GREEN; provider adapter unavailable under browser bridge; local audit run UUID |
+| 2026-08-12 | frontier/xhigh | plan-audit · audit-green · Normalized P7 audit subject for phase-close gate; same GREEN audit evidence. |
+| 2026-08-12 | implementation/low | plan-close · closed-green · P7 closed after matching GREEN audit; normalized audit subject repair verified. |
+| 2026-08-12 | implementation/low | plan-close · closed-green · P7 closure receipt terminal record after matching GREEN audit. |
 
 ## Owner Gates
 
