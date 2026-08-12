@@ -27,6 +27,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property string $storage_path
  * @property string|null $disk
  * @property int|null $parent_version_id
+ * @property string|null $archive_entry_path
  * @property-read Document|null $document
  */
 #[UseFactory(DocumentVersionFactory::class)]
@@ -47,6 +48,7 @@ final class DocumentVersion extends Model
         'disk',
         'downloaded_at',
         'parent_version_id',
+        'archive_entry_path',
     ];
 
     protected function casts(): array
@@ -64,6 +66,16 @@ final class DocumentVersion extends Model
     public function document(): BelongsTo
     {
         return $this->belongsTo(related: Document::class);
+    }
+
+    public function parentVersion(): BelongsTo
+    {
+        return $this->belongsTo(related: self::class, foreignKey: 'parent_version_id');
+    }
+
+    public function archiveChildren(): HasMany
+    {
+        return $this->hasMany(related: self::class, foreignKey: 'parent_version_id');
     }
 
     public function datasetExamples(): HasMany

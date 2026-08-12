@@ -55,6 +55,7 @@ final class PipelineStatus extends Command
         $labels = [
             DocumentStatus::Discovered->value => 'Discovered',
             DocumentStatus::Downloaded->value => 'Downloaded',
+            DocumentStatus::Expanded->value => 'Expanded',
             DocumentStatus::Prepared->value => 'Prepared',
             DocumentStatus::Screened->value => 'Screened',
             DocumentStatus::Extracted->value => 'Extracted',

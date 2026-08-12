@@ -79,11 +79,11 @@ final class PrepareDocumentJob extends PipelineJob implements ShouldBeUnique
             return;
         }
 
-        app(DocumentStoreRepository::class)->update($document, ['status' => DocumentStatus::Prepared]);
-
         if ($result === PreparationResult::ExpandedContainer) {
             return;
         }
+
+        app(DocumentStoreRepository::class)->update($document, ['status' => DocumentStatus::Prepared]);
 
         if (config('ai.screening.enabled', false)) {
             // Launch-точка (§3.5 root/document-contour.md) — режим и инициатор едут параметрами

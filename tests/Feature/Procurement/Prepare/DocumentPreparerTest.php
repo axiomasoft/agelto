@@ -12,6 +12,8 @@ use App\Models\Procurement\Document\DocumentVersion;
 use App\Models\Procurement\ProcurementEvent;
 use App\Repositories\Procurement\Document\RepresentationStoreRepository;
 use App\Services\Procurement\Prepare\SpreadsheetStrategy;
+use Illuminate\Database\QueryException;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Process;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
@@ -135,12 +137,13 @@ test('XLSX — обе ветки SpreadsheetStrategy упали — unprocessabl
 
 test('архив с xlsx внутри — создаёт дочерний Document+Version с parent_version_id и событием document_added', function () {
     Storage::fake('s3');
+    Queue::fake();
     $document = Document::factory()->create(['status' => DocumentStatus::Downloaded]);
     $version = seedVersion($document, 'sample-with-xlsx.zip', 'zip');
 
     (new PrepareDocumentJob($document->id))->handle();
 
-    expect($document->refresh()->status)->toBe(DocumentStatus::Prepared);
+    expect($document->refresh()->status)->toBe(DocumentStatus::Expanded);
 
     $child = Document::query()->where('procurement_id', $document->procurement_id)
         ->where('external_id', "{$version->id}:estimates/sample.xlsx")
@@ -151,6 +154,10 @@ test('архив с xlsx внутри — создаёт дочерний Docume
 
     $childVersion = DocumentVersion::query()->where('document_id', $child->id)->first();
     expect($childVersion->parent_version_id)->toBe($version->id);
+    expect($childVersion->archive_entry_path)->toBe('estimates/sample.xlsx');
+
+    Queue::assertPushed(PrepareDocumentJob::class, fn (PrepareDocumentJob $job): bool => $job->documentId === $child->id);
+    Queue::assertNotPushed(ScreeningJob::class);
 
     expect(ProcurementEvent::query()
         ->where('procurement_id', $document->procurement_id)
@@ -161,6 +168,7 @@ test('архив с xlsx внутри — создаёт дочерний Docume
 
 test('повторный прогон подготовки архива — дочерний документ не дублируется', function () {
     Storage::fake('s3');
+    Queue::fake();
     $document = Document::factory()->create(['status' => DocumentStatus::Downloaded]);
     seedVersion($document, 'sample-with-xlsx.zip', 'zip');
 
@@ -171,6 +179,58 @@ test('повторный прогон подготовки архива — до
     expect(Document::query()->where('procurement_id', $document->procurement_id)->where('id', '!=', $document->id)->count())->toBe(1);
 });
 
+test('архив читается с recorded disk, а child пишется на current disk', function () {
+    Storage::fake('s3');
+    Storage::fake('legacy-documents');
+    Queue::fake();
+
+    $document = Document::factory()->create(['status' => DocumentStatus::Downloaded]);
+    $content = fixtureContent('sample-with-xlsx.zip');
+    $storagePath = 'documents/legacy-archive.zip';
+    Storage::disk('legacy-documents')->put($storagePath, $content);
+
+    $version = DocumentVersion::factory()->create([
+        'document_id' => $document->id,
+        'content_hash' => hash('sha256', $content),
+        'size_bytes' => strlen($content),
+        'filename' => 'sample-with-xlsx.zip',
+        'extension' => 'zip',
+        'mime' => 'application/zip',
+        'storage_path' => $storagePath,
+        'disk' => 'legacy-documents',
+        'downloaded_at' => now(),
+    ]);
+
+    (new PrepareDocumentJob($document->id))->handle();
+
+    $childVersion = DocumentVersion::query()->where('parent_version_id', $version->id)->sole();
+    expect($document->refresh()->status)->toBe(DocumentStatus::Expanded)
+        ->and($childVersion->disk)->toBe('s3');
+    Storage::disk('s3')->assertExists($childVersion->storage_path);
+});
+
+test('identity archive entry принадлежит паре parent version и normalized path', function () {
+    $parentA = DocumentVersion::factory()->create();
+    $parentB = DocumentVersion::factory()->create();
+
+    DocumentVersion::factory()->create([
+        'parent_version_id' => $parentA->id,
+        'archive_entry_path' => 'estimates/sample.xlsx',
+    ]);
+
+    expect(fn () => DB::transaction(fn () => DocumentVersion::factory()->create([
+        'parent_version_id' => $parentA->id,
+        'archive_entry_path' => 'estimates/sample.xlsx',
+    ])))->toThrow(QueryException::class);
+
+    $differentParent = DocumentVersion::factory()->create([
+        'parent_version_id' => $parentB->id,
+        'archive_entry_path' => 'estimates/sample.xlsx',
+    ]);
+
+    expect($differentParent->archive_entry_path)->toBe('estimates/sample.xlsx');
+});
+
 test('осиротевший дочерний документ архива (child без Version) — ретрай дописывает версию, а не пропускает индексацию', function () {
     // Регрессия ревью-находки P4 HIGH: до фикса `indexChild()` без DB::transaction мог
     // закоммитить child Document раньше DocumentVersion (например, при транзиентном сбое
@@ -179,6 +239,7 @@ test('осиротевший дочерний документ архива (chi
     // никогда. Воспроизводим осиротевшее состояние напрямую и проверяем, что ретрай
     // backfill'ит версию, а не тихо пропускает индексацию.
     Storage::fake('s3');
+    Queue::fake();
     $document = Document::factory()->create(['status' => DocumentStatus::Downloaded]);
     $version = seedVersion($document, 'sample-with-xlsx.zip', 'zip');
 
@@ -191,7 +252,7 @@ test('осиротевший дочерний документ архива (chi
 
     (new PrepareDocumentJob($document->id))->handle();
 
-    expect($document->refresh()->status)->toBe(DocumentStatus::Prepared);
+    expect($document->refresh()->status)->toBe(DocumentStatus::Expanded);
 
     $children = Document::query()
         ->where('procurement_id', $document->procurement_id)
@@ -203,7 +264,8 @@ test('осиротевший дочерний документ архива (chi
 
     $childVersion = DocumentVersion::query()->where('document_id', $orphan->id)->first();
     expect($childVersion)->not->toBeNull()
-        ->and($childVersion->parent_version_id)->toBe($version->id);
+        ->and($childVersion->parent_version_id)->toBe($version->id)
+        ->and($childVersion->archive_entry_path)->toBe('estimates/sample.xlsx');
 });
 
 test('архив сверх лимита вложенности (max_depth=0) — unprocessable(zip_bomb), без распаковки', function () {

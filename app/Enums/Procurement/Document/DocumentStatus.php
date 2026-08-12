@@ -11,6 +11,7 @@ enum DocumentStatus: string
 {
     case Discovered = 'discovered';
     case Downloaded = 'downloaded';
+    case Expanded = 'expanded';
     case Prepared = 'prepared';
     case Screened = 'screened';
     case Extracted = 'extracted';

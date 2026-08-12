@@ -145,6 +145,19 @@ test('документ, застрявший в discovered сверх порог
     Http::assertSentCount(1);
 });
 
+test('expanded archive не считается зависшей стадией', function () {
+    Http::fake();
+
+    Document::factory()->create([
+        'status' => DocumentStatus::Expanded,
+        'updated_at' => now()->subMinutes(61),
+    ]);
+
+    $this->artisan('pipeline:stuck-check')->assertSuccessful();
+
+    Http::assertNothingSent();
+});
+
 test('всплеск unknown в скрининге сверх порога — алерт', function () {
     Http::fake();
 

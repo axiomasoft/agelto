@@ -81,6 +81,14 @@ final readonly class DocumentStoreRepository
             ->first();
     }
 
+    public function findArchiveEntryVersion(int $parentVersionId, string $archiveEntryPath): ?DocumentVersion
+    {
+        return DocumentVersion::query()
+            ->where('parent_version_id', $parentVersionId)
+            ->where('archive_entry_path', $archiveEntryPath)
+            ->first();
+    }
+
     /**
      * @param  array<string, mixed>  $attributes
      */
