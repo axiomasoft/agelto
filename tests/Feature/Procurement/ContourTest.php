@@ -8,6 +8,7 @@ use App\Enums\Procurement\Ai\FixtureClass;
 use App\Enums\Procurement\Ai\GoldSource;
 use App\Enums\Procurement\Ai\RunMode;
 use App\Enums\Procurement\Document\DocumentStatus;
+use App\Enums\Procurement\Document\PreparationResult;
 use App\Exceptions\Procurement\Ai\NoActiveAnalysisRun;
 use App\Models\Procurement\Ai\AnalysisRun;
 use App\Models\Procurement\Ai\Fixture;
@@ -127,8 +128,8 @@ test('дочерний документ архива наследует площ
         'size_bytes' => strlen($content),
     ]);
 
-    $processed = app(ArchiveStrategy::class)->process($document, $version);
-    expect($processed)->toBeTrue();
+    $result = app(ArchiveStrategy::class)->process($document, $version);
+    expect($result)->toBe(PreparationResult::ExpandedContainer);
 
     $child = Document::query()->where('external_id', "{$version->id}:estimate.txt")->firstOrFail();
     expect($child->platform_id)->toBe($platform->id);

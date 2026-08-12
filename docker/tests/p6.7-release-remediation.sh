@@ -24,6 +24,7 @@ testing_app=("${compose[@]}" exec -T -e APP_ENV=testing -e DB_DATABASE="$test_da
     tests/Feature/Procurement/Prepare/GsfxStrategyTest.php \
     tests/Feature/Procurement/Prepare/ScanStrategyTest.php \
     tests/Feature/Procurement/Prepare/SpreadsheetStrategyTest.php \
+    tests/Feature/Procurement/ContourTest.php \
     tests/Feature/Procurement/Prepare/ArchivePipelineTest.php \
     tests/Feature/Procurement/Prepare/DocumentFormatContractTest.php \
     tests/Unit/Procurement/Prepare/ArchiveEntryValidatorTest.php
@@ -33,7 +34,8 @@ testing_app=("${compose[@]}" exec -T -e APP_ENV=testing -e DB_DATABASE="$test_da
     app/Services/Procurement/Prepare/PreparationStrategy.php \
     tests/Feature/Procurement/Prepare/GsfxStrategyTest.php \
     tests/Feature/Procurement/Prepare/ScanStrategyTest.php \
-    tests/Feature/Procurement/Prepare/SpreadsheetStrategyTest.php
+    tests/Feature/Procurement/Prepare/SpreadsheetStrategyTest.php \
+    tests/Feature/Procurement/ContourTest.php
 
 ! rg -n 'ZipArchive::extractTo\(' "$root_dir/app"
 ! rg -n 'indexChild\(|storeRepository|procurementStore' "$root_dir/app/Services/Procurement/Prepare/GsfxStrategy.php"
