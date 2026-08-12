@@ -3,7 +3,7 @@ projection: status-view
 projection_version: v1
 source_scope: plan core + phases + journal
 through: 2026-08-12
-inputs_sha256: bd2f5f7edbb8b03e1e9cb237f9d62862cc1f1303ffd814872844a2ea7f2409e0
+inputs_sha256: b65166ab332d18ef8b40ec00991ab90f57c7921c6a45f1eddf52b50866ba3904
 generated_by: task plan-views status
 -->
 
@@ -145,7 +145,7 @@ generated_by: task plan-views status
 | ID | Title | Status | Updated |
 |:--|:--|:--|:--|
 | P6.1 | Снять каноническую матрицу extension/MIME/magic и текущих handlers | 🟠 Done with deviations | 2026-08-12 |
-| P6.2 | Запечатать typed file-handler registry и terminal reasons для unsupported | ⬜ Not started | — |
+| P6.2 | Запечатать typed file-handler registry и terminal reasons для unsupported | 🟠 Done with deviations | 2026-08-12 |
 | P6.3 | Реализовать безопасное идемпотентное раскрытие архивов с лимитами | ⬜ Not started | — |
 | P6.4 | Создавать child file records со ссылкой на parent archive и dispatch | ⬜ Not started | — |
 | P6.5 | Добавить требуемый archive-to-children-to-processing integration test | ⬜ Not started | — |
@@ -425,6 +425,11 @@ write-site: pre_mutation: allow · pre_final: allow. |
 | 2026-08-12 | frontier/high | plan-run · in-progress · Reconcile canonical write-site line after post-close lint. |
 | 2026-08-12 | frontier/high | plan-run · closed-deviations · Reconciliation: product aee27831 and review/gates green; P0.5/P0.6 products recovered from Git because terminal states/bundle omit paths.
 write-site: pre_mutation: allow · pre_final: allow |
+| 2026-08-12 | gpt-5.6-terra/high | plan-run · in-progress · P6.2 started in the current owner session. |
+| 2026-08-12 | gpt-5.6-terra/high | plan-run · closed-deviations · Typed registry, inspection evidence, centralized terminal mutation and durable reason migration delivered; legacy Make validation targets are absent. |
+| 2026-08-12 | gpt-5.6-terra/high | plan-run · in-progress · Reconcile canonical write-site line and downstream records. |
+| 2026-08-12 | gpt-5.6-terra/high | plan-run · closed-deviations · Typed registry, inspection evidence, centralized terminal mutation and durable reason migration delivered; legacy Make validation targets are absent.
+write-site: pre_mutation: allow · pre_final: allow |
 
 ## Owner Gates
 
@@ -435,3 +440,4 @@ write-site: pre_mutation: allow · pre_final: allow |
 - P4.4: known deviation
 - P4.6: known deviation
 - P6.1: known deviation
+- P6.2: known deviation

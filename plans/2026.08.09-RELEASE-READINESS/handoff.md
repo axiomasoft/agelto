@@ -1,4 +1,4 @@
-# HANDOFF — 2026-08-12 — after P6.1
+# HANDOFF — 2026-08-12 — after P6.2
 
 **Next:** ЗАПУСК ВРУЧНУЮ: `implementation/high`
 
@@ -7,22 +7,22 @@
 | Model | implementation |
 | Thinking | high |
 | Context | continue-root |
-| Суть | Исполнить P6.2: реализовать frozen typed format registry/inspector/result, закрытый reason keyset и durable unprocessable reason без catch-all. |
+| Суть | Исполнить P6.3: реализовать bounded archive metadata/path/type/resource validation and per-entry extraction. |
 | Команда | — |
 
-The authoritative root may continue: P6.1 is terminal, P6.2 has a byte-fresh bundle, and no owner
+The authoritative root may continue: P6.2 is terminal, P6.3 has a byte-fresh bundle, and no owner
 gate or external-state wait is open.
 
 ```text
 select session model class implementation
 select session effort high
-$ task:plan-run 2026.08.09-RELEASE-READINESS P6.2
+$ task:plan-run 2026.08.09-RELEASE-READINESS P6.3
 ```
 
 Native Codex launch:
 
 ```bash
-codex -C /home/vostrikov/projects/agelto/agelto -m gpt-5.6-terra -c 'model_reasoning_effort="high"' -a never -s danger-full-access '$ task:plan-run 2026.08.09-RELEASE-READINESS P6.2'
+codex -C /home/vostrikov/projects/agelto/agelto -m gpt-5.6-terra -c 'model_reasoning_effort="high"' -a never -s danger-full-access '$ task:plan-run 2026.08.09-RELEASE-READINESS P6.3'
 ```
 
 **Done:**
@@ -37,18 +37,20 @@ codex -C /home/vostrikov/projects/agelto/agelto -m gpt-5.6-terra -c 'model_reaso
   committed PDF/PNG/XLSX/ZIP/GSFX corpus hashes and replay results are recorded in the finding.
 - Fresh full-review is PASS after GSFX provenance, exact reason keyset, pinned row evidence and
   directory-entry normalization were tightened.
+- P6.2 is terminal 🟠; product commit `0846fb94` adds the typed format registry/inspector/result,
+  `unprocessable_reason` migration and centralized terminal mutation Action. Focused prepare tests
+  passed; missing legacy Make validation targets remain a material process deviation.
 - P6.2–P6.6 downstream records are `unknown` because their validations require future product code;
   `plan-downstream.py` reports `blocks: false` for producer commit `aee27831`.
 
 **Remaining:**
 
-- Execute P6.2 from the frozen matrix. It owns the typed registry/inspector/result, reason migration
-  and centralized terminal mutation path; P6.3 owns archive adapter implementation and the
+- Execute P6.3 from the frozen matrix. It owns archive adapter implementation and the
   fixture-backed compression-ratio default.
 
 **Sources of truth:**
 
-- `phases/P6/P6.1.state.md`, `phases/P6/P6.2.md`, `bundles/P6.2.json`.
+- `phases/P6/P6.2.state.md`, `phases/P6/P6.3.md`, `bundles/P6.3.json`.
 - `findings/P6-format-archive-recon-2026-08-09.md`, `research/08-P6-execution-design.md`, D30, D31
   and D61.
 - `journal.jsonl` plus `findings/P6.1-downstream-P6.*-aee27831257c.md` for terminal and downstream
@@ -65,6 +67,9 @@ codex -C /home/vostrikov/projects/agelto/agelto -m gpt-5.6-terra -c 'model_reaso
   archives; infrastructure failures remain retryable exceptions, not input-terminal reasons.
 - Current plan lint has one known D29 warning: P6 declares orchestration while no workflow script is
   present. It is non-blocking and predates this item.
+- `make test-preflight` and `make db:create-test` are absent from the current Makefile although P6.2
+  Validation requires them; restore this test surface in its owning runtime/deployment work before
+  relying on those aliases.
 
 **Workarounds/Deferred/Open questions:**
 
