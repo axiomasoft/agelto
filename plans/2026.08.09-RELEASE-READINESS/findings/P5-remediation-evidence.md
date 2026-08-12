@@ -17,7 +17,8 @@ into seed assertions; it does not touch a development or production database.
 
 `EisSeedersTest` also declares `RefreshDatabase` locally, matching adjacent database feature
 tests. The explicit binding keeps its seed assertions isolated when the full suite changes test
-class ordering.
+class ordering. Every EIS registry assertion now scopes `fz44` by the `eis` platform, matching
+the seeder's documented non-global uniqueness contract.
 
 The carrier injects `APP_ENV=testing` and the `agelto_test` database name parsed from
 `phpunit.xml` into every app command. `--env=testing` alone did not override the container's

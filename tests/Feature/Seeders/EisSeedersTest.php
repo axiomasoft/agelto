@@ -36,16 +36,20 @@ test('сид заводит площадку ЕИС и реестр fz44 с на
 test('повторный прогон сида площадки идемпотентен — без дублей и ротации UUID реестра', function (): void {
     $this->seed(EisPlatformSeeder::class);
 
-    $registry = Registry::query()->where('code', 'fz44')->sole();
+    $platform = Platform::query()->where('code', 'eis')->sole();
+    $registry = Registry::query()->where('platform_id', $platform->id)->where('code', 'fz44')->sole();
     $registryId = $registry->id;
     $registryUuid = $registry->uuid;
 
     $this->seed(EisPlatformSeeder::class);
 
-    $reseededRegistry = Registry::query()->where('code', 'fz44')->sole();
+    $reseededRegistry = Registry::query()
+        ->where('platform_id', $platform->id)
+        ->where('code', 'fz44')
+        ->sole();
 
     expect(Platform::query()->where('code', 'eis')->count())->toBe(1)
-        ->and(Registry::query()->where('code', 'fz44')->count())->toBe(1)
+        ->and(Registry::query()->where('platform_id', $platform->id)->where('code', 'fz44')->count())->toBe(1)
         ->and($reseededRegistry->id)->toBe($registryId)
         ->and($reseededRegistry->uuid)->toBe($registryUuid);
 });
@@ -55,7 +59,8 @@ test('после сида площадки StatusMappingSeeder заводит м
 
     Artisan::call('db:seed', ['--class' => StatusMappingSeeder::class]);
 
-    $registry = Registry::query()->where('code', 'fz44')->sole();
+    $platform = Platform::query()->where('code', 'eis')->sole();
+    $registry = Registry::query()->where('platform_id', $platform->id)->where('code', 'fz44')->sole();
 
     expect(StatusMapping::query()->where('registry_id', $registry->id)->count())
         ->toBe(5);
@@ -65,7 +70,8 @@ test('сид заводит два профиля обхода — архивн�
     $this->seed(EisPlatformSeeder::class);
     $this->seed(CrawlerProfileSeeder::class);
 
-    $registry = Registry::query()->where('code', 'fz44')->sole();
+    $platform = Platform::query()->where('code', 'eis')->sole();
+    $registry = Registry::query()->where('platform_id', $platform->id)->where('code', 'fz44')->sole();
     $crawlers = Crawler::query()->where('registry_id', $registry->id)->get()->keyBy('mode');
 
     expect($crawlers)->toHaveCount(2);
@@ -89,7 +95,8 @@ test('сид заводит архивный профиль с окном дат
     $this->seed(EisPlatformSeeder::class);
     $this->seed(CrawlerProfileSeeder::class);
 
-    $registry = Registry::query()->where('code', 'fz44')->sole();
+    $platform = Platform::query()->where('code', 'eis')->sole();
+    $registry = Registry::query()->where('platform_id', $platform->id)->where('code', 'fz44')->sole();
     $archive = Crawler::query()->where('registry_id', $registry->id)->where('mode', CrawlerMode::Archive)->sole();
 
     expect($archive->filter->archiveWindowFrom()?->toDateString())->toBe('2025-01-01')
@@ -105,7 +112,8 @@ test('сид заводит профили с сортировкой выдач�
     $this->seed(EisPlatformSeeder::class);
     $this->seed(CrawlerProfileSeeder::class);
 
-    $registry = Registry::query()->where('code', 'fz44')->sole();
+    $platform = Platform::query()->where('code', 'eis')->sole();
+    $registry = Registry::query()->where('platform_id', $platform->id)->where('code', 'fz44')->sole();
     $crawlers = Crawler::query()->where('registry_id', $registry->id)->get()->keyBy('mode');
 
     $archive = $crawlers[CrawlerMode::Archive->value];
@@ -124,7 +132,8 @@ test('повторный прогон сида профилей идемпоте
     $this->seed(CrawlerProfileSeeder::class);
     $this->seed(CrawlerProfileSeeder::class);
 
-    $registry = Registry::query()->where('code', 'fz44')->sole();
+    $platform = Platform::query()->where('code', 'eis')->sole();
+    $registry = Registry::query()->where('platform_id', $platform->id)->where('code', 'fz44')->sole();
 
     expect(Crawler::query()->where('registry_id', $registry->id)->count())->toBe(2);
 });
@@ -158,7 +167,8 @@ test('архивный профиль из сида даёт ожидаемый 
     $this->seed(Okpd2NodeSeeder::class);
     $this->seed(CrawlerProfileSeeder::class);
 
-    $registry = Registry::query()->where('code', 'fz44')->sole();
+    $platform = Platform::query()->where('code', 'eis')->sole();
+    $registry = Registry::query()->where('platform_id', $platform->id)->where('code', 'fz44')->sole();
     $archive = Crawler::query()
         ->where('registry_id', $registry->id)
         ->where('mode', CrawlerMode::Archive)
@@ -180,7 +190,8 @@ test('сидовый архивный профиль не передаёт ок�
     $this->seed(Okpd2NodeSeeder::class);
     $this->seed(CrawlerProfileSeeder::class);
 
-    $registry = Registry::query()->where('code', 'fz44')->sole();
+    $platform = Platform::query()->where('code', 'eis')->sole();
+    $registry = Registry::query()->where('platform_id', $platform->id)->where('code', 'fz44')->sole();
     $archive = Crawler::query()
         ->where('registry_id', $registry->id)
         ->where('mode', CrawlerMode::Archive)
