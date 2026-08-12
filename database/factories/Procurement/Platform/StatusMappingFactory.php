@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Database\Factories\Procurement\Platform;
 
 use App\Enums\Procurement\ProcurementStatus;
+use App\Models\Procurement\Platform\Platform;
 use App\Models\Procurement\Platform\Registry;
 use App\Models\Procurement\Platform\StatusMapping;
 use Illuminate\Database\Eloquent\Factories\Factory;
@@ -25,5 +26,13 @@ final class StatusMappingFactory extends Factory
             // и всплывает как ValueError в StatusMappingService::resolve().
             'canonical_status' => fake()->randomElement(array_column(ProcurementStatus::cases(), 'value')),
         ];
+    }
+
+    public function forPlatform(?Platform $platform = null): static
+    {
+        return $this->state(fn (): array => [
+            'platform_id' => $platform ?? Platform::factory(),
+            'registry_id' => null,
+        ]);
     }
 }

@@ -4,14 +4,19 @@ declare(strict_types=1);
 
 namespace App\Models\Procurement\Platform;
 
+use App\Enums\Procurement\StatusMappingApplicability;
 use Database\Factories\Procurement\Platform\StatusMappingFactory;
 use Illuminate\Database\Eloquent\Attributes\UseFactory;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 /**
  * Маппинг сырого статуса источника на канонический статус ядра.
+ *
+ * @property int|null $platform_id
+ * @property int|null $registry_id
  */
 #[UseFactory(StatusMappingFactory::class)]
 final class StatusMapping extends Model
@@ -21,10 +26,25 @@ final class StatusMapping extends Model
     protected $table = 'prc_status_mappings';
 
     protected $fillable = [
+        'platform_id',
         'registry_id',
         'source_stage',
         'canonical_status',
     ];
+
+    /** @property-read StatusMappingApplicability $applicability */
+    protected function applicability(): Attribute
+    {
+        return Attribute::get(fn (): StatusMappingApplicability => StatusMappingApplicability::fromScopeIds(
+            platformId: $this->platform_id,
+            registryId: $this->registry_id,
+        ));
+    }
+
+    public function platform(): BelongsTo
+    {
+        return $this->belongsTo(related: Platform::class);
+    }
 
     public function registry(): BelongsTo
     {

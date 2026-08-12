@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Dto\Procurement;
 
 use App\Enums\Procurement\ProcurementStatus;
+use App\Enums\Procurement\StatusMappingApplicability;
 
 /**
  * Результат резолва сырого статуса: канон + признак, что маппинг для этой пары
@@ -15,5 +16,6 @@ final readonly class StatusResolution
     public function __construct(
         public ProcurementStatus $status,
         public bool $isNewlyMapped,
+        public ?StatusMappingApplicability $matchedApplicability = null,
     ) {}
 }
