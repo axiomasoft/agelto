@@ -35,7 +35,8 @@
 | findings/P3.1-livewire-runtime-evidence.md | P3.1 output carrier · P3.2 hard gate; `PENDING` до исполнения |
 | findings/P4-private-documentation-recon-2026-08-09.md | P4.1–P4.5 · D26/D27 repo/reference/security basis |
 | findings/P5-proxy-settings-recon-2026-08-09.md | P5.1–P5.5 · D28/D29 settings/egress basis |
-| findings/P6-format-archive-recon-2026-08-09.md | P6.1–P6.6 · D30/D31 repo/security/runtime basis |
+| findings/P6-format-archive-recon-2026-08-09.md | P6.1–P6.7 · D30/D31 repo/security/runtime basis |
+| findings/P6-remediation-evidence.md | P6.7 committed focused/full/evidence carrier; pending execution |
 | findings/P7-screening-contract-recon-2026-08-09.md | P7.1–P7.6 · D32–D34 repo/schema/prompt/UI basis |
 | findings/P8-platform-status-extension-recon-2026-08-09.md | P8.1–P8.5 · D35/D36 adapter identity/status applicability basis |
 | findings/P9-filament-v5-rag-2026-08-09.md | P9.1–P9.6 · official Filament 5 navigation/enum/schema/table contracts |
@@ -69,6 +70,7 @@
 | research/06-P4-execution-design.md | P4.1–P4.5 · private docs threat/build/serve contracts |
 | research/07-P5-execution-design.md | P5.1–P5.5 · settings/proxy precedence and health contracts |
 | research/08-P6-execution-design.md | P6.1–P6.6 · typed format, bounded archive and child lifecycle contracts |
+| research/22-P6-audit-remediation.md | P6.7 · D77 bounded Audit P6 F1–F5 remediation and round-2 gate |
 | research/09-P7-execution-design.md | P7.1–P7.6 · semantic screening envelope, disposition and operator contract |
 | research/10-P8-execution-design.md | P8.1–P8.5 · platform definition, applicability schema and extension test contract |
 | research/11-P9-execution-design.md | P9.1–P9.6 · Russian IA, label/schema/table and browser acceptance contract |

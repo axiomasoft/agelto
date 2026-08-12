@@ -3,7 +3,7 @@ projection: status-view
 projection_version: v1
 source_scope: plan core + phases + journal
 through: 2026-08-12
-inputs_sha256: e83b30dcc1c12122d0ea2f0da01289b660ef42ec7edbdc219db832d8c1ea947a
+inputs_sha256: 07c250d4dd017afce20a789b7b0e4d26b1898c940c28fa7acdce146524cb04ea
 generated_by: task plan-views status
 -->
 
@@ -15,7 +15,7 @@ generated_by: task plan-views status
 
 | Поле | Значение |
 |:--|:--|
-| Version | 0.1.8 |
+| Version | 0.1.9 |
 | Status | 🟡 In progress |
 | Last Updated | 2026-08-12 |
 
@@ -32,7 +32,7 @@ generated_by: task plan-views status
 | P3 | Fresh install, Livewire/Filament assets и application readiness | 5/5 | 🟢 Done |
 | P4 | Закрытая production-документация вне public | 4/6 | 🟠 Done with deviations |
 | P5 | Default proxy settings и трёхуровневый resolve | 6/6 | 🟢 Done |
-| P6 | File handler registry, архивы и дочерняя обработка | 1/6 | 🟠 Done with deviations |
+| P6 | File handler registry, архивы и дочерняя обработка | 0/7 | 🟠 Done with deviations |
 | P7 | Document type, summary, estimates и tags | 0/6 | ⬜ Not started |
 | P8 | Расширяемость platforms и гибкие status mappings | 0/5 | ⬜ Not started |
 | P9 | Filament information architecture и понятный русский UX | 0/6 | ⬜ Not started |
@@ -146,10 +146,11 @@ generated_by: task plan-views status
 |:--|:--|:--|:--|
 | P6.1 | Снять каноническую матрицу extension/MIME/magic и текущих handlers | 🟠 Done with deviations | 2026-08-12 |
 | P6.2 | Запечатать typed file-handler registry и terminal reasons для unsupported | 🟠 Done with deviations | 2026-08-12 |
-| P6.3 | Реализовать безопасное идемпотентное раскрытие архивов с лимитами | 🟢 Done | 2026-08-12 |
+| P6.3 | Реализовать безопасное идемпотентное раскрытие архивов с лимитами | 🟠 Done with deviations | 2026-08-12 |
 | P6.4 | Создавать child file records со ссылкой на parent archive и dispatch | 🟠 Done with deviations | 2026-08-12 |
 | P6.5 | Добавить требуемый archive-to-children-to-processing integration test | 🟠 Done with deviations | 2026-08-12 |
 | P6.6 | Закрепить extension contract и тест-шаблон для новых handlers | 🟠 Done with deviations | 2026-08-12 |
+| P6.7 | Закрыть RED-аудит P6 общим GSFX attachment lifecycle и воспроизводимым evidence | 🟠 Done with deviations | 2026-08-12 |
 
 ## Phase P7
 
@@ -441,6 +442,56 @@ write-site: pre_mutation: allow · pre_final: allow |
 | 2026-08-12 | owner | plan-run · closed-deviations · P6.5 c6bff21f: lifecycle/retry/two-worker concurrency, hostile zero-effect matrix, encrypted ZIP detection and RAR runtime proof green. Deviations: owner route override; missing Make targets; ArchiveExtractor outside Files. write-site: owner-authorized override. |
 | 2026-08-12 | implementation/medium | plan-exec · in-progress · P6.6 started under owner-authorized route override. |
 | 2026-08-12 | implementation/medium | plan-exec · closed-deviations · Extension contract, static guard, docs, focused and full tests completed. |
+| 2026-08-12 | frontier/xhigh | plan-audit · audit-red · заход 1, вердикт RED; full suite 27 failed; GSFX bypasses bounded archive/child lifecycle; compiler/lint evidence incomplete; reducer terminal-block BLOCK_CONFIRMED after isolated JUSTIFIED review. |
+| 2026-08-12 | frontier/high | plan-design · in-progress · фаза детализирована до DoR |
+| 2026-08-12 | implementation/high | plan-run · in-progress · — |
+| 2026-08-12 | implementation/high | plan-run · block-candidate · Full no-TIA remains red: ContourTest:131 expects bool outside P6.7 Files. |
+| 2026-08-12 | implementation/high | plan-run · escalated · Full no-TIA has 1 ContourTest boolean assertion outside P6.7 Files; plan-design must expand scope. |
+| 2026-08-12 | implementation/high | plan-run · in-progress · P6.7 evidence reconciliation for historical P6.3 claim. |
+| 2026-08-12 | implementation/high | plan-run · in-progress · P6.7 evidence reconciliation for historical P6.4 scope drift. |
+| 2026-08-12 | implementation/high | plan-run · in-progress · P6.7 evidence reconciliation for historical P6.5 claim. |
+| 2026-08-12 | implementation/high | plan-run · in-progress · P6.7 evidence reconciliation for historical P6.6 claim. |
+| 2026-08-12 | implementation/high | plan-run · in-progress · Owner-authorized P6.7 continuation after D78 scope clarification. |
+| 2026-08-12 | implementation/high | plan-run · closed-deviations · P6.7 remediates false full-suite claim; historical route remains block:ROUTE_UNDERSHOOT / n/a. |
+| 2026-08-12 | implementation/high | plan-run · closed-deviations · P6.4 Files drift remains: Pipeline/StuckCheckTest.php outside Files at product commit 89b4e793. |
+| 2026-08-12 | implementation/high | plan-run · closed-deviations · P6.7 full carrier is green; historical route remains block:ROUTE_UNDERSHOOT / n/a. |
+| 2026-08-12 | implementation/high | plan-run · closed-deviations · P6.7 full carrier 1491 passed / 6398 assertions; obsolete full-suite claim remediated; codes allow/allow. |
+| 2026-08-12 | implementation/high | plan-run · closed-green · GSFX lifecycle and typed contract incl. Contour green; full no-TIA 1491 passed / 6398 assertions; allow/allow. |
+| 2026-08-12 | frontier/xhigh | plan-close · closed-deviations · Audit round 2 inline bookkeeping repair: P6.7 remediates the false full-suite claim; historical executor route remains below required.
+write-site: pre_mutation: block:ROUTE_UNDERSHOOT · pre_final: n/a |
+| 2026-08-12 | frontier/xhigh | plan-close · closed-deviations · Audit round 2 inline bookkeeping repair: Files drift remains at tests/Feature/Procurement/Pipeline/StuckCheckTest.php in product commit 89b4e793.
+write-site: pre_mutation: allow · pre_final: allow |
+| 2026-08-12 | frontier/xhigh | plan-close · closed-deviations · Audit round 2 inline bookkeeping repair: P6.7 full carrier is green; historical executor route remains below required.
+write-site: pre_mutation: block:ROUTE_UNDERSHOOT · pre_final: n/a |
+| 2026-08-12 | frontier/xhigh | plan-close · closed-deviations · Audit round 2 inline bookkeeping repair: P6.7 full carrier reproduced 1491 passed / 6398 assertions; obsolete full-suite claim is remediated.
+write-site: pre_mutation: allow · pre_final: allow |
+| 2026-08-12 | frontier/xhigh | plan-close · closed-green · Audit round 2 inline bookkeeping repair: GSFX common lifecycle and typed contracts reproduced; focused 75 passed / 361 assertions; full no-TIA 1491 passed / 6398 assertions.
+write-site: pre_mutation: allow · pre_final: allow |
+| 2026-08-12 | frontier/xhigh | plan-close · closed-deviations · Audit round 2 inline bookkeeping correction: terminal execution evidence names only the route class frontier/high, not a provider-attested actual model; fail closed.
+write-site: pre_mutation: block:ROUTE_UNDERSHOOT · pre_final: n/a |
+| 2026-08-12 | frontier/xhigh | plan-close · closed-deviations · Audit round 2 inline bookkeeping correction: terminal execution evidence names only the route class implementation/medium, not a provider-attested actual model; fail closed.
+write-site: pre_mutation: block:ROUTE_UNDERSHOOT · pre_final: n/a |
+| 2026-08-12 | frontier/xhigh | plan-close · closed-deviations · Audit round 2 inline bookkeeping correction: terminal execution evidence names only the route class implementation/high, not a provider-attested actual model; fail closed despite green product tests.
+write-site: pre_mutation: block:ROUTE_UNDERSHOOT · pre_final: n/a |
+| 2026-08-12 | frontier/xhigh | plan-audit · audit-red · заход 2, вердикт RED; AUDIT-CAP; exact P6.7 carrier exits 1 on D76 route closure; reducer terminal-block BLOCK_CONFIRMED after isolated JUSTIFIED review. |
+| 2026-08-12 | gpt-5.6-sol/high | plan-run · in-progress · — |
+| 2026-08-12 | gpt-5.6-sol/high | plan-run · in-progress · D79 recovery validation staged while global lint awaits remaining authorized route receipts. |
+| 2026-08-12 | gpt-5.6-sol/high | plan-run · in-progress · D79 recovery validation staged while global lint awaits remaining authorized route receipts. |
+| 2026-08-12 | gpt-5.6-sol/high | plan-run · closed-deviations · Audit round 2 inline bookkeeping correction: terminal execution evidence names only the route class frontier/high, not a provider-attested actual model; fail closed. Recovery gpt-5.6-sol/high validated D79.
+write-site: pre_mutation: allow · pre_final: allow |
+| 2026-08-12 | gpt-5.6-sol/high | plan-run · closed-deviations · Audit round 2 inline bookkeeping repair: P6.7 remediates the false full-suite claim; historical executor route remains below required. Recovery gpt-5.6-sol/high: focused archive contract green.
+write-site: pre_mutation: allow · pre_final: allow |
+| 2026-08-12 | gpt-5.6-sol/high | plan-run · closed-deviations · Audit round 2 inline bookkeeping repair: P6.7 full carrier is green; historical executor route remains below required. Recovery gpt-5.6-sol/high: archive pipeline passed twice.
+write-site: pre_mutation: allow · pre_final: allow |
+| 2026-08-12 | gpt-5.6-terra/medium | plan-exec · in-progress · D79 bounded recovery: provider-thread-state route captured for original Validation. |
+| 2026-08-12 | gpt-5.6-terra/medium | plan-exec · closed-deviations · D79 provider-attested recovery: original focused/full validation passed on agelto_test; historical route undershoot and absent Make aliases remain named deviations. write-site: pre_mutation: allow · pre_final: allow |
+| 2026-08-12 | gpt-5.6-terra/medium | plan-exec · in-progress · D79 fresh provider-attested recovery restarted for original P6.6 validation. |
+| 2026-08-12 | gpt-5.6-terra/medium | plan-exec · closed-deviations · D79 fresh provider-attested recovery: focused 5 passed / 162 assertions and full no-TIA passed on guarded agelto_test; historical route undershoot and absent Make aliases remain named deviations.
+write-site: pre_mutation: allow · pre_final: allow |
+| 2026-08-12 | gpt-5.6-terra/high | plan-run · in-progress · D79 direct-close recovery: provider-thread-state route and allow/allow contract captured before original validation. |
+| 2026-08-12 | gpt-5.6-terra/high | plan-run · closed-deviations · D79 route-attested recovery: focused 75 passed / 361 assertions; full no-TIA 1491 passed / 6398 assertions on agelto_test.
+write-site: pre_mutation: allow · pre_final: allow |
+| 2026-08-12 | implementation/low | plan-close · closed-deviations · фаза P6 закрыта по D79 direct-close |
 
 ## Owner Gates
 
@@ -452,6 +503,8 @@ write-site: pre_mutation: allow · pre_final: allow |
 - P4.6: known deviation
 - P6.1: known deviation
 - P6.2: known deviation
+- P6.3: known deviation
 - P6.4: known deviation
 - P6.5: known deviation
 - P6.6: known deviation
+- P6.7: known deviation
