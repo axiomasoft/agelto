@@ -3,7 +3,7 @@ projection: status-view
 projection_version: v1
 source_scope: plan core + phases + journal
 through: 2026-08-12
-inputs_sha256: 8ba1123299c00ffa94dd74267279b4d09737ec04618a10a4b1e280264971ba97
+inputs_sha256: bd2f5f7edbb8b03e1e9cb237f9d62862cc1f1303ffd814872844a2ea7f2409e0
 generated_by: task plan-views status
 -->
 
@@ -32,7 +32,7 @@ generated_by: task plan-views status
 | P3 | Fresh install, Livewire/Filament assets и application readiness | 5/5 | 🟢 Done |
 | P4 | Закрытая production-документация вне public | 4/6 | 🟠 Done with deviations |
 | P5 | Default proxy settings и трёхуровневый resolve | 6/6 | 🟢 Done |
-| P6 | File handler registry, архивы и дочерняя обработка | 0/6 | ⬜ Not started |
+| P6 | File handler registry, архивы и дочерняя обработка | 0/6 | 🟡 In progress |
 | P7 | Document type, summary, estimates и tags | 0/6 | ⬜ Not started |
 | P8 | Расширяемость platforms и гибкие status mappings | 0/5 | ⬜ Not started |
 | P9 | Filament information architecture и понятный русский UX | 0/6 | ⬜ Not started |
@@ -144,7 +144,7 @@ generated_by: task plan-views status
 
 | ID | Title | Status | Updated |
 |:--|:--|:--|:--|
-| P6.1 | Снять каноническую матрицу extension/MIME/magic и текущих handlers | ⬜ Not started | — |
+| P6.1 | Снять каноническую матрицу extension/MIME/magic и текущих handlers | 🟠 Done with deviations | 2026-08-12 |
 | P6.2 | Запечатать typed file-handler registry и terminal reasons для unsupported | ⬜ Not started | — |
 | P6.3 | Реализовать безопасное идемпотентное раскрытие архивов с лимитами | ⬜ Not started | — |
 | P6.4 | Создавать child file records со ссылкой на parent archive и dispatch | ⬜ Not started | — |
@@ -418,6 +418,13 @@ write-site: pre_mutation: allow · pre_final: allow. |
 write-site: pre_mutation: allow · pre_final: allow. |
 | 2026-08-12 | implementation/low | plan-close · closed-green · P5 closed GREEN by D76 after all canonical state reconciliations: all P5.1–P5.6 terminal; candidate c06221b6f1418f2396777546fe8317778f61606f91c68434454c3c0afc2378c4; no Audit 3; handoff to P6.1. |
 | 2026-08-12 | gpt-5.6-sol/high | plan-close · closed-green · P5 direct-close GREEN under D76; all P5.1–P5.6 terminal; no Audit 3; receipt-ready. |
+| 2026-08-12 | frontier/high | plan-run · in-progress · — |
+| 2026-08-12 | frontier/high | plan-run · block-candidate · P0.5/P0.6 state and bundle do not name the committed products required by P6.1. |
+| 2026-08-12 | frontier/high | plan-run · local-repair · Recovered exact terminal P0.5/P0.6 product identities from committed journal/git provenance; bundle omission remains a process deviation. |
+| 2026-08-12 | frontier/high | plan-run · closed-deviations · Frozen matrix and archive contract committed as aee27831; exact P0.5/P0.6 products recovered from Git because terminal states/bundle omit paths; remaining gates and full review green; write-site: pre_mutation: allow · pre_final: allow. |
+| 2026-08-12 | frontier/high | plan-run · in-progress · Reconcile canonical write-site line after post-close lint. |
+| 2026-08-12 | frontier/high | plan-run · closed-deviations · Reconciliation: product aee27831 and review/gates green; P0.5/P0.6 products recovered from Git because terminal states/bundle omit paths.
+write-site: pre_mutation: allow · pre_final: allow |
 
 ## Owner Gates
 
@@ -427,3 +434,4 @@ write-site: pre_mutation: allow · pre_final: allow. |
 - P4.2: known deviation
 - P4.4: known deviation
 - P4.6: known deviation
+- P6.1: known deviation
