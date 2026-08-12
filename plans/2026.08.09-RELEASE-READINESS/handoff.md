@@ -1,51 +1,44 @@
-# HANDOFF — 2026-08-11 — after P5
+# HANDOFF — 2026-08-12 — after P5
 
-**Next:** run-items: task:plan-run 2026.08.09-RELEASE-READINESS P5.6
+**Next:** ЗАПУСК ВРУЧНУЮ: `frontier/high`
 
 | Параметр | Значение |
 |:--|:--|
-| Model class | implementation |
-| Effort | high |
-| Capabilities | — |
+| Model | frontier |
+| Thinking | high |
 | Context | cold-start-root |
-| Суть | Исполнить owner-sealed P5.6 до двух committed anchors, 0/0 gates и direct GREEN close P5 без Audit 3. |
-| Команда | `$ task:plan-run 2026.08.09-RELEASE-READINESS P5.6` |
+| Суть | Исполнить P6.1: до любых product-мутаций сверить terminal P0.5/P0.6 с D30/D31 и заморозить каноническую matrix extension/MIME/magic/handler. |
+| Команда | — |
 
-Reason for cold-start-root: owner-pause-no-resume после AUDIT-CAP и отдельного plan-design reopen.
+Reason for cold-start-root: P5 terminally closed; P6.1 begins a separate security-contract reconciliation phase.
 
-### Native Codex launch-block
-
-```bash
-codex -C /home/vostrikov/projects/agelto/agelto -m gpt-5.6-terra -c 'model_reasoning_effort="high"' -a never -s danger-full-access '$ task:plan-run 2026.08.09-RELEASE-READINESS P5.6'
+```text
+$ task:plan-run 2026.08.09-RELEASE-READINESS P6.1
 ```
 
 **Done:**
 
-- AUDIT-CAP stopped after Audit P5 round 2; D76 records the owner's no-deviation/no-tail decision.
-- P5 reopened with one final P5.6; existing Audit-2 dirty carriers and unrelated `AGENTS.md` update are preserved.
-- Baseline/research classify 20 lint errors, P5.5 scope drift, Task source/runtime root causes and both dirty repositories.
-- P5.5 item commit `54634414` makes `CrawlerProxySettingsResolver` mandatory for `ProxyResolver`, persists detail `proxy_source`, and adds profile/default/direct, no-fallback, direct-health and source-evidence regression coverage.
-- `bash docker/tests/p5.5-proxy-acceptance.sh` passed focused 96-test/296-assertion matrix, test-DB rollback/forward and final full no-TIA suite on item commit `54634414`.
-- `findings/P5-acceptance-evidence.md` records the P10 downstream anchor and the P5.1 consumer matrix preserves the named P12 planning link, alongside the reproducible command and declared external limitations.
+- P5.1–P5.6 are terminal GREEN; P5 is directly closed GREEN under D76 without Audit 3.
+- P5.6 release carrier passed the full isolated suite: 1464 tests, 6168 assertions, 1 skipped; Pint and PHPStan were GREEN.
+- P5.1 downstream retry history preserves the transient test-DB deadlock and its subsequent GREEN P5.2–P5.5 records.
+- Task plan lint is 0 ERROR / 0 WARN; state, bundle, decisions, status and P5 closure are byte-fresh; citations have 0 unresolved entries.
 
 **Remaining:**
 
-- Execute P5.6 exactly: Swissknifeman source/runtime commit, Agelto product/evidence commit, append-only reconciliation and direct close P5.
-- Obtain 0 ERROR / 0 WARN and byte-fresh state/bundle/decisions/status/closure; do not create Audit P5 round 3.
+- Execute P6.1 only after reading its declared inputs and terminal P0.5/P0.6 states; no schema or application mutation precedes its matrix reconciliation.
 
 **Sources of truth:**
 
-- `research/21-P5-audit-cap-remediation.md`, D76, `phases/P5/P5.6.md`, `bundles/P5.6.json`, `phases/P5/P5.6.state.md`.
-- `phases/P5/P5.5.md`, `phases/P5/P5.5.state.md`, `journal.jsonl`, Audit P5 round 2.
-- `docker/tests/p5.5-proxy-acceptance.sh`, `findings/P5-acceptance-evidence.md`, D8/D28/D29.
+- `phases/P6/P6.1.md`, `bundles/P6.1.json`, `phases/P0/P0.5.state.md`, `phases/P0/P0.6.state.md`.
+- `findings/P6-format-archive-recon-2026-08-09.md`, `research/08-P6-execution-design.md`, D30 and D31.
+- `phases/P5/P5.closed.md`, `findings/P5-remediation-evidence.md`, D76 and `journal.jsonl` for the completed P5 provenance.
 
 **Open risks:**
 
-- Current plan-lint remains red until P5.6 repairs carrier-only downstream admission/current records and the phase AUDIT-CAP return projector; accepting any of these errors at close is forbidden.
-- P5.5 route provenance is effective-config evidence (`gpt-5.6-terra`, implementation/high), not thread-bound provider telemetry.
+- P6.1 must not infer support for an archive or format family from absent corpus or official evidence; an evidence-backed contradiction to D30/D31 requires a superseding decision.
 
 **Workarounds/Deferred/Open questions:**
 
-- Workarounds: none accepted; cache edits and lint waivers are prohibited.
-- Deferred: none; D76 requires every named tail to close inside P5.6.
+- Workarounds: none accepted.
+- Deferred: P6 product mutation is intentionally deferred to P6.2 after P6.1 freezes the matrix.
 - Open questions: none.
