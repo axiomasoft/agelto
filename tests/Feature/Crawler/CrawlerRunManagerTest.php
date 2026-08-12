@@ -98,7 +98,11 @@ test('два PostgreSQL worker одновременно стартуют одн�
     $crawler = ConcurrentTransactions::execute(<<<'PHP'
 $crawler = \App\Models\Procurement\Crawler\Crawler::factory()->create();
 
-return ['crawler_id' => $crawler->id];
+return [
+    'crawler_id' => $crawler->id,
+    'registry_id' => $crawler->registry_id,
+    'platform_id' => $crawler->registry->platform_id,
+];
 PHP);
 
     try {
@@ -131,6 +135,8 @@ PHP,
         ConcurrentTransactions::execute(<<<PHP
 \App\Models\Procurement\Crawler\Run::query()->where('crawler_id', {$crawler['crawler_id']})->delete();
 \App\Models\Procurement\Crawler\Crawler::query()->whereKey({$crawler['crawler_id']})->delete();
+\App\Models\Procurement\Platform\Registry::query()->whereKey({$crawler['registry_id']})->delete();
+\App\Models\Procurement\Platform\Platform::query()->whereKey({$crawler['platform_id']})->delete();
 
 return ['cleaned' => true];
 PHP);

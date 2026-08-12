@@ -337,6 +337,9 @@ function concurrentIngestRemoveSignal(string $path): void
 function concurrentIngestCleanup(int $registryId): void
 {
     ConcurrentTransactions::execute(<<<PHP
+\$platformId = \App\Models\Procurement\Platform\Registry::query()
+    ->whereKey({$registryId})
+    ->value('platform_id');
 \$procurements = \App\Models\Procurement\Procurement::query()->where('registry_id', {$registryId})->get();
 
 foreach (\$procurements as \$procurement) {
@@ -347,6 +350,7 @@ foreach (\$procurements as \$procurement) {
 
 \App\Models\Procurement\Platform\StatusMapping::query()->where('registry_id', {$registryId})->delete();
 \App\Models\Procurement\Platform\Registry::query()->whereKey({$registryId})->delete();
+\App\Models\Procurement\Platform\Platform::query()->whereKey(\$platformId)->delete();
 
 return ['cleaned' => true];
 PHP);

@@ -88,7 +88,7 @@ test('карточка закупки без истории рендерится
 
     Livewire::test(ViewProcurement::class, ['record' => $procurement->getKey()])
         ->assertSuccessful()
-        ->assertSee('Длительности')
+        ->assertSee('Наблюдаемая длительность')
         ->assertSee('идёт');
 });
 

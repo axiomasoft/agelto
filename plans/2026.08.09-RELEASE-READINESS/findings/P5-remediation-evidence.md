@@ -27,3 +27,14 @@ default `DB_DATABASE`; the explicit injection makes the migration target auditab
 The paired Swissknifeman source/runtime repair is
 `d2bed1f22f04f7de59fe7e16f1f4d5b76597bdde`; it makes the Task return projection exclude the
 historical phase audit-attention reopen and admits only the declared P5 validation carrier.
+
+The release carrier then exposed three external-process fixture leaks and one stale UI assertion
+that focused runs could not reveal. The remedies are all test-only: reset the proxy setting from
+the same external boundary that writes it; delete the complete crawler/registry/platform fixture
+for PostgreSQL concurrency tests; scope the negative status-seeder assertion to its own registry;
+and assert the current history section caption. No production behaviour changed.
+
+On the candidate tree, a clean `agelto_test` migration followed by
+`php artisan test --no-tia` passed **1464 tests / 6168 assertions** in 79.21 seconds, with one
+documented environment-dependent RAR example skipped. The reproducing cross-file subset passed
+29 tests / 91 assertions before the final full run.

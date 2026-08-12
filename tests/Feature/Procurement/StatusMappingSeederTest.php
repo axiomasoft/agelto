@@ -68,10 +68,10 @@ test('после сида незнакомое значение по-прежн�
         ->and($resolution->isNewlyMapped)->toBeTrue();
 });
 
-test('без реестров fz44 сид не падает и не пишет строк', function () {
-    Registry::factory()->create(['code' => 'fz223']);
+test('без реестров fz44 сид не падает и не пишет строк для другого реестра', function () {
+    $registry = Registry::factory()->create(['code' => 'fz223']);
 
     $this->seed(StatusMappingSeeder::class);
 
-    expect(StatusMapping::query()->count())->toBe(0);
+    expect(StatusMapping::query()->where('registry_id', $registry->id)->count())->toBe(0);
 });

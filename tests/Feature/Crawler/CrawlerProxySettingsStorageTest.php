@@ -39,7 +39,28 @@ test('resolver обновляет cached settings после сохранени�
             'DB_DATABASE' => DB::connection()->getDatabaseName(),
         ]),
     );
-    $writer->mustRun();
 
-    expect($resolver->defaultProxyId())->toBe(73);
+    $cleanup = new Process(
+        command: [
+            PHP_BINARY,
+            'artisan',
+            'tinker',
+            '--execute=$settings = new \App\Settings\Procurement\CrawlerProxySettings(); $settings->defaultProxyId = null; $settings->save();',
+        ],
+        cwd: base_path(),
+        env: array_replace($_ENV, [
+            'APP_ENV' => 'testing',
+            'DB_DATABASE' => DB::connection()->getDatabaseName(),
+        ]),
+    );
+
+    try {
+        $writer->mustRun();
+
+        expect($resolver->defaultProxyId())->toBe(73);
+    } finally {
+        // Writer runs beyond RefreshDatabase transaction, so its settings row must be
+        // removed by the same external boundary before the next test receives the app.
+        $cleanup->mustRun();
+    }
 });

@@ -18,7 +18,6 @@ use Database\Seeders\Procurement\EisPlatformSeeder;
 use Database\Seeders\Procurement\Okpd2NodeSeeder;
 use Database\Seeders\StatusMappingSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\Artisan;
 
 uses(RefreshDatabase::class);
 
@@ -57,7 +56,7 @@ test('повторный прогон сида площадки идемпоте
 test('после сида площадки StatusMappingSeeder заводит матрицу без предупреждения', function (): void {
     $this->seed(EisPlatformSeeder::class);
 
-    Artisan::call('db:seed', ['--class' => StatusMappingSeeder::class]);
+    $this->seed(StatusMappingSeeder::class);
 
     $platform = Platform::query()->where('code', 'eis')->sole();
     $registry = Registry::query()->where('platform_id', $platform->id)->where('code', 'fz44')->sole();
