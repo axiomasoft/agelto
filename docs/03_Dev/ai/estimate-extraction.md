@@ -500,16 +500,16 @@ tools/function-calling (контракт `LlmProvider` их не предост�
 {
   "document_type": "estimate|tech_spec|contract_draft|protocol|unknown",
   "confidence": 1.0,
-  "description": "string|null",
+  "summary": "string",
+  "estimate_cardinality": "none|single|multiple|unknown",
   "tags": [],
-  "page_count_estimate": null,
-  "ignore_reason": "string|null"
+  "classification_note": null
 }
 ```
 
-Правило вердикта: `class=est` (реестр `prc_ai_fixtures`) → `document_type=estimate`, `ignore_reason=null`; `class=neg` → `document_type` берётся из реестра (`Fixture.doc_type`) — отсутствие `doc_type` у негатива отклоняет запись индивидуально (реестр обязан его нести, P1.3/P2, не эта команда). `description`/`ignore_reason` заполняются из `Fixture.notes` (единственный текстовый носитель причины включения эталона в корпус) — пусто в реестре, значит `null` в gold, значение не сочиняется.
+Правило вердикта: `class=est` (реестр `prc_ai_fixtures`) → `document_type=estimate`, cardinality `single` или `multiple` по корпусному факту; `class=neg` → `document_type` берётся из реестра (`Fixture.doc_type`) — отсутствие `doc_type` у негатива отклоняет запись индивидуально. Для известного не-сметного типа cardinality всегда `none`; `unknown` честно несёт `none` или `unknown`. `summary` обязателен, `classification_note` несёт только пояснение видимого содержания и не является backend reason.
 
-**Что сравнивается**: ТОЛЬКО `document_type` — и производный от него бинарный признак «смета / не смета» (`estimate:eval:run --task=screening`, §8.6). **Что информативно, но не сравнивается**: `confidence` (в эталоне всегда `1.0` — это поле уверенности МОДЕЛИ, у эталона оно бессмысленно), `description`, `tags`, `ignore_reason` — пишутся в `details` записи `EvalResult` как контекст расхождения, метрику не формируют.
+**Что сравнивается**: ТОЛЬКО `document_type` — и производный от него бинарный признак «смета / не смета» (`estimate:eval:run --task=screening`, §8.6). **Что информативно, но не сравнивается**: `confidence` (в эталоне всегда `1.0` — это поле уверенности МОДЕЛИ, у эталона оно бессмысленно), `summary`, `estimate_cardinality`, `tags`, `classification_note` — пишутся в `details` записи `EvalResult` как контекст расхождения, метрику не формируют.
 
 **Почему негативы — главная метрика, не позитивы** (D5): ложное срабатывание скрининга («не смета» размечена как `estimate») дороже пропуска — документ уходит в дорогое извлечение впустую. Позитивы дают долю пропущенных смет, но именно доля ложных срабатываний по негативам — число, ради которого ветка вообще существует.
 

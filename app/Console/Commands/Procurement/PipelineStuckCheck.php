@@ -6,6 +6,7 @@ namespace App\Console\Commands\Procurement;
 
 use App\Enums\Procurement\Ai\AnalysisStatus;
 use App\Enums\Procurement\Ai\AnalysisStep;
+use App\Enums\Procurement\Ai\ScreeningDecisionReason;
 use App\Enums\Procurement\Document\DocumentStatus;
 use App\Enums\Procurement\Estimate\EstimateValidationStatus;
 use App\Models\Llm\LlmRoute;
@@ -167,7 +168,7 @@ final class PipelineStuckCheck extends Command
         $count = Analysis::query()
             ->where('step', AnalysisStep::Screening->value)
             ->where('updated_at', '>=', now()->subHours($windowHours))
-            ->whereRaw("result->>'branch_reason' = ?", ['unknown'])
+            ->whereRaw("result->'decision'->>'reason' = ?", [ScreeningDecisionReason::UnknownType->value])
             ->count();
 
         if ($count <= $threshold) {

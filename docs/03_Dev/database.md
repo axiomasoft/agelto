@@ -42,7 +42,7 @@ status: living
 | Таблица | Роль |
 |:--|:--|
 | `prc_documents` | Документ закупки; `procurement_id` **nullable** (D22 — manual-импорт эталонов вне закупки, `estimate:dataset:import`); lease-колонки (idempotency guard, P4.1) |
-| `prc_ai_analyses` | Сессия AI-анализа (`$analysis`) — шаг (`AnalysisStep`: screening/extraction/discovery), статус, `progress` (checkpoint-requeue, D31), `is_shadow` |
+| `prc_ai_analyses` | Сессия AI-анализа (`$analysis`) — шаг (`AnalysisStep`: screening/extraction/discovery), статус, `progress` (checkpoint-requeue, D31), `is_shadow`; для screening: indexed `document_type` и versioned `result` v2 (`screening` provider facts + backend `decision`) |
 | `llm_calls` | Один физический LLM-вызов (usage, `cachedTokens`, `finishReason`, ссылки на request/response-блобы) — домен `Llm`, `App\Models\Llm\LlmCall` |
 | `llm_providers` / `llm_routes` | Каталог провайдеров и маршрутов `(document_type, purpose) → model` (роутинг — `llm-providers.md` Д6) — домен `Llm`, `App\Models\Llm\{Provider,LlmRoute}` |
 | `llm_prompts` | Рантайм-копия промтов, синхронизируется из обоих корней канона (`resources/ai/prompts/**` + `resources/<домен>/ai/prompts/**`, D32) командой `ai:prompts:sync` — `ai/prompts.md` — домен `Llm`, `App\Models\Llm\Prompt` |

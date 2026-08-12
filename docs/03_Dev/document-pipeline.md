@@ -16,6 +16,18 @@ status: living
 контентно адресуется; оригинал, подготовленные представления и данные вызовов хранятся так, чтобы
 анализ можно было воспроизвести без повторного скачивания источника.
 
+## Screening v2: граница provider/backend
+
+`ScreeningResult` валидирует provider facts: closed `AiDocumentType`, confidence, required
+normalized summary, cardinality, tags and optional classification note. `ScreeningOutcomeHandler`
+вычисляет backend-owned disposition/reason; `ApplyScreeningDispositionAction` в короткой DB
+транзакции записывает v2 envelope, `Document`/run/event и ставит extraction только
+`afterCommit`. LLM, Files API и storage никогда не находятся внутри этой транзакции.
+
+Active screening rows (`superseded_at IS NULL`, `is_shadow=false`) имеют indexed `document_type`
+и partial JSONB indexes для cardinality/disposition/reason/tags; read-side использует model scopes,
+а не PHP-фильтрацию JSON. Rerun сохраняет историю, shadow не участвует в боевых фильтрах.
+
 ## Д1 — FSM документа
 
 ```mermaid

@@ -13,7 +13,23 @@ status: living
 `App\Services\Procurement\Screening\ScreeningProcessor` (вызов) и `ScreeningOutcomeHandler`
 (интерпретация результата → `Screened`/`Ignored`/эскалация). Резка PDF до N страниц —
 `PdfPageSlicer` (`Screening/PdfPageSlicer.php`, qpdf-обёртка, D28) — выполняется на бэкенде ДО
-загрузки в Files API.
+загрузки в Files API. Provider возвращает только semantic v2-факты: обязательный `summary`,
+`estimate_cardinality`, нормализованные `tags` и optional `classification_note`. Решение о судьбе
+документа provider не принимает.
+
+## Результат и решение
+
+`Analysis.document_type` — индексированный semantic verdict; `Document.kind` остаётся исходной
+меткой площадки. `unknown` — завершённый честный verdict, а `NULL` означает, что screening ещё не
+получил результата. В `Analysis.result` хранится versioned envelope v2: `schema_version`,
+`screening` (provider facts) и `decision` (только backend: `disposition`, `reason`,
+`extraction_dispatched`). Старые flat keys не dual-write'ятся; UI читает typed helper и оставляет
+raw JSON только как audit fallback.
+
+`estimate_cardinality=single|multiple` допустим только для `document_type=estimate`; `estimate`
+не может заявлять `none`. У известного не-сметного типа cardinality всегда `none`; `unknown` может
+быть `none` или `unknown`. Кардинальность описывает видимые логические сметы внутри одного
+нормализованного документа, не страницы, листы или записи архива.
 
 ## Модель, промт, схема
 
@@ -32,9 +48,9 @@ status: living
 - **D36 — borderline-эскалация confidence, не молчаливый `ignored`.** Зона `confidence_low`..
   `confidence_high` (`config('ai.screening.confidence_low'|'confidence_high')`, default 0.4–0.6) НЕ
   уходит сразу в `Ignored`: либо переклассификация моделью классом выше (скрининг дёшев, эскалация
-  не разоряет бюджет), либо `needs_review`-пометка в `analysis.result` для выборочного операторского
-  ревью (`config('ai.screening.borderline_action')`). Ниже нижней границы — как раньше,
-  `unknown → Ignored`. Причина: самооценка confidence у LLM плохо калибрована, реальная смета с
+  не разоряет бюджет), либо backend `decision=review/borderline_confidence` для выборочного
+  операторского ревью (`config('ai.screening.borderline_action')`). Ниже нижней границы — как раньше,
+  `unknown → Ignored`; причина: самооценка confidence у LLM плохо калибрована, реальная смета с
   0.55 без этого правила терялась без следа (research/L finding 6).
 
 ## Failure modes

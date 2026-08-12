@@ -164,7 +164,6 @@ test('всплеск unknown в скрининге сверх порога — �
     Analysis::factory()->count(3)->create([
         'step' => AnalysisStep::Screening,
         'status' => AnalysisStatus::Succeeded,
-        'result' => ['branch_reason' => 'unknown'],
         'updated_at' => now()->subHour(),
     ]);
 
@@ -179,7 +178,6 @@ test('unknown-скрининги ниже порога не алертят', fun
     Analysis::factory()->count(2)->create([
         'step' => AnalysisStep::Screening,
         'status' => AnalysisStatus::Succeeded,
-        'result' => ['branch_reason' => 'unknown'],
         'updated_at' => now()->subHour(),
     ]);
 
@@ -298,8 +296,25 @@ test('pipeline:status отрабатывает без ошибок и показ
     Analysis::factory()->create([
         'step' => AnalysisStep::Screening,
         'status' => AnalysisStatus::Succeeded,
-        'result' => ['needs_review' => true],
+        'result' => [
+            'schema_version' => 2,
+            'screening' => [
+                'confidence' => 0.5,
+                'summary' => 'Пограничная классификация',
+                'estimate_cardinality' => 'unknown',
+                'tags' => [],
+                'classification_note' => null,
+                'page_count_estimate' => null,
+            ],
+            'decision' => [
+                'disposition' => 'review',
+                'reason' => 'borderline_confidence',
+                'extraction_dispatched' => false,
+            ],
+        ],
     ]);
 
-    $this->artisan('pipeline:status')->assertSuccessful();
+    $this->artisan('pipeline:status')
+        ->expectsOutputToContain('Borderline-скринингов (ждут оператора): 1')
+        ->assertSuccessful();
 });

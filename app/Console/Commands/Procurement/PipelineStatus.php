@@ -6,6 +6,7 @@ namespace App\Console\Commands\Procurement;
 
 use App\Enums\Procurement\Ai\AnalysisStatus;
 use App\Enums\Procurement\Ai\AnalysisStep;
+use App\Enums\Procurement\Ai\ScreeningDecisionReason;
 use App\Enums\Procurement\Document\DocumentStatus;
 use App\Models\Procurement\Ai\Analysis;
 use App\Models\Procurement\Document\Document;
@@ -16,7 +17,7 @@ use Illuminate\Console\Command;
  * сводка документов по стадиям (`prc_documents.status`) и AI-анализов по (шаг, статус)
  * (`prc_ai_analyses`), плюс два v2-специфичных счётчика — разбивка `unprocessable` по причине
  * (D32/D38) и borderline-скринингов, ожидающих операторского ревью (D36,
- * `ScreeningOutcomeHandler::flagNeedsReview()`). Read-only снимок текущего состояния — без
+ * backend reason `borderline_confidence`). Read-only снимок текущего состояния — без
  * временных окон, в отличие от `pipeline:stuck-check` (P7.3).
  */
 final class PipelineStatus extends Command
@@ -140,9 +141,9 @@ final class PipelineStatus extends Command
     {
         $count = Analysis::query()
             ->where('step', AnalysisStep::Screening->value)
-            ->whereRaw("(result->>'needs_review')::boolean = true")
+            ->whereRaw("result->'decision'->>'reason' = ?", [ScreeningDecisionReason::BorderlineConfidence->value])
             ->count();
 
-        $this->line("Borderline-скринингов (needs_review, ждут оператора): {$count}");
+        $this->line("Borderline-скринингов (ждут оператора): {$count}");
     }
 }

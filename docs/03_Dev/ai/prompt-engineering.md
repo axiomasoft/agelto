@@ -33,6 +33,14 @@ constrained decoding (`responseJsonSchema`) гарантирует структ�
   ответа при обрезании) — лечится меньшим числом строк за один вызов, не «дописыванием скобок».
 - **Не просить всю смету одним массивом на сотни строк.** Построчные диапазоны (row-range) или
   окна — не единый вызов на документ целиком.
+
+## Screening v2
+
+Скрининг-промт обязан описывать только видимое содержание: closed `document_type`, bounded
+`confidence`, required `summary`, `estimate_cardinality`, bounded tags и optional
+`classification_note`. Нельзя просить модель вернуть `disposition`, `reason`, `needs_review`,
+`branch_reason` или распоряжение об extraction: это backend-owned v2 decision и он вычисляется
+после валидации ответа.
 - **Не полагаться на самооценку confidence модели как на бинарный гейт без буфера.** Скрининг:
   борderline-зона (config, дефолт 0.4–0.6) уходит на ревью/эскалацию, а не молча в `ignored` —
   плохо откалиброванная самооценка LLM топит реальные сметы в тихом «unknown» (D36).
