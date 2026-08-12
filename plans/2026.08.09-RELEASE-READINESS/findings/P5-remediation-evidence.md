@@ -19,6 +19,10 @@ into seed assertions; it does not touch a development or production database.
 tests. The explicit binding keeps its seed assertions isolated when the full suite changes test
 class ordering.
 
+The carrier injects `APP_ENV=testing` and the `agelto_test` database name parsed from
+`phpunit.xml` into every app command. `--env=testing` alone did not override the container's
+default `DB_DATABASE`; the explicit injection makes the migration target auditable before reset.
+
 The paired Swissknifeman source/runtime repair is
 `d2bed1f22f04f7de59fe7e16f1f4d5b76597bdde`; it makes the Task return projection exclude the
 historical phase audit-attention reopen and admits only the declared P5 validation carrier.

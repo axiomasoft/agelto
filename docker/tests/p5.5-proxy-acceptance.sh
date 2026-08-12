@@ -15,8 +15,10 @@ test_database=$(sed -n 's/.*<env name="DB_DATABASE" value="\([a-z0-9_]*\)".*/\1/
 "${compose[@]}" exec -T postgres sh -lc 'pg_isready -U "$POSTGRES_USER" -d "$POSTGRES_DB"'
 "${compose[@]}" exec -T postgres sh -lc "psql -U \"\$POSTGRES_USER\" -d postgres -Atqc \"SELECT 1 FROM pg_database WHERE datname = '${test_database}'\"" | grep -Fx 1 >/dev/null
 
-"${compose[@]}" exec -T app php artisan migrate --env=testing --force
-"${compose[@]}" exec -T app php artisan test --no-tia \
+testing_app=("${compose[@]}" exec -T -e APP_ENV=testing -e DB_DATABASE="$test_database" app)
+
+"${testing_app[@]}" php artisan migrate --force
+"${testing_app[@]}" php artisan test --no-tia \
     tests/Unit/Crawler/ProxyResolverTest.php \
     tests/Unit/Crawler/ProxyLeaseTest.php \
     tests/Unit/Crawler/ProxyCircuitBreakerTest.php \
@@ -29,14 +31,14 @@ test_database=$(sed -n 's/.*<env name="DB_DATABASE" value="\([a-z0-9_]*\)".*/\1/
     tests/Feature/Llm/GeminiProxyRoutingTest.php \
     tests/Feature/Filament/CrawlerProxySettingsPageTest.php \
     tests/Feature/Filament/CrawlerFormTest.php
-"${compose[@]}" exec -T app php artisan migrate:rollback --env=testing --force --step=1
-"${compose[@]}" exec -T app php artisan migrate --env=testing --force
+"${testing_app[@]}" php artisan migrate:rollback --force --step=1
+"${testing_app[@]}" php artisan migrate --force
 # Focused feature tests above legitimately create fixture rows.  The final release
 # suite must start from a clean, preflight-guarded *_test schema so seeders are not
 # evaluated against rows left by another test class in this carrier.
-"${compose[@]}" exec -T app php artisan migrate:fresh --env=testing --force
-"${compose[@]}" exec -T app php artisan test --no-tia
-"${compose[@]}" exec -T app vendor/bin/pint --test \
+"${testing_app[@]}" php artisan migrate:fresh --force
+"${testing_app[@]}" php artisan test --no-tia
+"${testing_app[@]}" vendor/bin/pint --test \
     app/Dto/Procurement/Proxy/ProxyLease.php \
     app/Services/Procurement/Eis/CsvSourceMethod.php \
     app/Services/Procurement/Proxy/ProxyResolver.php \
@@ -47,7 +49,7 @@ test_database=$(sed -n 's/.*<env name="DB_DATABASE" value="\([a-z0-9_]*\)".*/\1/
     tests/Feature/Crawler/CsvSourceMethodTest.php \
     tests/Feature/Document/DocumentDownloaderTest.php \
     tests/Feature/Llm/GeminiProxyRoutingTest.php
-"${compose[@]}" exec -T app vendor/bin/phpstan analyse \
+"${testing_app[@]}" vendor/bin/phpstan analyse \
     app/Services/Procurement/Proxy/ProxyResolver.php \
     app/Services/Procurement/Eis/CsvSourceMethod.php \
     --no-progress --memory-limit=1G
