@@ -1,18 +1,25 @@
 # P6 execution design — typed formats and bounded archive expansion
 
-## Sources
+## Sources and terminal reconcile
 
 - `findings/P6-format-archive-recon-2026-08-09.md` — current code/schema/test map and official
   OWASP/PHP/IANA/Laravel evidence.
 - `research/00-user-intent.md` — owner trace for child records, normal dispatch, terminal reasons
   and easy handler extension.
 - D5 — document schema/pipeline coupling surface shared by P6–P8/P10–P12.
-- P0.5/P0.6 state/products — authoritative future format/archive RAG and frozen contracts.
+- Terminal P0.5 product `findings/P0-rag-domain-security.md` (`f1cb83dd`, closure anchor
+  `4c8ec806`) and terminal P0.6 product set `research/02-P0-target-contracts.md`,
+  `root/contracts/release-readiness-v1.md`, D57–D61 and `findings/P0-contract-self-audit.md`
+  (`52fb69c6`, bookkeeping anchor `bf234d23`).
 
-P6 is authored before P0 execution. P6.1 therefore re-runs the matrix against terminal P0.5/P0.6
-and representative fixtures before any schema/application mutation. Contradiction produces a new
-superseding decision through plan-design; executor code does not silently reinterpret D30/D31.
-RAG:— (repo-grounded: phase order and current P0.5/P0.6 states).
+P6.1 re-ran the matrix on 2026-08-12 against those terminal products, the current prepare contour,
+the committed PDF/PNG/XLSX/ZIP and GSFX corpus, current primary format registries/specifications and
+libmagic rules pinned to upstream commit `711ccc264519cdc5073ccb26651c0a9bafc3b47a`. No
+evidence-backed contradiction was found: D30/D31 stay byte-stable,
+and no superseding decision is required. The generated upstream states and P6.1 bundle did not name
+the exact products; append-only journal/Git provenance recovered them read-only. This is a process
+deviation, not a frozen-contract reinterpretation. RAG:— (repo-grounded provenance and
+`findings/P6-format-archive-recon-2026-08-09.md`).
 
 ## Alternatives and decisions
 
@@ -60,22 +67,34 @@ RAG:— (repo-grounded: phase order and current P0.5/P0.6 states).
    persisted source MIME is evidence, not authority. Container formats also run a format-specific
    probe so `PK` alone cannot confuse GSFX/OOXML/plain ZIP.
 3. Exactly one registry entry and one handler resolve. Unknown extension → `unsupported_format`;
-   known extension with rejected MIME/signature → `format_mismatch`; known handler exhaustion keeps
-   the existing precise conversion/OCR/archive reason. Both reason enum and human detail are stored.
+   known extension with rejected MIME/signature → `format_mismatch`. The finding freezes the full
+   handler/archive keyset, including every existing value and the precise `AR1` archive subset;
+   no prose placeholder may become an enum value. Both reason enum and human detail are stored.
 4. Handler result is typed: `ready_for_screening`, `expanded_container`, `unprocessable`. Boolean
    `process()` and catch-all `PassthroughStrategy::canProcess=true` are removed.
 5. Registry/inspector are read-only Services; terminal outcome and child persistence are Actions;
    repositories perform reads/writes but open no use-case transaction.
+
+The complete extension→accepted MIME aliases→probe→handler→typed outcome/reason table is frozen in
+`findings/P6-format-archive-recon-2026-08-09.md`. It covers every owner-required extension. Generic
+`application/octet-stream`, container-only `application/zip` for OOXML/ODT, unlisted `x-*` aliases,
+and `JSRF`/`GSRF` are rejected rather than treated as compatibility. Exact IANA/RFC/OASIS/RAR/OWASP
+sources and libmagic commit `711ccc264519cdc5073ccb26651c0a9bafc3b47a` were checked
+2026-08-12; committed Fileinfo/container replay covers PDF/PNG/XLSX/ZIP and GSFX. RAG:✅
+2026-08-12, primary sources, pinned detector rules and corpus hashes named in the finding.
 
 ## Frozen archive contract
 
 1. Listing returns normalized metadata: original name, normalized relative path, entry type,
    compressed/uncompressed sizes and encryption evidence. All entries, including ignored metadata,
    consume count/size budgets before filtering.
-2. Reject archive before extraction on absolute/drive/backslash/NUL/empty/dot/dot-dot path segments,
-   overlong paths, duplicate normalized paths, case-fold collisions, symlink/hardlink/device/special
-   entries, password/encryption, negative/impossible sizes, excessive depth/count/per-entry/total
-   expanded bytes or compression ratio. Unsafe input gets a typed reason; no partial child set.
+2. A directory may have one terminal `/`; strip it before segment validation, retain directory type,
+   require a non-empty relative path and ignore materialization only after it consumed budgets.
+   Reject archive before extraction on leading/interior/repeated empty segments,
+   absolute/drive/backslash/NUL/dot/dot-dot segments, overlong paths, duplicate file/directory paths,
+   case-fold collisions, symlink/hardlink/device/special entries, password/encryption,
+   negative/impossible sizes, excessive depth/count/per-entry/total expanded bytes or compression
+   ratio. Unsafe input gets one exact `AR1` reason; no partial child set.
 3. Extract/copy one entry through a byte-counting stream with per-entry and aggregate actual caps;
    declared and actual size must agree. Child object path is content-addressed from actual SHA-256 and
    written to `currentDocumentsDisk`; the parent is read through `FileLocationResolver` recorded/fallback
@@ -89,6 +108,12 @@ RAG:— (repo-grounded: phase order and current P0.5/P0.6 states).
 6. ZIP has a real adversarial fixture path; 7z has real CLI coverage where the image exposes the tool;
    RAR adapter uses deterministic captured listing/error contracts plus runtime Doctor unless a legal
    committed RAR fixture exists. No non-free encoder dependency is introduced for tests.
+
+Evidence-backed defaults remain depth `2`, entries `200`, aggregate declared/actual expansion
+`500 MiB`, with per-entry bytes never exceeding the aggregate. Actual-byte streaming caps remain
+authoritative. OWASP requires ratio defense but publishes no universal safe ratio; therefore P6.3
+must select and Doctor-report that default from committed valid/adversarial fixtures before enabling
+it. No unsupported conventional ratio is frozen by P6.1.
 
 RAG:— (repo-grounded synthesis: D30/D31 and P6 findings).
 
@@ -108,6 +133,19 @@ share format/schema/archive/job/test/doc hotspots. The N≥3 independent criteri
 is no autonomous external-state chain; orchestration is not declared. RAG:— (repo-grounded:
 dependency matrix above).
 
+## Reconciled consumer contract
+
+| Consumer | P6.1 product it consumes | Non-negotiable gate |
+|:--|:--|:--|
+| P6.2 | Closed extension/MIME/probe/handler/outcome/reason matrix | One typed registry/inspector/result and durable reason; no catch-all |
+| P6.3 | Archive rows and frozen admission/limit rules | Typed metadata plus path/type/resource checks and bounded entry streams |
+| P6.4 | D31 identity/storage/transaction boundary | Database uniqueness, content-addressed child write and after-commit dispatch |
+| P6.5 | Whole matrix and lifecycle | Real archive→children→ordinary pipeline with retry/concurrency/security proof |
+| P6.6 | Closed extension and handler/result keysets | New-handler contract fails automatically and docs match code |
+| P7 | Typed technical outcome/reasons | Semantic taxonomy stays independent of format disposition |
+| P10 | Spoof/archive/storage/transaction threat map | Cross-cutting audit cannot weaken D30/D31 |
+| P12 | Registry keyset, tool/limit Doctor surface and terminal reasons | Production rehearsal proves actual tools/config/corpus |
+
 ## Validation strategy
 
 1. Reconcile gate: terminal P0.5/P0.6, explicit matrix for every owner-required family, no unresolved
@@ -126,8 +164,10 @@ dependency matrix above).
 
 ## Verification status
 
-- RAG: official OWASP/PHP/IANA/Laravel primary sources OK; repo inspection and fixture probe OK.
-- Непроверено → ПОВТОРНЫЙ ПРОХОД: terminal P0.5/P0.6 products and full MIME alias corpus; P6.1 owns
-  the re-pass before mutation.
-- Обходки/[POSSIBLE-DEFECT]: no host RAR happy-path claim; the plan requires shared-validator and
-  adapter/runtime evidence instead of a fake encoder.
+- RAG: terminal P0.5/P0.6 products reconciled; primary IANA/RFC/OASIS/RAR/OWASP sources and pinned
+  upstream libmagic rules checked 2026-08-12; PDF/PNG/XLSX/ZIP/GSFX corpus probe OK.
+- Непроверено → ПОВТОРНЫЙ ПРОХОД: no fact required to keep D30/D31 stable. P6.3 must still produce
+  the fixture-backed compression-ratio default and real adapter evidence assigned to it.
+- Обходки/[POSSIBLE-DEFECT]: v2 bundle product-path omission was repaired read-only through exact
+  journal/Git provenance and remains a process deviation. No host RAR happy-path claim or fake
+  encoder was introduced.
