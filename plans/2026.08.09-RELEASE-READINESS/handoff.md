@@ -1,80 +1,55 @@
-# HANDOFF — 2026-08-12 — after P6.2
+# HANDOFF — 2026-08-12 — after P6.3
 
-**Next:** ЗАПУСК ВРУЧНУЮ: `implementation/high`
+**Next:** manual: implementation/high — P6.4 (§3 Routing: Exec = manual)
 
 | Параметр | Значение |
 |:--|:--|
-| Model | implementation |
-| Thinking | high |
+| Batch | solo |
+| Model class | implementation |
+| Effort | high — transactional storage/queue lifecycle |
+| Capabilities | — |
 | Context | continue-root |
-| Суть | Исполнить P6.3: реализовать bounded archive metadata/path/type/resource validation and per-entry extraction. |
+| Суть | Материализовать validated archive entries как concurrent-safe child versions и dispatch после commit. |
 | Команда | — |
 
-The authoritative root may continue: P6.2 is terminal, P6.3 has a byte-fresh bundle, and no owner
-gate or external-state wait is open.
-
 ```text
-select session model class implementation
-select session effort high
-$ task:plan-run 2026.08.09-RELEASE-READINESS P6.3
+Прочитать P6.4 и её Required Reads. Реализовать только durable lineage, короткий Action,
+after-commit dispatch и Expanded parent semantics; выполнить требуемые migration/concurrency tests,
+закрыть item journal/state/handoff отдельным commit.
 ```
 
-Native Codex launch:
+Native Codex launch-block:
 
 ```bash
-codex -C /home/vostrikov/projects/agelto/agelto -m gpt-5.6-terra -c 'model_reasoning_effort="high"' -a never -s danger-full-access '$ task:plan-run 2026.08.09-RELEASE-READINESS P6.3'
+codex -C /home/vostrikov/projects/agelto/agelto -m gpt-5.6-terra -c 'model_reasoning_effort="high"' -a never -s danger-full-access '$ task:plan-run 2026.08.09-RELEASE-READINESS P6.4'
 ```
 
 **Done:**
 
-- P6.1 is terminal 🟠; product commit `aee27831257cc35b28a3ddef821a920612900101` freezes the full
-  extension/MIME/probe/handler/outcome/reason matrix and archive admission contract.
-- P0.5/P0.6 terminal products were recovered from append-only journal/Git provenance because their
-  generated states and the original P6.1 bundle omitted exact product paths. The recovered commits
-  and paths are recorded in both P6.1 products.
-- D30/D31 remain byte-stable: no evidence-backed contradiction or superseding decision was found.
-- Primary format sources and libmagic commit `711ccc264519cdc5073ccb26651c0a9bafc3b47a` are pinned;
-  committed PDF/PNG/XLSX/ZIP/GSFX corpus hashes and replay results are recorded in the finding.
-- Fresh full-review is PASS after GSFX provenance, exact reason keyset, pinned row evidence and
-  directory-entry normalization were tightened.
-- P6.2 is terminal 🟠; product commit `0846fb94` adds the typed format registry/inspector/result,
-  `unprocessable_reason` migration and centralized terminal mutation Action. Focused prepare tests
-  passed; missing legacy Make validation targets remain a material process deviation.
-- P6.2–P6.6 downstream records are `unknown` because their validations require future product code;
-  `plan-downstream.py` reports `blocks: false` for producer commit `aee27831`.
+- P6.3 closed 🟢: typed `ArchiveEntry`/budget/path validator, complete-listing fail-closed guards,
+  bounded one-entry ZIP/7z/RAR streams, actual-size checks and hostile corpus were added in
+  `91b18770`.
+- Focused archive tests passed: 22 passed, one RAR encoder-dependent happy-path fixture skipped;
+  Pint, citation verification and `git diff --check` passed.
 
 **Remaining:**
 
-- Execute P6.3 from the frozen matrix. It owns archive adapter implementation and the
-  fixture-backed compression-ratio default.
+- P6.4–P6.6: persist child lineage, prove retry/dispatch behaviour, then finish P6 acceptance.
 
 **Sources of truth:**
 
-- `phases/P6/P6.2.state.md`, `phases/P6/P6.3.md`, `bundles/P6.3.json`.
-- `findings/P6-format-archive-recon-2026-08-09.md`, `research/08-P6-execution-design.md`, D30, D31
-  and D61.
-- `journal.jsonl` plus `findings/P6.1-downstream-P6.*-aee27831257c.md` for terminal and downstream
-  provenance.
+- `phases/P6/P6.3.state.md`, `phases/P6/P6.4.md`, `research/08-P6-execution-design.md`, D31.
+- Product commits `91b18770` and `102537c6`; `journal.jsonl` P6.3 terminal pointer.
 
 **Open risks:**
 
-- Formal P6.1 validation remains deviated: terminal P0.5/P0.6 state files do not themselves name
-  their products. The exact provenance is now carried by the terminal P6.1 products/state, so this
-  is traceability debt rather than a downstream product block. The concrete follow-up is a future
-  plan-design/Task-runtime maintenance item that makes v2 bundles declare exact terminal product
-  paths without mutating historical upstream Completion Notes; it is not a prerequisite for P6.2.
-- P6.2 must preserve the closed reason keyset, especially `password_protected` for PDF and `AR1` for
-  archives; infrastructure failures remain retryable exceptions, not input-terminal reasons.
-- Current plan lint has one known D29 warning: P6 declares orchestration while no workflow script is
-  present. It is non-blocking and predates this item.
-- `make test-preflight` and `make db:create-test` are absent from the current Makefile although P6.2
-  Validation requires them; restore this test surface in its owning runtime/deployment work before
-  relying on those aliases.
+- Task `plan-lint` still reports historical bundle/D-reference defects outside P6.3 product scope;
+  owner explicitly authorized continuing P6.3 despite it. The defects are captured in Swissknifeman
+  Roadmap and must not be silently treated as green validation.
 
 **Workarounds/Deferred/Open questions:**
 
-- Workaround: read-only journal/Git provenance recovery was used for the missing upstream paths; no
-  product-code workaround was accepted.
-- Deferred: compression-ratio default and real 7z/RAR adapter evidence remain explicitly assigned to
-  P6.3.
-- Open questions: none for P6.2.
+- workarounds: P6.3 was closed with direct owner authorization while the unrelated Task lint defect remained.
+- deferred: Swissknifeman must enforce subject-aware terminal delivery; see roadmap entry
+  `2026.08.12-task-plan-run-terminal-delivery-gap.md`.
+- open_questions: —
