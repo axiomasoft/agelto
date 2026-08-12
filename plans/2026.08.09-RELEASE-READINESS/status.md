@@ -3,7 +3,7 @@ projection: status-view
 projection_version: v1
 source_scope: plan core + phases + journal
 through: 2026-08-12
-inputs_sha256: 8a83eee9934533af25a51e0f6b5cdb7175a7c113939a6df88cd59e081383fe43
+inputs_sha256: 69ffb1034313e015f59c9e0467e6f150bbd9fb4fdcb7e44659765fc8965d1388
 generated_by: task plan-views status
 -->
 
@@ -34,7 +34,7 @@ generated_by: task plan-views status
 | P5 | Default proxy settings и трёхуровневый resolve | 6/6 | 🟢 Done |
 | P6 | File handler registry, архивы и дочерняя обработка | 0/7 | 🟠 Done with deviations |
 | P7 | Document type, summary, estimates и tags | 6/6 | 🟢 Done |
-| P8 | Расширяемость platforms и гибкие status mappings | 3/5 | 🟡 In progress |
+| P8 | Расширяемость platforms и гибкие status mappings | 4/5 | 🟡 In progress |
 | P9 | Filament information architecture и понятный русский UX | 0/6 | ⬜ Not started |
 
 ## Phase P0
@@ -170,7 +170,7 @@ generated_by: task plan-views status
 | P8.1 | Проаудировать platform adapters, registries, configs, fixtures и schema seams | 🟢 Done | 2026-08-12 |
 | P8.2 | Запечатать минимальный contract добавления новой площадки | 🟢 Done | 2026-08-12 |
 | P8.3 | Перепроектировать status mapping без жёсткой привязки к одному ФЗ | 🟢 Done | 2026-08-12 |
-| P8.4 | Мигрировать данные и обновить repositories/policies/forms | ⬜ Not started | — |
+| P8.4 | Мигрировать данные и обновить repositories/policies/forms | 🟢 Done | 2026-08-12 |
 | P8.5 | Добавить architecture/contract tests и developer guide расширения | ⬜ Not started | — |
 
 ## Phase P9
@@ -541,6 +541,8 @@ write-site: pre_mutation: allow · pre_final: allow |
 | 2026-08-12 | gpt-5.6-terra/high | plan-run · in-progress · Local repair: remove unanchored counters from the delivery record. |
 | 2026-08-12 | gpt-5.6-terra/high | plan-run · closed-green · d079f5d0: status-mapping schema contract verified; delivery-record local repair only.
 write-site: pre_mutation: allow · pre_final: allow |
+| 2026-08-12 | gpt-5.6-terra/high | plan-run · in-progress · — |
+| 2026-08-12 | gpt-5.6-terra/high | plan-run · closed-green · 0fdc9eb4: repository-backed applicability resolver, EIS seed and authorized Filament surface. |
 
 ## Owner Gates
 
