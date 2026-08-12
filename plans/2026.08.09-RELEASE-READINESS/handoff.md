@@ -1,6 +1,6 @@
 # HANDOFF — 2026-08-12 — after P7.1
 
-## Next
+**Next:**
 
 ЗАПУСК ВРУЧНУЮ: implementation/high.
 
@@ -31,7 +31,7 @@ Cold-start reads are owned by `phases/P7/P7.2.md`: terminal P7.1 state, reconcil
 D32–D34, ADR 0004, current Analysis migration/model, ScreeningOutcomeHandler and focused axis/
 branching tests.
 
-## Done
+**Done:**
 
 - P7.1 product commit `5e929fc9` reconciled terminal P0.4/P0.5/P0.6/P6.6 evidence with the
   representative screening corpus and current `AiDocumentType` consumer surface.
@@ -41,13 +41,13 @@ branching tests.
 - Task Contract returned `pre_mutation=allow` and `pre_final=allow`; strict citations, plan-lint,
   generated view checks and content gates were green.
 
-## Remaining
+**Remaining:**
 
 - Execute P7.2–P7.6 sequentially; P7.6 owns the representative protocol fixture and full P6→P7
   contract matrix.
 - Continue P8–P12 only after P7 is terminal under phase-first execution.
 
-## Sources of truth
+**Sources of truth:**
 
 - `phases/P7/P7.1.state.md` — terminal P7.1 state.
 - `findings/P7-screening-contract-recon-2026-08-09.md` — normative frozen matrices.
@@ -56,14 +56,14 @@ branching tests.
   `D34-screening-persistence-disposition.md` — current decisions.
 - Product commit `5e929fc9` and item-scoped downstream findings keyed by its full commit.
 
-## Open risks
+**Open risks:**
 
 - P7.2–P7.6 downstream outcomes are `unknown` until each consumer implements and runs its declared
   validation; none blocks producer P7.1.
 - The manifest has no representative protocol sample; P7.6 must add the named regression carrier
   without changing the frozen case-set.
 
-## Workarounds/Deferred/Open questions
+**Workarounds/Deferred/Open questions:**
 
 - Workaround: exact-invocation routing guard was owner-bypassed after the router was declared broken;
   provider-thread route still proved the prescribed `frontier/high`. This is a process deviation,
