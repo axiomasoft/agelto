@@ -3,7 +3,7 @@ projection: status-view
 projection_version: v1
 source_scope: plan core + phases + journal
 through: 2026-08-12
-inputs_sha256: c691ae010e49c02bb1dfee2e8b90c57a8ad74afaab9787ff9fb377e0fdd001bd
+inputs_sha256: cb6629d4f03d963b3ef98cf0137969b8292f2fbc26021c2dd7a59b956222d343
 generated_by: task plan-views status
 -->
 
@@ -33,7 +33,7 @@ generated_by: task plan-views status
 | P4 | Закрытая production-документация вне public | 4/6 | 🟠 Done with deviations |
 | P5 | Default proxy settings и трёхуровневый resolve | 6/6 | 🟢 Done |
 | P6 | File handler registry, архивы и дочерняя обработка | 0/7 | 🟠 Done with deviations |
-| P7 | Document type, summary, estimates и tags | 1/6 | 🟡 In progress |
+| P7 | Document type, summary, estimates и tags | 6/6 | 🟢 Done |
 | P8 | Расширяемость platforms и гибкие status mappings | 0/5 | ⬜ Not started |
 | P9 | Filament information architecture и понятный русский UX | 0/6 | ⬜ Not started |
 
@@ -157,11 +157,11 @@ generated_by: task plan-views status
 | ID | Title | Status | Updated |
 |:--|:--|:--|:--|
 | P7.1 | Спроектировать расширяемую taxonomy document types и estimate cardinality | 🟢 Done | 2026-08-12 |
-| P7.2 | Добавить schema для type, summary, tags, confidence и decision reason | ⬜ Not started | — |
-| P7.3 | Обновить Spatie Data DTO и structured prompt/response schema | ⬜ Not started | — |
-| P7.4 | Сохранить первичный анализ и полезный summary для non-estimate документов | ⬜ Not started | — |
-| P7.5 | Спроектировать tags/anchors, поиск и Filament представление | ⬜ Not started | — |
-| P7.6 | Покрыть formats, unknown, non-estimate, multi-estimate и idempotency матрицей | ⬜ Not started | — |
+| P7.2 | Добавить schema для type, summary, tags, confidence и decision reason | 🟢 Done | 2026-08-12 |
+| P7.3 | Обновить Spatie Data DTO и structured prompt/response schema | 🟢 Done | 2026-08-12 |
+| P7.4 | Сохранить первичный анализ и полезный summary для non-estimate документов | 🟢 Done | 2026-08-12 |
+| P7.5 | Спроектировать tags/anchors, поиск и Filament представление | 🟢 Done | 2026-08-12 |
+| P7.6 | Покрыть formats, unknown, non-estimate, multi-estimate и idempotency матрицей | 🟢 Done | 2026-08-12 |
 
 ## Phase P8
 
@@ -495,6 +495,32 @@ write-site: pre_mutation: allow · pre_final: allow |
 | 2026-08-12 | frontier/high | plan-run · routing-rejected · provider route frontier/high; ROUTE_LAUNCH_MISMATCH: exact task:plan-run line отсутствует |
 | 2026-08-12 | frontier/high | plan-run · in-progress · — |
 | 2026-08-12 | frontier/high | plan-run · closed-green · Product 5e929fc9: P0/P6 reconciled; taxonomy/cardinality/limits/mapping/disposition/consumer matrices frozen; D32-D34 stable; exact-invocation guard owner-bypassed as broken. write-site: pre_mutation: allow · pre_final: allow |
+| 2026-08-12 | gpt-5.6-terra/high | plan-run · in-progress · P7.2 started: current route evidence validated. |
+| 2026-08-12 | gpt-5.6-terra/high | plan-run · local-repair · P7.2 SQL check fixed: PDO parameterized JSON ? operator; DB validation paused after --env=testing resolved to local agelto. |
+| 2026-08-12 | gpt-5.6-terra/high | plan-run · closed-deviations · Delivered v2 stored-screening schema/backfill/indexes/tests; project make test-preflight and db:create-test targets are absent, so equivalent isolated DB checks ran manually; exact-invocation probe bypassed per owner. |
+| 2026-08-12 | gpt-5.6-terra/high | plan-run · in-progress · Recovery attempt: validation commands are now present and test DB safety is executable. |
+| 2026-08-12 | gpt-5.6-terra/high | plan-run · closed-green · All P7.2 deliverables and required validation, including make test-preflight and make db:create-test, are green. |
+| 2026-08-12 | gpt-5.6-terra/high | plan-run · in-progress · P7.3 started: provider response v2 contract, prompt, gold and eval migration. |
+| 2026-08-12 | gpt-5.6-terra/high | plan-run · closed-green · P7.3: provider response v2 with required summary/cardinality/tags, shared normalization and structural validation; prompts v3, schema snapshot, gold/eval/runtime fakes migrated. 97 passed / 417 assertions; preflight, Pint, prompt sync/check, citations and diff are green. |
+| 2026-08-12 | gpt-5.6-terra/high | plan-run · in-progress · P7.4 started: typed backend disposition, atomic lifecycle and after-commit dispatch. |
+| 2026-08-12 | gpt-5.6-terra/high | plan-run · closed-green · P7.4: atomic v2 envelope/disposition lifecycle with after-commit extraction dispatch; flat decision keys removed from runtime. Fresh agelto_test: 99 passed / 458 assertions; Pint and diff clean. |
+| 2026-08-12 | gpt-5.6-terra/high | plan-run · in-progress · P7.5 started: policy-safe operator read side for screening v2. |
+| 2026-08-12 | owner | plan-run · closed-green · P7.5: policy-safe v2 screening read-side, exact active indexed filters/search/tag anchors, legacy audit fallback and active/superseded/shadow clarity. Fresh agelto_test focused Filament: 23 passed / 177 assertions; Pint and diff clean. |
+| 2026-08-12 | owner | plan-run · in-progress · P7.6 started: executable contract matrix, full validation and docs synchronization. |
+| 2026-08-12 | owner | plan-run · closed-green · P7.6: contract matrix covers document type, cardinality, confidence, disposition and lifecycle; v2 docs synchronized; full isolated no-TIA suite is green: 1524 passed / 6669 assertions; Pint and documentation contract are green. |
+| 2026-08-12 | frontier/xhigh | plan-audit · audit-red · заход 1, вердикт RED |
+| 2026-08-12 | gpt-5.6-terra/high | plan-run · closed-green · Repair F1/F2 ec8694ee: strict active v2 CHECK; fail-closed DB create/preflight + shell regression. make db:create-test/preflight, rollback/reapply and full 1526/6679 green on agelto_test.
+write-site: pre_mutation: allow · pre_final: allow |
+| 2026-08-12 | gpt-5.6-terra/high | plan-run · closed-green · Repair F1 f4bee546: DTO/schema/prompts/gold/eval use required summary/cardinality/bounded tags. Prompt sync/check and full 1526/6679 green on agelto_test.
+write-site: pre_mutation: allow · pre_final: allow |
+| 2026-08-12 | gpt-5.6-terra/high | plan-run · closed-green · Repair F1 79a28b6c: atomic typed disposition, after-commit dispatch and shadow v2 evidence. Lifecycle regressions and full 1526/6679 green.
+write-site: pre_mutation: allow · pre_final: allow |
+| 2026-08-12 | gpt-5.6-terra/high | plan-run · closed-green · Repair F1/F3 5269cbb6: carrier names fail-closed Analysis policy, registration and search migration; no grant broadened. Filament regressions and full 1526/6679 green.
+write-site: pre_mutation: allow · pre_final: allow |
+| 2026-08-12 | gpt-5.6-terra/high | plan-run · closed-green · Repair F1/F4 92723313: matrix/docs and operational consumers read decision.reason. Focused 109/618, shell/citation/prompt gates and full 1526/6679 green.
+write-site: pre_mutation: allow · pre_final: allow |
+| 2026-08-12 | frontier/high | plan-run · closed-green · Carrier-only reconciliation of original frontier/high run 062c3426 and product 5e929fc9; no implementation replay.
+write-site: pre_mutation: allow · pre_final: allow |
 
 ## Owner Gates
 
@@ -511,4 +537,3 @@ write-site: pre_mutation: allow · pre_final: allow |
 - P6.5: known deviation
 - P6.6: known deviation
 - P6.7: known deviation
-- P7.1: known deviation
