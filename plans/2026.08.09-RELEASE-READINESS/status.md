@@ -3,7 +3,7 @@ projection: status-view
 projection_version: v1
 source_scope: plan core + phases + journal
 through: 2026-08-12
-inputs_sha256: fca130dad16954fb899c867198d0e66ae7da20fad5eb1f0cc286d947f594b101
+inputs_sha256: 8ba1123299c00ffa94dd74267279b4d09737ec04618a10a4b1e280264971ba97
 generated_by: task plan-views status
 -->
 
@@ -417,6 +417,7 @@ write-site: pre_mutation: allow · pre_final: allow. |
 | 2026-08-12 | implementation/low | plan-close · closed-green · P5.1 reconciliation: product anchor 41e4e7cb remains GREEN; D73 normalized future consumer carriers, so the prior process marker is not a remaining deviation.
 write-site: pre_mutation: allow · pre_final: allow. |
 | 2026-08-12 | implementation/low | plan-close · closed-green · P5 closed GREEN by D76 after all canonical state reconciliations: all P5.1–P5.6 terminal; candidate c06221b6f1418f2396777546fe8317778f61606f91c68434454c3c0afc2378c4; no Audit 3; handoff to P6.1. |
+| 2026-08-12 | gpt-5.6-sol/high | plan-close · closed-green · P5 direct-close GREEN under D76; all P5.1–P5.6 terminal; no Audit 3; receipt-ready. |
 
 ## Owner Gates
 
