@@ -3,7 +3,7 @@ projection: status-view
 projection_version: v1
 source_scope: plan core + phases + journal
 through: 2026-08-12
-inputs_sha256: ef11609e0fdf3d6efb9f4927a4dba26d3a289abedcc55d2c9af9a41e53e3d8a1
+inputs_sha256: 4cb746af25474f42e48e557d2ff9fe3bbcf61800a6fd99873204713f06606455
 generated_by: task plan-views status
 -->
 
@@ -521,6 +521,7 @@ write-site: pre_mutation: allow · pre_final: allow |
 write-site: pre_mutation: allow · pre_final: allow |
 | 2026-08-12 | frontier/high | plan-run · closed-green · Carrier-only reconciliation of original frontier/high run 062c3426 and product 5e929fc9; no implementation replay.
 write-site: pre_mutation: allow · pre_final: allow |
+| 2026-08-12 | frontier/xhigh | plan-audit · audit-green · заход 2, вердикт GREEN; provider adapter unavailable under browser bridge; local audit run UUID |
 
 ## Owner Gates
 

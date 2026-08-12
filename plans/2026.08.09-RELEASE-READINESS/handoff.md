@@ -1,21 +1,21 @@
 # HANDOFF — 2026-08-12 — after P7
 
-**Next:** audit-phase: task:plan-audit 2026.08.09-RELEASE-READINESS P7
+**Next:** close: task:plan-close 2026.08.09-RELEASE-READINESS P7
 
 | Параметр | Значение |
 |:--|:--|
 | Batch | n/a |
-| Model class | frontier |
-| Effort | xhigh |
-| Capabilities | isolated-child-return |
-| Context | cold-start-root: whole-plan-independent-audit |
-| Суть | Выполнить второй и финальный adversarial audit terminal candidate P7 |
-| Команда | `$ task:plan-audit 2026.08.09-RELEASE-READINESS P7` |
+| Model class | implementation |
+| Effort | low |
+| Capabilities | — |
+| Context | cold-start-root: audit-root-terminal |
+| Суть | Закрыть P7 по fresh GREEN audit и тому же candidate fingerprint |
+| Команда | `$ task:plan-close 2026.08.09-RELEASE-READINESS P7` |
 
 Native Codex launch-block:
 
 ```bash
-codex -C /home/vostrikov/projects/agelto/agelto -m gpt-5.6-sol -c 'model_reasoning_effort="xhigh"' -a never -s danger-full-access '$ task:plan-audit 2026.08.09-RELEASE-READINESS P7'
+codex -C /home/vostrikov/projects/agelto/agelto -m gpt-5.6-terra -c 'model_reasoning_effort="low"' -a never -s danger-full-access '$ task:plan-close 2026.08.09-RELEASE-READINESS P7'
 ```
 
 **Done:**
@@ -29,15 +29,17 @@ codex -C /home/vostrikov/projects/agelto/agelto -m gpt-5.6-sol -c 'model_reasoni
   citation gate и `git diff --check` зелёные.
 - Terminal journal attempts P7.1–P7.6 несут canonical
   `write-site: pre_mutation: allow · pre_final: allow`; downstream records актуальны.
+- Второй финальный audit P7 завершён GREEN на candidate fingerprint
+  `7163564ad080eaa502fb956b7a507ad309e751230e5a4c321a5cfd1a47aaf1bb`;
+  fresh focused replay — 89 tests / 513 assertions на `agelto_test`.
 
 **Remaining:**
 
-- Второй финальный audit P7.
-- При GREEN — немедленно `task:plan-close 2026.08.09-RELEASE-READINESS P7`.
+- Закрыть P7 командой `task:plan-close 2026.08.09-RELEASE-READINESS P7`.
 
 **Sources of truth:**
 
-- `phases/P7/P7.md` — first RED findings and repaired terminal candidate.
+- `phases/P7/P7.md` — first RED findings и второй GREEN audit.
 - `phases/P7/P7.1.state.md` … `P7.6.state.md` — generated terminal item states.
 - Product commits `5e929fc9`, `ec8694ee`, `f4bee546`, `79a28b6c`, `5269cbb6`, `92723313`.
 - `journal.jsonl` and item-scoped `findings/P7.*-downstream-*.md`.
@@ -45,7 +47,7 @@ codex -C /home/vostrikov/projects/agelto/agelto -m gpt-5.6-sol -c 'model_reasoni
 **Open risks:**
 
 - Downstream validations belonging to future P8–P12 items are truthfully `unknown` until their item-owned carriers exist; this is dependency-not-ready and does not block producer closure.
-- The second audit is the final audit-budget round.
+- Audit budget исчерпан вторым GREEN round; close обязан сверить тот же fingerprint.
 
 **Workarounds/Deferred/Open questions:**
 
