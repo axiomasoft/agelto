@@ -3,7 +3,7 @@ projection: status-view
 projection_version: v1
 source_scope: plan core + phases + journal
 through: 2026-08-12
-inputs_sha256: ebe17fc9596ac610e8ae159f3f605e7e728deffbaaf069b73f0fb02d6bcbba4e
+inputs_sha256: e83b30dcc1c12122d0ea2f0da01289b660ef42ec7edbdc219db832d8c1ea947a
 generated_by: task plan-views status
 -->
 
@@ -32,7 +32,7 @@ generated_by: task plan-views status
 | P3 | Fresh install, Livewire/Filament assets и application readiness | 5/5 | 🟢 Done |
 | P4 | Закрытая production-документация вне public | 4/6 | 🟠 Done with deviations |
 | P5 | Default proxy settings и трёхуровневый resolve | 6/6 | 🟢 Done |
-| P6 | File handler registry, архивы и дочерняя обработка | 1/6 | 🟡 In progress |
+| P6 | File handler registry, архивы и дочерняя обработка | 1/6 | 🟠 Done with deviations |
 | P7 | Document type, summary, estimates и tags | 0/6 | ⬜ Not started |
 | P8 | Расширяемость platforms и гибкие status mappings | 0/5 | ⬜ Not started |
 | P9 | Filament information architecture и понятный русский UX | 0/6 | ⬜ Not started |
@@ -149,7 +149,7 @@ generated_by: task plan-views status
 | P6.3 | Реализовать безопасное идемпотентное раскрытие архивов с лимитами | 🟢 Done | 2026-08-12 |
 | P6.4 | Создавать child file records со ссылкой на parent archive и dispatch | 🟠 Done with deviations | 2026-08-12 |
 | P6.5 | Добавить требуемый archive-to-children-to-processing integration test | 🟠 Done with deviations | 2026-08-12 |
-| P6.6 | Закрепить extension contract и тест-шаблон для новых handlers | ⬜ Not started | — |
+| P6.6 | Закрепить extension contract и тест-шаблон для новых handlers | 🟠 Done with deviations | 2026-08-12 |
 
 ## Phase P7
 
@@ -439,6 +439,8 @@ write-site: pre_mutation: allow · pre_final: allow |
 write-site: pre_mutation: allow · pre_final: allow |
 | 2026-08-12 | owner | plan-run · in-progress · P6.5 started under direct owner authorization to continue despite broken route-evidence helper. |
 | 2026-08-12 | owner | plan-run · closed-deviations · P6.5 c6bff21f: lifecycle/retry/two-worker concurrency, hostile zero-effect matrix, encrypted ZIP detection and RAR runtime proof green. Deviations: owner route override; missing Make targets; ArchiveExtractor outside Files. write-site: owner-authorized override. |
+| 2026-08-12 | implementation/medium | plan-exec · in-progress · P6.6 started under owner-authorized route override. |
+| 2026-08-12 | implementation/medium | plan-exec · closed-deviations · Extension contract, static guard, docs, focused and full tests completed. |
 
 ## Owner Gates
 
@@ -452,3 +454,4 @@ write-site: pre_mutation: allow · pre_final: allow |
 - P6.2: known deviation
 - P6.4: known deviation
 - P6.5: known deviation
+- P6.6: known deviation
