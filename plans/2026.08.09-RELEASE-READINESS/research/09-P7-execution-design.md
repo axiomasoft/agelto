@@ -1,125 +1,146 @@
-# P7 execution design — semantic screening envelope and operator contract
+# P7 execution design — reconciled semantic screening envelope
 
-## Sources
+Execution reconciliation completed 2026-08-12. The normative matrices live in
+`findings/P7-screening-contract-recon-2026-08-09.md`; this research records why the selected
+contract remains compatible with terminal P0/P6 evidence and how downstream items consume it.
+RAG:— (repo-grounded synthesis of terminal products and current corpus).
 
-- `findings/P7-screening-contract-recon-2026-08-09.md` — current DTO, JSON persistence,
-  disposition, DB-axis and Filament map.
-- `research/00-user-intent.md` — owner trace for type/cardinality/unknown, useful summary and tags.
-- terminal P0.4/P0.5/P0.6 products — future official package/prompt/taxonomy evidence and frozen
-  cross-phase contracts.
-- terminal P6.6 product — future typed safe document input/handler contract.
-- ADR 0004 and archived `document-type-axis.md` — current accepted JSONB and enum/check carriers.
+## Evidence resolved at P7.1
 
-P7 is authored before P0/P6 execution. P7.1 therefore reconciles terminal products and corpus
-before changing a taxonomy case, prompt, DB JSON shape or handler. Contradiction gets a new
-superseding decision; executor code does not reinterpret D32–D34 silently. RAG:— (repo-grounded:
-current phase order, P0/P6 state views and `findings/P7-screening-contract-recon-2026-08-09.md`).
+- P0.4 product `04aa63a0` confirms the locked framework/schema surface and introduces no package
+  or provider constraint that requires another response carrier.
+- P0.5 product `f1cb83dd` confirms that semantic procurement taxonomy is independent of extension,
+  MIME/magic and estimate format. It rejects both “every attachment is an estimate” and unproven
+  GSFX spelling aliases.
+- P0.6 product `52fb69c6` freezes EXT-11–EXT-13: explicit unknown/null, zero/one/multiple estimate
+  semantics, required summaries and tag/anchor round-trip.
+- P6.6 product `5045cc85`, with D79 terminal recovery, proves the normalized
+  `ReadyForScreening` boundary for supported formats. Archive expansion precedes screening, so
+  cardinality remains scoped to each child `Document`.
+- The current manifest/gold/prompt/tests exercise estimate, technical specification, contract
+  draft and hostile unknown boundaries. P0.5 plus the current enum/prompt/test contract preserves
+  protocol as a named semantic case; P7.6 owns its representative regression fixture.
 
-## Alternatives and decisions
+The terminal chain contains no evidence-backed contradiction to D32, D33 or D34. They remain
+byte-stable and no superseding D is produced.
+
+## Alternatives resolved
 
 ### Semantic document type carrier
 
-- A: reuse source `Document.kind`. Rejected: it is raw platform text and loses provenance.
-- B: runtime DB dictionary. Flexible, but prompt/schema/check consumers can drift and unknown aliases
-  become data-dependent.
-- C (D32): backed `AiDocumentType` remains the semantic SSOT; `Unknown` is a real completed verdict,
-  while SQL NULL means screening has not produced one. Registry membership decides whether a type
-  has extraction, so adding a type does not force an extractor.
+- Raw `Document.kind` remains source provenance and cannot be the semantic SSOT.
+- A runtime dictionary is rejected because DB checks, provider schema, fixtures/eval and UI would
+  no longer share a closed value set.
+- The backed `AiDocumentType` enum plus `DocumentAnalyzerRegistry` remains selected. `unknown` is a
+  completed verdict; SQL NULL is pre-verdict state. Analyzer availability is orthogonal.
 
-### Screening response contract
+### Taxonomy breadth
 
-- A: keep flat nullable `description/tags/ignore_reason`. Lowest diff, but count/decision semantics
-  remain implicit and the model appears to own branching.
-- B: generic entity/value table for every field. Queryable, but contradicts ADR 0004 and creates a
-  lifecycle/projection before a second extractor needs it.
-- C (D33): response v2 contains `document_type`, bounded `confidence`, required bounded `summary`,
-  typed `estimate_cardinality=none|single|multiple|unknown`, normalized bounded `tags:list<string>`
-  and optional non-authoritative `classification_note`. Backend-only disposition is not part of the
-  provider schema.
+- Adding `notice`, `attachment`, format names or vendor aliases is rejected: the corpus does not
+  establish stable semantic boundaries for them.
+- Removing `protocol` is rejected: terminal P0.5 and the current public case/prompt contract name
+  procurement protocols independently of estimate formats.
+- Multi-label routing is rejected: the accepted rule remains “any visible estimate structure
+  makes the document `estimate`”; cardinality captures plurality without changing analyzer routing.
 
-### Persistence and runtime decision
+### Response and persistence
 
-- A: denormalize every field onto `prc_documents`. Easy UI, but duplicates per-run evidence and makes
-  rerun/shadow provenance ambiguous.
-- B: dedicated screening table. Strong schema, but duplicates the existing one-row-per-step Analysis
-  lifecycle and violates the accepted JSONB direction.
-- C (D34): keep `Analysis.document_type` as indexed discriminator and migrate `Analysis.result` to a
-  versioned nested screening envelope. A short backend mutation path appends typed
-  `disposition/reason/extraction_dispatched`; JSONB/partial indexes serve tag/filter reads. Raw old
-  flat keys are deterministically backfilled, not dual-written indefinitely.
+- Flat nullable `description/tags/ignore_reason` is rejected because required summary,
+  cardinality and backend decision semantics remain implicit.
+- A generic entity/value or second screening table is rejected because `Analysis` already owns
+  per-run provenance and D34 selects versioned JSONB.
+- Provider response v2 contains semantic evidence only. Backend disposition/reason and dispatch
+  state remain backend-owned in the stored v2 envelope.
 
-## Frozen target contract
+## Why the exact bounds are local contract decisions
 
-1. `Document.kind` remains source metadata. `AiDocumentType` remains the only semantic case-set;
-   every new case is rejected until DB constraints, prompt schema, fixture/eval/gold consumers,
-   Filament labels and architecture tests are updated together.
-2. Provider response v2:
-   - `document_type: AiDocumentType` — never null; uncertain means `Unknown`;
-   - `confidence: float` — 0..1;
-   - `summary: string` — non-empty bounded description of successfully read visible content,
-     including non-estimate/unknown;
-   - `estimate_cardinality: EstimateCardinality` — `none|single|multiple|unknown`;
-   - `tags: list<string>` — backend trims, Unicode-normalizes, casefold-deduplicates and applies the
-     exact count/length limits frozen by P7.1;
-   - `classification_note: ?string` — short model explanation, never a branch command.
-3. Structural invariants: `single|multiple` requires `document_type=estimate`; a visible estimate
-   keeps `estimate` even when other material surrounds it; `estimate` may carry `unknown` when the
-   first-page slice cannot establish count. `none` on `estimate` is invalid. These preserve the
-   current prompt rule that a multi-estimate file is one document of type estimate.
-4. Stored result v2 contains `schema_version`, nested `screening` and backend `decision` objects.
-   `decision.disposition` is `extract|retain|review|ignore`; reason is a backed enum such as
-   `analyzer_available`, `known_type_no_analyzer`, `unknown_type`, `low_confidence`,
-   `borderline_confidence`, `ignore_rule`. `extraction_dispatched` is a separate boolean, so a global
-   extraction stop does not rewrite the semantic decision.
-5. `ScreeningProcessor` owns provider call/validation/usage and produces typed screening evidence.
-   `ScreeningOutcomeHandler` computes disposition. A short Action/repository mutation persists the
-   decision, Document status/event/run termination and after-commit extraction dispatch; no DB
-   transaction spans upload or LLM work.
-6. Existing flat rows and committed gold/test payloads are migrated once: `description→summary`,
-   flat tags/confidence/page count/ignore note into `screening`, current branch keys into `decision`
-   where deterministically mappable. Unmappable historical values remain named and fail the migration
-   or explicit backfill test; no silent default to a green disposition.
-7. Analysis Filament index/view renders the envelope as fields, uses enum labels/badges, exact tag
-   anchors and filters for type/cardinality/disposition/reason. Raw JSON remains audit evidence, not
-   the only operator interface. No edit surface or authorization broadening is introduced.
+The active screening route has a bounded response budget and the committed corpus descriptions
+fit comfortably inside a short summary. P7.1 therefore fixes defensive application limits rather
+than claiming an external universal optimum: summary 1–1000 code points, up to 12 tags of 1–64
+code points with a 512-code-point aggregate, and optional classification note up to 500 code
+points. One shared backend normalizer owns NFKC, whitespace, casefold deduplication and rejection
+of control/empty values.
 
-RAG:— (repo-grounded synthesis: D32–D34, current screening prompt/handler and owner brief).
+These limits are deliberately provider-agnostic, fit the current response budget, are enforceable
+by DTO/schema/backend tests, and give persistence/API/Filament one stable tag anchor. Changing them
+after P7.1 is a contract change consumed by P7.2–P7.6, not a prompt-only tweak.
 
-## Item topology
+## Cardinality design
 
-| Item | Input dependency | Product | Downstream gate |
-|:--|:--|:--|:--|
-| P7.1 | terminal P0.4/P0.5/P0.6 + P6.6 + current corpus | reconciled taxonomy/tag/response matrix and stable D32–D34 or superseding chain | P7.2 may mutate JSON/schema only after freeze |
-| P7.2 | terminal P7.1 | enums, versioned stored envelope, backfill and indexes | P7.3 emits only a representable provider payload |
-| P7.3 | terminal P7.2 | DTO/schema/prompt/gold/eval contract with structural validation | P7.4 persists and branches only validated values |
-| P7.4 | terminal P7.3 | idempotent backend disposition and useful non-estimate persistence | P7.5 reads a stable operator contract |
-| P7.5 | terminal P7.4 | authorized Filament fields, tag anchors, filters/search | P7.6 proves UI and data contract together |
-| P7.6 | terminal P7.5 | format/cardinality/unknown/non-estimate/retry matrix plus docs | P8/P9/P10/P12 consume stable P7 contract |
+Cardinality is a property of visible semantic content in one normalized `Document`:
 
-All items are sequential and share enum/schema/result/handler/test/doc hotspots. The N≥3 independent
-criterion is false; there is no long autonomous external-state chain. Orchestration is not declared.
-RAG:— (repo-grounded: dependency matrix above).
+- `single` and `multiple` require `document_type=estimate`;
+- `estimate+unknown` is honest when the bounded slice shows an estimate but not its count;
+- `estimate+none` is invalid;
+- known non-estimate types require `none`;
+- `unknown+none` means readable other content with no estimate, while `unknown+unknown` means the
+  slice cannot establish either taxonomy or count.
+
+Sheets, pages, archive entries and extracted rows are not cardinality units. P6 child
+materialization creates separate documents before this contract applies.
+
+## Backend decision design
+
+The current `0.4`/`0.6` confidence boundaries and ignore-rule precedence are preserved. The
+closed result is:
+
+- `ignore/ignore_rule` before model-derived branches;
+- `ignore/low_confidence` below the low threshold;
+- `review/borderline_confidence` in the inclusive borderline interval after the optional one-shot
+  escalation path;
+- `ignore/unknown_type` for a high-confidence completed unknown verdict;
+- `retain/known_type_no_analyzer` for a known semantic case without extraction;
+- `extract/analyzer_available` when the registry owns extraction.
+
+`extraction_dispatched` remains separate. A global extraction stop or pending after-commit dispatch
+does not rewrite the semantic `extract/analyzer_available` decision.
+
+## Migration strategy
+
+P7.2 performs one deterministic flat-to-v2 migration:
+
+- `description→summary`, normalized tags/confidence and optional legacy page-count provenance go
+  under `screening`;
+- `ignore_reason` becomes only `classification_note`, never an authoritative backend reason;
+- known `branch_reason`/`needs_review` values map to the closed decision enum;
+- unknown enum/range/shape/reason or missing required summary fails the backfill visibly.
+
+No indefinite dual-write and no silent green default are permitted. `Analysis.document_type`
+remains the indexed discriminator; JSONB partial indexes support decision/tag filters.
+
+## Sequential item topology
+
+| Item | Consumes | Produces and gates |
+|:--|:--|:--|
+| P7.1 | terminal P0/P6 + corpus/current consumers | frozen matrices; D32–D34 stable |
+| P7.2 | P7.1 | enums, v2 envelope, backfill and indexes |
+| P7.3 | P7.2 | DTO/schema/prompt/gold/eval contract and shared normalization |
+| P7.4 | P7.3 | idempotent typed disposition and after-commit lifecycle |
+| P7.5 | P7.4 | authorized readable operator/search/tag surface |
+| P7.6 | P7.5 | representative taxonomy/cardinality/format regression and docs |
+
+P8 consumes raw-label provenance without redefining taxonomy; P9 consumes Russian labels and
+operator fields; P10 audits schema/security/race/queue invariants; P12 reproduces the full carrier
+on a clean deployment.
 
 ## Validation strategy
 
-1. Reconcile gate: terminal P0.4/P0.5/P0.6/P6.6, exact taxonomy/source/tag limits and explicit
-   contradictions/superseding chain.
-2. Data shape: clean migration, rollback/reapply, flat→v2 backfill, invalid enum/range/shape failures,
-   partial JSON indexes and no second semantic type carrier.
-3. Provider contract: deterministic generated schema/snapshot, prompt version bump, required summary,
-   honest unknown/cardinality and hostile/oversized tags rejected by common validator.
-4. Runtime: known analyzer/no analyzer, unknown, ignore rule, low/borderline/escalated confidence,
-   extraction disabled, rerun/shadow and duplicate job handling; no transaction across LLM/storage.
-5. Operator: policy-preserving Analysis table/infolist, summary/tag/cardinality/disposition rendering,
-   exact filters/anchors and raw JSON audit fallback.
-6. End-to-end: P6 normalized representations, non-estimate summary retention, single/multiple/unknown
-   estimate count, active-analysis replacement and full no-TIA suite/docs gates.
+1. Data shape: clean migration, rollback/reapply, flat-to-v2 backfill, invalid enum/range/shape
+   rejection and partial JSON indexes.
+2. Provider contract: deterministic schema, required summary, cardinality cross-field rules,
+   hostile/oversized tags and shared normalizer.
+3. Runtime: ignore rule, low/borderline/escalated confidence, known analyzer/no analyzer, unknown,
+   extraction stop, retry/rerun and after-commit dispatch.
+4. Operator: policy-preserving summary/tag/cardinality/disposition rendering, exact tag anchors and
+   filters with raw JSON audit fallback.
+5. End to end: P6 normalized inputs, all semantic cases, single/multiple/unknown estimates,
+   non-estimate retention and full no-TIA suite/docs gates.
 
 ## Verification status
 
-- Repo contract and locked package map: complete for design.
-- External taxonomy/tag vocabulary and provider/framework constraints: terminal P0.4/P0.5 are the
-  required source; P7.1 owns the re-pass before mutation.
-- Safe input representation contract: terminal P6.6 required; no behavior is assumed from skeleton P6.
-- Open owner question: none. Mixed visible content preserves current repo rule «any visible estimate
-  ⇒ type estimate»; changing that to multi-label routing requires a superseding D, not executor choice.
+- Terminal products and committed identities: reconciled.
+- Representative corpus and current `AiDocumentType` consumer surface: inventoried.
+- Exact taxonomy, cardinality, limits, mapping and disposition matrices: frozen in the finding.
+- D32–D34 contradiction: none; no superseding decision required.
+- Open owner question: none. Protocol corpus coverage is assigned to P7.6 and does not alter the
+  frozen case-set.
