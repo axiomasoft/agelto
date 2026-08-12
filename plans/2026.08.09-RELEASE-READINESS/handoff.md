@@ -5,8 +5,8 @@
 | Параметр | Значение |
 |:--|:--|
 | Batch | solo |
-| Model class | implementation |
-| Effort | high — transactional storage/queue lifecycle |
+| Model | implementation |
+| Thinking | high — transactional storage/queue lifecycle |
 | Capabilities | — |
 | Context | continue-root |
 | Суть | Материализовать validated archive entries как concurrent-safe child versions и dispatch после commit. |
