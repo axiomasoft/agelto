@@ -3,7 +3,7 @@ projection: status-view
 projection_version: v1
 source_scope: plan core + phases + journal
 through: 2026-08-12
-inputs_sha256: ad58700e2e7b339ef76a6444f6a571468d7f0096f69a9d956064dbdf2d798411
+inputs_sha256: 930d8a113821b5f78948aa5d042f80ed92015b50d7a1dbd5c43d136146b6bd65
 generated_by: task plan-views status
 -->
 
@@ -34,7 +34,7 @@ generated_by: task plan-views status
 | P5 | Default proxy settings и трёхуровневый resolve | 6/6 | 🟢 Done |
 | P6 | File handler registry, архивы и дочерняя обработка | 0/7 | 🟠 Done with deviations |
 | P7 | Document type, summary, estimates и tags | 6/6 | 🟢 Done |
-| P8 | Расширяемость platforms и гибкие status mappings | 0/5 | ⬜ Not started |
+| P8 | Расширяемость platforms и гибкие status mappings | 1/5 | 🟡 In progress |
 | P9 | Filament information architecture и понятный русский UX | 0/6 | ⬜ Not started |
 
 ## Phase P0
@@ -167,7 +167,7 @@ generated_by: task plan-views status
 
 | ID | Title | Status | Updated |
 |:--|:--|:--|:--|
-| P8.1 | Проаудировать platform adapters, registries, configs, fixtures и schema seams | ⬜ Not started | — |
+| P8.1 | Проаудировать platform adapters, registries, configs, fixtures и schema seams | 🟢 Done | 2026-08-12 |
 | P8.2 | Запечатать минимальный contract добавления новой площадки | ⬜ Not started | — |
 | P8.3 | Перепроектировать status mapping без жёсткой привязки к одному ФЗ | ⬜ Not started | — |
 | P8.4 | Мигрировать данные и обновить repositories/policies/forms | ⬜ Not started | — |
@@ -525,6 +525,12 @@ write-site: pre_mutation: allow · pre_final: allow |
 | 2026-08-12 | frontier/xhigh | plan-audit · audit-green · Normalized P7 audit subject for phase-close gate; same GREEN audit evidence. |
 | 2026-08-12 | implementation/low | plan-close · closed-green · P7 closed after matching GREEN audit; normalized audit subject repair verified. |
 | 2026-08-12 | implementation/low | plan-close · closed-green · P7 closure receipt terminal record after matching GREEN audit. |
+| 2026-08-12 | frontier/high | plan-run · in-progress · — |
+| 2026-08-12 | frontier/high | plan-run · local-repair · Изменение P8 findings/research ожидаемо сделало stale bundles P8.1–P8.5; пересборка owner-generator. |
+| 2026-08-12 | frontier/high | plan-run · closed-green · 64e25552: findings/research freeze adapter, status, UI/test and consumer matrices; D35/D36 stable. plan-lint, plan-views checks, citation gate and git diff --check passed. write-site: pre_mutation: allow · pre_final: allow |
+| 2026-08-12 | frontier/high | plan-run · in-progress · Closure-format repair; product commit 64e25552 unchanged. |
+| 2026-08-12 | frontier/high | plan-run · closed-green · 64e25552 unchanged: closure-format repair only; adapter/status/UI/test matrices and D35/D36 verdict validated; Task views, citations and diff checks passed.
+write-site: pre_mutation: allow · pre_final: allow |
 
 ## Owner Gates
 
@@ -541,3 +547,4 @@ write-site: pre_mutation: allow · pre_final: allow |
 - P6.5: known deviation
 - P6.6: known deviation
 - P6.7: known deviation
+- P8.1: known deviation
