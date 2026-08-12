@@ -6,6 +6,11 @@ delegates to the existing isolated P5.5 acceptance carrier: it preserves the tes
 focused proxy matrix, rollback/forward migration proof, full no-TIA suite, Pint, PHPStan and
 plan/citation checks. No proxy semantics are changed by this ownership correction.
 
+The full-suite preflight also exposed a stale `EisSeedersTest` assertion for the removed
+`use_proxy` column. P5.6 updates that assertion to the current persisted
+`CrawlerProxyMode::Default` contract; the seed behaviour, migration and D8/D28/D29 semantics
+are unchanged. The focused seed suite passes 11 tests / 46 assertions on the candidate tree.
+
 The paired Swissknifeman source/runtime repair is
-`449153a582c2169592458998a3c7302ae4abe26a`; it makes the Task return projection accept the
-historical P5 audit-attention reopen and admits only the declared P5 validation carrier.
+`d2bed1f22f04f7de59fe7e16f1f4d5b76597bdde`; it makes the Task return projection exclude the
+historical phase audit-attention reopen and admits only the declared P5 validation carrier.
