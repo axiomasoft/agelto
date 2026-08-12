@@ -130,12 +130,6 @@ final class Crawler extends Model
      */
     private function assertProxyBinding(): void
     {
-        if (! $this->proxy_mode instanceof CrawlerProxyMode) {
-            throw ValidationException::withMessages([
-                'proxy_mode' => 'Выберите режим прокси: профиль, по умолчанию или напрямую.',
-            ]);
-        }
-
         if ($this->proxy_mode !== CrawlerProxyMode::Profile) {
             return;
         }
@@ -152,13 +146,7 @@ final class Crawler extends Model
     /**
      * Второй гейт записи (D18): фильтр, объявивший себя `RequiresScope`, обязан нести непустой
      * предметный скоуп — иначе профиль не сохраняется ни с `filter = null`, ни с пустым скоупом.
-     * Проверка идёт по КОНТРАКТУ, а не по коду реестра (`if ($registry->code === 'fz44')`
-     * запрещён каноном ветки, `CrawlerForm` docblock).
-     *
-     * Текст отказа называет реестр и конкретное требование: единственный сегодняшний носитель
-     * контракта — `EisSearchFilter`, поэтому «узел ОКПД2» стоит прямо здесь. Появится второй
-     * реализующий фильтр — формулировка переезжает в контракт (тот же приём отложенного
-     * обобщения, что у `HasPriceRange`).
+     * Проверка идёт по контракту capability адаптера, а не по конкретному коду реестра.
      */
     private function assertScope(?Data $filter): void
     {
@@ -168,13 +156,8 @@ final class Crawler extends Model
             return;
         }
 
-        try {
-            $class = app(CrawlerFilterFactory::class)->for(registry: $registry);
-        } catch (RuntimeException) {
-            // Реестр без записи в `config('crawler.filters')` — скоуп ему неизвестен, и это не
-            // повод отвергать профиль: класс фильтра появится вместе с веткой площадки.
-            return;
-        }
+        $filters = app(CrawlerFilterFactory::class);
+        $class = $filters->for(registry: $registry);
 
         if (! is_subclass_of($class, RequiresScope::class)) {
             return;
@@ -187,15 +170,16 @@ final class Crawler extends Model
         throw ValidationException::withMessages([
             'filter' => sprintf(
                 'Профиль реестра «%s» обязан нести предметный скоуп: выберите хотя бы один узел '
-                .'ОКПД2. Профиль без скоупа расширяет выборку на весь реестр.',
+                .'%s',
                 (string) $registry->getAttribute('code'),
+                $filters->scopeMessage(registry: $registry),
             ),
         ]);
     }
 
     /**
      * `filter` хранится прежним `jsonb` (D34), а наружу отдаётся типизированным объектом:
-     * класс резолвится по коду реестра через `config('crawler.filters')`, поэтому у другой
+     * класс резолвится из nested registry capability exact platform adapter, поэтому у другой
      * площадки/реестра — свой `Data`-класс, а не общий мешок ключей.
      */
     protected function filter(): Attribute

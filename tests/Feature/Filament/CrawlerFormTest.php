@@ -38,7 +38,7 @@ function crawlerFormOperator(): User
 test('сохранение профиля формой даёт типизированный фильтр и обязательные колонки', function (): void {
     actingAs(crawlerFormOperator());
 
-    $registry = Registry::factory()->create(['code' => 'fz44']);
+    $registry = Registry::factory()->eis()->create(['code' => 'fz44']);
     Okpd2Node::factory()->create(['platform_id' => $registry->platform_id, 'code' => '43']);
 
     Livewire::test(CreateCrawler::class)
@@ -77,7 +77,7 @@ test('сохранение профиля формой даёт типизиро
 test('форма сохраняет long execution lane как профильный enum', function (): void {
     actingAs(crawlerFormOperator());
 
-    $registry = Registry::factory()->create(['code' => 'fz44']);
+    $registry = Registry::factory()->eis()->create(['code' => 'fz44']);
     Okpd2Node::factory()->create(['platform_id' => $registry->platform_id, 'code' => '43']);
 
     Livewire::test(CreateCrawler::class)
@@ -102,7 +102,7 @@ test('форма сохраняет long execution lane как профильн�
 test('обязательные колонки нельзя снять даже при попытке отправить фильтр без них', function (): void {
     actingAs(crawlerFormOperator());
 
-    $registry = Registry::factory()->create(['code' => 'fz44']);
+    $registry = Registry::factory()->eis()->create(['code' => 'fz44']);
     Okpd2Node::factory()->create(['platform_id' => $registry->platform_id, 'code' => '43']);
     $crawler = Crawler::factory()->for($registry)->create([
         'filter' => new EisSearchFilter(okpd2Codes: ['43']),
@@ -125,7 +125,7 @@ test('обязательные колонки нельзя снять даже �
 test('невалидное cron-выражение отклоняется на форме', function (): void {
     actingAs(crawlerFormOperator());
 
-    $registry = Registry::factory()->create(['code' => 'fz44']);
+    $registry = Registry::factory()->eis()->create(['code' => 'fz44']);
 
     Livewire::test(CreateCrawler::class)
         ->fillForm([
@@ -145,7 +145,7 @@ test('невалидное cron-выражение отклоняется на �
 test('неизвестный ключ фильтра отклоняется формой так же, как моделью', function (): void {
     actingAs(crawlerFormOperator());
 
-    $registry = Registry::factory()->create(['code' => 'fz44']);
+    $registry = Registry::factory()->eis()->create(['code' => 'fz44']);
 
     // Гейт неизвестного ключа стоит в модельном `saving` (P4.3), форма его не дублирует —
     // Filament ловит исключение сохранения и не создаёт запись, вместо проброса выше.
@@ -170,7 +170,7 @@ test('неизвестный ключ фильтра отклоняется фо
 test('опции ОКПД2 сгруппированы по родительскому узлу и находятся поиском по коду и по названию', function (): void {
     actingAs(crawlerFormOperator());
 
-    $registry = Registry::factory()->create(['code' => 'fz44']);
+    $registry = Registry::factory()->eis()->create(['code' => 'fz44']);
     $root = Okpd2Node::factory()->create([
         'platform_id' => $registry->platform_id,
         'code' => '43',
@@ -201,7 +201,7 @@ test('опции ОКПД2 сгруппированы по родительск�
 test('превью URL несёт okpd2Ids и okpd2IdsWithNested после выбора узла ОКПД2', function (): void {
     actingAs(crawlerFormOperator());
 
-    $registry = Registry::factory()->create(['code' => 'fz44']);
+    $registry = Registry::factory()->eis()->create(['code' => 'fz44']);
     Okpd2Node::factory()->create([
         'platform_id' => $registry->platform_id,
         'code' => '43',
@@ -230,7 +230,7 @@ test('превью URL несёт okpd2Ids и okpd2IdsWithNested после вы
 test('форма сохраняет профиль с полями сортировки', function (): void {
     actingAs(crawlerFormOperator());
 
-    $registry = Registry::factory()->create(['code' => 'fz44']);
+    $registry = Registry::factory()->eis()->create(['code' => 'fz44']);
     Okpd2Node::factory()->create(['platform_id' => $registry->platform_id, 'code' => '43']);
 
     Livewire::test(CreateCrawler::class)
@@ -259,7 +259,7 @@ test('форма сохраняет профиль с полями сортир�
 test('форма сохраняет профиль с политикой остановки «только актуальные данные»', function (): void {
     actingAs(crawlerFormOperator());
 
-    $registry = Registry::factory()->create(['code' => 'fz44']);
+    $registry = Registry::factory()->eis()->create(['code' => 'fz44']);
     Okpd2Node::factory()->create(['platform_id' => $registry->platform_id, 'code' => '43']);
 
     Livewire::test(CreateCrawler::class)
@@ -283,7 +283,7 @@ test('форма сохраняет профиль с политикой ост�
 test('форма не сохраняет политику «только актуальные данные» на archive-профиле — та же ошибка, что у модели', function (): void {
     actingAs(crawlerFormOperator());
 
-    $registry = Registry::factory()->create(['code' => 'fz44']);
+    $registry = Registry::factory()->eis()->create(['code' => 'fz44']);
     Okpd2Node::factory()->create(['platform_id' => $registry->platform_id, 'code' => '43']);
 
     // Гейт (P3.3) стоит в модельном `saving()`, форма его не дублирует — Filament ловит
@@ -307,7 +307,7 @@ test('форма не сохраняет политику «только акт�
 test('форма отклоняет профиль fz44 без выбранного узла ОКПД2', function (): void {
     actingAs(crawlerFormOperator());
 
-    $registry = Registry::factory()->create(['code' => 'fz44']);
+    $registry = Registry::factory()->eis()->create(['code' => 'fz44']);
     Okpd2Node::factory()->create(['platform_id' => $registry->platform_id, 'code' => '43']);
 
     Livewire::test(CreateCrawler::class)
@@ -330,7 +330,7 @@ test('форма отклоняет профиль fz44 без выбранно�
 test('форма сначала сохраняет direct-профиль с привязкой, затем разрешает профильный режим', function (): void {
     actingAs(crawlerFormOperator());
 
-    $registry = Registry::factory()->create(['code' => 'fz44']);
+    $registry = Registry::factory()->eis()->create(['code' => 'fz44']);
     Okpd2Node::factory()->create(['platform_id' => $registry->platform_id, 'code' => '43']);
     $proxy = Proxy::factory()->create();
     $crawler = Crawler::factory()->for($registry)->withProxies($proxy)->create(['options' => null]);

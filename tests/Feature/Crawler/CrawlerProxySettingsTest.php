@@ -99,7 +99,7 @@ function useProxySettingsSourceMethod(array $batches, ?Closure $beforeReturn = n
     $double = new ProxySettingsRecordingSourceMethod(batches: $batches, beforeReturn: $beforeReturn);
     app()->instance(ProxySettingsRecordingSourceMethod::class, $double);
 
-    config(['crawler.source_methods' => [
+    config(['crawler.platforms.eis.source_methods' => [
         SourceMethodEnum::Csv->value => ProxySettingsRecordingSourceMethod::class,
     ]]);
 

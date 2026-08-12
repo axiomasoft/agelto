@@ -40,7 +40,7 @@ test('job резолвит fresh-режим и вызывает FreshRunProcesso
     $crawler = Crawler::factory()->create(['mode' => CrawlerMode::Fresh, 'source_method' => SourceMethodEnum::Csv]);
 
     app()->instance(QueueSourceMethod::class, new QueueSourceMethod(batches: [crawlRunJobEmptyBatch()]));
-    config(['crawler.source_methods' => [SourceMethodEnum::Csv->value => QueueSourceMethod::class]]);
+    config(['crawler.platforms.eis.source_methods' => [SourceMethodEnum::Csv->value => QueueSourceMethod::class]]);
 
     app()->call([new CrawlRunJob(crawlerId: $crawler->id, mode: CrawlerMode::Fresh), 'handle']);
 
@@ -52,7 +52,7 @@ test('job резолвит archive-режим и вызывает ArchiveRunProc
     $crawler = Crawler::factory()->create(['mode' => CrawlerMode::Archive, 'source_method' => SourceMethodEnum::Csv]);
 
     app()->instance(QueueSourceMethod::class, new QueueSourceMethod(batches: [crawlRunJobEmptyBatch()]));
-    config(['crawler.source_methods' => [SourceMethodEnum::Csv->value => QueueSourceMethod::class]]);
+    config(['crawler.platforms.eis.source_methods' => [SourceMethodEnum::Csv->value => QueueSourceMethod::class]]);
 
     app()->call([
         new CrawlRunJob(
@@ -135,7 +135,7 @@ test('request-budget checkpoint archive сохраняет execution lane и с�
         }
     };
     app()->instance($sourceMethod::class, $sourceMethod);
-    config(['crawler.source_methods' => [SourceMethodEnum::Csv->value => $sourceMethod::class]]);
+    config(['crawler.platforms.eis.source_methods' => [SourceMethodEnum::Csv->value => $sourceMethod::class]]);
 
     $crawler = Crawler::factory()->create(['mode' => CrawlerMode::Archive, 'source_method' => SourceMethodEnum::Csv]);
 

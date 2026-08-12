@@ -71,6 +71,7 @@ final readonly class DetailAnalysisProcessor
 
             $sourceMethod = $this->sourceMethodFactory->make(
                 method: SourceMethodEnum::from((string) config('crawler.detail_source_method', SourceMethodEnum::Csv->value)),
+                registry: $registry,
             );
 
             $details = $sourceMethod->collectDetails(registryNumber: $procurement->registry_number, registry: $registry);

@@ -12,6 +12,7 @@ use App\Enums\Procurement\Crawler\SourceMethod;
 use App\Enums\Procurement\Proxy\CrawlerProxyMode;
 use App\Models\Procurement\Crawler\Crawler;
 use App\Models\Procurement\Crawler\Proxy;
+use App\Models\Procurement\Platform\Platform;
 use App\Models\Procurement\Platform\Registry;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Spatie\LaravelData\Data;
@@ -26,7 +27,22 @@ final class CrawlerFactory extends Factory
     public function definition(): array
     {
         return [
-            'registry_id' => Registry::factory(),
+            'registry_id' => static function (): int {
+                $platform = Platform::query()->firstOrCreate(
+                    attributes: ['code' => 'eis'],
+                    values: [
+                        'name' => 'Единая информационная система',
+                        'base_url' => 'https://zakupki.gov.ru',
+                        'is_active' => true,
+                        'is_public' => true,
+                    ],
+                );
+
+                return Registry::query()->firstOrCreate(
+                    attributes: ['platform_id' => $platform->getKey(), 'code' => 'fz44'],
+                    values: ['name' => '44-ФЗ', 'settings' => []],
+                )->getKey();
+            },
             'name' => fake()->words(asText: true),
             'execution_lane' => CrawlerExecutionLane::Standard,
             'mode' => CrawlerMode::Fresh,

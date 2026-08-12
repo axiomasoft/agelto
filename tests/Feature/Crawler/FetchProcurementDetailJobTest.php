@@ -47,7 +47,7 @@ final class DetailJobBudgetExhaustedSourceMethod implements SourceMethod
 
 function detailJobRegistry(): Registry
 {
-    return Registry::factory()->create([
+    return Registry::factory()->eis()->create([
         'code' => 'fz44',
         'settings' => [
             'procedure_url_types' => ['Электронный аукцион' => 'ea20'],
@@ -110,7 +110,7 @@ test('job вызывает детальный процессор и мост в 
 test('job тихо заканчивается при исчерпанном бюджете и не вызывает мост', function (): void {
     Queue::fake();
     Sleep::fake();
-    config(['crawler.source_methods.'.SourceMethodEnum::Csv->value => DetailJobBudgetExhaustedSourceMethod::class]);
+    config(['crawler.platforms.eis.source_methods.'.SourceMethodEnum::Csv->value => DetailJobBudgetExhaustedSourceMethod::class]);
     $procurement = Procurement::factory()->create(['detail_attempts' => 2]);
 
     (new FetchProcurementDetailJob(procurementId: $procurement->id))->handle(

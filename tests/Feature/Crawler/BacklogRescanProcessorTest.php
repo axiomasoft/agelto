@@ -42,7 +42,7 @@ function useBacklogRescanQueueSourceMethod(array $batches): void
 {
     app()->instance(QueueSourceMethod::class, new QueueSourceMethod(batches: $batches));
 
-    config(['crawler.source_methods' => [
+    config(['crawler.platforms.eis.source_methods' => [
         SourceMethodEnum::Csv->value => QueueSourceMethod::class,
     ]]);
 }
@@ -88,7 +88,7 @@ function useBacklogRescanStopSignalingSourceMethod(array $batches, array $sideEf
     };
 
     app()->instance($double::class, $double);
-    config(['crawler.source_methods' => [
+    config(['crawler.platforms.eis.source_methods' => [
         SourceMethodEnum::Csv->value => $double::class,
     ]]);
 
@@ -110,7 +110,7 @@ beforeEach(function () {
 });
 
 test('cap_hit с живым archive-профилем реестра — scan вызван по update-окну, флаг помечен', function () {
-    $registry = Registry::factory()->create();
+    $registry = Registry::factory()->eis()->create();
     $freshCrawler = Crawler::factory()->create(['registry_id' => $registry->id, 'mode' => CrawlerMode::Fresh]);
     Crawler::factory()->create(['registry_id' => $registry->id, 'mode' => CrawlerMode::Archive, 'is_active' => true]);
 
@@ -133,7 +133,7 @@ test('cap_hit с живым archive-профилем реестра — scan в�
 });
 
 test('повторный sweep() уже помеченный run не берёт', function () {
-    $registry = Registry::factory()->create();
+    $registry = Registry::factory()->eis()->create();
     $freshCrawler = Crawler::factory()->create(['registry_id' => $registry->id, 'mode' => CrawlerMode::Fresh]);
     Crawler::factory()->create(['registry_id' => $registry->id, 'mode' => CrawlerMode::Archive, 'is_active' => true]);
 
@@ -155,7 +155,7 @@ test('повторный sweep() уже помеченный run не берёт
 });
 
 test('чужой running archive-прогон оставляет fresh-run без backlog acknowledgement', function () {
-    $registry = Registry::factory()->create();
+    $registry = Registry::factory()->eis()->create();
     $freshCrawler = Crawler::factory()->create(['registry_id' => $registry->id, 'mode' => CrawlerMode::Fresh]);
     $archiveCrawler = Crawler::factory()->create(['registry_id' => $registry->id, 'mode' => CrawlerMode::Archive, 'is_active' => true]);
     $freshRun = Run::factory()->for($freshCrawler, 'crawler')->create([
@@ -175,7 +175,7 @@ test('чужой running archive-прогон оставляет fresh-run бе�
 });
 
 test('нет archive-профиля реестра — warning, флаг не помечен, scan не вызван', function () {
-    $registry = Registry::factory()->create();
+    $registry = Registry::factory()->eis()->create();
     $freshCrawler = Crawler::factory()->create(['registry_id' => $registry->id, 'mode' => CrawlerMode::Fresh]);
 
     $freshRun = Run::factory()->for($freshCrawler, 'crawler')->create([
@@ -195,7 +195,7 @@ test('нет archive-профиля реестра — warning, флаг не п
 });
 
 test('possible_skip_window.from не определён — пропуск без пометки', function () {
-    $registry = Registry::factory()->create();
+    $registry = Registry::factory()->eis()->create();
     $freshCrawler = Crawler::factory()->create(['registry_id' => $registry->id, 'mode' => CrawlerMode::Fresh]);
     Crawler::factory()->create(['registry_id' => $registry->id, 'mode' => CrawlerMode::Archive, 'is_active' => true]);
 
@@ -218,7 +218,7 @@ test('окно рескана сдвигается назад на window_overla
     config(['crawler.tracking.window_overlap_days' => 2]);
     Log::spy();
 
-    $registry = Registry::factory()->create();
+    $registry = Registry::factory()->eis()->create();
     $freshCrawler = Crawler::factory()->create(['registry_id' => $registry->id, 'mode' => CrawlerMode::Fresh]);
     Crawler::factory()->create(['registry_id' => $registry->id, 'mode' => CrawlerMode::Archive, 'is_active' => true]);
 
@@ -249,7 +249,7 @@ test('окно рескана сдвигается назад на window_overla
 test('стоп-сигнал Pause между днями останавливает рескан целиком, fresh-прогон не помечается rescanned', function () {
     config(['crawler.tracking.window_overlap_days' => 2]);
 
-    $registry = Registry::factory()->create();
+    $registry = Registry::factory()->eis()->create();
     $freshCrawler = Crawler::factory()->create(['registry_id' => $registry->id, 'mode' => CrawlerMode::Fresh]);
     $archiveCrawler = Crawler::factory()->create(['registry_id' => $registry->id, 'mode' => CrawlerMode::Archive, 'is_active' => true]);
 
@@ -288,7 +288,7 @@ test('стоп-сигнал Pause между днями останавливае
 test('стоп-сигнал Cancel между днями останавливает рескан целиком, fresh-прогон не помечается rescanned', function () {
     config(['crawler.tracking.window_overlap_days' => 2]);
 
-    $registry = Registry::factory()->create();
+    $registry = Registry::factory()->eis()->create();
     $freshCrawler = Crawler::factory()->create(['registry_id' => $registry->id, 'mode' => CrawlerMode::Fresh]);
     $archiveCrawler = Crawler::factory()->create(['registry_id' => $registry->id, 'mode' => CrawlerMode::Archive, 'is_active' => true]);
 
@@ -324,7 +324,7 @@ test('стоп-сигнал Cancel между днями останавлива�
 });
 
 test('исключение внутри scan — archive-run failed, флаг остаётся непомеченным', function () {
-    $registry = Registry::factory()->create();
+    $registry = Registry::factory()->eis()->create();
     $freshCrawler = Crawler::factory()->create(['registry_id' => $registry->id, 'mode' => CrawlerMode::Fresh]);
     Crawler::factory()->create(['registry_id' => $registry->id, 'mode' => CrawlerMode::Archive, 'is_active' => true]);
 

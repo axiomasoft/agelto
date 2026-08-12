@@ -39,7 +39,7 @@ function activeListingProxy(): Proxy
  */
 function registryWithOkpd2Scope(): Registry
 {
-    $registry = Registry::factory()->create(['code' => 'fz44']);
+    $registry = Registry::factory()->eis()->create(['code' => 'fz44']);
     Okpd2Node::factory()->create(['platform_id' => $registry->platform_id, 'code' => '43', 'external_id' => '8873921']);
 
     return $registry;
@@ -286,7 +286,7 @@ test('detail fetch сохраняет source default в partitioned evidence', f
     $settings = new CrawlerProxySettings;
     $settings->defaultProxyId = $proxy->id;
     $settings->save();
-    $registry = Registry::factory()->create([
+    $registry = Registry::factory()->eis()->create([
         'code' => 'fz44',
         'settings' => [
             'procedure_url_types' => ['Электронный аукцион' => 'ea20'],

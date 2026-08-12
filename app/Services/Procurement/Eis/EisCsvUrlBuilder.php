@@ -50,7 +50,7 @@ final readonly class EisCsvUrlBuilder
         if ($filter !== null && ! $filter instanceof EisSearchFilter) {
             throw new RuntimeException(
                 'EisCsvUrlBuilder ожидает фильтр EisSearchFilter, получен '.$filter::class
-                .' — проверьте карту config(\'crawler.filters\') для реестра профиля.'
+                .' — проверьте карту config(\'crawler.platforms.eis.registry_filters\') для реестра профиля.'
             );
         }
 

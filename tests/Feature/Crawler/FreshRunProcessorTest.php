@@ -103,7 +103,7 @@ function useQueueSourceMethod(array $batches): void
 {
     app()->instance(QueueSourceMethod::class, new QueueSourceMethod(batches: $batches));
 
-    config(['crawler.source_methods' => [
+    config(['crawler.platforms.eis.source_methods' => [
         SourceMethodEnum::Csv->value => QueueSourceMethod::class,
     ]]);
 }
@@ -117,7 +117,7 @@ function useFreshContinuationSourceMethod(array $batches, Carbon $checkpointAt):
         batches: $batches,
         checkpointAt: $checkpointAt,
     ));
-    config(['crawler.source_methods' => [
+    config(['crawler.platforms.eis.source_methods' => [
         SourceMethodEnum::Csv->value => FreshContinuationSourceMethod::class,
     ]]);
 }

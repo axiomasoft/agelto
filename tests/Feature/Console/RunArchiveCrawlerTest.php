@@ -62,7 +62,7 @@ test('без faked-очереди job исполняется синхронно 
     $crawler = Crawler::factory()->create(['mode' => CrawlerMode::Archive, 'source_method' => SourceMethodEnum::Csv]);
 
     app()->instance(QueueSourceMethod::class, new QueueSourceMethod(batches: [runArchiveCrawlerDrainedBatch()]));
-    config(['crawler.source_methods' => [SourceMethodEnum::Csv->value => QueueSourceMethod::class]]);
+    config(['crawler.platforms.eis.source_methods' => [SourceMethodEnum::Csv->value => QueueSourceMethod::class]]);
 
     $this->artisan('crawler:run-archive', ['crawler' => (string) $crawler->id, '--from' => '2024-01-01', '--to' => '2024-01-01'])
         ->assertExitCode(Command::SUCCESS);
@@ -76,7 +76,7 @@ test('резолвит профиль по name', function () {
     $crawler = Crawler::factory()->create(['name' => 'eis-archive-profile', 'mode' => CrawlerMode::Archive, 'source_method' => SourceMethodEnum::Csv]);
 
     app()->instance(QueueSourceMethod::class, new QueueSourceMethod(batches: [runArchiveCrawlerDrainedBatch()]));
-    config(['crawler.source_methods' => [SourceMethodEnum::Csv->value => QueueSourceMethod::class]]);
+    config(['crawler.platforms.eis.source_methods' => [SourceMethodEnum::Csv->value => QueueSourceMethod::class]]);
 
     $this->artisan('crawler:run-archive', ['crawler' => 'eis-archive-profile', '--from' => '2024-01-01', '--to' => '2024-01-01'])
         ->assertExitCode(Command::SUCCESS);

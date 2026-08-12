@@ -59,7 +59,7 @@ function useArchiveRunQueueSourceMethod(array $batches): void
 {
     app()->instance(QueueSourceMethod::class, new QueueSourceMethod(batches: $batches));
 
-    config(['crawler.source_methods' => [
+    config(['crawler.platforms.eis.source_methods' => [
         SourceMethodEnum::Csv->value => QueueSourceMethod::class,
     ]]);
 }
@@ -105,7 +105,7 @@ function useArchiveRunStopSignalingSourceMethod(array $batches, array $sideEffec
     };
 
     app()->instance($double::class, $double);
-    config(['crawler.source_methods' => [
+    config(['crawler.platforms.eis.source_methods' => [
         SourceMethodEnum::Csv->value => $double::class,
     ]]);
 

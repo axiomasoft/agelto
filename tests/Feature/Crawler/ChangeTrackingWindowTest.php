@@ -51,7 +51,7 @@ function useChangeTrackingQueueSourceMethod(array $batches): void
 {
     app()->instance(QueueSourceMethod::class, new QueueSourceMethod(batches: $batches));
 
-    config(['crawler.source_methods' => [
+    config(['crawler.platforms.eis.source_methods' => [
         SourceMethodEnum::Csv->value => QueueSourceMethod::class,
     ]]);
 }
@@ -67,7 +67,7 @@ beforeEach(function () {
 });
 
 test('обновление, попавшее в стык окон, не теряется — перекрытие расширяет рескан назад', function () {
-    $registry = Registry::factory()->create();
+    $registry = Registry::factory()->eis()->create();
     $freshCrawler = Crawler::factory()->create(['registry_id' => $registry->id, 'mode' => CrawlerMode::Fresh]);
     Crawler::factory()->create(['registry_id' => $registry->id, 'mode' => CrawlerMode::Archive, 'is_active' => true]);
 

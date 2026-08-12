@@ -98,7 +98,7 @@ function useArchiveQueueSourceMethod(array $batches): void
 {
     app()->instance(QueueSourceMethod::class, new QueueSourceMethod(batches: $batches));
 
-    config(['crawler.source_methods' => [
+    config(['crawler.platforms.eis.source_methods' => [
         SourceMethodEnum::Csv->value => QueueSourceMethod::class,
     ]]);
 }
@@ -109,7 +109,7 @@ function useArchiveQueueSourceMethod(array $batches): void
 function useArchiveContinuationSourceMethod(array $responses): void
 {
     app()->instance(ArchiveContinuationSourceMethod::class, new ArchiveContinuationSourceMethod(responses: $responses));
-    config(['crawler.source_methods' => [
+    config(['crawler.platforms.eis.source_methods' => [
         SourceMethodEnum::Csv->value => ArchiveContinuationSourceMethod::class,
     ]]);
 }
@@ -241,7 +241,7 @@ test('стартовый ценовой стек берётся из priceTo ф�
     config(['crawler.archive.price_ceiling' => 1_000_000_000, 'crawler.archive.max_blocks_per_window' => 0]);
     Log::spy();
 
-    $registry = Registry::factory()->create(['code' => 'fz44']);
+    $registry = Registry::factory()->eis()->create(['code' => 'fz44']);
 
     $crawlerWithPrice = Crawler::factory()
         ->filter(new EisSearchFilter(priceTo: 200_000_000, okpd2Codes: ['43']))

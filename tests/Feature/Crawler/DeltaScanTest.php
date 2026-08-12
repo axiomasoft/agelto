@@ -58,7 +58,7 @@ function useDeltaScanQueueSourceMethod(array $batches): void
 {
     app()->instance(QueueSourceMethod::class, new QueueSourceMethod(batches: $batches));
 
-    config(['crawler.source_methods' => [
+    config(['crawler.platforms.eis.source_methods' => [
         SourceMethodEnum::Csv->value => QueueSourceMethod::class,
     ]]);
 }
@@ -103,7 +103,7 @@ function useDeltaScanStopSignalingSourceMethod(array $batches, array $sideEffect
     };
 
     app()->instance($double::class, $double);
-    config(['crawler.source_methods' => [
+    config(['crawler.platforms.eis.source_methods' => [
         SourceMethodEnum::Csv->value => $double::class,
     ]]);
 
@@ -122,7 +122,7 @@ beforeEach(function () {
 });
 
 test('нет активного archive-профиля реестра — warning, run не создаётся', function () {
-    $registry = Registry::factory()->create();
+    $registry = Registry::factory()->eis()->create();
     $freshCrawler = Crawler::factory()->create(['registry_id' => $registry->id, 'mode' => CrawlerMode::Fresh]);
 
     Log::spy();
@@ -138,7 +138,7 @@ test('нет активного archive-профиля реестра — warnin
 });
 
 test('чужой running archive-прогон даёт busy без сканирования и completion', function () {
-    $registry = Registry::factory()->create();
+    $registry = Registry::factory()->eis()->create();
     $freshCrawler = Crawler::factory()->create(['registry_id' => $registry->id, 'mode' => CrawlerMode::Fresh]);
     $archiveCrawler = Crawler::factory()->create(['registry_id' => $registry->id, 'mode' => CrawlerMode::Archive, 'is_active' => true]);
     $ownerRun = Run::factory()->for($archiveCrawler)->create([
@@ -154,7 +154,7 @@ test('чужой running archive-прогон даёт busy без сканир�
 });
 
 test('активный archive-профиль реестра — дренирует окно [сегодня − overlap; сегодня] по update, run завершён', function () {
-    $registry = Registry::factory()->create();
+    $registry = Registry::factory()->eis()->create();
     $freshCrawler = Crawler::factory()->create(['registry_id' => $registry->id, 'mode' => CrawlerMode::Fresh]);
     $archiveCrawler = Crawler::factory()->create(['registry_id' => $registry->id, 'mode' => CrawlerMode::Archive, 'is_active' => true]);
 
@@ -174,7 +174,7 @@ test('активный archive-профиль реестра — дрениру�
 });
 
 test('стоп-сигнал Pause между днями останавливает delta-scan целиком, следующий день не обходится', function () {
-    $registry = Registry::factory()->create();
+    $registry = Registry::factory()->eis()->create();
     $freshCrawler = Crawler::factory()->create(['registry_id' => $registry->id, 'mode' => CrawlerMode::Fresh]);
     $archiveCrawler = Crawler::factory()->create(['registry_id' => $registry->id, 'mode' => CrawlerMode::Archive, 'is_active' => true]);
 
@@ -201,7 +201,7 @@ test('стоп-сигнал Pause между днями останавливае
 });
 
 test('стоп-сигнал Cancel между днями останавливает delta-scan целиком, статус терминален', function () {
-    $registry = Registry::factory()->create();
+    $registry = Registry::factory()->eis()->create();
     $freshCrawler = Crawler::factory()->create(['registry_id' => $registry->id, 'mode' => CrawlerMode::Fresh]);
     $archiveCrawler = Crawler::factory()->create(['registry_id' => $registry->id, 'mode' => CrawlerMode::Archive, 'is_active' => true]);
 

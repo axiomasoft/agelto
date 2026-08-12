@@ -21,7 +21,7 @@ final class SourceMethodUnavailableException extends RuntimeException
     public static function forUnconfiguredMethod(SourceMethod $method): self
     {
         return new self(
-            message: "Source method [{$method->value}] has no class mapped in config('crawler.source_methods').",
+            message: "Source method [{$method->value}] has no class mapped in config('crawler.platforms.eis.source_methods').",
         );
     }
 }

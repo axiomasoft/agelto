@@ -19,7 +19,7 @@ final class ProcurementFactory extends Factory
     public function definition(): array
     {
         return [
-            'registry_id' => Registry::factory(),
+            'registry_id' => Registry::factory()->eis(),
             'registry_number' => fake()->unique()->numerify('0000000000000000####'),
             'etp_number' => null,
             'ikz' => null,

@@ -26,7 +26,7 @@ beforeEach(function () {
 });
 
 test('делегирует BacklogRescanProcessor и репортит число обработанных прогонов', function () {
-    $registry = Registry::factory()->create();
+    $registry = Registry::factory()->eis()->create();
     $freshCrawler = Crawler::factory()->create(['registry_id' => $registry->id, 'mode' => CrawlerMode::Fresh]);
     Crawler::factory()->create(['registry_id' => $registry->id, 'mode' => CrawlerMode::Archive, 'is_active' => true, 'source_method' => SourceMethodEnum::Csv]);
 
@@ -44,7 +44,7 @@ test('делегирует BacklogRescanProcessor и репортит число
         durationMs: 0,
         requestParams: [],
     )]));
-    config(['crawler.source_methods' => [SourceMethodEnum::Csv->value => QueueSourceMethod::class]]);
+    config(['crawler.platforms.eis.source_methods' => [SourceMethodEnum::Csv->value => QueueSourceMethod::class]]);
 
     $this->artisan('crawler:rescan-backlog')
         ->expectsOutputToContain('обработано прогонов — 1')

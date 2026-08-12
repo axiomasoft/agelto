@@ -65,11 +65,11 @@ test('репозиторий перезаписывает последний и�
 
 test('ошибка health-зонда не увеличивает попытки и не отменяет снятие карточки', function (): void {
     config([
-        'crawler.source_methods.'.SourceMethodEnum::Csv->value => DetailParseOutcomeSourceMethod::class,
+        'crawler.platforms.eis.source_methods.'.SourceMethodEnum::Csv->value => DetailParseOutcomeSourceMethod::class,
         'crawler.health.enabled' => true,
         'crawler.health.baseline_path' => 'tests/Fixtures/Health/missing-baseline.json',
     ]);
-    $registry = Registry::factory()->create();
+    $registry = Registry::factory()->eis()->create();
     $procurement = Procurement::factory()->create([
         'registry_id' => $registry->id,
         'detail_attempts' => 2,

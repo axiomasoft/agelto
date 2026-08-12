@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Support\Doubles\Crawler;
 
 use App\Models\Procurement\Crawler\Crawler;
+use App\Models\Procurement\Platform\Platform;
 use App\Models\Procurement\Platform\Registry;
 
 /**
@@ -22,6 +23,10 @@ final class CrawlerWithRegistry
         $registry = new Registry;
         $registry->code = $registryCode;
         $registry->platform_id = $platformId;
+
+        $platform = new Platform;
+        $platform->code = 'eis';
+        $registry->setRelation('platform', $platform);
 
         $crawler = new Crawler;
         $crawler->filter = $filter;

@@ -52,7 +52,7 @@ final class ExhaustedPlatformBudgetSourceMethod implements SourceMethod
 function useExhaustedPlatformBudgetSourceMethod(): void
 {
     app()->instance(ExhaustedPlatformBudgetSourceMethod::class, new ExhaustedPlatformBudgetSourceMethod);
-    config(['crawler.source_methods.'.SourceMethodEnum::Csv->value => ExhaustedPlatformBudgetSourceMethod::class]);
+    config(['crawler.platforms.eis.source_methods.'.SourceMethodEnum::Csv->value => ExhaustedPlatformBudgetSourceMethod::class]);
 }
 
 test('исчерпание бюджета листинга завершает срез чекпоинтом без падения прогона', function (): void {
@@ -100,7 +100,7 @@ test('исчерпание бюджета delta сохраняет недрен�
     config(['crawler.tracking.window_overlap_days' => 0]);
     useExhaustedPlatformBudgetSourceMethod();
 
-    $registry = Registry::factory()->create();
+    $registry = Registry::factory()->eis()->create();
     $freshCrawler = Crawler::factory()->create(['registry_id' => $registry->id, 'mode' => CrawlerMode::Fresh]);
     Crawler::factory()->create([
         'registry_id' => $registry->id,
@@ -127,7 +127,7 @@ test('исчерпание бюджета backlog не помечает fresh-ru
     config(['crawler.tracking.window_overlap_days' => 0]);
     useExhaustedPlatformBudgetSourceMethod();
 
-    $registry = Registry::factory()->create();
+    $registry = Registry::factory()->eis()->create();
     $freshCrawler = Crawler::factory()->create(['registry_id' => $registry->id, 'mode' => CrawlerMode::Fresh]);
     $archiveCrawler = Crawler::factory()->create([
         'registry_id' => $registry->id,

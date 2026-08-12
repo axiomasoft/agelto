@@ -53,7 +53,7 @@ test('без faked-очереди job исполняется синхронно 
     $crawler = Crawler::factory()->create(['source_method' => SourceMethodEnum::Csv]);
 
     app()->instance(QueueSourceMethod::class, new QueueSourceMethod(batches: [runFreshCrawlerKnownBatch()]));
-    config(['crawler.source_methods' => [SourceMethodEnum::Csv->value => QueueSourceMethod::class]]);
+    config(['crawler.platforms.eis.source_methods' => [SourceMethodEnum::Csv->value => QueueSourceMethod::class]]);
 
     $this->artisan('crawler:run-fresh', ['crawler' => (string) $crawler->id])
         ->assertExitCode(Command::SUCCESS);
@@ -67,7 +67,7 @@ test('резолвит профиль по name и диспатчит CrawlRunJo
     $crawler = Crawler::factory()->create(['name' => 'eis-fresh-profile', 'source_method' => SourceMethodEnum::Csv]);
 
     app()->instance(QueueSourceMethod::class, new QueueSourceMethod(batches: [runFreshCrawlerKnownBatch()]));
-    config(['crawler.source_methods' => [SourceMethodEnum::Csv->value => QueueSourceMethod::class]]);
+    config(['crawler.platforms.eis.source_methods' => [SourceMethodEnum::Csv->value => QueueSourceMethod::class]]);
 
     $this->artisan('crawler:run-fresh', ['crawler' => 'eis-fresh-profile'])
         ->assertExitCode(Command::SUCCESS);
@@ -99,7 +99,7 @@ test('без аргумента резолвит все активные fresh-�
         runFreshCrawlerKnownBatch(),
         runFreshCrawlerKnownBatch(),
     ]));
-    config(['crawler.source_methods' => [SourceMethodEnum::Csv->value => QueueSourceMethod::class]]);
+    config(['crawler.platforms.eis.source_methods' => [SourceMethodEnum::Csv->value => QueueSourceMethod::class]]);
 
     $this->artisan('crawler:run-fresh')
         ->assertExitCode(Command::SUCCESS);
@@ -116,7 +116,7 @@ test('падение одного профиля не прерывает обр�
     $broken = Crawler::factory()->create(['mode' => CrawlerMode::Fresh, 'is_active' => true, 'source_method' => SourceMethodEnum::Html]);
 
     app()->instance(QueueSourceMethod::class, new QueueSourceMethod(batches: [runFreshCrawlerKnownBatch()]));
-    config(['crawler.source_methods' => [
+    config(['crawler.platforms.eis.source_methods' => [
         SourceMethodEnum::Csv->value => QueueSourceMethod::class,
         SourceMethodEnum::Html->value => BrokenSourceMethod::class,
     ]]);
@@ -147,7 +147,7 @@ test('мульти-профильный вызов: активный прого�
     $free = Crawler::factory()->create(['mode' => CrawlerMode::Fresh, 'is_active' => true, 'source_method' => SourceMethodEnum::Csv]);
 
     app()->instance(QueueSourceMethod::class, new QueueSourceMethod(batches: [runFreshCrawlerKnownBatch()]));
-    config(['crawler.source_methods' => [SourceMethodEnum::Csv->value => QueueSourceMethod::class]]);
+    config(['crawler.platforms.eis.source_methods' => [SourceMethodEnum::Csv->value => QueueSourceMethod::class]]);
 
     $this->artisan('crawler:run-fresh')
         ->expectsOutputToContain("уже идёт прогон #{$activeRun->id}")

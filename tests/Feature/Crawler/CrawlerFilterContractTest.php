@@ -5,7 +5,9 @@ declare(strict_types=1);
 use App\Dto\Procurement\Crawler\Contracts\HasArchiveWindow;
 use App\Dto\Procurement\Crawler\EisSearchFilter;
 use App\Enums\Procurement\Crawler\ListingSortField;
+use App\Exceptions\Procurement\Crawler\PlatformAdapterUnavailableException;
 use App\Models\Procurement\Crawler\Crawler;
+use App\Models\Procurement\Platform\Platform;
 use App\Models\Procurement\Platform\Registry;
 use App\Services\Procurement\CrawlerFilterFactory;
 use Carbon\CarbonImmutable;
@@ -13,7 +15,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
 test('filter профиля читается типизированным объектом, а не мешком ключей', function () {
-    $registry = Registry::factory()->create(['code' => 'fz44']);
+    $registry = Registry::factory()->eis()->create(['code' => 'fz44']);
     $crawler = Crawler::factory()->for($registry)->create([
         'filter' => [
             'stageCompleted' => true,
@@ -34,7 +36,7 @@ test('filter профиля читается типизированным объ
 });
 
 test('filter хранится прежним jsonb — в БД лежат ключи контракта, а не сериализованный объект', function () {
-    $registry = Registry::factory()->create(['code' => 'fz44']);
+    $registry = Registry::factory()->eis()->create(['code' => 'fz44']);
     $crawler = Crawler::factory()->for($registry)->create([
         'filter' => new EisSearchFilter(stageCompleted: true, okpd2Codes: ['43']),
     ]);
@@ -49,7 +51,7 @@ test('filter хранится прежним jsonb — в БД лежат клю
 });
 
 test('неизвестный ключ фильтра отклоняется на сохранении профиля с именем ключа и списком допустимых', function () {
-    $registry = Registry::factory()->create(['code' => 'fz44']);
+    $registry = Registry::factory()->eis()->create(['code' => 'fz44']);
 
     // Строка-нарушитель заведомо чужая: `okpd2Codes` теперь ВАЛИДЕН, и ключ, отличающийся от него
     // одним суффиксом, сделал бы тест хрупким (research/03-p2-okpd2-design.md §2.4).
@@ -63,25 +65,22 @@ test('неизвестный ключ фильтра отклоняется на
 });
 
 test('priceTo=0 отклоняется валидацией — он обнуляет выдачу ЕИС, а не снимает ограничение', function () {
-    $registry = Registry::factory()->create(['code' => 'fz44']);
+    $registry = Registry::factory()->eis()->create(['code' => 'fz44']);
 
     expect(fn () => Crawler::factory()->for($registry)->create(
         ['filter' => ['priceTo' => 0, 'okpd2Codes' => ['43']]]
     ))->toThrow(ValidationException::class);
 });
 
-test('пустой filter остаётся null там, где реестр не требует скоупа, и класс фильтра не резолвится', function () {
-    // Реестра `fz223` нет в `config('crawler.filters')` — требования скоупа для него не объявлено,
-    // поэтому профиль без фильтра легален. У `fz44` тот же случай теперь отвергается (D18) —
-    // отдельный тест ниже.
-    $registry = Registry::factory()->create(['code' => 'fz223']);
-    $crawler = Crawler::factory()->for($registry)->create(['filter' => null]);
+test('реестр без typed filter не сохраняет профиль даже с пустым filter', function () {
+    $registry = Registry::factory()->eis()->create(['code' => 'fz223']);
 
-    expect($crawler->fresh()->filter)->toBeNull();
+    expect(fn () => Crawler::factory()->for($registry)->create(['filter' => null]))
+        ->toThrow(PlatformAdapterUnavailableException::class, 'fz223');
 });
 
 test('коды ОКПД2 доезжают до объекта фильтра списком строк', function () {
-    $registry = Registry::factory()->create(['code' => 'fz44']);
+    $registry = Registry::factory()->eis()->create(['code' => 'fz44']);
     $crawler = Crawler::factory()->for($registry)->create([
         'filter' => ['okpd2Codes' => ['43', '43.29', 'F']],
     ]);
@@ -94,7 +93,7 @@ test('коды ОКПД2 доезжают до объекта фильтра с�
 });
 
 test('коды ОКПД2 переживают round-trip через jsonb', function () {
-    $registry = Registry::factory()->create(['code' => 'fz44']);
+    $registry = Registry::factory()->eis()->create(['code' => 'fz44']);
     $crawler = Crawler::factory()->for($registry)->create([
         'filter' => new EisSearchFilter(stageCompleted: true, okpd2Codes: ['41.20', '43']),
     ]);
@@ -109,7 +108,7 @@ test('коды ОКПД2 переживают round-trip через jsonb', func
 });
 
 test('профиль fz44 без фильтра вообще отвергается — путь filter = null через saving', function () {
-    $registry = Registry::factory()->create(['code' => 'fz44']);
+    $registry = Registry::factory()->eis()->create(['code' => 'fz44']);
 
     expect(fn () => Crawler::factory()->for($registry)->create(['filter' => null]))
         ->toThrow(function (ValidationException $exception) {
@@ -119,7 +118,7 @@ test('профиль fz44 без фильтра вообще отвергает�
 });
 
 test('профиль fz44 с пустым списком кодов отвергается — путь validateAndCreate', function () {
-    $registry = Registry::factory()->create(['code' => 'fz44']);
+    $registry = Registry::factory()->eis()->create(['code' => 'fz44']);
 
     expect(fn () => Crawler::factory()->for($registry)->create(
         ['filter' => ['stageCompleted' => true, 'okpd2Codes' => []]]
@@ -127,7 +126,7 @@ test('профиль fz44 с пустым списком кодов отверг
 });
 
 test('мусор вместо кода ОКПД2 отклоняется проверкой формы, а не доезжает до площадки', function () {
-    $registry = Registry::factory()->create(['code' => 'fz44']);
+    $registry = Registry::factory()->eis()->create(['code' => 'fz44']);
 
     expect(fn () => Crawler::factory()->for($registry)->create(
         ['filter' => ['okpd2Codes' => ['строительство']]]
@@ -135,7 +134,7 @@ test('мусор вместо кода ОКПД2 отклоняется пров
 });
 
 test('поля сортировки переживают round-trip через jsonb', function () {
-    $registry = Registry::factory()->create(['code' => 'fz44']);
+    $registry = Registry::factory()->eis()->create(['code' => 'fz44']);
     $crawler = Crawler::factory()->for($registry)->create([
         'filter' => new EisSearchFilter(okpd2Codes: ['43'], sortField: ListingSortField::Published, sortAscending: true),
     ]);
@@ -155,16 +154,22 @@ test('поля сортировки переживают round-trip через j
         ->and($filter->sortAscending)->toBeTrue();
 });
 
-test('класс фильтра резолвится по коду реестра через карту config(crawler.filters)', function () {
+test('класс фильтра резолвится по exact platform and registry capability', function () {
+    $platform = new Platform;
+    $platform->code = 'eis';
     $registry = new Registry;
     $registry->code = 'fz44';
+    $registry->setRelation('platform', $platform);
 
     expect(app(CrawlerFilterFactory::class)->for(registry: $registry))->toBe(EisSearchFilter::class);
 });
 
 test('реестр без записи в карте фильтров даёт исключение с кодом реестра', function () {
+    $platform = new Platform;
+    $platform->code = 'eis';
     $registry = new Registry;
     $registry->code = 'fz223';
+    $registry->setRelation('platform', $platform);
 
     expect(fn () => app(CrawlerFilterFactory::class)->for(registry: $registry))
         ->toThrow(RuntimeException::class, 'fz223');
@@ -190,7 +195,7 @@ test('без заполненных дат archiveWindowFrom/To отдают nul
 });
 
 test('publishedTo раньше publishedFrom отклоняется валидацией на сохранении профиля (P3.8, D113)', function () {
-    $registry = Registry::factory()->create(['code' => 'fz44']);
+    $registry = Registry::factory()->eis()->create(['code' => 'fz44']);
 
     expect(fn () => Crawler::factory()->for($registry)->create([
         'filter' => ['okpd2Codes' => ['43'], 'publishedFrom' => '2025-06-01', 'publishedTo' => '2025-01-01'],
