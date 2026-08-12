@@ -73,10 +73,10 @@ function screeningResultResponse(): LlmStructuredResponse
     $data = [
         'document_type' => 'estimate',
         'confidence' => 0.92,
-        'description' => 'ЛСР на капитальный ремонт кровли',
+        'summary' => 'ЛСР на капитальный ремонт кровли',
+        'estimate_cardinality' => 'single',
         'tags' => ['Ремонт', 'ЛСР'],
-        'page_count_estimate' => 12,
-        'ignore_reason' => null,
+        'classification_note' => null,
     ];
 
     return new LlmStructuredResponse(
@@ -101,8 +101,13 @@ test('успешный скрининг PDF — Analysis succeeded, document_typ
 
     expect($analysis->status)->toBe(AnalysisStatus::Succeeded)
         ->and($analysis->document_type)->toBe('estimate')
-        ->and($analysis->result['confidence'])->toBe(0.92)
-        ->and($analysis->result['tags'])->toBe(['Ремонт', 'ЛСР'])
+        ->and($analysis->result['schema_version'])->toBe(2)
+        ->and($analysis->result['screening']['confidence'])->toBe(0.92)
+        ->and($analysis->result['screening']['summary'])->toBe('ЛСР на капитальный ремонт кровли')
+        ->and($analysis->result['screening']['estimate_cardinality'])->toBe('single')
+        ->and($analysis->result['screening']['tags'])->toBe(['Ремонт', 'ЛСР'])
+        ->and($analysis->result['decision']['disposition'])->toBe('extract')
+        ->and($analysis->result['decision']['reason'])->toBe('analyzer_available')
         ->and($analysis->provider)->not->toBeNull()
         ->and($analysis->model)->toBe('gemini-2.5-flash-lite')
         ->and($analysis->rules_hash)->not->toBeNull()

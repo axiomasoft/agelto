@@ -30,9 +30,9 @@ enum ProcurementEventType: string
     case Ignored = 'ignored';
 
     /**
-     * Скрининг документа доведён до ветвления (P5.2, ТЗ 03 §3.4/D36): `entityRef` содержит
-     * `document_id`+`analysis_id`, `newValue` — исход (`estimate`/`screened`/`ignored`/
-     * `needs_review`), `payload` — `document_type`/`confidence`/причина.
+     * Скрининг документа доведён до typed backend-решения: `entityRef` содержит
+     * `document_id`+`analysis_id`, `newValue` — тип для `extract` либо disposition,
+     * `payload` — `document_type`/`confidence`/`disposition`/`reason`.
      */
     case DocumentScreened = 'document_screened';
 

@@ -2,9 +2,11 @@
 
 declare(strict_types=1);
 
+use App\Dto\Procurement\Ai\Screening\ScreeningResult;
 use App\Enums\Llm\CoreLlmPurpose;
 use App\Enums\Llm\FinishReason;
 use App\Enums\Procurement\Ai\AiDocumentType;
+use App\Enums\Procurement\Ai\AnalysisStatus;
 use App\Enums\Procurement\Ai\AnalysisStep;
 use App\Enums\Procurement\Ai\RunMode;
 use App\Enums\Procurement\Document\DocumentStatus;
@@ -23,6 +25,7 @@ use App\Repositories\Procurement\Ai\AnalysisRunStoreRepository;
 use App\Services\Llm\Dto\LlmStructuredResponse;
 use App\Services\Llm\Dto\LlmUsage;
 use App\Services\Llm\Providers\PrismGeminiProvider;
+use App\Services\Procurement\Screening\ScreeningOutcomeHandler;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
 use Tests\Support\Doubles\ExtractionlessAnalyzer;
@@ -84,10 +87,10 @@ function branchingResponse(string $documentType, float $confidence): LlmStructur
     $data = [
         'document_type' => $documentType,
         'confidence' => $confidence,
-        'description' => 'тестовый документ',
+        'summary' => 'тестовый документ',
+        'estimate_cardinality' => $documentType === 'estimate' ? 'single' : 'none',
         'tags' => ['тест'],
-        'page_count_estimate' => 3,
-        'ignore_reason' => null,
+        'classification_note' => null,
     ];
 
     return new LlmStructuredResponse(
@@ -182,7 +185,7 @@ test('тип БЕЗ анализатора — screened без диспатча,
         ->where('event_type', ProcurementEventType::DocumentScreened)
         ->firstOrFail();
 
-    expect($event->new_value)->toBe('screened');
+    expect($event->new_value)->toBe('retain');
 
     Queue::assertNotPushed(EstimateExtractionJob::class);
 });
@@ -201,7 +204,7 @@ test('unknown отсекается — ignored', function (): void {
     expect($document->refresh()->status)->toBe(DocumentStatus::Ignored);
 
     $analysis = Analysis::query()->where('step', AnalysisStep::Screening)->firstOrFail();
-    expect($analysis->result['branch_reason'])->toBe('unknown');
+    expect($analysis->result['decision']['reason'])->toBe('unknown_type');
 });
 
 test('ignore-правило по подстроке в названии закупки отсекает документ независимо от классификации', function (): void {
@@ -220,12 +223,12 @@ test('ignore-правило по подстроке в названии заку
     expect($document->refresh()->status)->toBe(DocumentStatus::Ignored);
 
     $analysis = Analysis::query()->where('step', AnalysisStep::Screening)->firstOrFail();
-    expect($analysis->result['branch_reason'])->toBe('ignore_rule');
+    expect($analysis->result['decision']['reason'])->toBe('ignore_rule');
 
     Queue::assertNotPushed(EstimateExtractionJob::class);
 });
 
-test('borderline confidence (default flag) — screened с needs_review, extraction не диспатчится даже для estimate', function (): void {
+test('borderline confidence — screened с typed review decision, extraction не диспатчится даже для estimate', function (): void {
     Storage::fake('s3');
     Queue::fake();
     config(['ai.extraction.enabled' => true]);
@@ -240,7 +243,11 @@ test('borderline confidence (default flag) — screened с needs_review, extract
     expect($document->refresh()->status)->toBe(DocumentStatus::Screened);
 
     $analysis = Analysis::query()->where('step', AnalysisStep::Screening)->firstOrFail();
-    expect($analysis->result['needs_review'])->toBeTrue();
+    expect($analysis->result['decision'])->toMatchArray([
+        'disposition' => 'review',
+        'reason' => 'borderline_confidence',
+        'extraction_dispatched' => false,
+    ]);
 
     Queue::assertNotPushed(EstimateExtractionJob::class);
 });
@@ -264,8 +271,8 @@ test('borderline confidence с borderline_action=escalate — один повт�
 
     $analysis = Analysis::query()->where('step', AnalysisStep::Screening)->firstOrFail();
     expect($analysis->model)->toBe('gemini-2.5-pro')
-        ->and($analysis->result['escalated'])->toBeTrue()
-        ->and($analysis->result['confidence'])->toBe(0.9);
+        ->and($analysis->result['screening']['confidence'])->toBe(0.9)
+        ->and($analysis->result['decision']['reason'])->toBe('analyzer_available');
 
     // Одна резка/загрузка на попытку — эскалация повторяет весь скрининг (Code Guidance P5.2).
     expect($fake->uploadedFiles())->toHaveCount(2);
@@ -307,6 +314,33 @@ test('архив со сметой внутри доходит до кандид
 
     Queue::assertPushed(EstimateExtractionJob::class, fn (EstimateExtractionJob $job): bool => $job->documentId === $child->id);
 })->skip(fn () => ! extension_loaded('gd'), 'требует gd (Mpdf) — см. docker/php/Dockerfile');
+
+test('теневой screening сохраняет v2 evidence без изменения primary document и без dispatch', function (): void {
+    Queue::fake();
+    config(['ai.extraction.enabled' => true]);
+
+    $document = Document::factory()->create(['status' => DocumentStatus::Screened]);
+    $version = DocumentVersion::factory()->create(['document_id' => $document->id]);
+    $analysis = Analysis::factory()->create([
+        'document_version_id' => $version->id,
+        'status' => AnalysisStatus::Running,
+        'is_shadow' => true,
+    ]);
+
+    app(ScreeningOutcomeHandler::class)->handle(
+        document: $document,
+        analysis: $analysis,
+        result: ScreeningResult::validateAndCreate(branchingResponse('estimate', 0.95)->data),
+    );
+
+    expect($document->refresh()->status)->toBe(DocumentStatus::Screened)
+        ->and($analysis->refresh()->status)->toBe(AnalysisStatus::Succeeded)
+        ->and($analysis->result['schema_version'])->toBe(2)
+        ->and($analysis->result['decision']['disposition'])->toBe('extract')
+        ->and($analysis->result['decision']['extraction_dispatched'])->toBeFalse();
+
+    Queue::assertNotPushed(EstimateExtractionJob::class);
+});
 
 test('повтор идемпотентен — событие document_screened и дочерний dispatch не дублируются', function (): void {
     Storage::fake('s3');

@@ -64,7 +64,7 @@ final readonly class ScreeningProcessor
      * borderline-эскалации на маршрут классом выше (тот же документ, тот же `Analysis`,
      * повторная резка/загрузка — временные файлы предыдущего прогона уже удалены в `finally`).
      */
-    public function run(Document $document, Analysis $analysis, int $routeIndex = 0): void
+    public function run(Document $document, Analysis $analysis, int $routeIndex = 0): ?ScreeningResult
     {
         $this->analyses->update($analysis, [
             'status' => AnalysisStatus::Running,
@@ -82,7 +82,7 @@ final readonly class ScreeningProcessor
                 "формат «{$version->extension}» не поддержан скринингом",
             );
 
-            return;
+            return null;
         }
 
         $disk = Storage::disk($effective['disk']);
@@ -106,11 +106,11 @@ final readonly class ScreeningProcessor
                         $exception->getMessage(),
                     );
 
-                    return;
+                    return null;
                 }
             }
 
-            $this->classify($analysis, $uploadPath, $effective['mime'], $routeIndex);
+            return $this->classify($analysis, $uploadPath, $effective['mime'], $routeIndex);
         } finally {
             if ($slicedPath !== null && $slicedPath !== $localPath) {
                 @unlink($slicedPath);
@@ -137,7 +137,7 @@ final readonly class ScreeningProcessor
         return null;
     }
 
-    private function classify(Analysis $analysis, string $filePath, string $mimeType, int $routeIndex = 0): void
+    private function classify(Analysis $analysis, string $filePath, string $mimeType, int $routeIndex = 0): ScreeningResult
     {
         $primary = $this->routes->candidatesFor(DocumentTypeScope::Any, CoreLlmPurpose::Screening)->values()->get($routeIndex);
 
@@ -220,21 +220,13 @@ final readonly class ScreeningProcessor
         /** @var ScreeningResult $result */
         $result = $outcome->data;
 
-        $this->usageSnapshot->finalizeAnalysis($analysis, [
-            'status' => AnalysisStatus::Succeeded,
-            'document_type' => $result->document_type->value,
-            'result' => [
-                'confidence' => $result->confidence,
-                'description' => $result->description,
-                'tags' => $result->tags,
-                'page_count_estimate' => $result->page_count_estimate,
-                'ignore_reason' => $result->ignore_reason,
-            ],
+        $this->analyses->update($analysis, [
             'provider' => $options->provider,
             'model' => $options->model,
             'rules_hash' => $composed->rulesHash,
-            'finished_at' => now(),
         ]);
+
+        return $result;
     }
 
     private function classifyPdfError(string $message): UnprocessableReason

@@ -117,12 +117,16 @@ final class ScreeningJob extends PipelineJob implements ShouldBeUnique
         $document = $this->document();
         $analysis = $this->analysis();
 
-        app(ScreeningProcessor::class)->run($document, $analysis);
+        $result = app(ScreeningProcessor::class)->run($document, $analysis);
+
+        if ($result === null) {
+            return;
+        }
 
         $document->refresh();
         $analysis->refresh();
 
-        app(ScreeningOutcomeHandler::class)->handle($document, $analysis);
+        app(ScreeningOutcomeHandler::class)->handle($document, $analysis, $result);
     }
 
     private function document(): Document

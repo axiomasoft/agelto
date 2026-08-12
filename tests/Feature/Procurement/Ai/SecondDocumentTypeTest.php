@@ -89,10 +89,10 @@ function techSpecScreeningResponse(): LlmStructuredResponse
     $data = [
         'document_type' => AiDocumentType::TechSpec->value,
         'confidence' => 0.95,
-        'description' => 'фиктивный второй тип (P2.6)',
+        'summary' => 'фиктивный второй тип (P2.6)',
+        'estimate_cardinality' => 'none',
         'tags' => ['тест'],
-        'page_count_estimate' => 3,
-        'ignore_reason' => null,
+        'classification_note' => null,
     ];
 
     return new LlmStructuredResponse(
