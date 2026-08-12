@@ -1,8 +1,6 @@
 # HANDOFF — 2026-08-12 — after P7.1
 
-**Next:**
-
-ЗАПУСК ВРУЧНУЮ: implementation/high.
+**Next:** ЗАПУСК ВРУЧНУЮ: implementation/high.
 
 | Параметр | Значение |
 |:--|:--|
