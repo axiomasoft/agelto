@@ -32,7 +32,7 @@ grep -Fx '**Status:** 🟢 Done' "$root_dir/plans/2026.08.09-RELEASE-READINESS/p
     tests/Feature/Procurement/StatusMappingApplicabilityMigrationTest.php
 
 task_root=${TASK_ROOT:-/home/vostrikov/.codex/plugins/cache/swissknifeman/task/0.12.0}
-python3 "$task_root/scripts/plan-lint.py" "$root_dir/plans/2026.08.09-RELEASE-READINESS" --baseline HEAD
+python3 "$task_root/scripts/plan-lint.py" "$root_dir/plans/2026.08.09-RELEASE-READINESS" --baseline HEAD --gate new
 python3 "$task_root/scripts/plan-views.py" --plan-dir "$root_dir/plans/2026.08.09-RELEASE-READINESS" state --all --check
 python3 "$task_root/scripts/plan-views.py" --plan-dir "$root_dir/plans/2026.08.09-RELEASE-READINESS" decisions --check
 python3 "$task_root/scripts/plan-views.py" --plan-dir "$root_dir/plans/2026.08.09-RELEASE-READINESS" status --check
