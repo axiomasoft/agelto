@@ -15,12 +15,14 @@ test_database=$(sed -n 's/.*<env name="DB_DATABASE" value="\([a-z0-9_]*\)".*/\1/
 "${compose[@]}" exec -T postgres sh -lc 'pg_isready -U "$POSTGRES_USER" -d "$POSTGRES_DB"'
 "${compose[@]}" exec -T postgres sh -lc "psql -U \"\$POSTGRES_USER\" -d postgres -Atqc \"SELECT 1 FROM pg_database WHERE datname = '${test_database}'\"" | grep -Fx 1 >/dev/null
 
-"${compose[@]}" exec -T app php artisan migrate --env=testing --force
-"${compose[@]}" exec -T app php artisan test --no-tia \
+testing_app=("${compose[@]}" exec -T -e APP_ENV=testing -e DB_DATABASE="$test_database" app)
+
+"${testing_app[@]}" php artisan migrate --force
+"${testing_app[@]}" php artisan test --no-tia \
     tests/Feature/Filament/CrawlerProxySettingsPageTest.php \
     tests/Feature/Filament/CrawlerFormTest.php \
     tests/Feature/Filament/ProxyResourceTest.php
-"${compose[@]}" exec -T app vendor/bin/pint --test \
+"${testing_app[@]}" vendor/bin/pint --test \
     app/Actions/Procurement/Proxy/UpdateCrawlerProxySettingsAction.php \
     app/Dto/Actions/Procurement/Proxy/UpdateCrawlerProxySettingsCommand.php \
     app/Filament/Pages/CrawlerProxySettingsPage.php \
