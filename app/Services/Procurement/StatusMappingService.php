@@ -6,7 +6,11 @@ namespace App\Services\Procurement;
 
 use App\Dto\Procurement\StatusResolution;
 use App\Enums\Procurement\ProcurementStatus;
+use App\Enums\Procurement\StatusMappingApplicability;
 use App\Models\Procurement\Platform\StatusMapping;
+use App\Repositories\Procurement\Platform\StatusMappingReadRepository;
+use App\Repositories\Procurement\Platform\StatusMappingStoreRepository;
+use Illuminate\Database\UniqueConstraintViolationException;
 
 /**
  * Резолв сырого статуса источника в канонический (`prc_status_mappings` — данные, не код).
@@ -15,21 +19,53 @@ use App\Models\Procurement\Platform\StatusMapping;
  */
 final readonly class StatusMappingService
 {
+    public function __construct(
+        private StatusMappingReadRepository $read,
+        private StatusMappingStoreRepository $store,
+    ) {}
+
     public function resolve(int $registryId, string $sourceStage): StatusResolution
     {
-        $mapping = StatusMapping::query()->firstOrCreate(
-            attributes: [
-                'registry_id' => $registryId,
-                'source_stage' => $sourceStage,
-            ],
-            values: [
-                'canonical_status' => ProcurementStatus::Unknown->value,
-            ],
-        );
+        $mapping = $this->read->findExactRegistryMapping(registryId: $registryId, sourceStage: $sourceStage);
 
+        if ($mapping !== null) {
+            return $this->resolution(mapping: $mapping, isNewlyMapped: false);
+        }
+
+        $mapping = $this->read->findPlatformDefaultForRegistry(registryId: $registryId, sourceStage: $sourceStage);
+
+        if ($mapping !== null) {
+            return $this->resolution(mapping: $mapping, isNewlyMapped: false);
+        }
+
+        try {
+            $mapping = $this->store->createExactUnknown(registryId: $registryId, sourceStage: $sourceStage);
+        } catch (UniqueConstraintViolationException $exception) {
+            if (! $this->store->isExactRegistryRace(exception: $exception)) {
+                throw $exception;
+            }
+
+            $mapping = $this->read->findExactRegistryMapping(registryId: $registryId, sourceStage: $sourceStage);
+
+            if ($mapping === null) {
+                throw $exception;
+            }
+
+            return $this->resolution(mapping: $mapping, isNewlyMapped: false);
+        }
+
+        return $this->resolution(mapping: $mapping, isNewlyMapped: true);
+    }
+
+    private function resolution(StatusMapping $mapping, bool $isNewlyMapped): StatusResolution
+    {
         return new StatusResolution(
             status: ProcurementStatus::from($mapping->canonical_status),
-            isNewlyMapped: $mapping->wasRecentlyCreated,
+            isNewlyMapped: $isNewlyMapped,
+            matchedApplicability: StatusMappingApplicability::fromScopeIds(
+                platformId: $mapping->platform_id,
+                registryId: $mapping->registry_id,
+            ),
         );
     }
 }

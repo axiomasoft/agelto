@@ -30,10 +30,13 @@ final class StatusMappingSeeder extends Seeder
 {
     public function run(): void
     {
-        $registries = Registry::query()->where('code', 'fz44')->get();
+        $registries = Registry::query()
+            ->where('code', 'fz44')
+            ->whereHas('platform', fn ($query) => $query->where('code', 'eis'))
+            ->get();
 
         if ($registries->isEmpty()) {
-            $this->command?->warn('StatusMappingSeeder: реестров с code=fz44 не найдено — маппинги не заведены, повторить сид после создания реестра.');
+            $this->command->warn('StatusMappingSeeder: реестров с code=fz44 не найдено — маппинги не заведены, повторить сид после создания реестра.');
 
             return;
         }
@@ -41,11 +44,11 @@ final class StatusMappingSeeder extends Seeder
         foreach ($registries as $registry) {
             foreach ($this->mappings() as $mapping) {
                 StatusMapping::query()->updateOrCreate(
-                    [
+                    attributes: [
                         'registry_id' => $registry->id,
                         'source_stage' => $mapping['source_stage'],
                     ],
-                    [
+                    values: [
                         'canonical_status' => $mapping['canonical_status'],
                     ],
                 );

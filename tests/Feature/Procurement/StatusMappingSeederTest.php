@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Enums\Procurement\ProcurementStatus;
+use App\Models\Procurement\Platform\Platform;
 use App\Models\Procurement\Platform\Registry;
 use App\Models\Procurement\Platform\StatusMapping;
 use App\Services\Procurement\StatusMappingService;
@@ -12,7 +13,7 @@ use Database\Seeders\StatusMappingSeeder;
  * DOMLANG P2.2 (D17) — стартовая матрица `prc_status_mappings` для реестра fz44.
  */
 test('сид заводит ровно 5 маппингов для реестра fz44', function () {
-    $registry = Registry::factory()->create(['code' => 'fz44']);
+    $registry = eisStatusMappingRegistry();
 
     $this->seed(StatusMappingSeeder::class);
 
@@ -29,7 +30,7 @@ test('сид заводит ровно 5 маппингов для реестр�
 });
 
 test('повторный прогон сидера идемпотентен — число строк не меняется', function () {
-    $registry = Registry::factory()->create(['code' => 'fz44']);
+    $registry = eisStatusMappingRegistry();
 
     $this->seed(StatusMappingSeeder::class);
     $this->seed(StatusMappingSeeder::class);
@@ -38,7 +39,7 @@ test('повторный прогон сидера идемпотентен — 
 });
 
 test('сид покрывает снятый этап отмены дословной строкой площадки', function () {
-    $registry = Registry::factory()->create(['code' => 'fz44']);
+    $registry = eisStatusMappingRegistry();
 
     $this->seed(StatusMappingSeeder::class);
 
@@ -49,7 +50,7 @@ test('сид покрывает снятый этап отмены дослов�
 });
 
 test('после сида резолв Работа комиссии даёт Evaluation и не считается новым маппингом', function () {
-    $registry = Registry::factory()->create(['code' => 'fz44']);
+    $registry = eisStatusMappingRegistry();
     $this->seed(StatusMappingSeeder::class);
 
     $resolution = app(StatusMappingService::class)->resolve(registryId: $registry->id, sourceStage: 'Работа комиссии');
@@ -59,7 +60,7 @@ test('после сида резолв Работа комиссии даёт Ev
 });
 
 test('после сида незнакомое значение по-прежнему резолвится в unknown как новый маппинг', function () {
-    $registry = Registry::factory()->create(['code' => 'fz44']);
+    $registry = eisStatusMappingRegistry();
     $this->seed(StatusMappingSeeder::class);
 
     $resolution = app(StatusMappingService::class)->resolve(registryId: $registry->id, sourceStage: 'Пятое значение');
@@ -75,3 +76,20 @@ test('без реестров fz44 сид не падает и не пишет �
 
     expect(StatusMapping::query()->where('registry_id', $registry->id)->count())->toBe(0);
 });
+
+test('сид не выбирает fz44 другой платформы', function (): void {
+    $eisRegistry = Registry::factory()->for(Platform::factory()->create(['code' => 'eis']))->create(['code' => 'fz44']);
+    $otherRegistry = Registry::factory()->for(Platform::factory()->create(['code' => 'other']))->create(['code' => 'fz44']);
+
+    $this->seed(StatusMappingSeeder::class);
+
+    expect(StatusMapping::query()->where('registry_id', $eisRegistry->id)->count())->toBe(5)
+        ->and(StatusMapping::query()->where('registry_id', $otherRegistry->id)->count())->toBe(0);
+});
+
+function eisStatusMappingRegistry(): Registry
+{
+    return Registry::factory()
+        ->for(Platform::factory()->create(['code' => 'eis']))
+        ->create(['code' => 'fz44']);
+}
