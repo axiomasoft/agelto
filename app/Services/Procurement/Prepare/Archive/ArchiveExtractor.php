@@ -70,7 +70,8 @@ final readonly class ArchiveExtractor
                     declaredSize: (int) $stat['size'],
                     compressedSize: (int) $stat['comp_size'],
                     isDirectory: $isDirectory,
-                    isEncrypted: (($stat['bitflags'] ?? 0) & 1) === 1,
+                    isEncrypted: (($stat['bitflags'] ?? 0) & 1) === 1
+                        || (int) ($stat['encryption_method'] ?? ZipArchive::EM_NONE) !== ZipArchive::EM_NONE,
                     type: $type,
                 );
             }

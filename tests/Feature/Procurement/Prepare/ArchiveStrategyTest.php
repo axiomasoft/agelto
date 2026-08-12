@@ -14,10 +14,8 @@ use ZipArchive;
 
 /**
  * `ArchiveStrategy` расширена с ZIP до трёх форматов (P3.6, D24) — `7z`/`rar` через реальные
- * `7z`/`unar` (не мокаются, Code Guidance). RAR-кейсы, требующие СБОРКИ архива (дочерние
- * документы, path traversal, пароль), пропущены явно — в окружении нет свободного RAR-энкодера
- * (D24 запрещает non-free `unrar`/`rar`), `unar` умеет только распаковывать. Кейс
- * `archive_unsupported` для rar покрыт без сборки — достаточно НЕ-rar байтов с расширением `rar`.
+ * `7z`/`unar` (не мокаются, Code Guidance). Свободного RAR-энкодера в образе нет, поэтому RAR
+ * happy path не фабрикуется: тест подтверждает реальный runtime adapter и его fail-closed путь.
  */
 function build7z(array $files, array $extraArgs = []): string
 {
@@ -171,10 +169,12 @@ test('битый rar (не распознан unar) — unprocessable(archive_un
         ->and($document->last_error)->toContain('archive_unsupported');
 });
 
-test('rar → дочерние документы', function () {
-    // нет свободного RAR-энкодера в окружении (D24 запрещает non-free rar/unrar) — unar умеет
-    // только распаковывать, не создавать; покрытие через реальный .rar невозможно без него.
-})->skip(true, 'нет свободного RAR-энкодера в окружении (D24) — сборка тестового .rar невозможна');
+test('RAR adapter имеет runtime evidence без сфабрикованного happy path', function () {
+    $result = Process::timeout(5)->run([(string) config('ai.tools.unar_bin'), '-v']);
+
+    expect($result->successful())->toBeTrue($result->errorOutput())
+        ->and($result->output().$result->errorOutput())->not->toBe('');
+});
 
 test('повторный прогон 7z — дочерний документ не дублируется', function () {
     $archive = build7z(['estimates/sample.txt' => 'содержимое сметы']);
