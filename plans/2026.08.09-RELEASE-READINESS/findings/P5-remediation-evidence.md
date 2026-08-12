@@ -15,6 +15,10 @@ The shared P5.5 carrier now recreates its preflight-guarded `*_test` schema afte
 rollback/forward proof and before the full suite. This prevents focused fixture rows from leaking
 into seed assertions; it does not touch a development or production database.
 
+`EisSeedersTest` also declares `RefreshDatabase` locally, matching adjacent database feature
+tests. The explicit binding keeps its seed assertions isolated when the full suite changes test
+class ordering.
+
 The paired Swissknifeman source/runtime repair is
 `d2bed1f22f04f7de59fe7e16f1f4d5b76597bdde`; it makes the Task return projection exclude the
 historical phase audit-attention reopen and admits only the declared P5 validation carrier.

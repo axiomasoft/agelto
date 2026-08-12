@@ -17,7 +17,10 @@ use Database\Seeders\Procurement\CrawlerProfileSeeder;
 use Database\Seeders\Procurement\EisPlatformSeeder;
 use Database\Seeders\Procurement\Okpd2NodeSeeder;
 use Database\Seeders\StatusMappingSeeder;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Artisan;
+
+uses(RefreshDatabase::class);
 
 test('сид заводит площадку ЕИС и реестр fz44 с настройками карточки', function (): void {
     $this->seed(EisPlatformSeeder::class);
