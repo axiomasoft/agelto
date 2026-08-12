@@ -28,6 +28,12 @@ The paired Swissknifeman source/runtime repair is
 `d2bed1f22f04f7de59fe7e16f1f4d5b76597bdde`; it makes the Task return projection exclude the
 historical phase audit-attention reopen and admits only the declared P5 validation carrier.
 
+The final paired Task gate repair is
+`c7faf56f951e906363ac61af2b1103e537e51e81`: an accepted AUDIT-CAP decision may directly close
+a phase only when its `items` exactly equal that phase's declared item set and its body explicitly
+forbids the next audit while directing `task:plan-close`. This admits D76's recorded full-P5
+remediation and leaves ordinary item-scoped owner overrides refused.
+
 The release carrier then exposed three external-process fixture leaks and one stale UI assertion
 that focused runs could not reveal. The remedies are all test-only: reset the proxy setting from
 the same external boundary that writes it; delete the complete crawler/registry/platform fixture

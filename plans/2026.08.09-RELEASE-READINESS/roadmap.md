@@ -16,7 +16,8 @@ batch и всё равно закрываются каждый своим commit
 | P2 | P2.1–P2.7 | solo P2.7 | implementation/high · full | один последовательный audit-defined release carrier; evidence reconcile допустим только после GREEN product anchor |
 | P3 | P3.1–P3.5 | B3-READINESS | implementation/high · full | diagnosis→repair→readiness→E2E→recovery использует один runtime context; root-cause escalation останавливает серию |
 | P4 | P4.1–P4.6 | terminal | — | фаза закрыта после P4.6 remediation D72; следующий исполнимый item — P5.1 |
-| P5–P12 | текущие solo | solo | как в §3 Routing | требуются owner/external gates, frontier freeze либо отдельный риск-контекст; кандидаты на следующие batch-проходы рассматриваются по фактическим terminal inputs |
+| P5 | P5.1–P5.6 | solo P5.6 | implementation/high · full | owner D76: один cross-repo AUDIT-CAP carrier до 0/0 и direct close без Audit 3 |
+| P6–P12 | текущие solo | solo | как в §3 Routing | требуются owner/external gates, frontier freeze либо отдельный риск-контекст; кандидаты на следующие batch-проходы рассматриваются по фактическим terminal inputs |
 
 ## Карта исполнения
 
@@ -60,6 +61,7 @@ batch и всё равно закрываются каждый своим commit
 | P5.3 | solo | `task:plan-run … P5.3` | implementation/high | — | egress precedence/health correctness boundary |
 | P5.4 | solo | `task:plan-run … P5.4` | implementation/high | — | secret-safe authorized settings UI |
 | P5.5 | solo | `task:plan-run … P5.5` | implementation/high | — | terminal no-fallback/health/tooling proof |
+| P5.6 | solo | `task:plan-run … P5.6` | implementation/high | D76 | final source/product/projection remediation; два repository commits, 0 deviations, direct close P5 без Audit 3 |
 | P6.1 | solo | `task:plan-run … P6.1` | frontier/high | contract reconcile | terminal upstream may supersede format/archive design |
 | P6.2 | solo | `task:plan-run … P6.2` | implementation/high | — | typed registry/result/reason contract |
 | P6.3 | solo | `task:plan-run … P6.3` | implementation/high | — | hostile archive resource/path boundary |

@@ -84,11 +84,12 @@ RAG:— (repo-grounded synthesis: D8/D28/D29 and P5 findings).
 | P5.3 | terminal P5.2 | typed modes/source, migrations and centralized resolver precedence at every call site | P5.4 exposes only sealed semantics |
 | P5.4 | terminal P5.3 | authorized secret-safe settings/profile UX | P5.5 tests real UI/runtime carrier |
 | P5.5 | terminal P5.4 | full precedence/health/no-proxy/tooling proof and operator docs | P10/P12 consume evidence |
+| P5.6 | owner D76 after AUDIT-CAP | source/product/projection remediation with zero-deviation closure | direct close P5 without Audit 3; P6 remains gated |
 
-The items form a strict reconcile→carrier→runtime→UI→acceptance chain and share Composer/schema,
-resolver, Filament and test hotspots. The N≥3 independent criterion is false and no autonomous
-external-state chain spans sessions; orchestration is not declared. RAG:— (repo-grounded: dependency
-matrix above).
+P5.1–P5.5 form a strict reconcile→carrier→runtime→UI→acceptance chain and share Composer/schema,
+resolver, Filament and test hotspots. D76 adds P5.6 as one strictly ordered source→product→projection
+recovery slice; its substeps are not independent workflow branches. RAG:— (repo-grounded: dependency
+matrix above and `research/21-P5-audit-cap-remediation.md`).
 
 ## Validation strategy
 

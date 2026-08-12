@@ -2,8 +2,8 @@
 projection: status-view
 projection_version: v1
 source_scope: plan core + phases + journal
-through: 2026-08-11
-inputs_sha256: ed59d8f14b7fb9d62dfeeecf48869bf59a9227febea45ccb809179413b342dc8
+through: 2026-08-12
+inputs_sha256: fca130dad16954fb899c867198d0e66ae7da20fad5eb1f0cc286d947f594b101
 generated_by: task plan-views status
 -->
 
@@ -15,9 +15,9 @@ generated_by: task plan-views status
 
 | Поле | Значение |
 |:--|:--|
-| Version | 0.1.7 |
+| Version | 0.1.8 |
 | Status | 🟡 In progress |
-| Last Updated | 2026-08-11 |
+| Last Updated | 2026-08-12 |
 
 ## 4. Phase Index & Status Board
 
@@ -31,7 +31,7 @@ generated_by: task plan-views status
 | P2 | Local vendor, secrets, preflight, bootstrap и Laravel Doctor | 7/7 | 🟢 Done |
 | P3 | Fresh install, Livewire/Filament assets и application readiness | 5/5 | 🟢 Done |
 | P4 | Закрытая production-документация вне public | 4/6 | 🟠 Done with deviations |
-| P5 | Default proxy settings и трёхуровневый resolve | 4/5 | 🟠 Done with deviations |
+| P5 | Default proxy settings и трёхуровневый resolve | 6/6 | 🟢 Done |
 | P6 | File handler registry, архивы и дочерняя обработка | 0/6 | ⬜ Not started |
 | P7 | Document type, summary, estimates и tags | 0/6 | ⬜ Not started |
 | P8 | Расширяемость platforms и гибкие status mappings | 0/5 | ⬜ Not started |
@@ -133,11 +133,12 @@ generated_by: task plan-views status
 
 | ID | Title | Status | Updated |
 |:--|:--|:--|:--|
-| P5.1 | Проаудировать текущие ProxyResolver, profile, scopes, health и parser call sites | 🟢 Done | 2026-08-11 |
+| P5.1 | Проаудировать текущие ProxyResolver, profile, scopes, health и parser call sites | 🟢 Done | 2026-08-12 |
 | P5.2 | Внедрить optional typed crawler/parser proxy settings carrier | 🟢 Done | 2026-08-11 |
 | P5.3 | Реализовать precedence profile → default → direct через ProxyResolver | 🟢 Done | 2026-08-11 |
 | P5.4 | Добавить понятные Filament settings и secret-safe validation | 🟢 Done | 2026-08-11 |
-| P5.5 | Покрыть три уровня, health axes, no-proxy и Playwright separation тестами | 🟠 Done with deviations | 2026-08-11 |
+| P5.5 | Покрыть три уровня, health axes, no-proxy и Playwright separation тестами | 🟢 Done | 2026-08-12 |
+| P5.6 | Закрыть AUDIT-CAP P5 без отклонений единым source/product release carrier | 🟢 Done | 2026-08-12 |
 
 ## Phase P6
 
@@ -402,6 +403,20 @@ generated_by: task plan-views status
 | 2026-08-11 | gpt-5.6-terra/high | plan-run · closed-green · P5.3 carrier 128d4779 passed: 60 tests/165 assertions, rollback/forward and Pint; write-site: pre_mutation: allow · pre_final: allow. |
 | 2026-08-11 | gpt-5.6-terra/high | plan-run · closed-green · P5.4 carrier passed: 19 tests/130 assertions; write-site: pre_mutation: allow · pre_final: allow. |
 | 2026-08-11 | gpt-5.6-terra/high | plan-run · closed-deviations · P5.5 carrier passed: 96 tests/296 assertions; two test paths were outside Files; write-site: pre_mutation: allow · pre_final: allow. |
+| 2026-08-11 | frontier/xhigh | plan-audit · audit-attention · заход 2, вердикт ATTENTION |
+| 2026-08-11 | frontier/high | plan-design · in-progress · P5 переоткрыта по D76; P5.6 детализирован до DoR без третьего Audit P5 |
+| 2026-08-11 | gpt-5.6-sol/high | plan-run · in-progress · — |
+| 2026-08-12 | gpt-5.6-sol/high | plan-close · closed-green · P5.6 carrier GREEN: 1464 tests/6168 assertions; Task source/runtime and downstream records refreshed; write-site: pre_mutation: allow · pre_final: allow. |
+| 2026-08-12 | gpt-5.6-sol/high | plan-close · closed-green · P5.6 принял прежние out-of-Files пути P5.5; standalone acceptance GREEN: 1464 tests/6168 assertions; write-site: pre_mutation: allow · pre_final: allow. |
+| 2026-08-12 | implementation/low | plan-close · closed-green · P5 closed GREEN by D76: all P5.1–P5.6 terminal; candidate 84f7b66da1723eb690f6a0ffb126f15b816132b5ebcaf6e69ad64db997860bc9; no Audit 3; handoff to P6.1. |
+| 2026-08-12 | gpt-5.6-sol/high | plan-close · closed-green · P5.6 принял прежние out-of-Files пути P5.5; standalone acceptance GREEN: 1464 tests/6168 assertions.
+write-site: pre_mutation: allow · pre_final: allow. |
+| 2026-08-12 | gpt-5.6-sol/high | plan-close · closed-green · P5.6 carrier GREEN: 1464 tests/6168 assertions; Task source/runtime and downstream records refreshed; final phase gate repair c7faf56f951e906363ac61af2b1103e537e51e81.
+write-site: pre_mutation: allow · pre_final: allow. |
+| 2026-08-12 | implementation/low | plan-close · closed-green · P5 closed GREEN by D76 after canonical state correction: all P5.1–P5.6 terminal; candidate c000b9e7f9ef66c2559e4ebe91e90a4c9ec069893c05236bf921ddc67b4b270e; no Audit 3; handoff to P6.1. |
+| 2026-08-12 | implementation/low | plan-close · closed-green · P5.1 reconciliation: product anchor 41e4e7cb remains GREEN; D73 normalized future consumer carriers, so the prior process marker is not a remaining deviation.
+write-site: pre_mutation: allow · pre_final: allow. |
+| 2026-08-12 | implementation/low | plan-close · closed-green · P5 closed GREEN by D76 after all canonical state reconciliations: all P5.1–P5.6 terminal; candidate c06221b6f1418f2396777546fe8317778f61606f91c68434454c3c0afc2378c4; no Audit 3; handoff to P6.1. |
 
 ## Owner Gates
 
@@ -411,5 +426,3 @@ generated_by: task plan-views status
 - P4.2: known deviation
 - P4.4: known deviation
 - P4.6: known deviation
-- P5.1: known deviation
-- P5.5: known deviation
