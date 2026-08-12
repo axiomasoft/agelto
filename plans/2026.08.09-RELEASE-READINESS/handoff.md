@@ -1,38 +1,72 @@
-# HANDOFF — 2026-08-12 — after P6
+# HANDOFF — 2026-08-12 — after P7.1
 
-**Next:** ЗАПУСК ВРУЧНУЮ: `frontier/high`
+## Next
+
+ЗАПУСК ВРУЧНУЮ: implementation/high.
 
 | Параметр | Значение |
 |:--|:--|
 | Batch | solo |
-| Model | frontier |
-| Thinking | high — frozen contract reconcile |
+| Model | implementation |
+| Thinking | high — migration/backfill/index correctness |
 | Context | continue-root |
-| Суть | Выполнить P7.1: сверить terminal P0/P6 evidence и заморозить taxonomy/document response contract. |
+| Суть | P7.2 добавляет typed stored screening v2 envelope, reversible backfill и active JSON/type indexes по terminal P7.1 |
 | Команда | — |
 
-#### Native Codex launch-block
+Provider-neutral launch:
 
-```bash
-codex -C /home/vostrikov/projects/agelto/agelto -m gpt-5.6-sol -c 'model_reasoning_effort="high"' -a never -s danger-full-access 'Выполнить P7.1 из plans/2026.08.09-RELEASE-READINESS/phases/P7/P7.1.md: сначала прочитать его Required Reads, сверить terminal P0/P6 evidence и D32–D34; только затем писать объявленные P7 findings/research или superseding decision при доказанном противоречии.'
+```text
+select the session model class implementation
+select the session effort high
+$ task:plan-run 2026.08.09-RELEASE-READINESS P7.2
 ```
 
-**Done:** P6 закрыта 🟠 по D79 direct-close override: fresh candidate gate `allow`; final Audit P6
-RED/AUDIT-CAP не повторяется. D79 route-attested recovery сохранил P6.6 focused 5/162 и full no-TIA,
-а P6.7 focused 75/361 и full no-TIA 1491/6398; F3 repaired as historical `e4f10ae0:255`.
+Native Codex launch-block:
 
-**Remaining:** Начать P7.1 вручную; P6 больше не назначает третий audit.
+```bash
+codex -C /home/vostrikov/projects/agelto/agelto -m gpt-5.6-terra -c 'model_reasoning_effort="high"' -a never -s danger-full-access '$ task:plan-run 2026.08.09-RELEASE-READINESS P7.2'
+```
 
-**Sources of truth:** `phases/P6/P6.md` (оба historical audit blocks и Phase Handoff), D79,
-`phases/P6/P6.closed.md`, `journal.jsonl`, P6 item states and `phases/P7/P7.1.md`.
+Cold-start reads are owned by `phases/P7/P7.2.md`: terminal P7.1 state, reconciled P7 research,
+D32–D34, ADR 0004, current Analysis migration/model, ScreeningOutcomeHandler and focused axis/
+branching tests.
 
-**Open risks:** Historical route undershoot/fail-closed attempts остаются named deviations; P6.4
-out-of-Files `tests/Feature/Procurement/Pipeline/StuckCheckTest.php` at `89b4e793`, absent/no-op
-legacy Make aliases, P6.6 append-only attempt-5 null `run_id`/inline write-site defect followed by
-valid attempt 6, and final Audit P6 RED/AUDIT-CAP owner outcome D79 are preserved, not normalized.
+## Done
 
-**Workarounds/Deferred/Open questions:**
+- P7.1 product commit `5e929fc9` reconciled terminal P0.4/P0.5/P0.6/P6.6 evidence with the
+  representative screening corpus and current `AiDocumentType` consumer surface.
+- Exact taxonomy, case labels/aliases, cardinality, summary/tag/note limits, normalization,
+  flat-to-v2 mapping, backend disposition/reason and downstream consumer matrices are frozen.
+- D32–D34 remain byte-stable; no superseding decision was required.
+- Task Contract returned `pre_mutation=allow` and `pre_final=allow`; strict citations, plan-lint,
+  generated view checks and content gates were green.
 
-- workarounds: D79 permits only this direct close after fresh route-attested recovery.
-- deferred: P7 semantic taxonomy and all later phase products remain with their owners.
-- open_questions: —
+## Remaining
+
+- Execute P7.2–P7.6 sequentially; P7.6 owns the representative protocol fixture and full P6→P7
+  contract matrix.
+- Continue P8–P12 only after P7 is terminal under phase-first execution.
+
+## Sources of truth
+
+- `phases/P7/P7.1.state.md` — terminal P7.1 state.
+- `findings/P7-screening-contract-recon-2026-08-09.md` — normative frozen matrices.
+- `research/09-P7-execution-design.md` — reconciled alternatives, rationale and execution topology.
+- `decisions/D32-document-taxonomy-carrier.md`, `D33-screening-response-contract.md`,
+  `D34-screening-persistence-disposition.md` — current decisions.
+- Product commit `5e929fc9` and item-scoped downstream findings keyed by its full commit.
+
+## Open risks
+
+- P7.2–P7.6 downstream outcomes are `unknown` until each consumer implements and runs its declared
+  validation; none blocks producer P7.1.
+- The manifest has no representative protocol sample; P7.6 must add the named regression carrier
+  without changing the frozen case-set.
+
+## Workarounds/Deferred/Open questions
+
+- Workaround: exact-invocation routing guard was owner-bypassed after the router was declared broken;
+  provider-thread route still proved the prescribed `frontier/high`. This is a process deviation,
+  not a product-contract deviation.
+- Deferred: protocol representative fixture to P7.6.
+- Open questions: —

@@ -3,7 +3,7 @@ projection: status-view
 projection_version: v1
 source_scope: plan core + phases + journal
 through: 2026-08-12
-inputs_sha256: 07c250d4dd017afce20a789b7b0e4d26b1898c940c28fa7acdce146524cb04ea
+inputs_sha256: c691ae010e49c02bb1dfee2e8b90c57a8ad74afaab9787ff9fb377e0fdd001bd
 generated_by: task plan-views status
 -->
 
@@ -33,7 +33,7 @@ generated_by: task plan-views status
 | P4 | Закрытая production-документация вне public | 4/6 | 🟠 Done with deviations |
 | P5 | Default proxy settings и трёхуровневый resolve | 6/6 | 🟢 Done |
 | P6 | File handler registry, архивы и дочерняя обработка | 0/7 | 🟠 Done with deviations |
-| P7 | Document type, summary, estimates и tags | 0/6 | ⬜ Not started |
+| P7 | Document type, summary, estimates и tags | 1/6 | 🟡 In progress |
 | P8 | Расширяемость platforms и гибкие status mappings | 0/5 | ⬜ Not started |
 | P9 | Filament information architecture и понятный русский UX | 0/6 | ⬜ Not started |
 
@@ -156,7 +156,7 @@ generated_by: task plan-views status
 
 | ID | Title | Status | Updated |
 |:--|:--|:--|:--|
-| P7.1 | Спроектировать расширяемую taxonomy document types и estimate cardinality | ⬜ Not started | — |
+| P7.1 | Спроектировать расширяемую taxonomy document types и estimate cardinality | 🟢 Done | 2026-08-12 |
 | P7.2 | Добавить schema для type, summary, tags, confidence и decision reason | ⬜ Not started | — |
 | P7.3 | Обновить Spatie Data DTO и structured prompt/response schema | ⬜ Not started | — |
 | P7.4 | Сохранить первичный анализ и полезный summary для non-estimate документов | ⬜ Not started | — |
@@ -492,6 +492,9 @@ write-site: pre_mutation: allow · pre_final: allow |
 | 2026-08-12 | gpt-5.6-terra/high | plan-run · closed-deviations · D79 route-attested recovery: focused 75 passed / 361 assertions; full no-TIA 1491 passed / 6398 assertions on agelto_test.
 write-site: pre_mutation: allow · pre_final: allow |
 | 2026-08-12 | implementation/low | plan-close · closed-deviations · фаза P6 закрыта по D79 direct-close |
+| 2026-08-12 | frontier/high | plan-run · routing-rejected · provider route frontier/high; ROUTE_LAUNCH_MISMATCH: exact task:plan-run line отсутствует |
+| 2026-08-12 | frontier/high | plan-run · in-progress · — |
+| 2026-08-12 | frontier/high | plan-run · closed-green · Product 5e929fc9: P0/P6 reconciled; taxonomy/cardinality/limits/mapping/disposition/consumer matrices frozen; D32-D34 stable; exact-invocation guard owner-bypassed as broken. write-site: pre_mutation: allow · pre_final: allow |
 
 ## Owner Gates
 
@@ -508,3 +511,4 @@ write-site: pre_mutation: allow · pre_final: allow |
 - P6.5: known deviation
 - P6.6: known deviation
 - P6.7: known deviation
+- P7.1: known deviation
