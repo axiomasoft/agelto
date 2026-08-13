@@ -34,12 +34,19 @@ use App\Services\Procurement\Extraction\ExtractionSession;
 use App\Services\Procurement\Prepare\RepresentationResolver;
 use App\Services\Procurement\Screening\PdfPageSlicer;
 use Carbon\CarbonImmutable;
-use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use RuntimeException;
 
 /**
+ * @phpstan-type UsageSnapshot array{prompt_tokens: int, completion_tokens: int, cached_tokens: int, total_tokens: int}
+ * @phpstan-type WholeEstimate array{ordinal: int, estimate_number: string|null, passport: array<string, mixed>, currency: string, base_year: int|null, price_level: string|null, regulatory_base: string|null, rows_expected: int, next_row_index: int, row_range_size: int, rows: list<array<string, mixed>>, incomplete_items: list<array<string, mixed>>, failed_ranges: list<array{row_index: int, row_range_size: int}>, rows_done: bool, totals: array<string, mixed>|null, totals_done: bool}
+ * @phpstan-type WholeProgress array{estimates: list<WholeEstimate>, passport_done: bool, usage?: UsageSnapshot, file_uri?: string, file_expires_at?: string}
+ * @phpstan-type DiscoveryState array{next_window_index: int, markers: list<array<string, mixed>>, done: bool}
+ * @phpstan-type Segment array{ordinal: int, segment_page_start: int, segment_page_end: int, title?: string}
+ * @phpstan-type WindowEstimate array{ordinal: int, estimate_number: string|null, passport: array<string, mixed>, currency: string, base_year: int|null, price_level: string|null, regulatory_base: string|null, rows_expected: int, segment_page_start: int, segment_page_end: int, next_page: int, rows: list<array<string, mixed>>, incomplete_items: list<array<string, mixed>>, rows_done: bool, totals: array<string, mixed>|null, totals_done: bool, passport_done: bool}
+ * @phpstan-type WindowProgress array{route: 'windowed', total_pages: int, discovery: DiscoveryState, segments: list<Segment>|null, estimates: list<WindowEstimate>, usage?: UsageSnapshot}
+ *
  * Оркестратор полного извлечения смет (D3/D29/D30/D31/D40/D42/D43, `docs/specs/v2/
  * 08-estimate-extraction.md` §4). Два top-level пути: `runWholeDocument()` (row-range по целому
  * кэшированному документу, D3, основной) и `runWindowed()` (трёхстадийный discovery→сегменты→
@@ -100,6 +107,10 @@ final readonly class ExtractionOrchestrator
         ]);
 
         $version = $analysis->documentVersion;
+
+        if ($version === null) {
+            throw new RuntimeException('Извлечение требует зафиксированную версию документа.');
+        }
         $effective = $this->resolveEffectiveFile($version, $forceKind);
 
         if ($effective === null) {
@@ -126,11 +137,17 @@ final readonly class ExtractionOrchestrator
             $decision = $this->preflight->decide($localPath, $effective['extension'], $route);
 
             if ($decision->isUnprocessable()) {
+                $reason = $decision->unprocessableReason;
+
+                if ($reason === null) {
+                    throw new RuntimeException('Непроходимое решение preflight обязано нести причину.');
+                }
+
                 $this->markUnprocessable(
                     $document,
                     $analysis,
-                    $decision->unprocessableReason,
-                    "лимит провайдера: {$decision->unprocessableReason->value}",
+                    $reason,
+                    "лимит провайдера: {$reason->value}",
                 );
 
                 return false;
@@ -153,11 +170,11 @@ final readonly class ExtractionOrchestrator
     {
         $session = $this->buildSession($analysis, $localPath, $effective['mime'], $route);
 
-        $checkpointRanges = (int) config('ai.extraction.checkpoint_ranges', 20);
-        $checkpointSeconds = (int) config('ai.extraction.checkpoint_seconds', 240);
-        $rowRangeSize = (int) config('ai.extraction.row_range_size', 30);
-        $minRowRangeSize = (int) config('ai.extraction.min_row_range_size', 5);
-        $maxEstimates = (int) config('ai.extraction.max_estimates_per_document', 20);
+        $checkpointRanges = $this->intConfig('ai.extraction.checkpoint_ranges', 20);
+        $checkpointSeconds = $this->intConfig('ai.extraction.checkpoint_seconds', 240);
+        $rowRangeSize = $this->intConfig('ai.extraction.row_range_size', 30);
+        $minRowRangeSize = $this->intConfig('ai.extraction.min_row_range_size', 5);
+        $maxEstimates = $this->intConfig('ai.extraction.max_estimates_per_document', 20);
 
         $runStartedAt = microtime(true);
         $unitsThisRun = 0;
@@ -170,6 +187,7 @@ final readonly class ExtractionOrchestrator
             }
 
             $progress = $session->progress;
+            /** @var WholeProgress $progress */
             $estimates = $progress['estimates'];
             $currentIndex = $this->firstUnfinishedIndex($estimates);
 
@@ -193,6 +211,10 @@ final readonly class ExtractionOrchestrator
                 }
 
                 $passport = $result->data;
+
+                if (! $passport instanceof PassportResponse) {
+                    throw new RuntimeException('Источник passport обязан вернуть PassportResponse.');
+                }
                 $estimates[] = [
                     'ordinal' => $ordinal,
                     'estimate_number' => $passport->estimate_number,
@@ -314,11 +336,11 @@ final readonly class ExtractionOrchestrator
     {
         $session = $this->buildWindowedSession($analysis, $localPath);
 
-        $checkpointRanges = (int) config('ai.extraction.checkpoint_ranges', 20);
-        $checkpointSeconds = (int) config('ai.extraction.checkpoint_seconds', 240);
-        $windowPages = (int) config('ai.extraction.window_pages', 3);
-        $windowOverlapPages = (int) config('ai.extraction.window_overlap_pages', 1);
-        $totalsTailPages = (int) config('ai.extraction.totals_tail_pages', 2);
+        $checkpointRanges = $this->intConfig('ai.extraction.checkpoint_ranges', 20);
+        $checkpointSeconds = $this->intConfig('ai.extraction.checkpoint_seconds', 240);
+        $windowPages = $this->intConfig('ai.extraction.window_pages', 3);
+        $windowOverlapPages = $this->intConfig('ai.extraction.window_overlap_pages', 1);
+        $totalsTailPages = $this->intConfig('ai.extraction.totals_tail_pages', 2);
 
         $discoveryRoute = $this->routes->resolve(
             AiDocumentType::from($analysis->document_type ?? AiDocumentType::Estimate->value),
@@ -336,7 +358,7 @@ final readonly class ExtractionOrchestrator
             }
 
             $progress = $session->progress;
-
+            /** @var WindowProgress $progress */
             if ($progress['discovery']['done'] === false) {
                 $windowIndex = $progress['discovery']['next_window_index'];
                 $pageStart = $windowIndex * ($windowPages - $windowOverlapPages) + 1;
@@ -533,9 +555,7 @@ final readonly class ExtractionOrchestrator
         return $unitsThisRun >= $checkpointRanges || (microtime(true) - $runStartedAt) >= $checkpointSeconds;
     }
 
-    /**
-     * @param  list<array<string, mixed>>  $estimates
-     */
+    /** @param list<WholeEstimate> $estimates */
     private function firstUnfinishedIndex(array $estimates): ?int
     {
         foreach ($estimates as $index => $estimate) {
@@ -547,9 +567,7 @@ final readonly class ExtractionOrchestrator
         return null;
     }
 
-    /**
-     * @param  list<array<string, mixed>>  $estimates
-     */
+    /** @param list<WindowEstimate> $estimates */
     private function firstUnfinishedWindowedIndex(array $estimates): ?int
     {
         foreach ($estimates as $index => $estimate) {
@@ -572,7 +590,7 @@ final readonly class ExtractionOrchestrator
         // сбрасывается на каждом прогоне) — иначе `analysis.result.meta.usage` в финале
         // отражал бы только ПОСЛЕДНИЙ прогон, а не суммарные затраты анализа.
         $usage = isset($progress['usage']) && is_array($progress['usage'])
-            ? $this->usageFromArray($progress['usage'])
+            ? $this->usageFromArray($this->usageSnapshot($progress['usage']))
             : new LlmUsage(promptTokens: 0, completionTokens: 0, cachedTokens: 0, totalTokens: 0);
 
         return new ExtractionSession(
@@ -603,7 +621,7 @@ final readonly class ExtractionOrchestrator
         }
 
         $usage = isset($progress['usage']) && is_array($progress['usage'])
-            ? $this->usageFromArray($progress['usage'])
+            ? $this->usageFromArray($this->usageSnapshot($progress['usage']))
             : new LlmUsage(promptTokens: 0, completionTokens: 0, cachedTokens: 0, totalTokens: 0);
 
         return new ExtractionSession(
@@ -651,7 +669,38 @@ final readonly class ExtractionOrchestrator
             return [];
         }
 
-        return $progress instanceof Collection ? $progress->toArray() : (array) $progress;
+        return $progress->all();
+    }
+
+    /**
+     * @param  array<mixed, mixed>  $usage
+     * @return UsageSnapshot
+     */
+    private function usageSnapshot(array $usage): array
+    {
+        foreach (['prompt_tokens', 'completion_tokens', 'cached_tokens', 'total_tokens'] as $key) {
+            if (! isset($usage[$key]) || ! is_int($usage[$key])) {
+                throw new RuntimeException("Некорректный persisted usage: {$key} обязан быть integer.");
+            }
+        }
+
+        /** @var UsageSnapshot $usage */
+        return $usage;
+    }
+
+    private function intConfig(string $key, int $default): int
+    {
+        $value = config($key, $default);
+
+        if (is_int($value)) {
+            return $value;
+        }
+
+        if (is_string($value) && preg_match('/^-?\d+$/', $value) === 1) {
+            return (int) $value;
+        }
+
+        throw new RuntimeException("Конфигурация {$key} обязана быть integer.");
     }
 
     /**
@@ -716,7 +765,7 @@ final readonly class ExtractionOrchestrator
         // (`RerunAnalysisAction`); persist() удаляет сметы заменённого прогона в той же
         // транзакции, что персист новых — обычный (первый) прогон передаёт `null`, поведение
         // не меняется.
-        $analysis->result = $result;
+        $analysis->result = collect($result);
         $this->persister->persist($analysis, supersededAnalysisId: $analysis->parent_analysis_id);
 
         $this->usageSnapshot->finalizeAnalysis($analysis, [
