@@ -14,11 +14,17 @@ use Illuminate\Support\Str;
 /**
  * Реестр внутри площадки (у ЕИС — fz44/fz223).
  *
+ * @property int $id
  * @property int $platform_id
+ * @property string $uuid
+ * @property string $code
+ * @property string $name
+ * @property array<string, mixed>|null $settings
  */
 #[UseFactory(RegistryFactory::class)]
 final class Registry extends Model
 {
+    /** @use HasFactory<RegistryFactory> */
     use HasFactory;
 
     protected $table = 'prc_registries';
@@ -45,6 +51,7 @@ final class Registry extends Model
         });
     }
 
+    /** @return BelongsTo<Platform, $this> */
     public function platform(): BelongsTo
     {
         return $this->belongsTo(related: Platform::class);

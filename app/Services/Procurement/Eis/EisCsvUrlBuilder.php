@@ -46,6 +46,7 @@ final readonly class EisCsvUrlBuilder
         ?EisListingQueryOverrides $overrides = null,
     ): array {
         $filter = $crawler->filter;
+        $registry = $this->requireRegistry($crawler);
 
         if ($filter !== null && ! $filter instanceof EisSearchFilter) {
             throw new RuntimeException(
@@ -54,11 +55,12 @@ final readonly class EisCsvUrlBuilder
             );
         }
 
-        $columns = $crawler->options?->toArray()['columns'] ?? [];
+        $columns = $crawler->options->columns ?? [];
 
+        /** @var array<string, string> $query */
         $query = $filter === null ? [] : $this->filterParams(
             filter: $filter,
-            registry: $this->requireRegistry($crawler),
+            registry: $registry,
             includeOkpd2: ! ($overrides !== null && $overrides->withoutOkpd2),
         );
 
@@ -70,7 +72,7 @@ final readonly class EisCsvUrlBuilder
 
         $query['from'] = (string) $from;
         $query['to'] = (string) $to;
-        $query[$crawler->registry->code] = 'on';
+        $query[$registry->code] = 'on';
         [$query['sortBy'], $query['sortDirection']] = $this->sortParams(filter: $filter);
         // Обязательна для cap-детекта (`CsvSourceMethod::dedupSignature`) — запрашивается
         // всегда, независимо от `options.columns` профиля.
@@ -123,7 +125,7 @@ final readonly class EisCsvUrlBuilder
      */
     private function filterParams(EisSearchFilter $filter, Registry $registry, bool $includeOkpd2 = true): array
     {
-        $dateFormat = (string) config('crawler.archive.date_format', 'd.m.Y');
+        $dateFormat = $this->dateFormat();
 
         $params = [
             'af' => $filter->stageApplications,
@@ -175,7 +177,7 @@ final readonly class EisCsvUrlBuilder
      */
     private function publishedDateWindowParams(EisListingQueryOverrides $overrides): array
     {
-        $dateFormat = (string) config('crawler.archive.date_format', 'd.m.Y');
+        $dateFormat = $this->dateFormat();
 
         return [
             'publishDateFrom' => $overrides->publishedFrom->format($dateFormat),
@@ -277,7 +279,13 @@ final readonly class EisCsvUrlBuilder
      */
     private function archiveOverrides(string $day, array $priceStack, string $dateField): array
     {
-        $formattedDay = Carbon::createFromFormat('Y-m-d', $day)->format((string) config('crawler.archive.date_format', 'd.m.Y'));
+        $cursorDay = Carbon::createFromFormat('Y-m-d', $day);
+
+        if (! $cursorDay instanceof Carbon) {
+            throw new RuntimeException(sprintf('Невалидная дата курсора EIS: %s.', $day));
+        }
+
+        $formattedDay = $cursorDay->format($this->dateFormat());
         [$priceFrom, $priceTo] = $this->currentPriceInterval(priceStack: $priceStack);
 
         $fromKey = $dateField === 'update' ? 'updateDateFrom' : 'publishDateFrom';
@@ -298,9 +306,21 @@ final readonly class EisCsvUrlBuilder
      */
     private function currentPriceInterval(array $priceStack): array
     {
-        $top = $priceStack[array_key_last($priceStack)] ?? '0:0';
-        [$from, $to] = explode(':', $top);
+        $lastKey = array_key_last($priceStack);
+        $top = $lastKey === null ? '0:0' : $priceStack[$lastKey];
+        [$from, $to] = array_pad(explode(':', $top, 2), 2, '0');
 
         return [$from, $to];
+    }
+
+    private function dateFormat(): string
+    {
+        $format = config('crawler.archive.date_format', 'd.m.Y');
+
+        if (! is_string($format) || $format === '') {
+            throw new RuntimeException('crawler.archive.date_format должен быть непустой строкой.');
+        }
+
+        return $format;
     }
 }
