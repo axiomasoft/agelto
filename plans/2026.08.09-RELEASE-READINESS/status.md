@@ -3,7 +3,7 @@ projection: status-view
 projection_version: v1
 source_scope: plan core + phases + journal
 through: 2026-08-13
-inputs_sha256: 1bd14d059f0cc72b460f9441b24902d7a22bdbec5b6df887821291232eed7a89
+inputs_sha256: 3a6a44791221d022850b1665c4ca2930e49c36293d40268232e55d682e0900b8
 generated_by: task plan-views status
 -->
 
@@ -25,7 +25,7 @@ generated_by: task plan-views status
 |:--|:--|:--|:--|
 | P0 | Разведка репозитория, референсов и RAG-контракты | 8/8 | 🟢 Done |
 | P1 | Makefile и Docker dev/prod с Vite-ready topology | 7/7 | 🟢 Done |
-| P10 | PHP, архитектура, безопасность и production-readiness audit | 0/6 | ⬜ Not started |
+| P10 | PHP, архитектура, безопасность и production-readiness audit | 1/6 | 🟡 In progress |
 | P11 | Pest 5 performance, test isolation и CI | 0/6 | ⬜ Not started |
 | P12 | Ubuntu deployment guide и финальный clean-room rehearsal | 0/7 | ⬜ Not started |
 | P2 | Local vendor, secrets, preflight, bootstrap и Laravel Doctor | 7/7 | 🟢 Done |
@@ -66,7 +66,7 @@ generated_by: task plan-views status
 
 | ID | Title | Status | Updated |
 |:--|:--|:--|:--|
-| P10.1 | Снять baseline Pint/PHPStan/Rector/dependencies и modern-PHP findings | ⬜ Not started | — |
+| P10.1 | Снять baseline Pint/PHPStan/Rector/dependencies и modern-PHP findings | 🟢 Done | 2026-08-13 |
 | P10.2 | Выполнить Laravel security audit всех новых и существующих boundaries | ⬜ Not started | — |
 | P10.3 | Найти duplication, dead code, naming и needless abstractions | ⬜ Not started | — |
 | P10.4 | Проверить migrations, transactions, races, idempotency, queues и config defaults | ⬜ Not started | — |
@@ -625,6 +625,9 @@ write-site: pre_mutation: allow · pre_final: allow |
 write-site: pre_mutation: allow · pre_final: allow |
 | 2026-08-13 | frontier/xhigh | plan-audit · audit-green · P9 audit-fixer GREEN; candidate rebound after owned repairs. |
 | 2026-08-13 | implementation/low | plan-close · closed-green · P9 closed by D84: GREEN audit stale only from its own generated evidence. |
+| 2026-08-13 | frontier/high | plan-run · in-progress · — |
+| 2026-08-13 | frontier/high | plan-run · closed-green · Baseline e1fab7e1: Pint paths 7 (на e1fab7e1, carrier); PHPStan configured/max 34/1637 (на e1fab7e1, carrier); Composer audit 0/0 (на e1fab7e1, carrier); Rector branch compatible. write-site: pre_mutation: allow · pre_final: allow |
+| 2026-08-13 | frontier/high | plan-run · local-repair · write-site: pre_mutation: allow · pre_final: allow |
 
 ## Owner Gates
 

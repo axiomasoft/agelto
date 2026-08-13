@@ -1,38 +1,49 @@
-# HANDOFF — 2026-08-13 — after P9
+# HANDOFF — 2026-08-13 — after P10.1
 
-**Next:** run-items: task:plan-run 2026.08.09-RELEASE-READINESS P10.1
+**Next:** ЗАПУСК ВРУЧНУЮ: implementation/high
 
 | Параметр | Значение |
 |:--|:--|
 | Batch | solo |
-| Model | frontier |
-| Thinking | high — immutable tooling baseline |
-| Context | cold-start-root: owner-pause-no-resume |
-| Суть | Зафиксировать P10.1 baseline quality, dependency и Rector evidence. |
-| Команда | `$ task:plan-run 2026.08.09-RELEASE-READINESS P10.1` |
+| Model | implementation |
+| Thinking | high — security audit по frozen tree |
+| Context | continue-root |
+| Суть | Выполнить read-only P10.2 audit sharp edges, authz, secrets и outbound boundaries. |
+| Команда | `$ task:plan-run 2026.08.09-RELEASE-READINESS P10.2` |
+
+```text
+/model implementation
+/effort high
+$ task:plan-run 2026.08.09-RELEASE-READINESS P10.2
+```
 
 #### Native Codex launch-block
 
 ```bash
-codex -C /home/vostrikov/projects/agelto/agelto -m gpt-5.6-sol -c 'model_reasoning_effort="high"' -a never -s danger-full-access '$ task:plan-run 2026.08.09-RELEASE-READINESS P10.1'
+codex -C /home/vostrikov/projects/agelto/agelto -m gpt-5.6-terra -c 'model_reasoning_effort="high"' -a never -s danger-full-access '$ task:plan-run 2026.08.09-RELEASE-READINESS P10.2'
 ```
 
-**Done:** P9 закрыта: P9.1–P9.6 `🟢 Done`; audit-fixer закрыл browser acceptance, русские
-navigation/schema labels и locale, package presentation proof, P9-owned PHPStan/Pint и terminal
-evidence. Candidate rebound на
-`577bfdf16e1d6c2175cf222d04e5df62bc5d398d491d0cfb458256abd7553b23`; audit verdict GREEN.
+**Done:** P10.1 закрыт `🟢 Done`. Item-коммит `e1fab7e1` сохраняет immutable product baseline
+`469acf64`, finding, executable contract и verification reconciliation. Carrier подтвердил Pint
+paths 7 (на `e1fab7e1`), PHPStan configured/max 34/1637 (на `e1fab7e1`), Composer audit 0/0
+(на `e1fab7e1`), byte-identical quality inputs, terminal upstream states, Task lint и citation
+gate. Write-site contract: `pre_mutation=allow`, `pre_final=allow`.
 
-**Remaining:** P10.1–P12.7 и phase gates; P10 выполняется только в новой routed session.
+**Remaining:** P10.2–P10.6, затем phase gate P10; P11–P12 остаются последующими фазами.
 
-**Sources of truth:** `phases/P9/P9.md` · `phases/P9/P9.1.state.md`–`P9.6.state.md` ·
-`artifacts/P9-admin-route-role-matrix.md` · `journal.jsonl` · `status.md`.
+**Sources of truth:** `phases/P10/P10.md` · `phases/P10/P10.2.md` · `bundles/P10.2.json` ·
+`phases/P10/P10.2.state.md` · `findings/P10-static-analysis-audit.md` ·
+`artifacts/P10-static-analysis-contract.sh` · `journal.jsonl` · `status.md`.
 
-**Open risks:** 34 inherited PHPStan findings и 7 inherited global Pint findings находятся вне P9
-и остаются у существующих owners. Публикация pinned private-vendor commit относится к последующим
-release/rehearsal gates; P9 использует проверенный local-vendor pin `ca37d4bb`.
+**Open risks:** Pint red baseline 7 paths (на `e1fab7e1`) и PHPStan red baseline 34 configured /
+1637 max-no-baseline (на `e1fab7e1`) остаются release-blocker inputs для P10.2–P10.6, не deviations
+P10.1. Concurrent foreign `CLAUDE.md` diff и связанные regenerated `bundles/P0.7.json` /
+`bundles/P1.7.json` оставлены unstaged и не изменены исполнителем.
 
 **Workarounds/Deferred/Open questions:**
 
-- workarounds: —
-- deferred: inherited static-analysis debt и production publication/rehearsal — по их плановым owners.
+- workarounds: host PHPStan не bootstraps Laravel вне Compose network; authoritative runs используют
+  healthy `app` service на том же bind-mounted tree.
+- deferred: classification/remediation static-analysis/security findings принадлежит P10.2–P10.6;
+  Rector dependency/config branch — только P10.6.
 - open_questions: —
