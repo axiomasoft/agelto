@@ -77,16 +77,20 @@ final readonly class LlmRouteResolver
     {
         $provider = $route->provider;
 
+        if (! $provider instanceof Provider) {
+            throw new RuntimeException("Маршрут LLM #{$route->id} не содержит провайдера.");
+        }
+
         // `(array) $route->options` НЕ работает на заполненной Collection (`AsCollection`-каст):
         // PHP-каст объекта в массив отдаёт его protected-свойства мангл-именами (`" * items"`),
         // а не данные `toArray()`/`all()` — до P2.9 не проявлялось, потому что `options` у ВСЕХ
         // строк сидера был `null` ((array) null === []); `AiRoutingSeeder` (D98/D99) впервые
         // заполняет его для extraction-маршрутов, и старый каст молча терял `max_tokens`/
         // `thinking_level`.
-        $options = $route->options?->all() ?? [];
-        $providerOptions = (array) $provider->options;
+        $options = $this->options($route->options?->all() ?? [], 'route');
+        $providerOptions = $this->options($provider->options, 'provider');
 
-        $maxTokens = (int) ($options['max_tokens'] ?? self::DEFAULT_MAX_TOKENS);
+        $maxTokens = $this->positiveInt($options['max_tokens'] ?? self::DEFAULT_MAX_TOKENS, 'max_tokens');
         $this->assertWithinOutputCeiling($route->model, $maxTokens, $purpose);
 
         return new ResolvedRoute(
@@ -94,11 +98,11 @@ final readonly class LlmRouteResolver
             options: new LlmOptions(
                 provider: $provider->code,
                 model: $route->model,
-                temperature: (float) ($options['temperature'] ?? $purpose->defaultTemperature()),
+                temperature: $this->float($options['temperature'] ?? $purpose->defaultTemperature(), 'temperature'),
                 maxTokens: $maxTokens,
                 baseUrl: $provider->base_url,
-                apiKeyEnv: $providerOptions['api_key_env'] ?? null,
-                thinkingLevel: $options['thinking_level'] ?? null,
+                apiKeyEnv: $this->nullableString($providerOptions['api_key_env'] ?? null, 'api_key_env'),
+                thinkingLevel: $this->nullableString($options['thinking_level'] ?? null, 'thinking_level'),
             ),
             route: $route,
         );
@@ -115,10 +119,22 @@ final readonly class LlmRouteResolver
      */
     private function assertWithinOutputCeiling(string $model, int $maxTokens, LlmPurpose $purpose): void
     {
-        $capabilities = (array) config('ai.capabilities', []);
-        $ceiling = $capabilities[$model]['max_output_tokens'] ?? null;
+        $capabilities = config('ai.capabilities', []);
 
-        if ($ceiling !== null && $maxTokens > $ceiling) {
+        if (! is_array($capabilities)) {
+            throw new RuntimeException('ai.capabilities должен быть массивом.');
+        }
+
+        $capability = $capabilities[$model] ?? null;
+        $ceiling = is_array($capability) ? ($capability['max_output_tokens'] ?? null) : null;
+
+        if ($ceiling === null) {
+            return;
+        }
+
+        $ceiling = $this->positiveInt($ceiling, 'max_output_tokens');
+
+        if ($maxTokens > $ceiling) {
             throw new RuntimeException(
                 "Бюджет маршрута (purpose={$purpose->value}, model={$model}) запрошен {$maxTokens} ".
                 "токенов — выше известного потолка вывода модели {$ceiling}.",
@@ -129,5 +145,53 @@ final readonly class LlmRouteResolver
     private function providerFor(Provider $provider): LlmProvider
     {
         return $this->providerFactory->forDriver($provider->driver);
+    }
+
+    /** @return array<string, mixed> */
+    private function options(mixed $value, string $source): array
+    {
+        if ($value === null) {
+            return [];
+        }
+
+        if (! is_array($value)) {
+            throw new RuntimeException("{$source} options должны быть объектом.");
+        }
+
+        foreach (array_keys($value) as $key) {
+            if (! is_string($key)) {
+                throw new RuntimeException("{$source} options содержит нестроковый ключ.");
+            }
+        }
+
+        /** @var array<string, mixed> $value */
+        return $value;
+    }
+
+    private function positiveInt(mixed $value, string $key): int
+    {
+        if (is_int($value) && $value > 0) {
+            return $value;
+        }
+
+        throw new RuntimeException("{$key} должен быть положительным целым числом.");
+    }
+
+    private function float(mixed $value, string $key): float
+    {
+        if (is_float($value) || is_int($value)) {
+            return (float) $value;
+        }
+
+        throw new RuntimeException("{$key} должен быть числом.");
+    }
+
+    private function nullableString(mixed $value, string $key): ?string
+    {
+        if ($value === null || is_string($value)) {
+            return $value;
+        }
+
+        throw new RuntimeException("{$key} должен быть строкой или null.");
     }
 }
