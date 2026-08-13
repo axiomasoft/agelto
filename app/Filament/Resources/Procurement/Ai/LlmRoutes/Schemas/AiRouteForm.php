@@ -35,8 +35,8 @@ class AiRouteForm
                             ->options(function (Get $get) {
                                 $documentType = AiDocumentType::tryFrom((string) $get('document_type')) ?? DocumentTypeScope::Any;
 
-                                return LlmPresentation::promptStepOptions(
-                                    steps: app(DocumentAnalyzerRegistry::class)->purposesFor($documentType),
+                                return LlmPresentation::purposeOptions(
+                                    purposes: app(DocumentAnalyzerRegistry::class)->purposesFor($documentType),
                                 );
                             })
                             ->required(),

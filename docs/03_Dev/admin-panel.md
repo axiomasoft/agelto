@@ -76,6 +76,11 @@ AzGuard получает русскую copy только через `config/az-
 Пакет по умолчанию сохраняет English labels, поэтому другой consumer может задать
 свой словарь без изменения Role/DirectGrant/Doctor identity.
 
+Полный runtime-инвентарь admin routes и ролевых владельцев хранится в
+`plans/2026.08.09-RELEASE-READINESS/artifacts/P9-admin-route-role-matrix.md`.
+`AdminRouteInventoryTest` сверяет этот committed снимок с `route:list --path=admin --json`:
+новый, удалённый или переназначенный route требует явного обновления матрицы и review доступа.
+
 ## Формы и карточки
 
 Каждая application-owned форма и карточка использует именованные `Section` по задаче оператора,

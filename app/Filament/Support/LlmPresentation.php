@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Filament\Support;
 
 use App\Enums\Llm\DocumentTypeScope;
+use App\Enums\Llm\LlmPurpose;
 use App\Enums\Llm\PromptStep;
 use App\Enums\Procurement\Ai\AiDocumentType;
 
@@ -38,6 +39,21 @@ final class LlmPresentation
         };
     }
 
+    public static function purpose(LlmPurpose $purpose): string
+    {
+        return match ($purpose->value) {
+            'screening' => 'Скрининг документа',
+            'eval' => 'Проверка качества',
+            'shadow' => 'Теневая проверка',
+            'prompt_critic' => 'Проверка инструкций',
+            'discovery' => 'Поиск структуры',
+            'extract_passport' => 'Паспорт документа',
+            'extract_rows' => 'Извлечение позиций',
+            'extract_totals' => 'Извлечение итогов',
+            default => $purpose->value,
+        };
+    }
+
     /** @return array<string, string> */
     public static function documentTypeOptions(): array
     {
@@ -47,12 +63,22 @@ final class LlmPresentation
     }
 
     /** @param iterable<PromptStep> $steps
-     *  @return array<string, string>
+     * @return array<string, string>
      */
     public static function promptStepOptions(iterable $steps): array
     {
         return collect($steps)
             ->mapWithKeys(static fn (PromptStep $step): array => [$step->value => self::promptStep($step)])
+            ->all();
+    }
+
+    /** @param iterable<LlmPurpose> $purposes
+     * @return array<string, string>
+     */
+    public static function purposeOptions(iterable $purposes): array
+    {
+        return collect($purposes)
+            ->mapWithKeys(static fn (LlmPurpose $purpose): array => [$purpose->value => self::purpose($purpose)])
             ->all();
     }
 }

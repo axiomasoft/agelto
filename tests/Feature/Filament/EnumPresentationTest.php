@@ -2,6 +2,8 @@
 
 declare(strict_types=1);
 
+use App\Enums\Llm\CoreLlmPurpose;
+use App\Enums\Llm\CorePromptStep;
 use App\Enums\Procurement\Crawler\CrawlerMode;
 use App\Enums\Procurement\Crawler\ListingSortField;
 use App\Enums\Procurement\Crawler\RunStopPolicy;
@@ -30,6 +32,8 @@ test('показывает разрешённые enum и LLM значения �
     }
 
     expect(LlmPresentation::documentTypeOptions())->toContain('Смета')
-        ->and(LlmPresentation::promptStepOptions(steps: [\App\Enums\Llm\CorePromptStep::Global]))
-        ->toBe(['global' => 'Общие правила']);
+        ->and(LlmPresentation::promptStepOptions(steps: [CorePromptStep::Global]))
+        ->toBe(['global' => 'Общие правила'])
+        ->and(LlmPresentation::purposeOptions(purposes: [CoreLlmPurpose::Screening]))
+        ->toBe(['screening' => 'Скрининг документа']);
 });
