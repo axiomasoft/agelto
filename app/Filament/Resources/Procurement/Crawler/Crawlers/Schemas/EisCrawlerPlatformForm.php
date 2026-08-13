@@ -19,6 +19,7 @@ use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
+use Filament\Schemas\Components\Component;
 use Filament\Schemas\Components\Fieldset;
 use Filament\Schemas\Components\Utilities\Get;
 use Illuminate\Support\Collection;
@@ -68,6 +69,7 @@ final readonly class EisCrawlerPlatformForm implements CrawlerPlatformForm
         private EisCsvUrlBuilder $urlBuilder,
     ) {}
 
+    /** @return list<Component> */
     public function components(Registry $registry, Get $get): array
     {
         return [
@@ -90,9 +92,7 @@ final readonly class EisCrawlerPlatformForm implements CrawlerPlatformForm
                     $component->state(array_values(array_unique([...$enabled, ...self::MANDATORY_COLUMN_FLAGS])));
                 })
                 ->dehydrateStateUsing(static function (array $state): array {
-                    $selected = array_unique([...$state, ...self::MANDATORY_COLUMN_FLAGS]);
-
-                    return array_fill_keys(array_values($selected), true);
+                    return array_fill_keys(self::selectedColumns($state), true);
                 }),
             Fieldset::make('Переопределения листинга')
                 ->columnSpanFull()
@@ -113,10 +113,10 @@ final readonly class EisCrawlerPlatformForm implements CrawlerPlatformForm
     {
         $query = $this->urlBuilder->buildQueryParams(crawler: $crawler, from: 1, to: 500);
 
-        return (string) config('crawler.eis.csv_endpoint').'?'.http_build_query($query);
+        return $this->configString('crawler.eis.csv_endpoint').'?'.http_build_query($query);
     }
 
-    /** @return array<int, mixed> */
+    /** @return list<Component> */
     private function filterFields(Registry $registry): array
     {
         return [
@@ -144,11 +144,7 @@ final readonly class EisCrawlerPlatformForm implements CrawlerPlatformForm
             $filter = is_array($filterState) && $filterState !== []
                 ? $filterClass::validateAndCreate($filterState)
                 : null;
-            $columnsState = $get('options.columns');
-            $columns = array_fill_keys(
-                array_unique([...(is_array($columnsState) ? $columnsState : []), ...self::MANDATORY_COLUMN_FLAGS]),
-                true,
-            );
+            $columns = array_fill_keys(self::selectedColumns($get('options.columns')), true);
             $crawler = new Crawler;
             $crawler->setRelation('registry', $registry);
             $crawler->filter = $filter;
@@ -176,23 +172,26 @@ final readonly class EisCrawlerPlatformForm implements CrawlerPlatformForm
             ->required()
             ->searchable()
             ->options($this->okpd2CodeOptions(nodes: $nodes))
-            ->dehydrateStateUsing(static fn (mixed $state): array => array_map(strval(...), is_array($state) ? $state : []));
+            ->dehydrateStateUsing(static fn (mixed $state): array => self::stringList($state));
     }
 
     /** @return array<string, array<string, string>> */
+    /** @param Collection<int, Okpd2Node> $nodes
+     * @return array<string, array<string, string>>
+     */
     private function okpd2CodeOptions(Collection $nodes): array
     {
         $labelsByCode = $nodes->mapWithKeys(
-            static fn (Okpd2Node $node): array => [(string) $node->getAttribute('code') => self::okpd2OptionLabel(node: $node)],
+            static fn (Okpd2Node $node): array => [self::nodeAttribute($node, 'code') => self::okpd2OptionLabel(node: $node)],
         );
 
         return $nodes
-            ->groupBy(static fn (Okpd2Node $node): string => (string) ($node->getAttribute('parent_code') ?? ''))
+            ->groupBy(static fn (Okpd2Node $node): string => self::nodeAttribute($node, 'parent_code', ''))
             ->mapWithKeys(static function (Collection $group, string $parentCode) use ($labelsByCode): array {
                 $groupLabel = $parentCode === '' ? 'Разделы' : ($labelsByCode->get($parentCode) ?? $parentCode);
 
                 return [$groupLabel => $group->mapWithKeys(static fn (Okpd2Node $node): array => [
-                    (string) $node->getAttribute('code') => self::okpd2OptionLabel(node: $node),
+                    self::nodeAttribute($node, 'code') => self::okpd2OptionLabel(node: $node),
                 ])->all()];
             })
             ->all();
@@ -200,6 +199,72 @@ final readonly class EisCrawlerPlatformForm implements CrawlerPlatformForm
 
     private static function okpd2OptionLabel(Okpd2Node $node): string
     {
-        return sprintf('%s — %s', (string) $node->getAttribute('code'), (string) $node->getAttribute('name'));
+        return sprintf('%s — %s', self::nodeAttribute($node, 'code'), self::nodeAttribute($node, 'name'));
+    }
+
+    /**
+     * @return list<string>
+     */
+    private static function selectedColumns(mixed $state): array
+    {
+        $selected = [];
+
+        if (is_array($state)) {
+            foreach ($state as $key => $value) {
+                $column = is_string($key) && $value === true ? $key : $value;
+
+                if (is_string($column) && isset(self::COLUMN_FLAG_LABELS[$column])) {
+                    $selected[] = $column;
+                }
+            }
+        }
+
+        return array_values(array_unique([...$selected, ...self::MANDATORY_COLUMN_FLAGS]));
+    }
+
+    /**
+     * @return list<string>
+     */
+    private static function stringList(mixed $value): array
+    {
+        if (! is_array($value)) {
+            return [];
+        }
+
+        $strings = [];
+
+        foreach ($value as $entry) {
+            if (is_string($entry)) {
+                $strings[] = $entry;
+            }
+        }
+
+        return $strings;
+    }
+
+    private static function nodeAttribute(Okpd2Node $node, string $attribute, ?string $default = null): string
+    {
+        $value = $node->getAttribute($attribute);
+
+        if ($value === null && $default !== null) {
+            return $default;
+        }
+
+        if (! is_string($value)) {
+            throw new \LogicException("OKPD2 {$attribute} должен быть строкой.");
+        }
+
+        return $value;
+    }
+
+    private function configString(string $key): string
+    {
+        $value = config($key);
+
+        if (! is_string($value)) {
+            throw new \LogicException("{$key} должен быть строкой.");
+        }
+
+        return $value;
     }
 }
