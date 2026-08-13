@@ -57,7 +57,7 @@ final readonly class DatasetExporter
         $composed = $this->inputBuilder->composePrompt();
         [$holdoutCodes, $warnings] = $this->loadHoldoutCodes();
 
-        $stream = fopen('php://temp', 'w+');
+        $stream = $this->temporaryStream();
         $count = 0;
         $skipped = ['not_trusted' => $this->examples->countNotTrusted($task, $sources)];
         $bySource = [];
@@ -80,19 +80,27 @@ final readonly class DatasetExporter
                 continue;
             }
 
-            $estimates = (array) ($example->gold?->get('estimates') ?? []);
+            $estimates = $this->goldEstimates($example);
 
             foreach ($estimates as $estimate) {
+                $ordinal = $this->nullableOrdinal($estimate['ordinal'] ?? null);
+                $estimateNumber = $this->nullableEstimateNumber($estimate['estimate_number'] ?? null);
+                $rows = $estimate['rows'] ?? [];
+
+                if (! is_array($rows)) {
+                    throw new RuntimeException('Gold-смета содержит невалидный список строк.');
+                }
+
                 $line = [
                     'messages' => [
                         ['role' => 'system', 'content' => $composed->systemPart],
                         ['role' => 'user', 'content' => $this->inputBuilder->userTurn(
                             $resolved['text'],
-                            isset($estimate['ordinal']) ? (int) $estimate['ordinal'] : null,
-                            $estimate['estimate_number'] ?? null,
+                            $ordinal,
+                            $estimateNumber,
                         )],
                         ['role' => 'assistant', 'content' => json_encode([
-                            'rows' => $estimate['rows'] ?? [],
+                            'rows' => $rows,
                             'incomplete_items' => [],
                         ], JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE)],
                     ],
@@ -109,7 +117,8 @@ final readonly class DatasetExporter
 
         rewind($stream);
 
-        return [[
+        /** @var array{examples: int, skipped: array<string, int>, by_source: array<string, int>, by_split: array<string, int>, by_representation_kind: array<string, int>, prompt_version_set: array<string, int>, rules_hash: string, warnings: list<string>} $summary */
+        $summary = [
             'examples' => $count,
             'skipped' => array_filter($skipped),
             'by_source' => $bySource,
@@ -118,7 +127,9 @@ final readonly class DatasetExporter
             'prompt_version_set' => $composed->promptVersionSet,
             'rules_hash' => $composed->rulesHash,
             'warnings' => $warnings,
-        ], $stream];
+        ];
+
+        return [$summary, $stream];
     }
 
     /**
@@ -130,7 +141,7 @@ final readonly class DatasetExporter
         $composed = $this->inputBuilder->composePrompt();
         [$holdoutCodes, $warnings] = $this->loadHoldoutCodes();
 
-        $stream = fopen('php://temp', 'w+');
+        $stream = $this->temporaryStream();
         $count = 0;
         $skipped = [
             'not_trusted' => $this->examples->countUntrustedCorrected($task, $sources),
@@ -189,7 +200,8 @@ final readonly class DatasetExporter
 
         rewind($stream);
 
-        return [[
+        /** @var array{examples: int, skipped: array<string, int>, by_source: array<string, int>, by_split: array<string, int>, by_representation_kind: array<string, int>, prompt_version_set: array<string, int>, rules_hash: string, warnings: list<string>} $summary */
+        $summary = [
             'examples' => $count,
             'skipped' => array_filter($skipped),
             'by_source' => $bySource,
@@ -198,7 +210,9 @@ final readonly class DatasetExporter
             'prompt_version_set' => $composed->promptVersionSet,
             'rules_hash' => $composed->rulesHash,
             'warnings' => $warnings,
-        ], $stream];
+        ];
+
+        return [$summary, $stream];
     }
 
     /**
@@ -241,6 +255,9 @@ final readonly class DatasetExporter
         ];
     }
 
+    /**
+     * @param  list<string>  $holdoutCodes
+     */
     private function splitOf(DatasetExample $example, array $holdoutCodes): string
     {
         $code = $example->fixture?->code;
@@ -270,5 +287,73 @@ final readonly class DatasetExporter
     public static function exporterVersion(): int
     {
         return self::EXPORTER_VERSION;
+    }
+
+    /** @return resource */
+    private function temporaryStream()
+    {
+        $stream = fopen('php://temp', 'w+');
+
+        if ($stream === false) {
+            throw new RuntimeException('Не удалось открыть временный поток для экспорта датасета.');
+        }
+
+        return $stream;
+    }
+
+    /** @return list<array<string, mixed>> */
+    private function goldEstimates(DatasetExample $example): array
+    {
+        $estimates = $example->gold?->get('estimates') ?? [];
+
+        if (! is_array($estimates)) {
+            throw new RuntimeException('Gold-пример содержит невалидный список смет.');
+        }
+
+        /** @var list<array<string, mixed>> $normalized */
+        $normalized = [];
+
+        foreach ($estimates as $estimate) {
+            if (! is_array($estimate)) {
+                throw new RuntimeException('Gold-пример содержит невалидную смету.');
+            }
+
+            foreach (array_keys($estimate) as $key) {
+                if (! is_string($key)) {
+                    throw new RuntimeException('Gold-смета содержит невалидный ключ.');
+                }
+            }
+
+            /** @var array<string, mixed> $estimate */
+            $normalized[] = $estimate;
+        }
+
+        return $normalized;
+    }
+
+    private function nullableOrdinal(mixed $ordinal): ?int
+    {
+        if ($ordinal === null) {
+            return null;
+        }
+
+        if (is_int($ordinal)) {
+            return $ordinal;
+        }
+
+        if (is_string($ordinal) && ctype_digit($ordinal)) {
+            return (int) $ordinal;
+        }
+
+        throw new RuntimeException('Gold-смета содержит невалидный ordinal.');
+    }
+
+    private function nullableEstimateNumber(mixed $estimateNumber): ?string
+    {
+        if ($estimateNumber === null || is_string($estimateNumber)) {
+            return $estimateNumber;
+        }
+
+        throw new RuntimeException('Gold-смета содержит невалидный estimate_number.');
     }
 }
