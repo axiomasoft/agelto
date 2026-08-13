@@ -3,7 +3,7 @@ projection: status-view
 projection_version: v1
 source_scope: plan core + phases + journal
 through: 2026-08-13
-inputs_sha256: e061760740e0b560e7328c3feb594e6b915920266a2c900a668a0dfe8cc6cf0e
+inputs_sha256: 1efec301ed361a7040e71e4ee7dc0b2bd098df6056a0511707d4a341b8a57a2b
 generated_by: task plan-views status
 -->
 
@@ -67,7 +67,7 @@ generated_by: task plan-views status
 | ID | Title | Status | Updated |
 |:--|:--|:--|:--|
 | P10.1 | Снять baseline Pint/PHPStan/Rector/dependencies и modern-PHP findings | 🟢 Done | 2026-08-13 |
-| P10.2 | Выполнить Laravel security audit всех новых и существующих boundaries | 🟠 Done with deviations | 2026-08-13 |
+| P10.2 | Выполнить Laravel security audit всех новых и существующих boundaries | 🟡 In progress | 2026-08-13 |
 | P10.3 | Найти duplication, dead code, naming и needless abstractions | ⬜ Not started | — |
 | P10.4 | Проверить migrations, transactions, races, idempotency, queues и config defaults | ⬜ Not started | — |
 | P10.5 | Исправить findings вертикальными срезами с regression tests | ⬜ Not started | — |
@@ -631,13 +631,13 @@ write-site: pre_mutation: allow · pre_final: allow |
 | 2026-08-13 | implementation/high | plan-run · in-progress · — |
 | 2026-08-13 | implementation/high | plan-run · closed-deviations · Security audit e4cb6a89: high P10.2-S01 and medium P10.2-S02 reported; Task lint carrier could not complete under host resource pressure. |
 | 2026-08-13 | implementation/high | plan-run · decision-pending · decision queue: p10-2-route-recovery-20260813 |
+| 2026-08-13 | repository-owner | plan-run · in-progress · decision queue: p10-2-route-recovery-20260813 |
 
 ## Owner Gates
 
 - P0.3: known deviation
 - P0.4: known deviation
 - P0.5: known deviation
-- P10.2: known deviation
 - P4.2: known deviation
 - P4.4: known deviation
 - P4.6: known deviation
