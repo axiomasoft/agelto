@@ -3,7 +3,7 @@ projection: status-view
 projection_version: v1
 source_scope: plan core + phases + journal
 through: 2026-08-13
-inputs_sha256: 35d3eec19a8779017a02e39d44567d180bc2e963ca0188ba1ab129d4ac82e9e2
+inputs_sha256: cae944530d48b134927b4caa57fae4beae2741d5b5c2381f74b45c84ca423b4b
 generated_by: task plan-views status
 -->
 
@@ -35,7 +35,7 @@ generated_by: task plan-views status
 | P6 | File handler registry, архивы и дочерняя обработка | 0/7 | 🟠 Done with deviations |
 | P7 | Document type, summary, estimates и tags | 6/6 | 🟢 Done |
 | P8 | Расширяемость platforms и гибкие status mappings | 7/7 | 🟢 Done |
-| P9 | Filament information architecture и понятный русский UX | 4/6 | 🟡 In progress |
+| P9 | Filament information architecture и понятный русский UX | 6/6 | 🟢 Done |
 
 ## Phase P0
 
@@ -181,10 +181,10 @@ generated_by: task plan-views status
 |:--|:--|:--|:--|
 | P9.1 | Собрать карту всех Filament resources/pages и целевую navigation hierarchy | 🟢 Done | 2026-08-13 |
 | P9.2 | Русифицировать enum/boolean labels и понятные названия сущностей | 🟢 Done | 2026-08-13 |
-| P9.3 | Разбить все create/edit/view forms на Sections с helper text | 🟠 Done with deviations | 2026-08-13 |
+| P9.3 | Разбить все create/edit/view forms на Sections с helper text | 🟢 Done | 2026-08-13 |
 | P9.4 | Исправить tables: UUID visibility, wrapping, clamp, widths и responsive actions | 🟢 Done | 2026-08-13 |
 | P9.5 | Пройти route inventory и устранить локальные UX/validation несоответствия | 🟢 Done | 2026-08-13 |
-| P9.6 | Проверить authorization, navigation и responsive admin browser sweep | ⬜ Not started | — |
+| P9.6 | Проверить authorization, navigation и responsive admin browser sweep | 🟢 Done | 2026-08-13 |
 
 ## 6. Update Log
 
@@ -593,6 +593,37 @@ write-site: pre_mutation: allow · pre_final: allow |
 | 2026-08-13 | gpt-5.6-terra/high | plan-run · closed-green · Responsive tables, technical-ID defaults, full-value access and contract tests implemented. |
 | 2026-08-13 | gpt-5.6-terra/high | plan-run · in-progress · — |
 | 2026-08-13 | gpt-5.6-terra/high | plan-run · closed-green · 58 admin routes committed; LLM route create presenter mismatch fixed; Filament suite green. |
+| 2026-08-13 | gpt-5.6-terra/high | plan-run · in-progress · P9.6 browser acceptance started |
+| 2026-08-13 | gpt-5.6-terra/high | plan-run · local-repair · Clean E2E cannot fetch pinned AzGuard commit bff8bd911e153ea9bd8293607bd3c66e8a325910 |
+| 2026-08-13 | gpt-5.6-terra/high | plan-run · closed-green · Multi-role responsive browser and no-TIA PHP acceptance passed |
+| 2026-08-13 | frontier/xhigh | plan-audit · in-progress · P9 audit-fixer evidence correction; Task Contract pre_mutation: allow. |
+| 2026-08-13 | frontier/xhigh | plan-audit · closed-green · 84ab356b confirms exact Dashboard and ordered Russian navigation; Filament carrier green.
+write-site: pre_mutation: allow · pre_final: allow |
+| 2026-08-13 | frontier/xhigh | plan-audit · in-progress · P9 audit-fixer evidence correction; Task Contract pre_mutation: allow. |
+| 2026-08-13 | frontier/xhigh | plan-audit · closed-green · ca37d4bb source + a990fa92 pin close tracked label tests and package PHPStan; 672 passed / 1791 assertions.
+write-site: pre_mutation: allow · pre_final: allow |
+| 2026-08-13 | frontier/xhigh | plan-audit · in-progress · P9 audit-fixer evidence correction; Task Contract pre_mutation: allow. |
+| 2026-08-13 | frontier/xhigh | plan-audit · closed-green · 6d2aebe2 + 779bcad3 + feca786c close explicit schema labels and ru locale; prior deviation is withdrawn.
+write-site: pre_mutation: allow · pre_final: allow |
+| 2026-08-13 | frontier/xhigh | plan-audit · in-progress · P9 audit-fixer evidence correction; Task Contract pre_mutation: allow. |
+| 2026-08-13 | frontier/xhigh | plan-audit · closed-green · d34045cb responsive tables remain green under exact full and browser carriers.
+write-site: pre_mutation: allow · pre_final: allow |
+| 2026-08-13 | frontier/xhigh | plan-audit · in-progress · P9 audit-fixer evidence correction; Task Contract pre_mutation: allow. |
+| 2026-08-13 | frontier/xhigh | plan-audit · closed-green · 4d3411c7 exact 58-route/auth matrix remains green under exact full and browser carriers.
+write-site: pre_mutation: allow · pre_final: allow |
+| 2026-08-13 | frontier/xhigh | plan-audit · in-progress · P9 audit-fixer evidence correction; Task Contract pre_mutation: allow. |
+| 2026-08-13 | frontier/xhigh | plan-audit · closed-green · a990fa92 clean E2E: 10 passed / 2 expected skipped; no-TIA PHP: 1559 passed / 7063 assertions.
+write-site: pre_mutation: allow · pre_final: allow |
+| 2026-08-13 | frontier/xhigh | plan-audit · in-progress · Final P9 audit-fixer rebind; Task Contract pre_mutation: allow. |
+| 2026-08-13 | frontier/xhigh | plan-audit · closed-green · ca37d4bb source + a990fa92 pin + 73cdb9c4 app close package tests/PHPStan and owned static delta 6→0.
+write-site: pre_mutation: allow · pre_final: allow |
+| 2026-08-13 | frontier/xhigh | plan-audit · in-progress · Final P9 audit-fixer rebind; Task Contract pre_mutation: allow. |
+| 2026-08-13 | frontier/xhigh | plan-audit · closed-green · 73cdb9c4 clean E2E: 10 passed / 2 expected skipped; no-TIA PHP: 1559 passed / 7063 assertions.
+write-site: pre_mutation: allow · pre_final: allow |
+| 2026-08-13 | frontier/xhigh | plan-audit · in-progress · Final owned Pint correction; Task Contract pre_mutation: allow. |
+| 2026-08-13 | frontier/xhigh | plan-audit · closed-green · 2e70c586 closes the last P9-owned Pint finding; exact Filament 165/1154 and touched Pint green.
+write-site: pre_mutation: allow · pre_final: allow |
+| 2026-08-13 | frontier/xhigh | plan-audit · audit-green · P9 audit-fixer GREEN; candidate rebound after owned repairs. |
 
 ## Owner Gates
 
@@ -609,4 +640,3 @@ write-site: pre_mutation: allow · pre_final: allow |
 - P6.5: known deviation
 - P6.6: known deviation
 - P6.7: known deviation
-- P9.3: known deviation

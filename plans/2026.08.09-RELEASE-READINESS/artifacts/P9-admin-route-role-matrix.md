@@ -17,7 +17,7 @@ direct grants, LLM routes или operation logs. Record routes повторно 
 
 | Метод | URI | Route | Action |
 |:--|:--|:--|:--|
-| `GET|HEAD` | `admin` | `filament.admin.pages.dashboard` | `Filament\Pages\Dashboard` |
+| `GET|HEAD` | `admin` | `filament.admin.pages.dashboard` | `App\Filament\Pages\Dashboard` |
 | `GET|HEAD` | `admin/crawler-proxy-settings` | `filament.admin.pages.crawler-proxy-settings` | `App\Filament\Pages\CrawlerProxySettingsPage` |
 | `GET|HEAD` | `admin/direct-grants` | `filament.admin.resources.direct-grants.index` | `AzGuard\Filament\Resources\DirectGrantResource\Pages\ListDirectGrants` |
 | `GET|HEAD` | `admin/direct-grants/create` | `filament.admin.resources.direct-grants.create` | `AzGuard\Filament\Resources\DirectGrantResource\Pages\CreateDirectGrant` |
