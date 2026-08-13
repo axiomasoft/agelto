@@ -2,8 +2,8 @@
 projection: decision-open-questions
 projection_version: v1
 source_scope: decisions/
-through: 2026-08-13/D82
-inputs_sha256: 2543f1edd0880f41213d80045132a0ca70d17ef769974e62086c72f9c90c74c9
+through: 2026-08-13/D83
+inputs_sha256: a67aede28050c762d048203ed65ac6a387a4460fb26399680efcdf64605eed41
 generated_by: task plan-views decisions
 -->
 

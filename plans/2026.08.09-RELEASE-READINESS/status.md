@@ -3,7 +3,7 @@ projection: status-view
 projection_version: v1
 source_scope: plan core + phases + journal
 through: 2026-08-13
-inputs_sha256: 4ca1f53ccff8df09955d6f24aec3dbd28c1fbea36274c3ba742dc4350806b586
+inputs_sha256: 35d3eec19a8779017a02e39d44567d180bc2e963ca0188ba1ab129d4ac82e9e2
 generated_by: task plan-views status
 -->
 
@@ -15,7 +15,7 @@ generated_by: task plan-views status
 
 | Поле | Значение |
 |:--|:--|
-| Version | 0.1.11 |
+| Version | 0.1.12 |
 | Status | 🟡 In progress |
 | Last Updated | 2026-08-13 |
 
@@ -35,7 +35,7 @@ generated_by: task plan-views status
 | P6 | File handler registry, архивы и дочерняя обработка | 0/7 | 🟠 Done with deviations |
 | P7 | Document type, summary, estimates и tags | 6/6 | 🟢 Done |
 | P8 | Расширяемость platforms и гибкие status mappings | 7/7 | 🟢 Done |
-| P9 | Filament information architecture и понятный русский UX | 2/6 | 🟡 In progress |
+| P9 | Filament information architecture и понятный русский UX | 4/6 | 🟡 In progress |
 
 ## Phase P0
 
@@ -182,8 +182,8 @@ generated_by: task plan-views status
 | P9.1 | Собрать карту всех Filament resources/pages и целевую navigation hierarchy | 🟢 Done | 2026-08-13 |
 | P9.2 | Русифицировать enum/boolean labels и понятные названия сущностей | 🟢 Done | 2026-08-13 |
 | P9.3 | Разбить все create/edit/view forms на Sections с helper text | 🟠 Done with deviations | 2026-08-13 |
-| P9.4 | Исправить tables: UUID visibility, wrapping, clamp, widths и responsive actions | ⬜ Not started | — |
-| P9.5 | Пройти route inventory и устранить локальные UX/validation несоответствия | ⬜ Not started | — |
+| P9.4 | Исправить tables: UUID visibility, wrapping, clamp, widths и responsive actions | 🟢 Done | 2026-08-13 |
+| P9.5 | Пройти route inventory и устранить локальные UX/validation несоответствия | 🟢 Done | 2026-08-13 |
 | P9.6 | Проверить authorization, navigation и responsive admin browser sweep | ⬜ Not started | — |
 
 ## 6. Update Log
@@ -588,6 +588,11 @@ write-site: pre_mutation: allow · pre_final: allow |
 | 2026-08-13 | gpt-5.6-terra/high | plan-run · closed-green · Package bff8bd911e153ea9bd8293607bd3c66e8a325910 and app c612035647c445c49e1907d9358911b7c22d38d3 implement D82/D38; focused app and package suites green.\nwrite-site: pre_mutation: allow · pre_final: allow |
 | 2026-08-13 | gpt-5.6-terra/high | plan-run · in-progress · P9.3 Sectioned schema implementation started. |
 | 2026-08-13 | gpt-5.6-terra/high | plan-run · closed-deviations · Sections and contract test added; Filament suite retains pre-existing FinalPromptPage TextColumn::boolean failure for P9.4. |
+| 2026-08-13 | frontier/high | plan-design · in-progress · D83: current topology 13 фаз / 84 items сверена; Routing Batch нормализован, bundles/views и roadmap пересобраны; следующий gate — independent plan-audit design |
+| 2026-08-13 | gpt-5.6-terra/high | plan-run · in-progress · P9.4 responsive table contract implementation started. |
+| 2026-08-13 | gpt-5.6-terra/high | plan-run · closed-green · Responsive tables, technical-ID defaults, full-value access and contract tests implemented. |
+| 2026-08-13 | gpt-5.6-terra/high | plan-run · in-progress · — |
+| 2026-08-13 | gpt-5.6-terra/high | plan-run · closed-green · 58 admin routes committed; LLM route create presenter mismatch fixed; Filament suite green. |
 
 ## Owner Gates
 

@@ -1,5 +1,13 @@
 # Уточнения владельца
 
+## 2026-08-13 — повторный полный finish current topology
+
+Владелец явно запустил `$ task:plan-design 2026.08.09-RELEASE-READINESS finish`. Команда означает
+полный cross-phase reconcile текущего Layout v2 дерева из 13 фаз / 84 items, а не продолжение
+исторического 75-item carrier D52. По канону `task:plan-design finish` результат передаётся в
+отдельный fresh-root `$ task:plan-audit 2026.08.09-RELEASE-READINESS design`; прежний D55 остаётся
+историческим разрешением начать исполнение 75-item topology и не отменяет аудит нового finish.
+
 ## 2026-08-09 — статус предыдущего плана
 
 План 2026.08.06-CRAWL-HARDEN фактически архивный; его забыли физически перенести в

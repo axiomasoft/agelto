@@ -15,10 +15,10 @@
 | Target Operator Models | economy → gpt-5.6-luna · implementation → gpt-5.6-terra · frontier → gpt-5.6-sol |
 | Approval Owner | Dmitry Vostrikov |
 | Home | repo:/home/vostrikov/projects/agelto/agelto |
-| Design Passes | 1/1 — owner-directed сокращение D46 сохранено; D52 остаётся machine-current carrier повторного полного cross-phase `finish` для 13 фаз / 75 product/design items после добавления P0.0; D55 принимает этот design после ремедиации F9–F12; D62, D64 и D66 адресно добавили 76-й–78-й remediation-items P0.7/P1.6/P1.7; D67 исправляет только evidence topology P1.7; D70 добавляет 79-й remediation-item P2.7 и завершает design-цикл P2; D71 заменяет только fresh-audit gate штатным close и передачей на P3; D72/D76/D77 адресно добавили 80-й–82-й remediation-items P4.6/P5.6/P6.7; D80 добавил 83-й repair-forward P8.6; D81 supersedes его audit/closure topology и добавляет 84-й final remediation-item P8.7 до полностью GREEN direct close P8 |
+| Design Passes | 1/1 — owner-directed сокращение D46 сохранено; D83 supersedes 75-item carrier D52 и исторический audit waiver D55 для текущей topology: повторный полный cross-phase `finish` сверяет 13 фаз / 84 product/design/remediation items после D62/D64/D66/D70/D72/D76/D77/D80/D81; следующий обязательный gate — новый independent `plan-audit design` |
 | visibility | private |
 
-<!-- migration-version: 0.1.11 -->
+<!-- migration-version: 0.1.12 -->
 
 ## 1. Context
 
@@ -39,7 +39,7 @@ Vintera/CMS и Dterema и верифицирует внешние практик
 
 ## 2. Execution Rules
 
-- Повторный cross-phase finish D52 охватывает 75 product/design items после D48 и остаётся machine-current finish carrier; D62 адресно добавляет remediation-item P0.7, повышает plan version `—` → `0.1.0` и переоткрывает только P0 по RED-аудиту, без нового design-pass и без исполнения P1.
+- Повторный cross-phase finish D83 охватывает current topology из 84 product/design/remediation items и supersedes D52/D55 только как current finish/audit-gate carriers; terminal product history и принятые remediation decisions D62–D82 не переписываются. RAG:— (repo-grounded: `brief/01-refinements.md`, D83, current phase/spec inventory).
 - Первый execution item — prerequisite P0.0 из D48; P0.1 и остальные citation consumers не стартуют до его terminal state.
 - Перед и после plan-work выполнять Task checks из marketplace root в порядке AGENTS.md: lint → state → decisions → status.
 - Validation каждого будущего consumer входит через один item-owned executable carrier из его Files; prose/placeholder fragments и команды, которые должны стать зелёными только после реализации consumer, не исполняются downstream-gate преждевременно. D63. RAG:— (repo-grounded: `research/15-P1.1-downstream-gate-remediation.md`).
@@ -67,95 +67,96 @@ Vintera/CMS и Dterema и верифицирует внешние практик
 
 ## 3. Routing
 
-Все строки ниже — финальные post-finish маршруты 75 product/design items плюс адресные
-remediation-items P0.7/P1.6/P1.7/P2.7/P4.6/P5.6 по D62/D64/D66/D70/D72/D76 и evidence correction D67; новый design-pass не выполнялся.
+Все строки ниже — post-finish маршруты current topology из 84 items. D83 не меняет item route,
+Exec или Review: он нормализует Batch identity (`solo` вместо legacy `—`) и подтверждает полное
+покрытие после remediation-items D62/D64/D66/D70/D72/D76/D77/D80/D81.
 
 | Batch | Items | Model class/effort | Exec | Review | Почему |
 |:--|:--|:--|:--|:--|:--|
-| — | P0.0 | implementation/medium | plan-exec | full | отдельный deterministic stdlib citation carrier по запечатанному D48; executable selftest и strict gate без product design |
-| — | P0.1 | implementation/high | manual | full | широкий repo inventory по запечатанной схеме; high нужен для cross-layer synthesis, новых product-решений нет |
-| — | P0.2 | implementation/high | manual | full | read-only сравнение трёх dirty reference trees требует воспроизводимого evidence snapshot и синтеза |
+| solo | P0.0 | implementation/medium | plan-exec | full | отдельный deterministic stdlib citation carrier по запечатанному D48; executable selftest и strict gate без product design |
+| solo | P0.1 | implementation/high | manual | full | широкий repo inventory по запечатанной схеме; high нужен для cross-layer synthesis, новых product-решений нет |
+| solo | P0.2 | implementation/high | manual | full | read-only сравнение трёх dirty reference trees требует воспроизводимого evidence snapshot и синтеза |
 | B0-RAG | P0.3 | implementation/high | manual | full | MCP-gated RAG replay по D56; P0.3 результат обязателен для P0.4, provider failure не понижает route |
 | B0-RAG | P0.4 | implementation/high | manual | full | последовательная RAG-серия; P0.4 findings обязательны для P0.5 |
 | B0-RAG | P0.5 | implementation/high | manual | full | завершает RAG-серию без owner gate внутри неё |
-| — | P0.6 | frontier/high | manual | full | заморозка межфазных contracts и альтернатив — открытые design-решения и высокая цена семантической ошибки |
-| — | P0.7 | implementation/medium | plan-exec | full | детерминированная ремедиация F1–F5 по запечатанному RED-аудиту P0: embedded tests, append-only reconciliation и точечная нормализация D60 без нового product design |
-| — | P1.1 | implementation/medium | plan-exec | full | target taxonomy/help/preflight реализуются по D10/D16, а producer-close проверяется machine-safe consumer carriers по D63 |
+| solo | P0.6 | frontier/high | manual | full | заморозка межфазных contracts и альтернатив — открытые design-решения и высокая цена семантической ошибки |
+| solo | P0.7 | implementation/medium | plan-exec | full | детерминированная ремедиация F1–F5 по запечатанному RED-аудиту P0: embedded tests, append-only reconciliation и точечная нормализация D60 без нового product design |
+| solo | P1.1 | implementation/medium | plan-exec | full | target taxonomy/help/preflight реализуются по D10/D16, а producer-close проверяется machine-safe consumer carriers по D63 |
 | B1-RUNTIME | P1.2 | implementation/high | manual | full | последовательная runtime-серия после P1.1; один route/review, без owner gate внутри |
 | B1-RUNTIME | P1.3 | implementation/high | manual | full | потребляет P1.2 и остаётся в той же runtime-серии |
 | B1-RUNTIME | P1.4 | implementation/high | manual | full | потребляет image boundary P1.3 в той же runtime-серии |
 | B1-RUNTIME | P1.5 | implementation/high | manual | full | terminal gate той же серии; full review сохраняется |
-| — | P1.6 | implementation/high | manual | full | audit-defined remediation F1–F5 меняет production deploy/test boundary и затем восстанавливает append-only closure evidence; новых product-решений нет |
-| — | P1.7 | implementation/high | manual | full | alias removal уже в `7f203014`; D67 закрывает F11–F14 committed closure anchor с byte-identical product tree и append-only correction без нового product-решения/audit |
-| — | P2.1 | implementation/high | manual | full | private dependency lock и Composer/image closure security-critical, но D6/D19 запечатали carrier |
-| — | P2.2 | implementation/high | manual | full | file-secret generation/Compose grants меняют production credential boundary по D20 |
-| — | P2.3 | implementation/high | manual | full | fail-closed preflight проверяет security/deploy prerequisites без новых product-решений |
-| — | P2.4 | implementation/high | manual | full | bootstrap связывает vendor/secrets/image/runtime и требует high для идемпотентности/rollback boundary |
-| — | P2.5 | implementation/high | manual | full | production seeds и initial-admin auth mutation security-critical, решения уже запечатаны |
-| — | P2.6 | implementation/high | manual | full | first-party Doctor integration и companion image исполняют D21 без открытого product design |
-| — | P2.7 | implementation/high | manual | full | audit-defined F1–F8 исправляют security/readiness/image/test/evidence boundary по D70; решения запечатаны, но обязательны real Docker/DB gates и full review |
+| solo | P1.6 | implementation/high | manual | full | audit-defined remediation F1–F5 меняет production deploy/test boundary и затем восстанавливает append-only closure evidence; новых product-решений нет |
+| solo | P1.7 | implementation/high | manual | full | alias removal уже в `7f203014`; D67 закрывает F11–F14 committed closure anchor с byte-identical product tree и append-only correction без нового product-решения/audit |
+| solo | P2.1 | implementation/high | manual | full | private dependency lock и Composer/image closure security-critical, но D6/D19 запечатали carrier |
+| solo | P2.2 | implementation/high | manual | full | file-secret generation/Compose grants меняют production credential boundary по D20 |
+| solo | P2.3 | implementation/high | manual | full | fail-closed preflight проверяет security/deploy prerequisites без новых product-решений |
+| solo | P2.4 | implementation/high | manual | full | bootstrap связывает vendor/secrets/image/runtime и требует high для идемпотентности/rollback boundary |
+| solo | P2.5 | implementation/high | manual | full | production seeds и initial-admin auth mutation security-critical, решения уже запечатаны |
+| solo | P2.6 | implementation/high | manual | full | first-party Doctor integration и companion image исполняют D21 без открытого product design |
+| solo | P2.7 | implementation/high | manual | full | audit-defined F1–F8 исправляют security/readiness/image/test/evidence boundary по D70; решения запечатаны, но обязательны real Docker/DB gates и full review |
 | B3-READINESS | P3.1 | implementation/high | manual | full | последовательная diagnosis→repair→proof серия; stop при root-cause escalation |
 | B3-READINESS | P3.2 | implementation/high | manual | full | разрешённый repair после P3.1 в той же серии |
 | B3-READINESS | P3.3 | implementation/high | manual | full | readiness carrier после repair, тот же route/review |
 | B3-READINESS | P3.4 | implementation/high | manual | full | E2E доказательство после readiness, тот же route/review |
 | B3-READINESS | P3.5 | implementation/high | manual | full | terminal recovery proof той же серии |
-| — | P4.1 | frontier/high | manual | full | финальный reconcile/freeze threat model после terminal P0/P1/P3: открытая цена security-contract ошибки требует frontier |
-| — | P4.2 | implementation/high | manual | full | generator/manifest/image supply-chain реализуются по D26; security и immutable artifact требуют high |
-| — | P4.3 | implementation/high | manual | full | path containment, MIME и response policy security-critical, но D27 уже запечатал архитектуру |
-| — | P4.4 | implementation/high | manual | full | AzGuard/Filament authorization меняет access boundary по D27 без открытого product design |
-| — | P4.5 | implementation/high | manual | full | adversarial HTTP/browser/image acceptance подтверждает confidentiality и deploy contract |
-| — | P4.6 | implementation/high | manual | full | audit-defined F1–F8 закрывают active-content, clean-build, browser/image и append-only evidence boundaries одним committed GREEN carrier без нового product design |
-| — | P5.1 | frontier/high | manual | full | terminal P0 contract reconcile может supersede settings/egress decisions; открытая цена ошибки требует frontier |
-| — | P5.2 | implementation/high | manual | full | dependency/settings schema и long-lived worker freshness реализуются по запечатанному D28 |
-| — | P5.3 | implementation/high | manual | full | центральный egress resolver, миграции и health-safe precedence correctness-critical, но D29 запечатал semantics |
-| — | P5.4 | implementation/high | manual | full | authorization и secret-safe Filament mutation security-sensitive без открытого product design |
-| — | P5.5 | implementation/high | manual | full | финальная no-fallback/health/secret/tooling acceptance требует high и полного review |
-| — | P5.6 | implementation/high | manual | full | owner-sealed AUDIT-CAP remediation связывает два repository commits, protocol runtime, product evidence и append-only closure; новых product-решений нет, но cross-repo provenance и zero-tail gate требуют high+full |
-| — | P6.1 | frontier/high | manual | full | terminal P0 contract reconcile может supersede format/archive decisions; открытая цена security-contract ошибки требует frontier |
-| — | P6.2 | implementation/high | manual | full | typed registry, result and reason migration security-critical, но D30 запечатал contract |
-| — | P6.3 | implementation/high | manual | full | hostile archive path/type/resource boundary correctness-critical, но D31 запечатал extraction semantics |
-| — | P6.4 | implementation/high | manual | full | schema uniqueness, storage addressing and after-commit job lifecycle требуют high без открытого product design |
-| — | P6.5 | implementation/high | manual | full | adversarial integration/retry/concurrency proof проверяет security и idempotency contract целиком |
-| — | P6.6 | implementation/medium | plan-exec | full | deterministic contract-test/docs/architecture gate по уже запечатанным D30/D31 |
-| — | P6.7 | implementation/high | manual | full | audit-defined security/lifecycle remediation и truthful cross-item evidence reconciliation требуют один committed product anchor и полный no-TIA gate без нового product design |
-| — | P7.1 | frontier/high | manual | full | terminal P0/P6 reconcile замораживает taxonomy/response/disposition contract; открытая цена schema/prompt ошибки требует frontier |
-| — | P7.2 | implementation/high | manual | full | JSON schema migration/backfill/indexes correctness-critical, но D32–D34 и P7.1 запечатали carrier |
-| — | P7.3 | implementation/high | manual | full | structured provider schema/prompt/gold contract public для pipeline, решения уже запечатаны D33 |
-| — | P7.4 | implementation/high | manual | full | idempotent Analysis/Document/event/run mutation и after-commit dispatch correctness-critical по D34 |
-| — | P7.5 | implementation/medium | plan-exec | light | локальная read-only Filament projection и deterministic indexed filters без authz mutation |
-| — | P7.6 | implementation/medium | plan-exec | full | детерминированный contract/full-suite/docs gate по уже запечатанным D32–D34 |
-| — | P8.1 | frontier/high | manual | full | terminal P0/P7 reconcile может supersede adapter/applicability contract; открытая цена cross-source ошибки требует frontier |
-| — | P8.2 | implementation/high | manual | full | typed platform definition меняет общий runtime/config/Form hotspot, но D35 запечатал identity и fail-closed semantics |
-| — | P8.3 | implementation/high | manual | full | migration/backfill/partial indexes и lossless rollback correctness-critical, но D36 запечатал schema contract |
-| — | P8.4 | implementation/high | manual | full | repository race, precedence, seed и authorization correctness-critical по D36 без открытого product design |
-| — | P8.5 | implementation/medium | plan-exec | full | deterministic contract/architecture/full-suite/docs gate по уже запечатанным D35–D36 |
-| — | P8.6 | implementation/high | manual | full | audit-defined factory/acceptance/evidence repair требует один committed no-TIA candidate и truthful cross-item reconciliation без нового product design |
-| — | P8.7 | implementation/high | manual | full | owner-sealed AUDIT-CAP remediation восстанавливает удалённый cross-registry guard, легализует exact test ownership и сходится в zero-deviation GREEN close без нового product design |
-| — | P9.1 | frontier/high | manual | full | terminal-upstream reconcile и freeze navigation/presentation contracts несут открытый риск cross-phase/cross-repo семантической ошибки |
-| — | P9.2 | implementation/high | manual | full | запечатанные D82/D38 реализуются в public package config и application labels; SemVer/package/auth identity требуют high+full |
-| — | P9.3 | implementation/high | manual | full | широкий schema/validation/dehydration/security surface, но layout contract уже запечатан D38 |
-| — | P9.4 | implementation/high | manual | full | все tables/relation actions и responsive visibility меняются по D38 с обязательной auth/query сохранностью |
-| — | P9.5 | implementation/high | manual | full | runtime route/role sweep широк и correctness-sensitive, но domain-changing findings обязаны эскалировать, а не проектироваться здесь |
-| — | P9.6 | implementation/high | manual | full | browser authorization/responsive acceptance переиспользует D24 и проверяет security-critical direct URLs без открытого design |
-| — | P10.1 | frontier/high | manual | full | terminal-tree baseline и factual Rector branch запечатывают ещё открытый tooling contract до product mutation |
-| — | P10.2 | implementation/high | manual | full | широкий security audit применяет D19/D20/D27/D29–D35 к frozen tree; findings read-only, новых product-решений нет |
-| — | P10.3 | implementation/high | manual | full | architecture/naming/debt audit классифицирует evidence по D33/D37–D39 без product mutation |
-| — | P10.4 | implementation/high | manual | full | migration/transaction/race/queue/config audit correctness-critical, но D23/D31/D34/D36 запечатали инварианты |
-| — | P10.5 | implementation/high | manual | full | remediation matrix уже замораживает exact root causes; vertical security/data/architecture fixes требуют high и full review |
-| — | P10.6 | implementation/high | manual | full | PHPStan max/no-baseline и local quality/docs gate исполняют D39; final verification high+full, CI topology остаётся P11 |
-| — | P11.1 | frontier/high | manual | full | terminal baseline замораживает ещё открытый Pest execution/CI contract по official evidence и D40–D42 |
-| — | P11.2 | implementation/high | manual | full | TIA/concurrency/cache performance меняют общий test command hotspot, но selection policy запечатана D40 |
-| — | P11.3 | implementation/high | manual | full | DB/filesystem isolation и agent output safety-critical, решения запечатаны D41 |
-| — | P11.4 | implementation/high | manual | full | широкий all-domain risk matrix и regression suites correctness-critical без открытого product design |
-| — | P11.5 | implementation/high | manual | full | CI credentials/caches/actions/image security меняют supply-chain boundary по D42 |
-| — | P11.6 | implementation/high | manual | full | final coverage/performance/flake/live-CI verification требует high+full, но budgets запечатаны D42 |
-| — | P12.1 | implementation/high | manual | full | host provisioning/firewall/Docker mutation security-critical, но boundary запечатан D43 |
-| — | P12.2 | implementation/high | manual | full | production Git/private-package credentials и exact source identity security-critical по D19/D43 |
-| — | P12.3 | implementation/high | manual | full | public ingress/TLS и pre-deploy recovery config/fixture contract security-critical по D43/D44/D53 |
-| — | P12.4 | implementation/high | manual | full | first production mutation исполняет frozen D9/D17/D20–D27 без открытого design |
-| — | P12.5 | implementation/high | manual | full | post-deploy recurring backup/alert/restore, queue drain и rollback correctness/data-loss critical по D17/D23/D44/D53 |
-| — | P12.6 | implementation/high | manual | full | cross-carrier command/docs reconcile требует final verification high, новых product-решений нет |
-| — | P12.7 | frontier/xhigh | manual | full | необратимый final READY verdict и cross-phase synthesis требуют frontier/xhigh |
+| solo | P4.1 | frontier/high | manual | full | финальный reconcile/freeze threat model после terminal P0/P1/P3: открытая цена security-contract ошибки требует frontier |
+| solo | P4.2 | implementation/high | manual | full | generator/manifest/image supply-chain реализуются по D26; security и immutable artifact требуют high |
+| solo | P4.3 | implementation/high | manual | full | path containment, MIME и response policy security-critical, но D27 уже запечатал архитектуру |
+| solo | P4.4 | implementation/high | manual | full | AzGuard/Filament authorization меняет access boundary по D27 без открытого product design |
+| solo | P4.5 | implementation/high | manual | full | adversarial HTTP/browser/image acceptance подтверждает confidentiality и deploy contract |
+| solo | P4.6 | implementation/high | manual | full | audit-defined F1–F8 закрывают active-content, clean-build, browser/image и append-only evidence boundaries одним committed GREEN carrier без нового product design |
+| solo | P5.1 | frontier/high | manual | full | terminal P0 contract reconcile может supersede settings/egress decisions; открытая цена ошибки требует frontier |
+| solo | P5.2 | implementation/high | manual | full | dependency/settings schema и long-lived worker freshness реализуются по запечатанному D28 |
+| solo | P5.3 | implementation/high | manual | full | центральный egress resolver, миграции и health-safe precedence correctness-critical, но D29 запечатал semantics |
+| solo | P5.4 | implementation/high | manual | full | authorization и secret-safe Filament mutation security-sensitive без открытого product design |
+| solo | P5.5 | implementation/high | manual | full | финальная no-fallback/health/secret/tooling acceptance требует high и полного review |
+| solo | P5.6 | implementation/high | manual | full | owner-sealed AUDIT-CAP remediation связывает два repository commits, protocol runtime, product evidence и append-only closure; новых product-решений нет, но cross-repo provenance и zero-tail gate требуют high+full |
+| solo | P6.1 | frontier/high | manual | full | terminal P0 contract reconcile может supersede format/archive decisions; открытая цена security-contract ошибки требует frontier |
+| solo | P6.2 | implementation/high | manual | full | typed registry, result and reason migration security-critical, но D30 запечатал contract |
+| solo | P6.3 | implementation/high | manual | full | hostile archive path/type/resource boundary correctness-critical, но D31 запечатал extraction semantics |
+| solo | P6.4 | implementation/high | manual | full | schema uniqueness, storage addressing and after-commit job lifecycle требуют high без открытого product design |
+| solo | P6.5 | implementation/high | manual | full | adversarial integration/retry/concurrency proof проверяет security и idempotency contract целиком |
+| solo | P6.6 | implementation/medium | plan-exec | full | deterministic contract-test/docs/architecture gate по уже запечатанным D30/D31 |
+| solo | P6.7 | implementation/high | manual | full | audit-defined security/lifecycle remediation и truthful cross-item evidence reconciliation требуют один committed product anchor и полный no-TIA gate без нового product design |
+| solo | P7.1 | frontier/high | manual | full | terminal P0/P6 reconcile замораживает taxonomy/response/disposition contract; открытая цена schema/prompt ошибки требует frontier |
+| solo | P7.2 | implementation/high | manual | full | JSON schema migration/backfill/indexes correctness-critical, но D32–D34 и P7.1 запечатали carrier |
+| solo | P7.3 | implementation/high | manual | full | structured provider schema/prompt/gold contract public для pipeline, решения уже запечатаны D33 |
+| solo | P7.4 | implementation/high | manual | full | idempotent Analysis/Document/event/run mutation и after-commit dispatch correctness-critical по D34 |
+| solo | P7.5 | implementation/medium | plan-exec | light | локальная read-only Filament projection и deterministic indexed filters без authz mutation |
+| solo | P7.6 | implementation/medium | plan-exec | full | детерминированный contract/full-suite/docs gate по уже запечатанным D32–D34 |
+| solo | P8.1 | frontier/high | manual | full | terminal P0/P7 reconcile может supersede adapter/applicability contract; открытая цена cross-source ошибки требует frontier |
+| solo | P8.2 | implementation/high | manual | full | typed platform definition меняет общий runtime/config/Form hotspot, но D35 запечатал identity и fail-closed semantics |
+| solo | P8.3 | implementation/high | manual | full | migration/backfill/partial indexes и lossless rollback correctness-critical, но D36 запечатал schema contract |
+| solo | P8.4 | implementation/high | manual | full | repository race, precedence, seed и authorization correctness-critical по D36 без открытого product design |
+| solo | P8.5 | implementation/medium | plan-exec | full | deterministic contract/architecture/full-suite/docs gate по уже запечатанным D35–D36 |
+| solo | P8.6 | implementation/high | manual | full | audit-defined factory/acceptance/evidence repair требует один committed no-TIA candidate и truthful cross-item reconciliation без нового product design |
+| solo | P8.7 | implementation/high | manual | full | owner-sealed AUDIT-CAP remediation восстанавливает удалённый cross-registry guard, легализует exact test ownership и сходится в zero-deviation GREEN close без нового product design |
+| solo | P9.1 | frontier/high | manual | full | terminal-upstream reconcile и freeze navigation/presentation contracts несут открытый риск cross-phase/cross-repo семантической ошибки |
+| solo | P9.2 | implementation/high | manual | full | запечатанные D82/D38 реализуются в public package config и application labels; SemVer/package/auth identity требуют high+full |
+| solo | P9.3 | implementation/high | manual | full | широкий schema/validation/dehydration/security surface, но layout contract уже запечатан D38 |
+| solo | P9.4 | implementation/high | manual | full | все tables/relation actions и responsive visibility меняются по D38 с обязательной auth/query сохранностью |
+| solo | P9.5 | implementation/high | manual | full | runtime route/role sweep широк и correctness-sensitive, но domain-changing findings обязаны эскалировать, а не проектироваться здесь |
+| solo | P9.6 | implementation/high | manual | full | browser authorization/responsive acceptance переиспользует D24 и проверяет security-critical direct URLs без открытого design |
+| solo | P10.1 | frontier/high | manual | full | terminal-tree baseline и factual Rector branch запечатывают ещё открытый tooling contract до product mutation |
+| solo | P10.2 | implementation/high | manual | full | широкий security audit применяет D19/D20/D27/D29–D35 к frozen tree; findings read-only, новых product-решений нет |
+| solo | P10.3 | implementation/high | manual | full | architecture/naming/debt audit классифицирует evidence по D33/D37–D39 без product mutation |
+| solo | P10.4 | implementation/high | manual | full | migration/transaction/race/queue/config audit correctness-critical, но D23/D31/D34/D36 запечатали инварианты |
+| solo | P10.5 | implementation/high | manual | full | remediation matrix уже замораживает exact root causes; vertical security/data/architecture fixes требуют high и full review |
+| solo | P10.6 | implementation/high | manual | full | PHPStan max/no-baseline и local quality/docs gate исполняют D39; final verification high+full, CI topology остаётся P11 |
+| solo | P11.1 | frontier/high | manual | full | terminal baseline замораживает ещё открытый Pest execution/CI contract по official evidence и D40–D42 |
+| solo | P11.2 | implementation/high | manual | full | TIA/concurrency/cache performance меняют общий test command hotspot, но selection policy запечатана D40 |
+| solo | P11.3 | implementation/high | manual | full | DB/filesystem isolation и agent output safety-critical, решения запечатаны D41 |
+| solo | P11.4 | implementation/high | manual | full | широкий all-domain risk matrix и regression suites correctness-critical без открытого product design |
+| solo | P11.5 | implementation/high | manual | full | CI credentials/caches/actions/image security меняют supply-chain boundary по D42 |
+| solo | P11.6 | implementation/high | manual | full | final coverage/performance/flake/live-CI verification требует high+full, но budgets запечатаны D42 |
+| solo | P12.1 | implementation/high | manual | full | host provisioning/firewall/Docker mutation security-critical, но boundary запечатан D43 |
+| solo | P12.2 | implementation/high | manual | full | production Git/private-package credentials и exact source identity security-critical по D19/D43 |
+| solo | P12.3 | implementation/high | manual | full | public ingress/TLS и pre-deploy recovery config/fixture contract security-critical по D43/D44/D53 |
+| solo | P12.4 | implementation/high | manual | full | first production mutation исполняет frozen D9/D17/D20–D27 без открытого design |
+| solo | P12.5 | implementation/high | manual | full | post-deploy recurring backup/alert/restore, queue drain и rollback correctness/data-loss critical по D17/D23/D44/D53 |
+| solo | P12.6 | implementation/high | manual | full | cross-carrier command/docs reconcile требует final verification high, новых product-решений нет |
+| solo | P12.7 | frontier/xhigh | manual | full | необратимый final READY verdict и cross-phase synthesis требуют frontier/xhigh |
 
 ## 5. Decision Log
 
