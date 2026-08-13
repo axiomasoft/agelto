@@ -23,7 +23,10 @@ use ZipArchive;
 /**
  * @phpstan-type GoldPayload array{estimates: list<array<string, mixed>>}
  * @phpstan-type UnmappedReport array<string, array{count: int, has_carrier: bool}>
- * @phpstan-type BuildResult array{action: 'built'|'downgraded'|'rejected', gold: GoldPayload|null, rows: int|null, estimates: int|null, arithmetic_ratio: float|null, unmapped: UnmappedReport, reason: string|null}
+ * @phpstan-type BuiltResult array{action: 'built', gold: GoldPayload, rows: int, estimates: int, arithmetic_ratio: float|null, unmapped: UnmappedReport, reason: null}
+ * @phpstan-type DowngradedResult array{action: 'downgraded', gold: null, rows: null, estimates: int, arithmetic_ratio: null, unmapped: UnmappedReport, reason: string}
+ * @phpstan-type RejectedResult array{action: 'rejected', gold: null, rows: null, estimates: null, arithmetic_ratio: null, unmapped: UnmappedReport, reason: string}
+ * @phpstan-type BuildResult BuiltResult|DowngradedResult|RejectedResult
  */
 final readonly class GoldBuilder
 {
@@ -49,7 +52,7 @@ final readonly class GoldBuilder
     }
 
     /**
-     * @return BuildResult
+     * @return BuiltResult|RejectedResult
      */
     private function buildFromGsfx(string $path): array
     {
@@ -225,7 +228,7 @@ final readonly class GoldBuilder
     }
 
     /**
-     * @return BuildResult
+     * @return DowngradedResult
      */
     private function downgraded(string $reason, int $estimatesCount): array
     {
@@ -241,7 +244,7 @@ final readonly class GoldBuilder
     }
 
     /**
-     * @return BuildResult
+     * @return RejectedResult
      */
     private function rejected(string $reason): array
     {

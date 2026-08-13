@@ -18,6 +18,11 @@ use Illuminate\Support\Facades\Storage;
  * каталоге анализатора: единственный исполнитель — `Gold\GoldBuilder`, каталоги сервисов
  * `Gold`/`Bench`/`Prepare` эта фаза сознательно не переклассифицирует (D31).
  */
+/**
+ * @phpstan-type ManifestFact array{gold_path: string|null, expected_rows: int|null, expected_estimates: int|null, gold_source: string}
+ * @phpstan-type UnmappedReport array<string, array{count: int, has_carrier: bool}>
+ * @phpstan-type CorpusRow array{code: string, source_format: string, status: 'built'|'skipped'|'downgraded'|'rejected', reason: string|null, rows: int|null, estimates: int|null, arithmetic_ratio: float|null, unmapped: UnmappedReport, manifest_fact: ManifestFact|null}
+ */
 final readonly class GoldCorpusBuilder
 {
     public function __construct(private GoldBuilder $builder) {}
@@ -26,7 +31,7 @@ final readonly class GoldCorpusBuilder
      * @param  Collection<int, Fixture>  $fixtures  уже отобранные/упорядоченные по коду
      * @param  list<mixed>  $manifestFixtures  сырой массив `fixtures` манифеста
      * @return array{
-     *     rows: list<array<string, mixed>>,
+     *     rows: list<CorpusRow>,
      *     manifestFixtures: list<mixed>,
      *     counts: array{built: int, skipped: int, downgraded: int, rejected: int},
      * }
@@ -37,7 +42,9 @@ final readonly class GoldCorpusBuilder
         $skipped = 0;
         $downgraded = 0;
         $rejected = 0;
+        /** @var list<CorpusRow> $reportRows */
         $reportRows = [];
+        /** @var array<string, ManifestFact> $manifestFacts */
         $manifestFacts = [];
 
         foreach ($fixtures as $fixture) {
@@ -67,7 +74,7 @@ final readonly class GoldCorpusBuilder
     }
 
     /**
-     * @param  list<array<string, mixed>>  $rows
+     * @param  list<CorpusRow>  $rows
      */
     public function renderReport(array $rows): string
     {
@@ -141,12 +148,7 @@ final readonly class GoldCorpusBuilder
     }
 
     /**
-     * @return array{
-     *     code: string, source_format: string, status: string, reason: string|null,
-     *     rows: int|null, estimates: int|null, arithmetic_ratio: float|null,
-     *     unmapped: array<string, array{count: int, has_carrier: bool}>,
-     *     manifest_fact: array{gold_path: string|null, expected_rows: int|null, expected_estimates: int|null, gold_source: string}|null,
-     * }
+     * @return CorpusRow
      */
     private function processFixture(Fixture $fixture, string $goldDir, string $disk, bool $dryRun): array
     {
@@ -168,16 +170,20 @@ final readonly class GoldCorpusBuilder
         $profilePath = $goldDir.'/'.$fixture->code.'.profile.json';
         $result = $this->builder->build($fixture->source_format, $sourcePath, $profilePath);
 
-        return match ($result['action']) {
-            'built' => $this->handleBuilt($fixture, $goldDir, $dryRun, $result),
-            'downgraded' => $this->handleDowngraded($fixture, $result),
-            'rejected' => $this->reportRow($fixture, 'rejected', (string) $result['reason']),
-        };
+        if ($result['action'] === 'built') {
+            return $this->handleBuilt($fixture, $goldDir, $dryRun, $result);
+        }
+
+        if ($result['action'] === 'downgraded') {
+            return $this->handleDowngraded($fixture, $result);
+        }
+
+        return $this->reportRow($fixture, 'rejected', $result['reason']);
     }
 
     /**
-     * @param  array{gold: array<string, mixed>, rows: int, estimates: int, arithmetic_ratio: float|null,
-     *     unmapped: array<string, array{count: int, has_carrier: bool}>}  $result
+     * @param  array{action: 'built', gold: array{estimates: list<array<string, mixed>>}, rows: int, estimates: int, arithmetic_ratio: float|null, unmapped: UnmappedReport, reason: null}  $result
+     * @return CorpusRow
      */
     private function handleBuilt(Fixture $fixture, string $goldDir, bool $dryRun, array $result): array
     {
@@ -205,7 +211,8 @@ final readonly class GoldCorpusBuilder
     }
 
     /**
-     * @param  array{estimates: int, reason: string}  $result
+     * @param  array{action: 'downgraded', gold: null, rows: null, estimates: int, arithmetic_ratio: null, unmapped: UnmappedReport, reason: string}  $result
+     * @return CorpusRow
      */
     private function handleDowngraded(Fixture $fixture, array $result): array
     {
@@ -221,8 +228,9 @@ final readonly class GoldCorpusBuilder
     }
 
     /**
-     * @param  array{rows?: int|null, estimates?: int|null, arithmetic_ratio?: float|null,
-     *     unmapped?: array<string, array{count: int, has_carrier: bool}>}|null  $result
+     * @param  'built'|'skipped'|'downgraded'|'rejected'  $status
+     * @param  array{rows?: int|null, estimates?: int|null, arithmetic_ratio?: float|null, unmapped?: UnmappedReport}|null  $result
+     * @return CorpusRow
      */
     private function reportRow(Fixture $fixture, string $status, ?string $reason, ?array $result = null): array
     {
@@ -241,13 +249,13 @@ final readonly class GoldCorpusBuilder
 
     /**
      * @param  list<mixed>  $fixturesJson
-     * @param  array<string, array{gold_path: string|null, expected_rows: int|null, expected_estimates: int|null, gold_source: string}>  $facts
+     * @param  array<string, ManifestFact>  $facts
      * @return list<mixed>
      */
     private function applyManifestFacts(array $fixturesJson, array $facts): array
     {
         return array_map(function (mixed $entry) use ($facts): mixed {
-            if (! is_array($entry) || ! isset($entry['code']) || ! isset($facts[$entry['code']])) {
+            if (! is_array($entry) || ! isset($entry['code']) || ! is_string($entry['code']) || ! isset($facts[$entry['code']])) {
                 return $entry;
             }
 
