@@ -82,7 +82,18 @@ RAG:— (repo-grounded: dependency matrix and D39).
 
 ## Verification status
 
-- Repo-grounded authoring recon complete on `1ab8f0531241a0c127b5e8fa9b5688ed0482f56d`.
-- Terminal P1–P9 products are future hard inputs and are never inferred from today’s tree.
-- External Rector compatibility remains a factual P10.1 branch with official-source capture; no
-  authoring-time external claim is made.
+- Terminal P0/P1–P9 states подтверждены на P10.1; immutable product baseline —
+  `469acf640fc95944a3accc378445190dbca2a9ba`. Полные команды, hashes и inventories находятся в
+  `findings/P10-static-analysis-audit.md` и проверяются
+  `artifacts/P10-static-analysis-contract.sh`.
+- Repo-grounded baseline: Pint dry-run red на 7 paths; PHPStan configured red на 34 errors / 13
+  paths; Larastan `max` без committed baseline red на 1637 errors / 271 paths; Composer locked
+  audit — 0 advisories / 0 abandoned. Эти числа — evidence до mutation, не confirmed-defect
+  verdict и не разрешение ослабить gates.
+- RAG: Web search/open against official Rector, driftingly and Packagist sources плюс Composer
+  metadata/solver cross-check завершены 2026-08-13. Ветка D39 совместима: P10.6 может отдельно
+  запинить `rector/rector` 2.6.2 + `driftingly/rector-laravel` 2.5.0 и начать с dry-run;
+  P10.1 dependency/config bytes не меняет.
+- Непроверено → ПОВТОРНЫЙ ПРОХОД: ничего.
+- Обходки/[POSSIBLE-DEFECT]: host PHPStan не загрузил Laravel вне Compose network; authoritative
+  configured/max runs выполнены внутри healthy `app` на том же bind-mounted tree.
