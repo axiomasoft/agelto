@@ -78,18 +78,18 @@ final readonly class PlatformRequestBudget
             maxAttempts: $capacity,
             callback: static fn (): bool => true,
             decaySeconds: self::WINDOW_SECONDS,
-        );
+        ) === true;
     }
 
     private function capacity(?Platform $platform): int
     {
         $platformThrottle = $this->platformThrottle(platform: $platform);
         $base = $platformThrottle === null
-            ? (int) config('crawler.budget.requests_per_minute_base')
-            : ($platformThrottle->requestsPerMinuteBase ?? (int) config('crawler.budget.requests_per_minute_base'));
+            ? $this->intConfig('crawler.budget.requests_per_minute_base')
+            : ($platformThrottle->requestsPerMinuteBase ?? $this->intConfig('crawler.budget.requests_per_minute_base'));
         $perProxy = $platformThrottle === null
-            ? (int) config('crawler.budget.requests_per_minute_per_proxy')
-            : ($platformThrottle->requestsPerMinutePerProxy ?? (int) config('crawler.budget.requests_per_minute_per_proxy'));
+            ? $this->intConfig('crawler.budget.requests_per_minute_per_proxy')
+            : ($platformThrottle->requestsPerMinutePerProxy ?? $this->intConfig('crawler.budget.requests_per_minute_per_proxy'));
 
         return $base + ($perProxy * $this->activeBoundProxyCount(platform: $platform));
     }
@@ -101,8 +101,8 @@ final readonly class PlatformRequestBudget
         return max(
             0,
             $platformThrottle === null
-                ? (int) config('crawler.budget.max_wait_seconds')
-                : ($platformThrottle->maxWaitSeconds ?? (int) config('crawler.budget.max_wait_seconds')),
+                ? $this->intConfig('crawler.budget.max_wait_seconds')
+                : ($platformThrottle->maxWaitSeconds ?? $this->intConfig('crawler.budget.max_wait_seconds')),
         );
     }
 
@@ -126,14 +126,14 @@ final readonly class PlatformRequestBudget
 
     private function fallbackStageSettings(CrawlStage $stage): StageSettings
     {
-        $settings = (array) config("crawler.stages.{$stage->value}", []);
+        $settings = $this->jsonObject(config("crawler.stages.{$stage->value}", []), "crawler.stages.{$stage->value}");
 
         return new StageSettings(
-            minPauseMs: $settings['min_pause_ms'] ?? null,
-            maxPauseMs: $settings['max_pause_ms'] ?? null,
-            retries: $settings['retries'] ?? null,
-            retryDelayMs: $settings['retry_delay_ms'] ?? null,
-            timeoutSeconds: $settings['timeout_seconds'] ?? null,
+            minPauseMs: $this->nullableInt($settings['min_pause_ms'] ?? null, 'min_pause_ms'),
+            maxPauseMs: $this->nullableInt($settings['max_pause_ms'] ?? null, 'max_pause_ms'),
+            retries: $this->nullableInt($settings['retries'] ?? null, 'retries'),
+            retryDelayMs: $this->nullableInt($settings['retry_delay_ms'] ?? null, 'retry_delay_ms'),
+            timeoutSeconds: $this->nullableInt($settings['timeout_seconds'] ?? null, 'timeout_seconds'),
         );
     }
 
@@ -168,20 +168,62 @@ final readonly class PlatformRequestBudget
         if ($crawler !== null) {
             $platformId = $crawler->registry()->value('platform_id');
 
-            return $platformId === null ? null : Platform::query()->find($platformId);
+            return $platformId === null
+                ? null
+                : Platform::query()->find($this->nullableInt($platformId, 'crawler registry platform_id')
+                    ?? throw new \LogicException('crawler registry platform_id не должен быть null.'));
         }
 
-        return Platform::query()
+        $platforms = Platform::query()
             ->where('is_active', true)
             ->whereNotNull('base_url')
-            ->get()
-            ->first(fn (Platform $platform): bool => $this->canonicalHost((string) $platform->getAttribute('base_url')) === $host);
+            ->get();
+
+        foreach ($platforms as $platform) {
+            $baseUrl = $platform->getAttribute('base_url');
+
+            if (is_string($baseUrl) && $this->canonicalHost($baseUrl) === $host) {
+                return $platform;
+            }
+        }
+
+        return null;
     }
 
     private function canonicalHost(string $host): string
     {
         $parsedHost = parse_url(str_contains($host, '://') ? $host : "https://{$host}", PHP_URL_HOST);
 
-        return strtolower(trim((string) $parsedHost, '.'));
+        return strtolower(trim(is_string($parsedHost) ? $parsedHost : '', '.'));
+    }
+
+    private function intConfig(string $key): int
+    {
+        return $this->nullableInt(config($key), $key)
+            ?? throw new \LogicException("{$key} должен быть целым числом.");
+    }
+
+    private function nullableInt(mixed $value, string $context): ?int
+    {
+        if ($value === null) {
+            return null;
+        }
+
+        if (is_int($value)) {
+            return $value;
+        }
+
+        throw new \LogicException("{$context} должен быть целым числом или null.");
+    }
+
+    /** @return array<string, mixed> */
+    private function jsonObject(mixed $value, string $context): array
+    {
+        if (! is_array($value) || array_is_list($value)) {
+            throw new \LogicException("{$context} должен быть объектом конфигурации.");
+        }
+
+        /** @var array<string, mixed> $value */
+        return $value;
     }
 }
