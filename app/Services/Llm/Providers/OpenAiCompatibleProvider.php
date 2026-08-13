@@ -12,6 +12,7 @@ use App\Services\Llm\Dto\LlmPrompt;
 use App\Services\Llm\Dto\LlmResponse;
 use App\Services\Llm\Dto\LlmStructuredResponse;
 use App\Services\Llm\Dto\LlmUsage;
+use App\Support\SecretValue;
 use Prism\Prism\Enums\FinishReason as PrismFinishReason;
 use Prism\Prism\Enums\Provider as PrismProvider;
 use Prism\Prism\Enums\StructuredMode;
@@ -125,9 +126,13 @@ final readonly class OpenAiCompatibleProvider implements LlmProvider
             return null;
         }
 
-        $value = env($envName);
+        $value = SecretValue::resolve($envName);
 
-        return is_string($value) && $value !== '' ? $value : null;
+        if (! is_string($value) || $value === '') {
+            throw new RuntimeException("OpenAiCompatibleProvider: не найден секрет для api_key_env {$envName}.");
+        }
+
+        return $value;
     }
 
     private function assertNoFileRefs(LlmPrompt $prompt): void

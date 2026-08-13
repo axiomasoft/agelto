@@ -18,7 +18,6 @@ use App\Services\Procurement\Proxy\ProxyCircuitBreaker;
 use App\Services\Procurement\Proxy\ProxyResolver;
 use App\Services\Procurement\Proxy\ProxyScoreCalculator;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\Log;
 use Prism\Prism\Enums\FinishReason as PrismFinishReason;
 use Prism\Prism\Facades\Prism;
 use Prism\Prism\Structured\Response as PrismStructuredResponse;
@@ -82,27 +81,12 @@ test('PoolOutboundProxy отдаёт httpOptions разрешённого узл
         ->toBe(['proxy' => $expectedProxy]);
 });
 
-test('пустой пул для LLM и пустой env — PoolOutboundProxy бросает NoProxyAvailableException', function (): void {
-    config(['ai.gemini.proxy' => null]);
-
+test('пустой пул для LLM остаётся fail-closed даже при legacy env-прокси', function (): void {
+    config(['ai.gemini.proxy' => 'http://legacy-env-proxy.test:8080']);
     $adapter = new PoolOutboundProxy(llmResolver());
 
     expect(fn () => $adapter->optionsFor('generativelanguage.googleapis.com'))
         ->toThrow(NoProxyAvailableException::class);
-});
-
-test('пустой пул для LLM фолбэчит на env-прокси с явным предупреждением в логе', function (): void {
-    config(['ai.gemini.proxy' => 'http://env-proxy.test:8080']);
-    Log::spy();
-
-    $adapter = new PoolOutboundProxy(llmResolver());
-
-    expect($adapter->optionsFor('generativelanguage.googleapis.com'))
-        ->toBe(['proxy' => 'http://env-proxy.test:8080']);
-
-    Log::shouldHaveReceived('warning')
-        ->withArgs(fn (string $message, array $context): bool => str_contains($message, 'env-фолбэк')
-            && $context['host'] === 'generativelanguage.googleapis.com');
 });
 
 test('пустая политика запретов для LLM-скоупа — резолвер бросает ProxyPolicyMisconfiguredException', function (): void {
@@ -112,7 +96,7 @@ test('пустая политика запретов для LLM-скоупа —
         ->toThrow(ProxyPolicyMisconfiguredException::class);
 });
 
-test('предохранитель пустой политики LLM не ловится PoolOutboundProxy — env-фолбэк не срабатывает', function (): void {
+test('предохранитель пустой политики LLM не подменяется legacy env-прокси', function (): void {
     config([
         'crawler.proxy.policy.'.ProxyScope::Llm->value.'.forbidden_countries' => [],
         'ai.gemini.proxy' => 'http://env-proxy.test:8080',

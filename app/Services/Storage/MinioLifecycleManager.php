@@ -35,8 +35,6 @@ final readonly class MinioLifecycleManager
         $disk = (array) config('filesystems.disks.s3');
         $target = self::ALIAS.'/'.$disk['bucket'];
 
-        $this->mc(['alias', 'set', self::ALIAS, $disk['endpoint'], $disk['key'], $disk['secret']]);
-
         $existingPrefixes = $this->existingRulePrefixes($target);
         $report = [];
 
@@ -93,10 +91,35 @@ final readonly class MinioLifecycleManager
      */
     private function mc(array $args): void
     {
-        $result = Process::run(array_merge(['mc'], $args));
+        $result = Process::env([
+            'MC_HOST_'.self::ALIAS => $this->aliasUrl(),
+        ])->run(array_merge(['mc'], $args));
 
         if ($result->failed()) {
             throw new RuntimeException('mc '.implode(' ', $args).': '.trim($result->errorOutput() ?: $result->output()));
         }
+    }
+
+    private function aliasUrl(): string
+    {
+        $disk = (array) config('filesystems.disks.s3');
+        $endpoint = rtrim((string) ($disk['endpoint'] ?? ''), '/');
+
+        if ($endpoint === '') {
+            throw new RuntimeException('S3 endpoint is required for MinIO lifecycle management.');
+        }
+
+        $parts = parse_url($endpoint);
+
+        if (! is_array($parts) || ! isset($parts['scheme'], $parts['host'])) {
+            throw new RuntimeException('S3 endpoint must be an absolute URL for MinIO lifecycle management.');
+        }
+
+        $port = isset($parts['port']) ? ':'.$parts['port'] : '';
+        $path = $parts['path'] ?? '';
+        $key = rawurlencode((string) ($disk['key'] ?? ''));
+        $secret = rawurlencode((string) ($disk['secret'] ?? ''));
+
+        return "{$parts['scheme']}://{$key}:{$secret}@{$parts['host']}{$port}{$path}";
     }
 }

@@ -19,12 +19,6 @@ parameters:
 			path: app/Console/Commands/Reference/LoadClassifiers.php
 
 		-
-			message: '#^Trait App\\Console\\Concerns\\GracefullyStoppable is used zero times and is not analysed\.$#'
-			identifier: trait.unused
-			count: 1
-			path: app/Console/Concerns/GracefullyStoppable.php
-
-		-
 			message: '#^Unknown parameter \$state in call to method Filament\\Tables\\Columns\\IconColumn\:\:boolean\(\)\.$#'
 			identifier: argument.unknown
 			count: 1

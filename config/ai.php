@@ -18,8 +18,6 @@ return [
     |
     */
     'gemini' => [
-        'proxy' => env('AI_GEMINI_PROXY'),
-
         // Prism-default (`PRISM_REQUEST_TIMEOUT`, config/prism.php) — 30с, посчитан под 2.5-линейку
         // без `thinking`-бюджета; `gemini-3.x` тратит время на reasoning ДО generateContent-ответа
         // (боевой прогон P6.2 2026-07-28: систематические cURL timeout 30с на части эталонов,

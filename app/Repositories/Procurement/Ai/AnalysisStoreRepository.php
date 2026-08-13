@@ -9,6 +9,7 @@ use App\Enums\Procurement\Ai\AnalysisStatus;
 use App\Enums\Procurement\Ai\AnalysisStep;
 use App\Exceptions\Procurement\Ai\NoActiveAnalysisRun;
 use App\Models\Procurement\Ai\Analysis;
+use Illuminate\Database\UniqueConstraintViolationException;
 
 /**
  * Единственная точка персистентности `prc_ai_analyses` для стадийных процессоров
@@ -44,12 +45,20 @@ final readonly class AnalysisStoreRepository
             return $analysis;
         }
 
-        return Analysis::query()->create([
-            'document_version_id' => $documentVersionId,
-            'analysis_run_id' => $this->resolveActiveRunId($documentVersionId),
-            'step' => $step,
-            'status' => AnalysisStatus::Pending,
-        ]);
+        try {
+            return Analysis::query()->create([
+                'document_version_id' => $documentVersionId,
+                'analysis_run_id' => $this->resolveActiveRunId($documentVersionId),
+                'step' => $step,
+                'status' => AnalysisStatus::Pending,
+            ]);
+        } catch (UniqueConstraintViolationException) {
+            return Analysis::query()
+                ->active()
+                ->where('document_version_id', $documentVersionId)
+                ->where('step', $step)
+                ->sole();
+        }
     }
 
     /**

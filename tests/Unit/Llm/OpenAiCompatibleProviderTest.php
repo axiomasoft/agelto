@@ -103,3 +103,26 @@ test('complete() бросает исключение при непустых fil
     expect(fn () => $provider->complete($prompt, vllmOptions()))
         ->toThrow(RuntimeException::class, 'Files API');
 });
+
+test('complete() fail-closed, когда настроенный api_key_env не разрешается', function (): void {
+    $envName = 'P10_MISSING_OPENAI_KEY';
+    putenv("{$envName}");
+    putenv("{$envName}_FILE");
+    unset($_ENV[$envName], $_ENV["{$envName}_FILE"], $_SERVER[$envName], $_SERVER["{$envName}_FILE"]);
+
+    $fake = Prism::fake();
+    $provider = new OpenAiCompatibleProvider;
+    $options = new LlmOptions(
+        provider: 'protected-vllm',
+        model: 'Qwen3-4B-Instruct',
+        temperature: 0.0,
+        maxTokens: 2048,
+        baseUrl: 'http://vllm.internal:8000/v1',
+        apiKeyEnv: $envName,
+    );
+
+    expect(fn () => $provider->complete(new LlmPrompt(systemPart: 's'), $options))
+        ->toThrow(RuntimeException::class, 'не найден секрет');
+
+    $fake->assertCallCount(0);
+});

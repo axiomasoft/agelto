@@ -72,3 +72,20 @@ test('ai:storage:lifecycle без правил в конфиге — no-op, ус
 
     expect(Artisan::call('ai:storage:lifecycle'))->toBe(0);
 });
+
+test('ai:storage:lifecycle не передаёт S3 credentials в аргументах mc', function (): void {
+    $disk = (array) config('filesystems.disks.s3');
+    Config::set('partitioning.minio_lifecycle', []);
+    Process::fake([
+        '*' => Process::result(output: json_encode(['status' => 'success', 'config' => ['Rules' => []]], JSON_THROW_ON_ERROR)),
+    ]);
+
+    expect(Artisan::call('ai:storage:lifecycle'))->toBe(0);
+
+    Process::assertRan(function ($process) use ($disk): bool {
+        $command = $process->command;
+
+        return ! in_array($disk['key'], $command, true)
+            && ! in_array($disk['secret'], $command, true);
+    });
+});
