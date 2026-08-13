@@ -3,7 +3,7 @@ projection: status-view
 projection_version: v1
 source_scope: plan core + phases + journal
 through: 2026-08-13
-inputs_sha256: 3a6a44791221d022850b1665c4ca2930e49c36293d40268232e55d682e0900b8
+inputs_sha256: 1dd373c5c9dee5646fa1b4c712db891713299388ee2230a671b2cf09087c6e28
 generated_by: task plan-views status
 -->
 
@@ -67,7 +67,7 @@ generated_by: task plan-views status
 | ID | Title | Status | Updated |
 |:--|:--|:--|:--|
 | P10.1 | Снять baseline Pint/PHPStan/Rector/dependencies и modern-PHP findings | 🟢 Done | 2026-08-13 |
-| P10.2 | Выполнить Laravel security audit всех новых и существующих boundaries | ⬜ Not started | — |
+| P10.2 | Выполнить Laravel security audit всех новых и существующих boundaries | 🟠 Done with deviations | 2026-08-13 |
 | P10.3 | Найти duplication, dead code, naming и needless abstractions | ⬜ Not started | — |
 | P10.4 | Проверить migrations, transactions, races, idempotency, queues и config defaults | ⬜ Not started | — |
 | P10.5 | Исправить findings вертикальными срезами с regression tests | ⬜ Not started | — |
@@ -628,12 +628,15 @@ write-site: pre_mutation: allow · pre_final: allow |
 | 2026-08-13 | frontier/high | plan-run · in-progress · — |
 | 2026-08-13 | frontier/high | plan-run · closed-green · Baseline e1fab7e1: Pint paths 7 (на e1fab7e1, carrier); PHPStan configured/max 34/1637 (на e1fab7e1, carrier); Composer audit 0/0 (на e1fab7e1, carrier); Rector branch compatible. write-site: pre_mutation: allow · pre_final: allow |
 | 2026-08-13 | frontier/high | plan-run · local-repair · write-site: pre_mutation: allow · pre_final: allow |
+| 2026-08-13 | implementation/high | plan-run · in-progress · — |
+| 2026-08-13 | implementation/high | plan-run · closed-deviations · Security audit e4cb6a89: high P10.2-S01 and medium P10.2-S02 reported; Task lint carrier could not complete under host resource pressure. |
 
 ## Owner Gates
 
 - P0.3: known deviation
 - P0.4: known deviation
 - P0.5: known deviation
+- P10.2: known deviation
 - P4.2: known deviation
 - P4.4: known deviation
 - P4.6: known deviation
