@@ -1,43 +1,43 @@
-# HANDOFF — 2026-08-13 — after P10.5
+# HANDOFF — 2026-08-13 — after P10.6
 
-**Next:** ЗАПУСК ВРУЧНУЮ: implementation/high
+## Next
 
-| Параметр | Значение |
-|:--|:--|
-| Batch | solo |
-| Model class | implementation |
-| Thinking | high |
-| Context | continue-root |
-| Суть | Выполнить P10.6: удалить PHPStan baseline, закрыть level=max и закрепить локальные quality/docs gates. |
-| Команда | — |
+| Batch | Model | Thinking | Context | Суть |
+|:--|:--|:--|:--|:--|
+| solo | frontier | high — cross-cutting quality-contract redesign | cold-start-root | Разбить и перепроектировать путь к PHPStan `level:max` без baseline, не ослабляя acceptance. |
+
+#### Native Codex launch-block
 
 ```bash
-codex -C /home/vostrikov/projects/agelto/agelto -m gpt-5.6-terra -c 'model_reasoning_effort="high"' -a never -s danger-full-access '$ task:plan-run 2026.08.09-RELEASE-READINESS P10.6'
+codex -C /home/vostrikov/projects/agelto/agelto -m gpt-5.6-sol -c 'model_reasoning_effort="high"' -a never -s danger-full-access '$ task:plan-design 2026.08.09-RELEASE-READINESS P10.6'
 ```
 
-```text
-$ task:plan-run 2026.08.09-RELEASE-READINESS P10.6
-```
+## Done
 
-**Done:** `7bd019c0` closes the verified high-severity proxy, MinIO argv, active-analysis race
-and configured OpenAI secret blockers with public regression seams. `ab293e9d` and `639f687b`
-remove stale configured PHPStan findings without changing the baseline, ignore/exclude set or
-level; configured PHPStan is green. The P10.5 matrix records every P10.2–P10.4 audit ID exactly
-once, and `quality-remediation-contract.sh` is green.
+- P10.6 дошёл до подтверждённого terminal block: quality contract не ослаблялся.
+- `findings/P10.6-quality-gate-block-2026-08-13.md` хранит воспроизводимое evidence,
+  block-candidate v1 и isolated return judgement.
+- Evidence commit: `8bc981a4` (`docs(plan): record P10.6 quality gate block`).
 
-**Remaining:** P10.6 owns removal of `phpstan-baseline.neon`, a green raw `level=max` gate, the
-aggregate local quality command and living-documentation reconciliation. Then P10 enters its
-phase-audit/close boundary.
+## Remaining
 
-**Sources of truth:** `phases/P10/P10.5.state.md` ·
-`artifacts/P10-remediation-matrix.md` · `docker/tests/quality-remediation-contract.sh` ·
-`findings/P10.5-downstream-P10.6-f9944855155e-639f687b07f2.md` · D39.
+- `plan-design` должен определить безопасную, проверяемую topology для устранения
+  PHPStan `level:max` без baseline и затем обновить P10.6/последующих consumers.
 
-**Open risks:** Raw Larastan `level=max` without a baseline still reports 1591 errors across 266
-paths on `639f687b`, measured with the command recorded in the matrix; P10.6 must remove that
-debt rather than mask it. P10.6 downstream validation remains `unknown` until its carrier exists.
+## Sources of truth
 
-**Workarounds/Deferred/Open questions:** P10.2-S02 awaits an owner-chosen fixture admission
-budget; P10.3-D02 belongs to P10.6 documentation; P10.4-T01 belongs to P11 test topology. The
-repository has no resolvable TIA default branch, so the full P10.5 suite used Pest `--no-tia`;
-P11 owns the TIA topology repair.
+- `phases/P10/P10.6.md` — неизменённое acceptance ТЗ.
+- `phases/P10/P10.6.state.md` и `journal.jsonl` — terminal состояние P10.6.
+- `findings/P10.6-quality-gate-block-2026-08-13.md` — observed evidence и reducer outcome.
+- `artifacts/P10-remediation-matrix.md` — P10.5 input and unresolved P10.6 quality debt.
+
+## Open risks
+
+- Любой обход через PHPStan baseline, ignore/exclude или level downgrade нарушит D39 и P10.6.
+- Локальный repair Pint или memory limit сам по себе не доказывает full quality gate.
+
+## Workarounds/Deferred/Open questions
+
+- Workarounds: —
+- Deferred: P10.3-D02 остаётся consumer P10.6 до plan-design решения.
+- Open questions: плану нужен owner-approved decomposition cross-cutting static-analysis remediation.
