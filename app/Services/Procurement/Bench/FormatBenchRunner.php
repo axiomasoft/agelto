@@ -40,6 +40,10 @@ use Illuminate\Support\Facades\Storage;
 use Throwable;
 
 /**
+ * @phpstan-type RepresentationFacts array{kind: string|null, tool: string|null, size_bytes: int|null, page_count: int|null, token_estimate: int|null}
+ * @phpstan-type PreflightFacts array{route: string|null, reason: string|null}
+ * @phpstan-type PredictedCost array{input_tokens: int, input_cost_micros: int}
+ *
  * Harness бенчмарка форматов входа (P6.1, D3/D48–D52): для каждого эталона с ДЕТЕРМИНИРОВАННЫМ
  * gold и каждого варианта представления собирает ячейку `BenchCellResult` — объём/цену
  * (детерминированно, БЕЗ LLM-вызова) и, вне `--dry-run`, качество/поведение реального прогона
@@ -97,11 +101,14 @@ final readonly class FormatBenchRunner
     {
         $route = $this->routes->resolve(AiDocumentType::Estimate, EstimateLlmPurpose::ExtractRows);
         $promptVersionSet = $this->prompts->compose(EstimatePromptStep::ExtractionRows)->promptVersionSet;
+        /** @var array<string, int> $promptVersionSet */
         $libreOfficeAvailable = $this->libreOffice->version() !== null;
 
         $examples = $this->eligibleExamples($onlyCodes, $limit);
 
+        /** @var list<array<string, mixed>> $cells */
         $cells = [];
+        /** @var list<string> $rejected */
         $rejected = [];
 
         foreach ($examples as $example) {
@@ -141,10 +148,16 @@ final readonly class FormatBenchRunner
 
         usort($cells, static fn (array $a, array $b): int => [$a['fixture_code'], $a['variant']] <=> [$b['fixture_code'], $b['variant']]);
 
+        $provider = $route->route->provider;
+
+        if ($provider === null) {
+            throw new \RuntimeException('Маршрут бенчмарка не содержит провайдера.');
+        }
+
         return [
             'mode' => $dryRun ? 'dry' : 'run',
             'generated_at' => now()->toIso8601String(),
-            'route' => ['provider' => $route->route->provider->code, 'model' => $route->route->model],
+            'route' => ['provider' => $provider->code, 'model' => $route->route->model],
             'prompt_version_set' => $promptVersionSet,
             'cells' => $cells,
             'rejected' => $rejected,
@@ -170,12 +183,21 @@ final readonly class FormatBenchRunner
             ->whereIn('fixture_id', $fixtures->pluck('id'))
             ->with(['fixture', 'documentVersion'])
             ->get()
-            ->sortBy(fn (DatasetExample $example): string => $example->fixture->code)
+            ->sortBy(function (DatasetExample $example): string {
+                $fixture = $example->fixture;
+
+                if ($fixture === null) {
+                    return '';
+                }
+
+                return $fixture->code;
+            })
             ->values();
 
         return $limit !== null ? $examples->take($limit) : $examples;
     }
 
+    /** @param array<string, int> $promptVersionSet */
     private function buildCell(
         Fixture $fixture,
         DatasetExample $example,
@@ -219,12 +241,14 @@ final readonly class FormatBenchRunner
             ];
 
             $inputTokens = $effective['extension'] === 'pdf'
-                ? $facts['page_count'] * 258
-                : (int) $facts['token_estimate'];
+                ? ($facts['page_count'] ?? throw new \RuntimeException('PDF-ячейке нужен page_count.')) * 258
+                : $facts['token_estimate'] ?? throw new \RuntimeException('Текстовой ячейке нужен token_estimate.');
 
             $capabilities = (array) config('ai.capabilities', []);
             $pricing = $capabilities[$route->options->model] ?? null;
-            $inputCostMicros = is_array($pricing) ? (int) ceil($inputTokens * (float) $pricing['input_per_1m']) : 0;
+            $inputCostMicros = is_array($pricing) && isset($pricing['input_per_1m']) && is_numeric($pricing['input_per_1m'])
+                ? (int) ceil($inputTokens * (float) $pricing['input_per_1m'])
+                : 0;
 
             $predicted = ['input_tokens' => $inputTokens, 'input_cost_micros' => $inputCostMicros];
 
@@ -244,6 +268,12 @@ final readonly class FormatBenchRunner
      * `LlmCall::max('id')` (сброс `Analysis` не отделяет прогоны друг от друга — отделяет именно
      * граница по id), сравнение с gold через `EvalMetrics::compare()`.
      */
+    /**
+     * @param  RepresentationFacts  $facts
+     * @param  PreflightFacts  $preflight
+     * @param  PredictedCost  $predicted
+     * @param  array<string, int>  $promptVersionSet
+     */
     private function runCell(
         Fixture $fixture,
         DatasetExample $example,
@@ -256,7 +286,7 @@ final readonly class FormatBenchRunner
         array $promptVersionSet,
     ): BenchCellResult {
         $forceKind = $variant === 'default' ? null : RepresentationKind::from($variant);
-        $maxLlmCallId = (int) (LlmCall::query()->max('id') ?? 0);
+        $maxLlmCallId = $this->intValue(LlmCall::query()->max('id') ?? 0, 'llm_calls.max(id)');
 
         // Launch-точка (§3.5 root/document-contour.md) — КАЖДАЯ ячейка это отдельный прогон:
         // `Analysis` ниже сбрасывается и переиспользуется той же строкой (partial unique
@@ -291,7 +321,7 @@ final readonly class FormatBenchRunner
         $outcome = ['status' => 'failed', 'last_error' => null];
 
         try {
-            $maxIterations = (int) config('ai.eval.max_orchestrator_iterations', 200);
+            $maxIterations = $this->intValue(config('ai.eval.max_orchestrator_iterations', 200), 'ai.eval.max_orchestrator_iterations');
             $iterations = 0;
 
             do {
@@ -302,7 +332,7 @@ final readonly class FormatBenchRunner
 
             $outcome = match ($analysis->status) {
                 AnalysisStatus::Succeeded => ['status' => 'succeeded', 'last_error' => null],
-                AnalysisStatus::Skipped => ['status' => 'unprocessable', 'last_error' => (string) ($analysis->result['detail'] ?? $analysis->result['unprocessable_reason'] ?? null)],
+                AnalysisStatus::Skipped => ['status' => 'unprocessable', 'last_error' => $this->nullableString($analysis->result?->get('detail') ?? $analysis->result?->get('unprocessable_reason'))],
                 default => ['status' => 'failed', 'last_error' => "analysis.status={$analysis->status->value}"],
             };
         } catch (Throwable $e) {
@@ -324,21 +354,21 @@ final readonly class FormatBenchRunner
             ->get();
 
         $actual = [
-            'prompt_tokens' => (int) $calls->sum('prompt_tokens'),
-            'cached_tokens' => (int) $calls->sum('cached_tokens'),
-            'completion_tokens' => (int) $calls->sum('completion_tokens'),
-            'total_tokens' => (int) $calls->sum('total_tokens'),
-            'cost_micros' => (int) $calls->sum('cost_micros'),
+            'prompt_tokens' => $this->intValue($calls->sum('prompt_tokens'), 'prompt_tokens'),
+            'cached_tokens' => $this->intValue($calls->sum('cached_tokens'), 'cached_tokens'),
+            'completion_tokens' => $this->intValue($calls->sum('completion_tokens'), 'completion_tokens'),
+            'total_tokens' => $this->intValue($calls->sum('total_tokens'), 'total_tokens'),
+            'cost_micros' => $this->intValue($calls->sum('cost_micros'), 'cost_micros'),
             'calls' => $calls->count(),
             'failed_calls' => $calls->where('success', false)->count(),
-            'duration_ms' => (int) $calls->sum('duration_ms'),
+            'duration_ms' => $this->intValue($calls->sum('duration_ms'), 'duration_ms'),
         ];
 
         $quality = null;
 
         if ($outcome['status'] === 'succeeded') {
-            $predictedEstimates = (array) ($analysis->result['estimates'] ?? []);
-            $goldEstimates = (array) ($example->gold['estimates'] ?? []);
+            $predictedEstimates = $this->estimateList($analysis->result?->get('estimates'));
+            $goldEstimates = $this->estimateList($example->gold['estimates'] ?? null);
             $quality = $this->metrics->compare(goldEstimates: $goldEstimates, predictedEstimates: $predictedEstimates);
         }
 
@@ -352,6 +382,10 @@ final readonly class FormatBenchRunner
     {
         if ($variant === 'default') {
             $effective = $this->resolver->forLlm($version);
+
+            if ($effective === null) {
+                return null;
+            }
             $pdfRepresentation = $this->representations->find($version, RepresentationKind::Pdf);
 
             if ($pdfRepresentation !== null) {
@@ -420,8 +454,8 @@ final readonly class FormatBenchRunner
 
     private function producePdfAlt(Fixture $fixture, DocumentVersion $version): ?DocumentRepresentation
     {
-        $documentsDisk = (string) config('crawler.documents_disk');
-        $fixturesDisk = (string) config('ai.fixtures.disk');
+        $documentsDisk = $this->stringValue(config('crawler.documents_disk'), 'crawler.documents_disk');
+        $fixturesDisk = $this->stringValue(config('ai.fixtures.disk'), 'ai.fixtures.disk');
         $localInput = tempnam(sys_get_temp_dir(), 'bench_pdf_alt_').'.'.$version->extension;
         $outputDir = sys_get_temp_dir();
 
@@ -457,10 +491,56 @@ final readonly class FormatBenchRunner
     {
         return [
             'kind' => $representation->kind->value,
-            'tool' => (string) ($representation->meta['tool'] ?? null) ?: null,
+            'tool' => $this->nullableString($representation->meta['tool'] ?? null),
             'size_bytes' => $representation->size_bytes,
             'page_count' => $representation->page_count,
             'token_estimate' => $representation->token_estimate,
         ];
+    }
+
+    private function intValue(mixed $value, string $context): int
+    {
+        if (is_int($value)) {
+            return $value;
+        }
+
+        if (is_float($value) || (is_string($value) && preg_match('/^-?\d+(?:\.\d+)?$/', $value) === 1)) {
+            return (int) $value;
+        }
+
+        throw new \RuntimeException("{$context}: ожидается числовое значение.");
+    }
+
+    private function nullableString(mixed $value): ?string
+    {
+        return is_string($value) && $value !== '' ? $value : null;
+    }
+
+    private function stringValue(mixed $value, string $context): string
+    {
+        if (! is_string($value) || $value === '') {
+            throw new \RuntimeException("{$context}: ожидается непустая строка.");
+        }
+
+        return $value;
+    }
+
+    /** @return list<array<string, mixed>> */
+    private function estimateList(mixed $value): array
+    {
+        if (! is_array($value)) {
+            return [];
+        }
+
+        $estimates = [];
+
+        foreach (array_values($value) as $estimate) {
+            if (is_array($estimate)) {
+                /** @var array<string, mixed> $estimate */
+                $estimates[] = $estimate;
+            }
+        }
+
+        return $estimates;
     }
 }
