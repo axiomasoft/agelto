@@ -60,17 +60,21 @@ final readonly class EstimatePersister
     public function persist(Analysis $analysis, ?int $supersededAnalysisId = null): void
     {
         $version = $analysis->documentVersion;
+
+        if ($version === null) {
+            throw new \LogicException("Analysis #{$analysis->id} не содержит document version.");
+        }
+
         $document = Document::query()->findOrFail($version->document_id);
 
-        /** @var list<array<string, mixed>> $estimatesData */
-        $estimatesData = (array) ($analysis->result['estimates'] ?? []);
+        $estimatesData = $this->objectList($analysis->result['estimates'] ?? [], 'analysis.result.estimates');
 
         if ($supersededAnalysisId !== null) {
             DB::transaction(function () use ($supersededAnalysisId, $analysis, $document, $version, $estimatesData): void {
                 $this->estimates->deleteByAnalysisId($supersededAnalysisId);
 
                 foreach ($estimatesData as $data) {
-                    $this->persistEstimate($analysis, $document, $version, (array) $data);
+                    $this->persistEstimate($analysis, $document, $version, $data);
                 }
             });
 
@@ -78,7 +82,7 @@ final readonly class EstimatePersister
         }
 
         foreach ($estimatesData as $data) {
-            $this->persistEstimate($analysis, $document, $version, (array) $data);
+            $this->persistEstimate($analysis, $document, $version, $data);
         }
     }
 
@@ -87,15 +91,15 @@ final readonly class EstimatePersister
      */
     private function persistEstimate(Analysis $analysis, Document $document, DocumentVersion $version, array $data): void
     {
-        $rows = array_map(static fn (array $row): EstimateRow => EstimateRow::from($row), (array) ($data['rows'] ?? []));
-        $incompleteItems = array_map(static fn (array $row): IncompleteRow => IncompleteRow::from($row), (array) ($data['incomplete_items'] ?? []));
-        $totals = isset($data['totals']) && $data['totals'] !== null ? EstimateTotalsBlock::from($data['totals']) : null;
-        $workTypes = array_map(static fn (array $workType): EstimateWorkType => EstimateWorkType::from($workType), (array) ($data['work_types'] ?? []));
+        $rows = $this->estimateRows($data['rows'] ?? []);
+        $incompleteItems = $this->incompleteRows($data['incomplete_items'] ?? []);
+        $totals = ($data['totals'] ?? null) === null ? null : EstimateTotalsBlock::from($this->jsonObject($data['totals'], 'estimate totals'));
+        $workTypes = $this->workTypes($data['work_types'] ?? []);
 
         $stitched = $this->stitcher->stitch($rows, $incompleteItems);
-        $report = $this->validator->validate((int) ($data['rows_expected'] ?? 0), $stitched->rows, $totals);
+        $report = $this->validator->validate($this->integerValue($data['rows_expected'] ?? 0, 'estimate rows_expected'), $stitched->rows, $totals);
 
-        $ordinal = (int) $data['ordinal'];
+        $ordinal = $this->integerValue($data['ordinal'] ?? null, 'estimate ordinal');
         $estimateNumber = $data['estimate_number'] ?? null;
         $itemRows = array_values(array_filter($stitched->rows, static fn (EstimateRow $row): bool => $row->row_type === RowType::Item));
 
@@ -123,7 +127,7 @@ final readonly class EstimatePersister
                     'period_start' => $data['period_start'] ?? null,
                     'period_end' => $data['period_end'] ?? null,
                     ...$this->rawResultAttributes($analysis->id, $ordinal, $data),
-                    'rows_expected' => (int) ($data['rows_expected'] ?? 0),
+                    'rows_expected' => $this->integerValue($data['rows_expected'] ?? 0, 'estimate rows_expected'),
                     'rows_extracted' => count($itemRows),
                     'validation_status' => $report->status->value,
                     'validation_notes' => $report->notes === [] ? null : $report->notes,
@@ -135,7 +139,7 @@ final readonly class EstimatePersister
             $this->persistRows($estimate, $stitched->rows, $stitched->sectionPaths, $report);
 
             if ($totals !== null) {
-                $this->estimates->replaceTotals($estimate->id, $totals->footer);
+                $this->estimates->replaceTotals($estimate->id, array_values($totals->footer));
             }
 
             $this->storeEvent($document, $estimate);
@@ -178,26 +182,13 @@ final readonly class EstimatePersister
                 ],
             );
 
-            $this->estimates->replaceResources(
-                $item,
-                array_map(static function (RowResource $resource): array {
-                    $unit = UnitNormalizer::normalize($resource->unit);
+            $resourceRows = [];
 
-                    return [
-                        'resource_type' => $resource->resource_type,
-                        'code' => $resource->code,
-                        'name' => $resource->name,
-                        'unit' => $resource->unit,
-                        'unit_base' => $unit['unit_base'],
-                        'unit_multiplier' => $unit['unit_multiplier'],
-                        'quantity' => $resource->quantity,
-                        'price_base' => $resource->price_base,
-                        'price_curr' => $resource->price_curr,
-                        'index_code' => $resource->index_code,
-                        'index_value' => $resource->index_value,
-                    ];
-                }, $row->resources),
-            );
+            foreach ($row->resources as $resource) {
+                $resourceRows[] = self::resourceAttributes($resource);
+            }
+
+            $this->estimates->replaceResources($item, $resourceRows);
         }
     }
 
@@ -251,7 +242,9 @@ final readonly class EstimatePersister
         $quality = [];
 
         if ($row->quality !== null) {
-            $quality['model'] = $row->quality->toArray();
+            /** @var array<string, mixed> $modelQuality */
+            $modelQuality = $row->quality->toArray();
+            $quality['model'] = $modelQuality;
         }
 
         if ($report !== null) {
@@ -283,17 +276,15 @@ final readonly class EstimatePersister
 
         $values = [];
 
-        foreach (RowAttributes::ALLOWED_KEYS as $key) {
-            $value = $attributes->{$key};
+        if ($attributes->modifiers !== []) {
+            $values['modifiers'] = array_map(static fn (RowModifier $modifier): array => $modifier->toArray(), $attributes->modifiers);
+        }
 
-            if ($key === 'modifiers') {
-                if ($value !== []) {
-                    $values['modifiers'] = array_map(static fn (RowModifier $modifier): array => $modifier->toArray(), $value);
-                }
-
-                continue;
-            }
-
+        foreach ([
+            'amount_since_start' => $attributes->amount_since_start,
+            'amount_since_year_start' => $attributes->amount_since_year_start,
+            'amount_reporting_period' => $attributes->amount_reporting_period,
+        ] as $key => $value) {
             if ($value !== null) {
                 $values[$key] = $value;
             }
@@ -395,6 +386,28 @@ final readonly class EstimatePersister
         return ['raw_result' => null, 'raw_result_ref' => $path, 'raw_result_disk' => $disk];
     }
 
+    /**
+     * @return array<string, mixed>
+     */
+    private static function resourceAttributes(RowResource $resource): array
+    {
+        $unit = UnitNormalizer::normalize($resource->unit);
+
+        return [
+            'resource_type' => $resource->resource_type,
+            'code' => $resource->code,
+            'name' => $resource->name,
+            'unit' => $resource->unit,
+            'unit_base' => $unit['unit_base'],
+            'unit_multiplier' => $unit['unit_multiplier'],
+            'quantity' => $resource->quantity,
+            'price_base' => $resource->price_base,
+            'price_curr' => $resource->price_curr,
+            'index_code' => $resource->index_code,
+            'index_value' => $resource->index_value,
+        ];
+    }
+
     private function storeEvent(Document $document, Estimate $estimate): void
     {
         if ($document->procurement_id === null) {
@@ -409,5 +422,91 @@ final readonly class EstimatePersister
             newValue: $estimate->validation_status,
             payload: ['ordinal' => $estimate->ordinal, 'rows_extracted' => $estimate->rows_extracted],
         );
+    }
+
+    /**
+     * @return list<array<string, mixed>>
+     */
+    private function objectList(mixed $value, string $context): array
+    {
+        if (! is_array($value)) {
+            throw new \LogicException("{$context} должен быть списком объектов.");
+        }
+
+        $objects = [];
+
+        foreach ($value as $entry) {
+            $objects[] = $this->jsonObject($entry, $context);
+        }
+
+        return $objects;
+    }
+
+    /**
+     * @return list<EstimateRow>
+     */
+    private function estimateRows(mixed $value): array
+    {
+        $rows = [];
+
+        foreach ($this->objectList($value, 'estimate rows') as $row) {
+            $rows[] = EstimateRow::from($row);
+        }
+
+        return $rows;
+    }
+
+    /**
+     * @return list<IncompleteRow>
+     */
+    private function incompleteRows(mixed $value): array
+    {
+        $rows = [];
+
+        foreach ($this->objectList($value, 'estimate incomplete_items') as $row) {
+            $rows[] = IncompleteRow::from($row);
+        }
+
+        return $rows;
+    }
+
+    /**
+     * @return list<EstimateWorkType>
+     */
+    private function workTypes(mixed $value): array
+    {
+        $workTypes = [];
+
+        foreach ($this->objectList($value, 'estimate work_types') as $workType) {
+            $workTypes[] = EstimateWorkType::from($workType);
+        }
+
+        return $workTypes;
+    }
+
+    private function integerValue(mixed $value, string $context): int
+    {
+        if (is_int($value)) {
+            return $value;
+        }
+
+        if (is_string($value) && preg_match('/^-?\d+$/', $value) === 1) {
+            return (int) $value;
+        }
+
+        throw new \LogicException("{$context} должен быть целым числом.");
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function jsonObject(mixed $value, string $context): array
+    {
+        if (! is_array($value) || array_is_list($value)) {
+            throw new \LogicException("{$context} должен быть JSON-объектом.");
+        }
+
+        /** @var array<string, mixed> $value */
+        return $value;
     }
 }
