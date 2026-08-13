@@ -16,9 +16,15 @@ final class OperationLogResource extends Resource
 {
     protected static ?string $model = OperationLog::class;
 
-    protected static string|\UnitEnum|null $navigationGroup = 'Краулинг';
+    protected static string|\UnitEnum|null $navigationGroup = 'Система';
 
-    protected static ?int $navigationSort = 70;
+    protected static ?int $navigationSort = 10;
+
+    protected static ?string $navigationLabel = 'Журнал процессов';
+
+    protected static ?string $modelLabel = 'запись журнала процессов';
+
+    protected static ?string $pluralModelLabel = 'журнал процессов';
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedDocumentText;
 

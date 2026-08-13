@@ -31,6 +31,12 @@ class ProcurementResource extends Resource
 
     protected static ?int $navigationSort = 10;
 
+    protected static ?string $navigationLabel = 'Закупки';
+
+    protected static ?string $modelLabel = 'закупка';
+
+    protected static ?string $pluralModelLabel = 'закупки';
+
     public static function infolist(Schema $schema): Schema
     {
         return ProcurementInfolist::configure($schema);

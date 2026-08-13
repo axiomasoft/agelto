@@ -19,13 +19,13 @@ final class CrawlerProxySettingsPage extends Page
 {
     protected static ?string $slug = 'crawler-proxy-settings';
 
-    protected static string|\UnitEnum|null $navigationGroup = 'Краулинг';
+    protected static string|\UnitEnum|null $navigationGroup = 'Сбор данных';
 
-    protected static ?int $navigationSort = 41;
+    protected static ?int $navigationSort = 40;
 
     protected static string|\BackedEnum|null $navigationIcon = Heroicon::OutlinedAdjustmentsHorizontal;
 
-    protected static ?string $navigationLabel = 'Прокси краулера';
+    protected static ?string $navigationLabel = 'Прокси по умолчанию';
 
     protected string $view = 'filament.pages.crawler-proxy-settings-page';
 
@@ -46,7 +46,7 @@ final class CrawlerProxySettingsPage extends Page
 
     public function getTitle(): string
     {
-        return 'Прокси краулера';
+        return 'Прокси по умолчанию';
     }
 
     public function form(Schema $schema): Schema

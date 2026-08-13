@@ -26,14 +26,16 @@ class PromptSuggestionResource extends Resource
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedInboxStack;
 
-    protected static string|\UnitEnum|null $navigationGroup = 'AI-анализ';
+    protected static string|\UnitEnum|null $navigationGroup = 'Настройка AI';
 
     // Сразу после PromptResource (30): очередь — про те же промты.
-    protected static ?int $navigationSort = 35;
+    protected static ?int $navigationSort = 50;
 
-    protected static ?string $modelLabel = 'предложение по промту';
+    protected static ?string $navigationLabel = 'Предложения по улучшению';
 
-    protected static ?string $pluralModelLabel = 'предложения по промтам';
+    protected static ?string $modelLabel = 'предложение по улучшению';
+
+    protected static ?string $pluralModelLabel = 'предложения по улучшению';
 
     public static function infolist(Schema $schema): Schema
     {

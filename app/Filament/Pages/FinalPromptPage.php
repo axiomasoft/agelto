@@ -68,7 +68,7 @@ final class FinalPromptPage extends Page implements HasTable
                     ->dateTime(),
                 TextColumn::make('success')
                     ->label('Успех')
-                    ->badge(),
+                    ->boolean(),
             ])
             ->defaultSort('called_at')
             ->recordAction('select')

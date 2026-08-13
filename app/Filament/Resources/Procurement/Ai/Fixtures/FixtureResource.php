@@ -33,9 +33,15 @@ class FixtureResource extends Resource
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedRectangleStack;
 
-    protected static string|\UnitEnum|null $navigationGroup = 'AI-анализ';
+    protected static string|\UnitEnum|null $navigationGroup = 'Качество анализа';
 
-    protected static ?int $navigationSort = 50;
+    protected static ?int $navigationSort = 10;
+
+    protected static ?string $navigationLabel = 'Эталонные документы';
+
+    protected static ?string $modelLabel = 'эталонный документ';
+
+    protected static ?string $pluralModelLabel = 'эталонные документы';
 
     protected static ?string $recordTitleAttribute = 'title';
 

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Filament\Resources\Procurement\Ai\Fixtures\Schemas;
 
 use App\Enums\Procurement\Ai\AiDocumentType;
+use App\Filament\Support\LlmPresentation;
 use App\Services\Procurement\Contracts\DocumentAnalyzerRegistry;
 use App\Services\Procurement\Contracts\SupportsTypeProfileValidation;
 use Closure;
@@ -42,11 +43,11 @@ class FixtureForm
                     ->maxLength(255),
                 Select::make('document_type')
                     ->label('Тип документа (ожидаемый вердикт скрининга)')
-                    ->options(collect(AiDocumentType::cases())->pluck('value', 'value')->all())
+                    ->options(LlmPresentation::documentTypeOptions())
                     ->required(),
                 Select::make('owner_document_type')
                     ->label('Владелец профиля')
-                    ->options(collect(AiDocumentType::cases())->pluck('value', 'value')->all())
+                    ->options(LlmPresentation::documentTypeOptions())
                     ->required()
                     ->live(),
                 KeyValue::make('type_profile')

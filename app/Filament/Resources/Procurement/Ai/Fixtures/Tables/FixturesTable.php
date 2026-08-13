@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Filament\Resources\Procurement\Ai\Fixtures\Tables;
 
 use App\Enums\Procurement\Ai\AiDocumentType;
+use App\Filament\Support\LlmPresentation;
 use App\Exceptions\Procurement\Ai\ManifestUnreadable;
 use App\Models\Procurement\Ai\Fixture;
 use App\Services\Procurement\Fixture\FixtureManifestReader;
@@ -91,10 +92,10 @@ class FixturesTable
             ->filters([
                 SelectFilter::make('document_type')
                     ->label('Тип (вердикт)')
-                    ->options(collect(AiDocumentType::cases())->pluck('value', 'value')->all()),
+                    ->options(LlmPresentation::documentTypeOptions()),
                 SelectFilter::make('owner_document_type')
                     ->label('Владелец профиля')
-                    ->options(collect(AiDocumentType::cases())->pluck('value', 'value')->all()),
+                    ->options(LlmPresentation::documentTypeOptions()),
                 // Витрина НЕ знает имён и множеств значений полей профиля (D43) — фильтр по
                 // `type_profile` целиком генерический: оператор вводит ИМЯ произвольного поля
                 // профиля и искомое значение, экран строит выражение по этому ключу сам не зная,

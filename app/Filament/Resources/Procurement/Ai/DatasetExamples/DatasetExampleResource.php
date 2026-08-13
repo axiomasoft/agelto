@@ -21,9 +21,15 @@ class DatasetExampleResource extends Resource
 {
     protected static ?string $model = DatasetExample::class;
 
-    protected static string|\UnitEnum|null $navigationGroup = 'AI-анализ';
+    protected static string|\UnitEnum|null $navigationGroup = 'Качество анализа';
 
-    protected static ?int $navigationSort = 40;
+    protected static ?int $navigationSort = 20;
+
+    protected static ?string $navigationLabel = 'Проверенные примеры';
+
+    protected static ?string $modelLabel = 'проверенный пример';
+
+    protected static ?string $pluralModelLabel = 'проверенные примеры';
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedRectangleStack;
 

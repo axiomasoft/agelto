@@ -18,9 +18,15 @@ class LlmRouteResource extends Resource
 {
     protected static ?string $model = LlmRoute::class;
 
-    protected static string|\UnitEnum|null $navigationGroup = 'AI-анализ';
+    protected static string|\UnitEnum|null $navigationGroup = 'Настройка AI';
 
     protected static ?int $navigationSort = 20;
+
+    protected static ?string $navigationLabel = 'Модели для задач';
+
+    protected static ?string $modelLabel = 'модель для задачи';
+
+    protected static ?string $pluralModelLabel = 'модели для задач';
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedRectangleStack;
 

@@ -18,9 +18,15 @@ class RegistryResource extends Resource
 {
     protected static ?string $model = Registry::class;
 
-    protected static string|\UnitEnum|null $navigationGroup = 'Краулинг';
+    protected static string|\UnitEnum|null $navigationGroup = 'Площадки';
 
     protected static ?int $navigationSort = 20;
+
+    protected static ?string $navigationLabel = 'Реестры закупок';
+
+    protected static ?string $modelLabel = 'реестр закупок';
+
+    protected static ?string $pluralModelLabel = 'реестры закупок';
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedRectangleStack;
 

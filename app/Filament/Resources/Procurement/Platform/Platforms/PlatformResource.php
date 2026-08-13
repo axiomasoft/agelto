@@ -18,9 +18,15 @@ class PlatformResource extends Resource
 {
     protected static ?string $model = Platform::class;
 
-    protected static string|\UnitEnum|null $navigationGroup = 'Краулинг';
+    protected static string|\UnitEnum|null $navigationGroup = 'Площадки';
 
     protected static ?int $navigationSort = 10;
+
+    protected static ?string $navigationLabel = 'Площадки';
+
+    protected static ?string $modelLabel = 'площадка';
+
+    protected static ?string $pluralModelLabel = 'площадки';
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedRectangleStack;
 

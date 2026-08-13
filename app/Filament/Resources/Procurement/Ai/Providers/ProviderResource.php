@@ -18,9 +18,15 @@ class ProviderResource extends Resource
 {
     protected static ?string $model = Provider::class;
 
-    protected static string|\UnitEnum|null $navigationGroup = 'AI-анализ';
+    protected static string|\UnitEnum|null $navigationGroup = 'Настройка AI';
 
     protected static ?int $navigationSort = 10;
+
+    protected static ?string $navigationLabel = 'AI-провайдеры';
+
+    protected static ?string $modelLabel = 'AI-провайдер';
+
+    protected static ?string $pluralModelLabel = 'AI-провайдеры';
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedRectangleStack;
 

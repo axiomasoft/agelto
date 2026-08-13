@@ -20,9 +20,15 @@ class PromptResource extends Resource
 {
     protected static ?string $model = Prompt::class;
 
-    protected static string|\UnitEnum|null $navigationGroup = 'AI-анализ';
+    protected static string|\UnitEnum|null $navigationGroup = 'Настройка AI';
 
     protected static ?int $navigationSort = 30;
+
+    protected static ?string $navigationLabel = 'Инструкции для AI';
+
+    protected static ?string $modelLabel = 'инструкция для AI';
+
+    protected static ?string $pluralModelLabel = 'инструкции для AI';
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedRectangleStack;
 

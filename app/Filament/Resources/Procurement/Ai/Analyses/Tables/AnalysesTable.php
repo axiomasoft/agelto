@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Filament\Resources\Procurement\Ai\Analyses\Tables;
 
 use App\Enums\Procurement\Ai\AiDocumentType;
+use App\Filament\Support\LlmPresentation;
 use App\Enums\Procurement\Ai\AnalysisStatus;
 use App\Enums\Procurement\Ai\AnalysisStep;
 use App\Enums\Procurement\Ai\EstimateCardinality;
@@ -96,7 +97,7 @@ class AnalysesTable
                     ->options(collect(ReviewStatus::cases())->pluck('value', 'value')->all()),
                 SelectFilter::make('screening_document_type')
                     ->label('Тип screening')
-                    ->options(collect(AiDocumentType::cases())->pluck('value', 'value')->all())
+                    ->options(LlmPresentation::documentTypeOptions())
                     ->query(static fn (Builder $query, array $data): Builder => ($type = AiDocumentType::tryFrom($data['value'] ?? '')) === null
                         ? $query
                         : $query->withScreeningDocumentType($type)),

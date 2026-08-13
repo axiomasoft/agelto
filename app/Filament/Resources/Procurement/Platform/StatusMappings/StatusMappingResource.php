@@ -24,9 +24,15 @@ final class StatusMappingResource extends Resource
 
     protected static ?string $recordTitleAttribute = 'source_stage';
 
-    protected static string|\UnitEnum|null $navigationGroup = 'Краулинг';
+    protected static string|\UnitEnum|null $navigationGroup = 'Площадки';
 
-    protected static ?int $navigationSort = 21;
+    protected static ?int $navigationSort = 30;
+
+    protected static ?string $navigationLabel = 'Соответствие статусов';
+
+    protected static ?string $modelLabel = 'соответствие статуса';
+
+    protected static ?string $pluralModelLabel = 'соответствие статусов';
 
     public static function form(Schema $schema): Schema
     {

@@ -22,9 +22,15 @@ class PlatformCheckResource extends Resource
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedHeart;
 
-    protected static string|\UnitEnum|null $navigationGroup = 'Краулинг';
+    protected static string|\UnitEnum|null $navigationGroup = 'Площадки';
 
-    protected static ?int $navigationSort = 70;
+    protected static ?int $navigationSort = 40;
+
+    protected static ?string $navigationLabel = 'Проверки площадок';
+
+    protected static ?string $modelLabel = 'проверка площадки';
+
+    protected static ?string $pluralModelLabel = 'проверки площадок';
 
     public static function infolist(Schema $schema): Schema
     {

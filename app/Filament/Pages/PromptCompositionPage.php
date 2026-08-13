@@ -7,6 +7,7 @@ namespace App\Filament\Pages;
 use App\Enums\Llm\DocumentTypeScope;
 use App\Enums\Llm\PromptStep;
 use App\Enums\Procurement\Ai\AiDocumentType;
+use App\Filament\Support\LlmPresentation;
 use App\Filament\Resources\Procurement\Ai\Prompts\PromptResource;
 use App\Models\Llm\Prompt;
 use App\Repositories\Llm\PromptReadRepository;
@@ -28,13 +29,13 @@ final class PromptCompositionPage extends Page
 {
     protected static ?string $slug = 'prompt-composition';
 
-    protected static string|\UnitEnum|null $navigationGroup = 'AI-анализ';
+    protected static string|\UnitEnum|null $navigationGroup = 'Настройка AI';
 
-    protected static ?int $navigationSort = 31;
+    protected static ?int $navigationSort = 40;
 
     protected static string|\BackedEnum|null $navigationIcon = Heroicon::OutlinedDocumentText;
 
-    protected static ?string $navigationLabel = 'Композиция системного промта';
+    protected static ?string $navigationLabel = 'Сборка инструкции';
 
     protected string $view = 'filament.pages.prompt-composition-page';
 
@@ -49,7 +50,7 @@ final class PromptCompositionPage extends Page
 
     public function getTitle(): string
     {
-        return 'Композиция системного промта';
+        return 'Сборка инструкции';
     }
 
     /** @return array<string, string> */
@@ -57,18 +58,16 @@ final class PromptCompositionPage extends Page
     {
         return [
             DocumentTypeScope::Any->value => 'Любой тип документа',
-            ...collect(AiDocumentType::cases())
-                ->mapWithKeys(static fn (AiDocumentType $type): array => [$type->value => $type->value])
-                ->all(),
+            ...LlmPresentation::documentTypeOptions(),
         ];
     }
 
     /** @return array<string, string> */
     public function stepOptions(): array
     {
-        return collect(app(DocumentAnalyzerRegistry::class)->promptStepsFor($this->selectedDocumentType()))
-            ->mapWithKeys(static fn (PromptStep $step): array => [$step->value => $step->value])
-            ->all();
+        return LlmPresentation::promptStepOptions(
+            steps: app(DocumentAnalyzerRegistry::class)->promptStepsFor($this->selectedDocumentType()),
+        );
     }
 
     public function updatedDocumentType(): void

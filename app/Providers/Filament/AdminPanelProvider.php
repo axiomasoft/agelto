@@ -50,17 +50,20 @@ class AdminPanelProvider extends PanelProvider
                 AccountWidget::class,
                 FilamentInfoWidget::class,
             ])
-            // Явная группировка и порядок навигации (канон из v1 Old-панели): решение о
-            // том, как ресурсы сгруппированы, живёт здесь, ресурсы лишь ссылаются на группу.
+            // Стабильный operator-facing порядок из D82; ресурсы ссылаются только на эти группы.
             ->navigationGroups([
-                NavigationGroup::make('Краулинг'),
                 NavigationGroup::make('Закупки'),
-                NavigationGroup::make('AI-анализ'),
-                NavigationGroup::make('Доступ'),
+                NavigationGroup::make('Площадки'),
+                NavigationGroup::make('Сбор данных'),
+                NavigationGroup::make('Качество анализа'),
+                NavigationGroup::make('Настройка AI'),
+                NavigationGroup::make('Доступ и безопасность'),
+                NavigationGroup::make('Система'),
             ])
             ->navigationItems([
                 NavigationItem::make('Документация')
-                    ->group('Доступ')
+                    ->group('Система')
+                    ->sort(20)
                     ->url(fn (): string => route(name: 'admin.documentation.show'))
                     ->visible(fn (): bool => auth()->user()?->hasPermission(
                         permission: DocumentationPermission::View,

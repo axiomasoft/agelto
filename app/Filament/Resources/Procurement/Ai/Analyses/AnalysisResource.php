@@ -28,9 +28,15 @@ class AnalysisResource extends Resource
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedRectangleStack;
 
-    protected static string|\UnitEnum|null $navigationGroup = 'AI-анализ';
+    protected static string|\UnitEnum|null $navigationGroup = 'Закупки';
 
-    protected static ?int $navigationSort = 25;
+    protected static ?int $navigationSort = 30;
+
+    protected static ?string $navigationLabel = 'Результаты анализа';
+
+    protected static ?string $modelLabel = 'результат анализа';
+
+    protected static ?string $pluralModelLabel = 'результаты анализа';
 
     public static function infolist(Schema $schema): Schema
     {

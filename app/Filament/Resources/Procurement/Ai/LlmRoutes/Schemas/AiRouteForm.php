@@ -4,6 +4,7 @@ namespace App\Filament\Resources\Procurement\Ai\LlmRoutes\Schemas;
 
 use App\Enums\Llm\DocumentTypeScope;
 use App\Enums\Procurement\Ai\AiDocumentType;
+use App\Filament\Support\LlmPresentation;
 use App\Services\Procurement\Contracts\DocumentAnalyzerRegistry;
 use Filament\Forms\Components\KeyValue;
 use Filament\Forms\Components\Select;
@@ -21,10 +22,8 @@ class AiRouteForm
             ->components([
                 Select::make('document_type')
                     ->options([
-                        ...collect(AiDocumentType::cases())->mapWithKeys(
-                            static fn (AiDocumentType $case): array => [$case->value => $case->value],
-                        )->all(),
-                        DocumentTypeScope::Any->value => DocumentTypeScope::Any->value,
+                        ...LlmPresentation::documentTypeOptions(),
+                        DocumentTypeScope::Any->value => LlmPresentation::documentType(DocumentTypeScope::Any),
                     ])
                     ->live()
                     ->required(),
@@ -32,9 +31,9 @@ class AiRouteForm
                     ->options(function (Get $get) {
                         $documentType = AiDocumentType::tryFrom((string) $get('document_type')) ?? DocumentTypeScope::Any;
 
-                        return collect(app(DocumentAnalyzerRegistry::class)->purposesFor($documentType))
-                            ->mapWithKeys(static fn ($purpose): array => [$purpose->value => $purpose->value])
-                            ->all();
+                        return LlmPresentation::promptStepOptions(
+                            steps: app(DocumentAnalyzerRegistry::class)->purposesFor($documentType),
+                        );
                     })
                     ->required(),
                 Select::make('provider_id')

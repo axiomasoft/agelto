@@ -30,7 +30,13 @@ class EstimateResource extends Resource
 
     protected static string|\UnitEnum|null $navigationGroup = 'Закупки';
 
-    protected static ?int $navigationSort = 15;
+    protected static ?int $navigationSort = 20;
+
+    protected static ?string $navigationLabel = 'Сметы';
+
+    protected static ?string $modelLabel = 'смета';
+
+    protected static ?string $pluralModelLabel = 'сметы';
 
     public static function infolist(Schema $schema): Schema
     {

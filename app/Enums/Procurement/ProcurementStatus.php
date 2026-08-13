@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Enums\Procurement;
 
+use Filament\Support\Contracts\HasLabel;
+
 /**
  * Канонический статус закупки (закрытый codelist, по мотивам OCDS tenderStatus).
  *
@@ -23,7 +25,7 @@ namespace App\Enums\Procurement;
  * подключённым парсером (критерий D5/D13). Кейс «до подачи заявок» удалён (DOMLANG D16): ЕИС не
  * выделяет такой этап — публикация извещения сразу даёт «Подача заявок», продюсера нет и не будет.
  */
-enum ProcurementStatus: string
+enum ProcurementStatus: string implements HasLabel
 {
     case Bidding = 'bidding';
     case Evaluation = 'evaluation';
@@ -32,6 +34,19 @@ enum ProcurementStatus: string
     case Cancelled = 'cancelled';
     case Unsuccessful = 'unsuccessful';
     case Unknown = 'unknown';
+
+    public function getLabel(): ?string
+    {
+        return match ($this) {
+            self::Bidding => 'Подача заявок',
+            self::Evaluation => 'Работа комиссии',
+            self::Awarded => 'Поставщик определён',
+            self::Completed => 'Завершена',
+            self::Cancelled => 'Отменена',
+            self::Unsuccessful => 'Не состоялась',
+            self::Unknown => 'Не определён',
+        };
+    }
 
     public function isTerminal(): bool
     {

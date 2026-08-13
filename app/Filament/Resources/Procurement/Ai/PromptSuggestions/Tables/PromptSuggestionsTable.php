@@ -7,6 +7,7 @@ use App\Enums\Procurement\Ai\AiDocumentType;
 use App\Enums\Procurement\Ai\AnalysisStep;
 use App\Enums\Procurement\Ai\PromptSuggestionKind;
 use App\Enums\Procurement\Ai\PromptSuggestionStatus;
+use App\Filament\Support\LlmPresentation;
 use App\Filament\Resources\Procurement\Ai\PromptSuggestions\PromptSuggestionResource;
 use App\Models\Procurement\Ai\PromptSuggestion;
 use Filament\Actions\ViewAction;
@@ -91,8 +92,8 @@ class PromptSuggestionsTable
      */
     private static function documentTypeOptions(): array
     {
-        $options = collect(AiDocumentType::cases())->pluck('value', 'value')->all();
-        $options[DocumentTypeScope::Any->value] = DocumentTypeScope::Any->value;
+        $options = LlmPresentation::documentTypeOptions();
+        $options[DocumentTypeScope::Any->value] = LlmPresentation::documentType(DocumentTypeScope::Any);
 
         return $options;
     }

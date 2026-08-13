@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Filament\Resources\Procurement\Ai\DatasetExamples\Tables;
 
 use App\Enums\Procurement\Ai\AiDocumentType;
+use App\Filament\Support\LlmPresentation;
 use App\Enums\Procurement\Ai\AnalysisStep;
 use App\Models\Procurement\Ai\DatasetExample;
 use Filament\Actions\ViewAction;
@@ -60,7 +61,7 @@ class DatasetExamplesTable
                     ->options(collect(AnalysisStep::cases())->pluck('value', 'value')->all()),
                 SelectFilter::make('document_type')
                     ->label('Тип документа')
-                    ->options(collect(AiDocumentType::cases())->pluck('value', 'value')->all()),
+                    ->options(LlmPresentation::documentTypeOptions()),
                 SelectFilter::make('source')
                     ->label('Источник')
                     ->options(fn (): array => DatasetExample::query()

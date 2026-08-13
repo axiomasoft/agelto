@@ -4,6 +4,7 @@ namespace App\Filament\Resources\Procurement\Ai\Prompts\Schemas;
 
 use App\Enums\Llm\DocumentTypeScope;
 use App\Enums\Procurement\Ai\AiDocumentType;
+use App\Filament\Support\LlmPresentation;
 use App\Services\Procurement\Contracts\DocumentAnalyzerRegistry;
 use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\Select;
@@ -25,10 +26,8 @@ class PromptForm
                     ->columnSpanFull(),
                 Select::make('document_type')
                     ->options([
-                        ...collect(AiDocumentType::cases())->mapWithKeys(
-                            static fn (AiDocumentType $case): array => [$case->value => $case->value],
-                        )->all(),
-                        DocumentTypeScope::Any->value => DocumentTypeScope::Any->value,
+                        ...LlmPresentation::documentTypeOptions(),
+                        DocumentTypeScope::Any->value => LlmPresentation::documentType(DocumentTypeScope::Any),
                     ])
                     ->live()
                     ->required(),
@@ -39,9 +38,9 @@ class PromptForm
                     ->options(function (Get $get) {
                         $documentType = AiDocumentType::tryFrom((string) $get('document_type')) ?? DocumentTypeScope::Any;
 
-                        return collect(app(DocumentAnalyzerRegistry::class)->promptStepsFor($documentType))
-                            ->mapWithKeys(static fn ($step): array => [$step->value => $step->value])
-                            ->all();
+                        return LlmPresentation::promptStepOptions(
+                            steps: app(DocumentAnalyzerRegistry::class)->promptStepsFor($documentType),
+                        );
                     })
                     ->required()
                     ->columnSpanFull(),

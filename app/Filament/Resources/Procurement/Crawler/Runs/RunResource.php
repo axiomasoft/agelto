@@ -27,9 +27,15 @@ class RunResource extends Resource
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedRectangleStack;
 
-    protected static string|\UnitEnum|null $navigationGroup = 'Краулинг';
+    protected static string|\UnitEnum|null $navigationGroup = 'Сбор данных';
 
-    protected static ?int $navigationSort = 60;
+    protected static ?int $navigationSort = 20;
+
+    protected static ?string $navigationLabel = 'Запуски сбора';
+
+    protected static ?string $modelLabel = 'запуск сбора';
+
+    protected static ?string $pluralModelLabel = 'запуски сбора';
 
     public static function infolist(Schema $schema): Schema
     {
