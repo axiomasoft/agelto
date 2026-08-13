@@ -112,7 +112,7 @@ test('доказывает exact owner routes, Sections и mobile table actions'
         await expect(page.getByText('Подключение прокси', { exact: true })).toBeVisible();
         await expect(page.getByText('Укажите технические параметры узла. Учётные данные не выводятся после сохранения.', { exact: true })).toBeVisible();
         await expect(page.getByLabel('Сервис')).toBeVisible();
-        await expect(page.getByLabel('Хост')).toBeVisible();
+        await expect(page.getByRole('textbox', { name: /^Хост\*/ })).toBeVisible();
         await expect(page.getByLabel('Порт')).toBeVisible();
         await expect(page.getByText('Разрешённое использование', { exact: true })).toBeVisible();
         await expect(page.getByRole('button', { name: /Создать/i })).toBeVisible();
