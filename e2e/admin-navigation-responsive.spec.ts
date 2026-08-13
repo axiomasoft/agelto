@@ -151,7 +151,7 @@ test('различает role denial и unauthenticated redirect для прям
     const context = await browser.newContext();
     const unauthenticatedPage = await context.newPage();
 
-    await unauthenticatedPage.goto('/admin/roles');
+    await unauthenticatedPage.goto('/admin');
     await expect(unauthenticatedPage).toHaveURL(/\/admin\/login/);
     await context.close();
 });

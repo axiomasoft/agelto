@@ -110,13 +110,18 @@ test('загружает закрытую документацию без browse
         '-f', composeFile,
         'exec', '-T', 'app', 'php', 'artisan',
     ];
-    execFileSync('docker', [...composeArguments, 'guard:role', 'detach', adminEmail, 'App\\Guards\\Admin\\Roles\\SuperAdminRole'], { stdio: 'pipe' });
-    execFileSync('docker', [...composeArguments, 'guard:cache-reset', '--force'], { stdio: 'pipe' });
+    try {
+        execFileSync('docker', [...composeArguments, 'guard:role', 'detach', adminEmail, 'App\\Guards\\Admin\\Roles\\SuperAdminRole'], { stdio: 'pipe' });
+        execFileSync('docker', [...composeArguments, 'guard:cache-reset', '--force'], { stdio: 'pipe' });
 
-    const afterRevocation = await revokedPage.goto(`/admin/documentation/${directAssetPath}`);
-    expect(afterRevocation?.status()).toBe(403);
-    await expect(revokedPage.locator('body')).not.toContainText('body {');
-    await revokedContext.close();
+        const afterRevocation = await revokedPage.goto(`/admin/documentation/${directAssetPath}`);
+        expect(afterRevocation?.status()).toBe(403);
+        await expect(revokedPage.locator('body')).not.toContainText('body {');
+    } finally {
+        execFileSync('docker', [...composeArguments, 'guard:role', 'assign', adminEmail, 'App\\Guards\\Admin\\Roles\\SuperAdminRole'], { stdio: 'pipe' });
+        execFileSync('docker', [...composeArguments, 'guard:cache-reset', '--force'], { stdio: 'pipe' });
+        await revokedContext.close();
+    }
 
     expect(documentationResponses).not.toEqual([]);
     expect(failures).toEqual([]);
