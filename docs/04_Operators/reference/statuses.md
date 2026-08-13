@@ -6,6 +6,9 @@ status: living
 
 # Статусы и колонки админки
 
+Raw stage mapping выбирается как platform default либо exact registry override; override имеет
+приоритет. Неизвестный этап создаётся exact-registry `unknown`, не влияя на другие реестры.
+
 Сверено с `app/Enums/Procurement/` — каждый кейс перечислен.
 
 ## Статус документа (`DocumentStatus`)

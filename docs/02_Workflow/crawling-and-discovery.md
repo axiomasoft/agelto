@@ -6,6 +6,10 @@ status: living
 
 # Краулинг и обнаружение
 
+Data-only площадка не делает обход доступным: crawler profile требует typed definition с exact
+platform/registry capability. Missing mapping завершается fail-closed; checklist и test template:
+[`platform-extension.md`](../03_Dev/platform-extension.md).
+
 Это первая стадия конвейера — до неё EST-AI (AI-анализ документов) не подключается. Задача
 краулинга — найти закупки на площадках-источниках и скачать приложенные к ним документы.
 

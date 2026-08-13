@@ -6,6 +6,10 @@ status: living
 
 # База данных
 
+Status mappings имеют ровно один scope: platform default либо exact registry override. Exact
+registry выигрывает; rollback applicability отказывается до mutation при platform-scoped rows.
+Практический template — [`platform-extension.md`](platform-extension.md).
+
 Полная схема — миграции `database/migrations/` (источник истины, не копируется сюда). Этот раздел —
 карта таблиц AI-пайплайна и ключевые инварианты, которые не читаются из одной миграции с ходу.
 
