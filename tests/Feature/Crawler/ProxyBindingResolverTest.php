@@ -27,16 +27,23 @@ test('резолвер стадии объединяет только набор
     $second = Proxy::factory()->create();
     $ignoredInactive = Proxy::factory()->create();
     $ignoredDirect = Proxy::factory()->create();
+    $otherRegistry = Registry::factory()->create();
+    $ignoredOtherRegistry = Proxy::factory()->create();
 
     Crawler::factory()->for($registry)->withProxies($first)->create();
     Crawler::factory()->for($registry)->withProxies($second)->create();
     Crawler::factory()->for($registry)->withProxies($ignoredInactive)->create(['is_active' => false]);
     Crawler::factory()->for($registry)->create()->proxies()->sync([$ignoredDirect->id]);
+    Crawler::withoutEvents(static fn (): Crawler => Crawler::factory()
+        ->for($otherRegistry)
+        ->withProxies($ignoredOtherRegistry)
+        ->create());
 
     $requirements = app(ProxyBindingResolver::class)->requirementsForProcurement($procurement->id);
 
     expect($requirements->crawlerMode)->toBe(CrawlerProxyMode::Profile)
-        ->and($requirements->proxyIds)->toEqualCanonicalizing([$first->id, $second->id]);
+        ->and($requirements->proxyIds)->toEqualCanonicalizing([$first->id, $second->id])
+        ->and($requirements->proxyIds)->not->toContain($ignoredOtherRegistry->id);
 });
 
 test('резолвер стадии выбирает default без profile и direct только при явном opt-out всех профилей', function (): void {

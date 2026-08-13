@@ -20,6 +20,22 @@ grep -Fx '**Status:** 🟢 Done' "$plan_dir/phases/P8/P8.4.state.md" >/dev/null
 
 testing_app=("${compose[@]}" exec -T -e APP_ENV=testing -e DB_DATABASE="$test_database" app)
 
+pint_paths=(
+    database/factories/Procurement/ProcurementFactory.php
+    database/factories/Procurement/Platform/RegistryFactory.php
+    tests/Feature/Crawler/CsvBlockIngestorTest.php
+    tests/Feature/Crawler/DetailAnalysisProcessorTest.php
+    tests/Feature/Crawler/PlatformRequestBudgetTest.php
+    tests/Feature/Crawler/ProxyBindingResolverTest.php
+    tests/Feature/Procurement/ProcurementFactoryTest.php
+    tests/Feature/Procurement/RevisionTest.php
+    tests/Unit/Architecture/DomainLayoutTest.php
+    tests/Unit/Architecture/PlatformExtensionContractTest.php
+)
+
+printf 'P8 Pint paths (%d):\n' "${#pint_paths[@]}"
+printf ' - %s\n' "${pint_paths[@]}"
+
 "${testing_app[@]}" php artisan migrate --force
 "${testing_app[@]}" php artisan test --no-tia \
     tests/Feature/Procurement/ProcurementFactoryTest.php \
@@ -33,12 +49,7 @@ testing_app=("${compose[@]}" exec -T -e APP_ENV=testing -e DB_DATABASE="$test_da
     tests/Feature/Filament/StatusMappingResourceTest.php
 "${testing_app[@]}" php artisan config:cache
 "${testing_app[@]}" php artisan config:clear
-"${testing_app[@]}" vendor/bin/pint --test \
-    database/factories/Procurement/ProcurementFactory.php \
-    database/factories/Procurement/Platform/RegistryFactory.php \
-    tests/Feature/Procurement/ProcurementFactoryTest.php \
-    tests/Feature/Procurement/PlatformExtensionContractTest.php \
-    tests/Unit/Architecture/PlatformExtensionContractTest.php
+"${testing_app[@]}" vendor/bin/pint --test "${pint_paths[@]}"
 "${testing_app[@]}" vendor/bin/phpstan analyse \
     database/factories/Procurement/ProcurementFactory.php \
     database/factories/Procurement/Platform/RegistryFactory.php \
