@@ -17,6 +17,7 @@ use App\Services\Procurement\Analyzers\Estimate\ExtractionEvalRunner;
 use App\Services\Procurement\Screening\ScreeningEvalRunner;
 use Illuminate\Console\Command;
 use Illuminate\Support\Collection;
+use UnexpectedValueException;
 
 /**
  * Прогон ТЕКУЩЕГО extraction-пайплайна (`ExtractionOrchestrator`, P6.1/P6.4) по golden-датасету
@@ -24,6 +25,13 @@ use Illuminate\Support\Collection;
  * запускается ВРУЧНУЮ владельцем. В CI — только `--dry-run` (или пустой датасет, тот же исход):
  * пишет EvalRun-заглушку без единого LLM-вызова. Логика цикла оркестратора вынесена в
  * {@see ExtractionEvalRunner}/{@see ScreeningEvalRunner} (P3.3, `root/service-layer-map.md` §3).
+ *
+ * @phpstan-type ExtractionMetrics array{overall: array{precision: float, recall: float, f1: float}, row_coverage: float}|array{error: string}
+ * @phpstan-type ExtractionRow array{example: DatasetExample, metrics: ExtractionMetrics}
+ * @phpstan-type ExtractionAggregate array{examples: int, succeeded: int, overall: array{precision: float, recall: float, f1: float}|null, row_coverage: float|null}
+ * @phpstan-type ScreeningComparison array{gold: string, predicted: string, match: bool, gold_is_estimate: bool, predicted_is_estimate: bool, code: string|null, confidence: float, classification_note: string|null}|array{error: string}
+ * @phpstan-type ScreeningRow array{example: DatasetExample, comparison: ScreeningComparison}
+ * @phpstan-type ScreeningAggregate array{total: int, accuracy: float|null, confusion: array<string, array<string, int>>, false_positive_rate: float|null, false_negative_rate: float|null}
  */
 final class EvalRunCommand extends Command
 {
@@ -63,7 +71,7 @@ final class EvalRunCommand extends Command
             return self::SUCCESS;
         }
 
-        $task = (string) $this->option('task');
+        $task = $this->optionString('task');
 
         if (! in_array($task, ['extraction', 'screening'], true)) {
             $this->error("Неизвестный --task={$task} (ожидается extraction|screening).");
@@ -71,7 +79,7 @@ final class EvalRunCommand extends Command
             return self::FAILURE;
         }
 
-        $split = (string) $this->option('split');
+        $split = $this->optionString('split');
 
         if (! in_array($split, ['tune', 'holdout', 'all'], true)) {
             $this->error("Неизвестный --split={$split} (ожидается tune|holdout|all).");
@@ -79,7 +87,15 @@ final class EvalRunCommand extends Command
             return self::FAILURE;
         }
 
-        $datasetVersion = (string) ($this->option('dataset-version') ?: config('ai.eval.dataset_version', 'v1'));
+        $datasetVersion = $this->option('dataset-version');
+        $datasetVersion = $datasetVersion === null || $datasetVersion === ''
+            ? config('ai.eval.dataset_version', 'v1')
+            : $datasetVersion;
+
+        if (! is_string($datasetVersion)) {
+            throw new UnexpectedValueException('Значение --dataset-version и config(ai.eval.dataset_version) должно быть строкой.');
+        }
+
         $limit = $this->option('limit') !== null ? (int) $this->option('limit') : null;
         $holdoutCodes = $split !== 'all' ? $this->splitPlanner->loadHoldoutCodes() : [];
 
@@ -124,8 +140,8 @@ final class EvalRunCommand extends Command
     }
 
     /**
-     * @param  array<string, mixed>  $aggregate
-     * @param  Collection<int, array{example: DatasetExample, metrics: array{overall: array{precision: float, recall: float, f1: float}, row_coverage: float}|array{error: string}}>  $rows
+     * @param  ExtractionAggregate  $aggregate
+     * @param  Collection<int, ExtractionRow>  $rows
      */
     private function renderReport(EvalRun $run, array $aggregate, Collection $rows): void
     {
@@ -141,8 +157,18 @@ final class EvalRunCommand extends Command
             ));
         }
 
-        $worst = $rows
-            ->filter(fn (array $row): bool => ! isset($row['metrics']['error']))
+        /** @var list<array{example: DatasetExample, metrics: array{overall: array{precision: float, recall: float, f1: float}, row_coverage: float}}> $successfulRows */
+        $successfulRows = [];
+
+        foreach ($rows as $row) {
+            if (! $this->hasExtractionMetrics($row['metrics'])) {
+                continue;
+            }
+
+            $successfulRows[] = $row;
+        }
+
+        $worst = collect($successfulRows)
             ->sortBy(fn (array $row): float => $row['metrics']['overall']['f1'])
             ->take(10);
 
@@ -163,8 +189,8 @@ final class EvalRunCommand extends Command
     }
 
     /**
-     * @param  array{total: int, accuracy: float|null, confusion: array<string, array<string, int>>,
-     *     false_positive_rate: float|null, false_negative_rate: float|null}  $aggregate
+     * @param  ScreeningAggregate  $aggregate
+     * @param  Collection<int, ScreeningRow>  $rows
      */
     private function renderScreeningReport(EvalRun $run, array $aggregate, Collection $rows): void
     {
@@ -192,7 +218,18 @@ final class EvalRunCommand extends Command
             $this->table(['ожидали', 'получили', 'кол-во'], $confusionRows);
         }
 
-        $mismatches = $rows->filter(fn (array $row): bool => isset($row['comparison']['match']) && ! $row['comparison']['match']);
+        /** @var list<array{example: DatasetExample, comparison: array{gold: string, predicted: string, match: bool, gold_is_estimate: bool, predicted_is_estimate: bool, code: string|null, confidence: float, classification_note: string|null}}> $mismatchRows */
+        $mismatchRows = [];
+
+        foreach ($rows as $row) {
+            if (! $this->hasScreeningComparison($row['comparison']) || $row['comparison']['match']) {
+                continue;
+            }
+
+            $mismatchRows[] = $row;
+        }
+
+        $mismatches = collect($mismatchRows);
 
         if ($mismatches->isEmpty()) {
             return;
@@ -205,8 +242,39 @@ final class EvalRunCommand extends Command
                 $row['comparison']['gold'],
                 $row['comparison']['predicted'],
                 $row['comparison']['confidence'],
-                $row['comparison']['ignore_reason'] ?? '—',
+                '—',
             ])->all(),
         );
+    }
+
+    private function optionString(string $name): string
+    {
+        $value = $this->option($name);
+
+        if (! is_string($value)) {
+            throw new UnexpectedValueException("Опция --{$name} должна быть строкой.");
+        }
+
+        return $value;
+    }
+
+    /**
+     * @param  ExtractionMetrics  $metrics
+     *
+     * @phpstan-assert-if-true array{overall: array{precision: float, recall: float, f1: float}, row_coverage: float} $metrics
+     */
+    private function hasExtractionMetrics(array $metrics): bool
+    {
+        return ! isset($metrics['error']);
+    }
+
+    /**
+     * @param  ScreeningComparison  $comparison
+     *
+     * @phpstan-assert-if-true array{gold: string, predicted: string, match: bool, gold_is_estimate: bool, predicted_is_estimate: bool, code: string|null, confidence: float, classification_note: string|null} $comparison
+     */
+    private function hasScreeningComparison(array $comparison): bool
+    {
+        return ! isset($comparison['error']);
     }
 }

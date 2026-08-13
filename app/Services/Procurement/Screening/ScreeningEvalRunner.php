@@ -19,6 +19,7 @@ use App\Services\Llm\LlmRouteResolver;
 use App\Services\Procurement\Contracts\Dto\ProgressTick;
 use App\Services\Procurement\Contracts\ProgressReporter;
 use Illuminate\Support\Collection;
+use LogicException;
 use Throwable;
 
 /**
@@ -41,17 +42,22 @@ final readonly class ScreeningEvalRunner
 
     /**
      * @param  Collection<int, DatasetExample>  $examples
-     * @return array{run: EvalRun, aggregate: array{total: int, accuracy: float|null, confusion: array<string, array<string, int>>, false_positive_rate: float|null, false_negative_rate: float|null}, rows: Collection}
+     * @return array{run: EvalRun, aggregate: array{total: int, accuracy: float|null, confusion: array<string, array<string, int>>, false_positive_rate: float|null, false_negative_rate: float|null}, rows: Collection<int, array{example: DatasetExample, comparison: array{gold: string, predicted: string, match: bool, gold_is_estimate: bool, predicted_is_estimate: bool, code: string|null, confidence: float, classification_note: string|null}|array{error: string}}>}
      */
     public function run(Collection $examples, string $datasetVersion, ?ProgressReporter $progress = null): array
     {
         $route = $this->routes->resolve(DocumentTypeScope::Any, CoreLlmPurpose::Screening);
+        $provider = $route->route->provider;
+
+        if ($provider === null) {
+            throw new LogicException('Screening eval требует route с provider.');
+        }
 
         $run = $this->evalRuns->start([
             'document_type' => DocumentTypeScope::Any->value,
             'task' => AnalysisStep::Screening->value,
             'dataset_version' => $datasetVersion,
-            'provider' => $route->route->provider->code,
+            'provider' => $provider->code,
             'model' => $route->route->model,
             'prompt_version_set' => null,
             'metrics' => null,
@@ -60,6 +66,7 @@ final readonly class ScreeningEvalRunner
             'finished_at' => null,
         ]);
 
+        /** @var list<array{example: DatasetExample, comparison: array{gold: string, predicted: string, match: bool, gold_is_estimate: bool, predicted_is_estimate: bool, code: string|null, confidence: float, classification_note: string|null}|array{error: string}}> $comparisons */
         $comparisons = [];
         $analysisIds = [];
         $total = $examples->count();
@@ -84,17 +91,35 @@ final readonly class ScreeningEvalRunner
             ]);
         }
 
-        $validComparisons = array_values(array_filter(
-            array_column($comparisons, 'comparison'),
-            static fn (array $c): bool => ! isset($c['error']),
-        ));
+        /** @var list<array{gold: string, predicted: string, match: bool, gold_is_estimate: bool, predicted_is_estimate: bool}> $validComparisons */
+        $validComparisons = [];
+
+        foreach ($comparisons as $row) {
+            if (! $this->hasComparison($row['comparison'])) {
+                continue;
+            }
+
+            $validComparisons[] = [
+                'gold' => $row['comparison']['gold'],
+                'predicted' => $row['comparison']['predicted'],
+                'match' => $row['comparison']['match'],
+                'gold_is_estimate' => $row['comparison']['gold_is_estimate'],
+                'predicted_is_estimate' => $row['comparison']['predicted_is_estimate'],
+            ];
+        }
 
         $aggregate = $this->screeningMetrics->aggregate($validComparisons);
+
+        $startedAt = $run->started_at;
+
+        if ($startedAt === null) {
+            throw new LogicException('Созданный screening EvalRun должен иметь started_at.');
+        }
 
         $this->evalRuns->finish($run, [
             'metrics' => $aggregate,
             'finished_at' => now(),
-            'prompt_version_set' => $this->llmCalls->resolvePromptVersionSet($analysisIds, $run->started_at),
+            'prompt_version_set' => $this->llmCalls->resolvePromptVersionSet($analysisIds, $startedAt),
         ]);
 
         return ['run' => $run, 'aggregate' => $aggregate, 'rows' => collect($comparisons)];
@@ -137,7 +162,7 @@ final readonly class ScreeningEvalRunner
 
             $this->runs->markSucceeded($run);
 
-            $comparison = $this->screeningMetrics->compare($example->gold?->toArray() ?? [], $prediction);
+            $comparison = $this->screeningMetrics->compare($this->goldPayload($example->gold?->toArray() ?? []), $prediction);
 
             return [
                 ...$comparison,
@@ -151,5 +176,28 @@ final readonly class ScreeningEvalRunner
 
             return ['error' => $e->getMessage()];
         }
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function goldPayload(mixed $value): array
+    {
+        if (! is_array($value) || array_is_list($value)) {
+            throw new LogicException('Gold payload скрининга должен быть объектом с именованными полями.');
+        }
+
+        /** @var array<string, mixed> $value */
+        return $value;
+    }
+
+    /**
+     * @param  array{gold: string, predicted: string, match: bool, gold_is_estimate: bool, predicted_is_estimate: bool, code: string|null, confidence: float, classification_note: string|null}|array{error: string}  $comparison
+     *
+     * @phpstan-assert-if-true array{gold: string, predicted: string, match: bool, gold_is_estimate: bool, predicted_is_estimate: bool, code: string|null, confidence: float, classification_note: string|null} $comparison
+     */
+    private function hasComparison(array $comparison): bool
+    {
+        return ! isset($comparison['error']);
     }
 }

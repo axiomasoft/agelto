@@ -20,6 +20,7 @@ use App\Services\Llm\LlmRouteResolver;
 use App\Services\Procurement\Contracts\Dto\ProgressTick;
 use App\Services\Procurement\Contracts\ProgressReporter;
 use Illuminate\Support\Collection;
+use LogicException;
 use Throwable;
 
 /**
@@ -47,17 +48,22 @@ final readonly class ExtractionEvalRunner
 
     /**
      * @param  Collection<int, DatasetExample>  $examples
-     * @return array{run: EvalRun, aggregate: array<string, mixed>, rows: Collection<int, array{example: DatasetExample, metrics: array{overall: array{precision: float, recall: float, f1: float}, row_coverage: float}|array{error: string}}>}
+     * @return array{run: EvalRun, aggregate: array{examples: int, succeeded: int, overall: array{precision: float, recall: float, f1: float}|null, row_coverage: float|null}, rows: Collection<int, array{example: DatasetExample, metrics: array{overall: array{precision: float, recall: float, f1: float}, row_coverage: float}|array{error: string}}>}
      */
     public function run(Collection $examples, string $datasetVersion, ?ProgressReporter $progress = null): array
     {
         $route = $this->routes->resolve(AiDocumentType::Estimate, EstimateLlmPurpose::ExtractRows);
+        $provider = $route->route->provider;
+
+        if ($provider === null) {
+            throw new LogicException('Extraction eval требует route с provider.');
+        }
 
         $run = $this->evalRuns->start([
             'document_type' => AiDocumentType::Estimate->value,
             'task' => AnalysisStep::Extraction->value,
             'dataset_version' => $datasetVersion,
-            'provider' => $route->route->provider->code,
+            'provider' => $provider->code,
             'model' => $route->route->model,
             'prompt_version_set' => null,
             'metrics' => null,
@@ -92,10 +98,16 @@ final readonly class ExtractionEvalRunner
 
         $aggregate = $this->aggregate(collect($rows));
 
+        $startedAt = $run->started_at;
+
+        if ($startedAt === null) {
+            throw new LogicException('Созданный extraction EvalRun должен иметь started_at.');
+        }
+
         $this->evalRuns->finish($run, [
             'metrics' => $aggregate,
             'finished_at' => now(),
-            'prompt_version_set' => $this->llmCalls->resolvePromptVersionSet($analysisIds, $run->started_at),
+            'prompt_version_set' => $this->llmCalls->resolvePromptVersionSet($analysisIds, $startedAt),
         ]);
 
         return ['run' => $run, 'aggregate' => $aggregate, 'rows' => collect($rows)];
@@ -126,7 +138,11 @@ final readonly class ExtractionEvalRunner
             $this->analyses->resetForRerun($analysis, $run->id, AiDocumentType::Estimate);
             $analysis->refresh();
 
-            $maxIterations = (int) config('ai.eval.max_orchestrator_iterations', 200);
+            $maxIterations = config('ai.eval.max_orchestrator_iterations', 200);
+
+            if (! is_int($maxIterations)) {
+                throw new LogicException('config(ai.eval.max_orchestrator_iterations) должен быть целым числом.');
+            }
             $iterations = 0;
 
             do {
@@ -135,8 +151,8 @@ final readonly class ExtractionEvalRunner
                 $iterations++;
             } while ($needsContinuation && $iterations < $maxIterations);
 
-            $predicted = (array) ($analysis->result['estimates'] ?? []);
-            $gold = (array) ($example->gold['estimates'] ?? []);
+            $predicted = $this->estimateRows($analysis->result['estimates'] ?? []);
+            $gold = $this->estimateRows($example->gold['estimates'] ?? []);
 
             // Подстраховка терминации (§3.6, идемпотентно): `Succeeded`/`Skipped` уже
             // терминировали прогон автохуком `AnalysisStoreRepository::maybeTerminateRun()`
@@ -158,25 +174,69 @@ final readonly class ExtractionEvalRunner
 
     /**
      * @param  Collection<int, array{example: DatasetExample, metrics: array{overall: array{precision: float, recall: float, f1: float}, row_coverage: float}|array{error: string}}>  $rows
-     * @return array<string, mixed>
+     * @return array{examples: int, succeeded: int, overall: array{precision: float, recall: float, f1: float}|null, row_coverage: float|null}
      */
     private function aggregate(Collection $rows): array
     {
-        $succeeded = $rows->filter(fn (array $row): bool => ! isset($row['metrics']['error']));
+        /** @var list<array{overall: array{precision: float, recall: float, f1: float}, row_coverage: float}> $successfulMetrics */
+        $successfulMetrics = [];
 
-        if ($succeeded->isEmpty()) {
+        foreach ($rows as $row) {
+            if (! $this->hasMetrics($row['metrics'])) {
+                continue;
+            }
+
+            $successfulMetrics[] = $row['metrics'];
+        }
+
+        if ($successfulMetrics === []) {
             return ['examples' => $rows->count(), 'succeeded' => 0, 'overall' => null, 'row_coverage' => null];
         }
+
+        $succeeded = collect($successfulMetrics);
 
         return [
             'examples' => $rows->count(),
             'succeeded' => $succeeded->count(),
             'overall' => [
-                'precision' => round((float) $succeeded->avg(fn (array $row): float => $row['metrics']['overall']['precision']), 4),
-                'recall' => round((float) $succeeded->avg(fn (array $row): float => $row['metrics']['overall']['recall']), 4),
-                'f1' => round((float) $succeeded->avg(fn (array $row): float => $row['metrics']['overall']['f1']), 4),
+                'precision' => round((float) $succeeded->avg(fn (array $metrics): float => $metrics['overall']['precision']), 4),
+                'recall' => round((float) $succeeded->avg(fn (array $metrics): float => $metrics['overall']['recall']), 4),
+                'f1' => round((float) $succeeded->avg(fn (array $metrics): float => $metrics['overall']['f1']), 4),
             ],
-            'row_coverage' => round((float) $succeeded->avg(fn (array $row): float => $row['metrics']['row_coverage']), 4),
+            'row_coverage' => round((float) $succeeded->avg(fn (array $metrics): float => $metrics['row_coverage']), 4),
         ];
+    }
+
+    /**
+     * @param  array{overall: array{precision: float, recall: float, f1: float}, row_coverage: float}|array{error: string}  $metrics
+     *
+     * @phpstan-assert-if-true array{overall: array{precision: float, recall: float, f1: float}, row_coverage: float} $metrics
+     */
+    private function hasMetrics(array $metrics): bool
+    {
+        return ! isset($metrics['error']);
+    }
+
+    /**
+     * @return list<array<string, mixed>>
+     */
+    private function estimateRows(mixed $value): array
+    {
+        if (! is_array($value)) {
+            throw new LogicException('Набор estimates должен быть массивом строк.');
+        }
+
+        $rows = [];
+
+        foreach ($value as $row) {
+            if (! is_array($row) || array_is_list($row)) {
+                throw new LogicException('Каждый estimate должен быть объектом с именованными полями.');
+            }
+
+            /** @var array<string, mixed> $row */
+            $rows[] = $row;
+        }
+
+        return $rows;
     }
 }
