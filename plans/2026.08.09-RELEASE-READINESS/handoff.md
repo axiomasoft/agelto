@@ -1,48 +1,46 @@
-# HANDOFF — 2026-08-13 — after P9.3
+# HANDOFF — 2026-08-13 — after P9.5
 
-**Next:** run-items: `task:plan-run 2026.08.09-RELEASE-READINESS P9.4`
+**Next:** ЗАПУСК ВРУЧНУЮ: implementation/high — browser acceptance для terminal route matrix.
 
 | Параметр | Значение |
 |:--|:--|
-| Batch | — |
+| Batch | solo |
 | Model | implementation |
-| Thinking | high — responsive table and action contract |
-| Capabilities | — |
+| Thinking | high — security-critical direct URLs |
 | Context | continue-root |
-| Суть | Привести application tables, custom pages и relation managers к responsive D82/D38 contract и устранить `FinalPromptPage` `TextColumn::boolean()` failure. |
-| Команда | `$ task:plan-run 2026.08.09-RELEASE-READINESS P9.4` |
+| Суть | Выполнить P9.6: browser/Livewire proof ролей, direct URLs, русской IA и mobile tables поверх terminal P9.5. |
+| Команда | — |
 
 #### Provider-neutral launch-block
 
 ```text
-$ task:plan-run 2026.08.09-RELEASE-READINESS P9.4
+$ task:plan-run 2026.08.09-RELEASE-READINESS P9.6
 ```
 
 #### Native Codex launch-block
 
 ```bash
-codex -C /home/vostrikov/projects/agelto/agelto -m gpt-5.6-terra -c 'model_reasoning_effort="high"' -a never -s danger-full-access '$ task:plan-run 2026.08.09-RELEASE-READINESS P9.4'
+codex -C /home/vostrikov/projects/agelto/agelto -m gpt-5.6-terra -c 'model_reasoning_effort="high"' -a never -s danger-full-access '$ task:plan-run 2026.08.09-RELEASE-READINESS P9.6'
 ```
 
-**Done:** P9.3 закрыт `🟠 Done with deviations`. Item commit `c4ff0e55` разделил
-application-owned forms/infolists на task Sections, добавил purposeful Russian descriptions/help,
-сохранил текущую validation/dehydration/auth behavior и ввёл dynamic schema contract.
+**Done:** P9.5 committed runtime matrix of all 58 `/admin` routes, preserved direct-URL
+authorization, and fixed the local `LlmPurpose`/`PromptStep` presentation type mismatch that
+returned HTTP 500 on LLM-route creation. Focused presenter/route tests and the full Filament suite
+are green.
 
-**Remaining:** P9.4 реализует responsive table/action contract и исправляет table API failure;
-P9.5 затем закрепляет runtime route/role matrix, P9.6 — browser acceptance.
+**Remaining:** P9.6 browser proof, then P9 phase audit/closure according to its gate.
 
-**Sources of truth:** `plans/2026.08.09-RELEASE-READINESS/plan.md` ·
-`plans/2026.08.09-RELEASE-READINESS/phases/P9/P9.md` ·
-`plans/2026.08.09-RELEASE-READINESS/phases/P9/P9.3.md` ·
-`plans/2026.08.09-RELEASE-READINESS/phases/P9/P9.4.md` ·
-`plans/2026.08.09-RELEASE-READINESS/research/11-P9-execution-design.md` · D82 · D38.
+**Sources of truth:** `phases/P9/P9.5.state.md` ·
+`artifacts/P9-admin-route-role-matrix.md` · `tests/Feature/Filament/AdminRouteInventoryTest.php` ·
+`phases/P9/P9.6.md` · `roadmap.md`.
 
-**Open risks:** Complete `tests/Feature/Filament` is red before P9.4 because
-`app/Filament/Pages/FinalPromptPage.php` invokes unsupported `TextColumn::boolean()`; P9.4 owns
-this table/page boundary. P9.3 schema contract and focused schema behavior tests are green.
+**Open risks:** The global PHPStan run still reports 40 pre-existing findings outside P9.5;
+the two changed production files pass targeted PHPStan. Downstream records for P9.6/P10.2 are
+`findings/P9.5-downstream-P9.6-3daa6d4a5b3d-4d3411c7ac02.md` and
+`findings/P9.5-downstream-P10.2-6ff16a147934-4d3411c7ac02.md`.
 
 **Workarounds/Deferred/Open questions:**
 
 - workarounds: —
-- deferred: P9.4 must retain all existing table search/sort/filter/action authorization while fixing the page table API.
+- deferred: global PHPStan remediation belongs to its existing owners, not P9.5.
 - open_questions: —
