@@ -3,7 +3,7 @@ projection: status-view
 projection_version: v1
 source_scope: plan core + phases + journal
 through: 2026-08-13
-inputs_sha256: 86c46b2e8d0def7e4fee8c907326778bdc6bfa90b8eb616b485832fed8561222
+inputs_sha256: a6137b0c2d4fbee53a9ea5a35f1214cad1b745f9fef1b0631b5f4c1af23b714c
 generated_by: task plan-views status
 -->
 
@@ -35,7 +35,7 @@ generated_by: task plan-views status
 | P6 | File handler registry, архивы и дочерняя обработка | 0/7 | 🟠 Done with deviations |
 | P7 | Document type, summary, estimates и tags | 6/6 | 🟢 Done |
 | P8 | Расширяемость platforms и гибкие status mappings | 7/7 | 🟢 Done |
-| P9 | Filament information architecture и понятный русский UX | 0/6 | ⬜ Not started |
+| P9 | Filament information architecture и понятный русский UX | 1/6 | 🟡 In progress |
 
 ## Phase P0
 
@@ -179,7 +179,7 @@ generated_by: task plan-views status
 
 | ID | Title | Status | Updated |
 |:--|:--|:--|:--|
-| P9.1 | Собрать карту всех Filament resources/pages и целевую navigation hierarchy | ⬜ Not started | — |
+| P9.1 | Собрать карту всех Filament resources/pages и целевую navigation hierarchy | 🟢 Done | 2026-08-13 |
 | P9.2 | Русифицировать enum/boolean labels и понятные названия сущностей | ⬜ Not started | — |
 | P9.3 | Разбить все create/edit/view forms на Sections с helper text | ⬜ Not started | — |
 | P9.4 | Исправить tables: UUID visibility, wrapping, clamp, widths и responsive actions | ⬜ Not started | — |
@@ -581,6 +581,9 @@ write-site: pre_mutation: allow · pre_final: allow |
 | 2026-08-13 | gpt-5.6-terra/high | plan-run · local-repair · Projection repair: carry forward the terminal write-site from the verified P8.7 route.
 write-site: pre_mutation: allow · pre_final: allow |
 | 2026-08-13 | gpt-5.6-terra/low | plan-close · closed-green · P8 закрыта GREEN по D81: P8.7 d1c8a1e4 восстановил cross-registry guard; full carrier зелёный. |
+| 2026-08-13 | frontier/high | plan-run · in-progress · — |
+| 2026-08-13 | frontier/high | plan-run · closed-green · P9.1 49016c1d freezes D82 domain IA and exact 58-route/table/action/auth/test matrices; full repair review PASS.
+write-site: pre_mutation: allow · pre_final: allow |
 
 ## Owner Gates
 

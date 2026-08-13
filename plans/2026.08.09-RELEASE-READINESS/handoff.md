@@ -1,47 +1,51 @@
-# HANDOFF — 2026-08-13 — after P8
+# HANDOFF — 2026-08-13 — after P9.1
 
-**Next:** manual: frontier/high
+**Next:** manual: implementation/high
 
 | Параметр | Значение |
 |:--|:--|
 | Batch | solo |
-| Model class | frontier |
+| Model class | implementation |
 | Effort | high |
 | Capabilities | — |
-| Context | cold-start-root: phase-closed |
-| Суть | Сверить terminal products и заморозить navigation/presentation contracts P9.1. |
+| Context | continue-root |
+| Суть | Реализовать D82/D38: понятную русскую навигацию, полную видимую локализацию AzGuard и единый label contract без изменения маршрутов и прав. |
 | Команда | — |
 
 #### Provider-neutral launch-block
 
 ```text
-$ task:plan-run 2026.08.09-RELEASE-READINESS P9.1
+$ task:plan-run 2026.08.09-RELEASE-READINESS P9.2
 ```
 
 #### Native Codex launch-block
 
 ```bash
-codex -C /home/vostrikov/projects/agelto/agelto -m gpt-5.6-sol -c 'model_reasoning_effort="high"' -a never -s danger-full-access '$ task:plan-run 2026.08.09-RELEASE-READINESS P9.1'
+codex -C /home/vostrikov/projects/agelto/agelto -m gpt-5.6-terra -c 'model_reasoning_effort="high"' -a never -s danger-full-access '$ task:plan-run 2026.08.09-RELEASE-READINESS P9.2'
 ```
 
-**Done:** P8 закрыта `🟢 Done` по D81 без Audit 3. Product/evidence candidate `d1c8a1e4`
-восстановил cross-registry guard, сделал Pint ownership/count воспроизводимым и подтвердил полный
-no-TIA carrier (`1547 passed / 6776 assertions`); current P8 projections не содержат отклонений.
+**Done:** P9.1 закрыт `🟢 Done`. Item commit `49016c1d` заморозил D82: семь
+человеко-ориентированных групп, естественные названия и purpose copy, exact 58-route baseline,
+carrier-level schema/table/action/auth/test matrices. D37 superseded только в navigation/copy части;
+URL, permission, policy, plugin и hidden-page identity сохранены. Full review после remediation —
+PASS.
 
-**Remaining:** P9.1 — terminal-upstream reconcile перед UI mutation; P9.2–P9.6 остаются закрыты
-до frozen D37/D38 или явной superseding decision.
+**Remaining:** P9.2 реализует package/app label contract; P9.3–P9.6 последовательно закрывают
+Sections/help, responsive tables, runtime route/role sweep и browser acceptance.
 
 **Sources of truth:** `plans/2026.08.09-RELEASE-READINESS/plan.md` ·
-`plans/2026.08.09-RELEASE-READINESS/phases/P8/P8.md` ·
-`plans/2026.08.09-RELEASE-READINESS/phases/P8/P8.closed.md` ·
-`plans/2026.08.09-RELEASE-READINESS/findings/P8.7-final-remediation-evidence.md` · D81 ·
-`plans/2026.08.09-RELEASE-READINESS/phases/P9/P9.1.md`
+`plans/2026.08.09-RELEASE-READINESS/phases/P9/P9.md` ·
+`plans/2026.08.09-RELEASE-READINESS/phases/P9/P9.2.md` ·
+`plans/2026.08.09-RELEASE-READINESS/findings/P9-filament-surface-recon-2026-08-09.md` ·
+`plans/2026.08.09-RELEASE-READINESS/research/11-P9-execution-design.md` · D82 · D38.
 
-**Open risks:** P9.1 must stop for an evidence-backed contradiction to D37/D38; no P8 defect,
-pending work or deviation remains.
+**Open risks:** P9.2 touches the public AzGuard presentation config and private-package pin; English
+defaults, arbitrary overrides, installed-vendor prohibition and unchanged route/permission behavior
+are mandatory gates. The current Doctor page remains panel-only evidence for the P10 auth audit.
 
 **Workarounds/Deferred/Open questions:**
 
 - workarounds: —
-- deferred: real second platform, global raw-stage scope и generic predicate engine остаются вне P8.
+- deferred: Filament Cluster for «Настройка AI» may be reconsidered only post-release with explicit
+  URL redirects/bookmarks/auth/browser migration design; P9 keeps current URLs.
 - open_questions: —

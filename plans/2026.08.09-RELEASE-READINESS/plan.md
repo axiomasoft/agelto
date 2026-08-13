@@ -132,7 +132,7 @@ remediation-items P0.7/P1.6/P1.7/P2.7/P4.6/P5.6 по D62/D64/D66/D70/D72/D76 и 
 | — | P8.6 | implementation/high | manual | full | audit-defined factory/acceptance/evidence repair требует один committed no-TIA candidate и truthful cross-item reconciliation без нового product design |
 | — | P8.7 | implementation/high | manual | full | owner-sealed AUDIT-CAP remediation восстанавливает удалённый cross-registry guard, легализует exact test ownership и сходится в zero-deviation GREEN close без нового product design |
 | — | P9.1 | frontier/high | manual | full | terminal-upstream reconcile и freeze navigation/presentation contracts несут открытый риск cross-phase/cross-repo семантической ошибки |
-| — | P9.2 | implementation/high | manual | full | запечатанные D37/D38 реализуются в public package config и application labels; SemVer/package/auth identity требуют high+full |
+| — | P9.2 | implementation/high | manual | full | запечатанные D82/D38 реализуются в public package config и application labels; SemVer/package/auth identity требуют high+full |
 | — | P9.3 | implementation/high | manual | full | широкий schema/validation/dehydration/security surface, но layout contract уже запечатан D38 |
 | — | P9.4 | implementation/high | manual | full | все tables/relation actions и responsive visibility меняются по D38 с обязательной auth/query сохранностью |
 | — | P9.5 | implementation/high | manual | full | runtime route/role sweep широк и correctness-sensitive, но domain-changing findings обязаны эскалировать, а не проектироваться здесь |
