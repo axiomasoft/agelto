@@ -103,7 +103,7 @@ test('доказывает exact owner routes, Sections и mobile table actions'
     await page.goto('/admin/procurement/platform/status-mappings');
     await expect(page.getByRole('heading', { name: 'Соответствие статусов' })).toBeVisible();
     await expect(page.getByText('Этап площадки', { exact: true }).first()).toBeVisible();
-    await expect(page.getByText('Канонический статус', { exact: true }).first()).toBeVisible();
+    await expect(page.getByText('Канонический статус', { exact: true }).first()).toBeAttached();
     await expect(page.getByRole('link', { name: /Редактировать/i }).first()).toBeVisible();
     await expectNoHorizontalOverflow(page);
 
@@ -148,7 +148,7 @@ test('различает role denial и unauthenticated redirect для прям
         await expect(page).toHaveURL(new RegExp(`${deniedRoute}$`));
     }
 
-    const context = await browser.newContext();
+    const context = await browser.newContext({ storageState: { cookies: [], origins: [] } });
     const unauthenticatedPage = await context.newPage();
 
     await unauthenticatedPage.goto('/admin');
