@@ -6,7 +6,7 @@ namespace App\Services\Procurement\Prepare\Archive;
 
 use App\Dto\Procurement\Prepare\Archive\ArchiveBudget;
 use App\Dto\Procurement\Prepare\Archive\ArchiveEntry;
-use Illuminate\Process\ProcessResult;
+use Illuminate\Contracts\Process\ProcessResult;
 use Illuminate\Support\Facades\Process;
 use RuntimeException;
 use ZipArchive;
@@ -52,7 +52,7 @@ final readonly class ArchiveExtractor
             $entries = [];
             for ($index = 0; $index < $zip->numFiles; $index++) {
                 $stat = $zip->statIndex($index);
-                if ($stat === false || ! isset($stat['name'], $stat['size'], $stat['comp_size'])) {
+                if ($stat === false) {
                     throw new ArchiveUnsupportedException('ZIP metadata неполна');
                 }
                 $opsys = 0;
@@ -70,8 +70,7 @@ final readonly class ArchiveExtractor
                     declaredSize: (int) $stat['size'],
                     compressedSize: (int) $stat['comp_size'],
                     isDirectory: $isDirectory,
-                    isEncrypted: (($stat['bitflags'] ?? 0) & 1) === 1
-                        || (int) ($stat['encryption_method'] ?? ZipArchive::EM_NONE) !== ZipArchive::EM_NONE,
+                    isEncrypted: $stat['encryption_method'] !== ZipArchive::EM_NONE,
                     type: $type,
                 );
             }

@@ -10,7 +10,6 @@ use App\Guards\Admin\Permissions\ProxyPermission;
 use App\Models\Procurement\Crawler\Proxy;
 use App\Settings\Procurement\CrawlerProxySettings;
 use Illuminate\Auth\Access\AuthorizationException;
-use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\ValidationException;
 
@@ -28,7 +27,9 @@ final readonly class UpdateCrawlerProxySettingsAction
 
     public function currentDefaultProxyId(): ?int
     {
-        return $this->settings->refresh()->defaultProxyId;
+        $this->settings->refresh();
+
+        return $this->settings->defaultProxyId;
     }
 
     /** @return array<int, string> */
@@ -78,9 +79,7 @@ final readonly class UpdateCrawlerProxySettingsAction
 
     private function supportsCrawlerScopes(Proxy $proxy): bool
     {
-        $scopes = $proxy->scopes instanceof Collection
-            ? $proxy->scopes
-            : collect();
+        $scopes = $proxy->scopes;
 
         return collect(self::REQUIRED_SCOPES)
             ->every(fn (ProxyScope $scope): bool => $scopes->contains(

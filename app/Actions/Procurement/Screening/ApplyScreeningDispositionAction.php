@@ -13,7 +13,6 @@ use App\Enums\Procurement\Document\DocumentStatus;
 use App\Enums\Procurement\ProcurementEventType;
 use App\Models\Procurement\Ai\Analysis;
 use App\Models\Procurement\Document\Document;
-use App\Repositories\Procurement\Ai\AnalysisStoreRepository;
 use App\Repositories\Procurement\Document\DocumentStoreRepository;
 use App\Repositories\Procurement\ProcurementStoreRepository;
 use App\Services\Procurement\Ai\UsageSnapshotRecorder;
@@ -24,7 +23,6 @@ use Illuminate\Support\Facades\DB;
 final readonly class ApplyScreeningDispositionAction
 {
     public function __construct(
-        private AnalysisStoreRepository $analyses,
         private DocumentStoreRepository $documents,
         private ProcurementStoreRepository $procurements,
         private UsageSnapshotRecorder $usageSnapshots,
@@ -109,7 +107,9 @@ final readonly class ApplyScreeningDispositionAction
             }
 
             if ($decision->extractionDispatched && $analyzer !== null) {
-                DB::afterCommit(fn (): mixed => $analyzer->dispatchExtraction($lockedDocument->id));
+                DB::afterCommit(function () use ($analyzer, $lockedDocument): void {
+                    $analyzer->dispatchExtraction($lockedDocument->id);
+                });
             }
 
             return true;

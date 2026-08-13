@@ -71,7 +71,10 @@ class AnalysesTable
                     ->lineClamp(2)
                     ->tooltip(fn (?string $state): ?string => $state)
                     ->placeholder('—')
-                    ->searchable(query: static fn (Builder $query, string $search): Builder => $query->withScreeningSearch($search)),
+                    ->searchable(query: static function (Builder $query, string $search): Builder {
+                        /** @var Builder<Analysis> $query */
+                        return $query->withScreeningSearch($search);
+                    }),
                 TextColumn::make('screening_tags')
                     ->label('Теги')
                     ->state(static fn (Analysis $record): ?string => self::tags($record))
@@ -105,27 +108,39 @@ class AnalysesTable
                 SelectFilter::make('screening_document_type')
                     ->label('Тип screening')
                     ->options(LlmPresentation::documentTypeOptions())
-                    ->query(static fn (Builder $query, array $data): Builder => ($type = AiDocumentType::tryFrom($data['value'] ?? '')) === null
-                        ? $query
-                        : $query->withScreeningDocumentType($type)),
+                    ->query(static function (Builder $query, array $data): Builder {
+                        /** @var Builder<Analysis> $query */
+                        $type = AiDocumentType::tryFrom($data['value'] ?? '');
+
+                        return $type === null ? $query : $query->withScreeningDocumentType($type);
+                    }),
                 SelectFilter::make('screening_cardinality')
                     ->label('Количество смет')
                     ->options(collect(EstimateCardinality::cases())->pluck('value', 'value')->all())
-                    ->query(static fn (Builder $query, array $data): Builder => ($cardinality = EstimateCardinality::tryFrom($data['value'] ?? '')) === null
-                        ? $query
-                        : $query->withEstimateCardinality($cardinality)),
+                    ->query(static function (Builder $query, array $data): Builder {
+                        /** @var Builder<Analysis> $query */
+                        $cardinality = EstimateCardinality::tryFrom($data['value'] ?? '');
+
+                        return $cardinality === null ? $query : $query->withEstimateCardinality($cardinality);
+                    }),
                 SelectFilter::make('screening_disposition')
                     ->label('Решение screening')
                     ->options(collect(ScreeningDisposition::cases())->pluck('value', 'value')->all())
-                    ->query(static fn (Builder $query, array $data): Builder => ($disposition = ScreeningDisposition::tryFrom($data['value'] ?? '')) === null
-                        ? $query
-                        : $query->withScreeningDisposition($disposition)),
+                    ->query(static function (Builder $query, array $data): Builder {
+                        /** @var Builder<Analysis> $query */
+                        $disposition = ScreeningDisposition::tryFrom($data['value'] ?? '');
+
+                        return $disposition === null ? $query : $query->withScreeningDisposition($disposition);
+                    }),
                 SelectFilter::make('screening_reason')
                     ->label('Причина решения')
                     ->options(collect(ScreeningDecisionReason::cases())->pluck('value', 'value')->all())
-                    ->query(static fn (Builder $query, array $data): Builder => ($reason = ScreeningDecisionReason::tryFrom($data['value'] ?? '')) === null
-                        ? $query
-                        : $query->withScreeningDecisionReason($reason)),
+                    ->query(static function (Builder $query, array $data): Builder {
+                        /** @var Builder<Analysis> $query */
+                        $reason = ScreeningDecisionReason::tryFrom($data['value'] ?? '');
+
+                        return $reason === null ? $query : $query->withScreeningDecisionReason($reason);
+                    }),
                 Filter::make('screening_tag')
                     ->label('Точный тег')
                     ->schema([
@@ -133,9 +148,12 @@ class AnalysesTable
                             ->label('Тег')
                             ->maxLength(64),
                     ])
-                    ->query(static fn (Builder $query, array $data): Builder => filled($data['value'] ?? null)
-                        ? $query->withScreeningTag((string) $data['value'])
-                        : $query),
+                    ->query(static function (Builder $query, array $data): Builder {
+                        /** @var Builder<Analysis> $query */
+                        return filled($data['value'] ?? null)
+                            ? $query->withScreeningTag((string) $data['value'])
+                            : $query;
+                    }),
             ])
             ->recordActions([
                 ViewAction::make(),
@@ -154,7 +172,8 @@ class AnalysesTable
 
     private static function tags(Analysis $record): ?string
     {
-        $tags = $record->storedScreeningResult()?->tags ?? [];
+        $screening = $record->storedScreeningResult();
+        $tags = $screening === null ? [] : $screening->tags;
 
         return $tags === [] ? null : implode(', ', $tags);
     }

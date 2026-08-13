@@ -164,7 +164,8 @@ class AnalysisInfolist
      */
     private static function tagAnchors(Analysis $record): array
     {
-        $tags = $record->storedScreeningResult()?->tags ?? [];
+        $screening = $record->storedScreeningResult();
+        $tags = $screening === null ? [] : $screening->tags;
 
         return array_map(static fn (string $tag): array => ['tag' => $tag], $tags);
     }

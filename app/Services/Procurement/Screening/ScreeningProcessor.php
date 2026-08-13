@@ -15,7 +15,6 @@ use App\Models\Procurement\Ai\Analysis;
 use App\Models\Procurement\Document\Document;
 use App\Models\Procurement\Document\DocumentVersion;
 use App\Repositories\Procurement\Ai\AnalysisStoreRepository;
-use App\Repositories\Procurement\Document\DocumentStoreRepository;
 use App\Services\Llm\Contracts\SupportsFileUpload;
 use App\Services\Llm\Dto\JsonSchema;
 use App\Services\Llm\Dto\LlmOptions;
@@ -45,7 +44,6 @@ use Throwable;
 final readonly class ScreeningProcessor
 {
     public function __construct(
-        private DocumentStoreRepository $documents,
         private MarkDocumentUnprocessableAction $markDocumentUnprocessable,
         private AnalysisStoreRepository $analyses,
         private LlmRouteResolver $routes,

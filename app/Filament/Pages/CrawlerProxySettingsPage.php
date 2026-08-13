@@ -14,6 +14,7 @@ use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\ValidationException;
+use LogicException;
 
 final class CrawlerProxySettingsPage extends Page
 {
@@ -29,12 +30,12 @@ final class CrawlerProxySettingsPage extends Page
 
     protected string $view = 'filament.pages.crawler-proxy-settings-page';
 
-    /** @var array{default_proxy_id: int|null} */
+    /** @var array{default_proxy_id?: int|null} */
     public array $data = [];
 
     public function mount(): void
     {
-        $this->form->fill([
+        $this->formSchema()->fill([
             'default_proxy_id' => app(UpdateCrawlerProxySettingsAction::class)->currentDefaultProxyId(),
         ]);
     }
@@ -69,7 +70,7 @@ final class CrawlerProxySettingsPage extends Page
         abort_unless(self::canAccess(), 403);
 
         try {
-            $data = $this->form->getState();
+            $data = $this->formSchema()->getState();
             $defaultProxyId = $data['default_proxy_id'] ?? null;
 
             app(UpdateCrawlerProxySettingsAction::class)->run(
@@ -84,5 +85,11 @@ final class CrawlerProxySettingsPage extends Page
         }
 
         Notification::make()->title('Настройки прокси сохранены')->success()->send();
+    }
+
+    private function formSchema(): Schema
+    {
+        return $this->getSchema('form')
+            ?? throw new LogicException('Не удалось создать форму настройки прокси.');
     }
 }

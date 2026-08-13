@@ -24,7 +24,6 @@ final readonly class ProxyBindingResolver
             ->all();
     }
 
-    /** @return list<int> */
     public function requirementsForProcurement(?int $procurementId): ProxyRequirements
     {
         if ($procurementId === null) {

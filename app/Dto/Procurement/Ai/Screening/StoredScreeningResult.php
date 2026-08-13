@@ -121,8 +121,7 @@ final readonly class StoredScreeningResult
             ScreeningDecisionReason::LowConfidence => 'low_confidence',
             ScreeningDecisionReason::UnknownType => 'unknown',
             ScreeningDecisionReason::KnownTypeNoAnalyzer => 'known_type_no_analyzer',
-            ScreeningDecisionReason::AnalyzerAvailable => 'analyzer_available',
-            ScreeningDecisionReason::BorderlineConfidence => null,
+            default => 'analyzer_available',
         };
 
         $value['branch_reason'] = $branchReason;

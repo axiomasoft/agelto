@@ -14,6 +14,8 @@ final readonly class CrawlerProxySettingsResolver
 
     public function defaultProxyId(): ?int
     {
-        return $this->settings->refresh()->defaultProxyId;
+        $this->settings->refresh();
+
+        return $this->settings->defaultProxyId;
     }
 }

@@ -57,6 +57,7 @@ use InvalidArgumentException;
  * @property Carbon|null $reviewed_at
  * @property int $analysis_run_id
  * @property int|null $parent_analysis_id
+ * @property Carbon|null $superseded_at
  * @property-read AnalysisRun $analysisRun
  * @property-read DocumentVersion|null $documentVersion
  */

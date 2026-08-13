@@ -297,7 +297,8 @@ final class RunResultSchema
 
     private static function tags(?Analysis $analysis): ?string
     {
-        $tags = $analysis?->storedScreeningResult()?->tags ?? [];
+        $screening = $analysis?->storedScreeningResult();
+        $tags = $screening === null ? [] : $screening->tags;
 
         if ($tags === []) {
             return null;

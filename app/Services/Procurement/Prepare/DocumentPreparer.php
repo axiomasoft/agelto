@@ -20,7 +20,6 @@ final readonly class DocumentPreparer
     public function __construct(
         private Container $container,
         private DocumentFormatInspector $inspector,
-        private DocumentFormatRegistry $registry,
         private MarkDocumentUnprocessableAction $markUnprocessable,
     ) {}
 
