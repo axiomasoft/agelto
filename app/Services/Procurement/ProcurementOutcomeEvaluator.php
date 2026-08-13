@@ -24,6 +24,10 @@ final readonly class ProcurementOutcomeEvaluator
     {
         $procurement = $procurement->fresh();
 
+        if ($procurement === null) {
+            throw new \LogicException('Нельзя вычислить outcome удалённой закупки.');
+        }
+
         if ($procurement->getAttribute('succeeded_at') !== null) {
             return;
         }
@@ -57,16 +61,41 @@ final readonly class ProcurementOutcomeEvaluator
         DB::afterCommit(function () use ($procurement, $award, $reason, $status, $succeededAt, $estimatesCount): void {
             event(new ProcurementSucceeded(
                 procurementId: $procurement->id,
-                registryId: (int) $procurement->getAttribute('registry_id'),
-                registryNumber: (string) $procurement->getAttribute('registry_number'),
+                registryId: $this->intAttribute($procurement, 'registry_id'),
+                registryNumber: $this->stringAttribute($procurement, 'registry_number'),
                 canonicalStatus: $status->value,
                 reason: $reason,
                 succeededAt: $succeededAt,
                 hasEstimate: $estimatesCount > 0,
                 estimatesCount: $estimatesCount,
-                winnerOrgId: $award === null ? null : (int) $award->getAttribute('winner_org_id'),
+                winnerOrgId: $award === null ? null : $this->intValue($award->getAttribute('winner_org_id'), 'award winner_org_id'),
                 awardId: $award?->id,
             ));
         });
+    }
+
+    private function intAttribute(Procurement $procurement, string $attribute): int
+    {
+        return $this->intValue($procurement->getAttribute($attribute), "procurement {$attribute}");
+    }
+
+    private function stringAttribute(Procurement $procurement, string $attribute): string
+    {
+        $value = $procurement->getAttribute($attribute);
+
+        if (! is_string($value)) {
+            throw new \LogicException("procurement {$attribute} должен быть строкой.");
+        }
+
+        return $value;
+    }
+
+    private function intValue(mixed $value, string $context): int
+    {
+        if (! is_int($value)) {
+            throw new \LogicException("{$context} должен быть целым числом.");
+        }
+
+        return $value;
     }
 }
