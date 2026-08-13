@@ -143,7 +143,11 @@ final readonly class EvalMetrics
         $predictedRows = $this->flattenRows($predictedEstimates, $matches, forGold: false);
 
         /** @var array<string, array{tp: int, fp: int, fn: int}> $counts */
-        $counts = array_map(static fn (): array => ['tp' => 0, 'fp' => 0, 'fn' => 0], self::FIELD_MAP);
+        $counts = [];
+
+        foreach (self::FIELD_MAP as $metric => $_) {
+            $counts[$metric] = $this->emptyTally();
+        }
 
         $matchedGoldRows = 0;
 
@@ -156,7 +160,7 @@ final readonly class EvalMetrics
 
             foreach (self::FIELD_MAP as $metric => $dtoField) {
                 $numeric = in_array($metric, self::ROW_NUMERIC_FIELDS, true);
-                $this->tallyField($counts[$metric], $goldRow[$dtoField] ?? null, $predictedRow[$dtoField] ?? null, $numeric);
+                $counts[$metric] = $this->tallyField($counts[$metric], $goldRow[$dtoField] ?? null, $predictedRow[$dtoField] ?? null, $numeric);
             }
         }
 
@@ -167,7 +171,7 @@ final readonly class EvalMetrics
 
             foreach (self::FIELD_MAP as $metric => $dtoField) {
                 if ($this->isPresent($predictedRow[$dtoField] ?? null)) {
-                    $counts[$metric]['fp']++;
+                    $counts[$metric] = $this->incrementFalsePositive($counts[$metric]);
                 }
             }
         }
@@ -254,7 +258,7 @@ final readonly class EvalMetrics
             }
 
             $markedRows++;
-            $byReason[$reason->value]++;
+            $byReason[$reason->value] = ($byReason[$reason->value] ?? 0) + 1;
         }
 
         return [
@@ -301,8 +305,8 @@ final readonly class EvalMetrics
         $addressMatch = $this->matchByExactKey(
             $numberMatch['unpairedGold'],
             $numberMatch['unpairedPredicted'],
-            $this->normalizedKeyMap($goldEstimates, static fn (array $estimate): mixed => $estimate['passport']['address'] ?? null),
-            $this->normalizedKeyMap($predictedEstimates, static fn (array $estimate): mixed => $estimate['passport']['address'] ?? null),
+            $this->normalizedKeyMap($goldEstimates, static fn (array $estimate): mixed => is_array($estimate['passport'] ?? null) ? $estimate['passport']['address'] ?? null : null),
+            $this->normalizedKeyMap($predictedEstimates, static fn (array $estimate): mixed => is_array($estimate['passport'] ?? null) ? $estimate['passport']['address'] ?? null : null),
             'address',
         );
 
@@ -315,6 +319,7 @@ final readonly class EvalMetrics
             $positionPairs[] = [$unpairedGold[$i], $unpairedPredicted[$i], 'position'];
         }
 
+        /** @var list<array{gold_index: int|null, predicted_index: int|null, rule: string|null}> $entries */
         $entries = [];
 
         foreach ([...$numberMatch['pairs'], ...$addressMatch['pairs'], ...$positionPairs] as [$goldIndex, $predictedIndex, $rule]) {
@@ -332,6 +337,7 @@ final readonly class EvalMetrics
         usort($entries, static fn (array $a, array $b): int => [$a['gold_index'] ?? PHP_INT_MAX, $a['predicted_index'] ?? PHP_INT_MAX]
             <=> [$b['gold_index'] ?? PHP_INT_MAX, $b['predicted_index'] ?? PHP_INT_MAX]);
 
+        /** @var list<array{slot: int, gold_index: int|null, predicted_index: int|null, rule: string|null}> $result */
         $result = [];
 
         foreach ($entries as $slot => $entry) {
@@ -353,7 +359,7 @@ final readonly class EvalMetrics
 
         foreach ($estimates as $index => $estimate) {
             $value = $extractor($estimate);
-            $map[$index] = $this->isPresent($value) ? $this->normalizeText((string) $value) : null;
+            $map[$index] = $this->isPresent($value) ? $this->normalizeText($this->scalarString($value)) : null;
         }
 
         return $map;
@@ -462,10 +468,10 @@ final readonly class EvalMetrics
     public function valuesMatch(mixed $gold, mixed $predicted, bool $numeric): bool
     {
         if ($numeric) {
-            return $this->numbersEqual((string) $gold, (string) $predicted);
+            return $this->numbersEqual($this->scalarString($gold), $this->scalarString($predicted));
         }
 
-        return $this->normalizeText((string) $gold) === $this->normalizeText((string) $predicted);
+        return $this->normalizeText($this->scalarString($gold)) === $this->normalizeText($this->scalarString($predicted));
     }
 
     /**
@@ -479,21 +485,32 @@ final readonly class EvalMetrics
         $slotByIndex = $this->slotByOriginalIndex($matches, $forGold);
         $flat = [];
 
-        foreach (array_values($estimates) as $estimateIndex => $estimate) {
+        foreach ($estimates as $estimateIndex => $estimate) {
             $slot = $slotByIndex[$estimateIndex] ?? null;
 
             if ($slot === null) {
                 continue;
             }
 
-            foreach ((array) ($estimate['rows'] ?? []) as $row) {
-                $rowIndex = $row['row_index'] ?? null;
+            $rows = $estimate['rows'] ?? [];
 
-                if ($rowIndex === null) {
+            if (! is_array($rows)) {
+                continue;
+            }
+
+            foreach ($rows as $row) {
+                if (! is_array($row)) {
                     continue;
                 }
 
-                $flat["{$slot}:{$rowIndex}"] = (array) $row;
+                /** @var array<string, mixed> $row */
+                $rowIndex = $row['row_index'] ?? null;
+
+                if (! is_int($rowIndex) && ! is_string($rowIndex)) {
+                    continue;
+                }
+
+                $flat["{$slot}:{$rowIndex}"] = $row;
             }
         }
 
@@ -572,7 +589,8 @@ final readonly class EvalMetrics
                 continue;
             }
 
-            $footer = (array) ($estimate['totals']['footer'] ?? []);
+            $totals = $estimate['totals'] ?? [];
+            $footer = is_array($totals) && is_array($totals['footer'] ?? null) ? array_values($totals['footer']) : [];
             $this->flattenTotalLines($footer, $slot, $flat);
         }
 
@@ -580,16 +598,20 @@ final readonly class EvalMetrics
     }
 
     /**
-     * @param  list<array<string, mixed>>  $lines
+     * @param  list<mixed>  $lines
      * @param  array<string, array{estimate_index: int, label: string, value: mixed, kind: mixed, chapter_number: mixed, rate: mixed}>  $flat
      */
     private function flattenTotalLines(array $lines, int $slot, array &$flat): void
     {
         foreach ($lines as $line) {
-            $line = (array) $line;
-            $label = (string) ($line['label'] ?? '');
+            if (! is_array($line)) {
+                continue;
+            }
+
+            /** @var array<string, mixed> $line */
+            $label = is_string($line['label'] ?? null) ? $line['label'] : '';
             $kind = $line['kind'] ?? null;
-            $key = $slot.'::'.$this->normalizeText($label).'::'.($kind ?? '');
+            $key = $slot.'::'.$this->normalizeText($label).'::'.($this->scalarString($kind ?? ''));
 
             $flat[$key] = [
                 'estimate_index' => $slot,
@@ -600,11 +622,16 @@ final readonly class EvalMetrics
                 'rate' => $line['rate'] ?? null,
             ];
 
-            $this->flattenTotalLines((array) ($line['children'] ?? []), $slot, $flat);
+            $children = $line['children'] ?? [];
+            $this->flattenTotalLines(is_array($children) ? array_values($children) : [], $slot, $flat);
         }
     }
 
-    private function tallyField(array &$tally, mixed $goldValue, mixed $predictedValue, bool $numeric): void
+    /**
+     * @param  array{tp: int, fp: int, fn: int}  $tally
+     * @return array{tp: int, fp: int, fn: int}
+     */
+    private function tallyField(array $tally, mixed $goldValue, mixed $predictedValue, bool $numeric): array
     {
         $goldPresent = $this->isPresent($goldValue);
         $predictedPresent = $this->isPresent($predictedValue);
@@ -613,7 +640,7 @@ final readonly class EvalMetrics
         if ($match) {
             $tally['tp']++;
 
-            return;
+            return $tally;
         }
 
         if ($predictedPresent) {
@@ -623,6 +650,8 @@ final readonly class EvalMetrics
         if ($goldPresent) {
             $tally['fn']++;
         }
+
+        return $tally;
     }
 
     /**
@@ -638,14 +667,18 @@ final readonly class EvalMetrics
     private function aggregateFieldMetrics(array $goldFlat, array $predictedFlat, array $fieldMap, array $numericFields): array
     {
         /** @var array<string, array{tp: int, fp: int, fn: int}> $counts */
-        $counts = array_map(static fn (): array => ['tp' => 0, 'fp' => 0, 'fn' => 0], $fieldMap);
+        $counts = [];
+
+        foreach ($fieldMap as $metric => $_) {
+            $counts[$metric] = $this->emptyTally();
+        }
 
         foreach ($goldFlat as $key => $goldFields) {
             $predictedFields = $predictedFlat[$key] ?? [];
 
             foreach ($fieldMap as $metric => $sourceField) {
                 $numeric = in_array($metric, $numericFields, true);
-                $this->tallyField($counts[$metric], $goldFields[$sourceField] ?? null, $predictedFields[$sourceField] ?? null, $numeric);
+                $counts[$metric] = $this->tallyField($counts[$metric], $goldFields[$sourceField] ?? null, $predictedFields[$sourceField] ?? null, $numeric);
             }
         }
 
@@ -656,7 +689,7 @@ final readonly class EvalMetrics
 
             foreach ($fieldMap as $metric => $sourceField) {
                 if ($this->isPresent($predictedFields[$sourceField] ?? null)) {
-                    $counts[$metric]['fp']++;
+                    $counts[$metric] = $this->incrementFalsePositive($counts[$metric]);
                 }
             }
         }
@@ -667,6 +700,32 @@ final readonly class EvalMetrics
     private function normalizeText(string $value): string
     {
         return mb_strtolower(trim((string) preg_replace('/\s+/u', ' ', $value)));
+    }
+
+    /** @return array{tp: int, fp: int, fn: int} */
+    private function emptyTally(): array
+    {
+        return ['tp' => 0, 'fp' => 0, 'fn' => 0];
+    }
+
+    /**
+     * @param  array{tp: int, fp: int, fn: int}  $tally
+     * @return array{tp: int, fp: int, fn: int}
+     */
+    private function incrementFalsePositive(array $tally): array
+    {
+        $tally['fp']++;
+
+        return $tally;
+    }
+
+    private function scalarString(mixed $value): string
+    {
+        if (is_string($value) || is_int($value) || is_float($value) || is_bool($value)) {
+            return (string) $value;
+        }
+
+        throw new \RuntimeException('Метрика ожидает скалярное значение поля.');
     }
 
     private function numbersEqual(string $a, string $b): bool
