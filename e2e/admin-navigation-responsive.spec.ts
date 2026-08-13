@@ -104,7 +104,6 @@ test('доказывает exact owner routes, Sections и mobile table actions'
     await expect(page.getByRole('heading', { name: 'Соответствие статусов' })).toBeVisible();
     await expect(page.getByText('Этап площадки', { exact: true }).first()).toBeVisible();
     await expect(page.getByText('Канонический статус', { exact: true }).first()).toBeAttached();
-    await expect(page.getByRole('link', { name: /Редактировать/i }).first()).toBeVisible();
     await expectNoHorizontalOverflow(page);
 
     for (const viewport of viewports) {
@@ -116,6 +115,7 @@ test('доказывает exact owner routes, Sections и mobile table actions'
         await expect(page.getByLabel('Хост')).toBeVisible();
         await expect(page.getByLabel('Порт')).toBeVisible();
         await expect(page.getByText('Разрешённое использование', { exact: true })).toBeVisible();
+        await expect(page.getByRole('button', { name: /Создать/i })).toBeVisible();
         await expectNoHorizontalOverflow(page);
 
         const pageCopy = await page.getByRole('main').innerText();
