@@ -45,7 +45,7 @@ use Illuminate\Support\Str;
  * @property Carbon|null $period_end
  * @property int|null $rows_extracted
  * @property string $validation_status
- * @property Collection|null $validation_notes ValidationReport::$notes сметы целиком (research/12-uncertainty-model.md §5); null — валидатор ничего не нашёл
+ * @property Collection<int, string>|null $validation_notes ValidationReport::$notes сметы целиком (research/12-uncertainty-model.md §5); null — валидатор ничего не нашёл
  * @property string|null $raw_result_ref
  * @property string|null $raw_result_disk
  * @property string|null $source_sheet_name
@@ -58,6 +58,7 @@ use Illuminate\Support\Str;
 #[UseFactory(EstimateFactory::class)]
 final class Estimate extends Model
 {
+    /** @use HasFactory<EstimateFactory> */
     use HasFactory;
 
     protected $table = 'prc_estimates';
@@ -131,6 +132,7 @@ final class Estimate extends Model
      * Подпись сметы для витрины — вычислима из `estimate_number`/`ordinal`, колонки не имеет
      * (D100: хранимое производное значение расходилось с источником при правке номера оператором).
      */
+    /** @return Attribute<string, never> */
     protected function title(): Attribute
     {
         return Attribute::make(
@@ -144,6 +146,7 @@ final class Estimate extends Model
      * Система координат адреса сметы в многосметном документе — производная, колонки не имеет
      * (D106): лист книги → `Sheet`, страничный сегмент → `Pages`, ни то ни другое → `WholeDocument`.
      */
+    /** @return Attribute<EstimateSourceKind, never> */
     protected function sourceKind(): Attribute
     {
         return Attribute::make(
@@ -155,46 +158,55 @@ final class Estimate extends Model
         );
     }
 
+    /** @return BelongsTo<Analysis, $this> */
     public function analysis(): BelongsTo
     {
         return $this->belongsTo(related: Analysis::class);
     }
 
+    /** @return BelongsTo<DocumentVersion, $this> */
     public function documentVersion(): BelongsTo
     {
         return $this->belongsTo(related: DocumentVersion::class);
     }
 
+    /** @return BelongsTo<Procurement, $this> */
     public function procurement(): BelongsTo
     {
         return $this->belongsTo(related: Procurement::class);
     }
 
+    /** @return BelongsTo<Platform, $this> */
     public function platform(): BelongsTo
     {
         return $this->belongsTo(related: Platform::class);
     }
 
+    /** @return BelongsTo<User, $this> */
     public function verifiedBy(): BelongsTo
     {
         return $this->belongsTo(related: User::class, foreignKey: 'verified_by');
     }
 
+    /** @return HasMany<Section, $this> */
     public function sections(): HasMany
     {
         return $this->hasMany(related: Section::class);
     }
 
+    /** @return HasMany<Item, $this> */
     public function items(): HasMany
     {
         return $this->hasMany(related: Item::class);
     }
 
+    /** @return HasMany<Total, $this> */
     public function totals(): HasMany
     {
         return $this->hasMany(related: Total::class);
     }
 
+    /** @return HasMany<WorkType, $this> */
     public function workTypes(): HasMany
     {
         return $this->hasMany(related: WorkType::class);
