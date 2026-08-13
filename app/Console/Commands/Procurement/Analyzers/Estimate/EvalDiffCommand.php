@@ -5,6 +5,9 @@ declare(strict_types=1);
 namespace App\Console\Commands\Procurement\Analyzers\Estimate;
 
 use App\Console\Concerns\RendersReport;
+use App\Dto\Procurement\Analyzers\Estimate\Diff\DiffEntry;
+use App\Dto\Procurement\Analyzers\Estimate\Diff\DiffReport;
+use App\Exceptions\Procurement\InvalidEvalDiffPayload;
 use App\Exceptions\Procurement\OperationFailed;
 use App\Models\Procurement\Ai\Analysis;
 use App\Services\Procurement\Analyzers\Estimate\EstimateDiffReport;
@@ -64,11 +67,11 @@ final class EvalDiffCommand extends Command
             return self::FAILURE;
         }
 
-        $goldEstimates = (array) ($gold['estimates'] ?? []);
-        $predictedEstimates = (array) ($analysis->result['estimates'] ?? []);
+        $goldEstimates = $this->estimates($gold['estimates'] ?? [], 'gold');
+        $predictedEstimates = $this->estimates($analysis->result['estimates'] ?? [], 'analysis result');
 
         $report = $this->diffReport->build($goldEstimates, $predictedEstimates, $limitRows);
-        $rendered = $format === 'json' ? $this->renderJson($report->toArray()) : $this->renderMarkdown($code, $analysis, $report->toArray());
+        $rendered = $format === 'json' ? $this->renderJson($report->toArray()) : $this->renderMarkdown($code, $analysis, $report);
 
         $this->writeArtifact($this->option('out'), $rendered);
 
@@ -78,22 +81,19 @@ final class EvalDiffCommand extends Command
         return self::SUCCESS;
     }
 
-    /**
-     * @param  array<string, mixed>  $report
-     */
-    private function renderMarkdown(string $code, Analysis $analysis, array $report): string
+    private function renderMarkdown(string $code, Analysis $analysis, DiffReport $report): string
     {
         $lines = [];
         $lines[] = "# Diff-отчёт: {$code} (Analysis #{$analysis->id})";
         $lines[] = '';
-        $lines[] = "**Вердикт:** {$report['verdict']}";
+        $lines[] = "**Вердикт:** {$report->verdict}";
         $lines[] = '';
-        $lines[] = sprintf('Показано строчных расхождений %d из %d.', $report['truncated']['shown'], $report['truncated']['total']);
+        $lines[] = sprintf('Показано строчных расхождений %d из %d.', $report->truncated['shown'], $report->truncated['total']);
         $lines[] = '';
 
         foreach (['rows' => 'Строки', 'passport' => 'Паспорт', 'totals' => 'Итоги'] as $key => $title) {
-            /** @var list<array<string, mixed>> $entries */
-            $entries = $report[$key];
+            /** @var list<DiffEntry> $entries */
+            $entries = $report->{$key};
             $lines[] = "## {$title} ({$this->count($entries)})";
             $lines[] = '';
 
@@ -110,12 +110,12 @@ final class EvalDiffCommand extends Command
             foreach ($entries as $entry) {
                 $lines[] = sprintf(
                     '| %d | %s | %s | %s | %s | %s |',
-                    $entry['estimate_index'],
-                    $entry['row_index'] ?? '—',
-                    $entry['kind'],
-                    $entry['field'] ?? '—',
-                    $this->scalar($entry['gold']),
-                    $this->scalar($entry['predicted']),
+                    $entry->estimateIndex,
+                    $entry->rowIndex ?? '—',
+                    $entry->kind,
+                    $entry->field ?? '—',
+                    $this->scalar($entry->gold),
+                    $this->scalar($entry->predicted),
                 );
             }
 
@@ -143,6 +143,37 @@ final class EvalDiffCommand extends Command
             return json_encode($value, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?: '—';
         }
 
-        return (string) $value;
+        if (is_string($value) || is_int($value) || is_float($value) || is_bool($value)) {
+            return (string) $value;
+        }
+
+        return json_encode($value, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?: '—';
+    }
+
+    /** @return list<array<string, mixed>> */
+    private function estimates(mixed $value, string $source): array
+    {
+        if (! is_array($value)) {
+            throw new InvalidEvalDiffPayload("{$source} estimates должен быть списком объектов.");
+        }
+
+        $estimates = [];
+
+        foreach ($value as $estimate) {
+            if (! is_array($estimate)) {
+                throw new InvalidEvalDiffPayload("{$source} estimates должен содержать только объекты.");
+            }
+
+            foreach (array_keys($estimate) as $key) {
+                if (! is_string($key)) {
+                    throw new InvalidEvalDiffPayload("{$source} estimates содержит нестроковый ключ.");
+                }
+            }
+
+            /** @var array<string, mixed> $estimate */
+            $estimates[] = $estimate;
+        }
+
+        return $estimates;
     }
 }
