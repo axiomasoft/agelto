@@ -3,7 +3,7 @@ projection: status-view
 projection_version: v1
 source_scope: plan core + phases + journal
 through: 2026-08-13
-inputs_sha256: 2a8c6f11f6d97eda01a55f57297c669a8bf14ad632afdf8e3a2556cb650096f5
+inputs_sha256: 610445f19f31306d5d53cd74afe372c5c922de4046629d63168e988bb2e6869f
 generated_by: task plan-views status
 -->
 
@@ -16,7 +16,7 @@ generated_by: task plan-views status
 | Поле | Значение |
 |:--|:--|
 | Version | 0.1.12 |
-| Status | 🔴 Blocked |
+| Status | 🟡 In progress |
 | Last Updated | 2026-08-13 |
 
 ## 4. Phase Index & Status Board
@@ -25,7 +25,7 @@ generated_by: task plan-views status
 |:--|:--|:--|:--|
 | P0 | Разведка репозитория, референсов и RAG-контракты | 8/8 | 🟢 Done |
 | P1 | Makefile и Docker dev/prod с Vite-ready topology | 7/7 | 🟢 Done |
-| P10 | PHP, архитектура, безопасность и production-readiness audit | 5/6 | 🔴 Blocked |
+| P10 | PHP, архитектура, безопасность и production-readiness audit | 5/6 | 🟡 In progress |
 | P11 | Pest 5 performance, test isolation и CI | 0/6 | ⬜ Not started |
 | P12 | Ubuntu deployment guide и финальный clean-room rehearsal | 0/7 | ⬜ Not started |
 | P2 | Local vendor, secrets, preflight, bootstrap и Laravel Doctor | 7/7 | 🟢 Done |
@@ -71,7 +71,7 @@ generated_by: task plan-views status
 | P10.3 | Найти duplication, dead code, naming и needless abstractions | 🟢 Done | 2026-08-13 |
 | P10.4 | Проверить migrations, transactions, races, idempotency, queues и config defaults | 🟢 Done | 2026-08-13 |
 | P10.5 | Исправить findings вертикальными срезами с regression tests | 🟢 Done | 2026-08-13 |
-| P10.6 | Закрепить quality gates и синхронизировать architecture/security docs | 🔴 Blocked | 2026-08-13 |
+| P10.6 | Закрепить quality gates и синхронизировать architecture/security docs | 🟡 In progress | 2026-08-13 |
 
 ## Phase P11
 
@@ -649,6 +649,7 @@ write-site: pre_mutation: allow · pre_final: allow |
 | 2026-08-13 | gpt-5.6-terra/high | plan-run · in-progress · — |
 | 2026-08-13 | gpt-5.6-terra/high | plan-run · block-candidate · P10.6 max/no-baseline verification reports 1,591 errors in 266 files; review required. |
 | 2026-08-13 | gpt-5.6-terra/high | plan-run · blocked · BLOCK_CONFIRMED: level:max without baseline has 1,591 file errors across 266 paths; plan-design required. |
+| 2026-08-13 | gpt-5.6-terra/high | plan-run · in-progress · D86 recovery: continue in-scope level:max/no-baseline remediation; prior terminal block was false escalation. |
 
 ## Owner Gates
 
@@ -656,7 +657,6 @@ write-site: pre_mutation: allow · pre_final: allow |
 - P0.4: known deviation
 - P0.5: known deviation
 - P10.5: known deviation
-- P10.6: escalation
 - P4.2: known deviation
 - P4.4: known deviation
 - P4.6: known deviation
