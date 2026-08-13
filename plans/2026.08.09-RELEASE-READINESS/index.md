@@ -23,7 +23,7 @@
 | Файл | Потребители |
 |:--|:--|
 | brief/00-brief.md | все фазы |
-| brief/01-refinements.md | D12 · current authoring lifecycle; D3 superseded · D70 final P2 design boundary |
+| brief/01-refinements.md | D12 · current authoring lifecycle; D3 superseded · D70 final P2 design boundary · D85 P10.2 repeat-audit owner choice |
 | findings/bootstrap-recon-2026-08-09.md | P0 · P1–P4 bootstrap context |
 | findings/P0-reference-input-map-2026-08-09.md | P0.2 · D14 external-tree provenance |
 | findings/P0-workflow-static-review-2026-08-09.md | D15 · blocked workflow evidence |
@@ -42,8 +42,8 @@
 | findings/P9-filament-v5-rag-2026-08-09.md | P9.1–P9.6 · official Filament 5 navigation/enum/schema/table contracts |
 | findings/P9-filament-surface-recon-2026-08-09.md | P9.1–P9.6 · D37/D38 resource/page/schema/table/auth inventory |
 | findings/P10-quality-security-recon-2026-08-09.md | P10.1–P10.6 · authoring tooling/audit surface and D39 basis |
-| findings/P10-static-analysis-audit.md | P10.1 execution carrier · P10.2/P10.5/P10.6 hard input; pending execution |
-| findings/P10-security-audit.md | P10.2 execution carrier · P10.5 hard input; pending execution |
+| findings/P10-static-analysis-audit.md | terminal P10.1 baseline · P10.2/P10.5/P10.6 hard input |
+| findings/P10-security-audit.md | P10.2 `e4cb6a89` checkpoint + repeat-pass output · P10.5 hard input; terminal repeat pending D85 |
 | findings/P10-architecture-debt-audit.md | P10.3 execution carrier · P10.5 hard input; pending execution |
 | findings/P10-production-readiness-audit.md | P10.4 execution carrier · P10.5 hard input; pending execution |
 | artifacts/P10-remediation-matrix.md | P10.5 disposition/fix carrier · P10.6 hard input; pending execution |
@@ -75,6 +75,7 @@
 | research/10-P8-execution-design.md | P8.1–P8.5 · platform definition, applicability schema and extension test contract |
 | research/11-P9-execution-design.md | P9.1–P9.6 · Russian IA, label/schema/table and browser acceptance contract |
 | research/12-P10-execution-design.md | P10.1–P10.6 · baseline/audit/disposition/remediation/gate contract |
+| research/25-P10.2-reexecution-design.md | P10.2 · D85 checkpoint-diff/full reexecution and GREEN-only carrier contract |
 | research/13-P11-execution-design.md | P11.1–P11.6 · measured Pest/isolation/risk/CI/final-gate contract |
 | research/14-P12-execution-design.md | P12.1–P12.7 · Ubuntu host/source/ingress/deploy/recovery/rehearsal contract |
 

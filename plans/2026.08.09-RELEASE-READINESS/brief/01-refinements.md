@@ -299,3 +299,16 @@ Pint coverage/count и current state semantics, затем выполняет di
 D35/D36, доказанный P8.6 production repair, historical audit/journal/evidence и P9–P12 product
 остаются неизменными. Решение материализовано D81 и
 `research/24-P8-audit-cap-final-remediation.md`.
+
+## 2026-08-13 — повтор P10.2 вместо route-only reconciliation
+
+После первого P10.2 владелец выбрал option `reexecute` в decision request
+`p10-2-route-recovery-20260813`: security audit требуется повторить и закрыть штатным GREEN,
+а не принимать ранее захваченную provider-route запись как достаточную для reconciliation.
+Committed report/carrier `e4cb6a89` сохраняются как checkpoint и сверяемый prior evidence, но
+не считаются terminal результатом нового запуска. Повтор обязан заново подтвердить полный coverage
+manifest, вручную перепроверить каждый candidate и findings `P10.2-S01`/`P10.2-S02`, выполнить
+item-owned carrier через установленный Swissknifeman marketplace runtime без hard-coded foreign
+checkout и завершиться без resource-pressure deviation. Product fixes по-прежнему принадлежат
+P10.5; P10.2 остаётся read-only audit. Решение материализовано D85 и
+`research/25-P10.2-reexecution-design.md`.

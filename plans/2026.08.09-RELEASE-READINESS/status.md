@@ -3,7 +3,7 @@ projection: status-view
 projection_version: v1
 source_scope: plan core + phases + journal
 through: 2026-08-13
-inputs_sha256: 1efec301ed361a7040e71e4ee7dc0b2bd098df6056a0511707d4a341b8a57a2b
+inputs_sha256: 4d4ecaa911dfac652045feb656d1a685371ff65aded635e1d24bf941f2611ead
 generated_by: task plan-views status
 -->
 
@@ -632,6 +632,8 @@ write-site: pre_mutation: allow · pre_final: allow |
 | 2026-08-13 | implementation/high | plan-run · closed-deviations · Security audit e4cb6a89: high P10.2-S01 and medium P10.2-S02 reported; Task lint carrier could not complete under host resource pressure. |
 | 2026-08-13 | implementation/high | plan-run · decision-pending · decision queue: p10-2-route-recovery-20260813 |
 | 2026-08-13 | repository-owner | plan-run · in-progress · decision queue: p10-2-route-recovery-20260813 |
+| 2026-08-13 | frontier/high | plan-design · in-progress · ТЗ item'а доведено до DoR: D85 materialized owner-approved full reexecution; checkpoint evidence, portable marketplace carrier and GREEN-only close sealed |
+| 2026-08-13 | implementation/high | plan-run · in-progress · D85 owner-approved full reexecution started; route evidence and Task Contract pre_mutation: allow. |
 
 ## Owner Gates
 
