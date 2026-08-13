@@ -3,7 +3,7 @@ projection: status-view
 projection_version: v1
 source_scope: plan core + phases + journal
 through: 2026-08-13
-inputs_sha256: 3a546ece78de0ec3ade59a536fb7555980c3c85b054ed06459166fb7c2b5449b
+inputs_sha256: 0bf5bfec4142c54452ebca95e6ca75c7534d88d8b27a75d143a8f1d693b40dc7
 generated_by: task plan-views status
 -->
 
@@ -651,6 +651,7 @@ write-site: pre_mutation: allow · pre_final: allow |
 | 2026-08-13 | gpt-5.6-terra/high | plan-run · blocked · BLOCK_CONFIRMED: level:max without baseline has 1,591 file errors across 266 paths; plan-design required. |
 | 2026-08-13 | gpt-5.6-terra/high | plan-run · in-progress · D86 recovery: continue in-scope level:max/no-baseline remediation; prior terminal block was false escalation. |
 | 2026-08-13 | gpt-5.6-terra/high | plan-run · local-repair · Committed max/no-baseline carrier start: full PHPStan 1,591→1,446 after typed ProxyCandidate boundary and EvalComparison contract; focused PHPStan, 49 relevant Pest assertions, and full Pint are green. |
+| 2026-08-13 | gpt-5.6-terra/high | plan-run · local-repair · Committed typed extraction/screening eval runners, PipelineStuckCheck, and the full gold build chain. Full PHPStan level:max/no-baseline is 991 errors in 251 files (from 1,591/266); focused PHPStan, 43 relevant Pest tests, and Pint are green. |
 
 ## Owner Gates
 
