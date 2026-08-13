@@ -50,8 +50,8 @@ test('изменение цены и статуса создаёт новую р
  * `SnapshotFactory` — он строит `Carbon` напрямую, минуя `parseDate`, и дефект не ловит).
  */
 test('повторный инжест идентичного CSV-снапшота ЕИС не создаёт вторую ревизию и событие (Д-1)', function () {
-    $registry = Registry::factory()->create(['code' => 'fz44']);
-    $crawler = Crawler::factory()->create(['registry_id' => $registry->id]);
+    $crawler = Crawler::factory()->create();
+    $registry = $crawler->registry;
     $mapper = app(EisCsvRowMapper::class);
     $processor = app(ProcurementIngestProcessor::class);
 

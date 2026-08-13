@@ -60,6 +60,7 @@ test('ёмкость растёт только от активных привя�
         'requestsPerMinutePerProxy' => 1,
         'maxWaitSeconds' => 0,
     ]);
+    $platform->update(['code' => 'eis']);
     $registry = Registry::factory()->for($platform)->create();
     $active = Proxy::factory()->create();
     $inactive = Proxy::factory()->create(['is_active' => false]);

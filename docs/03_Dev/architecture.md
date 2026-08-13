@@ -164,7 +164,8 @@ release-readiness; она не создаёт отдельный публичн�
 
 ## Смежное
 
-- [`platform-extension.md`](platform-extension.md) — data-only platform, typed crawl-capability и contract-test template.
+- [`platform-extension.md`](platform-extension.md) — data-only platform, typed crawl-capability,
+  exact source-literal boundary и contract-test template (`bash docker/tests/platform-extension-contract.sh`).
 - [`database.md`](database.md) — схема, FK, unique-инварианты.
 - [`crawling-pipeline.md`](crawling-pipeline.md) / [`document-pipeline.md`](document-pipeline.md) /
   [`llm-providers.md`](llm-providers.md) — internals по стадиям.

@@ -8,7 +8,8 @@ status: living
 
 Status mappings имеют ровно один scope: platform default либо exact registry override. Exact
 registry выигрывает; rollback applicability отказывается до mutation при platform-scoped rows.
-Практический template — [`platform-extension.md`](platform-extension.md).
+У `Registry` уникальна пара `(platform_id, code)`, поэтому shared code допустим только на разных
+площадках. Практический template и rollback-proof — [`platform-extension.md`](platform-extension.md).
 
 Полная схема — миграции `database/migrations/` (источник истины, не копируется сюда). Этот раздел —
 карта таблиц AI-пайплайна и ключевые инварианты, которые не читаются из одной миграции с ходу.

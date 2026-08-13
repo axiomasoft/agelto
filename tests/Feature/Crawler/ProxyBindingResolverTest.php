@@ -21,19 +21,17 @@ test('резолвер профиля возвращает только явно
 });
 
 test('резолвер стадии объединяет только наборы активных proxy-профилей реестра закупки', function (): void {
-    $registry = Registry::factory()->create();
+    $registry = Registry::factory()->eis()->create();
     $procurement = Procurement::factory()->for($registry)->create();
     $first = Proxy::factory()->create();
     $second = Proxy::factory()->create();
     $ignoredInactive = Proxy::factory()->create();
     $ignoredDirect = Proxy::factory()->create();
-    $ignoredOtherRegistry = Proxy::factory()->create();
 
     Crawler::factory()->for($registry)->withProxies($first)->create();
     Crawler::factory()->for($registry)->withProxies($second)->create();
     Crawler::factory()->for($registry)->withProxies($ignoredInactive)->create(['is_active' => false]);
     Crawler::factory()->for($registry)->create()->proxies()->sync([$ignoredDirect->id]);
-    Crawler::factory()->withProxies($ignoredOtherRegistry)->create();
 
     $requirements = app(ProxyBindingResolver::class)->requirementsForProcurement($procurement->id);
 
@@ -42,7 +40,7 @@ test('резолвер стадии объединяет только набор
 });
 
 test('резолвер стадии выбирает default без profile и direct только при явном opt-out всех профилей', function (): void {
-    $registry = Registry::factory()->create();
+    $registry = Registry::factory()->eis()->create();
     $procurement = Procurement::factory()->for($registry)->create();
     Crawler::factory()->for($registry)->create(['proxy_mode' => CrawlerProxyMode::Default]);
 

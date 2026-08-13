@@ -31,7 +31,7 @@ function activeDetailAnalysisProxies(): void
 
 function detailAnalysisRegistry(): Registry
 {
-    return Registry::factory()->create([
+    return Registry::factory()->eis()->create([
         'code' => 'fz44',
         'settings' => [
             'procedure_url_types' => ['Электронный аукцион' => 'ea20'],

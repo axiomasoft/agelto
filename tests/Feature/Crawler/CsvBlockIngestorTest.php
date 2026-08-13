@@ -62,7 +62,7 @@ function ingestorBatch(array $rows, string $from = '1'): ListingBatch
 
 test('фикстурный блок создаёт закупки, ревизии и события discovered', function () {
     Storage::fake('s3');
-    $registry = Registry::factory()->create(['code' => 'fz44']);
+    $registry = Registry::factory()->eis()->create(['code' => 'fz44']);
     $crawler = Crawler::factory()->for($registry)->create();
     $run = Run::factory()->for($crawler)->create();
 
@@ -90,7 +90,7 @@ test('фикстурный блок создаёт закупки, ревизи�
 
 test('неизменившаяся строка считается распарсенной, а не ошибкой', function () {
     Storage::fake('s3');
-    $registry = Registry::factory()->create(['code' => 'fz44']);
+    $registry = Registry::factory()->eis()->create(['code' => 'fz44']);
     $crawler = Crawler::factory()->for($registry)->create();
     $run = Run::factory()->for($crawler)->create();
 
@@ -114,7 +114,7 @@ test('неизменившаяся строка считается распар�
 
 test('crw_fetches создаётся с dedup_signature, счётчиками и artifact_ref', function () {
     Storage::fake('s3');
-    $registry = Registry::factory()->create(['code' => 'fz44']);
+    $registry = Registry::factory()->eis()->create(['code' => 'fz44']);
     $crawler = Crawler::factory()->for($registry)->create();
     $run = Run::factory()->for($crawler)->create();
 
@@ -138,7 +138,7 @@ test('crw_fetches создаётся с dedup_signature, счётчиками и
 
 test('сырой CSV сохраняется в Storage по пути raw/csv/{crawlerId}/{runId}/{from}.csv', function () {
     Storage::fake('s3');
-    $registry = Registry::factory()->create(['code' => 'fz44']);
+    $registry = Registry::factory()->eis()->create(['code' => 'fz44']);
     $crawler = Crawler::factory()->for($registry)->create();
     $run = Run::factory()->for($crawler)->create();
 
@@ -156,7 +156,7 @@ test('сырой CSV сохраняется в Storage по пути raw/csv/{cr
 
 test('строка из crw_ignored_items пропускается и не создаёт закупку', function () {
     Storage::fake('s3');
-    $registry = Registry::factory()->create(['code' => 'fz44']);
+    $registry = Registry::factory()->eis()->create(['code' => 'fz44']);
     $crawler = Crawler::factory()->for($registry)->create();
     $run = Run::factory()->for($crawler)->create();
 
@@ -177,7 +177,7 @@ test('строка из crw_ignored_items пропускается и не со�
 
 test('битая строка без источника номера не рушит блок — остальные строки обрабатываются', function () {
     Storage::fake('s3');
-    $registry = Registry::factory()->create(['code' => 'fz44']);
+    $registry = Registry::factory()->eis()->create(['code' => 'fz44']);
     $crawler = Crawler::factory()->for($registry)->create();
     $run = Run::factory()->for($crawler)->create();
 
@@ -196,7 +196,7 @@ test('битая строка без источника номера не руш
 test('дедуп внутри блока по реестровому номеру — 510 строк на 500 уникальных дают 500 инжестов без вторых ревизий', function () {
     Storage::fake('s3');
     Log::spy();
-    $registry = Registry::factory()->create(['code' => 'fz44']);
+    $registry = Registry::factory()->eis()->create(['code' => 'fz44']);
     $crawler = Crawler::factory()->for($registry)->create();
     $run = Run::factory()->for($crawler)->create();
 
@@ -231,7 +231,7 @@ test('дедуп внутри блока по реестровому номер�
 
 test('битая строка с непарсящейся датой размещения не рушит блок', function () {
     Storage::fake('s3');
-    $registry = Registry::factory()->create(['code' => 'fz44']);
+    $registry = Registry::factory()->eis()->create(['code' => 'fz44']);
     $crawler = Crawler::factory()->for($registry)->create();
     $run = Run::factory()->for($crawler)->create();
 
@@ -253,7 +253,7 @@ test('битая строка с непарсящейся датой разме�
 
 test('ошибка маппера записывается отдельно от пропущенной строки', function () {
     Storage::fake('s3');
-    $registry = Registry::factory()->create(['code' => 'fz44']);
+    $registry = Registry::factory()->eis()->create(['code' => 'fz44']);
     $crawler = Crawler::factory()->for($registry)->create();
     $run = Run::factory()->for($crawler)->create();
     $mapper = Mockery::mock(ListingRowMapper::class);

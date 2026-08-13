@@ -8,6 +8,8 @@ status: living
 
 Raw stage mapping выбирается как platform default либо exact registry override; override имеет
 приоритет. Неизвестный этап создаётся exact-registry `unknown`, не влияя на другие реестры.
+Если в форме нет platform/registry capability, профиль не сохраняется: это fail-closed diagnostic,
+а не причина выбирать другую площадку или global fallback.
 
 Сверено с `app/Enums/Procurement/` — каждый кейс перечислен.
 

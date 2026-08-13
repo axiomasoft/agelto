@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Database\Factories\Procurement;
 
 use App\Enums\Procurement\ProcurementStatus;
+use App\Models\Procurement\Platform\Platform;
 use App\Models\Procurement\Platform\Registry;
 use App\Models\Procurement\Procurement;
 use Illuminate\Database\Eloquent\Factories\Factory;
@@ -19,7 +20,7 @@ final class ProcurementFactory extends Factory
     public function definition(): array
     {
         return [
-            'registry_id' => Registry::factory()->eis(),
+            'registry_id' => fn (): int|string => $this->eisRegistry()->getKey(),
             'registry_number' => fake()->unique()->numerify('0000000000000000####'),
             'etp_number' => null,
             'ikz' => null,
@@ -56,5 +57,29 @@ final class ProcurementFactory extends Factory
             'first_seen_at' => now(),
             'last_seen_at' => now(),
         ];
+    }
+
+    private function eisRegistry(): Registry
+    {
+        $platform = Platform::query()->firstOrCreate(
+            attributes: ['code' => 'eis'],
+            values: [
+                'name' => 'Единая информационная система',
+                'base_url' => 'https://zakupki.gov.ru',
+                'is_active' => true,
+                'is_public' => true,
+            ],
+        );
+
+        return Registry::query()->firstOrCreate(
+            attributes: [
+                'platform_id' => $platform->getKey(),
+                'code' => 'fz44',
+            ],
+            values: [
+                'name' => 'ЕИС 44-ФЗ',
+                'settings' => ['records_per_page' => 50],
+            ],
+        );
     }
 }

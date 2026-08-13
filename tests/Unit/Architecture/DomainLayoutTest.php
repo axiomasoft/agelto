@@ -28,7 +28,7 @@ function alignedDomainLayoutLayers(): array
         'App\Enums\Procurement' => [
             'root' => [
                 'AwardStatus', 'BidStatus', 'EisProcedureType', 'ProcurementEventType',
-                'ProcurementStatus', 'ProtocolType', 'OperationLogLevel',
+                'ProcurementStatus', 'ProtocolType', 'OperationLogLevel', 'StatusMappingApplicability',
             ],
             'subareas' => ['Ai', 'Analyzers', 'Crawler', 'Document', 'Estimate', 'Health', 'Proxy'],
         ],
