@@ -29,6 +29,7 @@ use Prism\Prism\Enums\FinishReason as PrismFinishReason;
 use Prism\Prism\Enums\Provider as PrismProvider;
 use Prism\Prism\Exceptions\PrismException;
 use Prism\Prism\Facades\Prism;
+use Prism\Prism\Providers\Gemini\Gemini;
 use Prism\Prism\Schema\RawSchema;
 use Prism\Prism\Structured\PendingRequest as StructuredPendingRequest;
 use Prism\Prism\Text\PendingRequest as TextPendingRequest;
@@ -155,9 +156,9 @@ final readonly class PrismGeminiProvider implements LlmProvider, SupportsContext
 
     public function createCache(CacheableContent $content, LlmCacheOptions $options): LlmCacheHandle
     {
-        $cached = Prism::provider(PrismProvider::Gemini)->cache(
+        $cached = $this->geminiProvider()->cache(
             model: $options->model,
-            messages: $this->fileMessages($content->fileRefs),
+            messages: $this->fileMessages($this->fileRefs($content->fileRefs)),
             systemPrompts: [new PrismSystemMessage($content->systemPart)],
             ttl: (int) $options->ttl->totalSeconds,
         );
@@ -212,12 +213,12 @@ final readonly class PrismGeminiProvider implements LlmProvider, SupportsContext
         $request = Prism::text()
             ->using(PrismProvider::Gemini, $options->model)
             ->withSystemPrompt($prompt->systemPart)
-            ->withPrompt(implode("\n\n", $prompt->userParts), $this->fileMedia($prompt->fileRefs))
+            ->withPrompt($this->userText($prompt->userParts), $this->fileMedia($this->fileRefs($prompt->fileRefs)))
             ->usingTemperature($options->temperature)
             ->withMaxTokens($options->maxTokens)
             ->withProviderOptions($this->providerOptions($options));
 
-        return $this->withProxy($request);
+        return $request->withClientOptions($this->clientOptions());
     }
 
     private function structuredRequest(LlmPrompt $prompt, JsonSchema $schema, LlmOptions $options): StructuredPendingRequest
@@ -226,28 +227,23 @@ final readonly class PrismGeminiProvider implements LlmProvider, SupportsContext
             ->using(PrismProvider::Gemini, $options->model)
             ->withSchema(new RawSchema(name: 'response', schema: (new GeminiResponseSchemaAdapter)->adapt($schema->schema)))
             ->withSystemPrompt($prompt->systemPart)
-            ->withPrompt(implode("\n\n", $prompt->userParts), $this->fileMedia($prompt->fileRefs))
+            ->withPrompt($this->userText($prompt->userParts), $this->fileMedia($this->fileRefs($prompt->fileRefs)))
             ->usingTemperature($options->temperature)
             ->withMaxTokens($options->maxTokens)
             ->withProviderOptions($this->providerOptions($options));
 
-        return $this->withProxy($request);
+        return $request->withClientOptions($this->clientOptions());
     }
 
     /**
-     * @template TRequest of TextPendingRequest|StructuredPendingRequest
-     *
-     * @param  TRequest  $request
-     * @return TRequest
+     * @return array<string, mixed>
      */
-    private function withProxy(TextPendingRequest|StructuredPendingRequest $request): TextPendingRequest|StructuredPendingRequest
+    private function clientOptions(): array
     {
-        $clientOptions = [
-            'timeout' => (int) config('ai.gemini.request_timeout_seconds', 90),
+        return [
+            'timeout' => $this->intConfig('ai.gemini.request_timeout_seconds', 90),
             ...$this->outboundProxy->optionsFor($this->host()),
         ];
-
-        return $request->withClientOptions($clientOptions);
     }
 
     /**
@@ -290,23 +286,71 @@ final readonly class PrismGeminiProvider implements LlmProvider, SupportsContext
     }
 
     /**
+     * @param  array<mixed>  $value
+     * @return list<LlmFileHandle>
+     */
+    private function fileRefs(array $value): array
+    {
+        $fileRefs = [];
+
+        foreach ($value as $file) {
+            if (! $file instanceof LlmFileHandle) {
+                throw new \LogicException('File refs должны состоять из LlmFileHandle.');
+            }
+
+            $fileRefs[] = $file;
+        }
+
+        return $fileRefs;
+    }
+
+    /**
+     * @param  array<mixed>  $value
+     */
+    private function userText(array $value): string
+    {
+        $parts = [];
+
+        foreach ($value as $part) {
+            if (! is_string($part)) {
+                throw new \LogicException('User prompt должен состоять из строковых частей.');
+            }
+
+            $parts[] = $part;
+        }
+
+        return implode("\n\n", $parts);
+    }
+
+    private function geminiProvider(): Gemini
+    {
+        $provider = Prism::provider(PrismProvider::Gemini);
+
+        if (! $provider instanceof Gemini) {
+            throw new \LogicException('Prism Gemini provider должен быть экземпляром Gemini.');
+        }
+
+        return $provider;
+    }
+
+    /**
      * @param  array<string, mixed>  $raw  Сырой ответ Gemini (`candidates`/`usageMetadata`)
      */
     private function usageFrom(array $raw): LlmUsage
     {
-        $promptTokenCount = (int) data_get($raw, 'usageMetadata.promptTokenCount', 0);
-        $cachedTokenCount = (int) data_get($raw, 'usageMetadata.cachedContentTokenCount', 0);
+        $promptTokenCount = $this->integerValue(data_get($raw, 'usageMetadata.promptTokenCount', 0), 'usageMetadata.promptTokenCount');
+        $cachedTokenCount = $this->integerValue(data_get($raw, 'usageMetadata.cachedContentTokenCount', 0), 'usageMetadata.cachedContentTokenCount');
         // `thoughtsTokenCount` (reasoning-модели, gemini-3.x) билluется провайдером по ТОЙ ЖЕ
         // ставке, что `candidatesTokenCount` (output) — Google не разводит их по цене, только по
         // назначению. Без сложения `cost_micros`/`ai:cost-report` молча занижают реальный счёт
         // (найдено P6.2 2026-07-28: расхождение трекинга с фактическим биллингом владельца).
-        $thoughtsTokenCount = (int) data_get($raw, 'usageMetadata.thoughtsTokenCount', 0);
+        $thoughtsTokenCount = $this->integerValue(data_get($raw, 'usageMetadata.thoughtsTokenCount', 0), 'usageMetadata.thoughtsTokenCount');
 
         return new LlmUsage(
             promptTokens: max($promptTokenCount - $cachedTokenCount, 0),
-            completionTokens: (int) data_get($raw, 'usageMetadata.candidatesTokenCount', 0) + $thoughtsTokenCount,
+            completionTokens: $this->integerValue(data_get($raw, 'usageMetadata.candidatesTokenCount', 0), 'usageMetadata.candidatesTokenCount') + $thoughtsTokenCount,
             cachedTokens: $cachedTokenCount,
-            totalTokens: (int) data_get($raw, 'usageMetadata.totalTokenCount', 0),
+            totalTokens: $this->integerValue(data_get($raw, 'usageMetadata.totalTokenCount', 0), 'usageMetadata.totalTokenCount'),
         );
     }
 
@@ -331,7 +375,7 @@ final readonly class PrismGeminiProvider implements LlmProvider, SupportsContext
      */
     private function withRateLimit(callable $callback): mixed
     {
-        $max = (int) config('ai.gemini.rate_limit.max', 0);
+        $max = $this->intConfig('ai.gemini.rate_limit.max', 0);
 
         if ($max <= 0 || app()->runningUnitTests()) {
             return $callback();
@@ -339,8 +383,8 @@ final readonly class PrismGeminiProvider implements LlmProvider, SupportsContext
 
         return Redis::throttle('gemini:generate')
             ->allow($max)
-            ->every((int) config('ai.gemini.rate_limit.every_seconds', 60))
-            ->block((int) config('ai.gemini.rate_limit.block_seconds', 30))
+            ->every($this->intConfig('ai.gemini.rate_limit.every_seconds', 60))
+            ->block($this->intConfig('ai.gemini.rate_limit.block_seconds', 30))
             ->then(
                 $callback,
                 static function (): never {
@@ -367,7 +411,7 @@ final readonly class PrismGeminiProvider implements LlmProvider, SupportsContext
 
         $uploadUrl = $response->header('x-goog-upload-url');
 
-        if ($uploadUrl === '' || $uploadUrl === null) {
+        if ($uploadUrl === '') {
             throw new \RuntimeException('Gemini Files API: провайдер не вернул X-Goog-Upload-URL.');
         }
 
@@ -397,7 +441,7 @@ final readonly class PrismGeminiProvider implements LlmProvider, SupportsContext
 
         $response->throw();
 
-        return (array) $response->json('file', []);
+        return $this->jsonObject($response->json('file', []), 'Gemini Files API upload response');
     }
 
     /**
@@ -405,10 +449,10 @@ final readonly class PrismGeminiProvider implements LlmProvider, SupportsContext
      */
     private function pollUntilActive(array $file): LlmFileHandle
     {
-        $name = ltrim((string) ($file['name'] ?? ''), '/');
-        $state = (string) ($file['state'] ?? 'ACTIVE');
-        $deadline = CarbonImmutable::now()->addSeconds((int) config('ai.gemini.files.poll_timeout_seconds', 60));
-        $intervalMs = (int) config('ai.gemini.files.poll_interval_ms', 500);
+        $name = ltrim($this->stringValue($file['name'] ?? '', 'Gemini file name'), '/');
+        $state = $this->stringValue($file['state'] ?? 'ACTIVE', 'Gemini file state');
+        $deadline = CarbonImmutable::now()->addSeconds($this->intConfig('ai.gemini.files.poll_timeout_seconds', 60));
+        $intervalMs = $this->intConfig('ai.gemini.files.poll_interval_ms', 500);
 
         while ($state === 'PROCESSING' && CarbonImmutable::now()->lessThan($deadline)) {
             usleep($intervalMs * 1000);
@@ -416,8 +460,8 @@ final readonly class PrismGeminiProvider implements LlmProvider, SupportsContext
             $response = $this->geminiClient()->get("/{$name}");
             $response->throw();
 
-            $file = (array) $response->json();
-            $state = (string) ($file['state'] ?? 'ACTIVE');
+            $file = $this->jsonObject($response->json(), 'Gemini Files API poll response');
+            $state = $this->stringValue($file['state'] ?? 'ACTIVE', 'Gemini file state');
         }
 
         if ($state !== 'ACTIVE') {
@@ -425,14 +469,14 @@ final readonly class PrismGeminiProvider implements LlmProvider, SupportsContext
         }
 
         return new LlmFileHandle(
-            uri: (string) $file['uri'],
-            expiresAt: CarbonImmutable::parse((string) $file['expirationTime']),
+            uri: $this->stringValue($file['uri'] ?? null, 'Gemini file URI'),
+            expiresAt: CarbonImmutable::parse($this->stringValue($file['expirationTime'] ?? null, 'Gemini file expirationTime')),
         );
     }
 
     private function filesUploadUrl(): string
     {
-        return rtrim((string) config('ai.gemini.files.base_url'), '/').'/upload/v1beta/files';
+        return rtrim($this->stringConfig('ai.gemini.files.base_url'), '/').'/upload/v1beta/files';
     }
 
     /**
@@ -442,13 +486,13 @@ final readonly class PrismGeminiProvider implements LlmProvider, SupportsContext
     private function geminiClient(): PendingRequest
     {
         return Http::withHeaders(['x-goog-api-key' => $this->apiKey()])
-            ->baseUrl(rtrim((string) config('ai.gemini.files.base_url'), '/').'/v1beta')
+            ->baseUrl(rtrim($this->stringConfig('ai.gemini.files.base_url'), '/').'/v1beta')
             ->withOptions($this->outboundProxy->optionsFor($this->host()));
     }
 
     private function apiKey(): string
     {
-        return (string) config('prism.providers.gemini.api_key');
+        return $this->stringConfig('prism.providers.gemini.api_key');
     }
 
     /**
@@ -459,6 +503,57 @@ final readonly class PrismGeminiProvider implements LlmProvider, SupportsContext
      */
     private function host(): string
     {
-        return (string) parse_url((string) config('ai.gemini.files.base_url'), PHP_URL_HOST);
+        $host = parse_url($this->stringConfig('ai.gemini.files.base_url'), PHP_URL_HOST);
+
+        if (! is_string($host) || $host === '') {
+            throw new \LogicException('ai.gemini.files.base_url должен содержать host.');
+        }
+
+        return $host;
+    }
+
+    private function intConfig(string $key, int $default): int
+    {
+        return $this->integerValue(config($key, $default), $key);
+    }
+
+    private function integerValue(mixed $value, string $context): int
+    {
+        if (is_int($value)) {
+            return $value;
+        }
+
+        if (is_string($value) && preg_match('/^-?\d+$/', $value) === 1) {
+            return (int) $value;
+        }
+
+        throw new \LogicException("{$context} должен быть целым числом.");
+    }
+
+    private function stringConfig(string $key): string
+    {
+        return $this->stringValue(config($key), $key);
+    }
+
+    private function stringValue(mixed $value, string $context): string
+    {
+        if (! is_string($value)) {
+            throw new \LogicException("{$context} должен быть строкой.");
+        }
+
+        return $value;
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function jsonObject(mixed $value, string $context): array
+    {
+        if (! is_array($value) || array_is_list($value)) {
+            throw new \LogicException("{$context} должен быть JSON-объектом.");
+        }
+
+        /** @var array<string, mixed> $value */
+        return $value;
     }
 }
