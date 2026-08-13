@@ -50,4 +50,24 @@ final class GoldFormProfileColumns extends Data
         public ?string $amount_since_year_start = null,
         public ?string $amount_reporting_period = null,
     ) {}
+
+    public function letterFor(string $field): ?string
+    {
+        return match ($field) {
+            'source_position_number' => $this->source_position_number,
+            'code' => $this->code,
+            'name' => $this->name,
+            'unit' => $this->unit,
+            'quantity' => $this->quantity,
+            'unit_price_base' => $this->unit_price_base,
+            'index_value' => $this->index_value,
+            'unit_price_curr' => $this->unit_price_curr,
+            'total_price_base' => $this->total_price_base,
+            'total_price_curr' => $this->total_price_curr,
+            'amount_since_start' => $this->amount_since_start,
+            'amount_since_year_start' => $this->amount_since_year_start,
+            'amount_reporting_period' => $this->amount_reporting_period,
+            default => null,
+        };
+    }
 }
