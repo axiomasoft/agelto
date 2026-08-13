@@ -2,6 +2,8 @@
 
 ## Next
 
+**Next:** `$ task:plan-design 2026.08.09-RELEASE-READINESS P10.6`
+
 | Batch | Model | Thinking | Context | Суть |
 |:--|:--|:--|:--|:--|
 | solo | frontier | high — cross-cutting quality-contract redesign | cold-start-root | Разбить и перепроектировать путь к PHPStan `level:max` без baseline, не ослабляя acceptance. |
