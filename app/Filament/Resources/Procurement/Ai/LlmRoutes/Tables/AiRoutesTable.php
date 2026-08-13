@@ -16,14 +16,17 @@ class AiRoutesTable
         return $table
             ->columns([
                 TextColumn::make('provider.id')
-                    ->searchable(),
+                    ->label('Провайдер')
+                    ->searchable()
+                    ->wrapHeader(),
                 TextColumn::make('priority')
                     ->numeric()
                     ->sortable(),
                 IconColumn::make('is_active')
                     ->boolean(),
                 IconColumn::make('shadow')
-                    ->boolean(),
+                    ->boolean()
+                    ->visibleFrom('md'),
                 TextColumn::make('created_at')
                     ->dateTime()
                     ->sortable()

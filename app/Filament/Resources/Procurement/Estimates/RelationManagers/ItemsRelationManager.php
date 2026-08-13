@@ -39,21 +39,27 @@ class ItemsRelationManager extends RelationManager
                     ->label('№'),
                 TextColumn::make('section.title')
                     ->label('Раздел')
-                    ->placeholder('-'),
+                    ->placeholder('-')
+                    ->visibleFrom('md'),
                 TextColumn::make('name')
                     ->label('Наименование')
-                    ->wrap(),
+                    ->wrap()
+                    ->lineClamp(3)
+                    ->tooltip(fn (?string $state): ?string => $state),
                 TextColumn::make('unit')
                     ->label('Ед. изм.')
-                    ->placeholder('-'),
+                    ->placeholder('-')
+                    ->visibleFrom('md'),
                 TextColumn::make('quantity')
                     ->label('Кол-во')
                     ->numeric()
-                    ->placeholder('-'),
+                    ->placeholder('-')
+                    ->visibleFrom('md'),
                 TextColumn::make('unit_price_curr')
                     ->label('Цена')
                     ->money('RUB')
-                    ->placeholder('-'),
+                    ->placeholder('-')
+                    ->visibleFrom('md'),
                 TextColumn::make('total_price_curr')
                     ->label('Стоимость')
                     ->money('RUB')

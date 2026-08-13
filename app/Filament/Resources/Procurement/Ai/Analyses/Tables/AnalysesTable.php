@@ -5,13 +5,13 @@ declare(strict_types=1);
 namespace App\Filament\Resources\Procurement\Ai\Analyses\Tables;
 
 use App\Enums\Procurement\Ai\AiDocumentType;
-use App\Filament\Support\LlmPresentation;
 use App\Enums\Procurement\Ai\AnalysisStatus;
 use App\Enums\Procurement\Ai\AnalysisStep;
 use App\Enums\Procurement\Ai\EstimateCardinality;
 use App\Enums\Procurement\Ai\ReviewStatus;
 use App\Enums\Procurement\Ai\ScreeningDecisionReason;
 use App\Enums\Procurement\Ai\ScreeningDisposition;
+use App\Filament\Support\LlmPresentation;
 use App\Models\Procurement\Ai\Analysis;
 use Filament\Actions\ViewAction;
 use Filament\Forms\Components\TextInput;
@@ -29,7 +29,10 @@ class AnalysesTable
             ->columns([
                 TextColumn::make('documentVersion.document.title')
                     ->label('Документ')
-                    ->limit(60)
+                    ->wrapHeader()
+                    ->wrap()
+                    ->lineClamp(2)
+                    ->tooltip(fn (?string $state): ?string => $state)
                     ->placeholder('-')
                     ->searchable(),
                 TextColumn::make('step')
@@ -48,7 +51,8 @@ class AnalysesTable
                 TextColumn::make('screening_confidence')
                     ->label('Уверенность')
                     ->state(static fn (Analysis $record): ?string => self::confidence($record))
-                    ->placeholder('—'),
+                    ->placeholder('—')
+                    ->visibleFrom('md'),
                 TextColumn::make('screening_disposition')
                     ->label('Решение')
                     ->state(static fn (Analysis $record): ?string => $record->storedScreeningResult()?->decision->disposition->value)
@@ -63,7 +67,9 @@ class AnalysesTable
                 TextColumn::make('screening_summary')
                     ->label('Кратко')
                     ->state(static fn (Analysis $record): ?string => $record->storedScreeningResult()?->summary)
-                    ->limit(80)
+                    ->wrap()
+                    ->lineClamp(2)
+                    ->tooltip(fn (?string $state): ?string => $state)
                     ->placeholder('—')
                     ->searchable(query: static fn (Builder $query, string $search): Builder => $query->withScreeningSearch($search)),
                 TextColumn::make('screening_tags')
@@ -72,7 +78,8 @@ class AnalysesTable
                     ->placeholder('—')
                     ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('review_status')
-                    ->badge(),
+                    ->badge()
+                    ->visibleFrom('md'),
                 TextColumn::make('screening_lifecycle')
                     ->label('Состояние')
                     ->state(static fn (Analysis $record): string => self::lifecycle($record))

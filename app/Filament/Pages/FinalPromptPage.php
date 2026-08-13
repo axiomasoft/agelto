@@ -11,6 +11,7 @@ use App\Services\Llm\LlmPayloadReader;
 use AzGuard\Filament\Concerns\HasAzGuardPage;
 use Filament\Actions\Action;
 use Filament\Pages\Page;
+use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Concerns\InteractsWithTable;
 use Filament\Tables\Contracts\HasTable;
@@ -60,13 +61,18 @@ final class FinalPromptPage extends Page implements HasTable
                     ->label('Назначение')
                     ->badge(),
                 TextColumn::make('provider')
-                    ->label('Провайдер'),
+                    ->label('Провайдер')
+                    ->visibleFrom('md'),
                 TextColumn::make('model')
-                    ->label('Модель'),
+                    ->label('Модель')
+                    ->wrap()
+                    ->lineClamp(2)
+                    ->tooltip(fn (?string $state): ?string => $state),
                 TextColumn::make('called_at')
                     ->label('Время')
-                    ->dateTime(),
-                TextColumn::make('success')
+                    ->dateTime()
+                    ->visibleFrom('md'),
+                IconColumn::make('success')
                     ->label('Успех')
                     ->boolean(),
             ])

@@ -16,10 +16,12 @@ class ProcurementsTable
                 TextColumn::make('uuid')
                     ->label('ИД')
                     ->searchable()
-                    ->limit(18),
+                    ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('registry.name')
                     ->label('Реестр')
-                    ->searchable(),
+                    ->searchable()
+                    ->wrapHeader()
+                    ->visibleFrom('md'),
                 TextColumn::make('initial_price')
                     ->label('НМЦК')
                     ->money(fn ($record) => $record->currency)
@@ -27,7 +29,8 @@ class ProcurementsTable
                 TextColumn::make('published_at')
                     ->label('Опубликовано')
                     ->dateTime()
-                    ->sortable(),
+                    ->sortable()
+                    ->visibleFrom('md'),
                 TextColumn::make('bidding_ends_at')
                     ->label('Приём до')
                     ->dateTime()
@@ -35,10 +38,12 @@ class ProcurementsTable
                 TextColumn::make('revision_count')
                     ->label('Редакций')
                     ->numeric()
-                    ->sortable(),
+                    ->sortable()
+                    ->visibleFrom('md'),
                 IconColumn::make('detail_failed')
                     ->label('Ошибка деталей')
-                    ->boolean(),
+                    ->boolean()
+                    ->wrapHeader(),
                 TextColumn::make('last_seen_at')
                     ->label('Последний контакт')
                     ->dateTime()

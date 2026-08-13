@@ -32,7 +32,8 @@ class RunsTable
                     ->color(static fn (RunStatus $state): string => self::statusColor($state)),
                 TextColumn::make('crawler.name')
                     ->label('Профиль')
-                    ->searchable(),
+                    ->searchable()
+                    ->wrapHeader(),
                 TextColumn::make('started_at')
                     ->label('Начат')
                     ->dateTime()
@@ -41,35 +42,45 @@ class RunsTable
                     ->label('Завершён')
                     ->dateTime()
                     ->placeholder('—')
-                    ->sortable(),
+                    ->sortable()
+                    ->visibleFrom('md'),
                 TextColumn::make('duration')
                     ->label('Длительность')
                     ->state(fn (Run $record): ?string => $record->started_at === null
                         ? null
                         : $record->started_at->diffForHumans($record->finished_at ?? now(), syntax: CarbonInterface::DIFF_ABSOLUTE))
-                    ->placeholder('—'),
+                    ->placeholder('—')
+                    ->visibleFrom('md'),
                 TextColumn::make('fetches_count')
                     ->label('Блоков')
                     ->numeric()
-                    ->sortable(),
+                    ->sortable()
+                    ->visibleFrom('md'),
                 TextColumn::make('fetches_rows_new_sum')
                     ->label('Новых строк')
                     ->numeric()
                     ->placeholder('0')
-                    ->sortable(),
+                    ->sortable()
+                    ->visibleFrom('md'),
                 TextColumn::make('fetches_rows_updated_sum')
                     ->label('Обновлённых строк')
                     ->numeric()
                     ->placeholder('0')
-                    ->sortable(),
+                    ->sortable()
+                    ->visibleFrom('md'),
                 TextColumn::make('stop_reason')
                     ->label('Причина остановки')
                     ->state(fn (Run $record): ?string => $record->stats?->get('stop_reason'))
-                    ->placeholder('—'),
+                    ->placeholder('—')
+                    ->wrap()
+                    ->lineClamp(2)
+                    ->tooltip(fn (?string $state): ?string => $state)
+                    ->visibleFrom('md'),
                 IconColumn::make('cap_hit')
                     ->label('Возможен пропуск')
                     ->state(fn (Run $record): bool => (bool) $record->stats?->get('cap_hit'))
-                    ->boolean(),
+                    ->boolean()
+                    ->visibleFrom('md'),
                 TextColumn::make('attempts')
                     ->numeric()
                     ->sortable()

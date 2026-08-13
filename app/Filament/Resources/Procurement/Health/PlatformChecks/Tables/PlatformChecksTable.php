@@ -20,16 +20,16 @@ class PlatformChecksTable
     {
         return $table
             ->columns([
-                TextColumn::make('platform.name')->label('Площадка')->searchable(),
+                TextColumn::make('platform.name')->label('Площадка')->searchable()->wrapHeader(),
                 TextColumn::make('check_kind')->label('Проверка')->badge(),
                 TextColumn::make('verdict')
                     ->label('Вердикт')
                     ->badge()
                     ->color(static fn (PlatformCheckVerdict $state): string => $state->color()),
-                TextColumn::make('sample_size')->label('Выборка')->numeric()->sortable(),
-                TextColumn::make('requests_used')->label('Запросы')->numeric()->sortable(),
-                TextColumn::make('window_from')->label('Окно с')->dateTime()->placeholder('—'),
-                TextColumn::make('window_to')->label('Окно по')->dateTime()->placeholder('—'),
+                TextColumn::make('sample_size')->label('Выборка')->numeric()->sortable()->visibleFrom('md'),
+                TextColumn::make('requests_used')->label('Запросы')->numeric()->sortable()->visibleFrom('md'),
+                TextColumn::make('window_from')->label('Окно с')->dateTime()->placeholder('—')->visibleFrom('md'),
+                TextColumn::make('window_to')->label('Окно по')->dateTime()->placeholder('—')->visibleFrom('md'),
                 TextColumn::make('checked_at')->label('Проверено')->dateTime()->sortable(),
             ])
             ->defaultSort('checked_at', 'desc')

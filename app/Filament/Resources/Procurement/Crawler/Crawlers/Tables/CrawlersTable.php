@@ -25,15 +25,20 @@ class CrawlersTable
         return $table
             ->columns([
                 TextColumn::make('registry.name')
-                    ->searchable(),
+                    ->label('Реестр')
+                    ->searchable()
+                    ->wrapHeader(),
                 TextColumn::make('mode')
                     ->badge(),
                 TextColumn::make('schedule')
-                    ->placeholder('—'),
+                    ->label('Расписание')
+                    ->placeholder('—')
+                    ->visibleFrom('md'),
                 TextColumn::make('proxies_count')
                     ->counts('proxies')
                     ->label('Прокси')
-                    ->sortable(),
+                    ->sortable()
+                    ->visibleFrom('md'),
                 IconColumn::make('is_active')
                     ->boolean(),
                 TextColumn::make('created_at')

@@ -13,7 +13,14 @@ final class OperationLogsTable
 {
     public static function configure(Table $table): Table
     {
-        return $table->columns([TextColumn::make('created_at')->dateTime()->sortable(), TextColumn::make('level')->badge(), TextColumn::make('stage'), TextColumn::make('entity_type'), TextColumn::make('entity_id'), TextColumn::make('message')->wrap()])
+        return $table->columns([
+            TextColumn::make('created_at')->label('Время')->dateTime()->sortable()->wrapHeader(),
+            TextColumn::make('level')->label('Уровень')->badge(),
+            TextColumn::make('stage')->label('Этап')->visibleFrom('md'),
+            TextColumn::make('entity_type')->label('Тип объекта')->visibleFrom('md'),
+            TextColumn::make('entity_id')->label('ИД объекта')->toggleable(isToggledHiddenByDefault: true),
+            TextColumn::make('message')->label('Сообщение')->wrapHeader()->wrap()->lineClamp(3)->tooltip(fn (?string $state): ?string => $state),
+        ])
             ->filters([SelectFilter::make('level')->options(collect(OperationLogLevel::cases())->pluck('value', 'value')->all()), SelectFilter::make('stage')->options(['detail' => 'detail', 'document' => 'document', 'budget' => 'budget', 'proxy' => 'proxy']), SelectFilter::make('entity_type')->options(['procurement' => 'procurement', 'document' => 'document', 'proxy' => 'proxy'])])
             ->defaultSort('created_at', 'desc');
     }

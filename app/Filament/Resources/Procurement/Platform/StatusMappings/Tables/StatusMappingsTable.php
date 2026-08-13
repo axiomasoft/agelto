@@ -20,16 +20,22 @@ final class StatusMappingsTable
             ->columns([
                 TextColumn::make('platform.name')
                     ->label('Площадка')
-                    ->placeholder('Через реестр'),
+                    ->placeholder('Через реестр')
+                    ->wrapHeader(),
                 TextColumn::make('registry.code')
                     ->label('Реестр')
-                    ->searchable(),
+                    ->searchable()
+                    ->visibleFrom('md'),
                 TextColumn::make('applicability')
                     ->label('Применимость')
                     ->badge(),
                 TextColumn::make('source_stage')
                     ->label('Этап площадки')
-                    ->searchable(),
+                    ->searchable()
+                    ->wrapHeader()
+                    ->wrap()
+                    ->lineClamp(2)
+                    ->tooltip(fn (?string $state): ?string => $state),
                 TextColumn::make('canonical_status')
                     ->label('Канонический статус')
                     ->badge(),

@@ -16,6 +16,7 @@ class ProvidersTable
         return $table
             ->columns([
                 IconColumn::make('is_active')
+                    ->label('Активен')
                     ->boolean(),
                 TextColumn::make('created_at')
                     ->dateTime()

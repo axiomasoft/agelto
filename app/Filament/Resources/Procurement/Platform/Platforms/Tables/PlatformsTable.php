@@ -16,13 +16,23 @@ class PlatformsTable
         return $table
             ->columns([
                 TextColumn::make('uuid')
-                    ->label('UUID'),
+                    ->label('UUID')
+                    ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('code')
-                    ->searchable(),
+                    ->searchable()
+                    ->wrapHeader(),
                 TextColumn::make('name')
-                    ->searchable(),
+                    ->searchable()
+                    ->wrapHeader()
+                    ->wrap()
+                    ->lineClamp(2)
+                    ->tooltip(fn (?string $state): ?string => $state),
                 TextColumn::make('base_url')
-                    ->searchable(),
+                    ->searchable()
+                    ->wrapHeader()
+                    ->lineClamp(2)
+                    ->tooltip(fn (?string $state): ?string => $state)
+                    ->visibleFrom('md'),
                 IconColumn::make('is_active')
                     ->boolean(),
                 TextColumn::make('created_at')

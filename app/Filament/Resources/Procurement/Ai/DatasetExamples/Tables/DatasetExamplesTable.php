@@ -4,9 +4,8 @@ declare(strict_types=1);
 
 namespace App\Filament\Resources\Procurement\Ai\DatasetExamples\Tables;
 
-use App\Enums\Procurement\Ai\AiDocumentType;
-use App\Filament\Support\LlmPresentation;
 use App\Enums\Procurement\Ai\AnalysisStep;
+use App\Filament\Support\LlmPresentation;
 use App\Models\Procurement\Ai\DatasetExample;
 use Filament\Actions\ViewAction;
 use Filament\Tables\Columns\TextColumn;
@@ -23,11 +22,15 @@ class DatasetExamplesTable
                 TextColumn::make('fixture.code')
                     ->label('Код эталона')
                     ->placeholder('—')
-                    ->searchable(),
+                    ->searchable()
+                    ->wrapHeader(),
                 TextColumn::make('documentVersion.document.title')
                     ->label('Документ')
                     ->placeholder('—')
-                    ->searchable(),
+                    ->searchable()
+                    ->wrap()
+                    ->lineClamp(2)
+                    ->tooltip(fn (?string $state): ?string => $state),
                 TextColumn::make('task')
                     ->label('Задача')
                     ->badge(),
@@ -36,7 +39,8 @@ class DatasetExamplesTable
                     ->badge(),
                 TextColumn::make('source')
                     ->label('Источник')
-                    ->badge(),
+                    ->badge()
+                    ->visibleFrom('md'),
                 TextColumn::make('version')
                     ->label('Версия')
                     ->numeric()
@@ -48,7 +52,8 @@ class DatasetExamplesTable
                     ->label('Проверено')
                     ->dateTime()
                     ->placeholder('—')
-                    ->sortable(),
+                    ->sortable()
+                    ->visibleFrom('md'),
                 TextColumn::make('created_at')
                     ->label('Создан')
                     ->dateTime()

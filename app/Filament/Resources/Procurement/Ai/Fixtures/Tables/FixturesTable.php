@@ -4,9 +4,8 @@ declare(strict_types=1);
 
 namespace App\Filament\Resources\Procurement\Ai\Fixtures\Tables;
 
-use App\Enums\Procurement\Ai\AiDocumentType;
-use App\Filament\Support\LlmPresentation;
 use App\Exceptions\Procurement\Ai\ManifestUnreadable;
+use App\Filament\Support\LlmPresentation;
 use App\Models\Procurement\Ai\Fixture;
 use App\Services\Procurement\Fixture\FixtureManifestReader;
 use Filament\Actions\BulkActionGroup;
@@ -40,17 +39,22 @@ class FixturesTable
                     ->sortable(),
                 TextColumn::make('title')
                     ->label('Название')
-                    ->limit(60)
-                    ->searchable(),
+                    ->searchable()
+                    ->wrapHeader()
+                    ->wrap()
+                    ->lineClamp(2)
+                    ->tooltip(fn (?string $state): ?string => $state),
                 TextColumn::make('document_type')
                     ->label('Тип (вердикт)')
                     ->badge(),
                 TextColumn::make('owner_document_type')
                     ->label('Владелец профиля')
-                    ->badge(),
+                    ->badge()
+                    ->visibleFrom('md'),
                 TextColumn::make('source_format')
                     ->label('Формат')
-                    ->badge(),
+                    ->badge()
+                    ->visibleFrom('md'),
                 IconColumn::make('is_verified')
                     ->label('Проверен')
                     ->boolean(),

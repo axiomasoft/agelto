@@ -23,9 +23,12 @@ class ProxiesTable
                     ->numeric()
                     ->sortable(),
                 TextColumn::make('country')
-                    ->sortable(),
+                    ->sortable()
+                    ->wrapHeader(),
                 TextColumn::make('scopes')
-                    ->badge(),
+                    ->badge()
+                    ->wrapHeader()
+                    ->visibleFrom('md'),
                 IconColumn::make('is_active')
                     ->boolean(),
                 TextColumn::make('fails_count')
@@ -33,11 +36,15 @@ class ProxiesTable
                     ->sortable(),
                 TextColumn::make('disabled_reason')
                     ->label('Причина отключения')
-                    ->toggleable(),
+                    ->toggleable(isToggledHiddenByDefault: true)
+                    ->wrap()
+                    ->lineClamp(2)
+                    ->tooltip(fn (?string $state): ?string => $state),
                 TextColumn::make('disabled_at')
                     ->label('Отключён')
                     ->dateTime()
-                    ->sortable(),
+                    ->sortable()
+                    ->visibleFrom('md'),
                 // Состояние breaker'а — выводится, не хранится третьей колонкой (research/02 §7):
                 // `open_until` в будущем → узел временно выведен из выдачи.
                 IconColumn::make('open_until')

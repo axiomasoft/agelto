@@ -15,13 +15,22 @@ class RegistriesTable
         return $table
             ->columns([
                 TextColumn::make('uuid')
-                    ->label('UUID'),
+                    ->label('UUID')
+                    ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('platform.name')
-                    ->searchable(),
+                    ->searchable()
+                    ->label('Площадка')
+                    ->wrapHeader()
+                    ->visibleFrom('md'),
                 TextColumn::make('code')
-                    ->searchable(),
+                    ->searchable()
+                    ->wrapHeader(),
                 TextColumn::make('name')
-                    ->searchable(),
+                    ->searchable()
+                    ->wrapHeader()
+                    ->wrap()
+                    ->lineClamp(2)
+                    ->tooltip(fn (?string $state): ?string => $state),
                 TextColumn::make('created_at')
                     ->dateTime()
                     ->sortable()

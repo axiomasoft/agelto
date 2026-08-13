@@ -3,12 +3,11 @@
 namespace App\Filament\Resources\Procurement\Ai\PromptSuggestions\Tables;
 
 use App\Enums\Llm\DocumentTypeScope;
-use App\Enums\Procurement\Ai\AiDocumentType;
 use App\Enums\Procurement\Ai\AnalysisStep;
 use App\Enums\Procurement\Ai\PromptSuggestionKind;
 use App\Enums\Procurement\Ai\PromptSuggestionStatus;
-use App\Filament\Support\LlmPresentation;
 use App\Filament\Resources\Procurement\Ai\PromptSuggestions\PromptSuggestionResource;
+use App\Filament\Support\LlmPresentation;
 use App\Models\Procurement\Ai\PromptSuggestion;
 use Filament\Actions\ViewAction;
 use Filament\Tables\Columns\TextColumn;
@@ -31,12 +30,17 @@ class PromptSuggestionsTable
                 TextColumn::make('prompt_key')
                     ->label('Ключ промта')
                     ->placeholder('-')
-                    ->searchable(),
+                    ->searchable()
+                    ->wrapHeader()
+                    ->wrap()
+                    ->lineClamp(2)
+                    ->tooltip(fn (?string $state): ?string => $state),
                 TextColumn::make('base_version')
                     ->label('Базовая версия')
                     ->placeholder('-'),
                 TextColumn::make('document_type')
-                    ->label('Тип документа'),
+                    ->label('Тип документа')
+                    ->visibleFrom('md'),
                 TextColumn::make('analysis_step')
                     ->label('Стадия')
                     ->badge()
@@ -44,7 +48,8 @@ class PromptSuggestionsTable
                 TextColumn::make('origin')
                     ->label('Происхождение')
                     ->state(static fn (PromptSuggestion $record): string => PromptSuggestionResource::origin($record))
-                    ->placeholder('-'),
+                    ->placeholder('-')
+                    ->visibleFrom('md'),
                 TextColumn::make('decidedBy.name')
                     ->label('Решил')
                     ->placeholder('-'),

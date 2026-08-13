@@ -21,7 +21,8 @@ class PromptsTable
             ->columns([
                 TextColumn::make('document_type')
                     ->label('Тип документа')
-                    ->sortable(),
+                    ->sortable()
+                    ->wrapHeader(),
                 TextColumn::make('key')
                     ->label('Ключ')
                     ->searchable()
@@ -29,7 +30,8 @@ class PromptsTable
                 TextColumn::make('step')
                     ->label('Шаг')
                     ->searchable()
-                    ->sortable(),
+                    ->sortable()
+                    ->visibleFrom('md'),
                 TextColumn::make('version')
                     ->label('Версия')
                     ->numeric()
@@ -37,7 +39,8 @@ class PromptsTable
                 TextColumn::make('priority')
                     ->label('Приоритет')
                     ->numeric()
-                    ->sortable(),
+                    ->sortable()
+                    ->visibleFrom('md'),
                 IconColumn::make('is_active')
                     ->label('Активен')
                     ->boolean(),

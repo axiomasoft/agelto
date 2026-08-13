@@ -49,33 +49,40 @@ class RunsRelationManager extends RelationManager
                     ->label('Завершён')
                     ->dateTime()
                     ->placeholder('—')
-                    ->sortable(),
+                    ->sortable()
+                    ->visibleFrom('md'),
                 TextColumn::make('duration')
                     ->label('Длительность')
                     ->state(fn (AnalysisRun $record): ?string => $record->started_at === null
                         ? null
                         : $record->started_at->diffForHumans($record->finished_at ?? now(), syntax: CarbonInterface::DIFF_ABSOLUTE))
-                    ->placeholder('—'),
+                    ->placeholder('—')
+                    ->visibleFrom('md'),
                 TextColumn::make('prompt_tokens')
                     ->label('Prompt')
                     ->numeric()
-                    ->placeholder('нет данных'),
+                    ->placeholder('нет данных')
+                    ->visibleFrom('md'),
                 TextColumn::make('cached_tokens')
                     ->label('Cached')
                     ->numeric()
-                    ->placeholder('нет данных'),
+                    ->placeholder('нет данных')
+                    ->visibleFrom('md'),
                 TextColumn::make('completion_tokens')
                     ->label('Completion')
                     ->numeric()
-                    ->placeholder('нет данных'),
+                    ->placeholder('нет данных')
+                    ->visibleFrom('md'),
                 TextColumn::make('total_tokens')
                     ->label('Всего токенов')
                     ->numeric()
-                    ->placeholder('нет данных'),
+                    ->placeholder('нет данных')
+                    ->visibleFrom('md'),
                 TextColumn::make('cost_micros')
                     ->label('Цена')
                     ->formatStateUsing(fn (int $state): string => sprintf('$%.4f', $state / 1_000_000))
-                    ->placeholder('нет данных'),
+                    ->placeholder('нет данных')
+                    ->visibleFrom('md'),
             ])
             ->defaultSort('started_at', 'desc')
             ->poll(fn (): ?string => $this->ownerFixture()->runs()->whereNull('finished_at')->exists() ? '5s' : null)

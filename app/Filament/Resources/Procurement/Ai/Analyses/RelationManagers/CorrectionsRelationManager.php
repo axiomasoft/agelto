@@ -25,16 +25,20 @@ class CorrectionsRelationManager extends RelationManager
                     ->badge(),
                 TextColumn::make('field_path')
                     ->label('Поле')
-                    ->placeholder('весь документ'),
+                    ->placeholder('весь документ')
+                    ->visibleFrom('md'),
                 TextColumn::make('content')
                     ->label('Что не так')
-                    ->limit(80)
-                    ->wrap(),
+                    ->wrap()
+                    ->lineClamp(3)
+                    ->tooltip(fn (?string $state): ?string => $state),
                 TextColumn::make('hint')
                     ->label('Hint для промта')
                     ->placeholder('-')
-                    ->limit(80)
-                    ->wrap(),
+                    ->wrap()
+                    ->lineClamp(3)
+                    ->tooltip(fn (?string $state): ?string => $state)
+                    ->visibleFrom('md'),
                 IconColumn::make('is_reusable')
                     ->label('Для всех документов типа')
                     ->boolean(),
@@ -43,7 +47,8 @@ class CorrectionsRelationManager extends RelationManager
                     ->boolean(state: fn ($record): bool => $record->applied_at !== null),
                 TextColumn::make('createdBy.name')
                     ->label('Автор')
-                    ->placeholder('-'),
+                    ->placeholder('-')
+                    ->visibleFrom('md'),
                 TextColumn::make('created_at')
                     ->dateTime()
                     ->sortable(),

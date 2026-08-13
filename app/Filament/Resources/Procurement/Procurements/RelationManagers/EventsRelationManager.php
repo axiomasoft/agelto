@@ -39,18 +39,25 @@ class EventsRelationManager extends RelationManager
                     ->formatStateUsing(fn (ProcurementEventType $state): string => (string) str($state->value)->replace('_', ' ')->ucfirst()),
                 TextColumn::make('field')
                     ->label('Поле')
-                    ->placeholder('—'),
+                    ->placeholder('—')
+                    ->visibleFrom('md'),
                 TextColumn::make('old_value')
                     ->label('Было')
                     ->placeholder('—')
-                    ->wrap(),
+                    ->wrap()
+                    ->lineClamp(2)
+                    ->tooltip(fn (?string $state): ?string => $state)
+                    ->visibleFrom('md'),
                 TextColumn::make('new_value')
                     ->label('Стало')
                     ->placeholder('—')
-                    ->wrap(),
+                    ->wrap()
+                    ->lineClamp(2)
+                    ->tooltip(fn (?string $state): ?string => $state),
                 TextColumn::make('revision.revision_number')
                     ->label('Редакция')
-                    ->placeholder('—'),
+                    ->placeholder('—')
+                    ->visibleFrom('md'),
             ])
             ->filters([
                 SelectFilter::make('event_type')

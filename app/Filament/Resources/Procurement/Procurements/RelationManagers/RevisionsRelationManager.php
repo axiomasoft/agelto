@@ -40,11 +40,14 @@ class RevisionsRelationManager extends RelationManager
                 TextColumn::make('source_updated_at')
                     ->label('Изменена на площадке')
                     ->dateTime()
-                    ->placeholder('—'),
+                    ->placeholder('—')
+                    ->visibleFrom('md'),
                 TextColumn::make('change_reason')
                     ->label('Причина')
                     ->placeholder('—')
-                    ->wrap(),
+                    ->wrap()
+                    ->lineClamp(2)
+                    ->tooltip(fn (?string $state): ?string => $state),
             ])
             ->filters([
                 self::historyPeriodFilter(),
