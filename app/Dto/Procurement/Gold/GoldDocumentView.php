@@ -19,6 +19,9 @@ use Spatie\LaravelData\Exceptions\CannotCreateData;
  */
 final readonly class GoldDocumentView
 {
+    /**
+     * @param  list<array{passport: PassportResponse, rows: list<EstimateRow>}>  $estimates
+     */
     public function __construct(public array $estimates) {}
 
     /**
@@ -95,11 +98,11 @@ final readonly class GoldDocumentView
                     'rows_expected' => $passport->rows_expected,
                     'calc_method' => $passport->calc_method?->value,
                 ],
-                'totals' => $totals === null ? [] : array_map(static fn ($total): array => [
+                'totals' => $totals === null ? [] : array_values(array_map(static fn ($total): array => [
                     'label' => $total->label,
                     'value' => $total->value,
                     'rate' => $total->rate,
-                ], $totals->footer),
+                ], $totals->footer)),
             ];
         }, $this->estimates);
     }
