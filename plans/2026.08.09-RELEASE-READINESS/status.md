@@ -3,7 +3,7 @@ projection: status-view
 projection_version: v1
 source_scope: plan core + phases + journal
 through: 2026-08-13
-inputs_sha256: 4d4ecaa911dfac652045feb656d1a685371ff65aded635e1d24bf941f2611ead
+inputs_sha256: d14bf683ee910c1ad7ae4befc6bb77e3bc4e96eee7910f5ebea0524ed7ac88f9
 generated_by: task plan-views status
 -->
 
@@ -25,7 +25,7 @@ generated_by: task plan-views status
 |:--|:--|:--|:--|
 | P0 | Разведка репозитория, референсов и RAG-контракты | 8/8 | 🟢 Done |
 | P1 | Makefile и Docker dev/prod с Vite-ready topology | 7/7 | 🟢 Done |
-| P10 | PHP, архитектура, безопасность и production-readiness audit | 1/6 | 🟡 In progress |
+| P10 | PHP, архитектура, безопасность и production-readiness audit | 2/6 | 🟡 In progress |
 | P11 | Pest 5 performance, test isolation и CI | 0/6 | ⬜ Not started |
 | P12 | Ubuntu deployment guide и финальный clean-room rehearsal | 0/7 | ⬜ Not started |
 | P2 | Local vendor, secrets, preflight, bootstrap и Laravel Doctor | 7/7 | 🟢 Done |
@@ -67,7 +67,7 @@ generated_by: task plan-views status
 | ID | Title | Status | Updated |
 |:--|:--|:--|:--|
 | P10.1 | Снять baseline Pint/PHPStan/Rector/dependencies и modern-PHP findings | 🟢 Done | 2026-08-13 |
-| P10.2 | Выполнить Laravel security audit всех новых и существующих boundaries | 🟡 In progress | 2026-08-13 |
+| P10.2 | Выполнить Laravel security audit всех новых и существующих boundaries | 🟢 Done | 2026-08-13 |
 | P10.3 | Найти duplication, dead code, naming и needless abstractions | ⬜ Not started | — |
 | P10.4 | Проверить migrations, transactions, races, idempotency, queues и config defaults | ⬜ Not started | — |
 | P10.5 | Исправить findings вертикальными срезами с regression tests | ⬜ Not started | — |
@@ -634,6 +634,8 @@ write-site: pre_mutation: allow · pre_final: allow |
 | 2026-08-13 | repository-owner | plan-run · in-progress · decision queue: p10-2-route-recovery-20260813 |
 | 2026-08-13 | frontier/high | plan-design · in-progress · ТЗ item'а доведено до DoR: D85 materialized owner-approved full reexecution; checkpoint evidence, portable marketplace carrier and GREEN-only close sealed |
 | 2026-08-13 | implementation/high | plan-run · in-progress · D85 owner-approved full reexecution started; route evidence and Task Contract pre_mutation: allow. |
+| 2026-08-13 | gpt-5.6-terra/high | plan-run · closed-green · D85 repeat carrier PASS: 54 tests/151 assertions, Task lint/views/citations GREEN; high S01/S03 and medium S02 escalated to P10.5. write-site: pre_mutation: allow · pre_final: allow. |
+| 2026-08-13 | gpt-5.6-terra/high | plan-run · local-repair · write-site: pre_mutation: allow · pre_final: allow |
 
 ## Owner Gates
 

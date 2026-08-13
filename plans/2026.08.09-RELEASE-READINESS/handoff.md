@@ -1,43 +1,29 @@
 # HANDOFF — 2026-08-13 — after P10.2
 
-**Next:** run-items: task:plan-run 2026.08.09-RELEASE-READINESS P10.2
+**Next:** ЗАПУСК ВРУЧНУЮ: implementation/high
 
 | Параметр | Значение |
 |:--|:--|
 | Batch | solo |
 | Model class | implementation |
-| Effort | high |
-| Capabilities | — |
-| Context | cold-start-root: design-root-terminal |
-| Суть | Повторить полный read-only P10.2 security audit по D85 и закрыть только полностью GREEN carrier. |
-| Команда | `$ task:plan-run 2026.08.09-RELEASE-READINESS P10.2` |
+| Thinking | high |
+| Context | continue-root: P10.2 terminal evidence is committed; P10.3 is the sequential consumer. |
+| Суть | Выполнить read-only P10.3 architecture/debt audit; product fixes остаются за P10.5. |
+| Команда | — |
 
-#### Native Codex launch-block
-
-```bash
-codex -C /home/vostrikov/projects/agelto/agelto -m gpt-5.6-terra -c 'model_reasoning_effort="high"' -a never -s danger-full-access '$ task:plan-run 2026.08.09-RELEASE-READINESS P10.2'
+```text
+$ task:plan-run 2026.08.09-RELEASE-READINESS P10.3
 ```
 
-**Done:** Owner response `p10-2-route-recovery-20260813` материализован D85 и уточнением
-P10.2: выбран полный повтор audit, а не route-only reconciliation. `e4cb6a89`, текущий report и
-carrier сохранены как checkpoint; product code не изменялся. Spec требует fresh manual
-source→sink/reachability verification, checkpoint delta, portable marketplace-root Task gates и
-запрещает повторный orange close из-за resource pressure.
+**Done:** D85 full reexecution closed P10.2 green. `4d77b259` contains the repeat report and
+portable carrier; `1599af74` refreshes dependency evidence. Carrier passed 54 tests / 151
+assertions, Task lint/views and citation verification (0 unresolved); no product bytes changed.
 
-**Remaining:** Выполнить P10.2 заново и получить terminal `🟢 Done`; только затем запускать
-P10.3–P10.6 и фазовый gate P10. P11–P12 остаются последующими фазами.
+**Remaining:** P10.3–P10.6 remain; P10.5 must remediate P10.2-S01 (high env-proxy bypass),
+P10.2-S02 (medium fixture admission) and P10.2-S03 (high MinIO credentials in child args).
 
-**Sources of truth:** `phases/P10/P10.md` · `phases/P10/P10.2.md` · `bundles/P10.2.json` ·
-`phases/P10/P10.2.state.md` · `decisions/D85-p10-2-security-audit-reexecution.md` ·
-`research/25-P10.2-reexecution-design.md` · `findings/P10-security-audit.md` ·
-`artifacts/P10-security-audit-contract.sh`.
+**Sources of truth:** `phases/P10/P10.2.state.md` · `findings/P10-security-audit.md` ·
+`artifacts/P10-security-audit-contract.sh` · `decisions/D85-p10-2-security-audit-reexecution.md`.
 
-**Open risks:** Prior checkpoint содержит high `P10.2-S01` и medium `P10.2-S02`; новый pass
-обязан подтвердить либо изменить их только по material evidence. Повторный resource-pressure
-fingerprint не разрешает ослабить carrier и требует штатной evidence/block procedure.
-
-**Workarounds/Deferred/Open questions:**
-
-- workarounds: не приняты; captured-route reconciliation отклонён владельцем.
-- deferred: product remediation `P10.2-S01`/`P10.2-S02` принадлежит P10.5.
-- open_questions: —
+**Open risks:** P10.2-S01 and P10.2-S03 are release blockers until P10.5 produces RED→GREEN
+remediation evidence; they are not waived by this audit closure.
