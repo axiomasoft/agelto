@@ -2,6 +2,7 @@ import { defineConfig, devices } from '@playwright/test';
 
 const outputDir = process.env.E2E_OUTPUT_DIR ?? 'test-results';
 const authFile = process.env.E2E_AUTH_FILE ?? 'playwright/.auth/admin.json';
+const authDirectory = authFile.slice(0, authFile.lastIndexOf('/'));
 
 export default defineConfig({
     testDir: './e2e',
@@ -25,10 +26,38 @@ export default defineConfig({
         {
             name: 'chromium',
             dependencies: ['setup'],
+            testIgnore: /admin-navigation-responsive\.spec\.ts/,
             testMatch: /.*\.spec\.ts/,
             use: {
                 ...devices['Desktop Chrome'],
                 storageState: authFile,
+            },
+        },
+        {
+            name: 'super-admin-navigation',
+            dependencies: ['setup'],
+            testMatch: /admin-navigation-responsive\.spec\.ts/,
+            use: {
+                ...devices['Desktop Chrome'],
+                storageState: authFile,
+            },
+        },
+        {
+            name: 'operator-navigation',
+            dependencies: ['setup'],
+            testMatch: /admin-navigation-responsive\.spec\.ts/,
+            use: {
+                ...devices['Desktop Chrome'],
+                storageState: `${authDirectory}/operator.json`,
+            },
+        },
+        {
+            name: 'analyst-navigation',
+            dependencies: ['setup'],
+            testMatch: /admin-navigation-responsive\.spec\.ts/,
+            use: {
+                ...devices['Desktop Chrome'],
+                storageState: `${authDirectory}/analyst.json`,
             },
         },
     ],

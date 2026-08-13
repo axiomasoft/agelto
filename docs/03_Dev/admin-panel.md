@@ -80,6 +80,9 @@ AzGuard получает русскую copy только через `config/az-
 `plans/2026.08.09-RELEASE-READINESS/artifacts/P9-admin-route-role-matrix.md`.
 `AdminRouteInventoryTest` сверяет этот committed снимок с `route:list --path=admin --json`:
 новый, удалённый или переназначенный route требует явного обновления матрицы и review доступа.
+`e2e/admin-navigation-responsive.spec.ts` повторяет этот контракт в Chromium для SuperAdmin,
+Operator и Analyst: desktop/mobile navigation, responsive absence of horizontal overflow and clean
+Filament/Livewire browser health. Direct URLs проверяются отдельным context без `storageState`.
 
 ## Формы и карточки
 

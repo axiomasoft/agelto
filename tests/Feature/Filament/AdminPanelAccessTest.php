@@ -64,6 +64,24 @@ test('суперадмин проходит любой gate через wildcard'
         ->and($superAdmin->hasPermission(permission: DocumentationPermission::View, panelId: 'admin'))->toBeTrue();
 });
 
+test('прямые admin URL повторно проверяют роль, а не только видимость navigation', function () {
+    $analyst = User::factory()->create();
+    $analyst->assignRole(AnalystRole::class);
+    $operator = User::factory()->create();
+    $operator->assignRole(OperatorRole::class);
+    $superAdmin = User::factory()->create();
+    $superAdmin->assignRole(SuperAdminRole::class);
+
+    actingAs($analyst);
+    $this->get('/admin/procurement/platform/platforms')->assertForbidden();
+
+    actingAs($operator);
+    $this->get('/admin/roles')->assertForbidden();
+
+    actingAs($superAdmin);
+    $this->get('/admin/roles')->assertOk();
+});
+
 test('view-only ресурсы Run и Procurement не имеют create/edit страниц', function () {
     expect(array_keys(RunResource::getPages()))->toBe(['index', 'view'])
         ->and(array_keys(ProcurementResource::getPages()))->toBe(['index', 'view']);
