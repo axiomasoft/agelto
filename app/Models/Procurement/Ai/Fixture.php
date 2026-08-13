@@ -21,6 +21,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
+use RuntimeException;
 
 /**
  * Реестр эталонного ФАЙЛА (D6) — справочник корпуса EST-TRAIN с метаданными и квирками, отдельный
@@ -55,6 +56,7 @@ use Illuminate\Support\Collection;
 #[UseFactory(FixtureFactory::class)]
 final class Fixture extends Model
 {
+    /** @use HasFactory<FixtureFactory> */
     use HasFactory;
 
     /**
@@ -106,7 +108,7 @@ final class Fixture extends Model
      */
     public function profileClass(): FixtureClass
     {
-        return FixtureClass::from((string) $this->type_profile->get('class'));
+        return FixtureClass::from($this->profileRequiredString('class'));
     }
 
     /**
@@ -114,7 +116,7 @@ final class Fixture extends Model
      */
     public function profileForm(): string
     {
-        return (string) $this->type_profile->get('form');
+        return $this->profileRequiredString('form');
     }
 
     /**
@@ -122,21 +124,17 @@ final class Fixture extends Model
      */
     public function profileGoldSource(): GoldSource
     {
-        return GoldSource::from((string) $this->type_profile->get('gold_source'));
+        return GoldSource::from($this->profileRequiredString('gold_source'));
     }
 
     public function profileExpectedEstimates(): ?int
     {
-        $value = $this->type_profile->get('expected_estimates');
-
-        return $value === null ? null : (int) $value;
+        return $this->profileNullableInt('expected_estimates');
     }
 
     public function profileExpectedRows(): ?int
     {
-        $value = $this->type_profile->get('expected_rows');
-
-        return $value === null ? null : (int) $value;
+        return $this->profileNullableInt('expected_rows');
     }
 
     /**
@@ -165,7 +163,11 @@ final class Fixture extends Model
         $max = 0;
 
         foreach ($existingCodes as $code) {
-            if (preg_match('/-(\d{3})$/', (string) $code, $matches) === 1) {
+            if (! is_string($code)) {
+                throw new RuntimeException('Код fixture должен быть строкой.');
+            }
+
+            if (preg_match('/-(\d{3})$/', $code, $matches) === 1) {
                 $max = max($max, (int) $matches[1]);
             }
         }
@@ -173,7 +175,7 @@ final class Fixture extends Model
         $code = sprintf('%s-%s-%s-%03d', strtoupper($class->value), strtoupper($sourceFormat), $form, $max + 1);
 
         if (preg_match(self::CODE_PATTERN, $code) !== 1) {
-            throw new \RuntimeException("Сгенерированный код «{$code}» не матчит Fixture::CODE_PATTERN.");
+            throw new RuntimeException("Сгенерированный код «{$code}» не матчит Fixture::CODE_PATTERN.");
         }
 
         return $code;
@@ -187,11 +189,13 @@ final class Fixture extends Model
         return "{$code}/derived/{$name}";
     }
 
+    /** @return HasMany<DatasetExample, $this> */
     public function datasetExamples(): HasMany
     {
         return $this->hasMany(related: DatasetExample::class);
     }
 
+    /** @return BelongsTo<User, $this> */
     public function verifiedBy(): BelongsTo
     {
         return $this->belongsTo(related: User::class, foreignKey: 'verified_by');
@@ -201,6 +205,7 @@ final class Fixture extends Model
      * Прямая связь «эталон ↔ рабочая копия» (§2 root/document-contour.md) — единственный
      * писатель: `resolveWorkingCopy()` (`GoldImportCommand`).
      */
+    /** @return BelongsTo<Document, $this> */
     public function document(): BelongsTo
     {
         return $this->belongsTo(related: Document::class);
@@ -211,6 +216,7 @@ final class Fixture extends Model
      * `document_id` эталона сопоставляется с `document_id` версии напрямую, минуя промежуточный
      * `documents.id` (у `Document` нет relation-метода `versions()` — раскладка репозиторием).
      */
+    /** @return HasManyThrough<AnalysisRun, DocumentVersion, $this> */
     public function runs(): HasManyThrough
     {
         return $this->hasManyThrough(
@@ -221,5 +227,35 @@ final class Fixture extends Model
             localKey: 'document_id',
             secondLocalKey: 'id',
         );
+    }
+
+    private function profileRequiredString(string $key): string
+    {
+        $value = $this->type_profile->get($key);
+
+        if (! is_string($value) || $value === '') {
+            throw new RuntimeException("Fixture type_profile.{$key} должен быть непустой строкой.");
+        }
+
+        return $value;
+    }
+
+    private function profileNullableInt(string $key): ?int
+    {
+        $value = $this->type_profile->get($key);
+
+        if ($value === null) {
+            return null;
+        }
+
+        if (is_int($value)) {
+            return $value;
+        }
+
+        if (is_string($value) && ctype_digit($value)) {
+            return (int) $value;
+        }
+
+        throw new RuntimeException("Fixture type_profile.{$key} должен быть целым числом или null.");
     }
 }
