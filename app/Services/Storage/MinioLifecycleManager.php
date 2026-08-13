@@ -32,13 +32,13 @@ final readonly class MinioLifecycleManager
      */
     public function apply(): array
     {
-        $disk = (array) config('filesystems.disks.s3');
+        $disk = $this->s3Disk();
         $target = self::ALIAS.'/'.$disk['bucket'];
 
         $existingPrefixes = $this->existingRulePrefixes($target);
         $report = [];
 
-        foreach ((array) config('partitioning.minio_lifecycle') as $ruleKey => $rule) {
+        foreach ($this->lifecycleRules() as $ruleKey => $rule) {
             if (in_array($rule['prefix'], $existingPrefixes, true)) {
                 $report[] = ['key' => (string) $ruleKey, 'prefix' => $rule['prefix'], 'expire_days' => $rule['expire_days'], 'applied' => false];
 
@@ -63,26 +63,51 @@ final readonly class MinioLifecycleManager
     private function existingRulePrefixes(string $target): array
     {
         $result = Process::run(['mc', 'ilm', 'rule', 'ls', $target, '--json']);
-        $payload = json_decode($result->output(), true) ?? [];
+        $payload = json_decode($result->output(), true);
+
+        if (! is_array($payload)) {
+            throw new RuntimeException('mc ilm rule ls returned invalid JSON.');
+        }
 
         if (($payload['status'] ?? null) === 'success') {
-            return array_values(array_map(
-                static fn (array $rule): string => (string) ($rule['Filter']['Prefix'] ?? ''),
-                $payload['config']['Rules'] ?? [],
-            ));
+            $config = is_array($payload['config'] ?? null) ? $payload['config'] : [];
+            $rules = $config['Rules'] ?? [];
+
+            if (! is_array($rules)) {
+                throw new RuntimeException('mc ilm rule ls returned an invalid Rules list.');
+            }
+
+            $prefixes = [];
+
+            foreach ($rules as $rule) {
+                if (! is_array($rule) || ! is_array($rule['Filter'] ?? null)) {
+                    continue;
+                }
+
+                $prefix = $rule['Filter']['Prefix'] ?? null;
+
+                if (is_string($prefix)) {
+                    $prefixes[] = $prefix;
+                }
+            }
+
+            return $prefixes;
         }
 
         // Бакет без ЛЮБОЙ lifecycle-конфигурации (первый запуск на свежем бакете) —
         // легитимный старт, не ошибка; любой другой код ошибки — реальная проблема (bucket
         // не существует, авторизация не прошла и т.п.), её нужно видеть.
-        $code = $payload['error']['cause']['error']['Code'] ?? null;
+        $error = is_array($payload['error'] ?? null) ? $payload['error'] : [];
+        $cause = is_array($error['cause'] ?? null) ? $error['cause'] : [];
+        $nestedError = is_array($cause['error'] ?? null) ? $cause['error'] : [];
+        $code = $nestedError['Code'] ?? null;
 
         if ($code === 'NoSuchLifecycleConfiguration') {
             return [];
         }
 
         throw new RuntimeException(
-            'mc ilm rule ls: '.($payload['error']['message'] ?? trim($result->errorOutput())),
+            'mc ilm rule ls: '.(is_string($error['message'] ?? null) ? $error['message'] : trim($result->errorOutput())),
         );
     }
 
@@ -102,8 +127,8 @@ final readonly class MinioLifecycleManager
 
     private function aliasUrl(): string
     {
-        $disk = (array) config('filesystems.disks.s3');
-        $endpoint = rtrim((string) ($disk['endpoint'] ?? ''), '/');
+        $disk = $this->s3Disk();
+        $endpoint = rtrim($disk['endpoint'], '/');
 
         if ($endpoint === '') {
             throw new RuntimeException('S3 endpoint is required for MinIO lifecycle management.');
@@ -115,11 +140,75 @@ final readonly class MinioLifecycleManager
             throw new RuntimeException('S3 endpoint must be an absolute URL for MinIO lifecycle management.');
         }
 
-        $port = isset($parts['port']) ? ':'.$parts['port'] : '';
-        $path = $parts['path'] ?? '';
-        $key = rawurlencode((string) ($disk['key'] ?? ''));
-        $secret = rawurlencode((string) ($disk['secret'] ?? ''));
+        $port = isset($parts['port']) ? ':'.$this->intValue($parts['port'], 'endpoint port') : '';
+        $path = is_string($parts['path'] ?? null) ? $parts['path'] : '';
+        $key = rawurlencode($disk['key']);
+        $secret = rawurlencode($disk['secret']);
 
         return "{$parts['scheme']}://{$key}:{$secret}@{$parts['host']}{$port}{$path}";
+    }
+
+    /** @return array{bucket: string, endpoint: string, key: string, secret: string} */
+    private function s3Disk(): array
+    {
+        $disk = config('filesystems.disks.s3');
+
+        if (! is_array($disk)) {
+            throw new RuntimeException('S3 disk configuration is required for MinIO lifecycle management.');
+        }
+
+        return [
+            'bucket' => $this->stringValue($disk['bucket'] ?? null, 'S3 bucket'),
+            'endpoint' => $this->stringValue($disk['endpoint'] ?? null, 'S3 endpoint'),
+            'key' => $this->stringValue($disk['key'] ?? null, 'S3 access key'),
+            'secret' => $this->stringValue($disk['secret'] ?? null, 'S3 secret key'),
+        ];
+    }
+
+    /** @return array<string, array{prefix: string, expire_days: int}> */
+    private function lifecycleRules(): array
+    {
+        $rules = config('partitioning.minio_lifecycle');
+
+        if (! is_array($rules)) {
+            throw new RuntimeException('MinIO lifecycle configuration must be an object.');
+        }
+
+        $result = [];
+
+        foreach ($rules as $key => $rule) {
+            if (! is_string($key) || ! is_array($rule)) {
+                throw new RuntimeException('MinIO lifecycle rule must have a string key and object value.');
+            }
+
+            $result[$key] = [
+                'prefix' => $this->stringValue($rule['prefix'] ?? null, "MinIO lifecycle rule {$key}.prefix"),
+                'expire_days' => $this->intValue($rule['expire_days'] ?? null, "MinIO lifecycle rule {$key}.expire_days"),
+            ];
+        }
+
+        return $result;
+    }
+
+    private function stringValue(mixed $value, string $context): string
+    {
+        if (! is_string($value) || $value === '') {
+            throw new RuntimeException("{$context} must be a non-empty string.");
+        }
+
+        return $value;
+    }
+
+    private function intValue(mixed $value, string $context): int
+    {
+        if (is_int($value)) {
+            return $value;
+        }
+
+        if (is_string($value) && preg_match('/^-?\d+$/', $value) === 1) {
+            return (int) $value;
+        }
+
+        throw new RuntimeException("{$context} must be an integer.");
     }
 }
