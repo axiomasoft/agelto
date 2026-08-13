@@ -15,6 +15,7 @@ use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TagsInput;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
+use Filament\Schemas\Components\Section;
 use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Schema;
 
@@ -30,40 +31,55 @@ class FixtureForm
     {
         return $schema
             ->components([
-                FileUpload::make('source')
-                    ->label('Файл эталона')
-                    ->required()
-                    ->disk((string) config('ai.fixtures.disk'))
-                    ->storeFiles(false)
-                    ->previewable(false)
-                    ->visibleOn('create'),
-                TextInput::make('title')
-                    ->label('Название')
-                    ->required()
-                    ->maxLength(255),
-                Select::make('document_type')
-                    ->label('Тип документа (ожидаемый вердикт скрининга)')
-                    ->options(LlmPresentation::documentTypeOptions())
-                    ->required(),
-                Select::make('owner_document_type')
-                    ->label('Владелец профиля')
-                    ->options(LlmPresentation::documentTypeOptions())
-                    ->required()
-                    ->live(),
-                KeyValue::make('type_profile')
-                    ->label('Профиль типа')
-                    ->required()
-                    ->columnSpanFull()
-                    ->rules(fn (Get $get): array => [self::typeProfileValidationRule($get)]),
-                Textarea::make('notes')
-                    ->label('Комментарий')
-                    ->columnSpanFull(),
-                TagsInput::make('quirks')
-                    ->label('Квирки'),
-                TextInput::make('generator')
-                    ->label('Генератор'),
-                TextInput::make('cluster_id')
-                    ->label('Кластер'),
+                Section::make('Исходный эталон')
+                    ->description('Файл и название задают эталонный документ для проверки AI.')
+                    ->schema([
+                        FileUpload::make('source')
+                            ->label('Файл эталона')
+                            ->required()
+                            ->disk((string) config('ai.fixtures.disk'))
+                            ->storeFiles(false)
+                            ->previewable(false)
+                            ->visibleOn('create'),
+                        TextInput::make('title')
+                            ->label('Название')
+                            ->required()
+                            ->maxLength(255),
+                    ]),
+                Section::make('Профиль проверки')
+                    ->description('Тип документа задаёт ожидаемый результат, а профиль проверяется выбранным анализатором.')
+                    ->schema([
+                        Select::make('document_type')
+                            ->label('Тип документа (ожидаемый вердикт скрининга)')
+                            ->options(LlmPresentation::documentTypeOptions())
+                            ->required(),
+                        Select::make('owner_document_type')
+                            ->label('Владелец профиля')
+                            ->options(LlmPresentation::documentTypeOptions())
+                            ->required()
+                            ->live(),
+                        KeyValue::make('type_profile')
+                            ->label('Профиль типа')
+                            ->helperText('Структура зависит от владельца профиля и валидируется анализатором до сохранения.')
+                            ->required()
+                            ->columnSpanFull()
+                            ->rules(fn (Get $get): array => [self::typeProfileValidationRule($get)]),
+                    ])
+                    ->columns(2),
+                Section::make('Рабочие пометки')
+                    ->description('Эти сведения помогают операторам группировать и воспроизводить проверку эталона.')
+                    ->schema([
+                        Textarea::make('notes')
+                            ->label('Комментарий')
+                            ->columnSpanFull(),
+                        TagsInput::make('quirks')
+                            ->label('Квирки'),
+                        TextInput::make('generator')
+                            ->label('Генератор'),
+                        TextInput::make('cluster_id')
+                            ->label('Кластер'),
+                    ])
+                    ->columns(3),
             ]);
     }
 

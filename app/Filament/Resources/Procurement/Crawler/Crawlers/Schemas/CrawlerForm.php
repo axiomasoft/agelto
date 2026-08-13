@@ -19,6 +19,7 @@ use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
 use Filament\Schemas\Components\Fieldset;
+use Filament\Schemas\Components\Section;
 use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Schema;
 use Throwable;
@@ -28,61 +29,80 @@ final class CrawlerForm
     public static function configure(Schema $schema): Schema
     {
         return $schema->components([
-            Select::make('registry_id')->relationship('registry', 'name')->live()->required(),
-            Textarea::make('name')->required()->columnSpanFull(),
-            Select::make('mode')->options(CrawlerMode::class)->required(),
-            Select::make('execution_lane')
-                ->label('Контур исполнения')
-                ->options([
-                    CrawlerExecutionLane::Standard->value => 'Стандартный — до 5 минут',
-                    CrawlerExecutionLane::Long->value => 'Длинный архивный — до 1 часа',
+            Section::make('Задание сбора')
+                ->description('Реестр и режим определяют, что и как будет собирать задание.')
+                ->schema([
+                    Select::make('registry_id')->relationship('registry', 'name')->live()->required(),
+                    Textarea::make('name')->required()->columnSpanFull(),
+                    Select::make('mode')->options(CrawlerMode::class)->required(),
+                    Select::make('execution_lane')
+                        ->label('Контур исполнения')
+                        ->options([
+                            CrawlerExecutionLane::Standard->value => 'Стандартный — до 5 минут',
+                            CrawlerExecutionLane::Long->value => 'Длинный архивный — до 1 часа',
+                        ])
+                        ->default(CrawlerExecutionLane::Standard->value)
+                        ->required(),
+                    Select::make('stop_policy')->label('Режим работы')->options(RunStopPolicy::class)->required(),
+                    Select::make('source_method')->options(SourceMethod::class)->required(),
+                    Select::make('fallback_method')->options(SourceMethod::class),
                 ])
-                ->default(CrawlerExecutionLane::Standard->value)
-                ->required(),
-            Select::make('stop_policy')->label('Режим работы')->options(RunStopPolicy::class)->required(),
-            Select::make('source_method')->options(SourceMethod::class)->required(),
-            Select::make('fallback_method')->options(SourceMethod::class),
-            Fieldset::make('Настройки площадки')
-                ->columnSpanFull()
-                ->schema(fn (Get $get): array => self::platformComponents(get: $get)),
-            TextInput::make('schedule')
-                ->label('Расписание (cron)')
-                ->rules([
-                    static function (): \Closure {
-                        return static function (string $attribute, mixed $value, \Closure $fail): void {
-                            if (blank($value)) {
-                                return;
-                            }
+                ->columns(3),
+            Section::make('Настройки площадки')
+                ->description('Поля зависят от выбранного реестра и применяются только к этому заданию.')
+                ->schema([
+                    Fieldset::make('Настройки площадки')
+                        ->columnSpanFull()
+                        ->schema(fn (Get $get): array => self::platformComponents(get: $get)),
+                ]),
+            Section::make('Расписание и доступность')
+                ->description('Пустое расписание не запускает задание по cron; активность можно включить после проверки настроек.')
+                ->schema([
+                    TextInput::make('schedule')
+                        ->label('Расписание (cron)')
+                        ->rules([
+                            static function (): \Closure {
+                                return static function (string $attribute, mixed $value, \Closure $fail): void {
+                                    if (blank($value)) {
+                                        return;
+                                    }
 
-                            if (! CronExpression::isValidExpression((string) $value)) {
-                                $fail('Невалидное cron-выражение.');
-                            }
-                        };
-                    },
+                                    if (! CronExpression::isValidExpression((string) $value)) {
+                                        $fail('Невалидное cron-выражение.');
+                                    }
+                                };
+                            },
+                        ])
+                        ->columnSpanFull(),
+                    Toggle::make('is_active')->required(),
                 ])
-                ->columnSpanFull(),
-            Toggle::make('is_active')->required(),
-            Select::make('proxy_mode')
-                ->label('Режим прокси')
-                ->options([
-                    CrawlerProxyMode::Profile->value => 'Профиль: использовать привязанные узлы',
-                    CrawlerProxyMode::Default->value => 'По умолчанию: наследовать настройку краулера',
-                    CrawlerProxyMode::Direct->value => 'Напрямую: не использовать прокси',
+                ->columns(2),
+            Section::make('Маршрут через прокси')
+                ->description('Профиль использует перечисленные узлы, режим по умолчанию наследует настройку краулера, прямой режим отключает прокси.')
+                ->schema([
+                    Select::make('proxy_mode')
+                        ->label('Режим прокси')
+                        ->options([
+                            CrawlerProxyMode::Profile->value => 'Профиль: использовать привязанные узлы',
+                            CrawlerProxyMode::Default->value => 'По умолчанию: наследовать настройку краулера',
+                            CrawlerProxyMode::Direct->value => 'Напрямую: не использовать прокси',
+                        ])
+                        ->default(CrawlerProxyMode::Default->value)
+                        ->live()
+                        ->required(),
+                    Select::make('proxies')
+                        ->label('Разрешённые прокси')
+                        ->relationship('proxies', 'host')
+                        ->multiple()
+                        ->searchable()
+                        ->preload()
+                        ->visible(fn (Get $get): bool => $get('proxy_mode') === CrawlerProxyMode::Profile->value),
+                    Select::make('proxy_country')
+                        ->label('Предпочитаемая страна прокси')
+                        ->options(ProxyForm::COUNTRIES)
+                        ->visible(fn (Get $get): bool => $get('proxy_mode') === CrawlerProxyMode::Profile->value),
                 ])
-                ->default(CrawlerProxyMode::Default->value)
-                ->live()
-                ->required(),
-            Select::make('proxies')
-                ->label('Разрешённые прокси')
-                ->relationship('proxies', 'host')
-                ->multiple()
-                ->searchable()
-                ->preload()
-                ->visible(fn (Get $get): bool => $get('proxy_mode') === CrawlerProxyMode::Profile->value),
-            Select::make('proxy_country')
-                ->label('Предпочитаемая страна прокси')
-                ->options(ProxyForm::COUNTRIES)
-                ->visible(fn (Get $get): bool => $get('proxy_mode') === CrawlerProxyMode::Profile->value),
+                ->columns(2),
         ]);
     }
 
