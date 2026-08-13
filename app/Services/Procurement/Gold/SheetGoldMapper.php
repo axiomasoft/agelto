@@ -37,6 +37,9 @@ use RuntimeException;
  * которым гейт считает условие (б)/(в): маппер и гейт обязаны видеть ОДНУ роль строки, иначе
  * «гейт посчитал строку покрытой» и «маппер её пропустил» разошлись бы молчаливо.
  */
+/**
+ * @phpstan-type MappedRow array{row_index: int, row_type: RowType, name: string, section_title: string|null, code: string|null, unit: string|null, quantity: string|null, unit_price_base: string|null, unit_price_curr: string|null, total_price_base: string|null, total_price_curr: string|null, index_value: string|null, source_position_number: string|null, resources: list<RowResource>, attributes: RowAttributes|null}
+ */
 final readonly class SheetGoldMapper
 {
     public function __construct(
@@ -46,6 +49,9 @@ final readonly class SheetGoldMapper
 
     /**
      * @throws ValidationException Вывод не прошёл {@see GoldValidator} — маппер считается упавшим.
+     */
+    /**
+     * @return array{estimates: list<array<string, mixed>>}
      */
     public function toGold(Spreadsheet $spreadsheet, GoldFormProfile $profile): array
     {
@@ -68,11 +74,15 @@ final readonly class SheetGoldMapper
         return $gold;
     }
 
+    /**
+     * @return array<string, mixed>
+     */
     private function mapEstimate(Worksheet $sheet, GoldFormProfileEstimate $estimate): array
     {
         $classified = $this->gate->classifyRows($sheet, $estimate);
         $columns = $this->declaredColumnIndexes($estimate->columns);
 
+        /** @var list<MappedRow> $rows */
         $rows = [];
         $rowIndex = 0;
         $sectionTitle = null;
@@ -86,7 +96,14 @@ final readonly class SheetGoldMapper
             }
 
             if ($role === 'resource') {
-                $rows[$lastItemIndex]['resources'][] = $this->mapResource($sheet, $columns, $entry);
+                if ($lastItemIndex === null) {
+                    throw new RuntimeException("Ресурс в строке {$entry['row']} не привязан к item-строке.");
+                }
+
+                $rows[$lastItemIndex] = $this->withResource(
+                    $rows[$lastItemIndex],
+                    $this->mapResource($sheet, $columns, $entry),
+                );
 
                 continue;
             }
@@ -99,7 +116,7 @@ final readonly class SheetGoldMapper
             $rowType = RowType::from($role);
 
             $rows[] = $this->mapRow($sheet, $columns, $entry, $rowType, $rowIndex, $sectionTitle);
-            $lastRowIndex = array_key_last($rows);
+            $lastRowIndex = count($rows) - 1;
 
             if ($rowType === RowType::SectionHeader || $rowType === RowType::SubsectionHeader) {
                 $sectionTitle = $rows[$lastRowIndex]['name'];
@@ -110,8 +127,10 @@ final readonly class SheetGoldMapper
             }
         }
 
-        $estimateRows = array_map(
-            static fn (array $row): array => (new EstimateRow(
+        $estimateRows = [];
+
+        foreach ($rows as $row) {
+            $estimateRows[] = (new EstimateRow(
                 row_index: $row['row_index'],
                 row_type: $row['row_type'],
                 name: $row['name'],
@@ -127,18 +146,22 @@ final readonly class SheetGoldMapper
                 source_position_number: $row['source_position_number'],
                 resources: $row['resources'],
                 attributes: $row['attributes'],
-            ))->toArray(),
-            $rows,
-        );
+            ))->toArray();
+        }
 
         $passport = new PassportResponse(passport: new EstimatePassport, rows_expected: count($estimateRows));
 
-        return array_merge($passport->toArray(), ['rows' => $estimateRows]);
+        /** @var array<string, mixed> $payload */
+        $payload = $passport->toArray();
+        $payload['rows'] = $estimateRows;
+
+        return $payload;
     }
 
     /**
-     * @param  array<string,int>  $columns
+     * @param  array<string, int>  $columns
      * @param  array{row: int, role: string, name: string, resource_type: ?ResourceType}  $entry
+     * @return MappedRow
      */
     private function mapRow(Worksheet $sheet, array $columns, array $entry, RowType $rowType, int $rowIndex, ?string $sectionTitle): array
     {
@@ -161,6 +184,17 @@ final readonly class SheetGoldMapper
             'resources' => [],
             'attributes' => $rowType === RowType::SummaryRow ? $this->mapSummaryAttributes($sheet, $columns, $entry['row']) : null,
         ];
+    }
+
+    /**
+     * @param  MappedRow  $row
+     * @return MappedRow
+     */
+    private function withResource(array $row, RowResource $resource): array
+    {
+        $row['resources'][] = $resource;
+
+        return $row;
     }
 
     /**
@@ -214,8 +248,14 @@ final readonly class SheetGoldMapper
      */
     private function mapResource(Worksheet $sheet, array $columns, array $entry): RowResource
     {
+        $resourceType = $entry['resource_type'];
+
+        if ($resourceType === null) {
+            throw new RuntimeException("Ресурс в строке {$entry['row']} не содержит resource_type.");
+        }
+
         return new RowResource(
-            resource_type: $entry['resource_type'],
+            resource_type: $resourceType,
             name: $entry['name'],
             code: $this->columnText($sheet, $columns, 'code', $entry['row']),
             unit: $this->columnText($sheet, $columns, 'unit', $entry['row']),
@@ -235,7 +275,7 @@ final readonly class SheetGoldMapper
         $result = [];
 
         foreach (GoldFormProfileColumns::FIELDS as $field) {
-            $letter = $columns->{$field};
+            $letter = $columns->letterFor($field);
 
             if ($letter !== null) {
                 $result[$field] = Coordinate::columnIndexFromString($letter);
@@ -274,6 +314,10 @@ final readonly class SheetGoldMapper
             return rtrim(rtrim(sprintf('%.10F', $value), '0'), '.');
         }
 
-        return trim((string) $value);
+        if (is_int($value) || is_string($value)) {
+            return trim((string) $value);
+        }
+
+        throw new RuntimeException('Значение ячейки должно быть скалярным.');
     }
 }
