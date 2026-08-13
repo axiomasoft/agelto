@@ -115,7 +115,7 @@ test('доказывает exact owner routes, Sections и mobile table actions'
         await expect(page.getByRole('textbox', { name: /^Хост\*/ })).toBeVisible();
         await expect(page.getByLabel('Порт')).toBeVisible();
         await expect(page.getByText('Разрешённое использование', { exact: true })).toBeVisible();
-        await expect(page.getByRole('button', { name: /Создать/i })).toBeVisible();
+        await expect(page.getByRole('button', { name: 'Создать', exact: true })).toBeVisible();
         await expectNoHorizontalOverflow(page);
 
         const pageCopy = await page.getByRole('main').innerText();
