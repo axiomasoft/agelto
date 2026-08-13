@@ -22,10 +22,13 @@ class PlatformForm
                             ->disabled()
                             ->dehydrated(false),
                         TextInput::make('code')
+                            ->label('Код')
                             ->required(),
                         TextInput::make('name')
+                            ->label('Название')
                             ->required(),
                         TextInput::make('base_url')
+                            ->label('Базовый адрес')
                             ->url()
                             ->required(),
                     ])
@@ -60,6 +63,7 @@ class PlatformForm
                     ->description('Неактивная площадка не участвует в новых заданиях сбора.')
                     ->schema([
                         Toggle::make('is_active')
+                            ->label('Активна')
                             ->required(),
                     ]),
             ]);

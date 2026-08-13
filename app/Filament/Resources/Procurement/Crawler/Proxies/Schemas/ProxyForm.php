@@ -44,19 +44,25 @@ class ProxyForm
                     ->description('Укажите технические параметры узла. Учётные данные не выводятся после сохранения.')
                     ->schema([
                         TextInput::make('service')
+                            ->label('Сервис')
                             ->required(),
                         TextInput::make('host')
+                            ->label('Хост')
                             ->required(),
                         TextInput::make('port')
+                            ->label('Порт')
                             ->numeric(),
-                        TextInput::make('username'),
+                        TextInput::make('username')
+                            ->label('Имя пользователя'),
                         // Креды прокси маскируются (admin-panel §2.1): скрытый ввод с
                         // возможностью показать; пустое значение при правке не перетирает пароль.
                         TextInput::make('password')
+                            ->label('Пароль')
                             ->password()
                             ->revealable()
                             ->dehydrated(fn (?string $state): bool => filled($state)),
                         Select::make('country')
+                            ->label('Страна')
                             ->options(self::COUNTRIES)
                             ->searchable(),
                     ])
@@ -65,10 +71,12 @@ class ProxyForm
                     ->description('Скоупы ограничивают, для каких запросов краулер может использовать этот узел.')
                     ->schema([
                         Select::make('scopes')
+                            ->label('Назначение запросов')
                             ->options(ProxyScope::class)
                             ->multiple()
                             ->columnSpanFull(),
                         Toggle::make('is_active')
+                            ->label('Активен')
                             ->required(),
                     ])
                     ->columns(2),
@@ -76,6 +84,7 @@ class ProxyForm
                     ->description('Эти поля обновляет мониторинг; изменение формы не может записать их в хранилище.')
                     ->schema([
                         TextInput::make('fails_count')
+                            ->label('Количество ошибок')
                             ->required()
                             ->numeric()
                             ->default(0),
@@ -85,18 +94,23 @@ class ProxyForm
                             ->columnSpanFull()
                             ->schema([
                                 TextInput::make('open_count')
+                                    ->label('Количество открытий breaker')
                                     ->disabled()
                                     ->dehydrated(false),
                                 TextInput::make('open_until')
+                                    ->label('Breaker открыт до')
                                     ->disabled()
                                     ->dehydrated(false),
                                 TextInput::make('last_failure_reason')
+                                    ->label('Последняя причина ошибки')
                                     ->disabled()
                                     ->dehydrated(false),
                                 TextInput::make('last_success_at')
+                                    ->label('Последний успешный запрос')
                                     ->disabled()
                                     ->dehydrated(false),
                                 TextInput::make('last_failure_at')
+                                    ->label('Последняя ошибка')
                                     ->disabled()
                                     ->dehydrated(false),
                             ]),

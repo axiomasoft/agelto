@@ -32,9 +32,9 @@ final class CrawlerForm
             Section::make('Задание сбора')
                 ->description('Реестр и режим определяют, что и как будет собирать задание.')
                 ->schema([
-                    Select::make('registry_id')->relationship('registry', 'name')->live()->required(),
-                    Textarea::make('name')->required()->columnSpanFull(),
-                    Select::make('mode')->options(CrawlerMode::class)->required(),
+                    Select::make('registry_id')->label('Реестр')->relationship('registry', 'name')->live()->required(),
+                    Textarea::make('name')->label('Название')->required()->columnSpanFull(),
+                    Select::make('mode')->label('Режим')->options(CrawlerMode::class)->required(),
                     Select::make('execution_lane')
                         ->label('Контур исполнения')
                         ->options([
@@ -44,8 +44,8 @@ final class CrawlerForm
                         ->default(CrawlerExecutionLane::Standard->value)
                         ->required(),
                     Select::make('stop_policy')->label('Режим работы')->options(RunStopPolicy::class)->required(),
-                    Select::make('source_method')->options(SourceMethod::class)->required(),
-                    Select::make('fallback_method')->options(SourceMethod::class),
+                    Select::make('source_method')->label('Основной способ получения')->options(SourceMethod::class)->required(),
+                    Select::make('fallback_method')->label('Резервный способ получения')->options(SourceMethod::class),
                 ])
                 ->columns(3),
             Section::make('Настройки площадки')
@@ -74,7 +74,7 @@ final class CrawlerForm
                             },
                         ])
                         ->columnSpanFull(),
-                    Toggle::make('is_active')->required(),
+                    Toggle::make('is_active')->label('Активно')->required(),
                 ])
                 ->columns(2),
             Section::make('Маршрут через прокси')

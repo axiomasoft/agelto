@@ -22,11 +22,14 @@ class RegistryForm
                             ->disabled()
                             ->dehydrated(false),
                         Select::make('platform_id')
+                            ->label('Площадка')
                             ->relationship('platform', 'name')
                             ->required(),
                         TextInput::make('code')
+                            ->label('Код')
                             ->required(),
                         TextInput::make('name')
+                            ->label('Название')
                             ->required(),
                     ])
                     ->columns(2),
@@ -34,6 +37,7 @@ class RegistryForm
                     ->description('Дополнительные параметры применяются к этому реестру и не меняют настройки площадки.')
                     ->schema([
                         KeyValue::make('settings')
+                            ->label('Параметры')
                             ->helperText('Указывайте только параметры, которые поддерживает адаптер выбранной площадки.')
                             ->columnSpanFull(),
                     ]),

@@ -33,6 +33,7 @@ class PromptForm
                     ->description('Свяжите инструкцию с типом документа и этапом обработки.')
                     ->schema([
                         Select::make('document_type')
+                            ->label('Тип документа')
                             ->options([
                                 ...LlmPresentation::documentTypeOptions(),
                                 DocumentTypeScope::Any->value => LlmPresentation::documentType(DocumentTypeScope::Any),
@@ -40,9 +41,11 @@ class PromptForm
                             ->live()
                             ->required(),
                         Textarea::make('key')
+                            ->label('Ключ')
                             ->required()
                             ->columnSpanFull(),
                         Select::make('step')
+                            ->label('Этап')
                             ->options(function (Get $get) {
                                 $documentType = AiDocumentType::tryFrom((string) $get('document_type')) ?? DocumentTypeScope::Any;
 
@@ -58,6 +61,7 @@ class PromptForm
                     ->description('Текст передаётся AI для выбранного шага; проверьте его перед сохранением.')
                     ->schema([
                         Textarea::make('content')
+                            ->label('Текст инструкции')
                             ->required()
                             ->columnSpanFull(),
                     ]),
@@ -65,13 +69,16 @@ class PromptForm
                     ->description('Приоритет определяет порядок применения; неактивная запись не участвует в сборке инструкции.')
                     ->schema([
                         TextInput::make('version')
+                            ->label('Версия')
                             ->required()
                             ->numeric(),
                         TextInput::make('priority')
+                            ->label('Приоритет')
                             ->required()
                             ->numeric()
                             ->default(0),
                         Toggle::make('is_active')
+                            ->label('Активна')
                             ->required(),
                     ])
                     ->columns(3),

@@ -25,6 +25,7 @@ class AiRouteForm
                     ->description('Выберите, для какого типа документа и шага AI будет использовать эту модель.')
                     ->schema([
                         Select::make('document_type')
+                            ->label('Тип документа')
                             ->options([
                                 ...LlmPresentation::documentTypeOptions(),
                                 DocumentTypeScope::Any->value => LlmPresentation::documentType(DocumentTypeScope::Any),
@@ -32,6 +33,7 @@ class AiRouteForm
                             ->live()
                             ->required(),
                         Select::make('purpose')
+                            ->label('Назначение')
                             ->options(function (Get $get) {
                                 $documentType = AiDocumentType::tryFrom((string) $get('document_type')) ?? DocumentTypeScope::Any;
 
@@ -46,12 +48,15 @@ class AiRouteForm
                     ->description('Провайдер определяет способ обращения; параметры передаются модели для этой задачи.')
                     ->schema([
                         Select::make('provider_id')
+                            ->label('Провайдер')
                             ->relationship('provider', 'id')
                             ->required(),
                         Textarea::make('model')
+                            ->label('Модель')
                             ->required()
                             ->columnSpanFull(),
                         KeyValue::make('options')
+                            ->label('Параметры')
                             ->helperText('Необязательные параметры конкретного провайдера; значения имеют приоритет только для этой модели.')
                             ->columnSpanFull(),
                     ])
@@ -60,12 +65,15 @@ class AiRouteForm
                     ->description('Активная модель с большим приоритетом выбирается первой; shadow-модель используется для сравнения.')
                     ->schema([
                         TextInput::make('priority')
+                            ->label('Приоритет')
                             ->required()
                             ->numeric()
                             ->default(0),
                         Toggle::make('is_active')
+                            ->label('Активна')
                             ->required(),
                         Toggle::make('shadow')
+                            ->label('Теневая')
                             ->required(),
                     ])
                     ->columns(3),

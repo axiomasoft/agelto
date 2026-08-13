@@ -50,102 +50,138 @@ class ProcurementInfolist
                 TextEntry::make('uuid')
                     ->label('UUID'),
                 TextEntry::make('registry.name')
-                    ->label('Registry'),
+                    ->label('Реестр'),
                 TextEntry::make('registry_number')
+                    ->label('Номер в реестре')
                     ->columnSpanFull(),
                 TextEntry::make('etp_number')
+                    ->label('Номер ЭТП')
                     ->placeholder('-')
                     ->columnSpanFull(),
                 TextEntry::make('ikz')
+                    ->label('ИКЗ')
                     ->placeholder('-')
                     ->columnSpanFull(),
                 TextEntry::make('title')
+                    ->label('Название')
                     ->columnSpanFull(),
                 TextEntry::make('status')
+                    ->label('Статус')
                     ->badge()
                     ->columnSpanFull(),
                 TextEntry::make('source_stage')
+                    ->label('Этап источника')
                     ->columnSpanFull(),
                 TextEntry::make('procedure_type')
+                    ->label('Тип процедуры')
                     ->placeholder('-')
                     ->columnSpanFull(),
                 TextEntry::make('procedure_type_raw')
+                    ->label('Исходный тип процедуры')
                     ->placeholder('-')
                     ->columnSpanFull(),
                 TextEntry::make('customer_org_id')
+                    ->label('Заказчик')
                     ->numeric()
                     ->placeholder('-'),
                 TextEntry::make('initial_price')
+                    ->label('Начальная цена')
                     ->money()
                     ->placeholder('-'),
                 TextEntry::make('currency')
+                    ->label('Валюта')
                     ->placeholder('-'),
                 TextEntry::make('advance_percent')
+                    ->label('Аванс, %')
                     ->numeric()
                     ->placeholder('-'),
                 TextEntry::make('okved_code')
+                    ->label('Код ОКВЭД')
                     ->placeholder('-')
                     ->columnSpanFull(),
                 TextEntry::make('okved_additional')
+                    ->label('Дополнительные ОКВЭД')
                     ->placeholder('-')
                     ->columnSpanFull(),
                 TextEntry::make('region_code')
+                    ->label('Код региона')
                     ->placeholder('-')
                     ->columnSpanFull(),
                 TextEntry::make('published_at')
+                    ->label('Опубликована')
                     ->dateTime(),
                 TextEntry::make('source_updated_at')
+                    ->label('Обновлена в источнике')
                     ->dateTime(),
                 TextEntry::make('bidding_starts_at')
+                    ->label('Начало подачи заявок')
                     ->dateTime()
                     ->placeholder('-'),
                 TextEntry::make('bidding_ends_at')
+                    ->label('Окончание подачи заявок')
                     ->dateTime()
                     ->placeholder('-'),
                 TextEntry::make('summary_at')
+                    ->label('Подведение итогов')
                     ->dateTime()
                     ->placeholder('-'),
                 TextEntry::make('detail_url')
+                    ->label('Ссылка на карточку')
                     ->placeholder('-')
                     ->columnSpanFull(),
                 TextEntry::make('detail_fetched_at')
+                    ->label('Карточка получена')
                     ->dateTime()
                     ->placeholder('-'),
                 TextEntry::make('detail_attempts')
+                    ->label('Попыток получить карточку')
                     ->numeric(),
                 TextEntry::make('detail_last_error')
+                    ->label('Последняя ошибка карточки')
                     ->placeholder('-')
                     ->columnSpanFull(),
                 TextEntry::make('detail_next_retry_at')
+                    ->label('Следующая попытка карточки')
                     ->dateTime()
                     ->placeholder('-'),
                 IconEntry::make('detail_failed')
+                    ->label('Получение карточки не удалось')
                     ->boolean(),
                 TextEntry::make('registry_guid')
+                    ->label('GUID в реестре')
                     ->placeholder('-')
                     ->columnSpanFull(),
                 TextEntry::make('current_revision_id')
+                    ->label('Текущая редакция')
                     ->numeric()
                     ->placeholder('-'),
                 TextEntry::make('current_revision_detected_at')
+                    ->label('Текущая редакция обнаружена')
                     ->dateTime()
                     ->placeholder('-'),
                 TextEntry::make('revision_count')
+                    ->label('Количество редакций')
                     ->numeric(),
                 TextEntry::make('ignored_at')
+                    ->label('Исключена')
                     ->dateTime()
                     ->placeholder('-'),
                 TextEntry::make('ignore_reason')
+                    ->label('Причина исключения')
                     ->placeholder('-')
                     ->columnSpanFull(),
                 TextEntry::make('first_seen_at')
+                    ->label('Впервые обнаружена')
                     ->dateTime(),
                 TextEntry::make('last_seen_at')
+                    ->label('Последний раз обнаружена')
                     ->dateTime(),
                 TextEntry::make('created_at')
+                    ->label('Создана')
                     ->dateTime()
                     ->placeholder('-'),
                 TextEntry::make('updated_at')
+                    ->label('Обновлена')
                     ->dateTime()
                     ->placeholder('-'),
             ]);

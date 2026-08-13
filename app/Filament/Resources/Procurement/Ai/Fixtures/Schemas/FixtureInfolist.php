@@ -74,10 +74,13 @@ class FixtureInfolist
                     ->description('Пометки и признак проверки помогают воспроизводить работу с эталоном.')
                     ->schema([
                         TextEntry::make('generator')
+                            ->label('Генератор')
                             ->placeholder('-'),
                         TextEntry::make('cluster_id')
+                            ->label('Кластер')
                             ->placeholder('-'),
                         TextEntry::make('quirks')
+                            ->label('Особенности')
                             ->badge()
                             ->placeholder('-'),
                         IconEntry::make('is_verified')
@@ -88,8 +91,10 @@ class FixtureInfolist
                             ->placeholder('-')
                             ->columnSpanFull(),
                         TextEntry::make('created_at')
+                            ->label('Создан')
                             ->dateTime(),
                         TextEntry::make('updated_at')
+                            ->label('Обновлён')
                             ->dateTime(),
                     ])
                     ->columns(3),

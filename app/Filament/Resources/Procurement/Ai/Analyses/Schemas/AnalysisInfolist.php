@@ -31,20 +31,26 @@ class AnalysisInfolist
                             ->placeholder('—')
                             ->url(fn (Analysis $record): ?string => $record->documentVersion?->document?->fixture === null ? null : FixtureResource::getUrl('view', ['record' => $record->documentVersion->document->fixture])),
                         TextEntry::make('step')
+                            ->label('Этап')
                             ->badge(),
                         TextEntry::make('status')
+                            ->label('Статус')
                             ->badge(),
                         TextEntry::make('document_type')
+                            ->label('Тип документа')
                             ->placeholder('-'),
                         TextEntry::make('review_status')
+                            ->label('Статус проверки')
                             ->badge(),
                         TextEntry::make('reviewedBy.name')
                             ->label('Проверил')
                             ->placeholder('-'),
                         TextEntry::make('reviewed_at')
+                            ->label('Проверено')
                             ->dateTime()
                             ->placeholder('-'),
                         TextEntry::make('operator_comment')
+                            ->label('Комментарий оператора')
                             ->placeholder('-')
                             ->columnSpanFull(),
                         TextEntry::make('parent_analysis_id')
@@ -86,6 +92,7 @@ class AnalysisInfolist
                             ->state(static fn (Analysis $record): array => self::tagAnchors($record))
                             ->schema([
                                 TextEntry::make('tag')
+                                    ->label('Тег')
                                     ->badge()
                                     ->url(static fn (string $state): string => AnalysisResource::getUrl('index', [
                                         'tableFilters' => ['screening_tag' => ['value' => $state]],
@@ -118,6 +125,7 @@ class AnalysisInfolist
                     ->description('Ошибки и технический результат доступны для разбора, не изменяя историю анализа.')
                     ->schema([
                         TextEntry::make('last_error')
+                            ->label('Последняя ошибка')
                             ->placeholder('-')
                             ->columnSpanFull(),
                         TextEntry::make('result')
@@ -131,11 +139,12 @@ class AnalysisInfolist
                             ->label('Сметы')
                             ->schema([
                                 TextEntry::make('ordinal')
+                                    ->label('Порядковый номер')
                                     ->url(fn ($record): string => EstimateResource::getUrl('view', ['record' => $record])),
-                                TextEntry::make('estimate_number')->placeholder('-'),
-                                TextEntry::make('validation_status')->badge(),
-                                TextEntry::make('rows_extracted'),
-                                TextEntry::make('rows_expected'),
+                                TextEntry::make('estimate_number')->label('Номер сметы')->placeholder('-'),
+                                TextEntry::make('validation_status')->label('Статус валидации')->badge(),
+                                TextEntry::make('rows_extracted')->label('Строк извлечено'),
+                                TextEntry::make('rows_expected')->label('Строк ожидалось'),
                             ])
                             ->columns(5)
                             ->columnSpanFull(),

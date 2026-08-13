@@ -60,8 +60,10 @@ class EstimateInfolist
                             ->placeholder('—')
                             ->columnSpanFull(),
                         TextEntry::make('created_at')
+                            ->label('Создана')
                             ->dateTime(),
                         TextEntry::make('updated_at')
+                            ->label('Обновлена')
                             ->dateTime(),
                     ])
                     ->columns(2),

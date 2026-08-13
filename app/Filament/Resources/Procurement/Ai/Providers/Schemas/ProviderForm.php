@@ -18,12 +18,15 @@ class ProviderForm
                     ->description('Код и драйвер определяют интеграцию; адрес указывает endpoint провайдера.')
                     ->schema([
                         Textarea::make('code')
+                            ->label('Код')
                             ->required()
                             ->columnSpanFull(),
                         Textarea::make('driver')
+                            ->label('Драйвер')
                             ->required()
                             ->columnSpanFull(),
                         Textarea::make('base_url')
+                            ->label('Базовый адрес')
                             ->helperText('Оставьте пустым, чтобы драйвер использовал свой стандартный endpoint.')
                             ->columnSpanFull(),
                     ]),
@@ -31,8 +34,10 @@ class ProviderForm
                     ->description('Дополнительные параметры действуют только для этого провайдера.')
                     ->schema([
                         KeyValue::make('options')
+                            ->label('Параметры')
                             ->columnSpanFull(),
                         Toggle::make('is_active')
+                            ->label('Активен')
                             ->required(),
                     ])
                     ->columns(2),
