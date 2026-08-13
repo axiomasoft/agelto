@@ -75,6 +75,22 @@ trap cleanup EXIT
 git -C "$root_dir" worktree add --detach "$candidate" HEAD >/dev/null
 candidate_sha=$(git -C "$candidate" rev-parse HEAD)
 image_tag="p4-${candidate_sha:0:12}"
+vendor_source="$root_dir/local/vendors/azguard"
+vendor_checkout="$candidate/local/vendors/azguard"
+vendor_commit=$(python3 - "$candidate/docker/private-vendors.lock.json" <<'PY'
+import json
+import sys
+
+print(json.load(open(sys.argv[1], encoding='utf-8'))['commit'])
+PY
+)
+
+[[ -d "$vendor_source/.git" ]] || { echo "Pinned vendor checkout is missing: $vendor_source" >&2; exit 2; }
+git -C "$vendor_source" cat-file -e "$vendor_commit^{commit}"
+mkdir -p "$(dirname "$vendor_checkout")"
+git clone --no-local --no-checkout "$vendor_source" "$vendor_checkout" >/dev/null
+git -C "$vendor_checkout" checkout --detach "$vendor_commit" >/dev/null
+git -C "$vendor_checkout" remote set-url origin "$(git -C "$vendor_source" config --get remote.origin.url)"
 if [[ -n "$password_file" ]]; then
     cp "$password_file" "$candidate/.e2e-admin-password"
 else
@@ -115,7 +131,7 @@ cd "$candidate"
 pnpm install --frozen-lockfile
 pnpm documentation:build
 pnpm exec playwright install chromium
-make vendor:sync
+bash docker/scripts/vendor-sync.sh --check --composer-check
 composer install --no-scripts --no-interaction --no-progress
 COMPOSE_PROJECT_NAME="$project" IMAGE_TAG="$image_tag" make bootstrap MODE=prod-build ENV_FILE=.env.e2e
 
