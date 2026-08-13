@@ -17,6 +17,7 @@ use App\Models\Procurement\Estimate\Estimate;
 use App\Notifications\PipelineAlert;
 use Carbon\CarbonImmutable;
 use Illuminate\Console\Command;
+use LogicException;
 
 /**
  * Перенос v1-наблюдаемости (`Old/app/Console/Commands/PipelineStuckCheckCommand.php`) на
@@ -81,7 +82,7 @@ final class PipelineStuckCheck extends Command
      */
     private function stuckAnalyses(AnalysisStep $step, string $configKey, string $findingKey): array
     {
-        $minutes = (int) config("ai.pipeline.{$configKey}", 30);
+        $minutes = $this->intConfig("ai.pipeline.{$configKey}", 30);
 
         $count = Analysis::query()
             ->where('step', $step->value)
@@ -108,7 +109,7 @@ final class PipelineStuckCheck extends Command
      */
     private function stuckRuns(): array
     {
-        $minutes = (int) config('ai.pipeline.document_stuck_minutes', 60);
+        $minutes = $this->intConfig('ai.pipeline.document_stuck_minutes', 60);
 
         $count = AnalysisRun::query()
             ->whereNull('finished_at')
@@ -134,7 +135,7 @@ final class PipelineStuckCheck extends Command
      */
     private function stuckDocuments(): array
     {
-        $minutes = (int) config('ai.pipeline.document_stuck_minutes', 60);
+        $minutes = $this->intConfig('ai.pipeline.document_stuck_minutes', 60);
 
         $rows = Document::query()
             ->whereIn('status', [DocumentStatus::Discovered->value, DocumentStatus::Downloaded->value, DocumentStatus::Prepared->value, DocumentStatus::Screened->value])
@@ -149,7 +150,11 @@ final class PipelineStuckCheck extends Command
             return [];
         }
 
-        $breakdown = $rows->map(fn ($row): string => "{$row->status}={$row->total}")->implode(', ');
+        $breakdown = $rows->map(fn (object $row): string => sprintf(
+            '%s=%d',
+            $this->stringValue($row->status, 'document status'),
+            $this->integerValue($row->total, 'document count'),
+        ))->implode(', ');
 
         return ['stuck_documents' => "Документов застряло на стадии >{$minutes}мин: {$breakdown}"];
     }
@@ -162,8 +167,8 @@ final class PipelineStuckCheck extends Command
      */
     private function unknownSpike(): array
     {
-        $windowHours = (int) config('ai.pipeline.spike_window_hours', 24);
-        $threshold = (int) config('ai.pipeline.unknown_spike_threshold', 20);
+        $windowHours = $this->intConfig('ai.pipeline.spike_window_hours', 24);
+        $threshold = $this->intConfig('ai.pipeline.unknown_spike_threshold', 20);
 
         $count = Analysis::query()
             ->where('step', AnalysisStep::Screening->value)
@@ -186,8 +191,8 @@ final class PipelineStuckCheck extends Command
      */
     private function unprocessableSpike(): array
     {
-        $windowHours = (int) config('ai.pipeline.spike_window_hours', 24);
-        $threshold = (int) config('ai.pipeline.unprocessable_spike_threshold', 5);
+        $windowHours = $this->intConfig('ai.pipeline.spike_window_hours', 24);
+        $threshold = $this->intConfig('ai.pipeline.unprocessable_spike_threshold', 5);
 
         $count = Document::query()
             ->where('status', DocumentStatus::Unprocessable->value)
@@ -209,8 +214,8 @@ final class PipelineStuckCheck extends Command
      */
     private function estimateMismatchSpike(): array
     {
-        $windowHours = (int) config('ai.pipeline.spike_window_hours', 24);
-        $threshold = (int) config('ai.pipeline.estimate_mismatch_threshold', 5);
+        $windowHours = $this->intConfig('ai.pipeline.spike_window_hours', 24);
+        $threshold = $this->intConfig('ai.pipeline.estimate_mismatch_threshold', 5);
 
         $count = Estimate::query()
             ->whereIn('validation_status', [EstimateValidationStatus::Suspicious->value, EstimateValidationStatus::Invalid->value])
@@ -233,15 +238,19 @@ final class PipelineStuckCheck extends Command
      */
     private function eolModels(): array
     {
-        $warnDays = (int) config('ai.model_eol_warn_days', 30);
+        $warnDays = $this->intConfig('ai.model_eol_warn_days', 30);
         $now = CarbonImmutable::now();
-        $capabilities = (array) config('ai.capabilities', []);
+        $capabilities = $this->capabilities();
 
-        $models = LlmRoute::query()->where('is_active', true)->pluck('model')->unique()->filter();
+        $models = LlmRoute::query()->where('is_active', true)->distinct()->pluck('model');
 
         $near = [];
 
         foreach ($models as $model) {
+            if (! is_string($model) || $model === '') {
+                continue;
+            }
+
             $eolDate = $capabilities[$model]['eol_date'] ?? null;
 
             if ($eolDate === null) {
@@ -277,7 +286,7 @@ final class PipelineStuckCheck extends Command
      */
     private function backlogSpike(): array
     {
-        $threshold = (int) config('ai.pipeline.backlog_threshold', 200);
+        $threshold = $this->intConfig('ai.pipeline.backlog_threshold', 200);
 
         $count = Document::query()
             ->whereIn('status', [DocumentStatus::Downloaded->value, DocumentStatus::Prepared->value, DocumentStatus::Screened->value])
@@ -300,20 +309,18 @@ final class PipelineStuckCheck extends Command
      */
     private function failureRateSpike(): array
     {
-        $windowHours = (int) config('ai.pipeline.failure_rate_window_hours', 1);
-        $thresholdPercent = (float) config('ai.pipeline.failure_rate_threshold_percent', 50.0);
+        $windowHours = $this->intConfig('ai.pipeline.failure_rate_window_hours', 1);
+        $thresholdPercent = $this->floatConfig('ai.pipeline.failure_rate_threshold_percent', 50.0);
+        $since = now()->subHours($windowHours);
 
-        $totals = Analysis::query()
-            ->whereIn('status', [AnalysisStatus::Succeeded->value, AnalysisStatus::Failed->value])
-            ->where('updated_at', '>=', now()->subHours($windowHours))
-            ->toBase()
-            ->selectRaw('status, count(*) as total')
-            ->groupBy('status')
-            ->get()
-            ->pluck('total', 'status');
-
-        $succeeded = (int) ($totals[AnalysisStatus::Succeeded->value] ?? 0);
-        $failed = (int) ($totals[AnalysisStatus::Failed->value] ?? 0);
+        $succeeded = Analysis::query()
+            ->where('status', AnalysisStatus::Succeeded->value)
+            ->where('updated_at', '>=', $since)
+            ->count();
+        $failed = Analysis::query()
+            ->where('status', AnalysisStatus::Failed->value)
+            ->where('updated_at', '>=', $since)
+            ->count();
         $total = $succeeded + $failed;
 
         if ($total === 0) {
@@ -337,7 +344,7 @@ final class PipelineStuckCheck extends Command
      */
     private function noCompletions(): array
     {
-        $minutes = (int) config('ai.pipeline.no_completions_minutes', 120);
+        $minutes = $this->intConfig('ai.pipeline.no_completions_minutes', 120);
 
         $hasBacklog = Document::query()
             ->whereIn('status', [DocumentStatus::Downloaded->value, DocumentStatus::Prepared->value, DocumentStatus::Screened->value])
@@ -358,5 +365,85 @@ final class PipelineStuckCheck extends Command
         }
 
         return ['no_completions' => "Ни одного завершённого анализа за {$minutes}мин при непустом backlog — пайплайн, похоже, встал"];
+    }
+
+    private function intConfig(string $key, int $default): int
+    {
+        $value = config($key, $default);
+
+        if (! is_int($value)) {
+            throw new LogicException("{$key} должен быть целым числом.");
+        }
+
+        return $value;
+    }
+
+    private function floatConfig(string $key, float $default): float
+    {
+        $value = config($key, $default);
+
+        if (! is_float($value) && ! is_int($value)) {
+            throw new LogicException("{$key} должен быть числом.");
+        }
+
+        return (float) $value;
+    }
+
+    private function integerValue(mixed $value, string $context): int
+    {
+        if (is_int($value)) {
+            return $value;
+        }
+
+        if (is_string($value) && ctype_digit($value)) {
+            return (int) $value;
+        }
+
+        throw new LogicException("{$context} должен быть целым числом.");
+    }
+
+    private function stringValue(mixed $value, string $context): string
+    {
+        if (! is_string($value)) {
+            throw new LogicException("{$context} должен быть строкой.");
+        }
+
+        return $value;
+    }
+
+    /**
+     * @return array<string, array{eol_date?: string, successor?: string}>
+     */
+    private function capabilities(): array
+    {
+        $value = config('ai.capabilities', []);
+
+        if (! is_array($value)) {
+            throw new LogicException('ai.capabilities должен быть массивом моделей.');
+        }
+
+        $capabilities = [];
+
+        foreach ($value as $model => $attributes) {
+            if (! is_string($model) || ! is_array($attributes)) {
+                throw new LogicException('Каждая capability должна иметь строковый код модели и массив атрибутов.');
+            }
+
+            $capability = [];
+            $eolDate = $attributes['eol_date'] ?? null;
+            $successor = $attributes['successor'] ?? null;
+
+            if ($eolDate !== null) {
+                $capability['eol_date'] = $this->stringValue($eolDate, "eol_date модели {$model}");
+            }
+
+            if ($successor !== null) {
+                $capability['successor'] = $this->stringValue($successor, "successor модели {$model}");
+            }
+
+            $capabilities[$model] = $capability;
+        }
+
+        return $capabilities;
     }
 }
