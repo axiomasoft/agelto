@@ -20,6 +20,11 @@ use ZipArchive;
  * обязаны видеть один и тот же вердикт. Диспетчер — `match`, не реестр стратегий (Code Guidance
  * P5.3): мапперов ровно два. Без записи на диск — это работа `GoldBuildCommand`.
  */
+/**
+ * @phpstan-type GoldPayload array{estimates: list<array<string, mixed>>}
+ * @phpstan-type UnmappedReport array<string, array{count: int, has_carrier: bool}>
+ * @phpstan-type BuildResult array{action: 'built'|'downgraded'|'rejected', gold: GoldPayload|null, rows: int|null, estimates: int|null, arithmetic_ratio: float|null, unmapped: UnmappedReport, reason: string|null}
+ */
 final readonly class GoldBuilder
 {
     public function __construct(
@@ -32,15 +37,7 @@ final readonly class GoldBuilder
     ) {}
 
     /**
-     * @return array{
-     *     action: 'built'|'downgraded'|'rejected',
-     *     gold: array<string, mixed>|null,
-     *     rows: int|null,
-     *     estimates: int|null,
-     *     arithmetic_ratio: float|null,
-     *     unmapped: array<string, array{count: int, has_carrier: bool}>,
-     *     reason: string|null,
-     * }
+     * @return BuildResult
      */
     public function build(string $sourceFormat, string $sourcePath, ?string $profilePath): array
     {
@@ -52,9 +49,7 @@ final readonly class GoldBuilder
     }
 
     /**
-     * @return array{action: 'built'|'rejected', gold: array<string, mixed>|null, rows: int|null,
-     *     estimates: int|null, arithmetic_ratio: float|null,
-     *     unmapped: array<string, array{count: int, has_carrier: bool}>, reason: string|null}
+     * @return BuildResult
      */
     private function buildFromGsfx(string $path): array
     {
@@ -85,7 +80,7 @@ final readonly class GoldBuilder
             return $this->rejected($e->getMessage());
         }
 
-        $gold = $this->gsfxMapper->toGold($document);
+        $gold = $this->goldPayload($this->gsfxMapper->toGold($document));
         $errors = $this->validator->validate($gold);
 
         if ($errors !== []) {
@@ -104,9 +99,7 @@ final readonly class GoldBuilder
     }
 
     /**
-     * @return array{action: 'built'|'downgraded'|'rejected', gold: array<string, mixed>|null,
-     *     rows: int|null, estimates: int|null, arithmetic_ratio: float|null,
-     *     unmapped: array<string, array{count: int, has_carrier: bool}>, reason: string|null}
+     * @return BuildResult
      */
     private function buildFromSheet(string $sourcePath, ?string $profilePath): array
     {
@@ -163,9 +156,17 @@ final readonly class GoldBuilder
         }
 
         try {
-            $gold = $this->sheetMapper->toGold($spreadsheet, $profile);
+            $gold = $this->goldPayload($this->sheetMapper->toGold($spreadsheet, $profile));
         } catch (ValidationException $e) {
-            return $this->downgraded('GoldValidator: '.implode('; ', Arr::flatten($e->errors())), count($profile->estimates));
+            $errors = [];
+
+            foreach (Arr::flatten($e->errors()) as $error) {
+                if (is_string($error)) {
+                    $errors[] = $error;
+                }
+            }
+
+            return $this->downgraded('GoldValidator: '.implode('; ', $errors), count($profile->estimates));
         }
 
         return [
@@ -180,14 +181,23 @@ final readonly class GoldBuilder
     }
 
     /**
-     * @param  array<string, mixed>  $gold
+     * @param  GoldPayload  $gold
      */
     private function countRows(array $gold): int
     {
-        return array_sum(array_map(
-            static fn (array $estimate): int => count($estimate['rows'] ?? []),
-            $gold['estimates'],
-        ));
+        $count = 0;
+
+        foreach ($gold['estimates'] as $estimate) {
+            $rows = $estimate['rows'] ?? [];
+
+            if (! is_array($rows)) {
+                throw new \LogicException('Строки gold estimate должны быть массивом.');
+            }
+
+            $count += count($rows);
+        }
+
+        return $count;
     }
 
     /**
@@ -195,17 +205,27 @@ final readonly class GoldBuilder
      */
     private function simpleAverage(array $evaluations, string $field): ?float
     {
-        $values = array_values(array_filter(
-            array_column($evaluations, $field),
-            static fn (?float $v): bool => $v !== null,
-        ));
+        $values = [];
+
+        foreach ($evaluations as $evaluation) {
+            $value = $evaluation[$field] ?? null;
+
+            if ($value === null) {
+                continue;
+            }
+
+            if (! is_float($value)) {
+                throw new \LogicException("{$field} должен быть float или null.");
+            }
+
+            $values[] = $value;
+        }
 
         return $values === [] ? null : array_sum($values) / count($values);
     }
 
     /**
-     * @return array{action: 'downgraded', gold: null, rows: null, estimates: int, arithmetic_ratio: null,
-     *     unmapped: array<never>, reason: string}
+     * @return BuildResult
      */
     private function downgraded(string $reason, int $estimatesCount): array
     {
@@ -221,8 +241,7 @@ final readonly class GoldBuilder
     }
 
     /**
-     * @return array{action: 'rejected', gold: null, rows: null, estimates: null, arithmetic_ratio: null,
-     *     unmapped: array<never>, reason: string}
+     * @return BuildResult
      */
     private function rejected(string $reason): array
     {
@@ -235,5 +254,28 @@ final readonly class GoldBuilder
             'unmapped' => [],
             'reason' => $reason,
         ];
+    }
+
+    /**
+     * @return GoldPayload
+     */
+    private function goldPayload(mixed $value): array
+    {
+        if (! is_array($value) || ! array_key_exists('estimates', $value) || ! is_array($value['estimates'])) {
+            throw new \LogicException('Gold payload должен содержать список estimates.');
+        }
+
+        $estimates = [];
+
+        foreach ($value['estimates'] as $estimate) {
+            if (! is_array($estimate) || array_is_list($estimate)) {
+                throw new \LogicException('Каждый gold estimate должен быть объектом с именованными полями.');
+            }
+
+            /** @var array<string, mixed> $estimate */
+            $estimates[] = $estimate;
+        }
+
+        return ['estimates' => $estimates];
     }
 }
