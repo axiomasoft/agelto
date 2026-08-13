@@ -3,7 +3,7 @@ projection: status-view
 projection_version: v1
 source_scope: plan core + phases + journal
 through: 2026-08-13
-inputs_sha256: a6137b0c2d4fbee53a9ea5a35f1214cad1b745f9fef1b0631b5f4c1af23b714c
+inputs_sha256: 4eb2e986d99b22a0847c33b05f94d0f70f3fb330f8dea98f66dff8261d9dda65
 generated_by: task plan-views status
 -->
 
@@ -35,7 +35,7 @@ generated_by: task plan-views status
 | P6 | File handler registry, архивы и дочерняя обработка | 0/7 | 🟠 Done with deviations |
 | P7 | Document type, summary, estimates и tags | 6/6 | 🟢 Done |
 | P8 | Расширяемость platforms и гибкие status mappings | 7/7 | 🟢 Done |
-| P9 | Filament information architecture и понятный русский UX | 1/6 | 🟡 In progress |
+| P9 | Filament information architecture и понятный русский UX | 2/6 | 🟡 In progress |
 
 ## Phase P0
 
@@ -180,7 +180,7 @@ generated_by: task plan-views status
 | ID | Title | Status | Updated |
 |:--|:--|:--|:--|
 | P9.1 | Собрать карту всех Filament resources/pages и целевую navigation hierarchy | 🟢 Done | 2026-08-13 |
-| P9.2 | Русифицировать enum/boolean labels и понятные названия сущностей | ⬜ Not started | — |
+| P9.2 | Русифицировать enum/boolean labels и понятные названия сущностей | 🟢 Done | 2026-08-13 |
 | P9.3 | Разбить все create/edit/view forms на Sections с helper text | ⬜ Not started | — |
 | P9.4 | Исправить tables: UUID visibility, wrapping, clamp, widths и responsive actions | ⬜ Not started | — |
 | P9.5 | Пройти route inventory и устранить локальные UX/validation несоответствия | ⬜ Not started | — |
@@ -584,6 +584,8 @@ write-site: pre_mutation: allow · pre_final: allow |
 | 2026-08-13 | frontier/high | plan-run · in-progress · — |
 | 2026-08-13 | frontier/high | plan-run · closed-green · P9.1 49016c1d freezes D82 domain IA and exact 58-route/table/action/auth/test matrices; full repair review PASS.
 write-site: pre_mutation: allow · pre_final: allow |
+| 2026-08-13 | gpt-5.6-terra/high | plan-run · in-progress · P9.2 starts with verified implementation/high route and pre-mutation contract allow. |
+| 2026-08-13 | gpt-5.6-terra/high | plan-run · closed-green · Package bff8bd911e153ea9bd8293607bd3c66e8a325910 and app c612035647c445c49e1907d9358911b7c22d38d3 implement D82/D38; focused app and package suites green.\nwrite-site: pre_mutation: allow · pre_final: allow |
 
 ## Owner Gates
 
