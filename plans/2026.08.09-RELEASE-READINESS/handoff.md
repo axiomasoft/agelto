@@ -5,8 +5,8 @@
 | Параметр | Значение |
 |:--|:--|
 | Batch | solo |
-| Model class | implementation |
-| Effort | high |
+| Model | implementation |
+| Thinking | high — public package presentation contract |
 | Capabilities | — |
 | Context | continue-root |
 | Суть | Реализовать D82/D38: понятную русскую навигацию, полную видимую локализацию AzGuard и единый label contract без изменения маршрутов и прав. |
