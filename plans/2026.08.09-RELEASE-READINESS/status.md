@@ -3,7 +3,7 @@ projection: status-view
 projection_version: v1
 source_scope: plan core + phases + journal
 through: 2026-08-13
-inputs_sha256: 4eb2e986d99b22a0847c33b05f94d0f70f3fb330f8dea98f66dff8261d9dda65
+inputs_sha256: 4ca1f53ccff8df09955d6f24aec3dbd28c1fbea36274c3ba742dc4350806b586
 generated_by: task plan-views status
 -->
 
@@ -181,7 +181,7 @@ generated_by: task plan-views status
 |:--|:--|:--|:--|
 | P9.1 | Собрать карту всех Filament resources/pages и целевую navigation hierarchy | 🟢 Done | 2026-08-13 |
 | P9.2 | Русифицировать enum/boolean labels и понятные названия сущностей | 🟢 Done | 2026-08-13 |
-| P9.3 | Разбить все create/edit/view forms на Sections с helper text | ⬜ Not started | — |
+| P9.3 | Разбить все create/edit/view forms на Sections с helper text | 🟠 Done with deviations | 2026-08-13 |
 | P9.4 | Исправить tables: UUID visibility, wrapping, clamp, widths и responsive actions | ⬜ Not started | — |
 | P9.5 | Пройти route inventory и устранить локальные UX/validation несоответствия | ⬜ Not started | — |
 | P9.6 | Проверить authorization, navigation и responsive admin browser sweep | ⬜ Not started | — |
@@ -586,6 +586,8 @@ write-site: pre_mutation: allow · pre_final: allow |
 write-site: pre_mutation: allow · pre_final: allow |
 | 2026-08-13 | gpt-5.6-terra/high | plan-run · in-progress · P9.2 starts with verified implementation/high route and pre-mutation contract allow. |
 | 2026-08-13 | gpt-5.6-terra/high | plan-run · closed-green · Package bff8bd911e153ea9bd8293607bd3c66e8a325910 and app c612035647c445c49e1907d9358911b7c22d38d3 implement D82/D38; focused app and package suites green.\nwrite-site: pre_mutation: allow · pre_final: allow |
+| 2026-08-13 | gpt-5.6-terra/high | plan-run · in-progress · P9.3 Sectioned schema implementation started. |
+| 2026-08-13 | gpt-5.6-terra/high | plan-run · closed-deviations · Sections and contract test added; Filament suite retains pre-existing FinalPromptPage TextColumn::boolean failure for P9.4. |
 
 ## Owner Gates
 
@@ -602,3 +604,4 @@ write-site: pre_mutation: allow · pre_final: allow |
 - P6.5: known deviation
 - P6.6: known deviation
 - P6.7: known deviation
+- P9.3: known deviation

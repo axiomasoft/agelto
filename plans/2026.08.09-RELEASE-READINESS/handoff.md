@@ -1,51 +1,48 @@
-# HANDOFF — 2026-08-13 — after P9.1
+# HANDOFF — 2026-08-13 — after P9.3
 
-**Next:** manual: implementation/high
+**Next:** run-items: `task:plan-run 2026.08.09-RELEASE-READINESS P9.4`
 
 | Параметр | Значение |
 |:--|:--|
-| Batch | solo |
+| Batch | — |
 | Model | implementation |
-| Thinking | high — public package presentation contract |
+| Thinking | high — responsive table and action contract |
 | Capabilities | — |
 | Context | continue-root |
-| Суть | Реализовать D82/D38: понятную русскую навигацию, полную видимую локализацию AzGuard и единый label contract без изменения маршрутов и прав. |
-| Команда | — |
+| Суть | Привести application tables, custom pages и relation managers к responsive D82/D38 contract и устранить `FinalPromptPage` `TextColumn::boolean()` failure. |
+| Команда | `$ task:plan-run 2026.08.09-RELEASE-READINESS P9.4` |
 
 #### Provider-neutral launch-block
 
 ```text
-$ task:plan-run 2026.08.09-RELEASE-READINESS P9.2
+$ task:plan-run 2026.08.09-RELEASE-READINESS P9.4
 ```
 
 #### Native Codex launch-block
 
 ```bash
-codex -C /home/vostrikov/projects/agelto/agelto -m gpt-5.6-terra -c 'model_reasoning_effort="high"' -a never -s danger-full-access '$ task:plan-run 2026.08.09-RELEASE-READINESS P9.2'
+codex -C /home/vostrikov/projects/agelto/agelto -m gpt-5.6-terra -c 'model_reasoning_effort="high"' -a never -s danger-full-access '$ task:plan-run 2026.08.09-RELEASE-READINESS P9.4'
 ```
 
-**Done:** P9.1 закрыт `🟢 Done`. Item commit `49016c1d` заморозил D82: семь
-человеко-ориентированных групп, естественные названия и purpose copy, exact 58-route baseline,
-carrier-level schema/table/action/auth/test matrices. D37 superseded только в navigation/copy части;
-URL, permission, policy, plugin и hidden-page identity сохранены. Full review после remediation —
-PASS.
+**Done:** P9.3 закрыт `🟠 Done with deviations`. Item commit `c4ff0e55` разделил
+application-owned forms/infolists на task Sections, добавил purposeful Russian descriptions/help,
+сохранил текущую validation/dehydration/auth behavior и ввёл dynamic schema contract.
 
-**Remaining:** P9.2 реализует package/app label contract; P9.3–P9.6 последовательно закрывают
-Sections/help, responsive tables, runtime route/role sweep и browser acceptance.
+**Remaining:** P9.4 реализует responsive table/action contract и исправляет table API failure;
+P9.5 затем закрепляет runtime route/role matrix, P9.6 — browser acceptance.
 
 **Sources of truth:** `plans/2026.08.09-RELEASE-READINESS/plan.md` ·
 `plans/2026.08.09-RELEASE-READINESS/phases/P9/P9.md` ·
-`plans/2026.08.09-RELEASE-READINESS/phases/P9/P9.2.md` ·
-`plans/2026.08.09-RELEASE-READINESS/findings/P9-filament-surface-recon-2026-08-09.md` ·
+`plans/2026.08.09-RELEASE-READINESS/phases/P9/P9.3.md` ·
+`plans/2026.08.09-RELEASE-READINESS/phases/P9/P9.4.md` ·
 `plans/2026.08.09-RELEASE-READINESS/research/11-P9-execution-design.md` · D82 · D38.
 
-**Open risks:** P9.2 touches the public AzGuard presentation config and private-package pin; English
-defaults, arbitrary overrides, installed-vendor prohibition and unchanged route/permission behavior
-are mandatory gates. The current Doctor page remains panel-only evidence for the P10 auth audit.
+**Open risks:** Complete `tests/Feature/Filament` is red before P9.4 because
+`app/Filament/Pages/FinalPromptPage.php` invokes unsupported `TextColumn::boolean()`; P9.4 owns
+this table/page boundary. P9.3 schema contract and focused schema behavior tests are green.
 
 **Workarounds/Deferred/Open questions:**
 
 - workarounds: —
-- deferred: Filament Cluster for «Настройка AI» may be reconsidered only post-release with explicit
-  URL redirects/bookmarks/auth/browser migration design; P9 keeps current URLs.
+- deferred: P9.4 must retain all existing table search/sort/filter/action authorization while fixing the page table API.
 - open_questions: —
