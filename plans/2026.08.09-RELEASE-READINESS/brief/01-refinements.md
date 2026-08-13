@@ -268,3 +268,15 @@ reconciles canonical write-site/downstream evidence P6.3/P6.5/P6.6 и exact P6.4
 как блокер. D78 добавляет только этот test-path в P6.7: assertion `ArchiveStrategy::process()`
 должен проверять existing `PreparationResult::ExpandedContainer`; D30/D31, production code
 semantics, guards и полный no-TIA acceptance остаются неизменными.
+
+## 2026-08-13 — bounded repair-forward P8 по RED-аудиту
+
+Владелец запустил `$ task:plan-design 2026.08.09-RELEASE-READINESS P8` только для одного
+remediation item, без повторной детализации и без реопена P8.1–P8.5. Scope: exact Files owner
+исправляет collision default `ProcurementFactory`/explicit EIS registry fixture, добавляет
+colliding-registry regression, возвращает full no-TIA baseline, завершает literal P8.5
+carrier/architecture/docs acceptance и заменяет false “pre-existing” verdict anchored evidence.
+После GREEN candidate только append-only write-site/downstream corrections, fresh P8.3/all bundles,
+generated views и cold-start handoff на Audit P8 round 2. D35/D36, P8 Scope Included/Excluded,
+P8.1/P8.3/P8.4 product, real integrations, P9–P12 and unrelated Pint/PHPStan debt are excluded.
+Decision is D80 and the execution design is `research/23-P8-audit-remediation.md`.

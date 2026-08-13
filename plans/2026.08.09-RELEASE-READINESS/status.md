@@ -3,7 +3,7 @@ projection: status-view
 projection_version: v1
 source_scope: plan core + phases + journal
 through: 2026-08-13
-inputs_sha256: 09eb5baa5e4109da1c5c50071652ec7c5a63bf0be7a5a3f98723ed6f96a51b2c
+inputs_sha256: 362c279466a810cb27f18b0c7f2887d53e66fc8a1d74f4ec043a90bd556f20fe
 generated_by: task plan-views status
 -->
 
@@ -15,7 +15,7 @@ generated_by: task plan-views status
 
 | Поле | Значение |
 |:--|:--|
-| Version | 0.1.9 |
+| Version | 0.1.10 |
 | Status | 🟡 In progress |
 | Last Updated | 2026-08-13 |
 
@@ -34,7 +34,7 @@ generated_by: task plan-views status
 | P5 | Default proxy settings и трёхуровневый resolve | 6/6 | 🟢 Done |
 | P6 | File handler registry, архивы и дочерняя обработка | 0/7 | 🟠 Done with deviations |
 | P7 | Document type, summary, estimates и tags | 6/6 | 🟢 Done |
-| P8 | Расширяемость platforms и гибкие status mappings | 4/5 | 🟠 Done with deviations |
+| P8 | Расширяемость platforms и гибкие status mappings | 6/6 | 🟢 Done |
 | P9 | Filament information architecture и понятный русский UX | 0/6 | ⬜ Not started |
 
 ## Phase P0
@@ -168,10 +168,11 @@ generated_by: task plan-views status
 | ID | Title | Status | Updated |
 |:--|:--|:--|:--|
 | P8.1 | Проаудировать platform adapters, registries, configs, fixtures и schema seams | 🟢 Done | 2026-08-12 |
-| P8.2 | Запечатать минимальный contract добавления новой площадки | 🟢 Done | 2026-08-12 |
+| P8.2 | Запечатать минимальный contract добавления новой площадки | 🟢 Done | 2026-08-13 |
 | P8.3 | Перепроектировать status mapping без жёсткой привязки к одному ФЗ | 🟢 Done | 2026-08-12 |
-| P8.4 | Мигрировать данные и обновить repositories/policies/forms | 🟢 Done | 2026-08-12 |
-| P8.5 | Добавить architecture/contract tests и developer guide расширения | 🟠 Done with deviations | 2026-08-13 |
+| P8.4 | Мигрировать данные и обновить repositories/policies/forms | 🟢 Done | 2026-08-13 |
+| P8.5 | Добавить architecture/contract tests и developer guide расширения | 🟢 Done | 2026-08-13 |
+| P8.6 | Восстановить P8 factory baseline и полный extension acceptance carrier | 🟢 Done | 2026-08-13 |
 
 ## Phase P9
 
@@ -545,6 +546,22 @@ write-site: pre_mutation: allow · pre_final: allow |
 | 2026-08-12 | gpt-5.6-terra/high | plan-run · closed-green · 0fdc9eb4: repository-backed applicability resolver, EIS seed and authorized Filament surface. |
 | 2026-08-13 | frontier/medium | plan-exec · in-progress · — |
 | 2026-08-13 | frontier/medium | plan-exec · closed-deviations · Extension contract and docs added; full suite has pre-existing failures. |
+| 2026-08-13 | frontier/xhigh | plan-audit · audit-red · заход 1, вердикт RED |
+| 2026-08-13 | frontier/high | plan-design · in-progress · bounded repair-forward P8.6 доведён до DoR |
+| 2026-08-13 | gpt-5.6-terra/high | plan-run · in-progress · P8.6 repair-forward carrier started after route and Task Contract allow. |
+| 2026-08-13 | gpt-5.6-terra/high | plan-run · blocked · decision queue: P8.6-domain-layout-scope-2026-08-13 |
+| 2026-08-13 | repository-owner | plan-run · in-progress · decision queue: P8.6-domain-layout-scope-2026-08-13 |
+| 2026-08-13 | gpt-5.6-terra/high | plan-run · local-repair · P8.6 correction on 8caf8acc: P8.2 introduced the factory/adapter interaction in b27a5c09; Files drift includes CrawlerPlatformForm.php and EisCrawlerPlatformForm.php. write-site: pre_mutation: allow · pre_final: allow |
+| 2026-08-13 | gpt-5.6-terra/high | plan-run · local-repair · P8.6 correction on 8caf8acc: resolver/operator product remains confirmed by the restored extension carrier. write-site: pre_mutation: allow · pre_final: allow |
+| 2026-08-13 | frontier/medium | plan-run · local-repair · P8.6 correction on 8caf8acc: prior "pre-existing" claim was false; P7.6 baseline was 1526 passed / 6679 assertions, and the P8.5 route was frontier/medium. Full no-TIA is restored: 1547 passed / 6775 assertions. write-site: pre_mutation: allow · pre_final: allow |
+| 2026-08-13 | gpt-5.6-terra/high | plan-run · closed-green · P8.6 factual correction: b27a5c09 Files drift recorded in P8 remediation evidence.
+write-site: pre_mutation: allow · pre_final: allow |
+| 2026-08-13 | gpt-5.6-terra/high | plan-run · closed-green · P8.6 factual correction: resolver/operator evidence remains confirmed by the restored carrier.
+write-site: pre_mutation: allow · pre_final: allow |
+| 2026-08-13 | frontier/medium | plan-run · closed-green · P8.6 correction: P7.6 baseline 1526/6679 restored as 1547/6775; prior pre-existing claim withdrawn.
+write-site: pre_mutation: allow · pre_final: allow |
+| 2026-08-13 | gpt-5.6-terra/high | plan-run · closed-green · 8caf8acc: full platform extension carrier green (1547 passed / 6775 assertions); P8.2/P8.4/P8.5 corrections and downstream records regenerated.
+write-site: pre_mutation: allow · pre_final: allow |
 
 ## Owner Gates
 
@@ -562,5 +579,7 @@ write-site: pre_mutation: allow · pre_final: allow |
 - P6.6: known deviation
 - P6.7: known deviation
 - P8.1: known deviation
+- P8.2: known deviation
 - P8.3: known deviation
 - P8.5: known deviation
+- P8.6: known deviation
