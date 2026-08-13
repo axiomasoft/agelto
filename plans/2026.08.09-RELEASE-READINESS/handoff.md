@@ -1,4 +1,4 @@
-# HANDOFF — 2026-08-13 — after P10.4
+# HANDOFF — 2026-08-13 — after P10.5
 
 **Next:** ЗАПУСК ВРУЧНУЮ: implementation/high
 
@@ -8,37 +8,36 @@
 | Model class | implementation |
 | Thinking | high |
 | Context | continue-root |
-| Суть | Выполнить P10.5 disposition matrix и вертикально исправить все P10 release blockers. |
+| Суть | Выполнить P10.6: удалить PHPStan baseline, закрыть level=max и закрепить локальные quality/docs gates. |
 | Команда | — |
 
 ```bash
-codex -C /home/vostrikov/projects/agelto/agelto -m gpt-5.6-terra -c 'model_reasoning_effort="high"' -a never -s danger-full-access '$ task:plan-run 2026.08.09-RELEASE-READINESS P10.5'
+codex -C /home/vostrikov/projects/agelto/agelto -m gpt-5.6-terra -c 'model_reasoning_effort="high"' -a never -s danger-full-access '$ task:plan-run 2026.08.09-RELEASE-READINESS P10.6'
 ```
 
 ```text
-$ task:plan-run 2026.08.09-RELEASE-READINESS P10.5
+$ task:plan-run 2026.08.09-RELEASE-READINESS P10.6
 ```
 
-**Done:** `717db3ea` adds the P10.4 evidence-backed production-readiness audit and executable
-carrier. It inventories 71 migrations, 56 models and 7 queue jobs; cleanly migrates only
-`agelto_test`; and verifies 57 focused tests / 201 assertions. It records P10.4-R01 (active
-analysis create race) and P10.4-R02 (missing configured OpenAI-compatible secret fails open) as
-P10.5 release blockers, plus P10.4-T01 as P11 test-topology debt.
+**Done:** `7bd019c0` closes the verified high-severity proxy, MinIO argv, active-analysis race
+and configured OpenAI secret blockers with public regression seams. `ab293e9d` and `639f687b`
+remove stale configured PHPStan findings without changing the baseline, ignore/exclude set or
+level; configured PHPStan is green. The P10.5 matrix records every P10.2–P10.4 audit ID exactly
+once, and `quality-remediation-contract.sh` is green.
 
-**Remaining:** P10.5–P10.6. P10.5 must resolve or explicitly escalate P10.2-S01 (high
-env-proxy policy bypass), P10.2-S03 (high MinIO credentials in child args), P10.2-S02 (medium
-fixture admission), P10.3-D01, P10.4-R01 and P10.4-R02. P10.6 owns P10.3-D02 documentation
-reconciliation. Its consumer evidence remains `unknown` until P10.5 creates its own carrier.
+**Remaining:** P10.6 owns removal of `phpstan-baseline.neon`, a green raw `level=max` gate, the
+aggregate local quality command and living-documentation reconciliation. Then P10 enters its
+phase-audit/close boundary.
 
-**Sources of truth:** `phases/P10/P10.4.state.md` ·
-`findings/P10-production-readiness-audit.md` ·
-`artifacts/P10-production-readiness-contract.sh` ·
-`findings/P10.4-downstream-P10.5-a3efa64c5506-717db3eae4fb.md` · D23/D31/D34/D36/D39.
+**Sources of truth:** `phases/P10/P10.5.state.md` ·
+`artifacts/P10-remediation-matrix.md` · `docker/tests/quality-remediation-contract.sh` ·
+`findings/P10.5-downstream-P10.6-f9944855155e-639f687b07f2.md` · D39.
 
-**Open risks:** P10.2-S01, P10.2-S03, P10.4-R01 and P10.4-R02 are release blockers until P10.5
-has vertical red→green proofs. P10.4-T01 means the combined cross-process test selector is
-order-sensitive; P11 must give its worker suites independent cleanup or DB namespaces.
+**Open risks:** Raw Larastan `level=max` without a baseline still reports 1591 errors across 266
+paths on `639f687b`, measured with the command recorded in the matrix; P10.6 must remove that
+debt rather than mask it. P10.6 downstream validation remains `unknown` until its carrier exists.
 
-**Workarounds/Deferred/Open questions:** P10.3-D01 remains a P10.5 choice between deletion and a
-real signalable command consumer. P10.3-D02 is P10.6 living-documentation work. P10.4-T01 is
-deferred to P11; no owner approval or open question is pending.
+**Workarounds/Deferred/Open questions:** P10.2-S02 awaits an owner-chosen fixture admission
+budget; P10.3-D02 belongs to P10.6 documentation; P10.4-T01 belongs to P11 test topology. The
+repository has no resolvable TIA default branch, so the full P10.5 suite used Pest `--no-tia`;
+P11 owns the TIA topology repair.

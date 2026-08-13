@@ -3,7 +3,7 @@ projection: status-view
 projection_version: v1
 source_scope: plan core + phases + journal
 through: 2026-08-13
-inputs_sha256: fadfd275dc050e0d52e9e78553f2d51e10355a0bf916a56a48bd9a947d448349
+inputs_sha256: c51492f4e1168f504745ea851606478c441c634206aafed52cb251c332b028b4
 generated_by: task plan-views status
 -->
 
@@ -25,7 +25,7 @@ generated_by: task plan-views status
 |:--|:--|:--|:--|
 | P0 | Разведка репозитория, референсов и RAG-контракты | 8/8 | 🟢 Done |
 | P1 | Makefile и Docker dev/prod с Vite-ready topology | 7/7 | 🟢 Done |
-| P10 | PHP, архитектура, безопасность и production-readiness audit | 4/6 | 🟡 In progress |
+| P10 | PHP, архитектура, безопасность и production-readiness audit | 5/6 | 🟡 In progress |
 | P11 | Pest 5 performance, test isolation и CI | 0/6 | ⬜ Not started |
 | P12 | Ubuntu deployment guide и финальный clean-room rehearsal | 0/7 | ⬜ Not started |
 | P2 | Local vendor, secrets, preflight, bootstrap и Laravel Doctor | 7/7 | 🟢 Done |
@@ -70,7 +70,7 @@ generated_by: task plan-views status
 | P10.2 | Выполнить Laravel security audit всех новых и существующих boundaries | 🟢 Done | 2026-08-13 |
 | P10.3 | Найти duplication, dead code, naming и needless abstractions | 🟢 Done | 2026-08-13 |
 | P10.4 | Проверить migrations, transactions, races, idempotency, queues и config defaults | 🟢 Done | 2026-08-13 |
-| P10.5 | Исправить findings вертикальными срезами с regression tests | ⬜ Not started | — |
+| P10.5 | Исправить findings вертикальными срезами с regression tests | 🟢 Done | 2026-08-13 |
 | P10.6 | Закрепить quality gates и синхронизировать architecture/security docs | ⬜ Not started | — |
 
 ## Phase P11
@@ -642,12 +642,17 @@ write-site: pre_mutation: allow · pre_final: allow |
 | 2026-08-13 | gpt-5.6-terra/high | plan-run · in-progress · — |
 | 2026-08-13 | gpt-5.6-terra/high | plan-run · closed-green · P10.4 audit carrier passed; P10.5 owns R01 analysis race and R02 missing configured LLM secret. |
 | 2026-08-13 | gpt-5.6-terra/high | plan-run · local-repair · write-site: pre_mutation: allow · pre_final: allow |
+| 2026-08-13 | gpt-5.6-terra/high | plan-run · in-progress · P10.5 remediation matrix and vertical blocker fixes started. |
+| 2026-08-13 | gpt-5.6-terra/high | plan-run · local-repair · Focused blocker carrier green; full Pest is blocked before collection because TIA has no default branch. |
+| 2026-08-13 | gpt-5.6-terra/high | plan-run · local-repair · Full Pest suite completed with --no-tia after the default-branch cache selector refusal. |
+| 2026-08-13 | gpt-5.6-terra/high | plan-run · closed-green · Все release blockers закрыты; configured PHPStan green, full Pest выполнен без TIA. |
 
 ## Owner Gates
 
 - P0.3: known deviation
 - P0.4: known deviation
 - P0.5: known deviation
+- P10.5: known deviation
 - P4.2: known deviation
 - P4.4: known deviation
 - P4.6: known deviation
