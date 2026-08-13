@@ -16,7 +16,7 @@ enum ListingSortField: string implements HasLabel
     case Published = 'published';
     case Updated = 'updated';
 
-    public function getLabel(): ?string
+    public function getLabel(): string
     {
         return match ($this) {
             self::Published => 'По дате публикации',

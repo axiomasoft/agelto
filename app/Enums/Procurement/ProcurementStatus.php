@@ -35,7 +35,7 @@ enum ProcurementStatus: string implements HasLabel
     case Unsuccessful = 'unsuccessful';
     case Unknown = 'unknown';
 
-    public function getLabel(): ?string
+    public function getLabel(): string
     {
         return match ($this) {
             self::Bidding => 'Подача заявок',

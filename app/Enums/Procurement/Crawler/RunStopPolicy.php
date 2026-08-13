@@ -17,7 +17,7 @@ enum RunStopPolicy: string implements HasLabel
     case Default = 'default';
     case OnlyFresh = 'only_fresh';
 
-    public function getLabel(): ?string
+    public function getLabel(): string
     {
         return match ($this) {
             self::Default => 'Стандартная',

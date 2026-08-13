@@ -16,7 +16,7 @@ enum ProxyScope: string implements HasLabel
     case DocumentDownload = 'document_download';
     case Llm = 'llm';
 
-    public function getLabel(): ?string
+    public function getLabel(): string
     {
         return match ($this) {
             self::CrawlListing => 'Сбор списков',

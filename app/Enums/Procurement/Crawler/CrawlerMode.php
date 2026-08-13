@@ -14,7 +14,7 @@ enum CrawlerMode: string implements HasLabel
     case Fresh = 'fresh';
     case Archive = 'archive';
 
-    public function getLabel(): ?string
+    public function getLabel(): string
     {
         return match ($this) {
             self::Fresh => 'Новые извещения',

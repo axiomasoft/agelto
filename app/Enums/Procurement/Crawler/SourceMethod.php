@@ -15,7 +15,7 @@ enum SourceMethod: string implements HasLabel
     case Html = 'html';
     case Api = 'api';
 
-    public function getLabel(): ?string
+    public function getLabel(): string
     {
         return match ($this) {
             self::Csv => 'CSV-файл',
