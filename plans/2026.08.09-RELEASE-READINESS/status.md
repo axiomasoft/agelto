@@ -3,7 +3,7 @@ projection: status-view
 projection_version: v1
 source_scope: plan core + phases + journal
 through: 2026-08-13
-inputs_sha256: 1dd373c5c9dee5646fa1b4c712db891713299388ee2230a671b2cf09087c6e28
+inputs_sha256: e061760740e0b560e7328c3feb594e6b915920266a2c900a668a0dfe8cc6cf0e
 generated_by: task plan-views status
 -->
 
@@ -630,6 +630,7 @@ write-site: pre_mutation: allow · pre_final: allow |
 | 2026-08-13 | frontier/high | plan-run · local-repair · write-site: pre_mutation: allow · pre_final: allow |
 | 2026-08-13 | implementation/high | plan-run · in-progress · — |
 | 2026-08-13 | implementation/high | plan-run · closed-deviations · Security audit e4cb6a89: high P10.2-S01 and medium P10.2-S02 reported; Task lint carrier could not complete under host resource pressure. |
+| 2026-08-13 | implementation/high | plan-run · decision-pending · decision queue: p10-2-route-recovery-20260813 |
 
 ## Owner Gates
 
