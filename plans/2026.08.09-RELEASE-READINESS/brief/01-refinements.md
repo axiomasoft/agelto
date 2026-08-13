@@ -280,3 +280,14 @@ carrier/architecture/docs acceptance и заменяет false “pre-existing�
 generated views и cold-start handoff на Audit P8 round 2. D35/D36, P8 Scope Included/Excluded,
 P8.1/P8.3/P8.4 product, real integrations, P9–P12 and unrelated Pint/PHPStan debt are excluded.
 Decision is D80 and the execution design is `research/23-P8-audit-remediation.md`.
+
+## 2026-08-13 — owner directive после AUDIT-CAP P8
+
+Владелец явно запретил принимать F1–F4 второго Audit P8 как отклонения и потребовал довести фазу
+до полностью GREEN. Предшествующий queue outcome на orange closure superseded этим более поздним
+указанием; append-only request/response сохраняется как provenance. Один P8.7 получает exact Files
+для всего P8.6 test drift, восстанавливает cross-registry negative, исправляет воспроизводимость
+Pint coverage/count и current state semantics, затем выполняет direct close P8 без Audit 3.
+D35/D36, доказанный P8.6 production repair, historical audit/journal/evidence и P9–P12 product
+остаются неизменными. Решение материализовано D81 и
+`research/24-P8-audit-cap-final-remediation.md`.

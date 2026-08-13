@@ -1,6 +1,6 @@
 # Roadmap исполнения — 2026.08.09-RELEASE-READINESS
 
-**Обновлён:** 2026-08-13 · **Соответствует plan.md:** Layout v2, 83 items: 75-item finish + remediations P0.7/P1.6/P1.7/P2.7/P4.6/P5.6/P6.7/P8.6; P8 repair-forward зафиксирован D80
+**Обновлён:** 2026-08-13 · **Соответствует plan.md:** Layout v2, 84 items: 75-item finish + remediations P0.7/P1.6/P1.7/P2.7/P4.6/P5.6/P6.7/P8.6/P8.7; final GREEN P8 closure зафиксирован D81
 
 Roadmap пересобран после повторного full `finish` D52 и адресной remediation F1–F12; D55 закрывает
 audit-loop после трёх заходов и открывает execution напрямую с P0.0. `solo` оставлен для owner-gate,
@@ -17,7 +17,7 @@ batch и всё равно закрываются каждый своим commit
 | P3 | P3.1–P3.5 | B3-READINESS | implementation/high · full | diagnosis→repair→readiness→E2E→recovery использует один runtime context; root-cause escalation останавливает серию |
 | P4 | P4.1–P4.6 | terminal | — | фаза закрыта после P4.6 remediation D72; следующий исполнимый item — P5.1 |
 | P5 | P5.1–P5.6 | solo P5.6 | implementation/high · full | owner D76: один cross-repo AUDIT-CAP carrier до 0/0 и direct close без Audit 3 |
-| P6–P12 | текущие solo | solo | как в §3 Routing | требуются owner/external gates, frontier freeze либо отдельный риск-контекст; P8.6 — один candidate-bound remediation before Audit P8 round 2 |
+| P6–P12 | текущие solo | solo | как в §3 Routing | требуются owner/external gates, frontier freeze либо отдельный риск-контекст; P8.7 — один candidate-bound remediation до direct GREEN close P8 без Audit 3 |
 
 ## Карта исполнения
 
@@ -81,6 +81,7 @@ batch и всё равно закрываются каждый своим commit
 | P8.4 | solo | `task:plan-run … P8.4` | implementation/high | — | precedence/race/seed/auth correctness |
 | P8.5 | solo | `task:plan-exec … P8.5` | implementation/medium | — | terminal deterministic extension gate |
 | P8.6 | solo | `task:plan-run … P8.6` | implementation/high | D80 | one factory/full-acceptance/evidence candidate, then independent Audit P8 round 2 |
+| P8.7 | solo | `task:plan-run … P8.7` | implementation/high | D81 | restore cross-registry negative, exact test ownership/count evidence, then direct GREEN close P8 |
 | P9.1 | solo | `task:plan-run … P9.1` | frontier/high | navigation/presentation freeze | cross-package UI contract freeze |
 | P9.2 | solo | `task:plan-run … P9.2` | implementation/high | — | package/public labels and identity |
 | P9.3 | solo | `task:plan-run … P9.3` | implementation/high | — | all-resource form schema/security sweep |
@@ -117,17 +118,17 @@ batch и всё равно закрываются каждый своим commit
 | Effort | high |
 | Capabilities | — |
 | Context | continue-root |
-| Суть | Сверить ProxyResolver/profile/scopes/health и заморозить P5 contract. |
+| Суть | Сверить terminal products и заморозить navigation/presentation contracts P9.1. |
 | Команда | — |
 
 ```text
-$ task:plan-run 2026.08.09-RELEASE-READINESS P5.1
+$ task:plan-run 2026.08.09-RELEASE-READINESS P9.1
 ```
 
 ### Native Codex launch-block
 
 ```bash
-codex -C /home/vostrikov/projects/agelto/agelto -m gpt-5.6-sol -c 'model_reasoning_effort="high"' -a never -s danger-full-access '$ task:plan-run 2026.08.09-RELEASE-READINESS P5.1'
+codex -C /home/vostrikov/projects/agelto/agelto -m gpt-5.6-sol -c 'model_reasoning_effort="high"' -a never -s danger-full-access '$ task:plan-run 2026.08.09-RELEASE-READINESS P9.1'
 ```
 
 ## Гейты владельца (сводно)

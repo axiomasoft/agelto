@@ -15,10 +15,10 @@
 | Target Operator Models | economy → gpt-5.6-luna · implementation → gpt-5.6-terra · frontier → gpt-5.6-sol |
 | Approval Owner | Dmitry Vostrikov |
 | Home | repo:/home/vostrikov/projects/agelto/agelto |
-| Design Passes | 1/1 — owner-directed сокращение D46 сохранено; D52 остаётся machine-current carrier повторного полного cross-phase `finish` для 13 фаз / 75 product/design items после добавления P0.0; D55 принимает этот design после ремедиации F9–F12; D62, D64 и D66 адресно добавили 76-й–78-й remediation-items P0.7/P1.6/P1.7; D67 исправляет только evidence topology P1.7; D70 добавляет 79-й remediation-item P2.7 и завершает design-цикл P2; D71 заменяет только fresh-audit gate штатным close и передачей на P3; D72/D76/D77 адресно добавили 80-й–82-й remediation-items P4.6/P5.6/P6.7; D80 адресно добавляет 83-й repair-forward P8.6 и возвращает P8 на обязательный Audit, заход 2 |
+| Design Passes | 1/1 — owner-directed сокращение D46 сохранено; D52 остаётся machine-current carrier повторного полного cross-phase `finish` для 13 фаз / 75 product/design items после добавления P0.0; D55 принимает этот design после ремедиации F9–F12; D62, D64 и D66 адресно добавили 76-й–78-й remediation-items P0.7/P1.6/P1.7; D67 исправляет только evidence topology P1.7; D70 добавляет 79-й remediation-item P2.7 и завершает design-цикл P2; D71 заменяет только fresh-audit gate штатным close и передачей на P3; D72/D76/D77 адресно добавили 80-й–82-й remediation-items P4.6/P5.6/P6.7; D80 добавил 83-й repair-forward P8.6; D81 supersedes его audit/closure topology и добавляет 84-й final remediation-item P8.7 до полностью GREEN direct close P8 |
 | visibility | private |
 
-<!-- migration-version: 0.1.10 -->
+<!-- migration-version: 0.1.11 -->
 
 ## 1. Context
 
@@ -50,6 +50,7 @@ Vintera/CMS и Dterema и верифицирует внешние практик
 - AUDIT-CAP P5 закрывается одним последним cross-repository remediation-carrier P5.6 по D76: current P5.5 out-of-Files effect получает нового владельца и GREEN correction, Task `--conflicts`/downstream исправляются только в canonical source/runtime projection без cache edits, return/decision/projection gates сходятся в 0/0; после GREEN выполняется direct close P5 без третьего Audit P5. RAG:— (repo-grounded: `research/21-P5-audit-cap-remediation.md`, Audit P5 round 2, owner direction 2026-08-11).
 - RED-аудит P6 закрывается одним bounded remediation-carrier P6.7 по D77: GSFX attachments входят в общий D31 validator/extractor/lineage Action/after-commit path, stale Gsfx/Scan/Spreadsheet tests переходят на typed P6.2 contract, а P6.3/P6.5/P6.6 и P6.4 получают только truthful append-only reconciliation; после terminal P6.7 обязателен Audit P6, заход 2. RAG:— (repo-grounded: `research/22-P6-audit-remediation.md`, `phases/P6/P6.md` → `## Audit P6 — 2026-08-12`).
 - RED-аудит P8 закрывается одним bounded repair-forward carrier P8.6 по D80: default procurement factory восстанавливает unique Registry identity, P8.5 carrier/architecture/docs получают literal acceptance, а P8.2/P8.4/P8.5 evidence исправляется только append-only на GREEN no-TIA candidate; после terminal P8.6 обязателен Audit P8, заход 2. RAG:— (repo-grounded: `research/23-P8-audit-remediation.md`, `phases/P8/P8.md` → `## Audit P8 — 2026-08-13`).
+- Финальный RED-аудит P8 не принимается как deviation: D81 supersedes D80 только в части audit/closure topology и добавляет P8.7, который восстанавливает cross-registry negative, принимает под exact Files весь исторический P8.6 test drift, делает coverage/count evidence воспроизводимым и закрывает P8 полностью GREEN без Audit 3; P9 не стартует до terminal P8.7 и direct close P8. RAG:— (repo-grounded: `research/24-P8-audit-cap-final-remediation.md`, Audit P8 round 2 and owner directive 2026-08-13).
 - RAG-факты и сравнение чужих репозиториев сохранять в findings в том же ходе; синтез — в research; решения — в decisions. P0.3 закрывается только после MCP replay по D56; WebSearch-only fallback остаётся provisional.
 - Любой внешний best practice получает RAG:✅ с URL и датой либо остаётся [UNVERIFIED]; RAG:— допустим только для фактов этого репозитория.
 - Текущие Makefile/Compose — requirements input: совместимость целей сохраняется только после инвентаря и осознанного решения.
@@ -129,6 +130,7 @@ remediation-items P0.7/P1.6/P1.7/P2.7/P4.6/P5.6 по D62/D64/D66/D70/D72/D76 и 
 | — | P8.4 | implementation/high | manual | full | repository race, precedence, seed и authorization correctness-critical по D36 без открытого product design |
 | — | P8.5 | implementation/medium | plan-exec | full | deterministic contract/architecture/full-suite/docs gate по уже запечатанным D35–D36 |
 | — | P8.6 | implementation/high | manual | full | audit-defined factory/acceptance/evidence repair требует один committed no-TIA candidate и truthful cross-item reconciliation без нового product design |
+| — | P8.7 | implementation/high | manual | full | owner-sealed AUDIT-CAP remediation восстанавливает удалённый cross-registry guard, легализует exact test ownership и сходится в zero-deviation GREEN close без нового product design |
 | — | P9.1 | frontier/high | manual | full | terminal-upstream reconcile и freeze navigation/presentation contracts несут открытый риск cross-phase/cross-repo семантической ошибки |
 | — | P9.2 | implementation/high | manual | full | запечатанные D37/D38 реализуются в public package config и application labels; SemVer/package/auth identity требуют high+full |
 | — | P9.3 | implementation/high | manual | full | широкий schema/validation/dehydration/security surface, но layout contract уже запечатан D38 |
@@ -179,11 +181,11 @@ execution item не может воспроизвести обязательну
 | Закрытая production-документация вне `public` | P4.1–P4.5 · D26/D27 | покрыто |
 | Proxy profile → default → direct при сохранении `ProxyResolver`/health boundaries | P5.1–P5.5 · D28/D29 | покрыто |
 | Флагманское качество, security, transactions/races/queues/migrations/config | P10.1–P10.6 · P11.4–P11.6 · D39–D42 | покрыто |
-| Русский Filament UX, status-mapping flexibility и все названные admin routes | P8.1–P8.6 · P9.1–P9.6 · D35–D38/D80 | покрыто |
+| Русский Filament UX, status-mapping flexibility и все названные admin routes | P8.1–P8.7 · P9.1–P9.6 · D35–D38/D80/D81 | покрыто |
 | Pest 5 fast/TIA, isolation, compact agent output и CI | P11.1–P11.6 · D40–D42 | покрыто |
 | Typed formats, safe archives, child records и ordinary dispatch | P0.5 · P6.1–P6.6 · D30/D31 | покрыто |
 | Document taxonomy, cardinality, summary, tags и structured response/persistence | P0.5 · P7.1–P7.6 · D32–D34 | покрыто |
-| Расширяемые platforms/handlers/types/schemas и contract tests | P6.6 · P7.6 · P8.1–P8.6 · P10 | покрыто |
+| Расширяемые platforms/handlers/types/schemas и contract tests | P6.6 · P7.6 · P8.1–P8.7 · P10 | покрыто |
 | Полный clean-room rehearsal и evidence-backed финальный verdict | P12.4–P12.7 · D9/D45 | покрыто |
 | Refinements: прежний план уже архивирован; owner сократил design budget | D12 · D46/D47 · `brief/01-refinements.md` | покрыто |
 

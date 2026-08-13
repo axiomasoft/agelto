@@ -3,7 +3,7 @@ projection: status-view
 projection_version: v1
 source_scope: plan core + phases + journal
 through: 2026-08-13
-inputs_sha256: 362c279466a810cb27f18b0c7f2887d53e66fc8a1d74f4ec043a90bd556f20fe
+inputs_sha256: 86c46b2e8d0def7e4fee8c907326778bdc6bfa90b8eb616b485832fed8561222
 generated_by: task plan-views status
 -->
 
@@ -15,7 +15,7 @@ generated_by: task plan-views status
 
 | Поле | Значение |
 |:--|:--|
-| Version | 0.1.10 |
+| Version | 0.1.11 |
 | Status | 🟡 In progress |
 | Last Updated | 2026-08-13 |
 
@@ -34,7 +34,7 @@ generated_by: task plan-views status
 | P5 | Default proxy settings и трёхуровневый resolve | 6/6 | 🟢 Done |
 | P6 | File handler registry, архивы и дочерняя обработка | 0/7 | 🟠 Done with deviations |
 | P7 | Document type, summary, estimates и tags | 6/6 | 🟢 Done |
-| P8 | Расширяемость platforms и гибкие status mappings | 6/6 | 🟢 Done |
+| P8 | Расширяемость platforms и гибкие status mappings | 7/7 | 🟢 Done |
 | P9 | Filament information architecture и понятный русский UX | 0/6 | ⬜ Not started |
 
 ## Phase P0
@@ -167,12 +167,13 @@ generated_by: task plan-views status
 
 | ID | Title | Status | Updated |
 |:--|:--|:--|:--|
-| P8.1 | Проаудировать platform adapters, registries, configs, fixtures и schema seams | 🟢 Done | 2026-08-12 |
+| P8.1 | Проаудировать platform adapters, registries, configs, fixtures и schema seams | 🟢 Done | 2026-08-13 |
 | P8.2 | Запечатать минимальный contract добавления новой площадки | 🟢 Done | 2026-08-13 |
-| P8.3 | Перепроектировать status mapping без жёсткой привязки к одному ФЗ | 🟢 Done | 2026-08-12 |
+| P8.3 | Перепроектировать status mapping без жёсткой привязки к одному ФЗ | 🟢 Done | 2026-08-13 |
 | P8.4 | Мигрировать данные и обновить repositories/policies/forms | 🟢 Done | 2026-08-13 |
 | P8.5 | Добавить architecture/contract tests и developer guide расширения | 🟢 Done | 2026-08-13 |
 | P8.6 | Восстановить P8 factory baseline и полный extension acceptance carrier | 🟢 Done | 2026-08-13 |
+| P8.7 | Закрыть AUDIT-CAP P8 полностью GREEN с exact test ownership | 🟢 Done | 2026-08-13 |
 
 ## Phase P9
 
@@ -562,6 +563,24 @@ write-site: pre_mutation: allow · pre_final: allow |
 write-site: pre_mutation: allow · pre_final: allow |
 | 2026-08-13 | gpt-5.6-terra/high | plan-run · closed-green · 8caf8acc: full platform extension carrier green (1547 passed / 6775 assertions); P8.2/P8.4/P8.5 corrections and downstream records regenerated.
 write-site: pre_mutation: allow · pre_final: allow |
+| 2026-08-13 | frontier/xhigh | plan-audit · audit-red · заход 2, вердикт RED |
+| 2026-08-13 | frontier/high | plan-run · blocked · decision queue: Q-P8-audit-cap-outcome-2026-08-13-v1 |
+| 2026-08-13 | repository-owner | plan-run · in-progress · decision queue: Q-P8-audit-cap-outcome-2026-08-13-v1 |
+| 2026-08-13 | frontier/high | plan-design · closed-deviations · P8 audit round 2: F1–F4 named material test/evidence drift; D81 assigns full current contour to P8.7; no waiver. write-site: pre_mutation: allow · pre_final: allow |
+| 2026-08-13 | frontier/high | plan-design · in-progress · фаза детализирована до DoR: D81/P8.7 закрывает Audit P8 round 2 полностью GREEN без Audit 3 |
+| 2026-08-13 | gpt-5.6-terra/high | plan-run · in-progress · D81 AUDIT-CAP remediation starts with verified implementation/high route. |
+| 2026-08-13 | gpt-5.6-terra/high | plan-run · closed-green · P8.7 GREEN candidate 39526e59 supersedes P8.2 ownership drift; no pending work or deviation remains. |
+| 2026-08-13 | gpt-5.6-terra/high | plan-run · closed-green · P8.7 GREEN candidate 39526e59 supersedes P8.6 test/evidence drift; no pending work or deviation remains. |
+| 2026-08-13 | gpt-5.6-terra/high | plan-run · closed-green · P8.7 candidate d1c8a1e4 restores cross-registry guard and exact 10-path Pint evidence. |
+| 2026-08-13 | gpt-5.6-terra/high | plan-run · closed-green · P8.7 closure correction: prior local repair had no accepted residual deviation; current candidate d1c8a1e4 confirms P8.1 evidence.
+write-site: pre_mutation: allow · pre_final: allow |
+| 2026-08-13 | gpt-5.6-terra/high | plan-run · closed-green · P8.7 closure correction: prior local repair had no accepted residual deviation; current candidate d1c8a1e4 confirms P8.3 evidence.
+write-site: pre_mutation: allow · pre_final: allow |
+| 2026-08-13 | gpt-5.6-terra/high | plan-run · closed-green · P8.7 closure correction: prior claim is withdrawn without residual deviation; current candidate d1c8a1e4 confirms full carrier.
+write-site: pre_mutation: allow · pre_final: allow |
+| 2026-08-13 | gpt-5.6-terra/high | plan-run · local-repair · Projection repair: carry forward the terminal write-site from the verified P8.7 route.
+write-site: pre_mutation: allow · pre_final: allow |
+| 2026-08-13 | gpt-5.6-terra/low | plan-close · closed-green · P8 закрыта GREEN по D81: P8.7 d1c8a1e4 восстановил cross-registry guard; full carrier зелёный. |
 
 ## Owner Gates
 
@@ -578,8 +597,3 @@ write-site: pre_mutation: allow · pre_final: allow |
 - P6.5: known deviation
 - P6.6: known deviation
 - P6.7: known deviation
-- P8.1: known deviation
-- P8.2: known deviation
-- P8.3: known deviation
-- P8.5: known deviation
-- P8.6: known deviation
