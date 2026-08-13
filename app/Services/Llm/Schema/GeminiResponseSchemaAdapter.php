@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Services\Llm\Schema;
 
+use RuntimeException;
+
 /**
  * Down-конвертация канонической JSON Schema ({@see JsonSchemaGenerator}: `$defs`/`$ref`,
  * `type:[X,"null"]`, nested `additionalProperties:false`) в Gemini-совместимый `response_schema`
@@ -36,8 +38,7 @@ final readonly class GeminiResponseSchemaAdapter
      */
     public function adapt(array $schema): array
     {
-        /** @var array<string, array<string, mixed>> $defs */
-        $defs = $schema['$defs'] ?? [];
+        $defs = $this->definitions($schema['$defs'] ?? []);
         unset($schema['$defs']);
 
         return $this->resolveObject($schema, $defs, []);
@@ -54,6 +55,10 @@ final readonly class GeminiResponseSchemaAdapter
     {
         $description = $node['description'] ?? null;
         unset($node['description']);
+
+        if ($description !== null && ! is_string($description)) {
+            throw new RuntimeException('Описание JSON Schema должно быть строкой.');
+        }
 
         $resolved = $this->resolveDescribedNode($node, $defs, $expandStack);
 
@@ -72,7 +77,17 @@ final readonly class GeminiResponseSchemaAdapter
     private function resolveDescribedNode(array $node, array $defs, array $expandStack): ?array
     {
         if (isset($node['$ref'])) {
-            $name = basename((string) $node['$ref']);
+            $reference = $node['$ref'];
+
+            if (! is_string($reference)) {
+                throw new RuntimeException('JSON Schema $ref должен быть строкой.');
+            }
+
+            $name = basename($reference);
+
+            if (! array_key_exists($name, $defs)) {
+                throw new RuntimeException("JSON Schema \$ref указывает на отсутствующий \$defs: {$name}.");
+            }
 
             if (count(array_filter($expandStack, static fn (string $s): bool => $s === $name)) >= self::MAX_SELF_DEPTH) {
                 return null;
@@ -92,7 +107,7 @@ final readonly class GeminiResponseSchemaAdapter
         }
 
         if (($node['type'] ?? null) === 'array') {
-            $items = $this->resolveNode($node['items'], $defs, $expandStack);
+            $items = $this->resolveNode($this->schemaObject($node['items'] ?? null, 'items'), $defs, $expandStack);
 
             return $items === null ? null : ['type' => 'array', 'items' => $items];
         }
@@ -115,8 +130,20 @@ final readonly class GeminiResponseSchemaAdapter
         $properties = [];
         $required = [];
 
-        foreach ($node['properties'] ?? [] as $name => $propertySchema) {
-            $resolved = $this->resolveNode($propertySchema, $defs, $expandStack);
+        $propertySchemas = $node['properties'] ?? [];
+
+        if (! is_array($propertySchemas)) {
+            throw new RuntimeException('JSON Schema properties должен быть объектом.');
+        }
+
+        $requiredNames = $this->schemaStringList($node['required'] ?? [], 'required');
+
+        foreach ($propertySchemas as $name => $propertySchema) {
+            if (! is_string($name)) {
+                throw new RuntimeException('Имя JSON Schema property должно быть строкой.');
+            }
+
+            $resolved = $this->resolveNode($this->schemaObject($propertySchema, "properties.{$name}"), $defs, $expandStack);
 
             if ($resolved === null) {
                 continue;
@@ -124,7 +151,7 @@ final readonly class GeminiResponseSchemaAdapter
 
             $properties[$name] = $resolved;
 
-            if (in_array($name, $node['required'] ?? [], true)) {
+            if (in_array($name, $requiredNames, true)) {
                 $required[] = $name;
             }
         }
@@ -142,7 +169,15 @@ final readonly class GeminiResponseSchemaAdapter
     {
         $branches = [];
 
-        foreach ($node['anyOf'] as $branch) {
+        $anyOf = $node['anyOf'] ?? null;
+
+        if (! is_array($anyOf)) {
+            throw new RuntimeException('JSON Schema anyOf должен быть списком объектов.');
+        }
+
+        foreach ($anyOf as $branch) {
+            $branch = $this->schemaObject($branch, 'anyOf branch');
+
             if (($branch['type'] ?? null) === 'null') {
                 $branches[] = $branch;
 
@@ -167,11 +202,75 @@ final readonly class GeminiResponseSchemaAdapter
      */
     private function withNullableType(array $node): array
     {
-        $types = array_values(array_filter($node['type'], static fn (string $t): bool => $t !== 'null'));
+        $types = array_values(array_filter(
+            $this->schemaStringList($node['type'] ?? [], 'type'),
+            static fn (string $type): bool => $type !== 'null',
+        ));
+
+        if ($types === []) {
+            throw new RuntimeException('Nullable JSON Schema type должен содержать ненулевой тип.');
+        }
 
         $node['type'] = $types[0];
         $node['nullable'] = true;
 
         return $node;
+    }
+
+    /** @return array<string, array<string, mixed>> */
+    private function definitions(mixed $definitions): array
+    {
+        if (! is_array($definitions)) {
+            throw new RuntimeException('JSON Schema $defs должен быть объектом.');
+        }
+
+        $result = [];
+
+        foreach ($definitions as $name => $definition) {
+            if (! is_string($name)) {
+                throw new RuntimeException('Имя JSON Schema $defs должно быть строкой.');
+            }
+
+            $result[$name] = $this->schemaObject($definition, "\$defs.{$name}");
+        }
+
+        return $result;
+    }
+
+    /** @return array<string, mixed> */
+    private function schemaObject(mixed $value, string $location): array
+    {
+        if (! is_array($value)) {
+            throw new RuntimeException("JSON Schema {$location} должен быть объектом.");
+        }
+
+        foreach (array_keys($value) as $key) {
+            if (! is_string($key)) {
+                throw new RuntimeException("Ключ JSON Schema {$location} должен быть строкой.");
+            }
+        }
+
+        /** @var array<string, mixed> $value */
+        return $value;
+    }
+
+    /** @return list<string> */
+    private function schemaStringList(mixed $value, string $location): array
+    {
+        if (! is_array($value)) {
+            throw new RuntimeException("JSON Schema {$location} должен быть списком строк.");
+        }
+
+        $result = [];
+
+        foreach ($value as $entry) {
+            if (! is_string($entry)) {
+                throw new RuntimeException("JSON Schema {$location} должен содержать только строки.");
+            }
+
+            $result[] = $entry;
+        }
+
+        return $result;
     }
 }

@@ -8,6 +8,7 @@ use App\Dto\Procurement\Analyzers\Estimate\RowsChunkResponse;
 use App\Dto\Procurement\Analyzers\Estimate\TotalsResponse;
 use App\Services\Llm\Schema\GeminiResponseSchemaAdapter;
 use App\Services\Llm\Schema\JsonSchemaGenerator;
+use RuntimeException;
 
 test('адаптер разворачивает $defs/$ref в плоскую inline-структуру', function (): void {
     $generator = new JsonSchemaGenerator;
@@ -108,4 +109,13 @@ test('адаптер обрывает рекурсивный TotalLine.children 
 
     $level3 = $level2['properties']['children']['items'];
     expect($level3['properties'])->not->toHaveKey('children');
+});
+
+test('адаптер отклоняет ссылку на отсутствующее определение', function (): void {
+    $adapter = new GeminiResponseSchemaAdapter;
+
+    expect(fn (): array => $adapter->adapt([
+        'type' => 'object',
+        'properties' => ['broken' => ['$ref' => '#/$defs/Missing']],
+    ]))->toThrow(RuntimeException::class, 'отсутствующий $defs: Missing');
 });
