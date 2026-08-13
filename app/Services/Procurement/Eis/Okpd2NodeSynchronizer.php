@@ -74,14 +74,14 @@ final readonly class Okpd2NodeSynchronizer
     public function run(?string $root = null, bool $dryRun = false, ?int $maxRequests = null): array
     {
         $platform = $this->requirePlatform();
-        $rootId = $root ?? (string) config('crawler.okpd2.root_external_id');
-        $limit = $maxRequests ?? (int) config('crawler.okpd2.max_requests');
+        $rootId = $root ?? $this->configString('crawler.okpd2.root_external_id');
+        $limit = $maxRequests ?? $this->configPositiveInt('crawler.okpd2.max_requests');
 
         $stored = $this->snapshot(platformId: (int) $platform->id);
 
         // Нумерацию детей задаёт уровень корня. Сам корень в карту не пишется, поэтому обычно
         // его там нет — тогда уровень берётся из конфига (раздел = 1).
-        $rootLevel = (int) config('crawler.okpd2.root_level');
+        $rootLevel = $this->configPositiveInt('crawler.okpd2.root_level');
 
         foreach ($stored as $node) {
             if ($node['external_id'] === $rootId) {
@@ -156,7 +156,7 @@ final readonly class Okpd2NodeSynchronizer
      */
     private function traverse(string $rootId, int $rootLevel, int $limit, Platform $platform): array
     {
-        $endpoint = (string) config('crawler.okpd2.children_endpoint');
+        $endpoint = $this->configString('crawler.okpd2.children_endpoint');
         $lease = $this->proxyResolver->resolve(
             scope: ProxyScope::CrawlListing,
             target: $this->canonicalHost($endpoint),
@@ -244,13 +244,13 @@ final readonly class Okpd2NodeSynchronizer
     private function snapshot(int $platformId): array
     {
         return $this->nodes->selectableNodes(platformId: $platformId)
-            ->mapWithKeys(static fn (Okpd2Node $node): array => [
-                (string) $node->getAttribute('code') => [
-                    'external_id' => (string) $node->getAttribute('external_id'),
+            ->mapWithKeys(fn (Okpd2Node $node): array => [
+                $this->attributeString($node, 'code') => [
+                    'external_id' => $this->attributeString($node, 'external_id'),
                     'parent_code' => $node->getAttribute('parent_code') !== null
-                        ? (string) $node->getAttribute('parent_code')
+                        ? $this->attributeString($node, 'parent_code')
                         : null,
-                    'level' => (int) $node->getAttribute('level'),
+                    'level' => $this->attributeInt($node, 'level'),
                 ],
             ])
             ->all();
@@ -341,7 +341,24 @@ final readonly class Okpd2NodeSynchronizer
             );
         }
 
-        return $decoded;
+        $children = [];
+
+        foreach ($decoded as $child) {
+            if (! is_array($child)) {
+                throw new RuntimeException("children.html вернул не объект узла на parentId={$parentId}.");
+            }
+
+            foreach (array_keys($child) as $key) {
+                if (! is_string($key)) {
+                    throw new RuntimeException("children.html вернул нестроковый ключ узла на parentId={$parentId}.");
+                }
+            }
+
+            /** @var array<string, mixed> $child */
+            $children[] = $child;
+        }
+
+        return $children;
     }
 
     private function request(ProxyLease $lease, string $endpoint, string $parentId, StageSettings $settings): Response
@@ -349,7 +366,7 @@ final readonly class Okpd2NodeSynchronizer
         $tlsOptions = $this->tlsTrust->optionsFor($this->canonicalHost($endpoint));
 
         return Http::withOptions([...$lease->httpOptions(), ...$tlsOptions])
-            ->withUserAgent((string) config('crawler.user_agent'))
+            ->withUserAgent($this->configString('crawler.user_agent'))
             ->withHeaders(['Referer' => 'https://zakupki.gov.ru/'])
             ->timeout($settings->timeoutSeconds ?? 30)
             ->retry(
@@ -378,6 +395,56 @@ final readonly class Okpd2NodeSynchronizer
 
     private function canonicalHost(string $url): string
     {
-        return strtolower((string) parse_url($url, PHP_URL_HOST));
+        $host = parse_url($url, PHP_URL_HOST);
+
+        if (! is_string($host) || $host === '') {
+            throw new RuntimeException("URL EIS не содержит host: {$url}.");
+        }
+
+        return strtolower($host);
+    }
+
+    private function configString(string $key): string
+    {
+        $value = config($key);
+
+        if (! is_string($value) || $value === '') {
+            throw new RuntimeException("{$key} должен быть непустой строкой.");
+        }
+
+        return $value;
+    }
+
+    private function configPositiveInt(string $key): int
+    {
+        $value = config($key);
+
+        if (! is_int($value) || $value < 1) {
+            throw new RuntimeException("{$key} должен быть положительным целым числом.");
+        }
+
+        return $value;
+    }
+
+    private function attributeString(Okpd2Node $node, string $attribute): string
+    {
+        $value = $node->getAttribute($attribute);
+
+        if (! is_string($value) || $value === '') {
+            throw new RuntimeException("Узел ОКПД2 {$attribute} должен быть непустой строкой.");
+        }
+
+        return $value;
+    }
+
+    private function attributeInt(Okpd2Node $node, string $attribute): int
+    {
+        $value = $node->getAttribute($attribute);
+
+        if (! is_int($value)) {
+            throw new RuntimeException("Узел ОКПД2 {$attribute} должен быть целым числом.");
+        }
+
+        return $value;
     }
 }
