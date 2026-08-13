@@ -2,8 +2,8 @@
 projection: status-view
 projection_version: v1
 source_scope: plan core + phases + journal
-through: 2026-08-12
-inputs_sha256: 69ffb1034313e015f59c9e0467e6f150bbd9fb4fdcb7e44659765fc8965d1388
+through: 2026-08-13
+inputs_sha256: 09eb5baa5e4109da1c5c50071652ec7c5a63bf0be7a5a3f98723ed6f96a51b2c
 generated_by: task plan-views status
 -->
 
@@ -17,7 +17,7 @@ generated_by: task plan-views status
 |:--|:--|
 | Version | 0.1.9 |
 | Status | 🟡 In progress |
-| Last Updated | 2026-08-12 |
+| Last Updated | 2026-08-13 |
 
 ## 4. Phase Index & Status Board
 
@@ -34,7 +34,7 @@ generated_by: task plan-views status
 | P5 | Default proxy settings и трёхуровневый resolve | 6/6 | 🟢 Done |
 | P6 | File handler registry, архивы и дочерняя обработка | 0/7 | 🟠 Done with deviations |
 | P7 | Document type, summary, estimates и tags | 6/6 | 🟢 Done |
-| P8 | Расширяемость platforms и гибкие status mappings | 4/5 | 🟡 In progress |
+| P8 | Расширяемость platforms и гибкие status mappings | 4/5 | 🟠 Done with deviations |
 | P9 | Filament information architecture и понятный русский UX | 0/6 | ⬜ Not started |
 
 ## Phase P0
@@ -171,7 +171,7 @@ generated_by: task plan-views status
 | P8.2 | Запечатать минимальный contract добавления новой площадки | 🟢 Done | 2026-08-12 |
 | P8.3 | Перепроектировать status mapping без жёсткой привязки к одному ФЗ | 🟢 Done | 2026-08-12 |
 | P8.4 | Мигрировать данные и обновить repositories/policies/forms | 🟢 Done | 2026-08-12 |
-| P8.5 | Добавить architecture/contract tests и developer guide расширения | ⬜ Not started | — |
+| P8.5 | Добавить architecture/contract tests и developer guide расширения | 🟠 Done with deviations | 2026-08-13 |
 
 ## Phase P9
 
@@ -543,6 +543,8 @@ write-site: pre_mutation: allow · pre_final: allow |
 write-site: pre_mutation: allow · pre_final: allow |
 | 2026-08-12 | gpt-5.6-terra/high | plan-run · in-progress · — |
 | 2026-08-12 | gpt-5.6-terra/high | plan-run · closed-green · 0fdc9eb4: repository-backed applicability resolver, EIS seed and authorized Filament surface. |
+| 2026-08-13 | frontier/medium | plan-exec · in-progress · — |
+| 2026-08-13 | frontier/medium | plan-exec · closed-deviations · Extension contract and docs added; full suite has pre-existing failures. |
 
 ## Owner Gates
 
@@ -561,3 +563,4 @@ write-site: pre_mutation: allow · pre_final: allow |
 - P6.7: known deviation
 - P8.1: known deviation
 - P8.3: known deviation
+- P8.5: known deviation
