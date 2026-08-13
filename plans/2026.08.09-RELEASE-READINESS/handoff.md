@@ -1,4 +1,4 @@
-# HANDOFF — 2026-08-13 — after P10.2
+# HANDOFF — 2026-08-13 — after P10.3
 
 **Next:** ЗАПУСК ВРУЧНУЮ: implementation/high
 
@@ -7,23 +7,37 @@
 | Batch | solo |
 | Model class | implementation |
 | Thinking | high |
-| Context | continue-root: P10.2 terminal evidence is committed; P10.3 is the sequential consumer. |
-| Суть | Выполнить read-only P10.3 architecture/debt audit; product fixes остаются за P10.5. |
+| Context | continue-root |
+| Суть | Выполнить P10.4 read-only production-readiness audit на terminal P10.3 tree. |
 | Команда | — |
 
-```text
-$ task:plan-run 2026.08.09-RELEASE-READINESS P10.3
+```bash
+codex -C /home/vostrikov/projects/agelto/agelto -m gpt-5.6-terra -c 'model_reasoning_effort="high"' -a never -s danger-full-access '$ task:plan-run 2026.08.09-RELEASE-READINESS P10.4'
 ```
 
-**Done:** D85 full reexecution closed P10.2 green. `4d77b259` contains the repeat report and
-portable carrier; `1599af74` refreshes dependency evidence. Carrier passed 54 tests / 151
-assertions, Task lint/views and citation verification (0 unresolved); no product bytes changed.
+```text
+$ task:plan-run 2026.08.09-RELEASE-READINESS P10.4
+```
 
-**Remaining:** P10.3–P10.6 remain; P10.5 must remediate P10.2-S01 (high env-proxy bypass),
-P10.2-S02 (medium fixture admission) and P10.2-S03 (high MinIO credentials in child args).
+**Done:** `ab790cc1` adds the P10.3 evidence-backed architecture/debt register and executable
+carrier. It verified 26 tests / 135 assertions and found no new release blocker or product/config
+mutation. P10.3-D01 (unused `GracefullyStoppable`, XS) is deferred to P10.5; P10.3-D02 (stale
+`section_number` claim in the living static-analysis guide, XS) is deferred to P10.6.
 
-**Sources of truth:** `phases/P10/P10.2.state.md` · `findings/P10-security-audit.md` ·
-`artifacts/P10-security-audit-contract.sh` · `decisions/D85-p10-2-security-audit-reexecution.md`.
+**Remaining:** P10.4–P10.6. P10.5 must resolve or explicitly escalate P10.2-S01 (high env-proxy
+policy bypass), P10.2-S03 (high MinIO credentials in child args), P10.2-S02 (medium fixture
+admission), and select the P10.3-D01 disposition. P10.6 owns P10.3-D02 documentation
+reconciliation. Downstream gates for P10.4–P10.6 are intentionally `unknown` until each item
+creates its own executable carrier.
 
-**Open risks:** P10.2-S01 and P10.2-S03 are release blockers until P10.5 produces RED→GREEN
-remediation evidence; they are not waived by this audit closure.
+**Sources of truth:** `phases/P10/P10.3.state.md` ·
+`findings/P10-architecture-debt-audit.md` ·
+`artifacts/P10-architecture-debt-contract.sh` · `findings/P10-security-audit.md` · D39.
+The three `findings/P10.3-downstream-*.md` records bind this item commit to its consumers.
+
+**Open risks:** P10.2-S01 and P10.2-S03 remain release blockers until P10.5 has a vertical
+red→green remediation proof. The P10.3 report did not waive or reinterpret D29/D33/D38.
+
+**Workarounds/Deferred/Open questions:** P10.3-D01 is a deliberate P10.5 choice between deletion
+and a real signalable command consumer; P10.3-D02 is P10.6 living-documentation work. No open
+question or owner approval is pending.
