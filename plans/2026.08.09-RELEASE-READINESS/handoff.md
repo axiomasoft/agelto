@@ -1,45 +1,32 @@
-# HANDOFF — 2026-08-13 — after P10.6
+# HANDOFF — 2026-08-13 — P10.6 active remediation
 
 ## Next
 
-**Next:** `$ task:plan-design 2026.08.09-RELEASE-READINESS P10.6`
+**Next:** continue `$ task:plan-run 2026.08.09-RELEASE-READINESS P10.6` until all declared P10.6 gates are green.
 
-| Batch | Model | Thinking | Context | Суть |
-|:--|:--|:--|:--|:--|
-| solo | frontier | high — cross-cutting quality-contract redesign | cold-start-root | Разбить и перепроектировать путь к PHPStan `level:max` без baseline, не ослабляя acceptance. |
+## Current facts
 
-#### Native Codex launch-block
-
-```bash
-codex -C /home/vostrikov/projects/agelto/agelto -m gpt-5.6-sol -c 'model_reasoning_effort="high"' -a never -s danger-full-access '$ task:plan-design 2026.08.09-RELEASE-READINESS P10.6'
-```
-
-## Done
-
-- P10.6 дошёл до подтверждённого terminal block: quality contract не ослаблялся.
-- `findings/P10.6-quality-gate-block-2026-08-13.md` хранит воспроизводимое evidence,
-  block-candidate v1 и isolated return judgement.
-- Evidence commit: `8bc981a4` (`docs(plan): record P10.6 quality gate block`).
+- D86 supersedes the former terminal-block escalation: P10.6 remediation is in scope and active.
+- PHPStan runs at `level:max`, with no baseline, ignores, excludes, or level downgrade.
+- Full PHPStan has reduced from **1,591 errors / 266 files** to **788 errors / 236 files**.
+- Recent committed carriers: `23fdde76` (EIS query boundary), `5f0bd994` (dataset exporter), and `d706ff9f` (fixture metadata).
+- Each carrier has focused max-PHPStan, Pint, and relevant Pest evidence; the aggregate final gate is still outstanding.
 
 ## Remaining
 
-- `plan-design` должен определить безопасную, проверяемую topology для устранения
-  PHPStan `level:max` без baseline и затем обновить P10.6/последующих consumers.
+- Remediate the remaining full-tree PHPStan findings honestly at their data/behaviour boundaries.
+- Resolve the actual Rector dry-run findings; do not hide them with configuration.
+- Run the full P10.6 quality contract and all final local gates only after the static-analysis backlog reaches zero.
+- Regenerate Task state/status views and close P10.6 only after the evidence is green.
 
 ## Sources of truth
 
-- `phases/P10/P10.6.md` — неизменённое acceptance ТЗ.
-- `phases/P10/P10.6.state.md` и `journal.jsonl` — terminal состояние P10.6.
-- `findings/P10.6-quality-gate-block-2026-08-13.md` — observed evidence и reducer outcome.
-- `artifacts/P10-remediation-matrix.md` — P10.5 input and unresolved P10.6 quality debt.
+- `phases/P10/P10.6.md` — unchanged acceptance contract.
+- `decisions/D86-p10-6-false-terminal-block-recovery.md` — recovery decision.
+- `journal.jsonl`, `phases/P10/P10.6.state.md`, and `status.md` — current plan progress.
 
-## Open risks
+## Guardrails
 
-- Любой обход через PHPStan baseline, ignore/exclude или level downgrade нарушит D39 и P10.6.
-- Локальный repair Pint или memory limit сам по себе не доказывает full quality gate.
-
-## Workarounds/Deferred/Open questions
-
-- Workarounds: —
-- Deferred: P10.3-D02 остаётся consumer P10.6 до plan-design решения.
-- Open questions: плану нужен owner-approved decomposition cross-cutting static-analysis remediation.
+- Never use PHPStan baseline, ignore/exclude, or level downgrade.
+- A focused green carrier is progress evidence, not P10.6 completion evidence.
+- The user has unrelated dirty files: `CLAUDE.md`, `bundles/P0.7.json`, and `bundles/P1.7.json`; do not stage or modify them.
