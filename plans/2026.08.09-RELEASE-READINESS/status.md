@@ -3,7 +3,7 @@ projection: status-view
 projection_version: v1
 source_scope: plan core + phases + journal
 through: 2026-08-13
-inputs_sha256: cae944530d48b134927b4caa57fae4beae2741d5b5c2381f74b45c84ca423b4b
+inputs_sha256: 1bd14d059f0cc72b460f9441b24902d7a22bdbec5b6df887821291232eed7a89
 generated_by: task plan-views status
 -->
 
@@ -624,6 +624,7 @@ write-site: pre_mutation: allow · pre_final: allow |
 | 2026-08-13 | frontier/xhigh | plan-audit · closed-green · 2e70c586 closes the last P9-owned Pint finding; exact Filament 165/1154 and touched Pint green.
 write-site: pre_mutation: allow · pre_final: allow |
 | 2026-08-13 | frontier/xhigh | plan-audit · audit-green · P9 audit-fixer GREEN; candidate rebound after owned repairs. |
+| 2026-08-13 | implementation/low | plan-close · closed-green · P9 closed by D84: GREEN audit stale only from its own generated evidence. |
 
 ## Owner Gates
 

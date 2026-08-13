@@ -1,29 +1,28 @@
 # HANDOFF — 2026-08-13 — after P9
 
-**Next:** close: task:plan-close 2026.08.09-RELEASE-READINESS P9
+**Next:** run-items: task:plan-run 2026.08.09-RELEASE-READINESS P10.1
 
 | Параметр | Значение |
 |:--|:--|
-| Batch | n/a |
-| Model | implementation |
-| Thinking | low — recovery-сверка terminal phase |
-| Context | cold-start-root: audit-root-terminal |
-| Суть | Сверить audit GREEN и закрыть P9 без повторного исполнения. |
-| Команда | `$ task:plan-close 2026.08.09-RELEASE-READINESS P9` |
+| Batch | solo |
+| Model | frontier |
+| Thinking | high — immutable tooling baseline |
+| Context | cold-start-root: owner-pause-no-resume |
+| Суть | Зафиксировать P10.1 baseline quality, dependency и Rector evidence. |
+| Команда | `$ task:plan-run 2026.08.09-RELEASE-READINESS P10.1` |
 
 #### Native Codex launch-block
 
 ```bash
-codex -C /home/vostrikov/projects/agelto/agelto -m gpt-5.6-terra -c 'model_reasoning_effort="low"' -a never -s danger-full-access '$ task:plan-close 2026.08.09-RELEASE-READINESS P9'
+codex -C /home/vostrikov/projects/agelto/agelto -m gpt-5.6-sol -c 'model_reasoning_effort="high"' -a never -s danger-full-access '$ task:plan-run 2026.08.09-RELEASE-READINESS P10.1'
 ```
 
-**Done:** P9.1–P9.6 терминальны `🟢 Done`; audit-fixer закрыл browser acceptance, русские
+**Done:** P9 закрыта: P9.1–P9.6 `🟢 Done`; audit-fixer закрыл browser acceptance, русские
 navigation/schema labels и locale, package presentation proof, P9-owned PHPStan/Pint и terminal
 evidence. Candidate rebound на
 `577bfdf16e1d6c2175cf222d04e5df62bc5d398d491d0cfb458256abd7553b23`; audit verdict GREEN.
 
-**Remaining:** только recovery-сверка и закрытие P9 командой выше. Audit уже выполнен; повторный
-audit и исполнение P10 в этой сессии не нужны.
+**Remaining:** P10.1–P12.7 и phase gates; P10 выполняется только в новой routed session.
 
 **Sources of truth:** `phases/P9/P9.md` · `phases/P9/P9.1.state.md`–`P9.6.state.md` ·
 `artifacts/P9-admin-route-role-matrix.md` · `journal.jsonl` · `status.md`.

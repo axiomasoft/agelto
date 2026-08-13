@@ -26,11 +26,7 @@
 | P6.1–P6.7 | closed-deviations | — | §3 Routing | — | 7/7 `🟠`; D79/closure сохраняют принятый evidence status |
 | P7.1–P7.6 | closed | — | §3 Routing | — | 6/6 `🟢 Done` |
 | P8.1–P8.7 | closed | — | §3 Routing | — | 7/7 `🟢 Done`; direct close по D81 |
-| P9.1–P9.2 | closed | — | §3 Routing | — | 2/2 `🟢 Done` |
-| P9.3 | closed-deviations | — | implementation/high | — | `TextColumn::boolean()` failure передан P9.4 |
-| P9.4 | solo | `task:plan-run … P9.4` | implementation/high | post-D83 design audit GREEN | responsive tables/actions + owned `FinalPromptPage` repair |
-| P9.5 | solo | `task:plan-run … P9.5` | implementation/high | terminal P9.4 | runtime route/role matrix и UX/validation sweep |
-| P9.6 | solo | `task:plan-run … P9.6` | implementation/high | terminal P9.5 | browser authorization/responsive acceptance; затем phase audit |
+| P9.1–P9.6 | closed | — | §3 Routing | D84 direct close | 6/6 `🟢 Done`; GREEN audit accepted, self-induced stale fingerprint recorded for Swissknifeman follow-up |
 | P10.1 | solo | `task:plan-run … P10.1` | frontier/high | terminal P9 + tooling branch freeze | immutable baseline и Rector decision |
 | P10.2 | solo | `task:plan-run … P10.2` | implementation/high | terminal P10.1 | security audit evidence carrier |
 | P10.3 | solo | `task:plan-run … P10.3` | implementation/high | terminal P10.2 | architecture/naming/debt audit carrier |
@@ -53,40 +49,40 @@
 
 ## Следующий protocol gate
 
-**Next:** audit-design: task:plan-audit 2026.08.09-RELEASE-READINESS design
-
-| Параметр | Значение |
-|:--|:--|
-| Batch | n/a |
-| Model class | frontier |
-| Effort | xhigh |
-| Capabilities | — |
-| Context | cold-start-root: design-root-terminal |
-| Суть | Независимо проверить полноту 84-item design, D83 reconcile, brief trace и текущие execution boundaries. |
-| Команда | `$ task:plan-audit 2026.08.09-RELEASE-READINESS design` |
-
-### Native Codex launch-block
-
-```bash
-codex -C /home/vostrikov/projects/agelto/agelto -m gpt-5.6-sol -c 'model_reasoning_effort="xhigh"' -a never -s danger-full-access '$ task:plan-audit 2026.08.09-RELEASE-READINESS design'
-```
-
-## Первый execution после GREEN design audit
+**Next:** run-items: task:plan-run 2026.08.09-RELEASE-READINESS P10.1
 
 | Параметр | Значение |
 |:--|:--|
 | Batch | solo |
-| Model class | implementation |
+| Model class | frontier |
 | Effort | high |
 | Capabilities | — |
-| Context | cold-start-root: audit-root-terminal |
-| Суть | Закрыть responsive table/action contract P9.4 и устранить owned `TextColumn::boolean()` failure. |
-| Команда | `$ task:plan-run 2026.08.09-RELEASE-READINESS P9.4` |
+| Context | cold-start-root: owner-pause-no-resume |
+| Суть | Зафиксировать immutable P10 tooling/dependency baseline до audits и remediation. |
+| Команда | `$ task:plan-run 2026.08.09-RELEASE-READINESS P10.1` |
 
 ### Native Codex launch-block
 
 ```bash
-codex -C /home/vostrikov/projects/agelto/agelto -m gpt-5.6-terra -c 'model_reasoning_effort="high"' -a never -s danger-full-access '$ task:plan-run 2026.08.09-RELEASE-READINESS P9.4'
+codex -C /home/vostrikov/projects/agelto/agelto -m gpt-5.6-sol -c 'model_reasoning_effort="high"' -a never -s danger-full-access '$ task:plan-run 2026.08.09-RELEASE-READINESS P10.1'
+```
+
+## Следующий execution
+
+| Параметр | Значение |
+|:--|:--|
+| Batch | solo |
+| Model class | frontier |
+| Effort | high |
+| Capabilities | — |
+| Context | cold-start-root: owner-pause-no-resume |
+| Суть | Снять immutable baseline P10.1 до read-only audit chain. |
+| Команда | `$ task:plan-run 2026.08.09-RELEASE-READINESS P10.1` |
+
+### Native Codex launch-block
+
+```bash
+codex -C /home/vostrikov/projects/agelto/agelto -m gpt-5.6-sol -c 'model_reasoning_effort="high"' -a never -s danger-full-access '$ task:plan-run 2026.08.09-RELEASE-READINESS P10.1'
 ```
 
 ## Гейты владельца (сводно)
