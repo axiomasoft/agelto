@@ -31,6 +31,14 @@ use RuntimeException;
  * агрегат `overall` (все эталоны прогона, без деления на `tune`/`holdout`) в `subsamples` и
  * информационный (не влияющий на вердикт) профиль вызовов `llm_calls` обоих сравниваемых прогонов.
  */
+/**
+ * @phpstan-type PerFieldMetrics array<string, array{f1: float}>
+ * @phpstan-type ResultRow array{code: string, f1: float, row_coverage: float, per_field: PerFieldMetrics}
+ * @phpstan-type SubsampleAggregate array{f1: float, row_coverage: float, per_field: array<string, float>, examples: int}
+ * @phpstan-type SubsampleDelta array{base: SubsampleAggregate, candidate: SubsampleAggregate, delta: array{f1: float, row_coverage: float, per_field: array<string, float>}}
+ * @phpstan-type Subsamples array<string, SubsampleDelta>
+ * @phpstan-type UsageProfile array{calls: int, prompt_tokens: int, completion_tokens: int, avg_prompt_tokens: float, cost_micros: int}
+ */
 final readonly class EvalRunComparator
 {
     public const string CRITERION_PATCH = 'patch';
@@ -177,7 +185,7 @@ final readonly class EvalRunComparator
      * сравниваемой пары, и для нулевой пары `--noise-pair` (P2.13 Implementation Rules: «пара,
      * поданная нулевой, проверяется тем же `assertComparable()`, что и сравниваемые прогоны»).
      *
-     * @return array{0: Collection<int, array<string, mixed>>, 1: Collection<int, array<string, mixed>>}
+     * @return array{0: Collection<int, ResultRow>, 1: Collection<int, ResultRow>}
      */
     private function loadComparablePair(EvalRun $a, EvalRun $b): array
     {
@@ -197,7 +205,7 @@ final readonly class EvalRunComparator
     }
 
     /**
-     * @return Collection<int, array<string, mixed>>
+     * @return Collection<int, ResultRow>
      */
     private function loadResults(EvalRun $run): Collection
     {
@@ -206,12 +214,7 @@ final readonly class EvalRunComparator
             ->where('metric', 'f1')
             ->with('datasetExample.fixture')
             ->get()
-            ->map(fn (EvalResult $result): array => [
-                'code' => $result->datasetExample?->fixture?->code,
-                'f1' => (float) $result->value,
-                'row_coverage' => (float) ($result->details['row_coverage'] ?? 0.0),
-                'per_field' => (array) ($result->details['per_field'] ?? []),
-            ]);
+            ->map(fn (EvalResult $result): array => $this->resultRow($result));
     }
 
     /**
@@ -219,21 +222,38 @@ final readonly class EvalRunComparator
      */
     private function loadHoldoutCodes(): array
     {
-        $path = (string) config('ai.fixtures.splits_path');
+        $path = $this->stringValue(config('ai.fixtures.splits_path'), 'ai.fixtures.splits_path');
 
         if (! is_file($path)) {
             throw new RuntimeException("Файл разбиения не найден: {$path}. Прогони `estimate:eval:run --write-splits`.");
         }
 
-        $decoded = json_decode((string) file_get_contents($path), associative: true, flags: JSON_THROW_ON_ERROR);
+        $contents = file_get_contents($path);
 
-        return array_values((array) ($decoded['holdout'] ?? []));
+        if ($contents === false) {
+            throw new RuntimeException("Файл разбиения не удалось прочитать: {$path}.");
+        }
+
+        $decoded = $this->jsonObject(json_decode($contents, associative: true, flags: JSON_THROW_ON_ERROR), 'eval splits');
+        $holdout = $decoded['holdout'] ?? [];
+
+        if (! is_array($holdout)) {
+            throw new RuntimeException('eval splits holdout должен быть массивом кодов.');
+        }
+
+        $codes = [];
+
+        foreach ($holdout as $code) {
+            $codes[] = $this->stringValue($code, 'eval splits holdout code');
+        }
+
+        return $codes;
     }
 
     /**
-     * @param  Collection<int, array<string, mixed>>  $results
+     * @param  Collection<int, ResultRow>  $results
      * @param  list<string>  $holdoutCodes
-     * @return Collection<int, array<string, mixed>>
+     * @return Collection<int, ResultRow>
      */
     private function filterBySubsample(Collection $results, array $holdoutCodes, string $subsample): Collection
     {
@@ -245,12 +265,18 @@ final readonly class EvalRunComparator
     }
 
     /**
-     * @param  Collection<int, array<string, mixed>>  $results
-     * @return array{f1: float, row_coverage: float, per_field: array<string, float>, examples: int}
+     * @param  Collection<int, ResultRow>  $results
+     * @return SubsampleAggregate
      */
     private function aggregateSubsample(Collection $results): array
     {
-        $fields = array_keys($results->first()['per_field'] ?? []);
+        $first = $results->first();
+
+        if ($first === null) {
+            throw new RuntimeException('Нельзя агрегировать пустую подвыборку eval.');
+        }
+
+        $fields = array_keys($first['per_field']);
 
         $perField = [];
 
@@ -270,8 +296,8 @@ final readonly class EvalRunComparator
     }
 
     /**
-     * @param  Collection<int, array<string, mixed>>  $baseResults
-     * @param  Collection<int, array<string, mixed>>  $candidateResults
+     * @param  Collection<int, ResultRow>  $baseResults
+     * @param  Collection<int, ResultRow>  $candidateResults
      * @return array{
      *     base: array{f1: float, row_coverage: float, per_field: array<string, float>, examples: int},
      *     candidate: array{f1: float, row_coverage: float, per_field: array<string, float>, examples: int},
@@ -311,8 +337,8 @@ final readonly class EvalRunComparator
     }
 
     /**
-     * @param  Collection<int, array<string, mixed>>  $baseResults
-     * @param  Collection<int, array<string, mixed>>  $candidateResults
+     * @param  Collection<int, ResultRow>  $baseResults
+     * @param  Collection<int, ResultRow>  $candidateResults
      * @return array<string, float>
      */
     private function perFixtureDeltas(Collection $baseResults, Collection $candidateResults): array
@@ -323,6 +349,10 @@ final readonly class EvalRunComparator
         $deltas = [];
 
         foreach ($baseByCode as $code => $baseResult) {
+            if (! is_string($code)) {
+                throw new RuntimeException('Код eval-эталона должен быть строкой.');
+            }
+
             $candidateResult = $candidateByCode->get($code);
 
             if ($candidateResult === null) {
@@ -344,8 +374,8 @@ final readonly class EvalRunComparator
      * (`findings/P2-eval-resolution-2026-08-02.md` §2 — «per-fixture (худший)=0.6131», §3 — все три
      * причины `(г)` M5 сверены с ОДНИМ и тем же числом шума).
      *
-     * @param  Collection<int, array<string, mixed>>  $noiseBaseResults
-     * @param  Collection<int, array<string, mixed>>  $noiseCandidateResults
+     * @param  Collection<int, ResultRow>  $noiseBaseResults
+     * @param  Collection<int, ResultRow>  $noiseCandidateResults
      * @param  list<string>  $holdoutCodes
      * @return array{subsamples: array<string, array{f1: float, row_coverage: float}>, per_fixture_threshold: float, per_fixture_worst_code: string}
      */
@@ -433,7 +463,7 @@ final readonly class EvalRunComparator
     }
 
     /**
-     * @param  array<string, array{base: array<string, mixed>, candidate: array<string, mixed>, delta: array<string, mixed>}>  $subsamples
+     * @param  Subsamples  $subsamples
      * @param  array<string, float>  $perFixture
      * @param  'patch'|'no-regression'|'noise-aware'  $criterion
      * @param  array{subsamples: array<string, array{f1: float, row_coverage: float}>, per_fixture_threshold: float, per_fixture_worst_code: string}|null  $noiseThresholds
@@ -483,7 +513,7 @@ final readonly class EvalRunComparator
      * `$noiseThresholds` (нулевая пара), а не из констант; граница включена (дельта = порогу → не
      * причина отказа, P2.13 Implementation Rules).
      *
-     * @param  array<string, array{base: array<string, mixed>, candidate: array<string, mixed>, delta: array<string, mixed>}>  $subsamples
+     * @param  Subsamples  $subsamples
      * @param  array<string, float>  $perFixture
      * @param  array{subsamples: array<string, array{f1: float, row_coverage: float}>, per_fixture_threshold: float, per_fixture_worst_code: string}  $noiseThresholds
      * @param  array{base: int, candidate: int}  $noisePairIds
@@ -519,5 +549,81 @@ final readonly class EvalRunComparator
         }
 
         return ['verdict' => $reasons === [] ? 'accept' : 'reject', 'reasons' => $reasons];
+    }
+
+    /**
+     * @return ResultRow
+     */
+    private function resultRow(EvalResult $result): array
+    {
+        $code = $result->datasetExample?->fixture?->code;
+
+        if (! is_string($code) || $code === '') {
+            throw new RuntimeException("EvalResult #{$result->id} не имеет кода fixture.");
+        }
+
+        $details = $this->jsonObject($result->details?->all() ?? [], "EvalResult #{$result->id} details");
+
+        return [
+            'code' => $code,
+            'f1' => $this->floatValue($result->value, "EvalResult #{$result->id} f1"),
+            'row_coverage' => $this->floatValue($details['row_coverage'] ?? 0.0, "EvalResult #{$result->id} row_coverage"),
+            'per_field' => $this->perFieldMetrics($details['per_field'] ?? []),
+        ];
+    }
+
+    /**
+     * @return PerFieldMetrics
+     */
+    private function perFieldMetrics(mixed $value): array
+    {
+        $fields = $this->jsonObject($value, 'EvalResult per_field');
+        $metrics = [];
+
+        foreach ($fields as $field => $metric) {
+            $metricData = $this->jsonObject($metric, "EvalResult per_field {$field}");
+            $metrics[$field] = ['f1' => $this->floatValue($metricData['f1'] ?? null, "EvalResult per_field {$field}.f1")];
+        }
+
+        return $metrics;
+    }
+
+    private function floatValue(mixed $value, string $context): float
+    {
+        if (is_float($value)) {
+            return $value;
+        }
+
+        if (is_int($value)) {
+            return (float) $value;
+        }
+
+        if (is_string($value) && is_numeric($value)) {
+            return (float) $value;
+        }
+
+        throw new RuntimeException("{$context} должен быть числом.");
+    }
+
+    private function stringValue(mixed $value, string $context): string
+    {
+        if (! is_string($value)) {
+            throw new RuntimeException("{$context} должен быть строкой.");
+        }
+
+        return $value;
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function jsonObject(mixed $value, string $context): array
+    {
+        if (! is_array($value) || array_is_list($value)) {
+            throw new RuntimeException("{$context} должен быть JSON-объектом.");
+        }
+
+        /** @var array<string, mixed> $value */
+        return $value;
     }
 }
