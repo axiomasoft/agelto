@@ -41,6 +41,7 @@
         "symfony/dom-crawler": "^8.1"
     },
     "require-dev": {
+        "driftingly/rector-laravel": "2.5.0",
         "fakerphp/faker": "^1.23",
         "larastan/larastan": "*",
         "laravel/boost": "^2.4",
@@ -54,7 +55,8 @@
         "pestphp/pest": "^5.0",
         "pestphp/pest-plugin-agent": "*",
         "pestphp/pest-plugin-laravel": "^5.0",
-        "phpunit/phpunit": "^13.0"
+        "phpunit/phpunit": "^13.0",
+        "rector/rector": "2.6.2"
     },
     "autoload": {
         "psr-4": {

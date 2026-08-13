@@ -2,8 +2,8 @@
 
 use App\Enums\Procurement\Crawler\CrawlerMode;
 use App\Models\Procurement\Crawler\Crawler;
-use App\Services\Procurement\PipelineDispatcher;
 use App\Services\Health\ApplicationReadiness;
+use App\Services\Procurement\PipelineDispatcher;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Schedule;

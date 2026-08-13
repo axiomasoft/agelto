@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\Procurement\Proxy;
 
+use App\Dto\Procurement\Proxy\ProxyCandidate;
 use App\Dto\Procurement\Proxy\ProxyLease;
 use App\Dto\Procurement\Proxy\ProxyOutcome;
 use App\Dto\Procurement\Proxy\ProxyRequirements;
@@ -16,10 +17,12 @@ use App\Models\Procurement\Crawler\ProxyTarget;
 use App\Repositories\Procurement\Proxy\ProxyHealthStoreRepository;
 use App\Services\Procurement\OperationLogWriter;
 use Closure;
+use Illuminate\Database\Query\Builder;
 use Illuminate\Database\Query\JoinClause;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use LogicException;
 
 /**
  * Единственная точка выдачи прокси для всех точек исхода (research/02 §9.1): фильтр по
@@ -34,6 +37,7 @@ final readonly class ProxyResolver
         private ProxyCircuitBreaker $breaker,
         private ProxyHealthStoreRepository $health,
         private CrawlerProxySettingsResolver $crawlerSettings,
+        /** @var (Closure(): float)|null */
         private ?Closure $randomSource = null,
         private ?OperationLogWriter $operationLogs = null,
     ) {}
@@ -76,28 +80,28 @@ final readonly class ProxyResolver
             $this->throwNoProxyAvailable($scope, $target, 'фильтр по скоупу/требованию/breaker\'у вернул пустое множество');
         }
 
-        $topK = (int) config('crawler.proxy.resolver.top_k');
+        $topK = $this->intConfig('crawler.proxy.resolver.top_k');
 
         while ($remaining->isNotEmpty()) {
             $pool = $this->order($remaining)->take($topK);
             $chosen = $this->weightedPick($pool);
 
-            if ($this->needsGlobalProbe($chosen) && ! $this->health->claimGlobalProbe((int) $chosen->proxy_id)) {
-                $remaining = $this->without($remaining, (int) $chosen->proxy_id);
+            if ($this->needsGlobalProbe($chosen) && ! $this->health->claimGlobalProbe($chosen->proxyId)) {
+                $remaining = $this->without($remaining, $chosen->proxyId);
 
                 continue;
             }
 
-            if ($this->needsTargetProbe($chosen) && ! $this->health->claimTargetProbe((int) $chosen->target_id)) {
-                $remaining = $this->without($remaining, (int) $chosen->proxy_id);
+            if ($chosen->targetId !== null && $this->needsTargetProbe($chosen) && ! $this->health->claimTargetProbe($chosen->targetId)) {
+                $remaining = $this->without($remaining, $chosen->proxyId);
 
                 continue;
             }
 
             return ProxyLease::forProxy(
-                proxyId: (int) $chosen->proxy_id,
+                proxyId: $chosen->proxyId,
                 host: $chosen->host,
-                port: (int) $chosen->port,
+                port: $chosen->port,
                 username: $chosen->username,
                 password: $chosen->password,
                 scope: $scope,
@@ -158,36 +162,42 @@ final readonly class ProxyResolver
                 return null;
             }
 
-            if ($this->breaker->level($outcome->reason) === ProxyCircuitBreaker::LevelGlobal) {
+            $reason = $outcome->reason;
+
+            if ($reason === null) {
+                throw new LogicException('A failed proxy outcome must include its failure reason.');
+            }
+
+            if ($this->breaker->level($reason) === ProxyCircuitBreaker::LevelGlobal) {
                 $this->health->updateTarget(target: $target, attributes: $targetAttributes);
 
-                $state = $this->breaker->onFailure($proxy->fails_count, $proxy->open_count, $outcome->reason);
+                $state = $this->breaker->onFailure($proxy->fails_count, $proxy->open_count, $reason);
                 $attributes = [
                     ...$this->proxyBreakerAttributes($state),
-                    'last_failure_reason' => $outcome->reason->value,
+                    'last_failure_reason' => $reason->value,
                     'last_failure_at' => now(),
                 ];
 
-                if ($proxy->is_active && $state['open_count'] >= (int) config('crawler.proxy.breaker.disable_after_openings')) {
+                if ($proxy->is_active && $state['open_count'] >= $this->intConfig('crawler.proxy.breaker.disable_after_openings')) {
                     $attributes += [
                         'is_active' => false,
                         'disabled_at' => now(),
-                        'disabled_reason' => $outcome->reason->value,
+                        'disabled_reason' => $reason->value,
                     ];
                 }
 
                 $this->health->updateProxy(proxy: $proxy, attributes: $attributes);
 
-                return ($attributes['is_active'] ?? true) === false ? $outcome->reason->value : null;
+                return ($attributes['is_active'] ?? true) === false ? $reason->value : null;
             }
 
-            $state = $this->breaker->onFailure($target->consecutive_failures, $target->open_count, $outcome->reason);
+            $state = $this->breaker->onFailure($target->consecutive_failures, $target->open_count, $reason);
             $this->health->updateTarget(target: $target, attributes: [
                 ...$targetAttributes,
                 'consecutive_failures' => $state['consecutive_failures'],
                 'open_count' => $state['open_count'],
                 'open_until' => $state['open_until'],
-                'last_failure_reason' => $outcome->reason->value,
+                'last_failure_reason' => $reason->value,
             ]);
 
             return null;
@@ -198,6 +208,9 @@ final readonly class ProxyResolver
         }
     }
 
+    /**
+     * @return Collection<int, ProxyCandidate>
+     */
     private function candidates(ProxyScope $scope, string $target, ?ProxyRequirements $requirements): Collection
     {
         // Гейт запрещённых стран (research/02 §8, D5) — ДО скоринга, жёсткий SQL-фильтр, не вес.
@@ -219,28 +232,31 @@ final readonly class ProxyResolver
         // требованием профиля (`$requirements->country`), не заменяет его: конфликт двух стран
         // даёт пустое множество и штатный `NoProxyAvailableException`.
         $requiredCountry = config("crawler.proxy.policy.{$scope->value}.required_country");
+        $country = $requirements?->country;
+        $proxyIds = $requirements?->proxyIds;
 
-        return DB::table('prc_proxies')
+        /** @var Collection<int, object{proxy_id: int|string, host: string, port: int|string, username: string|null, password: string|null, fails_count: int|string, proxy_open_count: int|string, target_id: int|string|null, success_ratio: float|int|string|null, latency_ms_avg: int|string|null, target_open_count: int|string|null}> $rows */
+        $rows = DB::table('prc_proxies')
             ->leftJoin('prc_proxy_targets', function (JoinClause $join) use ($target): void {
                 $join->on('prc_proxy_targets.proxy_id', '=', 'prc_proxies.id')
                     ->where('prc_proxy_targets.target', '=', $target);
             })
             ->where('prc_proxies.is_active', true)
             ->whereJsonContains('prc_proxies.scopes', $scope->value)
-            ->where(fn ($query) => $query->whereNull('prc_proxies.open_until')->orWhere('prc_proxies.open_until', '<=', now()))
-            ->where(fn ($query) => $query->whereNull('prc_proxy_targets.open_until')->orWhere('prc_proxy_targets.open_until', '<=', now()))
+            ->where(fn (Builder $query): Builder => $query->whereNull('prc_proxies.open_until')->orWhere('prc_proxies.open_until', '<=', now()))
+            ->where(fn (Builder $query): Builder => $query->whereNull('prc_proxy_targets.open_until')->orWhere('prc_proxy_targets.open_until', '<=', now()))
             ->whereNotIn('prc_proxies.country', $forbiddenCountries)
             ->when(
                 $requiredCountry !== null,
                 fn ($query) => $query->where('prc_proxies.country', $requiredCountry),
             )
             ->when(
-                $requirements?->country !== null,
-                fn ($query) => $query->where('prc_proxies.country', $requirements->country),
+                $country !== null,
+                fn (Builder $query): Builder => $query->where('prc_proxies.country', $country),
             )
             ->when(
-                $requirements?->proxyIds !== null,
-                fn ($query) => $query->whereIn('prc_proxies.id', $requirements->proxyIds),
+                $proxyIds !== null,
+                fn (Builder $query): Builder => $query->whereIn('prc_proxies.id', $proxyIds),
             )
             ->select([
                 'prc_proxies.id as proxy_id',
@@ -256,43 +272,64 @@ final readonly class ProxyResolver
                 'prc_proxy_targets.open_count as target_open_count',
             ])
             ->get();
+
+        return $rows->map(static fn (object $row): ProxyCandidate => new ProxyCandidate(
+            proxyId: (int) $row->proxy_id,
+            host: $row->host,
+            port: (int) $row->port,
+            username: $row->username,
+            password: $row->password,
+            failsCount: (int) $row->fails_count,
+            proxyOpenCount: (int) $row->proxy_open_count,
+            targetId: $row->target_id === null ? null : (int) $row->target_id,
+            successRatio: $row->success_ratio === null ? null : (float) $row->success_ratio,
+            latencyMsAvg: $row->latency_ms_avg === null ? null : (int) $row->latency_ms_avg,
+            targetOpenCount: $row->target_open_count === null ? null : (int) $row->target_open_count,
+        ));
     }
 
+    /**
+     * @param  Collection<int, ProxyCandidate>  $rows
+     * @return Collection<int, ProxyCandidate>
+     */
     private function order(Collection $rows): Collection
     {
         return $rows
-            ->map(fn ($row) => (object) [
-                ...(array) $row,
-                'score' => $this->scoreCalculator->score([
-                    'success_ratio' => $row->success_ratio !== null ? (float) $row->success_ratio : 1.0,
-                    'latency_ms_avg' => $row->latency_ms_avg !== null ? (int) $row->latency_ms_avg : null,
-                    'fails_count' => (int) $row->fails_count,
-                ]),
-            ])
-            ->sort(fn ($a, $b) => ($b->score <=> $a->score)
-                ?: ((int) $a->fails_count <=> (int) $b->fails_count)
-                ?: ((int) $a->proxy_id <=> (int) $b->proxy_id))
+            ->map(fn (ProxyCandidate $row): ProxyCandidate => $row->withScore($this->scoreCalculator->score([
+                'success_ratio' => $row->successRatio ?? 1.0,
+                'latency_ms_avg' => $row->latencyMsAvg,
+                'fails_count' => $row->failsCount,
+            ])))
+            ->sort(fn (ProxyCandidate $a, ProxyCandidate $b): int => ($b->score <=> $a->score)
+                ?: ($a->failsCount <=> $b->failsCount)
+                ?: ($a->proxyId <=> $b->proxyId))
             ->values();
     }
 
-    private function weightedPick(Collection $pool): object
+    /**
+     * @param  Collection<int, ProxyCandidate>  $pool
+     */
+    private function weightedPick(Collection $pool): ProxyCandidate
     {
-        $epsilon = (float) config('crawler.proxy.resolver.epsilon');
-        $weights = $pool->map(fn ($row) => max($row->score, $epsilon))->values();
-        $total = $weights->sum();
+        $epsilon = $this->floatConfig('crawler.proxy.resolver.epsilon');
+        /** @var Collection<int, float> $weights */
+        $weights = $pool->map(fn (ProxyCandidate $row): float => max($row->score, $epsilon))->values();
+        /** @var list<float> $weightValues */
+        $weightValues = $weights->all();
+        $total = array_sum($weightValues);
 
         $target = $this->nextRandomFloat() * $total;
         $cumulative = 0.0;
 
         foreach ($pool->values() as $index => $row) {
-            $cumulative += $weights->get($index);
+            $cumulative += $weights->get($index) ?? 0.0;
 
             if ($target <= $cumulative) {
                 return $row;
             }
         }
 
-        return $pool->last();
+        return $pool->last() ?? throw new LogicException('A weighted proxy pool cannot be empty.');
     }
 
     private function nextRandomFloat(): float
@@ -307,19 +344,23 @@ final readonly class ProxyResolver
      * `open_count > 0` здесь однозначно значит half-open, не open (иначе строка не попала бы
      * в выборку).
      */
-    private function needsGlobalProbe(object $row): bool
+    private function needsGlobalProbe(ProxyCandidate $row): bool
     {
-        return (int) $row->proxy_open_count > 0;
+        return $row->proxyOpenCount > 0;
     }
 
-    private function needsTargetProbe(object $row): bool
+    private function needsTargetProbe(ProxyCandidate $row): bool
     {
-        return $row->target_id !== null && (int) $row->target_open_count > 0;
+        return $row->targetId !== null && ($row->targetOpenCount ?? 0) > 0;
     }
 
+    /**
+     * @param  Collection<int, ProxyCandidate>  $rows
+     * @return Collection<int, ProxyCandidate>
+     */
     private function without(Collection $rows, int $proxyId): Collection
     {
-        return $rows->reject(fn ($row) => (int) $row->proxy_id === $proxyId)->values();
+        return $rows->reject(fn (ProxyCandidate $row): bool => $row->proxyId === $proxyId)->values();
     }
 
     /**
@@ -343,7 +384,7 @@ final readonly class ProxyResolver
      */
     private function ewmaAttributes(ProxyTarget $target, ProxyOutcome $outcome): array
     {
-        $alpha = (float) config('crawler.proxy.resolver.ewma_alpha');
+        $alpha = $this->floatConfig('crawler.proxy.resolver.ewma_alpha');
         $successValue = $outcome->successful ? 1.0 : 0.0;
         $successRatio = $target->success_ratio * (1 - $alpha) + $successValue * $alpha;
 
@@ -356,5 +397,35 @@ final readonly class ProxyResolver
         }
 
         return ['success_ratio' => $successRatio, 'latency_ms_avg' => $latency];
+    }
+
+    private function intConfig(string $key): int
+    {
+        $value = config($key);
+
+        if (is_int($value)) {
+            return $value;
+        }
+
+        if (is_string($value) && ctype_digit($value)) {
+            return (int) $value;
+        }
+
+        throw new LogicException("Expected an integer config value for {$key}.");
+    }
+
+    private function floatConfig(string $key): float
+    {
+        $value = config($key);
+
+        if (is_float($value) || is_int($value)) {
+            return (float) $value;
+        }
+
+        if (is_string($value) && is_numeric($value)) {
+            return (float) $value;
+        }
+
+        throw new LogicException("Expected a numeric config value for {$key}.");
     }
 }

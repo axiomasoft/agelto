@@ -1,8 +1,9 @@
 <?php
 
-$secret = [\App\Support\SecretValue::class, 'resolve'];
-
+use App\Support\SecretValue;
 use Illuminate\Support\Str;
+
+$secret = [SecretValue::class, 'resolve'];
 
 return [
 

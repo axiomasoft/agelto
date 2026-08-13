@@ -12,6 +12,11 @@ use Illuminate\Console\Command;
 use RuntimeException;
 
 /**
+ * @phpstan-type EvalAggregate array{f1: float, row_coverage: float, per_field: array<string, float>, examples: int}
+ * @phpstan-type EvalSubsample array{base: EvalAggregate, candidate: EvalAggregate, delta: array{f1: float, row_coverage: float, per_field: array<string, float>}}
+ * @phpstan-type EvalProfile array{calls: int, prompt_tokens: int, completion_tokens: int, avg_prompt_tokens: float, cost_micros: int}
+ * @phpstan-type EvalComparison array{base_run_id: int, candidate_run_id: int, subsamples: array<string, EvalSubsample>, per_fixture: array<string, float>, verdict: 'accept'|'reject', reasons: list<string>, noise_basis?: array{pair_base_id: int, pair_candidate_id: int, subsample_thresholds: array<string, array{f1: float, row_coverage: float}>, per_fixture_threshold: float, per_fixture_worst_code: string}, profile?: array{base: EvalProfile, candidate: EvalProfile, output_drop: int, output_drop_noise_threshold: int}}
+ *
  * Сравнение двух `EvalRun` по критерию приёмки патча промта (P7.5, D63 + правило отбора
  * D119/D120): дельты `overall.f1`/`row_coverage`/`per_field` на подвыборках `tune`/`holdout` и
  * дельта `f1` по каждому эталону, вердикт `accept`/`reject` — {@see EvalRunComparator}. НИ ОДНОГО
@@ -134,7 +139,7 @@ final class EvalCompareCommand extends Command
     }
 
     /**
-     * @param  array<string, mixed>  $result
+     * @param  EvalComparison  $result
      */
     private function renderMarkdown(array $result): string
     {
