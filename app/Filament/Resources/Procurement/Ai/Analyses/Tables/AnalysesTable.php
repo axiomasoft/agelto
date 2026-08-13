@@ -13,6 +13,7 @@ use App\Enums\Procurement\Ai\ScreeningDecisionReason;
 use App\Enums\Procurement\Ai\ScreeningDisposition;
 use App\Filament\Support\LlmPresentation;
 use App\Models\Procurement\Ai\Analysis;
+use BackedEnum;
 use Filament\Actions\ViewAction;
 use Filament\Forms\Components\TextInput;
 use Filament\Tables\Columns\TextColumn;
@@ -100,44 +101,44 @@ class AnalysesTable
             ->defaultSort('id', 'desc')
             ->filters([
                 SelectFilter::make('step')
-                    ->options(collect(AnalysisStep::cases())->pluck('value', 'value')->all()),
+                    ->options(self::enumOptions(AnalysisStep::cases())),
                 SelectFilter::make('status')
-                    ->options(collect(AnalysisStatus::cases())->pluck('value', 'value')->all()),
+                    ->options(self::enumOptions(AnalysisStatus::cases())),
                 SelectFilter::make('review_status')
-                    ->options(collect(ReviewStatus::cases())->pluck('value', 'value')->all()),
+                    ->options(self::enumOptions(ReviewStatus::cases())),
                 SelectFilter::make('screening_document_type')
                     ->label('Тип screening')
                     ->options(LlmPresentation::documentTypeOptions())
                     ->query(static function (Builder $query, array $data): Builder {
                         /** @var Builder<Analysis> $query */
-                        $type = AiDocumentType::tryFrom($data['value'] ?? '');
+                        $type = AiDocumentType::tryFrom(self::filterValue($data));
 
                         return $type === null ? $query : $query->withScreeningDocumentType($type);
                     }),
                 SelectFilter::make('screening_cardinality')
                     ->label('Количество смет')
-                    ->options(collect(EstimateCardinality::cases())->pluck('value', 'value')->all())
+                    ->options(self::enumOptions(EstimateCardinality::cases()))
                     ->query(static function (Builder $query, array $data): Builder {
                         /** @var Builder<Analysis> $query */
-                        $cardinality = EstimateCardinality::tryFrom($data['value'] ?? '');
+                        $cardinality = EstimateCardinality::tryFrom(self::filterValue($data));
 
                         return $cardinality === null ? $query : $query->withEstimateCardinality($cardinality);
                     }),
                 SelectFilter::make('screening_disposition')
                     ->label('Решение screening')
-                    ->options(collect(ScreeningDisposition::cases())->pluck('value', 'value')->all())
+                    ->options(self::enumOptions(ScreeningDisposition::cases()))
                     ->query(static function (Builder $query, array $data): Builder {
                         /** @var Builder<Analysis> $query */
-                        $disposition = ScreeningDisposition::tryFrom($data['value'] ?? '');
+                        $disposition = ScreeningDisposition::tryFrom(self::filterValue($data));
 
                         return $disposition === null ? $query : $query->withScreeningDisposition($disposition);
                     }),
                 SelectFilter::make('screening_reason')
                     ->label('Причина решения')
-                    ->options(collect(ScreeningDecisionReason::cases())->pluck('value', 'value')->all())
+                    ->options(self::enumOptions(ScreeningDecisionReason::cases()))
                     ->query(static function (Builder $query, array $data): Builder {
                         /** @var Builder<Analysis> $query */
-                        $reason = ScreeningDecisionReason::tryFrom($data['value'] ?? '');
+                        $reason = ScreeningDecisionReason::tryFrom(self::filterValue($data));
 
                         return $reason === null ? $query : $query->withScreeningDecisionReason($reason);
                     }),
@@ -150,8 +151,10 @@ class AnalysesTable
                     ])
                     ->query(static function (Builder $query, array $data): Builder {
                         /** @var Builder<Analysis> $query */
-                        return filled($data['value'] ?? null)
-                            ? $query->withScreeningTag((string) $data['value'])
+                        $tag = self::filterValue($data);
+
+                        return filled($tag)
+                            ? $query->withScreeningTag($tag)
                             : $query;
                     }),
             ])
@@ -175,7 +178,18 @@ class AnalysesTable
         $screening = $record->storedScreeningResult();
         $tags = $screening === null ? [] : $screening->tags;
 
-        return $tags === [] ? null : implode(', ', $tags);
+        if ($tags === []) {
+            return null;
+        }
+
+        foreach ($tags as $tag) {
+            if (! is_string($tag)) {
+                return null;
+            }
+        }
+
+        /** @var list<string> $tags */
+        return implode(', ', $tags);
     }
 
     private static function lifecycle(Analysis $record): string
@@ -185,5 +199,31 @@ class AnalysesTable
         }
 
         return $record->superseded_at === null ? 'активная' : 'заменена';
+    }
+
+    /** @param list<BackedEnum> $cases
+     * @return array<string, string>
+     */
+    private static function enumOptions(array $cases): array
+    {
+        $options = [];
+
+        foreach ($cases as $case) {
+            if (! is_string($case->value)) {
+                throw new \RuntimeException('Фильтр Filament ожидает строковые enum values.');
+            }
+
+            $options[$case->value] = $case->value;
+        }
+
+        return $options;
+    }
+
+    /** @param array<mixed> $data */
+    private static function filterValue(array $data): string
+    {
+        $value = $data['value'] ?? '';
+
+        return is_string($value) ? $value : '';
     }
 }
