@@ -34,7 +34,7 @@ final readonly class FixtureManifestBuilder
                 continue;
             }
 
-            $code = (string) ($row['code'] ?? '');
+            $code = $this->stringValue($row['code'] ?? '', "shortlist.{$index}.code");
 
             if ($code === '') {
                 $errors[] = "shortlist.{$index}: отсутствует code";
@@ -46,8 +46,8 @@ final readonly class FixtureManifestBuilder
                 continue;
             }
 
-            $sourcePath = (string) ($row['source_path'] ?? '');
-            $extension = strtolower((string) ($row['format'] ?? ''));
+            $sourcePath = $this->stringValue($row['source_path'] ?? '', "{$code}.source_path");
+            $extension = strtolower($this->stringValue($row['format'] ?? '', "{$code}.format"));
             $absoluteSourcePath = "{$sourceDir}/{$sourcePath}";
 
             if (! is_file($absoluteSourcePath)) {
@@ -56,7 +56,13 @@ final readonly class FixtureManifestBuilder
                 continue;
             }
 
-            $content = (string) file_get_contents($absoluteSourcePath);
+            $content = file_get_contents($absoluteSourcePath);
+
+            if ($content === false) {
+                $errors[] = "{$code}: файл-источник не удалось прочитать ({$absoluteSourcePath})";
+
+                continue;
+            }
             $actualHash = hash('sha256', $content);
             $actualSize = strlen($content);
 
@@ -72,13 +78,13 @@ final readonly class FixtureManifestBuilder
                 continue;
             }
 
-            $goldSource = (string) ($row['gold_source'] ?? 'none');
+            $goldSource = $this->stringValue($row['gold_source'] ?? 'none', "{$code}.gold_source");
             // Ось типа документа (D16/D17, §6.1 document-type-axis.md): шорт-лист несёт её ключом
             // document_type; «владелец корпуса» без явного значения в строке равен фактическому
             // типу (запись без document_type отклоняется валидацией FixtureManifestEntry).
-            $documentType = (string) ($row['document_type'] ?? '');
-            $ownerDocumentType = (string) ($row['owner_document_type'] ?? $documentType);
-            $title = (string) ($row['title'] ?? pathinfo($sourcePath, PATHINFO_FILENAME));
+            $documentType = $this->stringValue($row['document_type'] ?? '', "{$code}.document_type");
+            $ownerDocumentType = $this->stringValue($row['owner_document_type'] ?? $documentType, "{$code}.owner_document_type");
+            $title = $this->stringValue($row['title'] ?? pathinfo($sourcePath, PATHINFO_FILENAME), "{$code}.title");
 
             $existing[$code] = [
                 'code' => $code,
@@ -88,9 +94,9 @@ final readonly class FixtureManifestBuilder
                 'sha256' => $actualHash,
                 'size_bytes' => $actualSize,
                 'mime' => $mimeByPath[$sourcePath] ?? MimeDetector::of($content),
-                'class' => strtolower((string) ($row['class'] ?? '')),
+                'class' => strtolower($this->stringValue($row['class'] ?? '', "{$code}.class")),
                 'source_format' => $extension,
-                'form' => (string) ($row['form'] ?? ''),
+                'form' => $this->stringValue($row['form'] ?? '', "{$code}.form"),
                 'generator' => $row['generator'] ?? null,
                 'cluster_id' => $row['cluster_id'] ?? null,
                 'document_type' => $documentType,
@@ -122,21 +128,34 @@ final readonly class FixtureManifestBuilder
         }
 
         try {
-            $decoded = json_decode((string) file_get_contents($manifestPath), associative: true, flags: JSON_THROW_ON_ERROR);
+            $content = file_get_contents($manifestPath);
+
+            if ($content === false) {
+                return [];
+            }
+
+            $decoded = $this->jsonObject(json_decode($content, associative: true, flags: JSON_THROW_ON_ERROR), 'manifest');
         } catch (JsonException) {
             return [];
         }
 
-        if (! is_array($decoded) || ! is_array($decoded['fixtures'] ?? null)) {
+        $fixtures = $decoded['fixtures'] ?? null;
+
+        if (! is_array($fixtures)) {
             return [];
         }
 
+        /** @var array<string, array<string, mixed>> $byCode */
         $byCode = [];
 
-        foreach ($decoded['fixtures'] as $entry) {
-            if (is_array($entry) && isset($entry['code'])) {
-                $byCode[(string) $entry['code']] = $entry;
+        foreach ($fixtures as $entry) {
+            if (! is_array($entry) || ! array_key_exists('code', $entry)) {
+                continue;
             }
+
+            /** @var array<string, mixed> $entry */
+            $code = $this->stringValue($entry['code'], 'manifest fixture code');
+            $byCode[$code] = $entry;
         }
 
         return $byCode;
@@ -152,19 +171,51 @@ final readonly class FixtureManifestBuilder
         }
 
         try {
-            $decoded = json_decode((string) file_get_contents($inventoryPath), associative: true, flags: JSON_THROW_ON_ERROR);
+            $content = file_get_contents($inventoryPath);
+
+            if ($content === false) {
+                return [];
+            }
+
+            $decoded = $this->jsonObject(json_decode($content, associative: true, flags: JSON_THROW_ON_ERROR), 'inventory');
         } catch (JsonException) {
             return [];
         }
 
         $byPath = [];
 
-        foreach ((array) ($decoded['files'] ?? []) as $file) {
-            if (is_array($file) && isset($file['path'], $file['mime'])) {
-                $byPath[(string) $file['path']] = (string) $file['mime'];
+        $files = $decoded['files'] ?? [];
+
+        if (! is_array($files)) {
+            return [];
+        }
+
+        foreach ($files as $file) {
+            if (is_array($file) && isset($file['path'], $file['mime']) && is_string($file['path']) && is_string($file['mime'])) {
+                $byPath[$file['path']] = $file['mime'];
             }
         }
 
         return $byPath;
+    }
+
+    private function stringValue(mixed $value, string $context): string
+    {
+        if (! is_string($value)) {
+            throw new ManifestUnreadable("{$context} должно быть строкой.");
+        }
+
+        return $value;
+    }
+
+    /** @return array<string, mixed> */
+    private function jsonObject(mixed $value, string $context): array
+    {
+        if (! is_array($value) || array_is_list($value)) {
+            throw new ManifestUnreadable("{$context} должен быть JSON-объектом.");
+        }
+
+        /** @var array<string, mixed> $value */
+        return $value;
     }
 }
