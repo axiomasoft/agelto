@@ -6,8 +6,8 @@ const authFile = process.env.E2E_AUTH_FILE ?? 'playwright/.auth/admin.json';
 
 async function authenticate(page: Page, email: string, password: string, output: string): Promise<void> {
     await page.goto('/admin/login');
-    await page.getByRole('textbox', { name: /^email address/i }).fill(email);
-    await page.getByRole('textbox', { name: /^password/i }).fill(password);
+    await page.getByRole('textbox', { name: /^(?:email address|адрес электронной почты)/i }).fill(email);
+    await page.getByRole('textbox', { name: /^(?:password|пароль)/i }).fill(password);
 
     const livewireUpdate = page.waitForResponse((response) => (
         /\/livewire-[^/]+\/update(?:\?|$)/.test(response.url())

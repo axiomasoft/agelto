@@ -76,6 +76,9 @@ AzGuard получает русскую copy только через `config/az-
 Пакет по умолчанию сохраняет English labels, поэтому другой consumer может задать
 свой словарь без изменения Role/DirectGrant/Doctor identity.
 
+Committed default `APP_LOCALE=ru` локализует стандартные Filament actions и validation copy;
+application-owned domain labels по-прежнему задаются явно в Resources и Schemas.
+
 Полный runtime-инвентарь admin routes и ролевых владельцев хранится в
 `plans/2026.08.09-RELEASE-READINESS/artifacts/P9-admin-route-role-matrix.md`.
 `AdminRouteInventoryTest` сверяет этот committed снимок с `route:list --path=admin --json`:
