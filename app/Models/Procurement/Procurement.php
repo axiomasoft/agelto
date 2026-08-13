@@ -20,12 +20,15 @@ use Illuminate\Support\Str;
 /**
  * Текущее состояние закупки (compiledRelease-проекция поверх редакций).
  *
+ * @property ProcurementStatus $status
+ * @property string $uuid
  * @property-read Registry|null $registry
  * @property-read string|null $procedure_type_raw
  */
 #[UseFactory(ProcurementFactory::class)]
 final class Procurement extends Model
 {
+    /** @use HasFactory<ProcurementFactory> */
     use HasFactory;
 
     protected $table = 'prc_procurements';
@@ -105,6 +108,7 @@ final class Procurement extends Model
         });
     }
 
+    /** @return BelongsTo<Registry, $this> */
     public function registry(): BelongsTo
     {
         return $this->belongsTo(related: Registry::class);

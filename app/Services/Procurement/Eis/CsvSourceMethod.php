@@ -82,11 +82,11 @@ final readonly class CsvSourceMethod implements SourceMethod
         ListingCursor $cursor,
         ?EisListingQueryOverrides $queryOverrides = null,
     ): ListingBatch {
-        $blockSize = (int) config('crawler.eis.block_size', 500);
+        $blockSize = $this->intConfig('crawler.eis.block_size', 500);
         $from = $cursor->blockFrom;
         $to = $from + $blockSize - 1;
 
-        $endpoint = (string) config('crawler.eis.csv_endpoint');
+        $endpoint = $this->stringConfig('crawler.eis.csv_endpoint');
         $queryParams = $this->urlBuilder->buildQueryParams(
             crawler: $crawler,
             from: $from,
@@ -99,7 +99,7 @@ final readonly class CsvSourceMethod implements SourceMethod
         $lease = $this->listingLease($crawler, $host);
         $settings = $this->crawlSettings->forStage(
             stage: CrawlStage::Listing,
-            platform: Platform::query()->findOrFail($crawler->registry()->firstOrFail()->getAttribute('platform_id')),
+            platform: $this->platformForId($crawler->registry()->firstOrFail()->getAttribute('platform_id')),
             crawler: $crawler,
         );
         $settings = $this->withRequestAttempts(settings: $settings, attempts: $queryOverrides?->requestAttempts);
@@ -181,7 +181,7 @@ final readonly class CsvSourceMethod implements SourceMethod
 
         $html = [];
 
-        foreach ((array) config('crawler.eis.card_tabs', []) as $tab) {
+        foreach ($this->stringList(config('crawler.eis.card_tabs', []), 'crawler.eis.card_tabs') as $tab) {
             if ($tab === self::SUPPLIER_RESULTS_TAB && ! in_array($procurement->status, self::FINALIZING_STATUSES, strict: true)) {
                 $html[$tab] = null;
 
@@ -229,7 +229,7 @@ final readonly class CsvSourceMethod implements SourceMethod
     {
         $host = $this->canonicalHost($url);
         $lease = $this->detailLease(procurement: $procurement, host: $host);
-        $settings = $this->crawlSettings->forStage(stage: CrawlStage::Detail, platform: Platform::query()->findOrFail($registry->platform_id));
+        $settings = $this->crawlSettings->forStage(stage: CrawlStage::Detail, platform: $this->platformForId($registry->platform_id));
 
         $startedAt = hrtime(true);
         $waitMs = $this->requestBudget->acquire(host: $host, stage: CrawlStage::Detail);
@@ -298,9 +298,13 @@ final readonly class CsvSourceMethod implements SourceMethod
 
     private function storeRawHtml(int $registryId, string $registryNumber, string $tab, string $html): void
     {
-        $disk = config('crawler.raw_html_disk', config('crawler.raw_disk'));
+        $disk = $this->stringConfig('crawler.raw_html_disk', $this->stringConfig('crawler.raw_disk'));
         $path = "raw/html/{$registryId}/{$registryNumber}/{$tab}.html.gz";
         $contents = (bool) config('crawler.raw_html_gzip', true) ? gzencode($html) : $html;
+
+        if ($contents === false) {
+            throw new \RuntimeException('Не удалось gzip-сжать raw HTML.');
+        }
 
         Storage::disk($disk)->put($path, $contents);
     }
@@ -313,7 +317,7 @@ final readonly class CsvSourceMethod implements SourceMethod
         $tlsOptions = $this->tlsTrust->optionsFor($this->canonicalHost($endpoint));
 
         $pendingRequest = Http::withOptions([...$lease->httpOptions(), ...$tlsOptions])
-            ->withUserAgent((string) config('crawler.user_agent'))
+            ->withUserAgent($this->stringConfig('crawler.user_agent'))
             ->withHeaders(['Referer' => 'https://zakupki.gov.ru/'])
             ->timeout($settings->timeoutSeconds ?? 30)
             ->retry(
@@ -383,7 +387,9 @@ final readonly class CsvSourceMethod implements SourceMethod
 
     private function canonicalHost(string $url): string
     {
-        return strtolower((string) parse_url($url, PHP_URL_HOST));
+        $host = parse_url($url, PHP_URL_HOST);
+
+        return strtolower(is_string($host) ? $host : '');
     }
 
     /**
@@ -397,7 +403,7 @@ final readonly class CsvSourceMethod implements SourceMethod
             return [];
         }
 
-        $header = str_getcsv($lines[0], ';', '"');
+        $header = $this->csvFields($lines[0]);
         $rows = [];
 
         foreach (array_slice($lines, offset: 1) as $line) {
@@ -405,7 +411,7 @@ final readonly class CsvSourceMethod implements SourceMethod
                 continue;
             }
 
-            $values = str_getcsv($line, ';', '"');
+            $values = $this->csvFields($line);
 
             if (count($values) !== count($header)) {
                 continue;
@@ -415,5 +421,64 @@ final readonly class CsvSourceMethod implements SourceMethod
         }
 
         return $rows;
+    }
+
+    private function intConfig(string $key, int $default): int
+    {
+        $value = config($key, $default);
+
+        if (! is_int($value)) {
+            throw new \LogicException("{$key} должен быть целым числом.");
+        }
+
+        return $value;
+    }
+
+    private function stringConfig(string $key, ?string $default = null): string
+    {
+        $value = config($key, $default);
+
+        if (! is_string($value)) {
+            throw new \LogicException("{$key} должен быть строкой.");
+        }
+
+        return $value;
+    }
+
+    private function platformForId(mixed $platformId): Platform
+    {
+        if (! is_int($platformId)) {
+            throw new \LogicException('platform_id должен быть целым числом.');
+        }
+
+        return Platform::query()->whereKey($platformId)->firstOrFail();
+    }
+
+    /** @return list<string> */
+    private function stringList(mixed $value, string $context): array
+    {
+        if (! is_array($value)) {
+            throw new \LogicException("{$context} должен быть списком строк.");
+        }
+
+        $strings = [];
+
+        foreach ($value as $entry) {
+            if (! is_string($entry)) {
+                throw new \LogicException("{$context} должен быть списком строк.");
+            }
+
+            $strings[] = $entry;
+        }
+
+        return $strings;
+    }
+
+    /** @return list<string> */
+    private function csvFields(string $line): array
+    {
+        $fields = str_getcsv($line, ';', '"');
+
+        return array_map(static fn (?string $field): string => $field ?? '', $fields);
     }
 }
