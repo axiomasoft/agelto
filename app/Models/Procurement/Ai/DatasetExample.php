@@ -47,6 +47,7 @@ use Illuminate\Support\Collection;
 #[Table(name: 'prc_ai_dataset_examples')]
 final class DatasetExample extends Model
 {
+    /** @use HasFactory<DatasetExampleFactory> */
     use HasFactory;
 
     protected function casts(): array
@@ -58,21 +59,25 @@ final class DatasetExample extends Model
         ];
     }
 
+    /** @return BelongsTo<DocumentVersion, $this> */
     public function documentVersion(): BelongsTo
     {
         return $this->belongsTo(related: DocumentVersion::class);
     }
 
+    /** @return BelongsTo<User, $this> */
     public function verifiedBy(): BelongsTo
     {
         return $this->belongsTo(related: User::class, foreignKey: 'verified_by');
     }
 
+    /** @return BelongsTo<Fixture, $this> */
     public function fixture(): BelongsTo
     {
         return $this->belongsTo(related: Fixture::class);
     }
 
+    /** @return BelongsTo<Analysis, $this> */
     public function analysis(): BelongsTo
     {
         return $this->belongsTo(related: Analysis::class);

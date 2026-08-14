@@ -27,8 +27,10 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 #[Table(name: 'prc_ignored_items')]
 final class IgnoredItem extends Model
 {
+    /** @use HasFactory<IgnoredItemFactory> */
     use HasFactory;
 
+    /** @return BelongsTo<Registry, $this> */
     public function registry(): BelongsTo
     {
         return $this->belongsTo(related: Registry::class);

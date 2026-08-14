@@ -41,6 +41,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 #[Table(name: 'prc_fetches', keyType: 'int')]
 final class Fetch extends Model
 {
+    /** @use HasFactory<FetchFactory> */
     use HasFactory;
 
     public $incrementing = true;
@@ -63,11 +64,13 @@ final class Fetch extends Model
         ];
     }
 
+    /** @return BelongsTo<Run, $this> */
     public function run(): BelongsTo
     {
         return $this->belongsTo(related: Run::class, foreignKey: 'crawler_run_id');
     }
 
+    /** @return BelongsTo<Proxy, $this> */
     public function proxy(): BelongsTo
     {
         return $this->belongsTo(related: Proxy::class);
