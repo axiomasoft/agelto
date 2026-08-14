@@ -103,7 +103,13 @@ final readonly class GsfxReader
     private function parsePassport(string $propertiesUtf8): GsfxPassport
     {
         $pairs = [];
-        foreach (preg_split('/\r\n|\r|\n/', $propertiesUtf8) as $line) {
+        $lines = preg_split('/\r\n|\r|\n/', $propertiesUtf8);
+
+        if ($lines === false) {
+            throw new GsfxUnreadableException('Properties.txt не разбивается на строки.');
+        }
+
+        foreach ($lines as $line) {
             if (! str_contains($line, '=')) {
                 continue;
             }

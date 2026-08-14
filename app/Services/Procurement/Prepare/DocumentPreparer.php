@@ -33,6 +33,10 @@ final readonly class DocumentPreparer
             return PreparationResult::Unprocessable;
         }
 
+        if ($evidence->strategy === null) {
+            throw new \LogicException('Распознанный формат документа должен иметь strategy.');
+        }
+
         /** @var PreparationStrategy $strategy */
         $strategy = $this->container->make($evidence->strategy);
 
