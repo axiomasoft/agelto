@@ -23,6 +23,7 @@ use Illuminate\Support\Str;
  * @property ProcurementStatus $status
  * @property string $uuid
  * @property int $revision_count
+ * @property array<string, array<string, mixed>>|null $detail_parse_outcome
  * @property-read Registry|null $registry
  * @property-read string|null $procedure_type_raw
  */

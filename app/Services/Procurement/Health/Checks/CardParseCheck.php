@@ -33,7 +33,8 @@ final readonly class CardParseCheck implements HealthCheck
         $knownBrokenTabs = 0;
 
         foreach ($procurements as $procurement) {
-            $outcomes = $procurement->detail_parse_outcome ?? [];
+            $outcomes = $procurement->detail_parse_outcome;
+            $outcomes = is_array($outcomes) ? $outcomes : [];
             $procurementIsBad = false;
 
             foreach ($baseline->cardTabs as $tab => $description) {
@@ -44,13 +45,20 @@ final readonly class CardParseCheck implements HealthCheck
                 }
 
                 $outcome = $outcomes[$tab] ?? null;
-                $keyFieldsExpected = (int) ($outcome['key_fields_expected'] ?? 0);
-                $keyFieldsFilled = (int) ($outcome['key_fields_filled'] ?? 0);
 
-                if (! is_array($outcome)
-                    || ($outcome['status'] ?? null) !== 'measured'
-                    || (int) ($outcome['anchors_missing_critical'] ?? 0) > 0
-                    || ($keyFieldsExpected > 0 && $keyFieldsFilled === 0)) {
+                if (! is_array($outcome)) {
+                    $procurementIsBad = true;
+
+                    continue;
+                }
+
+                $outcome = self::stringKeyedMap($outcome);
+
+                if (($outcome['status'] ?? null) !== 'measured'
+                    || self::nonNegativeInt($outcome, 'anchors_missing_critical') > 0
+                    || (self::nonNegativeInt($outcome, 'key_fields_expected') > 0
+                        && self::nonNegativeInt($outcome, 'key_fields_filled') === 0)
+                ) {
                     $procurementIsBad = true;
                 }
             }
@@ -68,5 +76,29 @@ final readonly class CardParseCheck implements HealthCheck
             sampleSize: $sample,
             badShares: [$share],
         );
+    }
+
+    /** @param array<string, mixed> $outcome */
+    private static function nonNegativeInt(array $outcome, string $key): int
+    {
+        $value = $outcome[$key] ?? 0;
+
+        return is_int($value) && $value >= 0 ? $value : 0;
+    }
+
+    /** @param array<mixed> $value
+     * @return array<string, mixed>
+     */
+    private static function stringKeyedMap(array $value): array
+    {
+        $result = [];
+
+        foreach ($value as $key => $entry) {
+            if (is_string($key)) {
+                $result[$key] = $entry;
+            }
+        }
+
+        return $result;
     }
 }
