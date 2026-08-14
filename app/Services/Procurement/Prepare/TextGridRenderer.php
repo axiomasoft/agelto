@@ -61,12 +61,12 @@ final readonly class TextGridRenderer
      */
     public function render(string $localPath, string $extension): array|false
     {
-        $maxMb = (float) config('ai.prepare.xlsx_max_mb', 25);
+        $maxMb = $this->positiveFloatConfig(key: 'ai.prepare.xlsx_max_mb', default: 25.0);
         if (filesize($localPath) > $maxMb * 1024 * 1024) {
             return false;
         }
 
-        $maxRows = (int) config('ai.prepare.xlsx_max_rows', 20000);
+        $maxRows = $this->positiveIntConfig(key: 'ai.prepare.xlsx_max_rows', default: 20_000);
         if ($this->countRows($localPath, $extension) > $maxRows) {
             return false;
         }
@@ -75,7 +75,7 @@ final readonly class TextGridRenderer
         $spreadsheet = $reader->load($localPath);
         $sheets = $spreadsheet->getAllSheets();
 
-        $maxCells = (int) config('ai.prepare.xlsx_max_cells', 2_000_000);
+        $maxCells = $this->positiveIntConfig(key: 'ai.prepare.xlsx_max_cells', default: 2_000_000);
         if ($this->cellBudget($sheets) > $maxCells) {
             $spreadsheet->disconnectWorksheets();
 
@@ -119,7 +119,7 @@ final readonly class TextGridRenderer
     }
 
     /**
-     * @param  array<int, Worksheet>  $sheets
+     * @param  array<Worksheet>  $sheets
      */
     private function cellBudget(array $sheets): int
     {
@@ -134,7 +134,7 @@ final readonly class TextGridRenderer
     }
 
     /**
-     * @param  array<int, string>  $mergeRanges
+     * @param  array<array-key, string>  $mergeRanges
      */
     private function mergeArea(array $mergeRanges): int
     {
@@ -171,7 +171,7 @@ final readonly class TextGridRenderer
     }
 
     /**
-     * @param  array<int, string>  $mergeRanges
+     * @param  array<array-key, string>  $mergeRanges
      * @param  array<int, array<int, string>>  $values
      */
     private function applyMerges(array $mergeRanges, array &$values): void
@@ -235,6 +235,32 @@ final readonly class TextGridRenderer
             return rtrim(rtrim(sprintf('%.10F', $value), '0'), '.');
         }
 
-        return trim((string) $value);
+        if (is_int($value) || is_string($value) || $value instanceof \Stringable) {
+            return trim((string) $value);
+        }
+
+        return '';
+    }
+
+    private function positiveFloatConfig(string $key, float $default): float
+    {
+        $value = config($key, $default);
+
+        if ((! is_float($value) && ! is_int($value)) || $value <= 0) {
+            throw new \UnexpectedValueException("{$key} must be a positive number.");
+        }
+
+        return (float) $value;
+    }
+
+    private function positiveIntConfig(string $key, int $default): int
+    {
+        $value = config($key, $default);
+
+        if (! is_int($value) || $value <= 0) {
+            throw new \UnexpectedValueException("{$key} must be a positive integer.");
+        }
+
+        return $value;
     }
 }
