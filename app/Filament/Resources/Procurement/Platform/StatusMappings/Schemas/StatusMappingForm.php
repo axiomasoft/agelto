@@ -12,6 +12,7 @@ use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Components\Utilities\Set;
 use Filament\Schemas\Schema;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Query\Builder as QueryBuilder;
 use Illuminate\Validation\Rule;
 
 final class StatusMappingForm
@@ -77,7 +78,7 @@ final class StatusMappingForm
                             ->maxLength(255)
                             ->rules(fn (Get $get): array => [
                                 Rule::unique('prc_status_mappings', 'source_stage')
-                                    ->where(function ($query) use ($get) {
+                                    ->where(function (QueryBuilder $query) use ($get): QueryBuilder {
                                         return match ($get('applicability')) {
                                             StatusMappingApplicability::Platform, StatusMappingApplicability::Platform->value => $query->where('platform_id', $get('platform_id')),
                                             StatusMappingApplicability::Registry, StatusMappingApplicability::Registry->value => $query->where('registry_id', $get('registry_id')),
