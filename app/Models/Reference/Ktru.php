@@ -28,6 +28,7 @@ use Illuminate\Database\Eloquent\Model;
 #[Table(name: 'ref_ktru')]
 final class Ktru extends Model
 {
+    /** @use HasFactory<KtruFactory> */
     use HasFactory;
 
     protected function casts(): array

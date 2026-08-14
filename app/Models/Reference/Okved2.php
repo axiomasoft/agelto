@@ -27,6 +27,7 @@ use Illuminate\Database\Eloquent\Model;
 #[Table(name: 'ref_okved2')]
 final class Okved2 extends Model
 {
+    /** @use HasFactory<Okved2Factory> */
     use HasFactory;
 
     protected function casts(): array

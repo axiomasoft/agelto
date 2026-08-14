@@ -52,6 +52,7 @@ use Illuminate\Database\Eloquent\Model;
 #[WithoutIncrementing]
 final class EisDetails extends Model
 {
+    /** @use HasFactory<EisDetailsFactory> */
     use HasFactory;
 
     protected function casts(): array

@@ -28,6 +28,7 @@ use Illuminate\Database\Eloquent\Model;
 #[Table(name: 'prc_okpd2_nodes')]
 final class Okpd2Node extends Model
 {
+    /** @use HasFactory<Okpd2NodeFactory> */
     use HasFactory;
 
     protected function casts(): array

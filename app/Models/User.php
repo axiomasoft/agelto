@@ -27,6 +27,7 @@ use Illuminate\Notifications\Notifiable;
 ])]
 class User extends Authenticatable implements AzGuardUser, FilamentUser
 {
+    /** @use HasFactory<UserFactory> */
     use HasAzGuard, HasFactory, Notifiable;
 
     /**

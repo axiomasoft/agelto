@@ -33,6 +33,7 @@ use Illuminate\Database\Eloquent\Model;
 #[Table(name: 'prc_items')]
 final class PurchaseItem extends Model
 {
+    /** @use HasFactory<PurchaseItemFactory> */
     use HasFactory;
 
     protected function casts(): array

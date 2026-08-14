@@ -27,6 +27,7 @@ use Illuminate\Database\Eloquent\Model;
 #[Table(name: 'ref_kbk')]
 final class Kbk extends Model
 {
+    /** @use HasFactory<KbkFactory> */
     use HasFactory;
 
     protected function casts(): array
