@@ -32,7 +32,7 @@ status: living
 | `make dev:logs [SERVICE=app]` / `dev:shell` | Логи / `bash` внутри dev `app` |
 | `make dev:artisan ARGS="..."` / `dev:composer ARGS="..."` | Artisan или Composer внутри dev `app` |
 | `make agent:artisan ARGS="..."` | Non-TTY (`-T`) Artisan для агента |
-| `make vendor:sync` | Клонирует точный private AzGuard commit из tracked manifest и проверяет Composer closure |
+| `make vendor:sync` | Клонирует точный публичный AzGuard commit из tracked manifest и проверяет Composer closure |
 | `make vendor:check` | Без мутаций проверяет origin, полный SHA, чистоту package paths и Composer dry install |
 | `make prod:config ENV_FILE=.env.production` | Только рендер production Compose, без запуска стека |
 | `make image:build IMAGE_TAG=<immutable-tag>` | Собирает same-SHA `app` + `doctor` image pair; `latest` запрещён |

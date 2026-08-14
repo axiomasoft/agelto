@@ -51,9 +51,7 @@ jobs:
           path: ${{ steps.pnpm-cache.outputs.path }}
           key: pnpm-${{ runner.os }}-${{ runner.arch }}-node22-${{ hashFiles('pnpm-lock.yaml') }}
       - name: Bootstrap trusted local carrier
-        env:
-          AZGUARD_CI_TOKEN: ${{ secrets.AZGUARD_CI_TOKEN }}
-        run: bash docker/scripts/ci-private-dependency-preflight.sh make bootstrap MODE=dev ENV_FILE=.env
+        run: make bootstrap MODE=dev ENV_FILE=.env
       - name: Run local quality carrier
         run: make quality
       - name: Save Composer download cache on trusted push
@@ -83,9 +81,7 @@ jobs:
           php-version: '8.5'
           coverage: pcov
       - name: Bootstrap trusted local carrier
-        env:
-          AZGUARD_CI_TOKEN: ${{ secrets.AZGUARD_CI_TOKEN }}
-        run: bash docker/scripts/ci-private-dependency-preflight.sh make bootstrap MODE=dev ENV_FILE=.env
+        run: make bootstrap MODE=dev ENV_FILE=.env
       - name: Run full no-TIA JUnit carrier
         run: make test:junit
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -110,9 +106,7 @@ jobs:
           php-version: '8.5'
           coverage: pcov
       - name: Bootstrap trusted local carrier
-        env:
-          AZGUARD_CI_TOKEN: ${{ secrets.AZGUARD_CI_TOKEN }}
-        run: bash docker/scripts/ci-private-dependency-preflight.sh make bootstrap MODE=dev ENV_FILE=.env
+        run: make bootstrap MODE=dev ENV_FILE=.env
       - name: Run no-TIA coverage carrier
         run: make test:coverage
       - name: Enforce release coverage floors
@@ -152,9 +146,8 @@ jobs:
         run: corepack enable
       - name: Run isolated D24 carrier
         env:
-          AZGUARD_CI_TOKEN: ${{ secrets.AZGUARD_CI_TOKEN }}
           E2E_ARTIFACT_DIR: .ci-artifacts
-        run: bash docker/scripts/ci-private-dependency-preflight.sh bash docker/tests/clean-install-e2e.sh
+        run: bash docker/tests/clean-install-e2e.sh
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: always()
         with:
@@ -180,10 +173,8 @@ jobs:
           node-version: '22.17.1'
       - name: Enable locked pnpm
         run: corepack enable
-      - name: Prepare private package source
-        env:
-          AZGUARD_CI_TOKEN: ${{ secrets.AZGUARD_CI_TOKEN }}
-        run: bash docker/scripts/ci-private-dependency-preflight.sh make vendor:sync
+      - name: Prepare public package source
+        run: make vendor:sync
       - name: Audit locked dependencies
         run: |
           composer audit --locked --no-interaction
@@ -212,9 +203,7 @@ jobs:
           php-version: '8.5'
           coverage: pcov
       - name: Bootstrap trusted local carrier
-        env:
-          AZGUARD_CI_TOKEN: ${{ secrets.AZGUARD_CI_TOKEN }}
-        run: bash docker/scripts/ci-private-dependency-preflight.sh make bootstrap MODE=dev ENV_FILE=.env
+        run: make bootstrap MODE=dev ENV_FILE=.env
       - name: Collect D40/D42 no-TIA release evidence
         run: make test:release
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1

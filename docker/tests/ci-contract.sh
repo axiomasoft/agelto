@@ -9,7 +9,7 @@ ci_workflow=.github/workflows/ci.yml
 tia_workflow=.github/workflows/tia-baseline.yml
 matrix=plans/2026.08.09-RELEASE-READINESS/artifacts/P11-risk-test-matrix.md
 
-for required_file in "$ci_workflow" "$tia_workflow" .github/dependabot.yml docker/scripts/ci-private-dependency-preflight.sh docker/scripts/coverage-gate.py; do
+for required_file in "$ci_workflow" "$tia_workflow" .github/dependabot.yml docker/scripts/coverage-gate.py; do
     test -f "$required_file" || { echo "Missing CI carrier: $required_file" >&2; exit 1; }
 done
 
@@ -66,11 +66,8 @@ rg -q 'test.*junit' docker/Makefile
 rg -q 'test.*tia-baseline-export' docker/Makefile
 rg -q -- '--ci --no-tia' docker/Makefile
 
-if AZGUARD_CI_TOKEN='' bash docker/scripts/ci-private-dependency-preflight.sh true; then
-    echo 'Missing private credential unexpectedly passed.' >&2
-    exit 1
-fi
-AZGUARD_CI_TOKEN='contract-token' bash docker/scripts/ci-private-dependency-preflight.sh true
+! rg -q 'AZGUARD_CI_TOKEN|ci-private-dependency-preflight' "$ci_workflow" "$tia_workflow"
+rg -q 'run: make vendor:sync' "$ci_workflow"
 
 rg -q '^\| D42 .*\| Covered \| P11\.6 seals live-CI, coverage/performance/flake budgets \|$' "$matrix"
 ! rg -q '^\| D(19|20|21|22|23|24|25|26|27|28|29|30|31|32|33|34|35|36|38|39|40|41|42) .*\| (Gap|Partial) \|' "$matrix"

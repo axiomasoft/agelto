@@ -32,9 +32,7 @@ jobs:
           php-version: '8.5'
           coverage: pcov
       - name: Bootstrap trusted local carrier
-        env:
-          AZGUARD_CI_TOKEN: ${{ secrets.AZGUARD_CI_TOKEN }}
-        run: bash docker/scripts/ci-private-dependency-preflight.sh make bootstrap MODE=dev ENV_FILE=.env
+        run: make bootstrap MODE=dev ENV_FILE=.env
       - name: Record fresh TIA baseline
         run: make test:tia-refresh
       - name: Export exact hidden Pest baseline path
