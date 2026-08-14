@@ -24,6 +24,9 @@ final class CrawlerRuntimeOptions extends Data
         public ?int $maxPauseMs = null,
     ) {}
 
+    /**
+     * @param  Arrayable<array-key, mixed>|array<string, mixed>  $payload
+     */
     public static function validateAndCreate(Arrayable|array $payload): static
     {
         $raw = $payload instanceof Arrayable ? $payload->toArray() : $payload;
@@ -43,6 +46,9 @@ final class CrawlerRuntimeOptions extends Data
         return parent::validateAndCreate($raw);
     }
 
+    /**
+     * @return array<string, list<string>>
+     */
     public static function rules(ValidationContext $context): array
     {
         return [

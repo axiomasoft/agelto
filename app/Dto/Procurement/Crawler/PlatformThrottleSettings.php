@@ -23,6 +23,9 @@ final class PlatformThrottleSettings extends Data
         public array $stages = [],
     ) {}
 
+    /**
+     * @param  Arrayable<array-key, mixed>|array<string, mixed>  $payload
+     */
     public static function validateAndCreate(Arrayable|array $payload): static
     {
         $raw = $payload instanceof Arrayable ? $payload->toArray() : $payload;
@@ -49,6 +52,7 @@ final class PlatformThrottleSettings extends Data
                 throw ValidationException::withMessages(["throttle.stages.{$stage}" => 'Настройки стадии должны быть объектом.']);
             }
 
+            /** @var array<string, mixed> $settings */
             $stages[$stage] = StageSettings::validateAndCreate($settings)->toArray();
         }
 
@@ -57,6 +61,9 @@ final class PlatformThrottleSettings extends Data
         return parent::validateAndCreate($raw);
     }
 
+    /**
+     * @return array<string, list<string>>
+     */
     public static function rules(ValidationContext $context): array
     {
         return [

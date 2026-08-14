@@ -118,6 +118,9 @@ final class EisSearchFilter extends Data implements HasArchiveWindow, HasPriceRa
      * `validateAndCreate()` тихо игнорирует, поэтому неизвестный ключ отклоняется явно ДО
      * делегирования родителю — с именем ключа и списком допустимых (Implementation Rules P4.3 п. 3).
      */
+    /**
+     * @param  Arrayable<array-key, mixed>|array<string, mixed>  $payload
+     */
     public static function validateAndCreate(Arrayable|array $payload): static
     {
         $raw = $payload instanceof Arrayable ? $payload->toArray() : $payload;

@@ -37,6 +37,9 @@ final class ScreeningResult extends Data implements StructurallyValidatable
         public ?string $classification_note = null,
     ) {}
 
+    /**
+     * @param  Arrayable<array-key, mixed>|array<string, mixed>  $payload
+     */
     public static function validateAndCreate(Arrayable|array $payload): static
     {
         $data = $payload instanceof Arrayable ? $payload->toArray() : $payload;

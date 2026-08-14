@@ -91,6 +91,9 @@ final class EstimateRow extends Data
      * не отклоняет незнакомые ключи (лишние ключи `from()`/`validateAndCreate()` тихо игнорирует) —
      * проверка добавлена явно ДО делегирования остальной валидации родителю.
      */
+    /**
+     * @param  Arrayable<array-key, mixed>|array<string, mixed>  $payload
+     */
     public static function validateAndCreate(Arrayable|array $payload): static
     {
         $raw = $payload instanceof Arrayable ? $payload->toArray() : $payload;
