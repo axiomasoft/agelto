@@ -31,17 +31,39 @@ final readonly class GoldDocumentView
      */
     public static function fromPayload(array $gold): self
     {
+        $estimatePayloads = $gold['estimates'] ?? [];
+
+        if (! is_array($estimatePayloads)) {
+            $estimatePayloads = [];
+        }
+
         $estimates = array_map(static function (mixed $estimate): array {
-            $estimate = (array) $estimate;
+            if (! is_array($estimate)) {
+                throw ValidationException::withMessages(['estimates' => 'Каждая смета должна быть объектом.']);
+            }
+
+            /** @var array<string, mixed> $estimate */
+            $rows = $estimate['rows'] ?? [];
+
+            if (! is_array($rows)) {
+                throw ValidationException::withMessages(['estimates.rows' => 'Строки сметы должны быть списком.']);
+            }
 
             return [
                 'passport' => PassportResponse::validateAndCreate(Arr::except($estimate, ['rows'])),
                 'rows' => array_map(
-                    static fn (mixed $row): EstimateRow => EstimateRow::validateAndCreate((array) $row),
-                    array_values((array) ($estimate['rows'] ?? [])),
+                    static function (mixed $row): EstimateRow {
+                        if (! is_array($row)) {
+                            throw ValidationException::withMessages(['estimates.rows' => 'Строка сметы должна быть объектом.']);
+                        }
+
+                        /** @var array<string, mixed> $row */
+                        return EstimateRow::validateAndCreate($row);
+                    },
+                    array_values($rows),
                 ),
             ];
-        }, array_values((array) ($gold['estimates'] ?? [])));
+        }, array_values($estimatePayloads));
 
         return new self($estimates);
     }

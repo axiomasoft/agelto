@@ -16,6 +16,7 @@ final class CardParseOutcome extends Data
 {
     public function __construct(
         public string $status,
+        /** @var list<array{selector: string, critical: bool, matches: int}> */
         public array $anchors,
         public int $anchorsMissingCritical,
         public int $keyFieldsExpected,

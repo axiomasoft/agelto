@@ -20,7 +20,7 @@ use Spatie\LaravelData\Support\Validation\ValidationContext;
 final class ScreeningResult extends Data implements StructurallyValidatable
 {
     /**
-     * @param  string[]  $tags
+     * @param  list<string>  $tags
      */
     public function __construct(
         #[Description('тип документа — estimate/tech_spec/contract_draft/protocol/unknown.')]
