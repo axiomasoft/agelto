@@ -3,7 +3,7 @@ projection: status-view
 projection_version: v1
 source_scope: plan core + phases + journal
 through: 2026-08-14
-inputs_sha256: 6a29f5790a7d20cd508f157db07f461085b38d2bf2cc838867e168e50d49f0b8
+inputs_sha256: 5e34df5ebfc92f60f8cb4619579dd0deafeb9814d1722099952a7b0234400f48
 generated_by: task plan-views status
 -->
 
@@ -26,7 +26,7 @@ generated_by: task plan-views status
 | P0 | Разведка репозитория, референсов и RAG-контракты | 8/8 | 🟢 Done |
 | P1 | Makefile и Docker dev/prod с Vite-ready topology | 7/7 | 🟢 Done |
 | P10 | PHP, архитектура, безопасность и production-readiness audit | 5/6 | 🟠 Done with deviations |
-| P11 | Pest 5 performance, test isolation и CI | 2/6 | 🟡 In progress |
+| P11 | Pest 5 performance, test isolation и CI | 3/6 | 🟡 In progress |
 | P12 | Ubuntu deployment guide и финальный clean-room rehearsal | 0/7 | ⬜ Not started |
 | P2 | Local vendor, secrets, preflight, bootstrap и Laravel Doctor | 7/7 | 🟢 Done |
 | P3 | Fresh install, Livewire/Filament assets и application readiness | 5/5 | 🟢 Done |
@@ -79,7 +79,7 @@ generated_by: task plan-views status
 |:--|:--|:--|:--|
 | P11.1 | Измерить текущий suite и верифицировать Pest 5 fast/TIA/parallel capabilities | 🟢 Done | 2026-08-14 |
 | P11.2 | Настроить Pest 5 engine, profiling, parallelism и безопасные caches | 🟢 Done | 2026-08-14 |
-| P11.3 | Укрепить test DB/media isolation и agent-optimized output | 🟡 In progress | 2026-08-14 |
+| P11.3 | Укрепить test DB/media isolation и agent-optimized output | 🟢 Done | 2026-08-14 |
 | P11.4 | Закрыть недостающие risk-based unit/feature/integration/E2E suites | ⬜ Not started | — |
 | P11.5 | Настроить CI style/static/tests/build/security с корректными caches | ⬜ Not started | — |
 | P11.6 | Запечатать performance, coverage, determinism и flake gates | ⬜ Not started | — |
@@ -679,6 +679,9 @@ write-site: pre_mutation: allow · pre_final: allow |
 write-site: pre_mutation: allow · pre_final: allow |
 | 2026-08-14 | gpt-5.6-terra/high | plan-run · in-progress · — |
 | 2026-08-14 | gpt-5.6-terra/high | plan-run · local-repair · Product commit 2bf3e7c8 and quality green; documentation clean-build cannot fetch pinned AzGuard commit ca37d4b from remote. |
+| 2026-08-14 | gpt-5.6-terra/high | plan-run · closed-green · Exact DB/filesystem guard, PAO and clean local-vendor documentation contract are green. |
+| 2026-08-14 | gpt-5.6-terra/high | plan-run · local-repair · Projected closure evidence refreshed after clean local-vendor repair.
+write-site: pre_mutation: allow · pre_final: allow |
 
 ## Owner Gates
 
