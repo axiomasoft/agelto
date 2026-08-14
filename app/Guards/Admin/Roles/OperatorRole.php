@@ -87,17 +87,20 @@ final class OperatorRole extends BaseRole
     /**
      * Стандартный CRUD-набор одного ресурса (без restore/forceDelete/replicate/reorder).
      *
-     * @param  class-string  $enum
+     * @param  class-string<UnitEnum>  $enum
      * @return list<UnitEnum>
      */
     private function crud(string $enum): array
     {
-        return [
+        /** @var list<UnitEnum> $permissions */
+        $permissions = [
             $enum::ViewAny,
             $enum::View,
             $enum::Create,
             $enum::Update,
             $enum::Delete,
         ];
+
+        return $permissions;
     }
 }

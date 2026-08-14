@@ -24,6 +24,12 @@ final class AssignTraceId
         Context::add('trace_id', (string) Str::uuid());
         Context::add('url', $request->fullUrl());
 
-        return $next($request);
+        $response = $next($request);
+
+        if (! $response instanceof Response) {
+            throw new \UnexpectedValueException('HTTP middleware must return a response.');
+        }
+
+        return $response;
     }
 }

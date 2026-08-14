@@ -6,6 +6,7 @@ namespace App\Guards\Admin;
 
 use AzGuard\Panels\Panel;
 use AzGuard\Panels\PanelProvider;
+use UnitEnum;
 
 /**
  * AzGuard-панель admin.
@@ -37,15 +38,20 @@ final class AdminGuardPanelProvider extends PanelProvider
     /**
      * Классы permission-enum'ов из app/Guards/Admin/Permissions/*Permission.php.
      *
-     * @return list<class-string>
+     * @return list<class-string<UnitEnum>>
      */
     private function discoverPermissionEnums(): array
     {
         $files = glob(__DIR__.'/Permissions/*Permission.php') ?: [];
 
-        return array_values(array_filter(array_map(
+        $classes = array_map(
             fn (string $file): string => __NAMESPACE__.'\\Permissions\\'.basename($file, '.php'),
             $files,
-        ), enum_exists(...)));
+        );
+
+        return array_values(array_filter(
+            $classes,
+            static fn (string $class): bool => enum_exists($class) && is_subclass_of($class, UnitEnum::class),
+        ));
     }
 }
