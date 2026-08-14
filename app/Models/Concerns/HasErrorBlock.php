@@ -18,9 +18,9 @@ trait HasErrorBlock
     public function recordFailure(string $message): void
     {
         $attempts = $this->attempts + 1;
-        $maxAttempts = (int) config('ai.retry.max_attempts', 5);
+        $maxAttempts = $this->positiveIntegerConfig('ai.retry.max_attempts', default: 5);
         $isPermanent = $attempts >= $maxAttempts;
-        $backoffMinutes = min(2 ** $attempts, (int) config('ai.retry.max_backoff_minutes', 240));
+        $backoffMinutes = min(2 ** $attempts, $this->positiveIntegerConfig('ai.retry.max_backoff_minutes', default: 240));
 
         $this->forceFill([
             'attempts' => $attempts,
@@ -29,5 +29,16 @@ trait HasErrorBlock
             'next_retry_at' => $isPermanent ? null : now()->addMinutes($backoffMinutes),
             'failed_permanently' => $isPermanent,
         ])->save();
+    }
+
+    private function positiveIntegerConfig(string $key, int $default): int
+    {
+        $value = config($key, $default);
+
+        if (! is_int($value) || $value <= 0) {
+            throw new \UnexpectedValueException("{$key} must be a positive integer.");
+        }
+
+        return $value;
     }
 }

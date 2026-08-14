@@ -97,7 +97,13 @@ abstract class PipelineJob implements ShouldQueue
      */
     public function uniqueFor(): int
     {
-        return (int) config('ai.pipeline.unique_lock_minutes', 60) * 60;
+        $minutes = config('ai.pipeline.unique_lock_minutes', 60);
+
+        if (! is_int($minutes) || $minutes <= 0) {
+            throw new \UnexpectedValueException('ai.pipeline.unique_lock_minutes must be a positive integer.');
+        }
+
+        return $minutes * 60;
     }
 
     /**
