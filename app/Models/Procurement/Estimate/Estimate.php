@@ -50,6 +50,7 @@ use Illuminate\Support\Str;
  * @property Collection<int, string>|null $validation_notes ValidationReport::$notes сметы целиком (research/12-uncertainty-model.md §5); null — валидатор ничего не нашёл
  * @property string|null $raw_result_ref
  * @property string|null $raw_result_disk
+ * @property Collection<array-key, mixed>|null $passport
  * @property string|null $source_sheet_name
  * @property int|null $source_page_start
  * @property-read DocumentVersion|null $documentVersion

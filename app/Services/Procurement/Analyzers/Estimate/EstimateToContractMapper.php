@@ -16,6 +16,7 @@ use App\Models\Procurement\Estimate\Item;
 use App\Models\Procurement\Estimate\Resource;
 use App\Models\Procurement\Estimate\Section;
 use App\Models\Procurement\Estimate\Total;
+use Illuminate\Contracts\Support\Arrayable;
 use Illuminate\Support\Collection;
 
 /**
@@ -44,8 +45,9 @@ final readonly class EstimateToContractMapper
     {
         $estimate->loadMissing(['sections', 'items.resources', 'totals']);
 
+        $passportData = $estimate->passport;
         $passport = PassportResponse::from([
-            'passport' => $estimate->passport?->toArray() ?? [],
+            'passport' => $passportData instanceof Arrayable ? $passportData->toArray() : [],
             'estimate_number' => $estimate->estimate_number,
             'currency' => $estimate->currency,
             'base_year' => $estimate->base_year,
@@ -61,8 +63,11 @@ final readonly class EstimateToContractMapper
             'period_end' => $estimate->period_end?->toDateString(),
         ]);
 
+        /** @var array<string, mixed> $passportPayload */
+        $passportPayload = $passport->toArray();
+
         return [
-            ...$passport->toArray(),
+            ...$passportPayload,
             'ordinal' => $estimate->ordinal,
             'rows' => array_map(
                 static fn (EstimateRow $row): array => $row->toArray(),
@@ -77,7 +82,7 @@ final readonly class EstimateToContractMapper
      */
     private function totalsTree(Collection $totals, ?int $parentId = null): array
     {
-        return $totals
+        return array_values($totals
             ->where('parent_id', $parentId)
             ->sortBy('position')
             ->map(fn (Total $total): TotalLine => new TotalLine(
@@ -89,7 +94,7 @@ final readonly class EstimateToContractMapper
                 children: $this->totalsTree($totals, $total->id),
             ))
             ->values()
-            ->all();
+            ->all());
     }
 
     /**
@@ -199,8 +204,20 @@ final readonly class EstimateToContractMapper
      */
     private function modifiers(Item $item): array
     {
-        $modifiers = (array) ($item->attributes?->get('modifiers') ?? []);
+        $modifiers = $item->attributes['modifiers'] ?? [];
 
-        return array_map(static fn (array $modifier): RowModifier => RowModifier::from($modifier), $modifiers);
+        if (! is_array($modifiers)) {
+            return [];
+        }
+
+        $result = [];
+
+        foreach ($modifiers as $modifier) {
+            if (is_array($modifier)) {
+                $result[] = RowModifier::from($modifier);
+            }
+        }
+
+        return $result;
     }
 }
