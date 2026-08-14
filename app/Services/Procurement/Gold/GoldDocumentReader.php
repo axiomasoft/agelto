@@ -39,7 +39,7 @@ final readonly class GoldDocumentReader
         }
 
         try {
-            return GoldDocumentView::fromPayload($gold);
+            return GoldDocumentView::fromPayload($this->stringKeyedArray($gold));
         } catch (ValidationException|CannotCreateData $exception) {
             throw new GoldFileUnreadable("Gold-файл не соответствует контракту: {$exception->getMessage()}");
         }
@@ -51,7 +51,13 @@ final readonly class GoldDocumentReader
             throw new GoldFileUnreadable("Отказ чтения: небезопасный код эталона «{$code}».");
         }
 
-        $directory = realpath((string) config('ai.fixtures.gold_dir'));
+        $goldDirectory = config('ai.fixtures.gold_dir');
+
+        if (! is_string($goldDirectory)) {
+            throw new GoldFileUnreadable('Каталог gold-файлов не настроен.');
+        }
+
+        $directory = realpath($goldDirectory);
 
         if ($directory === false || ! is_dir($directory)) {
             throw new GoldFileUnreadable('Каталог gold-файлов недоступен.');
@@ -65,5 +71,22 @@ final readonly class GoldDocumentReader
         }
 
         return $path;
+    }
+
+    /**
+     * @param  array<mixed>  $values
+     * @return array<string, mixed>
+     */
+    private function stringKeyedArray(array $values): array
+    {
+        $result = [];
+
+        foreach ($values as $key => $value) {
+            if (is_string($key)) {
+                $result[$key] = $value;
+            }
+        }
+
+        return $result;
     }
 }

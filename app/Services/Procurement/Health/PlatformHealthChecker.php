@@ -49,7 +49,11 @@ final readonly class PlatformHealthChecker
     ): array {
         $baseline = $this->baselineReader->read();
 
-        $platformCode = (string) $platform->getAttribute('code');
+        $platformCode = $platform->getAttribute('code');
+
+        if (! is_string($platformCode)) {
+            throw new LogicException('У площадки отсутствует строковый code.');
+        }
 
         if ($baseline->platform !== $platformCode) {
             throw new LogicException("Эталон {$baseline->platform} не соответствует площадке {$platformCode}.");
@@ -112,7 +116,7 @@ final readonly class PlatformHealthChecker
 
             return $previousVerdict === $result->verdict
                 && $this->previousCheckedAt(check: $previous)
-                    ->addHours((int) config('crawler.health.repeat_alert_hours'))
+                    ->addHours($this->repeatAlertHours())
                     ->lte($checkedAt);
         }
 
@@ -124,6 +128,17 @@ final readonly class PlatformHealthChecker
     private function isAlertable(PlatformCheckVerdict $verdict): bool
     {
         return in_array($verdict, [PlatformCheckVerdict::Degraded, PlatformCheckVerdict::Broken], strict: true);
+    }
+
+    private function repeatAlertHours(): int
+    {
+        $value = config('crawler.health.repeat_alert_hours');
+
+        if (! is_int($value)) {
+            throw new LogicException('crawler.health.repeat_alert_hours must be an integer.');
+        }
+
+        return $value;
     }
 
     private function previousVerdict(?PlatformCheck $check): ?PlatformCheckVerdict
