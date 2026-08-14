@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services\Procurement\Detail;
 
 use App\Dto\Procurement\Details\CommonInfoData;
+use App\Dto\Procurement\Details\FinancingRowData;
 use App\Dto\Procurement\Details\PurchaseItemRowData;
 use App\Models\Procurement\Procurement;
 use App\Repositories\Procurement\ProcurementDetailStoreRepository;
@@ -111,7 +112,7 @@ final readonly class CommonInfoProcessor
     private function financingRows(CommonInfoData $data): array
     {
         return array_map(
-            static fn ($row): array => [
+            static fn (FinancingRowData $row): array => [
                 'fiscal_year' => $row->fiscalYear,
                 'amount' => $row->amount,
                 'kind' => $row->kind,

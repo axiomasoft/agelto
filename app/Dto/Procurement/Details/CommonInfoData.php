@@ -28,7 +28,9 @@ final readonly class CommonInfoData
         public ?string $etpUrl = null,
         public ?string $contactPersonName = null,
         public ?string $contactPersonEmail = null,
+        /** @var list<FinancingRowData> */
         public array $financingRows = [],
+        /** @var list<PurchaseItemRowData> */
         public array $items = [],
     ) {}
 }
