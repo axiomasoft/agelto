@@ -88,9 +88,12 @@ run_stage preflight run_make infra:preflight "MODE=$mode" "ENV_FILE=$env_file"
 run_stage dependencies-image run_make image:build "IMAGE_TAG=$image_tag"
 
 if [[ "$mode" == dev ]]; then
+    # The development service bind-mounts vendor from the checkout.  A fresh CI
+    # checkout has no autoloader yet, so install it in a one-off service before
+    # app health can be evaluated.
+    run_stage dev-dependencies run_make dev:composer-bootstrap 'ARGS=install --no-interaction --no-progress' "ENV_FILE=$env_file" "COMPOSE_PROJECT_NAME=$project_name"
     run_stage dev-up run_make dev:up "ENV_FILE=$env_file" "COMPOSE_PROJECT_NAME=$project_name"
     run_stage dev-storage run_make dev:storage-init "ENV_FILE=$env_file" "COMPOSE_PROJECT_NAME=$project_name"
-    run_stage dev-dependencies run_make dev:composer 'ARGS=install --no-interaction --no-progress' "ENV_FILE=$env_file" "COMPOSE_PROJECT_NAME=$project_name"
     run_stage dev-assets run_make assets:repair "ENV_FILE=$env_file" "COMPOSE_PROJECT_NAME=$project_name"
     run_stage dev-migrate run_make dev:migrate "ENV_FILE=$env_file" "COMPOSE_PROJECT_NAME=$project_name"
     run_stage dev-base-seed run_make dev:seed-base "ENV_FILE=$env_file" "COMPOSE_PROJECT_NAME=$project_name"
