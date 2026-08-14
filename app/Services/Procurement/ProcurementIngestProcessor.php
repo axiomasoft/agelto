@@ -143,7 +143,7 @@ final readonly class ProcurementIngestProcessor
 
         $latestRevisionNumber = $latestRevision === null
             ? 0
-            : (int) $latestRevision->getAttribute('revision_number');
+            : $latestRevision->revision_number;
 
         if ($procurement->revision_count !== $latestRevisionNumber) {
             throw new \LogicException("Procurement {$procurement->id} has an inconsistent revision head.");
@@ -177,7 +177,7 @@ final readonly class ProcurementIngestProcessor
             revisionId: $revision->id,
         );
 
-        $oldSnapshot = $latestRevision?->snapshot ?? [];
+        $oldSnapshot = $latestRevision === null ? [] : $latestRevision->snapshot;
         $this->storeDiffEvents(procurementId: $procurement->id, revisionId: $revision->id, occurredAt: $now, oldSnapshot: $oldSnapshot, newSnapshot: $snapshot);
 
         return $procurement->refresh();
@@ -196,8 +196,8 @@ final readonly class ProcurementIngestProcessor
                 occurredAt: $occurredAt,
                 revisionId: $revisionId,
                 field: 'status',
-                oldValue: $oldSnapshot['status'] ?? null,
-                newValue: $newSnapshot['status'],
+                oldValue: $this->nullableString($oldSnapshot['status'] ?? null),
+                newValue: $this->nullableString($newSnapshot['status'] ?? null),
             );
         }
 
@@ -208,8 +208,8 @@ final readonly class ProcurementIngestProcessor
                 occurredAt: $occurredAt,
                 revisionId: $revisionId,
                 field: 'initial_price',
-                oldValue: $oldSnapshot['initial_price'] ?? null,
-                newValue: $newSnapshot['initial_price'],
+                oldValue: $this->nullableString($oldSnapshot['initial_price'] ?? null),
+                newValue: $this->nullableString($newSnapshot['initial_price'] ?? null),
             );
         }
 
@@ -238,5 +238,14 @@ final readonly class ProcurementIngestProcessor
             field: 'status',
             newValue: $status,
         );
+    }
+
+    private function nullableString(mixed $value): ?string
+    {
+        if ($value === null || is_string($value)) {
+            return $value;
+        }
+
+        throw new \LogicException('Snapshot event value must be a string or null.');
     }
 }

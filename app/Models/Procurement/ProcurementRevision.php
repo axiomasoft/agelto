@@ -12,10 +12,17 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 /**
  * Снапшот редакции закупки (партиция `prc_revisions` RANGE by `detected_at`).
+ *
+ * @property int $id
+ * @property int $procurement_id
+ * @property int $revision_number
+ * @property array<string, mixed> $snapshot
+ * @property string $snapshot_hash
  */
 #[UseFactory(ProcurementRevisionFactory::class)]
 final class ProcurementRevision extends Model
 {
+    /** @use HasFactory<ProcurementRevisionFactory> */
     use HasFactory;
 
     protected $table = 'prc_revisions';
@@ -45,6 +52,7 @@ final class ProcurementRevision extends Model
         ];
     }
 
+    /** @return BelongsTo<Procurement, $this> */
     public function procurement(): BelongsTo
     {
         return $this->belongsTo(related: Procurement::class);
