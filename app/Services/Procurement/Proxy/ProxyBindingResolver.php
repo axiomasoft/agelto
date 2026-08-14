@@ -18,10 +18,15 @@ final readonly class ProxyBindingResolver
     /** @return list<int> */
     public function forCrawler(Crawler $crawler): array
     {
-        return $crawler->proxies()
-            ->pluck('prc_proxies.id')
-            ->map(static fn (mixed $id): int => (int) $id)
-            ->all();
+        $proxyIds = [];
+
+        foreach ($crawler->proxies()->pluck('prc_proxies.id') as $proxyId) {
+            if (is_int($proxyId)) {
+                $proxyIds[] = $proxyId;
+            }
+        }
+
+        return $proxyIds;
     }
 
     public function requirementsForProcurement(?int $procurementId): ProxyRequirements
@@ -38,7 +43,15 @@ final readonly class ProxyBindingResolver
         $profiles = $crawlers->where('proxy_mode', CrawlerProxyMode::Profile);
 
         if ($profiles->isNotEmpty()) {
-            $proxyIds = $profiles->flatMap(fn (Crawler $crawler): array => $this->forCrawler($crawler))->unique()->values()->all();
+            $proxyIds = [];
+
+            foreach ($profiles as $crawler) {
+                foreach ($this->forCrawler($crawler) as $proxyId) {
+                    if (! in_array($proxyId, $proxyIds, strict: true)) {
+                        $proxyIds[] = $proxyId;
+                    }
+                }
+            }
 
             return new ProxyRequirements(proxyIds: $proxyIds, crawlerMode: CrawlerProxyMode::Profile);
         }
