@@ -37,8 +37,8 @@ final class FixturesImportCommand extends Command
 
     public function handle(): int
     {
-        $manifestPath = (string) ($this->option('manifest') ?? config('ai.fixtures.manifest_path'));
-        $sourceDir = (string) ($this->option('source-dir') ?? config('ai.fixtures.source_dir'));
+        $manifestPath = $this->pathOptionOrConfig(option: 'manifest', configKey: 'ai.fixtures.manifest_path');
+        $sourceDir = $this->pathOptionOrConfig(option: 'source-dir', configKey: 'ai.fixtures.source_dir');
         $dryRun = (bool) $this->option('dry-run');
         $disk = $this->locationResolver->currentFixturesDisk();
 
@@ -61,6 +61,7 @@ final class FixturesImportCommand extends Command
                 continue;
             }
 
+            /** @var array<string, mixed> $entryJson */
             $errors = $this->registrar->import($entryJson, $index, $disk, $sourceDir, $dryRun);
 
             if ($errors !== []) {
@@ -72,7 +73,15 @@ final class FixturesImportCommand extends Command
                 continue;
             }
 
-            $code = (string) $entryJson['code'];
+            $code = $entryJson['code'] ?? null;
+
+            if (! is_string($code)) {
+                $this->error("fixtures.{$index}: code должен быть строкой");
+                $failed++;
+
+                continue;
+            }
+
             $this->info($dryRun ? "{$code}: ok (dry-run)" : "{$code}: импортирован.");
             $imported++;
         }
@@ -80,5 +89,22 @@ final class FixturesImportCommand extends Command
         $this->info("Готово: импортировано {$imported}, отклонено {$failed}.");
 
         return $failed > 0 ? self::FAILURE : self::SUCCESS;
+    }
+
+    private function pathOptionOrConfig(string $option, string $configKey): string
+    {
+        $value = $this->option($option);
+
+        if (is_string($value) && $value !== '') {
+            return $value;
+        }
+
+        $configuredValue = config($configKey);
+
+        if (! is_string($configuredValue) || $configuredValue === '') {
+            throw new \UnexpectedValueException("{$configKey} must be a non-empty string.");
+        }
+
+        return $configuredValue;
     }
 }
