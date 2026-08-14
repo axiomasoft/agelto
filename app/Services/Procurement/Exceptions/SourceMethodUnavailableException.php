@@ -11,7 +11,7 @@ final class SourceMethodUnavailableException extends RuntimeException
 {
     public static function forCrawler(SourceMethod $method, ?SourceMethod $fallback): self
     {
-        $fallbackLabel = $fallback?->value ?? 'none';
+        $fallbackLabel = $fallback === null ? 'none' : $fallback->value;
 
         return new self(
             message: "Source method [{$method->value}] is unavailable and fallback [{$fallbackLabel}] is not usable.",

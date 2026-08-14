@@ -28,6 +28,7 @@ use App\Services\Llm\Dto\LlmUsage;
  */
 final readonly class ExtractionSession
 {
+    /** @param array<string, mixed> $progress */
     public function __construct(
         public ?LlmFileHandle $fileHandle,
         public ?LlmCacheHandle $cacheHandle,
