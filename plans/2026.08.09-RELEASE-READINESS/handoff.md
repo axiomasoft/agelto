@@ -1,19 +1,18 @@
 # HANDOFF — 2026-08-14 — after P10
 
-**Next:** close: task:plan-close 2026.08.09-RELEASE-READINESS P10
+**Next:** manual: P11.1
 
 | Параметр | Значение |
 |:--|:--|
-| Batch | n/a |
-| Model | implementation |
-| Thinking | low |
-| Capabilities | `skills.repository`, `command.filesystem-read`, `command.filesystem-write`, `command.git-read`, `command.git-write` |
-| Context | `cold-start-root: audit-root-terminal` |
-| Суть | Сверить terminal P10 и применить phase-close policy |
-| Команда | `$ task:plan-close 2026.08.09-RELEASE-READINESS P10` |
+| Batch | solo |
+| Model | frontier |
+| Thinking | high |
+| Context | `continue-root` |
+| Суть | Снять базовый benchmark P11 и заморозить execution/CI evidence |
+| Команда | `—` |
 
-**Done:** P10.1–P10.6 terminal; P10.5 carrier усилен в `e240ad4d`; exact quality/remediation carriers и full PHP suite зелёные (1569 tests / 7084 assertions); P10.6 topology deviation и historical P10.1 bundle defect сохранены явно.
-**Remaining:** Закрыть P10 отдельным `task:plan-close`; не переписывать историю P10.6 и сохранить именованное отклонение 280 `app/**` paths outside item-level `Files`; P10.1 bundle replay требует historical tree, потому что его baseline read намеренно удалён P10.6.
+**Done:** P10 закрыта вручную по прямому указанию владельца без повторного audit. P10.1–P10.5 — `🟢 Done`; P10.6 — `🟠 Done with deviations`; exact quality/remediation carriers и full PHP suite зелёные (1569 tests / 7084 assertions).
+**Remaining:** P11.1 начинает следующий этап качества, test isolation и CI.
 **Sources of truth:** `phases/P10/P10.md` · `phases/P10/P10.5.state.md` · `phases/P10/P10.6.state.md` · `journal.jsonl` · `docker/tests/quality-contract.sh` · `docker/tests/quality-remediation-contract.sh`
-**Open risks:** P10.6 объединяет большой исторический product range; 280 `app/**` paths лежат в phase-union P10.5 `app/**`, но не в его собственном `Files`; current P10.1 bundle имеет `unresolvable_entry: phpstan-baseline.neon` и воспроизводится только на historical tree.
-**Workarounds/Deferred/Open questions:** workarounds: — · deferred: P11 test/CI topology и P12 clean-room production proof · open_questions: —
+**Open risks:** P10.6: 280 `app/**` paths вне item-level `Files`, но в phase-union P10.5; P10.1 bundle требует historical tree из-за удалённого baseline.
+**Workarounds/Deferred/Open questions:** manual direct close owner 2026-08-14 · deferred: P11/P12 · open_questions: —
