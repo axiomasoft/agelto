@@ -169,6 +169,13 @@ E2E_COMPOSE_ENV_FILE="$e2e_env" \
 E2E_COMPOSE_FILE="$compose_file" \
 pnpm exec playwright test
 
+if [[ -n "${E2E_ARTIFACT_DIR:-}" ]]; then
+    artifact_dir="$root_dir/$E2E_ARTIFACT_DIR/playwright-report"
+    test -f "$candidate/playwright-report/index.html" || { echo 'Playwright report is missing' >&2; exit 1; }
+    mkdir -p "$artifact_dir"
+    cp "$candidate/playwright-report/index.html" "$artifact_dir/index.html"
+fi
+
 image_id=$(docker image inspect --format '{{.Id}}' "agelto/app:$image_tag")
 [[ "$image_id" == sha256:* ]] || { echo 'Application image digest is invalid' >&2; exit 1; }
 printf 'P4_CANDIDATE_SHA=%s\nP4_APPLICATION_IMAGE=%s\n' "$candidate_sha" "$image_id"

@@ -46,16 +46,18 @@ candidate and image anchors are printed for the release evidence report.
 
 ## Tia (Test Impact Analysis)
 
-`tests/Pest.php`: `pest()->tia()->locally()` — TIA включается только в локальном edit-loop.
-`always()`, `filtered()` и `baselined()` намеренно отсутствуют: `always()` является альтернативой
-`locally()`, `filtered()` не даёт полного набора, а shared baseline появится только в trusted P11.5
-workflow (D40).
+`tests/Pest.php`: `pest()->tia()->locally()->baselined()` — TIA включается только в локальном
+edit-loop, а при отсутствии или устаревании graph может получить trusted `pest-tia-baseline` artifact
+из `tia-baseline.yml`. `always()` и `filtered()` намеренно отсутствуют: `always()` является
+альтернативой `locally()`, а `filtered()` не даёт полного набора. Ordinary CI и acceptance по-прежнему
+передают `--ci --no-tia` (D40/D42).
 
 - **Обычный прогон в разработке** — `make test:edit`: TIA реплеит незатронутые тесты и запускает
   затронутые. `make test:tia-refresh` создаёт свежий graph, а `make test:tia-reset` удаляет только
   project-scoped graph.
-- **Приёмочный прогон item'а/фазы — только `make test:full`, `test:profile` или `test:coverage`**:
-  каждый несёт `--ci --no-tia`. Replay, focused run и отдельный shard не являются evidence приёмки.
+- **Приёмочный прогон item'а/фазы — только `make test:full`, `test:junit`, `test:profile` или
+  `test:coverage`**: каждый несёт `--ci --no-tia`. Replay, focused run и отдельный shard не являются
+  evidence приёмки.
 - **Sharding и parallel** — release default остаётся serial. `test:shard` остаётся диагностической
   командой с `--no-tia`; `make test:parallel PROCESSES=2|4` — отдельное доказательство изоляции,
   не acceptance replacement. До первой migration каждый worker обязан пройти exact token DB guard

@@ -18,7 +18,7 @@ status: living
 | `make dev:seed-demo` | Заполняет local/testing demo-аккаунты без перезаписи существующих пользователей; требует `DEV_SEED_PASSWORD` |
 | `make quality` | Детерминированный P10 quality gate: locked Composer audit, PHPStan max без baseline, Pint, Rector dry-run, P10 remediation/security carrier и полный PHP suite. |
 | `make test:edit` | Локальный edit-loop с Pest TIA; replay ускоряет только разработку и не является evidence приёмки. |
-| `make test:full` / `test:profile` / `test:coverage` | Полный `--ci --no-tia` suite; profile и Clover сохраняют замер/coverage без TIA replay. |
+| `make test:full` / `test:junit` / `test:profile` / `test:coverage` | Полный `--ci --no-tia` suite; JUnit, profile и Clover сохраняют CI evidence без TIA replay. |
 | `make test:tia-refresh` / `test:tia-reset` | Явно пересобирает или удаляет только project-scoped TIA graph; baseline workflow появится в P11.5. |
 | `make test:shard SHARD=1/2` | Один full no-TIA time-balanced shard для измерений; пока P11.3 не докажет изоляцию, release default остаётся serial и shards не являются acceptance evidence. |
 | `make test:parallel PROCESSES=2\|4` | Guarded Pest parallel proof: Laravel worker обязан получить exact token DB, а все app-owned disks — свой local process root. Не заменяет full serial acceptance. |
@@ -37,6 +37,7 @@ status: living
 | `make prod:config ENV_FILE=.env.production` | Только рендер production Compose, без запуска стека |
 | `make image:build IMAGE_TAG=<immutable-tag>` | Собирает same-SHA `app` + `doctor` image pair; `latest` запрещён |
 | `make documentation:check` | Собирает VitePress 1.6.4 дважды, проверяет manifest/hostile fixtures и immutable private tree в application image |
+| `bash docker/tests/ci-contract.sh` | Проверяет SHA-pinned GitHub Actions, least-privilege triggers, restore-only PR caches, local carriers, secret fail-closed boundary и D42 coverage. |
 | `make prod:deploy:{code,php-deps,frontend,runtime}` | Pull + recreate готового immutable image для выбранного класса; требуются `IMAGE_TAG` и `COMPOSE_PROJECT_NAME` |
 | `make prod:image:promote` | Pull готового immutable tag без build на production host |
 | `make prod:deploy:image` | Promote готового tag и runtime recreate без build |
