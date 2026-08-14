@@ -2,8 +2,8 @@
 projection: status-view
 projection_version: v1
 source_scope: plan core + phases + journal
-through: 2026-08-13
-inputs_sha256: 0bf5bfec4142c54452ebca95e6ca75c7534d88d8b27a75d143a8f1d693b40dc7
+through: 2026-08-14
+inputs_sha256: 3a222c340844633e74afa82b6689f938714050e0a325eb46f6e18d6dafc0493a
 generated_by: task plan-views status
 -->
 
@@ -17,7 +17,7 @@ generated_by: task plan-views status
 |:--|:--|
 | Version | 0.1.12 |
 | Status | 🟡 In progress |
-| Last Updated | 2026-08-13 |
+| Last Updated | 2026-08-14 |
 
 ## 4. Phase Index & Status Board
 
@@ -71,7 +71,7 @@ generated_by: task plan-views status
 | P10.3 | Найти duplication, dead code, naming и needless abstractions | 🟢 Done | 2026-08-13 |
 | P10.4 | Проверить migrations, transactions, races, idempotency, queues и config defaults | 🟢 Done | 2026-08-13 |
 | P10.5 | Исправить findings вертикальными срезами с regression tests | 🟢 Done | 2026-08-13 |
-| P10.6 | Закрепить quality gates и синхронизировать architecture/security docs | 🟡 In progress | 2026-08-13 |
+| P10.6 | Закрепить quality gates и синхронизировать architecture/security docs | 🟡 In progress | 2026-08-14 |
 
 ## Phase P11
 
@@ -652,6 +652,9 @@ write-site: pre_mutation: allow · pre_final: allow |
 | 2026-08-13 | gpt-5.6-terra/high | plan-run · in-progress · D86 recovery: continue in-scope level:max/no-baseline remediation; prior terminal block was false escalation. |
 | 2026-08-13 | gpt-5.6-terra/high | plan-run · local-repair · Committed max/no-baseline carrier start: full PHPStan 1,591→1,446 after typed ProxyCandidate boundary and EvalComparison contract; focused PHPStan, 49 relevant Pest assertions, and full Pint are green. |
 | 2026-08-13 | gpt-5.6-terra/high | plan-run · local-repair · Committed typed extraction/screening eval runners, PipelineStuckCheck, and the full gold build chain. Full PHPStan level:max/no-baseline is 991 errors in 251 files (from 1,591/266); focused PHPStan, 43 relevant Pest tests, and Pint are green. |
+| 2026-08-13 | gpt-5.6-terra/high | plan-run · local-repair · note сокращена; полный текст: journal.jsonl:417 |
+| 2026-08-14 | gpt-5.6-terra/high | plan-run · local-repair · Owner continuity rule recorded: no terminal/final while any required validation carrier is red; continue in-scope repair and recheck every completion candidate. |
+| 2026-08-14 | gpt-5.6-terra/high | plan-run · local-repair · Committed Crawler, baseline, proxy, storage, and readiness carriers. Full PHPStan max/no-baseline: 593 errors in 214 files (from 1,591/266); P10.6 remains in progress. |
 
 ## Owner Gates
 
