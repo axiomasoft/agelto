@@ -24,7 +24,7 @@ final class ResetAdminPassword extends Command
 
         try {
             $action->run(
-                email: (string) config(key: 'cms.admin_email'),
+                email: $this->email(),
                 password: $this->password(),
             );
         } catch (InvalidArgumentException $exception) {
@@ -54,6 +54,23 @@ final class ResetAdminPassword extends Command
             throw new InvalidArgumentException('Для неинтерактивного запуска укажите --password-file.');
         }
 
-        return (string) $this->secret(question: 'Новый пароль администратора');
+        $password = $this->secret(question: 'Новый пароль администратора');
+
+        if (! is_string($password)) {
+            throw new InvalidArgumentException('Пароль должен быть строкой.');
+        }
+
+        return $password;
+    }
+
+    private function email(): string
+    {
+        $email = config(key: 'cms.admin_email');
+
+        if (! is_string($email)) {
+            throw new InvalidArgumentException('cms.admin_email must be a string.');
+        }
+
+        return $email;
     }
 }

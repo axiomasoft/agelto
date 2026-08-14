@@ -18,7 +18,7 @@ final class CreateInitialAdmin extends Command
     {
         try {
             $action->run(
-                email: (string) ($this->option(key: 'email') ?: config(key: 'cms.admin_email')),
+                email: $this->email(),
                 password: $this->password(),
             );
         } catch (InvalidArgumentException $exception) {
@@ -48,6 +48,29 @@ final class CreateInitialAdmin extends Command
             throw new InvalidArgumentException('Для неинтерактивного запуска укажите --password-file.');
         }
 
-        return (string) $this->secret(question: 'Пароль начального администратора');
+        $password = $this->secret(question: 'Пароль начального администратора');
+
+        if (! is_string($password)) {
+            throw new InvalidArgumentException('Пароль должен быть строкой.');
+        }
+
+        return $password;
+    }
+
+    private function email(): string
+    {
+        $email = $this->option(key: 'email');
+
+        if (is_string($email) && $email !== '') {
+            return $email;
+        }
+
+        $configuredEmail = config(key: 'cms.admin_email');
+
+        if (! is_string($configuredEmail)) {
+            throw new InvalidArgumentException('cms.admin_email must be a string.');
+        }
+
+        return $configuredEmail;
     }
 }

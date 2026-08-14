@@ -39,7 +39,7 @@ final readonly class UpdateCrawlerProxySettingsAction
             ->where('is_active', true)
             ->get()
             ->filter(fn (Proxy $proxy): bool => $this->supportsCrawlerScopes(proxy: $proxy))
-            ->mapWithKeys(fn (Proxy $proxy): array => [$proxy->getKey() => $this->safeProxyLabel(proxy: $proxy)])
+            ->mapWithKeys(fn (Proxy $proxy): array => [$proxy->id => $this->safeProxyLabel(proxy: $proxy)])
             ->all();
     }
 

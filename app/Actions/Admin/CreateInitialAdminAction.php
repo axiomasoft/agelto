@@ -38,7 +38,9 @@ final readonly class CreateInitialAdminAction
 
             $user->assignRole(SuperAdminRole::class);
 
-            if (! $user->fresh()->isSuperAdmin()) {
+            $persistedUser = $user->fresh();
+
+            if (! $persistedUser instanceof User || ! $persistedUser->isSuperAdmin()) {
                 throw new InvalidArgumentException('Роль SuperAdmin не синхронизирована; администратор не создан.');
             }
 
