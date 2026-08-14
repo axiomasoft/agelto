@@ -52,3 +52,10 @@ test('возвращает стабильный redacted код при stale sch
     expect($scheduler->passed)->toBeFalse()
         ->and($scheduler->message)->toBe('unavailable');
 });
+
+test('запись heartbeat отклоняет нетипизированный ttl', function (): void {
+    config()->set('readiness.scheduler.ttl_minutes', '10');
+
+    expect(fn () => ApplicationReadiness::recordSchedulerHeartbeat())
+        ->toThrow(LogicException::class, 'должен быть положительным целым числом');
+});

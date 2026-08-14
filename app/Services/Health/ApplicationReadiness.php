@@ -58,7 +58,7 @@ final readonly class ApplicationReadiness
         Cache::put(
             key: self::SchedulerHeartbeatKey,
             value: now()->toIso8601String(),
-            ttl: now()->addMinutes((int) config(key: 'readiness.scheduler.ttl_minutes')),
+            ttl: now()->addMinutes(self::positiveIntConfig('readiness.scheduler.ttl_minutes')),
         );
     }
 
@@ -77,9 +77,10 @@ final readonly class ApplicationReadiness
         return $this->attempt(code: ReadinessCheckCode::Cache, callback: function () use ($key, $value): void {
             try {
                 $store = $this->cache->store();
-                $store->put(key: $key, value: $value, ttl: (int) config(key: 'readiness.cache.ttl_seconds'));
+                $store->put(key: $key, value: $value, ttl: self::positiveIntConfig('readiness.cache.ttl_seconds'));
+                $storedValue = $store->get(key: $key);
 
-                if (! hash_equals($value, (string) $store->get(key: $key))) {
+                if (! is_string($storedValue) || ! hash_equals($value, $storedValue)) {
                     throw new \RuntimeException('cache round-trip mismatch');
                 }
             } finally {
@@ -92,7 +93,7 @@ final readonly class ApplicationReadiness
     {
         $path = 'health/readiness-'.bin2hex(random_bytes(16)).'.txt';
         $value = bin2hex(random_bytes(16));
-        $disk = (string) config(key: 'readiness.storage.disk');
+        $disk = self::nonEmptyStringConfig('readiness.storage.disk');
 
         return $this->attempt(code: ReadinessCheckCode::Storage, callback: function () use ($disk, $path, $value): void {
             $filesystem = $this->filesystem->disk(name: $disk);
@@ -135,7 +136,7 @@ final readonly class ApplicationReadiness
         return $this->attempt(code: ReadinessCheckCode::Horizon, callback: function (): void {
             $masters = $this->masters->all();
 
-            if ($masters === [] || collect($masters)->contains(fn (object $master): bool => $master->status !== 'running')) {
+            if ($masters === [] || collect($masters)->contains(static fn (mixed $master): bool => self::horizonMasterIsNotRunning($master))) {
                 throw new \RuntimeException('Horizon is not running');
             }
         });
@@ -147,7 +148,7 @@ final readonly class ApplicationReadiness
             $heartbeat = $this->cache->store()->get(key: self::SchedulerHeartbeatKey);
 
             if (! is_string($heartbeat)
-                || CarbonImmutable::parse($heartbeat)->lt(now()->subMinutes((int) config(key: 'readiness.scheduler.max_age_minutes')))) {
+                || CarbonImmutable::parse($heartbeat)->lt(now()->subMinutes(self::positiveIntConfig('readiness.scheduler.max_age_minutes')))) {
                 throw new \RuntimeException('scheduler heartbeat is stale');
             }
         });
@@ -163,5 +164,38 @@ final readonly class ApplicationReadiness
         }
 
         return new ReadinessCheckResult(code: $code, passed: true, message: 'ready');
+    }
+
+    private static function positiveIntConfig(string $key): int
+    {
+        $value = config(key: $key);
+
+        if (! is_int($value) || $value <= 0) {
+            throw new \LogicException("{$key} должен быть положительным целым числом");
+        }
+
+        return $value;
+    }
+
+    private static function nonEmptyStringConfig(string $key): string
+    {
+        $value = config(key: $key);
+
+        if (! is_string($value) || $value === '') {
+            throw new \LogicException("{$key} должен быть непустой строкой");
+        }
+
+        return $value;
+    }
+
+    private static function horizonMasterIsNotRunning(mixed $master): bool
+    {
+        if (! is_object($master)) {
+            return true;
+        }
+
+        $status = get_object_vars($master)['status'] ?? null;
+
+        return $status !== 'running';
     }
 }
