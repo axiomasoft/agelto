@@ -60,12 +60,17 @@ final readonly class JsonSchemaGenerator
     {
         $reflection = new ReflectionClass($class);
         $constructor = $reflection->getConstructor();
+
+        if ($constructor === null) {
+            throw new RuntimeException("Data-класс {$class} должен иметь конструктор.");
+        }
+
         $descriptions = $this->descriptions->descriptions($class);
 
         $properties = [];
         $required = [];
 
-        foreach ($constructor?->getParameters() ?? [] as $parameter) {
+        foreach ($constructor->getParameters() as $parameter) {
             $name = $parameter->getName();
             $schema = $this->parameterSchema($parameter, $constructor, $defs);
 
@@ -108,6 +113,7 @@ final readonly class JsonSchemaGenerator
     }
 
     /**
+     * @param  ReflectionClass<Data>  $context
      * @param  array<string, array<string, mixed>>  $defs
      * @return array<string, mixed>
      */
@@ -118,7 +124,7 @@ final readonly class JsonSchemaGenerator
             $typeName === 'int' => ['type' => 'integer'],
             $typeName === 'float' => ['type' => 'number'],
             $typeName === 'bool' => ['type' => 'boolean'],
-            $this->types->isEnum($typeName) => $this->enumSchema($typeName),
+            $this->types->isEnum($typeName) && is_subclass_of($typeName, \BackedEnum::class) => $this->enumSchema($typeName),
             $this->types->isDataClass($typeName) => $this->dataClassRef($typeName, $defs),
             default => throw new RuntimeException("Неподдерживаемый тип {$typeName} (контекст {$context->getName()})."),
         };

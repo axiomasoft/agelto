@@ -107,11 +107,13 @@ final readonly class DataTypeGraph
 
         $paramName = $parameter->getName();
 
-        if (preg_match('/@param\s+([^\s\[]+)\[\]\s+\$'.preg_quote($paramName, '/').'\b/', $doc, $matches) !== 1) {
+        if (preg_match('/@param\s+(?:([^\s\[]+)\[\]|list<([^>]+)>)\s+\$'.preg_quote($paramName, '/').'\b/', $doc, $matches) !== 1) {
             return null;
         }
 
-        return $this->resolveClassName($matches[1], $constructor->getDeclaringClass());
+        $itemType = $matches[1] !== '' ? $matches[1] : $matches[2];
+
+        return $this->resolveClassName($itemType, $constructor->getDeclaringClass());
     }
 
     /**
