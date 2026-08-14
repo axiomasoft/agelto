@@ -25,6 +25,7 @@ use Illuminate\Database\Eloquent\Model;
 #[Table(name: 'prc_cancellations')]
 final class Cancellation extends Model
 {
+    /** @use HasFactory<CancellationFactory> */
     use HasFactory;
 
     protected function casts(): array

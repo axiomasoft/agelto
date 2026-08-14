@@ -26,6 +26,7 @@ use Illuminate\Database\Eloquent\Model;
 #[Table(name: 'prc_clarifications')]
 final class Clarification extends Model
 {
+    /** @use HasFactory<ClarificationFactory> */
     use HasFactory;
 
     protected function casts(): array

@@ -32,6 +32,7 @@ use Illuminate\Database\Eloquent\Model;
 #[Table(name: 'prc_operation_logs', keyType: 'int')]
 final class OperationLog extends Model
 {
+    /** @use HasFactory<OperationLogFactory> */
     use HasFactory;
 
     public const UPDATED_AT = null;

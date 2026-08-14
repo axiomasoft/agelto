@@ -44,6 +44,7 @@ use Illuminate\Support\Collection;
 #[Table(name: 'prc_ai_eval_runs')]
 final class EvalRun extends Model
 {
+    /** @use HasFactory<EvalRunFactory> */
     use HasFactory;
 
     protected function casts(): array

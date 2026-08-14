@@ -30,6 +30,7 @@ use Illuminate\Database\Eloquent\Model;
 #[Table(name: 'prc_financing')]
 final class Financing extends Model
 {
+    /** @use HasFactory<FinancingFactory> */
     use HasFactory;
 
     protected function casts(): array

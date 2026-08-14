@@ -33,6 +33,7 @@ use Illuminate\Database\Eloquent\Model;
 #[Table(name: 'prc_lots')]
 final class Lot extends Model
 {
+    /** @use HasFactory<LotFactory> */
     use HasFactory;
 
     protected function casts(): array
