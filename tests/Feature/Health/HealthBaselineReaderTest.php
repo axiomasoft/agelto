@@ -35,3 +35,17 @@ test('ридер отклоняет эталон без обязательног
 
     unlink($path);
 });
+
+test('ридер отклоняет нетипизированные значения эталона', function (): void {
+    $path = tempnam(sys_get_temp_dir(), 'health-baseline-');
+    config(['crawler.health.baseline_path' => $path]);
+    file_put_contents($path, json_encode([
+        'platform' => 44, 'captured_at' => '2026-08-08T00:00:00+00:00', 'source' => 'test',
+        'card_tabs' => [], 'listing_csv' => ['required_headers' => []], 'thresholds' => [], 'calibrated' => false,
+    ], JSON_THROW_ON_ERROR));
+
+    expect(fn () => app(HealthBaselineReader::class)->read())
+        ->toThrow(HealthBaselineUnavailableException::class, 'структура эталона не соответствует контракту');
+
+    unlink($path);
+});

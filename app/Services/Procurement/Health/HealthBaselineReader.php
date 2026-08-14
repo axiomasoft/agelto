@@ -12,7 +12,12 @@ final readonly class HealthBaselineReader
 {
     public function read(): HealthBaseline
     {
-        $configuredPath = (string) config('crawler.health.baseline_path');
+        $configuredPath = config('crawler.health.baseline_path');
+
+        if (! is_string($configuredPath) || $configuredPath === '') {
+            throw new HealthBaselineUnavailableException('путь к эталону должен быть непустой строкой');
+        }
+
         $path = str_starts_with($configuredPath, DIRECTORY_SEPARATOR) ? $configuredPath : base_path($configuredPath);
 
         if (! is_file($path)) {
@@ -41,20 +46,83 @@ final readonly class HealthBaselineReader
             }
         }
 
-        if (! is_array($baseline['card_tabs']) || ! is_array($baseline['listing_csv']) || ! is_array($baseline['thresholds'])
-            || ! is_array($baseline['listing_csv']['required_headers'] ?? null) || ! is_bool($baseline['calibrated'])) {
+        $platform = $baseline['platform'];
+        $capturedAt = $baseline['captured_at'];
+        $source = $baseline['source'];
+        $cardTabs = $baseline['card_tabs'];
+        $listingCsv = $baseline['listing_csv'];
+        $thresholds = $baseline['thresholds'];
+        $calibrated = $baseline['calibrated'];
+
+        if (! is_string($platform) || ! is_string($capturedAt) || ! is_string($source)
+            || ! is_array($cardTabs) || ! is_array($listingCsv) || ! is_array($thresholds)
+            || ! is_array($listingCsv['required_headers'] ?? null) || ! is_bool($calibrated)) {
             throw new HealthBaselineUnavailableException('структура эталона не соответствует контракту');
         }
 
+        $sha256 = hash_file('sha256', $path);
+
+        if (! is_string($sha256)) {
+            throw new HealthBaselineUnavailableException("не удалось вычислить SHA-256 для {$path}");
+        }
+
         return new HealthBaseline(
-            platform: (string) $baseline['platform'],
-            capturedAt: (string) $baseline['captured_at'],
-            source: (string) $baseline['source'],
-            cardTabs: $baseline['card_tabs'],
-            requiredHeaders: $baseline['listing_csv']['required_headers'],
-            thresholds: $baseline['thresholds'],
-            calibrated: $baseline['calibrated'],
-            sha256: hash_file('sha256', $path),
+            platform: $platform,
+            capturedAt: $capturedAt,
+            source: $source,
+            cardTabs: self::mapOfMaps(value: $cardTabs),
+            requiredHeaders: self::stringList(value: $listingCsv['required_headers']),
+            thresholds: self::mapOfMaps(value: $thresholds),
+            calibrated: $calibrated,
+            sha256: $sha256,
         );
+    }
+
+    /**
+     * @param  array<mixed>  $value
+     * @return array<string, array<string, mixed>>
+     */
+    private static function mapOfMaps(array $value): array
+    {
+        $result = [];
+
+        foreach ($value as $group => $entries) {
+            if (! is_string($group) || ! is_array($entries)) {
+                throw new HealthBaselineUnavailableException('структура эталона не соответствует контракту');
+            }
+
+            $normalizedEntries = [];
+
+            foreach ($entries as $key => $entry) {
+                if (! is_string($key)) {
+                    throw new HealthBaselineUnavailableException('структура эталона не соответствует контракту');
+                }
+
+                $normalizedEntries[$key] = $entry;
+            }
+
+            $result[$group] = $normalizedEntries;
+        }
+
+        return $result;
+    }
+
+    /**
+     * @param  array<mixed>  $value
+     * @return list<string>
+     */
+    private static function stringList(array $value): array
+    {
+        $result = [];
+
+        foreach ($value as $entry) {
+            if (! is_string($entry)) {
+                throw new HealthBaselineUnavailableException('структура эталона не соответствует контракту');
+            }
+
+            $result[] = $entry;
+        }
+
+        return $result;
     }
 }
