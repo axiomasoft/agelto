@@ -281,6 +281,10 @@ final readonly class WindowedChunkSource
                 throw new RuntimeException("{$step->value}: ответ не прошёл валидацию — {$outcome->reason}");
             }
 
+            if ($outcome->data === null) {
+                throw new RuntimeException("{$step->value}: валидный исход не содержит Data.");
+            }
+
             return [$outcome->data, $response->usage];
         } finally {
             @unlink($slicePath);

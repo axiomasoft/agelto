@@ -29,7 +29,7 @@ final readonly class LlmCallRecorder
     ) {}
 
     /**
-     * @param  array<string, string>  $promptVersionSet  key => version участвовавших промптов
+     * @param  array<string, int>  $promptVersionSet  key => version участвовавших промптов
      */
     public function record(
         ?int $analysisId,

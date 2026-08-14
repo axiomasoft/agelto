@@ -150,10 +150,12 @@ final readonly class RowRangeChunkSource implements ChunkSource
         $schema = new JsonSchema($this->schemas->generate($dataClass));
         $hint = $this->correctionsHint($analysisId);
 
+        $fileRefs = $session->cacheHandle !== null || $session->fileHandle === null ? [] : [$session->fileHandle];
+
         $prompt = new LlmPrompt(
             systemPart: $composed->systemPart,
             userParts: $hint === null ? [$userPart] : [$hint, $userPart],
-            fileRefs: $session->cacheHandle !== null ? [] : [$session->fileHandle],
+            fileRefs: $fileRefs,
         );
 
         $options = $session->cacheHandle === null ? $route->options : new LlmOptions(
@@ -230,6 +232,10 @@ final readonly class RowRangeChunkSource implements ChunkSource
 
         if (! $outcome->isOk()) {
             throw new RuntimeException("{$step->value}: ответ не прошёл валидацию — {$outcome->reason}");
+        }
+
+        if ($outcome->data === null) {
+            throw new RuntimeException("{$step->value}: валидный исход не содержит Data.");
         }
 
         return [$outcome->data, $response->usage];
