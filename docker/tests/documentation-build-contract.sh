@@ -11,6 +11,24 @@ if [[ "${DOCUMENTATION_BUILD_CANDIDATE:-0}" != 1 ]]; then
     }
     trap cleanup_candidate EXIT
     git -C "$root_dir" worktree add --detach "$candidate" HEAD >/dev/null
+
+    vendor_source="$root_dir/local/vendors/azguard"
+    vendor_checkout="$candidate/local/vendors/azguard"
+    vendor_commit=$(python3 - "$candidate/docker/private-vendors.lock.json" <<'PY'
+import json
+import sys
+
+print(json.load(open(sys.argv[1], encoding='utf-8'))['commit'])
+PY
+)
+
+    [[ -d "$vendor_source/.git" ]] || { echo "Pinned vendor checkout is missing: $vendor_source" >&2; exit 2; }
+    git -C "$vendor_source" cat-file -e "$vendor_commit^{commit}"
+    mkdir -p "$(dirname "$vendor_checkout")"
+    git clone --no-local --no-checkout "$vendor_source" "$vendor_checkout" >/dev/null
+    git -C "$vendor_checkout" checkout --detach "$vendor_commit" >/dev/null
+    git -C "$vendor_checkout" remote set-url origin "$(git -C "$vendor_source" config --get remote.origin.url)"
+
     DOCUMENTATION_BUILD_CANDIDATE=1 bash "$candidate/docker/tests/documentation-build-contract.sh"
     exit 0
 fi
@@ -20,7 +38,7 @@ first_build="$temporary_dir/first"
 trap 'rm -rf "$temporary_dir"' EXIT
 
 cd "$root_dir"
-bash "$root_dir/docker/scripts/vendor-sync.sh" --composer-check
+bash "$root_dir/docker/scripts/vendor-sync.sh" --check --composer-check
 pnpm install --frozen-lockfile
 pnpm documentation:build
 cp -a var/private-documentation "$first_build"
