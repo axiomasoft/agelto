@@ -58,7 +58,17 @@ final class PipelineRetryFailed extends Command
     public function handle(): int
     {
         $limitOption = $this->option('limit');
-        $limit = $limitOption !== null ? (int) $limitOption : (int) config('ai.pipeline.retry_batch_limit', 50);
+        $configuredLimit = config('ai.pipeline.retry_batch_limit', 50);
+
+        if (! is_int($configuredLimit) || $configuredLimit <= 0) {
+            throw new \UnexpectedValueException('ai.pipeline.retry_batch_limit must be a positive integer.');
+        }
+
+        $limit = is_numeric($limitOption) ? (int) $limitOption : $configuredLimit;
+
+        if ($limit <= 0) {
+            throw new \UnexpectedValueException('The retry limit must be a positive integer.');
+        }
 
         $documentsDispatched = $this->retryDocuments($limit);
         $analysesDispatched = $this->retryAnalyses($limit);
@@ -138,7 +148,13 @@ final class PipelineRetryFailed extends Command
 
     private function dispatchAnalysisRetry(Analysis $analysis): void
     {
-        $documentId = $analysis->documentVersion->document_id;
+        $documentVersion = $analysis->documentVersion;
+
+        if ($documentVersion === null) {
+            throw new LogicException("Анализ #{$analysis->id}: не найдена версия документа.");
+        }
+
+        $documentId = $documentVersion->document_id;
         $stage = PipelineStage::fromAnalysisStep($analysis->step);
 
         match ($stage) {
@@ -192,12 +208,12 @@ final class PipelineRetryFailed extends Command
             ->where('step', AnalysisStep::Screening)
             ->value('document_type');
 
-        $type = $documentType !== null ? AiDocumentType::tryFrom((string) $documentType) : null;
+        $type = is_string($documentType) ? AiDocumentType::tryFrom($documentType) : null;
         $analyzer = $type !== null ? $this->analyzers->for($type) : null;
 
         if ($analyzer === null || ! $analyzer->hasExtraction()) {
             throw new LogicException(
-                "Анализ #{$analysis->id}: ретрай извлечения невозможен — тип документа «".($documentType ?? '—').'» без анализатора со стадией извлечения.'
+                "Анализ #{$analysis->id}: ретрай извлечения невозможен — тип документа «".(is_string($documentType) ? $documentType : '—').'» без анализатора со стадией извлечения.'
             );
         }
 
