@@ -64,6 +64,7 @@ use InvalidArgumentException;
 #[UseFactory(AnalysisFactory::class)]
 final class Analysis extends Model
 {
+    /** @use HasFactory<AnalysisFactory> */
     use HasErrorBlock, HasFactory, HasLease;
 
     protected $table = 'prc_ai_analyses';
@@ -132,26 +133,31 @@ final class Analysis extends Model
         ];
     }
 
+    /** @return BelongsTo<DocumentVersion, $this> */
     public function documentVersion(): BelongsTo
     {
         return $this->belongsTo(related: DocumentVersion::class);
     }
 
+    /** @return BelongsTo<AnalysisRun, $this> */
     public function analysisRun(): BelongsTo
     {
         return $this->belongsTo(related: AnalysisRun::class);
     }
 
+    /** @return BelongsTo<User, $this> */
     public function reviewedBy(): BelongsTo
     {
         return $this->belongsTo(related: User::class, foreignKey: 'reviewed_by');
     }
 
+    /** @return BelongsTo<self, $this> */
     public function parentAnalysis(): BelongsTo
     {
         return $this->belongsTo(related: self::class, foreignKey: 'parent_analysis_id');
     }
 
+    /** @return HasMany<Correction, $this> */
     public function corrections(): HasMany
     {
         return $this->hasMany(related: Correction::class);
@@ -161,11 +167,13 @@ final class Analysis extends Model
      * Сметы, персистированные из результата ИМЕННО этого прогона (`EstimatePersister`, P6.3) —
      * read-путь для Filament (P9.2, «просмотр result/validation_status»).
      */
+    /** @return HasMany<Estimate, $this> */
     public function estimates(): HasMany
     {
         return $this->hasMany(related: Estimate::class);
     }
 
+    /** @return HasMany<DatasetExample, $this> */
     public function datasetExamples(): HasMany
     {
         return $this->hasMany(related: DatasetExample::class);
@@ -291,6 +299,13 @@ final class Analysis extends Model
 
         $value = $this->result->toArray();
 
+        foreach (array_keys($value) as $key) {
+            if (! is_string($key)) {
+                return null;
+            }
+        }
+
+        /** @var array<string, mixed> $value */
         if (($value['schema_version'] ?? null) !== 2) {
             return null;
         }
