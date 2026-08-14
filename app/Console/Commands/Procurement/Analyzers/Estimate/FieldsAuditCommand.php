@@ -27,9 +27,9 @@ final class FieldsAuditCommand extends Command
 
     public function handle(): int
     {
-        $source = (string) $this->option('source');
+        $source = $this->option('source');
 
-        if (! in_array($source, ['gold', 'database'], strict: true)) {
+        if (! is_string($source) || ! in_array($source, ['gold', 'database'], strict: true)) {
             $this->error('Источник должен быть gold или database.');
 
             return self::FAILURE;
@@ -65,25 +65,49 @@ final class FieldsAuditCommand extends Command
     /** @return array<string, array{items: int, fields: array<string, array{filled: int}>}> */
     private function auditGold(): array
     {
-        $paths = glob((string) config('ai.fixtures.gold_dir').'/*.gold.json') ?: [];
+        $paths = glob($this->goldDirectory().'/*.gold.json') ?: [];
         sort($paths);
         $tree = [];
 
         foreach ($paths as $path) {
             $gold = json_decode((string) file_get_contents($path), associative: true, flags: JSON_THROW_ON_ERROR);
 
-            foreach ((array) ($gold['estimates'] ?? []) as $estimate) {
+            if (! is_array($gold)) {
+                continue;
+            }
+
+            $estimates = $gold['estimates'] ?? [];
+
+            if (! is_array($estimates)) {
+                continue;
+            }
+
+            foreach ($estimates as $estimate) {
                 if (! is_array($estimate)) {
                     continue;
                 }
 
-                $type = $this->typeOf((array) ($estimate['passport'] ?? []));
+                $passport = $estimate['passport'] ?? [];
 
-                foreach ((array) ($estimate['rows'] ?? []) as $row) {
+                if (! is_array($passport)) {
+                    $passport = [];
+                }
+
+                /** @var array<string, mixed> $passport */
+                $type = $this->typeOf($passport);
+
+                $rows = $estimate['rows'] ?? [];
+
+                if (! is_array($rows)) {
+                    continue;
+                }
+
+                foreach ($rows as $row) {
                     if (! is_array($row) || ($row['row_type'] ?? null) !== 'item') {
                         continue;
                     }
 
+                    /** @var array<string, mixed> $row */
                     $this->addItem($tree, $type, $row);
                 }
             }
@@ -102,7 +126,14 @@ final class FieldsAuditCommand extends Command
             ->with(['items:id,estimate_id,source_position_number,code,name,unit,quantity'])
             ->lazy()
             ->each(function (Estimate $estimate) use (&$tree): void {
-                $type = $this->typeOf($estimate->passport?->all() ?? []);
+                $passport = $estimate->passport?->all();
+
+                if (! is_array($passport)) {
+                    $passport = [];
+                }
+
+                /** @var array<string, mixed> $passport */
+                $type = $this->typeOf($passport);
 
                 foreach ($estimate->items as $item) {
                     $this->addItem($tree, $type, $item->only(self::REQUIRED_FIELDS));
@@ -156,6 +187,17 @@ final class FieldsAuditCommand extends Command
         $type = $passport['type'] ?? null;
 
         return is_string($type) && $type !== '' ? $type : 'unspecified';
+    }
+
+    private function goldDirectory(): string
+    {
+        $goldDirectory = config('ai.fixtures.gold_dir');
+
+        if (! is_string($goldDirectory)) {
+            throw new \UnexpectedValueException('ai.fixtures.gold_dir must be a string.');
+        }
+
+        return $goldDirectory;
     }
 
     /** @param array<string, array{items: int, fields: array<string, array{filled: int, completeness: float}>}> $tree */
