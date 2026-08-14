@@ -18,10 +18,14 @@ final readonly class Okpd2NodeReadRepository
      */
     public function externalIds(int $platformId, array $codes): array
     {
-        return Okpd2Node::query()
+        /** @var Collection<int, Okpd2Node> $nodes */
+        $nodes = Okpd2Node::query()
             ->where('platform_id', $platformId)
             ->whereIn('code', $codes)
-            ->pluck('external_id', 'code')
+            ->get();
+
+        return $nodes
+            ->mapWithKeys(static fn (Okpd2Node $node): array => [$node->code => $node->external_id])
             ->all();
     }
 

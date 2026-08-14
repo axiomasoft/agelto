@@ -11,6 +11,7 @@ use Illuminate\Database\Eloquent\Attributes\UseFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Carbon;
 
 /**
  * Снапшот редакции закупки (партиция `prc_revisions` RANGE by `detected_at`).
@@ -20,6 +21,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property int $revision_number
  * @property array<string, mixed> $snapshot
  * @property string $snapshot_hash
+ * @property Carbon $detected_at
  */
 #[UseFactory(ProcurementRevisionFactory::class)]
 #[Fillable([

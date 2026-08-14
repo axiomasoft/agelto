@@ -107,6 +107,10 @@ final readonly class ProxyHealthStoreRepository
 
     private function probeLockSeconds(): int
     {
-        return (int) config('crawler.proxy.breaker.probe_lock_seconds');
+        $configured = config('crawler.proxy.breaker.probe_lock_seconds');
+
+        return is_int($configured) || is_float($configured) || is_string($configured)
+            ? (int) $configured
+            : 0;
     }
 }

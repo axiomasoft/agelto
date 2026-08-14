@@ -176,6 +176,10 @@ final readonly class ProcurementStoreRepository
             ->exists();
     }
 
+    /**
+     * @param  array<string, mixed>|null  $entityRef
+     * @param  array<string, mixed>|null  $payload
+     */
     public function storeEvent(
         int $procurementId,
         ProcurementEventType $eventType,
