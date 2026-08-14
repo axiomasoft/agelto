@@ -88,8 +88,8 @@ final class TestFilesystemIsolation
 
     public static function cleanup(string $process): void
     {
-        $root = storage_path('framework/testing/'.self::normalizeToken(token: $process));
-        $base = storage_path('framework/testing');
+        $base = dirname(__DIR__, 2).'/storage/framework/testing';
+        $root = $base.'/'.self::normalizeToken(token: $process);
         $realRoot = realpath($root);
         $realBase = realpath($base);
 

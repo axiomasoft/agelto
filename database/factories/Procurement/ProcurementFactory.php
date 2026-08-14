@@ -21,7 +21,7 @@ final class ProcurementFactory extends Factory
     {
         return [
             'registry_id' => fn (): int|string => $this->eisRegistry()->getKey(),
-            'registry_number' => fake()->unique()->numerify('0000000000000000####'),
+            'registry_number' => fake()->unique()->numerify('0000000000##########'),
             'etp_number' => null,
             'ikz' => null,
             'title' => fake()->sentence(),

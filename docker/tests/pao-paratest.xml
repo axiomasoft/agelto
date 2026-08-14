@@ -6,7 +6,7 @@
 >
     <testsuites>
         <testsuite name="PaoParatestContract">
-            <file>../../tests/Unit/Support/PaoParatestContractTest.php</file>
+            <file>../../tests/Support/PaoParatestContractTest.php</file>
         </testsuite>
     </testsuites>
 </phpunit>
