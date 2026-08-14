@@ -34,16 +34,16 @@ final readonly class FixtureVerifier
         foreach ($manifest['fixtures'] as $index => $entryJson) {
             $rows[] = $this->verifyEntry($entryJson, $index, $disk);
 
-            if (is_array($entryJson) && isset($entryJson['code'])) {
-                $manifestCodes[] = (string) $entryJson['code'];
+            if (is_array($entryJson) && is_string($entryJson['code'] ?? null)) {
+                $manifestCodes[] = $entryJson['code'];
             }
         }
 
-        $registryOrphans = $this->fixtures->all()
+        $registryOrphans = array_values(array_filter($this->fixtures->all()
             ->pluck('code')
             ->reject(fn (string $code): bool => in_array($code, $manifestCodes, strict: true))
             ->values()
-            ->all();
+            ->all(), is_string(...)));
 
         return [
             'rows' => $rows,
@@ -57,7 +57,7 @@ final readonly class FixtureVerifier
      */
     private function verifyEntry(mixed $entryJson, int $index, string $disk): array
     {
-        $code = is_array($entryJson) ? (string) ($entryJson['code'] ?? "#{$index}") : "#{$index}";
+        $code = is_array($entryJson) && is_string($entryJson['code'] ?? null) ? $entryJson['code'] : "#{$index}";
 
         if (! is_array($entryJson)) {
             return ['code' => $code, 'manifest_valid' => false, 'disk_ok' => false, 'registry_ok' => false, 'gold_ok' => false, 'ok' => false];
@@ -69,9 +69,11 @@ final readonly class FixtureVerifier
             return ['code' => $code, 'manifest_valid' => false, 'disk_ok' => false, 'registry_ok' => false, 'gold_ok' => false, 'ok' => false];
         }
 
-        $diskOk = Storage::disk($disk)->exists($entry->storage_path)
-            && Storage::disk($disk)->size($entry->storage_path) === $entry->size_bytes
-            && hash('sha256', Storage::disk($disk)->get($entry->storage_path)) === $entry->sha256;
+        $storage = Storage::disk($disk);
+        $contents = $storage->exists($entry->storage_path) ? $storage->get($entry->storage_path) : null;
+        $diskOk = is_string($contents)
+            && $storage->size($entry->storage_path) === $entry->size_bytes
+            && hash('sha256', $contents) === $entry->sha256;
 
         $registryFixture = $this->fixtures->findByCode($entry->code);
         $registryOk = $registryFixture !== null
