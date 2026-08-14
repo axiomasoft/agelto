@@ -49,6 +49,7 @@ use Spatie\LaravelData\Data;
 #[UseFactory(CrawlerFactory::class)]
 final class Crawler extends Model
 {
+    /** @use HasFactory<CrawlerFactory> */
     use HasFactory;
 
     protected $table = 'prc_crawlers';
@@ -171,7 +172,7 @@ final class Crawler extends Model
             'filter' => sprintf(
                 'Профиль реестра «%s» обязан нести предметный скоуп: выберите хотя бы один узел '
                 .'%s',
-                (string) $registry->getAttribute('code'),
+                $this->registryCode($registry),
                 $filters->scopeMessage(registry: $registry),
             ),
         ]);
@@ -182,6 +183,7 @@ final class Crawler extends Model
      * класс резолвится из nested registry capability exact platform adapter, поэтому у другой
      * площадки/реестра — свой `Data`-класс, а не общий мешок ключей.
      */
+    /** @return Attribute<?Data, Data|array<string, mixed>|Arrayable<string, mixed>|null> */
     protected function filter(): Attribute
     {
         return Attribute::make(
@@ -195,6 +197,7 @@ final class Crawler extends Model
         );
     }
 
+    /** @return Attribute<?CrawlerRuntimeOptions, CrawlerRuntimeOptions|array<string, mixed>|Arrayable<string, mixed>|null> */
     protected function options(): Attribute
     {
         return Attribute::make(
@@ -208,11 +211,13 @@ final class Crawler extends Model
         );
     }
 
+    /** @return BelongsTo<Registry, $this> */
     public function registry(): BelongsTo
     {
         return $this->belongsTo(related: Registry::class);
     }
 
+    /** @return BelongsToMany<Proxy, $this> */
     public function proxies(): BelongsToMany
     {
         return $this->belongsToMany(related: Proxy::class, table: 'prc_crawler_proxy');
@@ -231,7 +236,7 @@ final class Crawler extends Model
 
         $decoded = is_string($raw) ? json_decode($raw, associative: true, flags: JSON_THROW_ON_ERROR) : $raw;
 
-        return is_array($decoded) ? $decoded : null;
+        return $this->jsonObject($decoded);
     }
 
     /** @return array<string, mixed>|null */
@@ -245,7 +250,7 @@ final class Crawler extends Model
 
         $decoded = is_string($raw) ? json_decode($raw, associative: true, flags: JSON_THROW_ON_ERROR) : $raw;
 
-        return is_array($decoded) ? $decoded : null;
+        return $this->jsonObject($decoded);
     }
 
     /**
@@ -279,5 +284,33 @@ final class Crawler extends Model
         }
 
         return CrawlerRuntimeOptions::validateAndCreate($raw);
+    }
+
+    private function registryCode(Registry $registry): string
+    {
+        $code = $registry->getAttribute('code');
+
+        if (! is_string($code) || $code === '') {
+            throw new RuntimeException('Реестр профиля обхода не содержит code.');
+        }
+
+        return $code;
+    }
+
+    /** @return array<string, mixed>|null */
+    private function jsonObject(mixed $value): ?array
+    {
+        if (! is_array($value)) {
+            return null;
+        }
+
+        foreach (array_keys($value) as $key) {
+            if (! is_string($key)) {
+                return null;
+            }
+        }
+
+        /** @var array<string, mixed> $value */
+        return $value;
     }
 }
