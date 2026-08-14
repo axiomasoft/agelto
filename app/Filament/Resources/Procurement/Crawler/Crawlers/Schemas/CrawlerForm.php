@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Filament\Resources\Procurement\Crawler\Crawlers\Schemas;
 
+use App\Contracts\Procurement\Crawler\CrawlerPlatformForm;
 use App\Enums\Procurement\Crawler\CrawlerExecutionLane;
 use App\Enums\Procurement\Crawler\CrawlerMode;
 use App\Enums\Procurement\Crawler\RunStopPolicy;
@@ -67,7 +68,7 @@ final class CrawlerForm
                                         return;
                                     }
 
-                                    if (! CronExpression::isValidExpression((string) $value)) {
+                                    if (! is_string($value) || ! CronExpression::isValidExpression($value)) {
                                         $fail('Невалидное cron-выражение.');
                                     }
                                 };
@@ -124,7 +125,10 @@ final class CrawlerForm
         try {
             $class = app(PlatformAdapterRegistry::class)->formClass(registry: $registry);
 
-            return app($class)->components(registry: $registry, get: $get);
+            /** @var CrawlerPlatformForm $form */
+            $form = app()->make($class);
+
+            return $form->components(registry: $registry, get: $get);
         } catch (Throwable) {
             return [self::unavailablePlatformPlaceholder()];
         }

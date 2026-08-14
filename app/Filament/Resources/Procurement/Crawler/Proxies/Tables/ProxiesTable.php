@@ -12,6 +12,7 @@ use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\TernaryFilter;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
 
 class ProxiesTable
 {
@@ -64,8 +65,8 @@ class ProxiesTable
                 TernaryFilter::make('disabled')
                     ->label('Отключённые')
                     ->queries(
-                        true: fn ($query) => $query->whereNotNull('disabled_at'),
-                        false: fn ($query) => $query->whereNull('disabled_at'),
+                        true: static fn (Builder $query): Builder => $query->whereNotNull('disabled_at'),
+                        false: static fn (Builder $query): Builder => $query->whereNull('disabled_at'),
                     ),
             ])
             ->recordActions([
