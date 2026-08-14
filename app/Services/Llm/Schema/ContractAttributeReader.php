@@ -59,7 +59,7 @@ final readonly class ContractAttributeReader
                 continue;
             }
 
-            $aliases[$parameter->getName()] = $attributes[0]->newInstance()->aliases;
+            $aliases[$parameter->getName()] = array_values($attributes[0]->newInstance()->aliases);
         }
 
         return $aliases;
@@ -80,7 +80,7 @@ final readonly class ContractAttributeReader
                 continue;
             }
 
-            $aliases[(string) $case->getBackingValue()] = $attributes[0]->newInstance()->aliases;
+            $aliases[(string) $case->getBackingValue()] = array_values($attributes[0]->newInstance()->aliases);
         }
 
         return $aliases;

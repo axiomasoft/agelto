@@ -97,7 +97,9 @@ final readonly class PromptCanonReader
         }
 
         $front = [];
-        foreach (preg_split('/\n/', trim($matches['front'])) as $line) {
+        $frontLines = preg_split('/\n/', trim($matches['front']));
+
+        foreach ($frontLines === false ? [] : $frontLines as $line) {
             if (! str_contains($line, ':')) {
                 continue;
             }

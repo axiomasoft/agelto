@@ -105,7 +105,11 @@ final readonly class PromptCanonSynchronizer
     {
         return $records
             ->groupBy(fn (array $record): string => "{$record['document_type']}\0{$record['key']}")
-            ->map(fn (Collection $group): int => (int) $group->max('version'));
+            ->map(function (Collection $group): int {
+                $version = $group->max('version');
+
+                return is_int($version) || is_float($version) || is_string($version) ? (int) $version : 0;
+            });
     }
 
     private function pairKeyOf(Prompt $prompt): string
