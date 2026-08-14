@@ -62,6 +62,15 @@ final readonly class BacklogRescanProcessor
     {
         $crawler = $freshRun->crawler;
 
+        if (! $crawler instanceof Crawler) {
+            Log::warning(
+                message: 'BacklogRescanProcessor: fresh run has no crawler, skipping.',
+                context: ['fresh_run_id' => $freshRun->id],
+            );
+
+            return false;
+        }
+
         $archiveCrawler = Crawler::query()
             ->where('registry_id', $crawler->registry_id)
             ->where('mode', CrawlerMode::Archive)
@@ -77,11 +86,19 @@ final readonly class BacklogRescanProcessor
             return false;
         }
 
-        $window = $freshRun->stats?->toArray()['possible_skip_window'] ?? [];
+        $stats = $freshRun->stats === null
+            ? []
+            : $this->stringKeyedArray(values: $freshRun->stats->toArray());
+        $window = $stats['possible_skip_window'] ?? [];
+
+        if (! is_array($window)) {
+            $window = [];
+        }
+
         $from = $window['from'] ?? null;
         $to = $window['to'] ?? null;
 
-        if ($from === null || $to === null) {
+        if (! is_string($from) || ! is_string($to)) {
             Log::warning(
                 message: 'BacklogRescanProcessor: possible_skip_window has no resolvable "from", skipping.',
                 context: ['fresh_run_id' => $freshRun->id],
@@ -132,10 +149,18 @@ final readonly class BacklogRescanProcessor
 
     private function drainWindow(Crawler $crawler, Run $run, Carbon $from, Carbon $to): ArchiveWindowScanResult
     {
-        $overlapDays = (int) config('crawler.tracking.window_overlap_days');
+        $overlapDays = config('crawler.tracking.window_overlap_days');
+
+        if (! is_int($overlapDays)) {
+            throw new \UnexpectedValueException('crawler.tracking.window_overlap_days must be an integer.');
+        }
+
         $overlappedFrom = $from->copy()->subDays($overlapDays)->startOfDay();
 
-        $cursor = ListingCursor::fromArray(cursor: $run->cursor?->toArray() ?? []);
+        $cursorAttributes = $run->cursor === null
+            ? []
+            : $this->stringKeyedArray(values: $run->cursor->toArray());
+        $cursor = ListingCursor::fromArray(cursor: $cursorAttributes);
         $day = $cursor->day !== null ? Carbon::parse($cursor->day) : $overlappedFrom->copy();
 
         if ($cursor->day === null) {
@@ -176,5 +201,22 @@ final readonly class BacklogRescanProcessor
         }
 
         return ArchiveWindowScanResult::Drained;
+    }
+
+    /**
+     * @param  array<mixed>  $values
+     * @return array<string, mixed>
+     */
+    private function stringKeyedArray(array $values): array
+    {
+        $result = [];
+
+        foreach ($values as $key => $value) {
+            if (is_string($key)) {
+                $result[$key] = $value;
+            }
+        }
+
+        return $result;
     }
 }
