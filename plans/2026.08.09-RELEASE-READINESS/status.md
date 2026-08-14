@@ -3,7 +3,7 @@ projection: status-view
 projection_version: v1
 source_scope: plan core + phases + journal
 through: 2026-08-14
-inputs_sha256: 4addde8f3f4d066dbbf42ae6d73a35b34f004d568b69e093240a4b6523ecbf67
+inputs_sha256: 370bdc0d2623fa25286f1e54c864f2bf6c1758b6657d7006e0487a2ad70fb0e3
 generated_by: task plan-views status
 -->
 
@@ -675,6 +675,8 @@ write-site: pre_mutation: allow · pre_final: allow |
 | 2026-08-14 | gpt-5.6-terra/high | plan-run · in-progress · — |
 | 2026-08-14 | gpt-5.6-terra/high | plan-run · local-repair · Full no-TIA update-shards run exposed transient EisCsv suite failures; focused RowMapper reproduction is green, so measure serial order/state before changing tests. |
 | 2026-08-14 | gpt-5.6-terra/high | plan-run · closed-green · P11.2: локальный TIA и безопасный serial full no-TIA контракт подтверждены. |
+| 2026-08-14 | gpt-5.6-terra/high | plan-run · local-repair · Projected closure evidence repaired after lint.
+write-site: pre_mutation: allow · pre_final: allow |
 
 ## Owner Gates
 
