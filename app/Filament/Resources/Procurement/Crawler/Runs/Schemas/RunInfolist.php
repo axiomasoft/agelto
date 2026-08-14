@@ -146,7 +146,8 @@ class RunInfolist
 
         return match (true) {
             is_bool($value) => $value ? 'да' : 'нет',
-            default => (string) $value,
+            is_int($value), is_float($value), is_string($value) => (string) $value,
+            default => '—',
         };
     }
 
@@ -158,7 +159,7 @@ class RunInfolist
             return '—';
         }
 
-        return implode(' → ', $stack);
+        return implode(' → ', array_values(array_filter($stack, is_string(...))));
     }
 
     private static function statValue(Run $record, string $key): string
@@ -171,7 +172,8 @@ class RunInfolist
 
         return match (true) {
             is_bool($value) => $value ? 'да' : 'нет',
-            default => (string) $value,
+            is_int($value), is_float($value), is_string($value) => (string) $value,
+            default => '—',
         };
     }
 
@@ -183,8 +185,11 @@ class RunInfolist
             return '—';
         }
 
-        $from = $window['from'] ?? '—';
-        $to = $window['to'] ?? '—';
+        $from = $window['from'] ?? null;
+        $to = $window['to'] ?? null;
+
+        $from = is_string($from) ? $from : '—';
+        $to = is_string($to) ? $to : '—';
 
         return "{$from} — {$to}";
     }

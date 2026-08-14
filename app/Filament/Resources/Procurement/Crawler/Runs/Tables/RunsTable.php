@@ -70,7 +70,7 @@ class RunsTable
                     ->visibleFrom('md'),
                 TextColumn::make('stop_reason')
                     ->label('Причина остановки')
-                    ->state(fn (Run $record): ?string => $record->stats?->get('stop_reason'))
+                    ->state(fn (Run $record): ?string => ($value = $record->stats?->get('stop_reason')) instanceof \Stringable || is_string($value) ? (string) $value : null)
                     ->placeholder('—')
                     ->wrap()
                     ->lineClamp(2)
@@ -104,7 +104,7 @@ class RunsTable
                     ->relationship('crawler', 'name'),
                 SelectFilter::make('status')
                     ->label('Статус')
-                    ->options(collect(RunStatus::cases())->pluck('value', 'value')->all()),
+                    ->options(collect(RunStatus::cases())->mapWithKeys(static fn (RunStatus $status): array => [$status->value => $status->value])->all()),
                 self::startedAtRangeFilter(),
             ])
             // Мутации — только остановка/отмена уже идущего прогона (P3.4), не create/edit/delete.
@@ -127,11 +127,11 @@ class RunsTable
                 return $query
                     ->when(
                         $data['started_from'] ?? null,
-                        fn (Builder $query, string $date): Builder => $query->whereDate('started_at', '>=', $date),
+                        static fn (Builder $query, mixed $date): Builder => is_string($date) ? $query->whereDate('started_at', '>=', $date) : $query,
                     )
                     ->when(
                         $data['started_until'] ?? null,
-                        fn (Builder $query, string $date): Builder => $query->whereDate('started_at', '<=', $date),
+                        static fn (Builder $query, mixed $date): Builder => is_string($date) ? $query->whereDate('started_at', '<=', $date) : $query,
                     );
             });
     }
@@ -158,7 +158,7 @@ class RunsTable
             ->visible(fn (Run $record): bool => self::canManage() && self::isStoppable($record))
             ->action(fn (Run $record) => self::requestStop(
                 $record,
-                fn (RequestRunStopAction $action) => $action->pause($record, Auth::id()),
+                fn (RequestRunStopAction $action) => $action->pause($record, self::requestedBy()),
             ));
     }
 
@@ -171,7 +171,7 @@ class RunsTable
             ->visible(fn (Run $record): bool => self::canManage() && self::isStoppable($record))
             ->action(fn (Run $record) => self::requestStop(
                 $record,
-                fn (RequestRunStopAction $action) => $action->cancel($record, Auth::id()),
+                fn (RequestRunStopAction $action) => $action->cancel($record, self::requestedBy()),
             ));
     }
 
@@ -205,6 +205,13 @@ class RunsTable
     private static function canManage(): bool
     {
         return Auth::user()?->hasPermission(RunPermission::Update) ?? false;
+    }
+
+    private static function requestedBy(): ?int
+    {
+        $userId = Auth::id();
+
+        return is_int($userId) ? $userId : null;
     }
 
     private static function isStoppable(Run $record): bool
