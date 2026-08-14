@@ -38,8 +38,8 @@ final class FixturesManifestCommand extends Command
 
     public function handle(): int
     {
-        $shortlistPath = (string) $this->option('from-shortlist');
-        $manifestPath = (string) ($this->option('manifest') ?? config('ai.fixtures.manifest_path'));
+        $shortlistPath = $this->requiredOption('from-shortlist');
+        $manifestPath = $this->manifestPath();
         $force = (bool) $this->option('force');
 
         if (! is_file($shortlistPath)) {
@@ -56,8 +56,8 @@ final class FixturesManifestCommand extends Command
             return self::FAILURE;
         }
 
-        if (! is_array($shortlist)) {
-            $this->error('Ожидается JSON-массив записей шорт-листа.');
+        if (! is_array($shortlist) || ! array_is_list($shortlist)) {
+            $this->error('Ожидается JSON-список записей шорт-листа.');
 
             return self::FAILURE;
         }
@@ -65,7 +65,8 @@ final class FixturesManifestCommand extends Command
         $mimeByPath = $this->manifestBuilder->mimeIndex((string) $this->option('inventory'));
         $existing = $this->manifestBuilder->readExistingManifest($manifestPath);
 
-        $result = $this->manifestBuilder->build($shortlist, $existing, (string) config('ai.fixtures.source_dir'), $mimeByPath, $force);
+        /** @var list<mixed> $shortlist */
+        $result = $this->manifestBuilder->build($shortlist, $existing, $this->sourceDirectory(), $mimeByPath, $force);
 
         if ($result['errors'] !== []) {
             foreach ($result['errors'] as $error) {
@@ -82,5 +83,43 @@ final class FixturesManifestCommand extends Command
         $this->info('Готово: '.count($records).' запись(ей) в манифесте.');
 
         return self::SUCCESS;
+    }
+
+    private function requiredOption(string $name): string
+    {
+        $value = $this->option($name);
+
+        if (! is_string($value) || $value === '') {
+            throw new \UnexpectedValueException("--{$name} must be a non-empty string.");
+        }
+
+        return $value;
+    }
+
+    private function manifestPath(): string
+    {
+        $value = $this->option('manifest');
+
+        if (is_string($value) && $value !== '') {
+            return $value;
+        }
+
+        return $this->configString('ai.fixtures.manifest_path');
+    }
+
+    private function sourceDirectory(): string
+    {
+        return $this->configString('ai.fixtures.source_dir');
+    }
+
+    private function configString(string $key): string
+    {
+        $value = config($key);
+
+        if (! is_string($value) || $value === '') {
+            throw new \UnexpectedValueException("{$key} must be a non-empty string.");
+        }
+
+        return $value;
     }
 }
