@@ -64,8 +64,14 @@ final readonly class BillingReconciler
             $exported = $exportedByDay[$day] ?? 0;
             $delta = $tracked - $exported;
 
+            $date = CarbonImmutable::createFromFormat('Y-m-d', $day);
+
+            if ($date === null) {
+                throw new BillingExportUnreadable("Не удалось собрать дату «{$day}» для отчёта.");
+            }
+
             $rows[] = new ReconciliationRow(
-                day: CarbonImmutable::createFromFormat('Y-m-d', $day)->startOfDay(),
+                day: $date->startOfDay(),
                 trackedMicros: $tracked,
                 exportedMicros: $exported,
                 deltaMicros: $delta,
@@ -77,7 +83,10 @@ final readonly class BillingReconciler
         }
 
         $deltaTotal = $trackedTotal - $exportedTotal;
-        $threshold = (float) config('ai.reconcile.threshold_percent');
+        $configuredThreshold = config('ai.reconcile.threshold_percent');
+        $threshold = is_int($configuredThreshold) || is_float($configuredThreshold) || is_string($configuredThreshold)
+            ? (float) $configuredThreshold
+            : 0.0;
         $deltaPercent = $this->percent($deltaTotal, $trackedTotal, $exportedTotal);
 
         return new ReconciliationReport(
@@ -122,7 +131,7 @@ final readonly class BillingReconciler
                 throw new BillingExportUnreadable("Выгрузка пуста — нет строки заголовка: {$exportPath}.");
             }
 
-            $columns = $this->resolveColumns($header);
+            $columns = $this->resolveColumns($this->stringCells($header));
             $byDay = [];
 
             while (($record = fgetcsv($handle)) !== false) {
@@ -130,12 +139,20 @@ final readonly class BillingReconciler
                     continue;
                 }
 
+                $record = $this->stringCells($record);
+
                 $this->guardCurrency($record, $columns);
 
                 $rawDate = trim((string) ($record[$columns['date']] ?? ''));
 
                 try {
-                    $day = CarbonImmutable::createFromFormat('Y-m-d', $rawDate)->startOfDay();
+                    $parsedDay = CarbonImmutable::createFromFormat('Y-m-d', $rawDate);
+
+                    if ($parsedDay === null) {
+                        throw new BillingExportUnreadable("Не удалось разобрать дату «{$rawDate}» в выгрузке — ожидается формат YYYY-MM-DD.");
+                    }
+
+                    $day = $parsedDay->startOfDay();
                 } catch (InvalidFormatException) {
                     throw new BillingExportUnreadable("Не удалось разобрать дату «{$rawDate}» в выгрузке — ожидается формат YYYY-MM-DD.");
                 }
@@ -226,5 +243,14 @@ final readonly class BillingReconciler
         }
 
         return null;
+    }
+
+    /**
+     * @param  list<string|null>  $cells
+     * @return list<string>
+     */
+    private function stringCells(array $cells): array
+    {
+        return array_map(static fn (?string $cell): string => $cell ?? '', $cells);
     }
 }
