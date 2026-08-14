@@ -34,7 +34,7 @@ final readonly class OcrConverter
     {
         $result = Process::timeout($this->timeoutSeconds())
             ->run([
-                (string) config('ai.tools.ocrmypdf_bin'),
+                $this->configString('ai.tools.ocrmypdf_bin'),
                 '--language', $this->languages(),
                 '--sidecar', $sidecarTxtPath,
                 '--output-type', 'pdf',
@@ -56,9 +56,9 @@ final readonly class OcrConverter
      */
     public function textCharsPerPage(string $pdfPath): ?float
     {
-        $result = Process::timeout((int) config('ai.tools.default_timeout_seconds'))
+        $result = Process::timeout($this->configPositiveInt('ai.tools.default_timeout_seconds'))
             ->run([
-                (string) config('ai.tools.pdftotext_bin'),
+                $this->configString('ai.tools.pdftotext_bin'),
                 '-f', '1',
                 '-l', (string) self::TEXT_LAYER_SAMPLE_PAGES,
                 $pdfPath,
@@ -76,8 +76,8 @@ final readonly class OcrConverter
 
     public function pageCount(string $pdfPath): ?int
     {
-        $result = Process::timeout((int) config('ai.tools.default_timeout_seconds'))
-            ->run([(string) config('ai.tools.pdfinfo_bin'), $pdfPath]);
+        $result = Process::timeout($this->configPositiveInt('ai.tools.default_timeout_seconds'))
+            ->run([$this->configString('ai.tools.pdfinfo_bin'), $pdfPath]);
 
         if ($result->failed()) {
             return null;
@@ -94,8 +94,8 @@ final readonly class OcrConverter
 
     public function tesseractVersion(): ?string
     {
-        $result = Process::timeout((int) config('ai.tools.default_timeout_seconds'))
-            ->run([(string) config('ai.tools.tesseract_bin'), '--version']);
+        $result = Process::timeout($this->configPositiveInt('ai.tools.default_timeout_seconds'))
+            ->run([$this->configString('ai.tools.tesseract_bin'), '--version']);
 
         if ($result->failed()) {
             return null;
@@ -108,11 +108,33 @@ final readonly class OcrConverter
 
     public function languages(): string
     {
-        return (string) config('ai.tools.ocr_languages', 'rus+eng');
+        return $this->configString('ai.tools.ocr_languages', 'rus+eng');
     }
 
     private function timeoutSeconds(): int
     {
-        return (int) config('ai.tools.ocr_timeout_seconds', 1800);
+        return $this->configPositiveInt('ai.tools.ocr_timeout_seconds', 1800);
+    }
+
+    private function configString(string $key, ?string $default = null): string
+    {
+        $value = config($key, $default);
+
+        if (! is_string($value) || $value === '') {
+            throw new RuntimeException("{$key} должен быть непустой строкой.");
+        }
+
+        return $value;
+    }
+
+    private function configPositiveInt(string $key, ?int $default = null): int
+    {
+        $value = config($key, $default);
+
+        if (! is_int($value) || $value < 1) {
+            throw new RuntimeException("{$key} должен быть положительным целым числом.");
+        }
+
+        return $value;
     }
 }
