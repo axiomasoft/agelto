@@ -114,7 +114,9 @@ final class CostReconcileCommand extends Command
         }
 
         try {
-            return CarbonImmutable::createFromFormat('Y-m-d', $value)->startOfDay();
+            $date = CarbonImmutable::createFromFormat('Y-m-d', $value);
+
+            return $date?->startOfDay();
         } catch (InvalidFormatException) {
             return null;
         }

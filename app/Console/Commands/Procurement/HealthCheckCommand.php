@@ -31,14 +31,21 @@ final class HealthCheckCommand extends Command
             return self::SUCCESS;
         }
 
-        $platformCode = (string) ($this->option('platform') ?: 'eis');
+        $platformOption = $this->option('platform');
+        $platformCode = is_string($platformOption) && $platformOption !== '' ? $platformOption : 'eis';
         $kind = $this->option('kind');
 
         try {
-            $checkKind = $kind === null ? null : PlatformCheckKind::from((string) $kind);
+            $checkKind = is_string($kind) && $kind !== '' ? PlatformCheckKind::from($kind) : null;
             $platform = Platform::query()->where('code', $platformCode)->firstOrFail();
             $to = now();
-            $from = $to->copy()->subHours((int) config('crawler.health.window_hours'));
+            $windowHours = config('crawler.health.window_hours');
+
+            if (! is_int($windowHours) || $windowHours <= 0) {
+                throw new \UnexpectedValueException('crawler.health.window_hours must be a positive integer.');
+            }
+
+            $from = $to->copy()->subHours($windowHours);
             $results = $this->checker->run(
                 platform: $platform,
                 from: $from,

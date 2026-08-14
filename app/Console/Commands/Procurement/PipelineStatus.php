@@ -67,7 +67,7 @@ final class PipelineStatus extends Command
 
         $tableRows = [];
         foreach ($labels as $value => $label) {
-            $tableRows[] = [$label, $rows->get($value)?->total ?? 0];
+            $tableRows[] = [$label, $rows->get($value)->total ?? 0];
         }
 
         $this->table(['Статус', 'Количество'], $tableRows);
@@ -103,7 +103,7 @@ final class PipelineStatus extends Command
             foreach ($statuses as $statusValue => $statusLabel) {
                 $count = $rows
                     ->first(fn ($row): bool => $row->step === $stepValue && $row->status === $statusValue)
-                    ?->total ?? 0;
+                    ->total ?? 0;
 
                 $tableRows[] = ["  {$statusLabel}", $count];
             }

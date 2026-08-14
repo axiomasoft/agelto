@@ -44,7 +44,11 @@ final class CostReportCommand extends Command
             return self::SUCCESS;
         }
 
-        $rubPerUsd = (float) config('ai.cost_report.rub_per_usd');
+        $rubPerUsd = config('ai.cost_report.rub_per_usd');
+
+        if (! is_float($rubPerUsd) && ! is_int($rubPerUsd)) {
+            throw new \UnexpectedValueException('ai.cost_report.rub_per_usd must be numeric.');
+        }
 
         $this->table(
             ['provider', 'model', 'purpose', 'calls', 'prompt_tokens', 'cached_tokens', 'completion_tokens', 'cost'],
@@ -86,7 +90,7 @@ final class CostReportCommand extends Command
         }
 
         $this->newLine();
-        $this->line('Расход по календарным дням (пояс '.config('app.timezone').'):');
+        $this->line('Расход по календарным дням (пояс '.$this->timezone().'):');
         $this->table(
             ['day', 'provider', 'model', 'calls', 'cost'],
             array_map(fn (UsageRow $row): array => [
@@ -123,5 +127,16 @@ final class CostReportCommand extends Command
     private function formatRub(int $micros, float $rubPerUsd): string
     {
         return sprintf('%.2f ₽', ($micros / 1_000_000) * $rubPerUsd);
+    }
+
+    private function timezone(): string
+    {
+        $timezone = config('app.timezone');
+
+        if (! is_string($timezone)) {
+            throw new \UnexpectedValueException('app.timezone must be a string.');
+        }
+
+        return $timezone;
     }
 }
