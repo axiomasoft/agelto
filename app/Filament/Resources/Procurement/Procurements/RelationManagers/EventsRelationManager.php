@@ -73,8 +73,8 @@ class EventsRelationManager extends RelationManager
                         DatePicker::make('until')->label('По'),
                     ])
                     ->query(static fn (Builder $query, array $data): Builder => $query
-                        ->when($data['from'] ?? null, fn (Builder $query, string $date): Builder => $query->whereDate('occurred_at', '>=', $date))
-                        ->when($data['until'] ?? null, fn (Builder $query, string $date): Builder => $query->whereDate('occurred_at', '<=', $date))),
+                        ->when($data['from'] ?? null, static fn (Builder $query, mixed $date): Builder => is_string($date) ? $query->whereDate('occurred_at', '>=', $date) : $query)
+                        ->when($data['until'] ?? null, static fn (Builder $query, mixed $date): Builder => is_string($date) ? $query->whereDate('occurred_at', '<=', $date) : $query)),
             ])
             ->defaultSort('occurred_at', 'desc');
     }

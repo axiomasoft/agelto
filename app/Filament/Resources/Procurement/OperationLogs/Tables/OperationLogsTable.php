@@ -21,7 +21,7 @@ final class OperationLogsTable
             TextColumn::make('entity_id')->label('ИД объекта')->toggleable(isToggledHiddenByDefault: true),
             TextColumn::make('message')->label('Сообщение')->wrapHeader()->wrap()->lineClamp(3)->tooltip(fn (?string $state): ?string => $state),
         ])
-            ->filters([SelectFilter::make('level')->options(collect(OperationLogLevel::cases())->pluck('value', 'value')->all()), SelectFilter::make('stage')->options(['detail' => 'detail', 'document' => 'document', 'budget' => 'budget', 'proxy' => 'proxy']), SelectFilter::make('entity_type')->options(['procurement' => 'procurement', 'document' => 'document', 'proxy' => 'proxy'])])
+            ->filters([SelectFilter::make('level')->options(collect(OperationLogLevel::cases())->mapWithKeys(static fn (OperationLogLevel $level): array => [$level->value => $level->value])->all()), SelectFilter::make('stage')->options(['detail' => 'detail', 'document' => 'document', 'budget' => 'budget', 'proxy' => 'proxy']), SelectFilter::make('entity_type')->options(['procurement' => 'procurement', 'document' => 'document', 'proxy' => 'proxy'])])
             ->defaultSort('created_at', 'desc');
     }
 }
