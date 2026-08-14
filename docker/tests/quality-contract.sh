@@ -27,5 +27,5 @@ docker compose exec -T app composer audit --locked --no-interaction
 docker compose exec -T app ./vendor/bin/phpstan analyse --memory-limit=1G --no-progress
 docker compose exec -T app ./vendor/bin/pint --test
 docker compose exec -T app ./vendor/bin/rector process --dry-run --no-progress-bar
-bash docker/tests/quality-remediation-contract.sh
+P10_REMEDIATION_NESTED=1 bash docker/tests/quality-remediation-contract.sh
 make test-php
