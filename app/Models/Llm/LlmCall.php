@@ -14,6 +14,7 @@ use Illuminate\Database\Eloquent\Casts\AsCollection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Collection;
 
 /**
  * Каждый вызов LLM (партиция `llm_calls` RANGE by `called_at`).
@@ -27,6 +28,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property string|null $response_ref
  * @property int|null $prompt_tokens
  * @property int|null $cached_tokens
+ * @property Collection<string, int>|null $prompt_version_set
  */
 #[UseFactory(LlmCallFactory::class)]
 #[Fillable([
@@ -52,6 +54,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 #[Table(name: 'llm_calls', keyType: 'int')]
 final class LlmCall extends Model
 {
+    /** @use HasFactory<LlmCallFactory> */
     use HasFactory;
 
     public $incrementing = true;
@@ -71,11 +74,13 @@ final class LlmCall extends Model
         ];
     }
 
+    /** @return BelongsTo<Analysis, $this> */
     public function analysis(): BelongsTo
     {
         return $this->belongsTo(related: Analysis::class);
     }
 
+    /** @return BelongsTo<AnalysisRun, $this> */
     public function analysisRun(): BelongsTo
     {
         return $this->belongsTo(related: AnalysisRun::class);

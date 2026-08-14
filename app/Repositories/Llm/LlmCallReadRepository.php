@@ -83,7 +83,11 @@ final readonly class LlmCallReadRepository
             throw new InvalidArgumentException('Неизвестная ось агрегата расхода: '.implode(', ', $unknown));
         }
 
-        $timezone = (string) config('app.timezone');
+        $timezone = config('app.timezone');
+
+        if (! is_string($timezone)) {
+            throw new InvalidArgumentException('app.timezone must be a string.');
+        }
         $dayExpression = '(called_at AT TIME ZONE CAST(? AS text))::date';
 
         // Границы окна биндятся С МИКРОСЕКУНДАМИ: грамматика запроса форматирует объект даты как
