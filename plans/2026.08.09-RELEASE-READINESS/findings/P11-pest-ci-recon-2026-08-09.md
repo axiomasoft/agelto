@@ -78,6 +78,29 @@ they are seeds for P11.1, not a substitute for measurement on the terminal P10 t
   keys, auth state, generated secrets, test DB/media or executable vendor/node_modules trees from
   an untrusted run. Confidence: high.
 
+## Terminal-tree reconciliation — 2026-08-14
+
+P11.1 re-opened the same eight primary sources and reconciled them against locked Pest 5.0.4,
+Laravel 13.25.0 and the terminal tree `48aa8f58`:
+
+- Five full no-TIA runs were green with identical 1,569-name/status sets; median wall time 89.97 s.
+- Fresh TIA recorded the same set in 114.65 s; a no-change replay took 22.59 s and reported all
+  1,569 tests as replayed. This confirms useful local feedback and also why replay cannot be CI or
+  item acceptance evidence.
+- The current `always()->locally()` chain remains contrary to the documented alternative modes.
+  P11.2 must reduce it to local TIA and ordinary acceptance must keep `--ci --no-tia`.
+- Explicit 2/4-process Pest discovery is currently unusable: all three probes per count fail on the
+  existing `use RuntimeException` warning. P11.1 did not suppress it or mutate tests.
+- Complete 2- and 4-shard unions were green, unique and exact-name/status equal to serial. Two shards
+  are the smallest provisional D40 candidate (45.48-second critical path; 100.8% runner cost), but
+  P11.2 still owes three clean repetitions and P11.3 isolation proof.
+- PCOV Clover measured 88.27% statements and 66.80% methods. Risk closure remains matrix-based; a
+  high aggregate percentage cannot close D41/D42 or the partial D34/D40 rows.
+
+The official-source verdicts above remain current as checked 2026-08-14. Exact GitHub Action commit
+SHAs and the private-package credential path remain intentionally unselected until P11.5 inspects the
+then-current official action releases and trusted repository environment.
+
 ## Reconciliation verdict
 
 P11 is not a Pest upgrade. It is a sequential evidence-and-hardening phase over an already upgraded
@@ -88,9 +111,12 @@ both safety and useful wall-time reduction. Browser coverage continues through D
 
 ## Verification status
 
-- RAG: known official pages opened directly through Web RAG, 8 primary sources, OK. Context7 and
+- RAG: known official pages opened directly through Web RAG on 2026-08-14, 8 primary sources, OK. Context7 and
   Perplexity were not connected in this session; no external claim above rests on a secondary source.
-- Непроверено → ПОВТОРНЫЙ ПРОХОД: terminal P0/P1–P10 products, final suite timings/coverage,
-  exact GitHub Action SHAs and private-package CI credential path — intentionally execution-time
-  facts with hard P11.1/P11.5 reconcile gates.
-- Обходки/[POSSIBLE-DEFECT]: нет.
+- Проверено P11.1: terminal P0/P1–P10 endpoints, locked graph, runner fingerprint, suite inventory,
+  serial/TIA/parallel/shard/profile/coverage behavior and raw hashes.
+- Непроверено → ПОВТОРНЫЙ ПРОХОД: exact GitHub Action SHAs, private-package CI credential path and
+  live workflow runs — intentionally owned by P11.5.
+- [POSSIBLE-DEFECT]: parallel discovery promotes the redundant global `use RuntimeException` in
+  `tests/Unit/Llm/GeminiResponseSchemaAdapterTest.php:11` to an ErrorException. Repair/remeasurement
+  belongs to P11.2; no warning suppression or product mutation was used here.

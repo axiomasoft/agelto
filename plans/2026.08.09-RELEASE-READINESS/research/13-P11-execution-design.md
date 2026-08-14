@@ -103,8 +103,12 @@ RAG:— (repo-grounded: dependency table and plan-protocol criterion).
 
 ## Verification status
 
-- RAG: official Pest/Laravel/PAO/GitHub sources captured in
-  `findings/P11-pest-ci-recon-2026-08-09.md`; repo snapshot inspected.
-- Непроверено → ПОВТОРНЫЙ ПРОХОД: exact terminal timings/coverage, chosen process/shard counts,
-  action SHAs and live workflow result are execution outputs with fail-closed items.
-- Обходки/[POSSIBLE-DEFECT]: нет.
+- RAG: official Pest/Laravel/PAO/GitHub sources were re-opened 2026-08-14 and reconciled in
+  `findings/P11-pest-ci-recon-2026-08-09.md` against terminal tree `48aa8f58`.
+- Проверено P11.1: five-run serial median 89.97 s; TIA fresh/replay 114.65/22.59 s; coverage 88.27%
+  statements; exact 2/4-shard unions. Parallel 2/4 is honestly rejected after three deterministic
+  discovery failures per count. Provisional P11.2 input is the smallest qualifying 2-shard mode.
+- Непроверено → ПОВТОРНЫЙ ПРОХОД: repeated selected-mode proof, exact isolation/PAO behavior,
+  action SHAs and live workflow result remain with P11.2–P11.6.
+- [POSSIBLE-DEFECT]: redundant `use RuntimeException` blocks current parallel discovery; P11.1 did
+  not mutate or suppress it because tests/config are outside this evidence-only item.
