@@ -35,10 +35,11 @@ class AiRouteForm
                         Select::make('purpose')
                             ->label('Назначение')
                             ->options(function (Get $get) {
-                                $documentType = AiDocumentType::tryFrom((string) $get('document_type')) ?? DocumentTypeScope::Any;
+                                $value = $get('document_type');
+                                $documentType = is_string($value) ? AiDocumentType::tryFrom($value) : null;
 
                                 return LlmPresentation::purposeOptions(
-                                    purposes: app(DocumentAnalyzerRegistry::class)->purposesFor($documentType),
+                                    purposes: app(DocumentAnalyzerRegistry::class)->purposesFor($documentType ?? DocumentTypeScope::Any),
                                 );
                             })
                             ->required(),

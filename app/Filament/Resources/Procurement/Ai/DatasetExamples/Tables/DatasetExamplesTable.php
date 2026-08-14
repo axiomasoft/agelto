@@ -63,7 +63,9 @@ class DatasetExamplesTable
             ->filters([
                 SelectFilter::make('task')
                     ->label('Задача')
-                    ->options(collect(AnalysisStep::cases())->pluck('value', 'value')->all()),
+                    ->options(collect(AnalysisStep::cases())->mapWithKeys(
+                        static fn (AnalysisStep $step): array => [$step->value => $step->value],
+                    )->all()),
                 SelectFilter::make('document_type')
                     ->label('Тип документа')
                     ->options(LlmPresentation::documentTypeOptions()),

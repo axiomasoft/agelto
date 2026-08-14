@@ -47,10 +47,11 @@ class PromptForm
                         Select::make('step')
                             ->label('Этап')
                             ->options(function (Get $get) {
-                                $documentType = AiDocumentType::tryFrom((string) $get('document_type')) ?? DocumentTypeScope::Any;
+                                $value = $get('document_type');
+                                $documentType = is_string($value) ? AiDocumentType::tryFrom($value) : null;
 
                                 return LlmPresentation::promptStepOptions(
-                                    steps: app(DocumentAnalyzerRegistry::class)->promptStepsFor($documentType),
+                                    steps: app(DocumentAnalyzerRegistry::class)->promptStepsFor($documentType ?? DocumentTypeScope::Any),
                                 );
                             })
                             ->required()
