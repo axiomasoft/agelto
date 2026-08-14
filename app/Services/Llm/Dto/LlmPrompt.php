@@ -14,6 +14,10 @@ namespace App\Services\Llm\Dto;
  */
 final readonly class LlmPrompt
 {
+    /**
+     * @param  list<string>  $userParts
+     * @param  list<LlmFileHandle>  $fileRefs
+     */
     public function __construct(
         public string $systemPart,
         public array $userParts = [],

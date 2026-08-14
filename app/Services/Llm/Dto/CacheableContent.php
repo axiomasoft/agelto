@@ -14,6 +14,7 @@ namespace App\Services\Llm\Dto;
  */
 final readonly class CacheableContent
 {
+    /** @param list<LlmFileHandle> $fileRefs */
     public function __construct(
         public string $systemPart,
         public array $fileRefs = [],

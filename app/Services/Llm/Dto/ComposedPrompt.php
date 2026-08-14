@@ -15,6 +15,7 @@ namespace App\Services\Llm\Dto;
  */
 final readonly class ComposedPrompt
 {
+    /** @param array<string, int> $promptVersionSet */
     public function __construct(
         public string $systemPart,
         public string $rulesHash,

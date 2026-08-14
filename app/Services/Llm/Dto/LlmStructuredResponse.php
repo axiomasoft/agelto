@@ -16,6 +16,7 @@ use App\Enums\Llm\FinishReason;
  */
 final readonly class LlmStructuredResponse
 {
+    /** @param array<string, mixed> $data */
     public function __construct(
         public array $data,
         public LlmUsage $usage,
