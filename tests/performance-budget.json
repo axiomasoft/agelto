@@ -1,0 +1,14 @@
+{
+  "budgets_milliseconds": {
+    "coverage": 200000,
+    "profile": 180000,
+    "serial": 180000
+  },
+  "coverage": {
+    "global_statement_floor": 88.22,
+    "critical_file_floor": 55
+  },
+  "random_order_seeds": [104729, 130363, 155921],
+  "selected_mode": "serial",
+  "version": 1
+}

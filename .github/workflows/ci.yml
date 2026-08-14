@@ -4,6 +4,7 @@ on:
   pull_request:
   push:
     branches: [main]
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -196,3 +197,30 @@ jobs:
           exit-code: '1'
           ignore-unfixed: false
           cache: false
+
+  release-quality:
+    name: Release quality evidence
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: shivammathur/setup-php@f3e473d116dcccaddc5834248c87452386958240 # 2.37.2
+        with:
+          php-version: '8.5'
+          coverage: pcov
+      - name: Bootstrap trusted local carrier
+        env:
+          AZGUARD_CI_TOKEN: ${{ secrets.AZGUARD_CI_TOKEN }}
+        run: bash docker/scripts/ci-private-dependency-preflight.sh make bootstrap MODE=dev ENV_FILE=.env
+      - name: Collect D40/D42 no-TIA release evidence
+        run: make test:release
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: always()
+        with:
+          name: release-quality-${{ github.sha }}
+          path: .ci-artifacts/release-quality
+          if-no-files-found: error
+          retention-days: 14
