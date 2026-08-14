@@ -102,6 +102,6 @@ final readonly class GoldExampleRecorder
             ->where('task', AnalysisStep::Extraction->value)
             ->max('version');
 
-        return ((int) $maxVersion) + 1;
+        return (is_int($maxVersion) || is_float($maxVersion) || is_string($maxVersion) ? (int) $maxVersion : 0) + 1;
     }
 }

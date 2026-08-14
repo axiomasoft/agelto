@@ -139,6 +139,7 @@ final readonly class PromptContextGenerator
         return $classes;
     }
 
+    /** @param class-string $class */
     private function shortName(string $class): string
     {
         return new ReflectionClass($class)->getShortName();
