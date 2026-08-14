@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Procurement\Ai\Analyses\RelationManagers;
 
+use App\Models\Procurement\Ai\Correction;
 use Filament\Resources\RelationManagers\RelationManager;
 use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
@@ -44,7 +45,8 @@ class CorrectionsRelationManager extends RelationManager
                     ->boolean(),
                 IconColumn::make('applied_at')
                     ->label('Применена')
-                    ->boolean(state: fn ($record): bool => $record->applied_at !== null),
+                    ->state(fn (Correction $record): bool => $record->applied_at !== null)
+                    ->boolean(),
                 TextColumn::make('createdBy.name')
                     ->label('Автор')
                     ->placeholder('-')

@@ -132,7 +132,7 @@ class AnalysisInfolist
                             ->label('Result (JSON)')
                             ->state(static fn (Analysis $record): ?string => $record->result === null
                                 ? null
-                                : json_encode($record->result->toArray(), JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE))
+                                : json_encode($record->result->toArray(), JSON_THROW_ON_ERROR | JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE))
                             ->placeholder('-')
                             ->columnSpanFull(),
                         RepeatableEntry::make('estimates')

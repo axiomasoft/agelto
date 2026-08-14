@@ -182,13 +182,6 @@ class AnalysesTable
             return null;
         }
 
-        foreach ($tags as $tag) {
-            if (! is_string($tag)) {
-                return null;
-            }
-        }
-
-        /** @var list<string> $tags */
         return implode(', ', $tags);
     }
 
