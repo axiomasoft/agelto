@@ -51,9 +51,9 @@ final class GoldBuildCommand extends Command
         // Книги реального корпуса (десятки листов, MERGE_HEAVY) исчерпывают дефолтный лимит
         // PHP-CLI на PhpSpreadsheet::load() — тот же приём, что `SpreadsheetStrategy` (D28)
         // применяет к дочернему процессу конвертации.
-        ini_set('memory_limit', (string) config('ai.prepare.xlsx_convert_memory_limit', '512M'));
+        ini_set('memory_limit', $this->configString('ai.prepare.xlsx_convert_memory_limit', default: '512M'));
 
-        $goldDir = (string) ($this->option('gold-dir') ?: config('ai.fixtures.gold_dir'));
+        $goldDir = $this->optionOrConfigString(option: 'gold-dir', configKey: 'ai.fixtures.gold_dir');
         $dryRun = (bool) $this->option('dry-run');
         /** @var list<string> $onlyCodes */
         $onlyCodes = (array) $this->option('code');
@@ -62,7 +62,7 @@ final class GoldBuildCommand extends Command
             return $this->handleScreening($goldDir, $onlyCodes, $dryRun);
         }
 
-        $manifestPath = (string) ($this->option('manifest') ?: config('ai.fixtures.manifest_path'));
+        $manifestPath = $this->optionOrConfigString(option: 'manifest', configKey: 'ai.fixtures.manifest_path');
         $updateManifest = (bool) $this->option('update-manifest');
 
         try {
@@ -74,7 +74,7 @@ final class GoldBuildCommand extends Command
         }
 
         $fixtures = $this->fixtures->inCodeOrder($onlyCodes);
-        $result = $this->corpusBuilder->build($fixtures, $goldDir, (string) config('ai.fixtures.disk'), $dryRun, $manifest['fixtures']);
+        $result = $this->corpusBuilder->build($fixtures, $goldDir, $this->configString('ai.fixtures.disk'), $dryRun, $manifest['fixtures']);
 
         if ($updateManifest && ! $dryRun) {
             $manifest['fixtures'] = $result['manifestFixtures'];
@@ -84,7 +84,7 @@ final class GoldBuildCommand extends Command
         if (! $dryRun) {
             // Каталог отчётов создаётся при записи (D111, Implementation Rule 10 P3.3):
             // `estimates/reports/` в репозитории не существует.
-            $reportPath = ((string) config('ai.fixtures.reports_dir')).'/gold-corpus-report.md';
+            $reportPath = $this->configString('ai.fixtures.reports_dir').'/gold-corpus-report.md';
             File::ensureDirectoryExists(dirname($reportPath));
             file_put_contents($reportPath, $this->corpusBuilder->renderReport($result['rows']));
         }
@@ -131,5 +131,27 @@ final class GoldBuildCommand extends Command
         $this->info("Готово: построено {$built} · отклонено {$rejected}.");
 
         return $rejected > 0 ? self::FAILURE : self::SUCCESS;
+    }
+
+    private function optionOrConfigString(string $option, string $configKey): string
+    {
+        $optionValue = $this->option($option);
+
+        if (is_string($optionValue) && $optionValue !== '') {
+            return $optionValue;
+        }
+
+        return $this->configString($configKey);
+    }
+
+    private function configString(string $key, ?string $default = null): string
+    {
+        $value = config($key, $default);
+
+        if (! is_string($value) || $value === '') {
+            throw new \UnexpectedValueException("{$key} must be a non-empty string.");
+        }
+
+        return $value;
     }
 }
