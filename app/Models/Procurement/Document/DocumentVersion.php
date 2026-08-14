@@ -49,6 +49,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 #[Table(name: 'prc_document_versions')]
 final class DocumentVersion extends Model
 {
+    /** @use HasFactory<DocumentVersionFactory> */
     use HasFactory;
 
     protected function casts(): array
@@ -63,21 +64,25 @@ final class DocumentVersion extends Model
      * Родительский документ (P9.2, `AnalysesTable` — колонка «Документ»); read-путь, репозитории
      * этой связью не пользуются (прямые запросы по `document_id`).
      */
+    /** @return BelongsTo<Document, $this> */
     public function document(): BelongsTo
     {
         return $this->belongsTo(related: Document::class);
     }
 
+    /** @return BelongsTo<DocumentVersion, $this> */
     public function parentVersion(): BelongsTo
     {
         return $this->belongsTo(related: self::class, foreignKey: 'parent_version_id');
     }
 
+    /** @return HasMany<DocumentVersion, $this> */
     public function archiveChildren(): HasMany
     {
         return $this->hasMany(related: self::class, foreignKey: 'parent_version_id');
     }
 
+    /** @return HasMany<DatasetExample, $this> */
     public function datasetExamples(): HasMany
     {
         return $this->hasMany(related: DatasetExample::class);

@@ -69,6 +69,7 @@ use Illuminate\Support\Collection;
 #[Table(name: 'prc_crawler_runs')]
 final class Run extends Model
 {
+    /** @use HasFactory<RunFactory> */
     use HasFactory;
 
     protected function casts(): array
@@ -90,16 +91,19 @@ final class Run extends Model
         ];
     }
 
+    /** @return BelongsTo<Crawler, $this> */
     public function crawler(): BelongsTo
     {
         return $this->belongsTo(related: Crawler::class);
     }
 
+    /** @return HasMany<Fetch, $this> */
     public function fetches(): HasMany
     {
         return $this->hasMany(related: Fetch::class, foreignKey: 'crawler_run_id');
     }
 
+    /** @return BelongsTo<User, $this> */
     public function stopRequestedBy(): BelongsTo
     {
         return $this->belongsTo(related: User::class, foreignKey: 'stop_requested_by');

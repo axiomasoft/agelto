@@ -48,6 +48,7 @@ use Illuminate\Support\Collection;
 #[Table(name: 'prc_document_representations')]
 final class DocumentRepresentation extends Model
 {
+    /** @use HasFactory<DocumentRepresentationFactory> */
     use HasFactory;
 
     protected function casts(): array
@@ -62,6 +63,7 @@ final class DocumentRepresentation extends Model
         ];
     }
 
+    /** @return BelongsTo<DocumentVersion, $this> */
     public function version(): BelongsTo
     {
         return $this->belongsTo(related: DocumentVersion::class, foreignKey: 'document_version_id');

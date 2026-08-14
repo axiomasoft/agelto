@@ -59,6 +59,7 @@ use Illuminate\Support\Str;
 #[Table(name: 'prc_documents')]
 final class Document extends Model
 {
+    /** @use HasFactory<DocumentFactory> */
     use HasErrorBlock, HasFactory, HasLease;
 
     protected function casts(): array
@@ -104,12 +105,14 @@ final class Document extends Model
         return PublicPlatformScope::apply($query, 'platform');
     }
 
+    /** @return BelongsTo<Platform, $this> */
     public function platform(): BelongsTo
     {
         return $this->belongsTo(related: Platform::class);
     }
 
     /** Рабочая копия эталона, если документ создан из fixture. */
+    /** @return HasOne<Fixture, $this> */
     public function fixture(): HasOne
     {
         return $this->hasOne(related: Fixture::class);
