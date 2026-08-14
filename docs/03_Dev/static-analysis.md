@@ -4,13 +4,24 @@ type: reference
 status: living
 ---
 
-# Статический анализ (PHPStan/Larastan) — политика baseline
+# Статический анализ (PHPStan/Larastan)
 
-`phpstan.neon` (`level: 5`, `paths: [app]`) держит `phpstan-baseline.neon` — список ИЗВЕСТНОГО
-долга. `reportUnmatchedIgnoredErrors: true` (дефолт phpstan 2.x, НЕ выключается) — запись baseline,
-переставшая матчиться реальной ошибке (файл переехал, свойство появилось), сама становится ошибкой.
-Это единственный механизм, не дающий baseline тихо копить мусор — им и меряется «остался ли долг тем
-же самым», а не «стало ли зелёным».
+## Текущая обязательная политика (P10.6)
+
+`phpstan.neon` анализирует `app/` на `level: max`. В репозитории **нет**
+`phpstan-baseline.neon`, `ignoreErrors` или `excludePaths`: новая ошибка исправляется в её
+реальном контракте, а не скрывается конфигурацией. Полный проверяемый carrier —
+`make quality`; точечная команда — `docker compose exec -T app ./vendor/bin/phpstan analyse
+--memory-limit=1G --no-progress`.
+
+Rector зафиксирован зависимостями `rector/rector 2.6.2` и
+`driftingly/rector-laravel 2.5.0`; разрешён только `--dry-run`. Pint — dry gate
+`docker compose exec -T app ./vendor/bin/pint --test`.
+
+## Историческая baseline-политика до P10.6
+
+Следующий раздел — provenance P6.3. Он описывает удалённый baseline и не является текущей
+инструкцией для изменения PHPStan.
 
 ## Правило: baseline не растёт без D-записи
 

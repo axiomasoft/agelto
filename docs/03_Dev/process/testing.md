@@ -13,6 +13,7 @@ status: living
 ```bash
 make db:create-test   # разово: настройка agelto_test
 make test-php         # ENV=dev по умолчанию; test-preflight + db:create-test + artisan test --compact
+make quality          # release-local carrier: audit + static/style/refactor guards + full PHP suite
 ```
 
 Точечный прогон одного класса/фильтра — `make artisan ARGS="test --filter=<Subject>"`

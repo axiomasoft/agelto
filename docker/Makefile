@@ -11,7 +11,7 @@ AGENT_ENV := $(if $(CLAUDECODE),-e CLAUDECODE=$(CLAUDECODE)) $(if $(CURSOR_AGENT
 
 .DEFAULT_GOAL := help
 .PHONY: help infra\:preflight secrets\:init bootstrap dev\:up dev\:down dev\:ps dev\:logs dev\:shell dev\:artisan dev\:composer dev\:storage-init dev\:health
-.PHONY: agent\:artisan vendor\:sync vendor\:check doctor\:local readiness\:check assets\:check assets\:sync assets\:repair documentation\:check documentation\:acceptance prod\:doctor dev\:migrate dev\:seed-base dev\:seed-demo dev\:admin-create dev\:admin-reset prod\:config prod\:ps prod\:deploy\:code prod\:deploy\:php-deps prod\:deploy\:frontend prod\:deploy\:runtime prod\:image\:promote prod\:deploy\:image prod\:migrate prod\:seed-base image\:build test-preflight test-php db\:create-test
+.PHONY: agent\:artisan vendor\:sync vendor\:check doctor\:local readiness\:check assets\:check assets\:sync assets\:repair documentation\:check documentation\:acceptance quality prod\:doctor dev\:migrate dev\:seed-base dev\:seed-demo dev\:admin-create dev\:admin-reset prod\:config prod\:ps prod\:deploy\:code prod\:deploy\:php-deps prod\:deploy\:frontend prod\:deploy\:runtime prod\:image\:promote prod\:deploy\:image prod\:migrate prod\:seed-base image\:build test-preflight test-php db\:create-test
 
 help:
 	@echo "Agelto command surface"
@@ -27,6 +27,7 @@ help:
 	@echo "  make vendor:sync | vendor:check             Clone/check the pinned private AzGuard packages"
 	@echo "  make db:create-test | test-preflight        Create/check the isolated PostgreSQL test database"
 	@echo "  make test-php                               Run the full PHP suite on agelto_test"
+	@echo "  make quality                                Run the deterministic local release-quality gate"
 	@echo ""
 	@echo "Agent and production inspection:"
 	@echo "  make agent:artisan ARGS=\"test --compact\"  Non-TTY app command"
@@ -105,6 +106,9 @@ test-preflight:
 test-php: test-preflight
 	$(COMPOSE_DEV) exec -T -e APP_ENV=testing -e DB_DATABASE=agelto_test -e DB_HOST=postgres app php artisan migrate:fresh --force --no-interaction
 	$(COMPOSE_DEV) exec -T -e APP_ENV=testing -e DB_DATABASE=agelto_test -e DB_HOST=postgres app php artisan test --compact --no-tia
+
+quality:
+	bash $(ROOT_DIR)/docker/tests/quality-contract.sh
 
 doctor\:local:
 	$(COMPOSE_DEV) exec -T app php artisan doctor --format=agent --no-interaction
