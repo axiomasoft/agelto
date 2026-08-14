@@ -20,6 +20,7 @@ use Illuminate\Support\Str;
  * `is_public=false`, D91) — оба различаются РОВНО этой строкой, без второй оси на документе.
  *
  * @property PlatformThrottleSettings|null $throttle
+ * @property string $uuid
  */
 #[UseFactory(PlatformFactory::class)]
 #[Fillable([
@@ -34,6 +35,7 @@ use Illuminate\Support\Str;
 #[Table(name: 'prc_platforms')]
 final class Platform extends Model
 {
+    /** @use HasFactory<PlatformFactory> */
     use HasFactory;
 
     /**
@@ -70,6 +72,7 @@ final class Platform extends Model
         });
     }
 
+    /** @return Attribute<?PlatformThrottleSettings, PlatformThrottleSettings|array<string, mixed>|Arrayable<string, mixed>|null> */
     protected function throttle(): Attribute
     {
         return Attribute::make(
@@ -94,7 +97,18 @@ final class Platform extends Model
 
         $decoded = is_string($raw) ? json_decode($raw, associative: true, flags: JSON_THROW_ON_ERROR) : $raw;
 
-        return is_array($decoded) ? $decoded : null;
+        if (! is_array($decoded)) {
+            return null;
+        }
+
+        foreach ($decoded as $key => $_) {
+            if (! is_string($key)) {
+                return null;
+            }
+        }
+
+        /** @var array<string, mixed> $decoded */
+        return $decoded;
     }
 
     /** @param array<string, mixed>|null $raw */

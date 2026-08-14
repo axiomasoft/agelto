@@ -31,6 +31,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 #[Table(name: 'prc_events', keyType: 'int')]
 final class ProcurementEvent extends Model
 {
+    /** @use HasFactory<ProcurementEventFactory> */
     use HasFactory;
 
     public $incrementing = true;
@@ -45,11 +46,13 @@ final class ProcurementEvent extends Model
         ];
     }
 
+    /** @return BelongsTo<Procurement, $this> */
     public function procurement(): BelongsTo
     {
         return $this->belongsTo(related: Procurement::class);
     }
 
+    /** @return BelongsTo<ProcurementRevision, $this> */
     public function revision(): BelongsTo
     {
         return $this->belongsTo(related: ProcurementRevision::class);

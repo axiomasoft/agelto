@@ -17,6 +17,8 @@ use Illuminate\Support\Str;
  * Протокол процедуры (рассмотрение заявок, аукцион, оценка, итоги и т.д.).
  * `type` — текстовое поле: закрытый codelist для 44-ФЗ, open-ended для 223-ФЗ
  * (см. App\Enums\Procurement\ProtocolType).
+ *
+ * @property string $uuid
  */
 #[UseFactory(ProtocolFactory::class)]
 #[Fillable([
@@ -33,6 +35,7 @@ use Illuminate\Support\Str;
 #[Table(name: 'prc_protocols')]
 final class Protocol extends Model
 {
+    /** @use HasFactory<ProtocolFactory> */
     use HasFactory;
 
     public const UPDATED_AT = null;

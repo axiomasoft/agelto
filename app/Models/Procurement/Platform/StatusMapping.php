@@ -30,9 +30,11 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 #[Table(name: 'prc_status_mappings')]
 final class StatusMapping extends Model
 {
+    /** @use HasFactory<StatusMappingFactory> */
     use HasFactory;
 
     /** @property-read StatusMappingApplicability $applicability */
+    /** @return Attribute<StatusMappingApplicability, never> */
     protected function applicability(): Attribute
     {
         return Attribute::get(fn (): StatusMappingApplicability => StatusMappingApplicability::fromScopeIds(
@@ -41,11 +43,13 @@ final class StatusMapping extends Model
         ));
     }
 
+    /** @return BelongsTo<Platform, $this> */
     public function platform(): BelongsTo
     {
         return $this->belongsTo(related: Platform::class);
     }
 
+    /** @return BelongsTo<Registry, $this> */
     public function registry(): BelongsTo
     {
         return $this->belongsTo(related: Registry::class);

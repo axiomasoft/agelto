@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Models\Procurement;
 
 use App\Enums\Organization\ProcurementPartyRole;
+use App\Models\Organization\Organization;
 use Database\Factories\Procurement\ProcurementPartyFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Table;
@@ -29,6 +30,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 #[Table(name: 'prc_procurement_parties')]
 final class ProcurementParty extends Model
 {
+    /** @use HasFactory<ProcurementPartyFactory> */
     use HasFactory;
 
     protected function casts(): array
@@ -39,6 +41,7 @@ final class ProcurementParty extends Model
         ];
     }
 
+    /** @return BelongsTo<Organization, $this> */
     public function organization(): BelongsTo
     {
         return $this->belongsTo(related: Organization::class);
