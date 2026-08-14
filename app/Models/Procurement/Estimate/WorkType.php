@@ -32,6 +32,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 #[Table(name: 'prc_estimate_work_types')]
 final class WorkType extends Model
 {
+    /** @use HasFactory<WorkTypeFactory> */
     use HasFactory;
 
     protected function casts(): array
@@ -45,21 +46,25 @@ final class WorkType extends Model
         ];
     }
 
+    /** @return BelongsTo<Estimate, $this> */
     public function estimate(): BelongsTo
     {
         return $this->belongsTo(related: Estimate::class);
     }
 
+    /** @return BelongsTo<WorkType, $this> */
     public function parent(): BelongsTo
     {
         return $this->belongsTo(related: self::class, foreignKey: 'parent_id');
     }
 
+    /** @return HasMany<WorkType, $this> */
     public function children(): HasMany
     {
         return $this->hasMany(related: self::class, foreignKey: 'parent_id');
     }
 
+    /** @return HasMany<Item, $this> */
     public function items(): HasMany
     {
         return $this->hasMany(related: Item::class);

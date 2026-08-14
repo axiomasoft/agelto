@@ -23,6 +23,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 #[Table(name: 'prc_platform_checks')]
 final class PlatformCheck extends Model
 {
+    /** @use HasFactory<PlatformCheckFactory> */
     use HasFactory;
 
     protected function casts(): array
@@ -39,6 +40,7 @@ final class PlatformCheck extends Model
         ];
     }
 
+    /** @return BelongsTo<Platform, $this> */
     public function platform(): BelongsTo
     {
         return $this->belongsTo(related: Platform::class);

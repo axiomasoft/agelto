@@ -37,6 +37,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 #[Table(name: 'prc_estimate_totals')]
 final class Total extends Model
 {
+    /** @use HasFactory<TotalFactory> */
     use HasFactory;
 
     protected function casts(): array
@@ -50,16 +51,19 @@ final class Total extends Model
         ];
     }
 
+    /** @return BelongsTo<Estimate, $this> */
     public function estimate(): BelongsTo
     {
         return $this->belongsTo(related: Estimate::class);
     }
 
+    /** @return BelongsTo<Total, $this> */
     public function parent(): BelongsTo
     {
         return $this->belongsTo(related: self::class, foreignKey: 'parent_id');
     }
 
+    /** @return HasMany<Total, $this> */
     public function children(): HasMany
     {
         return $this->hasMany(related: self::class, foreignKey: 'parent_id');

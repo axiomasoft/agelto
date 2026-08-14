@@ -44,6 +44,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 #[Table(name: 'prc_estimate_resources')]
 final class Resource extends Model
 {
+    /** @use HasFactory<ResourceFactory> */
     use HasFactory;
 
     protected function casts(): array
@@ -58,6 +59,7 @@ final class Resource extends Model
         ];
     }
 
+    /** @return BelongsTo<Item, $this> */
     public function item(): BelongsTo
     {
         return $this->belongsTo(related: Item::class);
