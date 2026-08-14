@@ -6,6 +6,8 @@ namespace App\Console\Commands\Procurement\Analyzers\Estimate;
 
 use App\Enums\Procurement\Ai\AiDocumentType;
 use App\Services\Procurement\Analyzers\Estimate\DatasetImporter;
+use Illuminate\Console\Attributes\Description;
+use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
 
 /**
@@ -15,17 +17,15 @@ use Illuminate\Console\Command;
  * битый JSON отклоняется с перечнем ошибок, остальные пары импорта не затрагивает. Валидация и
  * запись пары вынесены в {@see DatasetImporter} (P3.3).
  */
-final class DatasetImportCommand extends Command
-{
-    protected $signature = 'estimate:dataset:import
+#[Description('Импорт папки эталонных смет в prc_ai_dataset_examples (gold, P2.2-контракт)')]
+#[Signature('estimate:dataset:import
         {path : путь к папке с парами <name>.<ext> + <name>.gold.json}
         {--task=extraction : значение prc_ai_dataset_examples.task}
         {--source=manual : значение prc_ai_dataset_examples.source}
         {--document-type=estimate : значение prc_ai_dataset_examples.document_type (AiDocumentType, D16/D17) — папка вне реестра prc_ai_fixtures не несёт собственного носителя оси}
-        {--gold-version=1 : версия эталона (upsert-ключ вместе с document_version_id+task; `--version` зарезервирован Symfony Console)}';
-
-    protected $description = 'Импорт папки эталонных смет в prc_ai_dataset_examples (gold, P2.2-контракт)';
-
+        {--gold-version=1 : версия эталона (upsert-ключ вместе с document_version_id+task; `--version` зарезервирован Symfony Console)}')]
+final class DatasetImportCommand extends Command
+{
     public function __construct(private readonly DatasetImporter $importer)
     {
         parent::__construct();

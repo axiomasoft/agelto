@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Models\Procurement\Estimate;
 
 use Database\Factories\Procurement\Estimate\WorkTypeFactory;
+use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Attributes\Table;
 use Illuminate\Database\Eloquent\Attributes\UseFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -15,24 +17,22 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * Вид работ и его иерархия — per-estimate носитель нормативов НР/СП (D34/D90).
  */
 #[UseFactory(WorkTypeFactory::class)]
+#[Fillable([
+    'estimate_id',
+    'parent_id',
+    'position',
+    'title',
+    'overhead_code',
+    'overhead_rate',
+    'overhead_rate_curr',
+    'profit_code',
+    'profit_rate',
+    'profit_rate_curr',
+])]
+#[Table(name: 'prc_estimate_work_types')]
 final class WorkType extends Model
 {
     use HasFactory;
-
-    protected $table = 'prc_estimate_work_types';
-
-    protected $fillable = [
-        'estimate_id',
-        'parent_id',
-        'position',
-        'title',
-        'overhead_code',
-        'overhead_rate',
-        'overhead_rate_curr',
-        'profit_code',
-        'profit_rate',
-        'profit_rate_curr',
-    ];
 
     protected function casts(): array
     {

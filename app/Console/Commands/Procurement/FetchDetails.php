@@ -9,18 +9,18 @@ use App\Jobs\Procurement\FetchProcurementDetailJob;
 use App\Models\Procurement\Procurement;
 use App\Services\Procurement\CrawlSettingsResolver;
 use App\Services\Procurement\DetailDispatcher;
+use Illuminate\Console\Attributes\Description;
+use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
 
 /**
  * Тонкая точка входа стадии детального анализа: явная закупка по id либо ограниченная due-пачка.
  * Снятие карточки и мост документов выполняет `FetchProcurementDetailJob` на `crawl_detail`.
  */
+#[Description('Ставит детальные карточки закупок в очередь: ограниченная due-пачка или одна закупка')]
+#[Signature('crawler:fetch-details {procurement? : ID закупки (без аргумента — ограниченная due-пачка)}')]
 final class FetchDetails extends Command
 {
-    protected $signature = 'crawler:fetch-details {procurement? : ID закупки (без аргумента — ограниченная due-пачка)}';
-
-    protected $description = 'Ставит детальные карточки закупок в очередь: ограниченная due-пачка или одна закупка';
-
     public function handle(DetailDispatcher $dispatcher, CrawlSettingsResolver $settings): int
     {
         $identifier = $this->argument('procurement');

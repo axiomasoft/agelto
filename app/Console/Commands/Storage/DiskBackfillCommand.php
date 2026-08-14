@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Console\Commands\Storage;
 
 use App\Services\Storage\DiskBackfillRunner;
+use Illuminate\Console\Attributes\Description;
+use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
 
 /**
@@ -12,17 +14,15 @@ use Illuminate\Console\Command;
  * конфиг-ключа диска носителя (D51); `--to=<disk>` переносит объекты между дисками с верификацией
  * sha256/размера, resumable через `--from-id` (P6.5, `research/07-storage-addressing.md` §6).
  */
-final class DiskBackfillCommand extends Command
-{
-    protected $signature = 'storage:disk-backfill
+#[Description('Backfill дисков: --materialize-only проставляет фактическое имя диска и ОБЯЗАНА запускаться ДО флипа конфига; --to=<disk> переносит объекты между дисками с верификацией sha256/размера')]
+#[Signature('storage:disk-backfill
         {carrier : document-versions|fixtures|estimate-raw-results}
         {--materialize-only : проставить фактическое имя диска без копирования — запускать ДО флипа конфига}
         {--to= : целевой диск переноса}
         {--from-id=1 : возобновление с этого id (курсор из предыдущего прогона)}
-        {--dry-run : не писать в БД и не копировать объекты, только отчёт}';
-
-    protected $description = 'Backfill дисков: --materialize-only проставляет фактическое имя диска и ОБЯЗАНА запускаться ДО флипа конфига; --to=<disk> переносит объекты между дисками с верификацией sha256/размера';
-
+        {--dry-run : не писать в БД и не копировать объекты, только отчёт}')]
+final class DiskBackfillCommand extends Command
+{
     public function __construct(private readonly DiskBackfillRunner $runner)
     {
         parent::__construct();

@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Console\Commands\Procurement;
 
 use App\Services\Procurement\Eis\Okpd2NodeSynchronizer;
+use Illuminate\Console\Attributes\Description;
+use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
 
 /**
@@ -12,15 +14,13 @@ use Illuminate\Console\Command;
  * синхронизатора, печать отчёта и код возврата. Обход и сверка живут в
  * `Okpd2NodeSynchronizer`, запись — в `Okpd2NodeStoreRepository`.
  */
-final class SyncOkpd2Nodes extends Command
-{
-    protected $signature = 'crawler:okpd2-sync
+#[Description('Пересобирает карту «код ОКПД2 → id НСИ» с ЕИС и показывает дрейф id')]
+#[Signature('crawler:okpd2-sync
         {--root= : id узла-корня НСИ (дефолт — config(crawler.okpd2.root_external_id), раздел F)}
         {--dry-run : только отчёт, без записи в prc_okpd2_nodes}
-        {--max-requests= : потолок запросов к площадке (дефолт — config(crawler.okpd2.max_requests))}';
-
-    protected $description = 'Пересобирает карту «код ОКПД2 → id НСИ» с ЕИС и показывает дрейф id';
-
+        {--max-requests= : потолок запросов к площадке (дефолт — config(crawler.okpd2.max_requests))}')]
+final class SyncOkpd2Nodes extends Command
+{
     public function handle(Okpd2NodeSynchronizer $synchronizer): int
     {
         $root = $this->option('root');

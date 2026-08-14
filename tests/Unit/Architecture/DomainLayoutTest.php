@@ -33,9 +33,10 @@ function alignedDomainLayoutLayers(): array
             'subareas' => ['Ai', 'Analyzers', 'Crawler', 'Document', 'Estimate', 'Health', 'Proxy'],
         ],
         // P3.3, Completion Notes: `OperationFailed` (базовый, кросс) + `UnknownReportFormat` (кросс).
+        // `InvalidEvalDiffPayload` обслуживает корневой estimate CLI-контур, а не отдельную подобласть.
         // P3.4: подобласть `Crawler` заведена первым файлом (`CrawlerRunAlreadyActive`).
         'App\Exceptions\Procurement' => [
-            'root' => ['OperationFailed', 'UnknownReportFormat'],
+            'root' => ['OperationFailed', 'UnknownReportFormat', 'InvalidEvalDiffPayload'],
             'subareas' => ['Ai', 'Crawler', 'Health', 'Proxy'],
         ],
         // P3.3, Completion Notes: три файла ядра закупки остаются в корне.

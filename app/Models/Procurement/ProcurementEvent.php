@@ -6,6 +6,8 @@ namespace App\Models\Procurement;
 
 use App\Enums\Procurement\ProcurementEventType;
 use Database\Factories\Procurement\ProcurementEventFactory;
+use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Attributes\Table;
 use Illuminate\Database\Eloquent\Attributes\UseFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -15,27 +17,23 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * Типизированное событие в журнале закупки (партиция `prc_events` RANGE by `occurred_at`).
  */
 #[UseFactory(ProcurementEventFactory::class)]
+#[Fillable([
+    'procurement_id',
+    'revision_id',
+    'event_type',
+    'entity_ref',
+    'field',
+    'old_value',
+    'new_value',
+    'payload',
+    'occurred_at',
+])]
+#[Table(name: 'prc_events', keyType: 'int')]
 final class ProcurementEvent extends Model
 {
     use HasFactory;
 
-    protected $table = 'prc_events';
-
     public $incrementing = true;
-
-    protected $keyType = 'int';
-
-    protected $fillable = [
-        'procurement_id',
-        'revision_id',
-        'event_type',
-        'entity_ref',
-        'field',
-        'old_value',
-        'new_value',
-        'payload',
-        'occurred_at',
-    ];
 
     protected function casts(): array
     {

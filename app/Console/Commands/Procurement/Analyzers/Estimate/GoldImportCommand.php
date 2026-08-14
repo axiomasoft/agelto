@@ -9,6 +9,8 @@ use App\Repositories\Procurement\Ai\FixtureStoreRepository;
 use App\Services\Procurement\Fixture\GoldExampleImporter;
 use App\Services\Procurement\Fixture\WorkingCopyProvisioner;
 use App\Services\Procurement\Prepare\DocumentPreparer;
+use Illuminate\Console\Attributes\Description;
+use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
 
 /**
@@ -21,15 +23,13 @@ use Illuminate\Console\Command;
  * вторую, эталон на диске эталонов не трогает. Резолв рабочей копии и импорт примера вынесены в
  * {@see WorkingCopyProvisioner}/{@see GoldExampleImporter} (P3.3).
  */
-final class GoldImportCommand extends Command
-{
-    protected $signature = 'estimate:gold:import
+#[Description('Создать рабочие копии эталонов и записи prc_ai_dataset_examples из gold-файлов корпуса')]
+#[Signature('estimate:gold:import
         {--code=* : ограничить эталоны кодами}
         {--prepare : прогнать цепочку подготовки по созданным версиям}
-        {--dry-run : ничего не писать}';
-
-    protected $description = 'Создать рабочие копии эталонов и записи prc_ai_dataset_examples из gold-файлов корпуса';
-
+        {--dry-run : ничего не писать}')]
+final class GoldImportCommand extends Command
+{
     public function __construct(
         private readonly FixtureStoreRepository $fixtures,
         private readonly WorkingCopyProvisioner $provisioner,

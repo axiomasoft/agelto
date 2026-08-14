@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Console\Commands\Procurement\Ai;
 
 use App\Services\Procurement\Prepare\ToolchainProbe;
+use Illuminate\Console\Attributes\Description;
+use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
 
 /**
@@ -12,12 +14,10 @@ use Illuminate\Console\Command;
  * и версию каждого системного бинаря; проверка ушла в `ToolchainProbe`
  * (`root/service-layer-map.md` §3).
  */
+#[Description('Проверить наличие и версию системных бинарей фабрики представлений')]
+#[Signature('ai:tools:doctor {--json : машинный вывод}')]
 final class ToolsDoctorCommand extends Command
 {
-    protected $signature = 'ai:tools:doctor {--json : машинный вывод}';
-
-    protected $description = 'Проверить наличие и версию системных бинарей фабрики представлений';
-
     public function __construct(private readonly ToolchainProbe $probe)
     {
         parent::__construct();

@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Models\Llm;
 
 use Database\Factories\Llm\LlmRouteFactory;
+use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Attributes\Table;
 use Illuminate\Database\Eloquent\Attributes\UseFactory;
 use Illuminate\Database\Eloquent\Casts\AsCollection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -25,22 +27,20 @@ use Illuminate\Support\Collection;
  * @property-read Provider|null $provider
  */
 #[UseFactory(LlmRouteFactory::class)]
+#[Fillable([
+    'document_type',
+    'purpose',
+    'provider_id',
+    'model',
+    'options',
+    'priority',
+    'is_active',
+    'shadow',
+])]
+#[Table(name: 'llm_routes')]
 final class LlmRoute extends Model
 {
     use HasFactory;
-
-    protected $table = 'llm_routes';
-
-    protected $fillable = [
-        'document_type',
-        'purpose',
-        'provider_id',
-        'model',
-        'options',
-        'priority',
-        'is_active',
-        'shadow',
-    ];
 
     protected function casts(): array
     {

@@ -17,6 +17,8 @@ use App\Models\Procurement\Document\Document;
 use App\Repositories\Procurement\Ai\AnalysisRunStoreRepository;
 use App\Services\Procurement\Contracts\DocumentAnalyzer;
 use App\Services\Procurement\Contracts\DocumentAnalyzerRegistry;
+use Illuminate\Console\Attributes\Description;
+use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
 use LogicException;
 
@@ -34,6 +36,8 @@ use LogicException;
  * этой же команды (или второй тик планировщика) видит уже сдвинутый `next_retry_at` и
  * пропускает запись — диспатчится только реально захваченная строка (v1-канон, `:66`).
  */
+#[Description('Повторно запускает провалившиеся стадии пайплайна (документы/анализы) с нужной стадии по next_retry_at')]
+#[Signature('pipeline:retry-failed {--limit= : Максимум записей за секцию (документы/анализы); по умолчанию config(ai.pipeline.retry_batch_limit)}')]
 final class PipelineRetryFailed extends Command
 {
     /**
@@ -43,10 +47,6 @@ final class PipelineRetryFailed extends Command
      * lease на сам claim, только атомарный UPDATE статуса).
      */
     private const int CLAIM_HOLD_MINUTES = 10;
-
-    protected $signature = 'pipeline:retry-failed {--limit= : Максимум записей за секцию (документы/анализы); по умолчанию config(ai.pipeline.retry_batch_limit)}';
-
-    protected $description = 'Повторно запускает провалившиеся стадии пайплайна (документы/анализы) с нужной стадии по next_retry_at';
 
     public function __construct(
         private readonly AnalysisRunStoreRepository $runs,

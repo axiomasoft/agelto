@@ -5,15 +5,15 @@ declare(strict_types=1);
 namespace App\Console\Commands;
 
 use App\Actions\Admin\ResetAdminPasswordAction;
+use Illuminate\Console\Attributes\Description;
+use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
 use InvalidArgumentException;
 
+#[Description('Regenerate the initial administrator password')]
+#[Signature('admin:reset-password {--force : Confirm the password reset} {--password-file= : Read the password from this file}')]
 final class ResetAdminPassword extends Command
 {
-    protected $signature = 'admin:reset-password {--force : Confirm the password reset} {--password-file= : Read the password from this file}';
-
-    protected $description = 'Regenerate the initial administrator password';
-
     public function handle(ResetAdminPasswordAction $action): int
     {
         if (! $this->option(key: 'force')) {

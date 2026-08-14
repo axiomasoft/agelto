@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Console\Commands;
 
+use Illuminate\Console\Attributes\Description;
+use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -28,12 +30,10 @@ use Illuminate\Support\Facades\DB;
  * партиции по расписанию — эту логику дублирует `dropExpiredFallback()` по тому же конфигу,
  * иначе managed-Postgres окружения без pg_partman копили бы партиции вечно (research/L finding 4).
  */
+#[Description('Premake партиций на 3 месяца вперёд для партиционированных таблиц (pg_partman либо fallback)')]
+#[Signature('partitions:maintain')]
 final class MaintainPartitions extends Command
 {
-    protected $signature = 'partitions:maintain';
-
-    protected $description = 'Premake партиций на 3 месяца вперёд для партиционированных таблиц (pg_partman либо fallback)';
-
     public function handle(): int
     {
         if ($this->pgPartmanIsAvailable()) {

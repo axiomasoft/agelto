@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Console\Commands\Procurement\Analyzers\Estimate;
 
 use App\Services\Procurement\Analyzers\Estimate\DatasetExporter;
+use Illuminate\Console\Attributes\Description;
+use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Storage;
 
@@ -15,19 +17,17 @@ use Illuminate\Support\Facades\Storage;
  * суффиксом `.manifest.json` — воспроизводимость training-run (D15). Логика вынесена в
  * {@see DatasetExporter} (P3.3/P7.1).
  */
-final class DatasetExportCommand extends Command
-{
-    protected $signature = 'estimate:dataset:export
+#[Description('Экспорт gold-датасета (prc_ai_dataset_examples) в SFT/DPO JSONL для дообучения локальной LLM')]
+#[Signature('estimate:dataset:export
         {--format=sft : sft|dpo}
         {--task=extraction : значение prc_ai_dataset_examples.task}
         {--split=all : all|tune|holdout}
         {--source=* : ограничить значениями prc_ai_dataset_examples.source}
         {--dpo-schema=conversational : conversational|standard}
         {--disk= : диск назначения (по умолчанию — config(crawler.raw_disk))}
-        {--path= : путь внутри диска (по умолчанию — ai/dataset-exports/<format>-<timestamp>.jsonl)}';
-
-    protected $description = 'Экспорт gold-датасета (prc_ai_dataset_examples) в SFT/DPO JSONL для дообучения локальной LLM';
-
+        {--path= : путь внутри диска (по умолчанию — ai/dataset-exports/<format>-<timestamp>.jsonl)}')]
+final class DatasetExportCommand extends Command
+{
     public function __construct(private readonly DatasetExporter $exporter)
     {
         parent::__construct();

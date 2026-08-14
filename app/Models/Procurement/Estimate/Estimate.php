@@ -13,6 +13,8 @@ use App\Models\Procurement\Procurement;
 use App\Models\Scopes\PublicPlatformScope;
 use App\Models\User;
 use Database\Factories\Procurement\Estimate\EstimateFactory;
+use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Attributes\Table;
 use Illuminate\Database\Eloquent\Attributes\UseFactory;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Casts\AsCollection;
@@ -56,49 +58,47 @@ use Illuminate\Support\Str;
  * @property-read int $marked_items_count `withCount('items as marked_items_count', ...)` — то же, отфильтровано по `quality IS NOT NULL`
  */
 #[UseFactory(EstimateFactory::class)]
+#[Fillable([
+    'uuid',
+    'analysis_id',
+    'document_version_id',
+    'procurement_id',
+    'platform_id',
+    'ordinal',
+    'estimate_number',
+    'total_amount',
+    'currency',
+    'base_year',
+    'price_level',
+    'regulatory_base',
+    'calc_method',
+    'labor_hours_workers',
+    'labor_hours_machinists',
+    'document_number',
+    'document_date',
+    'period_start',
+    'period_end',
+    'passport',
+    'raw_result',
+    'raw_result_ref',
+    'raw_result_disk',
+    'rows_expected',
+    'rows_extracted',
+    'validation_status',
+    'validation_notes',
+    'verified_at',
+    'verified_by',
+    'source_sheet_name',
+    'source_row_start',
+    'source_row_end',
+    'source_page_start',
+    'source_page_end',
+])]
+#[Table(name: 'prc_estimates')]
 final class Estimate extends Model
 {
     /** @use HasFactory<EstimateFactory> */
     use HasFactory;
-
-    protected $table = 'prc_estimates';
-
-    protected $fillable = [
-        'uuid',
-        'analysis_id',
-        'document_version_id',
-        'procurement_id',
-        'platform_id',
-        'ordinal',
-        'estimate_number',
-        'total_amount',
-        'currency',
-        'base_year',
-        'price_level',
-        'regulatory_base',
-        'calc_method',
-        'labor_hours_workers',
-        'labor_hours_machinists',
-        'document_number',
-        'document_date',
-        'period_start',
-        'period_end',
-        'passport',
-        'raw_result',
-        'raw_result_ref',
-        'raw_result_disk',
-        'rows_expected',
-        'rows_extracted',
-        'validation_status',
-        'validation_notes',
-        'verified_at',
-        'verified_by',
-        'source_sheet_name',
-        'source_row_start',
-        'source_row_end',
-        'source_page_start',
-        'source_page_end',
-    ];
 
     protected function casts(): array
     {

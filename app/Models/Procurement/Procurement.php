@@ -8,6 +8,8 @@ use App\Enums\Procurement\ProcurementStatus;
 use App\Models\Procurement\Platform\Registry;
 use App\Models\Scopes\PublicPlatformScope;
 use Database\Factories\Procurement\ProcurementFactory;
+use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Attributes\Table;
 use Illuminate\Database\Eloquent\Attributes\UseFactory;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Casts\AsCollection;
@@ -28,54 +30,52 @@ use Illuminate\Support\Str;
  * @property-read string|null $procedure_type_raw
  */
 #[UseFactory(ProcurementFactory::class)]
+#[Fillable([
+    'uuid',
+    'registry_id',
+    'registry_number',
+    'etp_number',
+    'ikz',
+    'title',
+    'status',
+    'succeeded_at',
+    'source_stage',
+    'procedure_type',
+    'procedure_type_raw',
+    'customer_org_id',
+    'initial_price',
+    'currency',
+    'advance_percent',
+    'okved_code',
+    'okved_additional',
+    'region_code',
+    'published_at',
+    'source_updated_at',
+    'bidding_starts_at',
+    'bidding_ends_at',
+    'summary_at',
+    'detail_url',
+    'detail_fetched_at',
+    'detail_parse_outcome',
+    'detail_attempts',
+    'detail_last_error',
+    'detail_next_retry_at',
+    'detail_failed',
+    'registry_guid',
+    'current_revision_id',
+    'current_revision_detected_at',
+    'revision_count',
+    'ignored_at',
+    'ignore_reason',
+    'attributes',
+    'first_seen_at',
+    'last_seen_at',
+])]
+#[Table(name: 'prc_procurements')]
 final class Procurement extends Model
 {
     /** @use HasFactory<ProcurementFactory> */
     use HasFactory;
-
-    protected $table = 'prc_procurements';
-
-    protected $fillable = [
-        'uuid',
-        'registry_id',
-        'registry_number',
-        'etp_number',
-        'ikz',
-        'title',
-        'status',
-        'succeeded_at',
-        'source_stage',
-        'procedure_type',
-        'procedure_type_raw',
-        'customer_org_id',
-        'initial_price',
-        'currency',
-        'advance_percent',
-        'okved_code',
-        'okved_additional',
-        'region_code',
-        'published_at',
-        'source_updated_at',
-        'bidding_starts_at',
-        'bidding_ends_at',
-        'summary_at',
-        'detail_url',
-        'detail_fetched_at',
-        'detail_parse_outcome',
-        'detail_attempts',
-        'detail_last_error',
-        'detail_next_retry_at',
-        'detail_failed',
-        'registry_guid',
-        'current_revision_id',
-        'current_revision_detected_at',
-        'revision_count',
-        'ignored_at',
-        'ignore_reason',
-        'attributes',
-        'first_seen_at',
-        'last_seen_at',
-    ];
 
     protected function casts(): array
     {

@@ -6,6 +6,8 @@ namespace App\Models\Procurement\Estimate;
 
 use App\Enums\Procurement\Estimate\ResourceType;
 use Database\Factories\Procurement\Estimate\ResourceFactory;
+use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Attributes\Table;
 use Illuminate\Database\Eloquent\Attributes\UseFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -25,26 +27,24 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property string|null $index_value
  */
 #[UseFactory(ResourceFactory::class)]
+#[Fillable([
+    'item_id',
+    'resource_type',
+    'code',
+    'name',
+    'unit',
+    'unit_base',
+    'unit_multiplier',
+    'quantity',
+    'price_base',
+    'price_curr',
+    'index_code',
+    'index_value',
+])]
+#[Table(name: 'prc_estimate_resources')]
 final class Resource extends Model
 {
     use HasFactory;
-
-    protected $table = 'prc_estimate_resources';
-
-    protected $fillable = [
-        'item_id',
-        'resource_type',
-        'code',
-        'name',
-        'unit',
-        'unit_base',
-        'unit_multiplier',
-        'quantity',
-        'price_base',
-        'price_curr',
-        'index_code',
-        'index_value',
-    ];
 
     protected function casts(): array
     {

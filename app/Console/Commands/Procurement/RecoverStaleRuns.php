@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Console\Commands\Procurement;
 
 use App\Services\Procurement\CrawlerRunManager;
+use Illuminate\Console\Attributes\Description;
+use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
 
 /**
@@ -13,12 +15,10 @@ use Illuminate\Console\Command;
  * `running` навсегда, а частичный unique-индекс превращал его в блокировщик профиля.
  * Регистрация в расписании — `routes/console.php`.
  */
+#[Description('Переводит прогоны с протухшим heartbeat из running в paused (resumable)')]
+#[Signature('crawler:recover-stale')]
 final class RecoverStaleRuns extends Command
 {
-    protected $signature = 'crawler:recover-stale';
-
-    protected $description = 'Переводит прогоны с протухшим heartbeat из running в paused (resumable)';
-
     public function handle(CrawlerRunManager $runs): int
     {
         $recovered = $runs->recoverStale();

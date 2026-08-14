@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Models\Procurement\Ai;
 
 use Database\Factories\Procurement\Ai\EvalRunFactory;
+use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Attributes\Table;
 use Illuminate\Database\Eloquent\Attributes\UseFactory;
 use Illuminate\Database\Eloquent\Casts\AsCollection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -27,24 +29,22 @@ use Illuminate\Support\Collection;
  * @property Carbon|null $finished_at
  */
 #[UseFactory(EvalRunFactory::class)]
+#[Fillable([
+    'document_type',
+    'task',
+    'dataset_version',
+    'provider',
+    'model',
+    'prompt_version_set',
+    'metrics',
+    'ci_status',
+    'started_at',
+    'finished_at',
+])]
+#[Table(name: 'prc_ai_eval_runs')]
 final class EvalRun extends Model
 {
     use HasFactory;
-
-    protected $table = 'prc_ai_eval_runs';
-
-    protected $fillable = [
-        'document_type',
-        'task',
-        'dataset_version',
-        'provider',
-        'model',
-        'prompt_version_set',
-        'metrics',
-        'ci_status',
-        'started_at',
-        'finished_at',
-    ];
 
     protected function casts(): array
     {

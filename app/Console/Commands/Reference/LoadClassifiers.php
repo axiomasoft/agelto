@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Console\Commands\Reference;
 
 use App\Services\Reference\ClassifierImporter;
+use Illuminate\Console\Attributes\Description;
+use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
 use Illuminate\Support\Collection;
 use Illuminate\Support\LazyCollection;
@@ -15,12 +17,10 @@ use Illuminate\Support\LazyCollection;
  * production-наполнение реальными файлами — операторская задача (D16), команда лишь
  * предупреждает и пропускает классификатор без сконфигурированного/существующего пути.
  */
+#[Description('Наполняет справочники ref_* из официальной выгрузки (идемпотентный upsert по code)')]
+#[Signature('ref:load-classifiers {classifier? : okpd2|ktru|okved2|kbk — по умолчанию все}')]
 final class LoadClassifiers extends Command
 {
-    protected $signature = 'ref:load-classifiers {classifier? : okpd2|ktru|okved2|kbk — по умолчанию все}';
-
-    protected $description = 'Наполняет справочники ref_* из официальной выгрузки (идемпотентный upsert по code)';
-
     public function handle(ClassifierImporter $importer): int
     {
         $classifiers = $this->resolveClassifiers();

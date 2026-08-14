@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Console\Commands\Procurement\Ai;
 
 use App\Services\Storage\MinioLifecycleManager;
+use Illuminate\Console\Attributes\Description;
+use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
 
 /**
@@ -12,12 +14,10 @@ use Illuminate\Console\Command;
  * D33) на бакет S3-диска — логика ушла в `MinioLifecycleManager`
  * (`root/service-layer-map.md` §3).
  */
+#[Description('Идемпотентно применяет MinIO ILM-правила (config(partitioning.minio_lifecycle)) на бакет s3-диска')]
+#[Signature('ai:storage:lifecycle')]
 final class StorageLifecycleCommand extends Command
 {
-    protected $signature = 'ai:storage:lifecycle';
-
-    protected $description = 'Идемпотентно применяет MinIO ILM-правила (config(partitioning.minio_lifecycle)) на бакет s3-диска';
-
     public function __construct(private readonly MinioLifecycleManager $manager)
     {
         parent::__construct();

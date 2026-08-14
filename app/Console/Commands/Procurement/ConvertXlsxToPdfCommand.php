@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Console\Commands\Procurement;
 
 use App\Services\Procurement\Prepare\SpreadsheetStrategy;
+use Illuminate\Console\Attributes\Description;
+use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
 use PhpOffice\PhpSpreadsheet\IOFactory;
 use PhpOffice\PhpSpreadsheet\Worksheet\PageSetup;
@@ -18,12 +20,10 @@ use PhpOffice\PhpSpreadsheet\Writer\Pdf\Mpdf as MpdfWriter;
  * fitToHeight(0) — v1-урок (`Old/.../Strategies/ExcelStrategy.php`), иначе смета режется
  * по столбцам вместо переноса на следующую страницу.
  */
+#[Description('Конвертирует Excel-файл в PDF (landscape, fitToWidth) для стадии подготовки документа')]
+#[Signature('procurement:convert-xlsx-to-pdf {input} {output}')]
 final class ConvertXlsxToPdfCommand extends Command
 {
-    protected $signature = 'procurement:convert-xlsx-to-pdf {input} {output}';
-
-    protected $description = 'Конвертирует Excel-файл в PDF (landscape, fitToWidth) для стадии подготовки документа';
-
     public function handle(): int
     {
         IOFactory::registerWriter('Pdf', MpdfWriter::class);

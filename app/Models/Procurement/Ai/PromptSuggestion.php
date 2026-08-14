@@ -10,6 +10,8 @@ use App\Enums\Procurement\Ai\PromptSuggestionStatus;
 use App\Models\Llm\LlmCall;
 use App\Models\User;
 use Database\Factories\Procurement\Ai\PromptSuggestionFactory;
+use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Attributes\Table;
 use Illuminate\Database\Eloquent\Attributes\UseFactory;
 use Illuminate\Database\Eloquent\Casts\AsCollection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -50,37 +52,35 @@ use Illuminate\Support\Str;
  * @property Carbon|null $reverted_at
  */
 #[UseFactory(PromptSuggestionFactory::class)]
+#[Fillable([
+    'uuid',
+    'kind',
+    'status',
+    'analysis_id',
+    'fixture_id',
+    'eval_run_id',
+    'llm_call_id',
+    'prompt_key',
+    'prompt_step',
+    'base_version',
+    'proposed_content',
+    'hint',
+    'document_type',
+    'analysis_step',
+    'rationale',
+    'evidence',
+    'decided_by',
+    'decided_at',
+    'decision_note',
+    'applied_at',
+    'applied_version',
+    'reverted_at',
+])]
+#[Table(name: 'prc_ai_prompt_suggestions')]
 final class PromptSuggestion extends Model
 {
     /** @use HasFactory<PromptSuggestionFactory> */
     use HasFactory;
-
-    protected $table = 'prc_ai_prompt_suggestions';
-
-    protected $fillable = [
-        'uuid',
-        'kind',
-        'status',
-        'analysis_id',
-        'fixture_id',
-        'eval_run_id',
-        'llm_call_id',
-        'prompt_key',
-        'prompt_step',
-        'base_version',
-        'proposed_content',
-        'hint',
-        'document_type',
-        'analysis_step',
-        'rationale',
-        'evidence',
-        'decided_by',
-        'decided_at',
-        'decision_note',
-        'applied_at',
-        'applied_version',
-        'reverted_at',
-    ];
 
     protected function casts(): array
     {

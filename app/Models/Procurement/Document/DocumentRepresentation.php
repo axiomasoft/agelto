@@ -6,6 +6,8 @@ namespace App\Models\Procurement\Document;
 
 use App\Enums\Procurement\Document\RepresentationKind;
 use Database\Factories\Procurement\Document\DocumentRepresentationFactory;
+use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Attributes\Table;
 use Illuminate\Database\Eloquent\Attributes\UseFactory;
 use Illuminate\Database\Eloquent\Casts\AsCollection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -31,24 +33,22 @@ use Illuminate\Support\Collection;
  * @property Carbon $generated_at
  */
 #[UseFactory(DocumentRepresentationFactory::class)]
+#[Fillable([
+    'document_version_id',
+    'kind',
+    'storage_path',
+    'disk',
+    'size_bytes',
+    'page_count',
+    'token_estimate',
+    'mime',
+    'meta',
+    'generated_at',
+])]
+#[Table(name: 'prc_document_representations')]
 final class DocumentRepresentation extends Model
 {
     use HasFactory;
-
-    protected $table = 'prc_document_representations';
-
-    protected $fillable = [
-        'document_version_id',
-        'kind',
-        'storage_path',
-        'disk',
-        'size_bytes',
-        'page_count',
-        'token_estimate',
-        'mime',
-        'meta',
-        'generated_at',
-    ];
 
     protected function casts(): array
     {

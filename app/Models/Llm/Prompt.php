@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Models\Llm;
 
 use Database\Factories\Llm\PromptFactory;
+use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Attributes\Table;
 use Illuminate\Database\Eloquent\Attributes\UseFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -22,22 +24,20 @@ use Illuminate\Database\Eloquent\Model;
  * @property bool $is_protected
  */
 #[UseFactory(PromptFactory::class)]
+#[Fillable([
+    'document_type',
+    'key',
+    'step',
+    'content',
+    'version',
+    'priority',
+    'is_active',
+    'is_protected',
+])]
+#[Table(name: 'llm_prompts')]
 final class Prompt extends Model
 {
     use HasFactory;
-
-    protected $table = 'llm_prompts';
-
-    protected $fillable = [
-        'document_type',
-        'key',
-        'step',
-        'content',
-        'version',
-        'priority',
-        'is_active',
-        'is_protected',
-    ];
 
     protected function casts(): array
     {

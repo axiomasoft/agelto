@@ -8,6 +8,8 @@ use App\Enums\Procurement\Ai\PromptSuggestionKind;
 use App\Enums\Procurement\Ai\PromptSuggestionStatus;
 use App\Repositories\Procurement\Ai\PromptSuggestionReadRepository;
 use App\Services\Procurement\Tuning\PromptPatchApplier;
+use Illuminate\Console\Attributes\Description;
+use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
 use RuntimeException;
 
@@ -17,14 +19,12 @@ use RuntimeException;
  * трогая (ни файл, ни БД). Команда САМА не пишет `llm_prompts` — файл коммитит и
  * `ai:prompts:sync` гоняет человек (D59).
  */
+#[Description('Применить одобренное предложение из очереди prc_ai_prompt_suggestions')]
+#[Signature('ai:prompts:apply
+        {id : id предложения в очереди}
+        {--dry-run : показать план применения без записи}')]
 final class PromptsApplyCommand extends Command
 {
-    protected $signature = 'ai:prompts:apply
-        {id : id предложения в очереди}
-        {--dry-run : показать план применения без записи}';
-
-    protected $description = 'Применить одобренное предложение из очереди prc_ai_prompt_suggestions';
-
     public function __construct(
         private readonly PromptSuggestionReadRepository $suggestions,
         private readonly PromptPatchApplier $applier,

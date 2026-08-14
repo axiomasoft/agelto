@@ -8,6 +8,8 @@ use App\Enums\Procurement\Crawler\CrawlerMode;
 use App\Exceptions\Procurement\OperationFailed;
 use App\Models\Procurement\Crawler\Crawler;
 use App\Services\Procurement\Crawler\StartCrawlerRunAction;
+use Illuminate\Console\Attributes\Description;
+use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
 use Illuminate\Support\Carbon;
 
@@ -20,12 +22,10 @@ use Illuminate\Support\Carbon;
  * формирует ТОЛЬКО `StartCrawlerRunAction` — вторая проверка «обязателен --from» здесь не
  * заводится (Implementation Rules п. 7 item'а P3.8).
  */
+#[Description('Запускает archive-перекачку профиля краулера за период [--from, --to] (по умолчанию — окно профиля)')]
+#[Signature('crawler:run-archive {crawler : ID или name профиля} {--from=} {--to=}')]
 final class RunArchiveCrawler extends Command
 {
-    protected $signature = 'crawler:run-archive {crawler : ID или name профиля} {--from=} {--to=}';
-
-    protected $description = 'Запускает archive-перекачку профиля краулера за период [--from, --to] (по умолчанию — окно профиля)';
-
     public function handle(StartCrawlerRunAction $starter): int
     {
         $crawler = $this->resolveCrawler();

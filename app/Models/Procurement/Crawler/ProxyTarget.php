@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Models\Procurement\Crawler;
 
 use Database\Factories\Procurement\Crawler\ProxyTargetFactory;
+use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Attributes\Table;
 use Illuminate\Database\Eloquent\Attributes\UseFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -28,23 +30,21 @@ use Illuminate\Support\Carbon;
  * @property-read Proxy $proxy
  */
 #[UseFactory(ProxyTargetFactory::class)]
+#[Fillable([
+    'proxy_id',
+    'target',
+    'success_ratio',
+    'latency_ms_avg',
+    'consecutive_failures',
+    'open_until',
+    'open_count',
+    'last_failure_reason',
+    'last_outcome_at',
+])]
+#[Table(name: 'prc_proxy_targets')]
 final class ProxyTarget extends Model
 {
     use HasFactory;
-
-    protected $table = 'prc_proxy_targets';
-
-    protected $fillable = [
-        'proxy_id',
-        'target',
-        'success_ratio',
-        'latency_ms_avg',
-        'consecutive_failures',
-        'open_until',
-        'open_count',
-        'last_failure_reason',
-        'last_outcome_at',
-    ];
 
     protected function casts(): array
     {

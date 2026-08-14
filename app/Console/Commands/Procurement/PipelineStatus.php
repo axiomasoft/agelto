@@ -10,6 +10,8 @@ use App\Enums\Procurement\Ai\ScreeningDecisionReason;
 use App\Enums\Procurement\Document\DocumentStatus;
 use App\Models\Procurement\Ai\Analysis;
 use App\Models\Procurement\Document\Document;
+use Illuminate\Console\Attributes\Description;
+use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
 
 /**
@@ -20,12 +22,10 @@ use Illuminate\Console\Command;
  * backend reason `borderline_confidence`). Read-only снимок текущего состояния — без
  * временных окон, в отличие от `pipeline:stuck-check` (P7.3).
  */
+#[Description('Показывает текущее состояние пайплайна документов и AI-анализа по всем стадиям')]
+#[Signature('pipeline:status')]
 final class PipelineStatus extends Command
 {
-    protected $signature = 'pipeline:status';
-
-    protected $description = 'Показывает текущее состояние пайплайна документов и AI-анализа по всем стадиям';
-
     public function handle(): int
     {
         $this->info('Пайплайн EST-AI — состояние на '.now()->format('d.m.Y H:i:s'));

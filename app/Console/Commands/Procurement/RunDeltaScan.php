@@ -8,6 +8,8 @@ use App\Enums\Procurement\Crawler\CrawlerMode;
 use App\Enums\Procurement\Crawler\RunStatus;
 use App\Models\Procurement\Crawler\Crawler;
 use App\Services\Procurement\Modes\DeltaScanProcessor;
+use Illuminate\Console\Attributes\Description;
+use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
 use Illuminate\Support\Collection;
 use Throwable;
@@ -18,12 +20,10 @@ use Throwable;
  * окна `[сегодня − window_overlap_days; сегодня]` по дате обновления. Регистрация в расписании —
  * `routes/console.php`, под флагом `crawler.tracking.delta_scan_enabled`.
  */
+#[Description('Плановый delta-scan окна обновления на активном archive-профиле реестра')]
+#[Signature('crawler:run-delta {crawler? : ID или name fresh-профиля}')]
 final class RunDeltaScan extends Command
 {
-    protected $signature = 'crawler:run-delta {crawler? : ID или name fresh-профиля}';
-
-    protected $description = 'Плановый delta-scan окна обновления на активном archive-профиле реестра';
-
     public function handle(DeltaScanProcessor $processor): int
     {
         $crawlers = $this->resolveCrawlers();

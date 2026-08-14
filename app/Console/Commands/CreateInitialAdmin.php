@@ -5,15 +5,15 @@ declare(strict_types=1);
 namespace App\Console\Commands;
 
 use App\Actions\Admin\CreateInitialAdminAction;
+use Illuminate\Console\Attributes\Description;
+use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
 use InvalidArgumentException;
 
+#[Description('Create the initial SuperAdmin from hidden input or a password file')]
+#[Signature('admin:create-initial {--email= : Email initial administrator} {--password-file= : Read the password from this file}')]
 final class CreateInitialAdmin extends Command
 {
-    protected $signature = 'admin:create-initial {--email= : Email initial administrator} {--password-file= : Read the password from this file}';
-
-    protected $description = 'Create the initial SuperAdmin from hidden input or a password file';
-
     public function handle(CreateInitialAdminAction $action): int
     {
         try {

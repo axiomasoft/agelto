@@ -6,6 +6,8 @@ namespace App\Models\Procurement;
 
 use App\Enums\Organization\ProcurementPartyRole;
 use Database\Factories\Procurement\ProcurementPartyFactory;
+use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Attributes\Table;
 use Illuminate\Database\Eloquent\Attributes\UseFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -17,19 +19,17 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * `procurement_id` пока без FK — таблица `prc_procurements` появится в другом item.
  */
 #[UseFactory(ProcurementPartyFactory::class)]
+#[Fillable([
+    'procurement_id',
+    'organization_id',
+    'role',
+    'first_seen_revision_id',
+    'attributes',
+])]
+#[Table(name: 'prc_procurement_parties')]
 final class ProcurementParty extends Model
 {
     use HasFactory;
-
-    protected $table = 'prc_procurement_parties';
-
-    protected $fillable = [
-        'procurement_id',
-        'organization_id',
-        'role',
-        'first_seen_revision_id',
-        'attributes',
-    ];
 
     protected function casts(): array
     {

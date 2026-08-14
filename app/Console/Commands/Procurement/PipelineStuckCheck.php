@@ -16,6 +16,8 @@ use App\Models\Procurement\Document\Document;
 use App\Models\Procurement\Estimate\Estimate;
 use App\Notifications\PipelineAlert;
 use Carbon\CarbonImmutable;
+use Illuminate\Console\Attributes\Description;
+use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
 use LogicException;
 
@@ -29,12 +31,10 @@ use LogicException;
  * Находки агрегируются в ОДНО Telegram-сообщение через `PipelineAlert::notify()`
  * (Code Guidance) с антиспамом по ключу находки (не чаще раза в час на одинаковую находку).
  */
+#[Description('Проверяет зависшие/аномальные состояния пайплайна и алертит агрегированным сообщением')]
+#[Signature('pipeline:stuck-check')]
 final class PipelineStuckCheck extends Command
 {
-    protected $signature = 'pipeline:stuck-check';
-
-    protected $description = 'Проверяет зависшие/аномальные состояния пайплайна и алертит агрегированным сообщением';
-
     public function __construct(private readonly PipelineAlert $alert)
     {
         parent::__construct();

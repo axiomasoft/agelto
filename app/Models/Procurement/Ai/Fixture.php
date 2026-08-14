@@ -12,6 +12,8 @@ use App\Models\Procurement\Document\DocumentVersion;
 use App\Models\User;
 use App\Services\Storage\FileLocationResolver;
 use Database\Factories\Procurement\Ai\FixtureFactory;
+use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Attributes\Table;
 use Illuminate\Database\Eloquent\Attributes\UseFactory;
 use Illuminate\Database\Eloquent\Casts\AsCollection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -54,6 +56,30 @@ use RuntimeException;
  * @property-read Document|null $document
  */
 #[UseFactory(FixtureFactory::class)]
+#[Fillable([
+    'code',
+    'source_format',
+    'storage_path',
+    'disk',
+    'sha256',
+    'size_bytes',
+    'mime',
+    'original_filename',
+    'source_path',
+    'generator',
+    'cluster_id',
+    'document_type',
+    'owner_document_type',
+    'title',
+    'quirks',
+    'type_profile',
+    'is_verified',
+    'verified_by',
+    'verified_at',
+    'notes',
+    'document_id',
+])]
+#[Table(name: 'prc_ai_fixtures')]
 final class Fixture extends Model
 {
     /** @use HasFactory<FixtureFactory> */
@@ -63,32 +89,6 @@ final class Fixture extends Model
      * Единственный носитель контракта кода эталона (D13): `<CLASS>-<FORMAT>-<FORM>-<NNN>`.
      */
     public const CODE_PATTERN = '/^(EST|NEG)-(XLSX|XLS|PDF|GSFX|DOCX|JPG)-[A-Z0-9]{2,10}-[0-9]{3}$/';
-
-    protected $table = 'prc_ai_fixtures';
-
-    protected $fillable = [
-        'code',
-        'source_format',
-        'storage_path',
-        'disk',
-        'sha256',
-        'size_bytes',
-        'mime',
-        'original_filename',
-        'source_path',
-        'generator',
-        'cluster_id',
-        'document_type',
-        'owner_document_type',
-        'title',
-        'quirks',
-        'type_profile',
-        'is_verified',
-        'verified_by',
-        'verified_at',
-        'notes',
-        'document_id',
-    ];
 
     protected function casts(): array
     {

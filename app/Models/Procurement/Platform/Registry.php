@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Models\Procurement\Platform;
 
 use Database\Factories\Procurement\Platform\RegistryFactory;
+use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Attributes\Table;
 use Illuminate\Database\Eloquent\Attributes\UseFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -22,20 +24,18 @@ use Illuminate\Support\Str;
  * @property array<string, mixed>|null $settings
  */
 #[UseFactory(RegistryFactory::class)]
+#[Fillable([
+    'uuid',
+    'platform_id',
+    'code',
+    'name',
+    'settings',
+])]
+#[Table(name: 'prc_registries')]
 final class Registry extends Model
 {
     /** @use HasFactory<RegistryFactory> */
     use HasFactory;
-
-    protected $table = 'prc_registries';
-
-    protected $fillable = [
-        'uuid',
-        'platform_id',
-        'code',
-        'name',
-        'settings',
-    ];
 
     protected function casts(): array
     {

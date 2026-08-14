@@ -18,6 +18,8 @@ use App\Models\Procurement\Document\DocumentVersion;
 use App\Models\Procurement\Estimate\Estimate;
 use App\Models\User;
 use Database\Factories\Procurement\Ai\AnalysisFactory;
+use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Attributes\Table;
 use Illuminate\Database\Eloquent\Attributes\UseFactory;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Casts\AsCollection;
@@ -62,49 +64,47 @@ use InvalidArgumentException;
  * @property-read DocumentVersion|null $documentVersion
  */
 #[UseFactory(AnalysisFactory::class)]
+#[Fillable([
+    'uuid',
+    'document_version_id',
+    'analysis_run_id',
+    'step',
+    'status',
+    'document_type',
+    'result',
+    'provider',
+    'model',
+    'prompt_tokens',
+    'completion_tokens',
+    'cached_tokens',
+    'total_tokens',
+    'cost_micros',
+    'locked_by',
+    'locked_until',
+    'attempts',
+    'last_error',
+    'last_error_at',
+    'next_retry_at',
+    'failed_permanently',
+    'started_at',
+    'finished_at',
+    'cache_id',
+    'cache_expires_at',
+    'rules_hash',
+    'progress',
+    'review_status',
+    'reviewed_by',
+    'reviewed_at',
+    'operator_comment',
+    'parent_analysis_id',
+    'superseded_at',
+    'is_shadow',
+])]
+#[Table(name: 'prc_ai_analyses')]
 final class Analysis extends Model
 {
     /** @use HasFactory<AnalysisFactory> */
     use HasErrorBlock, HasFactory, HasLease;
-
-    protected $table = 'prc_ai_analyses';
-
-    protected $fillable = [
-        'uuid',
-        'document_version_id',
-        'analysis_run_id',
-        'step',
-        'status',
-        'document_type',
-        'result',
-        'provider',
-        'model',
-        'prompt_tokens',
-        'completion_tokens',
-        'cached_tokens',
-        'total_tokens',
-        'cost_micros',
-        'locked_by',
-        'locked_until',
-        'attempts',
-        'last_error',
-        'last_error_at',
-        'next_retry_at',
-        'failed_permanently',
-        'started_at',
-        'finished_at',
-        'cache_id',
-        'cache_expires_at',
-        'rules_hash',
-        'progress',
-        'review_status',
-        'reviewed_by',
-        'reviewed_at',
-        'operator_comment',
-        'parent_analysis_id',
-        'superseded_at',
-        'is_shadow',
-    ];
 
     protected function casts(): array
     {

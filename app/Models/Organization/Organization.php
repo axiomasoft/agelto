@@ -6,6 +6,8 @@ namespace App\Models\Organization;
 
 use App\Models\Procurement\ProcurementParty;
 use Database\Factories\Organization\OrganizationFactory;
+use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Attributes\Table;
 use Illuminate\Database\Eloquent\Attributes\UseFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -20,27 +22,25 @@ use Illuminate\Support\Str;
  * @property string $uuid
  */
 #[UseFactory(OrganizationFactory::class)]
+#[Fillable([
+    'uuid',
+    'inn',
+    'kpp',
+    'ogrn',
+    'eruz_number',
+    'full_name',
+    'short_name',
+    'address_raw',
+    'region_code',
+    'phone',
+    'email',
+    'attributes',
+])]
+#[Table(name: 'org_organizations')]
 final class Organization extends Model
 {
     /** @use HasFactory<OrganizationFactory> */
     use HasFactory;
-
-    protected $table = 'org_organizations';
-
-    protected $fillable = [
-        'uuid',
-        'inn',
-        'kpp',
-        'ogrn',
-        'eruz_number',
-        'full_name',
-        'short_name',
-        'address_raw',
-        'region_code',
-        'phone',
-        'email',
-        'attributes',
-    ];
 
     protected function casts(): array
     {

@@ -7,6 +7,8 @@ namespace App\Models\Procurement\Ai;
 use App\Models\Procurement\Document\DocumentVersion;
 use App\Models\User;
 use Database\Factories\Procurement\Ai\DatasetExampleFactory;
+use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Attributes\Table;
 use Illuminate\Database\Eloquent\Attributes\UseFactory;
 use Illuminate\Database\Eloquent\Casts\AsCollection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -29,25 +31,23 @@ use Illuminate\Support\Collection;
  * @property-read Analysis|null $analysis
  */
 #[UseFactory(DatasetExampleFactory::class)]
+#[Fillable([
+    'document_version_id',
+    'fixture_id',
+    'analysis_id',
+    'document_type',
+    'task',
+    'gold',
+    'gold_ref',
+    'source',
+    'verified_by',
+    'verified_at',
+    'version',
+])]
+#[Table(name: 'prc_ai_dataset_examples')]
 final class DatasetExample extends Model
 {
     use HasFactory;
-
-    protected $table = 'prc_ai_dataset_examples';
-
-    protected $fillable = [
-        'document_version_id',
-        'fixture_id',
-        'analysis_id',
-        'document_type',
-        'task',
-        'gold',
-        'gold_ref',
-        'source',
-        'verified_by',
-        'verified_at',
-        'version',
-    ];
 
     protected function casts(): array
     {

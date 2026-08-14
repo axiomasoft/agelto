@@ -15,6 +15,8 @@ use App\Models\Procurement\Platform\Registry;
 use App\Services\Procurement\CrawlerFilterFactory;
 use Database\Factories\Procurement\Crawler\CrawlerFactory;
 use Illuminate\Contracts\Support\Arrayable;
+use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Attributes\Table;
 use Illuminate\Database\Eloquent\Attributes\UseFactory;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -47,28 +49,26 @@ use Spatie\LaravelData\Data;
  * @property Carbon $updated_at
  */
 #[UseFactory(CrawlerFactory::class)]
+#[Fillable([
+    'registry_id',
+    'name',
+    'execution_lane',
+    'mode',
+    'stop_policy',
+    'source_method',
+    'fallback_method',
+    'filter',
+    'schedule',
+    'options',
+    'is_active',
+    'proxy_mode',
+    'proxy_country',
+])]
+#[Table(name: 'prc_crawlers')]
 final class Crawler extends Model
 {
     /** @use HasFactory<CrawlerFactory> */
     use HasFactory;
-
-    protected $table = 'prc_crawlers';
-
-    protected $fillable = [
-        'registry_id',
-        'name',
-        'execution_lane',
-        'mode',
-        'stop_policy',
-        'source_method',
-        'fallback_method',
-        'filter',
-        'schedule',
-        'options',
-        'is_active',
-        'proxy_mode',
-        'proxy_country',
-    ];
 
     protected function casts(): array
     {

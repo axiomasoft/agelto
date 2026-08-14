@@ -6,6 +6,8 @@ namespace App\Models\Procurement\Platform;
 
 use App\Enums\Procurement\StatusMappingApplicability;
 use Database\Factories\Procurement\Platform\StatusMappingFactory;
+use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Attributes\Table;
 use Illuminate\Database\Eloquent\Attributes\UseFactory;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -19,18 +21,16 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property int|null $registry_id
  */
 #[UseFactory(StatusMappingFactory::class)]
+#[Fillable([
+    'platform_id',
+    'registry_id',
+    'source_stage',
+    'canonical_status',
+])]
+#[Table(name: 'prc_status_mappings')]
 final class StatusMapping extends Model
 {
     use HasFactory;
-
-    protected $table = 'prc_status_mappings';
-
-    protected $fillable = [
-        'platform_id',
-        'registry_id',
-        'source_stage',
-        'canonical_status',
-    ];
 
     /** @property-read StatusMappingApplicability $applicability */
     protected function applicability(): Attribute

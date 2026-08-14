@@ -9,6 +9,8 @@ use App\Enums\Procurement\Ai\RunMode;
 use App\Models\Procurement\Document\DocumentVersion;
 use App\Models\User;
 use Database\Factories\Procurement\Ai\AnalysisRunFactory;
+use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Attributes\Table;
 use Illuminate\Database\Eloquent\Attributes\UseFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -38,26 +40,24 @@ use Illuminate\Support\Str;
  * @property Carbon|null $finished_at
  */
 #[UseFactory(AnalysisRunFactory::class)]
+#[Fillable([
+    'uuid',
+    'document_version_id',
+    'mode',
+    'status',
+    'prompt_tokens',
+    'completion_tokens',
+    'cached_tokens',
+    'total_tokens',
+    'cost_micros',
+    'initiated_by',
+    'started_at',
+    'finished_at',
+])]
+#[Table(name: 'prc_ai_analysis_runs')]
 final class AnalysisRun extends Model
 {
     use HasFactory;
-
-    protected $table = 'prc_ai_analysis_runs';
-
-    protected $fillable = [
-        'uuid',
-        'document_version_id',
-        'mode',
-        'status',
-        'prompt_tokens',
-        'completion_tokens',
-        'cached_tokens',
-        'total_tokens',
-        'cost_micros',
-        'initiated_by',
-        'started_at',
-        'finished_at',
-    ];
 
     protected function casts(): array
     {

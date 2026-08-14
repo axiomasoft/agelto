@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Console\Commands\Procurement\Ai;
 
 use App\Services\Llm\PromptCanonSynchronizer;
+use Illuminate\Console\Attributes\Description;
+use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
 
 /**
@@ -13,12 +15,10 @@ use Illuminate\Console\Command;
  * без прогона остального `DatabaseSeeder`. С `--check` НИЧЕГО не пишет — только сверяет файлы с
  * текущим состоянием БД и завершает CI-джобу ошибкой при найденном дрейфе.
  */
+#[Description('Синхронизация файловых промтов resources/ai/prompts/** в llm_prompts')]
+#[Signature('ai:prompts:sync {--check : только сверить дрейф файлы↔БД, ничего не писать}')]
 final class PromptsSyncCommand extends Command
 {
-    protected $signature = 'ai:prompts:sync {--check : только сверить дрейф файлы↔БД, ничего не писать}';
-
-    protected $description = 'Синхронизация файловых промтов resources/ai/prompts/** в llm_prompts';
-
     public function __construct(private readonly PromptCanonSynchronizer $synchronizer)
     {
         parent::__construct();

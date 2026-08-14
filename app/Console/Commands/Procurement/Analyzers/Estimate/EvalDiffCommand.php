@@ -12,6 +12,8 @@ use App\Exceptions\Procurement\OperationFailed;
 use App\Models\Procurement\Ai\Analysis;
 use App\Services\Procurement\Analyzers\Estimate\EstimateDiffReport;
 use App\Services\Procurement\Fixture\FixtureCaseResolver;
+use Illuminate\Console\Attributes\Description;
+use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
 
 /**
@@ -21,18 +23,16 @@ use Illuminate\Console\Command;
  * `estimate:prompts:suggest`). НИ ОДНОГО LLM-вызова не делает — читает уже полученный
  * `analysis.result`, не запускает оркестратор (в отличие от `estimate:eval:run`).
  */
-final class EvalDiffCommand extends Command
-{
-    use RendersReport;
-
-    protected $signature = 'estimate:eval:diff
+#[Description('Детерминированный diff-отчёт «gold vs предсказание» по эталону — без единого LLM-вызова')]
+#[Signature('estimate:eval:diff
         {--code= : код эталона}
         {--analysis= : id анализа вместо кода}
         {--format=json : формат вывода (json|md)}
         {--out= : путь файла (репо-относительный)}
-        {--limit-rows=200 : ограничение списка построчных расхождений (0 — без лимита)}';
-
-    protected $description = 'Детерминированный diff-отчёт «gold vs предсказание» по эталону — без единого LLM-вызова';
+        {--limit-rows=200 : ограничение списка построчных расхождений (0 — без лимита)}')]
+final class EvalDiffCommand extends Command
+{
+    use RendersReport;
 
     public function __construct(
         private readonly EstimateDiffReport $diffReport,

@@ -6,6 +6,8 @@ namespace App\Models\Procurement\Crawler;
 
 use App\Enums\Procurement\Proxy\ProxyScope;
 use Database\Factories\Procurement\Crawler\ProxyFactory;
+use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Attributes\Table;
 use Illuminate\Database\Eloquent\Attributes\UseFactory;
 use Illuminate\Database\Eloquent\Casts\AsEnumCollection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -37,30 +39,28 @@ use Illuminate\Support\Collection;
  * @property string|null $disabled_reason
  */
 #[UseFactory(ProxyFactory::class)]
+#[Fillable([
+    'service',
+    'host',
+    'port',
+    'username',
+    'password',
+    'country',
+    'scopes',
+    'is_active',
+    'fails_count',
+    'open_until',
+    'open_count',
+    'last_failure_reason',
+    'last_success_at',
+    'last_failure_at',
+    'disabled_at',
+    'disabled_reason',
+])]
+#[Table(name: 'prc_proxies')]
 final class Proxy extends Model
 {
     use HasFactory;
-
-    protected $table = 'prc_proxies';
-
-    protected $fillable = [
-        'service',
-        'host',
-        'port',
-        'username',
-        'password',
-        'country',
-        'scopes',
-        'is_active',
-        'fails_count',
-        'open_until',
-        'open_count',
-        'last_failure_reason',
-        'last_success_at',
-        'last_failure_at',
-        'disabled_at',
-        'disabled_reason',
-    ];
 
     protected function casts(): array
     {

@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Models\Procurement\Estimate;
 
 use Database\Factories\Procurement\Estimate\ItemFactory;
+use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Attributes\Table;
 use Illuminate\Database\Eloquent\Attributes\UseFactory;
 use Illuminate\Database\Eloquent\Casts\AsCollection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -34,34 +36,32 @@ use Illuminate\Support\Collection;
  * @property Collection<int, mixed>|null $quality провенанс-ключ верхнего уровня model/validator (research/12-uncertainty-model.md §3.2); null — чистая позиция
  */
 #[UseFactory(ItemFactory::class)]
+#[Fillable([
+    'estimate_id',
+    'section_id',
+    'row_index',
+    'code',
+    'name',
+    'unit',
+    'unit_base',
+    'unit_multiplier',
+    'quantity',
+    'unit_price_base',
+    'unit_price_curr',
+    'total_price_base',
+    'total_price_curr',
+    'index_code',
+    'index_value',
+    'source_position_number',
+    'work_type_id',
+    'attributes',
+    'quality',
+])]
+#[Table(name: 'prc_estimate_items')]
 final class Item extends Model
 {
     /** @use HasFactory<ItemFactory> */
     use HasFactory;
-
-    protected $table = 'prc_estimate_items';
-
-    protected $fillable = [
-        'estimate_id',
-        'section_id',
-        'row_index',
-        'code',
-        'name',
-        'unit',
-        'unit_base',
-        'unit_multiplier',
-        'quantity',
-        'unit_price_base',
-        'unit_price_curr',
-        'total_price_base',
-        'total_price_curr',
-        'index_code',
-        'index_value',
-        'source_position_number',
-        'work_type_id',
-        'attributes',
-        'quality',
-    ];
 
     protected function casts(): array
     {

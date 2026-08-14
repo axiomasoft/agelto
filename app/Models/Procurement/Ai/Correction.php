@@ -8,6 +8,8 @@ use App\Enums\Procurement\Ai\CorrectionReason;
 use App\Models\Procurement\Estimate\Estimate;
 use App\Models\User;
 use Database\Factories\Procurement\Ai\CorrectionFactory;
+use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Attributes\Table;
 use Illuminate\Database\Eloquent\Attributes\UseFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -23,25 +25,23 @@ use Illuminate\Support\Str;
  * @property string $content
  */
 #[UseFactory(CorrectionFactory::class)]
+#[Fillable([
+    'uuid',
+    'analysis_id',
+    'estimate_id',
+    'document_type',
+    'field_path',
+    'reason',
+    'content',
+    'hint',
+    'is_reusable',
+    'created_by',
+    'applied_at',
+])]
+#[Table(name: 'prc_ai_corrections')]
 final class Correction extends Model
 {
     use HasFactory;
-
-    protected $table = 'prc_ai_corrections';
-
-    protected $fillable = [
-        'uuid',
-        'analysis_id',
-        'estimate_id',
-        'document_type',
-        'field_path',
-        'reason',
-        'content',
-        'hint',
-        'is_reusable',
-        'created_by',
-        'applied_at',
-    ];
 
     protected function casts(): array
     {

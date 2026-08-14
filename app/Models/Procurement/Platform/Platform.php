@@ -7,6 +7,8 @@ namespace App\Models\Procurement\Platform;
 use App\Dto\Procurement\Crawler\PlatformThrottleSettings;
 use Database\Factories\Procurement\Platform\PlatformFactory;
 use Illuminate\Contracts\Support\Arrayable;
+use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Attributes\Table;
 use Illuminate\Database\Eloquent\Attributes\UseFactory;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -20,6 +22,16 @@ use Illuminate\Support\Str;
  * @property PlatformThrottleSettings|null $throttle
  */
 #[UseFactory(PlatformFactory::class)]
+#[Fillable([
+    'uuid',
+    'code',
+    'name',
+    'base_url',
+    'throttle',
+    'is_active',
+    'is_public',
+])]
+#[Table(name: 'prc_platforms')]
 final class Platform extends Model
 {
     use HasFactory;
@@ -29,18 +41,6 @@ final class Platform extends Model
      * носитель литерала, чтобы GoldImportCommand/DatasetImportCommand не дублировали строку.
      */
     public const string TRAINING_CODE = 'training';
-
-    protected $table = 'prc_platforms';
-
-    protected $fillable = [
-        'uuid',
-        'code',
-        'name',
-        'base_url',
-        'throttle',
-        'is_active',
-        'is_public',
-    ];
 
     protected function casts(): array
     {

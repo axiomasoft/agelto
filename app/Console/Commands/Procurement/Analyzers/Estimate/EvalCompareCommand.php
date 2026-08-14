@@ -8,6 +8,8 @@ use App\Console\Concerns\RendersReport;
 use App\Exceptions\Procurement\OperationFailed;
 use App\Repositories\Procurement\Ai\EvalRunReadRepository;
 use App\Services\Procurement\Tuning\EvalRunComparator;
+use Illuminate\Console\Attributes\Description;
+use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
 use RuntimeException;
 
@@ -25,19 +27,17 @@ use RuntimeException;
  * (`patch`|`no-regression`|`noise-aware`), дефолт сохраняет сегодняшнее поведение — тюнинг-контур
  * `2026.07.26-EST-TRAIN` его не замечает.
  */
-final class EvalCompareCommand extends Command
-{
-    use RendersReport;
-
-    protected $signature = 'estimate:eval:compare
+#[Description('Сравнение двух EvalRun по критерию приёмки патча промта (tune/holdout, D63)')]
+#[Signature('estimate:eval:compare
         {--base= : id базового прогона (EvalRun)}
         {--candidate= : id прогона-кандидата (EvalRun)}
         {--criterion=patch : режим сравнения (patch|no-regression|noise-aware, дефолт — сегодняшнее поведение)}
         {--noise-pair= : id,id нулевой пары для --criterion=noise-aware (обязателен для него, дефолта нет)}
         {--format=json : формат вывода (json|md)}
-        {--out= : путь файла (репо-относительный)}';
-
-    protected $description = 'Сравнение двух EvalRun по критерию приёмки патча промта (tune/holdout, D63)';
+        {--out= : путь файла (репо-относительный)}')]
+final class EvalCompareCommand extends Command
+{
+    use RendersReport;
 
     public function __construct(
         private readonly EvalRunComparator $comparator,

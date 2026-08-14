@@ -6,11 +6,24 @@ use App\Models\Procurement\Platform\Okpd2Node;
 use App\Models\Procurement\Platform\Platform;
 use Database\Seeders\Procurement\Okpd2NodeSeeder;
 
+function eisPlatformForOkpd2NodeSeeder(): Platform
+{
+    return Platform::query()->firstOrCreate(
+        attributes: ['code' => 'eis'],
+        values: Platform::factory()->make(['code' => 'eis'])->only([
+            'name',
+            'base_url',
+            'is_active',
+            'is_public',
+        ]),
+    );
+}
+
 /**
  * P2.1 (D19) — сид карты «код ОКПД2 → внутренний id НСИ» из промоушен-датафайла P1.2.
  */
 test('сид наполняет карту узлов площадки eis из датафайла', function () {
-    Platform::factory()->create(['code' => 'eis']);
+    eisPlatformForOkpd2NodeSeeder();
 
     $this->seed(Okpd2NodeSeeder::class);
 
@@ -19,7 +32,7 @@ test('сид наполняет карту узлов площадки eis из 
 });
 
 test('повторный прогон сидера идемпотентен — число строк не меняется', function () {
-    Platform::factory()->create(['code' => 'eis']);
+    eisPlatformForOkpd2NodeSeeder();
 
     $this->seed(Okpd2NodeSeeder::class);
     $this->seed(Okpd2NodeSeeder::class);
@@ -28,7 +41,7 @@ test('повторный прогон сидера идемпотентен — 
 });
 
 test('сид не заполняет synced_at — сид не сверяет данные с площадкой', function () {
-    Platform::factory()->create(['code' => 'eis']);
+    eisPlatformForOkpd2NodeSeeder();
 
     $this->seed(Okpd2NodeSeeder::class);
 
@@ -36,5 +49,16 @@ test('сид не заполняет synced_at — сид не сверяет д
 });
 
 test('без площадки eis сид бросает исключение', function () {
-    $this->seed(Okpd2NodeSeeder::class);
-})->throws(RuntimeException::class, 'Okpd2NodeSeeder: площадка eis не найдена — прогоните EisPlatformSeeder первым.');
+    $eis = Platform::query()->where('code', 'eis')->first();
+
+    if ($eis !== null) {
+        $eis->update(['code' => 'eis-withheld-for-seeder-test']);
+    }
+
+    try {
+        expect(fn () => $this->seed(Okpd2NodeSeeder::class))
+            ->toThrow(RuntimeException::class, 'Okpd2NodeSeeder: площадка eis не найдена — прогоните EisPlatformSeeder первым.');
+    } finally {
+        $eis?->update(['code' => 'eis']);
+    }
+});

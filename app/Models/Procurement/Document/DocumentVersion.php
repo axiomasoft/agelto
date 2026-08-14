@@ -6,6 +6,8 @@ namespace App\Models\Procurement\Document;
 
 use App\Models\Procurement\Ai\DatasetExample;
 use Database\Factories\Procurement\Document\DocumentVersionFactory;
+use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Attributes\Table;
 use Illuminate\Database\Eloquent\Attributes\UseFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -31,25 +33,23 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property-read Document|null $document
  */
 #[UseFactory(DocumentVersionFactory::class)]
+#[Fillable([
+    'document_id',
+    'content_hash',
+    'size_bytes',
+    'filename',
+    'extension',
+    'mime',
+    'storage_path',
+    'disk',
+    'downloaded_at',
+    'parent_version_id',
+    'archive_entry_path',
+])]
+#[Table(name: 'prc_document_versions')]
 final class DocumentVersion extends Model
 {
     use HasFactory;
-
-    protected $table = 'prc_document_versions';
-
-    protected $fillable = [
-        'document_id',
-        'content_hash',
-        'size_bytes',
-        'filename',
-        'extension',
-        'mime',
-        'storage_path',
-        'disk',
-        'downloaded_at',
-        'parent_version_id',
-        'archive_entry_path',
-    ];
 
     protected function casts(): array
     {

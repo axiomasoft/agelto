@@ -8,6 +8,8 @@ use App\Exceptions\Procurement\OperationFailed;
 use App\Services\Procurement\Fixture\FixtureManifestReader;
 use App\Services\Procurement\Fixture\FixtureRegistrar;
 use App\Services\Storage\FileLocationResolver;
+use Illuminate\Console\Attributes\Description;
+use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
 
 /**
@@ -18,15 +20,13 @@ use Illuminate\Console\Command;
  * отклоняется индивидуально, не роняя остальные. Чтение манифеста и импорт записи вынесены в
  * {@see FixtureManifestReader}/{@see FixtureRegistrar} (P3.3).
  */
-final class FixturesImportCommand extends Command
-{
-    protected $signature = 'estimate:fixtures:import
+#[Description('Импорт эталонного корпуса из manifest.json в хранилище и реестр prc_ai_fixtures')]
+#[Signature('estimate:fixtures:import
         {--manifest= : путь к manifest.json (дефолт config(ai.fixtures.manifest_path))}
         {--source-dir= : откуда брать файлы, которых нет в хранилище (дефолт config(ai.fixtures.source_dir))}
-        {--dry-run : только проверить, ничего не писать}';
-
-    protected $description = 'Импорт эталонного корпуса из manifest.json в хранилище и реестр prc_ai_fixtures';
-
+        {--dry-run : только проверить, ничего не писать}')]
+final class FixturesImportCommand extends Command
+{
     public function __construct(
         private readonly FixtureManifestReader $manifestReader,
         private readonly FixtureRegistrar $registrar,

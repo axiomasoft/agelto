@@ -7,6 +7,8 @@ namespace App\Models\Llm;
 use App\Models\Procurement\Ai\Analysis;
 use App\Models\Procurement\Ai\AnalysisRun;
 use Database\Factories\Llm\LlmCallFactory;
+use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Attributes\Table;
 use Illuminate\Database\Eloquent\Attributes\UseFactory;
 use Illuminate\Database\Eloquent\Casts\AsCollection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -27,36 +29,32 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property int|null $cached_tokens
  */
 #[UseFactory(LlmCallFactory::class)]
+#[Fillable([
+    'analysis_id',
+    'analysis_run_id',
+    'purpose',
+    'provider',
+    'model',
+    'prompt_version_set',
+    'cache_id',
+    'request_ref',
+    'response_ref',
+    'prompt_tokens',
+    'completion_tokens',
+    'cached_tokens',
+    'total_tokens',
+    'cost_micros',
+    'success',
+    'error',
+    'duration_ms',
+    'called_at',
+])]
+#[Table(name: 'llm_calls', keyType: 'int')]
 final class LlmCall extends Model
 {
     use HasFactory;
 
-    protected $table = 'llm_calls';
-
     public $incrementing = true;
-
-    protected $keyType = 'int';
-
-    protected $fillable = [
-        'analysis_id',
-        'analysis_run_id',
-        'purpose',
-        'provider',
-        'model',
-        'prompt_version_set',
-        'cache_id',
-        'request_ref',
-        'response_ref',
-        'prompt_tokens',
-        'completion_tokens',
-        'cached_tokens',
-        'total_tokens',
-        'cost_micros',
-        'success',
-        'error',
-        'duration_ms',
-        'called_at',
-    ];
 
     protected function casts(): array
     {

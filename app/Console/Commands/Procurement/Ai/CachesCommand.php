@@ -6,6 +6,8 @@ namespace App\Console\Commands\Procurement\Ai;
 
 use App\Services\Llm\LlmCacheManager;
 use Carbon\CarbonInterval;
+use Illuminate\Console\Attributes\Description;
+use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
 
 /**
@@ -14,15 +16,13 @@ use Illuminate\Console\Command;
  * просроченные регистрации (провайдер резолвится по `analysis.provider` через
  * `LlmProviderFactory`, единственный `match` в проекте — `root/service-layer-map.md` §8).
  */
-final class CachesCommand extends Command
-{
-    protected $signature = 'ai:caches
+#[Description('Explicit context cache: список живых/осиротевших кэшей, доля implicit-хитов, prune')]
+#[Signature('ai:caches
         {action : list|prune}
         {--hits : list — вывести долю implicit cache-хитов по purpose вместо списка explicit-кэшей}
-        {--window=24 : окно в часах для --hits}';
-
-    protected $description = 'Explicit context cache: список живых/осиротевших кэшей, доля implicit-хитов, prune';
-
+        {--window=24 : окно в часах для --hits}')]
+final class CachesCommand extends Command
+{
     public function __construct(private readonly LlmCacheManager $caches)
     {
         parent::__construct();

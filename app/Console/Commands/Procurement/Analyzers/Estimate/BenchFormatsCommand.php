@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Console\Commands\Procurement\Analyzers\Estimate;
 
 use App\Services\Procurement\Bench\FormatBenchRunner;
+use Illuminate\Console\Attributes\Description;
+use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\File;
 
@@ -15,17 +17,15 @@ use Illuminate\Support\Facades\File;
  * боевой прогон через `ExtractionOrchestrator` (гейт OQ-3, P6.2, реальный провайдер владельца —
  * запускается ВРУЧНУЮ, в тестах — только `FakeLlmProvider`, `Implementation Rules`).
  */
-final class BenchFormatsCommand extends Command
-{
-    protected $signature = 'estimate:bench:formats
+#[Description('Матрица (эталон × вариант представления): объём/цена/качество/поведение по ячейке')]
+#[Signature('estimate:bench:formats
         {--code=* : ограничить эталоны кодами}
         {--variant=* : ограничить варианты (значения RepresentationKind или default)}
         {--dry-run : без LLM-вызовов, только детерминированные факты и предсказание}
         {--out= : путь машинного артефакта (дефолт config(ai.fixtures.reports_dir)/bench-formats-<режим>-<дата>.json)}
-        {--limit= : ограничить число эталонов}';
-
-    protected $description = 'Матрица (эталон × вариант представления): объём/цена/качество/поведение по ячейке';
-
+        {--limit= : ограничить число эталонов}')]
+final class BenchFormatsCommand extends Command
+{
     public function __construct(
         private readonly FormatBenchRunner $runner,
     ) {

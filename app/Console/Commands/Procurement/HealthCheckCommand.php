@@ -7,17 +7,17 @@ namespace App\Console\Commands\Procurement;
 use App\Enums\Procurement\Health\PlatformCheckKind;
 use App\Models\Procurement\Platform\Platform;
 use App\Services\Procurement\Health\PlatformHealthChecker;
+use Illuminate\Console\Attributes\Description;
+use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
 
-final class HealthCheckCommand extends Command
-{
-    protected $signature = 'crawler:health-check
+#[Description('Запускает healthcheck-проверки площадки по штатным данным')]
+#[Signature('crawler:health-check
         {--platform= : Код площадки; по умолчанию — площадка эталона}
         {--kind= : Одна проверка: card_parse, listing_shape, estimate_fields или listing_filter}
-        {--dry-run : Не записывать историю проверок}';
-
-    protected $description = 'Запускает healthcheck-проверки площадки по штатным данным';
-
+        {--dry-run : Не записывать историю проверок}')]
+final class HealthCheckCommand extends Command
+{
     public function __construct(private readonly PlatformHealthChecker $checker)
     {
         parent::__construct();

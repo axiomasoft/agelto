@@ -7,6 +7,8 @@ namespace App\Console\Commands\Procurement\Analyzers\Estimate;
 use App\Console\Support\ConsoleProgressReporter;
 use App\Dto\Procurement\Fixture\ItemOutcome;
 use App\Services\Procurement\Analyzers\Estimate\PromptSuggestionRunner;
+use Illuminate\Console\Attributes\Description;
+use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
 
 /**
@@ -17,17 +19,15 @@ use Illuminate\Console\Command;
  * (`EstimateDiffReport`), без которого у неё нет предмета; цикл вынесен в
  * {@see PromptSuggestionRunner} (P3.3).
  */
-final class PromptsSuggestCommand extends Command
-{
-    protected $signature = 'estimate:prompts:suggest
+#[Description('LLM-критик промтов по diff-отчёту эталона — кладёт предложения pending в очередь')]
+#[Signature('estimate:prompts:suggest
         {--code=* : коды эталонов}
         {--analysis= : id анализа вместо кода}
         {--step=* : шаги (PromptStep), по которым предлагать}
         {--dry-run : не вызывать LLM, показать вход критика}
-        {--limit= : максимум предложений за прогон}';
-
-    protected $description = 'LLM-критик промтов по diff-отчёту эталона — кладёт предложения pending в очередь';
-
+        {--limit= : максимум предложений за прогон}')]
+final class PromptsSuggestCommand extends Command
+{
     public function __construct(private readonly PromptSuggestionRunner $runner)
     {
         parent::__construct();

@@ -9,6 +9,8 @@ use App\Enums\Procurement\Crawler\RunStatus;
 use App\Enums\Procurement\Crawler\RunStopKind;
 use App\Models\User;
 use Database\Factories\Procurement\Crawler\RunFactory;
+use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Attributes\Table;
 use Illuminate\Database\Eloquent\Attributes\UseFactory;
 use Illuminate\Database\Eloquent\Casts\AsCollection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -44,32 +46,30 @@ use Illuminate\Support\Collection;
  * @property Carbon $updated_at
  */
 #[UseFactory(RunFactory::class)]
+#[Fillable([
+    'crawler_id',
+    'status',
+    'purpose',
+    'subject_key',
+    'cursor',
+    'stats',
+    'started_at',
+    'finished_at',
+    'last_heartbeat_at',
+    'attempts',
+    'last_error',
+    'last_error_at',
+    'next_retry_at',
+    'failed_permanently',
+    'stop_requested_at',
+    'stop_kind',
+    'stop_requested_by',
+    'queue_job_id',
+])]
+#[Table(name: 'prc_crawler_runs')]
 final class Run extends Model
 {
     use HasFactory;
-
-    protected $table = 'prc_crawler_runs';
-
-    protected $fillable = [
-        'crawler_id',
-        'status',
-        'purpose',
-        'subject_key',
-        'cursor',
-        'stats',
-        'started_at',
-        'finished_at',
-        'last_heartbeat_at',
-        'attempts',
-        'last_error',
-        'last_error_at',
-        'next_retry_at',
-        'failed_permanently',
-        'stop_requested_at',
-        'stop_kind',
-        'stop_requested_by',
-        'queue_job_id',
-    ];
 
     protected function casts(): array
     {

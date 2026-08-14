@@ -5,10 +5,16 @@ declare(strict_types=1);
 namespace App\Console\Commands\Procurement\Analyzers\Estimate;
 
 use App\Models\Procurement\Estimate\Estimate;
+use Illuminate\Console\Attributes\Description;
+use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
 use JsonException;
 
 /** Read-only audit of the five mandatory estimate-item fields over gold files or persisted estimates. */
+#[Description('Измерить заполненность обязательных полей позиций сметы')]
+#[Signature('estimate:fields:audit
+        {--source=gold : Источник: gold или database}
+        {--json : Машинный JSON вместо таблицы}')]
 final class FieldsAuditCommand extends Command
 {
     private const array REQUIRED_FIELDS = [
@@ -18,12 +24,6 @@ final class FieldsAuditCommand extends Command
         'unit',
         'quantity',
     ];
-
-    protected $signature = 'estimate:fields:audit
-        {--source=gold : Источник: gold или database}
-        {--json : Машинный JSON вместо таблицы}';
-
-    protected $description = 'Измерить заполненность обязательных полей позиций сметы';
 
     public function handle(): int
     {

@@ -10,6 +10,8 @@ use App\Services\Llm\Dto\ReconciliationReport;
 use App\Services\Llm\Dto\ReconciliationRow;
 use Carbon\CarbonImmutable;
 use Carbon\Exceptions\InvalidFormatException;
+use Illuminate\Console\Attributes\Description;
+use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
 
 /**
@@ -19,16 +21,14 @@ use Illuminate\Console\Command;
  * Периодичность (ежемесячно + после смены модели/маршрута) назначена документом
  * (`docs/03_Dev/runbooks/billing-reconcile.md`), не планировщиком.
  */
-final class CostReconcileCommand extends Command
-{
-    protected $signature = 'ai:cost-reconcile
+#[Description('Сверка нашего трекинга LLM-расхода с ручной выгрузкой биллинга провайдера')]
+#[Signature('ai:cost-reconcile
         {--from= : начало периода YYYY-MM-DD, включительно}
         {--to= : конец периода YYYY-MM-DD, исключительно}
         {--file= : путь к нормализованному CSV выгрузки биллинга (колонки date,cost[,currency,service,sku])}
-        {--fail-on-breach : ненулевой код возврата, если расхождение выше порога}';
-
-    protected $description = 'Сверка нашего трекинга LLM-расхода с ручной выгрузкой биллинга провайдера';
-
+        {--fail-on-breach : ненулевой код возврата, если расхождение выше порога}')]
+final class CostReconcileCommand extends Command
+{
     public function __construct(private readonly BillingReconciler $reconciler)
     {
         parent::__construct();

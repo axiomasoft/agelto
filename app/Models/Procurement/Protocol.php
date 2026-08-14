@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Models\Procurement;
 
 use Database\Factories\Procurement\ProtocolFactory;
+use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Attributes\Table;
 use Illuminate\Database\Eloquent\Attributes\UseFactory;
 use Illuminate\Database\Eloquent\Casts\AsCollection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -17,25 +19,23 @@ use Illuminate\Support\Str;
  * (см. App\Enums\Procurement\ProtocolType).
  */
 #[UseFactory(ProtocolFactory::class)]
+#[Fillable([
+    'uuid',
+    'procurement_id',
+    'type',
+    'stage',
+    'source_number',
+    'signed_at',
+    'published_at',
+    'document_version_id',
+    'payload',
+])]
+#[Table(name: 'prc_protocols')]
 final class Protocol extends Model
 {
     use HasFactory;
 
     public const UPDATED_AT = null;
-
-    protected $table = 'prc_protocols';
-
-    protected $fillable = [
-        'uuid',
-        'procurement_id',
-        'type',
-        'stage',
-        'source_number',
-        'signed_at',
-        'published_at',
-        'document_version_id',
-        'payload',
-    ];
 
     protected function casts(): array
     {

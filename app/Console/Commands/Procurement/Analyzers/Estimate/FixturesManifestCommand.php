@@ -6,6 +6,8 @@ namespace App\Console\Commands\Procurement\Analyzers\Estimate;
 
 use App\Services\Procurement\Fixture\FixtureManifestBuilder;
 use App\Services\Procurement\Fixture\FixtureManifestWriter;
+use Illuminate\Console\Attributes\Description;
+use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
 use JsonException;
 
@@ -19,16 +21,14 @@ use JsonException;
  * `code` уже есть в манифесте, НЕ трогается без `--force` — манифест SSOT и может быть поправлен
  * руками (D20). Построение записей вынесено в {@see FixtureManifestBuilder} (P3.3).
  */
-final class FixturesManifestCommand extends Command
-{
-    protected $signature = 'estimate:fixtures:manifest
+#[Description('Собрать estimates/manifest.json из шорт-листа эталонов (P1.3)')]
+#[Signature('estimate:fixtures:manifest
         {--from-shortlist= : путь к fixture-shortlist.json}
         {--inventory= : путь к P1-corpus-inventory.json для mime/размера}
         {--manifest= : куда писать (дефолт config(ai.fixtures.manifest_path))}
-        {--force : перезаписать существующие записи}';
-
-    protected $description = 'Собрать estimates/manifest.json из шорт-листа эталонов (P1.3)';
-
+        {--force : перезаписать существующие записи}')]
+final class FixturesManifestCommand extends Command
+{
     public function __construct(
         private readonly FixtureManifestBuilder $manifestBuilder,
         private readonly FixtureManifestWriter $manifestWriter,

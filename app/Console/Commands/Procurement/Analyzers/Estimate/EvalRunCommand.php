@@ -15,6 +15,8 @@ use App\Repositories\Procurement\Ai\EvalRunStoreRepository;
 use App\Services\Procurement\Analyzers\Estimate\EvalSplitPlanner;
 use App\Services\Procurement\Analyzers\Estimate\ExtractionEvalRunner;
 use App\Services\Procurement\Screening\ScreeningEvalRunner;
+use Illuminate\Console\Attributes\Description;
+use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
 use Illuminate\Support\Collection;
 use UnexpectedValueException;
@@ -33,18 +35,16 @@ use UnexpectedValueException;
  * @phpstan-type ScreeningRow array{example: DatasetExample, comparison: ScreeningComparison}
  * @phpstan-type ScreeningAggregate array{total: int, accuracy: float|null, confusion: array<string, array<string, int>>, false_positive_rate: float|null, false_negative_rate: float|null}
  */
-final class EvalRunCommand extends Command
-{
-    protected $signature = 'estimate:eval:run
+#[Description('Прогон extraction-пайплайна по golden-датасету, метрики precision/recall/F1 + row coverage')]
+#[Signature('estimate:eval:run
         {--task=extraction : task датасета для прогона}
         {--dataset-version= : метка версии датасета для EvalRun (default — config(ai.eval.dataset_version))}
         {--limit= : ограничить число эталонов}
         {--dry-run : не делать реальных LLM-вызовов — только зафиксировать пустой прогон}
         {--split=all : подвыборка датасета tune|holdout|all — членство в holdout авторитетно (D120)}
-        {--write-splits : пересобрать estimates/eval-splits.json по правилу отбора (D119) и выйти, без прогона}';
-
-    protected $description = 'Прогон extraction-пайплайна по golden-датасету, метрики precision/recall/F1 + row coverage';
-
+        {--write-splits : пересобрать estimates/eval-splits.json по правилу отбора (D119) и выйти, без прогона}')]
+final class EvalRunCommand extends Command
+{
     public function __construct(
         private readonly DatasetExampleReadRepository $datasetExamples,
         private readonly EvalRunStoreRepository $evalRuns,

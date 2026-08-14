@@ -7,6 +7,8 @@ namespace App\Console\Commands\Procurement\Analyzers\Estimate;
 use App\Exceptions\Procurement\OperationFailed;
 use App\Services\Procurement\Fixture\FixtureManifestReader;
 use App\Services\Procurement\Fixture\FixtureVerifier;
+use Illuminate\Console\Attributes\Description;
+use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
 
 /**
@@ -15,14 +17,12 @@ use Illuminate\Console\Command;
  * сообщается, ничего не правится. Чтение манифеста и сверка вынесены в
  * {@see FixtureManifestReader}/{@see FixtureVerifier} (P3.3).
  */
+#[Description('Сверить manifest.json ↔ хранилище ↔ реестр prc_ai_fixtures')]
+#[Signature('estimate:fixtures:verify
+        {--manifest= : путь к manifest.json (дефолт config(ai.fixtures.manifest_path))}
+        {--json : машинный вывод}')]
 final class FixturesVerifyCommand extends Command
 {
-    protected $signature = 'estimate:fixtures:verify
-        {--manifest= : путь к manifest.json (дефолт config(ai.fixtures.manifest_path))}
-        {--json : машинный вывод}';
-
-    protected $description = 'Сверить manifest.json ↔ хранилище ↔ реестр prc_ai_fixtures';
-
     public function __construct(
         private readonly FixtureManifestReader $manifestReader,
         private readonly FixtureVerifier $verifier,

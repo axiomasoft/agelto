@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Models\Llm;
 
 use Database\Factories\Llm\ProviderFactory;
+use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Attributes\Table;
 use Illuminate\Database\Eloquent\Attributes\UseFactory;
 use Illuminate\Database\Eloquent\Casts\AsCollection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -20,19 +22,17 @@ use Illuminate\Support\Collection;
  * @property Collection<string, mixed>|null $options
  */
 #[UseFactory(ProviderFactory::class)]
+#[Fillable([
+    'code',
+    'driver',
+    'base_url',
+    'options',
+    'is_active',
+])]
+#[Table(name: 'llm_providers')]
 final class Provider extends Model
 {
     use HasFactory;
-
-    protected $table = 'llm_providers';
-
-    protected $fillable = [
-        'code',
-        'driver',
-        'base_url',
-        'options',
-        'is_active',
-    ];
 
     protected function casts(): array
     {

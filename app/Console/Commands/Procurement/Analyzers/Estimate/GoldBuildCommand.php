@@ -10,6 +10,8 @@ use App\Services\Procurement\Fixture\FixtureManifestReader;
 use App\Services\Procurement\Fixture\FixtureManifestWriter;
 use App\Services\Procurement\Gold\GoldCorpusBuilder;
 use App\Services\Procurement\Gold\ScreeningGoldBuilder;
+use Illuminate\Console\Attributes\Description;
+use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\File;
 
@@ -24,18 +26,16 @@ use Illuminate\Support\Facades\File;
  * `gold_source=deterministic`) через {@see ScreeningGoldBuilder}: пишет `<CODE>.screening.json`
  * РЯДОМ с extraction-gold, манифест НЕ трогает (screening-gold в манифест не заводится, §8.5).
  */
-final class GoldBuildCommand extends Command
-{
-    protected $signature = 'estimate:gold:build
+#[Description('Собрать estimates/gold/** по реестру prc_ai_fixtures и обновить gold-факты манифеста')]
+#[Signature('estimate:gold:build
         {--code=* : ограничить эталоны кодами}
         {--gold-dir= : куда писать (дефолт config(ai.fixtures.gold_dir))}
         {--manifest= : путь к manifest.json}
         {--update-manifest : дописать gold-производные факты в манифест}
         {--dry-run : ничего не писать, только отчёт}
-        {--screening : собрать gold/<CODE>.screening.json по всему корпусу вместо extraction-gold}';
-
-    protected $description = 'Собрать estimates/gold/** по реестру prc_ai_fixtures и обновить gold-факты манифеста';
-
+        {--screening : собрать gold/<CODE>.screening.json по всему корпусу вместо extraction-gold}')]
+final class GoldBuildCommand extends Command
+{
     public function __construct(
         private readonly FixtureStoreRepository $fixtures,
         private readonly FixtureManifestReader $manifestReader,

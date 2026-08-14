@@ -7,6 +7,8 @@ namespace App\Console\Commands\Procurement\Ai;
 use App\Services\Llm\Dto\UsageRow;
 use App\Services\Llm\LlmSpendReporter;
 use Carbon\CarbonImmutable;
+use Illuminate\Console\Attributes\Description;
+use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
 
 /**
@@ -17,12 +19,10 @@ use Illuminate\Console\Command;
  * таблица и «Итого» остаются как были, дневной разрез добавляется, а не заменяет их. Вывод —
  * только консольная таблица (Code Guidance: «без файлов»).
  */
+#[Description('Расход LLM по provider/model/purpose за окно из llm_calls')]
+#[Signature('ai:cost-report {--days=7 : окно отчёта в днях}')]
 final class CostReportCommand extends Command
 {
-    protected $signature = 'ai:cost-report {--days=7 : окно отчёта в днях}';
-
-    protected $description = 'Расход LLM по provider/model/purpose за окно из llm_calls';
-
     public function __construct(private readonly LlmSpendReporter $reporter)
     {
         parent::__construct();

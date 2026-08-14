@@ -7,6 +7,8 @@ namespace App\Console\Commands\Procurement;
 use App\Enums\Procurement\Crawler\CrawlerMode;
 use App\Models\Procurement\Crawler\Crawler;
 use App\Services\Procurement\Crawler\StartCrawlerRunAction;
+use Illuminate\Console\Attributes\Description;
+use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
 use Illuminate\Support\Collection;
 use Throwable;
@@ -16,12 +18,10 @@ use Throwable;
  * единственный носитель проверки «можно ли запускать», тот же класс диспетчерит кнопка админки.
  * Ошибка одного профиля при мульти-профильном вызове не прерывает остальные.
  */
+#[Description('Запускает fresh-скан одного профиля краулера (или всех активных fresh-профилей)')]
+#[Signature('crawler:run-fresh {crawler? : ID или name профиля}')]
 final class RunFreshCrawler extends Command
 {
-    protected $signature = 'crawler:run-fresh {crawler? : ID или name профиля}';
-
-    protected $description = 'Запускает fresh-скан одного профиля краулера (или всех активных fresh-профилей)';
-
     public function handle(StartCrawlerRunAction $starter): int
     {
         $crawlers = $this->resolveCrawlers();

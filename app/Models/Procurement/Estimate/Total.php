@@ -6,6 +6,8 @@ namespace App\Models\Procurement\Estimate;
 
 use App\Enums\Procurement\Estimate\TotalKind;
 use Database\Factories\Procurement\Estimate\TotalFactory;
+use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Attributes\Table;
 use Illuminate\Database\Eloquent\Attributes\UseFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -22,22 +24,20 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property string|null $rate
  */
 #[UseFactory(TotalFactory::class)]
+#[Fillable([
+    'estimate_id',
+    'parent_id',
+    'position',
+    'label',
+    'kind',
+    'amount',
+    'chapter_number',
+    'rate',
+])]
+#[Table(name: 'prc_estimate_totals')]
 final class Total extends Model
 {
     use HasFactory;
-
-    protected $table = 'prc_estimate_totals';
-
-    protected $fillable = [
-        'estimate_id',
-        'parent_id',
-        'position',
-        'label',
-        'kind',
-        'amount',
-        'chapter_number',
-        'rate',
-    ];
 
     protected function casts(): array
     {

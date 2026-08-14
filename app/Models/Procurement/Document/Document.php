@@ -12,6 +12,8 @@ use App\Models\Procurement\Ai\Fixture;
 use App\Models\Procurement\Platform\Platform;
 use App\Models\Scopes\PublicPlatformScope;
 use Database\Factories\Procurement\Document\DocumentFactory;
+use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Attributes\Table;
 use Illuminate\Database\Eloquent\Attributes\UseFactory;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -34,32 +36,30 @@ use Illuminate\Support\Str;
  * @property string|null $last_error
  */
 #[UseFactory(DocumentFactory::class)]
+#[Fillable([
+    'uuid',
+    'procurement_id',
+    'platform_id',
+    'external_id',
+    'title',
+    'kind',
+    'source_url',
+    'status',
+    'first_seen_revision_id',
+    'removed_at',
+    'attempts',
+    'last_error',
+    'unprocessable_reason',
+    'last_error_at',
+    'next_retry_at',
+    'failed_permanently',
+    'locked_by',
+    'locked_until',
+])]
+#[Table(name: 'prc_documents')]
 final class Document extends Model
 {
     use HasErrorBlock, HasFactory, HasLease;
-
-    protected $table = 'prc_documents';
-
-    protected $fillable = [
-        'uuid',
-        'procurement_id',
-        'platform_id',
-        'external_id',
-        'title',
-        'kind',
-        'source_url',
-        'status',
-        'first_seen_revision_id',
-        'removed_at',
-        'attempts',
-        'last_error',
-        'unprocessable_reason',
-        'last_error_at',
-        'next_retry_at',
-        'failed_permanently',
-        'locked_by',
-        'locked_until',
-    ];
 
     protected function casts(): array
     {

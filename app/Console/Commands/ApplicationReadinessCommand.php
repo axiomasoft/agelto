@@ -5,14 +5,14 @@ declare(strict_types=1);
 namespace App\Console\Commands;
 
 use App\Services\Health\ApplicationReadiness;
+use Illuminate\Console\Attributes\Description;
+use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
 
+#[Description('Run active application readiness checks')]
+#[Signature('app:readiness {--format=agent : agent or json}')]
 final class ApplicationReadinessCommand extends Command
 {
-    protected $signature = 'app:readiness {--format=agent : agent or json}';
-
-    protected $description = 'Run active application readiness checks';
-
     public function handle(ApplicationReadiness $readiness): int
     {
         $format = (string) $this->option(key: 'format');

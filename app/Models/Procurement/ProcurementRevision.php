@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Models\Procurement;
 
 use Database\Factories\Procurement\ProcurementRevisionFactory;
+use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Attributes\Table;
 use Illuminate\Database\Eloquent\Attributes\UseFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -20,28 +22,24 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property string $snapshot_hash
  */
 #[UseFactory(ProcurementRevisionFactory::class)]
+#[Fillable([
+    'procurement_id',
+    'revision_number',
+    'source_edition',
+    'change_reason',
+    'snapshot',
+    'snapshot_hash',
+    'source_updated_at',
+    'detected_at',
+    'crawler_run_id',
+])]
+#[Table(name: 'prc_revisions', keyType: 'int')]
 final class ProcurementRevision extends Model
 {
     /** @use HasFactory<ProcurementRevisionFactory> */
     use HasFactory;
 
-    protected $table = 'prc_revisions';
-
     public $incrementing = true;
-
-    protected $keyType = 'int';
-
-    protected $fillable = [
-        'procurement_id',
-        'revision_number',
-        'source_edition',
-        'change_reason',
-        'snapshot',
-        'snapshot_hash',
-        'source_updated_at',
-        'detected_at',
-        'crawler_run_id',
-    ];
 
     protected function casts(): array
     {
