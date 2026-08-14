@@ -52,6 +52,7 @@ use Illuminate\Support\Str;
 #[UseFactory(PromptSuggestionFactory::class)]
 final class PromptSuggestion extends Model
 {
+    /** @use HasFactory<PromptSuggestionFactory> */
     use HasFactory;
 
     protected $table = 'prc_ai_prompt_suggestions';
@@ -106,26 +107,31 @@ final class PromptSuggestion extends Model
         return trim((string) preg_replace('/\s+/u', ' ', (string) $text));
     }
 
+    /** @return BelongsTo<Analysis, $this> */
     public function analysis(): BelongsTo
     {
         return $this->belongsTo(related: Analysis::class);
     }
 
+    /** @return BelongsTo<Fixture, $this> */
     public function fixture(): BelongsTo
     {
         return $this->belongsTo(related: Fixture::class);
     }
 
+    /** @return BelongsTo<EvalRun, $this> */
     public function evalRun(): BelongsTo
     {
         return $this->belongsTo(related: EvalRun::class);
     }
 
+    /** @return BelongsTo<LlmCall, $this> */
     public function llmCall(): BelongsTo
     {
         return $this->belongsTo(related: LlmCall::class);
     }
 
+    /** @return BelongsTo<User, $this> */
     public function decidedBy(): BelongsTo
     {
         return $this->belongsTo(related: User::class, foreignKey: 'decided_by');

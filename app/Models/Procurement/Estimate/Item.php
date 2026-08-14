@@ -31,11 +31,12 @@ use Illuminate\Support\Collection;
  * @property string|null $index_value
  * @property string|null $source_position_number
  * @property int|null $work_type_id
- * @property Collection|null $quality провенанс-ключ верхнего уровня model/validator (research/12-uncertainty-model.md §3.2); null — чистая позиция
+ * @property Collection<int, mixed>|null $quality провенанс-ключ верхнего уровня model/validator (research/12-uncertainty-model.md §3.2); null — чистая позиция
  */
 #[UseFactory(ItemFactory::class)]
 final class Item extends Model
 {
+    /** @use HasFactory<ItemFactory> */
     use HasFactory;
 
     protected $table = 'prc_estimate_items';
@@ -84,21 +85,25 @@ final class Item extends Model
         ];
     }
 
+    /** @return BelongsTo<Estimate, $this> */
     public function estimate(): BelongsTo
     {
         return $this->belongsTo(related: Estimate::class);
     }
 
+    /** @return BelongsTo<Section, $this> */
     public function section(): BelongsTo
     {
         return $this->belongsTo(related: Section::class);
     }
 
+    /** @return BelongsTo<WorkType, $this> */
     public function workType(): BelongsTo
     {
         return $this->belongsTo(related: WorkType::class);
     }
 
+    /** @return HasMany<\App\Models\Procurement\Estimate\Resource, $this> */
     public function resources(): HasMany
     {
         return $this->hasMany(related: Resource::class);
