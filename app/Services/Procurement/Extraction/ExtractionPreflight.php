@@ -49,8 +49,15 @@ final readonly class ExtractionPreflight
         $sizeMb = $sizeBytes / 1_000_000;
         $pages = $extension === 'pdf' ? $this->slicer->pageCount($localPath) : null;
 
-        $sizeOk = $sizeMb <= (float) $limits['max_request_file_mb'];
-        $pagesOk = $pages === null || $pages <= (int) $limits['max_pages'];
+        $maxRequestFileMb = $limits['max_request_file_mb'] ?? null;
+        $maxPages = $limits['max_pages'] ?? null;
+
+        if ((! is_float($maxRequestFileMb) && ! is_int($maxRequestFileMb)) || ! is_int($maxPages)) {
+            throw new RuntimeException("Capability-запись модели «{$route->options->model}» содержит некорректные лимиты.");
+        }
+
+        $sizeOk = $sizeMb <= (float) $maxRequestFileMb;
+        $pagesOk = $pages === null || $pages <= $maxPages;
 
         if ($sizeOk && $pagesOk) {
             return PreflightDecision::whole();
