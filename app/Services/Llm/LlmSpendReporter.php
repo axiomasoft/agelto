@@ -26,7 +26,8 @@ final readonly class LlmSpendReporter
 
     public function report(CarbonInterface $from, CarbonInterface $to): LlmSpendReport
     {
-        $capabilities = (array) config('ai.capabilities', []);
+        $configuredCapabilities = config('ai.capabilities', []);
+        $capabilities = $this->stringKeyedArray($configuredCapabilities);
 
         // Два запроса к ОДНОМУ методу источника с разными осями: старая таблица (провайдер ×
         // модель × назначение) и АДДИТИВНАЯ дневная секция (D124/D38) — заменять первую второй
@@ -50,22 +51,22 @@ final readonly class LlmSpendReporter
         /** @var Collection<int, LlmSpendRow> $rows */
         $rows = Collection::make($report->rows)->map(
             fn (UsageRow $row): LlmSpendRow => new LlmSpendRow(
-                provider: (string) $row->provider,
-                model: (string) $row->model,
-                purpose: (string) $row->purpose,
+                provider: $row->provider ?? '',
+                model: $row->model ?? '',
+                purpose: $row->purpose ?? '',
                 calls: $row->calls,
                 promptTokens: $row->promptTokens,
                 cachedTokens: $row->cachedTokens,
                 completionTokens: $row->completionTokens,
                 costMicros: $row->costMicros,
-                savingsMicros: $this->cacheSavingsMicros($capabilities, (string) $row->model, $row->cachedTokens),
+                savingsMicros: $this->cacheSavingsMicros($capabilities, $row->model ?? '', $row->cachedTokens),
             ),
         );
 
         return new LlmSpendReport(
             rows: $rows,
-            totalCostMicros: (int) $rows->sum('costMicros'),
-            totalSavingsMicros: (int) $rows->sum('savingsMicros'),
+            totalCostMicros: $rows->reduce(static fn (int $total, LlmSpendRow $row): int => $total + $row->costMicros, initial: 0),
+            totalSavingsMicros: $rows->reduce(static fn (int $total, LlmSpendRow $row): int => $total + $row->savingsMicros, initial: 0),
             dailyRows: $daily->rows,
             signature: $report->signature,
             beyondHorizon: $report->beyondHorizon,
@@ -83,8 +84,37 @@ final readonly class LlmSpendReporter
             return 0;
         }
 
-        $deltaPerMillion = (float) $pricing['input_per_1m'] - (float) $pricing['cached_per_1m'];
+        $inputPrice = $this->number($pricing['input_per_1m'] ?? null);
+        $cachedPrice = $this->number($pricing['cached_per_1m'] ?? null);
+
+        if ($inputPrice === null || $cachedPrice === null) {
+            return 0;
+        }
+
+        $deltaPerMillion = $inputPrice - $cachedPrice;
 
         return (int) ceil($cachedTokens * max(0.0, $deltaPerMillion));
+    }
+
+    private function number(mixed $value): ?float
+    {
+        return is_int($value) || is_float($value) || is_string($value) ? (float) $value : null;
+    }
+
+    /** @return array<string, mixed> */
+    private function stringKeyedArray(mixed $value): array
+    {
+        if (! is_array($value)) {
+            return [];
+        }
+
+        foreach ($value as $key => $_) {
+            if (! is_string($key)) {
+                return [];
+            }
+        }
+
+        /** @var array<string, mixed> $value */
+        return $value;
     }
 }

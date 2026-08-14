@@ -99,7 +99,8 @@ final readonly class LlmCallRecorder
      */
     private function costMicros(string $model, LlmUsage $usage): int
     {
-        $capabilities = (array) config('ai.capabilities', []);
+        $configuredCapabilities = config('ai.capabilities', []);
+        $capabilities = is_array($configuredCapabilities) ? $configuredCapabilities : [];
         $pricing = $capabilities[$model] ?? null;
 
         if (! is_array($pricing)) {
@@ -107,20 +108,34 @@ final readonly class LlmCallRecorder
         }
 
         // tokens × price_per_1M ≡ tokens × price_per_1M / 1e6 (доллары) × 1e6 (доллары → микро) — сокращается.
-        $micros = $usage->promptTokens * (float) $pricing['input_per_1m']
-            + $usage->cachedTokens * (float) $pricing['cached_per_1m']
-            + $usage->completionTokens * (float) $pricing['output_per_1m'];
+        $inputPrice = $this->number($pricing['input_per_1m'] ?? null);
+        $cachedPrice = $this->number($pricing['cached_per_1m'] ?? null);
+        $outputPrice = $this->number($pricing['output_per_1m'] ?? null);
+
+        if ($inputPrice === null || $cachedPrice === null || $outputPrice === null) {
+            return 0;
+        }
+
+        $micros = $usage->promptTokens * $inputPrice
+            + $usage->cachedTokens * $cachedPrice
+            + $usage->completionTokens * $outputPrice;
 
         return (int) ceil($micros);
     }
 
     private function storeRaw(string $kind, string $payload): string
     {
-        $disk = config('crawler.raw_disk');
+        $configuredDisk = config('crawler.raw_disk');
+        $disk = is_string($configuredDisk) ? $configuredDisk : null;
         $path = sprintf('ai/llm-calls/%s/%s-%s.json', now()->format('Y/m/d'), $kind, (string) Str::uuid());
 
         Storage::disk($disk)->put($path, $payload);
 
         return $path;
+    }
+
+    private function number(mixed $value): ?float
+    {
+        return is_int($value) || is_float($value) || is_string($value) ? (float) $value : null;
     }
 }
