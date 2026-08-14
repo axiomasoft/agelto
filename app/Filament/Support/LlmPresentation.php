@@ -67,7 +67,7 @@ final class LlmPresentation
      */
     public static function promptStepOptions(iterable $steps): array
     {
-        return collect($steps)
+        return collect(array_values(iterator_to_array($steps)))
             ->mapWithKeys(static fn (PromptStep $step): array => [$step->value => self::promptStep($step)])
             ->all();
     }
@@ -77,7 +77,7 @@ final class LlmPresentation
      */
     public static function purposeOptions(iterable $purposes): array
     {
-        return collect($purposes)
+        return collect(array_values(iterator_to_array($purposes)))
             ->mapWithKeys(static fn (LlmPurpose $purpose): array => [$purpose->value => self::purpose($purpose)])
             ->all();
     }

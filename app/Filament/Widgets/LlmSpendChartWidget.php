@@ -62,41 +62,52 @@ final class LlmSpendChartWidget extends ChartWidget
      */
     protected function getData(): array
     {
-        $rows = Collection::make($this->report()->rows);
+        /** @var Collection<int, UsageRow> $rows */
+        $rows = collect($this->report()->rows);
 
-        $labels = $rows
+        /** @var list<string> $labels */
+        $labels = array_values($rows
             ->pluck('day')
             ->filter()
-            ->map(fn (CarbonImmutable $day): string => $day->toDateString())
+            ->map(static fn (mixed $day): string => $day instanceof CarbonImmutable ? $day->toDateString() : '')
+            ->filter()
             ->unique()
             ->sort()
-            ->values();
+            ->values()
+            ->all());
 
         $series = $rows->groupBy(
             fn (UsageRow $row): string => sprintf('%s · %s', $row->provider ?? '—', $row->model ?? '—'),
         );
 
-        $datasets = $series
-            ->map(function (Collection $seriesRows, string $label) use ($labels): array {
-                $costByDay = $seriesRows->keyBy(fn (UsageRow $row): ?string => $row->day?->toDateString());
+        /** @var list<array{label: string, data: list<float>}> $datasets */
+        $datasets = [];
 
-                return [
-                    'label' => $label,
-                    'data' => $labels
-                        ->map(function (string $day) use ($costByDay): float {
-                            $row = $costByDay->get($day);
+        foreach ($series as $label => $seriesRows) {
+            if (! is_string($label)) {
+                continue;
+            }
 
-                            return round(($row === null ? 0 : $row->costMicros) / 1_000_000, 4);
-                        })
-                        ->all(),
-                ];
-            })
-            ->values()
-            ->all();
+            /** @var Collection<int, UsageRow> $seriesRows */
+            $costByDay = [];
+            foreach ($seriesRows as $row) {
+                if ($row->day !== null) {
+                    $costByDay[$row->day->toDateString()] = $row;
+                }
+            }
+
+            $data = [];
+            foreach ($labels as $day) {
+                $row = $costByDay[$day] ?? null;
+                $data[] = round(($row === null ? 0 : $row->costMicros) / 1_000_000, 4);
+            }
+
+            $datasets[] = ['label' => $label, 'data' => $data];
+        }
 
         return [
             'datasets' => $datasets,
-            'labels' => $labels->all(),
+            'labels' => $labels,
         ];
     }
 
