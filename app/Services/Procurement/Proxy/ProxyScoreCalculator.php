@@ -15,9 +15,9 @@ final readonly class ProxyScoreCalculator
      */
     public function score(array $candidate): float
     {
-        $weights = config('crawler.proxy.resolver.weights');
-        $latencyRefMs = (float) config('crawler.proxy.resolver.latency_ref_ms');
-        $streakRef = (float) config('crawler.proxy.resolver.streak_ref');
+        $weights = $this->weights();
+        $latencyRefMs = $this->positiveFloatConfig('crawler.proxy.resolver.latency_ref_ms');
+        $streakRef = $this->positiveFloatConfig('crawler.proxy.resolver.streak_ref');
 
         $latencyNorm = $candidate['latency_ms_avg'] === null
             ? 0.0
@@ -28,5 +28,40 @@ final readonly class ProxyScoreCalculator
         return $weights['success'] * $candidate['success_ratio']
             - $weights['latency'] * $latencyNorm
             - $weights['streak'] * $streakNorm;
+    }
+
+    /** @return array{success: float, latency: float, streak: float} */
+    private function weights(): array
+    {
+        $configured = config('crawler.proxy.resolver.weights');
+
+        if (! is_array($configured)) {
+            throw new \LogicException('crawler.proxy.resolver.weights должен быть массивом весов');
+        }
+
+        $weights = [];
+
+        foreach (['success', 'latency', 'streak'] as $key) {
+            $value = $configured[$key] ?? null;
+
+            if (! is_int($value) && ! is_float($value)) {
+                throw new \LogicException("crawler.proxy.resolver.weights.{$key} должен быть числом");
+            }
+
+            $weights[$key] = (float) $value;
+        }
+
+        return $weights;
+    }
+
+    private function positiveFloatConfig(string $key): float
+    {
+        $value = config($key);
+
+        if ((! is_int($value) && ! is_float($value)) || $value <= 0) {
+            throw new \LogicException("{$key} должен быть положительным числом");
+        }
+
+        return (float) $value;
     }
 }

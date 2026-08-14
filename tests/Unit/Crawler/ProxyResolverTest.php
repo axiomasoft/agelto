@@ -33,6 +33,32 @@ function makeResolver(?Closure $randomSource = null, ?CrawlerProxySettingsResolv
     );
 }
 
+test('score использует только числовую конфигурацию весов и точек отсчёта', function (): void {
+    config([
+        'crawler.proxy.resolver.weights' => ['success' => 1.0, 'latency' => 0.5, 'streak' => 0.25],
+        'crawler.proxy.resolver.latency_ref_ms' => 100,
+        'crawler.proxy.resolver.streak_ref' => 4,
+    ]);
+
+    $score = (new ProxyScoreCalculator)->score([
+        'success_ratio' => 1.0,
+        'latency_ms_avg' => 50,
+        'fails_count' => 2,
+    ]);
+
+    expect($score)->toBe(0.625);
+});
+
+test('score отклоняет некорректную конфигурацию', function (): void {
+    config(['crawler.proxy.resolver.latency_ref_ms' => '5000']);
+
+    expect(fn (): float => (new ProxyScoreCalculator)->score([
+        'success_ratio' => 1.0,
+        'latency_ms_avg' => null,
+        'fails_count' => 0,
+    ]))->toThrow(LogicException::class, 'должен быть положительным числом');
+});
+
 test('узел из запрещённой по фильтру страны не попадает в кандидаты', function (): void {
     $allowed = Proxy::factory()->country('RU')->withScopes([ProxyScope::CrawlListing])->create();
     Proxy::factory()->country('KZ')->withScopes([ProxyScope::CrawlListing])->create();
