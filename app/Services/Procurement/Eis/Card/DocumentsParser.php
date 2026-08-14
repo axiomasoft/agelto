@@ -127,7 +127,13 @@ final readonly class DocumentsParser
             return $href;
         }
 
-        $base = rtrim((string) config('crawler.eis.base_url'), '/');
+        $baseUrl = config('crawler.eis.base_url');
+
+        if (! is_string($baseUrl) || $baseUrl === '') {
+            throw new \LogicException('crawler.eis.base_url должен быть непустой строкой.');
+        }
+
+        $base = rtrim($baseUrl, '/');
 
         return $base.'/'.ltrim($href, '/');
     }

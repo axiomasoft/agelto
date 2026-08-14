@@ -27,7 +27,7 @@ final readonly class EisCardUrlBuilder
         $map = $registry->settings['procedure_url_types'] ?? [];
         $procedureUrlType = $procedureTypeRaw !== null ? ($map[$procedureTypeRaw] ?? null) : null;
 
-        if ($procedureUrlType === null) {
+        if (! is_string($procedureUrlType) || $procedureUrlType === '') {
             throw CardUrlTemplateMissingException::forUnknownProcedureType(
                 registryCode: $registry->code,
                 procedureType: $procedureTypeRaw,
