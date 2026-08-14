@@ -77,11 +77,11 @@ final readonly class SegmentAssembler
             $segments[] = $this->close($current, $totalPages, forceSuspicious: true);
         }
 
-        return array_values(array_map(
+        return array_map(
             static fn (array $segment, int $index): array => ['ordinal' => $index + 1, ...$segment],
             $segments,
             array_keys($segments),
-        ));
+        );
     }
 
     /**
