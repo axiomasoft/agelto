@@ -83,10 +83,20 @@ final class DatasetImportCommand extends Command
                 continue;
             }
 
+            $normalizedGold = $validation['normalized'];
+
+            if (! is_array($normalizedGold)) {
+                $this->error("{$baseName}: валидатор не вернул нормализованный gold-эталон.");
+                $failed++;
+
+                continue;
+            }
+
+            /** @var array<string, mixed> $normalizedGold */
             $this->importer->importPair(
                 $baseName,
                 $sourceFile,
-                $validation['normalized'],
+                $normalizedGold,
                 $documentType,
                 (string) $this->option('task'),
                 (string) $this->option('source'),
