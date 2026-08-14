@@ -42,7 +42,11 @@ final readonly class ScreeningGoldBuilder
             $messages = [];
 
             foreach ($e->errors() as $field => $fieldMessages) {
-                $messages[] = "{$field}: ".implode('; ', $fieldMessages);
+                if (! is_array($fieldMessages)) {
+                    continue;
+                }
+
+                $messages[] = "{$field}: ".implode('; ', array_filter($fieldMessages, is_string(...)));
             }
 
             return ['action' => 'rejected', 'screening' => null, 'reason' => 'ScreeningResult: '.implode('; ', $messages)];

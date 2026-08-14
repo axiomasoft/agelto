@@ -76,6 +76,7 @@ final readonly class GsfxGoldMapper
      */
     private const int INTERMEDIATE_SCALE = 10;
 
+    /** @return array<string, mixed> */
     public function toGold(GsfxDocument $document): array
     {
         $workTypeIndex = $this->buildWorkTypeIndex($document->work_type_groups);
@@ -511,11 +512,13 @@ final readonly class GsfxGoldMapper
      * нотация — напр. `Quantity="2E-5"` у малых расходуемых материалов) БЕЗ конверсии во float
      * (Code Guidance, research/06 §5.9 конфликт 5г) — пустая строка/`null` → `null`, не `"0"`.
      */
+    /** @return numeric-string|null */
     private function normalizeDecimal(?string $raw): ?string
     {
         return self::normalizeDecimalStatic($raw);
     }
 
+    /** @return numeric-string|null */
     private static function normalizeDecimalStatic(?string $raw): ?string
     {
         if ($raw === null) {
@@ -531,7 +534,14 @@ final readonly class GsfxGoldMapper
         $withoutSpaces = str_replace([' ', "\u{00A0}"], '', $trimmed);
         $dotted = str_replace(',', '.', $withoutSpaces);
 
-        return self::expandScientificNotation($dotted);
+        $expanded = self::expandScientificNotation($dotted);
+
+        if (preg_match('/^-?\d+(?:\.\d+)?$/', $expanded) !== 1) {
+            return null;
+        }
+
+        /** @var numeric-string&non-empty-string $expanded */
+        return $expanded;
     }
 
     /**

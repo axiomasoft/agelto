@@ -217,6 +217,7 @@ final readonly class GridRecognitionGate
      * → точка, `-`/пусто → `null`. Без конверсии во float (bcmath, Code Guidance проекта).
      * Переиспользуется {@see SheetGoldMapper} — тот же канон для гейта и для значений gold.
      */
+    /** @return numeric-string|null */
     public static function cleanNumeric(?string $raw): ?string
     {
         if ($raw === null) {
@@ -232,7 +233,12 @@ final readonly class GridRecognitionGate
         $withoutSpaces = str_replace([' ', "\u{00A0}"], '', $trimmed);
         $dotted = str_replace(',', '.', $withoutSpaces);
 
-        return is_numeric($dotted) ? $dotted : null;
+        if (preg_match('/^-?\d+(?:\.\d+)?$/', $dotted) !== 1) {
+            return null;
+        }
+
+        /** @var numeric-string&non-empty-string $dotted */
+        return $dotted;
     }
 
     /**
@@ -489,7 +495,7 @@ final readonly class GridRecognitionGate
             return rtrim(rtrim(sprintf('%.10F', $value), '0'), '.');
         }
 
-        return trim((string) $value);
+        return is_scalar($value) || $value instanceof \Stringable ? trim((string) $value) : '';
     }
 
     private function normalizeHeaderText(string $text): string
