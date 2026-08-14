@@ -72,9 +72,14 @@ final readonly class WorkingCopyProvisioner
 
         if (! Storage::disk($documentsDisk)->exists($storagePath)) {
             $stream = Storage::disk($fixturesDisk)->readStream($fixture->storage_path);
-            Storage::disk($documentsDisk)->put($storagePath, $stream);
 
-            if (is_resource($stream)) {
+            if (! is_resource($stream)) {
+                throw new \RuntimeException("Fixture source stream is unavailable: {$fixture->storage_path}");
+            }
+
+            try {
+                Storage::disk($documentsDisk)->put($storagePath, $stream);
+            } finally {
                 fclose($stream);
             }
         }

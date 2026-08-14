@@ -128,8 +128,14 @@ final readonly class ScanStrategy implements PreparationStrategy
 
         $pdfPath = $this->preparedPath($version, 'ocr.pdf');
         $pdfStream = fopen($localOutput, 'r');
-        $disk->put($pdfPath, $pdfStream);
-        if (is_resource($pdfStream)) {
+
+        if (! is_resource($pdfStream)) {
+            throw new RuntimeException("Не удалось открыть OCR PDF: {$localOutput}");
+        }
+
+        try {
+            $disk->put($pdfPath, $pdfStream);
+        } finally {
             fclose($pdfStream);
         }
 
