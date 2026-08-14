@@ -169,7 +169,8 @@ final class RunResultSchema
         }
 
         if ($analysis->status !== AnalysisStatus::Succeeded) {
-            $error = $analysis->last_error ?? null;
+            $error = $analysis->last_error;
+            $error = is_string($error) ? $error : null;
 
             return ['message' => "Разбор не завершён (статус: {$analysis->status->value})."
                 .($error === null ? '' : " Последняя ошибка: {$error}")];

@@ -49,6 +49,7 @@ use InvalidArgumentException;
  * @property string|null $provider
  * @property string|null $model
  * @property int $attempts
+ * @property string|null $last_error
  * @property bool $failed_permanently
  * @property string|null $cache_id
  * @property Carbon|null $cache_expires_at

@@ -37,7 +37,7 @@ class FixtureForm
                         FileUpload::make('source')
                             ->label('Файл эталона')
                             ->required()
-                            ->disk((string) config('ai.fixtures.disk'))
+                            ->disk(self::fixturesDisk())
                             ->storeFiles(false)
                             ->previewable(false)
                             ->visibleOn('create'),
@@ -86,7 +86,8 @@ class FixtureForm
     private static function typeProfileValidationRule(Get $get): Closure
     {
         return function (string $attribute, mixed $value, Closure $fail) use ($get): void {
-            $ownerType = AiDocumentType::tryFrom((string) $get('owner_document_type'));
+            $ownerTypeValue = $get('owner_document_type');
+            $ownerType = is_string($ownerTypeValue) ? AiDocumentType::tryFrom($ownerTypeValue) : null;
 
             if ($ownerType === null) {
                 return;
@@ -98,7 +99,14 @@ class FixtureForm
                 return;
             }
 
-            $errors = $analyzer->validateTypeProfile((array) $value);
+            if (! is_array($value)) {
+                $fail('Профиль типа должен быть объектом.');
+
+                return;
+            }
+
+            /** @var array<string, mixed> $value */
+            $errors = $analyzer->validateTypeProfile($value);
 
             foreach ($errors as $messages) {
                 foreach ($messages as $message) {
@@ -106,5 +114,16 @@ class FixtureForm
                 }
             }
         };
+    }
+
+    private static function fixturesDisk(): string
+    {
+        $disk = config('ai.fixtures.disk');
+
+        if (! is_string($disk) || $disk === '') {
+            throw new \UnexpectedValueException('ai.fixtures.disk must be a non-empty string.');
+        }
+
+        return $disk;
     }
 }
