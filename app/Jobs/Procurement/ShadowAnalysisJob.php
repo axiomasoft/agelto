@@ -154,7 +154,7 @@ final class ShadowAnalysisJob implements ShouldQueue
             return;
         }
 
-        $data = $response instanceof LlmStructuredResponse ? $response->data : ['text' => $response->data];
+        $data = $this->stringKeyedData($response instanceof LlmStructuredResponse ? $response->data : ['text' => $response->data]);
 
         $recorder->record(
             analysisId: $shadow->id,
@@ -205,5 +205,20 @@ final class ShadowAnalysisJob implements ShouldQueue
         }
 
         return $analyzer->compareResults(primaryResult: $primary->result?->all() ?? [], shadowResult: $shadowData);
+    }
+
+    /** @param array<array-key, mixed> $data
+     * @return array<string, mixed>
+     */
+    private function stringKeyedData(array $data): array
+    {
+        foreach ($data as $key => $_) {
+            if (! is_string($key)) {
+                return [];
+            }
+        }
+
+        /** @var array<string, mixed> $data */
+        return $data;
     }
 }

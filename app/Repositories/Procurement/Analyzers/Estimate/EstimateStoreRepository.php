@@ -136,11 +136,13 @@ final readonly class EstimateStoreRepository
      */
     public function findNearestPrecedingSectionId(int $estimateId, int $rowIndex): ?int
     {
-        return Item::query()
+        $sectionId = Item::query()
             ->where('estimate_id', $estimateId)
             ->where('row_index', '<', $rowIndex)
             ->orderByDesc('row_index')
             ->value('section_id');
+
+        return is_int($sectionId) ? $sectionId : null;
     }
 
     /**
@@ -181,9 +183,11 @@ final readonly class EstimateStoreRepository
      */
     public function findOrCreateWorkType(int $estimateId, string $title): WorkType
     {
+        $maxPosition = WorkType::query()->where('estimate_id', $estimateId)->max('position');
+
         return WorkType::query()->firstOrCreate(
             ['estimate_id' => $estimateId, 'title' => $title],
-            ['parent_id' => null, 'position' => (int) WorkType::query()->where('estimate_id', $estimateId)->max('position') + 1],
+            ['parent_id' => null, 'position' => (is_int($maxPosition) ? $maxPosition : 0) + 1],
         );
     }
 
@@ -194,7 +198,7 @@ final readonly class EstimateStoreRepository
      * work_type_id` (`nullOnDelete`), который персистер пересчитывает СРАЗУ следом в той же
      * транзакции (`findOrCreateWorkType()`).
      *
-     * @param  list<EstimateWorkType>  $workTypes
+     * @param  array<int, EstimateWorkType>  $workTypes
      */
     public function replaceWorkTypes(int $estimateId, array $workTypes): void
     {
@@ -204,7 +208,7 @@ final readonly class EstimateStoreRepository
     }
 
     /**
-     * @param  list<EstimateWorkType>  $workTypes
+     * @param  array<array-key, EstimateWorkType>  $workTypes
      */
     private function createWorkTypeTree(int $estimateId, ?int $parentId, array $workTypes): void
     {
@@ -231,7 +235,7 @@ final readonly class EstimateStoreRepository
     }
 
     /**
-     * @param  list<TotalLine>  $lines
+     * @param  array<array-key, TotalLine>  $lines
      */
     private function createTotalTree(int $estimateId, ?int $parentId, array $lines): void
     {
