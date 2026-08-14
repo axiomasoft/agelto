@@ -9,6 +9,7 @@ use App\Dto\Procurement\Health\HealthBaseline;
 use App\Enums\Procurement\Estimate\EstimateValidationStatus;
 use App\Enums\Procurement\Health\PlatformCheckKind;
 use App\Models\Procurement\Estimate\Estimate;
+use App\Models\Procurement\Estimate\Item;
 use App\Models\Procurement\Platform\Platform;
 use App\Services\Procurement\Health\Contracts\HealthCheck;
 use App\Services\Procurement\Health\HealthCheckResultFactory;
@@ -30,7 +31,6 @@ final readonly class EstimateFieldsCheck implements HealthCheck
         $estimates = Estimate::query()
             ->where('platform_id', $platform->id)
             ->whereBetween('updated_at', [$from, $to])
-            ->with('items:id,estimate_id,code,name,unit,quantity')
             ->orderByDesc('updated_at')
             ->limit($minSample)
             ->get(['id', 'validation_status']);
@@ -41,8 +41,10 @@ final readonly class EstimateFieldsCheck implements HealthCheck
             [EstimateValidationStatus::Suspicious->value, EstimateValidationStatus::Invalid->value],
             strict: true,
         ))->count();
-        $items = $estimates->flatMap->items;
-        $badItems = $items->filter(fn ($item): bool => $item->code === null || $item->code === ''
+        $items = Item::query()
+            ->whereIn('estimate_id', $estimates->modelKeys())
+            ->get(['id', 'estimate_id', 'code', 'name', 'unit', 'quantity']);
+        $badItems = $items->filter(fn (Item $item): bool => $item->code === null || $item->code === ''
             || $item->name === '' || $item->unit === null || $item->unit === '' || $item->quantity === null)->count();
         $estimateShare = $sample === 0 ? 0 : $badEstimates / $sample;
         $itemShare = $items->isEmpty() ? 0 : $badItems / $items->count();
