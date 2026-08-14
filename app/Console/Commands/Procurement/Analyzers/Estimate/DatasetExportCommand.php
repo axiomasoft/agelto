@@ -62,7 +62,7 @@ final class DatasetExportCommand extends Command
         $task = (string) $this->option('task');
         /** @var list<string> $sources */
         $sources = (array) $this->option('source');
-        $disk = (string) ($this->option('disk') ?: config('crawler.raw_disk'));
+        $disk = $this->disk();
         $path = (string) ($this->option('path') ?: sprintf('ai/dataset-exports/%s-%s.jsonl', $format, now()->format('Ymd-His')));
 
         [$stats, $stream] = $this->exporter->export($format, $task, $split, $sources, $dpoSchema);
@@ -103,5 +103,22 @@ final class DatasetExportCommand extends Command
         }
 
         return self::SUCCESS;
+    }
+
+    private function disk(): string
+    {
+        $disk = $this->option('disk');
+
+        if (is_string($disk) && $disk !== '') {
+            return $disk;
+        }
+
+        $configuredDisk = config('crawler.raw_disk');
+
+        if (! is_string($configuredDisk) || $configuredDisk === '') {
+            throw new \UnexpectedValueException('crawler.raw_disk must be a non-empty string.');
+        }
+
+        return $configuredDisk;
     }
 }
