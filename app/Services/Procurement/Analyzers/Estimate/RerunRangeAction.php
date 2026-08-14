@@ -21,7 +21,6 @@ use App\Services\Llm\LlmRouteResolver;
 use App\Services\Procurement\Extraction\ExtractionSession;
 use App\Services\Procurement\Prepare\RepresentationResolver;
 use Carbon\CarbonImmutable;
-use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use RuntimeException;
@@ -59,6 +58,10 @@ final readonly class RerunRangeAction
     {
         $analysis = $estimate->analysis;
         $version = $estimate->documentVersion;
+
+        if (! $analysis instanceof Analysis || ! $version instanceof DocumentVersion) {
+            throw new RuntimeException('Точечный re-run требует analysis и document version сметы.');
+        }
 
         $route = $this->routes->resolve(
             AiDocumentType::from($analysis->document_type ?? AiDocumentType::Estimate->value),
@@ -170,6 +173,11 @@ final readonly class RerunRangeAction
         }
 
         $effective = $this->representations->forLlm($version);
+
+        if ($effective === null) {
+            throw new RuntimeException('Для точечного re-run нет пригодного LLM-представления документа.');
+        }
+
         $disk = Storage::disk($effective['disk']);
         $localPath = tempnam(sys_get_temp_dir(), 'rerun_').'.'.$effective['extension'];
         file_put_contents($localPath, $disk->get($effective['storagePath']));
@@ -192,6 +200,15 @@ final readonly class RerunRangeAction
             return [];
         }
 
-        return $progress instanceof Collection ? $progress->toArray() : (array) $progress;
+        $values = $progress->toArray();
+
+        foreach (array_keys($values) as $key) {
+            if (! is_string($key)) {
+                throw new RuntimeException('Analysis progress содержит нестроковый ключ.');
+            }
+        }
+
+        /** @var array<string, mixed> $values */
+        return $values;
     }
 }
