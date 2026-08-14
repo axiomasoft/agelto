@@ -53,13 +53,18 @@ class PlatformChecksTable
                 DatePicker::make('until')->label('По'),
             ])
             ->query(static fn (Builder $query, array $data): Builder => $query
-                ->when($data['from'] ?? null, fn (Builder $query, string $date): Builder => $query->whereDate('checked_at', '>=', $date))
-                ->when($data['until'] ?? null, fn (Builder $query, string $date): Builder => $query->whereDate('checked_at', '<=', $date)));
+                ->when($data['from'] ?? null, static fn (Builder $query, mixed $date): Builder => is_string($date) ? $query->whereDate('checked_at', '>=', $date) : $query)
+                ->when($data['until'] ?? null, static fn (Builder $query, mixed $date): Builder => is_string($date) ? $query->whereDate('checked_at', '<=', $date) : $query));
     }
 
-    /** @param array<int, PlatformCheckKind|PlatformCheckVerdict> $cases */
+    /**
+     * @param  list<PlatformCheckKind|PlatformCheckVerdict>  $cases
+     * @return array<string, string>
+     */
     private static function enumOptions(array $cases): array
     {
-        return collect($cases)->pluck('value', 'value')->all();
+        return collect($cases)->mapWithKeys(
+            static fn (PlatformCheckKind|PlatformCheckVerdict $case): array => [$case->value => $case->value],
+        )->all();
     }
 }

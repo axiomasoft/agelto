@@ -38,7 +38,7 @@ class ViewRun extends ViewRecord
             ->visible(fn (Run $record): bool => $this->canManage() && $this->isStoppable($record))
             ->action(fn (Run $record) => $this->requestStop(
                 $record,
-                fn (RequestRunStopAction $action) => $action->pause($record, Auth::id()),
+                fn (RequestRunStopAction $action) => $action->pause($record, $this->requestedBy()),
             ));
     }
 
@@ -51,7 +51,7 @@ class ViewRun extends ViewRecord
             ->visible(fn (Run $record): bool => $this->canManage() && $this->isStoppable($record))
             ->action(fn (Run $record) => $this->requestStop(
                 $record,
-                fn (RequestRunStopAction $action) => $action->cancel($record, Auth::id()),
+                fn (RequestRunStopAction $action) => $action->cancel($record, $this->requestedBy()),
             ));
     }
 
@@ -80,6 +80,13 @@ class ViewRun extends ViewRecord
     private function canManage(): bool
     {
         return Auth::user()?->hasPermission(RunPermission::Update) ?? false;
+    }
+
+    private function requestedBy(): ?int
+    {
+        $userId = Auth::id();
+
+        return is_int($userId) ? $userId : null;
     }
 
     private function isStoppable(Run $record): bool
