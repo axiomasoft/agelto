@@ -344,6 +344,12 @@ final readonly class CommonInfoParser
      * `blockInfo__section`, а не распознано вообще ни одного поля/строки — признак
      * разошедшейся вёрстки, обязан быть виден в логе (легитимное отсутствие ОТДЕЛЬНЫХ
      * блоков — штатный случай, докблок класса, — здесь не срабатывает: порог именно «ничего»).
+     *
+     * @param  array<string, int|string>  $ikz
+     * @param  array<string, string>  $etp
+     * @param  array<string, string>  $contactPerson
+     * @param  list<FinancingRowData>  $financingRows
+     * @param  list<PurchaseItemRowData>  $items
      */
     private function warnIfBlockInfoSuppressed(Crawler $crawler, array $ikz, array $etp, array $contactPerson, array $financingRows, array $items): void
     {
