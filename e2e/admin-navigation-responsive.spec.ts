@@ -1,12 +1,14 @@
 import { expect, test, type Page } from '@playwright/test';
 
-const navigationGroups = [
+// Filament renders only groups that contain at least one visible item. The
+// AzGuard group remains part of the configured order (covered by the feature
+// contract), but its plugin items are not exposed by this application panel.
+const visibleNavigationGroups = [
     'Закупки',
     'Площадки',
     'Сбор данных',
     'Качество анализа',
     'Настройка AI',
-    'Доступ и безопасность',
     'Система',
 ];
 
@@ -55,7 +57,7 @@ async function expectNoHorizontalOverflow(page: Page): Promise<void> {
 async function expectNavigationGroupOrder(page: Page): Promise<void> {
     const positions: number[] = [];
 
-    for (const group of navigationGroups) {
+    for (const group of visibleNavigationGroups) {
         const label = page.getByText(group, { exact: true }).first();
         await expect(label).toBeVisible();
 
