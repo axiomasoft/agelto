@@ -69,12 +69,16 @@ final class FixtureManifestEntry extends Data
                 'required',
                 'string',
                 function (string $attribute, mixed $value, \Closure $fail) use ($context): void {
+                    $payload = $context->payload;
+                    $code = is_array($payload) && is_string($payload['code'] ?? null) ? $payload['code'] : '';
+                    $sourceFormat = is_array($payload) && is_string($payload['source_format'] ?? null) ? $payload['source_format'] : '';
+
                     $expected = Fixture::storagePathFor(
-                        (string) ($context->payload['code'] ?? ''),
-                        (string) ($context->payload['source_format'] ?? ''),
+                        $code,
+                        $sourceFormat,
                     );
 
-                    if ($value !== $expected) {
+                    if (is_string($value) && $value !== $expected) {
                         $fail("storage_path обязан быть «{$expected}» (конвенция D17), получено «{$value}»");
                     }
                 },
