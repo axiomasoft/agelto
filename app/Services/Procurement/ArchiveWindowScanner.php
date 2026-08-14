@@ -39,12 +39,12 @@ final readonly class ArchiveWindowScanner
 
     public function scan(Crawler $crawler, Run $run, WindowFilter $filter): ArchiveWindowScanResult
     {
-        $blockSize = (int) config('crawler.eis.block_size', 500);
-        $priceCeiling = (int) config('crawler.archive.price_ceiling');
-        $minPriceInterval = (int) config('crawler.archive.min_price_interval');
-        $maxBlocksPerWindow = (int) config('crawler.archive.max_blocks_per_window');
+        $blockSize = self::positiveIntConfig('crawler.eis.block_size', default: 500);
+        $priceCeiling = self::positiveIntConfig('crawler.archive.price_ceiling');
+        $minPriceInterval = self::nonNegativeIntConfig('crawler.archive.min_price_interval');
+        $maxBlocksPerWindow = self::nonNegativeIntConfig('crawler.archive.max_blocks_per_window');
 
-        $cursor = ListingCursor::fromArray(cursor: $run->cursor?->toArray() ?? []);
+        $cursor = ListingCursor::fromArray(cursor: self::cursorPayload($run->cursor?->toArray()));
         $day = $cursor->day ?? $filter->dateFrom->toDateString();
         $dateField = $filter->dateField;
 
@@ -150,9 +150,13 @@ final readonly class ArchiveWindowScanner
      */
     private function splitTopInterval(array $stack, int $minPriceInterval, Crawler $crawler, Run $run, string $day): array
     {
-        $top = $stack[array_key_last($stack)];
+        $top = array_pop($stack);
+
+        if (! is_string($top)) {
+            throw new \LogicException('Ценовой стек не может быть пустым.');
+        }
+
         [$lo, $hi] = array_map(intval(...), explode(':', $top));
-        array_pop($stack);
 
         if ($hi - $lo <= $minPriceInterval) {
             Log::warning(
@@ -194,5 +198,51 @@ final readonly class ArchiveWindowScanner
             lastDedupSignature: $lastDedupSignature,
             blocksInInterval: $blocksInInterval,
         ));
+    }
+
+    /** @return array<string, mixed> */
+    private static function cursorPayload(mixed $value): array
+    {
+        if ($value === null) {
+            return [];
+        }
+
+        if (! is_array($value)) {
+            throw new \LogicException('Курсор запуска должен быть массивом.');
+        }
+
+        $payload = [];
+
+        foreach ($value as $key => $entry) {
+            if (! is_string($key)) {
+                throw new \LogicException('Курсор запуска должен иметь строковые ключи.');
+            }
+
+            $payload[$key] = $entry;
+        }
+
+        return $payload;
+    }
+
+    private static function positiveIntConfig(string $key, ?int $default = null): int
+    {
+        $value = config($key, $default);
+
+        if (! is_int($value) || $value < 1) {
+            throw new \LogicException("{$key} должен быть положительным целым числом.");
+        }
+
+        return $value;
+    }
+
+    private static function nonNegativeIntConfig(string $key): int
+    {
+        $value = config($key);
+
+        if (! is_int($value) || $value < 0) {
+            throw new \LogicException("{$key} должен быть неотрицательным целым числом.");
+        }
+
+        return $value;
     }
 }
