@@ -49,7 +49,11 @@ final readonly class DeltaScanProcessor
             return null;
         }
 
-        $overlapDays = (int) config('crawler.tracking.window_overlap_days');
+        $overlapDays = config('crawler.tracking.window_overlap_days');
+
+        if (! is_int($overlapDays)) {
+            throw new \UnexpectedValueException('crawler.tracking.window_overlap_days must be an integer.');
+        }
         $to = Carbon::today();
         $from = $to->copy()->subDays($overlapDays);
 

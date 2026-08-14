@@ -139,7 +139,7 @@ final readonly class CrawlerRunManager
      */
     public function recordScanGap(Run $run, ?Run $previousCompletedRun): void
     {
-        $gapSeconds = $previousCompletedRun?->finished_at !== null
+        $gapSeconds = $run->started_at !== null && $previousCompletedRun?->finished_at !== null
             ? $run->started_at->diffInSeconds($previousCompletedRun->finished_at)
             : null;
 
@@ -159,7 +159,7 @@ final readonly class CrawlerRunManager
     public function recordOldestUpdateSeen(Run $run, Carbon $candidate): void
     {
         $current = $run->stats?->toArray()['oldest_update_seen'] ?? null;
-        $currentAt = $current !== null ? Carbon::parse($current) : null;
+        $currentAt = is_string($current) ? Carbon::parse($current) : null;
 
         if ($currentAt !== null && $candidate->gte($currentAt)) {
             return;
@@ -237,9 +237,11 @@ final readonly class CrawlerRunManager
      */
     public function recordCheckpoint(Run $run): void
     {
+        $checkpoints = $run->stats?->toArray()['checkpoints'] ?? 0;
+
         $run->update([
             'stats' => array_merge($run->stats?->toArray() ?? [], [
-                'checkpoints' => (int) ($run->stats?->toArray()['checkpoints'] ?? 0) + 1,
+                'checkpoints' => (is_int($checkpoints) ? $checkpoints : 0) + 1,
             ]),
         ]);
     }
@@ -262,7 +264,11 @@ final readonly class CrawlerRunManager
      */
     public function recoverStale(): int
     {
-        $timeout = (int) config('crawler.heartbeat_timeout_seconds', 300);
+        $timeout = config('crawler.heartbeat_timeout_seconds', 300);
+
+        if (! is_int($timeout)) {
+            throw new \UnexpectedValueException('crawler.heartbeat_timeout_seconds must be an integer.');
+        }
 
         return Run::query()
             ->where('status', RunStatus::Running)

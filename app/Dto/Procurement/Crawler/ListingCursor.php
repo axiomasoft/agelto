@@ -45,7 +45,7 @@ final readonly class ListingCursor
     }
 
     /**
-     * @param  array<string, mixed>  $cursor
+     * @param  array<mixed>  $cursor
      */
     public static function fromArray(array $cursor): self
     {

@@ -43,9 +43,9 @@ final readonly class FreshRunProcessor
         $this->runs->recordScanGap(run: $run, previousCompletedRun: $previousCompletedRun);
 
         $cursor = ListingCursor::fromArray(cursor: $run->cursor?->toArray() ?? []);
-        $blockSize = (int) config('crawler.eis.block_size', 500);
-        $maxBlocks = (int) config('crawler.fresh_max_blocks', 40);
-        $checkpointSeconds = (int) config('crawler.run.checkpoint_seconds', 240);
+        $blockSize = $this->integerConfig(key: 'crawler.eis.block_size', default: 500);
+        $maxBlocks = $this->integerConfig(key: 'crawler.fresh_max_blocks', default: 40);
+        $checkpointSeconds = $this->integerConfig(key: 'crawler.run.checkpoint_seconds', default: 240);
         $startedAt = Carbon::now();
         // Порог считается ОДИН раз на старте (Implementation Rule 2): предыдущий завершённый
         // прогон за время обхода не меняется, перечитывание на каждом блоке — лишний запрос.
@@ -154,7 +154,7 @@ final readonly class FreshRunProcessor
             return null;
         }
 
-        $marginMinutes = (int) config('crawler.fresh.only_fresh_margin_minutes', 60);
+        $marginMinutes = $this->integerConfig(key: 'crawler.fresh.only_fresh_margin_minutes', default: 60);
 
         return $previousCompletedRun->started_at->clone()->subMinutes($marginMinutes);
     }
@@ -169,6 +169,17 @@ final readonly class FreshRunProcessor
         }
 
         return $oldestUpdateSeen->lte($threshold);
+    }
+
+    private function integerConfig(string $key, int $default): int
+    {
+        $value = config($key, $default);
+
+        if (! is_int($value)) {
+            throw new \UnexpectedValueException("{$key} must be an integer.");
+        }
+
+        return $value;
     }
 
     /**
