@@ -26,6 +26,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 #[Table(name: 'prc_proxy_checks')]
 final class ProxyCheck extends Model
 {
+    /** @use HasFactory<ProxyCheckFactory> */
     use HasFactory;
 
     protected function casts(): array
@@ -37,6 +38,7 @@ final class ProxyCheck extends Model
         ];
     }
 
+    /** @return BelongsTo<Proxy, $this> */
     public function proxy(): BelongsTo
     {
         return $this->belongsTo(related: Proxy::class);

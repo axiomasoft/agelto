@@ -44,6 +44,7 @@ use Illuminate\Support\Carbon;
 #[Table(name: 'prc_proxy_targets')]
 final class ProxyTarget extends Model
 {
+    /** @use HasFactory<ProxyTargetFactory> */
     use HasFactory;
 
     protected function casts(): array
@@ -58,6 +59,7 @@ final class ProxyTarget extends Model
         ];
     }
 
+    /** @return BelongsTo<Proxy, $this> */
     public function proxy(): BelongsTo
     {
         return $this->belongsTo(related: Proxy::class);

@@ -60,6 +60,7 @@ use Illuminate\Support\Collection;
 #[Table(name: 'prc_proxies')]
 final class Proxy extends Model
 {
+    /** @use HasFactory<ProxyFactory> */
     use HasFactory;
 
     protected function casts(): array
@@ -77,16 +78,19 @@ final class Proxy extends Model
         ];
     }
 
+    /** @return HasMany<ProxyCheck, $this> */
     public function checks(): HasMany
     {
         return $this->hasMany(related: ProxyCheck::class);
     }
 
+    /** @return HasMany<ProxyTarget, $this> */
     public function targets(): HasMany
     {
         return $this->hasMany(related: ProxyTarget::class);
     }
 
+    /** @return BelongsToMany<Crawler, $this> */
     public function crawlers(): BelongsToMany
     {
         return $this->belongsToMany(related: Crawler::class, table: 'prc_crawler_proxy');
