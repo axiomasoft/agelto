@@ -57,7 +57,12 @@ final readonly class DatasetInputBuilder
 
         [$kind, $text] = $resolved;
 
-        if (mb_strlen($text) > (int) config('ai.dataset_export.max_input_chars')) {
+        $configuredLimit = config('ai.dataset_export.max_input_chars');
+        $maxInputChars = is_int($configuredLimit) || is_float($configuredLimit) || is_string($configuredLimit)
+            ? (int) $configuredLimit
+            : 0;
+
+        if (mb_strlen($text) > $maxInputChars) {
             return ['skip' => 'input_too_large'];
         }
 
@@ -81,8 +86,14 @@ final readonly class DatasetInputBuilder
      */
     private function resolveTextual(DocumentVersion $version): ?array
     {
-        foreach ((array) config('ai.dataset_export.representation_priority') as $kindValue) {
-            $kind = RepresentationKind::tryFrom((string) $kindValue);
+        $configuredPriority = config('ai.dataset_export.representation_priority');
+
+        foreach (is_array($configuredPriority) ? $configuredPriority : [] as $kindValue) {
+            if (! is_string($kindValue)) {
+                continue;
+            }
+
+            $kind = RepresentationKind::tryFrom($kindValue);
 
             if ($kind === null || $kind === RepresentationKind::StructuredXml) {
                 continue;

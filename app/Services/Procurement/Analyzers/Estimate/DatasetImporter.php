@@ -67,7 +67,7 @@ final readonly class DatasetImporter
                 $passport = PassportResponse::validateAndCreate(Arr::except($estimateJson, ['rows']));
             } catch (ValidationException $e) {
                 foreach ($e->errors() as $field => $messages) {
-                    $errors[] = "estimates.{$index}.{$field}: ".implode('; ', $messages);
+                    $errors[] = "estimates.{$index}.{$field}: ".implode('; ', $this->messages($messages));
                 }
             } catch (CannotCreateData $e) {
                 $errors[] = "estimates.{$index}: {$e->getMessage()}";
@@ -77,10 +77,17 @@ final readonly class DatasetImporter
 
             foreach (array_values((array) $rowsJson) as $rowIndex => $rowJson) {
                 try {
-                    $rows[] = EstimateRow::validateAndCreate((array) $rowJson);
+                    if (! is_array($rowJson) || array_is_list($rowJson)) {
+                        $errors[] = "estimates.{$index}.rows.{$rowIndex}: ожидается объект";
+
+                        continue;
+                    }
+
+                    /** @var array<string, mixed> $rowJson */
+                    $rows[] = EstimateRow::validateAndCreate($rowJson);
                 } catch (ValidationException $e) {
                     foreach ($e->errors() as $field => $messages) {
-                        $errors[] = "estimates.{$index}.rows.{$rowIndex}.{$field}: ".implode('; ', $messages);
+                        $errors[] = "estimates.{$index}.rows.{$rowIndex}.{$field}: ".implode('; ', $this->messages($messages));
                     }
                 } catch (CannotCreateData $e) {
                     $errors[] = "estimates.{$index}.rows.{$rowIndex}: {$e->getMessage()}";
@@ -102,6 +109,16 @@ final readonly class DatasetImporter
         }
 
         return ['errors' => [], 'normalized' => ['estimates' => $normalizedEstimates]];
+    }
+
+    /** @return list<string> */
+    private function messages(mixed $messages): array
+    {
+        if (! is_array($messages)) {
+            return [];
+        }
+
+        return array_values(array_filter($messages, is_string(...)));
     }
 
     /**
