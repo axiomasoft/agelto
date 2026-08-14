@@ -8,6 +8,7 @@ use App\Services\Reference\ClassifierImporter;
 use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Collection;
 use Illuminate\Support\LazyCollection;
 
@@ -39,7 +40,7 @@ final class LoadClassifiers extends Command
     }
 
     /**
-     * @param  array{model: class-string, source_path: string|null}  $config
+     * @param  array{model: class-string<Model>, source_path: string|null}  $config
      */
     private function importClassifier(ClassifierImporter $importer, string $key, array $config): void
     {
@@ -59,10 +60,16 @@ final class LoadClassifiers extends Command
 
         $modelClass = $config['model'];
         $columns = $this->columnsFor(key: $key);
-        $chunkSize = (int) config('reference.import_chunk_size', 500);
+        $chunkSize = config('reference.import_chunk_size', 500);
+
+        if (! is_int($chunkSize) || $chunkSize <= 0) {
+            throw new \UnexpectedValueException('reference.import_chunk_size must be a positive integer.');
+        }
         $imported = 0;
 
-        LazyCollection::make(fn () => $importer->rows(path: $path))
+        LazyCollection::make(function () use ($importer, $path): \Generator {
+            yield from $importer->rows(path: $path);
+        })
             ->chunk($chunkSize)
             ->each(function (LazyCollection $chunk) use ($modelClass, $columns, &$imported): void {
                 $now = now();
@@ -103,12 +110,37 @@ final class LoadClassifiers extends Command
     }
 
     /**
-     * @return Collection<string, array{model: class-string, source_path: string|null}>
+     * @return Collection<string, array{model: class-string<Model>, source_path: string|null}>
      */
     private function resolveClassifiers(): Collection
     {
-        /** @var Collection<string, array{model: class-string, source_path: string|null}> $all */
-        $all = collect(config('reference.classifiers', []));
+        $config = config('reference.classifiers', []);
+
+        if (! is_array($config)) {
+            return $this->emptyClassifiers();
+        }
+
+        /** @var array<string, array{model: class-string<Model>, source_path: string|null}> $resolved */
+        $resolved = [];
+
+        foreach ($config as $key => $classifier) {
+            if (! is_string($key) || ! is_array($classifier)) {
+                continue;
+            }
+
+            $model = $classifier['model'] ?? null;
+            $sourcePath = $classifier['source_path'] ?? null;
+
+            if (! is_string($model) || ! is_a($model, Model::class, allow_string: true) || ($sourcePath !== null && ! is_string($sourcePath))) {
+                continue;
+            }
+
+            /** @var class-string<Model> $model */
+            $resolved[$key] = ['model' => $model, 'source_path' => $sourcePath];
+        }
+
+        /** @var Collection<string, array{model: class-string<Model>, source_path: string|null}> $all */
+        $all = new Collection($resolved);
         $requested = $this->argument('classifier');
 
         if ($requested === null) {
@@ -116,5 +148,16 @@ final class LoadClassifiers extends Command
         }
 
         return $all->only([$requested]);
+    }
+
+    /**
+     * @return Collection<string, array{model: class-string<Model>, source_path: string|null}>
+     */
+    private function emptyClassifiers(): Collection
+    {
+        /** @var Collection<string, array{model: class-string<Model>, source_path: string|null}> $classifiers */
+        $classifiers = new Collection;
+
+        return $classifiers;
     }
 }
