@@ -68,17 +68,17 @@ class PromptSuggestionsTable
                 // Очередь открывается на нерешённом: остальное — история.
                 SelectFilter::make('status')
                     ->label('Статус')
-                    ->options(collect(PromptSuggestionStatus::cases())->pluck('value', 'value')->all())
+                    ->options(self::enumOptions(PromptSuggestionStatus::cases()))
                     ->default(PromptSuggestionStatus::Pending->value),
                 SelectFilter::make('kind')
                     ->label('Форма')
-                    ->options(collect(PromptSuggestionKind::cases())->pluck('value', 'value')->all()),
+                    ->options(self::enumOptions(PromptSuggestionKind::cases())),
                 SelectFilter::make('document_type')
                     ->label('Тип документа')
                     ->options(self::documentTypeOptions()),
                 SelectFilter::make('analysis_step')
                     ->label('Стадия')
-                    ->options(collect(AnalysisStep::cases())->pluck('value', 'value')->all()),
+                    ->options(self::enumOptions(AnalysisStep::cases())),
             ])
             ->recordActions([
                 ViewAction::make(),
@@ -100,6 +100,20 @@ class PromptSuggestionsTable
         $options = LlmPresentation::documentTypeOptions();
         $options[DocumentTypeScope::Any->value] = LlmPresentation::documentType(DocumentTypeScope::Any);
 
+        return $options;
+    }
+
+    /**
+     * @param  list<\BackedEnum>  $cases
+     * @return array<string, string>
+     */
+    private static function enumOptions(array $cases): array
+    {
+        $options = collect($cases)->mapWithKeys(
+            static fn (\BackedEnum $case): array => [$case->value => $case->value],
+        )->all();
+
+        /** @var array<string, string> $options */
         return $options;
     }
 

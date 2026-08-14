@@ -50,6 +50,7 @@ class ViewPromptSuggestion extends ViewRecord
                     ->rows(3),
             ])
             ->action(function (PromptSuggestion $record, array $data): void {
+                /** @var array<string, mixed> $data */
                 $this->decide(
                     fn (int $decidedBy) => app(PromptSuggestionDecider::class)->approve(
                         suggestion: $record,
@@ -74,6 +75,7 @@ class ViewPromptSuggestion extends ViewRecord
                     ->rows(3),
             ])
             ->action(function (PromptSuggestion $record, array $data): void {
+                /** @var array<string, mixed> $data */
                 $this->decide(
                     fn (int $decidedBy) => app(PromptSuggestionDecider::class)->reject(
                         suggestion: $record,

@@ -6,6 +6,7 @@ use App\Filament\Resources\Procurement\Ai\PromptSuggestions\Pages\ListPromptSugg
 use App\Filament\Resources\Procurement\Ai\PromptSuggestions\Pages\ViewPromptSuggestion;
 use App\Filament\Resources\Procurement\Ai\PromptSuggestions\Schemas\PromptSuggestionInfolist;
 use App\Filament\Resources\Procurement\Ai\PromptSuggestions\Tables\PromptSuggestionsTable;
+use App\Guards\Admin\Permissions\PromptSuggestionPermission;
 use App\Models\Procurement\Ai\PromptSuggestion;
 use BackedEnum;
 use Filament\Resources\Resource;
@@ -13,6 +14,8 @@ use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Auth;
 
 /**
  * Очередь предложений критика по текстам системных инструкций (P5.6, D47) — read-only реестр
@@ -51,6 +54,16 @@ class PromptSuggestionResource extends Resource
     public static function getEloquentQuery(): Builder
     {
         return parent::getEloquentQuery()->with(['decidedBy']);
+    }
+
+    public static function canViewAny(): bool
+    {
+        return Auth::user()?->hasPermission(PromptSuggestionPermission::ViewAny) ?? false;
+    }
+
+    public static function canView(Model $record): bool
+    {
+        return Auth::user()?->hasPermission(PromptSuggestionPermission::View) ?? false;
     }
 
     public static function getPages(): array
