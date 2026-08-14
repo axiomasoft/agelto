@@ -33,9 +33,18 @@ final class DocumentFormatRegistry
         };
     }
 
-    /** @return array{format: DocumentFormat, mimes: list<string>, strategy: class-string<PreparationStrategy>, result: PreparationResult} */
+    /**
+     * @param  list<string>  $mimes
+     * @param  class-string<PreparationStrategy>  $strategy
+     * @return array{format: DocumentFormat, mimes: list<string>, strategy: class-string<PreparationStrategy>, result: PreparationResult}
+     */
     private function entry(DocumentFormat $format, array $mimes, string $strategy, PreparationResult $result = PreparationResult::ReadyForScreening): array
     {
-        return compact('format', 'mimes', 'strategy', 'result');
+        return [
+            'format' => $format,
+            'mimes' => $mimes,
+            'strategy' => $strategy,
+            'result' => $result,
+        ];
     }
 }

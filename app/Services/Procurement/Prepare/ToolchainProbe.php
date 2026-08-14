@@ -33,11 +33,11 @@ final readonly class ToolchainProbe
      */
     public function probeAll(): array
     {
-        $timeout = (int) config('ai.tools.default_timeout_seconds', 180);
+        $timeout = $this->integerConfig(key: 'ai.tools.default_timeout_seconds', default: 180);
         $rows = [];
 
         foreach (self::VERSION_ARGS as $configKey => $versionArgs) {
-            $bin = (string) config("ai.tools.{$configKey}");
+            $bin = $this->stringConfig("ai.tools.{$configKey}");
             $rows[$configKey] = $this->probe($bin, $versionArgs, $timeout);
         }
 
@@ -60,5 +60,27 @@ final readonly class ToolchainProbe
         $firstLine = trim(strtok(trim($output), "\n") ?: '');
 
         return ['bin' => $bin, 'found' => true, 'version' => $firstLine !== '' ? $firstLine : null];
+    }
+
+    private function integerConfig(string $key, int $default): int
+    {
+        $value = config($key, $default);
+
+        if (! is_int($value)) {
+            throw new \UnexpectedValueException("{$key} must be an integer.");
+        }
+
+        return $value;
+    }
+
+    private function stringConfig(string $key): string
+    {
+        $value = config($key);
+
+        if (! is_string($value)) {
+            throw new \UnexpectedValueException("{$key} must be a string.");
+        }
+
+        return $value;
     }
 }

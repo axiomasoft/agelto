@@ -85,14 +85,34 @@ final readonly class RepresentationResolver
      */
     private function policyFor(DocumentVersion $version): array
     {
-        $policy = (array) config('ai.representations.policy');
-        $extension = strtolower((string) $version->extension);
+        $policy = config('ai.representations.policy');
+
+        if (! is_array($policy)) {
+            return [];
+        }
+
+        $extension = strtolower($version->extension);
 
         $kinds = $policy[$extension] ?? $policy['default'] ?? [];
 
-        return array_values(array_filter(array_map(
-            static fn (string $kind): ?RepresentationKind => RepresentationKind::tryFrom($kind),
-            $kinds,
-        )));
+        if (! is_array($kinds)) {
+            return [];
+        }
+
+        $resolved = [];
+
+        foreach ($kinds as $kind) {
+            if (! is_string($kind)) {
+                continue;
+            }
+
+            $representationKind = RepresentationKind::tryFrom($kind);
+
+            if ($representationKind !== null) {
+                $resolved[] = $representationKind;
+            }
+        }
+
+        return $resolved;
     }
 }
