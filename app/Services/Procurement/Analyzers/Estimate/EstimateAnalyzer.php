@@ -93,7 +93,7 @@ final readonly class EstimateAnalyzer implements DocumentAnalyzer, SupportsResul
 
         foreach ($estimates as $estimate) {
             $rows += (int) ($estimate->rows_extracted ?? 0);
-            $total = bcadd($total, (string) ($estimate->total_amount ?? '0'), 2);
+            $total = bcadd($total, $this->decimal($estimate->total_amount), 2);
             // Форма `?? null` — не украшение: вне `??`-контекста Larastan не резолвит тип
             // свойства модели и заводит `property.notFound` (тот же приём, что P2.2).
             $currency ??= $estimate->currency ?? null;
@@ -121,8 +121,8 @@ final readonly class EstimateAnalyzer implements DocumentAnalyzer, SupportsResul
      */
     public function compareResults(array $primaryResult, array $shadowResult): ?array
     {
-        $primaryEstimates = (array) ($primaryResult['estimates'] ?? []);
-        $shadowEstimates = (array) ($shadowResult['estimates'] ?? []);
+        $primaryEstimates = $this->estimateList($primaryResult['estimates'] ?? null);
+        $shadowEstimates = $this->estimateList($shadowResult['estimates'] ?? null);
 
         if ($primaryEstimates === [] || $shadowEstimates === []) {
             return null;
@@ -153,7 +153,7 @@ final readonly class EstimateAnalyzer implements DocumentAnalyzer, SupportsResul
             $errors[''] = ['Неизвестные поля профиля: '.implode(', ', $unknownKeys).'.'];
         }
 
-        if (! array_key_exists('class', $profile) || FixtureClass::tryFrom((string) $profile['class']) === null) {
+        if (! array_key_exists('class', $profile) || ! is_string($profile['class']) || FixtureClass::tryFrom($profile['class']) === null) {
             $errors['class'] = ['Поле "class" обязано быть одним из: '.$this->enumValues(FixtureClass::cases()).'.'];
         }
 
@@ -161,7 +161,7 @@ final readonly class EstimateAnalyzer implements DocumentAnalyzer, SupportsResul
             $errors['form'] = ['Поле "form" обязано быть строкой из 2–10 заглавных латинских букв/цифр (третий сегмент кода эталона).'];
         }
 
-        if (! array_key_exists('gold_source', $profile) || GoldSource::tryFrom((string) $profile['gold_source']) === null) {
+        if (! array_key_exists('gold_source', $profile) || ! is_string($profile['gold_source']) || GoldSource::tryFrom($profile['gold_source']) === null) {
             $errors['gold_source'] = ['Поле "gold_source" обязано быть одним из: '.$this->enumValues(GoldSource::cases()).'.'];
         }
 
@@ -219,5 +219,45 @@ final readonly class EstimateAnalyzer implements DocumentAnalyzer, SupportsResul
         };
 
         return "{$count} {$form}";
+    }
+
+    /** @return numeric-string */
+    private function decimal(?string $value): string
+    {
+        $value ??= '0';
+
+        if (! is_numeric($value)) {
+            throw new \UnexpectedValueException("Expected decimal value, got {$value}.");
+        }
+
+        return $value;
+    }
+
+    /**
+     * @return list<array<string, mixed>>
+     */
+    private function estimateList(mixed $value): array
+    {
+        if (! is_array($value)) {
+            return [];
+        }
+
+        $estimates = [];
+
+        foreach ($value as $estimate) {
+            if (is_array($estimate)) {
+                $typedEstimate = [];
+
+                foreach ($estimate as $key => $field) {
+                    if (is_string($key)) {
+                        $typedEstimate[$key] = $field;
+                    }
+                }
+
+                $estimates[] = $typedEstimate;
+            }
+        }
+
+        return $estimates;
     }
 }

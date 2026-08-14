@@ -33,6 +33,7 @@ use Illuminate\Support\Str;
  * @property string $uuid
  * @property int $platform_id
  * @property int $ordinal
+ * @property string|null $total_amount
  * @property string|null $estimate_number
  * @property string|null $currency
  * @property int|null $base_year
