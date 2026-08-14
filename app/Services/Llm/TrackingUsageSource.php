@@ -60,7 +60,10 @@ final readonly class TrackingUsageSource implements UsageSource
      */
     private function signature(): UsageSignature
     {
-        $horizonMonths = (int) config('partitioning.retention.llm_calls.months');
+        $configuredMonths = config('partitioning.retention.llm_calls.months');
+        $horizonMonths = is_int($configuredMonths) || is_float($configuredMonths) || is_string($configuredMonths)
+            ? (int) $configuredMonths
+            : 0;
         $asOf = CarbonImmutable::now();
 
         return new UsageSignature(

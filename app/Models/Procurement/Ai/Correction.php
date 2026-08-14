@@ -24,6 +24,7 @@ use Illuminate\Support\Str;
  *
  * @property string $uuid
  * @property string $content
+ * @property string|null $hint
  * @property Carbon|null $applied_at
  */
 #[UseFactory(CorrectionFactory::class)]

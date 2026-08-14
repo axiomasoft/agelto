@@ -28,7 +28,8 @@ final readonly class LlmPayloadReader
             return StoredPayload::absent();
         }
 
-        $disk = Storage::disk((string) config('crawler.raw_disk'));
+        $configuredDisk = config('crawler.raw_disk');
+        $disk = Storage::disk(is_string($configuredDisk) ? $configuredDisk : null);
 
         if (! $disk->exists($ref)) {
             return StoredPayload::expired($this->expireDays());
@@ -49,6 +50,8 @@ final readonly class LlmPayloadReader
 
     private function expireDays(): int
     {
-        return (int) config('partitioning.minio_lifecycle.llm_call_blobs.expire_days', 90);
+        $configured = config('partitioning.minio_lifecycle.llm_call_blobs.expire_days', 90);
+
+        return is_int($configured) || is_float($configured) || is_string($configured) ? (int) $configured : 90;
     }
 }

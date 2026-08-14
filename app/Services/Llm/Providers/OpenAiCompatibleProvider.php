@@ -68,7 +68,7 @@ final readonly class OpenAiCompatibleProvider implements LlmProvider
         $response = $this->structuredRequest($prompt, $schema, $options)->asStructured();
 
         return new LlmStructuredResponse(
-            data: $response->structured ?? [],
+            data: $this->stringKeyedData($response->structured ?? []),
             usage: $this->usageFrom($response->usage),
             finishReason: $this->mapFinishReason($response->finishReason),
             raw: $response->text,
@@ -140,6 +140,22 @@ final readonly class OpenAiCompatibleProvider implements LlmProvider
         if ($prompt->fileRefs !== []) {
             throw new RuntimeException('OpenAiCompatibleProvider: Files API не поддержан — документ должен передаваться inline (см. докблок класса).');
         }
+    }
+
+    /**
+     * @param  array<array-key, mixed>  $data
+     * @return array<string, mixed>
+     */
+    private function stringKeyedData(array $data): array
+    {
+        foreach ($data as $key => $_) {
+            if (! is_string($key)) {
+                return [];
+            }
+        }
+
+        /** @var array<string, mixed> $data */
+        return $data;
     }
 
     private function usageFrom(PrismUsage $usage): LlmUsage

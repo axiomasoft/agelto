@@ -88,7 +88,7 @@ final readonly class PrismGeminiProvider implements LlmProvider, SupportsContext
         }
 
         return new LlmStructuredResponse(
-            data: $response->structured ?? [],
+            data: $this->stringKeyedData($response->structured ?? []),
             usage: $this->usageFrom($response->raw ?? []),
             finishReason: $this->mapFinishReason($response->finishReason),
             // ВАЖНО: `LlmStructuredResponse.raw` — сырой МОДЕЛЬНЫЙ JSON-текст (`$response->text`,
@@ -542,6 +542,22 @@ final readonly class PrismGeminiProvider implements LlmProvider, SupportsContext
         }
 
         return $value;
+    }
+
+    /**
+     * @param  array<array-key, mixed>  $data
+     * @return array<string, mixed>
+     */
+    private function stringKeyedData(array $data): array
+    {
+        foreach ($data as $key => $_) {
+            if (! is_string($key)) {
+                return [];
+            }
+        }
+
+        /** @var array<string, mixed> $data */
+        return $data;
     }
 
     /**
