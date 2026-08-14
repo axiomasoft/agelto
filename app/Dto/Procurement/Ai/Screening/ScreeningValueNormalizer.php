@@ -63,7 +63,7 @@ final class ScreeningValueNormalizer
     {
         $normalized = Normalizer::normalize($value, Normalizer::FORM_KC);
 
-        if ($normalized === false) {
+        if (! is_string($normalized)) {
             throw new InvalidArgumentException("Screening {$field} cannot be normalized.");
         }
 

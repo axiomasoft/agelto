@@ -18,6 +18,7 @@ final readonly class StoredScreeningResult
         public float $confidence,
         public string $summary,
         public EstimateCardinality $estimateCardinality,
+        /** @var list<string> */
         public array $tags,
         public ?string $classificationNote,
         public ?int $pageCountEstimate,
@@ -39,6 +40,9 @@ final readonly class StoredScreeningResult
         if (! is_array($screening) || ! is_array($decision)) {
             throw new InvalidArgumentException('Stored screening result must contain screening and decision objects.');
         }
+
+        /** @var array<string, mixed> $screening */
+        /** @var array<string, mixed> $decision */
 
         return self::fromParts(
             confidence: $screening['confidence'] ?? null,
