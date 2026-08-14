@@ -70,6 +70,18 @@ final readonly class ScreeningProcessor
         ]);
 
         $version = $analysis->documentVersion;
+
+        if (! $version instanceof DocumentVersion) {
+            $this->markUnprocessable(
+                $document,
+                $analysis,
+                UnprocessableReason::UnreadableFormat,
+                'у analysis нет версии документа для скрининга',
+            );
+
+            return null;
+        }
+
         $effective = $this->resolveEffectiveFile($version);
 
         if ($effective === null) {
@@ -94,7 +106,7 @@ final readonly class ScreeningProcessor
 
             if ($effective['extension'] === 'pdf') {
                 try {
-                    $slicedPath = $this->slicer->slice($localPath, (int) config('ai.screening.pages', 4));
+                    $slicedPath = $this->slicer->slice($localPath, $this->positiveIntConfig(key: 'ai.screening.pages', default: 4));
                     $uploadPath = $slicedPath;
                 } catch (RuntimeException $exception) {
                     $this->markUnprocessable(
@@ -128,7 +140,7 @@ final readonly class ScreeningProcessor
     {
         $effective = $this->representations->forLlm($version);
 
-        if ($effective['extension'] === 'pdf' || str_starts_with($effective['mime'], 'image/')) {
+        if ($effective !== null && ($effective['extension'] === 'pdf' || str_starts_with($effective['mime'], 'image/'))) {
             return $effective;
         }
 
@@ -148,6 +160,7 @@ final readonly class ScreeningProcessor
         }
 
         $composed = $this->prompts->compose(CorePromptStep::ScreeningClassify, [ScreeningResult::class]);
+        $promptVersionSet = $this->stringPromptVersionSet($composed->promptVersionSet);
         $schema = new JsonSchema($this->schemas->generate(ScreeningResult::class));
         $fileRef = $primary->provider->uploadFile($filePath, $mimeType);
 
@@ -163,7 +176,7 @@ final readonly class ScreeningProcessor
             provider: $primary->options->provider,
             model: $primary->options->model,
             temperature: $primary->options->temperature,
-            maxTokens: (int) config('ai.screening.max_tokens', 1024),
+            maxTokens: $this->positiveIntConfig(key: 'ai.screening.max_tokens', default: 1024),
             cacheHandle: $primary->options->cacheHandle,
         );
 
@@ -179,7 +192,7 @@ final readonly class ScreeningProcessor
                 purpose: CoreLlmPurpose::Screening,
                 provider: $options->provider,
                 model: $options->model,
-                promptVersionSet: $composed->promptVersionSet,
+                promptVersionSet: $promptVersionSet,
                 cacheId: $options->cacheHandle?->id,
                 requestPayload: $requestPayload,
                 responsePayload: null,
@@ -200,7 +213,7 @@ final readonly class ScreeningProcessor
             purpose: CoreLlmPurpose::Screening,
             provider: $options->provider,
             model: $options->model,
-            promptVersionSet: $composed->promptVersionSet,
+            promptVersionSet: $promptVersionSet,
             cacheId: $options->cacheHandle?->id,
             requestPayload: $requestPayload,
             responsePayload: $response->raw,
@@ -245,5 +258,35 @@ final readonly class ScreeningProcessor
             'result' => ['unprocessable_reason' => $reason->value, 'detail' => $detail],
             'finished_at' => now(),
         ]);
+    }
+
+    private function positiveIntConfig(string $key, int $default): int
+    {
+        $value = config($key, $default);
+
+        if (! is_int($value) || $value <= 0) {
+            throw new RuntimeException("{$key} must be a positive integer.");
+        }
+
+        return $value;
+    }
+
+    /**
+     * @param  array<mixed>  $versions
+     * @return array<string, string>
+     */
+    private function stringPromptVersionSet(array $versions): array
+    {
+        $result = [];
+
+        foreach ($versions as $key => $version) {
+            if (! is_string($key) || ! is_int($version)) {
+                throw new RuntimeException('Prompt version set must map string keys to integers.');
+            }
+
+            $result[$key] = (string) $version;
+        }
+
+        return $result;
     }
 }
