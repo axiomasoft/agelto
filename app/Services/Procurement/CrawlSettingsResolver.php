@@ -36,12 +36,21 @@ final readonly class CrawlSettingsResolver
         $config = (array) config("crawler.stages.{$stage->value}", []);
 
         return new StageSettings(
-            minPauseMs: $config['min_pause_ms'] ?? null,
-            maxPauseMs: $config['max_pause_ms'] ?? null,
-            retries: $config['retries'] ?? null,
-            retryDelayMs: $config['retry_delay_ms'] ?? null,
-            timeoutSeconds: $config['timeout_seconds'] ?? null,
-            dispatchBatchLimit: $config['dispatch_batch_limit'] ?? null,
+            minPauseMs: $this->nullableInt($config['min_pause_ms'] ?? null, 'min_pause_ms'),
+            maxPauseMs: $this->nullableInt($config['max_pause_ms'] ?? null, 'max_pause_ms'),
+            retries: $this->nullableInt($config['retries'] ?? null, 'retries'),
+            retryDelayMs: $this->nullableInt($config['retry_delay_ms'] ?? null, 'retry_delay_ms'),
+            timeoutSeconds: $this->nullableInt($config['timeout_seconds'] ?? null, 'timeout_seconds'),
+            dispatchBatchLimit: $this->nullableInt($config['dispatch_batch_limit'] ?? null, 'dispatch_batch_limit'),
         );
+    }
+
+    private function nullableInt(mixed $value, string $key): ?int
+    {
+        if ($value === null || is_int($value)) {
+            return $value;
+        }
+
+        throw new \UnexpectedValueException("crawler stage setting {$key} must be an integer or null.");
     }
 }
