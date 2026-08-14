@@ -78,23 +78,34 @@ final readonly class ProxyCircuitBreaker
     private function threshold(string $level, ProxyFailureReason $reason): int
     {
         if ($level === self::LevelTarget && $reason === ProxyFailureReason::Http429) {
-            return (int) config('crawler.proxy.breaker.http_429.threshold');
+            return $this->integerConfig('crawler.proxy.breaker.http_429.threshold');
         }
 
-        return (int) config("crawler.proxy.breaker.threshold.{$level}");
+        return $this->integerConfig("crawler.proxy.breaker.threshold.{$level}");
     }
 
     private function baseCooldownMinutes(string $level, ProxyFailureReason $reason): int
     {
         if ($level === self::LevelTarget && $reason === ProxyFailureReason::Http429) {
-            return (int) config('crawler.proxy.breaker.http_429.base_cooldown_minutes');
+            return $this->integerConfig('crawler.proxy.breaker.http_429.base_cooldown_minutes');
         }
 
-        return (int) config("crawler.proxy.breaker.base_cooldown_minutes.{$level}");
+        return $this->integerConfig("crawler.proxy.breaker.base_cooldown_minutes.{$level}");
     }
 
     private function capMinutes(): int
     {
-        return (int) config('crawler.proxy.breaker.cap_hours') * 60;
+        return $this->integerConfig('crawler.proxy.breaker.cap_hours') * 60;
+    }
+
+    private function integerConfig(string $key): int
+    {
+        $value = config($key);
+
+        if (! is_int($value)) {
+            throw new \UnexpectedValueException("{$key} must be an integer.");
+        }
+
+        return $value;
     }
 }
