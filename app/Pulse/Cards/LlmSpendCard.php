@@ -6,6 +6,7 @@ namespace App\Pulse\Cards;
 
 use App\Services\Llm\Contracts\UsageSource;
 use App\Services\Llm\Dto\UsageQuery;
+use App\Services\Llm\Dto\UsageRow;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Collection;
 use Illuminate\View\View;
@@ -32,13 +33,26 @@ final class LlmSpendCard extends Card
         $to = CarbonImmutable::now();
         $report = $source->usage(new UsageQuery(from: $to->subDay(), to: $to, byPurpose: true));
 
+        /** @var Collection<int, UsageRow> $rows */
         $rows = Collection::make($report->rows);
 
         return view('livewire.pulse.llm-spend', [
             'rows' => $rows,
-            'rubPerUsd' => (float) config('ai.cost_report.rub_per_usd'),
-            'totalCostMicros' => (int) $rows->sum('costMicros'),
+            'rubPerUsd' => $this->rubPerUsd(),
+            'totalCostMicros' => $rows->reduce(
+                static fn (int $total, UsageRow $row): int => $total + $row->costMicros,
+                initial: 0,
+            ),
             'signature' => $report->signature->toLine(),
         ]);
+    }
+
+    private function rubPerUsd(): float
+    {
+        $configured = config('ai.cost_report.rub_per_usd');
+
+        return is_int($configured) || is_float($configured) || is_string($configured)
+            ? (float) $configured
+            : 0.0;
     }
 }

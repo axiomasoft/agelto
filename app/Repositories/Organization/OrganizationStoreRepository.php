@@ -7,6 +7,7 @@ namespace App\Repositories\Organization;
 use App\Models\Organization\Organization;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\DB;
+use InvalidArgumentException;
 
 /**
  * Единственная точка персистентности `org_organizations`. Бизнес-логика entity resolution
@@ -43,7 +44,10 @@ final readonly class OrganizationStoreRepository
             return DB::transaction(fn (): Organization => Organization::query()->create($attributes));
         } catch (UniqueConstraintViolationException $exception) {
             // Гонка: другой процесс уже создал орг. с тем же (inn, kpp) — резолвим в неё (аналог D9).
-            return $this->findByInnAndKpp(inn: $attributes['inn'], kpp: $attributes['kpp']) ?? throw $exception;
+            return $this->findByInnAndKpp(
+                inn: $this->nullableString($attributes, 'inn'),
+                kpp: $this->nullableString($attributes, 'kpp'),
+            ) ?? throw $exception;
         }
     }
 
@@ -53,5 +57,17 @@ final readonly class OrganizationStoreRepository
     public function update(Organization $organization, array $attributes): void
     {
         $organization->update($attributes);
+    }
+
+    /** @param array<string, mixed> $attributes */
+    private function nullableString(array $attributes, string $key): ?string
+    {
+        $value = $attributes[$key] ?? null;
+
+        if ($value !== null && ! is_string($value)) {
+            throw new InvalidArgumentException("{$key} должен быть строкой или null.");
+        }
+
+        return $value;
     }
 }

@@ -27,6 +27,7 @@ use Illuminate\Support\Str;
  * @property string $registry_number
  * @property string $title
  * @property string|null $currency
+ * @property int|null $customer_org_id
  * @property int $detail_attempts
  * @property int $revision_count
  * @property array<string, array<string, mixed>>|null $detail_parse_outcome

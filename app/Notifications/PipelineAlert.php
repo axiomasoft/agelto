@@ -34,7 +34,10 @@ final readonly class PipelineAlert
             return;
         }
 
-        $antispamMinutes = (int) config('ai.pipeline.alert_antispam_minutes', 60);
+        $configuredMinutes = config('ai.pipeline.alert_antispam_minutes', 60);
+        $antispamMinutes = is_int($configuredMinutes) || is_float($configuredMinutes) || is_string($configuredMinutes)
+            ? (int) $configuredMinutes
+            : 60;
         $due = [];
 
         foreach ($findings as $key => $message) {
@@ -55,7 +58,9 @@ final readonly class PipelineAlert
      */
     private function buildMessage(array $messages): string
     {
-        $env = config('app.env') !== 'production' ? ' ['.mb_strtoupper((string) config('app.env')).']' : '';
+        $configuredEnv = config('app.env');
+        $envName = is_string($configuredEnv) ? $configuredEnv : 'unknown';
+        $env = $envName !== 'production' ? ' ['.mb_strtoupper($envName).']' : '';
 
         return implode("\n", [
             "⚠️ <b>[AGELTO{$env}] Проблемы пайплайна</b>",
@@ -71,7 +76,7 @@ final readonly class PipelineAlert
         $token = config('services.telegram.bot_token');
         $chatId = config('services.telegram.chat_id');
 
-        if (! $token || ! $chatId) {
+        if (! is_string($token) || $token === '' || ! is_string($chatId) || $chatId === '') {
             Log::warning('PipelineAlert: Telegram канал не настроен, алерт отправлен в лог', ['message' => $message]);
 
             return;

@@ -75,7 +75,6 @@ final class PipelineStagesCard extends Card
             ->toBase()
             ->selectRaw('status, count(*) as total')
             ->groupBy('status')
-            ->get()
             ->pluck('total', 'status');
 
         return $this->row(

@@ -34,7 +34,10 @@ final readonly class PromptReadRepository
             ->where('is_active', true)
             ->get()
             ->groupBy('key')
-            ->map(fn (Collection $group): Prompt => $group->sortByDesc('version')->first());
+            ->map(fn (Collection $group): ?Prompt => $group->sortByDesc('version')->first())
+            ->filter(static fn (?Prompt $prompt): bool => $prompt !== null);
+
+        /** @var Collection<int, Prompt> $latestPerKey */
 
         return $latestPerKey
             ->sortBy([
