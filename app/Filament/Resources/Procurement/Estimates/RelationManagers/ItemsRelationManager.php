@@ -126,8 +126,14 @@ class ItemsRelationManager extends RelationManager
         $model = $quality->get('model');
 
         if (is_array($model)) {
-            $reason = RowQualityReason::from($model['reason']);
-            $fields = collect($model['fields'])
+            $reasonValue = $model['reason'] ?? null;
+
+            if (! is_string($reasonValue)) {
+                return $lines;
+            }
+
+            $reason = RowQualityReason::from($reasonValue);
+            $fields = collect(self::stringList($model['fields'] ?? null))
                 ->map(static fn (string $field): string => EstimateRow::fieldLabel($field))
                 ->implode(', ');
 
@@ -137,7 +143,7 @@ class ItemsRelationManager extends RelationManager
         $validator = $quality->get('validator');
 
         if (is_array($validator)) {
-            $reasons = collect($validator['reasons'])
+            $reasons = collect(self::stringList($validator['reasons'] ?? null))
                 ->map(static fn (string $reason): string => RowQualityReason::from($reason)->label())
                 ->implode(', ');
 
@@ -145,5 +151,23 @@ class ItemsRelationManager extends RelationManager
         }
 
         return $lines;
+    }
+
+    /** @return list<string> */
+    private static function stringList(mixed $value): array
+    {
+        if (! is_array($value)) {
+            return [];
+        }
+
+        $result = [];
+
+        foreach ($value as $entry) {
+            if (is_string($entry)) {
+                $result[] = $entry;
+            }
+        }
+
+        return $result;
     }
 }
