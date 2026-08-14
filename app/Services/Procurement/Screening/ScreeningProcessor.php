@@ -160,7 +160,7 @@ final readonly class ScreeningProcessor
         }
 
         $composed = $this->prompts->compose(CorePromptStep::ScreeningClassify, [ScreeningResult::class]);
-        $promptVersionSet = $this->stringPromptVersionSet($composed->promptVersionSet);
+        $promptVersionSet = $this->promptVersionSet($composed->promptVersionSet);
         $schema = new JsonSchema($this->schemas->generate(ScreeningResult::class));
         $fileRef = $primary->provider->uploadFile($filePath, $mimeType);
 
@@ -273,9 +273,9 @@ final readonly class ScreeningProcessor
 
     /**
      * @param  array<mixed>  $versions
-     * @return array<string, string>
+     * @return array<string, int>
      */
-    private function stringPromptVersionSet(array $versions): array
+    private function promptVersionSet(array $versions): array
     {
         $result = [];
 
@@ -284,7 +284,7 @@ final readonly class ScreeningProcessor
                 throw new RuntimeException('Prompt version set must map string keys to integers.');
             }
 
-            $result[$key] = (string) $version;
+            $result[$key] = $version;
         }
 
         return $result;

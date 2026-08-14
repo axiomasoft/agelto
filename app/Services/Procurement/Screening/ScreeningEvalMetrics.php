@@ -22,7 +22,11 @@ final readonly class ScreeningEvalMetrics
      */
     public function compare(array $gold, ScreeningResult $prediction): array
     {
-        $goldType = (string) ($gold['document_type'] ?? '');
+        $goldType = $gold['document_type'] ?? null;
+
+        if (! is_string($goldType)) {
+            $goldType = '';
+        }
         $predictedType = $prediction->document_type->value;
 
         return [

@@ -18,8 +18,22 @@ final readonly class SourceTlsTrust
     {
         // Хост — доменное имя с точками (`zakupki.gov.ru`): dot-notation `config('a.b.host')`
         // читала бы его как вложенный путь, а не ключ карты — массив достаётся целиком.
-        $bundle = ((array) config('crawler.tls.bundles', []))[$host] ?? null;
+        $bundles = config('crawler.tls.bundles', []);
 
-        return $bundle !== null ? ['verify' => $bundle] : [];
+        if (! is_array($bundles)) {
+            throw new \LogicException('crawler.tls.bundles должен быть картой путей CA-бандлов.');
+        }
+
+        $bundle = $bundles[$host] ?? null;
+
+        if ($bundle === null) {
+            return [];
+        }
+
+        if (! is_string($bundle) || $bundle === '') {
+            throw new \LogicException("CA-бандл для {$host} должен быть непустой строкой.");
+        }
+
+        return ['verify' => $bundle];
     }
 }

@@ -35,8 +35,38 @@ final readonly class ClassifierImporter
                 return;
             }
 
+            $columns = [];
+
+            foreach ($header as $column) {
+                if (! is_string($column) || $column === '') {
+                    throw new RuntimeException("Выгрузка содержит пустой или нестроковый заголовок: {$path}");
+                }
+
+                $columns[] = $column;
+            }
+
+            if (count($columns) !== count(array_unique($columns))) {
+                throw new RuntimeException("Выгрузка содержит повторяющиеся заголовки: {$path}");
+            }
+
             while (($line = fgetcsv($handle)) !== false) {
-                yield $this->normalize(row: array_combine($header, $line));
+                $values = [];
+
+                foreach ($line as $value) {
+                    if (! is_string($value)) {
+                        throw new RuntimeException("Выгрузка содержит нестроковое значение: {$path}");
+                    }
+
+                    $values[] = $value;
+                }
+
+                if (count($columns) !== count($values)) {
+                    throw new RuntimeException("Строка выгрузки не соответствует заголовку: {$path}");
+                }
+
+                $row = array_combine($columns, $values);
+
+                yield $this->normalize(row: $row);
             }
         } finally {
             fclose($handle);

@@ -131,7 +131,13 @@ final readonly class PromptPatchApplier
         }
 
         $front = [];
-        foreach (preg_split('/\n/', trim($matches['front'])) as $line) {
+        $lines = preg_split('/\n/', trim($matches['front']));
+
+        if ($lines === false) {
+            throw new RuntimeException("Файл промта с неразбираемым front-matter: {$path}");
+        }
+
+        foreach ($lines as $line) {
             if (! str_contains($line, ':')) {
                 continue;
             }

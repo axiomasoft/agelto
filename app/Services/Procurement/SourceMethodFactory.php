@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services\Procurement;
 
 use App\Enums\Procurement\Crawler\SourceMethod as SourceMethodEnum;
+use App\Exceptions\Procurement\Crawler\PlatformAdapterConfigurationException;
 use App\Exceptions\Procurement\Crawler\PlatformAdapterUnavailableException;
 use App\Models\Procurement\Crawler\Crawler;
 use App\Models\Procurement\Platform\Registry;
@@ -25,8 +26,7 @@ final readonly class SourceMethodFactory
 
     public function make(SourceMethodEnum $method, Registry $registry): SourceMethod
     {
-        return $this->tryMake(method: $method, registry: $registry)
-            ?? throw SourceMethodUnavailableException::forUnconfiguredMethod(method: $method);
+        return $this->tryMake(method: $method, registry: $registry);
     }
 
     public function makeWithFallback(Crawler $crawler): SourceMethod
@@ -39,7 +39,7 @@ final readonly class SourceMethodFactory
 
         $primary = $this->tryMake(method: $crawler->source_method, registry: $registry);
 
-        if ($primary !== null && $primary->isAvailable()) {
+        if ($primary->isAvailable()) {
             return $primary;
         }
 
@@ -51,7 +51,7 @@ final readonly class SourceMethodFactory
 
         $fallbackMethod = $this->tryMake(method: $fallback, registry: $registry);
 
-        if ($fallbackMethod === null || ! $fallbackMethod->isAvailable()) {
+        if (! $fallbackMethod->isAvailable()) {
             throw SourceMethodUnavailableException::forCrawler(method: $crawler->source_method, fallback: $fallback);
         }
 
@@ -63,10 +63,16 @@ final readonly class SourceMethodFactory
         return $fallbackMethod;
     }
 
-    private function tryMake(SourceMethodEnum $method, Registry $registry): ?SourceMethod
+    private function tryMake(SourceMethodEnum $method, Registry $registry): SourceMethod
     {
         $class = $this->adapters->sourceMethod(registry: $registry, method: $method);
 
-        return $this->container->make(abstract: $class);
+        $method = $this->container->make(abstract: $class);
+
+        if (! $method instanceof SourceMethod) {
+            throw new PlatformAdapterConfigurationException("Source method {$class} должен реализовывать ".SourceMethod::class.'.');
+        }
+
+        return $method;
     }
 }

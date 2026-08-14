@@ -92,7 +92,7 @@ final readonly class CardAnchorProbe
             throw new InvalidArgumentException('В эталоне вкладки отсутствует массив anchors.');
         }
 
-        return array_map(function (mixed $anchor): array {
+        return array_values(array_map(function (mixed $anchor): array {
             if (! is_array($anchor) || ! is_string($anchor['selector'] ?? null) || ! is_bool($anchor['critical'] ?? null)) {
                 throw new InvalidArgumentException('Якорь эталона имеет неверную структуру.');
             }
@@ -108,7 +108,7 @@ final readonly class CardAnchorProbe
                 'critical' => $anchor['critical'],
                 'min_matches' => $minMatches,
             ];
-        }, $anchors);
+        }, $anchors));
     }
 
     /** @param array<string, mixed> $tabDescription

@@ -19,6 +19,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  *
  * @property int|null $platform_id
  * @property int|null $registry_id
+ * @property string $canonical_status
  */
 #[UseFactory(StatusMappingFactory::class)]
 #[Fillable([
