@@ -27,7 +27,13 @@ final readonly class DetailRefetchSelector
      */
     public function due(int $limit): LazyCollection
     {
-        $rescanBefore = Carbon::now()->subMinutes((int) config('crawler.detail_rescan_interval_minutes', 60));
+        $rescanIntervalMinutes = config('crawler.detail_rescan_interval_minutes', 60);
+
+        if (! is_int($rescanIntervalMinutes)) {
+            throw new \UnexpectedValueException('crawler.detail_rescan_interval_minutes must be an integer.');
+        }
+
+        $rescanBefore = Carbon::now()->subMinutes($rescanIntervalMinutes);
 
         return Procurement::query()
             ->where('detail_failed', false)
