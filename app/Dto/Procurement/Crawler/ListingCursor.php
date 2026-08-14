@@ -50,14 +50,66 @@ final readonly class ListingCursor
     public static function fromArray(array $cursor): self
     {
         return new self(
-            blockFrom: (int) ($cursor['blockFrom'] ?? 1),
-            day: $cursor['day'] ?? null,
-            priceStack: $cursor['priceStack'] ?? null,
+            blockFrom: self::int($cursor['blockFrom'] ?? 1, 'blockFrom'),
+            day: self::nullableString($cursor['day'] ?? null, 'day'),
+            priceStack: self::nullableStringList($cursor['priceStack'] ?? null, 'priceStack'),
             reachedKnown: (bool) ($cursor['reachedKnown'] ?? false),
-            dateField: $cursor['dateField'] ?? null,
-            lastDedupSignature: $cursor['lastDedupSignature'] ?? null,
-            blocksInInterval: (int) ($cursor['blocksInInterval'] ?? 0),
+            dateField: self::dateField($cursor['dateField'] ?? null),
+            lastDedupSignature: self::nullableString($cursor['lastDedupSignature'] ?? null, 'lastDedupSignature'),
+            blocksInInterval: self::int($cursor['blocksInInterval'] ?? 0, 'blocksInInterval'),
         );
+    }
+
+    private static function int(mixed $value, string $key): int
+    {
+        if (! is_int($value)) {
+            throw new \UnexpectedValueException("Listing cursor {$key} must be an integer.");
+        }
+
+        return $value;
+    }
+
+    private static function nullableString(mixed $value, string $key): ?string
+    {
+        if ($value === null || is_string($value)) {
+            return $value;
+        }
+
+        throw new \UnexpectedValueException("Listing cursor {$key} must be a string or null.");
+    }
+
+    /** @return list<string>|null */
+    private static function nullableStringList(mixed $value, string $key): ?array
+    {
+        if ($value === null) {
+            return null;
+        }
+
+        if (! is_array($value)) {
+            throw new \UnexpectedValueException("Listing cursor {$key} must be a list of strings or null.");
+        }
+
+        $result = [];
+
+        foreach ($value as $part) {
+            if (! is_string($part)) {
+                throw new \UnexpectedValueException("Listing cursor {$key} must be a list of strings or null.");
+            }
+
+            $result[] = $part;
+        }
+
+        return $result;
+    }
+
+    /** @return 'publish'|'update'|null */
+    private static function dateField(mixed $value): ?string
+    {
+        if ($value === null || $value === 'publish' || $value === 'update') {
+            return $value;
+        }
+
+        throw new \UnexpectedValueException('Listing cursor dateField must be publish, update, or null.');
     }
 
     public function withReachedKnown(): self
