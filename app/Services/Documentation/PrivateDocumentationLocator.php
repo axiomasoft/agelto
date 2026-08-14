@@ -31,13 +31,13 @@ final readonly class PrivateDocumentationLocator
             absolutePath: $absolutePath,
             mime: $entry['mime'],
             securityHeaders: $this->securityHeaders(),
-            htmlCsp: (string) config('documentation.html_csp'),
+            htmlCsp: $this->configString('documentation.html_csp'),
         );
     }
 
     private function root(): string
     {
-        $root = realpath((string) config('documentation.root'));
+        $root = realpath($this->configString('documentation.root'));
 
         if ($root === false || ! is_dir($root)) {
             $this->notFound();
@@ -48,7 +48,7 @@ final readonly class PrivateDocumentationLocator
 
     private function site(string $root): string
     {
-        $site = realpath($root.DIRECTORY_SEPARATOR.(string) config('documentation.site_directory'));
+        $site = realpath($root.DIRECTORY_SEPARATOR.$this->configString('documentation.site_directory'));
 
         if ($site === false || ! is_dir($site) || ! $this->isContainedBy($site, $root)) {
             $this->notFound();
@@ -75,7 +75,7 @@ final readonly class PrivateDocumentationLocator
      */
     private function manifest(string $root): array
     {
-        $manifestPath = realpath($root.DIRECTORY_SEPARATOR.(string) config('documentation.manifest'));
+        $manifestPath = realpath($root.DIRECTORY_SEPARATOR.$this->configString('documentation.manifest'));
 
         if ($manifestPath === false || ! is_file($manifestPath) || ! $this->isContainedBy($manifestPath, $root)) {
             $this->notFound();
@@ -165,7 +165,23 @@ final readonly class PrivateDocumentationLocator
      */
     private function securityHeaders(): array
     {
-        return array_map(strval(...), (array) config('documentation.security_headers'));
+        $headers = config('documentation.security_headers');
+
+        if (! is_array($headers)) {
+            $this->notFound();
+        }
+
+        $result = [];
+
+        foreach ($headers as $name => $value) {
+            if (! is_string($name) || ! is_string($value)) {
+                $this->notFound();
+            }
+
+            $result[$name] = $value;
+        }
+
+        return $result;
     }
 
     private function isContainedBy(string $path, string $root): bool
@@ -176,5 +192,16 @@ final readonly class PrivateDocumentationLocator
     private function notFound(): never
     {
         throw new NotFoundHttpException;
+    }
+
+    private function configString(string $key): string
+    {
+        $value = config($key);
+
+        if (! is_string($value)) {
+            $this->notFound();
+        }
+
+        return $value;
     }
 }
