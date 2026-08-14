@@ -3,7 +3,7 @@ projection: status-view
 projection_version: v1
 source_scope: plan core + phases + journal
 through: 2026-08-14
-inputs_sha256: 3a222c340844633e74afa82b6689f938714050e0a325eb46f6e18d6dafc0493a
+inputs_sha256: f000c3936af79b4421cd01a7c7c1809afa4a32c0f380f7dc5239f758b743ede4
 generated_by: task plan-views status
 -->
 
@@ -25,7 +25,7 @@ generated_by: task plan-views status
 |:--|:--|:--|:--|
 | P0 | Разведка репозитория, референсов и RAG-контракты | 8/8 | 🟢 Done |
 | P1 | Makefile и Docker dev/prod с Vite-ready topology | 7/7 | 🟢 Done |
-| P10 | PHP, архитектура, безопасность и production-readiness audit | 5/6 | 🟡 In progress |
+| P10 | PHP, архитектура, безопасность и production-readiness audit | 6/6 | 🟢 Done |
 | P11 | Pest 5 performance, test isolation и CI | 0/6 | ⬜ Not started |
 | P12 | Ubuntu deployment guide и финальный clean-room rehearsal | 0/7 | ⬜ Not started |
 | P2 | Local vendor, secrets, preflight, bootstrap и Laravel Doctor | 7/7 | 🟢 Done |
@@ -71,7 +71,7 @@ generated_by: task plan-views status
 | P10.3 | Найти duplication, dead code, naming и needless abstractions | 🟢 Done | 2026-08-13 |
 | P10.4 | Проверить migrations, transactions, races, idempotency, queues и config defaults | 🟢 Done | 2026-08-13 |
 | P10.5 | Исправить findings вертикальными срезами с regression tests | 🟢 Done | 2026-08-13 |
-| P10.6 | Закрепить quality gates и синхронизировать architecture/security docs | 🟡 In progress | 2026-08-14 |
+| P10.6 | Закрепить quality gates и синхронизировать architecture/security docs | 🟢 Done | 2026-08-14 |
 
 ## Phase P11
 
@@ -655,6 +655,9 @@ write-site: pre_mutation: allow · pre_final: allow |
 | 2026-08-13 | gpt-5.6-terra/high | plan-run · local-repair · note сокращена; полный текст: journal.jsonl:417 |
 | 2026-08-14 | gpt-5.6-terra/high | plan-run · local-repair · Owner continuity rule recorded: no terminal/final while any required validation carrier is red; continue in-scope repair and recheck every completion candidate. |
 | 2026-08-14 | gpt-5.6-terra/high | plan-run · local-repair · Committed Crawler, baseline, proxy, storage, and readiness carriers. Full PHPStan max/no-baseline: 593 errors in 214 files (from 1,591/266); P10.6 remains in progress. |
+| 2026-08-14 | gpt-5.6-terra/high | plan-run · local-repair · Terminal-suppression rule: no final until every P10.6 validation carrier is green and rechecked. |
+| 2026-08-14 | gpt-5.6-terra/high | plan-run · in-progress · Continued P10.6 from current provider-bound task:plan-run route; full PHPStan level:max/no-baseline inventory is 110 errors in 50 files. |
+| 2026-08-14 | gpt-5.6-terra/high | plan-run · closed-green · P10.6 quality carrier green: PHPStan max zero, audit, Pint, Rector, and full PHP suite passed. |
 
 ## Owner Gates
 
