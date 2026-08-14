@@ -10,6 +10,7 @@ use App\Models\Procurement\Crawler\Run;
 
 final readonly class FetchLogger
 {
+    /** @param array<string, mixed> $attributes */
     public function log(CrawlStage $stage, ?Run $run, ?int $procurementId, array $attributes): Fetch
     {
         if ($stage === CrawlStage::Listing && $run === null) {
