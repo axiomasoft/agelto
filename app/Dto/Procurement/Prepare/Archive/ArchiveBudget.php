@@ -18,8 +18,8 @@ final readonly class ArchiveBudget
     public static function fromConfig(): self
     {
         return new self(
-            maxDepth: self::positiveInt('ai.prepare.archive.max_depth', 2),
-            maxEntries: self::positiveInt('ai.prepare.archive.max_files', 200),
+            maxDepth: self::nonNegativeInt('ai.prepare.archive.max_depth', 2),
+            maxEntries: self::nonNegativeInt('ai.prepare.archive.max_files', 200),
             maxEntryBytes: self::positiveInt('ai.prepare.archive.max_entry_mb', 100) * 1024 * 1024,
             maxTotalBytes: self::positiveInt('ai.prepare.archive.max_total_mb', 500) * 1024 * 1024,
             maxCompressionRatio: self::positiveInt('ai.prepare.archive.max_ratio', 100),
@@ -33,6 +33,17 @@ final readonly class ArchiveBudget
 
         if (! is_int($value) || $value <= 0) {
             throw new \UnexpectedValueException("{$key} must be a positive integer.");
+        }
+
+        return $value;
+    }
+
+    private static function nonNegativeInt(string $key, int $default): int
+    {
+        $value = config($key, $default);
+
+        if (! is_int($value) || $value < 0) {
+            throw new \UnexpectedValueException("{$key} must be a non-negative integer.");
         }
 
         return $value;
