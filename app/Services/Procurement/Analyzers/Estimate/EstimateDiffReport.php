@@ -238,13 +238,20 @@ final readonly class EstimateDiffReport
             return null;
         }
 
-        $rows = array_map(
-            static fn (array $row): EstimateRow => EstimateRow::from($row),
-            (array) ($estimate['rows'] ?? []),
-        );
+        $rawRows = $estimate['rows'] ?? [];
+        $rows = [];
+
+        foreach (is_array($rawRows) ? $rawRows : [] as $row) {
+            if (! is_array($row)) {
+                continue;
+            }
+
+            $rows[] = EstimateRow::from($this->stringKeyedArray($row));
+        }
 
         $totals = isset($estimate['totals']) ? EstimateTotalsBlock::from((array) $estimate['totals']) : null;
-        $rowsExpected = (int) ($estimate['rows_expected'] ?? 0);
+        $rawRowsExpected = $estimate['rows_expected'] ?? 0;
+        $rowsExpected = is_int($rawRowsExpected) ? $rawRowsExpected : 0;
 
         $report = $this->validator->validate($rowsExpected, $rows, $totals);
 
@@ -307,7 +314,7 @@ final readonly class EstimateDiffReport
             return null;
         }
 
-        return $quality;
+        return $this->stringKeyedArray($quality);
     }
 
     /**
@@ -319,5 +326,22 @@ final readonly class EstimateDiffReport
         [$estimateIndex, $rowIndex] = explode(':', $key, 2);
 
         return [(int) $estimateIndex, (int) $rowIndex];
+    }
+
+    /**
+     * @param  array<mixed>  $values
+     * @return array<string, mixed>
+     */
+    private function stringKeyedArray(array $values): array
+    {
+        $result = [];
+
+        foreach ($values as $key => $value) {
+            if (is_string($key)) {
+                $result[$key] = $value;
+            }
+        }
+
+        return $result;
     }
 }

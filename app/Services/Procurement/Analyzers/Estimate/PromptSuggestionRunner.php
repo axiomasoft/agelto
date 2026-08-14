@@ -61,8 +61,8 @@ final readonly class PromptSuggestionRunner
         $created = 0;
 
         foreach ($cases as [$code, $analysis, $gold]) {
-            $goldEstimates = (array) ($gold['estimates'] ?? []);
-            $predictedEstimates = (array) ($analysis->result['estimates'] ?? []);
+            $goldEstimates = $this->estimateList($gold['estimates'] ?? []);
+            $predictedEstimates = $this->estimateList($analysis->result['estimates'] ?? []);
             $diff = $this->diffReport->build($goldEstimates, $predictedEstimates)->toArray();
             $fixtureId = $this->fixtures->findByCode($code)?->id;
 
@@ -116,5 +116,35 @@ final readonly class PromptSuggestionRunner
         }
 
         return ['created' => $created, 'outcomes' => $outcomes];
+    }
+
+    /**
+     * @return list<array<string, mixed>>
+     */
+    private function estimateList(mixed $value): array
+    {
+        if (! is_array($value)) {
+            return [];
+        }
+
+        $estimates = [];
+
+        foreach ($value as $estimate) {
+            if (! is_array($estimate)) {
+                continue;
+            }
+
+            $payload = [];
+
+            foreach ($estimate as $key => $field) {
+                if (is_string($key)) {
+                    $payload[$key] = $field;
+                }
+            }
+
+            $estimates[] = $payload;
+        }
+
+        return $estimates;
     }
 }
