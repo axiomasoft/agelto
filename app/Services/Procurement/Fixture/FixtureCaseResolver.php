@@ -74,14 +74,32 @@ final readonly class FixtureCaseResolver
     {
         // `ai.fixtures.gold_dir` уже несёт `base_path()` (config/ai.php) — повторный base_path()
         // задвоил бы путь.
-        $goldPath = ((string) config('ai.fixtures.gold_dir'))."/{$code}.gold.json";
+        $goldDirectory = config('ai.fixtures.gold_dir');
+
+        if (! is_string($goldDirectory)) {
+            throw new GoldFileUnreadable("Gold-директория для {$code} не настроена.");
+        }
+
+        $goldPath = "{$goldDirectory}/{$code}.gold.json";
 
         if (! is_file($goldPath)) {
             throw new GoldFileUnreadable("Gold-файл не найден: {$goldPath}");
         }
 
         try {
-            return (array) json_decode((string) file_get_contents($goldPath), associative: true, flags: JSON_THROW_ON_ERROR);
+            $contents = file_get_contents($goldPath);
+
+            if ($contents === false) {
+                throw new GoldFileUnreadable("Gold-файл недоступен для чтения: {$goldPath}");
+            }
+
+            $decoded = json_decode($contents, associative: true, flags: JSON_THROW_ON_ERROR);
+
+            if (! is_array($decoded)) {
+                throw new GoldFileUnreadable("Gold-файл не содержит JSON-объект: {$goldPath}");
+            }
+
+            return $this->stringKeyedArray($decoded);
         } catch (JsonException $e) {
             throw new GoldFileUnreadable("Gold-файл не распарсен: {$e->getMessage()}");
         }
@@ -121,5 +139,22 @@ final readonly class FixtureCaseResolver
         $code = substr($externalId, strlen('fixture:'));
 
         return $this->fixtures->findByCode($code) !== null ? $code : null;
+    }
+
+    /**
+     * @param  array<mixed>  $values
+     * @return array<string, mixed>
+     */
+    private function stringKeyedArray(array $values): array
+    {
+        $result = [];
+
+        foreach ($values as $key => $value) {
+            if (is_string($key)) {
+                $result[$key] = $value;
+            }
+        }
+
+        return $result;
     }
 }

@@ -30,14 +30,16 @@ final readonly class GoldExampleImporter
             return new ItemOutcome($fixture->code, 'rejected', "{$path} не парсится как JSON-объект");
         }
 
+        $payload = $this->stringKeyedArray($decoded);
+
         if ($isScreening) {
             try {
-                ScreeningResult::validateAndCreate($decoded);
+                ScreeningResult::validateAndCreate($payload);
             } catch (Throwable $e) {
                 return new ItemOutcome($fixture->code, 'rejected', "screening-gold не прошёл валидацию: {$e->getMessage()}");
             }
         } else {
-            $errors = $this->goldValidator->validate($decoded);
+            $errors = $this->goldValidator->validate($payload);
 
             if ($errors !== []) {
                 return new ItemOutcome($fixture->code, 'rejected', 'extraction-gold не прошёл валидацию: '.implode('; ', $errors));
@@ -52,5 +54,22 @@ final readonly class GoldExampleImporter
         ]);
 
         return new ItemOutcome($fixture->code, 'imported');
+    }
+
+    /**
+     * @param  array<mixed>  $values
+     * @return array<string, mixed>
+     */
+    private function stringKeyedArray(array $values): array
+    {
+        $result = [];
+
+        foreach ($values as $key => $value) {
+            if (is_string($key)) {
+                $result[$key] = $value;
+            }
+        }
+
+        return $result;
     }
 }

@@ -31,7 +31,7 @@ final readonly class FixtureRegistrar
             $errors = [];
 
             foreach ($e->errors() as $field => $messages) {
-                $errors[] = "fixtures.{$index}.{$field}: ".implode('; ', $messages);
+                $errors[] = "fixtures.{$index}.{$field}: ".$this->joinMessages($messages);
             }
 
             return $errors;
@@ -42,7 +42,13 @@ final readonly class FixtureRegistrar
         $content = null;
 
         if (Storage::disk($disk)->exists($entry->storage_path)) {
-            $existingHash = hash('sha256', Storage::disk($disk)->get($entry->storage_path));
+            $existingContent = Storage::disk($disk)->get($entry->storage_path);
+
+            if (! is_string($existingContent)) {
+                return ["fixtures.{$index}.storage_path: существующий файл недоступен для чтения"];
+            }
+
+            $existingHash = hash('sha256', $existingContent);
 
             if ($existingHash !== $entry->sha256) {
                 return ["fixtures.{$index}.sha256: файл на диске уже существует с другим содержимым (sha256 разошёлся — перезапись без ведома оператора запрещена)"];
@@ -54,7 +60,11 @@ final readonly class FixtureRegistrar
                 return ["fixtures.{$index}.source_path: файл-источник не найден ({$sourcePath})"];
             }
 
-            $content = (string) file_get_contents($sourcePath);
+            $content = file_get_contents($sourcePath);
+
+            if ($content === false) {
+                return ["fixtures.{$index}.source_path: файл-источник недоступен для чтения ({$sourcePath})"];
+            }
             $actualHash = hash('sha256', $content);
             $actualSize = strlen($content);
 
@@ -102,5 +112,14 @@ final readonly class FixtureRegistrar
         ]);
 
         return [];
+    }
+
+    private function joinMessages(mixed $messages): string
+    {
+        if (! is_array($messages)) {
+            return is_scalar($messages) ? (string) $messages : 'неизвестная ошибка валидации';
+        }
+
+        return implode('; ', array_filter($messages, is_string(...)));
     }
 }
