@@ -10,6 +10,12 @@
         "dev": "vite",
         "test:e2e": "playwright test"
     },
+    "pnpm": {
+        "overrides": {
+            "@vitejs/plugin-vue": "6.0.8",
+            "vite": "7.3.6"
+        }
+    },
     "devDependencies": {
         "@playwright/test": "1.62.1",
         "@tailwindcss/vite": "^4.0.0",

@@ -48,11 +48,13 @@ rg -q 'runner\.os.*runner\.arch.*hashFiles\(.pnpm-lock.yaml.' "$ci_workflow"
 rg -q 'make quality' "$ci_workflow"
 rg -q 'make test:junit' "$ci_workflow"
 rg -q 'make test:coverage' "$ci_workflow"
+[[ $(rg -c 'make bootstrap MODE=dev ENV_FILE=\.env\.example' "$ci_workflow") -eq 4 ]]
 rg -q -- '--critical-file app/Services/Procurement/Proxy/ProxyResolver.php' "$ci_workflow"
 rg -q 'clean-install-e2e\.sh' "$ci_workflow"
 rg -q 'E2E_ARTIFACT_DIR: .ci-artifacts' "$ci_workflow"
 rg -q 'E2E_ARTIFACT_DIR' docker/tests/clean-install-e2e.sh
 rg -q 'playwright-report/index\.html' "$ci_workflow"
+[[ $(rg -c 'run: make vendor:sync' "$ci_workflow") -eq 2 ]]
 rg -q 'make image:build' "$ci_workflow"
 rg -q 'composer audit --locked' "$ci_workflow"
 rg -q 'pnpm audit --audit-level=high' "$ci_workflow"
