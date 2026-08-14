@@ -138,24 +138,32 @@ class FixturesTable
     private static function manifestState(): array
     {
         try {
-            $manifest = app(FixtureManifestReader::class)->read((string) config('ai.fixtures.manifest_path'));
+            $manifestPath = config('ai.fixtures.manifest_path');
+
+            if (! is_string($manifestPath) || $manifestPath === '') {
+                return ['available' => false, 'codes' => [], 'goldCodes' => []];
+            }
+
+            $manifest = app(FixtureManifestReader::class)->read($manifestPath);
         } catch (ManifestUnreadable) {
             return ['available' => false, 'codes' => [], 'goldCodes' => []];
         }
 
         $codes = collect($manifest['fixtures'])
-            ->map(static fn (mixed $entry): ?string => is_array($entry) ? (($entry['code'] ?? null) !== null ? (string) $entry['code'] : null) : null)
+            ->map(static fn (mixed $entry): ?string => is_array($entry) && is_string($entry['code'] ?? null) ? $entry['code'] : null)
             ->filter()
             ->values()
             ->all();
 
         $goldCodes = collect($manifest['fixtures'])
             ->filter(static fn (mixed $entry): bool => is_array($entry) && filled($entry['gold_path'] ?? null))
-            ->map(static fn (array $entry): ?string => ($entry['code'] ?? null) !== null ? (string) $entry['code'] : null)
+            ->map(static fn (array $entry): ?string => is_string($entry['code'] ?? null) ? $entry['code'] : null)
             ->filter()
             ->values()
             ->all();
 
+        /** @var list<string> $codes */
+        /** @var list<string> $goldCodes */
         return ['available' => true, 'codes' => $codes, 'goldCodes' => $goldCodes];
     }
 }
