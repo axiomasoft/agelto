@@ -9,7 +9,10 @@ use App\Dto\Procurement\Prepare\Archive\ArchiveEntry;
 
 final class ArchiveEntryValidator
 {
-    /** @param list<ArchiveEntry> $entries @return list<ArchiveEntry> */
+    /**
+     * @param  list<ArchiveEntry>  $entries
+     * @return list<ArchiveEntry>
+     */
     public function validate(array $entries, ArchiveBudget $budget): array
     {
         $totalBytes = 0;
