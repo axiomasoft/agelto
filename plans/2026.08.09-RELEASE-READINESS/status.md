@@ -3,7 +3,7 @@ projection: status-view
 projection_version: v1
 source_scope: plan core + phases + journal
 through: 2026-08-14
-inputs_sha256: 370bdc0d2623fa25286f1e54c864f2bf6c1758b6657d7006e0487a2ad70fb0e3
+inputs_sha256: 6a29f5790a7d20cd508f157db07f461085b38d2bf2cc838867e168e50d49f0b8
 generated_by: task plan-views status
 -->
 
@@ -79,7 +79,7 @@ generated_by: task plan-views status
 |:--|:--|:--|:--|
 | P11.1 | Измерить текущий suite и верифицировать Pest 5 fast/TIA/parallel capabilities | 🟢 Done | 2026-08-14 |
 | P11.2 | Настроить Pest 5 engine, profiling, parallelism и безопасные caches | 🟢 Done | 2026-08-14 |
-| P11.3 | Укрепить test DB/media isolation и agent-optimized output | ⬜ Not started | — |
+| P11.3 | Укрепить test DB/media isolation и agent-optimized output | 🟡 In progress | 2026-08-14 |
 | P11.4 | Закрыть недостающие risk-based unit/feature/integration/E2E suites | ⬜ Not started | — |
 | P11.5 | Настроить CI style/static/tests/build/security с корректными caches | ⬜ Not started | — |
 | P11.6 | Запечатать performance, coverage, determinism и flake gates | ⬜ Not started | — |
@@ -677,6 +677,8 @@ write-site: pre_mutation: allow · pre_final: allow |
 | 2026-08-14 | gpt-5.6-terra/high | plan-run · closed-green · P11.2: локальный TIA и безопасный serial full no-TIA контракт подтверждены. |
 | 2026-08-14 | gpt-5.6-terra/high | plan-run · local-repair · Projected closure evidence repaired after lint.
 write-site: pre_mutation: allow · pre_final: allow |
+| 2026-08-14 | gpt-5.6-terra/high | plan-run · in-progress · — |
+| 2026-08-14 | gpt-5.6-terra/high | plan-run · local-repair · Product commit 2bf3e7c8 and quality green; documentation clean-build cannot fetch pinned AzGuard commit ca37d4b from remote. |
 
 ## Owner Gates
 
