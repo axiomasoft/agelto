@@ -312,3 +312,13 @@ item-owned carrier через установленный Swissknifeman marketpla
 checkout и завершиться без resource-pressure deviation. Product fixes по-прежнему принадлежат
 P10.5; P10.2 остаётся read-only audit. Решение материализовано D85 и
 `research/25-P10.2-reexecution-design.md`.
+
+## 2026-08-14 — P11.4 scope/acceptance reconciliation
+
+Владелец запустил `$ task:plan-design 2026.08.09-RELEASE-READINESS P11.4` после terminal
+escalation item'а. Design scope ограничен конфликтом: P11.4 исключает CI YAML, но прежняя
+Validation требовала zero Critical/High gaps при открытом D42, которым уже владеет P11.5.
+Reconciliation не реализует тесты или workflow и не ослабляет D42: P11.4 закрывает все
+runtime/test gaps и передаёт ровно один явный D42 Gap P11.5; P11.5 обязан закрыть D42 и общий
+zero-gap gate. Решение материализовано D87 и
+`research/26-P11.4-acceptance-scope-reconciliation.md`.

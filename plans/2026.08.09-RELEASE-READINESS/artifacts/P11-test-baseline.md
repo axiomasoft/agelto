@@ -177,6 +177,21 @@ selects **serial** as the only safe release/CI mode; no `tests/.pest/shards.json
 committed. P11.3 owns the required database/filesystem/process isolation proof before a shard
 candidate can be reconsidered.
 
+## P11.4 post-repair measurement
+
+- `make test:full`: exit 0, **1,575 passed / 7,107 assertions**, 91.35 s.
+- `make test:coverage`: exit 0, **1,575 passed / 7,107 assertions**, 102.75 s. Clover
+  `storage/app/coverage/clover.xml` SHA-256
+  `01468cd5d0f30ff43dfdf5d7e7d6883bc80fa99327386f09b9d8226399d13217` reports 703 files,
+  2,283 methods / 1,525 covered (66.80%), and 20,260 statements / 17,873 covered
+  (**88.22%**). This exceeds the P11.4 global 70% floor; the full critical-file floor remains a
+  P11.5 CI gate, not a percentage-based substitute for the risk matrix.
+- `make test:profile`: exit 0, **1,575 passed / 7,107 assertions**, 85.45 s. The selected D40
+  release mode remains serial: no shard map is created or implied by this run.
+- `bash docker/tests/test-runtime-contract.sh` and
+  `bash docker/tests/test-isolation-contract.sh` are green after the native-Paratest topology
+  repair. They are the deterministic D40 and D41 carriers respectively.
+
 ## Raw evidence manifest
 
 The contract requires this ignored directory and validates every byte count and SHA-256 below; it

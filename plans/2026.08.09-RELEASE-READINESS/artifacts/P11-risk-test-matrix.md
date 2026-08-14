@@ -5,8 +5,10 @@
 This is the complete D19–D42 inventory on tree `48aa8f58`. `Covered` means a current deterministic
 carrier exists; `Partial` means useful evidence exists but an explicit risk edge is still missing;
 `Gap` means the decision's final P11 carrier does not exist yet. Terminal upstream state is evidence
-of implementation, not a substitute for the named test. P11.4 must leave zero Critical/High gaps;
-P11.5 owns CI/workflow execution and P11.6 owns final budgets/flake evidence.
+of implementation, not a substitute for the named test. At P11.4 close every Critical/High
+`Gap`/`Partial` must be `Covered` except exactly D42, which remains an explicit `Gap` owned by P11.5;
+P11.4 must not call workflow policy covered. P11.5 must move D42 to `Covered` and leave zero
+Critical/High gaps overall; P11.6 owns final budgets/flake evidence. RAG:— (repo-grounded: D87).
 
 | D | Risk / invariant | Severity | Current evidence on terminal tree | Status | Required closure owner |
 |:--|:--|:--|:--|:--|:--|
@@ -25,20 +27,22 @@ P11.5 owns CI/workflow execution and P11.6 owns final budgets/flake evidence.
 | D31 | Hostile archives are bounded and path-safe; child identity is race-safe and dispatched after commit | Critical | `ArchiveEntryValidatorTest`, `ArchiveStrategyTest`, `ArchivePipelineTest` concurrency cases | Covered | P11.4 name resource/path/collision/after-commit risks separately |
 | D32 | Semantic type is one closed enum across DB/schema/prompt/eval/UI; Unknown differs from pre-screen NULL | High | `ScreeningContractMatrixTest`, architecture screening contract, prompt/gold/eval Features | Covered | P11.4 enumerate all eight consumer axes |
 | D33 | Screening v2 bounds/normalizes fields and enforces type/cardinality rules; backend disposition is excluded | Critical | `ScreeningResultTest`, `ScreeningContractMatrixTest`, `ScreeningGoldTest`, `ScreeningEvalTest` | Covered | P11.4 retain invalid combination and bound cases |
-| D34 | Versioned screening envelope has one source; decision/status/event/dispatch are atomic and after-commit | Critical | schema migration, branching/processor and stored-result Feature/Unit tests | Partial | P11.4 add/identify atomic rollback + after-commit negative proof |
+| D34 | Versioned screening envelope has one source; decision/status/event/dispatch are atomic and after-commit | Critical | `ProcurementSucceededEventTest` proves rollback cancels the `afterCommit` event; schema migration, branching/processor and stored-result Feature/Unit tests cover the remaining envelope | Covered | P11.4 verified the negative atomicity carrier; P11.5 reuses the full no-TIA suite |
 | D35 | Platform registry is the only runtime extension reader and fails closed on missing capability | High | platform registry Unit, platform extension architecture/Feature contracts, onboarding Feature | Covered | P11.4 inventory every factory/form consumer |
 | D36 | Status applicability is exactly platform default or registry override with deterministic precedence/races | Critical | applicability migration, status mapping, seeder and Filament resource Features; shell contract | Covered | P11.4 retain race-safe unknown and rollback-loss refusal |
 | D37 | Historical navigation decision is superseded by D82 and must not be tested as current policy | Medium | decision metadata `superseded_by: D82`; `LayerNavigationTest` and label tests cover current D82 | Covered | P11.4 points navigation row to D82, never resurrects D37 |
 | D38 | Filament labels/booleans/tables/schema stay native and do not couple provider-agnostic enums | High | enum presentation, schema/table contracts, layer navigation and architecture tests | Covered | P11.4 explicitly include Llm boundary and technical-ID policy |
 | D39 | Security/architecture/production gates are deterministic; critical/high defects and red gates cannot defer | Critical | P10 contract scripts + quality/remediation carriers; terminal P10.6 | Covered | P11.5 calls P10 aggregate unchanged; P11.4 consumes matrix dispositions |
-| D40 | Local TIA is never acceptance; process/shard mode needs repeated exact name/status parity and cost threshold | High | P11.1 five-run/TIA/shard evidence; parallel is deterministically red | Partial | P11.2 corrects TIA config, repeats provisional 2-shard mode and repairs/rejects parallel |
-| D41 | Testing permits only exact serial/token DB and process roots; sabotage fails before mutation; PAO markers propagate | Critical | suffix guard Feature exists, but exact token/filesystem sabotage and Codex marker contract do not | Gap | P11.3 owns exact DB/disk/log/temp guards, sabotage corpus and PAO marker tests |
-| D42 | CI is least-privilege/SHA-pinned, full no-TIA, cache-safe, risk/coverage/performance/flake gated | Critical | policy and P11.1 baseline exist; no tracked workflow yet | Gap | P11.4 closes risk rows; P11.5 creates/proves workflows; P11.6 seals floors/budgets |
+| D40 | Local TIA is never acceptance; process/shard mode needs repeated exact name/status parity and cost threshold | High | `docker/tests/test-runtime-contract.sh` proves `locally()` TIA only for edit replay, native Paratest PAO carrier, exact serial acceptance and the selected serial verdict | Covered | P11.4 revalidated the unchanged carrier; P11.5 runs the full no-TIA serial suite |
+| D41 | Testing permits only exact serial/token DB and process roots; sabotage fails before mutation; PAO markers propagate | Critical | `docker/tests/test-isolation-contract.sh` proves serial/token DB, filesystem/log/temp roots, pre-mutation sabotage and PAO markers | Covered | P11.3 carrier is reused by P11.5 |
+| D42 | CI is least-privilege/SHA-pinned, full no-TIA, cache-safe, risk/coverage/performance/flake gated | Critical | policy and P11.1 baseline exist; no tracked workflow yet | Gap | P11.4 may only hand off this explicit Gap; P11.5 creates/proves workflows and moves it to Covered; P11.6 seals floors/budgets |
 
 ## Baseline counts
 
 - 24 decision rows are present exactly once (D19 through D42).
-- Critical/High gaps at P11.1 close: D41 and D42. Partial rows: D34 and D40.
+- Critical/High gaps at P11.1 close: D41 and D42. Partial rows: D34 and D40. At P11.4 close,
+  D34, D40 and D41 are Covered by the carriers named above; D42 is the sole remaining Critical/High
+  Gap and remains owned by P11.5.
 - The green 1,569-test suite and 88.27% statement coverage do not waive any Gap/Partial row.
 - D37 is intentionally represented even though superseded; its evidence points to current D82 so the
   historical policy cannot silently re-enter acceptance.

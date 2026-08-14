@@ -18,7 +18,7 @@
 | Design Passes | 1/1 — owner-directed сокращение D46 сохранено; D83 supersedes 75-item carrier D52 и исторический audit waiver D55 для текущей topology: повторный полный cross-phase `finish` сверяет 13 фаз / 84 product/design/remediation items после D62/D64/D66/D70/D72/D76/D77/D80/D81; следующий обязательный gate — новый independent `plan-audit design` |
 | visibility | private |
 
-<!-- migration-version: 0.1.12 -->
+<!-- migration-version: 0.1.13 -->
 
 ## 1. Context
 

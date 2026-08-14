@@ -53,9 +53,10 @@
 - D42 chooses thin SHA-pinned workflows with read-only permissions, lock/runtime-keyed download
   caches, isolated full tests, the existing Playwright stack, separate coverage/security/image jobs
   and a trusted TIA-baseline artifact. A risk matrix, not raw coverage percentage, decides what tests
-  must be added. Final hard floors are global line coverage ≥70%, every configured critical file
-  ≥55%, zero uncovered critical/high matrix rows, and no regression from the higher measured P11.4
-  baseline. Performance budgets use five clean measurements; each hard threshold is the greater of
+  must be added. P11.4 leaves no runtime/test Critical/High `Gap`/`Partial` row and hands the sole
+  CI-only D42 Gap to P11.5; P11.5 must leave zero Critical/High gaps overall. Final hard floors are
+  global line coverage ≥70%, every configured critical file ≥55%, zero uncovered Critical/High rows,
+  and no regression from the higher measured P11.4 baseline. Performance budgets use five clean measurements; each hard threshold is the greater of
   `median × 1.50` and `median + 5s`, then is committed with runner fingerprint and commands. RAG:—
   (internal release policy; official CLI/security carriers are captured in the P11 finding).
 
@@ -66,8 +67,8 @@
 | P11.1 | terminal P0/P1–P10 product tree | immutable serial/TIA/parallel/coverage/profile baseline and initial risk matrix | no optimizer/CI choice before measurement |
 | P11.2 | terminal P11.1 | correct local TIA, safe cache/watch carrier and empirically selected process/shard mode | chosen mode is not accepted until isolation passes |
 | P11.3 | terminal P11.2 | exact DB/process filesystem guards, sabotage tests and PAO marker contract | parallel/agent commands may become canonical |
-| P11.4 | terminal P11.3 + upstream risk tests/P10 matrix | zero uncovered critical/high risk rows across Unit/Feature/integration/Playwright | CI runs a complete named matrix |
-| P11.5 | terminal P11.4 + P1/P2/P10 carriers | hardened CI, dependency caches, security/image/coverage/E2E jobs and trusted TIA baseline | live workflow evidence required by final gate |
+| P11.4 | terminal P11.3 + upstream risk tests/P10 matrix | zero runtime/test Critical/High Gap/Partial rows plus an explicit unresolved D42 handoff | CI receives a complete named product-test matrix and exactly one CI-owned gap |
+| P11.5 | terminal P11.4 + P1/P2/P10 carriers | hardened CI, dependency caches, security/image/coverage/E2E jobs, trusted TIA baseline and D42=`Covered` | zero Critical/High gaps and live workflow evidence required by final gate |
 | P11.6 | terminal P11.5 | committed coverage/performance/flake budgets, deterministic commands, green CI evidence and final report | P12 consumes the release-quality contract |
 
 All six items are sequential: each consumes the preceding benchmark/config/guard/matrix/workflow
@@ -84,7 +85,8 @@ RAG:— (repo-grounded: dependency table and plan-protocol criterion).
 3. Prove isolation negatively with nonexistent sentinel DB/remote-disk configs and positively with
    serial plus tokenized parallel databases/process roots. Never point sabotage tests at dev/prod.
 4. Close the risk matrix row by row. Unit stays pure; Laravel Feature tests cover HTTP/DB/job/
-   repository integration; D24 Playwright covers browser execution. No second browser framework.
+   repository integration; D24 Playwright covers browser execution. P11.4 may leave only D42 as an
+   explicit P11.5-owned Gap; P11.5 must close it through workflow evidence. No second browser framework.
 5. CI calls the same local commands, pins actions by full SHA, uses least privilege, and treats missing
    private-package credentials as blocked—not skipped/green.
 6. Final gate repeats random-order serial runs and the selected parallel/shard mode, applies the
@@ -98,7 +100,7 @@ RAG:— (repo-grounded: dependency table and plan-protocol criterion).
 | TIA replay is reported as a fresh acceptance run | P11.2 command contract + P11.5 `--ci --no-tia` + P11.6 deliberate replay rejection |
 | Parallel workers share a DB, disk, log or auth state | P11.3 exact token/root guard and three repeated parallel runs before D40 selection becomes canonical |
 | A cache or privileged trigger leaks a key / executes poisoned bytes | P11.5 least permissions, no `pull_request_target`, trusted cache writes, SHA pins and secret-path negative tests |
-| Coverage grows while a release-critical invariant stays untested | P11.4 risk matrix blocks every critical/high row independently of percentage |
+| Coverage grows while a release-critical invariant stays untested | P11.4 blocks every runtime/test Critical/High row independently of percentage; P11.5 separately blocks D42 and the final all-row gate |
 | Tight wall-time thresholds flap on hosted runners | P11.6 five-run median, 50%/5s headroom, runner fingerprint and explicit baseline-refresh protocol |
 
 ## Verification status

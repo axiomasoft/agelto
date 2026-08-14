@@ -3,7 +3,7 @@ projection: status-view
 projection_version: v1
 source_scope: plan core + phases + journal
 through: 2026-08-14
-inputs_sha256: 5e34df5ebfc92f60f8cb4619579dd0deafeb9814d1722099952a7b0234400f48
+inputs_sha256: d72c036531024c78b82a44eeda14b928e8eeb43754900da3bf78a816c3cb6489
 generated_by: task plan-views status
 -->
 
@@ -15,7 +15,7 @@ generated_by: task plan-views status
 
 | Поле | Значение |
 |:--|:--|
-| Version | 0.1.12 |
+| Version | 0.1.13 |
 | Status | 🟡 In progress |
 | Last Updated | 2026-08-14 |
 
@@ -26,7 +26,7 @@ generated_by: task plan-views status
 | P0 | Разведка репозитория, референсов и RAG-контракты | 8/8 | 🟢 Done |
 | P1 | Makefile и Docker dev/prod с Vite-ready topology | 7/7 | 🟢 Done |
 | P10 | PHP, архитектура, безопасность и production-readiness audit | 5/6 | 🟠 Done with deviations |
-| P11 | Pest 5 performance, test isolation и CI | 3/6 | 🟡 In progress |
+| P11 | Pest 5 performance, test isolation и CI | 4/6 | 🟡 In progress |
 | P12 | Ubuntu deployment guide и финальный clean-room rehearsal | 0/7 | ⬜ Not started |
 | P2 | Local vendor, secrets, preflight, bootstrap и Laravel Doctor | 7/7 | 🟢 Done |
 | P3 | Fresh install, Livewire/Filament assets и application readiness | 5/5 | 🟢 Done |
@@ -80,7 +80,7 @@ generated_by: task plan-views status
 | P11.1 | Измерить текущий suite и верифицировать Pest 5 fast/TIA/parallel capabilities | 🟢 Done | 2026-08-14 |
 | P11.2 | Настроить Pest 5 engine, profiling, parallelism и безопасные caches | 🟢 Done | 2026-08-14 |
 | P11.3 | Укрепить test DB/media isolation и agent-optimized output | 🟢 Done | 2026-08-14 |
-| P11.4 | Закрыть недостающие risk-based unit/feature/integration/E2E suites | ⬜ Not started | — |
+| P11.4 | Закрыть недостающие risk-based unit/feature/integration/E2E suites | 🟢 Done | 2026-08-14 |
 | P11.5 | Настроить CI style/static/tests/build/security с корректными caches | ⬜ Not started | — |
 | P11.6 | Запечатать performance, coverage, determinism и flake gates | ⬜ Not started | — |
 
@@ -681,6 +681,19 @@ write-site: pre_mutation: allow · pre_final: allow |
 | 2026-08-14 | gpt-5.6-terra/high | plan-run · local-repair · Product commit 2bf3e7c8 and quality green; documentation clean-build cannot fetch pinned AzGuard commit ca37d4b from remote. |
 | 2026-08-14 | gpt-5.6-terra/high | plan-run · closed-green · Exact DB/filesystem guard, PAO and clean local-vendor documentation contract are green. |
 | 2026-08-14 | gpt-5.6-terra/high | plan-run · local-repair · Projected closure evidence refreshed after clean local-vendor repair.
+write-site: pre_mutation: allow · pre_final: allow |
+| 2026-08-14 | gpt-5.6-terra/high | plan-run · in-progress · — |
+| 2026-08-14 | gpt-5.6-terra/high | plan-run · block-candidate · D42 CI gap is assigned to P11.5 but P11.4 validation says zero Critical/High gaps. |
+| 2026-08-14 | gpt-5.6-terra/high | plan-run · escalated · P11.4 excludes CI YAML but requires closing D42, a Critical CI gap owned by P11.5. |
+| 2026-08-14 | frontier/high | plan-design · in-progress · ТЗ item'а доведено до DoR; D87 разделяет P11.4 runtime/test zero-gap и P11.5 D42 CI closure |
+| 2026-08-14 | gpt-5.6-terra/high | plan-run · in-progress · — |
+| 2026-08-14 | gpt-5.6-terra/high | plan-run · local-repair · D40 runtime carrier is red: TIA rejects the required PHPUnit native Paratest test. |
+| 2026-08-14 | gpt-5.6-terra/high | plan-run · block-candidate · P11.2 D40 runtime/TIA contract conflicts with the required native Paratest PHPUnit carrier. |
+| 2026-08-14 | gpt-5.6-terra/high | plan-run · escalated · D40 cannot be proven: native Paratest needs PHPUnit while the selected TIA carrier rejects PHPUnit discovery. |
+| 2026-08-14 | gpt-5.6-terra/high | plan-run · in-progress · Recovery attempt: prior terminal misclassified a reversible Pest/Paratest test-topology repair as a frozen boundary. |
+| 2026-08-14 | gpt-5.6-terra/high | plan-run · local-repair · Regenerate stale P11.5 bundle after P11.4 recovery projection, then rerun the unchanged isolation carrier. |
+| 2026-08-14 | gpt-5.6-terra/high | plan-run · closed-green · D34, D40 and D41 are covered; D42 is the sole P11.5-owned CI Gap. |
+| 2026-08-14 | gpt-5.6-terra/high | plan-run · local-repair · Projected write-site receipt refreshed.
 write-site: pre_mutation: allow · pre_final: allow |
 
 ## Owner Gates
