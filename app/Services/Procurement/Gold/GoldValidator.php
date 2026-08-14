@@ -22,6 +22,7 @@ use Spatie\LaravelData\Exceptions\CannotCreateData;
 final readonly class GoldValidator
 {
     /**
+     * @param  array<string, mixed>  $gold
      * @return list<string> Адреса `estimates.<i>.<поле>` / `estimates.<i>.rows.<j>.<поле>`; пустой
      *                      список = валидно.
      */
@@ -43,21 +44,29 @@ final readonly class GoldValidator
             $rowsJson = $estimateJson['rows'] ?? [];
 
             try {
-                PassportResponse::validateAndCreate(Arr::except($estimateJson, ['rows']));
+                PassportResponse::validateAndCreate(Arr::except($this->stringKeyedArray($estimateJson), ['rows']));
             } catch (ValidationException $e) {
                 foreach ($e->errors() as $field => $messages) {
-                    $errors[] = "estimates.{$index}.{$field}: ".implode('; ', $messages);
+                    $errors[] = "estimates.{$index}.{$field}: ".$this->joinMessages($messages);
                 }
             } catch (CannotCreateData $e) {
                 $errors[] = "estimates.{$index}: {$e->getMessage()}";
             }
 
-            foreach (array_values((array) $rowsJson) as $rowIndex => $rowJson) {
+            $rows = is_array($rowsJson) ? array_values($rowsJson) : [$rowsJson];
+
+            foreach ($rows as $rowIndex => $rowJson) {
+                if (! is_array($rowJson)) {
+                    $errors[] = "estimates.{$index}.rows.{$rowIndex}: ожидается объект";
+
+                    continue;
+                }
+
                 try {
-                    EstimateRow::validateAndCreate((array) $rowJson);
+                    EstimateRow::validateAndCreate($this->stringKeyedArray($rowJson));
                 } catch (ValidationException $e) {
                     foreach ($e->errors() as $field => $messages) {
-                        $errors[] = "estimates.{$index}.rows.{$rowIndex}.{$field}: ".implode('; ', $messages);
+                        $errors[] = "estimates.{$index}.rows.{$rowIndex}.{$field}: ".$this->joinMessages($messages);
                     }
                 } catch (CannotCreateData $e) {
                     $errors[] = "estimates.{$index}.rows.{$rowIndex}: {$e->getMessage()}";
@@ -69,6 +78,8 @@ final readonly class GoldValidator
     }
 
     /**
+     * @param  array<string, mixed>  $gold
+     *
      * @throws ValidationException Список ошибок под ключом `gold`.
      */
     public function assertValid(array $gold): void
@@ -78,5 +89,31 @@ final readonly class GoldValidator
         if ($errors !== []) {
             throw ValidationException::withMessages(['gold' => $errors]);
         }
+    }
+
+    /**
+     * @param  array<mixed>  $values
+     * @return array<string, mixed>
+     */
+    private function stringKeyedArray(array $values): array
+    {
+        $result = [];
+
+        foreach ($values as $key => $value) {
+            if (is_string($key)) {
+                $result[$key] = $value;
+            }
+        }
+
+        return $result;
+    }
+
+    private function joinMessages(mixed $messages): string
+    {
+        if (! is_array($messages)) {
+            return is_scalar($messages) ? (string) $messages : 'неизвестная ошибка валидации';
+        }
+
+        return implode('; ', array_filter($messages, is_string(...)));
     }
 }
