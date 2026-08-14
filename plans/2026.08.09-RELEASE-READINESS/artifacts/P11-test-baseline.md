@@ -160,6 +160,23 @@ Full shard JUnit hashes: `1/2=170d3a3c8f3b5373538a9b333f4dd0dea9f5b11d7441329e99
 `3/4=37e22738361917c4461433ff0609d7f9077349088dfd1ebabb940982d14e76f9`,
 `4/4=7b3c7694508d0be76d9b651d8aa29b4e573338e06c6e1bfd66b1c7a052d4a0b7`.
 
+## P11.2 follow-up measurement
+
+`bash docker/tests/test-runtime-contract.sh` revalidated the local TIA cache reset/refresh and
+edit-loop, then completed three independent full `--ci --no-tia` serial runs. Their normalized
+name/status sets were identical: 1,569 passed / 7,084 assertions; the measured serial median was
+**91.97 s**, within the 125% guard of the P11.1 89.97-second baseline. The P11.1 profile remains
+the performance explanation: no individual slow test dominates enough to justify changing its
+behavior or weakening its assertions.
+
+The obsolete global `RuntimeException` import in `GeminiResponseSchemaAdapterTest` was removed, so
+Pest can discover the test normally. An actual simultaneous 2-way external shard repetition then
+reproduced shared-`agelto_test` interference: missing tables, migration deadlocks and cross-test
+state assertions. It is an isolation defect, not a performance result. Per D40 P11.2 therefore
+selects **serial** as the only safe release/CI mode; no `tests/.pest/shards.json` timing map is
+committed. P11.3 owns the required database/filesystem/process isolation proof before a shard
+candidate can be reconsidered.
+
 ## Raw evidence manifest
 
 The contract requires this ignored directory and validates every byte count and SHA-256 below; it

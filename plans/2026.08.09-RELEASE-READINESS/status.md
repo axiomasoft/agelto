@@ -3,7 +3,7 @@ projection: status-view
 projection_version: v1
 source_scope: plan core + phases + journal
 through: 2026-08-14
-inputs_sha256: a43c856db9c1e31b3e8c4c77af42c6e1f516cb1adbe1470ce775f315470c8f6b
+inputs_sha256: 4addde8f3f4d066dbbf42ae6d73a35b34f004d568b69e093240a4b6523ecbf67
 generated_by: task plan-views status
 -->
 
@@ -26,7 +26,7 @@ generated_by: task plan-views status
 | P0 | Разведка репозитория, референсов и RAG-контракты | 8/8 | 🟢 Done |
 | P1 | Makefile и Docker dev/prod с Vite-ready topology | 7/7 | 🟢 Done |
 | P10 | PHP, архитектура, безопасность и production-readiness audit | 5/6 | 🟠 Done with deviations |
-| P11 | Pest 5 performance, test isolation и CI | 1/6 | 🟡 In progress |
+| P11 | Pest 5 performance, test isolation и CI | 2/6 | 🟡 In progress |
 | P12 | Ubuntu deployment guide и финальный clean-room rehearsal | 0/7 | ⬜ Not started |
 | P2 | Local vendor, secrets, preflight, bootstrap и Laravel Doctor | 7/7 | 🟢 Done |
 | P3 | Fresh install, Livewire/Filament assets и application readiness | 5/5 | 🟢 Done |
@@ -78,7 +78,7 @@ generated_by: task plan-views status
 | ID | Title | Status | Updated |
 |:--|:--|:--|:--|
 | P11.1 | Измерить текущий suite и верифицировать Pest 5 fast/TIA/parallel capabilities | 🟢 Done | 2026-08-14 |
-| P11.2 | Настроить Pest 5 engine, profiling, parallelism и безопасные caches | ⬜ Not started | — |
+| P11.2 | Настроить Pest 5 engine, profiling, parallelism и безопасные caches | 🟢 Done | 2026-08-14 |
 | P11.3 | Укрепить test DB/media isolation и agent-optimized output | ⬜ Not started | — |
 | P11.4 | Закрыть недостающие risk-based unit/feature/integration/E2E suites | ⬜ Not started | — |
 | P11.5 | Настроить CI style/static/tests/build/security с корректными caches | ⬜ Not started | — |
@@ -672,6 +672,9 @@ write-site: pre_mutation: allow · pre_final: allow |
 | 2026-08-14 | frontier/high | plan-run · closed-green · P11.1: serial/TIA/parallel/shard/profile/coverage baseline and D19-D42 matrix sealed; validation and full review GREEN. |
 | 2026-08-14 | frontier/high | plan-run · local-repair · Projected closure evidence repaired after lint.
 write-site: pre_mutation: allow · pre_final: allow |
+| 2026-08-14 | gpt-5.6-terra/high | plan-run · in-progress · — |
+| 2026-08-14 | gpt-5.6-terra/high | plan-run · local-repair · Full no-TIA update-shards run exposed transient EisCsv suite failures; focused RowMapper reproduction is green, so measure serial order/state before changing tests. |
+| 2026-08-14 | gpt-5.6-terra/high | plan-run · closed-green · P11.2: локальный TIA и безопасный serial full no-TIA контракт подтверждены. |
 
 ## Owner Gates
 
