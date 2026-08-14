@@ -43,7 +43,7 @@ final class MaintainPartitions extends Command
             return self::SUCCESS;
         }
 
-        foreach (array_keys(config('partitioning.tables')) as $table) {
+        foreach ($this->partitionedTables() as $table) {
             $this->maintainFallback($table);
         }
 
@@ -59,7 +59,7 @@ final class MaintainPartitions extends Command
 
     private function maintainFallback(string $table): void
     {
-        $premake = (int) config('partitioning.premake');
+        $premake = $this->nonNegativeInt(config('partitioning.premake'), 'partitioning.premake');
         $start = Carbon::now()->startOfMonth();
 
         for ($i = 0; $i <= $premake; $i++) {
@@ -89,11 +89,19 @@ final class MaintainPartitions extends Command
     {
         $rule = config("partitioning.retention.{$table}");
 
-        if ($rule === null || $rule['keep_table']) {
+        if ($rule === null) {
             return;
         }
 
-        $cutoff = Carbon::now()->startOfMonth()->subMonths((int) $rule['months']);
+        if (! is_array($rule) || ! is_bool($rule['keep_table'] ?? null)) {
+            throw new \RuntimeException("partitioning.retention.{$table} содержит невалидное правило.");
+        }
+
+        if ($rule['keep_table']) {
+            return;
+        }
+
+        $cutoff = Carbon::now()->startOfMonth()->subMonths($this->nonNegativeInt($rule['months'] ?? null, "partitioning.retention.{$table}.months"));
 
         $partitions = DB::select(
             'SELECT c.relname AS name FROM pg_inherits i
@@ -104,7 +112,14 @@ final class MaintainPartitions extends Command
         );
 
         foreach ($partitions as $partition) {
-            $matched = preg_match('/_(\d{4})_(\d{2})$/', (string) $partition->name, $groups);
+            $attributes = is_object($partition) ? get_object_vars($partition) : [];
+            $name = $attributes['name'] ?? null;
+
+            if (! is_string($name) || ! preg_match('/^[a-z][a-z0-9_]*$/', $name)) {
+                continue;
+            }
+
+            $matched = preg_match('/_(\d{4})_(\d{2})$/', $name, $groups);
 
             if ($matched !== 1) {
                 continue;
@@ -113,8 +128,39 @@ final class MaintainPartitions extends Command
             $partitionStart = Carbon::createFromDate((int) $groups[1], (int) $groups[2], 1)->startOfMonth();
 
             if ($partitionStart->lt($cutoff)) {
-                DB::statement('DROP TABLE IF EXISTS '.$partition->name);
+                DB::statement('DROP TABLE IF EXISTS '.$name);
             }
         }
+    }
+
+    /** @return list<string> */
+    private function partitionedTables(): array
+    {
+        $tables = config('partitioning.tables');
+
+        if (! is_array($tables)) {
+            throw new \RuntimeException('partitioning.tables должен быть массивом.');
+        }
+
+        $result = [];
+
+        foreach (array_keys($tables) as $table) {
+            if (! is_string($table) || ! preg_match('/^[a-z][a-z0-9_]*$/', $table)) {
+                throw new \RuntimeException('partitioning.tables содержит невалидное имя таблицы.');
+            }
+
+            $result[] = $table;
+        }
+
+        return $result;
+    }
+
+    private function nonNegativeInt(mixed $value, string $key): int
+    {
+        if (! is_int($value) || $value < 0) {
+            throw new \RuntimeException("{$key} должен быть неотрицательным целым числом.");
+        }
+
+        return $value;
     }
 }
