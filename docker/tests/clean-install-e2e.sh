@@ -6,7 +6,7 @@ password_file=${E2E_ADMIN_PASSWORD_FILE:-}
 admin_email=${E2E_ADMIN_EMAIL:-p4-acceptance@example.test}
 
 [[ -z "$password_file" || -r "$password_file" ]] || { echo 'E2E admin password file is not readable' >&2; exit 2; }
-! rg -n '^\s*container_name:' "$root_dir"/docker-compose*.yml >/dev/null
+! grep -E '^[[:space:]]*container_name:' "$root_dir"/docker-compose*.yml >/dev/null
 
 run_id="e2e-$(date +%s)-$RANDOM"
 candidate=$(mktemp -d)

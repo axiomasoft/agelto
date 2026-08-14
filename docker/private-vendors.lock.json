@@ -4,7 +4,7 @@
         "host": "github.com",
         "path": "axiomasoft/azguard-private"
     },
-    "commit": "ca37d4bb2a4cf8db8e04e93852390c863362dfa0",
+    "commit": "7e7009cc7c26e173cfa6bfec42365a311fc2adb0",
     "packages": [
         {
             "name": "axioma-studio/azguard-core",
