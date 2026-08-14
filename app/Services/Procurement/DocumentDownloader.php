@@ -53,7 +53,9 @@ final readonly class DocumentDownloader
 
     public function download(Document $document): ?DocumentVersion
     {
-        if ($document->source_url === null) {
+        $procurementId = $document->procurement_id;
+
+        if ($document->source_url === null || $procurementId === null) {
             return null;
         }
 
@@ -97,7 +99,7 @@ final readonly class DocumentDownloader
         $this->storeRepository->update($document, ['status' => DocumentStatus::Downloaded]);
 
         $this->procurementStore->storeEvent(
-            procurementId: $document->procurement_id,
+            procurementId: $procurementId,
             eventType: $isFirstVersion ? ProcurementEventType::DocumentAdded : ProcurementEventType::DocumentReplaced,
             occurredAt: now(),
             entityRef: ['document_id' => $document->id, 'document_version_id' => $version->id],
@@ -145,7 +147,7 @@ final readonly class DocumentDownloader
         $tlsOptions = $this->tlsTrust->optionsFor($this->canonicalHost($url));
 
         return Http::withOptions([...$lease->httpOptions(), ...$tlsOptions])
-            ->withUserAgent((string) config('crawler.user_agent'))
+            ->withUserAgent($this->stringConfig('crawler.user_agent'))
             ->timeout($settings->timeoutSeconds ?? 30)
             ->retry(
                 times: $settings->retries ?? 5,
@@ -211,8 +213,8 @@ final readonly class DocumentDownloader
     private function recordFailure(Document $document, \Throwable $exception): void
     {
         $attempts = $document->attempts + 1;
-        $maxAttempts = (int) config('crawler.documents_max_attempts', 5);
-        $backoffMinutes = (int) config('crawler.documents_retry_backoff_minutes', 15);
+        $maxAttempts = $this->integerConfig(key: 'crawler.documents_max_attempts', default: 5);
+        $backoffMinutes = $this->integerConfig(key: 'crawler.documents_retry_backoff_minutes', default: 15);
         $failedPermanently = $attempts >= $maxAttempts;
 
         $this->storeRepository->update($document, [
@@ -250,5 +252,27 @@ final readonly class DocumentDownloader
     private function mimeFrom(string $content): string
     {
         return MimeDetector::of($content);
+    }
+
+    private function integerConfig(string $key, int $default): int
+    {
+        $value = config($key, $default);
+
+        if (! is_int($value)) {
+            throw new \UnexpectedValueException("{$key} must be an integer.");
+        }
+
+        return $value;
+    }
+
+    private function stringConfig(string $key): string
+    {
+        $value = config($key);
+
+        if (! is_string($value)) {
+            throw new \UnexpectedValueException("{$key} must be a string.");
+        }
+
+        return $value;
     }
 }
