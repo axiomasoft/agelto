@@ -47,7 +47,13 @@ final readonly class RerunAnalysisAction
 
     public function run(Analysis $analysis): Analysis
     {
-        $document = Document::query()->findOrFail($analysis->documentVersion->document_id);
+        $documentVersion = $analysis->documentVersion;
+
+        if ($documentVersion === null) {
+            throw new RuntimeException("Перезапуск анализа #{$analysis->id} невозможен: версия документа не найдена.");
+        }
+
+        $document = Document::query()->findOrFail($documentVersion->document_id);
 
         // Анализатор резолвится ДО любой мутации: перезапуск, для которого некому диспатчить
         // стадию, не должен оставлять за собой superseded-анализ и откаченный статус документа.
@@ -93,12 +99,14 @@ final readonly class RerunAnalysisAction
             ->where('step', AnalysisStep::Screening)
             ->value('document_type');
 
-        $type = $documentType !== null ? AiDocumentType::tryFrom((string) $documentType) : null;
+        $type = is_string($documentType) ? AiDocumentType::tryFrom($documentType) : null;
         $analyzer = $type !== null ? $this->analyzers->for($type) : null;
 
         if ($analyzer === null || ! $analyzer->hasExtraction()) {
+            $documentTypeLabel = is_scalar($documentType) ? (string) $documentType : '—';
+
             throw new RuntimeException(
-                "Перезапуск извлечения невозможен: у анализа #{$analysis->id} тип документа «".($documentType ?? '—').'» без анализатора со стадией извлечения.'
+                "Перезапуск извлечения невозможен: у анализа #{$analysis->id} тип документа «{$documentTypeLabel}» без анализатора со стадией извлечения."
             );
         }
 
