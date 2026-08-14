@@ -56,17 +56,17 @@ final readonly class FileLocationResolver
 
     public function currentDocumentsDisk(): string
     {
-        return (string) config('crawler.documents_disk');
+        return $this->diskConfig('crawler.documents_disk');
     }
 
     public function currentFixturesDisk(): string
     {
-        return (string) config('ai.fixtures.disk');
+        return $this->diskConfig('ai.fixtures.disk');
     }
 
     public function currentRawDisk(): string
     {
-        return (string) config('crawler.raw_disk');
+        return $this->diskConfig('crawler.raw_disk');
     }
 
     /**
@@ -107,7 +107,7 @@ final readonly class FileLocationResolver
      */
     private function documentsFallbackDisks(): array
     {
-        return array_map(strval(...), (array) config('crawler.documents_fallback_disks', []));
+        return $this->fallbackDisks('crawler.documents_fallback_disks');
     }
 
     /**
@@ -115,6 +115,39 @@ final readonly class FileLocationResolver
      */
     private function fixturesFallbackDisks(): array
     {
-        return array_map(strval(...), (array) config('ai.fixtures.fallback_disks', []));
+        return $this->fallbackDisks('ai.fixtures.fallback_disks');
+    }
+
+    private function diskConfig(string $key): string
+    {
+        $disk = config($key);
+
+        if (! is_string($disk) || $disk === '') {
+            throw new \LogicException("{$key} должен быть непустым именем диска");
+        }
+
+        return $disk;
+    }
+
+    /** @return list<string> */
+    private function fallbackDisks(string $key): array
+    {
+        $configured = config($key, []);
+
+        if (! is_array($configured)) {
+            throw new \LogicException("{$key} должен быть списком имён дисков");
+        }
+
+        $disks = [];
+
+        foreach ($configured as $disk) {
+            if (! is_string($disk) || $disk === '') {
+                throw new \LogicException("{$key} должен быть списком непустых имён дисков");
+            }
+
+            $disks[] = $disk;
+        }
+
+        return $disks;
     }
 }
