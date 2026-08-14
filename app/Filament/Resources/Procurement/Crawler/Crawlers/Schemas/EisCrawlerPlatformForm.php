@@ -234,8 +234,8 @@ final readonly class EisCrawlerPlatformForm implements CrawlerPlatformForm
         $strings = [];
 
         foreach ($value as $entry) {
-            if (is_string($entry)) {
-                $strings[] = $entry;
+            if (is_string($entry) || is_int($entry)) {
+                $strings[] = (string) $entry;
             }
         }
 
