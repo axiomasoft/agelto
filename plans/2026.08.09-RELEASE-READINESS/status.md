@@ -3,7 +3,7 @@ projection: status-view
 projection_version: v1
 source_scope: plan core + phases + journal
 through: 2026-08-14
-inputs_sha256: a93e8ef0faba0545bbc7457f8396f348143926f44f43e360694540bce7021355
+inputs_sha256: a43c856db9c1e31b3e8c4c77af42c6e1f516cb1adbe1470ce775f315470c8f6b
 generated_by: task plan-views status
 -->
 
@@ -25,8 +25,8 @@ generated_by: task plan-views status
 |:--|:--|:--|:--|
 | P0 | Разведка репозитория, референсов и RAG-контракты | 8/8 | 🟢 Done |
 | P1 | Makefile и Docker dev/prod с Vite-ready topology | 7/7 | 🟢 Done |
-| P10 | PHP, архитектура, безопасность и production-readiness audit | 6/6 | 🟠 Done with deviations |
-| P11 | Pest 5 performance, test isolation и CI | 0/6 | ⬜ Not started |
+| P10 | PHP, архитектура, безопасность и production-readiness audit | 5/6 | 🟠 Done with deviations |
+| P11 | Pest 5 performance, test isolation и CI | 1/6 | 🟡 In progress |
 | P12 | Ubuntu deployment guide и финальный clean-room rehearsal | 0/7 | ⬜ Not started |
 | P2 | Local vendor, secrets, preflight, bootstrap и Laravel Doctor | 7/7 | 🟢 Done |
 | P3 | Fresh install, Livewire/Filament assets и application readiness | 5/5 | 🟢 Done |
@@ -77,7 +77,7 @@ generated_by: task plan-views status
 
 | ID | Title | Status | Updated |
 |:--|:--|:--|:--|
-| P11.1 | Измерить текущий suite и верифицировать Pest 5 fast/TIA/parallel capabilities | ⬜ Not started | — |
+| P11.1 | Измерить текущий suite и верифицировать Pest 5 fast/TIA/parallel capabilities | 🟢 Done | 2026-08-14 |
 | P11.2 | Настроить Pest 5 engine, profiling, parallelism и безопасные caches | ⬜ Not started | — |
 | P11.3 | Укрепить test DB/media isolation и agent-optimized output | ⬜ Not started | — |
 | P11.4 | Закрыть недостающие risk-based unit/feature/integration/E2E suites | ⬜ Not started | — |
@@ -666,6 +666,12 @@ write-site: pre_mutation: allow · pre_final: allow |
 | 2026-08-14 | frontier/xhigh | plan-audit · audit-green · audit-fixer, кандидат 8cc2f2a4177a864f561ca59bc33b6a85a74c44c023d76e196df021d128552da1, вердикт GREEN |
 | 2026-08-14 | frontier/xhigh | plan-audit · audit-green · Normalized P10 audit subject for phase-close gate; same GREEN audit evidence and explicit scope/risk inputs. |
 | 2026-08-14 | frontier/xhigh | plan-audit · audit-green · Final P10 audit candidate includes P10.6 scope deviation and recorded historical P10.1 bundle defect. |
+| 2026-08-14 | frontier/high | plan-run · in-progress · — |
+| 2026-08-14 | frontier/high | plan-run · local-repair · TIA fresh initially failed because origin/HEAD was absent; verified remote HEAD=main and repaired local git metadata with git remote set-head origin --auto; tracked tree unchanged. |
+| 2026-08-14 | frontier/high | plan-run · local-repair · Parallel probe rejected Pest-only --no-tia at Laravel parallel wrapper; removed unsupported flag and kept explicit --parallel --processes=N full-suite command. No tracked changes. |
+| 2026-08-14 | frontier/high | plan-run · closed-green · P11.1: serial/TIA/parallel/shard/profile/coverage baseline and D19-D42 matrix sealed; validation and full review GREEN. |
+| 2026-08-14 | frontier/high | plan-run · local-repair · Projected closure evidence repaired after lint.
+write-site: pre_mutation: allow · pre_final: allow |
 
 ## Owner Gates
 

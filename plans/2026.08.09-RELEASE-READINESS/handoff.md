@@ -1,18 +1,22 @@
-# HANDOFF — 2026-08-14 — after P10
+# HANDOFF — 2026-08-14 — after P11.1
 
-**Next:** manual: P11.1
+**Next:** manual: P11.2
 
 | Параметр | Значение |
 |:--|:--|
 | Batch | solo |
-| Model | frontier |
+| Model | implementation |
 | Thinking | high |
-| Context | `continue-root` |
-| Суть | Снять базовый benchmark P11 и заморозить execution/CI evidence |
-| Команда | `—` |
+| Context | `new-session` |
+| Суть | Настроить Pest 5 TIA/profiling и по повторным измерениям принять serial либо минимальный полезный shard/parallel mode |
+| Команда | `$ task:plan-run 2026.08.09-RELEASE-READINESS P11.2` |
 
-**Done:** P10 закрыта вручную по прямому указанию владельца без повторного audit. P10.1–P10.5 — `🟢 Done`; P10.6 — `🟠 Done with deviations`; exact quality/remediation carriers и full PHP suite зелёные (1569 tests / 7084 assertions).
-**Remaining:** P11.1 начинает следующий этап качества, test isolation и CI.
-**Sources of truth:** `phases/P10/P10.md` · `phases/P10/P10.5.state.md` · `phases/P10/P10.6.state.md` · `journal.jsonl` · `docker/tests/quality-contract.sh` · `docker/tests/quality-remediation-contract.sh`
-**Open risks:** P10.6: 280 `app/**` paths вне item-level `Files`, но в phase-union P10.5; P10.1 bundle требует historical tree из-за удалённого baseline.
-**Workarounds/Deferred/Open questions:** manual direct close owner 2026-08-14 · deferred: P11/P12 · open_questions: —
+```bash
+codex -C /home/vostrikov/projects/agelto/agelto -m gpt-5.6-terra -c 'model_reasoning_effort="high"' -a never -s danger-full-access '$ task:plan-run 2026.08.09-RELEASE-READINESS P11.2'
+```
+
+**Done:** P11.1 закрыт `🟢 Done`; item commit `e229bda9` запечатал serial/TIA/parallel/shard/profile/coverage baseline и D19–D42 matrix. Full no-TIA: 1569 tests / 7084 assertions; serial median 89.97 s; coverage 88.27% statements; exact validation carrier и независимый full review — GREEN.
+**Remaining:** P11.2 исправляет local TIA semantics, повторяет выбранные execution-mode измерения, устраняет доказанные slow-test причины и принимает serial либо минимальный режим, проходящий D40.
+**Sources of truth:** `phases/P11/P11.1.state.md` · `artifacts/P11-test-baseline.md` · `artifacts/P11-risk-test-matrix.md` · `findings/P11-pest-ci-recon-2026-08-09.md` · `research/13-P11-execution-design.md` · `journal.jsonl`
+**Open risks:** Direct Pest parallel 2/4 стабильно блокируется promoted `use RuntimeException` warning; 2-way shard пока только provisional; D41/D42 остаются gap, D34/D40 — partial; ignored raw evidence directory нужен для воспроизводимой проверки P11.1.
+**Workarounds/Deferred/Open questions:** local `origin/HEAD` восстановлен на проверенный `origin/main`; четыре диагностических extra-файла recoverably вынесены в `/tmp/agelto-p11.1-excluded-evidence`; exact GitHub Action SHAs и private-credential CI path отложены до P11.5; open_questions: —
