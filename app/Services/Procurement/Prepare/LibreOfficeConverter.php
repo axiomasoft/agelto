@@ -27,9 +27,9 @@ final readonly class LibreOfficeConverter
         try {
             File::ensureDirectoryExists($profileDir);
 
-            $result = Process::timeout((int) config('ai.tools.default_timeout_seconds'))
+            $result = Process::timeout($this->integerConfig('ai.tools.default_timeout_seconds'))
                 ->run([
-                    (string) config('ai.tools.soffice_bin'),
+                    $this->stringConfig('ai.tools.soffice_bin'),
                     '--headless',
                     '--norestore',
                     "-env:UserInstallation=file://{$profileDir}",
@@ -52,8 +52,8 @@ final readonly class LibreOfficeConverter
 
     public function version(): ?string
     {
-        $result = Process::timeout((int) config('ai.tools.default_timeout_seconds'))
-            ->run([(string) config('ai.tools.soffice_bin'), '--version']);
+        $result = Process::timeout($this->integerConfig('ai.tools.default_timeout_seconds'))
+            ->run([$this->stringConfig('ai.tools.soffice_bin'), '--version']);
 
         if ($result->failed()) {
             return null;
@@ -62,5 +62,27 @@ final readonly class LibreOfficeConverter
         $firstLine = trim(strtok(trim($result->output()), "\n") ?: '');
 
         return $firstLine !== '' ? $firstLine : null;
+    }
+
+    private function integerConfig(string $key): int
+    {
+        $value = config($key);
+
+        if (! is_int($value)) {
+            throw new RuntimeException("{$key} must be an integer.");
+        }
+
+        return $value;
+    }
+
+    private function stringConfig(string $key): string
+    {
+        $value = config($key);
+
+        if (! is_string($value)) {
+            throw new RuntimeException("{$key} must be a string.");
+        }
+
+        return $value;
     }
 }

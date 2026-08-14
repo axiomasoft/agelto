@@ -77,7 +77,7 @@ final readonly class SpreadsheetStrategy implements PreparationStrategy
                     || $this->tryLibreOffice($version, $disk, $diskName, $localInput);
             }
 
-            if (! $hasTextGrid) {
+            if (! $hasTextGrid && $withinToolLimits) {
                 $this->storeTextGrid($version, $disk, $diskName, $localInput);
             }
 
@@ -93,12 +93,12 @@ final readonly class SpreadsheetStrategy implements PreparationStrategy
 
     private function withinToolLimits(DocumentVersion $version, string $localInput): bool
     {
-        $maxMb = (float) config('ai.prepare.xlsx_max_mb', 25);
+        $maxMb = $this->floatConfig(key: 'ai.prepare.xlsx_max_mb', default: 25);
         if ($version->size_bytes > $maxMb * 1024 * 1024) {
             return false;
         }
 
-        $maxRows = (int) config('ai.prepare.xlsx_max_rows', 20000);
+        $maxRows = $this->integerConfig(key: 'ai.prepare.xlsx_max_rows', default: 20000);
 
         return $this->countRows($localInput, $version->extension) <= $maxRows;
     }
@@ -204,8 +204,8 @@ final readonly class SpreadsheetStrategy implements PreparationStrategy
 
     private function convert(string $input, string $output): void
     {
-        $memoryLimit = (string) config('ai.prepare.xlsx_convert_memory_limit', '512M');
-        $timeout = (int) config('ai.prepare.xlsx_convert_timeout_seconds', 120);
+        $memoryLimit = $this->stringConfig(key: 'ai.prepare.xlsx_convert_memory_limit', default: '512M');
+        $timeout = $this->integerConfig(key: 'ai.prepare.xlsx_convert_timeout_seconds', default: 120);
 
         $result = Process::path(base_path())
             ->timeout($timeout)
@@ -229,5 +229,38 @@ final readonly class SpreadsheetStrategy implements PreparationStrategy
     private function markUnprocessable(Document $document, string $detail): void
     {
         $this->markUnprocessable->execute($document, UnprocessableReason::ConversionFailed, $detail);
+    }
+
+    private function floatConfig(string $key, float|int $default): float
+    {
+        $value = config($key, $default);
+
+        if (! is_float($value) && ! is_int($value)) {
+            throw new RuntimeException("{$key} must be a number.");
+        }
+
+        return (float) $value;
+    }
+
+    private function integerConfig(string $key, int $default): int
+    {
+        $value = config($key, $default);
+
+        if (! is_int($value)) {
+            throw new RuntimeException("{$key} must be an integer.");
+        }
+
+        return $value;
+    }
+
+    private function stringConfig(string $key, string $default): string
+    {
+        $value = config($key, $default);
+
+        if (! is_string($value)) {
+            throw new RuntimeException("{$key} must be a string.");
+        }
+
+        return $value;
     }
 }
