@@ -35,14 +35,14 @@ Critical/High gaps overall; P11.6 owns final budgets/flake evidence. RAG:— (re
 | D39 | Security/architecture/production gates are deterministic; critical/high defects and red gates cannot defer | Critical | P10 contract scripts + quality/remediation carriers; terminal P10.6 | Covered | P11.5 calls P10 aggregate unchanged; P11.4 consumes matrix dispositions |
 | D40 | Local TIA is never acceptance; process/shard mode needs repeated exact name/status parity and cost threshold | High | `docker/tests/test-runtime-contract.sh` proves `locally()` TIA only for edit replay, native Paratest PAO carrier, exact serial acceptance and the selected serial verdict | Covered | P11.4 revalidated the unchanged carrier; P11.5 runs the full no-TIA serial suite |
 | D41 | Testing permits only exact serial/token DB and process roots; sabotage fails before mutation; PAO markers propagate | Critical | `docker/tests/test-isolation-contract.sh` proves serial/token DB, filesystem/log/temp roots, pre-mutation sabotage and PAO markers | Covered | P11.3 carrier is reused by P11.5 |
-| D42 | CI is least-privilege/SHA-pinned, full no-TIA, cache-safe, risk/coverage/performance/flake gated | Critical | policy and P11.1 baseline exist; no tracked workflow yet | Gap | P11.4 may only hand off this explicit Gap; P11.5 creates/proves workflows and moves it to Covered; P11.6 seals floors/budgets |
+| D42 | CI is least-privilege/SHA-pinned, full no-TIA, cache-safe, risk/coverage/performance/flake gated | Critical | `.github/workflows/ci.yml` and `tia-baseline.yml`, SHA-pinned workflow proof via `docker/tests/ci-contract.sh` | Covered | P11.6 seals live-CI, coverage/performance/flake budgets |
 
 ## Baseline counts
 
 - 24 decision rows are present exactly once (D19 through D42).
-- Critical/High gaps at P11.1 close: D41 and D42. Partial rows: D34 and D40. At P11.4 close,
-  D34, D40 and D41 are Covered by the carriers named above; D42 is the sole remaining Critical/High
-  Gap and remains owned by P11.5.
+- Critical/High gaps at P11.1 close: D41 and D42. Partial rows: D34 and D40. P11.4 closed D34,
+  D40 and D41; P11.5 closes D42 with the hardened workflow carrier. There are now zero remaining
+  Critical/High `Gap`/`Partial` rows.
 - The green 1,569-test suite and 88.27% statement coverage do not waive any Gap/Partial row.
 - D37 is intentionally represented even though superseded; its evidence points to current D82 so the
   historical policy cannot silently re-enter acceptance.

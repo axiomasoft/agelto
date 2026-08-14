@@ -192,6 +192,26 @@ candidate can be reconsidered.
   `bash docker/tests/test-isolation-contract.sh` are green after the native-Paratest topology
   repair. They are the deterministic D40 and D41 carriers respectively.
 
+## P11.5 GitHub Actions provenance
+
+Verified on 2026-08-14 from the named vendor repositories with `git ls-remote`; action tags are
+recorded as readable comments beside immutable 40-character SHA pins. `actions/checkout` v4.4.0 =
+`11d5960a326750d5838078e36cf38b85af677262`; `actions/setup-node` v6.5.0 =
+`249970729cb0ef3589644e2896645e5dc5ba9c38`; `shivammathur/setup-php` 2.37.2 =
+`f3e473d116dcccaddc5834248c87452386958240`; `actions/cache` v4.3.0 =
+`0057852bfaa89a56745cba8c7296529d2fc39830`; `actions/upload-artifact` v7.0.1 =
+`043fb46d1a93c77aae656e7c1c64a875d1fc6a0a`; `aquasecurity/trivy-action` v0.9.2 =
+`1f0aa582c8c8f5f7639610d6d38baddfea4fdcee`. GitHub's secure-use guidance requires full commit
+SHA pins; its cache guidance supports restore-only caches for low-trust PRs. Pest 5 documents
+`baselined()` plus a `pest-tia-baseline` artifact upload from `--baseline`; this carrier exports
+the exact hidden Pest directory only in `tia-baseline.yml`. RAG:✅ official GitHub/Pest docs + vendor
+repositories, 2026-08-14.
+
+The initial D42 critical-file set is intentionally explicit rather than a broad directory glob:
+private-document locator (D26/D27), application readiness (D23), archive entry validator (D31),
+proxy resolver (D29), and screening disposition action (D33/D34). The current Clover report records
+each at or above the 55% floor; P11.6 remeasures and may raise, but not lower, the final set/floor.
+
 ## Raw evidence manifest
 
 The contract requires this ignored directory and validates every byte count and SHA-256 below; it

@@ -3,7 +3,7 @@ projection: status-view
 projection_version: v1
 source_scope: plan core + phases + journal
 through: 2026-08-14
-inputs_sha256: d72c036531024c78b82a44eeda14b928e8eeb43754900da3bf78a816c3cb6489
+inputs_sha256: 2ab4005b56ce4f0a2dfee9d393b13815dbc0dae7f037749001a87c6aa4892427
 generated_by: task plan-views status
 -->
 
@@ -26,7 +26,7 @@ generated_by: task plan-views status
 | P0 | Разведка репозитория, референсов и RAG-контракты | 8/8 | 🟢 Done |
 | P1 | Makefile и Docker dev/prod с Vite-ready topology | 7/7 | 🟢 Done |
 | P10 | PHP, архитектура, безопасность и production-readiness audit | 5/6 | 🟠 Done with deviations |
-| P11 | Pest 5 performance, test isolation и CI | 4/6 | 🟡 In progress |
+| P11 | Pest 5 performance, test isolation и CI | 5/6 | 🟡 In progress |
 | P12 | Ubuntu deployment guide и финальный clean-room rehearsal | 0/7 | ⬜ Not started |
 | P2 | Local vendor, secrets, preflight, bootstrap и Laravel Doctor | 7/7 | 🟢 Done |
 | P3 | Fresh install, Livewire/Filament assets и application readiness | 5/5 | 🟢 Done |
@@ -81,7 +81,7 @@ generated_by: task plan-views status
 | P11.2 | Настроить Pest 5 engine, profiling, parallelism и безопасные caches | 🟢 Done | 2026-08-14 |
 | P11.3 | Укрепить test DB/media isolation и agent-optimized output | 🟢 Done | 2026-08-14 |
 | P11.4 | Закрыть недостающие risk-based unit/feature/integration/E2E suites | 🟢 Done | 2026-08-14 |
-| P11.5 | Настроить CI style/static/tests/build/security с корректными caches | ⬜ Not started | — |
+| P11.5 | Настроить CI style/static/tests/build/security с корректными caches | 🟢 Done | 2026-08-14 |
 | P11.6 | Запечатать performance, coverage, determinism и flake gates | ⬜ Not started | — |
 
 ## Phase P12
@@ -695,6 +695,8 @@ write-site: pre_mutation: allow · pre_final: allow |
 | 2026-08-14 | gpt-5.6-terra/high | plan-run · closed-green · D34, D40 and D41 are covered; D42 is the sole P11.5-owned CI Gap. |
 | 2026-08-14 | gpt-5.6-terra/high | plan-run · local-repair · Projected write-site receipt refreshed.
 write-site: pre_mutation: allow · pre_final: allow |
+| 2026-08-14 | gpt-5.6-terra/high | plan-run · in-progress · — |
+| 2026-08-14 | gpt-5.6-terra/high | plan-run · closed-green · D42 закрыт SHA-pinned CI, TIA baseline и fail-closed private dependency carrier. |
 
 ## Owner Gates
 
