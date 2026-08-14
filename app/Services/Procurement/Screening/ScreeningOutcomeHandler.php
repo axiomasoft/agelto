@@ -83,8 +83,8 @@ final readonly class ScreeningOutcomeHandler
             ), null];
         }
 
-        $low = (float) config('ai.screening.confidence_low', 0.4);
-        $high = (float) config('ai.screening.confidence_high', 0.6);
+        $low = $this->floatConfig(key: 'ai.screening.confidence_low', default: 0.4);
+        $high = $this->floatConfig(key: 'ai.screening.confidence_high', default: 0.6);
 
         if ($result->confidence < $low) {
             return [new ScreeningDecision(
@@ -132,8 +132,8 @@ final readonly class ScreeningOutcomeHandler
 
     private function isBorderline(ScreeningResult $result): bool
     {
-        return $result->confidence >= (float) config('ai.screening.confidence_low', 0.4)
-            && $result->confidence <= (float) config('ai.screening.confidence_high', 0.6);
+        return $result->confidence >= $this->floatConfig(key: 'ai.screening.confidence_low', default: 0.4)
+            && $result->confidence <= $this->floatConfig(key: 'ai.screening.confidence_high', default: 0.6);
     }
 
     private function canEscalate(): bool
@@ -152,11 +152,22 @@ final readonly class ScreeningOutcomeHandler
         $title = mb_strtolower((string) Procurement::query()->find($document->procurement_id)?->title);
 
         foreach ($rules as $rule) {
-            if ($title !== '' && str_contains($title, mb_strtolower((string) $rule))) {
+            if (is_string($rule) && $title !== '' && str_contains($title, mb_strtolower($rule))) {
                 return true;
             }
         }
 
         return false;
+    }
+
+    private function floatConfig(string $key, float $default): float
+    {
+        $value = config($key, $default);
+
+        if (! is_float($value) && ! is_int($value)) {
+            throw new \RuntimeException("{$key} must be a number.");
+        }
+
+        return (float) $value;
     }
 }
