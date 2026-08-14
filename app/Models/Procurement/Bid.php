@@ -31,6 +31,7 @@ use Illuminate\Database\Eloquent\Model;
 #[Table(name: 'prc_bids')]
 final class Bid extends Model
 {
+    /** @use HasFactory<BidFactory> */
     use HasFactory;
 
     protected function casts(): array

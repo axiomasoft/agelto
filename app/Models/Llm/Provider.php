@@ -32,6 +32,7 @@ use Illuminate\Support\Collection;
 #[Table(name: 'llm_providers')]
 final class Provider extends Model
 {
+    /** @use HasFactory<ProviderFactory> */
     use HasFactory;
 
     protected function casts(): array

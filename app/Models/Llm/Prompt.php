@@ -37,6 +37,7 @@ use Illuminate\Database\Eloquent\Model;
 #[Table(name: 'llm_prompts')]
 final class Prompt extends Model
 {
+    /** @use HasFactory<PromptFactory> */
     use HasFactory;
 
     protected function casts(): array

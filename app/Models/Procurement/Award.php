@@ -16,6 +16,8 @@ use Illuminate\Support\Str;
 
 /**
  * Итог по лоту (OCDS awards) — денормализованная витрина результата закупки.
+ *
+ * @property string $uuid
  */
 #[UseFactory(AwardFactory::class)]
 #[Fillable([
@@ -33,6 +35,7 @@ use Illuminate\Support\Str;
 #[Table(name: 'prc_awards')]
 final class Award extends Model
 {
+    /** @use HasFactory<AwardFactory> */
     use HasFactory;
 
     protected function casts(): array
