@@ -17,6 +17,10 @@ status: living
 | `make bootstrap MODE=dev\|prod-build ENV_FILE=<file> [IMAGE_TAG=<immutable-tag>] [ADMIN_PASSWORD_FILE=<path>]` | Resumable vendor → secrets → preflight → image/dependencies → dev migrate/base seed/health or prod image-contract carrier; optional initial admin reads a password file only |
 | `make dev:seed-demo` | Заполняет local/testing demo-аккаунты без перезаписи существующих пользователей; требует `DEV_SEED_PASSWORD` |
 | `make quality` | Детерминированный P10 quality gate: locked Composer audit, PHPStan max без baseline, Pint, Rector dry-run, P10 remediation/security carrier и полный PHP suite. |
+| `make test:edit` | Локальный edit-loop с Pest TIA; replay ускоряет только разработку и не является evidence приёмки. |
+| `make test:full` / `test:profile` / `test:coverage` | Полный `--ci --no-tia` suite; profile и Clover сохраняют замер/coverage без TIA replay. |
+| `make test:tia-refresh` / `test:tia-reset` | Явно пересобирает или удаляет только project-scoped TIA graph; baseline workflow появится в P11.5. |
+| `make test:shard SHARD=1/2` | Один full no-TIA time-balanced shard для измерений; пока P11.3 не докажет изоляцию, release default остаётся serial и shards не являются acceptance evidence. |
 | `make dev:admin-create PASSWORD_FILE=<path>` / `make dev:admin-reset PASSWORD_FILE=<path>` | Явное создание initial SuperAdmin или reset; пароль монтируется из файла и не передаётся в argv |
 | `make doctor:local` | Read-only Laravel Doctor в agent-формате для локальной среды |
 | `make readiness:check` | Active DB/cache/storage/release/assets/Horizon/scheduler readiness; `/up` не заменяет эту проверку |

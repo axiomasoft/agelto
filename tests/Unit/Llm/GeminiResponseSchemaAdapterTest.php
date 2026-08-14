@@ -8,7 +8,6 @@ use App\Dto\Procurement\Analyzers\Estimate\RowsChunkResponse;
 use App\Dto\Procurement\Analyzers\Estimate\TotalsResponse;
 use App\Services\Llm\Schema\GeminiResponseSchemaAdapter;
 use App\Services\Llm\Schema\JsonSchemaGenerator;
-use RuntimeException;
 
 test('адаптер разворачивает $defs/$ref в плоскую inline-структуру', function (): void {
     $generator = new JsonSchemaGenerator;

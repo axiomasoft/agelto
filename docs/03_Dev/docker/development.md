@@ -9,8 +9,9 @@ status: living
 ## Bind-mount, не именованный volume для кода
 
 `docker-compose.yml` использует named target `development`: `./:/var/www/html` монтирует код с
-хоста, поэтому code-only правка видна без rebuild. Bootstrap/cache, framework runtime и Pest Tia
-— явные project-scoped named volumes. `bash docker/tests/dev-code-sync.sh` доказывает health,
+хоста, поэтому code-only правка видна без rebuild. Bootstrap/cache, framework runtime и Pest TIA
+— явные project-scoped named volumes. `make test:tia-reset` очищает только TIA graph внутри этого
+volume; `make test:tia-refresh` воспроизводимо записывает его заново. `bash docker/tests/dev-code-sync.sh` доказывает health,
 sentinel, неизменный image ID и non-TTY agent command в изолированном Compose project.
 
 ## Bootstrap чистого clone

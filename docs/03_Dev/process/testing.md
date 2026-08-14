@@ -46,16 +46,19 @@ candidate and image anchors are printed for the release evidence report.
 
 ## Tia (Test Impact Analysis)
 
-`tests/Pest.php`: `pest()->tia()->always()->locally()` — движок включён всегда локально
-(`->always()`), `--filtered` и CI-baseline (`->baselined()`) не заводим (`.ai/guidelines/*` не
-трогать; решения — план `plans/archive/2026.08.01-L13-PEST5.md`, D6/D7).
+`tests/Pest.php`: `pest()->tia()->locally()` — TIA включается только в локальном edit-loop.
+`always()`, `filtered()` и `baselined()` намеренно отсутствуют: `always()` является альтернативой
+`locally()`, `filtered()` не даёт полного набора, а shared baseline появится только в trusted P11.5
+workflow (D40).
 
-- **Обычный прогон в разработке** — просто `docker exec agelto_app php artisan test` /
-  `./vendor/bin/pest`: Tia реплеит закэшированный результат для незатронутых тестов (единицы
-  секунд вместо ~35 с полного сюита), прогоняет заново только затронутые правкой.
-- **Приёмочный прогон item'а/фазы плана — ТОЛЬКО `--no-tia`** (D8): реплей — инструмент цикла
-  разработки, не инструмент сдачи; правило продублировано в
-  `.claude/rules/agelto-reviewer-overrides.md`.
+- **Обычный прогон в разработке** — `make test:edit`: TIA реплеит незатронутые тесты и запускает
+  затронутые. `make test:tia-refresh` создаёт свежий graph, а `make test:tia-reset` удаляет только
+  project-scoped graph.
+- **Приёмочный прогон item'а/фазы — только `make test:full`, `test:profile` или `test:coverage`**:
+  каждый несёт `--ci --no-tia`. Replay, focused run и отдельный shard не являются evidence приёмки.
+- **Sharding** — P11.2 воспроизвёл конфликты общей `agelto_test` при одновременных 2-way shard'ах,
+  поэтому safe default — serial. `test:shard` остаётся диагностической командой с `--no-tia`, но не
+  запускается параллельно и не используется CI до isolation proof P11.3.
 - **Кэш графа** — именованный том `app_pest_tia:/var/www/.pest` (не `~/.pest`, домашний `/var/www`
   контейнера не смонтирован volume'ом целиком), переживает `docker compose up -d --force-recreate`.
   Владелец тома и `git safe.directory` для bind-mount `html` (uid хоста ≠ www-data) заданы на
