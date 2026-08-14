@@ -117,10 +117,17 @@ final readonly class CsvBlockIngestor
             'wait_ms' => $batch->waitMs,
         ]);
 
-        $stats = $run->stats?->toArray() ?? [];
+        $stats = $run->stats === null ? [] : $this->stringKeyedArray($run->stats->toArray());
+        $totalWait = $stats['budget_wait_total_ms'] ?? 0;
+        $maxWait = $stats['budget_wait_max_ms'] ?? 0;
+
+        if (! is_int($totalWait) || ! is_int($maxWait)) {
+            throw new \UnexpectedValueException('Crawler run wait metrics must be integers.');
+        }
+
         $run->update(['stats' => array_merge($stats, [
-            'budget_wait_total_ms' => (int) ($stats['budget_wait_total_ms'] ?? 0) + $batch->waitMs,
-            'budget_wait_max_ms' => max((int) ($stats['budget_wait_max_ms'] ?? 0), $batch->waitMs),
+            'budget_wait_total_ms' => $totalWait + $batch->waitMs,
+            'budget_wait_max_ms' => max($maxWait, $batch->waitMs),
         ])]);
 
         return new FetchResult(
@@ -169,7 +176,7 @@ final readonly class CsvBlockIngestor
     private function ingestSnapshot(ProcurementSnapshotData $snapshot, Run $run): array
     {
         $existing = $this->procurements->findProcurement(registryId: $snapshot->registryId, registryNumber: $snapshot->registryNumber);
-        $revisionCountBefore = $existing?->revision_count ?? 0;
+        $revisionCountBefore = $existing === null ? 0 : $existing->revision_count;
 
         $procurement = $this->ingestProcessor->ingest(data: $snapshot, crawlerRunId: $run->id);
 
@@ -192,19 +199,32 @@ final readonly class CsvBlockIngestor
 
         $registryNumbers = array_map(static fn (ProcurementSnapshotData $snapshot): string => $snapshot->registryNumber, $snapshots);
 
-        return IgnoredItem::query()
+        $numbers = IgnoredItem::query()
             ->where('registry_id', $crawler->registry_id)
             ->whereIn('registry_number', $registryNumbers)
             ->pluck('registry_number')
             ->all();
+
+        return array_values(array_filter($numbers, is_string(...)));
     }
 
     private function storeRawArtifact(Crawler $crawler, Run $run, ListingBatch $batch): string
     {
-        $from = (string) ($batch->requestParams['from'] ?? '0');
+        $from = $batch->requestParams['from'] ?? '0';
+
+        if (! is_string($from) && ! is_int($from)) {
+            $from = '0';
+        }
+
         $path = "raw/csv/{$crawler->id}/{$run->id}/{$from}.csv";
 
-        Storage::disk(config('crawler.raw_disk'))->put($path, $batch->rawBody);
+        $disk = config('crawler.raw_disk');
+
+        if (! is_string($disk)) {
+            throw new \UnexpectedValueException('crawler.raw_disk must be a string.');
+        }
+
+        Storage::disk($disk)->put($path, $batch->rawBody);
 
         return $path;
     }
@@ -220,5 +240,22 @@ final readonly class CsvBlockIngestor
                 'exception' => $exception->getMessage(),
             ],
         );
+    }
+
+    /**
+     * @param  array<mixed>  $values
+     * @return array<string, mixed>
+     */
+    private function stringKeyedArray(array $values): array
+    {
+        $result = [];
+
+        foreach ($values as $key => $value) {
+            if (is_string($key)) {
+                $result[$key] = $value;
+            }
+        }
+
+        return $result;
     }
 }
