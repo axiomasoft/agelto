@@ -78,3 +78,9 @@ test('невалидные class-string maps отклоняются до runtime
         ],
     ]))->toThrow(PlatformAdapterConfigurationException::class);
 });
+
+test('нетипизированные capability maps отклоняются при сборке registry', function (): void {
+    expect(fn () => new PlatformAdapterRegistry(platforms: [
+        'alpha' => ['source_methods' => 'csv', 'registry_filters' => []],
+    ]))->toThrow(PlatformAdapterConfigurationException::class, 'source_methods');
+});

@@ -12,6 +12,7 @@ use App\Exceptions\Procurement\Crawler\PlatformAdapterUnavailableException;
 use App\Models\Procurement\Platform\Platform;
 use App\Models\Procurement\Platform\Registry;
 use App\Services\Procurement\Contracts\SourceMethod as SourceMethodContract;
+use Illuminate\Database\Eloquent\Model;
 use Spatie\LaravelData\Data;
 
 final readonly class PlatformAdapterRegistry
@@ -33,14 +34,23 @@ final readonly class PlatformAdapterRegistry
         $definitions = [];
 
         foreach ($platforms as $platformCode => $definition) {
-            if (! is_string($platformCode) || ! is_array($definition)) {
+            if (! is_string($platformCode) || $platformCode === '' || ! is_array($definition)) {
                 throw new PlatformAdapterConfigurationException('Карта crawler.platforms должна быть индексирована непустыми platform code.');
             }
 
+            $sourceMethods = self::stringKeyedMap(
+                value: $definition['source_methods'] ?? [],
+                field: "source_methods площадки «{$platformCode}»",
+            );
+            $registryFilters = self::stringKeyedMap(
+                value: $definition['registry_filters'] ?? [],
+                field: "registry_filters площадки «{$platformCode}»",
+            );
+
             $definitions[$platformCode] = new PlatformAdapterDefinition(
                 platformCode: $platformCode,
-                sourceMethods: $definition['source_methods'] ?? [],
-                registryFilters: $definition['registry_filters'] ?? [],
+                sourceMethods: $sourceMethods,
+                registryFilters: $registryFilters,
             );
         }
 
@@ -53,13 +63,13 @@ final readonly class PlatformAdapterRegistry
             ? $registry->getRelation('platform')
             : $registry->platform()->first();
 
-        $registryCode = (string) $registry->getAttribute('code');
+        $registryCode = self::stringAttribute(model: $registry, attribute: 'code');
 
         if (! $platform instanceof Platform) {
             throw PlatformAdapterUnavailableException::forPlatformRelation(registryCode: $registryCode);
         }
 
-        $platformCode = (string) $platform->getAttribute('code');
+        $platformCode = self::stringAttribute(model: $platform, attribute: 'code');
         $definition = $this->definitions[$platformCode] ?? null;
 
         if (! $definition instanceof PlatformAdapterDefinition) {
@@ -78,17 +88,48 @@ final readonly class PlatformAdapterRegistry
     /** @return class-string<Data> */
     public function filterClass(Registry $registry): string
     {
-        return $this->forRegistry(registry: $registry)->filterClass(registryCode: (string) $registry->getAttribute('code'));
+        return $this->forRegistry(registry: $registry)->filterClass(registryCode: self::stringAttribute(model: $registry, attribute: 'code'));
     }
 
     /** @return class-string<CrawlerPlatformForm> */
     public function formClass(Registry $registry): string
     {
-        return $this->forRegistry(registry: $registry)->formClass(registryCode: (string) $registry->getAttribute('code'));
+        return $this->forRegistry(registry: $registry)->formClass(registryCode: self::stringAttribute(model: $registry, attribute: 'code'));
     }
 
     public function scopeMessage(Registry $registry): string
     {
-        return $this->forRegistry(registry: $registry)->scopeMessage(registryCode: (string) $registry->getAttribute('code'));
+        return $this->forRegistry(registry: $registry)->scopeMessage(registryCode: self::stringAttribute(model: $registry, attribute: 'code'));
+    }
+
+    /** @return array<string, mixed> */
+    private static function stringKeyedMap(mixed $value, string $field): array
+    {
+        if (! is_array($value)) {
+            throw new PlatformAdapterConfigurationException("{$field} должен быть картой.");
+        }
+
+        $result = [];
+
+        foreach ($value as $key => $entry) {
+            if (! is_string($key)) {
+                throw new PlatformAdapterConfigurationException("{$field} должен быть картой со строковыми ключами.");
+            }
+
+            $result[$key] = $entry;
+        }
+
+        return $result;
+    }
+
+    private static function stringAttribute(Model $model, string $attribute): string
+    {
+        $value = $model->getAttribute($attribute);
+
+        if (! is_string($value) || $value === '') {
+            throw new PlatformAdapterConfigurationException("Атрибут {$attribute} платформы должен быть непустой строкой.");
+        }
+
+        return $value;
     }
 }
