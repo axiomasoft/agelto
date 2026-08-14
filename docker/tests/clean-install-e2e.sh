@@ -127,6 +127,12 @@ destination.write_text(content)
 PY
 cp "$e2e_env" "$candidate/.env"
 
+# Docker Compose gives a caller environment precedence over --env-file.  Pin the
+# isolated values in this process as well, so the runner's CI IMAGE_TAG cannot
+# select an unrelated image (or an untagged implicit latest) after prod-build.
+export COMPOSE_PROJECT_NAME="$project"
+export IMAGE_TAG="$image_tag"
+
 cd "$candidate"
 pnpm install --frozen-lockfile
 pnpm documentation:build

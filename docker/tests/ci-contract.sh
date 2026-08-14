@@ -53,6 +53,7 @@ rg -q -- '--critical-file app/Services/Procurement/Proxy/ProxyResolver.php' "$ci
 rg -q 'clean-install-e2e\.sh' "$ci_workflow"
 rg -q 'E2E_ARTIFACT_DIR: .ci-artifacts' "$ci_workflow"
 rg -q 'E2E_ARTIFACT_DIR' docker/tests/clean-install-e2e.sh
+rg -q 'export IMAGE_TAG="\$image_tag"' docker/tests/clean-install-e2e.sh
 rg -q 'playwright-report/index\.html' "$ci_workflow"
 [[ $(rg -c 'run: make vendor:sync' "$ci_workflow") -eq 2 ]]
 rg -q 'make image:build' "$ci_workflow"
