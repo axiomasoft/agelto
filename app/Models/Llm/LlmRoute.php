@@ -40,6 +40,7 @@ use Illuminate\Support\Collection;
 #[Table(name: 'llm_routes')]
 final class LlmRoute extends Model
 {
+    /** @use HasFactory<LlmRouteFactory> */
     use HasFactory;
 
     protected function casts(): array
@@ -52,6 +53,7 @@ final class LlmRoute extends Model
         ];
     }
 
+    /** @return BelongsTo<Provider, $this> */
     public function provider(): BelongsTo
     {
         return $this->belongsTo(related: Provider::class);

@@ -57,6 +57,7 @@ use Illuminate\Support\Str;
 #[Table(name: 'prc_ai_analysis_runs')]
 final class AnalysisRun extends Model
 {
+    /** @use HasFactory<AnalysisRunFactory> */
     use HasFactory;
 
     protected function casts(): array
@@ -74,16 +75,19 @@ final class AnalysisRun extends Model
         ];
     }
 
+    /** @return BelongsTo<DocumentVersion, $this> */
     public function documentVersion(): BelongsTo
     {
         return $this->belongsTo(related: DocumentVersion::class);
     }
 
+    /** @return BelongsTo<User, $this> */
     public function initiatedBy(): BelongsTo
     {
         return $this->belongsTo(related: User::class, foreignKey: 'initiated_by');
     }
 
+    /** @return HasMany<Analysis, $this> */
     public function analyses(): HasMany
     {
         return $this->hasMany(related: Analysis::class);
