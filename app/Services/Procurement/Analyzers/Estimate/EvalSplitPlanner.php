@@ -54,7 +54,9 @@ final readonly class EvalSplitPlanner
             }
         }
 
-        $tune = $pool->pluck('code')
+        /** @var list<string> $tune */
+        $tune = $pool
+            ->map(static fn (Fixture $fixture): string => $fixture->code)
             ->reject(fn (string $code): bool => in_array($code, $holdout, true))
             ->values()
             ->all();
@@ -70,7 +72,7 @@ final readonly class EvalSplitPlanner
         ];
 
         file_put_contents(
-            (string) config('ai.fixtures.splits_path'),
+            $this->splitsPath(),
             json_encode($payload, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)."\n",
         );
 
@@ -82,14 +84,28 @@ final readonly class EvalSplitPlanner
      */
     public function loadHoldoutCodes(): array
     {
-        $path = (string) config('ai.fixtures.splits_path');
+        $path = $this->splitsPath();
 
         if (! is_file($path)) {
             throw new RuntimeException("Файл разбиения не найден: {$path}. Прогони `estimate:eval:run --write-splits`.");
         }
 
-        $decoded = json_decode((string) file_get_contents($path), associative: true, flags: JSON_THROW_ON_ERROR);
+        $raw = file_get_contents($path);
+        $decoded = json_decode($raw === false ? '' : $raw, associative: true, flags: JSON_THROW_ON_ERROR);
 
-        return array_values((array) ($decoded['holdout'] ?? []));
+        return is_array($decoded) && is_array($decoded['holdout'] ?? null)
+            ? array_values(array_filter($decoded['holdout'], is_string(...)))
+            : [];
+    }
+
+    private function splitsPath(): string
+    {
+        $configured = config('ai.fixtures.splits_path');
+
+        if (! is_string($configured) || $configured === '') {
+            throw new RuntimeException('ai.fixtures.splits_path должен быть непустой строкой.');
+        }
+
+        return $configured;
     }
 }
