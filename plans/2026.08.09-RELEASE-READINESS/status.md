@@ -3,7 +3,7 @@ projection: status-view
 projection_version: v1
 source_scope: plan core + phases + journal
 through: 2026-08-14
-inputs_sha256: 06cfdb281f22a7361cb88b0ed850892f4ff9482aea400144dc085949a762eb97
+inputs_sha256: a93e8ef0faba0545bbc7457f8396f348143926f44f43e360694540bce7021355
 generated_by: task plan-views status
 -->
 
@@ -664,6 +664,8 @@ write-site: pre_mutation: allow · pre_final: allow |
 write-site: pre_mutation: allow · pre_final: allow |
 | 2026-08-14 | frontier/xhigh | plan-audit · local-repair · Audit P10: repeat carrier 54/151 (на 4d77b259); evidence commit 4d77b259 also carries in-progress/spec/view bookkeeping; final close d0b66df4 is separate. Non-material process deviation. write-site: pre_mutation: allow · pre_final: allow |
 | 2026-08-14 | frontier/xhigh | plan-audit · audit-green · audit-fixer, кандидат 8cc2f2a4177a864f561ca59bc33b6a85a74c44c023d76e196df021d128552da1, вердикт GREEN |
+| 2026-08-14 | frontier/xhigh | plan-audit · audit-green · Normalized P10 audit subject for phase-close gate; same GREEN audit evidence and explicit scope/risk inputs. |
+| 2026-08-14 | frontier/xhigh | plan-audit · audit-green · Final P10 audit candidate includes P10.6 scope deviation and recorded historical P10.1 bundle defect. |
 
 ## Owner Gates
 

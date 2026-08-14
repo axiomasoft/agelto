@@ -12,8 +12,8 @@
 | Суть | Сверить terminal P10 и применить phase-close policy |
 | Команда | `$ task:plan-close 2026.08.09-RELEASE-READINESS P10` |
 
-**Done:** P10.1–P10.6 terminal; P10.5 carrier усилен в `e240ad4d`; exact quality/remediation carriers и full PHP suite зелёные (1569 tests / 7084 assertions); P10.6 topology deviation сохранён явно.
-**Remaining:** Закрыть P10 отдельным `task:plan-close`; не переписывать историю P10.6 и сохранить именованное отклонение 280 `app/**` paths outside item-level `Files`.
+**Done:** P10.1–P10.6 terminal; P10.5 carrier усилен в `e240ad4d`; exact quality/remediation carriers и full PHP suite зелёные (1569 tests / 7084 assertions); P10.6 topology deviation и historical P10.1 bundle defect сохранены явно.
+**Remaining:** Закрыть P10 отдельным `task:plan-close`; не переписывать историю P10.6 и сохранить именованное отклонение 280 `app/**` paths outside item-level `Files`; P10.1 bundle replay требует historical tree, потому что его baseline read намеренно удалён P10.6.
 **Sources of truth:** `phases/P10/P10.md` · `phases/P10/P10.5.state.md` · `phases/P10/P10.6.state.md` · `journal.jsonl` · `docker/tests/quality-contract.sh` · `docker/tests/quality-remediation-contract.sh`
-**Open risks:** P10.6 объединяет большой исторический product range; 280 `app/**` paths лежат в phase-union P10.5 `app/**`, но не в его собственном `Files`.
+**Open risks:** P10.6 объединяет большой исторический product range; 280 `app/**` paths лежат в phase-union P10.5 `app/**`, но не в его собственном `Files`; current P10.1 bundle имеет `unresolvable_entry: phpstan-baseline.neon` и воспроизводится только на historical tree.
 **Workarounds/Deferred/Open questions:** workarounds: — · deferred: P11 test/CI topology и P12 clean-room production proof · open_questions: —
