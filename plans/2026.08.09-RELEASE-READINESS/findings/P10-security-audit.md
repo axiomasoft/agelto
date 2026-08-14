@@ -60,7 +60,7 @@ preserved in the coverage and false-positive ledgers; all security-relevant cand
 |:--|:--|
 | Category | outbound proxy / policy bypass |
 | Severity / confidence | high / high |
-| Location | `app/Services/Procurement/Proxy/PoolOutboundProxy.php:25-40` |
+| Location | `app/Services/Procurement/Proxy/PoolOutboundProxy.php:20-23` (current remediated seam); historical vulnerable range `4d77b259:25-40`. |
 | Input → sink chain | Operator-controlled `AI_GEMINI_PROXY` → `config('ai.gemini.proxy')` → `PoolOutboundProxy::optionsFor()` fallback after `NoProxyAvailableException` → Guzzle `proxy` option used by `PrismGeminiProvider` for Gemini generation, Files API and cache CRUD. |
 | Reachability / authorization | Any configured Gemini request uses the bound `OutboundProxy` port. No user request is needed after the env value is configured; the path is intentionally asserted by `GeminiProxyRoutingTest`. |
 | Broken invariant | `.ai/guidelines/architecture.md` requires outbound proxies to be obtained only through `ProxyResolver`. D29 requires typed, fail-closed, observable proxy routing and separates global/per-target health. The fallback has neither country metadata nor resolver health/breaker/lease reporting. |

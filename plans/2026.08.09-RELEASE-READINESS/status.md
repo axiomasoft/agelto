@@ -3,7 +3,7 @@ projection: status-view
 projection_version: v1
 source_scope: plan core + phases + journal
 through: 2026-08-14
-inputs_sha256: f000c3936af79b4421cd01a7c7c1809afa4a32c0f380f7dc5239f758b743ede4
+inputs_sha256: 06cfdb281f22a7361cb88b0ed850892f4ff9482aea400144dc085949a762eb97
 generated_by: task plan-views status
 -->
 
@@ -25,7 +25,7 @@ generated_by: task plan-views status
 |:--|:--|:--|:--|
 | P0 | Разведка репозитория, референсов и RAG-контракты | 8/8 | 🟢 Done |
 | P1 | Makefile и Docker dev/prod с Vite-ready topology | 7/7 | 🟢 Done |
-| P10 | PHP, архитектура, безопасность и production-readiness audit | 6/6 | 🟢 Done |
+| P10 | PHP, архитектура, безопасность и production-readiness audit | 5/6 | 🟠 Done with deviations |
 | P11 | Pest 5 performance, test isolation и CI | 0/6 | ⬜ Not started |
 | P12 | Ubuntu deployment guide и финальный clean-room rehearsal | 0/7 | ⬜ Not started |
 | P2 | Local vendor, secrets, preflight, bootstrap и Laravel Doctor | 7/7 | 🟢 Done |
@@ -67,11 +67,11 @@ generated_by: task plan-views status
 | ID | Title | Status | Updated |
 |:--|:--|:--|:--|
 | P10.1 | Снять baseline Pint/PHPStan/Rector/dependencies и modern-PHP findings | 🟢 Done | 2026-08-13 |
-| P10.2 | Выполнить Laravel security audit всех новых и существующих boundaries | 🟢 Done | 2026-08-13 |
+| P10.2 | Выполнить Laravel security audit всех новых и существующих boundaries | 🟢 Done | 2026-08-14 |
 | P10.3 | Найти duplication, dead code, naming и needless abstractions | 🟢 Done | 2026-08-13 |
 | P10.4 | Проверить migrations, transactions, races, idempotency, queues и config defaults | 🟢 Done | 2026-08-13 |
-| P10.5 | Исправить findings вертикальными срезами с regression tests | 🟢 Done | 2026-08-13 |
-| P10.6 | Закрепить quality gates и синхронизировать architecture/security docs | 🟢 Done | 2026-08-14 |
+| P10.5 | Исправить findings вертикальными срезами с regression tests | 🟢 Done | 2026-08-14 |
+| P10.6 | Закрепить quality gates и синхронизировать architecture/security docs | 🟠 Done with deviations | 2026-08-14 |
 
 ## Phase P11
 
@@ -658,6 +658,12 @@ write-site: pre_mutation: allow · pre_final: allow |
 | 2026-08-14 | gpt-5.6-terra/high | plan-run · local-repair · Terminal-suppression rule: no final until every P10.6 validation carrier is green and rechecked. |
 | 2026-08-14 | gpt-5.6-terra/high | plan-run · in-progress · Continued P10.6 from current provider-bound task:plan-run route; full PHPStan level:max/no-baseline inventory is 110 errors in 50 files. |
 | 2026-08-14 | gpt-5.6-terra/high | plan-run · closed-green · P10.6 quality carrier green: PHPStan max zero, audit, Pint, Rector, and full PHP suite passed. |
+| 2026-08-14 | frontier/xhigh | plan-audit · local-repair · Audit P10: commits 7bd019c0..639f687b; remediation and P10.6 carriers exit 0; full 1569/7084 (на 4a66bdbe). --no-tia belongs to P11; no P10.5 material deviation.
+write-site: pre_mutation: allow · pre_final: allow |
+| 2026-08-14 | gpt-5.6-terra/high | plan-audit · closed-deviations · Audit P10: carrier exit 0; full 1569/7084 (на 4a66bdbe). Deviation: 280 app paths outside P10.6 Files (range f761718f..45c2dde3, на 45c2dde3); phase-union P10.5 app/** contains them.
+write-site: pre_mutation: allow · pre_final: allow |
+| 2026-08-14 | frontier/xhigh | plan-audit · local-repair · Audit P10: repeat carrier 54/151 (на 4d77b259); evidence commit 4d77b259 also carries in-progress/spec/view bookkeeping; final close d0b66df4 is separate. Non-material process deviation. write-site: pre_mutation: allow · pre_final: allow |
+| 2026-08-14 | frontier/xhigh | plan-audit · audit-green · audit-fixer, кандидат 8cc2f2a4177a864f561ca59bc33b6a85a74c44c023d76e196df021d128552da1, вердикт GREEN |
 
 ## Owner Gates
 
@@ -665,6 +671,7 @@ write-site: pre_mutation: allow · pre_final: allow |
 - P0.4: known deviation
 - P0.5: known deviation
 - P10.5: known deviation
+- P10.6: known deviation
 - P4.2: known deviation
 - P4.4: known deviation
 - P4.6: known deviation
