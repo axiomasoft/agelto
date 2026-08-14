@@ -32,8 +32,8 @@ final class FixturesVerifyCommand extends Command
 
     public function handle(): int
     {
-        $manifestPath = (string) ($this->option('manifest') ?? config('ai.fixtures.manifest_path'));
-        $disk = (string) config('ai.fixtures.disk');
+        $manifestPath = $this->manifestPath();
+        $disk = $this->fixturesDisk();
 
         try {
             $manifest = $this->manifestReader->read($manifestPath);
@@ -55,7 +55,7 @@ final class FixturesVerifyCommand extends Command
                 'rows' => $rows,
                 'registry_orphans' => $registryOrphans,
                 'disk_orphans' => $diskOrphans,
-            ], JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
+            ], JSON_THROW_ON_ERROR | JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
         } else {
             $this->table(
                 ['код', 'манифест', 'файл', 'реестр', 'вердикт'],
@@ -88,5 +88,33 @@ final class FixturesVerifyCommand extends Command
     private function countOk(array $rows): int
     {
         return count(array_filter($rows, static fn (array $row): bool => $row['ok']));
+    }
+
+    private function manifestPath(): string
+    {
+        $manifestPath = $this->option('manifest');
+
+        if (is_string($manifestPath) && $manifestPath !== '') {
+            return $manifestPath;
+        }
+
+        $configuredPath = config('ai.fixtures.manifest_path');
+
+        if (! is_string($configuredPath) || $configuredPath === '') {
+            throw new \UnexpectedValueException('ai.fixtures.manifest_path must be a non-empty string.');
+        }
+
+        return $configuredPath;
+    }
+
+    private function fixturesDisk(): string
+    {
+        $disk = config('ai.fixtures.disk');
+
+        if (! is_string($disk) || $disk === '') {
+            throw new \UnexpectedValueException('ai.fixtures.disk must be a non-empty string.');
+        }
+
+        return $disk;
     }
 }
