@@ -69,8 +69,14 @@ final readonly class DetailAnalysisProcessor
                 throw new RuntimeException("Procurement #{$procurement->id}: registry_id не резолвится в существующий Registry.");
             }
 
+            $sourceMethod = config('crawler.detail_source_method', SourceMethodEnum::Csv->value);
+
+            if (! is_string($sourceMethod)) {
+                throw new RuntimeException('crawler.detail_source_method must be a string.');
+            }
+
             $sourceMethod = $this->sourceMethodFactory->make(
-                method: SourceMethodEnum::from((string) config('crawler.detail_source_method', SourceMethodEnum::Csv->value)),
+                method: SourceMethodEnum::from($sourceMethod),
                 registry: $registry,
             );
 
@@ -236,8 +242,8 @@ final readonly class DetailAnalysisProcessor
     private function markFailed(Procurement $procurement, Throwable $exception): void
     {
         $attempts = $procurement->detail_attempts + 1;
-        $maxAttempts = (int) config('crawler.detail_max_attempts', 5);
-        $backoffMinutes = (int) config('crawler.detail_retry_backoff_minutes', 15);
+        $maxAttempts = $this->integerConfig(key: 'crawler.detail_max_attempts', default: 5);
+        $backoffMinutes = $this->integerConfig(key: 'crawler.detail_retry_backoff_minutes', default: 15);
         $failed = $attempts >= $maxAttempts;
 
         $this->procurementStore->markDetailFailed(
@@ -252,5 +258,16 @@ final readonly class DetailAnalysisProcessor
             'attempts' => $attempts,
             'error' => $exception->getMessage(),
         ]);
+    }
+
+    private function integerConfig(string $key, int $default): int
+    {
+        $value = config($key, $default);
+
+        if (! is_int($value)) {
+            throw new RuntimeException("{$key} must be an integer.");
+        }
+
+        return $value;
     }
 }
