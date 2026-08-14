@@ -32,10 +32,16 @@ final readonly class PipelineDispatcher
 {
     public function dispatch(Procurement $procurement): int
     {
+        $batchLimit = config('ai.pipeline.dispatch_batch_limit', 100);
+
+        if (! is_int($batchLimit)) {
+            throw new \LogicException('ai.pipeline.dispatch_batch_limit must be an integer.');
+        }
+
         return $this->enqueue(
             $this->downloadedQuery()
                 ->where('procurement_id', $procurement->id)
-                ->limit((int) config('ai.pipeline.dispatch_batch_limit', 100)),
+                ->limit($batchLimit),
         );
     }
 

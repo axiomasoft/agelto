@@ -100,7 +100,8 @@ final readonly class EisCsvRowMapper implements ListingRowMapper
             return [null, null];
         }
 
-        $isFz44 = $crawler->registry->code === self::FZ44_REGISTRY_CODE;
+        $registry = $crawler->registry;
+        $isFz44 = $registry?->code === self::FZ44_REGISTRY_CODE;
         $procedureType = $isFz44 ? EisProcedureType::fromRawLabel(raw: $raw)?->value : null;
 
         return [$procedureType, $raw];

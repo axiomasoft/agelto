@@ -62,9 +62,15 @@ final readonly class DocumentIndexer
             return;
         }
 
+        $registry = $procurement->registry;
+
+        if ($registry === null) {
+            throw new \LogicException("Закупка #{$procurement->id} не связана с реестром.");
+        }
+
         $this->storeRepository->create([
             'procurement_id' => $procurement->id,
-            'platform_id' => $procurement->registry->platform_id,
+            'platform_id' => $registry->platform_id,
             'external_id' => $document->externalId,
             'title' => $document->title,
             'kind' => $document->kind,
