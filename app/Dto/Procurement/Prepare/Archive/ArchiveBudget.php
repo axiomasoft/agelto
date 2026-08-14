@@ -18,12 +18,23 @@ final readonly class ArchiveBudget
     public static function fromConfig(): self
     {
         return new self(
-            maxDepth: (int) config('ai.prepare.archive.max_depth', 2),
-            maxEntries: (int) config('ai.prepare.archive.max_files', 200),
-            maxEntryBytes: (int) config('ai.prepare.archive.max_entry_mb', 100) * 1024 * 1024,
-            maxTotalBytes: (int) config('ai.prepare.archive.max_total_mb', 500) * 1024 * 1024,
-            maxCompressionRatio: (int) config('ai.prepare.archive.max_ratio', 100),
-            maxPathLength: (int) config('ai.prepare.archive.max_path_length', 240),
+            maxDepth: self::positiveInt('ai.prepare.archive.max_depth', 2),
+            maxEntries: self::positiveInt('ai.prepare.archive.max_files', 200),
+            maxEntryBytes: self::positiveInt('ai.prepare.archive.max_entry_mb', 100) * 1024 * 1024,
+            maxTotalBytes: self::positiveInt('ai.prepare.archive.max_total_mb', 500) * 1024 * 1024,
+            maxCompressionRatio: self::positiveInt('ai.prepare.archive.max_ratio', 100),
+            maxPathLength: self::positiveInt('ai.prepare.archive.max_path_length', 240),
         );
+    }
+
+    private static function positiveInt(string $key, int $default): int
+    {
+        $value = config($key, $default);
+
+        if (! is_int($value) || $value <= 0) {
+            throw new \UnexpectedValueException("{$key} must be a positive integer.");
+        }
+
+        return $value;
     }
 }
