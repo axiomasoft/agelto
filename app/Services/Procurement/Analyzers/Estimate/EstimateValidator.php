@@ -61,7 +61,7 @@ final readonly class EstimateValidator
         $severe = false;
 
         $this->checkMonotonicity($rows, $anomalousRowIndexes, $rowReasons, $rowNotes, $notes);
-        $severe = $this->checkCompleteness($rowsExpected, $rows, $notes) || $severe;
+        $severe = $this->checkCompleteness($rowsExpected, $rows, $notes);
         $this->checkRequiredItemFields($rows, $rowReasons, $rowNotes);
         $this->checkSectionArithmetic($rows, $anomalousRowIndexes, $rowReasons, $rowNotes, $notes);
         $this->checkGrandTotal($rows, $totals, $notes);
@@ -222,7 +222,7 @@ final readonly class EstimateValidator
             }
 
             if ($row->row_type === RowType::Item) {
-                $accumulated = bcadd($accumulated, $row->total_price_curr ?? '0', self::SCALE);
+                $accumulated = bcadd($accumulated, $this->decimal($row->total_price_curr), self::SCALE);
                 $itemIndexesInSection[] = $row->row_index;
 
                 continue;
@@ -233,7 +233,7 @@ final readonly class EstimateValidator
                 continue;
             }
 
-            if (! $this->withinTolerance($accumulated, $row->total_price_curr)) {
+            if (! $this->withinTolerance($accumulated, $this->decimal($row->total_price_curr))) {
                 $affectedIndexes = [...$itemIndexesInSection, $row->row_index];
                 $anomalousRowIndexes = [...$anomalousRowIndexes, ...$affectedIndexes];
                 $note = "арифметика раздела: сумма позиций {$accumulated} ≠ subtotal {$row->total_price_curr} (row_index={$row->row_index})";
@@ -263,7 +263,7 @@ final readonly class EstimateValidator
             return;
         }
 
-        $grandTotalLine = $this->findGrandTotalLine($totals->footer);
+        $grandTotalLine = $this->findGrandTotalLine(array_values($totals->footer));
 
         if ($grandTotalLine === null) {
             return;
@@ -273,7 +273,7 @@ final readonly class EstimateValidator
 
         foreach ($rows as $row) {
             if ($row->row_type === RowType::Item) {
-                $sum = bcadd($sum, $row->total_price_curr ?? '0', self::SCALE);
+                $sum = bcadd($sum, $this->decimal($row->total_price_curr), self::SCALE);
             }
         }
 
@@ -281,7 +281,7 @@ final readonly class EstimateValidator
             return;
         }
 
-        if (! $this->withinTolerance($sum, $grandTotalLine->value)) {
+        if (! $this->withinTolerance($sum, $this->decimal($grandTotalLine->value))) {
             $notes[] = "итог: сумма позиций {$sum} ≠ «{$grandTotalLine->label}» {$grandTotalLine->value} (best-effort сверка)";
         }
     }
@@ -302,11 +302,27 @@ final readonly class EstimateValidator
         return null;
     }
 
+    /**
+     * @param  numeric-string  $a
+     * @param  numeric-string  $b
+     */
     private function withinTolerance(string $a, string $b): bool
     {
         $diff = bcsub($a, $b, self::SCALE);
         $abs = bccomp($diff, '0', self::SCALE) < 0 ? bcmul($diff, '-1', self::SCALE) : $diff;
 
         return bccomp($abs, self::TOLERANCE, self::SCALE) <= 0;
+    }
+
+    /** @return numeric-string */
+    private function decimal(?string $value): string
+    {
+        $value ??= '0';
+
+        if (! is_numeric($value)) {
+            throw new \UnexpectedValueException("Expected decimal value, got {$value}.");
+        }
+
+        return $value;
     }
 }
