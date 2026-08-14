@@ -38,24 +38,24 @@ final readonly class ListingShapeCheck implements HealthCheck
             ->whereHas('run.crawler.registry', fn ($query) => $query->where('platform_id', $platform->id))
             ->get(['id', 'rows_total', 'rows_parsed', 'rows_errors', 'http_status']);
 
-        $parseSamples = $fetches->filter(fn (Fetch $fetch): bool => $fetch->getAttribute('rows_total') !== null
-            && $fetch->getAttribute('rows_parsed') !== null
-            && $fetch->getAttribute('rows_errors') !== null);
+        $parseSamples = $fetches->filter(fn (Fetch $fetch): bool => self::nullableIntAttribute(fetch: $fetch, attribute: 'rows_total') !== null
+            && self::nullableIntAttribute(fetch: $fetch, attribute: 'rows_parsed') !== null
+            && self::nullableIntAttribute(fetch: $fetch, attribute: 'rows_errors') !== null);
         $parseSample = $parseSamples->count();
         $parseFailures = $parseSamples->filter(function (Fetch $fetch) use ($rowErrorShareBadThreshold): bool {
-            $rowsTotal = (int) $fetch->getAttribute('rows_total');
-            $rowsParsed = (int) $fetch->getAttribute('rows_parsed');
-            $rowsErrors = (int) $fetch->getAttribute('rows_errors');
+            $rowsTotal = self::intAttribute(fetch: $fetch, attribute: 'rows_total');
+            $rowsParsed = self::intAttribute(fetch: $fetch, attribute: 'rows_parsed');
+            $rowsErrors = self::intAttribute(fetch: $fetch, attribute: 'rows_errors');
             $rowErrorShare = $rowsTotal === 0 ? 0.0 : $rowsErrors / $rowsTotal;
 
             return $rowsTotal > 0
                 && ($rowsParsed === 0 || $rowErrorShare >= (float) $rowErrorShareBadThreshold);
         })->count();
         $maxRowErrorShare = $parseSamples
-            ->filter(fn (Fetch $fetch): bool => (int) $fetch->getAttribute('rows_total') > 0)
-            ->map(fn (Fetch $fetch): float => (int) $fetch->getAttribute('rows_errors') / (int) $fetch->getAttribute('rows_total'))
+            ->filter(fn (Fetch $fetch): bool => self::intAttribute(fetch: $fetch, attribute: 'rows_total') > 0)
+            ->map(fn (Fetch $fetch): float => self::intAttribute(fetch: $fetch, attribute: 'rows_errors') / self::intAttribute(fetch: $fetch, attribute: 'rows_total'))
             ->max() ?? 0.0;
-        $nonOk = $fetches->filter(fn (Fetch $fetch): bool => (int) $fetch->getAttribute('http_status') !== 200)->count();
+        $nonOk = $fetches->filter(fn (Fetch $fetch): bool => self::nullableIntAttribute(fetch: $fetch, attribute: 'http_status') !== 200)->count();
         $parseFailureShare = $parseSample === 0 ? 0.0 : $parseFailures / $parseSample;
         $nonOkShare = $fetches->isEmpty() ? 0.0 : $nonOk / $fetches->count();
 
@@ -77,5 +77,31 @@ final readonly class ListingShapeCheck implements HealthCheck
             sampleSize: $parseSample,
             badShares: [$parseFailureShare, $maxRowErrorShare, $nonOkShare],
         );
+    }
+
+    private static function intAttribute(Fetch $fetch, string $attribute): int
+    {
+        $value = self::nullableIntAttribute(fetch: $fetch, attribute: $attribute);
+
+        if ($value === null) {
+            throw new \LogicException("Fetch {$attribute} должен быть целым числом.");
+        }
+
+        return $value;
+    }
+
+    private static function nullableIntAttribute(Fetch $fetch, string $attribute): ?int
+    {
+        $value = $fetch->getAttribute($attribute);
+
+        if ($value === null) {
+            return null;
+        }
+
+        if (! is_int($value)) {
+            throw new \LogicException("Fetch {$attribute} должен быть целым числом.");
+        }
+
+        return $value;
     }
 }
