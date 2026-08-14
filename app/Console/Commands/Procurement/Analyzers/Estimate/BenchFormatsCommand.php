@@ -54,7 +54,7 @@ final class BenchFormatsCommand extends Command
         // операторский `--out` остаётся репо-относительным, как раньше.
         $path = $outOption !== null
             ? base_path($outOption)
-            : ((string) config('ai.fixtures.reports_dir'))."/bench-formats-{$mode}-{$date}.json";
+            : $this->reportsDirectory()."/bench-formats-{$mode}-{$date}.json";
 
         $json = json_encode($artifact, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)."\n";
 
@@ -76,5 +76,16 @@ final class BenchFormatsCommand extends Command
         ));
 
         return self::SUCCESS;
+    }
+
+    private function reportsDirectory(): string
+    {
+        $reportsDirectory = config('ai.fixtures.reports_dir');
+
+        if (! is_string($reportsDirectory)) {
+            throw new \UnexpectedValueException('ai.fixtures.reports_dir must be a string.');
+        }
+
+        return $reportsDirectory;
     }
 }
