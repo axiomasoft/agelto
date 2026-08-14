@@ -35,9 +35,9 @@ final class PromptsSuggestCommand extends Command
 
     public function handle(): int
     {
-        $codes = array_map('strval', (array) $this->option('code'));
+        $codes = array_values(array_map('strval', (array) $this->option('code')));
         $analysisOption = $this->option('analysis');
-        $stepOptions = array_map('strval', (array) $this->option('step'));
+        $stepOptions = array_values(array_map('strval', (array) $this->option('step')));
         $dryRun = (bool) $this->option('dry-run');
         $limitOption = $this->option('limit');
         $limit = $limitOption !== null ? (int) $limitOption : null;
