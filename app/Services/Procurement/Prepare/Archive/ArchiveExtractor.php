@@ -58,17 +58,20 @@ final readonly class ArchiveExtractor
                 $opsys = 0;
                 $attributes = 0;
                 $zip->getExternalAttributesIndex($index, $opsys, $attributes);
+                if (! is_int($attributes)) {
+                    throw new ArchiveUnsupportedException('ZIP attributes не содержат режим файла');
+                }
                 $mode = ($attributes >> 16) & 0170000;
-                $isDirectory = str_ends_with((string) $stat['name'], '/') || $mode === 0040000;
+                $isDirectory = str_ends_with($this->requiredString($stat['name'], 'ZIP name'), '/') || $mode === 0040000;
                 $type = match ($mode) {
                     0, 0100000, 0040000 => $isDirectory ? 'directory' : 'file',
                     0120000 => 'symlink',
                     default => 'special',
                 };
                 $entries[] = new ArchiveEntry(
-                    path: (string) $stat['name'],
-                    declaredSize: (int) $stat['size'],
-                    compressedSize: (int) $stat['comp_size'],
+                    path: $this->requiredString($stat['name'], 'ZIP name'),
+                    declaredSize: $this->nonNegativeInt($stat['size'], 'ZIP size'),
+                    compressedSize: $this->nonNegativeInt($stat['comp_size'], 'ZIP compressed size'),
                     isDirectory: $isDirectory,
                     isEncrypted: $stat['encryption_method'] !== ZipArchive::EM_NONE,
                     type: $type,
@@ -105,7 +108,7 @@ final readonly class ArchiveExtractor
     /** @return list<ArchiveEntry> */
     private function listSevenZip(string $archivePath): array
     {
-        $result = Process::timeout($this->timeout())->run([(string) config('ai.tools.sevenzip_bin'), 'l', '-slt', $archivePath]);
+        $result = Process::timeout($this->timeout())->run([$this->configString('ai.tools.sevenzip_bin'), 'l', '-slt', $archivePath]);
         if ($result->failed()) {
             $this->rejectByOutput($result);
         }
@@ -151,7 +154,7 @@ final readonly class ArchiveExtractor
     private function extractSevenZipEntry(string $archivePath, ArchiveEntry $entry, string $targetPath, ArchiveBudget $budget, int &$totalBytes): void
     {
         $this->extractProcessEntry(
-            [(string) config('ai.tools.sevenzip_bin'), 'x', '-so', '-y', $archivePath, $entry->path],
+            [$this->configString('ai.tools.sevenzip_bin'), 'x', '-so', '-y', $archivePath, $entry->path],
             $entry,
             $targetPath,
             $budget,
@@ -162,7 +165,7 @@ final readonly class ArchiveExtractor
     private function extractRarEntry(string $archivePath, ArchiveEntry $entry, string $targetPath, ArchiveBudget $budget, int &$totalBytes): void
     {
         $this->extractProcessEntry(
-            [(string) config('ai.tools.unar_bin'), '-o', '-', '-D', '-q', $archivePath, $entry->path],
+            [$this->configString('ai.tools.unar_bin'), '-o', '-', '-D', '-q', $archivePath, $entry->path],
             $entry,
             $targetPath,
             $budget,
@@ -220,14 +223,28 @@ final readonly class ArchiveExtractor
             $this->rejectByOutput($result);
         }
 
-        return array_map(fn (array $entry): ArchiveEntry => new ArchiveEntry(
-            path: (string) ($entry['XADFileName'] ?? ''),
-            declaredSize: (int) ($entry['XADFileSize'] ?? 0),
-            compressedSize: (int) ($entry['XADCompressedSize'] ?? 0),
-            isDirectory: (bool) ($entry['XADIsDirectory'] ?? false),
-            isEncrypted: (bool) ($entry['XADIsEncrypted'] ?? false),
-            type: (bool) ($entry['XADIsLink'] ?? false) ? 'symlink' : ((bool) ($entry['XADIsDirectory'] ?? false) ? 'directory' : 'file'),
-        ), $decoded['lsarContents']);
+        $entries = [];
+        foreach ($decoded['lsarContents'] as $entry) {
+            if (! is_array($entry)) {
+                throw new ArchiveUnsupportedException('RAR metadata содержит не объект записи');
+            }
+            $isDirectory = $entry['XADIsDirectory'] ?? false;
+            $isLink = $entry['XADIsLink'] ?? false;
+            $isEncrypted = $entry['XADIsEncrypted'] ?? false;
+            if (! is_bool($isDirectory) || ! is_bool($isLink) || ! is_bool($isEncrypted)) {
+                throw new ArchiveUnsupportedException('RAR metadata содержит невалидные флаги записи');
+            }
+            $entries[] = new ArchiveEntry(
+                path: $this->requiredString($entry['XADFileName'] ?? null, 'RAR filename'),
+                declaredSize: $this->nonNegativeInt($entry['XADFileSize'] ?? null, 'RAR size'),
+                compressedSize: $this->nonNegativeInt($entry['XADCompressedSize'] ?? null, 'RAR compressed size'),
+                isDirectory: $isDirectory,
+                isEncrypted: $isEncrypted,
+                type: $isLink ? 'symlink' : ($isDirectory ? 'directory' : 'file'),
+            );
+        }
+
+        return $entries;
     }
 
     /** @param resource $input */
@@ -275,6 +292,29 @@ final readonly class ArchiveExtractor
 
     private function timeout(): int
     {
-        return (int) config('ai.prepare.archive.timeout_seconds', config('ai.tools.default_timeout_seconds', 180));
+        return $this->nonNegativeInt(config('ai.prepare.archive.timeout_seconds', config('ai.tools.default_timeout_seconds', 180)), 'archive timeout');
+    }
+
+    private function configString(string $key): string
+    {
+        return $this->requiredString(config($key), $key);
+    }
+
+    private function requiredString(mixed $value, string $field): string
+    {
+        if (! is_string($value) || $value === '') {
+            throw new ArchiveUnsupportedException("{$field} должен быть непустой строкой");
+        }
+
+        return $value;
+    }
+
+    private function nonNegativeInt(mixed $value, string $field): int
+    {
+        if (! is_int($value) || $value < 0) {
+            throw new ArchiveUnsupportedException("{$field} должен быть неотрицательным целым числом");
+        }
+
+        return $value;
     }
 }
