@@ -30,7 +30,7 @@ class ProcurementInfolist
                             ->state(fn (Procurement $record): string => self::durations($record)->publishedAt->format('d.m.Y H:i')),
                         TextEntry::make('history.current_status')
                             ->label('Текущий статус')
-                            ->state(fn (Procurement $record): string => (string) $record->getRawOriginal('status')),
+                            ->state(fn (Procurement $record): string => $record->status->value),
                         TextEntry::make('history.terminal_status')
                             ->label('Терминальный статус')
                             ->state(fn (Procurement $record): ?string => self::durations($record)->terminalStatus?->value)
@@ -192,9 +192,22 @@ class ProcurementInfolist
         /** @var array<int, ProcurementDurations> $durations */
         static $durations = [];
 
-        return $durations[$record->getKey()] ??= app(ProcurementTimelineBuilder::class)
-            ->build(procurement: $record, from: Carbon::parse($record->getRawOriginal('first_seen_at')), until: now())
+        $key = $record->getKey();
+
+        assert(is_int($key));
+
+        return $durations[$key] ??= app(ProcurementTimelineBuilder::class)
+            ->build(procurement: $record, from: Carbon::parse(self::rawDateTime($record, 'first_seen_at')), until: now())
             ->durations;
+    }
+
+    private static function rawDateTime(Procurement $record, string $attribute): \DateTimeInterface|float|int|string|null
+    {
+        $value = $record->getRawOriginal($attribute);
+
+        return is_string($value) || is_int($value) || is_float($value) || $value instanceof \DateTimeInterface
+            ? $value
+            : null;
     }
 
     private static function durationLabel(?int $seconds): string

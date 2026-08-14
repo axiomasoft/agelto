@@ -7,12 +7,14 @@ namespace App\Filament\Resources\Procurement\Procurements\RelationManagers;
 use App\Models\Procurement\Procurement;
 use App\Models\Procurement\ProcurementRevision;
 use App\Services\Procurement\History\RevisionDiffService;
+use DateTimeInterface;
 use Filament\Actions\Action;
 use Filament\Resources\RelationManagers\RelationManager;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\TernaryFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\HtmlString;
 
@@ -62,17 +64,17 @@ class RevisionsRelationManager extends RelationManager
     {
         return Action::make('comparePrevious')
             ->label('Сравнить с предыдущей')
-            ->visible(fn (ProcurementRevision $record): bool => (int) $record->getRawOriginal('revision_number') > 1)
+            ->visible(fn (ProcurementRevision $record): bool => $record->revision_number > 1)
             ->modalHeading('Изменения редакции')
             ->modalSubmitAction(false)
             ->modalCancelActionLabel('Закрыть')
             ->modalContent(function (ProcurementRevision $record): HtmlString {
                 $previous = $this->ownerProcurement()->revisions()
                     ->whereBetween('detected_at', [
-                        Carbon::parse($this->ownerProcurement()->getRawOriginal('published_at')),
-                        Carbon::parse($record->getRawOriginal('detected_at')),
+                        Carbon::parse($this->rawDateTime($this->ownerProcurement(), 'published_at')),
+                        Carbon::parse($this->rawDateTime($record, 'detected_at')),
                     ])
-                    ->where('revision_number', '<', (int) $record->getRawOriginal('revision_number'))
+                    ->where('revision_number', '<', $record->revision_number)
                     ->orderByDesc('revision_number')
                     ->first();
 
@@ -125,18 +127,29 @@ class RevisionsRelationManager extends RelationManager
     private function displayValue(mixed $value): string
     {
         if (is_array($value)) {
-            return (string) json_encode($value, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+            return json_encode($value, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
         }
 
-        return $value === null ? '—' : (string) $value;
+        return match (true) {
+            is_string($value) => $value,
+            is_int($value), is_float($value) => (string) $value,
+            is_bool($value) => $value ? 'да' : 'нет',
+            default => '—',
+        };
     }
 
     /** @return array<string, mixed> */
     private function snapshot(ProcurementRevision $revision): array
     {
-        /** @var array<string, mixed> $snapshot */
-        $snapshot = json_decode((string) $revision->getRawOriginal('snapshot'), true, flags: JSON_THROW_ON_ERROR);
+        return $revision->snapshot;
+    }
 
-        return $snapshot;
+    private function rawDateTime(Model $model, string $attribute): DateTimeInterface|float|int|string|null
+    {
+        $value = $model->getRawOriginal($attribute);
+
+        return is_string($value) || is_int($value) || is_float($value) || $value instanceof DateTimeInterface
+            ? $value
+            : null;
     }
 }

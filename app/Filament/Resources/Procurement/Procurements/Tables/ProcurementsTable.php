@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Procurement\Procurements\Tables;
 
+use App\Models\Procurement\Procurement;
 use Filament\Actions\ViewAction;
 use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
@@ -24,7 +25,7 @@ class ProcurementsTable
                     ->visibleFrom('md'),
                 TextColumn::make('initial_price')
                     ->label('НМЦК')
-                    ->money(fn ($record) => $record->currency)
+                    ->money(fn (Procurement $record): ?string => $record->currency)
                     ->sortable(),
                 TextColumn::make('published_at')
                     ->label('Опубликовано')
