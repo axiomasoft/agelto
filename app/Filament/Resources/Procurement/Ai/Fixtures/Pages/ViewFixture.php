@@ -49,7 +49,8 @@ class ViewFixture extends ViewRecord
                 }
 
                 try {
-                    app(RunFixtureAnalysisAction::class)->run($record, Auth::id());
+                    $userId = Auth::id();
+                    app(RunFixtureAnalysisAction::class)->run($record, is_int($userId) ? $userId : null);
                 } catch (OperationFailed $e) {
                     Notification::make()->title($e->getMessage())->danger()->send();
 

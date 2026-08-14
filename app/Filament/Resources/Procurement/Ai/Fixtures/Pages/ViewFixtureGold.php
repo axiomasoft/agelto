@@ -86,7 +86,13 @@ final class ViewFixtureGold extends ViewRecord implements HasTable
     private function manifestPromisesGold(): bool
     {
         try {
-            $manifest = app(FixtureManifestReader::class)->read((string) config('ai.fixtures.manifest_path'));
+            $manifestPath = config('ai.fixtures.manifest_path');
+
+            if (! is_string($manifestPath) || $manifestPath === '') {
+                return false;
+            }
+
+            $manifest = app(FixtureManifestReader::class)->read($manifestPath);
         } catch (ManifestUnreadable) {
             return false;
         }
