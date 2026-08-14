@@ -21,6 +21,7 @@ status: living
 | `make test:full` / `test:profile` / `test:coverage` | Полный `--ci --no-tia` suite; profile и Clover сохраняют замер/coverage без TIA replay. |
 | `make test:tia-refresh` / `test:tia-reset` | Явно пересобирает или удаляет только project-scoped TIA graph; baseline workflow появится в P11.5. |
 | `make test:shard SHARD=1/2` | Один full no-TIA time-balanced shard для измерений; пока P11.3 не докажет изоляцию, release default остаётся serial и shards не являются acceptance evidence. |
+| `make test:parallel PROCESSES=2\|4` | Guarded Pest parallel proof: Laravel worker обязан получить exact token DB, а все app-owned disks — свой local process root. Не заменяет full serial acceptance. |
 | `make dev:admin-create PASSWORD_FILE=<path>` / `make dev:admin-reset PASSWORD_FILE=<path>` | Явное создание initial SuperAdmin или reset; пароль монтируется из файла и не передаётся в argv |
 | `make doctor:local` | Read-only Laravel Doctor в agent-формате для локальной среды |
 | `make readiness:check` | Active DB/cache/storage/release/assets/Horizon/scheduler readiness; `/up` не заменяет эту проверку |

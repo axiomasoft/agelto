@@ -98,6 +98,7 @@ test('re-run заменяет только позиции запрошенног
 
     $document = Document::factory()->create();
     $version = DocumentVersion::factory()->create(['document_id' => $document->id]);
+    Storage::disk('s3')->put($version->storage_path, 'test PDF');
     $analysis = Analysis::factory()->create([
         'document_version_id' => $version->id,
         'step' => AnalysisStep::Extraction,
@@ -153,6 +154,7 @@ test('re-run доводит запись позиции до полноты сх
 
     $document = Document::factory()->create();
     $version = DocumentVersion::factory()->create(['document_id' => $document->id]);
+    Storage::disk('s3')->put($version->storage_path, 'test PDF');
     $analysis = Analysis::factory()->create([
         'document_version_id' => $version->id,
         'step' => AnalysisStep::Extraction,
@@ -203,6 +205,7 @@ test('re-run не обнуляет ранее записанные unit_price_ba
 
     $document = Document::factory()->create();
     $version = DocumentVersion::factory()->create(['document_id' => $document->id]);
+    Storage::disk('s3')->put($version->storage_path, 'test PDF');
     $analysis = Analysis::factory()->create([
         'document_version_id' => $version->id,
         'step' => AnalysisStep::Extraction,

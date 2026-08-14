@@ -6,6 +6,7 @@ use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Testing\TestCase as BaseTestCase;
 use Illuminate\Support\Facades\Http;
 use Tests\Support\TestEnvironmentGuard;
+use Tests\Support\TestFilesystemIsolation;
 
 abstract class TestCase extends BaseTestCase
 {
@@ -17,7 +18,9 @@ abstract class TestCase extends BaseTestCase
     {
         $app = parent::createApplication();
 
-        TestEnvironmentGuard::assertIsolatedTestDatabase($app);
+        TestFilesystemIsolation::configure($app);
+        TestEnvironmentGuard::assertBootstrapTestDatabase($app);
+        TestEnvironmentGuard::assertIsolatedTestFilesystem($app);
         Http::preventStrayRequests();
 
         return $app;

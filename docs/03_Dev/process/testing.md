@@ -56,9 +56,14 @@ workflow (D40).
   project-scoped graph.
 - **Приёмочный прогон item'а/фазы — только `make test:full`, `test:profile` или `test:coverage`**:
   каждый несёт `--ci --no-tia`. Replay, focused run и отдельный shard не являются evidence приёмки.
-- **Sharding** — P11.2 воспроизвёл конфликты общей `agelto_test` при одновременных 2-way shard'ах,
-  поэтому safe default — serial. `test:shard` остаётся диагностической командой с `--no-tia`, но не
-  запускается параллельно и не используется CI до isolation proof P11.3.
+- **Sharding и parallel** — release default остаётся serial. `test:shard` остаётся диагностической
+  командой с `--no-tia`; `make test:parallel PROCESSES=2|4` — отдельное доказательство изоляции,
+  не acceptance replacement. До первой migration каждый worker обязан пройти exact token DB guard
+  в Laravel `setUpTestDatabaseBeforeMigrating`; все app-owned disks переписаны в local root
+  `storage/framework/testing/<process>/disks`. Bootstrap выбирает `<process>` из ParaTest
+  `TEST_TOKEN` до autoload, поэтому `TMPDIR`, log/auth/artifact roots также process-scoped;
+  teardown удаляет только этот root. `Storage::fake()` остаётся явным тестовым double, не safety
+  boundary.
 - **Кэш графа** — именованный том `app_pest_tia:/var/www/.pest` (не `~/.pest`, домашний `/var/www`
   контейнера не смонтирован volume'ом целиком), переживает `docker compose up -d --force-recreate`.
   Владелец тома и `git safe.directory` для bind-mount `html` (uid хоста ≠ www-data) заданы на
@@ -108,6 +113,15 @@ docker exec agelto_app ./vendor/bin/pest --agent='expect(true)->toBeTrue();'
 - `php artisan boost:install` не запускался при установке плагина (D9): Laravel Boost в проекте —
   только MCP, не источник guidelines; правила `--agent` живут в
   `.claude/rules/agelto-reviewer-overrides.md`, а не в сгенерированном Boost-контуре.
+
+## Agent-optimized output
+
+`laravel/pao` — единственный formatter agent output. Docker Make targets forward Codex, Claude,
+Cursor and `AI_AGENT` markers into `app`: Pest, Paratest and PHPStan return one structured JSON
+result in agent mode. `php artisan test` delegates to Pest and therefore has the same JSON contract;
+other Artisan commands retain normal human text output. Не добавлять второй output-wrapper и не
+считать presence env marker доказательством — contract проверяет schema фактического stdout на
+success и failure.
 
 ## Стиль кода
 

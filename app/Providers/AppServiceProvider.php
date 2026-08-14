@@ -23,10 +23,13 @@ use Illuminate\Console\Events\CommandStarting;
 use Illuminate\Support\Facades\Context;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\ParallelTesting;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Str;
 use Laravel\Doctor\Facades\Doctor;
 use Livewire\Livewire;
+use Tests\Support\TestEnvironmentGuard;
+use Tests\Support\TestFilesystemIsolation;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -64,6 +67,24 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        if ($this->app->environment('testing')) {
+            ParallelTesting::setUpProcess(function (string $token): void {
+                TestFilesystemIsolation::prepare(process: $token);
+            });
+
+            ParallelTesting::tearDownProcess(function (string $token): void {
+                TestFilesystemIsolation::cleanup(process: $token);
+            });
+
+            ParallelTesting::setUpTestDatabaseBeforeMigrating(function (string $database, string $token): void {
+                TestEnvironmentGuard::assertParallelTestDatabase(
+                    app: $this->app,
+                    database: $database,
+                    token: $token,
+                );
+            });
+        }
+
         if (class_exists(Doctor::class)) {
             Doctor::diagnostics([
                 PrivatePackagesArePinned::class,

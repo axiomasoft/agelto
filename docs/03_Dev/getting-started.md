@@ -80,10 +80,12 @@ a clean pull before a tag can be handed to production operations.
 
 ```bash
 make agent:artisan ARGS="test --compact" # non-TTY Laravel test run
+make test:parallel PROCESSES=2           # isolation proof; 2 or 4 only
 ```
 
 Изоляция от прод/dev БД — гейт `Tests\Support\TestEnvironmentGuard`; подробности и правила именования
-тестов — skill `testing-rules`, `docs/03_Dev/process/testing.md`.
+тестов — skill `testing-rules`, `docs/03_Dev/process/testing.md`. Parallel worker проверяет exact
+token DB до первой migration; все app-owned disks остаются под `storage/framework/testing`.
 
 ## Дальше
 

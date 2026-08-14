@@ -9,53 +9,77 @@ use Illuminate\Support\Facades\Process;
 /**
  * `mc ilm rule add` сам по себе НЕ идемпотентен (повтор с теми же параметрами создаёт
  * ВТОРОЕ правило) — идемпотентность держит сама команда (`StorageLifecycleCommand`).
- * Тест бьёт в РЕАЛЬНЫЙ dev-MinIO (тот же приём, что `PdfPageSlicerTest` — реальный
- * `qpdf`, не мок) с ОТДЕЛЬНЫМ тестовым префиксом, не пересекающимся с боевым
- * `partitioning.minio_lifecycle` — `afterEach` подчищает созданные правила.
+ * Тест использует явный `Process::fake()`-эмулятор `mc`: глобальный P11.3 guard не
+ * допускает, чтобы feature-test неявно получил реальный S3/MinIO adapter.
  */
-function storageLifecycleTarget(): string
+function storageLifecycleDisk(): array
 {
-    return 'agelto-storage-lifecycle/'.config('filesystems.disks.s3.bucket');
+    return [
+        'bucket' => 'agelto-test-only',
+        'endpoint' => 'http://minio.test:9000',
+        'key' => 'test-key',
+        'secret' => 'test-secret',
+    ];
 }
 
-/**
- * @return array<int, array{ID: string, Filter: array{Prefix: string}}>
- */
-function storageLifecycleRulesByPrefix(string $prefix): array
+/** @param array<int, array{ID: string, Filter: array{Prefix: string}, Expiration: array{Days: int}}> $rules */
+function fakeStorageLifecycleProcess(array &$rules): void
 {
-    $result = Process::run(['mc', 'ilm', 'rule', 'ls', storageLifecycleTarget(), '--json']);
-    $payload = json_decode($result->output(), true) ?? [];
+    Process::fake(function ($process) use (&$rules) {
+        $command = $process->command;
 
-    if (($payload['status'] ?? null) !== 'success') {
-        return [];
-    }
+        if ($command[0] !== 'mc' || $command[1] !== 'ilm' || $command[2] !== 'rule') {
+            throw new RuntimeException('Unexpected process command in MinIO lifecycle test.');
+        }
 
-    return array_values(array_filter(
-        $payload['config']['Rules'] ?? [],
-        fn (array $rule): bool => ($rule['Filter']['Prefix'] ?? null) === $prefix,
-    ));
+        if ($command[3] === 'ls') {
+            return Process::result(output: json_encode([
+                'status' => 'success',
+                'config' => ['Rules' => $rules],
+            ], JSON_THROW_ON_ERROR));
+        }
+
+        if ($command[3] === 'add') {
+            $prefix = $command[array_search('--prefix', $command, true) + 1] ?? null;
+            $days = $command[array_search('--expire-days', $command, true) + 1] ?? null;
+
+            if (! is_string($prefix) || ! is_string($days)) {
+                throw new RuntimeException('MinIO lifecycle add command is malformed.');
+            }
+
+            $rules[] = [
+                'ID' => 'rule-'.count($rules),
+                'Filter' => ['Prefix' => $prefix],
+                'Expiration' => ['Days' => (int) $days],
+            ];
+
+            return Process::result();
+        }
+
+        throw new RuntimeException('Unexpected MinIO lifecycle operation.');
+    });
 }
 
-afterEach(function (): void {
-    foreach (storageLifecycleRulesByPrefix('ai/llm-calls-test/') as $rule) {
-        Process::run(['mc', 'ilm', 'rule', 'remove', storageLifecycleTarget(), '--id', $rule['ID']]);
-    }
+beforeEach(function (): void {
+    Config::set('filesystems.disks.s3', storageLifecycleDisk());
 });
 
 test('ai:storage:lifecycle применяет ILM-правило на пустом бакете (первый прогон, нет lifecycle-конфигурации)', function (): void {
+    $rules = [];
+    fakeStorageLifecycleProcess($rules);
     Config::set('partitioning.minio_lifecycle', [
         'test_rule' => ['prefix' => 'ai/llm-calls-test/', 'expire_days' => 90],
     ]);
 
     expect(Artisan::call('ai:storage:lifecycle'))->toBe(0);
-
-    $rules = storageLifecycleRulesByPrefix('ai/llm-calls-test/');
 
     expect($rules)->toHaveCount(1);
     expect($rules[0]['Expiration']['Days'] ?? null)->toBe(90);
 });
 
 test('ai:storage:lifecycle идемпотентна — повторный вызов не плодит дублирующихся правил', function (): void {
+    $rules = [];
+    fakeStorageLifecycleProcess($rules);
     Config::set('partitioning.minio_lifecycle', [
         'test_rule' => ['prefix' => 'ai/llm-calls-test/', 'expire_days' => 90],
     ]);
@@ -64,21 +88,23 @@ test('ai:storage:lifecycle идемпотентна — повторный вы�
     expect(Artisan::call('ai:storage:lifecycle'))->toBe(0);
     expect(Artisan::call('ai:storage:lifecycle'))->toBe(0);
 
-    expect(storageLifecycleRulesByPrefix('ai/llm-calls-test/'))->toHaveCount(1);
+    expect($rules)->toHaveCount(1);
 });
 
 test('ai:storage:lifecycle без правил в конфиге — no-op, успешный код возврата', function (): void {
+    $rules = [];
+    fakeStorageLifecycleProcess($rules);
     Config::set('partitioning.minio_lifecycle', []);
 
     expect(Artisan::call('ai:storage:lifecycle'))->toBe(0);
+    expect($rules)->toBeEmpty();
 });
 
 test('ai:storage:lifecycle не передаёт S3 credentials в аргументах mc', function (): void {
     $disk = (array) config('filesystems.disks.s3');
+    $rules = [];
+    fakeStorageLifecycleProcess($rules);
     Config::set('partitioning.minio_lifecycle', []);
-    Process::fake([
-        '*' => Process::result(output: json_encode(['status' => 'success', 'config' => ['Rules' => []]], JSON_THROW_ON_ERROR)),
-    ]);
 
     expect(Artisan::call('ai:storage:lifecycle'))->toBe(0);
 

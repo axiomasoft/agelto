@@ -7,12 +7,17 @@ use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Log;
 use Tests\Support\Doubles\RecordsTraceIdJob;
 
+function jsonLogPath(): string
+{
+    return (string) config('logging.channels.json_file.handler_with.stream');
+}
+
 beforeEach(function () {
-    File::delete(storage_path('logs/laravel-json.log'));
+    File::delete(jsonLogPath());
 });
 
 afterEach(function () {
-    File::delete(storage_path('logs/laravel-json.log'));
+    File::delete(jsonLogPath());
 });
 
 test('json_file-канал пишет запись в формате JSON с Context-полями в extra', function () {
@@ -20,7 +25,7 @@ test('json_file-канал пишет запись в формате JSON с Con
 
     Log::channel('json_file')->info('наблюдаемость: тестовое сообщение');
 
-    $line = trim(File::get(storage_path('logs/laravel-json.log')));
+    $line = trim(File::get(jsonLogPath()));
     $decoded = json_decode($line, associative: true);
 
     expect($decoded)->toBeArray()
@@ -41,7 +46,7 @@ test('trace_id, выставленный ДО dispatch, доезжает до jo
 
     $this->artisan('queue:work', ['--once' => true, '--stop-when-empty' => true])->assertSuccessful();
 
-    $line = collect(explode(PHP_EOL, trim(File::get(storage_path('logs/laravel-json.log')))))->last();
+    $line = collect(explode(PHP_EOL, trim(File::get(jsonLogPath()))))->last();
     $decoded = json_decode($line, associative: true);
 
     expect($decoded['context']['observed_trace_id'] ?? null)->toBe('job-dispatch-test-trace');
