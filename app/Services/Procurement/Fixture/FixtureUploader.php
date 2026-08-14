@@ -54,14 +54,27 @@ final readonly class FixtureUploader
         }
 
         $sourceFormat = strtolower($file->getClientOriginalExtension());
-        $class = FixtureClass::from((string) ($typeProfile['class'] ?? ''));
-        $form = (string) ($typeProfile['form'] ?? '');
+        $classValue = $typeProfile['class'] ?? null;
+        $formValue = $typeProfile['form'] ?? null;
+
+        if (! is_string($classValue) || ! is_string($formValue)) {
+            throw new \UnexpectedValueException('Fixture type profile must contain string class and form values.');
+        }
+
+        $class = FixtureClass::from($classValue);
+        $form = $formValue;
 
         $code = Fixture::nextCodeFor($class, $sourceFormat, $form);
         $storagePath = Fixture::storagePathFor($code, $sourceFormat);
         $disk = $this->locationResolver->currentFixturesDisk();
 
-        Storage::disk($disk)->put($storagePath, $file->readStream());
+        $stream = $file->readStream();
+
+        if (! is_resource($stream)) {
+            throw new \UnexpectedValueException('Fixture upload stream is unavailable.');
+        }
+
+        Storage::disk($disk)->put($storagePath, $stream);
 
         return $this->fixtures->storeOrUpdate($code, [
             'source_format' => $sourceFormat,
