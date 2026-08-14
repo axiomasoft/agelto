@@ -216,7 +216,7 @@ final readonly class LlmCacheManager
      * `prompt_tokens` НЕ включает `cached_tokens` (докблок `LlmUsage`/`PrismGeminiProvider`) —
      * знаменатель восстанавливает полный размер входного промта.
      *
-     * @return Collection<int, object{purpose: string, calls: int, prompt_tokens: int, cached_tokens: int, hit_ratio: float}>
+     * @return Collection<int, object{purpose: string, calls: int, prompt_tokens: int, cached_tokens: int, hit_ratio: float}&\stdClass>
      */
     public function implicitHitStats(CarbonInterval $window): Collection
     {
@@ -232,14 +232,22 @@ final readonly class LlmCacheManager
             ->orderBy('purpose')
             ->get()
             ->map(static function (LlmCall $row): object {
-                $total = (int) $row->prompt_tokens + (int) $row->cached_tokens;
+                $purpose = $row->getAttribute('purpose');
+                $calls = $row->getAttribute('calls');
+                $promptTokens = $row->getAttribute('prompt_tokens');
+                $cachedTokens = $row->getAttribute('cached_tokens');
+                $normalizedPurpose = is_string($purpose) ? $purpose : '';
+                $normalizedCalls = is_int($calls) || is_float($calls) || is_string($calls) ? (int) $calls : 0;
+                $normalizedPromptTokens = is_int($promptTokens) || is_float($promptTokens) || is_string($promptTokens) ? (int) $promptTokens : 0;
+                $normalizedCachedTokens = is_int($cachedTokens) || is_float($cachedTokens) || is_string($cachedTokens) ? (int) $cachedTokens : 0;
+                $total = $normalizedPromptTokens + $normalizedCachedTokens;
 
                 return (object) [
-                    'purpose' => $row->getAttribute('purpose'),
-                    'calls' => (int) $row->calls,
-                    'prompt_tokens' => (int) $row->prompt_tokens,
-                    'cached_tokens' => (int) $row->cached_tokens,
-                    'hit_ratio' => $total > 0 ? round((int) $row->cached_tokens / $total, 4) : 0.0,
+                    'purpose' => $normalizedPurpose,
+                    'calls' => $normalizedCalls,
+                    'prompt_tokens' => $normalizedPromptTokens,
+                    'cached_tokens' => $normalizedCachedTokens,
+                    'hit_ratio' => $total > 0 ? round($normalizedCachedTokens / $total, 4) : 0.0,
                 ];
             });
     }
