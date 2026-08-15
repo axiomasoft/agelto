@@ -3,7 +3,7 @@ projection: status-view
 projection_version: v1
 source_scope: plan core + phases + journal
 through: 2026-08-15
-inputs_sha256: 0c6eb96ef6a55b79ca9b0171e3a0a4048efdc79d337171d77757bbd238d1e48a
+inputs_sha256: a564978dcdd60c499a5faec1499ce5565cd801293da07353dfeb12bc6f5e120f
 generated_by: task plan-views status
 -->
 
@@ -15,8 +15,8 @@ generated_by: task plan-views status
 
 | Поле | Значение |
 |:--|:--|
-| Version | 0.1.13 |
-| Status | 🔴 Blocked |
+| Version | 0.1.14 |
+| Status | 🟠 Done with deviations |
 | Last Updated | 2026-08-15 |
 
 ## 4. Phase Index & Status Board
@@ -27,7 +27,7 @@ generated_by: task plan-views status
 | P1 | Makefile и Docker dev/prod с Vite-ready topology | 7/7 | 🟢 Done |
 | P10 | PHP, архитектура, безопасность и production-readiness audit | 5/6 | 🟠 Done with deviations |
 | P11 | Pest 5 performance, test isolation и CI | 5/6 | 🟠 Done with deviations |
-| P12 | Ubuntu deployment guide и финальный clean-room rehearsal | 0/7 | 🔴 Blocked |
+| P12 | Локальный production-preparation package и handoff operator rehearsal | 6/7 | 🟠 Done with deviations |
 | P2 | Local vendor, secrets, preflight, bootstrap и Laravel Doctor | 7/7 | 🟢 Done |
 | P3 | Fresh install, Livewire/Filament assets и application readiness | 5/5 | 🟢 Done |
 | P4 | Закрытая production-документация вне public | 4/6 | 🟠 Done with deviations |
@@ -89,12 +89,12 @@ generated_by: task plan-views status
 | ID | Title | Status | Updated |
 |:--|:--|:--|:--|
 | P12.1 | Подготовить пустой Ubuntu: deploy user, SSH hardening, firewall и Docker | 🟠 Done with deviations | 2026-08-15 |
-| P12.2 | Описать Git SSH/deploy keys и clone main плюс local AzGuard | 🔴 Blocked | 2026-08-15 |
-| P12.3 | Настроить DNS, Nginx, TLS, persistent storage, logs и backups | ⬜ Not started | — |
-| P12.4 | Провести первый deploy: secrets, build, migrate, seed, admin, assets, docs, doctor | ⬜ Not started | — |
-| P12.5 | Описать subsequent releases, rollback, Horizon drain и restore | ⬜ Not started | — |
-| P12.6 | Проверить dev/prod/agent/Vite command reference и troubleshooting | ⬜ Not started | — |
-| P12.7 | Выполнить clean-room production rehearsal и выпустить final readiness report | ⬜ Not started | — |
+| P12.2 | Запечатать repository identity package без внешнего enrollment | 🟢 Done | 2026-08-15 |
+| P12.3 | Подготовить ingress, TLS и recovery templates с hostile fixtures | 🟢 Done | 2026-08-15 |
+| P12.4 | Собрать staged first-deploy runner и локальный contract | 🟢 Done | 2026-08-15 |
+| P12.5 | Собрать release, rotation, rollback и restore package | 🟢 Done | 2026-08-15 |
+| P12.6 | Сгенерировать source-derived command matrix и troubleshooting | 🟢 Done | 2026-08-15 |
+| P12.7 | Выпустить preparation verdict и brief operator rehearsal plan | 🟢 Done | 2026-08-15 |
 
 ## Phase P2
 
@@ -718,6 +718,20 @@ write-site: pre_mutation: allow · pre_final: allow |
 | 2026-08-15 | gpt-5.6-terra/high | plan-run · decision-pending · decision queue: Q-P12.2-production-repository-proof-v1 |
 | 2026-08-15 | gpt-5.6-terra/high | plan-run · decision-pending · Требуются owner-filled profile, Ubuntu host и read-only GitHub deploy-key enrollment. |
 | 2026-08-15 | repository-owner | plan-run · blocked · decision queue: Q-P12.2-production-repository-proof-v1 |
+| 2026-08-15 | frontier/high | plan-design · in-progress · фаза детализирована до DoR |
+| 2026-08-15 | frontier/high | plan-design · in-progress · D89: локальный contract запечатан; terminal external-proof block восстановлен append-only для B12-PREP |
+| 2026-08-15 | gpt-5.6-terra/high | plan-run · in-progress · — |
+| 2026-08-15 | gpt-5.6-terra/high | plan-run · closed-green · local carrier green: docker/tests/deploy-repositories-contract.sh |
+| 2026-08-15 | gpt-5.6-terra/high | plan-run · in-progress · — |
+| 2026-08-15 | gpt-5.6-terra/high | plan-run · closed-green · local carrier green: docker/tests/ingress-backup-contract.sh |
+| 2026-08-15 | gpt-5.6-terra/high | plan-run · in-progress · — |
+| 2026-08-15 | gpt-5.6-terra/high | plan-run · closed-green · local carrier green: docker/tests/first-production-deploy-contract.sh |
+| 2026-08-15 | gpt-5.6-terra/high | plan-run · in-progress · — |
+| 2026-08-15 | gpt-5.6-terra/high | plan-run · closed-green · local carrier green: docker/tests/release-recovery-contract.sh |
+| 2026-08-15 | gpt-5.6-terra/high | plan-run · in-progress · — |
+| 2026-08-15 | gpt-5.6-terra/high | plan-run · closed-green · local carrier green: docker/tests/command-reference-contract.sh |
+| 2026-08-15 | gpt-5.6-terra/high | plan-run · in-progress · — |
+| 2026-08-15 | gpt-5.6-terra/high | plan-run · closed-green · local carrier green: docker/tests/production-preparation-contract.sh |
 
 ## Owner Gates
 
@@ -728,7 +742,6 @@ write-site: pre_mutation: allow · pre_final: allow |
 - P10.6: known deviation
 - P11.6: known deviation
 - P12.1: known deviation
-- P12.2: escalation
 - P4.2: known deviation
 - P4.4: known deviation
 - P4.6: known deviation

@@ -345,3 +345,18 @@ Work текущих P12 items.
 сохраняет findings с URL/date, а execution ограничивает validation синтаксисом, existing local
 contract/fixture tests, source-derived command assertions, citation и Task view checks. Historical
 P12.1 journal/evidence не переписываются.
+
+## 2026-08-15 — owner clarification: complete-max без внешних блокировок
+
+В текущем P12 блокировок из-за отсутствия внешнего состояния быть не должно. Исполнитель обязан
+последовательно завершить максимум доступной локальной работы P12.2–P12.7, подкрепить design и
+operator contracts максимально полным доступным исследованием по первичным источникам и довести
+все локальные validation carriers до GREEN. Недоступные сейчас server/DNS/credentials/GitHub/
+registry/CI/TLS/runtime measurements — это только явно описанные входы будущей operator rehearsal,
+не `Blocked`, не deviation, не waiver и не `Pending Work` текущего плана.
+
+Локальная ошибка означает repair-forward в том же batch: диагностировать, исправить в разрешённом
+scope, повторить carrier и продолжить. Нельзя останавливать P12 из-за объёма оставшейся работы,
+отсутствия внешнего proof или необходимости дополнительного исследования; нельзя и подменять их
+вымышленными receipts. После готового design единственный следующий шаг — непосредственный запуск
+`P12.2-P12.7`, без дополнительного процедурного `finish`-гейта. Решение материализовано D90.

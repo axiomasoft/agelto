@@ -15,10 +15,10 @@
 | Target Operator Models | economy → gpt-5.6-luna · implementation → gpt-5.6-terra · frontier → gpt-5.6-sol |
 | Approval Owner | Dmitry Vostrikov |
 | Home | repo:/home/vostrikov/projects/agelto/agelto |
-| Design Passes | 1/1 — owner-directed сокращение D46 сохранено; D83 supersedes 75-item carrier D52 и исторический audit waiver D55 для текущей topology: повторный полный cross-phase `finish` сверяет 13 фаз / 84 product/design/remediation items после D62/D64/D66/D70/D72/D76/D77/D80/D81; следующий обязательный gate — новый independent `plan-audit design` |
+| Design Passes | 1/1 — historical cross-phase finish/audit сохранён как provenance; D89/D90 адресно перепроектировали remaining P12 в ready-to-run `B12-PREP`, для которого следующий обязательный gate — непосредственное исполнение P12.2–P12.7 |
 | visibility | private |
 
-<!-- migration-version: 0.1.13 -->
+<!-- migration-version: 0.1.14 -->
 
 ## 1. Context
 
@@ -33,15 +33,22 @@ Pest 5/CI и сквозной аудит качества.
 Vintera/CMS и Dterema и верифицирует внешние практики через RAG; последующие фазы реализуют только запечатанные решения и сохраняют
 провенанс. Код приложения не меняется на авторском проходе new.
 
-Финальное доказательство — не зелёный прогон на уже настроенной машине, а повторяемый путь
-из чистого clone: private dependency, секреты, build, миграции, обязательные сиды, создание
-администратора, assets, закрытая документация, health/doctor и полный CI-набор.
+После owner reframe D89/D90 текущий план заканчивается локально проверяемым production-preparation
+package: upstream-backed runbook'и, profile/templates, safe scripts, source-derived command matrix
+и redacted evidence schemas. Реальный dedicated host, DNS/registry/CI, TLS, deployment,
+backup/restore/rollback и clean-room evidence не имитируются: их принимает отдельный operator
+test/rehearsal plan после закрытия текущего плана.
 
 ## 2. Execution Rules
 
 - D89 redefines remaining P12 as one locally verifiable preparation batch. Real server deployment,
   DNS/registry/CI, TLS, backup/restore and clean-room evidence belong to a separate follow-up test
   plan; this plan never fabricates those facts. RAG:— (repo-grounded: D89).
+- D90 задаёт complete-max/no-external-block: один root доводит весь локально достижимый scope
+  P12.2–P12.7 и его research-backed carriers до GREEN. Отсутствие внешнего host/access/runtime
+  proof не создаёт `Blocked`, deviation, waiver, `Pending Work` или owner gate; local RED означает
+  repair-forward в текущем item и продолжение batch. RAG:— (repo-grounded: owner clarification
+  2026-08-15, D90).
 - Повторный cross-phase finish D83 охватывает current topology из 84 product/design/remediation items и supersedes D52/D55 только как current finish/audit-gate carriers; terminal product history и принятые remediation decisions D62–D82 не переписываются. RAG:— (repo-grounded: `brief/01-refinements.md`, D83, current phase/spec inventory).
 - Первый execution item — prerequisite P0.0 из D48; P0.1 и остальные citation consumers не стартуют до его terminal state.
 - Перед и после plan-work выполнять Task checks из marketplace root в порядке AGENTS.md: lint → state → decisions → status.
@@ -66,7 +73,9 @@ Vintera/CMS и Dterema и верифицирует внешние практик
 - Ни один deploy carrier не применяет разрушительную DB/volume операцию без отдельного owner gate и backup/restore evidence.
 - Закрытая документация не живёт в public и не отдаёт HTML/assets без единой authorization policy; path traversal и shared-cache leakage тестируются.
 - Каждая фаза синхронизирует затронутые docs; P12 не дописывает задним числом документацию за фазы-источники.
-- Завершение плана допускается только после чистого bootstrap rehearsal и production-readiness отчёта с перечислением остаточных рисков.
+- Завершение текущего плана допускается после зелёного aggregate local preparation carrier P12.7;
+  clean bootstrap/operator rehearsal и production D45 verdict принадлежат отдельному follow-up plan
+  и не блокируют либо понижают current P12.
 
 ## 3. Routing
 
@@ -153,13 +162,8 @@ Exec или Review: он нормализует Batch identity (`solo` вмес�
 | solo | P11.4 | implementation/high | manual | full | широкий all-domain risk matrix и regression suites correctness-critical без открытого product design |
 | solo | P11.5 | implementation/high | manual | full | CI credentials/caches/actions/image security меняют supply-chain boundary по D42 |
 | solo | P11.6 | implementation/high | manual | full | final coverage/performance/flake/live-CI verification требует high+full, но budgets запечатаны D42 |
-| solo | P12.1 | implementation/high | manual | full | host provisioning/firewall/Docker mutation security-critical, но boundary запечатан D43 |
-| solo | P12.2 | implementation/high | manual | full | production Git/private-package credentials и exact source identity security-critical по D19/D43 |
-| solo | P12.3 | implementation/high | manual | full | public ingress/TLS и pre-deploy recovery config/fixture contract security-critical по D43/D44/D53 |
-| solo | P12.4 | implementation/high | manual | full | first production mutation исполняет frozen D9/D17/D20–D27 без открытого design |
-| solo | P12.5 | implementation/high | manual | full | post-deploy recurring backup/alert/restore, queue drain и rollback correctness/data-loss critical по D17/D23/D44/D53 |
-| solo | P12.6 | implementation/high | manual | full | cross-carrier command/docs reconcile требует final verification high, новых product-решений нет |
-| solo | P12.7 | frontier/xhigh | manual | full | необратимый final READY verdict и cross-phase synthesis требуют frontier/xhigh |
+| solo | P12.1 | implementation/high | manual | full | historical host carrier уже terminal; отдельный accepted-deviation boundary не смешивается с новым local batch |
+| B12-PREP | P12.2–P12.7 | implementation/high | manual | full | adjacent local preparation chain по D89 переиспользует один RAG base, operator-doc/script surface, profile fixtures и aggregate validation; external/owner gates вынесены в follow-up plan |
 
 ## 5. Decision Log
 
