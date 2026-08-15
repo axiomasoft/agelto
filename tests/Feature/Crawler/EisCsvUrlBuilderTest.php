@@ -6,10 +6,7 @@ use App\Dto\Procurement\Crawler\ListingCursor;
 use App\Models\Procurement\Platform\Okpd2Node;
 use App\Models\Procurement\Platform\Platform;
 use App\Services\Procurement\Eis\EisCsvUrlBuilder;
-use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\Support\Doubles\Crawler\CrawlerWithRegistry;
-
-uses(RefreshDatabase::class);
 
 beforeEach(function () {
     $this->platformId = Platform::factory()->create()->id;

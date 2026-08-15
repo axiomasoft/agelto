@@ -6,6 +6,8 @@ use App\Models\Procurement\Platform\Registry;
 use App\Services\Procurement\Eis\EisCardUrlBuilder;
 use App\Services\Procurement\Exceptions\CardUrlTemplateMissingException;
 
+// Factory-backed registry scenarios are integration tests and require Feature DB isolation.
+
 test('resolveProcedureUrlType резолвит СЫРУЮ метку способа закупки в сегмент URL по settings.procedure_url_types (П-8)', function () {
     $registry = Registry::factory()->create([
         'code' => 'fz44',

@@ -18,9 +18,6 @@ use App\Services\Procurement\Proxy\ProxyCircuitBreaker;
 use App\Services\Procurement\Proxy\ProxyResolver;
 use App\Services\Procurement\Proxy\ProxyScoreCalculator;
 use App\Settings\Procurement\CrawlerProxySettings;
-use Illuminate\Foundation\Testing\RefreshDatabase;
-
-uses(RefreshDatabase::class);
 
 function makeResolver(?Closure $randomSource = null, ?CrawlerProxySettingsResolver $crawlerSettings = null): ProxyResolver
 {

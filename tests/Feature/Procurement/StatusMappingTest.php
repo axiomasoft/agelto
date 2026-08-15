@@ -87,7 +87,7 @@ test('конкурентное обнаружение создаёт один ex
     $fixture = ConcurrentTransactions::execute(<<<'PHP'
 $registry = \App\Models\Procurement\Platform\Registry::factory()->create();
 
-return ['registry_id' => $registry->id];
+return ['registry_id' => $registry->id, 'platform_id' => $registry->platform_id];
 PHP);
     $registryId = $fixture['registry_id'];
 
@@ -111,6 +111,7 @@ PHP);
         ConcurrentTransactions::execute(<<<PHP
 \App\Models\Procurement\Platform\StatusMapping::query()->where('registry_id', {$registryId})->delete();
 \App\Models\Procurement\Platform\Registry::query()->whereKey({$registryId})->delete();
+\App\Models\Procurement\Platform\Platform::query()->whereKey({$fixture['platform_id']})->delete();
 
 return ['cleaned' => true];
 PHP);

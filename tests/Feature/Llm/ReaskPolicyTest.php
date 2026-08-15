@@ -14,14 +14,8 @@ use App\Services\Llm\Dto\LlmUsage;
 use App\Services\Llm\Dto\ResolvedRoute;
 use App\Services\Llm\Validation\ReaskPolicy;
 use App\Services\Llm\Validation\StructuredResponseValidator;
-use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Collection;
 use Tests\Support\Doubles\FakeLlmProvider;
-
-// Директория tests/Unit не подключает RefreshDatabase по умолчанию (tests/Pest.php); routeWith()
-// материализует LlmRoute::factory()->make() с belongsTo-фабрикой Provider::factory(), которая
-// персистит связанного провайдера даже при make() — нужна тестовая БД, подключаем трейт точечно.
-uses(RefreshDatabase::class);
 
 function reaskPolicy(): ReaskPolicy
 {

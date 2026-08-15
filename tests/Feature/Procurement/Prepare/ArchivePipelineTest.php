@@ -179,8 +179,20 @@ test('retry архива сохраняет одну logical child на parent �
 
 test('concurrent archive entry materialization создаёт одну logical child и одно событие', function () {
     $fixture = ConcurrentTransactions::execute(<<<'PHP'
-$parent = \App\Models\Procurement\Document\Document::factory()->create();
-$parentVersion = \App\Models\Procurement\Document\DocumentVersion::factory()->create([
+$platform = \App\Models\Procurement\Platform\Platform::factory()->create(attributes: [
+    'code' => 'archive-pipeline-concurrency',
+]);
+$registry = \App\Models\Procurement\Platform\Registry::factory()
+    ->for($platform)
+    ->create(attributes: ['code' => 'archive-pipeline-concurrency']);
+$procurement = \App\Models\Procurement\Procurement::factory()->create(attributes: [
+    'registry_id' => $registry->id,
+]);
+$parent = \App\Models\Procurement\Document\Document::factory()->create(attributes: [
+    'procurement_id' => $procurement->id,
+    'platform_id' => $platform->id,
+]);
+$parentVersion = \App\Models\Procurement\Document\DocumentVersion::factory()->create(attributes: [
     'document_id' => $parent->id,
 ]);
 
@@ -289,6 +301,9 @@ function archivePipelineConcurrentCleanup(int $parentId, int $parentVersionId): 
     ->get();
 \$childIds = \$versions->pluck('document_id')->all();
 \$parent = \App\Models\Procurement\Document\Document::query()->findOrFail({$parentId});
+\$procurement = \App\Models\Procurement\Procurement::query()->findOrFail(\$parent->procurement_id);
+\$registryId = \$procurement->registry_id;
+\$platformId = \$parent->platform_id;
 
 \App\Models\Procurement\ProcurementEvent::query()
     ->where('procurement_id', \$parent->procurement_id)
@@ -298,6 +313,9 @@ function archivePipelineConcurrentCleanup(int $parentId, int $parentVersionId): 
 \App\Models\Procurement\Document\Document::query()->whereIn('id', \$childIds)->delete();
 \App\Models\Procurement\Document\DocumentVersion::query()->whereKey({$parentVersionId})->delete();
 \$parent->delete();
+\$procurement->delete();
+\App\Models\Procurement\Platform\Registry::query()->whereKey(\$registryId)->delete();
+\App\Models\Procurement\Platform\Platform::query()->whereKey(\$platformId)->delete();
 
 return ['cleaned' => true];
 PHP);

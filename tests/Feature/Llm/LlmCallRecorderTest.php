@@ -8,12 +8,7 @@ use App\Repositories\Llm\LlmCallStoreRepository;
 use App\Services\Llm\Dto\LlmUsage;
 use App\Services\Llm\LlmCallRecorder;
 use Carbon\CarbonImmutable;
-use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Storage;
-
-// Директория tests/Unit не подключает RefreshDatabase по умолчанию (tests/Pest.php) — этому файлу
-// нужна тестовая БД (`llm_calls`), подключаем трейт точечно, не трогая остальной Unit-сьют.
-uses(RefreshDatabase::class);
 
 function llmCallRecorder(): LlmCallRecorder
 {
