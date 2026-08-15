@@ -1,11 +1,11 @@
 ---
 id: D87
 date: 2026-08-14
-status: accepted
+status: superseded
 item: P11.4
 items: [P11.4, P11.5, P11.6]
 supersedes: []
-superseded_by: null
+superseded_by: D88
 ---
 ## Решение
 

@@ -3,7 +3,7 @@ projection: status-view
 projection_version: v1
 source_scope: plan core + phases + journal
 through: 2026-08-15
-inputs_sha256: 342a02a7a2ca87a24091b834292de0e21a956101436077987810a44196b8dbaf
+inputs_sha256: d50a87f35b8848528928f4f78018bfc260696f69109a4acbb8d6336e0e70debe
 generated_by: task plan-views status
 -->
 
@@ -711,6 +711,7 @@ write-site: pre_mutation: allow · pre_final: allow |
 | 2026-08-15 | frontier/xhigh | plan-audit · closed-deviations · Local carrier green on cd3b534a; owner-deferred live CI remains unrun. Historical P11.6 commits touched workflow/Docker/docs/E2E/package files outside the item Files list; P11.6 remains orange.
 write-site: pre_mutation: allow · pre_final: allow |
 | 2026-08-15 | frontier/xhigh | plan-audit · audit-green · audit-fixer rebound 25ebba92→72d83079; all safe findings repaired; verdict GREEN; owner-directed CI exclusion retained. |
+| 2026-08-15 | implementation/low | plan-close · closed-deviations · P11 закрыта по D88: GREEN audit покрывает P11.6 deviation; stale вызван только audit bookkeeping. |
 
 ## Owner Gates
 
