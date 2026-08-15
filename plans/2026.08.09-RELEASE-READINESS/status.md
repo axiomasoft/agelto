@@ -3,7 +3,7 @@ projection: status-view
 projection_version: v1
 source_scope: plan core + phases + journal
 through: 2026-08-15
-inputs_sha256: a512045bfac913b03990018acc8aaeaef4f440c5f3b7ac0b93d30bf0d3ae7f45
+inputs_sha256: 979d22531dc16372008fa7205420d0fad20bf1b9188f6b11404ac1d38db10267
 generated_by: task plan-views status
 -->
 
@@ -764,6 +764,7 @@ write-site: pre_mutation: allow · pre_final: allow |
 | 2026-08-15 | gpt-5.6-sol/xhigh | plan-audit · closed-deviations · Audit P12 final at 17ed31fe: host carrier and docs-integrity are green; D89/D90 assign fresh Ubuntu proof to follow-up rehearsal.
 write-site: pre_mutation: allow · pre_final: allow |
 | 2026-08-15 | gpt-5.6-sol/xhigh | plan-audit · audit-green · audit-fixer rebound 6443bda3→1034072b; closure-view deviation note repaired; final implemented-scope candidate GREEN; D89/D90 external rehearsal excluded. |
+| 2026-08-15 | implementation/low | plan-close · closed-deviations · P12 сверена: terminal items, GREEN audit candidate и phase close gate разрешены. |
 
 ## Owner Gates
 

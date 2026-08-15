@@ -16,6 +16,8 @@
 | Approval Owner | Dmitry Vostrikov |
 | Home | repo:/home/vostrikov/projects/agelto/agelto |
 | Design Passes | 1/1 — historical cross-phase finish/audit сохранён как provenance; D89/D90 адресно перепроектировали remaining P12 в ready-to-run `B12-PREP`, для которого следующий обязательный gate — непосредственное исполнение P12.2–P12.7 |
+| Status | 🟠 Done with deviations |
+| Last Updated | 2026-08-15 |
 | visibility | private |
 
 <!-- migration-version: 0.1.14 -->
@@ -538,3 +540,9 @@ codex -C /home/vostrikov/projects/agelto/agelto -m gpt-5.6-sol -c 'model_reasoni
 СКОУП: 1) F9 — после terminal journal event штатно пересобрать state→bundle→decisions→status и доказать все четыре `--check` green 2) F10 — сделать D52 однозначным machine-current approval carrier и синхронизировать все phase handoff'ы без переписывания исторического смысла 3) F11 — обновить index на D12 и post-D53 P12.3/P12.5 evidence ownership 4) F12 — устранить duplicate decision declarations plan-side, регенерировать 75 bundles и записать ecosystem PROMOTE-CANDIDATE без правки plugin cache
 НЕ ТРОГАТЬ: product code и execution statuses; brief/refinements; доказанные findings/research; product Scope/Files/Validation items вне механической нормализации decision reads; D1–D53 задним числом вне минимально необходимой machine-chain reconciliation'
 ```
+
+## 6. Update Log
+
+| Дата | Кто (role/model) | Что |
+|:--|:--|:--|
+| 2026-08-15 | implementation/low | plan-close · P12 закрыта по GREEN audit candidate `1034072…0d17`; все фазы терминальны, план завершён с отклонениями P4/P6/P10/P11/P12. |
