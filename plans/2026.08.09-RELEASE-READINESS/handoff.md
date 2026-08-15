@@ -1,6 +1,6 @@
-# HANDOFF — 2026-08-15 — after P11 audit
+# HANDOFF — 2026-08-15 — after P11
 
-**Next:** close-phase: task:plan-close 2026.08.09-RELEASE-READINESS P11
+**Next:** close: task:plan-close 2026.08.09-RELEASE-READINESS P11
 
 | Параметр | Значение |
 |:--|:--|
