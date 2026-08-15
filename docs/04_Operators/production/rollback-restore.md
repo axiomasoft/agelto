@@ -1,3 +1,9 @@
+---
+audience: operator
+type: runbook
+status: living
+---
+
 # Rollback and restore preparation
 
 Image rollback stops unless the previous immutable digest is known and schema compatibility is

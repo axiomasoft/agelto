@@ -1,6 +1,6 @@
 ---
 audience: operator
-type: how-to
+type: howto
 status: living
 ---
 

@@ -52,6 +52,6 @@ status: living
 Устройство системы — не здесь: см. `03_Dev/`. Этот раздел — только действия и решения оператора.
 
 Для production preparation начните с
-[`P12-command-matrix.md`](../../../plans/2026.08.09-RELEASE-READINESS/artifacts/P12-command-matrix.md):
+[`P12-command-matrix.md`](../../plans/2026.08.09-RELEASE-READINESS/artifacts/P12-command-matrix.md):
 это generated source-of-truth по environment, mutation, authority, exit/resume и evidence для всех
 Make/script commands. Затем переходите в [`production/_index.md`](production/_index.md).

@@ -1,3 +1,9 @@
+---
+audience: operator
+type: runbook
+status: living
+---
+
 # Network and TLS preparation
 
 `docker/host/nginx/agelto.conf` is a tracked template. It terminates TLS and proxies only to the

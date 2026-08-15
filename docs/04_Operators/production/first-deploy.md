@@ -1,3 +1,9 @@
+---
+audience: operator
+type: runbook
+status: living
+---
+
 # First production deploy preparation
 
 `docker/scripts/first-production-deploy.sh check` prints the canonical stage order without mutating

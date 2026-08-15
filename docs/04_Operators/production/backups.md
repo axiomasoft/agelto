@@ -1,3 +1,9 @@
+---
+audience: operator
+type: runbook
+status: living
+---
+
 # Backup and recovery preparation
 
 The tracked backup package separates local contract proof from runtime evidence. Run the hermetic

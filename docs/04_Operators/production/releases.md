@@ -1,3 +1,9 @@
+---
+audience: operator
+type: runbook
+status: living
+---
+
 # Release preparation
 
 The local release carrier fixes the order as preflight → verified backup → schema compatibility →

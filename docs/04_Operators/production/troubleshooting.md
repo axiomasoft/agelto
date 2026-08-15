@@ -1,3 +1,9 @@
+---
+audience: operator
+type: reference
+status: living
+---
+
 # Production troubleshooting
 
 | Symptom | Check | Resume |
@@ -20,5 +26,5 @@ credential cutover keeps the old credential active and triggers reverse-order ro
 follow-up operator rehearsal owns all live commands and approvals.
 
 The exact check and resume entrypoint for every symptom is the generated
-[`P12-command-matrix.md`](../../../../plans/2026.08.09-RELEASE-READINESS/artifacts/P12-command-matrix.md);
+[`P12-command-matrix.md`](../../../plans/2026.08.09-RELEASE-READINESS/artifacts/P12-command-matrix.md);
 do not substitute a copied prose command.

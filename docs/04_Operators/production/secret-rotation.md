@@ -1,3 +1,9 @@
+---
+audience: operator
+type: runbook
+status: living
+---
+
 # Production secret rotation preparation
 
 The credential enum is closed: `APP`, `DB`, `REDIS`, `MINIO`. Each rotation receives current/next
