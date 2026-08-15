@@ -3,7 +3,7 @@ projection: status-view
 projection_version: v1
 source_scope: plan core + phases + journal
 through: 2026-08-15
-inputs_sha256: a564978dcdd60c499a5faec1499ce5565cd801293da07353dfeb12bc6f5e120f
+inputs_sha256: a512045bfac913b03990018acc8aaeaef4f440c5f3b7ac0b93d30bf0d3ae7f45
 generated_by: task plan-views status
 -->
 
@@ -732,6 +732,38 @@ write-site: pre_mutation: allow · pre_final: allow |
 | 2026-08-15 | gpt-5.6-terra/high | plan-run · closed-green · local carrier green: docker/tests/command-reference-contract.sh |
 | 2026-08-15 | gpt-5.6-terra/high | plan-run · in-progress · — |
 | 2026-08-15 | gpt-5.6-terra/high | plan-run · closed-green · local carrier green: docker/tests/production-preparation-contract.sh |
+| 2026-08-15 | gpt-5.6-sol/xhigh | plan-audit · closed-deviations · Audit P12: host carrier remained green at c8145ee5; D89/D90 external proof is outside the current candidate.
+write-site: pre_mutation: allow · pre_final: allow |
+| 2026-08-15 | gpt-5.6-sol/xhigh | plan-audit · closed-green · Audit P12 repair 521916ef: repository fake Git/SSH, hostile fixtures and no-network contract are green.
+write-site: pre_mutation: allow · pre_final: allow |
+| 2026-08-15 | gpt-5.6-sol/xhigh | plan-audit · closed-green · Audit P12 repair d1bcd195: ingress, backup, watchdog and alert fixture contract is green.
+write-site: pre_mutation: allow · pre_final: allow |
+| 2026-08-15 | gpt-5.6-sol/xhigh | plan-audit · closed-green · Audit P12 repair 1d960ae7: staged deploy failure/resume/idempotency contract is green.
+write-site: pre_mutation: allow · pre_final: allow |
+| 2026-08-15 | gpt-5.6-sol/xhigh | plan-audit · closed-green · Audit P12 repair bfa6ec38: release, rollback, restore and secret-rotation lifecycle contract is green.
+write-site: pre_mutation: allow · pre_final: allow |
+| 2026-08-15 | gpt-5.6-sol/xhigh | plan-audit · closed-green · Audit P12 repair 51a44712: bidirectional command matrix and hostile fixture contract is green.
+write-site: pre_mutation: allow · pre_final: allow |
+| 2026-08-15 | gpt-5.6-sol/xhigh | plan-audit · local-repair · Audit P12: compiler boundary recorded before the aggregate rerun.
+write-site: pre_mutation: allow · pre_final: allow |
+| 2026-08-15 | gpt-5.6-sol/xhigh | plan-audit · closed-deviations · Audit P12 final rerun at 17ed31fe: docker/tests/host-contract.sh and docs-integrity are green.
+write-site: pre_mutation: allow · pre_final: allow |
+| 2026-08-15 | gpt-5.6-sol/xhigh | plan-audit · closed-green · Audit P12 final rerun at 17ed31fe: docker/tests/deploy-repositories-contract.sh and docs-integrity are green.
+write-site: pre_mutation: allow · pre_final: allow |
+| 2026-08-15 | gpt-5.6-sol/xhigh | plan-audit · closed-green · Audit P12 final rerun at 17ed31fe: docker/tests/ingress-backup-contract.sh and docs-integrity are green.
+write-site: pre_mutation: allow · pre_final: allow |
+| 2026-08-15 | gpt-5.6-sol/xhigh | plan-audit · closed-green · Audit P12 final rerun at 17ed31fe: docker/tests/first-production-deploy-contract.sh and docs-integrity are green.
+write-site: pre_mutation: allow · pre_final: allow |
+| 2026-08-15 | gpt-5.6-sol/xhigh | plan-audit · closed-green · Audit P12 final rerun at 17ed31fe: docker/tests/release-recovery-contract.sh and docs-integrity are green.
+write-site: pre_mutation: allow · pre_final: allow |
+| 2026-08-15 | gpt-5.6-sol/xhigh | plan-audit · closed-green · Audit P12 final rerun at 17ed31fe: docker/tests/command-reference-contract.sh and docs-integrity are green.
+write-site: pre_mutation: allow · pre_final: allow |
+| 2026-08-15 | gpt-5.6-sol/xhigh | plan-audit · closed-green · Audit P12 final rerun: aggregate carrier returned PREPARATION_READY with ordinary downstream gates green.
+write-site: pre_mutation: allow · pre_final: allow |
+| 2026-08-15 | gpt-5.6-sol/xhigh | plan-audit · audit-green · audit-fixer rebound 6443bda3→0006a596; safe implemented-scope findings repaired; verdict GREEN; D89/D90 external rehearsal excluded. |
+| 2026-08-15 | gpt-5.6-sol/xhigh | plan-audit · closed-deviations · Audit P12 final at 17ed31fe: host carrier and docs-integrity are green; D89/D90 assign fresh Ubuntu proof to follow-up rehearsal.
+write-site: pre_mutation: allow · pre_final: allow |
+| 2026-08-15 | gpt-5.6-sol/xhigh | plan-audit · audit-green · audit-fixer rebound 6443bda3→1034072b; closure-view deviation note repaired; final implemented-scope candidate GREEN; D89/D90 external rehearsal excluded. |
 
 ## Owner Gates
 
