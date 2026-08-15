@@ -76,12 +76,12 @@ if len(roots) != 1:
 print(roots[0])
 ')
 
-python3 "$task_root/packages/task/scripts/plan-lint.py" "$root_dir/plans/2026.08.09-RELEASE-READINESS" --baseline HEAD
-python3 "$task_root/packages/task/scripts/plan-views.py" state --all --check --plan-dir "$root_dir/plans/2026.08.09-RELEASE-READINESS"
-python3 "$task_root/packages/task/scripts/plan-views.py" decisions --check --plan-dir "$root_dir/plans/2026.08.09-RELEASE-READINESS"
-python3 "$task_root/packages/task/scripts/plan-views.py" status --all --check --plan-dir "$root_dir/plans/2026.08.09-RELEASE-READINESS"
-python3 "$task_root/packages/task/scripts/plan-views.py" bundle --item P5.5 --check --plan-dir "$root_dir/plans/2026.08.09-RELEASE-READINESS"
-python3 "$root_dir/plans/verify-citations.py" "$root_dir/plans/2026.08.09-RELEASE-READINESS" --strict
+python3 "$task_root/packages/task/scripts/plan-lint.py" "$root_dir/plans/archive/2026.08.09-RELEASE-READINESS" --baseline HEAD
+python3 "$task_root/packages/task/scripts/plan-views.py" state --all --check --plan-dir "$root_dir/plans/archive/2026.08.09-RELEASE-READINESS"
+python3 "$task_root/packages/task/scripts/plan-views.py" decisions --check --plan-dir "$root_dir/plans/archive/2026.08.09-RELEASE-READINESS"
+python3 "$task_root/packages/task/scripts/plan-views.py" status --all --check --plan-dir "$root_dir/plans/archive/2026.08.09-RELEASE-READINESS"
+python3 "$task_root/packages/task/scripts/plan-views.py" bundle --item P5.5 --check --plan-dir "$root_dir/plans/archive/2026.08.09-RELEASE-READINESS"
+python3 "$root_dir/plans/verify-citations.py" "$root_dir/plans/archive/2026.08.09-RELEASE-READINESS" --strict
 git -C "$root_dir" diff --check
 
 echo 'P5.5 proxy acceptance passed'

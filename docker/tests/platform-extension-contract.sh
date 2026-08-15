@@ -5,7 +5,7 @@ set -euo pipefail
 root_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd -P)
 compose=(docker compose --project-directory "$root_dir" --project-name "${COMPOSE_PROJECT_NAME:-agelto_dev}" --env-file "$root_dir/${ENV_FILE:-.env}" -f "$root_dir/docker-compose.yml")
 test_database=$(sed -n 's/.*<env name="DB_DATABASE" value="\([a-z0-9_]*\)".*/\1/p' "$root_dir/phpunit.xml" | head -n 1)
-plan_dir="$root_dir/plans/2026.08.09-RELEASE-READINESS"
+plan_dir="$root_dir/plans/archive/2026.08.09-RELEASE-READINESS"
 task_root=${TASK_ROOT:-/home/vostrikov/.codex/plugins/cache/swissknifeman/task/0.12.0}
 
 [[ "$test_database" =~ ^[a-z0-9_]+_test$ ]] || {

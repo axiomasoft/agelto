@@ -64,6 +64,6 @@ scheduler heartbeat. A green `/up` alone never authorizes a deployment.
 - [`../docker/production.md`](../docker/production.md) — устройство prod-стека (prebuilt immutable
   image, Swarm secrets).
 - [`../commands.md`](../commands.md) — полная шпаргалка команд.
-- [`P12-command-matrix.md`](../../../plans/2026.08.09-RELEASE-READINESS/artifacts/P12-command-matrix.md)
+- [`P12-command-matrix.md`](../../../plans/archive/2026.08.09-RELEASE-READINESS/artifacts/P12-command-matrix.md)
   — source-derived environment/mutation/authority/evidence contract; external rows исполняются
   только в operator rehearsal.

@@ -24,6 +24,8 @@ status: living
 - [Машины состояний](state-machines.md)
 - [OCDS mapping](ocds-mapping.md)
 - [Контракт события ProcurementSucceeded v1](contracts/procurement-succeeded-v1.md)
+- [Контракт release readiness v1](contracts/release-readiness-v1.md)
+- [Контракт admission read budget](contracts/read-budget-admission-v1.md)
 
 ## Пайплайны
 

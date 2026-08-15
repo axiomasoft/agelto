@@ -4,7 +4,7 @@ set -euo pipefail
 root_dir=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)
 cd "$root_dir"
 
-matrix=plans/2026.08.09-RELEASE-READINESS/artifacts/P10-remediation-matrix.md
+matrix=plans/archive/2026.08.09-RELEASE-READINESS/artifacts/P10-remediation-matrix.md
 test -f "$matrix"
 
 for audit_id in P10.2-S01 P10.2-S02 P10.2-S03 P10.3-D01 P10.3-D02 P10.4-R01 P10.4-R02 P10.4-T01; do
@@ -46,7 +46,7 @@ roots = [
 len(roots) == 1 or sys.exit("expected exactly one Swissknifeman marketplace root")
 print(roots[0] + "/packages/task")
 ')"
-    plan=plans/2026.08.09-RELEASE-READINESS
+    plan=plans/archive/2026.08.09-RELEASE-READINESS
     python3 "$task_root/scripts/plan-lint.py" "$plan"
     python3 "$task_root/scripts/plan-views.py" state --all --plan-dir "$plan" --check
     python3 "$task_root/scripts/plan-views.py" decisions --plan-dir "$plan" --check

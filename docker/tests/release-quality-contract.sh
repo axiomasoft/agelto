@@ -9,8 +9,8 @@ test -f tests/performance-budget.json
 test -x docker/scripts/collect-release-quality-evidence.sh
 test -x docker/scripts/check-release-quality.py
 
-rg -q '^\*\*Status:\*\* 🟢 Done$' plans/2026.08.09-RELEASE-READINESS/phases/P11/P11.5.state.md
-rg -q '^\| D42 .*\| Covered \|' plans/2026.08.09-RELEASE-READINESS/artifacts/P11-risk-test-matrix.md
+rg -q '^\*\*Status:\*\* 🟢 Done$' plans/archive/2026.08.09-RELEASE-READINESS/phases/P11/P11.5.state.md
+rg -q '^\| D42 .*\| Covered \|' plans/archive/2026.08.09-RELEASE-READINESS/artifacts/P11-risk-test-matrix.md
 rg -q 'pest\(\)->tia\(\)->locally\(\)->baselined\(\)' tests/Pest.php
 rg -q -- '--ci --no-tia' docker/scripts/collect-release-quality-evidence.sh
 ! rg -q -- '--tia|test:edit|cache hit|replay' docker/scripts/collect-release-quality-evidence.sh

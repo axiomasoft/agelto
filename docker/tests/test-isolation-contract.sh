@@ -3,7 +3,7 @@
 set -euo pipefail
 
 root_dir=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd -P)
-plan_dir="$root_dir/plans/2026.08.09-RELEASE-READINESS"
+plan_dir="$root_dir/plans/archive/2026.08.09-RELEASE-READINESS"
 temp_dir=$(mktemp -d)
 trap 'rm -rf "$temp_dir"' EXIT
 
@@ -100,7 +100,7 @@ fi
 
 make quality
 make documentation:check
-python3 "$root_dir/plans/verify-citations.py" "$root_dir/plans/2026.08.09-RELEASE-READINESS" --strict
+python3 "$root_dir/plans/verify-citations.py" "$root_dir/plans/archive/2026.08.09-RELEASE-READINESS" --strict
 
 marketplace_root=/home/vostrikov/projects/packages/swissknifeman
 python3 "$marketplace_root/packages/task/scripts/plan-lint.py" "$plan_dir"

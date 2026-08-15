@@ -7,7 +7,7 @@ status: living
 # Production commands
 
 The canonical command inventory is generated at
-[`P12-command-matrix.md`](../../../plans/2026.08.09-RELEASE-READINESS/artifacts/P12-command-matrix.md)
+[`P12-command-matrix.md`](../../../plans/archive/2026.08.09-RELEASE-READINESS/artifacts/P12-command-matrix.md)
 from the root Make delegation, `docker/Makefile` `.PHONY` targets and declared P12 script modes.
 
 Run `python3 docker/scripts/check-command-reference.py check` before following any copied command.

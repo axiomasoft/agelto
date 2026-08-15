@@ -22,4 +22,4 @@ no adapter calls.
 Current P12 does not implement or invoke live `apply`. Registry authentication, image pull,
 file-secret creation, Compose services, migrations, seeds, admin mutation, HTTPS/Doctor/browser
 proof and their authority belong to the follow-up operator rehearsal. Follow the canonical command
-and evidence rows in `plans/2026.08.09-RELEASE-READINESS/artifacts/P12-command-matrix.md`.
+and evidence rows in `plans/archive/2026.08.09-RELEASE-READINESS/artifacts/P12-command-matrix.md`.

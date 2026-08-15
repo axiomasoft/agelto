@@ -4,7 +4,7 @@ set -euo pipefail
 root_dir=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)
 cd "$root_dir"
 
-plan=plans/2026.08.09-RELEASE-READINESS
+plan=plans/archive/2026.08.09-RELEASE-READINESS
 matrix="$plan/artifacts/P10-remediation-matrix.md"
 upstream_state="$plan/phases/P10/P10.5.state.md"
 

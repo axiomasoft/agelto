@@ -27,7 +27,7 @@ function adminRouteInventory(): array
 
 function committedAdminRouteInventory(): array
 {
-    $matrix = file_get_contents(base_path('plans/2026.08.09-RELEASE-READINESS/artifacts/P9-admin-route-role-matrix.md'));
+    $matrix = file_get_contents(base_path('plans/archive/2026.08.09-RELEASE-READINESS/artifacts/P9-admin-route-role-matrix.md'));
 
     preg_match_all(
         '/^\| `(?<method>[^`]+)` \| `(?<uri>[^`]+)` \| `(?<name>[^`]+)` \| `(?<action>[^`]+)` \|$/m',

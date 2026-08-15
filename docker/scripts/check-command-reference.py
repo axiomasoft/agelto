@@ -10,7 +10,7 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 
 
-DEFAULT_OUTPUT = Path("plans/2026.08.09-RELEASE-READINESS/artifacts/P12-command-matrix.md")
+DEFAULT_OUTPUT = Path("plans/archive/2026.08.09-RELEASE-READINESS/artifacts/P12-command-matrix.md")
 SCRIPT_MODES = {
     "docker/scripts/deploy-repositories.sh": ("prepare", "sync", "fixture"),
     "docker/scripts/production-profile-check.sh": ("check",),

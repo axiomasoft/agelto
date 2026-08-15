@@ -17,7 +17,7 @@ test_database=$(sed -n 's/.*<env name="DB_DATABASE" value="\([a-z0-9_]*\)".*/\1/
 
 testing_app=("${compose[@]}" exec -T -e APP_ENV=testing -e DB_DATABASE="$test_database" app)
 
-grep -Fx '**Status:** 🟢 Done' "$root_dir/plans/2026.08.09-RELEASE-READINESS/phases/P8/P8.2.state.md" >/dev/null
+grep -Fx '**Status:** 🟢 Done' "$root_dir/plans/archive/2026.08.09-RELEASE-READINESS/phases/P8/P8.2.state.md" >/dev/null
 "${testing_app[@]}" php artisan migrate --force
 "${testing_app[@]}" php artisan test --no-tia \
     tests/Feature/Procurement/StatusMappingApplicabilityMigrationTest.php \
@@ -32,12 +32,12 @@ grep -Fx '**Status:** 🟢 Done' "$root_dir/plans/2026.08.09-RELEASE-READINESS/p
     tests/Feature/Procurement/StatusMappingApplicabilityMigrationTest.php
 
 task_root=${TASK_ROOT:-/home/vostrikov/.codex/plugins/cache/swissknifeman/task/0.12.0}
-python3 "$task_root/scripts/plan-lint.py" "$root_dir/plans/2026.08.09-RELEASE-READINESS" --baseline HEAD --gate new
-python3 "$task_root/scripts/plan-views.py" --plan-dir "$root_dir/plans/2026.08.09-RELEASE-READINESS" state --all --check
-python3 "$task_root/scripts/plan-views.py" --plan-dir "$root_dir/plans/2026.08.09-RELEASE-READINESS" decisions --check
-python3 "$task_root/scripts/plan-views.py" --plan-dir "$root_dir/plans/2026.08.09-RELEASE-READINESS" status --check
-python3 "$task_root/scripts/plan-views.py" --plan-dir "$root_dir/plans/2026.08.09-RELEASE-READINESS" bundle --item P8.3 --check
-python3 "$root_dir/plans/verify-citations.py" "$root_dir/plans/2026.08.09-RELEASE-READINESS" --strict
+python3 "$task_root/scripts/plan-lint.py" "$root_dir/plans/archive/2026.08.09-RELEASE-READINESS" --baseline HEAD --gate new
+python3 "$task_root/scripts/plan-views.py" --plan-dir "$root_dir/plans/archive/2026.08.09-RELEASE-READINESS" state --all --check
+python3 "$task_root/scripts/plan-views.py" --plan-dir "$root_dir/plans/archive/2026.08.09-RELEASE-READINESS" decisions --check
+python3 "$task_root/scripts/plan-views.py" --plan-dir "$root_dir/plans/archive/2026.08.09-RELEASE-READINESS" status --check
+python3 "$task_root/scripts/plan-views.py" --plan-dir "$root_dir/plans/archive/2026.08.09-RELEASE-READINESS" bundle --item P8.3 --check
+python3 "$root_dir/plans/verify-citations.py" "$root_dir/plans/archive/2026.08.09-RELEASE-READINESS" --strict
 git -C "$root_dir" diff --check
 
 echo 'P8.3 status mapping contract passed'

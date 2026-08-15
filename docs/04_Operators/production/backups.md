@@ -31,4 +31,4 @@ matrix and a destructive create/update/delete/restore fixture in the operator re
 
 Restore always targets a separately allowlisted `*_rehearsal` database/bucket. Production identity,
 `pg_restore --clean`, volume deletion, prune-before-copy and implicit destructive flags are forbidden.
-See `plans/2026.08.09-RELEASE-READINESS/artifacts/P12-command-matrix.md` for canonical commands.
+See `plans/archive/2026.08.09-RELEASE-READINESS/artifacts/P12-command-matrix.md` for canonical commands.

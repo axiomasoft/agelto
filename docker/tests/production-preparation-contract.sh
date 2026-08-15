@@ -56,10 +56,10 @@ expected_carriers = {
     "docker/tests/command-reference-contract.sh",
 }
 expected_templates = {
-    "plans/2026.08.09-RELEASE-READINESS/artifacts/P12-repository-evidence.md",
-    "plans/2026.08.09-RELEASE-READINESS/artifacts/P12-backup-evidence.md",
-    "plans/2026.08.09-RELEASE-READINESS/artifacts/P12-first-deploy-evidence.md",
-    "plans/2026.08.09-RELEASE-READINESS/artifacts/P12-release-recovery-evidence.md",
+    "plans/archive/2026.08.09-RELEASE-READINESS/artifacts/P12-repository-evidence.md",
+    "plans/archive/2026.08.09-RELEASE-READINESS/artifacts/P12-backup-evidence.md",
+    "plans/archive/2026.08.09-RELEASE-READINESS/artifacts/P12-first-deploy-evidence.md",
+    "plans/archive/2026.08.09-RELEASE-READINESS/artifacts/P12-release-recovery-evidence.md",
 }
 assert {item["path"] for item in data["local_carriers"]} == expected_carriers
 assert {item["path"] for item in data["runtime_evidence_templates"]} == expected_templates

@@ -83,14 +83,14 @@ print(roots[0])
 fi
 
 git -C "$root_dir" diff --check
-python3 "$task_root/packages/task/scripts/plan-lint.py" "$root_dir/plans/2026.08.09-RELEASE-READINESS" --baseline HEAD
-python3 "$task_root/packages/task/scripts/plan-views.py" state --all --plan-dir "$root_dir/plans/2026.08.09-RELEASE-READINESS" --check
-python3 "$task_root/packages/task/scripts/plan-views.py" bundle --all --plan-dir "$root_dir/plans/2026.08.09-RELEASE-READINESS" --check
-python3 "$task_root/packages/task/scripts/plan-views.py" decisions --plan-dir "$root_dir/plans/2026.08.09-RELEASE-READINESS" --check
-python3 "$task_root/packages/task/scripts/plan-views.py" status --plan-dir "$root_dir/plans/2026.08.09-RELEASE-READINESS" --check
+python3 "$task_root/packages/task/scripts/plan-lint.py" "$root_dir/plans/archive/2026.08.09-RELEASE-READINESS" --baseline HEAD
+python3 "$task_root/packages/task/scripts/plan-views.py" state --all --plan-dir "$root_dir/plans/archive/2026.08.09-RELEASE-READINESS" --check
+python3 "$task_root/packages/task/scripts/plan-views.py" bundle --all --plan-dir "$root_dir/plans/archive/2026.08.09-RELEASE-READINESS" --check
+python3 "$task_root/packages/task/scripts/plan-views.py" decisions --plan-dir "$root_dir/plans/archive/2026.08.09-RELEASE-READINESS" --check
+python3 "$task_root/packages/task/scripts/plan-views.py" status --plan-dir "$root_dir/plans/archive/2026.08.09-RELEASE-READINESS" --check
 (
     cd "$root_dir"
-    python3 plans/verify-citations.py plans/2026.08.09-RELEASE-READINESS --strict
+    python3 plans/verify-citations.py plans/archive/2026.08.09-RELEASE-READINESS --strict
 )
 
 echo 'P1 release contract passed'

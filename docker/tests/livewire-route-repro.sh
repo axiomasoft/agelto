@@ -3,7 +3,7 @@
 set -euo pipefail
 
 root_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd -P)
-plan_dir="$root_dir/plans/2026.08.09-RELEASE-READINESS"
+plan_dir="$root_dir/plans/archive/2026.08.09-RELEASE-READINESS"
 evidence_file="$plan_dir/findings/P3.1-livewire-runtime-evidence.md"
 mode=${1:-}
 

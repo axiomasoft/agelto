@@ -80,7 +80,7 @@ Committed default `APP_LOCALE=ru` локализует стандартные Fi
 application-owned domain labels по-прежнему задаются явно в Resources и Schemas.
 
 Полный runtime-инвентарь admin routes и ролевых владельцев хранится в
-`plans/2026.08.09-RELEASE-READINESS/artifacts/P9-admin-route-role-matrix.md`.
+`plans/archive/2026.08.09-RELEASE-READINESS/artifacts/P9-admin-route-role-matrix.md`.
 `AdminRouteInventoryTest` сверяет этот committed снимок с `route:list --path=admin --json`:
 новый, удалённый или переназначенный route требует явного обновления матрицы и review доступа.
 `e2e/admin-navigation-responsive.spec.ts` повторяет этот контракт в Chromium для SuperAdmin,

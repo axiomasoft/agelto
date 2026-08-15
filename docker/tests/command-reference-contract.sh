@@ -4,7 +4,7 @@ set -euo pipefail
 
 readonly root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)"
 readonly script="$root/docker/scripts/check-command-reference.py"
-readonly matrix="$root/plans/2026.08.09-RELEASE-READINESS/artifacts/P12-command-matrix.md"
+readonly matrix="$root/plans/archive/2026.08.09-RELEASE-READINESS/artifacts/P12-command-matrix.md"
 
 fail() {
     printf '[FAIL] P12.6 %s\n' "$*" >&2

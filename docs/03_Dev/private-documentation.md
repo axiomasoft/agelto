@@ -97,6 +97,6 @@ after both logout and SuperAdmin permission revocation. Output names the full ca
 application image digest.
 
 The release contract is D7, D17, D18, D26, D27 and APP-07–APP-10 of
-`plans/2026.08.09-RELEASE-READINESS/root/contracts/release-readiness-v1.md`. Any change to the
+`contracts/release-readiness-v1.md`. Any change to the
 generator, storage, authorization, MIME/cache or browser policy requires evidence and a superseding
 decision; it is not an implementation convenience.
