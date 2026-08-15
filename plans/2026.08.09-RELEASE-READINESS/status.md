@@ -3,7 +3,7 @@ projection: status-view
 projection_version: v1
 source_scope: plan core + phases + journal
 through: 2026-08-15
-inputs_sha256: a6bdfb447bbad100f152e09ccf779ecc9607aff72852981255953a66d8bc7532
+inputs_sha256: 0c6eb96ef6a55b79ca9b0171e3a0a4048efdc79d337171d77757bbd238d1e48a
 generated_by: task plan-views status
 -->
 
@@ -16,7 +16,7 @@ generated_by: task plan-views status
 | Поле | Значение |
 |:--|:--|
 | Version | 0.1.13 |
-| Status | 🟡 In progress |
+| Status | 🔴 Blocked |
 | Last Updated | 2026-08-15 |
 
 ## 4. Phase Index & Status Board
@@ -27,7 +27,7 @@ generated_by: task plan-views status
 | P1 | Makefile и Docker dev/prod с Vite-ready topology | 7/7 | 🟢 Done |
 | P10 | PHP, архитектура, безопасность и production-readiness audit | 5/6 | 🟠 Done with deviations |
 | P11 | Pest 5 performance, test isolation и CI | 5/6 | 🟠 Done with deviations |
-| P12 | Ubuntu deployment guide и финальный clean-room rehearsal | 0/7 | 🟡 In progress |
+| P12 | Ubuntu deployment guide и финальный clean-room rehearsal | 0/7 | 🔴 Blocked |
 | P2 | Local vendor, secrets, preflight, bootstrap и Laravel Doctor | 7/7 | 🟢 Done |
 | P3 | Fresh install, Livewire/Filament assets и application readiness | 5/5 | 🟢 Done |
 | P4 | Закрытая production-документация вне public | 4/6 | 🟠 Done with deviations |
@@ -89,7 +89,7 @@ generated_by: task plan-views status
 | ID | Title | Status | Updated |
 |:--|:--|:--|:--|
 | P12.1 | Подготовить пустой Ubuntu: deploy user, SSH hardening, firewall и Docker | 🟠 Done with deviations | 2026-08-15 |
-| P12.2 | Описать Git SSH/deploy keys и clone main плюс local AzGuard | 🟡 In progress | 2026-08-15 |
+| P12.2 | Описать Git SSH/deploy keys и clone main плюс local AzGuard | 🔴 Blocked | 2026-08-15 |
 | P12.3 | Настроить DNS, Nginx, TLS, persistent storage, logs и backups | ⬜ Not started | — |
 | P12.4 | Провести первый deploy: secrets, build, migrate, seed, admin, assets, docs, doctor | ⬜ Not started | — |
 | P12.5 | Описать subsequent releases, rollback, Horizon drain и restore | ⬜ Not started | — |
@@ -716,6 +716,8 @@ write-site: pre_mutation: allow · pre_final: allow |
 | 2026-08-15 | gpt-5.6-terra/high | plan-run · closed-deviations · Local Compose host carrier green; remote Ubuntu proof explicitly bounded to P12.7. |
 | 2026-08-15 | gpt-5.6-terra/high | plan-run · in-progress · — |
 | 2026-08-15 | gpt-5.6-terra/high | plan-run · decision-pending · decision queue: Q-P12.2-production-repository-proof-v1 |
+| 2026-08-15 | gpt-5.6-terra/high | plan-run · decision-pending · Требуются owner-filled profile, Ubuntu host и read-only GitHub deploy-key enrollment. |
+| 2026-08-15 | repository-owner | plan-run · blocked · decision queue: Q-P12.2-production-repository-proof-v1 |
 
 ## Owner Gates
 
@@ -726,6 +728,7 @@ write-site: pre_mutation: allow · pre_final: allow |
 - P10.6: known deviation
 - P11.6: known deviation
 - P12.1: known deviation
+- P12.2: escalation
 - P4.2: known deviation
 - P4.4: known deviation
 - P4.6: known deviation
