@@ -12,6 +12,7 @@ mkdir -p "$evidence_dir"
 
 compose=(docker compose --project-directory "$root_dir" --project-name "$project_name" --env-file "$root_dir/.env" -f "$root_dir/docker-compose.yml")
 app=("${compose[@]}" exec -T -e APP_ENV=testing -e DB_DATABASE=agelto_test -e DB_HOST=postgres app)
+app_root=$("${compose[@]}" exec -T app pwd)
 
 run_test() {
     local name=$1
@@ -46,7 +47,7 @@ for run in 1 2 3; do
     run_test "selected-serial-$run"
 done
 
-"${compose[@]}" cp app:/var/www/storage/app/release-quality/. "$evidence_dir/"
+"${compose[@]}" cp "app:$app_root/storage/app/release-quality/." "$evidence_dir/"
 python3 docker/scripts/check-release-quality.py \
     --budget tests/performance-budget.json \
     --evidence "$evidence_dir" \
