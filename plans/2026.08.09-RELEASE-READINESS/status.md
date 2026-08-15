@@ -3,7 +3,7 @@ projection: status-view
 projection_version: v1
 source_scope: plan core + phases + journal
 through: 2026-08-15
-inputs_sha256: d50a87f35b8848528928f4f78018bfc260696f69109a4acbb8d6336e0e70debe
+inputs_sha256: 99dab791847c5cb4449214ac4c0ba35b55c0e30a52d8b89fe037fd235fb2a581
 generated_by: task plan-views status
 -->
 
@@ -27,7 +27,7 @@ generated_by: task plan-views status
 | P1 | Makefile и Docker dev/prod с Vite-ready topology | 7/7 | 🟢 Done |
 | P10 | PHP, архитектура, безопасность и production-readiness audit | 5/6 | 🟠 Done with deviations |
 | P11 | Pest 5 performance, test isolation и CI | 5/6 | 🟠 Done with deviations |
-| P12 | Ubuntu deployment guide и финальный clean-room rehearsal | 0/7 | ⬜ Not started |
+| P12 | Ubuntu deployment guide и финальный clean-room rehearsal | 0/7 | 🟡 In progress |
 | P2 | Local vendor, secrets, preflight, bootstrap и Laravel Doctor | 7/7 | 🟢 Done |
 | P3 | Fresh install, Livewire/Filament assets и application readiness | 5/5 | 🟢 Done |
 | P4 | Закрытая production-документация вне public | 4/6 | 🟠 Done with deviations |
@@ -88,7 +88,7 @@ generated_by: task plan-views status
 
 | ID | Title | Status | Updated |
 |:--|:--|:--|:--|
-| P12.1 | Подготовить пустой Ubuntu: deploy user, SSH hardening, firewall и Docker | ⬜ Not started | — |
+| P12.1 | Подготовить пустой Ubuntu: deploy user, SSH hardening, firewall и Docker | 🟠 Done with deviations | 2026-08-15 |
 | P12.2 | Описать Git SSH/deploy keys и clone main плюс local AzGuard | ⬜ Not started | — |
 | P12.3 | Настроить DNS, Nginx, TLS, persistent storage, logs и backups | ⬜ Not started | — |
 | P12.4 | Провести первый deploy: secrets, build, migrate, seed, admin, assets, docs, doctor | ⬜ Not started | — |
@@ -712,6 +712,8 @@ write-site: pre_mutation: allow · pre_final: allow |
 write-site: pre_mutation: allow · pre_final: allow |
 | 2026-08-15 | frontier/xhigh | plan-audit · audit-green · audit-fixer rebound 25ebba92→72d83079; all safe findings repaired; verdict GREEN; owner-directed CI exclusion retained. |
 | 2026-08-15 | implementation/low | plan-close · closed-deviations · P11 закрыта по D88: GREEN audit покрывает P11.6 deviation; stale вызван только audit bookkeeping. |
+| 2026-08-15 | gpt-5.6-terra/high | plan-run · in-progress · — |
+| 2026-08-15 | gpt-5.6-terra/high | plan-run · closed-deviations · Local Compose host carrier green; remote Ubuntu proof explicitly bounded to P12.7. |
 
 ## Owner Gates
 
@@ -721,6 +723,7 @@ write-site: pre_mutation: allow · pre_final: allow |
 - P10.5: known deviation
 - P10.6: known deviation
 - P11.6: known deviation
+- P12.1: known deviation
 - P4.2: known deviation
 - P4.4: known deviation
 - P4.6: known deviation
