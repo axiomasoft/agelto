@@ -16,11 +16,11 @@ rg -q -- '--ci --no-tia' docker/scripts/collect-release-quality-evidence.sh
 ! rg -q -- '--tia|test:edit|cache hit|replay' docker/scripts/collect-release-quality-evidence.sh
 rg -q 'random_order_seeds' tests/performance-budget.json
 rg -q 'selected_mode' tests/performance-budget.json
-rg -q 'release-quality-contract\.sh' .github/workflows/ci.yml
-rg -q 'collect-release-quality-evidence\.sh' .github/workflows/ci.yml
+make -n test:release | rg -q 'release-quality-contract\.sh'
+rg -q 'make test:release' .github/workflows/ci.yml
 
-if [ "${RELEASE_QUALITY_EXECUTE:-0}" = 1 ]; then
-    bash docker/scripts/collect-release-quality-evidence.sh
+if [ "${RELEASE_QUALITY_STRUCTURE_ONLY:-0}" = 1 ]; then
+    echo 'Release-quality contract structure passed; unset RELEASE_QUALITY_STRUCTURE_ONLY to collect executed evidence.'
 else
-    echo 'Release-quality contract structure passed; set RELEASE_QUALITY_EXECUTE=1 to collect executed evidence.'
+    bash docker/scripts/collect-release-quality-evidence.sh
 fi

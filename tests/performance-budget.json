@@ -5,6 +5,13 @@
     "serial": 180000
   },
   "coverage": {
+    "critical_files": [
+      "app/Services/Documentation/PrivateDocumentationLocator.php",
+      "app/Services/Health/ApplicationReadiness.php",
+      "app/Services/Procurement/Prepare/Archive/ArchiveEntryValidator.php",
+      "app/Services/Procurement/Proxy/ProxyResolver.php",
+      "app/Actions/Procurement/Screening/ApplyScreeningDispositionAction.php"
+    ],
     "global_statement_floor": 88.22,
     "critical_file_floor": 55
   },

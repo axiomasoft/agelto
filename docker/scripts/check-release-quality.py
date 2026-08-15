@@ -43,14 +43,47 @@ def milliseconds(path: Path) -> int:
     return value
 
 
-def coverage(clover: Path) -> float:
-    metrics = element_tree.parse(clover).getroot().find('./project/metrics')
+def coverage(clover: Path, critical_paths: list[str], critical_floor: float) -> tuple[float, dict[str, float]]:
+    root = element_tree.parse(clover).getroot()
+    metrics = root.find('./project/metrics')
     if metrics is None:
         raise ValueError(f'{clover} has no project metrics')
     statements = int(metrics.attrib['statements'])
     if statements <= 0:
         raise ValueError(f'{clover} has no executable statements')
-    return round(int(metrics.attrib['coveredstatements']) / statements * 100, 2)
+    global_coverage = round(int(metrics.attrib['coveredstatements']) / statements * 100, 2)
+
+    critical_coverage: dict[str, float] = {}
+    for file_node in root.findall('.//file'):
+        raw_name = file_node.attrib.get('name', '')
+        normalized_name = raw_name.removeprefix('/var/www/html/').removeprefix(str(Path.cwd()) + '/')
+        if normalized_name not in critical_paths:
+            continue
+        file_metrics = file_node.find('./metrics')
+        if file_metrics is None:
+            raise ValueError(f'{normalized_name} has no Clover metrics')
+        file_statements = int(file_metrics.attrib['statements'])
+        if file_statements <= 0:
+            raise ValueError(f'{normalized_name} has no executable statements')
+        critical_coverage[normalized_name] = round(
+            int(file_metrics.attrib['coveredstatements']) / file_statements * 100,
+            2,
+        )
+
+    missing_paths = sorted(set(critical_paths) - set(critical_coverage))
+    if missing_paths:
+        raise ValueError(f'Clover report misses critical files: {", ".join(missing_paths)}')
+    failed_paths = [
+        f'{path}={value:.2f}%'
+        for path, value in critical_coverage.items()
+        if value < critical_floor
+    ]
+    if failed_paths:
+        raise ValueError(
+            f'Critical-file coverage below {critical_floor:.2f}%: {", ".join(failed_paths)}'
+        )
+
+    return global_coverage, critical_coverage
 
 
 def main() -> None:
@@ -81,7 +114,12 @@ def main() -> None:
     coverage_duration = milliseconds(evidence / 'coverage.milliseconds')
     if normalized_junit(evidence / 'coverage.xml') != serial_junit[0]:
         raise SystemExit('Coverage run has divergent name/status set')
-    measured_coverage = coverage(evidence / 'coverage-clover.xml')
+    coverage_contract = budget['coverage']
+    measured_coverage, critical_coverage = coverage(
+        evidence / 'coverage-clover.xml',
+        coverage_contract['critical_files'],
+        coverage_contract['critical_file_floor'],
+    )
 
     for seed in expected_seeds:
         if normalized_junit(evidence / f'random-{seed}.xml') != serial_junit[0]:
@@ -103,7 +141,7 @@ def main() -> None:
         if configured[key] < required:
             raise SystemExit(f'{key} budget {configured[key]} is below measured D42 floor {required}')
 
-    if measured_coverage < budget['coverage']['global_statement_floor']:
+    if measured_coverage < coverage_contract['global_statement_floor']:
         raise SystemExit('Global coverage is below the committed P11.6 floor')
 
     summary = {
@@ -113,6 +151,7 @@ def main() -> None:
         'profile_milliseconds': profile_duration,
         'coverage_milliseconds': coverage_duration,
         'global_statement_coverage': measured_coverage,
+        'critical_file_statement_coverage': critical_coverage,
         'name_status_sha256': reference_hash,
         'test_count': test_count,
         'random_order_seeds': expected_seeds,
