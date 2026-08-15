@@ -30,6 +30,7 @@ done
 
 declare -A PROFILE=()
 readonly REQUIRED_KEYS=(DEPLOY_USER DEPLOY_AUTHORIZED_KEY_FILE SSH_PORT PUBLIC_HTTP_PORT PUBLIC_HTTPS_PORT APP_BIND_ADDRESS APP_BIND_PORT DISK_MIN_FREE_GB DOCKER_DATA_ROOT REGISTRY_PASSWORD_FILE BACKUP_ALERT_URL_FILE)
+readonly OPTIONAL_KEYS=(AGELTO_REPOSITORY AGELTO_CANDIDATE_SHA AGELTO_CHECKOUT_DIR GITHUB_ED25519_HOST_KEY)
 readonly SECRET_FILE_KEYS=(REGISTRY_PASSWORD_FILE BACKUP_ALERT_URL_FILE)
 
 read_profile() {
@@ -43,7 +44,7 @@ read_profile() {
         [[ "$line" == *=* ]] || fail 'profile lines must be KEY=value'
         key="${line%%=*}"; value="${line#*=}"
         [[ "$key" =~ ^[A-Z][A-Z0-9_]*$ ]] || fail 'profile has invalid key'
-        case " ${REQUIRED_KEYS[*]} " in *" $key "*) ;; *) fail "profile has unknown key $key";; esac
+        case " ${REQUIRED_KEYS[*]} ${OPTIONAL_KEYS[*]} " in *" $key "*) ;; *) fail "profile has unknown key $key";; esac
         [[ ! -v "PROFILE[$key]" ]] || fail "profile has duplicate key $key"
         [[ -n "$value" && "$value" != *CHANGE_ME* && "$value" != *'<'* && "$value" != *'>'* ]] || fail "profile has placeholder for $key"
         [[ "$value" != *$'\n'* && "$value" != *$'\r'* ]] || fail "profile has control character in $key"

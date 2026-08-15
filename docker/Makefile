@@ -11,7 +11,7 @@ AGENT_ENV := $(if $(CLAUDECODE),-e CLAUDECODE=$(CLAUDECODE)) $(if $(CLAUDE_CODE)
 
 .DEFAULT_GOAL := help
 .PHONY: help infra\:preflight secrets\:init bootstrap host\:check host\:apply host\:preflight dev\:up dev\:down dev\:ps dev\:logs dev\:shell dev\:artisan dev\:composer dev\:storage-init dev\:health
-.PHONY: agent\:artisan vendor\:sync vendor\:check doctor\:local readiness\:check assets\:check assets\:sync assets\:repair documentation\:check documentation\:acceptance quality prod\:doctor dev\:migrate dev\:seed-base dev\:seed-demo dev\:admin-create dev\:admin-reset dev\:composer-bootstrap prod\:config prod\:ps prod\:deploy\:code prod\:deploy\:php-deps prod\:deploy\:frontend prod\:deploy\:runtime prod\:image\:promote prod\:deploy\:image prod\:migrate prod\:seed-base image\:build test-preflight test-php test\:edit test\:full test\:junit test\:profile test\:coverage test\:release test\:tia-reset test\:tia-refresh test\:tia-baseline-export test\:shard test\:parallel db\:create-test
+.PHONY: agent\:artisan vendor\:sync vendor\:check repositories\:prepare repositories\:sync doctor\:local readiness\:check assets\:check assets\:sync assets\:repair documentation\:check documentation\:acceptance quality prod\:doctor dev\:migrate dev\:seed-base dev\:seed-demo dev\:admin-create dev\:admin-reset dev\:composer-bootstrap prod\:config prod\:ps prod\:deploy\:code prod\:deploy\:php-deps prod\:deploy\:frontend prod\:deploy\:runtime prod\:image\:promote prod\:deploy\:image prod\:migrate prod\:seed-base image\:build test-preflight test-php test\:edit test\:full test\:junit test\:profile test\:coverage test\:release test\:tia-reset test\:tia-refresh test\:tia-baseline-export test\:shard test\:parallel db\:create-test
 
 help:
 	@echo "Agelto command surface"
@@ -28,6 +28,8 @@ help:
 	@echo "  make dev:up | dev:down | dev:ps | dev:logs [SERVICE=app]"
 	@echo "  make dev:shell | dev:artisan ARGS=\"about\" | dev:composer ARGS=\"install\""
 	@echo "  make vendor:sync | vendor:check             Clone/check the pinned private AzGuard packages"
+	@echo "  sudo make repositories:prepare PROFILE=...   Create separate GitHub deploy-key material"
+	@echo "  sudo make repositories:sync PROFILE=...     Verify enrollment and sync pinned source"
 	@echo "  make db:create-test | test-preflight        Create/check the isolated PostgreSQL test database"
 	@echo "  make test:edit | test:full | test:junit | test:profile   Local TIA replay or full no-TIA PHP suite"
 	@echo "  make test:coverage | test:tia-refresh       Full no-TIA coverage or explicit local TIA refresh"
@@ -196,6 +198,14 @@ vendor\:sync:
 
 vendor\:check:
 	bash $(ROOT_DIR)/docker/scripts/vendor-sync.sh --check --composer-check
+
+repositories\:prepare:
+	@test -n "$(PROFILE)" || (echo "PROFILE is required" >&2; exit 2)
+	bash $(ROOT_DIR)/docker/scripts/deploy-repositories.sh prepare --profile "$(abspath $(PROFILE))"
+
+repositories\:sync:
+	@test -n "$(PROFILE)" || (echo "PROFILE is required" >&2; exit 2)
+	bash $(ROOT_DIR)/docker/scripts/deploy-repositories.sh sync --profile "$(abspath $(PROFILE))" --enrollment-confirmed
 
 prod\:config:
 	$(COMPOSE_PROD) config
