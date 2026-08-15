@@ -1,3 +1,95 @@
 #!/usr/bin/env bash
+
 set -euo pipefail
-case ${1:-} in check) echo 'APP DB REDIS MINIO: before/next/applied/rolled-back fingerprints remain redacted';; *) echo 'apply requires future authority' >&2; exit 2;; esac
+
+readonly CREDENTIALS=(APP DB REDIS MINIO)
+
+fail() {
+    printf '[FAIL] ROTATION %s\n' "$*" >&2
+    exit 1
+}
+
+mode=${1:-}
+case "$mode" in
+    check) [[ $# -eq 1 ]] || exit 2; printf '%s\n' 'APP:app,queue,scheduler,reverb' 'DB:app,queue,scheduler,backup' 'REDIS:app,queue,scheduler,reverb' 'MINIO:app,queue,scheduler'; exit 0 ;;
+    fixture) shift ;;
+    apply) fail 'apply requires the follow-up operator rehearsal authority' ;;
+    *) exit 2 ;;
+esac
+
+credential=''
+before_file=''
+next_file=''
+adapter=''
+state_file=''
+lock_file=''
+while (($#)); do
+    case "$1" in
+        --credential) credential=${2:-}; shift ;;
+        --before-file) before_file=${2:-}; shift ;;
+        --next-file) next_file=${2:-}; shift ;;
+        --adapter) adapter=${2:-}; shift ;;
+        --state-file) state_file=${2:-}; shift ;;
+        --lock-file) lock_file=${2:-}; shift ;;
+        *) exit 2 ;;
+    esac
+    shift
+done
+
+case " ${CREDENTIALS[*]} " in *" $credential "*) ;; *) fail 'credential is outside the closed APP/DB/REDIS/MINIO enum' ;; esac
+for path in "$before_file" "$next_file"; do
+    [[ $path = /* && -f $path && ! -L $path ]] || fail 'credential inputs must be regular absolute files'
+    permissions=$(stat -c '%a' "$path")
+    (( (8#${permissions: -3} & 8#077) == 0 )) || fail 'credential inputs must be owner-only'
+    [[ -s $path ]] || fail 'credential input is empty'
+done
+[[ $adapter = /* && -x $adapter && ! -L $adapter && $state_file = /* && $lock_file = /* ]] || fail 'fixture adapter/state/lock arguments are invalid'
+tmp_base=$(realpath -m "${TMPDIR:-/tmp}")
+for path in "$before_file" "$next_file" "$adapter" "$state_file" "$lock_file"; do
+    [[ $(realpath -m "$path") == "$tmp_base"/* ]] || fail 'fixture paths must live below TMPDIR'
+done
+[[ ! -L $state_file && ! -L $lock_file ]] || fail 'state and lock files must not be symlinks'
+
+before_hash=$(sha256sum "$before_file" | cut -d' ' -f1)
+next_hash=$(sha256sum "$next_file" | cut -d' ' -f1)
+[[ $before_hash != "$next_hash" ]] || fail 'next credential must differ from the current credential'
+
+case "$credential" in
+    APP|REDIS) consumers=(app queue scheduler reverb) ;;
+    DB) consumers=(app queue scheduler backup) ;;
+    MINIO) consumers=(app queue scheduler) ;;
+esac
+
+mkdir -p "$(dirname "$state_file")" "$(dirname "$lock_file")"
+exec 9>"$lock_file"
+flock -n 9 || fail 'another release/backup/rotation/restore operation holds the lock'
+
+completed=()
+"$adapter" stage-next "$credential" "$next_file"
+for consumer in "${consumers[@]}"; do
+    set +e
+    "$adapter" verify-consumer "$credential" "$consumer" "$next_file"
+    status=$?
+    set -e
+    if ((status != 0)); then
+        for ((index=${#completed[@]}-1; index>=0; index--)); do
+            "$adapter" rollback-consumer "$credential" "${completed[$index]}" "$before_file"
+        done
+        fail "consumer $consumer rejected the next credential; verified consumers were rolled back"
+    fi
+    completed+=("$consumer")
+done
+"$adapter" retire-old "$credential" "$before_file"
+
+temporary=$(mktemp "${state_file}.tmp.XXXXXX")
+chmod 0600 "$temporary"
+{
+    printf 'schema=agelto.secret-rotation-state/v1\n'
+    printf 'credential=%s\n' "$credential"
+    printf 'before_sha256=%s\n' "$before_hash"
+    printf 'next_sha256=%s\n' "$next_hash"
+    printf 'status=applied\n'
+    printf 'consumers=%s\n' "$(IFS=,; printf '%s' "${consumers[*]}")"
+} > "$temporary"
+mv "$temporary" "$state_file"
+printf '[PASS] ROTATION %s fixture verified every consumer before old-credential retirement (values redacted)\n' "$credential"
