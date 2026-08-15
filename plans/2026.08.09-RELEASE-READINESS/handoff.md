@@ -1,30 +1,26 @@
-# HANDOFF — 2026-08-14 — after P11.5
+# HANDOFF — 2026-08-15 — after P11.6
 
-**Next:** ЗАПУСК ВРУЧНУЮ: implementation/high — P11.6
+**Next:** audit-phase: task:plan-audit 2026.08.09-RELEASE-READINESS P11
 
 | Параметр | Значение |
 |:--|:--|
 | Batch | solo |
-| Model | implementation |
-| Thinking | high — live-CI и release-gate boundary |
-| Context | continue-root |
-| Суть | Реализовать P11.6: зафиксировать budgets и получить live-CI evidence на candidate SHA. |
+| Model | gpt-5.6-sol |
+| Thinking | xhigh — независимый terminal phase audit |
+| Context | cold-start-root |
+| Суть | Провести единственный свежий audit P11; live CI остаётся явно пропущенным owner-directed deviation. |
+| Команда | `task:plan-audit 2026.08.09-RELEASE-READINESS P11` |
 
 ```bash
-codex -C /home/vostrikov/projects/agelto/agelto -m gpt-5.6-terra -c 'model_reasoning_effort="high"' -a never -s danger-full-access '$ task:plan-run 2026.08.09-RELEASE-READINESS P11.6
-
-РЕЖИМ: terminal P11 execution, не проектирование и не локальная эмуляция live CI.
-ХОЛОДНЫЙ СТАРТ: прочитать v2 five-slot path P11.6; затем P11.5 state, baseline/matrix и D40–D42 по Required Reads.
-ОБЯЗАТЕЛЬНО: live GitHub Actions evidence и exact candidate SHA — acceptance, а не optional follow-up.
-НЕ ОСЛАБЛЯТЬ: budgets, coverage floors, D40 mode, isolation/secret/artifact guards; TIA/cache replay не заменяет executed proof.'
+codex -C /home/vostrikov/projects/agelto/agelto -m gpt-5.6-sol -c 'model_reasoning_effort="xhigh"' -a never -s danger-full-access '$ task:plan-audit 2026.08.09-RELEASE-READINESS P11'
 ```
 
-**Done:** Item commit `51dbde89` closes D42 with SHA-pinned least-privilege GitHub Actions, restore-only PR cache policy, explicit trusted cache saves, separate Pest TIA baseline, fail-closed private dependency bootstrap, clean-install E2E artifact boundary and image/security scans. `bash docker/tests/ci-contract.sh` and the global/critical coverage gate are green; the P11 matrix marks D42 `Covered`.
+**Done:** Candidate `48ea722b00c969eea2f4e004c601c788d663f2d8` pushed to `origin/p11.6-release-quality`. `bash docker/tests/release-quality-contract.sh` is green. Terminal evidence records the local carrier as green and live GitHub Actions as intentionally skipped by repository-owner instruction. `DR-P11.6-AZGUARD-CI-TOKEN` was rejected as stale/mistaken.
 
-**Remaining:** P11.6 owns repeated performance/determinism/coverage proof and real GitHub Actions evidence for the candidate SHA. It must not treat the local CI contract as hosted-runner proof.
+**Remaining:** P11 requires a fresh phase audit before phase close. A live CI run remains required before any release approval; it is not represented as green.
 
-**Sources of truth:** `journal.jsonl` P11.5 attempt · `phases/P11/P11.5.state.md` · `artifacts/P11-risk-test-matrix.md` · `artifacts/P11-test-baseline.md` · D40–D42 · item commit `51dbde89`.
+**Sources of truth:** `journal.jsonl` P11.6 attempt 4 · `phases/P11/P11.6.state.md` · `decisions/queue.jsonl` `DR-P11.6-AZGUARD-CI-TOKEN` · candidate `48ea722b00c969eea2f4e004c601c788d663f2d8`.
 
-**Open risks:** Full local JUnit execution was not conclusively observed in this runner after Docker-session interruption; P11.6 must obtain its own complete repeated evidence. Independent plan maintenance is also blocked for `bundle --all` by terminal P10.1's removed `phpstan-baseline.neon`; see `findings/P10.1-bundle-input-unresolvable-2026-08-14.md`. Neither issue waives P11.6's live-CI requirements.
+**Open risks:** GitHub Actions run `31837706682` has no terminal green evidence. The phase-audit policy is `PHASE_AUDIT_REQUIRED_NON_GREEN` because P11.6 is `🟠 Done with deviations`.
 
-**Workarounds/Deferred/Open questions:** workarounds: — · deferred: live CI/flake/performance budgets → P11.6; P10.1 historical bundle-input repair → plan maintenance · open_questions: —.
+**Workarounds/Deferred/Open questions:** workarounds: — · deferred: live CI for candidate `48ea722b00c969eea2f4e004c601c788d663f2d8` before release approval · open_questions: —.

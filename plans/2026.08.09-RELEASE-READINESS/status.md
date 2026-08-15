@@ -2,8 +2,8 @@
 projection: status-view
 projection_version: v1
 source_scope: plan core + phases + journal
-through: 2026-08-14
-inputs_sha256: 062f5f47d4e73344808de00f3400b14ce28e732356b46b1683ca975afc00690a
+through: 2026-08-15
+inputs_sha256: 5c7e0681b16bc5c5bdcfaafb12240c98d1ad7f296196457a0d2f642a825238ef
 generated_by: task plan-views status
 -->
 
@@ -17,7 +17,7 @@ generated_by: task plan-views status
 |:--|:--|
 | Version | 0.1.13 |
 | Status | 🟡 In progress |
-| Last Updated | 2026-08-14 |
+| Last Updated | 2026-08-15 |
 
 ## 4. Phase Index & Status Board
 
@@ -26,7 +26,7 @@ generated_by: task plan-views status
 | P0 | Разведка репозитория, референсов и RAG-контракты | 8/8 | 🟢 Done |
 | P1 | Makefile и Docker dev/prod с Vite-ready topology | 7/7 | 🟢 Done |
 | P10 | PHP, архитектура, безопасность и production-readiness audit | 5/6 | 🟠 Done with deviations |
-| P11 | Pest 5 performance, test isolation и CI | 5/6 | 🟡 In progress |
+| P11 | Pest 5 performance, test isolation и CI | 5/6 | 🟠 Done with deviations |
 | P12 | Ubuntu deployment guide и финальный clean-room rehearsal | 0/7 | ⬜ Not started |
 | P2 | Local vendor, secrets, preflight, bootstrap и Laravel Doctor | 7/7 | 🟢 Done |
 | P3 | Fresh install, Livewire/Filament assets и application readiness | 5/5 | 🟢 Done |
@@ -82,7 +82,7 @@ generated_by: task plan-views status
 | P11.3 | Укрепить test DB/media isolation и agent-optimized output | 🟢 Done | 2026-08-14 |
 | P11.4 | Закрыть недостающие risk-based unit/feature/integration/E2E suites | 🟢 Done | 2026-08-14 |
 | P11.5 | Настроить CI style/static/tests/build/security с корректными caches | 🟢 Done | 2026-08-14 |
-| P11.6 | Запечатать performance, coverage, determinism и flake gates | ⬜ Not started | — |
+| P11.6 | Запечатать performance, coverage, determinism и flake gates | 🟠 Done with deviations | 2026-08-15 |
 
 ## Phase P12
 
@@ -697,6 +697,12 @@ write-site: pre_mutation: allow · pre_final: allow |
 write-site: pre_mutation: allow · pre_final: allow |
 | 2026-08-14 | gpt-5.6-terra/high | plan-run · in-progress · — |
 | 2026-08-14 | gpt-5.6-terra/high | plan-run · closed-green · D42 закрыт SHA-pinned CI, TIA baseline и fail-closed private dependency carrier. |
+| 2026-08-14 | gpt-5.6-terra/high | plan-run · in-progress · — |
+| 2026-08-14 | gpt-5.6-terra/high | plan-run · decision-pending · Live Actions candidate a4bacc15 stopped because AZGUARD_CI_TOKEN is absent; owner approval requested. |
+| 2026-08-14 | gpt-5.6-terra/high | plan-run · decision-pending · decision queue: DR-P11.6-AZGUARD-CI-TOKEN |
+| 2026-08-14 | gpt-5.6-terra/high | plan-run · in-progress · Recovery: push 983baf42 to candidate and verify live CI. |
+| 2026-08-15 | repository-owner | plan-run · blocked · decision queue: DR-P11.6-AZGUARD-CI-TOKEN |
+| 2026-08-15 | gpt-5.6-terra/high | plan-run · closed-deviations · Candidate pushed; local release-quality contract green; live CI skipped by repository-owner decision. |
 
 ## Owner Gates
 
@@ -705,6 +711,7 @@ write-site: pre_mutation: allow · pre_final: allow |
 - P0.5: known deviation
 - P10.5: known deviation
 - P10.6: known deviation
+- P11.6: known deviation
 - P4.2: known deviation
 - P4.4: known deviation
 - P4.6: known deviation
