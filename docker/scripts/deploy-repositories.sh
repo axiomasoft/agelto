@@ -9,9 +9,12 @@ readonly vendor_manifest="$root_dir/private-vendors.lock.json"
 mode=''
 profile=''
 enrollment_confirmed=false
+fixture_root=''
+adapter=''
 
 usage() {
     printf '%s\n' 'Usage: deploy-repositories.sh prepare|sync --profile /absolute/path [--enrollment-confirmed]' >&2
+    printf '%s\n' '       deploy-repositories.sh fixture --profile /absolute/path --fixture-root /tmp/path --adapter /tmp/fake-tool' >&2
 }
 
 fail() { printf '[FAIL] %s\n' "$*" >&2; exit 1; }
@@ -19,9 +22,11 @@ pass() { printf '[PASS] %s\n' "$*"; }
 
 while (($#)); do
     case "$1" in
-        prepare|sync) [[ -z "$mode" ]] || fail 'choose one mode'; mode="$1" ;;
+        prepare|sync|fixture) [[ -z "$mode" ]] || fail 'choose one mode'; mode="$1" ;;
         --profile) profile="${2:-}"; shift ;;
         --enrollment-confirmed) enrollment_confirmed=true ;;
+        --fixture-root) fixture_root="${2:-}"; shift ;;
+        --adapter) adapter="${2:-}"; shift ;;
         *) usage; exit 2 ;;
     esac
     shift
@@ -31,6 +36,7 @@ done
 
 declare -A PROFILE=()
 readonly REQUIRED_KEYS=(DEPLOY_USER AGELTO_REPOSITORY AGELTO_CANDIDATE_SHA AGELTO_CHECKOUT_DIR GITHUB_ED25519_HOST_KEY)
+readonly ALLOWED_KEYS=(DEPLOY_USER DEPLOY_AUTHORIZED_KEY_FILE SSH_PORT PUBLIC_HTTP_PORT PUBLIC_HTTPS_PORT APP_BIND_ADDRESS APP_BIND_PORT DISK_MIN_FREE_GB DOCKER_DATA_ROOT REGISTRY_PASSWORD_FILE BACKUP_ALERT_URL_FILE AGELTO_REPOSITORY AGELTO_CANDIDATE_SHA AGELTO_CHECKOUT_DIR GITHUB_ED25519_HOST_KEY)
 
 read_profile() {
     [[ -f "$profile" && ! -L "$profile" ]] || fail 'profile must be a regular non-symlink file'
@@ -44,6 +50,7 @@ read_profile() {
         [[ "$line" == *=* ]] || fail 'profile lines must be KEY=value'
         key="${line%%=*}"; value="${line#*=}"
         [[ "$key" =~ ^[A-Z][A-Z0-9_]*$ ]] || fail 'profile has invalid key'
+        case " ${ALLOWED_KEYS[*]} " in *" $key "*) ;; *) fail "profile has unknown key $key" ;; esac
         case " ${REQUIRED_KEYS[*]} " in *" $key "*) ;; *) continue ;; esac
         [[ ! -v "PROFILE[$key]" ]] || fail "profile has duplicate key $key"
         [[ -n "$value" && "$value" != *CHANGE_ME* && "$value" != *'<'* && "$value" != *'>'* ]] || fail "profile has placeholder for $key"
@@ -241,8 +248,107 @@ PY
     pass "clean detached Agelto ${PROFILE[AGELTO_CANDIDATE_SHA]} and D19 AzGuard $vendor_sha are verified"
 }
 
+fixture() {
+    [[ $EUID -ne 0 ]] || fail 'fixture mode refuses root execution'
+    [[ $fixture_root = /* && $adapter = /* && -x $adapter && -f $adapter && ! -L $adapter ]] || fail 'fixture root and executable adapter are required'
+    local tmp_base resolved_root resolved_adapter
+    tmp_base="$(realpath -m "${TMPDIR:-/tmp}")"
+    resolved_root="$(realpath -m "$fixture_root")"
+    resolved_adapter="$(realpath -m "$adapter")"
+    [[ "$resolved_root" == "$tmp_base"/* && "$resolved_adapter" == "$tmp_base"/* && ! -L "$fixture_root" ]] || fail 'fixture paths must be non-symlinks below TMPDIR'
+
+    local fixture_ssh="$resolved_root/home/deploy/.ssh"
+    local fixture_checkout="$resolved_root/checkouts/agelto"
+    local fixture_vendor="$resolved_root/checkouts/azguard"
+    install -d -m 0700 "$fixture_ssh" "$resolved_root/checkouts"
+
+    local trust_file="$fixture_ssh/known_hosts"
+    printf 'github.com ssh-ed25519 %s\n' "${PROFILE[GITHUB_ED25519_HOST_KEY]}" > "$trust_file"
+    chmod 0600 "$trust_file"
+    local fingerprint
+    fingerprint="$(ssh-keygen -lf "$trust_file" -E sha256 | awk '{print $2}')"
+    [[ "$fingerprint" == 'SHA256:+DiY3wvvV6TuJJhbpZisF/zLDA0zPMSvHdkr4UvCOqU' ]] || fail 'GitHub Ed25519 host key does not match the verified fingerprint'
+
+    local alias key
+    for alias in agelto azguard; do
+        key="$fixture_ssh/${alias}_deploy_ed25519"
+        if [[ -e "$key" || -e "$key.pub" ]]; then
+            [[ -f "$key" && ! -L "$key" && -f "$key.pub" && ! -L "$key.pub" ]] || fail "incomplete fixture key pair: $alias"
+            [[ $(stat -c '%a' "$key") == 600 && $(stat -c '%a' "$key.pub") == 644 ]] || fail "unsafe fixture key permissions: $alias"
+        else
+            "$adapter" keygen "$alias" "$key"
+            [[ -s "$key" && -s "$key.pub" ]] || fail "fixture adapter did not create key pair: $alias"
+            chmod 0600 "$key"
+            chmod 0644 "$key.pub"
+        fi
+    done
+
+    local config="$fixture_ssh/config"
+    cat > "$config" <<EOF
+Host github-agelto
+    HostName github.com
+    HostKeyAlias github.com
+    User git
+    IdentityFile $fixture_ssh/agelto_deploy_ed25519
+    IdentitiesOnly yes
+    IdentityAgent none
+    ForwardAgent no
+    StrictHostKeyChecking yes
+    UserKnownHostsFile $trust_file
+
+Host github-azguard
+    HostName github.com
+    HostKeyAlias github.com
+    User git
+    IdentityFile $fixture_ssh/azguard_deploy_ed25519
+    IdentitiesOnly yes
+    IdentityAgent none
+    ForwardAgent no
+    StrictHostKeyChecking yes
+    UserKnownHostsFile $trust_file
+EOF
+    chmod 0600 "$config"
+    "$adapter" validate-alias github-agelto "$config"
+    "$adapter" validate-alias github-azguard "$config"
+    "$adapter" verify-enrollment github-agelto "$trust_file"
+    "$adapter" verify-enrollment github-azguard "$trust_file"
+
+    local vendor_repository vendor_sha
+    readarray -t vendor_values < <(python3 - "$vendor_manifest" <<'PY'
+import json
+import re
+import sys
+
+value = json.load(open(sys.argv[1], encoding='utf-8'))
+repository = value.get('repository', {}).get('path')
+commit = value.get('commit')
+if not isinstance(repository, str) or not re.fullmatch(r'[A-Za-z0-9._-]+/[A-Za-z0-9._-]+', repository):
+    raise SystemExit('invalid vendor repository')
+if not isinstance(commit, str) or not re.fullmatch(r'[0-9a-f]{40}', commit):
+    raise SystemExit('invalid vendor SHA')
+print(repository)
+print(commit)
+PY
+)
+    vendor_repository=${vendor_values[0]}
+    vendor_sha=${vendor_values[1]}
+
+    "$adapter" checkout "${PROFILE[AGELTO_REPOSITORY]}" "${PROFILE[AGELTO_CANDIDATE_SHA]}" "$fixture_checkout"
+    "$adapter" verify-origin "${PROFILE[AGELTO_REPOSITORY]}" "$fixture_checkout"
+    "$adapter" verify-detached "${PROFILE[AGELTO_CANDIDATE_SHA]}" "$fixture_checkout"
+    "$adapter" verify-clean "$fixture_checkout"
+    "$adapter" verify-read-only "${PROFILE[AGELTO_REPOSITORY]}" "$fixture_checkout"
+    "$adapter" checkout "$vendor_repository" "$vendor_sha" "$fixture_vendor"
+    "$adapter" verify-origin "$vendor_repository" "$fixture_vendor"
+    "$adapter" verify-detached "$vendor_sha" "$fixture_vendor"
+    "$adapter" verify-clean "$fixture_vendor"
+    "$adapter" verify-read-only "$vendor_repository" "$fixture_vendor"
+    pass 'fixture proved separate identities, strict trust, pinned clean origins and read-only probes without network'
+}
+
 read_profile
 case "$mode" in
     prepare) prepare ;;
     sync) sync ;;
+    fixture) fixture ;;
 esac
