@@ -1,25 +1,30 @@
-# HANDOFF — 2026-08-15 — after P12.1
+# HANDOFF — 2026-08-15 — after P12
 
-**Next:** run-items: task:plan-run 2026.08.09-RELEASE-READINESS P12.2
+**Next:** design-phase: task:plan-design 2026.08.09-RELEASE-READINESS P12
 
 | Параметр | Значение |
 |:--|:--|
-| Batch | solo |
-| Model | implementation |
-| Thinking | high — private source identity boundary |
-| Context | continue-root |
-| Суть | Выполнить P12.2: раздельные read-only Git identities и pinned private sources. |
+| Batch | n/a |
+| Model | frontier |
+| Thinking | high — перепроектировать границу P12 |
+| Context | cold-start-root: capability-missing |
+| Суть | По D89 превратить P12.2–P12.7 в единый локально проверяемый preparation batch. |
 
 ```bash
-codex -C /home/vostrikov/projects/agelto/agelto -m gpt-5.6-terra -c 'model_reasoning_effort="high"' -a never -s danger-full-access '$ task:plan-run 2026.08.09-RELEASE-READINESS P12.2'
+codex -C /home/vostrikov/projects/agelto/agelto -m gpt-5.6-sol -c 'model_reasoning_effort="high"' -a never -s danger-full-access '$ task:plan-design 2026.08.09-RELEASE-READINESS P12'
 ```
 
-**Done:** P12.1 product commit `c8145ee5` adds a concise Ubuntu 24.04 host carrier: Bash `check|apply|preflight`, closed ignored production profile, key-only SSH and Docker daemon templates, readable SSH/UFW/DOCKER-USER guide, and loopback-only production app bind. `bash docker/tests/host-contract.sh` and an empty-volume isolated Compose startup were green; evidence is in `artifacts/P12-host-evidence.md`.
+**Done:** P12.1 product commit `c8145ee5` adds a concise Ubuntu 24.04 host carrier. D89 and the
+owner refinement record the new local-preparation boundary before remaining P12 execution.
 
-**Remaining:** P12.2 establishes the two read-only Git identities and pinned clean source proof. A live CI run remains required before any release approval; it is not represented as green.
+**Remaining:** Re-design P12.2–P12.7 into one batch of R&D-backed instructions, templates,
+scripts and local contract checks, then execute that batch in one fresh root.
 
-**Sources of truth:** `artifacts/P12-host-evidence.md` · `docker/scripts/host-provision.sh` · `docker/scripts/host-preflight.sh` · `docs/04_Operators/production/ubuntu-host.md` · `journal.jsonl` P12.1 terminal.
+**Sources of truth:** D89 · `brief/01-refinements.md` (2026-08-15 directive) · P12 Phase Context ·
+`research/14-P12-execution-design.md` · `journal.jsonl` P12.1 terminal.
 
-**Open risks:** P12.1 is `🟠 Done with deviations`: local Compose evidence is accepted for this item but does not claim a fresh Ubuntu VM, external second SSH login, public firewall reachability, or reboot persistence. Those are independent P12.7 rehearsal facts, not a P12.1 retest. P11.6 live CI remains owner-deferred and is required before release approval.
+**Open risks:** Historical P12.1 evidence and state are append-only; D89 does not turn them into
+server proof. The future operator test plan owns all real runtime evidence.
 
-**Workarounds/Deferred/Open questions:** workarounds: accepted local host simulation bounded in P12.1 evidence · deferred: live CI for the eventual release candidate before release approval · open_questions: —.
+**Workarounds/Deferred/Open questions:** workarounds: — · deferred: real operator deployment and
+rehearsal in a separate follow-up plan · open_questions: —.

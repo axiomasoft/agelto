@@ -39,6 +39,9 @@ Vintera/CMS и Dterema и верифицирует внешние практик
 
 ## 2. Execution Rules
 
+- D89 redefines remaining P12 as one locally verifiable preparation batch. Real server deployment,
+  DNS/registry/CI, TLS, backup/restore and clean-room evidence belong to a separate follow-up test
+  plan; this plan never fabricates those facts. RAG:— (repo-grounded: D89).
 - Повторный cross-phase finish D83 охватывает current topology из 84 product/design/remediation items и supersedes D52/D55 только как current finish/audit-gate carriers; terminal product history и принятые remediation decisions D62–D82 не переписываются. RAG:— (repo-grounded: `brief/01-refinements.md`, D83, current phase/spec inventory).
 - Первый execution item — prerequisite P0.0 из D48; P0.1 и остальные citation consumers не стартуют до его terminal state.
 - Перед и после plan-work выполнять Task checks из marketplace root в порядке AGENTS.md: lint → state → decisions → status.

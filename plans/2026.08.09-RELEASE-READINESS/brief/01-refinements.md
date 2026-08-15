@@ -322,3 +322,26 @@ Reconciliation не реализует тесты или workflow и не осл
 runtime/test gaps и передаёт ровно один явный D42 Gap P11.5; P11.5 обязан закрыть D42 и общий
 zero-gap gate. Решение материализовано D87 и
 `research/26-P11.4-acceptance-scope-reconciliation.md`.
+
+## 2026-08-15 — owner directive: локальная завершающая подготовка P12
+
+Владелец меняет назначение remaining P12: текущий план должен закончиться не имитацией
+production rehearsal, а максимально точным и practically usable локальным пакетом подготовки.
+Он включает R&D по первичным upstream-источникам, буквальные operator runbook'и, безопасные
+profile/template carriers, source-derived command matrix и недорогие детерминированные проверки
+самих scripts/docs/contracts. Все P12.2–P12.7 должны быть перепроектированы для одного
+adjacent batch и закрываться на этих локально проверяемых deliverables.
+
+В этот план не входят реальные dedicated server, DNS, GitHub enrollment, registry/CI access,
+production deploy, TLS issuance, recurring backup/watchdog execution, rollback/restore или
+clean-room rehearsal. Их отсутствие не является block/deviation P12 после reframe и не
+маскируется fabricated output. Реальный operator deployment и evidence collection будут
+отдельным следующим test/rehearsal plan после закрытия этой документационно-подготовительной
+фазы. Дизайн обязан явно перенести эти действия туда, а не оставлять их как acceptance/Pending
+Work текущих P12 items.
+
+Приоритет владельца: минимальные затраты и проверки, но не произвольная prose. Design pass
+проверяет current official Ubuntu/Docker/GitHub/Nginx/Certbot/PostgreSQL/MinIO facts через RAG,
+сохраняет findings с URL/date, а execution ограничивает validation синтаксисом, existing local
+contract/fixture tests, source-derived command assertions, citation и Task view checks. Historical
+P12.1 journal/evidence не переписываются.
