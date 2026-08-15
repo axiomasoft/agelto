@@ -94,7 +94,9 @@ WORKDIR /var/www/html
 COPY --exclude=local/vendors/azguard --chown=www-data:www-data . /var/www/html
 COPY --chown=www-data:www-data local/vendors/azguard/packages/core /var/www/html/local/vendors/azguard/packages/core
 COPY --chown=www-data:www-data local/vendors/azguard/packages/filament /var/www/html/local/vendors/azguard/packages/filament
-RUN composer install --no-dev --no-scripts --no-interaction --no-progress --prefer-dist --classmap-authoritative
+RUN --mount=type=cache,id=agelto-composer-cache,target=/tmp/composer-cache \
+    COMPOSER_CACHE_DIR=/tmp/composer-cache \
+    composer install --no-dev --no-scripts --no-interaction --no-progress --prefer-dist --classmap-authoritative
 
 FROM runtime-base AS application
 ARG SOURCE_SHA

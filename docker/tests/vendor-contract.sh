@@ -26,7 +26,13 @@ if [[ "$1" == 'clone' ]]; then
     target=${3:?}
     mkdir -p "$target/.git" "$target/packages/core" "$target/packages/filament"
     printf '%s\n' 'https://github.com/axiomasoft/azguard-private.git' > "$target/origin"
-    printf '%s\n' '67ebcde7b3ab32aa0205deb37a483b605e140cdb' > "$target/head"
+    fixture_root=$(cd "$target/../../.." && pwd -P)
+    python3 - "$fixture_root/docker/private-vendors.lock.json" <<'PY' > "$target/head"
+import json
+import sys
+
+print(json.load(open(sys.argv[1], encoding='utf-8'))['commit'])
+PY
     : > "$target/packages/core/composer.json"
     : > "$target/packages/filament/composer.json"
     exit 0
@@ -62,12 +68,19 @@ run_fixture
 run_fixture --check
 
 checkout="$fixture_root/local/vendors/azguard"
+expected_sha=$(python3 - "$root_dir/docker/private-vendors.lock.json" <<'PY'
+import json
+import sys
+
+print(json.load(open(sys.argv[1], encoding='utf-8'))['commit'])
+PY
+)
 printf '%s\n' 'https://github.com/other/azguard.git' > "$checkout/origin"
 ! run_fixture --check
 printf '%s\n' 'https://github.com/axiomasoft/azguard-private.git' > "$checkout/origin"
 printf '%s\n' '0000000000000000000000000000000000000000' > "$checkout/head"
 ! run_fixture --check
-printf '%s\n' '67ebcde7b3ab32aa0205deb37a483b605e140cdb' > "$checkout/head"
+printf '%s\n' "$expected_sha" > "$checkout/head"
 touch "$checkout/package-dirty"
 ! run_fixture --check
 rm "$checkout/package-dirty"
@@ -84,6 +97,8 @@ grep -F 'COPY --from=dependencies' "$root_dir/docker/php/Dockerfile" >/dev/null
 ! grep -F 'COPY --chown=www-data:www-data . /var/www/html' "$root_dir/docker/php/Dockerfile"
 grep -F 'vendor:sync' "$root_dir/docker/Makefile" >/dev/null
 grep -F 'vendor:check' "$root_dir/docker/Makefile" >/dev/null
+
+bash "$root_dir/docker/scripts/vendor-sync.sh" --composer-check
 
 image='agelto/p2.1-vendor-contract:validation'
 docker build --target application -t "$image" -f "$root_dir/docker/php/Dockerfile" "$root_dir"

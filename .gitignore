@@ -77,6 +77,8 @@ opencode.json
 
 # Локальные artifacts инструментов и черновики
 *.bak
+__pycache__/
+*.py[cod]
 .serena/
 AUDIT.md
 tmp/

@@ -5,7 +5,6 @@ declare(strict_types=1);
 use App\Models\User;
 use Database\Seeders\DemoSeeder;
 use Illuminate\Support\Facades\Hash;
-use LogicException;
 
 test('не перезаписывает существующего demo пользователя при повторном сиде', function () {
     config(['cms.demo_seed_password' => 'demo-password']);
