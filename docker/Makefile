@@ -12,6 +12,7 @@ AGENT_ENV := $(if $(CLAUDECODE),-e CLAUDECODE=$(CLAUDECODE)) $(if $(CLAUDE_CODE)
 .DEFAULT_GOAL := help
 .PHONY: help infra\:preflight secrets\:init bootstrap host\:check host\:apply host\:preflight dev\:up dev\:down dev\:ps dev\:logs dev\:shell dev\:artisan dev\:composer dev\:storage-init dev\:health
 .PHONY: agent\:artisan vendor\:sync vendor\:check repositories\:prepare repositories\:sync doctor\:local readiness\:check assets\:check assets\:sync assets\:repair documentation\:check documentation\:acceptance quality prod\:doctor dev\:migrate dev\:seed-base dev\:seed-demo dev\:admin-create dev\:admin-reset dev\:composer-bootstrap prod\:config prod\:ps prod\:deploy\:code prod\:deploy\:php-deps prod\:deploy\:frontend prod\:deploy\:runtime prod\:image\:promote prod\:deploy\:image prod\:migrate prod\:seed-base image\:build test-preflight test-php test\:edit test\:full test\:junit test\:profile test\:coverage test\:release test\:tia-reset test\:tia-refresh test\:tia-baseline-export test\:shard test\:parallel db\:create-test preparation\:check
+.PHONY: profile\:check backup\:check first-deploy\:check release\:check rollback\:check restore\:check rotation\:check commands\:check
 
 help:
 	@echo "Agelto command surface"
@@ -30,6 +31,12 @@ help:
 	@echo "  make vendor:sync | vendor:check             Clone/check the pinned private AzGuard packages"
 	@echo "  sudo make repositories:prepare PROFILE=...   Create separate GitHub deploy-key material"
 	@echo "  sudo make repositories:sync PROFILE=...     Verify enrollment and sync pinned source"
+	@echo "  make profile:check PROFILE=...               Validate the closed production profile"
+	@echo "  make backup:check | first-deploy:check       Inspect local preparation stage contracts"
+	@echo "  make release:check | rollback:check          Inspect release/recovery stage contracts"
+	@echo "  make restore:check TARGET=agelto_rehearsal   Validate an isolated restore target"
+	@echo "  make rotation:check | commands:check         Verify credential and command matrices"
+	@echo "  make preparation:check                       Run the aggregate local P12 gate"
 	@echo "  make db:create-test | test-preflight        Create/check the isolated PostgreSQL test database"
 	@echo "  make test:edit | test:full | test:junit | test:profile   Local TIA replay or full no-TIA PHP suite"
 	@echo "  make test:coverage | test:tia-refresh       Full no-TIA coverage or explicit local TIA refresh"
@@ -171,6 +178,32 @@ test\:parallel: test-preflight
 
 quality:
 	bash $(ROOT_DIR)/docker/tests/quality-contract.sh
+
+profile\:check:
+	@test -n "$(PROFILE)" || (echo "PROFILE is required" >&2; exit 2)
+	bash $(ROOT_DIR)/docker/scripts/production-profile-check.sh check --profile "$(abspath $(PROFILE))"
+
+backup\:check:
+	bash $(ROOT_DIR)/docker/scripts/backup-production.sh check
+
+first-deploy\:check:
+	bash $(ROOT_DIR)/docker/scripts/first-production-deploy.sh check
+
+release\:check:
+	bash $(ROOT_DIR)/docker/scripts/release-production.sh check
+
+rollback\:check:
+	bash $(ROOT_DIR)/docker/scripts/rollback-production.sh check
+
+restore\:check:
+	@test -n "$(TARGET)" || (echo "TARGET=agelto_rehearsal is required" >&2; exit 2)
+	bash $(ROOT_DIR)/docker/scripts/restore-production.sh check --target "$(TARGET)"
+
+rotation\:check:
+	bash $(ROOT_DIR)/docker/scripts/rotate-production-secrets.sh check
+
+commands\:check:
+	python3 $(ROOT_DIR)/docker/scripts/check-command-reference.py check
 
 preparation\:check:
 	bash $(ROOT_DIR)/docker/tests/production-preparation-contract.sh

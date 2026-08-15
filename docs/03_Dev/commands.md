@@ -79,3 +79,10 @@ status: living
 - `ENV_FILE` явно указывает единственный env-file (`.env` по умолчанию); preflight и `prod:config`
   передают его в Compose и никогда не запускают stack.
 - Подробнее по стеку/окружениям — [`docker/index.md`](docker/index.md).
+
+## Канонический inventory
+
+Полный source-derived Make/script inventory с audience, environment, mutation, inputs, exit/resume
+и evidence contract генерируется в
+[`P12-command-matrix.md`](../../plans/2026.08.09-RELEASE-READINESS/artifacts/P12-command-matrix.md).
+Этот документ объясняет отдельные команды, но не определяет второй command contract.

@@ -1,68 +1,102 @@
 # P12 source-derived command matrix
 
-Generated from `docker/Makefile`; no row is executed by this check.
+> Generated from the root delegation, `docker/Makefile` `.PHONY` registry and declared P12 script modes.
+> Source fingerprint: `b0fb6592f4143a99179b59b4f1ab27cf8c04c5a3ebe99a3c4af6958a8cc6dfc7`. External/mutating rows are not executed by generation.
 
-| Command | Class | Authority |
-| --- | --- | --- |
-| `make agent:artisan` | local/check | local |
-| `make assets:check` | local/check | local |
-| `make assets:repair` | local/check | local |
-| `make assets:sync` | local/check | local |
-| `make bootstrap` | local/check | local |
-| `make db:create-test` | local/check | local |
-| `make dev:admin-create` | local/check | local |
-| `make dev:admin-reset` | local/check | local |
-| `make dev:artisan` | local/check | local |
-| `make dev:composer` | local/check | local |
-| `make dev:composer-bootstrap` | local/check | local |
-| `make dev:down` | local/check | local |
-| `make dev:health` | local/check | local |
-| `make dev:logs` | local/check | local |
-| `make dev:migrate` | local/check | local |
-| `make dev:ps` | local/check | local |
-| `make dev:seed-base` | local/check | local |
-| `make dev:seed-demo` | local/check | local |
-| `make dev:shell` | local/check | local |
-| `make dev:storage-init` | local/check | local |
-| `make dev:up` | local/check | local |
-| `make doctor:local` | local/check | local |
-| `make documentation:acceptance` | local/check | local |
-| `make documentation:check` | local/check | local |
-| `make help` | local/check | local |
-| `make host:apply` | external/mutating | future operator rehearsal |
-| `make host:check` | local/check | local |
-| `make host:preflight` | local/check | local |
-| `make image:build` | local/check | local |
-| `make infra:preflight` | local/check | local |
-| `make preparation:check` | local/check | local |
-| `make prod:config` | local/check | local |
-| `make prod:deploy:code` | external/mutating | future operator rehearsal |
-| `make prod:deploy:frontend` | external/mutating | future operator rehearsal |
-| `make prod:deploy:image` | external/mutating | future operator rehearsal |
-| `make prod:deploy:php-deps` | external/mutating | future operator rehearsal |
-| `make prod:deploy:runtime` | external/mutating | future operator rehearsal |
-| `make prod:doctor` | local/check | local |
-| `make prod:image:promote` | local/check | local |
-| `make prod:migrate` | external/mutating | future operator rehearsal |
-| `make prod:ps` | local/check | local |
-| `make prod:seed-base` | external/mutating | future operator rehearsal |
-| `make quality` | local/check | local |
-| `make readiness:check` | local/check | local |
-| `make repositories:prepare` | external/mutating | future operator rehearsal |
-| `make repositories:sync` | external/mutating | future operator rehearsal |
-| `make secrets:init` | local/check | local |
-| `make test-php` | local/check | local |
-| `make test-preflight` | local/check | local |
-| `make test:coverage` | local/check | local |
-| `make test:edit` | local/check | local |
-| `make test:full` | local/check | local |
-| `make test:junit` | local/check | local |
-| `make test:parallel` | local/check | local |
-| `make test:profile` | local/check | local |
-| `make test:release` | local/check | local |
-| `make test:shard` | local/check | local |
-| `make test:tia-baseline-export` | local/check | local |
-| `make test:tia-refresh` | local/check | local |
-| `make test:tia-reset` | local/check | local |
-| `make vendor:check` | local/check | local |
-| `make vendor:sync` | local/check | local |
+| Command | Audience | Environment | Prerequisites | Mutation | Inputs | Output | Exit | Resume | Evidence |
+|:--|:--|:--|:--|:--|:--|:--|:--|:--|:--|
+| `make agent:artisan` | developer/agent | local development | explicit ARGS | interactive/command-dependent | ARGS | declared runtime mutation | 0=green; nonzero=stop | repair the failing check/stage and rerun the same command | command output / CI artifact |
+| `make assets:check` | developer/agent | local development | explicit COMPOSE_PROJECT_NAME, ENV_FILE | read-only/check | COMPOSE_PROJECT_NAME, ENV_FILE | deterministic check result | 0=green; nonzero=stop | repair the failing check/stage and rerun the same command | command output / CI artifact |
+| `make assets:repair` | developer/agent | local development | explicit COMPOSE_PROJECT_NAME, ENV_FILE | mutation | COMPOSE_PROJECT_NAME, ENV_FILE | declared runtime mutation | 0=green; nonzero=stop | repair the failing check/stage and rerun the same command | command output / CI artifact |
+| `make assets:sync` | developer/agent | local development | explicit COMPOSE_PROJECT_NAME, ENV_FILE | mutation | COMPOSE_PROJECT_NAME, ENV_FILE | declared runtime mutation | 0=green; nonzero=stop | repair the failing check/stage and rerun the same command | command output / CI artifact |
+| `make backup:check` | developer/agent | local development | repository checkout | read-only/check | none | deterministic check result | 0=green; nonzero=stop | repair the failing check/stage and rerun the same command | command output / CI artifact |
+| `make bootstrap` | developer/agent | local development | explicit ADMIN_PASSWORD_FILE, COMPOSE_PROJECT_NAME, ENV_FILE, IMAGE_TAG, MODE | mutation | ADMIN_PASSWORD_FILE, COMPOSE_PROJECT_NAME, ENV_FILE, IMAGE_TAG, MODE | declared runtime mutation | 0=green; nonzero=stop | repair the failing check/stage and rerun the same command | command output / CI artifact |
+| `make commands:check` | developer/agent | local development | repository checkout | read-only/check | none | deterministic check result | 0=green; nonzero=stop | repair the failing check/stage and rerun the same command | command output / CI artifact |
+| `make db:create-test` | developer/agent | local development | explicit COMPOSE_PROJECT_NAME, ENV_FILE | read-only/check | COMPOSE_PROJECT_NAME, ENV_FILE | deterministic check result | 0=green; nonzero=stop | repair the failing check/stage and rerun the same command | command output / CI artifact |
+| `make dev:admin-create` | developer/agent | local development | explicit PASSWORD_FILE | mutation | PASSWORD_FILE | declared runtime mutation | 0=green; nonzero=stop | repair the failing check/stage and rerun the same command | command output / CI artifact |
+| `make dev:admin-reset` | developer/agent | local development | explicit PASSWORD_FILE | mutation | PASSWORD_FILE | declared runtime mutation | 0=green; nonzero=stop | repair the failing check/stage and rerun the same command | command output / CI artifact |
+| `make dev:artisan` | developer/agent | local development | explicit ARGS | interactive/command-dependent | ARGS | declared runtime mutation | 0=green; nonzero=stop | repair the failing check/stage and rerun the same command | command output / CI artifact |
+| `make dev:composer` | developer/agent | local development | explicit ARGS | interactive/command-dependent | ARGS | declared runtime mutation | 0=green; nonzero=stop | repair the failing check/stage and rerun the same command | command output / CI artifact |
+| `make dev:composer-bootstrap` | developer/agent | local development | explicit ARGS | mutation | ARGS | declared runtime mutation | 0=green; nonzero=stop | repair the failing check/stage and rerun the same command | command output / CI artifact |
+| `make dev:down` | developer/agent | local development | repository checkout | mutation | none | declared runtime mutation | 0=green; nonzero=stop | repair the failing check/stage and rerun the same command | command output / CI artifact |
+| `make dev:health` | developer/agent | local development | repository checkout | mutation | none | declared runtime mutation | 0=green; nonzero=stop | repair the failing check/stage and rerun the same command | command output / CI artifact |
+| `make dev:logs` | developer/agent | local development | explicit SERVICE | read-only/check | SERVICE | deterministic check result | 0=green; nonzero=stop | repair the failing check/stage and rerun the same command | command output / CI artifact |
+| `make dev:migrate` | developer/agent | local development | repository checkout | mutation | none | declared runtime mutation | 0=green; nonzero=stop | repair the failing check/stage and rerun the same command | command output / CI artifact |
+| `make dev:ps` | developer/agent | local development | repository checkout | read-only/check | none | deterministic check result | 0=green; nonzero=stop | repair the failing check/stage and rerun the same command | command output / CI artifact |
+| `make dev:seed-base` | developer/agent | local development | repository checkout | mutation | none | declared runtime mutation | 0=green; nonzero=stop | repair the failing check/stage and rerun the same command | command output / CI artifact |
+| `make dev:seed-demo` | developer/agent | local development | repository checkout | mutation | none | declared runtime mutation | 0=green; nonzero=stop | repair the failing check/stage and rerun the same command | command output / CI artifact |
+| `make dev:shell` | developer/agent | local development | repository checkout | interactive/command-dependent | none | declared runtime mutation | 0=green; nonzero=stop | repair the failing check/stage and rerun the same command | command output / CI artifact |
+| `make dev:storage-init` | developer/agent | local development | repository checkout | mutation | none | declared runtime mutation | 0=green; nonzero=stop | repair the failing check/stage and rerun the same command | command output / CI artifact |
+| `make dev:up` | developer/agent | local development | repository checkout | mutation | none | declared runtime mutation | 0=green; nonzero=stop | repair the failing check/stage and rerun the same command | command output / CI artifact |
+| `make doctor:local` | developer/agent | local development | repository checkout | read-only/check | none | deterministic check result | 0=green; nonzero=stop | repair the failing check/stage and rerun the same command | command output / CI artifact |
+| `make documentation:acceptance` | developer/agent | local/CI | repository checkout | mutation | none | documentation artifact/check | 0=green; nonzero=stop | repair the failing check/stage and rerun the same command | command output / CI artifact |
+| `make documentation:check` | developer/agent | local/CI | repository checkout | read-only/check | none | documentation artifact/check | 0=green; nonzero=stop | repair the failing check/stage and rerun the same command | command output / CI artifact |
+| `make first-deploy:check` | developer/agent | local development | repository checkout | read-only/check | none | deterministic check result | 0=green; nonzero=stop | repair the failing check/stage and rerun the same command | command output / CI artifact |
+| `make help` | developer/agent | local development | repository checkout; owner confirmation | read-only/check | none | deterministic check result | 0=green; nonzero=stop | repair the failing check/stage and rerun the same command | command output / CI artifact |
+| `make host:apply` | operator | Ubuntu host / future rehearsal | explicit CONFIRM, PROFILE; owner confirmation | mutation | CONFIRM, PROFILE | declared runtime mutation | 0=green; nonzero=stop | repair the failing check/stage and rerun the same command | command output / CI artifact |
+| `make host:check` | operator | Ubuntu host / future rehearsal | explicit PROFILE | read-only/check | PROFILE | deterministic check result | 0=green; nonzero=stop | repair the failing check/stage and rerun the same command | command output / CI artifact |
+| `make host:preflight` | operator | Ubuntu host / future rehearsal | explicit PROFILE | read-only/check | PROFILE | deterministic check result | 0=green; nonzero=stop | repair the failing check/stage and rerun the same command | command output / CI artifact |
+| `make image:build` | developer/agent | local development | explicit IMAGE_TAG | mutation | IMAGE_TAG | declared runtime mutation | 0=green; nonzero=stop | repair the failing check/stage and rerun the same command | command output / CI artifact |
+| `make infra:preflight` | developer/agent | local development | explicit ENV_FILE, MODE | read-only/check | ENV_FILE, MODE | deterministic check result | 0=green; nonzero=stop | repair the failing check/stage and rerun the same command | command output / CI artifact |
+| `make preparation:check` | operator | local development | repository checkout | read-only/check | none | deterministic check result | 0=green; nonzero=stop | repair the failing check/stage and rerun the same command | command output / CI artifact |
+| `make prod:config` | operator | production / future rehearsal | repository checkout | read-only/check | none | deterministic check result | 0=green; nonzero=stop | repair the failing check/stage and rerun the same command | command output / CI artifact |
+| `make prod:deploy:code` | operator | production / future rehearsal | explicit ENV_FILE; follow-up rehearsal authority | mutation | ENV_FILE | declared runtime mutation | 0=green; nonzero=stop | repair the failing check/stage and rerun the same command | command output / CI artifact |
+| `make prod:deploy:frontend` | operator | production / future rehearsal | explicit ENV_FILE; follow-up rehearsal authority | mutation | ENV_FILE | declared runtime mutation | 0=green; nonzero=stop | repair the failing check/stage and rerun the same command | command output / CI artifact |
+| `make prod:deploy:image` | operator | production / future rehearsal | explicit ENV_FILE; follow-up rehearsal authority | mutation | ENV_FILE | declared runtime mutation | 0=green; nonzero=stop | repair the failing check/stage and rerun the same command | command output / CI artifact |
+| `make prod:deploy:php-deps` | operator | production / future rehearsal | explicit ENV_FILE | read-only/check | ENV_FILE | deterministic check result | 0=green; nonzero=stop | repair the failing check/stage and rerun the same command | command output / CI artifact |
+| `make prod:deploy:runtime` | operator | production / future rehearsal | explicit ENV_FILE; follow-up rehearsal authority | mutation | ENV_FILE | declared runtime mutation | 0=green; nonzero=stop | repair the failing check/stage and rerun the same command | command output / CI artifact |
+| `make prod:doctor` | operator | production / future rehearsal | repository checkout | read-only/check | none | deterministic check result | 0=green; nonzero=stop | repair the failing check/stage and rerun the same command | command output / CI artifact |
+| `make prod:image:promote` | operator | production / future rehearsal | explicit ENV_FILE; follow-up rehearsal authority | mutation | ENV_FILE | declared runtime mutation | 0=green; nonzero=stop | repair the failing check/stage and rerun the same command | command output / CI artifact |
+| `make prod:migrate` | operator | production / future rehearsal | explicit OWNER_GATE; owner confirmation | mutation | OWNER_GATE | declared runtime mutation | 0=green; nonzero=stop | repair the failing check/stage and rerun the same command | command output / CI artifact |
+| `make prod:ps` | operator | production / future rehearsal | repository checkout | read-only/check | none | deterministic check result | 0=green; nonzero=stop | repair the failing check/stage and rerun the same command | command output / CI artifact |
+| `make prod:seed-base` | operator | production / future rehearsal | repository checkout; follow-up rehearsal authority | mutation | none | declared runtime mutation | 0=green; nonzero=stop | repair the failing check/stage and rerun the same command | command output / CI artifact |
+| `make profile:check` | developer/agent | local development | explicit PROFILE | read-only/check | PROFILE | deterministic check result | 0=green; nonzero=stop | repair the failing check/stage and rerun the same command | command output / CI artifact |
+| `make quality` | developer/agent | local/CI | repository checkout | read-only/check | none | deterministic check result | 0=green; nonzero=stop | repair the failing check/stage and rerun the same command | command output / CI artifact |
+| `make readiness:check` | developer/agent | local development | repository checkout | read-only/check | none | deterministic check result | 0=green; nonzero=stop | repair the failing check/stage and rerun the same command | command output / CI artifact |
+| `make release:check` | developer/agent | local development | repository checkout | read-only/check | none | deterministic check result | 0=green; nonzero=stop | repair the failing check/stage and rerun the same command | command output / CI artifact |
+| `make repositories:prepare` | operator | Ubuntu host / future rehearsal | explicit PROFILE; follow-up rehearsal authority | mutation | PROFILE | declared runtime mutation | 0=green; nonzero=stop | repair the failing check/stage and rerun the same command | command output / CI artifact |
+| `make repositories:sync` | operator | Ubuntu host / future rehearsal | explicit PROFILE; follow-up rehearsal authority | mutation | PROFILE | declared runtime mutation | 0=green; nonzero=stop | repair the failing check/stage and rerun the same command | command output / CI artifact |
+| `make restore:check` | developer/agent | local development | explicit TARGET | read-only/check | TARGET | deterministic check result | 0=green; nonzero=stop | repair the failing check/stage and rerun the same command | command output / CI artifact |
+| `make rollback:check` | developer/agent | local development | repository checkout | read-only/check | none | deterministic check result | 0=green; nonzero=stop | repair the failing check/stage and rerun the same command | command output / CI artifact |
+| `make rotation:check` | developer/agent | local development | repository checkout | read-only/check | none | deterministic check result | 0=green; nonzero=stop | repair the failing check/stage and rerun the same command | command output / CI artifact |
+| `make secrets:init` | developer/agent | local development | repository checkout | mutation | none | declared runtime mutation | 0=green; nonzero=stop | repair the failing check/stage and rerun the same command | command output / CI artifact |
+| `make test-php` | developer/agent | local/CI | repository checkout | read-only/check | none | test result/evidence | 0=green; nonzero=stop | repair the failing check/stage and rerun the same command | command output / CI artifact |
+| `make test-preflight` | developer/agent | local/CI | explicit COMPOSE_PROJECT_NAME, ENV_FILE | read-only/check | COMPOSE_PROJECT_NAME, ENV_FILE | test result/evidence | 0=green; nonzero=stop | repair the failing check/stage and rerun the same command | command output / CI artifact |
+| `make test:coverage` | developer/agent | local/CI | repository checkout | read-only/check | none | test result/evidence | 0=green; nonzero=stop | repair the failing check/stage and rerun the same command | command output / CI artifact |
+| `make test:edit` | developer/agent | local/CI | repository checkout | read-only/check | none | test result/evidence | 0=green; nonzero=stop | repair the failing check/stage and rerun the same command | command output / CI artifact |
+| `make test:full` | developer/agent | local/CI | repository checkout | read-only/check | none | test result/evidence | 0=green; nonzero=stop | repair the failing check/stage and rerun the same command | command output / CI artifact |
+| `make test:junit` | developer/agent | local/CI | repository checkout | read-only/check | none | test result/evidence | 0=green; nonzero=stop | repair the failing check/stage and rerun the same command | command output / CI artifact |
+| `make test:parallel` | developer/agent | local/CI | explicit PROCESSES | read-only/check | PROCESSES | test result/evidence | 0=green; nonzero=stop | repair the failing check/stage and rerun the same command | command output / CI artifact |
+| `make test:profile` | developer/agent | local/CI | repository checkout | read-only/check | none | test result/evidence | 0=green; nonzero=stop | repair the failing check/stage and rerun the same command | command output / CI artifact |
+| `make test:release` | developer/agent | local/CI | explicit COMPOSE_PROJECT_NAME | read-only/check | COMPOSE_PROJECT_NAME | test result/evidence | 0=green; nonzero=stop | repair the failing check/stage and rerun the same command | command output / CI artifact |
+| `make test:shard` | developer/agent | local/CI | explicit SHARD | read-only/check | SHARD | test result/evidence | 0=green; nonzero=stop | repair the failing check/stage and rerun the same command | command output / CI artifact |
+| `make test:tia-baseline-export` | developer/agent | local/CI | repository checkout | read-only/check | none | test result/evidence | 0=green; nonzero=stop | repair the failing check/stage and rerun the same command | command output / CI artifact |
+| `make test:tia-refresh` | developer/agent | local/CI | repository checkout | read-only/check | none | test result/evidence | 0=green; nonzero=stop | repair the failing check/stage and rerun the same command | command output / CI artifact |
+| `make test:tia-reset` | developer/agent | local/CI | repository checkout | read-only/check | none | test result/evidence | 0=green; nonzero=stop | repair the failing check/stage and rerun the same command | command output / CI artifact |
+| `make vendor:check` | developer/agent | local development | repository checkout | read-only/check | none | deterministic check result | 0=green; nonzero=stop | repair the failing check/stage and rerun the same command | command output / CI artifact |
+| `make vendor:sync` | developer/agent | local development | repository checkout | mutation | none | declared runtime mutation | 0=green; nonzero=stop | repair the failing check/stage and rerun the same command | command output / CI artifact |
+| `docker/scripts/deploy-repositories.sh prepare` | operator | production / future rehearsal | follow-up rehearsal authority | mutation | closed named flags; secret values only through owner-only files | redacted state/check result | 0=green; 1=contract failure; 2=usage/authority stop | preserve identity/state, repair, and rerun the same mode | blank P12 evidence template |
+| `docker/scripts/deploy-repositories.sh sync` | operator | production / future rehearsal | follow-up rehearsal authority | mutation | closed named flags; secret values only through owner-only files | redacted state/check result | 0=green; 1=contract failure; 2=usage/authority stop | preserve identity/state, repair, and rerun the same mode | blank P12 evidence template |
+| `docker/scripts/deploy-repositories.sh fixture` | developer/agent | local fixture/check | repository checkout and explicit fixture inputs | read-only/hermetic fixture | closed named flags; secret values only through owner-only files | redacted state/check result | 0=green; 1=contract failure; 2=usage/authority stop | preserve identity/state, repair, and rerun the same mode | local contract output only |
+| `docker/scripts/production-profile-check.sh check` | developer/agent | local fixture/check | repository checkout and explicit fixture inputs | read-only/hermetic fixture | closed named flags; secret values only through owner-only files | redacted state/check result | 0=green; 1=contract failure; 2=usage/authority stop | preserve identity/state, repair, and rerun the same mode | local contract output only |
+| `docker/scripts/backup-production.sh check` | developer/agent | local fixture/check | repository checkout and explicit fixture inputs | read-only/hermetic fixture | closed named flags; secret values only through owner-only files | redacted state/check result | 0=green; 1=contract failure; 2=usage/authority stop | preserve identity/state, repair, and rerun the same mode | local contract output only |
+| `docker/scripts/backup-production.sh fixture` | developer/agent | local fixture/check | repository checkout and explicit fixture inputs | read-only/hermetic fixture | closed named flags; secret values only through owner-only files | redacted state/check result | 0=green; 1=contract failure; 2=usage/authority stop | preserve identity/state, repair, and rerun the same mode | local contract output only |
+| `docker/scripts/backup-production.sh apply` | operator | production / future rehearsal | follow-up rehearsal authority | mutation | closed named flags; secret values only through owner-only files | redacted state/check result | 0=green; 1=contract failure; 2=usage/authority stop | preserve identity/state, repair, and rerun the same mode | blank P12 evidence template |
+| `docker/scripts/backup-watchdog.sh check` | developer/agent | local fixture/check | repository checkout and explicit fixture inputs | read-only/hermetic fixture | closed named flags; secret values only through owner-only files | redacted state/check result | 0=green; 1=contract failure; 2=usage/authority stop | preserve identity/state, repair, and rerun the same mode | local contract output only |
+| `docker/scripts/backup-alert.sh check` | developer/agent | local fixture/check | repository checkout and explicit fixture inputs | read-only/hermetic fixture | closed named flags; secret values only through owner-only files | redacted state/check result | 0=green; 1=contract failure; 2=usage/authority stop | preserve identity/state, repair, and rerun the same mode | local contract output only |
+| `docker/scripts/backup-alert.sh apply` | operator | production / future rehearsal | follow-up rehearsal authority | mutation | closed named flags; secret values only through owner-only files | redacted state/check result | 0=green; 1=contract failure; 2=usage/authority stop | preserve identity/state, repair, and rerun the same mode | blank P12 evidence template |
+| `docker/scripts/first-production-deploy.sh check` | developer/agent | local fixture/check | repository checkout and explicit fixture inputs | read-only/hermetic fixture | closed named flags; secret values only through owner-only files | redacted state/check result | 0=green; 1=contract failure; 2=usage/authority stop | preserve identity/state, repair, and rerun the same mode | local contract output only |
+| `docker/scripts/first-production-deploy.sh fixture` | developer/agent | local fixture/check | repository checkout and explicit fixture inputs | read-only/hermetic fixture | closed named flags; secret values only through owner-only files | redacted state/check result | 0=green; 1=contract failure; 2=usage/authority stop | preserve identity/state, repair, and rerun the same mode | local contract output only |
+| `docker/scripts/first-production-deploy.sh apply` | operator | production / future rehearsal | follow-up rehearsal authority | mutation | closed named flags; secret values only through owner-only files | redacted state/check result | 0=green; 1=contract failure; 2=usage/authority stop | preserve identity/state, repair, and rerun the same mode | blank P12 evidence template |
+| `docker/scripts/release-production.sh check` | developer/agent | local fixture/check | repository checkout and explicit fixture inputs | read-only/hermetic fixture | closed named flags; secret values only through owner-only files | redacted state/check result | 0=green; 1=contract failure; 2=usage/authority stop | preserve identity/state, repair, and rerun the same mode | local contract output only |
+| `docker/scripts/release-production.sh fixture` | developer/agent | local fixture/check | repository checkout and explicit fixture inputs | read-only/hermetic fixture | closed named flags; secret values only through owner-only files | redacted state/check result | 0=green; 1=contract failure; 2=usage/authority stop | preserve identity/state, repair, and rerun the same mode | local contract output only |
+| `docker/scripts/release-production.sh apply` | operator | production / future rehearsal | follow-up rehearsal authority | mutation | closed named flags; secret values only through owner-only files | redacted state/check result | 0=green; 1=contract failure; 2=usage/authority stop | preserve identity/state, repair, and rerun the same mode | blank P12 evidence template |
+| `docker/scripts/rollback-production.sh check` | developer/agent | local fixture/check | repository checkout and explicit fixture inputs | read-only/hermetic fixture | closed named flags; secret values only through owner-only files | redacted state/check result | 0=green; 1=contract failure; 2=usage/authority stop | preserve identity/state, repair, and rerun the same mode | local contract output only |
+| `docker/scripts/rollback-production.sh fixture` | developer/agent | local fixture/check | repository checkout and explicit fixture inputs | read-only/hermetic fixture | closed named flags; secret values only through owner-only files | redacted state/check result | 0=green; 1=contract failure; 2=usage/authority stop | preserve identity/state, repair, and rerun the same mode | local contract output only |
+| `docker/scripts/rollback-production.sh apply` | operator | production / future rehearsal | follow-up rehearsal authority | mutation | closed named flags; secret values only through owner-only files | redacted state/check result | 0=green; 1=contract failure; 2=usage/authority stop | preserve identity/state, repair, and rerun the same mode | blank P12 evidence template |
+| `docker/scripts/restore-production.sh check` | developer/agent | local fixture/check | repository checkout and explicit fixture inputs | read-only/hermetic fixture | closed named flags; secret values only through owner-only files | redacted state/check result | 0=green; 1=contract failure; 2=usage/authority stop | preserve identity/state, repair, and rerun the same mode | local contract output only |
+| `docker/scripts/restore-production.sh fixture` | developer/agent | local fixture/check | repository checkout and explicit fixture inputs | read-only/hermetic fixture | closed named flags; secret values only through owner-only files | redacted state/check result | 0=green; 1=contract failure; 2=usage/authority stop | preserve identity/state, repair, and rerun the same mode | local contract output only |
+| `docker/scripts/restore-production.sh apply` | operator | production / future rehearsal | follow-up rehearsal authority | mutation | closed named flags; secret values only through owner-only files | redacted state/check result | 0=green; 1=contract failure; 2=usage/authority stop | preserve identity/state, repair, and rerun the same mode | blank P12 evidence template |
+| `docker/scripts/rotate-production-secrets.sh check` | developer/agent | local fixture/check | repository checkout and explicit fixture inputs | read-only/hermetic fixture | closed named flags; secret values only through owner-only files | redacted state/check result | 0=green; 1=contract failure; 2=usage/authority stop | preserve identity/state, repair, and rerun the same mode | local contract output only |
+| `docker/scripts/rotate-production-secrets.sh fixture` | developer/agent | local fixture/check | repository checkout and explicit fixture inputs | read-only/hermetic fixture | closed named flags; secret values only through owner-only files | redacted state/check result | 0=green; 1=contract failure; 2=usage/authority stop | preserve identity/state, repair, and rerun the same mode | local contract output only |
+| `docker/scripts/rotate-production-secrets.sh apply` | operator | production / future rehearsal | follow-up rehearsal authority | mutation | closed named flags; secret values only through owner-only files | redacted state/check result | 0=green; 1=contract failure; 2=usage/authority stop | preserve identity/state, repair, and rerun the same mode | blank P12 evidence template |

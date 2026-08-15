@@ -42,3 +42,5 @@ ping`/MinIO `/minio/health/live`.
 - [`production.md`](production.md) — prebuilt image, Swarm secrets, деплой с живыми очередями.
 - [`troubleshooting.md`](troubleshooting.md) — типичные сбои контейнеров.
 - `../getting-started.md` — первый запуск.
+- [`P12-command-matrix.md`](../../../plans/2026.08.09-RELEASE-READINESS/artifacts/P12-command-matrix.md)
+  — сгенерированный реестр всех публичных Make targets и P12 script modes.
