@@ -3,7 +3,7 @@ projection: status-view
 projection_version: v1
 source_scope: plan core + phases + journal
 through: 2026-08-15
-inputs_sha256: 99dab791847c5cb4449214ac4c0ba35b55c0e30a52d8b89fe037fd235fb2a581
+inputs_sha256: a6bdfb447bbad100f152e09ccf779ecc9607aff72852981255953a66d8bc7532
 generated_by: task plan-views status
 -->
 
@@ -89,7 +89,7 @@ generated_by: task plan-views status
 | ID | Title | Status | Updated |
 |:--|:--|:--|:--|
 | P12.1 | Подготовить пустой Ubuntu: deploy user, SSH hardening, firewall и Docker | 🟠 Done with deviations | 2026-08-15 |
-| P12.2 | Описать Git SSH/deploy keys и clone main плюс local AzGuard | ⬜ Not started | — |
+| P12.2 | Описать Git SSH/deploy keys и clone main плюс local AzGuard | 🟡 In progress | 2026-08-15 |
 | P12.3 | Настроить DNS, Nginx, TLS, persistent storage, logs и backups | ⬜ Not started | — |
 | P12.4 | Провести первый deploy: secrets, build, migrate, seed, admin, assets, docs, doctor | ⬜ Not started | — |
 | P12.5 | Описать subsequent releases, rollback, Horizon drain и restore | ⬜ Not started | — |
@@ -714,6 +714,8 @@ write-site: pre_mutation: allow · pre_final: allow |
 | 2026-08-15 | implementation/low | plan-close · closed-deviations · P11 закрыта по D88: GREEN audit покрывает P11.6 deviation; stale вызван только audit bookkeeping. |
 | 2026-08-15 | gpt-5.6-terra/high | plan-run · in-progress · — |
 | 2026-08-15 | gpt-5.6-terra/high | plan-run · closed-deviations · Local Compose host carrier green; remote Ubuntu proof explicitly bounded to P12.7. |
+| 2026-08-15 | gpt-5.6-terra/high | plan-run · in-progress · — |
+| 2026-08-15 | gpt-5.6-terra/high | plan-run · decision-pending · decision queue: Q-P12.2-production-repository-proof-v1 |
 
 ## Owner Gates
 
