@@ -3,7 +3,7 @@ projection: status-view
 projection_version: v1
 source_scope: plan core + phases + journal
 through: 2026-08-15
-inputs_sha256: 5c7e0681b16bc5c5bdcfaafb12240c98d1ad7f296196457a0d2f642a825238ef
+inputs_sha256: d37ad0753f2aa9138b720b9590cafc8107e8338058e0c476fb845051a6bbc513
 generated_by: task plan-views status
 -->
 
@@ -77,11 +77,11 @@ generated_by: task plan-views status
 
 | ID | Title | Status | Updated |
 |:--|:--|:--|:--|
-| P11.1 | Измерить текущий suite и верифицировать Pest 5 fast/TIA/parallel capabilities | 🟢 Done | 2026-08-14 |
+| P11.1 | Измерить текущий suite и верифицировать Pest 5 fast/TIA/parallel capabilities | 🟢 Done | 2026-08-15 |
 | P11.2 | Настроить Pest 5 engine, profiling, parallelism и безопасные caches | 🟢 Done | 2026-08-14 |
 | P11.3 | Укрепить test DB/media isolation и agent-optimized output | 🟢 Done | 2026-08-14 |
 | P11.4 | Закрыть недостающие risk-based unit/feature/integration/E2E suites | 🟢 Done | 2026-08-14 |
-| P11.5 | Настроить CI style/static/tests/build/security с корректными caches | 🟢 Done | 2026-08-14 |
+| P11.5 | Настроить CI style/static/tests/build/security с корректными caches | 🟢 Done | 2026-08-15 |
 | P11.6 | Запечатать performance, coverage, determinism и flake gates | 🟠 Done with deviations | 2026-08-15 |
 
 ## Phase P12
@@ -703,6 +703,13 @@ write-site: pre_mutation: allow · pre_final: allow |
 | 2026-08-14 | gpt-5.6-terra/high | plan-run · in-progress · Recovery: push 983baf42 to candidate and verify live CI. |
 | 2026-08-15 | repository-owner | plan-run · blocked · decision queue: DR-P11.6-AZGUARD-CI-TOKEN |
 | 2026-08-15 | gpt-5.6-terra/high | plan-run · closed-deviations · Candidate pushed; local release-quality contract green; live CI skipped by repository-owner decision. |
+| 2026-08-15 | frontier/xhigh | plan-audit · local-repair · Audit P11: write-site receipt repaired from provider-bound executor route.
+write-site: pre_mutation: allow · pre_final: allow |
+| 2026-08-15 | frontier/xhigh | plan-audit · local-repair · Audit P11: repaired stale root-compose validation carrier and made its matrix predicate accept the exact initial or terminal state; validation green on cbc82aea. |
+| 2026-08-15 | frontier/xhigh | plan-audit · local-repair · Audit P11: repaired executable local release carrier; unchanged full rerun remains pending after host OOM forced PostgreSQL recovery.
+write-site: pre_mutation: allow · pre_final: allow |
+| 2026-08-15 | frontier/xhigh | plan-audit · closed-deviations · Local carrier green on cd3b534a; owner-deferred live CI remains unrun. Historical P11.6 commits touched workflow/Docker/docs/E2E/package files outside the item Files list; P11.6 remains orange.
+write-site: pre_mutation: allow · pre_final: allow |
 
 ## Owner Gates
 
