@@ -66,7 +66,7 @@ PY
 
 make test-preflight >/dev/null
 
-compose=(docker compose --env-file .env -f docker/docker-compose.yml -f docker/docker-compose.dev.yml -p agelto_dev)
+compose=(docker compose --project-directory "$repo_root" --project-name agelto_dev --env-file "$repo_root/.env" -f "$repo_root/docker-compose.yml")
 "${compose[@]}" exec -T app composer show --locked --format=json | python3 -c '
 import json, sys
 expected = {
@@ -143,7 +143,9 @@ for decision_id in sorted(expected, key=lambda value: int(value[1:])):
 gaps = {key for key, row in rows.items()
         if row['severity'] in {'Critical', 'High'} and row['status'] == 'Gap'}
 partials = {key for key, row in rows.items() if row['status'] == 'Partial'}
-if gaps != {'D41', 'D42'} or partials != {'D34', 'D40'}:
+initial = gaps == {'D41', 'D42'} and partials == {'D34', 'D40'}
+terminal = not gaps and not partials and all(row['status'] == 'Covered' for row in rows.values())
+if not initial and not terminal:
     raise SystemExit(f'risk disposition mismatch: gaps={sorted(gaps)}, partials={sorted(partials)}')
 PY
 
