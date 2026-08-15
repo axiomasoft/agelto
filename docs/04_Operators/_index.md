@@ -16,6 +16,11 @@ status: living
 
 Роутер по ролям: оператор / менеджер → их SOP.
 
+## Production
+
+- [Ubuntu host bootstrap](production/ubuntu-host.md)
+- [Production host profile](production/production-profile.md)
+
 - [Статусы и колонки админки](reference/statuses.md) — что означает каждый статус не-инженерным языком.
 ## SOP: обработка результатов
 

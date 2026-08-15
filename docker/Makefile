@@ -10,7 +10,7 @@ COMPOSE_PROD := docker compose --project-directory $(ROOT_DIR) --project-name $(
 AGENT_ENV := $(if $(CLAUDECODE),-e CLAUDECODE=$(CLAUDECODE)) $(if $(CLAUDE_CODE),-e CLAUDE_CODE=$(CLAUDE_CODE)) $(if $(CURSOR_AGENT),-e CURSOR_AGENT=$(CURSOR_AGENT)) $(if $(CODEX_THREAD_ID),-e CODEX_THREAD_ID=$(CODEX_THREAD_ID)) $(if $(AI_AGENT),-e AI_AGENT=$(AI_AGENT))
 
 .DEFAULT_GOAL := help
-.PHONY: help infra\:preflight secrets\:init bootstrap dev\:up dev\:down dev\:ps dev\:logs dev\:shell dev\:artisan dev\:composer dev\:storage-init dev\:health
+.PHONY: help infra\:preflight secrets\:init bootstrap host\:check host\:apply host\:preflight dev\:up dev\:down dev\:ps dev\:logs dev\:shell dev\:artisan dev\:composer dev\:storage-init dev\:health
 .PHONY: agent\:artisan vendor\:sync vendor\:check doctor\:local readiness\:check assets\:check assets\:sync assets\:repair documentation\:check documentation\:acceptance quality prod\:doctor dev\:migrate dev\:seed-base dev\:seed-demo dev\:admin-create dev\:admin-reset dev\:composer-bootstrap prod\:config prod\:ps prod\:deploy\:code prod\:deploy\:php-deps prod\:deploy\:frontend prod\:deploy\:runtime prod\:image\:promote prod\:deploy\:image prod\:migrate prod\:seed-base image\:build test-preflight test-php test\:edit test\:full test\:junit test\:profile test\:coverage test\:release test\:tia-reset test\:tia-refresh test\:tia-baseline-export test\:shard test\:parallel db\:create-test
 
 help:
@@ -20,6 +20,9 @@ help:
 	@echo "  make secrets:init                       Create ignored internal Compose secret files"
 	@echo "  make infra:preflight MODE=dev ENV_FILE=.env.example  Validate Docker/Compose without mutation"
 	@echo "  make bootstrap MODE=dev|prod-build ENV_FILE=.env.example  Run resumable local bootstrap"
+	@echo "  make host:check PROFILE=docker/host/production-profile     Read-only Ubuntu host checks"
+	@echo "  make host:apply PROFILE=... CONFIRM=apply                  Provision a fresh Ubuntu 24.04 host"
+	@echo "  make host:preflight PROFILE=...                            Read-only host runtime proof"
 	@echo ""
 	@echo "Development:"
 	@echo "  make dev:up | dev:down | dev:ps | dev:logs [SERVICE=app]"
@@ -54,6 +57,19 @@ secrets\:init:
 
 bootstrap:
 	bash $(ROOT_DIR)/docker/scripts/bootstrap.sh --root $(ROOT_DIR) --mode $(MODE) --env-file $(ENV_FILE) --image-tag "$(IMAGE_TAG)" --project-name "$(COMPOSE_PROJECT_NAME)" $(if $(ADMIN_PASSWORD_FILE),--admin-password-file "$(ADMIN_PASSWORD_FILE)")
+
+host\:check:
+	@test -n "$(PROFILE)" || (echo "PROFILE is required" >&2; exit 2)
+	bash $(ROOT_DIR)/docker/scripts/host-provision.sh check --profile "$(abspath $(PROFILE))"
+
+host\:apply:
+	@test -n "$(PROFILE)" || (echo "PROFILE is required" >&2; exit 2)
+	@test "$(CONFIRM)" = apply || (echo "CONFIRM=apply is required" >&2; exit 2)
+	bash $(ROOT_DIR)/docker/scripts/host-provision.sh apply --profile "$(abspath $(PROFILE))" --confirm
+
+host\:preflight:
+	@test -n "$(PROFILE)" || (echo "PROFILE is required" >&2; exit 2)
+	bash $(ROOT_DIR)/docker/scripts/host-preflight.sh --profile "$(abspath $(PROFILE))"
 
 dev\:up:
 	$(COMPOSE_DEV) up -d
