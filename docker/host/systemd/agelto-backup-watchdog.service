@@ -1,0 +1,5 @@
+[Unit]
+Description=Agelto backup watchdog
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/agelto-backup-watchdog check

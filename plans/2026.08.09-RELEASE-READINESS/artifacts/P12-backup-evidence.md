@@ -1,9 +1,7 @@
-# P12 backup evidence
+# P12 ingress and recovery evidence template
 
-`PENDING` — staged carrier under D53. P12.3 records the approved recovery profile,
-DNS/TLS/renewal/effective-port configuration and explicitly labelled config/fixture evidence for
-backup/retention/watchdog/alert units; it records no live application or production-backup claim.
-After terminal P12.4, P12.5 appends enabled-unit/calendar state, one real scheduled full off-host
-backup, verified retention apply, application-checkable isolated restore commands/hashes,
-overdue/disk/service-failure probes, correlation-ID alert receipt and limitations without secret
-values.
+`TEMPLATE — NO RUNTIME EVIDENCE.` P12.3 validates the schema and fixture labels locally. A separate
+operator rehearsal plan fills owner-approved policy anchors, DNS/TLS/renewal/effective-port state,
+enabled timer/calendar state, scheduled off-host backup/hash, retention application, watchdog/disk/
+service-failure observations, redacted alert correlation receipt and isolated DB/object/secret/config
+restore measurements. Fixture results never populate runtime fields.

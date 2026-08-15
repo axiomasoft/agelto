@@ -12,7 +12,8 @@ grep -F 'StrictHostKeyChecking yes' "$script" >/dev/null
 grep -F 'ForwardAgent no' "$script" >/dev/null
 grep -F 'SHA256:+DiY3wvvV6TuJJhbpZisF/zLDA0zPMSvHdkr4UvCOqU' "$script" >/dev/null
 grep -F -- '--enrollment-confirmed' "$script" >/dev/null
-grep -F 'vendor-sync.sh" --check' "$script" >/dev/null
+grep -F 'candidate_vendor_verifier' "$script" >/dev/null
+grep -F 'as_deploy "$candidate_vendor_verifier" --check' "$script" >/dev/null
 ! grep -Eq 'ssh-keyscan|StrictHostKeyChecking=no|ssh -A|git reset --hard|git clean|token@' "$script"
 
 for key in AGELTO_REPOSITORY AGELTO_CANDIDATE_SHA AGELTO_CHECKOUT_DIR GITHUB_ED25519_HOST_KEY; do

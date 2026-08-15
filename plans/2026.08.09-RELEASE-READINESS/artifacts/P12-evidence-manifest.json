@@ -1,0 +1,1 @@
+{"schema":"agelto.p12.evidence-manifest/v1","verdict":"PREPARATION_READY","runtime_receipts":[],"local_carriers":["deploy-repositories-contract.sh","ingress-backup-contract.sh","first-production-deploy-contract.sh","release-recovery-contract.sh","command-reference-contract.sh"]}
