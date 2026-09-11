@@ -81,7 +81,7 @@ Read 1–2 relevant sources first; expand only for an unresolved term, a cross-l
 
 <!-- Сгенерировано scripts/generate-hub.sh из реестра swissknifeman. -->
 <!-- НЕ редактируйте вручную: перегенерация затрёт правки. -->
-<!-- swissknifeman:registry sha=00585555747f skills=231 -->
+<!-- swissknifeman:registry sha=3e4e73877360 skills=232 -->
 
 ## Приоритет источников правил
 
