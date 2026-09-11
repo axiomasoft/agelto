@@ -1,7 +1,6 @@
 import { defineConfig } from 'vitepress';
-import { withMermaid } from 'vitepress-plugin-mermaid';
 
-export default withMermaid(defineConfig({
+export default defineConfig({
     base: '/documentation/',
     cleanUrls: true,
     outDir: process.env.DOCUMENTATION_OUTPUT_DIR ?? '.vitepress/dist',
@@ -115,4 +114,4 @@ export default withMermaid(defineConfig({
             provider: 'local',
         },
     },
-}));
+});
