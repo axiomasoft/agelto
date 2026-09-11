@@ -7,9 +7,13 @@ namespace App\Repositories\Procurement\Ai;
 use App\Enums\Procurement\Ai\AiDocumentType;
 use App\Enums\Procurement\Ai\AnalysisStatus;
 use App\Enums\Procurement\Ai\AnalysisStep;
+use App\Enums\Procurement\Document\DocumentStatus;
 use App\Exceptions\Procurement\Ai\NoActiveAnalysisRun;
 use App\Models\Procurement\Ai\Analysis;
+use App\Models\Procurement\Document\Document;
+use App\Repositories\Procurement\Document\DocumentStoreRepository;
 use Illuminate\Database\UniqueConstraintViolationException;
+use Illuminate\Support\Facades\DB;
 
 /**
  * Единственная точка персистентности `prc_ai_analyses` для стадийных процессоров
@@ -25,7 +29,44 @@ final readonly class AnalysisStoreRepository
 {
     public function __construct(
         private AnalysisRunStoreRepository $runs,
+        private DocumentStoreRepository $documents,
     ) {}
+
+    public function acquireExecutionLease(Analysis $analysis, DocumentStatus $expectedStatus, string $owner, int $ttlSeconds): bool
+    {
+        return DB::transaction(function () use ($analysis, $expectedStatus, $owner, $ttlSeconds): bool {
+            $version = $analysis->documentVersion;
+
+            if ($version === null) {
+                return false;
+            }
+
+            $document = Document::query()->lockForUpdate()->findOrFail($version->document_id);
+            $analysis->refresh();
+
+            if ($document->status !== $expectedStatus || $document->locked_until?->greaterThanOrEqualTo(now())
+                || $analysis->superseded_at !== null || $analysis->failed_permanently
+                || ! in_array($analysis->status, [AnalysisStatus::Pending, AnalysisStatus::Running], true)
+                || $this->documents->latestVersion(documentId: $document->id)?->id !== $analysis->document_version_id) {
+                return false;
+            }
+
+            return $analysis->acquireLease(owner: $owner, ttlSeconds: $ttlSeconds);
+        });
+    }
+
+    public function supersedeVersion(int $documentVersionId): void
+    {
+        Analysis::query()->active()
+            ->where(column: 'document_version_id', operator: $documentVersionId)
+            ->update(['superseded_at' => now()]);
+
+        $run = $this->runs->findActive(documentVersionId: $documentVersionId);
+
+        if ($run !== null) {
+            $this->runs->markFailed(run: $run);
+        }
+    }
 
     /**
      * Найти активный анализ версии документа на заданном шаге или создать новый (уникальность —
@@ -59,6 +100,39 @@ final readonly class AnalysisStoreRepository
                 ->where('step', $step)
                 ->sole();
         }
+    }
+
+    public function findActive(int $documentVersionId, AnalysisStep $step): ?Analysis
+    {
+        return Analysis::query()
+            ->active()
+            ->where('document_version_id', $documentVersionId)
+            ->where('step', $step)
+            ->first();
+    }
+
+    /**
+     * Atomically reserves a retry or a recovered continuation without holding the processing
+     * lease. The receiving job remains the sole lease owner; the future retry timestamp makes a
+     * second reconciler sweep skip the same row until a crashed dispatch becomes due again.
+     */
+    public function claimRecovery(Analysis $analysis, int $holdMinutes): bool
+    {
+        return Analysis::query()
+            ->active()
+            ->whereKey($analysis->id)
+            ->where('analysis_run_id', $analysis->analysis_run_id)
+            ->whereIn('status', [AnalysisStatus::Pending->value, AnalysisStatus::Running->value])
+            ->where('failed_permanently', false)
+            ->where(function ($query): void {
+                $query->whereNull('next_retry_at')
+                    ->orWhere('next_retry_at', '<=', now());
+            })
+            ->where(function ($query): void {
+                $query->whereNull('locked_until')
+                    ->orWhere('locked_until', '<', now());
+            })
+            ->update(['next_retry_at' => now()->addMinutes($holdMinutes)]) === 1;
     }
 
     /**

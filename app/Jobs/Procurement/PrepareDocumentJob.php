@@ -12,6 +12,7 @@ use App\Repositories\Procurement\Ai\AnalysisRunStoreRepository;
 use App\Repositories\Procurement\Document\DocumentStoreRepository;
 use App\Services\Procurement\Prepare\DocumentPreparer;
 use Illuminate\Contracts\Queue\ShouldBeUnique;
+use Illuminate\Queue\Attributes\Timeout;
 use RuntimeException;
 use Throwable;
 
@@ -22,6 +23,7 @@ use Throwable;
  * Владеет диспатчем следующей стадии цепочки: по успеху (не `unprocessable`) — `ScreeningJob`
  * за гейтом `config('ai.screening.enabled', false)` (ТЗ 03 §4).
  */
+#[Timeout(2580)]
 final class PrepareDocumentJob extends PipelineJob implements ShouldBeUnique
 {
     private ?Document $documentCache = null;
@@ -31,6 +33,7 @@ final class PrepareDocumentJob extends PipelineJob implements ShouldBeUnique
         public readonly RunMode $mode = RunMode::Auto,
         public readonly ?int $initiatedBy = null,
     ) {
+        $this->onConnection('redis_prepare');
         $this->onQueue('doc_prepare');
     }
 
@@ -44,6 +47,11 @@ final class PrepareDocumentJob extends PipelineJob implements ShouldBeUnique
         return "{$this->documentId}:prepare";
     }
 
+    protected function operationBudgetStage(): string
+    {
+        return 'prepare';
+    }
+
     protected function statusGuardPassed(): bool
     {
         return $this->document()->status === DocumentStatus::Downloaded;
@@ -51,7 +59,7 @@ final class PrepareDocumentJob extends PipelineJob implements ShouldBeUnique
 
     protected function acquireLease(): bool
     {
-        return $this->document()->acquireLease(owner: self::class);
+        return $this->document()->acquireLease(owner: self::class, ttlSeconds: $this->leaseSeconds());
     }
 
     protected function releaseLease(): void
@@ -66,6 +74,7 @@ final class PrepareDocumentJob extends PipelineJob implements ShouldBeUnique
 
     protected function process(): void
     {
+        $deadlineAt = $this->executionStartedAt + $this->operationBudgetSeconds();
         $document = $this->document();
         $version = app(DocumentStoreRepository::class)->latestVersion($document->id);
 
@@ -73,7 +82,11 @@ final class PrepareDocumentJob extends PipelineJob implements ShouldBeUnique
             throw new RuntimeException("У документа #{$document->id} нет скачанной версии.");
         }
 
-        $result = app(DocumentPreparer::class)->prepare($document, $version);
+        $result = app(DocumentPreparer::class)->prepare(
+            document: $document,
+            version: $version,
+            deadlineAt: $deadlineAt,
+        );
 
         if ($result === PreparationResult::Unprocessable) {
             return;
@@ -98,5 +111,16 @@ final class PrepareDocumentJob extends PipelineJob implements ShouldBeUnique
     private function document(): Document
     {
         return $this->documentCache ??= Document::findOrFail($this->documentId);
+    }
+
+    private function operationBudgetSeconds(): int
+    {
+        $seconds = config('ai.pipeline.operation_budgets.prepare.job_timeout_seconds');
+
+        if (! is_int($seconds) || $seconds < 1) {
+            throw new RuntimeException('ai.pipeline.operation_budgets.prepare.job_timeout_seconds должен быть положительным целым числом.');
+        }
+
+        return $seconds;
     }
 }

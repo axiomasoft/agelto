@@ -3,6 +3,8 @@
 declare(strict_types=1);
 
 use App\Dto\Procurement\Crawler\ListingBatch;
+use App\Dto\Procurement\Crawler\ListingCursor;
+use App\Dto\Procurement\Crawler\RecoveryScope;
 use App\Enums\Procurement\Crawler\CrawlerMode;
 use App\Enums\Procurement\Crawler\RunStatus;
 use App\Enums\Procurement\Crawler\SourceMethod as SourceMethodEnum;
@@ -76,6 +78,9 @@ test('обновление, попавшее в стык окон, не теря
     // случившееся 2023-12-30/31 (в стыке с предыдущим прогоном), теряется безвозвратно.
     Run::factory()->for($freshCrawler, 'crawler')->create([
         'status' => RunStatus::Completed,
+        'cursor' => (new ListingCursor(
+            recoveryScope: RecoveryScope::fromFreshCrawler(crawler: $freshCrawler)->toArray(),
+        ))->toArray(),
         'stats' => ['cap_hit' => true, 'possible_skip_window' => [
             'from' => '2024-01-01T00:00:00Z',
             'to' => '2024-01-03T00:00:00Z',

@@ -38,6 +38,7 @@ final class MaintainPartitions extends Command
     {
         if ($this->pgPartmanIsAvailable()) {
             DB::statement('SELECT partman.run_maintenance()');
+            $this->assertContinuousCoverage();
             $this->info('Партиции обновлены через pg_partman (run_maintenance, вкл. retention-DROP по part_config).');
 
             return self::SUCCESS;
@@ -46,6 +47,8 @@ final class MaintainPartitions extends Command
         foreach ($this->partitionedTables() as $table) {
             $this->maintainFallback($table);
         }
+
+        $this->assertContinuousCoverage();
 
         $this->info('pg_partman недоступен — партиции досозданы и просрочённые дропнуты fallback-командой.');
 
@@ -129,6 +132,47 @@ final class MaintainPartitions extends Command
 
             if ($partitionStart->lt($cutoff)) {
                 DB::statement('DROP TABLE IF EXISTS '.$name);
+            }
+        }
+    }
+
+    private function assertContinuousCoverage(): void
+    {
+        $supportedStart = Carbon::now('UTC')->startOfMonth()->subMonthsNoOverflow(12);
+
+        foreach ($this->partitionedTables() as $table) {
+            $partitions = DB::select(
+                'SELECT child.relname AS name FROM pg_inherits inheritance '
+                .'JOIN pg_class child ON child.oid = inheritance.inhrelid '
+                .'JOIN pg_class parent ON parent.oid = inheritance.inhparent '
+                .'WHERE parent.relname = ?',
+                [$table],
+            );
+            $months = [];
+
+            foreach ($partitions as $partition) {
+                $attributes = is_object($partition) ? get_object_vars($partition) : [];
+                $name = $attributes['name'] ?? null;
+
+                if (! is_string($name) || preg_match('/_(\d{4})_(\d{2})$/', $name, $matches) !== 1) {
+                    continue;
+                }
+
+                $month = Carbon::createFromDate((int) $matches[1], (int) $matches[2], 1)->startOfMonth();
+
+                if ($month->gte($supportedStart)) {
+                    $months[] = $month;
+                }
+            }
+
+            usort($months, static fn (Carbon $left, Carbon $right): int => $left->getTimestamp() <=> $right->getTimestamp());
+
+            for ($index = 1; $index < count($months); $index++) {
+                if ($months[$index]->equalTo($months[$index - 1]->copy()->addMonthNoOverflow())) {
+                    continue;
+                }
+
+                throw new \RuntimeException("{$table} содержит разрыв месячных партиций.");
             }
         }
     }

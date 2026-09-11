@@ -28,6 +28,7 @@ final readonly class WordStrategy implements PreparationStrategy
 {
     public function __construct(
         private RepresentationStoreRepository $representations,
+        private RepresentationWriter $writer,
         private MarkDocumentUnprocessableAction $markUnprocessable,
         private LibreOfficeConverter $converter,
         private FileLocationResolver $locationResolver,
@@ -48,13 +49,17 @@ final readonly class WordStrategy implements PreparationStrategy
             File::ensureDirectoryExists($outputDir);
             file_put_contents($localInput, $disk->get($version->storage_path));
 
-            $localOutput = $this->converter->toPdf($localInput, $outputDir);
+            try {
+                $localOutput = $this->converter->toPdf($localInput, $outputDir);
+            } catch (RuntimeException $e) {
+                $this->markUnprocessable($document, $e->getMessage());
+
+                return PreparationResult::Unprocessable;
+            }
 
             $pdf = (string) file_get_contents($localOutput);
             $preparedPath = $this->preparedPath($version);
-            $disk->put($preparedPath, $pdf);
-
-            $this->representations->storeOrUpdate($version, RepresentationKind::Pdf, [
+            $this->writer->write($disk, $version, RepresentationKind::Pdf, $preparedPath, $pdf, [
                 'storage_path' => $preparedPath,
                 'disk' => $diskName,
                 'size_bytes' => strlen($pdf),
@@ -67,10 +72,6 @@ final readonly class WordStrategy implements PreparationStrategy
             ]);
 
             return PreparationResult::ReadyForScreening;
-        } catch (RuntimeException $e) {
-            $this->markUnprocessable($document, $e->getMessage());
-
-            return PreparationResult::Unprocessable;
         } finally {
             @unlink($localInput);
             File::deleteDirectory($outputDir);

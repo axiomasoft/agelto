@@ -66,7 +66,24 @@ test('download того же контента повторно — no-op, вер
     expect(DocumentVersion::query()->where('document_id', $document->id)->count())->toBe(1);
 });
 
-test('download иного контента создаёт новую версию и пишет событие document_replaced', function () {
+test('same-hash retry восстанавливает потерянный object без дублирования версии или события', function () {
+    Sleep::fake();
+    Storage::fake('s3');
+    activeDocumentDownloadProxy();
+    $document = Document::factory()->create(['source_url' => 'https://zakupki.gov.ru/filestore/file.html?uid=heal-same-hash']);
+    Http::fake(['*filestore*' => Http::response(body: sampleDocumentContent(), status: 200)]);
+
+    $version = app(DocumentDownloader::class)->download($document);
+    Storage::disk('s3')->delete($version->storage_path);
+
+    app(DocumentDownloader::class)->download($document);
+
+    Storage::disk('s3')->assertExists($version->storage_path);
+    expect(DocumentVersion::query()->where('document_id', $document->id)->count())->toBe(1)
+        ->and(ProcurementEvent::query()->where('procurement_id', $document->procurement_id)->count())->toBe(1);
+});
+
+test('два прямых скачивания иного контента создают новую версию и document_replaced', function () {
     Sleep::fake();
     Storage::fake('s3');
     activeDocumentDownloadProxy();

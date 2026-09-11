@@ -29,15 +29,17 @@ function alignedDomainLayoutLayers(): array
             'root' => [
                 'AwardStatus', 'BidStatus', 'EisProcedureType', 'ProcurementEventType',
                 'ProcurementStatus', 'ProtocolType', 'OperationLogLevel', 'StatusMappingApplicability',
+                'DetailSnapshotStatus',
             ],
             'subareas' => ['Ai', 'Analyzers', 'Crawler', 'Document', 'Estimate', 'Health', 'Proxy'],
         ],
         // P3.3, Completion Notes: `OperationFailed` (базовый, кросс) + `UnknownReportFormat` (кросс).
         // `InvalidEvalDiffPayload` обслуживает корневой estimate CLI-контур, а не отдельную подобласть.
         // P3.4: подобласть `Crawler` заведена первым файлом (`CrawlerRunAlreadyActive`).
+        // Prepare: OperationBudgetExceeded зеркалит существующие Services/Dto\Procurement\Prepare.
         'App\Exceptions\Procurement' => [
             'root' => ['OperationFailed', 'UnknownReportFormat', 'InvalidEvalDiffPayload'],
-            'subareas' => ['Ai', 'Crawler', 'Health', 'Proxy'],
+            'subareas' => ['Ai', 'Crawler', 'Health', 'Prepare', 'Proxy'],
         ],
         // P3.3, Completion Notes: три файла ядра закупки остаются в корне.
         'App\Dto\Procurement' => [
@@ -47,9 +49,10 @@ function alignedDomainLayoutLayers(): array
         // P3.3, Completion Notes: три ядровых репозитория закупки остаются в корне.
         // P2.1 (2026.08.06-CRAWL-HARDEN): подобласть `Platform` заведена первым файлом
         // (`Okpd2NodeReadRepository`) — зеркалит уже существующую подобласть `App\Models\Procurement\Platform`.
+        // Crawler: RunStoreRepository зеркалит существующую Models\Procurement\Crawler.
         'App\Repositories\Procurement' => [
             'root' => ['ProcurementDetailStoreRepository', 'ProcurementReadRepository', 'ProcurementStoreRepository'],
-            'subareas' => ['Ai', 'Analyzers', 'Document', 'Health', 'History', 'Platform', 'Proxy'],
+            'subareas' => ['Ai', 'Analyzers', 'Crawler', 'Document', 'Health', 'History', 'Platform', 'Proxy'],
         ],
     ];
 }

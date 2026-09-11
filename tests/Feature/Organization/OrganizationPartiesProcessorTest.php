@@ -118,3 +118,19 @@ test('повторный process идемпотентен — организац
     expect(Organization::query()->count())->toBe(2)
         ->and(ProcurementParty::query()->where('procurement_id', $procurement->id)->count())->toBe(3);
 });
+
+test('process удаляет отсутствующие роли и очищает customer при complete empty set', function () {
+    $procurement = Procurement::factory()->create();
+    $processor = app(OrganizationPartiesProcessor::class);
+    $parties = partiesFixtureDataForProcessorTest();
+
+    $processor->process(procurement: $procurement, parties: $parties);
+    $processor->process(procurement: $procurement, parties: [$parties[0]]);
+
+    expect(ProcurementParty::query()->where('procurement_id', $procurement->id)->count())->toBe(1);
+
+    $processor->process(procurement: $procurement, parties: []);
+
+    expect(ProcurementParty::query()->where('procurement_id', $procurement->id)->exists())->toBeFalse()
+        ->and($procurement->refresh()->customer_org_id)->toBeNull();
+});

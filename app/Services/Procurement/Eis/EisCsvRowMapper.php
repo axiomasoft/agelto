@@ -61,7 +61,7 @@ final readonly class EisCsvRowMapper implements ListingRowMapper
         }
 
         $publishedAt = $this->parseDate(value: $row[self::PUBLISHED_AT_COLUMN] ?? null);
-        $sourceUpdatedAt = $this->parseDate(value: $row[self::SOURCE_UPDATED_AT_COLUMN] ?? null);
+        $sourceUpdatedAt = $this->parseSourceUpdatedAt(value: $row[self::SOURCE_UPDATED_AT_COLUMN] ?? null);
 
         if ($publishedAt === null || $sourceUpdatedAt === null) {
             return null;
@@ -75,7 +75,8 @@ final readonly class EisCsvRowMapper implements ListingRowMapper
             title: trim($row[self::TITLE_COLUMN] ?? ''),
             sourceStage: trim($row[self::STAGE_COLUMN] ?? ''),
             publishedAt: $publishedAt,
-            sourceUpdatedAt: $sourceUpdatedAt,
+            sourceUpdatedAt: $sourceUpdatedAt['value'],
+            sourceUpdatedAtHasDayPrecision: $sourceUpdatedAt['hasDayPrecision'],
             ikz: $this->nullableString(value: $row[self::IKZ_COLUMN] ?? null),
             procedureType: $procedureType,
             procedureTypeRaw: $procedureTypeRaw,
@@ -150,6 +151,38 @@ final readonly class EisCsvRowMapper implements ListingRowMapper
         }
 
         return null;
+    }
+
+    /**
+     * @return array{value: Carbon, hasDayPrecision: bool}|null
+     */
+    private function parseSourceUpdatedAt(?string $value): ?array
+    {
+        if ($value === null || trim($value) === '') {
+            return null;
+        }
+
+        $value = trim($value);
+
+        foreach (['!d.m.Y H:i:s', '!d.m.Y H:i'] as $format) {
+            try {
+                $date = Carbon::createFromFormat(format: $format, time: $value);
+
+                if ($date !== null) {
+                    return ['value' => $date, 'hasDayPrecision' => false];
+                }
+            } catch (\Throwable) {
+                continue;
+            }
+        }
+
+        try {
+            $date = Carbon::createFromFormat(format: '!d.m.Y', time: $value);
+
+            return $date === null ? null : ['value' => $date, 'hasDayPrecision' => true];
+        } catch (\Throwable) {
+            return null;
+        }
     }
 
     private function stripRegistryNumberPrefix(string $registryNumber): string

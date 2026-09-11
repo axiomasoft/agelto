@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Enums\Procurement\DetailSnapshotStatus;
 use App\Services\Procurement\Eis\Card\DocumentsParser;
 use Illuminate\Support\Facades\Log;
 
@@ -11,9 +12,11 @@ function documentsFixtureHtml(): string
 }
 
 test('parse разбирает документы вкладки documents с external_id из ссылки filestore на реальной вёрстке', function () {
-    $documents = app(DocumentsParser::class)->parse(documentsFixtureHtml());
+    $snapshot = app(DocumentsParser::class)->parse(documentsFixtureHtml());
+    $documents = $snapshot->documents;
 
-    expect($documents)->toHaveCount(6);
+    expect($snapshot->status)->toBe(DetailSnapshotStatus::Complete)
+        ->and($documents)->toHaveCount(6);
 
     foreach ($documents as $document) {
         expect($document->title)->not->toBe('')
@@ -39,28 +42,39 @@ test('parse пропускает строку без файла-ссылки', f
         documentsFixtureHtml(),
     );
 
-    $documents = app(DocumentsParser::class)->parse($html);
+    $snapshot = app(DocumentsParser::class)->parse($html);
+    $documents = $snapshot->documents;
 
-    expect($documents)->toHaveCount(5)
+    expect($snapshot->status)->toBe(DetailSnapshotStatus::Incomplete)
+        ->and($documents)->toHaveCount(5)
         ->and(array_column($documents, 'externalId'))->not->toContain('074262DCAA9B432E9530FB242D4E619F');
 });
 
-test('parse возвращает пустой список при отсутствии блока прикреплённых файлов', function () {
-    $documents = app(DocumentsParser::class)->parse('<html><body>нет документов</body></html>');
+test('parse помечает отсутствующий контейнер прикреплённых файлов как incomplete', function () {
+    $snapshot = app(DocumentsParser::class)->parse('<html><body>нет документов</body></html>');
 
-    expect($documents)->toBe([]);
+    expect($snapshot->status)->toBe(DetailSnapshotStatus::Incomplete)
+        ->and($snapshot->documents)->toBe([]);
 });
 
-test('parse логирует тихий отказ, если на странице есть ссылки filestore, а документы не распознаны', function () {
+test('parse помечает selector drift с нераспознанными filestore ссылками как incomplete', function () {
     Log::spy();
 
     $html = str_replace('blockFilesTabDocs', 'someRenamedBlock', documentsFixtureHtml());
 
-    $documents = app(DocumentsParser::class)->parse($html);
+    $snapshot = app(DocumentsParser::class)->parse($html);
 
-    expect($documents)->toBe([]);
+    expect($snapshot->status)->toBe(DetailSnapshotStatus::Incomplete)
+        ->and($snapshot->documents)->toBe([]);
 
     Log::shouldHaveReceived('warning')
-        ->withArgs(fn (string $message, array $context): bool => str_contains($message, 'есть ссылки filestore, но не распознано') && $context['filestore_links'] === 6)
+        ->withArgs(fn (string $message, array $context): bool => str_contains($message, 'не содержит контейнер вложений') && $context['filestore_links'] === 6)
         ->once();
+});
+
+test('parse считает пустой подтверждённый контейнер complete snapshot', function () {
+    $snapshot = app(DocumentsParser::class)->parse('<div class="blockFilesTabDocs"></div>');
+
+    expect($snapshot->status)->toBe(DetailSnapshotStatus::Complete)
+        ->and($snapshot->documents)->toBe([]);
 });

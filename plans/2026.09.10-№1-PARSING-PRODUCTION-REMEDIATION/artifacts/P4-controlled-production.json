@@ -1,0 +1,358 @@
+{
+  "schema_version": "p4-controlled-production/v1",
+  "plan_id": "2026.09.10-№1-PARSING-PRODUCTION-REMEDIATION",
+  "item_id": "P4.3",
+  "run_id": "7d0523d4963f17012d11dcddb03760169bfcfe4e6ca97696c0c34ea9de769cd7",
+  "generated_at": "2026-09-11T15:49:24Z",
+  "authorization": {
+    "status": "materialized-for-bounded-attempt",
+    "authorized_by": "repository-owner",
+    "authorized_actions": [
+      "execute P4.3 through read-only production preflight",
+      "start the declared 72-hour controlled-production window only after every D10 target binding and preflight check is green",
+      "record a fail-closed NO-GO without traffic when a prerequisite is absent",
+      "under D12, accept the completed maximum local rehearsal as terminal Done with deviations because production access and the 72-hour window will not be provided"
+    ],
+    "authorization_basis": {
+      "provider": "codex",
+      "thread_id": "01a090f9-30b1-70a0-bb1d-5e7b1d79a3c7",
+      "route_invocation_sha256": "2b6c4305547ef31314cee1ea622057dd74185de28c6069c93e9fc870ad737f0a",
+      "continuation_instruction_sha256": "86730278646b07debbf7f41cb2190f25b1d666cbb39addc7b580fbe0599318e7",
+      "route_floor_override": {
+        "status": "owner-authorized",
+        "previous": "frontier/xhigh",
+        "effective": "frontier/high",
+        "scope": "routing floor only; D10 environment, traffic and calendar gates unchanged"
+      },
+      "route_run_receipt": {
+        "schema_version": "route-run-receipt/v1",
+        "plan_id": "2026.09.10-№1-PARSING-PRODUCTION-REMEDIATION",
+        "item_id": "P4.3",
+        "attempt": 2,
+        "session_id": "01a090f9-30b1-70a0-bb1d-5e7b1d79a3c7",
+        "run_id": "7d0523d4963f17012d11dcddb03760169bfcfe4e6ca97696c0c34ea9de769cd7",
+        "evidence": {
+          "cwd": "/home/vostrikov/projects/agelto/agelto",
+          "effort": "high",
+          "invocation": "$ task:plan-run 2026.09.10-№1-PARSING-PRODUCTION-REMEDIATION P4.3",
+          "model": "gpt-5.6-sol",
+          "model_class": "frontier",
+          "source": "provider-thread-state",
+          "source_version": "codex-turn-context-v1",
+          "thread_id": "01a090f9-30b1-70a0-bb1d-5e7b1d79a3c7",
+          "ts": "2026-09-11T15:04:14Z"
+        }
+      }
+    },
+    "traffic_authority": {
+      "effective": false,
+      "reason": "D10 environment, crawler profile/filter, request ceiling and reversible stop action are not bound to an accessible production target",
+      "scope_expansion_requires_new_owner_authorization": true
+    }
+  },
+  "prerequisites": {
+    "p4_1": {
+      "status": "green-terminal",
+      "state_sha256": "17e21135b0b234c2fe7518609dfda1e78ba3521c5bcc77f90a2138214bbf7ed2",
+      "b2": "resolved-by-bounded-revalidation"
+    },
+    "p4_2": {
+      "status": "green-terminal",
+      "state_sha256": "3cf5292bf72457c8ac0dad804869de02b88d821821f7b47afd652ae79b93ca02",
+      "independent_acceptance_sha256": "6586eab263407e0624ecaf99c184d7b64d4cf715022ccb74242e66f0d6b95095"
+    },
+    "owner_item_invocation": "green",
+    "owner_terminal_local_scope_decision": "green-D12",
+    "production_environment_binding": "red",
+    "crawler_profile_and_filter_binding": "red",
+    "request_ceiling_binding": "red",
+    "reversible_stop_action_binding": "red",
+    "effective_config": "red",
+    "worker_and_storage_readiness": "not-reached"
+  },
+  "target": {
+    "status": "not-accessible-from-executor",
+    "compose_file": "docker-compose.prod.yml",
+    "docker_context": "default",
+    "docker_endpoint_class": "local-unix-socket",
+    "compose_project_name": null,
+    "production_env_file": {
+      "path": ".env.production",
+      "status": "missing"
+    },
+    "host_profile": {
+      "path": "docker/host/production-profile",
+      "status": "missing"
+    },
+    "production_compose_project": {
+      "status": "absent",
+      "observed_projects_include_agelto_dev_only": true
+    },
+    "remote_access": {
+      "docker_context": "absent",
+      "ssh_config": "absent",
+      "srv_agelto": "absent"
+    },
+    "secret_files": {
+      "status": "present-not-read",
+      "required_runtime_files_checked": 5
+    }
+  },
+  "candidate_anchor": {
+    "git_head": "f60e98c25aa65e8ebf225e4681beca3e796a52b9",
+    "git_branch": "main",
+    "worktree_status_sha256_before_p4_product": "422154542b6efb609705be3c99dc0ff891e2b7e3ca164b7f2b68c4f811660a8b",
+    "tracked_diff_sha256_before_p4_product": "ca6b21e723608b6bfe92b8d72fe66c6a590eeb842a3545c693b0d7f31f337eaf",
+    "worktree_clean": false,
+    "local_images": [
+      {
+        "image": "agelto/app:rehearsal-current",
+        "image_id": "sha256:3a40c128ce1c94b340f72748876bcebafe686ae0c4ff00438abf7d02f73b8c6a",
+        "created_at": "2026-09-09T09:54:34.815758034Z",
+        "repo_digest": null,
+        "deployed_to_target": false
+      },
+      {
+        "image": "agelto/doctor:rehearsal-current",
+        "image_id": "sha256:048807dfb2b7ee48673ca5de3e42d4757bdcfc501ea7d4f8b2660eb8c8f84534",
+        "created_at": "2026-09-09T09:57:20.534375602Z",
+        "repo_digest": null,
+        "deployed_to_target": false
+      }
+    ],
+    "status": "not-a-production-deployment-anchor"
+  },
+  "selected_scope": {
+    "environment": null,
+    "crawler_profile_id": null,
+    "crawler_filter": null,
+    "request_ceiling": null,
+    "reversible_stop_action": null,
+    "prior_p4_1_scope_sha256": "c6d3cba75f4ca5e7d6b4c4eed44a64908354dc456f6ba1f3e7fa58492b1209cf",
+    "prior_scope_reused": false,
+    "reason": "P4.1 was a bounded verification probe and is not implicit authority for a production profile"
+  },
+  "preflight": {
+    "observed_at": "2026-09-11T15:06:25Z",
+    "overall_status": "red",
+    "classification": "compose-environment-not-materialized",
+    "commands": [
+      {
+        "command": "docker compose -f docker-compose.prod.yml config --quiet",
+        "exit_code": 1,
+        "classification": "missing-compose-project-name",
+        "sanitized_stderr": "COMPOSE_PROJECT_NAME is missing; COMPOSE_PROJECT_NAME is required"
+      },
+      {
+        "command": "docker compose -f docker-compose.prod.yml ps",
+        "exit_code": 1,
+        "classification": "not-reached-after-compose-interpolation",
+        "sanitized_stderr": "COMPOSE_PROJECT_NAME is missing; COMPOSE_PROJECT_NAME is required"
+      },
+      {
+        "command": "docker compose -f docker-compose.prod.yml exec -T app php artisan horizon:status",
+        "exit_code": 1,
+        "classification": "not-reached-after-compose-interpolation",
+        "sanitized_stderr": "COMPOSE_PROJECT_NAME is missing; COMPOSE_PROJECT_NAME is required"
+      },
+      {
+        "command": "docker compose -f docker-compose.prod.yml exec -T app php artisan config:show queue",
+        "exit_code": 1,
+        "classification": "not-reached-after-compose-interpolation",
+        "sanitized_stderr": "COMPOSE_PROJECT_NAME is missing; COMPOSE_PROJECT_NAME is required"
+      },
+      {
+        "command": "docker compose -f docker-compose.prod.yml exec -T app php artisan config:show horizon",
+        "exit_code": 1,
+        "classification": "not-reached-after-compose-interpolation",
+        "sanitized_stderr": "COMPOSE_PROJECT_NAME is missing; COMPOSE_PROJECT_NAME is required"
+      },
+      {
+        "command": "docker compose -f docker-compose.prod.yml exec -T app php artisan config:show partitioning",
+        "exit_code": 1,
+        "classification": "not-reached-after-compose-interpolation",
+        "sanitized_stderr": "COMPOSE_PROJECT_NAME is missing; COMPOSE_PROJECT_NAME is required"
+      }
+    ]
+  },
+  "observation_window": {
+    "required_seconds": 259200,
+    "planned_start": null,
+    "actual_start": null,
+    "actual_end": null,
+    "duration_seconds": 0,
+    "continuous": false,
+    "status": "not-started-owner-withheld-terminal-deviation"
+  },
+  "metrics": {
+    "status": "not-collected-preflight-red",
+    "fresh": null,
+    "backlog": null,
+    "delta": null,
+    "detail": null,
+    "document": null,
+    "ai": null,
+    "oldest_pending_age": null,
+    "change_latency": null,
+    "final_24_hours_backlog_trend": null
+  },
+  "local_rehearsal": {
+    "environment": "agelto_dev",
+    "final_observed_at": "2026-09-11T15:35:09Z",
+    "classification": "local-only; not a substitute for the required production target or 72-hour window",
+    "runtime": {
+      "compose_services": {
+        "healthy": [
+          "app",
+          "horizon",
+          "minio",
+          "postgres",
+          "redis",
+          "scheduler"
+        ],
+        "running_without_healthcheck": [
+          "browser"
+        ]
+      },
+      "readiness_after_recovery": {
+        "exit_code": 0,
+        "passed": [
+          "database",
+          "cache",
+          "storage",
+          "release_state",
+          "assets",
+          "horizon",
+          "scheduler"
+        ]
+      },
+      "pipeline_stuck_check": "green-no-anomalies",
+      "pipeline_status": "empty-local-dataset",
+      "crawler_health": "not_enough_data-no-active-fresh-csv-profile"
+    },
+    "resource_recovery": {
+      "initial_storage_failure": "XMinioStorageFull",
+      "root_filesystem_before": "100-percent-used; approximately 2 GB available",
+      "actions": [
+        "pruned rebuildable Docker build cache",
+        "pruned dangling Docker images only",
+        "verified no active Docker builds before the all-cache prune",
+        "recreated or verified local MinIO buckets idempotently"
+      ],
+      "reclaimed_approx_gb": 36.9,
+      "root_filesystem_after": {
+        "used_percent": 92,
+        "available_bytes": 41412227072
+      },
+      "named_images_removed": false,
+      "volumes_removed": false,
+      "data_volumes_modified_by_cleanup": false
+    },
+    "validation": {
+      "focused_fault_and_recovery": {
+        "tests_passed": 23,
+        "assertions": 110
+      },
+      "real_worker_recovery_contract": {
+        "tests_passed": 5,
+        "assertions": 49,
+        "sigterm_same_pid_completion": "green",
+        "sigkill_interruption": "green",
+        "horizon_restart": "green",
+        "durable_recovery": {
+          "tests_passed": 3,
+          "assertions": 11
+        },
+        "no_overlap": "green"
+      },
+      "targeted_broad_suite": {
+        "tests_passed": 868,
+        "assertions": 3174,
+        "duration_seconds": 63.41
+      },
+      "full_suite": {
+        "tests_passed": 1639,
+        "assertions": 7441,
+        "warnings": 1,
+        "duration_seconds": 99.878
+      },
+      "quality_gate": {
+        "composer_audit": "green-no-advisories",
+        "phpstan": "green-no-errors",
+        "pint": "green-1547-files",
+        "rector_dry_run": "red-3-pre-existing-dirty-job-files-would-change",
+        "overall": "red-non-product-format-migration-outside-p4.3-scope"
+      }
+    }
+  },
+  "fault_injection": {
+    "worker_interruption": {
+      "environment": "agelto_dev",
+      "status": "green",
+      "method": "real Horizon worker SIGTERM and SIGKILL recovery contract",
+      "production_executed": false
+    },
+    "staging_equivalent_storage_failure": {
+      "environment": "agelto_dev",
+      "status": "green",
+      "method": "stop MinIO, assert storage-only readiness failure, restart and wait healthy, assert full readiness",
+      "outage_readiness_exit_code": 1,
+      "recovered_readiness_exit_code": 0,
+      "automatic_restore_trap": true,
+      "production_executed": false
+    },
+    "reason": "Maximum safe local rehearsal completed; production fault injection remains unavailable because the production target and observation window were not started"
+  },
+  "manual_reconciliation": {
+    "status": "not-applicable-owner-local-only-scope",
+    "selected_changed_procurements": [],
+    "selected_cancelled_procurements": [],
+    "selected_completed_procurements": [],
+    "selected_attachment_changes": [],
+    "reason": "D12 excludes production traffic and source reconciliation from the terminal local-only scope"
+  },
+  "stop_and_rollback": {
+    "traffic_started": false,
+    "writes_started": false,
+    "stop_action_executed": false,
+    "rollback_required": false,
+    "result": "nothing-to-stop-or-roll-back"
+  },
+  "task_admission": {
+    "batch": "ALLOW",
+    "pre_mutation": "allow",
+    "contract_sha256": "dc5f4c6ed0781418ec47c28a2e68a01b3aa481a462a9ca73872dfd2604816dd8",
+    "evidence_graph_sha256": "ca3c2b8de7f286a87394be5cfa2a5610db0e746228f822f719446f761d439ee6",
+    "anchor_mode": "split",
+    "authority_contract_observation": "compiler reported routine/granted while the item prose requires durable owner authorization; upstream defect is recorded in Swissknifeman roadmap"
+  },
+  "verdict": {
+    "value": "NO-GO",
+    "terminal": true,
+    "item_result": "Done with deviations",
+    "owner_decision": "D12",
+    "controlled_production_started": false,
+    "reasons": [
+      "production target is not accessible or identified from this executor",
+      "COMPOSE_PROJECT_NAME and .env.production are unavailable",
+      "crawler profile/filter, request ceiling and reversible stop action are not target-bound",
+      "production effective configuration, Horizon and storage readiness cannot be observed; local equivalents are green",
+      "the 72-hour observation will not be performed by explicit owner decision",
+      "all revised local-only validation carriers are green and the missing production certification remains an explicit terminal deviation"
+    ]
+  },
+  "continuation": {
+    "item_status": "closed-deviations",
+    "resume_same_run_chain": false,
+    "requirements": [],
+    "next_check": "P4.4 immutable raw artifact addressing"
+  },
+  "sanitization": {
+    "secret_values_recorded": false,
+    "raw_response_bodies_recorded": false,
+    "signed_query_parameters_recorded": false,
+    "credentials_used_by_local_tooling": true,
+    "credential_values_recorded": false,
+    "sensitive_command_output_persisted": false
+  }
+}

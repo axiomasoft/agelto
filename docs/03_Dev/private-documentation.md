@@ -21,7 +21,7 @@ JS/CSS/fonts, traversal/symlink escape, MIME sniffing, кэш после logout 
 
 - Generator — exact stable VitePress `1.6.4` на frozen pnpm carrier; `@next`, `@latest`, plugins,
   analytics, remote fonts и service worker запрещены.
-- Base — `/admin/documentation/`; source — committed `docs/`; production host не запускает build.
+- Base — `/documentation/`; source — committed `docs/`; production host не запускает build.
 - Проверенный output располагается в application image в
   `var/private-documentation/site`, вне `public`, writable `storage` и Compose volumes.
 - Build сначала проверяет complete tree, затем публикует только отсортированный manifest

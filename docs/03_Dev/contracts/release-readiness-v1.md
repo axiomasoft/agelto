@@ -1,3 +1,9 @@
+---
+audience: dev
+type: reference
+status: living
+---
+
 # Release Readiness Contract v1
 
 Status: frozen for P1–P12 implementation; D60 remains an explicit owner gate before P12.3/P12.7.

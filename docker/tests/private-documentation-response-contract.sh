@@ -31,10 +31,10 @@ test_database=$(sed -n 's/.*<env name="DB_DATABASE" value="\([a-z0-9_]*\)".*/\1/
     app/Services/Documentation \
     app/Http/Controllers/Documentation
 
-route_json=$("${compose[@]}" exec -T app php artisan route:list --path=admin/documentation --json)
+route_json=$("${compose[@]}" exec -T app php artisan route:list --path=documentation --json)
 printf '%s' "$route_json" | php -r '$routes = json_decode(stream_get_contents(STDIN), true, flags: JSON_THROW_ON_ERROR); exit(count($routes) === 1 && ($routes[0]["method"] ?? null) === "GET|HEAD" && ($routes[0]["action"] ?? null) === "App\\Http\\Controllers\\Documentation\\PrivateDocumentationController" ? 0 : 1);'
 [[ $(grep -Fc 'response()->file(' "$root_dir/app/Http/Controllers/Documentation/PrivateDocumentationController.php") -eq 1 ]]
-grep -F 'location ^~ /admin/documentation {' "$root_dir/docker/nginx/default.conf" >/dev/null
+grep -F 'location ^~ /documentation {' "$root_dir/docker/nginx/default.conf" >/dev/null
 grep -F 'fastcgi_param SCRIPT_FILENAME $realpath_root/index.php;' "$root_dir/docker/nginx/default.conf" >/dev/null
 ! rg -n 'Storage::|storage_path\(|public_path\(|X-Accel-Redirect' \
     "$root_dir/app/Http/Controllers/Documentation/PrivateDocumentationController.php" \

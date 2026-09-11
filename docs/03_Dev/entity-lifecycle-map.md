@@ -26,6 +26,24 @@ status: living
 | `Document` | `prc_documents` | `DocumentStoreRepository::create()` (`app/Repositories/Procurement/DocumentStoreRepository.php:35`), вызывается из `DocumentIndexer` со статусом `DocumentStatus::Discovered` (`app/Services/Procurement/DocumentIndexer.php:71`) | `update()` (`DocumentStoreRepository.php:43`) — статус документа далее ведёт guarded pipeline-FSM, см. Д1 (`document-pipeline.md`), здесь не пересказывается |
 | `DocumentVersion` | `prc_document_versions` | `createVersion()` (`DocumentStoreRepository.php:81`), вызывается из `DocumentDownloader::download()` (`app/Services/Procurement/DocumentDownloader.php:59`) | **immutable, content-addressed** — дедуп по `content_hash`, `unique(document_id, content_hash)`; `updateVersion()` в репозитории существует, но `DocumentDownloader` его не вызывает — новый контент всегда идёт через `createVersion()`, не через мутацию существующей строки |
 
+Список platform attachments сверяется с `prc_documents` только при `DocumentsSnapshot=complete`.
+`incomplete` и `failed` не дают права помечать записи удалёнными. Archive child определяется
+явной связью `prc_document_versions.parent_version_id`, поэтому не может быть удалён как
+отсутствующее вложение карточки.
+
+`prc_eis_details`, `prc_financing`, `prc_items` и `prc_procurement_parties` — одна current
+projection вкладки common-info. `CommonInfoSnapshot=complete` обновляет их одной transaction;
+`incomplete` и `failed` не меняют ни одну из этих поверхностей. Items сверяются по
+`(procurement_id, position_number)`, стороны — по `(procurement_id, organization_id, role)` после
+organization resolution; отсутствующий customer обнуляет denormalized `customer_org_id`.
+
+`PipelineRecoveryReconciler` — единственный владелец AI retry и lost-continuation recovery:
+он выбирает только active `DocumentVersion` + незавершённый `AnalysisRun`, атомарно claim-ит
+`pending`/retryable `running` analysis с наступившим backoff и ставит следующий job. Очередь не
+является источником истины. `Prepared` продолжает только screening при включённом флаге, а
+`Screened` — extraction только при сохранённом `decision.extract` с
+`extraction_dispatched=true`; retain/review/ignore и permanent failures не диспатчатся.
+
 ## 2. Повтор / новая ревизия закупки / новая версия документа
 
 Две оси дедупликации **независимы** — `snapshot_hash` (карточка закупки) ⟂ `content_hash` (файл
@@ -36,13 +54,21 @@ status: living
 `verified:✅` — `app/Services/Procurement/DocumentDownloader.php:35-80` (docblock-инвариант `:18-24`).
 
 - Критерий: изменились **байты файла**. `$hash = hash('sha256', $content)` (`:49`).
-- Совпал `content_hash` (`findVersionByHash()`, `:51-55`) → **no-op**: возвращается существующая
-  `DocumentVersion`, новая запись не создаётся.
+- Совпал `content_hash` (`findVersionByHash()`) → новая запись не создаётся; при revalidation
+  обновляется время последнего подтверждения bytes, а текущий pipeline status сохраняется.
 - Новый хэш → `createVersion()` (`:59-68`) + `prc_documents.status = Downloaded` (`:70`) + событие:
   - `ProcurementEventType::DocumentAdded` — если это первая версия документа (`$isFirstVersion`,
     `countVersions() === 0`, `:57`);
   - `ProcurementEventType::DocumentReplaced` — если версия не первая.
   - Оба случая пишутся одним вызовом `storeEvent()` (`:72-77`), тернарник по `$isFirstVersion`.
+
+Повторный production-вызов обеспечивает `DocumentRevalidationSelector`: revision-trigger
+диспатчится после индексации карточки, а low-rate страховка каждые шесть часов выбирает ограниченную
+пачку давно не проверявшихся версий. `RevalidateDocumentJob` использует общий lease/error block и
+тот же `DocumentDownloader`; removal, future backoff и permanent failure остаются гейтами.
+Owner-authorized P4.1 дал `insufficient_evidence` из-за трёх последовательных timeout ЕИС, поэтому
+D8 исполнен fail-closed: revalidation обязательна, а публичной гарантии immutable bytes при одном
+`uid` по-прежнему нет.
 
 ### 2.2 Новая ревизия закупки — `storeRevision()` / `updateProcurementHead()`
 

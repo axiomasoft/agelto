@@ -10,6 +10,11 @@ Route::get('/', function () {
     return view('welcome');
 });
 
+Route::match(['GET', 'HEAD'], 'documentation/{path?}', PrivateDocumentationController::class)
+    ->where('path', '.*')
+    ->middleware('auth')
+    ->name('documentation.show');
+
 Route::match(['GET', 'HEAD'], 'admin/documentation/{path?}', PrivateDocumentationController::class)
     ->where('path', '.*')
     ->middleware('auth')

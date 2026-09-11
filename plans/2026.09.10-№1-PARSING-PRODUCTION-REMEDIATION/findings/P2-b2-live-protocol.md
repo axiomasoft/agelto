@@ -1,0 +1,133 @@
+# P2.3 — B2 live-verification protocol
+
+Дата фиксации: 2026-09-11
+Решение: D8 (supersedes D4), evidence ownership: D11
+Статус: условный контракт; live traffic и remediation принадлежат только P4.1
+
+## Установленный локальный факт
+
+`DocumentIndexer` для уже известного ЕИС `uid` обновляет `title`, `kind` и `source_url`, но не
+сбрасывает pipeline status. `DetailAnalysisProcessor` автоматически передаёт downloader только
+активные документы со статусом `Discovered`. Поэтому два прямых вызова `DocumentDownloader` с
+разными bytes доказывают content-addressed создание `DocumentVersion`, но не доказывают, что
+production orchestration выполнит второй вызов для прежнего `uid`.
+
+Публичного контракта неизменности bytes при одном `uid` в проверенном official source set не
+найдено (`findings/00-source-synthesis.md`, пункт 7). Это означает `unknown`, а не доказательство
+изменяемости или неизменности.
+
+## Owner gate и live scope
+
+P2.3 не разрешает сетевые запросы. До первого запроса P4.1 обязан получить и digest-bind два
+carrier-файла: `artifacts/P4-live-authorization.json` и `artifacts/P4-live-scope.json`. Scope
+фиксирует registry/procurements, временное окно, request ceiling и rate. Live-команды используют
+production HTTP boundary только через `ProxyResolver`, `PlatformRequestBudget` и `SourceTlsTrust`;
+shell loop, `curl`, `verify => false` и запросы вне разрешённого scope запрещены.
+
+Собираются все доступные replacement pairs внутри утверждённого scope. Для каждой пары нужны:
+
+- `registry_number`, timestamps предыдущей и следующей revision;
+- для обеих сторон: ЕИС `uid`, sanitized URL, title, response validators (`ETag`,
+  `Last-Modified`), SHA-256 bytes и collection timestamp;
+- provenance запроса и evidence ID, достаточные для связи с raw capture.
+
+Sanitized URL сохраняет публичные scheme/host/path и необходимый `uid`, но исключает credentials,
+signed query parameters и tokens. Тела документов, credentials и secrets не коммитятся.
+
+## Детерминированный reducer D8
+
+Ветки проверяются в таком порядке:
+
+1. Если хотя бы одна replacement pair имеет одинаковый `uid` и разные byte hashes, branch =
+   `same_uid_different_hash`, `revalidation_required=true`.
+2. Иначе, если есть пригодный набор наблюдённых replacement pairs и у каждой пары replacement
+   меняет `uid`, branch = `changed_uid_observed`, `revalidation_required=false`. Это разрешает
+   только bounded pilot defer с явной оговоркой и не является универсальной гарантией ЕИС.
+3. Иначе branch = `insufficient_evidence`, `revalidation_required=true`. В эту ветвь входят
+   отсутствие replacements, неполные пары, недоступные bytes/validators или выборка, которой
+   недостаточно для pilot verdict.
+
+Ветки `same_uid_different_hash` и `insufficient_evidence` закрываются только после реализации и
+зелёной end-to-end проверки bounded revalidation: revision-trigger плюс low-rate due policy,
+respect removal/backoff/lease и передача новых bytes в обычный version lifecycle. Правило
+`нет counterexample → immutable` запрещено.
+
+## Стабильные machine carriers P4.1
+
+`artifacts/P4-a1-live-verification.json` содержит ровно стабильные top-level keys:
+
+```json
+{
+  "schema_version": "p4-a1-live-verification/v1",
+  "git_anchor": "<40-or-64-hex>",
+  "authority_sha256": "<64-hex>",
+  "scope_sha256": "<64-hex>",
+  "requests": [],
+  "pages": [],
+  "boundary_days": [],
+  "stop_reasons": [],
+  "verdict": "<typed verdict>",
+  "evidence_ids": []
+}
+```
+
+`artifacts/P4-b2-live-verification.json` содержит ровно стабильные top-level keys:
+
+```json
+{
+  "schema_version": "p4-b2-live-verification/v1",
+  "git_anchor": "<40-or-64-hex>",
+  "authority_sha256": "<64-hex>",
+  "scope_sha256": "<64-hex>",
+  "pairs": [
+    {
+      "evidence_id": "<stable id>",
+      "registry_number": "<registry number>",
+      "revision_before_at": "<ISO-8601>",
+      "revision_after_at": "<ISO-8601>",
+      "before": {
+        "uid": "<uid>",
+        "url": "<sanitized URL>",
+        "title": "<title>",
+        "validators": {"etag": null, "last_modified": null},
+        "byte_sha256": "<64-hex>",
+        "collected_at": "<ISO-8601>",
+        "provenance": "<raw evidence ref>"
+      },
+      "after": {
+        "uid": "<uid>",
+        "url": "<sanitized URL>",
+        "title": "<title>",
+        "validators": {"etag": null, "last_modified": null},
+        "byte_sha256": "<64-hex>",
+        "collected_at": "<ISO-8601>",
+        "provenance": "<raw evidence ref>"
+      }
+    }
+  ],
+  "branch": "insufficient_evidence",
+  "revalidation_required": true,
+  "revalidation_validation": [],
+  "verdict": "<typed verdict with pilot limitation>",
+  "evidence_ids": []
+}
+```
+
+`branch` принимает только одно из трёх перечисленных значений. `evidence_ids` непустой, каждый ID
+разрешается в сохранённый raw capture. `revalidation_validation` непустой для ветвей с
+`revalidation_required=true` и фиксирует green end-to-end evidence. `authority_sha256` и
+`scope_sha256` равны SHA-256 точных предшествующих carrier bytes; `git_anchor` фиксирует
+проверяемый product code.
+
+## Evidence layers и закрытие
+
+Raw command output живёт только в `artifacts/`. Нормализованные факты без интерпретации живут в
+`findings/P4-a1-live-verification.md` и `findings/P4-b2-live-verification.md`; каждый finding
+содержит SHA-256 своего machine artifact. Итоговая интерпретация живёт в
+`research/P4-live-verdict.md` и содержит SHA-256 обоих findings. Таким образом цепочка всегда
+направлена `artifacts → findings → research`, а обратная ссылка не подменяет digest binding.
+
+P4.1 terminal только когда authority/scope bindings и request counts записаны, каждая B2 pair
+классифицирована, reducer дал одну ветвь и branch-specific validation зелёная. Затем P4.2 читает
+carriers offline и независимо принимает результат. Controlled production до terminal P4.1 и GREEN
+P4.2 запрещена.

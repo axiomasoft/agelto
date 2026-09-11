@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services\Procurement\Modes;
 
 use App\Dto\Procurement\Crawler\ListingCursor;
+use App\Dto\Procurement\Crawler\RecoveryScope;
 use App\Dto\Procurement\Crawler\WindowFilter;
 use App\Enums\Procurement\Crawler\ArchiveWindowScanResult;
 use App\Enums\Procurement\Crawler\CrawlerMode;
@@ -107,6 +108,22 @@ final readonly class BacklogRescanProcessor
             return false;
         }
 
+        $freshCursor = ListingCursor::fromArray(cursor: $freshRun->cursor?->toArray() ?? []);
+
+        if ($freshCursor->recoveryScope === null) {
+            Log::warning(
+                message: 'BacklogRescanProcessor: fresh run has no persisted recovery scope, skipping.',
+                context: ['fresh_run_id' => $freshRun->id, 'crawler_id' => $crawler->id],
+            );
+
+            return false;
+        }
+
+        $recoveryScope = RecoveryScope::fromPersistedFreshCrawler(
+            crawler: $crawler,
+            payload: $freshCursor->recoveryScope,
+        );
+
         try {
             $archiveRun = $this->runs->startOrResume(
                 crawler: $archiveCrawler,
@@ -117,8 +134,37 @@ final readonly class BacklogRescanProcessor
             return false;
         }
 
+        if (! $this->runs->acquireExecutionLease(run: $archiveRun)) {
+            return false;
+        }
+
         try {
-            $result = $this->drainWindow(crawler: $archiveCrawler, run: $archiveRun, from: Carbon::parse($from), to: Carbon::parse($to));
+            $result = $this->drainWindow(
+                crawler: $archiveCrawler,
+                run: $archiveRun,
+                from: Carbon::parse($from),
+                to: Carbon::parse($to),
+                recoveryScope: $recoveryScope,
+            );
+
+            if ($result !== ArchiveWindowScanResult::Drained) {
+                return false;
+            }
+
+            // Кооперативный стоп мог оборвать drainWindow() между днями (P3.7, D111): архивный
+            // прогон тогда носит Paused/Cancelled, а не Running — рескан не считается завершённым,
+            // fresh-прогон НЕ помечается rescanned, иначе потерянное окно станет невидимым навсегда.
+            if ($archiveRun->refresh()->status !== RunStatus::Running) {
+                return false;
+            }
+
+            if (! $this->runs->complete(run: $archiveRun)) {
+                return false;
+            }
+
+            $this->runs->markBacklogRescanned(run: $freshRun);
+
+            return true;
         } catch (Throwable $exception) {
             $this->runs->fail(run: $archiveRun, error: $exception->getMessage());
 
@@ -128,26 +174,12 @@ final readonly class BacklogRescanProcessor
             );
 
             return false;
+        } finally {
+            $this->runs->releaseExecutionLease(run: $archiveRun);
         }
-
-        if ($result !== ArchiveWindowScanResult::Drained) {
-            return false;
-        }
-
-        // Кооперативный стоп мог оборвать drainWindow() между днями (P3.7, D111): архивный
-        // прогон тогда носит Paused/Cancelled, а не Running — рескан не считается завершённым,
-        // fresh-прогон НЕ помечается rescanned, иначе потерянное окно станет невидимым навсегда.
-        if ($archiveRun->refresh()->status !== RunStatus::Running) {
-            return false;
-        }
-
-        $this->runs->complete(run: $archiveRun);
-        $this->runs->markBacklogRescanned(run: $freshRun);
-
-        return true;
     }
 
-    private function drainWindow(Crawler $crawler, Run $run, Carbon $from, Carbon $to): ArchiveWindowScanResult
+    private function drainWindow(Crawler $crawler, Run $run, Carbon $from, Carbon $to, RecoveryScope $recoveryScope): ArchiveWindowScanResult
     {
         $overlapDays = config('crawler.tracking.window_overlap_days');
 
@@ -161,10 +193,17 @@ final readonly class BacklogRescanProcessor
             ? []
             : $this->stringKeyedArray(values: $run->cursor->toArray());
         $cursor = ListingCursor::fromArray(cursor: $cursorAttributes);
+        $recoveryScope = $cursor->recoveryScope === null
+            ? $recoveryScope
+            : RecoveryScope::fromArray($cursor->recoveryScope);
         $day = $cursor->day !== null ? Carbon::parse($cursor->day) : $overlappedFrom->copy();
 
         if ($cursor->day === null) {
-            $this->runs->updateCursor(run: $run, cursor: new ListingCursor(blockFrom: 1, day: $day->toDateString()));
+            $this->runs->updateCursor(run: $run, cursor: new ListingCursor(
+                blockFrom: 1,
+                day: $day->toDateString(),
+                recoveryScope: $recoveryScope->toArray(),
+            ));
         }
 
         Log::info(
@@ -190,14 +229,18 @@ final readonly class BacklogRescanProcessor
                 dateField: 'update',
                 dateFrom: $day->copy(),
                 dateTo: $day->copy(),
-            ));
+            ), recoveryScope: $recoveryScope);
 
             if ($result !== ArchiveWindowScanResult::Drained) {
                 return $result;
             }
 
             $day = $day->copy()->addDay();
-            $this->runs->updateCursor(run: $run, cursor: new ListingCursor(blockFrom: 1, day: $day->toDateString()));
+            $this->runs->updateCursor(run: $run, cursor: new ListingCursor(
+                blockFrom: 1,
+                day: $day->toDateString(),
+                recoveryScope: $recoveryScope->toArray(),
+            ));
         }
 
         return ArchiveWindowScanResult::Drained;

@@ -4,12 +4,11 @@ declare(strict_types=1);
 
 namespace App\Services\Procurement;
 
+use App\Actions\Procurement\Document\FinalizeDocumentDownloadAction;
 use App\Dto\Procurement\Crawler\StageSettings;
 use App\Dto\Procurement\Proxy\ProxyLease;
 use App\Dto\Procurement\Proxy\ProxyOutcome;
 use App\Enums\Procurement\Crawler\CrawlStage;
-use App\Enums\Procurement\Document\DocumentStatus;
-use App\Enums\Procurement\ProcurementEventType;
 use App\Enums\Procurement\Proxy\ProxyFailureReason;
 use App\Enums\Procurement\Proxy\ProxyScope;
 use App\Exceptions\Procurement\Crawler\PlatformBudgetExhaustedException;
@@ -17,7 +16,6 @@ use App\Models\Procurement\Document\Document;
 use App\Models\Procurement\Document\DocumentVersion;
 use App\Models\Procurement\Platform\Platform;
 use App\Repositories\Procurement\Document\DocumentStoreRepository;
-use App\Repositories\Procurement\ProcurementStoreRepository;
 use App\Services\Procurement\Proxy\ProxyBindingResolver;
 use App\Services\Procurement\Proxy\ProxyResolver;
 use App\Services\Storage\FileLocationResolver;
@@ -44,7 +42,7 @@ final readonly class DocumentDownloader
         private PlatformRequestBudget $requestBudget,
         private CrawlSettingsResolver $crawlSettings,
         private DocumentStoreRepository $storeRepository,
-        private ProcurementStoreRepository $procurementStore,
+        private FinalizeDocumentDownloadAction $finalizeDownload,
         private FileLocationResolver $locationResolver,
         private SourceTlsTrust $tlsTrust,
         private OperationLogWriter $operationLogs,
@@ -74,38 +72,21 @@ final readonly class DocumentDownloader
 
         $hash = hash('sha256', $content);
 
-        $existing = $this->storeRepository->findVersionByHash(documentId: $document->id, contentHash: $hash);
-
-        if ($existing !== null) {
-            return $existing;
-        }
-
-        $isFirstVersion = $this->storeRepository->countVersions($document->id) === 0;
-
         $disk = $this->locationResolver->currentDocumentsDisk();
 
-        $version = $this->storeRepository->createVersion([
+        $storagePath = $this->store(disk: $disk, hash: $hash, content: $content);
+
+        return $this->finalizeDownload->execute($document, [
             'document_id' => $document->id,
             'content_hash' => $hash,
             'size_bytes' => strlen($content),
             'filename' => $this->filenameFrom($document),
             'extension' => $this->extensionFrom($document),
             'mime' => $this->mimeFrom($content),
-            'storage_path' => $this->store(disk: $disk, hash: $hash, content: $content),
+            'storage_path' => $storagePath,
             'disk' => $disk,
             'downloaded_at' => now(),
         ]);
-
-        $this->storeRepository->update($document, ['status' => DocumentStatus::Downloaded]);
-
-        $this->procurementStore->storeEvent(
-            procurementId: $procurementId,
-            eventType: $isFirstVersion ? ProcurementEventType::DocumentAdded : ProcurementEventType::DocumentReplaced,
-            occurredAt: now(),
-            entityRef: ['document_id' => $document->id, 'document_version_id' => $version->id],
-        );
-
-        return $version;
     }
 
     private function fetch(Document $document): string
@@ -230,8 +211,18 @@ final readonly class DocumentDownloader
     {
         $path = 'documents/'.substr($hash, 0, 2)."/{$hash}";
 
-        if (! Storage::disk($disk)->exists($path)) {
-            Storage::disk($disk)->put($path, $content);
+        $storage = Storage::disk($disk);
+
+        $alreadyStored = $storage->exists($path);
+
+        if (! $alreadyStored && $storage->put($path, $content) !== true) {
+            throw new \RuntimeException("Не удалось сохранить документ в object storage: {$path}");
+        }
+
+        $stored = $alreadyStored ? $storage->get($path) : $content;
+
+        if (! is_string($stored) || ! hash_equals($hash, hash('sha256', $stored))) {
+            throw new \RuntimeException("Object storage вернул неполный или другой документ: {$path}");
         }
 
         return $path;

@@ -3,7 +3,9 @@
 use App\Enums\Procurement\Crawler\CrawlerMode;
 use App\Models\Procurement\Crawler\Crawler;
 use App\Services\Health\ApplicationReadiness;
+use App\Services\Procurement\DocumentRevalidationSelector;
 use App\Services\Procurement\PipelineDispatcher;
+use App\Services\Procurement\PipelineRecoveryReconciler;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Schedule;
@@ -32,7 +34,10 @@ if (Schema::hasTable('prc_procurements')) {
 
 // Тот же schema-guard (см. выше) — sweep читает `prc_crawler_runs.stats->cap_hit`.
 if (Schema::hasTable('prc_crawler_runs')) {
-    Schedule::command('crawler:rescan-backlog')->everyFifteenMinutes();
+    Schedule::command('crawler:rescan-backlog')
+        ->name('crawler:rescan-backlog')
+        ->everyFifteenMinutes()
+        ->withoutOverlapping();
 }
 
 // Тот же schema-guard (см. выше) — подъём зависших running-прогонов (P3.2, D28): павший
@@ -54,18 +59,29 @@ if (config('crawler.health.enabled') && Schema::hasTable('prc_platform_checks'))
 // `research/05-change-tracking.md` §2.2); выключен по умолчанию — включает владелец
 // после боевого прогона P4.7 (как и fresh-профиль, D37).
 if (Schema::hasTable('prc_crawlers') && config('crawler.tracking.delta_scan_enabled')) {
-    Schedule::command('crawler:run-delta')->cron((string) config('crawler.tracking.delta_scan_cron'));
+    Schedule::command('crawler:run-delta')
+        ->name('crawler:run-delta')
+        ->cron((string) config('crawler.tracking.delta_scan_cron'))
+        ->withoutOverlapping();
 }
 
 // Тот же schema-guard (см. выше) — мост подготовки документов (P4.3, ТЗ 03 §4). Поллер —
 // страховка (research/L finding 12): прямой dispatch() уже происходит сразу после downloaded
 // из `crawler:fetch-details`; этот тик добирает пропущенное/несработавшее по ВСЕМ закупкам.
 if (Schema::hasTable('prc_documents')) {
+    Schedule::call(function (DocumentRevalidationSelector $selector): void {
+        $selector->dispatchDue(limit: (int) config('crawler.documents_revalidation_batch_limit', 25));
+    })->name('documents:revalidate-due')->cron('17 */6 * * *')->withoutOverlapping();
+
     Schedule::call(function (PipelineDispatcher $dispatcher): void {
         $dispatcher->dispatchBacklog(limit: (int) config('ai.pipeline.backlog_batch_limit', 100));
     })->name('pipeline:dispatch-backlog')->everyMinute()->withoutOverlapping();
 
     Schedule::command('pipeline:retry-failed')->everyTenMinutes()->withoutOverlapping();
+
+    Schedule::call(function (PipelineRecoveryReconciler $reconciler): void {
+        $reconciler->reconcile(limit: (int) config('ai.pipeline.retry_batch_limit', 50));
+    })->name('pipeline:recover-continuations')->everyMinute()->withoutOverlapping();
 
     // Наблюдаемость пайплайна (P7.3, ТЗ 03 §5, v1-канон HEARTBEAT 15м) — read-only, только
     // сигналит (антиспам-агрегация — `PipelineAlert`).

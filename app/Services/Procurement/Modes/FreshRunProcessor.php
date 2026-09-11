@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace App\Services\Procurement\Modes;
 
+use App\Dto\Procurement\Crawler\FetchResult;
 use App\Dto\Procurement\Crawler\ListingCursor;
+use App\Dto\Procurement\Crawler\RecoveryScope;
 use App\Enums\Procurement\Crawler\RunPurpose;
 use App\Enums\Procurement\Crawler\RunStopKind;
 use App\Enums\Procurement\Crawler\RunStopPolicy;
@@ -39,10 +41,24 @@ final readonly class FreshRunProcessor
     public function run(Crawler $crawler): Run
     {
         $run = $this->runs->startOrResume(crawler: $crawler, purpose: RunPurpose::Profile, subjectKey: null);
+        $cursor = ListingCursor::fromArray(cursor: $run->cursor?->toArray() ?? []);
+
+        if ($cursor->recoveryScope === null) {
+            // New runs snapshot the subject before their first request. A pre-carrier running
+            // run can only fall back to the currently validated profile, so persist that choice
+            // before it resumes instead of letting a later backlog sweep read mutable settings.
+            $cursor = $cursor->withRecoveryScope(RecoveryScope::fromFreshCrawler(crawler: $crawler));
+
+            if (! $this->runs->updateCursor(run: $run, cursor: $cursor)) {
+                throw new \RuntimeException('Unable to persist the fresh run recovery scope.');
+            }
+        } else {
+            RecoveryScope::fromPersistedFreshCrawler(crawler: $crawler, payload: $cursor->recoveryScope);
+        }
+
         $previousCompletedRun = $this->runs->lastCompletedRun(crawler: $crawler, excludeRunId: $run->id);
         $this->runs->recordScanGap(run: $run, previousCompletedRun: $previousCompletedRun);
 
-        $cursor = ListingCursor::fromArray(cursor: $run->cursor?->toArray() ?? []);
         $blockSize = $this->integerConfig(key: 'crawler.eis.block_size', default: 500);
         $maxBlocks = $this->integerConfig(key: 'crawler.fresh_max_blocks', default: 40);
         $checkpointSeconds = $this->integerConfig(key: 'crawler.run.checkpoint_seconds', default: 240);
@@ -94,8 +110,8 @@ final readonly class FreshRunProcessor
                     return $run;
                 }
 
-                if ($this->reachedPreviousRun(threshold: $onlyFreshThreshold, oldestUpdateSeen: $fetchResult->oldestUpdateSeen)) {
-                    $this->markStopReason(run: $run, reason: 'reached_previous_run', stopThresholdAt: $onlyFreshThreshold);
+                if ($this->reachedPreviousRun(threshold: $onlyFreshThreshold, fetchResult: $fetchResult)) {
+                    $this->markStopReason(run: $run, reason: 'reached_previous_run', stopThresholdAt: $onlyFreshThreshold, oldestUpdateSeen: $fetchResult->oldestUpdateSeen, oldestUpdateSeenHasDayPrecision: $fetchResult->oldestUpdateSeenHasDayPrecision);
 
                     $cursor = $cursor->withReachedKnown();
                     $this->runs->updateCursor(run: $run, cursor: $cursor);
@@ -104,8 +120,8 @@ final readonly class FreshRunProcessor
                     return $run;
                 }
 
-                if ($fetchResult->rowsNew === 0 && $fetchResult->rowsUpdated === 0) {
-                    $this->markStopReason(run: $run, reason: 'no_new_or_updated_rows');
+                if ($fetchResult->rowsTotal === 0) {
+                    $this->markStopReason(run: $run, reason: 'source_exhausted');
 
                     $cursor = $cursor->withReachedKnown();
                     $this->runs->updateCursor(run: $run, cursor: $cursor);
@@ -132,7 +148,8 @@ final readonly class FreshRunProcessor
             message: 'FreshRunProcessor: hard cap reached without stop condition.',
             context: ['crawler_id' => $crawler->id, 'run_id' => $run->id, 'max_blocks' => $maxBlocks],
         );
-        $this->runs->complete(run: $run);
+        $this->markStopReason(run: $run, reason: 'fresh_max_blocks_checkpoint');
+        $this->runs->recordCheckpoint(run: $run);
 
         return $run;
     }
@@ -162,13 +179,17 @@ final readonly class FreshRunProcessor
     /**
      * Граничный случай «ровно на пороге» (Implementation Rule 5): НЕ ПОЗЖЕ порога = остановка.
      */
-    private function reachedPreviousRun(?Carbon $threshold, ?Carbon $oldestUpdateSeen): bool
+    private function reachedPreviousRun(?Carbon $threshold, FetchResult $fetchResult): bool
     {
-        if ($threshold === null || $oldestUpdateSeen === null) {
+        if ($threshold === null || $fetchResult->oldestUpdateSeen === null) {
             return false;
         }
 
-        return $oldestUpdateSeen->lte($threshold);
+        if (! $fetchResult->oldestUpdateSeenHasDayPrecision) {
+            return $fetchResult->oldestUpdateSeen->lte($threshold);
+        }
+
+        return $fetchResult->oldestUpdateSeen->toDateString() < $threshold->toDateString();
     }
 
     private function integerConfig(string $key, int $default): int
@@ -188,12 +209,19 @@ final readonly class FreshRunProcessor
      * ключи (`cap_hit`, `scan_gap_seconds`, `oldest_update_seen`). Мутирует модель В ПАМЯТИ —
      * персистится ближайшим `update()` (`updateCursor()`/`complete()`), второй записи не даёт.
      */
-    private function markStopReason(Run $run, string $reason, ?Carbon $stopThresholdAt = null): void
-    {
+    private function markStopReason(
+        Run $run,
+        string $reason,
+        ?Carbon $stopThresholdAt = null,
+        ?Carbon $oldestUpdateSeen = null,
+        bool $oldestUpdateSeenHasDayPrecision = false,
+    ): void {
         $stats = array_merge($run->stats?->toArray() ?? [], array_filter([
             'stop_reason' => $reason,
             'stop_threshold_at' => $stopThresholdAt?->toIso8601String(),
-        ], static fn (?string $value): bool => $value !== null));
+            'stop_oldest_update_seen' => $oldestUpdateSeen?->toIso8601String(),
+            'stop_oldest_update_seen_has_day_precision' => $oldestUpdateSeen === null ? null : $oldestUpdateSeenHasDayPrecision,
+        ], static fn (mixed $value): bool => $value !== null));
 
         $run->stats = collect($stats);
     }

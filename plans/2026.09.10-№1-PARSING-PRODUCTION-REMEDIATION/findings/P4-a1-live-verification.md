@@ -1,0 +1,28 @@
+# P4.1 — A1 live verification facts
+
+Дата: 2026-09-11
+Machine artifact: `artifacts/P4-a1-live-verification.json`
+Artifact SHA-256: `5d7f0b7046c8bbb235d95a4f9e02bd1b09018332f22ffe6512b5f572062e4f26`
+
+## Авторизация и границы
+
+- authority SHA-256: `c3b0a313b1d94b59e73ffa6e4ad8e4ccd57a3df40bbb5450d1a3630fd2a7d240`;
+- scope SHA-256: `c6d3cba75f4ca5e7d6b4c4eed44a64908354dc456f6ba1f3e7fa58492b1209cf`;
+- git anchor: `f60e98c25aa65e8ebf225e4681beca3e796a52b9`;
+- окно публикации: 2026-09-10 — 2026-09-11, максимум 3 страницы;
+- policy: общий A1+B2 ceiling 48, интервал не меньше 5000 ms, останов после трёх
+  последовательных transport errors.
+
+## Наблюдения
+
+- Первый диагностический invocation выполнил один запрос и завершился transport timeout до записи
+  artifact. Исправленный fail-closed invocation выполнил ещё три запроса; A1 израсходовал 4
+  авторизованных запроса в сумме.
+- Все три записанных запроса (`a1-request-001`…`003`) завершились `network_timeout`.
+- Stop reason: `three-consecutive-transport-errors`.
+- Полученных страниц и boundary rows нет; обе граничные даты классифицированы с `row_count=0`.
+- Machine verdict: `insufficient_live_boundary_evidence`; multi-page boundary не наблюдалась.
+- Тела ответов, credentials и URL/query evidence в artifact отсутствуют.
+
+Этот finding фиксирует только наблюдения. Интерпретация и связь с B2 находятся в
+`research/P4-live-verdict.md`.

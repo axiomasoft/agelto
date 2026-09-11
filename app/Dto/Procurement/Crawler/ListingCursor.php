@@ -17,6 +17,7 @@ final readonly class ListingCursor
     /**
      * @param  list<string>|null  $priceStack
      * @param  'publish'|'update'|null  $dateField
+     * @param  array{freshCrawlerId: int, filter: array<string, mixed>}|null  $recoveryScope
      */
     public function __construct(
         public int $blockFrom = 1,
@@ -26,10 +27,11 @@ final readonly class ListingCursor
         public ?string $dateField = null,
         public ?string $lastDedupSignature = null,
         public int $blocksInInterval = 0,
+        public ?array $recoveryScope = null,
     ) {}
 
     /**
-     * @return array{blockFrom: int, day: string|null, priceStack: list<string>|null, reachedKnown: bool, dateField: string|null, lastDedupSignature: string|null, blocksInInterval: int}
+     * @return array{blockFrom: int, day: string|null, priceStack: list<string>|null, reachedKnown: bool, dateField: string|null, lastDedupSignature: string|null, blocksInInterval: int, recoveryScope: array{freshCrawlerId: int, filter: array<string, mixed>}|null}
      */
     public function toArray(): array
     {
@@ -41,6 +43,7 @@ final readonly class ListingCursor
             'dateField' => $this->dateField,
             'lastDedupSignature' => $this->lastDedupSignature,
             'blocksInInterval' => $this->blocksInInterval,
+            'recoveryScope' => $this->recoveryScope,
         ];
     }
 
@@ -57,6 +60,7 @@ final readonly class ListingCursor
             dateField: self::dateField($cursor['dateField'] ?? null),
             lastDedupSignature: self::nullableString($cursor['lastDedupSignature'] ?? null, 'lastDedupSignature'),
             blocksInInterval: self::int($cursor['blocksInInterval'] ?? 0, 'blocksInInterval'),
+            recoveryScope: self::recoveryScope($cursor['recoveryScope'] ?? null),
         );
     }
 
@@ -112,6 +116,34 @@ final readonly class ListingCursor
         throw new \UnexpectedValueException('Listing cursor dateField must be publish, update, or null.');
     }
 
+    /** @return array{freshCrawlerId: int, filter: array<string, mixed>}|null */
+    private static function recoveryScope(mixed $value): ?array
+    {
+        if ($value === null) {
+            return null;
+        }
+
+        if (! is_array($value)) {
+            throw new \UnexpectedValueException('Listing cursor recoveryScope must be an object or null.');
+        }
+
+        return RecoveryScope::fromArray($value)->toArray();
+    }
+
+    public function withRecoveryScope(RecoveryScope $recoveryScope): self
+    {
+        return new self(
+            blockFrom: $this->blockFrom,
+            day: $this->day,
+            priceStack: $this->priceStack,
+            reachedKnown: $this->reachedKnown,
+            dateField: $this->dateField,
+            lastDedupSignature: $this->lastDedupSignature,
+            blocksInInterval: $this->blocksInInterval,
+            recoveryScope: $recoveryScope->toArray(),
+        );
+    }
+
     public function withReachedKnown(): self
     {
         return new self(
@@ -122,6 +154,7 @@ final readonly class ListingCursor
             dateField: $this->dateField,
             lastDedupSignature: $this->lastDedupSignature,
             blocksInInterval: $this->blocksInInterval,
+            recoveryScope: $this->recoveryScope,
         );
     }
 
@@ -135,6 +168,7 @@ final readonly class ListingCursor
             dateField: $this->dateField,
             lastDedupSignature: $dedupSignature,
             blocksInInterval: $this->blocksInInterval,
+            recoveryScope: $this->recoveryScope,
         );
     }
 }

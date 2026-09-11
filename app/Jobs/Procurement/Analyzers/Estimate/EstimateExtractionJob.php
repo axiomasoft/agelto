@@ -15,6 +15,7 @@ use App\Repositories\Procurement\Document\DocumentStoreRepository;
 use App\Services\Procurement\Ai\UsageSnapshotRecorder;
 use App\Services\Procurement\Analyzers\Estimate\ExtractionOrchestrator;
 use Illuminate\Contracts\Queue\ShouldBeUniqueUntilProcessing;
+use Illuminate\Queue\Attributes\Timeout;
 use RuntimeException;
 use Throwable;
 
@@ -30,6 +31,7 @@ use Throwable;
  * забравший продолжение раньше снятия лиза, проваливает `acquireLease()` и молча становится
  * no-op. Заменяет P5.2-заглушку (`Log::info`) целиком.
  */
+#[Timeout(300)]
 final class EstimateExtractionJob extends PipelineJob implements ShouldBeUniqueUntilProcessing
 {
     private ?Document $documentCache = null;
@@ -52,6 +54,11 @@ final class EstimateExtractionJob extends PipelineJob implements ShouldBeUniqueU
     public function pipelineUniqueId(): string
     {
         return "{$this->documentId}:extraction";
+    }
+
+    protected function operationBudgetStage(): string
+    {
+        return 'extraction';
     }
 
     /**
@@ -87,7 +94,12 @@ final class EstimateExtractionJob extends PipelineJob implements ShouldBeUniqueU
 
     protected function acquireLease(): bool
     {
-        return $this->analysis()->acquireLease(owner: self::class);
+        return app(AnalysisStoreRepository::class)->acquireExecutionLease(
+            analysis: $this->analysis(),
+            expectedStatus: DocumentStatus::Screened,
+            owner: self::class,
+            ttlSeconds: $this->leaseSeconds(),
+        );
     }
 
     protected function releaseLease(): void

@@ -23,7 +23,7 @@ final readonly class DocumentPreparer
         private MarkDocumentUnprocessableAction $markUnprocessable,
     ) {}
 
-    public function prepare(Document $document, DocumentVersion $version): PreparationResult
+    public function prepare(Document $document, DocumentVersion $version, ?float $deadlineAt = null): PreparationResult
     {
         $evidence = $this->inspector->inspect($version);
 
@@ -40,6 +40,10 @@ final readonly class DocumentPreparer
         /** @var PreparationStrategy $strategy */
         $strategy = $this->container->make($evidence->strategy);
 
-        return $strategy->process($document, $version);
+        if ($strategy instanceof ScanStrategy) {
+            return $strategy->process(document: $document, version: $version, deadlineAt: $deadlineAt);
+        }
+
+        return $strategy->process(document: $document, version: $version);
     }
 }

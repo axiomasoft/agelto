@@ -10,16 +10,33 @@ use App\Enums\Procurement\Crawler\RunStatus;
 use App\Exceptions\Procurement\Crawler\CrawlerRunBusyException;
 use App\Models\Procurement\Crawler\Crawler;
 use App\Models\Procurement\Crawler\Run;
+use Closure;
+use Illuminate\Contracts\Database\Query\Expression;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
+use RuntimeException;
+use WeakMap;
 
 /**
  * Жизненный цикл прогона: частичный unique-индекс БД сохраняет один `running`
  * на crawler, а purpose/subject_key определяют владельца его курсора.
  */
-final readonly class CrawlerRunManager
+final class CrawlerRunManager
 {
+    /**
+     * A processor-only capability. It is deliberately not persisted on the model,
+     * so loading the same run in another PHP process does not grant its lease.
+     *
+     * @var WeakMap<Run, string>|null
+     */
+    private static ?WeakMap $executionOwnerTokens = null;
+
+    // 600 seconds exceeds the 240-second checkpoint slice and renews after every archive block.
+    private const ExecutionLeaseSeconds = 600;
+
     public function startOrResume(Crawler $crawler, RunPurpose $purpose, ?string $subjectKey): Run
     {
         return DB::transaction(function () use ($crawler, $purpose, $subjectKey): Run {
@@ -45,21 +62,33 @@ final readonly class CrawlerRunManager
                 ->first();
 
             if ($paused !== null) {
-                $paused->update(['status' => RunStatus::Running, 'last_heartbeat_at' => now()]);
+                Run::query()->whereKey($paused->getKey())->update([
+                    'status' => RunStatus::Running,
+                    'last_heartbeat_at' => DB::raw('CURRENT_TIMESTAMP'),
+                ]);
 
-                return $paused;
+                return $paused->refresh();
             }
 
             try {
-                return DB::transaction(fn (): Run => Run::query()->create([
-                    'crawler_id' => $lockedCrawler->id,
-                    'status' => RunStatus::Running,
-                    'purpose' => $purpose,
-                    'subject_key' => $subjectKey,
-                    'cursor' => (new ListingCursor)->toArray(),
-                    'started_at' => now(),
-                    'last_heartbeat_at' => now(),
-                ]));
+                return DB::transaction(function () use ($lockedCrawler, $purpose, $subjectKey): Run {
+                    $run = Run::query()->create([
+                        'crawler_id' => $lockedCrawler->id,
+                        'status' => RunStatus::Running,
+                        'purpose' => $purpose,
+                        'subject_key' => $subjectKey,
+                        'cursor' => (new ListingCursor)->toArray(),
+                        'started_at' => now(),
+                        'last_heartbeat_at' => now(),
+                    ]);
+
+                    Run::query()->whereKey($run->getKey())->update([
+                        'started_at' => DB::raw('CURRENT_TIMESTAMP'),
+                        'last_heartbeat_at' => DB::raw('CURRENT_TIMESTAMP'),
+                    ]);
+
+                    return $run->refresh();
+                });
             } catch (UniqueConstraintViolationException) {
                 $winner = Run::query()
                     ->where('crawler_id', $lockedCrawler->id)
@@ -78,14 +107,105 @@ final readonly class CrawlerRunManager
         return $run->purpose === $purpose && $run->subject_key === $subjectKey;
     }
 
-    public function heartbeat(Run $run): void
+    public function acquireExecutionLease(Run $run): bool
     {
-        $run->update(['last_heartbeat_at' => now()]);
+        $token = (string) Str::uuid();
+
+        $acquired = Run::query()
+            ->whereKey($run->getKey())
+            ->where('status', RunStatus::Running)
+            ->where(function (Builder $query): void {
+                $query
+                    ->whereNull('execution_owner_token')
+                    ->orWhereNull('execution_lease_expires_at')
+                    ->orWhereRaw('execution_lease_expires_at <= CURRENT_TIMESTAMP');
+            })
+            ->update([
+                'execution_owner_token' => $token,
+                'execution_lease_expires_at' => $this->executionLeaseExpiry(),
+                'last_heartbeat_at' => DB::raw('CURRENT_TIMESTAMP'),
+            ]);
+
+        $run->refresh();
+
+        if ($acquired !== 1) {
+            return false;
+        }
+
+        $this->executionOwnerTokens()[$run] = $token;
+
+        return true;
     }
 
-    public function updateCursor(Run $run, ListingCursor $cursor): void
+    public function heartbeat(Run $run): void
     {
-        $run->update(['cursor' => $cursor->toArray()]);
+        if ($this->executionOwnerToken(run: $run) === null) {
+            Run::query()
+                ->whereKey($run->getKey())
+                ->where('status', RunStatus::Running)
+                ->whereNull('execution_owner_token')
+                ->update(['last_heartbeat_at' => DB::raw('CURRENT_TIMESTAMP')]);
+
+            $run->refresh();
+
+            return;
+        }
+
+        if (! $this->renewExecutionLease(run: $run)) {
+            throw new RuntimeException('Execution lease is no longer owned by this processor.');
+        }
+    }
+
+    /**
+     * Fences one response-to-checkpoint write section. The lease is renewed only after the
+     * row lock is held; a contender can neither take over nor observe a partial block until
+     * ingestion, stats, and cursor are committed together.
+     *
+     * @template T
+     *
+     * @param  Closure(): T  $callback
+     * @return T
+     */
+    public function withinExecutionLease(Run $run, Closure $callback): mixed
+    {
+        $token = $this->executionOwnerToken(run: $run);
+
+        return DB::transaction(function () use ($callback, $run, $token): mixed {
+            $lockedRun = Run::query()->lockForUpdate()->findOrFail($run->getKey());
+
+            if (! $lockedRun instanceof Run) {
+                throw new RuntimeException('Locked crawler run is invalid.');
+            }
+
+            if ($token === null && $lockedRun->execution_owner_token !== null) {
+                throw new RuntimeException('Execution lease is not owned by this processor.');
+            }
+
+            if ($token !== null && ! $this->renewExecutionLease(run: $run)) {
+                throw new RuntimeException('Execution lease is no longer owned by this processor.');
+            }
+
+            return $callback();
+        });
+    }
+
+    public function updateCursor(Run $run, ListingCursor $cursor): bool
+    {
+        $values = ['cursor' => $cursor->toArray()];
+
+        if ($run->isDirty('stats')) {
+            $values['stats'] = $run->stats?->toArray();
+        }
+
+        $updated = $this->ownedRunningQuery(run: $run)->update($values);
+
+        $run->refresh();
+
+        if ($updated !== 1 && $this->executionOwnerToken(run: $run) !== null) {
+            throw new RuntimeException('Execution lease is no longer owned by this processor.');
+        }
+
+        return $updated === 1;
     }
 
     /**
@@ -96,12 +216,10 @@ final readonly class CrawlerRunManager
      */
     public function flagCapHit(Run $run, array $possibleSkipWindow): void
     {
-        $run->update([
-            'stats' => array_merge($run->stats?->toArray() ?? [], [
-                'cap_hit' => true,
-                'possible_skip_window' => $possibleSkipWindow,
-            ]),
-        ]);
+        $this->updateStats(run: $run, stats: array_merge($run->stats?->toArray() ?? [], [
+            'cap_hit' => true,
+            'possible_skip_window' => $possibleSkipWindow,
+        ]));
     }
 
     /**
@@ -110,11 +228,9 @@ final readonly class CrawlerRunManager
      */
     public function markBacklogRescanned(Run $run): void
     {
-        $run->update([
-            'stats' => array_merge($run->stats?->toArray() ?? [], [
-                'backlog_rescanned_at' => now()->toIso8601String(),
-            ]),
-        ]);
+        $this->updateStats(run: $run, stats: array_merge($run->stats?->toArray() ?? [], [
+            'backlog_rescanned_at' => now()->toIso8601String(),
+        ]));
     }
 
     /**
@@ -143,11 +259,9 @@ final readonly class CrawlerRunManager
             ? $run->started_at->diffInSeconds($previousCompletedRun->finished_at)
             : null;
 
-        $run->update([
-            'stats' => array_merge($run->stats?->toArray() ?? [], [
-                'scan_gap_seconds' => $gapSeconds,
-            ]),
-        ]);
+        $this->updateStats(run: $run, stats: array_merge($run->stats?->toArray() ?? [], [
+            'scan_gap_seconds' => $gapSeconds,
+        ]));
     }
 
     /**
@@ -165,11 +279,9 @@ final readonly class CrawlerRunManager
             return;
         }
 
-        $run->update([
-            'stats' => array_merge($run->stats?->toArray() ?? [], [
-                'oldest_update_seen' => $candidate->toIso8601String(),
-            ]),
-        ]);
+        $this->updateStats(run: $run, stats: array_merge($run->stats?->toArray() ?? [], [
+            'oldest_update_seen' => $candidate->toIso8601String(),
+        ]));
     }
 
     /**
@@ -182,16 +294,19 @@ final readonly class CrawlerRunManager
      * синхронизирует переданный инстанс с фактической строкой — вызывающий код (все три
      * обёртки) возвращает этот же `$run` наружу.
      */
-    public function complete(Run $run): void
+    public function complete(Run $run): bool
     {
-        DB::transaction(function () use ($run): void {
-            Run::query()
-                ->whereKey($run->getKey())
-                ->where('status', RunStatus::Running)
-                ->update(['status' => RunStatus::Completed, 'finished_at' => now()]);
-        });
+        $updated = $this->ownedRunningQuery(run: $run)->update([
+            'status' => RunStatus::Completed,
+            'finished_at' => DB::raw('CURRENT_TIMESTAMP'),
+            'execution_owner_token' => null,
+            'execution_lease_expires_at' => null,
+        ]);
 
         $run->refresh();
+        $this->forgetExecutionOwnerToken(run: $run);
+
+        return $updated === 1;
     }
 
     /**
@@ -201,15 +316,18 @@ final readonly class CrawlerRunManager
      */
     public function pause(Run $run, string $reason): void
     {
-        DB::transaction(function () use ($run, $reason): void {
-            $run->update([
-                'status' => RunStatus::Paused,
-                'stats' => array_merge($run->stats?->toArray() ?? [], ['stop_reason' => $reason]),
-                'stop_requested_at' => null,
-                'stop_kind' => null,
-                'stop_requested_by' => null,
-            ]);
-        });
+        $this->ownedRunningQuery(run: $run)->update([
+            'status' => RunStatus::Paused,
+            'stats' => array_merge($run->stats?->toArray() ?? [], ['stop_reason' => $reason]),
+            'stop_requested_at' => null,
+            'stop_kind' => null,
+            'stop_requested_by' => null,
+            'execution_owner_token' => null,
+            'execution_lease_expires_at' => null,
+        ]);
+
+        $run->refresh();
+        $this->forgetExecutionOwnerToken(run: $run);
     }
 
     /**
@@ -218,16 +336,19 @@ final readonly class CrawlerRunManager
      */
     public function cancel(Run $run, string $reason): void
     {
-        DB::transaction(function () use ($run, $reason): void {
-            $run->update([
-                'status' => RunStatus::Cancelled,
-                'finished_at' => now(),
-                'stats' => array_merge($run->stats?->toArray() ?? [], ['stop_reason' => $reason]),
-                'stop_requested_at' => null,
-                'stop_kind' => null,
-                'stop_requested_by' => null,
-            ]);
-        });
+        $this->ownedRunningQuery(run: $run)->update([
+            'status' => RunStatus::Cancelled,
+            'finished_at' => DB::raw('CURRENT_TIMESTAMP'),
+            'stats' => array_merge($run->stats?->toArray() ?? [], ['stop_reason' => $reason]),
+            'stop_requested_at' => null,
+            'stop_kind' => null,
+            'stop_requested_by' => null,
+            'execution_owner_token' => null,
+            'execution_lease_expires_at' => null,
+        ]);
+
+        $run->refresh();
+        $this->forgetExecutionOwnerToken(run: $run);
     }
 
     /**
@@ -239,23 +360,129 @@ final readonly class CrawlerRunManager
     {
         $checkpoints = $run->stats?->toArray()['checkpoints'] ?? 0;
 
-        $run->update([
+        $this->ownedRunningQuery(run: $run)->update([
             'stats' => array_merge($run->stats?->toArray() ?? [], [
                 'checkpoints' => (is_int($checkpoints) ? $checkpoints : 0) + 1,
             ]),
         ]);
+
+        $run->refresh();
+    }
+
+    /** @param array<mixed> $stats */
+    public function updateStats(Run $run, array $stats): bool
+    {
+        $updated = $this->ownedQuery(run: $run)->update(['stats' => $stats]);
+
+        $run->refresh();
+
+        return $updated === 1;
     }
 
     public function fail(Run $run, string $error): void
     {
-        DB::transaction(function () use ($run, $error): void {
-            $run->update([
-                'status' => RunStatus::Failed,
-                'finished_at' => now(),
-                'last_error' => $error,
-                'last_error_at' => now(),
+        $this->ownedRunningQuery(run: $run)->update([
+            'status' => RunStatus::Failed,
+            'finished_at' => now(),
+            'last_error' => $error,
+            'last_error_at' => now(),
+            'execution_owner_token' => null,
+            'execution_lease_expires_at' => null,
+        ]);
+
+        $run->refresh();
+        $this->forgetExecutionOwnerToken(run: $run);
+    }
+
+    public function releaseExecutionLease(Run $run): bool
+    {
+        $token = $this->executionOwnerToken(run: $run);
+
+        if ($token === null) {
+            return false;
+        }
+
+        $released = Run::query()
+            ->whereKey($run->getKey())
+            ->where('execution_owner_token', $token)
+            ->update([
+                'execution_owner_token' => null,
+                'execution_lease_expires_at' => null,
             ]);
-        });
+
+        $run->refresh();
+        $this->forgetExecutionOwnerToken(run: $run);
+
+        return $released === 1;
+    }
+
+    private function renewExecutionLease(Run $run): bool
+    {
+        $token = $this->executionOwnerToken(run: $run);
+
+        if ($token === null) {
+            return false;
+        }
+
+        $renewed = Run::query()
+            ->whereKey($run->getKey())
+            ->where('status', RunStatus::Running)
+            ->where('execution_owner_token', $token)
+            ->whereRaw('execution_lease_expires_at > CURRENT_TIMESTAMP')
+            ->update([
+                'execution_lease_expires_at' => $this->executionLeaseExpiry(),
+                'last_heartbeat_at' => DB::raw('CURRENT_TIMESTAMP'),
+            ]);
+
+        $run->refresh();
+
+        if ($renewed !== 1) {
+            $this->forgetExecutionOwnerToken(run: $run);
+        }
+
+        return $renewed === 1;
+    }
+
+    /** @return Builder<Run> */
+    private function ownedRunningQuery(Run $run): Builder
+    {
+        return $this->ownedQuery(run: $run)->where('status', RunStatus::Running);
+    }
+
+    /** @return Builder<Run> */
+    private function ownedQuery(Run $run): Builder
+    {
+        $query = Run::query()->whereKey($run->getKey());
+        $token = $this->executionOwnerToken(run: $run);
+
+        if ($token === null) {
+            return $query->whereNull('execution_owner_token');
+        }
+
+        return $query
+            ->where('execution_owner_token', $token)
+            ->whereRaw('execution_lease_expires_at > CURRENT_TIMESTAMP');
+    }
+
+    private function executionLeaseExpiry(): Expression
+    {
+        return DB::raw("CURRENT_TIMESTAMP + INTERVAL '".self::ExecutionLeaseSeconds." seconds'");
+    }
+
+    /** @return WeakMap<Run, string> */
+    private function executionOwnerTokens(): WeakMap
+    {
+        return self::$executionOwnerTokens ??= new WeakMap;
+    }
+
+    private function executionOwnerToken(Run $run): ?string
+    {
+        return $this->executionOwnerTokens()[$run] ?? null;
+    }
+
+    private function forgetExecutionOwnerToken(Run $run): void
+    {
+        unset($this->executionOwnerTokens()[$run]);
     }
 
     /**
@@ -272,7 +499,16 @@ final readonly class CrawlerRunManager
 
         return Run::query()
             ->where('status', RunStatus::Running)
-            ->where('last_heartbeat_at', '<', now()->subSeconds($timeout))
+            ->whereRaw(
+                sql: "last_heartbeat_at < CURRENT_TIMESTAMP - (? * INTERVAL '1 second')",
+                bindings: [$timeout],
+            )
+            ->where(function (Builder $query): void {
+                $query
+                    ->whereNull('execution_owner_token')
+                    ->orWhereNull('execution_lease_expires_at')
+                    ->orWhereRaw('execution_lease_expires_at <= CURRENT_TIMESTAMP');
+            })
             ->update(['status' => RunStatus::Paused]);
     }
 }

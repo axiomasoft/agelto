@@ -4,6 +4,9 @@ declare(strict_types=1);
 use App\Enums\Procurement\Ai\AiDocumentType;
 use App\Services\Procurement\Analyzers\Estimate\EstimateAnalyzer;
 
+$defaultToolTimeoutSeconds = (int) env('AI_TOOLS_DEFAULT_TIMEOUT_SECONDS', 180);
+$ocrTimeoutSeconds = (int) env('AI_TOOLS_OCR_TIMEOUT_SECONDS', 1800);
+
 return [
     /*
     |--------------------------------------------------------------------------
@@ -267,7 +270,7 @@ return [
         'pdftotext_bin' => env('AI_TOOLS_PDFTOTEXT_BIN', 'pdftotext'),
         'pdfinfo_bin' => env('AI_TOOLS_PDFINFO_BIN', 'pdfinfo'),
         'gs_bin' => env('AI_TOOLS_GS_BIN', 'gs'),
-        'default_timeout_seconds' => (int) env('AI_TOOLS_DEFAULT_TIMEOUT_SECONDS', 180),
+        'default_timeout_seconds' => $defaultToolTimeoutSeconds,
 
         /*
         | OCR сканов (P3.7, D22). Языки — `rus+eng` (сметы русские, но штампы и единицы часто
@@ -276,7 +279,7 @@ return [
         | и общий 180-секундный потолок инструментов сюда не годится.
         */
         'ocr_languages' => env('AI_TOOLS_OCR_LANGUAGES', 'rus+eng'),
-        'ocr_timeout_seconds' => (int) env('AI_TOOLS_OCR_TIMEOUT_SECONDS', 1800),
+        'ocr_timeout_seconds' => $ocrTimeoutSeconds,
     ],
 
     /*
@@ -330,7 +333,8 @@ return [
     | `checkpoint_seconds` — порог self-requeue (D31): после M единиц прогресса (паспорт/
     | диапазон/итоги/discovery-окно) ИЛИ T секунд — что раньше — `EstimateExtractionJob`
     | персистит progress и ре-диспатчит себя; `checkpoint_seconds` ОБЯЗАН быть строго меньше
-    | `retry_after` очереди `ai_extraction` (`config/horizon.php`, инвариант D26).
+    | максимального следующего provider call плюс persistence/release reserve и меньше job timeout;
+    | полный инвариант живёт в `ai.pipeline.operation_budgets`.
     | `max_estimates_per_document` — защитный потолок цикла обнаружения смет паспорт-шагом
     | row-range пути (безопасность от зацикливания на некорректном ответе модели, не
     | бизнес-лимит). `window_pages`/`window_overlap_pages` — размер/нахлёст страничного окна
@@ -345,7 +349,7 @@ return [
         'row_range_size' => (int) env('AI_EXTRACTION_ROW_RANGE_SIZE', 30),
         'min_row_range_size' => (int) env('AI_EXTRACTION_MIN_ROW_RANGE_SIZE', 5),
         'checkpoint_ranges' => (int) env('AI_EXTRACTION_CHECKPOINT_RANGES', 20),
-        'checkpoint_seconds' => (int) env('AI_EXTRACTION_CHECKPOINT_SECONDS', 240),
+        'checkpoint_seconds' => (int) env('AI_EXTRACTION_CHECKPOINT_SECONDS', 120),
         'max_estimates_per_document' => (int) env('AI_EXTRACTION_MAX_ESTIMATES_PER_DOCUMENT', 20),
         'window_pages' => (int) env('AI_EXTRACTION_WINDOW_PAGES', 3),
         'window_overlap_pages' => (int) env('AI_EXTRACTION_WINDOW_OVERLAP_PAGES', 1),
@@ -384,6 +388,57 @@ return [
         'dispatch_batch_limit' => (int) env('AI_PIPELINE_DISPATCH_BATCH_LIMIT', 100),
         'backlog_batch_limit' => (int) env('AI_PIPELINE_BACKLOG_BATCH_LIMIT', 100),
         'retry_batch_limit' => (int) env('AI_PIPELINE_RETRY_BATCH_LIMIT', 50),
+        'recovery_claim_hold_minutes' => (int) env('AI_PIPELINE_RECOVERY_CLAIM_HOLD_MINUTES', 10),
+
+        // Single source of truth for P3.5 operation budgets. A stage may start an external
+        // operation only when its remaining operation chain and persistence/release reserve fit
+        // in the job deadline. Horizon/queue values are asserted against this matrix.
+        'operation_budgets' => [
+            'schema_version' => 'pipeline-operation-budget/v1',
+            'prepare' => [
+                // OCR preparation is a sequential chain, not one 1800-second call: text-layer
+                // probe → OCR → Tesseract version → PDF page count → persistence/release.
+                // These values are shared with `ai.tools`, so an env override cannot silently
+                // invalidate admission or the queue timeout chain.
+                'operation_timeout_seconds' => [
+                    'text_layer_probe' => $defaultToolTimeoutSeconds,
+                    'ocr' => $ocrTimeoutSeconds,
+                    'tesseract_version' => $defaultToolTimeoutSeconds,
+                    'pdf_page_count' => $defaultToolTimeoutSeconds,
+                ],
+                // Copying/inspecting the source happens before the first tool admission. Keep a
+                // separate allowance so a normal multi-second setup does not reject all PDFs.
+                'setup_allowance_seconds' => 120,
+                'job_timeout_seconds' => 2580,
+                'max_next_call_seconds' => $ocrTimeoutSeconds,
+                'persistence_release_reserve_seconds' => 120,
+                'supervisor_timeout_seconds' => 2640,
+                'retry_after_seconds' => 2700,
+                'lease_seconds' => 2700,
+            ],
+            'screening' => [
+                'job_timeout_seconds' => 240,
+                'max_next_call_seconds' => 210,
+                'persistence_release_reserve_seconds' => 30,
+                'supervisor_timeout_seconds' => 300,
+                'retry_after_seconds' => 420,
+                'lease_seconds' => 420,
+            ],
+            'extraction' => [
+                'job_timeout_seconds' => 300,
+                'max_next_call_seconds' => 150,
+                'persistence_release_reserve_seconds' => 30,
+                'checkpoint_seconds' => 120,
+                'supervisor_timeout_seconds' => 360,
+                'retry_after_seconds' => 420,
+                'lease_seconds' => 420,
+            ],
+        ],
+
+        // Fallback for pipeline jobs outside the P3.5 matrix (currently downloading). Matrix
+        // stages use their own `lease_seconds`, so a short screening/extraction recovery is not
+        // held behind the OCR-sized lease after Redis makes its job visible again.
+        'lease_seconds' => (int) env('AI_PIPELINE_LEASE_SECONDS', 2040),
 
         /*
         | TTL unique-лока pipeline-job'ов (`PipelineJob::uniqueFor()`, ADR-0009). На Redis (прод)

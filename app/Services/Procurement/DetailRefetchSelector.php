@@ -37,6 +37,10 @@ final readonly class DetailRefetchSelector
 
         return Procurement::query()
             ->where('detail_failed', false)
+            ->where(function ($query): void {
+                $query->whereNull('detail_next_retry_at')
+                    ->orWhere('detail_next_retry_at', '<=', now());
+            })
             ->where(function ($query) use ($rescanBefore): void {
                 $query->whereNull('detail_fetched_at')
                     ->orWhereColumn('current_revision_detected_at', '>', 'detail_fetched_at')

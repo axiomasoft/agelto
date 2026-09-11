@@ -13,6 +13,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Carbon;
 
 /**
  * Контент-адресованная версия файла документа (дедуп по sha256 в рамках документа).
@@ -28,6 +29,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property string $mime
  * @property string $storage_path
  * @property string|null $disk
+ * @property Carbon $downloaded_at
  * @property int|null $parent_version_id
  * @property string|null $archive_entry_path
  * @property-read Document|null $document

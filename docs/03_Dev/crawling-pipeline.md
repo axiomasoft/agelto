@@ -18,11 +18,22 @@ status: living
 безопасен по естественному номеру закупки, а курсор и heartbeat позволяют продолжить прерванный
 прогон. Конкретные реализации, фильтр профиля и фактические ограничения ЕИС приведены ниже.
 
+## Raw fetch evidence
+
+Raw CSV и сохранённые HTML snapshots адресуются content-addressed ключом: в пути есть SHA-256
+нормализованной request identity и SHA-256 фактических байтов. Поэтому одинаковый replay переиспользует
+тот же объект, а разные окна CSV, вкладки или ревизии не могут перезаписать ранее сохранённые bytes.
+Путь не содержит query-параметров, URL или учётных данных. Перед тем как `prc_fetches.artifact_ref`
+ссылается на объект, write проверяется через read-back; неуспешная запись не создаёт Fetch с ложной ссылкой.
+
+Это неизменяемость в пределах retention носителя raw artifacts, а не обещание бесконечного хранения:
+срок хранения и удаление объектов задаются отдельной эксплуатационной политикой.
+
 ## Вход: команды-диспетчеры, обход — на очереди (P3.2)
 
 Fresh- и archive-обход исполняются job'ом `App\Jobs\Procurement\CrawlRunJob` на profile-driven
 execution lane Horizon — как и AI-пайплайн (`document-pipeline.md`). `standard` использует
-`redis/crawl` (`supervisor-crawl`, timeout 300s, retry_after 360s); временный архивный `long` —
+`redis/crawl` (`supervisor-crawl`, timeout 300s, retry_after 420s); временный архивный `long` —
 `redis_crawl_long/crawl_long` (`supervisor-crawl-long`, 3600s/3900s). Это lease ОДНОЙ job, не
 лимит всего crawl: курсор остаётся гарантией resume, а connection оба используют один Redis.
 Artisan-команды (`app/Console/Commands/Procurement/`) остались тонкими диспетчерами: резолвят
@@ -40,25 +51,41 @@ Artisan-команды (`app/Console/Commands/Procurement/`) остались т
 - `crawler:rescan-backlog` (`RescanBacklog`) — пересканирование зависшего/пропущенного бэклога;
   синхронна.
 - `crawler:recover-stale` (`RecoverStaleRuns`, планируется `everyFiveMinutes()`) — поднимает
-  `running`-прогоны с протухшим heartbeat в `paused`: `CrawlerRunManager::recoverStale()`
-  реализован и покрыт тестом с самого начала, но не вызывался ниоткуда — павший воркер оставлял
-  прогон в `running` навсегда, а частичный unique-индекс превращал его в блокировщик профиля.
+  `running`-прогоны с протухшим heartbeat в `paused` только без действующего execution lease:
+  активный owner не может быть остановлен старым heartbeat. Сравнение heartbeat и lease делает
+  PostgreSQL своими часами; упавший воркер с истёкшим lease оставляет точный cursor для resume.
 
 `CrawlRunJob` — checkpoint-requeue (`ShouldBeUniqueUntilProcessing`, тот же приём, что
 `EstimateExtractionJob`): бюджет одного запуска — `config('crawler.run.checkpoint_seconds')`
-(240с); по исчерпании `FreshRunProcessor` выходит с сохранённым курсором и статусом `running`,
-job самодиспатчится продолжением. Для archive `ArchiveWindowScanner` возвращает
+(240с), а `crawler.fresh_max_blocks` — safety cap, но не terminal stop. По исчерпании любого из
+них `FreshRunProcessor` выходит с сохранённым курсором и статусом `running`, job самодиспатчится
+ровно одним продолжением. `Completed` допустим только после source-safe stop: пустой listing либо
+доказанное пересечение known boundary. Для archive `ArchiveWindowScanner` возвращает
 `ArchiveWindowScanResult`: только `Drained` разрешает дневной обёртке перейти к следующему дню;
 `PlatformBudgetExhaustedException` становится `Checkpointed` через
 `CrawlerRunManager::recordCheckpoint()`, а операторский pause/cancel — `Stopped`. Оба исхода
 сохраняют текущие день и ценовой стек. Archive продолжает существующий `CrawlRunJob` в том же
 execution lane; delta ждёт следующего cron, а backlog — следующего 15-минутного sweep без записи
-`backlog_rescanned_at`. Новый job, retry-loop или sleep для этого не создаются. Для сида архива
+`backlog_rescanned_at`. `OperatorDebt` сохраняет тот же ценовой стек и не даёт ни перейти к
+следующему дню, ни поставить отметку rescan; оператор должен изменить лимит/разрешить источник,
+после чего тот же run продолжится с checkpoint. Новый job, retry-loop или sleep для этого не создаются. Для сида архива
 2025 long lane остаётся конечным; если фактическая длительность превысит час, не поднимать timeout
 молча — снять HTTP/throttle/DB-метрики и принять отдельное решение.
 
+Backlog и delta имеют два уровня защиты от параллельного запуска. Планировщик использует именованный
+`withoutOverlapping()` lock в общем production cache, но корректность обеспечивается только
+PostgreSQL lease строки `prc_crawler_runs`: процесс получает случайный owner token, продлевает
+600-секундный lease с каждым heartbeat и может менять cursor, stats или завершать run только пока
+токен совпадает и lease не истёк по часам PostgreSQL. Listing request выполняется вне DB-lock, а
+его ingestion вместе со stats и checkpoint проходит в короткой PostgreSQL-транзакции, которая
+берёт lock строки run и renews/fences lease до любых записей: takeover ждёт commit/rollback, а
+бывший owner после takeover не может сохранить блок. Второй ручной либо multi-host запуск
+возвращает busy без обращения к scanner; команда
+`crawler:run-delta` отдельно сообщает этот исход. После crash expiry следующий запуск забирает
+тот же run и его сохранённый cursor.
+
 Детальная стадия работает отдельным `FetchProcurementDetailJob` на `redis/crawl_detail`
-(`supervisor-crawl-detail`, timeout 300s < retry_after 360s). Job — `ShouldBeUnique` по id
+(`supervisor-crawl-detail`, timeout 300s < retry_after 420s). Job — `ShouldBeUnique` по id
 закупки и не имеет свойств очередного ретрая: retry остаётся в `detail_*` на закупке. После
 успешного `DetailAnalysisProcessor::run()` job передаёт скачанные документы в `PipelineDispatcher`;
 исчерпание platform budget возвращает job без error-блока, роста `detail_attempts` или передачи в
@@ -99,9 +126,12 @@ stateDiagram-v2
 `running`, а сохраняют курсор и ставят продолжение той же job в очередь.
 
 Курсор несёт и состояние detector-а потолка листинга (`dedup_signature` и число повторов). Fresh
-проверяет exact repeat до общей ветки «нет business-change»; archive восстанавливает detector при
-каждом continuation и сбрасывает его только при переходе на другой ценовой интервал. Поэтому
-повтор последнего блока ЕИС не маскируется как нормальная остановка и checkpoint не обходит cap.
+проверяет exact repeat до source-safe terminal conditions; пустой или неизменившийся непустой блок
+не равнозначен completed. Для ЕИС суточная «Дата обновления» несёт явную mapper-provenance: same-day
+страницы дочитываются до строгого предыдущего дня, а не завершаются по полуночи. Archive
+восстанавливает detector при каждом continuation и сбрасывает его только при переходе на другой
+ценовой интервал. Поэтому повтор последнего блока ЕИС не маскируется как нормальная остановка и
+checkpoint не обходит cap.
 
 ## Общий бюджет запросов
 
@@ -189,7 +219,8 @@ null-telemetry остаются unknown, а не становятся искус
   суток, а расписание работает в UTC против часовых поясов заказчиков по стране — без запаса
   обновление на границе окна теряется.
 - **Плановый суточный дозор (delta-scan)** — `App\Services\Procurement\Modes\DeltaScanProcessor`
-  (переиспользует `ArchiveWindowScanner`, профиль резолвится тем же способом, что рескан бэклога) +
+  (переиспользует `ArchiveWindowScanner`; archive-профиль несёт runtime-настройки, а typed
+  `RecoveryScope` сохраняет предметный фильтр исходного fresh-профиля) +
   команда `crawler:run-delta {crawler?}`; регистрация в `routes/console.php` — под флагом
   `config('crawler.tracking.delta_scan_enabled')` (по умолчанию `false`, включается владельцем
   ПОСЛЕ боевого прогона площадки) и cron `config('crawler.tracking.delta_scan_cron')`

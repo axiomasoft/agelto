@@ -9,11 +9,12 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
+use RuntimeException;
 use Throwable;
 
 /**
  * Шаблонный метод для jobs пайплайна документов (P4.2+/P5/P6): status-guard первым
- * выражением `handle()`, lease на время обработки (`App\Models\Concerns\HasLease`),
+ * бизнес-проверкой `handle()`, lease на время обработки (`App\Models\Concerns\HasLease`),
  * единый error-блок при провале (`App\Models\Concerns\HasErrorBlock` — backoff-формула
  * живёт ТОЛЬКО там, этот абстракт её не дублирует), release ВСЕГДА в `finally`. Исключение из
  * `process()` не глотается: `recordFailure()` фиксирует попытку, затем исключение пробрасывается
@@ -29,8 +30,12 @@ abstract class PipelineJob implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
+    protected float $executionStartedAt;
+
     final public function handle(): void
     {
+        $this->executionStartedAt = microtime(as_float: true);
+
         if (! $this->statusGuardPassed()) {
             return;
         }
@@ -53,7 +58,7 @@ abstract class PipelineJob implements ShouldQueue
     }
 
     /**
-     * Первое выражение обработки: false — документ/анализ уже прошёл эту стадию (или
+     * Первая бизнес-проверка обработки: false — документ/анализ уже прошёл эту стадию (или
      * в несовместимом статусе) — job молча завершается, дублей не создаёт.
      */
     abstract protected function statusGuardPassed(): bool;
@@ -87,6 +92,35 @@ abstract class PipelineJob implements ShouldQueue
      * в собственном `uniqueId()` при реализации `ShouldBeUnique`/`ShouldBeUniqueUntilProcessing`.
      */
     abstract public function pipelineUniqueId(): string;
+
+    /**
+     * The lease must cover the complete active slice, but it must not outlive the queue
+     * visibility window of a shorter stage. Otherwise a SIGKILL would make a recovered
+     * screening/extraction job a no-op long after Redis made it visible again.
+     */
+    final protected function leaseSeconds(): int
+    {
+        $stage = $this->operationBudgetStage();
+        $key = $stage === null
+            ? 'ai.pipeline.lease_seconds'
+            : "ai.pipeline.operation_budgets.{$stage}.lease_seconds";
+        $seconds = config($key);
+
+        if (! is_int($seconds) || $seconds < 1) {
+            throw new RuntimeException("{$key} должен быть положительным целым числом.");
+        }
+
+        return $seconds;
+    }
+
+    /**
+     * Download jobs retain the legacy pipeline lease. Stages covered by the P3.5 operation
+     * matrix override this so their durable lease expires with their own recovery window.
+     */
+    protected function operationBudgetStage(): ?string
+    {
+        return null;
+    }
 
     /**
      * TTL unique-лока в секундах (`Illuminate\Bus\UniqueLock::acquire()` проверяет

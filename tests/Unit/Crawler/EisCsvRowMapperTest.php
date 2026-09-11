@@ -113,6 +113,16 @@ test('дата парсится без подстановки текущего �
     'd.m.Y — время целиком нулевое' => ['02.03.2026', '2026-03-02 00:00:00'],
 ]);
 
+test('суточная точность даты обновления передаётся явно, а не выводится из полуночи', function () {
+    $crawler = eisCrawlerForRegistryCode('fz44');
+
+    $dayPrecision = app(EisCsvRowMapper::class)->map(row: eisCsvRow(['Дата обновления' => '02.03.2026']), crawler: $crawler);
+    $timestampPrecision = app(EisCsvRowMapper::class)->map(row: eisCsvRow(['Дата обновления' => '02.03.2026 00:00:00']), crawler: $crawler);
+
+    expect($dayPrecision->sourceUpdatedAtHasDayPrecision)->toBeTrue()
+        ->and($timestampPrecision->sourceUpdatedAtHasDayPrecision)->toBeFalse();
+});
+
 test('пустой registry_number приводит к skip (map возвращает null)', function () {
     $crawler = eisCrawlerForRegistryCode('fz44');
 

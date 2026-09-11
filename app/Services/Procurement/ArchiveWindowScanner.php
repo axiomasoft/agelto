@@ -6,6 +6,7 @@ namespace App\Services\Procurement;
 
 use App\Dto\Procurement\Crawler\Contracts\HasPriceRange;
 use App\Dto\Procurement\Crawler\ListingCursor;
+use App\Dto\Procurement\Crawler\RecoveryScope;
 use App\Dto\Procurement\Crawler\WindowFilter;
 use App\Enums\Procurement\Crawler\ArchiveWindowScanResult;
 use App\Enums\Procurement\Crawler\RunStopKind;
@@ -37,7 +38,7 @@ final readonly class ArchiveWindowScanner
         private RunStopGate $stopGate,
     ) {}
 
-    public function scan(Crawler $crawler, Run $run, WindowFilter $filter): ArchiveWindowScanResult
+    public function scan(Crawler $crawler, Run $run, WindowFilter $filter, ?RecoveryScope $recoveryScope = null): ArchiveWindowScanResult
     {
         $blockSize = self::positiveIntConfig('crawler.eis.block_size', default: 500);
         $priceCeiling = self::positiveIntConfig('crawler.archive.price_ceiling');
@@ -45,10 +46,14 @@ final readonly class ArchiveWindowScanner
         $maxBlocksPerWindow = self::nonNegativeIntConfig('crawler.archive.max_blocks_per_window');
 
         $cursor = ListingCursor::fromArray(cursor: self::cursorPayload($run->cursor?->toArray()));
+        $recoveryScope ??= $cursor->recoveryScope === null
+            ? null
+            : RecoveryScope::fromArray($cursor->recoveryScope);
         $day = $cursor->day ?? $filter->dateFrom->toDateString();
         $dateField = $filter->dateField;
 
-        $profileFilter = $crawler->filter;
+        $executionCrawler = $recoveryScope?->applyTo(runtimeCrawler: $crawler) ?? $crawler;
+        $profileFilter = $executionCrawler->filter;
         $startingInterval = $profileFilter instanceof HasPriceRange
             ? $profileFilter->startingPriceInterval()
             : null;
@@ -57,8 +62,25 @@ final readonly class ArchiveWindowScanner
         $previousSignature = $cursor->lastDedupSignature;
         $blocksInInterval = $cursor->blocksInInterval;
 
+        if ($cursor->recoveryScope === null && $recoveryScope !== null) {
+            $this->persistCursor(
+                run: $run,
+                day: $day,
+                stack: $stack,
+                blockFrom: $blockFrom,
+                dateField: $dateField,
+                lastDedupSignature: $previousSignature,
+                blocksInInterval: $blocksInInterval,
+                recoveryScope: $recoveryScope,
+            );
+        }
+
         while ($stack !== []) {
             $crawler->refresh();
+
+            // Lease is renewed at the narrow boundary before the externally visible scanner
+            // section. A process that lost ownership never starts another listing request.
+            $this->runs->heartbeat(run: $run);
 
             $stopSignal = $this->stopGate->signal(run: $run);
 
@@ -74,13 +96,9 @@ final readonly class ArchiveWindowScanner
 
             if ($blocksInInterval >= $maxBlocksPerWindow) {
                 Log::warning(
-                    message: 'ArchiveWindowScanner: max blocks per price interval reached, forcing split point.',
+                    message: 'ArchiveWindowScanner: max blocks per price interval reached; interval remains operator debt.',
                     context: ['crawler_id' => $crawler->id, 'run_id' => $run->id, 'day' => $day, 'interval' => $stack[array_key_last($stack)]],
                 );
-                array_pop($stack);
-                $blockFrom = 1;
-                $previousSignature = null;
-                $blocksInInterval = 0;
                 $this->persistCursor(
                     run: $run,
                     day: $day,
@@ -89,9 +107,10 @@ final readonly class ArchiveWindowScanner
                     dateField: $dateField,
                     lastDedupSignature: $previousSignature,
                     blocksInInterval: $blocksInInterval,
+                    recoveryScope: $recoveryScope,
                 );
 
-                continue;
+                return ArchiveWindowScanResult::OperatorDebt;
             }
 
             $iterationCursor = new ListingCursor(
@@ -102,43 +121,86 @@ final readonly class ArchiveWindowScanner
                 lastDedupSignature: $previousSignature,
                 blocksInInterval: $blocksInInterval,
             );
-            $sourceMethod = $this->factory->makeWithFallback(crawler: $crawler);
+            $executionCrawler = $recoveryScope?->applyTo(runtimeCrawler: $crawler) ?? $crawler;
+            $sourceMethod = $this->factory->makeWithFallback(crawler: $executionCrawler);
             try {
-                $batch = $sourceMethod->collectListing(crawler: $crawler, cursor: $iterationCursor);
+                $batch = $sourceMethod->collectListing(crawler: $executionCrawler, cursor: $iterationCursor);
             } catch (PlatformBudgetExhaustedException) {
                 $this->runs->recordCheckpoint(run: $run);
 
                 return ArchiveWindowScanResult::Checkpointed;
             }
 
-            $this->ingestor->ingest(crawler: $crawler, run: $run, batch: $batch);
+            // A request may outlive the lease. Its ingestion and checkpoint are one short
+            // PostgreSQL row-locked section: a takeover waits for all block writes to commit
+            // or roll back, and a former owner cannot persist a partial response afterwards.
+            $result = $this->runs->withinExecutionLease(run: $run, callback: function () use (
+                &$blockFrom,
+                &$blocksInInterval,
+                &$previousSignature,
+                &$stack,
+                $batch,
+                $blockSize,
+                $crawler,
+                $dateField,
+                $day,
+                $minPriceInterval,
+                $recoveryScope,
+                $run,
+            ): ?ArchiveWindowScanResult {
+                $this->ingestor->ingest(crawler: $crawler, run: $run, batch: $batch);
 
-            if ($batch->rowsTotal < $blockSize) {
-                array_pop($stack);
-                $blockFrom = 1;
-                $previousSignature = null;
-                $blocksInInterval = 0;
-            } elseif ($previousSignature !== null && $batch->dedupSignature === $previousSignature) {
-                $stack = $this->splitTopInterval(stack: $stack, minPriceInterval: $minPriceInterval, crawler: $crawler, run: $run, day: $day);
-                $blockFrom = 1;
-                $previousSignature = null;
-                $blocksInInterval = 0;
-            } else {
-                $previousSignature = $batch->dedupSignature;
-                $blockFrom += $blockSize;
-                $blocksInInterval++;
+                if ($batch->rowsTotal < $blockSize) {
+                    array_pop($stack);
+                    $blockFrom = 1;
+                    $previousSignature = null;
+                    $blocksInInterval = 0;
+                } elseif ($previousSignature !== null && $batch->dedupSignature === $previousSignature) {
+                    $splitStack = $this->splitTopInterval(stack: $stack, minPriceInterval: $minPriceInterval, crawler: $crawler, run: $run, day: $day);
+
+                    if ($splitStack === null) {
+                        $this->persistCursor(
+                            run: $run,
+                            day: $day,
+                            stack: $stack,
+                            blockFrom: $blockFrom,
+                            dateField: $dateField,
+                            lastDedupSignature: $previousSignature,
+                            blocksInInterval: $blocksInInterval,
+                            recoveryScope: $recoveryScope,
+                        );
+
+                        return ArchiveWindowScanResult::OperatorDebt;
+                    }
+
+                    $stack = $splitStack;
+                    $blockFrom = 1;
+                    $previousSignature = null;
+                    $blocksInInterval = 0;
+                } else {
+                    $previousSignature = $batch->dedupSignature;
+                    $blockFrom += $blockSize;
+                    $blocksInInterval++;
+                }
+
+                $this->persistCursor(
+                    run: $run,
+                    day: $day,
+                    stack: $stack,
+                    blockFrom: $blockFrom,
+                    dateField: $dateField,
+                    lastDedupSignature: $previousSignature,
+                    blocksInInterval: $blocksInInterval,
+                    recoveryScope: $recoveryScope,
+                );
+                $this->runs->heartbeat(run: $run);
+
+                return null;
+            });
+
+            if ($result !== null) {
+                return $result;
             }
-
-            $this->persistCursor(
-                run: $run,
-                day: $day,
-                stack: $stack,
-                blockFrom: $blockFrom,
-                dateField: $dateField,
-                lastDedupSignature: $previousSignature,
-                blocksInInterval: $blocksInInterval,
-            );
-            $this->runs->heartbeat(run: $run);
         }
 
         return ArchiveWindowScanResult::Drained;
@@ -146,9 +208,9 @@ final readonly class ArchiveWindowScanner
 
     /**
      * @param  list<string>  $stack
-     * @return list<string>
+     * @return list<string>|null
      */
-    private function splitTopInterval(array $stack, int $minPriceInterval, Crawler $crawler, Run $run, string $day): array
+    private function splitTopInterval(array $stack, int $minPriceInterval, Crawler $crawler, Run $run, string $day): ?array
     {
         $top = array_pop($stack);
 
@@ -160,11 +222,11 @@ final readonly class ArchiveWindowScanner
 
         if ($hi - $lo <= $minPriceInterval) {
             Log::warning(
-                message: 'ArchiveWindowScanner: price interval at minimum, dropping remainder (dataset tolerance).',
+                message: 'ArchiveWindowScanner: price interval at minimum; remainder remains operator debt.',
                 context: ['crawler_id' => $crawler->id, 'run_id' => $run->id, 'day' => $day, 'interval' => $top],
             );
 
-            return $stack;
+            return null;
         }
 
         $mid = $lo + intdiv($hi - $lo, 2);
@@ -189,6 +251,7 @@ final readonly class ArchiveWindowScanner
         string $dateField,
         ?string $lastDedupSignature,
         int $blocksInInterval,
+        ?RecoveryScope $recoveryScope = null,
     ): void {
         $this->runs->updateCursor(run: $run, cursor: new ListingCursor(
             blockFrom: $blockFrom,
@@ -197,6 +260,7 @@ final readonly class ArchiveWindowScanner
             dateField: $dateField,
             lastDedupSignature: $lastDedupSignature,
             blocksInInterval: $blocksInInterval,
+            recoveryScope: $recoveryScope?->toArray(),
         ));
     }
 

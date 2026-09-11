@@ -86,3 +86,11 @@ test('parse возвращает пустой список при отсутст
 
     expect($parties)->toBe([]);
 });
+
+test('authorizesReconciliation разрешает пустой complete контейнер и запрещает отсутствующий', function () {
+    $parser = app(PartiesParser::class);
+    $completeHtml = '<section class="organizations-block"><table class="parties-table"><tbody></tbody></table></section>';
+
+    expect($parser->authorizesReconciliation(html: $completeHtml, parties: []))->toBeTrue()
+        ->and($parser->authorizesReconciliation(html: '<html><body>пусто</body></html>', parties: []))->toBeFalse();
+});

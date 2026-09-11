@@ -47,13 +47,33 @@ function isExcludedDocumentationPath(string $relativePath): bool
     return false;
 }
 
+function resolveDocumentationLink(string $path, string $target): ?string
+{
+    $candidate = str_starts_with($target, '/')
+        ? base_path('docs'.$target)
+        : dirname($path).'/'.$target;
+    $resolvedPath = realpath($candidate);
+
+    if ($resolvedPath === false && pathinfo($candidate, PATHINFO_EXTENSION) === '') {
+        $resolvedPath = realpath($candidate.'.md');
+    }
+
+    if ($resolvedPath === false) {
+        return null;
+    }
+
+    return is_dir($resolvedPath)
+        ? $resolvedPath.'/_index.md'
+        : $resolvedPath;
+}
+
 /**
  * @return list<string>
  */
 function linkedDocumentationPaths(string $path): array
 {
     $contents = (string) file_get_contents($path);
-    preg_match_all('/(?<!!)[^\n]*\[[^\]]*\]\(([^)\s]+)(?:\s+[^)]*)?\)/', $contents, $matches);
+    preg_match_all('/(?<!!)\[[^\]]*\]\(([^)\s]+)(?:\s+[^)]*)?\)/', $contents, $matches);
     $links = [];
 
     foreach ($matches[1] as $rawTarget) {
@@ -63,17 +83,9 @@ function linkedDocumentationPaths(string $path): array
             continue;
         }
 
-        $resolvedPath = realpath(dirname($path).'/'.$target);
+        $resolvedPath = resolveDocumentationLink($path, $target);
 
-        if ($resolvedPath === false) {
-            continue;
-        }
-
-        if (is_dir($resolvedPath)) {
-            $resolvedPath .= '/_index.md';
-        }
-
-        if (is_file($resolvedPath) && str_ends_with($resolvedPath, '.md')) {
+        if ($resolvedPath !== null && is_file($resolvedPath) && str_ends_with($resolvedPath, '.md')) {
             $links[] = $resolvedPath;
         }
     }
@@ -140,9 +152,9 @@ test('каждая относительная markdown-ссылка ведёт �
                 continue;
             }
 
-            $resolvedPath = realpath(dirname($path).'/'.$target);
+            $resolvedPath = resolveDocumentationLink($path, $target);
 
-            if ($resolvedPath === false || ! file_exists($resolvedPath)) {
+            if ($resolvedPath === null || ! file_exists($resolvedPath)) {
                 $line = substr_count($contents, "\n", 0, $offset) + 1;
                 $violations[] = sprintf('%s:%d: ссылка %s не разрешается в файл.', $relativePath, $line, $rawTarget);
             }

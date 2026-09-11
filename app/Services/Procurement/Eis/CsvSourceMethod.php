@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\Procurement\Eis;
 
+use App\Actions\Procurement\Crawler\StoreRawFetchArtifactAction;
 use App\Dto\Procurement\Crawler\EisListingQueryOverrides;
 use App\Dto\Procurement\Crawler\ListingBatch;
 use App\Dto\Procurement\Crawler\ListingCursor;
@@ -33,7 +34,6 @@ use Illuminate\Http\Client\RequestException;
 use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Storage;
 
 /**
  * Основной метод забора данных ЕИС — CSV-экспорт реестра закупок
@@ -75,6 +75,7 @@ final readonly class CsvSourceMethod implements SourceMethod
         private CrawlSettingsResolver $crawlSettings,
         private SourceTlsTrust $tlsTrust,
         private FetchLogger $fetches,
+        private StoreRawFetchArtifactAction $rawArtifacts,
     ) {}
 
     public function collectListing(
@@ -240,19 +241,19 @@ final readonly class CsvSourceMethod implements SourceMethod
             $response = $this->requestWithOutcome(lease: $lease, endpoint: $url, queryParams: [], settings: $settings);
         }
 
-        $this->fetches->log(CrawlStage::Detail, null, $procurement->id, [
-            'method' => 'eis-card', 'request_params' => ['tab' => $tab, 'url' => $url],
-            'http_status' => $response->status(), 'duration_ms' => (int) ((hrtime(true) - $startedAt) / 1_000_000),
-            'proxy_id' => $lease->proxyId, 'proxy_source' => $lease->source?->value, 'wait_ms' => $waitMs,
-        ]);
-
         $this->assertCardPage(response: $response, tab: $tab, url: $url, registryNumber: $registryNumber);
 
         $html = $response->body();
+        $artifactRef = (bool) config('crawler.raw_html_retention_enabled', false)
+            ? $this->storeRawHtml(registryId: $registry->id, registryNumber: $registryNumber, tab: $tab, url: $url, html: $html)
+            : null;
 
-        if ((bool) config('crawler.raw_html_retention_enabled', false)) {
-            $this->storeRawHtml(registryId: $registry->id, registryNumber: $registryNumber, tab: $tab, html: $html);
-        }
+        $this->fetches->log(stage: CrawlStage::Detail, run: null, procurementId: $procurement->id, attributes: [
+            'method' => 'eis-card', 'request_params' => ['tab' => $tab, 'url' => $url],
+            'artifact_ref' => $artifactRef,
+            'http_status' => $response->status(), 'duration_ms' => (int) ((hrtime(true) - $startedAt) / 1_000_000),
+            'proxy_id' => $lease->proxyId, 'proxy_source' => $lease->source?->value, 'wait_ms' => $waitMs,
+        ]);
 
         return $html;
     }
@@ -296,17 +297,27 @@ final readonly class CsvSourceMethod implements SourceMethod
         }
     }
 
-    private function storeRawHtml(int $registryId, string $registryNumber, string $tab, string $html): void
+    private function storeRawHtml(int $registryId, string $registryNumber, string $tab, string $url, string $html): string
     {
         $disk = $this->stringConfig('crawler.raw_html_disk', $this->stringConfig('crawler.raw_disk'));
-        $path = "raw/html/{$registryId}/{$registryNumber}/{$tab}.html.gz";
         $contents = (bool) config('crawler.raw_html_gzip', true) ? gzencode($html) : $html;
 
         if ($contents === false) {
             throw new \RuntimeException('Не удалось gzip-сжать raw HTML.');
         }
 
-        Storage::disk($disk)->put($path, $contents);
+        return $this->rawArtifacts->execute(
+            disk: $disk,
+            prefix: "raw/html/{$registryId}/{$registryNumber}/{$tab}",
+            requestIdentity: [
+                'registry_id' => $registryId,
+                'registry_number' => $registryNumber,
+                'tab' => $tab,
+                'url' => $url,
+            ],
+            contents: $contents,
+            extension: (bool) config('crawler.raw_html_gzip', true) ? 'html.gz' : 'html',
+        );
     }
 
     /**

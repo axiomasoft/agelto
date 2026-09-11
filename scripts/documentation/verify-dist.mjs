@@ -21,7 +21,10 @@ const MIME_TYPES = Object.freeze({
     '.woff2': 'font/woff2',
 });
 
-const SAFE_PATH = /^[A-Za-z0-9][A-Za-z0-9._/-]*$/;
+// VitePress local search emits generated chunks such as
+// `assets/chunks/@localSearchIndexroot.<hash>.js`. `@` is a literal safe URL-path
+// character; all traversal, encoding and separator checks remain below.
+const SAFE_PATH = /^[A-Za-z0-9][A-Za-z0-9.@_/-]*$/;
 const REMOTE_EXECUTABLE_RESOURCE = /<(?:script|link)\b[^>]+(?:src|href)\s*=\s*["']https?:\/\//i;
 const REMOTE_CSS_RESOURCE = /(?:@import\s+(?:url\()?|url\()\s*["']?https?:\/\//i;
 const REMOTE_MODULE = /\bimport\s*(?:\([^)]*|[^;]*?\bfrom\s*)["']https?:\/\//i;

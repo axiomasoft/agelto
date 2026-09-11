@@ -4,25 +4,28 @@ type: explanation
 status: living
 ---
 
-# 04 · Operators
+# Эксплуатация Agelto
 
-В левом меню сначала идут рабочие домены: «Закупки», «Площадки», «Сбор данных»,
-«Качество анализа» и «Настройка AI». Раздел «Доступ и безопасность» содержит
-роли, персональные права и проверку доступа; «Система» — журнал процессов и документацию.
-Скрытый пункт меню не заменяет проверку прав: прямые ссылки на любой экран админки также
-проверяются по назначенной роли.
-На телефоне основное действие и навигация остаются доступны без горизонтальной прокрутки; UUID,
-провенанс и остальные технические детали намеренно остаются вторичными.
+Здесь собраны две разные, но связанные работы: ежедневные действия в админке и эксплуатация
+production-сервера. Выберите их в левом меню; каждый сценарий объясняет результат, условия и
+проверку, а не только название кнопки или команды. Скрытый пункт интерфейса не является защитой —
+прямой URL всегда перепроверяет назначенное право.
 
-Роутер по ролям: оператор / менеджер → их SOP.
+## С чего начать
+
+| Нужно сделать | Начальная страница |
+|---|---|
+| Подготовить новый сервер | [Ubuntu → готовый checkout](production/server-setup.md) |
+| Выпустить версию на уже подготовленном сервере | [Production: полное руководство](production/deployment.md) |
+| Понять статус или работать с результатом анализа | [Статусы](reference/statuses.md) → нужный сценарий ниже |
+| Настроить провайдеры, промты или эталоны | Сценарии «Настройка и наблюдение» ниже |
 
 ## Production
 
-- [Ubuntu host bootstrap](production/ubuntu-host.md)
-- [Production host profile](production/production-profile.md)
-- [Production preparation](production/_index.md)
-
+- [Полное руководство: сервер, первый запуск и повторные релизы](production/deployment.md)
 - [Статусы и колонки админки](reference/statuses.md) — что означает каждый статус не-инженерным языком.
+- [Каталог нечастых production-операций](production/_index.md) — backup, откат, ключи, секреты и
+  разбор инцидентов.
 ## SOP: обработка результатов
 
 - [Проверить AI-анализ](how-to/check-ai-analysis.md)
@@ -51,7 +54,6 @@ status: living
 
 Устройство системы — не здесь: см. `03_Dev/`. Этот раздел — только действия и решения оператора.
 
-Для production preparation начните с
-[`P12-command-matrix.md`](https://github.com/axiomasoft/agelto/blob/main/plans/archive/2026.08.09-RELEASE-READINESS/artifacts/P12-command-matrix.md):
-это generated source-of-truth по environment, mutation, authority, exit/resume и evidence для всех
-Make/script commands. Затем переходите в [`production/_index.md`](production/_index.md).
+Source-derived [матрица P12](https://github.com/axiomasoft/agelto/blob/main/plans/archive/2026.08.09-RELEASE-READINESS/artifacts/P12-command-matrix.md)
+нужна как точный контракт inputs/mutation/resume/evidence, но основной путь человека начинается с
+[руководства по production](production/deployment.md), а не с матрицы.

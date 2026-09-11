@@ -10,7 +10,6 @@ use App\Models\Procurement\EisDetails;
 use App\Models\Procurement\Financing;
 use App\Models\Procurement\Protocol;
 use App\Models\Procurement\PurchaseItem;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
 /**
@@ -43,13 +42,11 @@ final readonly class ProcurementDetailStoreRepository
      */
     public function replaceFinancing(int $procurementId, array $rows): void
     {
-        DB::transaction(function () use ($procurementId, $rows): void {
-            Financing::query()->where('procurement_id', $procurementId)->delete();
+        Financing::query()->where('procurement_id', $procurementId)->delete();
 
-            foreach ($rows as $row) {
-                Financing::query()->create([...$row, 'procurement_id' => $procurementId]);
-            }
-        });
+        foreach ($rows as $row) {
+            Financing::query()->create([...$row, 'procurement_id' => $procurementId]);
+        }
     }
 
     /**
@@ -64,6 +61,20 @@ final readonly class ProcurementDetailStoreRepository
             ],
             $attributes,
         );
+    }
+
+    /** @param list<int> $positionNumbers */
+    public function deleteItemsMissingFromSnapshot(int $procurementId, array $positionNumbers): void
+    {
+        $query = PurchaseItem::query()->where('procurement_id', $procurementId);
+
+        if ($positionNumbers === []) {
+            $query->delete();
+
+            return;
+        }
+
+        $query->whereNotIn('position_number', $positionNumbers)->delete();
     }
 
     /**

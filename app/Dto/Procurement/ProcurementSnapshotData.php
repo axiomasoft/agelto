@@ -24,6 +24,7 @@ final readonly class ProcurementSnapshotData
         public string $sourceStage,
         public Carbon $publishedAt,
         public Carbon $sourceUpdatedAt,
+        public bool $sourceUpdatedAtHasDayPrecision = false,
         public ?string $etpNumber = null,
         public ?string $ikz = null,
         public ?string $procedureType = null,

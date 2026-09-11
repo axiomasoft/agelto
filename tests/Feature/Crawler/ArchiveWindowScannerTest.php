@@ -185,13 +185,13 @@ test('archive max-block detector survives checkpoints and consumes one listing b
 
     $second = app(ArchiveWindowScanner::class)->scan(crawler: $crawler, run: $run->fresh(), filter: archiveWindowFilter());
 
-    expect($second)->toBe(ArchiveWindowScanResult::Drained)
-        ->and($run->fresh()->cursor['priceStack'])->toBeNull()
-        ->and($run->fresh()->cursor['blocksInInterval'])->toBe(0)
+    expect($second)->toBe(ArchiveWindowScanResult::OperatorDebt)
+        ->and($run->fresh()->cursor['priceStack'])->toBe(['0:100'])
+        ->and($run->fresh()->cursor['blocksInInterval'])->toBe(2)
         ->and(Procurement::query()->count())->toBe(4);
 });
 
-test('cap на минимальном ценовом интервале — предупреждение и остановка без зацикливания', function () {
+test('cap на минимальном ценовом интервале остаётся operator debt без потери стека', function () {
     config(['crawler.archive.price_ceiling' => 10, 'crawler.archive.min_price_interval' => 10]);
     Log::spy();
 
@@ -203,17 +203,18 @@ test('cap на минимальном ценовом интервале — пр
         archiveScannerBatch(['0173200001234000022', '0173200001234000023'], dedupSignature: 'dup-signature'),
     ]);
 
-    app(ArchiveWindowScanner::class)->scan(crawler: $crawler, run: $run, filter: archiveWindowFilter());
+    $result = app(ArchiveWindowScanner::class)->scan(crawler: $crawler, run: $run, filter: archiveWindowFilter());
 
     Log::shouldHaveReceived('warning')
         ->withArgs(fn (string $message): bool => str_contains($message, 'price interval at minimum'))
         ->once();
 
-    expect(Procurement::query()->count())->toBe(4)
-        ->and($run->fresh()->cursor['priceStack'])->toBeNull();
+    expect($result)->toBe(ArchiveWindowScanResult::OperatorDebt)
+        ->and(Procurement::query()->count())->toBe(4)
+        ->and($run->fresh()->cursor['priceStack'])->toBe(['0:10']);
 });
 
-test('max_blocks_per_window останавливает интервал без стоп-условия', function () {
+test('max_blocks_per_window сохраняет хвост до resume с изменённым лимитом', function () {
     config(['crawler.archive.max_blocks_per_window' => 2]);
     Log::spy();
 
@@ -223,15 +224,25 @@ test('max_blocks_per_window останавливает интервал без �
     useArchiveQueueSourceMethod([
         archiveScannerBatch(['0173200001234000030', '0173200001234000031'], dedupSignature: 'sig-1'),
         archiveScannerBatch(['0173200001234000032', '0173200001234000033'], dedupSignature: 'sig-2'),
+        archiveScannerBatch(['0173200001234000034'], dedupSignature: 'sig-3'),
     ]);
 
-    app(ArchiveWindowScanner::class)->scan(crawler: $crawler, run: $run, filter: archiveWindowFilter());
+    $first = app(ArchiveWindowScanner::class)->scan(crawler: $crawler, run: $run, filter: archiveWindowFilter());
 
     Log::shouldHaveReceived('warning')
         ->withArgs(fn (string $message): bool => str_contains($message, 'max blocks per price interval'))
         ->once();
 
-    expect(Procurement::query()->count())->toBe(4)
+    expect($first)->toBe(ArchiveWindowScanResult::OperatorDebt)
+        ->and(Procurement::query()->count())->toBe(4)
+        ->and($run->fresh()->cursor['priceStack'])->toBe(['0:100']);
+
+    config(['crawler.archive.max_blocks_per_window' => 3]);
+
+    $second = app(ArchiveWindowScanner::class)->scan(crawler: $crawler, run: $run->fresh(), filter: archiveWindowFilter());
+
+    expect($second)->toBe(ArchiveWindowScanResult::Drained)
+        ->and(Procurement::query()->count())->toBe(5)
         ->and($run->fresh()->cursor['priceStack'])->toBeNull();
 });
 

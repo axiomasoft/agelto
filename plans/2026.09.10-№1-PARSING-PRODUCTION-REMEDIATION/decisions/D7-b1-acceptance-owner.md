@@ -1,0 +1,29 @@
+---
+id: D7
+date: 2026-09-10
+status: accepted
+item: P2.2
+items: [P2.2, P4.2]
+supersedes: [D3]
+superseded_by: null
+---
+## Решение
+
+`prc_purchase_items` и `prc_procurement_parties` остаются current projections по смыслу
+D3: P2.2 реализует атомарный reconcile только по complete snapshot, а P4.2 независимо
+принимает B1. P4.1 не несёт B1-обязанностей.
+
+## Почему
+
+Finish-reconcile обнаружил stale item mapping D3 после разбиения P4: P4.1 теперь
+владеет live B2 gate, а не B1 acceptance. Сам current-projection contract не изменился.
+RAG:— (repo-grounded: `phases/P2/P2.2.md`, `phases/P4/P4.1.md`, `phases/P4/P4.2.md`).
+
+## Consequences
+
+**Consequences:** P2.2 сохраняет N→N−1, N→0, renumber и rollback criteria D3. `prc_items`
+reconcile-ится по typed `(procurement_id, position_number)`: входящий номер заменяет
+семантически иную строку на той же позиции, а отсутствующие номера удаляются. Стороны сверяются по
+typed `(procurement_id, organization_id, role)` после resolver-а; исчезнувший customer также
+очищает `customer_org_id`. P4.2 обязан связать B1 verdict с этими negative regressions, а P4.1
+остаётся узким live B2 item.

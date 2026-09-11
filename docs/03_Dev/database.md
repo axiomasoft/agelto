@@ -14,6 +14,12 @@ registry выигрывает; rollback applicability отказывается �
 Полная схема — миграции `database/migrations/` (источник истины, не копируется сюда). Этот раздел —
 карта таблиц AI-пайплайна и ключевые инварианты, которые не читаются из одной миграции с ходу.
 
+`prc_eis_details`, `prc_financing`, `prc_items` и `prc_procurement_parties` — current projection
+common-info карточки ЕИС, не immutable history. Только `CommonInfoSnapshot=complete` разрешает
+replace/reconcile: items имеют typed key `(procurement_id, position_number)`, parties —
+`(procurement_id, organization_id, role)` после organization resolution. Empty complete set
+удаляет current rows; incomplete/failed snapshot не меняет их, включая `customer_org_id`.
+
 ## Фактический состав схемы
 
 После консолидации P8 (2026-08-08) дерево содержит **63 миграции**: 57 `create_*` с полной
@@ -26,6 +32,7 @@ registry выигрывает; rollback applicability отказывается �
 - `2026_07_09_100051_set_hot_partition_autovacuum.php`;
 - `2026_08_05_100068_enable_db_observability_extensions.php`;
 - `2026_08_05_100074_precreate_historical_partitions.php`;
+- `2026_09_10_100093_repair_partition_coverage.php`;
 - `2026_08_05_100076_prune_orphaned_partman_part_config_entries.php`.
 
 В `public` после `migrate:fresh --seed` — **70** обычных и партиционированных родительских
@@ -111,10 +118,15 @@ fallback: пустой или unhealthy exact set даёт `NoProxyAvailableExce
 
 `prc_procurements` — текущая проекция, а `prc_revisions` и `prc_events` сохраняют соответственно
 снапшоты и типизированную историю. Поэтому изменение цены, статуса или дат создаёт новую ревизию и
-события, а состояние на дату читается как последняя ревизия с `detected_at <=` этой даты. Замена
-вложения создаёт новую `DocumentVersion`, не уничтожая анализ старой версии. Одна организация может
-иметь несколько ролей в закупке через `org_procurement_parties`; резолв по ИНН/ОГРН не создаёт
-отдельную организацию на каждую роль.
+события, а состояние на дату читается как последняя ревизия с `detected_at <=` этой даты. При
+фактическом повторном скачивании изменившиеся bytes создают новую `DocumentVersion`, не уничтожая
+анализ старой версии. Это content-addressed capability, но не полная orchestration guarantee:
+повторный index прежнего ЕИС `uid` сохраняет текущий pipeline status, а detail-контур выбирает для
+скачивания только `Discovered`. До live verdict P4.1 неизвестность стабильности `uid` закрывается
+fail-closed: same-uid/different-hash и недостаточное evidence требуют bounded revalidation; только
+наблюдённые changed-uid replacements допускают defer для ограниченного pilot. Одна организация
+может иметь несколько ролей в закупке через `org_procurement_parties`; резолв по ИНН/ОГРН не
+создаёт отдельную организацию на каждую роль.
 
 Эти сценарии защищают не «идеальную» схему из исторического ТЗ, а реальные инварианты миграций и
 тестов. Поиск как отдельная материализованная витрина в старой спецификации не перенесён: в
@@ -151,6 +163,18 @@ config-окну. **Хранится вечно** (явное исключени�
 **`prc_revisions`** (D41 — доменный аудит изменений закупок, не эфемерный лог; `retention_keep_table`
 или отдельное длинное окно по согласованию владельца). Блобы (`request_ref`/`response_ref`) в MinIO
 — под ILM-правила (transition/expire), не под Postgres-retention.
+
+Новая additive migration `2026_09_10_100093_repair_partition_coverage.php` закрывает разрыв
+между историческим окном и текущим bootstrap: она идемпотентно добавляет отсутствующие месяцы за
+12 месяцев до текущего месяца и `partitioning.premake` месяцев вперёд. Откат удаляет только
+партиции, помеченные этой migration. `partitions:maintain` после pg_partman/fallback проверяет,
+что между существующими monthly partitions нет разрыва; retention-политику команда не меняет.
+
+`prc_fetches.artifact_ref` хранит exact reference к raw CSV или HTML object, если raw retention
+включён. Это content-addressed reference (request identity hash + content hash), а не mutable
+offset/tab key: запись Fetch появляется только после checked object write. Retention raw storage
+управляется отдельно от партиций PostgreSQL; после истечения retention ссылка остаётся историческим
+наблюдаемым фактом, но object может быть удалён политикой хранения.
 
 ## Наблюдаемость и рантайм-параметры кластера (P7.4)
 

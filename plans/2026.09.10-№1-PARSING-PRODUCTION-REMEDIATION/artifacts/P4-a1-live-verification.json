@@ -1,0 +1,60 @@
+{
+    "schema_version": "p4-a1-live-verification/v1",
+    "git_anchor": "f60e98c25aa65e8ebf225e4681beca3e796a52b9",
+    "authority_sha256": "c3b0a313b1d94b59e73ffa6e4ad8e4ccd57a3df40bbb5450d1a3630fd2a7d240",
+    "scope_sha256": "c6d3cba75f4ca5e7d6b4c4eed44a64908354dc456f6ba1f3e7fa58492b1209cf",
+    "requests": [
+        {
+            "evidence_id": "a1-request-001",
+            "request_number": 1,
+            "stage": "listing",
+            "collected_at": "2026-09-11T11:44:51+00:00",
+            "transport_error": "network_timeout"
+        },
+        {
+            "evidence_id": "a1-request-002",
+            "request_number": 2,
+            "stage": "listing",
+            "collected_at": "2026-09-11T11:45:10+00:00",
+            "transport_error": "network_timeout"
+        },
+        {
+            "evidence_id": "a1-request-003",
+            "request_number": 3,
+            "stage": "listing",
+            "collected_at": "2026-09-11T11:45:27+00:00",
+            "transport_error": "network_timeout"
+        }
+    ],
+    "pages": [],
+    "boundary_days": [
+        {
+            "date": "2026-09-10",
+            "row_count": 0,
+            "page_sequences": [],
+            "rows": []
+        },
+        {
+            "date": "2026-09-11",
+            "row_count": 0,
+            "page_sequences": [],
+            "rows": []
+        }
+    ],
+    "stop_reasons": [
+        "three-consecutive-transport-errors"
+    ],
+    "verdict": {
+        "status": "insufficient_live_boundary_evidence",
+        "ordering_consistent": true,
+        "multi_page_boundary_observed": false,
+        "prior_diagnostic_request_count": 1,
+        "authorized_scope_request_count": 4,
+        "limitation": "Finite owner-authorized window; this evidence does not prove universal EIS ordering."
+    },
+    "evidence_ids": [
+        "a1-request-001",
+        "a1-request-002",
+        "a1-request-003"
+    ]
+}

@@ -39,6 +39,7 @@ compose=(
 
 if [[ "$deploy_class" == 'image-promotion' ]]; then
     docker pull "agelto/app:$IMAGE_TAG"
+    docker pull "agelto/doctor:$IMAGE_TAG"
     exit 0
 fi
 

@@ -46,7 +46,9 @@ COPY --from=mc /usr/bin/mc /usr/local/bin/mc
 
 WORKDIR /var/www/html
 
-RUN mkdir -p storage/framework/sessions \
+RUN mkdir -p storage/app \
+    storage/logs \
+    storage/framework/sessions \
     storage/framework/views \
     storage/framework/cache \
     bootstrap/cache \
@@ -110,9 +112,9 @@ RUN rm -f .env \
     && DB_CONNECTION=sqlite DB_DATABASE=/var/www/html/database/database.sqlite php artisan filament:assets --no-interaction \
     && DB_CONNECTION=sqlite DB_DATABASE=/var/www/html/database/database.sqlite php artisan livewire:publish --assets --no-interaction \
     && rm -f database/database.sqlite \
-    && mkdir -p storage/framework/{cache,sessions,views} storage/logs bootstrap/cache \
+    && mkdir -p storage/app storage/framework/{cache,sessions,views} storage/logs bootstrap/cache \
     && install -d -m 0755 /usr/share/agelto \
-    && printf '%s\\n' "$VENDOR_LOCK_SHA" > /usr/share/agelto/vendor-lock.sha \
+    && printf '%s\n' "$VENDOR_LOCK_SHA" > /usr/share/agelto/vendor-lock.sha \
     && chmod -R a-w /var/private-documentation \
     && chown -R www-data:www-data public storage bootstrap/cache
 LABEL org.opencontainers.image.revision="${SOURCE_SHA}" \
@@ -132,7 +134,7 @@ ARG VENDOR_LOCK_SHA
 COPY --exclude=local/vendors/azguard --chown=www-data:www-data . /var/www/html
 COPY --from=doctor-dependencies --chown=www-data:www-data /var/www/html/vendor /var/www/html/vendor
 RUN install -d -m 0755 /usr/share/agelto \
-    && printf '%s\\n' "$VENDOR_LOCK_SHA" > /usr/share/agelto/vendor-lock.sha
+    && printf '%s\n' "$VENDOR_LOCK_SHA" > /usr/share/agelto/vendor-lock.sha
 LABEL org.opencontainers.image.title="agelto-doctor" \
       org.opencontainers.image.revision="${SOURCE_SHA}" \
       io.agelto.vendor-lock-sha="${VENDOR_LOCK_SHA}"

@@ -29,10 +29,12 @@ done
 
 run_release_target prod:image:promote
 grep -Fx 'pull agelto/app:2026.08.10.1' "$log_file" >/dev/null
+grep -Fx 'pull agelto/doctor:2026.08.10.1' "$log_file" >/dev/null
 ! grep -Eq '(^| )(build|down|latest)( |$)' "$log_file"
 
 run_release_target prod:deploy:image
 grep -Fx 'pull agelto/app:2026.08.10.1' "$log_file" >/dev/null
+grep -Fx 'pull agelto/doctor:2026.08.10.1' "$log_file" >/dev/null
 grep -F 'pull app horizon scheduler' "$log_file" >/dev/null
 grep -F 'up -d --no-build --remove-orphans app horizon scheduler' "$log_file" >/dev/null
 ! grep -Eq '(^| )(build|down|latest)( |$)' "$log_file"

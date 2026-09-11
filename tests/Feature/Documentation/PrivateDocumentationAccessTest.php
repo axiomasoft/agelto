@@ -35,8 +35,8 @@ afterEach(function (): void {
     privateDocumentationAccessRemoveDirectory($this->documentationRoot);
 });
 
-test('guest redirects to the admin login without documentation bytes', function (): void {
-    $this->get('/admin/documentation')
+test('guest redirects to the login without documentation bytes', function (): void {
+    $this->get('/documentation')
         ->assertRedirect(route(name: 'filament.admin.auth.login'))
         ->assertDontSee('private documentation sentinel');
 });
@@ -51,10 +51,10 @@ test('roleless analyst and operator are denied documentation bytes on GET and HE
     foreach ([$roleless, $analyst, $operator] as $user) {
         actingAs($user);
 
-        $this->get('/admin/documentation')
+        $this->get('/documentation')
             ->assertForbidden()
             ->assertDontSee('private documentation sentinel');
-        $this->call('HEAD', '/admin/documentation')->assertForbidden();
+        $this->call('HEAD', '/documentation')->assertForbidden();
     }
 });
 
@@ -63,11 +63,11 @@ test('superadmin can access documentation and sees its navigation item', functio
     $user->assignRole(SuperAdminRole::class);
     actingAs($user);
 
-    $this->get('/admin/documentation')->assertOk();
-    $this->call('HEAD', '/admin/documentation')->assertOk();
+    $this->get('/documentation')->assertOk();
+    $this->call('HEAD', '/documentation')->assertOk();
 
     expect(privateDocumentationNavigationItem()->isVisible())->toBeTrue()
-        ->and(privateDocumentationNavigationItem()->getUrl())->toBe(route(name: 'admin.documentation.show'));
+        ->and(privateDocumentationNavigationItem()->getUrl())->toBe(route(name: 'documentation.show'));
 });
 
 test('admin-scoped direct grant opens documentation and revocation closes it again', function (): void {
@@ -79,18 +79,18 @@ test('admin-scoped direct grant opens documentation and revocation closes it aga
 
     expect($user->canAccessPanel(Filament::getPanel('admin')))->toBeFalse();
 
-    $this->get('/admin/documentation')->assertOk();
-    $this->call('HEAD', '/admin/documentation')->assertOk();
+    $this->get('/documentation')->assertOk();
+    $this->call('HEAD', '/documentation')->assertOk();
     expect(privateDocumentationNavigationItem()->isVisible())->toBeTrue();
 
     AzGuard::forUser($user)
         ->on('admin')
         ->revoke(DocumentationPermission::View);
 
-    $this->get('/admin/documentation')
+    $this->get('/documentation')
         ->assertForbidden()
         ->assertDontSee('private documentation sentinel');
-    $this->call('HEAD', '/admin/documentation')->assertForbidden();
+    $this->call('HEAD', '/documentation')->assertForbidden();
     expect(privateDocumentationNavigationItem()->isVisible())->toBeFalse();
 });
 
@@ -101,7 +101,7 @@ test('guest and revoked users cannot recover cached documentation bytes through 
         ->grant(DocumentationPermission::View);
     actingAs($user);
 
-    $response = $this->get('/admin/documentation')->assertOk();
+    $response = $this->get('/documentation')->assertOk();
 
     expect($response->headers->get('Cache-Control'))->toContain('private')
         ->toContain('no-store');
@@ -110,14 +110,14 @@ test('guest and revoked users cannot recover cached documentation bytes through 
         ->on('admin')
         ->revoke(DocumentationPermission::View);
 
-    $this->get('/admin/documentation')
+    $this->get('/documentation')
         ->assertForbidden()
         ->assertDontSee('private documentation sentinel');
 
     Auth::logout();
     $this->flushSession();
 
-    $this->get('/admin/documentation')
+    $this->get('/documentation')
         ->assertRedirect(route(name: 'filament.admin.auth.login'))
         ->assertDontSee('private documentation sentinel');
 });

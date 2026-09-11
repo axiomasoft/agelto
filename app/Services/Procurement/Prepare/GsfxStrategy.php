@@ -46,6 +46,7 @@ final readonly class GsfxStrategy implements PreparationStrategy
     public function __construct(
         private ExpandArchiveEntryAction $expandArchiveEntry,
         private RepresentationStoreRepository $representations,
+        private RepresentationWriter $writer,
         private MarkDocumentUnprocessableAction $markUnprocessable,
         private ArchiveExtractor $extractor,
         private ArchiveEntryValidator $entryValidator,
@@ -136,9 +137,7 @@ final readonly class GsfxStrategy implements PreparationStrategy
         ];
 
         $structuredXmlPath = $this->preparedPath($version, RepresentationKind::StructuredXml);
-        $disk->put($structuredXmlPath, $structuredXml);
-
-        $this->representations->storeOrUpdate($version, RepresentationKind::StructuredXml, [
+        $this->writer->write($disk, $version, RepresentationKind::StructuredXml, $structuredXmlPath, $structuredXml, [
             'storage_path' => $structuredXmlPath,
             'disk' => $diskName,
             'size_bytes' => strlen($structuredXml),
@@ -148,9 +147,7 @@ final readonly class GsfxStrategy implements PreparationStrategy
         ]);
 
         $textPath = $this->preparedPath($version, RepresentationKind::Text);
-        $disk->put($textPath, $text);
-
-        $this->representations->storeOrUpdate($version, RepresentationKind::Text, [
+        $this->writer->write($disk, $version, RepresentationKind::Text, $textPath, $text, [
             'storage_path' => $textPath,
             'disk' => $diskName,
             'size_bytes' => strlen($text),

@@ -28,6 +28,22 @@ status: living
 5. `fresh`-профиль деактивирован (`is_active=false`), если параллельный боевой поток не нужен —
    иначе конкурирует за прокси-узел и троттлинг с архивным обходом.
 
+### Controlled-production preflight
+
+Этот runbook сам по себе не разрешает production traffic. Для первого ограниченного окна сначала
+нужен durable owner carrier, привязанный к конкретным environment, crawler profile/filter, request
+ceiling и reversible stop action. Затем на целевом host должны существовать `.env.production` и
+`docker/host/production-profile`, а app/doctor должны быть привязаны к неизменяемому image digest.
+
+До первого запроса выполните объявленные item'ом проверки Compose render/project, Horizon и
+effective `queue`/`horizon`/`partitioning` config. Любой отсутствующий target/env/profile либо
+ненулевой exit code означает `NO-GO`: 72-часовое окно не стартует, а локальный dev/rehearsal не
+подменяет production evidence.
+
+Первая попытка P4.3 от 2026-09-11 остановлена именно на этом gate: `COMPOSE_PROJECT_NAME`,
+`.env.production`, host profile и доступный production target отсутствовали. Sanitized evidence —
+`plans/2026.09.10-№1-PARSING-PRODUCTION-REMEDIATION/artifacts/P4-controlled-production.json`.
+
 ## Fix (как запустить)
 
 ```bash

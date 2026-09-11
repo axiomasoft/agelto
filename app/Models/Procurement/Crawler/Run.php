@@ -33,6 +33,8 @@ use Illuminate\Support\Collection;
  * @property Carbon|null $started_at
  * @property Carbon|null $finished_at
  * @property Carbon|null $last_heartbeat_at
+ * @property string|null $execution_owner_token
+ * @property Carbon|null $execution_lease_expires_at
  * @property int $attempts
  * @property string|null $last_error
  * @property Carbon|null $last_error_at
@@ -56,6 +58,8 @@ use Illuminate\Support\Collection;
     'started_at',
     'finished_at',
     'last_heartbeat_at',
+    'execution_owner_token',
+    'execution_lease_expires_at',
     'attempts',
     'last_error',
     'last_error_at',
@@ -82,6 +86,7 @@ final class Run extends Model
             'started_at' => 'datetime',
             'finished_at' => 'datetime',
             'last_heartbeat_at' => 'datetime',
+            'execution_lease_expires_at' => 'datetime',
             'attempts' => 'integer',
             'last_error_at' => 'datetime',
             'next_retry_at' => 'datetime',

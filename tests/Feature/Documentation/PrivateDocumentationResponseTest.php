@@ -12,19 +12,27 @@ use function Pest\Laravel\artisan;
 
 beforeEach(function (): void {
     $this->documentationRoot = sys_get_temp_dir().'/agelto-documentation-response-'.bin2hex(random_bytes(8));
-    mkdir($this->documentationRoot.'/site/assets', recursive: true);
+    mkdir($this->documentationRoot.'/site/assets/chunks', recursive: true);
+    mkdir($this->documentationRoot.'/site/01_Business', recursive: true);
+    mkdir($this->documentationRoot.'/site/guide', recursive: true);
     file_put_contents($this->documentationRoot.'/site/index.html', '<script>bootstrap()</script><main>root sentinel</main>');
-    file_put_contents($this->documentationRoot.'/site/guide.html', '<main>nested sentinel</main>');
+    file_put_contents($this->documentationRoot.'/site/article.html', '<main>article sentinel</main>');
+    file_put_contents($this->documentationRoot.'/site/01_Business/index.html', '<main>business directory sentinel</main>');
+    file_put_contents($this->documentationRoot.'/site/guide/index.html', '<main>directory sentinel</main>');
     file_put_contents($this->documentationRoot.'/site/assets/app.css', 'body { color: black; }');
     file_put_contents($this->documentationRoot.'/site/assets/app.js', 'window.documentationReady = true;');
+    file_put_contents($this->documentationRoot.'/site/assets/chunks/@localSearchIndexroot.js', 'window.documentationSearchReady = true;');
     file_put_contents($this->documentationRoot.'/site/assets/portal.woff2', 'font sentinel');
     file_put_contents($this->documentationRoot.'/site/assets/search.json', '{"items":[]}');
     file_put_contents($this->documentationRoot.'/manifest.json', json_encode([
+        ['path' => '01_Business/index.html', 'mime' => 'text/html; charset=utf-8', 'sha256' => hash_file('sha256', $this->documentationRoot.'/site/01_Business/index.html')],
+        ['path' => 'article.html', 'mime' => 'text/html; charset=utf-8', 'sha256' => hash_file('sha256', $this->documentationRoot.'/site/article.html')],
         ['path' => 'assets/app.css', 'mime' => 'text/css; charset=utf-8', 'sha256' => hash_file('sha256', $this->documentationRoot.'/site/assets/app.css')],
         ['path' => 'assets/app.js', 'mime' => 'text/javascript; charset=utf-8', 'sha256' => hash_file('sha256', $this->documentationRoot.'/site/assets/app.js')],
+        ['path' => 'assets/chunks/@localSearchIndexroot.js', 'mime' => 'text/javascript; charset=utf-8', 'sha256' => hash_file('sha256', $this->documentationRoot.'/site/assets/chunks/@localSearchIndexroot.js')],
         ['path' => 'assets/portal.woff2', 'mime' => 'font/woff2', 'sha256' => hash_file('sha256', $this->documentationRoot.'/site/assets/portal.woff2')],
         ['path' => 'assets/search.json', 'mime' => 'application/json; charset=utf-8', 'sha256' => hash_file('sha256', $this->documentationRoot.'/site/assets/search.json')],
-        ['path' => 'guide.html', 'mime' => 'text/html; charset=utf-8', 'sha256' => hash_file('sha256', $this->documentationRoot.'/site/guide.html')],
+        ['path' => 'guide/index.html', 'mime' => 'text/html; charset=utf-8', 'sha256' => hash_file('sha256', $this->documentationRoot.'/site/guide/index.html')],
         ['path' => 'index.html', 'mime' => 'text/html; charset=utf-8', 'sha256' => hash_file('sha256', $this->documentationRoot.'/site/index.html')],
     ], flags: JSON_PRETTY_PRINT | JSON_THROW_ON_ERROR));
     config(['documentation.root' => $this->documentationRoot]);
@@ -40,7 +48,7 @@ afterEach(function (): void {
 });
 
 test('response policy preserves manifest body mime headers and html csp', function (): void {
-    $response = $this->get('/admin/documentation');
+    $response = $this->get('/documentation');
 
     expect(file_get_contents($response->baseResponse->getFile()->getPathname()))->toContain('root sentinel')
         ->and($response->headers->get('Content-Type'))->toBe('text/html; charset=utf-8')
@@ -53,7 +61,7 @@ test('response policy preserves manifest body mime headers and html csp', functi
 });
 
 test('representative static artifacts share the manifest mime and no-store policy', function (string $path, string $mime, string $contents): void {
-    $response = $this->get("/admin/documentation/{$path}");
+    $response = $this->get("/documentation/{$path}");
 
     expect(file_get_contents($response->baseResponse->getFile()->getPathname()))->toBe($contents)
         ->and($response->headers->get('Content-Type'))->toBe($mime)
@@ -63,20 +71,26 @@ test('representative static artifacts share the manifest mime and no-store polic
 })->with([
     'CSS' => ['assets/app.css', 'text/css; charset=utf-8', 'body { color: black; }'],
     'JavaScript' => ['assets/app.js', 'text/javascript; charset=utf-8', 'window.documentationReady = true;'],
+    'VitePress local search chunk' => ['assets/chunks/@localSearchIndexroot.js', 'text/javascript; charset=utf-8', 'window.documentationSearchReady = true;'],
     'JSON' => ['assets/search.json', 'application/json; charset=utf-8', '{"items":[]}'],
     'font' => ['assets/portal.woff2', 'font/woff2', 'font sentinel'],
 ]);
 
-test('nested manifest page is served and missing page has the uniform 404 surface', function (): void {
-    $nested = $this->get('/admin/documentation/guide.html');
+test('direct clean URLs resolve to manifest pages and missing page has the uniform 404 surface', function (): void {
+    $article = $this->get('/documentation/article');
 
-    expect(file_get_contents($nested->baseResponse->getFile()->getPathname()))->toContain('nested sentinel')
-        ->and($nested->headers->get('Content-Type'))->toBe('text/html; charset=utf-8');
+    expect(file_get_contents($article->baseResponse->getFile()->getPathname()))->toContain('article sentinel')
+        ->and($article->headers->get('Content-Type'))->toBe('text/html; charset=utf-8');
 
-    $this->get('/admin/documentation/missing.html')
+    $directory = $this->get('/documentation/01_Business/');
+
+    expect(file_get_contents($directory->baseResponse->getFile()->getPathname()))->toContain('business directory sentinel')
+        ->and($directory->headers->get('Content-Type'))->toBe('text/html; charset=utf-8');
+
+    $this->get('/documentation/missing')
         ->assertNotFound()
         ->assertDontSee('root sentinel')
-        ->assertDontSee('nested sentinel');
+        ->assertDontSee('article sentinel');
 });
 
 test('active svg отсутствует в закрытом mime contract и не возвращает bytes', function (): void {
@@ -89,14 +103,14 @@ test('active svg отсутствует в закрытом mime contract и н�
     ];
     file_put_contents($this->documentationRoot.'/manifest.json', json_encode($manifest, flags: JSON_PRETTY_PRINT | JSON_THROW_ON_ERROR));
 
-    $this->get('/admin/documentation/assets/active.svg')
+    $this->get('/documentation/assets/active.svg')
         ->assertNotFound()
         ->assertDontSee('alert(document.domain)');
 });
 
 test('only the declared GET HEAD documentation route exists and remains fail closed', function (): void {
     $routes = collect(Route::getRoutes()->getRoutes())
-        ->filter(fn ($route): bool => str_starts_with($route->uri(), 'admin/documentation'));
+        ->filter(fn ($route): bool => str_starts_with($route->uri(), 'documentation'));
 
     expect($routes)->toHaveCount(1)
         ->and($routes->first()->methods())->toBe(['GET', 'HEAD'])
@@ -104,8 +118,8 @@ test('only the declared GET HEAD documentation route exists and remains fail clo
 
     actingAs(User::factory()->create());
 
-    $this->get('/admin/documentation')->assertForbidden();
-    $this->call('HEAD', '/admin/documentation')->assertForbidden();
+    $this->get('/documentation')->assertForbidden();
+    $this->call('HEAD', '/documentation')->assertForbidden();
 });
 
 function privateDocumentationResponseRemoveDirectory(string $directory): void

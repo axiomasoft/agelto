@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace App\Services\Procurement\Modes;
 
+use App\Dto\Procurement\Crawler\DeltaScanResult;
 use App\Dto\Procurement\Crawler\ListingCursor;
+use App\Dto\Procurement\Crawler\RecoveryScope;
 use App\Dto\Procurement\Crawler\WindowFilter;
 use App\Enums\Procurement\Crawler\ArchiveWindowScanResult;
 use App\Enums\Procurement\Crawler\CrawlerMode;
@@ -12,7 +14,6 @@ use App\Enums\Procurement\Crawler\RunPurpose;
 use App\Enums\Procurement\Crawler\RunStatus;
 use App\Exceptions\Procurement\Crawler\CrawlerRunBusyException;
 use App\Models\Procurement\Crawler\Crawler;
-use App\Models\Procurement\Crawler\Run;
 use App\Services\Procurement\ArchiveWindowScanner;
 use App\Services\Procurement\CrawlerRunManager;
 use Illuminate\Support\Carbon;
@@ -32,7 +33,7 @@ final readonly class DeltaScanProcessor
         private ArchiveWindowScanner $scanner,
     ) {}
 
-    public function run(Crawler $crawler): ?Run
+    public function run(Crawler $crawler): DeltaScanResult
     {
         $archiveCrawler = Crawler::query()
             ->where('registry_id', $crawler->registry_id)
@@ -46,7 +47,7 @@ final readonly class DeltaScanProcessor
                 context: ['crawler_id' => $crawler->id, 'registry_id' => $crawler->registry_id],
             );
 
-            return null;
+            return DeltaScanResult::missingArchiveProfile();
         }
 
         $overlapDays = config('crawler.tracking.window_overlap_days');
@@ -64,43 +65,64 @@ final readonly class DeltaScanProcessor
                 subjectKey: "fresh-crawler:{$crawler->id}",
             );
         } catch (CrawlerRunBusyException) {
-            return null;
+            return DeltaScanResult::busy();
         }
 
-        // День — то же резюмируемое устройство, что `BacklogRescanProcessor::drainWindow()`:
-        // `ArchiveWindowScanner::scan()` сам по себе дренирует РОВНО один день (курсор — источник
-        // истины про текущий день, `WindowFilter->dateTo` внутри сканера не читается); суточная
-        // итерация окна — оркестрация вызывающего кода, не механика обхода (D33).
-        $cursor = ListingCursor::fromArray(cursor: $run->cursor?->toArray() ?? []);
-        $day = $cursor->day !== null ? Carbon::parse($cursor->day) : $from->copy();
-
-        if ($cursor->day === null) {
-            $this->runs->updateCursor(run: $run, cursor: new ListingCursor(blockFrom: 1, day: $day->toDateString()));
+        if (! $this->runs->acquireExecutionLease(run: $run)) {
+            return DeltaScanResult::busy();
         }
 
-        while ($day->lte($to)) {
-            $run->refresh();
+        try {
+            // День — то же резюмируемое устройство, что `BacklogRescanProcessor::drainWindow()`:
+            // `ArchiveWindowScanner::scan()` сам по себе дренирует РОВНО один день (курсор — источник
+            // истины про текущий день, `WindowFilter->dateTo` внутри сканера не читается); суточная
+            // итерация окна — оркестрация вызывающего кода, не механика обхода (D33).
+            $cursor = ListingCursor::fromArray(cursor: $run->cursor?->toArray() ?? []);
+            $recoveryScope = $cursor->recoveryScope === null
+                ? RecoveryScope::fromFreshCrawler($crawler)
+                : RecoveryScope::fromArray($cursor->recoveryScope);
+            $day = $cursor->day !== null ? Carbon::parse($cursor->day) : $from->copy();
 
-            if ($run->status !== RunStatus::Running) {
-                return $run;
+            if ($cursor->day === null) {
+                $this->runs->updateCursor(run: $run, cursor: new ListingCursor(
+                    blockFrom: 1,
+                    day: $day->toDateString(),
+                    recoveryScope: $recoveryScope->toArray(),
+                ));
             }
 
-            $result = $this->scanner->scan(crawler: $archiveCrawler, run: $run, filter: new WindowFilter(
-                dateField: 'update',
-                dateFrom: $day->copy(),
-                dateTo: $day->copy(),
-            ));
+            while ($day->lte($to)) {
+                $run->refresh();
 
-            if ($result !== ArchiveWindowScanResult::Drained) {
-                return $run;
+                if ($run->status !== RunStatus::Running) {
+                    return DeltaScanResult::processed(run: $run);
+                }
+
+                $result = $this->scanner->scan(crawler: $archiveCrawler, run: $run, filter: new WindowFilter(
+                    dateField: 'update',
+                    dateFrom: $day->copy(),
+                    dateTo: $day->copy(),
+                ), recoveryScope: $recoveryScope);
+
+                if ($result !== ArchiveWindowScanResult::Drained) {
+                    return DeltaScanResult::processed(run: $run);
+                }
+
+                $day = $day->copy()->addDay();
+                $this->runs->updateCursor(run: $run, cursor: new ListingCursor(
+                    blockFrom: 1,
+                    day: $day->toDateString(),
+                    recoveryScope: $recoveryScope->toArray(),
+                ));
             }
 
-            $day = $day->copy()->addDay();
-            $this->runs->updateCursor(run: $run, cursor: new ListingCursor(blockFrom: 1, day: $day->toDateString()));
+            if (! $this->runs->complete(run: $run)) {
+                return DeltaScanResult::processed(run: $run);
+            }
+
+            return DeltaScanResult::processed(run: $run);
+        } finally {
+            $this->runs->releaseExecutionLease(run: $run);
         }
-
-        $this->runs->complete(run: $run);
-
-        return $run;
     }
 }

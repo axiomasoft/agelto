@@ -11,7 +11,7 @@ AGENT_ENV := $(if $(CLAUDECODE),-e CLAUDECODE=$(CLAUDECODE)) $(if $(CLAUDE_CODE)
 
 .DEFAULT_GOAL := help
 .PHONY: help infra\:preflight secrets\:init bootstrap host\:check host\:apply host\:preflight dev\:up dev\:down dev\:ps dev\:logs dev\:shell dev\:artisan dev\:composer dev\:storage-init dev\:health
-.PHONY: agent\:artisan vendor\:sync vendor\:check repositories\:prepare repositories\:sync doctor\:local readiness\:check assets\:check assets\:sync assets\:repair documentation\:check documentation\:acceptance quality prod\:doctor dev\:migrate dev\:seed-base dev\:seed-demo dev\:admin-create dev\:admin-reset dev\:composer-bootstrap prod\:config prod\:ps prod\:deploy\:code prod\:deploy\:php-deps prod\:deploy\:frontend prod\:deploy\:runtime prod\:image\:promote prod\:deploy\:image prod\:migrate prod\:seed-base image\:build test-preflight test-php test\:edit test\:full test\:junit test\:profile test\:coverage test\:release test\:tia-reset test\:tia-refresh test\:tia-baseline-export test\:shard test\:parallel db\:create-test preparation\:check
+.PHONY: agent\:artisan vendor\:sync vendor\:check repositories\:prepare repositories\:sync doctor\:local readiness\:check assets\:check assets\:sync assets\:repair documentation\:check documentation\:acceptance quality prod\:doctor prod\:infra\:up prod\:app\:up prod\:storage\:init prod\:workers\:up prod\:admin\:create prod\:readiness dev\:migrate dev\:seed-base dev\:seed-demo dev\:admin-create dev\:admin-reset dev\:composer-bootstrap prod\:config prod\:ps prod\:deploy\:code prod\:deploy\:php-deps prod\:deploy\:frontend prod\:deploy\:runtime prod\:image\:promote prod\:deploy\:image prod\:migrate prod\:seed-base image\:build test-preflight test-php test\:edit test\:full test\:junit test\:profile test\:coverage test\:release test\:tia-reset test\:tia-refresh test\:tia-baseline-export test\:shard test\:parallel db\:create-test preparation\:check
 .PHONY: profile\:check backup\:check first-deploy\:check release\:check rollback\:check restore\:check rotation\:check commands\:check
 
 help:
@@ -49,6 +49,10 @@ help:
 	@echo "Agent and production inspection:"
 	@echo "  make agent:artisan ARGS=\"test --compact\"  Non-TTY app command"
 	@echo "  make prod:config ENV_FILE=.env.production    Render production config only"
+	@echo "  make prod:infra:up ...                       Build PostgreSQL once; start and wait for data services"
+	@echo "  make prod:migrate OWNER_GATE=approved ...    Apply schema after an explicit migration decision"
+	@echo "  make prod:app:up | prod:storage:init | prod:workers:up | prod:readiness"
+	@echo "  make prod:seed-base ... | prod:admin:create PASSWORD_FILE=..."
 	@echo "  make prod:deploy:<class> IMAGE_TAG=<immutable-tag> COMPOSE_PROJECT_NAME=<project>"
 	@echo "    classes: code, php-deps, frontend, runtime; image promotion: prod:image:promote"
 	@echo "  make prod:deploy:image IMAGE_TAG=<immutable-tag> COMPOSE_PROJECT_NAME=<project>"
@@ -249,6 +253,19 @@ prod\:config:
 prod\:ps:
 	$(COMPOSE_PROD) ps
 
+prod\:infra\:up:
+	$(COMPOSE_PROD) build postgres
+	$(COMPOSE_PROD) up -d --no-build --wait postgres redis minio
+
+prod\:app\:up:
+	$(COMPOSE_PROD) up -d --no-build --wait app
+
+prod\:storage\:init:
+	$(COMPOSE_PROD) exec -T app sh -ec 'mc alias set agelto-bootstrap "$$AWS_ENDPOINT" "$$AWS_ACCESS_KEY_ID" "$$(cat "$$AWS_SECRET_ACCESS_KEY_FILE")" >/dev/null && mc mb --ignore-existing "agelto-bootstrap/$$AWS_BUCKET" >/dev/null && mc mb --ignore-existing "agelto-bootstrap/$$AWS_ESTIMATES_BUCKET" >/dev/null'
+
+prod\:workers\:up:
+	$(COMPOSE_PROD) up -d --no-build --wait horizon scheduler
+
 image\:build:
 	@test -n "$(IMAGE_TAG)" || (echo "IMAGE_TAG is required" >&2; exit 2)
 	bash $(ROOT_DIR)/docker/scripts/image-pair.sh --root $(ROOT_DIR) --tag "$(IMAGE_TAG)"
@@ -278,6 +295,13 @@ prod\:migrate:
 
 prod\:seed-base:
 	$(COMPOSE_PROD) run --rm --no-deps app php artisan db:seed --class=Database\\Seeders\\BaseSeeder --force
+
+prod\:admin\:create:
+	@test -n "$(PASSWORD_FILE)" || (echo "PASSWORD_FILE is required" >&2; exit 2)
+	$(COMPOSE_PROD) run --rm --no-deps -v "$(abspath $(PASSWORD_FILE)):/run/secrets/initial_admin_password:ro" app sh -ec 'php artisan admin:create-initial --email="$$ADMIN_EMAIL" --password-file=/run/secrets/initial_admin_password'
+
+prod\:readiness:
+	$(COMPOSE_PROD) exec -T app php artisan app:readiness --format=agent
 
 prod\:doctor:
 	$(COMPOSE_PROD) run --rm --no-deps doctor php artisan doctor --format=agent --fail-on=warn --no-interaction

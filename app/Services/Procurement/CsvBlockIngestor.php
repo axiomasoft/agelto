@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\Procurement;
 
+use App\Actions\Procurement\Crawler\StoreRawFetchArtifactAction;
 use App\Dto\Procurement\Crawler\FetchResult;
 use App\Dto\Procurement\Crawler\ListingBatch;
 use App\Dto\Procurement\ProcurementSnapshotData;
@@ -14,7 +15,6 @@ use App\Models\Procurement\Crawler\Run;
 use App\Repositories\Procurement\ProcurementReadRepository;
 use App\Services\Procurement\Contracts\ListingRowMapper;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Storage;
 
 /**
  * Агностик-инжест одного блока листинга (`02-crawling.md` §3.4): denylist-фильтр →
@@ -29,6 +29,8 @@ final readonly class CsvBlockIngestor
         private ProcurementReadRepository $procurements,
         private ListingRowMapper $rowMapper,
         private FetchLogger $fetches,
+        private CrawlerRunManager $runs,
+        private StoreRawFetchArtifactAction $rawArtifacts,
     ) {}
 
     public function ingest(Crawler $crawler, Run $run, ListingBatch $batch): FetchResult
@@ -66,10 +68,18 @@ final readonly class CsvBlockIngestor
         }
 
         $oldestUpdateSeen = null;
+        $oldestUpdateSeenHasDayPrecision = false;
 
         foreach ($snapshots as $snapshot) {
             if ($oldestUpdateSeen === null || $snapshot->sourceUpdatedAt->lt($oldestUpdateSeen)) {
                 $oldestUpdateSeen = $snapshot->sourceUpdatedAt;
+                $oldestUpdateSeenHasDayPrecision = $snapshot->sourceUpdatedAtHasDayPrecision;
+
+                continue;
+            }
+
+            if ($snapshot->sourceUpdatedAt->eq($oldestUpdateSeen) && $snapshot->sourceUpdatedAtHasDayPrecision) {
+                $oldestUpdateSeenHasDayPrecision = true;
             }
         }
 
@@ -125,10 +135,12 @@ final readonly class CsvBlockIngestor
             throw new \UnexpectedValueException('Crawler run wait metrics must be integers.');
         }
 
-        $run->update(['stats' => array_merge($stats, [
+        if (! $this->runs->updateStats(run: $run, stats: array_merge($stats, [
             'budget_wait_total_ms' => $totalWait + $batch->waitMs,
             'budget_wait_max_ms' => max($maxWait, $batch->waitMs),
-        ])]);
+        ]))) {
+            throw new \RuntimeException('Execution lease is no longer owned by this processor.');
+        }
 
         return new FetchResult(
             rowsTotal: $batch->rowsTotal,
@@ -139,6 +151,7 @@ final readonly class CsvBlockIngestor
             rowsErrors: $rowsErrors,
             rowsDuplicated: $duplicates,
             oldestUpdateSeen: $oldestUpdateSeen,
+            oldestUpdateSeenHasDayPrecision: $oldestUpdateSeenHasDayPrecision,
         );
     }
 
@@ -216,17 +229,23 @@ final readonly class CsvBlockIngestor
             $from = '0';
         }
 
-        $path = "raw/csv/{$crawler->id}/{$run->id}/{$from}.csv";
-
         $disk = config('crawler.raw_disk');
 
         if (! is_string($disk)) {
             throw new \UnexpectedValueException('crawler.raw_disk must be a string.');
         }
 
-        Storage::disk($disk)->put($path, $batch->rawBody);
-
-        return $path;
+        return $this->rawArtifacts->execute(
+            disk: $disk,
+            prefix: "raw/csv/{$crawler->id}/{$run->id}",
+            requestIdentity: [
+                'crawler_id' => $crawler->id,
+                'run_id' => $run->id,
+                'request_params' => $batch->requestParams,
+            ],
+            contents: $batch->rawBody,
+            extension: 'csv',
+        );
     }
 
     private function logRowFailure(Crawler $crawler, \Throwable $exception, ?string $registryNumber): void

@@ -31,13 +31,41 @@ final readonly class ProcurementPartyStoreRepository
         );
     }
 
-    public function setCustomerOrg(Procurement $procurement, int $organizationId): void
+    public function setCustomerOrg(Procurement $procurement, ?int $organizationId): void
     {
         if ($procurement->customer_org_id === $organizationId) {
             return;
         }
 
         $procurement->update(['customer_org_id' => $organizationId]);
+    }
+
+    /**
+     * @param  list<array{organization_id: int, role: ProcurementPartyRole}>  $partyKeys
+     */
+    public function deletePartiesMissingFromSnapshot(int $procurementId, array $partyKeys): void
+    {
+        $query = ProcurementParty::query()->where('procurement_id', $procurementId);
+
+        if ($partyKeys === []) {
+            $query->delete();
+
+            return;
+        }
+
+        $currentIds = ProcurementParty::query()
+            ->where('procurement_id', $procurementId)
+            ->where(function ($query) use ($partyKeys): void {
+                foreach ($partyKeys as $partyKey) {
+                    $query->orWhere(function ($query) use ($partyKey): void {
+                        $query->where('organization_id', $partyKey['organization_id'])
+                            ->where('role', $partyKey['role']->value);
+                    });
+                }
+            })
+            ->pluck('id');
+
+        $query->whereNotIn('id', $currentIds)->delete();
     }
 
     /**

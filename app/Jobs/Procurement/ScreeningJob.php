@@ -15,6 +15,7 @@ use App\Services\Procurement\Ai\UsageSnapshotRecorder;
 use App\Services\Procurement\Screening\ScreeningOutcomeHandler;
 use App\Services\Procurement\Screening\ScreeningProcessor;
 use Illuminate\Contracts\Queue\ShouldBeUnique;
+use Illuminate\Queue\Attributes\Timeout;
 use RuntimeException;
 use Throwable;
 
@@ -26,6 +27,7 @@ use Throwable;
  * `PrepareDocumentJob`/retry-командой (P4.3). Ветвление по результату (`ScreeningOutcomeHandler`,
  * P5.2) выполняется тут же, в том же прогоне `process()`, после успешного `ScreeningProcessor`.
  */
+#[Timeout(240)]
 final class ScreeningJob extends PipelineJob implements ShouldBeUnique
 {
     private ?Document $documentCache = null;
@@ -46,6 +48,11 @@ final class ScreeningJob extends PipelineJob implements ShouldBeUnique
     public function pipelineUniqueId(): string
     {
         return "{$this->documentId}:screening";
+    }
+
+    protected function operationBudgetStage(): string
+    {
+        return 'screening';
     }
 
     /**
@@ -82,7 +89,12 @@ final class ScreeningJob extends PipelineJob implements ShouldBeUnique
 
     protected function acquireLease(): bool
     {
-        return $this->analysis()->acquireLease(owner: self::class);
+        return app(AnalysisStoreRepository::class)->acquireExecutionLease(
+            analysis: $this->analysis(),
+            expectedStatus: DocumentStatus::Prepared,
+            owner: self::class,
+            ttlSeconds: $this->leaseSeconds(),
+        );
     }
 
     protected function releaseLease(): void

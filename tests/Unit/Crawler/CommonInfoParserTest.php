@@ -3,6 +3,8 @@
 declare(strict_types=1);
 
 use App\Dto\Procurement\Details\CommonInfoData;
+use App\Dto\Procurement\Details\CommonInfoSnapshot;
+use App\Enums\Procurement\DetailSnapshotStatus;
 use App\Services\Procurement\Eis\Card\CommonInfoParser;
 
 function commonInfoFixtureHtml(): string
@@ -11,7 +13,7 @@ function commonInfoFixtureHtml(): string
 }
 
 test('parse разбирает ИКЗ на 8 разрядов по вычисленной раскладке (реальная вкладка common-info, P4.14)', function () {
-    $data = app(CommonInfoParser::class)->parse(commonInfoFixtureHtml());
+    $data = app(CommonInfoParser::class)->parse(commonInfoFixtureHtml())->commonInfo;
 
     expect($data)->toBeInstanceOf(CommonInfoData::class)
         ->and($data->ikzYear)->toBe(25)
@@ -25,7 +27,7 @@ test('parse разбирает ИКЗ на 8 разрядов по вычисл�
 });
 
 test('parse разбирает площадку и контактное лицо из раздельных section (не общий dd со ссылкой)', function () {
-    $data = app(CommonInfoParser::class)->parse(commonInfoFixtureHtml());
+    $data = app(CommonInfoParser::class)->parse(commonInfoFixtureHtml())->commonInfo;
 
     expect($data->etpName)->toBe('АО «Сбербанк-АСТ»')
         ->and($data->etpUrl)->toBe('http://www.sberbank-ast.ru')
@@ -34,7 +36,7 @@ test('parse разбирает площадку и контактное лицо
 });
 
 test('parse транспонирует таблицу «год — колонка» в строки финансирования, без «Всего» и «Последующих годов»', function () {
-    $data = app(CommonInfoParser::class)->parse(commonInfoFixtureHtml());
+    $data = app(CommonInfoParser::class)->parse(commonInfoFixtureHtml())->commonInfo;
 
     expect($data->financingRows)->toHaveCount(3);
 
@@ -49,7 +51,7 @@ test('parse транспонирует таблицу «год — колонк�
 });
 
 test('parse разбирает позицию объекта закупки из #positionKTRU с кодом ОКПД2', function () {
-    $data = app(CommonInfoParser::class)->parse(commonInfoFixtureHtml());
+    $data = app(CommonInfoParser::class)->parse(commonInfoFixtureHtml())->commonInfo;
 
     expect($data->items)->toHaveCount(1);
 
@@ -75,7 +77,7 @@ test('parse распознаёт КТРУ по дефис-суффиксу, ОК
     // проверить ветку без выдумывания отдельной вкладки.
     $html = str_replace('18.11.10.000', '18.11.10.000-00000001', commonInfoFixtureHtml());
 
-    $data = app(CommonInfoParser::class)->parse($html);
+    $data = app(CommonInfoParser::class)->parse($html)->commonInfo;
 
     expect($data->items)->toHaveCount(1);
 
@@ -126,7 +128,7 @@ test('parse проставляет детерминированные fallback-�
         $html,
     );
 
-    $data = app(CommonInfoParser::class)->parse($html);
+    $data = app(CommonInfoParser::class)->parse($html)->commonInfo;
 
     expect($data->items)->toHaveCount(3);
 
@@ -149,7 +151,7 @@ test('parse возвращает classifierScheme unknown при пустой я
     // Единственное вхождение кода на реальной вкладке — вычищаем его, оставляя пустую ячейку.
     $html = str_replace('18.11.10.000', '', commonInfoFixtureHtml());
 
-    $data = app(CommonInfoParser::class)->parse($html);
+    $data = app(CommonInfoParser::class)->parse($html)->commonInfo;
 
     expect($data->items)->toHaveCount(1);
 
@@ -170,7 +172,7 @@ test('parse не падает и возвращает null-поля ИКЗ пр�
         $html,
     );
 
-    $data = app(CommonInfoParser::class)->parse($html);
+    $data = app(CommonInfoParser::class)->parse($html)->commonInfo;
 
     expect($data->ikzYear)->toBeNull()
         ->and($data->ikzCustomerCode)->toBeNull()
@@ -180,4 +182,37 @@ test('parse не падает и возвращает null-поля ИКЗ пр�
         ->and($data->ikzOkpdSubclass)->toBeNull()
         ->and($data->ikzOkpdGroup)->toBeNull()
         ->and($data->ikzKvr)->toBeNull();
+});
+
+test('parse помечает snapshot неполным, если нет контейнера позиций', function () {
+    $snapshot = app(CommonInfoParser::class)->parse('<html><body><section class="blockInfo__section"></section></body></html>');
+
+    expect($snapshot->status)->toBe(DetailSnapshotStatus::Incomplete)
+        ->and($snapshot->authorizesCommonInfoReconciliation())->toBeFalse();
+});
+
+test('parse помечает snapshot неполным без подтверждённого financing container', function () {
+    $snapshot = app(CommonInfoParser::class)->parse(
+        '<section class="blockInfo__section"></section><div id="positionKTRU"><table class="tableBlock"><tbody></tbody></table></div>',
+    );
+
+    expect($snapshot->status)->toBe(DetailSnapshotStatus::Incomplete);
+});
+
+test('добавление недоступных parties сохраняет независимый status common-info', function () {
+    $complete = app(CommonInfoParser::class)->parse(commonInfoFixtureHtml())
+        ->withParties(parties: [], partiesComplete: false);
+    $snapshot = app(CommonInfoParser::class)->parse('<html><body><section class="blockInfo__section"></section></body></html>');
+    $failed = new CommonInfoSnapshot(
+        status: DetailSnapshotStatus::Failed,
+        commonInfo: $snapshot->commonInfo,
+    );
+    $failed = $failed->withParties(parties: [], partiesComplete: false);
+
+    expect($complete->status)->toBe(DetailSnapshotStatus::Complete)
+        ->and($complete->authorizesCommonInfoReconciliation())->toBeTrue()
+        ->and($complete->authorizesPartiesReconciliation())->toBeFalse()
+        ->and($failed->status)->toBe(DetailSnapshotStatus::Failed)
+        ->and($failed->authorizesCommonInfoReconciliation())->toBeFalse()
+        ->and($failed->authorizesPartiesReconciliation())->toBeFalse();
 });

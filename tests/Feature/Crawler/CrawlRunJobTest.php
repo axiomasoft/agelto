@@ -31,6 +31,38 @@ function crawlRunJobEmptyBatch(): ListingBatch
     return new ListingBatch(rows: [], rawBody: '', dedupSignature: null, rowsTotal: 0, httpStatus: 200, durationMs: 0, requestParams: []);
 }
 
+/** @return array<string, string> */
+function crawlRunJobCsvRow(string $registryNumber): array
+{
+    return [
+        'Реестровый номер закупки' => $registryNumber,
+        'Способ определения поставщика (подрядчика, исполнителя), подрядной организации (размещения закупки)' => 'Электронный аукцион',
+        'Наименование закупки' => 'Поставка оргтехники',
+        'Этап закупки' => 'Подача заявок',
+        'Идентификационный код закупки (ИКЗ)' => '243773601234512345100100001',
+        'Начальная (максимальная) цена контракта' => '1 250 000,50',
+        'Валюта' => 'RUB',
+        'Дата размещения' => '01.03.2026',
+        'Дата обновления' => '02.03.2026 10:15:00',
+        'Начало подачи заявок' => '01.03.2026',
+        'Окончание подачи заявок' => '15.03.2026',
+        'Наименование Заказчика' => 'ГБУ «Тестовое учреждение»',
+    ];
+}
+
+function crawlRunJobBatch(array $rows, string $dedupSignature, string $from): ListingBatch
+{
+    return new ListingBatch(
+        rows: $rows,
+        rawBody: 'fresh-csv-'.$from,
+        dedupSignature: $dedupSignature,
+        rowsTotal: count($rows),
+        httpStatus: 200,
+        durationMs: 0,
+        requestParams: ['from' => $from],
+    );
+}
+
 beforeEach(function () {
     Sleep::fake();
     Storage::fake('s3');
@@ -113,6 +145,34 @@ test('исчерпание бюджета checkpoint_seconds оставляет 
         && $job->executionLane === CrawlerExecutionLane::Standard
         && $job->connection === 'redis'
         && $job->queue === 'crawl');
+});
+
+test('fresh hard-cap самодиспатчит ровно одно продолжение и завершает его на следующем slice', function () {
+    config(['crawler.fresh_max_blocks' => 1]);
+    Queue::fake();
+
+    $crawler = Crawler::factory()->create(['mode' => CrawlerMode::Fresh, 'source_method' => SourceMethodEnum::Csv]);
+    app()->instance(QueueSourceMethod::class, new QueueSourceMethod(batches: [
+        crawlRunJobBatch([crawlRunJobCsvRow('0173200001234000090')], dedupSignature: 'cap-block', from: '1'),
+        crawlRunJobEmptyBatch(),
+    ]));
+    config(['crawler.platforms.eis.source_methods' => [SourceMethodEnum::Csv->value => QueueSourceMethod::class]]);
+
+    $job = new CrawlRunJob(crawlerId: $crawler->id, mode: CrawlerMode::Fresh);
+    app()->call([$job, 'handle']);
+
+    $checkpointed = Run::query()->where('crawler_id', $crawler->id)->sole();
+    expect($checkpointed->status)->toBe(RunStatus::Running)
+        ->and($checkpointed->cursor['blockFrom'])->toBe(501)
+        ->and($checkpointed->stats['stop_reason'] ?? null)->toBe('fresh_max_blocks_checkpoint');
+    Queue::assertPushed(CrawlRunJob::class, 1);
+
+    app()->call([new CrawlRunJob(crawlerId: $crawler->id, mode: CrawlerMode::Fresh), 'handle']);
+
+    expect($checkpointed->refresh()->status)->toBe(RunStatus::Completed)
+        ->and($checkpointed->cursor['reachedKnown'])->toBeTrue()
+        ->and($checkpointed->stats['stop_reason'] ?? null)->toBe('source_exhausted');
+    Queue::assertPushed(CrawlRunJob::class, 1);
 });
 
 test('request-budget checkpoint archive сохраняет execution lane и самодиспатчит continuation', function (): void {

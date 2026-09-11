@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services\Procurement;
 
 use App\Dto\Procurement\Details\DocumentData;
+use App\Dto\Procurement\Details\DocumentsSnapshot;
 use App\Enums\Procurement\Document\DocumentStatus;
 use App\Enums\Procurement\ProcurementEventType;
 use App\Models\Procurement\Procurement;
@@ -23,17 +24,15 @@ final readonly class DocumentIndexer
     public function __construct(
         private DocumentStoreRepository $storeRepository,
         private ProcurementStoreRepository $procurementStore,
+        private DocumentRevalidationSelector $revalidationSelector,
     ) {}
 
-    /**
-     * @param  list<DocumentData>  $documents
-     */
-    public function index(Procurement $procurement, array $documents): void
+    public function index(Procurement $procurement, DocumentsSnapshot $snapshot): void
     {
-        DB::transaction(function () use ($procurement, $documents): void {
+        DB::transaction(function () use ($procurement, $snapshot): void {
             $activeExternalIds = [];
 
-            foreach ($documents as $document) {
+            foreach ($snapshot->documents as $document) {
                 if ($document->externalId !== null) {
                     $activeExternalIds[] = $document->externalId;
                 }
@@ -41,8 +40,12 @@ final readonly class DocumentIndexer
                 $this->indexDocument($procurement, $document);
             }
 
-            $this->markRemoved($procurement, $activeExternalIds);
+            if ($snapshot->authorizesReconciliation()) {
+                $this->markRemoved(procurement: $procurement, activeExternalIds: $activeExternalIds);
+            }
         });
+
+        $this->revalidationSelector->dispatchForProcurement(procurementId: $procurement->id);
     }
 
     private function indexDocument(Procurement $procurement, DocumentData $document): void
@@ -84,7 +87,10 @@ final readonly class DocumentIndexer
      */
     private function markRemoved(Procurement $procurement, array $activeExternalIds): void
     {
-        $removed = $this->storeRepository->activeExcept(procurementId: $procurement->id, activeExternalIds: $activeExternalIds);
+        $removed = $this->storeRepository->activePlatformAttachmentsExcept(
+            procurementId: $procurement->id,
+            activeExternalIds: $activeExternalIds,
+        );
 
         foreach ($removed as $document) {
             $this->storeRepository->update($document, ['removed_at' => now()]);

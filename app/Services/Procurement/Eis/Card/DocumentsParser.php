@@ -5,12 +5,14 @@ declare(strict_types=1);
 namespace App\Services\Procurement\Eis\Card;
 
 use App\Dto\Procurement\Details\DocumentData;
+use App\Dto\Procurement\Details\DocumentsSnapshot;
+use App\Enums\Procurement\DetailSnapshotStatus;
 use Illuminate\Support\Facades\Log;
 use Symfony\Component\DomCrawler\Crawler;
 
 /**
  * Разбор вкладки `documents` карточки закупки ЕИС (`findings/P4-card-layout.md` §2, живая проба
- * P4.13) в список {@see DocumentData}. Только HTML → DTO, без записи в БД (это `DocumentIndexer`)
+ * P4.13) в {@see DocumentsSnapshot}. Только HTML → DTO, без записи в БД (это `DocumentIndexer`)
  * и без скачивания файла (это `DocumentDownloader`). Ссылка на файл — АБСОЛЮТНАЯ
  * (`https://zakupki.gov.ru/44fz/filestore/...`), резолвится как есть. Строка без файла-ссылки
  * (брак вёрстки/ещё не опубликован) — пропускается, без неё нет `external_id` для дедупа. Вкладка
@@ -18,40 +20,49 @@ use Symfony\Component\DomCrawler\Crawler;
  */
 final readonly class DocumentsParser
 {
-    /**
-     * @return list<DocumentData>
-     */
-    public function parse(string $html): array
+    public function parse(string $html): DocumentsSnapshot
     {
         try {
             $crawler = new Crawler($html);
             $block = $crawler->filter('div.blockFilesTabDocs');
 
             if ($block->count() === 0) {
-                $this->warnIfFilestoreLinksSuppressed($crawler, recognized: 0);
+                Log::warning('Вкладка documents не содержит контейнер вложений; snapshot неполный', [
+                    'filestore_links' => $crawler->filter('a[href*="filestore"]')->count(),
+                ]);
 
-                return [];
+                return $this->snapshot(status: DetailSnapshotStatus::Incomplete);
             }
 
             $documents = [];
+            $incomplete = false;
 
-            $block->filter('div.attachment')->each(function (Crawler $row) use (&$documents): void {
+            $block->filter('div.attachment')->each(function (Crawler $row) use (&$documents, &$incomplete): void {
                 $document = $this->parseRow($row);
 
-                if ($document !== null) {
-                    $documents[] = $document;
+                if ($document === null) {
+                    $incomplete = true;
+
+                    return;
                 }
+
+                $documents[] = $document;
             });
 
-            $this->warnIfFilestoreLinksSuppressed($crawler, recognized: count($documents));
+            if ($this->hasSuppressedFilestoreLinks(crawler: $crawler, recognized: count($documents))) {
+                $incomplete = true;
+            }
 
-            return $documents;
+            return $this->snapshot(
+                status: $incomplete ? DetailSnapshotStatus::Incomplete : DetailSnapshotStatus::Complete,
+                documents: $documents,
+            );
         } catch (\Throwable $exception) {
-            Log::warning('Разбор вкладки documents провалился целиком, документы пропущены', [
+            Log::warning('Разбор вкладки documents провалился целиком; snapshot failed', [
                 'exception' => $exception->getMessage(),
             ]);
 
-            return [];
+            return $this->snapshot(status: DetailSnapshotStatus::Failed);
         }
     }
 
@@ -89,19 +100,24 @@ final readonly class DocumentsParser
      * Тихий отказ (research/10-p4-remediation.md §3.6): страница несёт ссылки `filestore`, а
      * распознано 0 документов — признак разошедшейся вёрстки, обязан быть виден в логе.
      */
-    private function warnIfFilestoreLinksSuppressed(Crawler $crawler, int $recognized): void
+    private function hasSuppressedFilestoreLinks(Crawler $crawler, int $recognized): bool
     {
-        if ($recognized > 0) {
-            return;
-        }
-
         $filestoreLinks = $crawler->filter('a[href*="filestore"]')->count();
 
-        if ($filestoreLinks > 0) {
-            Log::warning('На вкладке documents есть ссылки filestore, но не распознано ни одного документа', [
+        if ($filestoreLinks !== $recognized) {
+            Log::warning('На вкладке documents есть нераспознанные ссылки filestore; snapshot неполный', [
                 'filestore_links' => $filestoreLinks,
+                'recognized' => $recognized,
             ]);
         }
+
+        return $filestoreLinks !== $recognized;
+    }
+
+    /** @param list<DocumentData> $documents */
+    private function snapshot(DetailSnapshotStatus $status, array $documents = []): DocumentsSnapshot
+    {
+        return new DocumentsSnapshot(status: $status, documents: $documents);
     }
 
     private function externalIdFromHref(?string $href): ?string

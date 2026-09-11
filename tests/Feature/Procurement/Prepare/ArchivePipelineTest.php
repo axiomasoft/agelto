@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Actions\Procurement\Document\ExpandArchiveEntryAction;
 use App\Enums\Procurement\Document\DocumentStatus;
 use App\Enums\Procurement\Document\UnprocessableReason;
 use App\Enums\Procurement\ProcurementEventType;
@@ -9,7 +10,10 @@ use App\Jobs\Procurement\PrepareDocumentJob;
 use App\Jobs\Procurement\ScreeningJob;
 use App\Models\Procurement\Document\Document;
 use App\Models\Procurement\Document\DocumentVersion;
+use App\Models\Procurement\Procurement;
 use App\Models\Procurement\ProcurementEvent;
+use App\Services\Procurement\DocumentIndexer;
+use App\Services\Procurement\Eis\Card\DocumentsParser;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
@@ -174,6 +178,55 @@ test('retry архива сохраняет одну logical child на parent �
             ->count())->toBe(1);
 
     Queue::assertPushed(PrepareDocumentJob::class, 1);
+});
+
+test('complete platform reindex не снимает child, созданный ExpandArchiveEntryAction', function () {
+    Storage::fake('s3');
+    Queue::fake();
+    $procurement = Procurement::factory()->create();
+    $html = file_get_contents(base_path('tests/Fixtures/Crawler/Card/documents.html'));
+
+    if ($html === false) {
+        throw new RuntimeException('Не удалось прочитать fixture documents.html');
+    }
+
+    $snapshot = app(DocumentsParser::class)->parse($html);
+
+    app(DocumentIndexer::class)->index(procurement: $procurement, snapshot: $snapshot);
+
+    $parent = Document::query()
+        ->where('procurement_id', $procurement->id)
+        ->where('external_id', $snapshot->documents[0]->externalId)
+        ->firstOrFail();
+    $parentVersion = DocumentVersion::factory()->create(['document_id' => $parent->id]);
+    $path = tempnam(sys_get_temp_dir(), 'archive-reindex-');
+
+    if ($path === false) {
+        throw new RuntimeException('Не удалось создать файл archive child fixture');
+    }
+
+    file_put_contents($path, archivePipelineFixture('sample-v1.pdf'));
+
+    try {
+        app(ExpandArchiveEntryAction::class)->execute(
+            parent: $parent,
+            parentVersion: $parentVersion,
+            entryPath: 'estimates/sample.pdf',
+            localPath: $path,
+        );
+    } finally {
+        unlink($path);
+    }
+
+    app(DocumentIndexer::class)->index(procurement: $procurement, snapshot: $snapshot);
+
+    $child = DocumentVersion::query()
+        ->where('parent_version_id', $parentVersion->id)
+        ->sole()
+        ->document;
+
+    expect($parent->refresh()->removed_at)->toBeNull()
+        ->and($child?->refresh()->removed_at)->toBeNull();
 });
 
 test('concurrent archive entry materialization создаёт одну logical child и одно событие', function () {

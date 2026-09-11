@@ -60,6 +60,22 @@ test('due не отбирает закупки с исчерпанными ре�
     expect(app(DetailRefetchSelector::class)->due(limit: 100)->pluck('id')->all())->not->toContain($procurement->id);
 });
 
+test('due не обходит будущий detail backoff через другие триггеры', function () {
+    $neverFetched = Procurement::factory()->create([
+        'detail_fetched_at' => null,
+        'detail_next_retry_at' => now()->addHour(),
+    ]);
+    $newRevision = Procurement::factory()->create([
+        'detail_fetched_at' => now()->subDay(),
+        'current_revision_detected_at' => now(),
+        'detail_next_retry_at' => now()->addHour(),
+    ]);
+
+    expect(app(DetailRefetchSelector::class)->due(limit: 100)->pluck('id')->all())
+        ->not->toContain($neverFetched->id)
+        ->not->toContain($newRevision->id);
+});
+
 test('due выдаёт ни разу не снятые закупки раньше ранее снятых и соблюдает лимит', function (): void {
     $oldFetched = Procurement::factory()->create([
         'detail_fetched_at' => now()->subDays(2),

@@ -3,8 +3,10 @@
 declare(strict_types=1);
 
 use App\Dto\Procurement\ProcurementDetails;
+use App\Enums\Procurement\Crawler\CrawlStage;
 use App\Enums\Procurement\ProcurementStatus;
 use App\Enums\Procurement\Proxy\ProxyScope;
+use App\Models\Procurement\Crawler\Fetch;
 use App\Models\Procurement\Crawler\Proxy;
 use App\Models\Procurement\Platform\Registry;
 use App\Models\Procurement\Procurement;
@@ -134,7 +136,14 @@ test('collectDetails кладёт сырой HTML в storage gzip при вкл�
 
     app(CsvSourceMethod::class)->collectDetails(registryNumber: '0338200009125000001', registry: $registry);
 
-    Storage::disk('s3')->assertExists("raw/html/{$registry->id}/0338200009125000001/common-info.html.gz");
+    $artifactRef = Fetch::query()
+        ->where('stage', CrawlStage::Detail->value)
+        ->whereJsonContains('request_params->tab', 'common-info')
+        ->sole()
+        ->artifact_ref;
+
+    expect($artifactRef)->toMatch("#^raw/html/{$registry->id}/0338200009125000001/common-info/[a-f0-9]{64}/[a-f0-9]{64}\\.html\\.gz$#");
+    Storage::disk('s3')->assertExists($artifactRef);
 });
 
 test('collectDetails не пишет в storage когда retention выключен', function () {
@@ -154,7 +163,12 @@ test('collectDetails не пишет в storage когда retention выклю�
 
     app(CsvSourceMethod::class)->collectDetails(registryNumber: '0338200009125000001', registry: $registry);
 
-    Storage::disk('s3')->assertMissing("raw/html/{$registry->id}/0338200009125000001/common-info.html.gz");
+    expect(Fetch::query()
+        ->where('stage', CrawlStage::Detail->value)
+        ->whereJsonContains('request_params->tab', 'common-info')
+        ->sole()
+        ->artifact_ref)
+        ->toBeNull();
 });
 
 test('collectDetails бросает исключение при отсутствии URL-шаблона для типа процедуры', function () {

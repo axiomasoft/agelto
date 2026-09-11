@@ -219,8 +219,22 @@ return [
         // Раздельные очереди пайплайна по стоимости/риску (ТЗ 03 §4, приоритет ↓
         // скачивание→подготовка→скрининг→извлечение). LLM-очереди — маленький maxProcesses
         // (провайдерский rate-limit, D-конвенции); doc_prepare — CPU/IO-bound, шире.
-        'supervisor-doc-prepare' => [
+        'supervisor-doc-download' => [
             'connection' => 'redis',
+            'queue' => ['doc_download'],
+            'balance' => 'auto',
+            'autoScalingStrategy' => 'time',
+            'maxProcesses' => 1,
+            'maxTime' => 0,
+            'maxJobs' => 0,
+            'memory' => 128,
+            'tries' => 1,
+            'timeout' => 360,
+            'nice' => 0,
+        ],
+
+        'supervisor-doc-prepare' => [
+            'connection' => 'redis_prepare',
             'queue' => ['doc_prepare'],
             'balance' => 'auto',
             'autoScalingStrategy' => 'time',
@@ -229,7 +243,10 @@ return [
             'maxJobs' => 0,
             'memory' => 128,
             'tries' => 1,
-            'timeout' => 120,
+            // 120s source setup + 180s text probe + 1800s OCR + two 180s metadata probes +
+            // 120s persistence/release reserve. PrepareDocumentJob is capped at 2580s, then
+            // this supervisor at 2640s, before redis_prepare.retry_after=2700s.
+            'timeout' => 2640,
             'nice' => 0,
         ],
 
@@ -243,15 +260,14 @@ return [
             'maxJobs' => 0,
             'memory' => 128,
             'tries' => 1,
-            'timeout' => 60,
+            // 210s Gemini request + Files polling + 30s persistence/release reserve.
+            // ScreeningJob.timeout=240 < this supervisor=300 < redis.retry_after=420.
+            'timeout' => 300,
             'nice' => 0,
         ],
 
-        // Самый длинный супервизор пайплайна — задаёт потолок инварианта D26
-        // (plans/EST-AI/plan.md; research/J §2): timeout < queue.redis.retry_after
-        // (config/queue.php, 360s) < docker-compose.prod.yml horizon.stop_grace_period (600s).
-        // Checkpoint-requeue (D31, config/ai.php extraction.checkpoint_seconds=240s) держит
-        // единичный запуск EstimateExtractionJob строго короче этого timeout.
+        // Extraction is checkpointed before it can begin another 150s provider call:
+        // job=300s, checkpoint=120s, reserve=30s, supervisor=360s, redis retry_after=420s.
         'supervisor-ai-extraction' => [
             'connection' => 'redis',
             'queue' => ['ai_extraction'],
@@ -262,7 +278,7 @@ return [
             'maxJobs' => 0,
             'memory' => 256,
             'tries' => 1,
-            'timeout' => 300,
+            'timeout' => 360,
             'nice' => 0,
         ],
 
@@ -290,7 +306,7 @@ return [
 
         // Прогон краулера на очереди (P3.2, D27/D28). Инвариант таймаутов: checkpoint_seconds
         // (config('crawler.run.checkpoint_seconds')=240) < timeout (300) <
-        // queue.redis.retry_after (config/queue.php, 360) — нарушение отдаёт job ВТОРОМУ
+        // queue.redis.retry_after (config/queue.php, 420) — нарушение отдаёт job ВТОРОМУ
         // воркеру, пока первый ещё легитимно работает (площадку начнут обходить дважды).
         // `maxProcesses => 1` — сознательное ограничение: параллельные обходы одной площадки
         // есть ровно то, ради предотвращения чего существует P4 (общий бюджет запросов);
@@ -311,7 +327,7 @@ return [
 
         // Детальная карточка делает до четырёх запросов и скачивания, поэтому queue держим
         // узкой. Реальный ограничитель нагрузки — общий platform budget; его ожидание (≤60 с)
-        // входит в timeout. Инвариант: 300 < redis.retry_after 360.
+        // входит в timeout. Инвариант: 300 < redis.retry_after 420.
         'supervisor-crawl-detail' => [
             'connection' => 'redis',
             'queue' => ['crawl_detail'],

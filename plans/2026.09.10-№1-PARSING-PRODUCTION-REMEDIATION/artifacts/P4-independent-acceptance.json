@@ -1,0 +1,506 @@
+{
+    "schema_version": "p4-independent-acceptance/v1",
+    "git_anchor": "f60e98c25aa65e8ebf225e4681beca3e796a52b9",
+    "independent_actor": {
+        "actor": "gpt-5.6-sol/xhigh",
+        "session_id": "01a090bf-3c54-7c10-be56-b7ed21a1fc83",
+        "run_id": "p4.2-final-replay-20260911",
+        "p4_1_executor_session_id": "01a09022-3a84-7dd1-a368-1ae60aa8ebf6",
+        "independent": true,
+        "offline_only": true,
+        "live_requests_performed": 0,
+        "captured_at": "2026-09-11T14:00:00Z"
+    },
+    "source_carriers": [
+        {
+            "path": "phases/P0/P0.closed.md",
+            "sha256": "bd65cde99c947614c585497c3049ddde86efcb31fbcaa69271f849848a9300ce"
+        },
+        {
+            "path": "phases/P1/P1.closed.md",
+            "sha256": "6ff51a4ab5a15ba82d3804eb480bdbc4c8ef7d99005779b1ec7e22bcd2e556f1"
+        },
+        {
+            "path": "phases/P2/P2.closed.md",
+            "sha256": "2bd7b1d25dcff2135a85fe1b98d9380f0133ae93fdd88fd26a55d07939d0a85a"
+        },
+        {
+            "path": "phases/P3/P3.closed.md",
+            "sha256": "a0330a996f74cf05d8660a75dcf7ea80bc5f0b3b819e6d5b11e28ec3f06eca8a"
+        },
+        {
+            "path": "phases/P4/P4.1.state.md",
+            "sha256": "17e21135b0b234c2fe7518609dfda1e78ba3521c5bcc77f90a2138214bbf7ed2"
+        },
+        {
+            "path": "artifacts/P4-a1-live-verification.json",
+            "sha256": "5d7f0b7046c8bbb235d95a4f9e02bd1b09018332f22ffe6512b5f572062e4f26"
+        },
+        {
+            "path": "artifacts/P4-b2-live-verification.json",
+            "sha256": "d607cb2a2db44735a8b23d16c3560647ab8d6752abba42d8ce511db228a0a698"
+        },
+        {
+            "path": "findings/P4-a1-live-verification.md",
+            "sha256": "bdcfc510bb16267a6ed4e737093b936a39885025173125c66253888788579e5c"
+        },
+        {
+            "path": "findings/P4-b2-live-verification.md",
+            "sha256": "2b9f897ddc5cb86da80cea993b7ec05e6709b671f556d9c23b8d265b5bba022f"
+        },
+        {
+            "path": "research/P4-live-verdict.md",
+            "sha256": "abd8ec677b948818fcc12957db2b605de9314b9f85d1619a75df85b568eb5a51"
+        }
+    ],
+    "commands": [
+        {
+            "id": "C01",
+            "command": "rg -n '^\\*\\*Status:\\*\\* (🟢 Done|🟠 Done with deviations)$' plans/2026.09.10-№1-PARSING-PRODUCTION-REMEDIATION/phases/P4/P4.1.state.md",
+            "verdict": "GREEN",
+            "exit_code": 0,
+            "summary": "Exactly one terminal P4.1 status line."
+        },
+        {
+            "id": "C02",
+            "command": "sha256sum P0-P3 closures, P4.1 state, live JSON/findings/research; verify embedded digest chain",
+            "verdict": "GREEN",
+            "exit_code": 0,
+            "summary": "All source and artifact-to-finding-to-research digests match."
+        },
+        {
+            "id": "C03",
+            "command": "make test-preflight",
+            "verdict": "GREEN",
+            "exit_code": 0,
+            "summary": "Docker PostgreSQL is ready; isolated database is agelto_test."
+        },
+        {
+            "id": "C04",
+            "command": "docker compose --project-name agelto_dev exec -T -e APP_ENV=testing -e DB_DATABASE=agelto_test -e DB_HOST=postgres -e DEV_SEED_PASSWORD=p4-acceptance-test-only app php artisan migrate:fresh --seed --env=testing --force --no-interaction",
+            "verdict": "GREEN",
+            "exit_code": 0,
+            "summary": "Fresh schema and Base/Demo seeders complete with an explicit testing-only seed password."
+        },
+        {
+            "id": "C05",
+            "command": "P4.2 focused acceptance aggregate from C06 and C15-C21",
+            "verdict": "GREEN",
+            "exit_code": 0,
+            "summary": "184 passed, 1384 assertions across the independently invoked carriers; overlapping files are retained in the aggregate."
+        },
+        {
+            "id": "C06",
+            "command": "docker compose --project-name agelto_dev exec -T -e APP_ENV=testing -e DB_DATABASE=agelto_test -e DB_HOST=postgres app php artisan test --compact --no-tia tests/Feature/Crawler/FreshRunProcessorTest.php",
+            "verdict": "GREEN",
+            "exit_code": 0,
+            "summary": "13 passed, 59 assertions; terminal stop_reason persists and replaces the hard-cap checkpoint reason after resume."
+        },
+        {
+            "id": "C07",
+            "command": "bash docker/tests/pipeline-worker-recovery-contract.sh",
+            "verdict": "GREEN",
+            "exit_code": 0,
+            "summary": "Self-contained worker carrier passes: worker tests 5/49 plus recovery tests 3/11; SIGTERM completes and SIGKILL is durably recovered."
+        },
+        {
+            "id": "C08",
+            "command": "COMPOSE_PROJECT_NAME=agelto_dev bash docker/tests/pipeline-worker-recovery-contract.sh",
+            "verdict": "GREEN",
+            "exit_code": 0,
+            "summary": "Configured diagnostic replay on source SHA 0fe268d32a59a7bdc2e195ef43d5f9c90dac0d6eec057ed88ac77379d7678d64 passes: worker tests 5/49 plus recovery tests 3/11; SIGTERM 101/101 finishes and SIGKILL is interrupted at 106 before durable recovery."
+        },
+        {
+            "id": "C09",
+            "command": "docker compose --project-name agelto_dev exec -T -e APP_ENV=testing -e DB_DATABASE=agelto_test -e DB_HOST=postgres app php artisan test --compact --no-tia tests/Feature/Crawler tests/Unit/Crawler tests/Feature/Procurement tests/Feature/Health tests/Feature/Document tests/Feature/Organization tests/Feature/Console tests/Feature/Infra",
+            "verdict": "GREEN",
+            "exit_code": 0,
+            "summary": "868 passed, 3174 assertions."
+        },
+        {
+            "id": "C10",
+            "command": "docker compose --project-name agelto_dev exec -T -e APP_ENV=testing -e DB_DATABASE=agelto_test -e DB_HOST=postgres app php artisan test --compact --no-tia",
+            "verdict": "GREEN",
+            "exit_code": 0,
+            "summary": "1639 passed, 7441 assertions."
+        },
+        {
+            "id": "C11",
+            "command": "docker compose --project-name agelto_dev exec -T app vendor/bin/pint --test",
+            "verdict": "GREEN",
+            "exit_code": 0,
+            "summary": "1547 files checked; no style issues."
+        },
+        {
+            "id": "C12",
+            "command": "docker compose --project-name agelto_dev exec -T app vendor/bin/phpstan analyse --memory-limit=1G",
+            "verdict": "GREEN",
+            "exit_code": 0,
+            "summary": "718 files analysed; no errors."
+        },
+        {
+            "id": "C13",
+            "command": "rg -n \"verify\\s*=>\\s*false\" app config routes",
+            "verdict": "GREEN",
+            "exit_code": 1,
+            "summary": "No forbidden TLS bypass found; exit 1 is the expected no-match result."
+        },
+        {
+            "id": "C14",
+            "command": "git diff --check",
+            "verdict": "GREEN",
+            "exit_code": 0,
+            "summary": "No whitespace errors."
+        },
+        {
+            "id": "C15",
+            "command": "make test-preflight && docker compose --project-name agelto_dev exec -T -e APP_ENV=testing -e DB_DATABASE=agelto_test -e DB_HOST=postgres app php artisan test --compact --no-tia tests/Feature/Console/VerifyFreshBoundaryTest.php tests/Feature/Console/VerifyDocumentUidTest.php tests/Feature/Document/DocumentDownloaderTest.php",
+            "verdict": "GREEN",
+            "exit_code": 0,
+            "summary": "9 passed, 43 assertions."
+        },
+        {
+            "id": "C16",
+            "command": "make test-preflight && docker compose --project-name agelto_dev exec -T -e APP_ENV=testing -e DB_DATABASE=agelto_test -e DB_HOST=postgres app php artisan test --compact --no-tia tests/Feature/Document/DocumentRevalidationTest.php tests/Feature/Document/DocumentDownloaderTest.php",
+            "verdict": "GREEN",
+            "exit_code": 0,
+            "summary": "12 passed, 39 assertions."
+        },
+        {
+            "id": "C17",
+            "command": "focused A2/A3/B1 recovery, snapshot and projection suite",
+            "verdict": "GREEN",
+            "exit_code": 0,
+            "summary": "58 passed, 249 assertions."
+        },
+        {
+            "id": "C18",
+            "command": "focused A4/A5 pipeline recovery, retry and download suite",
+            "verdict": "GREEN",
+            "exit_code": 0,
+            "summary": "35 passed, 118 assertions."
+        },
+        {
+            "id": "C19",
+            "command": "focused A6/NEW-2 source/archive/representation storage fault suite",
+            "verdict": "GREEN",
+            "exit_code": 0,
+            "summary": "23 passed, 100 assertions."
+        },
+        {
+            "id": "C20",
+            "command": "focused A7/A8/A9 timeout, lease and partition suite",
+            "verdict": "GREEN",
+            "exit_code": 0,
+            "summary": "25 passed, 134 assertions."
+        },
+        {
+            "id": "C21",
+            "command": "make test-preflight && docker compose --project-name agelto_dev exec -T -e APP_ENV=testing -e DB_DATABASE=agelto_test -e DB_HOST=postgres app php artisan test --compact --no-tia tests/Unit/Architecture/CoreKnowsNoDocumentTypeTest.php tests/Unit/Architecture/DomainLayoutTest.php tests/Unit/Architecture/PlatformExtensionContractTest.php tests/Feature/Filament/AdminRouteInventoryTest.php",
+            "verdict": "GREEN",
+            "exit_code": 0,
+            "summary": "9 passed, 642 assertions; architecture and route inventory canaries are aligned."
+        },
+        {
+            "id": "C22",
+            "command": "compare app/tests/config/database/routes baseline manifest captured before P4.2",
+            "verdict": "GREEN",
+            "exit_code": 0,
+            "summary": "Fresh independent actor made zero filesystem edits; the owner validation repair is separately hash-bound and the accepted product semantics are unchanged."
+        },
+        {
+            "id": "C23",
+            "command": "task.task_contract.evaluate_write_site(..., stage='pre_final')",
+            "verdict": "GREEN",
+            "exit_code": 0,
+            "summary": "Task pre-final returns allow after the JSON acceptance command is public."
+        },
+        {
+            "id": "C24",
+            "command": "execute the explicit finding-oriented named matrix C05 backed by C06 and C15-C21",
+            "verdict": "GREEN",
+            "exit_code": 0,
+            "summary": "The Layout-v2-safe matrix covers the accepted P0-P4.1 outcomes without reading retired item specs."
+        },
+        {
+            "id": "C25",
+            "command": "python3 -m json.tool plans/2026.09.10-№1-PARSING-PRODUCTION-REMEDIATION/artifacts/P4-independent-acceptance.json",
+            "verdict": "GREEN",
+            "exit_code": 0,
+            "summary": "Machine artifact parses as JSON."
+        },
+        {
+            "id": "C26",
+            "command": "validate stable keys, verdict enums, command/evidence references, SHA format and source-carrier digests",
+            "verdict": "GREEN",
+            "exit_code": 0,
+            "summary": "Nonterminal P4.2 artifact contract validates."
+        },
+        {
+            "id": "C27",
+            "command": "plan-lint.py; plan-views.py state --all --check; decisions --check; status --check",
+            "verdict": "GREEN",
+            "exit_code": 0,
+            "summary": "1 plan/0 errors/1 advisory warning; 17 states, 4 decision views and 1 status view are fresh."
+        }
+    ],
+    "findings": [
+        {
+            "id": "A1",
+            "verdict": "GREEN",
+            "command_ids": ["C05", "C06", "C09", "C10"],
+            "evidence_ids": ["a1-dirty-stop-reason-persisted", "a1-stale-checkpoint-replaced"],
+            "source_sha256": "1d578e27c49bbe795eb475f9f8093c794334249f8872de04ce9002e06d42b5e2"
+        },
+        {
+            "id": "A2",
+            "verdict": "GREEN",
+            "command_ids": ["C17"],
+            "evidence_ids": ["a2-recovery-scope-and-drain"],
+            "source_sha256": "f952cac19ed51978c8dc31a04cfdf08b0a05129c2dc23502097a5c00a4dad841"
+        },
+        {
+            "id": "A3",
+            "verdict": "GREEN",
+            "command_ids": ["C17"],
+            "evidence_ids": ["a3-typed-snapshot-removal-guard"],
+            "source_sha256": "635664d16a6d8ff3e291129a46e600eef12121ac3de0b2f2c79f4c1353196bd0"
+        },
+        {
+            "id": "A4",
+            "verdict": "GREEN",
+            "command_ids": ["C18"],
+            "evidence_ids": ["a4-retry-and-continuation-reconcile"],
+            "source_sha256": "a46e87d4946f2ebbcca2fd032e0ad5e688600e9c2af9aa55899681b638d0e2d5"
+        },
+        {
+            "id": "A5",
+            "verdict": "GREEN",
+            "command_ids": ["C18"],
+            "evidence_ids": ["a5-due-download-route-and-backoff"],
+            "source_sha256": "bda6ff32582050adca3c85cd8e3272065a6be415c07d8ffeb6759b9284549501"
+        },
+        {
+            "id": "A6",
+            "verdict": "GREEN",
+            "command_ids": ["C19"],
+            "evidence_ids": ["a6-source-write-fail-closed"],
+            "source_sha256": "51ee059e9b5a398649430c6b399bcc5fba2a98662d3b8a76d3ecfa88dc071bd6"
+        },
+        {
+            "id": "A7",
+            "verdict": "GREEN",
+            "command_ids": ["C07", "C20"],
+            "evidence_ids": ["a7-timeout-lease-signal-contract"],
+            "source_sha256": "112834ab07d035b3c943238e39d69dc7e11956e467c402a1cc23a8f1f93a6690"
+        },
+        {
+            "id": "A8",
+            "verdict": "GREEN",
+            "command_ids": ["C20"],
+            "evidence_ids": ["a8-partition-continuity"],
+            "source_sha256": "163c94641cf4b40ba932e6901609c0e2678b1017037f2f558fafff36a285d9bc"
+        },
+        {
+            "id": "A9",
+            "verdict": "GREEN",
+            "command_ids": ["C07", "C20"],
+            "evidence_ids": ["a9-two-process-lease-and-expiry"],
+            "source_sha256": "749b9f1c3489571c1f6daf074f7a2f5f0eab2c99ba1462a2ef9d8703bccfd7fc"
+        },
+        {
+            "id": "B1",
+            "verdict": "GREEN",
+            "command_ids": ["C17"],
+            "evidence_ids": ["b1-items-parties-complete-snapshot"],
+            "source_sha256": "13bc63c8692dd4d9c30b9abcb54d582505b05aed84f254c60166b88c7be8aaf3"
+        },
+        {
+            "id": "NEW-1",
+            "verdict": "GREEN",
+            "command_ids": ["C06", "C09", "C10"],
+            "evidence_ids": ["new1-resume-replaces-checkpoint-reason"],
+            "source_sha256": "d97d9187ce79371c50cec78aa9cc543ee986b7e2d4726624c09fd3c34e963462"
+        },
+        {
+            "id": "NEW-2",
+            "verdict": "GREEN",
+            "command_ids": ["C19"],
+            "evidence_ids": ["new2-representation-write-fail-closed"],
+            "source_sha256": "ca3b940fa6beaff2d111c25806ac0b144a3d6659a8fde540bc02f203ed066067"
+        },
+        {
+            "id": "B2",
+            "verdict": "GREEN",
+            "command_ids": ["C02", "C15", "C16"],
+            "evidence_ids": ["b2-live-insufficient-evidence", "b2-bounded-revalidation-required", "b2-same-and-changed-sha-revalidation"],
+            "source_sha256": "d607cb2a2db44735a8b23d16c3560647ab8d6752abba42d8ce511db228a0a698"
+        },
+        {
+            "id": "INTEGRATION-ARCH-CORE",
+            "verdict": "GREEN",
+            "command_ids": ["C10", "C21"],
+            "evidence_ids": ["core-canary-current-job-inventory"],
+            "source_sha256": "4041ac9828f885311e867af2b4c4845085fcbd313f5cf60de603312366d4aa55"
+        },
+        {
+            "id": "INTEGRATION-DOMAIN-LAYOUT",
+            "verdict": "GREEN",
+            "command_ids": ["C10", "C21"],
+            "evidence_ids": ["detail-snapshot-status-root-legal"],
+            "source_sha256": "bbec5a5c5aebf5db217502fec4419d5bb3ff361c0347dce9faf79043fc21ddf5"
+        },
+        {
+            "id": "INTEGRATION-PLATFORM-LITERAL",
+            "verdict": "GREEN",
+            "command_ids": ["C10", "C21"],
+            "evidence_ids": ["p4-live-commands-source-boundary-aligned"],
+            "source_sha256": "518553fdd730edc8e4913c7005d619cefc69cb718cbf6da48975504f1f906700"
+        },
+        {
+            "id": "INHERITED-ADMIN-ROUTE",
+            "verdict": "GREEN",
+            "command_ids": ["C10", "C21", "C22"],
+            "evidence_ids": ["admin-route-inventory-aligned", "p4-2-baseline-pre-existing"],
+            "source_sha256": "ee44755367cb50c000bfda8ab1b3e5dae65bfa92ee344421232f5eac6f8ac9ad"
+        },
+        {
+            "id": "VALIDATION-SEED",
+            "verdict": "GREEN",
+            "command_ids": ["C04"],
+            "evidence_ids": ["seeded-migration-self-contained"],
+            "source_sha256": "300a56ff682300837a58070967d16c070a3b92dd908d9e277dda7a753106458b"
+        },
+        {
+            "id": "VALIDATION-WORKER-CARRIER",
+            "verdict": "GREEN",
+            "command_ids": ["C07"],
+            "evidence_ids": ["default-compose-project-name", "exact-worker-replay-green"],
+            "source_sha256": "90d762067c3930965983a75167220d358d225e17508e14bb9eaf35172c54e37a"
+        },
+        {
+            "id": "QUALITY-PINT",
+            "verdict": "GREEN",
+            "command_ids": ["C11", "C22"],
+            "evidence_ids": ["doctor-config-style-repaired", "full-pint-green"],
+            "source_sha256": "6b7e2ae57a86e84d70f60629d3496901b46392b13de9fa8d316de5cccfee3268"
+        },
+        {
+            "id": "PLAN-EXACT-REPLAY",
+            "verdict": "GREEN",
+            "command_ids": ["C24"],
+            "evidence_ids": ["layout-v2-safe-finding-matrix", "retired-item-specs-not-read"],
+            "source_sha256": "82a44296045bbb0d618a60ba654fe9c9158f1bd8c2d44ca86845004a41f1b0b9"
+        },
+        {
+            "id": "PLAN-PUBLIC-ACCEPTANCE",
+            "verdict": "GREEN",
+            "command_ids": ["C23"],
+            "evidence_ids": ["task-pre-final-allow"],
+            "source_sha256": "82a44296045bbb0d618a60ba654fe9c9158f1bd8c2d44ca86845004a41f1b0b9"
+        }
+    ],
+    "a1_live_verdict": {
+        "p4_1_live_status": "insufficient_live_boundary_evidence",
+        "p4_2_offline_verdict": "GREEN",
+        "reason": "The bounded live artifact remains non-universal evidence; independently, the owner-fenced cursor write persists dirty stats and focused, broad and full suites prove terminal stop reasons and resumable hard-cap semantics.",
+        "remediation_owner": null,
+        "rerun_required": false
+    },
+    "b2_verdict": {
+        "verdict": "GREEN",
+        "decision_branch": "insufficient_evidence",
+        "revalidation_required": true,
+        "universal_uid_stability_claimed": false,
+        "reason": "Matches D8/D11: lack of a live counterexample is not treated as immutability proof, and bounded revalidation passes offline tests."
+    },
+    "fault_injection": {
+        "worker_exact_carrier": "GREEN",
+        "worker_configured_replay": "GREEN",
+        "storage_source_and_archive": "GREEN",
+        "storage_prepared_representations": "GREEN",
+        "pipeline_continuation_recovery": "GREEN",
+        "execution_lease_overlap_and_expiry": "GREEN"
+    },
+    "test_counts": {
+        "named_remediation": {
+            "passed": 184,
+            "failed": 0,
+            "assertions": 1384
+        },
+        "focused_fresh_reproduction": {
+            "passed": 13,
+            "failed": 0,
+            "assertions": 59
+        },
+        "targeted_broad": {
+            "passed": 868,
+            "failed": 0,
+            "assertions": 3174
+        },
+        "full": {
+            "passed": 1639,
+            "failed": 0,
+            "assertions": 7441
+        },
+        "p4_1_live_commands": {
+            "passed": 9,
+            "failed": 0,
+            "assertions": 43
+        },
+        "b2_revalidation": {
+            "passed": 12,
+            "failed": 0,
+            "assertions": 39
+        },
+        "accepted_focused_groups": {
+            "passed": 141,
+            "failed": 0,
+            "assertions": 601
+        },
+        "integration_reproduction": {
+            "passed": 9,
+            "failed": 0,
+            "assertions": 642
+        }
+    },
+    "inherited_outcomes": {
+        "working_tree_dirty_before_p4_2": true,
+        "p4_2_product_changes": 0,
+        "product_baseline_sha256": "8fb2e8f474b3a7123184b3b8e3f325de5f2ee9b4bf033726235ad095497f8445",
+        "tracked_product_diff_sha256": "8900288ea72d562cb37c23534ba515517875bffd81927b5586696cc295c90edb",
+        "tracked_product_diff_bytes": 275878,
+        "untracked_product_files": 30,
+        "plan_attributable_failures": [],
+        "pre_existing_unrelated_failures": [],
+        "validation_repair_sha256": {
+            "p4_2_spec": "82a44296045bbb0d618a60ba654fe9c9158f1bd8c2d44ca86845004a41f1b0b9",
+            "doctor_config": "6b7e2ae57a86e84d70f60629d3496901b46392b13de9fa8d316de5cccfee3268",
+            "worker_carrier": "90d762067c3930965983a75167220d358d225e17508e14bb9eaf35172c54e37a"
+        }
+    },
+    "task_postflight": {
+        "verdict": "GREEN",
+        "plan_lint": {
+            "plans": 1,
+            "errors": 0,
+            "warnings": 1,
+            "warning": "P0 PHASE_AUDIT_INTENT_ADVISORY"
+        },
+        "state_all": {
+            "checked": 17,
+            "fresh": true
+        },
+        "decisions": {
+            "checked": 4,
+            "fresh": true
+        },
+        "status": {
+            "checked": 1,
+            "fresh": true
+        },
+        "terminal_close_allowed": true,
+        "next_exact": null,
+        "next_gate": "P4.3 requires durable owner authorization before any controlled-production traffic"
+    }
+}

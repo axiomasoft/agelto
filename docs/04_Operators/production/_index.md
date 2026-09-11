@@ -4,23 +4,24 @@ type: explanation
 status: living
 ---
 
-# Production preparation
+# Production
 
-Start with the generated [P12 command matrix](https://github.com/axiomasoft/agelto/blob/main/plans/archive/2026.08.09-RELEASE-READINESS/artifacts/P12-command-matrix.md).
-It is the canonical source-derived inventory and marks every command as local/check or external/
-mutating with its authority, inputs, exit, resume and evidence contract.
+Начните с [инструкции для нового Ubuntu-сервера](server-setup.md): в ней один линейный путь от
+пустой ОС до NGINX, pinned checkout, `.env.production` и файловых секретов. Затем продолжайте с
+[полного руководства по production](deployment.md). Остальные
+страницы — справочники для отдельных, нечастых операций, а не обязательный квест по ссылкам.
 
-The operator package is split into these pages:
+| Если нужно | Страница |
+|---|---|
+| Пройти весь путь на новом сервере | [Ubuntu → готовый checkout](server-setup.md) |
+| Подготовить сервер или выпустить очередной релиз | [Полное руководство](deployment.md) |
+| Посмотреть точный контракт команды, входы и resume | [Справочник команд](commands.md) |
+| Подготовить host, checkout и production-профиль | [Host](ubuntu-host.md), [репозиторий](repositories.md), [профиль](production-profile.md) |
+| Провести первый запуск или разобрать модель выпусков | [Первый запуск](first-deploy.md), [модель релизов](releases.md) |
+| Настроить DNS или TLS глубже | [TLS](network-tls.md) |
+| Настроить backup, восстановление или rollback | [Backups](backups.md), [Rollback and restore](rollback-restore.md) |
+| Повернуть ключи или секреты | [Deploy keys](credential-rotation.md), [Secrets](secret-rotation.md) |
+| Разобрать сбой | [Troubleshooting](troubleshooting.md) |
 
-- [Ubuntu host](ubuntu-host.md)
-- [Production profile](production-profile.md)
-- [Repository identities](repositories.md)
-- [Deploy-key rotation](credential-rotation.md)
-- [Network and TLS](network-tls.md)
-- [Backups](backups.md)
-- [First deploy](first-deploy.md)
-- [Releases](releases.md)
-- [Secret rotation](secret-rotation.md)
-- [Rollback and restore](rollback-restore.md)
-- [Command reference](commands.md)
-- [Troubleshooting](troubleshooting.md)
+Source-derived [матрица P12](https://github.com/axiomasoft/agelto/blob/main/plans/archive/2026.08.09-RELEASE-READINESS/artifacts/P12-command-matrix.md)
+остаётся точным inventory команд, но не является стартовой страницей для человека.

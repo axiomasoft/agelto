@@ -24,5 +24,6 @@ final readonly class FetchResult
         public int $rowsErrors,
         public int $rowsDuplicated = 0,
         public ?Carbon $oldestUpdateSeen = null,
+        public bool $oldestUpdateSeenHasDayPrecision = false,
     ) {}
 }

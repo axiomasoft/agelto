@@ -15,9 +15,11 @@ afterEach(function (): void {
     documentationRemoveDirectory($this->documentationRoot);
 });
 
-test('находит root nested и static manifest entries', function (): void {
+test('находит root clean URL directory clean URL и static manifest entries', function (): void {
     documentationWriteArtifact($this->documentationRoot, [
+        'assets/chunks/@localSearchIndexroot.js' => ['text/javascript; charset=utf-8', 'search sentinel'],
         'assets/app.css' => ['text/css; charset=utf-8', 'body { color: black; }'],
+        'article.html' => ['text/html; charset=utf-8', '<h1>article sentinel</h1>'],
         'guide/index.html' => ['text/html; charset=utf-8', '<h1>nested sentinel</h1>'],
         'index.html' => ['text/html; charset=utf-8', '<h1>root sentinel</h1>'],
     ]);
@@ -25,8 +27,11 @@ test('находит root nested и static manifest entries', function (): void 
     $locator = new PrivateDocumentationLocator;
 
     expect($locator->locate(requestedPath: null)->path)->toBe('index.html')
+        ->and($locator->locate(requestedPath: 'article')->path)->toBe('article.html')
+        ->and($locator->locate(requestedPath: 'guide/')->path)->toBe('guide/index.html')
         ->and($locator->locate(requestedPath: 'guide/index.html')->mime)->toBe('text/html; charset=utf-8')
-        ->and($locator->locate(requestedPath: 'assets/app.css')->mime)->toBe('text/css; charset=utf-8');
+        ->and($locator->locate(requestedPath: 'assets/app.css')->mime)->toBe('text/css; charset=utf-8')
+        ->and($locator->locate(requestedPath: 'assets/chunks/@localSearchIndexroot.js')->mime)->toBe('text/javascript; charset=utf-8');
 });
 
 test('отклоняет одинаковой 404-поверхностью небезопасные пути', function (string $path): void {

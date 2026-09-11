@@ -20,8 +20,8 @@ status: living
 2. `make prod:doctor` (prod) — health `/up`, наличие `vendor`, статус контейнеров одним отчётом.
 3. Проверить инвариант **job timeout < supervisor timeout < `queue.retry_after`** (D26,
    `config/horizon.php`/`config/queue.php`): самый длинный supervisor —
-   `supervisor-ai-extraction=300s`, checkpoint-requeue держит единичный запуск строго короче через
-   `config('ai.extraction.checkpoint_seconds')`=240s < `redis.retry_after`=360s. Нарушение этого
+   `supervisor-ai-extraction=360s`; extraction checkpoint'ится на 120s и оставляет 150s на
+   следующий provider call плюс 30s reserve, тогда как `redis.retry_after`=420s. Нарушение этого
    неравенства — job перезапускается очередью ДО того, как сам успел корректно завершиться (не
    применимо к D31-механике self-requeue — та завершается успешно ДО истечения таймаута по
    построению).

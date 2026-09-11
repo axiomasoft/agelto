@@ -57,6 +57,39 @@ final readonly class PartiesParser
         }
     }
 
+    /** @param list<PartyData> $parties */
+    public function authorizesReconciliation(string $html, array $parties): bool
+    {
+        try {
+            $table = (new Crawler($html))->filter('section.organizations-block table.parties-table');
+
+            if ($table->count() === 0) {
+                Log::warning('Вкладка common-info не содержит контейнер сторон; snapshot неполный');
+
+                return false;
+            }
+
+            $rows = $table->filter('tbody tr')->count();
+
+            if ($rows === count($parties)) {
+                return true;
+            }
+
+            Log::warning('Вкладка common-info содержит нераспознанные стороны; snapshot неполный', [
+                'rows' => $rows,
+                'parsed_parties' => count($parties),
+            ]);
+
+            return false;
+        } catch (\Throwable $exception) {
+            Log::warning('Проверка полноты сторон common-info провалилась; snapshot failed', [
+                'exception' => $exception->getMessage(),
+            ]);
+
+            return false;
+        }
+    }
+
     private function parseRow(Crawler $tr): ?PartyData
     {
         $cells = $tr->filter('td');

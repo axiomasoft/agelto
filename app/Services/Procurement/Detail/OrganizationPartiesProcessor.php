@@ -30,22 +30,40 @@ final readonly class OrganizationPartiesProcessor
      */
     public function process(Procurement $procurement, array $parties): void
     {
-        DB::transaction(function () use ($procurement, $parties): void {
-            foreach ($parties as $party) {
-                $organization = $this->organizationResolver->resolve($party->organization);
+        DB::transaction(fn () => $this->sync(procurement: $procurement, parties: $parties));
+    }
 
-                $this->storeRepository->upsertParty(
-                    procurementId: $procurement->id,
-                    organizationId: $organization->id,
-                    role: $party->role,
-                    attributes: $this->contactAttributes($party),
-                );
+    /** @param list<PartyData> $parties */
+    public function sync(Procurement $procurement, array $parties): void
+    {
+        $partyKeys = [];
+        $customerOrganizationId = null;
 
-                if ($party->role === ProcurementPartyRole::Customer) {
-                    $this->storeRepository->setCustomerOrg($procurement, $organization->id);
-                }
+        foreach ($parties as $party) {
+            $organization = $this->organizationResolver->resolve($party->organization);
+
+            $this->storeRepository->upsertParty(
+                procurementId: $procurement->id,
+                organizationId: $organization->id,
+                role: $party->role,
+                attributes: $this->contactAttributes($party),
+            );
+
+            $partyKeys[] = [
+                'organization_id' => $organization->id,
+                'role' => $party->role,
+            ];
+
+            if ($party->role === ProcurementPartyRole::Customer) {
+                $customerOrganizationId = $organization->id;
             }
-        });
+        }
+
+        $this->storeRepository->deletePartiesMissingFromSnapshot(
+            procurementId: $procurement->id,
+            partyKeys: $partyKeys,
+        );
+        $this->storeRepository->setCustomerOrg(procurement: $procurement, organizationId: $customerOrganizationId);
     }
 
     /**

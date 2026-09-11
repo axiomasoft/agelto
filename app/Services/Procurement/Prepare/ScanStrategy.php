@@ -8,6 +8,7 @@ use App\Actions\Procurement\Document\MarkDocumentUnprocessableAction;
 use App\Enums\Procurement\Document\PreparationResult;
 use App\Enums\Procurement\Document\RepresentationKind;
 use App\Enums\Procurement\Document\UnprocessableReason;
+use App\Exceptions\Procurement\Prepare\OperationBudgetExceeded;
 use App\Models\Procurement\Document\Document;
 use App\Models\Procurement\Document\DocumentVersion;
 use App\Repositories\Procurement\Document\RepresentationStoreRepository;
@@ -50,12 +51,13 @@ final readonly class ScanStrategy implements PreparationStrategy
 
     public function __construct(
         private RepresentationStoreRepository $representations,
+        private RepresentationWriter $writer,
         private MarkDocumentUnprocessableAction $markUnprocessable,
         private OcrConverter $converter,
         private FileLocationResolver $locationResolver,
     ) {}
 
-    public function process(Document $document, DocumentVersion $version): PreparationResult
+    public function process(Document $document, DocumentVersion $version, ?float $deadlineAt = null): PreparationResult
     {
         if ($this->representations->find($version, RepresentationKind::PdfOcr) !== null
             && $this->representations->find($version, RepresentationKind::Text) !== null) {
@@ -77,7 +79,7 @@ final readonly class ScanStrategy implements PreparationStrategy
             // (Code Guidance P3.7); в памяти живёт только sidecar-текст.
             $this->copyToLocal($disk, $version->storage_path, $localInput);
 
-            if ($isPdf && ! $this->needsOcr($localInput)) {
+            if ($isPdf && ! $this->needsOcr(localPdf: $localInput, deadlineAt: $deadlineAt)) {
                 return PreparationResult::ReadyForScreening;
             }
 
@@ -85,7 +87,12 @@ final readonly class ScanStrategy implements PreparationStrategy
             // выше по методу пробрасывается в error-блок job'а и под «не подошла» не маскируется (D28).
             try {
                 $startedAt = microtime(as_float: true);
-                $this->converter->run($localInput, $localOutput, $localSidecar);
+                $this->converter->run(
+                    inputPath: $localInput,
+                    outputPdfPath: $localOutput,
+                    sidecarTxtPath: $localSidecar,
+                    deadlineAt: $deadlineAt,
+                );
                 $durationMs = (int) round((microtime(as_float: true) - $startedAt) * 1000);
 
                 $text = file_exists($localSidecar) ? (string) file_get_contents($localSidecar) : '';
@@ -93,6 +100,10 @@ final readonly class ScanStrategy implements PreparationStrategy
                 if (trim($text) === '') {
                     throw new RuntimeException('OCR не извлёк ни одного символа (пустой sidecar)');
                 }
+            } catch (OperationBudgetExceeded $exception) {
+                // A job-slice deadline is a transient scheduling outcome. It must enter the
+                // PipelineJob error block and retry; OCR itself has not proved the PDF invalid.
+                throw $exception;
             } catch (RuntimeException $e) {
                 if (! $isPdf) {
                     return PreparationResult::ReadyForScreening;
@@ -103,7 +114,15 @@ final readonly class ScanStrategy implements PreparationStrategy
                 return PreparationResult::Unprocessable;
             }
 
-            $this->storeRepresentations($version, $disk, $diskName, $localOutput, $text, $durationMs);
+            $this->storeRepresentations(
+                version: $version,
+                disk: $disk,
+                diskName: $diskName,
+                localOutput: $localOutput,
+                text: $text,
+                durationMs: $durationMs,
+                deadlineAt: $deadlineAt,
+            );
 
             return PreparationResult::ReadyForScreening;
         } finally {
@@ -118,10 +137,11 @@ final readonly class ScanStrategy implements PreparationStrategy
         string $localOutput,
         string $text,
         int $durationMs,
+        ?float $deadlineAt,
     ): void {
         $meta = [
             'tool' => 'ocrmypdf',
-            'tesseract_version' => $this->converter->tesseractVersion(),
+            'tesseract_version' => $this->converter->tesseractVersion(deadlineAt: $deadlineAt),
             'languages' => $this->converter->languages(),
             'duration_ms' => $durationMs,
         ];
@@ -134,25 +154,21 @@ final readonly class ScanStrategy implements PreparationStrategy
         }
 
         try {
-            $disk->put($pdfPath, $pdfStream);
+            $this->writer->writeStream(disk: $disk, version: $version, kind: RepresentationKind::PdfOcr, path: $pdfPath, stream: $pdfStream, attributes: [
+                'storage_path' => $pdfPath,
+                'disk' => $diskName,
+                'size_bytes' => (int) filesize($localOutput),
+                'page_count' => $this->converter->pageCount(pdfPath: $localOutput, deadlineAt: $deadlineAt),
+                'mime' => 'application/pdf',
+                'meta' => $meta,
+                'generated_at' => now(),
+            ]);
         } finally {
             fclose($pdfStream);
         }
 
-        $this->representations->storeOrUpdate($version, RepresentationKind::PdfOcr, [
-            'storage_path' => $pdfPath,
-            'disk' => $diskName,
-            'size_bytes' => (int) filesize($localOutput),
-            'page_count' => $this->converter->pageCount($localOutput),
-            'mime' => 'application/pdf',
-            'meta' => $meta,
-            'generated_at' => now(),
-        ]);
-
         $textPath = $this->preparedPath($version, 'ocr.txt');
-        $disk->put($textPath, $text);
-
-        $this->representations->storeOrUpdate($version, RepresentationKind::Text, [
+        $this->writer->write($disk, $version, RepresentationKind::Text, $textPath, $text, [
             'storage_path' => $textPath,
             'disk' => $diskName,
             'size_bytes' => strlen($text),
@@ -170,9 +186,9 @@ final readonly class ScanStrategy implements PreparationStrategy
      * НЕ считается «текста нет»: такой документ идёт дальше по цепочке ровно как до P3.7
      * (`PassthroughStrategy` отдаёт оригинал), а не тратит минуты OCR на заведомый мусор.
      */
-    private function needsOcr(string $localPdf): bool
+    private function needsOcr(string $localPdf, ?float $deadlineAt): bool
     {
-        $charsPerPage = $this->converter->textCharsPerPage($localPdf);
+        $charsPerPage = $this->converter->textCharsPerPage(pdfPath: $localPdf, deadlineAt: $deadlineAt);
 
         return $charsPerPage !== null && $charsPerPage < self::TEXT_LAYER_SPARSE_MAX_CHARS_PER_PAGE;
     }

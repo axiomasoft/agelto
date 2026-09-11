@@ -86,6 +86,21 @@ test('фикстурный блок создаёт закупки, ревизи�
         ->and(ProcurementEvent::query()->where('procurement_id', $procurement->id)->where('event_type', ProcurementEventType::Discovered)->count())->toBe(1);
 });
 
+test('передаёт точность самой старой даты обновления из маппера', function () {
+    Storage::fake('s3');
+    $registry = Registry::factory()->eis()->create(['code' => 'fz44']);
+    $crawler = Crawler::factory()->for($registry)->create();
+    $run = Run::factory()->for($crawler)->create();
+
+    $result = app(CsvBlockIngestor::class)->ingest(crawler: $crawler, run: $run, batch: ingestorBatch([
+        ingestorCsvRow('0173200001234000011', ['Дата обновления' => '01.03.2026 00:00:00']),
+        ingestorCsvRow('0173200001234000012', ['Дата обновления' => '01.03.2026']),
+    ]));
+
+    expect($result->oldestUpdateSeen->toDateString())->toBe('2026-03-01')
+        ->and($result->oldestUpdateSeenHasDayPrecision)->toBeTrue();
+});
+
 test('неизменившаяся строка считается распарсенной, а не ошибкой', function () {
     Storage::fake('s3');
     $registry = Registry::factory()->eis()->create(['code' => 'fz44']);
@@ -131,10 +146,10 @@ test('crw_fetches создаётся с dedup_signature, счётчиками и
         ->and($fetch->rows_updated)->toBe(0)
         ->and($fetch->rows_parsed)->toBe(1)
         ->and($fetch->rows_errors)->toBe(0)
-        ->and($fetch->artifact_ref)->toBe("raw/csv/{$crawler->id}/{$run->id}/501.csv");
+        ->and($fetch->artifact_ref)->toMatch("#^raw/csv/{$crawler->id}/{$run->id}/[a-f0-9]{64}/[a-f0-9]{64}\\.csv$#");
 });
 
-test('сырой CSV сохраняется в Storage по пути raw/csv/{crawlerId}/{runId}/{from}.csv', function () {
+test('сырой CSV сохраняется по immutable content-addressed пути', function () {
     Storage::fake('s3');
     $registry = Registry::factory()->eis()->create(['code' => 'fz44']);
     $crawler = Crawler::factory()->for($registry)->create();
@@ -146,8 +161,9 @@ test('сырой CSV сохраняется в Storage по пути raw/csv/{cr
 
     app(CsvBlockIngestor::class)->ingest(crawler: $crawler, run: $run, batch: $batch);
 
-    $path = "raw/csv/{$crawler->id}/{$run->id}/1.csv";
+    $path = Fetch::query()->where('crawler_run_id', $run->id)->sole()->artifact_ref;
 
+    expect($path)->toMatch("#^raw/csv/{$crawler->id}/{$run->id}/[a-f0-9]{64}/[a-f0-9]{64}\\.csv$#");
     Storage::disk('s3')->assertExists($path);
     expect(Storage::disk('s3')->get($path))->toBe($batch->rawBody);
 });

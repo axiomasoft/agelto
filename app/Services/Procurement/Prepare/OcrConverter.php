@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\Procurement\Prepare;
 
+use App\Exceptions\Procurement\Prepare\OperationBudgetExceeded;
 use Illuminate\Support\Facades\Process;
 use RuntimeException;
 
@@ -30,9 +31,14 @@ final readonly class OcrConverter
      * pdf` — без принудительной PDF/A-нормализации Ghostscript'ом (она удваивает время и
      * переписывает страницы, а нам нужен текстовый слой, а не архивный формат).
      */
-    public function run(string $inputPath, string $outputPdfPath, string $sidecarTxtPath): void
+    public function run(string $inputPath, string $outputPdfPath, string $sidecarTxtPath, ?float $deadlineAt = null): void
     {
-        $result = Process::timeout($this->timeoutSeconds())
+        $result = Process::timeout($this->admittedTimeout(
+            operation: 'OCR',
+            maximumSeconds: $this->timeoutSeconds(),
+            remainingChainSeconds: $this->operationTimeoutSeconds('tesseract_version') + $this->operationTimeoutSeconds('pdf_page_count'),
+            deadlineAt: $deadlineAt,
+        ))
             ->run([
                 $this->configString('ai.tools.ocrmypdf_bin'),
                 '--language', $this->languages(),
@@ -54,9 +60,16 @@ final readonly class OcrConverter
      * xref, вообще не PDF): это не «текста нет», а «неизвестно», и инвентарь корпуса в такой
      * ситуации оставлял `text_layer` пустым, а не писал `none`.
      */
-    public function textCharsPerPage(string $pdfPath): ?float
+    public function textCharsPerPage(string $pdfPath, ?float $deadlineAt = null): ?float
     {
-        $result = Process::timeout($this->configPositiveInt('ai.tools.default_timeout_seconds'))
+        $result = Process::timeout($this->admittedTimeout(
+            operation: 'pdftotext text-layer probe',
+            maximumSeconds: $this->operationTimeoutSeconds('text_layer_probe'),
+            remainingChainSeconds: $this->timeoutSeconds()
+                + $this->operationTimeoutSeconds('tesseract_version')
+                + $this->operationTimeoutSeconds('pdf_page_count'),
+            deadlineAt: $deadlineAt,
+        ))
             ->run([
                 $this->configString('ai.tools.pdftotext_bin'),
                 '-f', '1',
@@ -74,9 +87,14 @@ final readonly class OcrConverter
         return $chars / self::TEXT_LAYER_SAMPLE_PAGES;
     }
 
-    public function pageCount(string $pdfPath): ?int
+    public function pageCount(string $pdfPath, ?float $deadlineAt = null): ?int
     {
-        $result = Process::timeout($this->configPositiveInt('ai.tools.default_timeout_seconds'))
+        $result = Process::timeout($this->admittedTimeout(
+            operation: 'pdfinfo page-count probe',
+            maximumSeconds: $this->operationTimeoutSeconds('pdf_page_count'),
+            remainingChainSeconds: 0,
+            deadlineAt: $deadlineAt,
+        ))
             ->run([$this->configString('ai.tools.pdfinfo_bin'), $pdfPath]);
 
         if ($result->failed()) {
@@ -92,9 +110,14 @@ final readonly class OcrConverter
         return null;
     }
 
-    public function tesseractVersion(): ?string
+    public function tesseractVersion(?float $deadlineAt = null): ?string
     {
-        $result = Process::timeout($this->configPositiveInt('ai.tools.default_timeout_seconds'))
+        $result = Process::timeout($this->admittedTimeout(
+            operation: 'Tesseract version probe',
+            maximumSeconds: $this->operationTimeoutSeconds('tesseract_version'),
+            remainingChainSeconds: $this->operationTimeoutSeconds('pdf_page_count'),
+            deadlineAt: $deadlineAt,
+        ))
             ->run([$this->configString('ai.tools.tesseract_bin'), '--version']);
 
         if ($result->failed()) {
@@ -114,6 +137,41 @@ final readonly class OcrConverter
     private function timeoutSeconds(): int
     {
         return $this->configPositiveInt('ai.tools.ocr_timeout_seconds', 1800);
+    }
+
+    /**
+     * Starts a tool only when its full configured timeout, every mandatory OCR operation after it,
+     * and the persistence/release reserve still fit before the job deadline. This prevents a
+     * successful probe from leaving an OCR process that Horizon must kill partway through.
+     */
+    private function admittedTimeout(string $operation, int $maximumSeconds, int $remainingChainSeconds, ?float $deadlineAt): int
+    {
+        if ($deadlineAt === null) {
+            return $maximumSeconds;
+        }
+
+        $requiredSeconds = $maximumSeconds + $remainingChainSeconds + $this->persistenceReserveSeconds();
+        $availableSeconds = (int) floor($deadlineAt - microtime(as_float: true));
+
+        if ($availableSeconds < $requiredSeconds) {
+            throw OperationBudgetExceeded::forOperation(
+                operation: $operation,
+                availableSeconds: $availableSeconds,
+                requiredSeconds: $requiredSeconds,
+            );
+        }
+
+        return $maximumSeconds;
+    }
+
+    private function operationTimeoutSeconds(string $operation): int
+    {
+        return $this->configPositiveInt("ai.pipeline.operation_budgets.prepare.operation_timeout_seconds.{$operation}");
+    }
+
+    private function persistenceReserveSeconds(): int
+    {
+        return $this->configPositiveInt('ai.pipeline.operation_budgets.prepare.persistence_release_reserve_seconds');
     }
 
     private function configString(string $key, ?string $default = null): string

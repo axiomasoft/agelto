@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 use App\Dto\Procurement\Crawler\ListingBatch;
 use App\Dto\Procurement\Crawler\ListingCursor;
+use App\Dto\Procurement\Crawler\RecoveryScope;
 use App\Dto\Procurement\ProcurementDetails;
 use App\Enums\Procurement\Crawler\CrawlerMode;
 use App\Enums\Procurement\Crawler\CrawlStage;
+use App\Enums\Procurement\Crawler\DeltaScanOutcome;
 use App\Enums\Procurement\Crawler\RunStatus;
 use App\Enums\Procurement\Crawler\SourceMethod as SourceMethodEnum;
 use App\Exceptions\Procurement\Crawler\PlatformBudgetExhaustedException;
@@ -110,14 +112,16 @@ test('исчерпание бюджета delta сохраняет недрен�
         'fallback_method' => null,
     ]);
 
-    $run = app(DeltaScanProcessor::class)->run(crawler: $freshCrawler);
+    $result = app(DeltaScanProcessor::class)->run(crawler: $freshCrawler);
+    $run = $result->run;
 
-    expect($run)->not->toBeNull()
-        ->and($run->fresh()->status)->toBe(RunStatus::Running)
-        ->and($run->fresh()->cursor['day'])->toBe('2024-01-01')
-        ->and($run->fresh()->stats['checkpoints'] ?? null)->toBe(1)
-        ->and($run->fresh()->last_error)->toBeNull()
-        ->and($run->fresh()->finished_at)->toBeNull();
+    expect($result->outcome)->toBe(DeltaScanOutcome::Processed)
+        ->and($run)->not->toBeNull()
+        ->and($run?->fresh()->status)->toBe(RunStatus::Running)
+        ->and($run?->fresh()->cursor['day'])->toBe('2024-01-01')
+        ->and($run?->fresh()->stats['checkpoints'] ?? null)->toBe(1)
+        ->and($run?->fresh()->last_error)->toBeNull()
+        ->and($run?->fresh()->finished_at)->toBeNull();
 
     Carbon::setTestNow();
 });
@@ -138,6 +142,9 @@ test('исчерпание бюджета backlog не помечает fresh-ru
     ]);
     $freshRun = Run::factory()->for($freshCrawler, 'crawler')->create([
         'status' => RunStatus::Completed,
+        'cursor' => (new ListingCursor(
+            recoveryScope: RecoveryScope::fromFreshCrawler(crawler: $freshCrawler)->toArray(),
+        ))->toArray(),
         'stats' => ['cap_hit' => true, 'possible_skip_window' => ['from' => '2024-01-01T00:00:00Z', 'to' => '2024-01-01T12:00:00Z']],
     ]);
 

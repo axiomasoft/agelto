@@ -48,6 +48,7 @@ final readonly class SpreadsheetStrategy implements PreparationStrategy
 {
     public function __construct(
         private RepresentationStoreRepository $representations,
+        private RepresentationWriter $writer,
         private MarkDocumentUnprocessableAction $markUnprocessable,
         private LibreOfficeConverter $converter,
         private TextGridRenderer $textGridRenderer,
@@ -109,7 +110,13 @@ final readonly class SpreadsheetStrategy implements PreparationStrategy
 
         try {
             $startedAt = microtime(as_float: true);
-            $this->convert($localInput, $localOutput);
+
+            try {
+                $this->convert($localInput, $localOutput);
+            } catch (RuntimeException) {
+                return false;
+            }
+
             $durationMs = (int) round((microtime(as_float: true) - $startedAt) * 1000);
 
             $pdf = (string) file_get_contents($localOutput);
@@ -121,8 +128,6 @@ final readonly class SpreadsheetStrategy implements PreparationStrategy
             ]);
 
             return true;
-        } catch (RuntimeException) {
-            return false;
         } finally {
             @unlink($localOutput);
         }
@@ -134,7 +139,12 @@ final readonly class SpreadsheetStrategy implements PreparationStrategy
 
         try {
             File::ensureDirectoryExists($outputDir);
-            $localOutput = $this->converter->toPdf($localInput, $outputDir);
+
+            try {
+                $localOutput = $this->converter->toPdf($localInput, $outputDir);
+            } catch (RuntimeException) {
+                return false;
+            }
 
             $pdf = (string) file_get_contents($localOutput);
             $this->storePdfRepresentation($version, $disk, $diskName, $pdf, [
@@ -143,8 +153,6 @@ final readonly class SpreadsheetStrategy implements PreparationStrategy
             ]);
 
             return true;
-        } catch (RuntimeException) {
-            return false;
         } finally {
             File::deleteDirectory($outputDir);
         }
@@ -156,9 +164,7 @@ final readonly class SpreadsheetStrategy implements PreparationStrategy
     private function storePdfRepresentation(DocumentVersion $version, Filesystem $disk, string $diskName, string $pdf, array $meta): void
     {
         $preparedPath = $this->preparedPath($version);
-        $disk->put($preparedPath, $pdf);
-
-        $this->representations->storeOrUpdate($version, RepresentationKind::Pdf, [
+        $this->writer->write($disk, $version, RepresentationKind::Pdf, $preparedPath, $pdf, [
             'storage_path' => $preparedPath,
             'disk' => $diskName,
             'size_bytes' => strlen($pdf),
@@ -177,9 +183,7 @@ final readonly class SpreadsheetStrategy implements PreparationStrategy
         }
 
         $preparedPath = $this->preparedTextGridPath($version);
-        $disk->put($preparedPath, $rendered['text']);
-
-        $this->representations->storeOrUpdate($version, RepresentationKind::TextGrid, [
+        $this->writer->write($disk, $version, RepresentationKind::TextGrid, $preparedPath, $rendered['text'], [
             'storage_path' => $preparedPath,
             'disk' => $diskName,
             'size_bytes' => strlen($rendered['text']),

@@ -22,6 +22,8 @@ function platformExtensionSourceLiteralIsAllowed(string $path): bool
     $allowedPaths = [
         app_path('Console/Commands/Procurement/HealthCheckCommand.php'),
         app_path('Console/Commands/Procurement/SyncOkpd2Nodes.php'),
+        app_path('Console/Commands/Procurement/VerifyDocumentUid.php'),
+        app_path('Console/Commands/Procurement/VerifyFreshBoundary.php'),
         app_path('Dto/Procurement/Crawler/EisSearchFilter.php'),
         app_path('Dto/Procurement/Crawler/Contracts/RequiresScope.php'),
         app_path('Enums/Procurement/EisProcedureType.php'),

@@ -176,6 +176,14 @@ final readonly class ProcurementStoreRepository
             ->exists();
     }
 
+    public function hasDocumentVersionEvent(int $procurementId, int $documentVersionId): bool
+    {
+        return ProcurementEvent::query()
+            ->where('procurement_id', $procurementId)
+            ->whereJsonContains('entity_ref', ['document_version_id' => $documentVersionId])
+            ->exists();
+    }
+
     /**
      * @param  array<string, mixed>|null  $entityRef
      * @param  array<string, mixed>|null  $payload

@@ -114,8 +114,16 @@ final readonly class ExpandArchiveEntryAction
         $path = 'documents/'.substr($hash, 0, 2)."/{$hash}";
         $disk = Storage::disk($this->locations->currentDocumentsDisk());
 
-        if (! $disk->exists($path)) {
-            $disk->put($path, $content);
+        $alreadyStored = $disk->exists($path);
+
+        if (! $alreadyStored && $disk->put($path, $content) !== true) {
+            throw new \RuntimeException("Не удалось сохранить запись архива в object storage: {$path}");
+        }
+
+        $stored = $alreadyStored ? $disk->get($path) : $content;
+
+        if (! is_string($stored) || ! hash_equals($hash, hash('sha256', $stored))) {
+            throw new \RuntimeException("Object storage вернул неполную или другую запись архива: {$path}");
         }
 
         return $path;

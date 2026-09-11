@@ -72,22 +72,28 @@ return [
             'driver' => 'redis',
             'connection' => env('REDIS_QUEUE_CONNECTION', 'default'),
             'queue' => env('REDIS_QUEUE', 'default'),
-            // Инвариант D26 (plans/EST-AI/plan.md): job timeout < supervisor timeout < retry_after,
-            // иначе Redis считает job осиротевшим и передиспатчит его ДРУГОМУ воркеру, пока
-            // первый ещё легитимно работает (дублирующая обработка). Все supervisor'ы Horizon
-            // делят это соединение (config/horizon.php) — потолок задаёт самый длинный,
-            // `supervisor-ai-extraction` (timeout=300, `ai.extraction.checkpoint_seconds`=240).
-            // Продолжение цепочки вне PHP-конфига: docker-compose.prod.yml
-            // horizon.stop_grace_period (600s) ОБЯЗАН быть > самого длинного supervisor
-            // timeout — иначе Docker SIGKILL'ит контейнер раньше, чем horizon:terminate
-            // дождётся текущих jobs (research/J §2).
-            'retry_after' => (int) env('REDIS_QUEUE_RETRY_AFTER', 360),
+            // Standard pipeline lane. The versioned matrix in ai.pipeline.operation_budgets
+            // binds every job to `job < supervisor < retry_after`; its longest standard
+            // supervisor is extraction (360s), hence the 420s visibility lease.
+            'retry_after' => (int) env('REDIS_QUEUE_RETRY_AFTER', 420),
+            'block_for' => null,
+            'after_commit' => false,
+        ],
+
+        // OCR is the only bounded-but-minute-scale pipeline call. Keeping it off the standard
+        // Redis visibility lease prevents an OCR-compatible timeout from silently widening every
+        // other queue. PrepareDocumentJob is explicitly routed here.
+        'redis_prepare' => [
+            'driver' => 'redis',
+            'connection' => env('REDIS_QUEUE_CONNECTION', 'default'),
+            'queue' => 'doc_prepare',
+            'retry_after' => (int) env('REDIS_PREPARE_RETRY_AFTER', 2700),
             'block_for' => null,
             'after_commit' => false,
         ],
 
         // Длинный lease ТОЛЬКО для profile-driven archive lane (P4.7, D117). Это отдельная
-        // logical connection на тот же Redis, иначе `retry_after=360` общей `redis` вернёт ещё
+        // logical connection на тот же Redis, иначе standard `redis.retry_after=420` вернёт ещё
         // работающую часовую job второму воркеру. Остальные очереди не получают новый lease.
         'redis_crawl_long' => [
             'driver' => 'redis',

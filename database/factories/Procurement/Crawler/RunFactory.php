@@ -29,6 +29,8 @@ final class RunFactory extends Factory
             'started_at' => now(),
             'finished_at' => null,
             'last_heartbeat_at' => now(),
+            'execution_owner_token' => null,
+            'execution_lease_expires_at' => null,
             'attempts' => 0,
             'last_error' => null,
             'last_error_at' => null,

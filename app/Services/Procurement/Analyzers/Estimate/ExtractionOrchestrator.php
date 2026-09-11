@@ -101,6 +101,10 @@ final readonly class ExtractionOrchestrator
      */
     public function run(Document $document, Analysis $analysis, ?RepresentationKind $forceKind = null): bool
     {
+        // The budget starts before file resolution/preflight. Starting the stopwatch only after
+        // that work could permit a 150-second provider call when too little job time remains.
+        $runStartedAt = microtime(true);
+
         $this->analyses->update($analysis, [
             'status' => AnalysisStatus::Running,
             'started_at' => $analysis->started_at ?? now(),
@@ -154,10 +158,23 @@ final readonly class ExtractionOrchestrator
             }
 
             if ($decision->route === ExtractionRoute::Windowed) {
-                return $this->runWindowed($document, $analysis, $localPath, $route);
+                return $this->runWindowed(
+                    document: $document,
+                    analysis: $analysis,
+                    localPath: $localPath,
+                    route: $route,
+                    runStartedAt: $runStartedAt,
+                );
             }
 
-            return $this->runWholeDocument($document, $analysis, $localPath, $effective, $route);
+            return $this->runWholeDocument(
+                document: $document,
+                analysis: $analysis,
+                localPath: $localPath,
+                effective: $effective,
+                route: $route,
+                runStartedAt: $runStartedAt,
+            );
         } finally {
             @unlink($localPath);
         }
@@ -166,21 +183,20 @@ final readonly class ExtractionOrchestrator
     /**
      * @param  array{storagePath: string, extension: string, mime: string}  $effective
      */
-    private function runWholeDocument(Document $document, Analysis $analysis, string $localPath, array $effective, ResolvedRoute $route): bool
+    private function runWholeDocument(Document $document, Analysis $analysis, string $localPath, array $effective, ResolvedRoute $route, float $runStartedAt): bool
     {
         $session = $this->buildSession($analysis, $localPath, $effective['mime'], $route);
 
         $checkpointRanges = $this->intConfig('ai.extraction.checkpoint_ranges', 20);
-        $checkpointSeconds = $this->intConfig('ai.extraction.checkpoint_seconds', 240);
+        $checkpointSeconds = $this->intConfig('ai.extraction.checkpoint_seconds', 120);
         $rowRangeSize = $this->intConfig('ai.extraction.row_range_size', 30);
         $minRowRangeSize = $this->intConfig('ai.extraction.min_row_range_size', 5);
         $maxEstimates = $this->intConfig('ai.extraction.max_estimates_per_document', 20);
 
-        $runStartedAt = microtime(true);
         $unitsThisRun = 0;
 
         while (true) {
-            if ($unitsThisRun > 0 && $this->checkpointDue($unitsThisRun, $runStartedAt, $checkpointRanges, $checkpointSeconds)) {
+            if ($this->checkpointDue($unitsThisRun, $runStartedAt, $checkpointRanges, $checkpointSeconds)) {
                 $this->checkpoint($analysis, $session);
 
                 return true;
@@ -332,12 +348,12 @@ final readonly class ExtractionOrchestrator
      * ТОТ ЖЕ `progress['estimates']`-shape, что `runWholeDocument()` — `finalizeSuccess()`/
      * `EstimatePersister` (P6.3) отрабатывают без изменений.
      */
-    private function runWindowed(Document $document, Analysis $analysis, string $localPath, ResolvedRoute $route): bool
+    private function runWindowed(Document $document, Analysis $analysis, string $localPath, ResolvedRoute $route, float $runStartedAt): bool
     {
         $session = $this->buildWindowedSession($analysis, $localPath);
 
         $checkpointRanges = $this->intConfig('ai.extraction.checkpoint_ranges', 20);
-        $checkpointSeconds = $this->intConfig('ai.extraction.checkpoint_seconds', 240);
+        $checkpointSeconds = $this->intConfig('ai.extraction.checkpoint_seconds', 120);
         $windowPages = $this->intConfig('ai.extraction.window_pages', 3);
         $windowOverlapPages = $this->intConfig('ai.extraction.window_overlap_pages', 1);
         $totalsTailPages = $this->intConfig('ai.extraction.totals_tail_pages', 2);
@@ -347,11 +363,10 @@ final readonly class ExtractionOrchestrator
             EstimateLlmPurpose::Discovery,
         );
 
-        $runStartedAt = microtime(true);
         $unitsThisRun = 0;
 
         while (true) {
-            if ($unitsThisRun > 0 && $this->checkpointDue($unitsThisRun, $runStartedAt, $checkpointRanges, $checkpointSeconds)) {
+            if ($this->checkpointDue($unitsThisRun, $runStartedAt, $checkpointRanges, $checkpointSeconds)) {
                 $this->checkpoint($analysis, $session);
 
                 return true;

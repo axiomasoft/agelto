@@ -4,16 +4,30 @@ type: explanation
 status: living
 ---
 
-# 03 · Dev
+# Разработка Agelto
 
-Технический раздел для разработчиков и AI-агентов.
+Раздел устроен как инженерная книга, а не каталог исходников. В верхнем меню выбран маршрут
+«Разработка», в левой колонке — его постоянное оглавление. Начните с первого раздела и затем
+переходите к своей задаче; длинные справочники и ADR не нужны для первого чтения.
 
-## Порядок чтения для новичка
+## Первый день в проекте
 
-1. [Требования и локальный запуск](getting-started.md) — docker/make/yarn/.env, ключ Gemini.
-2. [Архитектура](architecture.md) — домены Procurement/Reference/Organization/Llm, раскладка `app/**`.
-3. Пайплайн своей задачи — [document-pipeline.md](document-pipeline.md),
-   [llm-providers.md](llm-providers.md) или [crawling-pipeline.md](crawling-pipeline.md).
+1. [Требования и локальный запуск](getting-started.md) — Docker, Make, `.env` и первый здоровый запуск.
+2. [Архитектура](architecture.md) — домены Procurement/Reference/Organization/Llm и границы слоёв.
+3. Выберите рабочий поток: [краулинг](crawling-pipeline.md), [документы](document-pipeline.md) или
+   [нейросети и маршруты моделей](llm-providers.md).
+4. Перед изменением запускайте нужные проверки из [тестирования](process/testing.md) и
+   [шпаргалки команд](commands.md).
+
+## Карта инженерных тем
+
+| Вопрос | Каноническая глава |
+|---|---|
+| Как устроена система и данные | [Архитектура](architecture.md), [база данных](database.md), [жизненный цикл сущностей](entity-lifecycle-map.md) |
+| Как работает сбор и обработка | [Краулинг](crawling-pipeline.md), [документы](document-pipeline.md) |
+| Как работают нейросети | [LLM-провайдеры](llm-providers.md), [извлечение смет](ai/estimate-extraction.md), [промты](ai/prompts.md) |
+| Как запустить и проверить код | [Локальный запуск](getting-started.md), [команды](commands.md), [тестирование](process/testing.md) |
+| Как готовится production-артефакт | [Docker production](docker/production.md), [модель релизов](process/deploy.md), [руководство оператора](../04_Operators/production/deployment.md) |
 
 ## Основа и интерфейсы
 
@@ -55,15 +69,15 @@ status: living
 - [Docker: production](docker/production.md)
 - [Docker troubleshooting](docker/troubleshooting.md)
 
-## Практика разработки
+## Справочник и редкие задачи
 
 - [Команды](commands.md)
 - [Рецепты](recipes.md)
 - [Troubleshooting](troubleshooting.md)
 - [Статический анализ](static-analysis.md)
-- [Деплой](process/deploy.md)
+- [Модель деплоя](process/deploy.md) — инженерное объяснение immutable release; пошаговый production-сценарий находится в [книге оператора](../04_Operators/production/deployment.md).
 - [Тестирование](process/testing.md)
-- [Runbooks](runbooks/_index.md)
+- [Runbooks](/03_Dev/runbooks/)
 
 ## Архитектурные решения 0001–0005
 

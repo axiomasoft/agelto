@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Dto\Procurement\Crawler\EisSearchFilter;
 use App\Dto\Procurement\Crawler\ListingBatch;
 use App\Dto\Procurement\Crawler\ListingCursor;
 use App\Dto\Procurement\ProcurementDetails;
@@ -145,7 +146,7 @@ test('останавливается на первом полностью изв
     expect($run->status)->toBe(RunStatus::Completed)
         ->and($run->cursor['reachedKnown'])->toBeTrue()
         ->and($run->cursor['blockFrom'])->toBe(1001)
-        ->and($run->stats['stop_reason'] ?? null)->toBe('no_new_or_updated_rows')
+        ->and($run->stats['stop_reason'] ?? null)->toBe('source_exhausted')
         ->and(Procurement::query()->count())->toBe(3);
 });
 
@@ -205,6 +206,26 @@ test('cap по повтору dedup_signature поднимает флаг и з�
         ->and($run->stats['stop_reason'] ?? null)->toBe('dedup_signature_repeat');
 });
 
+test('старый running fresh-run без recovery scope фиксирует текущий валидный scope до возобновления', function () {
+    $filter = new EisSearchFilter(stageApplications: true, okpd2Codes: ['43'], priceTo: 1_000);
+    $crawler = Crawler::factory()->filter($filter)->create();
+    $existingRun = Run::factory()->for($crawler, 'crawler')->create([
+        'status' => RunStatus::Running,
+        'cursor' => ['blockFrom' => 501],
+    ]);
+    useQueueSourceMethod([
+        freshRunBatch([], dedupSignature: null, from: '501'),
+    ]);
+
+    $run = app(FreshRunProcessor::class)->run(crawler: $crawler);
+
+    expect($run->id)->toBe($existingRun->id)
+        ->and($run->status)->toBe(RunStatus::Completed)
+        ->and($run->cursor['blockFrom'])->toBe(501)
+        ->and($run->cursor['recoveryScope']['freshCrawlerId'])->toBe($crawler->id)
+        ->and($run->cursor['recoveryScope']['filter'])->toEqual($filter->toArray());
+});
+
 test('exact repeat after a checkpoint restores the fresh cap detector before the no-change branch', function () {
     Carbon::setTestNow('2026-03-10 12:00:00');
     config(['crawler.run.checkpoint_seconds' => 1]);
@@ -257,7 +278,7 @@ test('повторный запуск на том же профиле после
         ->and(Procurement::query()->count())->toBe(1);
 });
 
-test('safety hard-cap останавливает бесконечный цикл без стоп-условий, прогон завершается completed', function () {
+test('safety hard-cap сохраняет checkpoint и следующий slice дочитывает fresh-прогон', function () {
     config(['crawler.fresh_max_blocks' => 2]);
 
     $crawler = Crawler::factory()->create();
@@ -265,13 +286,54 @@ test('safety hard-cap останавливает бесконечный цикл
     useQueueSourceMethod([
         freshRunBatch([freshRunCsvRow('0173200001234000030')], dedupSignature: 'block-1'),
         freshRunBatch([freshRunCsvRow('0173200001234000031')], dedupSignature: 'block-2'),
+        freshRunBatch([freshRunCsvRow('0173200001234000032')], dedupSignature: 'block-3'),
+        freshRunBatch([], dedupSignature: null),
+    ]);
+
+    $checkpointed = app(FreshRunProcessor::class)->run(crawler: $crawler);
+
+    expect($checkpointed->status)->toBe(RunStatus::Running)
+        ->and($checkpointed->cursor['reachedKnown'])->toBeFalse()
+        ->and($checkpointed->cursor['blockFrom'])->toBe(1001)
+        ->and($checkpointed->stats['stop_reason'] ?? null)->toBe('fresh_max_blocks_checkpoint')
+        ->and($checkpointed->stats['checkpoints'] ?? null)->toBe(1)
+        ->and(Procurement::query()->count())->toBe(2);
+
+    $completed = app(FreshRunProcessor::class)->run(crawler: $crawler);
+
+    expect($completed->status)->toBe(RunStatus::Completed)
+        ->and($completed->cursor['reachedKnown'])->toBeTrue()
+        ->and($completed->cursor['blockFrom'])->toBe(1501)
+        ->and($completed->stats['stop_reason'] ?? null)->toBe('source_exhausted')
+        ->and(Procurement::query()->count())->toBe(3);
+});
+
+test('суточная граница не завершает fresh на странице известных строк до следующей страницы тех же суток', function () {
+    Carbon::setTestNow('2026-09-10 12:00:00');
+    config(['crawler.fresh.only_fresh_margin_minutes' => 0]);
+
+    $crawler = Crawler::factory()->onlyFresh()->create();
+    $known = freshRunCsvRow('0173200001234000070', ['Дата обновления' => '10.09.2026']);
+
+    useQueueSourceMethod([
+        freshRunBatch([$known], dedupSignature: 'seed-known'),
+        freshRunBatch([], dedupSignature: null),
+    ]);
+    $previousRun = app(FreshRunProcessor::class)->run(crawler: $crawler);
+    $previousRun->update(['started_at' => Carbon::parse('2026-09-10 12:00:00')]);
+
+    useQueueSourceMethod([
+        freshRunBatch([$known], dedupSignature: 'known-same-day'),
+        freshRunBatch([freshRunCsvRow('0173200001234000071', ['Дата обновления' => '10.09.2026'])], dedupSignature: 'new-same-day', from: '501'),
+        freshRunBatch([freshRunCsvRow('0173200001234000072', ['Дата обновления' => '09.09.2026'])], dedupSignature: 'previous-day', from: '1001'),
     ]);
 
     $run = app(FreshRunProcessor::class)->run(crawler: $crawler);
 
     expect($run->status)->toBe(RunStatus::Completed)
-        ->and($run->cursor['reachedKnown'])->toBeFalse()
-        ->and(Procurement::query()->count())->toBe(2);
+        ->and($run->stats['stop_reason'] ?? null)->toBe('reached_previous_run')
+        ->and($run->stats['stop_oldest_update_seen_has_day_precision'] ?? null)->toBeTrue()
+        ->and(Procurement::query()->count())->toBe(3);
 });
 
 test('политика only_fresh: блок с НОВЫМИ строками за порогом старта предыдущего прогона останавливает прогон', function () {
@@ -328,7 +390,7 @@ test('политика default: тот же блок за временны́м �
 
     expect($run->status)->toBe(RunStatus::Completed)
         // Остановился на ВТОРОМ (пустом) блоке — первый, старый по дате, дошёл до инжеста.
-        ->and($run->stats['stop_reason'] ?? null)->toBe('no_new_or_updated_rows')
+        ->and($run->stats['stop_reason'] ?? null)->toBe('source_exhausted')
         ->and(Procurement::query()->count())->toBe(1);
 });
 
@@ -348,7 +410,7 @@ test('политика only_fresh без предыдущего завершён
     $run = app(FreshRunProcessor::class)->run(crawler: $crawler);
 
     expect($run->status)->toBe(RunStatus::Completed)
-        ->and($run->stats['stop_reason'] ?? null)->toBe('no_new_or_updated_rows')
+        ->and($run->stats['stop_reason'] ?? null)->toBe('source_exhausted')
         ->and(array_key_exists('stop_threshold_at', $run->stats->toArray()))->toBeFalse()
         ->and(Procurement::query()->count())->toBe(1);
 });

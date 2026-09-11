@@ -1,4 +1,4 @@
-name: ${COMPOSE_PROJECT_NAME:-agelto_dev}
+name: ${COMPOSE_PROJECT_NAME:-agelto}
 
 services:
   doctor:
@@ -211,9 +211,8 @@ services:
     #   `postgresql.org/docs/current/runtime-config-client.html` предостерегает от глобального
     #   значения «впритык» — порог даёт запас, а не имитирует роль-специфичный лимит.
     # - idle_in_transaction_session_timeout=300000 (5 мин) — F-10: зависшая транзакция держит
-    #   `xmin` неограниченно; порог совпадает с самым длинным supervisor-таймаутом Horizon
-    #   (config/horizon.php — supervisor-ai-extraction=300с), выше которого ни один боевой job
-    #   не должен удерживать соединение.
+    #   `xmin` неограниченно; порог покрывает самый длинный standard supervisor Horizon
+    #   (config/horizon.php — extraction=360с), while OCR runs in its isolated prepare lane.
     # - log_min_duration_statement=1000 (1 с) — минимальный порог наблюдаемости без риска
     #   переполнить лог (документированный baseline).
     command:

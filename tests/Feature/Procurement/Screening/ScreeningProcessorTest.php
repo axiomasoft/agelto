@@ -18,6 +18,8 @@ use App\Repositories\Procurement\Ai\AnalysisRunStoreRepository;
 use App\Services\Llm\Dto\LlmStructuredResponse;
 use App\Services\Llm\Dto\LlmUsage;
 use App\Services\Llm\Providers\PrismGeminiProvider;
+use App\Services\Procurement\PipelineRecoveryReconciler;
+use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
 use Tests\Support\Doubles\FakeLlmProvider;
 
@@ -162,6 +164,13 @@ test('MAX_TOKENS — ответ не гидратируется, попытка 
         ->and($analysis->next_retry_at)->not->toBeNull()
         ->and($analysis->last_error)->toContain('MAX_TOKENS')
         ->and($analysis->status)->toBe(AnalysisStatus::Running);
+
+    Queue::fake();
+    config(['ai.screening.enabled' => true]);
+    $this->travel(2)->minutes();
+
+    expect(app(PipelineRecoveryReconciler::class)->reconcile(limit: 10))->toBe(1);
+    Queue::assertPushed(ScreeningJob::class, fn (ScreeningJob $job): bool => $job->documentId === $document->id);
 });
 
 test('фатальный finishReason исчерпывает попытки сразу — Analysis переходит в failed', function (): void {

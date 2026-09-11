@@ -13,12 +13,9 @@ final readonly class PrivateDocumentationLocator
     {
         $root = $this->root();
         $site = $this->site($root);
-        $path = $this->normalizeRequestPath($requestedPath);
-        $entry = $this->manifest($root)[$path] ?? null;
-
-        if ($entry === null) {
-            $this->notFound();
-        }
+        $manifest = $this->manifest($root);
+        $path = $this->resolveRequestPath(requestedPath: $requestedPath, manifest: $manifest);
+        $entry = $manifest[$path];
 
         $absolutePath = realpath($site.DIRECTORY_SEPARATOR.$path);
 
@@ -57,17 +54,32 @@ final readonly class PrivateDocumentationLocator
         return $site;
     }
 
-    private function normalizeRequestPath(?string $requestedPath): string
+    /**
+     * @param  array<string, array{mime: string}>  $manifest
+     */
+    private function resolveRequestPath(?string $requestedPath, array $manifest): string
     {
-        $path = $requestedPath === null || $requestedPath === ''
-            ? 'index.html'
-            : $requestedPath;
-
-        if (! $this->isSafePath($path)) {
-            $this->notFound();
+        if ($requestedPath === null || $requestedPath === '') {
+            return 'index.html';
         }
 
-        return $path;
+        $candidates = str_ends_with($requestedPath, '/')
+            ? ["{$requestedPath}index.html"]
+            : (pathinfo($requestedPath, PATHINFO_EXTENSION) === ''
+                ? ["{$requestedPath}/index.html", "{$requestedPath}.html"]
+                : [$requestedPath]);
+
+        foreach ($candidates as $path) {
+            if (! $this->isSafePath($path)) {
+                $this->notFound();
+            }
+
+            if (isset($manifest[$path])) {
+                return $path;
+            }
+        }
+
+        $this->notFound();
     }
 
     /**
@@ -128,7 +140,7 @@ final readonly class PrivateDocumentationLocator
             return false;
         }
 
-        if (preg_match('/\A[A-Za-z0-9][A-Za-z0-9._\/-]*\z/D', $path) !== 1) {
+        if (preg_match('/\A[A-Za-z0-9][A-Za-z0-9.@_\/-]*\z/D', $path) !== 1) {
             return false;
         }
 

@@ -64,7 +64,7 @@ class AdminPanelProvider extends PanelProvider
                 NavigationItem::make('Документация')
                     ->group('Система')
                     ->sort(20)
-                    ->url(fn (): string => route(name: 'admin.documentation.show'))
+                    ->url(fn (): string => route(name: 'documentation.show'))
                     ->visible(fn (): bool => auth()->user()?->hasPermission(
                         permission: DocumentationPermission::View,
                         panelId: 'admin',

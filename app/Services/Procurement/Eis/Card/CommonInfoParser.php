@@ -5,8 +5,10 @@ declare(strict_types=1);
 namespace App\Services\Procurement\Eis\Card;
 
 use App\Dto\Procurement\Details\CommonInfoData;
+use App\Dto\Procurement\Details\CommonInfoSnapshot;
 use App\Dto\Procurement\Details\FinancingRowData;
 use App\Dto\Procurement\Details\PurchaseItemRowData;
+use App\Enums\Procurement\DetailSnapshotStatus;
 use Illuminate\Support\Facades\Log;
 use Symfony\Component\DomCrawler\Crawler;
 
@@ -34,34 +36,89 @@ final readonly class CommonInfoParser
 
     private const string TERM_FINANCING_TOTAL = 'Финансовое обеспечение закупки (всего)';
 
-    public function parse(string $html): CommonInfoData
+    public function parse(string $html): CommonInfoSnapshot
     {
-        $crawler = new Crawler($html);
+        try {
+            $crawler = new Crawler($html);
 
-        $ikz = $this->parseIkz($crawler);
-        $etp = $this->parseEtp($crawler);
-        $contactPerson = $this->parseContactPerson($crawler);
-        $financingRows = $this->parseFinancingRows($crawler);
-        $items = $this->parseItems($crawler);
+            $ikz = $this->parseIkz($crawler);
+            $etp = $this->parseEtp($crawler);
+            $contactPerson = $this->parseContactPerson($crawler);
+            $financingRows = $this->parseFinancingRows($crawler);
+            $items = $this->parseItems($crawler);
 
-        $this->warnIfBlockInfoSuppressed($crawler, $ikz, $etp, $contactPerson, $financingRows, $items);
+            $this->warnIfBlockInfoSuppressed($crawler, $ikz, $etp, $contactPerson, $financingRows, $items);
 
-        return new CommonInfoData(
-            ikzYear: $ikz['ikz_year'] ?? null,
-            ikzCustomerCode: $ikz['ikz_customer_code'] ?? null,
-            ikzPlanNumber: $ikz['ikz_plan_number'] ?? null,
-            ikzPlangraphNumber: $ikz['ikz_plangraph_number'] ?? null,
-            ikzOkpdClass: $ikz['ikz_okpd_class'] ?? null,
-            ikzOkpdSubclass: $ikz['ikz_okpd_subclass'] ?? null,
-            ikzOkpdGroup: $ikz['ikz_okpd_group'] ?? null,
-            ikzKvr: $ikz['ikz_kvr'] ?? null,
-            etpName: $etp['name'] ?? null,
-            etpUrl: $etp['url'] ?? null,
-            contactPersonName: $contactPerson['name'] ?? null,
-            contactPersonEmail: $contactPerson['email'] ?? null,
-            financingRows: $financingRows,
-            items: $items,
-        );
+            return new CommonInfoSnapshot(
+                status: $this->hasCompleteCommonInfoContainer(
+                    crawler: $crawler,
+                    parsedFinancingRows: count($financingRows),
+                    parsedItems: count($items),
+                )
+                    ? DetailSnapshotStatus::Complete
+                    : DetailSnapshotStatus::Incomplete,
+                commonInfo: new CommonInfoData(
+                    ikzYear: $ikz['ikz_year'] ?? null,
+                    ikzCustomerCode: $ikz['ikz_customer_code'] ?? null,
+                    ikzPlanNumber: $ikz['ikz_plan_number'] ?? null,
+                    ikzPlangraphNumber: $ikz['ikz_plangraph_number'] ?? null,
+                    ikzOkpdClass: $ikz['ikz_okpd_class'] ?? null,
+                    ikzOkpdSubclass: $ikz['ikz_okpd_subclass'] ?? null,
+                    ikzOkpdGroup: $ikz['ikz_okpd_group'] ?? null,
+                    ikzKvr: $ikz['ikz_kvr'] ?? null,
+                    etpName: $etp['name'] ?? null,
+                    etpUrl: $etp['url'] ?? null,
+                    contactPersonName: $contactPerson['name'] ?? null,
+                    contactPersonEmail: $contactPerson['email'] ?? null,
+                    financingRows: $financingRows,
+                    items: $items,
+                ),
+            );
+        } catch (\Throwable $exception) {
+            Log::warning('Разбор вкладки common-info провалился целиком; snapshot failed', [
+                'exception' => $exception->getMessage(),
+            ]);
+
+            return new CommonInfoSnapshot(
+                status: DetailSnapshotStatus::Failed,
+                commonInfo: new CommonInfoData,
+            );
+        }
+    }
+
+    private function hasCompleteCommonInfoContainer(Crawler $crawler, int $parsedFinancingRows, int $parsedItems): bool
+    {
+        $itemTable = $crawler->filter('div#positionKTRU table.tableBlock');
+        $itemRows = $itemTable->filter('tbody tr');
+        $financingTable = $this->titleSection($crawler, self::TERM_FINANCING_TOTAL)?->filter('table.tableBlock')->first();
+        $financingHeaders = $financingTable?->filter('tr.tableBlock__row th')->each(static fn (Crawler $th): string => trim($th->text())) ?? [];
+        $expectedFinancingRows = count(array_filter(
+            $financingHeaders,
+            fn (string $header): bool => $this->parseFiscalYear($header) !== null,
+        ));
+        $financingDataRows = $financingTable?->filter('tr')->reduce(static fn (Crawler $tr): bool => $tr->filter('th')->count() === 0)->count() ?? 0;
+
+        if ($crawler->filter('section.blockInfo__section')->count() === 0
+            || $itemTable->count() === 0
+            || $itemRows->count() !== $parsedItems
+            || $financingTable === null
+            || $financingDataRows !== 1
+            || $expectedFinancingRows !== $parsedFinancingRows) {
+            Log::warning('Вкладка common-info не подтверждает полный snapshot', [
+                'block_sections' => $crawler->filter('section.blockInfo__section')->count(),
+                'item_tables' => $itemTable->count(),
+                'item_rows' => $itemRows->count(),
+                'parsed_items' => $parsedItems,
+                'financing_tables' => $financingTable?->count() ?? 0,
+                'financing_data_rows' => $financingDataRows,
+                'expected_financing_rows' => $expectedFinancingRows,
+                'parsed_financing_rows' => $parsedFinancingRows,
+            ]);
+
+            return false;
+        }
+
+        return true;
     }
 
     /**

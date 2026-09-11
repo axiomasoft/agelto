@@ -13,6 +13,7 @@ use App\Services\Procurement\CrawlerRunManager;
 use Illuminate\Console\Command;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 use Tests\Support\Postgres\ConcurrentTransactions;
 
 test('первый startOrResume создаёт один running-прогон', function () {
@@ -159,6 +160,58 @@ test('recoverStale переводит протухший running в paused и н
     expect($recovered)->toBe(1)
         ->and($stale->refresh()->status)->toBe(RunStatus::Paused)
         ->and($fresh->refresh()->status)->toBe(RunStatus::Running);
+});
+
+test('recoverStale не ставит на паузу прогон с действующим execution lease', function () {
+    $run = Run::factory()->create();
+    $owner = Run::query()->findOrFail($run->id);
+
+    expect(app(CrawlerRunManager::class)->acquireExecutionLease(run: $owner))->toBeTrue();
+
+    Run::query()->whereKey($run->id)->update([
+        'last_heartbeat_at' => DB::raw("CURRENT_TIMESTAMP - INTERVAL '600 seconds'"),
+    ]);
+
+    expect(app(CrawlerRunManager::class)->recoverStale())->toBe(0)
+        ->and($run->refresh()->status)->toBe(RunStatus::Running)
+        ->and($run->execution_owner_token)->not->toBeNull();
+});
+
+test('recoverStale поднимает протухший run с owner token без expiry', function () {
+    $run = Run::factory()->create([
+        'last_heartbeat_at' => Carbon::now()->subSeconds(600),
+        'execution_owner_token' => '00000000-0000-0000-0000-000000000001',
+        'execution_lease_expires_at' => null,
+    ]);
+
+    expect(app(CrawlerRunManager::class)->recoverStale())->toBe(1)
+        ->and($run->refresh()->status)->toBe(RunStatus::Paused);
+});
+
+test('execution lease использует часы PostgreSQL, а не замороженные часы PHP', function () {
+    $run = Run::factory()->create();
+    $manager = app(CrawlerRunManager::class);
+
+    Run::query()->whereKey($run->id)->update([
+        'execution_owner_token' => '00000000-0000-0000-0000-000000000001',
+        'execution_lease_expires_at' => DB::raw("CURRENT_TIMESTAMP + INTERVAL '1 hour'"),
+    ]);
+    Carbon::setTestNow(Carbon::parse('2030-01-01 00:00:00'));
+
+    expect($manager->acquireExecutionLease(run: $run))->toBeFalse();
+
+    Run::query()->whereKey($run->id)->update([
+        'execution_lease_expires_at' => DB::raw("CURRENT_TIMESTAMP - INTERVAL '1 second'"),
+    ]);
+    Carbon::setTestNow(Carbon::parse('2000-01-01 00:00:00'));
+
+    expect($manager->acquireExecutionLease(run: $run))->toBeTrue()
+        ->and(DB::table((new Run)->getTable())
+            ->where(column: 'id', operator: '=', value: $run->id)
+            ->selectRaw('execution_lease_expires_at > CURRENT_TIMESTAMP AS active')
+            ->value(column: 'active'))->toBeTrue();
+
+    Carbon::setTestNow();
 });
 
 test('crawler:recover-stale поднимает протухший прогон и печатает число поднятых', function () {

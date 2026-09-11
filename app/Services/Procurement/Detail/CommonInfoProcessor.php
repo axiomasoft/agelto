@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services\Procurement\Detail;
 
 use App\Dto\Procurement\Details\CommonInfoData;
+use App\Dto\Procurement\Details\CommonInfoSnapshot;
 use App\Dto\Procurement\Details\FinancingRowData;
 use App\Dto\Procurement\Details\PurchaseItemRowData;
 use App\Models\Procurement\Procurement;
@@ -19,41 +20,63 @@ use Illuminate\Support\Facades\Log;
  * (replace-set по годам, без строки «Всего»), `prc_items` (upsert по `position_number`,
  * с резолвом `okpd2_ref_id`/`ktru_ref_id`). Никакого DOM-парсинга здесь — вход уже
  * разобранный {@see CommonInfoData} от {@see CommonInfoParser}.
- * Роли/организации/`customer_org_id` — вне этого процессора (P3.4).
+ * Роли/организации/`customer_org_id` синхронизируются независимо, только для подтверждённого
+ * полного parties snapshot.
  */
 final readonly class CommonInfoProcessor
 {
     public function __construct(
         private ClassifierResolver $classifierResolver,
         private ProcurementDetailStoreRepository $storeRepository,
+        private OrganizationPartiesProcessor $organizationPartiesProcessor,
     ) {}
 
-    public function process(Procurement $procurement, CommonInfoData $data): void
+    public function process(Procurement $procurement, CommonInfoSnapshot $snapshot): void
     {
-        if ($this->isEmpty($data)) {
-            Log::warning(message: 'CommonInfoProcessor: разбор вкладки common-info пуст, запись prc_eis_details пропущена.', context: [
+        $reconcileCommonInfo = $snapshot->authorizesCommonInfoReconciliation();
+        $reconcileParties = $snapshot->authorizesPartiesReconciliation();
+
+        if (! $reconcileCommonInfo && ! $reconcileParties) {
+            Log::warning(message: 'CommonInfoProcessor: snapshot не содержит подтверждённых полных проекций.', context: [
                 'procurement_id' => $procurement->id,
+                'common_info_status' => $snapshot->status->value,
+                'parties_complete' => $snapshot->partiesComplete,
             ]);
 
             return;
         }
 
-        DB::transaction(function () use ($procurement, $data): void {
-            $this->storeRepository->storeEisDetails(
-                procurementId: $procurement->id,
-                attributes: $this->eisDetailsAttributes($data),
-            );
+        DB::transaction(function () use ($procurement, $reconcileCommonInfo, $reconcileParties, $snapshot): void {
+            if ($reconcileCommonInfo) {
+                $data = $snapshot->commonInfo;
 
-            $this->storeRepository->replaceFinancing(
-                procurementId: $procurement->id,
-                rows: $this->financingRows($data),
-            );
+                if (! $this->isEmpty($data)) {
+                    $this->storeRepository->storeEisDetails(
+                        procurementId: $procurement->id,
+                        attributes: $this->eisDetailsAttributes($data),
+                    );
+                }
 
-            foreach ($data->items as $item) {
-                $this->storeRepository->upsertItem(
+                $this->storeRepository->replaceFinancing(
                     procurementId: $procurement->id,
-                    attributes: $this->itemAttributes($item),
+                    rows: $this->financingRows($data),
                 );
+
+                foreach ($data->items as $item) {
+                    $this->storeRepository->upsertItem(
+                        procurementId: $procurement->id,
+                        attributes: $this->itemAttributes($item),
+                    );
+                }
+
+                $this->storeRepository->deleteItemsMissingFromSnapshot(
+                    procurementId: $procurement->id,
+                    positionNumbers: array_map(static fn (PurchaseItemRowData $item): int => $item->positionNumber, $data->items),
+                );
+            }
+
+            if ($reconcileParties) {
+                $this->organizationPartiesProcessor->sync(procurement: $procurement, parties: $snapshot->parties);
             }
         });
     }

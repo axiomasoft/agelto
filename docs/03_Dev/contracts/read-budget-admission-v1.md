@@ -1,3 +1,9 @@
+---
+audience: dev
+type: reference
+status: living
+---
+
 # Read-budget admission contract
 
 **Version:** 1.1.0

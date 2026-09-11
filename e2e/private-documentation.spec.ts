@@ -1,13 +1,23 @@
 import { expect, test } from '@playwright/test';
 import { createHash } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 import { resolve } from 'node:path';
 
-const documentationPrefix = '/admin/documentation/';
+const documentationPrefix = '/documentation/';
 const representativeExtensions = ['.html', '.css', '.js', '.json', '.woff2'];
 const htmlCsp = "default-src 'self'; base-uri 'none'; connect-src 'self'; form-action 'none'; frame-ancestors 'none'; object-src 'none'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:";
 const authFile = process.env.E2E_AUTH_FILE ?? 'playwright/.auth/admin.json';
+
+function mermaidDocumentationPaths(): string[] {
+    return readdirSync(resolve('docs'), { recursive: true })
+        .filter((entry): entry is string => typeof entry === 'string' && entry.endsWith('.md'))
+        .filter((entry) => readFileSync(resolve('docs', entry), 'utf8').includes('```mermaid'))
+        .map((entry) => entry.replaceAll('\\', '/').replace(/\.md$/, ''))
+        .map((entry) => entry === 'index' ? '' : entry.replace(/\/_index$/, '/'))
+        .map((entry) => `/documentation/${entry}`)
+        .sort();
+}
 
 test('загружает закрытую документацию без browser или cache bypass', async ({ browser, page }) => {
     const failures: string[] = [];
@@ -40,9 +50,41 @@ test('загружает закрытую документацию без browse
         expect(url.pathname).not.toContain('/public/');
     });
 
-    await page.goto('/admin/documentation/');
-    await expect(page).toHaveURL(/\/admin\/documentation\/$/);
+    await page.goto('/documentation/');
+    await expect(page).toHaveURL(/\/documentation\/$/);
     await expect(page.locator('body')).toBeVisible();
+
+    for (const directUrl of [
+        '/documentation/01_Business/',
+        '/documentation/04_Operators/production/server-setup',
+        '/documentation/04_Operators/production/deployment',
+    ]) {
+        const directResponse = await page.goto(directUrl);
+
+        expect(directResponse?.status(), `direct documentation response: ${directUrl}`).toBe(200);
+        await expect(page).toHaveURL(new RegExp(`${directUrl.replaceAll('/', '\\/')}$`));
+    }
+
+    await expect(page.locator('.mermaid svg').first()).toBeVisible();
+
+    const refreshedResponse = await page.reload();
+    expect(refreshedResponse?.status(), 'refreshed Mermaid page response').toBe(200);
+    await expect(page.locator('.mermaid svg').first()).toBeVisible();
+
+    for (const directUrl of mermaidDocumentationPaths()) {
+        const diagramResponse = await page.goto(directUrl);
+
+        expect(diagramResponse?.status(), `Mermaid documentation response: ${directUrl}`).toBe(200);
+        await expect(page.locator('.mermaid svg').first(), `rendered Mermaid diagram: ${directUrl}`).toBeVisible();
+    }
+
+    const serverSetupResponse = await page.goto('/documentation/04_Operators/production/server-setup');
+    expect(serverSetupResponse?.status(), 'direct server-setup documentation response').toBe(200);
+    await expect(page.locator('.mermaid')).toHaveCount(0);
+
+    const reloadedServerSetupResponse = await page.reload();
+    expect(reloadedServerSetupResponse?.status(), 'reloaded server-setup documentation response').toBe(200);
+    await expect(page.locator('.mermaid')).toHaveCount(0);
 
     const entries = JSON.parse(readFileSync(resolve('var/private-documentation/manifest.json'), 'utf8')) as Array<{ mime: string; path: string; sha256: string }>;
     expect(entries.some(({ path }) => path.endsWith('.svg'))).toBeFalsy();
@@ -59,7 +101,7 @@ test('загружает закрытую документацию без browse
 
     for (const entry of representativeEntries) {
         const result = await page.evaluate(async (artifactPath) => {
-            const response = await fetch(`/admin/documentation/${artifactPath}`, { cache: 'reload' });
+            const response = await fetch(`/documentation/${artifactPath}`, { cache: 'reload' });
 
             return {
                 body: Array.from(new Uint8Array(await response.arrayBuffer())),
@@ -84,9 +126,9 @@ test('загружает закрытую документацию без browse
 
     authenticatedSession = false;
     await page.context().clearCookies();
-    await page.goto(`/admin/documentation/${directAssetPath}`);
+    await page.goto(`/documentation/${directAssetPath}`);
     await expect(page).toHaveURL(/\/admin\/login$/);
-    await expect(page.locator('body')).not.toContainText('Agelto');
+    await expect(page.locator('body')).not.toContainText('body {');
 
     const composeProject = process.env.E2E_COMPOSE_PROJECT;
     const composeEnvFile = process.env.E2E_COMPOSE_ENV_FILE;
@@ -99,7 +141,7 @@ test('загружает закрытую документацию без browse
 
     const revokedContext = await browser.newContext({ storageState: authFile });
     const revokedPage = await revokedContext.newPage();
-    const beforeRevocation = await revokedPage.goto(`/admin/documentation/${directAssetPath}`);
+    const beforeRevocation = await revokedPage.goto(`/documentation/${directAssetPath}`);
     expect(beforeRevocation?.status()).toBe(200);
 
     const composeArguments = [
@@ -114,7 +156,7 @@ test('загружает закрытую документацию без browse
         execFileSync('docker', [...composeArguments, 'guard:role', 'detach', adminEmail, 'App\\Guards\\Admin\\Roles\\SuperAdminRole'], { stdio: 'pipe' });
         execFileSync('docker', [...composeArguments, 'guard:cache-reset', '--force'], { stdio: 'pipe' });
 
-        const afterRevocation = await revokedPage.goto(`/admin/documentation/${directAssetPath}`);
+        const afterRevocation = await revokedPage.goto(`/documentation/${directAssetPath}`);
         expect(afterRevocation?.status()).toBe(403);
         await expect(revokedPage.locator('body')).not.toContainText('body {');
     } finally {

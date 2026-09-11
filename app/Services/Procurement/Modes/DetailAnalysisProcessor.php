@@ -13,7 +13,6 @@ use App\Models\Procurement\Procurement;
 use App\Repositories\Procurement\ProcurementStoreRepository;
 use App\Services\Procurement\Detail\CommonInfoProcessor;
 use App\Services\Procurement\Detail\EventJournalProcessor;
-use App\Services\Procurement\Detail\OrganizationPartiesProcessor;
 use App\Services\Procurement\Detail\SupplierResultsProcessor;
 use App\Services\Procurement\DocumentDownloader;
 use App\Services\Procurement\DocumentIndexer;
@@ -46,7 +45,6 @@ final readonly class DetailAnalysisProcessor
         private CommonInfoParser $commonInfoParser,
         private CommonInfoProcessor $commonInfoProcessor,
         private PartiesParser $partiesParser,
-        private OrganizationPartiesProcessor $organizationPartiesProcessor,
         private DocumentsParser $documentsParser,
         private DocumentIndexer $documentIndexer,
         private DocumentDownloader $documentDownloader,
@@ -85,22 +83,32 @@ final readonly class DetailAnalysisProcessor
             $commonInfo = null;
             $parties = [];
             $documents = [];
+            $documentsSnapshotStatus = null;
             $journalEntries = [];
             $supplierResults = null;
 
             if ($details->commonInfoHtml !== null) {
-                $commonInfo = $this->commonInfoParser->parse($details->commonInfoHtml);
+                $commonInfoSnapshot = $this->commonInfoParser->parse($details->commonInfoHtml);
                 $parties = $this->partiesParser->parse($details->commonInfoHtml);
+                $commonInfoSnapshot = $commonInfoSnapshot->withParties(
+                    parties: $parties,
+                    partiesComplete: $this->partiesParser->authorizesReconciliation(
+                        html: $details->commonInfoHtml,
+                        parties: $parties,
+                    ),
+                );
+                $commonInfo = $commonInfoSnapshot->commonInfo;
 
-                $this->commonInfoProcessor->process($procurement, $commonInfo);
-                $this->organizationPartiesProcessor->process($procurement, $parties);
+                $this->commonInfoProcessor->process(procurement: $procurement, snapshot: $commonInfoSnapshot);
             } else {
                 Log::warning(message: 'DetailAnalysisProcessor: вкладка common-info не снята.', context: ['procurement_id' => $procurement->id]);
             }
 
             if ($details->documentsHtml !== null) {
-                $documents = $this->documentsParser->parse($details->documentsHtml);
-                $this->documentIndexer->index($procurement, $documents);
+                $documentsSnapshot = $this->documentsParser->parse($details->documentsHtml);
+                $this->documentIndexer->index(procurement: $procurement, snapshot: $documentsSnapshot);
+                $documents = $documentsSnapshot->documents;
+                $documentsSnapshotStatus = $documentsSnapshot->status->value;
                 $this->downloadPendingDocuments($procurement);
             } else {
                 Log::warning(message: 'DetailAnalysisProcessor: вкладка documents не снята.', context: ['procurement_id' => $procurement->id]);
@@ -141,7 +149,10 @@ final readonly class DetailAnalysisProcessor
                             'items' => $commonInfo?->items,
                             'parties' => $parties,
                         ],
-                        'documents' => ['documents' => $documents],
+                        'documents' => [
+                            'documents' => $documents,
+                            'snapshot_status' => $documentsSnapshotStatus,
+                        ],
                         'event-journal' => ['entries' => $journalEntries],
                         'supplier-results' => [
                             'protocol' => $supplierResults?->protocol,

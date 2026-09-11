@@ -8,5 +8,6 @@ enum ArchiveWindowScanResult
 {
     case Drained;
     case Checkpointed;
+    case OperatorDebt;
     case Stopped;
 }

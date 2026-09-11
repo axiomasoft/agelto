@@ -135,6 +135,35 @@ test('run скачивает документы, снятые с вкладки 
     expect(Document::query()->where('procurement_id', $procurement->id)->where('status', DocumentStatus::Downloaded)->count())->toBe(6);
 });
 
+test('incomplete documents page не снимает ранее известные вложения', function () {
+    Sleep::fake();
+    Storage::fake('s3');
+    activeDetailAnalysisProxies();
+    $registry = detailAnalysisRegistry();
+    $procurement = Procurement::factory()->create([
+        'registry_id' => $registry->id,
+        'registry_number' => '0338200009125000001',
+        'procedure_type' => 'electronic_auction',
+        'procedure_type_raw' => 'Электронный аукцион',
+        'status' => ProcurementStatus::Bidding,
+    ]);
+    fakeDetailAnalysisHttp();
+
+    app(DetailAnalysisProcessor::class)->run(procurement: $procurement);
+
+    Http::fake([
+        '*view/common-info.html*' => Http::response(body: CardHtmlFixture::commonInfo(), status: 200),
+        '*view/documents.html*' => Http::response(body: '<html><body>Защитная страница</body></html>', status: 200),
+        '*view/event-journal.html*' => Http::response(body: detailAnalysisEventJournalHtml(), status: 200),
+        '*view/supplier-results.html*' => Http::response(body: detailAnalysisSupplierResultsHtml(), status: 200),
+        '*filestore*' => Http::response(body: 'binary-content', status: 200),
+    ]);
+
+    app(DetailAnalysisProcessor::class)->run(procurement: $procurement);
+
+    expect(Document::query()->where('procurement_id', $procurement->id)->whereNull('removed_at')->count())->toBe(6);
+});
+
 test('падение снятия карточки уходит в error-блок, detail_fetched_at не ставится, другие закупки не затронуты', function () {
     Sleep::fake();
     Storage::fake('s3');
