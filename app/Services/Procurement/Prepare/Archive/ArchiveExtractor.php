@@ -15,12 +15,12 @@ use ZipArchive;
 final readonly class ArchiveExtractor
 {
     /** @return list<ArchiveEntry> */
-    public function listEntries(string $archivePath, string $format): array
+    public function listEntries(string $archivePath, string $format, ?float $deadlineAt = null): array
     {
         return match ($format) {
-            'zip' => $this->listZip($archivePath),
-            '7z' => $this->listSevenZip($archivePath),
-            'rar' => $this->listRar($archivePath),
+            'zip' => $this->listZip(archivePath: $archivePath, deadlineAt: $deadlineAt),
+            '7z' => $this->listSevenZip(archivePath: $archivePath, deadlineAt: $deadlineAt),
+            'rar' => $this->listRar(archivePath: $archivePath, deadlineAt: $deadlineAt),
             default => throw new ArchiveUnsupportedException("неизвестный формат архива: {$format}"),
         };
     }
@@ -30,18 +30,18 @@ final readonly class ArchiveExtractor
      *
      * @param  int  $totalBytes  actual aggregate, maintained by caller for one archive
      */
-    public function extractEntry(string $archivePath, string $format, ArchiveEntry $entry, string $targetPath, ArchiveBudget $budget, int &$totalBytes): void
+    public function extractEntry(string $archivePath, string $format, ArchiveEntry $entry, string $targetPath, ArchiveBudget $budget, int &$totalBytes, ?float $deadlineAt = null): void
     {
         match ($format) {
-            'zip' => $this->extractZipEntry($archivePath, $entry, $targetPath, $budget, $totalBytes),
-            '7z' => $this->extractSevenZipEntry($archivePath, $entry, $targetPath, $budget, $totalBytes),
-            'rar' => $this->extractRarEntry($archivePath, $entry, $targetPath, $budget, $totalBytes),
+            'zip' => $this->extractZipEntry($archivePath, $entry, $targetPath, $budget, $totalBytes, $deadlineAt),
+            '7z' => $this->extractSevenZipEntry($archivePath, $entry, $targetPath, $budget, $totalBytes, $deadlineAt),
+            'rar' => $this->extractRarEntry($archivePath, $entry, $targetPath, $budget, $totalBytes, $deadlineAt),
             default => throw new ArchiveUnsupportedException("неизвестный формат архива: {$format}"),
         };
     }
 
     /** @return list<ArchiveEntry> */
-    private function listZip(string $archivePath): array
+    private function listZip(string $archivePath, ?float $deadlineAt): array
     {
         $zip = new ZipArchive;
         if ($zip->open($archivePath, ZipArchive::CHECKCONS) !== true) {
@@ -51,6 +51,7 @@ final readonly class ArchiveExtractor
         try {
             $entries = [];
             for ($index = 0; $index < $zip->numFiles; $index++) {
+                $this->assertWithinDeadline(deadlineAt: $deadlineAt);
                 $stat = $zip->statIndex($index);
                 if ($stat === false) {
                     throw new ArchiveUnsupportedException('ZIP metadata неполна');
@@ -84,7 +85,7 @@ final readonly class ArchiveExtractor
         }
     }
 
-    private function extractZipEntry(string $archivePath, ArchiveEntry $entry, string $targetPath, ArchiveBudget $budget, int &$totalBytes): void
+    private function extractZipEntry(string $archivePath, ArchiveEntry $entry, string $targetPath, ArchiveBudget $budget, int &$totalBytes, ?float $deadlineAt): void
     {
         $zip = new ZipArchive;
         if ($zip->open($archivePath, ZipArchive::CHECKCONS) !== true) {
@@ -98,7 +99,7 @@ final readonly class ArchiveExtractor
         }
 
         try {
-            $this->copyBounded($input, $targetPath, $entry, $budget, $totalBytes);
+            $this->copyBounded($input, $targetPath, $entry, $budget, $totalBytes, $deadlineAt);
         } finally {
             fclose($input);
             $zip->close();
@@ -106,9 +107,9 @@ final readonly class ArchiveExtractor
     }
 
     /** @return list<ArchiveEntry> */
-    private function listSevenZip(string $archivePath): array
+    private function listSevenZip(string $archivePath, ?float $deadlineAt): array
     {
-        $result = Process::timeout($this->timeout())->run([$this->configString('ai.tools.sevenzip_bin'), 'l', '-slt', $archivePath]);
+        $result = Process::timeout($this->timeout(deadlineAt: $deadlineAt))->run([$this->configString('ai.tools.sevenzip_bin'), 'l', '-slt', $archivePath]);
         if ($result->failed()) {
             $this->rejectByOutput($result);
         }
@@ -144,14 +145,15 @@ final readonly class ArchiveExtractor
         return new ArchiveEntry(
             path: (string) $values['Path'],
             declaredSize: (int) ($values['Size'] ?? 0),
-            compressedSize: (int) ($values['Packed Size'] ?? 0),
+            // Solid 7z stores Packed Size on the block, not on every member.
+            compressedSize: isset($values['Packed Size']) ? (int) $values['Packed Size'] : null,
             isDirectory: $isDirectory,
             isEncrypted: ($values['Encrypted'] ?? '') === '+',
             type: $type,
         );
     }
 
-    private function extractSevenZipEntry(string $archivePath, ArchiveEntry $entry, string $targetPath, ArchiveBudget $budget, int &$totalBytes): void
+    private function extractSevenZipEntry(string $archivePath, ArchiveEntry $entry, string $targetPath, ArchiveBudget $budget, int &$totalBytes, ?float $deadlineAt): void
     {
         $this->extractProcessEntry(
             [$this->configString('ai.tools.sevenzip_bin'), 'x', '-so', '-y', $archivePath, $entry->path],
@@ -159,10 +161,11 @@ final readonly class ArchiveExtractor
             $targetPath,
             $budget,
             $totalBytes,
+            $deadlineAt,
         );
     }
 
-    private function extractRarEntry(string $archivePath, ArchiveEntry $entry, string $targetPath, ArchiveBudget $budget, int &$totalBytes): void
+    private function extractRarEntry(string $archivePath, ArchiveEntry $entry, string $targetPath, ArchiveBudget $budget, int &$totalBytes, ?float $deadlineAt): void
     {
         $this->extractProcessEntry(
             [$this->configString('ai.tools.unar_bin'), '-o', '-', '-D', '-q', $archivePath, $entry->path],
@@ -170,11 +173,12 @@ final readonly class ArchiveExtractor
             $targetPath,
             $budget,
             $totalBytes,
+            $deadlineAt,
         );
     }
 
     /** @param list<string> $command */
-    private function extractProcessEntry(array $command, ArchiveEntry $entry, string $targetPath, ArchiveBudget $budget, int &$totalBytes): void
+    private function extractProcessEntry(array $command, ArchiveEntry $entry, string $targetPath, ArchiveBudget $budget, int &$totalBytes, ?float $deadlineAt): void
     {
         $output = fopen($targetPath, 'xb');
         if ($output === false) {
@@ -183,7 +187,7 @@ final readonly class ArchiveExtractor
         $bytes = 0;
         $hash = hash_init('sha256');
         try {
-            $result = Process::timeout($this->timeout())->run(
+            $result = Process::timeout($this->timeout(deadlineAt: $deadlineAt))->run(
                 $command,
                 function (string $type, string $buffer) use ($output, $entry, $budget, &$totalBytes, &$bytes, $hash): void {
                     if ($type !== 'out') {
@@ -215,9 +219,9 @@ final readonly class ArchiveExtractor
     }
 
     /** @return list<ArchiveEntry> */
-    private function listRar(string $archivePath): array
+    private function listRar(string $archivePath, ?float $deadlineAt): array
     {
-        $result = Process::timeout($this->timeout())->run(['lsar', '-json', $archivePath]);
+        $result = Process::timeout($this->timeout(deadlineAt: $deadlineAt))->run(['lsar', '-json', $archivePath]);
         $decoded = json_decode($result->output(), true);
         if ($result->failed() || ! is_array($decoded) || ! is_array($decoded['lsarContents'] ?? null)) {
             $this->rejectByOutput($result);
@@ -248,7 +252,7 @@ final readonly class ArchiveExtractor
     }
 
     /** @param resource $input */
-    private function copyBounded($input, string $targetPath, ArchiveEntry $entry, ArchiveBudget $budget, int &$totalBytes): void
+    private function copyBounded($input, string $targetPath, ArchiveEntry $entry, ArchiveBudget $budget, int &$totalBytes, ?float $deadlineAt): void
     {
         $output = fopen($targetPath, 'xb');
         if ($output === false) {
@@ -257,6 +261,7 @@ final readonly class ArchiveExtractor
         $bytes = 0;
         try {
             while (! feof($input)) {
+                $this->assertWithinDeadline(deadlineAt: $deadlineAt);
                 $chunk = fread($input, 65536);
                 if ($chunk === false) {
                     throw new ArchiveUnsupportedException('ошибка чтения ZIP entry');
@@ -290,9 +295,33 @@ final readonly class ArchiveExtractor
         throw new ArchiveUnsupportedException($output !== '' ? $output : 'распаковщик не смог обработать архив');
     }
 
-    private function timeout(): int
+    private function timeout(?float $deadlineAt): int
     {
-        return $this->nonNegativeInt(config('ai.prepare.archive.timeout_seconds', config('ai.tools.default_timeout_seconds', 180)), 'archive timeout');
+        $configured = $this->nonNegativeInt(config('ai.prepare.archive.timeout_seconds', config('ai.tools.default_timeout_seconds', 180)), 'archive timeout');
+
+        if ($deadlineAt === null) {
+            return $configured;
+        }
+
+        $remaining = (int) floor($deadlineAt - microtime(true) - $this->persistenceReserveSeconds());
+
+        if ($remaining < 1) {
+            throw new ArchiveValidationException('единый deadline распаковки исчерпан');
+        }
+
+        return min($configured, $remaining);
+    }
+
+    private function assertWithinDeadline(?float $deadlineAt): void
+    {
+        if ($deadlineAt !== null && microtime(true) >= $deadlineAt - $this->persistenceReserveSeconds()) {
+            throw new ArchiveValidationException('единый deadline распаковки исчерпан');
+        }
+    }
+
+    private function persistenceReserveSeconds(): int
+    {
+        return $this->nonNegativeInt(config('ai.pipeline.operation_budgets.prepare.persistence_release_reserve_seconds', 120), 'archive persistence reserve');
     }
 
     private function configString(string $key): string

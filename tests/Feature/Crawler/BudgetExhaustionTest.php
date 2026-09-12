@@ -185,7 +185,7 @@ test('исчерпание бюджета карточки не растит det
 test('исчерпание бюджета документа не записывает error-блок документа', function (): void {
     Sleep::fake();
     $platform = Platform::factory()->create([
-        'base_url' => 'https://eis.test/',
+        'base_url' => 'https://zakupki.gov.ru/',
         'throttle' => [
             'requestsPerMinuteBase' => 1,
             'requestsPerMinutePerProxy' => 0,
@@ -196,12 +196,12 @@ test('исчерпание бюджета документа не записыв
         ],
     ]);
     $document = Document::factory()->for($platform)->create([
-        'source_url' => 'https://eis.test/filestore/file.html?uid=budget',
+        'source_url' => 'https://zakupki.gov.ru/filestore/file.html?uid=budget',
         'attempts' => 2,
     ]);
     Http::fake();
 
-    app(PlatformRequestBudget::class)->acquire(host: 'eis.test', stage: CrawlStage::Document);
+    app(PlatformRequestBudget::class)->acquire(host: 'zakupki.gov.ru', stage: CrawlStage::Document);
     $version = app(DocumentDownloader::class)->download(document: $document);
 
     $document->refresh();

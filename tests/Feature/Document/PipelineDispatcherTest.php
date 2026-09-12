@@ -3,23 +3,25 @@
 declare(strict_types=1);
 
 use App\Enums\Procurement\Document\DocumentStatus;
+use App\Jobs\Procurement\DownloadDocumentJob;
 use App\Jobs\Procurement\PrepareDocumentJob;
 use App\Models\Procurement\Document\Document;
 use App\Models\Procurement\Procurement;
 use App\Services\Procurement\PipelineDispatcher;
 use Illuminate\Support\Facades\Queue;
 
-test('dispatch отбирает скачанные документы, диспатчит PrepareDocumentJob и пропускает недоскачанные/снятые', function () {
+test('dispatch ставит discovered в DownloadDocumentJob и downloaded в PrepareDocumentJob, снятые пропускает', function () {
     Queue::fake();
     $procurement = Procurement::factory()->create();
     $downloaded = Document::factory()->create(['procurement_id' => $procurement->id, 'status' => DocumentStatus::Downloaded]);
-    Document::factory()->create(['procurement_id' => $procurement->id, 'status' => DocumentStatus::Discovered]);
+    $discovered = Document::factory()->create(['procurement_id' => $procurement->id, 'status' => DocumentStatus::Discovered]);
     Document::factory()->create(['procurement_id' => $procurement->id, 'status' => DocumentStatus::Downloaded, 'removed_at' => now()]);
 
     $count = app(PipelineDispatcher::class)->dispatch(procurement: $procurement);
 
-    expect($count)->toBe(1)
+    expect($count)->toBe(2)
         ->and($downloaded->refresh()->status)->toBe(DocumentStatus::Downloaded);
+    Queue::assertPushed(DownloadDocumentJob::class, fn (DownloadDocumentJob $job) => $job->documentId === $discovered->id);
     Queue::assertPushed(PrepareDocumentJob::class, fn (PrepareDocumentJob $job) => $job->documentId === $downloaded->id);
     Queue::assertPushed(PrepareDocumentJob::class, 1);
 });

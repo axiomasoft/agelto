@@ -18,9 +18,8 @@ use App\Services\Procurement\Prepare\Archive\ArchivePasswordProtectedException;
 use App\Services\Procurement\Prepare\Archive\ArchiveUnsupportedException;
 use App\Services\Procurement\Prepare\Archive\ArchiveValidationException;
 use App\Services\Storage\FileLocationResolver;
-use Illuminate\Support\Facades\File;
+use App\Support\Files\PipelineTemporaryFile;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Str;
 
 /**
  * Проверяет и извлекает архив по одному entry. File I/O остаётся здесь, а durable child
@@ -36,7 +35,7 @@ final readonly class ArchiveStrategy implements PreparationStrategy
         private FileLocationResolver $locationResolver,
     ) {}
 
-    public function process(Document $document, DocumentVersion $version): PreparationResult
+    public function process(Document $document, DocumentVersion $version, ?float $deadlineAt = null): PreparationResult
     {
         $budget = ArchiveBudget::fromConfig();
         if ($this->nestingDepth($version) >= $budget->maxDepth) {
@@ -46,17 +45,14 @@ final readonly class ArchiveStrategy implements PreparationStrategy
         }
 
         $location = $this->locationResolver->forDocumentVersion($version);
-        $localArchive = tempnam(sys_get_temp_dir(), 'archive_');
-        if ($localArchive === false) {
-            throw new \RuntimeException('не удалось создать временный файл архива');
-        }
+        $localArchive = PipelineTemporaryFile::create(prefix: 'archive_', extension: $version->extension);
 
         try {
             file_put_contents($localArchive, Storage::disk($location->disk)->get($location->path));
 
             try {
-                $entries = $this->entryValidator->validate($this->extractor->listEntries($localArchive, $version->extension), $budget);
-                $this->extractChildren($document, $version, $localArchive, $entries, $budget);
+                $entries = $this->entryValidator->validate($this->extractor->listEntries(archivePath: $localArchive, format: $version->extension, deadlineAt: $deadlineAt), $budget);
+                $this->extractChildren($document, $version, $localArchive, $entries, $budget, $deadlineAt);
             } catch (ArchivePasswordProtectedException $exception) {
                 $this->markUnprocessable($document, UnprocessableReason::PasswordProtected, $exception->getMessage());
 
@@ -82,10 +78,9 @@ final readonly class ArchiveStrategy implements PreparationStrategy
     }
 
     /** @param list<ArchiveEntry> $entries */
-    private function extractChildren(Document $document, DocumentVersion $version, string $localArchive, array $entries, ArchiveBudget $budget): void
+    private function extractChildren(Document $document, DocumentVersion $version, string $localArchive, array $entries, ArchiveBudget $budget, ?float $deadlineAt): void
     {
-        $tempFolder = 'tmp_extract/'.Str::uuid();
-        $extractPath = storage_path('app/'.$tempFolder);
+        $extractPath = PipelineTemporaryFile::createDirectory(prefix: 'archive_extract_');
 
         try {
             $totalBytes = 0;
@@ -100,7 +95,15 @@ final readonly class ArchiveStrategy implements PreparationStrategy
                     throw new \RuntimeException("не удалось создать временную директорию: {$directory}");
                 }
 
-                $this->extractor->extractEntry($localArchive, $version->extension, $entry, $targetPath, $budget, $totalBytes);
+                $this->extractor->extractEntry(
+                    archivePath: $localArchive,
+                    format: $version->extension,
+                    entry: $entry,
+                    targetPath: $targetPath,
+                    budget: $budget,
+                    totalBytes: $totalBytes,
+                    deadlineAt: $deadlineAt,
+                );
             }
 
             foreach ($entries as $entry) {
@@ -116,7 +119,7 @@ final readonly class ArchiveStrategy implements PreparationStrategy
                 );
             }
         } finally {
-            File::deleteDirectory($extractPath);
+            PipelineTemporaryFile::deleteDirectory($extractPath);
         }
     }
 

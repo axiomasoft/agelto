@@ -2,11 +2,18 @@
 
 declare(strict_types=1);
 
+use App\Enums\Procurement\Ai\AnalysisRunStatus;
+use App\Enums\Procurement\Ai\AnalysisStatus;
 use App\Enums\Procurement\Ai\AnalysisStep;
+use App\Enums\Procurement\Ai\RunMode;
 use App\Jobs\Procurement\PipelineJob;
 use App\Models\Procurement\Ai\Analysis;
+use App\Models\Procurement\Ai\AnalysisRun;
 use App\Models\Procurement\Document\Document;
+use App\Repositories\Procurement\Ai\AnalysisRunStoreRepository;
+use App\Repositories\Procurement\Document\DocumentStoreRepository;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 
 test('двойной acquireLease на Document — второй захват возвращает false', function () {
     $document = Document::factory()->create();
@@ -18,7 +25,7 @@ test('двойной acquireLease на Document — второй захват в
         ->and($second)->toBeFalse();
 
     $document->refresh();
-    expect($document->locked_by)->toBe('worker-1');
+    expect($document->locked_by)->toStartWith('worker-1:');
 });
 
 test('releaseLease на Document освобождает лиз — следующий acquireLease проходит', function () {
@@ -35,13 +42,19 @@ test('releaseLease на Document освобождает лиз — следую�
     expect($reacquired)->toBeTrue();
 });
 
-test('acquireLease на Document проходит после истечения TTL просроченного лиза', function () {
+test('просроченный lease сначала учитывается как одна доменная попытка, затем допускает retry', function () {
     $document = Document::factory()->create();
     $document->forceFill(['locked_by' => 'stale-worker', 'locked_until' => now()->subMinute()])->save();
 
-    $acquired = $document->fresh()->acquireLease(owner: 'worker-2');
+    $firstRecovery = $document->fresh()->acquireLease(owner: 'worker-2');
 
-    expect($acquired)->toBeTrue();
+    $document->refresh();
+    expect($firstRecovery)->toBeFalse()
+        ->and($document->attempts)->toBe(1)
+        ->and($document->next_retry_at)->not->toBeNull()
+        ->and($document->locked_by)->toBeNull();
+
+    expect($document->fresh()->acquireLease(owner: 'worker-2'))->toBeTrue();
 });
 
 test('двойной acquireLease на Ai\Analysis — второй захват возвращает false', function () {
@@ -265,3 +278,67 @@ test('PipelineJob: успешный process освобождает лиз в fin
     expect($calls['process'])->toBe(1)
         ->and($calls['releaseLease'])->toBe(1);
 });
+
+test('старый execution token не снимает lease нового владельца', function () {
+    $oldOwner = Document::factory()->create();
+    expect($oldOwner->acquireLease(owner: 'old', ttlSeconds: 1))->toBeTrue();
+
+    Document::query()->whereKey($oldOwner->id)->update([
+        'locked_until' => DB::raw("CURRENT_TIMESTAMP - INTERVAL '1 minute'"),
+    ]);
+    expect($oldOwner->fresh()->acquireLease(owner: 'recovery'))->toBeFalse();
+    $newOwner = $oldOwner->fresh();
+    expect($newOwner->acquireLease(owner: 'new', ttlSeconds: 60))->toBeTrue();
+
+    $newToken = $newOwner->fresh()->locked_by;
+    $oldOwner->releaseLease();
+
+    expect($newOwner->fresh()->locked_by)->toBe($newToken);
+});
+
+test('старый execution token не может записать эффект после takeover', function (): void {
+    $oldOwner = Document::factory()->create();
+    expect($oldOwner->acquireLease(owner: 'old', ttlSeconds: 1))->toBeTrue();
+    Document::query()->whereKey($oldOwner->id)->update(['locked_until' => DB::raw("CURRENT_TIMESTAMP - INTERVAL '1 minute'")]);
+    expect($oldOwner->fresh()->acquireLease(owner: 'recovery'))->toBeFalse();
+    $newOwner = $oldOwner->fresh();
+    expect($newOwner->acquireLease(owner: 'new', ttlSeconds: 60))->toBeTrue();
+
+    expect(fn () => app(DocumentStoreRepository::class)->update($oldOwner, ['last_error' => 'stale effect']))
+        ->toThrow(RuntimeException::class, 'lease was lost');
+    expect($oldOwner->fresh()->last_error)->not->toBe('stale effect');
+});
+
+test('последнее истечение analysis lease завершает analysis и run терминально', function (AnalysisStep $step): void {
+    config(['ai.retry.max_attempts' => 2]);
+    $run = AnalysisRun::factory()->create(['status' => AnalysisRunStatus::Running, 'finished_at' => null]);
+    $analysis = Analysis::factory()->create([
+        'analysis_run_id' => $run->id,
+        'step' => $step,
+        'status' => AnalysisStatus::Running,
+        'attempts' => 1,
+        'locked_by' => 'dead-worker',
+        'locked_until' => now()->subMinute(),
+    ]);
+
+    expect($analysis->fresh()->acquireLease(owner: 'recovery'))->toBeFalse();
+    $failedAnalysis = $analysis->fresh();
+    $failedRun = $run->fresh();
+
+    expect($failedAnalysis->failed_permanently)->toBeTrue()
+        ->and($failedAnalysis->status)->toBe(AnalysisStatus::Failed)
+        ->and($failedAnalysis->finished_at)->not->toBeNull()
+        ->and($failedRun->status)->toBe(AnalysisRunStatus::Failed)
+        ->and($failedRun->finished_at)->not->toBeNull();
+
+    $rerun = app(AnalysisRunStoreRepository::class)->start(
+        documentVersionId: $analysis->document_version_id,
+        mode: RunMode::Manual,
+    );
+    expect($rerun->id)->not->toBe($run->id)
+        ->and($rerun->status)->toBe(AnalysisRunStatus::Running)
+        ->and($rerun->finished_at)->toBeNull();
+})->with([
+    'screening' => AnalysisStep::Screening,
+    'extraction' => AnalysisStep::Extraction,
+]);

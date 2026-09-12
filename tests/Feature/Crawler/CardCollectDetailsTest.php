@@ -6,6 +6,7 @@ use App\Dto\Procurement\ProcurementDetails;
 use App\Enums\Procurement\Crawler\CrawlStage;
 use App\Enums\Procurement\ProcurementStatus;
 use App\Enums\Procurement\Proxy\ProxyScope;
+use App\Exceptions\Procurement\Crawler\PlatformBudgetExhaustedException;
 use App\Models\Procurement\Crawler\Fetch;
 use App\Models\Procurement\Crawler\Proxy;
 use App\Models\Procurement\Platform\Registry;
@@ -117,6 +118,45 @@ test('collectDetails не забирает supplier-results для незаве�
     expect($details->supplierResultsHtml)->toBeNull();
 
     Http::assertNotSent(fn ($request) => str_contains((string) $request->url(), 'supplier-results.html'));
+});
+
+test('каждый transport retry карточки заново расходует общий request budget', function (): void {
+    Sleep::fake();
+    activeDetailProxy();
+    $registry = fakeCardRegistry();
+    $registry->platform->update([
+        'base_url' => 'https://zakupki.gov.ru/',
+        'throttle' => [
+            'requestsPerMinuteBase' => 1,
+            'requestsPerMinutePerProxy' => 0,
+            'maxWaitSeconds' => 0,
+            'stages' => [
+                'detail' => [
+                    'minPauseMs' => 0,
+                    'maxPauseMs' => 0,
+                    'retries' => 2,
+                    'retryDelayMs' => 0,
+                    'timeoutSeconds' => 30,
+                ],
+            ],
+        ],
+    ]);
+    Procurement::factory()->create([
+        'registry_id' => $registry->id,
+        'registry_number' => '0338200009125000001',
+        'procedure_type_raw' => 'Электронный аукцион',
+        'status' => ProcurementStatus::Awarded,
+    ]);
+    Http::fakeSequence()
+        ->push('temporary upstream failure', 503)
+        ->push(CardHtmlFixture::commonInfo(), 200);
+
+    expect(fn () => app(CsvSourceMethod::class)->collectDetails(
+        registryNumber: '0338200009125000001',
+        registry: $registry,
+    ))->toThrow(PlatformBudgetExhaustedException::class);
+
+    Http::assertSentCount(1);
 });
 
 test('collectDetails кладёт сырой HTML в storage gzip при включённом retention', function () {

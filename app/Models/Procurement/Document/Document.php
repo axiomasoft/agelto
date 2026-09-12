@@ -37,6 +37,7 @@ use Illuminate\Support\Str;
  * @property string|null $last_error
  * @property Carbon|null $removed_at
  * @property Carbon|null $next_retry_at
+ * @property string|null $locked_by
  * @property Carbon|null $locked_until
  * @property bool $failed_permanently
  */
@@ -114,6 +115,15 @@ final class Document extends Model
     public function platform(): BelongsTo
     {
         return $this->belongsTo(related: Platform::class);
+    }
+
+    /** @return HasOne<DocumentVersion, $this> */
+    public function latestVersion(): HasOne
+    {
+        return $this->hasOne(related: DocumentVersion::class)->ofMany([
+            'downloaded_at' => 'max',
+            'id' => 'max',
+        ]);
     }
 
     /** Рабочая копия эталона, если документ создан из fixture. */

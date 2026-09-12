@@ -110,6 +110,24 @@ test('не продолжает permanent failure и screening disposition бе�
     Queue::assertNothingPushed();
 });
 
+test('repair доводит stranded succeeded extraction из screened в extracted без нового job', function (): void {
+    Queue::fake();
+    config(['ai.screening.enabled' => true, 'ai.extraction.enabled' => true]);
+    $document = Document::factory()->create(['status' => DocumentStatus::Screened]);
+    [$version, $run] = pipelineRecoveryVersion($document);
+    Analysis::factory()->create([
+        'document_version_id' => $version->id,
+        'analysis_run_id' => $run->id,
+        'step' => AnalysisStep::Extraction,
+        'status' => AnalysisStatus::Succeeded,
+        'finished_at' => now(),
+    ]);
+
+    expect(app(PipelineRecoveryReconciler::class)->reconcile(limit: 10))->toBe(1)
+        ->and($document->fresh()->status)->toBe(DocumentStatus::Extracted);
+    Queue::assertNothingPushed();
+});
+
 test('recovery доходит до следующего документа после завершённых и отложенных записей', function (): void {
     Queue::fake();
     config(['ai.screening.enabled' => true, 'ai.extraction.enabled' => true]);
@@ -134,6 +152,29 @@ test('recovery доходит до следующего документа по�
     expect(app(PipelineRecoveryReconciler::class)->reconcile(limit: 1))->toBe(1);
     Queue::assertPushed(ScreeningJob::class, fn (ScreeningJob $job): bool => $job->documentId === $due->id);
     Queue::assertPushed(ScreeningJob::class, 1);
+});
+
+test('выключенный screening не занимает LIMIT перед due extraction', function (): void {
+    Queue::fake();
+    config(['ai.screening.enabled' => false, 'ai.extraction.enabled' => true]);
+
+    $prepared = Document::factory()->create(['status' => DocumentStatus::Prepared]);
+    pipelineRecoveryVersion(document: $prepared);
+
+    $screened = Document::factory()->create(['status' => DocumentStatus::Screened]);
+    [$version, $run] = pipelineRecoveryVersion(document: $screened);
+    Analysis::factory()->create([
+        'document_version_id' => $version->id,
+        'analysis_run_id' => $run->id,
+        'step' => AnalysisStep::Screening,
+        'status' => AnalysisStatus::Succeeded,
+        'document_type' => AiDocumentType::Estimate->value,
+        'result' => pipelineRecoveryScreeningResult(disposition: 'extract', extractionDispatched: true),
+    ]);
+
+    expect(app(PipelineRecoveryReconciler::class)->reconcile(limit: 1))->toBe(1);
+    Queue::assertPushed(EstimateExtractionJob::class, fn (EstimateExtractionJob $job): bool => $job->documentId === $screened->id);
+    Queue::assertNotPushed(ScreeningJob::class);
 });
 
 test('два PostgreSQL worker получают ровно один recovery claim', function (): void {

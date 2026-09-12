@@ -13,6 +13,7 @@ use App\Models\Procurement\Procurement;
 use App\Models\Procurement\ProcurementEvent;
 use App\Models\Procurement\ProcurementParty;
 use App\Models\Procurement\Protocol;
+use App\Services\Procurement\DetailRefetchSelector;
 use App\Services\Procurement\Modes\DetailAnalysisProcessor;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
@@ -49,24 +50,52 @@ function detailAnalysisRegistry(): Registry
 
 function detailAnalysisEventJournalHtml(): string
 {
-    // `prc_events` партиционирована помесячно от момента прогона миграции (см.
-    // `EventJournalProcessorTest`) — сдвигаем даты реальной фикстуры (P4.14 — «23.01.2025»/
-    // «15.01.2025») на текущий месяц теста.
-    $html = file_get_contents(base_path('tests/Fixtures/Crawler/Card/event-journal.html'));
-    $html = str_replace('23.01.2025 09:29', now()->startOfMonth()->addDay()->format('d.m.Y').' 09:29', $html);
-    $html = str_replace('23.01.2025 09:00', now()->startOfMonth()->addDays(2)->format('d.m.Y').' 09:00', $html);
-
-    return str_replace('15.01.2025 11:55', now()->startOfMonth()->addDays(3)->format('d.m.Y').' 11:55', $html);
+    return (string) file_get_contents(base_path('tests/Fixtures/Crawler/Card/event-journal.html'));
 }
 
 function detailAnalysisSupplierResultsHtml(): string
 {
-    return str_replace(
-        '23.01.2025',
-        now()->startOfMonth()->addDays(4)->format('d.m.Y'),
-        CardHtmlFixture::supplierResults(),
-    );
+    return CardHtmlFixture::supplierResults();
 }
+
+test('supplier-results mismatch остаётся retryable и следующий полный проход сходится', function (): void {
+    Sleep::fake();
+    Storage::fake('s3');
+    activeDetailAnalysisProxies();
+    $registry = detailAnalysisRegistry();
+    $procurement = Procurement::factory()->create([
+        'registry_id' => $registry->id,
+        'registry_number' => '0338200009125000001',
+        'procedure_type_raw' => 'Электронный аукцион',
+        'status' => ProcurementStatus::Awarded,
+    ]);
+    $supplierAttempts = 0;
+    Http::fake([
+        '*view/common-info.html*' => Http::response(CardHtmlFixture::commonInfo(), 200),
+        '*view/documents.html*' => Http::response(CardHtmlFixture::documents(), 200),
+        '*view/event-journal.html*' => Http::response(detailAnalysisEventJournalHtml(), 200),
+        '*view/supplier-results.html*' => function () use (&$supplierAttempts) {
+            $supplierAttempts++;
+
+            return $supplierAttempts === 1
+                ? Http::response('<html>temporary protection page</html>', 200)
+                : Http::response(detailAnalysisSupplierResultsHtml(), 200);
+        },
+    ]);
+
+    expect(app(DetailAnalysisProcessor::class)->run(procurement: $procurement))->toBeFalse()
+        ->and($procurement->fresh()->detail_fetched_at)->toBeNull()
+        ->and($procurement->detail_attempts)->toBe(1)
+        ->and($procurement->detail_next_retry_at)->not->toBeNull();
+
+    $this->travel((int) config('crawler.detail_retry_backoff_minutes', 15) + 1)->minutes();
+
+    $result = app(DetailAnalysisProcessor::class)->run(procurement: $procurement->fresh());
+
+    expect($result)->toBeTrue((string) $procurement->fresh()->detail_last_error)
+        ->and($procurement->fresh()->detail_fetched_at)->not->toBeNull()
+        ->and(Protocol::query()->where('procurement_id', $procurement->id)->exists())->toBeTrue();
+});
 
 function fakeDetailAnalysisHttp(): void
 {
@@ -116,7 +145,7 @@ test('run наполняет все вкладки-таблицы и стави�
     expect(Protocol::query()->where('procurement_id', $procurement->id)->exists())->toBeTrue();
 });
 
-test('run скачивает документы, снятые с вкладки documents', function () {
+test('run индексирует документы как discovered без inline-скачивания', function () {
     Sleep::fake();
     Storage::fake('s3');
     activeDetailAnalysisProxies();
@@ -132,7 +161,7 @@ test('run скачивает документы, снятые с вкладки 
 
     app(DetailAnalysisProcessor::class)->run(procurement: $procurement);
 
-    expect(Document::query()->where('procurement_id', $procurement->id)->where('status', DocumentStatus::Downloaded)->count())->toBe(6);
+    expect(Document::query()->where('procurement_id', $procurement->id)->where('status', DocumentStatus::Discovered)->count())->toBe(6);
 });
 
 test('incomplete documents page не снимает ранее известные вложения', function () {
@@ -250,4 +279,61 @@ test('исчерпание попыток ставит detail_failed', function 
 
     expect($procurement->refresh()->detail_failed)->toBeTrue()
         ->and($procurement->detail_next_retry_at)->toBeNull();
+});
+
+test('неполные обязательные snapshots сохраняют outcome и возвращаются в due после backoff', function (): void {
+    Sleep::fake();
+    Storage::fake('s3');
+    activeDetailAnalysisProxies();
+    $registry = detailAnalysisRegistry();
+    $procurement = Procurement::factory()->create([
+        'registry_id' => $registry->id,
+        'registry_number' => '0338200009125000001',
+        'procedure_type' => 'electronic_auction',
+        'procedure_type_raw' => 'Электронный аукцион',
+        'status' => ProcurementStatus::Bidding,
+        'detail_fetched_at' => null,
+        'current_revision_detected_at' => now()->subDay(),
+    ]);
+    Http::fake(['*' => Http::response("<html><body>{$procurement->registry_number} Temporary maintenance</body></html>", 200)]);
+
+    expect(app(DetailAnalysisProcessor::class)->run(procurement: $procurement))->toBeFalse();
+
+    $procurement->refresh();
+
+    expect($procurement->detail_fetched_at)->toBeNull()
+        ->and($procurement->detail_attempts)->toBe(1)
+        ->and($procurement->detail_parse_outcome)->not->toBeNull()
+        ->and($procurement->detail_next_retry_at)->not->toBeNull();
+
+    $this->travel((int) config('crawler.detail_retry_backoff_minutes', 15) + 1)->minutes();
+
+    expect(app(DetailRefetchSelector::class)->due(limit: 10)->pluck('id')->all())
+        ->toContain($procurement->id);
+});
+
+test('легитимно пустой complete documents snapshot завершает detail без вечного retry', function (): void {
+    Sleep::fake();
+    Storage::fake('s3');
+    activeDetailAnalysisProxies();
+    $registry = detailAnalysisRegistry();
+    $procurement = Procurement::factory()->create([
+        'registry_id' => $registry->id,
+        'registry_number' => '0338200009125000001',
+        'procedure_type' => 'electronic_auction',
+        'procedure_type_raw' => 'Электронный аукцион',
+        'status' => ProcurementStatus::Bidding,
+    ]);
+    Http::fake([
+        '*view/common-info.html*' => Http::response(CardHtmlFixture::commonInfo(), 200),
+        '*view/documents.html*' => Http::response('<div>0338200009125000001</div><div class="blockFilesTabDocs"></div>', 200),
+        '*view/event-journal.html*' => Http::response(detailAnalysisEventJournalHtml(), 200),
+        '*view/supplier-results.html*' => Http::response(detailAnalysisSupplierResultsHtml(), 200),
+    ]);
+
+    $result = app(DetailAnalysisProcessor::class)->run(procurement: $procurement);
+
+    expect($result)->toBeTrue((string) $procurement->fresh()->detail_last_error)
+        ->and($procurement->fresh()->detail_fetched_at)->not->toBeNull()
+        ->and($procurement->detail_attempts)->toBe(0);
 });

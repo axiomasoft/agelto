@@ -172,7 +172,8 @@ test('оконный путь: discovery → 1 сегмент → passport → r
         ->andThen(windowedRows([]))
         ->andThen(windowedRows([]))
         ->andThen(windowedRows([]))
-        ->andThen(windowedTotals());
+        ->andThen(windowedTotals())
+        ->withTransportDelayMicros(1_000);
 
     windowedSeedRoutes($fake);
 
@@ -200,6 +201,8 @@ test('оконный путь: discovery → 1 сегмент → passport → r
     // Windowed-путь НЕ грузит документ целиком ни разу — только маленькие срезы per-window/segment
     // (12 вызовов = 5 discovery + 1 паспорт + 5 rows-окон + 1 totals).
     expect($fake->uploadedFiles())->toHaveCount(12);
+    expect(collect($fake->uploadedFiles())->every(fn (array $upload): bool => is_float($upload['deadlineAt'])))->toBeTrue()
+        ->and(collect($fake->receivedOptions())->every(fn ($options): bool => is_int($options->requestTimeoutSeconds)))->toBeTrue();
 });
 
 test('checkpoint self-requeue ПОСЕРЕДИНЕ discovery — прогресс содержит корректный next_window_index, маркеры не теряются (д)', function (): void {

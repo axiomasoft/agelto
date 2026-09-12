@@ -56,11 +56,17 @@ use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
  */
 final readonly class TextGridRenderer
 {
+    public function __construct(private XlsxResourceGuard $xlsxResourceGuard) {}
+
     /**
      * @return array{text: string, sheets: int, rows: int}|false
      */
     public function render(string $localPath, string $extension): array|false
     {
+        if (! $this->xlsxResourceGuard->accepts(path: $localPath, extension: $extension)) {
+            return false;
+        }
+
         $maxMb = $this->positiveFloatConfig(key: 'ai.prepare.xlsx_max_mb', default: 25.0);
         if (filesize($localPath) > $maxMb * 1024 * 1024) {
             return false;

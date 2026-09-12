@@ -10,6 +10,7 @@ use App\Models\Procurement\Document\DocumentVersion;
 use App\Services\Storage\FileLocationResolver;
 use App\Support\Files\MimeDetector;
 use Illuminate\Support\Facades\Storage;
+use RuntimeException;
 
 final readonly class DocumentFormatInspector
 {
@@ -27,16 +28,32 @@ final readonly class DocumentFormatInspector
             return new DocumentFormatEvidence(null, $extension, $version->mime, null, UnprocessableReason::UnsupportedFormat, 'расширение отсутствует в закрытом registry');
         }
 
-        $location = $this->locations->forDocumentVersion($version);
-        $content = Storage::disk($location->disk)->get($location->path);
+        $maxBytes = $this->positiveIntegerConfig(key: 'crawler.documents_max_bytes', default: 104_857_600);
 
-        if (! is_string($content)) {
+        if ($version->size_bytes > $maxBytes) {
+            return new DocumentFormatEvidence($entry['format'], $extension, $version->mime, null, UnprocessableReason::TooLarge, "размер версии превышает {$maxBytes} байт");
+        }
+
+        $location = $this->locations->forDocumentVersion($version);
+        $stream = Storage::disk($location->disk)->readStream($location->path);
+
+        if (! is_resource($stream)) {
             return new DocumentFormatEvidence($entry['format'], $extension, $version->mime, null, UnprocessableReason::FormatMismatch, 'объект версии не читается через FileLocationResolver');
+        }
+
+        try {
+            $content = fread($stream, max(1, $this->positiveIntegerConfig(key: 'crawler.documents_signature_bytes', default: 8192)));
+
+            if (! is_string($content)) {
+                throw new RuntimeException('Не удалось прочитать сигнатуру документа.');
+            }
+        } finally {
+            fclose($stream);
         }
 
         $mime = MimeDetector::of($content);
 
-        if (! in_array($mime, $entry['mimes'], true) || ! $this->probe($extension, $content)) {
+        if (! in_array($mime, $entry['mimes'], true) || ! $this->probe(extension: $extension, content: $content)) {
             return new DocumentFormatEvidence($entry['format'], $extension, $mime, null, UnprocessableReason::FormatMismatch, 'extension, detected MIME или signature не совпали');
         }
 
@@ -59,5 +76,16 @@ final readonly class DocumentFormatInspector
             'xlsx', 'docx', 'odt', 'gsfx', 'zip' => str_starts_with($content, 'PK'),
             default => true,
         };
+    }
+
+    private function positiveIntegerConfig(string $key, int $default): int
+    {
+        $value = config($key, $default);
+
+        if (! is_int($value) || $value <= 0) {
+            throw new \UnexpectedValueException("{$key} must be a positive integer.");
+        }
+
+        return $value;
     }
 }

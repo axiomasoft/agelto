@@ -24,6 +24,8 @@ use App\Services\Llm\Dto\LlmUsage;
 use App\Services\Llm\Dto\ResolvedRoute;
 use App\Services\Llm\Providers\PrismGeminiProvider;
 use App\Services\Procurement\Extraction\ExtractionPreflight;
+use Illuminate\Database\QueryException;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
 use Tests\Support\Doubles\FakeLlmProvider;
@@ -445,4 +447,49 @@ test('сбой EstimatePersister::persist() (Storage::put) НЕ переводи
     expect($analysis->status)->toBe(AnalysisStatus::Succeeded);
     expect($document->refresh()->status)->toBe(DocumentStatus::Extracted);
     expect(Estimate::query()->where('analysis_id', $analysis->id)->count())->toBe(1);
+});
+
+test('ошибка document update откатывает successful analysis finalize а retry сходится без дубля estimate', function (): void {
+    Storage::fake('s3');
+    $fake = FakeLlmProvider::succeeding(extractionPassport('1', 1))
+        ->andThen(extractionHugeRow(1))
+        ->andThen(extractionRows([]))
+        ->andThen(extractionTotals())
+        ->andThen(extractionPassport(null, 0))
+        ->andThen(extractionPassport('1', 1))
+        ->andThen(extractionHugeRow(1))
+        ->andThen(extractionRows([]))
+        ->andThen(extractionTotals())
+        ->andThen(extractionPassport(null, 0));
+    seedExtractionRoute($fake);
+    $document = Document::factory()->create(['status' => DocumentStatus::Screened]);
+    seedExtractionVersion($document);
+    DB::unprepared(<<<'SQL'
+CREATE FUNCTION fail_extracted_document_update() RETURNS trigger AS $$
+BEGIN
+    IF NEW.status = 'extracted' THEN
+        RAISE EXCEPTION 'injected document finalization failure';
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+CREATE TRIGGER fail_extracted_document_update
+BEFORE UPDATE ON prc_documents
+FOR EACH ROW EXECUTE FUNCTION fail_extracted_document_update();
+SQL);
+
+    expect(fn () => (new EstimateExtractionJob($document->id))->handle())
+        ->toThrow(QueryException::class, 'injected document finalization failure');
+    $analysis = Analysis::query()->where('step', AnalysisStep::Extraction)->firstOrFail();
+    expect($analysis->status)->not->toBe(AnalysisStatus::Succeeded)
+        ->and($analysis->finished_at)->toBeNull()
+        ->and($document->fresh()->status)->toBe(DocumentStatus::Screened)
+        ->and(Estimate::query()->where('analysis_id', $analysis->id)->count())->toBe(1);
+
+    DB::unprepared('DROP TRIGGER fail_extracted_document_update ON prc_documents; DROP FUNCTION fail_extracted_document_update();');
+    (new EstimateExtractionJob($document->id))->handle();
+
+    expect($analysis->fresh()->status)->toBe(AnalysisStatus::Succeeded)
+        ->and($document->fresh()->status)->toBe(DocumentStatus::Extracted)
+        ->and(Estimate::query()->where('analysis_id', $analysis->id)->count())->toBe(1);
 });

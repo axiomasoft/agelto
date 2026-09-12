@@ -26,8 +26,8 @@ use Illuminate\Support\Facades\Log;
  * и останавливает дренаж ТЕКУЩЕГО окна с уже сохранённым курсором. Дневные обёртки
  * (`ArchiveRunProcessor`/`DeltaScanProcessor`/`BacklogRescanProcessor`) после `scan()`
  * перечитывают статус прогона (P3.7), поэтому pause/cancel останавливает и сам прогон.
- * У archive по-прежнему нет секундного checkpoint-requeue: для временного профиля это осознанно
- * компенсирует конечный long execution lane P4.7, а не обещает бесконечную job.
+ * Archive исполняется ограниченными по времени slice: после каждого атомарно сохранённого
+ * блока возвращает Checkpointed, чтобы CrawlRunJob поставил durable continuation.
  */
 final readonly class ArchiveWindowScanner
 {
@@ -40,6 +40,8 @@ final readonly class ArchiveWindowScanner
 
     public function scan(Crawler $crawler, Run $run, WindowFilter $filter, ?RecoveryScope $recoveryScope = null): ArchiveWindowScanResult
     {
+        $startedAt = microtime(true);
+        $checkpointSeconds = self::nonNegativeIntConfig('crawler.run.checkpoint_seconds');
         $blockSize = self::positiveIntConfig('crawler.eis.block_size', default: 500);
         $priceCeiling = self::positiveIntConfig('crawler.archive.price_ceiling');
         $minPriceInterval = self::nonNegativeIntConfig('crawler.archive.min_price_interval');
@@ -94,6 +96,12 @@ final readonly class ArchiveWindowScanner
                 return ArchiveWindowScanResult::Stopped;
             }
 
+            if (microtime(true) - $startedAt >= $checkpointSeconds) {
+                $this->runs->recordCheckpoint(run: $run);
+
+                return ArchiveWindowScanResult::Checkpointed;
+            }
+
             if ($blocksInInterval >= $maxBlocksPerWindow) {
                 Log::warning(
                     message: 'ArchiveWindowScanner: max blocks per price interval reached; interval remains operator debt.',
@@ -121,7 +129,9 @@ final readonly class ArchiveWindowScanner
                 lastDedupSignature: $previousSignature,
                 blocksInInterval: $blocksInInterval,
             );
-            $executionCrawler = $recoveryScope?->applyTo(runtimeCrawler: $crawler) ?? $crawler;
+            $executionCrawler = clone $crawler;
+            $executionCrawler->filter = $profileFilter;
+            $executionCrawler = $recoveryScope?->applyTo(runtimeCrawler: $executionCrawler) ?? $executionCrawler;
             $sourceMethod = $this->factory->makeWithFallback(crawler: $executionCrawler);
             try {
                 $batch = $sourceMethod->collectListing(crawler: $executionCrawler, cursor: $iterationCursor);

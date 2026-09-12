@@ -9,6 +9,7 @@ use App\Enums\Procurement\Crawler\SourceMethod as SourceMethodEnum;
 use App\Enums\Procurement\Document\DocumentStatus;
 use App\Enums\Procurement\Proxy\ProxyScope;
 use App\Exceptions\Procurement\Crawler\PlatformBudgetExhaustedException;
+use App\Jobs\Procurement\DownloadDocumentJob;
 use App\Jobs\Procurement\FetchProcurementDetailJob;
 use App\Jobs\Procurement\PrepareDocumentJob;
 use App\Models\Procurement\Crawler\Crawler;
@@ -65,11 +66,7 @@ function detailJobRegistry(): Registry
 
 function detailJobEventJournalHtml(): string
 {
-    $html = (string) file_get_contents(base_path('tests/Fixtures/Crawler/Card/event-journal.html'));
-    $html = str_replace('23.01.2025 09:29', now()->startOfMonth()->addDay()->format('d.m.Y').' 09:29', $html);
-    $html = str_replace('23.01.2025 09:00', now()->startOfMonth()->addDays(2)->format('d.m.Y').' 09:00', $html);
-
-    return str_replace('15.01.2025 11:55', now()->startOfMonth()->addDays(3)->format('d.m.Y').' 11:55', $html);
+    return (string) file_get_contents(base_path('tests/Fixtures/Crawler/Card/event-journal.html'));
 }
 
 function fakeDetailJobHttp(): void
@@ -103,8 +100,9 @@ test('job вызывает детальный процессор и мост в 
     );
 
     expect($procurement->refresh()->detail_fetched_at)->not->toBeNull();
-    expect(Document::query()->where('procurement_id', $procurement->id)->where('status', DocumentStatus::Downloaded)->exists())->toBeTrue();
-    Queue::assertPushed(PrepareDocumentJob::class);
+    expect(Document::query()->where('procurement_id', $procurement->id)->where('status', DocumentStatus::Discovered)->exists())->toBeTrue();
+    Queue::assertPushed(DownloadDocumentJob::class);
+    Queue::assertNotPushed(PrepareDocumentJob::class);
 });
 
 test('job тихо заканчивается при исчерпанном бюджете и не вызывает мост', function (): void {
@@ -131,4 +129,21 @@ test('job стоит на detail-очереди и держит unique-lock по
         ->and($job->queue)->toBe('crawl_detail')
         ->and($job->uniqueId())->toBe('42')
         ->and($job->uniqueFor())->toBe(360);
+});
+
+test('worker failure callback учитывает оборванный timeout как доменную detail-попытку', function (): void {
+    $procurement = Procurement::factory()->create([
+        'detail_attempts' => 0,
+        'detail_fetched_at' => null,
+        'detail_failed' => false,
+    ]);
+
+    (new FetchProcurementDetailJob(procurementId: $procurement->id))->failed(
+        new RuntimeException('worker timeout'),
+    );
+
+    expect($procurement->refresh()->detail_attempts)->toBe(1)
+        ->and($procurement->detail_last_error)->toBe('worker timeout')
+        ->and($procurement->detail_next_retry_at)->not->toBeNull()
+        ->and($procurement->detail_failed)->toBeFalse();
 });

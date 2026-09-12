@@ -31,9 +31,9 @@ return [
     |--------------------------------------------------------------------------
     |
     | ТОЛЬКО эфемерные лог-таблицы (Implementation Rules P7.7): `llm_calls`,
-    | `prc_fetches`, `prc_operation_logs`, `prc_events`. `prc_revisions` НАМЕРЕННО
-    | отсутствует в этом списке (D41 — история редакций закупок = доменный аудит,
-    | не эфемерный лог; см. `eternal` ниже) — не под DROP-retention вовсе.
+    | `prc_fetches`, `prc_operation_logs`. `prc_events` и `prc_revisions` НАМЕРЕННО
+    | отсутствуют в этом списке: это доменная история закупки, а не эфемерный лог
+    | (см. `eternal` ниже), поэтому DROP-retention к ним не применяется.
     |
     | `months` — окно хранения партиции (мигрирует в `partman.part_config.retention`
     | как `"<months> months"`, миграция `2026_07_09_100050_set_pg_partman_retention`).
@@ -59,10 +59,6 @@ return [
             'months' => (int) env('AI_RETENTION_OPERATION_LOGS_MONTHS', 6),
             'keep_table' => false,
         ],
-        'prc_events' => [
-            'months' => (int) env('AI_RETENTION_EVENTS_MONTHS', 6),
-            'keep_table' => false,
-        ],
     ],
 
     /*
@@ -80,6 +76,7 @@ return [
     'eternal' => [
         'prc_estimates',
         'prc_ai_dataset_examples',
+        'prc_events',
         'prc_revisions',
     ],
 

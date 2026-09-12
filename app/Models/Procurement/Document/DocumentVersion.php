@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Models\Procurement\Document;
 
+use App\Models\Procurement\Ai\Analysis;
+use App\Models\Procurement\Ai\AnalysisRun;
 use App\Models\Procurement\Ai\DatasetExample;
 use Database\Factories\Procurement\Document\DocumentVersionFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
@@ -82,6 +84,18 @@ final class DocumentVersion extends Model
     public function archiveChildren(): HasMany
     {
         return $this->hasMany(related: self::class, foreignKey: 'parent_version_id');
+    }
+
+    /** @return HasMany<AnalysisRun, $this> */
+    public function analysisRuns(): HasMany
+    {
+        return $this->hasMany(related: AnalysisRun::class);
+    }
+
+    /** @return HasMany<Analysis, $this> */
+    public function analyses(): HasMany
+    {
+        return $this->hasMany(related: Analysis::class);
     }
 
     /** @return HasMany<DatasetExample, $this> */

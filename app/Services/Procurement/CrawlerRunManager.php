@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Services\Procurement;
 
 use App\Dto\Procurement\Crawler\ListingCursor;
+use App\Enums\Procurement\Crawler\CrawlerExecutionLane;
+use App\Enums\Procurement\Crawler\CrawlerMode;
 use App\Enums\Procurement\Crawler\RunPurpose;
 use App\Enums\Procurement\Crawler\RunStatus;
 use App\Exceptions\Procurement\Crawler\CrawlerRunBusyException;
@@ -13,11 +15,13 @@ use App\Models\Procurement\Crawler\Run;
 use Closure;
 use Illuminate\Contracts\Database\Query\Expression;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use RuntimeException;
+use Spatie\LaravelData\Data;
 use WeakMap;
 
 /**
@@ -318,7 +322,10 @@ final class CrawlerRunManager
     {
         $this->ownedRunningQuery(run: $run)->update([
             'status' => RunStatus::Paused,
-            'stats' => array_merge($run->stats?->toArray() ?? [], ['stop_reason' => $reason]),
+            'stats' => array_merge($run->stats?->toArray() ?? [], [
+                'stop_reason' => $reason,
+                'automatic_recovery_pending' => false,
+            ]),
             'stop_requested_at' => null,
             'stop_kind' => null,
             'stop_requested_by' => null,
@@ -367,6 +374,132 @@ final class CrawlerRunManager
         ]);
 
         $run->refresh();
+    }
+
+    /** @return array{mode: string, execution_lane: string, from: string|null, to: string|null, filter_snapshot: array<string, mixed>|null} */
+    public function recordExecutionContext(
+        Run $run,
+        Crawler $crawler,
+        CrawlerMode $mode,
+        CrawlerExecutionLane $executionLane,
+        ?string $from,
+        ?string $to,
+    ): array {
+        DB::transaction(function () use ($crawler, $executionLane, $from, $mode, $run, $to): void {
+            $lockedRun = Run::query()->lockForUpdate()->findOrFail($run->getKey());
+
+            if (! $lockedRun instanceof Run) {
+                throw new RuntimeException('Locked crawler run is invalid.');
+            }
+
+            $stats = $lockedRun->stats?->toArray() ?? [];
+            $existing = $stats['execution_context'] ?? null;
+            if (is_array($existing) && ($existing['mode'] ?? null) === CrawlerMode::Archive->value) {
+                $executionContext = $existing;
+
+                if (! array_key_exists('filter_snapshot', $executionContext)) {
+                    $executionContext['filter_snapshot'] = $this->filterSnapshot(crawler: $crawler);
+                }
+            } else {
+                $executionContext = [
+                    'mode' => $mode->value,
+                    'execution_lane' => $executionLane->value,
+                    'from' => $from,
+                    'to' => $to,
+                    'filter_snapshot' => $mode === CrawlerMode::Archive
+                        ? $this->filterSnapshot(crawler: $crawler)
+                        : null,
+                ];
+            }
+
+            $updated = Run::query()
+                ->whereKey($lockedRun->getKey())
+                ->whereNull('execution_owner_token')
+                ->update(['stats' => array_merge($stats, [
+                    'execution_context' => $executionContext,
+                    'automatic_recovery_pending' => false,
+                ])]);
+
+            if ($updated !== 1) {
+                throw new RuntimeException('Crawler run execution context cannot be changed while another owner is active.');
+            }
+        });
+
+        $run->refresh();
+
+        $context = $run->stats?->toArray()['execution_context'] ?? null;
+
+        if (! is_array($context)
+            || ! is_string($context['mode'] ?? null)
+            || ! is_string($context['execution_lane'] ?? null)
+            || (! is_string($context['from'] ?? null) && ($context['from'] ?? null) !== null)
+            || (! is_string($context['to'] ?? null) && ($context['to'] ?? null) !== null)
+            || ! array_key_exists('filter_snapshot', $context)
+            || (! is_array($context['filter_snapshot']) && $context['filter_snapshot'] !== null)) {
+            throw new RuntimeException('Crawler run execution context was not persisted.');
+        }
+
+        return [
+            'mode' => $context['mode'],
+            'execution_lane' => $context['execution_lane'],
+            'from' => $context['from'] ?? null,
+            'to' => $context['to'] ?? null,
+            'filter_snapshot' => is_array($context['filter_snapshot'])
+                ? $this->stringKeyedArray($context['filter_snapshot'])
+                : null,
+        ];
+    }
+
+    public function crawlerFromExecutionContext(Run $run, Crawler $crawler): Crawler
+    {
+        $context = $run->stats?->toArray()['execution_context'] ?? null;
+
+        if (! is_array($context) || ($context['mode'] ?? null) !== CrawlerMode::Archive->value
+            || ! array_key_exists('filter_snapshot', $context)) {
+            return $crawler;
+        }
+
+        $snapshot = $context['filter_snapshot'];
+
+        if ($snapshot !== null && ! is_array($snapshot)) {
+            throw new RuntimeException('Archive crawler filter snapshot must be an object or null.');
+        }
+
+        $executionCrawler = clone $crawler;
+        $executionCrawler->filter = is_array($snapshot) ? $this->stringKeyedArray($snapshot) : null;
+
+        if ($snapshot !== null && ! $executionCrawler->filter instanceof Data) {
+            throw new RuntimeException('Archive crawler filter snapshot could not be restored as a typed filter.');
+        }
+
+        return $executionCrawler;
+    }
+
+    /** @return array<string, mixed>|null */
+    private function filterSnapshot(Crawler $crawler): ?array
+    {
+        $filter = $crawler->filter;
+
+        return $filter instanceof Data ? $this->stringKeyedArray($filter->toArray()) : null;
+    }
+
+    /**
+     * @param  array<mixed>  $values
+     * @return array<string, mixed>
+     */
+    private function stringKeyedArray(array $values): array
+    {
+        $result = [];
+
+        foreach ($values as $key => $value) {
+            if (! is_string($key)) {
+                throw new RuntimeException('Crawler filter snapshot must use string keys.');
+            }
+
+            $result[$key] = $value;
+        }
+
+        return $result;
     }
 
     /** @param array<mixed> $stats */
@@ -497,7 +630,7 @@ final class CrawlerRunManager
             throw new \UnexpectedValueException('crawler.heartbeat_timeout_seconds must be an integer.');
         }
 
-        return Run::query()
+        $staleRuns = Run::query()
             ->where('status', RunStatus::Running)
             ->whereRaw(
                 sql: "last_heartbeat_at < CURRENT_TIMESTAMP - (? * INTERVAL '1 second')",
@@ -509,6 +642,47 @@ final class CrawlerRunManager
                     ->orWhereNull('execution_lease_expires_at')
                     ->orWhereRaw('execution_lease_expires_at <= CURRENT_TIMESTAMP');
             })
-            ->update(['status' => RunStatus::Paused]);
+            ->get();
+
+        $recovered = 0;
+
+        foreach ($staleRuns as $run) {
+            $stats = $run->stats?->toArray() ?? [];
+            $executionContext = $stats['execution_context'] ?? null;
+            $isArchive = is_array($executionContext)
+                && ($executionContext['mode'] ?? null) === CrawlerMode::Archive->value;
+
+            $recovered += Run::query()
+                ->whereKey($run->getKey())
+                ->where('status', RunStatus::Running)
+                ->where(function (Builder $query): void {
+                    $query
+                        ->whereNull('execution_owner_token')
+                        ->orWhereNull('execution_lease_expires_at')
+                        ->orWhereRaw('execution_lease_expires_at <= CURRENT_TIMESTAMP');
+                })
+                ->update([
+                    'status' => RunStatus::Paused,
+                    'stats' => array_merge($stats, [
+                        'stop_reason' => 'stale_execution_recovery',
+                        'automatic_recovery_pending' => $isArchive,
+                    ]),
+                    'execution_owner_token' => null,
+                    'execution_lease_expires_at' => null,
+                ]);
+        }
+
+        return $recovered;
+    }
+
+    /** @return Collection<int, Run> */
+    public function recoverableArchiveRuns(): Collection
+    {
+        return Run::query()
+            ->where('status', RunStatus::Paused)
+            ->where('stats->automatic_recovery_pending', true)
+            ->where('stats->execution_context->mode', CrawlerMode::Archive->value)
+            ->orderBy('id')
+            ->get();
     }
 }

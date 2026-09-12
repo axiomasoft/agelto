@@ -17,6 +17,7 @@ use App\Enums\Procurement\Document\DocumentStatus;
 use App\Models\Procurement\Ai\Analysis;
 use App\Models\Procurement\Document\Document;
 use App\Models\Procurement\Procurement;
+use App\Repositories\Procurement\Ai\AnalysisStoreRepository;
 use App\Services\Llm\LlmRouteResolver;
 use App\Services\Procurement\Contracts\DocumentAnalyzer;
 use App\Services\Procurement\Contracts\DocumentAnalyzerRegistry;
@@ -26,30 +27,27 @@ final readonly class ScreeningOutcomeHandler
 {
     public function __construct(
         private ApplyScreeningDispositionAction $applyDisposition,
-        private ScreeningProcessor $processor,
+        private AnalysisStoreRepository $analyses,
         private LlmRouteResolver $routes,
         private DocumentAnalyzerRegistry $analyzers,
     ) {}
 
-    public function handle(Document $document, Analysis $analysis, ScreeningResult $result, bool $escalated = false): void
+    public function handle(Document $document, Analysis $analysis, ScreeningResult $result, bool $escalated = false): bool
     {
         if ($analysis->status !== AnalysisStatus::Running) {
-            return;
+            return false;
         }
 
         if (! $analysis->is_shadow && $document->status !== DocumentStatus::Prepared) {
-            return;
+            return false;
         }
 
         if ($this->isBorderline($result) && ! $escalated && $this->canEscalate()) {
-            $replacement = $this->processor->run(document: $document, analysis: $analysis, routeIndex: 1);
+            $progress = $analysis->progress?->all() ?? [];
+            $progress['screening_route_index'] = 1;
+            $this->analyses->update($analysis, ['progress' => $progress]);
 
-            if ($replacement !== null) {
-                $analysis->refresh();
-                $this->handle($document, $analysis, $replacement, escalated: true);
-            }
-
-            return;
+            return true;
         }
 
         [$decision, $analyzer] = $this->decisionFor($document, $result);
@@ -70,6 +68,8 @@ final readonly class ScreeningOutcomeHandler
             decision: $decision,
             analyzer: $analyzer,
         );
+
+        return false;
     }
 
     /** @return array{ScreeningDecision, DocumentAnalyzer|null} */

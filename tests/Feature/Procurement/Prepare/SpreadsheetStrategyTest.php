@@ -194,8 +194,6 @@ test('ошибка object storage после Word-конверсии остаё�
     $sourcePath = 'documents/transient.docx';
     $source = 'заглушка docx-содержимого';
     $sourceHash = hash('sha256', $source);
-    $basePath = 'documents/'.substr($sourceHash, 0, 2)."/{$sourceHash}.prepared.pdf";
-    $preparedPath = preparedRepresentationPath(path: $basePath, content: '%PDF-fake');
     $document = Document::factory()->create(['status' => DocumentStatus::Downloaded]);
     $version = DocumentVersion::factory()->create([
         'document_id' => $document->id,
@@ -206,13 +204,13 @@ test('ошибка object storage после Word-конверсии остаё�
     ]);
     $disk = Mockery::mock(Filesystem::class);
     $disk->shouldReceive('get')->once()->with($sourcePath)->andReturn($source);
-    $disk->shouldReceive('exists')->once()->with($preparedPath)->andReturnFalse();
     $disk->shouldReceive('writeStream')->once()->with(
-        $preparedPath,
+        Mockery::pattern('/\.staging\./'),
         Mockery::on(static fn (mixed $stream): bool => is_resource($stream)
             && stream_get_contents($stream) === '%PDF-fake'),
     )
         ->andThrow(new RuntimeException('disk unavailable'));
+    $disk->shouldReceive('exists')->once()->with(Mockery::pattern('/\.staging\./'))->andReturnFalse();
     Storage::set($diskName, $disk);
 
     expect(fn () => app(WordStrategy::class)->process($document, $version))
@@ -317,8 +315,6 @@ test('ошибка object storage после LibreOffice-фолбэка табл
     $sourcePath = 'documents/transient.xlsx';
     $source = file_get_contents(base_path('tests/Fixtures/Documents/sample.xlsx'));
     $sourceHash = hash('sha256', $source);
-    $basePath = 'documents/'.substr($sourceHash, 0, 2)."/{$sourceHash}.prepared.pdf";
-    $preparedPath = preparedRepresentationPath(path: $basePath, content: '%PDF-fake');
     $document = Document::factory()->create(['status' => DocumentStatus::Downloaded]);
     $version = DocumentVersion::factory()->create([
         'document_id' => $document->id,
@@ -329,13 +325,13 @@ test('ошибка object storage после LibreOffice-фолбэка табл
     ]);
     $disk = Mockery::mock(Filesystem::class);
     $disk->shouldReceive('get')->once()->with($sourcePath)->andReturn($source);
-    $disk->shouldReceive('exists')->once()->with($preparedPath)->andReturnFalse();
     $disk->shouldReceive('writeStream')->once()->with(
-        $preparedPath,
+        Mockery::pattern('/\.staging\./'),
         Mockery::on(static fn (mixed $stream): bool => is_resource($stream)
             && stream_get_contents($stream) === '%PDF-fake'),
     )
         ->andThrow(new RuntimeException('disk unavailable'));
+    $disk->shouldReceive('exists')->once()->with(Mockery::pattern('/\.staging\./'))->andReturnFalse();
     Storage::set($diskName, $disk);
 
     expect(fn () => app(SpreadsheetStrategy::class)->process($document, $version))

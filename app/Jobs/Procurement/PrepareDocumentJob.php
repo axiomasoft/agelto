@@ -13,6 +13,7 @@ use App\Repositories\Procurement\Document\DocumentStoreRepository;
 use App\Services\Procurement\Prepare\DocumentPreparer;
 use Illuminate\Contracts\Queue\ShouldBeUnique;
 use Illuminate\Queue\Attributes\Timeout;
+use Illuminate\Support\Facades\DB;
 use RuntimeException;
 use Throwable;
 
@@ -96,14 +97,23 @@ final class PrepareDocumentJob extends PipelineJob implements ShouldBeUnique
             return;
         }
 
-        app(DocumentStoreRepository::class)->update($document, ['status' => DocumentStatus::Prepared]);
+        $screeningEnabled = config('ai.screening.enabled', false);
 
-        if (config('ai.screening.enabled', false)) {
-            // Launch-точка (§3.5 root/document-contour.md) — режим и инициатор едут параметрами
-            // конструктора (D135): боевой конвейер (`RunMode::Auto` по умолчанию) и UI/harness
-            // launch-точки (P5.2, `RunMode::Manual` + инициатор) заводят прогон здесь одинаково.
-            app(AnalysisRunStoreRepository::class)->start($version->id, $this->mode, $this->initiatedBy);
+        $run = DB::transaction(function () use ($document, $version, $screeningEnabled) {
+            app(DocumentStoreRepository::class)->update($document, ['status' => DocumentStatus::Prepared]);
 
+            if (! $screeningEnabled) {
+                return null;
+            }
+
+            return app(AnalysisRunStoreRepository::class)->findOrStartInitial(
+                documentVersionId: $version->id,
+                mode: $this->mode,
+                initiatedBy: $this->initiatedBy,
+            );
+        });
+
+        if ($run !== null) {
             ScreeningJob::dispatch($document->id)->afterCommit();
         }
     }

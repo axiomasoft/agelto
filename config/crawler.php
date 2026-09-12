@@ -360,6 +360,10 @@ return [
     | error-блок `prc_documents` (`attempts`/`next_retry_at`/`failed_permanently`).
     */
     'documents_disk' => 's3',
+    'documents_allowed_hosts' => ['zakupki.gov.ru'],
+    'documents_max_bytes' => 100 * 1024 * 1024,
+    'documents_max_redirects' => 3,
+    'documents_signature_bytes' => 8192,
     'documents_max_attempts' => 5,
     'documents_retry_backoff_minutes' => 15,
 
@@ -389,6 +393,8 @@ return [
     'detail_max_attempts' => 5,
     'detail_retry_backoff_minutes' => 15,
     'detail_rescan_interval_minutes' => 60,
+    // Ниже supervisor-crawl-detail.timeout=300: catch/finalization получают 30 секунд.
+    'detail_deadline_seconds' => 270,
 
     /*
     |--------------------------------------------------------------------------

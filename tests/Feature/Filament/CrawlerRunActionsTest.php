@@ -110,6 +110,11 @@ test('«Запустить с начала» обнуляет курсор пр�
     $run = Run::factory()->for($crawler)->create([
         'status' => RunStatus::Paused,
         'cursor' => (new ListingCursor(blockFrom: 7, reachedKnown: true))->toArray(),
+        'stats' => [
+            'execution_context' => ['mode' => 'archive', 'from' => '2025-01-01', 'to' => '2025-12-31'],
+            'automatic_recovery_pending' => true,
+            'previous_observation' => 1,
+        ],
     ]);
 
     Livewire::test(ListCrawlers::class)
@@ -121,7 +126,10 @@ test('«Запустить с начала» обнуляет курсор пр�
     ksort($cursor);
     ksort($expectedCursor);
 
-    expect($cursor)->toBe($expectedCursor);
+    expect($cursor)->toBe($expectedCursor)
+        ->and($run->stats->has('execution_context'))->toBeFalse()
+        ->and($run->stats->has('automatic_recovery_pending'))->toBeFalse()
+        ->and($run->stats['previous_observation'])->toBe(1);
 
     Queue::assertPushed(CrawlRunJob::class);
 });

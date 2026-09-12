@@ -47,17 +47,26 @@ effective `queue`/`horizon`/`partitioning` config. Любой отсутству
 ## Fix (как запустить)
 
 ```bash
-docker exec agelto_app php artisan crawler:run-archive <crawler_id> --from=<YYYY-MM-DD> --to=<YYYY-MM-DD>
+docker exec agelto_app php artisan crawler:run-archive <crawler_id> --from=2025-01-01 --to=2025-12-31
 ```
 
-- Диапазон дат — включительно, обход идёт по дням публикации; при превышении потолка листинга на
+- Для фиксированного корпуса завершённых закупок 2025 диапазон не меняют: обе границы
+  включительны, обход идёт по дате публикации по возрастанию. Более поздние изменения
+  исторической выдачи не расширяют зафиксированный корпус.
+- При превышении потолка листинга на
   день (5 000 записей, `docs/02_Workflow/crawling-and-discovery.md`) сканер дробит день по цене
   автоматически.
-- Детальная стадия (карточка, документы) запускается ОТДЕЛЬНО и вручную, не через планировщик:
+- Каждый bounded slice сохраняет курсор и сам ставит продолжение. `crawler:recover-stale`,
+  запускаемый scheduler каждую минуту, восстанавливает потерянный archive dispatch с теми же
+  `from`/`to`/execution lane. Явная operator pause автоматически не возобновляется.
+- Детальная стадия штатно подбирается scheduler-командами и выполняется в `crawl_detail`;
+  команда ниже нужна только для точечного операторского повтора:
 
 ```bash
-docker exec agelto_app php artisan crawler:fetch-details <registry_number_or_id>
+docker exec agelto_app php artisan crawler:fetch-details <procurement_id>
 ```
+
+`<procurement_id>` — числовой первичный ключ `prc_procurements.id`, не реестровый номер.
 
 ### Что смотреть по ходу и после
 
@@ -67,7 +76,9 @@ docker exec agelto_app php artisan crawler:fetch-details <registry_number_or_id>
   403/429/5xx.
 - Идемпотентность повтора: повторный прогон того же дня не создаёт вторых ревизий
   (`select count(*) from prc_revisions where revision_number > 1` не растёт).
-- Документный/детальный слой не пустой после `fetch-details`: `prc_documents`,
+- Документы после успешного detail сначала имеют `discovered`: скачивание выполняют отдельные
+  `DownloadDocumentJob` в `document_download`, а подготовку — последующие `PrepareDocumentJob`.
+  Поэтому документный/детальный слой проверяют после дренажа обеих очередей: `prc_documents`,
   `prc_document_versions`, непустые `prc_eis_details`, `prc_items`, `prc_financing` — растут.
   Если всё осталось на нуле при формально `completed` прогоне — см. Escalation.
 

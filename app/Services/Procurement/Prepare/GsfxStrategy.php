@@ -20,14 +20,12 @@ use App\Services\Procurement\Prepare\Archive\ArchiveExtractor;
 use App\Services\Procurement\Prepare\Archive\ArchivePasswordProtectedException;
 use App\Services\Procurement\Prepare\Archive\ArchiveUnsupportedException;
 use App\Services\Procurement\Prepare\Archive\ArchiveValidationException;
-use App\Services\Procurement\Prepare\Gsfx\GsfxReader;
 use App\Services\Procurement\Prepare\Gsfx\GsfxUnreadableException;
 use App\Services\Storage\FileLocationResolver;
+use App\Support\Files\PipelineTemporaryFile;
 use Illuminate\Contracts\Filesystem\Filesystem;
-use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\Process;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Str;
-use ZipArchive;
 
 /**
  * `.gsfx` — контейнер ГрандСметы (P3.3, D2): ZIP с `Properties.txt` (паспорт) + `Data.xml`
@@ -50,7 +48,6 @@ final readonly class GsfxStrategy implements PreparationStrategy
         private MarkDocumentUnprocessableAction $markUnprocessable,
         private ArchiveExtractor $extractor,
         private ArchiveEntryValidator $entryValidator,
-        private GsfxReader $reader,
         private FileLocationResolver $locationResolver,
     ) {}
 
@@ -62,41 +59,23 @@ final readonly class GsfxStrategy implements PreparationStrategy
 
         $diskName = $this->locationResolver->currentDocumentsDisk();
         $disk = Storage::disk($diskName);
-        $localZip = tempnam(sys_get_temp_dir(), 'gsfx_');
+        $localZip = PipelineTemporaryFile::create(prefix: 'gsfx_', extension: 'zip');
 
         try {
             file_put_contents($localZip, $disk->get($version->storage_path));
-
-            $zip = new ZipArchive;
-            if ($zip->open($localZip) !== true) {
-                $this->markUnprocessable($document, UnprocessableReason::UnreadableFormat, 'не удалось открыть контейнер как ZIP');
-
-                return PreparationResult::Unprocessable;
-            }
-
-            $dataXml = $zip->getFromName('Data.xml');
-            if ($dataXml === false) {
-                $zip->close();
-                $this->markUnprocessable($document, UnprocessableReason::UnreadableFormat, 'в контейнере отсутствует Data.xml');
-
-                return PreparationResult::Unprocessable;
-            }
-
-            $propertiesTxt = $zip->getFromName('Properties.txt');
-
             try {
-                $gsfxDocument = $this->reader->parse((string) ($propertiesTxt !== false ? $propertiesTxt : ''), $dataXml);
-            } catch (GsfxUnreadableException $e) {
-                $zip->close();
-                $this->markUnprocessable($document, UnprocessableReason::UnreadableFormat, $e->getMessage());
+                $budget = ArchiveBudget::fromConfig();
+                // Полный hostile listing проходит общий gate ДО чтения Data.xml/Properties.txt.
+                $entries = $this->entryValidator->validate(
+                    entries: $this->extractor->listEntries(archivePath: $localZip, format: 'zip'),
+                    budget: $budget,
+                );
+                $gsfxDocument = $this->readCore(archivePath: $localZip, entries: $entries, budget: $budget);
+                $this->extractAttachments(document: $document, version: $version, localZip: $localZip, entries: $entries, budget: $budget);
+            } catch (GsfxUnreadableException $exception) {
+                $this->markUnprocessable($document, UnprocessableReason::UnreadableFormat, $exception->getMessage());
 
                 return PreparationResult::Unprocessable;
-            }
-
-            $zip->close();
-
-            try {
-                $this->extractAttachments(document: $document, version: $version, localZip: $localZip);
             } catch (ArchivePasswordProtectedException $exception) {
                 $this->markUnprocessable($document, UnprocessableReason::PasswordProtected, $exception->getMessage());
 
@@ -117,6 +96,99 @@ final readonly class GsfxStrategy implements PreparationStrategy
         }
 
         return PreparationResult::ReadyForScreening;
+    }
+
+    /** @param list<ArchiveEntry> $entries */
+    private function readCore(string $archivePath, array $entries, ArchiveBudget $budget): GsfxDocumentDto
+    {
+        $byPath = [];
+
+        foreach ($entries as $entry) {
+            $byPath[$entry->path] = $entry;
+        }
+
+        $dataEntry = $byPath['Data.xml'] ?? null;
+
+        if (! $dataEntry instanceof ArchiveEntry || $dataEntry->isDirectory) {
+            throw new GsfxUnreadableException('в контейнере отсутствует Data.xml');
+        }
+
+        $maxCoreBytes = $this->positiveIntConfig('ai.prepare.gsfx_max_core_xml_mb', 16) * 1024 * 1024;
+
+        if ($dataEntry->declaredSize > $maxCoreBytes) {
+            throw new ArchiveValidationException('GSFX Data.xml превышает отдельный decoded-byte лимит');
+        }
+
+        $workspace = PipelineTemporaryFile::createDirectory(prefix: 'gsfx_core_');
+
+        try {
+            $totalBytes = 0;
+            $dataPath = $workspace.'/Data.xml';
+            $this->extractor->extractEntry(
+                archivePath: $archivePath,
+                format: 'zip',
+                entry: $dataEntry,
+                targetPath: $dataPath,
+                budget: $budget,
+                totalBytes: $totalBytes,
+            );
+
+            $propertiesPath = $workspace.'/Properties.txt';
+            $propertiesEntry = $byPath['Properties.txt'] ?? null;
+
+            if ($propertiesEntry instanceof ArchiveEntry && ! $propertiesEntry->isDirectory) {
+                $this->extractor->extractEntry(
+                    archivePath: $archivePath,
+                    format: 'zip',
+                    entry: $propertiesEntry,
+                    targetPath: $propertiesPath,
+                    budget: $budget,
+                    totalBytes: $totalBytes,
+                );
+            } else {
+                file_put_contents($propertiesPath, '');
+            }
+
+            $outputPath = $workspace.'/parsed.json';
+            $memoryLimit = config('ai.prepare.gsfx_parse_memory_limit', '256M');
+            $timeout = $this->positiveIntConfig('ai.prepare.gsfx_parse_timeout_seconds', 60);
+
+            if (! is_string($memoryLimit) || $memoryLimit === '') {
+                throw new \UnexpectedValueException('ai.prepare.gsfx_parse_memory_limit must be a non-empty string.');
+            }
+
+            $result = Process::path(base_path())->timeout($timeout)->run([
+                PHP_BINARY,
+                '-d',
+                "memory_limit={$memoryLimit}",
+                'artisan',
+                'procurement:parse-gsfx',
+                $propertiesPath,
+                $dataPath,
+                $outputPath,
+            ]);
+
+            if ($result->failed() || ! is_file($outputPath)) {
+                throw new GsfxUnreadableException('изолированный GSFX parser завершился с ошибкой: '.$result->errorOutput());
+            }
+
+            $payload = json_decode((string) file_get_contents($outputPath), true, flags: JSON_THROW_ON_ERROR);
+
+            return GsfxDocumentDto::from($payload);
+        } finally {
+            PipelineTemporaryFile::deleteDirectory($workspace);
+        }
+    }
+
+    private function positiveIntConfig(string $key, int $default): int
+    {
+        $value = config($key, $default);
+
+        if (! is_int($value) || $value < 1) {
+            throw new \UnexpectedValueException("{$key} must be a positive integer.");
+        }
+
+        return $value;
     }
 
     private function storeRepresentations(DocumentVersion $version, GsfxDocumentDto $gsfxDocument, Filesystem $disk, string $diskName): void
@@ -188,19 +260,14 @@ final readonly class GsfxStrategy implements PreparationStrategy
         return implode("\n", $lines);
     }
 
-    private function extractAttachments(Document $document, DocumentVersion $version, string $localZip): void
+    /** @param list<ArchiveEntry> $entries */
+    private function extractAttachments(Document $document, DocumentVersion $version, string $localZip, array $entries, ArchiveBudget $budget): void
     {
-        $budget = ArchiveBudget::fromConfig();
-        $entries = $this->entryValidator->validate(
-            entries: $this->extractor->listEntries(archivePath: $localZip, format: 'zip'),
-            budget: $budget,
-        );
         $attachments = array_values(array_filter(
             $entries,
             static fn (ArchiveEntry $entry): bool => ! $entry->isDirectory && str_starts_with($entry->path, 'Attachments/'),
         ));
-        $tempFolder = 'tmp_extract/'.Str::uuid();
-        $extractPath = storage_path('app/'.$tempFolder);
+        $extractPath = PipelineTemporaryFile::createDirectory(prefix: 'gsfx_extract_');
 
         try {
             $totalBytes = 0;
@@ -230,7 +297,7 @@ final readonly class GsfxStrategy implements PreparationStrategy
                 );
             }
         } finally {
-            File::deleteDirectory($extractPath);
+            PipelineTemporaryFile::deleteDirectory($extractPath);
         }
     }
 

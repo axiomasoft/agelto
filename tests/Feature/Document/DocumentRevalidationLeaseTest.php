@@ -52,7 +52,7 @@ test('AI job не входит в обработку пока документ �
 
     expect($analysis->refresh()->status)->toBe(AnalysisStatus::Pending)
         ->and($analysis->locked_until)->toBeNull()
-        ->and($document->refresh()->locked_by)->toBe(RevalidateDocumentJob::class);
+        ->and($document->refresh()->locked_by)->toStartWith(RevalidateDocumentJob::class.':');
 })->with([
     'screening' => [DocumentStatus::Prepared, AnalysisStep::Screening, ScreeningJob::class],
     'extraction' => [DocumentStatus::Screened, AnalysisStep::Extraction, EstimateExtractionJob::class],

@@ -38,9 +38,9 @@ final readonly class FreshRunProcessor
         private RunStopGate $stopGate,
     ) {}
 
-    public function run(Crawler $crawler): Run
+    public function run(Crawler $crawler, ?Run $run = null): Run
     {
-        $run = $this->runs->startOrResume(crawler: $crawler, purpose: RunPurpose::Profile, subjectKey: null);
+        $run ??= $this->runs->startOrResume(crawler: $crawler, purpose: RunPurpose::Profile, subjectKey: null);
         $cursor = ListingCursor::fromArray(cursor: $run->cursor?->toArray() ?? []);
 
         if ($cursor->recoveryScope === null) {

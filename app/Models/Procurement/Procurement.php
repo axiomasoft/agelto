@@ -17,6 +17,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Str;
 
 /**
@@ -29,6 +30,8 @@ use Illuminate\Support\Str;
  * @property string|null $currency
  * @property int|null $customer_org_id
  * @property int $detail_attempts
+ * @property Carbon|null $detail_fetched_at
+ * @property bool $detail_failed
  * @property int $revision_count
  * @property array<string, array<string, mixed>>|null $detail_parse_outcome
  * @property-read Registry|null $registry

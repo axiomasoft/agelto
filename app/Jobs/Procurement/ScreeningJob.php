@@ -14,7 +14,7 @@ use App\Repositories\Procurement\Document\DocumentStoreRepository;
 use App\Services\Procurement\Ai\UsageSnapshotRecorder;
 use App\Services\Procurement\Screening\ScreeningOutcomeHandler;
 use App\Services\Procurement\Screening\ScreeningProcessor;
-use Illuminate\Contracts\Queue\ShouldBeUnique;
+use Illuminate\Contracts\Queue\ShouldBeUniqueUntilProcessing;
 use Illuminate\Queue\Attributes\Timeout;
 use RuntimeException;
 use Throwable;
@@ -23,16 +23,19 @@ use Throwable;
  * Стадия скрининга (ТЗ 03 §3.4, P5.1/P5.2): `prepared → running → succeeded/skipped` на
  * `Ai\Analysis(step=screening)` (lease/backoff — на самом `Analysis`, не на `Document`, т.к.
  * несколько версий документа могут проходить независимый скрининг). Single-shot
- * (`ShouldBeUnique`, D39 — короткий вызов, не checkpoint-requeue) — защита от двойного диспатча
+ * (`ShouldBeUniqueUntilProcessing`) — защита от двойного диспатча без блокировки
+ * отдельного continuation job для второго screening-маршрута.
  * `PrepareDocumentJob`/retry-командой (P4.3). Ветвление по результату (`ScreeningOutcomeHandler`,
  * P5.2) выполняется тут же, в том же прогоне `process()`, после успешного `ScreeningProcessor`.
  */
-#[Timeout(240)]
-final class ScreeningJob extends PipelineJob implements ShouldBeUnique
+#[Timeout(360)]
+final class ScreeningJob extends PipelineJob implements ShouldBeUniqueUntilProcessing
 {
     private ?Document $documentCache = null;
 
     private ?Analysis $analysisCache = null;
+
+    private bool $needsContinuation = false;
 
     public function __construct(
         public readonly int $documentId,
@@ -129,7 +132,15 @@ final class ScreeningJob extends PipelineJob implements ShouldBeUnique
         $document = $this->document();
         $analysis = $this->analysis();
 
-        $result = app(ScreeningProcessor::class)->run($document, $analysis);
+        $progress = $analysis->progress?->all() ?? [];
+        $persistedRouteIndex = $progress['screening_route_index'] ?? 0;
+        $routeIndex = is_int($persistedRouteIndex) ? $persistedRouteIndex : 0;
+        $result = app(ScreeningProcessor::class)->run(
+            document: $document,
+            analysis: $analysis,
+            routeIndex: $routeIndex,
+            deadlineAt: $this->executionStartedAt + $this->operationBudgetSeconds(),
+        );
 
         if ($result === null) {
             return;
@@ -138,7 +149,30 @@ final class ScreeningJob extends PipelineJob implements ShouldBeUnique
         $document->refresh();
         $analysis->refresh();
 
-        app(ScreeningOutcomeHandler::class)->handle($document, $analysis, $result);
+        $this->needsContinuation = app(ScreeningOutcomeHandler::class)->handle(
+            document: $document,
+            analysis: $analysis,
+            result: $result,
+            escalated: $routeIndex > 0,
+        );
+    }
+
+    protected function afterRelease(): void
+    {
+        if ($this->needsContinuation) {
+            self::dispatch(documentId: $this->documentId)->afterCommit();
+        }
+    }
+
+    private function operationBudgetSeconds(): int
+    {
+        $seconds = config('ai.pipeline.operation_budgets.screening.job_timeout_seconds');
+
+        if (! is_int($seconds) || $seconds < 1) {
+            throw new RuntimeException('Screening job timeout must be a positive integer.');
+        }
+
+        return $seconds;
     }
 
     private function document(): Document

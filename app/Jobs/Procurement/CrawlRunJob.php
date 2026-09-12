@@ -74,29 +74,54 @@ final class CrawlRunJob implements ShouldBeUniqueUntilProcessing, ShouldQueue
         $crawler = Crawler::findOrFail($this->crawlerId);
 
         $run = $runs->startOrResume(crawler: $crawler, purpose: RunPurpose::Profile, subjectKey: null);
+        $context = $runs->recordExecutionContext(
+            run: $run,
+            crawler: $crawler,
+            mode: $this->mode,
+            executionLane: $this->executionLane,
+            from: $this->from,
+            to: $this->to,
+        );
+        $executionCrawler = $runs->crawlerFromExecutionContext(run: $run, crawler: $crawler);
+        $resolvedMode = CrawlerMode::from($context['mode']);
+        $resolvedLane = CrawlerExecutionLane::from($context['execution_lane']);
+        $resolvedFrom = $context['from'];
+        $resolvedTo = $context['to'];
+
+        if (! $runs->acquireExecutionLease(run: $run)) {
+            return;
+        }
+
         $run->update(['queue_job_id' => $this->job?->getJobId()]);
 
-        $run = match ($this->mode) {
-            CrawlerMode::Fresh => $freshProcessor->run(crawler: $crawler),
-            // `LogicException` здесь — инвариант ПОСЛЕДНЕЙ инстанции, не пользовательский отказ:
-            // `StartCrawlerRunAction` (P3.8) резолвит окно (override → профиль → отказ ДО
-            // диспатча) и никогда не отправляет archive-job без обеих дат — упасть сюда может
-            // только прямой вызов `CrawlRunJob::dispatch()` в обход Action.
-            CrawlerMode::Archive => $archiveProcessor->run(
-                crawler: $crawler,
-                from: Carbon::parse($this->from ?? throw new LogicException('CrawlRunJob(mode=Archive) требует $from.')),
-                to: Carbon::parse($this->to ?? throw new LogicException('CrawlRunJob(mode=Archive) требует $to.')),
-            ),
-        };
+        try {
+            $run = match ($resolvedMode) {
+                CrawlerMode::Fresh => $freshProcessor->run(crawler: $crawler, run: $run),
+                // `LogicException` здесь — инвариант ПОСЛЕДНЕЙ инстанции, не пользовательский отказ:
+                // `StartCrawlerRunAction` (P3.8) резолвит окно (override → профиль → отказ ДО
+                // диспатча) и никогда не отправляет archive-job без обеих дат — упасть сюда может
+                // только прямой вызов `CrawlRunJob::dispatch()` в обход Action.
+                CrawlerMode::Archive => $archiveProcessor->run(
+                    crawler: $executionCrawler,
+                    from: Carbon::parse($resolvedFrom ?? throw new LogicException('CrawlRunJob(mode=Archive) требует $from.')),
+                    to: Carbon::parse($resolvedTo ?? throw new LogicException('CrawlRunJob(mode=Archive) требует $to.')),
+                    run: $run,
+                ),
+            };
 
-        if ($run->status === RunStatus::Running) {
-            self::dispatch(
-                crawlerId: $this->crawlerId,
-                mode: $this->mode,
-                executionLane: $this->executionLane,
-                from: $this->from,
-                to: $this->to,
-            );
+            if ($run->status === RunStatus::Running) {
+                self::dispatch(
+                    crawlerId: $this->crawlerId,
+                    mode: $resolvedMode,
+                    executionLane: $resolvedLane,
+                    from: $resolvedFrom,
+                    to: $resolvedTo,
+                );
+            }
+        } finally {
+            if ($run->status === RunStatus::Running) {
+                $runs->releaseExecutionLease(run: $run);
+            }
         }
     }
 }

@@ -7,17 +7,16 @@ use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\DB;
 
-test('retention-конфиг покрывает ровно 4 эфемерные лог-таблицы и не содержит prc_revisions', function () {
+test('retention-конфиг покрывает ровно 3 эфемерные лог-таблицы и не содержит доменные события', function () {
     $retentionTables = array_keys(config('partitioning.retention'));
 
     expect($retentionTables)->toEqualCanonicalizing([
         'llm_calls',
         'prc_fetches',
         'prc_operation_logs',
-        'prc_events',
     ]);
 
-    expect($retentionTables)->not->toContain('prc_revisions');
+    expect($retentionTables)->not->toContain('prc_events', 'prc_revisions');
 });
 
 test('«вечные» таблицы (eternal) не пересекаются с DROP-retention списком', function () {
@@ -25,7 +24,7 @@ test('«вечные» таблицы (eternal) не пересекаются с
     $retentionTables = array_keys(config('partitioning.retention'));
 
     expect(array_intersect($eternal, $retentionTables))->toBeEmpty();
-    expect($eternal)->toContain('prc_revisions');
+    expect($eternal)->toContain('prc_events', 'prc_revisions');
 });
 
 test('миграция выставляет partman.part_config.retention для эфемерных таблиц и не трогает prc_revisions', function () {
@@ -49,6 +48,11 @@ test('миграция выставляет partman.part_config.retention для
 
     expect($revisions)->not->toBeNull();
     expect($revisions->retention)->toBeNull();
+
+    $events = $byTable->get('public.prc_events');
+
+    expect($events)->not->toBeNull();
+    expect($events->retention)->toBeNull();
 });
 
 test('миграция part_config.retention идемпотентна — повторный up() не бросает и не меняет значения', function () {

@@ -11,6 +11,7 @@ use App\Enums\Llm\CorePromptStep;
 use App\Enums\Llm\DocumentTypeScope;
 use App\Enums\Procurement\Ai\AnalysisStatus;
 use App\Enums\Procurement\Document\UnprocessableReason;
+use App\Exceptions\Procurement\Ai\PipelineDeadlineExceeded;
 use App\Models\Procurement\Ai\Analysis;
 use App\Models\Procurement\Document\Document;
 use App\Models\Procurement\Document\DocumentVersion;
@@ -26,6 +27,7 @@ use App\Services\Llm\Schema\JsonSchemaGenerator;
 use App\Services\Llm\Validation\StructuredResponseValidator;
 use App\Services\Procurement\Ai\UsageSnapshotRecorder;
 use App\Services\Procurement\Prepare\RepresentationResolver;
+use App\Support\Files\PipelineTemporaryFile;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Storage;
 use RuntimeException;
@@ -62,7 +64,7 @@ final readonly class ScreeningProcessor
      * borderline-эскалации на маршрут классом выше (тот же документ, тот же `Analysis`,
      * повторная резка/загрузка — временные файлы предыдущего прогона уже удалены в `finally`).
      */
-    public function run(Document $document, Analysis $analysis, int $routeIndex = 0): ?ScreeningResult
+    public function run(Document $document, Analysis $analysis, int $routeIndex = 0, ?float $deadlineAt = null): ?ScreeningResult
     {
         $this->analyses->update($analysis, [
             'status' => AnalysisStatus::Running,
@@ -96,7 +98,7 @@ final readonly class ScreeningProcessor
         }
 
         $disk = Storage::disk($effective['disk']);
-        $localPath = tempnam(sys_get_temp_dir(), 'screening_').'.'.$effective['extension'];
+        $localPath = PipelineTemporaryFile::create(prefix: 'screening_', extension: $effective['extension']);
         file_put_contents($localPath, $disk->get($effective['storagePath']));
 
         $slicedPath = null;
@@ -106,9 +108,22 @@ final readonly class ScreeningProcessor
 
             if ($effective['extension'] === 'pdf') {
                 try {
-                    $slicedPath = $this->slicer->slice($localPath, $this->positiveIntConfig(key: 'ai.screening.pages', default: 4));
+                    $this->assertBudget(deadlineAt: $deadlineAt, operation: 'pdf_slice', remainingOperations: ['file_upload_and_poll', 'generation']);
+                    $phaseDeadlineAt = $deadlineAt === null ? null : min(
+                        $deadlineAt - $this->operationSeconds('file_upload_and_poll') - $this->operationSeconds('generation') - $this->persistenceReserveSeconds(),
+                        microtime(true) + $this->operationSeconds('pdf_slice'),
+                    );
+                    $slicedPath = $this->slicer->slice(
+                        inputPath: $localPath,
+                        pages: $this->positiveIntConfig(key: 'ai.screening.pages', default: 4),
+                        deadlineAt: $phaseDeadlineAt,
+                    );
                     $uploadPath = $slicedPath;
                 } catch (RuntimeException $exception) {
+                    if ($exception instanceof PipelineDeadlineExceeded) {
+                        throw $exception;
+                    }
+
                     $this->markUnprocessable(
                         $document,
                         $analysis,
@@ -120,7 +135,13 @@ final readonly class ScreeningProcessor
                 }
             }
 
-            return $this->classify($analysis, $uploadPath, $effective['mime'], $routeIndex);
+            return $this->classify(
+                analysis: $analysis,
+                filePath: $uploadPath,
+                mimeType: $effective['mime'],
+                routeIndex: $routeIndex,
+                deadlineAt: $deadlineAt,
+            );
         } finally {
             if ($slicedPath !== null && $slicedPath !== $localPath) {
                 @unlink($slicedPath);
@@ -147,7 +168,7 @@ final readonly class ScreeningProcessor
         return null;
     }
 
-    private function classify(Analysis $analysis, string $filePath, string $mimeType, int $routeIndex = 0): ScreeningResult
+    private function classify(Analysis $analysis, string $filePath, string $mimeType, int $routeIndex = 0, ?float $deadlineAt = null): ScreeningResult
     {
         $primary = $this->routes->candidatesFor(DocumentTypeScope::Any, CoreLlmPurpose::Screening)->values()->get($routeIndex);
 
@@ -162,7 +183,8 @@ final readonly class ScreeningProcessor
         $composed = $this->prompts->compose(CorePromptStep::ScreeningClassify, [ScreeningResult::class]);
         $promptVersionSet = $this->promptVersionSet($composed->promptVersionSet);
         $schema = new JsonSchema($this->schemas->generate(ScreeningResult::class));
-        $fileRef = $primary->provider->uploadFile($filePath, $mimeType);
+        $this->assertBudget(deadlineAt: $deadlineAt, operation: 'file_upload_and_poll', remainingOperations: ['generation']);
+        $fileRef = $primary->provider->uploadFile(path: $filePath, mimeType: $mimeType, deadlineAt: $deadlineAt);
 
         $prompt = new LlmPrompt(
             systemPart: $composed->systemPart,
@@ -178,6 +200,7 @@ final readonly class ScreeningProcessor
             temperature: $primary->options->temperature,
             maxTokens: $this->positiveIntConfig(key: 'ai.screening.max_tokens', default: 1024),
             cacheHandle: $primary->options->cacheHandle,
+            requestTimeoutSeconds: $this->remainingOperationTimeout(deadlineAt: $deadlineAt, operation: 'generation'),
         );
 
         $calledAt = CarbonImmutable::now();
@@ -185,6 +208,7 @@ final readonly class ScreeningProcessor
         $requestPayload = json_encode(['systemPart' => $composed->systemPart, 'userParts' => $prompt->userParts], JSON_THROW_ON_ERROR);
 
         try {
+            $this->assertBudget(deadlineAt: $deadlineAt, operation: 'generation');
             $response = $primary->provider->completeStructured($prompt, $schema, $options);
         } catch (Throwable $exception) {
             $this->recorder->record(
@@ -258,6 +282,57 @@ final readonly class ScreeningProcessor
             'result' => ['unprocessable_reason' => $reason->value, 'detail' => $detail],
             'finished_at' => now(),
         ]);
+    }
+
+    /** @param list<string> $remainingOperations */
+    private function assertBudget(?float $deadlineAt, string $operation, array $remainingOperations = []): void
+    {
+        if ($deadlineAt === null) {
+            return;
+        }
+
+        $required = $this->operationSeconds($operation) + $this->persistenceReserveSeconds();
+
+        foreach ($remainingOperations as $remainingOperation) {
+            $required += $this->operationSeconds($remainingOperation);
+        }
+
+        if ($deadlineAt - microtime(true) < $required) {
+            throw new PipelineDeadlineExceeded("Screening deadline cannot admit {$operation}.");
+        }
+    }
+
+    private function operationSeconds(string $operation): int
+    {
+        return $this->positiveIntConfig(
+            key: "ai.pipeline.operation_budgets.screening.operation_timeout_seconds.{$operation}",
+            default: 90,
+        );
+    }
+
+    private function remainingOperationTimeout(?float $deadlineAt, string $operation): int
+    {
+        $configured = $this->operationSeconds($operation);
+
+        if ($deadlineAt === null) {
+            return $configured;
+        }
+
+        $remaining = (int) floor($deadlineAt - microtime(true) - $this->persistenceReserveSeconds());
+
+        if ($remaining < 1) {
+            throw new PipelineDeadlineExceeded("Screening deadline cannot admit {$operation}.");
+        }
+
+        return min($configured, $remaining);
+    }
+
+    private function persistenceReserveSeconds(): int
+    {
+        return $this->positiveIntConfig(
+            key: 'ai.pipeline.operation_budgets.screening.persistence_release_reserve_seconds',
+            default: 30,
+        );
     }
 
     private function positiveIntConfig(string $key, int $default): int

@@ -6,6 +6,7 @@ namespace App\Models\Procurement\Ai;
 
 use App\Dto\Procurement\Ai\Screening\StoredScreeningResult;
 use App\Enums\Procurement\Ai\AiDocumentType;
+use App\Enums\Procurement\Ai\AnalysisRunStatus;
 use App\Enums\Procurement\Ai\AnalysisStatus;
 use App\Enums\Procurement\Ai\AnalysisStep;
 use App\Enums\Procurement\Ai\EstimateCardinality;
@@ -17,6 +18,7 @@ use App\Models\Concerns\HasLease;
 use App\Models\Procurement\Document\DocumentVersion;
 use App\Models\Procurement\Estimate\Estimate;
 use App\Models\User;
+use Carbon\CarbonImmutable;
 use Database\Factories\Procurement\Ai\AnalysisFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Table;
@@ -49,6 +51,8 @@ use InvalidArgumentException;
  * @property string|null $provider
  * @property string|null $model
  * @property int $attempts
+ * @property string|null $locked_by
+ * @property Carbon|null $locked_until
  * @property string|null $last_error
  * @property bool $failed_permanently
  * @property string|null $cache_id
@@ -216,6 +220,26 @@ final class Analysis extends Model
     public function scopeActiveScreening(Builder $query): Builder
     {
         return $query->active()->where('step', AnalysisStep::Screening);
+    }
+
+    /** @return array<string, mixed> */
+    protected function leaseExhaustedAttributes(CarbonImmutable $failedAt): array
+    {
+        return [
+            'status' => AnalysisStatus::Failed,
+            'finished_at' => $failedAt,
+        ];
+    }
+
+    protected function afterLeaseExhausted(CarbonImmutable $failedAt): void
+    {
+        AnalysisRun::query()
+            ->whereKey($this->analysis_run_id)
+            ->whereNull('finished_at')
+            ->update([
+                'status' => AnalysisRunStatus::Failed,
+                'finished_at' => $failedAt,
+            ]);
     }
 
     /**

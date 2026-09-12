@@ -69,7 +69,7 @@ final readonly class PrismGeminiProvider implements LlmProvider, SupportsContext
 
     public function complete(LlmPrompt $prompt, LlmOptions $options): LlmResponse
     {
-        $response = $this->withRateLimit(fn () => $this->textRequest($prompt, $options)->asText());
+        $response = $this->withRateLimit(fn () => $this->textRequest($prompt, $options)->asText(), $options->requestTimeoutSeconds);
 
         return new LlmResponse(
             data: $response->text,
@@ -82,7 +82,7 @@ final readonly class PrismGeminiProvider implements LlmProvider, SupportsContext
     public function completeStructured(LlmPrompt $prompt, JsonSchema $schema, LlmOptions $options): LlmStructuredResponse
     {
         try {
-            $response = $this->withRateLimit(fn () => $this->structuredRequest($prompt, $schema, $options)->asStructured());
+            $response = $this->withRateLimit(fn () => $this->structuredRequest($prompt, $schema, $options)->asStructured(), $options->requestTimeoutSeconds);
         } catch (PrismException $exception) {
             return $this->maxTokensResponseFrom($exception);
         }
@@ -194,7 +194,7 @@ final readonly class PrismGeminiProvider implements LlmProvider, SupportsContext
      * `$mimeType` — реальный MIME вызывающего кода (v1-баг: захардкоженный `application/pdf`,
      * research/C §5), эта сигнатура его не угадывает.
      */
-    public function uploadFile(string $path, string $mimeType): LlmFileHandle
+    public function uploadFile(string $path, string $mimeType, ?float $deadlineAt = null): LlmFileHandle
     {
         $size = filesize($path);
 
@@ -202,10 +202,10 @@ final readonly class PrismGeminiProvider implements LlmProvider, SupportsContext
             throw new \RuntimeException("Gemini Files API: файл недоступен для чтения: {$path}");
         }
 
-        $uploadUrl = $this->startResumableUpload(path: $path, mimeType: $mimeType, size: $size);
-        $file = $this->finishResumableUpload(uploadUrl: $uploadUrl, path: $path, mimeType: $mimeType, size: $size);
+        $uploadUrl = $this->startResumableUpload(path: $path, mimeType: $mimeType, size: $size, deadlineAt: $deadlineAt);
+        $file = $this->finishResumableUpload(uploadUrl: $uploadUrl, path: $path, mimeType: $mimeType, size: $size, deadlineAt: $deadlineAt);
 
-        return $this->pollUntilActive($file);
+        return $this->pollUntilActive(file: $file, deadlineAt: $deadlineAt);
     }
 
     private function textRequest(LlmPrompt $prompt, LlmOptions $options): TextPendingRequest
@@ -218,7 +218,7 @@ final readonly class PrismGeminiProvider implements LlmProvider, SupportsContext
             ->withMaxTokens($options->maxTokens)
             ->withProviderOptions($this->providerOptions($options));
 
-        return $request->withClientOptions($this->clientOptions());
+        return $request->withClientOptions($this->clientOptions(options: $options));
     }
 
     private function structuredRequest(LlmPrompt $prompt, JsonSchema $schema, LlmOptions $options): StructuredPendingRequest
@@ -232,16 +232,19 @@ final readonly class PrismGeminiProvider implements LlmProvider, SupportsContext
             ->withMaxTokens($options->maxTokens)
             ->withProviderOptions($this->providerOptions($options));
 
-        return $request->withClientOptions($this->clientOptions());
+        return $request->withClientOptions($this->clientOptions(options: $options));
     }
 
     /**
      * @return array<string, mixed>
      */
-    private function clientOptions(): array
+    private function clientOptions(LlmOptions $options): array
     {
         return [
-            'timeout' => $this->intConfig('ai.gemini.request_timeout_seconds', 90),
+            'timeout' => min(
+                $this->intConfig('ai.gemini.request_timeout_seconds', 90),
+                $options->requestTimeoutSeconds ?? PHP_INT_MAX,
+            ),
             ...$this->outboundProxy->optionsFor($this->host()),
         ];
     }
@@ -373,7 +376,7 @@ final readonly class PrismGeminiProvider implements LlmProvider, SupportsContext
      * @param  callable(): T  $callback
      * @return T
      */
-    private function withRateLimit(callable $callback): mixed
+    private function withRateLimit(callable $callback, ?int $deadlineSeconds = null): mixed
     {
         $max = $this->intConfig('ai.gemini.rate_limit.max', 0);
 
@@ -384,7 +387,7 @@ final readonly class PrismGeminiProvider implements LlmProvider, SupportsContext
         return Redis::throttle('gemini:generate')
             ->allow($max)
             ->every($this->intConfig('ai.gemini.rate_limit.every_seconds', 60))
-            ->block($this->intConfig('ai.gemini.rate_limit.block_seconds', 30))
+            ->block(min($this->intConfig('ai.gemini.rate_limit.block_seconds', 30), $deadlineSeconds ?? PHP_INT_MAX))
             ->then(
                 $callback,
                 static function (): never {
@@ -393,7 +396,7 @@ final readonly class PrismGeminiProvider implements LlmProvider, SupportsContext
             );
     }
 
-    private function startResumableUpload(string $path, string $mimeType, int $size): string
+    private function startResumableUpload(string $path, string $mimeType, int $size, ?float $deadlineAt): string
     {
         $response = Http::withHeaders([
             'x-goog-api-key' => $this->apiKey(),
@@ -403,6 +406,7 @@ final readonly class PrismGeminiProvider implements LlmProvider, SupportsContext
             'X-Goog-Upload-Header-Content-Type' => $mimeType,
         ])
             ->withOptions($this->outboundProxy->optionsFor($this->host()))
+            ->timeout($this->deadlineTimeout(deadlineAt: $deadlineAt))
             ->post($this->filesUploadUrl(), [
                 'file' => ['display_name' => basename($path)],
             ]);
@@ -421,7 +425,7 @@ final readonly class PrismGeminiProvider implements LlmProvider, SupportsContext
     /**
      * @return array<string, mixed>
      */
-    private function finishResumableUpload(string $uploadUrl, string $path, string $mimeType, int $size): array
+    private function finishResumableUpload(string $uploadUrl, string $path, string $mimeType, int $size, ?float $deadlineAt): array
     {
         $content = file_get_contents($path);
 
@@ -436,6 +440,7 @@ final readonly class PrismGeminiProvider implements LlmProvider, SupportsContext
             'X-Goog-Upload-Command' => 'upload, finalize',
         ])
             ->withOptions($this->outboundProxy->optionsFor($this->host()))
+            ->timeout($this->deadlineTimeout(deadlineAt: $deadlineAt))
             ->withBody($content, $mimeType)
             ->post($uploadUrl);
 
@@ -447,17 +452,22 @@ final readonly class PrismGeminiProvider implements LlmProvider, SupportsContext
     /**
      * @param  array<string, mixed>  $file
      */
-    private function pollUntilActive(array $file): LlmFileHandle
+    private function pollUntilActive(array $file, ?float $deadlineAt): LlmFileHandle
     {
         $name = ltrim($this->stringValue($file['name'] ?? '', 'Gemini file name'), '/');
         $state = $this->stringValue($file['state'] ?? 'ACTIVE', 'Gemini file state');
-        $deadline = CarbonImmutable::now()->addSeconds($this->intConfig('ai.gemini.files.poll_timeout_seconds', 60));
+        $deadline = microtime(true) + $this->intConfig('ai.gemini.files.poll_timeout_seconds', 60);
+
+        if ($deadlineAt !== null) {
+            $deadline = min($deadline, $deadlineAt);
+        }
+
         $intervalMs = $this->intConfig('ai.gemini.files.poll_interval_ms', 500);
 
-        while ($state === 'PROCESSING' && CarbonImmutable::now()->lessThan($deadline)) {
-            usleep($intervalMs * 1000);
+        while ($state === 'PROCESSING' && microtime(true) < $deadline) {
+            usleep((int) min($intervalMs * 1000, max(0, ($deadline - microtime(true)) * 1_000_000)));
 
-            $response = $this->geminiClient()->get("/{$name}");
+            $response = $this->geminiClient(timeoutSeconds: $this->deadlineTimeout(deadlineAt: $deadline))->get("/{$name}");
             $response->throw();
 
             $file = $this->jsonObject($response->json(), 'Gemini Files API poll response');
@@ -483,11 +493,29 @@ final readonly class PrismGeminiProvider implements LlmProvider, SupportsContext
      * Клиент для `v1beta/{resource}` (cache CRUD, file polling) — НЕ путать с базовым URL
      * Prism (`config('prism.providers.gemini.url')`, уже несёт суффикс `/models` под generateContent).
      */
-    private function geminiClient(): PendingRequest
+    private function geminiClient(?int $timeoutSeconds = null): PendingRequest
     {
         return Http::withHeaders(['x-goog-api-key' => $this->apiKey()])
             ->baseUrl(rtrim($this->stringConfig('ai.gemini.files.base_url'), '/').'/v1beta')
+            ->timeout($timeoutSeconds ?? $this->intConfig('ai.gemini.request_timeout_seconds', 90))
             ->withOptions($this->outboundProxy->optionsFor($this->host()));
+    }
+
+    private function deadlineTimeout(?float $deadlineAt): int
+    {
+        $configured = $this->intConfig('ai.gemini.request_timeout_seconds', 90);
+
+        if ($deadlineAt === null) {
+            return $configured;
+        }
+
+        $remaining = (int) floor($deadlineAt - microtime(true));
+
+        if ($remaining < 1) {
+            throw new \RuntimeException('Gemini transport deadline is exhausted.');
+        }
+
+        return min($configured, $remaining);
     }
 
     private function apiKey(): string

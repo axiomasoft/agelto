@@ -7,6 +7,8 @@ namespace App\Repositories\Procurement\Ai;
 use App\Enums\Procurement\Ai\AnalysisRunStatus;
 use App\Enums\Procurement\Ai\RunMode;
 use App\Models\Procurement\Ai\AnalysisRun;
+use App\Models\Procurement\Document\DocumentVersion;
+use Illuminate\Support\Facades\DB;
 
 /**
  * Единственная точка персистентности `prc_ai_analysis_runs` (§3 root/document-contour.md,
@@ -31,6 +33,33 @@ final readonly class AnalysisRunStoreRepository
             'initiated_by' => $initiatedBy,
             'started_at' => now(),
         ]);
+    }
+
+    /**
+     * Returns the active initial run or creates it exactly once.
+     * A terminal history is never reopened.
+     */
+    public function findOrStartInitial(int $documentVersionId, RunMode $mode, ?int $initiatedBy = null): ?AnalysisRun
+    {
+        return DB::transaction(function () use ($documentVersionId, $mode, $initiatedBy): ?AnalysisRun {
+            DocumentVersion::query()->lockForUpdate()->findOrFail($documentVersionId);
+
+            $active = $this->findActive(documentVersionId: $documentVersionId);
+
+            if ($active !== null) {
+                return $active;
+            }
+
+            if (AnalysisRun::query()->where('document_version_id', $documentVersionId)->exists()) {
+                return null;
+            }
+
+            return $this->start(
+                documentVersionId: $documentVersionId,
+                mode: $mode,
+                initiatedBy: $initiatedBy,
+            );
+        });
     }
 
     /**

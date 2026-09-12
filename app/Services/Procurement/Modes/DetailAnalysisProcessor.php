@@ -6,15 +6,13 @@ namespace App\Services\Procurement\Modes;
 
 use App\Dto\Procurement\ProcurementDetails;
 use App\Enums\Procurement\Crawler\SourceMethod as SourceMethodEnum;
-use App\Enums\Procurement\Document\DocumentStatus;
 use App\Exceptions\Procurement\Crawler\PlatformBudgetExhaustedException;
-use App\Models\Procurement\Document\Document;
 use App\Models\Procurement\Procurement;
 use App\Repositories\Procurement\ProcurementStoreRepository;
+use App\Services\Procurement\Contracts\DeadlineAwareSourceMethod;
 use App\Services\Procurement\Detail\CommonInfoProcessor;
 use App\Services\Procurement\Detail\EventJournalProcessor;
 use App\Services\Procurement\Detail\SupplierResultsProcessor;
-use App\Services\Procurement\DocumentDownloader;
 use App\Services\Procurement\DocumentIndexer;
 use App\Services\Procurement\Eis\Card\CommonInfoParser;
 use App\Services\Procurement\Eis\Card\DocumentsParser;
@@ -47,7 +45,6 @@ final readonly class DetailAnalysisProcessor
         private PartiesParser $partiesParser,
         private DocumentsParser $documentsParser,
         private DocumentIndexer $documentIndexer,
-        private DocumentDownloader $documentDownloader,
         private EventJournalParser $eventJournalParser,
         private EventJournalProcessor $eventJournalProcessor,
         private SupplierResultsParser $supplierResultsParser,
@@ -58,7 +55,7 @@ final readonly class DetailAnalysisProcessor
         private OperationLogWriter $operationLogs,
     ) {}
 
-    public function run(Procurement $procurement): bool
+    public function run(Procurement $procurement, ?float $deadlineAt = null): bool
     {
         try {
             $registry = $procurement->registry;
@@ -78,9 +75,16 @@ final readonly class DetailAnalysisProcessor
                 registry: $registry,
             );
 
-            $details = $sourceMethod->collectDetails(registryNumber: $procurement->registry_number, registry: $registry);
+            $details = $sourceMethod instanceof DeadlineAwareSourceMethod && $deadlineAt !== null
+                ? $sourceMethod->collectDetailsWithinDeadline(
+                    registryNumber: $procurement->registry_number,
+                    registry: $registry,
+                    deadlineAt: $deadlineAt,
+                )
+                : $sourceMethod->collectDetails(registryNumber: $procurement->registry_number, registry: $registry);
 
             $commonInfo = null;
+            $commonInfoSnapshotStatus = null;
             $parties = [];
             $documents = [];
             $documentsSnapshotStatus = null;
@@ -98,6 +102,7 @@ final readonly class DetailAnalysisProcessor
                     ),
                 );
                 $commonInfo = $commonInfoSnapshot->commonInfo;
+                $commonInfoSnapshotStatus = $commonInfoSnapshot->status->value;
 
                 $this->commonInfoProcessor->process(procurement: $procurement, snapshot: $commonInfoSnapshot);
             } else {
@@ -109,7 +114,6 @@ final readonly class DetailAnalysisProcessor
                 $this->documentIndexer->index(procurement: $procurement, snapshot: $documentsSnapshot);
                 $documents = $documentsSnapshot->documents;
                 $documentsSnapshotStatus = $documentsSnapshot->status->value;
-                $this->downloadPendingDocuments($procurement);
             } else {
                 Log::warning(message: 'DetailAnalysisProcessor: вкладка documents не снята.', context: ['procurement_id' => $procurement->id]);
             }
@@ -126,41 +130,54 @@ final readonly class DetailAnalysisProcessor
                 $this->supplierResultsProcessor->process($procurement, $supplierResults);
             }
 
+            $detailParseOutcome = $this->detailParseOutcome(
+                details: $details,
+                keyFieldValues: [
+                    'common-info' => [
+                        'snapshot_status' => $commonInfoSnapshotStatus,
+                        'ikz_year' => $commonInfo?->ikzYear,
+                        'ikz_customer_code' => $commonInfo?->ikzCustomerCode,
+                        'ikz_plan_number' => $commonInfo?->ikzPlanNumber,
+                        'ikz_plangraph_number' => $commonInfo?->ikzPlangraphNumber,
+                        'ikz_okpd_class' => $commonInfo?->ikzOkpdClass,
+                        'ikz_okpd_subclass' => $commonInfo?->ikzOkpdSubclass,
+                        'ikz_okpd_group' => $commonInfo?->ikzOkpdGroup,
+                        'ikz_kvr' => $commonInfo?->ikzKvr,
+                        'etp_name' => $commonInfo?->etpName,
+                        'etp_url' => $commonInfo?->etpUrl,
+                        'contact_person_name' => $commonInfo?->contactPersonName,
+                        'contact_person_email' => $commonInfo?->contactPersonEmail,
+                        'financing_rows' => $commonInfo?->financingRows,
+                        'items' => $commonInfo?->items,
+                        'parties' => $parties,
+                    ],
+                    'documents' => [
+                        'documents' => $documents,
+                        'snapshot_status' => $documentsSnapshotStatus,
+                    ],
+                    'event-journal' => ['entries' => $journalEntries],
+                    'supplier-results' => [
+                        'protocol' => $supplierResults?->protocol,
+                        'bids' => $supplierResults?->bids,
+                        'award' => $supplierResults?->award,
+                    ],
+                ],
+            );
+
+            if ($commonInfoSnapshotStatus !== 'complete' || $documentsSnapshotStatus !== 'complete') {
+                $this->markFailed(
+                    procurement: $procurement,
+                    exception: new RuntimeException('Required detail snapshots are incomplete.'),
+                    detailParseOutcome: $detailParseOutcome,
+                );
+
+                return false;
+            }
+
             $this->procurementStore->markDetailFetched(
                 procurement: $procurement,
                 fetchedAt: now(),
-                detailParseOutcome: $this->detailParseOutcome(
-                    details: $details,
-                    keyFieldValues: [
-                        'common-info' => [
-                            'ikz_year' => $commonInfo?->ikzYear,
-                            'ikz_customer_code' => $commonInfo?->ikzCustomerCode,
-                            'ikz_plan_number' => $commonInfo?->ikzPlanNumber,
-                            'ikz_plangraph_number' => $commonInfo?->ikzPlangraphNumber,
-                            'ikz_okpd_class' => $commonInfo?->ikzOkpdClass,
-                            'ikz_okpd_subclass' => $commonInfo?->ikzOkpdSubclass,
-                            'ikz_okpd_group' => $commonInfo?->ikzOkpdGroup,
-                            'ikz_kvr' => $commonInfo?->ikzKvr,
-                            'etp_name' => $commonInfo?->etpName,
-                            'etp_url' => $commonInfo?->etpUrl,
-                            'contact_person_name' => $commonInfo?->contactPersonName,
-                            'contact_person_email' => $commonInfo?->contactPersonEmail,
-                            'financing_rows' => $commonInfo?->financingRows,
-                            'items' => $commonInfo?->items,
-                            'parties' => $parties,
-                        ],
-                        'documents' => [
-                            'documents' => $documents,
-                            'snapshot_status' => $documentsSnapshotStatus,
-                        ],
-                        'event-journal' => ['entries' => $journalEntries],
-                        'supplier-results' => [
-                            'protocol' => $supplierResults?->protocol,
-                            'bids' => $supplierResults?->bids,
-                            'award' => $supplierResults?->award,
-                        ],
-                    ],
-                ),
+                detailParseOutcome: $detailParseOutcome,
             );
 
             return true;
@@ -174,18 +191,6 @@ final readonly class DetailAnalysisProcessor
 
             return false;
         }
-    }
-
-    private function downloadPendingDocuments(Procurement $procurement): void
-    {
-        Document::query()
-            ->where('procurement_id', $procurement->id)
-            ->where('status', DocumentStatus::Discovered)
-            ->whereNull('removed_at')
-            ->pendingRetry()
-            ->each(function (Document $document): void {
-                $this->documentDownloader->download($document);
-            });
     }
 
     /**
@@ -250,7 +255,8 @@ final readonly class DetailAnalysisProcessor
         }
     }
 
-    private function markFailed(Procurement $procurement, Throwable $exception): void
+    /** @param array<string, mixed>|null $detailParseOutcome */
+    private function markFailed(Procurement $procurement, Throwable $exception, ?array $detailParseOutcome = null): void
     {
         $attempts = $procurement->detail_attempts + 1;
         $maxAttempts = $this->integerConfig(key: 'crawler.detail_max_attempts', default: 5);
@@ -262,6 +268,7 @@ final readonly class DetailAnalysisProcessor
             error: $exception->getMessage(),
             nextRetryAt: $failed ? null : now()->addMinutes($backoffMinutes * $attempts),
             failed: $failed,
+            detailParseOutcome: $detailParseOutcome,
         );
 
         Log::warning(message: 'DetailAnalysisProcessor: снятие детального слоя упало.', context: [
@@ -269,6 +276,17 @@ final readonly class DetailAnalysisProcessor
             'attempts' => $attempts,
             'error' => $exception->getMessage(),
         ]);
+    }
+
+    public function recordFailedJob(int $procurementId, string $error): void
+    {
+        $procurement = Procurement::query()->find($procurementId);
+
+        if ($procurement === null || $procurement->detail_failed || $procurement->detail_fetched_at !== null) {
+            return;
+        }
+
+        $this->markFailed(procurement: $procurement, exception: new RuntimeException($error));
     }
 
     private function integerConfig(string $key, int $default): int

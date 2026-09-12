@@ -11,6 +11,7 @@ use App\Models\Procurement\Document\Document;
 use App\Models\Procurement\Document\DocumentVersion;
 use App\Models\Procurement\ProcurementEvent;
 use App\Services\Procurement\DocumentDownloader;
+use Illuminate\Contracts\Filesystem\Filesystem;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
@@ -83,6 +84,97 @@ test('same-hash retry восстанавливает потерянный object
         ->and(ProcurementEvent::query()->where('procurement_id', $document->procurement_id)->count())->toBe(1);
 });
 
+test('same-hash retry исправляет повреждённый canonical object без дублирования версии или события', function (): void {
+    Sleep::fake();
+    $disk = Storage::fake('s3');
+    activeDocumentDownloadProxy();
+    $document = Document::factory()->create(['source_url' => 'https://zakupki.gov.ru/filestore/file.html?uid=heal-corrupt-hash']);
+    $content = sampleDocumentContent();
+    Http::fake(['*filestore*' => Http::response(body: $content, status: 200)]);
+
+    $version = app(DocumentDownloader::class)->download($document);
+    expect($version)->not->toBeNull();
+    $disk->put($version->storage_path, 'partial');
+
+    $retried = app(DocumentDownloader::class)->download($document);
+
+    expect($retried?->id)->toBe($version->id)
+        ->and($disk->get($version->storage_path))->toBe($content)
+        ->and(DocumentVersion::query()->where('document_id', $document->id)->count())->toBe(1)
+        ->and(ProcurementEvent::query()->where('procurement_id', $document->procurement_id)->count())->toBe(1)
+        ->and(collect($disk->allFiles())->contains(fn (string $file): bool => str_contains($file, '.staging.')))->toBeFalse();
+});
+
+test('false staging write не создаёт version или event и не удаляет canonical object', function (): void {
+    Sleep::fake();
+    activeDocumentDownloadProxy();
+    $document = Document::factory()->create(['source_url' => 'https://zakupki.gov.ru/filestore/file.html?uid=false-write']);
+    Http::fake(['*filestore*' => Http::response(body: sampleDocumentContent(), status: 200)]);
+    $disk = Mockery::mock(Filesystem::class);
+    $disk->shouldReceive('writeStream')->once()->with(
+        Mockery::pattern('/\.staging\./'),
+        Mockery::on(static fn (mixed $stream): bool => is_resource($stream)),
+    )->andReturnFalse();
+    $disk->shouldReceive('exists')->once()->with(Mockery::pattern('/\.staging\./'))->andReturnFalse();
+    $disk->shouldNotReceive('delete');
+    Storage::shouldReceive('disk')->once()->with('s3')->andReturn($disk);
+
+    expect(app(DocumentDownloader::class)->download($document))->toBeNull()
+        ->and(DocumentVersion::query()->where('document_id', $document->id)->count())->toBe(0)
+        ->and(ProcurementEvent::query()->where('procurement_id', $document->procurement_id)->count())->toBe(0);
+});
+
+test('storage exception не создаёт version или event и не удаляет canonical object', function (): void {
+    Sleep::fake();
+    activeDocumentDownloadProxy();
+    $document = Document::factory()->create(['source_url' => 'https://zakupki.gov.ru/filestore/file.html?uid=exception-write']);
+    Http::fake(['*filestore*' => Http::response(body: sampleDocumentContent(), status: 200)]);
+    $disk = Mockery::mock(Filesystem::class);
+    $disk->shouldReceive('writeStream')->once()->with(
+        Mockery::pattern('/\.staging\./'),
+        Mockery::on(static fn (mixed $stream): bool => is_resource($stream)),
+    )->andThrow(new RuntimeException('disk unavailable'));
+    $disk->shouldReceive('exists')->once()->with(Mockery::pattern('/\.staging\./'))->andReturnFalse();
+    $disk->shouldNotReceive('delete');
+    Storage::shouldReceive('disk')->once()->with('s3')->andReturn($disk);
+
+    expect(app(DocumentDownloader::class)->download($document))->toBeNull()
+        ->and(DocumentVersion::query()->where('document_id', $document->id)->count())->toBe(0)
+        ->and(ProcurementEvent::query()->where('procurement_id', $document->procurement_id)->count())->toBe(0);
+});
+
+test('concurrent canonical winner is verified before one version and event are finalized', function (): void {
+    Sleep::fake();
+    activeDocumentDownloadProxy();
+    $document = Document::factory()->create(['source_url' => 'https://zakupki.gov.ru/filestore/file.html?uid=concurrent-winner']);
+    $content = sampleDocumentContent();
+    $hash = hash('sha256', $content);
+    $canonicalPath = 'documents/'.substr($hash, 0, 2)."/{$hash}";
+    Http::fake(['*filestore*' => Http::response(body: $content, status: 200)]);
+    $streamOf = static function () use ($content): mixed {
+        $stream = fopen('php://temp', 'w+b');
+        fwrite($stream, $content);
+        rewind($stream);
+
+        return $stream;
+    };
+    $disk = Mockery::mock(Filesystem::class);
+    $disk->shouldReceive('writeStream')->once()->with(Mockery::pattern('/\.staging\./'), Mockery::type('resource'))->andReturnTrue();
+    $disk->shouldReceive('readStream')->twice()->with(Mockery::pattern('/\.staging\./'))->andReturnUsing($streamOf);
+    $disk->shouldReceive('exists')->once()->with($canonicalPath)->andReturnFalse();
+    $disk->shouldReceive('writeStream')->once()->with($canonicalPath, Mockery::type('resource'))->andReturnFalse();
+    $disk->shouldReceive('readStream')->twice()->with($canonicalPath)->andReturnUsing($streamOf);
+    $disk->shouldReceive('exists')->once()->with(Mockery::pattern('/\.staging\./'))->andReturnTrue();
+    $disk->shouldReceive('delete')->once()->with(Mockery::pattern('/\.staging\./'))->andReturnTrue();
+    Storage::shouldReceive('disk')->once()->with('s3')->andReturn($disk);
+
+    $version = app(DocumentDownloader::class)->download($document);
+
+    expect($version?->storage_path)->toBe($canonicalPath)
+        ->and(DocumentVersion::query()->where('document_id', $document->id)->count())->toBe(1)
+        ->and(ProcurementEvent::query()->where('procurement_id', $document->procurement_id)->count())->toBe(1);
+});
+
 test('два прямых скачивания иного контента создают новую версию и document_replaced', function () {
     Sleep::fake();
     Storage::fake('s3');
@@ -150,4 +242,44 @@ test('download без активной proxy-привязки идёт напр�
     Log::shouldHaveReceived('info')
         ->with('Резолвер прокси: прямой маршрут', Mockery::any())
         ->once();
+});
+
+test('download отклоняет loopback до HTTP sink', function (): void {
+    Sleep::fake();
+    Http::preventStrayRequests();
+    $document = Document::factory()->create(['source_url' => 'https://127.0.0.1/filestore?uid=ssrf']);
+
+    expect(app(DocumentDownloader::class)->download($document))->toBeNull()
+        ->and($document->fresh()->attempts)->toBe(1);
+
+    Http::assertNothingSent();
+});
+
+test('download повторно валидирует redirect target и не следует на loopback', function (): void {
+    Sleep::fake();
+    activeDocumentDownloadProxy();
+    $source = 'https://zakupki.gov.ru/filestore?uid=redirect';
+    $document = Document::factory()->create(['source_url' => $source]);
+    Http::fake([
+        $source => Http::response('', 302, ['Location' => 'https://127.0.0.1/private']),
+    ]);
+
+    expect(app(DocumentDownloader::class)->download($document))->toBeNull()
+        ->and($document->fresh()->attempts)->toBe(1);
+
+    Http::assertSentCount(1);
+});
+
+test('download останавливает фактический поток сверх лимита без доверия к Content-Length', function (): void {
+    Sleep::fake();
+    Storage::fake('s3');
+    activeDocumentDownloadProxy();
+    config(['crawler.documents_max_bytes' => 8]);
+    $document = Document::factory()->create(['source_url' => 'https://zakupki.gov.ru/filestore?uid=large']);
+    Http::fake(['*filestore*' => Http::response('123456789', 200, ['Content-Length' => '1'])]);
+
+    expect(app(DocumentDownloader::class)->download($document))->toBeNull()
+        ->and($document->fresh()->attempts)->toBe(1);
+
+    expect(DocumentVersion::query()->where('document_id', $document->id)->exists())->toBeFalse();
 });

@@ -8,6 +8,7 @@ use App\Enums\Procurement\Ai\AnalysisStatus;
 use App\Enums\Procurement\Ai\AnalysisStep;
 use App\Enums\Procurement\Ai\RunMode;
 use App\Enums\Procurement\Document\DocumentStatus;
+use App\Exceptions\Procurement\Ai\PipelineDeadlineExceeded;
 use App\Jobs\Procurement\ScreeningJob;
 use App\Models\Llm\LlmRoute;
 use App\Models\Llm\Provider;
@@ -91,7 +92,7 @@ function screeningResultResponse(): LlmStructuredResponse
 
 test('успешный скрининг PDF — Analysis succeeded, document_type/result заполнены, Document доводится до screened (P5.2 branching)', function (): void {
     Storage::fake('s3');
-    $fake = FakeLlmProvider::succeeding(screeningResultResponse());
+    $fake = FakeLlmProvider::succeeding(screeningResultResponse())->withTransportDelayMicros(1_000);
     seedScreeningRoute($fake);
 
     $document = Document::factory()->create(['status' => DocumentStatus::Prepared]);
@@ -123,7 +124,28 @@ test('успешный скрининг PDF — Analysis succeeded, document_typ
 
     $uploaded = $fake->uploadedFiles();
     expect($uploaded)->toHaveCount(1)
-        ->and($uploaded[0]['mimeType'])->toBe('application/pdf');
+        ->and($uploaded[0]['mimeType'])->toBe('application/pdf')
+        ->and($uploaded[0]['deadlineAt'])->toBeFloat()
+        ->and($fake->receivedOptions()[0]->requestTimeoutSeconds)->toBeInt()
+        ->and($fake->receivedOptions()[0]->requestTimeoutSeconds)->toBeLessThan((int) config('ai.pipeline.operation_budgets.screening.job_timeout_seconds'));
+});
+
+test('исчерпанный общий deadline остаётся retryable и не классифицируется как unreadable PDF', function (): void {
+    Storage::fake('s3');
+    config(['ai.pipeline.operation_budgets.screening.job_timeout_seconds' => 1]);
+    $fake = FakeLlmProvider::succeeding(screeningResultResponse());
+    seedScreeningRoute($fake);
+    $document = Document::factory()->create(['status' => DocumentStatus::Prepared]);
+    $version = seedScreeningVersion($document, 'sample-multi-page.pdf', 'pdf', 'application/pdf');
+
+    expect(fn () => (new ScreeningJob($document->id))->handle())
+        ->toThrow(PipelineDeadlineExceeded::class);
+
+    $analysis = Analysis::query()->where('document_version_id', $version->id)->where('step', AnalysisStep::Screening)->sole();
+    expect($document->fresh()->status)->toBe(DocumentStatus::Prepared)
+        ->and($document->unprocessable_reason)->toBeNull()
+        ->and($analysis->attempts)->toBe(1)
+        ->and($analysis->next_retry_at)->not->toBeNull();
 });
 
 test('скрининг режет только первые N страниц (сгенерированный срез короче исходных 10 страниц)', function (): void {
@@ -139,11 +161,11 @@ test('скрининг режет только первые N страниц (с
 
     // Срез удаляется в finally ДО возврата из run() (Code Guidance P5.1) — по факту его больше
     // нет на диске к моменту ассерта, проверяем по имени временного файла (`PdfPageSlicer`
-    // именует срез `screening-slice-*`, не переиспользует имя скачанного оригинала
+    // именует срез `screening_slice_*`, не переиспользует имя скачанного оригинала
     // `screening_*.pdf`) — реальная резка страниц регресс-тестируется юнит-тестом `PdfPageSlicer`.
     $uploaded = $fake->uploadedFiles();
     expect($uploaded)->toHaveCount(1)
-        ->and($uploaded[0]['path'])->toContain('screening-slice-')
+        ->and($uploaded[0]['path'])->toContain('screening_slice_')
         ->and(file_exists($uploaded[0]['path']))->toBeFalse();
 });
 

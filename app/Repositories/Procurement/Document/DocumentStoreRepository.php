@@ -51,6 +51,25 @@ final readonly class DocumentStoreRepository
      */
     public function update(Document $document, array $attributes): void
     {
+        $leaseToken = $document->leaseToken();
+
+        if ($leaseToken !== null) {
+            $document->fill($attributes);
+            $updated = Document::query()
+                ->whereKey($document->getKey())
+                ->where('locked_by', $leaseToken)
+                ->whereRaw('locked_until >= CURRENT_TIMESTAMP')
+                ->update($document->getDirty());
+
+            if ($updated !== 1) {
+                throw new \RuntimeException('Document lease was lost before persistence.');
+            }
+
+            $document->refresh();
+
+            return;
+        }
+
         $document->update($attributes);
     }
 
@@ -79,7 +98,7 @@ final readonly class DocumentStoreRepository
                 return false;
             }
 
-            if (! $lockedDocument->acquireLease(owner: $owner, ttlSeconds: $ttlSeconds)) {
+            if (! $document->acquireLease(owner: $owner, ttlSeconds: $ttlSeconds)) {
                 return false;
             }
 

@@ -26,6 +26,7 @@ use App\Services\Llm\Dto\LlmStructuredResponse;
 use App\Services\Llm\Dto\LlmUsage;
 use App\Services\Llm\Providers\PrismGeminiProvider;
 use App\Services\Procurement\Screening\ScreeningOutcomeHandler;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
 use Tests\Support\Doubles\ExtractionlessAnalyzer;
@@ -266,6 +267,7 @@ test('borderline confidence с borderline_action=escalate — один повт�
     seedBranchingVersion($document, 'sample-multi-page.pdf', 'pdf', 'application/pdf');
 
     (new ScreeningJob($document->id))->handle();
+    (new ScreeningJob($document->id))->handle();
 
     expect($document->refresh()->status)->toBe(DocumentStatus::Screened);
 
@@ -326,6 +328,7 @@ test('теневой screening сохраняет v2 evidence без измен�
         'status' => AnalysisStatus::Running,
         'is_shadow' => true,
     ]);
+    expect($analysis->acquireLease(owner: 'shadow-screening-test'))->toBeTrue();
 
     app(ScreeningOutcomeHandler::class)->handle(
         document: $document,
@@ -341,6 +344,49 @@ test('теневой screening сохраняет v2 evidence без измен�
 
     Queue::assertNotPushed(EstimateExtractionJob::class);
 });
+
+test('stale screening token после replacement не меняет analysis document event run и не dispatch extraction', function (bool $shadow): void {
+    Queue::fake();
+    config(['ai.extraction.enabled' => true]);
+    $procurement = Procurement::factory()->create();
+    $document = Document::factory()->create([
+        'procurement_id' => $procurement->id,
+        'status' => $shadow ? DocumentStatus::Screened : DocumentStatus::Prepared,
+    ]);
+    $version = DocumentVersion::factory()->create(['document_id' => $document->id]);
+    $analysis = Analysis::factory()->create([
+        'document_version_id' => $version->id,
+        'status' => AnalysisStatus::Running,
+        'is_shadow' => $shadow,
+    ]);
+    expect($analysis->acquireLease(owner: 'stale-screening'))->toBeTrue();
+    $run = $analysis->analysisRun;
+    $replacementToken = 'replacement-owner:00000000-0000-0000-0000-000000000001';
+    Analysis::query()->whereKey($analysis->id)->update([
+        'locked_by' => $replacementToken,
+        'locked_until' => DB::raw("CURRENT_TIMESTAMP + INTERVAL '5 minutes'"),
+    ]);
+
+    app(ScreeningOutcomeHandler::class)->handle(
+        document: $document,
+        analysis: $analysis,
+        result: ScreeningResult::validateAndCreate(branchingResponse('estimate', 0.95)->data),
+    );
+
+    $freshAnalysis = $analysis->fresh();
+    expect($freshAnalysis->status)->toBe(AnalysisStatus::Running)
+        ->and($freshAnalysis->locked_by)->toBe($replacementToken)
+        ->and($freshAnalysis->result)->toBeNull()
+        ->and($document->fresh()->status)->toBe($shadow ? DocumentStatus::Screened : DocumentStatus::Prepared)
+        ->and($run->fresh()->status->value)->toBe('running')
+        ->and($run->fresh()->finished_at)->toBeNull()
+        ->and(ProcurementEvent::query()->where('procurement_id', $procurement->id)->count())->toBe(0);
+
+    Queue::assertNotPushed(EstimateExtractionJob::class);
+})->with([
+    'primary' => false,
+    'shadow' => true,
+]);
 
 test('повтор идемпотентен — событие document_screened и дочерний dispatch не дублируются', function (): void {
     Storage::fake('s3');

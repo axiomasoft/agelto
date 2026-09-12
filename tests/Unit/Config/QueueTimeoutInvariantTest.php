@@ -71,6 +71,13 @@ test('versioned pipeline operation budget leaves the next call reserve and prese
     ])->and($prepare['setup_allowance_seconds'] + array_sum($prepare['operation_timeout_seconds']) + $prepare['persistence_release_reserve_seconds'])
         ->toBeLessThanOrEqual($prepare['job_timeout_seconds']);
 
+    $screening = $budgets['screening'];
+    expect($screening['setup_allowance_seconds'] + array_sum($screening['operation_timeout_seconds']) + $screening['persistence_release_reserve_seconds'])
+        ->toBeLessThanOrEqual($screening['job_timeout_seconds']);
+
+    expect(config('ai.pipeline.temporary_stale_seconds'))
+        ->toBeGreaterThan(max(array_column([$prepare, $screening, $budgets['extraction']], 'lease_seconds')));
+
     $extraction = $budgets['extraction'];
     expect(config('ai.extraction.checkpoint_seconds'))->toBe($extraction['checkpoint_seconds'])
         ->and($extraction['checkpoint_seconds'] + $extraction['max_next_call_seconds'] + $extraction['persistence_release_reserve_seconds'])

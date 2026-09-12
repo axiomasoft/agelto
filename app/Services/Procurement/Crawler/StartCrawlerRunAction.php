@@ -52,7 +52,16 @@ final readonly class StartCrawlerRunAction
     ): void {
         $this->guardNoActiveRun($crawler);
 
-        $this->resumableRun($crawler)?->update(['cursor' => (new ListingCursor)->toArray()]);
+        $resumable = $this->resumableRun($crawler);
+
+        if ($resumable !== null) {
+            $stats = $resumable->stats?->toArray() ?? [];
+            unset($stats['execution_context'], $stats['automatic_recovery_pending']);
+            $resumable->update([
+                'cursor' => (new ListingCursor)->toArray(),
+                'stats' => $stats,
+            ]);
+        }
 
         $this->dispatch($crawler, $mode, $from, $to);
     }

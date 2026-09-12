@@ -16,6 +16,7 @@ final class ArchiveEntryValidator
     public function validate(array $entries, ArchiveBudget $budget): array
     {
         $totalBytes = 0;
+        $knownCompressedBytes = 0;
         $count = 0;
         $seen = [];
         $validated = [];
@@ -35,7 +36,7 @@ final class ArchiveEntryValidator
             if (! in_array($entry->type, ['file', 'directory'], true)) {
                 throw new ArchiveValidationException('архив содержит special entry');
             }
-            if ($entry->declaredSize < 0 || $entry->compressedSize < 0) {
+            if ($entry->declaredSize < 0 || ($entry->compressedSize !== null && $entry->compressedSize < 0)) {
                 throw new ArchiveValidationException('архив содержит запись с невозможным размером');
             }
             if (++$count > $budget->maxEntries) {
@@ -47,9 +48,10 @@ final class ArchiveEntryValidator
             if ($entry->declaredSize > 0 && $entry->compressedSize === 0) {
                 throw new ArchiveValidationException('невозможное соотношение размеров записи архива');
             }
-            if ($entry->compressedSize > 0 && $entry->declaredSize / $entry->compressedSize > $budget->maxCompressionRatio) {
+            if ($entry->compressedSize !== null && $entry->compressedSize > 0 && $entry->declaredSize / $entry->compressedSize > $budget->maxCompressionRatio) {
                 throw new ArchiveValidationException('превышен коэффициент сжатия записи архива');
             }
+            $knownCompressedBytes += $entry->compressedSize ?? 0;
             $totalBytes += $entry->declaredSize;
             if ($totalBytes > $budget->maxTotalBytes) {
                 throw new ArchiveValidationException('превышен суммарный размер архива');
@@ -62,6 +64,10 @@ final class ArchiveEntryValidator
                 isEncrypted: $entry->isEncrypted,
                 type: $entry->type,
             );
+        }
+
+        if ($totalBytes > 0 && $knownCompressedBytes > 0 && $totalBytes / $knownCompressedBytes > $budget->maxCompressionRatio) {
+            throw new ArchiveValidationException('превышен суммарный коэффициент сжатия архива');
         }
 
         return $validated;

@@ -39,8 +39,11 @@ final class FakeLlmProvider implements LlmProvider, SupportsContextCaching, Supp
     /** @var list<LlmPrompt> */
     private array $receivedPrompts = [];
 
-    /** @var list<array{path: string, mimeType: string}> */
+    /** @var list<array{path: string, mimeType: string, deadlineAt: float|null}> */
     private array $uploadedFiles = [];
+
+    /** @var list<LlmOptions> */
+    private array $receivedOptions = [];
 
     /** @var list<CacheableContent> */
     private array $createdCaches = [];
@@ -49,6 +52,8 @@ final class FakeLlmProvider implements LlmProvider, SupportsContextCaching, Supp
     private array $deletedCacheIds = [];
 
     private bool $cacheFailing = false;
+
+    private int $transportDelayMicros = 0;
 
     /**
      * @param  list<LlmResponse|LlmStructuredResponse|Throwable>  $queue
@@ -79,9 +84,18 @@ final class FakeLlmProvider implements LlmProvider, SupportsContextCaching, Supp
         return $this;
     }
 
+    public function withTransportDelayMicros(int $microseconds): self
+    {
+        $this->transportDelayMicros = max(0, $microseconds);
+
+        return $this;
+    }
+
     public function complete(LlmPrompt $prompt, LlmOptions $options): LlmResponse
     {
+        $this->delayTransport();
         $this->receivedPrompts[] = $prompt;
+        $this->receivedOptions[] = $options;
 
         $outcome = $this->dequeue();
 
@@ -94,7 +108,9 @@ final class FakeLlmProvider implements LlmProvider, SupportsContextCaching, Supp
 
     public function completeStructured(LlmPrompt $prompt, JsonSchema $schema, LlmOptions $options): LlmStructuredResponse
     {
+        $this->delayTransport();
         $this->receivedPrompts[] = $prompt;
+        $this->receivedOptions[] = $options;
 
         $outcome = $this->dequeue();
 
@@ -105,11 +121,25 @@ final class FakeLlmProvider implements LlmProvider, SupportsContextCaching, Supp
         return $outcome;
     }
 
-    public function uploadFile(string $path, string $mimeType): LlmFileHandle
+    public function uploadFile(string $path, string $mimeType, ?float $deadlineAt = null): LlmFileHandle
     {
-        $this->uploadedFiles[] = ['path' => $path, 'mimeType' => $mimeType];
+        $this->delayTransport();
+        $this->uploadedFiles[] = ['path' => $path, 'mimeType' => $mimeType, 'deadlineAt' => $deadlineAt];
 
         return new LlmFileHandle(uri: 'files/fake-'.md5($path), expiresAt: CarbonImmutable::now()->addHours(48));
+    }
+
+    private function delayTransport(): void
+    {
+        if ($this->transportDelayMicros > 0) {
+            usleep($this->transportDelayMicros);
+        }
+    }
+
+    /** @return list<LlmOptions> */
+    public function receivedOptions(): array
+    {
+        return $this->receivedOptions;
     }
 
     public function createCache(CacheableContent $content, LlmCacheOptions $options): LlmCacheHandle

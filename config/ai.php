@@ -229,6 +229,12 @@ return [
         // Дефолт — запас ≈68× над худшим документом корпуса (29 464 ячейки при 32 МБ памяти
         // прототипа), ловит патологию вроде merge на весь лист, а не боевые сметы.
         'xlsx_max_cells' => (int) env('AI_PREPARE_XLSX_MAX_CELLS', 2_000_000),
+        'xlsx_max_zip_entries' => (int) env('AI_PREPARE_XLSX_MAX_ZIP_ENTRIES', 10_000),
+        'xlsx_max_decoded_mb' => (int) env('AI_PREPARE_XLSX_MAX_DECODED_MB', 128),
+        'xlsx_max_compression_ratio' => (int) env('AI_PREPARE_XLSX_MAX_COMPRESSION_RATIO', 100),
+        'gsfx_max_core_xml_mb' => (int) env('AI_PREPARE_GSFX_MAX_CORE_XML_MB', 16),
+        'gsfx_parse_memory_limit' => env('AI_PREPARE_GSFX_PARSE_MEMORY_LIMIT', '256M'),
+        'gsfx_parse_timeout_seconds' => (int) env('AI_PREPARE_GSFX_PARSE_TIMEOUT_SECONDS', 60),
 
         // Лимит памяти `estimate:gold:import --prepare` (вынос литерала из GoldImportCommand,
         // P2.8, D96): значение не меняется этим выносом — квадратичный обход-корень блокера
@@ -389,6 +395,7 @@ return [
         'backlog_batch_limit' => (int) env('AI_PIPELINE_BACKLOG_BATCH_LIMIT', 100),
         'retry_batch_limit' => (int) env('AI_PIPELINE_RETRY_BATCH_LIMIT', 50),
         'recovery_claim_hold_minutes' => (int) env('AI_PIPELINE_RECOVERY_CLAIM_HOLD_MINUTES', 10),
+        'temporary_stale_seconds' => (int) env('AI_PIPELINE_TEMPORARY_STALE_SECONDS', 86400),
 
         // Single source of truth for P3.5 operation budgets. A stage may start an external
         // operation only when its remaining operation chain and persistence/release reserve fit
@@ -417,10 +424,16 @@ return [
                 'lease_seconds' => 2700,
             ],
             'screening' => [
-                'job_timeout_seconds' => 240,
-                'max_next_call_seconds' => 210,
+                'operation_timeout_seconds' => [
+                    'pdf_slice' => 60,
+                    'file_upload_and_poll' => 150,
+                    'generation' => 90,
+                ],
+                'setup_allowance_seconds' => 30,
+                'job_timeout_seconds' => 360,
+                'max_next_call_seconds' => 150,
                 'persistence_release_reserve_seconds' => 30,
-                'supervisor_timeout_seconds' => 300,
+                'supervisor_timeout_seconds' => 390,
                 'retry_after_seconds' => 420,
                 'lease_seconds' => 420,
             ],

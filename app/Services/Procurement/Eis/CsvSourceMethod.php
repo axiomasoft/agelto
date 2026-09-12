@@ -17,11 +17,12 @@ use App\Enums\Procurement\Crawler\CrawlStage;
 use App\Enums\Procurement\ProcurementStatus;
 use App\Enums\Procurement\Proxy\ProxyFailureReason;
 use App\Enums\Procurement\Proxy\ProxyScope;
+use App\Exceptions\Procurement\Crawler\OutboundRequestDeadlineExceeded;
 use App\Models\Procurement\Crawler\Crawler;
 use App\Models\Procurement\Platform\Platform;
 use App\Models\Procurement\Platform\Registry;
 use App\Models\Procurement\Procurement;
-use App\Services\Procurement\Contracts\SourceMethod;
+use App\Services\Procurement\Contracts\DeadlineAwareSourceMethod;
 use App\Services\Procurement\CrawlSettingsResolver;
 use App\Services\Procurement\Exceptions\CardPageMismatchException;
 use App\Services\Procurement\FetchLogger;
@@ -30,17 +31,17 @@ use App\Services\Procurement\Proxy\ProxyBindingResolver;
 use App\Services\Procurement\Proxy\ProxyResolver;
 use App\Services\Procurement\SourceTlsTrust;
 use Illuminate\Http\Client\ConnectionException;
-use Illuminate\Http\Client\RequestException;
 use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Sleep;
 
 /**
  * Основной метод забора данных ЕИС — CSV-экспорт реестра закупок
  * (`02-crawling.md` §3). Кодировка источника — Windows-1251, конвертация
  * в UTF-8 обязательна до парсинга; иначе закупки с кириллицей тихо теряются.
  */
-final readonly class CsvSourceMethod implements SourceMethod
+final readonly class CsvSourceMethod implements DeadlineAwareSourceMethod
 {
     /**
      * Заголовок колонки «Реестровый номер закупки» в CSV-экспорте ЕИС
@@ -107,12 +108,30 @@ final readonly class CsvSourceMethod implements SourceMethod
 
         $startedAt = hrtime(true);
 
-        $waitMs = $this->requestBudget->acquire(host: $host, stage: CrawlStage::Listing, crawler: $crawler);
-        $response = $this->requestWithOutcome(lease: $lease, endpoint: $endpoint, queryParams: $queryParams, settings: $settings);
+        $request = $this->requestWithRetries(
+            lease: $lease,
+            endpoint: $endpoint,
+            queryParams: $queryParams,
+            settings: $settings,
+            stage: CrawlStage::Listing,
+            host: $host,
+            crawler: $crawler,
+        );
+        $response = $request['response'];
+        $waitMs = $request['wait_ms'];
 
         if (($queryOverrides === null || $queryOverrides->retryOnEmptyResponse) && $response->status() === 200 && trim($response->body()) === '') {
-            $waitMs += $this->requestBudget->acquire(host: $host, stage: CrawlStage::Listing, crawler: $crawler);
-            $response = $this->requestWithOutcome(lease: $lease, endpoint: $endpoint, queryParams: $queryParams, settings: $settings);
+            $request = $this->requestWithRetries(
+                lease: $lease,
+                endpoint: $endpoint,
+                queryParams: $queryParams,
+                settings: $settings,
+                stage: CrawlStage::Listing,
+                host: $host,
+                crawler: $crawler,
+            );
+            $response = $request['response'];
+            $waitMs += $request['wait_ms'];
         }
 
         $durationMs = (int) ((hrtime(true) - $startedAt) / 1_000_000);
@@ -170,6 +189,16 @@ final readonly class CsvSourceMethod implements SourceMethod
 
     public function collectDetails(string $registryNumber, Registry $registry): ProcurementDetails
     {
+        return $this->collectDetailsInternal(registryNumber: $registryNumber, registry: $registry, deadlineAt: null);
+    }
+
+    public function collectDetailsWithinDeadline(string $registryNumber, Registry $registry, float $deadlineAt): ProcurementDetails
+    {
+        return $this->collectDetailsInternal(registryNumber: $registryNumber, registry: $registry, deadlineAt: $deadlineAt);
+    }
+
+    private function collectDetailsInternal(string $registryNumber, Registry $registry, ?float $deadlineAt): ProcurementDetails
+    {
         $procurement = Procurement::query()
             ->where('registry_id', $registry->id)
             ->where('registry_number', $registryNumber)
@@ -208,6 +237,7 @@ final readonly class CsvSourceMethod implements SourceMethod
                 tab: $tab,
                 registryNumber: $registryNumber,
                 url: $url,
+                deadlineAt: $deadlineAt,
             );
         }
 
@@ -226,19 +256,37 @@ final readonly class CsvSourceMethod implements SourceMethod
         return true;
     }
 
-    private function collectTab(Procurement $procurement, Registry $registry, string $tab, string $registryNumber, string $url): string
+    private function collectTab(Procurement $procurement, Registry $registry, string $tab, string $registryNumber, string $url, ?float $deadlineAt): string
     {
         $host = $this->canonicalHost($url);
         $lease = $this->detailLease(procurement: $procurement, host: $host);
         $settings = $this->crawlSettings->forStage(stage: CrawlStage::Detail, platform: $this->platformForId($registry->platform_id));
 
         $startedAt = hrtime(true);
-        $waitMs = $this->requestBudget->acquire(host: $host, stage: CrawlStage::Detail);
-        $response = $this->requestWithOutcome(lease: $lease, endpoint: $url, queryParams: [], settings: $settings);
+        $request = $this->requestWithRetries(
+            lease: $lease,
+            endpoint: $url,
+            queryParams: [],
+            settings: $settings,
+            stage: CrawlStage::Detail,
+            host: $host,
+            deadlineAt: $deadlineAt,
+        );
+        $response = $request['response'];
+        $waitMs = $request['wait_ms'];
 
         if ($response->status() === 200 && trim($response->body()) === '') {
-            $this->requestBudget->acquire(host: $host, stage: CrawlStage::Detail);
-            $response = $this->requestWithOutcome(lease: $lease, endpoint: $url, queryParams: [], settings: $settings);
+            $request = $this->requestWithRetries(
+                lease: $lease,
+                endpoint: $url,
+                queryParams: [],
+                settings: $settings,
+                stage: CrawlStage::Detail,
+                host: $host,
+                deadlineAt: $deadlineAt,
+            );
+            $response = $request['response'];
+            $waitMs += $request['wait_ms'];
         }
 
         $this->assertCardPage(response: $response, tab: $tab, url: $url, registryNumber: $registryNumber);
@@ -287,14 +335,12 @@ final readonly class CsvSourceMethod implements SourceMethod
             'registry_number' => $registryNumber,
         ]);
 
-        if ($tab === 'common-info') {
-            throw CardPageMismatchException::forTab(
-                tab: $tab,
-                url: $url,
-                status: $response->status(),
-                bodyLength: strlen($response->body()),
-            );
-        }
+        throw CardPageMismatchException::forTab(
+            tab: $tab,
+            url: $url,
+            status: $response->status(),
+            bodyLength: strlen($response->body()),
+        );
     }
 
     private function storeRawHtml(int $registryId, string $registryNumber, string $tab, string $url, string $html): string
@@ -323,21 +369,14 @@ final readonly class CsvSourceMethod implements SourceMethod
     /**
      * @param  array<string, string>  $queryParams
      */
-    private function request(string $endpoint, array $queryParams, ProxyLease $lease, StageSettings $settings): Response
+    private function request(string $endpoint, array $queryParams, ProxyLease $lease, int $timeoutSeconds): Response
     {
         $tlsOptions = $this->tlsTrust->optionsFor($this->canonicalHost($endpoint));
 
         $pendingRequest = Http::withOptions([...$lease->httpOptions(), ...$tlsOptions])
             ->withUserAgent($this->stringConfig('crawler.user_agent'))
             ->withHeaders(['Referer' => 'https://zakupki.gov.ru/'])
-            ->timeout($settings->timeoutSeconds ?? 30)
-            ->retry(
-                times: $settings->retries ?? 5,
-                sleepMilliseconds: $settings->retryDelayMs ?? 500,
-                when: static fn (\Throwable $exception): bool => $exception instanceof RequestException
-                    && ($exception->response->status() === 429 || $exception->response->status() >= 500),
-                throw: false,
-            );
+            ->timeout($timeoutSeconds);
 
         // Guzzle замещает query-строку URI опцией `query`, ДАЖЕ пустым массивом
         // (`http_build_query([]) === ''`) — endpoint'ы, несущие свою query-строку внутри
@@ -355,12 +394,12 @@ final readonly class CsvSourceMethod implements SourceMethod
      *
      * @param  array<string, string>  $queryParams
      */
-    private function requestWithOutcome(ProxyLease $lease, string $endpoint, array $queryParams, StageSettings $settings): Response
+    private function requestWithOutcome(ProxyLease $lease, string $endpoint, array $queryParams, int $timeoutSeconds): Response
     {
         $startedAt = hrtime(true);
 
         try {
-            $response = $this->request(endpoint: $endpoint, queryParams: $queryParams, lease: $lease, settings: $settings);
+            $response = $this->request(endpoint: $endpoint, queryParams: $queryParams, lease: $lease, timeoutSeconds: $timeoutSeconds);
         } catch (ConnectionException $exception) {
             $this->proxyResolver->reportOutcome($lease, ProxyOutcome::failure($this->connectionFailureReason($exception)));
 
@@ -372,6 +411,93 @@ final readonly class CsvSourceMethod implements SourceMethod
         $this->proxyResolver->reportOutcome($lease, $this->outcomeFrom($response, $latencyMs));
 
         return $response;
+    }
+
+    /**
+     * @param  array<string, string>  $queryParams
+     * @return array{response: Response, wait_ms: int}
+     */
+    private function requestWithRetries(
+        ProxyLease $lease,
+        string $endpoint,
+        array $queryParams,
+        StageSettings $settings,
+        CrawlStage $stage,
+        string $host,
+        ?Crawler $crawler = null,
+        ?float $deadlineAt = null,
+    ): array {
+        $attempts = max(1, $settings->retries ?? 5);
+        $waitMs = 0;
+
+        for ($attempt = 1; $attempt <= $attempts; $attempt++) {
+            $waitMs += $this->requestBudget->acquire(
+                host: $host,
+                stage: $stage,
+                crawler: $crawler,
+                deadlineAt: $deadlineAt,
+            );
+
+            try {
+                $response = $this->requestWithOutcome(
+                    lease: $lease,
+                    endpoint: $endpoint,
+                    queryParams: $queryParams,
+                    timeoutSeconds: $this->requestTimeout(settings: $settings, stage: $stage, deadlineAt: $deadlineAt),
+                );
+            } catch (ConnectionException $exception) {
+                if ($attempt === $attempts) {
+                    throw $exception;
+                }
+
+                $this->waitBeforeRetry(settings: $settings, stage: $stage, deadlineAt: $deadlineAt);
+
+                continue;
+            }
+
+            if (! $this->isRetryableResponse(response: $response) || $attempt === $attempts) {
+                return ['response' => $response, 'wait_ms' => $waitMs];
+            }
+
+            $this->waitBeforeRetry(settings: $settings, stage: $stage, deadlineAt: $deadlineAt);
+        }
+
+        throw new \LogicException('HTTP retry loop ended without a response.');
+    }
+
+    private function requestTimeout(StageSettings $settings, CrawlStage $stage, ?float $deadlineAt): int
+    {
+        $configured = max(1, $settings->timeoutSeconds ?? 30);
+
+        if ($deadlineAt === null) {
+            return $configured;
+        }
+
+        $remaining = (int) floor($deadlineAt - microtime(true) - 5);
+
+        if ($remaining < 1) {
+            throw OutboundRequestDeadlineExceeded::forStage(stage: $stage->value);
+        }
+
+        return min($configured, $remaining);
+    }
+
+    private function waitBeforeRetry(StageSettings $settings, CrawlStage $stage, ?float $deadlineAt): void
+    {
+        $waitMs = max(0, $settings->retryDelayMs ?? 500);
+
+        if ($deadlineAt !== null && microtime(true) + ($waitMs / 1000) >= $deadlineAt - 5) {
+            throw OutboundRequestDeadlineExceeded::forStage(stage: $stage->value);
+        }
+
+        if ($waitMs > 0) {
+            Sleep::for($waitMs)->milliseconds();
+        }
+    }
+
+    private function isRetryableResponse(Response $response): bool
+    {
+        return $response->status() === 429 || $response->status() >= 500;
     }
 
     private function outcomeFrom(Response $response, int $latencyMs): ProxyOutcome

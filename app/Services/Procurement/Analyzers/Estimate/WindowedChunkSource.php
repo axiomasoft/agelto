@@ -14,6 +14,7 @@ use App\Enums\Procurement\Analyzers\Estimate\EstimateLlmPurpose;
 use App\Enums\Procurement\Analyzers\Estimate\EstimatePromptStep;
 use App\Services\Llm\Contracts\SupportsFileUpload;
 use App\Services\Llm\Dto\JsonSchema;
+use App\Services\Llm\Dto\LlmOptions;
 use App\Services\Llm\Dto\LlmPrompt;
 use App\Services\Llm\Dto\LlmUsage;
 use App\Services\Llm\Dto\ResolvedRoute;
@@ -68,6 +69,7 @@ final readonly class WindowedChunkSource
         int $windowIndex,
         int $pageStart,
         int $pageEnd,
+        ?float $deadlineAt = null,
     ): ChunkFetchResult {
         $userPart = $this->offsetInstruction($pageStart, $pageEnd)
             ." Это discovery-окно №{$windowIndex}. Найди маркеры границ смет "
@@ -84,6 +86,7 @@ final readonly class WindowedChunkSource
             pageStart: $pageStart,
             pageEnd: $pageEnd,
             userPart: $userPart,
+            deadlineAt: $deadlineAt,
         );
 
         /** @var DiscoveryResponse $data */
@@ -103,6 +106,7 @@ final readonly class WindowedChunkSource
         int $pageStart,
         int $pageEnd,
         ?string $titleHint,
+        ?float $deadlineAt = null,
     ): ChunkFetchResult {
         $hint = $titleHint !== null ? " Подсказка из предварительной разметки (не факт, уточни по документу): «{$titleHint}»." : '';
 
@@ -121,6 +125,7 @@ final readonly class WindowedChunkSource
             pageStart: $pageStart,
             pageEnd: $pageEnd,
             userPart: $userPart,
+            deadlineAt: $deadlineAt,
         );
 
         /** @var PassportResponse $data */
@@ -140,6 +145,7 @@ final readonly class WindowedChunkSource
         int $segmentOrdinal,
         int $pageStart,
         int $pageEnd,
+        ?float $deadlineAt = null,
     ): ChunkFetchResult {
         $userPart = $this->offsetInstruction($pageStart, $pageEnd)
             ." Это сегмент №{$segmentOrdinal}. Верни строки, видимые на этих страницах. "
@@ -156,6 +162,7 @@ final readonly class WindowedChunkSource
             pageStart: $pageStart,
             pageEnd: $pageEnd,
             userPart: $userPart,
+            deadlineAt: $deadlineAt,
         );
 
         /** @var RowsChunkResponse $data */
@@ -173,6 +180,7 @@ final readonly class WindowedChunkSource
         int $segmentOrdinal,
         int $pageStart,
         int $pageEnd,
+        ?float $deadlineAt = null,
     ): ChunkFetchResult {
         $userPart = $this->offsetInstruction($pageStart, $pageEnd)
             ." Это хвост сегмента №{$segmentOrdinal}. Верни итоги (footer) этой сметы.";
@@ -187,6 +195,7 @@ final readonly class WindowedChunkSource
             pageStart: $pageStart,
             pageEnd: $pageEnd,
             userPart: $userPart,
+            deadlineAt: $deadlineAt,
         );
 
         /** @var TotalsResponse $data */
@@ -214,15 +223,25 @@ final readonly class WindowedChunkSource
         int $pageStart,
         int $pageEnd,
         string $userPart,
+        ?float $deadlineAt,
     ): array {
         if (! $route->provider instanceof SupportsFileUpload) {
             throw new RuntimeException('Провайдер оконного маршрута извлечения не поддерживает Files API.');
         }
 
-        $slicePath = $this->slicer->sliceRange($localPath, $pageStart, $pageEnd);
+        $slicePath = $this->slicer->sliceRange(
+            inputPath: $localPath,
+            pageStart: $pageStart,
+            pageEnd: $pageEnd,
+            deadlineAt: $deadlineAt,
+        );
 
         try {
-            $fileHandle = $route->provider->uploadFile($slicePath, 'application/pdf');
+            $fileHandle = $route->provider->uploadFile(
+                path: $slicePath,
+                mimeType: 'application/pdf',
+                deadlineAt: $deadlineAt,
+            );
 
             $composed = $this->prompts->compose($step, [$dataClass, ...$this->dictionaries->forStep($step)]);
             $schema = new JsonSchema($this->schemas->generate($dataClass));
@@ -238,7 +257,11 @@ final readonly class WindowedChunkSource
             $requestPayload = json_encode(['systemPart' => $composed->systemPart, 'userParts' => $prompt->userParts], JSON_THROW_ON_ERROR);
 
             try {
-                $response = $route->provider->completeStructured($prompt, $schema, $route->options);
+                $response = $route->provider->completeStructured(
+                    prompt: $prompt,
+                    schema: $schema,
+                    options: $this->optionsWithinDeadline(options: $route->options, deadlineAt: $deadlineAt),
+                );
             } catch (Throwable $exception) {
                 $this->recorder->record(
                     analysisId: $analysisId,
@@ -289,5 +312,39 @@ final readonly class WindowedChunkSource
         } finally {
             @unlink($slicePath);
         }
+    }
+
+    private function optionsWithinDeadline(LlmOptions $options, ?float $deadlineAt): LlmOptions
+    {
+        $remaining = $deadlineAt === null
+            ? null
+            : (int) floor($deadlineAt - microtime(true) - $this->persistenceReserveSeconds());
+
+        if ($remaining !== null && $remaining < 1) {
+            throw new RuntimeException('Extraction transport deadline is exhausted.');
+        }
+
+        return new LlmOptions(
+            provider: $options->provider,
+            model: $options->model,
+            temperature: $options->temperature,
+            maxTokens: $options->maxTokens,
+            cacheHandle: $options->cacheHandle,
+            baseUrl: $options->baseUrl,
+            apiKeyEnv: $options->apiKeyEnv,
+            thinkingLevel: $options->thinkingLevel,
+            requestTimeoutSeconds: $remaining,
+        );
+    }
+
+    private function persistenceReserveSeconds(): int
+    {
+        $seconds = config('ai.pipeline.operation_budgets.extraction.persistence_release_reserve_seconds', 30);
+
+        if (! is_int($seconds) || $seconds < 1) {
+            throw new RuntimeException('Extraction persistence reserve must be a positive integer.');
+        }
+
+        return $seconds;
     }
 }

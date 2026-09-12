@@ -5,81 +5,149 @@ declare(strict_types=1);
 namespace App\Services\Procurement;
 
 use App\Enums\Procurement\Document\DocumentStatus;
+use App\Jobs\Procurement\DownloadDocumentJob;
 use App\Jobs\Procurement\PrepareDocumentJob;
 use App\Models\Procurement\Document\Document;
 use App\Models\Procurement\Procurement;
 use Illuminate\Database\Eloquent\Builder;
 
 /**
- * Мост crawling → пайплайн документов (`02-crawling.md` §8, ТЗ 03 §4): реальный dispatch
- * `PrepareDocumentJob` (не заглушка, P4.3) для документов, УЖЕ скачанных `DocumentDownloader`
- * (`downloaded` — есть контент, есть что готовить). `discovered` (контент ещё не скачан) сюда
- * намеренно не попадает (FSM `03-document-pipeline.md` §2 — `discovered ──download──>
- * downloaded ──prepare──> prepared`).
+ * Durable bridge from discovered attachments to the document pipeline.
  *
- * Два канала (research/L finding 12 — прямой путь основной, поллер страховка):
- * - `dispatch()` — немедленный dispatch (`afterCommit()`) сразу после того, как закупка
- *   получила детальный срез (вызывается из `FetchDetails` тем же тиком, что и раньше —
- *   латентность v1-моста была только-поллером, здесь так не делаем);
- * - `dispatchBacklog()` — everyMinute-поллер (`routes/console.php`) по ВСЕМ закупкам,
- *   добирает пропущенное/несработавшее без привязки к конкретной закупке.
- *
- * Диспатч не мутирует `prc_documents.status` — следующий переход (`downloaded→prepared`)
- * делает сам `PrepareDocumentJob`; защита от дублей — `ShouldBeUnique` на job'е (P4.1 D39) +
- * status-guard в его `handle()`, а не предикат выборки здесь.
+ * Both the direct detail path and the scheduled backlog use the same conditional claim.
+ * A future retry timestamp is only a dispatch hold; attempts are owned by the executing job.
  */
 final readonly class PipelineDispatcher
 {
+    private const int ClaimHoldMinutes = 10;
+
     public function dispatch(Procurement $procurement): int
     {
-        $batchLimit = config('ai.pipeline.dispatch_batch_limit', 100);
+        $limit = $this->configuredLimit();
+        $downloads = $this->enqueueDownloads(
+            query: $this->discoveredQuery()->where('procurement_id', $procurement->id),
+            limit: $limit,
+        );
 
-        if (! is_int($batchLimit)) {
-            throw new \LogicException('ai.pipeline.dispatch_batch_limit must be an integer.');
-        }
-
-        return $this->enqueue(
-            $this->downloadedQuery()
-                ->where('procurement_id', $procurement->id)
-                ->limit($batchLimit),
+        return $downloads + $this->enqueuePreparations(
+            query: $this->downloadedQuery()->where('procurement_id', $procurement->id),
+            limit: $limit - $downloads,
         );
     }
 
     public function dispatchBacklog(int $limit): int
     {
-        return $this->enqueue($this->downloadedQuery()->limit($limit));
+        if ($limit <= 0) {
+            throw new \InvalidArgumentException('The dispatch limit must be a positive integer.');
+        }
+
+        $downloads = $this->enqueueDownloads(query: $this->discoveredQuery(), limit: $limit);
+
+        return $downloads + $this->enqueuePreparations(
+            query: $this->downloadedQuery(),
+            limit: $limit - $downloads,
+        );
     }
 
-    /**
-     * `pendingRetry()` (`HasErrorBlock`-канон, `Document::scopePendingRetry`) не даёт
-     * прямому пути/поллеру обходить backoff и dead-letter (ревью-находка P4.3 HIGH): для
-     * ещё-не-провалившегося документа `next_retry_at` пуст — скоуп пропускает как обычно, а
-     * провалившийся при подготовке (см. `HasErrorBlock::recordFailure` — статус остаётся
-     * `Downloaded`, меняются только `attempts/next_retry_at/failed_permanently`) переотправляется
-     * только когда наступил `next_retry_at`, и никогда — если `failed_permanently` (это зона
-     * `pipeline:retry-failed`, единственной команды, которая умеет claim+dead-letter-гейт).
-     *
-     * @return Builder<Document>
-     */
+    public function dispatchDiscoveredBacklog(int $limit): int
+    {
+        if ($limit <= 0) {
+            throw new \InvalidArgumentException('The dispatch limit must be a positive integer.');
+        }
+
+        return $this->enqueueDownloads(query: $this->discoveredQuery(), limit: $limit);
+    }
+
+    /** @return Builder<Document> */
+    private function discoveredQuery(): Builder
+    {
+        return Document::query()
+            ->where('status', DocumentStatus::Discovered)
+            ->whereNotNull('procurement_id')
+            ->whereNotNull('source_url')
+            ->where('source_url', '<>', '')
+            ->whereNull('removed_at')
+            ->pendingRetry()
+            ->where(fn ($query) => $query
+                ->whereNull('locked_until')
+                ->orWhere('locked_until', '<=', now())
+            )
+            ->orderBy('id');
+    }
+
+    /** @return Builder<Document> */
     private function downloadedQuery(): Builder
     {
         return Document::query()
             ->where('status', DocumentStatus::Downloaded)
             ->whereNull('removed_at')
-            ->pendingRetry();
+            ->pendingRetry()
+            ->orderBy('id');
     }
 
-    /**
-     * @param  Builder<Document>  $query
-     */
-    private function enqueue(Builder $query): int
+    /** @param Builder<Document> $query */
+    private function enqueueDownloads(Builder $query, int $limit): int
     {
-        $documents = $query->get();
+        if ($limit <= 0) {
+            return 0;
+        }
+
+        $dispatched = 0;
+
+        foreach ($query->limit($limit)->get() as $document) {
+            $claimed = Document::query()
+                ->whereKey($document->id)
+                ->where('status', DocumentStatus::Discovered->value)
+                ->whereNotNull('procurement_id')
+                ->whereNotNull('source_url')
+                ->where('source_url', '<>', '')
+                ->whereNull('removed_at')
+                ->where('failed_permanently', false)
+                ->where(fn ($query) => $query
+                    ->whereNull('locked_until')
+                    ->orWhere('locked_until', '<=', now())
+                )
+                ->where(fn ($query) => $query
+                    ->whereNull('next_retry_at')
+                    ->orWhere('next_retry_at', '<=', now())
+                )
+                ->update(['next_retry_at' => now()->addMinutes(self::ClaimHoldMinutes)]);
+
+            if ($claimed !== 1) {
+                continue;
+            }
+
+            DownloadDocumentJob::dispatch(documentId: $document->id)->afterCommit();
+            $dispatched++;
+        }
+
+        return $dispatched;
+    }
+
+    /** @param Builder<Document> $query */
+    private function enqueuePreparations(Builder $query, int $limit): int
+    {
+        if ($limit <= 0) {
+            return 0;
+        }
+
+        $documents = $query->limit($limit)->get();
 
         foreach ($documents as $document) {
-            PrepareDocumentJob::dispatch($document->id)->afterCommit();
+            PrepareDocumentJob::dispatch(documentId: $document->id)->afterCommit();
         }
 
         return $documents->count();
+    }
+
+    private function configuredLimit(): int
+    {
+        $limit = config('ai.pipeline.dispatch_batch_limit', 100);
+
+        if (! is_int($limit) || $limit <= 0) {
+            throw new \LogicException('ai.pipeline.dispatch_batch_limit must be a positive integer.');
+        }
+
+        return $limit;
     }
 }

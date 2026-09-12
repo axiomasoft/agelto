@@ -33,6 +33,7 @@ use App\Services\Procurement\Extraction\ExtractionPreflight;
 use App\Services\Procurement\Extraction\ExtractionSession;
 use App\Services\Procurement\Prepare\RepresentationResolver;
 use App\Services\Procurement\Screening\PdfPageSlicer;
+use App\Support\Files\PipelineTemporaryFile;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
@@ -124,7 +125,7 @@ final readonly class ExtractionOrchestrator
         }
 
         $disk = Storage::disk($effective['disk']);
-        $localPath = tempnam(sys_get_temp_dir(), 'extraction_').'.'.$effective['extension'];
+        $localPath = PipelineTemporaryFile::create(prefix: 'extraction_', extension: $effective['extension']);
         file_put_contents($localPath, $disk->get($effective['storagePath']));
 
         try {
@@ -351,6 +352,7 @@ final readonly class ExtractionOrchestrator
     private function runWindowed(Document $document, Analysis $analysis, string $localPath, ResolvedRoute $route, float $runStartedAt): bool
     {
         $session = $this->buildWindowedSession($analysis, $localPath);
+        $deadlineAt = $runStartedAt + $this->intConfig('ai.pipeline.operation_budgets.extraction.job_timeout_seconds', 300);
 
         $checkpointRanges = $this->intConfig('ai.extraction.checkpoint_ranges', 20);
         $checkpointSeconds = $this->intConfig('ai.extraction.checkpoint_seconds', 120);
@@ -388,12 +390,13 @@ final readonly class ExtractionOrchestrator
                 $pageEnd = min($pageStart + $windowPages - 1, $progress['total_pages']);
 
                 $result = $this->windowedChunkSource->fetchDiscoveryWindow(
-                    $analysis->id,
-                    $discoveryRoute,
-                    $localPath,
-                    $windowIndex,
-                    $pageStart,
-                    $pageEnd,
+                    analysisId: $analysis->id,
+                    discoveryRoute: $discoveryRoute,
+                    localPath: $localPath,
+                    windowIndex: $windowIndex,
+                    pageStart: $pageStart,
+                    pageEnd: $pageEnd,
+                    deadlineAt: $deadlineAt,
                 );
                 $session = $session->withUsage($result->usage);
                 $unitsThisRun++;
@@ -463,13 +466,14 @@ final readonly class ExtractionOrchestrator
 
             if ($estimate['passport_done'] === false) {
                 $result = $this->windowedChunkSource->fetchSegmentPassport(
-                    $analysis->id,
-                    $route,
-                    $localPath,
-                    $estimate['ordinal'],
-                    $estimate['segment_page_start'],
-                    $estimate['segment_page_end'],
-                    $segmentTitle,
+                    analysisId: $analysis->id,
+                    route: $route,
+                    localPath: $localPath,
+                    segmentOrdinal: $estimate['ordinal'],
+                    pageStart: $estimate['segment_page_start'],
+                    pageEnd: $estimate['segment_page_end'],
+                    titleHint: $segmentTitle,
+                    deadlineAt: $deadlineAt,
                 );
                 $session = $session->withUsage($result->usage);
                 $unitsThisRun++;
@@ -501,12 +505,13 @@ final readonly class ExtractionOrchestrator
                 $windowPageEnd = min($estimate['next_page'] + $windowPages - 1, $estimate['segment_page_end']);
 
                 $result = $this->windowedChunkSource->fetchSegmentRows(
-                    $analysis->id,
-                    $route,
-                    $localPath,
-                    $estimate['ordinal'],
-                    $estimate['next_page'],
-                    $windowPageEnd,
+                    analysisId: $analysis->id,
+                    route: $route,
+                    localPath: $localPath,
+                    segmentOrdinal: $estimate['ordinal'],
+                    pageStart: $estimate['next_page'],
+                    pageEnd: $windowPageEnd,
+                    deadlineAt: $deadlineAt,
                 );
                 $session = $session->withUsage($result->usage);
                 $unitsThisRun++;
@@ -541,12 +546,13 @@ final readonly class ExtractionOrchestrator
             $tailStart = max($estimate['segment_page_start'], $estimate['segment_page_end'] - $totalsTailPages + 1);
 
             $result = $this->windowedChunkSource->fetchSegmentTotals(
-                $analysis->id,
-                $route,
-                $localPath,
-                $estimate['ordinal'],
-                $tailStart,
-                $estimate['segment_page_end'],
+                analysisId: $analysis->id,
+                route: $route,
+                localPath: $localPath,
+                segmentOrdinal: $estimate['ordinal'],
+                pageStart: $tailStart,
+                pageEnd: $estimate['segment_page_end'],
+                deadlineAt: $deadlineAt,
             );
             $session = $session->withUsage($result->usage);
             $unitsThisRun++;
@@ -567,7 +573,13 @@ final readonly class ExtractionOrchestrator
 
     private function checkpointDue(int $unitsThisRun, float $runStartedAt, int $checkpointRanges, int $checkpointSeconds): bool
     {
-        return $unitsThisRun >= $checkpointRanges || (microtime(true) - $runStartedAt) >= $checkpointSeconds;
+        $jobTimeout = $this->intConfig('ai.pipeline.operation_budgets.extraction.job_timeout_seconds', 300);
+        $nextCall = $this->intConfig('ai.pipeline.operation_budgets.extraction.max_next_call_seconds', 150);
+        $reserve = $this->intConfig('ai.pipeline.operation_budgets.extraction.persistence_release_reserve_seconds', 30);
+
+        return $unitsThisRun >= $checkpointRanges
+            || (microtime(true) - $runStartedAt) >= $checkpointSeconds
+            || ($runStartedAt + $jobTimeout - microtime(true)) <= $nextCall + $reserve;
     }
 
     /** @param list<WholeEstimate> $estimates */
@@ -783,19 +795,18 @@ final readonly class ExtractionOrchestrator
         $analysis->result = collect($result);
         $this->persister->persist($analysis, supersededAnalysisId: $analysis->parent_analysis_id);
 
-        $this->usageSnapshot->finalizeAnalysis($analysis, [
-            'status' => AnalysisStatus::Succeeded,
-            'progress' => $session->progress,
-            'result' => $result,
-            'provider' => $route->options->provider,
-            'model' => $route->options->model,
-            'finished_at' => now(),
-        ]);
+        DB::transaction(function () use ($analysis, $document, $result, $route, $session): void {
+            $this->usageSnapshot->finalizeAnalysis($analysis, [
+                'status' => AnalysisStatus::Succeeded,
+                'progress' => $session->progress,
+                'result' => $result,
+                'provider' => $route->options->provider,
+                'model' => $route->options->model,
+                'finished_at' => now(),
+            ]);
 
-        // Документ доводится до extracted здесь (Implementation Rules P6.1 — финализация статуса
-        // анализа/документа обязательна в любом исходе, v1-урок «вечный analyzing») ПОСЛЕ
-        // успешного персиста — раньше документ мог перейти в extracted, даже если персист упал.
-        $this->documents->update($document, ['status' => DocumentStatus::Extracted]);
+            $this->documents->update($document, ['status' => DocumentStatus::Extracted]);
+        });
     }
 
     private function markUnprocessable(Document $document, Analysis $analysis, UnprocessableReason $reason, string $detail): void

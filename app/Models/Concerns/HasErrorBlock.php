@@ -17,6 +17,11 @@ trait HasErrorBlock
 {
     public function recordFailure(string $message): void
     {
+        if ($this->hasLeaseToken() && ! $this->ownsLease()) {
+            return;
+        }
+
+        $this->refresh();
         $attempts = $this->attempts + 1;
         $maxAttempts = $this->positiveIntegerConfig('ai.retry.max_attempts', default: 5);
         $isPermanent = $attempts >= $maxAttempts;

@@ -7,6 +7,7 @@ namespace App\Services\Procurement;
 use App\Enums\Procurement\Ai\AiDocumentType;
 use App\Enums\Procurement\Ai\AnalysisStatus;
 use App\Enums\Procurement\Ai\AnalysisStep;
+use App\Enums\Procurement\Ai\RunMode;
 use App\Enums\Procurement\Document\DocumentStatus;
 use App\Jobs\Procurement\ScreeningJob;
 use App\Models\Procurement\Ai\Analysis;
@@ -42,7 +43,24 @@ final readonly class PipelineRecoveryReconciler
                 continue;
             }
 
-            $run = $this->runs->findActive($version->id);
+            if ($document->status === DocumentStatus::Screened && $this->repairCompletedExtraction(document: $document, versionId: $version->id)) {
+                $dispatched++;
+
+                continue;
+            }
+
+            if ($document->status === DocumentStatus::Prepared && ! $this->featureEnabled('ai.screening.enabled')) {
+                continue;
+            }
+
+            $run = $this->runs->findActive(documentVersionId: $version->id);
+
+            if ($run === null && $document->status === DocumentStatus::Prepared) {
+                $run = $this->runs->findOrStartInitial(
+                    documentVersionId: $version->id,
+                    mode: RunMode::Auto,
+                );
+            }
 
             if ($run === null) {
                 continue;
@@ -62,13 +80,104 @@ final readonly class PipelineRecoveryReconciler
         return $dispatched;
     }
 
+    private function repairCompletedExtraction(Document $document, int $versionId): bool
+    {
+        $analysis = $this->analyses->findActive(documentVersionId: $versionId, step: AnalysisStep::Extraction);
+
+        if ($analysis?->status !== AnalysisStatus::Succeeded) {
+            return false;
+        }
+
+        return Document::query()
+            ->whereKey($document->getKey())
+            ->where('status', DocumentStatus::Screened)
+            ->update(['status' => DocumentStatus::Extracted]) === 1;
+    }
+
     /** @return iterable<Document> */
     private function candidates(int $limit): iterable
     {
+        $statuses = [];
+
+        if ($this->featureEnabled('ai.screening.enabled')) {
+            $statuses[] = DocumentStatus::Prepared->value;
+        }
+
+        if ($this->featureEnabled('ai.extraction.enabled')) {
+            $statuses[] = DocumentStatus::Screened->value;
+        }
+
+        if ($statuses === []) {
+            return [];
+        }
+
         return Document::query()
-            ->whereIn('status', [DocumentStatus::Prepared->value, DocumentStatus::Screened->value])
             ->whereNull('removed_at')
-            ->lazyById(chunkSize: $limit);
+            ->whereIn('status', $statuses)
+            ->where(function ($query): void {
+                $query
+                    ->where(function ($query): void {
+                        $query->where('status', DocumentStatus::Prepared->value)
+                            ->whereHas('latestVersion')
+                            ->where(function ($query): void {
+                                $query->whereDoesntHave('latestVersion.analysisRuns')
+                                    ->orWhere(function ($query): void {
+                                        $query->whereHas('latestVersion.analysisRuns', fn ($query) => $query->whereNull('finished_at'))
+                                            ->where(function ($query): void {
+                                                $query->whereDoesntHave('latestVersion.analyses', fn ($query) => $query
+                                                    ->whereNull('superseded_at')
+                                                    ->where('is_shadow', false)
+                                                    ->where('step', AnalysisStep::Screening->value))
+                                                    ->orWhereHas('latestVersion.analyses', fn ($query) => $query
+                                                        ->whereNull('superseded_at')
+                                                        ->where('is_shadow', false)
+                                                        ->where('step', AnalysisStep::Screening->value)
+                                                        ->whereIn('status', [AnalysisStatus::Pending->value, AnalysisStatus::Running->value])
+                                                        ->where('failed_permanently', false)
+                                                        ->where(fn ($query) => $query->whereNull('next_retry_at')->orWhere('next_retry_at', '<=', now()))
+                                                        ->where(fn ($query) => $query->whereNull('locked_until')->orWhere('locked_until', '<', now())));
+                                            });
+                                    });
+                            });
+                    })
+                    ->orWhere(function ($query): void {
+                        $query->where('status', DocumentStatus::Screened->value)
+                            ->where(function ($query): void {
+                                $query->whereHas('latestVersion.analyses', fn ($query) => $query
+                                    ->whereNull('superseded_at')
+                                    ->where('is_shadow', false)
+                                    ->where('step', AnalysisStep::Extraction->value)
+                                    ->where('status', AnalysisStatus::Succeeded->value))
+                                    ->orWhere(function ($query): void {
+                                        $query->whereHas('latestVersion.analysisRuns', fn ($query) => $query->whereNull('finished_at'))
+                                            ->whereHas('latestVersion.analyses', fn ($query) => $query
+                                                ->whereNull('superseded_at')
+                                                ->where('is_shadow', false)
+                                                ->where('step', AnalysisStep::Screening->value)
+                                                ->where('status', AnalysisStatus::Succeeded->value)
+                                                ->where('result->decision->disposition', 'extract')
+                                                ->where('result->decision->extraction_dispatched', true))
+                                            ->where(function ($query): void {
+                                                $query->whereDoesntHave('latestVersion.analyses', fn ($query) => $query
+                                                    ->whereNull('superseded_at')
+                                                    ->where('is_shadow', false)
+                                                    ->where('step', AnalysisStep::Extraction->value))
+                                                    ->orWhereHas('latestVersion.analyses', fn ($query) => $query
+                                                        ->whereNull('superseded_at')
+                                                        ->where('is_shadow', false)
+                                                        ->where('step', AnalysisStep::Extraction->value)
+                                                        ->whereIn('status', [AnalysisStatus::Pending->value, AnalysisStatus::Running->value])
+                                                        ->where('failed_permanently', false)
+                                                        ->where(fn ($query) => $query->whereNull('next_retry_at')->orWhere('next_retry_at', '<=', now()))
+                                                        ->where(fn ($query) => $query->whereNull('locked_until')->orWhere('locked_until', '<', now())));
+                                            });
+                                    });
+                            });
+                    });
+            })
+            ->orderBy('id')
+            ->limit($limit)
+            ->get();
     }
 
     private function recoverScreening(Document $document, int $versionId, AnalysisRun $run): bool

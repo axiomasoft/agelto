@@ -181,3 +181,36 @@ test('лимит --limit ограничивает выборку за тик', f
 
     Queue::assertPushed(PrepareDocumentJob::class, 2);
 });
+
+test('discovered с нулём попыток подбирается тем же bounded claim', function (): void {
+    Queue::fake();
+    $document = Document::factory()->create([
+        'status' => DocumentStatus::Discovered,
+        'attempts' => 0,
+        'next_retry_at' => null,
+        'failed_permanently' => false,
+    ]);
+
+    $this->artisan('pipeline:retry-failed', ['--limit' => 10])->assertSuccessful();
+
+    Queue::assertPushed(DownloadDocumentJob::class, fn (DownloadDocumentJob $job): bool => $job->documentId === $document->id);
+    $document->refresh();
+    expect($document->attempts)->toBe(0)
+        ->and($document->next_retry_at)->not->toBeNull();
+});
+
+test('discovered с активным lease не получает конкурирующий download claim', function (): void {
+    Queue::fake();
+    Document::factory()->create([
+        'status' => DocumentStatus::Discovered,
+        'attempts' => 0,
+        'next_retry_at' => null,
+        'failed_permanently' => false,
+        'locked_by' => 'active-worker:token',
+        'locked_until' => now()->addMinutes(5),
+    ]);
+
+    $this->artisan('pipeline:retry-failed', ['--limit' => 10])->assertSuccessful();
+
+    Queue::assertNotPushed(DownloadDocumentJob::class);
+});

@@ -13,6 +13,7 @@ use App\Repositories\Procurement\ProcurementStoreRepository;
 use App\Services\Procurement\Contracts\SourceMethod;
 use App\Services\Procurement\Modes\DetailAnalysisProcessor;
 use Illuminate\Support\Carbon;
+use Tests\Support\Doubles\Crawler\CardHtmlFixture;
 
 final class DetailParseOutcomeSourceMethod implements SourceMethod
 {
@@ -34,6 +35,8 @@ final class DetailParseOutcomeSourceMethod implements SourceMethod
         return new ProcurementDetails(
             registryNumber: $registryNumber,
             procedureUrlType: 'ea20',
+            commonInfoHtml: CardHtmlFixture::commonInfo(),
+            documentsHtml: CardHtmlFixture::documents(),
         );
     }
 

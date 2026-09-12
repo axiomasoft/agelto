@@ -35,11 +35,18 @@ final readonly class ApplyScreeningDispositionAction
         ScreeningDecision $decision,
         ?DocumentAnalyzer $analyzer,
     ): bool {
-        return DB::transaction(function () use ($document, $analysis, $result, $decision, $analyzer): bool {
+        $leaseToken = $analysis->leaseToken();
+
+        if ($leaseToken === null) {
+            return false;
+        }
+
+        return DB::transaction(function () use ($document, $analysis, $result, $decision, $analyzer, $leaseToken): bool {
             if ($analysis->is_shadow) {
                 $lockedAnalysis = Analysis::query()->lockForUpdate()->findOrFail($analysis->id);
 
-                if ($lockedAnalysis->status !== AnalysisStatus::Running || ! $lockedAnalysis->is_shadow) {
+                if (! $this->ownsLockedAnalysis($lockedAnalysis, $leaseToken)
+                    || $lockedAnalysis->status !== AnalysisStatus::Running || ! $lockedAnalysis->is_shadow) {
                     return false;
                 }
 
@@ -58,13 +65,13 @@ final readonly class ApplyScreeningDispositionAction
                     decision: $shadowDecision,
                 );
 
-                $this->usageSnapshots->finalizeAnalysis($lockedAnalysis, [
+                $this->usageSnapshots->finalizeAnalysis($analysis, [
                     'status' => AnalysisStatus::Succeeded,
                     'document_type' => $result->document_type->value,
                     'result' => $stored->toArray(),
                     'finished_at' => now(),
                 ]);
-                $this->usageSnapshots->markRunSucceeded($lockedAnalysis->analysisRun);
+                $this->usageSnapshots->markRunSucceeded($analysis->analysisRun);
 
                 return true;
             }
@@ -72,7 +79,9 @@ final readonly class ApplyScreeningDispositionAction
             $lockedDocument = Document::query()->lockForUpdate()->findOrFail($document->id);
             $lockedAnalysis = Analysis::query()->lockForUpdate()->findOrFail($analysis->id);
 
-            if ($lockedDocument->status !== DocumentStatus::Prepared || $lockedAnalysis->status !== AnalysisStatus::Running || $lockedAnalysis->is_shadow) {
+            if (! $this->ownsLockedAnalysis($lockedAnalysis, $leaseToken)
+                || $lockedDocument->status !== DocumentStatus::Prepared
+                || $lockedAnalysis->status !== AnalysisStatus::Running || $lockedAnalysis->is_shadow) {
                 return false;
             }
 
@@ -86,7 +95,7 @@ final readonly class ApplyScreeningDispositionAction
                 decision: $decision,
             );
 
-            $this->usageSnapshots->finalizeAnalysis($lockedAnalysis, [
+            $this->usageSnapshots->finalizeAnalysis($analysis, [
                 'status' => AnalysisStatus::Succeeded,
                 'document_type' => $result->document_type->value,
                 'result' => $stored->toArray(),
@@ -100,10 +109,10 @@ final readonly class ApplyScreeningDispositionAction
                 },
             ]);
 
-            $this->storeEvent($lockedDocument, $lockedAnalysis, $result, $decision);
+            $this->storeEvent($lockedDocument, $analysis, $result, $decision);
 
             if (! $decision->extractionDispatched) {
-                $this->usageSnapshots->markRunSucceeded($lockedAnalysis->analysisRun);
+                $this->usageSnapshots->markRunSucceeded($analysis->analysisRun);
             }
 
             if ($decision->extractionDispatched && $analyzer !== null) {
@@ -114,6 +123,17 @@ final readonly class ApplyScreeningDispositionAction
 
             return true;
         });
+    }
+
+    private function ownsLockedAnalysis(Analysis $analysis, string $leaseToken): bool
+    {
+        return $analysis->locked_by === $leaseToken
+            && $analysis->locked_until !== null
+            && Analysis::query()
+                ->whereKey($analysis->getKey())
+                ->where('locked_by', $leaseToken)
+                ->whereRaw('locked_until >= CURRENT_TIMESTAMP')
+                ->exists();
     }
 
     private function storeEvent(Document $document, Analysis $analysis, ScreeningResult $result, ScreeningDecision $decision): void

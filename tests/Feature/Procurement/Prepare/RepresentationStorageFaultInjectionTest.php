@@ -21,14 +21,13 @@ dataset('prepared representation outputs', [
 
 test('false object write does not finalize any prepared representation', function (RepresentationKind $kind): void {
     $version = DocumentVersion::factory()->create();
-    $storagePath = representationStoragePath(path: 'prepared/failure', content: 'payload');
     $disk = Mockery::mock(Filesystem::class);
-    $disk->shouldReceive('exists')->once()->with($storagePath)->andReturnFalse();
     $disk->shouldReceive('writeStream')->once()->with(
-        $storagePath,
+        Mockery::pattern('/\.staging\./'),
         Mockery::on(static fn (mixed $stream): bool => is_resource($stream)
             && stream_get_contents($stream) === 'payload'),
     )->andReturnFalse();
+    $disk->shouldReceive('exists')->once()->with(Mockery::pattern('/\.staging\./'))->andReturnFalse();
 
     expect(fn () => app(RepresentationWriter::class)->write(
         disk: $disk,
@@ -44,14 +43,13 @@ test('false object write does not finalize any prepared representation', functio
 
 test('storage exception does not finalize a representation', function (): void {
     $version = DocumentVersion::factory()->create();
-    $storagePath = representationStoragePath(path: 'prepared/exception', content: 'payload');
     $disk = Mockery::mock(Filesystem::class);
-    $disk->shouldReceive('exists')->once()->with($storagePath)->andReturnFalse();
     $disk->shouldReceive('writeStream')->once()->with(
-        $storagePath,
+        Mockery::pattern('/\.staging\./'),
         Mockery::on(static fn (mixed $stream): bool => is_resource($stream)
             && stream_get_contents($stream) === 'payload'),
     )->andThrow(new RuntimeException('disk unavailable'));
+    $disk->shouldReceive('exists')->once()->with(Mockery::pattern('/\.staging\./'))->andReturnFalse();
 
     expect(fn () => app(RepresentationWriter::class)->write(
         disk: $disk,
@@ -70,26 +68,11 @@ test('streamed representation uses stream IO for upload and verification', funct
     $content = '%PDF-streamed';
     $storagePath = representationStoragePath(path: 'prepared/stream.pdf', content: $content);
     $source = fopen('php://temp', 'w+b');
-    $stored = fopen('php://temp', 'w+b');
-
-    expect($source)->toBeResource()
-        ->and($stored)->toBeResource();
+    expect($source)->toBeResource();
 
     fwrite($source, $content);
-    fwrite($stored, $content);
     rewind($source);
-    rewind($stored);
-
-    $disk = Mockery::mock(Filesystem::class);
-    $disk->shouldNotReceive('put');
-    $disk->shouldNotReceive('get');
-    $disk->shouldReceive('exists')->once()->with($storagePath)->andReturnFalse();
-    $disk->shouldReceive('writeStream')->once()->with(
-        $storagePath,
-        Mockery::on(static fn (mixed $stream): bool => is_resource($stream)
-            && stream_get_contents($stream) === $content),
-    )->andReturnTrue();
-    $disk->shouldReceive('readStream')->once()->with($storagePath)->andReturn($stored);
+    $disk = Storage::fake('representation-stream');
 
     try {
         $representation = app(RepresentationWriter::class)->writeStream(
@@ -105,7 +88,8 @@ test('streamed representation uses stream IO for upload and verification', funct
     }
 
     expect($representation->storage_path)->toBe($storagePath)
-        ->and($representation->size_bytes)->toBe(strlen($content));
+        ->and($representation->size_bytes)->toBe(strlen($content))
+        ->and($disk->get($storagePath))->toBe($content);
 });
 
 test('retry after database finalization failure converges on the newly generated object', function (): void {
@@ -143,6 +127,28 @@ test('retry after database finalization failure converges on the newly generated
         ->and($representation->size_bytes)->toBe(strlen($secondContent))
         ->and($disk->get($representation->storage_path))->toBe($secondContent)
         ->and(DocumentRepresentation::query()->where('document_version_id', $version->id)->count())->toBe(1);
+});
+
+test('retry repairs a corrupt pre-existing content-addressed object through staging', function (): void {
+    $version = DocumentVersion::factory()->create();
+    $disk = Storage::fake('representation-corrupt');
+    $content = '%PDF-complete';
+    $path = 'prepared/corrupt.pdf';
+    $storagePath = representationStoragePath(path: $path, content: $content);
+    $disk->put($storagePath, '%PDF-partial');
+
+    $representation = app(RepresentationWriter::class)->write(
+        disk: $disk,
+        version: $version,
+        kind: RepresentationKind::Pdf,
+        path: $path,
+        content: $content,
+        attributes: [...representationAttributes(), 'mime' => 'application/pdf'],
+    );
+
+    expect($disk->get($storagePath))->toBe($content)
+        ->and($representation->storage_path)->toBe($storagePath)
+        ->and(collect($disk->allFiles())->contains(fn (string $file): bool => str_contains($file, '.staging.')))->toBeFalse();
 });
 
 function representationStoragePath(string $path, string $content): string

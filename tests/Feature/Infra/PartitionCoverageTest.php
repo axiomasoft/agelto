@@ -6,6 +6,7 @@ use App\Models\Procurement\Crawler\Fetch;
 use App\Models\Procurement\ProcurementEvent;
 use App\Models\Procurement\ProcurementRevision;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
 
 test('fresh schema has a continuous rolling historical and premake window for every configured partitioned table', function () {
@@ -52,6 +53,22 @@ test('last historical month accepts fetch, event and revision inserts', function
     expect(DB::table('prc_fetches')->where('fetched_at', $historicalMonth)->count())->toBe(1)
         ->and(DB::table('prc_events')->where('occurred_at', $historicalMonth)->count())->toBe(1)
         ->and(DB::table('prc_revisions')->where('detected_at', $historicalMonth)->count())->toBe(1);
+});
+
+test('все месяцы фиксированного корпуса 2025 принимают доменные события и переживают maintenance', function () {
+    foreach (range(1, 12) as $month) {
+        ProcurementEvent::factory()->create([
+            'occurred_at' => Carbon::create(year: 2025, month: $month, day: 15, timezone: 'UTC'),
+        ]);
+    }
+
+    expect(DB::table('prc_events')->count())->toBe(12)
+        ->and(Artisan::call('partitions:maintain'))->toBe(0)
+        ->and(DB::table('prc_events')->count())->toBe(12);
+
+    foreach (range(1, 12) as $month) {
+        expect(DB::selectOne('SELECT to_regclass(?) IS NOT NULL AS exists', [sprintf('prc_events_2025_%02d', $month)])->exists)->toBeTrue();
+    }
 });
 
 function partitionMonths(string $table): array

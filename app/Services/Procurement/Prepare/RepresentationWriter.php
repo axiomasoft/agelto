@@ -9,6 +9,7 @@ use App\Enums\Procurement\Document\RepresentationKind;
 use App\Models\Procurement\Document\DocumentRepresentation;
 use App\Models\Procurement\Document\DocumentVersion;
 use Illuminate\Contracts\Filesystem\Filesystem;
+use Illuminate\Support\Str;
 
 final readonly class RepresentationWriter
 {
@@ -54,25 +55,47 @@ final readonly class RepresentationWriter
         $this->rewind($stream);
         [$contentHash] = $this->hash($stream);
         $storagePath = $this->contentAddressedPath(path: $path, contentHash: $contentHash);
-
-        if (! $disk->exists(path: $storagePath)) {
-            $this->rewind($stream);
-
-            if ($disk->writeStream(path: $storagePath, resource: $stream) !== true) {
-                throw new \RuntimeException("Не удалось сохранить representation: {$storagePath}");
-            }
-        }
-
-        $stored = $disk->readStream(path: $storagePath);
-
-        if (! is_resource($stored)) {
-            throw new \RuntimeException("Object storage не вернул поток representation: {$storagePath}");
-        }
+        $stagingPath = "{$storagePath}.staging.".Str::uuid();
 
         try {
-            [$storedHash, $storedSize] = $this->hash($stored);
+            $this->rewind($stream);
+
+            if ($disk->writeStream(path: $stagingPath, resource: $stream) !== true) {
+                throw new \RuntimeException("Не удалось сохранить staging representation: {$stagingPath}");
+            }
+
+            [$stagedHash] = $this->hashStored(disk: $disk, path: $stagingPath);
+
+            if (! hash_equals($contentHash, $stagedHash)) {
+                throw new \RuntimeException("Object storage вернул неполный staging representation: {$stagingPath}");
+            }
+
+            $published = $disk->exists(path: $storagePath)
+                ? $this->storedMatches(disk: $disk, path: $storagePath, expectedHash: $contentHash)
+                : false;
+
+            if (! $published) {
+                $staged = $disk->readStream(path: $stagingPath);
+
+                if (! is_resource($staged)) {
+                    throw new \RuntimeException("Object storage не вернул staging stream: {$stagingPath}");
+                }
+
+                try {
+                    if ($disk->writeStream(path: $storagePath, resource: $staged) !== true
+                        && ! $this->storedMatches(disk: $disk, path: $storagePath, expectedHash: $contentHash)) {
+                        throw new \RuntimeException("Не удалось опубликовать representation: {$storagePath}");
+                    }
+                } finally {
+                    fclose($staged);
+                }
+            }
+
+            [$storedHash, $storedSize] = $this->hashStored(disk: $disk, path: $storagePath);
         } finally {
-            fclose($stored);
+            if ($disk->exists(path: $stagingPath)) {
+                $disk->delete($stagingPath);
+            }
         }
 
         if (! hash_equals($contentHash, $storedHash)) {
@@ -83,6 +106,33 @@ final readonly class RepresentationWriter
         $attributes['size_bytes'] = $storedSize;
 
         return $this->finalize->execute(version: $version, kind: $kind, attributes: $attributes);
+    }
+
+    /** @return array{string, int} */
+    private function hashStored(Filesystem $disk, string $path): array
+    {
+        $stored = $disk->readStream(path: $path);
+
+        if (! is_resource($stored)) {
+            throw new \RuntimeException("Object storage не вернул поток representation: {$path}");
+        }
+
+        try {
+            return $this->hash($stored);
+        } finally {
+            fclose($stored);
+        }
+    }
+
+    private function storedMatches(Filesystem $disk, string $path, string $expectedHash): bool
+    {
+        try {
+            [$hash] = $this->hashStored(disk: $disk, path: $path);
+
+            return hash_equals($expectedHash, $hash);
+        } catch (\Throwable) {
+            return false;
+        }
     }
 
     /** @param resource $stream */

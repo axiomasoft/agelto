@@ -125,14 +125,26 @@ final readonly class ProcurementStoreRepository
      * Снятие детального слоя упало (`01-database.md` §11 «Детальная карточка упала») —
      * error-блок `detail_*`, ретрай по `detail_next_retry_at` без реконструкции из логов.
      */
-    public function markDetailFailed(Procurement $procurement, string $error, ?Carbon $nextRetryAt, bool $failed): void
-    {
-        $procurement->update([
+    /** @param array<string, mixed>|null $detailParseOutcome */
+    public function markDetailFailed(
+        Procurement $procurement,
+        string $error,
+        ?Carbon $nextRetryAt,
+        bool $failed,
+        ?array $detailParseOutcome = null,
+    ): void {
+        $attributes = [
             'detail_attempts' => $procurement->detail_attempts + 1,
             'detail_last_error' => $error,
             'detail_next_retry_at' => $nextRetryAt,
             'detail_failed' => $failed,
-        ]);
+        ];
+
+        if ($detailParseOutcome !== null) {
+            $attributes['detail_parse_outcome'] = $detailParseOutcome;
+        }
+
+        $procurement->update($attributes);
     }
 
     /**

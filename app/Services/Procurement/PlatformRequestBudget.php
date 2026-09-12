@@ -8,6 +8,7 @@ use App\Dto\Procurement\Crawler\PlatformThrottleSettings;
 use App\Dto\Procurement\Crawler\StageSettings;
 use App\Enums\Procurement\Crawler\CrawlStage;
 use App\Enums\Procurement\Proxy\CrawlerProxyMode;
+use App\Exceptions\Procurement\Crawler\OutboundRequestDeadlineExceeded;
 use App\Exceptions\Procurement\Crawler\PlatformBudgetExhaustedException;
 use App\Models\Procurement\Crawler\Crawler;
 use App\Models\Procurement\Crawler\Proxy;
@@ -33,7 +34,7 @@ final readonly class PlatformRequestBudget
         private ProxyBindingResolver $proxyBindings,
     ) {}
 
-    public function acquire(string $host, CrawlStage $stage, ?Crawler $crawler = null): int
+    public function acquire(string $host, CrawlStage $stage, ?Crawler $crawler = null, ?float $deadlineAt = null): int
     {
         $host = $this->canonicalHost($host);
         $platform = $this->platformFor(host: $host, crawler: $crawler);
@@ -58,6 +59,8 @@ final readonly class PlatformRequestBudget
                 max(1000, RateLimiter::availableIn(key: $key) * 1000),
             );
 
+            $this->assertWaitFitsDeadline(waitMs: $waitMs, deadlineAt: $deadlineAt, stage: $stage);
+
             Sleep::for($waitMs)->milliseconds();
             $slotWaitedMs += $waitMs;
         }
@@ -65,10 +68,22 @@ final readonly class PlatformRequestBudget
         $stagePauseMs = $this->stagePauseMs(stage: $stage, platform: $platform, crawler: $crawler);
 
         if ($stagePauseMs > 0) {
+            $this->assertWaitFitsDeadline(waitMs: $stagePauseMs, deadlineAt: $deadlineAt, stage: $stage);
             Sleep::for($stagePauseMs)->milliseconds();
         }
 
         return $slotWaitedMs + $stagePauseMs;
+    }
+
+    private function assertWaitFitsDeadline(int $waitMs, ?float $deadlineAt, CrawlStage $stage): void
+    {
+        if ($deadlineAt === null) {
+            return;
+        }
+
+        if (microtime(true) + ($waitMs / 1000) >= $deadlineAt) {
+            throw OutboundRequestDeadlineExceeded::forStage(stage: $stage->value);
+        }
     }
 
     private function claimSlot(string $key, int $capacity): bool

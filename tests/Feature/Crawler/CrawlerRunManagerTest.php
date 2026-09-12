@@ -3,10 +3,13 @@
 declare(strict_types=1);
 
 use App\Dto\Procurement\Crawler\ListingCursor;
+use App\Enums\Procurement\Crawler\CrawlerExecutionLane;
+use App\Enums\Procurement\Crawler\CrawlerMode;
 use App\Enums\Procurement\Crawler\RunPurpose;
 use App\Enums\Procurement\Crawler\RunStatus;
 use App\Enums\Procurement\Crawler\RunStopKind;
 use App\Exceptions\Procurement\Crawler\CrawlerRunBusyException;
+use App\Jobs\Procurement\CrawlRunJob;
 use App\Models\Procurement\Crawler\Crawler;
 use App\Models\Procurement\Crawler\Run;
 use App\Services\Procurement\CrawlerRunManager;
@@ -14,6 +17,7 @@ use Illuminate\Console\Command;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Queue;
 use Tests\Support\Postgres\ConcurrentTransactions;
 
 test('первый startOrResume создаёт один running-прогон', function () {
@@ -226,6 +230,50 @@ test('crawler:recover-stale поднимает протухший прогон �
         ->assertExitCode(Command::SUCCESS);
 
     expect($stale->refresh()->status)->toBe(RunStatus::Paused);
+});
+
+test('crawler:recover-stale повторно ставит точное archive-продолжение, но не операторскую паузу', function (): void {
+    Queue::fake();
+    $archiveCrawler = Crawler::factory()->create(['mode' => CrawlerMode::Archive]);
+    $stale = Run::factory()->for($archiveCrawler)->create([
+        'status' => RunStatus::Running,
+        'last_heartbeat_at' => Carbon::now()->subSeconds(600),
+        'stats' => [
+            'execution_context' => [
+                'mode' => CrawlerMode::Archive->value,
+                'execution_lane' => CrawlerExecutionLane::Long->value,
+                'from' => '2025-01-01',
+                'to' => '2025-12-31',
+            ],
+        ],
+    ]);
+    $operatorPaused = Run::factory()->for(Crawler::factory()->create(['mode' => CrawlerMode::Archive]))->create([
+        'status' => RunStatus::Paused,
+        'stats' => [
+            'automatic_recovery_pending' => false,
+            'execution_context' => [
+                'mode' => CrawlerMode::Archive->value,
+                'execution_lane' => CrawlerExecutionLane::Long->value,
+                'from' => '2025-01-01',
+                'to' => '2025-12-31',
+            ],
+        ],
+    ]);
+
+    $this->artisan('crawler:recover-stale')
+        ->expectsOutputToContain('Поставлено archive-продолжений: 1.')
+        ->assertSuccessful();
+
+    expect($stale->refresh()->status)->toBe(RunStatus::Paused)
+        ->and($stale->stats['automatic_recovery_pending'] ?? null)->toBeTrue()
+        ->and($operatorPaused->refresh()->status)->toBe(RunStatus::Paused);
+
+    Queue::assertPushed(CrawlRunJob::class, 1);
+    Queue::assertPushed(CrawlRunJob::class, fn (CrawlRunJob $job): bool => $job->crawlerId === $archiveCrawler->id
+        && $job->mode === CrawlerMode::Archive
+        && $job->executionLane === CrawlerExecutionLane::Long
+        && $job->from === '2025-01-01'
+        && $job->to === '2025-12-31');
 });
 
 test('heartbeat обновляет last_heartbeat_at', function () {

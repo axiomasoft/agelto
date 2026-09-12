@@ -52,10 +52,13 @@ backoff и проходит через тот же путь; permanent failure �
 Tesseract version 180 s + PDF page-count 180 s + 120 s reserve выполняются в job 2580 s,
 supervisor 2640 s и Redis `retry_after` 2700 s. Перед каждым внешним OCR-инструментом job проверяет, что
 весь обязательный хвост ещё помещается до deadline; нехватка времени остаётся retriable
-ошибкой, а не `unprocessable` документа. Для screening это соответственно
-210 + 30 ≤ 240 < 300 < 420 s. Extraction checkpoint'ится на 120 s: ещё один максимум
-150-секундный вызов и 30-секундный reserve ровно помещаются в 300 s job, затем идут
-supervisor 360 s и `retry_after` 420 s. Lease берётся из той же строки матрицы: 2700 s для
+ошибкой, а не `unprocessable` документа. Для screening полный последовательный хвост
+составляет 60 s PDF slice + 150 s upload/poll + 90 s generation + 30 s setup + 30 s
+persistence/release reserve = 360 s; затем идут supervisor 390 s и `retry_after` 420 s.
+Пограничный второй маршрут сохраняется как continuation и выполняется отдельным job, поэтому
+один worker никогда не скрывает два полных provider-вызова внутри одного timeout. Extraction
+checkpoint'ится на 120 s: ещё один максимум 150-секундный вызов и 30-секундный reserve ровно
+помещаются в 300 s job, затем идут supervisor 360 s и `retry_after` 420 s. Lease берётся из той же строки матрицы: 2700 s для
 prepare и 420 s для screening/extraction. Поэтому duplicate delivery не получает активный
 document/analysis, но после SIGKILL короткая стадия не остаётся запертой дольше своего
 visibility window.

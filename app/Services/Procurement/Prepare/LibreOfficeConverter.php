@@ -4,9 +4,8 @@ declare(strict_types=1);
 
 namespace App\Services\Procurement\Prepare;
 
-use Illuminate\Support\Facades\File;
+use App\Support\Files\PipelineTemporaryFile;
 use Illuminate\Support\Facades\Process;
-use Illuminate\Support\Str;
 use RuntimeException;
 
 /**
@@ -22,11 +21,9 @@ final readonly class LibreOfficeConverter
 {
     public function toPdf(string $inputPath, string $outputDir): string
     {
-        $profileDir = sys_get_temp_dir().'/soffice_profile_'.Str::uuid();
+        $profileDir = PipelineTemporaryFile::createDirectory(prefix: 'soffice_profile_');
 
         try {
-            File::ensureDirectoryExists($profileDir);
-
             $result = Process::timeout($this->integerConfig('ai.tools.default_timeout_seconds'))
                 ->run([
                     $this->stringConfig('ai.tools.soffice_bin'),
@@ -46,7 +43,7 @@ final readonly class LibreOfficeConverter
 
             return $outputPath;
         } finally {
-            File::deleteDirectory($profileDir);
+            PipelineTemporaryFile::deleteDirectory($profileDir);
         }
     }
 

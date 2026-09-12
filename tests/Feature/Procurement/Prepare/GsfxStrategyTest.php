@@ -453,6 +453,23 @@ test('XXE в Data.xml отклоняется до парсинга — unprocess
         ->and($document->last_error)->toContain('unreadable_format');
 });
 
+test('большой decoded Data.xml отклоняется до isolated parser по отдельному core limit', function (): void {
+    config([
+        'ai.prepare.gsfx_max_core_xml_mb' => 1,
+        'ai.prepare.archive.max_entry_mb' => 8,
+        'ai.prepare.archive.max_total_mb' => 16,
+        'ai.prepare.archive.max_ratio' => 10_000,
+    ]);
+    [$document, $version] = makeGsfxVersion(buildGsfxZip([
+        'Data.xml' => '<Document>'.str_repeat(' ', 2 * 1024 * 1024).'</Document>',
+    ]));
+
+    $result = app(GsfxStrategy::class)->process($document, $version);
+
+    expect($result)->toBe(PreparationResult::Unprocessable)
+        ->and($document->fresh()->unprocessable_reason)->toBe(UnprocessableReason::ZipBomb);
+});
+
 test('вложение стало дочерним документом', function () {
     Queue::fake();
     [$document, $version] = makeGsfxVersion(buildGsfxZip([

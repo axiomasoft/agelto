@@ -140,7 +140,24 @@ final readonly class AnalysisStoreRepository
      */
     public function update(Analysis $analysis, array $attributes): void
     {
-        $analysis->update($attributes);
+        $leaseToken = $analysis->leaseToken();
+
+        if ($leaseToken !== null) {
+            $analysis->fill($attributes);
+            $updated = Analysis::query()
+                ->whereKey($analysis->getKey())
+                ->where('locked_by', $leaseToken)
+                ->whereRaw('locked_until >= CURRENT_TIMESTAMP')
+                ->update($analysis->getDirty());
+
+            if ($updated !== 1) {
+                throw new \RuntimeException('Analysis lease was lost before persistence.');
+            }
+
+            $analysis->refresh();
+        } else {
+            $analysis->update($attributes);
+        }
 
         $this->maybeTerminateRun($analysis);
     }

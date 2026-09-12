@@ -78,3 +78,14 @@ test('parse считает пустой подтверждённый конте�
     expect($snapshot->status)->toBe(DetailSnapshotStatus::Complete)
         ->and($snapshot->documents)->toBe([]);
 });
+
+test('parse отклоняет абсолютную ссылку вне allowlist как failed snapshot', function (): void {
+    $html = '<div class="blockFilesTabDocs"><div class="attachment"><span class="section__value">'.
+        '<a href="https://127.0.0.1/filestore?uid=ssrf" title="test.pdf">test.pdf</a>'.
+        '</span></div></div>';
+
+    $snapshot = app(DocumentsParser::class)->parse($html);
+
+    expect($snapshot->status)->toBe(DetailSnapshotStatus::Failed)
+        ->and($snapshot->documents)->toBe([]);
+});

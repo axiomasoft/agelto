@@ -10,7 +10,7 @@ final readonly class ArchiveEntry
     public function __construct(
         public string $path,
         public int $declaredSize,
-        public int $compressedSize,
+        public ?int $compressedSize,
         public bool $isDirectory = false,
         public bool $isEncrypted = false,
         public string $type = 'file',

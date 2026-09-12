@@ -13,12 +13,11 @@ use App\Models\Procurement\Document\Document;
 use App\Models\Procurement\Document\DocumentVersion;
 use App\Repositories\Procurement\Document\RepresentationStoreRepository;
 use App\Services\Storage\FileLocationResolver;
+use App\Support\Files\PipelineTemporaryFile;
 use Composer\InstalledVersions;
 use Illuminate\Contracts\Filesystem\Filesystem;
-use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Process;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Str;
 use PhpOffice\PhpSpreadsheet\Reader\Xls as XlsReader;
 use PhpOffice\PhpSpreadsheet\Reader\Xlsx as XlsxReader;
 use RuntimeException;
@@ -52,6 +51,7 @@ final readonly class SpreadsheetStrategy implements PreparationStrategy
         private MarkDocumentUnprocessableAction $markUnprocessable,
         private LibreOfficeConverter $converter,
         private TextGridRenderer $textGridRenderer,
+        private XlsxResourceGuard $xlsxResourceGuard,
         private FileLocationResolver $locationResolver,
     ) {}
 
@@ -66,7 +66,7 @@ final readonly class SpreadsheetStrategy implements PreparationStrategy
 
         $diskName = $this->locationResolver->currentDocumentsDisk();
         $disk = Storage::disk($diskName);
-        $localInput = tempnam(sys_get_temp_dir(), 'xlsx_').'.'.$version->extension;
+        $localInput = PipelineTemporaryFile::create(prefix: 'xlsx_', extension: $version->extension);
 
         try {
             file_put_contents($localInput, $disk->get($version->storage_path));
@@ -94,6 +94,10 @@ final readonly class SpreadsheetStrategy implements PreparationStrategy
 
     private function withinToolLimits(DocumentVersion $version, string $localInput): bool
     {
+        if (! $this->xlsxResourceGuard->accepts(path: $localInput, extension: $version->extension)) {
+            return false;
+        }
+
         $maxMb = $this->floatConfig(key: 'ai.prepare.xlsx_max_mb', default: 25);
         if ($version->size_bytes > $maxMb * 1024 * 1024) {
             return false;
@@ -106,7 +110,7 @@ final readonly class SpreadsheetStrategy implements PreparationStrategy
 
     private function tryPhpSpreadsheet(DocumentVersion $version, Filesystem $disk, string $diskName, string $localInput): bool
     {
-        $localOutput = tempnam(sys_get_temp_dir(), 'xlsx_pdf_').'.pdf';
+        $localOutput = PipelineTemporaryFile::create(prefix: 'xlsx_pdf_', extension: 'pdf');
 
         try {
             $startedAt = microtime(as_float: true);
@@ -135,11 +139,9 @@ final readonly class SpreadsheetStrategy implements PreparationStrategy
 
     private function tryLibreOffice(DocumentVersion $version, Filesystem $disk, string $diskName, string $localInput): bool
     {
-        $outputDir = sys_get_temp_dir().'/xlsx_pdf_'.Str::uuid();
+        $outputDir = PipelineTemporaryFile::createDirectory(prefix: 'xlsx_pdf_');
 
         try {
-            File::ensureDirectoryExists($outputDir);
-
             try {
                 $localOutput = $this->converter->toPdf($localInput, $outputDir);
             } catch (RuntimeException) {
@@ -154,7 +156,7 @@ final readonly class SpreadsheetStrategy implements PreparationStrategy
 
             return true;
         } finally {
-            File::deleteDirectory($outputDir);
+            PipelineTemporaryFile::deleteDirectory($outputDir);
         }
     }
 

@@ -20,6 +20,7 @@ use App\Services\Llm\Dto\ResolvedRoute;
 use App\Services\Llm\LlmRouteResolver;
 use App\Services\Procurement\Extraction\ExtractionSession;
 use App\Services\Procurement\Prepare\RepresentationResolver;
+use App\Support\Files\PipelineTemporaryFile;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
@@ -179,7 +180,7 @@ final readonly class RerunRangeAction
         }
 
         $disk = Storage::disk($effective['disk']);
-        $localPath = tempnam(sys_get_temp_dir(), 'rerun_').'.'.$effective['extension'];
+        $localPath = PipelineTemporaryFile::create(prefix: 'rerun_', extension: $effective['extension']);
         file_put_contents($localPath, $disk->get($effective['storagePath']));
 
         try {

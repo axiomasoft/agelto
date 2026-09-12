@@ -12,9 +12,8 @@ use App\Models\Procurement\Document\Document;
 use App\Models\Procurement\Document\DocumentVersion;
 use App\Repositories\Procurement\Document\RepresentationStoreRepository;
 use App\Services\Storage\FileLocationResolver;
-use Illuminate\Support\Facades\File;
+use App\Support\Files\PipelineTemporaryFile;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Str;
 use RuntimeException;
 
 /**
@@ -42,11 +41,10 @@ final readonly class WordStrategy implements PreparationStrategy
 
         $diskName = $this->locationResolver->currentDocumentsDisk();
         $disk = Storage::disk($diskName);
-        $localInput = tempnam(sys_get_temp_dir(), 'word_').'.'.$version->extension;
-        $outputDir = sys_get_temp_dir().'/word_pdf_'.Str::uuid();
+        $localInput = PipelineTemporaryFile::create(prefix: 'word_', extension: $version->extension);
+        $outputDir = PipelineTemporaryFile::createDirectory(prefix: 'word_pdf_');
 
         try {
-            File::ensureDirectoryExists($outputDir);
             file_put_contents($localInput, $disk->get($version->storage_path));
 
             try {
@@ -74,7 +72,7 @@ final readonly class WordStrategy implements PreparationStrategy
             return PreparationResult::ReadyForScreening;
         } finally {
             @unlink($localInput);
-            File::deleteDirectory($outputDir);
+            PipelineTemporaryFile::deleteDirectory($outputDir);
         }
     }
 

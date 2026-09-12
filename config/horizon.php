@@ -261,8 +261,8 @@ return [
             'memory' => 128,
             'tries' => 1,
             // 210s Gemini request + Files polling + 30s persistence/release reserve.
-            // ScreeningJob.timeout=240 < this supervisor=300 < redis.retry_after=420.
-            'timeout' => 300,
+            // ScreeningJob.timeout=360 < this supervisor=390 < redis.retry_after=420.
+            'timeout' => 390,
             'nice' => 0,
         ],
 

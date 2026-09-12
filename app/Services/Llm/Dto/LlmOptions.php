@@ -32,5 +32,6 @@ final readonly class LlmOptions
         public ?string $baseUrl = null,
         public ?string $apiKeyEnv = null,
         public ?string $thinkingLevel = null,
+        public ?int $requestTimeoutSeconds = null,
     ) {}
 }

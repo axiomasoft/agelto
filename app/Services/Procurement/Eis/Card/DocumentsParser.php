@@ -7,6 +7,7 @@ namespace App\Services\Procurement\Eis\Card;
 use App\Dto\Procurement\Details\DocumentData;
 use App\Dto\Procurement\Details\DocumentsSnapshot;
 use App\Enums\Procurement\DetailSnapshotStatus;
+use App\Services\Procurement\SourceTargetValidator;
 use Illuminate\Support\Facades\Log;
 use Symfony\Component\DomCrawler\Crawler;
 
@@ -20,6 +21,8 @@ use Symfony\Component\DomCrawler\Crawler;
  */
 final readonly class DocumentsParser
 {
+    public function __construct(private SourceTargetValidator $targetValidator) {}
+
     public function parse(string $html): DocumentsSnapshot
     {
         try {
@@ -88,10 +91,13 @@ final readonly class DocumentsParser
         $title = $link->attr('title');
         $title = $title !== null && trim($title) !== '' ? trim($title) : trim($link->text());
 
+        $sourceUrl = $this->absoluteUrl($href);
+        $this->targetValidator->assertDocumentUrl(url: $sourceUrl);
+
         return new DocumentData(
             title: $title,
             kind: null,
-            sourceUrl: $this->absoluteUrl($href),
+            sourceUrl: $sourceUrl,
             externalId: $externalId,
         );
     }

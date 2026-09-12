@@ -83,6 +83,12 @@ __pycache__/
 AUDIT.md
 tmp/
 
+# Одноразовые characterization-пробы и relay в другой репозиторий.
+# Постоянные отчёты аудита в research/ сохраняются в Git.
+/research/FinalCorpusAuditProbeTest.php
+/research/*-production-audit/ProductionAuditProbeTest.php
+/research/*-swissknifeman-task-opt-in-routing-field-incident.md
+
 # Сборка vitepress — генерируемая статика, не храним в репозитории
 docs/.vitepress/cache/
 docs/.vitepress/dist/

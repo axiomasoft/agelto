@@ -30,9 +30,9 @@ final readonly class ArchiveRunProcessor
         private ArchiveWindowScanner $scanner,
     ) {}
 
-    public function run(Crawler $crawler, CarbonInterface $from, CarbonInterface $to): Run
+    public function run(Crawler $crawler, CarbonInterface $from, CarbonInterface $to, ?Run $run = null): Run
     {
-        $run = $this->runs->startOrResume(crawler: $crawler, purpose: RunPurpose::Profile, subjectKey: null);
+        $run ??= $this->runs->startOrResume(crawler: $crawler, purpose: RunPurpose::Profile, subjectKey: null);
         $cursor = ListingCursor::fromArray(cursor: $run->cursor?->toArray() ?? []);
         $day = $cursor->day !== null ? Carbon::parse($cursor->day) : $from->copy()->startOfDay();
 
@@ -53,6 +53,15 @@ final readonly class ArchiveRunProcessor
                     dateFrom: $day->copy(),
                     dateTo: $day->copy(),
                 ));
+
+                if ($result === ArchiveWindowScanResult::OperatorDebt) {
+                    $this->runs->pause(
+                        run: $run,
+                        reason: 'operator_debt: архивное окно требует изменения лимита или ручного решения.',
+                    );
+
+                    return $run;
+                }
 
                 if ($result !== ArchiveWindowScanResult::Drained) {
                     return $run;

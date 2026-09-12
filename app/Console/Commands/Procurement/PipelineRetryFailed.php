@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace App\Console\Commands\Procurement;
 
 use App\Enums\Procurement\Document\DocumentStatus;
-use App\Jobs\Procurement\DownloadDocumentJob;
 use App\Jobs\Procurement\PrepareDocumentJob;
 use App\Models\Procurement\Document\Document;
+use App\Services\Procurement\PipelineDispatcher;
 use App\Services\Procurement\PipelineRecoveryReconciler;
 use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
@@ -38,8 +38,10 @@ final class PipelineRetryFailed extends Command
      */
     private const int CLAIM_HOLD_MINUTES = 10;
 
-    public function __construct(private readonly PipelineRecoveryReconciler $reconciler)
-    {
+    public function __construct(
+        private readonly PipelineDispatcher $dispatcher,
+        private readonly PipelineRecoveryReconciler $reconciler,
+    ) {
         parent::__construct();
     }
 
@@ -58,46 +60,13 @@ final class PipelineRetryFailed extends Command
             throw new \UnexpectedValueException('The retry limit must be a positive integer.');
         }
 
-        $downloadsDispatched = $this->retryDownloads($limit);
+        $downloadsDispatched = $this->dispatcher->dispatchDiscoveredBacklog(limit: $limit);
         $documentsDispatched = $this->retryDocuments($limit);
         $analysesDispatched = $this->reconciler->reconcile(limit: $limit);
 
         $this->info("Скачивания: {$downloadsDispatched}, документы: {$documentsDispatched}, анализы: {$analysesDispatched}");
 
         return self::SUCCESS;
-    }
-
-    private function retryDownloads(int $limit): int
-    {
-        $candidates = Document::query()
-            ->where('status', DocumentStatus::Discovered)
-            ->where('attempts', '>', 0)
-            ->whereNull('removed_at')
-            ->pendingRetry()
-            ->limit($limit)
-            ->get();
-
-        $dispatched = 0;
-
-        foreach ($candidates as $document) {
-            $claimed = Document::query()
-                ->whereKey($document->id)
-                ->where('status', DocumentStatus::Discovered->value)
-                ->whereNull('removed_at')
-                ->where('attempts', '>', 0)
-                ->where('failed_permanently', false)
-                ->where(fn ($query) => $query->whereNull('next_retry_at')->orWhere('next_retry_at', '<=', now()))
-                ->update(['next_retry_at' => now()->addMinutes(self::CLAIM_HOLD_MINUTES)]);
-
-            if ($claimed !== 1) {
-                continue;
-            }
-
-            DownloadDocumentJob::dispatch($document->id)->afterCommit();
-            $dispatched++;
-        }
-
-        return $dispatched;
     }
 
     private function retryDocuments(int $limit): int

@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Dto\Procurement\Crawler\EisSearchFilter;
 use App\Dto\Procurement\Crawler\ListingBatch;
 use App\Dto\Procurement\Crawler\ListingCursor;
 use App\Dto\Procurement\ProcurementDetails;
@@ -15,6 +16,7 @@ use App\Jobs\Procurement\CrawlRunJob;
 use App\Models\Procurement\Crawler\Crawler;
 use App\Models\Procurement\Crawler\Run;
 use App\Models\Procurement\Platform\Registry;
+use App\Models\Procurement\Procurement;
 use App\Services\Procurement\Contracts\SourceMethod;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Queue;
@@ -222,6 +224,109 @@ test('request-budget checkpoint archive сохраняет execution lane и с�
         && $job->executionLane === CrawlerExecutionLane::Long
         && $job->connection === 'redis_crawl_long'
         && $job->queue === 'crawl_long');
+});
+
+test('archive continuation использует неизменяемый typed filter snapshot исходного completed-2025 корпуса', function (): void {
+    Queue::fake();
+    config(['crawler.eis.block_size' => 2]);
+    $sourceMethod = new class implements SourceMethod
+    {
+        /** @var list<array<string, mixed>> */
+        public array $filters = [];
+
+        private int $attempt = 0;
+
+        public function collectListing(Crawler $crawler, ListingCursor $cursor): ListingBatch
+        {
+            $this->filters[] = $crawler->filter?->toArray() ?? [];
+            $this->attempt++;
+
+            if ($this->attempt === 1) {
+                throw PlatformBudgetExhaustedException::forHost(host: 'zakupki.gov.ru', maxWaitSeconds: 0);
+            }
+
+            $row = crawlRunJobCsvRow('0173200001225000099');
+            $row['Этап закупки'] = 'Закупка завершена';
+            $row['Дата размещения'] = '15.01.2025';
+            $row['Дата обновления'] = '16.01.2025 10:15:00';
+
+            return crawlRunJobBatch([$row], dedupSignature: 'completed-2025', from: (string) $cursor->blockFrom);
+        }
+
+        public function collectDetails(string $registryNumber, Registry $registry): ProcurementDetails
+        {
+            return new ProcurementDetails;
+        }
+
+        public function isAvailable(): bool
+        {
+            return true;
+        }
+    };
+    app()->instance($sourceMethod::class, $sourceMethod);
+    config(['crawler.platforms.eis.source_methods' => [SourceMethodEnum::Csv->value => $sourceMethod::class]]);
+    $originalFilter = new EisSearchFilter(stageCompleted: true, okpd2Codes: ['43'], priceFrom: 1, priceTo: 100);
+    $crawler = Crawler::factory()->filter($originalFilter)->create([
+        'mode' => CrawlerMode::Archive,
+        'source_method' => SourceMethodEnum::Csv,
+    ]);
+    $job = new CrawlRunJob(
+        crawlerId: $crawler->id,
+        mode: CrawlerMode::Archive,
+        executionLane: CrawlerExecutionLane::Long,
+        from: '2025-01-01',
+        to: '2025-01-01',
+    );
+
+    app()->call([$job, 'handle']);
+    $run = Run::query()->where('crawler_id', $crawler->id)->sole();
+    expect($run->status)->toBe(RunStatus::Running)
+        ->and($run->stats['execution_context']['filter_snapshot'])->toEqual($originalFilter->toArray());
+
+    $crawler->update(['filter' => new EisSearchFilter(stageApplications: true, okpd2Codes: ['99'], priceTo: 5_000)]);
+    app()->call([
+        new CrawlRunJob(
+            crawlerId: $crawler->id,
+            mode: CrawlerMode::Archive,
+            executionLane: CrawlerExecutionLane::Standard,
+            from: '2025-06-01',
+            to: '2025-12-31',
+        ),
+        'handle',
+    ]);
+
+    expect($sourceMethod->filters)->toHaveCount(2)
+        ->and($sourceMethod->filters[0])->toEqual($originalFilter->toArray())
+        ->and($sourceMethod->filters[1])->toEqual($originalFilter->toArray())
+        ->and($run->fresh()->stats['execution_context']['filter_snapshot'])->toEqual($originalFilter->toArray())
+        ->and($run->fresh()->stats['execution_context']['execution_lane'])->toBe(CrawlerExecutionLane::Long->value)
+        ->and($run->fresh()->stats['execution_context']['from'])->toBe('2025-01-01')
+        ->and($run->fresh()->stats['execution_context']['to'])->toBe('2025-01-01')
+        ->and($run->fresh()->status)->toBe(RunStatus::Completed)
+        ->and(Procurement::query()->where('registry_number', '0173200001225000099')->exists())->toBeTrue();
+});
+
+test('operator debt композиция scanner processor job ставит archive на паузу без busy self-dispatch', function (): void {
+    config(['crawler.archive.max_blocks_per_window' => 0]);
+    Queue::fake();
+    $crawler = Crawler::factory()->create(['mode' => CrawlerMode::Archive, 'source_method' => SourceMethodEnum::Csv]);
+
+    app()->call([
+        new CrawlRunJob(
+            crawlerId: $crawler->id,
+            mode: CrawlerMode::Archive,
+            executionLane: CrawlerExecutionLane::Long,
+            from: '2025-01-01',
+            to: '2025-12-31',
+        ),
+        'handle',
+    ]);
+
+    $run = Run::query()->where('crawler_id', $crawler->id)->sole();
+    expect($run->status)->toBe(RunStatus::Paused)
+        ->and($run->stats['stop_reason'] ?? null)->toContain('operator_debt')
+        ->and($run->cursor['day'])->toBe('2025-01-01');
+    Queue::assertNothingPushed();
 });
 
 test('self-dispatch continuation сохраняет long lane и оба маршрута', function (): void {

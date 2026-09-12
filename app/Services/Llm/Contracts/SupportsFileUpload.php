@@ -14,5 +14,5 @@ use App\Services\Llm\Dto\LlmFileHandle;
  */
 interface SupportsFileUpload
 {
-    public function uploadFile(string $path, string $mimeType): LlmFileHandle;
+    public function uploadFile(string $path, string $mimeType, ?float $deadlineAt = null): LlmFileHandle;
 }

@@ -78,6 +78,7 @@ if (Schema::hasTable('prc_documents')) {
     })->name('pipeline:dispatch-backlog')->everyMinute()->withoutOverlapping();
 
     Schedule::command('pipeline:retry-failed')->everyTenMinutes()->withoutOverlapping();
+    Schedule::command('pipeline:cleanup-temp')->hourly()->withoutOverlapping();
 
     Schedule::call(function (PipelineRecoveryReconciler $reconciler): void {
         $reconciler->reconcile(limit: (int) config('ai.pipeline.retry_batch_limit', 50));

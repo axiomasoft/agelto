@@ -32,6 +32,10 @@ final readonly class FinalizeDocumentDownloadAction
         }
 
         return DB::transaction(function () use ($document, $versionAttributes, $contentHash): DocumentVersion {
+            if ($document->hasLeaseToken() && ! $document->ownsLease()) {
+                throw new \RuntimeException('Document lease was lost before download finalization.');
+            }
+
             $lockedDocument = Document::query()->lockForUpdate()->findOrFail($document->id);
             $previousVersion = $this->documents->latestVersion(documentId: $document->id);
             $version = $this->documents->findVersionByHash(

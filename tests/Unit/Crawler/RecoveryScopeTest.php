@@ -8,6 +8,9 @@ use App\Dto\Procurement\Crawler\RecoveryScope;
 use App\Enums\Procurement\Crawler\CrawlerMode;
 use App\Models\Procurement\Crawler\Crawler;
 use App\Models\Procurement\Platform\Registry;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+
+uses(RefreshDatabase::class);
 
 test('сохраняет предметный фильтр fresh-профиля в cursor и накладывает его на archive runtime', function () {
     $registry = Registry::factory()->eis()->create();

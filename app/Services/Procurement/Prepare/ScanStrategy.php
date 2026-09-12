@@ -13,10 +13,9 @@ use App\Models\Procurement\Document\Document;
 use App\Models\Procurement\Document\DocumentVersion;
 use App\Repositories\Procurement\Document\RepresentationStoreRepository;
 use App\Services\Storage\FileLocationResolver;
+use App\Support\Files\PipelineTemporaryFile;
 use Illuminate\Contracts\Filesystem\Filesystem;
-use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Str;
 use RuntimeException;
 
 /**
@@ -67,13 +66,12 @@ final readonly class ScanStrategy implements PreparationStrategy
         $isPdf = $version->extension === 'pdf';
         $diskName = $this->locationResolver->currentDocumentsDisk();
         $disk = Storage::disk($diskName);
-        $workDir = sys_get_temp_dir().'/ocr_'.Str::uuid();
+        $workDir = PipelineTemporaryFile::createDirectory(prefix: 'ocr_');
         $localInput = $workDir.'/source.'.$version->extension;
         $localOutput = $workDir.'/ocr.pdf';
         $localSidecar = $workDir.'/ocr.txt';
 
         try {
-            File::ensureDirectoryExists($workDir);
             // Скан-эталон корпуса весит 132 МБ (`EST-PDF-SCAN-001`) — оригинал и результат OCR
             // ходят между диском и временным файлом ПОТОКОМ, целиком в память не читаются
             // (Code Guidance P3.7); в памяти живёт только sidecar-текст.
@@ -126,7 +124,7 @@ final readonly class ScanStrategy implements PreparationStrategy
 
             return PreparationResult::ReadyForScreening;
         } finally {
-            File::deleteDirectory($workDir);
+            PipelineTemporaryFile::deleteDirectory($workDir);
         }
     }
 
