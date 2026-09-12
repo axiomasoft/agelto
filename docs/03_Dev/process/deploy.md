@@ -8,6 +8,10 @@ status: living
 
 ## Immutable release contract
 
+Текущий operator path без CI — [ручной deploy](../../04_Operators/production/manual-deployment.md).
+Там host build явно разрешён владельцем, но runtime всё равно использует закрытую immutable
+пару app/doctor без source bind mounts. Описанные ниже pull helpers — только registry path.
+
 All release commands require an explicit `COMPOSE_PROJECT_NAME`, an existing `ENV_FILE`, and an
 immutable `IMAGE_TAG` other than `latest`. The production host only pulls and recreates the three
 application services with `--no-build`; it never mounts source/vendor/frontend artifacts, builds an
@@ -38,7 +42,7 @@ candidate SHA/application image digest; a source-only deployment cannot publish 
 
 `stop_grace_period` контейнера `horizon` ОБЯЗАН быть ≥ самого длинного supervisor-таймаута
 (`config/horizon.php`) — Docker default 10s убил бы job на 300+с. Прод-канон:
-`HORIZON_STOP_GRACE_PERIOD` (default 600s, `docker-compose.prod.yml`). Полный разбор инварианта
+`HORIZON_STOP_GRACE_PERIOD` (default 4200s, `docker-compose.prod.yml`). Полный разбор инварианта
 `job timeout < supervisor timeout < retry_after` и Redis durability (D34) —
 [`../runbooks/horizon-backlog.md`](../runbooks/horizon-backlog.md).
 

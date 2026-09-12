@@ -6,12 +6,18 @@ status: living
 
 # Production: от чистого сервера до повторяемого релиза
 
-Это основная инструкция по production для Agelto. Она рассчитана на один поддерживаемый сегодня
-профиль: Ubuntu 24.04, один Docker-host, NGINX перед приложением, PostgreSQL, Redis и S3-совместимое
-хранилище в Compose. Сначала пройдите её сверху вниз для нового сервера; после этого для обычных
-изменений используйте только [сценарии повторного релиза](#5-повторный-релиз-уже-настроенного-окружения).
+Это основная инструкция по production для Agelto: один Docker-host, NGINX перед приложением,
+PostgreSQL, Redis и MinIO в Compose. Bootstrap helper поддерживает Ubuntu 24.04; на уже
+подготовленном Ubuntu другой версии сначала проверяют установленные инструменты, а не запускают
+helper повторно. Факты практической настройки Ubuntu 26.04 записаны в `DEPLOYMENT_REPORT.md`
+в корне checkout. Статус каждого шага в отчёте важнее предположения об успехе.
 
-> **Как читать главу.** Это не описание замысла и не набор альтернатив. Блоки в разделе 4 — точный
+**Текущий рабочий режим без CI — [ручной pull/build/deploy](manual-deployment.md).** Эта ветка
+содержит подготовку с нуля, безопасный shared-host путь, первый запуск и повторный релиз без
+registry. Разделы ниже описывают путь для уже опубликованной пары images; не смешивайте их
+pull-команды с local-only tags.
+
+> **Как читать главу.** Блоки в разделе 4 —
 > порядок первой поставки, проверенный на чистом изолированном Compose-проекте: каждый следующий
 > блок запускается только после зелёного результата предыдущего. Команда `first-deploy:check` —
 > справочный контракт порядка; она не заменяет команды ниже.
@@ -44,8 +50,8 @@ flowchart LR
 | Домен, DNS A/AAAA и публичный IP | TLS выпускается только после подтверждения владения DNS. |
 | SSH public key инженера и отдельный deploy key репозитория | Первым входит человек, вторым читает репозиторий; ключи не заменяют друг друга. |
 | Полный SHA кандидата и immutable `IMAGE_TAG` | Сервер получает конкретный релиз, а не ветку и не `latest`. |
-| Реестр, из которого host может выполнить `docker pull` | Host не собирает образ и не должен иметь исходники для сборки. |
-| Root-only файлы `APP_KEY`, паролей БД/Redis/MinIO | Секрет не передаётся в CLI, env, логи или Git. |
+| Способ доставки images | Registry с опубликованной парой либо выбранная ручная сборка на host. |
+| Файлы `APP_KEY`, паролей БД/Redis/MinIO | `local/secrets/` 0700, файлы 0600 пользователя deploy; значения не выводят и не коммитят. |
 | Данные подключения к PostgreSQL, Redis, S3 и SMTP | Их нужно проверять из runtime-контейнера, не только с ноутбука. |
 | Владелец решения о миграции и начальном администраторе | Это отдельные изменяющие действия, не побочный эффект `up`. |
 
@@ -54,6 +60,13 @@ flowchart LR
 инструкция. Не переносите команды из этой главы в другую топологию по аналогии.
 
 ## 2. Подготовка чистого Ubuntu-сервера
+
+На сервере с другим проектом сначала выполните аудит из [ручного сценария](manual-deployment.md).
+Не запускайте `host:apply`, upgrade, global Docker logging/firewall/SSH changes и не удаляйте
+default site. Повторно используйте готовые Docker, NGINX и пользователя deploy; создавайте только
+отсутствующие каталоги и отдельную конфигурацию Agelto. Не выдавайте deploy широкие sudo-права.
+Личный SSH-ключ инженера и изменение SSH policy — отдельные действия владельца, не prerequisite
+для настройки через разрешённую root-сессию.
 
 Перед этой главой пройдите [Ubuntu → готовый checkout](server-setup.md). В ней указаны все
 реальные команды: создание `deploy` и его SSH key, Docker, firewall, NGINX/Certbot, clone в
@@ -105,8 +118,12 @@ docker info --format '{{.LoggingDriver}}'
 получите сертификат Certbot, снова выполните `nginx -t` и только после этого reload NGINX. Конечная
 проверка: HTTPS, redirect, forwarded headers, WebSocket upgrade и `certbot renew --dry-run`.
 
-Для checkout и private Composer dependency подготовьте отдельные read-only deploy keys. Не
-используйте личный token, agent forwarding или write key:
+На чистом host helper ниже допустим только после проверки его влияния: он перезаписывает
+`~deploy/.ssh/config` и `known_hosts`. На shared host используйте отдельный key и repo-local
+`core.sshCommand` из [ручного сценария](manual-deployment.md), сохраняя чужие SSH identities.
+Если pinned vendor доступен по публичному HTTPS, `vendor-sync.sh` не требует второго deploy key.
+Для действительно private dependency нужен отдельный read-only key. Не используйте личный
+token, agent forwarding или write key:
 
 ```bash
 sudo make -f docker/Makefile repositories:prepare PROFILE=docker/host/production-profile
@@ -180,7 +197,9 @@ make -f docker/Makefile prod:image:promote \
 Первая команда создаёт переменную только в текущей shell. Вторая читает токен из файла `0600` и
 записывает Docker credential store пользователя `deploy`, не печатая token. `prod:image:promote` делает `docker pull` **обоих**
 неизменяемых образов — app и Doctor — и не перезапускает сервисы. Если реестр публичный, login можно
-пропустить; `prod:image:promote` всё равно обязателен.
+пропустить; `prod:image:promote` обязателен только для registry-пути. При local-only ручной
+сборке пропустите весь этот шаг и следуйте [manual deployment](manual-deployment.md):
+все `prod:deploy:*` тоже выполняют pull и не подходят для такого tag.
 
 ### Шаг 3. Поднять только сервисы данных
 
@@ -209,8 +228,16 @@ make -f docker/Makefile prod:seed-base \
 откажется работать. `prod:seed-base` добавляет обязательные базовые справочники и идемпотентен.
 Ни одна из команд не выполняет `migrate:fresh` и не удаляет данные.
 
-После migration проверьте partition contract до включения workers: выполните
-`docker compose --env-file "$ENV_FILE" --project-name "$COMPOSE_PROJECT_NAME" exec -T app php artisan partitions:maintain`.
+После migration проверьте partition contract до включения workers:
+
+```bash
+docker compose --env-file "$ENV_FILE" --project-name "$COMPOSE_PROJECT_NAME" \
+  -f docker-compose.prod.yml run --rm --no-deps app php artisan partitions:maintain
+```
+
+App ещё не запущен, поэтому здесь нужен `run`, а не `exec`. При production override включите
+также его явным вторым `-f` либо используйте scoped wrapper из ручного сценария.
+При overlap с `_pYYYYMMDD` сначала пройдите описанную там pg_partman naming-развилку.
 Команда должна завершиться успешно; она запускает штатное обслуживание и откажется при разрыве
 месячных партиций. Не исправляйте такой разрыв вручную удалением partition или `migrate:fresh`.
 
@@ -288,8 +315,11 @@ https://<ваш FQDN>/documentation/
 https://<ваш FQDN>/documentation/04_Operators/production/server-setup
 ```
 
-Обновите обе страницы. На второй должны быть стили, скрипты и SVG Mermaid-диаграммы, без 404 и
-ошибок в browser console. Это доказывает авторизацию, прямой URL закрытой документации и правильную
+Обновите обе страницы. Должны загрузиться содержимое, стили и скрипты без 404 и
+ошибок в browser console. Текущий plain VitePress config не содержит Mermaid renderer:
+Mermaid fences отображаются как code blocks, а не SVG. Не записывайте SVG smoke как passed;
+добавление renderer и соответствующий полный E2E contract требуют отдельной проверенной сборки.
+Это доказывает авторизацию, прямой URL закрытой документации и правильную
 работу asset base path. Лишь после этой проверки направляйте обычный production-трафик на сервер.
 
 ### Controlled-production gate парсинга
@@ -321,6 +351,9 @@ docker compose --env-file "$ENV_FILE" --project-name "$COMPOSE_PROJECT_NAME" -f 
 
 В этом разделе не нужно заново настраивать ОС, DNS, TLS, deploy keys или секреты. Всегда начинайте
 с вопроса «что изменилось?» и используйте таблицу ниже.
+
+Таблица — только registry-путь. Для текущего режима без CI используйте
+[повторный ручной релиз и rollback](manual-deployment.md#повторный-ручной-релиз-и-rollback).
 
 | Изменение | Что подготовить вне production host | Команда на host | Что не делать |
 |---|---|---|---|

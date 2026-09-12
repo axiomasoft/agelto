@@ -6,6 +6,13 @@ status: living
 
 # Production repository identities
 
+На shared host **не запускайте `repositories:prepare` ниже**: helper перезаписывает `.ssh/config`
+и `known_hosts` пользователя deploy и может сломать соседние identities. Используйте отдельный
+Agelto key и repo-local `core.sshCommand` по [ручному сценарию](manual-deployment.md).
+Bootstrap key можно оставить постоянным read-only key, не создавая ещё один без необходимости.
+`vendor-sync.sh` читает pinned vendor по HTTPS: публичный repository не требует отдельного key;
+private repository требует своего read-only key. Личный token и GitHub write access запрещены.
+
 Run these steps as `root` on the P12.1-checked Ubuntu host. The ignored production profile remains
 mode `0600`; complete its `AGELTO_REPOSITORY`, full `AGELTO_CANDIDATE_SHA`, checkout directory and
 the current GitHub Ed25519 public-key body. Do not obtain that host key with `ssh-keyscan`: compare

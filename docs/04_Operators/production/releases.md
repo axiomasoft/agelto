@@ -6,6 +6,11 @@ status: living
 
 # Release preparation
 
+Эта страница описывает registry-oriented fixture contract. Текущий live путь без CI/registry —
+[manual build/deploy](manual-deployment.md). Не считайте fixture receipt реальным deploy или
+rollback. Host build разрешён только в выбранной manual ветке; runtime source bind mounts,
+floating tags и destructive shutdown остаются запрещены.
+
 The local release carrier fixes the order as preflight → verified backup → schema compatibility →
 bounded Horizon drain → immutable app/Doctor pair promotion → readiness → canary. It records only
 candidate/previous `sha256:` digests and stage IDs. Run:

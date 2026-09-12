@@ -11,6 +11,15 @@ loopback application endpoint `127.0.0.1:8080`; containers do not become public 
 the three `__AGELTO_*__` placeholders in a temporary file, then run `nginx -t` before installing or
 reloading it. The local contract performs this syntax check with an ephemeral certificate.
 
+`8080` — default, а не требование: на shared host выберите свободный loopback port и замените
+upstream одновременно с `APP_PORT`. На `agelto.ru` используется `8082`. Не устанавливайте
+TLS template до реального certificate: сначала отдельный HTTP-only challenge vhost.
+NGINX 1.28: `listen 443 ssl;`, `listen [::]:443 ssl;`, `http2 on;` вместо deprecated
+`listen ... http2`. Сохраните собственный backup, проверьте `nginx -t`, затем reload.
+Не меняйте чужие sites/default/certificates. Full commands: [manual TLS](manual-deployment.md#6-dns-nginx-и-tls).
+Проверяйте не только `/up`, но HTTPS asset/Livewire URLs: текущий Laravel bootstrap не
+настраивает trusted proxies, поэтому production TLS offload нужен и в app FastCGI config.
+
 The operator rehearsal owns every external action in this order:
 
 1. confirm that the intended A/AAAA records resolve to the approved host;

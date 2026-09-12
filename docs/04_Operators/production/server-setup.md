@@ -6,12 +6,21 @@ status: living
 
 # Новый production-сервер: Ubuntu 24.04 → готовый checkout Agelto
 
+Для текущего режима **без CI** используйте [ручной сценарий](manual-deployment.md), затем
+возвращайтесь к проверкам основного [руководства](deployment.md). На shared host эта страница
+не является разрешением повторить bootstrap: сначала аудит, затем только отсутствующие шаги.
+Не выполняйте blanket upgrade, не перезаписывайте `authorized_keys`, `.ssh/config`,
+`known_hosts`, Docker daemon settings или firewall соседнего проекта. Личный SSH-ключ deploy
+настраивает владелец отдельно; его отсутствие не мешает работе от root через `sudo -u deploy`.
+Ubuntu 26.04 не проходит version guard `host:apply`: обходить guard или переустанавливать уже
+работающий Docker нельзя. Проверьте имеющиеся инструменты и используйте manual shared-host ветку.
+
 Это первая глава production-книги. Пройдите её сверху вниз **один раз** на пустом Ubuntu 24.04
 `amd64` или `arm64`. Результат главы: на сервер можно войти ключом как `deploy`, Docker и firewall
 настроены, NGINX принимает HTTPS, а точный commit Agelto лежит в `/srv/agelto/repository` вместе с
 non-secret `.env.production` и файловыми секретами.
 
-Дальше без пропусков: [первый запуск](deployment.md#4-первый-запуск-последовательность-и-контрольные-точки),
+Дальше без пропусков: [первый запуск](deployment.md#4-первый-запуск-точная-последовательность),
 затем [повторные релизы](deployment.md#5-повторный-релиз-уже-настроенного-окружения).
 
 > **Почему не `/var/www/agelta`.** Исполняемый production-contract Agelto принимает checkout только

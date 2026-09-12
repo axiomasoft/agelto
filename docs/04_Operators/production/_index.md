@@ -6,6 +6,9 @@ status: living
 
 # Production
 
+Текущий режим без CI: [ручной pull/build/deploy](manual-deployment.md). На shared host сначала
+аудит и только отсутствующие изменения, не повторный bootstrap соседнего окружения.
+
 Начните с [инструкции для нового Ubuntu-сервера](server-setup.md): в ней один линейный путь от
 пустой ОС до NGINX, pinned checkout, `.env.production` и файловых секретов. Затем продолжайте с
 [полного руководства по production](deployment.md). Остальные
