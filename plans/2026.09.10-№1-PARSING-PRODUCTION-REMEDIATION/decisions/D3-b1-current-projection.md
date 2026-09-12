@@ -16,6 +16,6 @@ transaction; incomplete/failed snapshot не меняет active set. B1 не и
 ## Почему
 
 Текущее upsert-only поведение оставляет несуществующие позиции/роли, а audit history уже хранится
-в procurement revisions/events. RAG:— (repo-grounded: `PARSING_PRODUCTION_ACCEPTANCE.md:258-277`).
+в procurement revisions/events. RAG:— (repo-grounded: `artifacts/PARSING_PRODUCTION_ACCEPTANCE.md:258-277`).
 **Consequences:** P2.2 обязан проверить N→N−1, N→0, renumber и rollback; способ delete/soft-delete
 выбирается по фактическим FK/consumers без потери заявленной history surface.

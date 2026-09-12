@@ -47,7 +47,7 @@ PHPStan — **718 files**. Seeded migration, exact worker recovery, TLS guard, J
 живые продуктовые документы при этом описывают версионирование сильнее, чем его обеспечивает
 оркестрация.
 
-Это не расхождение только с отметками плана. `PARSING_PRODUCTION_REMEDIATION.md` отсутствует и в
+Это не расхождение только с отметками плана. `artifacts/PARSING_PRODUCTION_REMEDIATION.md` отсутствует и в
 рабочем дереве, и в доступной Git-истории; отдельный связанный с этим аудитом plan/handoff также
 не найден. `plans/ACTIVE.md:3` сообщает `Active: —`. Единственная явно связанная историческая
 основа — закрытый `plans/archive/2026.08.06-CRAWL-HARDEN`: его `plan.md`, `status.md` и
@@ -410,17 +410,17 @@ offset и/или hash/fetch id) и проверять write; для HTML хра�
 ## Новые регрессии и пропуски исходного аудита
 
 Регрессии, которые можно честно приписать remediation-диффу, оценить невозможно: самого диффа и
-`PARSING_PRODUCTION_REMEDIATION.md` нет. В текущем baseline найдены два существенных пропуска
+`artifacts/PARSING_PRODUCTION_REMEDIATION.md` нет. В текущем baseline найдены два существенных пропуска
 исходного аудита: NEW-1 (fresh hard-cap закрывает incomplete как `Completed`) и NEW-2 (unchecked
 storage writes всех prepared representations). Новых style-only или speculative замечаний в
 приёмку не включено.
 
 ## Выполненные проверки
 
-1. Прочитаны `AGENTS.md`, `PARSING_PRODUCTION_AUDIT.md`, исторические
+1. Прочитаны `AGENTS.md`, `artifacts/PARSING_PRODUCTION_AUDIT.md`, исторические
    `plans/archive/2026.08.06-CRAWL-HARDEN/{plan.md,status.md,handoff.md}` и профильные правила
    procurement pipeline, тестов, test isolation, production readiness и БД. Запрошенный
-   `PARSING_PRODUCTION_REMEDIATION.md` и отдельный новый plan/handoff отсутствуют.
+   `artifacts/PARSING_PRODUCTION_REMEDIATION.md` и отдельный новый plan/handoff отсутствуют.
 2. Проверены `HEAD`, `origin/main`, Git status/history и отсутствие parsing remediation diff.
    Исходные чужие dirty changes не тронуты и не использованы как доказательство исправлений.
 3. `make test-preflight` — **PASS**, целевая БД `agelto_test` подтверждена.

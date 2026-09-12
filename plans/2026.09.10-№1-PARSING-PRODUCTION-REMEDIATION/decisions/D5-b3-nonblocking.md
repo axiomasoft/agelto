@@ -15,5 +15,5 @@ P4.3. До P4.4 текущие raw paths нельзя называть immutable
 ## Почему
 
 B3 ухудшает расследования, но сам по себе не создаёт доказанный data-loss blocker узкого pilot.
-RAG:— (repo-grounded: `PARSING_PRODUCTION_ACCEPTANCE.md:357-378`). **Consequences:** план может
+RAG:— (repo-grounded: `artifacts/PARSING_PRODUCTION_ACCEPTANCE.md:357-378`). **Consequences:** план может
 разрешить controlled production при terminal P4.3 и открытом P4.4; plan closure/архив ждёт P4.4.

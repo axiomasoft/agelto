@@ -40,8 +40,8 @@ owner authorization на 72-часовой controlled-production gate.
 AI продолжают исполняться идемпотентными Horizon jobs. До controlled-production должны быть
 закрыты A1–A9, B1, NEW-1 и NEW-2; B2 допускается только как явное условное решение с live gate;
 B3 остаётся отдельным observability improvement и не блокирует запуск. Основание —
-`PARSING_PRODUCTION_AUDIT.md` и независимая RED-приёмка
-`PARSING_PRODUCTION_ACCEPTANCE.md` (RAG:— repo-grounded).
+`artifacts/PARSING_PRODUCTION_AUDIT.md` и независимая RED-приёмка
+`artifacts/PARSING_PRODUCTION_ACCEPTANCE.md` (RAG:— repo-grounded).
 
 ## Трассировка находок
 
@@ -95,7 +95,7 @@ Controlled-production запрещена до terminal P4.1 с resolved B2 и GR
 артефактом с командами, временным окном, выбранным scope, fault-injection evidence, backlog-age и
 ручной сверкой изменений с ЕИС. Числовой SLA из этого плана не выводится: 72 часа — консервативное
 окно первой обкатки, а не универсальный норматив (RAG:— repo-grounded:
-`PARSING_PRODUCTION_AUDIT.md`, раздел «Конечный объём работы»).
+`artifacts/PARSING_PRODUCTION_AUDIT.md`, раздел «Конечный объём работы»).
 
 ## Не входит
 

@@ -17,6 +17,6 @@ storage truth, backlog age и ручной сверке всех выбранн�
 ## Почему
 
 Первичный аудит предлагает 48–72 часа как практический старт, не универсальный SLA; выбрана верхняя
-граница. RAG:— (repo-grounded: `PARSING_PRODUCTION_AUDIT.md`, раздел «Конечный объём работы»).
+граница. RAG:— (repo-grounded: `artifacts/PARSING_PRODUCTION_AUDIT.md`, раздел «Конечный объём работы»).
 **Consequences:** календарное ожидание живёт в отдельном item; план не авторизует production traffic
 сам по себе, а P4.3 обязан получить owner gate и сохранить точные timestamps/scope/metrics.

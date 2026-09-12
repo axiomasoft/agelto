@@ -2,7 +2,7 @@
 
 | Мысль владельца | Носитель |
 |:--|:--|
-| Создать remediation документ | `PARSING_PRODUCTION_REMEDIATION.md` |
+| Создать remediation документ | `artifacts/PARSING_PRODUCTION_REMEDIATION.md` |
 | Создать новый Layout v2 plan | `plan.md`, `status.md`, `phases/**`, `handoff.md` |
 | Пять зависимых фаз | P0–P4 и contracts в phase indexes |
 | A1–A9, B1, NEW-1, NEW-2 | P0.1, P1.1–P1.4, P2.1–P2.2, P3.1–P3.5, P4.1 |

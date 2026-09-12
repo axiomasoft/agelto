@@ -19,7 +19,7 @@
 | `brief/` | слой 0: owner brief/refinements |
 | `findings/` | слой 1: source evidence |
 | `research/` | слой 2: design synthesis |
-| `artifacts/` | execution evidence, создаваемое items P4 |
+| `artifacts/` | исходные audit/remediation reports и execution evidence |
 
 ## Провенанс
 
@@ -30,6 +30,6 @@
 | `research/00-user-intent.md` | research | P0–P4 | Трассировка каждой мысли брифа в carrier |
 | `research/01-remediation-architecture.md` | research | P0–P4 | Инварианты, dependency chain и coupling hotspots |
 
-## Ключевые артефакты `root/`
+## Ключевые артефакты
 
-План не экспортирует и не потребляет frozen contracts; каталога `root/` нет.
+Исходные audit/remediation reports находятся в `artifacts/`; план не экспортирует файлы в корень репозитория.
