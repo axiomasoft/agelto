@@ -1,0 +1,45 @@
+name: agelto_mail
+
+services:
+  smtp:
+    image: ${AGELTO_SMTP_IMAGE:?Use a verified boky/postfix:5.1.0@sha256 digest}
+    profiles: [smtp]
+    restart: unless-stopped
+    stop_signal: SIGTERM
+    stop_grace_period: 30s
+    hostname: ${MAIL_EHLO_DOMAIN:?Set a forward-confirmed PTR hostname}
+    environment:
+      ALLOWED_SENDER_DOMAINS: ${MAIL_SENDER_DOMAIN:?Sender domain is required}
+      POSTFIX_myhostname: ${MAIL_EHLO_DOMAIN}
+      POSTFIX_mynetworks: ${AGELTO_SMTP_TRUSTED_NETWORKS:?Use only the verified Agelto subnet}
+      POSTFIX_inet_protocols: ipv4
+      POSTFIX_message_size_limit: "26214400"
+      DKIM_AUTOGENERATE: "true"
+      DKIM_SELECTOR: agelto
+      ANONYMIZE_EMAILS: paranoid
+    volumes:
+      - mail_queue:/var/spool/postfix
+      - dkim_keys:/etc/opendkim/keys
+    networks:
+      app_network:
+        aliases: [agelto-smtp]
+    healthcheck:
+      test: [CMD-SHELL, /scripts/healthcheck.sh]
+      interval: 15s
+      timeout: 5s
+      retries: 4
+      start_period: 45s
+    logging:
+      driver: local
+      options:
+        max-size: 10m
+        max-file: "3"
+
+networks:
+  app_network:
+    external: true
+    name: ${AGELTO_SMTP_APP_NETWORK:?Use only the verified Agelto network}
+
+volumes:
+  mail_queue:
+  dkim_keys:
