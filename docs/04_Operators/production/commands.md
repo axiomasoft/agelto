@@ -22,6 +22,17 @@ make prod:doctor COMPOSE_PROD=/srv/agelto/bin/compose
 production env и оба Compose files. Не выполняйте `prod:config` с выводом всего environment
 после добавления external credentials. Registry-oriented `prod:deploy:*` здесь не используются.
 
+Локальный автоматический backup (root, подробности и restore receipts:
+[manual backups](manual-backups.md)):
+
+```bash
+systemctl show agelto-backup-local.service -p Result -p ExecMainStatus
+systemctl list-timers --all --no-pager 'agelto-backup-local*'
+journalctl -u agelto-backup-local.service -u agelto-backup-local-watchdog.service --since today --no-pager
+```
+
+`Result=success` / exit 0 и verified local receipt не означают автоматический off-host backup.
+
 Текущий source-derived inventory: `DEPLOYMENT_COMMAND_MATRIX.md` в корне checkout, generated from root
 Make delegation, `docker/Makefile` `.PHONY` targets and declared P12 script modes.
 Архивный P12 snapshot остаётся provenance, не обновляется при каждом изменении runtime scripts.

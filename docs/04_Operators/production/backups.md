@@ -6,6 +6,12 @@ status: living
 
 # Backup and recovery preparation
 
+В текущем manual/no-CI режиме используйте [локальный host-only backup](manual-backups.md).
+Он отдельно проверяет реальный PostgreSQL restore и честно сохраняет `offhost=0`.
+`backup-production.sh` ниже пока поддерживает только `check`/`fixture`; `apply` намеренно
+отказывает. Не устанавливайте его fixture unit templates как будто это готовая production job.
+Внешняя destination и credentials нужны до автоматизации защищённой off-host копии.
+
 The tracked backup package separates local contract proof from runtime evidence. Run the hermetic
 carrier locally:
 

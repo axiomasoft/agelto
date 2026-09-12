@@ -12,6 +12,13 @@ status: living
 Первый release не имеет previous successful version. Dry-run или переключение между tags
 одного и того же image не доказывают rollback между разными версиями/schema.
 
+На целевом host runtime rollback между двумя **разными** app/doctor image IDs и обратный
+switch проверяются отдельно и записываются в root deployment report. Schema-identical
+docs release подтверждает механизм image switch, но не безопасность будущей несовместимой
+миграции. После recreate используйте bounded `wait-readiness` для штатного scheduler heartbeat.
+Ежедневный [manual backup](manual-backups.md) уже имеет реальный PostgreSQL restore path;
+его local verification не следует путать с full off-host disaster recovery.
+
 Локальный custom-format pg_dump сам по себе не является verified backup. `pg_restore --list`
 проверяет только читаемость archive; нужны restore в отдельную DB и проверки её schema/data.
 Существующий `docker/postgres/backup-and-verify.sh prod` использует legacy env names и не фиксирует
@@ -59,7 +66,8 @@ off-host backups, secrets/config, MinIO objects и согласованная с
 dump в том же host не защищает от потери сервера. Production restore требует отдельного решения.
 
 Image rollback stops unless the previous immutable digest is known and schema compatibility is
-explicitly green. Its order is stop → compatibility → previous digest → promote → readiness. It
+explicitly green. Its order is compatibility → verify previous IDs → worker drain → scoped image
+switch → bounded readiness. In manual/no-CI mode there is no registry promotion. It
 does not delete volumes, rebuild on the host, run `migrate:fresh` or silently accept an incompatible
 database.
 
@@ -68,5 +76,6 @@ identity that contains neither `prod` nor `production`. The fixture verifies the
 the isolated target, restores PostgreSQL/object/config state and checks readiness. Production
 identity and destructive flags fail before the adapter is called.
 
-The follow-up rehearsal supplies the owner gate, real backup ID, isolated target, measurements and
-go/no-go decision. Current P12 produces no rollback/restore runtime receipt.
+The archived P12 fixture itself supplies no runtime receipt. Actual manual PostgreSQL restore and
+schema-identical image rollback receipts belong to the root deployment report; future incompatible
+schema/data restore still requires its own owner gate, real backup ID and isolated measurements.

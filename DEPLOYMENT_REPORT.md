@@ -10,8 +10,12 @@
 Doctor без failures/warnings. Миграции завершены после подтверждения владельца, BaseSeeder
 повторно выполнен в конце, вход SuperAdmin проверен в браузере. PostgreSQL backup реально
 восстановлен в отдельную rehearsal DB. Ниже сохранены также промежуточные неуспехи и остановки;
-они не описывают итоговое состояние. Documentation-only коммит создаётся после проверки этого
-отчёта; его хеш сообщается владельцу отдельно, без push.
+они не описывают итоговое состояние. Первый documentation-only коммит `366aba5e` затем
+опубликован по отдельному явному подтверждению владельца. Продолжение настройки после этого
+коммита записывается в конце отчёта; новый коммит без отдельного указания не публикуется.
+Актуальный handoff продолжения — последний раздел: Gemini key подключён, но API не проверен
+из-за отсутствия LLM proxy; backup automation local-only, две encrypted copies уже вне VPS.
+Ранние списки pending относятся к моменту соответствующего этапа, не к текущему состоянию.
 
 > Отчёт содержит выполненные команды и проверяемые факты, но не содержит паролей, приватных
 > ключей, токенов и значений application secrets. SSH-пароль вводился интерактивно и нигде не
@@ -89,7 +93,7 @@ systemctl --no-pager --type=service --state=running
 systemctl list-timers --all --no-pager
 
 docker inspect --format '{{.Name}}|project={{index .Config.Labels "com.docker.compose.project"}}|workdir={{index .Config.Labels "com.docker.compose.project.working_dir"}}|files={{index .Config.Labels "com.docker.compose.project.config_files"}}' insiders_app dterema_backend-app-1 dterema_nuxt_prod
-docker network inspect <каждая_существующая_сеть>
+# Первоначально networks инспектировались по отдельности; точная повторная команда ниже.
 docker compose --project-name dterema_app -f /var/www/dterema/web/docker-compose.prod.yml config --services
 docker compose --project-name dterema_backend -f /var/www/dterema/cms/docker-compose.prod.yml config --services
 docker compose --project-name insiders -f /var/www/insiders/docker-compose.prod.yml config --services
@@ -144,10 +148,10 @@ docker compose --project-name insiders -f /var/www/insiders/docker-compose.prod.
 
 | Изменение | Безопасный откат |
 |---|---|
-| Новый checkout до запуска контейнеров | Удалить только новый `/srv/agelto` после проверки, что это Agelto и в нём нет требуемых данных. |
-| Новый Agelto deploy key | Удалить только новую запись Deploy key в GitHub и файлы Agelto key; чужие SSH-файлы не менять. |
-| Compose startup | `docker compose --project-name agelto_prod --env-file .env.production -f docker-compose.prod.yml down` без `-v`; volumes сохраняются. |
-| Новый NGINX site | Убрать только Agelto symlink, выполнить `nginx -t`, reload; затем восстановить/удалить только созданный Agelto-файл. |
+| Новый checkout до запуска контейнеров | Сохранить каталог; не удалять. После запуска использовать совместимый image rollback ниже. |
+| Новый Agelto deploy key | При необходимости владелец отзывает только Agelto key в GitHub; private key на сервере сохраняется, чужие SSH-файлы не менять. |
+| Compose startup | Scoped stop только Agelto app/Horizon/scheduler либо compatible image switch; без down, удаления containers/networks/volumes. |
+| Новый NGINX site | Восстановить только сохранённый Agelto config и выполнить `nginx -t`, reload; при отмене первого site сохранить его и убрать только enabled symlink. |
 | Agelto TLS lineage | Не выпускать до корректного DNS; при откате NGINX не удалять сертификат автоматически. |
 | Миграция | До owner gate не запускать. После применения — только совместимый image rollback; destructive schema rollback запрещён без отдельного плана. |
 
@@ -1081,3 +1085,540 @@ image pair, runtime env/healthchecks и изолированный порядо�
 `devops:node-pnpm-preflight`: проверка Node/pnpm до documentation build/commit.
 `quality:playwright-e2e`: реальный ограниченный authenticated browser smoke без production CRUD,
 traces/storageState и без выдачи непрошедшей SVG assertion за green.
+
+## Продолжение: закрытие оставшихся задач
+
+Владелец разрешил выполнить остаток настройки и использовать заполненный локальный Gemini key
+также в production. На момент начала (17:48 UTC) шесть Agelto containers healthy, NGINX syntax
+green, checkout ещё `9a2a8225`, свободно 57 GiB / доступно 5.4 GiB RAM. CI не включается.
+
+### Выполненные команды и промежуточные результаты
+
+```bash
+ssh -p 22 root@46.8.220.57
+set +o history
+date -u
+df -h /
+free -h
+sudo -u deploy git -C /srv/agelto/repository status --short
+sudo -u deploy git -C /srv/agelto/repository rev-parse HEAD
+sudo -u deploy /srv/agelto/bin/compose ps
+nginx -t
+ls -l /srv/agelto/bin
+systemctl list-unit-files --no-pager 'agelto*'
+find /srv/agelto -maxdepth 2 -type d
+```
+
+Локально проверены Node/pnpm (24.12.0 / 9.15.0) и наличие ключа через Dotenv в памяти;
+значения secrets не выводились. SMTP `log`, host локальный и username/password null:
+реальных SMTP credentials локальный проект не предоставляет.
+
+Создан `/srv/agelto/operations/20260912T174927Z`: protected snapshots `env.previous`,
+`compose.previous`, `tag.previous`, `pair.previous.ids`, `tag.candidate`. От deploy выполнено:
+
+```bash
+cd /srv/agelto/repository
+umask 077
+operation_dir=/srv/agelto/operations/20260912T174927Z
+previous_tag=$(awk -F= '$1 == "IMAGE_TAG" {print $2; exit}' .env.production)
+mkdir -p "$operation_dir"
+cp .env.production "$operation_dir/env.previous"
+cp docker-compose.override.yml "$operation_dir/compose.previous"
+printf '%s\n' "$previous_tag" > "$operation_dir/tag.previous"
+docker image inspect --format '{{.Id}}' "agelto/app:$previous_tag" \
+  "agelto/doctor:$previous_tag" > "$operation_dir/pair.previous.ids"
+git pull --ff-only origin main
+test -z "$(git status --porcelain)"
+bash docker/scripts/vendor-sync.sh
+git diff 9a2a8225f96ba7e6915186e9bdc5298a7d39ee38 HEAD -- database/migrations
+candidate_sha=$(git rev-parse HEAD)
+candidate_tag=manual-$candidate_sha-$(date -u +%Y%m%dT%H%M%SZ)
+PATH=/srv/agelto/bin:/usr/local/bin:/usr/bin:/bin BUILDKIT_PROGRESS=plain \
+  make image:build IMAGE_TAG="$candidate_tag"
+```
+
+Pull — fast-forward до `366aba5eb9650f4bfa03d39cd735113ac7c0c213`; vendor exact pin
+`7e7009cc7c26e173cfa6bfec42365a311fc2adb0`; migrations diff пуст. Candidate tag:
+`manual-366aba5eb9650f4bfa03d39cd735113ac7c0c213-20260912T174930Z`.
+Первая попытка `git diff "$previous_tag" HEAD` использовала Docker tag как Git ref: fallback
+с настоящим source SHA дал корректный пустой diff. В инструкции всегда используется revision
+label, не image tag. Сборка пока выполняется: не объявлять candidate готовым до exit 0.
+
+Gemini secret прочитан PHP/Dotenv и передан напрямую pipe → SSH stdin → protected
+`local/secrets/external.env`; без local secret copy, CLI value, вывода или логирования bytes.
+Первый format guard `[A-Za-z0-9_-]+` оказался слишком узким для фактического значения;
+SSH отменён до password/login и записей. Второй guard проверяет отсутствие control characters,
+Dotenv string сохраняется quoted/escaped. Transfer exit 0, файл deploy:deploy 0600.
+
+Host additions подготовлены через `apply_patch` в `/tmp/agelto-ops.QlWzSj6M`, синтаксис Bash/sh/PHP
+проверен, переданы `scp -P 22 -r` в operation directory. Private SSH keys не копировались.
+Первый install override от deploy отказался `Permission denied`: scp directory root-owned 0700.
+После scoped `chown -R deploy:deploy` только staging directory доступ исправлен. Попытка
+`git check-ignore` для staging вне repository дала expected outside-repository error; Git-ignored
+repository paths проверяются отдельно, staging не является Git artifact.
+
+```bash
+docker exec agelto_prod-postgres-1 psql -U agelto -d agelto -Atc \
+  'SELECT count(*) AS proxy_count FROM prc_proxies;'
+install -o deploy -g deploy -m 0755 \
+  "$operation_dir/agelto-ops.QlWzSj6M/external-env" /srv/agelto/bin/external-env
+chown -R deploy:deploy "$operation_dir/agelto-ops.QlWzSj6M"
+```
+
+Production proxy pool пуст (0 records). `PoolOutboundProxy` fail-closed: Gemini key alone
+не делает AI runnable, прямой fallback запрещён контрактом. Владелец отдельно запрошен о
+возможности перенести локальные LLM proxies, SMTP и off-host destination; остальные работы
+продолжаются. Штатный `backup-production.sh apply` ещё не реализован и не используется.
+
+### Gemini adapter и реальный local backup
+
+Override и adapter установлены; `compose config --quiet` exit 0. Одноразовый app command:
+
+```bash
+sudo -u deploy /srv/agelto/bin/compose run --rm --no-deps -T \
+  --volume /srv/agelto/operations/20260912T174927Z/agelto-ops.QlWzSj6M/gemini-check.php:/gemini-check.php:ro \
+  app php /gemini-check.php
+```
+
+Результат: `Gemini key loaded: yes`, затем canonical transport
+`App\Exceptions\Procurement\Proxy\NoProxyAvailableException`, exit 1, exception message redacted.
+HTTP к Google не выполнялся. Также read-only проверена локальная Agelto DB: `agelto|agelto`,
+proxy count 0, active llm proxy count 0. Переносить из неё нечего. Validity/quota ключа API
+не проверены, поскольку canonical outgoing route пока отсутствует.
+
+Установлены только новые host-only scripts и четыре `agelto-backup-local*` units. Полный
+фактически используемый code и воспроизводимая установка — `manual-backups.md`.
+
+```bash
+install -o deploy -g deploy -m 0755 "$operation_dir/agelto-ops.QlWzSj6M/backup-local" /srv/agelto/bin/backup-local
+install -o deploy -g deploy -m 0755 "$operation_dir/agelto-ops.QlWzSj6M/backup-local-watchdog" /srv/agelto/bin/backup-local-watchdog
+install -o deploy -g deploy -m 0644 "$operation_dir/agelto-ops.QlWzSj6M/backup-objects.php" /srv/agelto/bin/backup-objects.php
+sudo -u deploy bash -c 'umask 077; openssl rand -base64 48 > /srv/agelto/backup-encryption.key'
+chmod 0600 /srv/agelto/.release.lock
+install -d -o deploy -g deploy -m 0700 /srv/agelto/backups/local
+systemd-analyze verify /etc/systemd/system/agelto-backup-local.service \
+  /etc/systemd/system/agelto-backup-local.timer \
+  /etc/systemd/system/agelto-backup-local-watchdog.service \
+  /etc/systemd/system/agelto-backup-local-watchdog.timer
+systemctl daemon-reload
+systemctl start agelto-backup-local.service
+systemctl show agelto-backup-local.service -p Result -p ExecMainStatus
+cat /srv/agelto/backups/local/latest.status
+cat /srv/agelto/backups/local/20260912T175514Z/restore.receipt
+sudo -u deploy /srv/agelto/bin/backup-local-watchdog
+systemctl start agelto-backup-local-watchdog.service
+systemctl show agelto-backup-local-watchdog.service -p Result -p ExecMainStatus
+systemctl enable --now agelto-backup-local.timer agelto-backup-local-watchdog.timer
+systemctl show agelto-backup-local.timer agelto-backup-local-watchdog.timer \
+  -p ActiveState -p UnitFileState -p NextElapseUSecRealtime
+sudo -u deploy bash -c 'cd /srv/agelto/backups/local/20260912T175514Z && sha256sum --check manifest.sha256'
+```
+
+Secret key generation выполнена **после** guard отсутствия target. Release lock уже существовал
+deploy:0644 после первого adapter check; изменён только mode на 0600. Config backup key и
+external env deploy:0600. Host `php -l` не выполнился: `php: command not found`; syntax уже
+проверен локальным PHP, host PHP не устанавливался. `systemd-analyze verify` exit 0 с двумя
+baseline warnings существующего XFS CPUAccounting; Agelto units warnings не дали.
+`systemctl status` exit 3 после успешного oneshot — нормальное inactive/dead, не ошибка backup.
+Контрольные `Result=success`, `ExecMainStatus=0` у backup и watchdog.
+
+Первый real backup: `/srv/agelto/backups/local/20260912T175514Z`;
+retained target `agelto_20260912t175514z_rehearsal`, 81 migrations, 1 user;
+schema names/ledger `cmp` equal. Object export 0 (обе buckets сейчас пусты), S3 access успешен,
+не является object-data restore proof. Config/secrets encrypted archive проверен decrypt/tar-list;
+все шесть manifest artifacts checksum OK. Manifest SHA256:
+`65fcdb204a54693479982d4dd4d440be01beb743f146c90cd66e166565052633`.
+Latest status честно `verified_local=1`, `offhost=0`. Timer enabled/active:
+backup next 2026-09-13 02:02:31 UTC, watchdog next 2026-09-12 18:03:52 UTC.
+Реальный scheduled run/reboot пока не наблюдался; host не перезагружался.
+
+Проверен stale branch с synthetic readonly status, без изменения настоящего latest.status:
+
+```bash
+docker run --rm --pull=never --network none --entrypoint bash \
+  --volume /srv/agelto/bin/backup-local-watchdog:/backup-local-watchdog:ro \
+  --volume /srv/agelto/operations/20260912T174927Z/stale.status:/srv/agelto/backups/local/latest.status:ro \
+  agelto/app:manual-9a2a8225f96ba7e6915186e9bdc5298a7d39ee38 /backup-local-watchdog
+sudo -u deploy /srv/agelto/bin/backup-local-watchdog
+```
+
+Synthetic epoch 0 дал ожидаемый `Agelto local backup is stale`, exit 1;
+настоящий fresh status exit 0. Внешняя alert delivery не заявлена: нужны endpoint/credentials.
+
+### Повторная сборка: PECL branch
+
+Без build-only override повторился PECL REST timeout / missing pcov 1.0.12 XML, Make exit 2;
+working release всё это время оставался healthy. Повторно проверено:
+
+```bash
+getent ahostsv4 pecl.php.net
+curl --max-time 20 --resolve pecl.php.net:443:138.199.46.68 -sS -o /dev/null \
+  -w 'PECL XML HTTP=%{http_code} TLS=%{ssl_verify_result} IP=%{remote_ip}\n' \
+  https://pecl.php.net/rest/r/pcov/1.0.12.xml
+curl --max-time 20 --resolve pecl.php.net:443:138.199.46.68 -sS -o /dev/null \
+  -w 'PECL tarball HTTP=%{http_code} TLS=%{ssl_verify_result} IP=%{remote_ip}\n' \
+  https://pecl.php.net/get/pcov-1.0.12.tgz
+PATH=/srv/agelto/bin:/usr/local/bin:/usr/bin:/bin AGELTO_PECL_BUILD_IP=138.199.46.68 \
+  BUILDKIT_PROGRESS=plain make image:build IMAGE_TAG="$candidate_tag"
+```
+
+DNS сейчас 138.199.46.65; проверенный alternate 138.199.46.68 дал XML и tarball HTTP 200/TLS 0.
+Override только command-local Docker build, host resolver/hosts и TLS verification не менялись.
+Документированный workaround снова воспроизведён. Composer Doctor build сообщил PSR-4 warnings
+для старых test fixture classes; tests/source не менялись и проверки не ослаблялись.
+
+### Разовая зашифрованная off-host копия
+
+Чтобы первая verified copy не осталась только на VPS, подготовлен full encrypted bundle
+(а не только config archive) для protected owner workstation directory:
+
+```bash
+cd /srv/agelto/backups/local
+umask 077
+test ! -e 20260912T175514Z.tar.enc
+tar -czf - 20260912T175514Z | openssl enc -aes-256-cbc -pbkdf2 -salt \
+  -pass file:/srv/agelto/backup-encryption.key -out 20260912T175514Z.tar.enc
+sha256sum 20260912T175514Z.tar.enc
+openssl enc -d -aes-256-cbc -pbkdf2 -pass file:/srv/agelto/backup-encryption.key \
+  -in 20260912T175514Z.tar.enc | tar -tzf - >/dev/null
+```
+
+Full bundle hash `732d4f3cf55b4b95d1928026f64a9e441899f683bb6170711b2005596744d777`.
+Server decrypt/list exit 0. Download/verification results ниже записываются после завершения.
+Автоматический off-host timer не объявляется готовым на основании этой разовой копии.
+
+Download выполнен `scp -P 22` в `/home/vostrikov/agelto-production-backups` (owner 0700),
+full bundle и отдельный recovery key — owner 0600. Local full-bundle SHA совпал с server SHA,
+local decrypt/tar-list exit 0. Recovery key не выводился и не является private SSH key.
+Настоящий `latest.status` не подменён на offhost=1: автоматический pipeline пока local-only.
+
+### Дефекты, найденные именно при повторном runtime deploy
+
+1. `/srv/agelto/releases` был root:root 0755: deploy `mkdir` отказался до переключения.
+   Scoped `chown deploy:deploy /srv/agelto/releases` исправил только parent ownership.
+2. Tar export под `umask 077` оставил candidate public 0700. Только новый public snapshot
+   получил directories 0755/files 0644; host candidate parent 0755. Secrets не менялись.
+   Manual guide теперь использует `tar --no-same-owner --same-permissions` и parent prerequisite.
+3. Horizon унаследовал PHP/FPM `StopSignal=SIGQUIT`: `compose stop` ожидал, Horizon продолжал
+   работать, хотя scheduler уже stopped. Во время drain HTTPS `/up` оставался 200.
+   Vendor `ListensForSignals` подтверждает SIGTERM handler. Exact project label проверен,
+   затем `docker kill --signal=TERM agelto_prod-horizon-1` в 18:03:53 UTC позволил graceful exit.
+   Это не SIGKILL, grace 4200s не сокращён. Host override и tracked production Compose
+   теперь явно задают Horizon `stop_signal: SIGTERM`.
+4. Первый app switch отказался unhealthy/restarting: non-null Compose entrypoint удалил
+   image CMD, `app.command=None`, Docker banner показывал пустой CMD. Root CLI secret smoke
+   не поймал отсутствие FPM/Nginx. Добавлен app `command: ["/init"]`, adapter default при
+   отсутствии arguments; explicit Horizon/scheduler/Doctor commands сохраняются.
+
+Команды диагностики выполнялись scoped: `docker inspect` только State/StopSignal, `ps` PID/PPID/
+comm/args только собственного Horizon, `horizon:status`; full application environment не выводился.
+Диагностический SQL `SELECT count(*) FROM prc_runs` оказался неверным table name и получил
+relation does not exist; никакой migration/data modification не выполнял и не считается проверкой.
+Bootstrap/log sanitizer через `docker exec` отказался, когда app находился restarting. Следующая
+попытка использовала ephemeral PHP-only app и redacted secret values до вывода logs, показав
+пустой CMD. No private tokens/credentials вошли в report/log output.
+
+Проверенный correction command и subsequent recreate:
+
+```bash
+test "$(docker inspect --format '{{index .Config.Labels "com.docker.compose.project"}}' \
+  agelto_prod-horizon-1)" = agelto_prod
+docker kill --signal=TERM agelto_prod-horizon-1
+install -o deploy -g deploy -m 0755 \
+  "$operation_dir/agelto-ops.QlWzSj6M/external-env" /srv/agelto/bin/external-env
+install -o deploy -g deploy -m 0600 \
+  "$operation_dir/agelto-ops.QlWzSj6M/docker-compose.override.yml" \
+  /srv/agelto/repository/docker-compose.override.yml
+```
+
+Deploy всё ещё schema-compatible docs-only candidate; после исправления повторяется
+scoped `up -d --no-deps --no-build --pull never --wait app horizon scheduler`, readiness/Doctor,
+HTTPS, сравнение immutable data-container IDs/Created. Итог записывается ниже по факту.
+
+Для `quality:diagnosing-bugs` loop — rendered StopSignal/app command и реальный scoped stop/start.
+Расширенный hypothesis fanout/production instrumentation пропущен явно: причины подтверждены
+конкретными metadata и vendor handler, а устранение outage требует узкого reversible fix.
+Read-only regression `bash docker/tests/horizon-stop-signal-contract.sh` проходит на исправленном
+Compose; render исходного `366aba5e` с тем же assert падает именно на inherited StopSignal.
+Full PHP/browser suite против production не запускалась. Отдельный code-only локальный коммит
+`35bddd26` содержит два файла: production Compose и read-only regression script; push не выполнен.
+Документационные изменения будут отдельным коммитом без кода, как требовал владелец.
+
+Watchdog scheduled run действительно наблюдён: ExecMainStartTimestamp
+2026-09-12 18:03:14 UTC, Result success / ExecMainStatus 0. Это hourly timer receipt,
+не доказательство daily backup или поведения после reboot; соседний host не перезагружался.
+
+### Candidate release verification
+
+После entrypoint/CMD fix шесть containers healthy. Первый непосредственный readiness всё ещё
+показал scheduler unavailable (нормальный startup без нового minute heartbeat) и остановил
+командную цепочку до Doctor. После bounded retry штатного heartbeat readiness все 7 passed;
+Doctor 27 diagnostics, failed 0, warnings 0, passed 24/skipped 2/notices 1.
+Helper `/srv/agelto/bin/wait-readiness` установлен deploy:0755 и проверен Bash syntax + real
+readiness exit 0. Руководство использует его на deploy/rollback, а не обещает immediate green.
+
+Candidate image pair IDs (разные от previous pair):
+
+- App `sha256:fd04b88a0e8b5db1e311cf3da08c65e83727fe59ccd6c38c4556e30d1b66d1a5`.
+- Doctor `sha256:b596cdf5fa93a2ca27d47959ba437a2d71544f524362f2ac1443d2f9c9ba082a`.
+- Revision обоих `366aba5eb9650f4bfa03d39cd735113ac7c0c213`.
+- Runtime app/Horizon StopSignal SIGTERM; HTTPS /up 200 / TLS verify 0.
+
+`docker exec --user www-data` первоначально получил DB no password supplied: новый exec process
+не наследует изменённые entrypoint _FILE paths и не может читать original deploy:0600 mounts.
+Правильный diagnostic exec с non-secret runtime _FILE paths дал www-data bootstrap OK / Gemini
+key loaded yes. Original secret permissions **не** ослаблялись, FPM runtime наследует эти paths.
+
+Browser smoke сначала получил local `ERR_NETWORK_CHANGED`, затем response-body race после
+успешного Livewire redirect. Исправлен только temporary smoke harness: удалено чтение JSON-body
+после automatic navigation (не assertion), остаются реальные login POST 200, final /admin,
+auth/cookie/access/asset checks; console errors теперь тоже fail без raw message. Product
+tests/guards не изменены. Итоговый run exit 0: admin login, Secure/HttpOnly/Lax cookies,
+anonymous docs block, protected /admin и четыре docs routes 200 включая manual-deployment,
+asset/page/console failures empty. Mermaid SVG по-прежнему не реализован; это не full E2E suite.
+
+Local documentation build первоначально отказался из-за inline Go double-braces в Markdown:
+VitePress/Vue принимал их за JS interpolation. Command перенесён в Bash code fence;
+повторный `pnpm documentation:build && pnpm documentation:verify` exit 0 (309 files).
+Новые docs не меняют archived plans/generated skills; root command matrix explicit check exit 0.
+
+### Реальный rollback и возврат на финальный release
+
+Обе операции выполнялись от deploy с scoped release lock. Previous и candidate имеют разные
+app/Doctor image IDs, но одинаковую application schema: это проверка runtime переключения,
+не разрешение откатывать будущую несовместимую migration. Previous app ID
+`sha256:e76cf8eb861753f3bb867df2cde09f948d68470702474967375d281513ad1f48`, previous Doctor ID
+`sha256:35cc9ff62bb08f4742564230095dda1709ab2f36cb429678962a8090e2d7024e`.
+
+Фактически выполненный backward switch:
+
+```bash
+cd /srv/agelto/repository
+operation_dir=/srv/agelto/operations/20260912T174927Z
+exec 9>/srv/agelto/.release.lock
+flock -n 9
+previous_tag=$(cat "$operation_dir/tag.previous")
+cmp "$operation_dir/pair.previous.ids" <(docker image inspect --format '{{.Id}}' \
+  "agelto/app:$previous_tag" "agelto/doctor:$previous_tag")
+test -d "/srv/agelto/releases/$previous_tag/public"
+/srv/agelto/bin/compose stop horizon scheduler
+install -m 0600 "$operation_dir/env.previous" .env.production
+/srv/agelto/bin/compose config --quiet
+/srv/agelto/bin/compose up -d --no-deps --no-build --pull never --wait app horizon scheduler
+/srv/agelto/bin/wait-readiness
+make prod:doctor COMPOSE_PROD=/srv/agelto/bin/compose
+curl --fail --max-time 20 -sS https://agelto.ru/up >/dev/null
+docker inspect --format '{{.Name}} {{.Id}} {{.Created}}' \
+  agelto_prod-postgres-1 agelto_prod-redis-1 agelto_prod-minio-1 > "$operation_dir/infra.rollback"
+cmp "$operation_dir/infra.before" "$operation_dir/infra.rollback"
+docker inspect --format '{{.Config.Image}} {{.Image}}' agelto_prod-app-1
+```
+
+Result exit 0 / `ROLLBACK_VERIFIED`: previous app действительно active с previous ID,
+readiness 7/7, Doctor failed=0/warnings=0, HTTPS /up 200. Horizon корректно остановился TERM;
+PG/Redis/MinIO IDs и Created совпали до/после. Host override и secrets **не** откатывались.
+
+После завершения backward process lock освобождён; новый process взял тот же lock и выполнил:
+
+```bash
+cd /srv/agelto/repository
+operation_dir=/srv/agelto/operations/20260912T174927Z
+exec 9>/srv/agelto/.release.lock
+flock -n 9
+/srv/agelto/bin/compose stop horizon scheduler
+install -m 0600 "$operation_dir/env.candidate" .env.production
+/srv/agelto/bin/compose config --quiet
+/srv/agelto/bin/compose up -d --no-deps --no-build --pull never --wait app horizon scheduler
+/srv/agelto/bin/wait-readiness
+make prod:seed-base COMPOSE_PROD=/srv/agelto/bin/compose
+make prod:doctor COMPOSE_PROD=/srv/agelto/bin/compose
+curl --fail --max-time 20 -sS https://agelto.ru/up >/dev/null
+docker inspect --format '{{.Name}} {{.Id}} {{.Created}}' \
+  agelto_prod-postgres-1 agelto_prod-redis-1 agelto_prod-minio-1 > "$operation_dir/infra.final"
+cmp "$operation_dir/infra.before" "$operation_dir/infra.final"
+docker inspect --format '{{.Config.Image}} {{.Image}}' agelto_prod-app-1
+```
+
+Result exit 0 / `FORWARD_SWITCH_AND_FINAL_SEEDS_VERIFIED`. Active tag
+`manual-366aba5eb9650f4bfa03d39cd735113ac7c0c213-20260912T174930Z` с candidate app ID выше.
+Startup readiness дождался реального minute heartbeat; BaseSeeder все семь nested seeders DONE.
+Doctor снова 27 diagnostics / failed 0 / warnings 0. Data-container identity cmp exit 0.
+
+### Резервная копия именно финальной конфигурации
+
+Повторный backup нужен, поскольку первая копия была до исправления adapter CMD. Выполнены:
+
+```bash
+systemctl start agelto-backup-local.service
+systemctl start agelto-backup-local-watchdog.service
+SYSTEMD_PAGER=cat systemctl show agelto-backup-local.service \
+  agelto-backup-local-watchdog.service -p Id -p Result -p ExecMainStatus
+sudo -u deploy cat /srv/agelto/backups/local/latest.status
+```
+
+Обе units Result=success / ExecMainStatus=0. Две ошибочные попытки прочитать
+`latest-local.status` (в local и затем backups parent) получили no such file; правильный
+script-defined path — `local/latest.status`, docs содержат именно его. `sudo -u deploy find`
+из root cwd также предупреждал о невозможности вернуться в `/root`; никакие права /root
+не менялись, следующие deploy операции имеют явный cwd.
+
+Final backup `/srv/agelto/backups/local/20260912T181348Z`; retained restored DB
+`agelto_20260912t181348z_rehearsal`, 81 migrations / 1 user, schema comparison matched.
+Manifest SHA `1b5f1d2f39fd8005e80204929fcd7f3892692a6f9403f53e3413ac7773fc7d3c`.
+Шесть artifact checksums OK. Автоматический receipt честно сохраняет `offhost=0`.
+
+```bash
+umask 077
+backup_dir=/srv/agelto/backups/local/20260912T181348Z
+cd "$backup_dir"
+sha256sum --check manifest.sha256
+cat restore.receipt
+test ! -e "${backup_dir}.tar.enc"
+tar -C /srv/agelto/backups/local -czf - 20260912T181348Z | \
+  openssl enc -aes-256-cbc -pbkdf2 -salt -pass file:/srv/agelto/backup-encryption.key \
+  -out "${backup_dir}.tar.enc"
+openssl enc -d -aes-256-cbc -pbkdf2 -pass file:/srv/agelto/backup-encryption.key \
+  -in "${backup_dir}.tar.enc" | tar -tzf - >/dev/null
+sha256sum "${backup_dir}.tar.enc"
+```
+
+Финальная encrypted копия скачана без вывода secrets:
+
+```bash
+scp -P 22 root@46.8.220.57:/srv/agelto/backups/local/20260912T181348Z.tar.enc \
+  /home/vostrikov/agelto-production-backups/20260912T181348Z.tar.enc
+chmod 0600 /home/vostrikov/agelto-production-backups/20260912T181348Z.tar.enc
+sha256sum /home/vostrikov/agelto-production-backups/20260912T181348Z.tar.enc
+openssl enc -d -aes-256-cbc -pbkdf2 \
+  -pass file:/home/vostrikov/agelto-production-backups/backup-encryption.key \
+  -in /home/vostrikov/agelto-production-backups/20260912T181348Z.tar.enc | tar -tzf - >/dev/null
+```
+
+Local/server full bundle SHA совпали:
+`87567c59ea83f64ac589b2949a73b372dec24c5a847c695454b2c777dbf793b1`.
+Обе decrypt/list проверки exit 0. Recovery key не перезаписывался, его custody описана
+в manual backup guide; он не хранится в Git. Разовая внешняя копия не заменяет автоматизацию.
+
+### Финальная повторная проверка и оставшиеся реальные зависимости
+
+Фактические проверки после forward switch:
+
+```bash
+/srv/agelto/bin/compose ps
+/srv/agelto/bin/compose exec -T app php artisan horizon:status
+/srv/agelto/bin/compose exec -T app php artisan app:readiness --format=agent
+/srv/agelto/bin/compose exec -T postgres psql -U agelto -d agelto -Atc \
+  'SELECT current_database(),current_user; SELECT count(*) FROM migrations; SELECT count(*) FROM users; SELECT count(*) FROM prc_proxies;'
+nginx -t
+systemctl is-active certbot.timer agelto-backup-local.timer agelto-backup-local-watchdog.timer
+sudo -u deploy git -C /srv/agelto/repository status --short
+sudo -u deploy git -C /srv/agelto/repository ls-remote origin refs/heads/main
+```
+
+Six services healthy; app/Horizon/scheduler restarts=0. Readiness все 7 passed, Horizon running;
+current_database/current_user `agelto|agelto`, migrations 81, users 1, managed proxies 0.
+Последние 50/41/50 log lines app/Horizon/scheduler проверены без raw output (awk считает
+ERROR/CRITICAL/EMERGENCY/Fatal/Exception): 0 markers. Это ограниченная log проверка, не полный
+security/functional audit. Nginx syntax exit 0, три timers active. Checkout clean, readonly
+GitHub access успешен, remote main SHA `366aba5eb9650f4bfa03d39cd735113ac7c0c213`.
+
+HTTPS запросы повторены curl с certificate verification: agelto.ru / и /up 200/TLS=0;
+dterema.localmost.ru 200, cms.dterema.localmost.ru 200, insiders.localmost.ru 302/TLS=0,
+как до этого этапа. Соседние проекты не останавливались/не пересоздавались нашими командами;
+их ранее замеченные queue RestartCounts не выдаются за отсутствие исторических событий.
+
+Финальный browser smoke сначала timeout на login response; повторный run exit 0 подтвердил
+login POST 200, /admin, Secure/HttpOnly/Lax session, пять protected routes 200 и anonymous
+documentation redirect to login. Asset/page/console failures empty. Full mutating production
+E2E suite не запускалась, Mermaid rendering остаётся отдельным известным frontend gap.
+Пароль admin не менялся; его ранее переданный protected local file не включён в Git/backup report.
+
+| Шаг инструкции | Факт на сервере | Результат | Что уточнено в документации |
+|---|---|---|---|
+| Ручной build | PECL endpoint отказался; alternate HTTPS verified IP сработал | Новая immutable app/Doctor pair собрана | Scoped build-only override и реальные проверки |
+| Secret/config loading | Новый exec и FPM имеют разные _FILE paths; Compose entrypoint сбрасывает CMD | Gemini source mounted 0600, www-data/FPM load проверен | External-env adapter, explicit /init, no secret dump |
+| Worker drain | Inherited SIGQUIT не обрабатывался Horizon | TERM исправлен, оба switches graceful | Explicit SIGTERM, grace 4200s, regression |
+| Startup health | Scheduler требует настоящего minute heartbeat | Bounded retry 7/7 | wait-readiness вместо immediate green |
+| Backup | Tracked apply — fixture, daily runtime раньше отсутствовал | Новые local timer/watchdog + два настоящих PG restore | Отдельный воспроизводимый manual-backups runbook |
+| Off-host | Две encrypted copies реально на рабочей машине | Проверены hashes/decrypt; automation offhost=0 | Разовая copy не выдаётся за автоматический DR |
+| Rollback | Previous/candidate IDs различны, schema одинакова | Backward и forward exit 0, data IDs unchanged | Compatibility before drain, --no-deps scoped switch |
+| LLM/SMTP | Key loaded, proxies 0; local SMTP placeholders | Gemini fail-closed до Google HTTP, email log only | Нужны реальные credentials, не обещать API success |
+| Documentation | Inline Go braces ломали Vue build | Command fence исправлен, build/verify пройдены | Корректный Markdown и актуальная source matrix |
+
+Для полного внешнего production функционала остаются **только внешние данные/решения**:
+
+- LLM proxy endpoint/credentials с известной разрешённой страной (не RU/unknown), active и
+  scope llm в каноническом managed pool. Production и local pools пустые; обход ProxyResolver
+  запрещён. Gemini key перенесён, но его validity/quota/API result до этого не проверены.
+- Реальный SMTP host/port/scheme/user/password и подтверждённый sender, если нужна отправка
+  почты: local `.env` содержит log и placeholders, не рабочую SMTP учётную запись.
+- Off-host destination/access для автоматической копии и alert destination/access для доставки
+  уведомлений. Сейчас local daily automation + local journal watchdog и verified one-time
+  encrypted download. Нужен также согласованный retention/capacity порядок: rehearsal DBs и
+  backups сохранены, автоматическое удаление запрещено, disk floor останавливает job при нехватке.
+- Личный SSH key для deploy владелец добавляет сам, по исходному запрету он не создавался.
+
+GitHub read-only key, migrations, BaseSeeder, DNS, TLS и runtime rollback больше не pending.
+Новых shared host changes, отключения firewall/SSH, удаления данных/volumes/certificates нет.
+Code-only fix `35bddd26a55d1db7b4d78e8cc112c1152fb7347d` и следующий docs-only commit
+без отдельного указания не пушатся. Server остаётся на опубликованном clean main; безопасный
+host override уже содержит исправление SIGTERM. Новые инструкции находятся в local checkout,
+а не выдаются за опубликованную server documentation build.
+
+Дополнительная read-only network проверка в конце:
+
+```bash
+docker network inspect --format '{{.Name}} {{range .IPAM.Config}}{{.Subnet}} {{end}}' \
+  bridge dterema_app_default dterema_backend_dterema_cms_network insiders_insiders_network host none
+```
+
+Exit 0; shared network subnets остались 172.17/18/19/20, Agelto отдельно 172.21.
+Final documentation syntax check выявил старый псевдо-placeholder network inspect в audit
+fence (не shell command); перенесён в comment и заменён точной фактической командой здесь.
+Начальная rollback-карта также уточнена на сохранение checkout/key/site и scoped stop,
+без удаления. Ни одна команда удаления из прежней карты не выполнялась.
+
+Local final verification: `git diff --check`, explicit root command-matrix check,
+read-only Horizon stop-signal regression и documentation build/verify (309 files) exit 0.
+Shell fences проверяются через `bash -n`/`sh -n`, не выполняются против production.
+Documentation-only commit stage включает только Markdown; separate code fix уже закоммичен.
+Нативные archived plans/generated skill bundles не изменялись.
+
+Применены owner-autonomy/task:task-dev для owner gates и исполнения; Docker router и
+docker-php/postgres/dev-prod/services для проверки существующего isolated manual stack;
+node-pnpm-preflight перед Node/commit tooling; diagnosing-bugs для доказанного signal/CMD
+runtime fix; playwright-e2e для ограниченного безопасного authenticated smoke вместо
+mutating full production suite. Инспектированные, но неприменённые skills не считаются использованными.
+
+Точные команды последней ограниченной log/browser/local проверки:
+
+```bash
+for container in agelto_prod-app-1 agelto_prod-horizon-1 agelto_prod-scheduler-1; do
+    docker inspect --format '{{.Name}} status={{.State.Status}} health={{.State.Health.Status}} restarts={{.RestartCount}}' "$container"
+    docker logs --tail 50 "$container" 2>&1 | \
+      awk 'BEGIN {n=0; err=0} {n++; if ($0 ~ /ERROR|CRITICAL|EMERGENCY|Fatal|Exception/) err++} END {printf "Recent log lines=%d error-markers=%d\n",n,err}'
+done
+# Только на local workstation, credentials читаются harness в память, без stdout secrets:
+node /tmp/agelto-admin-credentials.qHn6Cw/smoke.cjs
+git diff --check
+python3 docker/scripts/check-command-reference.py check --output DEPLOYMENT_COMMAND_MATRIX.md
+bash docker/tests/horizon-stop-signal-contract.sh
+pnpm documentation:build && pnpm documentation:verify
+```
+
+В полном final syntax pass проверено 102 Bash/sh fences (включая эти command blocks).
+Latest operational report копируется отдельным файлом `/srv/agelto/DEPLOYMENT_REPORT.latest.md`
+в deployment root (deploy:deploy 0644), вне Git checkout: tracked root report сервера остаётся
+на опубликованном main, `git pull --ff-only` не блокируется незакоммиченным overwrite.
+
+```bash
+scp -P 22 DEPLOYMENT_REPORT.md root@46.8.220.57:/srv/agelto/DEPLOYMENT_REPORT.latest.md
+# root SSH session:
+chown deploy:deploy /srv/agelto/DEPLOYMENT_REPORT.latest.md
+chmod 0644 /srv/agelto/DEPLOYMENT_REPORT.latest.md
+sha256sum /srv/agelto/DEPLOYMENT_REPORT.latest.md
+# local:
+sha256sum DEPLOYMENT_REPORT.md
+```
+
+Перед final handoff hashes operational report и local file сверяются; Git commit не публикуется.

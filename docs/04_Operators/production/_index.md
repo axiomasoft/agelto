@@ -22,9 +22,10 @@ status: living
 | Подготовить host, checkout и production-профиль | [Host](ubuntu-host.md), [репозиторий](repositories.md), [профиль](production-profile.md) |
 | Провести первый запуск или разобрать модель выпусков | [Первый запуск](first-deploy.md), [модель релизов](releases.md) |
 | Настроить DNS или TLS глубже | [TLS](network-tls.md) |
-| Настроить backup, восстановление или rollback | [Backups](backups.md), [Rollback and restore](rollback-restore.md) |
+| Настроить backup, восстановление или rollback | [Manual backup](manual-backups.md), [Backups contract](backups.md), [Rollback and restore](rollback-restore.md) |
 | Повернуть ключи или секреты | [Deploy keys](credential-rotation.md), [Secrets](secret-rotation.md) |
 | Разобрать сбой | [Troubleshooting](troubleshooting.md) |
 
 Source-derived [матрица P12](https://github.com/axiomasoft/agelto/blob/main/plans/archive/2026.08.09-RELEASE-READINESS/artifacts/P12-command-matrix.md)
-остаётся точным inventory команд, но не является стартовой страницей для человека.
+остаётся историческим inventory. Актуальный source-derived inventory — root
+`DEPLOYMENT_COMMAND_MATRIX.md` с явной командой проверки из [commands](commands.md).

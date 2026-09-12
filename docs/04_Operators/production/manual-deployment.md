@@ -212,6 +212,96 @@ test ! -e .env.production && install -m 0600 .env.example .env.production
 готовность платного AI или доставку email. Не передавайте external secrets в CLI/Git/отчёт:
 нужны отдельные protected files и явно настроенный поддерживаемый runtime secret mapping.
 
+### Внешние secrets: Gemini и SMTP
+
+Gemini key можно перенести из локального `.env` по явному разрешению владельца. Прочитайте
+его через штатный PHP/Dotenv **в памяти**, сохраните quoted/escaped строку `GEMINI_API_KEY`
+в ignored `local/secrets/external.env` на сервере (deploy:deploy 0600, parent 0700).
+Передавайте bytes только через SSH stdin, не через CLI, shell history, stdout, Git или build args.
+Не копируйте весь development env: DB identities, ports и SMTP defaults там не production.
+Проверьте отсутствие target/symlink до первой записи; обновление требует protected snapshot.
+
+Prism не поддерживает `GEMINI_API_KEY_FILE` сам по себе. Простое добавление такого environment
+не подключит ключ. Проверенный host-only adapter `/srv/agelto/bin/external-env` (0755):
+
+```sh
+#!/bin/sh
+set -eu
+cd /var/www/html
+test ! -L .env
+test -s /run/secrets/external_env
+install -m 0600 -o www-data -g www-data /run/secrets/external_env .env
+export AGELTO_ENTRYPOINT_PRELOAD=1
+if [ "$#" -eq 0 ]; then
+    set -- /init
+fi
+exec /etc/entrypoint.d/10-secrets.sh "$@"
+```
+
+Сохраните код редактором в новый candidate file, `sh -n`, затем `install -m 0755` в bin.
+Adapter запускается как root до штатного entrypoint, создаёт только protected runtime `.env`
+www-data:0600, а исходный secret остаётся readonly mount. Он сохраняет штатный preload
+APP/DB/Redis/S3 secrets и делегирует обычный CMD: `/init`, Horizon, scheduler или Doctor.
+На каждом recreate копируется актуальный external env; значения не попадают в image labels
+или Compose environment. Для rotation нужно recreate всех четырёх PHP services, не только app.
+
+В production override **для app, horizon, scheduler и doctor** добавьте:
+
+```yaml
+secrets:
+  external_env:
+    file: ./local/secrets/external.env
+services:
+  app:
+    command: ["/init"]
+    entrypoint: &external_entrypoint ["/usr/local/bin/agelto-external-env"]
+    secrets:
+      - external_env
+    volumes:
+      - /srv/agelto/bin/external-env:/usr/local/bin/agelto-external-env:ro
+  horizon:
+    stop_signal: SIGTERM
+    entrypoint: *external_entrypoint
+    secrets:
+      - external_env
+    volumes:
+      - /srv/agelto/bin/external-env:/usr/local/bin/agelto-external-env:ro
+  scheduler:
+    entrypoint: *external_entrypoint
+    secrets:
+      - external_env
+    volumes:
+      - /srv/agelto/bin/external-env:/usr/local/bin/agelto-external-env:ro
+  doctor:
+    entrypoint: *external_entrypoint
+    secrets:
+      - external_env
+    volumes:
+      - /srv/agelto/bin/external-env:/usr/local/bin/agelto-external-env:ro
+```
+
+Это **добавления** к host override ниже, не замена остальных mounts/environment/healthchecks.
+`command: ["/init"]` обязателен для app: Compose при non-null entrypoint игнорирует image CMD.
+Без этого CLI smoke проходит, но app выводит banner, завершается и уходит в restart loop.
+Проверяйте rendered app command, а не только image CMD или `compose run`.
+Объедините sections редактором, сохраните protected backup, `compose config --quiet`, затем
+проверьте одноразовым `compose run --rm --no-deps -T app` только boolean наличия
+`config('prism.providers.gemini.api_key')` после Laravel bootstrap. Не печатайте сам config.
+Потом примените adapter через обычный scoped release switch.
+
+**Gemini требует управляемый proxy pool.** `OutboundProxy` → `PoolOutboundProxy` →
+`ProxyResolver` для scope `llm`; active proxy должен иметь разрешённую страну (не RU/unknown),
+scope и рабочее состояние. Пустой pool даёт `NoProxyAvailableException` до HTTP request.
+Ключ сам по себе не доказывает доступ к Google API. Прокси вводят через защищённую админку
+или отдельный согласованный перенос; не берите credentials соседнего проекта и не добавляйте
+direct/env fallback. Проверяйте API через этот же canonical transport с sanitized status,
+без полного exception/response/request dump. Реальный generation smoke фиксируется отдельно.
+
+Для SMTP external env содержит `MAIL_HOST`, `MAIL_PORT`, `MAIL_SCHEME`, `MAIL_USERNAME`,
+`MAIL_PASSWORD`. В host environment поменяйте `MAIL_MAILER` на `smtp` только после получения
+настоящих credentials и проверки отправки на согласованный адрес. Host values в `environment`
+перекрывают `.env`: оставшийся `MAIL_MAILER=log` продолжит писать письма в log.
+
 **Compose не передаёт весь env автоматически.** В базовом production файле есть explicit
 `environment`, но нет `env_file`. Host `REDIS_PORT=6382` не должен заменить внутренний 6379.
 Создайте ignored `docker-compose.override.yml` deploy:deploy 0600 для необходимых additions:
@@ -232,6 +322,7 @@ services:
       MAIL_FROM_ADDRESS: ${MAIL_FROM_ADDRESS}
       MAIL_FROM_NAME: ${APP_NAME:-Agelto}
   horizon:
+    stop_signal: SIGTERM
     environment: *host_env
   scheduler:
     environment: *host_env
@@ -261,14 +352,22 @@ app tag** в новый `/srv/agelto/releases/<tag>/public`, deploy-readable; do
 read-only mount. Не берите public из другого release и не отключайте assets diagnostic:
 
 ```bash
-mkdir -p "/srv/agelto/releases/$candidate_tag"
+mkdir -p -m 0755 "/srv/agelto/releases/$candidate_tag"
 docker run --rm --pull=never --entrypoint tar "agelto/app:$candidate_tag" \
   -C /var/www/html -cf - public </dev/null | \
-  tar --no-same-owner -xf - -C "/srv/agelto/releases/$candidate_tag"
+  tar --no-same-owner --same-permissions -xf - -C "/srv/agelto/releases/$candidate_tag"
 ```
 
 Выполняйте экспорт после успешной сборки; directory должен быть новым. Сохраняйте предыдущие
 public snapshots для rollback. Эти files обслуживает только Doctor, app использует assets image.
+
+Root заранее создаёт parent `install -d -o deploy -g deploy -m 0755 /srv/agelto/releases`.
+На existing Agelto host проверьте `stat`/отсутствие symlink и ownership этого parent: первый
+root-export мог оставить его root-owned и повторный deploy получил бы `mkdir: Permission denied`.
+Меняйте owner только проверенного Agelto parent, не recursive contents соседних приложений.
+Для Doctor public files/directories должны быть www-data-readable/traversable; при private
+operation umask 077 после export сохраняйте safe asset modes из tar (directories 0755/files 0644),
+не делайте writable snapshot и не меняйте secret-file permissions.
 
 Чтобы не смешивать проекты/файлы, создайте `/srv/agelto/bin/compose` deploy:deploy 0755:
 
@@ -527,9 +626,29 @@ certbot renew --dry-run
 
 ## 7. Runtime проверка и handoff
 
+Первый readiness сразу после recreate может показать scheduler unavailable до штатного
+минутного heartbeat. Для автоматизируемой startup-проверки сохраните следующий candidate
+script редактором, `bash -n`, затем установите deploy:deploy 0755 как
+`/srv/agelto/bin/wait-readiness`. Он не запускает искусственный `schedule:run`:
+
+```bash
+#!/usr/bin/env bash
+set -euo pipefail
+for readiness_attempt in $(seq 1 15); do
+    if /srv/agelto/bin/compose exec -T app php artisan app:readiness --format=agent </dev/null; then
+        exit 0
+    fi
+    if (( readiness_attempt < 15 )); then
+        sleep 5
+    fi
+done
+echo 'Agelto readiness did not become green in the bounded startup window' >&2
+exit 1
+```
+
 ```bash
 /srv/agelto/bin/compose ps
-make prod:readiness COMPOSE_PROD=/srv/agelto/bin/compose
+/srv/agelto/bin/wait-readiness
 make prod:doctor COMPOSE_PROD=/srv/agelto/bin/compose
 /srv/agelto/bin/compose exec -T app php artisan horizon:status
 /srv/agelto/bin/compose logs --tail=100 app horizon scheduler
@@ -537,12 +656,20 @@ git pull --ff-only origin main
 ```
 
 Readiness должна показать семь passed checks: DB/cache/storage/release_state/assets/Horizon/
-scheduler. Первые 75 seconds scheduler check может быть красным: повторяйте check с интервалом
-5 seconds и ограничением 15 attempts. Состояние процесса schedule:work не заменяет heartbeat.
+scheduler. Helper ограничивает startup wait 15 attempts с паузами 5 seconds (70 seconds + время
+проверок); если он отказался, исследуйте logs, не объявляйте release успешным.
+Состояние процесса schedule:work не заменяет heartbeat.
 Проверьте effective config только по non-secret ключам; не используйте `config:show database`
 или весь environment. Cookies должны иметь Secure/HttpOnly/SameSite, ссылки и form actions —
 HTTPS. Проверьте homepage, admin login, asset URLs и protected documentation access.
 Авторизованный browser smoke и внешние integrations фиксируются отдельно от HTTP 200.
+
+Обычный `compose exec -T app` работает как root и читает original mounted file secrets.
+При диагностике `docker exec --user www-data` process **не наследует** изменённые entrypoint
+environment paths: передайте только non-secret `--env APP_KEY_FILE=/run/agelto-secrets/APP_KEY`,
+аналогично `DB_PASSWORD_FILE`, `REDIS_PASSWORD_FILE`, `AWS_SECRET_ACCESS_KEY_FILE` с одноимёнными
+runtime files. Без них CLI может получить no password supplied, хотя FPM правильно наследует
+runtime paths и web работает. Не делайте original secrets world-readable ради диагностики.
 
 ## Повторный ручной релиз и rollback
 
@@ -550,6 +677,11 @@ HTTPS. Проверьте homepage, admin login, asset URLs и protected documen
 сохраните previous tag и оба image IDs, non-secret env/override copies и
 [verified PostgreSQL backup](rollback-restore.md#ручная-локальная-postgresql-rehearsal).
 Возьмите один scoped release lock: parallel deploy и backup недопустимы.
+
+Для автоматического локального backup сначала выполните
+[проверенный host-only runbook](manual-backups.md); original fixture templates не имеют
+production apply implementation. Off-host destination/credentials и внешние alerts — отдельные
+реальные внешние зависимости, а не подразумеваемые результаты enabled timer.
 
 1. `git pull --ff-only origin main`, verify clean tree/vendor pin, full candidate SHA.
 2. Соберите **новый** tag по разделу 4. До успеха env остаётся на previous tag.
@@ -588,10 +720,10 @@ candidate_tag="manual-$candidate_sha-$(date -u +%Y%m%dT%H%M%SZ)"
 ! docker image inspect "agelto/doctor:$candidate_tag" >/dev/null 2>&1
 PATH=/srv/agelto/bin:/usr/local/bin:/usr/bin:/bin BUILDKIT_PROGRESS=plain \
   make image:build IMAGE_TAG="$candidate_tag"
-mkdir -p "/srv/agelto/releases/$candidate_tag"
+mkdir -p -m 0755 "/srv/agelto/releases/$candidate_tag"
 docker run --rm --pull=never --entrypoint tar "agelto/app:$candidate_tag" \
   -C /var/www/html -cf - public </dev/null | \
-  tar --no-same-owner -xf - -C "/srv/agelto/releases/$candidate_tag"
+  tar --no-same-owner --same-permissions -xf - -C "/srv/agelto/releases/$candidate_tag"
 IMAGE_TAG="$candidate_tag" /srv/agelto/bin/compose config --quiet
 ```
 
@@ -616,8 +748,8 @@ IMAGE_TAG="$candidate_tag" make prod:seed-base COMPOSE_PROD=/srv/agelto/bin/comp
 
 ```bash
 sed -i "s/^IMAGE_TAG=.*/IMAGE_TAG=$candidate_tag/" .env.production
-/srv/agelto/bin/compose up -d --no-build --pull never --wait app horizon scheduler
-make prod:readiness COMPOSE_PROD=/srv/agelto/bin/compose
+/srv/agelto/bin/compose up -d --no-deps --no-build --pull never --wait app horizon scheduler
+/srv/agelto/bin/wait-readiness
 make prod:doctor COMPOSE_PROD=/srv/agelto/bin/compose
 curl --fail --max-time 20 -sS https://agelto.ru/up >/dev/null
 flock -u 9
@@ -625,6 +757,17 @@ flock -u 9
 
 `stop` затрагивает только Agelto workers и уважает Horizon grace 4200s. Оно не является
 разрешением остановить соседний project. Не сокращайте grace ради быстрого deploy.
+Проверьте фактический stop signal:
+
+```bash
+docker inspect --format '{{.Config.StopSignal}}' agelto_prod-horizon-1
+```
+
+Нужен `SIGTERM`. Старый PHP/FPM image наследует `SIGQUIT`, который Horizon не обрабатывает;
+одного grace period недостаточно. Production Compose и host override должны явно задавать
+`stop_signal: SIGTERM`. Для **уже начатого** зависшего scoped stop после проверки container label
+допустим `docker kill --signal=TERM agelto_prod-horizon-1` — это корректный graceful TERM,
+не SIGKILL. Дождитесь завершения и recreate с исправленным stop signal; не меняйте соседей.
 App HTTP service может оставаться доступен во время worker drain только при schema-compatible
 изменении; несовместимый schema change требует отдельного maintenance решения.
 
@@ -647,8 +790,8 @@ flock -n 9
 /srv/agelto/bin/compose stop horizon scheduler
 install -m 0600 "$operation_dir/env.previous" .env.production
 /srv/agelto/bin/compose config --quiet
-/srv/agelto/bin/compose up -d --no-build --pull never --wait app horizon scheduler
-make prod:readiness COMPOSE_PROD=/srv/agelto/bin/compose
+/srv/agelto/bin/compose up -d --no-deps --no-build --pull never --wait app horizon scheduler
+/srv/agelto/bin/wait-readiness
 make prod:doctor COMPOSE_PROD=/srv/agelto/bin/compose
 curl --fail --max-time 20 -sS https://agelto.ru/up >/dev/null
 flock -u 9
