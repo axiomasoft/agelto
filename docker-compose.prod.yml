@@ -100,6 +100,8 @@ services:
   horizon:
     image: agelto/app:${IMAGE_TAG:?IMAGE_TAG is required}
     restart: unless-stopped
+    # The FPM/Nginx base image uses SIGQUIT; Horizon listens for SIGTERM.
+    stop_signal: SIGTERM
     # Инвариант D26 (plans/EST-AI/plan.md; research/J §2): job timeout < supervisor timeout
     # (config/horizon.php; самый длинный pipeline supervisor — doc_prepare=2640s, а OCR job
     # ограничен 2580s; extraction checkpoints at 120s before its next 150s call)
