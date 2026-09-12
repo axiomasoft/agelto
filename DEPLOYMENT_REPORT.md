@@ -14,7 +14,9 @@ Doctor без failures/warnings. Миграции завершены после 
 опубликован по отдельному явному подтверждению владельца. Продолжение настройки после этого
 коммита записывается в конце отчёта; новый коммит без отдельного указания не публикуется.
 Актуальный handoff продолжения — последний раздел: Gemini key подключён, но API не проверен
-из-за отсутствия LLM proxy; backup automation local-only, две encrypted copies уже вне VPS.
+из-за отсутствия LLM proxy. По последующему решению владельца backup feature установлен,
+но выключен через `.env.backup` / `BACKUP_ENABLED=false`; старые encrypted copies сохранены.
+Own SMTP подготовлен, mailer остаётся log: внешние IPv4 TCP 25 connections дают timeout.
 Ранние списки pending относятся к моменту соответствующего этапа, не к текущему состоянию.
 
 > Отчёт содержит выполненные команды и проверяемые факты, но не содержит паролей, приватных
@@ -1622,3 +1624,265 @@ sha256sum DEPLOYMENT_REPORT.md
 ```
 
 Перед final handoff hashes operational report и local file сверяются; Git commit не публикуется.
+
+## Продолжение: opt-in backup и собственный исходящий SMTP
+
+Решение владельца: отсутствие внешних настроек не блокирует приложение; backup включается
+только env flag, SMTP отправляет с самого VPS, local proxies переносятся только при наличии.
+Это заменяет предыдущую необходимость немедленно получить SMTP/off-host credentials.
+Документационный commit прошлого этапа `bf43875e56b9dcab6015fa73ff7bf8b3aba4703b` не пушился.
+
+### Read-only аудит перед изменением
+
+Повторно прочитаны AGENTS, manual deploy/backup и actual mail/Compose configuration, проверены
+clean local/server worktrees и git-ignore targets. Root подключён exact SSH command, password
+интерактивный, `set +o history`; shared firewall/SSH/Nginx/neighbor settings не изменялись.
+
+```bash
+ss -lntp | awk 'NR==1 || $4 ~ /:(25|465|587|2525)$/'
+for binary in postfix postconf exim sendmail dig nc openssl; do command -v "$binary" || true; done
+dpkg-query -W -f='${Package} ${Status}\n' postfix exim4 opensmtpd msmtp 2>/dev/null || true
+systemctl list-units --all --no-pager 'postfix*' 'exim*' '*smtp*'
+docker ps --format '{{.Names}} {{.Image}}' | awk '/postfix|smtp|mail/'
+hostname -f
+getent hosts 46.8.220.57
+/srv/agelto/bin/compose ps
+systemctl show agelto-backup-local.service -p ActiveState -p Result -p ExecMainStatus
+# Local exact Agelto DB, read-only:
+docker exec agelto_dev-postgres-1 psql -U agelto -d agelto -Atc \
+  'SELECT current_database(), current_user; SELECT count(*) FROM prc_proxies;'
+```
+
+Local identity `agelto|agelto`, proxies 0: переноса нет, пользователь заполнит own pool вручную.
+На VPS нет SMTP binaries/packages/services/containers/listeners. `dig`/`nc` также отсутствовали;
+attempted dig commands завершились command not found. Host packages ради диагностики не ставились.
+Следующая DNS проверка выполнена PHP в собственном app container:
+
+```bash
+docker exec agelto_prod-app-1 php -r 'foreach (["agelto.ru","mail.agelto.ru","_dmarc.agelto.ru","agelto._domainkey.agelto.ru","57.220.8.46.in-addr.arpa"] as $name) {echo $name," ",json_encode(dns_get_record($name,DNS_A|DNS_MX|DNS_TXT|DNS_PTR)),PHP_EOL;}'
+docker exec agelto_prod-app-1 php -r 'echo json_encode(dns_get_record("flexl.ru",DNS_A)),PHP_EOL;'
+```
+
+Факт DNS: Agelto A 46.8.220.57; MX priorities 10/20 оба mail.agelto.ru;
+mail.agelto.ru A 104.128.128.241. Root TXT/SPF, _dmarc и выбранный DKIM selector отсутствовали.
+PTR IP → flexl.ru, forward flexl.ru → same IP: согласованы. Существующие MX/mail A/PTR сохранены.
+
+### Backup feature установлен, но выключен
+
+Новый canonical source — `docker/host/backup/` (payload/exporter перенесены из собственного
+проверенного runbook, не из чужого проекта). Safe launcher читает отдельный ignored env,
+но **не source-ит** его. Допустим ровно один literal BACKUP_ENABLED=true/false, comments/blanks;
+invalid/duplicate/symlink/missing profile fail closed. False — exit 0 **без payload**.
+Watchdog использует тот же gate: отключённые backups не создают stale alarms.
+
+Staging создан `mktemp -d /tmp/agelto-optional.XXXXXX`, candidate files через apply_patch,
+передача `scp -P 22 -r` в `/srv/agelto/operations/agelto-optional.qAqG26` (без application secrets).
+Старые own scripts сохранены `backup-local.before`/`backup-local-watchdog.before` в этом directory.
+Установленные файлы:
+
+```bash
+stage=/srv/agelto/operations/agelto-optional.qAqG26
+cp -p /srv/agelto/bin/backup-local "$stage/backup-local.before"
+cp -p /srv/agelto/bin/backup-local-watchdog "$stage/backup-local-watchdog.before"
+install -o deploy -g deploy -m 0755 /srv/agelto/bin/backup-local /srv/agelto/bin/backup-local-enabled
+install -o deploy -g deploy -m 0755 /srv/agelto/bin/backup-local-watchdog /srv/agelto/bin/backup-local-watchdog-enabled
+install -o deploy -g deploy -m 0755 "$stage/backup-env-gate" /srv/agelto/bin/backup-env-gate
+install -o deploy -g deploy -m 0600 "$stage/backup.env" /srv/agelto/repository/.env.backup
+install -o deploy -g deploy -m 0755 "$stage/backup-local" /srv/agelto/bin/backup-local
+install -o deploy -g deploy -m 0755 "$stage/backup-local-watchdog" /srv/agelto/bin/backup-local-watchdog
+sudo -u deploy /srv/agelto/bin/backup-local
+sudo -u deploy /srv/agelto/bin/backup-local-watchdog
+systemctl start agelto-backup-local.service agelto-backup-local-watchdog.service
+systemctl show agelto-backup-local.service agelto-backup-local-watchdog.service -p Id -p Result -p ExecMainStatus
+cat /srv/agelto/backups/local/latest.status
+```
+
+Фактически оба public launchers и обе systemd units — disabled no-op / success 0.
+Последний receipt остался `20260912T181348Z` с тем же SHA: новая копия/restore DB не создавались.
+Timers сохраняются enabled как механизм будущего запуска, но не выполняют backup при false.
+Раннее намерение «отключить расписание» реализовано gate-ом: смены только env достаточно,
+включать units через sudo заново не нужно. App/Horizon/scheduler от flag не зависят.
+
+После добавления SMTP payload обновлён: guarded own project/volume/digest identity, encrypted
+DKIM и SMTP-config archives, archive также включает backup flag/scripts. Final script SHA
+`c88150e2c558db4b2b2654ed29d602375e3383fee4ebf0980e83aa1144b901b2` совпал local/server.
+Новый enabled payload прошёл syntax; full backup под true **не** запускался согласно новому
+решению владельца. Предыдущие настоящие PostgreSQL restore receipts остаются историческими.
+Включение: редактором `.env.backup` → BACKUP_ENABLED=true, затем первый ручной launcher,
+fresh receipt/checksums/capacity review по `manual-backups.md`. Выключение — false, без удаления.
+
+### Direct SMTP: подготовка и реальные границы проверки
+
+Три host TCP25 probes дали timeout; повтор из app container использовал explicit IPv4,
+исключая ошибочный вывод по отсутствию IPv6:
+
+```bash
+for mx in gmail-smtp-in.l.google.com mx.yandex.ru mxs.mail.ru; do
+  timeout 10 bash -c 'exec 7<>/dev/tcp/"$1"/25; IFS= read -r banner <&7; printf "%s\n" "$banner"; printf "QUIT\r\n" >&7' bash "$mx" || true
+done
+docker exec agelto_prod-app-1 php -r 'foreach (["gmail-smtp-in.l.google.com","mx.yandex.ru","mxs.mail.ru"] as $host) {$r=dns_get_record($host,DNS_A);$ip=$r[0]["ip"]??null;if(!$ip){echo "NO_A\n";continue;}$s=@stream_socket_client("tcp://".$ip.":25",$errno,$err,5);echo $host," ",$ip," CONNECT=",$s?"OK":"FAIL"," errno=",$errno,PHP_EOL;if($s){stream_set_timeout($s,5);fgets($s);fwrite($s,"QUIT\r\n");fclose($s);}}'
+```
+
+Explicit IPv4 results: Gmail 209.85.233.26, Yandex 77.88.21.249, Mail.ru 94.100.180.31 —
+все CONNECT=FAIL errno=110. Вероятна hosting/network block, точный источник не установлен.
+Нужно разрешение outbound TCP25 у provider, не открытие публичного inbound listener и не
+отключение firewall. DNS сам по себе этот timeout не исправит. SMTP container probe nc также failed.
+
+Выбран third-party image автора bokysan (не official Postfix image); release-specific primary
+docs/release API проверены. Master упоминал unreleased 6.0.0: попытка ghcr 6.0.0 not found;
+ghcr 5.1.0 также not found. Docker Hub `boky/postfix:5.1.0` pull exit 0, digest pinned:
+
+```bash
+sudo -u deploy docker pull boky/postfix:5.1.0
+docker image inspect --format '{{json .RepoDigests}} {{.Config.Healthcheck.Test}}' boky/postfix:5.1.0
+docker run --rm --pull=never --network none --entrypoint sed boky/postfix:5.1.0 -n '1,180p' /scripts/healthcheck.sh
+```
+
+Digest `sha256:aafc772384232497bed875e1eb66b4d3e54ba1ebc86e2e185a6dc1dbc48182ef`;
+built-in health probes SMTP banner and DKIM socket, сохранён без weakening. No host MTA installed.
+
+```bash
+install -d -o deploy -g deploy -m 0700 /srv/agelto/mail
+install -o deploy -g deploy -m 0600 "$stage/mail.env" /srv/agelto/mail/.env.mail
+install -o deploy -g deploy -m 0644 "$stage/compose.yml" /srv/agelto/mail/compose.yml
+install -o deploy -g deploy -m 0755 "$stage/mail-compose" /srv/agelto/bin/mail-compose
+sudo -u deploy /srv/agelto/bin/mail-compose --profile smtp config --quiet
+sudo -u deploy /srv/agelto/bin/mail-compose --profile smtp up -d --no-build --pull never --wait smtp
+docker exec agelto_mail-smtp-1 postconf myhostname mynetworks inet_protocols smtpd_relay_restrictions smtpd_sender_restrictions smtpd_milters
+docker exec agelto_mail-smtp-1 postconf smtpd_recipient_restrictions
+docker exec agelto_mail-smtp-1 postqueue -p
+docker inspect --format '{{json .HostConfig.PortBindings}}' agelto_mail-smtp-1
+docker exec agelto_mail-smtp-1 cat /etc/opendkim/keys/agelto.ru.txt
+docker exec agelto_mail-smtp-1 stat -c '%a %U:%G %n' /etc/opendkim/keys/agelto.ru.private
+```
+
+Own SMTP `agelto_mail-smtp-1` healthy; queue empty; no published host ports (`{}`). Existing
+own Agelto network only, trust loopback + 172.21/16, sender agelto.ru. New volumes
+`agelto_mail_mail_queue` and `agelto_mail_dkim_keys`; private DKIM file opendkim:opendkim 0400,
+никогда не читался/копировался в plaintext output/Git. Отдельный public TXT ниже — не secret.
+Попытка PHP lint в SMTP image отказалась (PHP отсутствует); diagnostics выполнены actual PHP
+app container, ненужный PHP в mail image/host не устанавливался.
+
+После передачи candidate smoke/payload SCP и install выполнены:
+
+```bash
+install -o deploy -g deploy -m 0755 "$stage/backup-local-enabled" /srv/agelto/bin/backup-local-enabled
+install -o deploy -g deploy -m 0644 "$stage/smtp-smoke.php" /srv/agelto/bin/smtp-smoke.php
+docker exec -i agelto_prod-app-1 php < /srv/agelto/bin/smtp-smoke.php
+```
+
+Первый inline envelope probe и последующий canonical smoke оба exit 0. SMTP EHLO/MAIL/RCPT/
+RSET 250, QUIT 221; unauthorized sender example.invalid rejected at RCPT 554.
+**NO DATA SENT**, ни одного письма не создавалось; delivery и received DKIM/SPF/DMARC не проверены.
+Согласованного external recipient нет, а port25 пока недоступен: не имитировать success.
+
+### Application env и безопасный scoped switch
+
+Server override до изменения SHA совпал с local previous candidate; новые SMTP fields добавлены
+в общий PHP anchor, но credentials не помещены в environment. Own env/override snapshots
+`env.before-mail`/`compose.before-mail`, data identity `infra.before-mail` в protected stage.
+Первая preflight от deploy отказалась читать root:0700 staging candidate — до stop/services
+изменений. Preflight повторена root, permissions root directory не ослаблялись.
+
+```bash
+cd /srv/agelto/repository
+cp -p .env.production "$stage/env.before-mail"
+cp -p docker-compose.override.yml "$stage/compose.before-mail"
+docker compose --project-directory /srv/agelto/repository --env-file .env.production \
+  -f docker-compose.prod.yml -f "$stage/docker-compose.override.yml" config --quiet
+exec 9>/srv/agelto/.release.lock
+flock -n 9
+sudo -u deploy /srv/agelto/bin/compose stop horizon scheduler
+install -o deploy -g deploy -m 0600 "$stage/docker-compose.override.yml" docker-compose.override.yml
+sed -i -e '/^MAIL_HOST=/d' -e '/^MAIL_PORT=/d' -e '/^MAIL_SCHEME=/d' \
+  -e '/^MAIL_EHLO_DOMAIN=/d' \
+  -e '$aMAIL_HOST=agelto-smtp\nMAIL_PORT=587\nMAIL_SCHEME=null\nMAIL_EHLO_DOMAIN=flexl.ru' .env.production
+chown deploy:deploy .env.production
+chmod 0600 .env.production
+sed -i 's/^COMPOSE_PROFILES=.*/COMPOSE_PROFILES=smtp/' /srv/agelto/mail/.env.mail
+sudo -u deploy /srv/agelto/bin/compose config --quiet
+sudo -u deploy /srv/agelto/bin/compose up -d --no-deps --no-build --pull never --wait app horizon scheduler
+sudo -u deploy /srv/agelto/bin/wait-readiness
+```
+
+Exit 0 / `MAIL_CONFIGURATION_SCOPED_SWITCH_VERIFIED`; app/Horizon/scheduler healthy,
+readiness all7 passed. PG/Redis/MinIO `.Id .Created` before/after cmp unchanged. App image tag
+и schema не менялись, migrations/seeds этой операцией не запускались. Runtime allowlist config
+после bootstrap: mailer=log, host=agelto-smtp, port=587, ehlo=flexl.ru,
+from=noreply@agelto.ru, gemini_loaded=true; actual key value не выводился.
+Mailer log intentional до working port25/DNS/owner recipient delivery proof.
+
+Rollback: сохранить false backup flag; для own mail env/override вернуть только protected
+before-mail copies root install 0600, scoped worker drain/up/readiness. New SMTP можно сохранить
+или scoped `mail-compose --profile smtp stop smtp`; queue/keys/volumes не удалять.
+No shared Nginx reload был нужен: `nginx -t` exit 0, HTTPS homepage/health 200 TLS=0;
+neighbor domains повторно 200/200/302 TLS=0, commands stop/recreate к ним не применялись.
+Doctor 27 diagnostics / failed0 / warnings0, own timers active, server checkout clean.
+
+### Точные DNS-записи для владельца
+
+Это public per-installation данные. Текущие MX и mail.agelto.ru **не менять**.
+PTR и forward flexl.ru уже верны, менять shared reverse DNS не требуется.
+Сначала provider должен проверить/разрешить исходящий TCP25.
+
+| Тип | DNS name | Value / действие |
+|---|---|---|
+| TXT SPF | agelto.ru / @ | `v=spf1 ip4:46.8.220.57 ~all`; если SPF появился, объединить sources в единственную запись |
+| TXT DMARC | _dmarc.agelto.ru | `v=DMARC1; p=none; adkim=r; aspf=r` — monitoring, не enforcement |
+| TXT DKIM | agelto._domainkey.agelto.ru | Публичное значение из следующего block; concatenate без пробелов в p= |
+
+```text
+v=DKIM1; h=sha256; k=rsa; s=email; p=MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAzgWYPw9d7T5W98MPaaq+cNRl5W4pC5s+GxE8YBUdaM6IVeuWZKcigfZFFB6sFoVP0bDXBzkjQr8sNcGpDOzGv7uxz1cA5fkOQtf0hztHJ0cgXY8349tideZ9sqqKo52ZUfT/qqTITXdkXtwYSSbAY5CxOrKYeSuWcRrBQNIo7oR23fJ7Fa2+LTaDN/JfjrxnezcoQKi5j5ZSMLo4JZLjWCWhWvN9gRtL3VMrIwU/d7hWvDWunsR2xiqrlCvChLPvXxBtVzaxqH75cvQCwZPMW1lHvD/KgcJ4vlD5mvRHBQ0TDlMBx5C/rjZ7IhV2hgHtVOAyteTwDDLp66sy98yKbQIDAQAB
+```
+
+После records + port25 нужно проверить письмо на адрес владельца и authentication headers,
+только затем MAIL_MAILER=smtp и обычный scoped application restart. Не обещается inbox success
+на основании DNS, internal SMTP envelope или healthy status. Условия сверены с release-specific
+author docs и Gmail sender guidelines, ссылки находятся в `server-mail.md`.
+
+### Сверка runbook и handoff этого этапа
+
+| Шаг инструкции | Факт на сервере | Результат | Что доработано |
+|---|---|---|---|
+| Backup activation | Старые timers выполняли job сразу | Env false → no payload / no stale watchdog | Shared strict gate, canonical source scripts, opt-in runbook |
+| SMTP configuration | Нет server SMTP; чужой MX ведёт на другой IP | Own private SMTP/DKIM healthy, sender ACL passed | New server-mail runbook, no host ports, pinned release/digest |
+| External delivery | Три explicit IPv4 TCP25 timeouts | Mailer intentional log, delivery unverified | Provider gate отдельно от DNS, no fake sent receipt |
+| DNS | SPF/DKIM/DMARC absent; PTR confirmed | Точные public TXT values подготовлены, existing MX preserved | Current DNS state и безопасные owner commands |
+| Local proxies | Own DB pool 0 | Нечего переносить, owner заполнит вручную | Отсутствие pool не блокирует startup, AI fail closed |
+| Runtime switch | Own mail params не передавались explicit Compose env | Healthy6/readiness7, data identities unchanged | Shared mail fields, protected snapshots/scoped rollback |
+
+Code-only commit `f0ebdb261ec56953b9286feeb05416c94e77f7b2` содержит 12 host source/test files,
+без документации/secrets. Push не выполнялся; docs отдельным successor commit. Server latest
+report копируется вне clean Git checkout как и ранее. Full mutating production suite не запускалась.
+Focused checks: backup gate disabled/enabled, invalid/missing/duplicate/symlink/injection and
+payload-exit contracts; SMTP read-only Compose isolation/digest/sender/volumes contract;
+PHP/Bash syntax; unchanged Horizon contract; root command matrix check; docs build/verify.
+Новый enabled backup с SMTP archives намеренно не запускался при false.
+
+Использованные skills: owner-autonomy/task:task-dev сохранили owner opt-in и scope;
+Docker router/required PHP/Postgres/services проверили изоляцию без shared-host bootstrap;
+verify-claims различил unreleased master от actual 5.1.0 и SMTP health от Gmail delivery;
+node-pnpm-preflight проверил tooling; php:named-arguments применён к new smoke closure calls.
+Diagnosing-bugs/Playwright из прошлого этапа в этом этапе не активировались.
+
+Final local checks этого этапа exit 0: Bash/sh syntax (на момент проверки 111 fences),
+PHP syntax обоих host tools, все focused contracts и root matrix check; documentation
+build/verify 312 files. Public DKIM RSA key 2048 bits; hash его base64 `p=`
+`8888630975e22e872b89e0c58c94240bfac55f909b110d9c5cf837bd936ec172` совпал с server public TXT.
+Никакого private key материала эта проверка не читала.
+
+Latest report этого этапа передан отдельным operational snapshot (не tracked checkout overwrite):
+
+```bash
+scp -P 22 DEPLOYMENT_REPORT.md root@46.8.220.57:/srv/agelto/DEPLOYMENT_REPORT.latest.md
+chown deploy:deploy /srv/agelto/DEPLOYMENT_REPORT.latest.md
+chmod 0644 /srv/agelto/DEPLOYMENT_REPORT.latest.md
+sha256sum /srv/agelto/DEPLOYMENT_REPORT.latest.md
+# local counterpart:
+sha256sum DEPLOYMENT_REPORT.md
+```
+
+Server/local hashes сверяются после передачи, затем закрывается root session; новые commits
+не пушатся. Текущее решение владельца не требует немедленного off-host destination/SMTP
+credentials: backup feature default off, direct SMTP подготовлен, delivery deferred до
+working port25/DNS/owner recipient. Proxy pool будет заполнен владельцем через admin.

@@ -8,6 +8,9 @@ status: living
 
 В текущем manual/no-CI режиме используйте [локальный host-only backup](manual-backups.md).
 Он отдельно проверяет реальный PostgreSQL restore и честно сохраняет `offhost=0`.
+Feature по решению владельца выключен через `.env.backup` / `BACKUP_ENABLED=false`;
+timers вызывают safe launcher без выполнения backup/watchdog payload. Не считайте прежний
+receipt новым выполнением. Приложение работает независимо от backup configuration.
 `backup-production.sh` ниже пока поддерживает только `check`/`fixture`; `apply` намеренно
 отказывает. Не устанавливайте его fixture unit templates как будто это готовая production job.
 Внешняя destination и credentials нужны до автоматизации защищённой off-host копии.

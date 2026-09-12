@@ -22,6 +22,7 @@ status: living
 | Подготовить host, checkout и production-профиль | [Host](ubuntu-host.md), [репозиторий](repositories.md), [профиль](production-profile.md) |
 | Провести первый запуск или разобрать модель выпусков | [Первый запуск](first-deploy.md), [модель релизов](releases.md) |
 | Настроить DNS или TLS глубже | [TLS](network-tls.md) |
+| Отправлять почту с собственного VPS | [Isolated SMTP и DNS](server-mail.md) |
 | Настроить backup, восстановление или rollback | [Manual backup](manual-backups.md), [Backups contract](backups.md), [Rollback and restore](rollback-restore.md) |
 | Повернуть ключи или секреты | [Deploy keys](credential-rotation.md), [Secrets](secret-rotation.md) |
 | Разобрать сбой | [Troubleshooting](troubleshooting.md) |

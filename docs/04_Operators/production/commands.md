@@ -31,7 +31,10 @@ systemctl list-timers --all --no-pager 'agelto-backup-local*'
 journalctl -u agelto-backup-local.service -u agelto-backup-local-watchdog.service --since today --no-pager
 ```
 
-`Result=success` / exit 0 и verified local receipt не означают автоматический off-host backup.
+`BACKUP_ENABLED=false` в `.env.backup` пропускает backup/watchdog без обновления receipt;
+`Result=success` в этом случае означает успешный no-op, не новую копию. Включение —
+`BACKUP_ENABLED=true` по [runbook](manual-backups.md). Verified local receipt не означает
+автоматический off-host backup. Для собственной отправки почты — [SMTP/DNS](server-mail.md).
 
 Текущий source-derived inventory: `DEPLOYMENT_COMMAND_MATRIX.md` в корне checkout, generated from root
 Make delegation, `docker/Makefile` `.PHONY` targets and declared P12 script modes.

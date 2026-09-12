@@ -53,7 +53,9 @@ find /srv /opt /var/www /home/deploy -maxdepth 3 -type d
 Не печатайте `docker inspect` целиком: environment может содержать чужие secrets.
 
 Выберите незанятые project name, каталог и loopback ports. Проверяйте их повторно перед start.
-Не используйте `container_name`, external shared networks/volumes или фиксированную subnet.
+Не используйте `container_name`, external **соседние** shared networks/volumes или фиксированную subnet.
+Отдельный [исходящий SMTP](server-mail.md) может подключаться только к уже собственной
+проверенной Agelto network; его queue/DKIM volumes и Compose project остаются отдельными.
 Зафиксируйте исходные HTTP statuses соседей. Не переустанавливайте готовые инструменты,
 не меняйте глобальный Docker daemon, firewall, SSH policy, default site и чужие сертификаты.
 Нет swap — capacity-риск, а не разрешение менять host глобально.
@@ -292,15 +294,19 @@ services:
 **Gemini требует управляемый proxy pool.** `OutboundProxy` → `PoolOutboundProxy` →
 `ProxyResolver` для scope `llm`; active proxy должен иметь разрешённую страну (не RU/unknown),
 scope и рабочее состояние. Пустой pool даёт `NoProxyAvailableException` до HTTP request.
-Ключ сам по себе не доказывает доступ к Google API. Прокси вводят через защищённую админку
+Ключ сам по себе не доказывает доступ к Google API. Пустой proxy pool не блокирует startup,
+HTTPS или readiness приложения, но LLM jobs до заполнения pool fail closed.
+Прокси вводят через защищённую админку
 или отдельный согласованный перенос; не берите credentials соседнего проекта и не добавляйте
 direct/env fallback. Проверяйте API через этот же canonical transport с sanitized status,
 без полного exception/response/request dump. Реальный generation smoke фиксируется отдельно.
 
-Для SMTP external env содержит `MAIL_HOST`, `MAIL_PORT`, `MAIL_SCHEME`, `MAIL_USERNAME`,
-`MAIL_PASSWORD`. В host environment поменяйте `MAIL_MAILER` на `smtp` только после получения
-настоящих credentials и проверки отправки на согласованный адрес. Host values в `environment`
-перекрывают `.env`: оставшийся `MAIL_MAILER=log` продолжит писать письма в log.
+Для отправки с собственного VPS используйте [isolated SMTP runbook](server-mail.md):
+`MAIL_HOST=agelto-smtp`, port 587, auth не нужна только внутри trusted Agelto network.
+External SMTP требует реальные `MAIL_USERNAME`/`MAIL_PASSWORD` в protected external env.
+Поменяйте `MAIL_MAILER` на `smtp` только после working outbound TCP 25/DNS и проверки
+доставки на owner recipient. Host values в `environment` перекрывают `.env`: оставшийся
+`MAIL_MAILER=log` продолжит писать письма в log. Отсутствие SMTP не блокирует приложение.
 
 **Compose не передаёт весь env автоматически.** В базовом production файле есть explicit
 `environment`, но нет `env_file`. Host `REDIS_PORT=6382` не должен заменить внутренний 6379.
@@ -319,6 +325,10 @@ services:
       SESSION_HTTP_ONLY: ${SESSION_HTTP_ONLY:-true}
       SESSION_SAME_SITE: ${SESSION_SAME_SITE:-lax}
       MAIL_MAILER: ${MAIL_MAILER:-log}
+      MAIL_HOST: ${MAIL_HOST:-agelto-smtp}
+      MAIL_PORT: ${MAIL_PORT:-587}
+      MAIL_SCHEME: ${MAIL_SCHEME:-null}
+      MAIL_EHLO_DOMAIN: ${MAIL_EHLO_DOMAIN:-agelto.ru}
       MAIL_FROM_ADDRESS: ${MAIL_FROM_ADDRESS}
       MAIL_FROM_NAME: ${APP_NAME:-Agelto}
   horizon:
@@ -680,7 +690,9 @@ runtime paths и web работает. Не делайте original secrets worl
 
 Для автоматического локального backup сначала выполните
 [проверенный host-only runbook](manual-backups.md); original fixture templates не имеют
-production apply implementation. Off-host destination/credentials и внешние alerts — отдельные
+production apply implementation. По решению владельца default `BACKUP_ENABLED=false` в
+отдельном ignored `.env.backup`: launcher/watchdog не выполняют payload до включения,
+работа приложения от flag не зависит. Off-host destination/credentials и внешние alerts — отдельные
 реальные внешние зависимости, а не подразумеваемые результаты enabled timer.
 
 1. `git pull --ff-only origin main`, verify clean tree/vendor pin, full candidate SHA.
