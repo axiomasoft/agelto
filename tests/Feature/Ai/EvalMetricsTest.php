@@ -5,7 +5,7 @@ declare(strict_types=1);
 use App\Services\Procurement\Analyzers\Estimate\EvalMetrics;
 
 /**
- * §8.4 `docs/03_Dev/ai/estimate-extraction.md` — field-level precision/recall/F1 + row coverage
+ * §8.4 `docs/dev/ai/estimate-extraction.md` — field-level precision/recall/F1 + row coverage
  * на паре (row_index, field), без LLM (чистая функция над нормализованными массивами эталона/
  * предсказания в форме `analysis.result.estimates[]`).
  */

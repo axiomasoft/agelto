@@ -93,6 +93,18 @@ function linkedDocumentationPaths(string $path): array
     return array_values(array_unique($links));
 }
 
+test('разделы документации имеют согласованные имена без числовых префиксов', function (): void {
+    $sections = [];
+
+    foreach (Finder::create()->directories()->in(base_path('docs'))->depth('== 0') as $directory) {
+        $sections[] = $directory->getFilename();
+    }
+
+    sort($sections);
+
+    expect($sections)->toBe(['business', 'dev', 'ideas', 'meta', 'operators', 'workflow']);
+});
+
 test('каждый документ имеет допустимый frontmatter', function (): void {
     $files = documentationMarkdownFiles();
     $violations = [];
@@ -124,7 +136,7 @@ test('каждый документ имеет допустимый frontmatter'
             $violations[] = sprintf('%s: type должен быть одним из %s.', $relativePath, implode(', ', DOCS_INTEGRITY_TYPES));
         }
 
-        if (str_starts_with($relativePath, 'docs/04_Operators/how-to/')
+        if (str_starts_with($relativePath, 'docs/operators/how-to/')
             && ! preg_match('/^last-reviewed:\s*\d{4}-\d{2}-\d{2}\s*$/m', $frontmatter)) {
             $violations[] = sprintf('%s: last-reviewed должен быть датой YYYY-MM-DD.', $relativePath);
         }

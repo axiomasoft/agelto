@@ -194,7 +194,7 @@ pass 'watchdog freshness/failure and secret-file alert redaction fixtures'
     "$root/docker/host/systemd" >/dev/null
 rg -q 'https://nginx.org/en/docs/http/ngx_http_proxy_module.html' "$root/plans/archive/2026.08.09-RELEASE-READINESS/findings/P12-local-preparation-rag-2026-08-15.md"
 grep -F 'TEMPLATE — NO RUNTIME EVIDENCE' "$root/plans/archive/2026.08.09-RELEASE-READINESS/artifacts/P12-backup-evidence.md" >/dev/null
-grep -F 'current-state copying' "$root/docs/04_Operators/production/backups.md" >/dev/null
+grep -F 'current-state copying' "$root/docs/operators/production/backups.md" >/dev/null
 pass 'forbidden patterns, docs, blank evidence schema and official-source carrier'
 
 printf 'Ingress and backup contract passed\n'

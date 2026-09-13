@@ -20,8 +20,8 @@ description: "Быстрая карта структуры проекта Agelto
 - `resources/js/pages/` — Inertia/Vue UI.
 - `routes/` — web, settings.
 - `docker/` — Dockerfile, Makefile, compose; deploy через `make prod:*`.
-- `docs/02_Workflow/` — бизнес-процессы (procurement lifecycle, crawling, document/estimate pipeline, глоссарий).
-- `docs/03_Dev/` — архитектура, схема БД, crawling/document pipeline, LLM providers, admin panel.
+- `docs/workflow/` — бизнес-процессы (procurement lifecycle, crawling, document/estimate pipeline, глоссарий).
+- `docs/dev/` — архитектура, схема БД, crawling/document pipeline, LLM providers, admin panel.
 - `.ai/` — source of truth для AI guidelines.
 - `tests/` — Pest feature/unit.
 
@@ -30,12 +30,12 @@ description: "Быстрая карта структуры проекта Agelto
 - Домен parsing/crawling — `app/{Models,Services,Dto,Enums,Repositories}/Procurement/` (площадка ЕИС — `Services/Procurement/Eis/`).
 - Длительные операции (browser, Gemini, file processing) — queued Jobs, Horizon.
 - Синхронный HTTP — только быстрые операции и UI.
-- Filament CRUD — ресурсы админки, см. `docs/03_Dev/admin-panel.md`.
+- Filament CRUD — ресурсы админки, см. `docs/dev/admin-panel.md`.
 
 ## Связанные источники
 
 - `.ai/guidelines/architecture.md`
 - `.ai/guidelines/navigation.md`
 - skill `procurement-pipeline-dev`
-- `docs/02_Workflow/crawling-and-discovery.md`
-- `docs/03_Dev/architecture.md`
+- `docs/workflow/crawling-and-discovery.md`
+- `docs/dev/architecture.md`

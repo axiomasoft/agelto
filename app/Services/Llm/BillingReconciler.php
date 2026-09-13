@@ -191,7 +191,7 @@ final readonly class BillingReconciler
 
         throw new BillingExportUnreadable(
             "Выгрузка несёт валюту «{$currency}» — сверка считает только USD; приведите выгрузку к USD ".
-            '(шаг runbook: docs/03_Dev/runbooks/billing-reconcile.md).',
+            '(шаг runbook: docs/dev/runbooks/billing-reconcile.md).',
         );
     }
 

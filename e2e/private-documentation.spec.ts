@@ -55,9 +55,9 @@ test('загружает закрытую документацию без browse
     await expect(page.locator('body')).toBeVisible();
 
     for (const directUrl of [
-        '/documentation/01_Business/',
-        '/documentation/04_Operators/production/server-setup',
-        '/documentation/04_Operators/production/deployment',
+        '/documentation/business/',
+        '/documentation/operators/production/server-setup',
+        '/documentation/operators/production/deployment',
     ]) {
         const directResponse = await page.goto(directUrl);
 
@@ -78,7 +78,7 @@ test('загружает закрытую документацию без browse
         await expect(page.locator('.mermaid svg').first(), `rendered Mermaid diagram: ${directUrl}`).toBeVisible();
     }
 
-    const serverSetupResponse = await page.goto('/documentation/04_Operators/production/server-setup');
+    const serverSetupResponse = await page.goto('/documentation/operators/production/server-setup');
     expect(serverSetupResponse?.status(), 'direct server-setup documentation response').toBe(200);
     await expect(page.locator('.mermaid')).toHaveCount(0);
 

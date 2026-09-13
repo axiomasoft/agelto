@@ -114,8 +114,8 @@ expect_fail 'live restore apply' "$restore" apply
 ! rg -n -- 'git pull|docker build|down --volumes|eval|\|\| true|pg_restore[[:space:]]+--clean|migrate:fresh|rm[[:space:]]+-rf' \
     "$release" "$rollback" "$restore" "$rotation" >/dev/null
 grep -F 'TEMPLATE — NO RUNTIME EVIDENCE' "$root/plans/archive/2026.08.09-RELEASE-READINESS/artifacts/P12-release-recovery-evidence.md" >/dev/null
-grep -F 'backup before the first mutation' "$root/docs/04_Operators/production/releases.md" >/dev/null
-grep -F 'reverse consumer order' "$root/docs/04_Operators/production/secret-rotation.md" >/dev/null
-grep -F 'isolated `*_rehearsal`' "$root/docs/04_Operators/production/rollback-restore.md" >/dev/null
+grep -F 'backup before the first mutation' "$root/docs/operators/production/releases.md" >/dev/null
+grep -F 'reverse consumer order' "$root/docs/operators/production/secret-rotation.md" >/dev/null
+grep -F 'isolated `*_rehearsal`' "$root/docs/operators/production/rollback-restore.md" >/dev/null
 
 printf 'Release and recovery contract passed\n'

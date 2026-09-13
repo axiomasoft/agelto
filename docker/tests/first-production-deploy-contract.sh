@@ -82,7 +82,7 @@ expect_fail 'unknown mode' "$script" unknown
 ! rg -n -- 'docker build|migrate:fresh|seed-demo|down --volumes|eval|\|\| true|password|secret.*(argv|echo)' "$script" >/dev/null
 ! rg -n -- 'SENTINEL' "$state" "$fixture_root/calls" >/dev/null
 grep -F 'TEMPLATE — NO RUNTIME EVIDENCE' "$root/plans/archive/2026.08.09-RELEASE-READINESS/artifacts/P12-first-deploy-evidence.md" >/dev/null
-grep -F 'follow-up operator rehearsal' "$root/docs/04_Operators/production/first-deploy.md" >/dev/null
-grep -F 'failure state and resume' "$root/docs/04_Operators/production/troubleshooting.md" >/dev/null
+grep -F 'follow-up operator rehearsal' "$root/docs/operators/production/first-deploy.md" >/dev/null
+grep -F 'failure state and resume' "$root/docs/operators/production/troubleshooting.md" >/dev/null
 
 printf 'First deploy contract passed\n'

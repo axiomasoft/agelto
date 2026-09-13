@@ -1,6 +1,6 @@
 # Glossary & Naming Canon
 
-Use the technical names below in identifiers; business terms are fine in UI/comments. The full, versioned glossary is `docs/02_Workflow/glossary.md`; table/domain detail is `docs/03_Dev/architecture.md`. Rename a canon term consistently.
+Use the technical names below in identifiers; business terms are fine in UI/comments. The full, versioned glossary is `docs/workflow/glossary.md`; table/domain detail is `docs/dev/architecture.md`. Rename a canon term consistently.
 
 ## Core entities
 

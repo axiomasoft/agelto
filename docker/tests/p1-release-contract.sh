@@ -50,20 +50,20 @@ bash "$root_dir/docker/tests/vite-contract.sh" dynamic
 release_boundary='production consumes a promoted immutable `IMAGE_TAG` without source, `vendor`, or frontend bind mounts and never builds on the host'
 grep -F "$release_boundary" "$root_dir/.ai/guidelines/architecture.md" >/dev/null
 grep -F "$release_boundary" "$root_dir/CLAUDE.md" >/dev/null
-grep -F 'make prod:deploy:{code,php-deps,frontend,runtime}' "$root_dir/docs/03_Dev/commands.md" >/dev/null
+grep -F 'make prod:deploy:{code,php-deps,frontend,runtime}' "$root_dir/docs/dev/commands.md" >/dev/null
 for target in prod:deploy:code prod:deploy:php-deps prod:deploy:frontend prod:deploy:runtime prod:image:promote prod:deploy:image; do
-    grep -F "$target" "$root_dir/docs/03_Dev/process/deploy.md" >/dev/null
+    grep -F "$target" "$root_dir/docs/dev/process/deploy.md" >/dev/null
 done
 ! rg -n '\byarn\b' \
     "$root_dir/.ai/guidelines/architecture.md" \
     "$root_dir/CLAUDE.md" \
-    "$root_dir/docs/03_Dev/getting-started.md" \
-    "$root_dir/docs/03_Dev/commands.md" \
-    "$root_dir/docs/03_Dev/docker/index.md" \
-    "$root_dir/docs/03_Dev/docker/development.md" \
-    "$root_dir/docs/03_Dev/docker/production.md" \
-    "$root_dir/docs/03_Dev/docker/troubleshooting.md" \
-    "$root_dir/docs/03_Dev/process/deploy.md"
+    "$root_dir/docs/dev/getting-started.md" \
+    "$root_dir/docs/dev/commands.md" \
+    "$root_dir/docs/dev/docker/index.md" \
+    "$root_dir/docs/dev/docker/development.md" \
+    "$root_dir/docs/dev/docker/production.md" \
+    "$root_dir/docs/dev/docker/troubleshooting.md" \
+    "$root_dir/docs/dev/process/deploy.md"
 
 task_root=${TASK_ROOT:-}
 if [[ -z "$task_root" ]]; then

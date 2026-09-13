@@ -7,11 +7,11 @@
 Перед мержем PR проверь:
 
 - [ ] **docs обновлены?** Если PR меняет доменное поведение (пайплайн, enum статусов, LLM-роутинг,
-  промты) — соответствующий файл в `docs/02_Workflow/` или `docs/03_Dev/` обновлён или заведён
+  промты) — соответствующий файл в `docs/workflow/` или `docs/dev/` обновлён или заведён
   тикет/Pending Work на обновление.
 - [ ] **Операторский SOP обновлён при Filament-правке?** Если PR меняет ресурс/экшн/лейбл в
   Filament-админке (`app/Filament/Resources/Procurement/**`) — соответствующий SOP в
-  `docs/04_Operators/how-to/` и/или `docs/04_Operators/reference/statuses.md` актуализирован,
+  `docs/operators/how-to/` и/или `docs/operators/reference/statuses.md` актуализирован,
   `last-reviewed` в затронутом SOP обновлён на дату PR.
 - [ ] Новые/изменённые файлы `docs/**` несут frontmatter `audience:`/`type:` (`status:` —
   `draft`/`living` по факту наполнения).

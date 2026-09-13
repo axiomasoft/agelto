@@ -12,7 +12,7 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
 /**
- * §8 `docs/03_Dev/ai/estimate-extraction.md` — формат папки эталонов (`<name>.<ext>` +
+ * §8 `docs/dev/ai/estimate-extraction.md` — формат папки эталонов (`<name>.<ext>` +
  * `<name>.gold.json`), валидация контрактом P2.2, персистентность вне закупки (D22).
  */
 beforeEach(fn () => Platform::factory()->training()->create());

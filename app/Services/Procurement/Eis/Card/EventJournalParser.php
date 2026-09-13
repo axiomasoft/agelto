@@ -12,9 +12,9 @@ use Symfony\Component\DomCrawler\Crawler;
 
 /**
  * Разбор вкладки `event-journal` карточки закупки ЕИС (`research/eis-card-recon.md`,
- * `docs/03_Dev/crawling-pipeline.md` §5.1) в список {@see JournalEntryData}. Только
+ * `docs/dev/crawling-pipeline.md` §5.1) в список {@see JournalEntryData}. Только
  * HTML → DTO (дата + сырой текст строки), без маппинга в {@see ProcurementEventType}
- * (это `EventJournalProcessor`) — вкладка хрупкая (`docs/03_Dev/database.md` §3), структура не
+ * (это `EventJournalProcessor`) — вкладка хрупкая (`docs/dev/database.md` §3), структура не
  * подтверждена публичной схемой. Строка с нераспознаваемой датой — пропускается, без
  * даты нет партиционного ключа `prc_events.occurred_at`.
  */

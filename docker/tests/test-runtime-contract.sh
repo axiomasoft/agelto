@@ -28,8 +28,8 @@ make -n test:profile | rg -F 'php artisan test --ci --no-tia --compact --profile
 make -n test:coverage | rg -F -- '--coverage-clover=storage/app/coverage/clover.xml' >/dev/null
 make -n test:tia-refresh | rg -F 'php artisan test --tia --fresh --ci --compact' >/dev/null
 make -n test:shard SHARD=1/2 | rg -F -- '--shard=1/2' >/dev/null
-rg -F 'make test:edit' docs/03_Dev/commands.md docs/03_Dev/process/testing.md >/dev/null
-rg -F 'make test:full' docs/03_Dev/commands.md docs/03_Dev/process/testing.md >/dev/null
+rg -F 'make test:edit' docs/dev/commands.md docs/dev/process/testing.md >/dev/null
+rg -F 'make test:full' docs/dev/commands.md docs/dev/process/testing.md >/dev/null
 
 make test-preflight
 make test:tia-reset

@@ -22,7 +22,7 @@ paths:
 
 ## 1) Стадии пайплайна (source of truth)
 
-Master-описание: `docs/02_Workflow/crawling-and-discovery.md`, `docs/02_Workflow/document-and-estimate-pipeline.md`.
+Master-описание: `docs/workflow/crawling-and-discovery.md`, `docs/workflow/document-and-estimate-pipeline.md`.
 
 | Стадия | Суть | `DocumentStatus` переход | Типичный код |
 |---|---|---|---|
@@ -41,7 +41,7 @@ Master-описание: `docs/02_Workflow/crawling-and-discovery.md`, `docs/02_
 - Job: `*Job` (где есть очереди) — рядом с доменным сервисом.
 - Processor/manager: оркестрация стадии (например, `CrawlerRunManager`, `PipelineDispatcher`).
 - DTO: `app/Dto/Procurement/`.
-- Filament: ресурсы админки (см. `docs/03_Dev/admin-panel.md`).
+- Filament: ресурсы админки (см. `docs/dev/admin-panel.md`).
 
 ## 3) Dependency map (что менять вместе)
 
@@ -52,7 +52,7 @@ Master-описание: `docs/02_Workflow/crawling-and-discovery.md`, `docs/02_
 3. **Repositories** — `app/Repositories/Procurement/` — dispatch, retry, failed handling завязаны на них.
 4. **Horizon** — queue names, supervisors (если добавляется новая очередь).
 5. **Filament** — ресурсы, если меняется операторский UI.
-6. **Docs** — `docs/02_Workflow/crawling-and-discovery.md`, `docs/02_Workflow/document-and-estimate-pipeline.md`, `docs/03_Dev/architecture.md`.
+6. **Docs** — `docs/workflow/crawling-and-discovery.md`, `docs/workflow/document-and-estimate-pipeline.md`, `docs/dev/architecture.md`.
 7. **Tests** — feature/unit для изменённого поведения.
 
 Extraction-цепочка (стадия 5) — своя, более тонкая dependency map (Data-контракт ↔ JSON-схема ↔
@@ -77,15 +77,15 @@ docker compose exec app php artisan test --compact --filter=ChangedArea
 
 ## 6) Proxy / EIS
 
-- Локальная разработка с прокси: см. `docs/03_Dev/crawling-pipeline.md` (отдельного doc-файла по proxy-setup сейчас нет).
+- Локальная разработка с прокси: см. `docs/dev/crawling-pipeline.md` (отдельного doc-файла по proxy-setup сейчас нет).
 - Docker `extra_hosts` для `eis-auth.local`, `eis-api.local` — не удалять без замены.
 - Доверие TLS площадки ЕИС — бандл в образе (`docker/php/certs/`), не системный доверенный набор;
-  единственный носитель — `SourceTlsTrust` (`docs/03_Dev/crawling-pipeline.md`). `verify => false`
+  единственный носитель — `SourceTlsTrust` (`docs/dev/crawling-pipeline.md`). `verify => false`
   запрещён абсолютно.
 - Типизированный фильтр профиля и площадка резолвятся config-картами (`crawler.filters`,
   `crawler.source_methods`) — новая площадка получает свой `Data`-класс строкой в карте, не
   `match`/`if` в билдере.
-- Запуск архивного/контрольного обхода — `docs/03_Dev/runbooks/archive-run.md`.
+- Запуск архивного/контрольного обхода — `docs/dev/runbooks/archive-run.md`.
 
 ## 7) PR checklist
 

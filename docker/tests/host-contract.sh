@@ -43,12 +43,12 @@ pass 'PROFILE closed keys, duplicate, permissions and public-bind fixtures'
 
 grep -Fq 'Ubuntu 24.04 is required' "$PROVISIONER"
 grep -Fq 'unsupported architecture' "$PROVISIONER"
-grep -Fq 'sshd -t' "$ROOT_DIR/docs/04_Operators/production/ubuntu-host.md"
-grep -Fq 'prove a new key-only login' "$ROOT_DIR/docs/04_Operators/production/ubuntu-host.md"
+grep -Fq 'sshd -t' "$ROOT_DIR/docs/operators/production/ubuntu-host.md"
+grep -Fq 'prove a new key-only login' "$ROOT_DIR/docs/operators/production/ubuntu-host.md"
 grep -Fq 'Docker TCP API listener detected' "$PROVISIONER"
 grep -Fq 'unexpected public TCP listener' "$PROVISIONER"
 grep -Fq 'CHECK completed without mutation' "$PROVISIONER"
-grep -Fq 'DOCKER-USER' "$ROOT_DIR/docs/04_Operators/production/ubuntu-host.md"
+grep -Fq 'DOCKER-USER' "$ROOT_DIR/docs/operators/production/ubuntu-host.md"
 pass 'HOST-SAFETY wrong OS, SSH cutover, port, Docker-TCP and no-mutation guards'
 
 if rg -n 'printf.*PROFILE|echo.*PROFILE' "$ROOT_DIR/docker/scripts/host-provision.sh" | rg -vq 'values redacted'; then

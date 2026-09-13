@@ -65,11 +65,11 @@ import sys
 
 root = Path(sys.argv[1])
 documents = (
-    root / 'docs/03_Dev/platform-extension.md',
-    root / 'docs/03_Dev/architecture.md',
-    root / 'docs/03_Dev/database.md',
-    root / 'docs/02_Workflow/crawling-and-discovery.md',
-    root / 'docs/04_Operators/reference/statuses.md',
+    root / 'docs/dev/platform-extension.md',
+    root / 'docs/dev/architecture.md',
+    root / 'docs/dev/database.md',
+    root / 'docs/workflow/crawling-and-discovery.md',
+    root / 'docs/operators/reference/statuses.md',
 )
 for document in documents:
     for target in re.findall(r'\[[^]]+\]\(([^)#]+)', document.read_text(encoding='utf-8')):
@@ -77,11 +77,11 @@ for document in documents:
             raise SystemExit(f'Broken documentation link: {document.relative_to(root)} -> {target}')
 PY
 ! rg -n 'PlatformOnboardingTest|plug-in loading|zero-code integration' \
-    "$root_dir/docs/03_Dev/platform-extension.md" \
-    "$root_dir/docs/03_Dev/architecture.md" \
-    "$root_dir/docs/03_Dev/database.md" \
-    "$root_dir/docs/02_Workflow/crawling-and-discovery.md" \
-    "$root_dir/docs/04_Operators/reference/statuses.md"
+    "$root_dir/docs/dev/platform-extension.md" \
+    "$root_dir/docs/dev/architecture.md" \
+    "$root_dir/docs/dev/database.md" \
+    "$root_dir/docs/workflow/crawling-and-discovery.md" \
+    "$root_dir/docs/operators/reference/statuses.md"
 
 python3 "$task_root/scripts/plan-lint.py" "$plan_dir"
 python3 "$task_root/scripts/plan-views.py" --plan-dir "$plan_dir" state --all --check

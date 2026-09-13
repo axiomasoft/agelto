@@ -141,18 +141,18 @@ EOF
 expect_fail 'secret-bearing output' python3 "$script" render --root "$secret_output" --output "$secret_output/matrix.md"
 
 for document in \
-    docs/03_Dev/commands.md \
-    docs/03_Dev/docker/index.md \
-    docs/03_Dev/process/deploy.md \
-    docs/03_Dev/process/testing.md \
-    docs/04_Operators/production/_index.md \
-    docs/04_Operators/production/commands.md \
-    docs/04_Operators/production/troubleshooting.md \
-    docs/04_Operators/_index.md; do
+    docs/dev/commands.md \
+    docs/dev/docker/index.md \
+    docs/dev/process/deploy.md \
+    docs/dev/process/testing.md \
+    docs/operators/production/_index.md \
+    docs/operators/production/commands.md \
+    docs/operators/production/troubleshooting.md \
+    docs/operators/_index.md; do
     rg -q 'P12-command-matrix\.md' "$root/$document" || fail "$document does not link to the canonical matrix"
 done
-rg -q 'Local fixture' "$root/docs/04_Operators/production/commands.md"
-rg -q 'runtime evidence' "$root/docs/04_Operators/production/commands.md"
+rg -q 'Local fixture' "$root/docs/operators/production/commands.md"
+rg -q 'runtime evidence' "$root/docs/operators/production/commands.md"
 git diff --check -- "$script" "$matrix" "$root/docker/tests/command-reference-contract.sh"
 
 printf 'Command reference contract passed\n'

@@ -16,7 +16,7 @@ use Illuminate\Support\Collection;
 
 /**
  * Матрица роутинга «тип документа × назначение → провайдер/модель» (без spatie-settings —
- * настройка многострочная, см. docs/03_Dev/database.md §6c).
+ * настройка многострочная, см. docs/dev/database.md §6c).
  *
  * `document_type`/`purpose` — СТРОКИ (без каста): типизированное чтение носителя `purpose`,
  * когда понадобится, идёт через `DocumentAnalyzerRegistry::purposeFor($route->document_type,

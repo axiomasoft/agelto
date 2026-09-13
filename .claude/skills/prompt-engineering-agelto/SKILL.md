@@ -68,7 +68,7 @@ docker compose exec app php artisan estimate:eval:run          # регресс 
 
 Правь текст → sync → `estimate:eval:run` → смотри precision/recall/F1 по полям (`EvalMetrics`) → повтори.
 `estimate:eval:run` на момент этого скилла ни разу не прогонялся на боевом eval-наборе (открытый риск,
-`docs/03_Dev/ai/prompt-engineering.md` §5) — не путай «промт плохой» с «eval не проверялся».
+`docs/dev/ai/prompt-engineering.md` §5) — не путай «промт плохой» с «eval не проверялся».
 
 ## 5) Известные антипаттерны (не повторять)
 
@@ -83,7 +83,7 @@ docker compose exec app php artisan estimate:eval:run          # регресс 
 - «Прочитай только страницы N-M» текстом в промте — Gemini не принимает диапазон страниц
   параметром, резать документ на бэкенде (`qpdf`) ДО загрузки.
 
-Полный разбор с примерами — `docs/03_Dev/ai/prompt-engineering.md` (зеркалится в Brain по решению владельца D89).
+Полный разбор с примерами — `docs/dev/ai/prompt-engineering.md` (зеркалится в Brain по решению владельца D89).
 
 ## 6) Безопасность
 

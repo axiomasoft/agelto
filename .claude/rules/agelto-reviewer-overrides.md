@@ -18,7 +18,7 @@ Upgrade: harness agent-packs upgrade --pack backend-laravel --target .
   (`tests/Support/TestEnvironmentGuard.php`, покрыт `tests/Feature/Support/TestEnvironmentGuardTest.php`);
   падение теста на «не та БД» — сначала проверь этот гейт, не патчи симптом.
 - Приёмочный прогон item'а/фазы плана — только `--no-tia` (D8, раздел «Tia» в
-  `docs/03_Dev/process/testing.md`);
+  `docs/dev/process/testing.md`);
   реплей закэшированного результата (`X replayed` в выводе), поданный как приёмка, —
   блокирующее замечание: он ничего не доказывает про текущее состояние дерева.
 - `--agent`-сниппет с реальным LLM-вызовом (не `Tests\Support\Doubles\FakeLlmProvider`) —
@@ -43,7 +43,7 @@ Upgrade: harness agent-packs upgrade --pack backend-laravel --target .
   (нарушает D5/D17: канон — файл, БД — рантайм-копия).
 - Extraction-вызов (`extract_*`/`extraction:discovery`) с `tools`/function-calling или где
   содержимое документа могло бы попасть в `system_instruction` — блокирующее (indirect prompt
-  injection, `docs/03_Dev/ai/estimate-extraction.md` §7).
+  injection, `docs/dev/ai/estimate-extraction.md` §7).
 - `EstimateExtractionJob`/наследники checkpoint-requeue переведены на `ShouldBeUnique` вместо
   `ShouldBeUniqueUntilProcessing` — блокирующее (self-dispatch продолжения тихо дедуплицируется,
   документ зависает в extraction, D39).
@@ -51,11 +51,11 @@ Upgrade: harness agent-packs upgrade --pack backend-laravel --target .
   команда только читает уже сохранённый gold, вызов провайдера здесь означает деньги/недетерминизм
   на путях, которые обязаны быть чистым чтением БД (P7.1, D56).
 
-## Статический анализ (`docs/03_Dev/static-analysis.md`)
+## Статический анализ (`docs/dev/static-analysis.md`)
 
 - Рост `phpstan-baseline.neon` (новая запись сверх легальных рычагов — `databaseMigrationsPath`,
   `@property`/`@property-read` докблоки, отражающие фактическую схему/связь) без D-записи, объясняющей
   причину — блокирующее замечание.
 - `@phpstan-ignore` точечно / `excludePaths` / понижение `level` / отключение
   `reportUnmatchedIgnoredErrors` как способ «снять» ошибку — блокирующее (глушит baseline вместо
-  документирования долга, политика `docs/03_Dev/static-analysis.md`).
+  документирования долга, политика `docs/dev/static-analysis.md`).

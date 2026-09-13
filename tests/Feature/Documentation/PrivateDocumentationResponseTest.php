@@ -13,11 +13,11 @@ use function Pest\Laravel\artisan;
 beforeEach(function (): void {
     $this->documentationRoot = sys_get_temp_dir().'/agelto-documentation-response-'.bin2hex(random_bytes(8));
     mkdir($this->documentationRoot.'/site/assets/chunks', recursive: true);
-    mkdir($this->documentationRoot.'/site/01_Business', recursive: true);
+    mkdir($this->documentationRoot.'/site/business', recursive: true);
     mkdir($this->documentationRoot.'/site/guide', recursive: true);
     file_put_contents($this->documentationRoot.'/site/index.html', '<script>bootstrap()</script><main>root sentinel</main>');
     file_put_contents($this->documentationRoot.'/site/article.html', '<main>article sentinel</main>');
-    file_put_contents($this->documentationRoot.'/site/01_Business/index.html', '<main>business directory sentinel</main>');
+    file_put_contents($this->documentationRoot.'/site/business/index.html', '<main>business directory sentinel</main>');
     file_put_contents($this->documentationRoot.'/site/guide/index.html', '<main>directory sentinel</main>');
     file_put_contents($this->documentationRoot.'/site/assets/app.css', 'body { color: black; }');
     file_put_contents($this->documentationRoot.'/site/assets/app.js', 'window.documentationReady = true;');
@@ -25,13 +25,13 @@ beforeEach(function (): void {
     file_put_contents($this->documentationRoot.'/site/assets/portal.woff2', 'font sentinel');
     file_put_contents($this->documentationRoot.'/site/assets/search.json', '{"items":[]}');
     file_put_contents($this->documentationRoot.'/manifest.json', json_encode([
-        ['path' => '01_Business/index.html', 'mime' => 'text/html; charset=utf-8', 'sha256' => hash_file('sha256', $this->documentationRoot.'/site/01_Business/index.html')],
         ['path' => 'article.html', 'mime' => 'text/html; charset=utf-8', 'sha256' => hash_file('sha256', $this->documentationRoot.'/site/article.html')],
         ['path' => 'assets/app.css', 'mime' => 'text/css; charset=utf-8', 'sha256' => hash_file('sha256', $this->documentationRoot.'/site/assets/app.css')],
         ['path' => 'assets/app.js', 'mime' => 'text/javascript; charset=utf-8', 'sha256' => hash_file('sha256', $this->documentationRoot.'/site/assets/app.js')],
         ['path' => 'assets/chunks/@localSearchIndexroot.js', 'mime' => 'text/javascript; charset=utf-8', 'sha256' => hash_file('sha256', $this->documentationRoot.'/site/assets/chunks/@localSearchIndexroot.js')],
         ['path' => 'assets/portal.woff2', 'mime' => 'font/woff2', 'sha256' => hash_file('sha256', $this->documentationRoot.'/site/assets/portal.woff2')],
         ['path' => 'assets/search.json', 'mime' => 'application/json; charset=utf-8', 'sha256' => hash_file('sha256', $this->documentationRoot.'/site/assets/search.json')],
+        ['path' => 'business/index.html', 'mime' => 'text/html; charset=utf-8', 'sha256' => hash_file('sha256', $this->documentationRoot.'/site/business/index.html')],
         ['path' => 'guide/index.html', 'mime' => 'text/html; charset=utf-8', 'sha256' => hash_file('sha256', $this->documentationRoot.'/site/guide/index.html')],
         ['path' => 'index.html', 'mime' => 'text/html; charset=utf-8', 'sha256' => hash_file('sha256', $this->documentationRoot.'/site/index.html')],
     ], flags: JSON_PRETTY_PRINT | JSON_THROW_ON_ERROR));
@@ -82,7 +82,7 @@ test('direct clean URLs resolve to manifest pages and missing page has the unifo
     expect(file_get_contents($article->baseResponse->getFile()->getPathname()))->toContain('article sentinel')
         ->and($article->headers->get('Content-Type'))->toBe('text/html; charset=utf-8');
 
-    $directory = $this->get('/documentation/01_Business/');
+    $directory = $this->get('/documentation/business/');
 
     expect(file_get_contents($directory->baseResponse->getFile()->getPathname()))->toContain('business directory sentinel')
         ->and($directory->headers->get('Content-Type'))->toBe('text/html; charset=utf-8');

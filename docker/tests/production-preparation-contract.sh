@@ -129,8 +129,8 @@ scoped_paths=(
     docker/tests/production-preparation-contract.sh
     docker/host/nginx/agelto.conf
     docker/host/systemd
-    docs/03_Dev
-    docs/04_Operators
+    docs/dev
+    docs/operators
     "plans/$plan_id/artifacts"
 )
 git -C "$root" diff --quiet -- "${scoped_paths[@]}" || fail 'tracked preparation scope is not committed'

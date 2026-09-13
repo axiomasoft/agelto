@@ -1899,3 +1899,46 @@ Server/local hashes сверяются после передачи, затем �
 не пушатся. Текущее решение владельца не требует немедленного off-host destination/SMTP
 credentials: backup feature default off, direct SMTP подготовлен, delivery deferred до
 working port25/DNS/owner recipient. Proxy pool будет заполнен владельцем через admin.
+
+## 2026-09-13: нижний регистр и переименование разделов документации
+
+По указанию владельца локальное дерево изменено:
+`00_Ideas` → `ideas`, `01_Business` → `business`, `02_Workflow` → `workflow`,
+`03_Dev` → `dev`, `04_Operators` → `operators`. `meta` уже имел нужное имя.
+Обновлены Markdown-ссылки, VitePress rewrites/menu/sidebar, маршрутизация AGENTS/CLAUDE,
+исходные guidelines, ссылки локальных skills и проверки, использующие эти пути.
+Архивные планы/исследования и исторические команды этого отчёта не переписывались.
+
+Выполненные локальные команды и результат:
+
+```bash
+pnpm --version
+node --version
+pnpm documentation:build
+pnpm documentation:verify
+make test-preflight
+make agent:artisan ARGS='test --ci --no-tia --compact tests/Unit/Docs tests/Unit/Documentation tests/Feature/Documentation'
+docker compose --project-name agelto_dev exec -T app vendor/bin/pint --test tests/Unit/Docs/DocsIntegrityTest.php tests/Feature/Documentation/PrivateDocumentationResponseTest.php
+python3 docker/scripts/check-command-reference.py check --output DEPLOYMENT_COMMAND_MATRIX.md
+git diff --name-only -- docker/tests | xargs -r -n 1 bash -n
+git diff --check
+```
+
+Результаты: pnpm 9.15.0 / Node 24.12.0, build/verify — 312 файлов; test preflight подтвердил
+`agelto_test`; полный выбранный corpus документации — 31 тест / 121 assertion passed,
+без TIA; Pint — 2 файла passed; command matrix и Bash syntax — exit 0. Дополнительная
+проверка артефактов подтвердила 7 ключевых новых routes в manifest и отсутствие старых
+разделов в путях артефактов и HTML-навигации.
+
+Первый focused HTTP-прогон после механической замены завершился 7 ошибками: fixture manifest
+оставлял `business/index.html` перед `article.html`, нарушая обязательный byte-order contract.
+Исправлен только порядок fixture; безопасность manifest не ослаблялась. Повторный focused
+прогон — 14/14 passed, затем расширенный corpus — 31/31 passed.
+
+Новая инструкция доступна в исходниках по `docs/operators/production/manual-deployment.md`,
+в собранном портале — `/documentation/operators/production/manual-deployment`.
+Артефакты пересобраны локально в `var/private-documentation`; production image и серверная
+копия отчёта в этом изменении не обновлялись, SSH-команды не выполнялись. Публикация портала
+на production потребует нового immutable application image по ручной инструкции; обычный
+code-only deploy не заменяет документацию внутри image. Внешний Brain-vault не изменялся:
+его структуру нужно согласовать при следующем Brain-sync, не дублируя старые разделы.

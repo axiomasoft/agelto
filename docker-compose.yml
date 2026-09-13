@@ -53,7 +53,7 @@ services:
       - app_storage_framework:/var/www/html/storage/framework
       - app_pest_tia:/var/www/.pest
       # Dev-only override — pcov.enabled=1 постоянно, без правки Dockerfile/prod-образа
-      # (docs/03_Dev/process/testing.md §Tia).
+      # (docs/dev/process/testing.md §Tia).
       - ./docker/php/conf.d/pcov-dev.ini:/usr/local/etc/php/conf.d/pcov.ini:ro
     ports:
       - "${APP_PORT:-8080}:8080"

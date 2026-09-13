@@ -42,7 +42,7 @@ php artisan test --filter=ИмяТеста    # точечный прогон
 Движок Tia (`--tia`/`--no-tia`) реплеит незатронутые правкой тесты — дневной прогон дешевле полного
 сюита; приёмочный прогон item'а/фазы плана — **только `--no-tia`** (D8). `--agent='<php>'` — разовая
 проверка в реальном тестовом контексте, не замена постоянному тесту. Детали, флаги, устройство кэша
-— `docs/03_Dev/process/testing.md` (разделы «Tia» и «--agent»), правила ревью —
+— `docs/dev/process/testing.md` (разделы «Tia» и «--agent»), правила ревью —
 `.claude/rules/agelto-reviewer-overrides.md`.
 
 **Симптом `Running in TIA mode, however TIA as skipped as it needs Needs ext-pcov or Xdebug`** —

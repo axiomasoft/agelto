@@ -30,7 +30,7 @@
 
 ## Routing
 
-- Crawling/parsing: `docs/02_Workflow/{crawling-and-discovery,document-and-estimate-pipeline}.md`.
-- Architecture/schema: `docs/03_Dev/{architecture,database}.md`.
+- Crawling/parsing: `docs/workflow/{crawling-and-discovery,document-and-estimate-pipeline}.md`.
+- Architecture/schema: `docs/dev/{architecture,database}.md`.
 - Extraction, LLM, prompts, tests and migrations: use the matching project skill first.
-- For generated or AI-context files: read `docs/03_Dev/ai-context/index.md` and use `ai-context-workflow`.
+- For generated or AI-context files: read `docs/dev/ai-context/index.md` and use `ai-context-workflow`.

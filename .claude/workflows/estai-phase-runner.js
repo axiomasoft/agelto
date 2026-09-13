@@ -112,7 +112,7 @@ function implementPrompt(id) {
 }
 
 function itemReviewPrompt(id) {
-  return `Read-only ревью свежим контекстом пункта ${id} плана ${PLAN_ID}. Прочитай plans/${PLAN_ID}/phases/${PHASE}.md (Completion Notes пункта ${id}) и сверь с 'git diff' актуальных изменений. Канон — CLAUDE.md, .claude/rules/*, docs/02_Workflow/glossary.md. Проверь: корректность, авторизацию, N+1, канон слоёв (тонкий контроллер/Action/Repository), честность тестов (обходки/форс-конфиг — это находка), Validation пункта реально пройден (не поверь на слово Completion Notes — перепроверь сам: тесты/pint). Верни findings[] и blocking=true если есть HIGH/CRITICAL. Ничего не меняй.`
+  return `Read-only ревью свежим контекстом пункта ${id} плана ${PLAN_ID}. Прочитай plans/${PLAN_ID}/phases/${PHASE}.md (Completion Notes пункта ${id}) и сверь с 'git diff' актуальных изменений. Канон — CLAUDE.md, .claude/rules/*, docs/workflow/glossary.md. Проверь: корректность, авторизацию, N+1, канон слоёв (тонкий контроллер/Action/Repository), честность тестов (обходки/форс-конфиг — это находка), Validation пункта реально пройден (не поверь на слово Completion Notes — перепроверь сам: тесты/pint). Верни findings[] и blocking=true если есть HIGH/CRITICAL. Ничего не меняй.`
 }
 
 function fixPrompt(id, review) {

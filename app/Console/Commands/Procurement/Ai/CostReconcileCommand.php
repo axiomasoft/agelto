@@ -19,7 +19,7 @@ use Illuminate\Console\Command;
  * `2026.07.26-EST-TRAIN`): печатает дельту, НЕ падает и НЕ шлёт алерт (лаг биллинга ≥24ч делает
  * автоматический вердикт недостоверным) — ненулевой код возврата только под `--fail-on-breach`.
  * Периодичность (ежемесячно + после смены модели/маршрута) назначена документом
- * (`docs/03_Dev/runbooks/billing-reconcile.md`), не планировщиком.
+ * (`docs/dev/runbooks/billing-reconcile.md`), не планировщиком.
  */
 #[Description('Сверка нашего трекинга LLM-расхода с ручной выгрузкой биллинга провайдера')]
 #[Signature('ai:cost-reconcile
@@ -72,7 +72,7 @@ final class CostReconcileCommand extends Command
         }
 
         $this->warn(sprintf(
-            'Расхождение %.2f%% превышает порог %.2f%% (config(ai.reconcile.threshold_percent)) — см. docs/03_Dev/runbooks/billing-reconcile.md.',
+            'Расхождение %.2f%% превышает порог %.2f%% (config(ai.reconcile.threshold_percent)) — см. docs/dev/runbooks/billing-reconcile.md.',
             $report->deltaPercent,
             $report->thresholdPercent,
         ));
