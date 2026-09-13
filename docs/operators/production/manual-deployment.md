@@ -8,9 +8,28 @@ status: living
 
 Это рабочая ветка [основной инструкции](deployment.md): инженер входит на сервер, подтягивает
 `main`, собирает локальную пару images и переключает только Agelto. CI, registry token и
-публикация images не требуются. Точная история исполнения и результаты проверок находятся в
-`DEPLOYMENT_REPORT.md` в корне проекта. Команды ниже — инструкция; только отчёт доказывает,
-что конкретная команда уже выполнена на конкретном сервере.
+публикация images не требуются. Команды, проверки и безопасные развилки собраны в этой
+инструкции и связанных runbooks; отдельные файлы деплоя в корне checkout не требуются.
+Описание команды не доказывает её исполнения: после каждого шага сохраняйте фактический
+результат в журнале конкретной операции вне Git, без секретов.
+
+### Последний зафиксированный результат и история
+
+Проверки сервера `46.8.220.57` от 2026-09-12: HTTPS и `/up` — 200, шесть основных сервисов
+Agelto healthy, readiness 7/7, Doctor 27 diagnostics без failures/warnings. Применены 81
+миграция и BaseSeeder; вход `admin@agelto.ru` проверен. Реальное переключение на предыдущую
+пару images и обратно прошло без изменения identities PostgreSQL/Redis/MinIO; PostgreSQL
+backup восстановлен в отдельной rehearsal DB. Это исторический результат, не текущий мониторинг.
+
+Остаются осознанные ограничения: `BACKUP_ENABLED=false` ([backup](manual-backups.md)),
+`MAIL_MAILER=log`, внешняя SMTP доставка не проверена из-за TCP 25 timeout ([почта](server-mail.md));
+Gemini key подключён, но управляемый proxy pool пуст и реальный LLM request не проверен.
+Mermaid SVG rendering не подтверждён, полный browser E2E не объявлен успешным.
+Правки документации от 2026-09-13 пересобраны только локально: production image не обновлялся.
+
+Подробная история команд сохранена в Git до удаления временного отчёта из корня:
+`git show 9c5449b2bbc54a3797cc118140c4589455310aef:DEPLOYMENT_REPORT.md`.
+Используйте её как provenance, не как сценарий повторного запуска исторических команд.
 
 ## Назначение Agelto и выбор каталога
 
@@ -519,8 +538,35 @@ docker image inspect --format '{{.Id}} {{index .Config.Labels "org.opencontainer
   это может быть CDN TLS timeout, а не отсутствующая версия. Только после сетевого доказательства
   используйте `docker build --add-host pecl.php.net:<проверенный-CDN-IPv4>`.
   Для Make build понадобится command-local Docker wrapper, делегирующий остальные команды
-  `/usr/bin/docker`; точный использованный wrapper есть в отчёте. Не закрепляйте исторический
-  IP навсегда, не меняйте global resolver/hosts и не отключайте TLS verification.
+  `/usr/bin/docker`; его содержимое приведено ниже. Не закрепляйте исторический IP навсегда,
+  не меняйте global resolver/hosts и не отключайте TLS verification.
+
+Только для подтверждённой PECL/CDN развилки создайте `/srv/agelto/bin/docker`
+deploy:deploy 0755, предварительно убедившись, что файл отсутствует и не является symlink:
+
+```bash
+#!/usr/bin/env bash
+set -euo pipefail
+if [[ "${1:-}" == build && -n "${AGELTO_PECL_BUILD_IP:-}" ]]; then
+  [[ "$AGELTO_PECL_BUILD_IP" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]] || exit 2
+  shift
+  exec /usr/bin/docker build --add-host "pecl.php.net:$AGELTO_PECL_BUILD_IP" "$@"
+fi
+exec /usr/bin/docker "$@"
+```
+
+Проверьте `bash -n /srv/agelto/bin/docker`. После повторной проверки CDN IPv4 задайте его
+только на время build (подставьте реальный проверенный адрес вместо placeholder):
+
+```bash
+PATH=/srv/agelto/bin:/usr/local/bin:/usr/bin:/bin \
+  AGELTO_PECL_BUILD_IP=REPLACE_WITH_VERIFIED_IPV4 BUILDKIT_PROGRESS=plain \
+  make image:build IMAGE_TAG="$candidate_tag"
+```
+
+Ожидается `Image pair ready`, затем проверьте image labels/IDs как выше. Без этой переменной
+wrapper делегирует Docker без изменения; rollback build override — убрать command-local
+переменную, не менять системный resolver или `/usr/bin/docker`.
 
 ## 5. Data services, точная БД и первый запуск
 
@@ -560,10 +606,28 @@ make prod:migrate COMPOSE_PROD=/srv/agelto/bin/compose OWNER_GATE=approved
 partition, пропускать migration или править migration ledger. Сохраните dump и проверьте bounds.
 В первой пустой БД приведите существующие pg_partman partitions к ожидаемому формату и настройте
 `partman.part_config.datetime_string='YYYY_MM'` **только для пяти Agelto parents**.
-Точный transactional SQL, проверки database/bounds/target-name и фактические переименования
-записаны в `DEPLOYMENT_REPORT.md` в разделе pg_partman. После нормализации повторите тот же
-`prod:migrate`: он продолжит pending migrations без повторного создания предыдущих tables.
+Transactional SQL и проверки database/bounds/target-name приведены ниже.
+После нормализации повторите тот же `prod:migrate`: он продолжит pending migrations без
+повторного создания предыдущих tables.
 Для непустой/нестандартной DB не переносите SQL без проверки её bounds и backup.
+
+Перед SQL сохраните archive от deploy без terminal stdin, в новом protected path:
+
+```bash
+umask 077
+partition_backup_dir=$(mktemp -d /srv/agelto/partition-backup.XXXXXX)
+docker exec agelto_prod-postgres-1 pg_dump -U agelto -d agelto -Fc </dev/null \
+  > "$partition_backup_dir/agelto.dump"
+test -s "$partition_backup_dir/agelto.dump"
+docker exec -i agelto_prod-postgres-1 pg_restore --list \
+  < "$partition_backup_dir/agelto.dump" > "$partition_backup_dir/archive.list"
+```
+
+Каждая команда должна завершиться с exit 0; остановитесь при ошибке и сохраните неполный
+archive для диагностики. `pg_restore --list` доказывает читаемость, не полноценный restore:
+для непустой DB требуется отдельный verified restore по [runbook](rollback-restore.md).
+Fresh-install SQL применяйте только после проверки exact DB/parents/bounds и отсутствия rows
+во всех пяти parents; без этих условий остановитесь, не переносите SQL на другую БД.
 
 SQL для описанной fresh-install развилки (от deploy; контейнер/DB сначала inspect/psql):
 

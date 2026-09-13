@@ -118,7 +118,8 @@ EHLO_DOMAIN так же, как MAIL_MAILER/FROM из [manual deployment](manual
 Его values перекрывают external `.env`; не оставляйте там hardcoded log или чужой host.
 Примените обычный scoped worker drain/recreate и bounded readiness; затем проверьте реальное
 письмо на owner recipient, queue status, SPF/DKIM/DMARC в received headers.
-До этого application mailer остаётся log, что зафиксировано в deployment report.
+До этого application mailer остаётся log; последний зафиксированный статус и границы
+проверки приведены в [ручной инструкции](manual-deployment.md#последний-зафиксированный-результат-и-история).
 
 ## Выключение и rollback
 

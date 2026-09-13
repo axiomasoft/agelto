@@ -28,5 +28,6 @@ status: living
 | Разобрать сбой | [Troubleshooting](troubleshooting.md) |
 
 Source-derived [матрица P12](https://github.com/axiomasoft/agelto/blob/main/plans/archive/2026.08.09-RELEASE-READINESS/artifacts/P12-command-matrix.md)
-остаётся историческим inventory. Актуальный source-derived inventory — root
-`DEPLOYMENT_COMMAND_MATRIX.md` с явной командой проверки из [commands](commands.md).
+остаётся историческим inventory. Актуальный source-derived inventory создаётся временно
+из текущих исходников с явными render/check командами из [commands](commands.md),
+без отдельного tracked файла в корне checkout.

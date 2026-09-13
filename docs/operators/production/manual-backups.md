@@ -8,7 +8,8 @@ status: living
 
 Это проверенный host-only путь рядом с другими проектами. Он не использует fixture-only
 `backup-production.sh apply`, не меняет соседние projects и не заявляет off-host DR readiness.
-Факты первого исполнения находятся в root `DEPLOYMENT_REPORT.md`.
+Границы фактически проверенного deployment и ссылка на историю в Git находятся в
+[ручной инструкции](manual-deployment.md#последний-зафиксированный-результат-и-история).
 По текущему решению владельца feature установлен, но **выключен** через
 `/srv/agelto/repository/.env.backup`: `BACKUP_ENABLED=false`.
 Enabled timers лишь вызывают launcher: при false не выполняются dump/restore/export и

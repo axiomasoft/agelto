@@ -13,7 +13,8 @@ status: living
 одного и того же image не доказывают rollback между разными версиями/schema.
 
 На целевом host runtime rollback между двумя **разными** app/doctor image IDs и обратный
-switch проверяются отдельно и записываются в root deployment report. Schema-identical
+switch проверяются отдельно; IDs, hashes и результаты сохраняются в protected журнале
+конкретной операции вне Git, например `/srv/agelto/operations/<UTC-stamp>`. Schema-identical
 docs release подтверждает механизм image switch, но не безопасность будущей несовместимой
 миграции. После recreate используйте bounded `wait-readiness` для штатного scheduler heartbeat.
 Ежедневный [manual backup](manual-backups.md) уже имеет реальный PostgreSQL restore path;
@@ -24,7 +25,9 @@ docs release подтверждает механизм image switch, но не �
 Существующий `docker/postgres/backup-and-verify.sh prod` использует legacy env names и не фиксирует
 project name: не запускайте его на shared host без адаптации. Он также удаляет scratch DB,
 что не подходит при запрете удаления ресурсов. Фактически выполненные scoped backup/restore
-команды и retained rehearsal DB должны быть записаны в root deployment report.
+команды, archive hash и retained rehearsal DB должны быть записаны в журнале конкретной
+backup/restore операции вне Git, без секретов. Исторический результат и ссылка на историю
+в Git приведены в [manual deployment](manual-deployment.md#последний-зафиксированный-результат-и-история).
 
 ## Ручная локальная PostgreSQL rehearsal
 
@@ -77,5 +80,5 @@ the isolated target, restores PostgreSQL/object/config state and checks readines
 identity and destructive flags fail before the adapter is called.
 
 The archived P12 fixture itself supplies no runtime receipt. Actual manual PostgreSQL restore and
-schema-identical image rollback receipts belong to the root deployment report; future incompatible
+schema-identical image rollback receipts belong to the protected operation journal outside Git; future incompatible
 schema/data restore still requires its own owner gate, real backup ID and isolated measurements.

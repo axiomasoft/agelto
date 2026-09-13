@@ -36,16 +36,22 @@ journalctl -u agelto-backup-local.service -u agelto-backup-local-watchdog.servic
 `BACKUP_ENABLED=true` по [runbook](manual-backups.md). Verified local receipt не означает
 автоматический off-host backup. Для собственной отправки почты — [SMTP/DNS](server-mail.md).
 
-Текущий source-derived inventory: `DEPLOYMENT_COMMAND_MATRIX.md` в корне checkout, generated from root
-Make delegation, `docker/Makefile` `.PHONY` targets and declared P12 script modes.
+Текущий source-derived inventory генерируется из root Make delegation,
+`docker/Makefile` `.PHONY` targets и declared P12 script modes. Отдельный tracked файл
+матрицы в корне checkout не нужен: создавайте временный артефакт из текущих исходников.
 Архивный P12 snapshot остаётся provenance, не обновляется при каждом изменении runtime scripts.
 
-Перед копированием команд проверяйте текущую матрицу:
+Перед копированием команд сгенерируйте и проверьте текущую матрицу:
 
 ```bash
-python3 docker/scripts/check-command-reference.py check \
-  --output DEPLOYMENT_COMMAND_MATRIX.md
+command_matrix_path=$(mktemp /tmp/agelto-command-matrix.XXXXXX.md)
+python3 docker/scripts/check-command-reference.py render --output "$command_matrix_path"
+python3 docker/scripts/check-command-reference.py check --output "$command_matrix_path"
+less "$command_matrix_path"
 ```
 
+Ожидается exit 0 у render/check; `less` закрывается клавишей q. Временный файл не содержит
+секретов и не добавляется в Git. Указывайте `--output` явно: default исторический P12 snapshot
+может быть stale, его нельзя перезаписывать ради успешной проверки текущего runtime.
 A stale/missing/duplicate/wrong-environment or unguarded destructive row fails closed. Local fixture
 output is never runtime evidence; external/mutating rows remain blank until the follow-up rehearsal.
