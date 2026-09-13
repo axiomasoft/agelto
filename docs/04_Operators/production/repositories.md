@@ -6,6 +6,12 @@ status: living
 
 # Production repository identities
 
+Корень Git-проекта на проверенном VPS — `/srv/agelto/repository`; `/srv/agelto` — deployment
+root, а `/var/www/html` — путь внутри PHP container. Это размещение веб-сервиса Agelto,
+не признак standalone parser. `/var/www/agelto/repository` также допустим для **новой**
+установки при согласовании всех host paths; выбор и local/server/container distinctions
+описаны в [ручном runbook](manual-deployment.md#назначение-agelto-и-выбор-каталога).
+
 На shared host **не запускайте `repositories:prepare` ниже**: helper перезаписывает `.ssh/config`
 и `known_hosts` пользователя deploy и может сломать соседние identities. Используйте отдельный
 Agelto key и repo-local `core.sshCommand` по [ручному сценарию](manual-deployment.md).

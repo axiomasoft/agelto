@@ -135,6 +135,19 @@ docker compose --project-name insiders -f /var/www/insiders/docker-compose.prod.
 
 ## Выбранная изоляция Agelto
 
+Уточнение документации от 2026-09-13: Agelto — веб-сервис, парсинг — его текущая
+реализованная функциональность. `/srv/agelto` выбран как отдельный deployment root рядом
+с существующими веб-проектами в `/var/www`, а не из-за назначения Agelto. Незанятый
+`/var/www/agelto` тоже допустим; изоляцию обеспечивает конфигурация ресурсов, не имя parent
+directory. Фактический checkout остаётся `/srv/agelto/repository`; container app root —
+`/var/www/html`. Перенос на сервере не выполнялся и не заявляется проверенным.
+
+Проверки этой правки выполнены локально: `git diff --check`,
+`pnpm documentation:build`, `pnpm documentation:verify` (312 файлов) и
+`python3 docker/scripts/check-command-reference.py check --output DEPLOYMENT_COMMAND_MATRIX.md`
+завершились успешно. SSH-команды в рамках этой правки не выполнялись; серверная копия
+отчёта не обновлялась. Ниже сохранены факты и команды предыдущих этапов деплоя.
+
 | Ресурс | Значение |
 |---|---|
 | Checkout | `/srv/agelto/repository` |

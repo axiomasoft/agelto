@@ -12,6 +12,70 @@ status: living
 `DEPLOYMENT_REPORT.md` в корне проекта. Команды ниже — инструкция; только отчёт доказывает,
 что конкретная команда уже выполнена на конкретном сервере.
 
+## Назначение Agelto и выбор каталога
+
+Agelto — веб-сервис. Парсинг — его текущая реализованная функциональность, а не отдельный
+тип продукта или ограничение будущего веб-интерфейса. HTTP обслуживает приложение;
+длительные crawling/parsing/AI задачи выполняются отдельно в Horizon jobs.
+
+В проверенном deployment выбран `/srv/agelto`: это отдельный deployment root рядом с
+существующими проектами в `/var/www/dterema` и `/var/www/insiders`. Выбор сделан для удобного
+разделения каталогов, **не потому, что Agelto якобы не веб-сервис**. `/srv` сам по себе не
+изолирует процессы: изоляцию обеспечивают отдельные Compose project names, сети, volumes,
+порты и NGINX virtual host.
+
+`/var/www/agelto` также допустим для новой установки после аудита конфликтов. Ни Docker,
+ни NGINX не требуют, чтобы host checkout веб-сервиса находился именно в `/var/www`.
+Все команды ниже согласованы с фактическим `/srv/agelto`; это выбранная конфигурация,
+а не единственное поддерживаемое расположение. Уже работающий deployment этой документационной
+правкой **не переносится**.
+
+### Где находятся файлы: local, server и container
+
+| Окружение | Путь | Назначение |
+|---|---|---|
+| Local workstation | `/home/vostrikov/projects/agelto/agelto` | Локальный checkout инженера; не каталог на VPS |
+| Ubuntu VPS | `/srv/agelto` | Deployment root: repository, bin, releases, backups, operations, mail |
+| Ubuntu VPS | `/srv/agelto/repository` | Корень Git-проекта: artisan, Makefile, production Compose и ignored env |
+| PHP container | `/var/www/html` | Корень приложения внутри image; не host `/var/www` |
+| PHP container | `/var/www/html/public` | Публичные assets и HTTP entrypoint, не весь Git checkout |
+
+NGINX на host проксирует HTTP к `127.0.0.1:8082`, а не публикует host repository целиком.
+Секреты, `.env.production` и `.env.backup` не должны быть доступны через document root.
+Пути временных credential files, переданные как **local** file links, нельзя читать через
+SSH на VPS: `/tmp` локального компьютера и `/tmp` сервера — разные файловые системы.
+Отчёт хранит только non-secret сведения; временный local password file не является постоянным
+серверным хранилищем паролей.
+
+На VPS после SSH корень проекта проверяется без вывода secrets:
+
+```bash
+cd /srv/agelto/repository
+pwd
+git rev-parse --show-toplevel
+git status --short
+```
+
+Ожидается `/srv/agelto/repository` в первых двух проверках; `git status` показывает фактические
+изменения checkout. Git/сборку/Compose выполняйте от deploy; root нужен для host operations.
+Не выводите содержимое env или secret files для проверки расположения.
+
+### Если для новой установки выбран `/var/www/agelto`
+
+Сохраните ту же структуру: deployment root `/var/www/agelto`, checkout
+`/var/www/agelto/repository`. До выполнения runbook согласуйте **все** абсолютные host paths:
+Git clone/profile, wrappers в bin, mounts ignored Compose override, release/public snapshots,
+secret paths, backup scripts/flag/release lock и systemd WorkingDirectory/ExecStart/ReadWritePaths.
+SMTP directory и его wrapper также должны указывать на новый deployment root.
+Container paths `/var/www/html` не заменяются host paths.
+
+Не применяйте только замену `git clone` target и не выполняйте глобальный search/replace
+в `/etc` или чужих проектах. При новой установке проверьте итоговый Compose через
+`config --quiet`, собственные units через `systemd-analyze verify` и выполните runtime проверки
+этого runbook. Альтернативный host path пока не проверялся на целевом VPS.
+Перенос уже работающего `/srv/agelto` — отдельное согласованное изменение с backup,
+сохранением project/volume identities и rollback; простой `mv` не является инструкцией переноса.
+
 ## 1. Предусловия и аудит до изменений
 
 Нужны разрешённый root-вход, FQDN, доступ к GitHub, Git, Bash, Make, Python 3, OpenSSL, Docker
