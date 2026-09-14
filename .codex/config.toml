@@ -1,0 +1,28 @@
+# Project plugin selection; matches .swissknife.json.
+
+[plugins."core@swissknifeman"]
+enabled = true
+
+[plugins."devops@swissknifeman"]
+enabled = true
+
+[plugins."laravel-auth@swissknifeman"]
+enabled = true
+
+[plugins."laravel-data-layer@swissknifeman"]
+enabled = true
+
+[plugins."laravel-filament@swissknifeman"]
+enabled = true
+
+[plugins."laravel-testing@swissknifeman"]
+enabled = true
+
+[plugins."php@swissknifeman"]
+enabled = true
+
+[plugins."quality@swissknifeman"]
+enabled = true
+
+[plugins."task@swissknifeman"]
+enabled = true

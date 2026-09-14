@@ -35,6 +35,15 @@ flowchart LR
 
 ## Что коммитить
 
+### Выбор providers и plugins
+
+`.swissknife.json` объявляет активные Claude Code/Codex providers и минимальный набор plugins.
+Оба providers включены. Skiller `connect` управляет marketplace-проекциями и Codex bundles
+в `.agents/plugins/`; их обновляют через Skiller, без ручной правки generated files.
+`.codex/config.toml` включает тот же набор native plugins только для этого доверенного проекта.
+Native caches устанавливаются через Codex CLI; версии проверяют через `codex plugin list --json`,
+а доступность skills — через offline `codex debug prompt-input`.
+
 - `.ai/guidelines/**` — ЕДИНСТВЕННЫЙ источник для agelto-специфичных правил (архитектура, глоссарий,
   навигация, PR-чеклист, шаблоны задач). Коммитится всегда.
 - `CLAUDE.md`/`AGENTS.md`/`GEMINI.md` — **генерируемые артефакты**, ведутся ВРУЧНУЮ (Boost подключён

@@ -71,7 +71,8 @@ plans/**/.swissknife/
 
 # Boost: other agent configs are generated
 .agents/
-.codex/
+.codex/*
+!.codex/config.toml
 .github/skills/
 opencode.json
 
