@@ -779,23 +779,22 @@ final readonly class ExtractionOrchestrator
             'meta' => ['usage' => $this->usageToArray($session->usage)],
         ];
 
-        // Персист в prc_estimate_* (P6.3, EstimateStitcher+EstimateValidator, P6.2) — СТРОГО ДО
-        // финализации статусов analysis/document (review-фикс P6.3 HIGH, было наоборот): persist()
-        // читает `analysis.result` из ПЕРЕДАННОГО объекта (атрибут выставлен in-memory, кастуется
-        // на чтение — `AsCollection`), не из БД, поэтому порядок безопасен без промежуточного
-        // save(). Если `persist()` бросит исключение (транзиентный DB-сбой, `Storage::put`,
-        // per-estimate constraint race), analysis/document остаются в промежуточном статусе
-        // (`running`/`screened`) — `recordFailure()` → job retry → `statusGuardPassed()` пропустит
-        // повтор, а не станет молчаливым no-op на уже `extracted` документе без персиста
-        // (недостижимая идемпотентность — Scope Included P6.3 «идемпотентный перезапуск»).
-        // `parent_analysis_id` (P9.2, D24) — установлен ТОЛЬКО на re-run-анализах
-        // (`RerunAnalysisAction`); persist() удаляет сметы заменённого прогона в той же
-        // транзакции, что персист новых — обычный (первый) прогон передаёт `null`, поведение
-        // не меняется.
-        $analysis->result = collect($result);
-        $this->persister->persist($analysis, supersededAnalysisId: $analysis->parent_analysis_id);
-
+        // Публикация позиций, analysis и document атомарна. Порядок блокировок совпадает
+        // с acquireExecutionLease: document → analysis. Старый worker не публикует результат.
         DB::transaction(function () use ($analysis, $document, $result, $route, $session): void {
+            $lockedDocument = Document::query()->lockForUpdate()->findOrFail($document->id);
+            $lockedAnalysis = Analysis::query()->lockForUpdate()->findOrFail($analysis->id);
+
+            if ($lockedAnalysis->superseded_at !== null
+                || ($analysis->hasLeaseToken() && ($lockedDocument->status !== DocumentStatus::Screened
+                    || $this->documents->latestVersion($document->id)?->id !== $analysis->document_version_id
+                    || ! $analysis->ownsLease()))) {
+                throw new RuntimeException('Extraction ownership was lost before publication.');
+            }
+
+            $analysis->result = collect($result);
+            $this->persister->persist($analysis, supersededAnalysisId: $analysis->parent_analysis_id);
+
             $this->usageSnapshot->finalizeAnalysis($analysis, [
                 'status' => AnalysisStatus::Succeeded,
                 'progress' => $session->progress,

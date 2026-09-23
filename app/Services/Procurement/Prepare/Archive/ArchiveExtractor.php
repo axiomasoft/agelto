@@ -156,7 +156,7 @@ final readonly class ArchiveExtractor
     private function extractSevenZipEntry(string $archivePath, ArchiveEntry $entry, string $targetPath, ArchiveBudget $budget, int &$totalBytes, ?float $deadlineAt): void
     {
         $this->extractProcessEntry(
-            [$this->configString('ai.tools.sevenzip_bin'), 'x', '-so', '-y', $archivePath, $entry->path],
+            [$this->configString('ai.tools.sevenzip_bin'), 'x', '-so', '-y', '-spd', '--', $archivePath, $entry->path],
             $entry,
             $targetPath,
             $budget,

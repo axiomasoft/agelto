@@ -11,6 +11,7 @@ use App\Dto\Procurement\Analyzers\Estimate\IncompleteRow;
 use App\Dto\Procurement\Analyzers\Estimate\RowAttributes;
 use App\Dto\Procurement\Analyzers\Estimate\RowModifier;
 use App\Dto\Procurement\Analyzers\Estimate\RowResource;
+use App\Enums\Procurement\Estimate\EstimateValidationStatus;
 use App\Enums\Procurement\Estimate\RowQualityReason;
 use App\Enums\Procurement\Estimate\RowType;
 use App\Enums\Procurement\Estimate\TotalKind;
@@ -52,7 +53,7 @@ final readonly class EstimatePersister
     ) {}
 
     /**
-     * `$supersededAnalysisId` (P9.2, D24) — сметы этого (заменённого повторным прогоном) анализа
+     * `$supersededAnalysisId` (P9.2, D24) — сметы всех superseded-анализов этой версии
      * удаляются В ТОЙ ЖЕ транзакции, что персист новых: история прогона остаётся в
      * `prc_ai_analyses`/`llm_calls`, дублей витрины смет на документ нет. `null` —
      * обычный (не re-run) прогон, поведение не меняется.
@@ -70,8 +71,8 @@ final readonly class EstimatePersister
         $estimatesData = $this->objectList($analysis->result['estimates'] ?? [], 'analysis.result.estimates');
 
         if ($supersededAnalysisId !== null) {
-            DB::transaction(function () use ($supersededAnalysisId, $analysis, $document, $version, $estimatesData): void {
-                $this->estimates->deleteByAnalysisId($supersededAnalysisId);
+            DB::transaction(function () use ($analysis, $document, $version, $estimatesData): void {
+                $this->estimates->deleteSupersededByVersion($version->id);
 
                 foreach ($estimatesData as $data) {
                     $this->persistEstimate($analysis, $document, $version, $data);
@@ -98,6 +99,7 @@ final readonly class EstimatePersister
 
         $stitched = $this->stitcher->stitch($rows, $incompleteItems);
         $report = $this->validator->validate($this->integerValue($data['rows_expected'] ?? 0, 'estimate rows_expected'), $stitched->rows, $totals);
+        $report = $this->withStitchAnomalies($report, $stitched);
 
         $ordinal = $this->integerValue($data['ordinal'] ?? null, 'estimate ordinal');
         $estimateNumber = $data['estimate_number'] ?? null;
@@ -144,6 +146,37 @@ final readonly class EstimatePersister
 
             $this->storeEvent($document, $estimate);
         });
+    }
+
+    private function withStitchAnomalies(ValidationReport $report, StitchReport $stitched): ValidationReport
+    {
+        if (! $stitched->hasAnomalies()) {
+            return $report;
+        }
+
+        $notes = $report->notes;
+
+        if ($stitched->droppedDuplicateRowIndexes !== []) {
+            $notes[] = 'Повторные индексы строк при сборке: '.implode(', ', $stitched->droppedDuplicateRowIndexes).'. Сохранено первое вхождение; требуется сверка с источником.';
+        }
+
+        if ($stitched->sectionTitleMismatches !== []) {
+            $notes[] = 'Расхождение разделов при сборке строк: '.implode(', ', $stitched->sectionTitleMismatches).'.';
+        }
+
+        $incompleteCount = count($stitched->unmatchedIncompleteItems) + 2 * count($stitched->mergedIncompleteItems);
+
+        if ($incompleteCount > 0) {
+            $notes[] = "Неполные фрагменты строк: {$incompleteCount}. Сохранены в исходном результате, но не включены в позиции; требуется проверка.";
+        }
+
+        return new ValidationReport(
+            status: $report->status === EstimateValidationStatus::Invalid ? $report->status : EstimateValidationStatus::Suspicious,
+            anomalousRowIndexes: $report->anomalousRowIndexes,
+            rowReasons: $report->rowReasons,
+            rowNotes: $report->rowNotes,
+            notes: $notes,
+        );
     }
 
     /**
@@ -381,7 +414,9 @@ final readonly class EstimatePersister
 
         $disk = $this->locationResolver->currentRawDisk();
         $path = sprintf('ai/estimates/%d/%d-%s.json', $analysisId, $ordinal, (string) Str::uuid());
-        Storage::disk($disk)->put($path, $encoded);
+        if (Storage::disk($disk)->put($path, $encoded) !== true) {
+            throw new \RuntimeException('Не удалось сохранить исходный результат сметы.');
+        }
 
         return ['raw_result' => null, 'raw_result_ref' => $path, 'raw_result_disk' => $disk];
     }

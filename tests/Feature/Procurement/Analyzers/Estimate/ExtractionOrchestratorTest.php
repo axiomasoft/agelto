@@ -449,6 +449,31 @@ test('сбой EstimatePersister::persist() (Storage::put) НЕ переводи
     expect(Estimate::query()->where('analysis_id', $analysis->id)->count())->toBe(1);
 });
 
+test('потерявший lease worker не публикует смету после последнего ответа LLM', function (): void {
+    Storage::fake('s3');
+    $fake = FakeLlmProvider::succeeding(extractionPassport('1', 1))
+        ->andThen(extractionHugeRow(1))
+        ->andThen(extractionRows([]))
+        ->andThen(extractionTotals())
+        ->andThen(extractionPassport(null, 0));
+    seedExtractionRoute($fake);
+    $document = Document::factory()->create(['status' => DocumentStatus::Screened]);
+    $version = seedExtractionVersion($document);
+    $callsRecorded = 0;
+    LlmCall::created(function () use (&$callsRecorded, $version): void {
+        if (++$callsRecorded === 5) {
+            Analysis::query()->where('document_version_id', $version->id)->where('step', AnalysisStep::Extraction)
+                ->update(['locked_by' => 'replacement-worker', 'locked_until' => now()->addHour()]);
+        }
+    });
+
+    expect(fn () => (new EstimateExtractionJob($document->id))->handle())->toThrow(RuntimeException::class);
+    $analysis = Analysis::query()->where('document_version_id', $version->id)->where('step', AnalysisStep::Extraction)->sole();
+    expect($analysis->locked_by)->toBe('replacement-worker')
+        ->and($analysis->estimates()->exists())->toBeFalse()
+        ->and($document->fresh()->status)->toBe(DocumentStatus::Screened);
+});
+
 test('ошибка document update откатывает successful analysis finalize а retry сходится без дубля estimate', function (): void {
     Storage::fake('s3');
     $fake = FakeLlmProvider::succeeding(extractionPassport('1', 1))
@@ -484,7 +509,7 @@ SQL);
     expect($analysis->status)->not->toBe(AnalysisStatus::Succeeded)
         ->and($analysis->finished_at)->toBeNull()
         ->and($document->fresh()->status)->toBe(DocumentStatus::Screened)
-        ->and(Estimate::query()->where('analysis_id', $analysis->id)->count())->toBe(1);
+        ->and(Estimate::query()->where('analysis_id', $analysis->id)->count())->toBe(0);
 
     DB::unprepared('DROP TRIGGER fail_extracted_document_update ON prc_documents; DROP FUNCTION fail_extracted_document_update();');
     (new EstimateExtractionJob($document->id))->handle();

@@ -17,6 +17,64 @@ use App\Models\Procurement\Estimate\Total;
 use App\Models\Procurement\Estimate\WorkType;
 use App\Models\Procurement\ProcurementEvent;
 use App\Services\Procurement\Analyzers\Estimate\EstimatePersister;
+use Illuminate\Filesystem\FilesystemAdapter;
+use Illuminate\Support\Facades\Storage;
+
+test('persist не объявляет смету проверенной при неполных строках и неизвестном ожидаемом количестве', function (): void {
+    $data = estimateResultData(1, [], grandTotal: null);
+    $data['rows_expected'] = 0;
+    $data['incomplete_items'] = [
+        ['reason' => 'split_by_page_end', 'raw_text' => 'ФЕР01 обрыв строки', 'last_known_code' => 'ФЕР01', 'page_number' => 1],
+        ['reason' => 'orphan_numbers_at_page_start', 'raw_text' => '10 м3', 'last_known_code' => 'ФЕР01', 'page_number' => 2],
+    ];
+    $analysis = seedPersisterAnalysis([$data]);
+
+    app(EstimatePersister::class)->persist($analysis);
+
+    $estimate = $analysis->estimates()->sole();
+    expect($estimate->validation_status)->toBe(EstimateValidationStatus::Suspicious->value)
+        ->and($estimate->validation_notes)->not->toBeEmpty()
+        ->and($estimate->raw_result['incomplete_items'])->toHaveCount(2);
+});
+
+test('persist откатывает смету при отказе записи большого raw result без исключения storage', function (): void {
+    $data = estimateResultData(1, [estimateRowData(1, 'item', str_repeat('x', 1_000_001))]);
+    $analysis = seedPersisterAnalysis([$data]);
+    config(['crawler.raw_disk' => 'audit-failing']);
+    $storage = Mockery::mock(FilesystemAdapter::class);
+    $storage->shouldReceive('put')->once()->andReturnFalse();
+    Storage::shouldReceive('disk')->with('audit-failing')->andReturn($storage);
+
+    expect(fn () => app(EstimatePersister::class)->persist($analysis))->toThrow(RuntimeException::class);
+    expect($analysis->estimates()->exists())->toBeFalse();
+});
+
+test('успешный повтор после неудачного re-run заменяет сметы всей цепочки предшественников', function (): void {
+    $original = seedPersisterAnalysis([estimateResultData(1, [estimateRowData(1, 'item', 'Исходная позиция')])]);
+    app(EstimatePersister::class)->persist($original);
+    $original->update(['superseded_at' => now()]);
+    $failed = Analysis::factory()->create([
+        'document_version_id' => $original->document_version_id,
+        'analysis_run_id' => $original->analysis_run_id,
+        'step' => AnalysisStep::Extraction,
+        'status' => AnalysisStatus::Failed,
+        'superseded_at' => now(),
+        'parent_analysis_id' => $original->id,
+    ]);
+    $replacement = Analysis::factory()->create([
+        'document_version_id' => $original->document_version_id,
+        'analysis_run_id' => $original->analysis_run_id,
+        'step' => AnalysisStep::Extraction,
+        'status' => AnalysisStatus::Succeeded,
+        'parent_analysis_id' => $failed->id,
+        'result' => ['estimates' => [estimateResultData(1, [estimateRowData(1, 'item', 'Исправленная позиция')])]],
+    ]);
+
+    app(EstimatePersister::class)->persist($replacement, supersededAnalysisId: $failed->id);
+
+    expect(Estimate::query()->where('document_version_id', $original->document_version_id)->count())->toBe(1)
+        ->and($replacement->estimates()->sole()->items()->sole()->name)->toBe('Исправленная позиция');
+});
 
 // Feature-тесты персиста P6.1-формата (analysis.result.estimates[]) в prc_estimate_* через
 // EstimateStitcher/EstimateValidator (P6.2) — те же builder-соглашения, что ExtractionOrchestratorTest

@@ -10,6 +10,7 @@ use App\Guards\Admin\Permissions\CrawlerPermission;
 use App\Guards\Admin\Permissions\DatasetExamplePermission;
 use App\Guards\Admin\Permissions\EstimatePermission;
 use App\Guards\Admin\Permissions\FixturePermission;
+use App\Guards\Admin\Permissions\OperationLogPermission;
 use App\Guards\Admin\Permissions\PlatformCheckPermission;
 use App\Guards\Admin\Permissions\PlatformPermission;
 use App\Guards\Admin\Permissions\PromptPermission;
@@ -50,6 +51,8 @@ final class OperatorRole extends BaseRole
             RunPermission::ViewAny,
             RunPermission::View,
             RunPermission::Update,
+            OperationLogPermission::ViewAny,
+            OperationLogPermission::View,
             // AI-анализы (P9.2): операторский цикл (проверено/коррекция/re-run) — наблюдение +
             // Update (действия карточки авторизуются через `update`, ResourceGate-конвенция),
             // без delete (пайплайн не удаляет анализы сам). Create (P5.2, D44) — право ЗАПУСКА

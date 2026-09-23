@@ -86,12 +86,28 @@ final readonly class AnalysisStoreRepository
             return $analysis;
         }
 
+        $parentAnalysisId = null;
+
+        // После ручного повторного screening downstream-анализ создаётся только если
+        // новый вердикт действительно требует extraction. Сохраняем lineage старой витрины.
+        if ($step === AnalysisStep::Extraction
+            && $this->findActive($documentVersionId, AnalysisStep::Screening)?->parent_analysis_id !== null) {
+            $parentAnalysisId = Analysis::query()
+                ->where('document_version_id', $documentVersionId)
+                ->where('step', AnalysisStep::Extraction)
+                ->where('is_shadow', false)
+                ->whereNotNull('superseded_at')
+                ->orderByDesc('id')
+                ->value('id');
+        }
+
         try {
             return Analysis::query()->create([
                 'document_version_id' => $documentVersionId,
                 'analysis_run_id' => $this->resolveActiveRunId($documentVersionId),
                 'step' => $step,
                 'status' => AnalysisStatus::Pending,
+                'parent_analysis_id' => $parentAnalysisId,
             ]);
         } catch (UniqueConstraintViolationException) {
             return Analysis::query()

@@ -58,7 +58,7 @@ test('stitch отбрасывает точный дубль row_index, оста�
         ->and($report->droppedDuplicateRowIndexes)->toBe([1]);
 });
 
-test('stitch отбрасывает дубль по составному ключу на соседних позициях (overlap двух окон)', function () {
+test('stitch сохраняет одинаковые соседние позиции с разными индексами без доказательства overlap', function () {
     $report = app(EstimateStitcher::class)->stitch(
         rows: [
             row(1, name: 'Кирпич', code: 'ФЕР01', totalPrice: '100.00'),
@@ -68,9 +68,9 @@ test('stitch отбрасывает дубль по составному клю�
         incompleteItems: [],
     );
 
-    expect($report->rows)->toHaveCount(2)
-        ->and(array_column($report->rows, 'row_index'))->toBe([1, 3])
-        ->and($report->droppedDuplicateComposites)->toBe([2]);
+    expect($report->rows)->toHaveCount(3)
+        ->and(array_column($report->rows, 'row_index'))->toBe([1, 2, 3])
+        ->and($report->droppedDuplicateComposites)->toBe([]);
 });
 
 test('stitch восстанавливает иерархию раздел→подраздел из row_type', function () {

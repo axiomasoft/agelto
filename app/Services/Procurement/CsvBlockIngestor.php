@@ -31,6 +31,7 @@ final readonly class CsvBlockIngestor
         private FetchLogger $fetches,
         private CrawlerRunManager $runs,
         private StoreRawFetchArtifactAction $rawArtifacts,
+        private OperationLogWriter $operationLogs,
     ) {}
 
     public function ingest(Crawler $crawler, Run $run, ListingBatch $batch): FetchResult
@@ -43,7 +44,7 @@ final readonly class CsvBlockIngestor
             try {
                 $snapshot = $this->rowMapper->map(row: $row, crawler: $crawler);
             } catch (\Throwable $exception) {
-                $this->logRowFailure(crawler: $crawler, exception: $exception, registryNumber: null);
+                $this->logRowFailure(crawler: $crawler, run: $run, exception: $exception, registryNumber: null);
                 $rowsErrors++;
 
                 continue;
@@ -102,7 +103,7 @@ final readonly class CsvBlockIngestor
                 $new += $isNew ? 1 : 0;
                 $updated += $isUpdated ? 1 : 0;
             } catch (\Throwable $exception) {
-                $this->logRowFailure(crawler: $crawler, exception: $exception, registryNumber: $snapshot->registryNumber);
+                $this->logRowFailure(crawler: $crawler, run: $run, exception: $exception, registryNumber: $snapshot->registryNumber);
                 $rowsErrors++;
             }
         }
@@ -140,6 +141,10 @@ final readonly class CsvBlockIngestor
             'budget_wait_max_ms' => max($maxWait, $batch->waitMs),
         ]))) {
             throw new \RuntimeException('Execution lease is no longer owned by this processor.');
+        }
+
+        if ($rowsErrors > 0) {
+            throw new \RuntimeException("Блок листинга не обработан полностью: ошибок строк {$rowsErrors}. Курсор сохранён для повтора; подробности в журнале запросов.");
         }
 
         return new FetchResult(
@@ -248,8 +253,10 @@ final readonly class CsvBlockIngestor
         );
     }
 
-    private function logRowFailure(Crawler $crawler, \Throwable $exception, ?string $registryNumber): void
+    private function logRowFailure(Crawler $crawler, Run $run, \Throwable $exception, ?string $registryNumber): void
     {
+        $this->operationLogs->listingRowFailed(runId: $run->id, registryNumber: $registryNumber, exception: $exception);
+
         Log::error(
             message: 'CsvBlockIngestor: row processing failed.',
             context: [

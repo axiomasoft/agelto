@@ -148,6 +148,16 @@ final readonly class PipelineRecoveryReconciler
                                     ->where('is_shadow', false)
                                     ->where('step', AnalysisStep::Extraction->value)
                                     ->where('status', AnalysisStatus::Succeeded->value))
+                                    ->orWhereHas('latestVersion.analyses', fn ($query) => $query
+                                        ->whereNull('superseded_at')
+                                        ->where('is_shadow', false)
+                                        ->where('step', AnalysisStep::Extraction->value)
+                                        ->whereNotNull('parent_analysis_id')
+                                        ->whereHas('analysisRun', fn ($query) => $query->where('mode', RunMode::Manual->value)->whereNull('finished_at'))
+                                        ->whereIn('status', [AnalysisStatus::Pending->value, AnalysisStatus::Running->value])
+                                        ->where('failed_permanently', false)
+                                        ->where(fn ($query) => $query->whereNull('next_retry_at')->orWhere('next_retry_at', '<=', now()))
+                                        ->where(fn ($query) => $query->whereNull('locked_until')->orWhere('locked_until', '<', now())))
                                     ->orWhere(function ($query): void {
                                         $query->whereHas('latestVersion.analysisRuns', fn ($query) => $query->whereNull('finished_at'))
                                             ->whereHas('latestVersion.analyses', fn ($query) => $query
@@ -209,20 +219,24 @@ final readonly class PipelineRecoveryReconciler
         }
 
         $screening = $this->analyses->findActive(documentVersionId: $versionId, step: AnalysisStep::Screening);
+        $analysis = $this->analyses->findActive(documentVersionId: $versionId, step: AnalysisStep::Extraction);
+        $isManualRerun = $analysis !== null
+            && $analysis->parent_analysis_id !== null
+            && $run->mode === RunMode::Manual
+            && $this->isRecoverable(analysis: $analysis, run: $run);
 
-        if ($screening === null || $screening->analysis_run_id !== $run->id || ! $this->extracts($screening)) {
+        if (! $isManualRerun && ($screening === null || $screening->analysis_run_id !== $run->id || ! $this->extracts($screening))) {
             return false;
         }
 
-        $documentType = AiDocumentType::tryFrom((string) $screening->document_type);
+        $documentType = AiDocumentType::tryFrom((string) ($analysis->document_type ?? $screening?->document_type));
         $analyzer = $documentType === null ? null : $this->analyzers->for($documentType);
 
         if ($analyzer?->hasExtraction() !== true) {
             return false;
         }
 
-        $analysis = $this->analyses->findActive(documentVersionId: $versionId, step: AnalysisStep::Extraction)
-            ?? $this->analyses->firstOrCreate(documentVersionId: $versionId, step: AnalysisStep::Extraction);
+        $analysis ??= $this->analyses->firstOrCreate(documentVersionId: $versionId, step: AnalysisStep::Extraction);
 
         if (! $this->isRecoverable(analysis: $analysis, run: $run)) {
             return false;

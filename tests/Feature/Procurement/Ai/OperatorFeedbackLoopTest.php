@@ -28,6 +28,9 @@ use App\Services\Llm\Dto\LlmStructuredResponse;
 use App\Services\Llm\Dto\LlmUsage;
 use App\Services\Llm\Providers\PrismGeminiProvider;
 use App\Services\Procurement\Extraction\RerunAnalysisAction;
+use App\Services\Procurement\PipelineRecoveryReconciler;
+use Illuminate\Database\QueryException;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
 use Tests\Support\Doubles\FakeLlmProvider;
@@ -281,12 +284,89 @@ function seedRerunnableExtraction(?string $documentType = null): Analysis
         'document_type' => $documentType ?? AiDocumentType::Estimate->value,
     ]);
 
-    return Analysis::factory()->create([
+    $analysis = Analysis::factory()->create([
         'document_version_id' => $version->id,
         'step' => AnalysisStep::Extraction,
         'status' => AnalysisStatus::Succeeded,
     ]);
+
+    app(AnalysisRunStoreRepository::class)->markSucceeded($analysis->analysisRun);
+
+    return $analysis;
 }
+
+test('ошибка создания повторного анализа откатывает supersede и новый run', function (): void {
+    Storage::fake('s3');
+    Queue::fake();
+    $analysis = seedRerunnableExtraction();
+    $runsBefore = $analysis->documentVersion->analysisRuns()->count();
+    DB::unprepared(<<<'SQL'
+CREATE FUNCTION audit_reject_rerun() RETURNS trigger AS $$
+BEGIN
+    IF NEW.parent_analysis_id IS NOT NULL THEN
+        RAISE EXCEPTION 'injected rerun creation failure';
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+CREATE TRIGGER audit_reject_rerun BEFORE INSERT ON prc_ai_analyses
+FOR EACH ROW EXECUTE FUNCTION audit_reject_rerun();
+SQL);
+
+    try {
+        expect(fn () => app(RerunAnalysisAction::class)->run($analysis))
+            ->toThrow(QueryException::class, 'injected rerun creation failure');
+        expect($analysis->fresh()->superseded_at)->toBeNull()
+            ->and($analysis->documentVersion->analysisRuns()->count())->toBe($runsBefore)
+            ->and($analysis->documentVersion->document->fresh()->status)->toBe(DocumentStatus::Extracted);
+        Queue::assertNothingPushed();
+    } finally {
+        DB::unprepared('DROP TRIGGER audit_reject_rerun ON prc_ai_analyses; DROP FUNCTION audit_reject_rerun();');
+    }
+});
+
+test('повторное нажатие перезапуска старого анализа не создаёт третий run', function (): void {
+    Storage::fake('s3');
+    Queue::fake();
+    $analysis = seedRerunnableExtraction();
+    $stale = $analysis->fresh();
+    $newAnalysis = app(RerunAnalysisAction::class)->run($analysis);
+
+    expect(fn () => app(RerunAnalysisAction::class)->run($stale))->toThrow(RuntimeException::class);
+    expect($newAnalysis->fresh()->superseded_at)->toBeNull()
+        ->and($analysis->documentVersion->analysisRuns()->count())->toBe(2);
+    Queue::assertPushed(EstimateExtractionJob::class, 1);
+});
+
+test('recovery доставляет потерянную задачу ручного extraction re-run', function (): void {
+    Storage::fake('s3');
+    Queue::fake();
+    config(['ai.extraction.enabled' => true]);
+    $analysis = seedRerunnableExtraction();
+    $newAnalysis = app(RerunAnalysisAction::class)->run($analysis);
+    Queue::fake();
+
+    expect(app(PipelineRecoveryReconciler::class)->reconcile(10))->toBe(1);
+    Queue::assertPushed(EstimateExtractionJob::class, 1);
+    expect($newAnalysis->fresh()->next_retry_at)->not->toBeNull();
+});
+
+test('повторный screening инвалидирует старое извлечение и связывает новое с заменяемым результатом', function (): void {
+    Storage::fake('s3');
+    Queue::fake();
+    $extraction = seedRerunnableExtraction();
+    $screening = Analysis::query()->active()->where('document_version_id', $extraction->document_version_id)
+        ->where('step', AnalysisStep::Screening)->sole();
+
+    $newScreening = app(RerunAnalysisAction::class)->run($screening);
+    expect($extraction->fresh()->superseded_at)->not->toBeNull();
+
+    $newExtraction = app(AnalysisStoreRepository::class)->firstOrCreate($extraction->document_version_id, AnalysisStep::Extraction);
+    expect($newExtraction->id)->not->toBe($extraction->id)
+        ->and($newExtraction->analysis_run_id)->toBe($newScreening->analysis_run_id)
+        ->and($newExtraction->parent_analysis_id)->toBe($extraction->id)
+        ->and($newExtraction->status)->toBe(AnalysisStatus::Pending);
+});
 
 test('re-run стадии извлечения диспатчит job через реестр — ядро имени job’а не знает', function (): void {
     Storage::fake('s3');

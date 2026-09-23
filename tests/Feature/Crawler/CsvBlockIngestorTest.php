@@ -274,13 +274,9 @@ test('ошибка маппера записывается отдельно от
     $mapper->shouldReceive('map')->once()->andThrow(new RuntimeException('Ошибка маппинга'));
     app()->instance(abstract: ListingRowMapper::class, instance: $mapper);
 
-    $result = app(CsvBlockIngestor::class)->ingest(crawler: $crawler, run: $run, batch: ingestorBatch([
+    expect(fn () => app(CsvBlockIngestor::class)->ingest(crawler: $crawler, run: $run, batch: ingestorBatch([
         ingestorCsvRow('0173200001234000001'),
-    ]));
-
-    expect($result->rowsParsed)->toBe(0)
-        ->and($result->rowsErrors)->toBe(1)
-        ->and($result->rowsParsed + $result->rowsSkipped + $result->rowsDuplicated + $result->rowsErrors)->toBe($result->rowsTotal);
+    ])))->toThrow(RuntimeException::class, 'не обработан полностью');
 
     $fetch = Fetch::query()->where('crawler_run_id', $run->id)->firstOrFail();
     expect($fetch->rows_parsed)->toBe(0)

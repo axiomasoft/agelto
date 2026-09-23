@@ -30,8 +30,6 @@ final readonly class EstimateStitcher
 
         usort($dedupedRows, static fn (EstimateRow $a, EstimateRow $b): int => $a->row_index <=> $b->row_index);
 
-        [$dedupedRows, $droppedDuplicateComposites] = $this->dedupAdjacentComposite($dedupedRows);
-
         [$sectionPaths, $sectionTitleMismatches] = $this->restoreHierarchy($dedupedRows);
 
         [$mergedIncompleteItems, $unmatchedIncompleteItems] = $this->stitchIncompleteItems($incompleteItems);
@@ -40,7 +38,7 @@ final readonly class EstimateStitcher
             rows: $dedupedRows,
             sectionPaths: $sectionPaths,
             droppedDuplicateRowIndexes: $droppedDuplicateRowIndexes,
-            droppedDuplicateComposites: $droppedDuplicateComposites,
+            droppedDuplicateComposites: [],
             sectionTitleMismatches: $sectionTitleMismatches,
             mergedIncompleteItems: $mergedIncompleteItems,
             unmatchedIncompleteItems: $unmatchedIncompleteItems,
@@ -73,46 +71,6 @@ final readonly class EstimateStitcher
         }
 
         return [$kept, $dropped];
-    }
-
-    /**
-     * Overlap-дедуп по составному ключу (code+name+quantity+total_price_curr) на СОСЕДНИХ позициях
-     * после сортировки (research/E §5 «dedup по составному ключу на швах»). Флат-вход не несёт
-     * границ чанков (P6.1 накапливает rows одним списком) — сравнение идёт по ВСЕМ соседним
-     * парам, не только по фактическим швам (Known Deviation, задокументировано в StitchReport).
-     * Действует только на row_type=Item (заголовки/subtotal намеренно исключены — совпадение
-     * названия раздела не признак дубля).
-     *
-     * @param  list<EstimateRow>  $rows  уже отсортированы по row_index
-     * @return array{0: list<EstimateRow>, 1: list<int>}
-     */
-    private function dedupAdjacentComposite(array $rows): array
-    {
-        $kept = [];
-        $dropped = [];
-        $previous = null;
-
-        foreach ($rows as $row) {
-            if ($previous !== null
-                && $row->row_type === RowType::Item
-                && $previous->row_type === RowType::Item
-                && $this->compositeKey($row) === $this->compositeKey($previous)
-            ) {
-                $dropped[] = $row->row_index;
-
-                continue;
-            }
-
-            $kept[] = $row;
-            $previous = $row;
-        }
-
-        return [$kept, $dropped];
-    }
-
-    private function compositeKey(EstimateRow $row): string
-    {
-        return implode('|', [$row->code, $row->name, $row->quantity, $row->total_price_curr]);
     }
 
     /**

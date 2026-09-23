@@ -17,10 +17,8 @@ use App\Dto\Procurement\Analyzers\Estimate\IncompleteRow;
  *   (D10: собрана на бэкенде из row_type+section_title, LLM дерево не формирует).
  * - droppedDuplicateRowIndexes: row_index строк, отброшенных как точный дубль (тот же row_index
  *   встретился повторно — оставлена первая по порядку появления).
- * - droppedDuplicateComposites: row_index строк, отброшенных как дубль по составному ключу
- *   (code+name+quantity+total_price) на СОСЕДНИХ позициях после сортировки — приём overlap-dedup
- *   (research/E §5); неточный по построению (нет явных границ чанков во flat-входе — Known
- *   Deviation), поэтому сравнение идёт по всем соседним парам, не только по «швам» чанков.
+ * - droppedDuplicateComposites: legacy-поле, всегда пусто. Разные row_index сохраняются:
+ *   совпадение содержимого без границ чанков не доказывает дублирование.
  * - sectionTitleMismatches: row_index строк, где заявленный моделью `section_title` разошёлся с
  *   иерархией, восстановленной по `row_type`-стеку — не фатально, сигнал для операторского ревью.
  * - mergedIncompleteItems: пары incomplete_items (split_by_page_end + orphan_numbers_at_page_start),
@@ -56,6 +54,7 @@ final readonly class StitchReport
         return $this->droppedDuplicateRowIndexes !== []
             || $this->droppedDuplicateComposites !== []
             || $this->sectionTitleMismatches !== []
-            || $this->unmatchedIncompleteItems !== [];
+            || $this->unmatchedIncompleteItems !== []
+            || $this->mergedIncompleteItems !== [];
     }
 }

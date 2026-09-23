@@ -12,8 +12,10 @@ use App\Enums\Procurement\Crawler\RunStopPolicy;
 use App\Enums\Procurement\Crawler\SourceMethod as SourceMethodEnum;
 use App\Models\Procurement\Crawler\Crawler;
 use App\Models\Procurement\Crawler\Run;
+use App\Models\Procurement\OperationLog;
 use App\Models\Procurement\Platform\Registry;
 use App\Models\Procurement\Procurement;
+use App\Services\Procurement\Contracts\ListingRowMapper;
 use App\Services\Procurement\Contracts\SourceMethod;
 use App\Services\Procurement\Modes\FreshRunProcessor;
 use Illuminate\Support\Carbon;
@@ -130,6 +132,28 @@ beforeEach(function () {
 
 afterEach(function () {
     Carbon::setTestNow();
+});
+
+test('ошибка строки сохраняет evidence и останавливает fresh run до продвижения курсора', function (): void {
+    $crawler = Crawler::factory()->create();
+    useQueueSourceMethod([
+        freshRunBatch([freshRunCsvRow('0173200001234000001')], dedupSignature: 'broken-block'),
+    ]);
+    $mapper = Mockery::mock(ListingRowMapper::class);
+    $mapper->shouldReceive('map')->once()->andThrow(new RuntimeException('injected mapping failure'));
+    app()->instance(ListingRowMapper::class, $mapper);
+
+    expect(fn () => app(FreshRunProcessor::class)->run($crawler))->toThrow(RuntimeException::class, 'не обработан полностью');
+    $run = Run::query()->where('crawler_id', $crawler->id)->sole();
+    $fetch = $run->fetches()->sole();
+    expect($run->status)->toBe(RunStatus::Failed)
+        ->and($run->cursor['blockFrom'] ?? 1)->toBe(1)
+        ->and($run->cursor['reachedKnown'] ?? false)->toBeFalse()
+        ->and($fetch->rows_errors)->toBe(1)
+        ->and($fetch->artifact_ref)->not->toBeNull();
+    $log = OperationLog::query()->where('stage', 'listing')->sole();
+    expect($log->entity_id)->toBe($run->id)
+        ->and($log->context['error'])->toBe('injected mapping failure');
 });
 
 test('останавливается на первом полностью известном блоке, курсор фиксирует reachedKnown', function () {

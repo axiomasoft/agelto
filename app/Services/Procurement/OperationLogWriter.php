@@ -9,6 +9,11 @@ use App\Models\Procurement\OperationLog;
 
 final readonly class OperationLogWriter
 {
+    public function listingRowFailed(int $runId, ?string $registryNumber, \Throwable $exception): OperationLog
+    {
+        return $this->write('listing', 'crawler_run', $runId, 'Ошибка строки листинга'.($registryNumber === null ? '' : " закупки {$registryNumber}"), $exception->getMessage());
+    }
+
     public function detailFailed(int $procurementId, \Throwable $exception): OperationLog
     {
         return $this->write('detail', 'procurement', $procurementId, 'Снятие карточки не удалось', $exception->getMessage());

@@ -39,6 +39,13 @@ test('отклоняет hostile пути, коллизии и special entry', f
     'empty segment' => [archiveEntry('nested//file.txt')],
     'long path' => [archiveEntry(str_repeat('a', 21))],
     'symlink' => [archiveEntry('link', type: 'symlink')],
+    'command option' => [archiveEntry('-so')],
+    'list file' => [archiveEntry('@files.txt')],
+    'wildcard star' => [archiveEntry('nested/*.pdf')],
+    'wildcard question' => [archiveEntry('file?.pdf')],
+    'wildcard brackets' => [archiveEntry('[ab].pdf')],
+    'metadata newline' => [archiveEntry("file\nSize = 0")],
+    'terminal escape' => [archiveEntry("file\x1b.pdf")],
 ])->throws(ArchiveValidationException::class);
 
 test('отклоняет дубликаты с case-fold коллизией', function () {

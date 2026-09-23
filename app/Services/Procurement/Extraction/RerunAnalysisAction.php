@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services\Procurement\Extraction;
 
 use App\Enums\Procurement\Ai\AiDocumentType;
+use App\Enums\Procurement\Ai\AnalysisStatus;
 use App\Enums\Procurement\Ai\AnalysisStep;
 use App\Enums\Procurement\Ai\RunMode;
 use App\Enums\Procurement\Document\DocumentStatus;
@@ -16,6 +17,7 @@ use App\Repositories\Procurement\Ai\AnalysisStoreRepository;
 use App\Repositories\Procurement\Document\DocumentStoreRepository;
 use App\Services\Procurement\Contracts\DocumentAnalyzer;
 use App\Services\Procurement\Contracts\DocumentAnalyzerRegistry;
+use Illuminate\Support\Facades\DB;
 use RuntimeException;
 
 /**
@@ -53,34 +55,45 @@ final readonly class RerunAnalysisAction
             throw new RuntimeException("Перезапуск анализа #{$analysis->id} невозможен: версия документа не найдена.");
         }
 
-        $document = Document::query()->findOrFail($documentVersion->document_id);
+        return DB::transaction(function () use ($analysis, $documentVersion): Analysis {
+            $document = Document::query()->lockForUpdate()->findOrFail($documentVersion->document_id);
+            $current = Analysis::query()->lockForUpdate()->findOrFail($analysis->id);
 
-        // Анализатор резолвится ДО любой мутации: перезапуск, для которого некому диспатчить
-        // стадию, не должен оставлять за собой superseded-анализ и откаченный статус документа.
-        $analyzer = $analysis->step === AnalysisStep::Extraction ? $this->extractionAnalyzer($analysis) : null;
+            if ($current->superseded_at !== null || $current->is_shadow
+                || ! in_array($current->status, [AnalysisStatus::Succeeded, AnalysisStatus::Failed], true)
+                || $document->removed_at !== null
+                || $this->documents->latestVersion($document->id)?->id !== $current->document_version_id
+                || $this->runs->findActive($current->document_version_id) !== null
+                || Document::query()->whereKey($document->id)->whereRaw('locked_until >= CURRENT_TIMESTAMP')->exists()
+                || Analysis::query()->where('document_version_id', $current->document_version_id)
+                    ->whereRaw('locked_until >= CURRENT_TIMESTAMP')->exists()) {
+                throw new RuntimeException('Перезапуск невозможен: анализ устарел или документ уже обрабатывается.');
+            }
 
-        $this->analyses->update($analysis, ['superseded_at' => now()]);
+            $analyzer = $current->step === AnalysisStep::Extraction ? $this->extractionAnalyzer($current) : null;
+            $this->analyses->update($current, ['superseded_at' => now()]);
 
-        // Launch-точка (§3.5 root/document-contour.md): перезапуск — НОВЫЙ прогон, а не
-        // продолжение старого; заводится ДО `createRerun()`, которая резолвит его как активный
-        // для нового анализа (Implementation Rule 9 P1.6).
-        $this->runs->start($analysis->document_version_id, RunMode::Manual);
+            if ($current->step === AnalysisStep::Screening) {
+                $extraction = $this->analyses->findActive($current->document_version_id, AnalysisStep::Extraction);
 
-        $newAnalysis = $this->analyses->createRerun($analysis);
+                if ($extraction !== null) {
+                    $this->analyses->update($extraction, ['superseded_at' => now()]);
+                }
+            }
 
-        $analysis->corrections()->whereNull('applied_at')->update(['applied_at' => now()]);
+            $this->runs->start($current->document_version_id, RunMode::Manual);
+            $newAnalysis = $this->analyses->createRerun($current);
+            $current->corrections()->whereNull('applied_at')->update(['applied_at' => now()]);
+            $this->documents->update($document, ['status' => $this->preStageStatus($current->step)]);
 
-        $this->documents->update($document, ['status' => $this->preStageStatus($analysis->step)]);
+            if ($analyzer !== null) {
+                $analyzer->dispatchExtraction($document->id);
+            } else {
+                ScreeningJob::dispatch($document->id)->afterCommit();
+            }
 
-        // `$analyzer !== null` ⟺ стадия извлечения (резолв выше); неизвестная стадия сюда не
-        // доходит — на ней падает исчерпывающий `match` в `preStageStatus()` строкой выше.
-        if ($analyzer !== null) {
-            $analyzer->dispatchExtraction($document->id);
-        } else {
-            ScreeningJob::dispatch($document->id)->afterCommit();
-        }
-
-        return $newAnalysis;
+            return $newAnalysis;
+        });
     }
 
     /**

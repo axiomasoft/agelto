@@ -36,14 +36,15 @@ final readonly class EstimateStoreRepository
     }
 
     /**
-     * Сметы анализа, заменённого повторным прогоном (`RerunAnalysisAction`, P9.2, D24) — удаляются
-     * ПОСЛЕ успешного персиста нового прогона (`EstimatePersister::persist()`), в той же
-     * транзакции. Каскад БД (`prc_estimate_sections`/`items`/`resources`/`totals`
-     * `cascadeOnDelete` на `estimate_id`, D12) убирает дочерние записи сам.
+     * Успешный re-run заменяет всю прежнюю витрину версии, в том числе если между
+     * успешными анализами были неудачные повторы без собственных смет.
+     * История analyses остаётся; каскады удаляют только дочерние строки старых смет.
      */
-    public function deleteByAnalysisId(int $analysisId): void
+    public function deleteSupersededByVersion(int $documentVersionId): void
     {
-        Estimate::query()->where('analysis_id', $analysisId)->delete();
+        Estimate::query()->where('document_version_id', $documentVersionId)
+            ->whereHas('analysis', fn ($query) => $query->whereNotNull('superseded_at')->where('is_shadow', false))
+            ->delete();
     }
 
     /**
