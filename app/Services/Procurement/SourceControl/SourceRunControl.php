@@ -112,12 +112,19 @@ final readonly class SourceRunControl
     public function suspend(Crawler $crawler, Run $run): void
     {
         $circuit = $this->circuits->forStage($this->platformIdFor($crawler), SourceStage::Listing);
+        // Тик планировщика при ожидании/остановке снова доходит до `admit()` с тем же прогоном:
+        // повторная запись «приостановлен» на каждый тик забивала бы журнал (найдено сценарием).
+        $alreadySuspended = $run->stats?->get(self::StatsFlag) === true;
         $retryAt = $circuit->status() === SourceStageStatus::Waiting ? $circuit->retry_at : null;
 
         $this->runs->pause(run: $run, reason: self::StopReason, extraStats: [
             self::StatsFlag => true,
             'source_retry_at' => $retryAt?->toIso8601String(),
         ]);
+
+        if ($alreadySuspended) {
+            return;
+        }
 
         $this->events->report(new SourceEvent(
             code: CrawlerEventCode::RunSuspended,
