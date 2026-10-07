@@ -11,7 +11,7 @@
 
 | Метрика | `main` (+фикс сборки тестов) | `audit/fixes-1` |
 |---|---|---|
-| Pest (`--parallel`, 6 процессов) | 1739 тестов: 1729 ✓, 2 ✗, 7 error, 1 skip | 1765 тестов: 1757 ✓, 1 ✗, 6 error, 1 skip |
+| Pest (`--parallel`, 6 процессов) | 1739 тестов: 1729 ✓, 2 ✗, 7 error, 1 skip | 1812 тестов: 1804 ✓, 1 ✗, 6 error, 1 skip (до §7: 1765/1757 ✓) |
 | PHPStan (max, larastan) | 0 ошибок | 0 ошибок |
 | Pint `--test` | ✗ (2 файла в `docker/host`) | ✓ |
 | `composer audit --locked` | 5 advisories (1 high) | чисто |
