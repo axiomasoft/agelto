@@ -2,10 +2,13 @@
 
 declare(strict_types=1);
 
+use App\Dto\Procurement\ProcurementDetails;
+use App\Enums\Procurement\Crawler\SourceIncidentType;
 use App\Enums\Procurement\Document\DocumentStatus;
 use App\Enums\Procurement\ProcurementStatus;
 use App\Enums\Procurement\Proxy\ProxyScope;
 use App\Models\Procurement\Crawler\Proxy;
+use App\Models\Procurement\Crawler\SourceIncident;
 use App\Models\Procurement\Document\Document;
 use App\Models\Procurement\EisDetails;
 use App\Models\Procurement\Platform\Registry;
@@ -14,6 +17,7 @@ use App\Models\Procurement\ProcurementEvent;
 use App\Models\Procurement\ProcurementParty;
 use App\Models\Procurement\Protocol;
 use App\Services\Procurement\DetailRefetchSelector;
+use App\Services\Procurement\Health\CardLayoutPreflight;
 use App\Services\Procurement\Modes\DetailAnalysisProcessor;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
@@ -336,4 +340,75 @@ test('легитимно пустой complete documents snapshot заверша
     expect($result)->toBeTrue((string) $procurement->fresh()->detail_last_error)
         ->and($procurement->fresh()->detail_fetched_at)->not->toBeNull()
         ->and($procurement->detail_attempts)->toBe(0);
+});
+
+function detailAnalysisProcurement(): Procurement
+{
+    activeDetailAnalysisProxies();
+
+    return Procurement::factory()->create([
+        'registry_id' => detailAnalysisRegistry()->id,
+        'registry_number' => '0338200009125000001',
+        'procedure_type' => 'electronic_auction',
+        'procedure_type_raw' => 'Электронный аукцион',
+        'status' => ProcurementStatus::Awarded,
+    ]);
+}
+
+test('preflight: дрейф вёрстки common-info — карточка не разбирается, инцидент CardLayoutDrift, штатный retry', function (): void {
+    Sleep::fake();
+    Storage::fake('s3');
+    $procurement = detailAnalysisProcurement();
+    Http::fake([
+        '*view/common-info.html*' => Http::response(body: '<html><body><div>0338200009125000001 новая вёрстка</div></body></html>', status: 200),
+        '*view/documents.html*' => Http::response(body: CardHtmlFixture::documents(), status: 200),
+        '*view/event-journal.html*' => Http::response(body: detailAnalysisEventJournalHtml(), status: 200),
+        '*view/supplier-results.html*' => Http::response(body: detailAnalysisSupplierResultsHtml(), status: 200),
+    ]);
+
+    app(DetailAnalysisProcessor::class)->run(procurement: $procurement);
+    $procurement->refresh();
+
+    expect($procurement->detail_fetched_at)->toBeNull()
+        ->and((string) $procurement->detail_last_error)->toContain('Card layout drift')
+        ->and($procurement->detail_parse_outcome)->not->toBeNull()
+        ->and($procurement->detail_next_retry_at)->not->toBeNull()
+        ->and(SourceIncident::query()->where('type', SourceIncidentType::CardLayoutDrift)->where('context->tab', 'common-info')->count())->toBe(1);
+});
+
+test('preflight: дрейф необязательной вкладки event-journal — вкладка пропущена, остальное разобрано', function (): void {
+    Sleep::fake();
+    Storage::fake('s3');
+    $procurement = detailAnalysisProcurement();
+    Http::fake([
+        '*view/common-info.html*' => Http::response(body: CardHtmlFixture::commonInfo(), status: 200),
+        '*view/documents.html*' => Http::response(body: CardHtmlFixture::documents(), status: 200),
+        '*view/event-journal.html*' => Http::response(body: '<html><body><p>0338200009125000001 пусто</p></body></html>', status: 200),
+        '*view/supplier-results.html*' => Http::response(body: detailAnalysisSupplierResultsHtml(), status: 200),
+        '*filestore*' => Http::response(body: 'binary-content', status: 200),
+    ]);
+
+    app(DetailAnalysisProcessor::class)->run(procurement: $procurement);
+
+    expect($procurement->refresh()->detail_fetched_at)->not->toBeNull()
+        ->and(EisDetails::query()->where('procurement_id', $procurement->id)->exists())->toBeTrue()
+        ->and(SourceIncident::query()->where('type', SourceIncidentType::CardLayoutDrift)->where('context->tab', 'event-journal')->count())->toBe(1);
+});
+
+test('preflight: инциденты дрейфа троттлятся по (площадка, вкладка)', function (): void {
+    $procurement = detailAnalysisProcurement();
+    $details = new ProcurementDetails(registryNumber: '0338200009125000001', procedureUrlType: 'ea20', eventJournalHtml: '<html><body></body></html>');
+    $preflight = app(CardLayoutPreflight::class);
+
+    expect($preflight->driftedTabs(procurement: $procurement, details: $details))->toHaveKey('event-journal');
+    $preflight->driftedTabs(procurement: $procurement, details: $details);
+
+    expect(SourceIncident::query()->where('type', SourceIncidentType::CardLayoutDrift)->count())->toBe(1);
+});
+
+test('preflight: якоря, зависящие от данных (нет участников), дрейфом не считаются', function (): void {
+    $procurement = detailAnalysisProcurement();
+    $details = new ProcurementDetails(registryNumber: '0338200009125000001', procedureUrlType: 'ea20', supplierResultsHtml: CardHtmlFixture::supplierResults(), documentsHtml: '<html><body></body></html>');
+
+    expect(app(CardLayoutPreflight::class)->driftedTabs(procurement: $procurement, details: $details))->toBe([]);
 });

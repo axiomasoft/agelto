@@ -20,6 +20,7 @@ use App\Services\Procurement\Eis\Card\EventJournalParser;
 use App\Services\Procurement\Eis\Card\PartiesParser;
 use App\Services\Procurement\Eis\Card\SupplierResultsParser;
 use App\Services\Procurement\Health\CardAnchorProbe;
+use App\Services\Procurement\Health\CardLayoutPreflight;
 use App\Services\Procurement\Health\HealthBaselineReader;
 use App\Services\Procurement\OperationLogWriter;
 use App\Services\Procurement\SourceMethodFactory;
@@ -53,6 +54,7 @@ final readonly class DetailAnalysisProcessor
         private CardAnchorProbe $cardAnchorProbe,
         private ProcurementStoreRepository $procurementStore,
         private OperationLogWriter $operationLogs,
+        private CardLayoutPreflight $cardPreflight,
     ) {}
 
     public function run(Procurement $procurement, ?float $deadlineAt = null): bool
@@ -83,6 +85,18 @@ final readonly class DetailAnalysisProcessor
                 )
                 : $sourceMethod->collectDetails(registryNumber: $procurement->registry_number, registry: $registry);
 
+            // Preflight вёрстки до разбора (`CardLayoutPreflight`): вкладка, чьи структурные
+            // якоря не совпали с эталоном, не разбирается — по непроверенной разметке ничего не
+            // пишем. Обязательные вкладки (common-info, documents) в этом случае дают штатный
+            // путь «неполные обязательные snapshots»: outcome сохраняется, карточка уходит на
+            // повтор с backoff. Необязательные — просто пропускаются. Сам `$details` не меняется,
+            // чтобы healthcheck-метрики ниже видели дрейф, а не «вкладка не снята».
+            $drifted = $this->cardPreflight->driftedTabs(procurement: $procurement, details: $details);
+            $parseCommonInfo = ! isset($drifted['common-info']);
+            $parseDocuments = ! isset($drifted['documents']);
+            $parseJournal = ! isset($drifted['event-journal']);
+            $parseSupplierResults = ! isset($drifted['supplier-results']);
+
             $commonInfo = null;
             $commonInfoSnapshotStatus = null;
             $parties = [];
@@ -91,7 +105,7 @@ final readonly class DetailAnalysisProcessor
             $journalEntries = [];
             $supplierResults = null;
 
-            if ($details->commonInfoHtml !== null) {
+            if ($details->commonInfoHtml !== null && $parseCommonInfo) {
                 $commonInfoSnapshot = $this->commonInfoParser->parse($details->commonInfoHtml);
                 $parties = $this->partiesParser->parse($details->commonInfoHtml);
                 $commonInfoSnapshot = $commonInfoSnapshot->withParties(
@@ -105,27 +119,27 @@ final readonly class DetailAnalysisProcessor
                 $commonInfoSnapshotStatus = $commonInfoSnapshot->status->value;
 
                 $this->commonInfoProcessor->process(procurement: $procurement, snapshot: $commonInfoSnapshot);
-            } else {
+            } elseif ($parseCommonInfo) {
                 Log::warning(message: 'DetailAnalysisProcessor: вкладка common-info не снята.', context: ['procurement_id' => $procurement->id]);
             }
 
-            if ($details->documentsHtml !== null) {
+            if ($details->documentsHtml !== null && $parseDocuments) {
                 $documentsSnapshot = $this->documentsParser->parse($details->documentsHtml);
                 $this->documentIndexer->index(procurement: $procurement, snapshot: $documentsSnapshot);
                 $documents = $documentsSnapshot->documents;
                 $documentsSnapshotStatus = $documentsSnapshot->status->value;
-            } else {
+            } elseif ($parseDocuments) {
                 Log::warning(message: 'DetailAnalysisProcessor: вкладка documents не снята.', context: ['procurement_id' => $procurement->id]);
             }
 
-            if ($details->eventJournalHtml !== null) {
+            if ($details->eventJournalHtml !== null && $parseJournal) {
                 $journalEntries = $this->eventJournalParser->parse($details->eventJournalHtml);
                 $this->eventJournalProcessor->process($procurement, $journalEntries);
-            } else {
+            } elseif ($parseJournal) {
                 Log::warning(message: 'DetailAnalysisProcessor: вкладка event-journal не снята.', context: ['procurement_id' => $procurement->id]);
             }
 
-            if ($details->supplierResultsHtml !== null) {
+            if ($details->supplierResultsHtml !== null && $parseSupplierResults) {
                 $supplierResults = $this->supplierResultsParser->parse($details->supplierResultsHtml);
                 $this->supplierResultsProcessor->process($procurement, $supplierResults);
             }
@@ -167,7 +181,9 @@ final readonly class DetailAnalysisProcessor
             if ($commonInfoSnapshotStatus !== 'complete' || $documentsSnapshotStatus !== 'complete') {
                 $this->markFailed(
                     procurement: $procurement,
-                    exception: new RuntimeException('Required detail snapshots are incomplete.'),
+                    exception: new RuntimeException($drifted === []
+                        ? 'Required detail snapshots are incomplete.'
+                        : 'Card layout drift: '.implode(', ', array_keys($drifted)).' не совпадают с эталоном вёрстки; вкладки не разобраны.'),
                     detailParseOutcome: $detailParseOutcome,
                 );
 

@@ -17,6 +17,12 @@ enum SourceIncidentType: string implements HasLabel
     /** Блок прочитан частично (ошибки строк). */
     case BlockDegraded = 'block_degraded';
 
+    /**
+     * Preflight карточки: на вкладке нет критичных якорей эталона (`card_tabs` в эталоне
+     * healthcheck) — вёрстка изменилась, вкладка не разбирается.
+     */
+    case CardLayoutDrift = 'card_layout_drift';
+
     case CircuitOpened = 'circuit_opened';
     case CircuitHalfOpened = 'circuit_half_opened';
     case CircuitClosed = 'circuit_closed';
@@ -34,7 +40,7 @@ enum SourceIncidentType: string implements HasLabel
     {
         return match ($this) {
             self::CircuitOpened, self::ManualPause => SourceIncidentSeverity::Critical,
-            self::BlockSkipped, self::RunSuspended => SourceIncidentSeverity::Warning,
+            self::BlockSkipped, self::RunSuspended, self::CardLayoutDrift => SourceIncidentSeverity::Warning,
             default => SourceIncidentSeverity::Info,
         };
     }
@@ -44,6 +50,7 @@ enum SourceIncidentType: string implements HasLabel
         return match ($this) {
             self::BlockSkipped => 'Блок пропущен',
             self::BlockDegraded => 'Блок прочитан частично',
+            self::CardLayoutDrift => 'Изменилась вёрстка карточки',
             self::CircuitOpened => 'Источник поставлен на паузу',
             self::CircuitHalfOpened => 'Пробный запуск после паузы',
             self::CircuitClosed => 'Источник снова работает',

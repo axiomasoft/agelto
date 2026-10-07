@@ -53,6 +53,14 @@ return [
     | Единичный отказ — инцидент и пропуск блока, обход продолжается.
     |
     */
+    /*
+    | Preflight вёрстки карточки (`CardLayoutPreflight`): не чаще одного инцидента на
+    | (площадка, вкладка) за N минут; каждое срабатывание — в логе.
+    */
+    'card_preflight' => [
+        'incident_throttle_minutes' => (int) env('CRAWLER_CARD_PREFLIGHT_THROTTLE_MINUTES', 10),
+    ],
+
     'source_circuit' => [
         'failure_threshold' => (int) env('CRAWLER_SOURCE_FAILURE_THRESHOLD', 5),
         'retry_interval_minutes' => (int) env('CRAWLER_SOURCE_RETRY_INTERVAL_MINUTES', 10),

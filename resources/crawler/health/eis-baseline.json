@@ -31,8 +31,8 @@
     "documents": {
       "status": "measured",
       "anchors": [
-        { "selector": "a[href*=filestore]", "critical": true, "min_matches": 1 },
-        { "selector": "div.attachment", "critical": true, "min_matches": 1 }
+        { "selector": "a[href*=filestore]", "critical": true, "min_matches": 1, "content_dependent": true },
+        { "selector": "div.attachment", "critical": true, "min_matches": 1, "content_dependent": true }
       ],
       "key_fields": ["documents"]
     },
@@ -46,7 +46,7 @@
       "anchors": [
         { "selector": "section.blockInfo__section", "critical": true, "min_matches": 1 },
         { "selector": "span.section__title", "critical": true, "min_matches": 1 },
-        { "selector": "div[id^=\"supplier-def-result-participant-table-\"] table.tableBlock", "critical": true, "min_matches": 1 }
+        { "selector": "div[id^=\"supplier-def-result-participant-table-\"] table.tableBlock", "critical": true, "min_matches": 1, "content_dependent": true }
       ],
       "key_fields": ["protocol", "bids", "award"]
     }
