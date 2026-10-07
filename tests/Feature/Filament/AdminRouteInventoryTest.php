@@ -52,7 +52,7 @@ test('runtime admin routes exactly match committed resource and role matrix', fu
     $matrixRoutes = committedAdminRouteInventory();
 
     expect($runtimeRoutes)
-        ->toHaveCount(58)
+        ->toHaveCount(61)
         ->toEqual($matrixRoutes)
         ->and(array_column($runtimeRoutes, 'name'))
         ->toHaveCount(count(array_unique(array_column($runtimeRoutes, 'name'))));

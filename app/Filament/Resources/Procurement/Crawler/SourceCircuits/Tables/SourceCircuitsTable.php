@@ -1,0 +1,86 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Filament\Resources\Procurement\Crawler\SourceCircuits\Tables;
+
+use App\Enums\Procurement\Crawler\SourceCircuitState;
+use App\Models\Procurement\Crawler\SourceCircuit;
+use App\Services\Procurement\SourceControl\SourceCircuitController;
+use App\Services\Procurement\SourceControl\SuspendedRunResumer;
+use Filament\Actions\Action;
+use Filament\Actions\EditAction;
+use Filament\Forms\Components\Textarea;
+use Filament\Notifications\Notification;
+use Filament\Tables\Columns\IconColumn;
+use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Table;
+use Illuminate\Support\Facades\Auth;
+
+/**
+ * Пульт источников. «Пауза» и «Возобновить сейчас» зовут тот же `SourceCircuitController`,
+ * что и автоматика, — правила переходов у оператора и у скриптов одни.
+ */
+final class SourceCircuitsTable
+{
+    public static function configure(Table $table): Table
+    {
+        return $table->columns([
+            TextColumn::make('platform.name')->label('Площадка')->searchable(),
+            TextColumn::make('state')->label('Состояние')->badge()
+                ->color(fn (SourceCircuitState $state): string => match ($state) {
+                    SourceCircuitState::Closed => 'success',
+                    SourceCircuitState::HalfOpen => 'warning',
+                    SourceCircuitState::Open => 'danger',
+                }),
+            IconColumn::make('manually_paused')->label('Ручная пауза')->boolean(),
+            TextColumn::make('consecutive_failures')->label('Отказов подряд'),
+            TextColumn::make('failure_threshold')->label('Порог'),
+            TextColumn::make('retry_at')->label('Автоповтор в')->dateTime()->placeholder('—'),
+            TextColumn::make('last_failure_kind')->label('Последний отказ')->badge()->placeholder('—'),
+            TextColumn::make('last_failure_at')->label('Когда')->dateTime()->since()->placeholder('—'),
+            TextColumn::make('changed_by')->label('Изменил')->toggleable(isToggledHiddenByDefault: true),
+        ])
+            ->recordActions([
+                EditAction::make()->label('Пороги'),
+                Action::make('pause')
+                    ->label('Пауза')
+                    ->color('danger')
+                    ->authorize('update')
+                    ->visible(fn (SourceCircuit $record): bool => ! $record->manually_paused)
+                    ->schema([Textarea::make('reason')->label('Причина')->maxLength(500)])
+                    ->requiresConfirmation()
+                    ->action(function (SourceCircuit $record, array $data): void {
+                        $reason = $data['reason'] ?? null;
+                        app(SourceCircuitController::class)->pause(
+                            platformId: $record->platform_id,
+                            actor: self::actor(),
+                            reason: is_string($reason) ? $reason : null,
+                        );
+                        Notification::make()->title('Источник поставлен на паузу')->warning()->send();
+                    }),
+                Action::make('resumeNow')
+                    ->label('Возобновить сейчас')
+                    ->color('success')
+                    ->authorize('update')
+                    ->visible(fn (SourceCircuit $record): bool => $record->manually_paused || $record->state !== SourceCircuitState::Closed)
+                    ->requiresConfirmation()
+                    ->modalDescription('Брейкер закроется, счётчики сбросятся, приостановленные прогоны будут поставлены в очередь сразу, без ожидания автоповтора.')
+                    ->action(function (SourceCircuit $record): void {
+                        $actor = self::actor();
+                        app(SourceCircuitController::class)->resume(platformId: $record->platform_id, actor: $actor);
+                        $dispatched = app(SuspendedRunResumer::class)->resumePlatform(platformId: $record->platform_id, actor: $actor);
+                        Notification::make()->title("Источник возобновлён; прогонов в очереди: {$dispatched}")->success()->send();
+                    }),
+            ])
+            ->defaultSort('platform_id');
+    }
+
+    private static function actor(): string
+    {
+        $user = Auth::user();
+        $email = $user?->getAttribute('email');
+
+        return is_string($email) && $email !== '' ? $email : 'operator';
+    }
+}

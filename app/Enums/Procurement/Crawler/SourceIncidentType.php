@@ -4,10 +4,12 @@ declare(strict_types=1);
 
 namespace App\Enums\Procurement\Crawler;
 
+use Filament\Support\Contracts\HasLabel;
+
 /**
  * Тип записи журнала инцидентов источника (`prc_source_incidents`).
  */
-enum SourceIncidentType: string
+enum SourceIncidentType: string implements HasLabel
 {
     /** Блок не прочитан, курсор переведён через него (skip-and-record). */
     case BlockSkipped = 'block_skipped';
@@ -50,5 +52,10 @@ enum SourceIncidentType: string
             self::ManualPause => 'Пауза оператором',
             self::ManualResume => 'Возобновление оператором',
         };
+    }
+
+    public function getLabel(): string
+    {
+        return $this->label();
     }
 }

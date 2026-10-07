@@ -4,13 +4,15 @@ declare(strict_types=1);
 
 namespace App\Enums\Procurement\Crawler;
 
+use Filament\Support\Contracts\HasLabel;
+
 /**
  * Класс отказа блока листинга (CSV/HTML). Определяет, ЧЕЙ это сбой — прокси, площадки или
  * нашего парсера, — и как на него реагирует контур управления источником
  * (`SourceCircuitController`): локальный сбой записывается инцидентом и пропускается
  * (skip-and-record), системный — копится брейкером источника и ставит источник на паузу.
  */
-enum ListingFailureKind: string
+enum ListingFailureKind: string implements HasLabel
 {
     /** Пул прокси пуст/исчерпан — глобальная проблема маршрутизации, источник бессмысленно дёргать. */
     case ProxyPoolExhausted = 'proxy_pool_exhausted';
@@ -77,5 +79,10 @@ enum ListingFailureKind: string
             self::UnrecognizedFormat => 'Формат ответа не распознан',
             self::RowErrors => 'Ошибки отдельных строк',
         };
+    }
+
+    public function getLabel(): string
+    {
+        return $this->label();
     }
 }
