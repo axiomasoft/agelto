@@ -15,7 +15,7 @@ use Throwable;
 
 /**
  * Preflight HTML-карточки закупки ДО разбора: каждая снятая вкладка сверяется с якорями эталона
- * healthcheck (`card_tabs.*.anchors`, `resources/crawler/health/eis-baseline.json`) тем же
+ * healthcheck (`card_tabs.*.anchors`, эталон площадки из `HealthBaselineReader`) тем же
  * `CardAnchorProbe`, что считает метрики после разбора. Вкладка без критичного якоря не
  * разбирается: парсер на изменённой вёрстке молча вернул бы пустые поля, а процессоры
  * записали бы их как «данных нет».
