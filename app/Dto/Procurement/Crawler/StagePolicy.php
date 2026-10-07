@@ -19,6 +19,7 @@ final readonly class StagePolicy
         public int $failureThreshold,
         public int $layoutThreshold,
         public int $retryIntervalMinutes,
+        public ?int $maxConsecutiveSkips,
         private array $reactions,
     ) {}
 
@@ -37,6 +38,7 @@ final readonly class StagePolicy
             failureThreshold: $failureThreshold ?? $this->failureThreshold,
             layoutThreshold: $layoutThreshold ?? $this->layoutThreshold,
             retryIntervalMinutes: $retryIntervalMinutes ?? $this->retryIntervalMinutes,
+            maxConsecutiveSkips: $this->maxConsecutiveSkips,
             reactions: $this->reactions,
         );
     }
@@ -77,6 +79,7 @@ final readonly class StagePolicy
             failureThreshold: self::positiveInt($config, 'failure_threshold', $path),
             layoutThreshold: self::positiveInt($config, 'layout_threshold', $path),
             retryIntervalMinutes: self::positiveInt($config, 'retry_interval_minutes', $path),
+            maxConsecutiveSkips: ($config['max_consecutive_skips'] ?? null) === null ? null : self::positiveInt($config, 'max_consecutive_skips', $path),
             reactions: $parsed,
         );
     }

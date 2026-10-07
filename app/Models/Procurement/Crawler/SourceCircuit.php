@@ -33,6 +33,7 @@ use Illuminate\Support\Carbon;
  * @property int|null $retry_interval_minutes
  * @property int $consecutive_failures
  * @property int $consecutive_layout_failures
+ * @property int $consecutive_skips
  * @property Carbon|null $retry_at
  * @property Carbon|null $held_at
  * @property SourceFailureKind|null $last_failure_kind
@@ -45,7 +46,7 @@ use Illuminate\Support\Carbon;
 #[UseFactory(SourceCircuitFactory::class)]
 #[Fillable([
     'platform_id', 'stage', 'enabled', 'manually_paused', 'failure_threshold', 'layout_threshold',
-    'retry_interval_minutes', 'consecutive_failures', 'consecutive_layout_failures', 'retry_at', 'held_at', 'last_failure_kind', 'last_failure_at', 'changed_by',
+    'retry_interval_minutes', 'consecutive_failures', 'consecutive_layout_failures', 'consecutive_skips', 'retry_at', 'held_at', 'last_failure_kind', 'last_failure_at', 'changed_by',
 ])]
 #[Table(name: 'prc_source_circuits')]
 final class SourceCircuit extends Model
@@ -64,6 +65,7 @@ final class SourceCircuit extends Model
             'layout_threshold' => 'integer',
             'consecutive_failures' => 'integer',
             'consecutive_layout_failures' => 'integer',
+            'consecutive_skips' => 'integer',
             'retry_at' => 'datetime',
             'held_at' => 'datetime',
             'last_failure_kind' => SourceFailureKind::class,

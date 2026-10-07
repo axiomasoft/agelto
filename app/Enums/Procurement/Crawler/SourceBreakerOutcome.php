@@ -16,6 +16,9 @@ enum SourceBreakerOutcome
     /** Этот отказ остановил этап до решения оператора (изменилась структура). */
     case StartedHold;
 
+    /** Страховка: `max_consecutive_skips` пропусков без счёта подряд — этап остановлен до оператора. */
+    case StartedSkipHold;
+
     /** Этап уже не принимал запросы (ждёт или стоит). */
     case NotAdmitting;
 

@@ -60,8 +60,8 @@ final readonly class SourceCircuitRepository
         SourceCircuit::query()
             ->where('platform_id', $platformId)
             ->where('stage', $stage)
-            ->where(fn ($query) => $query->where('consecutive_failures', '>', 0)->orWhere('consecutive_layout_failures', '>', 0))
-            ->update(['consecutive_failures' => 0, 'consecutive_layout_failures' => 0, 'updated_at' => now()]);
+            ->where(fn ($query) => $query->where('consecutive_failures', '>', 0)->orWhere('consecutive_layout_failures', '>', 0)->orWhere('consecutive_skips', '>', 0))
+            ->update(['consecutive_failures' => 0, 'consecutive_layout_failures' => 0, 'consecutive_skips' => 0, 'updated_at' => now()]);
     }
 
     /**

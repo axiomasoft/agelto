@@ -22,6 +22,7 @@ $sourceFailureReactions = [
     SourceFailureKind::NotFound->value => SourceFailureReaction::LogOnly,
     SourceFailureKind::EmptyBody->value => SourceFailureReaction::Record,
     SourceFailureKind::RowErrors->value => SourceFailureReaction::Record,
+    // Ошибка нашего кода: блок/карточка пропускается с записью, прогон продолжается.
     SourceFailureKind::CodeError->value => SourceFailureReaction::Record,
 ];
 
@@ -78,7 +79,12 @@ return [
     |                      `retry_interval_minutes`, затем этап сам продолжает;
     |   CountTowardHold  — лог + журнал + отдельный счётчик структуры; `layout_threshold`
     |                      подряд → остановка до оператора («Возобновить сейчас» в админке).
-    | Успешный блок/карточка сбрасывает оба счётчика.
+    | Успешный блок/карточка сбрасывает счётчики.
+    |
+    | `max_consecutive_skips` (int|null) — последняя страховка от бесконечного пропуска: столько
+    | блоков подряд пропущено с реакцией LogOnly/Record (их брейкер не считает) и ни одного
+    | успеха — этап останавливается до оператора. Пример: баг или пустые тела на каждом блоке
+    | прошли бы весь источник «впустую». `null` — выключено.
     |
     | Пороги и интервал — значения по умолчанию: непустое поле строки этапа в админке
     | («Источники: состояние») перекрывает их для этой площадки; пустое — берётся отсюда.
@@ -104,12 +110,15 @@ return [
                 'failure_threshold' => (int) env('CRAWLER_SOURCE_FAILURE_THRESHOLD', 5),
                 'layout_threshold' => 3,
                 'retry_interval_minutes' => (int) env('CRAWLER_SOURCE_RETRY_INTERVAL_MINUTES', 10),
+                'max_consecutive_skips' => 50,
                 'reactions' => $sourceFailureReactions,
             ],
             SourceStage::Detail->value => [
                 'failure_threshold' => (int) env('CRAWLER_SOURCE_FAILURE_THRESHOLD', 5),
                 'layout_threshold' => 3,
                 'retry_interval_minutes' => (int) env('CRAWLER_SOURCE_RETRY_INTERVAL_MINUTES', 10),
+                // Карточки ограничены попытками каждой карточки — бесконечного пропуска нет.
+                'max_consecutive_skips' => null,
                 'reactions' => $sourceFailureReactions,
             ],
         ],

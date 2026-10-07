@@ -31,6 +31,7 @@ return new class extends Migration
             $table->integer('retry_interval_minutes')->nullable()->comment('Переопределение интервала ожидания; null — из конфига');
             $table->integer('consecutive_failures')->default(0)->comment('Счётчик реакции CountTowardWait');
             $table->integer('consecutive_layout_failures')->default(0)->comment('Счётчик реакции CountTowardHold');
+            $table->integer('consecutive_skips')->default(0)->comment('Пропуски с LogOnly/Record подряд (страховка max_consecutive_skips)');
             $table->timestampTz('retry_at')->nullable()->comment('Ожидание до этого момента; null — работает');
             $table->timestampTz('held_at')->nullable()->comment('Остановлен из-за структуры до решения оператора');
             $table->text('last_failure_kind')->nullable();

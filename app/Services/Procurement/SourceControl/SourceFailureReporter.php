@@ -33,14 +33,13 @@ final readonly class SourceFailureReporter
         $reaction = $this->policy->stage($failure->stage)->reactionFor($failure->kind);
         $event = SourceEvent::forFailure(CrawlerEventCode::forFailure($failure->stage, $failure->kind), $failure, $failure->detail);
 
+        $outcome = $this->breaker->recordFailure($failure->platformId, $failure->stage, $failure->kind, $reaction);
+
         if ($reaction === SourceFailureReaction::LogOnly) {
             $this->events->log($event);
-
-            return $this->breaker->admits($failure->platformId, $failure->stage);
+        } else {
+            $this->events->report($event);
         }
-
-        $outcome = $this->breaker->recordFailure($failure->platformId, $failure->stage, $failure->kind, $reaction);
-        $this->events->report($event);
 
         match ($outcome) {
             SourceBreakerOutcome::StartedWaiting => $this->events->report(SourceEvent::forFailure(
@@ -51,6 +50,11 @@ final readonly class SourceFailureReporter
             SourceBreakerOutcome::StartedHold => $this->events->report(SourceEvent::forFailure(
                 CrawlerEventCode::StageHeld, $failure,
                 "{$failure->stage->getLabel()}: изменилась структура источника — этап остановлен до решения оператора.",
+                SourceCircuitBreaker::SystemActor,
+            )),
+            SourceBreakerOutcome::StartedSkipHold => $this->events->report(SourceEvent::forFailure(
+                CrawlerEventCode::StageHeld, $failure,
+                "{$failure->stage->getLabel()}: подряд пропущено слишком много блоков без единого успеха (последний — {$failure->kind->label()}) — этап остановлен до решения оператора.",
                 SourceCircuitBreaker::SystemActor,
             )),
             SourceBreakerOutcome::Running, SourceBreakerOutcome::NotAdmitting => null,
