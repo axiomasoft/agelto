@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 use App\Services\Procurement\Prepare\XlsxResourceGuard;
 use App\Support\Files\PipelineTemporaryFile;
-use ZipArchive;
 
 test('xlsx guard отклоняет compressed decoded-byte bomb до PhpSpreadsheet', function (): void {
     config(['ai.prepare.xlsx_max_decoded_mb' => 1, 'ai.prepare.xlsx_max_compression_ratio' => 10_000]);
