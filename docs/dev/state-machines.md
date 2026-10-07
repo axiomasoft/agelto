@@ -84,9 +84,8 @@ stateDiagram-v2
     Running --> Paused: CrawlerRunManager.recoverStale()
     Paused --> Running: CrawlerRunManager.startOrResume()
     Running --> Completed: CrawlerRunManager.complete()
-    Running --> Failed: CrawlerRunManager.fail()
+    Running --> Paused: CrawlerRunManager.pause() (стоп-гейт, пауза источника, interrupted)
     Completed --> [*]
-    Failed --> [*]
 ```
 
 Писатели (перепроверены чтением файла):
@@ -97,7 +96,11 @@ stateDiagram-v2
 | `Paused → Running` (resume) | `CrawlerRunManager::startOrResume()` | `app/Services/Procurement/CrawlerRunManager.php:40` |
 | `Running → Paused` (протухший heartbeat, timeout из `config('crawler.heartbeat_timeout_seconds')`) | `CrawlerRunManager::recoverStale()` | `app/Services/Procurement/CrawlerRunManager.php:131` |
 | `Running → Completed` | `CrawlerRunManager::complete()` | `app/Services/Procurement/CrawlerRunManager.php:104` |
-| `Running → Failed` | `CrawlerRunManager::fail()` | `app/Services/Procurement/CrawlerRunManager.php:112` |
+| `Running → Paused` (стоп-гейт, пауза источника, сбой вне блока) | `CrawlerRunManager::pause()` | `app/Services/Procurement/CrawlerRunManager.php` |
+
+`Failed` писателя больше нет (`audit/fixes-1`, раунд 6): прогон сам не падает — ошибки блока
+пропускаются по реакции из `crawler.source_control`, прочие сбои ставят прогон на паузу
+(`SourceRunControl::interrupted()`). Кейс оставлен для исторических строк.
 
 `Cancelled` — в enum'е присутствует, но писателя нет: `grep -rn 'RunStatus::Cancelled' app/` = 0
 вхождений вне определения кейса. Ребро на диаграмме **не рисуется** — недостижимый кейс,
