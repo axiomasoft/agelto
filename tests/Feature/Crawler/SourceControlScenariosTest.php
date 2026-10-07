@@ -7,6 +7,7 @@ use App\Enums\Procurement\Crawler\RunStatus;
 use App\Enums\Procurement\Crawler\SourceStage;
 use App\Enums\Procurement\Crawler\SourceStageStatus;
 use App\Enums\Procurement\ProcurementStatus;
+use App\Exceptions\Procurement\Crawler\ExecutionLeaseLost;
 use App\Models\Procurement\Crawler\Crawler;
 use App\Models\Procurement\Crawler\Run;
 use App\Models\Procurement\Crawler\SourceCircuit;
@@ -15,8 +16,10 @@ use App\Models\Procurement\Platform\Registry;
 use App\Models\Procurement\Procurement;
 use App\Repositories\Procurement\Crawler\SourceCircuitRepository;
 use App\Services\Procurement\DetailDispatcher;
+use App\Services\Procurement\DetailRefetchSelector;
 use App\Services\Procurement\Modes\DetailAnalysisProcessor;
 use App\Services\Procurement\Modes\FreshRunProcessor;
+use App\Services\Procurement\SourceControl\SourceRunControl;
 use App\Services\Procurement\SourceControl\SourceStageOperations;
 use App\Services\Procurement\SourceControl\SuspendedRunResumer;
 use Illuminate\Support\Facades\Log;
@@ -136,13 +139,44 @@ test('404 на листинге: только лог, журнала нет, п�
     Log::shouldHaveReceived('log')->with('warning', Mockery::pattern('/^CRAWLER_CSV_NOT_FOUND: /'), Mockery::any())->times(8);
 });
 
-test('ошибка нашего кода на листинге: прогон падает, ранее записанные данные не тронуты', function (): void {
-    S::install(new ScriptedSourceMethod([S::rows(1), S::bug()]));
+test('баг нашего кода на листинге: блок пропущен с записью, прогон продолжается и завершается', function (): void {
+    S::install(new ScriptedSourceMethod([S::rows(1), S::bug(), S::rows(2), S::end()]));
 
-    expect(fn () => ($this->fresh)())->toThrow(LogicException::class);
+    $run = ($this->fresh)();
 
-    expect(Procurement::query()->count())->toBe(2)
-        ->and(($this->stage)()->status())->toBe(SourceStageStatus::Running);
+    expect($run->status)->toBe(RunStatus::Completed)
+        ->and(Procurement::query()->count())->toBe(4)
+        ->and(($this->codes)())->toBe(['CRAWLER_CSV_CODE_ERROR'])
+        ->and(($this->stage)()->consecutive_failures)->toBe(0);
+});
+
+test('баг на каждом блоке: страховка — 50 пропусков подряд останавливают этап, прогон на паузе, данные целы', function (): void {
+    S::install(new ScriptedSourceMethod([S::rows(1), ...array_fill(0, 50, S::bug())]));
+
+    $runs = 0;
+
+    do {
+        $run = ($this->fresh)();
+        $runs++;
+    } while ($run->status === RunStatus::Running && $runs < 20);
+
+    expect($run->status)->toBe(RunStatus::Paused)
+        ->and($run->status)->not->toBe(RunStatus::Failed)
+        ->and(($this->stage)()->status())->toBe(SourceStageStatus::Held)
+        ->and(Procurement::query()->count())->toBe(2)
+        ->and(array_count_values(($this->codes)()))->toMatchArray(['CRAWLER_CSV_CODE_ERROR' => 50, 'CRAWLER_STAGE_HELD' => 1]);
+});
+
+test('сбой вне обработки блока: прогон не провален, а на паузе с тем же курсором и CRITICAL-событием', function (): void {
+    S::install(new ScriptedSourceMethod([S::rows(1), S::end()]));
+    $run = Run::factory()->for($this->crawler)->create(['status' => RunStatus::Running]);
+
+    app(SourceRunControl::class)->interrupted($run, new RuntimeException('db gone'));
+    app(SourceRunControl::class)->interrupted($run, ExecutionLeaseLost::noLongerOwned());
+
+    expect($run->refresh()->status)->toBe(RunStatus::Paused)
+        ->and($run->stats['stop_reason'])->toBe('interrupted')
+        ->and(($this->codes)())->toBe(['CRAWLER_RUN_INTERRUPTED']);
 });
 
 /* ---------- карточки ---------- */
@@ -184,17 +218,34 @@ test('карточки: 5 сетевых отказов → ожидание, с
         ->and($card->refresh()->detail_fetched_at)->not->toBeNull();
 });
 
-test('карточки: ошибки нашего кода и 404 не останавливают этап', function (): void {
+test('карточки: ошибки нашего кода не останавливают этап', function (): void {
     $card = scenarioCard();
     $card->update(['detail_attempts' => -100]);
-    S::install(new ScriptedSourceMethod(details: [...array_fill(0, 6, S::bug()), ...array_fill(0, 6, S::cardStatus(404))]));
+    S::install(new ScriptedSourceMethod(details: array_fill(0, 6, S::bug())));
 
-    foreach (range(1, 12) as $ignored) {
+    foreach (range(1, 6) as $ignored) {
         app(DetailAnalysisProcessor::class)->run(procurement: $card->refresh());
     }
 
     expect(($this->stage)(SourceStage::Detail)->status())->toBe(SourceStageStatus::Running)
         ->and(array_count_values(($this->codes)()))->toBe(['CRAWLER_CARD_CODE_ERROR' => 6]);
+});
+
+test('карточка 404: сразу терминально, без повторов и без траты попытки, только лог', function (): void {
+    Log::spy();
+    $card = scenarioCard();
+    $source = S::install(new ScriptedSourceMethod(details: [S::cardStatus(404)]));
+
+    expect(app(DetailAnalysisProcessor::class)->run(procurement: $card))->toBeFalse();
+    $card->refresh();
+
+    expect($card->detail_failed)->toBeTrue()
+        ->and($card->detail_attempts)->toBe(0)
+        ->and($card->detail_next_retry_at)->toBeNull()
+        ->and(SourceIncident::query()->count())->toBe(0)
+        ->and(app(DetailRefetchSelector::class)->due(limit: 10)->count())->toBe(0)
+        ->and($source->detailCalls)->toBe(1);
+    Log::shouldHaveReceived('log')->with('warning', Mockery::pattern('/^CRAWLER_CARD_NOT_FOUND: /'), Mockery::any())->once();
 });
 
 test('карточки: новая вёрстка на 3 карточках → остановка; попытки карточек не тратятся', function (): void {
