@@ -121,6 +121,14 @@ final readonly class DetailAnalysisProcessor
                 ));
                 $failureReported = true;
 
+                // 404 — карточки нет: повторять бессмысленно. Сразу терминальное состояние без
+                // траты попытки; запись — по реакции конфига (по умолчанию только лог).
+                if ($kind === SourceFailureKind::NotFound) {
+                    $this->procurementStore->markDetailNotFound(procurement: $procurement, error: $exception->getMessage());
+
+                    return false;
+                }
+
                 throw $exception;
             }
 
