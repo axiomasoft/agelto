@@ -93,6 +93,8 @@ if ($hasTable('prc_crawler_runs')) {
 // вызывался.
 if ($hasTable('prc_crawler_runs')) {
     Schedule::command('crawler:recover-stale')->everyFiveMinutes();
+    // Автоповтор после паузы источника (брейкер): интервал паузы задаётся в админке.
+    Schedule::command('crawler:source-circuits')->name('crawler:source-circuits')->everyMinute()->withoutOverlapping();
 }
 
 // Эталон и история healthcheck существуют только после P5.1; до миграций console.php всё так же
