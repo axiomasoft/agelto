@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Dto\Procurement\Crawler\ListingBatch;
 use App\Enums\Procurement\ProcurementEventType;
+use App\Exceptions\Procurement\Crawler\ListingBlockRejectedException;
 use App\Models\Procurement\Crawler\Crawler;
 use App\Models\Procurement\Crawler\Fetch;
 use App\Models\Procurement\Crawler\IgnoredItem;
@@ -307,4 +308,52 @@ test('битые CSV-записи блока видны в rows_errors журн�
         ->and($result->rowsParsed)->toBe(1)
         ->and($fetch->rows_total)->toBe(2)
         ->and($fetch->rows_errors)->toBe(1);
+});
+
+test('страница ошибки источника не инжестится, а блок отклоняется с сохранением журнала', function (): void {
+    Storage::fake('s3');
+    $registry = Registry::factory()->eis()->create(['code' => 'fz44']);
+    $crawler = Crawler::factory()->for($registry)->create();
+    $run = Run::factory()->for($crawler)->create();
+
+    expect(fn () => app(CsvBlockIngestor::class)->ingest($crawler, $run, new ListingBatch(
+        rows: [ingestorCsvRow('0173200001234000001')],
+        rawBody: '<html>Доступ ограничен</html>',
+        dedupSignature: null,
+        rowsTotal: 1,
+        httpStatus: 403,
+        durationMs: 10,
+        requestParams: ['from' => '1', 'to' => '500'],
+    )))->toThrow(ListingBlockRejectedException::class, 'HTTP 403');
+
+    expect(Procurement::query()->count())->toBe(0)
+        ->and(Fetch::query()->where('crawler_run_id', $run->id)->sole()->http_status)->toBe(403);
+});
+
+test('блок, ни одна запись которого не распознана маппером, отклоняется как смена формата', function (): void {
+    Storage::fake('s3');
+    $registry = Registry::factory()->eis()->create(['code' => 'fz44']);
+    $crawler = Crawler::factory()->for($registry)->create();
+    $run = Run::factory()->for($crawler)->create();
+
+    // Источник переименовал колонку даты: маппер не может построить ни одного снапшота.
+    $batch = ingestorBatch([
+        ingestorCsvRow('0173200001234000001', ['Дата размещения' => '2026-03-01']),
+        ingestorCsvRow('0173200001234000002', ['Дата размещения' => '2026-03-01']),
+    ]);
+
+    expect(fn () => app(CsvBlockIngestor::class)->ingest($crawler, $run, $batch))
+        ->toThrow(ListingBlockRejectedException::class, 'формат источника');
+    expect(Procurement::query()->count())->toBe(0);
+});
+
+test('пустой блок не считается сменой формата', function (): void {
+    Storage::fake('s3');
+    $registry = Registry::factory()->eis()->create(['code' => 'fz44']);
+    $crawler = Crawler::factory()->for($registry)->create();
+    $run = Run::factory()->for($crawler)->create();
+
+    $result = app(CsvBlockIngestor::class)->ingest($crawler, $run, ingestorBatch([]));
+
+    expect($result->rowsTotal)->toBe(0);
 });

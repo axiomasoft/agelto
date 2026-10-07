@@ -9,6 +9,7 @@ use App\Dto\Procurement\Crawler\FetchResult;
 use App\Dto\Procurement\Crawler\ListingBatch;
 use App\Dto\Procurement\ProcurementSnapshotData;
 use App\Enums\Procurement\Crawler\CrawlStage;
+use App\Exceptions\Procurement\Crawler\ListingBlockRejectedException;
 use App\Models\Procurement\Crawler\Crawler;
 use App\Models\Procurement\Crawler\IgnoredItem;
 use App\Models\Procurement\Crawler\Run;
@@ -39,8 +40,13 @@ final readonly class CsvBlockIngestor
         $skipped = 0;
         $rowsErrors = 0;
         $snapshots = [];
+        $httpRejected = $batch->httpStatus < 200 || $batch->httpStatus >= 300;
 
-        foreach ($batch->rows as $row) {
+        // Страница ошибки (403/429/5xx после исчерпания ретраев) не является блоком листинга:
+        // её строки не инжестятся, а исключение ниже оставляет курсор на месте. Раньше HTML
+        // такой страницы разбирался как CSV, давал rowsTotal > 0 без единой закупки, и fresh/
+        // archive сдвигали курсор за непрочитанный блок (или считали окно дренированным).
+        foreach ($httpRejected ? [] : $batch->rows as $row) {
             try {
                 $snapshot = $this->rowMapper->map(row: $row, crawler: $crawler);
             } catch (\Throwable $exception) {
@@ -59,6 +65,7 @@ final readonly class CsvBlockIngestor
             $snapshots[] = $snapshot;
         }
 
+        $mappedRows = count($snapshots);
         [$snapshots, $duplicates] = $this->deduplicateByRegistryNumber(snapshots: $snapshots);
 
         if ($duplicates > 0) {
@@ -143,6 +150,17 @@ final readonly class CsvBlockIngestor
             'budget_wait_max_ms' => max($maxWait, $batch->waitMs),
         ]))) {
             throw new \RuntimeException('Execution lease is no longer owned by this processor.');
+        }
+
+        if ($httpRejected) {
+            throw ListingBlockRejectedException::forHttpStatus(status: $batch->httpStatus);
+        }
+
+        // Ни одна запись непустого блока не превратилась в снапшот: вероятнее всего изменился
+        // формат источника (переименованная колонка, другой формат даты). Тихий пропуск всего
+        // блока сдвинул бы курсор за данные, которые после исправления маппера уже не перечитать.
+        if ($batch->rowsTotal > 0 && $mappedRows === 0 && $rowsErrors === 0) {
+            throw ListingBlockRejectedException::forUnrecognizedFormat(records: $batch->rowsTotal);
         }
 
         if ($rowsErrors > 0) {
