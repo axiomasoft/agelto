@@ -5,7 +5,10 @@ declare(strict_types=1);
 namespace App\Services\Procurement\Modes;
 
 use App\Dto\Procurement\ProcurementDetails;
+use App\Enums\Procurement\Crawler\SourceFailureKind;
+use App\Enums\Procurement\Crawler\SourceIncidentType;
 use App\Enums\Procurement\Crawler\SourceMethod as SourceMethodEnum;
+use App\Enums\Procurement\Crawler\SourceStage;
 use App\Exceptions\Procurement\Crawler\PlatformBudgetExhaustedException;
 use App\Models\Procurement\Procurement;
 use App\Repositories\Procurement\ProcurementStoreRepository;
@@ -23,6 +26,8 @@ use App\Services\Procurement\Health\CardAnchorProbe;
 use App\Services\Procurement\Health\CardLayoutPreflight;
 use App\Services\Procurement\Health\HealthBaselineReader;
 use App\Services\Procurement\OperationLogWriter;
+use App\Services\Procurement\SourceControl\SourceCircuitController;
+use App\Services\Procurement\SourceControl\SourceIncidentRecorder;
 use App\Services\Procurement\SourceMethodFactory;
 use Illuminate\Support\Facades\Log;
 use RuntimeException;
@@ -55,6 +60,8 @@ final readonly class DetailAnalysisProcessor
         private ProcurementStoreRepository $procurementStore,
         private OperationLogWriter $operationLogs,
         private CardLayoutPreflight $cardPreflight,
+        private SourceCircuitController $circuits,
+        private SourceIncidentRecorder $incidents,
     ) {}
 
     public function run(Procurement $procurement, ?float $deadlineAt = null): bool
@@ -72,30 +79,64 @@ final readonly class DetailAnalysisProcessor
                 throw new RuntimeException('crawler.detail_source_method must be a string.');
             }
 
+            // Брейкер этапа карточек (независим от листинга). Этап ждёт или на ручной паузе —
+            // карточку не трогаем вовсе: попытка не тратится, закупка остаётся в очереди.
+            $platformId = $registry->platform_id;
+
+            if (! $this->circuits->admits($platformId, SourceStage::Detail)) {
+                return false;
+            }
+
             $sourceMethod = $this->sourceMethodFactory->make(
                 method: SourceMethodEnum::from($sourceMethod),
                 registry: $registry,
             );
 
-            $details = $sourceMethod instanceof DeadlineAwareSourceMethod && $deadlineAt !== null
-                ? $sourceMethod->collectDetailsWithinDeadline(
-                    registryNumber: $procurement->registry_number,
-                    registry: $registry,
-                    deadlineAt: $deadlineAt,
-                )
-                : $sourceMethod->collectDetails(registryNumber: $procurement->registry_number, registry: $registry);
+            try {
+                $details = $sourceMethod instanceof DeadlineAwareSourceMethod && $deadlineAt !== null
+                    ? $sourceMethod->collectDetailsWithinDeadline(
+                        registryNumber: $procurement->registry_number,
+                        registry: $registry,
+                        deadlineAt: $deadlineAt,
+                    )
+                    : $sourceMethod->collectDetails(registryNumber: $procurement->registry_number, registry: $registry);
+            } catch (PlatformBudgetExhaustedException $exception) {
+                throw $exception;
+            } catch (Throwable $exception) {
+                // Любой отказ скачивания карточки считается брейкером этапа: отличать «сеть» от
+                // «чужая страница» здесь не нужно — оба значат, что карточки сейчас не получить.
+                // Ниже карточка уходит в штатный повтор с backoff, как и раньше.
+                $this->circuits->recordFailure($platformId, SourceStage::Detail, SourceFailureKind::SourceUnavailable, ['procurement_id' => $procurement->id]);
 
-            // Preflight вёрстки до разбора (`CardLayoutPreflight`): вкладка, чьи структурные
-            // якоря не совпали с эталоном, не разбирается — по непроверенной разметке ничего не
-            // пишем. Обязательные вкладки (common-info, documents) в этом случае дают штатный
-            // путь «неполные обязательные snapshots»: outcome сохраняется, карточка уходит на
-            // повтор с backoff. Необязательные — просто пропускаются. Сам `$details` не меняется,
-            // чтобы healthcheck-метрики ниже видели дрейф, а не «вкладка не снята».
-            $drifted = $this->cardPreflight->driftedTabs(procurement: $procurement, details: $details);
-            $parseCommonInfo = ! isset($drifted['common-info']);
-            $parseDocuments = ! isset($drifted['documents']);
-            $parseJournal = ! isset($drifted['event-journal']);
-            $parseSupplierResults = ! isset($drifted['supplier-results']);
+                throw $exception;
+            }
+
+            // Проверка вёрстки ДО разбора: нет базовых селекторов — страница не обрабатывается
+            // целиком (ни одна вкладка), чтобы не записать «пустые» данные с чужой вёрстки.
+            // Попытка карточки не тратится: это проблема площадки, а не закупки; карточка
+            // остаётся в очереди, а серия таких отказов уводит этап в ожидание.
+            $missing = $this->cardPreflight->missingBaseSelectors(details: $details);
+
+            if ($missing !== []) {
+                $summary = implode('; ', array_map(
+                    static fn (string $tab, array $selectors): string => $tab.': '.implode(', ', $selectors),
+                    array_keys($missing),
+                    $missing,
+                ));
+                $this->incidents->record(
+                    platformId: $platformId,
+                    type: SourceIncidentType::CardLayoutDrift,
+                    message: "Карточка {$procurement->registry_number} не обработана: нет базовых селекторов ({$summary}).",
+                    failureKind: SourceFailureKind::LayoutDrift,
+                    context: ['procurement_id' => $procurement->id, 'missing_selectors' => $missing],
+                    actor: SourceCircuitController::SystemActor,
+                );
+                $this->circuits->recordFailure($platformId, SourceStage::Detail, SourceFailureKind::LayoutDrift, ['procurement_id' => $procurement->id]);
+
+                return false;
+            }
+
+            $this->circuits->recordSuccess($platformId, SourceStage::Detail);
 
             $commonInfo = null;
             $commonInfoSnapshotStatus = null;
@@ -105,7 +146,7 @@ final readonly class DetailAnalysisProcessor
             $journalEntries = [];
             $supplierResults = null;
 
-            if ($details->commonInfoHtml !== null && $parseCommonInfo) {
+            if ($details->commonInfoHtml !== null) {
                 $commonInfoSnapshot = $this->commonInfoParser->parse($details->commonInfoHtml);
                 $parties = $this->partiesParser->parse($details->commonInfoHtml);
                 $commonInfoSnapshot = $commonInfoSnapshot->withParties(
@@ -119,27 +160,27 @@ final readonly class DetailAnalysisProcessor
                 $commonInfoSnapshotStatus = $commonInfoSnapshot->status->value;
 
                 $this->commonInfoProcessor->process(procurement: $procurement, snapshot: $commonInfoSnapshot);
-            } elseif ($parseCommonInfo) {
+            } else {
                 Log::warning(message: 'DetailAnalysisProcessor: вкладка common-info не снята.', context: ['procurement_id' => $procurement->id]);
             }
 
-            if ($details->documentsHtml !== null && $parseDocuments) {
+            if ($details->documentsHtml !== null) {
                 $documentsSnapshot = $this->documentsParser->parse($details->documentsHtml);
                 $this->documentIndexer->index(procurement: $procurement, snapshot: $documentsSnapshot);
                 $documents = $documentsSnapshot->documents;
                 $documentsSnapshotStatus = $documentsSnapshot->status->value;
-            } elseif ($parseDocuments) {
+            } else {
                 Log::warning(message: 'DetailAnalysisProcessor: вкладка documents не снята.', context: ['procurement_id' => $procurement->id]);
             }
 
-            if ($details->eventJournalHtml !== null && $parseJournal) {
+            if ($details->eventJournalHtml !== null) {
                 $journalEntries = $this->eventJournalParser->parse($details->eventJournalHtml);
                 $this->eventJournalProcessor->process($procurement, $journalEntries);
-            } elseif ($parseJournal) {
+            } else {
                 Log::warning(message: 'DetailAnalysisProcessor: вкладка event-journal не снята.', context: ['procurement_id' => $procurement->id]);
             }
 
-            if ($details->supplierResultsHtml !== null && $parseSupplierResults) {
+            if ($details->supplierResultsHtml !== null) {
                 $supplierResults = $this->supplierResultsParser->parse($details->supplierResultsHtml);
                 $this->supplierResultsProcessor->process($procurement, $supplierResults);
             }
@@ -181,9 +222,7 @@ final readonly class DetailAnalysisProcessor
             if ($commonInfoSnapshotStatus !== 'complete' || $documentsSnapshotStatus !== 'complete') {
                 $this->markFailed(
                     procurement: $procurement,
-                    exception: new RuntimeException($drifted === []
-                        ? 'Required detail snapshots are incomplete.'
-                        : 'Card layout drift: '.implode(', ', array_keys($drifted)).' не совпадают с эталоном вёрстки; вкладки не разобраны.'),
+                    exception: new RuntimeException('Required detail snapshots are incomplete.'),
                     detailParseOutcome: $detailParseOutcome,
                 );
 

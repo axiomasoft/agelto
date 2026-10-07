@@ -34,5 +34,7 @@ final readonly class ListingBatch
         public ?ProxyRouteSource $proxySource = null,
         public int $waitMs = 0,
         public int $rowsMalformed = 0,
+        /** @var list<string>|null Заголовок CSV как пришёл; null — тела нет или источник не CSV. */
+        public ?array $header = null,
     ) {}
 }

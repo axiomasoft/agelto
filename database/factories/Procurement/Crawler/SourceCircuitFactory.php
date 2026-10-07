@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Database\Factories\Procurement\Crawler;
 
-use App\Enums\Procurement\Crawler\SourceCircuitState;
+use App\Enums\Procurement\Crawler\SourceStage;
 use App\Models\Procurement\Crawler\SourceCircuit;
 use App\Models\Procurement\Platform\Platform;
 use Illuminate\Database\Eloquent\Factories\Factory;
@@ -18,13 +18,12 @@ final class SourceCircuitFactory extends Factory
     {
         return [
             'platform_id' => Platform::factory(),
-            'state' => SourceCircuitState::Closed,
+            'stage' => SourceStage::Listing,
             'enabled' => true,
             'manually_paused' => false,
             'failure_threshold' => 5,
             'retry_interval_minutes' => 10,
             'consecutive_failures' => 0,
-            'open_count' => 0,
         ];
     }
 }

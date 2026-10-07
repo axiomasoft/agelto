@@ -118,9 +118,10 @@ final readonly class FreshRunProcessor
 
                 $fetchResult = $this->ingestor->ingest(crawler: $crawler, run: $run, batch: $batch);
 
-                if ($fetchResult->sourceSuspended) {
-                    $this->sourceControl->suspend(crawler: $crawler, run: $run);
-
+                // Инцидент/брейкер — после инжеста: строки fresh-блока уже закоммичены построчно,
+                // запись о проблеме от них не зависит. `true` — листинг ушёл в ожидание, прогон
+                // приостановлен, курсор стоит на этом блоке.
+                if ($this->sourceControl->afterBlock(crawler: $crawler, run: $run, result: $fetchResult, requestParams: $cursor->toArray())) {
                     return $run;
                 }
 

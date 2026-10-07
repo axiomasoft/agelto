@@ -4,21 +4,26 @@ declare(strict_types=1);
 
 namespace App\Services\Procurement\SourceControl;
 
-use App\Enums\Procurement\Crawler\SourceCircuitState;
+use App\Dto\Procurement\Crawler\FetchResult;
+use App\Enums\Procurement\Crawler\SourceFailureKind;
 use App\Enums\Procurement\Crawler\SourceIncidentType;
+use App\Enums\Procurement\Crawler\SourceStage;
 use App\Models\Procurement\Crawler\Crawler;
 use App\Models\Procurement\Crawler\Run;
 use App\Services\Procurement\CrawlerRunManager;
-use Carbon\CarbonImmutable;
 use Throwable;
 
 /**
- * Связка «прогон ↔ брейкер источника» для процессоров обхода (fresh, archive-сканер):
+ * Связка «прогон листинга ↔ брейкер этапа листинга» для fresh-процессора и архивного сканера.
  *
- * - `admit()` перед каждым блоком: открытый брейкер или ручная пауза → прогон в `paused`
- *   с меткой `source_suspended` (его поднимет `crawler:source-circuits` или оператор);
- * - `onTransportFailure()` — отказ без HTTP-ответа (нет прокси, обрыв): классифицируется и
- *   учитывается брейкером так же, как отказ блока с ответом.
+ * - `admit()` перед блоком: этап ждёт или на ручной паузе → прогон в `paused` с меткой
+ *   `source_suspended`, курсор не тронут (поднимет `crawler:source-circuits` или оператор).
+ * - `afterBlock()` / `onTransportFailure()` — после блока: успех, ошибки строк (блок принят),
+ *   локальный отказ (инцидент, вызывающий пропускает блок) или уход этапа в ожидание
+ *   (`true`: вызывающий останавливается, блок повторится после ожидания).
+ *
+ * Инвариант: эти методы вызываются ВНЕ транзакции блока. Так инцидент и счётчик брейкера
+ * сохраняются, даже если запись блока откатилась (например, аренда прогона перехвачена).
  */
 final readonly class SourceRunControl
 {
@@ -35,23 +40,63 @@ final readonly class SourceRunControl
 
     public function admit(Crawler $crawler, Run $run): bool
     {
-        $decision = $this->circuit->gate(crawler: $crawler, run: $run);
-
-        if ($decision->allowed) {
+        if ($this->circuit->admits($this->circuit->platformIdFor($crawler), SourceStage::Listing)) {
             return true;
         }
 
-        $this->suspend(crawler: $crawler, run: $run, retryAt: $decision->retryAt);
+        $this->suspend(crawler: $crawler, run: $run);
 
         return false;
     }
 
     /**
-     * Прогон в паузу источника. Курсор не трогается: следующий запуск начнёт с того же блока.
+     * @param  array<string, mixed>  $requestParams
      */
-    public function suspend(Crawler $crawler, Run $run, ?CarbonImmutable $retryAt = null): void
+    public function afterBlock(Crawler $crawler, Run $run, FetchResult $result, array $requestParams): bool
     {
-        $retryAt ??= $this->circuit->circuitFor($this->circuit->platformIdFor($crawler))->retry_at?->toImmutable();
+        $platformId = $this->circuit->platformIdFor($crawler);
+
+        if ($result->failure === null) {
+            $this->circuit->recordSuccess($platformId, SourceStage::Listing);
+
+            return false;
+        }
+
+        return $this->onFailure(
+            crawler: $crawler,
+            run: $run,
+            kind: $result->failure,
+            detail: $result->failureDetail,
+            requestParams: $requestParams,
+            httpStatus: $result->httpStatus,
+            fetchId: $result->fetchId,
+        );
+    }
+
+    /**
+     * Исключение при скачивании блока. Не сетевой отказ (ошибка кода/БД) пробрасывается: его
+     * нельзя превращать в «пропуск блока».
+     *
+     * @param  array<string, mixed>  $requestParams
+     */
+    public function onTransportFailure(Crawler $crawler, Run $run, Throwable $exception, array $requestParams): bool
+    {
+        $kind = $this->classifier->classifyException($exception) ?? throw $exception;
+
+        return $this->onFailure(
+            crawler: $crawler,
+            run: $run,
+            kind: $kind,
+            detail: mb_substr($exception->getMessage(), 0, 500),
+            requestParams: $requestParams,
+        );
+    }
+
+    /** Прогон в паузу источника. Курсор не трогается: продолжим с того же блока. */
+    public function suspend(Crawler $crawler, Run $run): void
+    {
+        $circuit = $this->circuit->circuitFor($this->circuit->platformIdFor($crawler), SourceStage::Listing);
+        $retryAt = $circuit->manually_paused ? null : $circuit->retry_at;
 
         $this->runs->pause(run: $run, reason: self::StopReason, extraStats: [
             self::StatsFlag => true,
@@ -59,11 +104,11 @@ final readonly class SourceRunControl
         ]);
 
         $this->incidents->record(
-            platformId: $this->circuit->platformIdFor($crawler),
+            platformId: $circuit->platform_id,
             type: SourceIncidentType::RunSuspended,
             message: $retryAt === null
-                ? "Прогон #{$run->id} приостановлен: источник на ручной паузе."
-                : "Прогон #{$run->id} приостановлен до {$retryAt->toIso8601String()}: источник на паузе.",
+                ? "Прогон #{$run->id} приостановлен: листинг на ручной паузе."
+                : "Прогон #{$run->id} приостановлен до {$retryAt->toIso8601String()}: листинг в ожидании.",
             crawlerId: $crawler->id,
             runId: $run->id,
             cursor: $this->cursorOf($run),
@@ -71,33 +116,41 @@ final readonly class SourceRunControl
         );
     }
 
-    /**
-     * Отказ транспорта при заборе блока. `true` — брейкер открыт, прогон уже приостановлен;
-     * `false` — локальный отказ записан, вызывающий пропускает блок. Неклассифицируемое
-     * исключение (ошибка кода/БД) пробрасывается как есть.
-     *
-     * @param  array<string, mixed>  $requestParams
-     */
-    public function onTransportFailure(Crawler $crawler, Run $run, Throwable $exception, array $requestParams = []): bool
-    {
-        $kind = $this->classifier->classifyException($exception) ?? throw $exception;
+    /** @param array<string, mixed> $requestParams */
+    private function onFailure(
+        Crawler $crawler,
+        Run $run,
+        SourceFailureKind $kind,
+        ?string $detail,
+        array $requestParams,
+        ?int $httpStatus = null,
+        ?int $fetchId = null,
+    ): bool {
+        $platformId = $this->circuit->platformIdFor($crawler);
+        $suspended = $this->circuit->recordFailure($platformId, SourceStage::Listing, $kind, ['run_id' => $run->id]);
 
-        $state = $this->circuit->recordFailure(
-            crawler: $crawler,
-            run: $run,
-            kind: $kind,
-            cursor: $this->cursorOf($run),
-            requestParams: $requestParams === [] ? null : $requestParams,
-            detail: mb_substr($exception->getMessage(), 0, 500),
-        );
+        if ($suspended) {
+            // Блок не пропускается: курсор стоит, после ожидания этот же блок запросится снова.
+            $this->suspend(crawler: $crawler, run: $run);
 
-        if ($state !== SourceCircuitState::Open) {
-            return false;
+            return true;
         }
 
-        $this->suspend(crawler: $crawler, run: $run);
+        $this->incidents->record(
+            platformId: $platformId,
+            type: $kind->skipsBlock() ? SourceIncidentType::BlockSkipped : SourceIncidentType::BlockDegraded,
+            message: ($kind->skipsBlock() ? 'Блок пропущен: ' : 'Блок принят с ошибками строк: ').$kind->label().'.'.($detail === null ? '' : " {$detail}"),
+            crawlerId: $crawler->id,
+            runId: $run->id,
+            fetchId: $fetchId,
+            failureKind: $kind,
+            httpStatus: $httpStatus,
+            cursor: $this->cursorOf($run),
+            requestParams: $requestParams === [] ? null : $requestParams,
+            actor: SourceCircuitController::SystemActor,
+        );
 
-        return true;
+        return false;
     }
 
     /** @return array<string, mixed> */

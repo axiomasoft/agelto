@@ -4,10 +4,12 @@ declare(strict_types=1);
 
 use App\Dto\Procurement\ProcurementDetails;
 use App\Enums\Procurement\Crawler\SourceIncidentType;
+use App\Enums\Procurement\Crawler\SourceStage;
 use App\Enums\Procurement\Document\DocumentStatus;
 use App\Enums\Procurement\ProcurementStatus;
 use App\Enums\Procurement\Proxy\ProxyScope;
 use App\Models\Procurement\Crawler\Proxy;
+use App\Models\Procurement\Crawler\SourceCircuit;
 use App\Models\Procurement\Crawler\SourceIncident;
 use App\Models\Procurement\Document\Document;
 use App\Models\Procurement\EisDetails;
@@ -19,6 +21,7 @@ use App\Models\Procurement\Protocol;
 use App\Services\Procurement\DetailRefetchSelector;
 use App\Services\Procurement\Health\CardLayoutPreflight;
 use App\Services\Procurement\Modes\DetailAnalysisProcessor;
+use App\Services\Procurement\SourceControl\SourceCircuitController;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Sleep;
@@ -285,7 +288,7 @@ test('исчерпание попыток ставит detail_failed', function 
         ->and($procurement->detail_next_retry_at)->toBeNull();
 });
 
-test('неполные обязательные snapshots сохраняют outcome и возвращаются в due после backoff', function (): void {
+test('страница-заглушка без базовых селекторов не обрабатывается: попытка не тратится, карточка остаётся в due', function (): void {
     Sleep::fake();
     Storage::fake('s3');
     activeDetailAnalysisProxies();
@@ -306,11 +309,8 @@ test('неполные обязательные snapshots сохраняют out
     $procurement->refresh();
 
     expect($procurement->detail_fetched_at)->toBeNull()
-        ->and($procurement->detail_attempts)->toBe(1)
-        ->and($procurement->detail_parse_outcome)->not->toBeNull()
-        ->and($procurement->detail_next_retry_at)->not->toBeNull();
-
-    $this->travel((int) config('crawler.detail_retry_backoff_minutes', 15) + 1)->minutes();
+        ->and($procurement->detail_attempts)->toBe(0)
+        ->and(SourceIncident::query()->where('type', SourceIncidentType::CardLayoutDrift)->count())->toBe(1);
 
     expect(app(DetailRefetchSelector::class)->due(limit: 10)->pluck('id')->all())
         ->toContain($procurement->id);
@@ -355,60 +355,56 @@ function detailAnalysisProcurement(): Procurement
     ]);
 }
 
-test('preflight: дрейф вёрстки common-info — карточка не разбирается, инцидент CardLayoutDrift, штатный retry', function (): void {
-    Sleep::fake();
-    Storage::fake('s3');
-    $procurement = detailAnalysisProcurement();
-    Http::fake([
-        '*view/common-info.html*' => Http::response(body: '<html><body><div>0338200009125000001 новая вёрстка</div></body></html>', status: 200),
-        '*view/documents.html*' => Http::response(body: CardHtmlFixture::documents(), status: 200),
-        '*view/event-journal.html*' => Http::response(body: detailAnalysisEventJournalHtml(), status: 200),
-        '*view/supplier-results.html*' => Http::response(body: detailAnalysisSupplierResultsHtml(), status: 200),
-    ]);
-
-    app(DetailAnalysisProcessor::class)->run(procurement: $procurement);
-    $procurement->refresh();
-
-    expect($procurement->detail_fetched_at)->toBeNull()
-        ->and((string) $procurement->detail_last_error)->toContain('Card layout drift')
-        ->and($procurement->detail_parse_outcome)->not->toBeNull()
-        ->and($procurement->detail_next_retry_at)->not->toBeNull()
-        ->and(SourceIncident::query()->where('type', SourceIncidentType::CardLayoutDrift)->where('context->tab', 'common-info')->count())->toBe(1);
-});
-
-test('preflight: дрейф необязательной вкладки event-journal — вкладка пропущена, остальное разобрано', function (): void {
+test('нет базовых селекторов на любой вкладке — карточка не обрабатывается целиком, попытка не тратится', function (): void {
     Sleep::fake();
     Storage::fake('s3');
     $procurement = detailAnalysisProcurement();
     Http::fake([
         '*view/common-info.html*' => Http::response(body: CardHtmlFixture::commonInfo(), status: 200),
         '*view/documents.html*' => Http::response(body: CardHtmlFixture::documents(), status: 200),
-        '*view/event-journal.html*' => Http::response(body: '<html><body><p>0338200009125000001 пусто</p></body></html>', status: 200),
+        '*view/event-journal.html*' => Http::response(body: '<html><body><p>0338200009125000001 новая вёрстка</p></body></html>', status: 200),
         '*view/supplier-results.html*' => Http::response(body: detailAnalysisSupplierResultsHtml(), status: 200),
-        '*filestore*' => Http::response(body: 'binary-content', status: 200),
     ]);
+
+    expect(app(DetailAnalysisProcessor::class)->run(procurement: $procurement))->toBeFalse();
+    $procurement->refresh();
+
+    expect($procurement->detail_fetched_at)->toBeNull()
+        ->and($procurement->detail_attempts)->toBe(0)
+        // common-info валиден, но страница не разобрана вообще: ни одной вкладки в БД
+        ->and(EisDetails::query()->where('procurement_id', $procurement->id)->exists())->toBeFalse()
+        ->and(Document::query()->where('procurement_id', $procurement->id)->exists())->toBeFalse()
+        ->and(SourceIncident::query()->where('type', SourceIncidentType::CardLayoutDrift)->sole()->context['missing_selectors'])
+        ->toHaveKey('event-journal')
+        ->and(app(SourceCircuitController::class)->circuitFor($procurement->registry->platform_id, SourceStage::Detail)->consecutive_failures)->toBe(1);
+});
+
+test('якоря, зависящие от данных (нет участников, нет вложений), базовыми не считаются', function (): void {
+    $details = new ProcurementDetails(registryNumber: '0338200009125000001', procedureUrlType: 'ea20', supplierResultsHtml: CardHtmlFixture::supplierResults(), documentsHtml: '<html><body></body></html>');
+
+    expect(app(CardLayoutPreflight::class)->missingBaseSelectors(details: $details))->toBe([]);
+});
+
+test('этап карточек в ожидании — карточка не запрашивается и остаётся в очереди; листинг не затронут', function (): void {
+    $procurement = detailAnalysisProcurement();
+    $platformId = $procurement->registry->platform_id;
+    SourceCircuit::factory()->create(['platform_id' => $platformId, 'stage' => SourceStage::Detail, 'retry_at' => now()->addMinutes(10)]);
+    Http::fake();
+
+    expect(app(DetailAnalysisProcessor::class)->run(procurement: $procurement))->toBeFalse();
+
+    Http::assertNothingSent();
+    expect($procurement->refresh()->detail_attempts)->toBe(0)
+        ->and(app(SourceCircuitController::class)->admits($platformId, SourceStage::Listing))->toBeTrue();
+});
+
+test('отказ скачивания карточки учитывается брейкером этапа карточек, карточка — в штатный повтор', function (): void {
+    Sleep::fake();
+    $procurement = detailAnalysisProcurement();
+    Http::fake(['*' => Http::response('', 503)]);
 
     app(DetailAnalysisProcessor::class)->run(procurement: $procurement);
 
-    expect($procurement->refresh()->detail_fetched_at)->not->toBeNull()
-        ->and(EisDetails::query()->where('procurement_id', $procurement->id)->exists())->toBeTrue()
-        ->and(SourceIncident::query()->where('type', SourceIncidentType::CardLayoutDrift)->where('context->tab', 'event-journal')->count())->toBe(1);
-});
-
-test('preflight: инциденты дрейфа троттлятся по (площадка, вкладка)', function (): void {
-    $procurement = detailAnalysisProcurement();
-    $details = new ProcurementDetails(registryNumber: '0338200009125000001', procedureUrlType: 'ea20', eventJournalHtml: '<html><body></body></html>');
-    $preflight = app(CardLayoutPreflight::class);
-
-    expect($preflight->driftedTabs(procurement: $procurement, details: $details))->toHaveKey('event-journal');
-    $preflight->driftedTabs(procurement: $procurement, details: $details);
-
-    expect(SourceIncident::query()->where('type', SourceIncidentType::CardLayoutDrift)->count())->toBe(1);
-});
-
-test('preflight: якоря, зависящие от данных (нет участников), дрейфом не считаются', function (): void {
-    $procurement = detailAnalysisProcurement();
-    $details = new ProcurementDetails(registryNumber: '0338200009125000001', procedureUrlType: 'ea20', supplierResultsHtml: CardHtmlFixture::supplierResults(), documentsHtml: '<html><body></body></html>');
-
-    expect(app(CardLayoutPreflight::class)->driftedTabs(procurement: $procurement, details: $details))->toBe([]);
+    expect($procurement->refresh()->detail_attempts)->toBe(1)
+        ->and(app(SourceCircuitController::class)->circuitFor($procurement->registry->platform_id, SourceStage::Detail)->consecutive_failures)->toBe(1);
 });

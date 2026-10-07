@@ -4,98 +4,60 @@ declare(strict_types=1);
 
 namespace App\Services\Procurement\SourceControl;
 
-use App\Enums\Procurement\Crawler\ListingFailureKind;
+use App\Enums\Procurement\Crawler\SourceFailureKind;
 use App\Exceptions\Procurement\Proxy\NoProxyAvailableException;
 use Illuminate\Http\Client\ConnectionException;
 use Throwable;
 
 /**
- * Классификация отказа блока листинга: прокси / площадка / парсер.
+ * Классификация отказа блока листинга. Только детерминированные признаки: тип исключения,
+ * HTTP-статус, проверка формата (обязательные колонки, разобранные записи). Текст ошибок и
+ * «похожесть» тела на HTML не анализируются: HTML-заглушка вместо CSV и так не проходит
+ * проверку заголовка и попадает в `InvalidContent`.
  *
- * Классификатор — чистая функция над тем, что уже известно после запроса (HTTP-статус,
- * число записей, результат маппинга) или над исключением транспорта. HTTP-ретраи с прокси
- * к этому моменту уже исчерпаны (`CsvSourceMethod::requestWithRetries`), поэтому отказ —
- * факт про блок, а не про одну попытку.
+ * Ревьюеру: если какой-то класс отказа должен реагировать иначе (например, 404 — это не
+ * проблема площадки, а наш неверный URL), оспорьте маппинг статусов ниже.
  */
 final readonly class ListingFailureClassifier
 {
     /**
-     * @param  int  $records  записей в ответе источника
-     * @param  int  $mapped  записей, ставших снимками
-     * @param  int  $rowFailures  записей, не прошедших маппинг или инжест
-     * @param  list<string>  $missingColumns  обязательные колонки, которых нет в заголовке (preflight)
-     * @param  bool  $htmlBody  тело 2xx-ответа — HTML-документ, а не данные
+     * `null` — блок принят без замечаний.
+     *
+     * @param  list<string>  $missingColumns
      */
-    public function classifyResponse(
-        int $httpStatus,
-        int $records,
-        int $mapped,
-        int $rowFailures,
-        array $missingColumns = [],
-        bool $htmlBody = false,
-    ): ?ListingFailureKind {
+    public function classifyResponse(int $httpStatus, int $records, int $mapped, int $rowFailures, array $missingColumns = []): ?SourceFailureKind
+    {
         if ($httpStatus < 200 || $httpStatus >= 300) {
             return $this->classifyStatus(status: $httpStatus);
         }
 
-        // Порядок важен: HTML-заглушка тоже «без колонок», но это отказ площадки, а не смена схемы.
-        if ($htmlBody) {
-            return ListingFailureKind::HtmlInsteadOfData;
+        if ($missingColumns !== [] || ($records > 0 && $mapped === 0)) {
+            return SourceFailureKind::InvalidContent;
         }
 
-        if ($missingColumns !== []) {
-            return ListingFailureKind::SchemaDrift;
-        }
-
-        if ($records > 0 && $mapped === 0) {
-            return ListingFailureKind::UnrecognizedFormat;
-        }
-
-        return $rowFailures > 0 ? ListingFailureKind::RowErrors : null;
+        return $rowFailures > 0 ? SourceFailureKind::RowErrors : null;
     }
 
-    public function classifyStatus(int $status): ListingFailureKind
+    public function classifyStatus(int $status): SourceFailureKind
     {
         return match (true) {
-            $status === 407 => ListingFailureKind::ProxyFailure,
-            in_array($status, [401, 403, 429, 451], true) => ListingFailureKind::SourceBlocked,
-            $status === 408, $status >= 500 => ListingFailureKind::SourceUnavailable,
-            default => ListingFailureKind::UnexpectedStatus,
+            $status === 407 => SourceFailureKind::ProxyUnavailable,
+            in_array($status, [401, 403, 429, 451], true) => SourceFailureKind::SourceBlocked,
+            $status === 408, $status >= 500 => SourceFailureKind::SourceUnavailable,
+            default => SourceFailureKind::UnexpectedStatus,
         };
     }
 
     /**
-     * Эвристика «это HTML, а не CSV/JSON»: тело начинается с `<!doctype`/`<html`/`<head`/`<body`.
-     * Нужно обсудить: WAF ЕИС может отдавать и пустое тело, и JSON-ошибку — их ловят
-     * `UnrecognizedFormat`/пустой блок; живой выборки заглушек в репозитории нет.
+     * Исключение при скачивании. `null` — не сетевой отказ, а ошибка нашего кода/БД: её нельзя
+     * прятать за пропуском блока, вызывающий пробрасывает её дальше.
      */
-    public function looksLikeHtml(string $body): bool
+    public function classifyException(Throwable $exception): ?SourceFailureKind
     {
-        $head = mb_strtolower(ltrim(mb_substr($body, 0, 512)));
-
-        return str_starts_with($head, '<!doctype html') || str_starts_with($head, '<html')
-            || str_starts_with($head, '<head') || str_starts_with($head, '<body');
-    }
-
-    /**
-     * Транспортный отказ без HTTP-ответа. `null` — исключение не про источник (ошибка кода,
-     * БД, lease) и должно подниматься дальше как есть.
-     */
-    public function classifyException(Throwable $exception): ?ListingFailureKind
-    {
-        if ($exception instanceof NoProxyAvailableException) {
-            return ListingFailureKind::ProxyPoolExhausted;
-        }
-
-        if (! $exception instanceof ConnectionException) {
-            return null;
-        }
-
-        // cURL различает отказ прокси-туннеля (CONNECT/407, «proxy») и отказ самой цели.
-        $message = mb_strtolower($exception->getMessage());
-
-        return str_contains($message, 'proxy') || str_contains($message, 'connect tunnel')
-            ? ListingFailureKind::ProxyFailure
-            : ListingFailureKind::SourceUnavailable;
+        return match (true) {
+            $exception instanceof NoProxyAvailableException => SourceFailureKind::ProxyUnavailable,
+            $exception instanceof ConnectionException => SourceFailureKind::SourceUnavailable,
+            default => null,
+        };
     }
 }

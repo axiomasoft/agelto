@@ -18,14 +18,12 @@ enum SourceIncidentType: string implements HasLabel
     case BlockDegraded = 'block_degraded';
 
     /**
-     * Preflight карточки: на вкладке нет критичных якорей эталона (`card_tabs` в эталоне
-     * healthcheck) — вёрстка изменилась, вкладка не разбирается.
+     * На карточке нет базовых селекторов эталона — вёрстка изменилась, карточка не обработана.
      */
     case CardLayoutDrift = 'card_layout_drift';
 
+    /** Этап источника ушёл в ожидание: отказов подряд не меньше порога. */
     case CircuitOpened = 'circuit_opened';
-    case CircuitHalfOpened = 'circuit_half_opened';
-    case CircuitClosed = 'circuit_closed';
 
     /** Прогон приостановлен, потому что брейкер источника открыт. */
     case RunSuspended = 'run_suspended';
@@ -51,9 +49,7 @@ enum SourceIncidentType: string implements HasLabel
             self::BlockSkipped => 'Блок пропущен',
             self::BlockDegraded => 'Блок прочитан частично',
             self::CardLayoutDrift => 'Изменилась вёрстка карточки',
-            self::CircuitOpened => 'Источник поставлен на паузу',
-            self::CircuitHalfOpened => 'Пробный запуск после паузы',
-            self::CircuitClosed => 'Источник снова работает',
+            self::CircuitOpened => 'Этап источника в ожидании',
             self::RunSuspended => 'Прогон приостановлен',
             self::RunResumed => 'Прогон возобновлён',
             self::ManualPause => 'Пауза оператором',

@@ -4,11 +4,9 @@ declare(strict_types=1);
 
 namespace App\Models\Procurement\Crawler;
 
-use App\Enums\Procurement\Crawler\ListingFailureKind;
-use App\Enums\Procurement\Crawler\SourceCircuitState;
+use App\Enums\Procurement\Crawler\SourceFailureKind;
+use App\Enums\Procurement\Crawler\SourceStage;
 use App\Models\Procurement\Platform\Platform;
-use App\Services\Procurement\SourceControl\SourceCircuitSnapshot;
-use Carbon\CarbonImmutable;
 use Database\Factories\Procurement\Crawler\SourceCircuitFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Table;
@@ -19,21 +17,21 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Carbon;
 
 /**
- * Брейкер источника (площадки). Пишет только `SourceCircuitController` (под блокировкой
- * строки); пороги `enabled`/`failure_threshold`/`retry_interval_minutes` редактирует оператор.
+ * Брейкер этапа источника. Состояний два, отдельного поля нет: «ждёт», пока `retry_at` в
+ * будущем, иначе «работает». После ожидания этап просто работает дальше — пробных запросов
+ * (half-open) нет: если источник всё ещё лежит, через `failure_threshold` отказов этап снова
+ * уйдёт в ожидание. Ручная пауза — отдельный флаг, снимается только оператором.
  *
  * @property int $id
  * @property int $platform_id
- * @property SourceCircuitState $state
+ * @property SourceStage $stage
  * @property bool $enabled
  * @property bool $manually_paused
  * @property int $failure_threshold
  * @property int $retry_interval_minutes
  * @property int $consecutive_failures
- * @property int $open_count
- * @property Carbon|null $opened_at
  * @property Carbon|null $retry_at
- * @property ListingFailureKind|null $last_failure_kind
+ * @property SourceFailureKind|null $last_failure_kind
  * @property Carbon|null $last_failure_at
  * @property string|null $changed_by
  * @property Carbon|null $created_at
@@ -42,8 +40,8 @@ use Illuminate\Support\Carbon;
  */
 #[UseFactory(SourceCircuitFactory::class)]
 #[Fillable([
-    'platform_id', 'state', 'enabled', 'manually_paused', 'failure_threshold', 'retry_interval_minutes',
-    'consecutive_failures', 'open_count', 'opened_at', 'retry_at', 'last_failure_kind', 'last_failure_at', 'changed_by',
+    'platform_id', 'stage', 'enabled', 'manually_paused', 'failure_threshold', 'retry_interval_minutes',
+    'consecutive_failures', 'retry_at', 'last_failure_kind', 'last_failure_at', 'changed_by',
 ])]
 #[Table(name: 'prc_source_circuits')]
 final class SourceCircuit extends Model
@@ -54,16 +52,14 @@ final class SourceCircuit extends Model
     protected function casts(): array
     {
         return [
-            'state' => SourceCircuitState::class,
+            'stage' => SourceStage::class,
             'enabled' => 'boolean',
             'manually_paused' => 'boolean',
             'failure_threshold' => 'integer',
             'retry_interval_minutes' => 'integer',
             'consecutive_failures' => 'integer',
-            'open_count' => 'integer',
-            'opened_at' => 'datetime',
             'retry_at' => 'datetime',
-            'last_failure_kind' => ListingFailureKind::class,
+            'last_failure_kind' => SourceFailureKind::class,
             'last_failure_at' => 'datetime',
         ];
     }
@@ -74,36 +70,24 @@ final class SourceCircuit extends Model
         return $this->belongsTo(related: Platform::class);
     }
 
-    public function toSnapshot(): SourceCircuitSnapshot
+    /** Ждёт после серии отказов (не путать с ручной паузой). */
+    public function isWaiting(): bool
     {
-        return new SourceCircuitSnapshot(
-            state: $this->state,
-            enabled: $this->enabled,
-            manuallyPaused: $this->manually_paused,
-            failureThreshold: $this->failure_threshold,
-            retryIntervalMinutes: $this->retry_interval_minutes,
-            consecutiveFailures: $this->consecutive_failures,
-            openCount: $this->open_count,
-            openedAt: $this->opened_at === null ? null : CarbonImmutable::instance($this->opened_at),
-            retryAt: $this->retry_at === null ? null : CarbonImmutable::instance($this->retry_at),
-            lastFailureKind: $this->last_failure_kind,
-            lastFailureAt: $this->last_failure_at === null ? null : CarbonImmutable::instance($this->last_failure_at),
-        );
+        return $this->retry_at !== null && $this->retry_at->isFuture();
     }
 
-    public function fillFromSnapshot(SourceCircuitSnapshot $snapshot): self
+    /** Можно ли сейчас ходить в источник на этом этапе. */
+    public function admits(): bool
     {
-        $this->forceFill([
-            'state' => $snapshot->state,
-            'manually_paused' => $snapshot->manuallyPaused,
-            'consecutive_failures' => $snapshot->consecutiveFailures,
-            'open_count' => $snapshot->openCount,
-            'opened_at' => $snapshot->openedAt,
-            'retry_at' => $snapshot->retryAt,
-            'last_failure_kind' => $snapshot->lastFailureKind,
-            'last_failure_at' => $snapshot->lastFailureAt,
-        ]);
+        return ! $this->manually_paused && ! ($this->enabled && $this->isWaiting());
+    }
 
-        return $this;
+    public function statusLabel(): string
+    {
+        return match (true) {
+            $this->manually_paused => 'Пауза оператора',
+            $this->enabled && $this->isWaiting() => 'Ожидание',
+            default => 'Работает',
+        };
     }
 }

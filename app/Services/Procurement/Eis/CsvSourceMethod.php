@@ -137,7 +137,7 @@ final readonly class CsvSourceMethod implements DeadlineAwareSourceMethod
         $durationMs = (int) ((hrtime(true) - $startedAt) / 1_000_000);
 
         $utf8Body = mb_convert_encoding($response->body(), 'UTF-8', 'Windows-1251');
-        ['rows' => $rows, 'records' => $records, 'malformed' => $malformed] = $this->parseCsv(body: $utf8Body);
+        ['rows' => $rows, 'records' => $records, 'malformed' => $malformed, 'header' => $header] = $this->parseCsv(body: $utf8Body);
 
         if ($malformed > 0) {
             Log::warning(message: 'CsvSourceMethod: CSV-записи листинга не совпали с заголовком по числу полей.', context: [
@@ -160,6 +160,7 @@ final readonly class CsvSourceMethod implements DeadlineAwareSourceMethod
             proxySource: $lease->source,
             waitMs: $waitMs,
             rowsMalformed: $malformed,
+            header: $header,
         );
     }
 
@@ -548,11 +549,13 @@ final readonly class CsvSourceMethod implements DeadlineAwareSourceMethod
      * `records` — все непустые записи данных (включая битые), `malformed` — записи, у которых
      * число полей не совпало с заголовком.
      *
-     * @return array{rows: list<array<string, string>>, records: int, malformed: int}
+     * `header` — первая запись как есть (для проверки обязательных колонок), `null` — тело пустое.
+     *
+     * @return array{rows: list<array<string, string>>, records: int, malformed: int, header: list<string>|null}
      */
     private function parseCsv(string $body): array
     {
-        $empty = ['rows' => [], 'records' => 0, 'malformed' => 0];
+        $empty = ['rows' => [], 'records' => 0, 'malformed' => 0, 'header' => null];
 
         if (trim($body) === '') {
             return $empty;
@@ -597,7 +600,7 @@ final readonly class CsvSourceMethod implements DeadlineAwareSourceMethod
                 $rows[] = array_combine(keys: $header, values: $fields);
             }
 
-            return $header === null ? $empty : ['rows' => $rows, 'records' => $records, 'malformed' => $malformed];
+            return $header === null ? $empty : ['rows' => $rows, 'records' => $records, 'malformed' => $malformed, 'header' => $header];
         } finally {
             fclose($stream);
         }

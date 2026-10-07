@@ -7,10 +7,9 @@ use App\Dto\Procurement\Crawler\ListingBatch;
 use App\Dto\Procurement\Crawler\ListingCursor;
 use App\Dto\Procurement\ProcurementDetails;
 use App\Enums\Procurement\Crawler\CrawlerMode;
-use App\Enums\Procurement\Crawler\ListingFailureKind;
 use App\Enums\Procurement\Crawler\RunStatus;
 use App\Enums\Procurement\Crawler\RunStopPolicy;
-use App\Enums\Procurement\Crawler\SourceCircuitState;
+use App\Enums\Procurement\Crawler\SourceFailureKind;
 use App\Enums\Procurement\Crawler\SourceIncidentType;
 use App\Enums\Procurement\Crawler\SourceMethod as SourceMethodEnum;
 use App\Enums\Procurement\Proxy\ProxyScope;
@@ -160,7 +159,7 @@ test('нераспознанный блок записан инцидентом 
         ->and($fetch?->rows_errors)->toBe(1)
         ->and($fetch?->artifact_ref)->not->toBeNull()
         ->and($incident->type)->toBe(SourceIncidentType::BlockSkipped)
-        ->and($incident->failure_kind)->toBe(ListingFailureKind::UnrecognizedFormat)
+        ->and($incident->failure_kind)->toBe(SourceFailureKind::InvalidContent)
         ->and($incident->fetch_id)->toBe($fetch?->id)
         ->and($incident->run_id)->toBe($run->id);
     $log = OperationLog::query()->where('stage', 'listing')->sole();
@@ -184,7 +183,7 @@ test('страница ошибки (403) не завершает fresh как �
         ->and(SourceIncident::query()->where('type', SourceIncidentType::BlockSkipped)->count())->toBe(1);
 });
 
-test('массовые отказы открывают брейкер: прогон приостановлен на том же блоке, а не провален', function (): void {
+test('массовые отказы уводят листинг в ожидание: прогон приостановлен на том же блоке, а не провален', function (): void {
     $crawler = Crawler::factory()->create();
     SourceCircuit::factory()->create(['platform_id' => $crawler->registry->platform_id, 'failure_threshold' => 2]);
     $failing = fn (string $from): ListingBatch => new ListingBatch(rows: [], rawBody: '', dedupSignature: null, rowsTotal: 0, httpStatus: 503, durationMs: 5, requestParams: ['from' => $from]);
@@ -195,9 +194,9 @@ test('массовые отказы открывают брейкер: прог�
     expect($run->status)->toBe(RunStatus::Paused)
         ->and($run->stats['source_suspended'] ?? null)->toBeTrue()
         ->and($run->stats['stop_reason'] ?? null)->toBe('source_circuit_open')
-        // первый отказ — локальный (пропуск), второй открыл брейкер — курсор на нём
+        // первый отказ — локальный (пропуск), второй увёл в ожидание — курсор на нём
         ->and($run->cursor['blockFrom'])->toBe(501)
-        ->and(SourceCircuit::query()->sole()->state)->toBe(SourceCircuitState::Open)
+        ->and(SourceCircuit::query()->sole()->retry_at)->not->toBeNull()
         ->and(SourceIncident::query()->orderBy('id')->pluck('type')->all())->toBe([
             SourceIncidentType::BlockSkipped,
             SourceIncidentType::CircuitOpened,
@@ -205,7 +204,7 @@ test('массовые отказы открывают брейкер: прог�
         ]);
 });
 
-test('открытый брейкер или пауза оператора: fresh не делает ни одного запроса и встаёт на паузу', function (): void {
+test('ожидание или пауза оператора: fresh не делает ни одного запроса и встаёт на паузу', function (): void {
     $crawler = Crawler::factory()->create();
     SourceCircuit::factory()->create(['platform_id' => $crawler->registry->platform_id, 'manually_paused' => true]);
     useQueueSourceMethod([]);
@@ -217,8 +216,9 @@ test('открытый брейкер или пауза оператора: fres
         ->and($run->fetches()->count())->toBe(0);
 });
 
-test('исчерпанный пул прокси сразу ставит источник на паузу без пропуска блока', function (): void {
+test('нет прокси: отказ транспорта считается брейкером, на пороге — пауза без пропуска блока', function (): void {
     $crawler = Crawler::factory()->create();
+    SourceCircuit::factory()->create(['platform_id' => $crawler->registry->platform_id, 'failure_threshold' => 1]);
     app()->instance(QueueSourceMethod::class, new class implements SourceMethod
     {
         public function collectListing(Crawler $crawler, ListingCursor $cursor): ListingBatch
@@ -243,7 +243,7 @@ test('исчерпанный пул прокси сразу ставит ист�
     expect($run->status)->toBe(RunStatus::Paused)
         ->and($run->cursor['blockFrom'] ?? 1)->toBe(1)
         ->and(SourceIncident::query()->where('type', SourceIncidentType::CircuitOpened)->sole()->failure_kind)
-        ->toBe(ListingFailureKind::ProxyPoolExhausted);
+        ->toBe(SourceFailureKind::ProxyUnavailable);
 });
 
 test('останавливается на первом полностью известном блоке, курсор фиксирует reachedKnown', function () {

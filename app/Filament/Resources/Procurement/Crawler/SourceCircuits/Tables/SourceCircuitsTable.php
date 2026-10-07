@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Filament\Resources\Procurement\Crawler\SourceCircuits\Tables;
 
-use App\Enums\Procurement\Crawler\SourceCircuitState;
+use App\Enums\Procurement\Crawler\SourceStage;
 use App\Models\Procurement\Crawler\SourceCircuit;
 use App\Services\Procurement\SourceControl\SourceCircuitController;
 use App\Services\Procurement\SourceControl\SuspendedRunResumer;
@@ -27,13 +27,11 @@ final class SourceCircuitsTable
     {
         return $table->columns([
             TextColumn::make('platform.name')->label('Площадка')->searchable(),
-            TextColumn::make('state')->label('Состояние')->badge()
-                ->color(fn (SourceCircuitState $state): string => match ($state) {
-                    SourceCircuitState::Closed => 'success',
-                    SourceCircuitState::HalfOpen => 'warning',
-                    SourceCircuitState::Open => 'danger',
-                }),
-            IconColumn::make('manually_paused')->label('Ручная пауза')->boolean(),
+            TextColumn::make('stage')->label('Этап')->badge(),
+            TextColumn::make('status')->label('Состояние')->badge()
+                ->state(fn (SourceCircuit $record): string => $record->statusLabel())
+                ->color(fn (SourceCircuit $record): string => $record->admits() ? 'success' : 'danger'),
+            IconColumn::make('enabled')->label('Автопауза')->boolean(),
             TextColumn::make('consecutive_failures')->label('Отказов подряд'),
             TextColumn::make('failure_threshold')->label('Порог'),
             TextColumn::make('retry_at')->label('Автоповтор в')->dateTime()->placeholder('—'),
@@ -53,24 +51,26 @@ final class SourceCircuitsTable
                     ->action(function (SourceCircuit $record, array $data): void {
                         $reason = $data['reason'] ?? null;
                         app(SourceCircuitController::class)->pause(
-                            platformId: $record->platform_id,
+                            circuit: $record,
                             actor: self::actor(),
                             reason: is_string($reason) ? $reason : null,
                         );
-                        Notification::make()->title('Источник поставлен на паузу')->warning()->send();
+                        Notification::make()->title('Этап поставлен на паузу')->warning()->send();
                     }),
                 Action::make('resumeNow')
                     ->label('Возобновить сейчас')
                     ->color('success')
                     ->authorize('update')
-                    ->visible(fn (SourceCircuit $record): bool => $record->manually_paused || $record->state !== SourceCircuitState::Closed)
+                    ->visible(fn (SourceCircuit $record): bool => ! $record->admits())
                     ->requiresConfirmation()
-                    ->modalDescription('Брейкер закроется, счётчики сбросятся, приостановленные прогоны будут поставлены в очередь сразу, без ожидания автоповтора.')
+                    ->modalDescription('Пауза и ожидание снимаются, счётчик сбрасывается; приостановленные прогоны листинга ставятся в очередь сразу.')
                     ->action(function (SourceCircuit $record): void {
                         $actor = self::actor();
-                        app(SourceCircuitController::class)->resume(platformId: $record->platform_id, actor: $actor);
-                        $dispatched = app(SuspendedRunResumer::class)->resumePlatform(platformId: $record->platform_id, actor: $actor);
-                        Notification::make()->title("Источник возобновлён; прогонов в очереди: {$dispatched}")->success()->send();
+                        app(SourceCircuitController::class)->resume(circuit: $record, actor: $actor);
+                        $dispatched = $record->stage === SourceStage::Listing
+                            ? app(SuspendedRunResumer::class)->resumePlatform(platformId: $record->platform_id, actor: $actor)
+                            : 0;
+                        Notification::make()->title("Возобновлено; прогонов в очереди: {$dispatched}")->success()->send();
                     }),
             ])
             ->defaultSort('platform_id');

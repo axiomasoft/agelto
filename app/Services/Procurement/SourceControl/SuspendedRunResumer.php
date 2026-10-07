@@ -8,8 +8,8 @@ use App\Enums\Procurement\Crawler\CrawlerExecutionLane;
 use App\Enums\Procurement\Crawler\CrawlerMode;
 use App\Enums\Procurement\Crawler\RunPurpose;
 use App\Enums\Procurement\Crawler\RunStatus;
-use App\Enums\Procurement\Crawler\SourceCircuitState;
 use App\Enums\Procurement\Crawler\SourceIncidentType;
+use App\Enums\Procurement\Crawler\SourceStage;
 use App\Jobs\Procurement\CrawlRunJob;
 use App\Models\Procurement\Crawler\Run;
 use App\Models\Procurement\Crawler\SourceCircuit;
@@ -19,9 +19,10 @@ use Illuminate\Support\Carbon;
 /**
  * Подъём прогонов, приостановленных брейкером источника (`stats.source_suspended = true`).
  *
- * Автоматика: `crawler:source-circuits` раз в минуту находит открытые брейкеры с наступившим
- * `retry_at` и поднимает их прогоны; первый блок пройдёт гейт как проба (half-open). Оператор:
- * «Возобновить сейчас» в админке закрывает брейкер и поднимает прогоны сразу, минуя ожидание.
+ * Автоматика: `crawler:source-circuits` раз в минуту находит этапы, у которых ожидание
+ * закончилось, снимает `retry_at` и поднимает прогоны листинга — они просто продолжаются с
+ * того же курсора. Этап карточек прогонов не держит: очередь карточек сама пойдёт снова.
+ * Оператор: «Возобновить сейчас» в админке — то же самое сразу, минуя ожидание.
  *
  * Поднимаются только профильные прогоны (`RunPurpose::Profile`, они идут через `CrawlRunJob`);
  * у delta/backlog метка снимается, а сами они продолжатся по своему расписанию — гейт
@@ -31,21 +32,24 @@ final readonly class SuspendedRunResumer
 {
     public function __construct(private SourceIncidentRecorder $incidents) {}
 
-    /** Брейкеры, чья пауза истекла (без ручной паузы). */
+    /** Этапы, чьё ожидание истекло (без ручной паузы). */
     public function resumeDue(?Carbon $now = null): int
     {
         $now ??= Carbon::now();
         $resumed = 0;
 
         $due = SourceCircuit::query()
-            ->where('state', SourceCircuitState::Open)
+            ->whereNotNull('retry_at')
+            ->where('retry_at', '<=', $now)
             ->where('manually_paused', false)
-            ->where('enabled', true)
-            ->where(fn (Builder $query) => $query->whereNull('retry_at')->orWhere('retry_at', '<=', $now))
             ->get();
 
         foreach ($due as $circuit) {
-            $resumed += $this->resumePlatform(platformId: $circuit->platform_id, actor: SourceCircuitController::SystemActor);
+            $circuit->update(['retry_at' => null]);
+
+            if ($circuit->stage === SourceStage::Listing) {
+                $resumed += $this->resumePlatform(platformId: $circuit->platform_id, actor: SourceCircuitController::SystemActor);
+            }
         }
 
         return $resumed;

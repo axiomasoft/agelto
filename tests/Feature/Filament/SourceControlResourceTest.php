@@ -3,7 +3,6 @@
 declare(strict_types=1);
 
 use App\Enums\Procurement\Crawler\RunStatus;
-use App\Enums\Procurement\Crawler\SourceCircuitState;
 use App\Enums\Procurement\Crawler\SourceIncidentType;
 use App\Filament\Resources\Procurement\Crawler\SourceCircuits\Pages\EditSourceCircuit;
 use App\Filament\Resources\Procurement\Crawler\SourceCircuits\Pages\ListSourceCircuits;
@@ -49,10 +48,10 @@ test('оператор ставит источник на паузу из адм
         ->and(SourceIncident::query()->where('type', SourceIncidentType::ManualPause)->sole()->actor)->toBe('operator@agelto.ru');
 });
 
-test('«Возобновить сейчас» закрывает брейкер и ставит приостановленные прогоны в очередь без ожидания', function (): void {
+test('«Возобновить сейчас» снимает ожидание и ставит приостановленные прогоны в очередь без ожидания', function (): void {
     Queue::fake();
     actAsSourceOperator();
-    $this->circuit->update(['state' => SourceCircuitState::Open, 'retry_at' => now()->addHour()]);
+    $this->circuit->update(['retry_at' => now()->addHour()]);
     Run::factory()->for($this->crawler)->create([
         'status' => RunStatus::Paused,
         'stats' => ['source_suspended' => true, 'execution_context' => ['mode' => 'fresh', 'execution_lane' => $this->crawler->execution_lane->value, 'from' => null, 'to' => null]],
@@ -62,7 +61,7 @@ test('«Возобновить сейчас» закрывает брейкер 
         ->callTableAction('resumeNow', record: $this->circuit)
         ->assertHasNoTableActionErrors();
 
-    expect($this->circuit->fresh()->state)->toBe(SourceCircuitState::Closed);
+    expect($this->circuit->fresh()->retry_at)->toBeNull();
     Queue::assertPushed(CrawlRunJob::class);
 });
 

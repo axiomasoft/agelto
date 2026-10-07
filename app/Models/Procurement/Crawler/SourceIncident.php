@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models\Procurement\Crawler;
 
-use App\Enums\Procurement\Crawler\ListingFailureKind;
+use App\Enums\Procurement\Crawler\SourceFailureKind;
 use App\Enums\Procurement\Crawler\SourceIncidentSeverity;
 use App\Enums\Procurement\Crawler\SourceIncidentType;
 use App\Models\Procurement\Platform\Platform;
@@ -28,7 +28,7 @@ use Illuminate\Support\Carbon;
  * @property int|null $fetch_id
  * @property SourceIncidentType $type
  * @property SourceIncidentSeverity $severity
- * @property ListingFailureKind|null $failure_kind
+ * @property SourceFailureKind|null $failure_kind
  * @property int|null $http_status
  * @property array<string, mixed>|null $cursor
  * @property array<string, mixed>|null $request_params
@@ -59,7 +59,7 @@ final class SourceIncident extends Model
         return [
             'type' => SourceIncidentType::class,
             'severity' => SourceIncidentSeverity::class,
-            'failure_kind' => ListingFailureKind::class,
+            'failure_kind' => SourceFailureKind::class,
             'http_status' => 'integer',
             'cursor' => 'array',
             'request_params' => 'array',

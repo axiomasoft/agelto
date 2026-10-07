@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Dto\Procurement\Crawler;
 
-use App\Enums\Procurement\Crawler\ListingFailureKind;
+use App\Enums\Procurement\Crawler\SourceFailureKind;
 use Illuminate\Support\Carbon;
 
 /**
@@ -29,13 +29,15 @@ final readonly class FetchResult
         public int $rowsDuplicated = 0,
         public ?Carbon $oldestUpdateSeen = null,
         public bool $oldestUpdateSeenHasDayPrecision = false,
-        public ?ListingFailureKind $failure = null,
-        public bool $sourceSuspended = false,
+        public ?SourceFailureKind $failure = null,
+        public ?string $failureDetail = null,
+        public ?int $fetchId = null,
+        public ?int $httpStatus = null,
     ) {}
 
     /** Блок не прочитан и пропускается: курсор переходит через него, пропуск записан инцидентом. */
     public function blockSkipped(): bool
     {
-        return ! $this->sourceSuspended && $this->failure !== null && $this->failure->skipsBlock();
+        return $this->failure !== null && $this->failure->skipsBlock();
     }
 }

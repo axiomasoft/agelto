@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Filament\Resources\Procurement\Crawler\SourceIncidents\Tables;
 
-use App\Enums\Procurement\Crawler\ListingFailureKind;
+use App\Enums\Procurement\Crawler\SourceFailureKind;
 use App\Enums\Procurement\Crawler\SourceIncidentSeverity;
 use App\Enums\Procurement\Crawler\SourceIncidentType;
 use App\Models\Procurement\Crawler\SourceIncident;
@@ -39,7 +39,7 @@ final class SourceIncidentsTable
             ->filters([
                 SelectFilter::make('type')->label('Событие')->options(SourceIncidentType::class),
                 SelectFilter::make('severity')->label('Важность')->options(SourceIncidentSeverity::class),
-                SelectFilter::make('failure_kind')->label('Класс отказа')->options(ListingFailureKind::class),
+                SelectFilter::make('failure_kind')->label('Класс отказа')->options(SourceFailureKind::class),
                 TernaryFilter::make('acknowledged')
                     ->label('Разобрано')
                     ->queries(

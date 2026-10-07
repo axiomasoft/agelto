@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-use App\Enums\Procurement\Crawler\ListingFailureKind;
-use App\Enums\Procurement\Crawler\SourceCircuitState;
+use App\Enums\Procurement\Crawler\SourceFailureKind;
 use App\Enums\Procurement\Crawler\SourceIncidentType;
+use App\Enums\Procurement\Crawler\SourceStage;
 use App\Events\Procurement\SourceIncidentRecorded;
 use App\Models\Procurement\Crawler\Crawler;
 use App\Models\Procurement\Crawler\SourceCircuit;
@@ -16,93 +16,92 @@ use Illuminate\Support\Facades\Event;
 beforeEach(function (): void {
     config()->set('crawler.source_circuit.failure_threshold', 2);
     config()->set('crawler.source_circuit.retry_interval_minutes', 10);
-    $this->crawler = Crawler::factory()->for(Registry::factory()->eis())->create();
     $this->controller = app(SourceCircuitController::class);
-    $this->platformId = $this->controller->platformIdFor($this->crawler);
+    $this->platformId = $this->controller->platformIdFor(Crawler::factory()->for(Registry::factory()->eis())->create());
 });
 
-test('локальный отказ пишет инцидент с курсором и fetch, брейкер остаётся закрытым', function (): void {
+test('отказ ниже порога только считается: этап работает, инцидента об ожидании нет', function (): void {
+    $waiting = $this->controller->recordFailure($this->platformId, SourceStage::Listing, SourceFailureKind::SourceBlocked);
+
+    expect($waiting)->toBeFalse()
+        ->and($this->controller->circuitFor($this->platformId, SourceStage::Listing)->consecutive_failures)->toBe(1)
+        ->and(SourceIncident::query()->count())->toBe(0);
+});
+
+test('порог: этап уходит в ожидание на интервал, критичный инцидент и событие', function (): void {
     Event::fake([SourceIncidentRecorded::class]);
 
-    $state = $this->controller->recordFailure(
-        crawler: $this->crawler,
-        run: null,
-        kind: ListingFailureKind::SourceBlocked,
-        httpStatus: 403,
-        fetchId: 42,
-        cursor: ['blockFrom' => 501],
-        requestParams: ['pageNumber' => 2],
-    );
+    $this->controller->recordFailure($this->platformId, SourceStage::Listing, SourceFailureKind::SourceUnavailable);
+    $waiting = $this->controller->recordFailure($this->platformId, SourceStage::Listing, SourceFailureKind::SourceUnavailable);
 
-    $incident = SourceIncident::query()->sole();
+    $circuit = $this->controller->circuitFor($this->platformId, SourceStage::Listing);
 
-    expect($state)->toBe(SourceCircuitState::Closed)
-        ->and($incident->type)->toBe(SourceIncidentType::BlockSkipped)
-        ->and($incident->fetch_id)->toBe(42)
-        ->and($incident->http_status)->toBe(403)
-        ->and($incident->cursor)->toBe(['blockFrom' => 501])
-        ->and($incident->request_params)->toBe(['pageNumber' => 2])
-        ->and($incident->failure_kind)->toBe(ListingFailureKind::SourceBlocked);
-
-    Event::assertDispatched(SourceIncidentRecorded::class, fn (SourceIncidentRecorded $event): bool => $event->incidentId === $incident->id);
-});
-
-test('порог отказов открывает брейкер из конфигурации и пишет критичный инцидент', function (): void {
-    $this->controller->recordFailure(crawler: $this->crawler, run: null, kind: ListingFailureKind::SourceUnavailable, httpStatus: 503);
-    $state = $this->controller->recordFailure(crawler: $this->crawler, run: null, kind: ListingFailureKind::SourceUnavailable, httpStatus: 503);
-
-    $circuit = SourceCircuit::query()->where('platform_id', $this->platformId)->sole();
-
-    expect($state)->toBe(SourceCircuitState::Open)
+    expect($waiting)->toBeTrue()
         ->and($circuit->retry_at?->diffInMinutes(now(), absolute: true))->toEqualWithDelta(10, 0.1)
-        ->and(SourceIncident::query()->where('type', SourceIncidentType::CircuitOpened)->count())->toBe(1)
-        ->and($this->controller->gate($this->crawler)->allowed)->toBeFalse();
+        ->and($circuit->consecutive_failures)->toBe(0)
+        ->and($this->controller->admits($this->platformId, SourceStage::Listing))->toBeFalse()
+        ->and(SourceIncident::query()->sole()->type)->toBe(SourceIncidentType::CircuitOpened);
+
+    Event::assertDispatched(SourceIncidentRecorded::class);
 });
 
-test('после retry_at гейт даёт пробу (half-open), успешная проба закрывает брейкер', function (): void {
-    SourceCircuit::factory()->create([
-        'platform_id' => $this->platformId,
-        'state' => SourceCircuitState::Open,
-        'retry_at' => now()->subMinute(),
-        'open_count' => 1,
-        'consecutive_failures' => 2,
-    ]);
+test('после ожидания этап просто работает снова — без пробных запросов', function (): void {
+    $this->controller->recordFailure($this->platformId, SourceStage::Listing, SourceFailureKind::SourceUnavailable);
+    $this->controller->recordFailure($this->platformId, SourceStage::Listing, SourceFailureKind::SourceUnavailable);
 
-    $decision = $this->controller->gate($this->crawler);
+    $this->travel(11)->minutes();
 
-    expect($decision->probe)->toBeTrue()
-        ->and(SourceCircuit::query()->sole()->state)->toBe(SourceCircuitState::HalfOpen);
-
-    $this->controller->recordSuccess($this->crawler);
-
-    expect(SourceCircuit::query()->sole()->state)->toBe(SourceCircuitState::Closed)
-        ->and(SourceIncident::query()->pluck('type')->all())
-        ->toBe([SourceIncidentType::CircuitHalfOpened, SourceIncidentType::CircuitClosed]);
+    expect($this->controller->admits($this->platformId, SourceStage::Listing))->toBeTrue()
+        // один отказ после ожидания снова не уводит в ожидание: счётчик начат заново
+        ->and($this->controller->recordFailure($this->platformId, SourceStage::Listing, SourceFailureKind::SourceUnavailable))->toBeFalse();
 });
 
-test('пороги, изменённые в админке, применяются к следующему отказу', function (): void {
-    $this->controller->circuitFor($this->platformId)->update(['failure_threshold' => 1, 'retry_interval_minutes' => 30]);
+test('успех сбрасывает счётчик; ошибки строк не считаются', function (): void {
+    $this->controller->recordFailure($this->platformId, SourceStage::Listing, SourceFailureKind::SourceUnavailable);
+    $this->controller->recordSuccess($this->platformId, SourceStage::Listing);
+    $this->controller->recordFailure($this->platformId, SourceStage::Listing, SourceFailureKind::RowErrors);
 
-    $state = $this->controller->recordFailure(crawler: $this->crawler, run: null, kind: ListingFailureKind::UnrecognizedFormat);
+    expect($this->controller->circuitFor($this->platformId, SourceStage::Listing)->consecutive_failures)->toBe(0);
+});
 
-    expect($state)->toBe(SourceCircuitState::Open)
+test('этапы независимы: ожидание карточек не останавливает листинг', function (): void {
+    $this->controller->recordFailure($this->platformId, SourceStage::Detail, SourceFailureKind::LayoutDrift);
+    $this->controller->recordFailure($this->platformId, SourceStage::Detail, SourceFailureKind::LayoutDrift);
+
+    expect($this->controller->admits($this->platformId, SourceStage::Detail))->toBeFalse()
+        ->and($this->controller->admits($this->platformId, SourceStage::Listing))->toBeTrue();
+});
+
+test('выключенный брейкер не уходит в ожидание, ручная пауза действует всегда', function (): void {
+    $circuit = $this->controller->circuitFor($this->platformId, SourceStage::Listing);
+    $circuit->update(['enabled' => false]);
+
+    $this->controller->recordFailure($this->platformId, SourceStage::Listing, SourceFailureKind::SourceUnavailable);
+    expect($this->controller->recordFailure($this->platformId, SourceStage::Listing, SourceFailureKind::SourceUnavailable))->toBeFalse();
+
+    $this->controller->pause($circuit->refresh(), 'admin@agelto.ru', 'Разбираемся с прокси.');
+    expect($this->controller->admits($this->platformId, SourceStage::Listing))->toBeFalse();
+});
+
+test('пороги из админки применяются к следующему отказу', function (): void {
+    $this->controller->circuitFor($this->platformId, SourceStage::Listing)->update(['failure_threshold' => 1, 'retry_interval_minutes' => 30]);
+
+    expect($this->controller->recordFailure($this->platformId, SourceStage::Listing, SourceFailureKind::InvalidContent))->toBeTrue()
         ->and(SourceCircuit::query()->sole()->retry_at?->diffInMinutes(now(), absolute: true))->toEqualWithDelta(30, 0.1);
 });
 
-test('оператор ставит паузу и возобновляет сразу, минуя ожидание', function (): void {
-    $this->controller->pause(platformId: $this->platformId, actor: 'admin@agelto.ru', reason: 'Разбираемся с прокси.');
+test('оператор: пауза и «возобновить сейчас» снимает паузу и ожидание', function (): void {
+    $circuit = $this->controller->circuitFor($this->platformId, SourceStage::Listing);
+    $this->controller->pause($circuit, 'admin@agelto.ru');
+    $this->controller->recordFailure($this->platformId, SourceStage::Listing, SourceFailureKind::ProxyUnavailable);
+    $this->controller->recordFailure($this->platformId, SourceStage::Listing, SourceFailureKind::ProxyUnavailable);
 
-    expect($this->controller->gate($this->crawler)->allowed)->toBeFalse();
+    $this->controller->resume($circuit->refresh(), 'admin@agelto.ru');
+    $circuit->refresh();
 
-    $this->controller->recordFailure(crawler: $this->crawler, run: null, kind: ListingFailureKind::ProxyPoolExhausted);
-    $this->controller->resume(platformId: $this->platformId, actor: 'admin@agelto.ru');
-
-    $circuit = SourceCircuit::query()->sole();
-
-    expect($circuit->state)->toBe(SourceCircuitState::Closed)
-        ->and($circuit->manually_paused)->toBeFalse()
+    expect($circuit->manually_paused)->toBeFalse()
         ->and($circuit->retry_at)->toBeNull()
         ->and($circuit->changed_by)->toBe('admin@agelto.ru')
-        ->and($this->controller->gate($this->crawler)->allowed)->toBeTrue()
+        ->and($this->controller->admits($this->platformId, SourceStage::Listing))->toBeTrue()
         ->and(SourceIncident::query()->where('type', SourceIncidentType::ManualResume)->value('actor'))->toBe('admin@agelto.ru');
 });

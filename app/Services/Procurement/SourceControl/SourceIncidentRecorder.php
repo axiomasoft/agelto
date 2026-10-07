@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\Procurement\SourceControl;
 
-use App\Enums\Procurement\Crawler\ListingFailureKind;
+use App\Enums\Procurement\Crawler\SourceFailureKind;
 use App\Enums\Procurement\Crawler\SourceIncidentSeverity;
 use App\Enums\Procurement\Crawler\SourceIncidentType;
 use App\Events\Procurement\SourceIncidentRecorded;
@@ -29,7 +29,7 @@ final readonly class SourceIncidentRecorder
         ?int $crawlerId = null,
         ?int $runId = null,
         ?int $fetchId = null,
-        ?ListingFailureKind $failureKind = null,
+        ?SourceFailureKind $failureKind = null,
         ?int $httpStatus = null,
         ?array $cursor = null,
         ?array $requestParams = null,

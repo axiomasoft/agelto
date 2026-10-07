@@ -22,6 +22,7 @@ use App\Models\Procurement\Procurement;
 use App\Services\Procurement\ArchiveWindowScanner;
 use App\Services\Procurement\Contracts\SourceMethod;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Sleep;
@@ -289,11 +290,20 @@ test('отказ блока не закрывает интервал: блок �
         archiveScannerBatch(['0173200001234000005'], dedupSignature: 'sig-3'),
     ]);
 
+    // Инцидент пишется ВНЕ транзакции блока (аренды): уровень вложенности при записи равен
+    // базовому уровню теста, значит откат блока его не сотрёт.
+    $baseLevel = DB::transactionLevel();
+    $levels = [];
+    SourceIncident::created(function () use (&$levels): void {
+        $levels[] = DB::transactionLevel();
+    });
+
     $result = app(ArchiveWindowScanner::class)->scan(crawler: $crawler, run: $run, filter: archiveWindowFilter());
 
     expect($result)->toBe(ArchiveWindowScanResult::Drained)
         ->and(Procurement::query()->count())->toBe(3)
-        ->and(SourceIncident::query()->sole()->type)->toBe(SourceIncidentType::BlockSkipped);
+        ->and(SourceIncident::query()->sole()->type)->toBe(SourceIncidentType::BlockSkipped)
+        ->and($levels)->toBe([$baseLevel]);
 });
 
 test('системный отказ в archive: курсор остаётся на блоке, прогон на паузе источника', function (): void {

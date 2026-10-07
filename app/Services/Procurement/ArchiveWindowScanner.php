@@ -170,7 +170,7 @@ final readonly class ArchiveWindowScanner
                 continue;
             }
 
-            $suspended = false;
+            $fetchResult = null;
 
             // A request may outlive the lease. Its ingestion and checkpoint are one short
             // PostgreSQL row-locked section: a takeover waits for all block writes to commit
@@ -180,7 +180,7 @@ final readonly class ArchiveWindowScanner
                 &$blocksInInterval,
                 &$previousSignature,
                 &$stack,
-                &$suspended,
+                &$fetchResult,
                 $batch,
                 $blockSize,
                 $crawler,
@@ -192,20 +192,13 @@ final readonly class ArchiveWindowScanner
             ): ?ArchiveWindowScanResult {
                 $fetchResult = $this->ingestor->ingest(crawler: $crawler, run: $run, batch: $batch);
 
-                if ($fetchResult->sourceSuspended) {
-                    // Системный сбой: курсор остаётся на этом блоке.
-                    $suspended = true;
-
-                    return ArchiveWindowScanResult::Stopped;
+                if ($fetchResult->blockSkipped()) {
+                    // Непрочитанный блок: курсор здесь не трогаем. Решение «пропустить или ждать»
+                    // принимается после транзакции, когда отказ уже записан (см. ниже).
+                    return null;
                 }
 
-                if ($fetchResult->blockSkipped()) {
-                    // Skip-and-record: отказ записан инцидентом; `rowsTotal` непрочитанного блока
-                    // ничего не говорит о конце интервала, поэтому идём к следующему блоку.
-                    $previousSignature = null;
-                    $blockFrom += $blockSize;
-                    $blocksInInterval++;
-                } elseif ($batch->rowsTotal < $blockSize) {
+                if ($batch->rowsTotal < $blockSize) {
                     array_pop($stack);
                     $blockFrom = 1;
                     $previousSignature = null;
@@ -253,8 +246,29 @@ final readonly class ArchiveWindowScanner
                 return null;
             });
 
-            if ($suspended) {
-                $this->sourceControl->suspend(crawler: $crawler, run: $run);
+            // Вне транзакции блока: инцидент и брейкер сохраняются, даже если блок откатился бы.
+            if ($fetchResult !== null && $this->sourceControl->afterBlock(crawler: $crawler, run: $run, result: $fetchResult, requestParams: $iterationCursor->toArray())) {
+                return ArchiveWindowScanResult::Stopped;
+            }
+
+            if ($fetchResult?->blockSkipped() === true) {
+                // Skip-and-record: отказ записан; `rowsTotal` непрочитанного блока ничего не
+                // говорит о конце интервала, поэтому просто идём к следующему блоку.
+                $previousSignature = null;
+                $blockFrom += $blockSize;
+                $blocksInInterval++;
+                $this->runs->withinExecutionLease(run: $run, callback: fn () => $this->persistCursor(
+                    run: $run,
+                    day: $day,
+                    stack: $stack,
+                    blockFrom: $blockFrom,
+                    dateField: $dateField,
+                    lastDedupSignature: $previousSignature,
+                    blocksInInterval: $blocksInInterval,
+                    recoveryScope: $recoveryScope,
+                ));
+
+                continue;
             }
 
             if ($result !== null) {

@@ -11,9 +11,9 @@ use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
 /**
- * Контур управления источником: брейкер на площадку (`prc_source_circuits`, одна строка на
- * площадку, пороги редактируются в админке) и журнал инцидентов (`prc_source_incidents`:
- * пропущенные блоки, открытия/закрытия брейкера, ручные действия). Журнал — не очередь
+ * Контур управления источником: брейкер на (площадка, этап) (`prc_source_circuits`; этапы
+ * листинга и карточек независимы, пороги редактируются в админке) и журнал инцидентов (`prc_source_incidents`:
+ * пропущенные блоки и карточки, ожидания этапов, ручные действия). Журнал — не очередь
  * повторной обработки: он фиксирует, ЧТО и ГДЕ пропущено, чтобы разобрать это вручную.
  */
 return new class extends Migration
@@ -22,21 +22,19 @@ return new class extends Migration
     {
         Schema::create((new SourceCircuit)->getTable(), function (Blueprint $table): void {
             $table->id();
-            $table->foreignId('platform_id')->unique()->constrained(table: (new Platform)->getTable())->cascadeOnDelete();
-            $table->text('state')->default('closed');
+            $table->foreignId('platform_id')->constrained(table: (new Platform)->getTable())->cascadeOnDelete();
+            $table->text('stage')->comment('listing | detail — у каждого этапа свой брейкер');
             $table->boolean('enabled')->default(true);
             $table->boolean('manually_paused')->default(false);
-            $table->integer('failure_threshold')->default(5)->comment('Подряд идущих отказов блоков до паузы источника');
-            $table->integer('retry_interval_minutes')->default(10)->comment('Через сколько минут после паузы пробовать снова');
+            $table->integer('failure_threshold')->default(5)->comment('Подряд идущих отказов до ожидания');
+            $table->integer('retry_interval_minutes')->default(10)->comment('Сколько ждать перед новой попыткой');
             $table->integer('consecutive_failures')->default(0);
-            $table->integer('open_count')->default(0);
-            $table->timestampTz('opened_at')->nullable();
-            $table->timestampTz('retry_at')->nullable();
+            $table->timestampTz('retry_at')->nullable()->comment('Ожидание до этого момента; null — работает');
             $table->text('last_failure_kind')->nullable();
             $table->timestampTz('last_failure_at')->nullable();
             $table->text('changed_by')->nullable()->comment('Кто последним менял состояние: system или оператор');
             $table->timestampsTz();
-            $table->index(['state', 'retry_at']);
+            $table->unique(['platform_id', 'stage']);
         });
 
         Schema::create((new SourceIncident)->getTable(), function (Blueprint $table): void {

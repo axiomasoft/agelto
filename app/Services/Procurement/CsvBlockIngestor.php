@@ -9,7 +9,6 @@ use App\Dto\Procurement\Crawler\FetchResult;
 use App\Dto\Procurement\Crawler\ListingBatch;
 use App\Dto\Procurement\ProcurementSnapshotData;
 use App\Enums\Procurement\Crawler\CrawlStage;
-use App\Enums\Procurement\Crawler\SourceCircuitState;
 use App\Models\Procurement\Crawler\Crawler;
 use App\Models\Procurement\Crawler\IgnoredItem;
 use App\Models\Procurement\Crawler\Run;
@@ -17,7 +16,6 @@ use App\Repositories\Procurement\ProcurementReadRepository;
 use App\Services\Procurement\Contracts\ListingRowMapper;
 use App\Services\Procurement\Contracts\ListingSchemaAware;
 use App\Services\Procurement\SourceControl\ListingFailureClassifier;
-use App\Services\Procurement\SourceControl\SourceCircuitController;
 use Illuminate\Support\Facades\Log;
 
 /**
@@ -37,7 +35,6 @@ final readonly class CsvBlockIngestor
         private StoreRawFetchArtifactAction $rawArtifacts,
         private OperationLogWriter $operationLogs,
         private ListingFailureClassifier $failures,
-        private SourceCircuitController $sourceCircuit,
     ) {}
 
     public function ingest(Crawler $crawler, Run $run, ListingBatch $batch): FetchResult
@@ -48,16 +45,11 @@ final readonly class CsvBlockIngestor
         $snapshots = [];
         $httpRejected = $batch->httpStatus < 200 || $batch->httpStatus >= 300;
 
-        // Страница ошибки (403/429/5xx после исчерпания ретраев) не является блоком листинга:
-        // её строки не инжестятся. Отказ классифицируется ниже: локальный — инцидент и пропуск
-        // блока (skip-and-record), системный — пауза источника без сдвига курсора.
-        // Preflight блока до построчного разбора: HTML-заглушка вместо данных и отсутствие
-        // обязательных колонок — признаки того, что весь блок (а при смене схемы — и все
-        // следующие) не данные. Такой блок не маппится построчно: это дало бы тысячи
-        // «ошибок строк» вместо одного точного инцидента.
-        $htmlBody = ! $httpRejected && $this->failures->looksLikeHtml(body: $batch->rawBody);
-        $missingColumns = $httpRejected || $htmlBody ? [] : $this->missingRequiredColumns(batch: $batch);
-        $preflightRejected = $httpRejected || $htmlBody || $missingColumns !== [];
+        // Проверка до построчного разбора: не 2xx — файл не скачался; нет обязательных колонок
+        // в заголовке — скачано не то (смена формата, HTML-заглушка). Такой блок не маппится
+        // построчно: тысячи «ошибок строк» вместо одного точного отказа никому не помогут.
+        $missingColumns = $httpRejected ? [] : $this->missingRequiredColumns(batch: $batch);
+        $preflightRejected = $httpRejected || $missingColumns !== [];
 
         foreach ($preflightRejected ? [] : $batch->rows as $row) {
             try {
@@ -166,34 +158,16 @@ final readonly class CsvBlockIngestor
             throw new \RuntimeException('Execution lease is no longer owned by this processor.');
         }
 
+        // Отказ только классифицируется: инцидент и брейкер пишет вызывающий ПОСЛЕ транзакции
+        // блока (`SourceRunControl::afterBlock`), чтобы откат блока не стёр запись о проблеме.
+        $rowFailures = $rowsErrors + $unmapped + $batch->rowsMalformed;
         $failure = $this->failures->classifyResponse(
             httpStatus: $batch->httpStatus,
             records: $batch->rowsTotal,
             mapped: $mappedRows,
-            rowFailures: $rowsErrors + $unmapped + $batch->rowsMalformed,
+            rowFailures: $rowFailures,
             missingColumns: $missingColumns,
-            htmlBody: $htmlBody,
         );
-        $sourceSuspended = false;
-
-        if ($failure === null) {
-            $this->sourceCircuit->recordSuccess(crawler: $crawler, run: $run);
-        } else {
-            // Ни один отказ не молчит: инцидент с курсором, параметрами запроса и fetch id.
-            // Локальный — блок пропускается и обход идёт дальше; если отказ открыл брейкер
-            // (системный сбой), курсор остаётся на блоке, а прогон уходит в паузу источника.
-            $sourceSuspended = $this->sourceCircuit->recordFailure(
-                crawler: $crawler,
-                run: $run,
-                kind: $failure,
-                httpStatus: $batch->httpStatus,
-                fetchId: $fetch->id,
-                cursor: $this->stringKeyedArray($run->cursor?->toArray() ?? []),
-                requestParams: $this->stringKeyedArray($batch->requestParams),
-                detail: "HTTP {$batch->httpStatus}, записей {$batch->rowsTotal}, распознано {$mappedRows}, ошибок строк ".($rowsErrors + $unmapped + $batch->rowsMalformed).'.'
-                    .($missingColumns === [] ? '' : ' Нет колонок: '.implode(', ', $missingColumns).'.'),
-            ) === SourceCircuitState::Open;
-        }
 
         return new FetchResult(
             rowsTotal: $batch->rowsTotal,
@@ -206,7 +180,11 @@ final readonly class CsvBlockIngestor
             oldestUpdateSeen: $oldestUpdateSeen,
             oldestUpdateSeenHasDayPrecision: $oldestUpdateSeenHasDayPrecision,
             failure: $failure,
-            sourceSuspended: $sourceSuspended,
+            failureDetail: $failure === null ? null
+                : "HTTP {$batch->httpStatus}, записей {$batch->rowsTotal}, распознано {$mappedRows}, ошибок строк {$rowFailures}."
+                    .($missingColumns === [] ? '' : ' Нет колонок: '.implode(', ', $missingColumns).'.'),
+            fetchId: $fetch->id,
+            httpStatus: $batch->httpStatus,
         );
     }
 
@@ -336,19 +314,26 @@ final readonly class CsvBlockIngestor
     }
 
     /**
-     * Обязательные колонки маппера, которых нет в заголовке блока. Заголовок берётся из ключей
-     * первой разобранной записи (`CsvSourceMethod` строит записи по заголовку). Пустой блок
-     * проверить нечем — он не считается дрейфом.
+     * Обязательные колонки маппера, которых нет в заголовке блока. Заголовок — как пришёл от
+     * источника (`ListingBatch::$header`); если источник его не передал — ключи первой записи.
+     * Пустое тело заголовка не имеет и проверкой не считается дрейфом.
+     *
+     * Нужно обсудить: отдаёт ли ЕИС для пустой выборки CSV с заголовком или пустое тело. Если
+     * всегда с заголовком, пустое тело тоже стоит считать отказом; сейчас нет живого образца.
      *
      * @return list<string>
      */
     private function missingRequiredColumns(ListingBatch $batch): array
     {
-        if (! $this->rowMapper instanceof ListingSchemaAware || $batch->rows === []) {
+        if (! $this->rowMapper instanceof ListingSchemaAware) {
             return [];
         }
 
-        $header = array_keys($batch->rows[array_key_first($batch->rows)]);
+        $header = $batch->header ?? ($batch->rows === [] ? null : array_keys($batch->rows[array_key_first($batch->rows)]));
+
+        if ($header === null) {
+            return [];
+        }
 
         return array_values(array_diff($this->rowMapper->requiredColumns(), $header));
     }
