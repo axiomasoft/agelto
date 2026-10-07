@@ -108,20 +108,23 @@ final class CrawlRunJob implements ShouldBeUniqueUntilProcessing, ShouldQueue
                     run: $run,
                 ),
             };
-
-            if ($run->status === RunStatus::Running) {
-                self::dispatch(
-                    crawlerId: $this->crawlerId,
-                    mode: $resolvedMode,
-                    executionLane: $resolvedLane,
-                    from: $resolvedFrom,
-                    to: $resolvedTo,
-                );
-            }
         } finally {
             if ($run->status === RunStatus::Running) {
                 $runs->releaseExecutionLease(run: $run);
             }
+        }
+
+        // Продолжение ставится ТОЛЬКО после освобождения аренды: иначе воркер, забравший его
+        // мгновенно (или sync-очередь), застаёт живого владельца и падает в
+        // `recordExecutionContext` («another owner is active»).
+        if ($run->status === RunStatus::Running) {
+            self::dispatch(
+                crawlerId: $this->crawlerId,
+                mode: $resolvedMode,
+                executionLane: $resolvedLane,
+                from: $resolvedFrom,
+                to: $resolvedTo,
+            );
         }
     }
 }

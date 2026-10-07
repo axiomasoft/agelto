@@ -122,9 +122,6 @@ test('сбой источника одного профиля не провал�
         SourceMethodEnum::Csv->value => QueueSourceMethod::class,
         SourceMethodEnum::Html->value => BrokenSourceMethod::class,
     ]]);
-    // Без checkpoint'а внутри теста: sync-очередь исполняет продолжение рекурсивно под ещё
-    // живым lease. Страховка (50 пропусков подряд) срабатывает в пределах одного прогона.
-    config(['crawler.fresh_max_blocks' => 100]);
 
     $this->artisan('crawler:run-fresh')
         ->assertExitCode(Command::SUCCESS);
