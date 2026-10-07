@@ -282,3 +282,29 @@ test('ошибка маппера записывается отдельно от
     expect($fetch->rows_parsed)->toBe(0)
         ->and($fetch->rows_errors)->toBe(1);
 });
+
+test('битые CSV-записи блока видны в rows_errors журнала, но не роняют блок', function (): void {
+    Storage::fake('s3');
+    $registry = Registry::factory()->eis()->create(['code' => 'fz44']);
+    $crawler = Crawler::factory()->for($registry)->create();
+    $run = Run::factory()->for($crawler)->create();
+    $rows = [ingestorCsvRow('0173200001234000001')];
+
+    $result = app(CsvBlockIngestor::class)->ingest($crawler, $run, new ListingBatch(
+        rows: $rows,
+        rawBody: 'raw csv body',
+        dedupSignature: '0173200001234000001',
+        rowsTotal: 2,
+        httpStatus: 200,
+        durationMs: 10,
+        requestParams: ['from' => '1', 'to' => '500'],
+        rowsMalformed: 1,
+    ));
+
+    $fetch = Fetch::query()->where('crawler_run_id', $run->id)->sole();
+
+    expect($result->rowsErrors)->toBe(0)
+        ->and($result->rowsParsed)->toBe(1)
+        ->and($fetch->rows_total)->toBe(2)
+        ->and($fetch->rows_errors)->toBe(1);
+});

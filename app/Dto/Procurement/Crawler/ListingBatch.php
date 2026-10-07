@@ -14,6 +14,11 @@ use App\Enums\Procurement\Proxy\ProxyRouteSource;
 final readonly class ListingBatch
 {
     /**
+     * `$rowsTotal` — число записей данных, которые вернул источник (без заголовка), ВКЛЮЧАЯ
+     * `$rowsMalformed`: стоп-условие «блок неполный» (`ArchiveWindowScanner`) должно видеть размер
+     * ответа сервера, а не число успешно разобранных строк — иначе одна битая запись выглядит как
+     * последний блок окна и остаток окна тихо теряется.
+     *
      * @param  list<array<string, string>>  $rows
      * @param  array<string, mixed>  $requestParams
      */
@@ -28,5 +33,6 @@ final readonly class ListingBatch
         public ?int $proxyId = null,
         public ?ProxyRouteSource $proxySource = null,
         public int $waitMs = 0,
+        public int $rowsMalformed = 0,
     ) {}
 }
