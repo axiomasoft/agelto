@@ -184,3 +184,29 @@ test('дата с точностью до суток того же дня не �
 
     expect($processor->ingest($sameDay)->revision_count)->toBe(2);
 });
+
+test('снимок с точностью до суток старше головы через полночь МСК игнорируется (граница поясов)', function (): void {
+    $registry = Registry::factory()->create();
+    $processor = app(ProcurementIngestProcessor::class);
+
+    // Голова: 13.01 01:00 МСК = 12.01 22:00 UTC.
+    $processor->ingest(SnapshotFactory::make($registry, [
+        'sourceStage' => 'Работа комиссии',
+        'sourceUpdatedAt' => Carbon::parse('2026-01-12 22:00:00'),
+    ]));
+
+    // Снимок «12.01» (только дата): сутки 12.01 МСК начались 11.01 в 21:00 UTC и закончились
+    // раньше головы — снимок устаревший. Старое сравнение по дате UTC считало его «тем же днём».
+    $stale = new ProcurementSnapshotData(
+        registryId: $registry->id,
+        registryNumber: '0173100000123000001',
+        title: 'Поставка бумаги офисной',
+        sourceStage: 'Подача заявок',
+        publishedAt: Carbon::parse('2026-01-10 10:00:00'),
+        sourceUpdatedAt: Carbon::parse('2026-01-11 21:00:00'),
+        sourceUpdatedAtHasDayPrecision: true,
+        initialPrice: '150000.00',
+    );
+
+    expect($processor->ingest($stale)->revision_count)->toBe(1);
+});

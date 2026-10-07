@@ -231,7 +231,8 @@ final readonly class FreshRunProcessor
             return $fetchResult->oldestUpdateSeen->lte($threshold);
         }
 
-        return $fetchResult->oldestUpdateSeen->toDateString() < $threshold->toDateString();
+        // Сутки источника целиком закончились не позже порога (значение — начало суток в UTC).
+        return $fetchResult->oldestUpdateSeen->copy()->addDay()->lte($threshold);
     }
 
     private function integerConfig(string $key, int $default): int

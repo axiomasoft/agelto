@@ -102,7 +102,8 @@ test('передаёт точность самой старой даты обн�
         ingestorCsvRow('0173200001234000012', ['Дата обновления' => '01.03.2026']),
     ]));
 
-    expect($result->oldestUpdateSeen->toDateString())->toBe('2026-03-01')
+    // Сутки 01.03 по МСК начинаются 28.02 в 21:00 UTC — это раньше, чем 01.03 03:00 МСК.
+    expect($result->oldestUpdateSeen->toIso8601String())->toBe('2026-02-28T21:00:00+00:00')
         ->and($result->oldestUpdateSeenHasDayPrecision)->toBeTrue();
 });
 

@@ -188,7 +188,11 @@ final readonly class EisCsvRowMapper implements ListingRowMapper, ListingSchemaA
             }
         }
 
-        $date = $this->clock->parseDate(format: '!d.m.Y', value: $value);
+        // Дата без времени — это целые сутки источника. Храним их НАЧАЛО как момент
+        // (полночь по часовому поясу источника → UTC), а не «полночь UTC того же числа»: тогда
+        // сравнение с любым моментом не зависит от пояса — сутки D закончились ровно в
+        // `value + 1 день` (см. `ProcurementIngestProcessor::isOlderThanHead`).
+        $date = $this->clock->parseDateTime(format: '!d.m.Y', value: $value);
 
         return $date === null ? null : ['value' => $date, 'hasDayPrecision' => true];
     }
