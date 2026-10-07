@@ -283,3 +283,33 @@ test('download останавливает фактический поток св
 
     expect(DocumentVersion::query()->where('document_id', $document->id)->exists())->toBeFalse();
 });
+
+test('повтор после 5xx берёт слот бюджета площадки и пишется в журнал запросов', function (): void {
+    Sleep::fake();
+    Storage::fake('s3');
+    activeDocumentDownloadProxy();
+    config(['crawler.stages.document.retries' => 3]);
+    $document = Document::factory()->create(['source_url' => 'https://zakupki.gov.ru/filestore/file.html?uid=aaaa-1111']);
+    Http::fake(['*filestore*' => Http::sequence()
+        ->push(body: 'busy', status: 503)
+        ->push(body: sampleDocumentContent(), status: 200)]);
+
+    $version = app(DocumentDownloader::class)->download($document);
+
+    expect($version)->toBeInstanceOf(DocumentVersion::class)
+        ->and(Fetch::query()->where('stage', 'document')->orderBy('id')->pluck('http_status')->all())->toBe([503, 200]);
+    Http::assertSentCount(2);
+});
+
+test('исчерпанные повторы 429 не превышают настроенное число запросов', function (): void {
+    Sleep::fake();
+    activeDocumentDownloadProxy();
+    config(['crawler.stages.document.retries' => 2]);
+    $document = Document::factory()->create(['source_url' => 'https://zakupki.gov.ru/filestore/file.html?uid=aaaa-1111']);
+    Http::fake(['*filestore*' => Http::response(body: 'slow down', status: 429)]);
+
+    expect(app(DocumentDownloader::class)->download($document))->toBeNull();
+
+    Http::assertSentCount(2);
+    expect(Fetch::query()->where('stage', 'document')->count())->toBe(2);
+});

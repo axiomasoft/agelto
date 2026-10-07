@@ -24,10 +24,10 @@ use GuzzleHttp\Psr7\Uri;
 use GuzzleHttp\Psr7\UriResolver;
 use Illuminate\Contracts\Filesystem\Filesystem;
 use Illuminate\Http\Client\ConnectionException;
-use Illuminate\Http\Client\RequestException;
 use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Sleep;
 use Illuminate\Support\Str;
 use RuntimeException;
 use Throwable;
@@ -103,19 +103,7 @@ final readonly class DocumentDownloader
             $this->targetValidator->assertDocumentUrl(url: $url);
             $host = $this->canonicalHost(url: $url);
             $lease = $this->documentLease(document: $document, host: $host);
-            $startedAt = hrtime(true);
-            $waitMs = $this->requestBudget->acquire(host: $host, stage: CrawlStage::Document);
-            $response = $this->requestWithOutcome(lease: $lease, url: $url, settings: $settings);
-
-            $this->fetches->log(CrawlStage::Document, null, $document->procurement_id, [
-                'method' => 'document-download',
-                'request_params' => ['url' => $url],
-                'http_status' => $response->status(),
-                'duration_ms' => (int) ((hrtime(true) - $startedAt) / 1_000_000),
-                'proxy_id' => $lease->proxyId,
-                'proxy_source' => $lease->source?->value,
-                'wait_ms' => $waitMs,
-            ]);
+            $response = $this->requestWithRetries(document: $document, lease: $lease, url: $url, host: $host, settings: $settings);
 
             if ($this->isRedirect(response: $response)) {
                 $location = $response->header('Location');
@@ -148,6 +136,49 @@ final readonly class DocumentDownloader
         );
     }
 
+    /**
+     * Каждый HTTP-запрос, включая повтор после 429/5xx, берёт слот общего `PlatformRequestBudget`
+     * и пишется в `prc_fetches`. Раньше повторы делал `Http::retry()` внутри одного слота: до пяти
+     * запросов к площадке с фиксированной паузой вне бюджета вежливости — именно когда площадка
+     * уже сигнализирует перегрузку.
+     */
+    private function requestWithRetries(Document $document, ProxyLease $lease, string $url, string $host, StageSettings $settings): Response
+    {
+        $attempts = max(1, $settings->retries ?? 5);
+
+        for ($attempt = 1; ; $attempt++) {
+            $startedAt = hrtime(true);
+            $waitMs = $this->requestBudget->acquire(host: $host, stage: CrawlStage::Document);
+            $response = $this->requestWithOutcome(lease: $lease, url: $url, settings: $settings);
+
+            $this->fetches->log(CrawlStage::Document, null, $document->procurement_id, [
+                'method' => 'document-download',
+                'request_params' => ['url' => $url],
+                'http_status' => $response->status(),
+                'duration_ms' => (int) ((hrtime(true) - $startedAt) / 1_000_000),
+                'proxy_id' => $lease->proxyId,
+                'proxy_source' => $lease->source?->value,
+                'wait_ms' => $waitMs,
+            ]);
+
+            if ($attempt >= $attempts || ! $this->isRetryable(response: $response)) {
+                return $response;
+            }
+
+            $response->close();
+            $retryDelayMs = max(0, $settings->retryDelayMs ?? 500);
+
+            if ($retryDelayMs > 0) {
+                Sleep::for($retryDelayMs)->milliseconds();
+            }
+        }
+    }
+
+    private function isRetryable(Response $response): bool
+    {
+        return $response->status() === 429 || $response->status() >= 500;
+    }
+
     private function request(string $url, ProxyLease $lease, StageSettings $settings): Response
     {
         $tlsOptions = $this->tlsTrust->optionsFor($this->canonicalHost(url: $url));
@@ -160,13 +191,6 @@ final readonly class DocumentDownloader
         ])
             ->withUserAgent($this->stringConfig(key: 'crawler.user_agent'))
             ->timeout($settings->timeoutSeconds ?? 30)
-            ->retry(
-                times: $settings->retries ?? 5,
-                sleepMilliseconds: $settings->retryDelayMs ?? 500,
-                when: static fn (Throwable $exception): bool => $exception instanceof RequestException
-                    && ($exception->response->status() === 429 || $exception->response->status() >= 500),
-                throw: false,
-            )
             ->get($url);
     }
 
