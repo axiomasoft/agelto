@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace App\Models\Procurement\Crawler;
 
+use App\Enums\Procurement\Crawler\CrawlerEventCode;
 use App\Enums\Procurement\Crawler\SourceFailureKind;
 use App\Enums\Procurement\Crawler\SourceIncidentSeverity;
-use App\Enums\Procurement\Crawler\SourceIncidentType;
 use App\Models\Procurement\Platform\Platform;
 use Database\Factories\Procurement\Crawler\SourceIncidentFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
@@ -26,7 +26,7 @@ use Illuminate\Support\Carbon;
  * @property int|null $crawler_id
  * @property int|null $run_id
  * @property int|null $fetch_id
- * @property SourceIncidentType $type
+ * @property CrawlerEventCode $type
  * @property SourceIncidentSeverity $severity
  * @property SourceFailureKind|null $failure_kind
  * @property int|null $http_status
@@ -57,7 +57,7 @@ final class SourceIncident extends Model
     protected function casts(): array
     {
         return [
-            'type' => SourceIncidentType::class,
+            'type' => CrawlerEventCode::class,
             'severity' => SourceIncidentSeverity::class,
             'failure_kind' => SourceFailureKind::class,
             'http_status' => 'integer',

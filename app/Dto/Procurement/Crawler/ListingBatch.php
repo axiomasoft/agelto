@@ -36,5 +36,10 @@ final readonly class ListingBatch
         public int $rowsMalformed = 0,
         /** @var list<string>|null Заголовок CSV как пришёл; null — тела нет или источник не CSV. */
         public ?array $header = null,
+        /**
+         * Источник ответил 2xx с пустым телом (ни байта данных). Ставит адаптер, который знает
+         * свой формат; пустая выдача (заголовок без строк) — не пустое тело, а конец данных.
+         */
+        public bool $emptyBody = false,
     ) {}
 }

@@ -3,7 +3,9 @@
 declare(strict_types=1);
 
 use App\Dto\Procurement\ProcurementDetails;
-use App\Enums\Procurement\Crawler\SourceIncidentType;
+use App\Enums\Procurement\Crawler\CrawlerEventCode;
+use App\Enums\Procurement\Crawler\SourceFailureKind;
+use App\Enums\Procurement\Crawler\SourceMethod;
 use App\Enums\Procurement\Crawler\SourceStage;
 use App\Enums\Procurement\Document\DocumentStatus;
 use App\Enums\Procurement\ProcurementStatus;
@@ -18,14 +20,16 @@ use App\Models\Procurement\Procurement;
 use App\Models\Procurement\ProcurementEvent;
 use App\Models\Procurement\ProcurementParty;
 use App\Models\Procurement\Protocol;
+use App\Repositories\Procurement\Crawler\SourceCircuitRepository;
 use App\Services\Procurement\DetailRefetchSelector;
 use App\Services\Procurement\Health\CardLayoutPreflight;
 use App\Services\Procurement\Modes\DetailAnalysisProcessor;
-use App\Services\Procurement\SourceControl\SourceCircuitController;
+use App\Services\Procurement\SourceControl\SourceCircuitBreaker;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Sleep;
 use Tests\Support\Doubles\Crawler\CardHtmlFixture;
+use Tests\Support\Doubles\Crawler\FakeSourceMethod;
 
 /**
  * Активные узлы скоупов `crawl_detail` и `document_download` (research/02 §9.1, P1.6) —
@@ -310,7 +314,7 @@ test('страница-заглушка без базовых селекторо
 
     expect($procurement->detail_fetched_at)->toBeNull()
         ->and($procurement->detail_attempts)->toBe(0)
-        ->and(SourceIncident::query()->where('type', SourceIncidentType::CardLayoutDrift)->count())->toBe(1);
+        ->and(SourceIncident::query()->where('type', CrawlerEventCode::CardLayoutDrift)->count())->toBe(1);
 
     expect(app(DetailRefetchSelector::class)->due(limit: 10)->pluck('id')->all())
         ->toContain($procurement->id);
@@ -374,9 +378,9 @@ test('нет базовых селекторов на любой вкладке 
         // common-info валиден, но страница не разобрана вообще: ни одной вкладки в БД
         ->and(EisDetails::query()->where('procurement_id', $procurement->id)->exists())->toBeFalse()
         ->and(Document::query()->where('procurement_id', $procurement->id)->exists())->toBeFalse()
-        ->and(SourceIncident::query()->where('type', SourceIncidentType::CardLayoutDrift)->sole()->context['missing_selectors'])
+        ->and(SourceIncident::query()->where('type', CrawlerEventCode::CardLayoutDrift)->sole()->context['missing_selectors'])
         ->toHaveKey('event-journal')
-        ->and(app(SourceCircuitController::class)->circuitFor($procurement->registry->platform_id, SourceStage::Detail)->consecutive_failures)->toBe(1);
+        ->and(app(SourceCircuitRepository::class)->forStage($procurement->registry->platform_id, SourceStage::Detail)->consecutive_failures)->toBe(1);
 });
 
 test('якоря, зависящие от данных (нет участников, нет вложений), базовыми не считаются', function (): void {
@@ -395,7 +399,7 @@ test('этап карточек в ожидании — карточка не з
 
     Http::assertNothingSent();
     expect($procurement->refresh()->detail_attempts)->toBe(0)
-        ->and(app(SourceCircuitController::class)->admits($platformId, SourceStage::Listing))->toBeTrue();
+        ->and(app(SourceCircuitBreaker::class)->admits($platformId, SourceStage::Listing))->toBeTrue();
 });
 
 test('отказ скачивания карточки учитывается брейкером этапа карточек, карточка — в штатный повтор', function (): void {
@@ -406,5 +410,33 @@ test('отказ скачивания карточки учитывается б
     app(DetailAnalysisProcessor::class)->run(procurement: $procurement);
 
     expect($procurement->refresh()->detail_attempts)->toBe(1)
-        ->and(app(SourceCircuitController::class)->circuitFor($procurement->registry->platform_id, SourceStage::Detail)->consecutive_failures)->toBe(1);
+        ->and(app(SourceCircuitRepository::class)->forStage($procurement->registry->platform_id, SourceStage::Detail)->consecutive_failures)->toBe(1);
+});
+
+test('ошибка нашего кода при обработке карточки: брейкер не считает, событие ERROR, карточка в штатный повтор', function (): void {
+    $procurement = detailAnalysisProcurement();
+    $source = new class extends FakeSourceMethod
+    {
+        public function collectDetails(string $registryNumber, Registry $registry): ProcurementDetails
+        {
+            throw new LogicException('bug in our parser');
+        }
+
+        public function isAvailable(): bool
+        {
+            return true;
+        }
+    };
+    app()->instance($source::class, $source);
+    config()->set('crawler.detail_source_method', SourceMethod::Csv->value);
+    config()->set('crawler.platforms.eis.source_methods', [SourceMethod::Csv->value => $source::class]);
+
+    app(DetailAnalysisProcessor::class)->run(procurement: $procurement);
+
+    $incident = SourceIncident::query()->sole();
+
+    expect($procurement->refresh()->detail_attempts)->toBe(1)
+        ->and($incident->type)->toBe(CrawlerEventCode::CardCodeError)
+        ->and($incident->failure_kind)->toBe(SourceFailureKind::CodeError)
+        ->and(app(SourceCircuitRepository::class)->forStage($procurement->registry->platform_id, SourceStage::Detail)->consecutive_failures)->toBe(0);
 });

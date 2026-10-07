@@ -11,6 +11,7 @@ enum SourceIncidentSeverity: string implements HasColor, HasLabel
 {
     case Info = 'info';
     case Warning = 'warning';
+    case Error = 'error';
     case Critical = 'critical';
 
     public function getLabel(): string
@@ -18,6 +19,7 @@ enum SourceIncidentSeverity: string implements HasColor, HasLabel
         return match ($this) {
             self::Info => 'Информация',
             self::Warning => 'Предупреждение',
+            self::Error => 'Ошибка',
             self::Critical => 'Критично',
         };
     }
@@ -27,6 +29,7 @@ enum SourceIncidentSeverity: string implements HasColor, HasLabel
         return match ($this) {
             self::Info => 'gray',
             self::Warning => 'warning',
+            self::Error => 'danger',
             self::Critical => 'danger',
         };
     }

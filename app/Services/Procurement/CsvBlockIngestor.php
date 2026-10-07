@@ -15,7 +15,7 @@ use App\Models\Procurement\Crawler\Run;
 use App\Repositories\Procurement\ProcurementReadRepository;
 use App\Services\Procurement\Contracts\ListingRowMapper;
 use App\Services\Procurement\Contracts\ListingSchemaAware;
-use App\Services\Procurement\SourceControl\ListingFailureClassifier;
+use App\Services\Procurement\SourceControl\SourceFailureClassifier;
 use Illuminate\Support\Facades\Log;
 
 /**
@@ -34,7 +34,7 @@ final readonly class CsvBlockIngestor
         private CrawlerRunManager $runs,
         private StoreRawFetchArtifactAction $rawArtifacts,
         private OperationLogWriter $operationLogs,
-        private ListingFailureClassifier $failures,
+        private SourceFailureClassifier $failures,
     ) {}
 
     public function ingest(Crawler $crawler, Run $run, ListingBatch $batch): FetchResult
@@ -158,8 +158,8 @@ final readonly class CsvBlockIngestor
             throw new \RuntimeException('Execution lease is no longer owned by this processor.');
         }
 
-        // Отказ только классифицируется: инцидент и брейкер пишет вызывающий ПОСЛЕ транзакции
-        // блока (`SourceRunControl::afterBlock`), чтобы откат блока не стёр запись о проблеме.
+        // Отказ только классифицируется; в `SourceFailureReporter` его передаёт вызывающий ПОСЛЕ
+        // транзакции блока (`SourceRunControl::afterBlock`), чтобы откат не стёр запись о проблеме.
         $rowFailures = $rowsErrors + $unmapped + $batch->rowsMalformed;
         $failure = $this->failures->classifyResponse(
             httpStatus: $batch->httpStatus,
@@ -167,6 +167,7 @@ final readonly class CsvBlockIngestor
             mapped: $mappedRows,
             rowFailures: $rowFailures,
             missingColumns: $missingColumns,
+            emptyBody: $batch->emptyBody,
         );
 
         return new FetchResult(

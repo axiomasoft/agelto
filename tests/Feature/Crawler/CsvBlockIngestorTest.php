@@ -383,7 +383,7 @@ test('нет обязательной колонки в заголовке — �
 
     $result = app(CsvBlockIngestor::class)->ingest($crawler, $run, ingestorBatch([$row]));
 
-    expect($result->failure)->toBe(SourceFailureKind::InvalidContent)
+    expect($result->failure)->toBe(SourceFailureKind::LayoutDrift)
         ->and($result->failureDetail)->toContain('Нет колонок: Дата обновления')
         ->and(Procurement::query()->count())->toBe(0);
 });
@@ -407,6 +407,20 @@ test('HTML вместо CSV с HTTP 200 ловится проверкой заг
         header: ['<!DOCTYPE html><title>Проверка браузера</title>'],
     ));
 
-    expect($result->failure)->toBe(SourceFailureKind::InvalidContent)
+    expect($result->failure)->toBe(SourceFailureKind::LayoutDrift)
+        ->and($result->blockSkipped())->toBeTrue();
+});
+
+test('пустое тело при 2xx — отдельный вид отказа, блок пропускается', function (): void {
+    Storage::fake('s3');
+    $crawler = Crawler::factory()->for(Registry::factory()->eis()->create(['code' => 'fz44']))->create();
+    $run = Run::factory()->for($crawler)->create();
+
+    $result = app(CsvBlockIngestor::class)->ingest($crawler, $run, new ListingBatch(
+        rows: [], rawBody: '', dedupSignature: null, rowsTotal: 0, httpStatus: 200, durationMs: 1,
+        requestParams: ['from' => '1'], emptyBody: true,
+    ));
+
+    expect($result->failure)->toBe(SourceFailureKind::EmptyBody)
         ->and($result->blockSkipped())->toBeTrue();
 });

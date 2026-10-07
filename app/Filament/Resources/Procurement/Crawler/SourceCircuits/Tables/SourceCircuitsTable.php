@@ -6,7 +6,7 @@ namespace App\Filament\Resources\Procurement\Crawler\SourceCircuits\Tables;
 
 use App\Enums\Procurement\Crawler\SourceStage;
 use App\Models\Procurement\Crawler\SourceCircuit;
-use App\Services\Procurement\SourceControl\SourceCircuitController;
+use App\Services\Procurement\SourceControl\SourceStageOperations;
 use App\Services\Procurement\SourceControl\SuspendedRunResumer;
 use Filament\Actions\Action;
 use Filament\Actions\EditAction;
@@ -18,8 +18,8 @@ use Filament\Tables\Table;
 use Illuminate\Support\Facades\Auth;
 
 /**
- * Пульт источников. «Пауза» и «Возобновить сейчас» зовут тот же `SourceCircuitController`,
- * что и автоматика, — правила переходов у оператора и у скриптов одни.
+ * Пульт источников. «Пауза» и «Возобновить сейчас» — `SourceStageOperations`: состояние меняет
+ * тот же `SourceCircuitBreaker`, что и автоматика, событие пишет `SourceEventReporter`.
  */
 final class SourceCircuitsTable
 {
@@ -50,7 +50,7 @@ final class SourceCircuitsTable
                     ->requiresConfirmation()
                     ->action(function (SourceCircuit $record, array $data): void {
                         $reason = $data['reason'] ?? null;
-                        app(SourceCircuitController::class)->pause(
+                        app(SourceStageOperations::class)->pause(
                             circuit: $record,
                             actor: self::actor(),
                             reason: is_string($reason) ? $reason : null,
@@ -66,7 +66,7 @@ final class SourceCircuitsTable
                     ->modalDescription('Пауза и ожидание снимаются, счётчик сбрасывается; приостановленные прогоны листинга ставятся в очередь сразу.')
                     ->action(function (SourceCircuit $record): void {
                         $actor = self::actor();
-                        app(SourceCircuitController::class)->resume(circuit: $record, actor: $actor);
+                        app(SourceStageOperations::class)->resume(circuit: $record, actor: $actor);
                         $dispatched = $record->stage === SourceStage::Listing
                             ? app(SuspendedRunResumer::class)->resumePlatform(platformId: $record->platform_id, actor: $actor)
                             : 0;

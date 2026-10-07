@@ -4,15 +4,15 @@ declare(strict_types=1);
 
 namespace App\Services\Procurement\SourceControl;
 
+use App\Enums\Procurement\Crawler\CrawlerEventCode;
 use App\Enums\Procurement\Crawler\CrawlerExecutionLane;
 use App\Enums\Procurement\Crawler\CrawlerMode;
 use App\Enums\Procurement\Crawler\RunPurpose;
 use App\Enums\Procurement\Crawler\RunStatus;
-use App\Enums\Procurement\Crawler\SourceIncidentType;
 use App\Enums\Procurement\Crawler\SourceStage;
 use App\Jobs\Procurement\CrawlRunJob;
 use App\Models\Procurement\Crawler\Run;
-use App\Models\Procurement\Crawler\SourceCircuit;
+use App\Repositories\Procurement\Crawler\SourceCircuitRepository;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Carbon;
 
@@ -30,7 +30,11 @@ use Illuminate\Support\Carbon;
  */
 final readonly class SuspendedRunResumer
 {
-    public function __construct(private SourceIncidentRecorder $incidents) {}
+    public function __construct(
+        private SourceCircuitRepository $circuits,
+        private SourceCircuitBreaker $breaker,
+        private SourceEventReporter $events,
+    ) {}
 
     /** Этапы, чьё ожидание истекло (без ручной паузы). */
     public function resumeDue(?Carbon $now = null): int
@@ -38,17 +42,11 @@ final readonly class SuspendedRunResumer
         $now ??= Carbon::now();
         $resumed = 0;
 
-        $due = SourceCircuit::query()
-            ->whereNotNull('retry_at')
-            ->where('retry_at', '<=', $now)
-            ->where('manually_paused', false)
-            ->get();
-
-        foreach ($due as $circuit) {
-            $circuit->update(['retry_at' => null]);
+        foreach ($this->circuits->waitingExpired($now) as $circuit) {
+            $this->breaker->finishWaiting($circuit);
 
             if ($circuit->stage === SourceStage::Listing) {
-                $resumed += $this->resumePlatform(platformId: $circuit->platform_id, actor: SourceCircuitController::SystemActor);
+                $resumed += $this->resumePlatform(platformId: $circuit->platform_id, actor: SourceCircuitBreaker::SystemActor);
             }
         }
 
@@ -77,9 +75,9 @@ final readonly class SuspendedRunResumer
             }
 
             $dispatched++;
-            $this->incidents->record(
+            $this->events->report(
+                code: CrawlerEventCode::RunResumed,
                 platformId: $platformId,
-                type: SourceIncidentType::RunResumed,
                 message: "Прогон #{$run->id} возобновлён после паузы источника.",
                 crawlerId: $run->crawler_id,
                 runId: $run->id,

@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace App\Filament\Resources\Procurement\Crawler\SourceIncidents\Tables;
 
+use App\Enums\Procurement\Crawler\CrawlerEventCode;
 use App\Enums\Procurement\Crawler\SourceFailureKind;
 use App\Enums\Procurement\Crawler\SourceIncidentSeverity;
-use App\Enums\Procurement\Crawler\SourceIncidentType;
 use App\Models\Procurement\Crawler\SourceIncident;
 use Filament\Actions\Action;
 use Filament\Tables\Columns\TextColumn;
@@ -37,7 +37,7 @@ final class SourceIncidentsTable
             TextColumn::make('acknowledged_at')->label('Разобрано')->dateTime()->placeholder('—'),
         ])
             ->filters([
-                SelectFilter::make('type')->label('Событие')->options(SourceIncidentType::class),
+                SelectFilter::make('type')->label('Событие')->options(CrawlerEventCode::class),
                 SelectFilter::make('severity')->label('Важность')->options(SourceIncidentSeverity::class),
                 SelectFilter::make('failure_kind')->label('Класс отказа')->options(SourceFailureKind::class),
                 TernaryFilter::make('acknowledged')

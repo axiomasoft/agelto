@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Database\Factories\Procurement\Crawler;
 
 use App\Enums\Procurement\Crawler\SourceFailureKind;
-use App\Enums\Procurement\Crawler\SourceIncidentType;
+use App\Enums\Procurement\Crawler\CrawlerEventCode;
 use App\Models\Procurement\Crawler\SourceIncident;
 use App\Models\Procurement\Platform\Platform;
 use Illuminate\Database\Eloquent\Factories\Factory;
@@ -19,8 +19,8 @@ final class SourceIncidentFactory extends Factory
     {
         return [
             'platform_id' => Platform::factory(),
-            'type' => SourceIncidentType::BlockSkipped,
-            'severity' => SourceIncidentType::BlockSkipped->severity(),
+            'type' => CrawlerEventCode::CsvSourceBlocked,
+            'severity' => CrawlerEventCode::CsvSourceBlocked->severity(),
             'failure_kind' => SourceFailureKind::SourceBlocked,
             'http_status' => 403,
             'message' => 'Блок пропущен: площадка ответила 403.',

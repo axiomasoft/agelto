@@ -4,28 +4,33 @@ declare(strict_types=1);
 
 namespace App\Services\Procurement\SourceControl;
 
+use App\Enums\Procurement\Crawler\CrawlerEventCode;
 use App\Enums\Procurement\Crawler\SourceFailureKind;
-use App\Enums\Procurement\Crawler\SourceIncidentSeverity;
-use App\Enums\Procurement\Crawler\SourceIncidentType;
-use App\Events\Procurement\SourceIncidentRecorded;
+use App\Enums\Procurement\Crawler\SourceStage;
 use App\Models\Procurement\Crawler\SourceIncident;
-use Illuminate\Support\Facades\Log;
 
 /**
- * Единственная точка записи журнала инцидентов: строка `prc_source_incidents` + структурный
- * лог с уровнем по важности + доменное событие `SourceIncidentRecorded`.
+ * Единственный путь любого события источника (отказ, ожидание, пауза, возобновление):
+ * публикация в журнал + структурный лог с одними и теми же тегами. Вызывать вне транзакции
+ * обрабатываемого блока/карточки, чтобы запись пережила её откат.
  */
-final readonly class SourceIncidentRecorder
+final readonly class SourceEventReporter
 {
+    public function __construct(
+        private SourceIncidentPublisher $publisher,
+        private SourceEventLogger $logger,
+    ) {}
+
     /**
      * @param  array<string, mixed>|null  $cursor
      * @param  array<string, mixed>|null  $requestParams
      * @param  array<string, mixed>  $context
      */
-    public function record(
+    public function report(
+        CrawlerEventCode $code,
         int $platformId,
-        SourceIncidentType $type,
         string $message,
+        ?SourceStage $stage = null,
         ?int $crawlerId = null,
         ?int $runId = null,
         ?int $fetchId = null,
@@ -36,44 +41,33 @@ final readonly class SourceIncidentRecorder
         array $context = [],
         ?string $actor = null,
     ): SourceIncident {
-        $severity = $type->severity();
+        $context = array_filter(['stage' => $stage?->value] + $context, static fn (mixed $value): bool => $value !== null);
 
-        $incident = SourceIncident::create([
+        $incident = $this->publisher->publish($code, $message, [
             'platform_id' => $platformId,
             'crawler_id' => $crawlerId,
             'run_id' => $runId,
             'fetch_id' => $fetchId,
-            'type' => $type,
-            'severity' => $severity,
             'failure_kind' => $failureKind,
             'http_status' => $httpStatus,
             'cursor' => $cursor,
             'request_params' => $requestParams,
-            'message' => $message,
             'context' => $context === [] ? null : $context,
             'actor' => $actor,
-            'created_at' => now(),
         ]);
 
-        $logContext = array_filter([
+        $this->logger->log($code, $message, [
             'incident_id' => $incident->id,
-            'type' => $type->value,
             'platform_id' => $platformId,
             'crawler_id' => $crawlerId,
             'run_id' => $runId,
             'fetch_id' => $fetchId,
             'failure_kind' => $failureKind?->value,
             'http_status' => $httpStatus,
+            'cursor' => $cursor,
+            'request_params' => $requestParams,
             'actor' => $actor,
-        ], static fn (mixed $value): bool => $value !== null);
-
-        match ($severity) {
-            SourceIncidentSeverity::Critical => Log::critical("Источник: {$message}", $logContext),
-            SourceIncidentSeverity::Warning => Log::warning("Источник: {$message}", $logContext),
-            SourceIncidentSeverity::Info => Log::info("Источник: {$message}", $logContext),
-        };
-
-        SourceIncidentRecorded::dispatch($incident->id, $platformId, $type, $severity, $message);
+        ] + $context);
 
         return $incident;
     }

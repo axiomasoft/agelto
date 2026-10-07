@@ -8,9 +8,9 @@ use App\Dto\Procurement\Crawler\ListingCursor;
 use App\Dto\Procurement\Crawler\WindowFilter;
 use App\Dto\Procurement\ProcurementDetails;
 use App\Enums\Procurement\Crawler\ArchiveWindowScanResult;
+use App\Enums\Procurement\Crawler\CrawlerEventCode;
 use App\Enums\Procurement\Crawler\CrawlerMode;
 use App\Enums\Procurement\Crawler\RunStatus;
-use App\Enums\Procurement\Crawler\SourceIncidentType;
 use App\Enums\Procurement\Crawler\SourceMethod as SourceMethodEnum;
 use App\Exceptions\Procurement\Crawler\PlatformBudgetExhaustedException;
 use App\Models\Procurement\Crawler\Crawler;
@@ -302,7 +302,7 @@ test('отказ блока не закрывает интервал: блок �
 
     expect($result)->toBe(ArchiveWindowScanResult::Drained)
         ->and(Procurement::query()->count())->toBe(3)
-        ->and(SourceIncident::query()->sole()->type)->toBe(SourceIncidentType::BlockSkipped)
+        ->and(SourceIncident::query()->sole()->type)->toBe(CrawlerEventCode::CsvSourceBlocked)
         ->and($levels)->toBe([$baseLevel]);
 });
 

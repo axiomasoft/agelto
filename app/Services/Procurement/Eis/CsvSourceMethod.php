@@ -161,6 +161,9 @@ final readonly class CsvSourceMethod implements DeadlineAwareSourceMethod
             waitMs: $waitMs,
             rowsMalformed: $malformed,
             header: $header,
+            // У ЕИС даже пустая выдача содержит строку заголовка; тело без единого символа —
+            // аномалия (`CRAWLER_CSV_EMPTY`), а не конец данных.
+            emptyBody: trim($utf8Body) === '',
         );
     }
 

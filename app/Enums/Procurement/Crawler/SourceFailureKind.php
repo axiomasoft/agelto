@@ -28,13 +28,23 @@ enum SourceFailureKind: string implements HasLabel
     /** Прочий не-2xx (404, 410, …). */
     case UnexpectedStatus = 'unexpected_status';
 
-    /** Скачалось, но не по формату: нет обязательных колонок или ни одна запись не разобрана. */
+    /** 2xx с пустым телом — по наблюдениям ЕИС так не отвечает. Пропуск + критичный инцидент. */
+    case EmptyBody = 'empty_body';
+
+    /** Скачалось, записи есть, но ни одна не разобрана. */
     case InvalidContent = 'invalid_content';
 
     /** Блок принят, но часть строк не разобрана. Не пропуск и не повод для паузы. */
     case RowErrors = 'row_errors';
 
-    /** HTML-карточка: нет базовых селекторов эталона — вёрстка изменилась. */
+    /** Исключение нашего кода (не сеть, не площадка). Не учитывается брейкером. */
+    case CodeError = 'code_error';
+
+    /**
+     * Изменилась структура источника: в заголовке CSV нет обязательных колонок или на карточке
+     * нет базовых селекторов. Сам не починится — серия таких отказов останавливает этап до
+     * решения оператора (`requiresOperator`), а не ставит таймер.
+     */
     case LayoutDrift = 'layout_drift';
 
     /** Блок целиком не прочитан (курсор идёт дальше, инцидент записан). */
@@ -43,10 +53,20 @@ enum SourceFailureKind: string implements HasLabel
         return $this !== self::RowErrors;
     }
 
-    /** Учитывается брейкером этапа. Ошибки строк — нет: источник ответил по формату. */
+    /**
+     * Учитывается брейкером этапа. Не учитываются: ошибки строк (блок принят), пустое тело (по
+     * решению владельца обход не останавливается, только громко сообщает) и ошибки нашего кода
+     * (площадка тут ни при чём — останавливать сбор из-за них нельзя).
+     */
     public function countsTowardCircuit(): bool
     {
-        return $this !== self::RowErrors;
+        return ! in_array($this, [self::RowErrors, self::EmptyBody, self::CodeError], true);
+    }
+
+    /** Серия таких отказов останавливает этап до оператора, автоповтора нет. */
+    public function requiresOperator(): bool
+    {
+        return $this === self::LayoutDrift;
     }
 
     public function label(): string
@@ -56,9 +76,11 @@ enum SourceFailureKind: string implements HasLabel
             self::SourceBlocked => 'Площадка блокирует (401/403/429/451)',
             self::SourceUnavailable => 'Не скачалось (5xx/таймаут/соединение)',
             self::UnexpectedStatus => 'Неожиданный HTTP-статус',
-            self::InvalidContent => 'Ответ не по формату',
+            self::EmptyBody => 'Пустой ответ',
+            self::CodeError => 'Ошибка кода',
+            self::InvalidContent => 'Записи не разобраны',
             self::RowErrors => 'Ошибки отдельных строк',
-            self::LayoutDrift => 'Изменилась вёрстка страницы',
+            self::LayoutDrift => 'Изменилась структура (колонки/селекторы)',
         };
     }
 

@@ -2,17 +2,17 @@
 
 declare(strict_types=1);
 
+use App\Enums\Procurement\Crawler\CrawlerEventCode;
 use App\Enums\Procurement\Crawler\CrawlerMode;
 use App\Enums\Procurement\Crawler\RunPurpose;
 use App\Enums\Procurement\Crawler\RunStatus;
-use App\Enums\Procurement\Crawler\SourceIncidentType;
 use App\Enums\Procurement\Crawler\SourceStage;
 use App\Jobs\Procurement\CrawlRunJob;
 use App\Models\Procurement\Crawler\Crawler;
 use App\Models\Procurement\Crawler\Run;
 use App\Models\Procurement\Crawler\SourceCircuit;
 use App\Models\Procurement\Crawler\SourceIncident;
-use App\Services\Procurement\SourceControl\SourceCircuitController;
+use App\Services\Procurement\SourceControl\SourceStageOperations;
 use App\Services\Procurement\SourceControl\SuspendedRunResumer;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Queue;
@@ -45,7 +45,7 @@ test('автоповтор: истёкшая пауза поднимает пр�
     Queue::assertPushed(CrawlRunJob::class, fn (CrawlRunJob $job): bool => $job->crawlerId === $this->crawler->id && $job->mode === CrawlerMode::Fresh);
     expect($run->fresh()->stats->has('source_suspended'))->toBeFalse()
         ->and(SourceCircuit::query()->sole()->retry_at)->toBeNull()
-        ->and(SourceIncident::query()->where('type', SourceIncidentType::RunResumed)->sole()->run_id)->toBe($run->id);
+        ->and(SourceIncident::query()->where('type', CrawlerEventCode::RunResumed)->sole()->run_id)->toBe($run->id);
 });
 
 test('автоповтор ждёт retry_at и не трогает ручную паузу', function (): void {
@@ -64,7 +64,7 @@ test('оператор возобновляет сразу, минуя ожид�
     SourceCircuit::factory()->create(['platform_id' => $this->platformId, 'retry_at' => now()->addHour()]);
     suspendedRun($this->crawler);
 
-    app(SourceCircuitController::class)->resume(SourceCircuit::query()->sole(), 'operator@agelto.ru');
+    app(SourceStageOperations::class)->resume(SourceCircuit::query()->sole(), 'operator@agelto.ru');
     $dispatched = app(SuspendedRunResumer::class)->resumePlatform(platformId: $this->platformId, actor: 'operator@agelto.ru');
 
     expect($dispatched)->toBe(1)

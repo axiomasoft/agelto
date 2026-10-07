@@ -18,7 +18,7 @@ use Filament\Tables\Table;
 /**
  * «Источники»: состояние брейкера каждой площадки и ручное управление обходом —
  * пауза, «возобновить сейчас» (минуя ожидание), пороги брейкера и интервал автоповтора.
- * Строки создаёт автоматика (`SourceCircuitController::circuitFor`), поэтому create/delete нет.
+ * Строки создаёт автоматика (`SourceCircuitRepository::forStage`), поэтому create/delete нет.
  */
 final class SourceCircuitResource extends Resource
 {

@@ -6,11 +6,11 @@ use App\Dto\Procurement\Crawler\EisSearchFilter;
 use App\Dto\Procurement\Crawler\ListingBatch;
 use App\Dto\Procurement\Crawler\ListingCursor;
 use App\Dto\Procurement\ProcurementDetails;
+use App\Enums\Procurement\Crawler\CrawlerEventCode;
 use App\Enums\Procurement\Crawler\CrawlerMode;
 use App\Enums\Procurement\Crawler\RunStatus;
 use App\Enums\Procurement\Crawler\RunStopPolicy;
 use App\Enums\Procurement\Crawler\SourceFailureKind;
-use App\Enums\Procurement\Crawler\SourceIncidentType;
 use App\Enums\Procurement\Crawler\SourceMethod as SourceMethodEnum;
 use App\Enums\Procurement\Proxy\ProxyScope;
 use App\Exceptions\Procurement\Proxy\NoProxyAvailableException;
@@ -158,7 +158,7 @@ test('нераспознанный блок записан инцидентом 
         ->and($run->cursor['blockFrom'])->toBe(501)
         ->and($fetch?->rows_errors)->toBe(1)
         ->and($fetch?->artifact_ref)->not->toBeNull()
-        ->and($incident->type)->toBe(SourceIncidentType::BlockSkipped)
+        ->and($incident->type)->toBe(CrawlerEventCode::CsvInvalidContent)
         ->and($incident->failure_kind)->toBe(SourceFailureKind::InvalidContent)
         ->and($incident->fetch_id)->toBe($fetch?->id)
         ->and($incident->run_id)->toBe($run->id);
@@ -180,7 +180,7 @@ test('страница ошибки (403) не завершает fresh как �
 
     expect($run->status)->toBe(RunStatus::Completed)
         ->and(Procurement::query()->count())->toBe(1)
-        ->and(SourceIncident::query()->where('type', SourceIncidentType::BlockSkipped)->count())->toBe(1);
+        ->and(SourceIncident::query()->where('type', CrawlerEventCode::CsvSourceBlocked)->count())->toBe(1);
 });
 
 test('массовые отказы уводят листинг в ожидание: прогон приостановлен на том же блоке, а не провален', function (): void {
@@ -198,9 +198,10 @@ test('массовые отказы уводят листинг в ожидан�
         ->and($run->cursor['blockFrom'])->toBe(501)
         ->and(SourceCircuit::query()->sole()->retry_at)->not->toBeNull()
         ->and(SourceIncident::query()->orderBy('id')->pluck('type')->all())->toBe([
-            SourceIncidentType::BlockSkipped,
-            SourceIncidentType::CircuitOpened,
-            SourceIncidentType::RunSuspended,
+            CrawlerEventCode::CsvSourceUnavailable,
+            CrawlerEventCode::CsvSourceUnavailable,
+            CrawlerEventCode::StageWaiting,
+            CrawlerEventCode::RunSuspended,
         ]);
 });
 
@@ -242,7 +243,7 @@ test('нет прокси: отказ транспорта считается б
 
     expect($run->status)->toBe(RunStatus::Paused)
         ->and($run->cursor['blockFrom'] ?? 1)->toBe(1)
-        ->and(SourceIncident::query()->where('type', SourceIncidentType::CircuitOpened)->sole()->failure_kind)
+        ->and(SourceIncident::query()->where('type', CrawlerEventCode::StageWaiting)->sole()->failure_kind)
         ->toBe(SourceFailureKind::ProxyUnavailable);
 });
 

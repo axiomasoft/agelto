@@ -85,6 +85,7 @@ final class SourceCircuit extends Model
     public function statusLabel(): string
     {
         return match (true) {
+            $this->manually_paused && $this->changed_by === 'system' => 'Остановлен: изменилась структура',
             $this->manually_paused => 'Пауза оператора',
             $this->enabled && $this->isWaiting() => 'Ожидание',
             default => 'Работает',

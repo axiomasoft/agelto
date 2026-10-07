@@ -2,8 +2,8 @@
 
 declare(strict_types=1);
 
+use App\Enums\Procurement\Crawler\CrawlerEventCode;
 use App\Enums\Procurement\Crawler\RunStatus;
-use App\Enums\Procurement\Crawler\SourceIncidentType;
 use App\Filament\Resources\Procurement\Crawler\SourceCircuits\Pages\EditSourceCircuit;
 use App\Filament\Resources\Procurement\Crawler\SourceCircuits\Pages\ListSourceCircuits;
 use App\Filament\Resources\Procurement\Crawler\SourceIncidents\Pages\ListSourceIncidents;
@@ -45,7 +45,7 @@ test('оператор ставит источник на паузу из адм
         ->assertHasNoTableActionErrors();
 
     expect($this->circuit->fresh()->manually_paused)->toBeTrue()
-        ->and(SourceIncident::query()->where('type', SourceIncidentType::ManualPause)->sole()->actor)->toBe('operator@agelto.ru');
+        ->and(SourceIncident::query()->where('type', CrawlerEventCode::ManualPause)->sole()->actor)->toBe('operator@agelto.ru');
 });
 
 test('«Возобновить сейчас» снимает ожидание и ставит приостановленные прогоны в очередь без ожидания', function (): void {

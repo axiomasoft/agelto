@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Events\Procurement;
 
+use App\Enums\Procurement\Crawler\CrawlerEventCode;
 use App\Enums\Procurement\Crawler\SourceIncidentSeverity;
-use App\Enums\Procurement\Crawler\SourceIncidentType;
 use Illuminate\Contracts\Events\ShouldDispatchAfterCommit;
 use Illuminate\Foundation\Events\Dispatchable;
 
@@ -22,7 +22,7 @@ final readonly class SourceIncidentRecorded implements ShouldDispatchAfterCommit
     public function __construct(
         public int $incidentId,
         public int $platformId,
-        public SourceIncidentType $type,
+        public CrawlerEventCode $type,
         public SourceIncidentSeverity $severity,
         public string $message,
     ) {}
