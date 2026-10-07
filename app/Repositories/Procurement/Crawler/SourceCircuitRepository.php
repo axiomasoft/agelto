@@ -20,6 +20,14 @@ final readonly class SourceCircuitRepository
     /** Строка (площадка, этап); создаётся при первом обращении без переопределений порогов. */
     public function forStage(int $platformId, SourceStage $stage): SourceCircuit
     {
+        // Чтение первым: проверка «пускает ли этап» идёт перед каждым блоком и карточкой —
+        // безусловный INSERT … ON CONFLICT делал бы запись в БД на каждую проверку.
+        $existing = SourceCircuit::query()->where('platform_id', $platformId)->where('stage', $stage)->first();
+
+        if ($existing !== null) {
+            return $existing;
+        }
+
         SourceCircuit::query()->insertOrIgnore([
             'platform_id' => $platformId,
             'stage' => $stage->value,
@@ -54,6 +62,22 @@ final readonly class SourceCircuitRepository
             ->where('stage', $stage)
             ->where(fn ($query) => $query->where('consecutive_failures', '>', 0)->orWhere('consecutive_layout_failures', '>', 0))
             ->update(['consecutive_failures' => 0, 'consecutive_layout_failures' => 0, 'updated_at' => now()]);
+    }
+
+    /**
+     * Площадки, на которых этап сейчас не пускает запросы (пауза, остановка, ожидание).
+     * Условия совпадают с `SourceCircuit::status()`.
+     *
+     * @return list<int>
+     */
+    public function notAdmittingPlatformIds(SourceStage $stage, Carbon $now): array
+    {
+        return array_values(SourceCircuit::query()
+            ->where('stage', $stage)
+            ->where(fn ($query) => $query->where('manually_paused', true)->orWhereNotNull('held_at')->orWhere('retry_at', '>', $now))
+            ->get(['platform_id'])
+            ->map(static fn (SourceCircuit $circuit): int => $circuit->platform_id)
+            ->all());
     }
 
     /** @return Collection<int, SourceCircuit> этапы, у которых истекло ожидание по таймеру */
