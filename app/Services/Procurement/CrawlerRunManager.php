@@ -343,7 +343,7 @@ final class CrawlerRunManager
 
     /**
      * Сигнал `Cancel` стоп-гейта (P3.2, D28): терминальный статус, `finished_at` проставляется
-     * тем же приёмом, что `complete()`/`fail()`; запрос остановки гасится.
+     * тем же приёмом, что `complete()`; запрос остановки гасится.
      */
     public function cancel(Run $run, string $reason): void
     {
@@ -514,21 +514,6 @@ final class CrawlerRunManager
         $run->refresh();
 
         return $updated === 1;
-    }
-
-    public function fail(Run $run, string $error): void
-    {
-        $this->ownedRunningQuery(run: $run)->update([
-            'status' => RunStatus::Failed,
-            'finished_at' => now(),
-            'last_error' => $error,
-            'last_error_at' => now(),
-            'execution_owner_token' => null,
-            'execution_lease_expires_at' => null,
-        ]);
-
-        $run->refresh();
-        $this->forgetExecutionOwnerToken(run: $run);
     }
 
     public function releaseExecutionLease(Run $run): bool
