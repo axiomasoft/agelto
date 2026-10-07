@@ -16,6 +16,7 @@ use App\Models\Procurement\Crawler\Run;
 use App\Services\Procurement\CrawlerRunManager;
 use App\Services\Procurement\CsvBlockIngestor;
 use App\Services\Procurement\RunStopGate;
+use App\Services\Procurement\SourceControl\SourceRunControl;
 use App\Services\Procurement\SourceMethodFactory;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Log;
@@ -36,6 +37,7 @@ final readonly class FreshRunProcessor
         private CrawlerRunManager $runs,
         private CsvBlockIngestor $ingestor,
         private RunStopGate $stopGate,
+        private SourceRunControl $sourceControl,
     ) {}
 
     public function run(Crawler $crawler, ?Run $run = null): Run
@@ -89,9 +91,49 @@ final readonly class FreshRunProcessor
                     return $run;
                 }
 
+                // Источник на паузе (брейкер открыт или пауза оператора): прогон приостановлен
+                // с тем же курсором, его поднимет `crawler:source-circuits` или оператор.
+                if (! $this->sourceControl->admit(crawler: $crawler, run: $run)) {
+                    return $run;
+                }
+
                 $sourceMethod = $this->factory->makeWithFallback(crawler: $crawler);
-                $batch = $sourceMethod->collectListing(crawler: $crawler, cursor: $cursor);
+
+                try {
+                    $batch = $sourceMethod->collectListing(crawler: $crawler, cursor: $cursor);
+                } catch (PlatformBudgetExhaustedException $exception) {
+                    throw $exception;
+                } catch (Throwable $exception) {
+                    if ($this->sourceControl->onTransportFailure(crawler: $crawler, run: $run, exception: $exception, requestParams: $cursor->toArray())) {
+                        return $run;
+                    }
+
+                    // Локальный отказ транспорта записан инцидентом — блок пропускается.
+                    $cursor = $cursor->afterFreshBlock(blockSize: $blockSize, dedupSignature: null);
+                    $this->runs->updateCursor(run: $run, cursor: $cursor);
+                    $this->runs->heartbeat(run: $run);
+
+                    continue;
+                }
+
                 $fetchResult = $this->ingestor->ingest(crawler: $crawler, run: $run, batch: $batch);
+
+                if ($fetchResult->sourceSuspended) {
+                    $this->sourceControl->suspend(crawler: $crawler, run: $run);
+
+                    return $run;
+                }
+
+                // Skip-and-record: отказ блока уже записан инцидентом (курсор, fetch, класс),
+                // курсор переходит через блок. Стоп-условия по содержимому не проверяются —
+                // у непрочитанного блока его нет (иначе 403 выглядел бы «источник исчерпан»).
+                if ($fetchResult->blockSkipped()) {
+                    $cursor = $cursor->afterFreshBlock(blockSize: $blockSize, dedupSignature: null);
+                    $this->runs->updateCursor(run: $run, cursor: $cursor);
+                    $this->runs->heartbeat(run: $run);
+
+                    continue;
+                }
 
                 if ($fetchResult->oldestUpdateSeen !== null) {
                     $this->runs->recordOldestUpdateSeen(run: $run, candidate: $fetchResult->oldestUpdateSeen);

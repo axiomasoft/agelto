@@ -13,6 +13,7 @@ use App\Enums\Procurement\Crawler\RunStopKind;
 use App\Exceptions\Procurement\Crawler\PlatformBudgetExhaustedException;
 use App\Models\Procurement\Crawler\Crawler;
 use App\Models\Procurement\Crawler\Run;
+use App\Services\Procurement\SourceControl\SourceRunControl;
 use Illuminate\Support\Facades\Log;
 
 /**
@@ -36,6 +37,7 @@ final readonly class ArchiveWindowScanner
         private CrawlerRunManager $runs,
         private CsvBlockIngestor $ingestor,
         private RunStopGate $stopGate,
+        private SourceRunControl $sourceControl,
     ) {}
 
     public function scan(Crawler $crawler, Run $run, WindowFilter $filter, ?RecoveryScope $recoveryScope = null): ArchiveWindowScanResult
@@ -132,6 +134,12 @@ final readonly class ArchiveWindowScanner
             $executionCrawler = clone $crawler;
             $executionCrawler->filter = $profileFilter;
             $executionCrawler = $recoveryScope?->applyTo(runtimeCrawler: $executionCrawler) ?? $executionCrawler;
+            // Источник на паузе (брейкер открыт или пауза оператора): прогон приостановлен с тем
+            // же курсором; его поднимет `crawler:source-circuits` или оператор.
+            if (! $this->sourceControl->admit(crawler: $crawler, run: $run)) {
+                return ArchiveWindowScanResult::Stopped;
+            }
+
             $sourceMethod = $this->factory->makeWithFallback(crawler: $executionCrawler);
             try {
                 $batch = $sourceMethod->collectListing(crawler: $executionCrawler, cursor: $iterationCursor);
@@ -139,7 +147,30 @@ final readonly class ArchiveWindowScanner
                 $this->runs->recordCheckpoint(run: $run);
 
                 return ArchiveWindowScanResult::Checkpointed;
+            } catch (\Throwable $exception) {
+                if ($this->sourceControl->onTransportFailure(crawler: $crawler, run: $run, exception: $exception, requestParams: $iterationCursor->toArray())) {
+                    return ArchiveWindowScanResult::Stopped;
+                }
+
+                // Локальный отказ транспорта записан инцидентом — блок пропускается.
+                $previousSignature = null;
+                $blockFrom += $blockSize;
+                $blocksInInterval++;
+                $this->runs->withinExecutionLease(run: $run, callback: fn () => $this->persistCursor(
+                    run: $run,
+                    day: $day,
+                    stack: $stack,
+                    blockFrom: $blockFrom,
+                    dateField: $dateField,
+                    lastDedupSignature: $previousSignature,
+                    blocksInInterval: $blocksInInterval,
+                    recoveryScope: $recoveryScope,
+                ));
+
+                continue;
             }
+
+            $suspended = false;
 
             // A request may outlive the lease. Its ingestion and checkpoint are one short
             // PostgreSQL row-locked section: a takeover waits for all block writes to commit
@@ -149,6 +180,7 @@ final readonly class ArchiveWindowScanner
                 &$blocksInInterval,
                 &$previousSignature,
                 &$stack,
+                &$suspended,
                 $batch,
                 $blockSize,
                 $crawler,
@@ -158,9 +190,22 @@ final readonly class ArchiveWindowScanner
                 $recoveryScope,
                 $run,
             ): ?ArchiveWindowScanResult {
-                $this->ingestor->ingest(crawler: $crawler, run: $run, batch: $batch);
+                $fetchResult = $this->ingestor->ingest(crawler: $crawler, run: $run, batch: $batch);
 
-                if ($batch->rowsTotal < $blockSize) {
+                if ($fetchResult->sourceSuspended) {
+                    // Системный сбой: курсор остаётся на этом блоке.
+                    $suspended = true;
+
+                    return ArchiveWindowScanResult::Stopped;
+                }
+
+                if ($fetchResult->blockSkipped()) {
+                    // Skip-and-record: отказ записан инцидентом; `rowsTotal` непрочитанного блока
+                    // ничего не говорит о конце интервала, поэтому идём к следующему блоку.
+                    $previousSignature = null;
+                    $blockFrom += $blockSize;
+                    $blocksInInterval++;
+                } elseif ($batch->rowsTotal < $blockSize) {
                     array_pop($stack);
                     $blockFrom = 1;
                     $previousSignature = null;
@@ -207,6 +252,10 @@ final readonly class ArchiveWindowScanner
 
                 return null;
             });
+
+            if ($suspended) {
+                $this->sourceControl->suspend(crawler: $crawler, run: $run);
+            }
 
             if ($result !== null) {
                 return $result;

@@ -3,12 +3,16 @@
 declare(strict_types=1);
 
 use App\Dto\Procurement\Crawler\ListingBatch;
+use App\Enums\Procurement\Crawler\ListingFailureKind;
+use App\Enums\Procurement\Crawler\SourceCircuitState;
+use App\Enums\Procurement\Crawler\SourceIncidentType;
 use App\Enums\Procurement\ProcurementEventType;
-use App\Exceptions\Procurement\Crawler\ListingBlockRejectedException;
 use App\Models\Procurement\Crawler\Crawler;
 use App\Models\Procurement\Crawler\Fetch;
 use App\Models\Procurement\Crawler\IgnoredItem;
 use App\Models\Procurement\Crawler\Run;
+use App\Models\Procurement\Crawler\SourceCircuit;
+use App\Models\Procurement\Crawler\SourceIncident;
 use App\Models\Procurement\Platform\Registry;
 use App\Models\Procurement\Procurement;
 use App\Models\Procurement\ProcurementEvent;
@@ -275,13 +279,17 @@ test('ошибка маппера записывается отдельно от
     $mapper->shouldReceive('map')->once()->andThrow(new RuntimeException('Ошибка маппинга'));
     app()->instance(abstract: ListingRowMapper::class, instance: $mapper);
 
-    expect(fn () => app(CsvBlockIngestor::class)->ingest(crawler: $crawler, run: $run, batch: ingestorBatch([
+    $result = app(CsvBlockIngestor::class)->ingest(crawler: $crawler, run: $run, batch: ingestorBatch([
         ingestorCsvRow('0173200001234000001'),
-    ])))->toThrow(RuntimeException::class, 'не обработан полностью');
+    ]));
 
     $fetch = Fetch::query()->where('crawler_run_id', $run->id)->firstOrFail();
     expect($fetch->rows_parsed)->toBe(0)
-        ->and($fetch->rows_errors)->toBe(1);
+        ->and($fetch->rows_errors)->toBe(1)
+        // Ни одна запись не стала снимком — для блока это смена формата: пропуск с инцидентом.
+        ->and($result->failure)->toBe(ListingFailureKind::UnrecognizedFormat)
+        ->and($result->blockSkipped())->toBeTrue()
+        ->and(SourceIncident::query()->sole()->fetch_id)->toBe($fetch->id);
 });
 
 test('битые CSV-записи блока видны в rows_errors журнала, но не роняют блок', function (): void {
@@ -310,13 +318,13 @@ test('битые CSV-записи блока видны в rows_errors журн�
         ->and($fetch->rows_errors)->toBe(1);
 });
 
-test('страница ошибки источника не инжестится, а блок отклоняется с сохранением журнала', function (): void {
+test('страница ошибки источника не инжестится: блок пропускается с инцидентом (skip-and-record)', function (): void {
     Storage::fake('s3');
     $registry = Registry::factory()->eis()->create(['code' => 'fz44']);
     $crawler = Crawler::factory()->for($registry)->create();
     $run = Run::factory()->for($crawler)->create();
 
-    expect(fn () => app(CsvBlockIngestor::class)->ingest($crawler, $run, new ListingBatch(
+    $result = app(CsvBlockIngestor::class)->ingest($crawler, $run, new ListingBatch(
         rows: [ingestorCsvRow('0173200001234000001')],
         rawBody: '<html>Доступ ограничен</html>',
         dedupSignature: null,
@@ -324,13 +332,22 @@ test('страница ошибки источника не инжестится
         httpStatus: 403,
         durationMs: 10,
         requestParams: ['from' => '1', 'to' => '500'],
-    )))->toThrow(ListingBlockRejectedException::class, 'HTTP 403');
+    ));
+
+    $fetch = Fetch::query()->where('crawler_run_id', $run->id)->sole();
+    $incident = SourceIncident::query()->sole();
 
     expect(Procurement::query()->count())->toBe(0)
-        ->and(Fetch::query()->where('crawler_run_id', $run->id)->sole()->http_status)->toBe(403);
+        ->and($fetch->http_status)->toBe(403)
+        ->and($result->failure)->toBe(ListingFailureKind::SourceBlocked)
+        ->and($result->blockSkipped())->toBeTrue()
+        ->and($result->sourceSuspended)->toBeFalse()
+        ->and($incident->type)->toBe(SourceIncidentType::BlockSkipped)
+        ->and($incident->fetch_id)->toBe($fetch->id)
+        ->and($incident->request_params)->toEqual(['from' => '1', 'to' => '500']);
 });
 
-test('блок, ни одна запись которого не распознана маппером, отклоняется как смена формата', function (): void {
+test('блок, ни одна запись которого не распознана маппером, пропускается как смена формата', function (): void {
     Storage::fake('s3');
     $registry = Registry::factory()->eis()->create(['code' => 'fz44']);
     $crawler = Crawler::factory()->for($registry)->create();
@@ -342,9 +359,48 @@ test('блок, ни одна запись которого не распозн�
         ingestorCsvRow('0173200001234000002', ['Дата размещения' => '2026-03-01']),
     ]);
 
-    expect(fn () => app(CsvBlockIngestor::class)->ingest($crawler, $run, $batch))
-        ->toThrow(ListingBlockRejectedException::class, 'формат источника');
-    expect(Procurement::query()->count())->toBe(0);
+    $result = app(CsvBlockIngestor::class)->ingest($crawler, $run, $batch);
+
+    expect($result->failure)->toBe(ListingFailureKind::UnrecognizedFormat)
+        ->and($result->blockSkipped())->toBeTrue()
+        ->and(Procurement::query()->count())->toBe(0)
+        ->and(SourceIncident::query()->sole()->failure_kind)->toBe(ListingFailureKind::UnrecognizedFormat);
+});
+
+test('отказ, достигший порога брейкера, ставит источник на паузу и не пропускает блок', function (): void {
+    Storage::fake('s3');
+    $registry = Registry::factory()->eis()->create(['code' => 'fz44']);
+    $crawler = Crawler::factory()->for($registry)->create();
+    $run = Run::factory()->for($crawler)->create();
+    SourceCircuit::factory()->create(['platform_id' => $registry->platform_id, 'failure_threshold' => 1]);
+
+    $result = app(CsvBlockIngestor::class)->ingest($crawler, $run, new ListingBatch(
+        rows: [],
+        rawBody: '',
+        dedupSignature: null,
+        rowsTotal: 0,
+        httpStatus: 503,
+        durationMs: 10,
+        requestParams: ['from' => '1', 'to' => '500'],
+    ));
+
+    expect($result->sourceSuspended)->toBeTrue()
+        ->and($result->blockSkipped())->toBeFalse()
+        ->and(SourceCircuit::query()->sole()->state)->toBe(SourceCircuitState::Open)
+        ->and(SourceIncident::query()->sole()->type)->toBe(SourceIncidentType::CircuitOpened);
+});
+
+test('успешный блок закрывает half-open брейкер источника', function (): void {
+    Storage::fake('s3');
+    $registry = Registry::factory()->eis()->create(['code' => 'fz44']);
+    $crawler = Crawler::factory()->for($registry)->create();
+    $run = Run::factory()->for($crawler)->create();
+    SourceCircuit::factory()->create(['platform_id' => $registry->platform_id, 'state' => SourceCircuitState::HalfOpen]);
+
+    $result = app(CsvBlockIngestor::class)->ingest($crawler, $run, ingestorBatch([ingestorCsvRow('0173200001234000001')]));
+
+    expect($result->failure)->toBeNull()
+        ->and(SourceCircuit::query()->sole()->state)->toBe(SourceCircuitState::Closed);
 });
 
 test('пустой блок не считается сменой формата', function (): void {

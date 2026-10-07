@@ -318,14 +318,17 @@ final class CrawlerRunManager
      * циклом, статус — `paused` (resumable), запрос остановки гасится, чтобы `startOrResume()`
      * следующего запуска не увидел его снова.
      */
-    public function pause(Run $run, string $reason): void
+    /**
+     * @param  array<string, mixed>  $extraStats  метки причины паузы (например, `source_suspended`)
+     */
+    public function pause(Run $run, string $reason, array $extraStats = []): void
     {
         $this->ownedRunningQuery(run: $run)->update([
             'status' => RunStatus::Paused,
             'stats' => array_merge($run->stats?->toArray() ?? [], [
                 'stop_reason' => $reason,
                 'automatic_recovery_pending' => false,
-            ]),
+            ], $extraStats),
             'stop_requested_at' => null,
             'stop_kind' => null,
             'stop_requested_by' => null,

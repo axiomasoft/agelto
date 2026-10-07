@@ -9,10 +9,14 @@ use App\Dto\Procurement\Crawler\WindowFilter;
 use App\Dto\Procurement\ProcurementDetails;
 use App\Enums\Procurement\Crawler\ArchiveWindowScanResult;
 use App\Enums\Procurement\Crawler\CrawlerMode;
+use App\Enums\Procurement\Crawler\RunStatus;
+use App\Enums\Procurement\Crawler\SourceIncidentType;
 use App\Enums\Procurement\Crawler\SourceMethod as SourceMethodEnum;
 use App\Exceptions\Procurement\Crawler\PlatformBudgetExhaustedException;
 use App\Models\Procurement\Crawler\Crawler;
 use App\Models\Procurement\Crawler\Run;
+use App\Models\Procurement\Crawler\SourceCircuit;
+use App\Models\Procurement\Crawler\SourceIncident;
 use App\Models\Procurement\Platform\Registry;
 use App\Models\Procurement\Procurement;
 use App\Services\Procurement\ArchiveWindowScanner;
@@ -273,4 +277,39 @@ test('стартовый ценовой стек берётся из priceTo ф�
     Log::shouldHaveReceived('warning')
         ->withArgs(fn (string $message, array $context): bool => str_contains($message, 'max blocks per price interval') && $context['interval'] === '0:1000000000')
         ->once();
+});
+
+test('отказ блока не закрывает интервал: блок пропущен с инцидентом, сканер читает следующий', function (): void {
+    $crawler = Crawler::factory()->create(['mode' => CrawlerMode::Archive]);
+    $run = Run::factory()->for($crawler)->create(['cursor' => null]);
+
+    useArchiveQueueSourceMethod([
+        new ListingBatch(rows: [], rawBody: '<html>403</html>', dedupSignature: null, rowsTotal: 0, httpStatus: 403, durationMs: 5, requestParams: ['from' => '1']),
+        archiveScannerBatch(['0173200001234000003', '0173200001234000004'], dedupSignature: 'sig-2'),
+        archiveScannerBatch(['0173200001234000005'], dedupSignature: 'sig-3'),
+    ]);
+
+    $result = app(ArchiveWindowScanner::class)->scan(crawler: $crawler, run: $run, filter: archiveWindowFilter());
+
+    expect($result)->toBe(ArchiveWindowScanResult::Drained)
+        ->and(Procurement::query()->count())->toBe(3)
+        ->and(SourceIncident::query()->sole()->type)->toBe(SourceIncidentType::BlockSkipped);
+});
+
+test('системный отказ в archive: курсор остаётся на блоке, прогон на паузе источника', function (): void {
+    $crawler = Crawler::factory()->create(['mode' => CrawlerMode::Archive]);
+    $run = Run::factory()->for($crawler)->create(['cursor' => null]);
+    SourceCircuit::factory()->create(['platform_id' => $crawler->registry->platform_id, 'failure_threshold' => 1]);
+
+    useArchiveQueueSourceMethod([
+        new ListingBatch(rows: [], rawBody: '', dedupSignature: null, rowsTotal: 0, httpStatus: 503, durationMs: 5, requestParams: ['from' => '1']),
+    ]);
+
+    $result = app(ArchiveWindowScanner::class)->scan(crawler: $crawler, run: $run, filter: archiveWindowFilter());
+    $run->refresh();
+
+    expect($result)->toBe(ArchiveWindowScanResult::Stopped)
+        ->and($run->status)->toBe(RunStatus::Paused)
+        ->and($run->stats['source_suspended'] ?? null)->toBeTrue()
+        ->and($run->cursor['blockFrom'] ?? 1)->toBe(1);
 });

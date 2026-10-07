@@ -9,12 +9,14 @@ use App\Dto\Procurement\Crawler\FetchResult;
 use App\Dto\Procurement\Crawler\ListingBatch;
 use App\Dto\Procurement\ProcurementSnapshotData;
 use App\Enums\Procurement\Crawler\CrawlStage;
-use App\Exceptions\Procurement\Crawler\ListingBlockRejectedException;
+use App\Enums\Procurement\Crawler\SourceCircuitState;
 use App\Models\Procurement\Crawler\Crawler;
 use App\Models\Procurement\Crawler\IgnoredItem;
 use App\Models\Procurement\Crawler\Run;
 use App\Repositories\Procurement\ProcurementReadRepository;
 use App\Services\Procurement\Contracts\ListingRowMapper;
+use App\Services\Procurement\SourceControl\ListingFailureClassifier;
+use App\Services\Procurement\SourceControl\SourceCircuitController;
 use Illuminate\Support\Facades\Log;
 
 /**
@@ -33,19 +35,21 @@ final readonly class CsvBlockIngestor
         private CrawlerRunManager $runs,
         private StoreRawFetchArtifactAction $rawArtifacts,
         private OperationLogWriter $operationLogs,
+        private ListingFailureClassifier $failures,
+        private SourceCircuitController $sourceCircuit,
     ) {}
 
     public function ingest(Crawler $crawler, Run $run, ListingBatch $batch): FetchResult
     {
         $skipped = 0;
+        $unmapped = 0;
         $rowsErrors = 0;
         $snapshots = [];
         $httpRejected = $batch->httpStatus < 200 || $batch->httpStatus >= 300;
 
         // Страница ошибки (403/429/5xx после исчерпания ретраев) не является блоком листинга:
-        // её строки не инжестятся, а исключение ниже оставляет курсор на месте. Раньше HTML
-        // такой страницы разбирался как CSV, давал rowsTotal > 0 без единой закупки, и fresh/
-        // archive сдвигали курсор за непрочитанный блок (или считали окно дренированным).
+        // её строки не инжестятся. Отказ классифицируется ниже: локальный — инцидент и пропуск
+        // блока (skip-and-record), системный — пауза источника без сдвига курсора.
         foreach ($httpRejected ? [] : $batch->rows as $row) {
             try {
                 $snapshot = $this->rowMapper->map(row: $row, crawler: $crawler);
@@ -58,6 +62,7 @@ final readonly class CsvBlockIngestor
 
             if ($snapshot === null) {
                 $skipped++;
+                $unmapped++;
 
                 continue;
             }
@@ -117,7 +122,7 @@ final readonly class CsvBlockIngestor
 
         $artifactRef = $this->storeRawArtifact(crawler: $crawler, run: $run, batch: $batch);
 
-        $this->fetches->log(stage: CrawlStage::Listing, run: $run, procurementId: null, attributes: [
+        $fetch = $this->fetches->log(stage: CrawlStage::Listing, run: $run, procurementId: null, attributes: [
             'crawler_run_id' => $run->id,
             'method' => $crawler->source_method->value,
             'request_params' => $batch->requestParams,
@@ -152,19 +157,30 @@ final readonly class CsvBlockIngestor
             throw new \RuntimeException('Execution lease is no longer owned by this processor.');
         }
 
-        if ($httpRejected) {
-            throw ListingBlockRejectedException::forHttpStatus(status: $batch->httpStatus);
-        }
+        $failure = $this->failures->classifyResponse(
+            httpStatus: $batch->httpStatus,
+            records: $batch->rowsTotal,
+            mapped: $mappedRows,
+            rowFailures: $rowsErrors + $unmapped + $batch->rowsMalformed,
+        );
+        $sourceSuspended = false;
 
-        // Ни одна запись непустого блока не превратилась в снапшот: вероятнее всего изменился
-        // формат источника (переименованная колонка, другой формат даты). Тихий пропуск всего
-        // блока сдвинул бы курсор за данные, которые после исправления маппера уже не перечитать.
-        if ($batch->rowsTotal > 0 && $mappedRows === 0 && $rowsErrors === 0) {
-            throw ListingBlockRejectedException::forUnrecognizedFormat(records: $batch->rowsTotal);
-        }
-
-        if ($rowsErrors > 0) {
-            throw new \RuntimeException("Блок листинга не обработан полностью: ошибок строк {$rowsErrors}. Курсор сохранён для повтора; подробности в журнале запросов.");
+        if ($failure === null) {
+            $this->sourceCircuit->recordSuccess(crawler: $crawler, run: $run);
+        } else {
+            // Ни один отказ не молчит: инцидент с курсором, параметрами запроса и fetch id.
+            // Локальный — блок пропускается и обход идёт дальше; если отказ открыл брейкер
+            // (системный сбой), курсор остаётся на блоке, а прогон уходит в паузу источника.
+            $sourceSuspended = $this->sourceCircuit->recordFailure(
+                crawler: $crawler,
+                run: $run,
+                kind: $failure,
+                httpStatus: $batch->httpStatus,
+                fetchId: $fetch->id,
+                cursor: $this->stringKeyedArray($run->cursor?->toArray() ?? []),
+                requestParams: $this->stringKeyedArray($batch->requestParams),
+                detail: "HTTP {$batch->httpStatus}, записей {$batch->rowsTotal}, распознано {$mappedRows}, ошибок строк ".($rowsErrors + $unmapped + $batch->rowsMalformed).'.',
+            ) === SourceCircuitState::Open;
         }
 
         return new FetchResult(
@@ -177,6 +193,8 @@ final readonly class CsvBlockIngestor
             rowsDuplicated: $duplicates,
             oldestUpdateSeen: $oldestUpdateSeen,
             oldestUpdateSeenHasDayPrecision: $oldestUpdateSeenHasDayPrecision,
+            failure: $failure,
+            sourceSuspended: $sourceSuspended,
         );
     }
 
