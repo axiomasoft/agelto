@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\QueryException;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 
@@ -11,6 +12,9 @@ return new class extends Migration
     private const int HISTORY_MONTHS = 12;
 
     private const string COMMENT = 'agelto:p0.1:partition-coverage-repair';
+
+    /** `invalid_object_definition`: диапазон уже покрыт другой партицией. */
+    private const string OVERLAPPING_PARTITION_SQLSTATE = '42P17';
 
     public function up(): void
     {
@@ -59,11 +63,24 @@ return new class extends Migration
         $from = $month->toDateString();
         $to = $month->copy()->addMonthNoOverflow()->toDateString();
 
-        DB::statement(
-            "CREATE TABLE IF NOT EXISTS {$partition} PARTITION OF {$table} "
-            ."FOR VALUES FROM ('{$from}') TO ('{$to}')",
-        );
-        DB::statement("COMMENT ON TABLE {$partition} IS '".self::COMMENT."'");
+        // Наличие проверяется по ДИАПАЗОНУ, а не по имени: на свежей БД pg_partman (миграция
+        // 100047) уже создал месяц `now()+3` под своим именем `{$table}_pYYYYMMDD`, и CREATE с
+        // именем `{$table}_YYYY_MM` падал с 42P17 (overlap) — `migrate` чистой установки
+        // останавливался на этой миграции. Попытка изолирована savepoint'ом, поэтому overlap
+        // откатывает только её, а не всю транзакцию миграции.
+        try {
+            DB::transaction(static function () use ($table, $partition, $from, $to): void {
+                DB::statement(
+                    "CREATE TABLE IF NOT EXISTS {$partition} PARTITION OF {$table} "
+                    ."FOR VALUES FROM ('{$from}') TO ('{$to}')",
+                );
+                DB::statement("COMMENT ON TABLE {$partition} IS '".self::COMMENT."'");
+            });
+        } catch (QueryException $exception) {
+            if ($exception->getCode() !== self::OVERLAPPING_PARTITION_SQLSTATE) {
+                throw $exception;
+            }
+        }
     }
 
     /** @return list<Carbon> */
