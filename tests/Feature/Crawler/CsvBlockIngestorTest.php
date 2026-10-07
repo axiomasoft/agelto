@@ -94,7 +94,7 @@ test('передаёт точность самой старой даты обн�
     $run = Run::factory()->for($crawler)->create();
 
     $result = app(CsvBlockIngestor::class)->ingest(crawler: $crawler, run: $run, batch: ingestorBatch([
-        ingestorCsvRow('0173200001234000011', ['Дата обновления' => '01.03.2026 00:00:00']),
+        ingestorCsvRow('0173200001234000011', ['Дата обновления' => '01.03.2026 03:00:00']),
         ingestorCsvRow('0173200001234000012', ['Дата обновления' => '01.03.2026']),
     ]));
 

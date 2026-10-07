@@ -96,7 +96,7 @@ test('даты размещения/обновления/подачи заяво
 
     expect($snapshot->publishedAt)->toBeInstanceOf(Carbon\Carbon::class)
         ->and($snapshot->publishedAt->toDateString())->toBe('2026-03-01')
-        ->and($snapshot->sourceUpdatedAt->format('Y-m-d H:i:s'))->toBe('2026-03-02 10:15:00')
+        ->and($snapshot->sourceUpdatedAt->format('Y-m-d H:i:s'))->toBe('2026-03-02 07:15:00')
         ->and($snapshot->biddingStartsAt->toDateString())->toBe('2026-03-01')
         ->and($snapshot->biddingEndsAt->toDateString())->toBe('2026-03-15');
 });
@@ -108,8 +108,8 @@ test('дата парсится без подстановки текущего �
 
     expect($snapshot->sourceUpdatedAt->format('Y-m-d H:i:s'))->toBe($expected);
 })->with([
-    'd.m.Y H:i:s — время сохраняется целиком' => ['02.03.2026 10:15:42', '2026-03-02 10:15:42'],
-    'd.m.Y H:i — секунды нулевые, часы и минуты сохранены' => ['02.03.2026 10:15', '2026-03-02 10:15:00'],
+    'd.m.Y H:i:s — время сохраняется целиком' => ['02.03.2026 10:15:42', '2026-03-02 07:15:42'],
+    'd.m.Y H:i — секунды нулевые, часы и минуты сохранены' => ['02.03.2026 10:15', '2026-03-02 07:15:00'],
     'd.m.Y — время целиком нулевое' => ['02.03.2026', '2026-03-02 00:00:00'],
 ]);
 

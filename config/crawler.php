@@ -11,6 +11,13 @@ use App\Services\Procurement\Eis\CsvSourceMethod;
 return [
     'platforms' => [
         'eis' => [
+            /*
+            | Часовой пояс «наивных» дат-времени источника ЕИС (CSV-листинг, карточки).
+            | Даты читаются в нём и хранятся в UTC; календарные даты без времени не сдвигаются.
+            | Явная метка «МСК±N» в карточке имеет приоритет. По умолчанию — Europe/Moscow.
+            */
+            'source_timezone' => env('EIS_SOURCE_TIMEZONE', 'Europe/Moscow'),
+
             'source_methods' => [
                 SourceMethod::Csv->value => CsvSourceMethod::class,
             ],

@@ -17,6 +17,8 @@ use Illuminate\Support\Carbon;
  */
 final readonly class EisCsvRowMapper implements ListingRowMapper
 {
+    public function __construct(private EisSourceClock $clock = new EisSourceClock) {}
+
     private const string REGISTRY_NUMBER_COLUMN = 'Реестровый номер закупки';
 
     private const string PROCUREMENT_METHOD_COLUMN = 'Способ определения поставщика (подрядчика, исполнителя), подрядной организации (размещения закупки)';
@@ -142,15 +144,15 @@ final readonly class EisCsvRowMapper implements ListingRowMapper
 
         $value = trim($value);
 
-        foreach (['!d.m.Y H:i:s', '!d.m.Y H:i', '!d.m.Y'] as $format) {
-            try {
-                return Carbon::createFromFormat($format, $value);
-            } catch (\Throwable) {
-                continue;
+        foreach (['!d.m.Y H:i:s', '!d.m.Y H:i'] as $format) {
+            $date = $this->clock->parseDateTime(format: $format, value: $value);
+
+            if ($date !== null) {
+                return $date;
             }
         }
 
-        return null;
+        return $this->clock->parseDate(format: '!d.m.Y', value: $value);
     }
 
     /**
@@ -165,24 +167,16 @@ final readonly class EisCsvRowMapper implements ListingRowMapper
         $value = trim($value);
 
         foreach (['!d.m.Y H:i:s', '!d.m.Y H:i'] as $format) {
-            try {
-                $date = Carbon::createFromFormat(format: $format, time: $value);
+            $date = $this->clock->parseDateTime(format: $format, value: $value);
 
-                if ($date !== null) {
-                    return ['value' => $date, 'hasDayPrecision' => false];
-                }
-            } catch (\Throwable) {
-                continue;
+            if ($date !== null) {
+                return ['value' => $date, 'hasDayPrecision' => false];
             }
         }
 
-        try {
-            $date = Carbon::createFromFormat(format: '!d.m.Y', time: $value);
+        $date = $this->clock->parseDate(format: '!d.m.Y', value: $value);
 
-            return $date === null ? null : ['value' => $date, 'hasDayPrecision' => true];
-        } catch (\Throwable) {
-            return null;
-        }
+        return $date === null ? null : ['value' => $date, 'hasDayPrecision' => true];
     }
 
     private function stripRegistryNumberPrefix(string $registryNumber): string
