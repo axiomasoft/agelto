@@ -1,0 +1,71 @@
+<?php
+
+declare(strict_types=1);
+
+use App\Models\Procurement\Crawler\Crawler;
+use App\Models\Procurement\Crawler\SourceCircuit;
+use App\Models\Procurement\Crawler\SourceIncident;
+use App\Models\Procurement\Platform\Platform;
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+/**
+ * Контур управления источником: брейкер на площадку (`prc_source_circuits`, одна строка на
+ * площадку, пороги редактируются в админке) и журнал инцидентов (`prc_source_incidents`:
+ * пропущенные блоки, открытия/закрытия брейкера, ручные действия). Журнал — не очередь
+ * повторной обработки: он фиксирует, ЧТО и ГДЕ пропущено, чтобы разобрать это вручную.
+ */
+return new class extends Migration
+{
+    public function up(): void
+    {
+        Schema::create((new SourceCircuit)->getTable(), function (Blueprint $table): void {
+            $table->id();
+            $table->foreignId('platform_id')->unique()->constrained(table: (new Platform)->getTable())->cascadeOnDelete();
+            $table->text('state')->default('closed');
+            $table->boolean('enabled')->default(true);
+            $table->boolean('manually_paused')->default(false);
+            $table->integer('failure_threshold')->default(5)->comment('Подряд идущих отказов блоков до паузы источника');
+            $table->integer('retry_interval_minutes')->default(10)->comment('Через сколько минут после паузы пробовать снова');
+            $table->integer('consecutive_failures')->default(0);
+            $table->integer('open_count')->default(0);
+            $table->timestampTz('opened_at')->nullable();
+            $table->timestampTz('retry_at')->nullable();
+            $table->text('last_failure_kind')->nullable();
+            $table->timestampTz('last_failure_at')->nullable();
+            $table->text('changed_by')->nullable()->comment('Кто последним менял состояние: system или оператор');
+            $table->timestampsTz();
+            $table->index(['state', 'retry_at']);
+        });
+
+        Schema::create((new SourceIncident)->getTable(), function (Blueprint $table): void {
+            $table->id();
+            $table->foreignId('platform_id')->constrained(table: (new Platform)->getTable())->cascadeOnDelete();
+            $table->foreignId('crawler_id')->nullable()->constrained(table: (new Crawler)->getTable())->nullOnDelete();
+            $table->unsignedBigInteger('run_id')->nullable()->comment('prc_crawler_runs.id; без FK — журнал переживает чистку прогонов');
+            $table->unsignedBigInteger('fetch_id')->nullable()->comment('prc_fetches.id (партиционирована, без FK)');
+            $table->text('type');
+            $table->text('severity');
+            $table->text('failure_kind')->nullable();
+            $table->integer('http_status')->nullable();
+            $table->jsonb('cursor')->nullable()->comment('Курсор прогона в момент инцидента');
+            $table->jsonb('request_params')->nullable()->comment('Параметры запроса блока: где именно пропуск');
+            $table->text('message');
+            $table->jsonb('context')->nullable();
+            $table->text('actor')->nullable();
+            $table->timestampTz('acknowledged_at')->nullable();
+            $table->text('acknowledged_by')->nullable();
+            $table->timestampTz('created_at')->useCurrent();
+            $table->index(['platform_id', 'created_at']);
+            $table->index(['type', 'created_at']);
+            $table->index('run_id');
+        });
+    }
+
+    public function down(): void
+    {
+        Schema::dropIfExists((new SourceIncident)->getTable());
+        Schema::dropIfExists((new SourceCircuit)->getTable());
+    }
+};
