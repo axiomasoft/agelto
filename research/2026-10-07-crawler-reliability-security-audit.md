@@ -11,7 +11,7 @@
 
 | Метрика | `main` (+фикс сборки тестов) | `audit/fixes-1` |
 |---|---|---|
-| Pest (`--parallel`, 6 процессов) | 1739 тестов: 1729 ✓, 2 ✗, 7 error, 1 skip | 1807 тестов: 1800 ✓, 1 ✗, 5 error, 1 skip (до §7: 1765/1757 ✓) |
+| Pest (`--parallel`, 6 процессов) | 1739 тестов: 1729 ✓, 2 ✗, 7 error, 1 skip | 1813 тестов: 1803 ✓, 2 ✗, 7 error, 1 skip — все падения окружения: Redis AUTH, `pg_stat_statements`, AWS metadata в подпроцессах (до §7: 1765/1757 ✓) |
 | PHPStan (max, larastan) | 0 ошибок | 0 ошибок |
 | Pint `--test` | ✗ (2 файла в `docker/host`) | ✓ |
 | `composer audit --locked` | 5 advisories (1 high) | чисто |
@@ -41,7 +41,7 @@ S3/MinIO-креды; при `--parallel` они ещё и гоняются ме�
 | `b617fb4c` style(docker) | P3 | Pint для `docker/host/backup/backup-objects.php` и `docker/host/mail/smtp-smoke.php`. |
 | `feat(crawler)` EisSourceClock | P1 | Часовой пояс источника берётся из конфигурации: `crawler.platforms.eis.source_timezone`, env `EIS_SOURCE_TIMEZONE`, по умолчанию `Europe/Moscow`, есть в `.env.example`. «Наивные» дата-время ЕИС (CSV-листинг, журнал событий, протокол итогов) читаются в нём и хранятся в UTC. Календарные даты без времени не сдвигаются. Явная метка «МСК±N» в журнале событий имеет приоритет (МСК = UTC+3). Тесты: `tests/Unit/Procurement/Eis/EisSourceClockTest.php`. |
 | `e1e07261` feat(crawler) | P1 | Классификация отказов листинга (`ListingFailureKind`) и чистая политика брейкера источника (`SourceCircuitPolicy`, closed/open/half-open + ручная пауза). Упрощено в раунде 4, см. §7. |
-| `f54a62e6` feat(crawler) | P1 | Таблицы `prc_source_circuits` (брейкер на площадку) и `prc_source_incidents` (журнал), `SourceCircuitController`, `SourceIncidentRecorder`, событие `SourceIncidentRecorded`. |
+| `f54a62e6` feat(crawler) | P1 | Таблицы `prc_source_circuits` (брейкер на площадку) и `prc_source_incidents` (журнал), `SourceCircuitController`, `SourceIncidentRecorder` (позже разделены, см. §7.2a), событие `SourceIncidentRecorded`. |
 | `9c2e4d4c` fix(crawler) | **P0** | Пересмотр `bc3b50cd`: локальный плохой блок → инцидент + пропуск (skip-and-record), прогон продолжается; системный отказ → брейкер открыт, прогон на паузе (`source_circuit_open`), курсор не двигается. `ListingBlockRejectedException` удалён. |
 | `8ca9fd04` feat(crawler) | P1 | Автовозобновление: `crawler:source-circuits` каждую минуту, `SuspendedRunResumer`. |
 | `feaaca2f` feat(admin) | P1 | Filament: «Источники: состояние» (пауза/возобновить сейчас/пороги) и «Источники: инциденты» (фильтры, «Принято», бейдж). Права в `OperatorRole`. |
@@ -377,39 +377,83 @@ stateDiagram-v2
   ждёт. Цена упрощения — не больше 5 лишних запросов за цикл.
 - **Два независимых брейкера на площадку:** листинг (CSV) и карточки (HTML). Падение одного
   не останавливает другой.
+- **Изменилась структура → остановка до оператора.** Если порог добил отказ `layout_drift`
+  (в CSV нет обязательных колонок; на карточке нет базовых селекторов), этап не ждёт по
+  таймеру, а стоит (`manually_paused`, `changed_by = system`, статус «Остановлен: изменилась
+  структура»): повтор на чужой вёрстке даст то же. Оператор чинит и жмёт «Возобновить сейчас».
+- **Ошибка нашего кода** (карточка скачана, упал разбор/запись; или исключение не сетевого
+  типа) брейкером не считается: карточка уходит в штатный повтор с backoff, событие
+  `CRAWLER_CARD_CODE_ERROR` уровня ERROR. Сеть/прокси по-прежнему: ретраи и ротация прокси
+  внутри `requestWithRetries`, ожидание этапа — только при серии отказов.
+- **Пустое тело CSV при 2xx** («невозможный» случай): блок не обрабатывается, прогон идёт
+  дальше, брейкер не считает, событие `CRAWLER_CSV_EMPTY` уровня CRITICAL. Пустая выдача с
+  заголовком — нормальный конец данных. Признак ставит адаптер (`ListingBatch::$emptyBody`).
 - **Оператор** (Filament «Источники: состояние»): пауза, «Возобновить сейчас», пороги.
 
 ```mermaid
 stateDiagram-v2
     [*] --> Работает
-    Работает --> Работает: отказ < порога / успех (сброс счётчика)
-    Работает --> Ожидание: отказов подряд = порог
+    Работает --> Работает: отказ < порога / успех (сброс счётчика) / ошибка кода, пустое тело (не считаются)
+    Работает --> Ожидание: порог, последний отказ — сеть/блокировка/статус/контент
+    Работает --> Остановлен: порог, последний отказ — layout_drift
     Ожидание --> Работает: прошло retry_interval (или «Возобновить сейчас»)
     Работает --> ПаузаОператора: «Пауза»
     Ожидание --> ПаузаОператора: «Пауза»
     ПаузаОператора --> Работает: «Возобновить сейчас»
+    Остановлен --> Работает: «Возобновить сейчас»
 ```
 
 ### 7.2 Как определяется отказ (только детерминированные признаки)
 
-| Механизм | Проблема | Признак | Вид | Реакция |
-|---|---|---|---|---|
-| CSV | не скачалось | `ConnectionException`, 408/5xx | `source_unavailable` | пропуск, счётчик |
-| CSV | блокировка | 401/403/429/451 | `source_blocked` | пропуск, счётчик |
-| CSV | нет прокси | `NoProxyAvailableException`, 407 | `proxy_unavailable` | пропуск, счётчик |
-| CSV | прочий статус | иной не-2xx | `unexpected_status` | пропуск, счётчик |
-| CSV | скачалось не то | в заголовке нет обязательной колонки, или записи есть, а не разобрана ни одна | `invalid_content` | пропуск, счётчик |
-| CSV | битые строки | часть строк не разобрана | `row_errors` | блок принят, инцидент «частично» |
-| HTML | нет базовых селекторов | `CardLayoutPreflight` до разбора | `layout_drift` | карточка не обрабатывается целиком, попытка не тратится, счётчик |
-| HTML | не скачалось | любое исключение скачивания | `source_unavailable` | штатный повтор карточки с backoff, счётчик |
+Единственное место — `SourceFailureClassifier`.
+
+| Механизм | Проблема | Признак | Вид | Код события | Реакция |
+|---|---|---|---|---|---|
+| CSV | не скачалось | `ConnectionException`, 408/5xx | `source_unavailable` | `CRAWLER_CSV_SOURCE_UNAVAILABLE` | пропуск, счётчик → ожидание |
+| CSV | блокировка | 401/403/429/451 | `source_blocked` | `CRAWLER_CSV_SOURCE_BLOCKED` | пропуск, счётчик → ожидание |
+| CSV | нет прокси | `NoProxyAvailableException`, 407 | `proxy_unavailable` | `CRAWLER_CSV_PROXY_UNAVAILABLE` | пропуск, счётчик → ожидание |
+| CSV | прочий статус | иной не-2xx | `unexpected_status` | `CRAWLER_CSV_UNEXPECTED_STATUS` | пропуск, счётчик → ожидание |
+| CSV | пустое тело | 2xx, ни байта | `empty_body` | `CRAWLER_CSV_EMPTY` (CRITICAL) | пропуск, **не** считается |
+| CSV | сменился формат | в заголовке нет обязательной колонки | `layout_drift` | `CRAWLER_CSV_LAYOUT_DRIFT` | пропуск, счётчик → **остановка** |
+| CSV | не разобрано ничего | записи есть, ни одна не разобрана | `invalid_content` | `CRAWLER_CSV_INVALID_CONTENT` | пропуск, счётчик → ожидание |
+| CSV | битые строки | часть строк не разобрана | `row_errors` | `CRAWLER_CSV_ROW_ERRORS` | блок принят, не считается |
+| HTML | нет базовых селекторов | `CardLayoutPreflight` до разбора | `layout_drift` | `CRAWLER_CARD_LAYOUT_DRIFT` | карточка не обрабатывается, попытка не тратится, счётчик → **остановка** |
+| HTML | не скачалось | `ConnectionException`, `NoProxyAvailableException`, `CardPageMismatchException` | `source_unavailable` / `proxy_unavailable` | `CRAWLER_CARD_UNAVAILABLE` | повтор карточки с backoff, счётчик → ожидание |
+| HTML | ошибка нашего кода | любое другое исключение | `code_error` | `CRAWLER_CARD_CODE_ERROR` (ERROR) | повтор карточки с backoff, **не** считается |
+
+Ревьюеру: серия считается по видам вперемешку, а «остановка vs ожидание» решается видом
+отказа, добившего порог. Если на практике дрейф прячется за сетевыми отказами — отдельный
+счётчик дрейфа (нужно обсуждение).
 
 Убрано как хрупкое: угадывание HTML по первым 512 байтам, разбор текста ошибок cURL,
-«немедленное открытие» по виду отказа. HTML-заглушка вместо CSV теперь ловится проверкой
-заголовка (`ListingBatch::$header` — заголовок как пришёл), в том числе однострочная, которая
-раньше выглядела «пустым блоком» и могла закрыть интервал архива.
+«немедленное открытие» по виду отказа. HTML-заглушка вместо CSV ловится проверкой заголовка
+(`ListingBatch::$header`).
 
 Базовые селекторы карточки — критичные якоря эталона без `content_dependent`. Якоря, зависящие
 от данных (вложения, таблица участников), легитимно пусты и в проверку не входят.
+
+### 7.2a Раскладка кода (каждая обязанность — в одном месте)
+
+| Обязанность | Где | Что не делает |
+|---|---|---|
+| Классификация отказа | `Services/Procurement/SourceControl/SourceFailureClassifier` | ничего не пишет |
+| Каталог кодов событий, важность, «этап × вид → код» | `Enums/Procurement/Crawler/CrawlerEventCode` | — |
+| Единая точка «сообщить об отказе/успехе» | `SourceControl/SourceFailureReporter` (вход — DTO `Dto/Procurement/Crawler/SourceFailure`) | не знает о прогонах |
+| Правила брейкера (счётчик, ожидание, остановка) | `SourceControl/SourceCircuitBreaker` | не пишет журнал и логи |
+| Хранение брейкера | `Repositories/Procurement/Crawler/SourceCircuitRepository` | без правил |
+| Публикация события (журнал + `SourceIncidentRecorded`) | `SourceControl/SourceIncidentPublisher` → `Repositories/Procurement/Crawler/SourceIncidentRepository` | не логирует |
+| Структурный лог (уровень + код + теги) | `SourceControl/SourceEventLogger` (штатный канал Laravel) | не пишет в БД |
+| Любое событие = публикация + лог с одними тегами | `SourceControl/SourceEventReporter` | — |
+| Прогон листинга ↔ брейкер (пауза прогона) | `SourceControl/SourceRunControl` | не считает и не логирует отказы сам |
+| Подъём после ожидания | `SourceControl/SuspendedRunResumer` | — |
+| Действия оператора | `SourceControl/SourceStageOperations` (зовёт Filament) | — |
+
+Вызывающие: `CsvBlockIngestor` только классифицирует блок в `FetchResult`;
+`FreshRunProcessor`/`ArchiveWindowScanner` передают результат в `SourceRunControl::afterBlock()`
+после транзакции блока; `DetailAnalysisProcessor` сообщает в `SourceFailureReporter`.
+Логи формата `"<КОД>: <текст>"`, контекст: `code`, `incident_id`, `platform_id`, `stage`,
+`crawler_id`, `run_id`, `fetch_id`, `failure_kind`, `http_status`, `cursor`, `request_params`
+(только непустые). Существующий `OperationLogWriter::detailFailed` оставлен как был.
 
 ### 7.3 Сохранность данных (п. 5 решений)
 - **Объём транзакции.** Архив: один блок = одна транзакция `withinExecutionLease` (строки блока
@@ -426,12 +470,12 @@ stateDiagram-v2
   транзакций.
 
 ### 7.4 Нужно обсудить
-1. Пустое тело CSV считается пустой выборкой (конец интервала). Если ЕИС для пустой выборки
-   всегда отдаёт заголовок, пустое тело надо считать отказом. Нужен живой образец.
+1. Пустое тело CSV — по решению владельца аномалия (CRITICAL, пропуск, не считается). Если ЕИС
+   всё же отдаёт пустое тело для пустой выборки, получим ложные CRITICAL — нужен живой образец.
 2. Вкладка documents не имеет базового селектора (TODO в `CardLayoutPreflight`): её вёрстка до
    разбора не проверяется.
-3. Любое исключение при скачивании карточки считается брейкером карточек, включая ошибку
-   нашего кода — этап уйдёт в ожидание, а не будет молча падать. Оспорьте, если это лишнее.
+3. 404 сейчас `unexpected_status` (считается как отказ площадки). Если 404 — наш неверный URL,
+   его стоит отнести к ошибке кода.
 
 ### 7.5 Отложено
 Карантин блоков и replay; ежедневная проверка полноты; повторы блока внутри прогона; внешние
