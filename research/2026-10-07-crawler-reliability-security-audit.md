@@ -11,7 +11,7 @@
 
 | Метрика | `main` (+фикс сборки тестов) | `audit/fixes-1` |
 |---|---|---|
-| Pest (`--parallel`, 6 процессов) | 1739 тестов: 1729 ✓, 2 ✗, 7 error, 1 skip | 1813 тестов: 1803 ✓, 2 ✗, 7 error, 1 skip — все падения окружения: Redis AUTH, `pg_stat_statements`, AWS metadata в подпроцессах (до §7: 1765/1757 ✓) |
+| Pest (`--parallel`, 6 процессов) | 1739 тестов: 1729 ✓, 2 ✗, 7 error, 1 skip | 1840 тестов: 1830 ✓, 2 ✗, 7 error, 1 skip (последовательный прогон) — все падения окружения: Redis AUTH, `pg_stat_statements`, AWS metadata в подпроцессах (до §7: 1765/1757 ✓) |
 | PHPStan (max, larastan) | 0 ошибок | 0 ошибок |
 | Pint `--test` | ✗ (2 файла в `docker/host`) | ✓ |
 | `composer audit --locked` | 5 advisories (1 high) | чисто |
@@ -369,91 +369,130 @@ stateDiagram-v2
 ниже можно оспорить — в коде у спорных мест стоит пометка «Ревьюеру:» или «Нужно обсудить:».
 
 ### 7.1 Что делает система
-- **Локальная проблема → пропуск с записью.** Плохой блок CSV: инцидент (курсор, параметры
-  запроса, fetch id, причина), курсор идёт дальше, прогон продолжается.
-- **Системная проблема → ожидание этапа.** `failure_threshold` отказов подряд (по умолчанию 5)
-  → этап ждёт `retry_interval_minutes` (10), затем **просто продолжает** с того же места.
-  Пробных запросов (half-open) нет: если источник всё ещё лежит, через 5 отказов этап снова
-  ждёт. Цена упрощения — не больше 5 лишних запросов за цикл.
-- **Два независимых брейкера на площадку:** листинг (CSV) и карточки (HTML). Падение одного
-  не останавливает другой.
-- **Изменилась структура → остановка до оператора.** Если порог добил отказ `layout_drift`
-  (в CSV нет обязательных колонок; на карточке нет базовых селекторов), этап не ждёт по
-  таймеру, а стоит (`manually_paused`, `changed_by = system`, статус «Остановлен: изменилась
-  структура»): повтор на чужой вёрстке даст то же. Оператор чинит и жмёт «Возобновить сейчас».
-- **Ошибка нашего кода** (карточка скачана, упал разбор/запись; или исключение не сетевого
-  типа) брейкером не считается: карточка уходит в штатный повтор с backoff, событие
-  `CRAWLER_CARD_CODE_ERROR` уровня ERROR. Сеть/прокси по-прежнему: ретраи и ротация прокси
-  внутри `requestWithRetries`, ожидание этапа — только при серии отказов.
-- **Пустое тело CSV при 2xx** («невозможный» случай): блок не обрабатывается, прогон идёт
-  дальше, брейкер не считает, событие `CRAWLER_CSV_EMPTY` уровня CRITICAL. Пустая выдача с
-  заголовком — нормальный конец данных. Признак ставит адаптер (`ListingBatch::$emptyBody`).
-- **Оператор** (Filament «Источники: состояние»): пауза, «Возобновить сейчас», пороги.
+- **Поведение задаёт конфиг** `config/crawler.php` → `source_control` (§7.2). Код знает только
+  виды отказов (`SourceFailureKind`) и реакции (`SourceFailureReaction`).
+- **Локальная проблема → пропуск с записью**, обход идёт дальше. Блок/карточка без данных не
+  обрабатывается при любой реакции; реакция решает только, что записать и что считать.
+- **Сеть/площадка** (`CountTowardWait`): `failure_threshold` подряд → этап ждёт
+  `retry_interval_minutes`, затем **просто продолжает** с того же блока (пробных запросов нет).
+- **Изменилась структура** (`CountTowardHold`): **отдельный** счётчик; `layout_threshold`
+  подряд → остановка (`held_at`) до оператора, таймер её не снимает. Сетевые отказы этот
+  счётчик не сбрасывают — шум не прячет остановку. Успех сбрасывает оба счётчика.
+- **Ошибка нашего кода, пустое тело, ошибки строк** (`Record`): журнал + лог, не считаются.
+- **404** (`LogOnly`): только строка лога `CRAWLER_*_NOT_FOUND` (WARNING), без журнала и счёта.
+- **Два независимых брейкера на площадку:** листинг (CSV) и карточки (HTML).
+- **Оператор** (Filament «Источники: состояние»): пауза, «Возобновить сейчас» (снимает паузу,
+  остановку, ожидание и сразу поднимает прогоны листинга), переопределение порогов.
 
 ```mermaid
 stateDiagram-v2
     [*] --> Работает
-    Работает --> Работает: отказ < порога / успех (сброс счётчика) / ошибка кода, пустое тело (не считаются)
-    Работает --> Ожидание: порог, последний отказ — сеть/блокировка/статус/контент
-    Работает --> Остановлен: порог, последний отказ — layout_drift
-    Ожидание --> Работает: прошло retry_interval (или «Возобновить сейчас»)
-    Работает --> ПаузаОператора: «Пауза»
-    Ожидание --> ПаузаОператора: «Пауза»
-    ПаузаОператора --> Работает: «Возобновить сейчас»
+    Работает --> Работает: LogOnly / Record / счёт ниже порога / успех (сброс обоих счётчиков)
+    Работает --> Ожидание: CountTowardWait, consecutive_failures = failure_threshold
+    Работает --> Остановлен: CountTowardHold, consecutive_layout_failures = layout_threshold
+    Ожидание --> Работает: прошло retry_interval_minutes (или «Возобновить сейчас»)
+    Работает --> Пауза: «Пауза»
+    Ожидание --> Пауза: «Пауза»
+    Пауза --> Работает: «Возобновить сейчас»
     Остановлен --> Работает: «Возобновить сейчас»
 ```
 
-### 7.2 Как определяется отказ (только детерминированные признаки)
+### 7.2 Конфиг `crawler.source_control`
 
-Единственное место — `SourceFailureClassifier`.
+Разбирается один раз в `SourceControlPolicy::fromConfig()` (singleton, резолвится в
+`AppServiceProvider::boot`). Любая ошибка — `SourceControlConfigurationException` с путём,
+например `crawler.source_control.stages.detail.reactions: не задана реакция для «not_found»`;
+приложение не стартует. Значения — только enum-кейсы, строки не принимаются.
 
-| Механизм | Проблема | Признак | Вид | Код события | Реакция |
-|---|---|---|---|---|---|
-| CSV | не скачалось | `ConnectionException`, 408/5xx | `source_unavailable` | `CRAWLER_CSV_SOURCE_UNAVAILABLE` | пропуск, счётчик → ожидание |
-| CSV | блокировка | 401/403/429/451 | `source_blocked` | `CRAWLER_CSV_SOURCE_BLOCKED` | пропуск, счётчик → ожидание |
-| CSV | нет прокси | `NoProxyAvailableException`, 407 | `proxy_unavailable` | `CRAWLER_CSV_PROXY_UNAVAILABLE` | пропуск, счётчик → ожидание |
-| CSV | прочий статус | иной не-2xx | `unexpected_status` | `CRAWLER_CSV_UNEXPECTED_STATUS` | пропуск, счётчик → ожидание |
-| CSV | пустое тело | 2xx, ни байта | `empty_body` | `CRAWLER_CSV_EMPTY` (CRITICAL) | пропуск, **не** считается |
-| CSV | сменился формат | в заголовке нет обязательной колонки | `layout_drift` | `CRAWLER_CSV_LAYOUT_DRIFT` | пропуск, счётчик → **остановка** |
-| CSV | не разобрано ничего | записи есть, ни одна не разобрана | `invalid_content` | `CRAWLER_CSV_INVALID_CONTENT` | пропуск, счётчик → ожидание |
-| CSV | битые строки | часть строк не разобрана | `row_errors` | `CRAWLER_CSV_ROW_ERRORS` | блок принят, не считается |
-| HTML | нет базовых селекторов | `CardLayoutPreflight` до разбора | `layout_drift` | `CRAWLER_CARD_LAYOUT_DRIFT` | карточка не обрабатывается, попытка не тратится, счётчик → **остановка** |
-| HTML | не скачалось | `ConnectionException`, `NoProxyAvailableException`, `CardPageMismatchException` | `source_unavailable` / `proxy_unavailable` | `CRAWLER_CARD_UNAVAILABLE` | повтор карточки с backoff, счётчик → ожидание |
-| HTML | ошибка нашего кода | любое другое исключение | `code_error` | `CRAWLER_CARD_CODE_ERROR` (ERROR) | повтор карточки с backoff, **не** считается |
+| Ключ | Тип | По умолчанию | Смысл |
+|---|---|---|---|
+| `http_status_kinds` | `int => SourceFailureKind` | 401/403/429/451 → `SourceBlocked`, 404 → `NotFound`, 407 → `ProxyUnavailable`, 408 → `SourceUnavailable` | статус → вид отказа |
+| `server_error_kind` | `SourceFailureKind` | `SourceUnavailable` | прочие 5xx |
+| `other_status_kind` | `SourceFailureKind` | `UnexpectedStatus` | прочие не-2xx |
+| `stages.{listing,detail}.failure_threshold` | int ≥ 1 | 5 (`CRAWLER_SOURCE_FAILURE_THRESHOLD`) | счёт → ожидание |
+| `stages.*.layout_threshold` | int ≥ 1 | 3 | счёт структуры → остановка |
+| `stages.*.retry_interval_minutes` | int ≥ 1 | 10 (`CRAWLER_SOURCE_RETRY_INTERVAL_MINUTES`) | длительность ожидания |
+| `stages.*.reactions` | `SourceFailureKind::value => SourceFailureReaction`, **все** виды | см. ниже | реакция |
 
-Ревьюеру: серия считается по видам вперемешку, а «остановка vs ожидание» решается видом
-отказа, добившего порог. Если на практике дрейф прячется за сетевыми отказами — отдельный
-счётчик дрейфа (нужно обсуждение).
+Реакции по умолчанию (оба этапа): `proxy_unavailable`, `source_blocked`, `source_unavailable`,
+`unexpected_status`, `invalid_content` → `CountTowardWait`; `layout_drift` → `CountTowardHold`;
+`empty_body`, `row_errors`, `code_error` → `Record`; `not_found` → `LogOnly`.
 
-Убрано как хрупкое: угадывание HTML по первым 512 байтам, разбор текста ошибок cURL,
-«немедленное открытие» по виду отказа. HTML-заглушка вместо CSV ловится проверкой заголовка
-(`ListingBatch::$header`).
+Считать 404 отказом площадки — одна строка:
+`SourceFailureKind::NotFound->value => SourceFailureReaction::CountTowardWait,`
 
-Базовые селекторы карточки — критичные якоря эталона без `content_dependent`. Якоря, зависящие
-от данных (вложения, таблица участников), легитимно пусты и в проверку не входят.
+**Приоритет порогов:** колонки `failure_threshold`, `layout_threshold`,
+`retry_interval_minutes` в `prc_source_circuits` — nullable переопределения. `null` (пустое
+поле в админке) — значение конфига; число — перекрывает для этой площадки и этапа. Решается в
+одном месте: `StagePolicy::withOverrides()`. Реакции в БД не переопределяются — это решение
+кода/ревью, а не оператора (проще и проверяемо тестами).
+
+| Механизм | Признак (`SourceFailureClassifier`) | Вид | Код события |
+|---|---|---|---|
+| CSV | `ConnectionException` / `NoProxyAvailableException` / `RequestException` | по типу / по статусу | `CRAWLER_CSV_*` |
+| CSV | не-2xx | по `http_status_kinds` | `CRAWLER_CSV_SOURCE_UNAVAILABLE`, `…_BLOCKED`, `…_PROXY_UNAVAILABLE`, `…_NOT_FOUND`, `…_UNEXPECTED_STATUS` |
+| CSV | 2xx, ни байта (`ListingBatch::$emptyBody`) | `empty_body` | `CRAWLER_CSV_EMPTY` (CRITICAL) |
+| CSV | нет обязательной колонки | `layout_drift` | `CRAWLER_CSV_LAYOUT_DRIFT` |
+| CSV | записи есть, не разобрана ни одна / часть | `invalid_content` / `row_errors` | `CRAWLER_CSV_INVALID_CONTENT` / `…_ROW_ERRORS` |
+| HTML | нет базовых селекторов (`CardLayoutPreflight`) | `layout_drift` | `CRAWLER_CARD_LAYOUT_DRIFT` |
+| HTML | сеть, прокси, не-2xx (`CardPageMismatchException::$status`), «чужая» 200 | по типу / статусу | `CRAWLER_CARD_UNAVAILABLE`, `CRAWLER_CARD_NOT_FOUND` |
+| HTML | любое другое исключение | `code_error` | `CRAWLER_CARD_CODE_ERROR` (ERROR) |
 
 ### 7.2a Раскладка кода (каждая обязанность — в одном месте)
 
-| Обязанность | Где | Что не делает |
-|---|---|---|
-| Классификация отказа | `Services/Procurement/SourceControl/SourceFailureClassifier` | ничего не пишет |
-| Каталог кодов событий, важность, «этап × вид → код» | `Enums/Procurement/Crawler/CrawlerEventCode` | — |
-| Единая точка «сообщить об отказе/успехе» | `SourceControl/SourceFailureReporter` (вход — DTO `Dto/Procurement/Crawler/SourceFailure`) | не знает о прогонах |
-| Правила брейкера (счётчик, ожидание, остановка) | `SourceControl/SourceCircuitBreaker` | не пишет журнал и логи |
-| Хранение брейкера | `Repositories/Procurement/Crawler/SourceCircuitRepository` | без правил |
-| Публикация события (журнал + `SourceIncidentRecorded`) | `SourceControl/SourceIncidentPublisher` → `Repositories/Procurement/Crawler/SourceIncidentRepository` | не логирует |
-| Структурный лог (уровень + код + теги) | `SourceControl/SourceEventLogger` (штатный канал Laravel) | не пишет в БД |
-| Любое событие = публикация + лог с одними тегами | `SourceControl/SourceEventReporter` | — |
-| Прогон листинга ↔ брейкер (пауза прогона) | `SourceControl/SourceRunControl` | не считает и не логирует отказы сам |
-| Подъём после ожидания | `SourceControl/SuspendedRunResumer` | — |
-| Действия оператора | `SourceControl/SourceStageOperations` (зовёт Filament) | — |
+| Обязанность | Где |
+|---|---|
+| Правила из конфига (типизированные) | `Dto/Procurement/Crawler/SourceControlPolicy`, `StagePolicy` |
+| Классификация отказа | `Services/Procurement/SourceControl/SourceFailureClassifier` |
+| Каталог кодов, важность, «этап × вид → код» | `Enums/Procurement/Crawler/CrawlerEventCode` |
+| Реакция, состояние этапа | `Enums/…/SourceFailureReaction`, `SourceStageStatus` |
+| Единая точка «отказ/успех» | `SourceControl/SourceFailureReporter` (вход — DTO `SourceFailure`) |
+| Правила брейкера (счётчики, ожидание, остановка) | `SourceControl/SourceCircuitBreaker` |
+| Хранение брейкера | `Repositories/Procurement/Crawler/SourceCircuitRepository` |
+| Событие = журнал + лог с одними тегами | `SourceControl/SourceEventReporter` (DTO `SourceEvent`) |
+| Журнал + доменное событие | `SourceControl/SourceIncidentPublisher` → `SourceIncidentRepository` |
+| Структурный лог | `SourceControl/SourceEventLogger` (штатный канал Laravel) |
+| Прогон листинга ↔ брейкер | `SourceControl/SourceRunControl` |
+| Подъём после ожидания | `SourceControl/SuspendedRunResumer` |
+| Действия оператора | `SourceControl/SourceStageOperations` (Filament только вызывает) |
 
-Вызывающие: `CsvBlockIngestor` только классифицирует блок в `FetchResult`;
-`FreshRunProcessor`/`ArchiveWindowScanner` передают результат в `SourceRunControl::afterBlock()`
-после транзакции блока; `DetailAnalysisProcessor` сообщает в `SourceFailureReporter`.
-Логи формата `"<КОД>: <текст>"`, контекст: `code`, `incident_id`, `platform_id`, `stage`,
-`crawler_id`, `run_id`, `fetch_id`, `failure_kind`, `http_status`, `cursor`, `request_params`
-(только непустые). Существующий `OperationLogWriter::detailFailed` оставлен как был.
+Вызывающие (`CsvBlockIngestor`, `FreshRunProcessor`, `ArchiveWindowScanner`,
+`DetailAnalysisProcessor`) только классифицируют и сообщают; сами не считают и не логируют.
+
+### 7.2b Сценарии надёжности
+
+Стенд: `tests/Support/Doubles/Crawler/ScriptedSourceMethod` (шаги источника: ответ или
+исключение, запоминает запрошенные блоки) + `tests/Support/Crawler/SourceControlScenario`
+(готовые шаги: блок с закупками, конец, статус, пустое тело, смена формата, нет прокси, сеть,
+баг, карточка ок/новая вёрстка/статус). Часы — `travel()`. Сценарии гоняются через настоящие
+`FreshRunProcessor` и `DetailAnalysisProcessor`
+(`tests/Feature/Crawler/SourceControlScenariosTest.php`).
+
+| Сценарий | Проверено |
+|---|---|
+| Пул прокси лёг (5 подряд) | ожидание; прогон на паузе на 5-м блоке (не пропущен); через 10 мин тот же блок запрошен снова, прогон завершён; данные первого блока целы |
+| 3×503 между хорошими блоками | 3 пропуска с записью, прогон завершён, счётчик сброшен успехом |
+| Смена формата на 3 блоках | остановка; таймер (2 суток) не снимает; «Возобновить» → прогон завершён |
+| Смесь: drift, 503, drift, сеть, drift | остановка на 3-м drift, сетевой счётчик = 2 |
+| 8 пустых тел | 8 CRITICAL в лог и журнал, прогон не остановлен |
+| 8×404 на листинге | только WARNING-логи, журнал пуст, счётчик 0 |
+| Баг в нашем коде на листинге | прогон падает, ранее записанные закупки целы |
+| Карточки: 5 сетевых отказов | ожидание этапа карточек, 6-я карточка не запрашивается, листинг работает; после ожидания — успех |
+| Карточки: 6 багов + 6×404 | этап работает; 6 `CRAWLER_CARD_CODE_ERROR`, 404 — только лог |
+| Карточки: новая вёрстка ×3 | остановка, попытки карточки не потрачены |
+| Тики при остановке | одна запись «прогон приостановлен» |
+| Диспетчер при ожидании карточек | job не ставятся, закупка остаётся due |
+
+**Что выявили сценарии (исправлено):**
+1. Каждый тик планировщика при ожидании/остановке заново писал «прогон приостановлен» —
+   за выходные сотни строк журнала. Теперь запись одна (`dac55bdf`).
+2. При ожидании этапа карточек диспетчер каждый тик ставил в очередь холостые job, и закупки
+   этой площадки занимали лимит пачки, оттесняя другие площадки. Теперь такие площадки
+   исключаются в запросе (`4dc3fe60`).
+3. Проверка «пускает ли этап» делала `INSERT … ON CONFLICT` перед каждым блоком и карточкой —
+   запись в БД на чтение. Теперь сначала `SELECT` (`4dc3fe60`).
+
+**Выявлено, не менялось (нужно решение):** см. §7.4.
 
 ### 7.3 Сохранность данных (п. 5 решений)
 - **Объём транзакции.** Архив: один блок = одна транзакция `withinExecutionLease` (строки блока
@@ -470,12 +509,17 @@ stateDiagram-v2
   транзакций.
 
 ### 7.4 Нужно обсудить
-1. Пустое тело CSV — по решению владельца аномалия (CRITICAL, пропуск, не считается). Если ЕИС
-   всё же отдаёт пустое тело для пустой выборки, получим ложные CRITICAL — нужен живой образец.
-2. Вкладка documents не имеет базового селектора (TODO в `CardLayoutPreflight`): её вёрстка до
-   разбора не проверяется.
-3. 404 сейчас `unexpected_status` (считается как отказ площадки). Если 404 — наш неверный URL,
-   его стоит отнести к ошибке кода.
+1. **Баг нашего кода на листинге валит прогон** (сценарий). Сделано сознательно — ошибку кода
+   нельзя прятать за пропуском блока, данные целы, прогон перезапускается по расписанию. Но
+   один и тот же баг на одном блоке будет валить каждый прогон. Альтернатива: `code_error` и для
+   листинга → пропуск блока + `CRAWLER_CSV_CODE_ERROR` (код и реакция уже есть).
+2. **404 на карточке тратит попытку карточки** (штатный backoff), после `detail_max_attempts`
+   закупка становится `detail_failed`. Брейкер не трогается — как решено. Если 404 значит
+   «закупку сняли», возможно, ей нужен отдельный статус.
+3. **Пустое тело бесконечно**: если ЕИС начнёт так отвечать всегда, обход пройдёт всё «впустую»
+   с CRITICAL на каждый блок. Сменить на `CountTowardWait` — одна строка конфига.
+4. Вкладка documents без базового селектора (TODO в `CardLayoutPreflight`).
+5. Реакции не редактируются в админке (только пороги). Осознанно: проще и тестируемо.
 
 ### 7.5 Отложено
 Карантин блоков и replay; ежедневная проверка полноты; повторы блока внутри прогона; внешние
