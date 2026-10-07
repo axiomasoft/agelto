@@ -10,6 +10,8 @@ use App\Dto\Procurement\Crawler\SourceFailure;
 use App\Enums\Procurement\Crawler\CrawlerEventCode;
 use App\Enums\Procurement\Crawler\SourceStage;
 use App\Enums\Procurement\Crawler\SourceStageStatus;
+use App\Exceptions\Procurement\Crawler\ExecutionLeaseLost;
+use App\Exceptions\Procurement\Crawler\PlatformBudgetExhaustedException;
 use App\Models\Procurement\Crawler\Crawler;
 use App\Models\Procurement\Crawler\Run;
 use App\Models\Procurement\Platform\Registry;
@@ -25,7 +27,7 @@ use Throwable;
  *
  * - `admit()` перед блоком: этап ждёт или на ручной паузе → прогон в `paused` с меткой
  *   `source_suspended`, курсор не тронут (поднимет `crawler:source-circuits` или оператор).
- * - `afterBlock()` / `onTransportFailure()` — после блока: успех, ошибки строк (блок принят),
+ * - `afterBlock()` / `onBlockException()` — после блока: успех, ошибки строк (блок принят),
  *   локальный отказ (инцидент, вызывающий пропускает блок) или уход этапа в ожидание/
  *   остановку (`true`: вызывающий останавливается, блок повторится после возобновления).
  *
@@ -37,6 +39,8 @@ final readonly class SourceRunControl
     public const string StatsFlag = 'source_suspended';
 
     public const string StopReason = 'source_circuit_open';
+
+    public const string InterruptedReason = 'interrupted';
 
     public function __construct(
         private SourceCircuitBreaker $breaker,
@@ -87,14 +91,21 @@ final readonly class SourceRunControl
     }
 
     /**
-     * Исключение при скачивании блока. Не сетевой отказ (ошибка кода/БД) пробрасывается: его
-     * нельзя превращать в «пропуск блока».
+     * Исключение при скачивании или записи блока. Любое (сеть, прокси, баг нашего кода, БД)
+     * классифицируется и решается реакцией из конфига — прогон сам не падает. Пробрасываются
+     * только сигналы управления: аренду перехватили (продолжит новый владелец) и бюджет
+     * площадки исчерпан (штатный checkpoint).
      *
      * @param  array<string, mixed>  $requestParams
+     * @return bool `true` — этап перестал принимать запросы, вызывающий останавливается
      */
-    public function onTransportFailure(Crawler $crawler, Run $run, Throwable $exception, array $requestParams): bool
+    public function onBlockException(Crawler $crawler, Run $run, Throwable $exception, array $requestParams): bool
     {
-        $kind = $this->classifier->classifyListingException($exception) ?? throw $exception;
+        if ($exception instanceof ExecutionLeaseLost || $exception instanceof PlatformBudgetExhaustedException) {
+            throw $exception;
+        }
+
+        $kind = $this->classifier->classifyListingException($exception);
 
         return $this->onFailure($crawler, $run, new SourceFailure(
             platformId: $this->platformIdFor($crawler),
@@ -105,6 +116,40 @@ final readonly class SourceRunControl
             runId: $run->id,
             cursor: $this->cursorOf($run),
             requestParams: $requestParams === [] ? null : $requestParams,
+            context: ['exception' => $exception::class],
+        ));
+    }
+
+    /**
+     * Последняя страховка процессоров прогона: сюда доходят только сбои вне обработки блока
+     * (БД недоступна, адаптер площадки не собрался). Прогон не проваливается, а встаёт на
+     * паузу с тем же курсором (данные и позиция целы) и продолжится следующим запуском;
+     * событие `CRAWLER_RUN_INTERRUPTED` (CRITICAL). Перехват аренды — не сбой: молча выходим.
+     */
+    public function interrupted(Run $run, Throwable $exception): void
+    {
+        if ($exception instanceof ExecutionLeaseLost) {
+            return;
+        }
+
+        $this->runs->pause(run: $run, reason: self::InterruptedReason, extraStats: ['last_error' => mb_substr($exception->getMessage(), 0, 500)]);
+
+        $registry = $run->crawler?->registry;
+
+        if (! $registry instanceof Registry) {
+            return;
+        }
+
+        $this->events->report(new SourceEvent(
+            code: CrawlerEventCode::RunInterrupted,
+            platformId: $registry->platform_id,
+            message: "Прогон #{$run->id} прерван вне обработки блока и поставлен на паузу: ".mb_substr($exception->getMessage(), 0, 500),
+            stage: SourceStage::Listing,
+            crawlerId: $run->crawler_id,
+            runId: $run->id,
+            cursor: $this->cursorOf($run),
+            context: ['exception' => $exception::class],
+            actor: SourceCircuitBreaker::SystemActor,
         ));
     }
 

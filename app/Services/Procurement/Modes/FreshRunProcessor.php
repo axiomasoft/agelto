@@ -101,22 +101,20 @@ final readonly class FreshRunProcessor
 
                 try {
                     $batch = $sourceMethod->collectListing(crawler: $crawler, cursor: $cursor);
-                } catch (PlatformBudgetExhaustedException $exception) {
-                    throw $exception;
+                    $fetchResult = $this->ingestor->ingest(crawler: $crawler, run: $run, batch: $batch);
                 } catch (Throwable $exception) {
-                    if ($this->sourceControl->onTransportFailure(crawler: $crawler, run: $run, exception: $exception, requestParams: $cursor->toArray())) {
+                    // Любой сбой скачивания или записи блока (сеть, баг, БД) — классификация и
+                    // реакция из конфига; прогон сам не падает. Закоммиченные строки остаются.
+                    if ($this->sourceControl->onBlockException(crawler: $crawler, run: $run, exception: $exception, requestParams: $cursor->toArray())) {
                         return $run;
                     }
 
-                    // Локальный отказ транспорта записан инцидентом — блок пропускается.
                     $cursor = $cursor->afterFreshBlock(blockSize: $blockSize, dedupSignature: null);
                     $this->runs->updateCursor(run: $run, cursor: $cursor);
                     $this->runs->heartbeat(run: $run);
 
                     continue;
                 }
-
-                $fetchResult = $this->ingestor->ingest(crawler: $crawler, run: $run, batch: $batch);
 
                 // Инцидент/брейкер — после инжеста: строки fresh-блока уже закоммичены построчно,
                 // запись о проблеме от них не зависит. `true` — листинг ушёл в ожидание, прогон
@@ -182,9 +180,10 @@ final readonly class FreshRunProcessor
 
             return $run;
         } catch (Throwable $exception) {
-            $this->runs->fail(run: $run, error: $exception->getMessage());
+            // Последняя страховка: сбой вне обработки блока — пауза с тем же курсором, не провал.
+            $this->sourceControl->interrupted(run: $run, exception: $exception);
 
-            throw $exception;
+            return $run;
         }
 
         Log::warning(

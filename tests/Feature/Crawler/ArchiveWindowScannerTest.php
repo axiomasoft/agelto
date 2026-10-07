@@ -14,6 +14,7 @@ use App\Enums\Procurement\Crawler\RunStatus;
 use App\Enums\Procurement\Crawler\SourceMethod as SourceMethodEnum;
 use App\Exceptions\Procurement\Crawler\PlatformBudgetExhaustedException;
 use App\Models\Procurement\Crawler\Crawler;
+use App\Models\Procurement\Crawler\Fetch;
 use App\Models\Procurement\Crawler\Run;
 use App\Models\Procurement\Crawler\SourceCircuit;
 use App\Models\Procurement\Crawler\SourceIncident;
@@ -322,4 +323,31 @@ test('системный отказ в archive: курсор остаётся н
         ->and($run->status)->toBe(RunStatus::Paused)
         ->and($run->stats['source_suspended'] ?? null)->toBeTrue()
         ->and($run->cursor['blockFrom'] ?? 1)->toBe(1);
+});
+
+test('ошибка нашего кода при записи блока: транзакция блока откатана, блок пропущен с записью, прежние данные целы', function (): void {
+    $crawler = Crawler::factory()->create(['mode' => CrawlerMode::Archive]);
+    $run = Run::factory()->for($crawler)->create(['cursor' => null]);
+
+    useArchiveQueueSourceMethod([
+        archiveScannerBatch(['0173200001234000001', '0173200001234000002'], dedupSignature: 'sig-1'),
+        archiveScannerBatch(['0173200001234000003', '0173200001234000004'], dedupSignature: 'sig-2'),
+        archiveScannerBatch(['0173200001234000005'], dedupSignature: 'sig-3'),
+    ]);
+    // Отказ уровня блока ПОСЛЕ записи его строк (журнал fetch'а второго блока): строки блока
+    // должны откатиться вместе с транзакцией, а не остаться наполовину.
+    $fetches = 0;
+    Fetch::creating(function () use (&$fetches): void {
+        if (++$fetches === 2) {
+            throw new LogicException('bug');
+        }
+    });
+
+    $result = app(ArchiveWindowScanner::class)->scan(crawler: $crawler, run: $run, filter: archiveWindowFilter());
+
+    expect($result)->toBe(ArchiveWindowScanResult::Drained)
+        ->and(Procurement::query()->orderBy('registry_number')->pluck('registry_number')->all())
+        ->toBe(['0173200001234000001', '0173200001234000002', '0173200001234000005'])
+        ->and(SourceIncident::query()->sole()->type)->toBe(CrawlerEventCode::CsvCodeError)
+        ->and($run->refresh()->status)->not->toBe(RunStatus::Failed);
 });

@@ -148,7 +148,7 @@ final readonly class ArchiveWindowScanner
 
                 return ArchiveWindowScanResult::Checkpointed;
             } catch (\Throwable $exception) {
-                if ($this->sourceControl->onTransportFailure(crawler: $crawler, run: $run, exception: $exception, requestParams: $iterationCursor->toArray())) {
+                if ($this->sourceControl->onBlockException(crawler: $crawler, run: $run, exception: $exception, requestParams: $iterationCursor->toArray())) {
                     return ArchiveWindowScanResult::Stopped;
                 }
 
@@ -171,67 +171,99 @@ final readonly class ArchiveWindowScanner
             }
 
             $fetchResult = null;
+            $blockException = null;
 
-            // A request may outlive the lease. Its ingestion and checkpoint are one short
-            // PostgreSQL row-locked section: a takeover waits for all block writes to commit
-            // or roll back, and a former owner cannot persist a partial response afterwards.
-            $result = $this->runs->withinExecutionLease(run: $run, callback: function () use (
-                &$blockFrom,
-                &$blocksInInterval,
-                &$previousSignature,
-                &$stack,
-                &$fetchResult,
-                $batch,
-                $blockSize,
-                $crawler,
-                $dateField,
-                $day,
-                $minPriceInterval,
-                $recoveryScope,
-                $run,
-            ): ?ArchiveWindowScanResult {
-                $fetchResult = $this->ingestor->ingest(crawler: $crawler, run: $run, batch: $batch);
+            try {
+                // A request may outlive the lease. Its ingestion and checkpoint are one short
+                // PostgreSQL row-locked section: a takeover waits for all block writes to commit
+                // or roll back, and a former owner cannot persist a partial response afterwards.
+                $result = $this->runs->withinExecutionLease(run: $run, callback: function () use (
+                    &$blockFrom,
+                    &$blocksInInterval,
+                    &$previousSignature,
+                    &$stack,
+                    &$fetchResult,
+                    $batch,
+                    $blockSize,
+                    $crawler,
+                    $dateField,
+                    $day,
+                    $minPriceInterval,
+                    $recoveryScope,
+                    $run,
+                ): ?ArchiveWindowScanResult {
+                    $fetchResult = $this->ingestor->ingest(crawler: $crawler, run: $run, batch: $batch);
 
-                if ($fetchResult->blockSkipped()) {
-                    // Непрочитанный блок: курсор здесь не трогаем. Решение «пропустить или ждать»
-                    // принимается после транзакции, когда отказ уже записан (см. ниже).
-                    return null;
-                }
-
-                if ($batch->rowsTotal < $blockSize) {
-                    array_pop($stack);
-                    $blockFrom = 1;
-                    $previousSignature = null;
-                    $blocksInInterval = 0;
-                } elseif ($previousSignature !== null && $batch->dedupSignature === $previousSignature) {
-                    $splitStack = $this->splitTopInterval(stack: $stack, minPriceInterval: $minPriceInterval, crawler: $crawler, run: $run, day: $day);
-
-                    if ($splitStack === null) {
-                        $this->persistCursor(
-                            run: $run,
-                            day: $day,
-                            stack: $stack,
-                            blockFrom: $blockFrom,
-                            dateField: $dateField,
-                            lastDedupSignature: $previousSignature,
-                            blocksInInterval: $blocksInInterval,
-                            recoveryScope: $recoveryScope,
-                        );
-
-                        return ArchiveWindowScanResult::OperatorDebt;
+                    if ($fetchResult->blockSkipped()) {
+                        // Непрочитанный блок: курсор здесь не трогаем. Решение «пропустить или ждать»
+                        // принимается после транзакции, когда отказ уже записан (см. ниже).
+                        return null;
                     }
 
-                    $stack = $splitStack;
-                    $blockFrom = 1;
-                    $previousSignature = null;
-                    $blocksInInterval = 0;
-                } else {
-                    $previousSignature = $batch->dedupSignature;
-                    $blockFrom += $blockSize;
-                    $blocksInInterval++;
+                    if ($batch->rowsTotal < $blockSize) {
+                        array_pop($stack);
+                        $blockFrom = 1;
+                        $previousSignature = null;
+                        $blocksInInterval = 0;
+                    } elseif ($previousSignature !== null && $batch->dedupSignature === $previousSignature) {
+                        $splitStack = $this->splitTopInterval(stack: $stack, minPriceInterval: $minPriceInterval, crawler: $crawler, run: $run, day: $day);
+
+                        if ($splitStack === null) {
+                            $this->persistCursor(
+                                run: $run,
+                                day: $day,
+                                stack: $stack,
+                                blockFrom: $blockFrom,
+                                dateField: $dateField,
+                                lastDedupSignature: $previousSignature,
+                                blocksInInterval: $blocksInInterval,
+                                recoveryScope: $recoveryScope,
+                            );
+
+                            return ArchiveWindowScanResult::OperatorDebt;
+                        }
+
+                        $stack = $splitStack;
+                        $blockFrom = 1;
+                        $previousSignature = null;
+                        $blocksInInterval = 0;
+                    } else {
+                        $previousSignature = $batch->dedupSignature;
+                        $blockFrom += $blockSize;
+                        $blocksInInterval++;
+                    }
+
+                    $this->persistCursor(
+                        run: $run,
+                        day: $day,
+                        stack: $stack,
+                        blockFrom: $blockFrom,
+                        dateField: $dateField,
+                        lastDedupSignature: $previousSignature,
+                        blocksInInterval: $blocksInInterval,
+                        recoveryScope: $recoveryScope,
+                    );
+                    $this->runs->heartbeat(run: $run);
+
+                    return null;
+                });
+            } catch (\Throwable $exception) {
+                $blockException = $exception;
+            }
+
+            if ($blockException !== null) {
+                // Сбой записи блока (баг, БД): транзакция блока откатилась целиком, ранее
+                // закоммиченные блоки не тронуты. Позиция — как до блока; дальше как с любым
+                // отказом: реакция из конфига, по умолчанию пропуск с записью.
+                if ($this->sourceControl->onBlockException(crawler: $crawler, run: $run, exception: $blockException, requestParams: $iterationCursor->toArray())) {
+                    return ArchiveWindowScanResult::Stopped;
                 }
 
-                $this->persistCursor(
+                $stack = $iterationCursor->priceStack ?? $stack;
+                $previousSignature = null;
+                $blockFrom = $iterationCursor->blockFrom + $blockSize;
+                $blocksInInterval = $iterationCursor->blocksInInterval + 1;
+                $this->runs->withinExecutionLease(run: $run, callback: fn () => $this->persistCursor(
                     run: $run,
                     day: $day,
                     stack: $stack,
@@ -240,11 +272,10 @@ final readonly class ArchiveWindowScanner
                     lastDedupSignature: $previousSignature,
                     blocksInInterval: $blocksInInterval,
                     recoveryScope: $recoveryScope,
-                );
-                $this->runs->heartbeat(run: $run);
+                ));
 
-                return null;
-            });
+                continue;
+            }
 
             // Вне транзакции блока: инцидент и брейкер сохраняются, даже если блок откатился бы.
             if ($fetchResult !== null && $this->sourceControl->afterBlock(crawler: $crawler, run: $run, result: $fetchResult, requestParams: $iterationCursor->toArray())) {

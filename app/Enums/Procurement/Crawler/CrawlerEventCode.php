@@ -71,6 +71,9 @@ enum CrawlerEventCode: string implements HasLabel
     /** Прогон приостановлен, потому что этап листинга не принимает запросы. */
     case RunSuspended = 'CRAWLER_RUN_SUSPENDED';
 
+    /** Прогон прерван сбоем вне обработки блока (БД, адаптер) и поставлен на паузу. */
+    case RunInterrupted = 'CRAWLER_RUN_INTERRUPTED';
+
     /** Приостановленный прогон возобновлён. */
     case RunResumed = 'CRAWLER_RUN_RESUMED';
 
@@ -106,7 +109,7 @@ enum CrawlerEventCode: string implements HasLabel
     public function severity(): SourceIncidentSeverity
     {
         return match ($this) {
-            self::CsvEmpty, self::StageHeld, self::StageWaiting, self::ManualPause => SourceIncidentSeverity::Critical,
+            self::CsvEmpty, self::RunInterrupted, self::StageHeld, self::StageWaiting, self::ManualPause => SourceIncidentSeverity::Critical,
             self::CardCodeError, self::CsvCodeError => SourceIncidentSeverity::Error,
             self::RunResumed, self::ManualResume, self::CsvRowErrors => SourceIncidentSeverity::Info,
             default => SourceIncidentSeverity::Warning,
@@ -129,6 +132,7 @@ enum CrawlerEventCode: string implements HasLabel
             self::CardNotFound => 'Карточка: не найдена',
             self::CsvNotFound => 'CSV: не найден',
             self::CardCodeError => 'Карточка: ошибка кода',
+            self::RunInterrupted => 'Прогон прерван',
             self::CsvCodeError => 'CSV: ошибка кода',
             self::StageWaiting => 'Этап в ожидании',
             self::StageHeld => 'Этап остановлен до оператора',

@@ -13,6 +13,7 @@ use App\Models\Procurement\Crawler\Crawler;
 use App\Models\Procurement\Crawler\Run;
 use App\Services\Procurement\ArchiveWindowScanner;
 use App\Services\Procurement\CrawlerRunManager;
+use App\Services\Procurement\SourceControl\SourceRunControl;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Carbon;
 use Throwable;
@@ -28,6 +29,7 @@ final readonly class ArchiveRunProcessor
     public function __construct(
         private CrawlerRunManager $runs,
         private ArchiveWindowScanner $scanner,
+        private SourceRunControl $sourceControl,
     ) {}
 
     public function run(Crawler $crawler, CarbonInterface $from, CarbonInterface $to, ?Run $run = null): Run
@@ -71,9 +73,10 @@ final readonly class ArchiveRunProcessor
                 $this->runs->updateCursor(run: $run, cursor: new ListingCursor(blockFrom: 1, day: $day->toDateString()));
             }
         } catch (Throwable $exception) {
-            $this->runs->fail(run: $run, error: $exception->getMessage());
+            // Последняя страховка: сбой вне обработки блока — пауза с тем же курсором, не провал.
+            $this->sourceControl->interrupted(run: $run, exception: $exception);
 
-            throw $exception;
+            return $run;
         }
 
         $this->runs->complete(run: $run);

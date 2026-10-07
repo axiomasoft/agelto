@@ -50,16 +50,16 @@ final readonly class SourceFailureClassifier
     }
 
     /**
-     * Исключение при скачивании блока листинга. `null` — не сетевой отказ, а ошибка нашего
-     * кода/БД: прогон падает, как раньше (скрывать её за пропуском блока нельзя).
+     * Исключение при скачивании/записи блока листинга. Не сеть и не статус — ошибка нашего
+     * кода (`CodeError`); что с ней делать, решает конфиг (по умолчанию — пропуск с записью).
      */
-    public function classifyListingException(Throwable $exception): ?SourceFailureKind
+    public function classifyListingException(Throwable $exception): SourceFailureKind
     {
         return match (true) {
             $exception instanceof NoProxyAvailableException => SourceFailureKind::ProxyUnavailable,
             $exception instanceof ConnectionException => SourceFailureKind::SourceUnavailable,
             $exception instanceof RequestException => $this->classifyStatus($exception->response->status()),
-            default => null,
+            default => SourceFailureKind::CodeError,
         };
     }
 

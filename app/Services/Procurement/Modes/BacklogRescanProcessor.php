@@ -16,6 +16,7 @@ use App\Models\Procurement\Crawler\Crawler;
 use App\Models\Procurement\Crawler\Run;
 use App\Services\Procurement\ArchiveWindowScanner;
 use App\Services\Procurement\CrawlerRunManager;
+use App\Services\Procurement\SourceControl\SourceRunControl;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Log;
 use Throwable;
@@ -31,6 +32,7 @@ final readonly class BacklogRescanProcessor
     public function __construct(
         private CrawlerRunManager $runs,
         private ArchiveWindowScanner $scanner,
+        private SourceRunControl $sourceControl,
     ) {}
 
     public function sweep(): int
@@ -166,7 +168,8 @@ final readonly class BacklogRescanProcessor
 
             return true;
         } catch (Throwable $exception) {
-            $this->runs->fail(run: $archiveRun, error: $exception->getMessage());
+            // Последняя страховка: пауза с тем же курсором, не провал (см. `SourceRunControl::interrupted`).
+            $this->sourceControl->interrupted(run: $archiveRun, exception: $exception);
 
             Log::warning(
                 message: 'BacklogRescanProcessor: archive rescan failed, flag stays unmarked for the next sweep.',

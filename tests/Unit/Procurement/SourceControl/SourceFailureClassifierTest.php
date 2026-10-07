@@ -45,7 +45,7 @@ test('исключения транспорта по типу, без разбо
         ->toBe(SourceFailureKind::ProxyUnavailable)
         ->and($classifier->classifyListingException(new ConnectionException('cURL error 56: CONNECT tunnel failed, response 502')))
         ->toBe(SourceFailureKind::SourceUnavailable)
-        ->and($classifier->classifyListingException(new RuntimeException('bug')))->toBeNull();
+        ->and($classifier->classifyListingException(new RuntimeException('bug')))->toBe(SourceFailureKind::CodeError);
 });
 
 test('скачанный блок без обязательных колонок — изменилась структура', function (): void {
