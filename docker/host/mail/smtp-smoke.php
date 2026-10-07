@@ -1,4 +1,5 @@
 <?php
+
 // Envelope-only SMTP check: never sends DATA or creates an outbound message.
 declare(strict_types=1);
 

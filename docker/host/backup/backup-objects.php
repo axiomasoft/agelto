@@ -1,23 +1,27 @@
 <?php
+
 declare(strict_types=1);
+use Illuminate\Contracts\Console\Kernel;
+use Illuminate\Support\Facades\Storage;
+
 require '/var/www/html/vendor/autoload.php';
 $app = require '/var/www/html/bootstrap/app.php';
-$app->make(Illuminate\Contracts\Console\Kernel::class)->bootstrap();
+$app->make(Kernel::class)->bootstrap();
 $root = '/backup-export';
 $manifest = [];
 foreach (['s3', 'estimates_s3'] as $diskName) {
-    $disk = Illuminate\Support\Facades\Storage::disk($diskName);
+    $disk = Storage::disk($diskName);
     foreach ($disk->allFiles() as $path) {
         if ($path === '' || str_starts_with($path, '/') || preg_match('~(^|/)\.\.?(/|$)|[\x00-\x1f\x7f]~', $path)) {
             throw new RuntimeException('Unsafe object path');
         }
         $destination = "$root/$diskName/$path";
-        if (!is_dir(dirname($destination)) && !mkdir(dirname($destination), 0700, true)) {
+        if (! is_dir(dirname($destination)) && ! mkdir(dirname($destination), 0700, true)) {
             throw new RuntimeException('Cannot create export directory');
         }
         $source = $disk->readStream($path);
         $target = fopen($destination, 'xb');
-        if (!is_resource($source) || !is_resource($target)) {
+        if (! is_resource($source) || ! is_resource($target)) {
             throw new RuntimeException('Cannot open object streams');
         }
         if (stream_copy_to_stream($source, $target) === false) {
