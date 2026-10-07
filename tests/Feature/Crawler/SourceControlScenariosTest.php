@@ -176,6 +176,8 @@ test('сбой вне обработки блока: прогон не пров�
 
     expect($run->refresh()->status)->toBe(RunStatus::Paused)
         ->and($run->stats['stop_reason'])->toBe('interrupted')
+        ->and($run->last_error)->toBe('db gone')
+        ->and($run->last_error_at)->not->toBeNull()
         ->and(($this->codes)())->toBe(['CRAWLER_RUN_INTERRUPTED']);
 });
 

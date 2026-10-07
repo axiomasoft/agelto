@@ -133,7 +133,7 @@ final readonly class SourceRunControl
             return;
         }
 
-        $this->runs->pause(run: $run, reason: self::InterruptedReason, extraStats: ['last_error' => mb_substr($exception->getMessage(), 0, 500)]);
+        $this->runs->pause(run: $run, reason: self::InterruptedReason, error: mb_substr($exception->getMessage(), 0, 500));
 
         // `pause()` меняет только свой Running-прогон. Если он уже отменён/завершён или не
         // наш, паузы не было — и события «поставлен на паузу» быть не должно.

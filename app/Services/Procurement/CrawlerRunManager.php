@@ -317,14 +317,14 @@ final class CrawlerRunManager
     /**
      * Сигнал `Pause` стоп-гейта (P3.2, D28): курсор к этому моменту уже сохранён вызывающим
      * циклом, статус — `paused` (resumable), запрос остановки гасится, чтобы `startOrResume()`
-     * следующего запуска не увидел его снова.
-     */
-    /**
+     * следующего запуска не увидел его снова. `$error` (если передан) пишется в `last_error`.
+     *
      * @param  array<string, mixed>  $extraStats  метки причины паузы (например, `source_suspended`)
      */
-    public function pause(Run $run, string $reason, array $extraStats = []): void
+    public function pause(Run $run, string $reason, array $extraStats = [], ?string $error = null): void
     {
         $this->ownedRunningQuery(run: $run)->update([
+            ...($error === null ? [] : ['last_error' => $error, 'last_error_at' => now()]),
             'status' => RunStatus::Paused,
             'stats' => array_merge($run->stats?->toArray() ?? [], [
                 'stop_reason' => $reason,
