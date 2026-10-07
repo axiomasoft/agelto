@@ -179,6 +179,15 @@ test('сбой вне обработки блока: прогон не пров�
         ->and(($this->codes)())->toBe(['CRAWLER_RUN_INTERRUPTED']);
 });
 
+test('сбой после отмены прогона: статус не меняется, ложного «поставлен на паузу» нет', function (): void {
+    $run = Run::factory()->for($this->crawler)->create(['status' => RunStatus::Cancelled]);
+
+    app(SourceRunControl::class)->interrupted($run, new RuntimeException('late failure'));
+
+    expect($run->refresh()->status)->toBe(RunStatus::Cancelled)
+        ->and(($this->codes)())->toBe([]);
+});
+
 /* ---------- карточки ---------- */
 
 function scenarioCard(): Procurement

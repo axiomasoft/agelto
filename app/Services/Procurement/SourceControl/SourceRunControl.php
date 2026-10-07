@@ -8,6 +8,7 @@ use App\Dto\Procurement\Crawler\FetchResult;
 use App\Dto\Procurement\Crawler\SourceEvent;
 use App\Dto\Procurement\Crawler\SourceFailure;
 use App\Enums\Procurement\Crawler\CrawlerEventCode;
+use App\Enums\Procurement\Crawler\RunStatus;
 use App\Enums\Procurement\Crawler\SourceStage;
 use App\Enums\Procurement\Crawler\SourceStageStatus;
 use App\Exceptions\Procurement\Crawler\ExecutionLeaseLost;
@@ -133,6 +134,12 @@ final readonly class SourceRunControl
         }
 
         $this->runs->pause(run: $run, reason: self::InterruptedReason, extraStats: ['last_error' => mb_substr($exception->getMessage(), 0, 500)]);
+
+        // `pause()` меняет только свой Running-прогон. Если он уже отменён/завершён или не
+        // наш, паузы не было — и события «поставлен на паузу» быть не должно.
+        if ($run->status !== RunStatus::Paused || ($run->stats?->toArray()['stop_reason'] ?? null) !== self::InterruptedReason) {
+            return;
+        }
 
         $registry = $run->crawler?->registry;
 
