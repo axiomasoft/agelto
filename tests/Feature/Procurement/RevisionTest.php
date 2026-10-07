@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Dto\Procurement\ProcurementSnapshotData;
 use App\Enums\Procurement\ProcurementEventType;
 use App\Models\Procurement\Crawler\Crawler;
 use App\Models\Procurement\Platform\Registry;
@@ -131,4 +132,55 @@ test('состояние на дату X читается по последне�
 
     expect($timeline->first())->toBe(ProcurementEventType::Discovered)
         ->and($timeline)->toContain(ProcurementEventType::PriceChanged);
+});
+
+test('снапшот старше текущей головы не создаёт ревизию-откат и не меняет голову', function (): void {
+    $registry = Registry::factory()->create();
+    $processor = app(ProcurementIngestProcessor::class);
+
+    $processor->ingest(SnapshotFactory::make($registry, [
+        'sourceStage' => 'Подача заявок',
+        'sourceUpdatedAt' => Carbon::parse('2026-01-10 10:00:00'),
+    ]));
+    $processor->ingest(SnapshotFactory::make($registry, [
+        'sourceStage' => 'Работа комиссии',
+        'sourceUpdatedAt' => Carbon::parse('2026-01-12 09:00:00'),
+    ]));
+
+    // Блок, снятый другим прогоном ДО второго изменения, инжестится последним.
+    $stale = $processor->ingest(SnapshotFactory::make($registry, [
+        'sourceStage' => 'Подача заявок',
+        'sourceUpdatedAt' => Carbon::parse('2026-01-10 10:00:00'),
+    ]));
+
+    expect($stale->revision_count)->toBe(2)
+        ->and($stale->source_stage)->toBe('Работа комиссии')
+        ->and(ProcurementRevision::query()->where('procurement_id', $stale->id)->count())->toBe(2)
+        ->and(ProcurementEvent::query()
+            ->where('procurement_id', $stale->id)
+            ->where('event_type', ProcurementEventType::RevisionPublished)
+            ->count())->toBe(1);
+});
+
+test('дата с точностью до суток того же дня не считается устаревшей', function (): void {
+    $registry = Registry::factory()->create();
+    $processor = app(ProcurementIngestProcessor::class);
+
+    $processor->ingest(SnapshotFactory::make($registry, [
+        'sourceStage' => 'Подача заявок',
+        'sourceUpdatedAt' => Carbon::parse('2026-01-12 15:30:00'),
+    ]));
+
+    $sameDay = new ProcurementSnapshotData(
+        registryId: $registry->id,
+        registryNumber: '0173100000123000001',
+        title: 'Поставка бумаги офисной',
+        sourceStage: 'Работа комиссии',
+        publishedAt: Carbon::parse('2026-01-10 10:00:00'),
+        sourceUpdatedAt: Carbon::parse('2026-01-12 00:00:00'),
+        sourceUpdatedAtHasDayPrecision: true,
+        initialPrice: '150000.00',
+    );
+
+    expect($processor->ingest($sameDay)->revision_count)->toBe(2);
 });

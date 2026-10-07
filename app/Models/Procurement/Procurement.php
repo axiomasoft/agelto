@@ -31,6 +31,7 @@ use Illuminate\Support\Str;
  * @property int|null $customer_org_id
  * @property int $detail_attempts
  * @property Carbon|null $detail_fetched_at
+ * @property Carbon|null $source_updated_at
  * @property bool $detail_failed
  * @property int $revision_count
  * @property array<string, array<string, mixed>>|null $detail_parse_outcome

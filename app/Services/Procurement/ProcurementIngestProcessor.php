@@ -12,6 +12,7 @@ use App\Repositories\Procurement\ProcurementStoreRepository;
 use App\Support\Database\PostgresAdvisoryLock;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 /**
  * Закупка обнаружена/изменена → ревизия + события (`01-database.md` §11, чек-лист сценариев).
@@ -141,6 +142,17 @@ final readonly class ProcurementIngestProcessor
             return $procurement;
         }
 
+        if ($this->isOlderThanHead(procurement: $procurement, data: $data)) {
+            Log::info(message: 'ProcurementIngestProcessor: снапшот старше текущей головы закупки пропущен.', context: [
+                'procurement_id' => $procurement->id,
+                'head_source_updated_at' => $procurement->source_updated_at?->toIso8601String(),
+                'snapshot_source_updated_at' => $data->sourceUpdatedAt->toIso8601String(),
+            ]);
+            $this->store->touchLastSeen(procurement: $procurement, seenAt: $now);
+
+            return $procurement;
+        }
+
         $latestRevisionNumber = $latestRevision === null
             ? 0
             : $latestRevision->revision_number;
@@ -181,6 +193,29 @@ final readonly class ProcurementIngestProcessor
         $this->storeDiffEvents(procurementId: $procurement->id, revisionId: $revision->id, occurredAt: $now, oldSnapshot: $oldSnapshot, newSnapshot: $snapshot);
 
         return $procurement->refresh();
+    }
+
+    /**
+     * Листинг читается ВНЕ advisory lock, поэтому два прогона (fresh и delta/backlog) могут
+     * инжестить один номер в обратном порядке: блок, снятый раньше, приходит позже. Без этой
+     * проверки устаревший снапшот становился новой головой и порождал ложную ревизию «откат»
+     * (status_changed назад), которую следующий скан снова «исправлял». Для даты с точностью до
+     * суток (ЕИС «Дата обновления») сравнивается календарный день — время 00:00 не означает
+     * «раньше любого события того же дня».
+     */
+    private function isOlderThanHead(Procurement $procurement, ProcurementSnapshotData $data): bool
+    {
+        $headUpdatedAt = $procurement->source_updated_at;
+
+        if ($headUpdatedAt === null) {
+            return false;
+        }
+
+        if ($data->sourceUpdatedAtHasDayPrecision) {
+            return $data->sourceUpdatedAt->toDateString() < $headUpdatedAt->toDateString();
+        }
+
+        return $data->sourceUpdatedAt->lt($headUpdatedAt);
     }
 
     /**
