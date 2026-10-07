@@ -17,14 +17,12 @@ use Illuminate\Support\Facades\DB;
  */
 final readonly class SourceCircuitRepository
 {
-    /** Строка (площадка, этап); создаётся при первом обращении с порогами из `crawler.source_circuit`. */
+    /** Строка (площадка, этап); создаётся при первом обращении без переопределений порогов. */
     public function forStage(int $platformId, SourceStage $stage): SourceCircuit
     {
         SourceCircuit::query()->insertOrIgnore([
             'platform_id' => $platformId,
             'stage' => $stage->value,
-            'failure_threshold' => $this->intConfig('crawler.source_circuit.failure_threshold', 5),
-            'retry_interval_minutes' => $this->intConfig('crawler.source_circuit.retry_interval_minutes', 10),
             'created_at' => now(),
             'updated_at' => now(),
         ]);
@@ -49,13 +47,13 @@ final readonly class SourceCircuitRepository
         ));
     }
 
-    public function resetFailures(int $platformId, SourceStage $stage): void
+    public function resetCounters(int $platformId, SourceStage $stage): void
     {
         SourceCircuit::query()
             ->where('platform_id', $platformId)
             ->where('stage', $stage)
-            ->where('consecutive_failures', '>', 0)
-            ->update(['consecutive_failures' => 0, 'updated_at' => now()]);
+            ->where(fn ($query) => $query->where('consecutive_failures', '>', 0)->orWhere('consecutive_layout_failures', '>', 0))
+            ->update(['consecutive_failures' => 0, 'consecutive_layout_failures' => 0, 'updated_at' => now()]);
     }
 
     /** @return Collection<int, SourceCircuit> этапы, у которых истекло ожидание по таймеру */
@@ -65,13 +63,7 @@ final readonly class SourceCircuitRepository
             ->whereNotNull('retry_at')
             ->where('retry_at', '<=', $now)
             ->where('manually_paused', false)
+            ->whereNull('held_at')
             ->get();
-    }
-
-    private function intConfig(string $key, int $default): int
-    {
-        $value = config($key, $default);
-
-        return is_numeric($value) ? (int) $value : $default;
     }
 }

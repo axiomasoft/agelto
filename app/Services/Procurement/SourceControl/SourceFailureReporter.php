@@ -4,21 +4,25 @@ declare(strict_types=1);
 
 namespace App\Services\Procurement\SourceControl;
 
+use App\Dto\Procurement\Crawler\SourceControlPolicy;
+use App\Dto\Procurement\Crawler\SourceEvent;
 use App\Dto\Procurement\Crawler\SourceFailure;
 use App\Enums\Procurement\Crawler\CrawlerEventCode;
 use App\Enums\Procurement\Crawler\SourceBreakerOutcome;
+use App\Enums\Procurement\Crawler\SourceFailureReaction;
 use App\Enums\Procurement\Crawler\SourceStage;
 
 /**
  * Единая точка, куда CSV-обход и обработка карточек сообщают об отказе/успехе. Сами они не
- * считают, не пишут журнал и не логируют. Здесь: учёт брейкером → событие отказа → событие об
- * ожидании/остановке этапа, если этот отказ их вызвал.
+ * считают, не пишут журнал и не логируют. Здесь: реакция из `SourceControlPolicy` → учёт
+ * брейкером → событие отказа (журнал+лог или только лог) → событие об ожидании/остановке.
  *
  * Вызывать вне транзакции блока/карточки: и счётчик, и журнал должны пережить её откат.
  */
 final readonly class SourceFailureReporter
 {
     public function __construct(
+        private SourceControlPolicy $policy,
         private SourceCircuitBreaker $breaker,
         private SourceEventReporter $events,
     ) {}
@@ -26,16 +30,30 @@ final readonly class SourceFailureReporter
     /** @return bool принимает ли этап запросы после этого отказа */
     public function report(SourceFailure $failure): bool
     {
-        $outcome = $this->breaker->recordFailure($failure->platformId, $failure->stage, $failure->kind);
+        $reaction = $this->policy->stage($failure->stage)->reactionFor($failure->kind);
+        $event = SourceEvent::forFailure(CrawlerEventCode::forFailure($failure->stage, $failure->kind), $failure, $failure->detail);
 
-        $this->event(CrawlerEventCode::forFailure($failure->stage, $failure->kind), $failure, $failure->detail);
+        if ($reaction === SourceFailureReaction::LogOnly) {
+            $this->events->log($event);
+
+            return $this->breaker->admits($failure->platformId, $failure->stage);
+        }
+
+        $outcome = $this->breaker->recordFailure($failure->platformId, $failure->stage, $failure->kind, $reaction);
+        $this->events->report($event);
 
         match ($outcome) {
-            SourceBreakerOutcome::StartedWaiting => $this->event(CrawlerEventCode::StageWaiting, $failure,
-                "{$failure->stage->getLabel()}: {$failure->kind->label()} — серия отказов, этап ждёт и повторит сам."),
-            SourceBreakerOutcome::StartedHold => $this->event(CrawlerEventCode::StageHeld, $failure,
-                "{$failure->stage->getLabel()}: изменилась структура источника — этап остановлен до решения оператора."),
-            default => null,
+            SourceBreakerOutcome::StartedWaiting => $this->events->report(SourceEvent::forFailure(
+                CrawlerEventCode::StageWaiting, $failure,
+                "{$failure->stage->getLabel()}: {$failure->kind->label()} — серия отказов, этап ждёт и повторит сам.",
+                SourceCircuitBreaker::SystemActor,
+            )),
+            SourceBreakerOutcome::StartedHold => $this->events->report(SourceEvent::forFailure(
+                CrawlerEventCode::StageHeld, $failure,
+                "{$failure->stage->getLabel()}: изменилась структура источника — этап остановлен до решения оператора.",
+                SourceCircuitBreaker::SystemActor,
+            )),
+            SourceBreakerOutcome::Running, SourceBreakerOutcome::NotAdmitting => null,
         };
 
         return $outcome->admits();
@@ -44,24 +62,5 @@ final readonly class SourceFailureReporter
     public function reportSuccess(int $platformId, SourceStage $stage): void
     {
         $this->breaker->recordSuccess($platformId, $stage);
-    }
-
-    private function event(CrawlerEventCode $code, SourceFailure $failure, string $message): void
-    {
-        $this->events->report(
-            code: $code,
-            platformId: $failure->platformId,
-            message: $message,
-            stage: $failure->stage,
-            crawlerId: $failure->crawlerId,
-            runId: $failure->runId,
-            fetchId: $failure->fetchId,
-            failureKind: $failure->kind,
-            httpStatus: $failure->httpStatus,
-            cursor: $failure->cursor,
-            requestParams: $failure->requestParams,
-            context: $failure->context,
-            actor: in_array($code, [CrawlerEventCode::StageWaiting, CrawlerEventCode::StageHeld], true) ? SourceCircuitBreaker::SystemActor : null,
-        );
     }
 }

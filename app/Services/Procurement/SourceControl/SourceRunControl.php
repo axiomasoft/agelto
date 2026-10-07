@@ -5,9 +5,11 @@ declare(strict_types=1);
 namespace App\Services\Procurement\SourceControl;
 
 use App\Dto\Procurement\Crawler\FetchResult;
+use App\Dto\Procurement\Crawler\SourceEvent;
 use App\Dto\Procurement\Crawler\SourceFailure;
 use App\Enums\Procurement\Crawler\CrawlerEventCode;
 use App\Enums\Procurement\Crawler\SourceStage;
+use App\Enums\Procurement\Crawler\SourceStageStatus;
 use App\Models\Procurement\Crawler\Crawler;
 use App\Models\Procurement\Crawler\Run;
 use App\Models\Procurement\Platform\Registry;
@@ -110,25 +112,25 @@ final readonly class SourceRunControl
     public function suspend(Crawler $crawler, Run $run): void
     {
         $circuit = $this->circuits->forStage($this->platformIdFor($crawler), SourceStage::Listing);
-        $retryAt = $circuit->manually_paused ? null : $circuit->retry_at;
+        $retryAt = $circuit->status() === SourceStageStatus::Waiting ? $circuit->retry_at : null;
 
         $this->runs->pause(run: $run, reason: self::StopReason, extraStats: [
             self::StatsFlag => true,
             'source_retry_at' => $retryAt?->toIso8601String(),
         ]);
 
-        $this->events->report(
+        $this->events->report(new SourceEvent(
             code: CrawlerEventCode::RunSuspended,
             platformId: $circuit->platform_id,
             message: $retryAt === null
-                ? "Прогон #{$run->id} приостановлен: листинг остановлен до решения оператора."
+                ? "Прогон #{$run->id} приостановлен: листинг на паузе или остановлен до решения оператора."
                 : "Прогон #{$run->id} приостановлен до {$retryAt->toIso8601String()}: листинг в ожидании.",
             stage: SourceStage::Listing,
             crawlerId: $crawler->id,
             runId: $run->id,
             cursor: $this->cursorOf($run),
             actor: SourceCircuitBreaker::SystemActor,
-        );
+        ));
     }
 
     private function onFailure(Crawler $crawler, Run $run, SourceFailure $failure): bool

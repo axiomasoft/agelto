@@ -14,6 +14,12 @@ enum SourceIncidentSeverity: string implements HasColor, HasLabel
     case Error = 'error';
     case Critical = 'critical';
 
+    /** Уровень PSR-3 для лога: значения кейсов совпадают с уровнями `Psr\Log\LogLevel`. */
+    public function logLevel(): string
+    {
+        return $this->value;
+    }
+
     public function getLabel(): string
     {
         return match ($this) {

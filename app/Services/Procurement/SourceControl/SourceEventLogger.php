@@ -4,28 +4,17 @@ declare(strict_types=1);
 
 namespace App\Services\Procurement\SourceControl;
 
-use App\Enums\Procurement\Crawler\CrawlerEventCode;
-use App\Enums\Procurement\Crawler\SourceIncidentSeverity;
+use App\Dto\Procurement\Crawler\SourceEvent;
 use Illuminate\Support\Facades\Log;
 
 /**
- * Структурный лог событий краулера: уровень из кода, сообщение `"<КОД>: <текст>"`, теги в
- * контексте (без пустых). Пишет в штатный канал Laravel (`LOG_CHANNEL`; в проде — `json`),
- * своего канала и форматтера нет.
+ * Структурный лог событий краулера: уровень из кода, сообщение `"<КОД>: <текст>"`, теги
+ * `SourceEvent::tags()`. Пишет в штатный канал Laravel (`LOG_CHANNEL`; в проде — `json`).
  */
 final readonly class SourceEventLogger
 {
-    /** @param array<string, mixed> $tags */
-    public function log(CrawlerEventCode $code, string $message, array $tags): void
+    public function log(SourceEvent $event, ?int $incidentId = null): void
     {
-        Log::log(match ($code->severity()) {
-            SourceIncidentSeverity::Critical => 'critical',
-            SourceIncidentSeverity::Error => 'error',
-            SourceIncidentSeverity::Warning => 'warning',
-            SourceIncidentSeverity::Info => 'info',
-        }, "{$code->value}: {$message}", array_filter(
-            ['code' => $code->value] + $tags,
-            static fn (mixed $value): bool => $value !== null && $value !== [],
-        ));
+        Log::log($event->code->severity()->logLevel(), "{$event->code->value}: {$event->message}", $event->tags($incidentId));
     }
 }

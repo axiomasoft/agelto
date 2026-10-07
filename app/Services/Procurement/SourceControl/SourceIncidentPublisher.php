@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\Procurement\SourceControl;
 
-use App\Enums\Procurement\Crawler\CrawlerEventCode;
+use App\Dto\Procurement\Crawler\SourceEvent;
 use App\Events\Procurement\SourceIncidentRecorded;
 use App\Models\Procurement\Crawler\SourceIncident;
 use App\Repositories\Procurement\Crawler\SourceIncidentRepository;
@@ -18,12 +18,11 @@ final readonly class SourceIncidentPublisher
 {
     public function __construct(private SourceIncidentRepository $incidents) {}
 
-    /** @param array<string, mixed> $attributes поля строки журнала, кроме кода и важности */
-    public function publish(CrawlerEventCode $code, string $message, array $attributes): SourceIncident
+    public function publish(SourceEvent $event): SourceIncident
     {
-        $incident = $this->incidents->create(['type' => $code, 'severity' => $code->severity(), 'message' => $message] + $attributes);
+        $incident = $this->incidents->create($event);
 
-        SourceIncidentRecorded::dispatch($incident->id, $incident->platform_id, $code, $code->severity(), $message);
+        SourceIncidentRecorded::dispatch($incident->id, $incident->platform_id, $event->code, $event->code->severity(), $event->message);
 
         return $incident;
     }

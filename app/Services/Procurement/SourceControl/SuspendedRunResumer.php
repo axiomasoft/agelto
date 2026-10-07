@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\Procurement\SourceControl;
 
+use App\Dto\Procurement\Crawler\SourceEvent;
 use App\Enums\Procurement\Crawler\CrawlerEventCode;
 use App\Enums\Procurement\Crawler\CrawlerExecutionLane;
 use App\Enums\Procurement\Crawler\CrawlerMode;
@@ -75,14 +76,14 @@ final readonly class SuspendedRunResumer
             }
 
             $dispatched++;
-            $this->events->report(
+            $this->events->report(new SourceEvent(
                 code: CrawlerEventCode::RunResumed,
                 platformId: $platformId,
                 message: "Прогон #{$run->id} возобновлён после паузы источника.",
                 crawlerId: $run->crawler_id,
                 runId: $run->id,
                 actor: $actor,
-            );
+            ));
         }
 
         return $dispatched;

@@ -16,11 +16,17 @@ use RuntimeException;
  */
 final class CardPageMismatchException extends RuntimeException
 {
+    /** HTTP-статус ответа вкладки: по нему классификатор отличает 404/5xx от «чужой» 200. */
+    public int $status = 0;
+
     public static function forTab(string $tab, string $url, int $status, int $bodyLength): self
     {
-        return new self(
+        $exception = new self(
             message: "Card tab [{$tab}] at [{$url}] returned a mismatched page "
                 ."(status={$status}, body_length={$bodyLength}): requested registry number not found in body.",
         );
+        $exception->status = $status;
+
+        return $exception;
     }
 }

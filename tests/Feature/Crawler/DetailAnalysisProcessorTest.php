@@ -380,7 +380,8 @@ test('нет базовых селекторов на любой вкладке 
         ->and(Document::query()->where('procurement_id', $procurement->id)->exists())->toBeFalse()
         ->and(SourceIncident::query()->where('type', CrawlerEventCode::CardLayoutDrift)->sole()->context['missing_selectors'])
         ->toHaveKey('event-journal')
-        ->and(app(SourceCircuitRepository::class)->forStage($procurement->registry->platform_id, SourceStage::Detail)->consecutive_failures)->toBe(1);
+        // дрейф считается отдельным счётчиком структуры, сетевой счётчик не трогается
+        ->and(app(SourceCircuitRepository::class)->forStage($procurement->registry->platform_id, SourceStage::Detail)->consecutive_layout_failures)->toBe(1);
 });
 
 test('якоря, зависящие от данных (нет участников, нет вложений), базовыми не считаются', function (): void {

@@ -13,7 +13,6 @@ use App\Models\Procurement\Crawler\Run;
 use App\Models\Procurement\Crawler\SourceCircuit;
 use App\Models\Procurement\Crawler\SourceIncident;
 use App\Services\Procurement\SourceControl\SourceStageOperations;
-use App\Services\Procurement\SourceControl\SuspendedRunResumer;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Queue;
 
@@ -64,8 +63,7 @@ test('оператор возобновляет сразу, минуя ожид�
     SourceCircuit::factory()->create(['platform_id' => $this->platformId, 'retry_at' => now()->addHour()]);
     suspendedRun($this->crawler);
 
-    app(SourceStageOperations::class)->resume(SourceCircuit::query()->sole(), 'operator@agelto.ru');
-    $dispatched = app(SuspendedRunResumer::class)->resumePlatform(platformId: $this->platformId, actor: 'operator@agelto.ru');
+    $dispatched = app(SourceStageOperations::class)->resume(SourceCircuit::query()->sole(), 'operator@agelto.ru');
 
     expect($dispatched)->toBe(1)
         ->and(SourceCircuit::query()->sole()->retry_at)->toBeNull();

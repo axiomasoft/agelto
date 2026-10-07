@@ -26,10 +26,13 @@ return new class extends Migration
             $table->text('stage')->comment('listing | detail — у каждого этапа свой брейкер');
             $table->boolean('enabled')->default(true);
             $table->boolean('manually_paused')->default(false);
-            $table->integer('failure_threshold')->default(5)->comment('Подряд идущих отказов до ожидания');
-            $table->integer('retry_interval_minutes')->default(10)->comment('Сколько ждать перед новой попыткой');
-            $table->integer('consecutive_failures')->default(0);
+            $table->integer('failure_threshold')->nullable()->comment('Переопределение порога отказов до ожидания; null — из config crawler.source_control');
+            $table->integer('layout_threshold')->nullable()->comment('Переопределение порога отказов структуры до остановки; null — из конфига');
+            $table->integer('retry_interval_minutes')->nullable()->comment('Переопределение интервала ожидания; null — из конфига');
+            $table->integer('consecutive_failures')->default(0)->comment('Счётчик реакции CountTowardWait');
+            $table->integer('consecutive_layout_failures')->default(0)->comment('Счётчик реакции CountTowardHold');
             $table->timestampTz('retry_at')->nullable()->comment('Ожидание до этого момента; null — работает');
+            $table->timestampTz('held_at')->nullable()->comment('Остановлен из-за структуры до решения оператора');
             $table->text('last_failure_kind')->nullable();
             $table->timestampTz('last_failure_at')->nullable();
             $table->text('changed_by')->nullable()->comment('Кто последним менял состояние: system или оператор');

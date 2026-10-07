@@ -13,6 +13,9 @@ use Filament\Support\Contracts\HasLabel;
  * Правило для CSV: файл либо скачался (2xx), либо нет; скачанный обязан соответствовать
  * формату (заголовок с обязательными колонками, разбираемые записи). Для HTML-карточки:
  * базовые селекторы эталона есть на каждой странице; нет — страница не обрабатывается.
+ *
+ * Вид — это факт, а не поведение: что делать с каждым видом на каждом этапе, задаёт
+ * `config('crawler.source_control')` (`SourceFailureReaction`).
  */
 enum SourceFailureKind: string implements HasLabel
 {
@@ -25,7 +28,10 @@ enum SourceFailureKind: string implements HasLabel
     /** Не скачалось: 408/5xx или ошибка соединения. */
     case SourceUnavailable = 'source_unavailable';
 
-    /** Прочий не-2xx (404, 410, …). */
+    /** Ресурса нет (по умолчанию 404). Реакция по умолчанию — только лог. */
+    case NotFound = 'not_found';
+
+    /** Прочий не-2xx (410, …). */
     case UnexpectedStatus = 'unexpected_status';
 
     /** 2xx с пустым телом — по наблюдениям ЕИС так не отвечает. Пропуск + критичный инцидент. */
@@ -37,13 +43,13 @@ enum SourceFailureKind: string implements HasLabel
     /** Блок принят, но часть строк не разобрана. Не пропуск и не повод для паузы. */
     case RowErrors = 'row_errors';
 
-    /** Исключение нашего кода (не сеть, не площадка). Не учитывается брейкером. */
+    /** Исключение нашего кода (не сеть, не площадка). */
     case CodeError = 'code_error';
 
     /**
      * Изменилась структура источника: в заголовке CSV нет обязательных колонок или на карточке
-     * нет базовых селекторов. Сам не починится — серия таких отказов останавливает этап до
-     * решения оператора (`requiresOperator`), а не ставит таймер.
+     * нет базовых селекторов. Сам не починится — по умолчанию серия таких отказов останавливает
+     * этап до решения оператора.
      */
     case LayoutDrift = 'layout_drift';
 
@@ -53,28 +59,13 @@ enum SourceFailureKind: string implements HasLabel
         return $this !== self::RowErrors;
     }
 
-    /**
-     * Учитывается брейкером этапа. Не учитываются: ошибки строк (блок принят), пустое тело (по
-     * решению владельца обход не останавливается, только громко сообщает) и ошибки нашего кода
-     * (площадка тут ни при чём — останавливать сбор из-за них нельзя).
-     */
-    public function countsTowardCircuit(): bool
-    {
-        return ! in_array($this, [self::RowErrors, self::EmptyBody, self::CodeError], true);
-    }
-
-    /** Серия таких отказов останавливает этап до оператора, автоповтора нет. */
-    public function requiresOperator(): bool
-    {
-        return $this === self::LayoutDrift;
-    }
-
     public function label(): string
     {
         return match ($this) {
             self::ProxyUnavailable => 'Прокси недоступен',
             self::SourceBlocked => 'Площадка блокирует (401/403/429/451)',
             self::SourceUnavailable => 'Не скачалось (5xx/таймаут/соединение)',
+            self::NotFound => 'Не найдено (404)',
             self::UnexpectedStatus => 'Неожиданный HTTP-статус',
             self::EmptyBody => 'Пустой ответ',
             self::CodeError => 'Ошибка кода',

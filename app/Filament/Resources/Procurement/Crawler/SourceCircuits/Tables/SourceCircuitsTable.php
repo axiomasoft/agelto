@@ -4,10 +4,11 @@ declare(strict_types=1);
 
 namespace App\Filament\Resources\Procurement\Crawler\SourceCircuits\Tables;
 
-use App\Enums\Procurement\Crawler\SourceStage;
+use App\Dto\Procurement\Crawler\StagePolicy;
+use App\Enums\Procurement\Crawler\SourceStageStatus;
 use App\Models\Procurement\Crawler\SourceCircuit;
+use App\Services\Procurement\SourceControl\SourceCircuitBreaker;
 use App\Services\Procurement\SourceControl\SourceStageOperations;
-use App\Services\Procurement\SourceControl\SuspendedRunResumer;
 use Filament\Actions\Action;
 use Filament\Actions\EditAction;
 use Filament\Forms\Components\Textarea;
@@ -29,11 +30,13 @@ final class SourceCircuitsTable
             TextColumn::make('platform.name')->label('Площадка')->searchable(),
             TextColumn::make('stage')->label('Этап')->badge(),
             TextColumn::make('status')->label('Состояние')->badge()
-                ->state(fn (SourceCircuit $record): string => $record->statusLabel())
-                ->color(fn (SourceCircuit $record): string => $record->admits() ? 'success' : 'danger'),
+                ->state(fn (SourceCircuit $record): SourceStageStatus => $record->status()),
             IconColumn::make('enabled')->label('Автопауза')->boolean(),
-            TextColumn::make('consecutive_failures')->label('Отказов подряд'),
-            TextColumn::make('failure_threshold')->label('Порог'),
+            // Действующие пороги: переопределение из этой строки или значение конфига.
+            TextColumn::make('consecutive_failures')->label('Отказов подряд / порог')
+                ->state(fn (SourceCircuit $record): string => $record->consecutive_failures.' / '.self::policy($record)->failureThreshold),
+            TextColumn::make('consecutive_layout_failures')->label('Структура подряд / порог')
+                ->state(fn (SourceCircuit $record): string => $record->consecutive_layout_failures.' / '.self::policy($record)->layoutThreshold),
             TextColumn::make('retry_at')->label('Автоповтор в')->dateTime()->placeholder('—'),
             TextColumn::make('last_failure_kind')->label('Последний отказ')->badge()->placeholder('—'),
             TextColumn::make('last_failure_at')->label('Когда')->dateTime()->since()->placeholder('—'),
@@ -63,17 +66,18 @@ final class SourceCircuitsTable
                     ->authorize('update')
                     ->visible(fn (SourceCircuit $record): bool => ! $record->admits())
                     ->requiresConfirmation()
-                    ->modalDescription('Пауза и ожидание снимаются, счётчик сбрасывается; приостановленные прогоны листинга ставятся в очередь сразу.')
+                    ->modalDescription('Пауза, остановка и ожидание снимаются, счётчики сбрасываются; приостановленные прогоны листинга ставятся в очередь сразу.')
                     ->action(function (SourceCircuit $record): void {
-                        $actor = self::actor();
-                        app(SourceStageOperations::class)->resume(circuit: $record, actor: $actor);
-                        $dispatched = $record->stage === SourceStage::Listing
-                            ? app(SuspendedRunResumer::class)->resumePlatform(platformId: $record->platform_id, actor: $actor)
-                            : 0;
+                        $dispatched = app(SourceStageOperations::class)->resume(circuit: $record, actor: self::actor());
                         Notification::make()->title("Возобновлено; прогонов в очереди: {$dispatched}")->success()->send();
                     }),
             ])
             ->defaultSort('platform_id');
+    }
+
+    private static function policy(SourceCircuit $record): StagePolicy
+    {
+        return app(SourceCircuitBreaker::class)->effectivePolicy($record);
     }
 
     private static function actor(): string

@@ -4,10 +4,12 @@ declare(strict_types=1);
 
 namespace App\Services\Procurement\SourceControl;
 
+use App\Dto\Procurement\Crawler\SourceControlPolicy;
 use App\Enums\Procurement\Crawler\SourceFailureKind;
 use App\Exceptions\Procurement\Proxy\NoProxyAvailableException;
 use App\Services\Procurement\Exceptions\CardPageMismatchException;
 use Illuminate\Http\Client\ConnectionException;
+use Illuminate\Http\Client\RequestException;
 use Throwable;
 
 /**
@@ -15,11 +17,12 @@ use Throwable;
  * признаки: тип исключения, HTTP-статус, проверка формата. Текст ошибок и «похожесть» тела не
  * анализируются.
  *
- * Ревьюеру: если какой-то статус должен реагировать иначе (например, 404 — это наш неверный
- * URL, а не площадка), оспорьте маппинг ниже.
+ * Статус → вид задаёт конфиг (`crawler.source_control.http_status_kinds`), а не этот класс.
  */
 final readonly class SourceFailureClassifier
 {
+    public function __construct(private SourceControlPolicy $policy) {}
+
     /**
      * Ответ блока листинга. `null` — блок принят без замечаний.
      *
@@ -40,14 +43,10 @@ final readonly class SourceFailureClassifier
         };
     }
 
+    /** Не-2xx → вид отказа по `crawler.source_control.http_status_kinds`. */
     public function classifyStatus(int $status): SourceFailureKind
     {
-        return match (true) {
-            $status === 407 => SourceFailureKind::ProxyUnavailable,
-            in_array($status, [401, 403, 429, 451], true) => SourceFailureKind::SourceBlocked,
-            $status === 408, $status >= 500 => SourceFailureKind::SourceUnavailable,
-            default => SourceFailureKind::UnexpectedStatus,
-        };
+        return $this->policy->kindForStatus($status);
     }
 
     /**
@@ -59,6 +58,7 @@ final readonly class SourceFailureClassifier
         return match (true) {
             $exception instanceof NoProxyAvailableException => SourceFailureKind::ProxyUnavailable,
             $exception instanceof ConnectionException => SourceFailureKind::SourceUnavailable,
+            $exception instanceof RequestException => $this->classifyStatus($exception->response->status()),
             default => null,
         };
     }
@@ -72,7 +72,12 @@ final readonly class SourceFailureClassifier
     {
         return match (true) {
             $exception instanceof NoProxyAvailableException => SourceFailureKind::ProxyUnavailable,
-            $exception instanceof ConnectionException, $exception instanceof CardPageMismatchException => SourceFailureKind::SourceUnavailable,
+            $exception instanceof ConnectionException => SourceFailureKind::SourceUnavailable,
+            $exception instanceof RequestException => $this->classifyStatus($exception->response->status()),
+            // Не-2xx — по статусу (404 → NotFound); 2xx без номера — «чужая страница» (Д-8).
+            $exception instanceof CardPageMismatchException => $exception->status >= 300
+                ? $this->classifyStatus($exception->status)
+                : SourceFailureKind::SourceUnavailable,
             default => SourceFailureKind::CodeError,
         };
     }

@@ -32,6 +32,9 @@ enum CrawlerEventCode: string implements HasLabel
     /** Нет прокси или прокси ответил 407. Блок пропущен. */
     case CsvProxyUnavailable = 'CRAWLER_CSV_PROXY_UNAVAILABLE';
 
+    /** Блок не найден (404). По умолчанию только лог. */
+    case CsvNotFound = 'CRAWLER_CSV_NOT_FOUND';
+
     /** Прочий не-2xx. Блок пропущен. */
     case CsvUnexpectedStatus = 'CRAWLER_CSV_UNEXPECTED_STATUS';
 
@@ -52,6 +55,9 @@ enum CrawlerEventCode: string implements HasLabel
 
     /** Карточку не получить: сеть, прокси, 5xx или чужая страница (после штатных ретраев). */
     case CardUnavailable = 'CRAWLER_CARD_UNAVAILABLE';
+
+    /** Карточка не найдена (404). По умолчанию только лог. */
+    case CardNotFound = 'CRAWLER_CARD_NOT_FOUND';
 
     /** Ошибка нашего кода при обработке карточки. Карточка пропущена, брейкер не трогается. */
     case CardCodeError = 'CRAWLER_CARD_CODE_ERROR';
@@ -78,6 +84,7 @@ enum CrawlerEventCode: string implements HasLabel
             return match ($kind) {
                 SourceFailureKind::LayoutDrift => self::CardLayoutDrift,
                 SourceFailureKind::CodeError => self::CardCodeError,
+                SourceFailureKind::NotFound => self::CardNotFound,
                 default => self::CardUnavailable,
             };
         }
@@ -87,6 +94,7 @@ enum CrawlerEventCode: string implements HasLabel
             SourceFailureKind::SourceUnavailable => self::CsvSourceUnavailable,
             SourceFailureKind::SourceBlocked => self::CsvSourceBlocked,
             SourceFailureKind::ProxyUnavailable => self::CsvProxyUnavailable,
+            SourceFailureKind::NotFound => self::CsvNotFound,
             SourceFailureKind::UnexpectedStatus => self::CsvUnexpectedStatus,
             SourceFailureKind::LayoutDrift => self::CsvLayoutDrift,
             SourceFailureKind::InvalidContent => self::CsvInvalidContent,
@@ -118,6 +126,8 @@ enum CrawlerEventCode: string implements HasLabel
             self::CsvRowErrors => 'CSV: ошибки строк',
             self::CardLayoutDrift => 'Карточка: изменилась вёрстка',
             self::CardUnavailable => 'Карточка: не получена',
+            self::CardNotFound => 'Карточка: не найдена',
+            self::CsvNotFound => 'CSV: не найден',
             self::CardCodeError => 'Карточка: ошибка кода',
             self::CsvCodeError => 'CSV: ошибка кода',
             self::StageWaiting => 'Этап в ожидании',

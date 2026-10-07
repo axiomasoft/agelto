@@ -21,8 +21,6 @@ final class SourceCircuitFactory extends Factory
             'stage' => SourceStage::Listing,
             'enabled' => true,
             'manually_paused' => false,
-            'failure_threshold' => 5,
-            'retry_interval_minutes' => 10,
             'consecutive_failures' => 0,
         ];
     }

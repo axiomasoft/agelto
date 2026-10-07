@@ -3,10 +3,27 @@
 declare(strict_types=1);
 
 use App\Dto\Procurement\Crawler\EisSearchFilter;
+use App\Enums\Procurement\Crawler\SourceFailureKind;
+use App\Enums\Procurement\Crawler\SourceFailureReaction;
 use App\Enums\Procurement\Crawler\SourceMethod;
+use App\Enums\Procurement\Crawler\SourceStage;
 use App\Enums\Procurement\Proxy\ProxyScope;
 use App\Filament\Resources\Procurement\Crawler\Crawlers\Schemas\EisCrawlerPlatformForm;
 use App\Services\Procurement\Eis\CsvSourceMethod;
+
+// Реакции по умолчанию, общие для этапов (этап может задать свои). Смысл — у `source_control`.
+$sourceFailureReactions = [
+    SourceFailureKind::ProxyUnavailable->value => SourceFailureReaction::CountTowardWait,
+    SourceFailureKind::SourceBlocked->value => SourceFailureReaction::CountTowardWait,
+    SourceFailureKind::SourceUnavailable->value => SourceFailureReaction::CountTowardWait,
+    SourceFailureKind::UnexpectedStatus->value => SourceFailureReaction::CountTowardWait,
+    SourceFailureKind::InvalidContent->value => SourceFailureReaction::CountTowardWait,
+    SourceFailureKind::LayoutDrift->value => SourceFailureReaction::CountTowardHold,
+    SourceFailureKind::NotFound->value => SourceFailureReaction::LogOnly,
+    SourceFailureKind::EmptyBody->value => SourceFailureReaction::Record,
+    SourceFailureKind::RowErrors->value => SourceFailureReaction::Record,
+    SourceFailureKind::CodeError->value => SourceFailureReaction::Record,
+];
 
 return [
     'platforms' => [
@@ -44,18 +61,58 @@ return [
 
     /*
     |--------------------------------------------------------------------------
-    | Брейкер источника (площадки)
+    | Управление источником: реакция на отказы (`SourceControlPolicy`)
     |--------------------------------------------------------------------------
     |
-    | Значения по умолчанию для новой строки `prc_source_circuits`; дальше пороги правятся в
-    | админке («Источники»). Подряд идущие отказы блоков сверх порога ставят ВЕСЬ источник на
-    | паузу; через `retry_interval_minutes` пробный блок решает, работать ли дальше.
-    | Единичный отказ — инцидент и пропуск блока, обход продолжается.
+    | Читается и проверяется один раз при старте (`AppServiceProvider`): опечатка в виде
+    | отказа, реакции или этапе — исключение `SourceControlConfigurationException` с адресом
+    | ошибки, приложение не стартует. Строки в коде не ищутся — только enum.
+    |
+    | `http_status_kinds` — HTTP-статус → вид отказа; не указанные 5xx → `server_error_kind`,
+    | прочие не-2xx → `other_status_kind`.
+    |
+    | `stages.<этап>.reactions` — для КАЖДОГО вида отказа (пропуск вида — ошибка конфига):
+    |   LogOnly          — только лог с кодом;
+    |   Record           — лог + журнал, брейкер не считает;
+    |   CountTowardWait  — лог + журнал + счётчик; `failure_threshold` подряд → ожидание
+    |                      `retry_interval_minutes`, затем этап сам продолжает;
+    |   CountTowardHold  — лог + журнал + отдельный счётчик структуры; `layout_threshold`
+    |                      подряд → остановка до оператора («Возобновить сейчас» в админке).
+    | Успешный блок/карточка сбрасывает оба счётчика.
+    |
+    | Пороги и интервал — значения по умолчанию: непустое поле строки этапа в админке
+    | («Источники: состояние») перекрывает их для этой площадки; пустое — берётся отсюда.
+    |
+    | Пример: считать 404 отказом площадки —
+    |   SourceFailureKind::NotFound->value => SourceFailureReaction::CountTowardWait,
     |
     */
-    'source_circuit' => [
-        'failure_threshold' => (int) env('CRAWLER_SOURCE_FAILURE_THRESHOLD', 5),
-        'retry_interval_minutes' => (int) env('CRAWLER_SOURCE_RETRY_INTERVAL_MINUTES', 10),
+    'source_control' => [
+        'http_status_kinds' => [
+            401 => SourceFailureKind::SourceBlocked,
+            403 => SourceFailureKind::SourceBlocked,
+            404 => SourceFailureKind::NotFound,
+            407 => SourceFailureKind::ProxyUnavailable,
+            408 => SourceFailureKind::SourceUnavailable,
+            429 => SourceFailureKind::SourceBlocked,
+            451 => SourceFailureKind::SourceBlocked,
+        ],
+        'server_error_kind' => SourceFailureKind::SourceUnavailable,
+        'other_status_kind' => SourceFailureKind::UnexpectedStatus,
+        'stages' => [
+            SourceStage::Listing->value => [
+                'failure_threshold' => (int) env('CRAWLER_SOURCE_FAILURE_THRESHOLD', 5),
+                'layout_threshold' => 3,
+                'retry_interval_minutes' => (int) env('CRAWLER_SOURCE_RETRY_INTERVAL_MINUTES', 10),
+                'reactions' => $sourceFailureReactions,
+            ],
+            SourceStage::Detail->value => [
+                'failure_threshold' => (int) env('CRAWLER_SOURCE_FAILURE_THRESHOLD', 5),
+                'layout_threshold' => 3,
+                'retry_interval_minutes' => (int) env('CRAWLER_SOURCE_RETRY_INTERVAL_MINUTES', 10),
+                'reactions' => $sourceFailureReactions,
+            ],
+        ],
     ],
 
     /*

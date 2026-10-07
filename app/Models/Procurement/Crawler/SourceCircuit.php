@@ -6,6 +6,7 @@ namespace App\Models\Procurement\Crawler;
 
 use App\Enums\Procurement\Crawler\SourceFailureKind;
 use App\Enums\Procurement\Crawler\SourceStage;
+use App\Enums\Procurement\Crawler\SourceStageStatus;
 use App\Models\Procurement\Platform\Platform;
 use Database\Factories\Procurement\Crawler\SourceCircuitFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
@@ -17,20 +18,23 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Carbon;
 
 /**
- * Брейкер этапа источника. Состояний два, отдельного поля нет: «ждёт», пока `retry_at` в
- * будущем, иначе «работает». После ожидания этап просто работает дальше — пробных запросов
- * (half-open) нет: если источник всё ещё лежит, через `failure_threshold` отказов этап снова
- * уйдёт в ожидание. Ручная пауза — отдельный флаг, снимается только оператором.
+ * Состояние брейкера этапа (площадка × этап). Правила — `SourceCircuitBreaker`, значения по
+ * умолчанию — `config('crawler.source_control')`; здесь только данные и производный
+ * `status()`. После ожидания этап просто работает дальше (пробных запросов нет); остановка
+ * из-за структуры и ручная пауза снимаются только оператором.
  *
  * @property int $id
  * @property int $platform_id
  * @property SourceStage $stage
  * @property bool $enabled
  * @property bool $manually_paused
- * @property int $failure_threshold
- * @property int $retry_interval_minutes
+ * @property int|null $failure_threshold переопределение конфига; null — из `crawler.source_control`
+ * @property int|null $layout_threshold
+ * @property int|null $retry_interval_minutes
  * @property int $consecutive_failures
+ * @property int $consecutive_layout_failures
  * @property Carbon|null $retry_at
+ * @property Carbon|null $held_at
  * @property SourceFailureKind|null $last_failure_kind
  * @property Carbon|null $last_failure_at
  * @property string|null $changed_by
@@ -40,8 +44,8 @@ use Illuminate\Support\Carbon;
  */
 #[UseFactory(SourceCircuitFactory::class)]
 #[Fillable([
-    'platform_id', 'stage', 'enabled', 'manually_paused', 'failure_threshold', 'retry_interval_minutes',
-    'consecutive_failures', 'retry_at', 'last_failure_kind', 'last_failure_at', 'changed_by',
+    'platform_id', 'stage', 'enabled', 'manually_paused', 'failure_threshold', 'layout_threshold',
+    'retry_interval_minutes', 'consecutive_failures', 'consecutive_layout_failures', 'retry_at', 'held_at', 'last_failure_kind', 'last_failure_at', 'changed_by',
 ])]
 #[Table(name: 'prc_source_circuits')]
 final class SourceCircuit extends Model
@@ -57,8 +61,11 @@ final class SourceCircuit extends Model
             'manually_paused' => 'boolean',
             'failure_threshold' => 'integer',
             'retry_interval_minutes' => 'integer',
+            'layout_threshold' => 'integer',
             'consecutive_failures' => 'integer',
+            'consecutive_layout_failures' => 'integer',
             'retry_at' => 'datetime',
+            'held_at' => 'datetime',
             'last_failure_kind' => SourceFailureKind::class,
             'last_failure_at' => 'datetime',
         ];
@@ -70,25 +77,20 @@ final class SourceCircuit extends Model
         return $this->belongsTo(related: Platform::class);
     }
 
-    /** Ждёт после серии отказов (не путать с ручной паузой). */
-    public function isWaiting(): bool
+    /** Состояние этапа; приоритет — пауза оператора, остановка, ожидание. */
+    public function status(): SourceStageStatus
     {
-        return $this->retry_at !== null && $this->retry_at->isFuture();
+        return match (true) {
+            $this->manually_paused => SourceStageStatus::Paused,
+            $this->held_at !== null => SourceStageStatus::Held,
+            $this->retry_at !== null && $this->retry_at->isFuture() => SourceStageStatus::Waiting,
+            default => SourceStageStatus::Running,
+        };
     }
 
     /** Можно ли сейчас ходить в источник на этом этапе. */
     public function admits(): bool
     {
-        return ! $this->manually_paused && ! ($this->enabled && $this->isWaiting());
-    }
-
-    public function statusLabel(): string
-    {
-        return match (true) {
-            $this->manually_paused && $this->changed_by === 'system' => 'Остановлен: изменилась структура',
-            $this->manually_paused => 'Пауза оператора',
-            $this->enabled && $this->isWaiting() => 'Ожидание',
-            default => 'Работает',
-        };
+        return $this->status()->admits();
     }
 }
