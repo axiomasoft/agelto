@@ -413,3 +413,42 @@ test('пустой блок не считается сменой формата'
 
     expect($result->rowsTotal)->toBe(0);
 });
+
+test('preflight заголовка: нет обязательной колонки — смена схемы, источник сразу на паузе, строки не разбираются', function (): void {
+    Storage::fake('s3');
+    $registry = Registry::factory()->eis()->create(['code' => 'fz44']);
+    $crawler = Crawler::factory()->for($registry)->create();
+    $run = Run::factory()->for($crawler)->create();
+    $row = ingestorCsvRow('0173200001234000001');
+    unset($row['Дата обновления']);
+
+    $result = app(CsvBlockIngestor::class)->ingest($crawler, $run, ingestorBatch([$row]));
+    $incident = SourceIncident::query()->sole();
+
+    expect($result->failure)->toBe(ListingFailureKind::SchemaDrift)
+        ->and($result->sourceSuspended)->toBeTrue()
+        ->and(Procurement::query()->count())->toBe(0)
+        ->and($incident->type)->toBe(SourceIncidentType::CircuitOpened)
+        ->and($incident->message)->toContain('Нет колонок: Дата обновления');
+});
+
+test('preflight тела: HTML-заглушка с HTTP 200 — отказ площадки, блок пропущен с инцидентом', function (): void {
+    Storage::fake('s3');
+    $registry = Registry::factory()->eis()->create(['code' => 'fz44']);
+    $crawler = Crawler::factory()->for($registry)->create();
+    $run = Run::factory()->for($crawler)->create();
+
+    $result = app(CsvBlockIngestor::class)->ingest($crawler, $run, new ListingBatch(
+        rows: [['<!DOCTYPE html>' => '<title>Проверка браузера</title>']],
+        rawBody: "<!DOCTYPE html>\n<title>Проверка браузера</title>",
+        dedupSignature: null,
+        rowsTotal: 1,
+        httpStatus: 200,
+        durationMs: 10,
+        requestParams: ['from' => '1'],
+    ));
+
+    expect($result->failure)->toBe(ListingFailureKind::HtmlInsteadOfData)
+        ->and($result->blockSkipped())->toBeTrue()
+        ->and(SourceIncident::query()->sole()->type)->toBe(SourceIncidentType::BlockSkipped);
+});

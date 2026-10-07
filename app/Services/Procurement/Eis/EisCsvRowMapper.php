@@ -8,6 +8,7 @@ use App\Dto\Procurement\ProcurementSnapshotData;
 use App\Enums\Procurement\EisProcedureType;
 use App\Models\Procurement\Crawler\Crawler;
 use App\Services\Procurement\Contracts\ListingRowMapper;
+use App\Services\Procurement\Contracts\ListingSchemaAware;
 use Illuminate\Support\Carbon;
 
 /**
@@ -15,7 +16,7 @@ use Illuminate\Support\Carbon;
  * → нормализованный `ProcurementSnapshotData`. Вся раскладка колонок — здесь; статус НЕ
  * резолвится (сырой `source_stage` резолвит `StatusMappingService` внутри `ProcurementIngestProcessor`).
  */
-final readonly class EisCsvRowMapper implements ListingRowMapper
+final readonly class EisCsvRowMapper implements ListingRowMapper, ListingSchemaAware
 {
     public function __construct(private EisSourceClock $clock = new EisSourceClock) {}
 
@@ -44,6 +45,19 @@ final readonly class EisCsvRowMapper implements ListingRowMapper
     private const string CUSTOMER_NAME_COLUMN = 'Наименование Заказчика';
 
     private const string FZ44_REGISTRY_CODE = 'fz44';
+
+    /**
+     * Колонки, без которых `map()` возвращает `null` для любой строки (номер, даты размещения
+     * и обновления). Остальные колонки необязательны: их отсутствие даёт неполный снимок, но
+     * не теряет закупку. Эталон healthcheck (`listing_csv.required_headers`) шире — он про
+     * качество данных, а не про возможность разбора, поэтому здесь не используется.
+     *
+     * @return list<string>
+     */
+    public function requiredColumns(): array
+    {
+        return [self::REGISTRY_NUMBER_COLUMN, self::PUBLISHED_AT_COLUMN, self::SOURCE_UPDATED_AT_COLUMN];
+    }
 
     /**
      * Префикс «№» (U+2116) перед номером реестровой закупки — живая проба P4.9

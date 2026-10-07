@@ -48,3 +48,15 @@ test('исключения транспорта: пул прокси, тунне
         ->toBe(ListingFailureKind::SourceUnavailable)
         ->and($classifier->classifyException(new RuntimeException('bug')))->toBeNull();
 });
+
+test('preflight: HTML важнее отсутствующих колонок, смена схемы открывает брейкер сразу', function (): void {
+    $classifier = new ListingFailureClassifier;
+
+    expect($classifier->classifyResponse(httpStatus: 200, records: 1, mapped: 0, rowFailures: 0, missingColumns: ['Дата обновления'], htmlBody: true))
+        ->toBe(ListingFailureKind::HtmlInsteadOfData)
+        ->and($classifier->classifyResponse(httpStatus: 200, records: 1, mapped: 0, rowFailures: 0, missingColumns: ['Дата обновления']))
+        ->toBe(ListingFailureKind::SchemaDrift)
+        ->and(ListingFailureKind::SchemaDrift->opensCircuitImmediately())->toBeTrue()
+        ->and($classifier->looksLikeHtml('  <!DOCTYPE html><html>'))->toBeTrue()
+        ->and($classifier->looksLikeHtml("Реестровый номер;Дата\n1;2"))->toBeFalse();
+});

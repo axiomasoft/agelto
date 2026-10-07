@@ -15,6 +15,7 @@ use App\Models\Procurement\Crawler\IgnoredItem;
 use App\Models\Procurement\Crawler\Run;
 use App\Repositories\Procurement\ProcurementReadRepository;
 use App\Services\Procurement\Contracts\ListingRowMapper;
+use App\Services\Procurement\Contracts\ListingSchemaAware;
 use App\Services\Procurement\SourceControl\ListingFailureClassifier;
 use App\Services\Procurement\SourceControl\SourceCircuitController;
 use Illuminate\Support\Facades\Log;
@@ -50,7 +51,15 @@ final readonly class CsvBlockIngestor
         // Страница ошибки (403/429/5xx после исчерпания ретраев) не является блоком листинга:
         // её строки не инжестятся. Отказ классифицируется ниже: локальный — инцидент и пропуск
         // блока (skip-and-record), системный — пауза источника без сдвига курсора.
-        foreach ($httpRejected ? [] : $batch->rows as $row) {
+        // Preflight блока до построчного разбора: HTML-заглушка вместо данных и отсутствие
+        // обязательных колонок — признаки того, что весь блок (а при смене схемы — и все
+        // следующие) не данные. Такой блок не маппится построчно: это дало бы тысячи
+        // «ошибок строк» вместо одного точного инцидента.
+        $htmlBody = ! $httpRejected && $this->failures->looksLikeHtml(body: $batch->rawBody);
+        $missingColumns = $httpRejected || $htmlBody ? [] : $this->missingRequiredColumns(batch: $batch);
+        $preflightRejected = $httpRejected || $htmlBody || $missingColumns !== [];
+
+        foreach ($preflightRejected ? [] : $batch->rows as $row) {
             try {
                 $snapshot = $this->rowMapper->map(row: $row, crawler: $crawler);
             } catch (\Throwable $exception) {
@@ -162,6 +171,8 @@ final readonly class CsvBlockIngestor
             records: $batch->rowsTotal,
             mapped: $mappedRows,
             rowFailures: $rowsErrors + $unmapped + $batch->rowsMalformed,
+            missingColumns: $missingColumns,
+            htmlBody: $htmlBody,
         );
         $sourceSuspended = false;
 
@@ -179,7 +190,8 @@ final readonly class CsvBlockIngestor
                 fetchId: $fetch->id,
                 cursor: $this->stringKeyedArray($run->cursor?->toArray() ?? []),
                 requestParams: $this->stringKeyedArray($batch->requestParams),
-                detail: "HTTP {$batch->httpStatus}, записей {$batch->rowsTotal}, распознано {$mappedRows}, ошибок строк ".($rowsErrors + $unmapped + $batch->rowsMalformed).'.',
+                detail: "HTTP {$batch->httpStatus}, записей {$batch->rowsTotal}, распознано {$mappedRows}, ошибок строк ".($rowsErrors + $unmapped + $batch->rowsMalformed).'.'
+                    .($missingColumns === [] ? '' : ' Нет колонок: '.implode(', ', $missingColumns).'.'),
             ) === SourceCircuitState::Open;
         }
 
@@ -321,5 +333,23 @@ final readonly class CsvBlockIngestor
         }
 
         return $result;
+    }
+
+    /**
+     * Обязательные колонки маппера, которых нет в заголовке блока. Заголовок берётся из ключей
+     * первой разобранной записи (`CsvSourceMethod` строит записи по заголовку). Пустой блок
+     * проверить нечем — он не считается дрейфом.
+     *
+     * @return list<string>
+     */
+    private function missingRequiredColumns(ListingBatch $batch): array
+    {
+        if (! $this->rowMapper instanceof ListingSchemaAware || $batch->rows === []) {
+            return [];
+        }
+
+        $header = array_keys($batch->rows[array_key_first($batch->rows)]);
+
+        return array_values(array_diff($this->rowMapper->requiredColumns(), $header));
     }
 }

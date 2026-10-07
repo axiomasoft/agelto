@@ -32,6 +32,19 @@ enum ListingFailureKind: string implements HasLabel
     /** 2xx, но ни одна запись непустого блока не разобрана: смена формата, HTML вместо CSV. */
     case UnrecognizedFormat = 'unrecognized_format';
 
+    /**
+     * Preflight заголовка: нет колонки, без которой маппер не строит ни одного снимка
+     * (`ListingSchemaAware`). Источник сменил формат выгрузки — каждый следующий блок будет
+     * таким же, поэтому пропускать блоки бессмысленно: брейкер открывается сразу.
+     */
+    case SchemaDrift = 'schema_drift';
+
+    /**
+     * 2xx, но вместо данных HTML-страница (WAF, капча, страница-заглушка). Считается
+     * отказом площадки и копится брейкером как блокировка.
+     */
+    case HtmlInsteadOfData = 'html_instead_of_data';
+
     /** Блок разобран частично: часть строк не прошла маппинг. Данные блока сохранены. */
     case RowErrors = 'row_errors';
 
@@ -53,13 +66,13 @@ enum ListingFailureKind: string implements HasLabel
     /** Сбой нашего разбора (площадка ответила успешно). */
     public function isParserSide(): bool
     {
-        return $this === self::UnrecognizedFormat || $this === self::RowErrors;
+        return in_array($this, [self::UnrecognizedFormat, self::RowErrors, self::SchemaDrift], true);
     }
 
     /** Открывает брейкер источника сразу, без накопления порога. */
     public function opensCircuitImmediately(): bool
     {
-        return $this === self::ProxyPoolExhausted;
+        return $this === self::ProxyPoolExhausted || $this === self::SchemaDrift;
     }
 
     /** Учитывается брейкером источника. Частичные ошибки строк — нет: блок прочитан. */
@@ -78,6 +91,8 @@ enum ListingFailureKind: string implements HasLabel
             self::UnexpectedStatus => 'Неожиданный HTTP-статус',
             self::UnrecognizedFormat => 'Формат ответа не распознан',
             self::RowErrors => 'Ошибки отдельных строк',
+            self::SchemaDrift => 'Смена схемы выгрузки (нет обязательных колонок)',
+            self::HtmlInsteadOfData => 'HTML вместо данных (WAF/капча)',
         };
     }
 

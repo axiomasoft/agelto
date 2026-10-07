@@ -23,11 +23,28 @@ final readonly class ListingFailureClassifier
      * @param  int  $records  записей в ответе источника
      * @param  int  $mapped  записей, ставших снимками
      * @param  int  $rowFailures  записей, не прошедших маппинг или инжест
+     * @param  list<string>  $missingColumns  обязательные колонки, которых нет в заголовке (preflight)
+     * @param  bool  $htmlBody  тело 2xx-ответа — HTML-документ, а не данные
      */
-    public function classifyResponse(int $httpStatus, int $records, int $mapped, int $rowFailures): ?ListingFailureKind
-    {
+    public function classifyResponse(
+        int $httpStatus,
+        int $records,
+        int $mapped,
+        int $rowFailures,
+        array $missingColumns = [],
+        bool $htmlBody = false,
+    ): ?ListingFailureKind {
         if ($httpStatus < 200 || $httpStatus >= 300) {
             return $this->classifyStatus(status: $httpStatus);
+        }
+
+        // Порядок важен: HTML-заглушка тоже «без колонок», но это отказ площадки, а не смена схемы.
+        if ($htmlBody) {
+            return ListingFailureKind::HtmlInsteadOfData;
+        }
+
+        if ($missingColumns !== []) {
+            return ListingFailureKind::SchemaDrift;
         }
 
         if ($records > 0 && $mapped === 0) {
@@ -45,6 +62,19 @@ final readonly class ListingFailureClassifier
             $status === 408, $status >= 500 => ListingFailureKind::SourceUnavailable,
             default => ListingFailureKind::UnexpectedStatus,
         };
+    }
+
+    /**
+     * Эвристика «это HTML, а не CSV/JSON»: тело начинается с `<!doctype`/`<html`/`<head`/`<body`.
+     * Нужно обсудить: WAF ЕИС может отдавать и пустое тело, и JSON-ошибку — их ловят
+     * `UnrecognizedFormat`/пустой блок; живой выборки заглушек в репозитории нет.
+     */
+    public function looksLikeHtml(string $body): bool
+    {
+        $head = mb_strtolower(ltrim(mb_substr($body, 0, 512)));
+
+        return str_starts_with($head, '<!doctype html') || str_starts_with($head, '<html')
+            || str_starts_with($head, '<head') || str_starts_with($head, '<body');
     }
 
     /**
