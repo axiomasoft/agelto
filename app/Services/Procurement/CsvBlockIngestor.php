@@ -9,6 +9,7 @@ use App\Dto\Procurement\Crawler\FetchResult;
 use App\Dto\Procurement\Crawler\ListingBatch;
 use App\Dto\Procurement\ProcurementSnapshotData;
 use App\Enums\Procurement\Crawler\CrawlStage;
+use App\Exceptions\Procurement\Crawler\ExecutionLeaseLost;
 use App\Models\Procurement\Crawler\Crawler;
 use App\Models\Procurement\Crawler\IgnoredItem;
 use App\Models\Procurement\Crawler\Run;
@@ -155,7 +156,7 @@ final readonly class CsvBlockIngestor
             'budget_wait_total_ms' => $totalWait + $batch->waitMs,
             'budget_wait_max_ms' => max($maxWait, $batch->waitMs),
         ]))) {
-            throw new \RuntimeException('Execution lease is no longer owned by this processor.');
+            throw ExecutionLeaseLost::noLongerOwned();
         }
 
         // Отказ только классифицируется; в `SourceFailureReporter` его передаёт вызывающий ПОСЛЕ

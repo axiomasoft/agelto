@@ -10,6 +10,7 @@ use App\Enums\Procurement\Crawler\CrawlerMode;
 use App\Enums\Procurement\Crawler\RunPurpose;
 use App\Enums\Procurement\Crawler\RunStatus;
 use App\Exceptions\Procurement\Crawler\CrawlerRunBusyException;
+use App\Exceptions\Procurement\Crawler\ExecutionLeaseLost;
 use App\Models\Procurement\Crawler\Crawler;
 use App\Models\Procurement\Crawler\Run;
 use Closure;
@@ -156,7 +157,7 @@ final class CrawlerRunManager
         }
 
         if (! $this->renewExecutionLease(run: $run)) {
-            throw new RuntimeException('Execution lease is no longer owned by this processor.');
+            throw ExecutionLeaseLost::noLongerOwned();
         }
     }
 
@@ -182,11 +183,11 @@ final class CrawlerRunManager
             }
 
             if ($token === null && $lockedRun->execution_owner_token !== null) {
-                throw new RuntimeException('Execution lease is not owned by this processor.');
+                throw ExecutionLeaseLost::notOwned();
             }
 
             if ($token !== null && ! $this->renewExecutionLease(run: $run)) {
-                throw new RuntimeException('Execution lease is no longer owned by this processor.');
+                throw ExecutionLeaseLost::noLongerOwned();
             }
 
             return $callback();
@@ -206,7 +207,7 @@ final class CrawlerRunManager
         $run->refresh();
 
         if ($updated !== 1 && $this->executionOwnerToken(run: $run) !== null) {
-            throw new RuntimeException('Execution lease is no longer owned by this processor.');
+            throw ExecutionLeaseLost::noLongerOwned();
         }
 
         return $updated === 1;
