@@ -11,7 +11,7 @@
 
 | Метрика | `main` (+фикс сборки тестов) | `audit/fixes-1` |
 |---|---|---|
-| Pest (`--parallel`, 6 процессов) | 1739 тестов: 1729 ✓, 2 ✗, 7 error, 1 skip | 1757 тестов: 1748 ✓, 1 ✗, 7 error, 1 skip |
+| Pest (`--parallel`, 6 процессов) | 1739 тестов: 1729 ✓, 2 ✗, 7 error, 1 skip | 1765 тестов: 1757 ✓, 1 ✗, 6 error, 1 skip |
 | PHPStan (max, larastan) | 0 ошибок | 0 ошибок |
 | Pint `--test` | ✗ (2 файла в `docker/host`) | ✓ |
 | `composer audit --locked` | 5 advisories (1 high) | чисто |
@@ -37,8 +37,9 @@ S3/MinIO-креды; при `--parallel` они ещё и гоняются ме�
 | `b077c1fa` fix(scheduler) | P1 | `routes/console.php`: любая artisan-команда, включая `package:discover` в `composer install`, падала без БД. Невалидный cron молча превращался в `*/30`, что расходилось с формой в админке. Теперь недоступная БД логируется один раз, невалидный cron пропускается с `Log::error`, пустое расписание не регистрируется. |
 | `bc3b50cd` fix(crawler) | **P0** | `CsvBlockIngestor`: на 403, 5xx или HTML-заглушке курсор уходил вперёд, и блок терялся навсегда. Теперь при ответе не 2xx и при непустом блоке, из которого не разобрано ни одного снимка, бросается `ListingBlockRejectedException`, но уже после записи в `prc_fetches`. |
 | `22aac324` fix(db) | **P0** | Миграция `2026_09_10_100093_repair_partition_coverage` падала на чистой БД: партиции pg_partman `_pYYYYMMDD` пересекались по диапазонам. Теперь каждая партиция создаётся в SAVEPOINT, SQLSTATE 42P17 пропускается. |
-| `85b27fad` fix(proxy) | P1 | `Proxy::$password` хранился открытым текстом и попадал в `toArray()`/JSON. Теперь стоит cast `encrypted` и `#[Hidden]`, `ProxyResolver` расшифровывает пароль сам. Миграция `2026_10_07_100096` шифрует существующие пароли, идемпотентна, `down` восстанавливает. |
+| `85b27fad` + `refactor(db)` | P1 | `Proxy::$password` хранился открытым текстом и попадал в `toArray()`/JSON. Теперь стоит cast `encrypted` и `#[Hidden]`, `ProxyResolver` расшифровывает пароль сам. По решению владельца (БД пересоздаётся с нуля, наследия нет) отдельная data-миграция удалена: колонка `text` в `2026_07_04_100040_create_prc_proxies_table` хранит шифртекст с момента создания. |
 | `b617fb4c` style(docker) | P3 | Pint для `docker/host/backup/backup-objects.php` и `docker/host/mail/smtp-smoke.php`. |
+| `feat(crawler)` EisSourceClock | P1 | Часовой пояс источника берётся из конфигурации: `crawler.platforms.eis.source_timezone`, env `EIS_SOURCE_TIMEZONE`, по умолчанию `Europe/Moscow`, есть в `.env.example`. «Наивные» дата-время ЕИС (CSV-листинг, журнал событий, протокол итогов) читаются в нём и хранятся в UTC. Календарные даты без времени не сдвигаются. Явная метка «МСК±N» в журнале событий имеет приоритет (МСК = UTC+3). Тесты: `tests/Unit/Procurement/Eis/EisSourceClockTest.php`. |
 | `chore(deps)` | P1 | Патч-обновления без `--with-dependencies`: filament 5.8.4 (CVE-2026-104181, MFA без повторного ввода пароля), laravel 13.35 (CVE-2026-102279), commonmark 2.10.3 (high: квадратичный DoS в GFM-таблицах), flysystem 3.36 (CVE-2026-102601). |
 
 Для каждого поведенческого фикса есть тест, который падал на старом коде.
@@ -104,11 +105,12 @@ sequenceDiagram
   Note over C: 3 записи с конца первого блока пропущены
 ```
 
-### 3.6 Часовой пояс источника — P1 (не проверено вживую)
-Даты CSV парсятся в TZ приложения (UTC), хотя ЕИС отдаёт московское или местное время.
-Нужна явная `source_timezone` (`Europe/Moscow`) в конфиге источника, хранение в `timestamptz`
-и разовый probe по известной закупке. Сейчас ошибки разбора дат молча пропускают строку:
-нужен счётчик и лог, как сделано для malformed CSV.
+### 3.6 Часовой пояс источника — исправлено (см. §2), осталось
+Решение владельца: TZ задаётся через env `EIS_SOURCE_TIMEZONE` (по умолчанию `Europe/Moscow`), хранение в UTC.
+Осталось:
+1. Разовый probe по известной закупке: сравнить время из CSV с карточкой, где есть метка «МСК±N».
+2. Счётчик и лог для дат, которые не удалось разобрать: сейчас поле молча становится `null`.
+3. Если колонки БД `timestamp without time zone`, перейти на `timestamptz`, пока БД пересоздаётся.
 
 ### 3.7 Кодировка — P2
 `CsvSourceMethod.php:139`, `GsfxReader.php:81`: Windows-1251 захардкожена. Рекомендация: проверять
@@ -145,7 +147,6 @@ CREATE UNIQUE INDEX CONCURRENTLY prc_items_proc_pos_uq ON prc_items (procurement
 - `docker/php/Dockerfile:3`: `minio/mc:latest` не закреплён. Закрепить по digest.
 - `docker/host/backup/backup-objects.php:14`: `allFiles()` грузит весь список объектов в память, хэши копий не сверяются. Перейти на потоковый листинг и сверку ETag/sha256.
 - 7z/unar: путь записи передаётся как шаблон. Сейчас это закрыто валидацией `*?[]` и ведущего `-`; оставить тест-регресс.
-- После шифрования паролей прокси ротация `APP_KEY` требует `APP_PREVIOUS_KEYS`. Зафиксировать в runbook.
 - Хорошо сделано: XML с `LIBXML_NONET`, распаковка архивов с лимитами, `Process` с массивом аргументов, allowlist целей (`SourceTargetValidator`) против SSRF.
 
 ## 4. Не удалось проверить и почему
@@ -158,9 +159,188 @@ CREATE UNIQUE INDEX CONCURRENTLY prc_items_proc_pos_uq ON prc_items (procurement
 
 ## 5. Решения владельца
 
+Принято 2026-10-07:
+- Пустое или невалидное расписание **не запускается** (оставлено как в `b077c1fa`).
+- Наследия нет, БД пересоздаётся: data-миграция шифрования паролей прокси удалена, колонка шифруется с создания.
+- Часовой пояс источника читается из env `EIS_SOURCE_TIMEZONE` (по умолчанию `Europe/Moscow`), хранение в UTC.
+
+Открыто:
 1. Семантика «устаревший снимок не перезаписывает голову» (по дате `source_updated_at`).
-2. Пустое или невалидное расписание теперь **не запускается** (раньше было `*/30`).
-3. Строгий отказ на блоках не 2xx или неразбираемых: прогоны будут падать видимо, а не терять данные.
-4. Шифрование паролей прокси и процедура ротации ключа.
-5. Часовой пояс источника.
-6. Репозиторий вендора `axiomasoft/azguard-private` **публичный**: GitHub API отдаёт 200 без авторизации. Это намеренно?
+2. Строгий отказ плохих блоков: оставить инвариант, доработать по §6 (пауза/карантин вместо `fail()`).
+3. Репозиторий вендора `axiomasoft/azguard-private` **публичный**: GitHub API отдаёт 200 без авторизации. Это намеренно?
+
+## 6. Строгий отказ плохих блоков листинга: плюсы, минусы, доработка
+
+Контекст (коммит `bc3b50cd`). `CsvBlockIngestor::ingest` (`app/Services/Procurement/CsvBlockIngestor.php:156,163`)
+сначала пишет попытку в `prc_fetches`, затем бросает `ListingBlockRejectedException`, если:
+- HTTP-статус ответа не 2xx (`forHttpStatus`);
+- непустой блок не дал ни одного снимка (`forUnrecognizedFormat`: HTML-заглушка, капча, сменился формат CSV).
+
+Курсор при этом не двигается. Дальше исключение уходит по общему пути:
+- `FreshRunProcessor.php:141` и `ArchiveRunProcessor.php:73` ловят `Throwable` и вызывают
+  `CrawlerRunManager::fail()` (`:515`). Прогон получает статус `failed`, и это терминальный статус:
+  автоматического resume у `failed` нет.
+- `CrawlRunJob` сознательно не ретраится очередью: у него нет `$tries`/`$backoff`, ретраи живут в домене.
+- До ингестора блок уже прошёл HTTP-ретраи `CsvSourceMethod::requestWithRetries` (`:440`): до 5 попыток
+  с фиксированной паузой на одной аренде прокси, со слотом `PlatformRequestBudget` на каждой попытке.
+
+### Плюсы в контексте проекта
+1. **Нет тихой потери данных.** Раньше 403/503 или HTML-страница WAF давали 0 строк, и курсор
+   уходил вперёд. В архиве (`ArchiveWindowScanner`) `rowsTotal < block_size` ещё и закрывал интервал
+   как «исчерпанный», то есть целый день или ценовой интервал выпадал навсегда, и никто об этом не знал.
+   Полнота корпуса (цель «весь 2025 год») важнее, чем зелёный статус прогона.
+2. **Ошибка видна.** Статус `failed` с текстом, строка в `prc_fetches` с кодом и прокси. Всё это
+   уже есть в админке и в отчётах `doctor`/readiness, отдельные метрики не нужны.
+3. **Детерминированный resume-point.** Курсор стоит ровно перед плохим блоком. Повторный прогон
+   (или будущий resume) начинает с него, а `snapshot_hash` и проверка «старее головы» (`b912df60`)
+   делают повтор идемпотентным.
+4. **Ранний сигнал о смене формата.** `forUnrecognizedFormat` ловит schema drift ЕИС (переименованные
+   колонки, другая кодировка) с первого блока, а не после недели «пустых» прогонов.
+5. **Честнее для бюджета и прокси.** Прогон не продолжает долбить источник, который уже отвечает
+   403/капчей. В долгом прогоне это снижает риск бана пула прокси.
+
+### Минусы и риски
+1. **Один блок валит весь прогон.** Для недельного архивного прогона это дорого: временный 503
+   на 1 блоке из тысяч останавливает всё до ручного вмешательства, потому что `failed` терминален.
+   Сейчас нет промежуточного состояния «пауза, повтор позже».
+2. **Poison block и застрявший курсор.** Если блок плохой стабильно (битый CSV у конкретного
+   offset, вечная капча для конкретного фильтра), каждый новый прогон упирается в то же место.
+   Fresh-режим, который каждый раз идёт сверху, никогда не дойдёт до `reached_previous_run`,
+   и свежие данные ниже плохого блока перестают поступать.
+3. **Транзиентное смешано с постоянным.** 429/503/407 (лимиты, прокси) и «формат не распознан» обрабатываются
+   одинаково, хотя первым нужен backoff и смена прокси, а вторым нужен человек.
+4. **Плохой прокси выглядит как плохой источник.** 403/407 часто означает забаненный exit-IP.
+   `ProxyCircuitBreaker` получает исход только из HTTP-слоя, а отказ блока на уровне
+   ингестора не приводит к повтору через другой прокси.
+5. **Шум алертов.** Если алерт привязан к `failed`, то кратковременный WAF-эпизод ночью
+   поднимает столько же тревог, сколько реальная смена формата.
+6. **Ложноположительный `forUnrecognizedFormat`.** Валидный блок, в котором все строки отфильтрованы
+   маппером (например, все вне скоупа ОКПД2), тоже даст 0 снимков. Нужно различать «0 снимков из-за
+   фильтра» и «0 снимков из-за непонятного формата». Сейчас критерий такой: непустой блок, 0 снимков,
+   и `rows_errors` равен числу записей. Это надо держать покрытым тестом.
+
+### Рекомендуемая доработка (по шагам)
+
+**Шаг 1. Классифицировать отказ.** Транзиентный отказ повторяется, постоянный изолируется.
+
+```php
+enum ListingRejectionKind: string
+{
+    case Transient = 'transient';     // 408, 425, 429, 5xx, 407, пустое 200
+    case Blocked = 'blocked';         // 403, капча/WAF-HTML: сменить прокси, затем transient
+    case Unrecognized = 'unrecognized'; // 2xx, но формат не распознан: schema drift
+}
+
+// ListingBlockRejectedException
+public static function forHttpStatus(int $status): self
+{
+    $kind = match (true) {
+        $status === 403 => ListingRejectionKind::Blocked,
+        in_array($status, [407, 408, 425, 429], true), $status >= 500 => ListingRejectionKind::Transient,
+        default => ListingRejectionKind::Unrecognized,
+    };
+
+    return new self(kind: $kind, message: "Listing block rejected: HTTP {$status}");
+}
+```
+
+**Шаг 2. Ограниченные повторы блока с backoff, а не `fail()`.** В `FreshRunProcessor`/`ArchiveRunProcessor`
+ловить исключение отдельно, до общего `Throwable`, по образцу уже существующей ветки `PlatformBudgetExhaustedException`:
+
+```php
+} catch (ListingBlockRejectedException $rejection) {
+    $attempt = $this->blockFailures->record(run: $run, cursor: $cursor, rejection: $rejection);
+
+    if ($rejection->kind !== ListingRejectionKind::Unrecognized && $attempt < $maxBlockAttempts) {
+        // курсор не двигаем; прогон остаётся resumable
+        $this->runs->pauseUntil(run: $run, until: now()->addSeconds($this->backoff($attempt)), reason: 'listing_block_retry');
+
+        return FreshRunResult::Checkpointed;
+    }
+
+    $this->quarantine->put(run: $run, cursor: $cursor, rejection: $rejection, attempts: $attempt);
+    // skip-and-record: курсор идёт дальше, блок не потерян, а зарегистрирован
+    $this->advancePastBlock(run: $run, cursor: $cursor);
+}
+```
+
+`backoff()`: full jitter, `random_int(0, min(cap, base * 2 ** attempt))`, с учётом `Retry-After`
+(подробнее в §3.1). Для `Blocked` перед повтором сообщать `ProxyCircuitBreaker::recordFailure()`
+и брать новую аренду (`ProxyResolver::resolve(..., exclude: $lease->proxyId)`).
+
+**Шаг 3. Таблица карантина (DLQ) с повторной обработкой.** БД пересоздаётся с нуля, поэтому её
+можно добавить сразу в create-миграции:
+
+```sql
+CREATE TABLE prc_listing_quarantine (
+    id            bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    crawler_id    bigint NOT NULL REFERENCES prc_crawlers(id) ON DELETE CASCADE,
+    run_id        bigint NOT NULL REFERENCES prc_runs(id) ON DELETE CASCADE,
+    cursor        jsonb  NOT NULL,              -- day / stack / offset / фильтр интервала
+    kind          text   NOT NULL CHECK (kind IN ('transient','blocked','unrecognized')),
+    http_status   smallint,
+    fetch_id      bigint,                       -- ссылка на prc_fetches (тело/хэш/прокси)
+    attempts      smallint NOT NULL DEFAULT 1,
+    next_retry_at timestamptz,
+    resolved_at   timestamptz,
+    created_at    timestamptz NOT NULL DEFAULT now(),
+    UNIQUE (crawler_id, cursor)
+);
+CREATE INDEX prc_listing_quarantine_due ON prc_listing_quarantine (next_retry_at) WHERE resolved_at IS NULL;
+```
+
+Отдельный `ReplayQuarantinedBlocksJob` раз в N минут выбирает due-строки через
+`FOR UPDATE SKIP LOCKED`, повторяет ровно этот курсор через тот же `CsvBlockIngestor` (идемпотентно
+по `snapshot_hash`) и ставит `resolved_at`. Записи `unrecognized` не повторяются автоматически:
+они ждут исправления маппера, после которого запускается replay командой.
+
+**Шаг 4. Circuit breaker на источник (а не только на прокси).** Если доля отказов блоков по хосту
+`zakupki.gov.ru` за 10 минут больше X% (или K отказов подряд через разные прокси), все прогоны этого источника
+ставятся на паузу на T минут. Так проблема источника не превращается в массовый карантин.
+Состояние можно держать в Redis рядом с `PlatformRequestBudget`.
+
+```php
+if ($this->sourceBreaker->isOpen(host: $host)) {
+    $this->runs->pauseUntil(run: $run, until: $this->sourceBreaker->retryAt(host: $host), reason: 'source_circuit_open');
+    return FreshRunResult::Checkpointed;
+}
+```
+
+**Шаг 5. Метрики и алерты.**
+- `crawler_listing_block_rejected_total{kind,status,crawler}`: счётчик.
+- `crawler_listing_quarantine_open{kind}` и возраст самой старой открытой записи (gauge).
+- `crawler_run_paused_seconds{reason}`.
+- Алерты:
+  - `unrecognized > 0`: сразу, это schema drift, нужен человек;
+  - `quarantine_open_age > 6h`: блок не лечится повторами;
+  - `source_circuit_open > 30m`;
+  - fresh-прогон дольше 2 расписаний не дошёл до `reached_previous_run` (застрявший курсор).
+- `transient` не алертится по одному событию, только по доле.
+
+**Шаг 6. Проверка полноты.** Ежедневный отчёт по окну: для каждого дня архива число блоков
+`ok / quarantined / resolved`. Окно считается полным только при `quarantined = 0`. Сейчас
+этот признак неявный (интервал «drained»).
+
+```mermaid
+stateDiagram-v2
+    [*] --> Fetch
+    Fetch --> Ingest: 2xx и снимки > 0
+    Fetch --> Retry: transient/blocked, attempt < N
+    Retry --> Fetch: backoff + jitter, новая аренда прокси
+    Fetch --> Quarantine: attempt >= N или unrecognized
+    Quarantine --> Advance: skip-and-record
+    Ingest --> Advance
+    Advance --> [*]
+    Quarantine --> Replay: ReplayQuarantinedBlocksJob (SKIP LOCKED)
+    Replay --> Resolved
+```
+
+**Итог.** Строгий отказ правильный как инвариант «курсор не проходит мимо непрочитанных данных»,
+и его стоит оставить. Но терминальный `fail()` всего прогона — слишком грубая реакция для долгих
+прогонов. Рекомендуемый порядок:
+1. Классификация отказов и пауза с backoff вместо `fail()`. Малый объём, самый большой эффект.
+2. Таблица карантина и replay.
+3. Breaker на источник и метрики.
+
+До шага 2 действует простое операционное правило: при `failed` с текстом `Listing block rejected`
+смотреть строку в `prc_fetches` (код, прокси) и перезапускать прогон с того же курсора.
