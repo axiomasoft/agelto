@@ -35,6 +35,7 @@ production-сервера. Выберите их в левом меню; каж�
 
 ## SOP: настройка и наблюдение
 
+- [Пауза площадки и возобновление обхода](how-to/manage-source-pauses.md)
 - [Что делать с необрабатываемым документом](how-to/handle-unprocessable-document.md)
 - [Управление промтами](how-to/manage-prompts.md)
 - [Запустить разбор эталона («Прогнать»)](how-to/run-fixture-analysis.md)
