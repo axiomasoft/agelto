@@ -113,7 +113,7 @@ test('без аргумента резолвит все активные fresh-�
         ->and(Run::query()->where('crawler_id', $inactive->id)->exists())->toBeFalse();
 });
 
-test('сбой источника одного профиля не проваливает прогон: блоки пропущены с записью, остальные обработаны', function () {
+test('сбой одного профиля сохраняет его курсор на паузе, остальные профили обработаны', function () {
     $healthy = Crawler::factory()->create(['mode' => CrawlerMode::Fresh, 'is_active' => true, 'source_method' => SourceMethodEnum::Csv]);
     $broken = Crawler::factory()->create(['mode' => CrawlerMode::Fresh, 'is_active' => true, 'source_method' => SourceMethodEnum::Html]);
 
@@ -128,8 +128,9 @@ test('сбой источника одного профиля не провал�
 
     expect(Run::query()->where('crawler_id', $healthy->id)->sole()->status)->toBe(RunStatus::Completed)
         ->and(Run::query()->where('crawler_id', $broken->id)->sole()->status)->toBe(RunStatus::Paused)
-        ->and(SourceIncident::query()->where('type', CrawlerEventCode::CsvCodeError)->count())->toBe(50)
-        ->and(SourceIncident::query()->where('type', CrawlerEventCode::StageHeld)->count())->toBe(1);
+        ->and(Run::query()->where('crawler_id', $broken->id)->sole()->cursor['blockFrom'])->toBe(1)
+        ->and(SourceIncident::query()->where('type', CrawlerEventCode::CsvCodeError)->count())->toBe(1)
+        ->and(SourceIncident::query()->where('type', CrawlerEventCode::StageHeld)->count())->toBe(0);
 });
 
 test('активный прогон профиля — команда отказывает, второй job не ставится', function () {

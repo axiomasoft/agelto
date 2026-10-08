@@ -8,11 +8,14 @@ use App\Dto\Procurement\Crawler\FetchResult;
 use App\Dto\Procurement\Crawler\ListingCursor;
 use App\Dto\Procurement\Crawler\RecoveryScope;
 use App\Enums\Procurement\Crawler\RunPurpose;
+use App\Enums\Procurement\Crawler\RunStatus;
 use App\Enums\Procurement\Crawler\RunStopKind;
 use App\Enums\Procurement\Crawler\RunStopPolicy;
+use App\Exceptions\Procurement\Crawler\OutboundRequestDeadlineExceeded;
 use App\Exceptions\Procurement\Crawler\PlatformBudgetExhaustedException;
 use App\Models\Procurement\Crawler\Crawler;
 use App\Models\Procurement\Crawler\Run;
+use App\Services\Procurement\Contracts\DeadlineAwareSourceMethod;
 use App\Services\Procurement\CrawlerRunManager;
 use App\Services\Procurement\CsvBlockIngestor;
 use App\Services\Procurement\RunStopGate;
@@ -65,6 +68,7 @@ final readonly class FreshRunProcessor
         $maxBlocks = $this->integerConfig(key: 'crawler.fresh_max_blocks', default: 40);
         $checkpointSeconds = $this->integerConfig(key: 'crawler.run.checkpoint_seconds', default: 240);
         $startedAt = Carbon::now();
+        $deadlineAt = microtime(true) + $checkpointSeconds;
         // Порог считается ОДИН раз на старте (Implementation Rule 2): предыдущий завершённый
         // прогон за время обхода не меняется, перечитывание на каждом блоке — лишний запрос.
         $onlyFreshThreshold = $this->resolveOnlyFreshThreshold(crawler: $crawler, previousCompletedRun: $previousCompletedRun);
@@ -72,6 +76,7 @@ final readonly class FreshRunProcessor
         try {
             for ($iteration = 0; $iteration < $maxBlocks; $iteration++) {
                 $crawler->refresh();
+                $this->runs->heartbeat(run: $run);
 
                 $stopSignal = $this->stopGate->signal(run: $run);
 
@@ -100,82 +105,72 @@ final readonly class FreshRunProcessor
                 $sourceMethod = $this->factory->makeWithFallback(crawler: $crawler);
 
                 try {
-                    $batch = $sourceMethod->collectListing(crawler: $crawler, cursor: $cursor);
-                    $fetchResult = $this->ingestor->ingest(crawler: $crawler, run: $run, batch: $batch);
+                    $batch = $sourceMethod instanceof DeadlineAwareSourceMethod
+                        ? $sourceMethod->collectListingWithinDeadline(crawler: $crawler, cursor: $cursor, deadlineAt: $deadlineAt)
+                        : $sourceMethod->collectListing(crawler: $crawler, cursor: $cursor);
+                    $fetchResult = $this->runs->withinExecutionLease(run: $run, callback: function () use ($batch, $crawler, $run, &$cursor, $blockSize, $onlyFreshThreshold): FetchResult {
+                        $fetchResult = $this->ingestor->ingest(crawler: $crawler, run: $run, batch: $batch);
+
+                        if ($fetchResult->failure !== null) {
+                            return $fetchResult;
+                        }
+
+                        if ($fetchResult->oldestUpdateSeen !== null) {
+                            $this->runs->recordOldestUpdateSeen(run: $run, candidate: $fetchResult->oldestUpdateSeen);
+                        }
+
+                        // Сравнение — ПОСЛЕ инжеста (Implementation Rule 4): строки блока уже сохранены,
+                        // останавливаемся, собрав блок, а не выбросив его.
+                        if ($cursor->lastDedupSignature !== null && $batch->dedupSignature === $cursor->lastDedupSignature) {
+                            $this->handleCapHit(crawler: $crawler, run: $run, blockFrom: $cursor->blockFrom);
+                            $this->markStopReason(run: $run, reason: 'dedup_signature_repeat');
+
+                            $cursor = $cursor->withReachedKnown();
+                            $this->runs->updateCursor(run: $run, cursor: $cursor);
+                            $this->runs->complete(run: $run);
+
+                            return $fetchResult;
+                        }
+
+                        if ($this->reachedPreviousRun(threshold: $onlyFreshThreshold, fetchResult: $fetchResult)) {
+                            $this->markStopReason(run: $run, reason: 'reached_previous_run', stopThresholdAt: $onlyFreshThreshold, oldestUpdateSeen: $fetchResult->oldestUpdateSeen, oldestUpdateSeenHasDayPrecision: $fetchResult->oldestUpdateSeenHasDayPrecision);
+
+                            $cursor = $cursor->withReachedKnown();
+                            $this->runs->updateCursor(run: $run, cursor: $cursor);
+                            $this->runs->complete(run: $run);
+
+                            return $fetchResult;
+                        }
+
+                        if ($fetchResult->rowsTotal === 0) {
+                            $this->markStopReason(run: $run, reason: 'source_exhausted');
+
+                            $cursor = $cursor->withReachedKnown();
+                            $this->runs->updateCursor(run: $run, cursor: $cursor);
+                            $this->runs->complete(run: $run);
+
+                            return $fetchResult;
+                        }
+
+                        $cursor = $cursor->afterFreshBlock(blockSize: $blockSize, dedupSignature: $batch->dedupSignature);
+                        $this->runs->updateCursor(run: $run, cursor: $cursor);
+                        $this->runs->heartbeat(run: $run);
+
+                        return $fetchResult;
+                    });
                 } catch (Throwable $exception) {
-                    // Любой сбой скачивания или записи блока (сеть, баг, БД) — классификация и
-                    // реакция из конфига; прогон сам не падает. Закоммиченные строки остаются.
-                    if ($this->sourceControl->onBlockException(crawler: $crawler, run: $run, exception: $exception, requestParams: $cursor->toArray())) {
-                        return $run;
-                    }
-
-                    $cursor = $cursor->afterFreshBlock(blockSize: $blockSize, dedupSignature: null);
-                    $this->runs->updateCursor(run: $run, cursor: $cursor);
-                    $this->runs->heartbeat(run: $run);
-
-                    continue;
-                }
-
-                // Инцидент/брейкер — после инжеста: строки fresh-блока уже закоммичены построчно,
-                // запись о проблеме от них не зависит. `true` — листинг ушёл в ожидание, прогон
-                // приостановлен, курсор стоит на этом блоке.
-                if ($this->sourceControl->afterBlock(crawler: $crawler, run: $run, result: $fetchResult, requestParams: $cursor->toArray())) {
-                    return $run;
-                }
-
-                // Skip-and-record: отказ блока уже записан инцидентом (курсор, fetch, класс),
-                // курсор переходит через блок. Стоп-условия по содержимому не проверяются —
-                // у непрочитанного блока его нет (иначе 403 выглядел бы «источник исчерпан»).
-                if ($fetchResult->blockSkipped()) {
-                    $cursor = $cursor->afterFreshBlock(blockSize: $blockSize, dedupSignature: null);
-                    $this->runs->updateCursor(run: $run, cursor: $cursor);
-                    $this->runs->heartbeat(run: $run);
-
-                    continue;
-                }
-
-                if ($fetchResult->oldestUpdateSeen !== null) {
-                    $this->runs->recordOldestUpdateSeen(run: $run, candidate: $fetchResult->oldestUpdateSeen);
-                }
-
-                // Сравнение — ПОСЛЕ инжеста (Implementation Rule 4): строки блока уже сохранены,
-                // останавливаемся, собрав блок, а не выбросив его.
-                if ($cursor->lastDedupSignature !== null && $batch->dedupSignature === $cursor->lastDedupSignature) {
-                    $this->handleCapHit(crawler: $crawler, run: $run, blockFrom: $cursor->blockFrom);
-                    $this->markStopReason(run: $run, reason: 'dedup_signature_repeat');
-
-                    $cursor = $cursor->withReachedKnown();
-                    $this->runs->updateCursor(run: $run, cursor: $cursor);
-                    $this->runs->complete(run: $run);
+                    $run->refresh();
+                    $this->sourceControl->onBlockException(crawler: $crawler, run: $run, exception: $exception, requestParams: $cursor->toArray());
 
                     return $run;
                 }
 
-                if ($this->reachedPreviousRun(threshold: $onlyFreshThreshold, fetchResult: $fetchResult)) {
-                    $this->markStopReason(run: $run, reason: 'reached_previous_run', stopThresholdAt: $onlyFreshThreshold, oldestUpdateSeen: $fetchResult->oldestUpdateSeen, oldestUpdateSeenHasDayPrecision: $fetchResult->oldestUpdateSeenHasDayPrecision);
-
-                    $cursor = $cursor->withReachedKnown();
-                    $this->runs->updateCursor(run: $run, cursor: $cursor);
-                    $this->runs->complete(run: $run);
-
+                if ($this->sourceControl->afterBlock(crawler: $crawler, run: $run, result: $fetchResult, requestParams: $batch->requestParams)
+                    || $run->status !== RunStatus::Running) {
                     return $run;
                 }
-
-                if ($fetchResult->rowsTotal === 0) {
-                    $this->markStopReason(run: $run, reason: 'source_exhausted');
-
-                    $cursor = $cursor->withReachedKnown();
-                    $this->runs->updateCursor(run: $run, cursor: $cursor);
-                    $this->runs->complete(run: $run);
-
-                    return $run;
-                }
-
-                $cursor = $cursor->afterFreshBlock(blockSize: $blockSize, dedupSignature: $batch->dedupSignature);
-                $this->runs->updateCursor(run: $run, cursor: $cursor);
-                $this->runs->heartbeat(run: $run);
             }
-        } catch (PlatformBudgetExhaustedException) {
+        } catch (PlatformBudgetExhaustedException|OutboundRequestDeadlineExceeded) {
             $this->runs->recordCheckpoint(run: $run);
 
             return $run;

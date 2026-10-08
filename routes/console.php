@@ -55,9 +55,15 @@ $hasTable = (static function (): Closure {
 // недоступная БД пропускает только профили (`schedule:work` перечитает их через минуту), а
 // невалидный cron одного профиля — только этот профиль. Пустое расписание — профиль не
 // запускается по cron (контракт формы краулера), а не скрытый «каждые 30 минут».
-$freshCrawlers = $hasTable('prc_crawlers')
-    ? Crawler::query()->where('mode', CrawlerMode::Fresh)->where('is_active', true)->get()
-    : collect();
+$freshCrawlers = collect();
+
+try {
+    if ($hasTable('prc_crawlers')) {
+        $freshCrawlers = Crawler::query()->where('mode', CrawlerMode::Fresh)->where('is_active', true)->get();
+    }
+} catch (Throwable $exception) {
+    Log::warning('Планировщик: не удалось прочитать fresh-профили.', ['exception' => $exception->getMessage()]);
+}
 
 foreach ($freshCrawlers as $crawler) {
     $cron = trim((string) $crawler->schedule);

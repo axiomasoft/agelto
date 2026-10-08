@@ -22,8 +22,8 @@ use App\Repositories\Procurement\Crawler\SourceCircuitRepository;
  *   затем этап просто продолжает работу (пробных запросов нет).
  * - `CountTowardHold` → `consecutive_layout_failures`; порог → остановка (`held_at`) до
  *   оператора: повтор на изменённой вёрстке даст тот же результат.
- * - LogOnly/Record с пропуском блока → `consecutive_skips`; `max_consecutive_skips` подряд →
- *   та же остановка (последняя страховка от прохода всего источника «впустую»).
+ * - LogOnly/Record без успешного блока → `consecutive_skips`; `max_consecutive_skips` подряд →
+ *   та же остановка (ограничивает повторы постоянных ошибок, включая ошибки отдельных строк).
  * Успех сбрасывает все счётчики. Пороги — `StagePolicy` с переопределениями строки этапа.
  * `enabled = false`: счётчики идут, но этап не ждёт и не останавливается (пауза — всегда).
  */
@@ -56,7 +56,7 @@ final readonly class SourceCircuitBreaker
         return $this->circuits->withLock($platformId, $stage, function (SourceCircuit $circuit) use ($kind, $reaction): SourceBreakerOutcome {
             $circuit->last_failure_kind = $kind;
             $circuit->last_failure_at = now();
-            $outcome = $circuit->admits() ? $this->count($circuit, $kind, $reaction) : SourceBreakerOutcome::NotAdmitting;
+            $outcome = $circuit->admits() ? $this->count($circuit, $reaction) : SourceBreakerOutcome::NotAdmitting;
             $circuit->save();
 
             return $outcome;
@@ -90,16 +90,20 @@ final readonly class SourceCircuitBreaker
     /** Ожидание истекло: этап снова работает. */
     public function finishWaiting(SourceCircuit $circuit): void
     {
-        $circuit->update(['retry_at' => null]);
+        SourceCircuit::query()->whereKey($circuit->id)
+            ->where('retry_at', '<=', now())
+            ->where('manually_paused', false)
+            ->whereNull('held_at')
+            ->update(['retry_at' => null]);
     }
 
-    private function count(SourceCircuit $circuit, SourceFailureKind $kind, SourceFailureReaction $reaction): SourceBreakerOutcome
+    private function count(SourceCircuit $circuit, SourceFailureReaction $reaction): SourceBreakerOutcome
     {
         $policy = $this->effectivePolicy($circuit);
 
-        // Страховка от бесконечного пропуска: отказы, которые брейкер не считает, но которые
-        // пропускают блок. Сетевые/структурные сюда не входят — у них свои счётчики.
-        if ($policy->maxConsecutiveSkips !== null && $kind->skipsBlock()
+        // Старое имя consecutive_skips сохранено для совместимости схемы: теперь это
+        // не пропущенные блоки, а неудачные попытки. Курсор на них не продвигается.
+        if ($policy->maxConsecutiveSkips !== null
             && ($reaction === SourceFailureReaction::LogOnly || $reaction === SourceFailureReaction::Record)) {
             $circuit->consecutive_skips++;
 

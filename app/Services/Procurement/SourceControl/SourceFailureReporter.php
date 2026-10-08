@@ -54,7 +54,7 @@ final readonly class SourceFailureReporter
             )),
             SourceBreakerOutcome::StartedSkipHold => $this->events->report(SourceEvent::forFailure(
                 CrawlerEventCode::StageHeld, $failure,
-                "{$failure->stage->getLabel()}: подряд пропущено слишком много блоков без единого успеха (последний — {$failure->kind->label()}) — этап остановлен до решения оператора.",
+                "{$failure->stage->getLabel()}: слишком много неудачных попыток без единого успешного блока (последний отказ — {$failure->kind->label()}) — этап остановлен до решения оператора.",
                 SourceCircuitBreaker::SystemActor,
             )),
             SourceBreakerOutcome::Running, SourceBreakerOutcome::NotAdmitting => null,

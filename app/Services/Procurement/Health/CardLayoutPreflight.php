@@ -5,8 +5,7 @@ declare(strict_types=1);
 namespace App\Services\Procurement\Health;
 
 use App\Dto\Procurement\ProcurementDetails;
-use Illuminate\Support\Facades\Log;
-use Throwable;
+use App\Exceptions\Procurement\Health\HealthBaselineUnavailableException;
 
 /**
  * Проверка HTML-карточки ДО разбора: на каждой снятой вкладке должны быть базовые селекторы
@@ -18,9 +17,8 @@ use Throwable;
  * Почему эталон, а не селекторы парсеров: эталон уже версионируется и используется для метрик
  * healthcheck — второй список селекторов разошёлся бы с ним.
  *
- * Эталон недоступен — это сбой нашей конфигурации, а не площадки: проверка не блокирует
- * разбор и пишет warning. Ревьюеру: если вы считаете, что без эталона разбирать нельзя, это
- * одна строка — оспорьте.
+ * Недоступный эталон — ошибка конфигурации. Исключение уходит в штатный повтор карточки:
+ * без проверки структуры нельзя подтверждать успешный разбор и перезаписывать данные.
  */
 final readonly class CardLayoutPreflight
 {
@@ -36,13 +34,7 @@ final readonly class CardLayoutPreflight
      */
     public function missingBaseSelectors(ProcurementDetails $details): array
     {
-        try {
-            $baselineTabs = $this->baselines->read()->cardTabs;
-        } catch (Throwable $exception) {
-            Log::warning('CardLayoutPreflight: эталон недоступен, проверка карточки пропущена.', ['error' => $exception->getMessage()]);
-
-            return [];
-        }
+        $baselineTabs = $this->baselines->read()->cardTabs;
 
         // TODO(documents): у вкладки documents нет базового селектора — оба якоря эталона
         // (`a[href*=filestore]`, `div.attachment`) зависят от наличия вложений, поэтому её вёрстка
@@ -74,6 +66,10 @@ final readonly class CardLayoutPreflight
             }
 
             $outcome = $this->probe->probe(html: $html, tabDescription: ['anchors' => $base]);
+
+            if ($outcome->status === 'probe_failed') {
+                throw new HealthBaselineUnavailableException("не удалось проверить селекторы вкладки {$tab}");
+            }
 
             if ($outcome->anchorsMissingCritical > 0) {
                 $missing[$tab] = array_values(array_map(

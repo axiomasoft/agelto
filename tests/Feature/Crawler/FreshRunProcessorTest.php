@@ -140,7 +140,7 @@ afterEach(function () {
     Carbon::setTestNow();
 });
 
-test('нераспознанный блок записан инцидентом с evidence и пропущен, обход идёт дальше (skip-and-record)', function (): void {
+test('нераспознанный блок сохраняет evidence и курсор для повторной обработки', function (): void {
     $crawler = Crawler::factory()->create();
     useQueueSourceMethod([
         freshRunBatch([freshRunCsvRow('0173200001234000001')], dedupSignature: 'broken-block'),
@@ -152,10 +152,10 @@ test('нераспознанный блок записан инцидентом 
 
     $run = app(FreshRunProcessor::class)->run($crawler);
     $fetch = $run->fetches()->orderBy('id')->first();
-    $incident = SourceIncident::query()->sole();
+    $incident = SourceIncident::query()->where('type', CrawlerEventCode::CsvInvalidContent)->sole();
 
-    expect($run->status)->toBe(RunStatus::Completed)
-        ->and($run->cursor['blockFrom'])->toBe(501)
+    expect($run->status)->toBe(RunStatus::Paused)
+        ->and($run->cursor['blockFrom'])->toBe(1)
         ->and($fetch?->rows_errors)->toBe(1)
         ->and($fetch?->artifact_ref)->not->toBeNull()
         ->and($incident->type)->toBe(CrawlerEventCode::CsvInvalidContent)
@@ -167,7 +167,7 @@ test('нераспознанный блок записан инцидентом 
         ->and($log->context['error'])->toBe('injected mapping failure');
 });
 
-test('страница ошибки (403) не завершает fresh как «источник исчерпан»: блок пропущен, следующий прочитан', function (): void {
+test('страница ошибки (403) сохраняет текущий блок и приостанавливает fresh', function (): void {
     $crawler = Crawler::factory()->create();
     $blocked = new ListingBatch(rows: [], rawBody: '<html>403</html>', dedupSignature: null, rowsTotal: 0, httpStatus: 403, durationMs: 5, requestParams: ['from' => '1', 'to' => '500']);
     useQueueSourceMethod([
@@ -178,8 +178,9 @@ test('страница ошибки (403) не завершает fresh как �
 
     $run = app(FreshRunProcessor::class)->run($crawler);
 
-    expect($run->status)->toBe(RunStatus::Completed)
-        ->and(Procurement::query()->count())->toBe(1)
+    expect($run->status)->toBe(RunStatus::Paused)
+        ->and($run->cursor['blockFrom'])->toBe(1)
+        ->and(Procurement::query()->count())->toBe(0)
         ->and(SourceIncident::query()->where('type', CrawlerEventCode::CsvSourceBlocked)->count())->toBe(1);
 });
 
@@ -187,18 +188,21 @@ test('массовые отказы уводят листинг в ожидан�
     $crawler = Crawler::factory()->create();
     SourceCircuit::factory()->create(['platform_id' => $crawler->registry->platform_id, 'failure_threshold' => 2]);
     $failing = fn (string $from): ListingBatch => new ListingBatch(rows: [], rawBody: '', dedupSignature: null, rowsTotal: 0, httpStatus: 503, durationMs: 5, requestParams: ['from' => $from]);
-    useQueueSourceMethod([$failing('1'), $failing('501')]);
+    useQueueSourceMethod([$failing('1'), $failing('1')]);
 
+    app(FreshRunProcessor::class)->run($crawler);
+    $this->travel(11)->minutes();
     $run = app(FreshRunProcessor::class)->run($crawler);
 
     expect($run->status)->toBe(RunStatus::Paused)
         ->and($run->stats['source_suspended'] ?? null)->toBeTrue()
         ->and($run->stats['stop_reason'] ?? null)->toBe('source_circuit_open')
-        // первый отказ — локальный (пропуск), второй увёл в ожидание — курсор на нём
-        ->and($run->cursor['blockFrom'])->toBe(501)
+        ->and($run->cursor['blockFrom'])->toBe(1)
         ->and(SourceCircuit::query()->sole()->retry_at)->not->toBeNull()
         ->and(SourceIncident::query()->orderBy('id')->pluck('type')->all())->toBe([
             CrawlerEventCode::CsvSourceUnavailable,
+            CrawlerEventCode::RunSuspended,
+            CrawlerEventCode::RunResumed,
             CrawlerEventCode::CsvSourceUnavailable,
             CrawlerEventCode::StageWaiting,
             CrawlerEventCode::RunSuspended,

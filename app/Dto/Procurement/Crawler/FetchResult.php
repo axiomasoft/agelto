@@ -14,8 +14,8 @@ use Illuminate\Support\Carbon;
  * обновления» среди разобранных снапшотов блока (П-4); носитель — `CrawlerRunManager`
  * (`recordOldestUpdateSeen()`), не эта DTO.
  *
- * `failure` — класс отказа блока (`null` — блок прочитан чисто). `sourceSuspended` — отказ
- * открыл брейкер источника: курсор двигать НЕЛЬЗЯ, прогон уходит в паузу до пробы.
+ * `failure` — класс отказа блока (`null` — блок прочитан чисто). Любой отказ сохраняет
+ * курсор: прогон приостанавливается до повтора, даже если часть строк уже записана.
  */
 final readonly class FetchResult
 {
@@ -35,9 +35,4 @@ final readonly class FetchResult
         public ?int $httpStatus = null,
     ) {}
 
-    /** Блок не прочитан и пропускается: курсор переходит через него, пропуск записан инцидентом. */
-    public function blockSkipped(): bool
-    {
-        return $this->failure !== null && $this->failure->skipsBlock();
-    }
 }

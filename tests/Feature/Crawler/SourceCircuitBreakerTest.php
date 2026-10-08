@@ -99,12 +99,20 @@ test('после ожидания этап просто работает сно�
         ->and(($this->fail)(SourceFailureKind::SourceUnavailable))->toBeTrue();
 });
 
-test('успех сбрасывает счётчик; ошибки строк не считаются', function (): void {
+test('успех сбрасывает сетевой счётчик; ошибки строк имеют отдельный лимит', function (): void {
     ($this->fail)(SourceFailureKind::SourceUnavailable);
     $this->reporter->reportSuccess($this->platformId, SourceStage::Listing);
     ($this->fail)(SourceFailureKind::RowErrors);
 
-    expect($this->circuits->forStage($this->platformId, SourceStage::Listing)->consecutive_failures)->toBe(0);
+    expect($this->circuits->forStage($this->platformId, SourceStage::Listing)->consecutive_failures)->toBe(0)
+        ->and($this->circuits->forStage($this->platformId, SourceStage::Listing)->consecutive_skips)->toBe(1);
+});
+
+test('постоянные ошибки отдельных строк ограничены числом повторов', function (): void {
+    $this->circuits->forStage($this->platformId, SourceStage::Listing)->update(['consecutive_skips' => 49]);
+
+    expect(($this->fail)(SourceFailureKind::RowErrors))->toBeFalse()
+        ->and($this->circuits->forStage($this->platformId, SourceStage::Listing)->status())->toBe(SourceStageStatus::Held);
 });
 
 test('этапы независимы: ожидание карточек не останавливает листинг', function (): void {

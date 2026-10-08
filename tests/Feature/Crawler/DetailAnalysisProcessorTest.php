@@ -384,6 +384,21 @@ test('нет базовых селекторов на любой вкладке 
         ->and(app(SourceCircuitRepository::class)->forStage($procurement->registry->platform_id, SourceStage::Detail)->consecutive_layout_failures)->toBe(1);
 });
 
+test('недоступный эталон не позволяет подтверждать успешный разбор карточки', function (): void {
+    Sleep::fake();
+    Storage::fake('s3');
+    $procurement = detailAnalysisProcurement();
+    config(['crawler.health.baseline_path' => '/missing-audit-baseline.json']);
+    Http::fake(['*' => Http::response(body: CardHtmlFixture::commonInfo(), status: 200)]);
+
+    expect(app(DetailAnalysisProcessor::class)->run(procurement: $procurement))->toBeFalse()
+        ->and($procurement->refresh()->detail_fetched_at)->toBeNull()
+        ->and($procurement->detail_attempts)->toBe(1)
+        ->and($procurement->detail_next_retry_at)->not->toBeNull()
+        ->and(EisDetails::query()->where('procurement_id', $procurement->id)->exists())->toBeFalse()
+        ->and(SourceIncident::query()->where('type', CrawlerEventCode::CardCodeError)->count())->toBe(1);
+});
+
 test('якоря, зависящие от данных (нет участников, нет вложений), базовыми не считаются', function (): void {
     $details = new ProcurementDetails(registryNumber: '0338200009125000001', procedureUrlType: 'ea20', supplierResultsHtml: CardHtmlFixture::supplierResults(), documentsHtml: '<html><body></body></html>');
 

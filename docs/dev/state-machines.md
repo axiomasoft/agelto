@@ -85,7 +85,9 @@ stateDiagram-v2
     Paused --> Running: CrawlerRunManager.startOrResume()
     Running --> Completed: CrawlerRunManager.complete()
     Running --> Paused: CrawlerRunManager.pause() (стоп-гейт, пауза источника, interrupted)
+    Running --> Cancelled: CrawlerRunManager.cancel() (стоп-гейт)
     Completed --> [*]
+    Cancelled --> [*]
 ```
 
 Писатели (перепроверены чтением файла):
@@ -97,17 +99,15 @@ stateDiagram-v2
 | `Running → Paused` (протухший heartbeat, timeout из `config('crawler.heartbeat_timeout_seconds')`) | `CrawlerRunManager::recoverStale()` | `app/Services/Procurement/CrawlerRunManager.php:131` |
 | `Running → Completed` | `CrawlerRunManager::complete()` | `app/Services/Procurement/CrawlerRunManager.php:104` |
 | `Running → Paused` (стоп-гейт, пауза источника, сбой вне блока) | `CrawlerRunManager::pause()` | `app/Services/Procurement/CrawlerRunManager.php` |
+| `Running → Cancelled` (стоп-гейт) | `CrawlerRunManager::cancel()` | `app/Services/Procurement/CrawlerRunManager.php` |
 
-`Failed` писателя больше нет (`audit/fixes-1`, раунд 6): прогон сам не падает — ошибки блока
-пропускаются по реакции из `crawler.source_control`, прочие сбои ставят прогон на паузу
-(`SourceRunControl::interrupted()`). Кейс оставлен для исторических строк.
+`Failed` писателя больше нет; кейс оставлен для исторических строк. Любая ошибка блока
+приостанавливает прогон с сохранением курсора. `crawler.source_control` регулирует задержку
+и остановку всего этапа, но не разрешает продвижение через непрочитанный блок. Прочие сбои
+ставят прогон на паузу через `SourceRunControl::interrupted()`.
 
-`Cancelled` — в enum'е присутствует, но писателя нет: `grep -rn 'RunStatus::Cancelled' app/` = 0
-вхождений вне определения кейса. Ребро на диаграмме **не рисуется** — недостижимый кейс,
-forward-provision без названного продюсера (аналогично классу `Awarded`/`Unsuccessful` у
-`ProcurementStatus`, но без docblock-декларации D5/D13 — это находка P8.1, не решённый статус;
-если появится источник (напр. ручная отмена прогона оператором), кейс требует нового писателя, а
-не молчаливого ребра по аналогии).
+`Cancelled` записывает `CrawlerRunManager::cancel()` по сигналу стоп-гейта; отменённый
+прогон не возобновляется как тот же запуск.
 
 ## DocumentStatus — уже нарисован (Д1)
 

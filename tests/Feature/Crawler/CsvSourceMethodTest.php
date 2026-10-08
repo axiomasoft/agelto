@@ -8,6 +8,7 @@ use App\Enums\Procurement\Crawler\CrawlStage;
 use App\Enums\Procurement\Proxy\CrawlerProxyMode;
 use App\Enums\Procurement\Proxy\ProxyRouteSource;
 use App\Enums\Procurement\Proxy\ProxyScope;
+use App\Exceptions\Procurement\Crawler\OutboundRequestDeadlineExceeded;
 use App\Exceptions\Procurement\Proxy\NoProxyAvailableException;
 use App\Models\Procurement\Crawler\Crawler;
 use App\Models\Procurement\Crawler\Fetch;
@@ -44,6 +45,20 @@ function registryWithOkpd2Scope(): Registry
 
     return $registry;
 }
+
+test('истёкший deadline листинга запрещает новый HTTP-запрос', function (): void {
+    Sleep::fake();
+    Http::fake();
+    $proxy = activeListingProxy();
+    $registry = registryWithOkpd2Scope();
+    $crawler = Crawler::factory()->for($registry)->withProxies($proxy)->create(['filter' => ['okpd2Codes' => ['43']]]);
+
+    expect(fn () => app(CsvSourceMethod::class)->collectListingWithinDeadline(
+        crawler: $crawler, cursor: new ListingCursor(blockFrom: 1), deadlineAt: microtime(true) - 1,
+    ))->toThrow(OutboundRequestDeadlineExceeded::class);
+
+    Http::assertNothingSent();
+});
 
 test('collectListing конвертирует win1251-тело в UTF-8 и строит ListingBatch по фикстуре', function () {
     Sleep::fake();

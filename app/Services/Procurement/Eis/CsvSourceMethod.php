@@ -79,10 +79,16 @@ final readonly class CsvSourceMethod implements DeadlineAwareSourceMethod
         private StoreRawFetchArtifactAction $rawArtifacts,
     ) {}
 
+    public function collectListingWithinDeadline(Crawler $crawler, ListingCursor $cursor, float $deadlineAt): ListingBatch
+    {
+        return $this->collectListing(crawler: $crawler, cursor: $cursor, deadlineAt: $deadlineAt);
+    }
+
     public function collectListing(
         Crawler $crawler,
         ListingCursor $cursor,
         ?EisListingQueryOverrides $queryOverrides = null,
+        ?float $deadlineAt = null,
     ): ListingBatch {
         $blockSize = $this->intConfig('crawler.eis.block_size', 500);
         $from = $cursor->blockFrom;
@@ -116,6 +122,7 @@ final readonly class CsvSourceMethod implements DeadlineAwareSourceMethod
             stage: CrawlStage::Listing,
             host: $host,
             crawler: $crawler,
+            deadlineAt: $deadlineAt,
         );
         $response = $request['response'];
         $waitMs = $request['wait_ms'];
@@ -129,6 +136,7 @@ final readonly class CsvSourceMethod implements DeadlineAwareSourceMethod
                 stage: CrawlStage::Listing,
                 host: $host,
                 crawler: $crawler,
+                deadlineAt: $deadlineAt,
             );
             $response = $request['response'];
             $waitMs += $request['wait_ms'];

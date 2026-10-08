@@ -122,20 +122,6 @@ final readonly class ProcurementStoreRepository
     }
 
     /**
-     * Карточки нет на площадке (404): терминальное `detail_failed` без траты попытки и без
-     * следующего ретрая. Отдельный статус не заводится — `detail_failed` уже означает «больше
-     * автоматически не снимать», виден в админке и снимается оператором так же.
-     */
-    public function markDetailNotFound(Procurement $procurement, string $error): void
-    {
-        $procurement->update([
-            'detail_last_error' => $error,
-            'detail_next_retry_at' => null,
-            'detail_failed' => true,
-        ]);
-    }
-
-    /**
      * Снятие детального слоя упало (`01-database.md` §11 «Детальная карточка упала») —
      * error-блок `detail_*`, ретрай по `detail_next_retry_at` без реконструкции из логов.
      */

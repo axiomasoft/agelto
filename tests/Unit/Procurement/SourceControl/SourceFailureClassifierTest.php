@@ -27,11 +27,10 @@ test('успешный ответ без единой распознанной �
         ->toBe(SourceFailureKind::InvalidContent);
 });
 
-test('частичные ошибки строк — деградация блока, а не пропуск', function (): void {
+test('частичные ошибки строк классифицируются как неполный блок', function (): void {
     $kind = app(SourceFailureClassifier::class)->classifyResponse(httpStatus: 200, records: 10, mapped: 9, rowFailures: 1);
 
-    expect($kind)->toBe(SourceFailureKind::RowErrors)
-        ->and($kind?->skipsBlock())->toBeFalse();
+    expect($kind)->toBe(SourceFailureKind::RowErrors);
 });
 
 test('успешный блок и пустой блок не являются отказом', function (int $records, int $mapped): void {

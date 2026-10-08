@@ -34,13 +34,13 @@ enum SourceFailureKind: string implements HasLabel
     /** Прочий не-2xx (410, …). */
     case UnexpectedStatus = 'unexpected_status';
 
-    /** 2xx с пустым телом — по наблюдениям ЕИС так не отвечает. Пропуск + критичный инцидент. */
+    /** 2xx с пустым телом — по наблюдениям ЕИС так не отвечает. Повтор + критичный инцидент. */
     case EmptyBody = 'empty_body';
 
     /** Скачалось, записи есть, но ни одна не разобрана. */
     case InvalidContent = 'invalid_content';
 
-    /** Блок принят, но часть строк не разобрана. Не пропуск и не повод для паузы. */
+    /** Часть строк не разобрана: курсор сохраняется для повторной обработки. */
     case RowErrors = 'row_errors';
 
     /** Исключение нашего кода (не сеть, не площадка). */
@@ -52,12 +52,6 @@ enum SourceFailureKind: string implements HasLabel
      * этап до решения оператора.
      */
     case LayoutDrift = 'layout_drift';
-
-    /** Блок целиком не прочитан (курсор идёт дальше, инцидент записан). */
-    public function skipsBlock(): bool
-    {
-        return $this !== self::RowErrors;
-    }
 
     public function label(): string
     {

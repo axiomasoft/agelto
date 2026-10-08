@@ -8,16 +8,17 @@ use App\Dto\Procurement\Crawler\FetchResult;
 use App\Dto\Procurement\Crawler\SourceEvent;
 use App\Dto\Procurement\Crawler\SourceFailure;
 use App\Enums\Procurement\Crawler\CrawlerEventCode;
-use App\Enums\Procurement\Crawler\RunStatus;
 use App\Enums\Procurement\Crawler\SourceStage;
 use App\Enums\Procurement\Crawler\SourceStageStatus;
 use App\Exceptions\Procurement\Crawler\ExecutionLeaseLost;
+use App\Exceptions\Procurement\Crawler\OutboundRequestDeadlineExceeded;
 use App\Exceptions\Procurement\Crawler\PlatformBudgetExhaustedException;
 use App\Models\Procurement\Crawler\Crawler;
 use App\Models\Procurement\Crawler\Run;
 use App\Models\Procurement\Platform\Registry;
 use App\Repositories\Procurement\Crawler\SourceCircuitRepository;
 use App\Services\Procurement\CrawlerRunManager;
+use Illuminate\Support\Carbon;
 use LogicException;
 use Throwable;
 
@@ -28,9 +29,9 @@ use Throwable;
  *
  * - `admit()` перед блоком: этап ждёт или на ручной паузе → прогон в `paused` с меткой
  *   `source_suspended`, курсор не тронут (поднимет `crawler:source-circuits` или оператор).
- * - `afterBlock()` / `onBlockException()` — после блока: успех, ошибки строк (блок принят),
- *   локальный отказ (инцидент, вызывающий пропускает блок) или уход этапа в ожидание/
- *   остановку (`true`: вызывающий останавливается, блок повторится после возобновления).
+ * - `afterBlock()` / `onBlockException()` — любой отказ приостанавливает прогон на том же
+ *   блоке (`true`). До порога брейкера ждёт только этот прогон, после — весь этап.
+ *   Успешно записанные строки можно повторить идемпотентно; потерянные строки пропускать нельзя.
  *
  * Инвариант: эти методы вызываются ВНЕ транзакции блока. Так инцидент и счётчик брейкера
  * сохраняются, даже если запись блока откатилась (например, аренда прогона перехвачена).
@@ -54,7 +55,33 @@ final readonly class SourceRunControl
 
     public function admit(Crawler $crawler, Run $run): bool
     {
+        $retryAt = $run->stats?->get('source_retry_at');
+
+        if (is_string($retryAt) && Carbon::parse($retryAt)->isFuture()) {
+            $this->runs->pause(run: $run, reason: self::StopReason);
+
+            return false;
+        }
+
         if ($this->breaker->admits($this->platformIdFor($crawler), SourceStage::Listing)) {
+            if ($run->stats?->get(self::StatsFlag) === true) {
+                $stats = $run->stats->toArray();
+                unset($stats[self::StatsFlag], $stats['source_retry_at']);
+
+                if (! $this->runs->updateStats(run: $run, stats: $stats)) {
+                    throw ExecutionLeaseLost::noLongerOwned();
+                }
+
+                $this->events->report(new SourceEvent(
+                    code: CrawlerEventCode::RunResumed,
+                    platformId: $this->platformIdFor($crawler),
+                    message: "Прогон #{$run->id} продолжает обработку сохранённого блока.",
+                    crawlerId: $crawler->id,
+                    runId: $run->id,
+                    actor: SourceCircuitBreaker::SystemActor,
+                ));
+            }
+
             return true;
         }
 
@@ -65,7 +92,7 @@ final readonly class SourceRunControl
 
     /**
      * @param  array<string, mixed>  $requestParams
-     * @return bool `true` — этап перестал принимать запросы, вызывающий останавливается
+     * @return bool `true` — прогон приостановлен, вызывающий останавливается
      */
     public function afterBlock(Crawler $crawler, Run $run, FetchResult $result, array $requestParams): bool
     {
@@ -81,7 +108,7 @@ final readonly class SourceRunControl
             platformId: $this->platformIdFor($crawler),
             stage: SourceStage::Listing,
             kind: $kind,
-            detail: ($kind->skipsBlock() ? 'Блок пропущен: ' : 'Блок принят с ошибками строк: ').$kind->label().'.'.($result->failureDetail === null ? '' : " {$result->failureDetail}"),
+            detail: 'Блок не завершён, курсор сохранён: '.$kind->label().'.'.($result->failureDetail === null ? '' : " {$result->failureDetail}"),
             crawlerId: $crawler->id,
             runId: $run->id,
             fetchId: $result->fetchId,
@@ -98,11 +125,12 @@ final readonly class SourceRunControl
      * площадки исчерпан (штатный checkpoint).
      *
      * @param  array<string, mixed>  $requestParams
-     * @return bool `true` — этап перестал принимать запросы, вызывающий останавливается
+     * @return bool `true` — прогон приостановлен, вызывающий останавливается
      */
     public function onBlockException(Crawler $crawler, Run $run, Throwable $exception, array $requestParams): bool
     {
-        if ($exception instanceof ExecutionLeaseLost || $exception instanceof PlatformBudgetExhaustedException) {
+        if ($exception instanceof ExecutionLeaseLost || $exception instanceof PlatformBudgetExhaustedException
+            || $exception instanceof OutboundRequestDeadlineExceeded) {
             throw $exception;
         }
 
@@ -112,7 +140,7 @@ final readonly class SourceRunControl
             platformId: $this->platformIdFor($crawler),
             stage: SourceStage::Listing,
             kind: $kind,
-            detail: 'Блок пропущен: '.$kind->label().'. '.mb_substr($exception->getMessage(), 0, 500),
+            detail: 'Блок не завершён, курсор сохранён: '.$kind->label().'. '.mb_substr($exception->getMessage(), 0, 500),
             crawlerId: $crawler->id,
             runId: $run->id,
             cursor: $this->cursorOf($run),
@@ -133,11 +161,7 @@ final readonly class SourceRunControl
             return;
         }
 
-        $this->runs->pause(run: $run, reason: self::InterruptedReason, error: mb_substr($exception->getMessage(), 0, 500));
-
-        // `pause()` меняет только свой Running-прогон. Если он уже отменён/завершён или не
-        // наш, паузы не было — и события «поставлен на паузу» быть не должно.
-        if ($run->status !== RunStatus::Paused || ($run->stats?->toArray()['stop_reason'] ?? null) !== self::InterruptedReason) {
+        if (! $this->runs->pause(run: $run, reason: self::InterruptedReason, error: mb_substr($exception->getMessage(), 0, 500))) {
             return;
         }
 
@@ -167,14 +191,18 @@ final readonly class SourceRunControl
         // Тик планировщика при ожидании/остановке снова доходит до `admit()` с тем же прогоном:
         // повторная запись «приостановлен» на каждый тик забивала бы журнал (найдено сценарием).
         $alreadySuspended = $run->stats?->get(self::StatsFlag) === true;
-        $retryAt = $circuit->status() === SourceStageStatus::Waiting ? $circuit->retry_at : null;
+        $retryAt = match ($circuit->status()) {
+            SourceStageStatus::Waiting => $circuit->retry_at,
+            SourceStageStatus::Running => now()->addMinutes($this->breaker->effectivePolicy($circuit)->retryIntervalMinutes),
+            default => null,
+        };
 
-        $this->runs->pause(run: $run, reason: self::StopReason, extraStats: [
+        $paused = $this->runs->pause(run: $run, reason: self::StopReason, extraStats: [
             self::StatsFlag => true,
             'source_retry_at' => $retryAt?->toIso8601String(),
         ]);
 
-        if ($alreadySuspended) {
+        if (! $paused || $alreadySuspended) {
             return;
         }
 
@@ -183,7 +211,7 @@ final readonly class SourceRunControl
             platformId: $circuit->platform_id,
             message: $retryAt === null
                 ? "Прогон #{$run->id} приостановлен: листинг на паузе или остановлен до решения оператора."
-                : "Прогон #{$run->id} приостановлен до {$retryAt->toIso8601String()}: листинг в ожидании.",
+                : "Прогон #{$run->id} повторит текущий блок после {$retryAt->toIso8601String()}.",
             stage: SourceStage::Listing,
             crawlerId: $crawler->id,
             runId: $run->id,
@@ -194,11 +222,10 @@ final readonly class SourceRunControl
 
     private function onFailure(Crawler $crawler, Run $run, SourceFailure $failure): bool
     {
-        if ($this->failures->report($failure)) {
-            return false;
-        }
+        $this->failures->report($failure);
 
-        // Блок не пропускается: курсор стоит, после ожидания этот же блок запросится снова.
+        // Порог брейкера ограничивает весь этап, но не разрешает терять отдельный блок.
+        // До порога ждёт только этот прогон; после порога — все прогоны этапа.
         $this->suspend(crawler: $crawler, run: $run);
 
         return true;

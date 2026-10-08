@@ -34,6 +34,7 @@ final readonly class ArchiveRunProcessor
 
     public function run(Crawler $crawler, CarbonInterface $from, CarbonInterface $to, ?Run $run = null): Run
     {
+        $deadlineAt = microtime(true) + max(0, config()->integer('crawler.run.checkpoint_seconds', 240));
         $run ??= $this->runs->startOrResume(crawler: $crawler, purpose: RunPurpose::Profile, subjectKey: null);
         $cursor = ListingCursor::fromArray(cursor: $run->cursor?->toArray() ?? []);
         $day = $cursor->day !== null ? Carbon::parse($cursor->day) : $from->copy()->startOfDay();
@@ -54,7 +55,7 @@ final readonly class ArchiveRunProcessor
                     dateField: 'publish',
                     dateFrom: $day->copy(),
                     dateTo: $day->copy(),
-                ));
+                ), deadlineAt: $deadlineAt);
 
                 if ($result === ArchiveWindowScanResult::OperatorDebt) {
                     $this->runs->pause(

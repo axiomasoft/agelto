@@ -5,6 +5,8 @@ declare(strict_types=1);
 use App\Models\Procurement\Crawler\Crawler;
 use Illuminate\Console\Scheduling\Event;
 use Illuminate\Console\Scheduling\Schedule;
+use Illuminate\Database\Events\QueryExecuted;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
 
@@ -66,4 +68,19 @@ test('недоступная БД не роняет загрузку console.php
     expect($commands->contains(fn (string $command): bool => str_contains($command, 'partitions:maintain')))->toBeTrue()
         ->and($commands->contains(fn (string $command): bool => str_contains($command, 'crawler:')))->toBeFalse();
     Log::shouldHaveReceived('warning')->once();
+});
+
+test('сбой чтения профилей после успешной проверки схемы не роняет console.php', function (): void {
+    Log::spy();
+    DB::listen(static function (QueryExecuted $query): void {
+        if (str_contains($query->sql, 'from "prc_crawlers"')) {
+            throw new RuntimeException('profile query failed');
+        }
+    });
+
+    require base_path('routes/console.php');
+
+    Log::shouldHaveReceived('warning')->withArgs(
+        fn (string $message, array $context): bool => $context['exception'] === 'profile query failed',
+    )->once();
 });

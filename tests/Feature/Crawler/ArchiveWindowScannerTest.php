@@ -281,7 +281,7 @@ test('стартовый ценовой стек берётся из priceTo ф�
         ->once();
 });
 
-test('отказ блока не закрывает интервал: блок пропущен с инцидентом, сканер читает следующий', function (): void {
+test('отказ блока сохраняет интервал и курсор, инцидент записан вне транзакции', function (): void {
     $crawler = Crawler::factory()->create(['mode' => CrawlerMode::Archive]);
     $run = Run::factory()->for($crawler)->create(['cursor' => null]);
 
@@ -301,10 +301,11 @@ test('отказ блока не закрывает интервал: блок �
 
     $result = app(ArchiveWindowScanner::class)->scan(crawler: $crawler, run: $run, filter: archiveWindowFilter());
 
-    expect($result)->toBe(ArchiveWindowScanResult::Drained)
-        ->and(Procurement::query()->count())->toBe(3)
-        ->and(SourceIncident::query()->sole()->type)->toBe(CrawlerEventCode::CsvSourceBlocked)
-        ->and($levels)->toBe([$baseLevel]);
+    expect($result)->toBe(ArchiveWindowScanResult::Stopped)
+        ->and($run->refresh()->cursor['blockFrom'] ?? 1)->toBe(1)
+        ->and(Procurement::query()->count())->toBe(0)
+        ->and(SourceIncident::query()->where('type', CrawlerEventCode::CsvSourceBlocked)->sole()->type)->toBe(CrawlerEventCode::CsvSourceBlocked)
+        ->and($levels)->toBe([$baseLevel, $baseLevel]);
 });
 
 test('системный отказ в archive: курсор остаётся на блоке, прогон на паузе источника', function (): void {
@@ -325,7 +326,7 @@ test('системный отказ в archive: курсор остаётся н
         ->and($run->cursor['blockFrom'] ?? 1)->toBe(1);
 });
 
-test('ошибка нашего кода при записи блока: транзакция блока откатана, блок пропущен с записью, прежние данные целы', function (): void {
+test('ошибка записи блока откатывает транзакцию и сохраняет курсор, прежние данные целы', function (): void {
     $crawler = Crawler::factory()->create(['mode' => CrawlerMode::Archive]);
     $run = Run::factory()->for($crawler)->create(['cursor' => null]);
 
@@ -345,9 +346,10 @@ test('ошибка нашего кода при записи блока: тра�
 
     $result = app(ArchiveWindowScanner::class)->scan(crawler: $crawler, run: $run, filter: archiveWindowFilter());
 
-    expect($result)->toBe(ArchiveWindowScanResult::Drained)
+    expect($result)->toBe(ArchiveWindowScanResult::Stopped)
         ->and(Procurement::query()->orderBy('registry_number')->pluck('registry_number')->all())
-        ->toBe(['0173200001234000001', '0173200001234000002', '0173200001234000005'])
-        ->and(SourceIncident::query()->sole()->type)->toBe(CrawlerEventCode::CsvCodeError)
-        ->and($run->refresh()->status)->not->toBe(RunStatus::Failed);
+        ->toBe(['0173200001234000001', '0173200001234000002'])
+        ->and(SourceIncident::query()->where('type', CrawlerEventCode::CsvCodeError)->sole()->type)->toBe(CrawlerEventCode::CsvCodeError)
+        ->and($run->refresh()->status)->toBe(RunStatus::Paused)
+        ->and($run->cursor['blockFrom'])->toBe(3);
 });

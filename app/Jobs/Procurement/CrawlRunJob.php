@@ -74,27 +74,27 @@ final class CrawlRunJob implements ShouldBeUniqueUntilProcessing, ShouldQueue
         $crawler = Crawler::findOrFail($this->crawlerId);
 
         $run = $runs->startOrResume(crawler: $crawler, purpose: RunPurpose::Profile, subjectKey: null);
-        $context = $runs->recordExecutionContext(
-            run: $run,
-            crawler: $crawler,
-            mode: $this->mode,
-            executionLane: $this->executionLane,
-            from: $this->from,
-            to: $this->to,
-        );
-        $executionCrawler = $runs->crawlerFromExecutionContext(run: $run, crawler: $crawler);
-        $resolvedMode = CrawlerMode::from($context['mode']);
-        $resolvedLane = CrawlerExecutionLane::from($context['execution_lane']);
-        $resolvedFrom = $context['from'];
-        $resolvedTo = $context['to'];
-
         if (! $runs->acquireExecutionLease(run: $run)) {
             return;
         }
 
-        $run->update(['queue_job_id' => $this->job?->getJobId()]);
+        $released = false;
 
         try {
+            $context = $runs->recordExecutionContext(
+                run: $run,
+                crawler: $crawler,
+                mode: $this->mode,
+                executionLane: $this->executionLane,
+                from: $this->from,
+                to: $this->to,
+            );
+            $executionCrawler = $runs->crawlerFromExecutionContext(run: $run, crawler: $crawler);
+            $resolvedMode = CrawlerMode::from($context['mode']);
+            $resolvedLane = CrawlerExecutionLane::from($context['execution_lane']);
+            $resolvedFrom = $context['from'];
+            $resolvedTo = $context['to'];
+            $run->update(['queue_job_id' => $this->job?->getJobId()]);
             $run = match ($resolvedMode) {
                 CrawlerMode::Fresh => $freshProcessor->run(crawler: $crawler, run: $run),
                 // `LogicException` здесь — инвариант ПОСЛЕДНЕЙ инстанции, не пользовательский отказ:
@@ -110,14 +110,14 @@ final class CrawlRunJob implements ShouldBeUniqueUntilProcessing, ShouldQueue
             };
         } finally {
             if ($run->status === RunStatus::Running) {
-                $runs->releaseExecutionLease(run: $run);
+                $released = $runs->releaseExecutionLease(run: $run);
             }
         }
 
         // Продолжение ставится ТОЛЬКО после освобождения аренды: иначе воркер, забравший его
         // мгновенно (или sync-очередь), застаёт живого владельца и падает в
         // `recordExecutionContext` («another owner is active»).
-        if ($run->status === RunStatus::Running) {
+        if ($released && $run->status === RunStatus::Running) {
             self::dispatch(
                 crawlerId: $this->crawlerId,
                 mode: $resolvedMode,

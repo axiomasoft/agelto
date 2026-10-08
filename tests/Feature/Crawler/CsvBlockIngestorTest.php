@@ -284,13 +284,12 @@ test('ошибка маппера записывается отдельно от
     $fetch = Fetch::query()->where('crawler_run_id', $run->id)->firstOrFail();
     expect($fetch->rows_parsed)->toBe(0)
         ->and($fetch->rows_errors)->toBe(1)
-        // Ни одна запись не стала снимком — ответ не по формату: блок к пропуску.
+        // Ни одна запись не стала снимком — блок остаётся для повторной обработки.
         ->and($result->failure)->toBe(SourceFailureKind::InvalidContent)
-        ->and($result->blockSkipped())->toBeTrue()
         ->and($result->fetchId)->toBe($fetch->id);
 });
 
-test('битые CSV-записи блока видны в rows_errors журнала, но не роняют блок', function (): void {
+test('битые CSV-записи учитываются в результате и журнале, блок остаётся неполным', function (): void {
     Storage::fake('s3');
     $registry = Registry::factory()->eis()->create(['code' => 'fz44']);
     $crawler = Crawler::factory()->for($registry)->create();
@@ -310,7 +309,8 @@ test('битые CSV-записи блока видны в rows_errors журн�
 
     $fetch = Fetch::query()->where('crawler_run_id', $run->id)->sole();
 
-    expect($result->rowsErrors)->toBe(0)
+    expect($result->rowsErrors)->toBe(1)
+        ->and($result->failure)->toBe(SourceFailureKind::RowErrors)
         ->and($result->rowsParsed)->toBe(1)
         ->and($fetch->rows_total)->toBe(2)
         ->and($fetch->rows_errors)->toBe(1);
@@ -337,7 +337,6 @@ test('страница ошибки источника не инжестится
     expect(Procurement::query()->count())->toBe(0)
         ->and($fetch->http_status)->toBe(403)
         ->and($result->failure)->toBe(SourceFailureKind::SourceBlocked)
-        ->and($result->blockSkipped())->toBeTrue()
         ->and($result->fetchId)->toBe($fetch->id)
         ->and(SourceIncident::query()->count())->toBe(0);
 });
@@ -357,7 +356,6 @@ test('блок, ни одна запись которого не распозн�
     $result = app(CsvBlockIngestor::class)->ingest($crawler, $run, $batch);
 
     expect($result->failure)->toBe(SourceFailureKind::InvalidContent)
-        ->and($result->blockSkipped())->toBeTrue()
         ->and(Procurement::query()->count())->toBe(0);
 });
 
@@ -407,8 +405,7 @@ test('HTML вместо CSV с HTTP 200 ловится проверкой заг
         header: ['<!DOCTYPE html><title>Проверка браузера</title>'],
     ));
 
-    expect($result->failure)->toBe(SourceFailureKind::LayoutDrift)
-        ->and($result->blockSkipped())->toBeTrue();
+    expect($result->failure)->toBe(SourceFailureKind::LayoutDrift);
 });
 
 test('пустое тело при 2xx — отдельный вид отказа, блок пропускается', function (): void {
@@ -421,6 +418,5 @@ test('пустое тело при 2xx — отдельный вид отказ�
         requestParams: ['from' => '1'], emptyBody: true,
     ));
 
-    expect($result->failure)->toBe(SourceFailureKind::EmptyBody)
-        ->and($result->blockSkipped())->toBeTrue();
+    expect($result->failure)->toBe(SourceFailureKind::EmptyBody);
 });

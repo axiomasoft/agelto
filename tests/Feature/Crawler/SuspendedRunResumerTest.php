@@ -35,16 +35,16 @@ beforeEach(function (): void {
     $this->platformId = $this->crawler->registry->platform_id;
 });
 
-test('автоповтор: истёкшая пауза поднимает приостановленный прогон, метка снята', function (): void {
+test('автоповтор отправляет job и сохраняет метку до фактического возобновления', function (): void {
     SourceCircuit::factory()->create(['platform_id' => $this->platformId, 'retry_at' => now()->subSecond()]);
     $run = suspendedRun($this->crawler);
 
     Artisan::call('crawler:source-circuits');
 
     Queue::assertPushed(CrawlRunJob::class, fn (CrawlRunJob $job): bool => $job->crawlerId === $this->crawler->id && $job->mode === CrawlerMode::Fresh);
-    expect($run->fresh()->stats->has('source_suspended'))->toBeFalse()
+    expect($run->fresh()->stats->has('source_suspended'))->toBeTrue()
         ->and(SourceCircuit::query()->sole()->retry_at)->toBeNull()
-        ->and(SourceIncident::query()->where('type', CrawlerEventCode::RunResumed)->sole()->run_id)->toBe($run->id);
+        ->and(SourceIncident::query()->where('type', CrawlerEventCode::RunResumed)->count())->toBe(0);
 });
 
 test('автоповтор ждёт retry_at и не трогает ручную паузу', function (): void {
@@ -70,14 +70,14 @@ test('оператор возобновляет сразу, минуя ожид�
     Queue::assertPushed(CrawlRunJob::class);
 });
 
-test('delta/backlog прогоны не диспатчатся резюмером, но метка снимается', function (): void {
+test('delta/backlog сохраняют метку и продолжаются своим планировщиком', function (): void {
     SourceCircuit::factory()->create(['platform_id' => $this->platformId, 'retry_at' => now()->subMinute()]);
     $run = suspendedRun($this->crawler, RunPurpose::Delta);
 
     Artisan::call('crawler:source-circuits');
 
     Queue::assertNothingPushed();
-    expect($run->fresh()->stats->has('source_suspended'))->toBeFalse();
+    expect($run->fresh()->stats->has('source_suspended'))->toBeTrue();
 });
 
 test('ожидание этапа карточек истекает без прогонов: снимается только retry_at', function (): void {

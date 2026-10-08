@@ -135,8 +135,8 @@ final readonly class CsvBlockIngestor
             'rows_new' => $new,
             'rows_updated' => $updated,
             'rows_parsed' => $rowsParsed,
-            // Битые CSV-записи (число полей ≠ заголовку) детерминированы — повтор блока их не
-            // исправит, поэтому они не роняют блок, но видны в telemetry `ListingShapeCheck`.
+            // Битые CSV-записи видны в telemetry и делают блок неполным:
+            // вызывающий сохраняет курсор, пока формат не исправлен.
             'rows_errors' => $rowsErrors + $batch->rowsMalformed,
             'dedup_signature' => $batch->dedupSignature,
             'proxy_id' => $batch->proxyId,
@@ -177,7 +177,7 @@ final readonly class CsvBlockIngestor
             rowsNew: $new,
             rowsUpdated: $updated,
             rowsSkipped: $skipped,
-            rowsErrors: $rowsErrors,
+            rowsErrors: $rowsErrors + $batch->rowsMalformed,
             rowsDuplicated: $duplicates,
             oldestUpdateSeen: $oldestUpdateSeen,
             oldestUpdateSeenHasDayPrecision: $oldestUpdateSeenHasDayPrecision,

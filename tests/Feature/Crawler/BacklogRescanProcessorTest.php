@@ -694,7 +694,7 @@ test('стоп-сигнал Cancel между днями останавлива�
     expect($freshRun->stats['backlog_rescanned_at'] ?? null)->toBeNull();
 });
 
-test('источник всё время бросает — блоки пропускаются, страховка останавливает этап, archive-run не провален, флаг непомечен', function () {
+test('источник бросает — archive-run ждёт на текущем блоке, backlog не помечен обработанным', function () {
     $registry = Registry::factory()->eis()->create();
     $freshCrawler = Crawler::factory()->create(['registry_id' => $registry->id, 'mode' => CrawlerMode::Fresh]);
     Crawler::factory()->create(['registry_id' => $registry->id, 'mode' => CrawlerMode::Archive, 'is_active' => true]);
@@ -714,7 +714,9 @@ test('источник всё время бросает — блоки проп�
 
     $archiveRun = Run::query()->where('crawler_id', '!=', $freshCrawler->id)->sole();
     expect($archiveRun->status)->toBe(RunStatus::Paused)
-        ->and(SourceCircuit::query()->sole()->status())->toBe(SourceStageStatus::Held);
+        ->and(SourceCircuit::query()->sole()->status())->toBe(SourceStageStatus::Running)
+        ->and($archiveRun->cursor['blockFrom'] ?? 1)->toBe(1)
+        ->and($archiveRun->stats['source_retry_at'])->not->toBeNull();
 
     $freshRun->refresh();
     expect($freshRun->stats['backlog_rescanned_at'] ?? null)->toBeNull();

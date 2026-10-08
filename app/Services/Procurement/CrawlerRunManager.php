@@ -321,9 +321,9 @@ final class CrawlerRunManager
      *
      * @param  array<string, mixed>  $extraStats  метки причины паузы (например, `source_suspended`)
      */
-    public function pause(Run $run, string $reason, array $extraStats = [], ?string $error = null): void
+    public function pause(Run $run, string $reason, array $extraStats = [], ?string $error = null): bool
     {
-        $this->ownedRunningQuery(run: $run)->update([
+        $updated = $this->ownedRunningQuery(run: $run)->update([
             ...($error === null ? [] : ['last_error' => $error, 'last_error_at' => now()]),
             'status' => RunStatus::Paused,
             'stats' => array_merge($run->stats?->toArray() ?? [], [
@@ -339,6 +339,8 @@ final class CrawlerRunManager
 
         $run->refresh();
         $this->forgetExecutionOwnerToken(run: $run);
+
+        return $updated === 1;
     }
 
     /**
@@ -416,9 +418,7 @@ final class CrawlerRunManager
                 ];
             }
 
-            $updated = Run::query()
-                ->whereKey($lockedRun->getKey())
-                ->whereNull('execution_owner_token')
+            $updated = $this->ownedRunningQuery(run: $run)
                 ->update(['stats' => array_merge($stats, [
                     'execution_context' => $executionContext,
                     'automatic_recovery_pending' => false,

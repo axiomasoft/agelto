@@ -4,8 +4,6 @@ declare(strict_types=1);
 
 namespace App\Services\Procurement\SourceControl;
 
-use App\Dto\Procurement\Crawler\SourceEvent;
-use App\Enums\Procurement\Crawler\CrawlerEventCode;
 use App\Enums\Procurement\Crawler\CrawlerExecutionLane;
 use App\Enums\Procurement\Crawler\CrawlerMode;
 use App\Enums\Procurement\Crawler\RunPurpose;
@@ -13,6 +11,7 @@ use App\Enums\Procurement\Crawler\RunStatus;
 use App\Enums\Procurement\Crawler\SourceStage;
 use App\Jobs\Procurement\CrawlRunJob;
 use App\Models\Procurement\Crawler\Run;
+use App\Models\Procurement\Crawler\SourceCircuit;
 use App\Repositories\Procurement\Crawler\SourceCircuitRepository;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Carbon;
@@ -26,15 +25,14 @@ use Illuminate\Support\Carbon;
  * Оператор: «Возобновить сейчас» в админке — то же самое сразу, минуя ожидание.
  *
  * Поднимаются только профильные прогоны (`RunPurpose::Profile`, они идут через `CrawlRunJob`);
- * у delta/backlog метка снимается, а сами они продолжатся по своему расписанию — гейт
- * источника не даст им сделать запрос раньше времени.
+ * delta/backlog продолжатся по своему расписанию. Метку снимает сам процессор после
+ * получения аренды и допуска источника, а не отправитель job.
  */
 final readonly class SuspendedRunResumer
 {
     public function __construct(
         private SourceCircuitRepository $circuits,
         private SourceCircuitBreaker $breaker,
-        private SourceEventReporter $events,
     ) {}
 
     /** Этапы, чьё ожидание истекло (без ручной паузы). */
@@ -45,10 +43,17 @@ final readonly class SuspendedRunResumer
 
         foreach ($this->circuits->waitingExpired($now) as $circuit) {
             $this->breaker->finishWaiting($circuit);
+        }
 
-            if ($circuit->stage === SourceStage::Listing) {
-                $resumed += $this->resumePlatform(platformId: $circuit->platform_id, actor: SourceCircuitBreaker::SystemActor);
-            }
+        // Ищем также уже открытые этапы: предыдущий тик мог упасть после снятия retry_at,
+        // но до отправки job. Метка на прогоне сохраняется до фактического допуска воркера.
+        foreach (SourceCircuit::query()
+            ->where('stage', SourceStage::Listing)
+            ->where('manually_paused', false)
+            ->whereNull('held_at')
+            ->where(fn (Builder $query) => $query->whereNull('retry_at')->orWhere('retry_at', '<=', $now))
+            ->lazyById(100) as $circuit) {
+            $resumed += $this->resumePlatform(platformId: $circuit->platform_id, actor: SourceCircuitBreaker::SystemActor);
         }
 
         return $resumed;
@@ -57,33 +62,37 @@ final readonly class SuspendedRunResumer
     /** Поднять приостановленные прогоны площадки. Возвращает число поставленных job. */
     public function resumePlatform(int $platformId, string $actor): int
     {
+        if (! $this->breaker->admits($platformId, SourceStage::Listing)) {
+            return 0;
+        }
+
         $runs = Run::query()
             ->where('status', RunStatus::Paused)
             ->where('stats->'.SourceRunControl::StatsFlag, true)
             ->whereHas('crawler.registry', fn (Builder $query) => $query->where('platform_id', $platformId))
-            ->orderBy('id')
-            ->get();
+            ->whereHas('crawler', fn (Builder $query) => $query->where('is_active', true))
+            ->where('purpose', RunPurpose::Profile);
+
+        if ($actor === SourceCircuitBreaker::SystemActor) {
+            $runs->where(fn (Builder $query) => $query->whereNull('stats->source_retry_at')
+                ->orWhereRaw("(stats->>'source_retry_at')::timestamptz <= ?", [now()]));
+        }
+
+        $runs = $runs->orderBy('id')->limit(100)->get();
 
         $dispatched = 0;
 
         foreach ($runs as $run) {
-            $stats = $run->stats?->toArray() ?? [];
-            unset($stats[SourceRunControl::StatsFlag], $stats['source_retry_at']);
-            $run->update(['stats' => $stats]);
+            if ($actor !== SourceCircuitBreaker::SystemActor) {
+                Run::query()->whereKey($run->id)->where('status', RunStatus::Paused)
+                    ->update(['stats->source_retry_at' => null]);
+            }
 
-            if ($run->purpose !== RunPurpose::Profile || ! $this->dispatch(run: $run)) {
+            if (! $this->dispatch(run: $run)) {
                 continue;
             }
 
             $dispatched++;
-            $this->events->report(new SourceEvent(
-                code: CrawlerEventCode::RunResumed,
-                platformId: $platformId,
-                message: "Прогон #{$run->id} возобновлён после паузы источника.",
-                crawlerId: $run->crawler_id,
-                runId: $run->id,
-                actor: $actor,
-            ));
         }
 
         return $dispatched;

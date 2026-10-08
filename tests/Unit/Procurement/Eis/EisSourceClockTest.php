@@ -42,3 +42,10 @@ test('метка МСК±N задаёт фиксированное смещен�
 test('некорректное значение даёт null', function (): void {
     expect((new EisSourceClock('Europe/Moscow'))->parseDateTime(format: '!d.m.Y H:i', value: 'вчера'))->toBeNull();
 });
+
+test('невозможная календарная дата не нормализуется в другой день', function (string $date): void {
+    $clock = new EisSourceClock('Europe/Moscow');
+
+    expect($clock->parseDate(format: '!d.m.Y', value: $date))->toBeNull()
+        ->and($clock->parseDateTime(format: '!d.m.Y H:i', value: $date.' 10:00'))->toBeNull();
+})->with(['31.02.2026', '29.02.2025', '01.13.2026']);

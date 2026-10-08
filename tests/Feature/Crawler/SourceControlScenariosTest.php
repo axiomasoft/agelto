@@ -44,20 +44,30 @@ beforeEach(function (): void {
     $this->stage = fn (SourceStage $stage = SourceStage::Listing): SourceCircuit => app(SourceCircuitRepository::class)->forStage($this->platformId, $stage);
     $this->codes = fn (): array => SourceIncident::query()->orderBy('id')->pluck('type')->map(fn (CrawlerEventCode $c): string => $c->value)->all();
     $this->fresh = fn (): Run => app(FreshRunProcessor::class)->run($this->crawler);
+    $this->attempts = function (int $count): Run {
+        foreach (range(1, $count) as $attempt) {
+            if ($attempt > 1) {
+                $this->travel(11)->minutes();
+            }
+            $run = ($this->fresh)();
+        }
+
+        return $run;
+    };
 });
 
 test('пул прокси лёг: 5 отказов → ожидание, прогон на паузе на том же блоке; через 10 мин продолжает, данные целы', function (): void {
     $source = S::install(new ScriptedSourceMethod([S::rows(1), S::noProxy(), S::noProxy(), S::noProxy(), S::noProxy(), S::noProxy()]));
 
-    $run = ($this->fresh)();
+    $run = ($this->attempts)(5);
 
     expect($run->status)->toBe(RunStatus::Paused)
         ->and(($this->stage)()->status())->toBe(SourceStageStatus::Waiting)
         ->and(Procurement::query()->count())->toBe(2)
-        // 4 блока пропущены, 5-й (порог) не пропущен — повторится после ожидания
-        ->and($run->cursor['blockFrom'])->toBe($source->requestedBlocks[5])
+        ->and($run->cursor['blockFrom'])->toBe(501)
+        ->and($source->requestedBlocks)->toBe([1, 501, 501, 501, 501, 501])
         ->and(array_count_values(($this->codes)()))->toBe([
-            'CRAWLER_CSV_PROXY_UNAVAILABLE' => 5, 'CRAWLER_STAGE_WAITING' => 1, 'CRAWLER_RUN_SUSPENDED' => 1,
+            'CRAWLER_CSV_PROXY_UNAVAILABLE' => 5, 'CRAWLER_RUN_SUSPENDED' => 5, 'CRAWLER_RUN_RESUMED' => 4, 'CRAWLER_STAGE_WAITING' => 1,
         ]);
 
     $source->thenListing([S::rows(2), S::end()]);
@@ -71,26 +81,28 @@ test('пул прокси лёг: 5 отказов → ожидание, про�
         ->and(array_slice($source->requestedBlocks, -2, 1))->toBe([$source->requestedBlocks[5]]);
 });
 
-test('всплеск 503 ниже порога: блоки пропущены с записью, обход завершён, счётчик сброшен успехом', function (): void {
-    S::install(new ScriptedSourceMethod([S::rows(1), S::status(503), S::status(503), S::status(503), S::rows(2), S::end()]));
+test('всплеск 503 ниже порога: тот же блок повторён после ожидания, обход завершён без пропусков', function (): void {
+    $source = S::install(new ScriptedSourceMethod([S::rows(1), S::status(503), S::status(503), S::status(503), S::rows(2), S::end()]));
 
-    $run = ($this->fresh)();
+    $run = ($this->attempts)(4);
 
     expect($run->status)->toBe(RunStatus::Completed)
         ->and(Procurement::query()->count())->toBe(4)
         ->and(($this->stage)()->consecutive_failures)->toBe(0)
-        ->and(($this->codes)())->toBe(array_fill(0, 3, 'CRAWLER_CSV_SOURCE_UNAVAILABLE'));
+        ->and($source->requestedBlocks)->toBe([1, 501, 501, 501, 501, 1001])
+        ->and(array_count_values(($this->codes)()))->toBe(['CRAWLER_CSV_SOURCE_UNAVAILABLE' => 3, 'CRAWLER_RUN_SUSPENDED' => 3, 'CRAWLER_RUN_RESUMED' => 3]);
 });
 
-test('смена формата на 3 блоках подряд → остановка до оператора; таймер её не снимает; «Возобновить» продолжает', function (): void {
+test('смена формата на 3 попытках одного блока → остановка до оператора; таймер её не снимает; «Возобновить» продолжает', function (): void {
     $source = S::install(new ScriptedSourceMethod([S::rows(1), S::drift(1), S::drift(2), S::drift(3)]));
 
-    $run = ($this->fresh)();
+    $run = ($this->attempts)(3);
 
     expect($run->status)->toBe(RunStatus::Paused)
         ->and(($this->stage)()->status())->toBe(SourceStageStatus::Held)
         ->and(Procurement::query()->count())->toBe(2)
-        ->and(($this->codes)())->toBe(['CRAWLER_CSV_LAYOUT_DRIFT', 'CRAWLER_CSV_LAYOUT_DRIFT', 'CRAWLER_CSV_LAYOUT_DRIFT', 'CRAWLER_STAGE_HELD', 'CRAWLER_RUN_SUSPENDED']);
+        ->and($source->requestedBlocks)->toBe([1, 501, 501, 501])
+        ->and(array_count_values(($this->codes)()))->toBe(['CRAWLER_CSV_LAYOUT_DRIFT' => 3, 'CRAWLER_RUN_SUSPENDED' => 3, 'CRAWLER_RUN_RESUMED' => 2, 'CRAWLER_STAGE_HELD' => 1]);
 
     $this->travel(2)->days();
     app(SuspendedRunResumer::class)->resumeDue();
@@ -107,63 +119,62 @@ test('смена формата на 3 блоках подряд → остан�
 test('смесь сети и смены формата: сетевой шум не прячет остановку', function (): void {
     S::install(new ScriptedSourceMethod([S::drift(1), S::status(503), S::drift(2), S::network(), S::drift(3)]));
 
-    $run = ($this->fresh)();
+    $run = ($this->attempts)(5);
 
     expect($run->status)->toBe(RunStatus::Paused)
         ->and(($this->stage)()->status())->toBe(SourceStageStatus::Held)
         ->and(($this->stage)()->consecutive_failures)->toBe(2);
 });
 
-test('пустое тело CSV: блоки пропускаются, CRITICAL в лог и журнал, обход не останавливается', function (): void {
+test('пустое тело CSV: повторяем тот же блок с задержкой до восстановления, CRITICAL в лог и журнал', function (): void {
     Log::spy();
-    S::install(new ScriptedSourceMethod([...array_fill(0, 8, S::emptyBody()), S::rows(1), S::end()]));
+    $source = S::install(new ScriptedSourceMethod([...array_fill(0, 8, S::emptyBody()), S::rows(1), S::end()]));
 
-    $run = ($this->fresh)();
+    $run = ($this->attempts)(9);
 
     expect($run->status)->toBe(RunStatus::Completed)
         ->and(Procurement::query()->count())->toBe(2)
         ->and(($this->stage)()->status())->toBe(SourceStageStatus::Running)
-        ->and(($this->codes)())->toBe(array_fill(0, 8, 'CRAWLER_CSV_EMPTY'));
+        ->and($source->requestedBlocks)->toBe([...array_fill(0, 9, 1), 501])
+        ->and(array_count_values(($this->codes)()))->toBe(['CRAWLER_CSV_EMPTY' => 8, 'CRAWLER_RUN_SUSPENDED' => 8, 'CRAWLER_RUN_RESUMED' => 8]);
     Log::shouldHaveReceived('log')->with('critical', Mockery::pattern('/^CRAWLER_CSV_EMPTY: /'), Mockery::any())->times(8);
 });
 
-test('404 на листинге: только лог, журнала нет, поведение не меняется', function (): void {
+test('404 на листинге: ответ не означает конец списка, прогон повторяет сохранённый блок', function (): void {
     Log::spy();
-    S::install(new ScriptedSourceMethod([...array_fill(0, 8, S::status(404)), S::rows(1), S::end()]));
+    $source = S::install(new ScriptedSourceMethod([...array_fill(0, 8, S::status(404)), S::rows(1), S::end()]));
 
-    $run = ($this->fresh)();
+    $run = ($this->attempts)(9);
 
     expect($run->status)->toBe(RunStatus::Completed)
-        ->and(SourceIncident::query()->count())->toBe(0)
+        ->and(SourceIncident::query()->where('type', CrawlerEventCode::CsvNotFound)->count())->toBe(0)
+        ->and($source->requestedBlocks)->toBe([...array_fill(0, 9, 1), 501])
         ->and(($this->stage)()->consecutive_failures)->toBe(0);
     Log::shouldHaveReceived('log')->with('warning', Mockery::pattern('/^CRAWLER_CSV_NOT_FOUND: /'), Mockery::any())->times(8);
 });
 
-test('баг нашего кода на листинге: блок пропущен с записью, прогон продолжается и завершается', function (): void {
-    S::install(new ScriptedSourceMethod([S::rows(1), S::bug(), S::rows(2), S::end()]));
+test('баг нашего кода на листинге: сохраняем курсор и после исправления повторяем тот же блок', function (): void {
+    $source = S::install(new ScriptedSourceMethod([S::rows(1), S::bug(), S::rows(2), S::end()]));
 
-    $run = ($this->fresh)();
+    $run = ($this->attempts)(2);
 
     expect($run->status)->toBe(RunStatus::Completed)
         ->and(Procurement::query()->count())->toBe(4)
-        ->and(($this->codes)())->toBe(['CRAWLER_CSV_CODE_ERROR'])
+        ->and($source->requestedBlocks)->toBe([1, 501, 501, 1001])
+        ->and(($this->codes)())->toBe(['CRAWLER_CSV_CODE_ERROR', 'CRAWLER_RUN_SUSPENDED', 'CRAWLER_RUN_RESUMED'])
         ->and(($this->stage)()->consecutive_failures)->toBe(0);
 });
 
-test('баг на каждом блоке: страховка — 50 пропусков подряд останавливают этап, прогон на паузе, данные целы', function (): void {
-    S::install(new ScriptedSourceMethod([S::rows(1), ...array_fill(0, 50, S::bug())]));
+test('повторяющийся баг: 50 неуспешных попыток останавливают этап без продвижения курсора', function (): void {
+    $source = S::install(new ScriptedSourceMethod([S::rows(1), ...array_fill(0, 50, S::bug())]));
 
-    $runs = 0;
-
-    do {
-        $run = ($this->fresh)();
-        $runs++;
-    } while ($run->status === RunStatus::Running && $runs < 20);
+    $run = ($this->attempts)(50);
 
     expect($run->status)->toBe(RunStatus::Paused)
         ->and($run->status)->not->toBe(RunStatus::Failed)
         ->and(($this->stage)()->status())->toBe(SourceStageStatus::Held)
         ->and(Procurement::query()->count())->toBe(2)
+        ->and($source->requestedBlocks)->toBe([1, ...array_fill(0, 50, 501)])
         ->and(array_count_values(($this->codes)()))->toMatchArray(['CRAWLER_CSV_CODE_ERROR' => 50, 'CRAWLER_STAGE_HELD' => 1]);
 });
 
@@ -242,21 +253,27 @@ test('карточки: ошибки нашего кода не останавл
         ->and(array_count_values(($this->codes)()))->toBe(['CRAWLER_CARD_CODE_ERROR' => 6]);
 });
 
-test('карточка 404: сразу терминально, без повторов и без траты попытки, только лог', function (): void {
+test('временная 404 карточки повторяется с backoff и восстанавливается', function (): void {
     Log::spy();
     $card = scenarioCard();
-    $source = S::install(new ScriptedSourceMethod(details: [S::cardStatus(404)]));
+    $source = S::install(new ScriptedSourceMethod(details: [S::cardStatus(404), S::card()]));
 
     expect(app(DetailAnalysisProcessor::class)->run(procurement: $card))->toBeFalse();
     $card->refresh();
 
-    expect($card->detail_failed)->toBeTrue()
-        ->and($card->detail_attempts)->toBe(0)
-        ->and($card->detail_next_retry_at)->toBeNull()
+    expect($card->detail_failed)->toBeFalse()
+        ->and($card->detail_attempts)->toBe(1)
+        ->and($card->detail_next_retry_at)->not->toBeNull()
         ->and(SourceIncident::query()->count())->toBe(0)
         ->and(app(DetailRefetchSelector::class)->due(limit: 10)->count())->toBe(0)
         ->and($source->detailCalls)->toBe(1);
     Log::shouldHaveReceived('log')->with('warning', Mockery::pattern('/^CRAWLER_CARD_NOT_FOUND: /'), Mockery::any())->once();
+
+    $this->travelTo($card->detail_next_retry_at->copy()->addSecond());
+    expect(app(DetailRefetchSelector::class)->due(limit: 10)->pluck('id')->all())->toContain($card->id)
+        ->and(app(DetailAnalysisProcessor::class)->run(procurement: $card))->toBeTrue()
+        ->and($card->refresh()->detail_fetched_at)->not->toBeNull()
+        ->and($card->detail_attempts)->toBe(0);
 });
 
 test('карточки: новая вёрстка на 3 карточках → остановка; попытки карточек не тратятся', function (): void {

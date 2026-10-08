@@ -44,6 +44,10 @@ final readonly class EisSourceClock
             return null;
         }
 
+        if (Carbon::getLastErrors() !== false) {
+            return null;
+        }
+
         return $date === null ? null : $date->utc();
     }
 
@@ -55,6 +59,10 @@ final readonly class EisSourceClock
         try {
             $date = Carbon::createFromFormat($format, trim($value), 'UTC');
         } catch (\Throwable) {
+            return null;
+        }
+
+        if (Carbon::getLastErrors() !== false) {
             return null;
         }
 
