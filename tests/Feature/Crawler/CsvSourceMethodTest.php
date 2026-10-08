@@ -8,6 +8,7 @@ use App\Enums\Procurement\Crawler\CrawlStage;
 use App\Enums\Procurement\Proxy\CrawlerProxyMode;
 use App\Enums\Procurement\Proxy\ProxyRouteSource;
 use App\Enums\Procurement\Proxy\ProxyScope;
+use App\Exceptions\Procurement\Crawler\OutboundRequestDeadlineExceeded;
 use App\Exceptions\Procurement\Proxy\NoProxyAvailableException;
 use App\Models\Procurement\Crawler\Crawler;
 use App\Models\Procurement\Crawler\Fetch;
@@ -44,6 +45,20 @@ function registryWithOkpd2Scope(): Registry
 
     return $registry;
 }
+
+test('истёкший deadline листинга запрещает новый HTTP-запрос', function (): void {
+    Sleep::fake();
+    Http::fake();
+    $proxy = activeListingProxy();
+    $registry = registryWithOkpd2Scope();
+    $crawler = Crawler::factory()->for($registry)->withProxies($proxy)->create(['filter' => ['okpd2Codes' => ['43']]]);
+
+    expect(fn () => app(CsvSourceMethod::class)->collectListingWithinDeadline(
+        crawler: $crawler, cursor: new ListingCursor(blockFrom: 1), deadlineAt: microtime(true) - 1,
+    ))->toThrow(OutboundRequestDeadlineExceeded::class);
+
+    Http::assertNothingSent();
+});
 
 test('collectListing конвертирует win1251-тело в UTF-8 и строит ListingBatch по фикстуре', function () {
     Sleep::fake();
@@ -360,4 +375,78 @@ test('isAvailable возвращает true без сетевых запросо
 
     expect($available)->toBeTrue();
     Http::assertNothingSent();
+});
+
+/**
+ * Win-1251 CSV-блок из заголовка и произвольных записей (поля экранируются по RFC 4180).
+ *
+ * @param  list<list<string>>  $records
+ */
+function win1251Csv(array $records): string
+{
+    $header = ['Реестровый номер закупки', 'Наименование закупки', 'Дата обновления'];
+    $line = static fn (array $fields): string => implode(';', array_map(
+        static fn (string $field): string => '"'.str_replace('"', '""', $field).'"',
+        $fields,
+    ));
+
+    $body = implode("\r\n", array_map($line, [$header, ...$records]))."\r\n";
+
+    return mb_convert_encoding($body, 'Windows-1251', 'UTF-8');
+}
+
+test('поле в кавычках с переводом строки остаётся одной записью листинга', function (): void {
+    Sleep::fake();
+    $proxy = activeListingProxy();
+    Http::fake([
+        config('crawler.eis.csv_endpoint').'*' => Http::response(body: win1251Csv([
+            ['№0001', "Ремонт кровли\r\nи фасада", '01.10.2026'],
+            ['№0002', 'Поставка бумаги', '01.10.2026'],
+        ])),
+    ]);
+    $crawler = Crawler::factory()->for(registryWithOkpd2Scope())->withProxies($proxy)->create(['filter' => ['okpd2Codes' => ['43']]]);
+
+    $batch = app(CsvSourceMethod::class)->collectListing($crawler, new ListingCursor(blockFrom: 1));
+
+    expect($batch->rowsTotal)->toBe(2)
+        ->and($batch->rowsMalformed)->toBe(0)
+        ->and($batch->rows)->toHaveCount(2)
+        ->and($batch->rows[0]['Наименование закупки'])->toBe("Ремонт кровли\r\nи фасада")
+        ->and($batch->rows[1]['Реестровый номер закупки'])->toBe('№0002');
+});
+
+test('обратный слэш в конце поля не склеивает соседние поля', function (): void {
+    Sleep::fake();
+    $proxy = activeListingProxy();
+    Http::fake([
+        config('crawler.eis.csv_endpoint').'*' => Http::response(body: win1251Csv([
+            ['№0001', 'Каталог C:\\', '01.10.2026'],
+        ])),
+    ]);
+    $crawler = Crawler::factory()->for(registryWithOkpd2Scope())->withProxies($proxy)->create(['filter' => ['okpd2Codes' => ['43']]]);
+
+    $batch = app(CsvSourceMethod::class)->collectListing($crawler, new ListingCursor(blockFrom: 1));
+
+    expect($batch->rows)->toHaveCount(1)
+        ->and($batch->rows[0]['Наименование закупки'])->toBe('Каталог C:\\')
+        ->and($batch->rows[0]['Дата обновления'])->toBe('01.10.2026');
+});
+
+test('битая запись учитывается в rowsTotal, чтобы неполный блок не считался последним', function (): void {
+    Sleep::fake();
+    Log::spy();
+    $proxy = activeListingProxy();
+    $body = win1251Csv([['№0001', 'Поставка', '01.10.2026']])
+        .mb_convert_encoding("\"№0002\";\"только два поля\"\r\n", 'Windows-1251', 'UTF-8');
+    Http::fake([config('crawler.eis.csv_endpoint').'*' => Http::response(body: $body)]);
+    $crawler = Crawler::factory()->for(registryWithOkpd2Scope())->withProxies($proxy)->create(['filter' => ['okpd2Codes' => ['43']]]);
+
+    $batch = app(CsvSourceMethod::class)->collectListing($crawler, new ListingCursor(blockFrom: 1));
+
+    expect($batch->rowsTotal)->toBe(2)
+        ->and($batch->rowsMalformed)->toBe(1)
+        ->and($batch->rows)->toHaveCount(1);
+    Log::shouldHaveReceived('warning')->withArgs(
+        fn (string $message, array $context): bool => str_contains($message, 'CSV-записи') && $context['malformed'] === 1,
+    )->once();
 });

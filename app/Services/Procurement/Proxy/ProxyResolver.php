@@ -20,6 +20,7 @@ use Closure;
 use Illuminate\Database\Query\Builder;
 use Illuminate\Database\Query\JoinClause;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use LogicException;
@@ -278,7 +279,9 @@ final readonly class ProxyResolver
             host: $row->host,
             port: (int) $row->port,
             username: $row->username,
-            password: $row->password,
+            // Колонка хранит шифротекст cast'а `encrypted` модели `Proxy`; этот запрос идёт мимо
+            // модели, поэтому расшифровывает тем же encrypter'ом.
+            password: $row->password === null ? null : Crypt::decryptString($row->password),
             failsCount: (int) $row->fails_count,
             proxyOpenCount: (int) $row->proxy_open_count,
             targetId: $row->target_id === null ? null : (int) $row->target_id,

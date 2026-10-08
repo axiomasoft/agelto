@@ -11,6 +11,7 @@ use App\Dto\Procurement\Details\SupplierResultsData;
 use App\Enums\Procurement\AwardStatus;
 use App\Enums\Procurement\BidStatus;
 use App\Enums\Procurement\ProtocolType;
+use App\Services\Procurement\Eis\EisSourceClock;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Log;
 use Symfony\Component\DomCrawler\Crawler;
@@ -27,6 +28,8 @@ use Symfony\Component\DomCrawler\Crawler;
  */
 final readonly class SupplierResultsParser
 {
+    public function __construct(private EisSourceClock $clock = new EisSourceClock) {}
+
     private const string TERM_PROTOCOL = 'Наименование протокола определения поставщика (подрядчика, исполнителя)';
 
     private const string TERM_FORMED_AT = 'Дата и время формирования результатов определения поставщика (подрядчика, исполнителя)';
@@ -242,11 +245,7 @@ final readonly class SupplierResultsParser
 
     private function parseDate(string $value): ?Carbon
     {
-        try {
-            return Carbon::createFromFormat('d.m.Y', $value)?->startOfDay();
-        } catch (\Throwable) {
-            return null;
-        }
+        return $this->clock->parseDate(format: 'd.m.Y', value: $value);
     }
 
     private function parseDateTime(?string $value): ?Carbon
@@ -255,11 +254,7 @@ final readonly class SupplierResultsParser
             return null;
         }
 
-        try {
-            return Carbon::createFromFormat('d.m.Y H:i', $matches[1]);
-        } catch (\Throwable) {
-            return null;
-        }
+        return $this->clock->parseDateTime(format: '!d.m.Y H:i', value: $matches[1]);
     }
 
     /**

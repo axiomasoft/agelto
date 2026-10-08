@@ -8,6 +8,7 @@ use App\Dto\Procurement\ProcurementSnapshotData;
 use App\Enums\Procurement\EisProcedureType;
 use App\Models\Procurement\Crawler\Crawler;
 use App\Services\Procurement\Contracts\ListingRowMapper;
+use App\Services\Procurement\Contracts\ListingSchemaAware;
 use Illuminate\Support\Carbon;
 
 /**
@@ -15,8 +16,10 @@ use Illuminate\Support\Carbon;
  * → нормализованный `ProcurementSnapshotData`. Вся раскладка колонок — здесь; статус НЕ
  * резолвится (сырой `source_stage` резолвит `StatusMappingService` внутри `ProcurementIngestProcessor`).
  */
-final readonly class EisCsvRowMapper implements ListingRowMapper
+final readonly class EisCsvRowMapper implements ListingRowMapper, ListingSchemaAware
 {
+    public function __construct(private EisSourceClock $clock = new EisSourceClock) {}
+
     private const string REGISTRY_NUMBER_COLUMN = 'Реестровый номер закупки';
 
     private const string PROCUREMENT_METHOD_COLUMN = 'Способ определения поставщика (подрядчика, исполнителя), подрядной организации (размещения закупки)';
@@ -42,6 +45,19 @@ final readonly class EisCsvRowMapper implements ListingRowMapper
     private const string CUSTOMER_NAME_COLUMN = 'Наименование Заказчика';
 
     private const string FZ44_REGISTRY_CODE = 'fz44';
+
+    /**
+     * Колонки, без которых `map()` возвращает `null` для любой строки (номер, даты размещения
+     * и обновления). Остальные колонки необязательны: их отсутствие даёт неполный снимок, но
+     * не теряет закупку. Эталон healthcheck (`listing_csv.required_headers`) шире — он про
+     * качество данных, а не про возможность разбора, поэтому здесь не используется.
+     *
+     * @return list<string>
+     */
+    public function requiredColumns(): array
+    {
+        return [self::REGISTRY_NUMBER_COLUMN, self::PUBLISHED_AT_COLUMN, self::SOURCE_UPDATED_AT_COLUMN];
+    }
 
     /**
      * Префикс «№» (U+2116) перед номером реестровой закупки — живая проба P4.9
@@ -142,15 +158,15 @@ final readonly class EisCsvRowMapper implements ListingRowMapper
 
         $value = trim($value);
 
-        foreach (['!d.m.Y H:i:s', '!d.m.Y H:i', '!d.m.Y'] as $format) {
-            try {
-                return Carbon::createFromFormat($format, $value);
-            } catch (\Throwable) {
-                continue;
+        foreach (['!d.m.Y H:i:s', '!d.m.Y H:i'] as $format) {
+            $date = $this->clock->parseDateTime(format: $format, value: $value);
+
+            if ($date !== null) {
+                return $date;
             }
         }
 
-        return null;
+        return $this->clock->parseDate(format: '!d.m.Y', value: $value);
     }
 
     /**
@@ -165,24 +181,20 @@ final readonly class EisCsvRowMapper implements ListingRowMapper
         $value = trim($value);
 
         foreach (['!d.m.Y H:i:s', '!d.m.Y H:i'] as $format) {
-            try {
-                $date = Carbon::createFromFormat(format: $format, time: $value);
+            $date = $this->clock->parseDateTime(format: $format, value: $value);
 
-                if ($date !== null) {
-                    return ['value' => $date, 'hasDayPrecision' => false];
-                }
-            } catch (\Throwable) {
-                continue;
+            if ($date !== null) {
+                return ['value' => $date, 'hasDayPrecision' => false];
             }
         }
 
-        try {
-            $date = Carbon::createFromFormat(format: '!d.m.Y', time: $value);
+        // Дата без времени — это целые сутки источника. Храним их НАЧАЛО как момент
+        // (полночь по часовому поясу источника → UTC), а не «полночь UTC того же числа»: тогда
+        // сравнение с любым моментом не зависит от пояса — сутки D закончились ровно в
+        // `value + 1 день` (см. `ProcurementIngestProcessor::isOlderThanHead`).
+        $date = $this->clock->parseDateTime(format: '!d.m.Y', value: $value);
 
-            return $date === null ? null : ['value' => $date, 'hasDayPrecision' => true];
-        } catch (\Throwable) {
-            return null;
-        }
+        return $date === null ? null : ['value' => $date, 'hasDayPrecision' => true];
     }
 
     private function stripRegistryNumberPrefix(string $registryNumber): string

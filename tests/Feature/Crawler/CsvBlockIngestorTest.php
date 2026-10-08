@@ -3,11 +3,13 @@
 declare(strict_types=1);
 
 use App\Dto\Procurement\Crawler\ListingBatch;
+use App\Enums\Procurement\Crawler\SourceFailureKind;
 use App\Enums\Procurement\ProcurementEventType;
 use App\Models\Procurement\Crawler\Crawler;
 use App\Models\Procurement\Crawler\Fetch;
 use App\Models\Procurement\Crawler\IgnoredItem;
 use App\Models\Procurement\Crawler\Run;
+use App\Models\Procurement\Crawler\SourceIncident;
 use App\Models\Procurement\Platform\Registry;
 use App\Models\Procurement\Procurement;
 use App\Models\Procurement\ProcurementEvent;
@@ -93,11 +95,12 @@ test('передаёт точность самой старой даты обн�
     $run = Run::factory()->for($crawler)->create();
 
     $result = app(CsvBlockIngestor::class)->ingest(crawler: $crawler, run: $run, batch: ingestorBatch([
-        ingestorCsvRow('0173200001234000011', ['Дата обновления' => '01.03.2026 00:00:00']),
+        ingestorCsvRow('0173200001234000011', ['Дата обновления' => '01.03.2026 03:00:00']),
         ingestorCsvRow('0173200001234000012', ['Дата обновления' => '01.03.2026']),
     ]));
 
-    expect($result->oldestUpdateSeen->toDateString())->toBe('2026-03-01')
+    // Сутки 01.03 по МСК начинаются 28.02 в 21:00 UTC — это раньше, чем 01.03 03:00 МСК.
+    expect($result->oldestUpdateSeen->toIso8601String())->toBe('2026-02-28T21:00:00+00:00')
         ->and($result->oldestUpdateSeenHasDayPrecision)->toBeTrue();
 });
 
@@ -274,11 +277,146 @@ test('ошибка маппера записывается отдельно от
     $mapper->shouldReceive('map')->once()->andThrow(new RuntimeException('Ошибка маппинга'));
     app()->instance(abstract: ListingRowMapper::class, instance: $mapper);
 
-    expect(fn () => app(CsvBlockIngestor::class)->ingest(crawler: $crawler, run: $run, batch: ingestorBatch([
+    $result = app(CsvBlockIngestor::class)->ingest(crawler: $crawler, run: $run, batch: ingestorBatch([
         ingestorCsvRow('0173200001234000001'),
-    ])))->toThrow(RuntimeException::class, 'не обработан полностью');
+    ]));
 
     $fetch = Fetch::query()->where('crawler_run_id', $run->id)->firstOrFail();
     expect($fetch->rows_parsed)->toBe(0)
+        ->and($fetch->rows_errors)->toBe(1)
+        // Ни одна запись не стала снимком — блок остаётся для повторной обработки.
+        ->and($result->failure)->toBe(SourceFailureKind::InvalidContent)
+        ->and($result->fetchId)->toBe($fetch->id);
+});
+
+test('битые CSV-записи учитываются в результате и журнале, блок остаётся неполным', function (): void {
+    Storage::fake('s3');
+    $registry = Registry::factory()->eis()->create(['code' => 'fz44']);
+    $crawler = Crawler::factory()->for($registry)->create();
+    $run = Run::factory()->for($crawler)->create();
+    $rows = [ingestorCsvRow('0173200001234000001')];
+
+    $result = app(CsvBlockIngestor::class)->ingest($crawler, $run, new ListingBatch(
+        rows: $rows,
+        rawBody: 'raw csv body',
+        dedupSignature: '0173200001234000001',
+        rowsTotal: 2,
+        httpStatus: 200,
+        durationMs: 10,
+        requestParams: ['from' => '1', 'to' => '500'],
+        rowsMalformed: 1,
+    ));
+
+    $fetch = Fetch::query()->where('crawler_run_id', $run->id)->sole();
+
+    expect($result->rowsErrors)->toBe(1)
+        ->and($result->failure)->toBe(SourceFailureKind::RowErrors)
+        ->and($result->rowsParsed)->toBe(1)
+        ->and($fetch->rows_total)->toBe(2)
         ->and($fetch->rows_errors)->toBe(1);
+});
+
+test('страница ошибки источника не инжестится; ингестор только классифицирует, инцидент пишет вызывающий', function (): void {
+    Storage::fake('s3');
+    $registry = Registry::factory()->eis()->create(['code' => 'fz44']);
+    $crawler = Crawler::factory()->for($registry)->create();
+    $run = Run::factory()->for($crawler)->create();
+
+    $result = app(CsvBlockIngestor::class)->ingest($crawler, $run, new ListingBatch(
+        rows: [ingestorCsvRow('0173200001234000001')],
+        rawBody: '<html>Доступ ограничен</html>',
+        dedupSignature: null,
+        rowsTotal: 1,
+        httpStatus: 403,
+        durationMs: 10,
+        requestParams: ['from' => '1', 'to' => '500'],
+    ));
+
+    $fetch = Fetch::query()->where('crawler_run_id', $run->id)->sole();
+
+    expect(Procurement::query()->count())->toBe(0)
+        ->and($fetch->http_status)->toBe(403)
+        ->and($result->failure)->toBe(SourceFailureKind::SourceBlocked)
+        ->and($result->fetchId)->toBe($fetch->id)
+        ->and(SourceIncident::query()->count())->toBe(0);
+});
+
+test('блок, ни одна запись которого не распознана маппером, — ответ не по формату', function (): void {
+    Storage::fake('s3');
+    $registry = Registry::factory()->eis()->create(['code' => 'fz44']);
+    $crawler = Crawler::factory()->for($registry)->create();
+    $run = Run::factory()->for($crawler)->create();
+
+    // Источник переименовал колонку даты: маппер не может построить ни одного снапшота.
+    $batch = ingestorBatch([
+        ingestorCsvRow('0173200001234000001', ['Дата размещения' => '2026-03-01']),
+        ingestorCsvRow('0173200001234000002', ['Дата размещения' => '2026-03-01']),
+    ]);
+
+    $result = app(CsvBlockIngestor::class)->ingest($crawler, $run, $batch);
+
+    expect($result->failure)->toBe(SourceFailureKind::InvalidContent)
+        ->and(Procurement::query()->count())->toBe(0);
+});
+
+test('пустой блок не считается отказом', function (): void {
+    Storage::fake('s3');
+    $registry = Registry::factory()->eis()->create(['code' => 'fz44']);
+    $crawler = Crawler::factory()->for($registry)->create();
+    $run = Run::factory()->for($crawler)->create();
+
+    $result = app(CsvBlockIngestor::class)->ingest($crawler, $run, ingestorBatch([]));
+
+    expect($result->rowsTotal)->toBe(0)
+        ->and($result->failure)->toBeNull();
+});
+
+test('нет обязательной колонки в заголовке — ответ не по формату, строки не разбираются', function (): void {
+    Storage::fake('s3');
+    $registry = Registry::factory()->eis()->create(['code' => 'fz44']);
+    $crawler = Crawler::factory()->for($registry)->create();
+    $run = Run::factory()->for($crawler)->create();
+    $row = ingestorCsvRow('0173200001234000001');
+    unset($row['Дата обновления']);
+
+    $result = app(CsvBlockIngestor::class)->ingest($crawler, $run, ingestorBatch([$row]));
+
+    expect($result->failure)->toBe(SourceFailureKind::LayoutDrift)
+        ->and($result->failureDetail)->toContain('Нет колонок: Дата обновления')
+        ->and(Procurement::query()->count())->toBe(0);
+});
+
+test('HTML вместо CSV с HTTP 200 ловится проверкой заголовка, даже если записей нет', function (): void {
+    Storage::fake('s3');
+    $registry = Registry::factory()->eis()->create(['code' => 'fz44']);
+    $crawler = Crawler::factory()->for($registry)->create();
+    $run = Run::factory()->for($crawler)->create();
+
+    // Однострочная HTML-заглушка: записей данных 0, но заголовок не тот. Раньше такой блок
+    // выглядел бы как «пустой» и закрывал бы интервал архива.
+    $result = app(CsvBlockIngestor::class)->ingest($crawler, $run, new ListingBatch(
+        rows: [],
+        rawBody: '<!DOCTYPE html><title>Проверка браузера</title>',
+        dedupSignature: null,
+        rowsTotal: 0,
+        httpStatus: 200,
+        durationMs: 10,
+        requestParams: ['from' => '1'],
+        header: ['<!DOCTYPE html><title>Проверка браузера</title>'],
+    ));
+
+    expect($result->failure)->toBe(SourceFailureKind::LayoutDrift);
+});
+
+test('пустое тело при 2xx — отдельный вид отказа, блок пропускается', function (): void {
+    Storage::fake('s3');
+    $crawler = Crawler::factory()->for(Registry::factory()->eis()->create(['code' => 'fz44']))->create();
+    $run = Run::factory()->for($crawler)->create();
+
+    $result = app(CsvBlockIngestor::class)->ingest($crawler, $run, new ListingBatch(
+        rows: [], rawBody: '', dedupSignature: null, rowsTotal: 0, httpStatus: 200, durationMs: 1,
+        requestParams: ['from' => '1'], emptyBody: true,
+    ));
+
+    expect($result->failure)->toBe(SourceFailureKind::EmptyBody);
 });

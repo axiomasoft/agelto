@@ -66,7 +66,7 @@ test('репозиторий перезаписывает последний и�
     ]);
 });
 
-test('ошибка health-зонда не увеличивает попытки и не отменяет снятие карточки', function (): void {
+test('отсутствие эталона откладывает разбор, после исправления конфигурации карточка восстанавливается', function (): void {
     config([
         'crawler.platforms.eis.source_methods.'.SourceMethodEnum::Csv->value => DetailParseOutcomeSourceMethod::class,
         'crawler.health.enabled' => true,
@@ -82,10 +82,16 @@ test('ошибка health-зонда не увеличивает попытки 
 
     $procurement->refresh();
 
-    expect($result)->toBeTrue()
-        ->and($procurement->detail_fetched_at)->not->toBeNull()
-        ->and($procurement->detail_attempts)->toBe(0)
+    expect($result)->toBeFalse()
+        ->and($procurement->detail_fetched_at)->toBeNull()
+        ->and($procurement->detail_attempts)->toBe(3)
         ->and($procurement->detail_failed)->toBeFalse()
-        ->and($procurement->detail_parse_outcome['common-info']['status'])->toBe('probe_failed')
-        ->and($procurement->detail_parse_outcome['documents']['status'])->toBe('probe_failed');
+        ->and($procurement->detail_next_retry_at)->not->toBeNull();
+
+    config(['crawler.health.baseline_path' => 'resources/crawler/health/eis-baseline.json']);
+    $this->travelTo($procurement->detail_next_retry_at->copy()->addSecond());
+
+    expect(app(DetailAnalysisProcessor::class)->run(procurement: $procurement))->toBeTrue()
+        ->and($procurement->refresh()->detail_fetched_at)->not->toBeNull()
+        ->and($procurement->detail_attempts)->toBe(0);
 });

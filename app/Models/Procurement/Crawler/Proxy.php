@@ -7,6 +7,7 @@ namespace App\Models\Procurement\Crawler;
 use App\Enums\Procurement\Proxy\ProxyScope;
 use Database\Factories\Procurement\Crawler\ProxyFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Attributes\Table;
 use Illuminate\Database\Eloquent\Attributes\UseFactory;
 use Illuminate\Database\Eloquent\Casts\AsEnumCollection;
@@ -57,6 +58,9 @@ use Illuminate\Support\Collection;
     'disabled_at',
     'disabled_reason',
 ])]
+// Пароль узла — секрет: шифруется APP_KEY в БД (дампы/бэкапы не несут его открытым) и не
+// сериализуется (`toArray()`/JSON/заполнение Filament-формы не отдают его в браузер).
+#[Hidden(['password'])]
 #[Table(name: 'prc_proxies')]
 final class Proxy extends Model
 {
@@ -67,6 +71,7 @@ final class Proxy extends Model
     {
         return [
             'port' => 'integer',
+            'password' => 'encrypted',
             'scopes' => AsEnumCollection::of(ProxyScope::class),
             'is_active' => 'boolean',
             'fails_count' => 'integer',

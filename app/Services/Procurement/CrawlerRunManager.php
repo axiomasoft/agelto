@@ -10,6 +10,7 @@ use App\Enums\Procurement\Crawler\CrawlerMode;
 use App\Enums\Procurement\Crawler\RunPurpose;
 use App\Enums\Procurement\Crawler\RunStatus;
 use App\Exceptions\Procurement\Crawler\CrawlerRunBusyException;
+use App\Exceptions\Procurement\Crawler\ExecutionLeaseLost;
 use App\Models\Procurement\Crawler\Crawler;
 use App\Models\Procurement\Crawler\Run;
 use Closure;
@@ -156,7 +157,7 @@ final class CrawlerRunManager
         }
 
         if (! $this->renewExecutionLease(run: $run)) {
-            throw new RuntimeException('Execution lease is no longer owned by this processor.');
+            throw ExecutionLeaseLost::noLongerOwned();
         }
     }
 
@@ -182,11 +183,11 @@ final class CrawlerRunManager
             }
 
             if ($token === null && $lockedRun->execution_owner_token !== null) {
-                throw new RuntimeException('Execution lease is not owned by this processor.');
+                throw ExecutionLeaseLost::notOwned();
             }
 
             if ($token !== null && ! $this->renewExecutionLease(run: $run)) {
-                throw new RuntimeException('Execution lease is no longer owned by this processor.');
+                throw ExecutionLeaseLost::noLongerOwned();
             }
 
             return $callback();
@@ -206,7 +207,7 @@ final class CrawlerRunManager
         $run->refresh();
 
         if ($updated !== 1 && $this->executionOwnerToken(run: $run) !== null) {
-            throw new RuntimeException('Execution lease is no longer owned by this processor.');
+            throw ExecutionLeaseLost::noLongerOwned();
         }
 
         return $updated === 1;
@@ -316,16 +317,19 @@ final class CrawlerRunManager
     /**
      * Сигнал `Pause` стоп-гейта (P3.2, D28): курсор к этому моменту уже сохранён вызывающим
      * циклом, статус — `paused` (resumable), запрос остановки гасится, чтобы `startOrResume()`
-     * следующего запуска не увидел его снова.
+     * следующего запуска не увидел его снова. `$error` (если передан) пишется в `last_error`.
+     *
+     * @param  array<string, mixed>  $extraStats  метки причины паузы (например, `source_suspended`)
      */
-    public function pause(Run $run, string $reason): void
+    public function pause(Run $run, string $reason, array $extraStats = [], ?string $error = null): bool
     {
-        $this->ownedRunningQuery(run: $run)->update([
+        $updated = $this->ownedRunningQuery(run: $run)->update([
+            ...($error === null ? [] : ['last_error' => $error, 'last_error_at' => now()]),
             'status' => RunStatus::Paused,
             'stats' => array_merge($run->stats?->toArray() ?? [], [
                 'stop_reason' => $reason,
                 'automatic_recovery_pending' => false,
-            ]),
+            ], $extraStats),
             'stop_requested_at' => null,
             'stop_kind' => null,
             'stop_requested_by' => null,
@@ -335,11 +339,13 @@ final class CrawlerRunManager
 
         $run->refresh();
         $this->forgetExecutionOwnerToken(run: $run);
+
+        return $updated === 1;
     }
 
     /**
      * Сигнал `Cancel` стоп-гейта (P3.2, D28): терминальный статус, `finished_at` проставляется
-     * тем же приёмом, что `complete()`/`fail()`; запрос остановки гасится.
+     * тем же приёмом, что `complete()`; запрос остановки гасится.
      */
     public function cancel(Run $run, string $reason): void
     {
@@ -412,9 +418,7 @@ final class CrawlerRunManager
                 ];
             }
 
-            $updated = Run::query()
-                ->whereKey($lockedRun->getKey())
-                ->whereNull('execution_owner_token')
+            $updated = $this->ownedRunningQuery(run: $run)
                 ->update(['stats' => array_merge($stats, [
                     'execution_context' => $executionContext,
                     'automatic_recovery_pending' => false,
@@ -510,21 +514,6 @@ final class CrawlerRunManager
         $run->refresh();
 
         return $updated === 1;
-    }
-
-    public function fail(Run $run, string $error): void
-    {
-        $this->ownedRunningQuery(run: $run)->update([
-            'status' => RunStatus::Failed,
-            'finished_at' => now(),
-            'last_error' => $error,
-            'last_error_at' => now(),
-            'execution_owner_token' => null,
-            'execution_lease_expires_at' => null,
-        ]);
-
-        $run->refresh();
-        $this->forgetExecutionOwnerToken(run: $run);
     }
 
     public function releaseExecutionLease(Run $run): bool

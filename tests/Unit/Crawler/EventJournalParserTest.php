@@ -10,17 +10,18 @@ function eventJournalFixtureHtml(): string
 }
 
 test('parse разбирает строки журнала событий с датой и текстом (реальная вкладка event-journal, P4.14)', function () {
+    // Вкладка отдаёт «(МСК+9)» (Камчатка): время переводится в UTC = локальное − 12 ч.
     $entries = app(EventJournalParser::class)->parse(eventJournalFixtureHtml());
 
     expect($entries)->toHaveCount(5);
 
-    expect($entries[0]->occurredAt->format('Y-m-d H:i:s'))->toBe('2025-01-23 09:29:00')
+    expect($entries[0]->occurredAt->format('Y-m-d H:i:s'))->toBe('2025-01-22 21:29:00')
         ->and($entries[0]->rawText)->toContain('переведена на этап «Определение поставщика завершено»');
 
-    expect($entries[2]->occurredAt->format('Y-m-d H:i:s'))->toBe('2025-01-23 09:00:00')
+    expect($entries[2]->occurredAt->format('Y-m-d H:i:s'))->toBe('2025-01-22 21:00:00')
         ->and($entries[2]->rawText)->toContain('переведена на этап «Работа комиссии»');
 
-    expect($entries[3]->occurredAt->format('Y-m-d H:i:s'))->toBe('2025-01-15 11:55:00')
+    expect($entries[3]->occurredAt->format('Y-m-d H:i:s'))->toBe('2025-01-14 23:55:00')
         ->and($entries[3]->rawText)->toContain('переведена на этап «Подача заявок»');
 
     expect($entries[4]->rawText)->toContain('Размещен документ');

@@ -7,6 +7,7 @@ use App\Doctor\Diagnostics\BaseDataIsReady;
 use App\Doctor\Diagnostics\InitialAdminIsReady;
 use App\Doctor\Diagnostics\PrivatePackagesArePinned;
 use App\Doctor\Diagnostics\SecretContractIsReady;
+use App\Dto\Procurement\Crawler\SourceControlPolicy;
 use App\Models\User;
 use App\Pulse\Cards\LlmSpendCard;
 use App\Pulse\Cards\PipelineStagesCard;
@@ -60,6 +61,10 @@ class AppServiceProvider extends ServiceProvider
         // `config('ai.analyzers')` при ПЕРВОМ резолве и дальше неизменен — отсюда singleton,
         // а не bind (иначе инварианты сборки проверялись бы на каждом резолве).
         $this->app->singleton(DocumentAnalyzerRegistry::class);
+
+        // Правила реакции краулера на отказы: типизированный разбор `crawler.source_control`
+        // один раз на процесс; резолвится в `boot()`, чтобы ошибка конфига валила старт.
+        $this->app->singleton(SourceControlPolicy::class, static fn (): SourceControlPolicy => SourceControlPolicy::fromConfig(config('crawler.source_control')));
     }
 
     /**
@@ -67,6 +72,8 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        $this->app->make(SourceControlPolicy::class);
+
         if ($this->app->environment('testing')) {
             ParallelTesting::setUpProcess(function (string $token): void {
                 TestFilesystemIsolation::prepare(process: $token);

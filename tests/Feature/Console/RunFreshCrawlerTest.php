@@ -3,12 +3,14 @@
 declare(strict_types=1);
 
 use App\Dto\Procurement\Crawler\ListingBatch;
+use App\Enums\Procurement\Crawler\CrawlerEventCode;
 use App\Enums\Procurement\Crawler\CrawlerMode;
 use App\Enums\Procurement\Crawler\RunStatus;
 use App\Enums\Procurement\Crawler\SourceMethod as SourceMethodEnum;
 use App\Jobs\Procurement\CrawlRunJob;
 use App\Models\Procurement\Crawler\Crawler;
 use App\Models\Procurement\Crawler\Run;
+use App\Models\Procurement\Crawler\SourceIncident;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
@@ -111,7 +113,7 @@ test('без аргумента резолвит все активные fresh-�
         ->and(Run::query()->where('crawler_id', $inactive->id)->exists())->toBeFalse();
 });
 
-test('падение одного профиля не прерывает обработку остальных, но команда возвращает FAILURE', function () {
+test('сбой одного профиля сохраняет его курсор на паузе, остальные профили обработаны', function () {
     $healthy = Crawler::factory()->create(['mode' => CrawlerMode::Fresh, 'is_active' => true, 'source_method' => SourceMethodEnum::Csv]);
     $broken = Crawler::factory()->create(['mode' => CrawlerMode::Fresh, 'is_active' => true, 'source_method' => SourceMethodEnum::Html]);
 
@@ -122,10 +124,13 @@ test('падение одного профиля не прерывает обр�
     ]]);
 
     $this->artisan('crawler:run-fresh')
-        ->assertExitCode(Command::FAILURE);
+        ->assertExitCode(Command::SUCCESS);
 
     expect(Run::query()->where('crawler_id', $healthy->id)->sole()->status)->toBe(RunStatus::Completed)
-        ->and(Run::query()->where('crawler_id', $broken->id)->sole()->status)->toBe(RunStatus::Failed);
+        ->and(Run::query()->where('crawler_id', $broken->id)->sole()->status)->toBe(RunStatus::Paused)
+        ->and(Run::query()->where('crawler_id', $broken->id)->sole()->cursor['blockFrom'])->toBe(1)
+        ->and(SourceIncident::query()->where('type', CrawlerEventCode::CsvCodeError)->count())->toBe(1)
+        ->and(SourceIncident::query()->where('type', CrawlerEventCode::StageHeld)->count())->toBe(0);
 });
 
 test('активный прогон профиля — команда отказывает, второй job не ставится', function () {

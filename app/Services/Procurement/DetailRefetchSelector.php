@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services\Procurement;
 
 use App\Enums\Procurement\ProcurementStatus;
+use App\Models\Procurement\Platform\Registry;
 use App\Models\Procurement\Procurement;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\LazyCollection;
@@ -23,9 +24,10 @@ final readonly class DetailRefetchSelector
     private const RESCAN_STATUSES = [ProcurementStatus::Evaluation, ProcurementStatus::Awarded];
 
     /**
+     * @param  list<int>  $excludePlatformIds  площадки, где этап карточек сейчас не пускает запросы
      * @return LazyCollection<int, Procurement>
      */
-    public function due(int $limit): LazyCollection
+    public function due(int $limit, array $excludePlatformIds = []): LazyCollection
     {
         $rescanIntervalMinutes = config('crawler.detail_rescan_interval_minutes', 60);
 
@@ -37,6 +39,10 @@ final readonly class DetailRefetchSelector
 
         return Procurement::query()
             ->where('detail_failed', false)
+            ->when($excludePlatformIds !== [], fn ($query) => $query->whereNotIn(
+                'registry_id',
+                Registry::query()->select('id')->whereIn('platform_id', $excludePlatformIds),
+            ))
             ->where(function ($query): void {
                 $query->whereNull('detail_next_retry_at')
                     ->orWhere('detail_next_retry_at', '<=', now());

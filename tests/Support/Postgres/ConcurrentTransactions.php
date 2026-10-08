@@ -91,6 +91,9 @@ require {$autoloadExport};
 \$app->make(\Illuminate\Contracts\Console\Kernel::class)->bootstrap();
 config(['database.connections.pgsql.database' => 'agelto_test']);
 \Illuminate\Support\Facades\DB::purge('pgsql');
+\Tests\Support\TestFilesystemIsolation::configure(\$app);
+\Tests\Support\TestEnvironmentGuard::assertBootstrapTestDatabase(\$app);
+\Tests\Support\TestEnvironmentGuard::assertIsolatedTestFilesystem(\$app);
 if ({$waitForBarrierExport}) {
     fwrite(STDOUT, "ready\\n");
     fgets(STDIN);

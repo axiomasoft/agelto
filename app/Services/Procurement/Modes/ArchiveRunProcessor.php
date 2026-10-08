@@ -13,6 +13,7 @@ use App\Models\Procurement\Crawler\Crawler;
 use App\Models\Procurement\Crawler\Run;
 use App\Services\Procurement\ArchiveWindowScanner;
 use App\Services\Procurement\CrawlerRunManager;
+use App\Services\Procurement\SourceControl\SourceRunControl;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Carbon;
 use Throwable;
@@ -28,10 +29,12 @@ final readonly class ArchiveRunProcessor
     public function __construct(
         private CrawlerRunManager $runs,
         private ArchiveWindowScanner $scanner,
+        private SourceRunControl $sourceControl,
     ) {}
 
     public function run(Crawler $crawler, CarbonInterface $from, CarbonInterface $to, ?Run $run = null): Run
     {
+        $deadlineAt = microtime(true) + max(0, config()->integer('crawler.run.checkpoint_seconds', 240));
         $run ??= $this->runs->startOrResume(crawler: $crawler, purpose: RunPurpose::Profile, subjectKey: null);
         $cursor = ListingCursor::fromArray(cursor: $run->cursor?->toArray() ?? []);
         $day = $cursor->day !== null ? Carbon::parse($cursor->day) : $from->copy()->startOfDay();
@@ -52,7 +55,7 @@ final readonly class ArchiveRunProcessor
                     dateField: 'publish',
                     dateFrom: $day->copy(),
                     dateTo: $day->copy(),
-                ));
+                ), deadlineAt: $deadlineAt);
 
                 if ($result === ArchiveWindowScanResult::OperatorDebt) {
                     $this->runs->pause(
@@ -71,9 +74,10 @@ final readonly class ArchiveRunProcessor
                 $this->runs->updateCursor(run: $run, cursor: new ListingCursor(blockFrom: 1, day: $day->toDateString()));
             }
         } catch (Throwable $exception) {
-            $this->runs->fail(run: $run, error: $exception->getMessage());
+            // Последняя страховка: сбой вне обработки блока — пауза с тем же курсором, не провал.
+            $this->sourceControl->interrupted(run: $run, exception: $exception);
 
-            throw $exception;
+            return $run;
         }
 
         $this->runs->complete(run: $run);

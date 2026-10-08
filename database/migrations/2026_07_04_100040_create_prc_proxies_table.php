@@ -24,6 +24,7 @@ return new class extends Migration
             $table->text('host');
             $table->integer('port')->nullable();
             $table->text('username')->nullable();
+            // Шифруется cast'ом 'encrypted' модели Proxy (Crypt, APP_KEY); text вмещает шифртекст.
             $table->text('password')->nullable();
             $table->char('country', 2)->nullable()->comment('ISO 3166-1 alpha-2, верхний регистр; единственный носитель гео (D5)');
             $table->jsonb('scopes')->default('[]')->comment('список значений App\Enums\Procurement\Proxy\ProxyScope; пустой = узел не выдаётся ни для одного скоупа');

@@ -12,8 +12,10 @@ use App\Enums\Procurement\Crawler\RunPurpose;
 use App\Enums\Procurement\Crawler\RunStatus;
 use App\Enums\Procurement\Crawler\RunStopKind;
 use App\Enums\Procurement\Crawler\SourceMethod as SourceMethodEnum;
+use App\Enums\Procurement\Crawler\SourceStageStatus;
 use App\Models\Procurement\Crawler\Crawler;
 use App\Models\Procurement\Crawler\Run;
+use App\Models\Procurement\Crawler\SourceCircuit;
 use App\Models\Procurement\Platform\Registry;
 use App\Services\Procurement\Contracts\SourceMethod;
 use App\Services\Procurement\CrawlerRunManager;
@@ -692,7 +694,7 @@ test('стоп-сигнал Cancel между днями останавлива�
     expect($freshRun->stats['backlog_rescanned_at'] ?? null)->toBeNull();
 });
 
-test('исключение внутри scan — archive-run failed, флаг остаётся непомеченным', function () {
+test('источник бросает — archive-run ждёт на текущем блоке, backlog не помечен обработанным', function () {
     $registry = Registry::factory()->eis()->create();
     $freshCrawler = Crawler::factory()->create(['registry_id' => $registry->id, 'mode' => CrawlerMode::Fresh]);
     Crawler::factory()->create(['registry_id' => $registry->id, 'mode' => CrawlerMode::Archive, 'is_active' => true]);
@@ -711,7 +713,10 @@ test('исключение внутри scan — archive-run failed, флаг о
     expect($processed)->toBe(0);
 
     $archiveRun = Run::query()->where('crawler_id', '!=', $freshCrawler->id)->sole();
-    expect($archiveRun->status)->toBe(RunStatus::Failed);
+    expect($archiveRun->status)->toBe(RunStatus::Paused)
+        ->and(SourceCircuit::query()->sole()->status())->toBe(SourceStageStatus::Running)
+        ->and($archiveRun->cursor['blockFrom'] ?? 1)->toBe(1)
+        ->and($archiveRun->stats['source_retry_at'])->not->toBeNull();
 
     $freshRun->refresh();
     expect($freshRun->stats['backlog_rescanned_at'] ?? null)->toBeNull();

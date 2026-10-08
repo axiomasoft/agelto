@@ -79,10 +79,16 @@ final readonly class CsvSourceMethod implements DeadlineAwareSourceMethod
         private StoreRawFetchArtifactAction $rawArtifacts,
     ) {}
 
+    public function collectListingWithinDeadline(Crawler $crawler, ListingCursor $cursor, float $deadlineAt): ListingBatch
+    {
+        return $this->collectListing(crawler: $crawler, cursor: $cursor, deadlineAt: $deadlineAt);
+    }
+
     public function collectListing(
         Crawler $crawler,
         ListingCursor $cursor,
         ?EisListingQueryOverrides $queryOverrides = null,
+        ?float $deadlineAt = null,
     ): ListingBatch {
         $blockSize = $this->intConfig('crawler.eis.block_size', 500);
         $from = $cursor->blockFrom;
@@ -116,6 +122,7 @@ final readonly class CsvSourceMethod implements DeadlineAwareSourceMethod
             stage: CrawlStage::Listing,
             host: $host,
             crawler: $crawler,
+            deadlineAt: $deadlineAt,
         );
         $response = $request['response'];
         $waitMs = $request['wait_ms'];
@@ -129,6 +136,7 @@ final readonly class CsvSourceMethod implements DeadlineAwareSourceMethod
                 stage: CrawlStage::Listing,
                 host: $host,
                 crawler: $crawler,
+                deadlineAt: $deadlineAt,
             );
             $response = $request['response'];
             $waitMs += $request['wait_ms'];
@@ -137,19 +145,33 @@ final readonly class CsvSourceMethod implements DeadlineAwareSourceMethod
         $durationMs = (int) ((hrtime(true) - $startedAt) / 1_000_000);
 
         $utf8Body = mb_convert_encoding($response->body(), 'UTF-8', 'Windows-1251');
-        $rows = $this->parseCsv(body: $utf8Body);
+        ['rows' => $rows, 'records' => $records, 'malformed' => $malformed, 'header' => $header] = $this->parseCsv(body: $utf8Body);
+
+        if ($malformed > 0) {
+            Log::warning(message: 'CsvSourceMethod: CSV-записи листинга не совпали с заголовком по числу полей.', context: [
+                'crawler_id' => $crawler->id,
+                'block_from' => $from,
+                'records' => $records,
+                'malformed' => $malformed,
+            ]);
+        }
 
         return new ListingBatch(
             rows: $rows,
             rawBody: $utf8Body,
             dedupSignature: $rows[0][self::REGISTRY_NUMBER_COLUMN] ?? null,
-            rowsTotal: count($rows),
+            rowsTotal: $records,
             httpStatus: $response->status(),
             durationMs: $durationMs,
             requestParams: $queryParams,
             proxyId: $lease->proxyId,
             proxySource: $lease->source,
             waitMs: $waitMs,
+            rowsMalformed: $malformed,
+            header: $header,
+            // У ЕИС даже пустая выдача содержит строку заголовка; тело без единого символа —
+            // аномалия (`CRAWLER_CSV_EMPTY`), а не конец данных.
+            emptyBody: trim($utf8Body) === '',
         );
     }
 
@@ -530,34 +552,69 @@ final readonly class CsvSourceMethod implements DeadlineAwareSourceMethod
     }
 
     /**
-     * @return list<array<string, string>>
+     * RFC 4180-разбор потоком (`fgetcsv`), а не построчно: поле в кавычках может содержать перевод
+     * строки (длинные наименования закупок), и предварительный split по `\n` рвал такую запись на
+     * два «битых» фрагмента, которые молча отбрасывались. `escape: ''` отключает нестандартный
+     * backslash-эскейп PHP: `\"` в конце поля иначе склеивал соседние поля.
+     *
+     * `records` — все непустые записи данных (включая битые), `malformed` — записи, у которых
+     * число полей не совпало с заголовком.
+     *
+     * `header` — первая запись как есть (для проверки обязательных колонок), `null` — тело пустое.
+     *
+     * @return array{rows: list<array<string, string>>, records: int, malformed: int, header: list<string>|null}
      */
     private function parseCsv(string $body): array
     {
-        $lines = preg_split('/\r\n|\r|\n/', trim($body));
+        $empty = ['rows' => [], 'records' => 0, 'malformed' => 0, 'header' => null];
 
-        if ($lines === false || $lines === [] || $lines[0] === '') {
-            return [];
+        if (trim($body) === '') {
+            return $empty;
         }
 
-        $header = $this->csvFields($lines[0]);
-        $rows = [];
+        $stream = fopen('php://temp', 'w+b');
 
-        foreach (array_slice($lines, offset: 1) as $line) {
-            if ($line === '') {
-                continue;
-            }
-
-            $values = $this->csvFields($line);
-
-            if (count($values) !== count($header)) {
-                continue;
-            }
-
-            $rows[] = array_combine(keys: $header, values: $values);
+        if ($stream === false) {
+            throw new \RuntimeException('Не удалось открыть временный поток для разбора CSV.');
         }
 
-        return $rows;
+        try {
+            fwrite($stream, $body);
+            rewind($stream);
+
+            $header = null;
+            $rows = [];
+            $records = 0;
+            $malformed = 0;
+
+            while (($fields = fgetcsv($stream, null, ';', '"', '')) !== false) {
+                if ($fields === [null]) {
+                    continue;
+                }
+
+                $fields = array_map(static fn (?string $field): string => $field ?? '', $fields);
+
+                if ($header === null) {
+                    $header = $fields;
+
+                    continue;
+                }
+
+                $records++;
+
+                if (count($fields) !== count($header)) {
+                    $malformed++;
+
+                    continue;
+                }
+
+                $rows[] = array_combine(keys: $header, values: $fields);
+            }
+
+            return $header === null ? $empty : ['rows' => $rows, 'records' => $records, 'malformed' => $malformed, 'header' => $header];
+        } finally {
+            fclose($stream);
+        }
     }
 
     private function intConfig(string $key, int $default): int
@@ -609,13 +666,5 @@ final readonly class CsvSourceMethod implements DeadlineAwareSourceMethod
         }
 
         return $strings;
-    }
-
-    /** @return list<string> */
-    private function csvFields(string $line): array
-    {
-        $fields = str_getcsv($line, ';', '"');
-
-        return array_map(static fn (?string $field): string => $field ?? '', $fields);
     }
 }

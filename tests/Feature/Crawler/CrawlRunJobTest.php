@@ -177,6 +177,25 @@ test('fresh hard-cap самодиспатчит ровно одно продол
     Queue::assertPushed(CrawlRunJob::class, 1);
 });
 
+test('продолжение ставится после освобождения аренды: немедленно забранное (sync) не падает и доводит прогон', function () {
+    config(['crawler.fresh_max_blocks' => 1, 'queue.connections.redis.driver' => 'sync']);
+
+    $crawler = Crawler::factory()->create(['mode' => CrawlerMode::Fresh, 'source_method' => SourceMethodEnum::Csv]);
+    app()->instance(QueueSourceMethod::class, new QueueSourceMethod(batches: [
+        crawlRunJobBatch([crawlRunJobCsvRow('0173200001234000091')], dedupSignature: 'race-1', from: '1'),
+        crawlRunJobBatch([crawlRunJobCsvRow('0173200001234000092')], dedupSignature: 'race-2', from: '501'),
+        crawlRunJobEmptyBatch(),
+    ]));
+    config(['crawler.platforms.eis.source_methods' => [SourceMethodEnum::Csv->value => QueueSourceMethod::class]]);
+
+    app()->call([new CrawlRunJob(crawlerId: $crawler->id, mode: CrawlerMode::Fresh), 'handle']);
+
+    $run = Run::query()->where('crawler_id', $crawler->id)->sole();
+    expect($run->status)->toBe(RunStatus::Completed)
+        ->and($run->execution_owner_token)->toBeNull()
+        ->and(Procurement::query()->count())->toBe(2);
+});
+
 test('request-budget checkpoint archive сохраняет execution lane и самодиспатчит continuation', function (): void {
     Queue::fake();
     $sourceMethod = new class implements SourceMethod

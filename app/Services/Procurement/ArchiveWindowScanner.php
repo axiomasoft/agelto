@@ -10,9 +10,12 @@ use App\Dto\Procurement\Crawler\RecoveryScope;
 use App\Dto\Procurement\Crawler\WindowFilter;
 use App\Enums\Procurement\Crawler\ArchiveWindowScanResult;
 use App\Enums\Procurement\Crawler\RunStopKind;
+use App\Exceptions\Procurement\Crawler\OutboundRequestDeadlineExceeded;
 use App\Exceptions\Procurement\Crawler\PlatformBudgetExhaustedException;
 use App\Models\Procurement\Crawler\Crawler;
 use App\Models\Procurement\Crawler\Run;
+use App\Services\Procurement\Contracts\DeadlineAwareSourceMethod;
+use App\Services\Procurement\SourceControl\SourceRunControl;
 use Illuminate\Support\Facades\Log;
 
 /**
@@ -36,12 +39,14 @@ final readonly class ArchiveWindowScanner
         private CrawlerRunManager $runs,
         private CsvBlockIngestor $ingestor,
         private RunStopGate $stopGate,
+        private SourceRunControl $sourceControl,
     ) {}
 
-    public function scan(Crawler $crawler, Run $run, WindowFilter $filter, ?RecoveryScope $recoveryScope = null): ArchiveWindowScanResult
+    public function scan(Crawler $crawler, Run $run, WindowFilter $filter, ?RecoveryScope $recoveryScope = null, ?float $deadlineAt = null): ArchiveWindowScanResult
     {
         $startedAt = microtime(true);
         $checkpointSeconds = self::nonNegativeIntConfig('crawler.run.checkpoint_seconds');
+        $deadlineAt = min($deadlineAt ?? INF, $startedAt + $checkpointSeconds);
         $blockSize = self::positiveIntConfig('crawler.eis.block_size', default: 500);
         $priceCeiling = self::positiveIntConfig('crawler.archive.price_ceiling');
         $minPriceInterval = self::nonNegativeIntConfig('crawler.archive.min_price_interval');
@@ -96,7 +101,7 @@ final readonly class ArchiveWindowScanner
                 return ArchiveWindowScanResult::Stopped;
             }
 
-            if (microtime(true) - $startedAt >= $checkpointSeconds) {
+            if (microtime(true) >= $deadlineAt) {
                 $this->runs->recordCheckpoint(run: $run);
 
                 return ArchiveWindowScanResult::Checkpointed;
@@ -132,81 +137,120 @@ final readonly class ArchiveWindowScanner
             $executionCrawler = clone $crawler;
             $executionCrawler->filter = $profileFilter;
             $executionCrawler = $recoveryScope?->applyTo(runtimeCrawler: $executionCrawler) ?? $executionCrawler;
+            // Источник на паузе (брейкер открыт или пауза оператора): прогон приостановлен с тем
+            // же курсором; его поднимет `crawler:source-circuits` или оператор.
+            if (! $this->sourceControl->admit(crawler: $crawler, run: $run)) {
+                return ArchiveWindowScanResult::Stopped;
+            }
+
             $sourceMethod = $this->factory->makeWithFallback(crawler: $executionCrawler);
             try {
-                $batch = $sourceMethod->collectListing(crawler: $executionCrawler, cursor: $iterationCursor);
-            } catch (PlatformBudgetExhaustedException) {
+                $batch = $sourceMethod instanceof DeadlineAwareSourceMethod
+                    ? $sourceMethod->collectListingWithinDeadline(crawler: $executionCrawler, cursor: $iterationCursor, deadlineAt: $deadlineAt)
+                    : $sourceMethod->collectListing(crawler: $executionCrawler, cursor: $iterationCursor);
+            } catch (PlatformBudgetExhaustedException|OutboundRequestDeadlineExceeded) {
                 $this->runs->recordCheckpoint(run: $run);
 
                 return ArchiveWindowScanResult::Checkpointed;
+            } catch (\Throwable $exception) {
+                $this->sourceControl->onBlockException(crawler: $crawler, run: $run, exception: $exception, requestParams: $iterationCursor->toArray());
+
+                return ArchiveWindowScanResult::Stopped;
             }
 
-            // A request may outlive the lease. Its ingestion and checkpoint are one short
-            // PostgreSQL row-locked section: a takeover waits for all block writes to commit
-            // or roll back, and a former owner cannot persist a partial response afterwards.
-            $result = $this->runs->withinExecutionLease(run: $run, callback: function () use (
-                &$blockFrom,
-                &$blocksInInterval,
-                &$previousSignature,
-                &$stack,
-                $batch,
-                $blockSize,
-                $crawler,
-                $dateField,
-                $day,
-                $minPriceInterval,
-                $recoveryScope,
-                $run,
-            ): ?ArchiveWindowScanResult {
-                $this->ingestor->ingest(crawler: $crawler, run: $run, batch: $batch);
+            $fetchResult = null;
+            $blockException = null;
 
-                if ($batch->rowsTotal < $blockSize) {
-                    array_pop($stack);
-                    $blockFrom = 1;
-                    $previousSignature = null;
-                    $blocksInInterval = 0;
-                } elseif ($previousSignature !== null && $batch->dedupSignature === $previousSignature) {
-                    $splitStack = $this->splitTopInterval(stack: $stack, minPriceInterval: $minPriceInterval, crawler: $crawler, run: $run, day: $day);
+            try {
+                // A request may outlive the lease. Its ingestion and checkpoint are one short
+                // PostgreSQL row-locked section: a takeover waits for all block writes to commit
+                // or roll back, and a former owner cannot persist a partial response afterwards.
+                $result = $this->runs->withinExecutionLease(run: $run, callback: function () use (
+                    &$blockFrom,
+                    &$blocksInInterval,
+                    &$previousSignature,
+                    &$stack,
+                    &$fetchResult,
+                    $batch,
+                    $blockSize,
+                    $crawler,
+                    $dateField,
+                    $day,
+                    $minPriceInterval,
+                    $recoveryScope,
+                    $run,
+                ): ?ArchiveWindowScanResult {
+                    $fetchResult = $this->ingestor->ingest(crawler: $crawler, run: $run, batch: $batch);
 
-                    if ($splitStack === null) {
-                        $this->persistCursor(
-                            run: $run,
-                            day: $day,
-                            stack: $stack,
-                            blockFrom: $blockFrom,
-                            dateField: $dateField,
-                            lastDedupSignature: $previousSignature,
-                            blocksInInterval: $blocksInInterval,
-                            recoveryScope: $recoveryScope,
-                        );
-
-                        return ArchiveWindowScanResult::OperatorDebt;
+                    if ($fetchResult->failure !== null) {
+                        // Любая непрочитанная строка оставляет курсор на текущем блоке.
+                        // Инцидент и пауза записываются после транзакции.
+                        return null;
                     }
 
-                    $stack = $splitStack;
-                    $blockFrom = 1;
-                    $previousSignature = null;
-                    $blocksInInterval = 0;
-                } else {
-                    $previousSignature = $batch->dedupSignature;
-                    $blockFrom += $blockSize;
-                    $blocksInInterval++;
-                }
+                    if ($batch->rowsTotal < $blockSize) {
+                        array_pop($stack);
+                        $blockFrom = 1;
+                        $previousSignature = null;
+                        $blocksInInterval = 0;
+                    } elseif ($previousSignature !== null && $batch->dedupSignature === $previousSignature) {
+                        $splitStack = $this->splitTopInterval(stack: $stack, minPriceInterval: $minPriceInterval, crawler: $crawler, run: $run, day: $day);
 
-                $this->persistCursor(
-                    run: $run,
-                    day: $day,
-                    stack: $stack,
-                    blockFrom: $blockFrom,
-                    dateField: $dateField,
-                    lastDedupSignature: $previousSignature,
-                    blocksInInterval: $blocksInInterval,
-                    recoveryScope: $recoveryScope,
-                );
-                $this->runs->heartbeat(run: $run);
+                        if ($splitStack === null) {
+                            $this->persistCursor(
+                                run: $run,
+                                day: $day,
+                                stack: $stack,
+                                blockFrom: $blockFrom,
+                                dateField: $dateField,
+                                lastDedupSignature: $previousSignature,
+                                blocksInInterval: $blocksInInterval,
+                                recoveryScope: $recoveryScope,
+                            );
 
-                return null;
-            });
+                            return ArchiveWindowScanResult::OperatorDebt;
+                        }
+
+                        $stack = $splitStack;
+                        $blockFrom = 1;
+                        $previousSignature = null;
+                        $blocksInInterval = 0;
+                    } else {
+                        $previousSignature = $batch->dedupSignature;
+                        $blockFrom += $blockSize;
+                        $blocksInInterval++;
+                    }
+
+                    $this->persistCursor(
+                        run: $run,
+                        day: $day,
+                        stack: $stack,
+                        blockFrom: $blockFrom,
+                        dateField: $dateField,
+                        lastDedupSignature: $previousSignature,
+                        blocksInInterval: $blocksInInterval,
+                        recoveryScope: $recoveryScope,
+                    );
+                    $this->runs->heartbeat(run: $run);
+
+                    return null;
+                });
+            } catch (\Throwable $exception) {
+                $blockException = $exception;
+            }
+
+            if ($blockException !== null) {
+                // Транзакция блока откатилась; журналируем отказ с исходной позицией.
+                $run->refresh();
+                $this->sourceControl->onBlockException(crawler: $crawler, run: $run, exception: $blockException, requestParams: $iterationCursor->toArray());
+
+                return ArchiveWindowScanResult::Stopped;
+            }
+
+            // Вне транзакции блока: инцидент и брейкер сохраняются, даже если блок откатился бы.
+            if ($fetchResult !== null && $this->sourceControl->afterBlock(crawler: $crawler, run: $run, result: $fetchResult, requestParams: $iterationCursor->toArray())) {
+                return ArchiveWindowScanResult::Stopped;
+            }
 
             if ($result !== null) {
                 return $result;

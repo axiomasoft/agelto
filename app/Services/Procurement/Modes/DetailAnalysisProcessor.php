@@ -4,8 +4,11 @@ declare(strict_types=1);
 
 namespace App\Services\Procurement\Modes;
 
+use App\Dto\Procurement\Crawler\SourceFailure;
 use App\Dto\Procurement\ProcurementDetails;
+use App\Enums\Procurement\Crawler\SourceFailureKind;
 use App\Enums\Procurement\Crawler\SourceMethod as SourceMethodEnum;
+use App\Enums\Procurement\Crawler\SourceStage;
 use App\Exceptions\Procurement\Crawler\PlatformBudgetExhaustedException;
 use App\Models\Procurement\Procurement;
 use App\Repositories\Procurement\ProcurementStoreRepository;
@@ -20,8 +23,12 @@ use App\Services\Procurement\Eis\Card\EventJournalParser;
 use App\Services\Procurement\Eis\Card\PartiesParser;
 use App\Services\Procurement\Eis\Card\SupplierResultsParser;
 use App\Services\Procurement\Health\CardAnchorProbe;
+use App\Services\Procurement\Health\CardLayoutPreflight;
 use App\Services\Procurement\Health\HealthBaselineReader;
 use App\Services\Procurement\OperationLogWriter;
+use App\Services\Procurement\SourceControl\SourceCircuitBreaker;
+use App\Services\Procurement\SourceControl\SourceFailureClassifier;
+use App\Services\Procurement\SourceControl\SourceFailureReporter;
 use App\Services\Procurement\SourceMethodFactory;
 use Illuminate\Support\Facades\Log;
 use RuntimeException;
@@ -53,10 +60,17 @@ final readonly class DetailAnalysisProcessor
         private CardAnchorProbe $cardAnchorProbe,
         private ProcurementStoreRepository $procurementStore,
         private OperationLogWriter $operationLogs,
+        private CardLayoutPreflight $cardPreflight,
+        private SourceCircuitBreaker $breaker,
+        private SourceFailureClassifier $classifier,
+        private SourceFailureReporter $failures,
     ) {}
 
     public function run(Procurement $procurement, ?float $deadlineAt = null): bool
     {
+        // Отказ уже передан в `SourceFailureReporter` (скачивание): внешний catch не дублирует.
+        $failureReported = false;
+
         try {
             $registry = $procurement->registry;
 
@@ -70,18 +84,72 @@ final readonly class DetailAnalysisProcessor
                 throw new RuntimeException('crawler.detail_source_method must be a string.');
             }
 
+            // Брейкер этапа карточек (независим от листинга). Этап ждёт или на ручной паузе —
+            // карточку не трогаем вовсе: попытка не тратится, закупка остаётся в очереди.
+            $platformId = $registry->platform_id;
+
+            if (! $this->breaker->admits($platformId, SourceStage::Detail)) {
+                return false;
+            }
+
             $sourceMethod = $this->sourceMethodFactory->make(
                 method: SourceMethodEnum::from($sourceMethod),
                 registry: $registry,
             );
 
-            $details = $sourceMethod instanceof DeadlineAwareSourceMethod && $deadlineAt !== null
-                ? $sourceMethod->collectDetailsWithinDeadline(
-                    registryNumber: $procurement->registry_number,
-                    registry: $registry,
-                    deadlineAt: $deadlineAt,
-                )
-                : $sourceMethod->collectDetails(registryNumber: $procurement->registry_number, registry: $registry);
+            try {
+                $details = $sourceMethod instanceof DeadlineAwareSourceMethod && $deadlineAt !== null
+                    ? $sourceMethod->collectDetailsWithinDeadline(
+                        registryNumber: $procurement->registry_number,
+                        registry: $registry,
+                        deadlineAt: $deadlineAt,
+                    )
+                    : $sourceMethod->collectDetails(registryNumber: $procurement->registry_number, registry: $registry);
+            } catch (PlatformBudgetExhaustedException $exception) {
+                throw $exception;
+            } catch (Throwable $exception) {
+                // Вид отказа решает классификатор: сеть/прокси/чужая страница (уже после штатных
+                // ретраев и ротации прокси) считаются брейкером, ошибка нашего кода — нет.
+                // Карточка в любом случае уходит в штатный повтор с backoff (`markFailed`).
+                $kind = $this->classifier->classifyCardException($exception);
+                $this->failures->report(new SourceFailure(
+                    platformId: $platformId,
+                    stage: SourceStage::Detail,
+                    kind: $kind,
+                    detail: "Карточка {$procurement->registry_number} не получена: ".mb_substr($exception->getMessage(), 0, 500),
+                    context: ['procurement_id' => $procurement->id, 'exception' => $exception::class],
+                ));
+                $failureReported = true;
+
+                // Включая 404: один ответ не доказывает окончательное удаление карточки.
+                // Повторы ограничены общей политикой попыток и backoff в markFailed().
+                throw $exception;
+            }
+
+            // Проверка вёрстки ДО разбора: нет базовых селекторов — страница не обрабатывается
+            // целиком (ни одна вкладка), чтобы не записать «пустые» данные с чужой вёрстки.
+            // Попытка карточки не тратится: это проблема площадки, а не закупки; карточка
+            // остаётся в очереди, а серия таких отказов уводит этап в ожидание.
+            $missing = $this->cardPreflight->missingBaseSelectors(details: $details);
+
+            if ($missing !== []) {
+                $summary = implode('; ', array_map(
+                    static fn (string $tab, array $selectors): string => $tab.': '.implode(', ', $selectors),
+                    array_keys($missing),
+                    $missing,
+                ));
+                $this->failures->report(new SourceFailure(
+                    platformId: $platformId,
+                    stage: SourceStage::Detail,
+                    kind: SourceFailureKind::LayoutDrift,
+                    detail: "Карточка {$procurement->registry_number} не обработана: нет базовых селекторов ({$summary}).",
+                    context: ['procurement_id' => $procurement->id, 'missing_selectors' => $missing],
+                ));
+
+                return false;
+            }
+
+            $this->failures->reportSuccess($platformId, SourceStage::Detail);
 
             $commonInfo = null;
             $commonInfoSnapshotStatus = null;
@@ -187,6 +255,13 @@ final readonly class DetailAnalysisProcessor
             return false;
         } catch (Throwable $exception) {
             $this->operationLogs->detailFailed($procurement->id, $exception);
+
+            if (! $failureReported) {
+                // Карточка получена, упал разбор/запись — это наш код: брейкер не считает,
+                // карточка пропускается (штатный повтор с backoff), событие ERROR в журнал и лог.
+                $this->reportCodeError(procurement: $procurement, exception: $exception);
+            }
+
             $this->markFailed(procurement: $procurement, exception: $exception);
 
             return false;
@@ -253,6 +328,23 @@ final readonly class DetailAnalysisProcessor
                 ->probeFailed(tabDescription: $tabDescription, keyFieldValues: $keyFieldValues)
                 ->toPayload();
         }
+    }
+
+    private function reportCodeError(Procurement $procurement, Throwable $exception): void
+    {
+        $platformId = $procurement->registry?->platform_id;
+
+        if ($platformId === null) {
+            return;
+        }
+
+        $this->failures->report(new SourceFailure(
+            platformId: $platformId,
+            stage: SourceStage::Detail,
+            kind: SourceFailureKind::CodeError,
+            detail: "Карточка {$procurement->registry_number} пропущена: ".mb_substr($exception->getMessage(), 0, 500),
+            context: ['procurement_id' => $procurement->id, 'exception' => $exception::class],
+        ));
     }
 
     /** @param array<string, mixed>|null $detailParseOutcome */

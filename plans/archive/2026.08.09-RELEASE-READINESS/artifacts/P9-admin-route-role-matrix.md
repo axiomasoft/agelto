@@ -55,6 +55,9 @@ direct grants, LLM routes или operation logs. Record routes повторно 
 | `GET|HEAD` | `admin/procurement/crawler/proxies/{record}/edit` | `filament.admin.resources.procurement.crawler.proxies.edit` | `App\Filament\Resources\Procurement\Crawler\Proxies\Pages\EditProxy` |
 | `GET|HEAD` | `admin/procurement/crawler/runs` | `filament.admin.resources.procurement.crawler.runs.index` | `App\Filament\Resources\Procurement\Crawler\Runs\Pages\ListRuns` |
 | `GET|HEAD` | `admin/procurement/crawler/runs/{record}` | `filament.admin.resources.procurement.crawler.runs.view` | `App\Filament\Resources\Procurement\Crawler\Runs\Pages\ViewRun` |
+| `GET|HEAD` | `admin/procurement/crawler/source-circuits` | `filament.admin.resources.procurement.crawler.source-circuits.index` | `App\Filament\Resources\Procurement\Crawler\SourceCircuits\Pages\ListSourceCircuits` |
+| `GET|HEAD` | `admin/procurement/crawler/source-circuits/{record}/edit` | `filament.admin.resources.procurement.crawler.source-circuits.edit` | `App\Filament\Resources\Procurement\Crawler\SourceCircuits\Pages\EditSourceCircuit` |
+| `GET|HEAD` | `admin/procurement/crawler/source-incidents` | `filament.admin.resources.procurement.crawler.source-incidents.index` | `App\Filament\Resources\Procurement\Crawler\SourceIncidents\Pages\ListSourceIncidents` |
 | `GET|HEAD` | `admin/procurement/estimates` | `filament.admin.resources.procurement.estimates.index` | `App\Filament\Resources\Procurement\Estimates\Pages\ListEstimates` |
 | `GET|HEAD` | `admin/procurement/estimates/{record}` | `filament.admin.resources.procurement.estimates.view` | `App\Filament\Resources\Procurement\Estimates\Pages\ViewEstimate` |
 | `GET|HEAD` | `admin/procurement/health/platform-checks` | `filament.admin.resources.procurement.health.platform-checks.index` | `App\Filament\Resources\Procurement\Health\PlatformChecks\Pages\ListPlatformChecks` |

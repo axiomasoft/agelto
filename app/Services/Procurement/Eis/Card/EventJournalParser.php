@@ -6,6 +6,7 @@ namespace App\Services\Procurement\Eis\Card;
 
 use App\Dto\Procurement\Details\JournalEntryData;
 use App\Enums\Procurement\ProcurementEventType;
+use App\Services\Procurement\Eis\EisSourceClock;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Log;
 use Symfony\Component\DomCrawler\Crawler;
@@ -20,6 +21,8 @@ use Symfony\Component\DomCrawler\Crawler;
  */
 final readonly class EventJournalParser
 {
+    public function __construct(private EisSourceClock $clock = new EisSourceClock) {}
+
     private const string DATE_FORMAT = '!d.m.Y H:i';
 
     /**
@@ -108,18 +111,20 @@ final readonly class EventJournalParser
 
     private function parseDate(string $value): ?Carbon
     {
-        // ЕИС отдаёт «30.06.2026 08:22 (МСК+3)» — часовой пояс в источнике не парсим,
-        // отбрасываем скобочный суффикс и читаем как naive datetime.
+        // ЕИС отдаёт «30.06.2026 08:22 (МСК+3)»: явная метка «МСК±N» задаёт смещение
+        // (МСК = UTC+3); без метки время читается в часовом поясе источника. Результат — UTC.
+        $timezone = null;
+
+        if (preg_match('/\(([^()]*)\)\s*$/u', $value, $matches) === 1) {
+            $timezone = $this->clock->timezoneFromMskLabel(label: $matches[1]);
+        }
+
         $value = trim((string) preg_replace('/\s*\(.*\)\s*$/u', '', $value));
 
         if ($value === '') {
             return null;
         }
 
-        try {
-            return Carbon::createFromFormat(self::DATE_FORMAT, $value);
-        } catch (\Throwable) {
-            return null;
-        }
+        return $this->clock->parseDateTime(format: self::DATE_FORMAT, value: $value, timezone: $timezone);
     }
 }

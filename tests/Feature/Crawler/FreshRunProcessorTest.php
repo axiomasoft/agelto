@@ -6,12 +6,18 @@ use App\Dto\Procurement\Crawler\EisSearchFilter;
 use App\Dto\Procurement\Crawler\ListingBatch;
 use App\Dto\Procurement\Crawler\ListingCursor;
 use App\Dto\Procurement\ProcurementDetails;
+use App\Enums\Procurement\Crawler\CrawlerEventCode;
 use App\Enums\Procurement\Crawler\CrawlerMode;
 use App\Enums\Procurement\Crawler\RunStatus;
 use App\Enums\Procurement\Crawler\RunStopPolicy;
+use App\Enums\Procurement\Crawler\SourceFailureKind;
 use App\Enums\Procurement\Crawler\SourceMethod as SourceMethodEnum;
+use App\Enums\Procurement\Proxy\ProxyScope;
+use App\Exceptions\Procurement\Proxy\NoProxyAvailableException;
 use App\Models\Procurement\Crawler\Crawler;
 use App\Models\Procurement\Crawler\Run;
+use App\Models\Procurement\Crawler\SourceCircuit;
+use App\Models\Procurement\Crawler\SourceIncident;
 use App\Models\Procurement\OperationLog;
 use App\Models\Procurement\Platform\Registry;
 use App\Models\Procurement\Procurement;
@@ -134,26 +140,115 @@ afterEach(function () {
     Carbon::setTestNow();
 });
 
-test('ошибка строки сохраняет evidence и останавливает fresh run до продвижения курсора', function (): void {
+test('нераспознанный блок сохраняет evidence и курсор для повторной обработки', function (): void {
     $crawler = Crawler::factory()->create();
     useQueueSourceMethod([
         freshRunBatch([freshRunCsvRow('0173200001234000001')], dedupSignature: 'broken-block'),
+        freshRunBatch([], dedupSignature: null, from: '501'),
     ]);
     $mapper = Mockery::mock(ListingRowMapper::class);
     $mapper->shouldReceive('map')->once()->andThrow(new RuntimeException('injected mapping failure'));
     app()->instance(ListingRowMapper::class, $mapper);
 
-    expect(fn () => app(FreshRunProcessor::class)->run($crawler))->toThrow(RuntimeException::class, 'не обработан полностью');
-    $run = Run::query()->where('crawler_id', $crawler->id)->sole();
-    $fetch = $run->fetches()->sole();
-    expect($run->status)->toBe(RunStatus::Failed)
-        ->and($run->cursor['blockFrom'] ?? 1)->toBe(1)
-        ->and($run->cursor['reachedKnown'] ?? false)->toBeFalse()
-        ->and($fetch->rows_errors)->toBe(1)
-        ->and($fetch->artifact_ref)->not->toBeNull();
+    $run = app(FreshRunProcessor::class)->run($crawler);
+    $fetch = $run->fetches()->orderBy('id')->first();
+    $incident = SourceIncident::query()->where('type', CrawlerEventCode::CsvInvalidContent)->sole();
+
+    expect($run->status)->toBe(RunStatus::Paused)
+        ->and($run->cursor['blockFrom'])->toBe(1)
+        ->and($fetch?->rows_errors)->toBe(1)
+        ->and($fetch?->artifact_ref)->not->toBeNull()
+        ->and($incident->type)->toBe(CrawlerEventCode::CsvInvalidContent)
+        ->and($incident->failure_kind)->toBe(SourceFailureKind::InvalidContent)
+        ->and($incident->fetch_id)->toBe($fetch?->id)
+        ->and($incident->run_id)->toBe($run->id);
     $log = OperationLog::query()->where('stage', 'listing')->sole();
     expect($log->entity_id)->toBe($run->id)
         ->and($log->context['error'])->toBe('injected mapping failure');
+});
+
+test('страница ошибки (403) сохраняет текущий блок и приостанавливает fresh', function (): void {
+    $crawler = Crawler::factory()->create();
+    $blocked = new ListingBatch(rows: [], rawBody: '<html>403</html>', dedupSignature: null, rowsTotal: 0, httpStatus: 403, durationMs: 5, requestParams: ['from' => '1', 'to' => '500']);
+    useQueueSourceMethod([
+        $blocked,
+        freshRunBatch([freshRunCsvRow('0173200001234000002')], dedupSignature: 'sig-2', from: '501'),
+        freshRunBatch([], dedupSignature: null, from: '1001'),
+    ]);
+
+    $run = app(FreshRunProcessor::class)->run($crawler);
+
+    expect($run->status)->toBe(RunStatus::Paused)
+        ->and($run->cursor['blockFrom'])->toBe(1)
+        ->and(Procurement::query()->count())->toBe(0)
+        ->and(SourceIncident::query()->where('type', CrawlerEventCode::CsvSourceBlocked)->count())->toBe(1);
+});
+
+test('массовые отказы уводят листинг в ожидание: прогон приостановлен на том же блоке, а не провален', function (): void {
+    $crawler = Crawler::factory()->create();
+    SourceCircuit::factory()->create(['platform_id' => $crawler->registry->platform_id, 'failure_threshold' => 2]);
+    $failing = fn (string $from): ListingBatch => new ListingBatch(rows: [], rawBody: '', dedupSignature: null, rowsTotal: 0, httpStatus: 503, durationMs: 5, requestParams: ['from' => $from]);
+    useQueueSourceMethod([$failing('1'), $failing('1')]);
+
+    app(FreshRunProcessor::class)->run($crawler);
+    $this->travel(11)->minutes();
+    $run = app(FreshRunProcessor::class)->run($crawler);
+
+    expect($run->status)->toBe(RunStatus::Paused)
+        ->and($run->stats['source_suspended'] ?? null)->toBeTrue()
+        ->and($run->stats['stop_reason'] ?? null)->toBe('source_circuit_open')
+        ->and($run->cursor['blockFrom'])->toBe(1)
+        ->and(SourceCircuit::query()->sole()->retry_at)->not->toBeNull()
+        ->and(SourceIncident::query()->orderBy('id')->pluck('type')->all())->toBe([
+            CrawlerEventCode::CsvSourceUnavailable,
+            CrawlerEventCode::RunSuspended,
+            CrawlerEventCode::RunResumed,
+            CrawlerEventCode::CsvSourceUnavailable,
+            CrawlerEventCode::StageWaiting,
+            CrawlerEventCode::RunSuspended,
+        ]);
+});
+
+test('ожидание или пауза оператора: fresh не делает ни одного запроса и встаёт на паузу', function (): void {
+    $crawler = Crawler::factory()->create();
+    SourceCircuit::factory()->create(['platform_id' => $crawler->registry->platform_id, 'manually_paused' => true]);
+    useQueueSourceMethod([]);
+
+    $run = app(FreshRunProcessor::class)->run($crawler);
+
+    expect($run->status)->toBe(RunStatus::Paused)
+        ->and($run->stats['source_suspended'] ?? null)->toBeTrue()
+        ->and($run->fetches()->count())->toBe(0);
+});
+
+test('нет прокси: отказ транспорта считается брейкером, на пороге — пауза без пропуска блока', function (): void {
+    $crawler = Crawler::factory()->create();
+    SourceCircuit::factory()->create(['platform_id' => $crawler->registry->platform_id, 'failure_threshold' => 1]);
+    app()->instance(QueueSourceMethod::class, new class implements SourceMethod
+    {
+        public function collectListing(Crawler $crawler, ListingCursor $cursor): ListingBatch
+        {
+            throw new NoProxyAvailableException(ProxyScope::CrawlListing, 'zakupki.gov.ru', 'пул пуст');
+        }
+
+        public function collectDetails(string $registryNumber, Registry $registry): ProcurementDetails
+        {
+            throw new LogicException('not used');
+        }
+
+        public function isAvailable(): bool
+        {
+            return true;
+        }
+    });
+    config(['crawler.platforms.eis.source_methods' => [SourceMethodEnum::Csv->value => QueueSourceMethod::class]]);
+
+    $run = app(FreshRunProcessor::class)->run($crawler);
+
+    expect($run->status)->toBe(RunStatus::Paused)
+        ->and($run->cursor['blockFrom'] ?? 1)->toBe(1)
+        ->and(SourceIncident::query()->where('type', CrawlerEventCode::StageWaiting)->sole()->failure_kind)
+        ->toBe(SourceFailureKind::ProxyUnavailable);
 });
 
 test('останавливается на первом полностью известном блоке, курсор фиксирует reachedKnown', function () {

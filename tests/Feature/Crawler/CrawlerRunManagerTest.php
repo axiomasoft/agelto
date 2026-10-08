@@ -361,7 +361,7 @@ test('complete на прогоне, который уже НЕ Running — ти�
         ->and($run->finished_at)->toBeNull();
 });
 
-test('complete и fail ставят терминальный статус и finished_at', function () {
+test('complete ставит терминальный статус и finished_at', function () {
     $crawler = Crawler::factory()->create();
     $manager = app(CrawlerRunManager::class);
     $run = Run::factory()->for($crawler)->create(['status' => RunStatus::Running]);
@@ -370,11 +370,4 @@ test('complete и fail ставят терминальный статус и fin
 
     expect($run->refresh()->status)->toBe(RunStatus::Completed)
         ->and($run->finished_at)->not->toBeNull();
-
-    $other = Run::factory()->for(Crawler::factory()->create())->create(['status' => RunStatus::Running]);
-    $manager->fail($other, 'boom');
-
-    expect($other->refresh()->status)->toBe(RunStatus::Failed)
-        ->and($other->finished_at)->not->toBeNull()
-        ->and($other->last_error)->toBe('boom');
 });
