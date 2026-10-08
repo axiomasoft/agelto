@@ -37,7 +37,7 @@ function runArchiveCrawlerDrainedBatch(): ListingBatch
 beforeEach(function () {
     Sleep::fake();
     Storage::fake('s3');
-    config(['crawler.eis.block_size' => 2]);
+    config(['crawler.platforms.eis.block_size' => 2]);
     // P4.7 явно маршрутизирует job на connection `redis`; в тесте сохраняем синхронный driver,
     // чтобы проверять команду и доменный результат без запущенного Redis worker.
     config(['queue.connections.redis.driver' => 'sync']);
@@ -61,7 +61,7 @@ test('резолвит профиль по числовому id и диспат
 test('без faked-очереди job исполняется синхронно (sync-driver) и доводит archive-прогон до completed', function () {
     $crawler = Crawler::factory()->create(['mode' => CrawlerMode::Archive, 'source_method' => SourceMethodEnum::Csv]);
 
-    app()->instance(QueueSourceMethod::class, new QueueSourceMethod(batches: [runArchiveCrawlerDrainedBatch()]));
+    app()->instance(QueueSourceMethod::class, new QueueSourceMethod(repeatStableWindows: true, batches: [runArchiveCrawlerDrainedBatch()]));
     config(['crawler.platforms.eis.source_methods' => [SourceMethodEnum::Csv->value => QueueSourceMethod::class]]);
 
     $this->artisan('crawler:run-archive', ['crawler' => (string) $crawler->id, '--from' => '2024-01-01', '--to' => '2024-01-01'])
@@ -75,7 +75,7 @@ test('без faked-очереди job исполняется синхронно 
 test('резолвит профиль по name', function () {
     $crawler = Crawler::factory()->create(['name' => 'eis-archive-profile', 'mode' => CrawlerMode::Archive, 'source_method' => SourceMethodEnum::Csv]);
 
-    app()->instance(QueueSourceMethod::class, new QueueSourceMethod(batches: [runArchiveCrawlerDrainedBatch()]));
+    app()->instance(QueueSourceMethod::class, new QueueSourceMethod(repeatStableWindows: true, batches: [runArchiveCrawlerDrainedBatch()]));
     config(['crawler.platforms.eis.source_methods' => [SourceMethodEnum::Csv->value => QueueSourceMethod::class]]);
 
     $this->artisan('crawler:run-archive', ['crawler' => 'eis-archive-profile', '--from' => '2024-01-01', '--to' => '2024-01-01'])

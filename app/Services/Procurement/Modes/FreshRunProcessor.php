@@ -18,6 +18,7 @@ use App\Models\Procurement\Crawler\Run;
 use App\Services\Procurement\Contracts\DeadlineAwareSourceMethod;
 use App\Services\Procurement\CrawlerRunManager;
 use App\Services\Procurement\CsvBlockIngestor;
+use App\Services\Procurement\PlatformAdapterRegistry;
 use App\Services\Procurement\RunStopGate;
 use App\Services\Procurement\SourceControl\SourceRunControl;
 use App\Services\Procurement\SourceMethodFactory;
@@ -61,10 +62,22 @@ final readonly class FreshRunProcessor
             RecoveryScope::fromPersistedFreshCrawler(crawler: $crawler, payload: $cursor->recoveryScope);
         }
 
+        $profileHash = $run->stats?->get('fresh_profile_hash');
+        $currentHash = $this->profileHash($crawler);
+        if ($profileHash === null) {
+            $profileHash = $currentHash;
+            $this->runs->updateStats(run: $run, stats: array_merge($run->stats?->toArray() ?? [], ['fresh_profile_hash' => $profileHash]));
+        }
+        if ($profileHash !== $currentHash || ($cursor->recoveryScope['filter'] ?? []) != $crawler->filter?->toArray()) {
+            $this->runs->pause(run: $run, reason: 'Профиль изменён: завершите старый прогон и начните новый.');
+
+            return $run;
+        }
+
         $previousCompletedRun = $this->runs->lastCompletedRun(crawler: $crawler, excludeRunId: $run->id);
         $this->runs->recordScanGap(run: $run, previousCompletedRun: $previousCompletedRun);
 
-        $blockSize = $this->integerConfig(key: 'crawler.eis.block_size', default: 500);
+        $blockSize = app(PlatformAdapterRegistry::class)->blockSize(registry: $crawler->registry()->firstOrFail());
         $maxBlocks = $this->integerConfig(key: 'crawler.fresh_max_blocks', default: 40);
         $checkpointSeconds = $this->integerConfig(key: 'crawler.run.checkpoint_seconds', default: 240);
         $startedAt = Carbon::now();
@@ -76,6 +89,11 @@ final readonly class FreshRunProcessor
         try {
             for ($iteration = 0; $iteration < $maxBlocks; $iteration++) {
                 $crawler->refresh();
+                if ($this->profileHash($crawler) !== $profileHash) {
+                    $this->runs->pause(run: $run, reason: 'Профиль изменён между блоками: требуется новый прогон.');
+
+                    return $run;
+                }
                 $this->runs->heartbeat(run: $run);
 
                 $stopSignal = $this->stopGate->signal(run: $run);
@@ -108,8 +126,9 @@ final readonly class FreshRunProcessor
                     $batch = $sourceMethod instanceof DeadlineAwareSourceMethod
                         ? $sourceMethod->collectListingWithinDeadline(crawler: $crawler, cursor: $cursor, deadlineAt: $deadlineAt)
                         : $sourceMethod->collectListing(crawler: $crawler, cursor: $cursor);
-                    $fetchResult = $this->runs->withinExecutionLease(run: $run, callback: function () use ($batch, $crawler, $run, &$cursor, $blockSize, $onlyFreshThreshold): FetchResult {
-                        $fetchResult = $this->ingestor->ingest(crawler: $crawler, run: $run, batch: $batch);
+                    $artifactRef = $this->ingestor->stageArtifact(crawler: $crawler, run: $run, batch: $batch);
+                    $fetchResult = $this->runs->withinExecutionLease(run: $run, callback: function () use ($batch, $crawler, $run, &$cursor, $blockSize, $onlyFreshThreshold, $artifactRef): FetchResult {
+                        $fetchResult = $this->ingestor->ingest(crawler: $crawler, run: $run, batch: $batch, artifactRef: $artifactRef);
 
                         if ($fetchResult->failure !== null) {
                             return $fetchResult;
@@ -227,7 +246,28 @@ final readonly class FreshRunProcessor
         }
 
         // Сутки источника целиком закончились не позже порога (значение — начало суток в UTC).
-        return $fetchResult->oldestUpdateSeen->copy()->addDay()->lte($threshold);
+        return ($fetchResult->oldestUpdateBefore ?? $fetchResult->oldestUpdateSeen->copy()->addDay())->lte($threshold);
+    }
+
+    private function profileHash(Crawler $crawler): string
+    {
+        $crawler->load('registry.platform');
+
+        return hash('sha256', json_encode([
+            'filter' => $crawler->filter?->toArray(),
+            'registry_id' => $crawler->registry_id,
+            'registry_settings' => $crawler->registry?->getAttribute('settings'),
+            'platform_id' => $crawler->registry?->platform_id,
+            'registry_code' => $crawler->registry?->code,
+            'platform_code' => $crawler->registry?->platform?->getAttribute('code'),
+            'platform_base_url' => $crawler->registry?->platform?->getAttribute('base_url'),
+            'source_method' => $crawler->source_method,
+            'fallback_method' => $crawler->fallback_method,
+            'proxy_mode' => $crawler->getAttribute('proxy_mode'),
+            'proxy_country' => $crawler->getAttribute('proxy_country'),
+            'execution_lane' => $crawler->getAttribute('execution_lane'),
+            'stop_policy' => $crawler->stop_policy,
+        ], JSON_THROW_ON_ERROR));
     }
 
     private function integerConfig(string $key, int $default): int

@@ -1,0 +1,53 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Services\Procurement\Eis;
+
+use App\Dto\Procurement\Details\CommonInfoSnapshot;
+use App\Dto\Procurement\Details\DocumentsSnapshot;
+use App\Dto\Procurement\Details\JournalEntryData;
+use App\Dto\Procurement\Details\SupplierResultsData;
+use App\Services\Procurement\Contracts\DetailParser;
+use App\Services\Procurement\Eis\Card\CommonInfoParser;
+use App\Services\Procurement\Eis\Card\DocumentsParser;
+use App\Services\Procurement\Eis\Card\EventJournalParser;
+use App\Services\Procurement\Eis\Card\PartiesParser;
+use App\Services\Procurement\Eis\Card\SupplierResultsParser;
+
+final readonly class EisDetailParser implements DetailParser
+{
+    public function __construct(
+        private CommonInfoParser $common,
+        private PartiesParser $parties,
+        private DocumentsParser $documentsParser,
+        private EventJournalParser $journal,
+        private SupplierResultsParser $results,
+    ) {}
+
+    public function commonInfo(string $html): CommonInfoSnapshot
+    {
+        $parties = $this->parties->parse(html: $html);
+
+        return $this->common->parse(html: $html)->withParties(
+            parties: $parties,
+            partiesComplete: $this->parties->authorizesReconciliation(html: $html, parties: $parties),
+        );
+    }
+
+    public function documents(string $html): DocumentsSnapshot
+    {
+        return $this->documentsParser->parse(html: $html);
+    }
+
+    /** @return list<JournalEntryData> */
+    public function eventJournal(string $html): array
+    {
+        return $this->journal->parse(html: $html);
+    }
+
+    public function supplierResults(string $html): SupplierResultsData
+    {
+        return $this->results->parse(html: $html);
+    }
+}

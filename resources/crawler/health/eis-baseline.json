@@ -6,9 +6,21 @@
     "common-info": {
       "status": "measured",
       "anchors": [
-        { "selector": "div#positionKTRU", "critical": true, "min_matches": 1 },
-        { "selector": "span.section__title", "critical": true, "min_matches": 1 },
-        { "selector": "span.section__info", "critical": true, "min_matches": 1 }
+        {
+          "selector": "div#positionKTRU",
+          "critical": true,
+          "min_matches": 1
+        },
+        {
+          "selector": "span.section__title",
+          "critical": true,
+          "min_matches": 1
+        },
+        {
+          "selector": "span.section__info",
+          "critical": true,
+          "min_matches": 1
+        }
       ],
       "key_fields": [
         "ikz_year",
@@ -31,24 +43,66 @@
     "documents": {
       "status": "measured",
       "anchors": [
-        { "selector": "a[href*=filestore]", "critical": true, "min_matches": 1, "content_dependent": true },
-        { "selector": "div.attachment", "critical": true, "min_matches": 1, "content_dependent": true }
+        {
+          "selector": "div.blockFilesTabDocs",
+          "critical": true,
+          "min_matches": 1
+        },
+        {
+          "selector": "a[href*=filestore]",
+          "critical": true,
+          "min_matches": 1,
+          "content_dependent": true
+        },
+        {
+          "selector": "div.attachment",
+          "critical": true,
+          "min_matches": 1,
+          "content_dependent": true
+        }
       ],
-      "key_fields": ["documents"]
+      "key_fields": [
+        "documents"
+      ]
     },
     "event-journal": {
       "status": "measured",
-      "anchors": [{ "selector": "table#event", "critical": true, "min_matches": 1 }],
-      "key_fields": ["entries"]
+      "anchors": [
+        {
+          "selector": "table#event",
+          "critical": true,
+          "min_matches": 1
+        }
+      ],
+      "key_fields": [
+        "entries"
+      ]
     },
     "supplier-results": {
       "status": "measured",
       "anchors": [
-        { "selector": "section.blockInfo__section", "critical": true, "min_matches": 1 },
-        { "selector": "span.section__title", "critical": true, "min_matches": 1 },
-        { "selector": "div[id^=\"supplier-def-result-participant-table-\"] table.tableBlock", "critical": true, "min_matches": 1, "content_dependent": true }
+        {
+          "selector": "section.blockInfo__section",
+          "critical": true,
+          "min_matches": 1
+        },
+        {
+          "selector": "span.section__title",
+          "critical": true,
+          "min_matches": 1
+        },
+        {
+          "selector": "div[id^=\"supplier-def-result-participant-table-\"] table.tableBlock",
+          "critical": true,
+          "min_matches": 1,
+          "content_dependent": true
+        }
       ],
-      "key_fields": ["protocol", "bids", "award"]
+      "key_fields": [
+        "protocol",
+        "bids",
+        "award"
+      ]
     }
   },
   "listing_csv": {
@@ -63,15 +117,23 @@
       "max_overlap_share": 0.032,
       "source_measurement": "16/500 (P1, 2026-08-06); некалиброванный порог"
     },
-    "card_parse": { "min_sample": 1, "degraded_share": 0.05, "broken_share": 0.20 },
+    "card_parse": {
+      "min_sample": 1,
+      "degraded_share": 0.05,
+      "broken_share": 0.2
+    },
     "listing_shape": {
       "min_sample": 1,
       "degraded_share": 0.05,
-      "broken_share": 0.20,
-      "row_error_share_bad_threshold": 0.20,
+      "broken_share": 0.2,
+      "row_error_share_bad_threshold": 0.2,
       "row_error_share_denominator": "rows_total"
     },
-    "estimate_fields": { "min_sample": 1, "degraded_share": 0.05, "broken_share": 0.20 }
+    "estimate_fields": {
+      "min_sample": 1,
+      "degraded_share": 0.05,
+      "broken_share": 0.2
+    }
   },
   "calibrated": false
 }

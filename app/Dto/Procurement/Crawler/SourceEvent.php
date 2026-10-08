@@ -7,6 +7,7 @@ namespace App\Dto\Procurement\Crawler;
 use App\Enums\Procurement\Crawler\CrawlerEventCode;
 use App\Enums\Procurement\Crawler\SourceFailureKind;
 use App\Enums\Procurement\Crawler\SourceStage;
+use App\Support\SecretRedactor;
 
 /**
  * Событие источника: что записать в журнал и в лог. Одни и те же поля становятся колонками
@@ -19,10 +20,21 @@ final readonly class SourceEvent
      * @param  array<string, mixed>|null  $requestParams
      * @param  array<string, mixed>  $context
      */
+    public string $message;
+
+    /** @var array<string, mixed>|null */
+    public ?array $requestParams;
+
+    /** @var array<string, mixed> */
+    public array $context;
+
+    /** @param array<string, mixed>|null $cursor
+     * @param array<string, mixed>|null $requestParams
+     * @param array<string, mixed> $context */
     public function __construct(
         public CrawlerEventCode $code,
         public int $platformId,
-        public string $message,
+        string $message,
         public ?SourceStage $stage = null,
         public ?int $crawlerId = null,
         public ?int $runId = null,
@@ -30,10 +42,14 @@ final readonly class SourceEvent
         public ?SourceFailureKind $failureKind = null,
         public ?int $httpStatus = null,
         public ?array $cursor = null,
-        public ?array $requestParams = null,
-        public array $context = [],
+        ?array $requestParams = null,
+        array $context = [],
         public ?string $actor = null,
-    ) {}
+    ) {
+        $this->message = SecretRedactor::text($message);
+        $this->requestParams = SecretRedactor::context($requestParams);
+        $this->context = SecretRedactor::context($context) ?? [];
+    }
 
     public static function forFailure(CrawlerEventCode $code, SourceFailure $failure, string $message, ?string $actor = null): self
     {

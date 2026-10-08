@@ -509,7 +509,7 @@ final class CrawlerRunManager
     /** @param array<mixed> $stats */
     public function updateStats(Run $run, array $stats): bool
     {
-        $updated = $this->ownedQuery(run: $run)->update(['stats' => $stats]);
+        $updated = $this->ownedQuery(run: $run)->update(['stats' => $stats, ...(($stats['source_suspended'] ?? false) === true ? [] : ['source_resume_claimed_until' => null])]);
 
         $run->refresh();
 

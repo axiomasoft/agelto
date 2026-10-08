@@ -9,7 +9,9 @@ use App\Enums\Procurement\ProcurementEventType;
 use App\Models\Procurement\Procurement;
 use App\Models\Procurement\ProcurementEvent;
 use App\Models\Procurement\ProcurementRevision;
+use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
 final readonly class ProcurementStoreRepository
@@ -35,6 +37,8 @@ final readonly class ProcurementStoreRepository
             'region_code' => $data->regionCode,
             'published_at' => $data->publishedAt,
             'source_updated_at' => $data->sourceUpdatedAt,
+            'source_updated_has_day_precision' => $data->sourceUpdatedAtHasDayPrecision,
+            'source_updated_before' => $data->sourceUpdatedBefore,
             'bidding_starts_at' => $data->biddingStartsAt,
             'bidding_ends_at' => $data->biddingEndsAt,
             'summary_at' => $data->summaryAt,
@@ -54,8 +58,10 @@ final readonly class ProcurementStoreRepository
         ProcurementRevision $revision,
         int $revisionCount,
         Carbon $seenAt,
+        ?Carbon $observedAt = null,
     ): void {
         $procurement->update([
+            'source_order_ambiguous' => $data->sourceUpdatedAtHasDayPrecision,
             'title' => $data->title,
             'status' => $status,
             'source_stage' => $data->sourceStage,
@@ -68,6 +74,8 @@ final readonly class ProcurementStoreRepository
             'okved_additional' => $data->okvedAdditional,
             'region_code' => $data->regionCode,
             'source_updated_at' => $data->sourceUpdatedAt,
+            'source_updated_has_day_precision' => $data->sourceUpdatedAtHasDayPrecision,
+            'source_updated_before' => $data->sourceUpdatedBefore,
             'bidding_starts_at' => $data->biddingStartsAt,
             'bidding_ends_at' => $data->biddingEndsAt,
             'summary_at' => $data->summaryAt,
@@ -79,6 +87,25 @@ final readonly class ProcurementStoreRepository
             'revision_count' => $revisionCount,
             'last_seen_at' => $seenAt,
         ]);
+        // A different accepted head owns its capture time even when source intervals prove
+        // it newer than a response captured later. Monotonic observation applies only to
+        // subsequent confirmations of the same content.
+        DB::table($procurement->getTable())->where('id', $procurement->id)->update([
+            'source_observed_at' => ($observedAt ?? $seenAt)->format('Y-m-d H:i:s.uP'),
+        ]);
+    }
+
+    public function recordObservation(Procurement $procurement, ProcurementSnapshotData $data, Carbon $observedAt): void
+    {
+        // Query builder preserves microseconds; the model's legacy date serialization does not.
+        DB::table($procurement->getTable())->where('id', $procurement->id)
+            ->where(fn (Builder $query) => $query->whereNull('source_observed_at')->orWhere('source_observed_at', '<=', $observedAt->format('Y-m-d H:i:s.uP')))
+            ->update([
+                'source_observed_at' => $observedAt->format('Y-m-d H:i:s.uP'),
+                'source_updated_has_day_precision' => $data->sourceUpdatedAtHasDayPrecision,
+                'source_updated_before' => $data->sourceUpdatedBefore,
+                'source_order_ambiguous' => $data->sourceUpdatedAtHasDayPrecision,
+            ]);
     }
 
     public function touchLastSeen(Procurement $procurement, Carbon $seenAt): void

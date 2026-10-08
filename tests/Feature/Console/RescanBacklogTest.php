@@ -20,7 +20,7 @@ beforeEach(function () {
     Sleep::fake();
     Storage::fake('s3');
     config([
-        'crawler.eis.block_size' => 2,
+        'crawler.platforms.eis.block_size' => 2,
         // Нулевой оверлап — этот тест проверяет делегирование команды, не окно перекрытия (П-2,
         // `tests/Feature/Crawler/BacklogRescanProcessorTest.php` несёт отдельную пробу сдвига).
         'crawler.tracking.window_overlap_days' => 0,
@@ -40,7 +40,7 @@ test('делегирует BacklogRescanProcessor и репортит число
         'stats' => ['cap_hit' => true, 'possible_skip_window' => ['from' => '2024-01-01T00:00:00Z', 'to' => '2024-01-01T12:00:00Z']],
     ]);
 
-    app()->instance(QueueSourceMethod::class, new QueueSourceMethod(batches: [new ListingBatch(
+    app()->instance(QueueSourceMethod::class, new QueueSourceMethod(repeatStableWindows: true, batches: [new ListingBatch(
         rows: [],
         rawBody: '',
         dedupSignature: null,

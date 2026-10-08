@@ -14,6 +14,9 @@ use App\Models\Procurement\Crawler\Crawler;
 use App\Models\Procurement\Crawler\Proxy;
 use App\Models\Procurement\Platform\Platform;
 use App\Services\Procurement\Proxy\ProxyBindingResolver;
+use Illuminate\Contracts\Cache\LockProvider;
+use Illuminate\Contracts\Cache\LockTimeoutException;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Sleep;
 
@@ -88,12 +91,26 @@ final readonly class PlatformRequestBudget
 
     private function claimSlot(string $key, int $capacity): bool
     {
-        return RateLimiter::attempt(
-            key: $key,
-            maxAttempts: $capacity,
-            callback: static fn (): bool => true,
-            decaySeconds: self::WINDOW_SECONDS,
-        ) === true;
+        $store = config('cache.limiter');
+        if ($store !== null && ! is_string($store)) {
+            throw new \LogicException('cache.limiter must be a cache store name.');
+        }
+        $lockStore = Cache::store($store)->getStore();
+        if (! $lockStore instanceof LockProvider) {
+            throw new \LogicException('The rate limiter cache store must support atomic locks.');
+        }
+        try {
+            // RateLimiter::attempt performs check and increment separately. Serialize those
+            // operations in its own cache store so concurrent workers cannot overspend a slot.
+            return $lockStore->lock($key.':claim', 5)->block(1, static fn (): bool => RateLimiter::attempt(
+                key: $key,
+                maxAttempts: $capacity,
+                callback: static fn (): bool => true,
+                decaySeconds: self::WINDOW_SECONDS,
+            ) === true) === true;
+        } catch (LockTimeoutException) {
+            return false;
+        }
     }
 
     private function capacity(?Platform $platform): int

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Console\Commands;
 
+use App\Services\PartitionCoverage;
 use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
@@ -65,19 +66,7 @@ final class MaintainPartitions extends Command
         $premake = $this->nonNegativeInt(config('partitioning.premake'), 'partitioning.premake');
         $start = Carbon::now()->startOfMonth();
 
-        for ($i = 0; $i <= $premake; $i++) {
-            $from = $start->copy()->addMonthsNoOverflow($i);
-            $to = $from->copy()->addMonthNoOverflow();
-            $partition = $table.'_'.$from->format('Y_m');
-
-            DB::statement(sprintf(
-                "CREATE TABLE IF NOT EXISTS %s PARTITION OF %s FOR VALUES FROM ('%s') TO ('%s')",
-                $partition,
-                $table,
-                $from->toDateTimeString(),
-                $to->toDateTimeString(),
-            ));
-        }
+        app(PartitionCoverage::class)->ensure(table: $table, from: $start, to: $start->copy()->addMonthsNoOverflow($premake + 1));
 
         $this->dropExpiredFallback($table);
     }
@@ -107,7 +96,7 @@ final class MaintainPartitions extends Command
         $cutoff = Carbon::now()->startOfMonth()->subMonths($this->nonNegativeInt($rule['months'] ?? null, "partitioning.retention.{$table}.months"));
 
         $partitions = DB::select(
-            'SELECT c.relname AS name FROM pg_inherits i
+            'SELECT c.relname AS name, pg_get_expr(c.relpartbound, c.oid) AS bounds FROM pg_inherits i
                 JOIN pg_class c ON c.oid = i.inhrelid
                 JOIN pg_class p ON p.oid = i.inhparent
                 WHERE p.relname = ?',
@@ -122,58 +111,27 @@ final class MaintainPartitions extends Command
                 continue;
             }
 
-            $matched = preg_match('/_(\d{4})_(\d{2})$/', $name, $groups);
-
-            if ($matched !== 1) {
+            $bounds = $attributes['bounds'] ?? null;
+            if (! is_string($bounds) || preg_match("/TO \('([^']+)'\)/", $bounds, $groups) !== 1) {
                 continue;
             }
-
-            $partitionStart = Carbon::createFromDate((int) $groups[1], (int) $groups[2], 1)->startOfMonth();
-
-            if ($partitionStart->lt($cutoff)) {
-                DB::statement('DROP TABLE IF EXISTS '.$name);
+            $upper = Carbon::parse($groups[1]);
+            if ($upper->lte($cutoff)) {
+                DB::statement('DROP TABLE '.$name);
             }
         }
     }
 
     private function assertContinuousCoverage(): void
     {
-        $supportedStart = Carbon::now('UTC')->startOfMonth()->subMonthsNoOverflow(12);
-
         foreach ($this->partitionedTables() as $table) {
-            $partitions = DB::select(
-                'SELECT child.relname AS name FROM pg_inherits inheritance '
-                .'JOIN pg_class child ON child.oid = inheritance.inhrelid '
-                .'JOIN pg_class parent ON parent.oid = inheritance.inhparent '
-                .'WHERE parent.relname = ?',
-                [$table],
+            // Retention may deliberately remove history; maintenance only promises the current
+            // and premade future range. The forward migration repairs supported historical data.
+            app(PartitionCoverage::class)->ensure(
+                table: $table,
+                from: now('UTC')->startOfMonth(),
+                to: now('UTC')->startOfMonth()->addMonthsNoOverflow($this->nonNegativeInt(config('partitioning.premake'), 'partitioning.premake') + 1),
             );
-            $months = [];
-
-            foreach ($partitions as $partition) {
-                $attributes = is_object($partition) ? get_object_vars($partition) : [];
-                $name = $attributes['name'] ?? null;
-
-                if (! is_string($name) || preg_match('/_(\d{4})_(\d{2})$/', $name, $matches) !== 1) {
-                    continue;
-                }
-
-                $month = Carbon::createFromDate((int) $matches[1], (int) $matches[2], 1)->startOfMonth();
-
-                if ($month->gte($supportedStart)) {
-                    $months[] = $month;
-                }
-            }
-
-            usort($months, static fn (Carbon $left, Carbon $right): int => $left->getTimestamp() <=> $right->getTimestamp());
-
-            for ($index = 1; $index < count($months); $index++) {
-                if ($months[$index]->equalTo($months[$index - 1]->copy()->addMonthNoOverflow())) {
-                    continue;
-                }
-
-                throw new \RuntimeException("{$table} содержит разрыв месячных партиций.");
-            }
         }
     }
 

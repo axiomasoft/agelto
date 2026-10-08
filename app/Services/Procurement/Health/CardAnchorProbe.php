@@ -50,6 +50,7 @@ final readonly class CardAnchorProbe
                     'selector' => $anchor['selector'],
                     'critical' => $anchor['critical'],
                     'matches' => $matches,
+                    'min_matches' => $anchor['min_matches'],
                 ];
             }
 

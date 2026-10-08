@@ -275,6 +275,7 @@ test('ошибка маппера записывается отдельно от
     $run = Run::factory()->for($crawler)->create();
     $mapper = Mockery::mock(ListingRowMapper::class);
     $mapper->shouldReceive('map')->once()->andThrow(new RuntimeException('Ошибка маппинга'));
+    config()->set('crawler.platforms.eis.listing_mapper', ListingRowMapper::class);
     app()->instance(abstract: ListingRowMapper::class, instance: $mapper);
 
     $result = app(CsvBlockIngestor::class)->ingest(crawler: $crawler, run: $run, batch: ingestorBatch([

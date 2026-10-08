@@ -67,7 +67,7 @@ test('архив не начинает новый бюджет времени п
     $deadlines = [];
     $source = Mockery::mock(DeadlineAwareSourceMethod::class);
     $source->shouldReceive('isAvailable')->andReturnTrue();
-    $source->shouldReceive('collectListingWithinDeadline')->twice()
+    $source->shouldReceive('collectListingWithinDeadline')->times(4)
         ->andReturnUsing(function ($crawler, $cursor, float $deadlineAt) use (&$deadlines): ListingBatch {
             $deadlines[] = $deadlineAt;
 
@@ -79,7 +79,7 @@ test('архив не начинает новый бюджет времени п
     $run = app(ArchiveRunProcessor::class)->run(crawler: $crawler, from: now()->subDay()->startOfDay(), to: now()->startOfDay());
 
     expect($run->status)->toBe(RunStatus::Completed)
-        ->and($deadlines)->toHaveCount(2)
+        ->and($deadlines)->toHaveCount(4)
         ->and($deadlines[0])->toBe($deadlines[1]);
 });
 

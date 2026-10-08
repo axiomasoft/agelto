@@ -33,6 +33,7 @@ final readonly class FetchResult
         public ?string $failureDetail = null,
         public ?int $fetchId = null,
         public ?int $httpStatus = null,
+        public ?Carbon $oldestUpdateBefore = null,
     ) {}
 
 }

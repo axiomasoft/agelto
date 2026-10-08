@@ -47,7 +47,7 @@ final readonly class PlatformHealthChecker
         ?PlatformCheckKind $kind = null,
         bool $dryRun = false,
     ): array {
-        $baseline = $this->baselineReader->read();
+        $baseline = $this->baselineReader->read(platform: $platform);
 
         $platformCode = $platform->getAttribute('code');
 

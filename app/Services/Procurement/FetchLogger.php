@@ -8,6 +8,7 @@ use App\Enums\Procurement\Crawler\CrawlStage;
 use App\Models\Procurement\Crawler\Fetch;
 use App\Models\Procurement\Crawler\Run;
 use App\Repositories\Procurement\Crawler\FetchStoreRepository;
+use App\Support\SecretRedactor;
 
 final readonly class FetchLogger
 {
@@ -21,7 +22,7 @@ final readonly class FetchLogger
         }
 
         return $this->fetches->create([
-            ...$attributes,
+            ...(SecretRedactor::context($attributes) ?? []),
             'stage' => $stage->value,
             'crawler_run_id' => $run?->id,
             'procurement_id' => $procurementId,

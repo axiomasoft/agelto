@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\Procurement\Health;
 
+use App\Dto\Procurement\Health\HealthBaseline;
 use App\Dto\Procurement\ProcurementDetails;
 use App\Exceptions\Procurement\Health\HealthBaselineUnavailableException;
 
@@ -32,16 +33,10 @@ final readonly class CardLayoutPreflight
      *
      * @return array<string, list<string>>
      */
-    public function missingBaseSelectors(ProcurementDetails $details): array
+    public function missingBaseSelectors(ProcurementDetails $details, ?HealthBaseline $baseline = null): array
     {
-        $baselineTabs = $this->baselines->read()->cardTabs;
+        $baselineTabs = ($baseline ?? $this->baselines->read())->cardTabs;
 
-        // TODO(documents): у вкладки documents нет базового селектора — оба якоря эталона
-        // (`a[href*=filestore]`, `div.attachment`) зависят от наличия вложений, поэтому её вёрстка
-        // до разбора не проверяется. Нужно: снять с нескольких реальных карточек (с вложениями и
-        // без) селектор контейнера вкладки, который есть всегда, добавить его в эталон площадки
-        // (файл, который читает `HealthBaselineReader`) как `critical: true` без
-        // `content_dependent` и тест «documents без контейнера → карточка не обработана».
         $missing = [];
 
         foreach ([
@@ -74,7 +69,7 @@ final readonly class CardLayoutPreflight
             if ($outcome->anchorsMissingCritical > 0) {
                 $missing[$tab] = array_values(array_map(
                     static fn (array $anchor): string => $anchor['selector'],
-                    array_filter($outcome->anchors, static fn (array $anchor): bool => $anchor['critical'] && $anchor['matches'] < 1),
+                    array_filter($outcome->anchors, static fn (array $anchor): bool => $anchor['critical'] && $anchor['matches'] < ($anchor['min_matches'] ?? 1)),
                 ));
             }
         }

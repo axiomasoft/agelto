@@ -57,7 +57,7 @@ function archiveRunBatch(string $registryNumber, string $dedupSignature): Listin
 
 function useArchiveRunQueueSourceMethod(array $batches): void
 {
-    app()->instance(QueueSourceMethod::class, new QueueSourceMethod(batches: $batches));
+    app()->instance(QueueSourceMethod::class, new QueueSourceMethod(repeatStableWindows: true, batches: $batches));
 
     config(['crawler.platforms.eis.source_methods' => [
         SourceMethodEnum::Csv->value => QueueSourceMethod::class,
@@ -117,7 +117,7 @@ beforeEach(function () {
     Storage::fake('s3');
     config([
         // Блок = 2 строки, наши батчи по 1 строке — сразу "частичный блок" (drain).
-        'crawler.eis.block_size' => 2,
+        'crawler.platforms.eis.block_size' => 2,
         'crawler.archive.price_ceiling' => 100,
         'crawler.archive.min_price_interval' => 10,
         'crawler.archive.max_blocks_per_window' => 50,
@@ -191,7 +191,7 @@ test('стоп-сигнал Pause между днями останавливае
     expect($sourceMethod->calls)->toBe(1)
         ->and($run->fresh()->status)->toBe(RunStatus::Paused)
         ->and($run->fresh()->status)->not->toBe(RunStatus::Completed)
-        ->and($run->fresh()->cursor['day'])->toBe('2024-01-02')
+        ->and($run->fresh()->cursor['day'])->toBe('2024-01-01')
         ->and(Procurement::query()->count())->toBe(1);
 });
 

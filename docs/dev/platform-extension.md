@@ -15,7 +15,8 @@ status: living
 1. Создайте `Platform` и `Registry` в данных. Одинаковый `Registry.code` допустим у разных
    площадок, но пара `(platform_id, code)` уникальна.
 2. Добавьте typed definition в `config/crawler.php` → `crawler.platforms`: supported source method
-   и nested registry filter/form. `PlatformAdapterRegistry` — единственный reader этой карты.
+   и nested registry filter/form, `listing_mapper`, `detail_parser`, `detail_source_method`,
+   `baseline_path`, `block_size` (1–1000). `PlatformAdapterRegistry` — единственный reader этой карты.
 3. Поместите source-specific adapter в `app/Services/Procurement/<Adapter>/`; descriptor живёт в
    `app/Dto/Procurement/Crawler/PlatformAdapterDefinition.php`, а Filament form — в exact schema
    namespace. Не добавляйте branch в factory, model, repository или generic Filament form.
@@ -41,3 +42,26 @@ rules. Диагностика missing mapping называет platform/registry
 в операторском интерфейсе, а не подменяйте их fallback. Архитектурный test сканирует весь product
 source и разрешает source literals только в exact adapter namespace, descriptor, config и seed
 boundary; deliberate forbidden-core fixture обязан оставаться красным.
+
+## Контракт данных адаптера
+
+`ListingRowMapper` возвращает снимок закупки, `SkippedListingRow(reason)` для корректной
+непредметной строки либо `null` для неразобранной строки. Последний исход сохраняет курсор.
+Schema-aware mapper объявляет обязательные колонки через `ListingSchemaAware`.
+
+`DetailParser` возвращает нормализованные common-info/documents/journal/results snapshots;
+доменная запись остаётся общей. `EisDetailParser` объединяет существующие парсеры ЕИС.
+Эталон выбирается по реестру и проверяется на совпадение platform code. Его snapshot повторно
+используется для preflight и диагностики одной карточки. Неверный селектор означает ошибку
+probe, а законно пустые documents должны сохранять обязательный контейнер.
+
+Площадка задаёт общие capabilities, `registries.<code>` переопределяет mapper/parser/baseline/
+размер блока/метод карточки для конкретного реестра. Подстановка адаптера ЕИС отсутствует.
+`ListingBatch.observedAt` — время начала HTTP-запроса, до ожидания ответа и блокировок БД;
+новый транспорт обязан передавать его для порядка дневных снимков. Source timezone используется
+адаптером для построения `sourceUpdatedBefore`; сохранённый интервал не пересчитывается при
+последующем изменении настройки timezone.
+
+Пример совместного исполнения двух несовместимых адаптеров находится в
+`tests/Unit/Crawler/PlatformAdapterRegistryTest.php`. Общие бюджеты независимы по хосту;
+атомарный claim слота защищён короткой блокировкой в том же cache store, что использует limiter.

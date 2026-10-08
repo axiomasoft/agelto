@@ -16,7 +16,7 @@ enum SourceStageStatus: string implements HasColor, HasLabel
     /** `manually_paused` — оператор поставил паузу. */
     case Paused = 'paused';
 
-    /** `held_at` — серия отказов «изменилась структура»; ждёт оператора. */
+    /** `held_at` — серия отказов источника; ждёт оператора. */
     case Held = 'held';
 
     /** `retry_at` в будущем — ждёт по таймеру, затем сам продолжит. */
@@ -33,7 +33,7 @@ enum SourceStageStatus: string implements HasColor, HasLabel
     {
         return match ($this) {
             self::Paused => 'Пауза оператора',
-            self::Held => 'Остановлен: изменилась структура',
+            self::Held => 'Остановлен до проверки',
             self::Waiting => 'Ожидание',
             self::Running => 'Работает',
         };

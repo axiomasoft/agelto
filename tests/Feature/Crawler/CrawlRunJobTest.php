@@ -73,7 +73,7 @@ beforeEach(function () {
 test('job резолвит fresh-режим и вызывает FreshRunProcessor', function () {
     $crawler = Crawler::factory()->create(['mode' => CrawlerMode::Fresh, 'source_method' => SourceMethodEnum::Csv]);
 
-    app()->instance(QueueSourceMethod::class, new QueueSourceMethod(batches: [crawlRunJobEmptyBatch()]));
+    app()->instance(QueueSourceMethod::class, new QueueSourceMethod(repeatStableWindows: true, batches: [crawlRunJobEmptyBatch()]));
     config(['crawler.platforms.eis.source_methods' => [SourceMethodEnum::Csv->value => QueueSourceMethod::class]]);
 
     app()->call([new CrawlRunJob(crawlerId: $crawler->id, mode: CrawlerMode::Fresh), 'handle']);
@@ -82,10 +82,10 @@ test('job резолвит fresh-режим и вызывает FreshRunProcesso
 });
 
 test('job резолвит archive-режим и вызывает ArchiveRunProcessor за окно from/to', function () {
-    config(['crawler.eis.block_size' => 2]);
+    config(['crawler.platforms.eis.block_size' => 2]);
     $crawler = Crawler::factory()->create(['mode' => CrawlerMode::Archive, 'source_method' => SourceMethodEnum::Csv]);
 
-    app()->instance(QueueSourceMethod::class, new QueueSourceMethod(batches: [crawlRunJobEmptyBatch()]));
+    app()->instance(QueueSourceMethod::class, new QueueSourceMethod(repeatStableWindows: true, batches: [crawlRunJobEmptyBatch()]));
     config(['crawler.platforms.eis.source_methods' => [SourceMethodEnum::Csv->value => QueueSourceMethod::class]]);
 
     app()->call([
@@ -154,7 +154,7 @@ test('fresh hard-cap самодиспатчит ровно одно продол
     Queue::fake();
 
     $crawler = Crawler::factory()->create(['mode' => CrawlerMode::Fresh, 'source_method' => SourceMethodEnum::Csv]);
-    app()->instance(QueueSourceMethod::class, new QueueSourceMethod(batches: [
+    app()->instance(QueueSourceMethod::class, new QueueSourceMethod(repeatStableWindows: true, batches: [
         crawlRunJobBatch([crawlRunJobCsvRow('0173200001234000090')], dedupSignature: 'cap-block', from: '1'),
         crawlRunJobEmptyBatch(),
     ]));
@@ -181,7 +181,7 @@ test('продолжение ставится после освобождени�
     config(['crawler.fresh_max_blocks' => 1, 'queue.connections.redis.driver' => 'sync']);
 
     $crawler = Crawler::factory()->create(['mode' => CrawlerMode::Fresh, 'source_method' => SourceMethodEnum::Csv]);
-    app()->instance(QueueSourceMethod::class, new QueueSourceMethod(batches: [
+    app()->instance(QueueSourceMethod::class, new QueueSourceMethod(repeatStableWindows: true, batches: [
         crawlRunJobBatch([crawlRunJobCsvRow('0173200001234000091')], dedupSignature: 'race-1', from: '1'),
         crawlRunJobBatch([crawlRunJobCsvRow('0173200001234000092')], dedupSignature: 'race-2', from: '501'),
         crawlRunJobEmptyBatch(),
@@ -247,7 +247,7 @@ test('request-budget checkpoint archive сохраняет execution lane и с�
 
 test('archive continuation использует неизменяемый typed filter snapshot исходного completed-2025 корпуса', function (): void {
     Queue::fake();
-    config(['crawler.eis.block_size' => 2]);
+    config(['crawler.platforms.eis.block_size' => 2]);
     $sourceMethod = new class implements SourceMethod
     {
         /** @var list<array<string, mixed>> */
@@ -314,9 +314,10 @@ test('archive continuation использует неизменяемый typed f
         'handle',
     ]);
 
-    expect($sourceMethod->filters)->toHaveCount(2)
+    expect($sourceMethod->filters)->toHaveCount(3)
         ->and($sourceMethod->filters[0])->toEqual($originalFilter->toArray())
         ->and($sourceMethod->filters[1])->toEqual($originalFilter->toArray())
+        ->and($sourceMethod->filters[2])->toEqual($originalFilter->toArray())
         ->and($run->fresh()->stats['execution_context']['filter_snapshot'])->toEqual($originalFilter->toArray())
         ->and($run->fresh()->stats['execution_context']['execution_lane'])->toBe(CrawlerExecutionLane::Long->value)
         ->and($run->fresh()->stats['execution_context']['from'])->toBe('2025-01-01')

@@ -79,7 +79,8 @@ test('периметр ядра собран правилом вычитания
     // — домен транспорта `Llm` кросс-документен по контракту (D22), витрина финального промта
     // читает вызовы ОБОИХ шагов, типовой специфики в этих файлах нет.
     // Счётчик — канарейка периметра: растёт при КАЖДОМ новом файле ядра.
-    expect($classes)->toHaveCount(108)
+    // 109 = 108 + platform-neutral DetailParser contract.
+    expect($classes)->toHaveCount(109)
         ->and(array_column($classes, 'class'))->not->toContain('App\Jobs\Procurement\Analyzers\Estimate\EstimateExtractionJob');
 });
 

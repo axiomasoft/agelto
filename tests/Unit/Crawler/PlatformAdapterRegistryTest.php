@@ -2,12 +2,20 @@
 
 declare(strict_types=1);
 
+use App\Dto\Procurement\Crawler\SkippedListingRow;
+use App\Dto\Procurement\Details\DocumentsSnapshot;
 use App\Enums\Procurement\Crawler\SourceMethod;
+use App\Enums\Procurement\DetailSnapshotStatus;
 use App\Exceptions\Procurement\Crawler\PlatformAdapterConfigurationException;
 use App\Exceptions\Procurement\Crawler\PlatformAdapterUnavailableException;
+use App\Models\Procurement\Crawler\Crawler;
 use App\Models\Procurement\Platform\Platform;
 use App\Models\Procurement\Platform\Registry;
+use App\Services\Procurement\Contracts\DetailParser;
+use App\Services\Procurement\Contracts\ListingRowMapper;
+use App\Services\Procurement\Health\HealthBaselineReader;
 use App\Services\Procurement\PlatformAdapterRegistry;
+use Illuminate\Support\Facades\Storage;
 use Tests\Support\Doubles\Crawler\FakeAvailableSourceMethod;
 use Tests\Support\Doubles\Crawler\FakeCrawlerPlatformForm;
 use Tests\Support\Doubles\Crawler\FakeUnavailableSourceMethod;
@@ -83,4 +91,37 @@ test('нетипизированные capability maps отклоняются п
     expect(fn () => new PlatformAdapterRegistry(platforms: [
         'alpha' => ['source_methods' => 'csv', 'registry_filters' => []],
     ]))->toThrow(PlatformAdapterConfigurationException::class, 'source_methods');
+});
+
+test('две несовместимые площадки выбирают собственные mapper parser baseline и размер блока в одном контейнере', function (): void {
+    $map = syntheticPlatformMap();
+    foreach (['alpha' => 17, 'beta' => 29] as $code => $size) {
+        $mapper = Mockery::namedMock('Audit'.ucfirst($code).'Mapper', ListingRowMapper::class);
+        $mapper->shouldReceive('map')->with([$code.'_id' => '1'], Mockery::type(Crawler::class))
+            ->andReturn(new SkippedListingRow($code));
+        $parser = Mockery::namedMock('Audit'.ucfirst($code).'Parser', DetailParser::class);
+        $parser->shouldReceive('documents')->with('<'.$code.'/>')
+            ->andReturn(new DocumentsSnapshot(DetailSnapshotStatus::Complete, []));
+        app()->instance($mapper::class, $mapper);
+        app()->instance($parser::class, $parser);
+        $baseline = json_decode(file_get_contents(resource_path('crawler/health/eis-baseline.json')), true);
+        $baseline['platform'] = $code;
+        $baseline['card_tabs']['documents']['anchors'] = [['selector' => $code, 'critical' => true, 'min_matches' => 1]];
+        $disk = Storage::disk('local');
+        $disk->put('baseline-'.$code.'.json', json_encode($baseline));
+        $map[$code] += ['listing_mapper' => $mapper::class, 'detail_parser' => $parser::class, 'block_size' => $size, 'baseline_path' => $disk->path('baseline-'.$code.'.json')];
+    }
+    $adapters = new PlatformAdapterRegistry($map);
+    app()->instance(PlatformAdapterRegistry::class, $adapters);
+    foreach (['alpha', 'beta', 'alpha'] as $code) {
+        $registry = adapterRegistryWithPlatform($code, 'main');
+        expect($adapters->listingMapper($registry)->map([$code.'_id' => '1'], new Crawler)->reason)->toBe($code)
+            ->and($adapters->detailParser($registry)->documents('<'.$code.'/>')->status)->toBe(DetailSnapshotStatus::Complete)
+            ->and($adapters->blockSize($registry))->toBe($code === 'alpha' ? 17 : 29)
+            ->and(app(HealthBaselineReader::class)->read($registry)->platform)->toBe($code);
+    }
+    $bad = $map;
+    unset($bad['beta']['listing_mapper']);
+    expect(fn () => (new PlatformAdapterRegistry($bad))->listingMapper(adapterRegistryWithPlatform('beta', 'main')))
+        ->toThrow(PlatformAdapterConfigurationException::class);
 });

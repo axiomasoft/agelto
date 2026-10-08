@@ -13,8 +13,11 @@ use App\Jobs\Procurement\CrawlRunJob;
 use App\Models\Procurement\Crawler\Run;
 use App\Models\Procurement\Crawler\SourceCircuit;
 use App\Repositories\Procurement\Crawler\SourceCircuitRepository;
+use Illuminate\Bus\UniqueLock;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Bus;
+use Illuminate\Support\Facades\Log;
 
 /**
  * Подъём прогонов, приостановленных брейкером источника (`stats.source_suspended = true`).
@@ -68,7 +71,8 @@ final readonly class SuspendedRunResumer
 
         $runs = Run::query()
             ->where('status', RunStatus::Paused)
-            ->where('stats->'.SourceRunControl::StatsFlag, true)
+            ->whereRaw("(stats->>'source_suspended') = 'true'")
+            ->where(fn (Builder $query) => $query->whereNull('source_resume_claimed_until')->orWhere('source_resume_claimed_until', '<=', now()))
             ->whereHas('crawler.registry', fn (Builder $query) => $query->where('platform_id', $platformId))
             ->whereHas('crawler', fn (Builder $query) => $query->where('is_active', true))
             ->where('purpose', RunPurpose::Profile);
@@ -78,18 +82,29 @@ final readonly class SuspendedRunResumer
                 ->orWhereRaw("(stats->>'source_retry_at')::timestamptz <= ?", [now()]));
         }
 
-        $runs = $runs->orderBy('id')->limit(100)->get();
+        $runs = $runs->orderByRaw('source_resume_checked_at ASC NULLS FIRST')->orderBy('id')->limit(10)->get();
 
         $dispatched = 0;
 
         foreach ($runs as $run) {
+            $claimed = Run::query()->whereKey($run->id)->where('status', RunStatus::Paused)
+                ->where(fn (Builder $query) => $query->whereNull('source_resume_claimed_until')->orWhere('source_resume_claimed_until', '<=', now()))
+                ->update(['source_resume_claimed_until' => now()->addMinutes(11), 'source_resume_checked_at' => now()]);
+            if ($claimed !== 1) {
+                continue;
+            }
             if ($actor !== SourceCircuitBreaker::SystemActor) {
                 Run::query()->whereKey($run->id)->where('status', RunStatus::Paused)
                     ->update(['stats->source_retry_at' => null]);
             }
 
-            if (! $this->dispatch(run: $run)) {
-                continue;
+            try {
+                if (! $this->dispatch(run: $run)) {
+                    continue;
+                }
+            } catch (\Throwable $exception) {
+                Run::query()->whereKey($run->id)->update(['source_resume_claimed_until' => null]);
+                throw $exception;
             }
 
             $dispatched++;
@@ -103,6 +118,8 @@ final readonly class SuspendedRunResumer
         $context = $run->stats?->get('execution_context');
 
         if (! is_array($context)) {
+            $this->invalidContext($run);
+
             return false;
         }
 
@@ -110,10 +127,12 @@ final readonly class SuspendedRunResumer
         $lane = is_string($context['execution_lane'] ?? null) ? CrawlerExecutionLane::tryFrom($context['execution_lane']) : null;
 
         if ($mode === null || $lane === null) {
+            $this->invalidContext($run);
+
             return false;
         }
 
-        CrawlRunJob::dispatch(
+        $job = new CrawlRunJob(
             crawlerId: $run->crawler_id,
             mode: $mode,
             executionLane: $lane,
@@ -121,6 +140,22 @@ final readonly class SuspendedRunResumer
             to: is_string($context['to'] ?? null) ? $context['to'] : null,
         );
 
+        $lock = app(UniqueLock::class);
+        if (! $lock->acquire($job)) {
+            return false;
+        }
+        try {
+            Bus::dispatch($job);
+        } catch (\Throwable $exception) {
+            $lock->release($job);
+            throw $exception;
+        }
+
         return true;
+    }
+
+    private function invalidContext(Run $run): void
+    {
+        Log::warning('Suspended run has invalid execution context.', ['run_id' => $run->id]);
     }
 }

@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace App\Services\Procurement\Modes;
 
 use App\Dto\Procurement\Crawler\SourceFailure;
+use App\Dto\Procurement\Health\HealthBaseline;
 use App\Dto\Procurement\ProcurementDetails;
 use App\Enums\Procurement\Crawler\SourceFailureKind;
-use App\Enums\Procurement\Crawler\SourceMethod as SourceMethodEnum;
 use App\Enums\Procurement\Crawler\SourceStage;
 use App\Exceptions\Procurement\Crawler\PlatformBudgetExhaustedException;
 use App\Models\Procurement\Procurement;
@@ -17,19 +17,16 @@ use App\Services\Procurement\Detail\CommonInfoProcessor;
 use App\Services\Procurement\Detail\EventJournalProcessor;
 use App\Services\Procurement\Detail\SupplierResultsProcessor;
 use App\Services\Procurement\DocumentIndexer;
-use App\Services\Procurement\Eis\Card\CommonInfoParser;
-use App\Services\Procurement\Eis\Card\DocumentsParser;
-use App\Services\Procurement\Eis\Card\EventJournalParser;
-use App\Services\Procurement\Eis\Card\PartiesParser;
-use App\Services\Procurement\Eis\Card\SupplierResultsParser;
 use App\Services\Procurement\Health\CardAnchorProbe;
 use App\Services\Procurement\Health\CardLayoutPreflight;
 use App\Services\Procurement\Health\HealthBaselineReader;
 use App\Services\Procurement\OperationLogWriter;
+use App\Services\Procurement\PlatformAdapterRegistry;
 use App\Services\Procurement\SourceControl\SourceCircuitBreaker;
 use App\Services\Procurement\SourceControl\SourceFailureClassifier;
 use App\Services\Procurement\SourceControl\SourceFailureReporter;
 use App\Services\Procurement\SourceMethodFactory;
+use App\Support\SecretRedactor;
 use Illuminate\Support\Facades\Log;
 use RuntimeException;
 use Throwable;
@@ -47,14 +44,10 @@ final readonly class DetailAnalysisProcessor
 {
     public function __construct(
         private SourceMethodFactory $sourceMethodFactory,
-        private CommonInfoParser $commonInfoParser,
+        private PlatformAdapterRegistry $adapters,
         private CommonInfoProcessor $commonInfoProcessor,
-        private PartiesParser $partiesParser,
-        private DocumentsParser $documentsParser,
         private DocumentIndexer $documentIndexer,
-        private EventJournalParser $eventJournalParser,
         private EventJournalProcessor $eventJournalProcessor,
-        private SupplierResultsParser $supplierResultsParser,
         private SupplierResultsProcessor $supplierResultsProcessor,
         private HealthBaselineReader $healthBaselineReader,
         private CardAnchorProbe $cardAnchorProbe,
@@ -78,11 +71,7 @@ final readonly class DetailAnalysisProcessor
                 throw new RuntimeException("Procurement #{$procurement->id}: registry_id не резолвится в существующий Registry.");
             }
 
-            $sourceMethod = config('crawler.detail_source_method', SourceMethodEnum::Csv->value);
-
-            if (! is_string($sourceMethod)) {
-                throw new RuntimeException('crawler.detail_source_method must be a string.');
-            }
+            $sourceMethod = $this->adapters->detailMethod(registry: $registry);
 
             // Брейкер этапа карточек (независим от листинга). Этап ждёт или на ручной паузе —
             // карточку не трогаем вовсе: попытка не тратится, закупка остаётся в очереди.
@@ -93,7 +82,7 @@ final readonly class DetailAnalysisProcessor
             }
 
             $sourceMethod = $this->sourceMethodFactory->make(
-                method: SourceMethodEnum::from($sourceMethod),
+                method: $sourceMethod,
                 registry: $registry,
             );
 
@@ -116,7 +105,7 @@ final readonly class DetailAnalysisProcessor
                     platformId: $platformId,
                     stage: SourceStage::Detail,
                     kind: $kind,
-                    detail: "Карточка {$procurement->registry_number} не получена: ".mb_substr($exception->getMessage(), 0, 500),
+                    detail: "Карточка {$procurement->registry_number} не получена: ".mb_substr(SecretRedactor::text($exception->getMessage()), 0, 500),
                     context: ['procurement_id' => $procurement->id, 'exception' => $exception::class],
                 ));
                 $failureReported = true;
@@ -130,7 +119,9 @@ final readonly class DetailAnalysisProcessor
             // целиком (ни одна вкладка), чтобы не записать «пустые» данные с чужой вёрстки.
             // Попытка карточки не тратится: это проблема площадки, а не закупки; карточка
             // остаётся в очереди, а серия таких отказов уводит этап в ожидание.
-            $missing = $this->cardPreflight->missingBaseSelectors(details: $details);
+            $baseline = $this->healthBaselineReader->read(registry: $registry);
+            $parser = $this->adapters->detailParser(registry: $registry);
+            $missing = $this->cardPreflight->missingBaseSelectors(details: $details, baseline: $baseline);
 
             if ($missing !== []) {
                 $summary = implode('; ', array_map(
@@ -160,15 +151,8 @@ final readonly class DetailAnalysisProcessor
             $supplierResults = null;
 
             if ($details->commonInfoHtml !== null) {
-                $commonInfoSnapshot = $this->commonInfoParser->parse($details->commonInfoHtml);
-                $parties = $this->partiesParser->parse($details->commonInfoHtml);
-                $commonInfoSnapshot = $commonInfoSnapshot->withParties(
-                    parties: $parties,
-                    partiesComplete: $this->partiesParser->authorizesReconciliation(
-                        html: $details->commonInfoHtml,
-                        parties: $parties,
-                    ),
-                );
+                $commonInfoSnapshot = $parser->commonInfo($details->commonInfoHtml);
+                $parties = $commonInfoSnapshot->parties;
                 $commonInfo = $commonInfoSnapshot->commonInfo;
                 $commonInfoSnapshotStatus = $commonInfoSnapshot->status->value;
 
@@ -178,7 +162,7 @@ final readonly class DetailAnalysisProcessor
             }
 
             if ($details->documentsHtml !== null) {
-                $documentsSnapshot = $this->documentsParser->parse($details->documentsHtml);
+                $documentsSnapshot = $parser->documents($details->documentsHtml);
                 $this->documentIndexer->index(procurement: $procurement, snapshot: $documentsSnapshot);
                 $documents = $documentsSnapshot->documents;
                 $documentsSnapshotStatus = $documentsSnapshot->status->value;
@@ -187,19 +171,20 @@ final readonly class DetailAnalysisProcessor
             }
 
             if ($details->eventJournalHtml !== null) {
-                $journalEntries = $this->eventJournalParser->parse($details->eventJournalHtml);
+                $journalEntries = $parser->eventJournal($details->eventJournalHtml);
                 $this->eventJournalProcessor->process($procurement, $journalEntries);
             } else {
                 Log::warning(message: 'DetailAnalysisProcessor: вкладка event-journal не снята.', context: ['procurement_id' => $procurement->id]);
             }
 
             if ($details->supplierResultsHtml !== null) {
-                $supplierResults = $this->supplierResultsParser->parse($details->supplierResultsHtml);
+                $supplierResults = $parser->supplierResults($details->supplierResultsHtml);
                 $this->supplierResultsProcessor->process($procurement, $supplierResults);
             }
 
             $detailParseOutcome = $this->detailParseOutcome(
                 details: $details,
+                baseline: $baseline,
                 keyFieldValues: [
                     'common-info' => [
                         'snapshot_status' => $commonInfoSnapshotStatus,
@@ -272,7 +257,7 @@ final readonly class DetailAnalysisProcessor
      * @param  array<string, array<string, mixed>>  $keyFieldValues
      * @return array<string, array<string, mixed>>|null
      */
-    private function detailParseOutcome(ProcurementDetails $details, array $keyFieldValues): ?array
+    private function detailParseOutcome(ProcurementDetails $details, array $keyFieldValues, HealthBaseline $baseline): ?array
     {
         if (! config('crawler.health.enabled')) {
             return null;
@@ -285,19 +270,7 @@ final readonly class DetailAnalysisProcessor
             'supplier-results' => $details->supplierResultsHtml,
         ];
 
-        try {
-            $baselineTabs = $this->healthBaselineReader->read()->cardTabs;
-        } catch (Throwable) {
-            $outcomes = [];
-
-            foreach ($tabs as $tab => $_html) {
-                $outcomes[$tab] = $this->cardAnchorProbe
-                    ->probeFailed(keyFieldValues: $keyFieldValues[$tab] ?? [])
-                    ->toPayload();
-            }
-
-            return $outcomes;
-        }
+        $baselineTabs = $baseline->cardTabs;
 
         $outcomes = [];
 
@@ -342,7 +315,7 @@ final readonly class DetailAnalysisProcessor
             platformId: $platformId,
             stage: SourceStage::Detail,
             kind: SourceFailureKind::CodeError,
-            detail: "Карточка {$procurement->registry_number} пропущена: ".mb_substr($exception->getMessage(), 0, 500),
+            detail: "Карточка {$procurement->registry_number} пропущена: ".mb_substr(SecretRedactor::text($exception->getMessage()), 0, 500),
             context: ['procurement_id' => $procurement->id, 'exception' => $exception::class],
         ));
     }
@@ -357,7 +330,7 @@ final readonly class DetailAnalysisProcessor
 
         $this->procurementStore->markDetailFailed(
             procurement: $procurement,
-            error: $exception->getMessage(),
+            error: SecretRedactor::text($exception->getMessage()),
             nextRetryAt: $failed ? null : now()->addMinutes($backoffMinutes * $attempts),
             failed: $failed,
             detailParseOutcome: $detailParseOutcome,
@@ -366,7 +339,7 @@ final readonly class DetailAnalysisProcessor
         Log::warning(message: 'DetailAnalysisProcessor: снятие детального слоя упало.', context: [
             'procurement_id' => $procurement->id,
             'attempts' => $attempts,
-            'error' => $exception->getMessage(),
+            'error' => SecretRedactor::text($exception->getMessage()),
         ]);
     }
 

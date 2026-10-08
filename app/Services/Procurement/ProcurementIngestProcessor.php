@@ -30,9 +30,11 @@ final readonly class ProcurementIngestProcessor
         private PostgresAdvisoryLock $locks,
     ) {}
 
-    public function ingest(ProcurementSnapshotData $data, ?int $crawlerRunId = null): Procurement
+    public function ingest(ProcurementSnapshotData $data, ?int $crawlerRunId = null, ?Carbon $observedAt = null): Procurement
     {
-        return DB::transaction(function () use ($data, $crawlerRunId): Procurement {
+        $observedAt ??= Carbon::now();
+
+        return DB::transaction(function () use ($data, $crawlerRunId, $observedAt): Procurement {
             $now = Carbon::now();
             $resolution = $this->statusMapping->resolve(registryId: $data->registryId, sourceStage: $data->sourceStage);
             $snapshot = $data->toSnapshotArray(canonicalStatus: $resolution->status->value);
@@ -56,6 +58,7 @@ final readonly class ProcurementIngestProcessor
                     snapshotHash: $snapshotHash,
                     crawlerRunId: $crawlerRunId,
                     now: $now,
+                    observedAt: $observedAt,
                 )
                 : $this->applyRevision(
                     procurement: $procurement,
@@ -65,6 +68,7 @@ final readonly class ProcurementIngestProcessor
                     snapshotHash: $snapshotHash,
                     crawlerRunId: $crawlerRunId,
                     now: $now,
+                    observedAt: $observedAt,
                 );
 
             $this->outcomeEvaluator->evaluate(procurement: $procurement);
@@ -83,6 +87,7 @@ final readonly class ProcurementIngestProcessor
         string $snapshotHash,
         ?int $crawlerRunId,
         Carbon $now,
+        Carbon $observedAt,
     ): Procurement {
         $procurement = $this->store->storeProcurement(data: $data, status: $status, seenAt: $now);
 
@@ -103,6 +108,7 @@ final readonly class ProcurementIngestProcessor
             revision: $revision,
             revisionCount: 1,
             seenAt: $now,
+            observedAt: $observedAt,
         );
 
         $this->store->storeEvent(
@@ -133,16 +139,18 @@ final readonly class ProcurementIngestProcessor
         string $snapshotHash,
         ?int $crawlerRunId,
         Carbon $now,
+        Carbon $observedAt,
     ): Procurement {
         $latestRevision = $this->procurements->findLatestRevision(procurementId: $procurement->id);
 
         if ($latestRevision !== null && $latestRevision->snapshot_hash === $snapshotHash) {
+            $this->store->recordObservation(procurement: $procurement, data: $data, observedAt: $observedAt);
             $this->store->touchLastSeen(procurement: $procurement, seenAt: $now);
 
             return $procurement;
         }
 
-        if ($this->isOlderThanHead(procurement: $procurement, data: $data)) {
+        if ($this->isOlderThanHead(procurement: $procurement, data: $data, observedAt: $observedAt)) {
             Log::info(message: 'ProcurementIngestProcessor: снапшот старше текущей головы закупки пропущен.', context: [
                 'procurement_id' => $procurement->id,
                 'head_source_updated_at' => $procurement->source_updated_at?->toIso8601String(),
@@ -180,6 +188,7 @@ final readonly class ProcurementIngestProcessor
             revision: $revision,
             revisionCount: $revisionNumber,
             seenAt: $now,
+            observedAt: $observedAt,
         );
 
         $this->store->storeEvent(
@@ -196,32 +205,31 @@ final readonly class ProcurementIngestProcessor
     }
 
     /**
-     * Листинг читается ВНЕ advisory lock, поэтому два прогона (fresh и delta/backlog) могут
-     * инжестить один номер в обратном порядке: блок, снятый раньше, приходит позже. Без этой
-     * проверки устаревший снапшот становился новой головой и порождал ложную ревизию «откат»
-     * (status_changed назад), которую следующий скан снова «исправлял». Дата с точностью до
-     * суток (ЕИС «Дата обновления») — это интервал [начало суток; +1 день): снимок старше, только
-     * если весь интервал раньше головы. Снимок тех же суток принимается (порядок внутри суток
-     * источник не сообщает — последний выигрывает).
-     *
-     * Ревьюеру: правило намеренно простое; если источник когда-нибудь ПОНИЗИТ дату обновления
-     * (исправление на его стороне), такой снимок будет проигнорирован — оспорьте, если это реально.
+     * Disjoint source intervals establish order. Overlapping intervals use capture time,
+     * never ingestion/lock order. This is an observation policy, not a claim that the source
+     * supplied an exact revision timestamp; the persisted ambiguity flag makes that explicit.
      */
-    private function isOlderThanHead(Procurement $procurement, ProcurementSnapshotData $data): bool
+    private function isOlderThanHead(Procurement $procurement, ProcurementSnapshotData $data, Carbon $observedAt): bool
     {
-        $headUpdatedAt = $procurement->source_updated_at;
-
-        if ($headUpdatedAt === null) {
+        $head = $procurement->source_updated_at;
+        if ($head === null) {
             return false;
         }
-
-        // Снимок с точностью «сутки» старше головы, только если его сутки целиком закончились
-        // до неё. Значение — начало суток источника в UTC, поэтому часовой пояс тут не нужен.
-        if ($data->sourceUpdatedAtHasDayPrecision) {
-            return $data->sourceUpdatedAt->copy()->addDay()->lte($headUpdatedAt);
+        $end = $data->sourceUpdatedBefore ?? ($data->sourceUpdatedAtHasDayPrecision ? $data->sourceUpdatedAt->copy()->addDay() : $data->sourceUpdatedAt);
+        $headEnd = $procurement->getAttribute('source_updated_before');
+        $headEnd = $headEnd instanceof Carbon ? $headEnd : $head;
+        if ($end->lt($head) || ($data->sourceUpdatedAtHasDayPrecision && $end->eq($head))) {
+            return true;
         }
+        if ($data->sourceUpdatedAt->gt($headEnd) || ($headEnd->gt($head) && $data->sourceUpdatedAt->eq($headEnd))) {
+            return false;
+        }
+        if (! $data->sourceUpdatedAtHasDayPrecision && $procurement->getAttribute('source_updated_has_day_precision') !== true) {
+            return false;
+        }
+        $headObserved = $procurement->getAttribute('source_observed_at');
 
-        return $data->sourceUpdatedAt->lt($headUpdatedAt);
+        return $headObserved instanceof Carbon && $observedAt->lt($headObserved);
     }
 
     /**

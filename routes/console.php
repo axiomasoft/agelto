@@ -144,3 +144,14 @@ if ($hasTable('prc_documents')) {
     // сигналит (антиспам-агрегация — `PipelineAlert`).
     Schedule::command('pipeline:stuck-check')->everyFifteenMinutes()->withoutOverlapping();
 }
+
+// Bounded retention runs separately from HTTP workers.
+if ($hasTable('prc_raw_artifacts')) {
+    Schedule::command('crawler:prune-history')->hourly()->withoutOverlapping();
+}
+
+if ($hasTable('prc_source_circuits')) {
+    Schedule::command('crawler:progress')->everyFiveMinutes()->withoutOverlapping()
+        ->sendOutputTo(storage_path('logs/crawler-progress.log'))
+        ->onFailure(fn () => Log::warning('Crawler progress is stalled; inspect crawler:progress and source incidents.'));
+}

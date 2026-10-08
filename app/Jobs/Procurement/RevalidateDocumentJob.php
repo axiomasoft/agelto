@@ -75,7 +75,7 @@ final class RevalidateDocumentJob extends PipelineJob implements ShouldBeUnique
 
     protected function process(): void
     {
-        app(DocumentDownloader::class)->download($this->document());
+        app(DocumentDownloader::class)->download(document: $this->document(), deadlineAt: microtime(true) + 240);
     }
 
     private function document(): Document

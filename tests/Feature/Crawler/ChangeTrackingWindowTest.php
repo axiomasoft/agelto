@@ -51,7 +51,7 @@ function changeTrackingBatch(string $registryNumber): ListingBatch
 
 function useChangeTrackingQueueSourceMethod(array $batches): void
 {
-    app()->instance(QueueSourceMethod::class, new QueueSourceMethod(batches: $batches));
+    app()->instance(QueueSourceMethod::class, new QueueSourceMethod(repeatStableWindows: true, batches: $batches));
 
     config(['crawler.platforms.eis.source_methods' => [
         SourceMethodEnum::Csv->value => QueueSourceMethod::class,
@@ -62,7 +62,7 @@ beforeEach(function () {
     Sleep::fake();
     Storage::fake('s3');
     config([
-        'crawler.eis.block_size' => 2,
+        'crawler.platforms.eis.block_size' => 2,
         'crawler.archive.price_ceiling' => 1_000_000_000,
         'crawler.tracking.window_overlap_days' => 2,
     ]);

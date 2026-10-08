@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace App\Actions\Procurement\Crawler;
 
+use App\Models\Procurement\Crawler\RawArtifact;
 use Illuminate\Filesystem\FilesystemAdapter;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 
 /** Stores one content-addressed raw fetch object without allowing an overwrite. */
@@ -18,6 +20,9 @@ final readonly class StoreRawFetchArtifactAction
         $identityHash = hash('sha256', $this->canonicalJson($requestIdentity));
         $contentHash = hash('sha256', $contents);
         $path = "{$prefix}/{$identityHash}/{$contentHash}.{$extension}";
+        DB::table((new RawArtifact)->getTable())->upsert([
+            ['id' => hash('sha256', $disk.':'.$path), 'disk' => $disk, 'path' => $path, 'last_seen_at' => now()],
+        ], ['id'], ['last_seen_at']);
         $storage = Storage::disk($disk);
 
         if ($storage->exists($path)) {

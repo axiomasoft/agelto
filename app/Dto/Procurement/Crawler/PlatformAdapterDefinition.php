@@ -21,12 +21,14 @@ final readonly class PlatformAdapterDefinition
 
     /**
      * @param  array<string, mixed>  $sourceMethods
+     * @param  array<string, mixed>  $capabilities
      * @param  array<string, mixed>  $registryFilters
      */
     public function __construct(
         public string $platformCode,
         array $sourceMethods,
         array $registryFilters,
+        public array $capabilities = [],
     ) {
         if ($platformCode === '') {
             throw new PlatformAdapterConfigurationException('Код platform adapter definition не может быть пустым.');

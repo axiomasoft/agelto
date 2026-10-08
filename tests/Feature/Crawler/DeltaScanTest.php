@@ -60,7 +60,7 @@ function deltaScanBatch(string $registryNumber): ListingBatch
 
 function useDeltaScanQueueSourceMethod(array $batches): void
 {
-    app()->instance(QueueSourceMethod::class, new QueueSourceMethod(batches: $batches));
+    app()->instance(QueueSourceMethod::class, new QueueSourceMethod(repeatStableWindows: true, batches: $batches));
 
     config(['crawler.platforms.eis.source_methods' => [
         SourceMethodEnum::Csv->value => QueueSourceMethod::class,
@@ -119,7 +119,7 @@ beforeEach(function () {
     Storage::fake('s3');
     Carbon::setTestNow(Carbon::parse('2026-08-05 12:00:00'));
     config([
-        'crawler.eis.block_size' => 2,
+        'crawler.platforms.eis.block_size' => 2,
         'crawler.archive.price_ceiling' => 1_000_000_000,
         'crawler.tracking.window_overlap_days' => 2,
     ]);
@@ -307,7 +307,7 @@ PHP);
         $takeover = ConcurrentTransactions::execute(<<<PHP
 \Illuminate\Support\Carbon::setTestNow(\Illuminate\Support\Carbon::parse('2026-09-01 12:00:00'));
 config([
-    'crawler.eis.block_size' => 2,
+    'crawler.platforms.eis.block_size' => 2,
     'crawler.archive.price_ceiling' => 100,
     'crawler.archive.min_price_interval' => 10,
     'crawler.archive.max_blocks_per_window' => 50,
@@ -319,7 +319,7 @@ config([
 
     public function collectListing(\App\Models\Procurement\Crawler\Crawler \$crawler, \App\Dto\Procurement\Crawler\ListingCursor \$cursor): \App\Dto\Procurement\Crawler\ListingBatch
     {
-        if (\$cursor->day !== '2026-09-01' || \$cursor->blockFrom !== 501 || \$cursor->priceStack !== ['0:100']) {
+        if (\$cursor->day !== '2026-09-01' || \$cursor->blockFrom !== (\$this->calls === 0 ? 501 : 1) || \$cursor->priceStack !== ['0:100']) {
             throw new \RuntimeException('Scanner did not resume the durable delta checkpoint.');
         }
 
@@ -363,7 +363,7 @@ PHP);
         expect($owner['acquired'])->toBeTrue()
             ->and($owner['backend_pid'])->not->toBe($takeover['backend_pid'])
             ->and($takeover['outcome'])->toBe(DeltaScanOutcome::Processed->value)
-            ->and($takeover['calls'])->toBe(1)
+            ->and($takeover['calls'])->toBe(2)
             ->and($state['status'])->toBe(RunStatus::Completed->value)
             ->and($state['cursor']['day'])->toBe('2026-09-02');
     } finally {

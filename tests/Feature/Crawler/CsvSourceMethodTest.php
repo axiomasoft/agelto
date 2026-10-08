@@ -5,6 +5,8 @@ declare(strict_types=1);
 use App\Dto\Procurement\Crawler\ListingBatch;
 use App\Dto\Procurement\Crawler\ListingCursor;
 use App\Enums\Procurement\Crawler\CrawlStage;
+use App\Enums\Procurement\Crawler\RunStatus;
+use App\Enums\Procurement\Crawler\SourceFailureKind;
 use App\Enums\Procurement\Proxy\CrawlerProxyMode;
 use App\Enums\Procurement\Proxy\ProxyRouteSource;
 use App\Enums\Procurement\Proxy\ProxyScope;
@@ -14,13 +16,16 @@ use App\Models\Procurement\Crawler\Crawler;
 use App\Models\Procurement\Crawler\Fetch;
 use App\Models\Procurement\Crawler\Proxy;
 use App\Models\Procurement\Crawler\ProxyTarget;
+use App\Models\Procurement\Crawler\SourceIncident;
 use App\Models\Procurement\Platform\Okpd2Node;
 use App\Models\Procurement\Platform\Registry;
 use App\Models\Procurement\Procurement;
 use App\Services\Procurement\Eis\CsvSourceMethod;
+use App\Services\Procurement\Modes\FreshRunProcessor;
 use App\Settings\Procurement\CrawlerProxySettings;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Sleep;
 use Tests\Support\Doubles\Crawler\EisCsvFixture;
 
@@ -450,3 +455,19 @@ test('битая запись учитывается в rowsTotal, чтобы н
         fn (string $message, array $context): bool => str_contains($message, 'CSV-записи') && $context['malformed'] === 1,
     )->once();
 });
+
+test('лимиты bytes records и field останавливают fresh без продвижения курсора', function (string $limit, int $value): void {
+    Sleep::fake();
+    Storage::fake('s3');
+    $proxy = activeListingProxy();
+    $registry = registryWithOkpd2Scope();
+    $crawler = Crawler::factory()->for($registry)->withProxies($proxy)->create(['filter' => ['okpd2Codes' => ['43']]]);
+    config(['crawler.'.$limit => $value]);
+    Http::fake(['*' => fn () => Http::response(EisCsvFixture::body(), 200)]);
+    $run = app(FreshRunProcessor::class)->run($crawler);
+    expect($run->status)->toBe(RunStatus::Paused)
+        ->and($run->cursor->get('blockFrom'))->toBe(1)
+        ->and(Procurement::query()->count())->toBe(0)
+        ->and(SourceIncident::query()->whereNotNull('failure_kind')->firstOrFail()->failure_kind)
+        ->toBe(SourceFailureKind::InvalidContent);
+})->with([['response_max_bytes', 64], ['csv_max_records', 1], ['csv_max_field_bytes', 8]]);

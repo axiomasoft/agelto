@@ -9,6 +9,7 @@ use App\Dto\Procurement\Crawler\ListingCursor;
 use App\Dto\Procurement\Crawler\RecoveryScope;
 use App\Dto\Procurement\Crawler\WindowFilter;
 use App\Enums\Procurement\Crawler\ArchiveWindowScanResult;
+use App\Enums\Procurement\Crawler\RunStatus;
 use App\Enums\Procurement\Crawler\RunStopKind;
 use App\Exceptions\Procurement\Crawler\OutboundRequestDeadlineExceeded;
 use App\Exceptions\Procurement\Crawler\PlatformBudgetExhaustedException;
@@ -47,7 +48,7 @@ final readonly class ArchiveWindowScanner
         $startedAt = microtime(true);
         $checkpointSeconds = self::nonNegativeIntConfig('crawler.run.checkpoint_seconds');
         $deadlineAt = min($deadlineAt ?? INF, $startedAt + $checkpointSeconds);
-        $blockSize = self::positiveIntConfig('crawler.eis.block_size', default: 500);
+        $blockSize = app(PlatformAdapterRegistry::class)->blockSize(registry: $crawler->registry()->firstOrFail());
         $priceCeiling = self::positiveIntConfig('crawler.archive.price_ceiling');
         $minPriceInterval = self::nonNegativeIntConfig('crawler.archive.min_price_interval');
         $maxBlocksPerWindow = self::nonNegativeIntConfig('crawler.archive.max_blocks_per_window');
@@ -68,6 +69,14 @@ final readonly class ArchiveWindowScanner
         $blockFrom = $cursor->priceStack === null ? 1 : $cursor->blockFrom;
         $previousSignature = $cursor->lastDedupSignature;
         $blocksInInterval = $cursor->blocksInInterval;
+        if ($run->stats?->get('source_suspended') === true && $blockFrom > 1) {
+            // Offset replay cannot recover deletions/reordering before the cursor. Restart the
+            // bounded date/price interval; idempotent ingest absorbs already committed rows.
+            $blockFrom = 1;
+            $previousSignature = null;
+            $blocksInInterval = 0;
+            app(WindowStability::class)->restartInterruptedPass(run: $run);
+        }
 
         if ($cursor->recoveryScope === null && $recoveryScope !== null) {
             $this->persistCursor(
@@ -143,6 +152,7 @@ final readonly class ArchiveWindowScanner
                 return ArchiveWindowScanResult::Stopped;
             }
 
+            $executionCrawler->load('registry.platform');
             $sourceMethod = $this->factory->makeWithFallback(crawler: $executionCrawler);
             try {
                 $batch = $sourceMethod instanceof DeadlineAwareSourceMethod
@@ -165,7 +175,10 @@ final readonly class ArchiveWindowScanner
                 // A request may outlive the lease. Its ingestion and checkpoint are one short
                 // PostgreSQL row-locked section: a takeover waits for all block writes to commit
                 // or roll back, and a former owner cannot persist a partial response afterwards.
+                $artifactRef = $this->ingestor->stageArtifact(crawler: $executionCrawler, run: $run, batch: $batch);
                 $result = $this->runs->withinExecutionLease(run: $run, callback: function () use (
+                    $artifactRef,
+                    $executionCrawler,
                     &$blockFrom,
                     &$blocksInInterval,
                     &$previousSignature,
@@ -180,7 +193,7 @@ final readonly class ArchiveWindowScanner
                     $recoveryScope,
                     $run,
                 ): ?ArchiveWindowScanResult {
-                    $fetchResult = $this->ingestor->ingest(crawler: $crawler, run: $run, batch: $batch);
+                    $fetchResult = $this->ingestor->ingest(crawler: $executionCrawler, run: $run, batch: $batch, artifactRef: $artifactRef);
 
                     if ($fetchResult->failure !== null) {
                         // Любая непрочитанная строка оставляет курсор на текущем блоке.
@@ -188,8 +201,29 @@ final readonly class ArchiveWindowScanner
                         return null;
                     }
 
-                    if ($batch->rowsTotal < $blockSize) {
-                        array_pop($stack);
+                    $terminal = $batch->rowsTotal < $blockSize;
+                    if ($terminal) {
+                        // Persist the next complete pass before observe may release the lease
+                        // and pause. Resuming a held window must never hash only its last page.
+                        $this->persistCursor(
+                            run: $run, day: $day, stack: $stack, blockFrom: 1,
+                            dateField: $dateField, lastDedupSignature: null,
+                            blocksInInterval: 0, recoveryScope: $recoveryScope,
+                        );
+                    }
+                    $stable = app(WindowStability::class)->observe(
+                        run: $run,
+                        window: $dateField.':'.$day.':'.($stack[array_key_last($stack) ?? 0] ?? throw new \LogicException('Empty scan interval.')),
+                        batch: $batch,
+                        terminal: $terminal,
+                    );
+                    if ($run->status !== RunStatus::Running) {
+                        return ArchiveWindowScanResult::Stopped;
+                    }
+                    if ($terminal) {
+                        if ($stable) {
+                            array_pop($stack);
+                        }
                         $blockFrom = 1;
                         $previousSignature = null;
                         $blocksInInterval = 0;

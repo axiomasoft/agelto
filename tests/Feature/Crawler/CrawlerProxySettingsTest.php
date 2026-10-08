@@ -7,6 +7,7 @@ use App\Dto\Procurement\Crawler\ListingCursor;
 use App\Dto\Procurement\Crawler\WindowFilter;
 use App\Dto\Procurement\ProcurementDetails;
 use App\Enums\Procurement\Crawler\CrawlerMode;
+use App\Enums\Procurement\Crawler\RunStatus;
 use App\Enums\Procurement\Crawler\SourceMethod as SourceMethodEnum;
 use App\Enums\Procurement\Proxy\CrawlerProxyMode;
 use App\Models\Procurement\Crawler\Crawler;
@@ -111,7 +112,7 @@ beforeEach(function () {
     Storage::fake('s3');
 });
 
-test('FreshRunProcessor перечитывает proxy_mode/proxy_country профиля перед каждой итерацией', function () {
+test('FreshRunProcessor останавливается при изменении proxy маршрута между блоками', function () {
     $crawler = Crawler::factory()->withProxies(Proxy::factory()->create())->create(['proxy_country' => null]);
 
     $sourceMethod = useProxySettingsSourceMethod(
@@ -126,17 +127,16 @@ test('FreshRunProcessor перечитывает proxy_mode/proxy_country про
         },
     );
 
-    app(FreshRunProcessor::class)->run(crawler: $crawler);
-
+    $run = app(FreshRunProcessor::class)->run(crawler: $crawler);
     expect($sourceMethod->observed)->toBe([
         ['proxy_mode' => 'profile', 'proxy_country' => null],
-        ['proxy_mode' => 'direct', 'proxy_country' => 'DE'],
-    ]);
+    ])->and($run->status)->toBe(RunStatus::Paused)
+        ->and($run->stats->get('stop_reason'))->toContain('между блоками');
 });
 
 test('ArchiveWindowScanner перечитывает proxy_mode/proxy_country профиля перед каждой итерацией', function () {
     config([
-        'crawler.eis.block_size' => 1,
+        'crawler.platforms.eis.block_size' => 1,
         'crawler.archive.price_ceiling' => 100,
         'crawler.archive.min_price_interval' => 10,
         'crawler.archive.max_blocks_per_window' => 50,
@@ -165,6 +165,7 @@ test('ArchiveWindowScanner перечитывает proxy_mode/proxy_country п�
 
     expect($sourceMethod->observed)->toBe([
         ['proxy_mode' => 'profile', 'proxy_country' => null],
+        ['proxy_mode' => 'direct', 'proxy_country' => 'DE'],
         ['proxy_mode' => 'direct', 'proxy_country' => 'DE'],
     ]);
 });

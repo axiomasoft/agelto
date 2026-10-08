@@ -10,6 +10,8 @@ use App\Enums\Procurement\Crawler\SourceStage;
 use App\Enums\Procurement\Proxy\ProxyScope;
 use App\Filament\Resources\Procurement\Crawler\Crawlers\Schemas\EisCrawlerPlatformForm;
 use App\Services\Procurement\Eis\CsvSourceMethod;
+use App\Services\Procurement\Eis\EisCsvRowMapper;
+use App\Services\Procurement\Eis\EisDetailParser;
 
 // Реакции по умолчанию, общие для этапов (этап может задать свои). Смысл — у `source_control`.
 $sourceFailureReactions = [
@@ -27,8 +29,16 @@ $sourceFailureReactions = [
 ];
 
 return [
+    'response_max_bytes' => 8_388_608,
+    'csv_max_records' => 1000,
+    'csv_max_field_bytes' => 262_144,
     'platforms' => [
         'eis' => [
+            'detail_source_method' => SourceMethod::Csv->value,
+            'listing_mapper' => EisCsvRowMapper::class,
+            'detail_parser' => EisDetailParser::class,
+            'block_size' => 500,
+            'baseline_path' => 'resources/crawler/health/eis-baseline.json',
             /*
             | Часовой пояс «наивных» дат-времени источника ЕИС (CSV-листинг, карточки).
             | Даты читаются в нём и хранятся в UTC; календарные даты без времени не сдвигаются.
@@ -295,7 +305,7 @@ return [
         // ВАЖНО: фактический cap глубины листинга источника — 5 000 записей на запрос
         // (блок `from=5001` возвращает `dedupSignature` блока `from=4501`), а НЕ ≈10 000,
         // как утверждала `research/eis-csv-recon.md` — см. `findings/P4-load-baseline.md` §3.
-        'block_size' => 500,
+        // Block size belongs to crawler.platforms.eis.block_size.
 
         /*
         | Вкладки детальной карточки (`02-crawling.md` §5.1), опрашиваемые
@@ -534,7 +544,7 @@ return [
     */
     'tracking' => [
         'window_overlap_days' => 2,
-        'delta_scan_enabled' => false,
+        'delta_scan_enabled' => true,
         'delta_scan_cron' => '0 23 * * *',
     ],
 ];

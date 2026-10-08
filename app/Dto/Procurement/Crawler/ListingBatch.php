@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Dto\Procurement\Crawler;
 
 use App\Enums\Procurement\Proxy\ProxyRouteSource;
+use Illuminate\Support\Carbon;
 
 /**
  * Один блок листинга, как его вернул `SourceMethod::collectListing()` — сырые строки
@@ -41,5 +42,6 @@ final readonly class ListingBatch
          * свой формат; пустая выдача (заголовок без строк) — не пустое тело, а конец данных.
          */
         public bool $emptyBody = false,
+        public ?Carbon $observedAt = null,
     ) {}
 }

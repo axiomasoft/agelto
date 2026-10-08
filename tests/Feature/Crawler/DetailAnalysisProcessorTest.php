@@ -82,9 +82,9 @@ test('supplier-results mismatch остаётся retryable и следующий
     ]);
     $supplierAttempts = 0;
     Http::fake([
-        '*view/common-info.html*' => Http::response(CardHtmlFixture::commonInfo(), 200),
-        '*view/documents.html*' => Http::response(CardHtmlFixture::documents(), 200),
-        '*view/event-journal.html*' => Http::response(detailAnalysisEventJournalHtml(), 200),
+        '*view/common-info.html*' => fn () => Http::response(CardHtmlFixture::commonInfo(), 200),
+        '*view/documents.html*' => fn () => Http::response(CardHtmlFixture::documents(), 200),
+        '*view/event-journal.html*' => fn () => Http::response(detailAnalysisEventJournalHtml(), 200),
         '*view/supplier-results.html*' => function () use (&$supplierAttempts) {
             $supplierAttempts++;
 
@@ -111,11 +111,11 @@ test('supplier-results mismatch остаётся retryable и следующий
 function fakeDetailAnalysisHttp(): void
 {
     Http::fake([
-        '*view/common-info.html*' => Http::response(body: CardHtmlFixture::commonInfo(), status: 200),
-        '*view/documents.html*' => Http::response(body: CardHtmlFixture::documents(), status: 200),
-        '*view/event-journal.html*' => Http::response(body: detailAnalysisEventJournalHtml(), status: 200),
-        '*view/supplier-results.html*' => Http::response(body: detailAnalysisSupplierResultsHtml(), status: 200),
-        '*filestore*' => Http::response(body: 'binary-content', status: 200),
+        '*view/common-info.html*' => fn () => Http::response(body: CardHtmlFixture::commonInfo(), status: 200),
+        '*view/documents.html*' => fn () => Http::response(body: CardHtmlFixture::documents(), status: 200),
+        '*view/event-journal.html*' => fn () => Http::response(body: detailAnalysisEventJournalHtml(), status: 200),
+        '*view/supplier-results.html*' => fn () => Http::response(body: detailAnalysisSupplierResultsHtml(), status: 200),
+        '*filestore*' => fn () => Http::response(body: 'binary-content', status: 200),
     ]);
 }
 
@@ -192,11 +192,11 @@ test('incomplete documents page не снимает ранее известны�
     app(DetailAnalysisProcessor::class)->run(procurement: $procurement);
 
     Http::fake([
-        '*view/common-info.html*' => Http::response(body: CardHtmlFixture::commonInfo(), status: 200),
-        '*view/documents.html*' => Http::response(body: '<html><body>Защитная страница</body></html>', status: 200),
-        '*view/event-journal.html*' => Http::response(body: detailAnalysisEventJournalHtml(), status: 200),
-        '*view/supplier-results.html*' => Http::response(body: detailAnalysisSupplierResultsHtml(), status: 200),
-        '*filestore*' => Http::response(body: 'binary-content', status: 200),
+        '*view/common-info.html*' => fn () => Http::response(body: CardHtmlFixture::commonInfo(), status: 200),
+        '*view/documents.html*' => fn () => Http::response(body: '<html><body>Защитная страница</body></html>', status: 200),
+        '*view/event-journal.html*' => fn () => Http::response(body: detailAnalysisEventJournalHtml(), status: 200),
+        '*view/supplier-results.html*' => fn () => Http::response(body: detailAnalysisSupplierResultsHtml(), status: 200),
+        '*filestore*' => fn () => Http::response(body: 'binary-content', status: 200),
     ]);
 
     app(DetailAnalysisProcessor::class)->run(procurement: $procurement);
@@ -254,11 +254,11 @@ test('common-info вернул страницу без запрошенного 
         'status' => ProcurementStatus::Bidding,
     ]);
     Http::fake([
-        '*view/common-info.html*' => Http::response(body: '<html><body>Страница не найдена</body></html>', status: 200),
-        '*view/documents.html*' => Http::response(body: CardHtmlFixture::documents(), status: 200),
-        '*view/event-journal.html*' => Http::response(body: detailAnalysisEventJournalHtml(), status: 200),
-        '*view/supplier-results.html*' => Http::response(body: detailAnalysisSupplierResultsHtml(), status: 200),
-        '*filestore*' => Http::response(body: 'binary-content', status: 200),
+        '*view/common-info.html*' => fn () => Http::response(body: '<html><body>Страница не найдена</body></html>', status: 200),
+        '*view/documents.html*' => fn () => Http::response(body: CardHtmlFixture::documents(), status: 200),
+        '*view/event-journal.html*' => fn () => Http::response(body: detailAnalysisEventJournalHtml(), status: 200),
+        '*view/supplier-results.html*' => fn () => Http::response(body: detailAnalysisSupplierResultsHtml(), status: 200),
+        '*filestore*' => fn () => Http::response(body: 'binary-content', status: 200),
     ]);
 
     app(DetailAnalysisProcessor::class)->run(procurement: $procurement);
@@ -306,7 +306,7 @@ test('страница-заглушка без базовых селекторо
         'detail_fetched_at' => null,
         'current_revision_detected_at' => now()->subDay(),
     ]);
-    Http::fake(['*' => Http::response("<html><body>{$procurement->registry_number} Temporary maintenance</body></html>", 200)]);
+    Http::fake(['*' => fn () => Http::response("<html><body>{$procurement->registry_number} Temporary maintenance</body></html>", 200)]);
 
     expect(app(DetailAnalysisProcessor::class)->run(procurement: $procurement))->toBeFalse();
 
@@ -333,10 +333,10 @@ test('легитимно пустой complete documents snapshot заверша
         'status' => ProcurementStatus::Bidding,
     ]);
     Http::fake([
-        '*view/common-info.html*' => Http::response(CardHtmlFixture::commonInfo(), 200),
-        '*view/documents.html*' => Http::response('<div>0338200009125000001</div><div class="blockFilesTabDocs"></div>', 200),
-        '*view/event-journal.html*' => Http::response(detailAnalysisEventJournalHtml(), 200),
-        '*view/supplier-results.html*' => Http::response(detailAnalysisSupplierResultsHtml(), 200),
+        '*view/common-info.html*' => fn () => Http::response(CardHtmlFixture::commonInfo(), 200),
+        '*view/documents.html*' => fn () => Http::response('<div>0338200009125000001</div><div class="blockFilesTabDocs"></div>', 200),
+        '*view/event-journal.html*' => fn () => Http::response(detailAnalysisEventJournalHtml(), 200),
+        '*view/supplier-results.html*' => fn () => Http::response(detailAnalysisSupplierResultsHtml(), 200),
     ]);
 
     $result = app(DetailAnalysisProcessor::class)->run(procurement: $procurement);
@@ -364,10 +364,10 @@ test('нет базовых селекторов на любой вкладке 
     Storage::fake('s3');
     $procurement = detailAnalysisProcurement();
     Http::fake([
-        '*view/common-info.html*' => Http::response(body: CardHtmlFixture::commonInfo(), status: 200),
-        '*view/documents.html*' => Http::response(body: CardHtmlFixture::documents(), status: 200),
-        '*view/event-journal.html*' => Http::response(body: '<html><body><p>0338200009125000001 новая вёрстка</p></body></html>', status: 200),
-        '*view/supplier-results.html*' => Http::response(body: detailAnalysisSupplierResultsHtml(), status: 200),
+        '*view/common-info.html*' => fn () => Http::response(body: CardHtmlFixture::commonInfo(), status: 200),
+        '*view/documents.html*' => fn () => Http::response(body: CardHtmlFixture::documents(), status: 200),
+        '*view/event-journal.html*' => fn () => Http::response(body: '<html><body><p>0338200009125000001 новая вёрстка</p></body></html>', status: 200),
+        '*view/supplier-results.html*' => fn () => Http::response(body: detailAnalysisSupplierResultsHtml(), status: 200),
     ]);
 
     expect(app(DetailAnalysisProcessor::class)->run(procurement: $procurement))->toBeFalse();
@@ -388,8 +388,8 @@ test('недоступный эталон не позволяет подтвер
     Sleep::fake();
     Storage::fake('s3');
     $procurement = detailAnalysisProcurement();
-    config(['crawler.health.baseline_path' => '/missing-audit-baseline.json']);
-    Http::fake(['*' => Http::response(body: CardHtmlFixture::commonInfo(), status: 200)]);
+    config(['crawler.platforms.eis.baseline_path' => '/missing-audit-baseline.json']);
+    Http::fake(['*' => fn () => Http::response(body: CardHtmlFixture::commonInfo(), status: 200)]);
 
     expect(app(DetailAnalysisProcessor::class)->run(procurement: $procurement))->toBeFalse()
         ->and($procurement->refresh()->detail_fetched_at)->toBeNull()
@@ -400,7 +400,7 @@ test('недоступный эталон не позволяет подтвер
 });
 
 test('якоря, зависящие от данных (нет участников, нет вложений), базовыми не считаются', function (): void {
-    $details = new ProcurementDetails(registryNumber: '0338200009125000001', procedureUrlType: 'ea20', supplierResultsHtml: CardHtmlFixture::supplierResults(), documentsHtml: '<html><body></body></html>');
+    $details = new ProcurementDetails(registryNumber: '0338200009125000001', procedureUrlType: 'ea20', supplierResultsHtml: CardHtmlFixture::supplierResults(), documentsHtml: '<html><body><div class="blockFilesTabDocs"></div></body></html>');
 
     expect(app(CardLayoutPreflight::class)->missingBaseSelectors(details: $details))->toBe([]);
 });
@@ -421,7 +421,7 @@ test('этап карточек в ожидании — карточка не з
 test('отказ скачивания карточки учитывается брейкером этапа карточек, карточка — в штатный повтор', function (): void {
     Sleep::fake();
     $procurement = detailAnalysisProcurement();
-    Http::fake(['*' => Http::response('', 503)]);
+    Http::fake(['*' => fn () => Http::response('', 503)]);
 
     app(DetailAnalysisProcessor::class)->run(procurement: $procurement);
 

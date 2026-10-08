@@ -70,7 +70,7 @@ test('отсутствие эталона откладывает разбор, �
     config([
         'crawler.platforms.eis.source_methods.'.SourceMethodEnum::Csv->value => DetailParseOutcomeSourceMethod::class,
         'crawler.health.enabled' => true,
-        'crawler.health.baseline_path' => 'tests/Fixtures/Health/missing-baseline.json',
+        'crawler.platforms.eis.baseline_path' => 'tests/Fixtures/Health/missing-baseline.json',
     ]);
     $registry = Registry::factory()->eis()->create();
     $procurement = Procurement::factory()->create([
@@ -88,7 +88,7 @@ test('отсутствие эталона откладывает разбор, �
         ->and($procurement->detail_failed)->toBeFalse()
         ->and($procurement->detail_next_retry_at)->not->toBeNull();
 
-    config(['crawler.health.baseline_path' => 'resources/crawler/health/eis-baseline.json']);
+    config(['crawler.platforms.eis.baseline_path' => 'resources/crawler/health/eis-baseline.json']);
     $this->travelTo($procurement->detail_next_retry_at->copy()->addSecond());
 
     expect(app(DetailAnalysisProcessor::class)->run(procurement: $procurement))->toBeTrue()

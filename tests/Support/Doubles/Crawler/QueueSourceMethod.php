@@ -22,21 +22,40 @@ final class QueueSourceMethod implements SourceMethod
 {
     private int $cursorIndex = 0;
 
+    /** @var array<string, array<int, ListingBatch>> */
+    private array $windows = [];
+
+    /** @var array<string, bool> */
+    private array $completeWindows = [];
+
     /**
      * @param  list<ListingBatch>  $batches
      */
     public function __construct(
         private readonly array $batches,
         private readonly bool $available = true,
+        private readonly bool $repeatStableWindows = false,
     ) {}
 
     public function collectListing(Crawler $crawler, ListingCursor $cursor): ListingBatch
     {
+        $window = $cursor->day.':'.$cursor->dateField.':'.json_encode($cursor->priceStack);
+        if ($this->repeatStableWindows && $cursor->day !== null && ($this->completeWindows[$window] ?? false)) {
+            return $this->windows[$window][$cursor->blockFrom] ?? throw new OutOfBoundsException('Unexpected offset in a stable window replay.');
+        }
         if (! array_key_exists($this->cursorIndex, $this->batches)) {
             throw new OutOfBoundsException('QueueSourceMethod: очередь блоков исчерпана раньше, чем ожидал тест.');
         }
 
-        return $this->batches[$this->cursorIndex++];
+        $batch = $this->batches[$this->cursorIndex++];
+        if ($this->repeatStableWindows && $cursor->day !== null && $batch->httpStatus === 200) {
+            $this->windows[$window][$cursor->blockFrom] = $batch;
+            if ($batch->rowsTotal < config('crawler.platforms.eis.block_size')) {
+                $this->completeWindows[$window] = true;
+            }
+        }
+
+        return $batch;
     }
 
     public function collectDetails(string $registryNumber, Registry $registry): ProcurementDetails

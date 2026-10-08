@@ -37,7 +37,7 @@ final readonly class DetailRefetchSelector
 
         $rescanBefore = Carbon::now()->subMinutes($rescanIntervalMinutes);
 
-        return Procurement::query()
+        $query = Procurement::query()
             ->where('detail_failed', false)
             ->when($excludePlatformIds !== [], fn ($query) => $query->whereNotIn(
                 'registry_id',
@@ -58,11 +58,23 @@ final readonly class DetailRefetchSelector
                         $query->whereIn('status', self::RESCAN_STATUSES)
                             ->where('detail_fetched_at', '<=', $rescanBefore);
                     });
-            })
-            ->orderByRaw('CASE WHEN detail_fetched_at IS NULL THEN 0 ELSE 1 END')
-            ->orderBy('detail_fetched_at')
-            ->orderBy('id')
-            ->limit($limit)
-            ->cursor();
+            });
+
+        /** @var literal-string $table */
+        $table = (new Procurement)->getTable();
+        /** @var literal-string $registries */
+        $registries = (new Registry)->getTable();
+        $platformCount = max(1, Registry::query()->distinct()->count('platform_id'));
+        $ranked = $query->select("{$table}.*")
+            ->join($registries, "{$registries}.id", '=', "{$table}.registry_id")
+            ->selectRaw("row_number() OVER (PARTITION BY {$registries}.platform_id ORDER BY CASE WHEN detail_fetched_at IS NULL THEN 0 ELSE 1 END, detail_fetched_at, {$table}.id) AS source_fair_rank")
+            ->selectRaw("dense_rank() OVER (ORDER BY {$registries}.platform_id) AS source_platform_rank");
+
+        // Each round serves one record per platform. Rotate ties when the global limit is
+        // smaller than the number of platforms; a fixed platform ID must not win every tick.
+        return Procurement::query()->fromSub($ranked, $table)
+            ->orderBy('source_fair_rank')
+            ->orderByRaw('mod(source_platform_rank + ?, ?)', [intdiv(now()->getTimestamp(), 60), $platformCount])
+            ->orderBy('id')->limit(max(0, min(1000, $limit)))->cursor();
     }
 }

@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace Tests\Support\Postgres;
 
+use Illuminate\Support\Facades\ParallelTesting;
 use RuntimeException;
+use Tests\Support\TestEnvironmentGuard;
 
 /**
  * Запускает критические секции в отдельных PHP-процессах с реальными PostgreSQL-соединениями.
@@ -72,6 +74,15 @@ final class ConcurrentTransactions
      */
     private static function open(string $code, bool $waitForBarrier): array
     {
+        $database = config('database.connections.pgsql.database');
+        $token = ParallelTesting::token();
+        if ($token === false) {
+            TestEnvironmentGuard::assertBootstrapTestDatabase(app());
+        } else {
+            TestEnvironmentGuard::assertParallelTestDatabase(app(), $database, (string) $token);
+        }
+        $databaseExport = self::export($database);
+        $tokenExport = self::export($token === false ? false : (string) $token);
         $bootstrap = base_path('bootstrap/app.php');
         $autoload = base_path('vendor/autoload.php');
         $payload = base64_encode($code);
@@ -94,6 +105,11 @@ config(['database.connections.pgsql.database' => 'agelto_test']);
 \Tests\Support\TestFilesystemIsolation::configure(\$app);
 \Tests\Support\TestEnvironmentGuard::assertBootstrapTestDatabase(\$app);
 \Tests\Support\TestEnvironmentGuard::assertIsolatedTestFilesystem(\$app);
+if ({$tokenExport} !== false) {
+    config(['database.connections.pgsql.database' => {$databaseExport}]);
+    \Illuminate\Support\Facades\DB::purge('pgsql');
+    \Tests\Support\TestEnvironmentGuard::assertParallelTestDatabase(\$app, {$databaseExport}, {$tokenExport});
+}
 if ({$waitForBarrierExport}) {
     fwrite(STDOUT, "ready\\n");
     fgets(STDIN);

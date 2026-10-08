@@ -18,6 +18,7 @@ use App\Models\Procurement\Crawler\Run;
 use App\Models\Procurement\Platform\Registry;
 use App\Repositories\Procurement\Crawler\SourceCircuitRepository;
 use App\Services\Procurement\CrawlerRunManager;
+use App\Support\SecretRedactor;
 use Illuminate\Support\Carbon;
 use LogicException;
 use Throwable;
@@ -140,7 +141,7 @@ final readonly class SourceRunControl
             platformId: $this->platformIdFor($crawler),
             stage: SourceStage::Listing,
             kind: $kind,
-            detail: 'Блок не завершён, курсор сохранён: '.$kind->label().'. '.mb_substr($exception->getMessage(), 0, 500),
+            detail: 'Блок не завершён, курсор сохранён: '.$kind->label().'. '.mb_substr(SecretRedactor::text($exception->getMessage()), 0, 500),
             crawlerId: $crawler->id,
             runId: $run->id,
             cursor: $this->cursorOf($run),
@@ -161,7 +162,7 @@ final readonly class SourceRunControl
             return;
         }
 
-        if (! $this->runs->pause(run: $run, reason: self::InterruptedReason, error: mb_substr($exception->getMessage(), 0, 500))) {
+        if (! $this->runs->pause(run: $run, reason: self::InterruptedReason, error: mb_substr(SecretRedactor::text($exception->getMessage()), 0, 500))) {
             return;
         }
 
@@ -174,7 +175,7 @@ final readonly class SourceRunControl
         $this->events->report(new SourceEvent(
             code: CrawlerEventCode::RunInterrupted,
             platformId: $registry->platform_id,
-            message: "Прогон #{$run->id} прерван вне обработки блока и поставлен на паузу: ".mb_substr($exception->getMessage(), 0, 500),
+            message: "Прогон #{$run->id} прерван вне обработки блока и поставлен на паузу: ".mb_substr(SecretRedactor::text($exception->getMessage()), 0, 500),
             stage: SourceStage::Listing,
             crawlerId: $run->crawler_id,
             runId: $run->id,

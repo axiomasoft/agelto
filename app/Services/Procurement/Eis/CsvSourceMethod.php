@@ -18,18 +18,22 @@ use App\Enums\Procurement\ProcurementStatus;
 use App\Enums\Procurement\Proxy\ProxyFailureReason;
 use App\Enums\Procurement\Proxy\ProxyScope;
 use App\Exceptions\Procurement\Crawler\OutboundRequestDeadlineExceeded;
+use App\Exceptions\Procurement\Crawler\SourceResponseLimitExceeded;
 use App\Models\Procurement\Crawler\Crawler;
 use App\Models\Procurement\Platform\Platform;
 use App\Models\Procurement\Platform\Registry;
 use App\Models\Procurement\Procurement;
+use App\Services\Procurement\BoundedResponseReader;
 use App\Services\Procurement\Contracts\DeadlineAwareSourceMethod;
 use App\Services\Procurement\CrawlSettingsResolver;
 use App\Services\Procurement\Exceptions\CardPageMismatchException;
 use App\Services\Procurement\FetchLogger;
+use App\Services\Procurement\PlatformAdapterRegistry;
 use App\Services\Procurement\PlatformRequestBudget;
 use App\Services\Procurement\Proxy\ProxyBindingResolver;
 use App\Services\Procurement\Proxy\ProxyResolver;
 use App\Services\Procurement\SourceTlsTrust;
+use GuzzleHttp\Psr7\Utils;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Http;
@@ -90,7 +94,7 @@ final readonly class CsvSourceMethod implements DeadlineAwareSourceMethod
         ?EisListingQueryOverrides $queryOverrides = null,
         ?float $deadlineAt = null,
     ): ListingBatch {
-        $blockSize = $this->intConfig('crawler.eis.block_size', 500);
+        $blockSize = app(PlatformAdapterRegistry::class)->blockSize(registry: $crawler->registry()->firstOrFail());
         $from = $cursor->blockFrom;
         $to = $from + $blockSize - 1;
 
@@ -112,6 +116,7 @@ final readonly class CsvSourceMethod implements DeadlineAwareSourceMethod
         );
         $settings = $this->withRequestAttempts(settings: $settings, attempts: $queryOverrides?->requestAttempts);
 
+        $observedAt = now();
         $startedAt = hrtime(true);
 
         $request = $this->requestWithRetries(
@@ -145,7 +150,7 @@ final readonly class CsvSourceMethod implements DeadlineAwareSourceMethod
         $durationMs = (int) ((hrtime(true) - $startedAt) / 1_000_000);
 
         $utf8Body = mb_convert_encoding($response->body(), 'UTF-8', 'Windows-1251');
-        ['rows' => $rows, 'records' => $records, 'malformed' => $malformed, 'header' => $header] = $this->parseCsv(body: $utf8Body);
+        ['rows' => $rows, 'records' => $records, 'malformed' => $malformed, 'header' => $header] = $this->parseCsv(body: $utf8Body, deadlineAt: $deadlineAt);
 
         if ($malformed > 0) {
             Log::warning(message: 'CsvSourceMethod: CSV-записи листинга не совпали с заголовком по числу полей.', context: [
@@ -157,6 +162,7 @@ final readonly class CsvSourceMethod implements DeadlineAwareSourceMethod
         }
 
         return new ListingBatch(
+            observedAt: $observedAt,
             rows: $rows,
             rawBody: $utf8Body,
             dedupSignature: $rows[0][self::REGISTRY_NUMBER_COLUMN] ?? null,
@@ -395,7 +401,7 @@ final readonly class CsvSourceMethod implements DeadlineAwareSourceMethod
     {
         $tlsOptions = $this->tlsTrust->optionsFor($this->canonicalHost($endpoint));
 
-        $pendingRequest = Http::withOptions([...$lease->httpOptions(), ...$tlsOptions])
+        $pendingRequest = Http::withOptions([...$lease->httpOptions(), ...$tlsOptions, 'stream' => true, 'read_timeout' => 1])
             ->withUserAgent($this->stringConfig('crawler.user_agent'))
             ->withHeaders(['Referer' => 'https://zakupki.gov.ru/'])
             ->timeout($timeoutSeconds);
@@ -421,7 +427,14 @@ final readonly class CsvSourceMethod implements DeadlineAwareSourceMethod
         $startedAt = hrtime(true);
 
         try {
+            $bodyDeadline = microtime(true) + $timeoutSeconds;
             $response = $this->request(endpoint: $endpoint, queryParams: $queryParams, lease: $lease, timeoutSeconds: $timeoutSeconds);
+            $body = app(BoundedResponseReader::class)->read(
+                response: $response,
+                maxBytes: $this->intConfig('crawler.response_max_bytes', 8_388_608),
+                deadlineAt: $bodyDeadline,
+            );
+            $response = new Response($response->toPsrResponse()->withBody(Utils::streamFor($body)));
         } catch (ConnectionException $exception) {
             $this->proxyResolver->reportOutcome($lease, ProxyOutcome::failure($this->connectionFailureReason($exception)));
 
@@ -481,6 +494,7 @@ final readonly class CsvSourceMethod implements DeadlineAwareSourceMethod
                 return ['response' => $response, 'wait_ms' => $waitMs];
             }
 
+            $response->close();
             $this->waitBeforeRetry(settings: $settings, stage: $stage, deadlineAt: $deadlineAt);
         }
 
@@ -564,7 +578,7 @@ final readonly class CsvSourceMethod implements DeadlineAwareSourceMethod
      *
      * @return array{rows: list<array<string, string>>, records: int, malformed: int, header: list<string>|null}
      */
-    private function parseCsv(string $body): array
+    private function parseCsv(string $body, ?float $deadlineAt = null): array
     {
         $empty = ['rows' => [], 'records' => 0, 'malformed' => 0, 'header' => null];
 
@@ -572,6 +586,9 @@ final readonly class CsvSourceMethod implements DeadlineAwareSourceMethod
             return $empty;
         }
 
+        if (substr_count($body, ';') > 128_000) {
+            throw new SourceResponseLimitExceeded('CSV separator count exceeds the resource limit.');
+        }
         $stream = fopen('php://temp', 'w+b');
 
         if ($stream === false) {
@@ -592,6 +609,15 @@ final readonly class CsvSourceMethod implements DeadlineAwareSourceMethod
                     continue;
                 }
 
+                BoundedResponseReader::assertTime(deadlineAt: $deadlineAt);
+                if (count($fields) > 256) {
+                    throw new SourceResponseLimitExceeded('CSV column count exceeds the resource limit.');
+                }
+                foreach ($fields as $field) {
+                    if (strlen($field ?? '') > $this->intConfig('crawler.csv_max_field_bytes', 262_144)) {
+                        throw new SourceResponseLimitExceeded('CSV field exceeds the configured byte limit.');
+                    }
+                }
                 $fields = array_map(static fn (?string $field): string => $field ?? '', $fields);
 
                 if ($header === null) {
@@ -601,6 +627,9 @@ final readonly class CsvSourceMethod implements DeadlineAwareSourceMethod
                 }
 
                 $records++;
+                if ($records > $this->intConfig('crawler.csv_max_records', 1000)) {
+                    throw new SourceResponseLimitExceeded('CSV record count exceeds the configured limit.');
+                }
 
                 if (count($fields) !== count($header)) {
                     $malformed++;

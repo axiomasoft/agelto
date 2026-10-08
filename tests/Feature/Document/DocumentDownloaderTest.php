@@ -11,6 +11,7 @@ use App\Models\Procurement\Document\Document;
 use App\Models\Procurement\Document\DocumentVersion;
 use App\Models\Procurement\ProcurementEvent;
 use App\Services\Procurement\DocumentDownloader;
+use GuzzleHttp\Psr7\Utils;
 use Illuminate\Contracts\Filesystem\Filesystem;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
@@ -36,7 +37,7 @@ test('download первого файла создаёт версию, кладё
     Storage::fake('s3');
     activeDocumentDownloadProxy();
     $document = Document::factory()->create(['source_url' => 'https://zakupki.gov.ru/filestore/file.html?uid=aaaa-1111']);
-    Http::fake(['*filestore*' => Http::response(body: sampleDocumentContent(), status: 200)]);
+    Http::fake(['*filestore*' => fn () => Http::response(body: sampleDocumentContent(), status: 200)]);
 
     $version = app(DocumentDownloader::class)->download($document);
 
@@ -59,7 +60,7 @@ test('download того же контента повторно — no-op, вер
     Storage::fake('s3');
     activeDocumentDownloadProxy();
     $document = Document::factory()->create(['source_url' => 'https://zakupki.gov.ru/filestore/file.html?uid=aaaa-1111']);
-    Http::fake(['*filestore*' => Http::response(body: sampleDocumentContent(), status: 200)]);
+    Http::fake(['*filestore*' => fn () => Http::response(body: sampleDocumentContent(), status: 200)]);
 
     app(DocumentDownloader::class)->download($document);
     app(DocumentDownloader::class)->download($document);
@@ -72,7 +73,7 @@ test('same-hash retry восстанавливает потерянный object
     Storage::fake('s3');
     activeDocumentDownloadProxy();
     $document = Document::factory()->create(['source_url' => 'https://zakupki.gov.ru/filestore/file.html?uid=heal-same-hash']);
-    Http::fake(['*filestore*' => Http::response(body: sampleDocumentContent(), status: 200)]);
+    Http::fake(['*filestore*' => fn () => Http::response(body: sampleDocumentContent(), status: 200)]);
 
     $version = app(DocumentDownloader::class)->download($document);
     Storage::disk('s3')->delete($version->storage_path);
@@ -90,7 +91,7 @@ test('same-hash retry исправляет повреждённый canonical ob
     activeDocumentDownloadProxy();
     $document = Document::factory()->create(['source_url' => 'https://zakupki.gov.ru/filestore/file.html?uid=heal-corrupt-hash']);
     $content = sampleDocumentContent();
-    Http::fake(['*filestore*' => Http::response(body: $content, status: 200)]);
+    Http::fake(['*filestore*' => fn () => Http::response(body: $content, status: 200)]);
 
     $version = app(DocumentDownloader::class)->download($document);
     expect($version)->not->toBeNull();
@@ -109,7 +110,7 @@ test('false staging write не создаёт version или event и не уд�
     Sleep::fake();
     activeDocumentDownloadProxy();
     $document = Document::factory()->create(['source_url' => 'https://zakupki.gov.ru/filestore/file.html?uid=false-write']);
-    Http::fake(['*filestore*' => Http::response(body: sampleDocumentContent(), status: 200)]);
+    Http::fake(['*filestore*' => fn () => Http::response(body: sampleDocumentContent(), status: 200)]);
     $disk = Mockery::mock(Filesystem::class);
     $disk->shouldReceive('writeStream')->once()->with(
         Mockery::pattern('/\.staging\./'),
@@ -128,7 +129,7 @@ test('storage exception не создаёт version или event и не уда�
     Sleep::fake();
     activeDocumentDownloadProxy();
     $document = Document::factory()->create(['source_url' => 'https://zakupki.gov.ru/filestore/file.html?uid=exception-write']);
-    Http::fake(['*filestore*' => Http::response(body: sampleDocumentContent(), status: 200)]);
+    Http::fake(['*filestore*' => fn () => Http::response(body: sampleDocumentContent(), status: 200)]);
     $disk = Mockery::mock(Filesystem::class);
     $disk->shouldReceive('writeStream')->once()->with(
         Mockery::pattern('/\.staging\./'),
@@ -150,7 +151,7 @@ test('concurrent canonical winner is verified before one version and event are f
     $content = sampleDocumentContent();
     $hash = hash('sha256', $content);
     $canonicalPath = 'documents/'.substr($hash, 0, 2)."/{$hash}";
-    Http::fake(['*filestore*' => Http::response(body: $content, status: 200)]);
+    Http::fake(['*filestore*' => fn () => Http::response(body: $content, status: 200)]);
     $streamOf = static function () use ($content): mixed {
         $stream = fopen('php://temp', 'w+b');
         fwrite($stream, $content);
@@ -201,7 +202,7 @@ test('download при ошибке сети записывает error-блок 
     Sleep::fake();
     activeDocumentDownloadProxy();
     $document = Document::factory()->create(['source_url' => 'https://zakupki.gov.ru/filestore/file.html?uid=aaaa-1111']);
-    Http::fake(['*filestore*' => Http::response(body: 'server error', status: 500)]);
+    Http::fake(['*filestore*' => fn () => Http::response(body: 'server error', status: 500)]);
 
     $version = app(DocumentDownloader::class)->download($document);
 
@@ -229,7 +230,7 @@ test('download без активной proxy-привязки идёт напр�
     Storage::fake('s3');
     Log::spy();
     $document = Document::factory()->create(['source_url' => 'https://zakupki.gov.ru/filestore/file.html?uid=aaaa-1111']);
-    Http::fake(['*filestore*' => Http::response(body: sampleDocumentContent(), status: 200)]);
+    Http::fake(['*filestore*' => fn () => Http::response(body: sampleDocumentContent(), status: 200)]);
 
     $version = app(DocumentDownloader::class)->download($document);
 
@@ -261,7 +262,7 @@ test('download повторно валидирует redirect target и не с�
     $source = 'https://zakupki.gov.ru/filestore?uid=redirect';
     $document = Document::factory()->create(['source_url' => $source]);
     Http::fake([
-        $source => Http::response('', 302, ['Location' => 'https://127.0.0.1/private']),
+        $source => fn () => Http::response('', 302, ['Location' => 'https://127.0.0.1/private']),
     ]);
 
     expect(app(DocumentDownloader::class)->download($document))->toBeNull()
@@ -276,7 +277,7 @@ test('download останавливает фактический поток св
     activeDocumentDownloadProxy();
     config(['crawler.documents_max_bytes' => 8]);
     $document = Document::factory()->create(['source_url' => 'https://zakupki.gov.ru/filestore?uid=large']);
-    Http::fake(['*filestore*' => Http::response('123456789', 200, ['Content-Length' => '1'])]);
+    Http::fake(['*filestore*' => fn () => Http::response('123456789', 200, ['Content-Length' => '1'])]);
 
     expect(app(DocumentDownloader::class)->download($document))->toBeNull()
         ->and($document->fresh()->attempts)->toBe(1);
@@ -306,10 +307,80 @@ test('исчерпанные повторы 429 не превышают наст
     activeDocumentDownloadProxy();
     config(['crawler.stages.document.retries' => 2]);
     $document = Document::factory()->create(['source_url' => 'https://zakupki.gov.ru/filestore/file.html?uid=aaaa-1111']);
-    Http::fake(['*filestore*' => Http::response(body: 'slow down', status: 429)]);
+    Http::fake(['*filestore*' => fn () => Http::response(body: 'slow down', status: 429)]);
 
     expect(app(DocumentDownloader::class)->download($document))->toBeNull();
 
     Http::assertSentCount(2);
     expect(Fetch::query()->where('stage', 'document')->count())->toBe(2);
+});
+
+test('единый deadline прекращает повторы 503 без публикации частичного документа', function (): void {
+    Sleep::fake();
+    Storage::fake('s3');
+    activeDocumentDownloadProxy();
+    config(['crawler.stages.document.min_pause_ms' => 0, 'crawler.stages.document.max_pause_ms' => 0, 'crawler.stages.document.retry_delay_ms' => 5000]);
+    $document = Document::factory()->create(['source_url' => 'https://zakupki.gov.ru/filestore/file.html?uid=deadline']);
+    Http::fake(['*' => fn () => Http::response('unavailable', 503)]);
+    expect(app(DocumentDownloader::class)->download($document, deadlineAt: microtime(true) + 0.1))->toBeNull();
+    Http::assertSentCount(1);
+    expect($document->refresh()->attempts)->toBe(1)
+        ->and($document->next_retry_at)->not->toBeNull()
+        ->and(DocumentVersion::query()->where('document_id', $document->id)->count())->toBe(0)
+        ->and(Storage::disk('s3')->allFiles())->toBe([]);
+});
+
+test('цепочка redirect закрывает каждый поток и расходует HTTP бюджет на каждый переход', function (): void {
+    Sleep::fake();
+    Storage::fake('s3');
+    activeDocumentDownloadProxy();
+    $document = Document::factory()->create(['source_url' => 'https://zakupki.gov.ru/filestore/file.html?uid=loop']);
+    $streams = [];
+    Http::fake(['*' => function () use (&$streams) {
+        $stream = Utils::streamFor('redirect body');
+        $streams[] = $stream;
+
+        return Http::response($stream, 302, ['Location' => '/filestore/file.html?uid=loop']);
+    }]);
+    expect(app(DocumentDownloader::class)->download($document))->toBeNull();
+    Http::assertSentCount(4);
+    expect(Fetch::query()->where('procurement_id', $document->procurement_id)->count())->toBe(4)
+        ->and(collect($streams)->every(fn ($stream) => ! $stream->isReadable()))->toBeTrue()
+        ->and(DocumentVersion::query()->count())->toBe(0);
+});
+
+test('deadline на проверке canonical storage не публикует версию и удаляет staging', function (): void {
+    Sleep::fake();
+    activeDocumentDownloadProxy();
+    config(['crawler.stages.document.min_pause_ms' => 0, 'crawler.stages.document.max_pause_ms' => 0]);
+    $document = Document::factory()->create(['source_url' => 'https://zakupki.gov.ru/filestore?uid=storage-deadline']);
+    $content = sampleDocumentContent();
+    $hash = hash('sha256', $content);
+    $path = 'documents/'.substr($hash, 0, 2)."/{$hash}";
+    Http::fake(['*' => fn () => Http::response($content, 200)]);
+    $streamOf = static function () use ($content) {
+        $stream = fopen('php://temp', 'w+b');
+        fwrite($stream, $content);
+        rewind($stream);
+
+        return $stream;
+    };
+    $deadline = microtime(true) + 1;
+    $disk = Mockery::mock(Filesystem::class);
+    $disk->shouldReceive('writeStream')->once()->with(Mockery::pattern('/\.staging\./'), Mockery::type('resource'))->andReturnTrue();
+    $disk->shouldReceive('readStream')->twice()->with(Mockery::pattern('/\.staging\./'))->andReturnUsing($streamOf);
+    $disk->shouldReceive('exists')->once()->with($path)->andReturnFalse();
+    $disk->shouldReceive('writeStream')->once()->with($path, Mockery::type('resource'))->andReturnTrue();
+    $disk->shouldReceive('readStream')->once()->with($path)->andReturnUsing(static function () use ($deadline, $streamOf) {
+        usleep((int) (max(0, $deadline - microtime(true)) * 1_000_000) + 10_000);
+
+        return $streamOf();
+    });
+    $disk->shouldReceive('exists')->once()->with(Mockery::pattern('/\.staging\./'))->andReturnTrue();
+    $disk->shouldReceive('delete')->once()->with(Mockery::pattern('/\.staging\./'))->andReturnTrue();
+    Storage::shouldReceive('disk')->once()->with('s3')->andReturn($disk);
+    expect(app(DocumentDownloader::class)->download($document, deadlineAt: $deadline))->toBeNull()
+        ->and($document->refresh()->attempts)->toBe(1)
+        ->and($document->next_retry_at)->not->toBeNull()
+        ->and(DocumentVersion::query()->where('document_id', $document->id)->count())->toBe(0);
 });

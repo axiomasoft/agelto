@@ -93,6 +93,7 @@ final readonly class EisCsvRowMapper implements ListingRowMapper, ListingSchemaA
             publishedAt: $publishedAt,
             sourceUpdatedAt: $sourceUpdatedAt['value'],
             sourceUpdatedAtHasDayPrecision: $sourceUpdatedAt['hasDayPrecision'],
+            sourceUpdatedBefore: $sourceUpdatedAt['hasDayPrecision'] ? $this->clock->endOfSourceDay($sourceUpdatedAt['value']) : null,
             ikz: $this->nullableString(value: $row[self::IKZ_COLUMN] ?? null),
             procedureType: $procedureType,
             procedureTypeRaw: $procedureTypeRaw,

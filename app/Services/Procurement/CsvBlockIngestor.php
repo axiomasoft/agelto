@@ -7,6 +7,7 @@ namespace App\Services\Procurement;
 use App\Actions\Procurement\Crawler\StoreRawFetchArtifactAction;
 use App\Dto\Procurement\Crawler\FetchResult;
 use App\Dto\Procurement\Crawler\ListingBatch;
+use App\Dto\Procurement\Crawler\SkippedListingRow;
 use App\Dto\Procurement\ProcurementSnapshotData;
 use App\Enums\Procurement\Crawler\CrawlStage;
 use App\Exceptions\Procurement\Crawler\ExecutionLeaseLost;
@@ -17,6 +18,8 @@ use App\Repositories\Procurement\ProcurementReadRepository;
 use App\Services\Procurement\Contracts\ListingRowMapper;
 use App\Services\Procurement\Contracts\ListingSchemaAware;
 use App\Services\Procurement\SourceControl\SourceFailureClassifier;
+use App\Support\SecretRedactor;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Log;
 
 /**
@@ -30,7 +33,7 @@ final readonly class CsvBlockIngestor
     public function __construct(
         private ProcurementIngestProcessor $ingestProcessor,
         private ProcurementReadRepository $procurements,
-        private ListingRowMapper $rowMapper,
+        private PlatformAdapterRegistry $adapters,
         private FetchLogger $fetches,
         private CrawlerRunManager $runs,
         private StoreRawFetchArtifactAction $rawArtifacts,
@@ -38,10 +41,12 @@ final readonly class CsvBlockIngestor
         private SourceFailureClassifier $failures,
     ) {}
 
-    public function ingest(Crawler $crawler, Run $run, ListingBatch $batch): FetchResult
+    public function ingest(Crawler $crawler, Run $run, ListingBatch $batch, ?string $artifactRef = null): FetchResult
     {
+        $rowMapper = $this->adapters->listingMapper(registry: $crawler->registry ?? throw new \LogicException('Crawler registry is missing.'));
         $skipped = 0;
         $unmapped = 0;
+        $intentionalSkips = 0;
         $rowsErrors = 0;
         $snapshots = [];
         $httpRejected = $batch->httpStatus < 200 || $batch->httpStatus >= 300;
@@ -49,15 +54,22 @@ final readonly class CsvBlockIngestor
         // Проверка до построчного разбора: не 2xx — файл не скачался; нет обязательных колонок
         // в заголовке — скачано не то (смена формата, HTML-заглушка). Такой блок не маппится
         // построчно: тысячи «ошибок строк» вместо одного точного отказа никому не помогут.
-        $missingColumns = $httpRejected ? [] : $this->missingRequiredColumns(batch: $batch);
+        $missingColumns = $httpRejected ? [] : $this->missingRequiredColumns(batch: $batch, rowMapper: $rowMapper);
         $preflightRejected = $httpRejected || $missingColumns !== [];
 
         foreach ($preflightRejected ? [] : $batch->rows as $row) {
             try {
-                $snapshot = $this->rowMapper->map(row: $row, crawler: $crawler);
+                $snapshot = $rowMapper->map(row: $row, crawler: $crawler);
             } catch (\Throwable $exception) {
                 $this->logRowFailure(crawler: $crawler, run: $run, exception: $exception, registryNumber: null);
                 $rowsErrors++;
+
+                continue;
+            }
+
+            if ($snapshot instanceof SkippedListingRow) {
+                $skipped++;
+                $intentionalSkips++;
 
                 continue;
             }
@@ -83,11 +95,13 @@ final readonly class CsvBlockIngestor
         }
 
         $oldestUpdateSeen = null;
+        $oldestUpdateBefore = null;
         $oldestUpdateSeenHasDayPrecision = false;
 
         foreach ($snapshots as $snapshot) {
             if ($oldestUpdateSeen === null || $snapshot->sourceUpdatedAt->lt($oldestUpdateSeen)) {
                 $oldestUpdateSeen = $snapshot->sourceUpdatedAt;
+                $oldestUpdateBefore = $snapshot->sourceUpdatedBefore;
                 $oldestUpdateSeenHasDayPrecision = $snapshot->sourceUpdatedAtHasDayPrecision;
 
                 continue;
@@ -95,6 +109,7 @@ final readonly class CsvBlockIngestor
 
             if ($snapshot->sourceUpdatedAt->eq($oldestUpdateSeen) && $snapshot->sourceUpdatedAtHasDayPrecision) {
                 $oldestUpdateSeenHasDayPrecision = true;
+                $oldestUpdateBefore = $snapshot->sourceUpdatedBefore ?? $oldestUpdateBefore;
             }
         }
 
@@ -112,7 +127,7 @@ final readonly class CsvBlockIngestor
             }
 
             try {
-                [$isNew, $isUpdated] = $this->ingestSnapshot(snapshot: $snapshot, run: $run);
+                [$isNew, $isUpdated] = $this->ingestSnapshot(snapshot: $snapshot, run: $run, observedAt: $batch->observedAt);
                 $rowsParsed++;
                 $new += $isNew ? 1 : 0;
                 $updated += $isUpdated ? 1 : 0;
@@ -122,7 +137,7 @@ final readonly class CsvBlockIngestor
             }
         }
 
-        $artifactRef = $this->storeRawArtifact(crawler: $crawler, run: $run, batch: $batch);
+        $artifactRef ??= $this->stageArtifact(crawler: $crawler, run: $run, batch: $batch);
 
         $fetch = $this->fetches->log(stage: CrawlStage::Listing, run: $run, procurementId: null, attributes: [
             'crawler_run_id' => $run->id,
@@ -144,6 +159,18 @@ final readonly class CsvBlockIngestor
             'wait_ms' => $batch->waitMs,
         ]);
 
+        // Отказ только классифицируется; в `SourceFailureReporter` его передаёт вызывающий ПОСЛЕ
+        // транзакции блока (`SourceRunControl::afterBlock`), чтобы откат не стёр запись о проблеме.
+        $rowFailures = $rowsErrors + $unmapped + $batch->rowsMalformed;
+        $failure = $this->failures->classifyResponse(
+            httpStatus: $batch->httpStatus,
+            records: $batch->rowsTotal,
+            mapped: $mappedRows + $intentionalSkips,
+            rowFailures: $rowFailures,
+            missingColumns: $missingColumns,
+            emptyBody: $batch->emptyBody,
+        );
+
         $stats = $run->stats === null ? [] : $this->stringKeyedArray($run->stats->toArray());
         $totalWait = $stats['budget_wait_total_ms'] ?? 0;
         $maxWait = $stats['budget_wait_max_ms'] ?? 0;
@@ -153,23 +180,12 @@ final readonly class CsvBlockIngestor
         }
 
         if (! $this->runs->updateStats(run: $run, stats: array_merge($stats, [
+            ...($failure === null ? ['listing_last_success_at' => now()->toIso8601String()] : []),
             'budget_wait_total_ms' => $totalWait + $batch->waitMs,
             'budget_wait_max_ms' => max($maxWait, $batch->waitMs),
         ]))) {
             throw ExecutionLeaseLost::noLongerOwned();
         }
-
-        // Отказ только классифицируется; в `SourceFailureReporter` его передаёт вызывающий ПОСЛЕ
-        // транзакции блока (`SourceRunControl::afterBlock`), чтобы откат не стёр запись о проблеме.
-        $rowFailures = $rowsErrors + $unmapped + $batch->rowsMalformed;
-        $failure = $this->failures->classifyResponse(
-            httpStatus: $batch->httpStatus,
-            records: $batch->rowsTotal,
-            mapped: $mappedRows,
-            rowFailures: $rowFailures,
-            missingColumns: $missingColumns,
-            emptyBody: $batch->emptyBody,
-        );
 
         return new FetchResult(
             rowsTotal: $batch->rowsTotal,
@@ -180,6 +196,7 @@ final readonly class CsvBlockIngestor
             rowsErrors: $rowsErrors + $batch->rowsMalformed,
             rowsDuplicated: $duplicates,
             oldestUpdateSeen: $oldestUpdateSeen,
+            oldestUpdateBefore: $oldestUpdateBefore,
             oldestUpdateSeenHasDayPrecision: $oldestUpdateSeenHasDayPrecision,
             failure: $failure,
             failureDetail: $failure === null ? null
@@ -221,12 +238,12 @@ final readonly class CsvBlockIngestor
     /**
      * @return array{0: bool, 1: bool} [этоНоваяЗакупка, этоОбновлённаяРевизия]
      */
-    private function ingestSnapshot(ProcurementSnapshotData $snapshot, Run $run): array
+    private function ingestSnapshot(ProcurementSnapshotData $snapshot, Run $run, ?Carbon $observedAt): array
     {
         $existing = $this->procurements->findProcurement(registryId: $snapshot->registryId, registryNumber: $snapshot->registryNumber);
         $revisionCountBefore = $existing === null ? 0 : $existing->revision_count;
 
-        $procurement = $this->ingestProcessor->ingest(data: $snapshot, crawlerRunId: $run->id);
+        $procurement = $this->ingestProcessor->ingest(data: $snapshot, crawlerRunId: $run->id, observedAt: $observedAt);
 
         if ($existing === null) {
             return [true, false];
@@ -256,7 +273,7 @@ final readonly class CsvBlockIngestor
         return array_values(array_filter($numbers, is_string(...)));
     }
 
-    private function storeRawArtifact(Crawler $crawler, Run $run, ListingBatch $batch): string
+    public function stageArtifact(Crawler $crawler, Run $run, ListingBatch $batch): string
     {
         $from = $batch->requestParams['from'] ?? '0';
 
@@ -293,7 +310,7 @@ final readonly class CsvBlockIngestor
                 'crawler_id' => $crawler->id,
                 'registry_id' => $crawler->registry_id,
                 'registry_number' => $registryNumber,
-                'exception' => $exception->getMessage(),
+                'exception' => SecretRedactor::text($exception->getMessage()),
             ],
         );
     }
@@ -325,9 +342,9 @@ final readonly class CsvBlockIngestor
      *
      * @return list<string>
      */
-    private function missingRequiredColumns(ListingBatch $batch): array
+    private function missingRequiredColumns(ListingBatch $batch, ListingRowMapper $rowMapper): array
     {
-        if (! $this->rowMapper instanceof ListingSchemaAware) {
+        if (! $rowMapper instanceof ListingSchemaAware) {
             return [];
         }
 
@@ -337,6 +354,6 @@ final readonly class CsvBlockIngestor
             return [];
         }
 
-        return array_values(array_diff($this->rowMapper->requiredColumns(), $header));
+        return array_values(array_diff($rowMapper->requiredColumns(), $header));
     }
 }

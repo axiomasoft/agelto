@@ -40,6 +40,9 @@ final class RunDeltaScan extends Command
         foreach ($crawlers as $crawler) {
             try {
                 $result = $processor->run(crawler: $crawler);
+                if ($result->outcome === DeltaScanOutcome::MissingArchiveProfile) {
+                    $hasFailure = true;
+                }
                 $message = match ($result->outcome) {
                     DeltaScanOutcome::MissingArchiveProfile => "Профиль «{$crawler->name}» (#{$crawler->id}): нет активного archive-профиля реестра, пропущен.",
                     DeltaScanOutcome::Busy => "Профиль «{$crawler->name}» (#{$crawler->id}): delta-scan уже исполняется другим owner, пропущен.",

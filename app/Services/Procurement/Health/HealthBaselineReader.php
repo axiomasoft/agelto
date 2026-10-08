@@ -6,13 +6,21 @@ namespace App\Services\Procurement\Health;
 
 use App\Dto\Procurement\Health\HealthBaseline;
 use App\Exceptions\Procurement\Health\HealthBaselineUnavailableException;
+use App\Models\Procurement\Platform\Platform;
+use App\Models\Procurement\Platform\Registry;
+use App\Services\Procurement\PlatformAdapterRegistry;
 use JsonException;
 
 final readonly class HealthBaselineReader
 {
-    public function read(): HealthBaseline
+    public function read(?Registry $registry = null, ?Platform $platform = null): HealthBaseline
     {
-        $configuredPath = config('crawler.health.baseline_path');
+        $expectedPlatform = $registry === null ? $platform : $registry->platform;
+        $code = $expectedPlatform?->getAttribute('code');
+        $platformCode = is_string($code) ? $code : '';
+        $configuredPath = $registry !== null
+            ? app(PlatformAdapterRegistry::class)->baselinePath(registry: $registry)
+            : ($platform === null ? config('crawler.health.baseline_path') : config("crawler.platforms.{$platformCode}.baseline_path"));
 
         if (! is_string($configuredPath) || $configuredPath === '') {
             throw new HealthBaselineUnavailableException('путь к эталону должен быть непустой строкой');
@@ -47,6 +55,9 @@ final readonly class HealthBaselineReader
         }
 
         $platform = $baseline['platform'];
+        if ($expectedPlatform !== null && $platform !== $platformCode) {
+            throw new HealthBaselineUnavailableException('эталон принадлежит другой площадке');
+        }
         $capturedAt = $baseline['captured_at'];
         $source = $baseline['source'];
         $cardTabs = $baseline['card_tabs'];

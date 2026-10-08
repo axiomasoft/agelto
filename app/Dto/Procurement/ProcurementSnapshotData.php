@@ -41,6 +41,7 @@ final readonly class ProcurementSnapshotData
         public ?string $detailUrl = null,
         public ?string $registryGuid = null,
         public ?array $attributes = null,
+        public ?Carbon $sourceUpdatedBefore = null,
     ) {}
 
     /**

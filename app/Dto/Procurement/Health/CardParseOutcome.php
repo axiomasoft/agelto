@@ -10,20 +10,20 @@ use Spatie\LaravelData\Data;
  * Измеримый исход разбора одной вкладки карточки ЕИС. Это снимок последнего разбора, а не
  * журнал: его сохраняет только `ProcurementStoreRepository::markDetailFetched()`.
  *
- * @param  list<array{selector: string, critical: bool, matches: int}>  $anchors
+ * @param  list<array{selector: string, critical: bool, matches: int, min_matches?: int}>  $anchors
  */
 final class CardParseOutcome extends Data
 {
     public function __construct(
         public string $status,
-        /** @var list<array{selector: string, critical: bool, matches: int}> */
+        /** @var list<array{selector: string, critical: bool, matches: int, min_matches?: int}> */
         public array $anchors,
         public int $anchorsMissingCritical,
         public int $keyFieldsExpected,
         public int $keyFieldsFilled,
     ) {}
 
-    /** @return array{status: string, anchors: list<array{selector: string, critical: bool, matches: int}>, anchors_missing_critical: int, key_fields_expected: int, key_fields_filled: int} */
+    /** @return array{status: string, anchors: list<array{selector: string, critical: bool, matches: int, min_matches?: int}>, anchors_missing_critical: int, key_fields_expected: int, key_fields_filled: int} */
     public function toPayload(): array
     {
         return [

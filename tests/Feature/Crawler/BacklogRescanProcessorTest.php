@@ -82,7 +82,7 @@ function backlogFreshBatch(array $rows, string $signature): ListingBatch
 
 function useBacklogRescanQueueSourceMethod(array $batches): void
 {
-    app()->instance(QueueSourceMethod::class, new QueueSourceMethod(batches: $batches));
+    app()->instance(QueueSourceMethod::class, new QueueSourceMethod(repeatStableWindows: true, batches: $batches));
 
     config(['crawler.platforms.eis.source_methods' => [
         SourceMethodEnum::Csv->value => QueueSourceMethod::class,
@@ -141,7 +141,7 @@ beforeEach(function () {
     Sleep::fake();
     Storage::fake('s3');
     config([
-        'crawler.eis.block_size' => 2,
+        'crawler.platforms.eis.block_size' => 2,
         'crawler.archive.price_ceiling' => 100,
         'crawler.archive.min_price_interval' => 10,
         'crawler.archive.max_blocks_per_window' => 50,
@@ -469,7 +469,7 @@ return ['expired' => true];
 PHP);
         $takeover = ConcurrentTransactions::execute(<<<PHP
 config([
-    'crawler.eis.block_size' => 2,
+    'crawler.platforms.eis.block_size' => 2,
     'crawler.archive.price_ceiling' => 100,
     'crawler.archive.min_price_interval' => 10,
     'crawler.archive.max_blocks_per_window' => 50,
@@ -481,7 +481,7 @@ config([
 
     public function collectListing(\App\Models\Procurement\Crawler\Crawler \$crawler, \App\Dto\Procurement\Crawler\ListingCursor \$cursor): \App\Dto\Procurement\Crawler\ListingBatch
     {
-        if (\$cursor->day !== '2026-09-01' || \$cursor->blockFrom !== 501 || \$cursor->priceStack !== ['0:100']) {
+        if (\$cursor->day !== '2026-09-01' || \$cursor->blockFrom !== (\$this->calls === 0 ? 501 : 1) || \$cursor->priceStack !== ['0:100']) {
             throw new \RuntimeException('Scanner did not resume the durable backlog checkpoint.');
         }
 
@@ -525,7 +525,7 @@ PHP);
         expect($owner['acquired'])->toBeTrue()
             ->and($owner['backend_pid'])->not->toBe($takeover['backend_pid'])
             ->and($takeover['processed'])->toBe(1)
-            ->and($takeover['calls'])->toBe(1)
+            ->and($takeover['calls'])->toBe(2)
             ->and($state['status'])->toBe(RunStatus::Completed->value)
             ->and($state['cursor']['day'])->toBe('2026-09-02')
             ->and($state['fresh_stats']['backlog_rescanned_at'])->not->toBeNull();

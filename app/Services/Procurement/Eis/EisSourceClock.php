@@ -28,6 +28,11 @@ final readonly class EisSourceClock
         $this->sourceTimezone = new CarbonTimeZone(is_string($configured) && $configured !== '' ? $configured : 'Europe/Moscow');
     }
 
+    public function endOfSourceDay(Carbon $start): Carbon
+    {
+        return $start->copy()->setTimezone($this->sourceTimezone)->startOfDay()->addDay()->utc();
+    }
+
     public function sourceTimezone(): CarbonTimeZone
     {
         return $this->sourceTimezone;

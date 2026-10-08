@@ -11,6 +11,8 @@ use App\Exceptions\Procurement\Crawler\PlatformAdapterConfigurationException;
 use App\Exceptions\Procurement\Crawler\PlatformAdapterUnavailableException;
 use App\Models\Procurement\Platform\Platform;
 use App\Models\Procurement\Platform\Registry;
+use App\Services\Procurement\Contracts\DetailParser;
+use App\Services\Procurement\Contracts\ListingRowMapper;
 use App\Services\Procurement\Contracts\SourceMethod as SourceMethodContract;
 use Illuminate\Database\Eloquent\Model;
 use Spatie\LaravelData\Data;
@@ -51,6 +53,7 @@ final readonly class PlatformAdapterRegistry
                 platformCode: $platformCode,
                 sourceMethods: $sourceMethods,
                 registryFilters: $registryFilters,
+                capabilities: self::stringKeyedMap(value: $definition, field: "adapter {$platformCode}"),
             );
         }
 
@@ -100,6 +103,73 @@ final readonly class PlatformAdapterRegistry
     public function scopeMessage(Registry $registry): string
     {
         return $this->forRegistry(registry: $registry)->scopeMessage(registryCode: self::stringAttribute(model: $registry, attribute: 'code'));
+    }
+
+    public function listingMapper(Registry $registry): ListingRowMapper
+    {
+        $mapper = app($this->component($registry, 'listing_mapper', ListingRowMapper::class));
+        assert($mapper instanceof ListingRowMapper);
+
+        return $mapper;
+    }
+
+    public function detailMethod(Registry $registry): SourceMethod
+    {
+        $method = $this->capability($registry, 'detail_source_method');
+        $resolved = is_string($method) ? SourceMethod::tryFrom($method) : null;
+        if ($resolved === null) {
+            throw new PlatformAdapterConfigurationException('Adapter detail_source_method is required.');
+        }
+
+        return $resolved;
+    }
+
+    public function detailParser(Registry $registry): DetailParser
+    {
+        $parser = app($this->component($registry, 'detail_parser', DetailParser::class));
+        assert($parser instanceof DetailParser);
+
+        return $parser;
+    }
+
+    public function blockSize(Registry $registry): int
+    {
+        $size = $this->capability($registry, 'block_size');
+        if (! is_int($size) || $size < 1 || $size > 1000) {
+            throw new PlatformAdapterConfigurationException('Adapter block_size must be between 1 and 1000.');
+        }
+
+        return $size;
+    }
+
+    public function baselinePath(Registry $registry): string
+    {
+        $path = $this->capability($registry, 'baseline_path');
+        if (! is_string($path) || $path === '') {
+            throw new PlatformAdapterConfigurationException('Adapter baseline_path is required.');
+        }
+
+        return $path;
+    }
+
+    /** @return class-string */
+    private function component(Registry $registry, string $key, string $contract): string
+    {
+        $class = $this->capability($registry, $key);
+        if (! is_string($class) || ! is_a($class, $contract, true)) {
+            throw new PlatformAdapterConfigurationException("Adapter {$key} must implement {$contract}.");
+        }
+
+        return $class;
+    }
+
+    private function capability(Registry $registry, string $key): mixed
+    {
+        $capabilities = $this->forRegistry($registry)->capabilities;
+        $overrides = $capabilities['registries'] ?? [];
+        $override = is_array($overrides) ? ($overrides[$registry->code] ?? []) : [];
+
+        return is_array($override) && array_key_exists($key, $override) ? $override[$key] : ($capabilities[$key] ?? null);
     }
 
     /** @return array<string, mixed> */

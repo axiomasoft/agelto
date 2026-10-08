@@ -102,7 +102,7 @@ function archiveScannerBatch(array $registryNumbers, ?string $dedupSignature): L
 
 function useArchiveQueueSourceMethod(array $batches): void
 {
-    app()->instance(QueueSourceMethod::class, new QueueSourceMethod(batches: $batches));
+    app()->instance(QueueSourceMethod::class, new QueueSourceMethod(repeatStableWindows: true, batches: $batches));
 
     config(['crawler.platforms.eis.source_methods' => [
         SourceMethodEnum::Csv->value => QueueSourceMethod::class,
@@ -124,7 +124,7 @@ beforeEach(function () {
     Sleep::fake();
     Storage::fake('s3');
     config([
-        'crawler.eis.block_size' => 2,
+        'crawler.platforms.eis.block_size' => 2,
         'crawler.archive.price_ceiling' => 100,
         'crawler.archive.min_price_interval' => 10,
         'crawler.archive.max_blocks_per_window' => 50,
