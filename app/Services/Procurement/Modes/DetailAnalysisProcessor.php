@@ -57,6 +57,10 @@ final readonly class DetailAnalysisProcessor
 
     public function run(Procurement $procurement, ?float $deadlineAt = null): bool
     {
+        if (! config('crawler.downstream_enabled', true)) {
+            return false;
+        }
+
         try {
             $registry = $procurement->registry;
 

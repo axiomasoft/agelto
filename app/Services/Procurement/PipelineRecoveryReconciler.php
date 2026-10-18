@@ -30,6 +30,10 @@ final readonly class PipelineRecoveryReconciler
 
     public function reconcile(int $limit): int
     {
+        if (! config('crawler.downstream_enabled', true)) {
+            return 0;
+        }
+
         if ($limit <= 0) {
             throw new \UnexpectedValueException('The recovery limit must be a positive integer.');
         }

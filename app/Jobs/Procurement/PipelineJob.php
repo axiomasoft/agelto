@@ -34,6 +34,10 @@ abstract class PipelineJob implements ShouldQueue
 
     final public function handle(): void
     {
+        if (! config('crawler.downstream_enabled', true)) {
+            return;
+        }
+
         $this->executionStartedAt = microtime(as_float: true);
 
         if (! $this->statusGuardPassed()) {

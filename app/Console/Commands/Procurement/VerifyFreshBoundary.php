@@ -7,6 +7,7 @@ namespace App\Console\Commands\Procurement;
 use App\Dto\Procurement\Crawler\EisListingQueryOverrides;
 use App\Dto\Procurement\Crawler\ListingCursor;
 use App\Enums\Procurement\Crawler\CrawlerMode;
+use App\Exceptions\Procurement\Crawler\InvalidListingResponse;
 use App\Models\Procurement\Crawler\Crawler;
 use App\Services\Procurement\Eis\CsvSourceMethod;
 use Carbon\CarbonImmutable;
@@ -74,6 +75,23 @@ final class VerifyFreshBoundary extends Command
                         ),
                     );
                     $consecutiveErrors = 0;
+                } catch (InvalidListingResponse $exception) {
+                    $consecutiveErrors++;
+                    $requests[] = [
+                        'evidence_id' => $requestEvidenceId,
+                        'request_number' => $requestCount,
+                        'stage' => 'listing',
+                        'collected_at' => $collectedAt,
+                        'http_status' => $exception->batch->httpStatus,
+                        'response_error' => $exception->reason,
+                    ];
+                    $evidenceIds[] = $requestEvidenceId;
+                    if ($consecutiveErrors >= $maxErrors) {
+                        $stopReasons[] = 'three-consecutive-response-errors';
+                        break;
+                    }
+
+                    continue;
                 } catch (ConnectionException $exception) {
                     $consecutiveErrors++;
                     $requests[] = [
@@ -294,8 +312,8 @@ final class VerifyFreshBoundary extends Command
     private function transportError(ConnectionException $exception): string
     {
         return match (true) {
-            str_contains($exception->getMessage(), 'SSL') => 'tls_error',
-            str_contains($exception->getMessage(), 'timed out'), str_contains($exception->getMessage(), 'Timeout') => 'network_timeout',
+            str_contains($exception->getMessage(), 'SSL'), str_contains($exception->getMessage(), 'tls_error') => 'tls_error',
+            str_contains($exception->getMessage(), 'timed out'), str_contains($exception->getMessage(), 'Timeout'), str_contains($exception->getMessage(), 'network_timeout') => 'network_timeout',
             default => 'connect_failed',
         };
     }

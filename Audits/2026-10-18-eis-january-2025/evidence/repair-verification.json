@@ -1,0 +1,102 @@
+{
+  "test_database": "agelto_test",
+  "acceptance_checks_run": [],
+  "acceptance_owner": "coordinator",
+  "commands": [
+    {
+      "cmd": "docker exec -e APP_ENV=testing -e DB_DATABASE=agelto_test -e DB_HOST=postgres agelto_dev-app-1 php artisan test --compact --no-tia tests/Feature/Crawler/EisListingReliabilityTest.php tests/Feature/Crawler/CrawlerRuntimeOptionsTest.php tests/Unit/Crawler/EisCsvParserTest.php tests/Unit/Crawler/EisCsvRowMapperTest.php tests/Feature/Crawler/CsvSourceMethodTest.php tests/Feature/Crawler/CsvBlockIngestorTest.php > Audits/2026-10-18-eis-january-2025/evidence/repair-focused-tests-1.txt 2>&1",
+      "exit": 2,
+      "output": "Audits/2026-10-18-eis-january-2025/evidence/repair-focused-tests-1.txt",
+      "result": "16 fixture setup failures; 56 passed. Fixed the new profile fixture."
+    },
+    {
+      "cmd": "docker exec -e APP_ENV=testing -e DB_DATABASE=agelto_test -e DB_HOST=postgres agelto_dev-app-1 php artisan test --compact --no-tia tests/Feature/Crawler/EisListingReliabilityTest.php tests/Feature/Crawler/StageOneIsolationTest.php tests/Feature/Health/ListingFilterCheckTest.php tests/Feature/Console/VerifyFreshBoundaryTest.php > Audits/2026-10-18-eis-january-2025/evidence/repair-focused-tests-2.txt 2>&1",
+      "exit": 1,
+      "output": "Audits/2026-10-18-eis-january-2025/evidence/repair-focused-tests-2.txt",
+      "result": "10 failures from JSONB key ordering and old/new fixture expectations; 23 passed. Corrected test semantics/fixtures."
+    },
+    {
+      "cmd": "docker exec -e APP_ENV=testing -e DB_DATABASE=agelto_test -e DB_HOST=postgres agelto_dev-app-1 php artisan test --compact --no-tia tests/Feature/Crawler/EisListingReliabilityTest.php tests/Feature/Crawler/StageOneIsolationTest.php tests/Feature/Health/ListingFilterCheckTest.php tests/Feature/Console/VerifyFreshBoundaryTest.php > Audits/2026-10-18-eis-january-2025/evidence/repair-focused-tests-3.txt 2>&1",
+      "exit": 0,
+      "output": "Audits/2026-10-18-eis-january-2025/evidence/repair-focused-tests-3.txt",
+      "result": "33 passed, 147 assertions."
+    },
+    {
+      "cmd": "docker exec -e APP_ENV=testing -e DB_DATABASE=agelto_test -e DB_HOST=postgres agelto_dev-app-1 php artisan test --compact --no-tia tests/Feature/Crawler/ArchiveWindowScannerTest.php tests/Feature/Crawler/ArchiveRunProcessorTest.php tests/Feature/Crawler/FreshRunProcessorTest.php tests/Feature/Crawler/BudgetExhaustionTest.php tests/Feature/Crawler/CrawlerRunExecutionLeaseTest.php tests/Feature/Crawler/RawArtifactIdentityTest.php tests/Feature/Crawler/CrawlRunJobTest.php tests/Feature/Seeders/EisJanuary2025AuditSeederTest.php tests/Unit/Architecture/JobRetryContractGuardTest.php > Audits/2026-10-18-eis-january-2025/evidence/repair-caller-tests.txt 2>&1",
+      "exit": 1,
+      "output": "Audits/2026-10-18-eis-january-2025/evidence/repair-caller-tests.txt",
+      "result": "61 passed; raw-options seed shape expectation failed. Kept the restored seeder's exact raw shape."
+    },
+    {
+      "cmd": "docker exec -e APP_ENV=testing -e DB_DATABASE=agelto_test -e DB_HOST=postgres agelto_dev-app-1 php artisan test --compact --no-tia tests/Feature/Crawler/StageOneIsolationTest.php tests/Feature/Crawler/PlatformRequestBudgetTest.php tests/Feature/Crawler/DetailAnalysisProcessorTest.php tests/Feature/Console/FetchDetailsTest.php tests/Feature/Document/PipelineDispatcherTest.php tests/Feature/Document/DocumentRevalidationTest.php tests/Feature/Procurement/Pipeline/PipelineRetryFailedTest.php tests/Feature/Procurement/Pipeline/PipelineRecoveryFaultInjectionTest.php tests/Feature/Ai/FixtureRunTest.php tests/Feature/Seeders/EisJanuary2025AuditSeederTest.php > Audits/2026-10-18-eis-january-2025/evidence/repair-downstream-tests.txt 2>&1",
+      "exit": 0,
+      "output": "Audits/2026-10-18-eis-january-2025/evidence/repair-downstream-tests.txt",
+      "result": "67 passed, 276 assertions."
+    },
+    {
+      "cmd": "docker exec -e APP_ENV=testing -e DB_DATABASE=agelto_test -e DB_HOST=postgres agelto_dev-app-1 php artisan test --compact --no-tia tests/Feature/Crawler/EisListingReliabilityTest.php tests/Feature/Crawler/CsvSourceMethodTest.php tests/Feature/Crawler/CsvBlockIngestorTest.php tests/Feature/Crawler/CrawlerRuntimeOptionsTest.php tests/Unit/Crawler/EisCsvParserTest.php tests/Unit/Crawler/EisCsvRowMapperTest.php tests/Feature/Health/ListingFilterCheckTest.php tests/Feature/Console/VerifyFreshBoundaryTest.php > Audits/2026-10-18-eis-january-2025/evidence/repair-focused-tests-final.txt 2>&1",
+      "exit": 0,
+      "output": "Audits/2026-10-18-eis-january-2025/evidence/repair-focused-tests-final.txt",
+      "result": "83 passed, 293 assertions."
+    },
+    {
+      "cmd": "docker exec -e APP_ENV=testing -e DB_DATABASE=agelto_test -e DB_HOST=postgres agelto_dev-app-1 php artisan test --compact --no-tia tests/Feature/Crawler/ArchiveWindowScannerTest.php tests/Feature/Crawler/ArchiveRunProcessorTest.php tests/Feature/Crawler/FreshRunProcessorTest.php tests/Feature/Crawler/BudgetExhaustionTest.php tests/Feature/Crawler/CrawlerRunExecutionLeaseTest.php tests/Feature/Crawler/RawArtifactIdentityTest.php tests/Feature/Crawler/CrawlRunJobTest.php tests/Feature/Seeders/EisJanuary2025AuditSeederTest.php tests/Unit/Architecture/JobRetryContractGuardTest.php > Audits/2026-10-18-eis-january-2025/evidence/repair-caller-tests-final.txt 2>&1",
+      "exit": 0,
+      "output": "Audits/2026-10-18-eis-january-2025/evidence/repair-caller-tests-final.txt",
+      "result": "62 passed, 302 assertions."
+    },
+    {
+      "cmd": "docker exec -e APP_ENV=testing -e DB_DATABASE=agelto_test -e DB_HOST=postgres agelto_dev-app-1 php artisan test --compact --no-tia tests/Feature/Console/VerifyFreshBoundaryTest.php > Audits/2026-10-18-eis-january-2025/evidence/repair-probe-tests.txt 2>&1",
+      "exit": 0,
+      "output": "Audits/2026-10-18-eis-january-2025/evidence/repair-probe-tests.txt",
+      "result": "2 passed, 16 assertions; includes rejected-response artifact scenario."
+    }
+  ],
+  "other_verification": [
+    {
+      "cmd": "docker exec agelto_dev-app-1 php Audits/2026-10-18-eis-january-2025/scripts/csv-parser-proof.php > Audits/2026-10-18-eis-january-2025/evidence/csv-parser-proof-repaired.json 2>&1",
+      "exit": 0,
+      "output": "Audits/2026-10-18-eis-january-2025/evidence/csv-parser-proof-repaired.json"
+    },
+    {
+      "cmd": "docker exec agelto_dev-app-1 vendor/bin/pint 'app/Actions/Procurement/Document/ExpandArchiveEntryAction.php' 'app/Console/Commands/Procurement/FetchDetails.php' 'app/Console/Commands/Procurement/PipelineRetryFailed.php' 'app/Console/Commands/Procurement/VerifyFreshBoundary.php' 'app/Dto/Procurement/Crawler/CrawlerRuntimeOptions.php' 'app/Jobs/Procurement/FetchProcurementDetailJob.php' 'app/Jobs/Procurement/PipelineJob.php' 'app/Services/Procurement/Analyzers/Estimate/EstimateAnalyzer.php' 'app/Services/Procurement/ArchiveWindowScanner.php' 'app/Services/Procurement/CsvBlockIngestor.php' 'app/Services/Procurement/DetailDispatcher.php' 'app/Services/Procurement/DocumentRevalidationSelector.php' 'app/Services/Procurement/Eis/CsvSourceMethod.php' 'app/Services/Procurement/Eis/EisCsvRowMapper.php' 'app/Services/Procurement/Extraction/RerunAnalysisAction.php' 'app/Services/Procurement/Fixture/RunFixtureAnalysisAction.php' 'app/Services/Procurement/Health/Checks/ListingFilterCheck.php' 'app/Services/Procurement/Modes/DetailAnalysisProcessor.php' 'app/Services/Procurement/Modes/FreshRunProcessor.php' 'app/Services/Procurement/PipelineDispatcher.php' 'app/Services/Procurement/PipelineRecoveryReconciler.php' 'app/Services/Procurement/PlatformRequestBudget.php' 'config/crawler.php' 'tests/Feature/Crawler/CsvBlockIngestorTest.php' 'tests/Feature/Health/ListingFilterCheckTest.php' 'tests/Unit/Crawler/EisCsvRowMapperTest.php' 'app/Dto/Procurement/Crawler/ListingExecutionContext.php' 'app/Exceptions/Procurement/Crawler/InvalidListingResponse.php' 'app/Exceptions/Procurement/Crawler/ListingRequestStopped.php' 'app/Services/Procurement/Contracts/CooperativeListingSourceMethod.php' 'app/Services/Procurement/Eis/EisCsvParser.php' 'app/Services/Procurement/ListingRunCheckpoint.php' 'tests/Feature/Crawler/CrawlerRuntimeOptionsTest.php' 'tests/Feature/Crawler/EisListingReliabilityTest.php' 'tests/Feature/Crawler/StageOneIsolationTest.php' 'tests/Unit/Crawler/EisCsvParserTest.php' 'database/seeders/Procurement/EisJanuary2025AuditSeeder.php' 'database/seeders/Procurement/EisCrawlerProxySeeder.php' 'tests/Feature/Seeders/EisJanuary2025AuditSeederTest.php' 'Audits/2026-10-18-eis-january-2025/scripts/csv-parser-proof.php' 'Audits/2026-10-18-eis-january-2025/scripts/control.php' 'Audits/2026-10-18-eis-january-2025/scripts/preflight.php' 'Audits/2026-10-18-eis-january-2025/scripts/defer-retry.php' > Audits/2026-10-18-eis-january-2025/evidence/repair-pint.txt 2>&1",
+      "exit": 0,
+      "output": "Audits/2026-10-18-eis-january-2025/evidence/repair-pint.txt"
+    },
+    {
+      "cmd": "docker exec agelto_dev-app-1 vendor/bin/pint app/Services/Procurement/Eis/CsvSourceMethod.php app/Services/Procurement/Eis/EisCsvParser.php tests/Unit/Crawler/EisCsvParserTest.php tests/Feature/Crawler/EisListingReliabilityTest.php tests/Feature/Crawler/StageOneIsolationTest.php database/seeders/Procurement/EisJanuary2025AuditSeeder.php > Audits/2026-10-18-eis-january-2025/evidence/repair-pint-final.txt 2>&1",
+      "exit": 0,
+      "output": "Audits/2026-10-18-eis-january-2025/evidence/repair-pint-final.txt"
+    },
+    {
+      "cmd": "docker exec agelto_dev-app-1 php -l Audits/2026-10-18-eis-january-2025/scripts/snapshot.php > Audits/2026-10-18-eis-january-2025/evidence/repair-snapshot-lint.txt 2>&1",
+      "exit": 0,
+      "output": "Audits/2026-10-18-eis-january-2025/evidence/repair-snapshot-lint.txt"
+    },
+    {
+      "cmd": "docker exec -e APP_ENV=testing -e DB_DATABASE=agelto_test -e DB_HOST=postgres agelto_dev-app-1 php artisan migrate:status --env=testing --no-interaction > Audits/2026-10-18-eis-january-2025/evidence/repair-migrations.txt 2>&1",
+      "exit": 0,
+      "output": "Audits/2026-10-18-eis-january-2025/evidence/repair-migrations.txt"
+    },
+    {
+      "cmd": "docker exec agelto_dev-app-1 vendor/bin/pint --test tests/Feature/Console/VerifyFreshBoundaryTest.php Audits/2026-10-18-eis-january-2025/scripts/csv-parser-proof.php > Audits/2026-10-18-eis-january-2025/evidence/repair-pint-additional.txt 2>&1",
+      "exit": 0,
+      "output": "Audits/2026-10-18-eis-january-2025/evidence/repair-pint-additional.txt"
+    }
+  ],
+  "readiness": {
+    "output": "Audits/2026-10-18-eis-january-2025/evidence/repair-db-readiness.txt",
+    "exit": 0,
+    "database": "agelto_test",
+    "accepting_connections": true,
+    "migrations_table_exists": true,
+    "pending_migrations": 0
+  },
+  "limits": [
+    "No acceptance commands or whole suites ran; only named test files.",
+    "No live EIS/LLM requests, production agelto mutations, workers, scheduler, queue clearing or proxy-health changes.",
+    "Run3 facts come from restored historical evidence; no new live snapshot was taken.",
+    "EIS-008 automatic Failed recovery remains an explicitly documented policy follow-up under SPEC."
+  ],
+  "concurrent_workspace_note": "Audits/2026-10-18-eis-january-2025/evidence/real-csv-new-parser.json appeared concurrently after an earlier status snapshot. Executor did not create, modify, run or verify it; preserved and excluded from executor changed_paths/evidence."
+}

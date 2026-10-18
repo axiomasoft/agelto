@@ -1,0 +1,42 @@
+{
+    "utc": "2026-10-18T10:40:35+00:00",
+    "outcome": "source_count_observed",
+    "attempts": [
+        {
+            "attempt": 1,
+            "exception_class": "Illuminate\\Http\\Client\\ConnectionException",
+            "duration_ms": 30039
+        },
+        {
+            "attempt": 2,
+            "exception_class": "Illuminate\\Http\\Client\\ConnectionException",
+            "duration_ms": 30006
+        },
+        {
+            "attempt": 3,
+            "status": 200,
+            "duration_ms": 5577,
+            "bytes": 379054,
+            "sha256": "7a98abbd16c46e21b412c1cdc91c93537cfc5325b2579e288174455453454e4f",
+            "total_count_found": true
+        }
+    ],
+    "request_params": {
+        "pc": "on",
+        "priceToGeneral": "1000000000000",
+        "publishDateFrom": "01.01.2025",
+        "publishDateTo": "31.01.2025",
+        "okpd2Ids": "8873921",
+        "okpd2IdsWithNested": "on",
+        "fz44": "on",
+        "sortBy": "PUBLISH_DATE",
+        "sortDirection": "true",
+        "priceFromGeneral": "0",
+        "recordsPerPage": "_10",
+        "pageNumber": "1"
+    },
+    "proxy_id": 1,
+    "proxy_source": "profile",
+    "source_total_count": 2516,
+    "finished_at_utc": "2026-10-18T10:41:49+00:00"
+}

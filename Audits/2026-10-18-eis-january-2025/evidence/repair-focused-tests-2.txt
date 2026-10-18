@@ -1,0 +1,226 @@
+
+  [31;1m⨯[39;22m[31;1m⨯[39;22m[31;1m⨯[39;22m[31;1m⨯[39;22m[31;1m⨯[39;22m[90;1m.[39;22m[31;1m⨯[39;22m[31;1m⨯[39;22m[31;1m⨯[39;22m[90;1m.[39;22m[90;1m.[39;22m[90;1m.[39;22m[90;1m.[39;22m[90;1m.[39;22m[90;1m.[39;22m[90;1m.[39;22m[90;1m.[39;22m[90;1m.[39;22m[90;1m.[39;22m[90;1m.[39;22m[90;1m.[39;22m[90;1m.[39;22m[90;1m.[39;22m[31;1m⨯[39;22m[90;1m.[39;22m[90;1m.[39;22m[90;1m.[39;22m[90;1m.[39;22m[90;1m.[39;22m[90;1m.[39;22m[31;1m⨯[39;22m[90;1m.[39;22m[90;1m.[39;22m
+  [31m────────────────────────────────────────────────────────────────────────────[39m  
+  [41;1m FAILED [49;22m [1mTests\Feature\Crawler\EisListingReliabilityTest[22m [90m>[39m невалидный отве…   
+[39;1m  Failed asserting that two arrays are identical.
+  [39;22m[32m Array &0 [[39m[39;1m
+  [39;22m[31m-    'blockFrom' => 1,[39m[39;1m
+  [39;22m[32m     'day' => '2025-01-20',[39m[39;1m
+  [39;22m[32m+    'blockFrom' => 1,[39m[39;1m
+  [39;22m[32m ][39m[39;1m
+  [39;22m
+
+  at [32mtests/Feature/Crawler/EisListingReliabilityTest.php[39m:[32m68[39m
+     64▕ 
+     65▕     expect(fn () => app(ArchiveWindowScanner::class)->scan($crawler, $run, $filter))->toThrow(InvalidListingResponse::class);
+     66▕ 
+     67▕     $fetch = Fetch::query()->where('crawler_run_id', $run->id)->sole();
+  ➜  68▕     expect($run->fresh()->cursor->toArray())->toBe(['blockFrom' => 1, 'day' => '2025-01-20'])
+     69▕         ->and($fetch->rows_errors)->toBe(1)
+     70▕         ->and($fetch->http_status)->toBe($status)
+     71▕         ->and(Storage::disk('s3')->get($fetch->artifact_ref))->toBe($body)
+     72▕         ->and(Procurement::query()->count())->toBe(0);
+
+  [33m1   [39m[39;1mtests/Feature/Crawler/EisListingReliabilityTest.php[39;22m:[39;1m68[39;22m
+
+  [31m────────────────────────────────────────────────────────────────────────────[39m  
+  [41;1m FAILED [49;22m [1mTests\Feature\Crawler\EisListingReliabilityTest[22m [90m>[39m невалидный отве…   
+[39;1m  Failed asserting that two arrays are identical.
+  [39;22m[32m Array &0 [[39m[39;1m
+  [39;22m[31m-    'blockFrom' => 1,[39m[39;1m
+  [39;22m[32m     'day' => '2025-01-20',[39m[39;1m
+  [39;22m[32m+    'blockFrom' => 1,[39m[39;1m
+  [39;22m[32m ][39m[39;1m
+  [39;22m
+
+  at [32mtests/Feature/Crawler/EisListingReliabilityTest.php[39m:[32m68[39m
+     64▕ 
+     65▕     expect(fn () => app(ArchiveWindowScanner::class)->scan($crawler, $run, $filter))->toThrow(InvalidListingResponse::class);
+     66▕ 
+     67▕     $fetch = Fetch::query()->where('crawler_run_id', $run->id)->sole();
+  ➜  68▕     expect($run->fresh()->cursor->toArray())->toBe(['blockFrom' => 1, 'day' => '2025-01-20'])
+     69▕         ->and($fetch->rows_errors)->toBe(1)
+     70▕         ->and($fetch->http_status)->toBe($status)
+     71▕         ->and(Storage::disk('s3')->get($fetch->artifact_ref))->toBe($body)
+     72▕         ->and(Procurement::query()->count())->toBe(0);
+
+  [33m1   [39m[39;1mtests/Feature/Crawler/EisListingReliabilityTest.php[39;22m:[39;1m68[39;22m
+
+  [31m────────────────────────────────────────────────────────────────────────────[39m  
+  [41;1m FAILED [49;22m [1mTests\Feature\Crawler\EisListingReliabilityTest[22m [90m>[39m невалидный отве…   
+[39;1m  Failed asserting that two arrays are identical.
+  [39;22m[32m Array &0 [[39m[39;1m
+  [39;22m[31m-    'blockFrom' => 1,[39m[39;1m
+  [39;22m[32m     'day' => '2025-01-20',[39m[39;1m
+  [39;22m[32m+    'blockFrom' => 1,[39m[39;1m
+  [39;22m[32m ][39m[39;1m
+  [39;22m
+
+  at [32mtests/Feature/Crawler/EisListingReliabilityTest.php[39m:[32m68[39m
+     64▕ 
+     65▕     expect(fn () => app(ArchiveWindowScanner::class)->scan($crawler, $run, $filter))->toThrow(InvalidListingResponse::class);
+     66▕ 
+     67▕     $fetch = Fetch::query()->where('crawler_run_id', $run->id)->sole();
+  ➜  68▕     expect($run->fresh()->cursor->toArray())->toBe(['blockFrom' => 1, 'day' => '2025-01-20'])
+     69▕         ->and($fetch->rows_errors)->toBe(1)
+     70▕         ->and($fetch->http_status)->toBe($status)
+     71▕         ->and(Storage::disk('s3')->get($fetch->artifact_ref))->toBe($body)
+     72▕         ->and(Procurement::query()->count())->toBe(0);
+
+  [33m1   [39m[39;1mtests/Feature/Crawler/EisListingReliabilityTest.php[39;22m:[39;1m68[39;22m
+
+  [31m────────────────────────────────────────────────────────────────────────────[39m  
+  [41;1m FAILED [49;22m [1mTests\Feature\Crawler\EisListingReliabilityTest[22m [90m>[39m невалидный отве…   
+[39;1m  Failed asserting that two arrays are identical.
+  [39;22m[32m Array &0 [[39m[39;1m
+  [39;22m[31m-    'blockFrom' => 1,[39m[39;1m
+  [39;22m[32m     'day' => '2025-01-20',[39m[39;1m
+  [39;22m[32m+    'blockFrom' => 1,[39m[39;1m
+  [39;22m[32m ][39m[39;1m
+  [39;22m
+
+  at [32mtests/Feature/Crawler/EisListingReliabilityTest.php[39m:[32m68[39m
+     64▕ 
+     65▕     expect(fn () => app(ArchiveWindowScanner::class)->scan($crawler, $run, $filter))->toThrow(InvalidListingResponse::class);
+     66▕ 
+     67▕     $fetch = Fetch::query()->where('crawler_run_id', $run->id)->sole();
+  ➜  68▕     expect($run->fresh()->cursor->toArray())->toBe(['blockFrom' => 1, 'day' => '2025-01-20'])
+     69▕         ->and($fetch->rows_errors)->toBe(1)
+     70▕         ->and($fetch->http_status)->toBe($status)
+     71▕         ->and(Storage::disk('s3')->get($fetch->artifact_ref))->toBe($body)
+     72▕         ->and(Procurement::query()->count())->toBe(0);
+
+  [33m1   [39m[39;1mtests/Feature/Crawler/EisListingReliabilityTest.php[39;22m:[39;1m68[39;22m
+
+  [31m────────────────────────────────────────────────────────────────────────────[39m  
+  [41;1m FAILED [49;22m [1mTests\Feature\Crawler\EisListingReliabilityTest[22m [90m>[39m невалидный отве…   
+[39;1m  Failed asserting that two arrays are identical.
+  [39;22m[32m Array &0 [[39m[39;1m
+  [39;22m[31m-    'blockFrom' => 1,[39m[39;1m
+  [39;22m[32m     'day' => '2025-01-20',[39m[39;1m
+  [39;22m[32m+    'blockFrom' => 1,[39m[39;1m
+  [39;22m[32m ][39m[39;1m
+  [39;22m
+
+  at [32mtests/Feature/Crawler/EisListingReliabilityTest.php[39m:[32m68[39m
+     64▕ 
+     65▕     expect(fn () => app(ArchiveWindowScanner::class)->scan($crawler, $run, $filter))->toThrow(InvalidListingResponse::class);
+     66▕ 
+     67▕     $fetch = Fetch::query()->where('crawler_run_id', $run->id)->sole();
+  ➜  68▕     expect($run->fresh()->cursor->toArray())->toBe(['blockFrom' => 1, 'day' => '2025-01-20'])
+     69▕         ->and($fetch->rows_errors)->toBe(1)
+     70▕         ->and($fetch->http_status)->toBe($status)
+     71▕         ->and(Storage::disk('s3')->get($fetch->artifact_ref))->toBe($body)
+     72▕         ->and(Procurement::query()->count())->toBe(0);
+
+  [33m1   [39m[39;1mtests/Feature/Crawler/EisListingReliabilityTest.php[39;22m:[39;1m68[39;22m
+
+  [31m────────────────────────────────────────────────────────────────────────────[39m  
+  [41;1m FAILED [49;22m [1mTests\Feature\Crawler\EisListingReliabilityTest[22m [90m>[39m ошибка обязател…   
+[39;1m  Failed asserting that two arrays are identical.
+  [39;22m[32m Array &0 [[39m[39;1m
+  [39;22m[31m-    'blockFrom' => 1,[39m[39;1m
+  [39;22m[32m     'day' => '2025-01-20',[39m[39;1m
+  [39;22m[32m+    'blockFrom' => 1,[39m[39;1m
+  [39;22m[32m ][39m[39;1m
+  [39;22m
+
+  at [32mtests/Feature/Crawler/EisListingReliabilityTest.php[39m:[32m103[39m
+     99▕     fclose($stream);
+    100▕     Http::fake(['*' => Http::response($body, 200)]);
+    101▕ 
+    102▕     expect(fn () => app(ArchiveWindowScanner::class)->scan($crawler, $run, $filter))->toThrow(RuntimeException::class, 'не обработан полностью')
+  ➜ 103▕         ->and($run->fresh()->cursor->toArray())->toBe(['blockFrom' => 1, 'day' => '2025-01-20'])
+    104▕         ->and(Procurement::query()->count())->toBe(0);
+    105▕ })->with([
+    106▕     ['Реестровый номер закупки', '№'],
+    107▕     ['Дата размещения', '31.02.2025'],
+
+  [33m1   [39m[39;1mtests/Feature/Crawler/EisListingReliabilityTest.php[39;22m:[39;1m103[39;22m
+
+  [31m────────────────────────────────────────────────────────────────────────────[39m  
+  [41;1m FAILED [49;22m [1mTests\Feature\Crawler\EisListingReliabilityTest[22m [90m>[39m ошибка обязател…   
+[39;1m  Failed asserting that two arrays are identical.
+  [39;22m[32m Array &0 [[39m[39;1m
+  [39;22m[31m-    'blockFrom' => 1,[39m[39;1m
+  [39;22m[32m     'day' => '2025-01-20',[39m[39;1m
+  [39;22m[32m+    'blockFrom' => 1,[39m[39;1m
+  [39;22m[32m ][39m[39;1m
+  [39;22m
+
+  at [32mtests/Feature/Crawler/EisListingReliabilityTest.php[39m:[32m103[39m
+     99▕     fclose($stream);
+    100▕     Http::fake(['*' => Http::response($body, 200)]);
+    101▕ 
+    102▕     expect(fn () => app(ArchiveWindowScanner::class)->scan($crawler, $run, $filter))->toThrow(RuntimeException::class, 'не обработан полностью')
+  ➜ 103▕         ->and($run->fresh()->cursor->toArray())->toBe(['blockFrom' => 1, 'day' => '2025-01-20'])
+    104▕         ->and(Procurement::query()->count())->toBe(0);
+    105▕ })->with([
+    106▕     ['Реестровый номер закупки', '№'],
+    107▕     ['Дата размещения', '31.02.2025'],
+
+  [33m1   [39m[39;1mtests/Feature/Crawler/EisListingReliabilityTest.php[39;22m:[39;1m103[39;22m
+
+  [31m────────────────────────────────────────────────────────────────────────────[39m  
+  [41;1m FAILED [49;22m [1mTests\Feature\Crawler\EisListingReliabilityTest[22m [90m>[39m ошибка обязател…   
+[39;1m  Failed asserting that two arrays are identical.
+  [39;22m[32m Array &0 [[39m[39;1m
+  [39;22m[31m-    'blockFrom' => 1,[39m[39;1m
+  [39;22m[32m     'day' => '2025-01-20',[39m[39;1m
+  [39;22m[32m+    'blockFrom' => 1,[39m[39;1m
+  [39;22m[32m ][39m[39;1m
+  [39;22m
+
+  at [32mtests/Feature/Crawler/EisListingReliabilityTest.php[39m:[32m103[39m
+     99▕     fclose($stream);
+    100▕     Http::fake(['*' => Http::response($body, 200)]);
+    101▕ 
+    102▕     expect(fn () => app(ArchiveWindowScanner::class)->scan($crawler, $run, $filter))->toThrow(RuntimeException::class, 'не обработан полностью')
+  ➜ 103▕         ->and($run->fresh()->cursor->toArray())->toBe(['blockFrom' => 1, 'day' => '2025-01-20'])
+    104▕         ->and(Procurement::query()->count())->toBe(0);
+    105▕ })->with([
+    106▕     ['Реестровый номер закупки', '№'],
+    107▕     ['Дата размещения', '31.02.2025'],
+
+  [33m1   [39m[39;1mtests/Feature/Crawler/EisListingReliabilityTest.php[39;22m:[39;1m103[39;22m
+
+  [31m────────────────────────────────────────────────────────────────────────────[39m  
+  [41;1m FAILED [49;22m [1mTests\Feature\Crawler\StageOneIsolationTest[22m [90m>[39m CSV-only блокирует…    
+[39;1m  Failed asserting that an instance of class Error is an instance of class App\Exceptions\Procurement\Ai\ScreeningDisabled.[39;22m
+
+  at [32mtests/Feature/Crawler/StageOneIsolationTest.php[39m:[32m75[39m
+     71▕ });
+     72▕ 
+     73▕ test('CSV-only блокирует ручные AI входы до изменения анализа и fixture', function () {
+     74▕     expect(fn () => app(RerunAnalysisAction::class)->run(new Analysis))->toThrow(RuntimeException::class, 'CRAWLER_DOWNSTREAM_ENABLED');
+  ➜  75▕     expect(fn () => app(RunFixtureAnalysisAction::class)->run(new Fixture))->toThrow(\App\Exceptions\Procurement\Ai\ScreeningDisabled::class);
+     76▕     app(EstimateAnalyzer::class)->dispatchExtraction(999999);
+     77▕ 
+     78▕     Queue::assertNothingPushed();
+     79▕ });
+
+  [33m1   [39m[39;1mtests/Feature/Crawler/StageOneIsolationTest.php[39;22m:[39;1m75[39;22m
+
+  [31m────────────────────────────────────────────────────────────────────────────[39m  
+  [41;1m FAILED [49;22m [1mTests\Feature\Health\ListingFilterCheckTest[22m [90m>[39m проверка называет с…   
+[39;1m  Expected: [39;22m[31mПроба фильтра ОКПД2 не получила проверенный CSV-ответ.[39m[39;1m
+
+  To contain: [39;22m[32mNetwork is unavailable[39m
+
+  at [32mtests/Feature/Health/ListingFilterCheckTest.php[39m:[32m181[39m
+    177▕     $result = runListingFilterCheck($platform);
+    178▕ 
+    179▕     expect($result->verdict)->toBe(PlatformCheckVerdict::NotEnoughData)
+    180▕         ->and($result->requestsUsed)->toBe(1)
+  ➜ 181▕         ->and($result->message)->toContain('Network is unavailable');
+    182▕ });
+    183▕ 
+    184▕ test('проверка не повторяет ответ площадки и не делает третий запрос', function (): void {
+    185▕     [$platform] = listingFilterProfile();
+
+  [33m1   [39m[39;1mtests/Feature/Health/ListingFilterCheckTest.php[39;22m:[39;1m181[39;22m
+
+
+  [90mTests:[39m    [31;1m10 failed[39;22m[90m,[39m[39m [39m[32;1m23 passed[39;22m[90m (123 assertions)[39m
+  [90mDuration:[39m [39m2.24s[39m
+

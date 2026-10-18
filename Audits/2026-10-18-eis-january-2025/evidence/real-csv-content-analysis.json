@@ -1,0 +1,46 @@
+{
+    "utc": "2026-10-18T12:14:09+00:00",
+    "scope": "Saved successful listing CSV from runs 1,2,3; source filtering is assessed separately.",
+    "fetches": 62,
+    "records_including_repeats": 5031,
+    "unique_registry_numbers": 2516,
+    "duplicate_numbers_within_fetch": 0,
+    "ascending_publication_order_violations_within_fetch": 0,
+    "empty_titles_unique": 0,
+    "publication_days_unique": {
+        "2025-01-06": 1,
+        "2025-01-09": 5,
+        "2025-01-10": 14,
+        "2025-01-11": 4,
+        "2025-01-12": 1,
+        "2025-01-13": 20,
+        "2025-01-14": 22,
+        "2025-01-15": 71,
+        "2025-01-16": 83,
+        "2025-01-17": 105,
+        "2025-01-19": 1,
+        "2025-01-20": 140,
+        "2025-01-21": 133,
+        "2025-01-22": 164,
+        "2025-01-23": 158,
+        "2025-01-24": 154,
+        "2025-01-25": 16,
+        "2025-01-26": 3,
+        "2025-01-27": 235,
+        "2025-01-28": 250,
+        "2025-01-29": 299,
+        "2025-01-30": 284,
+        "2025-01-31": 353
+    },
+    "source_stages_unique": {
+        "Закупка завершена": 2516
+    },
+    "currencies_unique": {
+        "RUB": 2516
+    },
+    "numeric_prices_unique": 2516,
+    "minimum_price_rub": 4595.68,
+    "maximum_price_rub": 1065703870,
+    "prices_over_one_billion_unique": 1,
+    "mapping_or_scope_issues": []
+}

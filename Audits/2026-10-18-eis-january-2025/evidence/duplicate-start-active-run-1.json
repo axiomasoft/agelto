@@ -1,0 +1,7 @@
+{
+    "utc": "2026-10-18T10:35:55+00:00",
+    "action": "start",
+    "crawler_id": 3,
+    "outcome": "refused_or_failed",
+    "exception_class": "App\\Exceptions\\Procurement\\Crawler\\CrawlerRunAlreadyActive"
+}

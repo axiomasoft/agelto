@@ -85,3 +85,24 @@ test('live A1 command uses bounded listing route and writes the exact sanitized 
         ->and(json_encode($artifact, JSON_THROW_ON_ERROR))->not->toContain('Закупки по;');
     Http::assertSentCount(2);
 });
+
+test('непроверенный CSV в bounded probe фиксирует отказ без ложной пустой страницы', function () {
+    Sleep::fake();
+    $this->seed(EisPlatformSeeder::class);
+    $registry = Registry::query()->where('code', 'fz44')->firstOrFail();
+    Okpd2Node::factory()->create(['platform_id' => $registry->platform_id, 'code' => '43', 'external_id' => '8873921']);
+    Crawler::factory()->for($registry)->create(['mode' => CrawlerMode::Fresh, 'proxy_mode' => CrawlerProxyMode::Direct]);
+    Http::fake(['*' => Http::response('<html>Access denied</html>', 200)]);
+    $paths = freshBoundaryCarriers();
+
+    $this->artisan('crawler:verify-fresh-boundary', ['--input' => $paths['input'], '--output' => $paths['output']])->assertExitCode(Command::SUCCESS);
+
+    $artifact = json_decode((string) file_get_contents($paths['output']), true, flags: JSON_THROW_ON_ERROR);
+    expect($artifact['requests'])->toHaveCount(3)
+        ->and(array_column($artifact['requests'], 'response_error'))->toBe(['invalid_csv', 'invalid_csv', 'invalid_csv'])
+        ->and($artifact['pages'])->toBe([])
+        ->and($artifact['stop_reasons'])->toBe(['three-consecutive-response-errors'])
+        ->and($artifact['verdict']['status'])->toBe('insufficient_live_boundary_evidence')
+        ->and(json_encode($artifact))->not->toContain('Access denied');
+    Http::assertSentCount(3);
+});

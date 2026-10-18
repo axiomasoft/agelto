@@ -47,6 +47,12 @@ final class PipelineRetryFailed extends Command
 
     public function handle(): int
     {
+        if (! config('crawler.downstream_enabled', true)) {
+            $this->info('Последующие стадии отключены (CRAWLER_DOWNSTREAM_ENABLED).');
+
+            return self::SUCCESS;
+        }
+
         $limitOption = $this->option('limit');
         $configuredLimit = config('ai.pipeline.retry_batch_limit', 50);
 

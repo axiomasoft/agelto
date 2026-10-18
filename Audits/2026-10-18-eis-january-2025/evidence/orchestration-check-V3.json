@@ -1,0 +1,21 @@
+{
+  "$schema": "urn:swissknifeman:orch:exec:check-evidence:v1",
+  "contract_version": "exec/v1",
+  "evidence_id": "cnd-20261018T114016Z-b7a66c:adhoc@ee7d31f5320c:checks.1:V3",
+  "check_id": "V3",
+  "subject": "adhoc",
+  "candidate": {
+    "head": "920b59be71bf5409198fbc46d9a9eaf49c64c9a8",
+    "dirty_digest": "3f1a807b23e8c7d603562b963fab7e5d9b89e7b316b22c8818ab11e23c3ed6a4"
+  },
+  "started_at": "2026-10-18T12:09:04Z",
+  "procedure": {
+    "cmd": "git diff --check",
+    "cwd": "."
+  },
+  "exit": 0,
+  "producer": {
+    "kind": "engine"
+  },
+  "finished_at": "2026-10-18T12:09:04Z"
+}

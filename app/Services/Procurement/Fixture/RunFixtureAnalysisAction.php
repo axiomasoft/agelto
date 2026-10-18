@@ -36,7 +36,7 @@ final readonly class RunFixtureAnalysisAction
 
     public function run(Fixture $fixture, ?int $initiatedBy = null): void
     {
-        if (! config('ai.screening.enabled', false)) {
+        if (! config('crawler.downstream_enabled', true) || ! config('ai.screening.enabled', false)) {
             throw new ScreeningDisabled;
         }
 

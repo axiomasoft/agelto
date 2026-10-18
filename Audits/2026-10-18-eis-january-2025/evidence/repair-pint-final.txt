@@ -1,0 +1,7 @@
+
+  ....✓.
+
+  ──────────────────────────────────────────────────────────────────── Laravel  
+    FIXED   ..................................... 6 files, 1 style issue fixed  
+  ✓ tests/Feature/Crawler/StageOneIsolationTest.php unary_operator_spaces, no…  
+

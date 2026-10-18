@@ -1,0 +1,41 @@
+{
+    "checked_at_utc": "2026-10-18T12:01:47+00:00",
+    "php_version": "8.5.8",
+    "source_sha256": "afb388c328df01dae7685aea6cd201883a5ae4fd985575039d770e1599529f23",
+    "parser_sha256": "808be1977e23bca3301320b29b0bd86a1504a9708e937927fbac2fb540307033",
+    "method": "Reflection invokes current private parseCsv; reference fgetcsv reads full stream; constructorless source/crawler; no application bootstrap",
+    "multiline_csv": {
+        "headers": [
+            "Реестровый номер закупки",
+            "Наименование закупки",
+            "Дата размещения",
+            "Дата обновления"
+        ],
+        "generated_data_record_count": 500,
+        "record_250_title": "Ремонт\nпомещения",
+        "actual_record_250_title": "Ремонт\nпомещения",
+        "reference_fgetcsv_record_count": 500,
+        "actual_parseCsv_record_count": 500,
+        "scanner_rowsTotal_less_than_500": false,
+        "fixture_sha256": "3a4f8c06af0be889d69977c921d1af04adc1e6d2eae1dce23cde2608e84ea614"
+    },
+    "html_response": {
+        "throws": true
+    },
+    "empty_response": {
+        "throws": true
+    },
+    "mapper_missing_required_fields": {
+        "missing_number": {
+            "throws": true
+        },
+        "missing_published_date": {
+            "throws": true
+        },
+        "missing_updated_date": {
+            "throws": true
+        }
+    },
+    "outcome": "preserved_and_rejected",
+    "limits": "Synthetic local parser/mapper proof; HTTP transport and live EIS behavior are not tested here."
+}

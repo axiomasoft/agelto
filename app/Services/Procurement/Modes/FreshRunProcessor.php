@@ -10,11 +10,16 @@ use App\Dto\Procurement\Crawler\RecoveryScope;
 use App\Enums\Procurement\Crawler\RunPurpose;
 use App\Enums\Procurement\Crawler\RunStopKind;
 use App\Enums\Procurement\Crawler\RunStopPolicy;
+use App\Exceptions\Procurement\Crawler\InvalidListingResponse;
+use App\Exceptions\Procurement\Crawler\ListingRequestStopped;
+use App\Exceptions\Procurement\Crawler\OutboundRequestDeadlineExceeded;
 use App\Exceptions\Procurement\Crawler\PlatformBudgetExhaustedException;
 use App\Models\Procurement\Crawler\Crawler;
 use App\Models\Procurement\Crawler\Run;
+use App\Services\Procurement\Contracts\CooperativeListingSourceMethod;
 use App\Services\Procurement\CrawlerRunManager;
 use App\Services\Procurement\CsvBlockIngestor;
+use App\Services\Procurement\ListingRunCheckpoint;
 use App\Services\Procurement\RunStopGate;
 use App\Services\Procurement\SourceMethodFactory;
 use Illuminate\Support\Carbon;
@@ -36,6 +41,7 @@ final readonly class FreshRunProcessor
         private CrawlerRunManager $runs,
         private CsvBlockIngestor $ingestor,
         private RunStopGate $stopGate,
+        private ListingRunCheckpoint $listingCheckpoint,
     ) {}
 
     public function run(Crawler $crawler, ?Run $run = null): Run
@@ -63,6 +69,7 @@ final readonly class FreshRunProcessor
         $maxBlocks = $this->integerConfig(key: 'crawler.fresh_max_blocks', default: 40);
         $checkpointSeconds = $this->integerConfig(key: 'crawler.run.checkpoint_seconds', default: 240);
         $startedAt = Carbon::now();
+        $deadlineAt = microtime(true) + $checkpointSeconds;
         // Порог считается ОДИН раз на старте (Implementation Rule 2): предыдущий завершённый
         // прогон за время обхода не меняется, перечитывание на каждом блоке — лишний запрос.
         $onlyFreshThreshold = $this->resolveOnlyFreshThreshold(crawler: $crawler, previousCompletedRun: $previousCompletedRun);
@@ -90,7 +97,15 @@ final readonly class FreshRunProcessor
                 }
 
                 $sourceMethod = $this->factory->makeWithFallback(crawler: $crawler);
-                $batch = $sourceMethod->collectListing(crawler: $crawler, cursor: $cursor);
+                try {
+                    $batch = $sourceMethod instanceof CooperativeListingSourceMethod
+                        ? $sourceMethod->collectListingForRun(crawler: $crawler, cursor: $cursor, context: $this->listingCheckpoint->context($run, $deadlineAt))
+                        : $sourceMethod->collectListing(crawler: $crawler, cursor: $cursor);
+                } catch (InvalidListingResponse $exception) {
+                    $this->runs->withinExecutionLease(run: $run, callback: fn () => $this->ingestor->recordRejectedBatch($crawler, $run, $exception->batch, $exception->reason));
+
+                    throw $exception;
+                }
                 $fetchResult = $this->ingestor->ingest(crawler: $crawler, run: $run, batch: $batch);
 
                 if ($fetchResult->oldestUpdateSeen !== null) {
@@ -134,7 +149,9 @@ final readonly class FreshRunProcessor
                 $this->runs->updateCursor(run: $run, cursor: $cursor);
                 $this->runs->heartbeat(run: $run);
             }
-        } catch (PlatformBudgetExhaustedException) {
+        } catch (ListingRequestStopped) {
+            return $run;
+        } catch (PlatformBudgetExhaustedException|OutboundRequestDeadlineExceeded) {
             $this->runs->recordCheckpoint(run: $run);
 
             return $run;

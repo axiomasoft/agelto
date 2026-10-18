@@ -6,17 +6,19 @@ namespace App\Dto\Procurement\Crawler;
 
 use Illuminate\Contracts\Support\Arrayable;
 use Illuminate\Validation\ValidationException;
+use Spatie\LaravelData\Attributes\MapOutputName;
 use Spatie\LaravelData\Data;
 use Spatie\LaravelData\Support\Validation\ValidationContext;
 
 /** Profile-local listing overrides; legacy CSV options remain part of the typed contract. */
 final class CrawlerRuntimeOptions extends Data
 {
-    public const array ALLOWED_KEYS = ['columns', 'records_per_page', 'retries', 'retryDelayMs', 'minPauseMs', 'maxPauseMs'];
+    public const array ALLOWED_KEYS = ['columns', 'records_per_page', 'recordsPerPage', 'retries', 'retryDelayMs', 'minPauseMs', 'maxPauseMs'];
 
     public function __construct(
         /** @var array<string, bool>|null */
         public ?array $columns = null,
+        #[MapOutputName('records_per_page')]
         public ?int $recordsPerPage = null,
         public ?int $retries = null,
         public ?int $retryDelayMs = null,
@@ -39,6 +41,9 @@ final class CrawlerRuntimeOptions extends Data
         }
 
         if (array_key_exists('records_per_page', $raw)) {
+            if (array_key_exists('recordsPerPage', $raw) && $raw['recordsPerPage'] !== $raw['records_per_page']) {
+                throw ValidationException::withMessages(['options' => 'Конфликт records_per_page и recordsPerPage.']);
+            }
             $raw['recordsPerPage'] = $raw['records_per_page'];
             unset($raw['records_per_page']);
         }

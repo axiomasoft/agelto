@@ -23,6 +23,10 @@ final readonly class PipelineDispatcher
 
     public function dispatch(Procurement $procurement): int
     {
+        if (! config('crawler.downstream_enabled', true)) {
+            return 0;
+        }
+
         $limit = $this->configuredLimit();
         $downloads = $this->enqueueDownloads(
             query: $this->discoveredQuery()->where('procurement_id', $procurement->id),
@@ -37,6 +41,10 @@ final readonly class PipelineDispatcher
 
     public function dispatchBacklog(int $limit): int
     {
+        if (! config('crawler.downstream_enabled', true)) {
+            return 0;
+        }
+
         if ($limit <= 0) {
             throw new \InvalidArgumentException('The dispatch limit must be a positive integer.');
         }
@@ -51,6 +59,10 @@ final readonly class PipelineDispatcher
 
     public function dispatchDiscoveredBacklog(int $limit): int
     {
+        if (! config('crawler.downstream_enabled', true)) {
+            return 0;
+        }
+
         if ($limit <= 0) {
             throw new \InvalidArgumentException('The dispatch limit must be a positive integer.');
         }

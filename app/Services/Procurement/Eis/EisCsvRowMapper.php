@@ -57,14 +57,14 @@ final readonly class EisCsvRowMapper implements ListingRowMapper
         $registryNumber = $this->stripRegistryNumberPrefix(trim($row[self::REGISTRY_NUMBER_COLUMN] ?? ''));
 
         if ($registryNumber === '') {
-            return null;
+            throw new \UnexpectedValueException('Missing mandatory EIS registry number.');
         }
 
         $publishedAt = $this->parseDate(value: $row[self::PUBLISHED_AT_COLUMN] ?? null);
         $sourceUpdatedAt = $this->parseSourceUpdatedAt(value: $row[self::SOURCE_UPDATED_AT_COLUMN] ?? null);
 
         if ($publishedAt === null || $sourceUpdatedAt === null) {
-            return null;
+            throw new \UnexpectedValueException('Invalid mandatory EIS publication/update date.');
         }
 
         [$procedureType, $procedureTypeRaw] = $this->mapProcedureType(row: $row, crawler: $crawler);
@@ -144,7 +144,10 @@ final readonly class EisCsvRowMapper implements ListingRowMapper
 
         foreach (['!d.m.Y H:i:s', '!d.m.Y H:i', '!d.m.Y'] as $format) {
             try {
-                return Carbon::createFromFormat($format, $value);
+                $date = Carbon::createFromFormat($format, $value);
+                if ($date !== null && $date->format(substr($format, 1)) === $value) {
+                    return $date;
+                }
             } catch (\Throwable) {
                 continue;
             }
@@ -168,7 +171,7 @@ final readonly class EisCsvRowMapper implements ListingRowMapper
             try {
                 $date = Carbon::createFromFormat(format: $format, time: $value);
 
-                if ($date !== null) {
+                if ($date !== null && $date->format(substr($format, 1)) === $value) {
                     return ['value' => $date, 'hasDayPrecision' => false];
                 }
             } catch (\Throwable) {
@@ -179,7 +182,7 @@ final readonly class EisCsvRowMapper implements ListingRowMapper
         try {
             $date = Carbon::createFromFormat(format: '!d.m.Y', time: $value);
 
-            return $date === null ? null : ['value' => $date, 'hasDayPrecision' => true];
+            return $date === null || $date->format('d.m.Y') !== $value ? null : ['value' => $date, 'hasDayPrecision' => true];
         } catch (\Throwable) {
             return null;
         }

@@ -44,6 +44,10 @@ final class FetchProcurementDetailJob implements ShouldBeUnique, ShouldQueue
 
     public function handle(DetailAnalysisProcessor $processor, PipelineDispatcher $dispatcher): void
     {
+        if (! config('crawler.downstream_enabled', true)) {
+            return;
+        }
+
         $procurement = Procurement::findOrFail($this->procurementId);
 
         $deadlineSeconds = config('crawler.detail_deadline_seconds', 270);

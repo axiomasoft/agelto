@@ -13,6 +13,7 @@ use App\Enums\Procurement\Crawler\CrawlerMode;
 use App\Enums\Procurement\Crawler\SourceMethod;
 use App\Enums\Procurement\Health\PlatformCheckKind;
 use App\Enums\Procurement\Health\PlatformCheckVerdict;
+use App\Exceptions\Procurement\Crawler\InvalidListingResponse;
 use App\Exceptions\Procurement\Crawler\PlatformBudgetExhaustedException;
 use App\Exceptions\Procurement\Proxy\NoProxyAvailableException;
 use App\Models\Procurement\Crawler\Crawler;
@@ -96,9 +97,9 @@ final readonly class ListingFilterCheck implements HealthCheck
                 requestsUsed: $requestsUsed,
                 measured: $this->measured(crawler: $crawler, windowFrom: $windowFrom, windowTo: $windowTo),
             );
-        } catch (ConnectionException $exception) {
+        } catch (ConnectionException|InvalidListingResponse $exception) {
             return $this->notEnoughData(
-                message: "Проба фильтра ОКПД2 не выполнилась: {$exception->getMessage()}",
+                message: 'Проба фильтра ОКПД2 не получила проверенный CSV-ответ.',
                 requestsUsed: $requestsUsed + 1,
                 measured: $this->measured(crawler: $crawler, windowFrom: $windowFrom, windowTo: $windowTo),
             );

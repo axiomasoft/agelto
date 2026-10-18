@@ -20,6 +20,10 @@ final readonly class DetailDispatcher
 
     public function dispatchDue(int $limit): int
     {
+        if (! config('crawler.downstream_enabled', true)) {
+            return 0;
+        }
+
         $procurements = $this->selector->due(limit: $limit);
         $dispatched = 0;
 

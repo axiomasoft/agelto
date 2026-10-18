@@ -1,0 +1,9 @@
+{
+    "utc": "2026-10-18T10:46:03+00:00",
+    "database": "agelto",
+    "crawler_id": 3,
+    "screening_enabled": false,
+    "extraction_enabled": false,
+    "outcome": "egress_failed",
+    "exception_class": "App\\Exceptions\\Procurement\\Proxy\\NoProxyAvailableException"
+}

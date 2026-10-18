@@ -1,0 +1,19 @@
+{
+  "run_id": "cnd-20261018T114016Z-b7a66c",
+  "orchestrator": "swissknifeman orch conduct",
+  "executor": "codex/gpt-6.1-sol/xhigh",
+  "reviewer": "grok/grok-4.7/high",
+  "outcome": "finished, registered gate pass",
+  "review_verdict": "ATTENTION",
+  "confirmed_minor_findings": [
+    "F1 stale current instructions in STATUS.md",
+    "F2 wrong flag named by fixture downstream guard"
+  ],
+  "followup": "Both minors will be repaired in a separate orchestrated follow-up before push and live rerun.",
+  "real_csv_analysis_owner": "coordinator; real-csv-new-parser.json and real-csv-content-analysis.json",
+  "limits": [
+    "EIS-008 automatic Failed recovery remains a documented policy follow-up.",
+    "Delta/backlog failure-status question from review retained for a later mode audit.",
+    "Post-repair live rerun has not started."
+  ]
+}

@@ -9,6 +9,9 @@ use App\Filament\Resources\Procurement\Crawler\Crawlers\Schemas\EisCrawlerPlatfo
 use App\Services\Procurement\Eis\CsvSourceMethod;
 
 return [
+    // CSV-only operation: gates all later dispatch and queued execution boundaries.
+    'downstream_enabled' => env('CRAWLER_DOWNSTREAM_ENABLED', true),
+
     'platforms' => [
         'eis' => [
             'source_methods' => [

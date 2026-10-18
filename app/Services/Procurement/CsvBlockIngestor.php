@@ -160,6 +160,25 @@ final readonly class CsvBlockIngestor
         );
     }
 
+    /** Rejected responses retain evidence without entering the ingestion/cursor transaction. */
+    public function recordRejectedBatch(Crawler $crawler, Run $run, ListingBatch $batch, string $reason): void
+    {
+        $artifactRef = $this->storeRawArtifact(crawler: $crawler, run: $run, batch: $batch);
+        $this->fetches->log(stage: CrawlStage::Listing, run: $run, procurementId: null, attributes: [
+            'method' => $crawler->source_method->value,
+            'request_params' => [...$batch->requestParams, '_rejection_reason' => $reason],
+            'artifact_ref' => $artifactRef,
+            'http_status' => $batch->httpStatus,
+            'duration_ms' => $batch->durationMs,
+            'rows_total' => $batch->rowsTotal,
+            'rows_parsed' => 0,
+            'rows_errors' => 1,
+            'proxy_id' => $batch->proxyId,
+            'proxy_source' => $batch->proxySource?->value,
+            'wait_ms' => $batch->waitMs,
+        ]);
+    }
+
     /**
      * Дедуп ВНУТРИ блока по реестровому номеру (П-5) — первая строка выигрывает (порядок сервера
      * значимый). `rowsTotal`/`dedup_signature` не пересчитываются: они про полноту блока сервера

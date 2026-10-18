@@ -23,6 +23,12 @@ final class FetchDetails extends Command
 {
     public function handle(DetailDispatcher $dispatcher, CrawlSettingsResolver $settings): int
     {
+        if (! config('crawler.downstream_enabled', true)) {
+            $this->info('Последующие стадии отключены (CRAWLER_DOWNSTREAM_ENABLED).');
+
+            return self::SUCCESS;
+        }
+
         $identifier = $this->argument('procurement');
 
         if ($identifier !== null) {

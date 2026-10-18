@@ -34,8 +34,9 @@ final readonly class PlatformRequestBudget
         private ProxyBindingResolver $proxyBindings,
     ) {}
 
-    public function acquire(string $host, CrawlStage $stage, ?Crawler $crawler = null, ?float $deadlineAt = null): int
+    public function acquire(string $host, CrawlStage $stage, ?Crawler $crawler = null, ?float $deadlineAt = null, ?\Closure $checkpoint = null): int
     {
+        $checkpoint?->__invoke();
         $host = $this->canonicalHost($host);
         $platform = $this->platformFor(host: $host, crawler: $crawler);
         $capacity = $this->capacity(platform: $platform);
@@ -61,7 +62,7 @@ final readonly class PlatformRequestBudget
 
             $this->assertWaitFitsDeadline(waitMs: $waitMs, deadlineAt: $deadlineAt, stage: $stage);
 
-            Sleep::for($waitMs)->milliseconds();
+            $this->wait($waitMs, $checkpoint);
             $slotWaitedMs += $waitMs;
         }
 
@@ -69,10 +70,20 @@ final readonly class PlatformRequestBudget
 
         if ($stagePauseMs > 0) {
             $this->assertWaitFitsDeadline(waitMs: $stagePauseMs, deadlineAt: $deadlineAt, stage: $stage);
-            Sleep::for($stagePauseMs)->milliseconds();
+            $this->wait($stagePauseMs, $checkpoint);
         }
 
         return $slotWaitedMs + $stagePauseMs;
+    }
+
+    private function wait(int $waitMs, ?\Closure $checkpoint): void
+    {
+        while ($waitMs > 0) {
+            $slice = $checkpoint === null ? $waitMs : min(1000, $waitMs);
+            Sleep::for($slice)->milliseconds();
+            $waitMs -= $slice;
+            $checkpoint?->__invoke();
+        }
     }
 
     private function assertWaitFitsDeadline(int $waitMs, ?float $deadlineAt, CrawlStage $stage): void
