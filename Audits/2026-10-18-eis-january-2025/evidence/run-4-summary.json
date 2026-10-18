@@ -1,0 +1,50 @@
+{
+  "run_id": 4,
+  "code_commit": "19726b05",
+  "branch": "local/codex-setup-2026-09-14",
+  "pushed_before_start": true,
+  "started_at_utc": "2026-10-18T12:53:39Z",
+  "finished_at_utc": "2026-10-18T13:05:04Z",
+  "status": "completed",
+  "days": 31,
+  "unique_procurements": 2516,
+  "revisions": 2516,
+  "new": 0,
+  "updated": 0,
+  "row_errors": 0,
+  "raw_mismatches": 0,
+  "source_total_count_without_price": 2516,
+  "downstream_rows": 0,
+  "flags": {
+    "CRAWLER_DOWNSTREAM_ENABLED": false,
+    "AI_SCREENING_ENABLED": false,
+    "AI_EXTRACTION_ENABLED": false
+  },
+  "egress_country": "RU",
+  "proxy_id": 1,
+  "direct_fetches": 0,
+  "pause_test": {
+    "requested_at_utc": "2026-10-18T12:54:17Z",
+    "paused_updated_at_utc": "2026-10-18T12:54:17Z",
+    "cursor_day": "2025-01-08",
+    "resume_queued_at_utc": "2026-10-18T12:54:40Z",
+    "same_run": true,
+    "limit": "Observed between requests; not proof of interruption of an in-flight HTTP request."
+  },
+  "attempts": 45,
+  "network_timeouts": 14,
+  "max_attempt_number": 4,
+  "breaker_opened": false,
+  "idle_worker_stopped": true,
+  "archive_queue": {
+    "ready": 0,
+    "reserved": 0,
+    "delayed": 0
+  },
+  "limits": [
+    "Local production-like rehearsal, not a deployment to a production host.",
+    "Approved scope only: completed44-FZ OKPD2 43; not all public procurement.",
+    "Daily CSV never reached500 records; no live bisection exercised.",
+    "Automatic Failed recovery and delta/backlog status handling remain follow-ups."
+  ]
+}

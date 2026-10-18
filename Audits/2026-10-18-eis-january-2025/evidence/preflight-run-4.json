@@ -1,0 +1,13 @@
+{
+    "utc": "2026-10-18T12:53:23+00:00",
+    "database": "agelto",
+    "crawler_id": 3,
+    "screening_enabled": false,
+    "extraction_enabled": false,
+    "downstream_enabled": false,
+    "proxy_id": 1,
+    "proxy_source": "profile",
+    "egress_http_status": 200,
+    "country": "RU",
+    "outcome": "ready"
+}

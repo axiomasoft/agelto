@@ -45,11 +45,11 @@ docker exec agelto_dev-app-1 php artisan config:clear
 
 ## Продолжение
 
-**Отложенный повтор уже завершился: run3 completed в 11:21:01 UTC, накоплено 2516 закупок
-и 2516 ревизий, queues/downstream=0 (snapshot 11:39:23 UTC). Idle worker остановлен перед
-ремонтом. Не считать старую delayed команду ожидающей. Следующий live rerun выполняет
-координатор после review/acceptance/commit/push; reset не разрешён. Executor работает
-только с fixtures и agelto_test.**
+**Последний run4 completed: 2026-10-18 13:05:04 UTC, полный январь,31 CSV,
+2516 закупок и2516 ревизий,0 новых/обновлённых/ошибок строк. Независимый счётчик без цены2516;
+raw/БД согласованы. Код19726b05 отправлен до старта; оба Minor исправлены, Grok4.7 GREEN.
+Очереди пусты, idle archive worker остановлен; downstream/AI false. Отложенных повторов нет.
+Сначала свежий snapshot; новый запуск — проверка повторного прохода без reset.**
 
 1. Проверить контейнеры, состояние worker и `snapshot.php`. Не создавать второй worker поверх
    работающего. В этой репетиции worker запущен внутри app через `docker exec -d`, он не является
@@ -170,3 +170,7 @@ docker exec agelto_dev-app-1 php artisan db:seed --class='Database\Seeders\Procu
 отдельный сценарий на локальной `agelto`, он не должен запускаться из автоматических тестов.
 В отчёт писать точные UTC-время, git SHA, профиль/диапазон, команды, run IDs, fetch counts,
 исходы и ограничения. Секреты и сырые дампы БД хранить только в игнорируемом storage.
+
+Для тестов после локального отключения downstream явно добавлять в `docker exec`
+`-e CRAWLER_DOWNSTREAM_ENABLED=true`: проверки отдельных AI-флагов не должны зависеть от
+операторского `.env`. StageOneIsolationTest самостоятельно задаёт необходимые комбинации.
