@@ -9,6 +9,7 @@ use App\Enums\Procurement\Ai\RunMode;
 use App\Enums\Procurement\Document\DocumentStatus;
 use App\Exceptions\Procurement\Ai\AnalysisRunAlreadyActive;
 use App\Exceptions\Procurement\Ai\ScreeningDisabled;
+use App\Exceptions\Procurement\Crawler\DownstreamDisabled;
 use App\Jobs\Procurement\PrepareDocumentJob;
 use App\Models\Procurement\Ai\Fixture;
 use App\Repositories\Procurement\Ai\AnalysisReadRepository;
@@ -36,7 +37,11 @@ final readonly class RunFixtureAnalysisAction
 
     public function run(Fixture $fixture, ?int $initiatedBy = null): void
     {
-        if (! config('crawler.downstream_enabled', true) || ! config('ai.screening.enabled', false)) {
+        if (! config('crawler.downstream_enabled', true)) {
+            throw new DownstreamDisabled;
+        }
+
+        if (! config('ai.screening.enabled', false)) {
             throw new ScreeningDisabled;
         }
 

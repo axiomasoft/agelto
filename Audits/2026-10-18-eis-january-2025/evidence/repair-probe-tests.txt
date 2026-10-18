@@ -1,6 +1,5 @@
 
-  [90;1m.[39;22m[90;1m.[39;22m
+  ..
 
-  [90mTests:[39m    [32;1m2 passed[39;22m[90m (16 assertions)[39m
-  [90mDuration:[39m [39m1.02s[39m
-
+  Tests:    2 passed (16 assertions)
+  Duration: 1.02s

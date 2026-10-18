@@ -5,6 +5,8 @@ declare(strict_types=1);
 use App\Actions\Procurement\Document\ExpandArchiveEntryAction;
 use App\Enums\Procurement\Document\DocumentStatus;
 use App\Exceptions\Procurement\Ai\ScreeningDisabled;
+use App\Exceptions\Procurement\Crawler\DownstreamDisabled;
+use App\Exceptions\Procurement\OperationFailed;
 use App\Jobs\Procurement\Analyzers\Estimate\EstimateExtractionJob;
 use App\Jobs\Procurement\DownloadDocumentJob;
 use App\Jobs\Procurement\FetchProcurementDetailJob;
@@ -15,6 +17,7 @@ use App\Models\Procurement\Ai\Analysis;
 use App\Models\Procurement\Ai\Fixture;
 use App\Models\Procurement\Document\Document;
 use App\Models\Procurement\Document\DocumentVersion;
+use App\Models\Procurement\Platform\Platform;
 use App\Models\Procurement\Procurement;
 use App\Services\Procurement\Analyzers\Estimate\EstimateAnalyzer;
 use App\Services\Procurement\DetailDispatcher;
@@ -76,11 +79,40 @@ test('CSV-only останавливает уже поставленный detail
 
 test('CSV-only блокирует ручные AI входы до изменения анализа и fixture', function () {
     expect(fn () => app(RerunAnalysisAction::class)->run(new Analysis))->toThrow(RuntimeException::class, 'CRAWLER_DOWNSTREAM_ENABLED');
-    expect(fn () => app(RunFixtureAnalysisAction::class)->run(new Fixture))->toThrow(ScreeningDisabled::class);
+    expect(fn () => app(RunFixtureAnalysisAction::class)->run(new Fixture))->toThrow(DownstreamDisabled::class, 'CRAWLER_DOWNSTREAM_ENABLED');
     app(EstimateAnalyzer::class)->dispatchExtraction(999999);
 
     Queue::assertNothingPushed();
 });
+
+test('отключённая стадия называет причину отказа fixture без рабочей копии и dispatch', function (bool $downstreamEnabled, bool $screeningEnabled, string $exceptionClass, string $disabledFlag): void {
+    config(['crawler.downstream_enabled' => $downstreamEnabled, 'ai.screening.enabled' => $screeningEnabled]);
+    $fixturesDisk = config('ai.fixtures.disk');
+    $documentsDisk = config('crawler.documents_disk');
+    Storage::fake($fixturesDisk);
+    Storage::fake($documentsDisk);
+    Platform::factory()->training()->create();
+    $fixture = Fixture::factory()->create();
+    Storage::disk($fixturesDisk)->put($fixture->storage_path, 'Synthetic fixture source');
+
+    expect(fn () => app(RunFixtureAnalysisAction::class)->run($fixture))
+        ->toThrow(function (OperationFailed $exception) use ($exceptionClass, $disabledFlag): void {
+            expect($exception)->toBeInstanceOf($exceptionClass)
+                ->and($exception->getMessage())->toContain($disabledFlag);
+        });
+
+    expect($fixture->fresh()->document_id)->toBeNull()
+        ->and(Document::query()->count())->toBe(0)
+        ->and(DocumentVersion::query()->count())->toBe(0)
+        ->and(Storage::disk($documentsDisk)->allFiles())->toBe([]);
+
+    Queue::assertNothingPushed();
+    Http::assertNothingSent();
+})->with([
+    'downstream выключен, screening включён' => [false, true, DownstreamDisabled::class, 'CRAWLER_DOWNSTREAM_ENABLED'],
+    'downstream включён, screening выключен' => [true, false, ScreeningDisabled::class, 'AI_SCREENING_ENABLED'],
+    'оба выключены, downstream проверяется первым' => [false, false, DownstreamDisabled::class, 'CRAWLER_DOWNSTREAM_ENABLED'],
+]);
 
 test('включение downstream возвращает штатный detail dispatch', function () {
     config(['crawler.downstream_enabled' => true]);
