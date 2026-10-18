@@ -1,0 +1,42 @@
+{
+  "$schema": "urn:swissknifeman:task:plan:decision:v1",
+  "id": "D12",
+  "title": "Решение",
+  "date": "2026-09-11",
+  "status": "accepted",
+  "decision": "Владелец явно отказал в production-доступе и в 72-часовом окне. P4.3 выполняет\nмаксимально безопасный local-only scope и закрывается терминально как `🟠 Done with\ndeviations`. Отсутствие production-замера остаётся явным отклонением и не становится\nproduction GO, SLA или waiver технического факта.",
+  "rationale": "Production target владельцем не предоставляется и не будет предоставлен. Локально\nвыполнены readiness, worker interruption/recovery, storage outage/recovery, focused fault,\ntargeted broad и full suites; дальнейшая production-работа невозможна по owner-решению,\nа не из-за незавершённого local repair.",
+  "applies_to": [
+    "P4.3"
+  ],
+  "supersedes": [
+    "D10"
+  ],
+  "actor": {
+    "provider": "legacy",
+    "model": "frontier/high",
+    "effort": "high"
+  },
+  "sections": [
+    {
+      "id": "Preamble",
+      "title": "Preamble",
+      "text": "---\nid: D12\ndate: 2026-09-11\nstatus: accepted\nitem: P4.3\nitems: [P4.3]\nsupersedes: [D10]\nsuperseded_by: null\n---"
+    },
+    {
+      "id": "section",
+      "title": "Решение",
+      "text": "Владелец явно отказал в production-доступе и в 72-часовом окне. P4.3 выполняет\nмаксимально безопасный local-only scope и закрывается терминально как `🟠 Done with\ndeviations`. Отсутствие production-замера остаётся явным отклонением и не становится\nproduction GO, SLA или waiver технического факта."
+    },
+    {
+      "id": "section-2",
+      "title": "Почему",
+      "text": "Production target владельцем не предоставляется и не будет предоставлен. Локально\nвыполнены readiness, worker interruption/recovery, storage outage/recovery, focused fault,\ntargeted broad и full suites; дальнейшая production-работа невозможна по owner-решению,\nа не из-за незавершённого local repair."
+    },
+    {
+      "id": "Consequences",
+      "title": "Consequences",
+      "text": "P4.3 публикует terminal `NO-GO` для production и terminal GREEN для объявленного local scope.\nP4.4 может стартовать после terminal P4.3. Будущая production-сертификация, если владелец\nкогда-либо её разрешит, будет отдельным owner-authorized work item, а не незримым\nостатком P4.3."
+    }
+  ]
+}

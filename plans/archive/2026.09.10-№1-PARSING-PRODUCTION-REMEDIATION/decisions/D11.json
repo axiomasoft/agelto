@@ -1,0 +1,55 @@
+{
+  "$schema": "urn:swissknifeman:task:plan:decision:v1",
+  "id": "D11",
+  "title": "Решение",
+  "date": "2026-09-10",
+  "status": "accepted",
+  "decision": "Ремедиация design audit #1 не меняет D8/D10, а доводит их ownership до\nисполняемых carriers. Каждый `Inputs` P1.1–P4.4 называет точный path либо D-record;\npredecessor terminality не пересказывается прозой, а потребляет state/phase-closure carrier.\nБудущий predecessor output остаётся явным путём, а его bundle отложен до появления\nи terminal commit производителя; пустые placeholder files запрещены.\n\nP4.1 — единственный owner любого live ЕИС traffic до controlled production: он собирает\nA1 boundary-day/page evidence и B2 revision-pair evidence, исполняет обе D8 ветви и\nпроизводит digest-linked `artifacts/ → findings/ → research/`. P4.2 не делает сетевых\nзапросов, потребляет terminal P4.1 state и оба machine-readable live artifact, пишет только\nacceptance/evidence/synthesis carriers. P4.3 применяет D10 только после terminal P4.1,\nGREEN P4.2 и digest-bound owner authorization. RAG:— (repo-grounded:\n`@plan/plan.json`, Design audit #1; `@plan/knowledge/research-01-remediation-architecture.json`; D8; D10).",
+  "rationale": "Abstract labels не попадают в Bundle v1, stale P2/P4 wording возвращало live ownership\nP4.2, а broad P4.2 `Files` смешивал независимую приёмку с product repair. RAG:—\n(repo-grounded: `@plan/plan.json`, Design audit #1; `@plan/phases/P2/phase.json`; `@plan/phases/P4/P4.1.json`;\n`@plan/phases/P4/P4.2.json`).",
+  "applies_to": [
+    "P1.1",
+    "P1.2",
+    "P1.3",
+    "P1.4",
+    "P2.1",
+    "P2.2",
+    "P2.3",
+    "P3.1",
+    "P3.2",
+    "P3.3",
+    "P3.4",
+    "P3.5",
+    "P4.1",
+    "P4.2",
+    "P4.3",
+    "P4.4"
+  ],
+  "supersedes": [],
+  "actor": {
+    "provider": "legacy",
+    "model": "frontier/high",
+    "effort": "high"
+  },
+  "sections": [
+    {
+      "id": "Preamble",
+      "title": "Preamble",
+      "text": "---\nid: D11\ndate: 2026-09-10\nstatus: accepted\nitem: P4.1\nitems: [P1.1, P1.2, P1.3, P1.4, P2.1, P2.2, P2.3, P3.1, P3.2, P3.3, P3.4, P3.5, P4.1, P4.2, P4.3, P4.4]\nsupersedes: []\nsuperseded_by: null\n---"
+    },
+    {
+      "id": "section",
+      "title": "Решение",
+      "text": "Ремедиация design audit #1 не меняет D8/D10, а доводит их ownership до\nисполняемых carriers. Каждый `Inputs` P1.1–P4.4 называет точный path либо D-record;\npredecessor terminality не пересказывается прозой, а потребляет state/phase-closure carrier.\nБудущий predecessor output остаётся явным путём, а его bundle отложен до появления\nи terminal commit производителя; пустые placeholder files запрещены.\n\nP4.1 — единственный owner любого live ЕИС traffic до controlled production: он собирает\nA1 boundary-day/page evidence и B2 revision-pair evidence, исполняет обе D8 ветви и\nпроизводит digest-linked `artifacts/ → findings/ → research/`. P4.2 не делает сетевых\nзапросов, потребляет terminal P4.1 state и оба machine-readable live artifact, пишет только\nacceptance/evidence/synthesis carriers. P4.3 применяет D10 только после terminal P4.1,\nGREEN P4.2 и digest-bound owner authorization. RAG:— (repo-grounded:\n`@plan/plan.json`, Design audit #1; `@plan/knowledge/research-01-remediation-architecture.json`; D8; D10)."
+    },
+    {
+      "id": "section-2",
+      "title": "Почему",
+      "text": "Abstract labels не попадают в Bundle v1, stale P2/P4 wording возвращало live ownership\nP4.2, а broad P4.2 `Files` смешивал независимую приёмку с product repair. RAG:—\n(repo-grounded: `@plan/plan.json`, Design audit #1; `@plan/phases/P2/phase.json`; `@plan/phases/P4/P4.1.json`;\n`@plan/phases/P4/P4.2.json`)."
+    },
+    {
+      "id": "Consequences",
+      "title": "Consequences",
+      "text": "**Consequences:** будущие bundles создаются только после materialization всех объявленных\npredecessor carriers; P4.1 платит двумя узкими live probes в одном owner-approved scope;\nP4.2 теряет право прямого product fix и при RED возвращает exact scope владельцу item,\nчтобы сохранить независимость повторной приёмки."
+    }
+  ]
+}

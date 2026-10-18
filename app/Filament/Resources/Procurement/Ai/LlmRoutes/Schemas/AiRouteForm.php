@@ -50,7 +50,9 @@ class AiRouteForm
                     ->schema([
                         Select::make('provider_id')
                             ->label('Провайдер')
-                            ->relationship('provider', 'id')
+                            ->relationship('provider', 'code')
+                            ->searchable()
+                            ->preload()
                             ->required(),
                         Textarea::make('model')
                             ->label('Модель')

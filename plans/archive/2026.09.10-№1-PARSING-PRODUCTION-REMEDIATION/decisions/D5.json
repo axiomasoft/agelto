@@ -1,0 +1,36 @@
+{
+  "$schema": "urn:swissknifeman:task:plan:decision:v1",
+  "id": "D5",
+  "title": "Решение",
+  "date": "2026-09-10",
+  "status": "accepted",
+  "decision": "B3 выполняется отдельным P4.4 после controlled-production decision и не является prerequisite\nP4.3. До P4.4 текущие raw paths нельзя называть immutable audit trail.",
+  "rationale": "B3 ухудшает расследования, но сам по себе не создаёт доказанный data-loss blocker узкого pilot.\nRAG:— (repo-grounded: `@plan/knowledge/artifacts-PARSING_PRODUCTION_ACCEPTANCE.json:357-378`). **Consequences:** план может\nразрешить controlled production при terminal P4.3 и открытом P4.4; plan closure/архив ждёт P4.4.",
+  "applies_to": [
+    "P4.3",
+    "P4.4"
+  ],
+  "supersedes": [],
+  "actor": {
+    "provider": "legacy",
+    "model": "frontier/high",
+    "effort": "high"
+  },
+  "sections": [
+    {
+      "id": "Preamble",
+      "title": "Preamble",
+      "text": "---\nid: D5\ndate: 2026-09-10\nstatus: accepted\nitem: P4.4\nitems: [P4.3, P4.4]\nsupersedes: []\nsuperseded_by: null\n---"
+    },
+    {
+      "id": "section",
+      "title": "Решение",
+      "text": "B3 выполняется отдельным P4.4 после controlled-production decision и не является prerequisite\nP4.3. До P4.4 текущие raw paths нельзя называть immutable audit trail."
+    },
+    {
+      "id": "section-2",
+      "title": "Почему",
+      "text": "B3 ухудшает расследования, но сам по себе не создаёт доказанный data-loss blocker узкого pilot.\nRAG:— (repo-grounded: `@plan/knowledge/artifacts-PARSING_PRODUCTION_ACCEPTANCE.json:357-378`). **Consequences:** план может\nразрешить controlled production при terminal P4.3 и открытом P4.4; plan closure/архив ждёт P4.4."
+    }
+  ]
+}

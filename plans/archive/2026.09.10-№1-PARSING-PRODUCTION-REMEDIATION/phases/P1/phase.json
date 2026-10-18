@@ -1,0 +1,70 @@
+{
+  "$schema": "urn:swissknifeman:task:plan:phase:v1",
+  "id": "P1",
+  "title": "Полнота и конкурентность crawling",
+  "design": "detailed",
+  "goal": "> **Контракт фазы (contract-first).** Потребляет: terminal P0 и текущий typed listing/run cursor ·\n> Производит: доказанные fresh stop conditions, resumable hard-cap, scope-preserving recovery и\n> exclusive execution lease backlog/delta · Границы: не меняет EIS filter registry, proxy/TLS trust,\n> request budget или procurement ingest semantics.\n\nScope Included: A1, NEW-1, A2, A9; multi-page boundary-day regressions; dense window checkpoint;\ntwo-process PostgreSQL concurrency; crash/expiry resume. Scope Excluded: document lifecycle and\nAI pipeline. RAG:— (repo-grounded: `@plan/knowledge/findings-00-source-synthesis.json`, A1/A2/A9/NEW-1).",
+  "context": "> **Контракт фазы (contract-first).** Потребляет: terminal P0 и текущий typed listing/run cursor ·\n> Производит: доказанные fresh stop conditions, resumable hard-cap, scope-preserving recovery и\n> exclusive execution lease backlog/delta · Границы: не меняет EIS filter registry, proxy/TLS trust,\n> request budget или procurement ingest semantics.\n\nScope Included: A1, NEW-1, A2, A9; multi-page boundary-day regressions; dense window checkpoint;\ntwo-process PostgreSQL concurrency; crash/expiry resume. Scope Excluded: document lifecycle and\nAI pipeline. RAG:— (repo-grounded: `@plan/knowledge/findings-00-source-synthesis.json`, A1/A2/A9/NEW-1).",
+  "depends_on": [
+    "P0"
+  ],
+  "items": [
+    "P1.1",
+    "P1.2",
+    "P1.3",
+    "P1.4"
+  ],
+  "batches": [
+    {
+      "id": "B-P1-CRAWL",
+      "items": [
+        "P1.1",
+        "P1.2"
+      ],
+      "mode": "recommended"
+    },
+    {
+      "id": "B-P1-RECOVERY",
+      "items": [
+        "P1.3",
+        "P1.4"
+      ],
+      "mode": "recommended"
+    }
+  ],
+  "closed": {
+    "at": "2026-09-11T12:56:46Z",
+    "result": "done",
+    "summary": "<!-- plan-projection\nprojection: phase-closure\nprojection_version: v1\nsource_scope: phase P1 + item states + decisions\nthrough: P1: 🟢 Done\ninputs_sha256: 6a057ce9f1d8ecd2e945bd3b5db452fffcf95d00afddc804076efd359be780d4\ngenerated_by: task plan-views closure\n-->\n\n# Закрытие фазы P1\n\n> Не править руками: это генерируемый вид.\n\n## Контракт фазы\n\n**Контракт фазы (contract-first).** Потребляет: terminal P0 и текущий typed listing/run cursor ·\nПроизводит: доказанные fresh stop conditions, resumable hard-cap, scope-preserving recovery и\nexclusive execution lease backlog/delta · Границы: не меняет EIS filter registry, proxy/TLS trust,\nrequest budget или procurement ingest semantics.\n\n## Произведено\n\n- P1.1 — Сделать fresh stop безопасным для суточной точности ЕИС: safe day-boundary stop contract, updated docs, negative multi-page regression and replay test. Closure: later same-day rows are persisted, next-day/previous-day boundary is deterministic, overlap produces no extra revision, no existing default-policy behavior regresses, all commands green.\n- P1.2 — Сохранять fresh hard-cap как resumable incomplete outcome: resumable hard-cap outcome, one continuation route, operator docs and regressions. Closure: after first capped slice cursor points to the next block and run is not falsely complete; second slice resumes exactly there; only a proven stop completes; duplicate continuation does not double-process; commands green.\n- P1.3 — Сохранить fresh scope и недренированный interval в backlog/delta recovery: typed recovery scope, no-drop durable interval behavior, updated seeder/docs only where contract requires, mismatch/dense/cap regressions. Closure: requests preserve fresh subject, every popped interval is proven drained or replaced durably, fresh `backlog_rescanned_at` remains null on incomplete debt, later resume consumes the remainder, commands green.\n- P1.4 — Исключить concurrent execution одного backlog/delta run: additive lease migration/model/factory contract, scheduler guards, atomic lease API, two-process fault suite and docs. Closure: exactly one scanner enters per run; non-owner cannot mutate/complete; expired owner is safely replaced; cursor resumes without lost/repeated completion; backlog and delta schedules are non-overlapping; commands green.\n\n## Known Deviations\n\n- —\n\n## Решения\n\n- [D1](../../decisions/D1-design-scope.md)\n- [D2](../../decisions/D2-phase-order.md)\n- [D9](../../decisions/D9-phase-order-reconciled.md)\n- [D11](../../decisions/D11-audit-one-carrier-and-evidence-ownership.md)\n"
+  },
+  "orchestration": {
+    "strategy": "sequential"
+  },
+  "sections": [
+    {
+      "id": "P1-crawling",
+      "title": "P1 — Полнота и конкурентность crawling",
+      "text": "> **Phase Assurance | v1.**\n> Impact: internal-integration\n> Integration Seams: crawler.fresh-run · crawler.recovery · database.run-leases\n> Live or Irreversible: no\n> Audit Intent: auto\n> Rationale: P1.4 already has repeat independent review and real two-process PostgreSQL regressions. The owner requires direct-close by default; a phase audit may be proposed only for a named residual cross-item risk and explicit owner consent."
+    },
+    {
+      "id": "Phase-Context",
+      "title": "Phase Context",
+      "text": "> **Контракт фазы (contract-first).** Потребляет: terminal P0 и текущий typed listing/run cursor ·\n> Производит: доказанные fresh stop conditions, resumable hard-cap, scope-preserving recovery и\n> exclusive execution lease backlog/delta · Границы: не меняет EIS filter registry, proxy/TLS trust,\n> request budget или procurement ingest semantics.\n\nScope Included: A1, NEW-1, A2, A9; multi-page boundary-day regressions; dense window checkpoint;\ntwo-process PostgreSQL concurrency; crash/expiry resume. Scope Excluded: document lifecycle and\nAI pipeline. RAG:— (repo-grounded: `@plan/knowledge/findings-00-source-synthesis.json`, A1/A2/A9/NEW-1)."
+    },
+    {
+      "id": "Sequence-and-dependencies",
+      "title": "Sequence and dependencies",
+      "text": "P1.1 → P1.2; P1.3 consumes both truthful fresh outcomes; P1.4 consumes recovery ownership and\nfinishes scheduler/manual concurrency protection."
+    },
+    {
+      "id": "DoR-Definition-of-Ready",
+      "title": "DoR (Definition of Ready)",
+      "text": "- [x] Все четыре findings имеют distinct item и negative regression.\n- [x] `Completed`/incomplete semantics и execution ownership разделены.\n- [x] Scope compatibility и no-drop stack behavior проверяются отдельно.\n- [x] No live EIS request входит в automated Validation."
+    },
+    {
+      "id": "Phase-Handoff",
+      "title": "Phase Handoff",
+      "text": "После P1.4: direct-close фазы и затем P2.1. Audit возможен только по отдельному доказанному\nresidual risk и адресному owner consent."
+    }
+  ]
+}

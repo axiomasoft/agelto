@@ -1,0 +1,277 @@
+{
+  "$schema": "urn:swissknifeman:task:plan:item:v1",
+  "id": "P4.3",
+  "title": "Завершить controlled-production gate в owner-directed local-only scope",
+  "status": "done_with_deviations",
+  "summary": "После terminal P4.1 и GREEN P4.2 исполнить максимально безопасный local-only rehearsal, зафиксировать production `NO-GO` без трафика и закрыть item терминально с явным отклонением по D12. RAG:— (repo-grounded: `@plan/decisions/D12.json`).",
+  "why": "Владелец не предоставляет production target и 72-часовое окно, поэтому первоначальный D10 заменён D12. Local evidence не сертифицирует production, но закрывает все доступные исполнителю recovery/readiness риски.",
+  "scope": {
+    "include": [
+      "explicit D12 owner authorization; classified production preflight without traffic; local runtime readiness; local pipeline and crawler health; reversible worker interruption and storage outage recovery; focused fault tests; targeted broad and full application suites; static/style/security checks; sanitized terminal GO/NO-GO artifact and handoff."
+    ],
+    "exclude": [
+      "any production access or traffic; 72-hour production observation; production metrics or reconciliation; nationwide crawl; permanent production enablement; SLA certification; destructive database or storage faults; B3 implementation; LLM accuracy certification."
+    ]
+  },
+  "depends_on": [
+    "P4.1",
+    "P4.2"
+  ],
+  "decisions": [
+    "D8",
+    "D11",
+    "D12",
+    "D10"
+  ],
+  "reads": [
+    {
+      "path": "@plan/phases/P4/P4.1.json",
+      "why": "Source input; exact context is preserved in item sections.",
+      "required": true
+    },
+    {
+      "path": "@plan/phases/P4/P4.2.json",
+      "why": "Source input; exact context is preserved in item sections.",
+      "required": true
+    },
+    {
+      "path": "@plan/artifacts/P4-independent-acceptance.json",
+      "why": "Source input; exact context is preserved in item sections.",
+      "required": true
+    },
+    {
+      "path": "@plan/knowledge/research-P4-independent-acceptance.json",
+      "why": "Source input; exact context is preserved in item sections.",
+      "required": true
+    },
+    {
+      "path": "@plan/decisions/D12.json",
+      "why": "Source input; exact context is preserved in item sections.",
+      "required": true
+    },
+    {
+      "path": "@plan/decisions/D8.json",
+      "why": "Source input; exact context is preserved in item sections.",
+      "required": true
+    },
+    {
+      "path": "@plan/decisions/D11.json",
+      "why": "Source input; exact context is preserved in item sections.",
+      "required": true
+    },
+    {
+      "path": "@plan/knowledge/findings-P4-independent-acceptance.json",
+      "why": "Source input; exact context is preserved in item sections.",
+      "required": true
+    },
+    {
+      "path": "@plan/knowledge/findings-P4-a1-live-verification.json",
+      "why": "Source input; exact context is preserved in item sections.",
+      "required": true
+    },
+    {
+      "path": "@plan/knowledge/findings-P4-b2-live-verification.json",
+      "why": "Source input; exact context is preserved in item sections.",
+      "required": true
+    },
+    {
+      "path": "docs/dev/runbooks/archive-run.md",
+      "why": "Source input; exact context is preserved in item sections.",
+      "required": true
+    },
+    {
+      "path": "docs/operators/production/deployment.md",
+      "why": "Source input; exact context is preserved in item sections.",
+      "required": true
+    }
+  ],
+  "task_files": [
+    {
+      "path": "@plan/artifacts/P4-controlled-production.json",
+      "change": "any"
+    },
+    {
+      "path": "@plan/knowledge/findings-P4-controlled-production.json",
+      "change": "any"
+    },
+    {
+      "path": "@plan/decisions/D12.json",
+      "change": "any"
+    }
+  ],
+  "rules": [
+    "Start only after terminal P4.1 with resolved B2 and GREEN P4.2. Never synthesize a production target, profile, metric or elapsed duration. Keep production verdict `NO-GO`; label every runtime check local-only. Worker and MinIO interruption must be reversible and finish with readiness GREEN. Preserve missing production evidence as Known Deviation under D12 rather than as an implicit certification."
+  ],
+  "guidance": "Classify the declared production Compose checks without inventing missing environment values. On `agelto_dev`, run readiness, pipeline stuck/status and crawler health; run the existing real-worker recovery contract; stop and restore only local MinIO behind an automatic restore trap; finish with readiness and service health GREEN. Run focused fault/recovery tests, targeted broad and full suites. Secrets and raw bodies never enter artifacts. Do not rewrite unrelated dirty application files to satisfy an inherited formatter migration.",
+  "validation": [
+    {
+      "id": "V1",
+      "cmd": "jq -e '.verdict.value == \"NO-GO\" and .verdict.terminal == true and .local_rehearsal.validation.full_suite.tests_passed == 1639' plans/2026.09.10-№1-PARSING-PRODUCTION-REMEDIATION/artifacts/P4-controlled-production.json",
+      "expect": "Source acceptance condition preserved in Validation section.",
+      "kind": "acceptance"
+    },
+    {
+      "id": "V2",
+      "cmd": "python3 -m json.tool plans/2026.09.10-№1-PARSING-PRODUCTION-REMEDIATION/artifacts/P4-controlled-production.json",
+      "expect": "Source acceptance condition preserved in Validation section.",
+      "kind": "acceptance"
+    },
+    {
+      "id": "V3",
+      "cmd": "git diff --check",
+      "expect": "Source acceptance condition preserved in Validation section.",
+      "kind": "acceptance"
+    },
+    {
+      "id": "V4",
+      "procedure": "D12 owner local-only terminal scope and classified production NO-GO",
+      "expect": "Source evidence status: green",
+      "kind": "acceptance"
+    },
+    {
+      "id": "V5",
+      "procedure": "local readiness and reversible worker/storage recovery",
+      "expect": "Source evidence status: green",
+      "kind": "acceptance"
+    },
+    {
+      "id": "V6",
+      "procedure": "focused and broad suites",
+      "expect": "Source evidence status: green",
+      "kind": "acceptance"
+    },
+    {
+      "id": "V7",
+      "procedure": "full application suite",
+      "expect": "Source evidence status: green",
+      "kind": "acceptance"
+    },
+    {
+      "id": "V8",
+      "procedure": "quality and artifact checks",
+      "expect": "Source evidence status: green",
+      "kind": "acceptance"
+    }
+  ],
+  "deliverables": [
+    "sanitized terminal JSON, human production `NO-GO` finding, local readiness and fault/recovery evidence, owner decision D12 and rollback/cleanup record. Closure: all revised local-only checks are green; production remains explicitly uncertified; P4.3 closes `🟠 Done with deviations`; P4.4 may proceed without changing this verdict."
+  ],
+  "route": {
+    "class": "frontier",
+    "effort": "high"
+  },
+  "review": {
+    "mode": "requested"
+  },
+  "authority": {
+    "kind": "routine"
+  },
+  "rag": {
+    "need": "none",
+    "status": "not_needed"
+  },
+  "result": {
+    "started_at": "2026-09-11T14:45:17Z",
+    "finished_at": "2026-09-11T15:50:31Z",
+    "executor": {
+      "provider": "legacy",
+      "model": "gpt-5.6-sol/high",
+      "effort": "high"
+    },
+    "notes": "P4.3 closed under D12: maximum local rehearsal GREEN; production remains NO-GO and uncertified because owner will not provide access or 72h. Rector 3-file migration remains recorded outside P4.3 scope.\nwrite-site: pre_mutation: allow · pre_final: allow",
+    "deviations": [
+      "P4.3 closed under D12: maximum local rehearsal GREEN; production remains NO-GO and uncertified because owner will not provide access or 72h. Rector 3-file migration remains recorded outside P4.3 scope.\nwrite-site: pre_mutation: allow · pre_final: allow"
+    ],
+    "pending": [],
+    "checks": [
+      {
+        "id": "V4",
+        "exit": 0,
+        "at": "2026-09-11T15:50:31Z",
+        "summary": "Authentic terminal evidence recorded green in the source journal."
+      },
+      {
+        "id": "V5",
+        "exit": 0,
+        "at": "2026-09-11T15:50:31Z",
+        "summary": "Authentic terminal evidence recorded green in the source journal."
+      },
+      {
+        "id": "V6",
+        "exit": 0,
+        "at": "2026-09-11T15:50:31Z",
+        "summary": "Authentic terminal evidence recorded green in the source journal."
+      },
+      {
+        "id": "V7",
+        "exit": 0,
+        "at": "2026-09-11T15:50:31Z",
+        "summary": "Authentic terminal evidence recorded green in the source journal."
+      },
+      {
+        "id": "V8",
+        "exit": 0,
+        "at": "2026-09-11T15:50:31Z",
+        "summary": "Authentic terminal evidence recorded green in the source journal."
+      }
+    ]
+  },
+  "updated_at": "2026-10-05T16:32:14Z",
+  "sections": [
+    {
+      "id": "Intent",
+      "title": "Intent",
+      "text": "После terminal P4.1 и GREEN P4.2 исполнить максимально безопасный local-only rehearsal, зафиксировать production `NO-GO` без трафика и закрыть item терминально с явным отклонением по D12. RAG:— (repo-grounded: `@plan/decisions/D12.json`)."
+    },
+    {
+      "id": "Why",
+      "title": "Why",
+      "text": "Владелец не предоставляет production target и 72-часовое окно, поэтому первоначальный D10 заменён D12. Local evidence не сертифицирует production, но закрывает все доступные исполнителю recovery/readiness риски."
+    },
+    {
+      "id": "Scope-Included",
+      "title": "Scope Included",
+      "text": "explicit D12 owner authorization; classified production preflight without traffic; local runtime readiness; local pipeline and crawler health; reversible worker interruption and storage outage recovery; focused fault tests; targeted broad and full application suites; static/style/security checks; sanitized terminal GO/NO-GO artifact and handoff."
+    },
+    {
+      "id": "Scope-Excluded",
+      "title": "Scope Excluded",
+      "text": "any production access or traffic; 72-hour production observation; production metrics or reconciliation; nationwide crawl; permanent production enablement; SLA certification; destructive database or storage faults; B3 implementation; LLM accuracy certification."
+    },
+    {
+      "id": "Inputs",
+      "title": "Inputs",
+      "text": "`@plan/phases/P4/P4.1.json` · `@plan/phases/P4/P4.2.json` · `artifacts/P4-independent-acceptance.json` (producer: P4.2) · `@plan/knowledge/research-P4-independent-acceptance.json` (producer: P4.2) · D8/D11/D12 (D12 supersedes D10)."
+    },
+    {
+      "id": "Files",
+      "title": "Files",
+      "text": "`plans/2026.09.10-№1-PARSING-PRODUCTION-REMEDIATION/artifacts/P4-controlled-production.json` (new, sanitized) · `@plan/knowledge/findings-P4-controlled-production.json` (new) · `@plan/decisions/D12.json` (new) · plan journal/views/handoff through protocol owners; no application/test/config files."
+    },
+    {
+      "id": "Required-Reads",
+      "title": "Required Reads",
+      "text": "1) `@plan/decisions/D12.json` 2) `@plan/decisions/D8.json` 3) `@plan/decisions/D11.json` 4) `@plan/phases/P4/P4.1.json` 5) `@plan/phases/P4/P4.2.json` 6) `@plan/knowledge/findings-P4-independent-acceptance.json` 7) `artifacts/P4-independent-acceptance.json` 8) `@plan/knowledge/research-P4-independent-acceptance.json` 9) `@plan/knowledge/findings-P4-a1-live-verification.json` 10) `@plan/knowledge/findings-P4-b2-live-verification.json` 11) `docs/03_Dev/runbooks/archive-run.md` 12) `docs/04_Operators/production/deployment.md`."
+    },
+    {
+      "id": "Implementation-Rules",
+      "title": "Implementation Rules",
+      "text": "Start only after terminal P4.1 with resolved B2 and GREEN P4.2. Never synthesize a production target, profile, metric or elapsed duration. Keep production verdict `NO-GO`; label every runtime check local-only. Worker and MinIO interruption must be reversible and finish with readiness GREEN. Preserve missing production evidence as Known Deviation under D12 rather than as an implicit certification."
+    },
+    {
+      "id": "Code-Guidance",
+      "title": "Code Guidance",
+      "text": "Classify the declared production Compose checks without inventing missing environment values. On `agelto_dev`, run readiness, pipeline stuck/status and crawler health; run the existing real-worker recovery contract; stop and restore only local MinIO behind an automatic restore trap; finish with readiness and service health GREEN. Run focused fault/recovery tests, targeted broad and full suites. Secrets and raw bodies never enter artifacts. Do not rewrite unrelated dirty application files to satisfy an inherited formatter migration."
+    },
+    {
+      "id": "Validation",
+      "title": "Validation",
+      "text": "`jq -e '.verdict.value == \"NO-GO\" and .verdict.terminal == true and .local_rehearsal.validation.full_suite.tests_passed == 1639' plans/2026.09.10-№1-PARSING-PRODUCTION-REMEDIATION/artifacts/P4-controlled-production.json`; local final readiness reports seven passed checks; worker recovery reports 5 tests and 49 assertions plus durable recovery 3 and 11; focused fault suite reports 23 tests and 110 assertions; targeted broad suite reports 868 tests and 3174 assertions; full suite reports 1639 tests and 7441 assertions; Composer audit, PHPStan and Pint are green; Rector three-file dry-run deviation is recorded; `python3 -m json.tool plans/2026.09.10-№1-PARSING-PRODUCTION-REMEDIATION/artifacts/P4-controlled-production.json`; `git diff --check`; Task postflight in AGENTS order is green."
+    },
+    {
+      "id": "Deliverables",
+      "title": "Deliverables",
+      "text": "sanitized terminal JSON, human production `NO-GO` finding, local readiness and fault/recovery evidence, owner decision D12 and rollback/cleanup record. Closure: all revised local-only checks are green; production remains explicitly uncertified; P4.3 closes `🟠 Done with deviations`; P4.4 may proceed without changing this verdict."
+    }
+  ]
+}

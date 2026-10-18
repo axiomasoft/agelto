@@ -1,0 +1,219 @@
+{
+  "$schema": "urn:swissknifeman:task:plan:item:v1",
+  "id": "P1.2",
+  "title": "Сохранять fresh hard-cap как resumable incomplete outcome",
+  "status": "done",
+  "summary": "Исправить NEW-1: исчерпание `fresh_max_blocks` без stop condition сохраняет cursor и явное незавершённое обязательство вместо `Completed`. RAG:— (repo-grounded: `@plan/knowledge/artifacts-PARSING_PRODUCTION_ACCEPTANCE.json:279-296`).",
+  "why": "Текущий warning+`complete()` молча теряет хвост и делает run операционно успешным при `reachedKnown=false`. RAG:— (repo-grounded: `@plan/knowledge/findings-00-source-synthesis.json`, NEW-1).",
+  "scope": {
+    "include": [
+      "typed/explicit incomplete checkpoint outcome using existing run status/cursor/stats contract; guaranteed scheduled continuation; hard-cap tests with distinct signatures; checkpoint/resume; final completion only after a later proven stop; operator-visible reason."
+    ],
+    "exclude": [
+      "dedup-signature cap recovery scope (P1.3); new run status enum/migration unless existing `Running`+checkpoint cannot express the invariant and a new D# admits it; scheduler execution lease (P1.4)."
+    ]
+  },
+  "depends_on": [
+    "P1.1"
+  ],
+  "decisions": [
+    "D9",
+    "D2"
+  ],
+  "reads": [
+    {
+      "path": "@plan/phases/P1/P1.1.json",
+      "why": "Source input; exact context is preserved in item sections.",
+      "required": false
+    },
+    {
+      "path": "@plan/knowledge/artifacts-PARSING_PRODUCTION_ACCEPTANCE.json",
+      "why": "Source input; exact context is preserved in item sections.",
+      "required": true
+    },
+    {
+      "path": "plans/archive/2026.08.06-CRAWL-HARDEN/phases/P10/P10.2.state.md",
+      "why": "Source input; exact context is preserved in item sections.",
+      "required": false
+    },
+    {
+      "path": "app/Services/Procurement/Modes/FreshRunProcessor.php",
+      "why": "Source input; exact context is preserved in item sections.",
+      "required": true
+    },
+    {
+      "path": "app/Dto/Procurement/Crawler/ListingCursor.php",
+      "why": "Source input; exact context is preserved in item sections.",
+      "required": true
+    },
+    {
+      "path": "app/Services/Procurement/CrawlerRunManager.php",
+      "why": "Source input; exact context is preserved in item sections.",
+      "required": true
+    },
+    {
+      "path": "app/Jobs/Procurement/CrawlRunJob.php",
+      "why": "Source input; exact context is preserved in item sections.",
+      "required": true
+    }
+  ],
+  "task_files": [
+    {
+      "path": "app/Services/Procurement/Modes/FreshRunProcessor.php",
+      "change": "any"
+    },
+    {
+      "path": "app/Services/Procurement/CrawlerRunManager.php",
+      "change": "any"
+    },
+    {
+      "path": "app/Jobs/Procurement/CrawlRunJob.php",
+      "change": "any"
+    },
+    {
+      "path": "docs/03_Dev/crawling-pipeline.md",
+      "change": "any"
+    },
+    {
+      "path": "docs/04_Operators/reference/statuses.md",
+      "change": "any"
+    }
+  ],
+  "rules": [
+    "`Completed` iff `reachedKnown` or another declared terminal stop is proven; safety cap/checkpoint/budget exhaustion remain resumable. Continuation preserves `lastDedupSignature`, `blockFrom`, counters and stop evidence. Exactly one continuation is dispatched through the existing job path; do not create a second retry owner. RAG:— (repo-grounded: `@plan/knowledge/research-01-remediation-architecture.json`)."
+  ],
+  "guidance": "Replace the current test that expects hard-cap `Completed` with a regression that asserts nonterminal/checkpoint state and the next block is eventually consumed. Simulate two job slices and prove one final `Completed`. Do not loop beyond cap inside one job or reset cursor to 1. Anti-self-deception: warning text alone is not a deliverable; the status/cursor and next dispatch must be asserted.",
+  "validation": [
+    {
+      "id": "V1",
+      "cmd": "make test-preflight",
+      "expect": "Source acceptance condition preserved in Validation section.",
+      "kind": "acceptance"
+    },
+    {
+      "id": "V2",
+      "cmd": "docker compose --project-name agelto_dev exec -T -e APP_ENV=testing -e DB_DATABASE=agelto_test -e DB_HOST=postgres app php artisan test --compact --no-tia tests/Feature/Crawler/FreshRunProcessorTest.php tests/Feature/Crawler/CrawlRunJobTest.php tests/Feature/Crawler/CrawlerRunManagerTest.php",
+      "expect": "Source acceptance condition preserved in Validation section.",
+      "kind": "acceptance"
+    },
+    {
+      "id": "V3",
+      "cmd": "docker compose --project-name agelto_dev exec -T app vendor/bin/pint --test app/Services/Procurement/Modes/FreshRunProcessor.php app/Services/Procurement/CrawlerRunManager.php app/Jobs/Procurement/CrawlRunJob.php tests/Feature/Crawler/FreshRunProcessorTest.php tests/Feature/Crawler/CrawlRunJobTest.php",
+      "expect": "Source acceptance condition preserved in Validation section.",
+      "kind": "acceptance"
+    },
+    {
+      "id": "V4",
+      "cmd": "docker compose --project-name agelto_dev exec -T app vendor/bin/phpstan analyse app/Services/Procurement/Modes/FreshRunProcessor.php app/Services/Procurement/CrawlerRunManager.php app/Jobs/Procurement/CrawlRunJob.php --memory-limit=1G",
+      "expect": "Source acceptance condition preserved in Validation section.",
+      "kind": "acceptance"
+    },
+    {
+      "id": "V5",
+      "cmd": "git diff --check",
+      "expect": "Source acceptance condition preserved in Validation section.",
+      "kind": "acceptance"
+    },
+    {
+      "id": "V6",
+      "procedure": "completion formatting repair",
+      "expect": "Source evidence status: green",
+      "kind": "acceptance"
+    }
+  ],
+  "deliverables": [
+    "resumable hard-cap outcome, one continuation route, operator docs and regressions. Closure: after first capped slice cursor points to the next block and run is not falsely complete; second slice resumes exactly there; only a proven stop completes; duplicate continuation does not double-process; commands green."
+  ],
+  "route": {
+    "class": "implementation",
+    "effort": "high"
+  },
+  "review": {
+    "mode": "requested"
+  },
+  "authority": {
+    "kind": "routine"
+  },
+  "rag": {
+    "need": "none",
+    "status": "not_needed"
+  },
+  "result": {
+    "started_at": "2026-09-10T19:30:01Z",
+    "finished_at": "2026-09-10T19:31:31Z",
+    "executor": {
+      "provider": "legacy",
+      "model": "gpt-5.6-terra/high",
+      "effort": "high"
+    },
+    "notes": "P1.2 closed green: product and validation remain green.\nwrite-site: pre_mutation: allow · pre_final: allow",
+    "deviations": [],
+    "pending": [],
+    "checks": [
+      {
+        "id": "V6",
+        "exit": 0,
+        "at": "2026-09-10T19:31:31Z",
+        "summary": "Authentic terminal evidence recorded green in the source journal."
+      }
+    ]
+  },
+  "updated_at": "2026-09-10T19:31:31Z",
+  "sections": [
+    {
+      "id": "Intent",
+      "title": "Intent",
+      "text": "Исправить NEW-1: исчерпание `fresh_max_blocks` без stop condition сохраняет cursor и явное незавершённое обязательство вместо `Completed`. RAG:— (repo-grounded: `@plan/knowledge/artifacts-PARSING_PRODUCTION_ACCEPTANCE.json:279-296`)."
+    },
+    {
+      "id": "Why",
+      "title": "Why",
+      "text": "Текущий warning+`complete()` молча теряет хвост и делает run операционно успешным при `reachedKnown=false`. RAG:— (repo-grounded: `@plan/knowledge/findings-00-source-synthesis.json`, NEW-1)."
+    },
+    {
+      "id": "Scope-Included",
+      "title": "Scope Included",
+      "text": "typed/explicit incomplete checkpoint outcome using existing run status/cursor/stats contract; guaranteed scheduled continuation; hard-cap tests with distinct signatures; checkpoint/resume; final completion only after a later proven stop; operator-visible reason."
+    },
+    {
+      "id": "Scope-Excluded",
+      "title": "Scope Excluded",
+      "text": "dedup-signature cap recovery scope (P1.3); new run status enum/migration unless existing `Running`+checkpoint cannot express the invariant and a new D# admits it; scheduler execution lease (P1.4)."
+    },
+    {
+      "id": "Inputs",
+      "title": "Inputs",
+      "text": "`@plan/phases/P1/P1.1.json` · D9 (supersedes D2) · `@plan/knowledge/artifacts-PARSING_PRODUCTION_ACCEPTANCE.json` · `plans/archive/2026.08.06-CRAWL-HARDEN/phases/P10/P10.2.state.md`."
+    },
+    {
+      "id": "Files",
+      "title": "Files",
+      "text": "`app/Services/Procurement/Modes/FreshRunProcessor.php` · `app/Services/Procurement/CrawlerRunManager.php` · `app/Jobs/Procurement/CrawlRunJob.php` · `tests/Feature/Crawler/FreshRunProcessorTest.php` · `tests/Feature/Crawler/CrawlRunJobTest.php` · `tests/Feature/Crawler/CrawlerRunManagerTest.php` · `docs/03_Dev/crawling-pipeline.md` · `docs/04_Operators/reference/statuses.md`."
+    },
+    {
+      "id": "Required-Reads",
+      "title": "Required Reads",
+      "text": "1) `@plan/knowledge/artifacts-PARSING_PRODUCTION_ACCEPTANCE.json` 2) `app/Services/Procurement/Modes/FreshRunProcessor.php` 3) `app/Dto/Procurement/Crawler/ListingCursor.php` 4) `app/Services/Procurement/CrawlerRunManager.php` 5) `app/Jobs/Procurement/CrawlRunJob.php` 6) `tests/Feature/Crawler/FreshRunProcessorTest.php` 7) `tests/Feature/Crawler/CrawlRunJobTest.php`."
+    },
+    {
+      "id": "Implementation-Rules",
+      "title": "Implementation Rules",
+      "text": "`Completed` iff `reachedKnown` or another declared terminal stop is proven; safety cap/checkpoint/budget exhaustion remain resumable. Continuation preserves `lastDedupSignature`, `blockFrom`, counters and stop evidence. Exactly one continuation is dispatched through the existing job path; do not create a second retry owner. RAG:— (repo-grounded: `@plan/knowledge/research-01-remediation-architecture.json`)."
+    },
+    {
+      "id": "Code-Guidance",
+      "title": "Code Guidance",
+      "text": "Replace the current test that expects hard-cap `Completed` with a regression that asserts nonterminal/checkpoint state and the next block is eventually consumed. Simulate two job slices and prove one final `Completed`. Do not loop beyond cap inside one job or reset cursor to 1. Anti-self-deception: warning text alone is not a deliverable; the status/cursor and next dispatch must be asserted."
+    },
+    {
+      "id": "Validation",
+      "title": "Validation",
+      "text": "`make test-preflight`; `docker compose --project-name agelto_dev exec -T -e APP_ENV=testing -e DB_DATABASE=agelto_test -e DB_HOST=postgres app php artisan test --compact --no-tia tests/Feature/Crawler/FreshRunProcessorTest.php tests/Feature/Crawler/CrawlRunJobTest.php tests/Feature/Crawler/CrawlerRunManagerTest.php`; `docker compose --project-name agelto_dev exec -T app vendor/bin/pint --test app/Services/Procurement/Modes/FreshRunProcessor.php app/Services/Procurement/CrawlerRunManager.php app/Jobs/Procurement/CrawlRunJob.php tests/Feature/Crawler/FreshRunProcessorTest.php tests/Feature/Crawler/CrawlRunJobTest.php`; `docker compose --project-name agelto_dev exec -T app vendor/bin/phpstan analyse app/Services/Procurement/Modes/FreshRunProcessor.php app/Services/Procurement/CrawlerRunManager.php app/Jobs/Procurement/CrawlRunJob.php --memory-limit=1G`; `git diff --check`."
+    },
+    {
+      "id": "Deliverables",
+      "title": "Deliverables",
+      "text": "resumable hard-cap outcome, one continuation route, operator docs and regressions. Closure: after first capped slice cursor points to the next block and run is not falsely complete; second slice resumes exactly there; only a proven stop completes; duplicate continuation does not double-process; commands green."
+    }
+  ]
+}

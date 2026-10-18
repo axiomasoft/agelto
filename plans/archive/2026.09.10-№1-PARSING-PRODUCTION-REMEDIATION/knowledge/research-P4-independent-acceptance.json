@@ -1,0 +1,34 @@
+{
+  "$schema": "urn:swissknifeman:task:plan:document:v1",
+  "id": "research-P4-independent-acceptance",
+  "title": "independent acceptance synthesis",
+  "sections": [
+    {
+      "id": "P4.2-independent-acceptance-synthesis",
+      "title": "P4.2 — independent acceptance synthesis",
+      "text": "Дата: 2026-09-11\nMachine artifact SHA-256: `6586eab263407e0624ecaf99c184d7b64d4cf715022ccb74242e66f0d6b95095`\nFactual findings SHA-256: `04c1a65302f8314edd8935c21fcf992285a6d8d276c908bfa2f9f214dc49bac7`"
+    },
+    {
+      "id": "section",
+      "title": "Синтез",
+      "text": "Свежая независимая offline-приёмка подтверждает terminal GREEN P4.2: A1–A9, B1, NEW-1 и NEW-2\nGREEN; B2 GREEN в условной ветви D8 `insufficient_evidence`, где стабильность ЕИС `uid` не\nобещается, а bytes переоцениваются bounded revalidation.\n\nP1.4 priority repair сохраняет dirty stats вместе с cursor под прежним owner/lease fence. Обычный\nsource drain получает terminal reason, resumable hard-cap остаётся `running`, а continuation\nзаменяет checkpoint reason доказанным terminal reason. Assertions и lease predicates не ослаблены."
+    },
+    {
+      "id": "Validation-repair",
+      "title": "Validation repair",
+      "text": "Предыдущий replay выявил только дефекты validation carrier. Owner исправил их без `plan-design`:\n\n- seed command получил явный testing-only `DEV_SEED_PASSWORD`;\n- worker carrier получил безопасный локальный default `agelto_dev`;\n- JSON acceptance стала публичной для Task contract;\n- Layout-v2 validation использует явную finding-oriented matrix, не читая retired specs;\n- `config/doctor.php` приведён к действующему Pint-стилю без изменения набора diagnostics.\n\nПосле material SHA change новый read-only actor повторил проверки: targeted broad **868/3174**,\nfull **1639/7441**, Pint **1547 files**, PHPStan **718 files**, seeded migration, exact worker\nrecovery, TLS guard, JSON/SHA и Task `pre_final` — GREEN. Live/outbound requests не выполнялись."
+    },
+    {
+      "id": "section-2",
+      "title": "Решение",
+      "text": "P4.2 закрывается terminal GREEN. Переход к P4.3 не запускается автоматически: D10 требует\nотдельной durable owner authorization для 72-часового controlled-production gate."
+    }
+  ],
+  "applies_to": [
+    "P4"
+  ],
+  "provenance": {
+    "path": "research/P4-independent-acceptance.md",
+    "sha256": "d351fa3b09741b9f9ba553722cbc882f8f6024aee4310a1ace0645c0c14e2e03"
+  }
+}

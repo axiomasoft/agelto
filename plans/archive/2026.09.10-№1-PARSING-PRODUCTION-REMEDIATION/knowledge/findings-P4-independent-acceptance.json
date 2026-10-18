@@ -1,0 +1,34 @@
+{
+  "$schema": "urn:swissknifeman:task:plan:document:v1",
+  "id": "findings-P4-independent-acceptance",
+  "title": "factual independent acceptance evidence",
+  "sections": [
+    {
+      "id": "P4.2-factual-independent-acceptance-evidence",
+      "title": "P4.2 — factual independent acceptance evidence",
+      "text": "Дата: 2026-09-11\nВердикт продукта: **GREEN**\nВердикт item: **GREEN, terminal close allowed**\nMachine artifact: `artifacts/P4-independent-acceptance.json`\nArtifact SHA-256: `6586eab263407e0624ecaf99c184d7b64d4cf715022ccb74242e66f0d6b95095`"
+    },
+    {
+      "id": "section",
+      "title": "Независимость и границы",
+      "text": "- Финальный replay выполнил свежий read-only actor `/root/p4_2_final_replay`, thread\n  `01a090bf-3c54-7c10-be56-b7ed21a1fc83`; он не совпадает с P4.1 и предыдущими P4.2 sessions.\n- Replay не выполнял live/outbound-запросов и не менял файловую систему проекта.\n- P0–P3 closures, terminal P4.1 state и P4.1 A1/B2 evidence chain повторно hash-bound.\n- Owner validation repair ограничен `P4.2.md`, `config/doctor.php` и\n  `docker/tests/pipeline-worker-recovery-contract.sh`; assertions, lease predicates и product\n  semantics не менялись."
+    },
+    {
+      "id": "A-NEW-B",
+      "title": "Матрица A/NEW/B",
+      "text": "| ID | Verdict | Evidence |\n|:--|:--|:--|\n| A1, NEW-1 | GREEN | FreshRun 13/59; dirty `stop_reason` сохраняется fenced cursor write, continuation заменяет checkpoint reason |\n| A2, A3, B1 | GREEN | recovery/snapshot/projection 58/249 |\n| A4, A5 | GREEN | pipeline recovery/retry/download 35/118 |\n| A6, NEW-2 | GREEN | storage fail-closed 23/100 |\n| A7, A8, A9 | GREEN | timeout/lease/partition 25/134 и exact real-worker recovery GREEN |\n| B2 | GREEN conditional | D8 `insufficient_evidence`; bounded revalidation 12/39, universal uid claim отсутствует |"
+    },
+    {
+      "id": "validation",
+      "title": "Финальная validation",
+      "text": "- `make test-preflight` — GREEN.\n- Self-contained `migrate:fresh --seed` — GREEN.\n- Exact `bash docker/tests/pipeline-worker-recovery-contract.sh` — GREEN: 5/49 + 3/11;\n  SIGTERM завершён, SIGKILL прерван и восстановлен.\n- Targeted broad — **868 passed / 3174 assertions**.\n- Full suite — **1639 passed / 7441 assertions**.\n- Pint — **1547 files, GREEN**; PHPStan — **718 files, GREEN**.\n- TLS guard, JSON/schema/SHA checks и `git diff --check` — GREEN.\n- Task `pre_final` — `allow`.\n\nВсе прежние validation findings (`VALIDATION-SEED`, `VALIDATION-WORKER-CARRIER`, `QUALITY-PINT`,\n`PLAN-EXACT-REPLAY`, `PLAN-PUBLIC-ACCEPTANCE`) закрыты GREEN. Новых plan-attributable failures не\nобнаружено. P4.2 допускается к terminal close; следующий P4.3 остаётся за отдельным durable owner\nauthorization gate перед любым controlled-production traffic."
+    }
+  ],
+  "applies_to": [
+    "P4"
+  ],
+  "provenance": {
+    "path": "findings/P4-independent-acceptance.md",
+    "sha256": "a8d7daf3d59d83dedac9658238e56640dd508f0a36ca3582fefd9f49980ed814"
+  }
+}

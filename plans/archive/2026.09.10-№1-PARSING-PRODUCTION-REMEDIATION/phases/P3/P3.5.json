@@ -1,0 +1,299 @@
+{
+  "$schema": "urn:swissknifeman:task:plan:item:v1",
+  "id": "P3.5",
+  "title": "Согласовать operation budget, worker timeout, retry_after, lease и shutdown grace",
+  "status": "done",
+  "summary": "Исправить A7 по каждой pipeline stage и доказать real-worker поведением, что штатная длинная операция успевает/checkpoint-requeue до supervisor kill без concurrent redelivery. RAG:— (repo-grounded: `@plan/knowledge/artifacts-PARSING_PRODUCTION_ACCEPTANCE.json:195-218`).",
+  "why": "Prepare 120s против OCR 1800s, screening 60s против LLM 150s+poll, extraction checkpoint 240s перед новым 150s call против timeout 300s; direct `handle()` этого не видит. RAG:✅ 2026-09-10 — Laravel Horizon timeout ordering сохранён в `@plan/knowledge/findings-00-source-synthesis.json`.",
+  "scope": {
+    "include": [
+      "explicit budget matrix for prepare/screening/extraction; maximum next-call reserve; job/supervisor timeout, connection `retry_after`, analysis/job lease and `stopwaitsecs`/shutdown grace; separate/checkpointed OCR lane if required; deterministic config invariant tests; real Redis/Horizon slow-success, near-deadline checkpoint, SIGTERM/SIGKILL recovery and no-overlap script."
+    ],
+    "exclude": [
+      "arbitrary global timeout increase; performance SLA; changing model/provider; accepting 30-minute monolithic job without checkpoint/retry proof."
+    ]
+  },
+  "depends_on": [
+    "P3.4"
+  ],
+  "decisions": [],
+  "reads": [
+    {
+      "path": "@plan/phases/P3/P3.4.json",
+      "why": "Source input; exact context is preserved in item sections.",
+      "required": false
+    },
+    {
+      "path": "@plan/knowledge/artifacts-PARSING_PRODUCTION_ACCEPTANCE.json",
+      "why": "Source input; exact context is preserved in item sections.",
+      "required": true
+    },
+    {
+      "path": "config/horizon.php",
+      "why": "Source input; exact context is preserved in item sections.",
+      "required": true
+    },
+    {
+      "path": "config/queue.php",
+      "why": "Source input; exact context is preserved in item sections.",
+      "required": true
+    },
+    {
+      "path": "config/ai.php",
+      "why": "Source input; exact context is preserved in item sections.",
+      "required": true
+    },
+    {
+      "path": "app/Jobs/Procurement/PipelineJob.php",
+      "why": "Source input; exact context is preserved in item sections.",
+      "required": true
+    },
+    {
+      "path": "app/Services/Procurement/Prepare/OcrConverter.php",
+      "why": "Source input; exact context is preserved in item sections.",
+      "required": true
+    },
+    {
+      "path": "app/Services/Procurement/Prepare/ScanStrategy.php",
+      "why": "Source input; exact context is preserved in item sections.",
+      "required": true
+    },
+    {
+      "path": "app/Services/Procurement/Analyzers/Estimate/ExtractionOrchestrator.php",
+      "why": "Source input; exact context is preserved in item sections.",
+      "required": true
+    },
+    {
+      "path": "docs/operators/production/deployment.md",
+      "why": "Source input; exact context is preserved in item sections.",
+      "required": true
+    }
+  ],
+  "task_files": [
+    {
+      "path": "config/horizon.php",
+      "change": "any"
+    },
+    {
+      "path": "config/queue.php",
+      "change": "any"
+    },
+    {
+      "path": "config/ai.php",
+      "change": "any"
+    },
+    {
+      "path": "app/Jobs/Procurement/PipelineJob.php",
+      "change": "any"
+    },
+    {
+      "path": "app/Services/Procurement/Prepare/OcrConverter.php",
+      "change": "any"
+    },
+    {
+      "path": "app/Services/Procurement/Prepare/ScanStrategy.php",
+      "change": "any"
+    },
+    {
+      "path": "app/Services/Procurement/Analyzers/Estimate/ExtractionOrchestrator.php",
+      "change": "any"
+    },
+    {
+      "path": "docs/03_Dev/crawling-pipeline.md",
+      "change": "any"
+    },
+    {
+      "path": "docs/02_Workflow/document-and-estimate-pipeline.md",
+      "change": "any"
+    },
+    {
+      "path": "docs/04_Operators/production/deployment.md",
+      "change": "any"
+    }
+  ],
+  "rules": [
+    "For every stage: `max single call + persistence/release reserve <= remaining job budget`, `job timeout < supervisor timeout < retry_after`, lease covers intended active slice and is released/recovered, shutdown grace is not shorter than graceful completion/checkpoint path. OCR must either get a compatible lane or bounded child/checkpoint behavior. Effective production config is captured, not inferred from test defaults. RAG:✅ 2026-09-10 — Laravel Horizon rule cited in audit/acceptance."
+  ],
+  "guidance": "Extend `QueueTimeoutInvariantTest` with the maximum next-call reserve and every connection/supervisor mapping. Real-worker contract launches actual Redis/Horizon jobs with controllable slow doubles, observes PID/job state, sends SIGTERM then SIGKILL in separate cases, and reconciles output/state before verdict. Assert no two workers hold the same analysis/job lease. Do not sleep for production-length time in PHPUnit; use small test-profile budgets with identical inequalities. Preserve unrelated dirty compose/config hunks surgically.",
+  "validation": [
+    {
+      "id": "V1",
+      "cmd": "make test-preflight",
+      "expect": "Source acceptance condition preserved in Validation section.",
+      "kind": "acceptance"
+    },
+    {
+      "id": "V2",
+      "cmd": "docker compose --project-name agelto_dev exec -T -e APP_ENV=testing -e DB_DATABASE=agelto_test -e DB_HOST=postgres app php artisan test --compact --no-tia tests/Unit/Config/QueueTimeoutInvariantTest.php tests/Feature/Procurement/Pipeline/QueueTimeoutFaultInjectionTest.php",
+      "expect": "Source acceptance condition preserved in Validation section.",
+      "kind": "acceptance"
+    },
+    {
+      "id": "V3",
+      "cmd": "bash docker/tests/pipeline-worker-recovery-contract.sh",
+      "expect": "Source acceptance condition preserved in Validation section.",
+      "kind": "acceptance"
+    },
+    {
+      "id": "V4",
+      "cmd": "docker compose --project-name agelto_dev exec -T app vendor/bin/pint --test config/horizon.php config/queue.php config/ai.php app/Jobs/Procurement/PipelineJob.php app/Services/Procurement/Prepare/OcrConverter.php app/Services/Procurement/Prepare/ScanStrategy.php app/Services/Procurement/Analyzers/Estimate/ExtractionOrchestrator.php tests/Unit/Config/QueueTimeoutInvariantTest.php tests/Feature/Procurement/Pipeline/QueueTimeoutFaultInjectionTest.php",
+      "expect": "Source acceptance condition preserved in Validation section.",
+      "kind": "acceptance"
+    },
+    {
+      "id": "V5",
+      "cmd": "docker compose --project-name agelto_dev exec -T app vendor/bin/phpstan analyse app/Jobs/Procurement/PipelineJob.php app/Services/Procurement/Prepare/OcrConverter.php app/Services/Procurement/Prepare/ScanStrategy.php app/Services/Procurement/Analyzers/Estimate/ExtractionOrchestrator.php --memory-limit=1G",
+      "expect": "Source acceptance condition preserved in Validation section.",
+      "kind": "acceptance"
+    },
+    {
+      "id": "V6",
+      "cmd": "docker compose -f docker-compose.prod.yml config --quiet",
+      "expect": "Source acceptance condition preserved in Validation section.",
+      "kind": "acceptance"
+    },
+    {
+      "id": "V7",
+      "cmd": "git diff --check",
+      "expect": "Source acceptance condition preserved in Validation section.",
+      "kind": "acceptance"
+    },
+    {
+      "id": "V8",
+      "procedure": "make test-preflight",
+      "expect": "Source evidence status: green",
+      "kind": "acceptance"
+    },
+    {
+      "id": "V9",
+      "procedure": "P3.5 targeted timeout and extraction suites",
+      "expect": "Source evidence status: green",
+      "kind": "acceptance"
+    },
+    {
+      "id": "V10",
+      "procedure": "real Redis/Horizon signal contract",
+      "expect": "Source evidence status: green",
+      "kind": "acceptance"
+    },
+    {
+      "id": "V11",
+      "procedure": "Pint, PHPStan, production Compose and diff check",
+      "expect": "Source evidence status: green",
+      "kind": "acceptance"
+    }
+  ],
+  "deliverables": [
+    "versioned budget matrix in config/docs, extended invariant tests, real-worker recovery script and exact observed logs. Closure: slow successful screening and representative OCR finish or checkpoint safely; near-deadline extraction does not start a call that exceeds reserve; SIGTERM/SIGKILL recover via P3.4; no concurrent duplicate; all timeout inequalities and commands green."
+  ],
+  "route": {
+    "class": "implementation",
+    "effort": "high"
+  },
+  "review": {
+    "mode": "requested"
+  },
+  "authority": {
+    "kind": "routine"
+  },
+  "rag": {
+    "need": "required",
+    "status": "complete"
+  },
+  "result": {
+    "started_at": "2026-09-11T09:10:13Z",
+    "finished_at": "2026-09-11T09:41:10Z",
+    "executor": {
+      "provider": "legacy",
+      "model": "gpt-5.6-terra/high",
+      "effort": "high"
+    },
+    "notes": "P3.5 closed green: versioned budgets align all stages; OCR is isolated, leases match each recovery window, and extraction counts preflight time. Real Horizon SIGTERM/SIGKILL probes and P3.4 recovery/no-overlap checks are green.\nwrite-site: pre_mutation: allow · pre_final: allow",
+    "deviations": [],
+    "pending": [],
+    "checks": [
+      {
+        "id": "V8",
+        "exit": 0,
+        "at": "2026-09-11T09:41:10Z",
+        "summary": "Authentic terminal evidence recorded green in the source journal."
+      },
+      {
+        "id": "V9",
+        "exit": 0,
+        "at": "2026-09-11T09:41:10Z",
+        "summary": "Authentic terminal evidence recorded green in the source journal."
+      },
+      {
+        "id": "V10",
+        "exit": 0,
+        "at": "2026-09-11T09:41:10Z",
+        "summary": "Authentic terminal evidence recorded green in the source journal."
+      },
+      {
+        "id": "V11",
+        "exit": 0,
+        "at": "2026-09-11T09:41:10Z",
+        "summary": "Authentic terminal evidence recorded green in the source journal."
+      }
+    ]
+  },
+  "updated_at": "2026-10-05T16:32:14Z",
+  "sections": [
+    {
+      "id": "Intent",
+      "title": "Intent",
+      "text": "Исправить A7 по каждой pipeline stage и доказать real-worker поведением, что штатная длинная операция успевает/checkpoint-requeue до supervisor kill без concurrent redelivery. RAG:— (repo-grounded: `@plan/knowledge/artifacts-PARSING_PRODUCTION_ACCEPTANCE.json:195-218`)."
+    },
+    {
+      "id": "Why",
+      "title": "Why",
+      "text": "Prepare 120s против OCR 1800s, screening 60s против LLM 150s+poll, extraction checkpoint 240s перед новым 150s call против timeout 300s; direct `handle()` этого не видит. RAG:✅ 2026-09-10 — Laravel Horizon timeout ordering сохранён в `@plan/knowledge/findings-00-source-synthesis.json`."
+    },
+    {
+      "id": "Scope-Included",
+      "title": "Scope Included",
+      "text": "explicit budget matrix for prepare/screening/extraction; maximum next-call reserve; job/supervisor timeout, connection `retry_after`, analysis/job lease and `stopwaitsecs`/shutdown grace; separate/checkpointed OCR lane if required; deterministic config invariant tests; real Redis/Horizon slow-success, near-deadline checkpoint, SIGTERM/SIGKILL recovery and no-overlap script."
+    },
+    {
+      "id": "Scope-Excluded",
+      "title": "Scope Excluded",
+      "text": "arbitrary global timeout increase; performance SLA; changing model/provider; accepting 30-minute monolithic job without checkpoint/retry proof."
+    },
+    {
+      "id": "Inputs",
+      "title": "Inputs",
+      "text": "`@plan/phases/P3/P3.4.json` · `@plan/knowledge/artifacts-PARSING_PRODUCTION_ACCEPTANCE.json` · `config/horizon.php` · `config/queue.php` · `config/ai.php` · `docker-compose.prod.yml`."
+    },
+    {
+      "id": "Files",
+      "title": "Files",
+      "text": "`config/horizon.php` · `config/queue.php` · `config/ai.php` · `docker-compose.prod.yml` · `app/Jobs/Procurement/PipelineJob.php` · `app/Services/Procurement/Prepare/OcrConverter.php` · `app/Services/Procurement/Prepare/ScanStrategy.php` · `app/Services/Procurement/Analyzers/Estimate/ExtractionOrchestrator.php` · `tests/Unit/Config/QueueTimeoutInvariantTest.php` · `tests/Feature/Procurement/Pipeline/QueueTimeoutFaultInjectionTest.php` (new) · `tests/Support/Jobs/PipelineWorkerSignalProbeJob.php` (new, test-only) · `docker/tests/pipeline-worker-recovery-contract.sh` (new) · `docs/03_Dev/crawling-pipeline.md` · `docs/02_Workflow/document-and-estimate-pipeline.md` · `docs/04_Operators/production/deployment.md`."
+    },
+    {
+      "id": "Required-Reads",
+      "title": "Required Reads",
+      "text": "1) `@plan/knowledge/artifacts-PARSING_PRODUCTION_ACCEPTANCE.json` 2) `config/horizon.php` 3) `config/queue.php` 4) `config/ai.php` 5) `docker-compose.prod.yml` 6) `app/Jobs/Procurement/PipelineJob.php` 7) `app/Services/Procurement/Prepare/OcrConverter.php` 8) `app/Services/Procurement/Prepare/ScanStrategy.php` 9) `app/Services/Procurement/Analyzers/Estimate/ExtractionOrchestrator.php` 10) `tests/Unit/Config/QueueTimeoutInvariantTest.php` 11) `docs/04_Operators/production/deployment.md`."
+    },
+    {
+      "id": "Implementation-Rules",
+      "title": "Implementation Rules",
+      "text": "For every stage: `max single call + persistence/release reserve <= remaining job budget`, `job timeout < supervisor timeout < retry_after`, lease covers intended active slice and is released/recovered, shutdown grace is not shorter than graceful completion/checkpoint path. OCR must either get a compatible lane or bounded child/checkpoint behavior. Effective production config is captured, not inferred from test defaults. RAG:✅ 2026-09-10 — Laravel Horizon rule cited in audit/acceptance."
+    },
+    {
+      "id": "Code-Guidance",
+      "title": "Code Guidance",
+      "text": "Extend `QueueTimeoutInvariantTest` with the maximum next-call reserve and every connection/supervisor mapping. Real-worker contract launches actual Redis/Horizon jobs with controllable slow doubles, observes PID/job state, sends SIGTERM then SIGKILL in separate cases, and reconciles output/state before verdict. Assert no two workers hold the same analysis/job lease. Do not sleep for production-length time in PHPUnit; use small test-profile budgets with identical inequalities. Preserve unrelated dirty compose/config hunks surgically."
+    },
+    {
+      "id": "Validation",
+      "title": "Validation",
+      "text": "`make test-preflight`; `docker compose --project-name agelto_dev exec -T -e APP_ENV=testing -e DB_DATABASE=agelto_test -e DB_HOST=postgres app php artisan test --compact --no-tia tests/Unit/Config/QueueTimeoutInvariantTest.php tests/Feature/Procurement/Pipeline/QueueTimeoutFaultInjectionTest.php`; `bash docker/tests/pipeline-worker-recovery-contract.sh`; `docker compose --project-name agelto_dev exec -T app vendor/bin/pint --test config/horizon.php config/queue.php config/ai.php app/Jobs/Procurement/PipelineJob.php app/Services/Procurement/Prepare/OcrConverter.php app/Services/Procurement/Prepare/ScanStrategy.php app/Services/Procurement/Analyzers/Estimate/ExtractionOrchestrator.php tests/Unit/Config/QueueTimeoutInvariantTest.php tests/Feature/Procurement/Pipeline/QueueTimeoutFaultInjectionTest.php`; `docker compose --project-name agelto_dev exec -T app vendor/bin/phpstan analyse app/Jobs/Procurement/PipelineJob.php app/Services/Procurement/Prepare/OcrConverter.php app/Services/Procurement/Prepare/ScanStrategy.php app/Services/Procurement/Analyzers/Estimate/ExtractionOrchestrator.php --memory-limit=1G`; `docker compose -f docker-compose.prod.yml config --quiet`; `git diff --check`."
+    },
+    {
+      "id": "Deliverables",
+      "title": "Deliverables",
+      "text": "versioned budget matrix in config/docs, extended invariant tests, real-worker recovery script and exact observed logs. Closure: slow successful screening and representative OCR finish or checkpoint safely; near-deadline extraction does not start a call that exceeds reserve; SIGTERM/SIGKILL recover via P3.4; no concurrent duplicate; all timeout inequalities and commands green."
+    }
+  ]
+}

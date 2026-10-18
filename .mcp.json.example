@@ -1,41 +1,5 @@
 {
   "mcpServers": {
-    "laravel-boost": {
-      "command": "docker",
-      "args": [
-        "exec",
-        "-i",
-        "agelto_app",
-        "php",
-        "artisan",
-        "boost:mcp"
-      ]
-    },
-    "serena": {
-      "command": "uvx",
-      "args": [
-        "--from",
-        "git+https://github.com/oraios/serena@026b007bb889366283c925527e9a3bab317f66c1",
-        "serena",
-        "start-mcp-server",
-        "--context",
-        "ide-assistant",
-        "--project",
-        "<ABS_PATH_TO_PROJECT>",
-        "--enable-web-dashboard",
-        "false"
-      ]
-    },
-    "playwright": {
-      "command": "bash",
-      "args": [
-        "scripts/playwright-mcp.sh"
-      ]
-    },
-    "context7": {
-      "type": "http",
-      "url": "https://mcp.context7.com/mcp"
-    },
     "maind": {
       "command": "maind",
       "args": [
@@ -44,8 +8,15 @@
         "project:agelto"
       ]
     },
-    "perplexity-web": {
-      "command": "${PERPLEXITY_WEB_MCP_BIN:-<HOME>/projects/packages/perplexity-web-mcp/start.sh}",
+    "codegraph": {
+      "command": "php",
+      "args": [
+        "artisan",
+        "boost:mcp"
+      ]
+    },
+    "perplexity": {
+      "command": "<HOME>/projects/packages/perplexity-web-mcp/start.sh",
       "args": [
         "--pool=default"
       ]

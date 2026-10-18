@@ -1,0 +1,82 @@
+{
+  "$schema": "urn:swissknifeman:task:plan:phase:v1",
+  "id": "P4",
+  "title": "Независимая приёмка и controlled-production gate",
+  "design": "detailed",
+  "goal": "> **Контракт фазы (contract-first).** Потребляет: terminal/audited P0–P3 и D7/D8/D11/D12 · Производит:\n> owner-authorized live A1/B2 evidence, затем независимый offline verdict A1–A9/B1/NEW-1/NEW-2/B2, terminal local-only P4.3 verdict\n> с явным production deviation и post-gate B3 observability · Границы: local GREEN не превращается в production GO; B3 не является\n> prerequisite P4.3, но нужен для terminal archive плана.\n\nScope Included: fresh-schema replay, targeted regression/fault injection, real PostgreSQL workers,\nlive source verification, controlled-production metrics/manual reconciliation, immutable raw evidence.\nScope Excluded: широкий production rollout, числовой SLA, LLM accuracy certification и unrelated\nrelease work. RAG:— (repo-grounded: `@plan/knowledge/artifacts-PARSING_PRODUCTION_ACCEPTANCE.json:381-465`).",
+  "context": "> **Контракт фазы (contract-first).** Потребляет: terminal/audited P0–P3 и D7/D8/D11/D12 · Производит:\n> owner-authorized live A1/B2 evidence, затем независимый offline verdict A1–A9/B1/NEW-1/NEW-2/B2, terminal local-only P4.3 verdict\n> с явным production deviation и post-gate B3 observability · Границы: local GREEN не превращается в production GO; B3 не является\n> prerequisite P4.3, но нужен для terminal archive плана.\n\nScope Included: fresh-schema replay, targeted regression/fault injection, real PostgreSQL workers,\nlive source verification, controlled-production metrics/manual reconciliation, immutable raw evidence.\nScope Excluded: широкий production rollout, числовой SLA, LLM accuracy certification и unrelated\nrelease work. RAG:— (repo-grounded: `@plan/knowledge/artifacts-PARSING_PRODUCTION_ACCEPTANCE.json:381-465`).",
+  "depends_on": [
+    "P3"
+  ],
+  "items": [
+    "P4.1",
+    "P4.2",
+    "P4.3",
+    "P4.4"
+  ],
+  "batches": [
+    {
+      "id": "BP4-1",
+      "items": [
+        "P4.1"
+      ],
+      "mode": "required"
+    },
+    {
+      "id": "BP4-2",
+      "items": [
+        "P4.2"
+      ],
+      "mode": "required"
+    },
+    {
+      "id": "BP4-3",
+      "items": [
+        "P4.3"
+      ],
+      "mode": "required"
+    },
+    {
+      "id": "BP4-4",
+      "items": [
+        "P4.4"
+      ],
+      "mode": "recommended"
+    }
+  ],
+  "closed": {
+    "at": "2026-09-11T16:36:12Z",
+    "result": "done_with_deviations",
+    "summary": "Derived from authentic terminal item states during migration; no new phase checks claimed."
+  },
+  "orchestration": {
+    "strategy": "sequential"
+  },
+  "sections": [
+    {
+      "id": "P4-controlled-production-gate",
+      "title": "P4 — Независимая приёмка и controlled-production gate",
+      "text": "> **Phase Assurance | v1.**\n> Impact: security-external\n> Integration Seams: eis.live-probes · acceptance.evidence · production.controlled-gate\n> Live or Irreversible: yes\n> Audit Intent: auto\n> Rationale: P4 individual owner gates for EIS traffic and controlled production remain mandatory. A separate phase audit is not default and requires a named residual-risk question plus explicit owner consent; it cannot replace or widen those owner gates."
+    },
+    {
+      "id": "Phase-Context",
+      "title": "Phase Context",
+      "text": "> **Контракт фазы (contract-first).** Потребляет: terminal/audited P0–P3 и D7/D8/D11/D12 · Производит:\n> owner-authorized live A1/B2 evidence, затем независимый offline verdict A1–A9/B1/NEW-1/NEW-2/B2, terminal local-only P4.3 verdict\n> с явным production deviation и post-gate B3 observability · Границы: local GREEN не превращается в production GO; B3 не является\n> prerequisite P4.3, но нужен для terminal archive плана.\n\nScope Included: fresh-schema replay, targeted regression/fault injection, real PostgreSQL workers,\nlive source verification, controlled-production metrics/manual reconciliation, immutable raw evidence.\nScope Excluded: широкий production rollout, числовой SLA, LLM accuracy certification и unrelated\nrelease work. RAG:— (repo-grounded: `@plan/knowledge/artifacts-PARSING_PRODUCTION_ACCEPTANCE.json:381-465`)."
+    },
+    {
+      "id": "Sequence-and-dependencies",
+      "title": "Sequence and dependencies",
+      "text": "P4.1 → P4.2 → P4.3. Post-gate B3 стартует только после verdict P4.3, но открытый B3 не блокирует сам\ncontrolled-production decision; plan archive ждёт завершения B3."
+    },
+    {
+      "id": "DoR-Definition-of-Ready",
+      "title": "DoR (Definition of Ready)",
+      "text": "- [x] Independent actor/context boundary задан Routing.\n- [x] A1/B2 live evidence принадлежит только P4.1; P4.2 потребляет terminal state и digest-bound machine carriers offline.\n- [x] B2 имеет обе fail-closed live branches и branch-specific Validation по D8/D11.\n- [x] D12 терминально заменяет недоступный 72-hour deliverable local-only evidence и явным production deviation.\n- [x] B3 отделён и явно не включён в launch gate.\n- [x] Owner authorization требуется до любого live/production traffic."
+    },
+    {
+      "id": "Phase-Handoff",
+      "title": "Phase Handoff",
+      "text": "После P4.3 controlled-production verdict может быть принят; post-gate B3 закрывает observability и затем\nплан проходит финальный phase audit/close/archive."
+    }
+  ]
+}

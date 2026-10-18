@@ -5,21 +5,21 @@ paths:
 ---
 <!-- swissknifeman:generated
 Generated-by: harness agent-packs
-Pack: backend-laravel@0.12.2
+Pack: backend-laravel@0.12.3
 Template: rules/tests.md
-Edit-policy: generated-core — НЕ редактируй; расширяй через extension-point
+Edit-policy: generated-core — DO NOT edit; expand through extension-point
 Extension-points: .claude/rules/agelto-reviewer-overrides.md
 Upgrade: harness agent-packs upgrade --pack backend-laravel --target .
 -->
 
-При работе с тестами (глубина — скиллы `php:laravel-testing`, `php:test-isolation-guard`):
+When working with tests (depth - skills `php:laravel-testing`, `php:test-isolation-guard`):
 
-- Прогон только `docker compose exec app php artisan test` (хост-специфика проекта), не bare `php`.
-- Тест-фреймворк проекта — `pest`: прочитай 1–2 существующих теста и зеркаль их стиль (PHPUnit — классы `extends TestCase`; Pest — `it()/test()`-функции).
-- Изоляция: `RefreshDatabase` + тестовая БД `agelto_test` + существующие фабрики.
-- На изменённое поведение — тест; существующие проверки не ослаблять.
-- **Честность тестов:** любая обходка/форс-конфиг ради зелёного (форс `config(...)`, штамповка
-  `timestamp` перед пагинацией, sibling-класс в обход `final`) — пометь `[POSSIBLE-DEFECT]` в отчёте:
-  за обходкой почти всегда реальный баг (на chatom >60% попаданий).
-- `ShouldQueue`-job: если тест зовёт `handle()` напрямую — отметь «queue-семантика (release/backoff/
-  конкурентные воркеры) не покрыта», чтобы ревьюер проверил её отдельно.
+- Run only `docker compose exec app php artisan test` (project host specifics), not bare `php`.
+- Project test framework - `pest`: read 1-2 existing tests and mirror their style (PHPUnit — classes `extends TestCase`; Pest — `it()/test()`-functions).
+- Insulation: `RefreshDatabase` + test database `agelto_test` + existing factories.
+- For changed behavior - test; existing checks should not be weakened.
+- **Test fairness:** any workaround/force config for green (force `config(...)`, stamping
+  `timestamp` before pagination, sibling-class bypass `final`) — mark `[POSSIBLE-DEFECT]` in the report:
+  behind the workaround is almost always a real bug (on chatom >60% hits).
+- `ShouldQueue`-job: if the test calls `handle()` directly - check «queue-semantics (release/backoff/
+  competitive workers) not covered», so that the reviewer checks it separately.

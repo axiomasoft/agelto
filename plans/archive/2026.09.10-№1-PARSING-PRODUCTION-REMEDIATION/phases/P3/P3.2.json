@@ -1,0 +1,262 @@
+{
+  "$schema": "urn:swissknifeman:task:plan:item:v1",
+  "id": "P3.2",
+  "title": "Сделать source/archive object write условием успешной версии",
+  "status": "done",
+  "summary": "Исправить A6: source download и archive child создают version/status/event только после подтверждённого object write, а same-hash retry долечивает partial state идемпотентно. RAG:— (repo-grounded: `@plan/knowledge/artifacts-PARSING_PRODUCTION_ACCEPTANCE.json:182-194`).",
+  "why": "При `throw=false` `put()` может вернуть false, но DB утверждает `Downloaded`; crash между version/status/event оставляет hash-no-op, который не восстанавливается. RAG:✅ 2026-09-10 — Laravel failed-write semantics зафиксирована в `@plan/knowledge/findings-00-source-synthesis.json`.",
+  "scope": {
+    "include": [
+      "checked write false/exception paths; object existence/readability verification appropriate to disk; short DB transaction for version/status/event after object success; same-hash reconciliation of object/DB partial states; archive child parity; orphan object cleanup/deferred marker on DB failure; fault tests for each crash boundary."
+    ],
+    "exclude": [
+      "pretending S3 and PostgreSQL share one transaction; representation writes (P3.3); retry selection (P3.1); storage vendor replacement."
+    ]
+  },
+  "depends_on": [
+    "P3.1",
+    "P2.1"
+  ],
+  "decisions": [],
+  "reads": [
+    {
+      "path": "@plan/phases/P3/P3.1.json",
+      "why": "Source input; exact context is preserved in item sections.",
+      "required": false
+    },
+    {
+      "path": "@plan/knowledge/artifacts-PARSING_PRODUCTION_ACCEPTANCE.json",
+      "why": "Source input; exact context is preserved in item sections.",
+      "required": true
+    },
+    {
+      "path": "@plan/knowledge/findings-00-source-synthesis.json",
+      "why": "Source input; exact context is preserved in item sections.",
+      "required": true
+    },
+    {
+      "path": "@plan/phases/P2/P2.1.json",
+      "why": "Source input; exact context is preserved in item sections.",
+      "required": false
+    },
+    {
+      "path": "app/Services/Procurement/DocumentDownloader.php",
+      "why": "Source input; exact context is preserved in item sections.",
+      "required": true
+    },
+    {
+      "path": "app/Actions/Procurement/Document/ExpandArchiveEntryAction.php",
+      "why": "Source input; exact context is preserved in item sections.",
+      "required": true
+    },
+    {
+      "path": "app/Repositories/Procurement/Document/DocumentStoreRepository.php",
+      "why": "Source input; exact context is preserved in item sections.",
+      "required": true
+    },
+    {
+      "path": "app/Repositories/Procurement/ProcurementStoreRepository.php",
+      "why": "Source input; exact context is preserved in item sections.",
+      "required": true
+    },
+    {
+      "path": "config/filesystems.php",
+      "why": "Source input; exact context is preserved in item sections.",
+      "required": true
+    }
+  ],
+  "task_files": [
+    {
+      "path": "app/Actions/Procurement/Document/FinalizeDocumentDownloadAction.php",
+      "change": "any"
+    },
+    {
+      "path": "app/Services/Procurement/DocumentDownloader.php",
+      "change": "any"
+    },
+    {
+      "path": "app/Actions/Procurement/Document/ExpandArchiveEntryAction.php",
+      "change": "any"
+    },
+    {
+      "path": "app/Repositories/Procurement/Document/DocumentStoreRepository.php",
+      "change": "any"
+    },
+    {
+      "path": "app/Repositories/Procurement/ProcurementStoreRepository.php",
+      "change": "any"
+    },
+    {
+      "path": "config/filesystems.php",
+      "change": "any"
+    },
+    {
+      "path": "docs/02_Workflow/document-and-estimate-pipeline.md",
+      "change": "any"
+    },
+    {
+      "path": "docs/03_Dev/entity-lifecycle-map.md",
+      "change": "any"
+    }
+  ],
+  "rules": [
+    "Object write precedes DB success; checked `false` and exception are equivalent failure. `FinalizeDocumentDownloadAction` is sole short DB transaction for version/status/event. Retry must reconcile four observable cases: neither exists, object-only, version-only/missing object, fully consistent; status `Downloaded` only in the last. Content hash deduplicates bytes, not recovery work. RAG:— (repo-grounded: `@plan/knowledge/research-01-remediation-architecture.json`)."
+  ],
+  "guidance": "Fault matrix injects: false put, exception put, DB exception after object, exception after version before status/event via action rollback, same-hash retry with missing object. Assert no phantom successful version/status/event and exactly-one final version/event after heal. Do not use `exists()` alone if target adapter cannot prove readable complete bytes; use a deterministic write/read or checksum contract. No `try/catch` that converts failure to success. Preserve unrelated config dirty state if present.",
+  "validation": [
+    {
+      "id": "V1",
+      "cmd": "make test-preflight",
+      "expect": "Source acceptance condition preserved in Validation section.",
+      "kind": "acceptance"
+    },
+    {
+      "id": "V2",
+      "cmd": "docker compose --project-name agelto_dev exec -T -e APP_ENV=testing -e DB_DATABASE=agelto_test -e DB_HOST=postgres app php artisan test --compact --no-tia tests/Feature/Document/DocumentDownloaderTest.php tests/Feature/Document/DocumentStorageFaultInjectionTest.php tests/Feature/Procurement/Prepare/ArchivePipelineTest.php",
+      "expect": "Source acceptance condition preserved in Validation section.",
+      "kind": "acceptance"
+    },
+    {
+      "id": "V3",
+      "cmd": "docker compose --project-name agelto_dev exec -T app vendor/bin/pint --test app/Actions/Procurement/Document/FinalizeDocumentDownloadAction.php app/Services/Procurement/DocumentDownloader.php app/Actions/Procurement/Document/ExpandArchiveEntryAction.php app/Repositories/Procurement/Document/DocumentStoreRepository.php app/Repositories/Procurement/ProcurementStoreRepository.php config/filesystems.php tests/Feature/Document/DocumentStorageFaultInjectionTest.php",
+      "expect": "Source acceptance condition preserved in Validation section.",
+      "kind": "acceptance"
+    },
+    {
+      "id": "V4",
+      "cmd": "docker compose --project-name agelto_dev exec -T app vendor/bin/phpstan analyse app/Actions/Procurement/Document/FinalizeDocumentDownloadAction.php app/Services/Procurement/DocumentDownloader.php app/Actions/Procurement/Document/ExpandArchiveEntryAction.php app/Repositories/Procurement/Document/DocumentStoreRepository.php --memory-limit=1G",
+      "expect": "Source acceptance condition preserved in Validation section.",
+      "kind": "acceptance"
+    },
+    {
+      "id": "V5",
+      "cmd": "git diff --check",
+      "expect": "Source acceptance condition preserved in Validation section.",
+      "kind": "acceptance"
+    },
+    {
+      "id": "V6",
+      "procedure": "make test-preflight",
+      "expect": "Source evidence status: green",
+      "kind": "acceptance"
+    },
+    {
+      "id": "V7",
+      "procedure": "P3.2 source and archive storage suites",
+      "expect": "Source evidence status: green",
+      "kind": "acceptance"
+    },
+    {
+      "id": "V8",
+      "procedure": "Pint, PHPStan and diff check",
+      "expect": "Source evidence status: green",
+      "kind": "acceptance"
+    }
+  ],
+  "deliverables": [
+    "checked storage write contract, atomic finalization Action, source/archive fault matrix, same-hash healing and docs. Closure: false/exception never yields Downloaded/version/event; DB rollback leaves no half-finalized state; retry heals object-only/missing-object cases exactly once; source and archive paths share invariant; commands green."
+  ],
+  "route": {
+    "class": "implementation",
+    "effort": "high"
+  },
+  "review": {
+    "mode": "requested"
+  },
+  "authority": {
+    "kind": "routine"
+  },
+  "rag": {
+    "need": "required",
+    "status": "complete"
+  },
+  "result": {
+    "started_at": "2026-09-11T08:31:56Z",
+    "finished_at": "2026-09-11T08:34:40Z",
+    "executor": {
+      "provider": "legacy",
+      "model": "codex"
+    },
+    "notes": "P3.2 closed green: object write is checked before transactional source finalization; same-hash retries heal a missing object without duplicate version or event.\nwrite-site: pre_mutation: allow · pre_final: allow",
+    "deviations": [],
+    "pending": [],
+    "checks": [
+      {
+        "id": "V6",
+        "exit": 0,
+        "at": "2026-09-11T08:34:40Z",
+        "summary": "Authentic terminal evidence recorded green in the source journal."
+      },
+      {
+        "id": "V7",
+        "exit": 0,
+        "at": "2026-09-11T08:34:40Z",
+        "summary": "Authentic terminal evidence recorded green in the source journal."
+      },
+      {
+        "id": "V8",
+        "exit": 0,
+        "at": "2026-09-11T08:34:40Z",
+        "summary": "Authentic terminal evidence recorded green in the source journal."
+      }
+    ]
+  },
+  "updated_at": "2026-09-11T08:34:40Z",
+  "sections": [
+    {
+      "id": "Intent",
+      "title": "Intent",
+      "text": "Исправить A6: source download и archive child создают version/status/event только после подтверждённого object write, а same-hash retry долечивает partial state идемпотентно. RAG:— (repo-grounded: `@plan/knowledge/artifacts-PARSING_PRODUCTION_ACCEPTANCE.json:182-194`)."
+    },
+    {
+      "id": "Why",
+      "title": "Why",
+      "text": "При `throw=false` `put()` может вернуть false, но DB утверждает `Downloaded`; crash между version/status/event оставляет hash-no-op, который не восстанавливается. RAG:✅ 2026-09-10 — Laravel failed-write semantics зафиксирована в `@plan/knowledge/findings-00-source-synthesis.json`."
+    },
+    {
+      "id": "Scope-Included",
+      "title": "Scope Included",
+      "text": "checked write false/exception paths; object existence/readability verification appropriate to disk; short DB transaction for version/status/event after object success; same-hash reconciliation of object/DB partial states; archive child parity; orphan object cleanup/deferred marker on DB failure; fault tests for each crash boundary."
+    },
+    {
+      "id": "Scope-Excluded",
+      "title": "Scope Excluded",
+      "text": "pretending S3 and PostgreSQL share one transaction; representation writes (P3.3); retry selection (P3.1); storage vendor replacement."
+    },
+    {
+      "id": "Inputs",
+      "title": "Inputs",
+      "text": "`@plan/phases/P3/P3.1.json` · `@plan/knowledge/artifacts-PARSING_PRODUCTION_ACCEPTANCE.json` · `@plan/knowledge/findings-00-source-synthesis.json` · `@plan/phases/P2/P2.1.json`."
+    },
+    {
+      "id": "Files",
+      "title": "Files",
+      "text": "`app/Actions/Procurement/Document/FinalizeDocumentDownloadAction.php` (new) · `app/Services/Procurement/DocumentDownloader.php` · `app/Actions/Procurement/Document/ExpandArchiveEntryAction.php` · `app/Repositories/Procurement/Document/DocumentStoreRepository.php` · `app/Repositories/Procurement/ProcurementStoreRepository.php` · `config/filesystems.php` · `tests/Feature/Document/DocumentDownloaderTest.php` · `tests/Feature/Procurement/Prepare/ArchivePipelineTest.php` · `tests/Feature/Document/DocumentStorageFaultInjectionTest.php` (new) · `docs/02_Workflow/document-and-estimate-pipeline.md` · `docs/03_Dev/entity-lifecycle-map.md`."
+    },
+    {
+      "id": "Required-Reads",
+      "title": "Required Reads",
+      "text": "1) `@plan/knowledge/findings-00-source-synthesis.json` 2) `@plan/knowledge/artifacts-PARSING_PRODUCTION_ACCEPTANCE.json` 3) `app/Services/Procurement/DocumentDownloader.php` 4) `app/Actions/Procurement/Document/ExpandArchiveEntryAction.php` 5) `app/Repositories/Procurement/Document/DocumentStoreRepository.php` 6) `app/Repositories/Procurement/ProcurementStoreRepository.php` 7) `config/filesystems.php` 8) `tests/Feature/Document/DocumentDownloaderTest.php` 9) `tests/Feature/Procurement/Prepare/ArchivePipelineTest.php`."
+    },
+    {
+      "id": "Implementation-Rules",
+      "title": "Implementation Rules",
+      "text": "Object write precedes DB success; checked `false` and exception are equivalent failure. `FinalizeDocumentDownloadAction` is sole short DB transaction for version/status/event. Retry must reconcile four observable cases: neither exists, object-only, version-only/missing object, fully consistent; status `Downloaded` only in the last. Content hash deduplicates bytes, not recovery work. RAG:— (repo-grounded: `@plan/knowledge/research-01-remediation-architecture.json`)."
+    },
+    {
+      "id": "Code-Guidance",
+      "title": "Code Guidance",
+      "text": "Fault matrix injects: false put, exception put, DB exception after object, exception after version before status/event via action rollback, same-hash retry with missing object. Assert no phantom successful version/status/event and exactly-one final version/event after heal. Do not use `exists()` alone if target adapter cannot prove readable complete bytes; use a deterministic write/read or checksum contract. No `try/catch` that converts failure to success. Preserve unrelated config dirty state if present."
+    },
+    {
+      "id": "Validation",
+      "title": "Validation",
+      "text": "`make test-preflight`; `docker compose --project-name agelto_dev exec -T -e APP_ENV=testing -e DB_DATABASE=agelto_test -e DB_HOST=postgres app php artisan test --compact --no-tia tests/Feature/Document/DocumentDownloaderTest.php tests/Feature/Document/DocumentStorageFaultInjectionTest.php tests/Feature/Procurement/Prepare/ArchivePipelineTest.php`; `docker compose --project-name agelto_dev exec -T app vendor/bin/pint --test app/Actions/Procurement/Document/FinalizeDocumentDownloadAction.php app/Services/Procurement/DocumentDownloader.php app/Actions/Procurement/Document/ExpandArchiveEntryAction.php app/Repositories/Procurement/Document/DocumentStoreRepository.php app/Repositories/Procurement/ProcurementStoreRepository.php config/filesystems.php tests/Feature/Document/DocumentStorageFaultInjectionTest.php`; `docker compose --project-name agelto_dev exec -T app vendor/bin/phpstan analyse app/Actions/Procurement/Document/FinalizeDocumentDownloadAction.php app/Services/Procurement/DocumentDownloader.php app/Actions/Procurement/Document/ExpandArchiveEntryAction.php app/Repositories/Procurement/Document/DocumentStoreRepository.php --memory-limit=1G`; `git diff --check`."
+    },
+    {
+      "id": "Deliverables",
+      "title": "Deliverables",
+      "text": "checked storage write contract, atomic finalization Action, source/archive fault matrix, same-hash healing and docs. Closure: false/exception never yields Downloaded/version/event; DB rollback leaves no half-finalized state; retry heals object-only/missing-object cases exactly once; source and archive paths share invariant; commands green."
+    }
+  ]
+}

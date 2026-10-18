@@ -1,0 +1,17 @@
+{
+  "$schema": "urn:swissknifeman:task:plan:document:v1",
+  "id": "research-00-user-intent",
+  "title": "User intent trace",
+  "sections": [
+    {
+      "id": "User-intent-trace",
+      "title": "User intent trace",
+      "text": "| Мысль владельца | Носитель |\n|:--|:--|\n| Создать remediation документ | `@plan/knowledge/artifacts-PARSING_PRODUCTION_REMEDIATION.json` |\n| Создать новый Layout v2 plan | `@plan/plan.json`, `@plan/plan.json`, `phases/**`, `@plan/plan.json` |\n| Пять зависимых фаз | P0–P4 и contracts в phase indexes |\n| A1–A9, B1, NEW-1, NEW-2 | P0.1, P1.1–P1.4, P2.1–P2.2, P3.1–P3.5, P4.1 |\n| B2 explicit + live gate | D8 (supersedes D4), P2.3, P4.1; независимая приёмка P4.2 |\n| B3 nonblocking observability | D5, P4.4; не prerequisite P4.3 |\n| Exact Files/tests/commands/closure | все `phases/Pn/Pn.m.md` |\n| Design-only | D1; Git scope ограничен docs/plans/ACTIVE |\n| Preserve dirty work | Execution Rules + per-item Code Guidance |\n| Mandatory Task checks | findings pre-check + postflight и handoff receipt |\n| Repair RED design audit #1 | D11; explicit `Inputs` P1.1–P4.4; P4.1 A1/B2 live ownership; P4.2 offline evidence/Files contract; повторный whole-plan design audit |"
+    }
+  ],
+  "applies_to": [],
+  "provenance": {
+    "path": "research/00-user-intent.md",
+    "sha256": "f6a24d2a1a2be9921ddd84a52f713c59a18a662483ac92d682bcfb52965b07a0"
+  }
+}
