@@ -2,8 +2,10 @@
 
 declare(strict_types=1);
 
+use App\Dto\Procurement\Crawler\ListingBatch;
 use App\Enums\Procurement\Crawler\SourceFailureKind;
 use App\Enums\Procurement\Proxy\ProxyScope;
+use App\Exceptions\Procurement\Crawler\InvalidListingResponse;
 use App\Exceptions\Procurement\Proxy\NoProxyAvailableException;
 use App\Services\Procurement\SourceControl\SourceFailureClassifier;
 use Illuminate\Http\Client\ConnectionException;
@@ -66,3 +68,19 @@ test('карточка: сеть, прокси и чужая страница �
         ->and($classifier->classifyCardException(new NoProxyAvailableException(ProxyScope::CrawlDetail, 'zakupki.gov.ru', 'пул пуст')))->toBe(SourceFailureKind::ProxyUnavailable)
         ->and($classifier->classifyCardException(new RuntimeException('bug')))->toBe(SourceFailureKind::CodeError);
 });
+
+test('отвергнутый ответ листинга сохраняет классификацию HTTP и содержимого', function (int $status, bool $empty, SourceFailureKind $expected, string $reason = 'rejected'): void {
+    $batch = new ListingBatch(
+        rows: [], rawBody: $empty ? '' : '<html>error</html>', dedupSignature: null, rowsTotal: 0,
+        httpStatus: $status, durationMs: 1, requestParams: [], emptyBody: $empty,
+    );
+    $exception = new InvalidListingResponse(batch: $batch, reason: $reason);
+
+    expect(app(SourceFailureClassifier::class)->classifyListingException($exception))->toBe($expected);
+})->with([
+    [403, false, SourceFailureKind::SourceBlocked],
+    [500, false, SourceFailureKind::SourceUnavailable],
+    [200, true, SourceFailureKind::EmptyBody],
+    [200, false, SourceFailureKind::InvalidContent],
+    [200, false, SourceFailureKind::LayoutDrift, 'invalid_csv_header'],
+]);

@@ -80,7 +80,9 @@ final readonly class ExpandArchiveEntryAction
                     );
                 }
 
-                PrepareDocumentJob::dispatch(documentId: $child->id)->afterCommit();
+                if (config('crawler.downstream_enabled', true)) {
+                    PrepareDocumentJob::dispatch(documentId: $child->id)->afterCommit();
+                }
 
                 return $childVersion;
             });

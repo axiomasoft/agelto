@@ -127,7 +127,7 @@ test('проверка считает совпавшие множества ре
         ->and($result->measured['overlap_share'])->toBe(1.0);
 });
 
-test('проверка считает пустой фильтрованный блок поломкой', function (): void {
+test('проверка считает пустой ответ недостатком данных', function (): void {
     [$platform] = listingFilterProfile();
     Http::fake([
         '*' => Http::sequence()
@@ -137,8 +137,8 @@ test('проверка считает пустой фильтрованный б
 
     $result = runListingFilterCheck($platform);
 
-    expect($result->verdict)->toBe(PlatformCheckVerdict::Broken)
-        ->and($result->measured['registry_numbers_filtered'])->toBe(0);
+    expect($result->verdict)->toBe(PlatformCheckVerdict::NotEnoughData)
+        ->and($result->requestsUsed)->toBe(2);
 
     Http::assertSentCount(2);
 });
@@ -178,7 +178,7 @@ test('проверка называет сетевой отказ недоста
 
     expect($result->verdict)->toBe(PlatformCheckVerdict::NotEnoughData)
         ->and($result->requestsUsed)->toBe(1)
-        ->and($result->message)->toContain('Network is unavailable');
+        ->and($result->message)->toContain('не получила проверенный CSV');
 });
 
 test('проверка не повторяет ответ площадки и не делает третий запрос', function (): void {

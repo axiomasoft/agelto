@@ -192,7 +192,7 @@ test('строка из crw_ignored_items пропускается и не со�
         ->and(Procurement::query()->where('registry_number', '0173200001234000001')->exists())->toBeTrue();
 });
 
-test('битая строка без источника номера не рушит блок — остальные строки обрабатываются', function () {
+test('битая строка без номера оставляет блок незавершённым', function () {
     Storage::fake('s3');
     $registry = Registry::factory()->eis()->create(['code' => 'fz44']);
     $crawler = Crawler::factory()->for($registry)->create();
@@ -204,8 +204,10 @@ test('битая строка без источника номера не руш
     ]);
 
     $result = app(CsvBlockIngestor::class)->ingest(crawler: $crawler, run: $run, batch: $batch);
+    expect($result->failure)->toBe(SourceFailureKind::RowErrors)
+        ->and($result->rowsErrors)->toBe(1);
 
-    expect($result->rowsNew)->toBe(1)
+    expect(Fetch::query()->where('crawler_run_id', $run->id)->sole()->rows_errors)->toBe(1)
         ->and(Procurement::query()->count())->toBe(1)
         ->and(Procurement::query()->where('registry_number', '0173200001234000001')->exists())->toBeTrue();
 });
@@ -246,7 +248,7 @@ test('дедуп внутри блока по реестровому номер�
         ->once();
 });
 
-test('битая строка с непарсящейся датой размещения не рушит блок', function () {
+test('битая строка с неверной датой оставляет блок незавершённым', function () {
     Storage::fake('s3');
     $registry = Registry::factory()->eis()->create(['code' => 'fz44']);
     $crawler = Crawler::factory()->for($registry)->create();
@@ -258,13 +260,10 @@ test('битая строка с непарсящейся датой разме�
     ]);
 
     $result = app(CsvBlockIngestor::class)->ingest(crawler: $crawler, run: $run, batch: $batch);
+    expect($result->failure)->toBe(SourceFailureKind::RowErrors)
+        ->and($result->rowsErrors)->toBe(1);
 
-    expect($result->rowsNew)->toBe(1)
-        ->and($result->rowsParsed)->toBe(1)
-        ->and($result->rowsSkipped)->toBe(1)
-        ->and($result->rowsErrors)->toBe(0)
-        ->and($result->rowsParsed + $result->rowsSkipped + $result->rowsDuplicated + $result->rowsErrors)->toBe($result->rowsTotal)
-        ->and(Procurement::query()->count())->toBe(1)
+    expect(Fetch::query()->where('crawler_run_id', $run->id)->sole()->rows_errors)->toBe(1)
         ->and(Procurement::query()->where('registry_number', '0173200001234000001')->exists())->toBeTrue();
 });
 

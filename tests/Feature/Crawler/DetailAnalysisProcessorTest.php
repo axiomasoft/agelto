@@ -119,6 +119,35 @@ function fakeDetailAnalysisHttp(): void
     ]);
 }
 
+test('неполные стороны оставляют карточку retryable до подтверждённого полного повтора', function () {
+    Sleep::fake();
+    Storage::fake('s3');
+    activeDetailAnalysisProxies();
+    $procurement = Procurement::factory()->create([
+        'registry_id' => detailAnalysisRegistry()->id,
+        'registry_number' => '0338200009125000001',
+        'procedure_type_raw' => 'Электронный аукцион',
+        'status' => ProcurementStatus::Bidding,
+    ]);
+    Http::fake([
+        '*view/common-info.html*' => Http::sequence()
+            ->push(file_get_contents(base_path('tests/Fixtures/Crawler/Card/common-info.html')), 200)
+            ->push(CardHtmlFixture::commonInfo(), 200),
+        '*view/documents.html*' => fn () => Http::response(CardHtmlFixture::documents(), 200),
+        '*view/event-journal.html*' => fn () => Http::response(detailAnalysisEventJournalHtml(), 200),
+    ]);
+
+    expect(app(DetailAnalysisProcessor::class)->run($procurement))->toBeFalse()
+        ->and($procurement->refresh()->detail_fetched_at)->toBeNull()
+        ->and($procurement->detail_attempts)->toBe(1)
+        ->and($procurement->detail_next_retry_at)->not->toBeNull();
+
+    $this->travel((int) config('crawler.detail_retry_backoff_minutes', 15) + 1)->minutes();
+    expect(app(DetailAnalysisProcessor::class)->run($procurement))->toBeTrue()
+        ->and($procurement->refresh()->detail_fetched_at)->not->toBeNull()
+        ->and(ProcurementParty::query()->where('procurement_id', $procurement->id)->count())->toBe(2);
+});
+
 test('run наполняет все вкладки-таблицы и ставит detail_fetched_at', function () {
     Sleep::fake();
     Storage::fake('s3');
@@ -142,10 +171,8 @@ test('run наполняет все вкладки-таблицы и стави�
         ->and($procurement->detail_last_error)->toBeNull();
 
     expect(EisDetails::query()->where('procurement_id', $procurement->id)->exists())->toBeTrue();
-    // `organizations-block`/`table.parties-table` отсутствует на реальной вкладке common-info
-    // (P4.14, `findings/P4-card-layout.md` §3) — PartiesParser честно не находит сторон,
-    // см. Pending Work item'а P4.14 ([UNVERIFIED]).
-    expect(ProcurementParty::query()->where('procurement_id', $procurement->id)->exists())->toBeFalse();
+    expect(ProcurementParty::query()->where('procurement_id', $procurement->id)->count())->toBe(2)
+        ->and($procurement->customer_org_id)->not->toBeNull();
     // 6 документов (не 2) — реальная вкладка documents несёт 6 вложений (P4.13, findings/
     // P4-card-layout.md §2); эта ассерция уже была неверна ДО P4.14 (не обнаруживалась —
     // тест падал раньше, на detail_fetched_at), правка мимоходом при первом реальном достижении.

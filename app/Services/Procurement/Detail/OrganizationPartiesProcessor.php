@@ -37,7 +37,7 @@ final readonly class OrganizationPartiesProcessor
     public function sync(Procurement $procurement, array $parties): void
     {
         $partyKeys = [];
-        $customerOrganizationId = null;
+        $customerOrganizationIds = [];
 
         foreach ($parties as $party) {
             $organization = $this->organizationResolver->resolve($party->organization);
@@ -55,7 +55,7 @@ final readonly class OrganizationPartiesProcessor
             ];
 
             if ($party->role === ProcurementPartyRole::Customer) {
-                $customerOrganizationId = $organization->id;
+                $customerOrganizationIds[$organization->id] = $organization->id;
             }
         }
 
@@ -63,7 +63,11 @@ final readonly class OrganizationPartiesProcessor
             procurementId: $procurement->id,
             partyKeys: $partyKeys,
         );
-        $this->storeRepository->setCustomerOrg(procurement: $procurement, organizationId: $customerOrganizationId);
+        // A scalar FK cannot represent a joint procurement. Every customer remains in parties.
+        $this->storeRepository->setCustomerOrg(
+            procurement: $procurement,
+            organizationId: count($customerOrganizationIds) === 1 ? array_values($customerOrganizationIds)[0] : null,
+        );
     }
 
     /**

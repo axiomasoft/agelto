@@ -389,7 +389,8 @@ test('isAvailable возвращает true без сетевых запросо
  */
 function win1251Csv(array $records): string
 {
-    $header = ['Реестровый номер закупки', 'Наименование закупки', 'Дата обновления'];
+    $header = ['Реестровый номер закупки', 'Наименование закупки', 'Дата обновления', 'Дата размещения'];
+    $records = array_map(static fn (array $record): array => [...$record, '01.10.2026'], $records);
     $line = static fn (array $fields): string => implode(';', array_map(
         static fn (string $field): string => '"'.str_replace('"', '""', $field).'"',
         $fields,

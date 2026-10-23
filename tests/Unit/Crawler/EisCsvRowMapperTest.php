@@ -124,42 +124,34 @@ test('суточная точность даты обновления перед
         ->and($timestampPrecision->sourceUpdatedAtHasDayPrecision)->toBeFalse();
 });
 
-test('пустой registry_number приводит к skip (map возвращает null)', function () {
+test('пустой registry_number вызывает ошибку обязательного поля', function () {
     $crawler = eisCrawlerForRegistryCode('fz44');
 
-    $snapshot = app(EisCsvRowMapper::class)->map(row: eisCsvRow(['Реестровый номер закупки' => '']), crawler: $crawler);
-
-    expect($snapshot)->toBeNull();
+    expect(fn () => app(EisCsvRowMapper::class)->map(row: eisCsvRow(['Реестровый номер закупки' => '']), crawler: $crawler))->toThrow(UnexpectedValueException::class);
 });
 
-test('отсутствующий registry_number приводит к skip (map возвращает null)', function () {
+test('отсутствующий registry_number вызывает ошибку обязательного поля', function () {
     $crawler = eisCrawlerForRegistryCode('fz44');
 
     $row = eisCsvRow();
     unset($row['Реестровый номер закупки']);
 
-    $snapshot = app(EisCsvRowMapper::class)->map(row: $row, crawler: $crawler);
-
-    expect($snapshot)->toBeNull();
+    expect(fn () => app(EisCsvRowMapper::class)->map(row: $row, crawler: $crawler))->toThrow(UnexpectedValueException::class);
 });
 
-test('непарсящаяся дата размещения приводит к skip (map возвращает null)', function () {
+test('непарсящаяся дата размещения вызывает ошибку обязательного поля', function () {
     $crawler = eisCrawlerForRegistryCode('fz44');
 
-    $snapshot = app(EisCsvRowMapper::class)->map(row: eisCsvRow(['Дата размещения' => 'не дата']), crawler: $crawler);
-
-    expect($snapshot)->toBeNull();
+    expect(fn () => app(EisCsvRowMapper::class)->map(row: eisCsvRow(['Дата размещения' => 'не дата']), crawler: $crawler))->toThrow(UnexpectedValueException::class);
 });
 
-test('отсутствующая дата обновления приводит к skip (map возвращает null)', function () {
+test('отсутствующая дата обновления вызывает ошибку обязательного поля', function () {
     $crawler = eisCrawlerForRegistryCode('fz44');
 
     $row = eisCsvRow();
     unset($row['Дата обновления']);
 
-    $snapshot = app(EisCsvRowMapper::class)->map(row: $row, crawler: $crawler);
-
-    expect($snapshot)->toBeNull();
+    expect(fn () => app(EisCsvRowMapper::class)->map(row: $row, crawler: $crawler))->toThrow(UnexpectedValueException::class);
 });
 
 test('префикс «№» перед реестровым номером снимается (живая проба P4.9 — 500/500 строк блока несут его)', function () {

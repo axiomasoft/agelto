@@ -40,7 +40,8 @@ test('список смет открывается и показывает сч�
 
     Livewire::test(ListEstimates::class)
         ->assertSuccessful()
-        ->assertTableColumnStateSet('marked_items_count', '1 из 3', record: $estimate);
+        ->assertTableColumnStateSet('marked_items_count', '1 из 3', record: $estimate)
+        ->assertTableColumnFormattedStateSet('analysis.id', "Анализ #{$estimate->analysis_id}", record: $estimate);
 });
 
 test('просмотр сметы доступен оператору по прямой ссылке', function (): void {

@@ -11,13 +11,17 @@ use App\Enums\Procurement\Crawler\RunPurpose;
 use App\Enums\Procurement\Crawler\RunStatus;
 use App\Enums\Procurement\Crawler\RunStopKind;
 use App\Enums\Procurement\Crawler\RunStopPolicy;
+use App\Exceptions\Procurement\Crawler\InvalidListingResponse;
+use App\Exceptions\Procurement\Crawler\ListingRequestStopped;
 use App\Exceptions\Procurement\Crawler\OutboundRequestDeadlineExceeded;
 use App\Exceptions\Procurement\Crawler\PlatformBudgetExhaustedException;
 use App\Models\Procurement\Crawler\Crawler;
 use App\Models\Procurement\Crawler\Run;
+use App\Services\Procurement\Contracts\CooperativeListingSourceMethod;
 use App\Services\Procurement\Contracts\DeadlineAwareSourceMethod;
 use App\Services\Procurement\CrawlerRunManager;
 use App\Services\Procurement\CsvBlockIngestor;
+use App\Services\Procurement\ListingRunCheckpoint;
 use App\Services\Procurement\PlatformAdapterRegistry;
 use App\Services\Procurement\RunStopGate;
 use App\Services\Procurement\SourceControl\SourceRunControl;
@@ -42,6 +46,7 @@ final readonly class FreshRunProcessor
         private CsvBlockIngestor $ingestor,
         private RunStopGate $stopGate,
         private SourceRunControl $sourceControl,
+        private ListingRunCheckpoint $listingCheckpoint,
     ) {}
 
     public function run(Crawler $crawler, ?Run $run = null): Run
@@ -123,9 +128,11 @@ final readonly class FreshRunProcessor
                 $sourceMethod = $this->factory->makeWithFallback(crawler: $crawler);
 
                 try {
-                    $batch = $sourceMethod instanceof DeadlineAwareSourceMethod
-                        ? $sourceMethod->collectListingWithinDeadline(crawler: $crawler, cursor: $cursor, deadlineAt: $deadlineAt)
-                        : $sourceMethod->collectListing(crawler: $crawler, cursor: $cursor);
+                    $batch = match (true) {
+                        $sourceMethod instanceof CooperativeListingSourceMethod => $sourceMethod->collectListingForRun(crawler: $crawler, cursor: $cursor, context: $this->listingCheckpoint->context($run, $deadlineAt)),
+                        $sourceMethod instanceof DeadlineAwareSourceMethod => $sourceMethod->collectListingWithinDeadline(crawler: $crawler, cursor: $cursor, deadlineAt: $deadlineAt),
+                        default => $sourceMethod->collectListing(crawler: $crawler, cursor: $cursor),
+                    };
                     $artifactRef = $this->ingestor->stageArtifact(crawler: $crawler, run: $run, batch: $batch);
                     $fetchResult = $this->runs->withinExecutionLease(run: $run, callback: function () use ($batch, $crawler, $run, &$cursor, $blockSize, $onlyFreshThreshold, $artifactRef): FetchResult {
                         $fetchResult = $this->ingestor->ingest(crawler: $crawler, run: $run, batch: $batch, artifactRef: $artifactRef);
@@ -177,6 +184,15 @@ final readonly class FreshRunProcessor
 
                         return $fetchResult;
                     });
+                } catch (ListingRequestStopped) {
+                    return $run;
+                } catch (InvalidListingResponse $exception) {
+                    $this->runs->withinExecutionLease(run: $run, callback: fn () => $this->ingestor->recordRejectedBatch($crawler, $run, $exception->batch, $exception->reason));
+                    $this->sourceControl->onBlockException(crawler: $crawler, run: $run, exception: $exception, requestParams: $cursor->toArray());
+
+                    return $run;
+                } catch (PlatformBudgetExhaustedException|OutboundRequestDeadlineExceeded $exception) {
+                    throw $exception;
                 } catch (Throwable $exception) {
                     $run->refresh();
                     $this->sourceControl->onBlockException(crawler: $crawler, run: $run, exception: $exception, requestParams: $cursor->toArray());

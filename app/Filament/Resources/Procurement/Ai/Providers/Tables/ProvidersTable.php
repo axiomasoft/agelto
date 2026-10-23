@@ -15,6 +15,18 @@ class ProvidersTable
     {
         return $table
             ->columns([
+                TextColumn::make('code')
+                    ->label('Код')
+                    ->searchable()
+                    ->copyable(),
+                TextColumn::make('driver')
+                    ->label('Драйвер')
+                    ->searchable(),
+                TextColumn::make('base_url')
+                    ->label('Базовый адрес')
+                    ->placeholder('Стандартный адрес драйвера')
+                    ->wrap()
+                    ->toggleable(),
                 IconColumn::make('is_active')
                     ->label('Активен')
                     ->boolean(),

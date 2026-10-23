@@ -6,6 +6,7 @@ namespace App\Services\Procurement\SourceControl;
 
 use App\Dto\Procurement\Crawler\SourceControlPolicy;
 use App\Enums\Procurement\Crawler\SourceFailureKind;
+use App\Exceptions\Procurement\Crawler\InvalidListingResponse;
 use App\Exceptions\Procurement\Crawler\SourceResponseLimitExceeded;
 use App\Exceptions\Procurement\Proxy\NoProxyAvailableException;
 use App\Services\Procurement\Exceptions\CardPageMismatchException;
@@ -57,6 +58,12 @@ final readonly class SourceFailureClassifier
     public function classifyListingException(Throwable $exception): SourceFailureKind
     {
         return match (true) {
+            $exception instanceof InvalidListingResponse => match (true) {
+                $exception->batch->httpStatus < 200 || $exception->batch->httpStatus >= 300 => $this->classifyStatus($exception->batch->httpStatus),
+                $exception->batch->emptyBody => SourceFailureKind::EmptyBody,
+                $exception->reason === 'invalid_csv_header' => SourceFailureKind::LayoutDrift,
+                default => SourceFailureKind::InvalidContent,
+            },
             $exception instanceof SourceResponseLimitExceeded => SourceFailureKind::InvalidContent,
             $exception instanceof NoProxyAvailableException => SourceFailureKind::ProxyUnavailable,
             $exception instanceof ConnectionException => SourceFailureKind::SourceUnavailable,

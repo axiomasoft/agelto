@@ -131,3 +131,10 @@ project_context.txt
 # Отчёты прогонов estimate:gold:build/estimate:bench:formats (ai.fixtures.reports_dir, D111) —
 # рабочие артефакты, не храним в git.
 /estimates/reports/
+.grok/config.toml
+.cursor/mcp.json
+.codex/config.toml
+.claude/agent-pack.lock.json
+
+# Локальные материалы аудитов и артефакты прогонов
+/Audits/

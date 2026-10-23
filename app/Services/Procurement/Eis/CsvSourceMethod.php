@@ -8,6 +8,7 @@ use App\Actions\Procurement\Crawler\StoreRawFetchArtifactAction;
 use App\Dto\Procurement\Crawler\EisListingQueryOverrides;
 use App\Dto\Procurement\Crawler\ListingBatch;
 use App\Dto\Procurement\Crawler\ListingCursor;
+use App\Dto\Procurement\Crawler\ListingExecutionContext;
 use App\Dto\Procurement\Crawler\StageSettings;
 use App\Dto\Procurement\ProcurementDetails;
 use App\Dto\Procurement\Proxy\ProxyLease;
@@ -17,13 +18,14 @@ use App\Enums\Procurement\Crawler\CrawlStage;
 use App\Enums\Procurement\ProcurementStatus;
 use App\Enums\Procurement\Proxy\ProxyFailureReason;
 use App\Enums\Procurement\Proxy\ProxyScope;
+use App\Exceptions\Procurement\Crawler\InvalidListingResponse;
 use App\Exceptions\Procurement\Crawler\OutboundRequestDeadlineExceeded;
-use App\Exceptions\Procurement\Crawler\SourceResponseLimitExceeded;
 use App\Models\Procurement\Crawler\Crawler;
 use App\Models\Procurement\Platform\Platform;
 use App\Models\Procurement\Platform\Registry;
 use App\Models\Procurement\Procurement;
 use App\Services\Procurement\BoundedResponseReader;
+use App\Services\Procurement\Contracts\CooperativeListingSourceMethod;
 use App\Services\Procurement\Contracts\DeadlineAwareSourceMethod;
 use App\Services\Procurement\CrawlSettingsResolver;
 use App\Services\Procurement\Exceptions\CardPageMismatchException;
@@ -33,6 +35,7 @@ use App\Services\Procurement\PlatformRequestBudget;
 use App\Services\Procurement\Proxy\ProxyBindingResolver;
 use App\Services\Procurement\Proxy\ProxyResolver;
 use App\Services\Procurement\SourceTlsTrust;
+use GuzzleHttp\Exception\ConnectException;
 use GuzzleHttp\Psr7\Utils;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\Response;
@@ -45,7 +48,7 @@ use Illuminate\Support\Sleep;
  * (`02-crawling.md` §3). Кодировка источника — Windows-1251, конвертация
  * в UTF-8 обязательна до парсинга; иначе закупки с кириллицей тихо теряются.
  */
-final readonly class CsvSourceMethod implements DeadlineAwareSourceMethod
+final readonly class CsvSourceMethod implements CooperativeListingSourceMethod, DeadlineAwareSourceMethod
 {
     /**
      * Заголовок колонки «Реестровый номер закупки» в CSV-экспорте ЕИС
@@ -94,6 +97,18 @@ final readonly class CsvSourceMethod implements DeadlineAwareSourceMethod
         ?EisListingQueryOverrides $queryOverrides = null,
         ?float $deadlineAt = null,
     ): ListingBatch {
+        return $this->collectListingInternal($crawler, $cursor, $queryOverrides, null, $deadlineAt);
+    }
+
+    public function collectListingForRun(Crawler $crawler, ListingCursor $cursor, ListingExecutionContext $context): ListingBatch
+    {
+        return $this->collectListingInternal($crawler, $cursor, null, $context, $context->deadlineAt);
+    }
+
+    private function collectListingInternal(Crawler $crawler, ListingCursor $cursor, ?EisListingQueryOverrides $queryOverrides, ?ListingExecutionContext $context, ?float $deadlineAt): ListingBatch
+    {
+        $retryEmpty = $queryOverrides === null || $queryOverrides->retryOnEmptyResponse;
+        ($context?->checkpoint)?->__invoke();
         $blockSize = app(PlatformAdapterRegistry::class)->blockSize(registry: $crawler->registry()->firstOrFail());
         $from = $cursor->blockFrom;
         $to = $from + $blockSize - 1;
@@ -128,40 +143,39 @@ final readonly class CsvSourceMethod implements DeadlineAwareSourceMethod
             host: $host,
             crawler: $crawler,
             deadlineAt: $deadlineAt,
+            execution: $context,
+            retryEmpty: $retryEmpty,
         );
         $response = $request['response'];
         $waitMs = $request['wait_ms'];
 
-        if (($queryOverrides === null || $queryOverrides->retryOnEmptyResponse) && $response->status() === 200 && trim($response->body()) === '') {
-            $request = $this->requestWithRetries(
-                lease: $lease,
-                endpoint: $endpoint,
-                queryParams: $queryParams,
-                settings: $settings,
-                stage: CrawlStage::Listing,
-                host: $host,
-                crawler: $crawler,
-                deadlineAt: $deadlineAt,
-            );
-            $response = $request['response'];
-            $waitMs += $request['wait_ms'];
-        }
-
         $durationMs = (int) ((hrtime(true) - $startedAt) / 1_000_000);
-
         $utf8Body = mb_convert_encoding($response->body(), 'UTF-8', 'Windows-1251');
-        ['rows' => $rows, 'records' => $records, 'malformed' => $malformed, 'header' => $header] = $this->parseCsv(body: $utf8Body, deadlineAt: $deadlineAt);
-
+        $reason = match (true) {
+            ! $response->successful() => 'http_error',
+            trim($utf8Body) === '' => 'empty_body',
+            str_contains(strtolower($response->header('Content-Type')), 'text/html') => 'html_response',
+            default => null,
+        };
+        $parsed = ['rows' => [], 'records' => 0, 'malformed' => 0, 'header' => null];
+        if ($reason === null) {
+            try {
+                $parsed = $this->parseCsv(body: $utf8Body, deadlineAt: $deadlineAt);
+            } catch (\UnexpectedValueException) {
+                $reason = 'invalid_csv';
+            }
+        }
+        ['rows' => $rows, 'records' => $records, 'malformed' => $malformed, 'header' => $header] = $parsed;
+        if ($reason === null && ($header === null || array_diff(['Реестровый номер закупки', 'Дата размещения', 'Дата обновления'], $header) !== [])) {
+            $reason = 'invalid_csv_header';
+        }
         if ($malformed > 0) {
             Log::warning(message: 'CsvSourceMethod: CSV-записи листинга не совпали с заголовком по числу полей.', context: [
-                'crawler_id' => $crawler->id,
-                'block_from' => $from,
-                'records' => $records,
-                'malformed' => $malformed,
+                'crawler_id' => $crawler->id, 'block_from' => $from, 'records' => $records, 'malformed' => $malformed,
             ]);
         }
 
-        return new ListingBatch(
+        $batch = new ListingBatch(
             observedAt: $observedAt,
             rows: $rows,
             rawBody: $utf8Body,
@@ -179,6 +193,12 @@ final readonly class CsvSourceMethod implements DeadlineAwareSourceMethod
             // аномалия (`CRAWLER_CSV_EMPTY`), а не конец данных.
             emptyBody: trim($utf8Body) === '',
         );
+
+        if ($reason !== null) {
+            throw new InvalidListingResponse(batch: $batch, reason: $reason);
+        }
+
+        return $batch;
     }
 
     /**
@@ -434,7 +454,9 @@ final readonly class CsvSourceMethod implements DeadlineAwareSourceMethod
                 maxBytes: $this->intConfig('crawler.response_max_bytes', 8_388_608),
                 deadlineAt: $bodyDeadline,
             );
-            $response = new Response($response->toPsrResponse()->withBody(Utils::streamFor($body)));
+            $boundedResponse = new Response($response->toPsrResponse()->withBody(Utils::streamFor($body)));
+            $boundedResponse->transferStats = $response->transferStats;
+            $response = $boundedResponse;
         } catch (ConnectionException $exception) {
             $this->proxyResolver->reportOutcome($lease, ProxyOutcome::failure($this->connectionFailureReason($exception)));
 
@@ -461,17 +483,27 @@ final readonly class CsvSourceMethod implements DeadlineAwareSourceMethod
         string $host,
         ?Crawler $crawler = null,
         ?float $deadlineAt = null,
+        ?ListingExecutionContext $execution = null,
+        bool $retryEmpty = false,
     ): array {
         $attempts = max(1, $settings->retries ?? 5);
         $waitMs = 0;
+        $identity = $queryParams;
+        ksort($identity);
+        $requestHash = hash('sha256', json_encode([$host, parse_url($endpoint, PHP_URL_PATH), parse_url($endpoint, PHP_URL_QUERY), $identity], JSON_THROW_ON_ERROR));
 
         for ($attempt = 1; $attempt <= $attempts; $attempt++) {
+            ($execution?->checkpoint)?->__invoke();
+            $attemptStarted = hrtime(true);
+            $startedAt = now()->toIso8601String();
             $waitMs += $this->requestBudget->acquire(
                 host: $host,
                 stage: $stage,
                 crawler: $crawler,
                 deadlineAt: $deadlineAt,
+                checkpoint: $execution?->checkpoint,
             );
+            ($execution?->checkpoint)?->__invoke();
 
             try {
                 $response = $this->requestWithOutcome(
@@ -481,21 +513,32 @@ final readonly class CsvSourceMethod implements DeadlineAwareSourceMethod
                     timeoutSeconds: $this->requestTimeout(settings: $settings, stage: $stage, deadlineAt: $deadlineAt),
                 );
             } catch (ConnectionException $exception) {
+                $reason = $this->connectionFailureReason($exception)->value;
+                $retry = $attempt < $attempts;
+                $previous = $exception->getPrevious();
+                $transport = $this->transportMetrics($previous instanceof ConnectException ? $previous->getHandlerContext() : []);
+                $this->observeAttempt($crawler, $execution, $requestHash, $queryParams, $lease, $attempt, $attempts, $startedAt, $attemptStarted, null, $reason, $retry, $waitMs, max(0, $settings->retryDelayMs ?? 500), $transport);
+                ($execution?->checkpoint)?->__invoke();
                 if ($attempt === $attempts) {
-                    throw $exception;
+                    throw new ConnectionException("Outbound transport failed: {$reason}.");
                 }
 
-                $this->waitBeforeRetry(settings: $settings, stage: $stage, deadlineAt: $deadlineAt);
+                $this->waitBeforeRetry(settings: $settings, stage: $stage, deadlineAt: $deadlineAt, checkpoint: $execution?->checkpoint);
 
                 continue;
             }
 
-            if (! $this->isRetryableResponse(response: $response) || $attempt === $attempts) {
+            $empty = $response->status() === 200 && trim($response->body()) === '';
+            $retry = ($this->isRetryableResponse(response: $response) || ($retryEmpty && $empty)) && $attempt < $attempts;
+            $reason = $empty ? 'empty_body' : ($response->successful() ? 'response' : 'http_error');
+            $this->observeAttempt($crawler, $execution, $requestHash, $queryParams, $lease, $attempt, $attempts, $startedAt, $attemptStarted, $response->status(), $reason, $retry, $waitMs, max(0, $settings->retryDelayMs ?? 500), $this->transportMetrics($response->handlerStats()));
+            ($execution?->checkpoint)?->__invoke();
+            if (! $retry) {
                 return ['response' => $response, 'wait_ms' => $waitMs];
             }
 
             $response->close();
-            $this->waitBeforeRetry(settings: $settings, stage: $stage, deadlineAt: $deadlineAt);
+            $this->waitBeforeRetry(settings: $settings, stage: $stage, deadlineAt: $deadlineAt, checkpoint: $execution?->checkpoint);
         }
 
         throw new \LogicException('HTTP retry loop ended without a response.');
@@ -518,7 +561,7 @@ final readonly class CsvSourceMethod implements DeadlineAwareSourceMethod
         return min($configured, $remaining);
     }
 
-    private function waitBeforeRetry(StageSettings $settings, CrawlStage $stage, ?float $deadlineAt): void
+    private function waitBeforeRetry(StageSettings $settings, CrawlStage $stage, ?float $deadlineAt, ?\Closure $checkpoint = null): void
     {
         $waitMs = max(0, $settings->retryDelayMs ?? 500);
 
@@ -526,9 +569,77 @@ final readonly class CsvSourceMethod implements DeadlineAwareSourceMethod
             throw OutboundRequestDeadlineExceeded::forStage(stage: $stage->value);
         }
 
-        if ($waitMs > 0) {
-            Sleep::for($waitMs)->milliseconds();
+        $checkpoint?->__invoke();
+        while ($waitMs > 0) {
+            $slice = $checkpoint === null ? $waitMs : min(1000, $waitMs);
+            Sleep::for($slice)->milliseconds();
+            $waitMs -= $slice;
+            $checkpoint?->__invoke();
         }
+    }
+
+    /**
+     * @param  array<string, string>  $queryParams
+     * @param  array<string, int|float>  $transport
+     */
+    private function observeAttempt(
+        ?Crawler $crawler,
+        ?ListingExecutionContext $execution,
+        string $requestHash,
+        array $queryParams,
+        ProxyLease $lease,
+        int $attempt,
+        int $attempts,
+        string $startedAt,
+        int $attemptStarted,
+        ?int $status,
+        string $reason,
+        bool $retry,
+        int $waitMs,
+        int $retryDelayMs,
+        array $transport = [],
+    ): void {
+        Log::info('Crawler outbound attempt', [
+            'crawler_id' => $crawler?->id,
+            'run_id' => $execution?->run->id,
+            'request_hash' => $requestHash,
+            'request_scope' => array_intersect_key($queryParams, array_flip(['from', 'to', 'publishDateFrom', 'publishDateTo', 'priceFromGeneral', 'priceToGeneral'])),
+            'attempt' => $attempt,
+            'max_attempts' => $attempts,
+            'proxy_id' => $lease->proxyId,
+            'scope' => $lease->scope->value,
+            'started_at' => $startedAt,
+            'ended_at' => now()->toIso8601String(),
+            'duration_ms' => (int) ((hrtime(true) - $attemptStarted) / 1_000_000),
+            'http_status' => $status,
+            'reason' => $reason,
+            'retry' => $retry,
+            'budget_wait_total_ms' => $waitMs,
+            'planned_retry_sleep_ms' => $retry ? $retryDelayMs : 0,
+            'transport' => $transport,
+        ]);
+    }
+
+    /**
+     * Only numeric transfer diagnostics; handler context also contains URLs,
+     * credentials and certificate information which must never reach the logs.
+     *
+     * @param  array<array-key, mixed>  $context
+     * @return array<string, int|float>
+     */
+    private function transportMetrics(array $context): array
+    {
+        $metrics = [];
+        foreach (['errno', 'http_code', 'http_connectcode', 'http_version', 'ssl_verify_result',
+            'namelookup_time', 'connect_time', 'appconnect_time', 'pretransfer_time',
+            'starttransfer_time', 'total_time', 'size_download', 'size_upload', 'redirect_count'] as $key) {
+            $value = $context[$key] ?? null;
+            if (is_int($value) || (is_float($value) && is_finite($value))) {
+                $metrics[$key] = $value;
+            }
+        }
+
+        return $metrics;
     }
 
     private function isRetryableResponse(Response $response): bool
@@ -580,70 +691,12 @@ final readonly class CsvSourceMethod implements DeadlineAwareSourceMethod
      */
     private function parseCsv(string $body, ?float $deadlineAt = null): array
     {
-        $empty = ['rows' => [], 'records' => 0, 'malformed' => 0, 'header' => null];
-
-        if (trim($body) === '') {
-            return $empty;
-        }
-
-        if (substr_count($body, ';') > 128_000) {
-            throw new SourceResponseLimitExceeded('CSV separator count exceeds the resource limit.');
-        }
-        $stream = fopen('php://temp', 'w+b');
-
-        if ($stream === false) {
-            throw new \RuntimeException('Не удалось открыть временный поток для разбора CSV.');
-        }
-
-        try {
-            fwrite($stream, $body);
-            rewind($stream);
-
-            $header = null;
-            $rows = [];
-            $records = 0;
-            $malformed = 0;
-
-            while (($fields = fgetcsv($stream, null, ';', '"', '')) !== false) {
-                if ($fields === [null]) {
-                    continue;
-                }
-
-                BoundedResponseReader::assertTime(deadlineAt: $deadlineAt);
-                if (count($fields) > 256) {
-                    throw new SourceResponseLimitExceeded('CSV column count exceeds the resource limit.');
-                }
-                foreach ($fields as $field) {
-                    if (strlen($field ?? '') > $this->intConfig('crawler.csv_max_field_bytes', 262_144)) {
-                        throw new SourceResponseLimitExceeded('CSV field exceeds the configured byte limit.');
-                    }
-                }
-                $fields = array_map(static fn (?string $field): string => $field ?? '', $fields);
-
-                if ($header === null) {
-                    $header = $fields;
-
-                    continue;
-                }
-
-                $records++;
-                if ($records > $this->intConfig('crawler.csv_max_records', 1000)) {
-                    throw new SourceResponseLimitExceeded('CSV record count exceeds the configured limit.');
-                }
-
-                if (count($fields) !== count($header)) {
-                    $malformed++;
-
-                    continue;
-                }
-
-                $rows[] = array_combine(keys: $header, values: $fields);
-            }
-
-            return $header === null ? $empty : ['rows' => $rows, 'records' => $records, 'malformed' => $malformed, 'header' => $header];
-        } finally {
-            fclose($stream);
-        }
+        return (new EisCsvParser)->parseBatch(
+            body: $body,
+            deadlineAt: $deadlineAt,
+            maxRecords: $this->intConfig('crawler.csv_max_records', 1000),
+            maxFieldBytes: $this->intConfig('crawler.csv_max_field_bytes', 262_144),
+        );
     }
 
     private function intConfig(string $key, int $default): int

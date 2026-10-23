@@ -14,6 +14,7 @@ enum ProcurementPartyRole: string
     case Customer = 'customer';
     case Placer = 'placer';
     case AuthorizedBody = 'authorized_body';
+    case AuthorizedInstitution = 'authorized_institution';
     case SpecializedOrganization = 'specialized_organization';
     case PlatformOperator = 'platform_operator';
     case Winner = 'winner';

@@ -13,6 +13,9 @@ use App\Models\Procurement\Platform\Registry;
 use App\Models\Procurement\Procurement;
 use App\Services\Procurement\Eis\CsvSourceMethod;
 use App\Services\Procurement\Exceptions\CardUrlTemplateMissingException;
+use GuzzleHttp\Exception\ConnectException;
+use GuzzleHttp\Psr7\Request as PsrRequest;
+use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
@@ -55,6 +58,49 @@ function fakeCardHttp(): void
         '*view/supplier-results.html*' => Http::response(body: CardHtmlFixture::supplierResults(), status: 200),
     ]);
 }
+
+test('таймаут карточки сохраняет числовые фазы транспорта без URL и credentials', function (int $httpCode, int $receivedBytes) {
+    Sleep::fake();
+    Log::spy();
+    activeDetailProxy();
+    $registry = fakeCardRegistry();
+    $registry->platform->update(['throttle' => ['stages' => ['detail' => ['retries' => 1]]]]);
+    Procurement::factory()->create([
+        'registry_id' => $registry->id,
+        'registry_number' => '0338200009125000001',
+        'procedure_type_raw' => 'Электронный аукцион',
+        'status' => ProcurementStatus::Awarded,
+    ]);
+    Http::fake(function () use ($httpCode, $receivedBytes) {
+        throw new ConnectException('Operation timed out', new PsrRequest('GET', 'https://example.invalid/?token=secret'), null, [
+            'errno' => 28, 'connect_time' => 0.12, 'appconnect_time' => 0.8,
+            'pretransfer_time' => 0.81, 'starttransfer_time' => 0.0, 'total_time' => 30.0,
+            'http_code' => $httpCode, 'size_download' => $receivedBytes,
+            'url' => 'https://user:password@example.invalid/?token=secret',
+            'error' => 'proxy credentials', 'certinfo' => ['private certificate details'],
+        ]);
+    });
+
+    expect(fn () => app(CsvSourceMethod::class)->collectDetails('0338200009125000001', $registry))
+        ->toThrow(ConnectionException::class);
+
+    Log::shouldHaveReceived('info')->with('Crawler outbound attempt', Mockery::on(function (array $context) use ($httpCode, $receivedBytes): bool {
+        $transport = $context['transport'] ?? [];
+
+        return $context['reason'] === 'network_timeout'
+            && $context['http_status'] === null
+            && $transport['errno'] === 28
+            && $transport['http_code'] === $httpCode
+            && $transport['size_download'] === $receivedBytes
+            && $transport['appconnect_time'] === 0.8
+            && $transport['starttransfer_time'] === 0.0
+            && ! str_contains(json_encode($context), 'secret')
+            && ! str_contains(json_encode($context), 'password')
+            && ! array_key_exists('error', $transport)
+            && ! array_key_exists('certinfo', $transport);
+    }))->once();
+    expect(Fetch::query()->count())->toBe(0);
+})->with(['без HTTP-ответа' => [0, 0], 'частичное тело HTTP 200' => [200, 12415]]);
 
 test('collectDetails отправляет карточный URL с query-строкой regNumber, а не голый endpoint (Д-8)', function () {
     Sleep::fake();

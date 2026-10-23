@@ -18,6 +18,28 @@ status: living
 безопасен по естественному номеру закупки, а курсор и heartbeat позволяют продолжить прерванный
 прогон. Конкретные реализации, фильтр профиля и фактические ограничения ЕИС приведены ниже.
 
+## CSV reliability and stage-one operation
+
+ЕИС CSV читается потоком логических записей: quoted CR/LF, `;` и `""` сохраняются внутри поля.
+Неравная ширина, незакрытые/некорректные кавычки, пустые/повторные имена колонок и отсутствие
+`Реестровый номер закупки`, `Дата размещения`, `Дата обновления` отклоняют весь ответ.
+Header-only CSV допустим как пустая выдача; пустое тело, HTML и конечный неуспешный HTTP — нет.
+Отсутствие обязательного номера/дат и невозможные календарные даты дают mapping error.
+Ошибка не позволяет считать день дренированным. Отвергнутый HTTP/CSV сохраняется отдельным
+Fetch с `rows_errors=1` и `_rejection_reason` в `request_params`, под execution lease.
+При mapping error атомарный archive ingestion откатывается вместе с cursor/stats/Fetch;
+immutable raw object остаётся, повтор читает тот же незавершённый блок.
+
+`CRAWLER_DOWNSTREAM_ENABLED=false` (`crawler.downstream_enabled`, по умолчанию true) отключает
+последующие стадии: прямую/пакетную детализацию, backlog, revalidation, retry/recovery,
+ручные AI-входы и подготовку дочерних документов архива. Уже поставленные detail и все
+`PipelineJob` завершаются до чтения сущности, lease, HTTP и error counters. После включения
+обычные due/backlog/recovery заново подбирают durable state; эти no-op jobs не освобождаются
+через queue retry. Активную работу флаг не прерывает: для смены режима сначала дождаться
+исполнителей. В январском аудите также остаются false оба AI-флага, а worker обслуживает
+только `redis_crawl_long/crawl_long`; общий scheduler/Horizon в этом сценарии не запускается.
+Флаг не ограничивает listing других профилей и не заменяет выбор утверждённого профиля.
+
 ## Raw fetch evidence
 
 Raw CSV и сохранённые HTML snapshots адресуются content-addressed ключом: в пути есть SHA-256
@@ -94,10 +116,14 @@ PostgreSQL lease строки `prc_crawler_runs`: процесс получае�
 
 Остановить УЖЕ ВЫПОЛНЯЮЩИЙСЯ job средствами Laravel/Horizon нельзя — остановка кооперативна:
 `App\Services\Procurement\RunStopGate::signal()` читает `prc_crawler_runs.stop_requested_at`/
-`stop_kind` между блоками (`FreshRunProcessor::run()`, `ArchiveWindowScanner::scan()`), сигнал
+`stop_kind` между блоками и HTTP-попытками (`FreshRunProcessor::run()`, `ArchiveWindowScanner::scan()`), сигнал
 `Pause` сохраняет курсор и переводит в `paused` (resumable), `Cancel` — в `cancelled`
 (терминальный). Флаг выставляет операторское действие в админке (P3.4) — P3.2 несёт только
-механизм, кнопок нет.
+механизм, кнопок нет. `CooperativeListingSourceMethod` получает `ListingExecutionContext`: deadline
+одного slice и checkpoint, который обновляет heartbeat/fences lease и применяет stop. Budget,
+throttle и retry waits дробятся максимум по секунде; текущий HTTP ограничен оставшимся deadline
+с 5-секундным запасом, но не прерывается мгновенно. Исчерпание deadline даёт Checkpointed,
+не Drained. Контрольные listing-пробы без run сохраняют свой ограниченный request budget.
 
 Прогон (`$run`, `App\Enums\Procurement\Crawler\RunStatus`: running/paused/completed/failed/cancelled)
 оркеструется `App\Services\Procurement\CrawlerRunManager`.
@@ -175,6 +201,18 @@ null-telemetry остаются unknown, а не становятся искус
 «Краулинг → Operation logs» фильтрует их по уровню, стадии и сущности. Файловые `Log::*` остаются
 для разработчика и не заменяются этой витриной.
 
+Каждая HTTP-попытка пишет безопасное событие `Crawler outbound attempt` через `Log::info`: run/crawler,
+SHA-256 идентичности host+отсортированных параметров, attempt/max, proxy ID, время/длительность,
+HTTP либо закрытую причину транспорта, budget wait и решение retry. URL, credentials и сырые
+transport messages туда не попадают; окончательная transport exception тоже содержит только enum.
+События идут в настроенный application log, не требуют миграции и не являются новыми Fetch.
+
+После исчерпания сетевых попыток run по-прежнему Failed. `startOrResume` и stale recovery
+не выбирают Failed; автоматическая recovery-политика не введена. Нужны согласованные лимит
+повторных запусков, eligibility и срок ожидания breaker с сохранением execution context.
+До этого оператор после cooldown запускает ограниченное продолжение штатным action/command,
+не меняет статус SQL и не сбрасывает proxy health. Это отдельный исход от checkpoint continuation.
+
 ## Мост в AI-пайплайн
 
 Точка передачи — `PipelineDispatcher` (`app/Services/Procurement/PipelineDispatcher.php`):
@@ -191,6 +229,10 @@ null-telemetry остаются unknown, а не становятся искус
 `SupplierResultsProcessor`); `ArchiveWindowScanner`/`ProxyResolver`/`PoliteThrottle` — вспомогательная
 инфраструктура обхода. Шов `prc_eis_details` подтверждён аудитом схемы БД как расширяемый на другие
 источники (не завязан на ЕИС жёстко, D-требование универсальности плана EST-AI).
+
+`CrawlerRuntimeOptions` принимает legacy `records_per_page` и ранее сериализованный `recordsPerPage`,
+выдаёт канонический `records_per_page` и отклоняет конфликт значений двух вариантов и неизвестные
+ключи. Typed options можно присваивать другому Crawler и сохранять без raw-JSON обхода.
 
 ## Типизированный фильтр профиля
 

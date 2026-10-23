@@ -40,6 +40,7 @@ class EstimatesTable
                 TextColumn::make('analysis.id')
                     ->label('Анализ')
                     ->placeholder('-')
+                    ->formatStateUsing(static fn (int $state): string => "Анализ #{$state}")
                     ->url(fn (Estimate $record): ?string => $record->analysis === null ? null : AnalysisResource::getUrl('view', ['record' => $record->analysis]))
                     ->visibleFrom('md'),
                 TextColumn::make('validation_status')

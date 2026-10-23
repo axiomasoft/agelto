@@ -68,19 +68,19 @@ final readonly class EisCsvRowMapper implements ListingRowMapper, ListingSchemaA
      */
     private const string REGISTRY_NUMBER_PREFIX = '№';
 
-    public function map(array $row, Crawler $crawler): ?ProcurementSnapshotData
+    public function map(array $row, Crawler $crawler): ProcurementSnapshotData
     {
         $registryNumber = $this->stripRegistryNumberPrefix(trim($row[self::REGISTRY_NUMBER_COLUMN] ?? ''));
 
         if ($registryNumber === '') {
-            return null;
+            throw new \UnexpectedValueException('Missing mandatory EIS registry number.');
         }
 
         $publishedAt = $this->parseDate(value: $row[self::PUBLISHED_AT_COLUMN] ?? null);
         $sourceUpdatedAt = $this->parseSourceUpdatedAt(value: $row[self::SOURCE_UPDATED_AT_COLUMN] ?? null);
 
         if ($publishedAt === null || $sourceUpdatedAt === null) {
-            return null;
+            throw new \UnexpectedValueException('Invalid mandatory EIS publication/update date.');
         }
 
         [$procedureType, $procedureTypeRaw] = $this->mapProcedureType(row: $row, crawler: $crawler);

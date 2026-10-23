@@ -27,7 +27,6 @@ use Illuminate\Support\Str;
     'inn',
     'kpp',
     'ogrn',
-    'eruz_number',
     'full_name',
     'short_name',
     'address_raw',
@@ -60,5 +59,11 @@ final class Organization extends Model
     public function procurementParties(): HasMany
     {
         return $this->hasMany(related: ProcurementParty::class);
+    }
+
+    /** @return HasMany<OrganizationIdentifier, $this> */
+    public function identifiers(): HasMany
+    {
+        return $this->hasMany(related: OrganizationIdentifier::class);
     }
 }

@@ -49,6 +49,10 @@ final readonly class RerunAnalysisAction
 
     public function run(Analysis $analysis): Analysis
     {
+        if (! config('crawler.downstream_enabled', true)) {
+            throw new RuntimeException('Последующие стадии отключены (CRAWLER_DOWNSTREAM_ENABLED).');
+        }
+
         $documentVersion = $analysis->documentVersion;
 
         if ($documentVersion === null) {

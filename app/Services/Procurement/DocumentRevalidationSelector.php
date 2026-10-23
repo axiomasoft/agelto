@@ -25,6 +25,10 @@ final readonly class DocumentRevalidationSelector
 
     public function dispatchDue(int $limit, ?int $procurementId = null): int
     {
+        if (! config('crawler.downstream_enabled', true)) {
+            return 0;
+        }
+
         $documents = $this->due(limit: $limit, procurementId: $procurementId);
 
         foreach ($documents as $document) {

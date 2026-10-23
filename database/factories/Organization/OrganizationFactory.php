@@ -20,7 +20,6 @@ final class OrganizationFactory extends Factory
             'inn' => fake()->unique()->numerify(string: '##########'),
             'kpp' => fake()->numerify(string: '#########'),
             'ogrn' => fake()->numerify(string: '#############'),
-            'eruz_number' => fake()->unique()->numerify(string: '#############'),
             'full_name' => fake()->company(),
             'short_name' => fake()->companySuffix(),
             'address_raw' => fake()->address(),

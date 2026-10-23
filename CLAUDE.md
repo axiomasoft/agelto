@@ -9,6 +9,7 @@
 
 - Flat `app/**`, no modules: `Procurement` (`prc_*`: procurements, documents, estimates, AI, crawling), `Reference` (`ref_*`), `Organization` (`org_*`), `Llm` (`llm_*`: provider-agnostic transport).
 - Procurement AI pipeline: `Services/Procurement/{Prepare,Screening,Extraction}`, `Jobs/Procurement/*Job`, `Models/Procurement/Ai/*`; LLM transport stays in `Services/Llm/**` with `Models/Llm/**`, repositories and factories. Use its local skills for extraction, LLM transport and prompts.
+- Общие DTO, модели и резолверы не содержат полей и веток конкретной площадки. Внешние идентификаторы организаций передаются как `(platformCode, type, value)`; их разбор и форматы принадлежат адаптеру в `Services/Procurement/<Platform>/`.
 - Crawling contracts: typed profile filters are resolved through `crawler.filters`; TLS trust exists only in `SourceTlsTrust` / `crawler.tls.bundles`. See `docs/dev/crawling-pipeline.md`.
 - Controllers handle HTTP only; Actions/Services own short mutations and transactions; repositories access persistence. Long crawling/parsing/AI work runs as Horizon jobs, never in HTTP.
 - A file in `app/<Layer>/<Domain>/` has one subdomain directory; only domain-core and cross-subdomain files may be at its root. `tests/Unit/Architecture/DomainLayoutTest.php` enforces this.
@@ -77,56 +78,22 @@ Read 1–2 relevant sources first; expand only for an unresolved term, a cross-l
 | AI-context or skill-generation changes | `docs/dev/ai-context/index.md`, skill `ai-context-workflow` |
 
 <!-- swissknifeman:hub:start -->
-# Swissknifeman: хаб скиллов
-
-<!-- Сгенерировано scripts/generate-hub.sh из реестра swissknifeman. -->
-<!-- НЕ редактируйте вручную: перегенерация затрёт правки. -->
-<!-- swissknifeman:registry sha=3e4e73877360 skills=232 -->
-
-## Приоритет источников правил
-
-1. Проектные правила и скиллы (`.ai/guidelines/`, `.ai/skills/`, корневые инструкции проекта) — высший приоритет.
-2. Скиллы swissknifeman (нативный листинг скиллов клиента) — архитектура, структура, практики, процессы. Если в проект добавят Laravel Boost, его версионно-специфичные скиллы приоритетнее пересекающихся.
-
-Конфликт правил: побеждает более специфичный источник (проект > Boost > реестр swissknifeman).
-
-## Как найти нужный скилл
-
-1. Скиллы swissknifeman уже перечислены НАТИВНЫМ листингом клиента (имя + описание каждого доступного скилла резидентны с начала сессии) — ищи по нему; здесь индекс не дублируется.
-2. Выбери скилл по описанию; внутри скилла открывай сниппеты только по его таблице «когда какой сниппет открывать» — не загружай всё подряд.
-3. Структурные вопросы нового кода решай в порядке: структура (`laravel-structure`) -> взаимодействие (`dependency-injection`) -> реализация (профильный скилл).
-4. Устройство системы скиллов в проекте (источник истины, симлинки, gitignore) — скилл `skills-ssot`.
-5. Полный индекс с описаниями (если нужен человеку): `skiller status` в проекте либо `generate-hub.sh --target <проект> --full-index --dry-run`.
-
-## Агенты проекта (10)
-
-Роли в `.claude/agents/`. Преднагруженные скиллы — поле `skills:` (⚠ = имя не найдено в реестре, preload молча не сработает).
-
-| Агент | Назначение | Преднагруженные скиллы |
-|---|---|---|
-| `agelto-blade-review` | >- | — |
-| `agelto-db-impact` | >- | — |
-| `agelto-orchestrator` | >- | — |
-| `agelto-reviewer` | >- | repositories, laravel-structure, dependency-injection, laravel-security-audit, code-style-spatie, laravel |
-| `agelto-route-mapper` | >- | — |
-| `agelto-security-review` | >- | — |
-| `agelto-slice-builder` | >- | repositories, laravel-structure, dependency-injection, laravel-data, laravel, database, code-style-spatie, named-arguments |
-| `agelto-spec-writer` | >- | architecture, api-design, data-schema, task-brief-template |
-| `agelto-test-verifier` | >- | — |
-| `agelto-test-writer` | >- | laravel-testing, test-isolation-guard, repositories |
+<!-- swissknifeman hub: stub — skills and task-commands are connected natively; index and priority rules are not duplicated here. -->
+<!-- swissknifeman:registry sha=4a7f58cd2b84 skills=209 -->
+<!-- Full index: `skiller status` or generate-hub.sh --target <dir> --full-index. -->
 <!-- swissknifeman:hub:end -->
-<!-- maind:healthcheck hash=f269dd753069 (managed by maind — не редактировать вручную) -->
-## ⚠ ПРИОРИТЕТ №1 — связь с mAInd (общая память + граф)
+<!-- maind:healthcheck hash=416fa168d489 (managed by maind — do not edit manually) -->
+## mAInd — temporary project context and graph
 
-Перед началом работы убедись, что проект подключён к хабу **mAInd**. Это критично:
-без связи изменения этой сессии **не попадут** в общую память и граф — в истории
-разработки появятся невосстановимые пробелы, и дальнейшие связи будет не вывести.
+Memory defaults to this project's private scope `project:agelto`. Read `ns:*` or `global`
+only for an explicit cross-project request and when the scope is authorized.
 
-1. Проверь связь: `maind health --cwd`
-2. Если статус `partial` / `standalone` — почини: `maind health --cwd --fix`
-   (поднимет демон памяти и допишет MCP-серверы хаба в этот проект).
-3. Приступай к задаче только при статусе `connected`.
+Store only short useful temporary context: 48-hour default TTL, 72-hour maximum,
+800 characters, at most 8 live entries per scope. Use one replaceable `active-handoff`
+for continuity, then forget it when work finishes. Keep plans, decisions, progress,
+commit history and durable rules in repository artifacts. Empty memory is normal.
 
-Память **общая** (демон mAInd), scope этого проекта — `project:agelto`; факты всей экосистемы — в
-scope `global`. Связи проекта с остальными: `maind graph --project agelto`.
+Use `maind health --cwd` for connection symptoms or setup changes; repair with
+`maind health --cwd --fix`. A memory outage does not block ordinary repository work.
+Project connections: `maind graph --project agelto`.
 <!-- /maind:healthcheck -->

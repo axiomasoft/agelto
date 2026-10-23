@@ -11,10 +11,13 @@ use App\Dto\Procurement\Crawler\WindowFilter;
 use App\Enums\Procurement\Crawler\ArchiveWindowScanResult;
 use App\Enums\Procurement\Crawler\RunStatus;
 use App\Enums\Procurement\Crawler\RunStopKind;
+use App\Exceptions\Procurement\Crawler\InvalidListingResponse;
+use App\Exceptions\Procurement\Crawler\ListingRequestStopped;
 use App\Exceptions\Procurement\Crawler\OutboundRequestDeadlineExceeded;
 use App\Exceptions\Procurement\Crawler\PlatformBudgetExhaustedException;
 use App\Models\Procurement\Crawler\Crawler;
 use App\Models\Procurement\Crawler\Run;
+use App\Services\Procurement\Contracts\CooperativeListingSourceMethod;
 use App\Services\Procurement\Contracts\DeadlineAwareSourceMethod;
 use App\Services\Procurement\SourceControl\SourceRunControl;
 use Illuminate\Support\Facades\Log;
@@ -41,6 +44,7 @@ final readonly class ArchiveWindowScanner
         private CsvBlockIngestor $ingestor,
         private RunStopGate $stopGate,
         private SourceRunControl $sourceControl,
+        private ListingRunCheckpoint $listingCheckpoint,
     ) {}
 
     public function scan(Crawler $crawler, Run $run, WindowFilter $filter, ?RecoveryScope $recoveryScope = null, ?float $deadlineAt = null): ArchiveWindowScanResult
@@ -155,9 +159,18 @@ final readonly class ArchiveWindowScanner
             $executionCrawler->load('registry.platform');
             $sourceMethod = $this->factory->makeWithFallback(crawler: $executionCrawler);
             try {
-                $batch = $sourceMethod instanceof DeadlineAwareSourceMethod
-                    ? $sourceMethod->collectListingWithinDeadline(crawler: $executionCrawler, cursor: $iterationCursor, deadlineAt: $deadlineAt)
-                    : $sourceMethod->collectListing(crawler: $executionCrawler, cursor: $iterationCursor);
+                $batch = match (true) {
+                    $sourceMethod instanceof CooperativeListingSourceMethod => $sourceMethod->collectListingForRun(crawler: $executionCrawler, cursor: $iterationCursor, context: $this->listingCheckpoint->context($run, $deadlineAt)),
+                    $sourceMethod instanceof DeadlineAwareSourceMethod => $sourceMethod->collectListingWithinDeadline(crawler: $executionCrawler, cursor: $iterationCursor, deadlineAt: $deadlineAt),
+                    default => $sourceMethod->collectListing(crawler: $executionCrawler, cursor: $iterationCursor),
+                };
+            } catch (ListingRequestStopped) {
+                return ArchiveWindowScanResult::Stopped;
+            } catch (InvalidListingResponse $exception) {
+                $this->runs->withinExecutionLease(run: $run, callback: fn () => $this->ingestor->recordRejectedBatch($crawler, $run, $exception->batch, $exception->reason));
+                $this->sourceControl->onBlockException(crawler: $crawler, run: $run, exception: $exception, requestParams: $iterationCursor->toArray());
+
+                return ArchiveWindowScanResult::Stopped;
             } catch (PlatformBudgetExhaustedException|OutboundRequestDeadlineExceeded) {
                 $this->runs->recordCheckpoint(run: $run);
 

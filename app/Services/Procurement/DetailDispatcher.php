@@ -24,6 +24,10 @@ final readonly class DetailDispatcher
 
     public function dispatchDue(int $limit): int
     {
+        if (! config('crawler.downstream_enabled', true)) {
+            return 0;
+        }
+
         // Этап карточек площадки ждёт или стоит: job всё равно вернулся бы без запроса, а очередь
         // каждый тик наполнялась бы холостыми job и занимала лимит других площадок (найдено
         // сценарием). Такие закупки остаются due и уйдут после возобновления этапа.

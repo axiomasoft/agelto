@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 # swissknifeman:generated
 # Generated-by: harness agent-packs
-# Pack: backend-laravel@0.12.2
+# Pack: backend-laravel@0.12.3
 # Template: hooks/review-gate.sh
-# Edit-policy: generated-core — НЕ редактируй; расширяй через extension-point
+# Edit-policy: generated-core — DO NOT edit; expand through extension-point
 # Extension-points: .claude/rules/agelto-reviewer-overrides.md
 # Upgrade: harness agent-packs upgrade --pack backend-laravel --target .
 #
@@ -35,6 +35,12 @@ if [[ -f "$CFG" ]]; then
   done < <(grep -vE '^[[:space:]]*[#;]' "$CFG" 2>/dev/null || true)
 fi
 
+# The committed carrier .swissknifeman/hooks.env wins over the legacy file.
+CARRIER="$PROJECT_DIR/.swissknifeman/hooks.env"
+CARRIED="$(grep -E '^REVIEW_GATE_MODE__CLAUDE_CODE=' "$CARRIER" 2>/dev/null | head -1 | cut -d= -f2- | tr -d ' \r')"
+[[ -n "$CARRIED" ]] || CARRIED="$(grep -E '^REVIEW_GATE_MODE=' "$CARRIER" 2>/dev/null | head -1 | cut -d= -f2- | tr -d ' \r')"
+[[ -n "$CARRIED" ]] && MODE="$CARRIED"
+
 [[ "$MODE" == "off" ]] && exit 0
 
 FIRST_BIN="$(printf '%s' "$CMD" | awk '{print $1}')"
@@ -51,9 +57,9 @@ RC=$?
 TRIM="$(printf '%s' "$OUT" | tail -n 40)"
 
 if [[ "$MODE" == "strict" ]]; then
-  printf 'review-gate (strict): проверка качества упала — почини перед завершением.\n$ %s\n%s\n' "$CMD" "$TRIM" >&2
+  printf 'review-gate (strict): quality check failed - fix before completion.\n$ %s\n%s\n' "$CMD" "$TRIM" >&2
   exit 2
 fi
 
-printf 'review-gate (warn): проверка качества упала (не блокирую).\n$ %s\n%s\n' "$CMD" "$TRIM" >&2
+printf 'review-gate (warn): quality control failed (not blocking).\n$ %s\n%s\n' "$CMD" "$TRIM" >&2
 exit 0

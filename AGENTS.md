@@ -24,6 +24,7 @@
 
 - The flat `app/**` tree has four domains: `Procurement` (`prc_*`), `Reference` (`ref_*`), `Organization` (`org_*`) and provider-agnostic `Llm` (`llm_*`).
 - Controllers are HTTP-only. Actions/Services own short mutations; repositories own persistence; crawling, parsing and AI run as idempotent Horizon jobs, never in HTTP.
+- Общие DTO, модели и резолверы не содержат полей и веток конкретной площадки. Внешние идентификаторы организаций передаются как `(platformCode, type, value)`; их разбор и форматы принадлежат адаптеру в `Services/Procurement/<Platform>/`.
 - Crawler profile filters are typed and registry-resolved; `SourceTlsTrust` is the sole TLS-trust holder and `verify => false` is forbidden.
 - Obtain outbound proxies only through `ProxyResolver`; `ProxyScope` describes request purpose, while global and per-target health remain separate.
 - Follow the technical naming canon in `.ai/guidelines/glossary.md`; use factories and `test('<русский intent>', fn)` for tests.

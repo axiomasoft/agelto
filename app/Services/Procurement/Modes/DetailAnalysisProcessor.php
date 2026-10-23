@@ -61,6 +61,10 @@ final readonly class DetailAnalysisProcessor
 
     public function run(Procurement $procurement, ?float $deadlineAt = null): bool
     {
+        if (! config('crawler.downstream_enabled', true)) {
+            return false;
+        }
+
         // Отказ уже передан в `SourceFailureReporter` (скачивание): внешний catch не дублирует.
         $failureReported = false;
 
@@ -144,6 +148,7 @@ final readonly class DetailAnalysisProcessor
 
             $commonInfo = null;
             $commonInfoSnapshotStatus = null;
+            $partiesComplete = false;
             $parties = [];
             $documents = [];
             $documentsSnapshotStatus = null;
@@ -155,6 +160,7 @@ final readonly class DetailAnalysisProcessor
                 $parties = $commonInfoSnapshot->parties;
                 $commonInfo = $commonInfoSnapshot->commonInfo;
                 $commonInfoSnapshotStatus = $commonInfoSnapshot->status->value;
+                $partiesComplete = $commonInfoSnapshot->authorizesPartiesReconciliation();
 
                 $this->commonInfoProcessor->process(procurement: $procurement, snapshot: $commonInfoSnapshot);
             } else {
@@ -203,6 +209,7 @@ final readonly class DetailAnalysisProcessor
                         'financing_rows' => $commonInfo?->financingRows,
                         'items' => $commonInfo?->items,
                         'parties' => $parties,
+                        'parties_complete' => $partiesComplete,
                     ],
                     'documents' => [
                         'documents' => $documents,
@@ -217,7 +224,7 @@ final readonly class DetailAnalysisProcessor
                 ],
             );
 
-            if ($commonInfoSnapshotStatus !== 'complete' || $documentsSnapshotStatus !== 'complete') {
+            if ($commonInfoSnapshotStatus !== 'complete' || $documentsSnapshotStatus !== 'complete' || ! $partiesComplete) {
                 $this->markFailed(
                     procurement: $procurement,
                     exception: new RuntimeException('Required detail snapshots are incomplete.'),

@@ -32,6 +32,9 @@ return [
     'response_max_bytes' => 8_388_608,
     'csv_max_records' => 1000,
     'csv_max_field_bytes' => 262_144,
+    // CSV-only operation: gates all later dispatch and queued execution boundaries.
+    'downstream_enabled' => env('CRAWLER_DOWNSTREAM_ENABLED', true),
+
     'platforms' => [
         'eis' => [
             'detail_source_method' => SourceMethod::Csv->value,

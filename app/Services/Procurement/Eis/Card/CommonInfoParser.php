@@ -89,7 +89,8 @@ final readonly class CommonInfoParser
     private function hasCompleteCommonInfoContainer(Crawler $crawler, int $parsedFinancingRows, int $parsedItems): bool
     {
         $itemTable = $crawler->filter('div#positionKTRU table.tableBlock');
-        $itemRows = $itemTable->filter('tbody tr');
+        $itemRows = $this->itemRows($itemTable);
+        $expectedItems = $this->expectedItemCount($itemTable);
         $financingTable = $this->titleSection($crawler, self::TERM_FINANCING_TOTAL)?->filter('table.tableBlock')->first();
         $financingHeaders = $financingTable?->filter('tr.tableBlock__row th')->each(static fn (Crawler $th): string => trim($th->text())) ?? [];
         $expectedFinancingRows = count(array_filter(
@@ -101,6 +102,8 @@ final readonly class CommonInfoParser
         if ($crawler->filter('section.blockInfo__section')->count() === 0
             || $itemTable->count() === 0
             || $itemRows->count() !== $parsedItems
+            || $expectedItems === null
+            || $expectedItems !== $parsedItems
             || $financingTable === null
             || $financingDataRows !== 1
             || $expectedFinancingRows !== $parsedFinancingRows) {
@@ -109,6 +112,7 @@ final readonly class CommonInfoParser
                 'item_tables' => $itemTable->count(),
                 'item_rows' => $itemRows->count(),
                 'parsed_items' => $parsedItems,
+                'expected_items' => $expectedItems,
                 'financing_tables' => $financingTable?->count() ?? 0,
                 'financing_data_rows' => $financingDataRows,
                 'expected_financing_rows' => $expectedFinancingRows,
@@ -243,21 +247,10 @@ final readonly class CommonInfoParser
     }
 
     /**
-     * Инвариант идемпотентности: `positionNumber` — ключ апдейта в `upsertItem()`
-     * (`updateOrCreate` по `(procurement_id, position_number)`), поэтому он обязан быть
-     * стабилен между повторными прогонами одной и той же карточки. Основной путь — реальный
-     * `№` из вёрстки (не зависит от порядка/фильтрации строк). Fallback `$index + 1`
-     * применяется ТОЛЬКО к строке с пустым/нечисловым `№` — это брак вёрстки источника,
-     * а не штатный случай; `$index` в each() — это порядковый номер строки внутри исходной
-     * `tbody tr` (до фильтрации по `$cells->count() < 7`, которая просто `return`-ит и не
-     * добавляет позицию в `$items`, не сдвигая индексацию последующих строк), то есть
-     * fallback-номер строки НЕ зависит от того, сколько позиций реально распознано —
-     * только от её положения в HTML-таблице. Если у площадки когда-нибудь появится
-     * стабильная перестановка строк без изменения `№` — потребуется отдельный устойчивый
-     * идентификатор позиции (например, по совокупности name+characteristics), это вне
-     * объёма текущего среза. На снятой карточке первая колонка всегда пуста (не «№», а
-     * служебный пустой заголовок) — fallback срабатывает на КАЖДОЙ строке, что и есть
-     * штатный путь для текущей вёрстки.
+     * positionNumber — устойчивый ключ upsert. Когда служебная первая ячейка пуста,
+     * номер определяется порядком позиций, без раскрываемых truInfo-строк заказчика.
+     * Повреждённая строка позиции остаётся в исходном порядке: пропуск выявляет проверка
+     * полноты и заявленный источником итог, а не скрытая перенумерация оставшихся строк.
      *
      * @return list<PurchaseItemRowData>
      */
@@ -272,8 +265,8 @@ final readonly class CommonInfoParser
 
             $items = [];
 
-            $table->filter('tbody tr')->each(function (Crawler $tr, int $index) use (&$items): void {
-                $cells = $tr->filter('td');
+            $this->itemRows($table)->each(function (Crawler $tr, int $index) use (&$items): void {
+                $cells = $tr->children('td');
 
                 if ($cells->count() < 7) {
                     return;
@@ -300,6 +293,55 @@ final readonly class CommonInfoParser
         } catch (\Throwable) {
             return [];
         }
+    }
+
+    private function itemRows(Crawler $table): Crawler
+    {
+        if ($table->count() === 0) {
+            return $table;
+        }
+
+        return $table->children('tbody')->children('tr')->reduce(static function (Crawler $row): bool {
+            if (preg_match('/(?:^|\s)truInfo_\d+(?:\s|$)/', (string) $row->attr('class')) === 1) {
+                return false;
+            }
+
+            if ($row->children()->count() === 0) {
+                return false;
+            }
+
+            $cells = $row->children('td');
+
+            // A dangling empty spacer is produced when the source's nested hidden rows are repaired.
+            return ! ($cells->count() === 1
+                && trim($cells->text()) === ''
+                && preg_match('/(?:^|\s)pt-0(?:\s|$)/', (string) $cells->attr('class')) === 1);
+        });
+    }
+
+    private function expectedItemCount(Crawler $tables): ?int
+    {
+        if ($tables->count() === 0) {
+            return null;
+        }
+
+        $totals = $tables->children('tfoot')->filter('.tableBlock__resultTitle');
+
+        if ($totals->count() !== $tables->count()) {
+            return null;
+        }
+
+        $expected = 0;
+
+        foreach ($totals as $node) {
+            if (preg_match('/^Итого\s*\((\d+)\s+запис(?:ь|и|ей)\)\s*:/u', trim($node->textContent), $match) !== 1) {
+                return null;
+            }
+
+            $expected += (int) $match[1];
+        }
+
+        return $expected;
     }
 
     /**
