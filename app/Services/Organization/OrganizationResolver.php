@@ -7,6 +7,10 @@ namespace App\Services\Organization;
 use App\Dto\Procurement\Details\OrganizationData;
 use App\Models\Organization\Organization;
 use App\Repositories\Organization\OrganizationStoreRepository;
+use Illuminate\Database\UniqueConstraintViolationException;
+use Illuminate\Support\Facades\DB;
+use InvalidArgumentException;
+use RuntimeException;
 
 /**
  * Единственная точка создания/поиска `org_organizations` (entity resolution по ИНН/ОГРН,
@@ -23,37 +27,83 @@ final readonly class OrganizationResolver
 
     public function resolve(OrganizationData $data): Organization
     {
-        $organization = $this->find($data);
-
-        if ($organization === null) {
-            return $this->storeRepository->create($this->attributes($data));
+        if ($data->inn === null && $data->ogrn === null && $data->identifiers === []) {
+            throw new InvalidArgumentException('Для организации требуется ИНН, ОГРН или внешний идентификатор.');
         }
 
-        $this->updateChangedAttributes($organization, $data);
+        $organization = $this->find($data);
 
-        return $organization;
+        try {
+            return $this->persist($data, $organization);
+        } catch (UniqueConstraintViolationException $exception) {
+            // persist() rolls back its savepoint before repeating the full identity lookup.
+            $organization = $this->find($data) ?? throw $exception;
+
+            return $this->persist($data, $organization);
+        }
+    }
+
+    private function persist(OrganizationData $data, ?Organization $organization): Organization
+    {
+        return DB::transaction(function () use ($data, $organization): Organization {
+            if ($organization === null) {
+                $organization = $this->storeRepository->create($this->attributes($data));
+            } else {
+                $organization = $this->storeRepository->lock($organization);
+                $this->updateChangedAttributes($organization, $data);
+            }
+
+            $this->storeRepository->storeIdentifiers($organization, $data->identifiers);
+            $organization->unsetRelation('identifiers');
+
+            return $organization;
+        });
     }
 
     private function find(OrganizationData $data): ?Organization
     {
-        if ($data->inn !== null) {
-            $organization = $this->storeRepository->findByInnAndKpp(inn: $data->inn, kpp: $data->kpp);
+        $matches = [];
 
-            if ($organization !== null) {
-                return $organization;
-            }
+        if ($data->inn !== null) {
+            $matches[] = $this->storeRepository->findByInnAndKpp(inn: $data->inn, kpp: $data->kpp);
         }
 
         if ($data->ogrn !== null) {
-            return $this->storeRepository->findByOgrn(ogrn: $data->ogrn);
+            $matches[] = $this->storeRepository->findByOgrn(ogrn: $data->ogrn);
         }
 
-        return null;
+        foreach ($data->identifiers as $identifier) {
+            $matches[] = $this->storeRepository->findByIdentifier($identifier);
+        }
+
+        $organizations = collect($matches)->filter()->keyBy('id');
+
+        if ($organizations->count() > 1) {
+            throw new RuntimeException('Идентификаторы организации указывают на разные записи; автоматическое слияние запрещено.');
+        }
+
+        return $organizations->first();
     }
 
     private function updateChangedAttributes(Organization $organization, OrganizationData $data): void
     {
         $attributes = $this->attributes($data);
+
+        foreach (['inn', 'kpp', 'ogrn'] as $key) {
+            if ($attributes[$key] !== null && $organization->getAttribute($key) !== null && $organization->getAttribute($key) !== $attributes[$key]) {
+                throw new RuntimeException('Противоречивые идентификаторы организации; обновление запрещено.');
+            }
+        }
+
+        foreach ($data->identifiers as $identifier) {
+            $existing = $organization->identifiers
+                ->where('platform_code', $identifier->platformCode)
+                ->firstWhere('type', $identifier->type);
+
+            if ($existing !== null && $existing->value !== $identifier->value) {
+                throw new RuntimeException('Противоречивые внешние идентификаторы организации; обновление запрещено.');
+            }
+        }
 
         $changed = array_filter(
             $attributes,

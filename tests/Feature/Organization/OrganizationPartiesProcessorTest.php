@@ -2,6 +2,8 @@
 
 declare(strict_types=1);
 
+use App\Dto\Organization\OrganizationIdentifierData;
+use App\Dto\Procurement\Details\OrganizationData;
 use App\Dto\Procurement\Details\PartyData;
 use App\Enums\Organization\ProcurementPartyRole;
 use App\Models\Organization\Organization;
@@ -11,12 +13,8 @@ use App\Services\Procurement\Detail\OrganizationPartiesProcessor;
 use App\Services\Procurement\Eis\Card\PartiesParser;
 
 /**
- * Синтетический HTML под `organizations-block`/`table.parties-table` — НЕ общая фикстура
- * парсера (P4.14 заменил `tests/Fixtures/Crawler/Card/common-info.html` на реальную вкладку,
- * где этого блока нет вовсе, `findings/P4-card-layout.md` §3; парсер намеренно не правился,
- * см. Pending Work item'а P4.14). Этот тест проверяет `OrganizationPartiesProcessor` —
- * персистенцию/резолв по ЛЮБОМУ валидному списку `PartyData`, а не соответствие текущей
- * раскладке ЕИС.
+ * Совместимая табличная fixture проверяет persistence по валидным DTO.
+ * Реальные январские варианты и повторы без ИНН проверяются ниже.
  *
  * @return list<PartyData>
  */
@@ -132,5 +130,48 @@ test('process удаляет отсутствующие роли и очищае
     $processor->process(procurement: $procurement, parties: []);
 
     expect(ProcurementParty::query()->where('procurement_id', $procurement->id)->exists())->toBeFalse()
+        ->and($procurement->refresh()->customer_org_id)->toBeNull();
+});
+
+test('повтор реального common-info без ИНН идемпотентен и сохраняет роли других вкладок', function () {
+    $procurement = Procurement::factory()->create();
+    $winner = Organization::factory()->create();
+    foreach ([ProcurementPartyRole::Winner, ProcurementPartyRole::Participant, ProcurementPartyRole::Guarantor] as $role) {
+        ProcurementParty::factory()->create([
+            'procurement_id' => $procurement->id, 'organization_id' => $winner->id, 'role' => $role,
+        ]);
+    }
+    $html = file_get_contents(base_path('tests/Fixtures/Crawler/Card/parties-january-1.html'));
+    $parties = app(PartiesParser::class)->parse($html);
+    $processor = app(OrganizationPartiesProcessor::class);
+    $processor->process($procurement, $parties);
+    $customerId = $procurement->refresh()->customer_org_id;
+    $processor->process($procurement, $parties);
+
+    expect(Organization::query()->count())->toBe(3)
+        ->and(ProcurementParty::query()->where('procurement_id', $procurement->id)->count())->toBe(6)
+        ->and($procurement->refresh()->customer_org_id)->toBe($customerId)
+        ->and(Organization::query()->findOrFail($customerId)->identifiers()->where('platform_code', 'eis')->where('type', 'customer_code')->sole()->value)->toBe('30253020551025301001');
+
+    $processor->process($procurement, []);
+    expect(ProcurementParty::query()->where('procurement_id', $procurement->id)->count())->toBe(3)
+        ->and($procurement->refresh()->customer_org_id)->toBeNull();
+});
+
+test('несколько заказчиков остаются в ролях без произвольного выбора customer_org_id', function () {
+    $procurement = Procurement::factory()->create();
+    $parties = [
+        new PartyData(role: ProcurementPartyRole::Customer, organization: new OrganizationData(fullName: 'Первый', identifiers: [new OrganizationIdentifierData(platformCode: 'market-a', type: 'customer', value: '30253020551025301001')])),
+        new PartyData(role: ProcurementPartyRole::Customer, organization: new OrganizationData(fullName: 'Второй', identifiers: [new OrganizationIdentifierData(platformCode: 'market-a', type: 'customer', value: '35509007093550901001')])),
+    ];
+    $processor = app(OrganizationPartiesProcessor::class);
+    $processor->process($procurement, [$parties[0]]);
+    expect($procurement->refresh()->customer_org_id)->not->toBeNull();
+
+    $processor->process($procurement, $parties);
+    $processor->process($procurement, array_reverse($parties));
+
+    expect(Organization::query()->count())->toBe(2)
+        ->and(ProcurementParty::query()->where('procurement_id', $procurement->id)->count())->toBe(2)
         ->and($procurement->refresh()->customer_org_id)->toBeNull();
 });

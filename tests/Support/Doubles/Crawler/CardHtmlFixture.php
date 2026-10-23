@@ -6,14 +6,13 @@ namespace Tests\Support\Doubles\Crawler;
 
 /**
  * HTML-фикстуры вкладок карточки закупки ЕИС 44-ФЗ (`tests/Fixtures/Crawler/Card/*.html`) —
- * структурно представляют разделы, описанные в `research/eis-card-recon.md` §3–§5
- * (сырого HTML-дампа карточки в разведке нет, только текстовое описание полей).
+ * сняты с реальной карточки 0338200009125000001, персональные контакты обезличены.
  */
 final class CardHtmlFixture
 {
     public static function commonInfo(): string
     {
-        return self::read(tab: 'common-info');
+        return str_replace('</body>', self::read(tab: 'common-info-parties').'</body>', self::read(tab: 'common-info'));
     }
 
     public static function documents(): string

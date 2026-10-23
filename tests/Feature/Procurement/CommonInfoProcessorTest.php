@@ -33,6 +33,34 @@ function commonInfoFixtureData(): CommonInfoSnapshot
     );
 }
 
+test('неполная январская проекция сторон сохраняет существующие организации и роли', function () {
+    $procurement = Procurement::factory()->create();
+    $html = file_get_contents(base_path('tests/Fixtures/Crawler/Card/parties-january-1.html'));
+    $parser = app(PartiesParser::class);
+    $parties = $parser->parse($html);
+    $processor = app(CommonInfoProcessor::class);
+    $processor->process($procurement, new CommonInfoSnapshot(
+        status: DetailSnapshotStatus::Incomplete,
+        commonInfo: new CommonInfoData,
+        parties: $parties,
+        partiesComplete: $parser->authorizesReconciliation($html, $parties),
+    ));
+    $customerId = $procurement->refresh()->customer_org_id;
+    $roleIds = ProcurementParty::query()->where('procurement_id', $procurement->id)->orderBy('id')->pluck('id')->all();
+    $broken = str_replace('class="row lots-block"', 'class="lost-block"', $html);
+    $brokenParties = $parser->parse($broken);
+    $processor->process($procurement, new CommonInfoSnapshot(
+        status: DetailSnapshotStatus::Incomplete,
+        commonInfo: new CommonInfoData,
+        parties: $brokenParties,
+        partiesComplete: $parser->authorizesReconciliation($broken, $brokenParties),
+    ));
+
+    expect($customerId)->not->toBeNull()
+        ->and($procurement->refresh()->customer_org_id)->toBe($customerId)
+        ->and(ProcurementParty::query()->where('procurement_id', $procurement->id)->orderBy('id')->pluck('id')->all())->toBe($roleIds);
+});
+
 /**
  * @param  list<PurchaseItemRowData>  $items
  * @param  list<PartyData>  $parties

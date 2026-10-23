@@ -216,3 +216,68 @@ test('добавление недоступных parties сохраняет н�
         ->and($failed->authorizesCommonInfoReconciliation())->toBeFalse()
         ->and($failed->authorizesPartiesReconciliation())->toBeFalse();
 });
+
+function commonInfoWithExpandedCustomerRows(): string
+{
+    // Structure observed on live January cards: malformed hidden rows are repaired by the DOM parser.
+    $expanded = <<<'HTML'
+    <tr class="truInfo_1 tableBlock__row" style="display: none">
+    <tr class="truInfo_1 tableBlock__row" style="display: none">
+      <td class="tableBlock__col pt-0"></td>
+      <tr class="truInfo_1" style="display: none">
+        <td colspan="4">Тестовый заказчик</td><td>1</td><td colspan="2"></td>
+      </tr>
+      <td class="tableBlock__col pt-0"></td>
+    </tr>
+    HTML;
+
+    return preg_replace_callback(
+        '#(<div[^>]+id="positionKTRU".*?<tbody[^>]*>)(.*?)(</tbody>)#s',
+        static fn (array $match): string => $match[1].$match[2].$expanded.$match[3],
+        commonInfoFixtureHtml(),
+        limit: 1,
+    );
+}
+
+test('служебные раскрываемые строки заказчика не делают полную карточку неполной', function () {
+    $snapshot = app(CommonInfoParser::class)->parse(commonInfoWithExpandedCustomerRows());
+
+    expect($snapshot->status)->toBe(DetailSnapshotStatus::Complete)
+        ->and($snapshot->commonInfo->items)->toHaveCount(1)
+        ->and($snapshot->commonInfo->items[0]->positionNumber)->toBe(1)
+        ->and($snapshot->commonInfo->financingRows)->toHaveCount(3);
+});
+
+test('служебные строки не сдвигают номера следующих позиций без явного номера', function () {
+    preg_match('#<tbody class="tableBlock__body">\s*(<tr.*?</tr>)#s', commonInfoFixtureHtml(), $match);
+    $second = str_replace('18.11.10.000', '43.21.10.290', $match[1]);
+    $html = preg_replace_callback(
+        '#(<div[^>]+id="positionKTRU".*?<tbody[^>]*>)(.*?)(</tbody>)#s',
+        static fn (array $match): string => $match[1].$match[2].$second.$match[3],
+        commonInfoWithExpandedCustomerRows(),
+        limit: 1,
+    );
+    $html = str_replace('Итого (1 записей)', 'Итого (2 записей)', $html);
+
+    $snapshot = app(CommonInfoParser::class)->parse($html);
+
+    expect($snapshot->status)->toBe(DetailSnapshotStatus::Complete)
+        ->and(array_column($snapshot->commonInfo->items, 'positionNumber'))->toBe([1, 2]);
+});
+
+test('заявленный источником итог не позволяет принять пропущенную позицию за полный snapshot', function () {
+    $html = str_replace('Итого (1 записей)', 'Итого (2 записей)', commonInfoFixtureHtml());
+
+    expect(app(CommonInfoParser::class)->parse($html)->status)->toBe(DetailSnapshotStatus::Incomplete);
+});
+
+test('повреждённая строка позиции не становится допустимой служебной строкой', function () {
+    $html = preg_replace_callback(
+        '#(<div[^>]+id="positionKTRU".*?<tbody[^>]*>)(.*?)(</tbody>)#s',
+        static fn (array $match): string => $match[1].preg_replace('#<td[^>]*>.*?</td>#s', '', $match[2], limit: 1).$match[3],
+        commonInfoFixtureHtml(),
+        limit: 1,
+    );
+
+    expect(app(CommonInfoParser::class)->parse($html)->status)->toBe(DetailSnapshotStatus::Incomplete);
+});

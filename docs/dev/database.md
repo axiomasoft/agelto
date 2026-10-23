@@ -18,7 +18,47 @@ registry выигрывает; rollback applicability отказывается �
 common-info карточки ЕИС, не immutable history. Только `CommonInfoSnapshot=complete` разрешает
 replace/reconcile: items имеют typed key `(procurement_id, position_number)`, parties —
 `(procurement_id, organization_id, role)` после organization resolution. Empty complete set
-удаляет current rows; incomplete/failed snapshot не меняет их, включая `customer_org_id`.
+удаляет current rows своего контура; incomplete/failed snapshot не меняет их, включая
+`customer_org_id`. Common-info синхронизирует только customer/placer/authorized_body/
+authorized_institution/specialized_organization/platform_operator; winner/participant/guarantor
+при этом сохраняются. При нескольких заказчиках `customer_org_id=null`, все customer-роли
+остаются в `prc_procurement_parties`.
+
+Внешние идентификаторы организаций хранятся в `org_organization_identifiers`.
+`OrganizationData.identifiers` принимает список `OrganizationIdentifierData(platformCode, type, value)`;
+общие DTO, модель организации и резолвер не знают названий и форматов кодов конкретной площадки.
+`platformCode` соответствует стабильному `Platform.code`, а не ID реестра закупок.
+Адаптер площадки определяет типы и проверяет формат; общий слой принимает непрозрачные строки,
+сохраняя ведущие нули. Новая площадка или новый тип не требуют новых колонок или веток резолвера.
+
+| Поле | Тип | Значение |
+|:--|:--|:--|
+| `id` | bigint | Идентификатор записи |
+| `organization_id` | bigint | Организация-владелец → `org_organizations`; удаление каскадное |
+| `platform_code` | string(64) | Пространство идентификаторов площадки |
+| `type` | string(64) | Тип идентификатора внутри площадки |
+| `value` | string(255) | Непрозрачное значение, без нормализации в налоговые реквизиты |
+
+Уникальны `(platform_code, type, value)` и `(organization_id, platform_code, type)`:
+один внешний ключ принадлежит одной организации, у организации одно значение каждого типа
+площадки. Значения разных площадок и разных типов не смешиваются. Одна организация может
+иметь идентификаторы нескольких площадок, если их связь подтверждена налоговыми реквизитами
+или общим уже известным ключом. Противоречия запрещают автоматическое слияние и замену ключей.
+Создание/обновление организации и добавление идентификаторов атомарны; гонка уникальности
+откатывает промежуточную запись, после чего повторяется полный поиск по ключам.
+
+Налоговая уникальность `(inn, kpp) NULLS NOT DISTINCT` применяется только к `inn IS NOT NULL`,
+чтобы организации с неизвестными реквизитами не сливались в одну запись `(null, null)`.
+Резолвер требует хотя бы один налоговый или внешний идентификатор и сохраняет неизвестные
+поля найденной записи. Название не является ключом сопоставления.
+
+Адаптер ЕИС передаёт `platformCode=eis`: тип `organization_code` — `organizationCode` ссылки,
+тип `customer_code` — 20 символов кода заказчика из ИКЗ (смещение 2 в 36-значной строке).
+Разбор этих величин остаётся в `Services/Procurement/Eis/Card/PartiesParser`.
+Миграция от 23 октября переносит уже сохранённые значения из прежних колонок ЕИС
+(`eis_organization_code`, `eis_customer_code`, `eruz_number`) в эту таблицу
+и удаляет колонки; обратная миграция восстанавливает прежние значения. Предыдущая миграция
+сохранена, поскольку уже применялась локально.
 
 ## Фактический состав схемы
 

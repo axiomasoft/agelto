@@ -33,6 +33,7 @@ use App\Services\Procurement\PlatformRequestBudget;
 use App\Services\Procurement\Proxy\ProxyBindingResolver;
 use App\Services\Procurement\Proxy\ProxyResolver;
 use App\Services\Procurement\SourceTlsTrust;
+use GuzzleHttp\Exception\ConnectException;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Http;
@@ -97,6 +98,7 @@ final readonly class CsvSourceMethod implements CooperativeListingSourceMethod, 
 
     private function collectListingInternal(Crawler $crawler, ListingCursor $cursor, ?EisListingQueryOverrides $queryOverrides, ?ListingExecutionContext $context): ListingBatch
     {
+        $retryEmpty = $queryOverrides === null || $queryOverrides->retryOnEmptyResponse;
         ($context?->checkpoint)?->__invoke();
         $blockSize = $this->intConfig('crawler.eis.block_size', 500);
         $from = $cursor->blockFrom;
@@ -132,7 +134,7 @@ final readonly class CsvSourceMethod implements CooperativeListingSourceMethod, 
             crawler: $crawler,
             deadlineAt: $context?->deadlineAt,
             execution: $context,
-            retryEmpty: $queryOverrides?->retryOnEmptyResponse ?? true,
+            retryEmpty: $retryEmpty,
         );
         $response = $request['response'];
         $waitMs = $request['wait_ms'];
@@ -480,7 +482,9 @@ final readonly class CsvSourceMethod implements CooperativeListingSourceMethod, 
             } catch (ConnectionException $exception) {
                 $reason = $this->connectionFailureReason($exception)->value;
                 $retry = $attempt < $attempts;
-                $this->observeAttempt($crawler, $execution, $requestHash, $queryParams, $lease, $attempt, $attempts, $startedAt, $attemptStarted, null, $reason, $retry, $waitMs, max(0, $settings->retryDelayMs ?? 500));
+                $previous = $exception->getPrevious();
+                $transport = $this->transportMetrics($previous instanceof ConnectException ? $previous->getHandlerContext() : []);
+                $this->observeAttempt($crawler, $execution, $requestHash, $queryParams, $lease, $attempt, $attempts, $startedAt, $attemptStarted, null, $reason, $retry, $waitMs, max(0, $settings->retryDelayMs ?? 500), $transport);
                 ($execution?->checkpoint)?->__invoke();
                 if ($attempt === $attempts) {
                     throw new ConnectionException("Outbound transport failed: {$reason}.");
@@ -494,7 +498,7 @@ final readonly class CsvSourceMethod implements CooperativeListingSourceMethod, 
             $empty = $response->status() === 200 && trim($response->body()) === '';
             $retry = ($this->isRetryableResponse(response: $response) || ($retryEmpty && $empty)) && $attempt < $attempts;
             $reason = $empty ? 'empty_body' : ($response->successful() ? 'response' : 'http_error');
-            $this->observeAttempt($crawler, $execution, $requestHash, $queryParams, $lease, $attempt, $attempts, $startedAt, $attemptStarted, $response->status(), $reason, $retry, $waitMs, max(0, $settings->retryDelayMs ?? 500));
+            $this->observeAttempt($crawler, $execution, $requestHash, $queryParams, $lease, $attempt, $attempts, $startedAt, $attemptStarted, $response->status(), $reason, $retry, $waitMs, max(0, $settings->retryDelayMs ?? 500), $this->transportMetrics($response->handlerStats()));
             ($execution?->checkpoint)?->__invoke();
             if (! $retry) {
                 return ['response' => $response, 'wait_ms' => $waitMs];
@@ -540,7 +544,10 @@ final readonly class CsvSourceMethod implements CooperativeListingSourceMethod, 
         }
     }
 
-    /** @param array<string, string> $queryParams */
+    /**
+     * @param  array<string, string>  $queryParams
+     * @param  array<string, int|float>  $transport
+     */
     private function observeAttempt(
         ?Crawler $crawler,
         ?ListingExecutionContext $execution,
@@ -556,6 +563,7 @@ final readonly class CsvSourceMethod implements CooperativeListingSourceMethod, 
         bool $retry,
         int $waitMs,
         int $retryDelayMs,
+        array $transport = [],
     ): void {
         Log::info('Crawler outbound attempt', [
             'crawler_id' => $crawler?->id,
@@ -574,7 +582,30 @@ final readonly class CsvSourceMethod implements CooperativeListingSourceMethod, 
             'retry' => $retry,
             'budget_wait_total_ms' => $waitMs,
             'planned_retry_sleep_ms' => $retry ? $retryDelayMs : 0,
+            'transport' => $transport,
         ]);
+    }
+
+    /**
+     * Only numeric transfer diagnostics; handler context also contains URLs,
+     * credentials and certificate information which must never reach the logs.
+     *
+     * @param  array<array-key, mixed>  $context
+     * @return array<string, int|float>
+     */
+    private function transportMetrics(array $context): array
+    {
+        $metrics = [];
+        foreach (['errno', 'http_code', 'http_connectcode', 'http_version', 'ssl_verify_result',
+            'namelookup_time', 'connect_time', 'appconnect_time', 'pretransfer_time',
+            'starttransfer_time', 'total_time', 'size_download', 'size_upload', 'redirect_count'] as $key) {
+            $value = $context[$key] ?? null;
+            if (is_int($value) || (is_float($value) && is_finite($value))) {
+                $metrics[$key] = $value;
+            }
+        }
+
+        return $metrics;
     }
 
     private function isRetryableResponse(Response $response): bool

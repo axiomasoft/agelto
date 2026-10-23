@@ -45,7 +45,15 @@ final readonly class ProcurementPartyStoreRepository
      */
     public function deletePartiesMissingFromSnapshot(int $procurementId, array $partyKeys): void
     {
-        $query = ProcurementParty::query()->where('procurement_id', $procurementId);
+        $query = ProcurementParty::query()->where('procurement_id', $procurementId)
+            ->whereIn('role', [
+                ProcurementPartyRole::Customer,
+                ProcurementPartyRole::Placer,
+                ProcurementPartyRole::AuthorizedBody,
+                ProcurementPartyRole::AuthorizedInstitution,
+                ProcurementPartyRole::SpecializedOrganization,
+                ProcurementPartyRole::PlatformOperator,
+            ]);
 
         if ($partyKeys === []) {
             $query->delete();

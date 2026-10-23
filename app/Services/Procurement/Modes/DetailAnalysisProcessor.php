@@ -89,6 +89,7 @@ final readonly class DetailAnalysisProcessor
 
             $commonInfo = null;
             $commonInfoSnapshotStatus = null;
+            $partiesComplete = false;
             $parties = [];
             $documents = [];
             $documentsSnapshotStatus = null;
@@ -107,6 +108,7 @@ final readonly class DetailAnalysisProcessor
                 );
                 $commonInfo = $commonInfoSnapshot->commonInfo;
                 $commonInfoSnapshotStatus = $commonInfoSnapshot->status->value;
+                $partiesComplete = $commonInfoSnapshot->authorizesPartiesReconciliation();
 
                 $this->commonInfoProcessor->process(procurement: $procurement, snapshot: $commonInfoSnapshot);
             } else {
@@ -154,6 +156,7 @@ final readonly class DetailAnalysisProcessor
                         'financing_rows' => $commonInfo?->financingRows,
                         'items' => $commonInfo?->items,
                         'parties' => $parties,
+                        'parties_complete' => $partiesComplete,
                     ],
                     'documents' => [
                         'documents' => $documents,
@@ -168,7 +171,7 @@ final readonly class DetailAnalysisProcessor
                 ],
             );
 
-            if ($commonInfoSnapshotStatus !== 'complete' || $documentsSnapshotStatus !== 'complete') {
+            if ($commonInfoSnapshotStatus !== 'complete' || $documentsSnapshotStatus !== 'complete' || ! $partiesComplete) {
                 $this->markFailed(
                     procurement: $procurement,
                     exception: new RuntimeException('Required detail snapshots are incomplete.'),

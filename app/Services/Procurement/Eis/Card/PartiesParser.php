@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\Procurement\Eis\Card;
 
+use App\Dto\Organization\OrganizationIdentifierData;
 use App\Dto\Procurement\Details\OrganizationData;
 use App\Dto\Procurement\Details\PartyData;
 use App\Enums\Organization\ProcurementPartyRole;
@@ -25,33 +26,16 @@ final readonly class PartiesParser
         'Заказчик' => ProcurementPartyRole::Customer,
         'Размещающая организация' => ProcurementPartyRole::Placer,
         'Уполномоченный орган' => ProcurementPartyRole::AuthorizedBody,
+        'Уполномоченное учреждение' => ProcurementPartyRole::AuthorizedInstitution,
         'Специализированная организация' => ProcurementPartyRole::SpecializedOrganization,
         'Оператор электронной площадки' => ProcurementPartyRole::PlatformOperator,
     ];
 
-    /**
-     * @return list<PartyData>
-     */
+    /** @return list<PartyData> */
     public function parse(string $html): array
     {
         try {
-            $table = (new Crawler($html))->filter('section.organizations-block table.parties-table');
-
-            if ($table->count() === 0) {
-                return [];
-            }
-
-            $parties = [];
-
-            $table->filter('tbody tr')->each(function (Crawler $tr) use (&$parties): void {
-                $party = $this->parseRow($tr);
-
-                if ($party !== null) {
-                    $parties[] = $party;
-                }
-            });
-
-            return $parties;
+            return $this->snapshot($html)['parties'];
         } catch (\Throwable) {
             return [];
         }
@@ -61,32 +45,172 @@ final readonly class PartiesParser
     public function authorizesReconciliation(string $html, array $parties): bool
     {
         try {
-            $table = (new Crawler($html))->filter('section.organizations-block table.parties-table');
+            $snapshot = $this->snapshot($html);
 
-            if ($table->count() === 0) {
-                Log::warning('Вкладка common-info не содержит контейнер сторон; snapshot неполный');
-
-                return false;
-            }
-
-            $rows = $table->filter('tbody tr')->count();
-
-            if ($rows === count($parties)) {
-                return true;
-            }
-
-            Log::warning('Вкладка common-info содержит нераспознанные стороны; snapshot неполный', [
-                'rows' => $rows,
-                'parsed_parties' => count($parties),
-            ]);
+            return $snapshot['complete'] && $snapshot['parties'] == $parties;
+        } catch (\Throwable) {
+            Log::warning('Вкладка common-info не содержит подтверждённый полный набор сторон.');
 
             return false;
-        } catch (\Throwable $exception) {
-            Log::warning('Проверка полноты сторон common-info провалилась; snapshot failed', [
-                'exception' => $exception->getMessage(),
-            ]);
+        }
+    }
 
-            return false;
+    /** @return array{parties: list<PartyData>, complete: bool} */
+    private function snapshot(string $html): array
+    {
+        $crawler = new Crawler($html);
+        $table = $crawler->filter('section.organizations-block table.parties-table');
+
+        if ($table->count() > 0) {
+            $rows = $table->filter('tbody tr');
+            $parties = array_values(array_filter($rows->each(fn (Crawler $row): ?PartyData => $this->parseRow($row))));
+
+            return ['parties' => $parties, 'complete' => count($parties) === $rows->count()];
+        }
+
+        return ['parties' => $this->parseReal($crawler), 'complete' => true];
+    }
+
+    /** @return list<PartyData> */
+    private function parseReal(Crawler $crawler): array
+    {
+        $placement = $crawler->filter('section.blockInfo__section')->reduce(function (Crawler $section): bool {
+            return $this->definition($section, 'Размещение осуществляет') !== null
+                && $section->filter('a[href*="/epz/organization/view/info.html?"]')->count() > 0;
+        });
+        $this->requireComplete($placement->count() === 1);
+        $link = $placement->filter('a[href*="/epz/organization/view/info.html?"]');
+        $this->requireComplete($link->count() === 1);
+        $name = $this->normalize($link->text());
+        $roleText = $this->normalize(str_replace($name, '', $this->definition($placement, 'Размещение осуществляет') ?? ''));
+        $role = self::ROLE_MAP[$roleText] ?? null;
+        $this->requireComplete($name !== '' && $role !== null);
+        parse_str(parse_url($link->attr('href') ?? '', PHP_URL_QUERY) ?: '', $query);
+        $code = $query['organizationCode'] ?? null;
+        $this->requireComplete(is_string($code) && preg_match('/^\d+$/D', $code) === 1);
+
+        $customers = [];
+        $crawler->filter('.lots-block')->each(function (Crawler $block) use (&$customers): void {
+            $title = $block->filter('.lots-block-title .collapse__title_text');
+            $this->requireComplete($title->count() === 1);
+            $text = $this->normalize($title->text());
+            $this->requireComplete(preg_match('/^Требования заказчика\s*«(.+)»$/uD', $text, $match) === 1);
+            $codes = $this->customerCodes($block);
+            $this->requireComplete(count($codes) === 1);
+            $customerCode = $codes[0];
+            $customerName = trim($match[1]);
+            $this->requireComplete($customerName !== '' && (! isset($customers[$customerCode]) || $customers[$customerCode] === $customerName));
+            $customers[$customerCode] = $customerName;
+        });
+
+        $allCodes = $this->customerCodes($crawler);
+        $this->requireComplete($allCodes !== []);
+
+        if ($role === ProcurementPartyRole::Customer) {
+            $this->requireComplete(count($allCodes) === 1);
+            $customerCode = $allCodes[0];
+            $this->requireComplete($customers === [] || $customers === [$customerCode => $name]);
+            $customers[$customerCode] = $name;
+        }
+
+        $customerCodes = array_map('strval', array_keys($customers));
+        sort($customerCodes);
+        sort($allCodes);
+        $this->requireComplete($customerCodes === $allCodes);
+
+        // truInfo is only a cross-check. Its names are not global organization identities.
+        $crawler->filter('tr[class*="truInfo_"] > td.tableBlock__col_header')->each(function (Crawler $cell) use ($customers): void {
+            $this->requireComplete(in_array($this->normalize($cell->text()), $customers, true));
+        });
+
+        $contactBlocks = $crawler->filter('.row.blockInfo')->reduce(fn (Crawler $block): bool => $block->filter('h2.blockInfo__title')->count() === 1
+            && $this->normalize($block->filter('h2.blockInfo__title')->text()) === 'Контактная информация'
+        );
+        $this->requireComplete($contactBlocks->count() === 1);
+        $contact = $contactBlocks->first();
+        $this->requireComplete($this->definition($contact, 'Организация, осуществляющая размещение') === $name);
+        $this->requireComplete($this->definition($contact, 'Размещение осуществляет') === $roleText);
+
+        $organization = new OrganizationData(
+            fullName: $name,
+            addressRaw: $this->definition($contact, 'Место нахождения'),
+            phone: $this->definition($contact, 'Номер контактного телефона'),
+            email: $this->definition($contact, 'Адрес электронной почты'),
+            identifiers: $role === ProcurementPartyRole::Customer
+                ? [new OrganizationIdentifierData(platformCode: 'eis', type: 'organization_code', value: $code),
+                    new OrganizationIdentifierData(platformCode: 'eis', type: 'customer_code', value: $allCodes[0])]
+                : [new OrganizationIdentifierData(platformCode: 'eis', type: 'organization_code', value: $code)],
+        );
+        $person = $this->definition($contact, 'Ответственное должностное лицо');
+        $parties = [new PartyData(role: ProcurementPartyRole::Placer, organization: $organization, contactPersonName: $person)];
+        $parties[] = new PartyData(role: $role, organization: $organization, contactPersonName: $person);
+
+        if ($role !== ProcurementPartyRole::Customer) {
+            foreach ($customers as $customerCode => $customerName) {
+                $parties[] = new PartyData(
+                    role: ProcurementPartyRole::Customer,
+                    organization: new OrganizationData(fullName: $customerName, identifiers: [
+                        new OrganizationIdentifierData(platformCode: 'eis', type: 'customer_code', value: (string) $customerCode),
+                    ]),
+                );
+            }
+        }
+
+        return $parties;
+    }
+
+    /** @return list<string> */
+    private function customerCodes(Crawler $crawler): array
+    {
+        $codes = [];
+        $crawler->filter('section.blockInfo__section')->each(function (Crawler $section) use (&$codes): void {
+            $ikz = $this->definition($section, 'Идентификационный код закупки (ИКЗ)');
+
+            if ($ikz === null) {
+                return;
+            }
+
+            $this->requireComplete(preg_match('/^\d{36}$/D', $ikz) === 1);
+            $code = substr($ikz, 2, 20);
+            $this->requireComplete($code !== str_repeat('0', 20));
+            $codes[] = $code;
+        });
+
+        return array_values(array_unique($codes));
+    }
+
+    private function definition(Crawler $crawler, string $title): ?string
+    {
+        $sections = $crawler->filter('section.blockInfo__section');
+
+        // filter() searches descendants; include a section passed as the root itself.
+        if ($crawler->count() === 1 && $crawler->nodeName() === 'section') {
+            $sections = $crawler;
+        }
+
+        $values = [];
+        $sections->each(function (Crawler $section) use ($title, &$values): void {
+            $label = $section->filter('.section__title');
+            $value = $section->filter('.section__info');
+
+            if ($label->count() === 1 && $this->normalize($label->text()) === $title && $value->count() === 1) {
+                $values[] = $this->normalize($value->text());
+            }
+        });
+
+        return count($values) === 1 && $values[0] !== '' ? $values[0] : null;
+    }
+
+    private function normalize(string $value): string
+    {
+        return trim(preg_replace('/[\s\x{00a0}]+/u', ' ', $value) ?? $value);
+    }
+
+    /** @phpstan-assert true $condition */
+    private function requireComplete(bool $condition): void
+    {
+        if (! $condition) {
+            throw new \UnexpectedValueException('Неполная или противоречивая проекция сторон common-info.');
         }
     }
 

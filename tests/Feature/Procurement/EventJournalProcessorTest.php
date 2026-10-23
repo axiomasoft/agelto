@@ -7,6 +7,7 @@ use App\Models\Procurement\Procurement;
 use App\Models\Procurement\ProcurementEvent;
 use App\Services\Procurement\Detail\EventJournalProcessor;
 use App\Services\Procurement\Eis\Card\EventJournalParser;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
 function eventJournalEntriesForProcessorTest(): array
@@ -55,4 +56,22 @@ test('повторный process идемпотентен — события н�
     app(EventJournalProcessor::class)->process($procurement, $entries);
 
     expect(ProcurementEvent::query()->where('procurement_id', $procurement->id)->count())->toBe(3);
+});
+
+test('январская карточка сохраняет декабрьское событие без переноса даты и повторных записей', function () {
+    // Historical imports require partition preflight; this fixture explicitly supplies
+    // that prerequisite in the isolated agelto_test transaction, without retention.
+    $table = (new ProcurementEvent)->getTable();
+    DB::statement("CREATE TABLE IF NOT EXISTS {$table}_2024_12 PARTITION OF {$table} FOR VALUES FROM ('2024-12-01 00:00:00+00') TO ('2025-01-01 00:00:00+00')");
+    $html = file_get_contents(base_path('tests/Fixtures/Crawler/Card/event-journal-december-2024.html'));
+    $entries = app(EventJournalParser::class)->parse($html);
+    $procurement = Procurement::factory()->create();
+    $processor = app(EventJournalProcessor::class);
+    $processor->process($procurement, $entries);
+    $ids = ProcurementEvent::query()->where('procurement_id', $procurement->id)->orderBy('id')->pluck('id')->all();
+    $processor->process($procurement, $entries);
+
+    expect($ids)->not->toBeEmpty()
+        ->and(ProcurementEvent::query()->where('procurement_id', $procurement->id)->whereDate('occurred_at', '2024-12-29')->exists())->toBeTrue()
+        ->and(ProcurementEvent::query()->where('procurement_id', $procurement->id)->orderBy('id')->pluck('id')->all())->toBe($ids);
 });
