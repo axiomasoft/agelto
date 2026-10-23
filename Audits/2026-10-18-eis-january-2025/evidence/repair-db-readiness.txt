@@ -1,2 +1,0 @@
-/var/run/postgresql:5432 - accepting connections
-agelto_test|t
