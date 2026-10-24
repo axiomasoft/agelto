@@ -25,7 +25,7 @@ volumes не подключаются; versioned env examples доступны �
 CONNECT/TLS и полноценный Gemini protocol получают assertions в своих owning пакетах;
 текущие fixture endpoints не считаются доказательством этих контрактов.
 
-| Команда | Текущий результат P4.1 |
+| Команда | Контракт harness P4.1–P4.3 |
 | --- | --- |
 | `make core-test-up` | Compose identity, connectivity, healthy app/Postgres/Redis/MinIO |
 | `make core-test-env` | Positive/negative target checks и raw socket egress deny + fixture reachability |
@@ -67,8 +67,11 @@ Identity/connectivity проверяются до миграций, readiness �
 управления транзакциями задаёт конкретный integration test. Serial DB остаётся `agelto_test`,
 Laravel parallel callback проверяет exact worker DB до миграций. `TestFilesystemIsolation`
 сохраняет local process roots и отвергает symlink до mkdir/cleanup. `Http::preventStrayRequests()`
-остаётся дополнительным барьером к Docker network isolation. PHPUnit `force=true` сам по себе
-не является доказательством identity; resolved config проверяется при boot и перед reset.
+остаётся дополнительным барьером к Docker network isolation. Указание `force=true` в старом
+`testing-rules` не описывает текущий bootstrap: phpunit.xml задаёт serial defaults, затем bootstrap
+принудительно синхронизирует три env sources и выбирает rig host/queue. Resolved config проверяется
+при boot и перед reset. Не заменяйте эту схему generic советом наследовать dev DB_HOST или
+принудительным sync для Integration: real Redis mode выбирается явно и проходит identity guard.
 
 После identity/connectivity guards install получает UTC timestamp через `clock_timestamp()`
 проверенного `core-postgres` и сверяет его с native PHP clock в `app`: PostgreSQL timezone — UTC,
@@ -127,6 +130,30 @@ Evidence P4.2 связывает before install/unit/regression reports P4.1 с 
 сохраняет сценарии каждого затронутого файла и actual JUnit узких after checks. P4.3 сравнивает
 полный regression с этими before results; after-run не заменяет исходный результат.
 
+P4.3 сохраняет исходные 2014 executed cases (включая dataset labels) в versioned
+`tests/Fixtures/ProcessCore/original-executed-scenarios.json`. Provenance содержит before candidate
+HEAD/dirty/input-tree hashes и hashes исходных JUnit/schema/catalog/seed outputs. Проверены все
+15 исходных regression artifacts; canonical JSON cases воспроизводит hash исходного
+`executed-scenarios.json`. Это before evidence P4.1, а не pass текущего candidate.
+Regression сопоставляет каждый file/name через точную move map, требует passed status и пишет
+`scenario-comparison.json` до отказа при потере/переименовании/skipped case или дубле.
+Дополнительные architecture cases разрешены. `core-test-report` требует этот artifact и сверяет
+его hash с результатом regression того же input tree.
+
+Единственный временный dependency baseline остаётся
+`tests/Unit/Architecture/platforms-dependency-baseline.php`. `dependency_origin` в move map хранит
+исходные 50 пар с owners и commit/hash P4.2; permanent roles остаются отдельно в
+`PlatformSourceRules::rolePermissions()`. `PlatformsBaselineOriginTest` разрешает только удаление
+исходных пар, запрещает добавление/смену owner/дубли и совпадение с permanent permissions.
+Новую forbidden dependency нельзя легализовать одновременной правкой baseline.
+
+Передача P1.1–P1.4: использовать существующие core-* targets и schema/FK/check/index/extension/
+partman manifests из `core-test-install`; добавить собственные contracts/schema assertions и
+fixtures. `manifest.json` хранит 81 исходную migration с hash, move map — paths/FQCN evidence,
+а полный after comparison появится в отчёте regression текущего candidate. Process runtime,
+core tables, новые config keys и activation domain suites в P4 не создаются. Проверки V1–V7
+и запись completion/commit принадлежат координатору; узкие self-checks executor их не заменяют.
+
 Reports хранятся в `storage/app/testing/process-core/reports/<run-id>/`: candidate HEAD, dirty digest,
 полный input-tree fingerprint (включая untracked product files), config/fixture hashes, exit,
 логи, schema.sql, catalog.json, normalized-catalog.json, seeds.json, JUnit и executed-scenarios.json.
@@ -140,3 +167,6 @@ Planner; executor не запускает plan lifecycle и не редакти�
 Для дешёвой проверки изменений стенда: `python3 -m unittest discover -s docker/tests/process-core
 -p test_rig.py -v`, отдельный `tests/Unit/Support/TestRigIsolationTest.php`, PHP syntax checks и
 `git diff --check`. Эти проверки не заменяют `core-test-install` и full regression.
+Для direction/shrink guards доступны отдельные `tests/Unit/Architecture/PlatformsDomainLayoutTest.php`
+и `tests/Unit/Architecture/PlatformsBaselineOriginTest.php`; их negative examples не меняют product
+source и не требуют Process runtime.

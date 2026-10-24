@@ -253,5 +253,262 @@
       "path": "tests/Feature/Seeders/EisJanuary2025AuditSeederTest.php",
       "reason": "Core profile/proxy/run process models and seeder composition."
     }
-  ]
+  ],
+  "dependency_origin": {
+    "commit": "02f41f9dbcc5e50237abcf4ee54b953d052de068",
+    "path": "tests/Unit/Architecture/platforms-dependency-baseline.php",
+    "sha256": "86bc6226bbcec78ed5171b3d2f851f60dd4fd54b0ce51ffe40c688fd1839b836",
+    "pairs": [
+      {
+        "file": "app/Console/Commands/Procurement/SyncOkpd2Nodes.php",
+        "import": "App\\Services\\Platforms\\Eis\\Filters\\Okpd2NodeSynchronizer",
+        "owner": "P2.12"
+      },
+      {
+        "file": "app/Console/Commands/Procurement/VerifyDocumentUid.php",
+        "import": "App\\Services\\Platforms\\Eis\\Card\\DocumentsParser",
+        "owner": "P2.12"
+      },
+      {
+        "file": "app/Console/Commands/Procurement/VerifyDocumentUid.php",
+        "import": "App\\Services\\Platforms\\Eis\\Card\\EisCardUrlBuilder",
+        "owner": "P2.12"
+      },
+      {
+        "file": "app/Console/Commands/Procurement/VerifyFreshBoundary.php",
+        "import": "App\\Dto\\Platforms\\Eis\\EisListingQueryOverrides",
+        "owner": "P2.12"
+      },
+      {
+        "file": "app/Console/Commands/Procurement/VerifyFreshBoundary.php",
+        "import": "App\\Services\\Platforms\\Eis\\Csv\\CsvSourceMethod",
+        "owner": "P2.12"
+      },
+      {
+        "file": "app/Filament/Platforms/Eis/EisCrawlerPlatformForm.php",
+        "import": "App\\Services\\Procurement\\CrawlerFilterFactory",
+        "owner": "P2.12"
+      },
+      {
+        "file": "app/Repositories/Procurement/ProcurementDetailStoreRepository.php",
+        "import": "App\\Models\\Platforms\\Eis\\EisDetails",
+        "owner": "P2.18"
+      },
+      {
+        "file": "app/Services/Platforms/Eis/Card/DocumentsParser.php",
+        "import": "App\\Services\\Procurement\\SourceTargetValidator",
+        "owner": "P2.6"
+      },
+      {
+        "file": "app/Services/Platforms/Eis/Card/EisCardUrlBuilder.php",
+        "import": "App\\Models\\Procurement\\Platform\\Registry",
+        "owner": "P2.18"
+      },
+      {
+        "file": "app/Services/Platforms/Eis/Card/EisCardUrlBuilder.php",
+        "import": "App\\Services\\Procurement\\Exceptions\\CardUrlTemplateMissingException",
+        "owner": "P2.6"
+      },
+      {
+        "file": "app/Services/Platforms/Eis/Card/EisDetailParser.php",
+        "import": "App\\Services\\Procurement\\Contracts\\DetailParser",
+        "owner": "P2.12"
+      },
+      {
+        "file": "app/Services/Platforms/Eis/Csv/CsvSourceMethod.php",
+        "import": "App\\Actions\\Procurement\\Crawler\\StoreRawFetchArtifactAction",
+        "owner": "P2.6"
+      },
+      {
+        "file": "app/Services/Platforms/Eis/Csv/CsvSourceMethod.php",
+        "import": "App\\Models\\Procurement\\Crawler\\Crawler",
+        "owner": "P2.18"
+      },
+      {
+        "file": "app/Services/Platforms/Eis/Csv/CsvSourceMethod.php",
+        "import": "App\\Models\\Procurement\\Platform\\Platform",
+        "owner": "P2.18"
+      },
+      {
+        "file": "app/Services/Platforms/Eis/Csv/CsvSourceMethod.php",
+        "import": "App\\Models\\Procurement\\Platform\\Registry",
+        "owner": "P2.18"
+      },
+      {
+        "file": "app/Services/Platforms/Eis/Csv/CsvSourceMethod.php",
+        "import": "App\\Models\\Procurement\\Procurement",
+        "owner": "P2.18"
+      },
+      {
+        "file": "app/Services/Platforms/Eis/Csv/CsvSourceMethod.php",
+        "import": "App\\Services\\Procurement\\BoundedResponseReader",
+        "owner": "P2.6"
+      },
+      {
+        "file": "app/Services/Platforms/Eis/Csv/CsvSourceMethod.php",
+        "import": "App\\Services\\Procurement\\Contracts\\CooperativeListingSourceMethod",
+        "owner": "P2.12"
+      },
+      {
+        "file": "app/Services/Platforms/Eis/Csv/CsvSourceMethod.php",
+        "import": "App\\Services\\Procurement\\Contracts\\DeadlineAwareSourceMethod",
+        "owner": "P2.12"
+      },
+      {
+        "file": "app/Services/Platforms/Eis/Csv/CsvSourceMethod.php",
+        "import": "App\\Services\\Procurement\\CrawlSettingsResolver",
+        "owner": "P2.6"
+      },
+      {
+        "file": "app/Services/Platforms/Eis/Csv/CsvSourceMethod.php",
+        "import": "App\\Services\\Procurement\\Exceptions\\CardPageMismatchException",
+        "owner": "P2.6"
+      },
+      {
+        "file": "app/Services/Platforms/Eis/Csv/CsvSourceMethod.php",
+        "import": "App\\Services\\Procurement\\FetchLogger",
+        "owner": "P2.6"
+      },
+      {
+        "file": "app/Services/Platforms/Eis/Csv/CsvSourceMethod.php",
+        "import": "App\\Services\\Procurement\\PlatformAdapterRegistry",
+        "owner": "P2.6"
+      },
+      {
+        "file": "app/Services/Platforms/Eis/Csv/CsvSourceMethod.php",
+        "import": "App\\Services\\Procurement\\PlatformRequestBudget",
+        "owner": "P2.6"
+      },
+      {
+        "file": "app/Services/Platforms/Eis/Csv/CsvSourceMethod.php",
+        "import": "App\\Services\\Procurement\\Proxy\\ProxyBindingResolver",
+        "owner": "P2.6"
+      },
+      {
+        "file": "app/Services/Platforms/Eis/Csv/CsvSourceMethod.php",
+        "import": "App\\Services\\Procurement\\Proxy\\ProxyResolver",
+        "owner": "P2.6"
+      },
+      {
+        "file": "app/Services/Platforms/Eis/Csv/CsvSourceMethod.php",
+        "import": "App\\Services\\Procurement\\SourceTlsTrust",
+        "owner": "P2.6"
+      },
+      {
+        "file": "app/Services/Platforms/Eis/Csv/CsvSourceMethod.php",
+        "import": "GuzzleHttp\\Exception\\ConnectException",
+        "owner": "P2.6"
+      },
+      {
+        "file": "app/Services/Platforms/Eis/Csv/CsvSourceMethod.php",
+        "import": "GuzzleHttp\\Psr7\\Utils",
+        "owner": "P2.6"
+      },
+      {
+        "file": "app/Services/Platforms/Eis/Csv/CsvSourceMethod.php",
+        "import": "Illuminate\\Support\\Facades\\Http",
+        "owner": "P2.6"
+      },
+      {
+        "file": "app/Services/Platforms/Eis/Csv/EisCsvParser.php",
+        "import": "App\\Services\\Procurement\\BoundedResponseReader",
+        "owner": "P2.6"
+      },
+      {
+        "file": "app/Services/Platforms/Eis/Csv/EisCsvRowMapper.php",
+        "import": "App\\Models\\Procurement\\Crawler\\Crawler",
+        "owner": "P2.18"
+      },
+      {
+        "file": "app/Services/Platforms/Eis/Csv/EisCsvRowMapper.php",
+        "import": "App\\Services\\Procurement\\Contracts\\ListingRowMapper",
+        "owner": "P2.12"
+      },
+      {
+        "file": "app/Services/Platforms/Eis/Csv/EisCsvRowMapper.php",
+        "import": "App\\Services\\Procurement\\Contracts\\ListingSchemaAware",
+        "owner": "P2.12"
+      },
+      {
+        "file": "app/Services/Platforms/Eis/Csv/EisCsvUrlBuilder.php",
+        "import": "App\\Models\\Procurement\\Crawler\\Crawler",
+        "owner": "P2.18"
+      },
+      {
+        "file": "app/Services/Platforms/Eis/Csv/EisCsvUrlBuilder.php",
+        "import": "App\\Models\\Procurement\\Platform\\Registry",
+        "owner": "P2.18"
+      },
+      {
+        "file": "app/Services/Platforms/Eis/Csv/EisCsvUrlBuilder.php",
+        "import": "App\\Repositories\\Procurement\\Platform\\Okpd2NodeReadRepository",
+        "owner": "P2.6"
+      },
+      {
+        "file": "app/Services/Platforms/Eis/Diagnostics/ListingFilterCheck.php",
+        "import": "App\\Models\\Procurement\\Crawler\\Crawler",
+        "owner": "P2.18"
+      },
+      {
+        "file": "app/Services/Platforms/Eis/Diagnostics/ListingFilterCheck.php",
+        "import": "App\\Models\\Procurement\\Platform\\Platform",
+        "owner": "P2.18"
+      },
+      {
+        "file": "app/Services/Platforms/Eis/Diagnostics/ListingFilterCheck.php",
+        "import": "App\\Services\\Procurement\\Health\\Contracts\\HealthCheck",
+        "owner": "P2.12"
+      },
+      {
+        "file": "app/Services/Platforms/Eis/Filters/Okpd2NodeSynchronizer.php",
+        "import": "App\\Models\\Procurement\\Crawler\\Crawler",
+        "owner": "P2.18"
+      },
+      {
+        "file": "app/Services/Platforms/Eis/Filters/Okpd2NodeSynchronizer.php",
+        "import": "App\\Services\\Procurement\\CrawlSettingsResolver",
+        "owner": "P2.6"
+      },
+      {
+        "file": "app/Services/Platforms/Eis/Filters/Okpd2NodeSynchronizer.php",
+        "import": "App\\Services\\Procurement\\PlatformRequestBudget",
+        "owner": "P2.6"
+      },
+      {
+        "file": "app/Services/Platforms/Eis/Filters/Okpd2NodeSynchronizer.php",
+        "import": "App\\Services\\Procurement\\Proxy\\ProxyResolver",
+        "owner": "P2.6"
+      },
+      {
+        "file": "app/Services/Platforms/Eis/Filters/Okpd2NodeSynchronizer.php",
+        "import": "App\\Services\\Procurement\\SourceTlsTrust",
+        "owner": "P2.6"
+      },
+      {
+        "file": "app/Services/Platforms/Eis/Filters/Okpd2NodeSynchronizer.php",
+        "import": "Illuminate\\Support\\Facades\\Http",
+        "owner": "P2.6"
+      },
+      {
+        "file": "app/Services/Procurement/Detail/CommonInfoProcessor.php",
+        "import": "App\\Services\\Platforms\\Eis\\Card\\CommonInfoParser",
+        "owner": "P2.18"
+      },
+      {
+        "file": "app/Services/Procurement/Health/PlatformHealthChecker.php",
+        "import": "App\\Services\\Platforms\\Eis\\Diagnostics\\ListingFilterCheck",
+        "owner": "P2.18"
+      },
+      {
+        "file": "database/factories/Procurement/Crawler/CrawlerFactory.php",
+        "import": "App\\Dto\\Platforms\\Eis\\EisSearchFilter",
+        "owner": "P2.12"
+      },
+      {
+        "file": "database/seeders/Procurement/CrawlerProfileSeeder.php",
+        "import": "App\\Dto\\Platforms\\Eis\\EisSearchFilter",
+        "owner": "P2.18"
+      }
+    ]
+  }
 }

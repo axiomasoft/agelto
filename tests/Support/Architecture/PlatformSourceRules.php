@@ -242,6 +242,35 @@ final class PlatformSourceRules
         return $violations;
     }
 
+    /**
+     * @param  list<array{file: string, import: string, owner: string}>  $baseline
+     * @param  list<array{file: string, import: string, owner: string}>  $origin
+     * @return list<string>
+     */
+    public static function baselineGrowthViolations(array $baseline, array $origin): array
+    {
+        $violations = [];
+        $seen = [];
+
+        foreach ($baseline as $entry) {
+            $key = $entry['file'].' -> '.$entry['import'];
+
+            if (isset($seen[$key])) {
+                $violations[] = 'duplicate baseline pair: '.$key;
+            }
+
+            $seen[$key] = true;
+
+            if (! in_array($entry, $origin, strict: true)) {
+                $violations[] = 'expanded baseline or changed owner: '.$key;
+            }
+        }
+
+        sort($violations, SORT_STRING);
+
+        return $violations;
+    }
+
     /** @param list<string> $codes
      * @return list<string>
      */

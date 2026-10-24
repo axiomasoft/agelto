@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Fixed-target, fail-closed process-core rig. No development Compose fallback."""
 import datetime
+from collections import Counter
 from contextlib import contextmanager
 import fcntl
 import hashlib
@@ -465,6 +466,53 @@ def env_proof(folder):
                                              "raw_socket_egress": denial, "fixture_http": True})
 
 
+def compare_scenarios(before, after, moves):
+    """Compare exact executed identities, including dataset labels, across a path-only move."""
+    require(before and all(c.get("status") == "passed" for c in before),
+            "original executed scenarios must be nonempty and passed")
+    paths = {move["old"]: move["new"] for move in moves}
+
+    def key(case, moved=False):
+        path = case.get("file", "").split("::", 1)[0]
+        name = case.get("name")
+        require(path.startswith("tests/") and path.endswith(".php") and isinstance(name, str) and name,
+                "invalid executed scenario identity")
+        return (paths.get(path, path) if moved else path, name)
+
+    expected = Counter(key(case, True) for case in before)
+    observed = Counter(key(case) for case in after if case.get("status") == "passed")
+    identities = Counter(key(case) for case in after)
+
+    def entries(counter):
+        return [{"file": path, "name": name, "count": count}
+                for (path, name), count in sorted(counter.items())]
+
+    return {"original_executed_cases": len(before), "after_executed_cases": len(after),
+            "preserved_cases": sum((expected & observed).values()),
+            "missing": entries(expected - observed), "new": entries(observed - expected),
+            "duplicates": entries(Counter({k: v for k, v in identities.items() if v > 1})),
+            "nonpassing": [case for case in after if case.get("status") != "passed"]}
+
+
+def scenario_proof(folder, cases):
+    original_path = ROOT / "tests/Fixtures/ProcessCore/original-executed-scenarios.json"
+    original = json.loads(original_path.read_text())
+    moves = json.loads((ROOT / "tests/Fixtures/ProcessCore/platforms-move-map.json").read_text())
+    require(original.get("format") == "process-core-executed-baseline/v1",
+            "unknown original executed scenario format")
+    provenance = original["provenance"]
+    require(provenance["command"] == "core-test-regression" and provenance["exit"] == 0
+            and digest(original["cases"]) == provenance["cases_sha256"],
+            "original executed scenario provenance/hash mismatch")
+    comparison = compare_scenarios(original["cases"], cases, moves["moves"])
+    comparison["before_evidence"] = provenance
+    comparison["before_fixture_sha256"] = hashlib.sha256(original_path.read_bytes()).hexdigest()
+    write_json(folder / "scenario-comparison.json", comparison)
+    require(not comparison["missing"] and not comparison["duplicates"] and not comparison["nonpassing"],
+            "original executed scenarios lost/changed/skipped; see scenario-comparison.json")
+    return comparison
+
+
 def suite(folder, name):
     if name == "unit":
         # Pure tests need the isolated runtime identity, not a migrated domain schema.
@@ -499,6 +547,10 @@ def suite(folder, name):
                    "declared_scenarios": sum(len(f.get("scenarios", [])) for f in inventory["files"]),
                    "executed_cases": len(cases)})
         require(not missing, "original scenario files missing from regression JUnit")
+        comparison = scenario_proof(folder, cases)
+        return {"executed": len(cases), "exit": result.returncode,
+                "original_preserved": comparison["preserved_cases"],
+                "scenario_comparison_sha256": hashlib.sha256((folder / "scenario-comparison.json").read_bytes()).hexdigest()}
     return {"executed": len(cases), "exit": result.returncode}
 
 
@@ -524,16 +576,23 @@ def quality(folder):
 
 def collect(folder):
     evidence = {}
+    locations = {}
     for path in sorted(REPORTS.glob("*/result.json")):
         result = json.loads(path.read_text())
         if result.get("exit") == 0:
             evidence[result["command"]] = result
+            locations[result["command"]] = path.parent
     required = {"core-test-up", "core-test-env", "core-test-install", "core-test-unit",
                 "core-test-regression", "core-quality"}
     require(required.issubset(evidence), "missing evidence: " + str(sorted(required - set(evidence))))
     current = json.loads((folder / "inputs.json").read_text())
     for name in required:
         require(evidence[name]["candidate"]["input_tree_sha256"] == digest(current), "stale evidence: " + name)
+    comparison_path = locations["core-test-regression"] / "scenario-comparison.json"
+    require(comparison_path.is_file(), "missing regression scenario-comparison.json")
+    require(hashlib.sha256(comparison_path.read_bytes()).hexdigest()
+            == evidence["core-test-regression"].get("tests", {}).get("scenario_comparison_sha256"),
+            "regression scenario comparison hash mismatch")
     write_json(folder / "summary.json", {"verified": sorted(required), "future": "suite_not_implemented",
                                         "evidence": evidence})
 

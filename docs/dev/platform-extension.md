@@ -26,15 +26,23 @@ status: living
    две площадки с одинаковым registry code должны резолвить разные filter/source-method classes,
    а missing platform, method или filter — завершаться explicit fail-closed exception.
 
-Проверка одного candidate:
+Проверки текущего candidate выполняются в isolated harness из repository root:
 
 ```bash
-bash docker/tests/platform-extension-contract.sh
+make core-test-up
+make core-test-env
+make core-test-install
+make core-test-unit
+make core-test-regression
+make core-quality
+make core-test-report
 ```
 
-Carrier проверяет guarded `agelto_test`, migration rollback/reapply/refusal, config cache cycle,
-focused matrix, scoped Pint/PHPStan, full `php artisan test --no-tia`, docs, плановые views,
-цитаты и diff. Не используйте `|| true` или `--fix`: любой exit code остаётся красным.
+Контракты команд и evidence описаны в [runbook стенда](runbooks/process-test-rig.md).
+Исторический `docker/tests/platform-extension-contract.sh` привязан к старому окружению и plan views;
+он не является интерфейсом текущей приёмки. Не используйте `|| true` или `--fix`:
+любой exit code остаётся красным. `core-test-platforms` получает domain assertions в P2.9–P2.12;
+до этого он явно возвращает `suite_not_implemented`, а сохранённые platform cases входят в Unit/Feature.
 
 Откат migration status mappings отказывается до изменения схемы, если существуют platform-scoped
 rules. Диагностика missing mapping называет platform/registry/method, а отказ rollback говорит,
@@ -63,6 +71,11 @@ row-mapper, URL builders, reliability и seeder integration tests с ядров�
 на месте по критерию import/SUT. Названия и assertions старых сценариев сохранены. Исходный
 manifest хранит original path/hash/FQCN рядом с текущим значением для сравнения в P4.3;
 неизменённые fixture bytes проверяются по исходному SHA-256.
+`tests/Fixtures/ProcessCore/original-executed-scenarios.json` сохраняет actual 2014 before cases
+с dataset labels и candidate/artifact hashes. Полный regression строит `scenario-comparison.json`:
+сопоставляет каждый исходный file/name через точную move map, требует passed status и отсутствие
+дублей. Новые guards добавляют cases; равенство общего test count не требуется. Наличие файла
+без исполнения одного из его сценариев проверку не проходит.
 
 `PlatformsDomainLayoutTest` (T33) проверяет layout, imports/absolute FQCN/literal class strings,
 направление зависимостей, отсутствие старых FQCN и сокращение baseline. Cross-platform import
@@ -79,6 +92,10 @@ seed composition и schema model binding имеют отдельные exact per
 `tests/Unit/Architecture/platforms-dependency-baseline.php` с owning items P2.6/P2.12/P2.18/P3.17.
 Новая пара запрещена; исчезнувшую надо удалить из baseline. Reference/UI permissions не дают
 остальным parsers права импортировать все Models/Repositories.
+Поле `dependency_origin` в move map фиксирует 50 пар и owners из commit P4.2. Отдельный
+`PlatformsBaselineOriginTest` запрещает расширить baseline одновременно с добавлением import,
+переназначить owner или спрятать permanent role в legacy exceptions. Удаление пар разрешено;
+P3.17 удаляет сам baseline при своём cutover. Origin inventory остаётся evidence переноса.
 
 Текущие runtime config keys остаются в `config/crawler.php`. Typed platform definitions и перенос
 `eis.*` в `config/platforms/eis.php` принадлежат P2.9–P2.12. При том переносе registry хранится

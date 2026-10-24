@@ -385,6 +385,139 @@ with rig.project_lock():
             identity.assert_called_once()
             readiness.assert_not_called()
 
+    def test_executed_scenarios_preserve_exact_names_datasets_and_only_mapped_paths(self):
+        before = [{"file": "tests/Unit/OldTest.php::original with data set windows-1251",
+                   "name": "original with data set windows-1251", "status": "passed"}]
+        moved = {**before[0], "file": "tests/Unit/Platforms/Eis/Csv/OldTest.php"}
+        moves = [{"old": "tests/Unit/OldTest.php", "new": moved["file"]}]
+        extra = {"file": "tests/Unit/NewGuardTest.php", "name": "negative guard", "status": "passed"}
+        proof = rig.compare_scenarios(before, [moved, extra], moves)
+        self.assertEqual(proof["missing"], [])
+        self.assertEqual(proof["preserved_cases"], 1)
+        self.assertEqual(proof["new"], [{"file": extra["file"], "name": extra["name"], "count": 1}])
+
+        # Equal totals and the same file cannot hide a lost dataset/renamed scenario.
+        for replacement in [{**moved, "name": "original with data set utf8"},
+                            {**moved, "status": "skipped"}, {**moved, "status": "failed"},
+                            {**moved, "file": "tests/Unit/WrongTest.php"}]:
+            with self.subTest(replacement=replacement):
+                proof = rig.compare_scenarios(before, [replacement], moves)
+                self.assertEqual(proof["preserved_cases"], 0)
+                self.assertEqual(len(proof["missing"]), 1)
+        self.assertTrue(rig.compare_scenarios(before, [moved, moved], moves)["duplicates"])
+        for invalid in [[], [{**before[0], "status": "skipped"}], [{**before[0], "file": ""}]]:
+            with self.subTest(invalid=invalid), self.assertRaises(rig.GuardError):
+                rig.compare_scenarios(invalid, [moved], moves)
+
+    def test_scenario_proof_records_missing_case_before_failing(self):
+        with tempfile.TemporaryDirectory() as temp, patch.object(rig, "ROOT", Path(temp)):
+            fixtures = Path(temp) / "tests/Fixtures/ProcessCore"
+            fixtures.mkdir(parents=True)
+            original = {"format": "process-core-executed-baseline/v1", "provenance": {"exit": 0, "command": "core-test-regression"},
+                        "cases": [{"file": "tests/Unit/OldTest.php", "name": "edge", "status": "passed"}]}
+            original["provenance"]["cases_sha256"] = rig.digest(original["cases"])
+            (fixtures / "original-executed-scenarios.json").write_text(json.dumps(original))
+            (fixtures / "platforms-move-map.json").write_text(json.dumps({"moves": []}))
+            with self.assertRaisesRegex(rig.GuardError, "original executed scenarios lost"):
+                rig.scenario_proof(Path(temp), [])
+            proof = json.loads((Path(temp) / "scenario-comparison.json").read_text())
+            self.assertEqual(proof["missing"], [{"file": "tests/Unit/OldTest.php", "name": "edge", "count": 1}])
+            self.assertEqual(proof["before_evidence"], original["provenance"])
+            self.assertEqual(rig.scenario_proof(Path(temp), original["cases"])["preserved_cases"], 1)
+            original["cases"][0]["name"] = "silently replaced original"
+            (fixtures / "original-executed-scenarios.json").write_text(json.dumps(original))
+            with self.assertRaisesRegex(rig.GuardError, "provenance/hash mismatch"):
+                rig.scenario_proof(Path(temp), original["cases"])
+
+    def test_authentic_before_fixture_has_2014_passed_unique_cases_and_move_map_preserves_each(self):
+        fixtures = rig.ROOT / "tests/Fixtures/ProcessCore"
+        original = json.loads((fixtures / "original-executed-scenarios.json").read_text())
+        moves = json.loads((fixtures / "platforms-move-map.json").read_text())["moves"]
+        self.assertEqual(original["provenance"]["exit"], 0)
+        self.assertEqual(original["provenance"]["command"], "core-test-regression")
+        paths = {move["old"]: move["new"] for move in moves}
+        after = [{**case, "file": paths.get(case["file"].split("::", 1)[0], case["file"])} for case in original["cases"]]
+        proof = rig.compare_scenarios(original["cases"], after, moves)
+        self.assertEqual(proof["original_executed_cases"], 2014)
+        self.assertEqual(proof["preserved_cases"], 2014)
+        self.assertEqual(proof["missing"], [])
+        self.assertEqual(proof["duplicates"], [])
+        self.assertEqual(proof["new"], [])
+        canonical = json.dumps(original["cases"], ensure_ascii=False, sort_keys=True, indent=2) + "\n"
+        self.assertEqual(rig.hashlib.sha256(canonical.encode()).hexdigest(),
+                         original["provenance"]["artifacts"]["executed-scenarios.json"])
+        self.assertEqual(rig.digest(original["cases"]), original["provenance"]["cases_sha256"])
+
+    def test_full_regression_rejects_lost_case_even_when_original_file_is_present(self):
+        cases = [{"file": "tests/Feature/OriginalTest.php", "name": name, "status": "passed"}
+                 for name in ("first", "windows-1251")]
+        original = {"format": "process-core-executed-baseline/v1", "cases": cases,
+                    "provenance": {"command": "core-test-regression", "exit": 0,
+                                   "cases_sha256": rig.digest(cases)}}
+        with tempfile.TemporaryDirectory() as temp, patch.object(rig, "ROOT", Path(temp)), \
+                patch.object(rig, "readiness"), patch.object(rig, "stop_workers"), \
+                patch.object(rig, "verify_fixture_inputs"), patch.object(rig, "prepare_runtime"), \
+                patch.object(rig, "compose") as compose:
+            folder = Path(temp) / "report"
+            folder.mkdir()
+            fixtures = Path(temp) / "tests/Fixtures/ProcessCore"
+            fixtures.mkdir(parents=True)
+            (fixtures / "original-executed-scenarios.json").write_text(json.dumps(original))
+            (fixtures / "platforms-move-map.json").write_text(json.dumps({"moves": []}))
+            (fixtures / "manifest.json").write_text(json.dumps({"files": [
+                {"path": cases[0]["file"], "scenarios": ["first", "windows-1251"]}]}))
+            observed = cases[:1]
+
+            def execute(*args, **kwargs):
+                if args[0] == "cp":
+                    suite = rig.ET.Element("testsuite")
+                    for case in observed:
+                        rig.ET.SubElement(suite, "testcase", file=case["file"], name=case["name"])
+                    rig.ET.ElementTree(suite).write(folder / "junit.xml")
+                return SimpleNamespace(returncode=0, stdout="", stderr="")
+
+            compose.side_effect = execute
+            with self.assertRaisesRegex(rig.GuardError, "original executed scenarios lost"):
+                rig.suite(folder, "regression")
+            self.assertEqual(json.loads((folder / "baseline-coverage.json").read_text())["missing_files"], [])
+            comparison = json.loads((folder / "scenario-comparison.json").read_text())
+            self.assertEqual(comparison["missing"], [{"file": cases[1]["file"], "name": "windows-1251", "count": 1}])
+            observed = cases + [{"file": "tests/Unit/NewGuardTest.php", "name": "negative", "status": "passed"}]
+            result = rig.suite(folder, "regression")
+            self.assertEqual((result["executed"], result["original_preserved"]), (3, 2))
+            self.assertEqual(result["scenario_comparison_sha256"],
+                             rig.hashlib.sha256((folder / "scenario-comparison.json").read_bytes()).hexdigest())
+
+    def test_report_requires_candidate_bound_comparison_artifact_and_its_hash(self):
+        with tempfile.TemporaryDirectory() as temp, patch.object(rig, "REPORTS", Path(temp)):
+            folder = Path(temp) / "report"
+            folder.mkdir()
+            inputs = {"product.php": "hash"}
+            (folder / "inputs.json").write_text(json.dumps(inputs))
+            commands = ["core-test-up", "core-test-env", "core-test-install", "core-test-unit",
+                        "core-test-regression", "core-quality"]
+            for command in commands:
+                gate = Path(temp) / command
+                gate.mkdir()
+                (gate / "result.json").write_text(json.dumps({"command": command, "exit": 0,
+                    "candidate": {"input_tree_sha256": rig.digest(inputs)}}))
+            with self.assertRaisesRegex(rig.GuardError, "missing regression scenario-comparison"):
+                rig.collect(folder)
+            regression = Path(temp) / "core-test-regression"
+            comparison = regression / "scenario-comparison.json"
+            comparison.write_text('{"preserved_cases": 2014}')
+            with self.assertRaisesRegex(rig.GuardError, "comparison hash mismatch"):
+                rig.collect(folder)
+            result_path = regression / "result.json"
+            result = json.loads(result_path.read_text())
+            result["tests"] = {"scenario_comparison_sha256": rig.hashlib.sha256(comparison.read_bytes()).hexdigest()}
+            result_path.write_text(json.dumps(result))
+            rig.collect(folder)
+            self.assertTrue((folder / "summary.json").is_file())
+            comparison.write_text('{"preserved_cases": 0}')
+            with self.assertRaisesRegex(rig.GuardError, "comparison hash mismatch"):
+                rig.collect(folder)
+
 
 if __name__ == "__main__":
     unittest.main()
