@@ -154,6 +154,25 @@ fixtures. `manifest.json` хранит 81 исходную migration с hash, mo
 core tables, новые config keys и activation domain suites в P4 не создаются. Проверки V1–V7
 и запись completion/commit принадлежат координатору; узкие self-checks executor их не заменяют.
 
+P1.1 добавляет полный inventory в `docs/dev/process-schema.md` с owning source
+`tests/Support/ProcessCore/schema-inventory.json`: исходные 75 root tables/939 колонок,
+81 migration disposition, будущие carriers, типы/nullability/FK/CHECK/UNIQUE/index, retention,
+subject ancestors и отдельную stage activation map. Process migrations пока не создаются.
+Снимок исходного каталога имеет P4.3 provenance и сверенные migration/model/config hashes;
+он не является P1.1 install pass. После каждого reset существующий `snapshot` дополнительно
+передаёт реальные schema/catalog в read-only `verify-schema.php --catalog-stdin` и сохраняет
+`schema-inventory.json` рядом с raw outputs. Guard сравнивает все root definitions, включая
+точность numeric, nullability и реальные FK/check/index; inherited partitions остаются в полном
+install comparison. Неизвестная root table или потерянная колонка отвергается.
+
+`verify-baseline.php` теперь сверяет и весь versioned inventory с полным блоком документа;
+наличие файла/заголовков не считается полнотой. `core-quality` исполняет также узкие negative
+examples `test_schema_inventory.py`, использующие тот же PHP guard без DB/network I/O.
+Самостоятельные узкие команды: `php tests/Support/ProcessCore/verify-schema.php` и
+`python3 -B -m unittest discover -s docker/tests/process-core -p test_schema_inventory.py -v`.
+После owning schema cutover нужно обновить inventory/provenance и document block, затем
+получить два clean install; guard не разрешает удалять legacy таблицу до последнего reader.
+
 Reports хранятся в `storage/app/testing/process-core/reports/<run-id>/`: candidate HEAD, dirty digest,
 полный input-tree fingerprint (включая untracked product files), config/fixture hashes, exit,
 логи, schema.sql, catalog.json, normalized-catalog.json, seeds.json, JUnit и executed-scenarios.json.

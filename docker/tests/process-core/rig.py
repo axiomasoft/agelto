@@ -348,6 +348,11 @@ def snapshot(folder):
     write_json(folder / "catalog.json", catalog)
     normalized_catalog = normalize_catalog(catalog)
     write_json(folder / "normalized-catalog.json", normalized_catalog)
+    inventory = compose("exec", "-T", "app", "php", "tests/Support/ProcessCore/verify-schema.php",
+                        "--catalog-stdin", data=json.dumps({"catalog": catalog, "schema": normalized + "\n"}),
+                        check=False)
+    (folder / "schema-inventory.json").write_text(inventory.stdout + inventory.stderr)
+    require(inventory.returncode == 0, "schema inventory mismatch; see schema-inventory.json")
     # All seed rows (including empty tables), stable JSON order, no timestamp/UUID stripping.
     tables = pg("SELECT quote_ident(schemaname)||'.'||quote_ident(tablename) FROM pg_tables t "
                 "WHERE schemaname='public' AND NOT EXISTS (SELECT 1 FROM pg_inherits i "
@@ -561,7 +566,10 @@ def quality(folder):
     config = (ROOT / "phpstan.neon").read_text()
     require("level: max" in config and not re.search(r"ignoreErrors|excludePaths|baseline", config)
             and not (ROOT / "phpstan-baseline.neon").exists(), "static baseline/ignores forbidden")
-    results = {}
+    schema_tests = run(["env", "PROCESS_CORE_SCHEMA_RIG=1", sys.executable, "-B", "-m", "unittest", "discover", "-s",
+                        "docker/tests/process-core", "-p", "test_schema_inventory.py", "-v"], check=False)
+    (folder / "schema-tests.log").write_text(schema_tests.stdout + schema_tests.stderr)
+    results = {"schema-tests": schema_tests.returncode}
     for name, command in [("pint", ["./vendor/bin/pint", "--test"]),
                           ("phpstan", ["./vendor/bin/phpstan", "analyse", "--memory-limit=1G", "--no-progress"]),
                           ("architecture", ["./vendor/bin/pest", "--no-tia",
