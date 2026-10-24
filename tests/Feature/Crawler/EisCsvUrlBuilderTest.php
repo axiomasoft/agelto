@@ -5,7 +5,7 @@ declare(strict_types=1);
 use App\Dto\Procurement\Crawler\ListingCursor;
 use App\Models\Procurement\Platform\Okpd2Node;
 use App\Models\Procurement\Platform\Platform;
-use App\Services\Procurement\Eis\EisCsvUrlBuilder;
+use App\Services\Platforms\Eis\Csv\EisCsvUrlBuilder;
 use Tests\Support\Doubles\Crawler\CrawlerWithRegistry;
 
 beforeEach(function () {

@@ -2,8 +2,8 @@
 
 declare(strict_types=1);
 
+use App\Dto\Platforms\Eis\EisSearchFilter;
 use App\Dto\Procurement\Crawler\Contracts\HasArchiveWindow;
-use App\Dto\Procurement\Crawler\EisSearchFilter;
 use App\Enums\Procurement\Crawler\ListingSortField;
 use App\Exceptions\Procurement\Crawler\PlatformAdapterUnavailableException;
 use App\Models\Procurement\Crawler\Crawler;

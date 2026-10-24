@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-use App\Dto\Procurement\Crawler\EisSearchFilter;
+use App\Dto\Platforms\Eis\EisSearchFilter;
 use App\Dto\Procurement\Health\CheckResult;
 use App\Enums\Procurement\Health\PlatformCheckVerdict;
 use App\Enums\Procurement\Proxy\ProxyScope;
@@ -11,7 +11,7 @@ use App\Models\Procurement\Crawler\Proxy;
 use App\Models\Procurement\Platform\Okpd2Node;
 use App\Models\Procurement\Platform\Platform;
 use App\Models\Procurement\Platform\Registry;
-use App\Services\Procurement\Health\Checks\ListingFilterCheck;
+use App\Services\Platforms\Eis\Diagnostics\ListingFilterCheck;
 use App\Services\Procurement\Health\HealthBaselineReader;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\Client\ConnectionException;
@@ -19,7 +19,7 @@ use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Sleep;
-use Tests\Support\Doubles\Crawler\EisCsvFixture;
+use Tests\Support\Platforms\Eis\EisCsvFixture;
 
 beforeEach(function (): void {
     Sleep::fake();

@@ -1,0 +1,257 @@
+{
+  "format": "platforms-move/v1",
+  "source": "structure#s05",
+  "moves": [
+    {
+      "old": "app/Dto/Procurement/Crawler/EisListingQueryOverrides.php",
+      "new": "app/Dto/Platforms/Eis/EisListingQueryOverrides.php",
+      "before_sha256": "0228f70915895a41a6afff2d16231c081479ea77ea30fadb76b713553cfe133e"
+    },
+    {
+      "old": "app/Dto/Procurement/Crawler/EisSearchFilter.php",
+      "new": "app/Dto/Platforms/Eis/EisSearchFilter.php",
+      "before_sha256": "47bb558dac2bf92d1f16f669cd722a5b1e86541b657d157f81ebf5788996cb87"
+    },
+    {
+      "old": "app/Enums/Procurement/EisProcedureType.php",
+      "new": "app/Enums/Platforms/Eis/EisProcedureType.php",
+      "before_sha256": "40c57e99e440f40d61da4c9e58fc6ff2e3a50a7d1def3d3f25dcf5f8bc0feb91"
+    },
+    {
+      "old": "app/Filament/Resources/Procurement/Crawler/Crawlers/Schemas/EisCrawlerPlatformForm.php",
+      "new": "app/Filament/Platforms/Eis/EisCrawlerPlatformForm.php",
+      "before_sha256": "af37a97fe20f8ae9ef63a4f0c28fe895819dad67ee1ad84b714c542ed65184eb"
+    },
+    {
+      "old": "app/Models/Procurement/EisDetails.php",
+      "new": "app/Models/Platforms/Eis/EisDetails.php",
+      "before_sha256": "f229cf3bbd843cab415e3cf176a35f016c95a29daa78c205e1d1098229c922fb"
+    },
+    {
+      "old": "app/Services/Procurement/Eis/Card/CommonInfoParser.php",
+      "new": "app/Services/Platforms/Eis/Card/CommonInfoParser.php",
+      "before_sha256": "3652b366991a0e1b0d724b054ad7ec9762386039beafa19a06dc60b87f451b0c"
+    },
+    {
+      "old": "app/Services/Procurement/Eis/Card/DocumentsParser.php",
+      "new": "app/Services/Platforms/Eis/Card/DocumentsParser.php",
+      "before_sha256": "df8b0e7c965660e92dd2e68c563d1d42327b7f1e0899e885fca8cebde81d3ab3"
+    },
+    {
+      "old": "app/Services/Procurement/Eis/Card/EventJournalParser.php",
+      "new": "app/Services/Platforms/Eis/Card/EventJournalParser.php",
+      "before_sha256": "6dfa3b302489cf021fd9a35a1ad96d96b1402e578848eedef2afa1772075e4c3"
+    },
+    {
+      "old": "app/Services/Procurement/Eis/Card/PartiesParser.php",
+      "new": "app/Services/Platforms/Eis/Card/PartiesParser.php",
+      "before_sha256": "1bf577b7eeea4a7792f26a92f6d63c96a58be2046fefc072e29566f00731cbd7"
+    },
+    {
+      "old": "app/Services/Procurement/Eis/Card/SupplierResultsParser.php",
+      "new": "app/Services/Platforms/Eis/Card/SupplierResultsParser.php",
+      "before_sha256": "11f1baa359ad34ba3d4d5d5aa5c5bd5ff4e6ddb02742dcaa115012677d871243"
+    },
+    {
+      "old": "app/Services/Procurement/Eis/CsvSourceMethod.php",
+      "new": "app/Services/Platforms/Eis/Csv/CsvSourceMethod.php",
+      "before_sha256": "6b3a71168de8a2480ca0de6a8f36b32db115c8e3c16a1e60fdbc8ab9ee3941e7"
+    },
+    {
+      "old": "app/Services/Procurement/Eis/EisCardUrlBuilder.php",
+      "new": "app/Services/Platforms/Eis/Card/EisCardUrlBuilder.php",
+      "before_sha256": "4ed9b58e53d4657fc39981459f73d249a134258dfe6e61c966dc3c6c05d8b310"
+    },
+    {
+      "old": "app/Services/Procurement/Eis/EisCsvParser.php",
+      "new": "app/Services/Platforms/Eis/Csv/EisCsvParser.php",
+      "before_sha256": "9f6e6543e4b0dd6e7f99c3f541d1efe07c8f502794af73e9d9e53d98507157a3"
+    },
+    {
+      "old": "app/Services/Procurement/Eis/EisCsvRowMapper.php",
+      "new": "app/Services/Platforms/Eis/Csv/EisCsvRowMapper.php",
+      "before_sha256": "42a8ca7d361306d437f33e58585d37edcf69f15e4e4a1ca77920635f20e3be3e"
+    },
+    {
+      "old": "app/Services/Procurement/Eis/EisCsvUrlBuilder.php",
+      "new": "app/Services/Platforms/Eis/Csv/EisCsvUrlBuilder.php",
+      "before_sha256": "0bec91e645e4d9146defd60290f9ca441cfdcb401387debf8af90fba7a8d30f1"
+    },
+    {
+      "old": "app/Services/Procurement/Eis/EisDetailParser.php",
+      "new": "app/Services/Platforms/Eis/Card/EisDetailParser.php",
+      "before_sha256": "1431e8b0b3dd658ad58b91a3c135b2ee640d42adfada5d14892ab5eaf059bf62"
+    },
+    {
+      "old": "app/Services/Procurement/Eis/EisSourceClock.php",
+      "new": "app/Services/Platforms/Eis/EisSourceClock.php",
+      "before_sha256": "934aa8d3b38495977e937af423dece55c083f1d6a3eb77095f495df1e6e685ab"
+    },
+    {
+      "old": "app/Services/Procurement/Eis/Okpd2NodeSynchronizer.php",
+      "new": "app/Services/Platforms/Eis/Filters/Okpd2NodeSynchronizer.php",
+      "before_sha256": "785c129b65dc11a206fd4a30ba9a4d6dfb4bebc964bd07750867a6740fe47d61"
+    },
+    {
+      "old": "app/Services/Procurement/Health/Checks/ListingFilterCheck.php",
+      "new": "app/Services/Platforms/Eis/Diagnostics/ListingFilterCheck.php",
+      "before_sha256": "66e898e2f24d08930703ac3aa88b2521ecc381f76cae1408447125119e8e0775"
+    },
+    {
+      "old": "database/factories/Procurement/EisDetailsFactory.php",
+      "new": "database/factories/Platforms/Eis/EisDetailsFactory.php",
+      "before_sha256": "2b56f1d05721e726c1809408274371cb3e3f757c32fe17513a01b4f26d74acb0"
+    },
+    {
+      "old": "database/seeders/Procurement/EisCrawlerProxySeeder.php",
+      "new": "database/seeders/Platforms/Eis/EisCrawlerProxySeeder.php",
+      "before_sha256": "66e05f0cb581b794f653f1bbd7b2c195a2823fd03bdb4f03b37ccd093c21caf4"
+    },
+    {
+      "old": "database/seeders/Procurement/EisJanuary2025AuditSeeder.php",
+      "new": "database/seeders/Platforms/Eis/EisJanuary2025AuditSeeder.php",
+      "before_sha256": "6d3b7fe000dc1e5ba12dae1086f1713ac35a187353c23e8721481430d07b0cee"
+    },
+    {
+      "old": "database/seeders/Procurement/EisPlatformSeeder.php",
+      "new": "database/seeders/Platforms/Eis/EisPlatformSeeder.php",
+      "before_sha256": "b39c7fc02edf4dc4f7f6b88fc1e163a5d74a539bd0ce8e05ec8f4d88077a7b53"
+    },
+    {
+      "old": "tests/Fixtures/Crawler/Card/common-info-parties.html",
+      "new": "tests/Fixtures/Platforms/Eis/Card/common-info-parties.html",
+      "before_sha256": "df4c4dd35c9813038b09fe029de3232af3c30b69dd8fe3981442530c70089b1c"
+    },
+    {
+      "old": "tests/Fixtures/Crawler/Card/common-info.html",
+      "new": "tests/Fixtures/Platforms/Eis/Card/common-info.html",
+      "before_sha256": "d01cad9ac7b0c5d0a1f6bb6aa556deb4ff24475177b1dcd9f39c1a2a08a44775"
+    },
+    {
+      "old": "tests/Fixtures/Crawler/Card/documents.html",
+      "new": "tests/Fixtures/Platforms/Eis/Card/documents.html",
+      "before_sha256": "6973e27679f2441b13e74b004df749417b2140f456278b92dafb9ddba503c06c"
+    },
+    {
+      "old": "tests/Fixtures/Crawler/Card/event-journal-december-2024.html",
+      "new": "tests/Fixtures/Platforms/Eis/Card/event-journal-december-2024.html",
+      "before_sha256": "24393253474c0e1c2c8aa9f9d1b0afb4dac8fe480a70ce8997a389ca88e13bd0"
+    },
+    {
+      "old": "tests/Fixtures/Crawler/Card/event-journal.html",
+      "new": "tests/Fixtures/Platforms/Eis/Card/event-journal.html",
+      "before_sha256": "4ec184f44a27da811f9e5f486dd594d99b3b3c7dd2f958f7500c4ed67a522cd4"
+    },
+    {
+      "old": "tests/Fixtures/Crawler/Card/parties-january-1.html",
+      "new": "tests/Fixtures/Platforms/Eis/Card/parties-january-1.html",
+      "before_sha256": "b67cfc36da738bd3ce94b57eb78a86db34e6b0a59ac27adc228faa1919d379af"
+    },
+    {
+      "old": "tests/Fixtures/Crawler/Card/parties-january-2.html",
+      "new": "tests/Fixtures/Platforms/Eis/Card/parties-january-2.html",
+      "before_sha256": "f2f9958598fc1aae1d7a0ab724b12afeb88489b4c2ef2756cf9350b53aaa9d48"
+    },
+    {
+      "old": "tests/Fixtures/Crawler/Card/parties-january-3.html",
+      "new": "tests/Fixtures/Platforms/Eis/Card/parties-january-3.html",
+      "before_sha256": "dbf0653dee2b515d9caee33e0732d39fe4ee374557814f331cf5becab2030572"
+    },
+    {
+      "old": "tests/Fixtures/Crawler/Card/parties-january-8.html",
+      "new": "tests/Fixtures/Platforms/Eis/Card/parties-january-8.html",
+      "before_sha256": "e5f221031614b0e8cc5aa5324e52c79094559b564a6e72154009fbef9028eed0"
+    },
+    {
+      "old": "tests/Fixtures/Crawler/Card/supplier-results-success.html",
+      "new": "tests/Fixtures/Platforms/Eis/Card/supplier-results-success.html",
+      "before_sha256": "83e527a7a4ba46694e6953fa203907e67738d7da1a567526de9418dba8361e40"
+    },
+    {
+      "old": "tests/Fixtures/Crawler/Card/supplier-results.html",
+      "new": "tests/Fixtures/Platforms/Eis/Card/supplier-results.html",
+      "before_sha256": "f5d9e9458b41cfb2fb051a0caf654cfa992d36b9880c401dd6068ab4f43ba45e"
+    },
+    {
+      "old": "tests/Fixtures/Crawler/eis-block-win1251.csv",
+      "new": "tests/Fixtures/Platforms/Eis/Csv/eis-block-win1251.csv",
+      "before_sha256": "050ff5b11c2e7640d9e1c3c0c7ad04dddcb6e522ccee7b7f29435455a35c030a"
+    },
+    {
+      "old": "tests/Fixtures/Crawler/okpd2-children.json",
+      "new": "tests/Fixtures/Platforms/Eis/Filters/okpd2-children.json",
+      "before_sha256": "f64ebdf9fc034d864c63aa73f3b453ab73f721ebe5eb55a61ee3b54044f687fb"
+    },
+    {
+      "old": "tests/Support/Doubles/Crawler/EisCsvFixture.php",
+      "new": "tests/Support/Platforms/Eis/EisCsvFixture.php",
+      "before_sha256": "e520c72b638a53ad73fe98a36b3c38c513d3069413db5b55bf2670b5c140b751"
+    },
+    {
+      "old": "tests/Unit/Crawler/CommonInfoParserTest.php",
+      "new": "tests/Unit/Platforms/Eis/Card/CommonInfoParserTest.php",
+      "before_sha256": "ea6aade40e66e288e53a4fbe02e2ace7e712ccae9367b0c832864fed3d6b8869"
+    },
+    {
+      "old": "tests/Unit/Crawler/DocumentsParserTest.php",
+      "new": "tests/Unit/Platforms/Eis/Card/DocumentsParserTest.php",
+      "before_sha256": "5970498bfa03a6460e5b223a1b25d99e866a896c667ff690033ecb84e1cfbee0"
+    },
+    {
+      "old": "tests/Unit/Crawler/EisCsvParserTest.php",
+      "new": "tests/Unit/Platforms/Eis/Csv/EisCsvParserTest.php",
+      "before_sha256": "78f8d4740654e592574374715a032503e624d855b71ce6ce37368dd790dd8d7d"
+    },
+    {
+      "old": "tests/Unit/Crawler/EisProcedureTypeTest.php",
+      "new": "tests/Unit/Platforms/Eis/EisProcedureTypeTest.php",
+      "before_sha256": "8c67a809baa6d6ea81e3923c5ff7d441498d5e6336164bb37b35aa68cadb8cec"
+    },
+    {
+      "old": "tests/Unit/Crawler/EventJournalParserTest.php",
+      "new": "tests/Unit/Platforms/Eis/Card/EventJournalParserTest.php",
+      "before_sha256": "deb40f86009873e38599a1e7abd3d5375d886a45a1325978d07688efc30db53a"
+    },
+    {
+      "old": "tests/Unit/Crawler/PartiesParserTest.php",
+      "new": "tests/Unit/Platforms/Eis/Card/PartiesParserTest.php",
+      "before_sha256": "e7b1f01f25aac27d7f5c012a82aa88aca962ffc91798ed7d538cc33ce53bd282"
+    },
+    {
+      "old": "tests/Unit/Crawler/SupplierResultsParserTest.php",
+      "new": "tests/Unit/Platforms/Eis/Card/SupplierResultsParserTest.php",
+      "before_sha256": "282c5b35482753437be02a0254516084c7659d8eba53ae4ee2ff914dfc41a04e"
+    },
+    {
+      "old": "tests/Unit/Procurement/Eis/EisSourceClockTest.php",
+      "new": "tests/Unit/Platforms/Eis/EisSourceClockTest.php",
+      "before_sha256": "35fcc8a95cf76aa2a466e3bcf7b52f994a298a58fbeac30a324c4c7d816765b8"
+    }
+  ],
+  "retained_tests": [
+    {
+      "path": "tests/Unit/Crawler/EisCsvRowMapperTest.php",
+      "reason": "Core Crawler and Registry imports; in-memory fixtures; mixed by s05 import criterion."
+    },
+    {
+      "path": "tests/Feature/Crawler/EisCardUrlBuilderTest.php",
+      "reason": "Core Registry model imports and persisted fixtures."
+    },
+    {
+      "path": "tests/Feature/Crawler/EisCsvUrlBuilderTest.php",
+      "reason": "Core Platform/Okpd2Node models and repository fixtures."
+    },
+    {
+      "path": "tests/Feature/Crawler/EisListingReliabilityTest.php",
+      "reason": "Core process/lease/run/checkpoint/ingest integration SUT."
+    },
+    {
+      "path": "tests/Feature/Seeders/EisSeedersTest.php",
+      "reason": "Core profile/catalog/status seeder composition and process models."
+    },
+    {
+      "path": "tests/Feature/Seeders/EisJanuary2025AuditSeederTest.php",
+      "reason": "Core profile/proxy/run process models and seeder composition."
+    }
+  ]
+}

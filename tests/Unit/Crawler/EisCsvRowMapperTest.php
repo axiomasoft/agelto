@@ -3,10 +3,10 @@
 declare(strict_types=1);
 
 use App\Dto\Procurement\ProcurementSnapshotData;
-use App\Enums\Procurement\EisProcedureType;
+use App\Enums\Platforms\Eis\EisProcedureType;
 use App\Models\Procurement\Crawler\Crawler;
 use App\Models\Procurement\Platform\Registry;
-use App\Services\Procurement\Eis\EisCsvRowMapper;
+use App\Services\Platforms\Eis\Csv\EisCsvRowMapper;
 
 /**
  * `Crawler` без обращения к БД (Unit-тест, без `RefreshDatabase`) — реестр привязывается
@@ -180,7 +180,7 @@ test('префикс «№» перед реестровым номером сн
  */
 function eisRealFixtureRows(): array
 {
-    $body = file_get_contents(base_path('tests/Fixtures/Crawler/eis-block-win1251.csv'));
+    $body = file_get_contents(base_path('tests/Fixtures/Platforms/Eis/Csv/eis-block-win1251.csv'));
     $utf8 = mb_convert_encoding($body, 'UTF-8', 'Windows-1251');
     $lines = preg_split('/\r\n|\r|\n/', trim($utf8));
     $header = str_getcsv($lines[0], ';', '"');

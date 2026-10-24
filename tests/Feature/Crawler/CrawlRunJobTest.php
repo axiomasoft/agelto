@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-use App\Dto\Procurement\Crawler\EisSearchFilter;
+use App\Dto\Platforms\Eis\EisSearchFilter;
 use App\Dto\Procurement\Crawler\ListingBatch;
 use App\Dto\Procurement\Crawler\ListingCursor;
 use App\Dto\Procurement\ProcurementDetails;

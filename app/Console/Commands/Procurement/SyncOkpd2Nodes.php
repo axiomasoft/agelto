@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Console\Commands\Procurement;
 
-use App\Services\Procurement\Eis\Okpd2NodeSynchronizer;
+use App\Services\Platforms\Eis\Filters\Okpd2NodeSynchronizer;
 use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;

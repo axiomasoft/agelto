@@ -2,6 +2,8 @@
 
 declare(strict_types=1);
 
+use Symfony\Component\Finder\Finder;
+
 function platformExtensionSourceLiteralViolations(array $paths): array
 {
     return array_values(array_filter($paths, static function (string $path): bool {
@@ -15,33 +17,39 @@ function platformExtensionSourceLiteralViolations(array $paths): array
 
 function platformExtensionSourceLiteralIsAllowed(string $path): bool
 {
-    $allowedRoots = [
-        app_path('Services/Procurement/Eis'),
-        database_path('seeders/Procurement'),
-    ];
+    $allowedRoots = [database_path('seeders/Platforms')];
+
+    foreach (Finder::create()->directories()->in(app_path())->depth('== 0') as $layer) {
+        $platforms = $layer->getPathname().'/Platforms';
+
+        if (is_dir($platforms)) {
+            $allowedRoots[] = $platforms;
+        }
+    }
     $allowedPaths = [
         app_path('Console/Commands/Procurement/HealthCheckCommand.php'),
         app_path('Console/Commands/Procurement/SyncOkpd2Nodes.php'),
         app_path('Console/Commands/Procurement/VerifyDocumentUid.php'),
         app_path('Console/Commands/Procurement/VerifyFreshBoundary.php'),
-        app_path('Dto/Procurement/Crawler/EisSearchFilter.php'),
         app_path('Dto/Procurement/Crawler/Contracts/RequiresScope.php'),
-        app_path('Enums/Procurement/EisProcedureType.php'),
         app_path('Enums/Procurement/ProcurementStatus.php'),
-        app_path('Filament/Resources/Procurement/Crawler/Crawlers/Schemas/EisCrawlerPlatformForm.php'),
         app_path('Models/Procurement/Platform/Registry.php'),
         app_path('Providers/AppServiceProvider.php'),
+        app_path('Repositories/Procurement/ProcurementDetailStoreRepository.php'),
         app_path('Services/Health/ReleaseStateReadiness.php'),
         app_path('Services/Procurement/ArchiveWindowScanner.php'),
         app_path('Services/Procurement/Contracts/ListingRowMapper.php'),
         app_path('Services/Procurement/Contracts/SourceMethod.php'),
         app_path('Services/Procurement/Detail/CommonInfoProcessor.php'),
         app_path('Services/Procurement/Exceptions/SourceMethodUnavailableException.php'),
-        app_path('Services/Procurement/Health/Checks/ListingFilterCheck.php'),
+        app_path('Services/Procurement/Health/PlatformHealthChecker.php'),
         app_path('Services/Procurement/Modes/DetailAnalysisProcessor.php'),
         app_path('Services/Procurement/Modes/FreshRunProcessor.php'),
         config_path('crawler.php'),
         database_path('seeders/StatusMappingSeeder.php'),
+        database_path('seeders/BaseSeeder.php'),
+        database_path('seeders/Procurement/CrawlerProfileSeeder.php'),
+        database_path('seeders/Procurement/Okpd2NodeSeeder.php'),
     ];
 
     return in_array($path, $allowedPaths, strict: true)

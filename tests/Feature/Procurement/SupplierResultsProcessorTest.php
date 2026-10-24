@@ -15,12 +15,12 @@ use App\Models\Procurement\Procurement;
 use App\Models\Procurement\ProcurementEvent;
 use App\Models\Procurement\ProcurementParty;
 use App\Models\Procurement\Protocol;
+use App\Services\Platforms\Eis\Card\SupplierResultsParser;
 use App\Services\Procurement\Detail\SupplierResultsProcessor;
-use App\Services\Procurement\Eis\Card\SupplierResultsParser;
 
 function supplierResultsSuccessDataForProcessorTest(): SupplierResultsData
 {
-    $html = file_get_contents(base_path('tests/Fixtures/Crawler/Card/supplier-results-success.html'));
+    $html = file_get_contents(base_path('tests/Fixtures/Platforms/Eis/Card/supplier-results-success.html'));
 
     return app(SupplierResultsParser::class)->parse($html);
 }

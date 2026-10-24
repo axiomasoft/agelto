@@ -2,16 +2,16 @@
 
 declare(strict_types=1);
 
-use App\Dto\Procurement\Crawler\EisSearchFilter;
+use App\Dto\Platforms\Eis\EisSearchFilter;
 use App\Enums\Procurement\Crawler\SourceFailureKind;
 use App\Enums\Procurement\Crawler\SourceFailureReaction;
 use App\Enums\Procurement\Crawler\SourceMethod;
 use App\Enums\Procurement\Crawler\SourceStage;
 use App\Enums\Procurement\Proxy\ProxyScope;
-use App\Filament\Resources\Procurement\Crawler\Crawlers\Schemas\EisCrawlerPlatformForm;
-use App\Services\Procurement\Eis\CsvSourceMethod;
-use App\Services\Procurement\Eis\EisCsvRowMapper;
-use App\Services\Procurement\Eis\EisDetailParser;
+use App\Filament\Platforms\Eis\EisCrawlerPlatformForm;
+use App\Services\Platforms\Eis\Card\EisDetailParser;
+use App\Services\Platforms\Eis\Csv\CsvSourceMethod;
+use App\Services\Platforms\Eis\Csv\EisCsvRowMapper;
 
 // Реакции по умолчанию, общие для этапов (этап может задать свои). Смысл — у `source_control`.
 $sourceFailureReactions = [

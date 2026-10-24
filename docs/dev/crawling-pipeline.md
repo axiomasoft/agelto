@@ -223,7 +223,7 @@ transport messages туда не попадают; окончательная tr
 
 ## Площадки и извлечение деталей
 
-`Services/Procurement/Eis/**` — ЕИС-специфичные адаптеры (`EisCardUrlBuilder`, `CsvSourceMethod`,
+`Services/Platforms/Eis/**` — ЕИС-специфичные адаптеры (`EisCardUrlBuilder`, `CsvSourceMethod`,
 `EisCsvRowMapper`/`EisCsvUrlBuilder`); `Services/Procurement/Detail/**` — процессоры деталей закупки
 (`CommonInfoProcessor`, `EventJournalProcessor`, `OrganizationPartiesProcessor`,
 `SupplierResultsProcessor`); `ArchiveWindowScanner`/`ProxyResolver`/`PoliteThrottle` — вспомогательная
@@ -241,7 +241,7 @@ transport messages туда не попадают; окончательная tr
 Резолв класса фильтра — по коду реестра через `CrawlerFilterFactory::for(Registry): class-string<Data>`
 (config-карта `crawler.filters`, тот же приём, что `SourceMethodFactory`/`crawler.source_methods`;
 `match`-лестниц и `if ($registry->code === …)` в билдере нет). Для ЕИС/44-ФЗ —
-`App\Dto\Procurement\Crawler\EisSearchFilter` (`app/Dto/Procurement/Crawler/EisSearchFilter.php`):
+`App\Dto\Platforms\Eis\EisSearchFilter` (`app/Dto/Platforms/Eis/EisSearchFilter.php`):
 этапы закупки (`stageApplications`/`stageCommission`/`stageCompleted`/`stageCancelled`), цена
 от/до (`priceFrom`/`priceTo` — `priceTo = 0` запрещён валидацией: у площадки это обнуляет выдачу,
 а не снимает ограничение), даты публикации, строка поиска + флаг морфологии. Неизвестный ключ
@@ -278,7 +278,7 @@ transport messages туда не попадают; окончательная tr
 
 ## Сиды площадки ЕИС
 
-`database/seeders/Procurement/EisPlatformSeeder.php` заводит площадку `code=eis`, реестр `fz44` и
+`database/seeders/Platforms/Eis/EisPlatformSeeder.php` заводит площадку `code=eis`, реестр `fz44` и
 его `settings` (`procedure_url_types` — сегменты URL по способу закупки, `card_url_templates` —
 шаблоны вкладок карточки по типу процедуры); `CrawlerProfileSeeder.php` — два профиля обхода
 (архивный, `filter=stageCompleted:true`, `execution_lane=long`, `is_active=true`, запуск явной командой; «свежий поток»,
@@ -485,7 +485,7 @@ unique-лока (`PipelineJob::uniqueFor()`,
 
 ### Все HTML-фикстуры карточки синтетические
 
-`tests/Fixtures/Crawler/Card/*.html` — не реальные HTML-дампы ЕИС, а структурные реконструкции
+`tests/Fixtures/Platforms/Eis/Card/*.html` — не реальные HTML-дампы ЕИС, а структурные реконструкции
 по `research/eis-card-recon.md`. Это относится и к `organizations-block`, и к
 `supplier-results.html`. При первом реальном прогоне против ЕИС нужно сверить DOM-селекторы всех
 парсеров вкладок с фактической вёрсткой; риск отмечен в §«Раскладка HTML детальной карточки»,

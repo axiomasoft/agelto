@@ -16,7 +16,7 @@ use Illuminate\Support\Sleep;
  * P2.5 — команда `crawler:okpd2-sync`: пересборка карты «код ОКПД2 → id НСИ» и детект дрейфа.
  *
  * Ни один тест файла не ходит в сеть: `Http::fake()` обязателен, тела ответов берутся из
- * фикстуры `tests/Fixtures/Crawler/okpd2-children.json`. Фикстура СИНТЕТИЧЕСКАЯ —
+ * фикстуры `tests/Fixtures/Platforms/Eis/Filters/okpd2-children.json`. Фикстура СИНТЕТИЧЕСКАЯ —
  * реконструирована из `plans/archive/2026.08.06-CRAWL-HARDEN/artifacts/eis-okpd2-map.json` (живой замер
  * P1.2 от 2026-08-07): коды, id и наименования снятые, имена полей ответа — из
  * `findings/P1-okpd2-map.md` §1, но сырое тело ответа разведкой не сохранялось. Поддерево
@@ -47,7 +47,7 @@ function okpd2SyncProxy(): Proxy
 function fakeOkpd2Children(): void
 {
     $fixture = json_decode(
-        (string) file_get_contents(base_path('tests/Fixtures/Crawler/okpd2-children.json')),
+        (string) file_get_contents(base_path('tests/Fixtures/Platforms/Eis/Filters/okpd2-children.json')),
         associative: true,
         flags: JSON_THROW_ON_ERROR,
     );

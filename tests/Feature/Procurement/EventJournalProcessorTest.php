@@ -5,8 +5,8 @@ declare(strict_types=1);
 use App\Enums\Procurement\ProcurementEventType;
 use App\Models\Procurement\Procurement;
 use App\Models\Procurement\ProcurementEvent;
+use App\Services\Platforms\Eis\Card\EventJournalParser;
 use App\Services\Procurement\Detail\EventJournalProcessor;
-use App\Services\Procurement\Eis\Card\EventJournalParser;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
@@ -17,7 +17,7 @@ function eventJournalEntriesForProcessorTest(): array
     // проба P4.13 — «23.01.2025»/«15.01.2025») выпадают из окна премейка партиций — сдвигаем
     // на текущий месяц теста, сохраняя оригинальный HTML-файл фикстуры нетронутым и порядок
     // строк (относительные сдвиги дней сохраняют хронологию).
-    $html = file_get_contents(base_path('tests/Fixtures/Crawler/Card/event-journal.html'));
+    $html = file_get_contents(base_path('tests/Fixtures/Platforms/Eis/Card/event-journal.html'));
     $html = str_replace('23.01.2025 09:29', now()->startOfMonth()->addDay()->format('d.m.Y').' 09:29', $html);
     $html = str_replace('23.01.2025 09:00', now()->startOfMonth()->addDays(2)->format('d.m.Y').' 09:00', $html);
     $html = str_replace('15.01.2025 11:55', now()->startOfMonth()->addDays(3)->format('d.m.Y').' 11:55', $html);
@@ -63,7 +63,7 @@ test('январская карточка сохраняет декабрьск�
     // that prerequisite in the isolated agelto_test transaction, without retention.
     $table = (new ProcurementEvent)->getTable();
     DB::statement("CREATE TABLE IF NOT EXISTS {$table}_2024_12 PARTITION OF {$table} FOR VALUES FROM ('2024-12-01 00:00:00+00') TO ('2025-01-01 00:00:00+00')");
-    $html = file_get_contents(base_path('tests/Fixtures/Crawler/Card/event-journal-december-2024.html'));
+    $html = file_get_contents(base_path('tests/Fixtures/Platforms/Eis/Card/event-journal-december-2024.html'));
     $entries = app(EventJournalParser::class)->parse($html);
     $procurement = Procurement::factory()->create();
     $processor = app(EventJournalProcessor::class);

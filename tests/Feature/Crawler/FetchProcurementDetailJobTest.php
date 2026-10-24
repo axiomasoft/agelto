@@ -66,7 +66,7 @@ function detailJobRegistry(): Registry
 
 function detailJobEventJournalHtml(): string
 {
-    return (string) file_get_contents(base_path('tests/Fixtures/Crawler/Card/event-journal.html'));
+    return (string) file_get_contents(base_path('tests/Fixtures/Platforms/Eis/Card/event-journal.html'));
 }
 
 function fakeDetailJobHttp(): void

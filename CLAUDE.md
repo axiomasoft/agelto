@@ -7,12 +7,13 @@
 
 ## Domain boundaries
 
-- Flat `app/**`, no modules: `Procurement` (`prc_*`: procurements, documents, estimates, AI, crawling), `Reference` (`ref_*`), `Organization` (`org_*`), `Llm` (`llm_*`: provider-agnostic transport).
+- Flat `app/**`, no modules: `Procurement` (`prc_*`: procurements, documents, estimates, AI, crawling), `Reference` (`ref_*`), `Organization` (`org_*`), `Llm` (`llm_*`: provider-agnostic transport), `Platforms/<Code>` (platform-specific adapters across layers; existing table names stay unchanged).
 - Procurement AI pipeline: `Services/Procurement/{Prepare,Screening,Extraction}`, `Jobs/Procurement/*Job`, `Models/Procurement/Ai/*`; LLM transport stays in `Services/Llm/**` with `Models/Llm/**`, repositories and factories. Use its local skills for extraction, LLM transport and prompts.
-- Общие DTO, модели и резолверы не содержат полей и веток конкретной площадки. Внешние идентификаторы организаций передаются как `(platformCode, type, value)`; их разбор и форматы принадлежат адаптеру в `Services/Procurement/<Platform>/`.
+- Общие DTO, модели и резолверы не содержат полей и веток конкретной площадки. Внешние идентификаторы организаций передаются как `(platformCode, type, value)`; их разбор и форматы принадлежат адаптеру в `Services/Platforms/<Code>/`. Текущие legacy зависимости ограничены сокращаемым architecture baseline до owning cutovers.
 - Crawling contracts: typed profile filters are resolved through `crawler.filters`; TLS trust exists only in `SourceTlsTrust` / `crawler.tls.bundles`. See `docs/dev/crawling-pipeline.md`.
 - Controllers handle HTTP only; Actions/Services own short mutations and transactions; repositories access persistence. Long crawling/parsing/AI work runs as Horizon jobs, never in HTTP.
 - A file in `app/<Layer>/<Domain>/` has one subdomain directory; only domain-core and cross-subdomain files may be at its root. `tests/Unit/Architecture/DomainLayoutTest.php` enforces this.
+- `Platforms/<Code>` uses matching roots in Services/Dto/Enums/Models/Filament, factories and seeders. Service subdirectories: Card, Csv, Listing, Status, Documents, Filters, Validators, Diagnostics, Persistence; one level only. Platform Filament roots contain form/schema components outside resource discovery. `PlatformsDomainLayoutTest` enforces direction, exact integration roles and the shrinking `tests/Unit/Architecture/platforms-dependency-baseline.php`; see `docs/dev/platform-extension.md`.
 - Jobs must be idempotent. AI jobs use lease + status guard, prefix-stable system prompt and checkpoint-requeue without double dispatch.
 
 ## Runtime

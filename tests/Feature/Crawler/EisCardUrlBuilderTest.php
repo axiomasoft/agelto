@@ -3,7 +3,7 @@
 declare(strict_types=1);
 
 use App\Models\Procurement\Platform\Registry;
-use App\Services\Procurement\Eis\EisCardUrlBuilder;
+use App\Services\Platforms\Eis\Card\EisCardUrlBuilder;
 use App\Services\Procurement\Exceptions\CardUrlTemplateMissingException;
 
 // Factory-backed registry scenarios are integration tests and require Feature DB isolation.

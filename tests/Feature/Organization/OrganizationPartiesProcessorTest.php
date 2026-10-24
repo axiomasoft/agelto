@@ -9,8 +9,8 @@ use App\Enums\Organization\ProcurementPartyRole;
 use App\Models\Organization\Organization;
 use App\Models\Procurement\Procurement;
 use App\Models\Procurement\ProcurementParty;
+use App\Services\Platforms\Eis\Card\PartiesParser;
 use App\Services\Procurement\Detail\OrganizationPartiesProcessor;
-use App\Services\Procurement\Eis\Card\PartiesParser;
 
 /**
  * Совместимая табличная fixture проверяет persistence по валидным DTO.
@@ -141,7 +141,7 @@ test('повтор реального common-info без ИНН идемпоте
             'procurement_id' => $procurement->id, 'organization_id' => $winner->id, 'role' => $role,
         ]);
     }
-    $html = file_get_contents(base_path('tests/Fixtures/Crawler/Card/parties-january-1.html'));
+    $html = file_get_contents(base_path('tests/Fixtures/Platforms/Eis/Card/parties-january-1.html'));
     $parties = app(PartiesParser::class)->parse($html);
     $processor = app(OrganizationPartiesProcessor::class);
     $processor->process($procurement, $parties);

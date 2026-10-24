@@ -15,9 +15,9 @@ use App\Models\Procurement\Crawler\Run;
 use App\Models\Procurement\Platform\Okpd2Node;
 use App\Models\Procurement\Platform\Registry;
 use App\Models\Procurement\Procurement;
+use App\Services\Platforms\Eis\Csv\CsvSourceMethod;
 use App\Services\Procurement\ArchiveWindowScanner;
 use App\Services\Procurement\CrawlerRunManager;
-use App\Services\Procurement\Eis\CsvSourceMethod;
 use App\Services\Procurement\ListingRunCheckpoint;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Support\Carbon;
@@ -27,7 +27,7 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Sleep;
-use Tests\Support\Doubles\Crawler\EisCsvFixture;
+use Tests\Support\Platforms\Eis\EisCsvFixture;
 
 beforeEach(function () {
     Sleep::fake();

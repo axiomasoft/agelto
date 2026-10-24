@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-use Database\Seeders\Procurement\EisPlatformSeeder;
+use Database\Seeders\Platforms\Eis\EisPlatformSeeder;
 use Illuminate\Console\Command;
 use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\Http;

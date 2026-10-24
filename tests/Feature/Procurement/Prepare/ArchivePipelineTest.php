@@ -12,8 +12,8 @@ use App\Models\Procurement\Document\Document;
 use App\Models\Procurement\Document\DocumentVersion;
 use App\Models\Procurement\Procurement;
 use App\Models\Procurement\ProcurementEvent;
+use App\Services\Platforms\Eis\Card\DocumentsParser;
 use App\Services\Procurement\DocumentIndexer;
-use App\Services\Procurement\Eis\Card\DocumentsParser;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
@@ -184,7 +184,7 @@ test('complete platform reindex не снимает child, созданный Ex
     Storage::fake('s3');
     Queue::fake();
     $procurement = Procurement::factory()->create();
-    $html = file_get_contents(base_path('tests/Fixtures/Crawler/Card/documents.html'));
+    $html = file_get_contents(base_path('tests/Fixtures/Platforms/Eis/Card/documents.html'));
 
     if ($html === false) {
         throw new RuntimeException('Не удалось прочитать fixture documents.html');

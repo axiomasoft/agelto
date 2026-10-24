@@ -52,12 +52,15 @@ URL и конфигурационных ключей; чтение найден�
 площадки. Эти исправления `main` сохранены при разрешении конфликтов. `HealthBaselineReader`
 также умеет выбирать baseline по площадке. Поэтому строки 1 и 4 закрыты, строки 2 и 3 —
 частично: общие DTO/персистентность детальных сведений и `ListingFilterCheck` всё ещё содержат
-специфику ЕИС. Проверка готовности и расположение специфичных типов также остаются открытыми.
+специфику ЕИС. P4.2 переносит специфичные типы в `Platforms/Eis` без изменения behavior;
+оставшиеся legacy зависимости фиксирует сокращаемый architecture baseline. Проверка готовности
+и предметные cutovers остаются за своими owning пакетами.
 Общая изоляция системы пока не подтверждена.
 
 ## Домены
 
-Структура `app/**` плоская, без модулей: четыре домена по короткому префиксу таблицы.
+Структура `app/**` плоская, без модулей: четыре домена по короткому префиксу таблицы и
+`Platforms/<Code>` для кода конкретной площадки во всех слоях.
 
 | Домен | Префикс | Что покрывает |
 |:--|:--|:--|
@@ -65,6 +68,7 @@ URL и конфигурационных ключей; чтение найден�
 | `Reference` | `ref_*` | Общие справочники: ОКПД2, КТРУ, ОКВЭД2, КБК |
 | `Organization` | `org_*` | Организации |
 | `Llm` | `llm_*` | Провайдер-агностичный LLM-транспорт: провайдеры, маршруты, промты, вызовы (D22, P1.5) |
+| `Platforms/<Code>` | существующие таблицы сохраняются | Форматы, URL, парсеры, DTO, extension models и form/schema компоненты конкретной площадки; ЕИС — `Platforms/Eis`, таблица `prc_eis_details` |
 
 Таксономия `prc_`-мегадомена — осознанное решение (D11, `plans/archive/2026.07.07-EST-AI/plan.md` §5), не 9-префиксная
 схема из раннего ТЗ; закреплена ADR [`adr/0001-prc-megadomain.md`](adr/0001-prc-megadomain.md).
@@ -111,7 +115,11 @@ P7.3: из пяти критериев физического разделени
   (см. skill `repositories`). Персистентность — ТОЛЬКО через них (не сквозной Eloquent из сервисов).
 - `Services/Procurement/{Prepare,Screening,Extraction}/` — стадии пайплайна документа/сметы
   (`app/Services/Procurement/`: `PipelineDispatcher`, `DocumentDownloader`, `Prepare/`, `Screening/`,
-  `Extraction/`, `Eis/`, `Detail/`).
+  `Extraction/`, `Detail/`).
+- `Services/Platforms/<Code>/` — адаптеры одной площадки; те же `Platforms/<Code>` roots используются
+  в DTO/Enums/Models/Filament, factories и seeders. ЕИС перенесена механически; таблица
+  `prc_eis_details` и текущие config keys сохранены. Границы и legacy dependency baseline:
+  [`platform-extension.md`](platform-extension.md#где-лежит-код-площадки).
 - `Services/Procurement/Proxy/` — слой маршрутизации исходящего трафика (`ProxyResolver`,
   `ProxyCircuitBreaker`, `ProxyScoreCalculator`) единой точкой выдачи для HTTP-каналов кроулинга и
   LLM; порт `App\Services\Llm\Contracts\OutboundProxy` — узкая граница со стороны домена `Llm`,

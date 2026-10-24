@@ -11,12 +11,12 @@ use App\Models\Procurement\Document\Document;
 use App\Models\Procurement\Document\DocumentVersion;
 use App\Models\Procurement\Procurement;
 use App\Models\Procurement\ProcurementEvent;
+use App\Services\Platforms\Eis\Card\DocumentsParser;
 use App\Services\Procurement\DocumentIndexer;
-use App\Services\Procurement\Eis\Card\DocumentsParser;
 
 function documentsFixtureSnapshotForIndexerTest(): DocumentsSnapshot
 {
-    $html = file_get_contents(base_path('tests/Fixtures/Crawler/Card/documents.html'));
+    $html = file_get_contents(base_path('tests/Fixtures/Platforms/Eis/Card/documents.html'));
 
     return app(DocumentsParser::class)->parse($html);
 }

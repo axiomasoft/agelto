@@ -11,7 +11,7 @@ use App\Models\Procurement\Crawler\Fetch;
 use App\Models\Procurement\Crawler\Proxy;
 use App\Models\Procurement\Platform\Registry;
 use App\Models\Procurement\Procurement;
-use App\Services\Procurement\Eis\CsvSourceMethod;
+use App\Services\Platforms\Eis\Csv\CsvSourceMethod;
 use App\Services\Procurement\Exceptions\CardUrlTemplateMissingException;
 use GuzzleHttp\Exception\ConnectException;
 use GuzzleHttp\Psr7\Request as PsrRequest;

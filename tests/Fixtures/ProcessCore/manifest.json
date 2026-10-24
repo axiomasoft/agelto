@@ -544,7 +544,7 @@
     },
     {
       "path": "tests/Feature/Console/RunArchiveCrawlerTest.php",
-      "sha256": "1c6b7ef1e2991f060b5ee6e5d07d423320a3568c9d9fad2a95d2f27d69599efd",
+      "sha256": "fe5a51696d19db6a9fc98a894910597035cbd744b1d7359d402a861d71c674af",
       "scenarios": [
         "резолвит профиль по числовому id и диспатчит CrawlRunJob(mode: Archive) с окном from/to",
         "без faked-очереди job исполняется синхронно (sync-driver) и доводит archive-прогон до completed",
@@ -553,7 +553,10 @@
         "без --from профиль БЕЗ окна — FAILURE без запуска прогона (P3.8, D113)",
         "без --from профиль С окном берёт окно профиля (P3.8, D113)",
         "--from/--to перекрывают окно профиля (P3.8, D113)"
-      ]
+      ],
+      "original_path": "tests/Feature/Console/RunArchiveCrawlerTest.php",
+      "original_sha256": "1c6b7ef1e2991f060b5ee6e5d07d423320a3568c9d9fad2a95d2f27d69599efd",
+      "change_reason": "P4.2 mechanical namespace/import/fixture path move; scenario names and assertions preserved."
     },
     {
       "path": "tests/Feature/Console/RunDeltaScanTest.php",
@@ -578,20 +581,25 @@
     },
     {
       "path": "tests/Feature/Console/VerifyDocumentUidTest.php",
-      "sha256": "9c1563e0b08d4351fcf29d10783ba9c97e1673743f6042b29bdb10f5549624c1",
+      "sha256": "a155c70903097c3d19c21b2170e5fab80b1a29dcdfdeb9f78ac8f1ec23f7df87",
       "scenarios": [
         "live B2 command records current uid evidence without bodies and fails closed on absent pairs"
-      ]
+      ],
+      "original_path": "tests/Feature/Console/VerifyDocumentUidTest.php",
+      "original_sha256": "9c1563e0b08d4351fcf29d10783ba9c97e1673743f6042b29bdb10f5549624c1",
+      "change_reason": "P4.2 mechanical namespace/import/fixture path move; scenario names and assertions preserved."
     },
     {
       "path": "tests/Feature/Console/VerifyFreshBoundaryTest.php",
-      "sha256": "89a61ca31940a527cb24a4924bcd9a040e30f693711b663cc596dffe2d7503d4",
+      "sha256": "6e1992ca73aed1906d00990b820b530194dd4113574a6ee0cae947e90899540e",
       "scenarios": [
         "live A1 command uses bounded listing route and writes the exact sanitized schema",
         "непроверенный CSV в bounded probe фиксирует отказ без ложной пустой страницы"
       ],
       "original_sha256": "df24d16be39c5e762dd09e8167a100ff6a5564cf64ce0f5c172c40e723f2fa56",
-      "harness_correction": "P4.1 D24: fresh HTTP response per request because the reader closes each stream; HTML without Content-Type has precise reason invalid_csv_header. Both scenario names and all request/page/stop/verdict/sanitization assertions retained."
+      "harness_correction": "P4.1 D24: fresh HTTP response per request because the reader closes each stream; HTML without Content-Type has precise reason invalid_csv_header. Both scenario names and all request/page/stop/verdict/sanitization assertions retained.",
+      "original_path": "tests/Feature/Console/VerifyFreshBoundaryTest.php",
+      "change_reason": "P4.2 mechanical namespace/import/fixture path move; scenario names and assertions preserved."
     },
     {
       "path": "tests/Feature/Crawler/ArchiveRunProcessorTest.php",
@@ -605,7 +613,7 @@
     },
     {
       "path": "tests/Feature/Crawler/ArchiveWindowScannerTest.php",
-      "sha256": "67e406ddeb254db05d05e614366db06df6923b71ae0e7387f87b0e06086557f0",
+      "sha256": "776cd360ab855def7e46e2eaea4de175f01fac5f8b5415820366888651e9efed",
       "scenarios": [
         "окно дренируется на частичном блоке, стек опустошён",
         "cap по повтору dedup_signature делит интервал пополам, обе половины дренируются",
@@ -616,7 +624,10 @@
         "отказ блока сохраняет интервал и курсор, инцидент записан вне транзакции",
         "системный отказ в archive: курсор остаётся на блоке, прогон на паузе источника",
         "ошибка записи блока откатывает транзакцию и сохраняет курсор, прежние данные целы"
-      ]
+      ],
+      "original_path": "tests/Feature/Crawler/ArchiveWindowScannerTest.php",
+      "original_sha256": "67e406ddeb254db05d05e614366db06df6923b71ae0e7387f87b0e06086557f0",
+      "change_reason": "P4.2 mechanical namespace/import/fixture path move; scenario names and assertions preserved."
     },
     {
       "path": "tests/Feature/Crawler/AuditReliabilityRegressionTest.php",
@@ -633,7 +644,7 @@
     },
     {
       "path": "tests/Feature/Crawler/AuditRemediationTest.php",
-      "sha256": "b8802ab121b995eecd0467070aa140cee74d8a52994c846e5f735a04c8982675",
+      "sha256": "8e849a1202f28aae57958e6e90863c918e5e410bea07411e78a46c42aa903426",
       "scenarios": [
         "распакованное тело ограничено фактическими байтами и поток закрывается после отказа",
         "просроченный deadline закрывает тело до его чтения",
@@ -660,11 +671,14 @@
         "backfill различает диски HTML карточек и CSV листинга",
         "HTTP 200 с ошибкой схемы не обновляет время успешного блока",
         "более новый source day сохраняет время собственного HTTP снимка"
-      ]
+      ],
+      "original_path": "tests/Feature/Crawler/AuditRemediationTest.php",
+      "original_sha256": "b8802ab121b995eecd0467070aa140cee74d8a52994c846e5f735a04c8982675",
+      "change_reason": "P4.2 mechanical namespace/import/fixture path move; scenario names and assertions preserved."
     },
     {
       "path": "tests/Feature/Crawler/BacklogRescanProcessorTest.php",
-      "sha256": "e712c6c5f1ff3f10abdd1d2893b681778fd5a6179ac42ebee02134f9b972b4dd",
+      "sha256": "6fd0406889a354b860d0edee892d87d2f733adba7e087425f50819047a71ec87",
       "scenarios": [
         "cap_hit с живым archive-профилем реестра — scan вызван по update-окну, флаг помечен",
         "backlog использует scope из fresh-run, если профиль изменили после cap_hit",
@@ -679,7 +693,10 @@
         "стоп-сигнал Pause между днями останавливает рескан целиком, fresh-прогон не помечается rescanned",
         "стоп-сигнал Cancel между днями останавливает рескан целиком, fresh-прогон не помечается rescanned",
         "источник бросает — archive-run ждёт на текущем блоке, backlog не помечен обработанным"
-      ]
+      ],
+      "original_path": "tests/Feature/Crawler/BacklogRescanProcessorTest.php",
+      "original_sha256": "e712c6c5f1ff3f10abdd1d2893b681778fd5a6179ac42ebee02134f9b972b4dd",
+      "change_reason": "P4.2 mechanical namespace/import/fixture path move; scenario names and assertions preserved."
     },
     {
       "path": "tests/Feature/Crawler/BudgetExhaustionTest.php",
@@ -695,7 +712,7 @@
     },
     {
       "path": "tests/Feature/Crawler/CardCollectDetailsTest.php",
-      "sha256": "2cd90c422113c6fbe8bd7fd876526c0b7281d3e46178d02830529445de432bc8",
+      "sha256": "d6f1018b7ad2aba778ce34d050f69e5ace32ec698ad90b83f941c61e5a22e1ee",
       "scenarios": [
         "таймаут карточки сохраняет числовые фазы транспорта без URL и credentials",
         "collectDetails отправляет карточный URL с query-строкой regNumber, а не голый endpoint (Д-8)",
@@ -707,7 +724,10 @@
         "collectDetails бросает исключение при отсутствии URL-шаблона для типа процедуры",
         "collectDetails у типа без вкладки supplier-results (маркер null, D121) снимает три вкладки без исключения",
         "collectDetails без активной proxy-привязки идёт напрямую и пишет это в лог"
-      ]
+      ],
+      "original_path": "tests/Feature/Crawler/CardCollectDetailsTest.php",
+      "original_sha256": "2cd90c422113c6fbe8bd7fd876526c0b7281d3e46178d02830529445de432bc8",
+      "change_reason": "P4.2 mechanical namespace/import/fixture path move; scenario names and assertions preserved."
     },
     {
       "path": "tests/Feature/Crawler/ChangeTrackingWindowTest.php",
@@ -718,7 +738,7 @@
     },
     {
       "path": "tests/Feature/Crawler/CrawlerFilterContractTest.php",
-      "sha256": "d4641fae1ed8d674dfe7b6f14b0c14dce63f5a41934dc3408b022d30c622a501",
+      "sha256": "73828649d05a87b9822e812a927e8a7b5806f1590a043dd012d2c457cf927c8d",
       "scenarios": [
         "filter профиля читается типизированным объектом, а не мешком ключей",
         "filter хранится прежним jsonb — в БД лежат ключи контракта, а не сериализованный объект",
@@ -736,7 +756,10 @@
         "EisSearchFilter отдаёт окно archive-прогона через контракт HasArchiveWindow (P3.8, D113)",
         "без заполненных дат archiveWindowFrom/To отдают null",
         "publishedTo раньше publishedFrom отклоняется валидацией на сохранении профиля (P3.8, D113)"
-      ]
+      ],
+      "original_path": "tests/Feature/Crawler/CrawlerFilterContractTest.php",
+      "original_sha256": "d4641fae1ed8d674dfe7b6f14b0c14dce63f5a41934dc3408b022d30c622a501",
+      "change_reason": "P4.2 mechanical namespace/import/fixture path move; scenario names and assertions preserved."
     },
     {
       "path": "tests/Feature/Crawler/CrawlerProxySettingsStorageTest.php",
@@ -802,7 +825,7 @@
     },
     {
       "path": "tests/Feature/Crawler/CrawlRunJobTest.php",
-      "sha256": "da2b957da315ad5f9b9a7ae9e85a81c1465d79eb8ad283e0d6096e0c9bd5ea14",
+      "sha256": "577bd2d960a9358db90d0cde97f83467d5b952f1952417878213c7ac68895295",
       "scenarios": [
         "job резолвит fresh-режим и вызывает FreshRunProcessor",
         "job резолвит archive-режим и вызывает ArchiveRunProcessor за окно from/to",
@@ -819,7 +842,10 @@
         "сигнал Pause останавливает fresh-прогон между блоками с сохранённым курсором и stats.stop_reason",
         "сигнал Cancel даёт cancelled прогону",
         "uniqueFor CrawlRunJob задаёт TTL unique-лока — без него SETNX на Redis держит лок вечно"
-      ]
+      ],
+      "original_path": "tests/Feature/Crawler/CrawlRunJobTest.php",
+      "original_sha256": "da2b957da315ad5f9b9a7ae9e85a81c1465d79eb8ad283e0d6096e0c9bd5ea14",
+      "change_reason": "P4.2 mechanical namespace/import/fixture path move; scenario names and assertions preserved."
     },
     {
       "path": "tests/Feature/Crawler/CsvBlockIngestorTest.php",
@@ -846,7 +872,7 @@
     },
     {
       "path": "tests/Feature/Crawler/CsvSourceMethodTest.php",
-      "sha256": "2b034439b6fd0c89d17422303b37091eca7aed1668ce8a444ced7b5000e611de",
+      "sha256": "d95d13fefd2b23eb632a50f3836bd1ae8fef9ecf57d0e0c26c40e01485415fd1",
       "scenarios": [
         "истёкший deadline листинга запрещает новый HTTP-запрос",
         "collectListing конвертирует win1251-тело в UTF-8 и строит ListingBatch по фикстуре",
@@ -867,11 +893,14 @@
         "обратный слэш в конце поля не склеивает соседние поля",
         "битая запись учитывается в rowsTotal, чтобы неполный блок не считался последним",
         "лимиты bytes records и field останавливают fresh без продвижения курсора"
-      ]
+      ],
+      "original_path": "tests/Feature/Crawler/CsvSourceMethodTest.php",
+      "original_sha256": "2b034439b6fd0c89d17422303b37091eca7aed1668ce8a444ced7b5000e611de",
+      "change_reason": "P4.2 mechanical namespace/import/fixture path move; scenario names and assertions preserved."
     },
     {
       "path": "tests/Feature/Crawler/DeltaScanTest.php",
-      "sha256": "6ee672e164521013e6585fc69578f43b0d0c293d5242730c27a6d9a00a33e3e7",
+      "sha256": "58037c6c1895ca9b6d183cc5c0073aee9a408ebe47af0966084318c38e6df04a",
       "scenarios": [
         "нет активного archive-профиля реестра — warning, run не создаётся",
         "чужой running archive-прогон даёт busy без сканирования и completion",
@@ -881,11 +910,14 @@
         "активный archive-профиль реестра — дренирует окно [сегодня − overlap; сегодня] по update, run завершён",
         "стоп-сигнал Pause между днями останавливает delta-scan целиком, следующий день не обходится",
         "стоп-сигнал Cancel между днями останавливает delta-scan целиком, статус терминален"
-      ]
+      ],
+      "original_path": "tests/Feature/Crawler/DeltaScanTest.php",
+      "original_sha256": "6ee672e164521013e6585fc69578f43b0d0c293d5242730c27a6d9a00a33e3e7",
+      "change_reason": "P4.2 mechanical namespace/import/fixture path move; scenario names and assertions preserved."
     },
     {
       "path": "tests/Feature/Crawler/DetailAnalysisProcessorTest.php",
-      "sha256": "b99d8a55d37c350c2ff5f51af399b59114b9109fc5f0065dbd7808699c65a200",
+      "sha256": "a9bbd63764168634a3d111203d3c10c623fd67c4b4ecb76b8dc85feb5e2f9208",
       "scenarios": [
         "supplier-results mismatch остаётся retryable и следующий полный проход сходится",
         "неполные стороны оставляют карточку retryable до подтверждённого полного повтора",
@@ -903,7 +935,10 @@
         "этап карточек в ожидании — карточка не запрашивается и остаётся в очереди; листинг не затронут",
         "отказ скачивания карточки учитывается брейкером этапа карточек, карточка — в штатный повтор",
         "ошибка нашего кода при обработке карточки: брейкер не считает, событие ERROR, карточка в штатный повтор"
-      ]
+      ],
+      "original_path": "tests/Feature/Crawler/DetailAnalysisProcessorTest.php",
+      "original_sha256": "b99d8a55d37c350c2ff5f51af399b59114b9109fc5f0065dbd7808699c65a200",
+      "change_reason": "P4.2 mechanical namespace/import/fixture path move; scenario names and assertions preserved."
     },
     {
       "path": "tests/Feature/Crawler/DetailDispatcherTest.php",
@@ -915,7 +950,7 @@
     },
     {
       "path": "tests/Feature/Crawler/EisCardUrlBuilderTest.php",
-      "sha256": "8e3582eb0da1fb9778e3c7e4456138caefa304380612a16743f3418d9cf9f0cf",
+      "sha256": "e6311810cc30ecc620e8f465979aca0857e16c81024b3b334758c1f3d65f321d",
       "scenarios": [
         "resolveProcedureUrlType резолвит СЫРУЮ метку способа закупки в сегмент URL по settings.procedure_url_types (П-8)",
         "resolveProcedureUrlType бросает исключение при отсутствии маппинга типа процедуры",
@@ -924,11 +959,14 @@
         "buildUrl бросает исключение при отсутствии шаблона для типа+вкладки",
         "buildUrl возвращает null для явного маркера «вкладки нет по природе» (D121), а не бросает исключение",
         "buildUrl различает маркер null и отсутствующий ключ — отсутствие ключа остаётся ошибкой конфигурации (D121)"
-      ]
+      ],
+      "original_path": "tests/Feature/Crawler/EisCardUrlBuilderTest.php",
+      "original_sha256": "8e3582eb0da1fb9778e3c7e4456138caefa304380612a16743f3418d9cf9f0cf",
+      "change_reason": "P4.2 mechanical namespace/import/fixture path move; scenario names and assertions preserved."
     },
     {
       "path": "tests/Feature/Crawler/EisCsvUrlBuilderTest.php",
-      "sha256": "3a536b94c6368c0ccadc79ecaf0ab339ddd5367b2794a53233b73c5951839ced",
+      "sha256": "1c4049e8779763a59292d334b78feaf3011b8e8f8a0714682782cf32faba295d",
       "scenarios": [
         "buildQueryParams переводит поля типизированного фильтра в параметры ЕИС и добавляет from/to/sort",
         "buildQueryParams не эмитит ключ выключенного этапа и незаполненного поля",
@@ -953,11 +991,14 @@
         "buildQueryParams переводит sortAscending профиля в sortDirection для обоих направлений (инверсия)",
         "buildQueryParams профиль без поля сортировки даёт прежнюю пару sortBy/sortDirection",
         "buildQueryParams archive-курсор перекрывает sortDirection профиля безусловно"
-      ]
+      ],
+      "original_path": "tests/Feature/Crawler/EisCsvUrlBuilderTest.php",
+      "original_sha256": "3a536b94c6368c0ccadc79ecaf0ab339ddd5367b2794a53233b73c5951839ced",
+      "change_reason": "P4.2 mechanical namespace/import/fixture path move; scenario names and assertions preserved."
     },
     {
       "path": "tests/Feature/Crawler/EisListingReliabilityTest.php",
-      "sha256": "bb2209f961fb3fdbca63c51fe82b3ca044ff70952f639e59e52137125d409378",
+      "sha256": "49b81dadfd759e22b93ebe56e9e646363849da4d2c6f92c1801e2f7565f82adb",
       "scenarios": [
         "невалидный ответ сохраняет raw evidence и не дренирует день",
         "валидный header-only CSV дренирует пустой день",
@@ -970,21 +1011,27 @@
         "журнал попыток сохраняет стабильную идентичность и enum без transport secrets",
         "исчерпание сети ограничено пятью попытками и не раскрывает исходный transport error",
         "HTML content type отклоняет даже тело с формально правильным CSV заголовком"
-      ]
+      ],
+      "original_path": "tests/Feature/Crawler/EisListingReliabilityTest.php",
+      "original_sha256": "bb2209f961fb3fdbca63c51fe82b3ca044ff70952f639e59e52137125d409378",
+      "change_reason": "P4.2 mechanical namespace/import/fixture path move; scenario names and assertions preserved."
     },
     {
       "path": "tests/Feature/Crawler/FetchProcurementDetailJobTest.php",
-      "sha256": "04f0d9f9ae187e0920281ee98b1b6c32622dbb5a8b677ebf1a2dde7a2e8f76f5",
+      "sha256": "0ee40c1326959c8c85b2af3b204d12377b096fd82c1af5b0af6e9b0677639cb7",
       "scenarios": [
         "job вызывает детальный процессор и мост в pipeline после успеха",
         "job тихо заканчивается при исчерпанном бюджете и не вызывает мост",
         "job стоит на detail-очереди и держит unique-lock по id закупки",
         "worker failure callback учитывает оборванный timeout как доменную detail-попытку"
-      ]
+      ],
+      "original_path": "tests/Feature/Crawler/FetchProcurementDetailJobTest.php",
+      "original_sha256": "04f0d9f9ae187e0920281ee98b1b6c32622dbb5a8b677ebf1a2dde7a2e8f76f5",
+      "change_reason": "P4.2 mechanical namespace/import/fixture path move; scenario names and assertions preserved."
     },
     {
       "path": "tests/Feature/Crawler/FreshRunProcessorTest.php",
-      "sha256": "40e69e34d6288aafe1885fb5be4792ac6e8a086c4d60ff601f9be2734b7b9f97",
+      "sha256": "5a5101d4f9694f784f884038a1bb9e91c7d9151838cdbca99ea10ce547cefb4c",
       "scenarios": [
         "нераспознанный блок сохраняет evidence и курсор для повторной обработки",
         "страница ошибки (403) сохраняет текущий блок и приостанавливает fresh",
@@ -1005,7 +1052,10 @@
         "политика only_fresh без предыдущего завершённого прогона не останавливает — первый скан дренирует как обычно",
         "политика only_fresh: граница «ровно на пороге» останавливает прогон детерминированно",
         "профиль archive с stop_policy=only_fresh не сохраняется"
-      ]
+      ],
+      "original_path": "tests/Feature/Crawler/FreshRunProcessorTest.php",
+      "original_sha256": "40e69e34d6288aafe1885fb5be4792ac6e8a086c4d60ff601f9be2734b7b9f97",
+      "change_reason": "P4.2 mechanical namespace/import/fixture path move; scenario names and assertions preserved."
     },
     {
       "path": "tests/Feature/Crawler/PlatformRequestBudgetTest.php",
@@ -1219,7 +1269,7 @@
     },
     {
       "path": "tests/Feature/Document/DocumentIndexerTest.php",
-      "sha256": "3d09a006de360b5ab343f719a14f18b7457c722e4749ce2367bd7cab5f288f0d",
+      "sha256": "a554e7fda2516ca73d3db90704fc0617c96442f7a9fa808f12f5085da4ad187e",
       "scenarios": [
         "index создаёт документы со статусом discovered",
         "index идемпотентен: повтор не плодит документы и не сбрасывает статус",
@@ -1227,7 +1277,10 @@
         "index помечает removed_at документ, снятый с карточки, и пишет событие document_removed",
         "index не снимает platform attachments при incomplete snapshot",
         "index сохраняет archive child при complete reindex неизменённого platform attachment"
-      ]
+      ],
+      "original_path": "tests/Feature/Document/DocumentIndexerTest.php",
+      "original_sha256": "3d09a006de360b5ab343f719a14f18b7457c722e4749ce2367bd7cab5f288f0d",
+      "change_reason": "P4.2 mechanical namespace/import/fixture path move; scenario names and assertions preserved."
     },
     {
       "path": "tests/Feature/Document/DocumentRevalidationLeaseTest.php",
@@ -1337,7 +1390,7 @@
     },
     {
       "path": "tests/Feature/Filament/CrawlerFormTest.php",
-      "sha256": "3db58cb3648f5b7398d1cacceca4098943e50332723aa0d7ddb3ea1c039d2619",
+      "sha256": "c8b7d500daa57495ff4802411bdb2132b498e5beccd12df55f89dd623e9c9888",
       "scenarios": [
         "сохранение профиля формой даёт типизированный фильтр и обязательные колонки",
         "форма сохраняет long execution lane как профильный enum",
@@ -1352,7 +1405,10 @@
         "форма отклоняет профиль fz44 без выбранного узла ОКПД2",
         "форма сначала сохраняет direct-профиль с привязкой, затем разрешает профильный режим",
         "форма показывает привязки и страну только для профильного режима"
-      ]
+      ],
+      "original_path": "tests/Feature/Filament/CrawlerFormTest.php",
+      "original_sha256": "3db58cb3648f5b7398d1cacceca4098943e50332723aa0d7ddb3ea1c039d2619",
+      "change_reason": "P4.2 mechanical namespace/import/fixture path move; scenario names and assertions preserved."
     },
     {
       "path": "tests/Feature/Filament/CrawlerProxySettingsPageTest.php",
@@ -1365,7 +1421,7 @@
     },
     {
       "path": "tests/Feature/Filament/CrawlerRunActionsTest.php",
-      "sha256": "14a32ce5cea5ba7e140885d21fcdba652e552e05b34899eb9fe3ebc3b386174e",
+      "sha256": "0893bd78f5fdae5c004ef1aa3b14680c55d26c4fcab94fc209e93d56a82f5a46",
       "scenarios": [
         "оператор видит «Запустить» на профиле без активного и приостановленного прогона",
         "«Запустить» ставит CrawlRunJob(mode: профиля) в очередь",
@@ -1384,7 +1440,10 @@
         "archive-профиль БЕЗ окна: «Запустить» отказывает, job не поставлен и прогон не создан",
         "archive-профиль с окном: «Остановить» пишет запрос кооперативной остановки",
         "archive-профиль с окном: «Отменить» пишет запрос кооперативной остановки"
-      ]
+      ],
+      "original_path": "tests/Feature/Filament/CrawlerRunActionsTest.php",
+      "original_sha256": "14a32ce5cea5ba7e140885d21fcdba652e552e05b34899eb9fe3ebc3b386174e",
+      "change_reason": "P4.2 mechanical namespace/import/fixture path move; scenario names and assertions preserved."
     },
     {
       "path": "tests/Feature/Filament/CrawlerRunHistoryTest.php",
@@ -1739,7 +1798,7 @@
     },
     {
       "path": "tests/Feature/Health/ListingFilterCheckTest.php",
-      "sha256": "2c8027edbfa34becb12ed6c1f1697f27d12d03e18ac3f811fde7a0284bbdf539",
+      "sha256": "17125ff7ead6d9a6d59a10917f235b52e2f54fd60dd8d667d8b87b3bb0839188",
       "scenarios": [
         "проверка подтверждает действие ОКПД2 и отправляет два запроса боевым путём",
         "проверка считает совпавшие множества реестровых номеров поломкой фильтра",
@@ -1748,7 +1807,10 @@
         "проверка называет недоступность прокси недостатком данных",
         "проверка называет сетевой отказ недостатком данных",
         "проверка не повторяет ответ площадки и не делает третий запрос"
-      ]
+      ],
+      "original_path": "tests/Feature/Health/ListingFilterCheckTest.php",
+      "original_sha256": "2c8027edbfa34becb12ed6c1f1697f27d12d03e18ac3f811fde7a0284bbdf539",
+      "change_reason": "P4.2 mechanical namespace/import/fixture path move; scenario names and assertions preserved."
     },
     {
       "path": "tests/Feature/Health/ListingShapeCheckTest.php",
@@ -1991,7 +2053,7 @@
     },
     {
       "path": "tests/Feature/Organization/OrganizationPartiesProcessorTest.php",
-      "sha256": "2f7b468e12f84a02e0e6af38fc355b0865cbf7e128cf9c1204bc1f9d1b1464b3",
+      "sha256": "a2bd2e0e8e1f31045b3e9e3abcde05d255f3b26152ca86f897c8e9916acfba00",
       "scenarios": [
         "process резолвит одну организацию в двух ролях в один org_organizations + 2 pivot",
         "process проставляет customer_org_id из роли customer",
@@ -2000,7 +2062,10 @@
         "process удаляет отсутствующие роли и очищает customer при complete empty set",
         "повтор реального common-info без ИНН идемпотентен и сохраняет роли других вкладок",
         "несколько заказчиков остаются в ролях без произвольного выбора customer_org_id"
-      ]
+      ],
+      "original_path": "tests/Feature/Organization/OrganizationPartiesProcessorTest.php",
+      "original_sha256": "2f7b468e12f84a02e0e6af38fc355b0865cbf7e128cf9c1204bc1f9d1b1464b3",
+      "change_reason": "P4.2 mechanical namespace/import/fixture path move; scenario names and assertions preserved."
     },
     {
       "path": "tests/Feature/Organization/OrganizationResolverTest.php",
@@ -2197,7 +2262,7 @@
     },
     {
       "path": "tests/Feature/Procurement/CommonInfoProcessorTest.php",
-      "sha256": "82ea77c6f7c75899a06e9d4d94e143d3148d397a42f62c2cfdb2462e1761e97f",
+      "sha256": "8f5af0618c7c8d0fddcbb84d0093b21d9ce489ce10eafbe39b79b827b5df96ec",
       "scenarios": [
         "неполная январская проекция сторон сохраняет существующие организации и роли",
         "process создаёт eis_details/financing/items из разобранных данных вкладки (реальная вкладка common-info, P4.14)",
@@ -2212,7 +2277,10 @@
         "incomplete snapshot не меняет current sets",
         "complete parties reconcile независимо от incomplete common-info",
         "ошибка после item sync откатывает common, financing, items и parties вместе"
-      ]
+      ],
+      "original_path": "tests/Feature/Procurement/CommonInfoProcessorTest.php",
+      "original_sha256": "82ea77c6f7c75899a06e9d4d94e143d3148d397a42f62c2cfdb2462e1761e97f",
+      "change_reason": "P4.2 mechanical namespace/import/fixture path move; scenario names and assertions preserved."
     },
     {
       "path": "tests/Feature/Procurement/ContourTest.php",
@@ -2235,11 +2303,14 @@
     },
     {
       "path": "tests/Feature/Procurement/DetailLayerTest.php",
-      "sha256": "6b51cb73d91113066232946e1c3b7d1b593d14025faa7fe2fc6c21d9f5d451b7",
+      "sha256": "7636b5f57bb6b361a403a781181b69ecd2b89c4e2f80a1511c9157df209bb11c",
       "scenarios": [
         "снятие детального слоя заполняет items/financing/eis_details/parties и проставляет detail_fetched_at",
         "провал детальной карточки помечает detail_next_retry_at/detail_failed для ретрая по detail_fetched_at IS NULL"
-      ]
+      ],
+      "original_path": "tests/Feature/Procurement/DetailLayerTest.php",
+      "original_sha256": "6b51cb73d91113066232946e1c3b7d1b593d14025faa7fe2fc6c21d9f5d451b7",
+      "change_reason": "P4.2 mechanical namespace/import/fixture path move; scenario names and assertions preserved."
     },
     {
       "path": "tests/Feature/Procurement/DetailRefetchSelectorTest.php",
@@ -2296,12 +2367,15 @@
     },
     {
       "path": "tests/Feature/Procurement/EventJournalProcessorTest.php",
-      "sha256": "5d52aa78515f0fd0e6854602c973b9ba9255b05ef73cb48fe3ef1147440b66c7",
+      "sha256": "e3aa467c5546d04dea35d74334e7e15a7836cbeefb5e0ba9442eb6d04b9bc1b9",
       "scenarios": [
         "process создаёт prc_events из распознанных строк журнала и пропускает нераспознанные",
         "повторный process идемпотентен — события не задваиваются",
         "январская карточка сохраняет декабрьское событие без переноса даты и повторных записей"
-      ]
+      ],
+      "original_path": "tests/Feature/Procurement/EventJournalProcessorTest.php",
+      "original_sha256": "5d52aa78515f0fd0e6854602c973b9ba9255b05ef73cb48fe3ef1147440b66c7",
+      "change_reason": "P4.2 mechanical namespace/import/fixture path move; scenario names and assertions preserved."
     },
     {
       "path": "tests/Feature/Procurement/Gold/FormProfileReaderTest.php",
@@ -2540,14 +2614,17 @@
     },
     {
       "path": "tests/Feature/Procurement/Prepare/ArchivePipelineTest.php",
-      "sha256": "1b9faf96d75b82614e4ea47dad8387c2cceb4924006eacd3ff14cab21838fff6",
+      "sha256": "338714441d28e6907d08d6e720c2eddf54ca6549b00965088bdcd9ac3e5e17c9",
       "scenarios": [
         "архив создаёт children, каждый проходит обычную подготовку, а parent не скрининг",
         "retry архива сохраняет одну logical child на parent и path",
         "complete platform reindex не снимает child, созданный ExpandArchiveEntryAction",
         "concurrent archive entry materialization создаёт одну logical child и одно событие",
         "hostile archive завершается без children, events и follow-up jobs"
-      ]
+      ],
+      "original_path": "tests/Feature/Procurement/Prepare/ArchivePipelineTest.php",
+      "original_sha256": "1b9faf96d75b82614e4ea47dad8387c2cceb4924006eacd3ff14cab21838fff6",
+      "change_reason": "P4.2 mechanical namespace/import/fixture path move; scenario names and assertions preserved."
     },
     {
       "path": "tests/Feature/Procurement/Prepare/ArchiveStrategyTest.php",
@@ -2776,7 +2853,7 @@
     },
     {
       "path": "tests/Feature/Procurement/RevisionTest.php",
-      "sha256": "de014b47534acb80a84ac523eef6829bd94775910524e719898e70756308e4e1",
+      "sha256": "bb81b2d2463845dcf1ef7efb76b42d18b02345606e9c7175d5ecaa08a7b7e152",
       "scenarios": [
         "изменение цены и статуса создаёт новую ревизию и события price_changed/status_changed",
         "повторный инжест идентичного CSV-снапшота ЕИС не создаёт вторую ревизию и событие (Д-1)",
@@ -2784,7 +2861,10 @@
         "снапшот старше текущей головы не создаёт ревизию-откат и не меняет голову",
         "дата с точностью до суток того же дня не считается устаревшей",
         "снимок с точностью до суток старше головы через полночь МСК игнорируется (граница поясов)"
-      ]
+      ],
+      "original_path": "tests/Feature/Procurement/RevisionTest.php",
+      "original_sha256": "de014b47534acb80a84ac523eef6829bd94775910524e719898e70756308e4e1",
+      "change_reason": "P4.2 mechanical namespace/import/fixture path move; scenario names and assertions preserved."
     },
     {
       "path": "tests/Feature/Procurement/Screening/ScreeningBranchingTest.php",
@@ -2873,18 +2953,21 @@
     },
     {
       "path": "tests/Feature/Procurement/SupplierResultsProcessorTest.php",
-      "sha256": "cb77a8e6340393264c7de5020e10a5e94c546a087ec2a62e6eeb818e85254e84",
+      "sha256": "3cbe2bf0d9dc2838164fdf373b9dab2b22f76280026fa805d3fe174e7ca616e5",
       "scenarios": [
         "process сохраняет протокол, анонимную заявку и award из живой success-фикстуры",
         "повторный process живой success-фикстуры не задваивает данные и события",
         "идентифицируемый победитель монотонно обогащает ранее анонимный award",
         "анонимный повторный разбор не стирает уже известного победителя",
         "process не создаёт ничего для пустой вкладки"
-      ]
+      ],
+      "original_path": "tests/Feature/Procurement/SupplierResultsProcessorTest.php",
+      "original_sha256": "cb77a8e6340393264c7de5020e10a5e94c546a087ec2a62e6eeb818e85254e84",
+      "change_reason": "P4.2 mechanical namespace/import/fixture path move; scenario names and assertions preserved."
     },
     {
       "path": "tests/Feature/Procurement/SyncOkpd2NodesTest.php",
-      "sha256": "2082ac243a9c229a5c0900b9b55966ef512fa06fefffa9491ed228812f33f3f4",
+      "sha256": "b72ca914abd90b60316aeb5e03b09ec79e0c9973d8635f1d27619239e8b40746",
       "scenarios": [
         "обход собирает узлы поддерева и пишет их в карту с synced_at",
         "сменившийся external_id кода активного профиля даёт ненулевой код возврата",
@@ -2892,7 +2975,10 @@
         "--dry-run отчитывается, но в таблицу не пишет",
         "потолок запросов останавливает обход, а остаток виден в отчёте",
         "узел, не пришедший с площадки, из таблицы не удаляется, а называется в отчёте"
-      ]
+      ],
+      "original_path": "tests/Feature/Procurement/SyncOkpd2NodesTest.php",
+      "original_sha256": "2082ac243a9c229a5c0900b9b55966ef512fa06fefffa9491ed228812f33f3f4",
+      "change_reason": "P4.2 mechanical namespace/import/fixture path move; scenario names and assertions preserved."
     },
     {
       "path": "tests/Feature/Reference/ClassifierResolverTest.php",
@@ -2927,7 +3013,7 @@
     },
     {
       "path": "tests/Feature/Seeders/EisJanuary2025AuditSeederTest.php",
-      "sha256": "660c4387f0eafbc6ce4b0b9dd20fbdc8016350223b41a9d0bee5af3b6c870e48",
+      "sha256": "8ba22c9a8c21290bf3e966edc4099d66b9056b7f5a90bcb221439b0d994e4fc4",
       "scenarios": [
         "сид прокси декодирует реквизиты и разрешает только CSV листинг",
         "повторный сид обновляет пароль существующего прокси без дубля",
@@ -2935,11 +3021,14 @@
         "повторный январский сид сохраняет идентификаторы и единственную привязку",
         "активный прогон запрещает перезапись январского профиля",
         "сид прокси отвергает неподдерживаемую схему до записи в БД"
-      ]
+      ],
+      "original_path": "tests/Feature/Seeders/EisJanuary2025AuditSeederTest.php",
+      "original_sha256": "660c4387f0eafbc6ce4b0b9dd20fbdc8016350223b41a9d0bee5af3b6c870e48",
+      "change_reason": "P4.2 mechanical namespace/import/fixture path move; scenario names and assertions preserved."
     },
     {
       "path": "tests/Feature/Seeders/EisSeedersTest.php",
-      "sha256": "311fcad409f65c497cf668b09dc38423288eb13ffac9ceedfdf617f02b01d453",
+      "sha256": "951e9b0b1cc96769f9832010772adf46d93aaf251e0c342f7f84822916493b41",
       "scenarios": [
         "сид заводит площадку ЕИС и реестр fz44 с настройками карточки",
         "повторный прогон сида площадки идемпотентен — без дублей и ротации UUID реестра",
@@ -2952,7 +3041,10 @@
         "сид профилей резолвит реестр fz44 СВОЕЙ площадки eis, а не чужой",
         "архивный профиль из сида даёт ожидаемый боевой URL выгрузки",
         "сидовый архивный профиль не передаёт окно публикации в sweep по дате обновления"
-      ]
+      ],
+      "original_path": "tests/Feature/Seeders/EisSeedersTest.php",
+      "original_sha256": "311fcad409f65c497cf668b09dc38423288eb13ffac9ceedfdf617f02b01d453",
+      "change_reason": "P4.2 mechanical namespace/import/fixture path move; scenario names and assertions preserved."
     },
     {
       "path": "tests/Feature/Storage/DiskBackfillTest.php",
@@ -3051,15 +3143,21 @@
     },
     {
       "path": "tests/Support/Doubles/Crawler/CardHtmlFixture.php",
-      "sha256": "3d10e0da14595b1696cb8d76071abcca41327ea0e79e4ec60a0ded993d0fd429"
+      "sha256": "caf4601a5405a5e32dca880232b32b101073d0992e83bbacd6dce476941f675f",
+      "original_path": "tests/Support/Doubles/Crawler/CardHtmlFixture.php",
+      "original_sha256": "3d10e0da14595b1696cb8d76071abcca41327ea0e79e4ec60a0ded993d0fd429",
+      "change_reason": "P4.2 mechanical namespace/import/fixture path move; scenario names and assertions preserved."
     },
     {
       "path": "tests/Support/Doubles/Crawler/CrawlerWithRegistry.php",
       "sha256": "a904d68a7b9407d2e921210cc56201deea4b4f4d42837be424b81a7f8de09424"
     },
     {
-      "path": "tests/Support/Doubles/Crawler/EisCsvFixture.php",
-      "sha256": "e520c72b638a53ad73fe98a36b3c38c513d3069413db5b55bf2670b5c140b751"
+      "path": "tests/Support/Platforms/Eis/EisCsvFixture.php",
+      "sha256": "a559b9ddfc8fe0ec9f087a45224ac6e14eac24c977afc1c83e29c6de1de0a0eb",
+      "original_path": "tests/Support/Doubles/Crawler/EisCsvFixture.php",
+      "original_sha256": "e520c72b638a53ad73fe98a36b3c38c513d3069413db5b55bf2670b5c140b751",
+      "change_reason": "P4.2 mechanical namespace/import/fixture path move; scenario names and assertions preserved."
     },
     {
       "path": "tests/Support/Doubles/Crawler/FakeAvailableSourceMethod.php",
@@ -3163,12 +3261,15 @@
     },
     {
       "path": "tests/Unit/Architecture/DomainLayoutTest.php",
-      "sha256": "01928226c2909b569254785ae9c2f297a44833f7abc076b249cb04637864f381",
+      "sha256": "35d21685bfc5bdb4a3337e31678c179b95c8e61682c5493f838cca0f8d587cd8",
       "scenarios": [
         "в корне выровненных слоёв раскладки нет файлов сверх реестра root-legal классов",
         "namespace каждого файла выровненных слоёв совпадает с его путём",
         "подкаталоги выровненных слоёв принадлежат утверждённому множеству подобластей"
-      ]
+      ],
+      "original_path": "tests/Unit/Architecture/DomainLayoutTest.php",
+      "original_sha256": "01928226c2909b569254785ae9c2f297a44833f7abc076b249cb04637864f381",
+      "change_reason": "P4.2 architecture assertions updated for the Platforms roots; original scenario names preserved."
     },
     {
       "path": "tests/Unit/Architecture/HistoryModulePlatformAgnosticTest.php",
@@ -3187,11 +3288,14 @@
     },
     {
       "path": "tests/Unit/Architecture/PlatformExtensionContractTest.php",
-      "sha256": "518553fdd730edc8e4913c7005d619cefc69cb718cbf6da48975504f1f906700",
+      "sha256": "aae81252b0d2766f60e3011e6312474b0eb549822fc9f6ac84f5a8ff6e41e482",
       "scenarios": [
         "source-specific literals разрешены только в exact adapter, descriptor, config и seed boundary",
         "forbidden-core fixture не проходит exact source-literal allowlist"
-      ]
+      ],
+      "original_path": "tests/Unit/Architecture/PlatformExtensionContractTest.php",
+      "original_sha256": "518553fdd730edc8e4913c7005d619cefc69cb718cbf6da48975504f1f906700",
+      "change_reason": "P4.2 architecture assertions updated for the Platforms roots; original scenario names preserved."
     },
     {
       "path": "tests/Unit/Architecture/ScreeningContractTest.php",
@@ -3212,8 +3316,8 @@
       ]
     },
     {
-      "path": "tests/Unit/Crawler/CommonInfoParserTest.php",
-      "sha256": "ea6aade40e66e288e53a4fbe02e2ace7e712ccae9367b0c832864fed3d6b8869",
+      "path": "tests/Unit/Platforms/Eis/Card/CommonInfoParserTest.php",
+      "sha256": "4d2b73018d6c8571a9d903b7953098408c46a69447ac117cf54d65f919dc0265",
       "scenarios": [
         "parse разбирает ИКЗ на 8 разрядов по вычисленной раскладке (реальная вкладка common-info, P4.14)",
         "parse разбирает площадку и контактное лицо из раздельных section (не общий dd со ссылкой)",
@@ -3230,7 +3334,10 @@
         "служебные строки не сдвигают номера следующих позиций без явного номера",
         "заявленный источником итог не позволяет принять пропущенную позицию за полный snapshot",
         "повреждённая строка позиции не становится допустимой служебной строкой"
-      ]
+      ],
+      "original_path": "tests/Unit/Crawler/CommonInfoParserTest.php",
+      "original_sha256": "ea6aade40e66e288e53a4fbe02e2ace7e712ccae9367b0c832864fed3d6b8869",
+      "change_reason": "P4.2 mechanical namespace/import/fixture path move; scenario names and assertions preserved."
     },
     {
       "path": "tests/Unit/Crawler/CrawlSettingsResolverTest.php",
@@ -3244,8 +3351,8 @@
       ]
     },
     {
-      "path": "tests/Unit/Crawler/DocumentsParserTest.php",
-      "sha256": "5970498bfa03a6460e5b223a1b25d99e866a896c667ff690033ecb84e1cfbee0",
+      "path": "tests/Unit/Platforms/Eis/Card/DocumentsParserTest.php",
+      "sha256": "206c4e37c6d9a3e37f3ce383310430f78e6006baca92b4fd1cfe5182546be553",
       "scenarios": [
         "parse разбирает документы вкладки documents с external_id из ссылки filestore на реальной вёрстке",
         "parse пропускает строку без файла-ссылки",
@@ -3253,20 +3360,26 @@
         "parse помечает selector drift с нераспознанными filestore ссылками как incomplete",
         "parse считает пустой подтверждённый контейнер complete snapshot",
         "parse отклоняет абсолютную ссылку вне allowlist как failed snapshot"
-      ]
+      ],
+      "original_path": "tests/Unit/Crawler/DocumentsParserTest.php",
+      "original_sha256": "5970498bfa03a6460e5b223a1b25d99e866a896c667ff690033ecb84e1cfbee0",
+      "change_reason": "P4.2 mechanical namespace/import/fixture path move; scenario names and assertions preserved."
     },
     {
-      "path": "tests/Unit/Crawler/EisCsvParserTest.php",
-      "sha256": "78f8d4740654e592574374715a032503e624d855b71ce6ce37368dd790dd8d7d",
+      "path": "tests/Unit/Platforms/Eis/Csv/EisCsvParserTest.php",
+      "sha256": "a8c988551d0cb903bc1a84c2b29c215d7794953857932b48f453dbc982d5f772",
       "scenarios": [
         "потоковый CSV сохраняет 500 записей, CR/LF, разделители и экранированные кавычки",
         "валидный CSV только с заголовком означает пустую выдачу",
         "повреждённая структура CSV не превращается в неполную или пустую выдачу"
-      ]
+      ],
+      "original_path": "tests/Unit/Crawler/EisCsvParserTest.php",
+      "original_sha256": "78f8d4740654e592574374715a032503e624d855b71ce6ce37368dd790dd8d7d",
+      "change_reason": "P4.2 mechanical namespace/import/fixture path move; scenario names and assertions preserved."
     },
     {
       "path": "tests/Unit/Crawler/EisCsvRowMapperTest.php",
-      "sha256": "59d8952d3a0aa08c89b7a9a8d13e9b06d146370b449586a3fb7e2c5cadb0c6bb",
+      "sha256": "2469a164aa9288b17ebe6d0061d10076513fcc9bf894cfb4aed06669114eb210",
       "scenarios": [
         "44-ФЗ способ закупки из закрытой карты маппится в procedure_type enum",
         "223-ФЗ способ закупки остаётся свободным текстом без procedure_type",
@@ -3281,28 +3394,37 @@
         "отсутствующая дата обновления вызывает ошибку обязательного поля",
         "префикс «№» перед реестровым номером снимается (живая проба P4.9 — 500/500 строк блока несут его)",
         "реальная фикстура: initial_price/customer_name/procedure_type_raw непусты, registry_number без префикса «№»"
-      ]
+      ],
+      "original_path": "tests/Unit/Crawler/EisCsvRowMapperTest.php",
+      "original_sha256": "59d8952d3a0aa08c89b7a9a8d13e9b06d146370b449586a3fb7e2c5cadb0c6bb",
+      "change_reason": "P4.2 mechanical namespace/import/fixture path move; scenario names and assertions preserved."
     },
     {
-      "path": "tests/Unit/Crawler/EisProcedureTypeTest.php",
-      "sha256": "8c67a809baa6d6ea81e3923c5ff7d441498d5e6336164bb37b35aa68cadb8cec",
+      "path": "tests/Unit/Platforms/Eis/EisProcedureTypeTest.php",
+      "sha256": "b0f9b4f2a5cc1add384c604422461841e2b0c124cfb9e8c35c4a1eccbec3d69f",
       "scenarios": [
         "все девять наблюдённых сырых меток способа закупки резолвятся в case",
         "неизвестная метка возвращает null"
-      ]
+      ],
+      "original_path": "tests/Unit/Crawler/EisProcedureTypeTest.php",
+      "original_sha256": "8c67a809baa6d6ea81e3923c5ff7d441498d5e6336164bb37b35aa68cadb8cec",
+      "change_reason": "P4.2 mechanical namespace/import/fixture path move; scenario names and assertions preserved."
     },
     {
-      "path": "tests/Unit/Crawler/EventJournalParserTest.php",
-      "sha256": "deb40f86009873e38599a1e7abd3d5375d886a45a1325978d07688efc30db53a",
+      "path": "tests/Unit/Platforms/Eis/Card/EventJournalParserTest.php",
+      "sha256": "3c979636241af97824f34860d7098ac2f56f15b39132ce668f8415eb6c571df9",
       "scenarios": [
         "parse разбирает строки журнала событий с датой и текстом (реальная вкладка event-journal, P4.14)",
         "parse возвращает пустой список при отсутствии таблицы #event",
         "parse пропускает строку с нераспознаваемой датой без падения"
-      ]
+      ],
+      "original_path": "tests/Unit/Crawler/EventJournalParserTest.php",
+      "original_sha256": "deb40f86009873e38599a1e7abd3d5375d886a45a1325978d07688efc30db53a",
+      "change_reason": "P4.2 mechanical namespace/import/fixture path move; scenario names and assertions preserved."
     },
     {
-      "path": "tests/Unit/Crawler/PartiesParserTest.php",
-      "sha256": "e7b1f01f25aac27d7f5c012a82aa88aca962ffc91798ed7d538cc33ce53bd282",
+      "path": "tests/Unit/Platforms/Eis/Card/PartiesParserTest.php",
+      "sha256": "039bad8abc0ee456bb595c42dbb08ee1b78decba2db0a50519cea535492cea82",
       "scenarios": [
         "реальная январская карточка различает заказчика и размещающую организацию",
         "историческая усечённая fixture без организаций не разрешает удаление ролей",
@@ -3312,7 +3434,10 @@
         "неполные и противоречивые стороны запрещают reconciliation",
         "совместная закупка даёт каждого заказчика по собственному ИКЗ",
         "gate не принимает произвольное подмножество разобранных ролей"
-      ]
+      ],
+      "original_path": "tests/Unit/Crawler/PartiesParserTest.php",
+      "original_sha256": "e7b1f01f25aac27d7f5c012a82aa88aca962ffc91798ed7d538cc33ce53bd282",
+      "change_reason": "P4.2 mechanical namespace/import/fixture path move; scenario names and assertions preserved."
     },
     {
       "path": "tests/Unit/Crawler/PlatformAdapterRegistryTest.php",
@@ -3352,14 +3477,17 @@
     },
     {
       "path": "tests/Unit/Crawler/RecoveryScopeTest.php",
-      "sha256": "4eb17cfa11b9f85f09d6f9cc4584d61436ae4255ca0b4713becd3e90be333331",
+      "sha256": "51dcb7bb59406e1f9d1e1ab033e63b9151f1691e9cea7302422c852aceee0e9e",
       "scenarios": [
         "сохраняет предметный фильтр fresh-профиля в cursor и накладывает его на archive runtime"
-      ]
+      ],
+      "original_path": "tests/Unit/Crawler/RecoveryScopeTest.php",
+      "original_sha256": "4eb17cfa11b9f85f09d6f9cc4584d61436ae4255ca0b4713becd3e90be333331",
+      "change_reason": "P4.2 mechanical namespace/import/fixture path move; scenario names and assertions preserved."
     },
     {
       "path": "tests/Unit/Crawler/SourceMethodFactoryTest.php",
-      "sha256": "e13dfd146815751a85369a88f7749c21298cebd4f7eeeb5decb78c37db4bf59d",
+      "sha256": "1013de2205b0a7392afbd64c666fa3a3bf6bf392387c2f3ef6e13f8871bbfb14",
       "scenarios": [
         "make резолвит реализацию из exact platform definition",
         "makeWithFallback переключается на fallback когда primary недоступен",
@@ -3367,7 +3495,10 @@
         "makeWithFallback кидает исключение когда primary недоступен и fallback не задан",
         "make кидает fail-closed исключение когда метод не замаплен в platform definition",
         "makeWithFallback кидает fail-closed исключение когда fallback не замаплен в platform definition"
-      ]
+      ],
+      "original_path": "tests/Unit/Crawler/SourceMethodFactoryTest.php",
+      "original_sha256": "e13dfd146815751a85369a88f7749c21298cebd4f7eeeb5decb78c37db4bf59d",
+      "change_reason": "P4.2 mechanical namespace/import/fixture path move; scenario names and assertions preserved."
     },
     {
       "path": "tests/Unit/Crawler/SourceTlsTrustTest.php",
@@ -3380,8 +3511,8 @@
       ]
     },
     {
-      "path": "tests/Unit/Crawler/SupplierResultsParserTest.php",
-      "sha256": "282c5b35482753437be02a0254516084c7659d8eba53ae4ee2ff914dfc41a04e",
+      "path": "tests/Unit/Platforms/Eis/Card/SupplierResultsParserTest.php",
+      "sha256": "6f55a42a66c506c36e725ec03c1320cf86c12fa2d5ee5307d71f71086d3cac85",
       "scenarios": [
         "parse разбирает протокол из живой success-фикстуры",
         "parse разбирает анонимную заявку победителя и цену из живой success-фикстуры",
@@ -3391,7 +3522,10 @@
         "parse использует дату формирования результата после удаления протокола из живой фикстуры",
         "parse возвращает пустой результат при отсутствии распознаваемой вкладки",
         "parse возвращает пустой результат для пустой строки"
-      ]
+      ],
+      "original_path": "tests/Unit/Crawler/SupplierResultsParserTest.php",
+      "original_sha256": "282c5b35482753437be02a0254516084c7659d8eba53ae4ee2ff914dfc41a04e",
+      "change_reason": "P4.2 mechanical namespace/import/fixture path move; scenario names and assertions preserved."
     },
     {
       "path": "tests/Unit/Docs/DocsIntegrityTest.php",
@@ -3647,8 +3781,8 @@
       ]
     },
     {
-      "path": "tests/Unit/Procurement/Eis/EisSourceClockTest.php",
-      "sha256": "35fcc8a95cf76aa2a466e3bcf7b52f994a298a58fbeac30a324c4c7d816765b8",
+      "path": "tests/Unit/Platforms/Eis/EisSourceClockTest.php",
+      "sha256": "6e395b17840599112c7c50f9504ca9678f531204591c6c0d49d2c8ff85c9eb11",
       "scenarios": [
         "время источника читается в Europe/Moscow по умолчанию и возвращается в UTC",
         "часовой пояс источника берётся из конфигурации",
@@ -3656,7 +3790,10 @@
         "метка МСК±N задаёт фиксированное смещение",
         "некорректное значение даёт null",
         "невозможная календарная дата не нормализуется в другой день"
-      ]
+      ],
+      "original_path": "tests/Unit/Procurement/Eis/EisSourceClockTest.php",
+      "original_sha256": "35fcc8a95cf76aa2a466e3bcf7b52f994a298a58fbeac30a324c4c7d816765b8",
+      "change_reason": "P4.2 mechanical namespace/import/fixture path move; scenario names and assertions preserved."
     },
     {
       "path": "tests/Unit/Procurement/Estimate/EstimateRowContractTest.php",
@@ -3835,7 +3972,10 @@
     },
     {
       "path": "database/migrations/2026_07_04_100017_create_prc_eis_details_table.php",
-      "sha256": "8f58341e5bf713125e74b6b54e94de6f9cac9f3a422adf02f42aa8f7cf034213"
+      "sha256": "ae90524de01460073c772abdeb7b5fc59588d1ef0f3fe4fb9db5e6ff506dd7f1",
+      "original_path": "database/migrations/2026_07_04_100017_create_prc_eis_details_table.php",
+      "original_sha256": "8f58341e5bf713125e74b6b54e94de6f9cac9f3a422adf02f42aa8f7cf034213",
+      "change_reason": "P4.2 extension model FQCN import only; migration DDL unchanged."
     },
     {
       "path": "database/migrations/2026_07_04_100018_create_prc_documents_table.php",
@@ -4088,119 +4228,211 @@
   ],
   "source_classes": [
     {
-      "path": "app/Dto/Procurement/Crawler/EisListingQueryOverrides.php",
-      "fqcn": "App\\Dto\\Procurement\\Crawler\\EisListingQueryOverrides",
-      "sha256": "0228f70915895a41a6afff2d16231c081479ea77ea30fadb76b713553cfe133e"
+      "path": "app/Dto/Platforms/Eis/EisListingQueryOverrides.php",
+      "fqcn": "App\\Dto\\Platforms\\Eis\\EisListingQueryOverrides",
+      "sha256": "ab9e69024f59feae683ca6fdf99411f157923575a33556328fdd6863434daf09",
+      "original_path": "app/Dto/Procurement/Crawler/EisListingQueryOverrides.php",
+      "original_sha256": "0228f70915895a41a6afff2d16231c081479ea77ea30fadb76b713553cfe133e",
+      "original_fqcn": "App\\Dto\\Procurement\\Crawler\\EisListingQueryOverrides",
+      "change_reason": "P4.2 mechanical namespace/import/fixture path move; scenario names and assertions preserved."
     },
     {
-      "path": "app/Dto/Procurement/Crawler/EisSearchFilter.php",
-      "fqcn": "App\\Dto\\Procurement\\Crawler\\EisSearchFilter",
-      "sha256": "47bb558dac2bf92d1f16f669cd722a5b1e86541b657d157f81ebf5788996cb87"
+      "path": "app/Dto/Platforms/Eis/EisSearchFilter.php",
+      "fqcn": "App\\Dto\\Platforms\\Eis\\EisSearchFilter",
+      "sha256": "e268eb17ae7aefc04f3a614c78d68936fea2596ffed74ea5efce4ddd45da4543",
+      "original_path": "app/Dto/Procurement/Crawler/EisSearchFilter.php",
+      "original_sha256": "47bb558dac2bf92d1f16f669cd722a5b1e86541b657d157f81ebf5788996cb87",
+      "original_fqcn": "App\\Dto\\Procurement\\Crawler\\EisSearchFilter",
+      "change_reason": "P4.2 mechanical namespace/import/fixture path move; scenario names and assertions preserved."
     },
     {
-      "path": "app/Enums/Procurement/EisProcedureType.php",
-      "fqcn": "App\\Enums\\Procurement\\EisProcedureType",
-      "sha256": "40c57e99e440f40d61da4c9e58fc6ff2e3a50a7d1def3d3f25dcf5f8bc0feb91"
+      "path": "app/Enums/Platforms/Eis/EisProcedureType.php",
+      "fqcn": "App\\Enums\\Platforms\\Eis\\EisProcedureType",
+      "sha256": "1185f1be7572f92ef99eeb932874e0d6966a1396a30901db7f0dfd689fb3b894",
+      "original_path": "app/Enums/Procurement/EisProcedureType.php",
+      "original_sha256": "40c57e99e440f40d61da4c9e58fc6ff2e3a50a7d1def3d3f25dcf5f8bc0feb91",
+      "original_fqcn": "App\\Enums\\Procurement\\EisProcedureType",
+      "change_reason": "P4.2 mechanical namespace/import/fixture path move; scenario names and assertions preserved."
     },
     {
-      "path": "app/Filament/Resources/Procurement/Crawler/Crawlers/Schemas/EisCrawlerPlatformForm.php",
-      "fqcn": "App\\Filament\\Resources\\Procurement\\Crawler\\Crawlers\\Schemas\\EisCrawlerPlatformForm",
-      "sha256": "af37a97fe20f8ae9ef63a4f0c28fe895819dad67ee1ad84b714c542ed65184eb"
+      "path": "app/Filament/Platforms/Eis/EisCrawlerPlatformForm.php",
+      "fqcn": "App\\Filament\\Platforms\\Eis\\EisCrawlerPlatformForm",
+      "sha256": "9c8477a8b0d49ef0e381f11959f3132c2188fd4b77be4a0421b5f5893a48b4a5",
+      "original_path": "app/Filament/Resources/Procurement/Crawler/Crawlers/Schemas/EisCrawlerPlatformForm.php",
+      "original_sha256": "af37a97fe20f8ae9ef63a4f0c28fe895819dad67ee1ad84b714c542ed65184eb",
+      "original_fqcn": "App\\Filament\\Resources\\Procurement\\Crawler\\Crawlers\\Schemas\\EisCrawlerPlatformForm",
+      "change_reason": "P4.2 mechanical namespace/import/fixture path move; scenario names and assertions preserved."
     },
     {
-      "path": "app/Models/Procurement/EisDetails.php",
-      "fqcn": "App\\Models\\Procurement\\EisDetails",
-      "sha256": "f229cf3bbd843cab415e3cf176a35f016c95a29daa78c205e1d1098229c922fb"
+      "path": "app/Models/Platforms/Eis/EisDetails.php",
+      "fqcn": "App\\Models\\Platforms\\Eis\\EisDetails",
+      "sha256": "5f3aa94e6e32a8e580a60163d1f69c3be0a3f332d2c7b9a166cfd793d655be70",
+      "original_path": "app/Models/Procurement/EisDetails.php",
+      "original_sha256": "f229cf3bbd843cab415e3cf176a35f016c95a29daa78c205e1d1098229c922fb",
+      "original_fqcn": "App\\Models\\Procurement\\EisDetails",
+      "change_reason": "P4.2 mechanical namespace/import/fixture path move; scenario names and assertions preserved."
     },
     {
-      "path": "app/Services/Procurement/Eis/Card/CommonInfoParser.php",
-      "fqcn": "App\\Services\\Procurement\\Eis\\Card\\CommonInfoParser",
-      "sha256": "3652b366991a0e1b0d724b054ad7ec9762386039beafa19a06dc60b87f451b0c"
+      "path": "app/Services/Platforms/Eis/Card/CommonInfoParser.php",
+      "fqcn": "App\\Services\\Platforms\\Eis\\Card\\CommonInfoParser",
+      "sha256": "50268085ca65a44c1e69ce987d8a55a0d70c5c978dca92bc3925a038af668d57",
+      "original_path": "app/Services/Procurement/Eis/Card/CommonInfoParser.php",
+      "original_sha256": "3652b366991a0e1b0d724b054ad7ec9762386039beafa19a06dc60b87f451b0c",
+      "original_fqcn": "App\\Services\\Procurement\\Eis\\Card\\CommonInfoParser",
+      "change_reason": "P4.2 mechanical namespace/import/fixture path move; scenario names and assertions preserved."
     },
     {
-      "path": "app/Services/Procurement/Eis/Card/DocumentsParser.php",
-      "fqcn": "App\\Services\\Procurement\\Eis\\Card\\DocumentsParser",
-      "sha256": "df8b0e7c965660e92dd2e68c563d1d42327b7f1e0899e885fca8cebde81d3ab3"
+      "path": "app/Services/Platforms/Eis/Card/DocumentsParser.php",
+      "fqcn": "App\\Services\\Platforms\\Eis\\Card\\DocumentsParser",
+      "sha256": "6f4aaf1588997780d5c03dbe3d3d21e2da814c78aa912c559b047e5c798eb6e5",
+      "original_path": "app/Services/Procurement/Eis/Card/DocumentsParser.php",
+      "original_sha256": "df8b0e7c965660e92dd2e68c563d1d42327b7f1e0899e885fca8cebde81d3ab3",
+      "original_fqcn": "App\\Services\\Procurement\\Eis\\Card\\DocumentsParser",
+      "change_reason": "P4.2 mechanical namespace/import/fixture path move; scenario names and assertions preserved."
     },
     {
-      "path": "app/Services/Procurement/Eis/Card/EventJournalParser.php",
-      "fqcn": "App\\Services\\Procurement\\Eis\\Card\\EventJournalParser",
-      "sha256": "6dfa3b302489cf021fd9a35a1ad96d96b1402e578848eedef2afa1772075e4c3"
+      "path": "app/Services/Platforms/Eis/Card/EventJournalParser.php",
+      "fqcn": "App\\Services\\Platforms\\Eis\\Card\\EventJournalParser",
+      "sha256": "cc47cbb0742939c85c127ebd147374a09154fbf9d8fceb092ee0d51c2750ef72",
+      "original_path": "app/Services/Procurement/Eis/Card/EventJournalParser.php",
+      "original_sha256": "6dfa3b302489cf021fd9a35a1ad96d96b1402e578848eedef2afa1772075e4c3",
+      "original_fqcn": "App\\Services\\Procurement\\Eis\\Card\\EventJournalParser",
+      "change_reason": "P4.2 mechanical namespace/import/fixture path move; scenario names and assertions preserved."
     },
     {
-      "path": "app/Services/Procurement/Eis/Card/PartiesParser.php",
-      "fqcn": "App\\Services\\Procurement\\Eis\\Card\\PartiesParser",
-      "sha256": "1bf577b7eeea4a7792f26a92f6d63c96a58be2046fefc072e29566f00731cbd7"
+      "path": "app/Services/Platforms/Eis/Card/PartiesParser.php",
+      "fqcn": "App\\Services\\Platforms\\Eis\\Card\\PartiesParser",
+      "sha256": "5b07dd26f5ab4ce09145762be53708face1953b477a3229d0ec6d195e590c07f",
+      "original_path": "app/Services/Procurement/Eis/Card/PartiesParser.php",
+      "original_sha256": "1bf577b7eeea4a7792f26a92f6d63c96a58be2046fefc072e29566f00731cbd7",
+      "original_fqcn": "App\\Services\\Procurement\\Eis\\Card\\PartiesParser",
+      "change_reason": "P4.2 mechanical namespace/import/fixture path move; scenario names and assertions preserved."
     },
     {
-      "path": "app/Services/Procurement/Eis/Card/SupplierResultsParser.php",
-      "fqcn": "App\\Services\\Procurement\\Eis\\Card\\SupplierResultsParser",
-      "sha256": "11f1baa359ad34ba3d4d5d5aa5c5bd5ff4e6ddb02742dcaa115012677d871243"
+      "path": "app/Services/Platforms/Eis/Card/SupplierResultsParser.php",
+      "fqcn": "App\\Services\\Platforms\\Eis\\Card\\SupplierResultsParser",
+      "sha256": "422acad9f6499d2967a6782b38fb243fdd3e1e7132fde246a5f711238a2c4776",
+      "original_path": "app/Services/Procurement/Eis/Card/SupplierResultsParser.php",
+      "original_sha256": "11f1baa359ad34ba3d4d5d5aa5c5bd5ff4e6ddb02742dcaa115012677d871243",
+      "original_fqcn": "App\\Services\\Procurement\\Eis\\Card\\SupplierResultsParser",
+      "change_reason": "P4.2 mechanical namespace/import/fixture path move; scenario names and assertions preserved."
     },
     {
-      "path": "app/Services/Procurement/Eis/CsvSourceMethod.php",
-      "fqcn": "App\\Services\\Procurement\\Eis\\CsvSourceMethod",
-      "sha256": "6b3a71168de8a2480ca0de6a8f36b32db115c8e3c16a1e60fdbc8ab9ee3941e7"
+      "path": "app/Services/Platforms/Eis/Csv/CsvSourceMethod.php",
+      "fqcn": "App\\Services\\Platforms\\Eis\\Csv\\CsvSourceMethod",
+      "sha256": "55b31737dfddfd91fbe0443c0e69863333a181a4c4674b8cf282dec801b5df1c",
+      "original_path": "app/Services/Procurement/Eis/CsvSourceMethod.php",
+      "original_sha256": "6b3a71168de8a2480ca0de6a8f36b32db115c8e3c16a1e60fdbc8ab9ee3941e7",
+      "original_fqcn": "App\\Services\\Procurement\\Eis\\CsvSourceMethod",
+      "change_reason": "P4.2 mechanical namespace/import/fixture path move; scenario names and assertions preserved."
     },
     {
-      "path": "app/Services/Procurement/Eis/EisCardUrlBuilder.php",
-      "fqcn": "App\\Services\\Procurement\\Eis\\EisCardUrlBuilder",
-      "sha256": "4ed9b58e53d4657fc39981459f73d249a134258dfe6e61c966dc3c6c05d8b310"
+      "path": "app/Services/Platforms/Eis/Card/EisCardUrlBuilder.php",
+      "fqcn": "App\\Services\\Platforms\\Eis\\Card\\EisCardUrlBuilder",
+      "sha256": "db033ab1a10c4b269455fbc7cb94c67ff0951b5271008c9e190be37c9d61b777",
+      "original_path": "app/Services/Procurement/Eis/EisCardUrlBuilder.php",
+      "original_sha256": "4ed9b58e53d4657fc39981459f73d249a134258dfe6e61c966dc3c6c05d8b310",
+      "original_fqcn": "App\\Services\\Procurement\\Eis\\EisCardUrlBuilder",
+      "change_reason": "P4.2 mechanical namespace/import/fixture path move; scenario names and assertions preserved."
     },
     {
-      "path": "app/Services/Procurement/Eis/EisCsvParser.php",
-      "fqcn": "App\\Services\\Procurement\\Eis\\EisCsvParser",
-      "sha256": "9f6e6543e4b0dd6e7f99c3f541d1efe07c8f502794af73e9d9e53d98507157a3"
+      "path": "app/Services/Platforms/Eis/Csv/EisCsvParser.php",
+      "fqcn": "App\\Services\\Platforms\\Eis\\Csv\\EisCsvParser",
+      "sha256": "6eaa52842b4eea047d76e66e10badd98afecd58b294a2019854f26595433ae73",
+      "original_path": "app/Services/Procurement/Eis/EisCsvParser.php",
+      "original_sha256": "9f6e6543e4b0dd6e7f99c3f541d1efe07c8f502794af73e9d9e53d98507157a3",
+      "original_fqcn": "App\\Services\\Procurement\\Eis\\EisCsvParser",
+      "change_reason": "P4.2 mechanical namespace/import/fixture path move; scenario names and assertions preserved."
     },
     {
-      "path": "app/Services/Procurement/Eis/EisCsvRowMapper.php",
-      "fqcn": "App\\Services\\Procurement\\Eis\\EisCsvRowMapper",
-      "sha256": "42a8ca7d361306d437f33e58585d37edcf69f15e4e4a1ca77920635f20e3be3e"
+      "path": "app/Services/Platforms/Eis/Csv/EisCsvRowMapper.php",
+      "fqcn": "App\\Services\\Platforms\\Eis\\Csv\\EisCsvRowMapper",
+      "sha256": "6a3d520689a41487e09b09214609f364e3b33da3ae34b5f8608238e57d53fbc1",
+      "original_path": "app/Services/Procurement/Eis/EisCsvRowMapper.php",
+      "original_sha256": "42a8ca7d361306d437f33e58585d37edcf69f15e4e4a1ca77920635f20e3be3e",
+      "original_fqcn": "App\\Services\\Procurement\\Eis\\EisCsvRowMapper",
+      "change_reason": "P4.2 mechanical namespace/import/fixture path move; scenario names and assertions preserved."
     },
     {
-      "path": "app/Services/Procurement/Eis/EisCsvUrlBuilder.php",
-      "fqcn": "App\\Services\\Procurement\\Eis\\EisCsvUrlBuilder",
-      "sha256": "0bec91e645e4d9146defd60290f9ca441cfdcb401387debf8af90fba7a8d30f1"
+      "path": "app/Services/Platforms/Eis/Csv/EisCsvUrlBuilder.php",
+      "fqcn": "App\\Services\\Platforms\\Eis\\Csv\\EisCsvUrlBuilder",
+      "sha256": "2c0e3ef10d18f805df23a67d5d7b96f1207c1806af97e36dae9c595d69f27fdd",
+      "original_path": "app/Services/Procurement/Eis/EisCsvUrlBuilder.php",
+      "original_sha256": "0bec91e645e4d9146defd60290f9ca441cfdcb401387debf8af90fba7a8d30f1",
+      "original_fqcn": "App\\Services\\Procurement\\Eis\\EisCsvUrlBuilder",
+      "change_reason": "P4.2 mechanical namespace/import/fixture path move; scenario names and assertions preserved."
     },
     {
-      "path": "app/Services/Procurement/Eis/EisDetailParser.php",
-      "fqcn": "App\\Services\\Procurement\\Eis\\EisDetailParser",
-      "sha256": "1431e8b0b3dd658ad58b91a3c135b2ee640d42adfada5d14892ab5eaf059bf62"
+      "path": "app/Services/Platforms/Eis/Card/EisDetailParser.php",
+      "fqcn": "App\\Services\\Platforms\\Eis\\Card\\EisDetailParser",
+      "sha256": "4736c16e4574f6388213fd0b1ac06ce448801db6a959b20da726f57c7a3a2db1",
+      "original_path": "app/Services/Procurement/Eis/EisDetailParser.php",
+      "original_sha256": "1431e8b0b3dd658ad58b91a3c135b2ee640d42adfada5d14892ab5eaf059bf62",
+      "original_fqcn": "App\\Services\\Procurement\\Eis\\EisDetailParser",
+      "change_reason": "P4.2 mechanical namespace/import/fixture path move; scenario names and assertions preserved."
     },
     {
-      "path": "app/Services/Procurement/Eis/EisSourceClock.php",
-      "fqcn": "App\\Services\\Procurement\\Eis\\EisSourceClock",
-      "sha256": "934aa8d3b38495977e937af423dece55c083f1d6a3eb77095f495df1e6e685ab"
+      "path": "app/Services/Platforms/Eis/EisSourceClock.php",
+      "fqcn": "App\\Services\\Platforms\\Eis\\EisSourceClock",
+      "sha256": "ba147e7028b5c6d9ade40619bc20166ec78de990d41829058f66084b02c57f6f",
+      "original_path": "app/Services/Procurement/Eis/EisSourceClock.php",
+      "original_sha256": "934aa8d3b38495977e937af423dece55c083f1d6a3eb77095f495df1e6e685ab",
+      "original_fqcn": "App\\Services\\Procurement\\Eis\\EisSourceClock",
+      "change_reason": "P4.2 mechanical namespace/import/fixture path move; scenario names and assertions preserved."
     },
     {
-      "path": "app/Services/Procurement/Eis/Okpd2NodeSynchronizer.php",
-      "fqcn": "App\\Services\\Procurement\\Eis\\Okpd2NodeSynchronizer",
-      "sha256": "785c129b65dc11a206fd4a30ba9a4d6dfb4bebc964bd07750867a6740fe47d61"
+      "path": "app/Services/Platforms/Eis/Filters/Okpd2NodeSynchronizer.php",
+      "fqcn": "App\\Services\\Platforms\\Eis\\Filters\\Okpd2NodeSynchronizer",
+      "sha256": "b73f812d673a83c33dcb43279fb864d9ab5f7d4051282ccfe413d82f06997dd5",
+      "original_path": "app/Services/Procurement/Eis/Okpd2NodeSynchronizer.php",
+      "original_sha256": "785c129b65dc11a206fd4a30ba9a4d6dfb4bebc964bd07750867a6740fe47d61",
+      "original_fqcn": "App\\Services\\Procurement\\Eis\\Okpd2NodeSynchronizer",
+      "change_reason": "P4.2 mechanical namespace/import/fixture path move; scenario names and assertions preserved."
     },
     {
-      "path": "app/Services/Procurement/Health/Checks/ListingFilterCheck.php",
-      "fqcn": "App\\Services\\Procurement\\Health\\Checks\\ListingFilterCheck",
-      "sha256": "66e898e2f24d08930703ac3aa88b2521ecc381f76cae1408447125119e8e0775"
+      "path": "app/Services/Platforms/Eis/Diagnostics/ListingFilterCheck.php",
+      "fqcn": "App\\Services\\Platforms\\Eis\\Diagnostics\\ListingFilterCheck",
+      "sha256": "2ec00d38e5b398b98e45bde6bf6e06fdede5d25213dcaea62bf1687c8d5cc490",
+      "original_path": "app/Services/Procurement/Health/Checks/ListingFilterCheck.php",
+      "original_sha256": "66e898e2f24d08930703ac3aa88b2521ecc381f76cae1408447125119e8e0775",
+      "original_fqcn": "App\\Services\\Procurement\\Health\\Checks\\ListingFilterCheck",
+      "change_reason": "P4.2 mechanical namespace/import/fixture path move; scenario names and assertions preserved."
     },
     {
-      "path": "database/factories/Procurement/EisDetailsFactory.php",
-      "fqcn": "Database\\Factories\\Procurement\\EisDetailsFactory",
-      "sha256": "2b56f1d05721e726c1809408274371cb3e3f757c32fe17513a01b4f26d74acb0"
+      "path": "database/factories/Platforms/Eis/EisDetailsFactory.php",
+      "fqcn": "Database\\Factories\\Platforms\\Eis\\EisDetailsFactory",
+      "sha256": "eba664edda63c3770769acc646ca06c8188a3ce67a2d9c1cc39a51cd73acb66d",
+      "original_path": "database/factories/Procurement/EisDetailsFactory.php",
+      "original_sha256": "2b56f1d05721e726c1809408274371cb3e3f757c32fe17513a01b4f26d74acb0",
+      "original_fqcn": "Database\\Factories\\Procurement\\EisDetailsFactory",
+      "change_reason": "P4.2 mechanical namespace/import/fixture path move; scenario names and assertions preserved."
     },
     {
-      "path": "database/seeders/Procurement/EisCrawlerProxySeeder.php",
-      "fqcn": "Database\\Seeders\\Procurement\\EisCrawlerProxySeeder",
-      "sha256": "66e05f0cb581b794f653f1bbd7b2c195a2823fd03bdb4f03b37ccd093c21caf4"
+      "path": "database/seeders/Platforms/Eis/EisCrawlerProxySeeder.php",
+      "fqcn": "Database\\Seeders\\Platforms\\Eis\\EisCrawlerProxySeeder",
+      "sha256": "035ae34706bf71df906242aabf488a7ef0dd7d8f1c70960f0d24c5c7b939a304",
+      "original_path": "database/seeders/Procurement/EisCrawlerProxySeeder.php",
+      "original_sha256": "66e05f0cb581b794f653f1bbd7b2c195a2823fd03bdb4f03b37ccd093c21caf4",
+      "original_fqcn": "Database\\Seeders\\Procurement\\EisCrawlerProxySeeder",
+      "change_reason": "P4.2 mechanical namespace/import/fixture path move; scenario names and assertions preserved."
     },
     {
-      "path": "database/seeders/Procurement/EisJanuary2025AuditSeeder.php",
-      "fqcn": "Database\\Seeders\\Procurement\\EisJanuary2025AuditSeeder",
-      "sha256": "6d3b7fe000dc1e5ba12dae1086f1713ac35a187353c23e8721481430d07b0cee"
+      "path": "database/seeders/Platforms/Eis/EisJanuary2025AuditSeeder.php",
+      "fqcn": "Database\\Seeders\\Platforms\\Eis\\EisJanuary2025AuditSeeder",
+      "sha256": "6a5b69b3914244f7ae4f11e201e3613f16526198bf187931b11268629a628faf",
+      "original_path": "database/seeders/Procurement/EisJanuary2025AuditSeeder.php",
+      "original_sha256": "6d3b7fe000dc1e5ba12dae1086f1713ac35a187353c23e8721481430d07b0cee",
+      "original_fqcn": "Database\\Seeders\\Procurement\\EisJanuary2025AuditSeeder",
+      "change_reason": "P4.2 mechanical namespace/import/fixture path move; scenario names and assertions preserved."
     },
     {
-      "path": "database/seeders/Procurement/EisPlatformSeeder.php",
-      "fqcn": "Database\\Seeders\\Procurement\\EisPlatformSeeder",
-      "sha256": "b39c7fc02edf4dc4f7f6b88fc1e163a5d74a539bd0ce8e05ec8f4d88077a7b53"
+      "path": "database/seeders/Platforms/Eis/EisPlatformSeeder.php",
+      "fqcn": "Database\\Seeders\\Platforms\\Eis\\EisPlatformSeeder",
+      "sha256": "07b1ea4e3e307235142b4050760e7c6773ed85e799a94b586e9dca2284ed8743",
+      "original_path": "database/seeders/Procurement/EisPlatformSeeder.php",
+      "original_sha256": "b39c7fc02edf4dc4f7f6b88fc1e163a5d74a539bd0ce8e05ec8f4d88077a7b53",
+      "original_fqcn": "Database\\Seeders\\Procurement\\EisPlatformSeeder",
+      "change_reason": "P4.2 mechanical namespace/import/fixture path move; scenario names and assertions preserved."
     }
   ]
 }

@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Tests\Support\Doubles\Crawler;
 
 /**
- * HTML-фикстуры вкладок карточки закупки ЕИС 44-ФЗ (`tests/Fixtures/Crawler/Card/*.html`) —
+ * HTML-фикстуры вкладок карточки закупки ЕИС 44-ФЗ (`tests/Fixtures/Platforms/Eis/Card/*.html`) —
  * сняты с реальной карточки 0338200009125000001, персональные контакты обезличены.
  */
 final class CardHtmlFixture
@@ -32,6 +32,6 @@ final class CardHtmlFixture
 
     private static function read(string $tab): string
     {
-        return file_get_contents(base_path("tests/Fixtures/Crawler/Card/{$tab}.html"));
+        return file_get_contents(base_path("tests/Fixtures/Platforms/Eis/Card/{$tab}.html"));
     }
 }

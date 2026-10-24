@@ -10,11 +10,11 @@ use App\Enums\Procurement\Crawler\SourceStage;
 use App\Enums\Procurement\Document\DocumentStatus;
 use App\Enums\Procurement\ProcurementStatus;
 use App\Enums\Procurement\Proxy\ProxyScope;
+use App\Models\Platforms\Eis\EisDetails;
 use App\Models\Procurement\Crawler\Proxy;
 use App\Models\Procurement\Crawler\SourceCircuit;
 use App\Models\Procurement\Crawler\SourceIncident;
 use App\Models\Procurement\Document\Document;
-use App\Models\Procurement\EisDetails;
 use App\Models\Procurement\Platform\Registry;
 use App\Models\Procurement\Procurement;
 use App\Models\Procurement\ProcurementEvent;
@@ -61,7 +61,7 @@ function detailAnalysisRegistry(): Registry
 
 function detailAnalysisEventJournalHtml(): string
 {
-    return (string) file_get_contents(base_path('tests/Fixtures/Crawler/Card/event-journal.html'));
+    return (string) file_get_contents(base_path('tests/Fixtures/Platforms/Eis/Card/event-journal.html'));
 }
 
 function detailAnalysisSupplierResultsHtml(): string
@@ -131,7 +131,7 @@ test('неполные стороны оставляют карточку retrya
     ]);
     Http::fake([
         '*view/common-info.html*' => Http::sequence()
-            ->push(file_get_contents(base_path('tests/Fixtures/Crawler/Card/common-info.html')), 200)
+            ->push(file_get_contents(base_path('tests/Fixtures/Platforms/Eis/Card/common-info.html')), 200)
             ->push(CardHtmlFixture::commonInfo(), 200),
         '*view/documents.html*' => fn () => Http::response(CardHtmlFixture::documents(), 200),
         '*view/event-journal.html*' => fn () => Http::response(detailAnalysisEventJournalHtml(), 200),

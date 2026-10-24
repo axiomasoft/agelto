@@ -20,14 +20,14 @@ use App\Models\Procurement\Crawler\SourceIncident;
 use App\Models\Procurement\Platform\Okpd2Node;
 use App\Models\Procurement\Platform\Registry;
 use App\Models\Procurement\Procurement;
-use App\Services\Procurement\Eis\CsvSourceMethod;
+use App\Services\Platforms\Eis\Csv\CsvSourceMethod;
 use App\Services\Procurement\Modes\FreshRunProcessor;
 use App\Settings\Procurement\CrawlerProxySettings;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Sleep;
-use Tests\Support\Doubles\Crawler\EisCsvFixture;
+use Tests\Support\Platforms\Eis\EisCsvFixture;
 
 /**
  * Активный узел скоупа `crawl_listing` — резолвер (research/02 §9.1) не выдаёт лизу без

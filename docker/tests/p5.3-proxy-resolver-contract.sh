@@ -35,7 +35,7 @@ rg -n 'proxy_source' \
     "$root_dir/app/Services/Procurement/CsvBlockIngestor.php" \
     "$root_dir/app/Services/Procurement/FetchLogger.php" >/dev/null
 rg -F 'ProxyResolver' \
-    "$root_dir/app/Services/Procurement/Eis/CsvSourceMethod.php" \
+    "$root_dir/app/Services/Platforms/Eis/Csv/CsvSourceMethod.php" \
     "$root_dir/app/Services/Procurement/DocumentDownloader.php" >/dev/null
 
 "${testing_app[@]}" vendor/bin/pint --test \
@@ -48,8 +48,8 @@ rg -F 'ProxyResolver' \
     app/Models/Procurement/Crawler/Fetch.php \
     app/Services/Procurement/CsvBlockIngestor.php \
     app/Services/Procurement/DocumentDownloader.php \
-    app/Services/Procurement/Eis/CsvSourceMethod.php \
-    app/Services/Procurement/Eis/Okpd2NodeSynchronizer.php \
+    app/Services/Platforms/Eis/Csv/CsvSourceMethod.php \
+    app/Services/Platforms/Eis/Filters/Okpd2NodeSynchronizer.php \
     app/Services/Procurement/PlatformRequestBudget.php \
     app/Services/Procurement/Proxy/ProxyBindingResolver.php \
     app/Services/Procurement/Proxy/ProxyResolver.php \

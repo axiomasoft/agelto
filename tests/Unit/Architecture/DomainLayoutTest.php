@@ -27,7 +27,7 @@ function alignedDomainLayoutLayers(): array
         // P3.2, Completion Notes: 7 корневых (6 ядро + `OperationLogLevel` кросс), Completion Notes P3.2.
         'App\Enums\Procurement' => [
             'root' => [
-                'AwardStatus', 'BidStatus', 'EisProcedureType', 'ProcurementEventType',
+                'AwardStatus', 'BidStatus', 'ProcurementEventType',
                 'ProcurementStatus', 'ProtocolType', 'OperationLogLevel', 'StatusMappingApplicability',
                 'DetailSnapshotStatus',
             ],

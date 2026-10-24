@@ -4,12 +4,12 @@ declare(strict_types=1);
 
 namespace App\Console\Commands\Procurement;
 
-use App\Dto\Procurement\Crawler\EisListingQueryOverrides;
+use App\Dto\Platforms\Eis\EisListingQueryOverrides;
 use App\Dto\Procurement\Crawler\ListingCursor;
 use App\Enums\Procurement\Crawler\CrawlerMode;
 use App\Exceptions\Procurement\Crawler\InvalidListingResponse;
 use App\Models\Procurement\Crawler\Crawler;
-use App\Services\Procurement\Eis\CsvSourceMethod;
+use App\Services\Platforms\Eis\Csv\CsvSourceMethod;
 use Carbon\CarbonImmutable;
 use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;

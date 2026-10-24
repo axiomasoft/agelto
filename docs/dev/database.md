@@ -54,7 +54,7 @@ authorized_institution/specialized_organization/platform_operator; winner/partic
 
 Адаптер ЕИС передаёт `platformCode=eis`: тип `organization_code` — `organizationCode` ссылки,
 тип `customer_code` — 20 символов кода заказчика из ИКЗ (смещение 2 в 36-значной строке).
-Разбор этих величин остаётся в `Services/Procurement/Eis/Card/PartiesParser`.
+Разбор этих величин остаётся в `Services/Platforms/Eis/Card/PartiesParser`.
 Миграция от 23 октября переносит уже сохранённые значения из прежних колонок ЕИС
 (`eis_organization_code`, `eis_customer_code`, `eruz_number`) в эту таблицу
 и удаляет колонки; обратная миграция восстанавливает прежние значения. Предыдущая миграция

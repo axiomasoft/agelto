@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-use App\Dto\Procurement\Crawler\EisSearchFilter;
+use App\Dto\Platforms\Eis\EisSearchFilter;
 use App\Enums\Procurement\Crawler\SourceMethod as SourceMethodEnum;
 use App\Exceptions\Procurement\Crawler\PlatformAdapterUnavailableException;
 use App\Models\Procurement\Crawler\Crawler;

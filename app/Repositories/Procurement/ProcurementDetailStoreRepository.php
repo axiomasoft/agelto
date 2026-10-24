@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace App\Repositories\Procurement;
 
+use App\Models\Platforms\Eis\EisDetails;
 use App\Models\Procurement\Award;
 use App\Models\Procurement\Bid;
-use App\Models\Procurement\EisDetails;
 use App\Models\Procurement\Financing;
 use App\Models\Procurement\Protocol;
 use App\Models\Procurement\PurchaseItem;

@@ -40,7 +40,7 @@ testing_app=("${compose[@]}" exec -T -e APP_ENV=testing -e DB_DATABASE="$test_da
 "${testing_app[@]}" php artisan test --no-tia
 "${testing_app[@]}" vendor/bin/pint --test \
     app/Dto/Procurement/Proxy/ProxyLease.php \
-    app/Services/Procurement/Eis/CsvSourceMethod.php \
+    app/Services/Platforms/Eis/Csv/CsvSourceMethod.php \
     app/Services/Procurement/Proxy/ProxyResolver.php \
     tests/Unit/Crawler/ProxyResolverTest.php \
     tests/Feature/Crawler/ProxyAutoDisableTest.php \
@@ -51,7 +51,7 @@ testing_app=("${compose[@]}" exec -T -e APP_ENV=testing -e DB_DATABASE="$test_da
     tests/Feature/Llm/GeminiProxyRoutingTest.php
 "${testing_app[@]}" vendor/bin/phpstan analyse \
     app/Services/Procurement/Proxy/ProxyResolver.php \
-    app/Services/Procurement/Eis/CsvSourceMethod.php \
+    app/Services/Platforms/Eis/Csv/CsvSourceMethod.php \
     --no-progress --memory-limit=1G
 
 ! rg -n 'PLAYWRIGHT_MCP_PROXY_SERVER' "$root_dir/app" "$root_dir/config"

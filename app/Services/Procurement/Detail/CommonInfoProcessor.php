@@ -10,7 +10,7 @@ use App\Dto\Procurement\Details\FinancingRowData;
 use App\Dto\Procurement\Details\PurchaseItemRowData;
 use App\Models\Procurement\Procurement;
 use App\Repositories\Procurement\ProcurementDetailStoreRepository;
-use App\Services\Procurement\Eis\Card\CommonInfoParser;
+use App\Services\Platforms\Eis\Card\CommonInfoParser;
 use App\Services\Reference\ClassifierResolver;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;

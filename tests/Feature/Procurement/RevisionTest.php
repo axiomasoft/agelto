@@ -9,7 +9,7 @@ use App\Models\Procurement\Platform\Registry;
 use App\Models\Procurement\ProcurementEvent;
 use App\Models\Procurement\ProcurementRevision;
 use App\Repositories\Procurement\ProcurementReadRepository;
-use App\Services\Procurement\Eis\EisCsvRowMapper;
+use App\Services\Platforms\Eis\Csv\EisCsvRowMapper;
 use App\Services\Procurement\ProcurementIngestProcessor;
 use Illuminate\Support\Carbon;
 use Tests\Support\Procurement\SnapshotFactory;

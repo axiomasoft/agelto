@@ -117,8 +117,15 @@ Dataset cases подсчитываются отдельно по actual JUnit; �
 `CoreKnowsNoDocumentTypeTest`: 110 вместо 109 с явным membership assertion для нейтрального
 `CooperativeListingSourceMethod`, добавленного до P4 коммитом `60d6162c`. Имена всех трёх
 сценариев сохранены; manifest сохраняет `original_sha256`, актуальный hash и причину изменения.
-Baseline verifier проверяет актуальные hashes, остальные исходные Test.php остаются неизменны.
-P4.2/P4.3 должны явно адаптировать проверку путей к move map, сохраняя соответствие сценариев.
+Baseline verifier проверяет актуальные hashes. После механического переноса P4.2 manifest хранит
+`original_path`, `original_sha256` и, для классов, `original_fqcn` вместе с текущими значениями и
+причиной изменения. Исходные 1 826 declarations сохраняются; новая architecture/factory проверка
+добавляется сверх baseline. `tests/Fixtures/ProcessCore/platforms-move-map.json` перечисляет все
+переносы, исходные hashes fixture bytes и решения оставить смешанные тесты на месте. Import
+extension model в одной migration обновлён без изменения DDL; исходный hash также сохранён.
+Evidence P4.2 связывает before install/unit/regression reports P4.1 с теми же input hashes,
+сохраняет сценарии каждого затронутого файла и actual JUnit узких after checks. P4.3 сравнивает
+полный regression с этими before results; after-run не заменяет исходный результат.
 
 Reports хранятся в `storage/app/testing/process-core/reports/<run-id>/`: candidate HEAD, dirty digest,
 полный input-tree fingerprint (включая untracked product files), config/fixture hashes, exit,

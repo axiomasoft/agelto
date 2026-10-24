@@ -7,12 +7,12 @@ use App\Enums\Procurement\Proxy\CrawlerProxyMode;
 use App\Models\Procurement\Crawler\Crawler;
 use App\Models\Procurement\Platform\Okpd2Node;
 use App\Models\Procurement\Platform\Registry;
-use Database\Seeders\Procurement\EisPlatformSeeder;
+use Database\Seeders\Platforms\Eis\EisPlatformSeeder;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Sleep;
 use Illuminate\Support\Str;
-use Tests\Support\Doubles\Crawler\EisCsvFixture;
+use Tests\Support\Platforms\Eis\EisCsvFixture;
 
 /** @return array{input: string, output: string} */
 function freshBoundaryCarriers(): array

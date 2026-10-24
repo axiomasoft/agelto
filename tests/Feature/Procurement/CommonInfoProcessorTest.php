@@ -10,20 +10,20 @@ use App\Dto\Procurement\Details\PartyData;
 use App\Dto\Procurement\Details\PurchaseItemRowData;
 use App\Enums\Organization\ProcurementPartyRole;
 use App\Enums\Procurement\DetailSnapshotStatus;
-use App\Models\Procurement\EisDetails;
+use App\Models\Platforms\Eis\EisDetails;
 use App\Models\Procurement\Financing;
 use App\Models\Procurement\Procurement;
 use App\Models\Procurement\ProcurementParty;
 use App\Models\Procurement\PurchaseItem;
 use App\Models\Reference\Okpd2;
+use App\Services\Platforms\Eis\Card\CommonInfoParser;
+use App\Services\Platforms\Eis\Card\PartiesParser;
 use App\Services\Procurement\Detail\CommonInfoProcessor;
-use App\Services\Procurement\Eis\Card\CommonInfoParser;
-use App\Services\Procurement\Eis\Card\PartiesParser;
 use Illuminate\Database\QueryException;
 
 function commonInfoFixtureData(): CommonInfoSnapshot
 {
-    $html = file_get_contents(base_path('tests/Fixtures/Crawler/Card/common-info.html'));
+    $html = file_get_contents(base_path('tests/Fixtures/Platforms/Eis/Card/common-info.html'));
     $partiesParser = app(PartiesParser::class);
     $parties = $partiesParser->parse($html);
 
@@ -35,7 +35,7 @@ function commonInfoFixtureData(): CommonInfoSnapshot
 
 test('неполная январская проекция сторон сохраняет существующие организации и роли', function () {
     $procurement = Procurement::factory()->create();
-    $html = file_get_contents(base_path('tests/Fixtures/Crawler/Card/parties-january-1.html'));
+    $html = file_get_contents(base_path('tests/Fixtures/Platforms/Eis/Card/parties-january-1.html'));
     $parser = app(PartiesParser::class);
     $parties = $parser->parse($html);
     $processor = app(CommonInfoProcessor::class);

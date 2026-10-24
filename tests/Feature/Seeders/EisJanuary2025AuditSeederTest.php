@@ -12,10 +12,10 @@ use App\Enums\Procurement\Proxy\ProxyScope;
 use App\Models\Procurement\Crawler\Crawler;
 use App\Models\Procurement\Crawler\Proxy;
 use App\Models\Procurement\Crawler\Run;
+use Database\Seeders\Platforms\Eis\EisCrawlerProxySeeder;
+use Database\Seeders\Platforms\Eis\EisJanuary2025AuditSeeder;
+use Database\Seeders\Platforms\Eis\EisPlatformSeeder;
 use Database\Seeders\Procurement\CrawlerProfileSeeder;
-use Database\Seeders\Procurement\EisCrawlerProxySeeder;
-use Database\Seeders\Procurement\EisJanuary2025AuditSeeder;
-use Database\Seeders\Procurement\EisPlatformSeeder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Queue;
 

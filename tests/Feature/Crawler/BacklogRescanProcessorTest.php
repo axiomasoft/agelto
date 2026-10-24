@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-use App\Dto\Procurement\Crawler\EisSearchFilter;
+use App\Dto\Platforms\Eis\EisSearchFilter;
 use App\Dto\Procurement\Crawler\ListingBatch;
 use App\Dto\Procurement\Crawler\ListingCursor;
 use App\Dto\Procurement\Crawler\RecoveryScope;
@@ -412,7 +412,7 @@ test('backlog processor после expiry продолжает точный chec
     $fixture = ConcurrentTransactions::execute(<<<'PHP'
 $registry = \App\Models\Procurement\Platform\Registry::factory()->eis()->create();
 $freshCrawler = \App\Models\Procurement\Crawler\Crawler::factory()
-    ->filter(new \App\Dto\Procurement\Crawler\EisSearchFilter(stageApplications: true, okpd2Codes: ['43']))
+    ->filter(new \App\Dto\Platforms\Eis\EisSearchFilter(stageApplications: true, okpd2Codes: ['43']))
     ->create([
         'registry_id' => $registry->id,
         'mode' => \App\Enums\Procurement\Crawler\CrawlerMode::Fresh,
