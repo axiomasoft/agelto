@@ -3994,3 +3994,40 @@ Indexes:
 - `users_pkey`: `CREATE UNIQUE INDEX users_pkey ON public.users USING btree (id)`
 
 <!-- schema-inventory:end -->
+
+## Передача P1.4 → P1.6–P1.12
+
+Inventory выше остаётся декларацией целевой схемы, подготовленной P1.1. P1.4 сверяет её с PHP-контрактами P1.2 и изолированным стендом P1.3. Новых migrations, Process tables, admission, handlers или production consumers этот пункт не включает. Существующие consumers работают до своего owning cutover.
+
+### Что уже проверяется
+
+| Контракт | Assertions текущего среза |
+|---|---|
+| Девять `WorkState` | `SchemaContractTest` сравнивает PHP enum, inventory conventions и значения SQL CHECK; `partial`, `recovered`, `stale`, `duplicate_delivery` не принимаются как состояния work. |
+| Восемь `StageCode` | Тот же тест сверяет полный enum с inventory. CHECK четырёх stage-bearing carriers P1.6 допускают только listing/detail/status_refresh/download; production activation пуста. |
+| Реальные subject owners | Для каждой стадии проверяются `SubjectKind`, owner column, bigint/UUID и owning FK stage. Для extraction owner — `analysis_window_id`; `ExtractionWindowInput` хранит analysis run + window key, разрешение реального window принадлежит будущему resolver. |
+| Input/outcome codecs | `ProcessCodecTest` проверяет восемь input variants, canonical encoding/work identity, пять outcome variants и отказы при неверных schema/version/keys/types. Это pure contracts, без DB claim/finalize. |
+| Recovery carrier | `CheckpointCodecTest` проверяет envelope v1, сочетания mode/purpose/receipt, сохранение pinned plan при progress checkpoint и отказ при чужом input hash. Наличие typed receipt reference не доказывает проверку object bytes или финансовое settlement. |
+| Architecture и inventory | T44 содержит отрицательные source fixtures; `test_schema_inventory.py` — отрицательные случаи DDL/FK/staging/catalog drift. Generated inventory обновляется только из его owning JSON. |
+| Isolated reset | Identity проверяется до destructive operation; readiness — после migrations. Полный reset пересоздаёт только guarded test DB вместе с pg_partman metadata. Два install, сравнение schema/seed/catalog и network egress denial проверяет conductor отдельными acceptance commands. |
+
+`tests/Unit/ProcessCore/SchemaContractTest.php` связывает inventory с исполняемыми PHP enums и subject types. Сам inventory и его generated section не являются доказательством наличия новых таблиц. Неактивные будущие stages в codec не дают разрешения запускать handler.
+
+### Обязательный вход следующей группы
+
+| Пункт | Граница работы |
+|---|---|
+| P1.6 | Создать initial Process baseline в dependency order с реальными crawl subjects/FK, initial четырьмя schema-supported stages, handler holds/incidents, daemon heartbeats и полями provider recovery/fault policy. Добавить subject generation/cycle columns в owning baseline migrations. Проверить два isolated clean install. |
+| P1.7–P1.8 | Реализовать зарегистрированные codec/subject/handler seams и fenced primitives. Полный lock prefix, immutable input и exact admission membership проверяются на настоящем PostgreSQL. |
+| P1.9 | Отдельный независимый review своего assigned scope; наличие этого handoff не заменяет review. |
+| P1.10 | Подключить scalar-only queue delivery, outbox и daemons с fixture handlers. Redis остаётся доставкой; DB — authority. |
+| P1.11 | Доказать recovery, stale owner denial и отдельный periodic blocked-provider scan на реальной DB с fixture resolver. |
+| P1.12 | Выполнить owning acceptance группы, сохранив candidate-bound evidence; legacy domain callers переключаются позже своими owning пунктами. |
+
+При переносе inventory в migrations сохраняются все positive schema-version CHECK и nullable JSON/version pairs, CHECK owner tuple, девять состояний, due/lease/claim/provider-recovery constraints и partial indexes. Future owner columns не получают FK на ещё не созданную таблицу: document version FK добавляется P3.1, analysis window/run FK — P3.8. `ON DELETE CASCADE` ограничен двумя composition-child исключениями, перечисленными выше.
+
+Recovery использует только `WorkCheckpointEnvelope`: stage progress и pinned provider plan сохраняются совместно. `provider_result_unknown` требует exact logical/physical linkage и отдельного `provider_recovery_due_at`; обычный `due_at` остаётся NULL. Будущий reconcile tick обслуживает blocked category каждые 5 s, batch ≤50, без новой queue delivery; отсутствие receipt переносит reconciliation на DBnow+30 s и не разрешает новый send. P1 использует fixture resolver, реальная provider mapping принадлежит P3.8–P3.14.
+
+Следующая группа также обязана проверить per-work handler fault limit отдельно от общего version-scoped hold: третий programming fault блокирует work без item failure, четвёртая delivery не вызывает handler/send. Pure enum/codec assertions не доказывают эти races, atomic journal/outbox, lease fencing, контроль паузы или устойчивость к Redis loss. T03/T06/T08/T09/T15/T22/T24/T25/T31 получают runtime assertions в owning execution/concurrency suites; будущие targets остаются `suite_not_implemented` до появления своих assertions.
+
+Для передачи нужны actual candidate HEAD/dirty digest, hashes product inputs/fixtures и результаты V1–V6 conductor. P1.4 не переносит green из предыдущего пункта. Полная existing no-TIA regression остаётся обязательной до cutover; этот документ не является заявлением о её выполнении.

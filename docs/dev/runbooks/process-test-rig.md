@@ -267,3 +267,9 @@ php vendor/bin/phpstan analyse app/Dto/Procurement/Process app/Enums/Procurement
 
 Process tables, runtime registry/handler activation, ledger и reset baseline этот срез не добавляет.
 V1/V2 и полная приёмка группы остаются у coordinator; узкий pass относится только к contracts.
+
+## Приёмка контрактов P1.4
+
+Связь PHP enums/subject types с целевым DDL проверяется в `tests/Unit/ProcessCore/SchemaContractTest.php`; границы передачи P1.6–P1.12 описаны в [process-schema.md](../process-schema.md). Input/outcome и checkpoint tests остаются pure: они не подтверждают admission, outbox, lease races или provider recovery runtime.
+
+Новые проверки запускаются отдельными test files через уже проверенный isolated rig; `PROCESS_CORE_SCHEMA_RIG=1` направляет Python schema checks в его PHP container. Не заменять ими acceptance: V1–V6 coordinator запускает на итоговом candidate, включая negative destructive guards/egress, два install, quality и full existing no-TIA regression. До появления owning assertions будущий domain target должен возвращать `suite_not_implemented`.
