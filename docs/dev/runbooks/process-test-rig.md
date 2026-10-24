@@ -154,7 +154,7 @@ fixtures. `manifest.json` хранит 81 исходную migration с hash, mo
 core tables, новые config keys и activation domain suites в P4 не создаются. Проверки V1–V7
 и запись completion/commit принадлежат координатору; узкие self-checks executor их не заменяют.
 
-P1.1 добавляет полный inventory в `docs/dev/process-schema.md` с owning source
+P1.1 добавляет полный inventory в [документ схемы Process](../process-schema.md) с owning source
 `tests/Support/ProcessCore/schema-inventory.json`: исходные 75 root tables/939 колонок,
 81 migration disposition, будущие carriers, типы/nullability/FK/CHECK/UNIQUE/index, retention,
 subject ancestors и отдельную stage activation map. Process migrations пока не создаются.
@@ -189,3 +189,45 @@ Planner; executor не запускает plan lifecycle и не редакти�
 Для direction/shrink guards доступны отдельные `tests/Unit/Architecture/PlatformsDomainLayoutTest.php`
 и `tests/Unit/Architecture/PlatformsBaselineOriginTest.php`; их negative examples не меняют product
 source и не требуют Process runtime.
+
+## Contracts P1.2 (pure slice)
+
+В `app/Dto/Procurement/Process` и `app/Enums/Procurement/Process` добавлены immutable
+value types, восемь WorkInput variants, ровно пять StageOutcome variants, AuthoritySnapshot,
+ExecutionLease и WorkCheckpointEnvelope v1. Control version, handler version, work generation,
+input/recipe hashes и request epoch остаются отдельными typed значениями. Subject snapshots
+содержат уже загруженные реальные bigint/UUID keys и ancestor links, без запросов к БД.
+
+`ProcessPayloadCodec` и `StagePayloadCodec` в `Services/Procurement/Process` — только pure
+serialization seams. JSON находится в VersionedPayload; null payload/version допускаются
+только парой. Неизвестные поля, variants, enum values, schema versions и coercion scalar types
+отвергаются. Stage codecs подключаются явно; test codec существует только в tests/Support.
+Стабильная WorkIdentity v1 не добавляет случайный run id к предметному ключу.
+
+Checkpoint envelope хранит stage progress вместе с provider recovery plan. withProgress сохраняет
+тот же directive; withoutProviderRecovery возвращает новый envelope с прежним progress.
+Resume_from_receipt допускает generation + pinned ReceiptRef; resume_provider_asset — только
+cache/file/lookup + receipt. Known-retry и blocked-unknown могут не иметь receipt, но всегда
+содержат exact logical/physical IDs, hashes и request epoch. ReceiptRef означает проверенную
+owning resolver metadata: codec не проверяет объект в storage, оплату или содержание HTTP response.
+Реальные purpose-specific resolver, linkage/recipe revalidation и атомарное consumption реализуют
+следующие owning пункты; эти pure checks не объявляют T15/T22 recovery выполненным.
+
+Handwritten `tests/Support/ProcessCore/contracts-v1.json` связан с fixture manifest через SHA-256;
+он содержит canonical generation-resume envelope и отрицательный error variant. Остальные
+табличные positive/negative случаи находятся в трёх `tests/Unit/ProcessCore/*Test.php`.
+T44 в `ProcessCoreArchTest.php` проверяет source direction, handler branching и strict/readonly
+границы с отрицательными source fixtures во временном каталоге. ExecutionContext и Spatie Data
+исключены из blanket readonly. Это source guards, а не доказательство DB atomicity/concurrency.
+
+Узкие проверки запускаются по отдельным файлам, например:
+
+```bash
+# В уже проверенном isolated app, PROCESS_CORE_TEST=1; --no-tia обязателен.
+php vendor/bin/pest --no-tia tests/Unit/ProcessCore/CheckpointCodecTest.php
+php vendor/bin/pest --no-tia tests/Unit/Architecture/ProcessCoreArchTest.php
+php vendor/bin/phpstan analyse app/Dto/Procurement/Process app/Enums/Procurement/Process app/Services/Procurement/Process
+```
+
+Process tables, runtime registry/handler activation, ledger и reset baseline этот срез не добавляет.
+V1/V2 и полная приёмка группы остаются у coordinator; узкий pass относится только к contracts.

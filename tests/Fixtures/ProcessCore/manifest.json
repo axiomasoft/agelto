@@ -1,6 +1,27 @@
 {
   "format": "process-core-baseline/v1",
   "captured_before": "P4.1 harness; no namespace move",
+  "contract_fixtures": [
+    {
+      "id": "process-contracts-v1",
+      "kind": "process_contract",
+      "path": "tests/Support/ProcessCore/contracts-v1.json",
+      "platform": null,
+      "adapter_version": null,
+      "provenance": "Hand-authored, sanitized P1.2 contract fixture; no provider I/O.",
+      "captured_at": "2026-10-24",
+      "sha256": "180a3adc32fea14dfb5b2f92c17d15981e8667c34655cb49076fc9e956f8589e",
+      "expected": {
+        "canonical_dto": "App\\Dto\\Procurement\\Process\\WorkCheckpointEnvelope",
+        "schema_version": 1
+      },
+      "scenario_ids": [
+        "T15",
+        "T22"
+      ],
+      "coverage": "pure_codec_only"
+    }
+  ],
   "files": [
     {
       "path": "tests/bootstrap.php",
@@ -3261,7 +3282,7 @@
     },
     {
       "path": "tests/Unit/Architecture/DomainLayoutTest.php",
-      "sha256": "35d21685bfc5bdb4a3337e31678c179b95c8e61682c5493f838cca0f8d587cd8",
+      "sha256": "39883a1078a7f55f7cc4e29419cdfbb72a09d5e0d0d519763cd611e870e46832",
       "scenarios": [
         "в корне выровненных слоёв раскладки нет файлов сверх реестра root-legal классов",
         "namespace каждого файла выровненных слоёв совпадает с его путём",
@@ -3269,7 +3290,7 @@
       ],
       "original_path": "tests/Unit/Architecture/DomainLayoutTest.php",
       "original_sha256": "01928226c2909b569254785ae9c2f297a44833f7abc076b249cb04637864f381",
-      "change_reason": "P4.2 architecture assertions updated for the Platforms roots; original scenario names preserved."
+      "change_reason": "P4.2 architecture assertions updated for the Platforms roots; P1.2 registers the Process DTO/enum subareas. Original scenario names preserved."
     },
     {
       "path": "tests/Unit/Architecture/HistoryModulePlatformAgnosticTest.php",

@@ -31,7 +31,7 @@ function alignedDomainLayoutLayers(): array
                 'ProcurementStatus', 'ProtocolType', 'OperationLogLevel', 'StatusMappingApplicability',
                 'DetailSnapshotStatus',
             ],
-            'subareas' => ['Ai', 'Analyzers', 'Crawler', 'Document', 'Estimate', 'Health', 'Proxy'],
+            'subareas' => ['Ai', 'Analyzers', 'Crawler', 'Document', 'Estimate', 'Health', 'Process', 'Proxy'],
         ],
         // P3.3, Completion Notes: `OperationFailed` (базовый, кросс) + `UnknownReportFormat` (кросс).
         // `InvalidEvalDiffPayload` обслуживает корневой estimate CLI-контур, а не отдельную подобласть.
@@ -44,7 +44,7 @@ function alignedDomainLayoutLayers(): array
         // P3.3, Completion Notes: три файла ядра закупки остаются в корне.
         'App\Dto\Procurement' => [
             'root' => ['ProcurementDetails', 'ProcurementSnapshotData', 'StatusResolution'],
-            'subareas' => ['Ai', 'Analyzers', 'Bench', 'Crawler', 'Details', 'Fixture', 'Gold', 'Health', 'History', 'Prepare', 'Proxy'],
+            'subareas' => ['Ai', 'Analyzers', 'Bench', 'Crawler', 'Details', 'Fixture', 'Gold', 'Health', 'History', 'Prepare', 'Process', 'Proxy'],
         ],
         // P3.3, Completion Notes: три ядровых репозитория закупки остаются в корне.
         // P2.1 (2026.08.06-CRAWL-HARDEN): подобласть `Platform` заведена первым файлом
