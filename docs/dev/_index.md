@@ -64,6 +64,7 @@ status: living
 - [AI-контекст](ai-context/index.md)
 - [Сценарии AI-агента](ai-context/scenarios.md)
 - [Агенты и workflow](ai-context/subagents-and-workflows.md)
+- [Сгенерированный справочник ролей и workflow](subagents-and-workflows.md)
 - [Docker: обзор](docker/index.md)
 - [Docker: development](docker/development.md)
 - [Docker: production](docker/production.md)

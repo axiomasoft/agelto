@@ -135,12 +135,16 @@ agent\:artisan:
 	$(COMPOSE_DEV) exec -T $(AGENT_ENV) app php artisan $(ARGS)
 
 db\:create-test:
-	bash $(ROOT_DIR)/docker/scripts/test-database.sh --root $(ROOT_DIR) --env-file $(ENV_FILE) --project-name $(COMPOSE_PROJECT_NAME) --create
+	bash $(ROOT_DIR)/docker/scripts/test-database.sh --root $(ROOT_DIR) --env-file $(ENV_FILE) --project-name $(COMPOSE_PROJECT_NAME) --create --phase identity
 
 test-preflight:
 	bash $(ROOT_DIR)/docker/scripts/test-database.sh --root $(ROOT_DIR) --env-file $(ENV_FILE) --project-name $(COMPOSE_PROJECT_NAME)
 
-test-php: test-preflight
+.PHONY: test-identity
+test-identity:
+	bash $(ROOT_DIR)/docker/scripts/test-database.sh --root $(ROOT_DIR) --env-file $(ENV_FILE) --project-name $(COMPOSE_PROJECT_NAME) --phase identity
+
+test-php: test-identity
 	$(COMPOSE_DEV) exec -T $(AGENT_ENV) -e APP_ENV=testing -e DB_DATABASE=agelto_test -e DB_HOST=postgres app php artisan migrate:fresh --force --no-interaction
 	$(COMPOSE_DEV) exec -T $(AGENT_ENV) -e APP_ENV=testing -e DB_DATABASE=agelto_test -e DB_HOST=postgres app php artisan test --compact --no-tia
 
@@ -181,7 +185,7 @@ test\:parallel: test-preflight
 	$(COMPOSE_DEV) exec -T $(AGENT_ENV) -e APP_ENV=testing -e DB_DATABASE=agelto_test -e DB_HOST=postgres app ./vendor/bin/pest --parallel --processes=$(PROCESSES) --no-tia --compact
 
 quality:
-	bash $(ROOT_DIR)/docker/tests/quality-contract.sh
+	python3 $(ROOT_DIR)/docker/tests/process-core/rig.py core-quality
 
 profile\:check:
 	@test -n "$(PROFILE)" || (echo "PROFILE is required" >&2; exit 2)

@@ -13,7 +13,9 @@ final class TestFilesystemIsolation
     public static function configure(Application $app): void
     {
         $token = ParallelTesting::token();
-        $process = is_string($token) ? self::normalizeToken(token: $token) : 'serial';
+        $runtimeProcess = getenv('PROCESS_CORE_PROCESS');
+        $process = is_string($token) ? self::normalizeToken(token: $token)
+            : (is_string($runtimeProcess) && $runtimeProcess !== '' ? self::normalizeToken(token: $runtimeProcess) : 'serial');
         $root = self::prepare(process: $process);
 
         $realRoot = realpath($root);
@@ -31,10 +33,11 @@ final class TestFilesystemIsolation
         }
 
         foreach ($disks as $name => $disk) {
-            if (! is_string($name) || ! is_array($disk)) {
+            if (! is_string($name) || preg_match('/^[A-Za-z0-9_-]+$/', $name) !== 1 || ! is_array($disk)) {
                 throw new RuntimeException('ИЗОЛЯЦИЯ ТЕСТОВ НАРУШЕНА: каждый filesystem disk должен иметь строковое имя и массив config.');
             }
 
+            self::assertNoSymlinks(path: "{$realRoot}/disks/{$name}");
             $config->set("filesystems.disks.{$name}", [
                 ...$disk,
                 'driver' => 'local',
@@ -70,13 +73,15 @@ final class TestFilesystemIsolation
     public static function prepare(string $process): string
     {
         $root = storage_path('framework/testing/'.self::normalizeToken(token: $process));
+        self::assertNoSymlinks(path: $root);
 
         if (! is_dir($root) && ! mkdir(directory: $root, permissions: 0755, recursive: true) && ! is_dir($root)) {
             throw new RuntimeException("Не удалось создать изолированный testing-root: {$root}");
         }
 
-        foreach (['disks', 'logs', 'tmp', 'auth', 'artifacts'] as $directory) {
+        foreach (['disks', 'logs', 'tmp', 'auth', 'artifacts', 'views'] as $directory) {
             $path = "{$root}/{$directory}";
+            self::assertNoSymlinks(path: $path);
 
             if (! is_dir($path) && ! mkdir(directory: $path, permissions: 0755, recursive: true) && ! is_dir($path)) {
                 throw new RuntimeException("Не удалось создать изолированный testing-root: {$path}");
@@ -90,6 +95,7 @@ final class TestFilesystemIsolation
     {
         $base = dirname(__DIR__, 2).'/storage/framework/testing';
         $root = $base.'/'.self::normalizeToken(token: $process);
+        self::assertNoSymlinks(path: $root);
         $realRoot = realpath($root);
         $realBase = realpath($base);
 
@@ -98,6 +104,21 @@ final class TestFilesystemIsolation
         }
 
         self::deleteOwnedDirectory(directory: $realRoot);
+    }
+
+    public static function assertNoSymlinks(string $path): void
+    {
+        $base = dirname(__DIR__, 2).'/storage';
+
+        if (! str_starts_with($path, $base.'/') || str_contains($path, '/../') || str_contains($path, '/./')) {
+            throw new RuntimeException('ИЗОЛЯЦИЯ ТЕСТОВ НАРУШЕНА: путь выходит за test storage.');
+        }
+
+        for ($current = $path; $current !== dirname($base); $current = dirname($current)) {
+            if (is_link($current)) {
+                throw new RuntimeException('ИЗОЛЯЦИЯ ТЕСТОВ НАРУШЕНА: symlink в process-root: '.$current);
+            }
+        }
     }
 
     private static function deleteOwnedDirectory(string $directory): void

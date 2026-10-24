@@ -1,0 +1,234 @@
+name: agelto_core_test
+
+x-runtime: &runtime
+  image: agelto_core_test_php:local
+  build:
+    context: ..
+    dockerfile: docker/php/Dockerfile
+    target: development
+  working_dir: /var/www/html
+  user: "0:0"
+  entrypoint: [php, tests/Support/ProcessCore/artisan.php]
+  environment: &environment
+    PROCESS_CORE_TEST: "1"
+    PROCESS_CORE_QUEUE_MODE: sync
+    APP_NAME: agelto_core_test
+    APP_ENV: testing
+    APP_KEY: base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
+    APP_DEBUG: "false"
+    APP_URL: http://app:8080
+    APP_CONFIG_CACHE: /var/www/html/bootstrap/cache/core-config.php
+    DB_CONNECTION: pgsql
+    DB_HOST: core-postgres
+    DB_PORT: "5432"
+    DB_DATABASE: agelto_test
+    DB_USERNAME: core_test
+    DB_PASSWORD: core-test-only
+    DB_URL: ""
+    REDIS_HOST: core-redis
+    REDIS_PORT: "6379"
+    REDIS_USERNAME: ""
+    REDIS_PASSWORD: core-test-only
+    REDIS_URL: ""
+    REDIS_DB: "0"
+    REDIS_CACHE_DB: "1"
+    REDIS_PREFIX: "agelto_core_test:"
+    HORIZON_PREFIX: "agelto_core_test:horizon:"
+    CACHE_PREFIX: "agelto_core_test:cache:"
+    CACHE_STORE: array
+    SESSION_DRIVER: array
+    QUEUE_CONNECTION: sync
+    FILESYSTEM_DISK: local
+    MAIL_MAILER: array
+    BROADCAST_CONNECTION: "null"
+    AWS_ACCESS_KEY_ID: core_test
+    AWS_SECRET_ACCESS_KEY: core-test-only
+    AWS_DEFAULT_REGION: us-east-1
+    AWS_BUCKET: core-test
+    AWS_ESTIMATES_BUCKET: core-test-estimates
+    AWS_ENDPOINT: http://object-storage:9000
+    AWS_USE_PATH_STYLE_ENDPOINT: "true"
+    SENTRY_LARAVEL_DSN: ""
+    PULSE_ENABLED: "false"
+    TELESCOPE_ENABLED: "false"
+    NIGHTWATCH_ENABLED: "false"
+  # Explicit read-only source mounts exclude .env*, local/secrets and dev storage.
+  volumes: &source
+    - ../app:/var/www/html/app:ro
+    - ../bootstrap:/var/www/html/bootstrap:ro
+    - ../config:/var/www/html/config:ro
+    - ../database:/var/www/html/database:ro
+    - ../docs:/var/www/html/docs:ro
+    - ../docker:/var/www/html/docker:ro
+    - ../resources:/var/www/html/resources:ro
+    - ../resources/ai/prompts:/process-core-inputs/prompts/core:ro
+    - ../resources/estimates/ai/prompts:/process-core-inputs/prompts/estimates:ro
+    - ../estimates/gold:/var/www/html/estimates/gold:ro
+    - ../estimates/files/Администрация культуры и спорта 3.gsfx:/var/www/html/estimates/files/Администрация культуры и спорта 3.gsfx:ro
+    - ../research/2026-10-08-audit-remediation.md:/var/www/html/research/2026-10-08-audit-remediation.md:ro
+    - ../tests/Fixtures/ProcessCore/historical/P9-admin-route-role-matrix.md:/var/www/html/plans/archive/2026.08.09-RELEASE-READINESS/artifacts/P9-admin-route-role-matrix.md:ro
+    - ../tests/Fixtures/ProcessCore/historical/P7.4-fields-audit.json:/var/www/html/plans/archive/2026.08.06-CRAWL-HARDEN/artifacts/P7.4-fields-audit.json:ro
+    - ./tests/process-core/runtime-inputs/candidate.git:/var/www/html/.git:ro
+    - ./tests/process-core/runtime-inputs/azguard:/var/www/html/local/vendors/azguard:ro
+    - ./tests/process-core/runtime-inputs/metadata.json:/process-core-inputs/metadata.json:ro
+    - ../routes:/var/www/html/routes:ro
+    - ../scripts:/var/www/html/scripts:ro
+    - ../tests:/var/www/html/tests:ro
+    - ../vendor:/var/www/html/vendor:ro
+    - ../public:/var/www/html/public:ro
+    - ../.ai:/var/www/html/.ai:ro
+    - ../.github:/var/www/html/.github:ro
+    - ../AGENTS.md:/var/www/html/AGENTS.md:ro
+    - ../CLAUDE.md:/var/www/html/CLAUDE.md:ro
+    - ../artisan:/var/www/html/artisan:ro
+    - ../composer.json:/var/www/html/composer.json:ro
+    - ../composer.lock:/var/www/html/composer.lock:ro
+    - ../phpunit.xml:/var/www/html/phpunit.xml:ro
+    - ../phpstan.neon:/var/www/html/phpstan.neon:ro
+    - ../rector.php:/var/www/html/rector.php:ro
+    - ../Makefile:/var/www/html/Makefile:ro
+    - ../docker-compose.yml:/var/www/html/docker-compose.yml:ro
+    - ../docker-compose.prod.yml:/var/www/html/docker-compose.prod.yml:ro
+    - ../docker-compose.override.example.yml:/var/www/html/docker-compose.override.example.yml:ro
+    - ../.env.example:/var/www/html/.env.example:ro
+    - ../.env.docker.example:/var/www/html/.env.docker.example:ro
+    - ../.env.docker.production.example:/var/www/html/.env.docker.production.example:ro
+    - ../.dockerignore:/var/www/html/.dockerignore:ro
+    - ../.gitignore:/var/www/html/.gitignore:ro
+    - ../.editorconfig:/var/www/html/.editorconfig:ro
+    - ../package.json:/var/www/html/package.json:ro
+    - ../pnpm-lock.yaml:/var/www/html/pnpm-lock.yaml:ro
+    - ../vite.config.js:/var/www/html/vite.config.js:ro
+    - ../readme.md:/var/www/html/readme.md:ro
+    - ./tests/process-core/rig.env:/var/www/html/.env:ro
+    - core-storage:/var/www/html/storage
+    - core-bootstrap:/var/www/html/bootstrap/cache
+    - core-pest:/var/www/html/vendor/pestphp/pest/.temp
+    - core-prompts:/var/www/html/resources/ai/prompts
+    - core-estimate-prompts:/var/www/html/resources/estimates/ai/prompts
+  networks: [core]
+  depends_on:
+    core-postgres: {condition: service_healthy}
+    core-redis: {condition: service_healthy}
+  security_opt: [no-new-privileges:true]
+
+services:
+  app:
+    <<: *runtime
+    command: [serve, --host=0.0.0.0, --port=8080, --no-reload]
+    healthcheck:
+      test: [CMD, curl, -fsS, http://127.0.0.1:8080/up]
+      interval: 3s
+      timeout: 3s
+      retries: 30
+
+  horizon:
+    <<: *runtime
+    environment:
+      <<: *environment
+      PROCESS_CORE_QUEUE_MODE: redis
+      QUEUE_CONNECTION: redis
+    command: [horizon]
+    stop_grace_period: 30s
+    profiles: [workers]
+    healthcheck:
+      test: [CMD, php, tests/Support/ProcessCore/artisan.php, horizon:status]
+      interval: 3s
+      timeout: 10s
+      retries: 30
+
+  scheduler:
+    <<: *runtime
+    environment:
+      <<: *environment
+      PROCESS_CORE_QUEUE_MODE: redis
+      QUEUE_CONNECTION: redis
+    command: [schedule:work]
+    stop_grace_period: 30s
+    profiles: [workers]
+    healthcheck:
+      test: [CMD-SHELL, "pgrep -f 'artisan.php schedule:work' >/dev/null"]
+      interval: 3s
+      timeout: 3s
+      retries: 30
+
+  core-postgres:
+    image: agelto_core_test_postgres:17-partman
+    build: ./postgres
+    command: [postgres, -c, shared_preload_libraries=pg_stat_statements]
+    environment:
+      POSTGRES_DB: agelto_test
+      POSTGRES_USER: core_test
+      POSTGRES_PASSWORD: core-test-only
+    volumes: [core-postgres:/var/lib/postgresql/data]
+    networks: [core]
+    healthcheck:
+      test: [CMD, pg_isready, -U, core_test, -d, postgres]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+  core-redis:
+    image: redis:7-alpine
+    command: [redis-server, --requirepass, core-test-only, --save, "", --appendonly, "no"]
+    environment:
+      REDISCLI_AUTH: core-test-only
+    volumes: [core-redis:/data]
+    networks: [core]
+    healthcheck:
+      test: [CMD, redis-cli, ping]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+  object-storage:
+    image: minio/minio:latest
+    command: [server, /data]
+    environment:
+      MINIO_ROOT_USER: core_test
+      MINIO_ROOT_PASSWORD: core-test-only
+    volumes: [core-objects:/data]
+    networks: [core]
+    healthcheck:
+      test: [CMD, curl, -fsS, http://127.0.0.1:9000/minio/health/live]
+      interval: 3s
+      timeout: 3s
+      retries: 30
+
+  fixture-http:
+    image: python:3.12-alpine
+    command: [python, /fixture/server.py, http]
+    volumes: [./tests/process-core/server.py:/fixture/server.py:ro]
+    networks: [core]
+
+  fixture-proxy:
+    image: python:3.12-alpine
+    command: [python, /fixture/server.py, proxy]
+    volumes: [./tests/process-core/server.py:/fixture/server.py:ro]
+    networks: [core]
+
+  fake-gemini:
+    image: python:3.12-alpine
+    command: [python, /fixture/server.py, gemini]
+    volumes: [./tests/process-core/server.py:/fixture/server.py:ro]
+    networks: [core]
+
+  browser:
+    image: mcr.microsoft.com/playwright:v1.56.1-noble
+    command: [sleep, infinity]
+    networks: [core]
+    profiles: [browser]
+
+networks:
+  core:
+    internal: true
+
+volumes:
+  core-postgres:
+  core-redis:
+  core-objects:
+  core-storage:
+  core-bootstrap:
+  core-pest:
+  core-prompts:
+  core-estimate-prompts:

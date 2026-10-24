@@ -14,4 +14,6 @@ status: living
 - [Архивный обход площадки (ЕИС)](archive-run.md) — как запустить `crawler:run-archive`, предусловия, что смотреть, эскалация.
 - [Площадка не проходит healthcheck](platform-health-broken.md) — разбор `broken`/`degraded`, витрина истории и эскалация.
 
+- [Изолированный process-core стенд](process-test-rig.md) — identity, install, fixtures и deterministic checks.
+
 Формат: Symptoms → Triage → Fix → Rollback → Escalation.

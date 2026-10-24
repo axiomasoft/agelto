@@ -10,15 +10,15 @@
 
 - Start with one or two relevant files. Expand context only for an unresolved term, a cross-layer change, or a conflict between rules.
 - Before editing, check whether the target is Git-ignored. Preserve unrelated dirty worktree changes.
-- Plans and phase status live in `plans/`; use the task-plan workflow for planned work and record completion facts in the plan/handoff, not only in chat.
+- Native Planner owns plan source and execution state. The coordinator records completion facts and commits; an executor follows its execution-input authority and returns evidence in its stage-report.
 - Use the project test/quality commands and report the exact verification performed. Do not weaken tests, guards, or security checks to make a change pass.
 
-## Plan layout v2
+## Plan execution
 
-- `plans/archive/2026.08.06-CRAWL-HARDEN` is the terminal **Layout v2** archive. Its historical execution path is `plan.md` → `status.md` → `handoff.md` → `phases/Pn/Pn.md` → `phases/Pn/Pn.m.md` + `Pn.m.state.md`. `artifacts/legacy-v1-*` are provenance/rollback only and are not normal execution input.
+- Archived Task Layout v2 plans are historical provenance. Their carriers and `plan-lint.py`/`plan-views.py` checks are not the current execution interface.
 - Codex selects the project plugins in `.codex/config.toml`, matching `.swissknife.json`; native caches supply discovery and `.agents/plugins/` carries the managed project bundles. Installed Task/cache versions are read from the native CLI, not pinned in these instructions. Claude Code uses the same declared plugin set through its marketplace configuration.
-- Use native `$ task:` plan commands for this plan. Layout-aware commands select the v2 read path and never create v1 phase carriers, Phase Status tables, or outcome fields in item specifications.
-- Before and after plan work, run the Task checks from the Swissknifeman marketplace root in dependency order: `plan-lint.py`, then `plan-views.py state --all`, `decisions`, and `status` with `--check`. An `unresolvable_entry` is a plan-input defect to resolve or record in its owning work; never bypass it by falling back to v1.
+- Current work uses native Planner execution-input and its assigned authority. Coordinator owns lifecycle, acceptance evidence registration and commits; executor changes product files and returns its stage-report. Executors do not read or mutate plan carriers or run plan lifecycle commands.
+- The isolated PHP harness is documented in `docs/dev/runbooks/process-test-rig.md`. Use `core-*` targets for process-core checks; never reset a dev/shared database. Future suites must fail explicitly with `suite_not_implemented` until their owning package supplies assertions.
 
 ## Architecture invariants
 

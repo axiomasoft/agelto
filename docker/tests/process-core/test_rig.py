@@ -1,0 +1,390 @@
+"""Guard negatives run without starting or mutating a Docker service."""
+import copy
+import importlib.util
+import io
+from pathlib import Path
+import tempfile
+import unittest
+import os
+import subprocess
+import sys
+import json
+from types import SimpleNamespace
+from unittest.mock import patch
+
+spec = importlib.util.spec_from_file_location("rig", Path(__file__).with_name("rig.py"))
+rig = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(rig)
+
+
+class RigGuardsTest(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.config = rig.config_identity()  # compose config only; no containers or DB commands.
+
+    def test_positive_resolved_compose_identity(self):
+        self.assertEqual(rig.validate_config(self.config)["name"], "agelto_core_test")
+
+    def test_failed_command_preserves_error_written_only_to_stdout(self):
+        result = SimpleNamespace(returncode=1, stdout="Migration table not found", stderr="")
+        with patch.object(rig.subprocess, "run", return_value=result):
+            with self.assertRaisesRegex(rig.GuardError, "Migration table not found"):
+                rig.run(["php", "artisan", "migrate:status"])
+
+    def test_wrong_project_network_external_volume_and_dev_bind_are_rejected(self):
+        for mutation in [
+            lambda c: c.update(name="agelto_dev"),
+            lambda c: c["networks"]["core"].update(internal=False),
+            lambda c: c["volumes"]["core-postgres"].update(external=True),
+            lambda c: c["volumes"]["core-postgres"].update(name="agelto_dev_pgsql_data"),
+            lambda c: c["services"]["app"]["volumes"].append(
+                {"type": "bind", "source": str(rig.ROOT / ".env"), "target": "/var/www/html/.env", "read_only": True}),
+            lambda c: c["services"]["app"]["environment"].update(DB_HOST="postgres"),
+            lambda c: c["services"]["app"]["environment"].update(REDIS_PREFIX="agelto-database-"),
+            lambda c: c["services"]["app"].update(ports=["8080:8080"]),
+        ]:
+            config = copy.deepcopy(self.config)
+            mutation(config)
+            with self.subTest(config=config["name"]), self.assertRaises(rig.GuardError):
+                rig.validate_config(config)
+
+    def test_exact_database_parallel_token_and_connected_identity(self):
+        proof = {"project": rig.PROJECT, "environment": "testing", "database": "agelto_test",
+                 "user": "core_test", "port": 5432, "server_version": "17.6"}
+        rig.target_guard(proof)
+        for key, value in [("project", "agelto_dev"), ("database", "agelto"),
+                           ("database", "alien_test"), ("user", "postgres"),
+                           ("environment", "production"), ("port", 6432), ("server_version", "16.0")]:
+            with self.subTest(key=key, value=value), self.assertRaises(rig.GuardError):
+                rig.target_guard({**proof, key: value})
+        parallel = {**proof, "database": "agelto_test_test_2"}
+        rig.target_guard(parallel, "agelto_test_test_2", "2")
+        for token in ["1", "2;DROP DATABASE agelto", "../2"]:
+            with self.subTest(token=token), self.assertRaises(rig.GuardError):
+                rig.target_guard(parallel, "agelto_test_test_2", token)
+
+    def test_guard_failure_precedes_every_reset_mutation(self):
+        with tempfile.TemporaryDirectory() as temp, \
+                patch.object(rig, "destructive_guard", side_effect=rig.GuardError("foreign target")), \
+                patch.object(rig, "compose") as compose, patch.object(rig, "pg") as pg:
+            with self.assertRaises(rig.GuardError):
+                rig.reset(Path(temp))
+            compose.assert_not_called()  # no worker stop, Redis flush, volume cleanup or DROP.
+            pg.assert_not_called()
+
+    def test_stopped_application_is_rejected_before_any_reset_mutation(self):
+        services = {name: {"state": "running"} for name in
+                    ("app", "core-postgres", "core-redis", "object-storage")}
+        services["app"]["state"] = "exited"
+        with patch.object(rig, "identity", return_value={"services": services}), \
+                patch.object(rig, "compose") as compose, patch.object(rig, "pg") as pg:
+            with self.assertRaisesRegex(rig.GuardError, "running application/data services"):
+                rig.destructive_guard()
+            compose.assert_not_called()
+            pg.assert_not_called()
+
+    def test_install_clock_is_enabled_for_migrations_and_seed_without_seed_normalization(self):
+        clock = {"anchor_utc": "2026-10-24T07:40:00Z", "identity": {"project": rig.PROJECT}}
+        observed = {**clock, "anchor_utc": "2026-10-24T07:42:00Z"}
+        with tempfile.TemporaryDirectory() as temp, \
+                patch.object(rig, "install_clock", return_value=observed), \
+                patch.object(rig, "stop_workers"), patch.object(rig, "readiness"), \
+                patch.object(rig, "snapshot", return_value={"seeds": "full-seed-hash"}), \
+                patch.object(rig, "pg"), patch.object(rig, "compose") as compose:
+            compose.return_value = SimpleNamespace(returncode=0, stdout="", stderr="")
+            for name in ("install-1", "install-2"):
+                folder = Path(temp) / name
+                folder.mkdir()
+                self.assertEqual(rig.reset(folder, clock=clock), {"seeds": "full-seed-hash"})
+                self.assertEqual(json.loads((folder / "install-clock.json").read_text())["pass"], clock)
+            installs = [call.args for call in compose.call_args_list
+                        if "migrate" in call.args or "db:seed" in call.args]
+            self.assertEqual(len(installs), 4)
+            for command in installs:
+                self.assertEqual(command[:9], ("exec", "-T", "-e", "PROCESS_CORE_INSTALL=1",
+                                               "-e", "PROCESS_CORE_INSTALL_AT=" + clock["anchor_utc"], "app", "php",
+                                               "tests/Support/ProcessCore/artisan.php"))
+
+    def test_install_clock_samples_only_guarded_postgres_and_native_runtime(self):
+        events = []
+        timestamp = "2026-10-24T07:40:00Z"
+
+        def guard():
+            events.append("guarded")
+            return {"project": rig.PROJECT}
+
+        def postgres(sql):
+            self.assertEqual(events, ["guarded"])
+            self.assertIn("clock_timestamp() AT TIME ZONE 'UTC'", sql)
+            events.append("postgres")
+            return json.dumps({"utc": timestamp, "timezone": "Etc/UTC"})
+
+        def runtime(*args):
+            self.assertEqual(events, ["guarded", "postgres"])
+            self.assertEqual(args[:6], ("exec", "-T", "app", "php", "-r", "echo gmdate('Y-m-d\\TH:i:s\\Z');"))
+            return SimpleNamespace(stdout=timestamp)
+
+        with patch.object(rig, "destructive_guard", side_effect=guard), \
+                patch.object(rig, "pg", side_effect=postgres), patch.object(rig, "compose", side_effect=runtime):
+            clock = rig.install_clock()
+            self.assertEqual(clock["anchor_utc"], timestamp)
+            self.assertEqual(clock["runtime_utc"], timestamp)
+            self.assertEqual(clock["identity"], {"project": rig.PROJECT})
+
+    def test_install_clock_rejects_skew_month_mismatch_timezone_and_invalid_dates_before_mutation(self):
+        for postgres, runtime, timezone in [
+            ("2026-10-24T07:40:00Z", "2026-10-24T07:41:01Z", "UTC"),
+            ("2026-10-31T23:59:59Z", "2026-11-01T00:00:00Z", "UTC"),
+            ("2026-10-24T07:40:00Z", "2026-10-24T07:40:00Z", "Europe/Moscow"),
+            ("2026-02-30T07:40:00Z", "2026-02-30T07:40:00Z", "UTC"),
+            ("2026-10-24", "2026-10-24T07:40:00Z", "UTC"),
+        ]:
+            with self.subTest(postgres=postgres, runtime=runtime, timezone=timezone), \
+                    tempfile.TemporaryDirectory() as temp, \
+                    patch.object(rig, "destructive_guard", return_value={}), \
+                    patch.object(rig, "pg", return_value=json.dumps({"utc": postgres, "timezone": timezone})) as pg, \
+                    patch.object(rig, "compose", return_value=SimpleNamespace(stdout=runtime)) as compose, \
+                    patch.object(rig, "stop_workers") as stop:
+                with self.assertRaises((rig.GuardError, ValueError)):
+                    rig.reset(Path(temp))
+                stop.assert_not_called()
+                self.assertEqual(pg.call_count, 1)  # Only the clock SELECT, never DROP.
+                self.assertEqual(compose.call_count, 1)  # Only native PHP clock, never a migration.
+
+    def test_pass_month_rollover_is_rejected_before_worker_stop_or_drop(self):
+        with tempfile.TemporaryDirectory() as temp, \
+                patch.object(rig, "install_clock", return_value={"anchor_utc": "2026-11-01T00:00:00Z"}), \
+                patch.object(rig, "stop_workers") as stop, patch.object(rig, "pg") as pg, \
+                patch.object(rig, "compose") as compose:
+            with self.assertRaisesRegex(rig.GuardError, "crossed a UTC month"):
+                rig.reset(Path(temp), clock={"anchor_utc": "2026-10-31T23:59:59Z"})
+            stop.assert_not_called()
+            pg.assert_not_called()
+            compose.assert_not_called()
+
+    def test_two_clean_installs_share_one_reported_anchor(self):
+        clock = {"anchor_utc": "2026-10-24T07:40:00Z", "identity": {"project": rig.PROJECT}}
+        with tempfile.TemporaryDirectory() as temp, \
+                patch.object(rig, "ROOT", Path(temp)), \
+                patch.object(rig, "new_report", return_value=(Path(temp), {})), \
+                patch.object(rig, "install_clock", return_value=clock) as capture, \
+                patch.object(rig, "reset", return_value={"seeds": "full-seed-hash"}) as reset, \
+                patch("sys.stdout", new=io.StringIO()):
+            self.assertEqual(rig.execute("core-test-install", "install"), 0)
+            capture.assert_called_once()
+            self.assertEqual(len(reset.call_args_list), 2)
+            for call in reset.call_args_list:
+                self.assertIs(call.kwargs["clock"], clock)
+            self.assertEqual(json.loads((Path(temp) / "result.json").read_text())["install_clock"], clock)
+            self.assertEqual(json.loads((Path(temp) / "install-clock.json").read_text()), clock)
+
+    def test_required_runtime_inputs_are_not_optional_or_hash_normalized(self):
+        with tempfile.TemporaryDirectory() as temp, patch.object(rig, "ROOT", Path(temp)):
+            root = Path(temp)
+            manifest = root / "tests/Fixtures/ProcessCore/runtime-inputs.json"
+            manifest.parent.mkdir(parents=True)
+            original = root / "original.json"
+            original.write_text('{"measured": 42}')
+            manifest.write_text(json.dumps({"files": [{"source": "original.json",
+                                  "sha256": rig.hashlib.sha256(original.read_bytes()).hexdigest()}]}))
+            rig.verify_fixture_inputs()
+            original.write_text('{"measured": 0}')
+            with self.assertRaisesRegex(rig.GuardError, "required runtime input"):
+                rig.verify_fixture_inputs()
+            original.unlink()
+            with self.assertRaisesRegex(rig.GuardError, "required runtime input"):
+                rig.verify_fixture_inputs()
+
+    def test_container_label_and_mount_substitution_are_rejected(self):
+        service = self.config["services"]["app"]
+        container = {
+            "Name": "/agelto_core_test-app-1",
+            "Config": {"Labels": {"com.docker.compose.project": rig.PROJECT, "com.docker.compose.service": "app"},
+                       "Env": [f"{k}={v}" for k, v in service["environment"].items()]},
+            "HostConfig": {"NetworkMode": "agelto_core_test_core", "Privileged": False},
+            "NetworkSettings": {"Networks": {"agelto_core_test_core": {}}},
+            "Mounts": [{"Type": m["type"], "Destination": m["target"], "Source": m["source"],
+                        "Name": f"agelto_core_test_{m['source']}", "RW": False}
+                       for m in service["volumes"]],
+        }
+        rig.container_identity(self.config, "app", container)
+        for change in [lambda c: c["Config"]["Labels"].update({"com.docker.compose.project": "agelto_dev"}),
+                       lambda c: c.update(Name="/agelto_dev-app-1"),
+                       lambda c: c["Mounts"].append({"Destination": "/foreign"}),
+                       lambda c: c["NetworkSettings"]["Networks"].update(dev={})]:
+            forged = copy.deepcopy(container)
+            change(forged)
+            with self.assertRaises(rig.GuardError):
+                rig.container_identity(self.config, "app", forged)
+
+    def test_future_suite_is_nonzero_without_runtime_commands(self):
+        with patch.object(rig, "compose") as compose, patch("sys.stdout", new=io.StringIO()) as out:
+            self.assertEqual(rig.main("core-test-execution"), 78)
+            self.assertIn("suite_not_implemented", out.getvalue())
+            compose.assert_not_called()
+
+    def test_catalog_normalization_preserves_semantic_differences(self):
+        first = {"extensions": ["pg_partman"], "partman": [{"parent_table": "public.events",
+                 "retention": "6 months", "maintenance_last_run": "2026-10-23T10:00:00Z"}]}
+        second = copy.deepcopy(first)
+        second["partman"][0]["maintenance_last_run"] = "2026-10-23T11:00:00Z"
+        self.assertEqual(rig.normalize_catalog(first), rig.normalize_catalog(second))
+        second["partman"][0]["retention"] = "1 month"
+        self.assertNotEqual(rig.normalize_catalog(first), rig.normalize_catalog(second))
+
+    def test_identity_preflight_does_not_require_migrations_but_readiness_does(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            (root / "phpunit.xml").write_text('<env name="DB_DATABASE" value="agelto_test"/>')
+            (root / "test.env").write_text("APP_ENV=testing\n")
+            bin_dir = root / "bin"
+            bin_dir.mkdir()
+            docker = bin_dir / "docker"
+            docker.write_text('''#!/usr/bin/env bash
+case " $* " in
+  *" ps --status running postgres "*) echo postgres ;;
+  *" ps --status running app "*) echo app ;;
+  *" pg_isready "*) exit 0 ;;
+  *"SELECT 1 FROM pg_database"*) echo 1 ;;
+  *" migrate:status "*) echo Pending ;;
+  *) exit 99 ;;
+esac
+''')
+            docker.chmod(0o755)
+            command = ["bash", str(rig.ROOT / "docker/scripts/test-database.sh"), "--root", str(root),
+                       "--env-file", "test.env", "--project-name", "agelto_contract", "--phase"]
+            env = {**os.environ, "PATH": str(bin_dir) + os.pathsep + os.environ["PATH"]}
+            self.assertEqual(subprocess.run(command + ["identity"], env=env, capture_output=True).returncode, 0)
+            self.assertEqual(subprocess.run(command + ["readiness"], env=env, capture_output=True).returncode, 68)
+
+    def test_report_symlink_is_rejected_before_directory_creation(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp) / "project"
+            root.mkdir()
+            foreign = Path(temp) / "foreign"
+            foreign.mkdir()
+            (root / "storage").symlink_to(foreign, target_is_directory=True)
+            reports = root / "storage/app/testing/process-core/reports"
+            with patch.object(rig, "ROOT", root), patch.object(rig, "REPORTS", reports):
+                with self.assertRaises(rig.GuardError):
+                    rig.new_report("guard-fixture")
+            self.assertEqual(list(foreign.iterdir()), [])
+
+    def test_stopped_owned_worker_is_not_a_foreign_network_member(self):
+        def container(service, running):
+            config = self.config["services"][service]
+            return {
+                "Name": f"/{rig.PROJECT}-{service}-1",
+                "Config": {"Labels": {"com.docker.compose.project": rig.PROJECT,
+                                      "com.docker.compose.service": service},
+                           "Env": [f"{k}={v}" for k, v in config["environment"].items()]},
+                "State": {"Running": running, "Status": "running" if running else "exited"},
+                "HostConfig": {"NetworkMode": f"{rig.PROJECT}_core"},
+                "NetworkSettings": {"Networks": {f"{rig.PROJECT}_core": {}}},
+                "Mounts": [{"Type": m["type"], "Destination": m["target"], "Source": m["source"],
+                            "Name": f"{rig.PROJECT}_{m['source']}", "RW": False}
+                           for m in config["volumes"]],
+            }
+
+        containers = {"app-id": container("app", True), "stopped-id": container("horizon", False)}
+        network = {"Internal": True, "Driver": "bridge",
+                   "Labels": {"com.docker.compose.project": rig.PROJECT}, "Containers": {"app-id": {}}}
+
+        def inspect_resource(argv, **kwargs):
+            return SimpleNamespace(returncode=0, stdout=json.dumps([network])) if argv[1] == "network" \
+                else SimpleNamespace(returncode=1, stdout="")
+
+        with patch.object(rig, "config_identity", return_value=self.config), \
+                patch.object(rig, "compose", return_value=SimpleNamespace(stdout="app-id\nstopped-id\n")), \
+                patch.object(rig, "inspect_json", side_effect=lambda kind, cid: containers[cid]), \
+                patch.object(rig, "run", side_effect=inspect_resource):
+            self.assertEqual(rig.identity()["services"]["horizon"]["state"], "exited")
+            network["Containers"]["foreign-id"] = {}
+            with self.assertRaisesRegex(rig.GuardError, "foreign network member"):
+                rig.identity()
+            network["Containers"] = {}
+            with self.assertRaisesRegex(rig.GuardError, "foreign network member"):
+                rig.identity()
+
+    def test_project_lock_excludes_a_second_real_process_and_releases(self):
+        code = r'''
+import importlib.util, pathlib, sys, fcntl
+spec=importlib.util.spec_from_file_location('rig',sys.argv[1]); rig=importlib.util.module_from_spec(spec); spec.loader.exec_module(rig)
+rig.ROOT=pathlib.Path(sys.argv[2]); rig.REPORTS=rig.ROOT/'storage/reports'
+with open(rig.REPORTS/'.project.lock','a') as probe:
+    try:
+        fcntl.flock(probe,fcntl.LOCK_EX|fcntl.LOCK_NB)
+    except BlockingIOError:
+        print('blocked',flush=True)
+    else:
+        print('not-blocked',flush=True)
+with rig.project_lock():
+    print('entered',flush=True)
+'''
+        with tempfile.TemporaryDirectory() as temp, patch.object(rig, "ROOT", Path(temp)), \
+                patch.object(rig, "REPORTS", Path(temp) / "storage/reports"):
+            child = None
+            try:
+                with rig.project_lock():
+                    child = subprocess.Popen([sys.executable, "-B", "-c", code, rig.__file__, temp],
+                                             stdout=subprocess.PIPE, stderr=subprocess.PIPE, bufsize=0)
+                    self.assertEqual(child.stdout.readline(), b"blocked\n")
+                output, error = child.communicate(timeout=5)
+                self.assertEqual(child.returncode, 0, error)
+                self.assertEqual(output, b"entered\n")
+            finally:
+                if child is not None and child.poll() is None:
+                    child.kill()
+                    child.communicate()
+
+    def test_cli_acquires_project_lock_before_any_operation(self):
+        events = []
+
+        @rig.contextmanager
+        def lock():
+            events.append("locked")
+            yield
+            events.append("released")
+
+        def execute(command, name):
+            self.assertEqual(events, ["locked"])
+            self.assertEqual((command, name), ("core-test-install", "install"))
+            events.append("executed")
+            return 0
+
+        with patch.object(rig, "project_lock", lock), patch.object(rig, "execute", execute):
+            self.assertEqual(rig.main("core-test-install"), 0)
+        self.assertEqual(events, ["locked", "executed", "released"])
+
+    def test_project_lock_rejects_symlink_without_touching_foreign_file(self):
+        with tempfile.TemporaryDirectory() as temp, patch.object(rig, "ROOT", Path(temp)), \
+                patch.object(rig, "REPORTS", Path(temp) / "storage/reports"):
+            rig.prepare_reports()
+            foreign = Path(temp) / "foreign"
+            foreign.write_text("keep")
+            (rig.REPORTS / ".project.lock").symlink_to(foreign)
+            with self.assertRaises(OSError):
+                with rig.project_lock():
+                    self.fail("symlink lock accepted")
+            self.assertEqual(foreign.read_text(), "keep")
+
+    def test_pure_unit_suite_does_not_require_a_migrated_domain_schema(self):
+        junit = '<testsuite><testcase classname="Tests.Unit.PureTest" name="pure"/></testsuite>'
+        with tempfile.TemporaryDirectory() as temp, \
+                patch.object(rig, "identity") as identity, patch.object(rig, "readiness") as readiness, \
+                patch.object(rig, "stop_workers"), patch.object(rig, "compose") as compose:
+            folder = Path(temp)
+
+            def call(*args, **kwargs):
+                if args[0] == "cp":
+                    (folder / "junit.xml").write_text(junit)
+                return SimpleNamespace(returncode=0, stdout="", stderr="")
+
+            compose.side_effect = call
+            self.assertEqual(rig.suite(folder, "unit")["executed"], 1)
+            identity.assert_called_once()
+            readiness.assert_not_called()
+
+
+if __name__ == "__main__":
+    unittest.main()

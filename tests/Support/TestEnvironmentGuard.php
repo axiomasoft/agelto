@@ -29,6 +29,15 @@ final class TestEnvironmentGuard
         $default = (string) $config->get('database.default');
         $database = $config->get("database.connections.{$default}.database");
 
+        if ($app->environment() !== 'testing' || $default !== 'pgsql'
+            || filled($config->get("database.connections.{$default}.url"))) {
+            throw new RuntimeException('ИЗОЛЯЦИЯ ТЕСТОВ НАРУШЕНА: нужны APP_ENV=testing, pgsql и пустой DB_URL. Проверьте phpunit.xml/tests/bootstrap.php.');
+        }
+
+        if (getenv('PROCESS_CORE_TEST') === '1') {
+            self::assertProcessCoreIdentity(app: $app);
+        }
+
         if ($database !== 'agelto_test') {
             throw new RuntimeException(sprintf(
                 "ИЗОЛЯЦИЯ ТЕСТОВ НАРУШЕНА: bootstrap DB не является exact test DB.\n".
@@ -44,6 +53,35 @@ final class TestEnvironmentGuard
                 is_string($database) ? $database : (string) json_encode($database),
                 'agelto_test',
             ));
+        }
+    }
+
+    public static function assertProcessCoreIdentity(Application $app): void
+    {
+        $config = $app->make('config');
+        $expected = [
+            'database.connections.pgsql.host' => 'core-postgres',
+            'database.connections.pgsql.username' => 'core_test',
+            'database.redis.default.host' => 'core-redis',
+            'database.redis.cache.host' => 'core-redis',
+            'database.redis.options.prefix' => 'agelto_core_test:',
+            'horizon.prefix' => 'agelto_core_test:horizon:',
+        ];
+
+        foreach ($expected as $key => $value) {
+            if ($config->get($key) !== $value) {
+                throw new RuntimeException('ИЗОЛЯЦИЯ ТЕСТОВ НАРУШЕНА: process-core identity: '.$key.'. Используйте make core-test-up и отдельный Compose project agelto_core_test.');
+            }
+        }
+
+        if (filled($config->get('database.redis.default.url')) || filled($config->get('database.redis.cache.url'))) {
+            throw new RuntimeException('ИЗОЛЯЦИЯ ТЕСТОВ НАРУШЕНА: process-core identity: Redis URL обходит host guard.');
+        }
+
+        $mode = getenv('PROCESS_CORE_QUEUE_MODE') ?: 'sync';
+
+        if (! in_array($mode, ['sync', 'redis'], strict: true) || $config->get('queue.default') !== $mode) {
+            throw new RuntimeException('ИЗОЛЯЦИЯ ТЕСТОВ НАРУШЕНА: process-core queue mode не совпадает с resolved queue.default.');
         }
     }
 
@@ -87,6 +125,17 @@ final class TestEnvironmentGuard
             if (! is_string($path) || ! str_starts_with($path, $root.'/')) {
                 throw new RuntimeException("ИЗОЛЯЦИЯ ТЕСТОВ НАРУШЕНА: {$name} выходит за process-root.");
             }
+
+            TestFilesystemIsolation::assertNoSymlinks(path: $path);
+        }
+
+        foreach ($config->get('filesystems.disks', []) as $disk) {
+            if (($disk['driver'] ?? null) !== 'local' || ! is_string($disk['root'] ?? null)
+                || ! str_starts_with($disk['root'], $root.'/disks/')) {
+                throw new RuntimeException('ИЗОЛЯЦИЯ ТЕСТОВ НАРУШЕНА: filesystem disk выходит за process-root.');
+            }
+
+            TestFilesystemIsolation::assertNoSymlinks(path: $disk['root']);
         }
 
         if (sys_get_temp_dir() !== $config->get('testing.temp_root')) {
