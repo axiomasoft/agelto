@@ -3,6 +3,22 @@
   "captured_before": "P4.1 harness; no namespace move",
   "contract_fixtures": [
     {
+      "id": "local-wire-v1",
+      "kind": "http_proxy_fake_llm",
+      "path": "docker/tests/process-core/fixtures/wire-v1.json",
+      "platform": null,
+      "adapter_version": "fixture-wire/v1",
+      "provenance": "Hand-authored sanitized synthetic HTTP and Gemini envelopes; expected responses manually checked, no external I/O.",
+      "captured_at": "2026-10-24",
+      "sha256": "835763feff832fe99035bb7066f350b64282b6be2e927f40d682df0ad8db8dfd",
+      "expected": {
+        "assessment": "local_wire_only",
+        "schema_version": 1
+      },
+      "scenario_ids": ["T03", "T13", "T22"],
+      "coverage": "fixture_wire_only"
+    },
+    {
       "id": "process-contracts-v1",
       "kind": "process_contract",
       "path": "tests/Support/ProcessCore/contracts-v1.json",

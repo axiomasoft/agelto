@@ -19,6 +19,7 @@
 - Codex selects the project plugins in `.codex/config.toml`, matching `.swissknife.json`; native caches supply discovery and `.agents/plugins/` carries the managed project bundles. Installed Task/cache versions are read from the native CLI, not pinned in these instructions. Claude Code uses the same declared plugin set through its marketplace configuration.
 - Current work uses native Planner execution-input and its assigned authority. Coordinator owns lifecycle, acceptance evidence registration and commits; executor changes product files and returns its stage-report. Executors do not read or mutate plan carriers or run plan lifecycle commands.
 - The isolated PHP harness is documented in `docs/dev/runbooks/process-test-rig.md`. Use `core-*` targets for process-core checks; never reset a dev/shared database. Future suites must fail explicitly with `suite_not_implemented` until their owning package supplies assertions.
+- Fixture manifest hashes/provenance and real local HTTP/proxy/fake LLM assertions run before the env/unit proof. Server-owned sequences do not trust client attempt numbers. Keep Docker egress denial alongside `Http::preventStrayRequests()`; fixture wire checks do not prove future domain behavior.
 
 ## Architecture invariants
 

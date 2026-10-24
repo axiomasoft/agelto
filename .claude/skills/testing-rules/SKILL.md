@@ -5,34 +5,29 @@ description: "Правила безопасного тестирования Age
 
 # Правила тестирования (Agelto)
 
-> ВАЖНО: тесты используют отдельную БД `agelto_test`. Всегда применяй `RefreshDatabase` —
-> без него тесты на боевой БД уничтожат данные.
+> Тесты используют только изолированную БД `agelto_test`. `RefreshDatabase` очищает состояние
+> тестов, но не доказывает безопасность выбранной БД. Сначала проверь identity целевого rig.
 
 ## 1. Изоляция тестовой БД
 
-Конфигурация зафиксирована в `phpunit.xml` и форсится (`force="true"`), переопределить из `.env` нельзя:
+`phpunit.xml` задаёт serial defaults. До загрузки приложения `tests/bootstrap.php`
+синхронизирует `$_SERVER`, `$_ENV` и `putenv()` с testing-конфигурацией. При
+`PROCESS_CORE_TEST=1` выбираются отдельные PostgreSQL/Redis rig и его queue namespace.
+Одного `force="true"` недостаточно для защиты от destructive reset.
 
-```xml
-<env name="APP_ENV" value="testing"/>
-<env name="DB_CONNECTION" value="pgsql" force="true"/>
-<env name="DB_DATABASE"   value="agelto_test" force="true"/>
-```
+Process-core запускается через `core-*` targets из repository root: explicit Compose project
+`agelto_core_test`, отдельный PostgreSQL 17, БД `agelto_test`, internal network и local fixtures.
+Не создавай test DB в dev/shared PostgreSQL и не используй dev `.env`/credentials.
+Перед reset проверяются exact project/container/database identity, testing env и volumes.
+Identity/connectivity разрешены до migrations; readiness проверяет установленную схему после них.
+Подробный порядок: [process-test-rig](../../../docs/dev/runbooks/process-test-rig.md).
 
-- Тестовая БД: `agelto_test` (PostgreSQL, изолирована).
-- Боевая БД: `agelto` — защищена (`force="true"` не даёт тестам её коснуться).
-- НИКОГДА не ставь `DB_DATABASE=agelto` в тестовом окружении.
+## 2. Изоляция состояния теста
 
-Тестовая БД должна существовать в том же PostgreSQL-инстансе:
-
-```bash
-createdb agelto_test    # один раз; или psql: CREATE DATABASE agelto_test;
-```
-
-## 2. RefreshDatabase — обязателен
-
-`RefreshDatabase` подключается глобально в `tests/Pest.php` для нужных сюит. Для тестов с БД трейт обязателен.
-Он оборачивает каждый тест в транзакцию и откатывает её — данные между тестами не текут. Безопасно,
-потому что используется отдельная БД `agelto_test`.
+Для обычных serial DB tests используй `RefreshDatabase` согласно `tests/Pest.php`.
+Настоящие concurrency tests используют отдельные PostgreSQL connections/processes и собственную
+детерминированную очистку isolated DB; внешняя rollback-транзакция не должна скрывать их writes.
+Транзакция, фабрика или mock не заменяют проверку целевой БД и реальную конкурентную проверку.
 
 ## 3. Фабрики, не ручные insert'ы
 
@@ -56,26 +51,30 @@ tuple-возвратов и boolean-флагов, канон хелперов). 
 
 ## 4. Проверка перед запуском
 
-```bash
-grep -E "DB_(CONNECTION|DATABASE)" phpunit.xml      # ожидаем: pgsql / agelto_test
-```
+Используй identity/readiness guards harness, а не только чтение `phpunit.xml`.
+`Http::preventStrayRequests()` дополняет Docker egress denial: raw sockets и CLI требуют
+сетевой изоляции. Manifest проверяет fixture hashes/provenance; локальные HTTP/proxy/fake LLM
+проверки не обращаются к платным моделям. Future suite обязана вернуть `suite_not_implemented`
+(exit 78); пустой набор, skip или отсутствие assertions не являются успешной приёмкой.
 
 ## 5. Запрещено / Обязательно
 
 НИКОГДА: тесты на БД `agelto`; `DB_DATABASE=agelto` в тестовом окружении; ручной truncate/delete
 боевых таблиц; тестирование через tinker на боевой БД.
 
-ВСЕГДА: PostgreSQL `agelto_test`; `RefreshDatabase`; фабрики; проверка конфигурации перед прогоном.
+ВСЕГДА: isolated PostgreSQL `agelto_test`; подходящая изоляция состояния теста; фабрики;
+проверка resolved конфигурации и identity перед прогоном.
 
 ## 6. CI
 
-В CI поднимается сервис PostgreSQL и та же БД `agelto_test`; DB-параметры берутся из `phpunit.xml`.
+В CI также нужна отдельная PostgreSQL `agelto_test` и проверенная testing-конфигурация;
+не наследуй dev/shared runtime. Bootstrap и resolved guards действуют и в CI.
 
 ## Чеклист
 
-- [ ] `phpunit.xml`: `DB_CONNECTION=pgsql`, `DB_DATABASE=agelto_test` (оба `force="true"`).
-- [ ] БД `agelto_test` существует в инстансе PostgreSQL.
-- [ ] Тест с БД использует `RefreshDatabase`.
+- [ ] Resolved testing config и exact rig identity проверены.
+- [ ] БД `agelto_test` находится в отдельном test PostgreSQL.
+- [ ] Serial DB test использует `RefreshDatabase`; concurrency test — реальные connections и isolated cleanup.
 - [ ] Данные — через фабрики.
 - [ ] Боевая БД `agelto` не затрагивается.
 

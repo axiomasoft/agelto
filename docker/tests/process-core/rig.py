@@ -287,6 +287,22 @@ def verify_fixture_inputs():
     return manifest
 
 
+def fixture_proof(folder):
+    manifest = run([sys.executable, "-B", "docker/tests/process-core/fixture_manifest.py", ROOT], check=False)
+    (folder / "fixture-manifest.log").write_text(manifest.stdout + manifest.stderr)
+    require(manifest.returncode == 0, "fixture manifest invalid; see fixture-manifest.log")
+    inputs = json.loads(manifest.stdout)
+    tests = run([sys.executable, "-B", "docker/tests/process-core/test_fixtures.py"], check=False)
+    (folder / "fixture-tests.log").write_text(tests.stdout + tests.stderr)
+    require(tests.returncode == 0, "local fixture assertions failed; see fixture-tests.log")
+    result = json.loads(tests.stdout)
+    require(type(result.get("executed")) is int and result["executed"] > 0
+            and result.get("skipped") == 0, "empty/skipped local fixture assertions")
+    proof = {**inputs, **result}
+    write_json(folder / "fixture-proof.json", proof)
+    return proof
+
+
 def prepare_metadata(folder):
     """Export real shallow Git objects; never copy host config, hooks or credentials."""
     verify_fixture_inputs()
@@ -437,6 +453,7 @@ def reset(folder, *, clock=None):
 
 def env_proof(folder):
     proof = destructive_guard()
+    fixture_proof(folder)
     guard_tests = run([sys.executable, "-B", "-m", "unittest", "discover", "-s",
                        "docker/tests/process-core", "-p", "test_rig.py", "-v"], check=False)
     (folder / "guard-tests.log").write_text(guard_tests.stdout + guard_tests.stderr)
@@ -526,6 +543,8 @@ def suite(folder, name):
         readiness()
     stop_workers()  # Regression tests own RefreshDatabase; no scheduler races with it.
     verify_fixture_inputs()
+    if name == "unit":
+        fixture_proof(folder)
     prepare_runtime()
     junit = f"storage/app/testing/process-core/{folder.name}-{name}.xml"
     command = ["./vendor/bin/pest", "--no-tia", "--compact", "--log-junit=" + junit]
@@ -542,6 +561,8 @@ def suite(folder, name):
     require(cases and any(c["status"] == "passed" for c in cases), "empty test selection")
     require(result.returncode == 0, f"{name} failed; see {folder}")
     require(all(c["status"] == "passed" for c in cases), "baseline contains failed/skipped scenarios")
+    require(sum(int(c.get("assertions", "0")) for c in tree.iter("testcase")) > 0,
+            "suite executed no assertions")
     if name == "regression":
         inventory = json.loads((ROOT / "tests/Fixtures/ProcessCore/manifest.json").read_text())
         # PHPUnit encodes the file path in Pest's generated classname. Keep both forms.

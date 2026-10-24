@@ -13,7 +13,8 @@ PostgreSQL 17 + pg_partman images и поднимает project `agelto_core_tes
 Все stateful core-* вызовы удерживают общий host `flock` в ignored reports directory до
 завершения команды и записи evidence. Параллельные make-процессы не могут одновременно
 пересоздавать БД, запускать suites или менять состояние workers. Перед проверками необходим
-завершившийся `core-test-up`; acceptance V1–V6 выполняются последовательно в listed order.
+завершившийся `core-test-up`; acceptance текущего execution-input выполняет coordinator
+последовательно, без reuse результатов.
 `flock` исключает одновременные mutations, но не задаёт порядок зависимых команд; pure Unit suite проверяет identity без требования domain migrations.
 Для сборки нужны Docker и исходные установленные `vendor/`; зависимости Composer не добавляются.
 
@@ -25,13 +26,13 @@ volumes не подключаются; versioned env examples доступны �
 CONNECT/TLS и полноценный Gemini protocol получают assertions в своих owning пакетах;
 текущие fixture endpoints не считаются доказательством этих контрактов.
 
-| Команда | Контракт harness P4.1–P4.3 |
+| Команда | Текущий контракт harness |
 | --- | --- |
 | `make core-test-up` | Compose identity, connectivity, healthy app/Postgres/Redis/MinIO |
-| `make core-test-env` | Positive/negative target checks и raw socket egress deny + fixture reachability |
+| `make core-test-env` | Positive/negative target checks, fixture manifest/wire assertions, raw socket egress deny и fixture reachability |
 | `make core-test-reset` | Guard, остановка только test workers/scheduler, DROP/CREATE `agelto_test`, migrate, minimal seed, Redis/object/runtime cleanup, readiness, manifests, запуск test workers |
 | `make core-test-install` | Два полных reset; точное сравнение normalized schema/seed/extension/partman manifests |
-| `make core-test-unit` | Существующий Unit suite без TIA; zero cases и skips не проходят |
+| `make core-test-unit` | Fixture manifest/wire assertions и существующий Unit suite без TIA; zero cases, skips и отсутствие assertions не проходят |
 | `make core-test-regression` | Clean reset и весь project PHP suite без TIA; actual JUnit scenario inventory |
 | `make core-quality` / `make quality` | Pint `--test`, configured PHPStan level max, Architecture suite и baseline/schema/docs checks |
 | `make core-test-report` | Проверка наличия результатов всех текущих gates и совпадения candidate input tree |
@@ -44,6 +45,42 @@ CONNECT/TLS и полноценный Gemini protocol получают assertion
 Browser service отдельный, доступен через профиль `browser`; operator E2E ещё не реализован.
 Horizon потребляет только `process-core-fixtures`, scheduler работает с пустым business baseline.
 Нет live crawling, paid model eval, production deployment или уведомлений.
+
+## Локальные wire fixtures
+
+Каталог `docker/tests/process-core/fixtures/wire-v1.json` смонтирован read-only в каждый
+fixture service. `tests/Fixtures/ProcessCore/manifest.json` содержит его SHA-256, дату,
+sanitized provenance, adapter/schema version, ожидаемый assessment и scenario IDs.
+Ожидаемые envelopes написаны и проверены вручную. Hash mismatch, отсутствующий файл,
+symlink, путь вне repository root и неполные метаданные отвергаются до запуска проверок.
+
+| Fixture | Реальные assertions текущего среза |
+| --- | --- |
+| HTTP origin | Server-side sequence 503 → 503 → 200, последующие запросы сохраняют последний ответ; конкурентные запросы имеют уникальный sequence |
+| HTTP proxy | Физический forward только к `http://fixture-http:8080`; чужой host/IP/port, HTTPS, userinfo и fragment отвергаются до соединения |
+| Fake Gemini | Raw HTTP envelopes с exact model JSON, STOP/MAX_TOKENS, usage и provider request IDs; malformed request JSON отвергается |
+
+Счётчик не доверяет client attempt number. Request log ограничен 1024 записями и содержит
+case/sequence/method/status/body SHA-256; headers, credentials и raw request body не записываются.
+`GET /__fixtures/log` читает log, `POST /__fixtures/reset` сбрасывает log и sequences только fixture service.
+CONNECT возвращает 501 `suite_not_implemented`; TLS с локальным CA и полный provider protocol
+остаются за owning packages. `verify => false` не используется.
+
+`env` и `unit` entrypoints сохраняют `fixture-manifest.log`, `fixture-tests.log` и
+`fixture-proof.json`: hashes и положительное число выполненных тестов без skips.
+Wire tests поднимают реальные HTTP servers на loopback и проверяют proxy forwarding;
+отдельный Docker raw-socket proof по-прежнему проверяет запрет внешнего egress.
+Manifest помечает coverage `fixture_wire_only`: это не pass будущих domain T03/T13/T22 suites.
+
+Узкие проверки без запуска полного suite:
+
+```bash
+python3 -B docker/tests/process-core/fixture_manifest.py
+python3 -B docker/tests/process-core/test_fixtures.py
+python3 -B -m unittest discover -s docker/tests/process-core -p test_rig.py -v
+```
+
+## Identity и bootstrap guards
 
 Перед любым DROP/kill/flush helper проверяет resolved Compose config, exact container names и
 labels, runtime mounts/networks/env, принадлежность volumes, testing environment и PostgreSQL
@@ -67,8 +104,7 @@ Identity/connectivity проверяются до миграций, readiness �
 управления транзакциями задаёт конкретный integration test. Serial DB остаётся `agelto_test`,
 Laravel parallel callback проверяет exact worker DB до миграций. `TestFilesystemIsolation`
 сохраняет local process roots и отвергает symlink до mkdir/cleanup. `Http::preventStrayRequests()`
-остаётся дополнительным барьером к Docker network isolation. Указание `force=true` в старом
-`testing-rules` не описывает текущий bootstrap: phpunit.xml задаёт serial defaults, затем bootstrap
+остаётся дополнительным барьером к Docker network isolation. `phpunit.xml` задаёт serial defaults, затем bootstrap
 принудительно синхронизирует три env sources и выбирает rig host/queue. Resolved config проверяется
 при boot и перед reset. Не заменяйте эту схему generic советом наследовать dev DB_HOST или
 принудительным sync для Integration: real Redis mode выбирается явно и проходит identity guard.

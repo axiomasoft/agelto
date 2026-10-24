@@ -218,10 +218,24 @@ class RigGuardsTest(unittest.TestCase):
                 rig.container_identity(self.config, "app", forged)
 
     def test_future_suite_is_nonzero_without_runtime_commands(self):
-        with patch.object(rig, "compose") as compose, patch("sys.stdout", new=io.StringIO()) as out:
-            self.assertEqual(rig.main("core-test-execution"), 78)
-            self.assertIn("suite_not_implemented", out.getvalue())
-            compose.assert_not_called()
+        for name in rig.FUTURE:
+            with self.subTest(suite=name), patch.object(rig, "compose") as compose, \
+                    patch("sys.stdout", new=io.StringIO()) as out:
+                self.assertEqual(rig.main("core-test-" + name), 78)
+                self.assertIn("suite_not_implemented", out.getvalue())
+                compose.assert_not_called()
+
+    def test_fixture_proof_requires_success_nonempty_assertions_and_no_skips(self):
+        for code, result in [(1, {"executed": 1, "skipped": 0}),
+                             (0, {"executed": 0, "skipped": 0}),
+                             (0, {"executed": 1, "skipped": 1})]:
+            with self.subTest(code=code, result=result), tempfile.TemporaryDirectory() as temp, \
+                    patch.object(rig, "run") as run:
+                run.side_effect = [SimpleNamespace(returncode=0, stdout='{"fixtures": []}', stderr=""),
+                                   SimpleNamespace(returncode=code, stdout=json.dumps(result), stderr="")]
+                with self.assertRaises(rig.GuardError):
+                    rig.fixture_proof(Path(temp))
+                self.assertFalse((Path(temp) / "fixture-proof.json").exists())
 
     def test_catalog_normalization_preserves_semantic_differences(self):
         first = {"extensions": ["pg_partman"], "partman": [{"parent_table": "public.events",
@@ -369,9 +383,10 @@ with rig.project_lock():
             self.assertEqual(foreign.read_text(), "keep")
 
     def test_pure_unit_suite_does_not_require_a_migrated_domain_schema(self):
-        junit = '<testsuite><testcase classname="Tests.Unit.PureTest" name="pure"/></testsuite>'
+        junit = '<testsuite><testcase classname="Tests.Unit.PureTest" name="pure" assertions="1"/></testsuite>'
         with tempfile.TemporaryDirectory() as temp, \
                 patch.object(rig, "identity") as identity, patch.object(rig, "readiness") as readiness, \
+                patch.object(rig, "fixture_proof") as fixture_proof, \
                 patch.object(rig, "stop_workers"), patch.object(rig, "compose") as compose:
             folder = Path(temp)
 
@@ -384,6 +399,25 @@ with rig.project_lock():
             self.assertEqual(rig.suite(folder, "unit")["executed"], 1)
             identity.assert_called_once()
             readiness.assert_not_called()
+            fixture_proof.assert_called_once_with(folder)
+
+    def test_unit_suite_rejects_empty_skipped_or_assertion_free_results(self):
+        for cases in ['', '<testcase name="empty" assertions="0"/>',
+                      '<testcase name="skipped" assertions="1"><skipped/></testcase>']:
+            with self.subTest(cases=cases), tempfile.TemporaryDirectory() as temp, \
+                    patch.object(rig, "identity"), patch.object(rig, "stop_workers"), \
+                    patch.object(rig, "fixture_proof"), patch.object(rig, "prepare_runtime"), \
+                    patch.object(rig, "compose") as compose:
+                folder = Path(temp)
+
+                def call(*args, **kwargs):
+                    if args[0] == "cp":
+                        (folder / "junit.xml").write_text('<testsuite>' + cases + '</testsuite>')
+                    return SimpleNamespace(returncode=0, stdout="", stderr="")
+
+                compose.side_effect = call
+                with self.assertRaises(rig.GuardError):
+                    rig.suite(folder, "unit")
 
     def test_executed_scenarios_preserve_exact_names_datasets_and_only_mapped_paths(self):
         before = [{"file": "tests/Unit/OldTest.php::original with data set windows-1251",
@@ -472,7 +506,7 @@ with rig.project_lock():
                 if args[0] == "cp":
                     suite = rig.ET.Element("testsuite")
                     for case in observed:
-                        rig.ET.SubElement(suite, "testcase", file=case["file"], name=case["name"])
+                        rig.ET.SubElement(suite, "testcase", file=case["file"], name=case["name"], assertions="1")
                     rig.ET.ElementTree(suite).write(folder / "junit.xml")
                 return SimpleNamespace(returncode=0, stdout="", stderr="")
 

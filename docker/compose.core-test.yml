@@ -198,19 +198,19 @@ services:
   fixture-http:
     image: python:3.12-alpine
     command: [python, /fixture/server.py, http]
-    volumes: [./tests/process-core/server.py:/fixture/server.py:ro]
+    volumes: [./tests/process-core/server.py:/fixture/server.py:ro, ./tests/process-core/fixtures:/fixture/fixtures:ro]
     networks: [core]
 
   fixture-proxy:
     image: python:3.12-alpine
     command: [python, /fixture/server.py, proxy]
-    volumes: [./tests/process-core/server.py:/fixture/server.py:ro]
+    volumes: [./tests/process-core/server.py:/fixture/server.py:ro, ./tests/process-core/fixtures:/fixture/fixtures:ro]
     networks: [core]
 
   fake-gemini:
     image: python:3.12-alpine
     command: [python, /fixture/server.py, gemini]
-    volumes: [./tests/process-core/server.py:/fixture/server.py:ro]
+    volumes: [./tests/process-core/server.py:/fixture/server.py:ro, ./tests/process-core/fixtures:/fixture/fixtures:ro]
     networks: [core]
 
   browser:

@@ -4,6 +4,7 @@
 
 - `CLAUDE.md` is the generated Claude Code hub; `AGENTS.md` is the compact Codex entrypoint. Shared rules live in `.ai/guidelines/**`; do not recreate retired `GEMINI.md`.
 - Keep this hub short. Read `docs/dev/**` or `docs/workflow/**` only for the active task. Architectural changes update their source docs and this guideline.
+- Native Planner execution-input defines the current scope and authority. Executors change product files and return stage-reports; the coordinator owns lifecycle, acceptance evidence and commits. Archived Task Layout v2 carriers and `plan-lint.py`/`plan-views.py` are historical provenance, not an execution interface.
 
 ## Domain boundaries
 
@@ -17,6 +18,9 @@
 - Jobs must be idempotent. AI jobs use lease + status guard, prefix-stable system prompt and checkpoint-requeue without double dispatch.
 
 ## Runtime
+
+- Process-core checks use only the dedicated `agelto_core_test` Compose project and its internal network. Local HTTP/proxy/fake LLM fixtures are the only outbound targets; `Http::preventStrayRequests()` supplements network isolation. Deterministic checks never run live crawling, paid model calls or external schedulers.
+- Fixture inputs have versioned manifests with hashes and sanitized provenance. HTTP sequences and request logs are server-owned. Implemented suites require executed assertions without skips; future suites fail explicitly with `suite_not_implemented` (exit 78).
 
 - Browser automation runs only in the `horizon` worker (`shm_size`, `CHROME_BIN`).
 - Development keeps source bind-mounted and Vite runs with pinned `pnpm`; production consumes a promoted immutable `IMAGE_TAG` without source, `vendor`, or frontend bind mounts and never builds on the host. The deploy class is explicit: `code`, `php-deps`, `frontend`, `runtime`, or `image-promotion`.
