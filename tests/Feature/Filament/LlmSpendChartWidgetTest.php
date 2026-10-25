@@ -28,15 +28,20 @@ test('виджет расхода зарегистрирован в состав
 });
 
 test('дневной разрез: два вызова в одни сутки — одна точка оси X', function (): void {
-    $moment = CarbonImmutable::now();
+    $moment = CarbonImmutable::now('UTC')->startOfDay()->addHours(12);
+    $this->travelTo($moment);
 
-    LlmCall::factory()->create(['cost_micros' => 1_000, 'called_at' => $moment]);
-    LlmCall::factory()->create(['cost_micros' => 500, 'called_at' => $moment->subHours(2)]);
+    try {
+        LlmCall::factory()->create(['cost_micros' => 1_000, 'called_at' => $moment]);
+        LlmCall::factory()->create(['cost_micros' => 500, 'called_at' => $moment->subHours(2)]);
 
-    $widget = new LlmSpendChartWidget;
-    $widget->filter = '7';
+        $widget = new LlmSpendChartWidget;
+        $widget->filter = '7';
 
-    expect(llmSpendChartWidgetData($widget)['labels'])->toBe([$moment->toDateString()]);
+        expect(llmSpendChartWidgetData($widget)['labels'])->toBe([$moment->toDateString()]);
+    } finally {
+        $this->travelBack();
+    }
 });
 
 test('дневной разрез: два вызова в разные сутки — две точки оси X', function (): void {

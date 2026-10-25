@@ -1637,7 +1637,7 @@
     },
     {
       "path": "tests/Feature/Filament/LlmSpendChartWidgetTest.php",
-      "sha256": "14fce4695dac7296f307a9f3dc3975ab8270db24db5ccaf858abfe078c4f771a",
+      "sha256": "68d48677fe403df9d8d0526b54744892bde7174524cf907cd1937eaf493bda8e",
       "scenarios": [
         "виджет расхода зарегистрирован в составе admin-панели",
         "дневной разрез: два вызова в одни сутки — одна точка оси X",
@@ -1647,7 +1647,11 @@
         "подпись источника — обязательный элемент виджета",
         "подпись явно называет период за горизонтом retention, а не молчит пустой диаграммой",
         "право на виджет: суперадмин видит, пользователь без ролей — нет"
-      ]
+      ],
+      "original_sha256": "14fce4695dac7296f307a9f3dc3975ab8270db24db5ccaf858abfe078c4f771a",
+      "accepted_change_item": "P1.4",
+      "accepted_change_decision": "D30",
+      "change_reason": "P1.4 V6 fixture-only UTC midnight correction: freeze this test at noon on its current UTC date and always restore the clock; preserve all eight original scenario names and all assertions."
     },
     {
       "path": "tests/Feature/Filament/NavigationLabelsTest.php",
