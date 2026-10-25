@@ -41,7 +41,11 @@
   "files": [
     {
       "path": "tests/bootstrap.php",
-      "sha256": "d9c814de51ac4b71937fe42007f26e4a3be7f000da26e620eab02a595215aa32"
+      "sha256": "7632503a56f874595293ff5662f1c2ec782ebee06bf09d556ffe8fb73f21fcb3",
+      "original_sha256": "d9c814de51ac4b71937fe42007f26e4a3be7f000da26e620eab02a595215aa32",
+      "accepted_change_item": "P4.1",
+      "accepted_change_commit": "943b0d6d781a9180a438c97eefa4a5dea8dcf7bb",
+      "change_reason": "P4.1 isolated harness bootstrap/guard/filesystem isolation change; preserve original pre-harness provenance"
     },
     {
       "path": "tests/Feature/Ai/AiRoutingSeederTest.php",
@@ -3156,7 +3160,11 @@
     },
     {
       "path": "tests/Pest.php",
-      "sha256": "1e8cec593278050dd4e39e9383e6f22ef24c1c63f1353f91243d9d1fcce819d5"
+      "sha256": "3ffa7e188a445c6ad72641da2ec3fe4dea21d00de03f1ae1c6e3eb7677bacc9d",
+      "original_sha256": "1e8cec593278050dd4e39e9383e6f22ef24c1c63f1353f91243d9d1fcce819d5",
+      "accepted_change_item": "P4.1",
+      "accepted_change_commit": "943b0d6d781a9180a438c97eefa4a5dea8dcf7bb",
+      "change_reason": "P4.1 isolated harness bootstrap/guard/filesystem isolation change; preserve original pre-harness provenance"
     },
     {
       "path": "tests/Support/Analyzer/TechSpecFakeAnalyzer.php",
@@ -3267,11 +3275,19 @@
     },
     {
       "path": "tests/Support/TestEnvironmentGuard.php",
-      "sha256": "20a3f3e574c86ecc7740d1a1ef5f05efef30dfe43ce451ee3826cd5ec62ca7d9"
+      "sha256": "cb94186c787ede953c39c2b64ed36c435ad8242ef49bcfa053bdbbeb0dfb2de6",
+      "original_sha256": "20a3f3e574c86ecc7740d1a1ef5f05efef30dfe43ce451ee3826cd5ec62ca7d9",
+      "accepted_change_item": "P4.1",
+      "accepted_change_commit": "943b0d6d781a9180a438c97eefa4a5dea8dcf7bb",
+      "change_reason": "P4.1 isolated harness bootstrap/guard/filesystem isolation change; preserve original pre-harness provenance"
     },
     {
       "path": "tests/Support/TestFilesystemIsolation.php",
-      "sha256": "415bb19282113a43ec88935ace300b5fefcd859d7a06b54fdac2cf6853b64748"
+      "sha256": "d390cdd896ac3d48b55e4a634837e4fd40bc559c7f9be7c080b0b7897cd0a7ff",
+      "original_sha256": "415bb19282113a43ec88935ace300b5fefcd859d7a06b54fdac2cf6853b64748",
+      "accepted_change_item": "P4.1",
+      "accepted_change_commit": "943b0d6d781a9180a438c97eefa4a5dea8dcf7bb",
+      "change_reason": "P4.1 isolated harness bootstrap/guard/filesystem isolation change; preserve original pre-harness provenance"
     },
     {
       "path": "tests/TestCase.php",
