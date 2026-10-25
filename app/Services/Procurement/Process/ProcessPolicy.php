@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Services\Procurement\Process;
 
+use App\Dto\Procurement\Process\CohortKey;
+use App\Dto\Procurement\Process\ContentHash;
 use App\Dto\Procurement\Process\LanePolicy;
 use App\Dto\Procurement\Process\ScopeDefinition;
 use App\Enums\Procurement\Process\ScopeKind;
@@ -46,8 +48,21 @@ final readonly class ProcessPolicy
 
     public int $maxHandlerFaultsPerWorkVersion;
 
+    /** Work старше этого возраста по immutable created_at идёт первым внутри stage (age900). */
+    public int $ageSeconds;
+
+    /** Bounded число candidates внутри уже выбранных cohort/stage (LIMIT после RR, не до). */
+    public int $candidateLimit;
+
+    public int $capacityWaitMinMs;
+
+    public int $capacityWaitMaxMs;
+
     /** @var array<string, LanePolicy> */
     private array $lanes;
+
+    /** @var array<string, array{claim_visibility: int, lease: int}> */
+    private array $stageTimings;
 
     public function __construct(Repository $config)
     {
@@ -57,6 +72,76 @@ final readonly class ProcessPolicy
             'process.max_handler_faults_per_work_version',
         );
         $this->lanes = self::lanePolicies($config->get('process.lanes'));
+        $this->ageSeconds = self::positiveInteger($config->get('process.admission.age_seconds'), 'process.admission.age_seconds');
+        $this->candidateLimit = self::positiveInteger($config->get('process.admission.candidate_limit'), 'process.admission.candidate_limit');
+        $this->capacityWaitMinMs = self::positiveInteger($config->get('process.admission.capacity_wait_min_ms'), 'process.admission.capacity_wait_min_ms');
+        $this->capacityWaitMaxMs = self::positiveInteger($config->get('process.admission.capacity_wait_max_ms'), 'process.admission.capacity_wait_max_ms');
+        if ($this->capacityWaitMaxMs < $this->capacityWaitMinMs) {
+            throw new \InvalidArgumentException('Invalid process policy: process.admission.capacity_wait_max_ms');
+        }
+        $this->stageTimings = self::stageTimings($config->get('process.stages'));
+    }
+
+    /** Delivery deadline admitted work: transport bound, не execution lease. */
+    public function claimVisibilitySeconds(StageCode $stage): int
+    {
+        return $this->stageTimings[$stage->value]['claim_visibility'];
+    }
+
+    /** DB lease claimed attempt; решения истечения принимает PostgreSQL clock. */
+    public function leaseSeconds(StageCode $stage): int
+    {
+        return $this->stageTimings[$stage->value]['lease'];
+    }
+
+    /** Parent lane stage: общий fairness cursor и W/C всех sibling stages. */
+    public function parentLane(StageCode $stage): string
+    {
+        return self::REQUIRED_LANES[$stage->value][0];
+    }
+
+    /**
+     * Sibling stages общего parent lane в стабильном порядке значений.
+     *
+     * @return list<StageCode>
+     */
+    public function stagesOfParentLane(string $parentLane): array
+    {
+        $stages = [];
+        foreach (self::REQUIRED_LANES as $value => $required) {
+            if ($required[0] === $parentLane) {
+                $stages[] = StageCode::from($value);
+            }
+        }
+        usort($stages, static fn (StageCode $a, StageCode $b): int => strcmp($a->value, $b->value));
+
+        return $stages;
+    }
+
+    /** Hash точного required lane set: membership admission group сверяется с ним под locks. */
+    public function requiredLaneSetHash(StageCode $stage): ContentHash
+    {
+        $keys = self::REQUIRED_LANES[$stage->value];
+        sort($keys, SORT_STRING);
+
+        return ContentHash::of('required-lanes:v1:'.implode(',', $keys));
+    }
+
+    /**
+     * Полная control closure work: цепочка stage плюс scope её cohort (platform либо manual) под
+     * тем же purpose root. Admission не создаёт scopes: отсутствующие создаёт отдельная ensureScopes.
+     *
+     * @return list<ScopeDefinition>
+     */
+    public function workScopes(StageCode $stage, string $cohort): array
+    {
+        $purpose = self::STAGE_PURPOSES[$stage->value]->value;
+        $platform = CohortKey::platformCode($cohort);
+        $cohortScope = $platform === null
+            ? new ScopeDefinition(ScopeKind::Cohort, $purpose.':cohort:'.CohortKey::MANUAL, $purpose)
+            : new ScopeDefinition(ScopeKind::Platform, $purpose.':platform:'.$platform, $purpose);
+
+        return [...$this->stageScopes($stage), $cohortScope];
     }
 
     /** @return list<LanePolicy> parent перед child, стабильный порядок ключей */
@@ -131,6 +216,31 @@ final readonly class ProcessPolicy
         }
 
         return $policies;
+    }
+
+    /** @return array<string, array{claim_visibility: int, lease: int}> */
+    private static function stageTimings(mixed $stages): array
+    {
+        if (! is_array($stages)) {
+            throw new \InvalidArgumentException('Invalid process policy: process.stages');
+        }
+        $timings = [];
+        foreach (StageCode::cases() as $code) {
+            $path = 'process.stages.'.$code->value;
+            $timing = $stages[$code->value] ?? null;
+            if (! is_array($timing) || array_keys($timing) !== ['claim_visibility', 'lease']) {
+                throw new \InvalidArgumentException('Invalid process policy: '.$path);
+            }
+            $timings[$code->value] = [
+                'claim_visibility' => self::positiveInteger($timing['claim_visibility'], $path.'.claim_visibility'),
+                'lease' => self::positiveInteger($timing['lease'], $path.'.lease'),
+            ];
+        }
+        if (count($stages) !== count($timings)) {
+            throw new \InvalidArgumentException('Invalid process policy: process.stages');
+        }
+
+        return $timings;
     }
 
     private static function positiveInteger(mixed $value, string $path): int

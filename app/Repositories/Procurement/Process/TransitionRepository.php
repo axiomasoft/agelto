@@ -43,6 +43,34 @@ final readonly class TransitionRepository
         $this->record($eventId, $projectionMessageId, 'run', $runId, $entitySeq, $previousState, $newState, $reasonCode, $actor, null);
     }
 
+    /** Manual control mutation: entity sequence — новый control_version самой scope row. */
+    public function recordControl(
+        ProcessUuid $eventId,
+        ProcessUuid $projectionMessageId,
+        ProcessUuid $controlId,
+        int $controlVersion,
+        string $previousMode,
+        string $newMode,
+        ?string $reasonCode,
+        ActorKind $actor,
+        ?int $actorId,
+    ): void {
+        $this->record($eventId, $projectionMessageId, 'control', $controlId, $controlVersion, $previousMode, $newMode, $reasonCode, $actor, null, $actorId);
+    }
+
+    public function recordIncident(
+        ProcessUuid $eventId,
+        ProcessUuid $projectionMessageId,
+        ProcessUuid $incidentId,
+        int $entitySeq,
+        ?string $previousState,
+        string $newState,
+        ?string $reasonCode,
+        ActorKind $actor,
+    ): void {
+        $this->record($eventId, $projectionMessageId, 'incident', $incidentId, $entitySeq, $previousState, $newState, $reasonCode, $actor, null);
+    }
+
     private function record(
         ProcessUuid $eventId,
         ProcessUuid $projectionMessageId,
@@ -54,14 +82,15 @@ final readonly class TransitionRepository
         ?string $reasonCode,
         ActorKind $actor,
         ?int $generation,
+        ?int $actorId = null,
     ): void {
         CallerTransaction::require('Transition insert');
         $entityColumn = $entityKind.'_id';
         DB::insert(
             "INSERT INTO prc_process_transitions
-               (event_id, entity_kind, {$entityColumn}, entity_seq, previous_state, new_state, reason_code, actor_kind, generation, schema_version)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1)",
-            [$eventId->value, $entityKind, $entityId->value, $entitySeq, $previousState, $newState, $reasonCode, $actor->value, $generation],
+               (event_id, entity_kind, {$entityColumn}, entity_seq, previous_state, new_state, reason_code, actor_kind, actor_id, generation, schema_version)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)",
+            [$eventId->value, $entityKind, $entityId->value, $entitySeq, $previousState, $newState, $reasonCode, $actor->value, $actorId, $generation],
         );
         $this->outbox->enqueueProjection($projectionMessageId, $eventId);
     }

@@ -38,7 +38,12 @@ CONNECT/TLS и полноценный Gemini protocol получают assertion
 | `make core-test-report` | Проверка наличия результатов всех текущих gates и совпадения candidate input tree |
 | `make core-test-down` | Identity guard, удаление только test project и его volumes |
 
-`core-test-execution`, `core-test-observability`, `core-test-network`, `core-test-platforms`,
+`make core-test-execution` (P1.6/P1.7): clean reset, затем только
+`tests/Feature/ProcessCore/Execution` и `tests/Integration/ProcessCore/Concurrency` на реальном
+PostgreSQL rig — ledger/authority, admission/claim/controls и многопроцессные гонки. Пустая выборка,
+skip или отсутствие assertions не проходят. Lease/finalize/recovery добавляют их owning пункты.
+
+`core-test-observability`, `core-test-network`, `core-test-platforms`,
 `core-test-acquisition`, `core-test-documents`, `core-test-ai`, `core-test-concurrency`,
 `core-test-e2e`, `core-test-faults`, `core-test-load WIDTH=10` и `WIDTH=20` пока завершаются
 с exit 78 и JSON `suite_not_implemented`. Их реализуют owning P1/P2/P3 packages. Это не green skip.

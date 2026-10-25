@@ -6,9 +6,11 @@ namespace App\Services\Procurement\Process;
 
 use App\Dto\Procurement\Process\ArtifactRef;
 use App\Dto\Procurement\Process\ContentHash;
+use App\Dto\Procurement\Process\DeliveryGeneration;
 use App\Dto\Procurement\Process\DetailInput;
 use App\Dto\Procurement\Process\DownloadInput;
 use App\Dto\Procurement\Process\ExtractionWindowInput;
+use App\Dto\Procurement\Process\FairnessCursor;
 use App\Dto\Procurement\Process\ListingInput;
 use App\Dto\Procurement\Process\MissingParts;
 use App\Dto\Procurement\Process\NoProviderRecovery;
@@ -30,6 +32,7 @@ use App\Dto\Procurement\Process\StatusRefreshInput;
 use App\Dto\Procurement\Process\ValidatedStageResult;
 use App\Dto\Procurement\Process\VersionedPayload;
 use App\Dto\Procurement\Process\WorkCheckpointEnvelope;
+use App\Dto\Procurement\Process\WorkId;
 use App\Dto\Procurement\Process\WorkInput;
 use App\Enums\Procurement\Process\BlockedReason;
 use App\Enums\Procurement\Process\DeferralReason;
@@ -234,6 +237,46 @@ final class ProcessPayloadCodec
             'blocked' => new StageBlocked(BlockedReason::tryFrom($reader->string('reason')) ?? throw new \InvalidArgumentException('Unknown blocked reason.')),
             'failed_item' => new StageFailedItem(ItemFailureReason::tryFrom($reader->string('reason')) ?? throw new \InvalidArgumentException('Unknown item failure reason.'), $this->decodeArtifact($reader->object('evidence'))),
         };
+    }
+
+    /** Lane cursor v1: пустой cursor — `{}` (DDL default), иначе last_cohort + last_stage_by_cohort. */
+    public function encodeFairnessCursor(FairnessCursor $cursor): VersionedPayload
+    {
+        if ($cursor->lastCohort === null && $cursor->lastStageByCohort === []) {
+            return new VersionedPayload('{}', 1);
+        }
+
+        return $this->payload([
+            'last_cohort' => $cursor->lastCohort,
+            'last_stage_by_cohort' => (object) array_map(static fn (StageCode $stage): string => $stage->value, $cursor->lastStageByCohort),
+        ]);
+    }
+
+    public function decodeFairnessCursor(VersionedPayload $payload): FairnessCursor
+    {
+        $reader = $this->required($payload);
+        if ($reader->object == new \stdClass) {
+            return FairnessCursor::empty();
+        }
+        $reader->keys(['last_cohort', 'last_stage_by_cohort']);
+        $stages = [];
+        foreach (get_object_vars($reader->object('last_stage_by_cohort')->object) as $cohort => $stage) {
+            $stages[(string) $cohort] = $this->stage(is_string($stage) ? $stage : throw new \InvalidArgumentException('Expected cursor stage.'));
+        }
+
+        return new FairnessCursor($reader->isNull('last_cohort') ? null : $reader->string('last_cohort'), $stages);
+    }
+
+    /** Typed work_wake payload (bp-sql-admit): только scalar IDs, без моделей и credentials. */
+    public function encodeWorkWake(WorkId $workId, DeliveryGeneration $dispatchGeneration, ProcessUuid $messageId, StageCode $stage): VersionedPayload
+    {
+        return $this->payload([
+            'work_id' => $workId->value->value,
+            'dispatch_generation' => $dispatchGeneration->value,
+            'message_id' => $messageId->value,
+            'queue_schema_version' => 1,
+            'stage' => $stage->value,
+        ]);
     }
 
     /** @param array<string, mixed> $fields */

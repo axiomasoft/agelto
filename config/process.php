@@ -26,6 +26,28 @@ return [
         'publication' => ['parent' => null, 'max_outstanding' => 10, 'max_running' => 2, 'low_watermark' => 5, 'refill_max' => 5],
     ],
 
+    // Admission (bp-sql-admit): age900 — порог aged work (по immutable created_at); candidate_limit —
+    // bounded выборка внутри уже выбранных cohort/stage; CapacityWait claim откладывает wake на 5–10 s.
+    'admission' => [
+        'age_seconds' => 900,
+        'candidate_limit' => 5,
+        'capacity_wait_min_ms' => 5000,
+        'capacity_wait_max_ms' => 10000,
+    ],
+
+    // Delivery deadline admitted work (claim visibility, transport, не lease) и DB lease claimed
+    // attempt в секундах (execution#lane-defaults, bp-jobs). StageQueueMap (P1.10) берёт те же bounds.
+    'stages' => [
+        'listing' => ['claim_visibility' => 300, 'lease' => 360],
+        'detail' => ['claim_visibility' => 120, 'lease' => 180],
+        'status_refresh' => ['claim_visibility' => 120, 'lease' => 180],
+        'download' => ['claim_visibility' => 300, 'lease' => 420],
+        'prepare' => ['claim_visibility' => 300, 'lease' => 360],
+        'screening' => ['claim_visibility' => 300, 'lease' => 390],
+        'extraction' => ['claim_visibility' => 300, 'lease' => 390],
+        'publication' => ['claim_visibility' => 120, 'lease' => 180],
+    ],
+
     // EXR-02: конечный budget unexpected handler faults на (work, handler_version); fault 3 → blocked(handler_fault_limit).
     'max_handler_faults_per_work_version' => 3,
 ];

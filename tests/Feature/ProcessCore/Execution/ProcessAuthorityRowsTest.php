@@ -54,7 +54,14 @@ test('policy v1 задаёт стартовые W/C lanes, finite required lanes
         ->and(array_map(fn (ScopeDefinition $scope): string => $scope->key, $policy->stageScopes(StageCode::StatusRefresh)))
         ->toBe(['system', 'acquisition', 'acquisition:stage:status_refresh'])
         ->and(array_map(fn (ScopeDefinition $scope): string => $scope->key, $policy->stageScopes(StageCode::Download)))
-        ->toBe(['system', 'documents', 'documents:stage:download']);
+        ->toBe(['system', 'documents', 'documents:stage:download'])
+        ->and([$policy->ageSeconds, $policy->candidateLimit, $policy->capacityWaitMinMs, $policy->capacityWaitMaxMs])->toBe([900, 5, 5000, 10000])
+        ->and([$policy->claimVisibilitySeconds(StageCode::Detail), $policy->leaseSeconds(StageCode::Detail)])->toBe([120, 180])
+        ->and([$policy->claimVisibilitySeconds(StageCode::Download), $policy->leaseSeconds(StageCode::Download)])->toBe([300, 420])
+        ->and(array_map(fn (ScopeDefinition $scope): string => $scope->key, $policy->workScopes(StageCode::Listing, 'platform:eis')))
+        ->toBe(['system', 'acquisition', 'acquisition:stage:listing', 'acquisition:platform:eis'])
+        ->and(array_map(fn (ScopeDefinition $scope): string => $scope->key, $policy->workScopes(StageCode::Download, 'manual')))
+        ->toBe(['system', 'documents', 'documents:stage:download', 'documents:cohort:manual']);
 });
 
 test('невалидная policy отвергается с точным config key, а не заменяется default', function (Closure $mutate, string $key): void {
@@ -74,6 +81,16 @@ test('невалидная policy отвергается с точным config 
     }, 'process.lanes.analysis.screening'],
     'лишнее поле lane' => [processPolicyReplace(['lanes' => ['download' => ['ttl' => 30]]]), 'process.lanes.download'],
     'нулевая policy version' => [processPolicyReplace(['policy_version' => 0]), 'process.policy_version'],
+    'нулевой порог aged work' => [processPolicyReplace(['admission' => ['age_seconds' => 0]]), 'process.admission.age_seconds'],
+    'нулевой candidate limit' => [processPolicyReplace(['admission' => ['candidate_limit' => 0]]), 'process.admission.candidate_limit'],
+    'CapacityWait max меньше min' => [processPolicyReplace(['admission' => ['capacity_wait_max_ms' => 1000]]), 'process.admission.capacity_wait_max_ms'],
+    'нулевой lease stage' => [processPolicyReplace(['stages' => ['listing' => ['lease' => 0]]]), 'process.stages.listing.lease'],
+    'отсутствует timing stage' => [function (array $process): array {
+        unset($process['stages']['publication']);
+
+        return $process;
+    }, 'process.stages.publication'],
+    'лишнее поле timing stage' => [processPolicyReplace(['stages' => ['download' => ['ttl' => 30]]]), 'process.stages.download'],
 ]);
 
 test('ensureBaseline материализует scopes и lanes только schema-supported stages и идемпотентен', function (): void {

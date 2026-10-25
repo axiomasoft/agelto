@@ -6,6 +6,7 @@ namespace App\Repositories\Procurement\Process;
 
 use App\Dto\Procurement\Process\HandlerAuthoritySnapshot;
 use App\Dto\Procurement\Process\ProcessUuid;
+use App\Enums\Procurement\Process\HandlerEligibility;
 use App\Enums\Procurement\Process\StageCode;
 use App\Models\Procurement\Process\HandlerHold;
 use App\Services\Procurement\Process\SchemaSupportedStages;
@@ -20,6 +21,14 @@ use Illuminate\Support\Str;
  */
 final readonly class HandlerAuthorityRepository
 {
+    /** Unlocked pre-read eligibility версии; null — row не материализована, это не enabled. */
+    public function eligibility(StageCode $stage, string $handlerVersion): ?HandlerEligibility
+    {
+        $row = LedgerRow::one('SELECT state FROM prc_process_handler_holds WHERE stage = ? AND handler_version = ?', [$stage->value, $handlerVersion]);
+
+        return $row === null ? null : HandlerEligibility::from($row->string('state'));
+    }
+
     public function register(StageCode $stage, string $handlerVersion): HandlerAuthoritySnapshot
     {
         CallerTransaction::require('Handler authority registration');

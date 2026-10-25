@@ -4,8 +4,12 @@ declare(strict_types=1);
 
 namespace App\Repositories\Procurement\Process;
 
+use App\Dto\Procurement\Process\LaneLoad;
 use App\Dto\Procurement\Process\LanePolicy;
+use App\Dto\Procurement\Process\ProcessUuid;
+use App\Dto\Procurement\Process\VersionedPayload;
 use App\Models\Procurement\Process\Lane;
+use App\Services\Procurement\Process\ProcessPayloadCodec;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
@@ -17,6 +21,37 @@ use Illuminate\Support\Str;
  */
 final readonly class LaneRepository
 {
+    public function __construct(private ProcessPayloadCodec $codec) {}
+
+    /**
+     * Unlocked load lanes для выбора feeder; отсутствующая lane не возвращается.
+     *
+     * @param  list<string>  $keys
+     * @return array<string, LaneLoad>
+     */
+    public function loads(array $keys): array
+    {
+        $loads = [];
+        foreach (LedgerRow::all(
+            'SELECT l.id, l.lane_key, l.max_outstanding, l.low_watermark, l.refill_max, l.fairness_cursor::text AS fairness_cursor,
+                    l.fairness_cursor_schema_version, (SELECT count(*) FROM prc_process_reservations r WHERE r.lane_id = l.id) AS outstanding
+             FROM prc_process_lanes l WHERE l.lane_key IN ('.LedgerRow::placeholders(count($keys)).')',
+            $keys,
+        ) as $row) {
+            $loads[$row->string('lane_key')] = new LaneLoad(
+                new ProcessUuid($row->string('id')),
+                $row->string('lane_key'),
+                $row->int('max_outstanding'),
+                $row->int('low_watermark'),
+                $row->int('refill_max'),
+                $row->int('outstanding'),
+                $this->codec->decodeFairnessCursor(new VersionedPayload($row->string('fairness_cursor'), $row->int('fairness_cursor_schema_version'))),
+            );
+        }
+
+        return $loads;
+    }
+
     /** @param  list<LanePolicy>  $policies */
     public function syncLanes(array $policies, int $policyVersion): void
     {

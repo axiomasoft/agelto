@@ -225,6 +225,39 @@ class RigGuardsTest(unittest.TestCase):
                 self.assertIn("suite_not_implemented", out.getvalue())
                 compose.assert_not_called()
 
+    def test_execution_suite_runs_only_owned_paths_and_rejects_empty_or_skipped_selection(self):
+        self.assertNotIn("execution", rig.FUTURE)
+        for cases, error in [([], "empty test selection"),
+                             ([{"name": "skipped", "skipped": True}, {"name": "claim", "skipped": False}], "failed/skipped"),
+                             ([{"name": "admission", "skipped": False}], None)]:
+            with self.subTest(error=error), tempfile.TemporaryDirectory() as temp, \
+                    patch.object(rig, "readiness"), patch.object(rig, "stop_workers"), \
+                    patch.object(rig, "verify_fixture_inputs"), patch.object(rig, "prepare_runtime"), \
+                    patch.object(rig, "compose") as compose:
+                folder = Path(temp)
+                commands = []
+
+                def execute(*args, **kwargs):
+                    commands.append(args)
+                    if args[0] == "cp":
+                        suite = rig.ET.Element("testsuite")
+                        for case in cases:
+                            element = rig.ET.SubElement(suite, "testcase", name=case["name"], assertions="1")
+                            if case["skipped"]:
+                                rig.ET.SubElement(element, "skipped")
+                        rig.ET.ElementTree(suite).write(folder / "junit.xml")
+                    return SimpleNamespace(returncode=0, stdout="", stderr="")
+
+                compose.side_effect = execute
+                if error:
+                    with self.assertRaisesRegex(rig.GuardError, error):
+                        rig.suite(folder, "execution")
+                else:
+                    self.assertEqual(rig.suite(folder, "execution"), {"executed": 1, "exit": 0})
+                pest = next(command for command in commands if command[0] == "exec")
+                self.assertEqual(list(pest[-2:]), rig.SUITE_PATHS["execution"])
+                self.assertNotIn("--testsuite=Unit", pest)
+
     def test_fixture_proof_requires_success_nonempty_assertions_and_no_skips(self):
         for code, result in [(1, {"executed": 1, "skipped": 0}),
                              (0, {"executed": 0, "skipped": 0}),

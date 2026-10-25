@@ -4,7 +4,12 @@ declare(strict_types=1);
 
 namespace App\Repositories\Procurement\Process;
 
+use App\Dto\Procurement\Process\ControlChangeResult;
+use App\Dto\Procurement\Process\ProcessUuid;
 use App\Dto\Procurement\Process\ScopeDefinition;
+use App\Enums\Procurement\Process\ActorKind;
+use App\Enums\Procurement\Process\ControlChangeStatus;
+use App\Enums\Procurement\Process\ControlMode;
 use App\Models\Procurement\Process\ControlScope;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -14,10 +19,13 @@ use Illuminate\Support\Str;
  * Scope существует до первой работы: default-enabled и manual override живут в одной row, поэтому
  * pause/admission всегда lock-ят существующую строку. ensureScopes — отдельная tx без admission:
  * существующие scopes запроса FOR SHARE в sorted scope_key, затем INSERT недостающих по unique key.
- * Parent/key immutable. Mode/version mutations (pause/resume) добавляют следующие пункты.
+ * Parent/key immutable. setMode — manual pause/resume той же row (P1.7); scope_key сортируется
+ * byte order (COLLATE "C") во всех lockers.
  */
 final readonly class ControlRepository
 {
+    public function __construct(private TransitionRepository $transitions) {}
+
     /**
      * Идемпотентно материализует полные цепочки scopes; каждый parent обязан входить в запрос.
      *
@@ -32,7 +40,7 @@ final readonly class ControlRepository
 
         /** @var array<string, ControlScope> $rows */
         $rows = [];
-        foreach (ControlScope::query()->whereIn('scope_key', $keys)->orderBy('scope_key')->sharedLock()->get() as $row) {
+        foreach (ControlScope::query()->whereIn('scope_key', $keys)->orderByRaw('scope_key COLLATE "C"')->sharedLock()->get() as $row) {
             $rows[$row->scope_key] = $row;
         }
 
@@ -52,6 +60,85 @@ final readonly class ControlRepository
                 throw new \LogicException('Control scope topology is immutable: '.$key);
             }
         }
+    }
+
+    /**
+     * Unlocked pre-read desired mode существующих scopes; отсутствующий key не возвращается.
+     *
+     * @param  list<string>  $keys
+     * @return array<string, ControlMode>
+     */
+    public function modes(array $keys): array
+    {
+        $modes = [];
+        foreach (LedgerRow::all('SELECT scope_key, desired_mode FROM prc_control_scopes WHERE scope_key IN ('.LedgerRow::placeholders(count($keys)).')', $keys) as $row) {
+            $modes[$row->string('scope_key')] = ControlMode::from($row->string('desired_mode'));
+        }
+
+        return $modes;
+    }
+
+    /**
+     * Manual pause/resume одной scope (execution#s08, bp-lock-modes): ancestors FOR SHARE и
+     * изменяемая row FOR UPDATE в общем byte-sorted scope_key порядке, без SHARE→UPDATE upgrade.
+     * Сериализуется с admission/claim, которые держат ту же closure FOR SHARE: после commit pause
+     * новые grants запрещены. Resume снимает только manual mode этой row и увеличивает
+     * control_version; health/handler holds и blocked work не трогает.
+     */
+    public function setMode(
+        string $scopeKey,
+        ControlMode $mode,
+        ?int $changedBy,
+        string $reason,
+        int $expectedVersion,
+        ProcessUuid $eventId,
+        ProcessUuid $projectionMessageId,
+    ): ControlChangeResult {
+        CallerTransaction::require('Control mode change');
+        if (trim($reason) === '') {
+            throw new \InvalidArgumentException('Control change requires a reason.');
+        }
+        // Topology immutable: unlocked чтение ancestor chain, затем locks в sorted порядке.
+        $chain = LedgerRow::all(
+            'WITH RECURSIVE chain AS (
+               SELECT id, scope_key, parent_id FROM prc_control_scopes WHERE scope_key = ?
+               UNION ALL
+               SELECT parent.id, parent.scope_key, parent.parent_id FROM prc_control_scopes parent JOIN chain ON parent.id = chain.parent_id
+             ) SELECT id, scope_key FROM chain ORDER BY scope_key COLLATE "C"',
+            [$scopeKey],
+        );
+        $target = null;
+        foreach ($chain as $scope) {
+            $mine = $scope->string('scope_key') === $scopeKey;
+            $row = LedgerRow::one(
+                'SELECT id, desired_mode, control_version FROM prc_control_scopes WHERE id = ? '.($mine ? 'FOR UPDATE' : 'FOR SHARE'),
+                [$scope->string('id')],
+            ) ?? throw new \LogicException('Control scope disappeared: scope rows are never deleted.');
+            $target = $mine ? $row : $target;
+        }
+        if ($target === null) {
+            return new ControlChangeResult(ControlChangeStatus::NotFound, null);
+        }
+        $version = $target->int('control_version');
+        if ($version !== $expectedVersion) {
+            return new ControlChangeResult(ControlChangeStatus::VersionConflict, $version);
+        }
+        $previous = $target->string('desired_mode');
+        if ($previous === $mode->value) {
+            return new ControlChangeResult(ControlChangeStatus::Unchanged, $version);
+        }
+        $changed = LedgerRow::one(
+            'UPDATE prc_control_scopes
+             SET desired_mode = ?, control_version = control_version + 1, changed_by = ?, change_reason = ?, changed_at = clock_timestamp()
+             WHERE id = ? AND control_version = ? RETURNING control_version',
+            [$mode->value, $changedBy, $reason, $target->string('id'), $version],
+        ) ?? throw new \LogicException('Control version fence did not match the locked scope.');
+        $this->transitions->recordControl(
+            $eventId, $projectionMessageId, new ProcessUuid($target->string('id')), $changed->int('control_version'),
+            $previous, $mode->value, 'manual_'.$mode->value, $changedBy === null ? ActorKind::System : ActorKind::Operator, $changedBy,
+        );
+
+        return new ControlChangeResult(ControlChangeStatus::Applied, $changed->int('control_version'));
     }
 
     /**
