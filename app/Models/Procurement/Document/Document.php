@@ -40,6 +40,9 @@ use Illuminate\Support\Str;
  * @property string|null $locked_by
  * @property Carbon|null $locked_until
  * @property bool $failed_permanently
+ * @property-read int $head_generation Process subject head; не fillable, пишет только Process ledger.
+ * @property-read int $acquisition_cycle_seq
+ * @property-read Carbon|null $next_revalidation_due_at
  */
 #[UseFactory(DocumentFactory::class)]
 #[Fillable([
@@ -76,6 +79,7 @@ final class Document extends Model
             'removed_at' => 'datetime',
             'last_error_at' => 'datetime',
             'next_retry_at' => 'datetime',
+            'next_revalidation_due_at' => 'datetime',
             'attempts' => 'integer',
             'failed_permanently' => 'boolean',
             'locked_until' => 'datetime',

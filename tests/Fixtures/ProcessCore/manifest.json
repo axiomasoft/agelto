@@ -3318,7 +3318,7 @@
     },
     {
       "path": "tests/Unit/Architecture/DomainLayoutTest.php",
-      "sha256": "39883a1078a7f55f7cc4e29419cdfbb72a09d5e0d0d519763cd611e870e46832",
+      "sha256": "bfa731b6c1858c23b488c0a436621de584630c366f1b0a2e7103df996efcc832",
       "scenarios": [
         "в корне выровненных слоёв раскладки нет файлов сверх реестра root-legal классов",
         "namespace каждого файла выровненных слоёв совпадает с его путём",
@@ -3326,7 +3326,7 @@
       ],
       "original_path": "tests/Unit/Architecture/DomainLayoutTest.php",
       "original_sha256": "01928226c2909b569254785ae9c2f297a44833f7abc076b249cb04637864f381",
-      "change_reason": "P4.2 architecture assertions updated for the Platforms roots; P1.2 registers the Process DTO/enum subareas. Original scenario names preserved."
+      "change_reason": "P4.2 architecture assertions updated for the Platforms roots; P1.2 registers the Process DTO/enum subareas. Original scenario names preserved. P1.6 registers the Process repository subarea."
     },
     {
       "path": "tests/Unit/Architecture/HistoryModulePlatformAgnosticTest.php",
@@ -4005,7 +4005,7 @@
     },
     {
       "path": "database/migrations/2026_07_04_100011_create_prc_procurements_table.php",
-      "sha256": "90c953aceeb46fd37e164039ee233618045471b668ea6da34575e3546b65f695"
+      "sha256": "10afa35b633ff5114aa573b787dcd5e9b3c59f787e106395594e1dc8f03f9dce"
     },
     {
       "path": "database/migrations/2026_07_04_100012_create_prc_revisions_table.php",
@@ -4036,7 +4036,7 @@
     },
     {
       "path": "database/migrations/2026_07_04_100018_create_prc_documents_table.php",
-      "sha256": "63c2fc342a7a7dea95f0258a27998981be227519ce6ce82b127561990357c584"
+      "sha256": "a769960769a0a117f566f8f5b2e4c6688cb3d9bdec0c755a6093d97ea7e0ba91"
     },
     {
       "path": "database/migrations/2026_07_04_100019_create_prc_document_versions_table.php",
@@ -4281,6 +4281,14 @@
     {
       "path": "database/migrations/2026_10_23_100000_create_org_organization_identifiers_table.php",
       "sha256": "5a3321609cca1b6a2a98ce7f08f6316a4b60e4c65f49ba7da17315166bd941f3"
+    },
+    {
+      "path": "database/migrations/2026_10_25_100000_create_prc_process_ledger_tables.php",
+      "sha256": "1d0dfa0b99f6b4665b7c37928306175aff8a9bbcdccb45195e1b2c93bdd57002"
+    },
+    {
+      "path": "database/migrations/2026_10_25_100001_create_prc_request_observation_tables.php",
+      "sha256": "0e5a551bb1776878cbecb28e53799faa4e2264dac8a60dbd9157439226ddcbad"
     }
   ],
   "source_classes": [

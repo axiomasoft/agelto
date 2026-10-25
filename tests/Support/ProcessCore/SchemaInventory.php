@@ -194,6 +194,7 @@ final class SchemaInventory
             }
         };
         $require(($inventory['format'] ?? null) === 'process-schema-inventory/v1', 'unknown inventory format');
+        $require(self::order((string) ($inventory['current_item'] ?? '')) !== PHP_INT_MAX, 'unknown current_item');
         $require(($inventory['conventions']['work_states'] ?? []) === self::STATES, 'WorkState must contain exactly the nine canonical values');
         $require(($inventory['conventions']['stages'] ?? []) === array_keys(self::OWNERS), 'StageCode must contain the eight canonical values');
         $require(($inventory['conventions']['cascade_exceptions'] ?? []) === ['prc_process_reservations.admission_group_id', 'prc_network_permit_scopes.permit_id'], 'CASCADE exceptions must match D27');
@@ -231,8 +232,13 @@ final class SchemaInventory
             $require(isset($table['create_at'], $table['activate_at']) && self::order($table['create_at']) <= self::order($table['activate_at']), 'carrier creation/activation missing or inverted: '.$name);
             $require(! empty($table['columns']) && array_key_exists('constraints', $table) && array_key_exists('indexes', $table), 'carrier schema incomplete: '.$name);
 
-            if (($inventory['current_item'] ?? null) === 'P1.1') {
-                $require(! isset($baseline[$name]), 'future carrier activated in P1.1 baseline: '.$name);
+            $installed = self::order($table['create_at'] ?? '') <= self::order($inventory['current_item'] ?? '');
+            if (! $installed) {
+                $require(! isset($baseline[$name]), 'future carrier activated in '.($inventory['current_item'] ?? '?').' baseline: '.$name);
+            } elseif (! isset($baseline[$name])) {
+                $require(false, 'created carrier missing from installed baseline: '.$name);
+            } else {
+                self::checkInstalledCarrier($name, $table, $baseline[$name], $require);
             }
 
             foreach ($table['columns'] ?? [] as $column => $spec) {
@@ -298,6 +304,12 @@ final class SchemaInventory
 
         foreach ($inventory['changes'] ?? [] as $change) {
             $require(isset($baseline[$change['table']]) && ! empty($change['at']), 'change has no real baseline owner: '.$change['table']);
+            if (isset($baseline[$change['table']]) && self::order($change['at']) <= self::order($inventory['current_item'] ?? '')) {
+                $names = array_column($baseline[$change['table']]['columns'], 'column_name');
+                foreach (array_keys($change['columns']) as $column) {
+                    $require(in_array($column, $names, strict: true), 'installed change column missing from baseline: '.$change['table'].'.'.$column);
+                }
+            }
             foreach ($change['columns'] as $column => $spec) {
                 self::checkReference($change['table'].'.'.$column, $spec['references'] ?? null, $baseline, $carriers, $require);
             }
@@ -321,6 +333,22 @@ final class SchemaInventory
     private static function order(string $item): int
     {
         return preg_match('/^P([123])\.(\d+)$/', $item, $m) === 1 ? (int) $m[1] * 100 + (int) $m[2] : PHP_INT_MAX;
+    }
+
+    /** An installed carrier keeps its declared column order, named constraints and indexes in the real catalog. */
+    private static function checkInstalledCarrier(string $name, array $carrier, array $installed, callable $require): void
+    {
+        $require(array_column($installed['columns'], 'column_name') === array_keys($carrier['columns']), 'installed carrier columns differ from declaration: '.$name);
+        preg_match_all('/\bCONSTRAINT\s+(\w+)/', implode("\n", $carrier['constraints']), $constraints);
+        $actualConstraints = array_column($installed['constraints'], 'name');
+        foreach ($constraints[1] as $constraint) {
+            $require(in_array($constraint, $actualConstraints, strict: true), 'installed carrier constraint missing: '.$name.'.'.$constraint);
+        }
+        preg_match_all('/\bINDEX\s+(\w+)/', implode("\n", $carrier['indexes']), $indexes);
+        $actualIndexes = array_column($installed['indexes'], 'indexname');
+        foreach ($indexes[1] as $index) {
+            $require(in_array($index, $actualIndexes, strict: true), 'installed carrier index missing: '.$name.'.'.$index);
+        }
     }
 
     private static function enumValues(string $definition): array

@@ -37,6 +37,10 @@ use Illuminate\Support\Str;
  * @property array<string, array<string, mixed>>|null $detail_parse_outcome
  * @property-read Registry|null $registry
  * @property-read string|null $procedure_type_raw
+ * @property-read int $head_generation Process subject head; не fillable, пишет только Process ledger.
+ * @property-read int $detail_cycle_seq
+ * @property-read int $status_cycle_seq
+ * @property-read Carbon|null $next_status_due_at
  */
 #[UseFactory(ProcurementFactory::class)]
 #[Fillable([
@@ -109,6 +113,7 @@ final class Procurement extends Model
             'detail_fetched_at' => 'datetime',
             'detail_parse_outcome' => 'array',
             'detail_next_retry_at' => 'datetime',
+            'next_status_due_at' => 'datetime',
             'current_revision_detected_at' => 'datetime',
             'ignored_at' => 'datetime',
             'first_seen_at' => 'datetime',

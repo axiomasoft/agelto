@@ -209,6 +209,14 @@ examples `test_schema_inventory.py`, использующие тот же PHP gu
 После owning schema cutover нужно обновить inventory/provenance и document block, затем
 получить два clean install; guard не разрешает удалять legacy таблицу до последнего reader.
 
+P1.6 — первый такой owner: `current_item` = P1.6, 83 migrations (две новые ledger migrations,
+две изменённые baseline CREATE), 94 root tables/1181 колонок. Carrier с `create_at` ≤ `current_item`
+обязан присутствовать в installed baseline с объявленным порядком колонок, именованными
+CONSTRAINT и индексами; более поздние carriers обязаны отсутствовать. Строки 21 затронутой
+таблицы получены pg_dump/`catalog.sql` проекцией P1.6 DDL на одноразовом PostgreSQL 17
+(provenance `amendments`); полное сравнение с реальным каталогом выполняет `core-test-install`.
+Fixture `manifest.json` хранит актуальные hashes изменённых и новых migrations.
+
 Reports хранятся в `storage/app/testing/process-core/reports/<run-id>/`: candidate HEAD, dirty digest,
 полный input-tree fingerprint (включая untracked product files), config/fixture hashes, exit,
 логи, schema.sql, catalog.json, normalized-catalog.json, seeds.json, JUnit и executed-scenarios.json.

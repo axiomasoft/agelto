@@ -39,8 +39,10 @@ test('полный enum стадий не активирует будущую с
         expect($matches[1])->toBe($initial['supported']);
     }
 
-    foreach (array_keys($inventory['carriers']) as $table) {
-        expect(array_key_exists($table, $inventory['baseline']['tables']))->toBeFalse();
+    // P1.6 устанавливает ровно свои carriers; network/observability/documents/AI остаются будущими.
+    expect($inventory['current_item'])->toBe('P1.6');
+    foreach ($inventory['carriers'] as $table => $carrier) {
+        expect(array_key_exists($table, $inventory['baseline']['tables']))->toBe($carrier['create_at'] === 'P1.6', $table);
     }
 })->group('t01', 'p11');
 

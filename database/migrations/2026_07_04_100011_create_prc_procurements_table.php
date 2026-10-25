@@ -86,10 +86,24 @@ return new class extends Migration
 
             $table->timestamps();
 
+            // P1.6: subject head и durable cycle allocation detail/status_refresh work
+            // (execution#subject-locks). Сериализуются FOR UPDATE этой row.
+            $table->bigInteger('head_generation')->default(1);
+            $table->bigInteger('detail_cycle_seq')->default(0);
+            $table->bigInteger('status_cycle_seq')->default(0);
+            $table->timestampTz('next_status_due_at', precision: 6)->nullable();
+
             $table->unique(['registry_id', 'registry_number']);
             $table->index(['registry_id', 'status', 'published_at']);
             $table->index(['status', 'bidding_ends_at']);
         });
+
+        DB::statement(
+            'ALTER TABLE prc_procurements '
+            .'ADD CONSTRAINT prc_procurements_head_generation_check CHECK (head_generation >= 1), '
+            .'ADD CONSTRAINT prc_procurements_detail_cycle_seq_check CHECK (detail_cycle_seq >= 0), '
+            .'ADD CONSTRAINT prc_procurements_status_cycle_seq_check CHECK (status_cycle_seq >= 0)',
+        );
 
         DB::statement(
             'CREATE INDEX prc_procurements_succeeded_at_index '

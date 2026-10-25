@@ -132,9 +132,11 @@ class SchemaInventoryTest(unittest.TestCase):
                 self.assertRejected(error, actual=actual)
 
     def test_complete_inventory_and_full_document_pass(self):
-        self.assertEqual(len(self.inventory["migrations"]), 81)
-        self.assertEqual(len(self.inventory["baseline"]["tables"]), 75)
-        self.assertEqual(sum(len(t["columns"]) for t in self.inventory["baseline"]["tables"].values()), 939)
+        # P1.6: +2 ledger migrations, +19 Process tables, +7 subject head/cycle columns.
+        self.assertEqual(self.inventory["current_item"], "P1.6")
+        self.assertEqual(len(self.inventory["migrations"]), 83)
+        self.assertEqual(len(self.inventory["baseline"]["tables"]), 94)
+        self.assertEqual(sum(len(t["columns"]) for t in self.inventory["baseline"]["tables"].values()), 1181)
         self.assertEqual(self.violations(document=(ROOT / "docs/dev/process-schema.md").read_text()), [])
         self.assertEqual(self.violations(actual=self.baseline_actual()), [])
 
@@ -144,6 +146,36 @@ class SchemaInventoryTest(unittest.TestCase):
         self.inventory = copy.deepcopy(self.original)
         self.inventory["migrations"][0]["sha256"] = "0" * 64
         self.assertRejected("migration input drift")
+
+    def test_created_carriers_installed_and_future_carriers_absent(self):
+        del self.inventory["baseline"]["tables"]["prc_process_work"]
+        self.assertRejected("created carrier missing from installed baseline: prc_process_work")
+        self.inventory = copy.deepcopy(self.original)
+        self.inventory["baseline"]["tables"]["prc_network_demands"] = copy.deepcopy(self.original["baseline"]["tables"]["prc_process_outbox"])
+        self.assertRejected("future carrier activated in P1.6 baseline: prc_network_demands")
+        self.inventory = copy.deepcopy(self.original)
+        self.inventory["current_item"] = "P1.1"
+        self.assertRejected("future carrier activated in P1.1 baseline: prc_process_work")
+        self.inventory = copy.deepcopy(self.original)
+        self.inventory["current_item"] = "next"
+        self.assertRejected("unknown current_item")
+
+    def test_installed_carrier_and_change_drift_fail(self):
+        work = self.inventory["baseline"]["tables"]["prc_process_work"]
+        work["columns"] = list(reversed(work["columns"]))
+        self.assertRejected("installed carrier columns differ from declaration: prc_process_work")
+        self.inventory = copy.deepcopy(self.original)
+        work = self.inventory["baseline"]["tables"]["prc_process_work"]
+        work["indexes"] = [i for i in work["indexes"] if i["indexname"] != "prc_process_work_provider_recovery_due_idx"]
+        self.assertRejected("installed carrier index missing: prc_process_work.prc_process_work_provider_recovery_due_idx")
+        self.inventory = copy.deepcopy(self.original)
+        work = self.inventory["baseline"]["tables"]["prc_process_work"]
+        work["constraints"] = [c for c in work["constraints"] if c["name"] != "prc_process_work_owner_check"]
+        self.assertRejected("installed carrier constraint missing: prc_process_work.prc_process_work_owner_check")
+        self.inventory = copy.deepcopy(self.original)
+        procurements = self.inventory["baseline"]["tables"]["prc_procurements"]
+        procurements["columns"] = [c for c in procurements["columns"] if c["column_name"] != "head_generation"]
+        self.assertRejected("installed change column missing from baseline: prc_procurements.head_generation")
 
     def test_missing_carrier_owner_creation_and_retention_fail(self):
         for field in ("owner", "create_at", "retention"):
@@ -243,7 +275,7 @@ class SchemaInventoryTest(unittest.TestCase):
         actual["catalog"]["indexes"].pop()
         self.assertRejected("real index inventory differs", actual=actual)
         actual = self.baseline_actual()
-        actual["schema"] += "\nCREATE TABLE public.prc_process_work (\n id uuid NOT NULL\n);"
+        actual["schema"] += "\nCREATE TABLE public.prc_network_demands (\n id uuid NOT NULL\n);"
         self.assertRejected("real catalog root table set differs", actual=actual)
 
     def test_exact_ddl_precision_and_nullability_drift_fail(self):

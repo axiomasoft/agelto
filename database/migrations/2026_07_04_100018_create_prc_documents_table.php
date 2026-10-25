@@ -56,7 +56,19 @@ return new class extends Migration
             $table->timestampTz('locked_until')->nullable();
 
             $table->timestamps();
+
+            // P1.6: subject head и durable acquisition/revalidation cycle download work
+            // (execution#subject-locks). Сериализуются FOR UPDATE этой row.
+            $table->bigInteger('head_generation')->default(1);
+            $table->bigInteger('acquisition_cycle_seq')->default(0);
+            $table->timestampTz('next_revalidation_due_at', precision: 6)->nullable();
         });
+
+        DB::statement(
+            'ALTER TABLE prc_documents '
+            .'ADD CONSTRAINT prc_documents_head_generation_check CHECK (head_generation >= 1), '
+            .'ADD CONSTRAINT prc_documents_acquisition_cycle_seq_check CHECK (acquisition_cycle_seq >= 0)',
+        );
 
         // Partial unique index: external_id уникален в рамках закупки только когда не null.
         DB::statement(

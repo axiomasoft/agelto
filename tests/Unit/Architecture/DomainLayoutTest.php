@@ -50,9 +50,10 @@ function alignedDomainLayoutLayers(): array
         // P2.1 (2026.08.06-CRAWL-HARDEN): подобласть `Platform` заведена первым файлом
         // (`Okpd2NodeReadRepository`) — зеркалит уже существующую подобласть `App\Models\Procurement\Platform`.
         // Crawler: RunStoreRepository зеркалит существующую Models\Procurement\Crawler.
+        // P1.6: подобласть `Process` — writers Process ledger (structure#s01).
         'App\Repositories\Procurement' => [
             'root' => ['ProcurementDetailStoreRepository', 'ProcurementReadRepository', 'ProcurementStoreRepository'],
-            'subareas' => ['Ai', 'Analyzers', 'Crawler', 'Document', 'Health', 'History', 'Platform', 'Proxy'],
+            'subareas' => ['Ai', 'Analyzers', 'Crawler', 'Document', 'Health', 'History', 'Platform', 'Process', 'Proxy'],
         ],
     ];
 }
