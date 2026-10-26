@@ -189,24 +189,18 @@ final readonly class AuthorityRepository
         }
 
         // Tier 3: полный subject set FOR UPDATE в порядке (table key, PK) снимка; heads сверяются.
-        $subjects = [];
-        foreach ($snapshot->subjects->subjects as $expected) {
-            $revision = $expected->subject->kind === SubjectKind::CrawlBlock ? 'input_revision' : 'NULL::bigint';
-            $row = LedgerRow::one(
-                "SELECT head_generation, {$revision} AS input_revision FROM {$expected->subject->kind->value} WHERE id = ? FOR UPDATE",
-                [self::subjectId($expected->subject)],
-            );
-            if ($row === null || $row->int('head_generation') !== $expected->headGeneration) {
-                return PrefixFailure::SnapshotChanged;
-            }
-            $subjects[$expected->subject->key()] = new LockedSubject($expected->subject, $row->int('head_generation'), $row->nullableInt('input_revision'));
+        $subjects = $this->lockSubjects($snapshot);
+        if ($subjects instanceof PrefixFailure) {
+            return $subjects;
         }
 
         // Tier 4: work — последний lock prefix.
         $work = LedgerRow::one(
-            "SELECT state, cohort_key, input_revision, encode(input_hash, 'hex') AS input_hash, intent_id, generation,
-                    dispatch_generation, transition_seq, checkpoint::text AS checkpoint, checkpoint_schema_version, checkpoint_seq,
+            "SELECT state, reason_code, cohort_key, platform_id, origin_run_id, input_revision, encode(input_hash, 'hex') AS input_hash,
+                    intent_id, generation, owner_token, item_failures, dispatch_generation, transition_seq,
+                    checkpoint::text AS checkpoint, checkpoint_schema_version, checkpoint_seq,
                     COALESCE(dispatch_claim_until <= clock_timestamp(), false) AS claim_expired,
+                    COALESCE(lease_until <= clock_timestamp(), false) AS lease_expired,
                     COALESCE(state = 'deferred' AND due_at <= clock_timestamp(), false) AS due
              FROM prc_process_work WHERE id = ? FOR UPDATE".($skipLockedWork ? ' SKIP LOCKED' : ''),
             [$snapshot->workId->value->value],
@@ -223,7 +217,7 @@ final readonly class AuthorityRepository
         $intentId = $work->nullableString('intent_id');
         $intent = $intentId === null ? null : LedgerRow::one('SELECT state FROM prc_operation_intents WHERE id = ?', [$intentId]);
         $group = LedgerRow::one(
-            "SELECT id, state, dispatch_generation, version, encode(required_lane_set_hash, 'hex') AS lane_set_hash
+            "SELECT id, state, dispatch_generation, version, encode(required_lane_set_hash, 'hex') AS lane_set_hash, attempt_id
              FROM prc_admission_groups WHERE work_id = ? AND state <> 'released'",
             [$snapshot->workId->value->value],
         );
@@ -244,6 +238,31 @@ final readonly class AuthorityRepository
             group: $group,
             members: $members,
         );
+    }
+
+    /**
+     * Subject tier отдельно (checkpoint — subset prefix без controls/lanes, bp-lock-modes): полный
+     * subject set FOR UPDATE в порядке снимка, heads сверяются; mutable subject не берётся SHARE.
+     *
+     * @return array<string, LockedSubject>|PrefixFailure keyed by SubjectKey::key()
+     */
+    public function lockSubjects(AuthoritySnapshot $snapshot): array|PrefixFailure
+    {
+        CallerTransaction::require('Process subject locks');
+        $subjects = [];
+        foreach ($snapshot->subjects->subjects as $expected) {
+            $revision = $expected->subject->kind === SubjectKind::CrawlBlock ? 'input_revision' : 'NULL::bigint';
+            $row = LedgerRow::one(
+                "SELECT head_generation, {$revision} AS input_revision FROM {$expected->subject->kind->value} WHERE id = ? FOR UPDATE",
+                [self::subjectId($expected->subject)],
+            );
+            if ($row === null || $row->int('head_generation') !== $expected->headGeneration) {
+                return PrefixFailure::SnapshotChanged;
+            }
+            $subjects[$expected->subject->key()] = new LockedSubject($expected->subject, $row->int('head_generation'), $row->nullableInt('input_revision'));
+        }
+
+        return $subjects;
     }
 
     /**

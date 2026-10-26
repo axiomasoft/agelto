@@ -134,5 +134,67 @@ pause/handler hold, supersede), `T09ClaimDeliveryTest.php` (claim, duplicate/sta
 terminal delivery, parent+child C CapacityWait, pause/hold, membership incident, порядок lock
 tiers, setMode) и многопроцессный `tests/Integration/ProcessCore/Concurrency/T24PauseClaimConcurrencyTest.php`
 (pause против 10 параллельных claims без deadlock и без grant после commit pause; два feeder ≤ W).
-`make core-test-execution` выполняет эти каталоги после clean reset. Finalize/heartbeat/recovery
-(T09 полностью), queue/daemons и document/load T11/T16 — следующие пункты.
+`make core-test-execution` выполняет эти каталоги после clean reset. Recovery (T09 полностью),
+queue/daemons и document/load T11/T16 — следующие пункты.
+
+## Lease, checkpoint и fenced finalize (P1.8)
+
+**ExecutionContext** (`Dto/Procurement/Process`, D13/bp-heartbeat) — одна final mutable class на
+claimed attempt с внедрёнными `Contracts/LeaseKeeper` (DB-порт, по умолчанию
+`WorkStoreRepository`) и `Contracts/ProcessClock` (DB clock + monotonic + sleep). Handler вызывает
+`tick()` между частями и в idle wait (`progressCallback()`); heartbeat CAS — не чаще
+`process.execution.heartbeat_seconds` (15) по monotonic clock. Typed выходы
+(`Exceptions/Procurement/Process`): `LeaseLost` (CAS 0 rows, отказ checkpoint, локальный safety
+deadline = последний renewal + lease − `lease_safety_seconds`), `SliceExhausted`
+(`process.stages.<stage>.slice`), `DependencyUnavailable` (transient DB по
+`DatabaseFailureClassifier`). `canStart(needed)` требует полный timeout + finalization reserve,
+timeout не укорачивается; `sleepUntil(DbInstant)` спит частями ≤5 s с tick. Alarm/fork heartbeat
+нет; `ExecutionContextFactory` открывает context по policy stage. Policy требует lease > slice и
+lease > 2·heartbeat + safety.
+
+**Heartbeat** (`WorkStoreRepository::heartbeat`) — autocommit CAS id+generation+token+running и
+`lease_until > clock_timestamp()`, без других locks; истёкший или отозванный lease не оживляется.
+**Checkpoint** — subject set `FOR UPDATE` (subset prefix, mutable subject не берётся SHARE) → work
+под lock → CAS с expected `checkpoint_seq` и живым lease **до** domain progress
+(`StageResultRepository::storeProgress`). Merged `WorkCheckpointEnvelope`: новый stage progress +
+текущий locked provider recovery plan. Исходы `Saved | LostOwnership | StaleCheckpoint |
+InputSuperseded`; любой отказ или сбой progress write откатывает всю tx.
+
+**WorkFinalizer** (`finish`/`complete`/`settle`/`finishHandlerFault`) исчерпывающе dispatch-ит пять
+closed `StageOutcome`; неизвестный вариант — `LogicException`. `WorkFinalizationRepository` под тем
+же полным prefix (control/handler только `FOR SHARE`, никакого UPDATE этих rows) до domain writes
+проверяет generation+token+running, immutable input, subject head/intent и exact group/attempt.
+`lease_until` для final commit не требуется (D9): истёкший, но не отозванный owner коммитит готовый
+результат; revocation/cancel/supersede, уже увеличившие generation, дают `LostOwnership` без
+единой записи. Тот же owner при сменившемся head — fenced `superseded(input_invalidated)`, attempt
+`superseded`, старый result не публикуется. Pause/handler hold не отбрасывают полученный результат.
+Одна tx: stage result (`StageResultRepository::storeResult`) + ready successors (dedup по
+`work_key`, run links всех runs, cancelled run без новых required) + work state/reason/due + attempt
+`terminal_kind` + release всей group + transition/projection + coalesced `feed:<parent lane>:<5 s>`
+(`ON CONFLICT DO NOTHING`).
+
+| Outcome | state | due / reason |
+| --- | --- | --- |
+| `StageSucceeded` | succeeded, checkpoint очищен | — |
+| `StagePartial` | ready, merged envelope, `checkpoint_seq+1` | — |
+| `StageDeferred` | deferred | `max(RetryAt, now)` + jitter ≤10% оставшегося интервала |
+| `StageBlocked` | blocked, due NULL | `provider_result_unknown` только с pinned `blocked_unknown` plan, `provider_recovery_due_at` +30 s |
+| `StageFailedItem` 1/2 | deferred(`item_retry`) | +30 s, затем +120 s; `item_failures+1` |
+| `StageFailedItem` 3 | failed_item, checkpoint очищен | — |
+| handler fault < 3 | deferred(`handler_fault`) | +60 s; fault_signature на attempt |
+| handler fault = 3 | blocked(`handler_fault_limit`) | due NULL; incident `handler_fault_limit` |
+
+Handler fault budget — finished attempts с fault_signature этой work и executing handler version
+(`ExecutionLease::handlerVersion`), без окна времени; rollback finalize не расходует budget, item
+budget не трогается. Global distinct-input detector и снятие holds — P1.11/P1.17.
+
+`StageRegistry::bindFinalization(stage, codec, repository)` — composition seam stage codec
+checkpoint/result и finalization repository; в production пуст, tests привязывают fixtures.
+Проверки: `tests/Feature/ProcessCore/Execution/T09FinalizeFenceTest.php` (атомарный success и
+successors, D9 late finalize, revocation/cancel → ноль записей, new head → superseded, checkpoint,
+outcome table, item budget, lock tiers без SHARE upgrade), `T25ExecutionContextTest.php` (fake
+LeaseKeeper/clock) и многопроцессный
+`tests/Integration/ProcessCore/Concurrency/T09FinalizeFenceConcurrencyTest.php` (оба порядка
+finalize/revocation, cancel/new head, lost checkpoint CAS, pause против 10 finalize, fault budget
+и journal rollback); `make core-test-concurrency`. Revocation в них — контролируемая fixture под
+тем же full prefix, не RecoveryReconciler (P1.11).

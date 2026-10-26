@@ -37,9 +37,10 @@ function alignedDomainLayoutLayers(): array
         // `InvalidEvalDiffPayload` обслуживает корневой estimate CLI-контур, а не отдельную подобласть.
         // P3.4: подобласть `Crawler` заведена первым файлом (`CrawlerRunAlreadyActive`).
         // Prepare: OperationBudgetExceeded зеркалит существующие Services/Dto\Procurement\Prepare.
+        // P1.8: Process — typed control exits handler (LeaseLost/SliceExhausted/DependencyUnavailable).
         'App\Exceptions\Procurement' => [
             'root' => ['OperationFailed', 'UnknownReportFormat', 'InvalidEvalDiffPayload'],
-            'subareas' => ['Ai', 'Crawler', 'Health', 'Prepare', 'Proxy'],
+            'subareas' => ['Ai', 'Crawler', 'Health', 'Prepare', 'Process', 'Proxy'],
         ],
         // P3.3, Completion Notes: три файла ядра закупки остаются в корне.
         'App\Dto\Procurement' => [

@@ -38,13 +38,20 @@ CONNECT/TLS и полноценный Gemini protocol получают assertion
 | `make core-test-report` | Проверка наличия результатов всех текущих gates и совпадения candidate input tree |
 | `make core-test-down` | Identity guard, удаление только test project и его volumes |
 
-`make core-test-execution` (P1.6/P1.7): clean reset, затем только
+`make core-test-execution` (P1.6–P1.8): clean reset, затем только
 `tests/Feature/ProcessCore/Execution` и `tests/Integration/ProcessCore/Concurrency` на реальном
-PostgreSQL rig — ledger/authority, admission/claim/controls и многопроцессные гонки. Пустая выборка,
-skip или отсутствие assertions не проходят. Lease/finalize/recovery добавляют их owning пункты.
+PostgreSQL rig — ledger/authority, admission/claim/controls, lease/checkpoint/finalize и
+многопроцессные гонки. Пустая выборка, skip или отсутствие assertions не проходят.
+
+`make core-test-concurrency` (с P1.8): clean reset, затем только
+`tests/Integration/ProcessCore/Concurrency` — отдельные PHP processes и PostgreSQL connections с
+детерминированными barriers (holder держит locks, пока другой backend реально не ждёт lock): pause
+против claims/finalize, два feeder, finalize против контролируемой generation revocation в обоих
+порядках, cancel/new head, lost checkpoint CAS и handler fault budget. Revocation — fixture под тем
+же full prefix; настоящий RecoveryReconciler и полные recovery races добавляют P1.11/P1.12.
 
 `core-test-observability`, `core-test-network`, `core-test-platforms`,
-`core-test-acquisition`, `core-test-documents`, `core-test-ai`, `core-test-concurrency`,
+`core-test-acquisition`, `core-test-documents`, `core-test-ai`,
 `core-test-e2e`, `core-test-faults`, `core-test-load WIDTH=10` и `WIDTH=20` пока завершаются
 с exit 78 и JSON `suite_not_implemented`. Их реализуют owning P1/P2/P3 packages. Это не green skip.
 Browser service отдельный, доступен через профиль `browser`; operator E2E ещё не реализован.

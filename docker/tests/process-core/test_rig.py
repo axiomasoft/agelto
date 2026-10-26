@@ -258,6 +258,21 @@ class RigGuardsTest(unittest.TestCase):
                 self.assertEqual(list(pest[-2:]), rig.SUITE_PATHS["execution"])
                 self.assertNotIn("--testsuite=Unit", pest)
 
+    def test_concurrency_suite_runs_after_clean_reset_and_only_multi_process_paths(self):
+        self.assertNotIn("concurrency", rig.FUTURE)
+        self.assertIn("concurrency", rig.IMPLEMENTED)
+        self.assertEqual(rig.SUITE_PATHS["concurrency"], ["tests/Integration/ProcessCore/Concurrency"])
+        calls = []
+        with tempfile.TemporaryDirectory() as temp, \
+                patch.object(rig, "ROOT", Path(temp).parent), \
+                patch.object(rig, "new_report", return_value=(Path(temp), {"command": "core-test-concurrency"})), \
+                patch.object(rig, "install_clock", return_value={"epoch": 1}), \
+                patch.object(rig, "reset", side_effect=lambda folder, clock: calls.append(("reset", folder.name))), \
+                patch.object(rig, "suite", side_effect=lambda folder, name: calls.append(("suite", name)) or {"executed": 1, "exit": 0}), \
+                patch.object(rig, "write_json"), patch("sys.stdout", new=io.StringIO()):
+            self.assertEqual(rig.execute("core-test-concurrency", "concurrency"), 0)
+        self.assertEqual(calls, [("reset", "clean-reset"), ("suite", "concurrency")])
+
     def test_fixture_proof_requires_success_nonempty_assertions_and_no_skips(self):
         for code, result in [(1, {"executed": 1, "skipped": 0}),
                              (0, {"executed": 0, "skipped": 0}),

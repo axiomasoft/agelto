@@ -35,17 +35,27 @@ return [
         'capacity_wait_max_ms' => 10000,
     ],
 
-    // Delivery deadline admitted work (claim visibility, transport, не lease) и DB lease claimed
-    // attempt в секундах (execution#lane-defaults, bp-jobs). StageQueueMap (P1.10) берёт те же bounds.
+    // Delivery deadline admitted work (claim visibility, transport, не lease), monotonic slice
+    // исполнения и DB lease claimed attempt в секундах (execution#lane-defaults, bp-jobs).
+    // StageQueueMap (P1.10) берёт те же bounds для job/Horizon timeout и retry_after.
     'stages' => [
-        'listing' => ['claim_visibility' => 300, 'lease' => 360],
-        'detail' => ['claim_visibility' => 120, 'lease' => 180],
-        'status_refresh' => ['claim_visibility' => 120, 'lease' => 180],
-        'download' => ['claim_visibility' => 300, 'lease' => 420],
-        'prepare' => ['claim_visibility' => 300, 'lease' => 360],
-        'screening' => ['claim_visibility' => 300, 'lease' => 390],
-        'extraction' => ['claim_visibility' => 300, 'lease' => 390],
-        'publication' => ['claim_visibility' => 120, 'lease' => 180],
+        'listing' => ['claim_visibility' => 300, 'slice' => 240, 'lease' => 360],
+        'detail' => ['claim_visibility' => 120, 'slice' => 90, 'lease' => 180],
+        'status_refresh' => ['claim_visibility' => 120, 'slice' => 90, 'lease' => 180],
+        'download' => ['claim_visibility' => 300, 'slice' => 300, 'lease' => 420],
+        'prepare' => ['claim_visibility' => 300, 'slice' => 240, 'lease' => 360],
+        'screening' => ['claim_visibility' => 300, 'slice' => 270, 'lease' => 390],
+        'extraction' => ['claim_visibility' => 300, 'slice' => 270, 'lease' => 390],
+        'publication' => ['claim_visibility' => 120, 'slice' => 90, 'lease' => 180],
+    ],
+
+    // Кооперативный heartbeat (bp-heartbeat): CAS не чаще heartbeat_seconds по monotonic clock;
+    // finalization reserve входит в каждый canStart; локальный safety deadline = последний
+    // успешный renewal + lease − lease_safety. Boot требует lease > slice и lease > 2·heartbeat + safety.
+    'execution' => [
+        'heartbeat_seconds' => 15,
+        'finalization_reserve_seconds' => 15,
+        'lease_safety_seconds' => 30,
     ],
 
     // EXR-02: конечный budget unexpected handler faults на (work, handler_version); fault 3 → blocked(handler_fault_limit).

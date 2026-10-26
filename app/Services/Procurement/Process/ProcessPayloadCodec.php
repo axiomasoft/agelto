@@ -279,6 +279,16 @@ final class ProcessPayloadCodec
         ]);
     }
 
+    /** Typed feeder_wake payload: только parent lane key, без work IDs и payload. */
+    public function encodeFeederWake(string $laneKey): VersionedPayload
+    {
+        if (preg_match('/^[a-z_]+(\.[a-z_]+)?$/D', $laneKey) !== 1) {
+            throw new \InvalidArgumentException('Feeder wake requires a canonical lane key.');
+        }
+
+        return $this->payload(['lane_key' => $laneKey]);
+    }
+
     /** @param array<string, mixed> $fields */
     private function payload(array $fields): VersionedPayload
     {

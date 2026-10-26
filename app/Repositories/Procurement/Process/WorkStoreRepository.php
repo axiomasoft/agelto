@@ -5,19 +5,26 @@ declare(strict_types=1);
 namespace App\Repositories\Procurement\Process;
 
 use App\Dto\Procurement\Process\AuthoritySnapshot;
+use App\Dto\Procurement\Process\CheckpointResult;
 use App\Dto\Procurement\Process\ClaimResult;
 use App\Dto\Procurement\Process\ContentHash;
+use App\Dto\Procurement\Process\DbInstant;
 use App\Dto\Procurement\Process\DeliveryGeneration;
 use App\Dto\Procurement\Process\ExecutionLease;
+use App\Dto\Procurement\Process\LeaseRenewal;
+use App\Dto\Procurement\Process\NoProviderRecovery;
 use App\Dto\Procurement\Process\ProcessUuid;
+use App\Dto\Procurement\Process\StageCheckpoint;
 use App\Dto\Procurement\Process\SubjectKey;
 use App\Dto\Procurement\Process\VersionedPayload;
+use App\Dto\Procurement\Process\WorkCheckpointEnvelope;
 use App\Dto\Procurement\Process\WorkId;
 use App\Dto\Procurement\Process\WorkIdentity;
 use App\Dto\Procurement\Process\WorkInput;
 use App\Enums\Procurement\Process\AccountingRole;
 use App\Enums\Procurement\Process\ActorKind;
 use App\Enums\Procurement\Process\AuthorityGap;
+use App\Enums\Procurement\Process\CheckpointStatus;
 use App\Enums\Procurement\Process\ClaimStatus;
 use App\Enums\Procurement\Process\DeferralReason;
 use App\Enums\Procurement\Process\IntentState;
@@ -25,21 +32,28 @@ use App\Enums\Procurement\Process\PrefixFailure;
 use App\Enums\Procurement\Process\RunWorkRelation;
 use App\Enums\Procurement\Process\StageCode;
 use App\Enums\Procurement\Process\WorkState;
+use App\Exceptions\Procurement\Process\DependencyUnavailable;
+use App\Services\Procurement\Process\Contracts\LeaseKeeper;
+use App\Services\Procurement\Process\DatabaseFailureClassifier;
 use App\Services\Procurement\Process\ProcessPayloadCodec;
 use App\Services\Procurement\Process\ProcessPolicy;
 use App\Services\Procurement\Process\ProcessTransaction;
 use App\Services\Procurement\Process\SchemaSupportedStages;
+use App\Services\Procurement\Process\StageRegistry;
 use App\Services\Procurement\Process\SubjectLockResolver;
+use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
 /**
- * Writer intents, новых ready work и admitted→running claim (P1.6/P1.7). Work ссылается на реальный
- * subject одной owner column своей стадии; work_key = WorkIdentity, input immutable (новое input —
- * новый intent/work). Claim берёт полный prefix без SKIP LOCKED (bp-sql-claim); heartbeat/
- * checkpoint/finalize добавляют следующие пункты с тем же prefix.
+ * Writer intents, новых ready work, admitted→running claim (P1.6/P1.7) и ownership живого attempt
+ * (P1.8). Work ссылается на реальный subject одной owner column своей стадии; work_key =
+ * WorkIdentity, input immutable (новое input — новый intent/work). Claim берёт полный prefix без
+ * SKIP LOCKED (bp-sql-claim); heartbeat — единственный CAS work row без других locks; checkpoint —
+ * subject set FOR UPDATE, затем work CAS до domain progress (bp-sql-heartbeat). Finalize —
+ * WorkFinalizationRepository под тем же полным prefix.
  */
-final readonly class WorkStoreRepository
+final readonly class WorkStoreRepository implements LeaseKeeper
 {
     /** Snapshot изменился между pre-read и locks: столько раз перечитываем, затем доставка уступает. */
     private const int MAX_RELOADS = 3;
@@ -55,7 +69,61 @@ final readonly class WorkStoreRepository
         private ProcessPolicy $policy,
         private ProcessTransaction $transaction,
         private SubjectLockResolver $resolver,
+        private StageRegistry $registry,
     ) {}
+
+    /**
+     * Autocommit heartbeat CAS (bp-sql-heartbeat): только id+generation+token+running и живой DB
+     * lease; ни SELECT, ни других locks. 0 rows — Lost: истёкший или отозванный lease не оживляется.
+     * Attempt last_heartbeat_at — диагностика после успешного CAS, не authority.
+     */
+    public function heartbeat(ExecutionLease $lease): LeaseRenewal
+    {
+        try {
+            $row = LedgerRow::one(
+                "UPDATE prc_process_work SET lease_until = clock_timestamp() + make_interval(secs => ?), heartbeat_at = clock_timestamp()
+                 WHERE id = ? AND generation = ? AND owner_token = ? AND state = 'running' AND lease_until > clock_timestamp()
+                 RETURNING lease_until::text AS lease_until",
+                [$this->policy->leaseSeconds($lease->stage), $lease->workId->value->value, $lease->generation, $lease->token->value],
+            );
+            if ($row === null) {
+                return LeaseRenewal::lost();
+            }
+            DB::update('UPDATE prc_process_attempts SET last_heartbeat_at = clock_timestamp() WHERE id = ? AND finished_at IS NULL', [$lease->attemptId->value]);
+
+            return LeaseRenewal::renewed(new DbInstant(new \DateTimeImmutable($row->string('lease_until'))));
+        } catch (QueryException $exception) {
+            throw DatabaseFailureClassifier::isTransient($exception) ? new DependencyUnavailable('database', $exception) : $exception;
+        }
+    }
+
+    /**
+     * Guarded progress живого owner (bp-sql-heartbeat): subject set FOR UPDATE → work под lock,
+     * merged envelope (новый stage progress + текущий locked provider recovery plan), CAS с
+     * expected checkpoint_seq и живым lease ДО domain progress. Любой guard failure откатывает все
+     * записи; checkpoint не меняет admission group и не освобождает storage.
+     */
+    public function checkpoint(ExecutionLease $lease, StageCheckpoint $checkpoint, int $expectedSeq): CheckpointResult
+    {
+        $lease->guardProgress($checkpoint);
+        try {
+            for ($reload = 0; $reload < self::MAX_RELOADS; $reload++) {
+                $snapshot = $this->authority->readAuthoritySnapshot($lease->workId);
+                if ($snapshot instanceof AuthorityGap) {
+                    return CheckpointResult::refused(CheckpointStatus::LostOwnership);
+                }
+                $result = $this->transaction->run(fn (): CheckpointResult|PrefixFailure => $this->checkpointLocked($snapshot, $lease, $checkpoint, $expectedSeq));
+                if ($result instanceof CheckpointResult) {
+                    return $result;
+                }
+            }
+        } catch (QueryException $exception) {
+            throw DatabaseFailureClassifier::isTransient($exception) ? new DependencyUnavailable('database', $exception) : $exception;
+        }
+
+        // Subject heads менялись на каждой попытке: progress не сохранён, owner уступает.
+        return CheckpointResult::refused(CheckpointStatus::InputSuperseded);
+    }
 
     /**
      * admitted → running для конкретной delivery (bp-sql-claim): generation+1, случайный token,
@@ -97,6 +165,8 @@ final readonly class WorkStoreRepository
     /**
      * Fenced supersede stale input под уже взятым полным prefix (execution#s08): generation+1,
      * token/lease/claim/due/checkpoint очищены, вся admission group освобождена, transition.
+     * Running owner (finalize при сменившемся input) закрывает свой attempt superseded: старый
+     * result не публикуется.
      */
     public function supersedeLocked(AuthoritySnapshot $snapshot, LockedPrefix $prefix, ProcessUuid $eventId, ProcessUuid $projectionMessageId, ActorKind $actor): void
     {
@@ -107,10 +177,20 @@ final readonly class WorkStoreRepository
              SET state = 'superseded', reason_code = 'input_invalidated', generation = generation + 1, owner_token = NULL,
                  lease_until = NULL, dispatch_claim_until = NULL, due_at = NULL, provider_recovery_due_at = NULL,
                  checkpoint = NULL, checkpoint_schema_version = NULL, transition_seq = transition_seq + 1, updated_at = clock_timestamp()
-             WHERE id = ? AND generation = ? AND state IN ('ready', 'deferred', 'admitted')
+             WHERE id = ? AND generation = ? AND state IN ('ready', 'deferred', 'admitted', 'running')
              RETURNING generation, transition_seq",
             [$snapshot->workId->value->value, $prefix->work->int('generation')],
         ) ?? throw new \LogicException('Supersede fence did not match the locked work.');
+        if ($previous === WorkState::Running->value) {
+            $closed = DB::update(
+                "UPDATE prc_process_attempts SET finished_at = clock_timestamp(), terminal_kind = 'superseded'
+                 WHERE work_id = ? AND generation = ? AND finished_at IS NULL",
+                [$snapshot->workId->value->value, $prefix->work->int('generation')],
+            );
+            if ($closed !== 1) {
+                throw new \LogicException('Running supersede must close exactly the current attempt.');
+            }
+        }
         if ($prefix->group !== null) {
             $this->releaseGroupLocked($prefix->group, count($prefix->members), 'superseded');
         }
@@ -309,7 +389,6 @@ final readonly class WorkStoreRepository
             $ids['event'], $ids['projection'], $snapshot->workId->value, $row->int('transition_seq'),
             WorkState::Admitted->value, WorkState::Running->value, null, ActorKind::Worker, $generation,
         );
-        $checkpoint = $prefix->work->nullableString('checkpoint');
 
         return new ExecutionLease(
             workId: $snapshot->workId,
@@ -320,8 +399,69 @@ final readonly class WorkStoreRepository
             inputRevision: $snapshot->inputRevision,
             inputHash: $snapshot->inputHash,
             checkpointSeq: $prefix->work->int('checkpoint_seq'),
-            checkpoint: $this->codec->decodeCheckpoint(new VersionedPayload($checkpoint, $checkpoint === null ? null : $prefix->work->int('checkpoint_schema_version'))),
+            checkpoint: $this->lockedCheckpoint($prefix->work),
+            stage: $snapshot->handler->stage,
+            handlerVersion: $snapshot->handler->handlerVersion,
         );
+    }
+
+    /** Decoded envelope locked work row через stage codecs registry; NULL pair — без checkpoint. */
+    public function lockedCheckpoint(LedgerRow $work): ?WorkCheckpointEnvelope
+    {
+        $checkpoint = $work->nullableString('checkpoint');
+
+        return $this->registry->payloadCodec()->decodeCheckpoint(
+            new VersionedPayload($checkpoint, $checkpoint === null ? null : $work->int('checkpoint_schema_version')),
+        );
+    }
+
+    /** Merged envelope: новый stage progress сохраняет текущий locked provider recovery plan. */
+    public static function mergeProgress(?WorkCheckpointEnvelope $current, StageCheckpoint $progress): WorkCheckpointEnvelope
+    {
+        return $current === null ? new WorkCheckpointEnvelope($progress, new NoProviderRecovery) : $current->withProgress($progress);
+    }
+
+    private function checkpointLocked(AuthoritySnapshot $snapshot, ExecutionLease $lease, StageCheckpoint $progress, int $expectedSeq): CheckpointResult|PrefixFailure
+    {
+        $subjects = $this->authority->lockSubjects($snapshot);
+        if ($subjects instanceof PrefixFailure) {
+            return $subjects;
+        }
+        $workId = $lease->workId->value->value;
+        $work = LedgerRow::one(
+            'SELECT generation, owner_token, state, intent_id, checkpoint_seq, checkpoint::text AS checkpoint, checkpoint_schema_version,
+                    COALESCE(lease_until > clock_timestamp(), false) AS live
+             FROM prc_process_work WHERE id = ? FOR UPDATE',
+            [$workId],
+        );
+        if ($work === null || $work->int('generation') !== $lease->generation || $work->nullableString('owner_token') !== $lease->token->value
+            || $work->string('state') !== WorkState::Running->value || ! $work->bool('live')) {
+            return CheckpointResult::refused(CheckpointStatus::LostOwnership);
+        }
+        $intentId = $work->nullableString('intent_id');
+        $intentActive = $intentId === null || LedgerRow::one('SELECT state FROM prc_operation_intents WHERE id = ?', [$intentId])?->string('state') === IntentState::Active->value;
+        if (! $intentActive || $this->resolver->inputInvalidated($snapshot->input, $snapshot->inputRevision, $subjects)) {
+            return CheckpointResult::refused(CheckpointStatus::InputSuperseded);
+        }
+        if ($work->int('checkpoint_seq') !== $expectedSeq) {
+            return CheckpointResult::refused(CheckpointStatus::StaleCheckpoint);
+        }
+        $merged = self::mergeProgress($this->lockedCheckpoint($work), $progress);
+        $payload = $this->registry->payloadCodec()->encodeCheckpoint($merged);
+        $row = LedgerRow::one(
+            "UPDATE prc_process_work
+             SET checkpoint = ?::jsonb, checkpoint_schema_version = ?, checkpoint_seq = checkpoint_seq + 1,
+                 lease_until = clock_timestamp() + make_interval(secs => ?), heartbeat_at = clock_timestamp(), updated_at = clock_timestamp()
+             WHERE id = ? AND generation = ? AND owner_token = ? AND state = 'running'
+               AND lease_until > clock_timestamp() AND checkpoint_seq = ?
+             RETURNING checkpoint_seq, lease_until::text AS lease_until",
+            [$payload->json, $payload->schemaVersion, $this->policy->leaseSeconds($lease->stage), $workId, $lease->generation, $lease->token->value, $expectedSeq],
+        ) ?? throw new \LogicException('Checkpoint CAS did not match the locked running work.');
+        // CAS изменил ровно одну строку: только теперь domain progress; его ошибка откатывает и CAS.
+        $this->registry->resultRepository($lease->stage)->storeProgress($snapshot->input, $progress);
+        DB::update('UPDATE prc_process_attempts SET last_checkpoint_at = clock_timestamp() WHERE id = ? AND finished_at IS NULL', [$lease->attemptId->value]);
+
+        return CheckpointResult::saved($row->int('checkpoint_seq'), new DbInstant(new \DateTimeImmutable($row->string('lease_until'))), $merged);
     }
 
     /**

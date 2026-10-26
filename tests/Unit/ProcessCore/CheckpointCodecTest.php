@@ -117,7 +117,8 @@ test('checkpoint codec не принимает неизвестные stage code
 
 test('lease хранит immutable checkpoint и отвергает recovery чужого input', function (): void {
     $checkpoint = new WorkCheckpointEnvelope(new FixtureStageCheckpoint(1), F::recovery());
-    $lease = new ExecutionLease(new WorkId(F::id()), F::id(4), 1, F::id(5), new DateTimeImmutable('2026-10-24T12:00:00Z'), 1, F::hash(), 1, $checkpoint);
+    $lease = new ExecutionLease(new WorkId(F::id()), F::id(4), 1, F::id(5), new DateTimeImmutable('2026-10-24T12:00:00Z'), 1, F::hash(), 1, $checkpoint, StageCode::Listing, 'fixture-listing/1');
     expect($lease->checkpoint)->toBe($checkpoint);
-    expect(fn () => new ExecutionLease($lease->workId, $lease->attemptId, 2, $lease->token, $lease->leaseUntil, 1, new ContentHash(str_repeat('b', 64)), 1, $checkpoint))->toThrow(InvalidArgumentException::class);
+    expect(fn () => new ExecutionLease($lease->workId, $lease->attemptId, 2, $lease->token, $lease->leaseUntil, 1, new ContentHash(str_repeat('b', 64)), 1, $checkpoint, StageCode::Listing, 'fixture-listing/1'))->toThrow(InvalidArgumentException::class);
+    expect(fn () => new ExecutionLease($lease->workId, $lease->attemptId, 2, $lease->token, $lease->leaseUntil, 1, F::hash(), 1, $checkpoint, StageCode::Detail, 'fixture-detail/1'))->toThrow(InvalidArgumentException::class);
 });

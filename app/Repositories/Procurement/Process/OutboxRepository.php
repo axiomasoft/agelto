@@ -34,6 +34,23 @@ final readonly class OutboxRepository
         );
     }
 
+    /**
+     * Coalesced feeder wake lane (bp-sql-finalize): dedup `feed:<lane_key>:<epoch_second/5>` по DB
+     * clock, ON CONFLICT DO NOTHING — 0 вставленных строк означает успешное coalescing, даже если
+     * существующий wake уже опубликован; periodic feed tick остаётся safety net.
+     */
+    public function enqueueFeederWake(ProcessUuid $messageId, string $laneKey): void
+    {
+        CallerTransaction::require('Feeder wake outbox insert');
+        $payload = $this->codec->encodeFeederWake($laneKey);
+        DB::insert(
+            "INSERT INTO prc_process_outbox (message_id, dedup_key, kind, payload, payload_schema_version, available_at)
+             VALUES (?, 'feed:' || ? || ':' || floor(extract(epoch FROM clock_timestamp()) / 5)::bigint, 'feeder_wake', ?::jsonb, ?, clock_timestamp())
+             ON CONFLICT (dedup_key) DO NOTHING",
+            [$messageId->value, $laneKey, $payload->json, $payload->schemaVersion],
+        );
+    }
+
     /** Projection intent события: dedup `project:<event_id>`, конфликт — ошибка, не coalescing. */
     public function enqueueProjection(ProcessUuid $messageId, ProcessUuid $eventId): void
     {

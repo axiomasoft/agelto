@@ -58,10 +58,19 @@ final readonly class ProcessPolicy
 
     public int $capacityWaitMaxMs;
 
+    /** Минимальный monotonic интервал между heartbeat CAS одного attempt. */
+    public int $heartbeatSeconds;
+
+    /** Резерв на finalize, который canStart прибавляет к каждому effect. */
+    public int $finalizationReserveSeconds;
+
+    /** Локальный safety deadline = последний renewal + lease − этот запас. */
+    public int $leaseSafetySeconds;
+
     /** @var array<string, LanePolicy> */
     private array $lanes;
 
-    /** @var array<string, array{claim_visibility: int, lease: int}> */
+    /** @var array<string, array{claim_visibility: int, slice: int, lease: int}> */
     private array $stageTimings;
 
     public function __construct(Repository $config)
@@ -79,7 +88,20 @@ final readonly class ProcessPolicy
         if ($this->capacityWaitMaxMs < $this->capacityWaitMinMs) {
             throw new \InvalidArgumentException('Invalid process policy: process.admission.capacity_wait_max_ms');
         }
-        $this->stageTimings = self::stageTimings($config->get('process.stages'));
+        $this->heartbeatSeconds = self::positiveInteger($config->get('process.execution.heartbeat_seconds'), 'process.execution.heartbeat_seconds');
+        $this->finalizationReserveSeconds = self::positiveInteger($config->get('process.execution.finalization_reserve_seconds'), 'process.execution.finalization_reserve_seconds');
+        $this->leaseSafetySeconds = self::positiveInteger($config->get('process.execution.lease_safety_seconds'), 'process.execution.lease_safety_seconds');
+        $execution = $config->get('process.execution');
+        if (! is_array($execution) || array_keys($execution) !== ['heartbeat_seconds', 'finalization_reserve_seconds', 'lease_safety_seconds']) {
+            throw new \InvalidArgumentException('Invalid process policy: process.execution');
+        }
+        $this->stageTimings = self::stageTimings($config->get('process.stages'), 2 * $this->heartbeatSeconds + $this->leaseSafetySeconds);
+    }
+
+    /** Monotonic slice одного attempt: после него handler выходит checkpoint/partial. */
+    public function sliceSeconds(StageCode $stage): int
+    {
+        return $this->stageTimings[$stage->value]['slice'];
     }
 
     /** Delivery deadline admitted work: transport bound, не execution lease. */
@@ -218,8 +240,12 @@ final readonly class ProcessPolicy
         return $policies;
     }
 
-    /** @return array<string, array{claim_visibility: int, lease: int}> */
-    private static function stageTimings(mixed $stages): array
+    /**
+     * Lease обязан пережить slice и кооперативный heartbeat с safety запасом (bp-heartbeat).
+     *
+     * @return array<string, array{claim_visibility: int, slice: int, lease: int}>
+     */
+    private static function stageTimings(mixed $stages, int $minimumLease): array
     {
         if (! is_array($stages)) {
             throw new \InvalidArgumentException('Invalid process policy: process.stages');
@@ -228,13 +254,17 @@ final readonly class ProcessPolicy
         foreach (StageCode::cases() as $code) {
             $path = 'process.stages.'.$code->value;
             $timing = $stages[$code->value] ?? null;
-            if (! is_array($timing) || array_keys($timing) !== ['claim_visibility', 'lease']) {
+            if (! is_array($timing) || array_keys($timing) !== ['claim_visibility', 'slice', 'lease']) {
                 throw new \InvalidArgumentException('Invalid process policy: '.$path);
             }
             $timings[$code->value] = [
                 'claim_visibility' => self::positiveInteger($timing['claim_visibility'], $path.'.claim_visibility'),
+                'slice' => self::positiveInteger($timing['slice'], $path.'.slice'),
                 'lease' => self::positiveInteger($timing['lease'], $path.'.lease'),
             ];
+            if ($timings[$code->value]['lease'] <= max($timings[$code->value]['slice'], $minimumLease)) {
+                throw new \InvalidArgumentException('Invalid process policy: '.$path.'.lease');
+            }
         }
         if (count($stages) !== count($timings)) {
             throw new \InvalidArgumentException('Invalid process policy: process.stages');

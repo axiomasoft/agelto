@@ -3318,7 +3318,7 @@
     },
     {
       "path": "tests/Unit/Architecture/DomainLayoutTest.php",
-      "sha256": "bfa731b6c1858c23b488c0a436621de584630c366f1b0a2e7103df996efcc832",
+      "sha256": "51422a044287653e0ac5fdd68277779190ae862413603069648634c1cacd4248",
       "scenarios": [
         "в корне выровненных слоёв раскладки нет файлов сверх реестра root-legal классов",
         "namespace каждого файла выровненных слоёв совпадает с его путём",
@@ -3326,7 +3326,7 @@
       ],
       "original_path": "tests/Unit/Architecture/DomainLayoutTest.php",
       "original_sha256": "01928226c2909b569254785ae9c2f297a44833f7abc076b249cb04637864f381",
-      "change_reason": "P4.2 architecture assertions updated for the Platforms roots; P1.2 registers the Process DTO/enum subareas. Original scenario names preserved. P1.6 registers the Process repository subarea."
+      "change_reason": "P4.2 architecture assertions updated for the Platforms roots; P1.2 registers the Process DTO/enum subareas. Original scenario names preserved. P1.6 registers the Process repository subarea. P1.8 registers the Process exceptions subarea (typed control exits)."
     },
     {
       "path": "tests/Unit/Architecture/HistoryModulePlatformAgnosticTest.php",

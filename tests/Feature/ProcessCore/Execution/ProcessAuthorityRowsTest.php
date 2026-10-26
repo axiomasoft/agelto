@@ -58,6 +58,8 @@ test('policy v1 задаёт стартовые W/C lanes, finite required lanes
         ->and([$policy->ageSeconds, $policy->candidateLimit, $policy->capacityWaitMinMs, $policy->capacityWaitMaxMs])->toBe([900, 5, 5000, 10000])
         ->and([$policy->claimVisibilitySeconds(StageCode::Detail), $policy->leaseSeconds(StageCode::Detail)])->toBe([120, 180])
         ->and([$policy->claimVisibilitySeconds(StageCode::Download), $policy->leaseSeconds(StageCode::Download)])->toBe([300, 420])
+        ->and([$policy->sliceSeconds(StageCode::Detail), $policy->sliceSeconds(StageCode::Listing), $policy->sliceSeconds(StageCode::Download), $policy->sliceSeconds(StageCode::Extraction)])->toBe([90, 240, 300, 270])
+        ->and([$policy->heartbeatSeconds, $policy->finalizationReserveSeconds, $policy->leaseSafetySeconds])->toBe([15, 15, 30])
         ->and(array_map(fn (ScopeDefinition $scope): string => $scope->key, $policy->workScopes(StageCode::Listing, 'platform:eis')))
         ->toBe(['system', 'acquisition', 'acquisition:stage:listing', 'acquisition:platform:eis'])
         ->and(array_map(fn (ScopeDefinition $scope): string => $scope->key, $policy->workScopes(StageCode::Download, 'manual')))
@@ -91,6 +93,12 @@ test('невалидная policy отвергается с точным config 
         return $process;
     }, 'process.stages.publication'],
     'лишнее поле timing stage' => [processPolicyReplace(['stages' => ['download' => ['ttl' => 30]]]), 'process.stages.download'],
+    'нулевой slice stage' => [processPolicyReplace(['stages' => ['detail' => ['slice' => 0]]]), 'process.stages.detail.slice'],
+    'lease не длиннее slice' => [processPolicyReplace(['stages' => ['listing' => ['slice' => 360]]]), 'process.stages.listing.lease'],
+    'lease короче двух heartbeat и safety' => [processPolicyReplace(['execution' => ['heartbeat_seconds' => 80]]), 'process.stages.detail.lease'],
+    'нулевой heartbeat' => [processPolicyReplace(['execution' => ['heartbeat_seconds' => 0]]), 'process.execution.heartbeat_seconds'],
+    'строковый finalization reserve' => [processPolicyReplace(['execution' => ['finalization_reserve_seconds' => '15']]), 'process.execution.finalization_reserve_seconds'],
+    'лишнее поле execution' => [processPolicyReplace(['execution' => ['alarm_seconds' => 5]]), 'process.execution'],
 ]);
 
 test('ensureBaseline материализует scopes и lanes только schema-supported stages и идемпотентен', function (): void {
