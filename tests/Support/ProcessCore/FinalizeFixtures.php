@@ -6,6 +6,7 @@ namespace Tests\Support\ProcessCore;
 
 use App\Dto\Procurement\Process\ArtifactRef;
 use App\Dto\Procurement\Process\AuthoritySnapshot;
+use App\Dto\Procurement\Process\ContentHash;
 use App\Dto\Procurement\Process\ExecutionLease;
 use App\Dto\Procurement\Process\HandlerFaultEvidence;
 use App\Dto\Procurement\Process\StageSucceeded;
@@ -81,10 +82,22 @@ final class FinalizeFixtures
         return self::running($work);
     }
 
-    /** DB lease истёк (ход времени); recovery ещё не пришла. */
-    public static function expire(WorkId $work): void
+    /**
+     * DB lease истёк (ход времени); recovery ещё не пришла. Запас 10 s перекрывает 2 s margin
+     * candidate selector настоящего RecoveryReconciler (lease_until < now − 2 s).
+     */
+    public static function expire(WorkId $work, int $seconds = 10): void
     {
-        DB::update("UPDATE prc_process_work SET lease_until = clock_timestamp() - interval '1 second' WHERE id = ? AND state = 'running'", [$work->value->value]);
+        DB::update("UPDATE prc_process_work SET lease_until = clock_timestamp() - make_interval(secs => ?) WHERE id = ? AND state = 'running'", [$seconds, $work->value->value]);
+    }
+
+    /** Содержимое hash immutable input work для provider plan fixtures. */
+    public static function inputHash(WorkId $work): ContentHash
+    {
+        $row = LedgerRow::one("SELECT encode(input_hash, 'hex') AS hash FROM prc_process_work WHERE id = ?", [$work->value->value])
+            ?? throw new \LogicException('Fixture work is missing.');
+
+        return new ContentHash($row->string('hash'));
     }
 
     /**

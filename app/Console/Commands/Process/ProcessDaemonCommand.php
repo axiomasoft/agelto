@@ -13,6 +13,7 @@ use App\Services\Procurement\Process\DaemonReadiness;
 use App\Services\Procurement\Process\FeederDaemon;
 use App\Services\Procurement\Process\ProcessAuthoritySync;
 use App\Services\Procurement\Process\ReconcileDaemon;
+use App\Services\Procurement\Process\RecoveryReconciler;
 use App\Services\Procurement\Process\RelayDaemon;
 use App\Services\Procurement\Process\StageQueueMap;
 use Illuminate\Console\Attributes\Description;
@@ -57,8 +58,9 @@ final class ProcessDaemonCommand extends Command
         // Fail fast: несогласованная карта очередей/Horizon не должна молча публиковать wake.
         app(StageQueueMap::class);
         $daemon = $this->daemon($kind);
-        if ($kind === DaemonKind::Feed) {
-            // Control scopes и lanes существуют до первого admission (execution#s11).
+        if ($kind === DaemonKind::Feed || $kind === DaemonKind::Reconcile) {
+            // Control scopes и lanes существуют до первого admission (execution#s11); recovery и
+            // fault detector берут тот же prefix и не создают отсутствующие authority rows молча.
             app(ProcessAuthoritySync::class)->ensureBaseline();
         }
         $this->trapSignals();
@@ -74,10 +76,25 @@ final class ProcessDaemonCommand extends Command
     {
         return match ($kind) {
             DaemonKind::Relay => app(RelayDaemon::class),
-            DaemonKind::Reconcile => app(ReconcileDaemon::class),
+            DaemonKind::Reconcile => $this->reconcileDaemon(),
             DaemonKind::Feed => app(FeederDaemon::class),
             DaemonKind::Project => throw new \LogicException('Project daemon is not activated before P1.14–P1.18.'),
         };
+    }
+
+    /**
+     * Категории RecoveryReconciler (P1.11): expired running/admitted, release blocked, независимая
+     * blocked-provider категория EXR-03 и historical handler-fault sweep. Без регистрации daemon
+     * ничего бы не восстанавливал, поэтому она часть запуска, а не опция.
+     */
+    private function reconcileDaemon(): ReconcileDaemon
+    {
+        $daemon = app(ReconcileDaemon::class);
+        foreach (app(RecoveryReconciler::class)->categories() as $category) {
+            $daemon->register($category);
+        }
+
+        return $daemon;
     }
 
     /** TERM/INT ставят флаг: текущий короткий tick завершается, выход 0. */

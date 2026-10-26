@@ -23,6 +23,11 @@ final readonly class FixtureStagePayloadCodec implements StagePayloadCodec
         return $this->stageCode;
     }
 
+    public function initialCheckpoint(): StageCheckpoint
+    {
+        return new FixtureStageCheckpoint(0, $this->stageCode);
+    }
+
     public function encodeCheckpoint(StageCheckpoint $checkpoint): VersionedPayload
     {
         if (! $checkpoint instanceof FixtureStageCheckpoint || $checkpoint->stage() !== $this->stageCode) {

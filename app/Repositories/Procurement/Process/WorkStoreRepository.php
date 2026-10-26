@@ -177,7 +177,7 @@ final readonly class WorkStoreRepository implements LeaseKeeper
              SET state = 'superseded', reason_code = 'input_invalidated', generation = generation + 1, owner_token = NULL,
                  lease_until = NULL, dispatch_claim_until = NULL, due_at = NULL, provider_recovery_due_at = NULL,
                  checkpoint = NULL, checkpoint_schema_version = NULL, transition_seq = transition_seq + 1, updated_at = clock_timestamp()
-             WHERE id = ? AND generation = ? AND state IN ('ready', 'deferred', 'admitted', 'running')
+             WHERE id = ? AND generation = ? AND state IN ('ready', 'deferred', 'admitted', 'running', 'blocked')
              RETURNING generation, transition_seq",
             [$snapshot->workId->value->value, $prefix->work->int('generation')],
         ) ?? throw new \LogicException('Supersede fence did not match the locked work.');
@@ -258,11 +258,17 @@ final readonly class WorkStoreRepository implements LeaseKeeper
         int $priority,
         ProcessUuid $eventId,
         ProcessUuid $projectionMessageId,
+        ?WorkIdentity $identity = null,
     ): void {
         CallerTransaction::require('Work insert');
         $stage = $input->stage();
         $ownerColumn = SchemaSupportedStages::ownerColumn($stage);
         $payload = $this->codec->encodeInput($input);
+        $identity ??= new WorkIdentity($input);
+        if ($identity->input != $input || ($identity->manualRetryIntentId !== null && $identity->manualRetryIntentId != $intentId)) {
+            throw new \InvalidArgumentException('Work identity must match its immutable input and manual intent.');
+        }
+        $identityPayload = $identity->payload();
         if ($payload->json === null || $payload->schemaVersion === null) {
             throw new \LogicException('Work input codec returned an absent payload.');
         }
@@ -276,7 +282,7 @@ final readonly class WorkStoreRepository implements LeaseKeeper
              VALUES (?, ?, decode(?, 'hex'), ?::jsonb, ?, ?, ?, decode(?, 'hex'), ?::jsonb, ?, ?, ?, ?, ?, ?, ?, 1,
                      clock_timestamp(), clock_timestamp())",
             [
-                $id->value->value, $stage->value, (new WorkIdentity($input))->key()->hex, $payload->json, $payload->schemaVersion,
+                $id->value->value, $stage->value, $identity->key()->hex, $identityPayload->json, $identityPayload->schemaVersion,
                 $intentId?->value, $inputRevision, self::inputHash($payload->json)->hex, $payload->json, $payload->schemaVersion,
                 WorkState::Ready->value, $priority, $platformId, $cohortKey, $originRunId?->value, $fields[$ownerColumn],
             ],
@@ -287,6 +293,14 @@ final readonly class WorkStoreRepository implements LeaseKeeper
     public function linkRun(ProcessUuid $runId, WorkId $workId, RunWorkRelation $relation, AccountingRole $role): void
     {
         CallerTransaction::require('Run work link insert');
+        // Acquire the FK's work lock before the run lock, as finalize does, never run → work.
+        if (LedgerRow::one('SELECT id FROM prc_process_work WHERE id = ? FOR KEY SHARE', [$workId->value->value]) === null) {
+            throw new \LogicException('Cannot attach missing work to a run.');
+        }
+        $run = LedgerRow::one('SELECT cancel_requested_at IS NOT NULL AS cancelled FROM prc_process_runs WHERE id = ? FOR UPDATE', [$runId->value]);
+        if ($run === null || ($role === AccountingRole::Required && $run->bool('cancelled'))) {
+            throw new \LogicException('Cannot attach required work to a cancelled or missing run.');
+        }
         DB::insert(
             'INSERT INTO prc_process_run_work (run_id, work_id, relation, accounting_role) VALUES (?, ?, ?, ?)',
             [$runId->value, $workId->value->value, $relation->value, $role->value],

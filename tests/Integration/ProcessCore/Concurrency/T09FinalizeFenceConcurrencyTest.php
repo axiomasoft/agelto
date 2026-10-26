@@ -18,11 +18,12 @@ use Tests\Support\ProcessCore\ExecutionFixtures;
 use Tests\Support\ProcessCore\FinalizeFixtures;
 use Tests\Support\ProcessCore\LedgerFixtures;
 
-pest()->group('t09', 't06', 't24', 'p18');
+pest()->group('t09', 't06', 't24', 'p18', 'p111');
 
 // Отдельные PHP процессы и PostgreSQL connections коммитят rows: Process ledger isolated
-// agelto_test очищается целиком до и после. До P1.11 revocation — контролируемая fixture под тем
-// же полным prefix, не настоящий RecoveryReconciler; полные recovery races — P1.11/P1.12.
+// agelto_test очищается целиком до и после. Revocation generation выполняют настоящие
+// RecoveryReconciler (expired running) и CancelWork (hard cancel) под полным prefix (P1.11), а не
+// fixture-мутатор generation.
 beforeEach(fn () => ExecutionFixtures::truncateLedger());
 afterEach(fn () => ExecutionFixtures::truncateLedger());
 
@@ -72,7 +73,7 @@ test('T09 D9 оба порядка: expired-but-unrecovered finalize выигр�
     [$work, $lease] = fenceListing();
     FinalizeFixtures::expire($work);
     $finish = fenceFinish($lease, 'race');
-    $revoke = '$applied = $fx::revoke('.fenceWork($work).'); return ["status" => $applied ? "revoked" : "noop"];';
+    $revoke = '$recovered = app(\App\Services\Procurement\Process\RecoveryReconciler::class)->recoverExpiredRunning(); return ["status" => $recovered > 0 ? "revoked" : "noop"];';
     $workers = $finalizeFirst
         ? ['finalize' => fenceWorker('return $fx::holdUntilWaiter(function () { '.$finish.' });'), 'revoke' => fenceWorker('return $fx::afterHolder(function () use ($fx) { '.$revoke.' });')]
         : ['revoke' => fenceWorker('return $fx::holdUntilWaiter(function () use ($fx) { '.$revoke.' });'), 'finalize' => fenceWorker('return $fx::afterHolder(function () { '.$finish.' });')];
@@ -105,7 +106,7 @@ test('T09 D9 оба порядка: expired-but-unrecovered finalize выигр�
 test('T06 hard cancel живого lease и новый head сериализуются с finalize одной row: поздняя публикация невозможна', function (string $race): void {
     [$work, $lease] = fenceListing();
     $holder = match ($race) {
-        'cancel' => '$fx::revoke('.fenceWork($work).', cancel: true); return ["held" => "cancel"];',
+        'cancel' => 'app(\App\Actions\Procurement\Process\CancelWork::class)->execute('.fenceWork($work).", 'operator hard cancel'); return [\"held\" => \"cancel\"];",
         'head' => "\\Illuminate\\Support\\Facades\\DB::update('UPDATE prc_crawl_blocks SET input_revision = input_revision + 1, head_generation = head_generation + 1 WHERE id = ?', ['"
             .DB::table('prc_process_work')->where('id', $work->value->value)->value('crawl_block_id')."']); return ['held' => 'head'];",
     };
@@ -128,7 +129,7 @@ test('T09 checkpoint во время revocation: lost CAS откатывает �
     $checkpoint = '$result = app(\App\Repositories\Procurement\Process\WorkStoreRepository::class)->checkpoint('.fenceLease($lease)
         .', new \Tests\Support\ProcessCore\FixtureStageCheckpoint(8), 0); return ["status" => $result->status->value];';
     $results = ConcurrentTransactions::concurrently([
-        'cancel' => fenceWorker('return $fx::holdUntilWaiter(function () use ($fx) { $fx::revoke('.fenceWork($work).', cancel: true); return ["held" => true]; });'),
+        'cancel' => fenceWorker('return $fx::holdUntilWaiter(function () { app(\App\Actions\Procurement\Process\CancelWork::class)->execute('.fenceWork($work).", 'operator hard cancel'); return [\"held\" => true]; });"),
         'checkpoint' => fenceWorker('return $fx::afterHolder(function () { '.$checkpoint.' });'),
     ]);
     $row = fenceState($work);

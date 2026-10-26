@@ -47,8 +47,41 @@ final readonly class AuthorityRepository
         private SubjectLockResolver $resolver,
     ) {}
 
-    /** Unlocked pre-read; никогда не grant. Каждый факт повторно проверяется под locks. */
-    public function readAuthoritySnapshot(WorkId $workId): AuthoritySnapshot|AuthorityGap
+    /**
+     * Handler version, чью eligibility authority держит recovery: executing version последнего
+     * attempt (то, что реально выполнялось) либо, если attempt не было или нужна текущая версия
+     * кода, версия registry. Процесс без registry binding восстанавливает по версии attempt.
+     */
+    public function recoveryHandlerVersion(WorkId $workId, StageCode $stage, bool $preferAttempt): ?string
+    {
+        $attempt = LedgerRow::one(
+            'SELECT handler_version FROM prc_process_attempts WHERE work_id = ? ORDER BY generation DESC LIMIT 1',
+            [$workId->value->value],
+        )?->string('handler_version');
+        $registered = $this->registry->handlerVersion($stage);
+
+        return $preferAttempt ? ($attempt ?? $registered) : ($registered ?? $attempt);
+    }
+
+    /**
+     * Pre-read для recovery и управляющих мутаций: handler version выбирается по recoveryHandlerVersion,
+     * поэтому процесс без handler registration (reconcile daemon, оператор) тоже видит authority.
+     */
+    public function readRecoverySnapshot(WorkId $workId, bool $executing): AuthoritySnapshot|AuthorityGap
+    {
+        $row = LedgerRow::one('SELECT stage FROM prc_process_work WHERE id = ?', [$workId->value->value]);
+        if ($row === null) {
+            return AuthorityGap::WorkMissing;
+        }
+
+        return $this->readAuthoritySnapshot($workId, $this->recoveryHandlerVersion($workId, StageCode::from($row->string('stage')), $executing));
+    }
+
+    /**
+     * Unlocked pre-read; никогда не grant. Каждый факт повторно проверяется под locks.
+     * $executingVersion — явная handler version (recovery); по умолчанию версия registry.
+     */
+    public function readAuthoritySnapshot(WorkId $workId, ?string $executingVersion = null): AuthoritySnapshot|AuthorityGap
     {
         $work = LedgerRow::one(
             "SELECT stage, cohort_key, input_revision, encode(input_hash, 'hex') AS input_hash,
@@ -60,7 +93,7 @@ final readonly class AuthorityRepository
             return AuthorityGap::WorkMissing;
         }
         $code = StageCode::from($work->string('stage'));
-        $handlerVersion = $this->registry->handlerVersion($code);
+        $handlerVersion = $executingVersion ?? $this->registry->handlerVersion($code);
         if ($handlerVersion === null) {
             return AuthorityGap::HandlerUnregistered;
         }

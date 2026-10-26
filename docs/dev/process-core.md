@@ -303,4 +303,72 @@ duplicate, Redis failure, quarantine, feeder coalescing pending/published, feed 
 `T08DaemonReadinessTest.php` (heartbeat/readiness, loop backoff/recycle, command exit codes) и
 многопроцессный `tests/Integration/ProcessCore/Concurrency/T08OutboxClaimConcurrencyTest.php` (два
 relay claim-ят непересекающиеся сообщения, чужой kind не затронут). Схема не менялась. Реальная
-публикация в Redis и redelivery после потери Redis не проверялись и принадлежат P1.11/P1.12.
+публикация в Redis и redelivery после потери Redis проверяет P1.11 (`T31RecoveryReconcileConcurrencyTest`).
+
+## Recovery и управление исполнением (P1.11)
+
+Схема не менялась (DDL P1.6 уже содержит `provider_recovery_due_at`, `fault_policy_checked_at` и
+индексы). Единственный recovery owner — `RecoveryReconciler` (`Services/Procurement/Process`):
+пять `ReconcileCategory`, которые `process:daemon reconcile` регистрирует при запуске (вместе с
+`ensureBaseline`, как feed). Каждая категория — bounded batch ≤ 50; на каждый work отдельная
+`ProcessTransaction` под полным prefix control SHARE → handler SHARE → capacity UPDATE → subjects
+UPDATE → work UPDATE SKIP LOCKED, затем повтор всех predicates (state, deadline, input/head,
+membership, controls). Изменившийся snapshot — rollback и новый pre-read (≤ 3 раз), а не поздний
+lock; повреждённая group/membership открывает incident и не чинится молча. Queue delivery и Redis
+здесь не участвуют: `published_at` старых сообщений не authority.
+
+| Категория | Что делает |
+| --- | --- |
+| `expired_running` | `lease_until` истёк ≥ 2 s назад и в locked tx `lease_until <= now`: attempt `interrupted`, generation+1 (владелец отозван), вся group released, → `ready` (checkpoint сохранён), `blocked(paused\|handler_hold)` либо `superseded` при сменившемся input. Продлённый heartbeat и уже принятый finalize побеждают (D9). |
+| `admitted` | Истёкшая delivery: новый `dispatch_generation` у той же group + обычный `wake:<work>:<n>`, без attempt. Committed pause/held handler: `blocked`, вся group released. Stale input — `superseded`. |
+| `blocked_release` | `blocked(paused\|handler_hold)` → `ready`, только если ВСЕ scopes enabled и executing handler healthy; pinned provider plan сохраняется. `handler_fault_limit` и `provider_result_unknown` не освобождаются. |
+| `blocked_provider` | EXR-03, независимо от остальных и без queue/receipt notification. Selector `provider_recovery_due_at <= now`, `ORDER BY due, id LIMIT 50`. |
+| `handler_fault_sweep` | Historical detector: unchecked finished fault attempts, окно 5 минут от `finished_at` кандидата (а не от now), ≥ 3 distinct `input_hash` одной signature и версии → `healthy → held` + incident `handler_hold`; marker `fault_policy_checked_at` ставится в той же tx, повтор идемпотентен, уже held версия не перезаписывается. |
+
+**Provider recovery.** `ProviderRecoveryResolver` (`Contracts`) — единственный способ превратить
+платные факты в `ProviderRecoveryPlan` (documents-ai#s08): `inspect` — unlocked pre-read (object I/O
+допустим здесь), `settleLocked` — идемпотентный settlement original reservation под locks,
+`revokeUnclaimedLocked` — отзыв ещё не claimed send при CancelWork. Baseline-реализация
+`NoProviderOperations` честна только пока provider stages не активны; P3.8–P3.14 обязан привязать
+настоящий resolver через `RecoveryReconciler::bindProviderResolver` до первого admission таких
+stages. Исходы: `blocked_unknown` → `blocked(provider_result_unknown)` с pinned plan в
+`WorkCheckpointEnvelope` и `provider_recovery_due_at = now + 30 s` (`due_at` NULL); verified
+`resume_from_receipt`/`resume_provider_asset`/`known_retry_eligible` → тот же work `ready` с plan
+(или `blocked(paused|handler_hold)` с сохранённым plan), settlement, `checkpoint_seq+1`, transition
+и projection атомарны. Нет verified outcome, недоступное хранилище (`DependencyUnavailable
+('storage')`) или отсутствующий pinned linkage (incident `provider_unknown_linkage_missing`) —
+unknown и reserve сохранены, меняется только reconciliation due. Cancelled/superseded после pre-read:
+только settlement, без возобновления и публикации. Работа без checkpoint получает
+`StagePayloadCodec::initialCheckpoint()` как stage progress envelope.
+Locked predicates включают logical/physical IDs, purpose, input/recipe hash, request epoch и
+checkpoint sequence; другой receipt не заменяет pinned plan. Storage failure сдвигает due под тем
+же полным prefix. При недоступном resolver уже сохранённый unknown остаётся unknown; иной
+durable provider plan получает `blocked(policy_review)`, сохраняя envelope и запрещая новый send.
+
+**Управление.** `Actions/Procurement/Process`: `CancelWork` — hard cancel nonterminal work (generation+1,
+attempt `cancelled`, group released, reason/actor в `details` transition, optimistic
+`transition_seq`); `CancelRun` — отмена намерения run (`cancel_requested_at`, `collecting →
+incomplete(cancelled)`), shared work других runs не отменяется, cancelled run не получает новых
+required links; `RetryHandlerFaultedWork` — выход из `blocked(handler_fault_limit)`: прежний work →
+`superseded(manual_retry)`, прежний intent → `terminal`, новый manual intent (`intent_key` =
+`commandId`, поэтому повтор команды — `Duplicate`) и successor со свежим budget, required links
+переносятся (прежние становятся `observes`). Поддержаны все четыре schema-supported stages.
+Immutable input не меняется: `WorkIdentity` сохраняет отдельные `manual_retry.intent_id` и
+`retry_of_work_id`, которые входят в новый key. Обычные identities сохраняют прежние bytes/key.
+Если у исходной работы нет intent, консервативная policy identity нового manual intent — полный
+unchanged input hash; существующие policy hashes наследуются. Один command нельзя применить к
+другой work. Cancel проверяет exact group/attempt до mutation; CancelRun сохраняет actor/reason в
+audit, новые required links после cancel запрещены под run lock. Shared successor повышает
+`observes` до `required`, когда появляется required producer, и не понижает эту роль обратно.
+RBAC, UI-версионирование и ValidateHandler/Pause/Resume actions — P1.17.
+
+Проверки: `T09RecoveryReconcilerTest` (expired running после простоя > 5 мин, admitted redelivery,
+pause/hold, input drift, heartbeat/checkpoint старого владельца), `T22BlockedProviderRecoveryTest`
+(EXR-03: late receipt без queue delivery, все исходы, cancel/drift после pre-read, pause, storage
+down, > 50 кандидатов), `T17HandlerFaultRecoveryTest` (historical detector, fault limit, manual retry
+dedup), `T06WorkControlTest` (CancelWork/CancelRun/shared links), многопроцессные
+`T09FinalizeFenceConcurrencyTest` (оба порядка finalize/recovery и cancel на настоящих
+`RecoveryReconciler`/`CancelWork`) и `T31RecoveryReconcileConcurrencyTest` (два reconcile daemon,
+реальный Redis FLUSHALL на изолированном rig, redelivery, одна accepted финализация). Не реализовано
+в этом пункте: invariant scan 60 s (bp-sql-recover п.6), `ApplicationReadiness` integration и
+projector — остаются за следующими пунктами.

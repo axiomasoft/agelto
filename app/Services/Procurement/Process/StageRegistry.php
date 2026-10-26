@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\Procurement\Process;
 
+use App\Dto\Procurement\Process\StageCheckpoint;
 use App\Enums\Procurement\Process\StageCode;
 use App\Services\Procurement\Process\Contracts\StageHandler;
 use App\Services\Procurement\Process\Contracts\StageResultRepository;
@@ -91,6 +92,12 @@ final class StageRegistry
     public function resultRepository(StageCode $stage): StageResultRepository
     {
         return $this->results[$stage->value] ?? throw new \LogicException('Stage finalization is not bound: '.$stage->value);
+    }
+
+    /** Initial progress stage для envelope работы, у которой устойчивого checkpoint ещё нет. */
+    public function initialProgress(StageCode $stage): StageCheckpoint
+    {
+        return ($this->codecs[$stage->value] ?? throw new \LogicException('Stage finalization is not bound: '.$stage->value))->initialCheckpoint();
     }
 
     /** Process codec со всеми привязанными stage codecs (checkpoint envelope и result payload). */

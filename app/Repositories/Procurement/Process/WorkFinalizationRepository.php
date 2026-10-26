@@ -315,7 +315,8 @@ final readonly class WorkFinalizationRepository
                 }
                 DB::insert(
                     'INSERT INTO prc_process_run_work (run_id, work_id, relation, accounting_role) VALUES (?, ?, ?, ?)
-                     ON CONFLICT (run_id, work_id) DO NOTHING',
+                     ON CONFLICT (run_id, work_id) DO UPDATE SET accounting_role = CASE
+                       WHEN EXCLUDED.accounting_role = \'required\' THEN \'required\' ELSE prc_process_run_work.accounting_role END',
                     [$run->string('run_id'), $successorId->value->value, RunWorkRelation::Discovered->value, $run->string('accounting_role')],
                 );
             }
