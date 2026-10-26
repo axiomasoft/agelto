@@ -9,6 +9,7 @@ use App\Enums\Procurement\Process\CompletionStatus;
 use App\Enums\Procurement\Process\StageCode;
 use App\Enums\Procurement\Process\WorkState;
 use App\Repositories\Procurement\Process\WorkStoreRepository;
+use App\Services\Procurement\Process\RecoveryReconciler;
 use App\Services\Procurement\Process\WorkFeeder;
 use App\Services\Procurement\Process\WorkFinalizer;
 use Illuminate\Database\QueryException;
@@ -221,7 +222,7 @@ test('EXR-02 три unexpected faults одного input/version → deferred +6
     $other = ExecutionFixtures::listingWork();
     $otherLease = FinalizeFixtures::running($other);
     FinalizeFixtures::expire($other);
-    expect(FinalizeFixtures::revoke($other))->toBeTrue()
+    expect(app(RecoveryReconciler::class)->recoverExpiredRunning())->toBe(1)
         ->and($finalizer->finishHandlerFault($otherLease, FinalizeFixtures::fault('a'))->status)->toBe(CompletionStatus::LostOwnership)
         ->and(DB::table('prc_process_attempts')->where('work_id', $other->value->value)->whereNotNull('fault_signature')->count())->toBe(0);
 });

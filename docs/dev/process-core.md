@@ -442,3 +442,99 @@ application handlers. Isolated Compose/rig не добавляет фоновы�
 команды, образ, mounts, restart, health/grace и отсутствие projector в dev/prod declarations.
 Эти tests входят в existing execution/full regression suites. Дополнение закрывает прежнее
 ограничение ApplicationReadiness/Compose; invariant scan и projector здесь не реализуются.
+
+## Контракт для потребителей и приёмка ядра (P1.12)
+
+Схема и runtime код не менялись: P1.12 — приёмка state machine P1.6–P1.11 на настоящих PostgreSQL
+connections/процессах и изолированном Redis rig, плюс этот контракт для owning пакетов P2/P3,
+которые подключают реальные handlers. Production/application stages не активированы: `StageRegistry`
+в production пуст, все проверки используют fixture handlers.
+
+### State machine
+
+| Из | В | Владелец перехода |
+| --- | --- | --- |
+| — | `ready` | `WorkStoreRepository::storeWork` (caller tx) либо successor в finalize |
+| `ready`, `deferred` (due ≤ now) | `admitted` | `WorkFeeder` → `AdmissionRepository::admit`: group + members + `wake:<work>:<dg>` |
+| `admitted` | `running` | `WorkStoreRepository::claim` из `WorkRunner` (только `Claimed` вызывает handler) |
+| `admitted` | `admitted` (dg+1) | claim `CapacityWait`; reconciler `admitted` после истёкшей delivery |
+| `admitted` | `blocked(paused\|handler_hold)` | reconciler `admitted` под committed pause/hold |
+| `running` | `succeeded`, `ready` (partial), `deferred`, `blocked`, `failed_item` | `WorkFinalizer::finish` / `finishHandlerFault` |
+| `running` | `ready`, `blocked`, `superseded` | reconciler `expired_running` (generation+1, attempt `interrupted`) |
+| `blocked(paused\|handler_hold)` | `ready` | reconciler `blocked_release` (все scopes enabled, handler healthy) |
+| `blocked(provider_result_unknown)` | `ready` / остаётся | reconciler `blocked_provider` по `provider_recovery_due_at` |
+| `blocked(handler_fault_limit)` | `superseded` + новый work | только `RetryHandlerFaultedWork` |
+| любое nonterminal | `cancelled` | `CancelWork` (generation+1) |
+| любое nonterminal | `superseded` | изменившийся input/head под тем же prefix (admit/claim/finalize/recovery) |
+
+Terminal (`succeeded`, `failed_item`, `cancelled`, `superseded`) не переписывается никем. Каждый
+переход — одна `ProcessTransaction` с transition + `project:<event_id>` outbox; group освобождается
+целиком в той же tx.
+
+### API для owning пакетов
+
+- **Регистрация** (composition root, до первой work): `StageRegistry::register(stage, version)`,
+  `bindHandler(stage, StageHandler)`, `bindFinalization(stage, StagePayloadCodec,
+  StageResultRepository)`; authority rows — `ProcessAuthoritySync::ensureBaseline()` и
+  `registerHandler(stage, version)`. Stage вне `SchemaSupportedStages` отвергается; новая stage
+  требует расширения CHECK baseline owning пакетом.
+- **Создание работы**: `RunStoreRepository::storeRun`, `WorkStoreRepository::storeIntent`,
+  `storeWork`, `linkRun` — внутри транзакции вызывающего, ID создаются до неё. `work_key` выводит
+  `WorkIdentity` из immutable typed input; повтор того же input не создаёт вторую work.
+- **Handler** (`Contracts/StageHandler::execute(WorkInput, ExecutionContext)`): возвращает ровно один
+  из пяти `StageOutcome`; между частями вызывает `tick()`, перед внешним запросом — `canStart(full
+  timeout)`, устойчивый прогресс — `checkpoint()`. Typed выходы `LeaseLost`, `SliceExhausted`,
+  `DependencyUnavailable` не являются ошибками кода; любой другой Throwable расходует handler-fault
+  budget. Handler не пишет ledger и не открывает DB transaction с внешним I/O.
+- **Finalization repository** (`Contracts/StageResultRepository`): `storeProgress`/`storeResult`
+  исполняются внутри locked finalize/checkpoint tx после guards: только SQL своих domain rows, без
+  HTTP, sleep и lazy-load; `storeResult` возвращает ready successors как typed `WorkInput`.
+- **Управление**: `ControlRepository::setMode` (pause/resume одной scope), `CancelWork`, `CancelRun`,
+  `RetryHandlerFaultedWork`. RBAC/UI — P1.17.
+- **Provider recovery**: до admission provider stage обязателен `RecoveryReconciler::bindProviderResolver`;
+  `NoProviderOperations` честен только без provider stages.
+- **Delivery**: потребитель никогда не dispatch-ит `ExecuteWorkJob` и не добавляет queue retry,
+  release или middleware; wake публикует только relay из outbox.
+
+### Порядок блокировок
+
+Все пересекающиеся tx берут подмножество одного порядка и не возвращаются к раннему tier:
+control scopes `FOR SHARE` (sorted `scope_key COLLATE "C"`) → handler-version row `FOR SHARE` →
+lanes `FOR UPDATE` (sorted) → subjects `FOR UPDATE` (table key, PK) → work → provider rows →
+derived/run links → journal/outbox.
+
+| Операция | control | handler | lanes | subjects | work |
+| --- | --- | --- | --- | --- | --- |
+| admit | SHARE | SHARE | UPDATE | UPDATE | UPDATE SKIP LOCKED |
+| claim | SHARE | SHARE | UPDATE | UPDATE | UPDATE |
+| heartbeat | — | — | — | — | CAS |
+| checkpoint | — | — | — | UPDATE | CAS |
+| finalize / handler fault | SHARE | SHARE | UPDATE | UPDATE | UPDATE |
+| recovery, CancelWork | SHARE | SHARE | UPDATE | UPDATE | UPDATE (SKIP LOCKED у reconciler) |
+| setMode | ancestors SHARE, row UPDATE | — | — | — | — |
+| fault detector | SHARE | UPDATE | — | — | — |
+| outbox claim | — | — | — | — | own kind `SKIP LOCKED` |
+
+Row, взятая `FOR SHARE`, в той же tx не обновляется. Изменившийся после pre-read состав lock set —
+rollback и новый pre-read, а не поздний lock.
+
+### Приёмка
+
+| Сценарий | Проверки |
+| --- | --- |
+| T03 item budget, transport deferral, четвёртая delivery | `Execution/T03WorkBudgetDeliveryTest.php` через `WorkRunner`; `T09FinalizeFenceTest.php` |
+| T06 cancel/new input fence | `T06WorkControlTest.php`, `Concurrency/T09FinalizeFenceConcurrencyTest.php` |
+| T08 commit→publish и publish→mark kill, duplicate, Redis loss | `Concurrency/T31DaemonRedisLossAcceptanceTest.php`, `T08QueueEnvelopeTest.php`, `T08WorkRunnerDeliveryTest.php`, `Concurrency/T08OutboxClaimConcurrencyTest.php` |
+| T09 heartbeat/recovery/finalize barriers, stale owner | `T09*Test.php`, `P19CorrectionRegressionTest.php`, `Concurrency/T09FinalizeFenceConcurrencyTest.php` |
+| T24 pause против параллельных claim/finalize | `Concurrency/T24PauseClaimConcurrencyTest.php`, `Concurrency/T09FinalizeFenceConcurrencyTest.php` |
+| T25 lease keeper/slice/DB loss | `T25ExecutionContextTest.php` |
+| T31 два relay + два reconcile + FLUSHALL + гибель worker | `Concurrency/T31DaemonRedisLossAcceptanceTest.php`, `Concurrency/T31RecoveryReconcileConcurrencyTest.php` |
+| EXR-02 single input → `handler_fault_limit`, journal rollback | `T03WorkBudgetDeliveryTest.php`, `T17HandlerFaultRecoveryTest.php`, `Concurrency/T09FinalizeFenceConcurrencyTest.php` |
+| EXR-03 running → blocked_unknown → late receipt periodic scan | `T22BlockedProviderRecoveryTest.php`, `Concurrency/T31RecoveryReconcileConcurrencyTest.php` |
+
+`T31DaemonRedisLossAcceptanceTest` исполняет настоящие сериализованные `ExecuteWorkJob` из Redis:
+каждый relay/reconcile instance — отдельный PHP процесс; worker, погибший после claim, оставляет
+durable running; lease, истёкший меньше чем на 2 s, recovery не трогает, на 3 s — восстанавливает
+за один tick (граница lease + margin + tick). Delivery, зарезервированная до FLUSHALL, приходит
+после redelivery и отвергается по dispatch generation. Revocation в finalize-тестах выполняют
+настоящие `RecoveryReconciler`/`CancelWork`; fixture `FinalizeFixtures::revoke` больше не используется.

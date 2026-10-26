@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Actions\Procurement\Process\CancelWork;
 use App\Dto\Procurement\Process\ArtifactRef;
 use App\Dto\Procurement\Process\ContentHash;
 use App\Dto\Procurement\Process\MissingParts;
@@ -28,9 +29,11 @@ use App\Enums\Procurement\Process\ProviderOperationPurpose;
 use App\Enums\Procurement\Process\ProviderRecoveryMode;
 use App\Enums\Procurement\Process\RunWorkRelation;
 use App\Enums\Procurement\Process\StageCode;
+use App\Enums\Procurement\Process\WorkMutationStatus;
 use App\Enums\Procurement\Process\WorkState;
 use App\Repositories\Procurement\Process\WorkStoreRepository;
 use App\Services\Procurement\Process\Contracts\ProcessClock;
+use App\Services\Procurement\Process\RecoveryReconciler;
 use App\Services\Procurement\Process\StageRegistry;
 use App\Services\Procurement\Process\WorkFinalizer;
 use Illuminate\Database\Events\QueryExecuted;
@@ -150,8 +153,9 @@ test('D9: истёкший, но не отозванный owner коммити�
     expect([$result->status, $result->state])->toBe([CompletionStatus::Applied, WorkState::Succeeded])
         ->and(json_decode(finalizeBlock($work)->terminal_proof, true))->toBe(['artifact' => 'results/late'])
         ->and(finalizeRow($work)->generation)->toBe(1)
-        // Revocation после принятого commit не переписывает terminal state.
-        ->and(FinalizeFixtures::revoke($work))->toBeFalse()
+        // Настоящие recovery и hard cancel после принятого commit не переписывают terminal state.
+        ->and(app(RecoveryReconciler::class)->recoverExpiredRunning())->toBe(0)
+        ->and(app(CancelWork::class)->execute($work, 'late operator cancel')->status)->toBe(WorkMutationStatus::Terminal)
         ->and(finalizeRow($work)->state)->toBe('succeeded');
 });
 
@@ -161,10 +165,13 @@ test('generation revocation до finalize: LostOwnership без domain writes, s
     $next = LedgerFixtures::crawlBlock();
     $results->successors = [LedgerFixtures::listingInput($next['block'], $next['filter_hash'], $next['access_policy_hash'])];
     $lease = FinalizeFixtures::running($work);
-    if (! $cancel) {
+    // Revocation делают настоящие owners: RecoveryReconciler истёкшего lease либо CancelWork живого.
+    if ($cancel) {
+        expect(app(CancelWork::class)->execute($work, 'operator hard cancel')->status)->toBe(WorkMutationStatus::Applied);
+    } else {
         FinalizeFixtures::expire($work);
+        expect(app(RecoveryReconciler::class)->recoverExpiredRunning())->toBe(1);
     }
-    expect(FinalizeFixtures::revoke($work, $cancel))->toBeTrue();
     $before = finalizeLedger();
     $finalizer = app(WorkFinalizer::class);
 
