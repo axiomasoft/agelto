@@ -44,6 +44,7 @@ final class RecoveryReconciler
         private readonly AuthorityRepository $authority,
         private readonly IncidentRepository $incidents,
         private readonly ProcessTransaction $transaction,
+        private readonly InvariantScan $invariantScan,
     ) {
         $this->provider = new NoProviderOperations;
     }
@@ -72,6 +73,7 @@ final class RecoveryReconciler
             new RecoveryCategory('blocked_release', $this->releaseBlocked(...)),
             new RecoveryCategory('blocked_provider', $this->recoverBlockedProvider(...)),
             new RecoveryCategory('handler_fault_sweep', $this->sweepHandlerFaults(...)),
+            $this->invariantScan,
         ];
     }
 

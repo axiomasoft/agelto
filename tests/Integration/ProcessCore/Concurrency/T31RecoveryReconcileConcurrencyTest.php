@@ -86,7 +86,7 @@ test('T31 два reconcile daemon после потери Redis: потерян�
 
     expect($ticks['one']['error'])->toBeNull()
         ->and($ticks['two']['error'])->toBeNull()
-        ->and($ticks['one']['categories'])->toBe(['expired_running', 'admitted', 'blocked_release', 'blocked_provider', 'handler_fault_sweep'])
+        ->and($ticks['one']['categories'])->toBe(['expired_running', 'admitted', 'blocked_release', 'blocked_provider', 'handler_fault_sweep', 'invariant'])
         // Каждая work восстановлена ровно одним из двух daemon: SKIP LOCKED + повтор locked predicates.
         ->and($ticks['one']['processed'] + $ticks['two']['processed'])->toBe(2);
 

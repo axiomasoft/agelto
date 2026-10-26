@@ -309,8 +309,8 @@ relay claim-ят непересекающиеся сообщения, чужой
 
 Схема не менялась (DDL P1.6 уже содержит `provider_recovery_due_at`, `fault_policy_checked_at` и
 индексы). Единственный recovery owner — `RecoveryReconciler` (`Services/Procurement/Process`):
-пять `ReconcileCategory`, которые `process:daemon reconcile` регистрирует при запуске (вместе с
-`ensureBaseline`, как feed). Каждая категория — bounded batch ≤ 50; на каждый work отдельная
+пять категорий с tick5s и отдельный `invariant` с интервалом 60s, которые `process:daemon reconcile`
+регистрирует при запуске (вместе с `ensureBaseline`, как feed). Recovery batch ≤ 50; на каждый work отдельная
 `ProcessTransaction` под полным prefix control SHARE → handler SHARE → capacity UPDATE → subjects
 UPDATE → work UPDATE SKIP LOCKED, затем повтор всех predicates (state, deadline, input/head,
 membership, controls). Изменившийся snapshot — rollback и новый pre-read (≤ 3 раз), а не поздний
@@ -324,6 +324,7 @@ lock; повреждённая group/membership открывает incident и �
 | `blocked_release` | `blocked(paused\|handler_hold)` → `ready`, только если ВСЕ scopes enabled и executing handler healthy; pinned provider plan сохраняется. `handler_fault_limit` и `provider_result_unknown` не освобождаются. |
 | `blocked_provider` | EXR-03, независимо от остальных и без queue/receipt notification. Selector `provider_recovery_due_at <= now`, `ORDER BY due, id LIMIT 50`. |
 | `handler_fault_sweep` | Historical detector: unchecked finished fault attempts, окно 5 минут от `finished_at` кандидата (а не от now), ≥ 3 distinct `input_hash` одной signature и версии → `healthy → held` + incident `handler_hold`; marker `fault_policy_checked_at` ставится в той же tx, повтор идемпотентен, уже held версия не перезаписывается. |
+| `invariant` | Первый tick после старта, затем не чаще одного раза в 60 monotonic секунд. До 50 ещё не зарегистрированных нарушений за проход; healthy pass возвращает 0 изменений. Независим от queue delivery и пяти recovery categories. |
 
 **Provider recovery.** `ProviderRecoveryResolver` (`Contracts`) — единственный способ превратить
 платные факты в `ProviderRecoveryPlan` (documents-ai#s08): `inspect` — unlocked pre-read (object I/O
@@ -369,9 +370,46 @@ down, > 50 кандидатов), `T17HandlerFaultRecoveryTest` (historical dete
 dedup), `T06WorkControlTest` (CancelWork/CancelRun/shared links), многопроцессные
 `T09FinalizeFenceConcurrencyTest` (оба порядка finalize/recovery и cancel на настоящих
 `RecoveryReconciler`/`CancelWork`) и `T31RecoveryReconcileConcurrencyTest` (два reconcile daemon,
-реальный Redis FLUSHALL на изолированном rig, redelivery, одна accepted финализация). Не реализовано
-в этом пункте: invariant scan 60 s (bp-sql-recover п.6), `ApplicationReadiness` integration и
-projector — остаются за следующими пунктами.
+реальный Redis FLUSHALL на изолированном rig, redelivery, одна accepted финализация).
+Readiness/Compose дополнены P1.10 D45 ниже; projector принадлежит P1.14–P1.18.
+
+**Periodic invariants (P1.11 D45, bp-sql-recover п.6).** `InvariantScan` добавлен последней категорией;
+предыдущие пять имён/порядок и tick5s сохранены. `InvariantRepository` берёт `system FOR SHARE`,
+затем все текущие lanes `FOR SHARE` в порядке id. Один SQL snapshot проверяет точный required lane
+set/hash из `ProcessPolicy`, work/stage/state members, group/work dispatch generation, active
+group ↔ admitted/running work, unfinished attempt count, attempt/work/generation/token linkage и
+finished/terminal consistency, отсутствие members у released group, authoritative COUNT по W/C.
+Capacity writers сериализуются с этим чтением; heartbeat не меняет проверяемые predicates.
+Current core имеет только lane capacity: storage-transfer/reservation ledgers ещё не установлены,
+поэтому storage-transfer consistency сейчас неприменима. Их появление требует расширить этот scan
+под тем же capacity tier; будущие storage/provider/projector handlers здесь не активируются.
+
+Read transaction полностью коммитится **до** следующей короткой mutation. В ней первым берётся
+`system FOR UPDATE`; существующий versioned `ControlRepository::setMode` ставит admission pause,
+а `IncidentRepository` записывает typed `invariant_*` incident/evidence + incident transition и
+projection. Pause и incident/journals/outboxes атомарны на каждое finding. Failure откатывает обе
+записи; crash между чтением и mutation оставляет нарушение следующему sweep. Existing manual pause
+не переписывается. Это консервативная system admission hold: running корректный finalize разрешён,
+новые grants запрещены. При concurrent Resume следующий scan повторно ставит hold, если нарушение
+сохранилось. Не выполняются auto-increase limits, partial member delete или silent repair;
+любой будущий repair обязан доказать state и взять полный execution prefix.
+
+Active incident fingerprint `(predicate, subject)` служит durable progress: уже записанные findings
+при действующей pause исключаются **до LIMIT50**, поэтому healthy prefix/старые нарушения не
+вытесняют новые и restart не теряет batch progress. Два scanner instances коммитят один incident
+и одну pause без роста occurrences на повторе. Исторический incident не закрывается автоматически;
+evidence описывает обнаруженный согласованный snapshot, даже если последующий repair уже исправил
+его. Processed count — только реальные incident/hold changes. Failed scan не продвигает cadence;
+вложенный вызов не берёт read locks и не продвигает cadence: scan остаётся due до standalone tick,
+чтобы caller не сохранил SHARE locks за границей read phase и не сделал поздний upgrade.
+
+`T09InvariantScanTest` содержит healthy, cadence60/independent5s, negative fixtures каждого
+predicate, >50/restart/progress, manual pause/resume и rollback incident journal. Настоящие PG
+barriers `T09InvariantScanConcurrencyTest` ставят competitor control SHARE и capacity UPDATE между
+read и mutation: capacity освобождена, пока scanner ждёт отдельный control UPDATE. Второй barrier
+перекрывает read snapshots двух scanners и проверяет одну durable пару incident/hold и restart
+no-op. Оба файла входят в текущий execution/concurrency selection; runtime pass доказывают native
+V1/V3, а не наличие этих assertions в исходниках.
 
 ## Readiness и Compose: дополнение P1.10 (D45)
 
