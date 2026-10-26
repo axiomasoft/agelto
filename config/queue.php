@@ -104,6 +104,46 @@ return [
             'after_commit' => false,
         ],
 
+        // Process delivery connections (bp-jobs, execution#lane-defaults): общий Redis, но
+        // retry_after каждой connection покрывает самый долгий job своих lanes и остаётся выше
+        // Horizon timeout supervisor'ов. `StageQueueMap` сверяет эти числа с process.queues и lease;
+        // after_commit не нужен: wake публикует relay из durable outbox, а не job из транзакции.
+        'process_short' => [
+            'driver' => 'redis',
+            'connection' => env('REDIS_QUEUE_CONNECTION', 'default'),
+            'queue' => 'process-acquisition',
+            'retry_after' => 150,
+            'block_for' => null,
+            'after_commit' => false,
+        ],
+
+        'process_long' => [
+            'driver' => 'redis',
+            'connection' => env('REDIS_QUEUE_CONNECTION', 'default'),
+            'queue' => 'process-listing',
+            'retry_after' => 330,
+            'block_for' => null,
+            'after_commit' => false,
+        ],
+
+        'process_download' => [
+            'driver' => 'redis',
+            'connection' => env('REDIS_QUEUE_CONNECTION', 'default'),
+            'queue' => 'process-download',
+            'retry_after' => 390,
+            'block_for' => null,
+            'after_commit' => false,
+        ],
+
+        'process_ai' => [
+            'driver' => 'redis',
+            'connection' => env('REDIS_QUEUE_CONNECTION', 'default'),
+            'queue' => 'process-ai',
+            'retry_after' => 360,
+            'block_for' => null,
+            'after_commit' => false,
+        ],
+
         'deferred' => [
             'driver' => 'deferred',
         ],

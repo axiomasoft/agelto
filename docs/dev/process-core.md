@@ -221,3 +221,86 @@ stale eligibility count при ready/due/resume и реальный нулево
 `T11AdmissionFairnessConcurrencyTest.php` использует отдельные PG процессы и lock-wait barrier:
 ready/resume коммитится между selection и grant без изменения parent cursor. Это тесты текущего
 correction scope; фактический результат их запуска фиксирует coordinator в V1/V3.
+
+## Queue envelope, relay и daemons (P1.10)
+
+Redis и Horizon — только delivery: authority остаётся в PostgreSQL ledger, у job нет ни retry, ни
+ожидания, ни восстановления. Recovery после потери Redis (expired admitted/running scanners) и
+T31 целиком — P1.11/P1.12; здесь доставка, relay, feed и скелет reconcile.
+
+**ExecuteWorkJob** (`Jobs/Procurement/Process`) — единственная queue delivery: scalar envelope
+`work_id`, `dispatch_generation`, `message_id`, `queue_schema_version` (`DeliveryEnvelope`), без
+моделей и credentials. Одна попытка: `#[Tries(1)]` и `#[MaxExceptions(1)]` (в payload
+`maxTries=1`, `maxExceptions=1`; свойства `$tries`/`$maxExceptions` запрещает
+`JobRetryContractGuardTest` для `Jobs/Procurement`), `failOnTimeout`, без release/backoff/delay,
+`ShouldBeUnique`, `WithoutOverlapping`, `RateLimited`, Bus chain/batch. **Public `$timeout`**
+назначает relay из `StageQueueMap` до push — Laravel кладёт его в payload; метода `timeout()` нет.
+`handle` вызывает `WorkRunner::runDelivery`: transient DB failure (`DatabaseFailureClassifier`)
+ACK-ится, durable scanners восстанавливают; constraint/schema/programming SQL errors пробрасываются
+видимо. `failed()` только пишет sanitized telemetry (`ProcessLog`) и ledger не меняет.
+
+**WorkRunner** — envelope → claim → только `Claimed` вызывает handler из `StageRegistry`
+(`bindHandler`/`handler`, без выбора по stage) → единственный `WorkFinalizer`. До generic
+`Throwable` различаются: `LeaseLost` (без публикации, work остаётся durable running),
+`SliceExhausted` (устойчивый checkpoint → `StagePartial`, иначе deferred `slice_exhausted`),
+`DependencyUnavailable` (storage/converter/provider → deferred соответствующего reason; database —
+без finalize; неизвестное имя — дефект кода). Только неожиданный programming Throwable идёт в
+`finishHandlerFault` (locked budget execution#handler-fault-budget). Сбой finalizer handler второй
+раз не запускает. Неподдерживаемая `queue_schema_version` не исполняется: incident
+`queue_schema_unsupported`, работа остаётся за scanners.
+
+**StageQueueMap** — единственный источник connection/queue/timeouts. `process.queues` задаёт
+connection, queue и job timeout stage; Horizon timeout берётся из единственного supervisor этой
+connection+queue (`tries=1`), `retry_after` — из фактической queue connection, slice и lease — из
+`ProcessPolicy`. Цепочка `slice < job < Horizon < retry_after < lease` проверяется при сборке и
+отвергается с ключом config. Redis `default` connection и `supervisor-1` остаются для
+notifications/mail.
+
+| stage | connection | queue | job | Horizon | retry_after | lease |
+| --- | --- | --- | --- | --- | --- | --- |
+| detail, status_refresh | `process_short` | `process-acquisition` | 110 | 120 | 150 | 180 |
+| publication | `process_short` | `process-publication` | 110 | 120 | 150 | 180 |
+| listing | `process_long` | `process-listing` | 260 | 280 | 330 | 360 |
+| prepare | `process_long` | `process-prepare` | 260 | 280 | 330 | 360 |
+| download | `process_download` | `process-download` | 320 | 340 | 390 | 420 |
+| screening, extraction | `process_ai` | `process-ai` | 290 | 310 | 360 | 390 |
+
+Supervisors (`maxProcesses` = C+1, authority остаётся ledger): listing 3, acquisition 5, download 5,
+prepare 3, AI 11, publication 3. Horizon `stop_grace_period` ≥ 370 s (максимальный timeout 340 + 30)
+задаётся compose/deploy и в PHP-конфигурации не выражается; старый больший grace сохраняется, пока
+живы legacy long jobs. Legacy `redis_prepare`/`redis_crawl_long` и их supervisors удаляют owning
+cutovers.
+
+**Relay и outbox consumers** (`OutboxRepository::claim/markPublished/releaseClaim/quarantine`).
+Каждый consumer claim-ит только свой `kind` одним statement `FOR UPDATE SKIP LOCKED` с fresh claim
+token (batch ≤100, claim 30 s), side effects выполняет вне tx и помечает published тем же token.
+`RelayDaemon` (`work_wake`): падение до publish повторяет сообщение, после publish до mark — duplicate
+delivery, безопасный по dispatch generation; перехваченный claim не может mark чужое. Publish
+failure снимает claim и оставляет сообщение с кодом `redis_publish_failed`. Сообщение, которое relay не
+умеет исполнить (payload/schema/маршрут), не помечается published: `quarantined_*` код, incident
+`outbox_quarantine`, откладывается на час, readiness остаётся `outbox_quarantined`.
+`FeederDaemon` (`feeder_wake`) — периодический feed tick 2 s ±20% по parent lanes + собственные
+wake; wake помечается после принятого tick. Coalescing wake одного 5-секундного bucket —
+`ON CONFLICT DO NOTHING` (0 вставленных строк, даже если существующий wake уже published, — успех).
+`ReconcileDaemon` — цикл tick 5 s ±20% с зарегистрированными `ReconcileCategory`; категории recovery
+регистрирует P1.11, без них daemon ничего не восстанавливает и этого не заявляет.
+`ProjectorDaemon` не создан: `DaemonKind::Project` не активирован до P1.14–P1.18.
+
+**Daemons и readiness.** `php artisan process:daemon relay|reconcile|feed` (`DaemonLoop`): свой instance
+UUID на старт, TERM/INT ставят stop-флаг (graceful exit 0), recycle по `max_runtime_seconds` 3600 и
+`memory_limit_mb` 256 (restart — docker), ошибка tick не убивает loop: sanitized лог, код ошибки в
+heartbeat, backoff 1→30 s. Heartbeat (DB clock) каждые 10 s, в том числе во время backoff. Liveness
+— instance со свежим `last_tick_at` (< 30 s); readiness (`DaemonReadiness`, `process:daemon <d> --health`)
+отдельно: `Healthy` — есть живой instance без текущей ошибки, `Degraded` — живые только с ошибкой,
+`Down` — нет свежего heartbeat. Readiness требует по instance каждого активированного daemon.
+Feed-daemon при старте вызывает `ProcessAuthoritySync::ensureBaseline`. Scheduler остаётся
+maintenance/schedule producers и не доставляет wake.
+
+Проверки: `T08QueueEnvelopeTest.php` (таблица `StageQueueMap` и отрицательные конфигурации, payload
+по реальному `createPayload` каждой connection, publisher на connection+queue, publish-before-mark
+duplicate, Redis failure, quarantine, feeder coalescing pending/published, feed daemon),
+`T08WorkRunnerDeliveryTest.php` (job/runner исходы на fixture handlers и реальном ledger),
+`T08DaemonReadinessTest.php` (heartbeat/readiness, loop backoff/recycle, command exit codes) и
+многопроцессный `tests/Integration/ProcessCore/Concurrency/T08OutboxClaimConcurrencyTest.php` (два
+relay claim-ят непересекающиеся сообщения, чужой kind не затронут). Схема не менялась. Реальная
+публикация в Redis и redelivery после потери Redis не проверялись и принадлежат P1.11/P1.12.

@@ -4,14 +4,21 @@ declare(strict_types=1);
 
 namespace App\Repositories\Procurement\Process;
 
+use App\Dto\Procurement\Process\ClaimedOutboxMessage;
 use App\Dto\Procurement\Process\DeliveryGeneration;
 use App\Dto\Procurement\Process\ProcessUuid;
+use App\Dto\Procurement\Process\VersionedPayload;
 use App\Dto\Procurement\Process\WorkId;
+use App\Enums\Procurement\Process\OutboxKind;
 use App\Enums\Procurement\Process\StageCode;
 use App\Services\Procurement\Process\ProcessPayloadCodec;
 use Illuminate\Support\Facades\DB;
 
-/** Единственный writer prc_process_outbox; claim/publish consumers добавляют свои kind filters позже. */
+/**
+ * Единственный writer prc_process_outbox. Producers (enqueue*) требуют транзакцию вызывающего;
+ * consumers (relay, feeder, projector) claim-ят только свой kind по token CAS в короткой tx и
+ * выполняют side effects вне неё.
+ */
 final readonly class OutboxRepository
 {
     public function __construct(private ProcessPayloadCodec $codec) {}
@@ -49,6 +56,100 @@ final readonly class OutboxRepository
              ON CONFLICT (dedup_key) DO NOTHING",
             [$messageId->value, $laneKey, $payload->json, $payload->schemaVersion],
         );
+    }
+
+    /**
+     * Token claim только СВОЕГО kind (bp-sql-relay): один statement, `FOR UPDATE SKIP LOCKED` на
+     * bounded batch, expired claim забирается заново. Side effects consumer выполняет после commit
+     * claim; чужой kind не затрагивается никогда. Сообщения возвращаются в порядке available_at.
+     *
+     * @return list<ClaimedOutboxMessage>
+     */
+    public function claim(OutboxKind $kind, ProcessUuid $token, int $limit, int $claimSeconds): array
+    {
+        if ($limit < 1 || $claimSeconds < 1) {
+            throw new \InvalidArgumentException('Outbox claim needs a positive batch and claim duration.');
+        }
+        $rows = LedgerRow::all(
+            'UPDATE prc_process_outbox
+             SET claim_token = ?, claim_until = clock_timestamp() + make_interval(secs => ?), attempts = attempts + 1
+             WHERE message_id IN (
+                 SELECT message_id FROM prc_process_outbox
+                 WHERE kind = ? AND published_at IS NULL AND available_at <= clock_timestamp()
+                   AND (claim_until IS NULL OR claim_until <= clock_timestamp())
+                 ORDER BY available_at, message_id LIMIT ? FOR UPDATE SKIP LOCKED
+             )
+             RETURNING message_id, kind, payload::text AS payload, payload_schema_version, attempts, available_at::text AS available_at',
+            [$token->value, $claimSeconds, $kind->value, $limit],
+        );
+        usort($rows, static fn (LedgerRow $a, LedgerRow $b): int => [$a->string('available_at'), $a->string('message_id')] <=> [$b->string('available_at'), $b->string('message_id')]);
+
+        return array_map(static fn (LedgerRow $row): ClaimedOutboxMessage => new ClaimedOutboxMessage(
+            messageId: new ProcessUuid($row->string('message_id')),
+            kind: OutboxKind::from($row->string('kind')),
+            payload: new VersionedPayload($row->string('payload'), $row->int('payload_schema_version')),
+            claimToken: $token,
+            attempts: $row->int('attempts'),
+        ), $rows);
+    }
+
+    /**
+     * CAS mark после успешного publish: только держатель текущего claim token. Consumer, чей claim
+     * перехвачен, ничего не помечает; false — сообщение будет доставлено повторно (duplicate допустим).
+     */
+    public function markPublished(ClaimedOutboxMessage $message): bool
+    {
+        return DB::update(
+            'UPDATE prc_process_outbox SET published_at = clock_timestamp(), claim_token = NULL, claim_until = NULL, last_error_code = NULL
+             WHERE message_id = ? AND kind = ? AND published_at IS NULL AND claim_token = ?',
+            [$message->messageId->value, $message->kind->value, $message->claimToken->value],
+        ) === 1;
+    }
+
+    /** Publish не удался: claim снимается, код ошибки сохраняется, повтор — следующим tick consumer. */
+    public function releaseClaim(ClaimedOutboxMessage $message, string $errorCode): bool
+    {
+        return DB::update(
+            'UPDATE prc_process_outbox SET claim_token = NULL, claim_until = NULL, last_error_code = ?
+             WHERE message_id = ? AND kind = ? AND published_at IS NULL AND claim_token = ?',
+            [$errorCode, $message->messageId->value, $message->kind->value, $message->claimToken->value],
+        ) === 1;
+    }
+
+    /**
+     * Сообщение, которое этот consumer не умеет исполнить (неподдерживаемая schema, нет маршрута):
+     * остаётся unpublished с видимым кодом и откладывается, а не помечается published и не теряется.
+     */
+    public function quarantine(ClaimedOutboxMessage $message, string $errorCode, int $retrySeconds): bool
+    {
+        return DB::update(
+            'UPDATE prc_process_outbox
+             SET claim_token = NULL, claim_until = NULL, last_error_code = ?, available_at = clock_timestamp() + make_interval(secs => ?)
+             WHERE message_id = ? AND kind = ? AND published_at IS NULL AND claim_token = ?',
+            [$errorCode, $retrySeconds, $message->messageId->value, $message->kind->value, $message->claimToken->value],
+        ) === 1;
+    }
+
+    /** Код ошибки quarantine всегда начинается с этого префикса: retry publish его не использует. */
+    public const string QUARANTINE_PREFIX = 'quarantined_';
+
+    /** Число сообщений kind, удерживаемых quarantine: persistent признак degraded readiness. */
+    public function quarantinedCount(OutboxKind $kind): int
+    {
+        return (LedgerRow::one(
+            'SELECT count(*) AS held FROM prc_process_outbox WHERE kind = ? AND published_at IS NULL AND left(last_error_code, ?) = ?',
+            [$kind->value, strlen(self::QUARANTINE_PREFIX), self::QUARANTINE_PREFIX],
+        ) ?? throw new \LogicException('Aggregate query always returns a row.'))->int('held');
+    }
+
+    /** Возраст самого раннего готового unpublished сообщения kind (lag для readiness), null — очередь пуста. */
+    public function lagSeconds(OutboxKind $kind): ?int
+    {
+        return LedgerRow::one(
+            'SELECT floor(extract(epoch FROM clock_timestamp() - min(available_at)))::bigint AS lag
+             FROM prc_process_outbox WHERE kind = ? AND published_at IS NULL AND available_at <= clock_timestamp()',
+            [$kind->value],
+        )?->nullableInt('lag');
     }
 
     /** Projection intent события: dedup `project:<event_id>`, конфликт — ошибка, не coalescing. */

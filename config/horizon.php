@@ -98,6 +98,12 @@ return [
 
     'waits' => [
         'redis:default' => 60,
+        'process_short:process-acquisition' => 60,
+        'process_short:process-publication' => 60,
+        'process_long:process-listing' => 120,
+        'process_long:process-prepare' => 120,
+        'process_download:process-download' => 120,
+        'process_ai:process-ai' => 120,
     ],
 
     /*
@@ -356,6 +362,96 @@ return [
             'memory' => 128,
             'tries' => 1,
             'timeout' => (int) env('CRAWL_LONG_TIMEOUT', 3600),
+            'nice' => 0,
+        ],
+
+        // Process delivery supervisors (bp-jobs): ExecuteWorkJob — единственная queue delivery.
+        // `tries: 1`: бизнес-retry принадлежит durable ledger, не Horizon. `timeout` — fallback
+        // bound, а не второй таймер поверх public job timeout: job < timeout < retry_after
+        // connection < lease (`StageQueueMap` сверяет цепочку с process.queues). maxProcesses = C+1,
+        // authority остаётся ledger. Horizon stop_grace_period >= 370s (max timeout 340 + 30)
+        // задаётся compose/deploy и должен покрывать самый долгий supervisor.
+        'supervisor-process-listing' => [
+            'connection' => 'process_long',
+            'queue' => ['process-listing'],
+            'balance' => 'auto',
+            'autoScalingStrategy' => 'time',
+            'maxProcesses' => 3,
+            'maxTime' => 0,
+            'maxJobs' => 0,
+            'memory' => 128,
+            'tries' => 1,
+            'timeout' => 280,
+            'nice' => 0,
+        ],
+
+        'supervisor-process-acquisition' => [
+            'connection' => 'process_short',
+            'queue' => ['process-acquisition'],
+            'balance' => 'auto',
+            'autoScalingStrategy' => 'time',
+            'maxProcesses' => 5,
+            'maxTime' => 0,
+            'maxJobs' => 0,
+            'memory' => 128,
+            'tries' => 1,
+            'timeout' => 120,
+            'nice' => 0,
+        ],
+
+        'supervisor-process-download' => [
+            'connection' => 'process_download',
+            'queue' => ['process-download'],
+            'balance' => 'auto',
+            'autoScalingStrategy' => 'time',
+            'maxProcesses' => 5,
+            'maxTime' => 0,
+            'maxJobs' => 0,
+            'memory' => 128,
+            'tries' => 1,
+            'timeout' => 340,
+            'nice' => 0,
+        ],
+
+        'supervisor-process-prepare' => [
+            'connection' => 'process_long',
+            'queue' => ['process-prepare'],
+            'balance' => 'auto',
+            'autoScalingStrategy' => 'time',
+            'maxProcesses' => 3,
+            'maxTime' => 0,
+            'maxJobs' => 0,
+            'memory' => 128,
+            'tries' => 1,
+            'timeout' => 280,
+            'nice' => 0,
+        ],
+
+        'supervisor-process-ai' => [
+            'connection' => 'process_ai',
+            'queue' => ['process-ai'],
+            'balance' => 'auto',
+            'autoScalingStrategy' => 'time',
+            'maxProcesses' => 11,
+            'maxTime' => 0,
+            'maxJobs' => 0,
+            'memory' => 256,
+            'tries' => 1,
+            'timeout' => 310,
+            'nice' => 0,
+        ],
+
+        'supervisor-process-publication' => [
+            'connection' => 'process_short',
+            'queue' => ['process-publication'],
+            'balance' => 'auto',
+            'autoScalingStrategy' => 'time',
+            'maxProcesses' => 3,
+            'maxTime' => 0,
+            'maxJobs' => 0,
+            'memory' => 128,
+            'tries' => 1,
+            'timeout' => 120,
             'nice' => 0,
         ],
     ],

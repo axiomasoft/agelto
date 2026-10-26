@@ -34,6 +34,7 @@ use App\Dto\Procurement\Process\VersionedPayload;
 use App\Dto\Procurement\Process\WorkCheckpointEnvelope;
 use App\Dto\Procurement\Process\WorkId;
 use App\Dto\Procurement\Process\WorkInput;
+use App\Dto\Procurement\Process\WorkWake;
 use App\Enums\Procurement\Process\BlockedReason;
 use App\Enums\Procurement\Process\DeferralReason;
 use App\Enums\Procurement\Process\ItemFailureReason;
@@ -287,6 +288,34 @@ final class ProcessPayloadCodec
         }
 
         return $this->payload(['lane_key' => $laneKey]);
+    }
+
+    /** Strict обратный разбор work_wake: неизвестные ключи, stage и схема отвергаются, не угадываются. */
+    public function decodeWorkWake(VersionedPayload $payload): WorkWake
+    {
+        $reader = $this->required($payload);
+        $reader->keys(['work_id', 'dispatch_generation', 'message_id', 'queue_schema_version', 'stage']);
+
+        return new WorkWake(
+            workId: new WorkId(new ProcessUuid($reader->string('work_id'))),
+            dispatchGeneration: new DeliveryGeneration($reader->integer('dispatch_generation')),
+            messageId: new ProcessUuid($reader->string('message_id')),
+            queueSchemaVersion: $reader->integer('queue_schema_version'),
+            stage: $this->stage($reader->string('stage')),
+        );
+    }
+
+    /** @return string канонический parent/child lane key */
+    public function decodeFeederWake(VersionedPayload $payload): string
+    {
+        $reader = $this->required($payload);
+        $reader->keys(['lane_key']);
+        $laneKey = $reader->string('lane_key');
+        if (preg_match('/^[a-z_]+(\.[a-z_]+)?$/D', $laneKey) !== 1) {
+            throw new \InvalidArgumentException('Feeder wake requires a canonical lane key.');
+        }
+
+        return $laneKey;
     }
 
     /** @param array<string, mixed> $fields */

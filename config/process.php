@@ -49,6 +49,36 @@ return [
         'publication' => ['claim_visibility' => 120, 'slice' => 90, 'lease' => 180],
     ],
 
+    // StageQueueMap (bp-jobs): connection, queue и job timeout каждой stage. Horizon timeout и
+    // retry_after берутся из фактических config/horizon.php и config/queue.php, `StageQueueMap`
+    // проверяет slice < job timeout < Horizon timeout < retry_after < lease. Redis default
+    // connection и supervisor-1 остаются для не-Process jobs (notifications/mail).
+    'queues' => [
+        'listing' => ['connection' => 'process_long', 'queue' => 'process-listing', 'job_timeout' => 260],
+        'detail' => ['connection' => 'process_short', 'queue' => 'process-acquisition', 'job_timeout' => 110],
+        'status_refresh' => ['connection' => 'process_short', 'queue' => 'process-acquisition', 'job_timeout' => 110],
+        'download' => ['connection' => 'process_download', 'queue' => 'process-download', 'job_timeout' => 320],
+        'prepare' => ['connection' => 'process_long', 'queue' => 'process-prepare', 'job_timeout' => 260],
+        'screening' => ['connection' => 'process_ai', 'queue' => 'process-ai', 'job_timeout' => 290],
+        'extraction' => ['connection' => 'process_ai', 'queue' => 'process-ai', 'job_timeout' => 290],
+        'publication' => ['connection' => 'process_short', 'queue' => 'process-publication', 'job_timeout' => 110],
+    ],
+
+    // Process daemons (bp-daemons): отдельные relay/reconcile/feed процессы, не scheduler. Liveness —
+    // heartbeat каждые heartbeat_seconds; instance жив, пока last_tick_at свежее live_seconds.
+    // Relay claim-ит только work_wake, feed — только feeder_wake; reconcile tick 5 s ±20%.
+    'daemons' => [
+        'heartbeat_seconds' => 10,
+        'live_seconds' => 30,
+        'max_runtime_seconds' => 3600,
+        'memory_limit_mb' => 256,
+        'error_backoff_min_seconds' => 1,
+        'error_backoff_max_seconds' => 30,
+        'relay' => ['batch' => 100, 'claim_seconds' => 30, 'idle_min_ms' => 250, 'idle_max_ms' => 500],
+        'reconcile' => ['tick_seconds' => 5, 'jitter_percent' => 20],
+        'feed' => ['tick_seconds' => 2, 'jitter_percent' => 20, 'poll_ms' => 500, 'wake_batch' => 100, 'claim_seconds' => 30],
+    ],
+
     // Кооперативный heartbeat (bp-heartbeat): CAS не чаще heartbeat_seconds по monotonic clock;
     // finalization reserve входит в каждый canStart; локальный safety deadline = последний
     // успешный renewal + lease − lease_safety. Boot требует lease > slice и lease > 2·heartbeat + safety.

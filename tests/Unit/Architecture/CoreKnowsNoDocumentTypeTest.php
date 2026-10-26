@@ -82,8 +82,10 @@ test('периметр ядра собран правилом вычитания
     // 109 = 108 + platform-neutral DetailParser contract.
     // 110 = 109 + CooperativeListingSourceMethod (60d6162c, до P4): cooperative
     // listing progress — нейтральный transport contract, не тип документа.
-    expect($classes)->toHaveCount(110)
+    // 111 = 110 + ExecuteWorkJob (P1.10): общая доставка work envelope без знания типа документа.
+    expect($classes)->toHaveCount(111)
         ->and(array_column($classes, 'class'))->toContain('App\Services\Procurement\Contracts\CooperativeListingSourceMethod')
+        ->and(array_column($classes, 'class'))->toContain('App\Jobs\Procurement\Process\ExecuteWorkJob')
         ->and(array_column($classes, 'class'))->not->toContain('App\Jobs\Procurement\Analyzers\Estimate\EstimateExtractionJob');
 });
 

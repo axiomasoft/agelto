@@ -3299,14 +3299,15 @@
     },
     {
       "path": "tests/Unit/Architecture/CoreKnowsNoDocumentTypeTest.php",
-      "sha256": "1c0295ab98821222eaee8a4ee4f40caf7fdcc33deaf0bad9ac290b6a5f05ec16",
+      "sha256": "892a511ef377d213b522abde87f44ad2cb933d7050e4ab960236645a113460ac",
       "scenarios": [
         "периметр ядра собран правилом вычитания §6.2, не перечнем руками",
         "ядро не импортирует поверхность типа документа — (а)/(б)/(в) §6.3",
         "ядро не несёт идентификатор Estimate/литерал \\'estimate\\' кроме AiDocumentType::Estimate — (г) §6.3"
       ],
       "original_sha256": "e8b967abe0a3214efa331b93cfd41887239c3959d7c8b2b9071b3e441ef22370",
-      "harness_correction": "P4.1 checks.2: canary 109 -> 110 for the existing neutral CooperativeListingSourceMethod added by 60d6162c; original case names retained and explicit membership asserted."
+      "harness_correction": "P4.1 checks.2: canary 109 -> 110 for the existing neutral CooperativeListingSourceMethod added by 60d6162c; original case names retained and explicit membership asserted.",
+      "change_reason": "P1.10 D37 quality correction: preserve all original 110 core members and add the generic ExecuteWorkJob as member 111 with an explicit membership assertion; retain scenario names, exclusions, original_sha256 and P4.1 provenance. Actual before SHA-256: 1c0295ab98821222eaee8a4ee4f40caf7fdcc33deaf0bad9ac290b6a5f05ec16; actual after SHA-256: 892a511ef377d213b522abde87f44ad2cb933d7050e4ab960236645a113460ac."
     },
     {
       "path": "tests/Unit/Architecture/DocumentFormatRegistryTest.php",

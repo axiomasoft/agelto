@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services\Procurement\Process;
 
 use App\Enums\Procurement\Process\StageCode;
+use App\Services\Procurement\Process\Contracts\StageHandler;
 use App\Services\Procurement\Process\Contracts\StageResultRepository;
 use Illuminate\Container\Attributes\Singleton;
 
@@ -28,6 +29,9 @@ final class StageRegistry
 
     /** @var array<string, StageResultRepository> */
     private array $results = [];
+
+    /** @var array<string, StageHandler> */
+    private array $handlers = [];
 
     public function register(StageCode $stage, string $handlerVersion): void
     {
@@ -55,6 +59,27 @@ final class StageRegistry
         }
         $this->codecs[$stage->value] = $codec;
         $this->results[$stage->value] = $results;
+    }
+
+    /**
+     * Handler instance исполняющей версии: WorkRunner получает его отсюда, а не выбирает по stage.
+     * Привязка требует зарегистрированной версии и повторно не меняется.
+     */
+    public function bindHandler(StageCode $stage, StageHandler $handler): void
+    {
+        if (! isset($this->versions[$stage->value])) {
+            throw new \LogicException('Handler binding requires a registered handler version: '.$stage->value);
+        }
+        if (isset($this->handlers[$stage->value])) {
+            throw new \LogicException('Stage handler is already bound: '.$stage->value);
+        }
+        $this->handlers[$stage->value] = $handler;
+    }
+
+    /** Отсутствие binding — configuration defect: claimed work без handler не исполняется. */
+    public function handler(StageCode $stage): StageHandler
+    {
+        return $this->handlers[$stage->value] ?? throw new \LogicException('Stage handler is not bound: '.$stage->value);
     }
 
     public function handlerVersion(StageCode $stage): ?string
