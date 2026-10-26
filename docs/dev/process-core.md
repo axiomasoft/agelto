@@ -372,3 +372,35 @@ dedup), `T06WorkControlTest` (CancelWork/CancelRun/shared links), многопр
 реальный Redis FLUSHALL на изолированном rig, redelivery, одна accepted финализация). Не реализовано
 в этом пункте: invariant scan 60 s (bp-sql-recover п.6), `ApplicationReadiness` integration и
 projector — остаются за следующими пунктами.
+
+## Readiness и Compose: дополнение P1.10 (D45)
+
+`ApplicationReadiness` и `app:readiness` теперь обязательно включают восьмой check
+`process_daemons` после прежних семи. Он делегирует `DaemonReadiness::ready()` без отдельного
+health state: для каждой активной роли `relay`, `reconcile`, `feed` требуется хотя бы один
+instance со свежим heartbeat (не старше 30 s по DB clock) без текущей ошибки. Свежий heartbeat
+с сохраняющимся `last_error_code` остаётся degraded; missing/stale — down. Результат общего
+check — прежний redacted формат `ready`/`unavailable`, без внутренних ошибок или exception text.
+Projector пока исключён из общего readiness и не получает Compose service.
+
+В `docker-compose.yml` и `docker-compose.prod.yml` объявлены `process-relay`,
+`process-reconciler`, `process-feeder`. Каждый использует образ app, собственную команду
+`php artisan process:daemon <relay|reconcile|feed>` и healthcheck той же роли с `--health`
+(interval/timeout 10 s, start period 40 s, retries 3). Dev явно называет образ app
+`${COMPOSE_PROJECT_NAME:-agelto}-app`, сохраняя development build и source mounts; prod использует
+тот же immutable `agelto/app:${IMAGE_TAG}` и storage volume без source/vendor mounts.
+Environment, file-backed secrets и сеть совпадают с app; зависимости — healthy app/PostgreSQL/Redis.
+Restart — `unless-stopped`, SIGTERM и grace 60 s позволяют завершить текущую короткую транзакцию.
+Общий `DaemonLoop` сохраняет пределы runtime 3600 s / memory 256 MB из `process.daemons` и
+кооперативный stop; ledger/outbox восстанавливают незавершённую доставку после остановки.
+Horizon сохраняет grace 4200 s, пока существуют legacy long jobs (минимум нового core — 370 s).
+
+Это declarations и contract assertions, без запуска dev/prod services или активации реальных
+application handlers. Isolated Compose/rig не добавляет фоновых daemons: тесты создают собственные
+настоящие heartbeat rows, поэтому существующие двухпроцессные race suites сохраняют контроль
+над своими workers. `ApplicationReadinessTest` проверяет все три роли missing/stale/degraded,
+общий CLI, redaction и прежние семь checks; `T08DaemonReadinessTest` — health CLI каждой роли;
+`T08SupplementalDaemonWiringTest` — разрешённые YAML aliases и image/project fixture values,
+команды, образ, mounts, restart, health/grace и отсутствие projector в dev/prod declarations.
+Эти tests входят в existing execution/full regression suites. Дополнение закрывает прежнее
+ограничение ApplicationReadiness/Compose; invariant scan и projector здесь не реализуются.

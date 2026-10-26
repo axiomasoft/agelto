@@ -32,6 +32,7 @@ services:
       - agelto_network
 
   app:
+    image: &app_image ${COMPOSE_PROJECT_NAME:-agelto}-app
     build:
       context: .
       dockerfile: docker/php/Dockerfile
@@ -174,6 +175,57 @@ services:
       start_period: 20s
     networks:
       - agelto_network
+
+  process-relay: &process_daemon
+    image: *app_image
+    restart: unless-stopped
+    stop_signal: SIGTERM
+    stop_grace_period: 60s
+    working_dir: /var/www/html
+    entrypoint: ["/usr/local/bin/docker-php-serversideup-entrypoint"]
+    command: ["php", "artisan", "process:daemon", "relay"]
+    volumes:
+      - ./:/var/www/html
+      - app_bootstrap_cache:/var/www/html/bootstrap/cache
+      - app_storage_framework:/var/www/html/storage/framework
+    environment: *app_env
+    secrets:
+      - app_key
+      - db_password
+      - redis_password
+      - minio_root_password
+    depends_on:
+      app: { condition: service_healthy }
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+    healthcheck:
+      test: ["CMD", "php", "artisan", "process:daemon", "relay", "--health"]
+      interval: 10s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - agelto_network
+
+  process-reconciler:
+    <<: *process_daemon
+    command: ["php", "artisan", "process:daemon", "reconcile"]
+    healthcheck:
+      test: ["CMD", "php", "artisan", "process:daemon", "reconcile", "--health"]
+      interval: 10s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  process-feeder:
+    <<: *process_daemon
+    command: ["php", "artisan", "process:daemon", "feed"]
+    healthcheck:
+      test: ["CMD", "php", "artisan", "process:daemon", "feed", "--health"]
+      interval: 10s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
 
   vite:
     image: node:24-bookworm

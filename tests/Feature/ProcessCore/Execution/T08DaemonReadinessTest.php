@@ -292,3 +292,33 @@ test('process:daemon: неизвестный и неактивированный
     app(DaemonHeartbeatRepository::class)->beat($instance, 'outbox_quarantined');
     $this->artisan('process:daemon', ['daemon' => 'relay', '--health' => true])->assertExitCode(1);
 });
+
+test('health каждой активированной роли использует DB heartbeat и не путает свежую ошибку с готовностью', function (DaemonKind $kind): void {
+    $heartbeats = app(DaemonHeartbeatRepository::class);
+    $readiness = app(DaemonReadiness::class);
+    $this->artisan('process:daemon', ['daemon' => $kind->value, '--health' => true])
+        ->expectsOutput($kind->value.': down')->assertExitCode(1);
+
+    $instance = LedgerFixtures::uuid();
+    $heartbeats->register($instance, $kind);
+    expect($readiness->of($kind))->toBe(DaemonHealth::Healthy);
+    $this->artisan('process:daemon', ['daemon' => $kind->value, '--health' => true])
+        ->expectsOutput($kind->value.': healthy')->assertExitCode(0);
+
+    DB::table('prc_process_daemon_heartbeats')->where('instance_id', $instance->value)
+        ->update(['last_tick_at' => DB::raw("clock_timestamp() - interval '31 seconds'")]);
+    expect($readiness->of($kind))->toBe(DaemonHealth::Down);
+    $this->artisan('process:daemon', ['daemon' => $kind->value, '--health' => true])
+        ->expectsOutput($kind->value.': down')->assertExitCode(1);
+
+    $heartbeats->beat($instance, 'tick_failed');
+    $heartbeats->beat($instance, 'tick_failed');
+    expect($readiness->of($kind))->toBe(DaemonHealth::Degraded);
+    $this->artisan('process:daemon', ['daemon' => $kind->value, '--health' => true])
+        ->expectsOutput($kind->value.': degraded')->assertExitCode(1);
+
+    $heartbeats->beat($instance, null);
+    expect($readiness->of($kind))->toBe(DaemonHealth::Healthy);
+    $this->artisan('process:daemon', ['daemon' => $kind->value, '--health' => true])
+        ->expectsOutput($kind->value.': healthy')->assertExitCode(0);
+})->with([DaemonKind::Relay, DaemonKind::Reconcile, DaemonKind::Feed]);

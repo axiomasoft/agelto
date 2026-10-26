@@ -13,4 +13,5 @@ enum ReadinessCheckCode: string
     case Assets = 'assets';
     case Horizon = 'horizon';
     case Scheduler = 'scheduler';
+    case ProcessDaemons = 'process_daemons';
 }

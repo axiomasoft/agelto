@@ -1775,12 +1775,16 @@
     },
     {
       "path": "tests/Feature/Health/ApplicationReadinessTest.php",
-      "sha256": "b7d887f293e1089c1c2125d1e926f26afb648bb7d67a5849d5d5c73795fda29a",
+      "sha256": "48203c7001d644cfa93c570353c586e67a3b4e350359231f17cbf584fe8b0512",
       "scenarios": [
         "возвращает упорядоченный green readiness и убирает активные probes",
         "возвращает стабильный redacted код при stale scheduler heartbeat",
         "запись heartbeat отклоняет нетипизированный ttl"
-      ]
+      ],
+      "original_sha256": "b7d887f293e1089c1c2125d1e926f26afb648bb7d67a5849d5d5c73795fda29a",
+      "accepted_change_item": "P1.10",
+      "accepted_change_decision": "D45",
+      "change_reason": "D45 P1.10 supplemental mandatory ApplicationReadiness daemon integration: isolated active-daemon heartbeat fixtures and appended readiness assertions; preserve all three original scenario names, seven legacy check semantics/redaction and original SHA provenance."
     },
     {
       "path": "tests/Feature/Health/CardAnchorProbeTest.php",

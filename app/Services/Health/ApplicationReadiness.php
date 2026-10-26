@@ -6,6 +6,7 @@ namespace App\Services\Health;
 
 use App\Dto\Health\ReadinessCheckResult;
 use App\Enums\Health\ReadinessCheckCode;
+use App\Services\Procurement\Process\DaemonReadiness;
 use Carbon\CarbonImmutable;
 use Filament\Support\Assets\Asset;
 use Filament\Support\Facades\FilamentAsset;
@@ -26,6 +27,7 @@ final readonly class ApplicationReadiness
         private FilesystemFactory $filesystem,
         private MasterSupervisorRepository $masters,
         private ReleaseStateReadiness $releaseState,
+        private DaemonReadiness $daemons,
     ) {}
 
     /** @return list<ReadinessCheckResult> */
@@ -39,6 +41,7 @@ final readonly class ApplicationReadiness
             $this->assets(),
             $this->horizon(),
             $this->scheduler(),
+            $this->processDaemons(),
         ];
     }
 
@@ -150,6 +153,15 @@ final readonly class ApplicationReadiness
             if (! is_string($heartbeat)
                 || CarbonImmutable::parse($heartbeat)->lt(now()->subMinutes(self::positiveIntConfig('readiness.scheduler.max_age_minutes')))) {
                 throw new \RuntimeException('scheduler heartbeat is stale');
+            }
+        });
+    }
+
+    private function processDaemons(): ReadinessCheckResult
+    {
+        return $this->attempt(code: ReadinessCheckCode::ProcessDaemons, callback: function (): void {
+            if (! $this->daemons->ready()) {
+                throw new \RuntimeException('Process daemons are not ready');
             }
         });
     }
