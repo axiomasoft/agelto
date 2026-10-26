@@ -322,6 +322,12 @@ final readonly class WorkStoreRepository implements LeaseKeeper
         if ($refusal !== null) {
             return ClaimResult::refused($refusal);
         }
+        // Invalidation тоже освобождает group: сначала проверяем весь набор, не чиня corruption.
+        if (! $this->authority->exactMembership($snapshot, $prefix, 'admitted')) {
+            $corrupt = true;
+
+            return ClaimResult::refused(ClaimStatus::InvariantViolation);
+        }
         if (! $prefix->intentActive || $this->resolver->inputInvalidated($snapshot->input, $snapshot->inputRevision, $prefix->subjects)) {
             $this->supersedeLocked($snapshot, $prefix, $ids['event'], $ids['projection'], ActorKind::Worker);
 
@@ -333,11 +339,6 @@ final readonly class WorkStoreRepository implements LeaseKeeper
         }
         if (! $prefix->handlerHealthy) {
             return ClaimResult::refused(ClaimStatus::HandlerHeld);
-        }
-        if (! $this->authority->exactMembership($snapshot, $prefix, 'admitted')) {
-            $corrupt = true;
-
-            return ClaimResult::refused(ClaimStatus::InvariantViolation);
         }
         foreach ($prefix->lanes as $lane) {
             if ($lane->running >= $lane->maxRunning) {
@@ -456,7 +457,12 @@ final readonly class WorkStoreRepository implements LeaseKeeper
                AND lease_until > clock_timestamp() AND checkpoint_seq = ?
              RETURNING checkpoint_seq, lease_until::text AS lease_until",
             [$payload->json, $payload->schemaVersion, $this->policy->leaseSeconds($lease->stage), $workId, $lease->generation, $lease->token->value, $expectedSeq],
-        ) ?? throw new \LogicException('Checkpoint CAS did not match the locked running work.');
+        );
+        if ($row === null) {
+            // DB clock может пересечь expiry после live precheck, пока codec строит envelope.
+            // До CAS не было writes; domain progress/attempt ниже не выполняются.
+            return CheckpointResult::refused(CheckpointStatus::LostOwnership);
+        }
         // CAS изменил ровно одну строку: только теперь domain progress; его ошибка откатывает и CAS.
         $this->registry->resultRepository($lease->stage)->storeProgress($snapshot->input, $progress);
         DB::update('UPDATE prc_process_attempts SET last_checkpoint_at = clock_timestamp() WHERE id = ? AND finished_at IS NULL', [$lease->attemptId->value]);

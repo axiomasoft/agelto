@@ -8,6 +8,7 @@ use App\Dto\Procurement\Process\AdmissionResult;
 use App\Dto\Procurement\Process\AuthoritySnapshot;
 use App\Dto\Procurement\Process\CapacityAuthority;
 use App\Dto\Procurement\Process\ContentHash;
+use App\Dto\Procurement\Process\ControlSnapshot;
 use App\Dto\Procurement\Process\DeliveryGeneration;
 use App\Dto\Procurement\Process\FairnessCursor;
 use App\Dto\Procurement\Process\ProcessUuid;
@@ -22,6 +23,7 @@ use App\Enums\Procurement\Process\WorkState;
 use App\Services\Procurement\Process\ProcessPayloadCodec;
 use App\Services\Procurement\Process\ProcessPolicy;
 use App\Services\Procurement\Process\ProcessTransaction;
+use App\Services\Procurement\Process\StageRegistry;
 use App\Services\Procurement\Process\SubjectLockResolver;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -47,11 +49,12 @@ final readonly class AdmissionRepository
         private ProcessPolicy $policy,
         private ProcessTransaction $transaction,
         private SubjectLockResolver $resolver,
+        private StageRegistry $registry,
     ) {}
 
     /**
      * @param  FairnessCursor  $expectedCursor  cursor parent lane, по которому сделан выбор cohort/stage
-     * @param  int  $eligibleCohorts  число continuously eligible cohorts выбора: при >=2 действует cap ceil(W/2)
+     * @param  int  $eligibleCohorts  unlocked selection count; под locks пересчитывается, drift требует нового выбора
      */
     public function admit(WorkId $workId, FairnessCursor $expectedCursor, int $eligibleCohorts): AdmissionResult
     {
@@ -66,7 +69,8 @@ final readonly class AdmissionRepository
                     ? AdmissionStatus::HandlerUnavailable
                     : AdmissionStatus::NotEligible);
             }
-            $result = $this->transaction->run(fn (): AdmissionResult => $this->admitLocked($snapshot, $expectedCursor, $eligibleCohorts, $ids));
+            $eligibility = $this->readEligibilitySnapshots($snapshot);
+            $result = $this->transaction->run(fn (): AdmissionResult => $this->admitLocked($snapshot, $expectedCursor, $eligibleCohorts, $ids, $eligibility));
             if ($result->status === AdmissionStatus::InvariantViolation) {
                 $this->openMembershipIncident($snapshot, $ids);
             }
@@ -138,10 +142,13 @@ final readonly class AdmissionRepository
         ));
     }
 
-    /** @param array<string, ProcessUuid> $ids */
-    private function admitLocked(AuthoritySnapshot $snapshot, FairnessCursor $expectedCursor, int $eligibleCohorts, array $ids): AdmissionResult
+    /**
+     * @param  array<string, ProcessUuid>  $ids
+     * @param  array<string, AuthoritySnapshot>  $eligibility
+     */
+    private function admitLocked(AuthoritySnapshot $snapshot, FairnessCursor $expectedCursor, int $eligibleCohorts, array $ids, array $eligibility): AdmissionResult
     {
-        $prefix = $this->authority->lockPrefix($snapshot, skipLockedWork: true);
+        $prefix = $this->authority->lockPrefix($snapshot, skipLockedWork: true, eligibilitySnapshots: array_values($eligibility));
         if ($prefix instanceof PrefixFailure) {
             return AdmissionResult::refused(match ($prefix) {
                 PrefixFailure::WorkLocked => AdmissionStatus::WorkLocked,
@@ -168,23 +175,98 @@ final readonly class AdmissionRepository
         if (! $prefix->handlerHealthy) {
             return AdmissionResult::refused(AdmissionStatus::HandlerUnavailable);
         }
+        $code = $snapshot->handler->stage;
+        $requiredLanes = $this->policy->requiredLanes($code);
         foreach ($prefix->lanes as $lane) {
-            if ($lane->outstanding >= $lane->maxOutstanding) {
+            if (in_array($lane->key, $requiredLanes, true) && $lane->outstanding >= $lane->maxOutstanding) {
                 return AdmissionResult::refused(AdmissionStatus::CapacityFull);
             }
         }
-        $code = $snapshot->handler->stage;
         $parent = $prefix->lane($this->policy->parentLane($code));
         $cursor = $this->codec->decodeFairnessCursor(new VersionedPayload($parent->fairnessCursor, $parent->fairnessCursorSchemaVersion));
         if ($cursor != $expectedCursor) {
             return AdmissionResult::refused(AdmissionStatus::CursorMoved);
         }
+        $currentCohorts = $this->lockedEligibleCohorts($snapshot, $prefix, $eligibility);
+        if ($currentCohorts === null) {
+            // Новая pair требует более ранних authorities: никакого late lock после work.
+            return AdmissionResult::refused(AdmissionStatus::SnapshotChanged);
+        }
+        if ($currentCohorts !== $eligibleCohorts) {
+            return AdmissionResult::refused(AdmissionStatus::CursorMoved);
+        }
         $cohort = $work->string('cohort_key');
-        if ($eligibleCohorts >= 2 && ($this->activeByCohort($parent->id)[$cohort] ?? 0) >= (int) ceil($parent->maxOutstanding / 2)) {
+        if ($currentCohorts >= 2 && ($this->activeByCohort($parent->id)[$cohort] ?? 0) >= (int) ceil($parent->maxOutstanding / 2)) {
             return AdmissionResult::refused(AdmissionStatus::CohortCapped);
         }
 
         return $this->grantLocked($snapshot, $prefix, $cursor->advance($cohort, $code), $ids);
+    }
+
+    /** @return array<string, AuthoritySnapshot> One representative per ready/due pair, for early authority locks only. */
+    private function readEligibilitySnapshots(AuthoritySnapshot $candidate): array
+    {
+        $snapshots = [];
+        foreach ($this->parentEligiblePairs($candidate) as $pair) {
+            $work = LedgerRow::one(
+                "SELECT id FROM prc_process_work WHERE stage = ? AND cohort_key = ?
+                 AND (state = 'ready' OR (state = 'deferred' AND due_at <= clock_timestamp())) ORDER BY id LIMIT 1",
+                [$pair['stage']->value, $pair['cohort']],
+            );
+            if ($work === null) {
+                continue;
+            }
+            $snapshot = $this->authority->readAuthoritySnapshot(new WorkId(new ProcessUuid($work->string('id'))));
+            if ($snapshot instanceof AuthoritySnapshot) {
+                $snapshots[$pair['stage']->value.':'.$pair['cohort']] = $snapshot;
+            }
+        }
+
+        return $snapshots;
+    }
+
+    /**
+     * Fresh ready/due pairs + early-locked controls/handlers/capacity; caller count is never authority.
+     *
+     * @param  array<string, AuthoritySnapshot>  $eligibility
+     */
+    private function lockedEligibleCohorts(AuthoritySnapshot $candidate, LockedPrefix $prefix, array $eligibility): ?int
+    {
+        $cohorts = [];
+        foreach ($this->parentEligiblePairs($candidate) as $pair) {
+            $snapshot = $eligibility[$pair['stage']->value.':'.$pair['cohort']] ?? null;
+            if ($snapshot === null) {
+                return null;
+            }
+            $keys = array_map(static fn (ControlSnapshot $scope): string => $scope->scopeKey, $snapshot->controls);
+            if (array_diff($keys, $prefix->enabledScopeKeys) !== [] || ! in_array($snapshot->handler->id->value, $prefix->healthyHandlerIds, true)) {
+                continue;
+            }
+            foreach ($this->policy->requiredLanes($pair['stage']) as $key) {
+                $lane = $prefix->lane($key);
+                if ($lane->outstanding >= $lane->maxOutstanding) {
+                    continue 2;
+                }
+            }
+            $cohorts[$pair['cohort']] = true;
+        }
+
+        return count($cohorts);
+    }
+
+    /** @return list<array{stage: StageCode, cohort: string}> Same installed-handler boundary as feeder selection. */
+    private function parentEligiblePairs(AuthoritySnapshot $candidate): array
+    {
+        $stages = array_values(array_filter(
+            $this->policy->stagesOfParentLane($this->policy->parentLane($candidate->handler->stage)),
+            fn (StageCode $stage): bool => $this->registry->handlerVersion($stage) !== null,
+        ));
+
+        return array_values(array_filter($this->eligiblePairs($stages), function (array $pair): bool {
+            return LedgerRow::one('SELECT id FROM prc_process_handler_holds WHERE stage = ? AND handler_version = ?', [
+                $pair['stage']->value, $this->registry->handlerVersion($pair['stage']),
+            ]) !== null;
+        }));
     }
 
     /** @param array<string, ProcessUuid> $ids */

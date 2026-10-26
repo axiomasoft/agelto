@@ -117,6 +117,15 @@ created_at, id; manual — FIFO. При ≥2 eligible cohorts новый grant c
 `active(parent, cohort) < ceil(W/2)`; выданные slots не отзываются, единственный cohort использует
 весь W.
 
+P19-C1: перед admission pre-read собирает по одному authority snapshot для каждой ready/due
+пары stage/cohort. Их control closures, handler rows и lanes входят в общий ранний lock set
+(каждый tier отсортирован); subjects/work блокируются только для текущего candidate. После
+capacity locks repository заново читает ready/due пары и проверяет их по locked control modes,
+handler health и W. Изменение числа eligible cohorts требует нового выбора (`CursorMoved`),
+новая пара без ранних locks — reload (`SnapshotChanged`). Feeder ограниченно повторяет выбор.
+Переданное вызывающим число cohorts не разрешает обход cap; несвязанный заполненный sibling
+lane не запрещает grant текущей стадии.
+
 **Claim** (`WorkStoreRepository::claim`, bp-sql-claim): тот же prefix без `SKIP LOCKED`.
 Terminal → `WorkTerminal`; running той же delivery → `DuplicateDelivery`; иная generation или
 не admitted → `StaleDelivery`; истёкший `dispatch_claim_until` → `ClaimExpired`; stale input →
@@ -127,6 +136,11 @@ supersede + `WorkTerminal`; pause → `Paused`; held/незарегистрир�
 5–10 s; старая delivery становится stale, item budget не тратится. Успех: generation+1, случайный
 token, DB lease (`process.stages.<stage>.lease`), immutable attempt (handler version, sha256
 token), вся group и members `running`, transition; `ClaimResult` несёт `ExecutionLease`.
+
+P19-C1 exact membership включает `work_id`, `stage` и state каждого member, точный lane set/hash,
+delivery generation и attempt linkage (у admitted group attempt отсутствует). Claim/finalize
+проверяют этот guard до supersede/release при изменении input/head. Повреждённая group остаётся
+неизменной, открывается `admission_membership_mismatch`; input invalidation не ремонтирует members.
 
 Проверки: `tests/Feature/ProcessCore/Execution/T11AdmissionFairnessTest.php` (parent+child W,
 refill, cohort→stage RR, age/priority/manual FIFO, cap и dynamic cohort, deferred/blocked,
@@ -159,6 +173,8 @@ lease > 2·heartbeat + safety.
 (`StageResultRepository::storeProgress`). Merged `WorkCheckpointEnvelope`: новый stage progress +
 текущий locked provider recovery plan. Исходы `Saved | LostOwnership | StaleCheckpoint |
 InputSuperseded`; любой отказ или сбой progress write откатывает всю tx.
+Expiry между live precheck и checkpoint UPDATE даёт typed `LostOwnership`: work CAS не изменил
+строк, domain progress и attempt checkpoint не записываются; programming fault budget не тратится.
 
 **WorkFinalizer** (`finish`/`complete`/`settle`/`finishHandlerFault`) исчерпывающе dispatch-ит пять
 closed `StageOutcome`; неизвестный вариант — `LogicException`. `WorkFinalizationRepository` под тем
@@ -198,3 +214,10 @@ LeaseKeeper/clock) и многопроцессный
 finalize/revocation, cancel/new head, lost checkpoint CAS, pause против 10 finalize, fault budget
 и journal rollback); `make core-test-concurrency`. Revocation в них — контролируемая fixture под
 тем же full prefix, не RecoveryReconciler (P1.11).
+
+Отрицательные регрессии P19-C1: `P19CorrectionRegressionTest.php` проверяет чужие work/stage
+members при claim/finalize, corruption вместе с head drift, missing/extra members и чужой attempt,
+stale eligibility count при ready/due/resume и реальный нулевой checkpoint CAS после expiry.
+`T11AdmissionFairnessConcurrencyTest.php` использует отдельные PG процессы и lock-wait barrier:
+ready/resume коммитится между selection и grant без изменения parent cursor. Это тесты текущего
+correction scope; фактический результат их запуска фиксирует coordinator в V1/V3.

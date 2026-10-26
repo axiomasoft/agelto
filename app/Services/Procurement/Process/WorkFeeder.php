@@ -71,7 +71,7 @@ final readonly class WorkFeeder
             $outcome = $this->admitNext($current, $eligible);
             if ($outcome === AdmissionStatus::Admitted) {
                 $granted++;
-            } elseif ($outcome !== AdmissionStatus::CursorMoved) {
+            } elseif (! in_array($outcome, [AdmissionStatus::CursorMoved, AdmissionStatus::SnapshotChanged], true)) {
                 break;
             }
         }
@@ -100,7 +100,7 @@ final readonly class WorkFeeder
             foreach (FairnessCursor::after($values, $cursor->lastStage($cohort)?->value) as $value) {
                 foreach ($this->admissions->candidates(StageCode::from($value), $cohort) as $workId) {
                     $result = $this->admissions->admit($workId, $cursor, $count);
-                    if (in_array($result->status, [AdmissionStatus::Admitted, AdmissionStatus::CursorMoved], true)) {
+                    if (in_array($result->status, [AdmissionStatus::Admitted, AdmissionStatus::CursorMoved, AdmissionStatus::SnapshotChanged], true)) {
                         return $result->status;
                     }
                 }

@@ -15,7 +15,9 @@ final readonly class LockedPrefix
     /**
      * @param  array<string, LockedLane>  $lanes  keyed by lane key
      * @param  array<string, LockedSubject>  $subjects  keyed by SubjectKey::key()
-     * @param  array<string, string>  $members  lane id → reservation state, sorted by lane id
+     * @param  array<string, LedgerRow>  $members  lane id → reservation identity/state, sorted by lane id
+     * @param  list<string>  $enabledScopeKeys
+     * @param  list<string>  $healthyHandlerIds
      */
     public function __construct(
         public bool $controlsEnabled,
@@ -26,6 +28,8 @@ final readonly class LockedPrefix
         public bool $intentActive,
         public ?LedgerRow $group,
         public array $members,
+        public array $enabledScopeKeys = [],
+        public array $healthyHandlerIds = [],
     ) {}
 
     public function lane(string $key): LockedLane

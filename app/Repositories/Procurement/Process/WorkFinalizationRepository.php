@@ -101,13 +101,6 @@ final readonly class WorkFinalizationRepository
             || $work->string('state') !== WorkState::Running->value) {
             return CompletionResult::lostOwnership();
         }
-        // Тот же owner, но input/head сменился: fenced superseded, старый result не публикуется.
-        if (! $prefix->intentActive || $this->resolver->inputInvalidated($snapshot->input, $snapshot->inputRevision, $prefix->subjects)) {
-            $this->works->supersedeLocked($snapshot, $prefix, $ids['event'], $ids['projection'], ActorKind::Worker);
-            $this->outbox->enqueueFeederWake($ids['feed'], $this->policy->parentLane($lease->stage));
-
-            return CompletionResult::applied(WorkState::Superseded);
-        }
         $group = $prefix->group;
         if ($group === null || ! $this->authority->exactMembership($snapshot, $prefix, 'running')
             || $group->nullableString('attempt_id') !== $lease->attemptId->value) {
@@ -120,7 +113,17 @@ final readonly class WorkFinalizationRepository
             [$lease->attemptId->value, $lease->workId->value->value, $lease->generation],
         );
         if ($attempt === null) {
+            $membershipCorrupt = true;
+
             return CompletionResult::invariantViolation();
+        }
+
+        // Supersede пишет release/attempt: exact membership и attempt guards обязательны и здесь.
+        if (! $prefix->intentActive || $this->resolver->inputInvalidated($snapshot->input, $snapshot->inputRevision, $prefix->subjects)) {
+            $this->works->supersedeLocked($snapshot, $prefix, $ids['event'], $ids['projection'], ActorKind::Worker);
+            $this->outbox->enqueueFeederWake($ids['feed'], $this->policy->parentLane($lease->stage));
+
+            return CompletionResult::applied(WorkState::Superseded);
         }
 
         $codec = $this->registry->payloadCodec();

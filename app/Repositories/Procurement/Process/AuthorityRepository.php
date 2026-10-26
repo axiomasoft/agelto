@@ -132,34 +132,60 @@ final readonly class AuthorityRepository
     /**
      * Полный prefix в одной уже открытой ProcessTransaction. Admission/reconciler используют SKIP
      * LOCKED только на финальном work lock; claim конкретной доставки ждёт work lock.
+     * Admission дополнительно фиксирует eligibility authorities всех выбранных пар ДО capacity.
+     *
+     * @param  list<AuthoritySnapshot>  $eligibilitySnapshots
      */
-    public function lockPrefix(AuthoritySnapshot $snapshot, bool $skipLockedWork): LockedPrefix|PrefixFailure
+    public function lockPrefix(AuthoritySnapshot $snapshot, bool $skipLockedWork, array $eligibilitySnapshots = []): LockedPrefix|PrefixFailure
     {
         CallerTransaction::require('Process lock prefix');
 
         // Tier 1: control closure FOR SHARE, sorted scope_key (byte order, как setMode) — параллельные
         // grants совместимы, pause сериализуется.
-        $controlIds = array_map(static fn (ControlSnapshot $scope): string => $scope->id->value, $snapshot->controls);
+        $expectedControls = [];
+        $expectedHandlers = [];
+        $capacity = [];
+        foreach ([$snapshot, ...$eligibilitySnapshots] as $authority) {
+            foreach ($authority->controls as $scope) {
+                $expectedControls[$scope->scopeKey] = $scope->id->value;
+            }
+            $expectedHandlers[$authority->handler->id->value] = $authority->handler;
+            foreach ($authority->capacity as $member) {
+                $capacity[$member->id->value] = $member;
+            }
+        }
+        ksort($expectedControls, SORT_STRING);
+        $controlIds = array_values($expectedControls);
         $controls = LedgerRow::all(
             'SELECT id, scope_key, desired_mode FROM prc_control_scopes
              WHERE id IN ('.LedgerRow::placeholders(count($controlIds)).') ORDER BY scope_key COLLATE "C" FOR SHARE',
             $controlIds,
         );
         $lockedKeys = array_map(static fn (LedgerRow $row): string => $row->string('scope_key'), $controls);
-        $expectedKeys = array_map(static fn (ControlSnapshot $scope): string => $scope->scopeKey, $snapshot->controls);
+        $expectedKeys = array_keys($expectedControls);
         if ($lockedKeys !== $expectedKeys) {
             return PrefixFailure::SnapshotChanged;
         }
         $enabled = array_filter($controls, static fn (LedgerRow $row): bool => $row->string('desired_mode') === ControlMode::Enabled->value);
+        $enabledKeys = array_values(array_map(static fn (LedgerRow $row): string => $row->string('scope_key'), $enabled));
 
         // Tier 1b: materialized handler-version eligibility FOR SHARE.
-        $handler = LedgerRow::one('SELECT state FROM prc_process_handler_holds WHERE id = ? FOR SHARE', [$snapshot->handler->id->value]);
-        if ($handler === null) {
+        $handlerIds = array_keys($expectedHandlers);
+        $handlers = LedgerRow::all(
+            'SELECT id, state FROM prc_process_handler_holds WHERE id IN ('.LedgerRow::placeholders(count($handlerIds)).')
+             ORDER BY stage COLLATE "C", handler_version COLLATE "C" FOR SHARE',
+            $handlerIds,
+        );
+        if (count($handlers) !== count($handlerIds)) {
             return PrefixFailure::SnapshotChanged;
         }
+        $healthyIds = array_values(array_map(
+            static fn (LedgerRow $row): string => $row->string('id'),
+            array_filter($handlers, static fn (LedgerRow $row): bool => $row->string('state') === HandlerEligibility::Healthy->value),
+        ));
 
         // Tier 2: весь capacity set одним sorted FOR UPDATE; COUNT reservations только после locks.
-        $laneIds = array_map(static fn (CapacityAuthority $authority): string => $authority->id->value, $snapshot->capacity);
+        $laneIds = array_keys($capacity);
         $in = LedgerRow::placeholders(count($laneIds));
         $laneRows = LedgerRow::all(
             "SELECT id, lane_key, parent_lane_id, max_outstanding, max_running,
@@ -223,20 +249,22 @@ final readonly class AuthorityRepository
         );
         $members = [];
         if ($group !== null) {
-            foreach (LedgerRow::all('SELECT lane_id, state FROM prc_process_reservations WHERE admission_group_id = ? ORDER BY lane_id', [$group->string('id')]) as $member) {
-                $members[$member->string('lane_id')] = $member->string('state');
+            foreach (LedgerRow::all('SELECT lane_id, work_id, stage, state FROM prc_process_reservations WHERE admission_group_id = ? ORDER BY lane_id', [$group->string('id')]) as $member) {
+                $members[$member->string('lane_id')] = $member;
             }
         }
 
         return new LockedPrefix(
-            controlsEnabled: count($enabled) === count($controls),
-            handlerHealthy: $handler->string('state') === HandlerEligibility::Healthy->value,
+            controlsEnabled: array_diff(array_map(static fn (ControlSnapshot $scope): string => $scope->scopeKey, $snapshot->controls), $enabledKeys) === [],
+            handlerHealthy: in_array($snapshot->handler->id->value, $healthyIds, true),
             lanes: $lanes,
             subjects: $subjects,
             work: $work,
             intentActive: $intent === null ? $intentId === null : $intent->string('state') === 'active',
             group: $group,
             members: $members,
+            enabledScopeKeys: $enabledKeys,
+            healthyHandlerIds: $healthyIds,
         );
     }
 
@@ -267,7 +295,7 @@ final readonly class AuthorityRepository
 
     /**
      * Exact membership: active group текущей delivery содержит ровно required lane set стадии,
-     * его hash и единое состояние members. Corruption не чинится молча.
+     * его hash, work/stage identity и единое состояние members. Corruption не чинится молча.
      */
     public function exactMembership(AuthoritySnapshot $snapshot, LockedPrefix $prefix, string $groupState): bool
     {
@@ -275,12 +303,21 @@ final readonly class AuthorityRepository
         $laneIds = array_map(static fn (CapacityAuthority $authority): string => $authority->id->value, $snapshot->capacity);
         sort($laneIds, SORT_STRING);
 
+        $expectedStage = $snapshot->handler->stage->value;
+        foreach ($prefix->members as $member) {
+            if ($member->string('work_id') !== $snapshot->workId->value->value
+                || $member->string('stage') !== $expectedStage
+                || $member->string('state') !== $groupState) {
+                return false;
+            }
+        }
+
         return $group !== null
             && $group->string('state') === $groupState
             && $group->int('dispatch_generation') === $prefix->work->int('dispatch_generation')
             && $group->string('lane_set_hash') === $this->policy->requiredLaneSetHash($snapshot->handler->stage)->hex
             && array_keys($prefix->members) === $laneIds
-            && array_unique(array_values($prefix->members)) === [$groupState];
+            && ($groupState !== 'admitted' || $group->nullableString('attempt_id') === null);
     }
 
     /** @param list<string> $laneIds */
