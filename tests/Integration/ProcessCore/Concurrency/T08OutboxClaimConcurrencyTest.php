@@ -45,10 +45,10 @@ function outboxConcurrencyWorker(string $kind, int $batch): string
             );
             \Illuminate\Support\Facades\DB::select('SELECT pg_sleep(0.3)');
 
-            return array_map(static fn ($message): string => $message->messageId->value, $messages);
+            return ['ids' => array_map(static fn ($message): string => $message->messageId->value, $messages), 'returned' => count($messages)];
         });
 
-        return ['ids' => $claimed, 'backend_pid' => \Illuminate\Support\Facades\DB::selectOne('SELECT pg_backend_pid() AS pid')->pid];
+        return ['ids' => $claimed['ids'], 'returned' => $claimed['returned'], 'backend_pid' => \Illuminate\Support\Facades\DB::selectOne('SELECT pg_backend_pid() AS pid')->pid];
         PHP);
 }
 
@@ -70,8 +70,8 @@ test('два relay одновременно claim-ят непересекающ�
         expect($workers['first']['backend_pid'])->not->toBe($workers['second']['backend_pid'])
             // Один и тот же message не достаётся двум relay (SKIP LOCKED + claim_until).
             ->and(array_intersect($workers['first']['ids'], $workers['second']['ids']))->toBe([])
-            // Диагностика флейка: при нарушении лимита падение показывает сами claimed ids.
-            ->and(count($workers['first']['ids']) <= 3 ? [] : $workers['first']['ids'])->toBe([])
+            // Диагностика флейка: при нарушении лимита падение показывает ids и число строк, которое вернул claim().
+            ->and(count($workers['first']['ids']) <= 3 ? [] : [$workers['first']['returned'], $workers['first']['ids']])->toBe([])
             ->and(count($workers['second']['ids']) <= 3 ? [] : $workers['second']['ids'])->toBe([])
             ->and(array_intersect($first, $second))->toBe([])
             ->and($claimed)->toHaveCount(count($first) + count($second))
