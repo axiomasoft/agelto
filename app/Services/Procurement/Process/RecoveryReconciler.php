@@ -82,20 +82,40 @@ final class RecoveryReconciler
     {
         $recovered = 0;
         foreach ($this->recovery->expiredRunning(self::BATCH) as $workId) {
-            try {
-                $pinned = $this->recovery->pinnedPlan($workId);
-                $finding = $this->provider->inspect($workId, $pinned['plan'] ?? null);
-            } catch (DependencyUnavailable $unavailable) {
-                // Storage недоступен: dependency wait, новый provider send не разрешается — work остаётся running-expired.
-                ProcessLog::dependencyUnavailable($unavailable->dependency, $unavailable);
+            $recovered += $this->isolated('recover_running', $workId, function () use ($workId): int {
+                try {
+                    $pinned = $this->recovery->pinnedPlan($workId);
+                    $finding = $this->provider->inspect($workId, $pinned['plan'] ?? null);
+                } catch (DependencyUnavailable $unavailable) {
+                    // Storage недоступен: dependency wait, новый provider send не разрешается — work остаётся running-expired.
+                    ProcessLog::dependencyUnavailable($unavailable->dependency, $unavailable);
 
-                continue;
-            }
-            $seq = $pinned['seq'] ?? 0;
-            $recovered += $this->each($workId, true, fn (AuthoritySnapshot $snapshot, array $ids): RecoveryOutcome => $this->recovery->recoverRunning($snapshot, $finding, $seq, $this->provider, $ids));
+                    return 0;
+                }
+                $seq = $pinned['seq'] ?? 0;
+
+                return $this->each($workId, true, fn (AuthoritySnapshot $snapshot, array $ids): RecoveryOutcome => $this->recovery->recoverRunning($snapshot, $finding, $seq, $this->provider, $ids));
+            });
         }
 
         return $recovered;
+    }
+
+    /**
+     * Один poison work не останавливает категорию: его исключение видимо в логе, остальные кандидаты
+     * этого tick обрабатываются. Каждый work — своя транзакция, поэтому откат затрагивает только его.
+     *
+     * @param  \Closure(): int  $step
+     */
+    private function isolated(string $category, WorkId $workId, \Closure $step): int
+    {
+        try {
+            return $step();
+        } catch (\Throwable $failure) {
+            ProcessLog::daemonError('reconcile', $category.'_work_failed', $failure, ['work_id' => $workId->value->value]);
+
+            return 0;
+        }
     }
 
     public function recoverAdmitted(): int
@@ -123,19 +143,22 @@ final class RecoveryReconciler
     {
         $recovered = 0;
         foreach ($this->recovery->blockedProvider(self::BATCH) as $workId) {
-            $pinned = $this->recovery->pinnedPlan($workId);
-            $plan = $pinned['plan'] ?? null;
-            try {
-                // Missing exact linkage must reach the invariant path without a latest-call lookup.
-                $finding = $plan === null ? null : $this->provider->inspect($workId, $plan);
-            } catch (DependencyUnavailable $unavailable) {
-                // Storage/lookup недоступен: unknown и reserve сохранены, только отложить следующий scan.
-                ProcessLog::dependencyUnavailable($unavailable->dependency, $unavailable);
-                // Reschedule through the same full prefix and checkpoint/state guards below.
-                $finding = null;
-            }
-            $seq = $pinned['seq'] ?? 0;
-            $recovered += $this->each($workId, false, fn (AuthoritySnapshot $snapshot, array $ids): RecoveryOutcome => $this->recovery->recoverProvider($snapshot, $finding, $seq, $this->provider, $ids));
+            $recovered += $this->isolated('recover_blocked_provider', $workId, function () use ($workId): int {
+                $pinned = $this->recovery->pinnedPlan($workId);
+                $plan = $pinned['plan'] ?? null;
+                try {
+                    // Missing exact linkage must reach the invariant path without a latest-call lookup.
+                    $finding = $plan === null ? null : $this->provider->inspect($workId, $plan);
+                } catch (DependencyUnavailable $unavailable) {
+                    // Storage/lookup недоступен: unknown и reserve сохранены, только отложить следующий scan.
+                    ProcessLog::dependencyUnavailable($unavailable->dependency, $unavailable);
+                    // Reschedule through the same full prefix and checkpoint/state guards below.
+                    $finding = null;
+                }
+                $seq = $pinned['seq'] ?? 0;
+
+                return $this->each($workId, false, fn (AuthoritySnapshot $snapshot, array $ids): RecoveryOutcome => $this->recovery->recoverProvider($snapshot, $finding, $seq, $this->provider, $ids));
+            });
         }
 
         return $recovered;
@@ -147,8 +170,13 @@ final class RecoveryReconciler
         $checked = 0;
         foreach ($this->recovery->uncheckedFaults(self::BATCH) as $candidate) {
             $ids = self::ids();
-            if ($this->transaction->run(fn (): bool => $this->recovery->detectFault($candidate, $ids))) {
-                $checked++;
+            try {
+                if ($this->transaction->run(fn (): bool => $this->recovery->detectFault($candidate, $ids))) {
+                    $checked++;
+                }
+            } catch (\Throwable $failure) {
+                // Один кандидат с битым authority не блокирует sweep: остальные проверяются в этом tick.
+                ProcessLog::daemonError('reconcile', 'sweep_handler_faults_failed', $failure);
             }
         }
 

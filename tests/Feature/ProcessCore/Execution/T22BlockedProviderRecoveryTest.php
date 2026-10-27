@@ -310,6 +310,26 @@ test('EXR-03 больше 50 кандидатов: batch ограничен, ear
         ->and(DB::table('prc_process_work')->where('state', 'blocked')->whereRaw('provider_recovery_due_at <= clock_timestamp()')->count())->toBe(0);
 });
 
+test('EXR-03 poison work не останавливает категорию: исключение одного expired work видимо, соседний recovers в этом же tick', function (): void {
+    FinalizeFixtures::authority([StageCode::Listing]);
+    $resolver = FixtureProviderRecoveryResolver::install();
+    $poison = ExecutionFixtures::listingWork();
+    FinalizeFixtures::running($poison);
+    FinalizeFixtures::expire($poison, 900);
+    $healthy = ExecutionFixtures::listingWork();
+    FinalizeFixtures::running($healthy);
+    FinalizeFixtures::expire($healthy, 600);
+    $resolver->afterInspect = static function (WorkId $id) use ($poison): void {
+        if ($id->value->value === $poison->value->value) {
+            throw new RuntimeException('poison work');
+        }
+    };
+
+    expect(app(RecoveryReconciler::class)->recoverExpiredRunning())->toBe(1)
+        ->and(providerRow($poison)->state)->toBe('running')
+        ->and(providerRow($healthy)->state)->not->toBe('running');
+});
+
 test('T22 expired running provider-linked: not-sent → ready/known_retry, verified generation → resume plan, claimed без receipt → blocked; storage down оставляет running', function (): void {
     FinalizeFixtures::authority([StageCode::Listing]);
     $resolver = FixtureProviderRecoveryResolver::install();

@@ -610,13 +610,13 @@ def quality(folder):
 
 
 def collect(folder):
-    evidence = {}
-    locations = {}
+    # The latest run of each command decides: an older green run never outlives a newer red one.
+    latest = {}
     for path in sorted(REPORTS.glob("*/result.json")):
         result = json.loads(path.read_text())
-        if result.get("exit") == 0:
-            evidence[result["command"]] = result
-            locations[result["command"]] = path.parent
+        latest[result["command"]] = (result, path.parent)
+    evidence = {name: result for name, (result, _) in latest.items() if result.get("exit") == 0}
+    locations = {name: folder for name, (result, folder) in latest.items() if result.get("exit") == 0}
     required = {"core-test-up", "core-test-env", "core-test-install", "core-test-unit",
                 "core-test-regression", "core-quality"}
     require(required.issubset(evidence), "missing evidence: " + str(sorted(required - set(evidence))))
