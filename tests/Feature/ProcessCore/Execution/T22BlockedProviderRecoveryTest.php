@@ -310,6 +310,37 @@ test('EXR-03 больше 50 кандидатов: batch ограничен, ear
         ->and(DB::table('prc_process_work')->where('state', 'blocked')->whereRaw('provider_recovery_due_at <= clock_timestamp()')->count())->toBe(0);
 });
 
+test('EXR-03 cancel blocked(provider_result_unknown) до verified outcome: plan сохраняется, позже settle-ится тем же finding; state остаётся cancelled', function (): void {
+    FinalizeFixtures::authority([StageCode::Listing]);
+    $resolver = FixtureProviderRecoveryResolver::install();
+    [$work, $unknown] = providerBlocked($resolver);
+    app(CancelWork::class)->execute($work, 'operator cancel before receipt');
+
+    expect(providerRow($work)->state)->toBe('cancelled')
+        ->and(providerPlanOf($work)['physical_call_id'])->toBe($unknown->physicalCallId->value)
+        ->and($resolver->settlements)->toBe([]);
+
+    $resolver->finding($work, FixtureProviderRecoveryResolver::resolved($unknown, ProviderRecoveryMode::ResumeFromReceipt));
+    expect(app(RecoveryReconciler::class)->recoverBlockedProvider())->toBe(1)
+        ->and(providerRow($work)->state)->toBe('cancelled')
+        ->and(providerPlanOf($work))->toBeNull()
+        ->and($resolver->settlements)->toBe([$unknown->physicalCallId->value.':resume_from_receipt'])
+        ->and(app(RecoveryReconciler::class)->recoverBlockedProvider())->toBe(0);
+});
+
+test('EXR-03 cancelled с чужой operation: settlement не выполняется, plan и очередь сохраняются', function (): void {
+    FinalizeFixtures::authority([StageCode::Listing]);
+    $resolver = FixtureProviderRecoveryResolver::install();
+    [$work, $unknown] = providerBlocked($resolver);
+    app(CancelWork::class)->execute($work, 'operator cancel before receipt');
+    $resolver->finding($work, FixtureProviderRecoveryResolver::plan(ProviderRecoveryMode::ResumeFromReceipt, FinalizeFixtures::inputHash($work)));
+
+    expect(app(RecoveryReconciler::class)->recoverBlockedProvider())->toBe(0)
+        ->and($resolver->settlements)->toBe([])
+        ->and(providerPlanOf($work)['physical_call_id'])->toBe($unknown->physicalCallId->value)
+        ->and(providerRow($work)->state)->toBe('cancelled');
+});
+
 test('EXR-03 poison work не останавливает категорию: исключение одного expired work видимо, соседний recovers в этом же tick', function (): void {
     FinalizeFixtures::authority([StageCode::Listing]);
     $resolver = FixtureProviderRecoveryResolver::install();

@@ -142,7 +142,7 @@ final class RecoveryReconciler
     public function recoverBlockedProvider(): int
     {
         $recovered = 0;
-        foreach ($this->recovery->blockedProvider(self::BATCH) as $workId) {
+        foreach ([...$this->recovery->blockedProvider(self::BATCH), ...$this->recovery->cancelledProvider(self::BATCH)] as $workId) {
             $recovered += $this->isolated('recover_blocked_provider', $workId, function () use ($workId): int {
                 $pinned = $this->recovery->pinnedPlan($workId);
                 $plan = $pinned['plan'] ?? null;

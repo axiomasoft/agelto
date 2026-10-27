@@ -95,14 +95,19 @@ final readonly class WorkMutationRepository
 
         $provider->revokeUnclaimedLocked($snapshot->workId);
         $generation = $work->int('generation');
+        // Blocked provider_result_unknown: pinned plan остаётся durable до settlement reconciler-ом.
+        // Работа уходит из blocked-selector, но не из provider-recovery; due у cancelled запрещён схемой.
+        $keepPlan = $state === WorkState::Blocked && $this->works->lockedCheckpoint($work)?->providerRecoveryPlan instanceof ProviderRecoveryPlan;
         $row = LedgerRow::one(
             "UPDATE prc_process_work
              SET state = 'cancelled', reason_code = 'cancelled', generation = generation + 1, owner_token = NULL, lease_until = NULL,
                  dispatch_claim_until = NULL, due_at = NULL, provider_recovery_due_at = NULL,
-                 checkpoint = NULL, checkpoint_schema_version = NULL, transition_seq = transition_seq + 1, updated_at = clock_timestamp()
+                 checkpoint = CASE WHEN ?::boolean THEN checkpoint ELSE NULL END,
+                 checkpoint_schema_version = CASE WHEN ?::boolean THEN checkpoint_schema_version ELSE NULL END,
+                 transition_seq = transition_seq + 1, updated_at = clock_timestamp()
              WHERE id = ? AND generation = ? AND state IN ('ready', 'deferred', 'admitted', 'running', 'blocked')
              RETURNING generation, transition_seq",
-            [$snapshot->workId->value->value, $generation],
+            [$keepPlan, $keepPlan, $snapshot->workId->value->value, $generation],
         ) ?? throw new \LogicException('Cancel fence did not match the locked work.');
         if ($state === WorkState::Running) {
             $closed = DB::update(

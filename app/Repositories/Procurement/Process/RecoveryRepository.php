@@ -106,6 +106,22 @@ final readonly class RecoveryRepository
     }
 
     /**
+     * Cancelled work с pinned provider plan. Due у cancelled запрещён схемой, поэтому очередь — по
+     * updated_at: reschedule переставляет в конец.
+     *
+     * @return list<WorkId>
+     */
+    public function cancelledProvider(int $limit): array
+    {
+        return self::ids(LedgerRow::all(
+            "SELECT id FROM prc_process_work
+             WHERE state = 'cancelled' AND checkpoint->'provider_recovery_plan'->>'variant' = 'provider'
+             ORDER BY updated_at, id LIMIT ?",
+            [$limit],
+        ));
+    }
+
+    /**
      * EXR-03 selector: provider_recovery_due_at, а не lease_until/due_at; earliest-due fairness.
      *
      * @return list<WorkId>
@@ -423,8 +439,10 @@ final readonly class RecoveryRepository
         $state = $work->string('state');
         $unknown = $state === WorkState::Blocked->value && $work->nullableString('reason_code') === BlockedReason::ProviderResultUnknown->value;
         if (! $unknown) {
-            if ($finding !== null && $finding->mode !== ProviderRecoveryMode::BlockedUnknown
-                && in_array($state, [WorkState::Cancelled->value, WorkState::Superseded->value], true)) {
+            if ($state === WorkState::Cancelled->value) {
+                return $this->recoverCancelledProvider($snapshot, $prefix->work, $finding, $pinnedSeq, $resolver);
+            }
+            if ($finding !== null && $finding->mode !== ProviderRecoveryMode::BlockedUnknown && $state === WorkState::Superseded->value) {
                 $resolver->settleLocked($finding);
 
                 return RecoveryOutcome::Recovered;
@@ -491,6 +509,33 @@ final readonly class RecoveryRepository
         if ($next === WorkState::Ready) {
             $this->outbox->enqueueFeederWake($ids['feed'], $this->policy->parentLane($stage));
         }
+
+        return RecoveryOutcome::Recovered;
+    }
+
+    /**
+     * Cancelled work с pinned provider plan: settlement только по verified finding той же operation и
+     * под fence по checkpoint_seq. Resume и supersede здесь не делаются. Unknown или чужая operation
+     * переставляет work в конец очереди, чтобы не голодать остальные.
+     */
+    private function recoverCancelledProvider(AuthoritySnapshot $snapshot, LedgerRow $work, ?ProviderRecoveryPlan $finding, int $pinnedSeq, ProviderRecoveryResolver $resolver): RecoveryOutcome
+    {
+        $pinned = $this->works->lockedCheckpoint($work)?->providerRecoveryPlan;
+        if (! $pinned instanceof ProviderRecoveryPlan || $work->int('checkpoint_seq') !== $pinnedSeq) {
+            return RecoveryOutcome::Skipped;
+        }
+        if ($finding === null || $finding->mode === ProviderRecoveryMode::BlockedUnknown || ! self::sameOperation($pinned, $finding)) {
+            DB::update("UPDATE prc_process_work SET updated_at = clock_timestamp() WHERE id = ? AND state = 'cancelled'", [$snapshot->workId->value->value]);
+
+            return RecoveryOutcome::Skipped;
+        }
+        $resolver->settleLocked($finding);
+        DB::update(
+            "UPDATE prc_process_work
+             SET checkpoint = NULL, checkpoint_schema_version = NULL, checkpoint_seq = checkpoint_seq + 1, updated_at = clock_timestamp()
+             WHERE id = ? AND state = 'cancelled' AND checkpoint_seq = ?",
+            [$snapshot->workId->value->value, $pinnedSeq],
+        );
 
         return RecoveryOutcome::Recovered;
     }
