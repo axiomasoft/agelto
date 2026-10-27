@@ -70,8 +70,9 @@ test('два relay одновременно claim-ят непересекающ�
         expect($workers['first']['backend_pid'])->not->toBe($workers['second']['backend_pid'])
             // Один и тот же message не достаётся двум relay (SKIP LOCKED + claim_until).
             ->and(array_intersect($workers['first']['ids'], $workers['second']['ids']))->toBe([])
-            ->and(count($workers['first']['ids']))->toBeLessThanOrEqual(3)
-            ->and(count($workers['second']['ids']))->toBeLessThanOrEqual(3)
+            // Диагностика флейка: при нарушении лимита падение показывает сами claimed ids.
+            ->and(count($workers['first']['ids']) <= 3 ? [] : $workers['first']['ids'])->toBe([])
+            ->and(count($workers['second']['ids']) <= 3 ? [] : $workers['second']['ids'])->toBe([])
             ->and(array_intersect($first, $second))->toBe([])
             ->and($claimed)->toHaveCount(count($first) + count($second))
             ->and($claimed->every(fn (object $row): bool => $row->attempts === 1 && $row->published_at === null && $row->claim_until !== null))->toBeTrue()
